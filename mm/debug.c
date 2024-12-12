@@ -36,11 +36,6 @@ const struct trace_print_flags pageflag_names[] = {
 	{0, NULL}
 };
 
-const struct trace_print_flags pagetype_names[] = {
-	__def_pagetype_names,
-	{0, NULL}
-};
-
 const struct trace_print_flags gfpflag_names[] = {
 	__def_gfpflag_names,
 	{0, NULL}
@@ -51,6 +46,27 @@ const struct trace_print_flags vmaflag_names[] = {
 	{0, NULL}
 };
 
+#define DEF_PAGETYPE_NAME(_name) [PGTY_##_name - 0xf0] =  __stringify(_name)
+
+static const char *page_type_names[] = {
+	DEF_PAGETYPE_NAME(slab),
+	DEF_PAGETYPE_NAME(hugetlb),
+	DEF_PAGETYPE_NAME(offline),
+	DEF_PAGETYPE_NAME(guard),
+	DEF_PAGETYPE_NAME(table),
+	DEF_PAGETYPE_NAME(buddy),
+	DEF_PAGETYPE_NAME(unaccepted),
+};
+
+static const char *page_type_name(unsigned int page_type)
+{
+	unsigned i = (page_type >> 24) - 0xf0;
+
+	if (i >= ARRAY_SIZE(page_type_names))
+		return "unknown";
+	return page_type_names[i];
+}
+
 static void __dump_folio(struct folio *folio, struct page *page,
 		unsigned long pfn, unsigned long idx)
 {
@@ -58,7 +74,7 @@ static void __dump_folio(struct folio *folio, struct page *page,
 	int mapcount = atomic_read(&page->_mapcount);
 	char *type = "";
 
-	mapcount = page_type_has_type(mapcount) ? 0 : mapcount + 1;
+	mapcount = page_mapcount_is_type(mapcount) ? 0 : mapcount + 1;
 	pr_warn("page: refcount:%d mapcount:%d mapping:%p index:%#lx pfn:%#lx\n",
 			folio_ref_count(folio), mapcount, mapping,
 			folio->index + idx, pfn);
@@ -92,7 +108,8 @@ static void __dump_folio(struct folio *folio, struct page *page,
 	pr_warn("%sflags: %pGp%s\n", type, &folio->flags,
 		is_migrate_cma_folio(folio, pfn) ? " CMA" : "");
 	if (page_has_type(&folio->page))
-		pr_warn("page_type: %pGt\n", &folio->page.page_type);
+		pr_warn("page_type: %x(%s)\n", folio->page.page_type >> 24,
+				page_type_name(folio->page.page_type));
 
 	print_hex_dump(KERN_WARNING, "raw: ", DUMP_PREFIX_NONE, 32,
 			sizeof(unsigned long), page,

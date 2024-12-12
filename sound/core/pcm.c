@@ -462,6 +462,9 @@ static void snd_pcm_substream_proc_status_read(struct snd_info_entry *entry,
 	snd_iprintf(buffer, "-----\n");
 	snd_iprintf(buffer, "hw_ptr      : %ld\n", runtime->status->hw_ptr);
 	snd_iprintf(buffer, "appl_ptr    : %ld\n", runtime->control->appl_ptr);
+#ifdef CONFIG_SND_PCM_XRUN_DEBUG
+	snd_iprintf(buffer, "xrun_counter: %d\n", substream->xrun_counter);
+#endif
 }
 
 #ifdef CONFIG_SND_PCM_XRUN_DEBUG
@@ -970,6 +973,9 @@ int snd_pcm_attach_substream(struct snd_pcm *pcm, int stream,
 	substream->pid = get_pid(task_pid(current));
 	pstr->substream_opened++;
 	*rsubstream = substream;
+#ifdef CONFIG_SND_PCM_XRUN_DEBUG
+	substream->xrun_counter = 0;
+#endif /* CONFIG_SND_PCM_XRUN_DEBUG */
 	return 0;
 }
 

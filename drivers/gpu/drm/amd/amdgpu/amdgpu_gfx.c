@@ -24,10 +24,13 @@
  */
 
 #include <linux/firmware.h>
+#include <linux/pm_runtime.h>
+
 #include "amdgpu.h"
 #include "amdgpu_gfx.h"
 #include "amdgpu_rlc.h"
 #include "amdgpu_ras.h"
+#include "amdgpu_reset.h"
 #include "amdgpu_xcp.h"
 #include "amdgpu_xgmi.h"
 
@@ -882,8 +885,11 @@ int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *r
 	int r;
 
 	if (amdgpu_ras_is_supported(adev, ras_block->block)) {
-		if (!amdgpu_persistent_edc_harvesting_supported(adev))
-			amdgpu_ras_reset_error_status(adev, AMDGPU_RAS_BLOCK__GFX);
+		if (!amdgpu_persistent_edc_harvesting_supported(adev)) {
+			r = amdgpu_ras_reset_error_status(adev, AMDGPU_RAS_BLOCK__GFX);
+			if (r)
+				return r;
+		}
 
 		r = amdgpu_ras_block_late_init(adev, ras_block);
 		if (r)
@@ -1027,7 +1033,10 @@ uint32_t amdgpu_kiq_rreg(struct amdgpu_device *adev, uint32_t reg, uint32_t xcc_
 		pr_err("critical bug! too many kiq readers\n");
 		goto failed_unlock;
 	}
-	amdgpu_ring_alloc(ring, 32);
+	r = amdgpu_ring_alloc(ring, 32);
+	if (r)
+		goto failed_unlock;
+
 	amdgpu_ring_emit_rreg(ring, reg, reg_val_offs);
 	r = amdgpu_fence_emit_polling(ring, &seq, MAX_KIQ_REG_WAIT);
 	if (r)
@@ -1093,7 +1102,10 @@ void amdgpu_kiq_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v, uint3
 	}
 
 	spin_lock_irqsave(&kiq->ring_lock, flags);
-	amdgpu_ring_alloc(ring, 32);
+	r = amdgpu_ring_alloc(ring, 32);
+	if (r)
+		goto failed_unlock;
+
 	amdgpu_ring_emit_wreg(ring, reg, v);
 	r = amdgpu_fence_emit_polling(ring, &seq, MAX_KIQ_REG_WAIT);
 	if (r)
@@ -1129,6 +1141,7 @@ void amdgpu_kiq_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v, uint3
 
 failed_undo:
 	amdgpu_ring_undo(ring);
+failed_unlock:
 	spin_unlock_irqrestore(&kiq->ring_lock, flags);
 failed_kiq_write:
 	dev_err(adev->dev, "failed to write reg:%x\n", reg);
@@ -1381,6 +1394,217 @@ static ssize_t amdgpu_gfx_get_available_compute_partition(struct device *dev,
 	return sysfs_emit(buf, "%s\n", supported_partition);
 }
 
+static int amdgpu_gfx_run_cleaner_shader_job(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+	struct drm_gpu_scheduler *sched = &ring->sched;
+	struct drm_sched_entity entity;
+	struct dma_fence *f;
+	struct amdgpu_job *job;
+	struct amdgpu_ib *ib;
+	int i, r;
+
+	/* Initialize the scheduler entity */
+	r = drm_sched_entity_init(&entity, DRM_SCHED_PRIORITY_NORMAL,
+				  &sched, 1, NULL);
+	if (r) {
+		dev_err(adev->dev, "Failed setting up GFX kernel entity.\n");
+		goto err;
+	}
+
+	r = amdgpu_job_alloc_with_ib(ring->adev, &entity, NULL,
+				     64, 0,
+				     &job);
+	if (r)
+		goto err;
+
+	job->enforce_isolation = true;
+
+	ib = &job->ibs[0];
+	for (i = 0; i <= ring->funcs->align_mask; ++i)
+		ib->ptr[i] = ring->funcs->nop;
+	ib->length_dw = ring->funcs->align_mask + 1;
+
+	f = amdgpu_job_submit(job);
+
+	r = dma_fence_wait(f, false);
+	if (r)
+		goto err;
+
+	dma_fence_put(f);
+
+	/* Clean up the scheduler entity */
+	drm_sched_entity_destroy(&entity);
+	return 0;
+
+err:
+	return r;
+}
+
+static int amdgpu_gfx_run_cleaner_shader(struct amdgpu_device *adev, int xcp_id)
+{
+	int num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+	struct amdgpu_ring *ring;
+	int num_xcc_to_clear;
+	int i, r, xcc_id;
+
+	if (adev->gfx.num_xcc_per_xcp)
+		num_xcc_to_clear = adev->gfx.num_xcc_per_xcp;
+	else
+		num_xcc_to_clear = 1;
+
+	for (xcc_id = 0; xcc_id < num_xcc; xcc_id++) {
+		for (i = 0; i < adev->gfx.num_compute_rings; i++) {
+			ring = &adev->gfx.compute_ring[i + xcc_id * adev->gfx.num_compute_rings];
+			if ((ring->xcp_id == xcp_id) && ring->sched.ready) {
+				r = amdgpu_gfx_run_cleaner_shader_job(ring);
+				if (r)
+					return r;
+				num_xcc_to_clear--;
+				break;
+			}
+		}
+	}
+
+	if (num_xcc_to_clear)
+		return -ENOENT;
+
+	return 0;
+}
+
+static ssize_t amdgpu_gfx_set_run_cleaner_shader(struct device *dev,
+						 struct device_attribute *attr,
+						 const char *buf,
+						 size_t count)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	int ret;
+	long value;
+
+	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
+
+	ret = kstrtol(buf, 0, &value);
+
+	if (ret)
+		return -EINVAL;
+
+	if (value < 0)
+		return -EINVAL;
+
+	if (adev->xcp_mgr) {
+		if (value >= adev->xcp_mgr->num_xcps)
+			return -EINVAL;
+	} else {
+		if (value > 1)
+			return -EINVAL;
+	}
+
+	ret = pm_runtime_get_sync(ddev->dev);
+	if (ret < 0) {
+		pm_runtime_put_autosuspend(ddev->dev);
+		return ret;
+	}
+
+	ret = amdgpu_gfx_run_cleaner_shader(adev, value);
+
+	pm_runtime_mark_last_busy(ddev->dev);
+	pm_runtime_put_autosuspend(ddev->dev);
+
+	if (ret)
+		return ret;
+
+	return count;
+}
+
+static ssize_t amdgpu_gfx_get_enforce_isolation(struct device *dev,
+						struct device_attribute *attr,
+						char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	int i;
+	ssize_t size = 0;
+
+	if (adev->xcp_mgr) {
+		for (i = 0; i < adev->xcp_mgr->num_xcps; i++) {
+			size += sysfs_emit_at(buf, size, "%u", adev->enforce_isolation[i]);
+			if (i < (adev->xcp_mgr->num_xcps - 1))
+				size += sysfs_emit_at(buf, size, " ");
+		}
+		buf[size++] = '\n';
+	} else {
+		size = sysfs_emit_at(buf, 0, "%u\n", adev->enforce_isolation[0]);
+	}
+
+	return size;
+}
+
+static ssize_t amdgpu_gfx_set_enforce_isolation(struct device *dev,
+						struct device_attribute *attr,
+						const char *buf, size_t count)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	long partition_values[MAX_XCP] = {0};
+	int ret, i, num_partitions;
+	const char *input_buf = buf;
+
+	for (i = 0; i < (adev->xcp_mgr ? adev->xcp_mgr->num_xcps : 1); i++) {
+		ret = sscanf(input_buf, "%ld", &partition_values[i]);
+		if (ret <= 0)
+			break;
+
+		/* Move the pointer to the next value in the string */
+		input_buf = strchr(input_buf, ' ');
+		if (input_buf) {
+			input_buf++;
+		} else {
+			i++;
+			break;
+		}
+	}
+	num_partitions = i;
+
+	if (adev->xcp_mgr && num_partitions != adev->xcp_mgr->num_xcps)
+		return -EINVAL;
+
+	if (!adev->xcp_mgr && num_partitions != 1)
+		return -EINVAL;
+
+	for (i = 0; i < num_partitions; i++) {
+		if (partition_values[i] != 0 && partition_values[i] != 1)
+			return -EINVAL;
+	}
+
+	mutex_lock(&adev->enforce_isolation_mutex);
+
+	for (i = 0; i < num_partitions; i++) {
+		if (adev->enforce_isolation[i] && !partition_values[i]) {
+			/* Going from enabled to disabled */
+			amdgpu_vmid_free_reserved(adev, AMDGPU_GFXHUB(i));
+		} else if (!adev->enforce_isolation[i] && partition_values[i]) {
+			/* Going from disabled to enabled */
+			amdgpu_vmid_alloc_reserved(adev, AMDGPU_GFXHUB(i));
+		}
+		adev->enforce_isolation[i] = partition_values[i];
+	}
+
+	mutex_unlock(&adev->enforce_isolation_mutex);
+
+	return count;
+}
+
+static DEVICE_ATTR(run_cleaner_shader, 0200,
+		   NULL, amdgpu_gfx_set_run_cleaner_shader);
+
+static DEVICE_ATTR(enforce_isolation, 0644,
+		   amdgpu_gfx_get_enforce_isolation,
+		   amdgpu_gfx_set_enforce_isolation);
+
 static DEVICE_ATTR(current_compute_partition, 0644,
 		   amdgpu_gfx_get_current_compute_partition,
 		   amdgpu_gfx_set_compute_partition);
@@ -1405,4 +1629,227 @@ void amdgpu_gfx_sysfs_fini(struct amdgpu_device *adev)
 {
 	device_remove_file(adev->dev, &dev_attr_current_compute_partition);
 	device_remove_file(adev->dev, &dev_attr_available_compute_partition);
+}
+
+int amdgpu_gfx_sysfs_isolation_shader_init(struct amdgpu_device *adev)
+{
+	int r;
+
+	r = device_create_file(adev->dev, &dev_attr_enforce_isolation);
+	if (r)
+		return r;
+
+	r = device_create_file(adev->dev, &dev_attr_run_cleaner_shader);
+	if (r)
+		return r;
+
+	return 0;
+}
+
+void amdgpu_gfx_sysfs_isolation_shader_fini(struct amdgpu_device *adev)
+{
+	device_remove_file(adev->dev, &dev_attr_enforce_isolation);
+	device_remove_file(adev->dev, &dev_attr_run_cleaner_shader);
+}
+
+int amdgpu_gfx_cleaner_shader_sw_init(struct amdgpu_device *adev,
+				      unsigned int cleaner_shader_size)
+{
+	if (!adev->gfx.enable_cleaner_shader)
+		return -EOPNOTSUPP;
+
+	return amdgpu_bo_create_kernel(adev, cleaner_shader_size, PAGE_SIZE,
+				       AMDGPU_GEM_DOMAIN_VRAM | AMDGPU_GEM_DOMAIN_GTT,
+				       &adev->gfx.cleaner_shader_obj,
+				       &adev->gfx.cleaner_shader_gpu_addr,
+				       (void **)&adev->gfx.cleaner_shader_cpu_ptr);
+}
+
+void amdgpu_gfx_cleaner_shader_sw_fini(struct amdgpu_device *adev)
+{
+	if (!adev->gfx.enable_cleaner_shader)
+		return;
+
+	amdgpu_bo_free_kernel(&adev->gfx.cleaner_shader_obj,
+			      &adev->gfx.cleaner_shader_gpu_addr,
+			      (void **)&adev->gfx.cleaner_shader_cpu_ptr);
+}
+
+void amdgpu_gfx_cleaner_shader_init(struct amdgpu_device *adev,
+				    unsigned int cleaner_shader_size,
+				    const void *cleaner_shader_ptr)
+{
+	if (!adev->gfx.enable_cleaner_shader)
+		return;
+
+	if (adev->gfx.cleaner_shader_cpu_ptr && cleaner_shader_ptr)
+		memcpy_toio(adev->gfx.cleaner_shader_cpu_ptr, cleaner_shader_ptr,
+			    cleaner_shader_size);
+}
+
+/**
+ * amdgpu_gfx_kfd_sch_ctrl - Control the KFD scheduler from the KGD (Graphics Driver)
+ * @adev: amdgpu_device pointer
+ * @idx: Index of the scheduler to control
+ * @enable: Whether to enable or disable the KFD scheduler
+ *
+ * This function is used to control the KFD (Kernel Fusion Driver) scheduler
+ * from the KGD. It is part of the cleaner shader feature. This function plays
+ * a key role in enforcing process isolation on the GPU.
+ *
+ * The function uses a reference count mechanism (kfd_sch_req_count) to keep
+ * track of the number of requests to enable the KFD scheduler. When a request
+ * to enable the KFD scheduler is made, the reference count is decremented.
+ * When the reference count reaches zero, a delayed work is scheduled to
+ * enforce isolation after a delay of GFX_SLICE_PERIOD.
+ *
+ * When a request to disable the KFD scheduler is made, the function first
+ * checks if the reference count is zero. If it is, it cancels the delayed work
+ * for enforcing isolation and checks if the KFD scheduler is active. If the
+ * KFD scheduler is active, it sends a request to stop the KFD scheduler and
+ * sets the KFD scheduler state to inactive. Then, it increments the reference
+ * count.
+ *
+ * The function is synchronized using the kfd_sch_mutex to ensure that the KFD
+ * scheduler state and reference count are updated atomically.
+ *
+ * Note: If the reference count is already zero when a request to enable the
+ * KFD scheduler is made, it means there's an imbalance bug somewhere. The
+ * function triggers a warning in this case.
+ */
+static void amdgpu_gfx_kfd_sch_ctrl(struct amdgpu_device *adev, u32 idx,
+				    bool enable)
+{
+	mutex_lock(&adev->gfx.kfd_sch_mutex);
+
+	if (enable) {
+		/* If the count is already 0, it means there's an imbalance bug somewhere.
+		 * Note that the bug may be in a different caller than the one which triggers the
+		 * WARN_ON_ONCE.
+		 */
+		if (WARN_ON_ONCE(adev->gfx.kfd_sch_req_count[idx] == 0)) {
+			dev_err(adev->dev, "Attempted to enable KFD scheduler when reference count is already zero\n");
+			goto unlock;
+		}
+
+		adev->gfx.kfd_sch_req_count[idx]--;
+
+		if (adev->gfx.kfd_sch_req_count[idx] == 0 &&
+		    adev->gfx.kfd_sch_inactive[idx]) {
+			schedule_delayed_work(&adev->gfx.enforce_isolation[idx].work,
+					      GFX_SLICE_PERIOD);
+		}
+	} else {
+		if (adev->gfx.kfd_sch_req_count[idx] == 0) {
+			cancel_delayed_work_sync(&adev->gfx.enforce_isolation[idx].work);
+			if (!adev->gfx.kfd_sch_inactive[idx]) {
+				amdgpu_amdkfd_stop_sched(adev, idx);
+				adev->gfx.kfd_sch_inactive[idx] = true;
+			}
+		}
+
+		adev->gfx.kfd_sch_req_count[idx]++;
+	}
+
+unlock:
+	mutex_unlock(&adev->gfx.kfd_sch_mutex);
+}
+
+/**
+ * amdgpu_gfx_enforce_isolation_handler - work handler for enforcing shader isolation
+ *
+ * @work: work_struct.
+ *
+ * This function is the work handler for enforcing shader isolation on AMD GPUs.
+ * It counts the number of emitted fences for each GFX and compute ring. If there
+ * are any fences, it schedules the `enforce_isolation_work` to be run after a
+ * delay of `GFX_SLICE_PERIOD`. If there are no fences, it signals the Kernel Fusion
+ * Driver (KFD) to resume the runqueue. The function is synchronized using the
+ * `enforce_isolation_mutex`.
+ */
+void amdgpu_gfx_enforce_isolation_handler(struct work_struct *work)
+{
+	struct amdgpu_isolation_work *isolation_work =
+		container_of(work, struct amdgpu_isolation_work, work.work);
+	struct amdgpu_device *adev = isolation_work->adev;
+	u32 i, idx, fences = 0;
+
+	if (isolation_work->xcp_id == AMDGPU_XCP_NO_PARTITION)
+		idx = 0;
+	else
+		idx = isolation_work->xcp_id;
+
+	if (idx >= MAX_XCP)
+		return;
+
+	mutex_lock(&adev->enforce_isolation_mutex);
+	for (i = 0; i < AMDGPU_MAX_GFX_RINGS; ++i) {
+		if (isolation_work->xcp_id == adev->gfx.gfx_ring[i].xcp_id)
+			fences += amdgpu_fence_count_emitted(&adev->gfx.gfx_ring[i]);
+	}
+	for (i = 0; i < (AMDGPU_MAX_COMPUTE_RINGS * AMDGPU_MAX_GC_INSTANCES); ++i) {
+		if (isolation_work->xcp_id == adev->gfx.compute_ring[i].xcp_id)
+			fences += amdgpu_fence_count_emitted(&adev->gfx.compute_ring[i]);
+	}
+	if (fences) {
+		schedule_delayed_work(&adev->gfx.enforce_isolation[idx].work,
+				      GFX_SLICE_PERIOD);
+	} else {
+		/* Tell KFD to resume the runqueue */
+		if (adev->kfd.init_complete) {
+			WARN_ON_ONCE(!adev->gfx.kfd_sch_inactive[idx]);
+			WARN_ON_ONCE(adev->gfx.kfd_sch_req_count[idx]);
+				amdgpu_amdkfd_start_sched(adev, idx);
+				adev->gfx.kfd_sch_inactive[idx] = false;
+		}
+	}
+	mutex_unlock(&adev->enforce_isolation_mutex);
+}
+
+void amdgpu_gfx_enforce_isolation_ring_begin_use(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+	u32 idx;
+
+	if (!adev->gfx.enable_cleaner_shader)
+		return;
+
+	if (ring->xcp_id == AMDGPU_XCP_NO_PARTITION)
+		idx = 0;
+	else
+		idx = ring->xcp_id;
+
+	if (idx >= MAX_XCP)
+		return;
+
+	mutex_lock(&adev->enforce_isolation_mutex);
+	if (adev->enforce_isolation[idx]) {
+		if (adev->kfd.init_complete)
+			amdgpu_gfx_kfd_sch_ctrl(adev, idx, false);
+	}
+	mutex_unlock(&adev->enforce_isolation_mutex);
+}
+
+void amdgpu_gfx_enforce_isolation_ring_end_use(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+	u32 idx;
+
+	if (!adev->gfx.enable_cleaner_shader)
+		return;
+
+	if (ring->xcp_id == AMDGPU_XCP_NO_PARTITION)
+		idx = 0;
+	else
+		idx = ring->xcp_id;
+
+	if (idx >= MAX_XCP)
+		return;
+
+	mutex_lock(&adev->enforce_isolation_mutex);
+	if (adev->enforce_isolation[idx]) {
+		if (adev->kfd.init_complete)
+			amdgpu_gfx_kfd_sch_ctrl(adev, idx, true);
+	}
+	mutex_unlock(&adev->enforce_isolation_mutex);
 }

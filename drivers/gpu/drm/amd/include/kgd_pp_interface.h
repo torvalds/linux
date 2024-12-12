@@ -218,6 +218,7 @@ enum pp_mp1_state {
 	PP_MP1_STATE_SHUTDOWN,
 	PP_MP1_STATE_UNLOAD,
 	PP_MP1_STATE_RESET,
+	PP_MP1_STATE_FLR,
 };
 
 enum pp_df_cstate {

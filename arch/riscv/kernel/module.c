@@ -787,16 +787,14 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 	int res;
 	unsigned int num_relocations = sechdrs[relsec].sh_size / sizeof(*rel);
 	struct hlist_head *relocation_hashtable;
-	struct list_head used_buckets_list;
 	unsigned int hashtable_bits;
+	LIST_HEAD(used_buckets_list);
 
 	hashtable_bits = initialize_relocation_hashtable(num_relocations,
 							 &relocation_hashtable);
 
 	if (!relocation_hashtable)
 		return -ENOMEM;
-
-	INIT_LIST_HEAD(&used_buckets_list);
 
 	pr_debug("Applying relocate section %u to %u\n", relsec,
 	       sechdrs[relsec].sh_info);

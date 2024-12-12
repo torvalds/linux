@@ -373,6 +373,6 @@ static struct platform_driver plt_clk_driver = {
 		.name = "clk-pmc-atom",
 	},
 	.probe = plt_clk_probe,
-	.remove_new = plt_clk_remove,
+	.remove = plt_clk_remove,
 };
 builtin_platform_driver(plt_clk_driver);

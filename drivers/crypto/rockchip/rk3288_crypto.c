@@ -433,7 +433,7 @@ static void rk_crypto_remove(struct platform_device *pdev)
 
 static struct platform_driver crypto_driver = {
 	.probe		= rk_crypto_probe,
-	.remove_new	= rk_crypto_remove,
+	.remove		= rk_crypto_remove,
 	.driver		= {
 		.name	= "rk3288-crypto",
 		.pm		= &rk_crypto_pm_ops,

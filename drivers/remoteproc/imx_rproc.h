@@ -26,6 +26,9 @@ enum imx_rproc_method {
 	IMX_RPROC_SCU_API,
 };
 
+/* dcfg flags */
+#define IMX_RPROC_NEED_SYSTEM_OFF	BIT(0)
+
 struct imx_rproc_dcfg {
 	u32				src_reg;
 	u32				src_mask;
@@ -36,6 +39,7 @@ struct imx_rproc_dcfg {
 	const struct imx_rproc_att	*att;
 	size_t				att_size;
 	enum imx_rproc_method		method;
+	u32				flags;
 };
 
 #endif /* _IMX_RPROC_H */

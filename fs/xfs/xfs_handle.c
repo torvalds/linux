@@ -85,22 +85,23 @@ xfs_find_handle(
 	int			hsize;
 	xfs_handle_t		handle;
 	struct inode		*inode;
-	struct fd		f = {NULL};
 	struct path		path;
 	int			error;
 	struct xfs_inode	*ip;
 
 	if (cmd == XFS_IOC_FD_TO_HANDLE) {
-		f = fdget(hreq->fd);
-		if (!f.file)
+		CLASS(fd, f)(hreq->fd);
+
+		if (fd_empty(f))
 			return -EBADF;
-		inode = file_inode(f.file);
+		path = fd_file(f)->f_path;
+		path_get(&path);
 	} else {
 		error = user_path_at(AT_FDCWD, hreq->path, 0, &path);
 		if (error)
 			return error;
-		inode = d_inode(path.dentry);
 	}
+	inode = d_inode(path.dentry);
 	ip = XFS_I(inode);
 
 	/*
@@ -134,10 +135,7 @@ xfs_find_handle(
 	error = 0;
 
  out_put:
-	if (cmd == XFS_IOC_FD_TO_HANDLE)
-		fdput(f);
-	else
-		path_put(&path);
+	path_put(&path);
 	return error;
 }
 

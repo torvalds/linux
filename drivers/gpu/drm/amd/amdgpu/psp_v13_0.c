@@ -81,6 +81,8 @@ MODULE_FIRMWARE("amdgpu/psp_14_0_4_ta.bin");
 /* memory training timeout define */
 #define MEM_TRAIN_SEND_MSG_TIMEOUT_US	3000000
 
+#define regMP1_PUB_SCRATCH0	0x3b10090
+
 static int psp_v13_0_init_microcode(struct psp_context *psp)
 {
 	struct amdgpu_device *adev = psp->adev;
@@ -807,6 +809,20 @@ static bool psp_v13_0_get_ras_capability(struct psp_context *psp)
 	}
 }
 
+static bool psp_v13_0_is_aux_sos_load_required(struct psp_context *psp)
+{
+	struct amdgpu_device *adev = psp->adev;
+	u32 pmfw_ver;
+
+	if (amdgpu_ip_version(adev, MP0_HWIP, 0) != IP_VERSION(13, 0, 6))
+		return false;
+
+	/* load 4e version of sos if pmfw version less than 85.115.0 */
+	pmfw_ver = RREG32(regMP1_PUB_SCRATCH0 / 4);
+
+	return (pmfw_ver < 0x557300);
+}
+
 static const struct psp_funcs psp_v13_0_funcs = {
 	.init_microcode = psp_v13_0_init_microcode,
 	.wait_for_bootloader = psp_v13_0_wait_for_bootloader_steady_state,
@@ -830,6 +846,7 @@ static const struct psp_funcs psp_v13_0_funcs = {
 	.vbflash_stat = psp_v13_0_vbflash_status,
 	.fatal_error_recovery_quirk = psp_v13_0_fatal_error_recovery_quirk,
 	.get_ras_capability = psp_v13_0_get_ras_capability,
+	.is_aux_sos_load_required = psp_v13_0_is_aux_sos_load_required,
 };
 
 void psp_v13_0_set_psp_funcs(struct psp_context *psp)

@@ -5,7 +5,7 @@
  * Contact Information: wlanfae <wlanfae@realtek.com>
  */
 #include <asm/byteorder.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/etherdevice.h>
 #include "rtllib.h"
 #include "rtl819x_BA.h"

@@ -347,7 +347,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(stmpe_adc_pm_ops, NULL, stmpe_adc_resume);
 
 static const struct of_device_id stmpe_adc_ids[] = {
 	{ .compatible = "st,stmpe-adc", },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, stmpe_adc_ids);
 

@@ -18,11 +18,11 @@ static void fuse_file_accessed(struct file *file)
 	fuse_invalidate_atime(inode);
 }
 
-static void fuse_file_modified(struct file *file)
+static void fuse_passthrough_end_write(struct file *file, loff_t pos, ssize_t ret)
 {
 	struct inode *inode = file_inode(file);
 
-	fuse_invalidate_attr_mask(inode, FUSE_STATX_MODSIZE);
+	fuse_write_update_attr(inode, pos, ret);
 }
 
 ssize_t fuse_passthrough_read_iter(struct kiocb *iocb, struct iov_iter *iter)
@@ -63,7 +63,7 @@ ssize_t fuse_passthrough_write_iter(struct kiocb *iocb,
 	struct backing_file_ctx ctx = {
 		.cred = ff->cred,
 		.user_file = file,
-		.end_write = fuse_file_modified,
+		.end_write = fuse_passthrough_end_write,
 	};
 
 	pr_debug("%s: backing_file=0x%p, pos=%lld, len=%zu\n", __func__,
@@ -110,7 +110,7 @@ ssize_t fuse_passthrough_splice_write(struct pipe_inode_info *pipe,
 	struct backing_file_ctx ctx = {
 		.cred = ff->cred,
 		.user_file = out,
-		.end_write = fuse_file_modified,
+		.end_write = fuse_passthrough_end_write,
 	};
 
 	pr_debug("%s: backing_file=0x%p, pos=%lld, len=%zu, flags=0x%x\n", __func__,
@@ -228,14 +228,10 @@ int fuse_backing_open(struct fuse_conn *fc, struct fuse_backing_map *map)
 	if (map->flags || map->padding)
 		goto out;
 
-	file = fget(map->fd);
+	file = fget_raw(map->fd);
 	res = -EBADF;
 	if (!file)
 		goto out;
-
-	res = -EOPNOTSUPP;
-	if (!file->f_op->read_iter || !file->f_op->write_iter)
-		goto out_fput;
 
 	backing_sb = file_inode(file)->i_sb;
 	res = -ELOOP;

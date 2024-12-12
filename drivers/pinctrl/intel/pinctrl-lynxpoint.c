@@ -211,7 +211,7 @@ static void __iomem *lp_gpio_reg(struct gpio_chip *chip, unsigned int offset,
 				 int reg)
 {
 	struct intel_pinctrl *lg = gpiochip_get_data(chip);
-	struct intel_community *comm;
+	const struct intel_community *comm;
 	int reg_offset;
 
 	comm = intel_get_community(lg, offset);

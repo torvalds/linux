@@ -13,7 +13,6 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/of_irq.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
@@ -21,7 +20,7 @@
 #include <sound/soc.h>
 #include <sound/tlv.h>
 #include <sound/tas2781.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define ERROR_PRAM_CRCCHK			0x0000000
 #define ERROR_YRAM_CRCCHK			0x0000001
@@ -1993,6 +1992,7 @@ static int tasdevice_dspfw_ready(const struct firmware *fmw,
 		break;
 	case 0x202:
 	case 0x400:
+	case 0x401:
 		tas_priv->fw_parse_variable_header =
 			fw_parse_variable_header_git;
 		tas_priv->fw_parse_program_data =
@@ -2152,20 +2152,61 @@ static int tasdevice_load_data(struct tasdevice_priv *tas_priv,
 
 static void tasdev_load_calibrated_data(struct tasdevice_priv *priv, int i)
 {
+	struct tasdevice_fw *cal_fmw = priv->tasdevice[i].cali_data_fmw;
+	struct calidata *cali_data = &priv->cali_data;
+	struct cali_reg *p = &cali_data->cali_reg_array;
+	unsigned char *data = cali_data->data;
 	struct tasdevice_calibration *cal;
-	struct tasdevice_fw *cal_fmw;
+	int k = i * (cali_data->cali_dat_sz_per_dev + 1);
+	int rc;
 
-	cal_fmw = priv->tasdevice[i].cali_data_fmw;
+	/* Load the calibrated data from cal bin file */
+	if (!priv->is_user_space_calidata && cal_fmw) {
+		cal = cal_fmw->calibrations;
 
-	/* No calibrated data for current devices, playback will go ahead. */
-	if (!cal_fmw)
+		if (cal)
+			load_calib_data(priv, &cal->dev_data);
 		return;
-
-	cal = cal_fmw->calibrations;
-	if (!cal)
+	}
+	if (!priv->is_user_space_calidata)
 		return;
+	/* load calibrated data from user space */
+	if (data[k] != i) {
+		dev_err(priv->dev, "%s: no cal-data for dev %d from usr-spc\n",
+			__func__, i);
+		return;
+	}
+	k++;
 
-	load_calib_data(priv, &cal->dev_data);
+	rc = tasdevice_dev_bulk_write(priv, i, p->r0_reg, &(data[k]), 4);
+	if (rc < 0) {
+		dev_err(priv->dev, "chn %d r0_reg bulk_wr err = %d\n", i, rc);
+		return;
+	}
+	k += 4;
+	rc = tasdevice_dev_bulk_write(priv, i, p->r0_low_reg, &(data[k]), 4);
+	if (rc < 0) {
+		dev_err(priv->dev, "chn %d r0_low_reg err = %d\n", i, rc);
+		return;
+	}
+	k += 4;
+	rc = tasdevice_dev_bulk_write(priv, i, p->invr0_reg, &(data[k]), 4);
+	if (rc < 0) {
+		dev_err(priv->dev, "chn %d invr0_reg err = %d\n", i, rc);
+		return;
+	}
+	k += 4;
+	rc = tasdevice_dev_bulk_write(priv, i, p->pow_reg, &(data[k]), 4);
+	if (rc < 0) {
+		dev_err(priv->dev, "chn %d pow_reg bulk_wr err = %d\n", i, rc);
+		return;
+	}
+	k += 4;
+	rc = tasdevice_dev_bulk_write(priv, i, p->tlimit_reg, &(data[k]), 4);
+	if (rc < 0) {
+		dev_err(priv->dev, "chn %d tlimit_reg err = %d\n", i, rc);
+		return;
+	}
 }
 
 int tasdevice_select_tuningprm_cfg(void *context, int prm_no,
@@ -2260,9 +2301,10 @@ int tasdevice_select_tuningprm_cfg(void *context, int prm_no,
 				tas_priv->tasdevice[i].cur_conf = cfg_no;
 			}
 		}
-	} else
+	} else {
 		dev_dbg(tas_priv->dev, "%s: Unneeded loading dsp conf %d\n",
 			__func__, cfg_no);
+	}
 
 	status |= cfg_info[rca_conf_no]->active_dev;
 

@@ -8,5 +8,6 @@ config ARCH_LPC32XX
 	select CLKSRC_LPC32XX
 	select CPU_ARM926T
 	select GPIOLIB
+	select LPC32XX_DMAMUX if AMBA_PL08X
 	help
 	  Support for the NXP LPC32XX family of processors

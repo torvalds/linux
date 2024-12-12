@@ -7,24 +7,7 @@
 	compatible = "nvidia,p3768-0000+p3767-0000", "nvidia,p3767-0000", "nvidia,tegra234";
 	model = "NVIDIA Jetson Orin NX Engineering Reference Developer Kit";
 
-	aliases {
-		serial1 = &uarta;
-		serial2 = &uarte;
-	};
-
 	bus@0 {
-		serial@3100000 {
-			compatible = "nvidia,tegra194-hsuart";
-			reset-names = "serial";
-			status = "okay";
-		};
-
-		serial@3140000 {
-			compatible = "nvidia,tegra194-hsuart";
-			reset-names = "serial";
-			status = "okay";
-		};
-
 		hda@3510000 {
 			nvidia,model = "NVIDIA Jetson Orin NX HDA";
 		};

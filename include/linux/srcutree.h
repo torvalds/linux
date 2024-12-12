@@ -25,7 +25,7 @@ struct srcu_data {
 	/* Read-side state. */
 	atomic_long_t srcu_lock_count[2];	/* Locks per CPU. */
 	atomic_long_t srcu_unlock_count[2];	/* Unlocks per CPU. */
-	int srcu_nmi_safety;			/* NMI-safe srcu_struct structure? */
+	int srcu_reader_flavor;			/* Reader flavor for srcu_struct structure? */
 
 	/* Update-side state. */
 	spinlock_t __private lock ____cacheline_internodealigned_in_smp;
@@ -42,6 +42,11 @@ struct srcu_data {
 	int cpu;
 	struct srcu_struct *ssp;
 };
+
+/* Values for ->srcu_reader_flavor. */
+#define SRCU_READ_FLAVOR_NORMAL	0x1		// srcu_read_lock().
+#define SRCU_READ_FLAVOR_NMI	0x2		// srcu_read_lock_nmisafe().
+#define SRCU_READ_FLAVOR_LITE	0x4		// srcu_read_lock_lite().
 
 /*
  * Node in SRCU combining tree, similar in function to rcu_data.
@@ -129,10 +134,23 @@ struct srcu_struct {
 #define SRCU_STATE_SCAN1	1
 #define SRCU_STATE_SCAN2	2
 
+/*
+ * Values for initializing gp sequence fields. Higher values allow wrap arounds to
+ * occur earlier.
+ * The second value with state is useful in the case of static initialization of
+ * srcu_usage where srcu_gp_seq_needed is expected to have some state value in its
+ * lower bits (or else it will appear to be already initialized within
+ * the call check_init_srcu_struct()).
+ */
+#define SRCU_GP_SEQ_INITIAL_VAL ((0UL - 100UL) << RCU_SEQ_CTR_SHIFT)
+#define SRCU_GP_SEQ_INITIAL_VAL_WITH_STATE (SRCU_GP_SEQ_INITIAL_VAL - 1)
+
 #define __SRCU_USAGE_INIT(name)									\
 {												\
 	.lock = __SPIN_LOCK_UNLOCKED(name.lock),						\
-	.srcu_gp_seq_needed = -1UL,								\
+	.srcu_gp_seq = SRCU_GP_SEQ_INITIAL_VAL,							\
+	.srcu_gp_seq_needed = SRCU_GP_SEQ_INITIAL_VAL_WITH_STATE,				\
+	.srcu_gp_seq_needed_exp = SRCU_GP_SEQ_INITIAL_VAL,					\
 	.work = __DELAYED_WORK_INITIALIZER(name.work, NULL, 0),					\
 }
 
@@ -190,5 +208,65 @@ struct srcu_struct {
 void synchronize_srcu_expedited(struct srcu_struct *ssp);
 void srcu_barrier(struct srcu_struct *ssp);
 void srcu_torture_stats_print(struct srcu_struct *ssp, char *tt, char *tf);
+
+/*
+ * Counts the new reader in the appropriate per-CPU element of the
+ * srcu_struct.  Returns an index that must be passed to the matching
+ * srcu_read_unlock_lite().
+ *
+ * Note that this_cpu_inc() is an RCU read-side critical section either
+ * because it disables interrupts, because it is a single instruction,
+ * or because it is a read-modify-write atomic operation, depending on
+ * the whims of the architecture.
+ */
+static inline int __srcu_read_lock_lite(struct srcu_struct *ssp)
+{
+	int idx;
+
+	RCU_LOCKDEP_WARN(!rcu_is_watching(), "RCU must be watching srcu_read_lock_lite().");
+	idx = READ_ONCE(ssp->srcu_idx) & 0x1;
+	this_cpu_inc(ssp->sda->srcu_lock_count[idx].counter); /* Y */
+	barrier(); /* Avoid leaking the critical section. */
+	return idx;
+}
+
+/*
+ * Removes the count for the old reader from the appropriate
+ * per-CPU element of the srcu_struct.  Note that this may well be a
+ * different CPU than that which was incremented by the corresponding
+ * srcu_read_lock_lite(), but it must be within the same task.
+ *
+ * Note that this_cpu_inc() is an RCU read-side critical section either
+ * because it disables interrupts, because it is a single instruction,
+ * or because it is a read-modify-write atomic operation, depending on
+ * the whims of the architecture.
+ */
+static inline void __srcu_read_unlock_lite(struct srcu_struct *ssp, int idx)
+{
+	barrier();  /* Avoid leaking the critical section. */
+	this_cpu_inc(ssp->sda->srcu_unlock_count[idx].counter);  /* Z */
+	RCU_LOCKDEP_WARN(!rcu_is_watching(), "RCU must be watching srcu_read_unlock_lite().");
+}
+
+void __srcu_check_read_flavor(struct srcu_struct *ssp, int read_flavor);
+
+// Record _lite() usage even for CONFIG_PROVE_RCU=n kernels.
+static inline void srcu_check_read_flavor_lite(struct srcu_struct *ssp)
+{
+	struct srcu_data *sdp = raw_cpu_ptr(ssp->sda);
+
+	if (likely(READ_ONCE(sdp->srcu_reader_flavor) & SRCU_READ_FLAVOR_LITE))
+		return;
+
+	// Note that the cmpxchg() in srcu_check_read_flavor() is fully ordered.
+	__srcu_check_read_flavor(ssp, SRCU_READ_FLAVOR_LITE);
+}
+
+// Record non-_lite() usage only for CONFIG_PROVE_RCU=y kernels.
+static inline void srcu_check_read_flavor(struct srcu_struct *ssp, int read_flavor)
+{
+	if (IS_ENABLED(CONFIG_PROVE_RCU))
+		__srcu_check_read_flavor(ssp, read_flavor);
+}
 
 #endif

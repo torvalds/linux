@@ -9,7 +9,7 @@ perf-ftrace - simple wrapper for kernel's ftrace functionality
 SYNOPSIS
 --------
 [verse]
-'perf ftrace' {trace|latency} <command>
+'perf ftrace' {trace|latency|profile} <command>
 
 DESCRIPTION
 -----------
@@ -22,6 +22,9 @@ kernel's ftrace infrastructure.
 
   'perf ftrace latency' calculates execution latency of a given function
   (optionally with BPF) and display it as a histogram.
+
+  'perf ftrace profile' show a execution profile for each function including
+  total, average, max time and the number of calls.
 
 The following options apply to perf ftrace.
 
@@ -125,6 +128,7 @@ OPTIONS for 'perf ftrace trace'
 	  - verbose      - Show process names, PIDs, timestamps, etc.
 	  - thresh=<n>   - Setup trace duration threshold in microseconds.
 	  - depth=<n>    - Set max depth for function graph tracer to follow.
+	  - tail         - Print function name at the end.
 
 
 OPTIONS for 'perf ftrace latency'
@@ -143,6 +147,48 @@ OPTIONS for 'perf ftrace latency'
 -n::
 --use-nsec::
 	Use nano-second instead of micro-second as a base unit of the histogram.
+
+
+OPTIONS for 'perf ftrace profile'
+---------------------------------
+
+-T::
+--trace-funcs=::
+	Set function filter on the given function (or a glob pattern).
+	Multiple functions can be given by using this option more than once.
+	The function argument also can be a glob pattern. It will be passed
+	to 'set_ftrace_filter' in tracefs.
+
+-N::
+--notrace-funcs=::
+	Do not trace functions given by the argument.  Like -T option, this
+	can be used more than once to specify multiple functions (or glob
+	patterns).  It will be passed to 'set_ftrace_notrace' in tracefs.
+
+-G::
+--graph-funcs=::
+	Set graph filter on the given function (or a glob pattern). This is
+	useful to trace for functions executed from the given function. This
+	can be used more than once to specify multiple functions. It will be
+	passed to 'set_graph_function' in tracefs.
+
+-g::
+--nograph-funcs=::
+	Set graph notrace filter on the given function (or a glob pattern).
+	Like -G option, this is useful for the function_graph tracer only and
+	disables tracing for function executed from the given function. This
+	can be used more than once to specify multiple functions. It will be
+	passed to 'set_graph_notrace' in tracefs.
+
+-m::
+--buffer-size::
+	Set the size of per-cpu tracing buffer, <size> is expected to
+	be a number with appended unit character - B/K/M/G.
+
+-s::
+--sort=::
+	Sort the result by the given field.  Available values are:
+	total, avg, max, count, name.  Default is 'total'.
 
 
 SEE ALSO

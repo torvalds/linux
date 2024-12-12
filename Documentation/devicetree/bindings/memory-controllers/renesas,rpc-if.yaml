@@ -67,7 +67,9 @@ properties:
       - const: dirmap
       - const: wbuf
 
-  clocks: true
+  clocks:
+    minItems: 1
+    maxItems: 2
 
   interrupts:
     maxItems: 1

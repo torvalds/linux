@@ -51,7 +51,7 @@ which has only two fields::
 
 	struct completion {
 		unsigned int done;
-		wait_queue_head_t wait;
+		struct swait_queue_head wait;
 	};
 
 This provides the ->wait waitqueue to place tasks on for waiting (if any), and

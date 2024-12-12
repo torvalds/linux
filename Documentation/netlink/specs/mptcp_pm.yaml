@@ -293,7 +293,6 @@ operations:
       doc: Get endpoint information
       attribute-set: attr
       dont-validate: [ strict ]
-      flags: [ uns-admin-perm ]
       do: &get-addr-attrs
         request:
           attributes:

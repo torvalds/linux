@@ -37,6 +37,7 @@ properties:
           - renesas,pwm-r8a77995  # R-Car D3
           - renesas,pwm-r8a779a0  # R-Car V3U
           - renesas,pwm-r8a779g0  # R-Car V4H
+          - renesas,pwm-r8a779h0  # R-Car V4M
       - const: renesas,pwm-rcar
 
   reg:

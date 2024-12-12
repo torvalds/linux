@@ -532,7 +532,7 @@ static struct platform_driver tegra210_adx_driver = {
 		.pm = &tegra210_adx_pm_ops,
 	},
 	.probe = tegra210_adx_platform_probe,
-	.remove_new = tegra210_adx_platform_remove,
+	.remove = tegra210_adx_platform_remove,
 };
 module_platform_driver(tegra210_adx_driver);
 

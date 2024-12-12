@@ -565,8 +565,6 @@ static void starfive_rsa_exit_tfm(struct crypto_akcipher *tfm)
 static struct akcipher_alg starfive_rsa = {
 	.encrypt = starfive_rsa_enc,
 	.decrypt = starfive_rsa_dec,
-	.sign = starfive_rsa_dec,
-	.verify = starfive_rsa_enc,
 	.set_pub_key = starfive_rsa_set_pub_key,
 	.set_priv_key = starfive_rsa_set_priv_key,
 	.max_size = starfive_rsa_max_size,

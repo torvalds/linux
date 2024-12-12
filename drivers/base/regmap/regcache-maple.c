@@ -348,7 +348,7 @@ static int regcache_maple_init(struct regmap *map)
 	int ret;
 	int range_start;
 
-	mt = kmalloc(sizeof(*mt), GFP_KERNEL);
+	mt = kmalloc(sizeof(*mt), map->alloc_flags);
 	if (!mt)
 		return -ENOMEM;
 	map->cache = mt;

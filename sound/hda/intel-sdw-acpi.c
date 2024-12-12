@@ -17,7 +17,6 @@
 #include <linux/string.h>
 
 #define SDW_LINK_TYPE		4 /* from Intel ACPI documentation */
-#define SDW_MAX_LINKS		4
 
 static int ctrl_link_mask;
 module_param_named(sdw_link_mask, ctrl_link_mask, int, 0444);
@@ -57,18 +56,21 @@ static int
 sdw_intel_scan_controller(struct sdw_intel_acpi_info *info)
 {
 	struct acpi_device *adev = acpi_fetch_acpi_dev(info->handle);
-	u8 count, i;
+	struct fwnode_handle *fwnode;
+	unsigned long list;
+	unsigned int i;
+	u32 count;
+	u32 tmp;
 	int ret;
 
 	if (!adev)
 		return -EINVAL;
 
-	/* Found controller, find links supported */
-	count = 0;
-	ret = fwnode_property_read_u8_array(acpi_fwnode_handle(adev),
-					    "mipi-sdw-master-count", &count, 1);
+	fwnode = acpi_fwnode_handle(adev);
 
 	/*
+	 * Found controller, find links supported
+	 *
 	 * In theory we could check the number of links supported in
 	 * hardware, but in that step we cannot assume SoundWire IP is
 	 * powered.
@@ -79,17 +81,25 @@ sdw_intel_scan_controller(struct sdw_intel_acpi_info *info)
 	 *
 	 * We will check the hardware capabilities in the startup() step
 	 */
-
+	ret = fwnode_property_read_u32(fwnode, "mipi-sdw-manager-list", &tmp);
 	if (ret) {
-		dev_err(&adev->dev,
-			"Failed to read mipi-sdw-master-count: %d\n", ret);
-		return -EINVAL;
+		ret = fwnode_property_read_u32(fwnode, "mipi-sdw-master-count", &count);
+		if (ret) {
+			dev_err(&adev->dev,
+				"Failed to read mipi-sdw-master-count: %d\n",
+				ret);
+			return ret;
+		}
+		list = GENMASK(count - 1, 0);
+	} else {
+		list = tmp;
+		count = hweight32(list);
 	}
 
 	/* Check count is within bounds */
-	if (count > SDW_MAX_LINKS) {
+	if (count > SDW_INTEL_MAX_LINKS) {
 		dev_err(&adev->dev, "Link count %d exceeds max %d\n",
-			count, SDW_MAX_LINKS);
+			count, SDW_INTEL_MAX_LINKS);
 		return -EINVAL;
 	}
 
@@ -102,14 +112,14 @@ sdw_intel_scan_controller(struct sdw_intel_acpi_info *info)
 	info->count = count;
 	info->link_mask = 0;
 
-	for (i = 0; i < count; i++) {
+	for_each_set_bit(i, &list, SDW_INTEL_MAX_LINKS) {
 		if (ctrl_link_mask && !(ctrl_link_mask & BIT(i))) {
 			dev_dbg(&adev->dev,
 				"Link %d masked, will not be enabled\n", i);
 			continue;
 		}
 
-		if (!is_link_enabled(acpi_fwnode_handle(adev), i)) {
+		if (!is_link_enabled(fwnode, i)) {
 			dev_dbg(&adev->dev,
 				"Link %d not selected in firmware\n", i);
 			continue;

@@ -107,7 +107,7 @@
  * If header mode is set in DMA descriptor,
  *   If bit 30 is disabled, HDR_LEN must be configured according to channel
  *     requirement.
- *   If bit 30 is enabled(checksum with heade mode), HDR_LEN has no need to
+ *   If bit 30 is enabled(checksum with header mode), HDR_LEN has no need to
  *     be configured. It will enable check sum for switch
  * If header mode is not set in DMA descriptor,
  *   This register setting doesn't matter

@@ -3578,6 +3578,7 @@ int iommu_replace_group_handle(struct iommu_group *group,
 		ret = xa_reserve(&group->pasid_array, IOMMU_NO_PASID, GFP_KERNEL);
 		if (ret)
 			goto err_unlock;
+		handle->domain = new_domain;
 	}
 
 	ret = __iommu_group_set_domain(group, new_domain);

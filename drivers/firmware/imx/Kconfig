@@ -22,3 +22,14 @@ config IMX_SCU
 
 	  This driver manages the IPC interface between host CPU and the
 	  SCU firmware running on M4.
+
+config IMX_SCMI_MISC_DRV
+	tristate "IMX SCMI MISC Protocol driver"
+	depends on IMX_SCMI_MISC_EXT || COMPILE_TEST
+	default y if ARCH_MXC
+	help
+	  The System Controller Management Interface firmware (SCMI FW) is
+	  a low-level system function which runs on a dedicated Cortex-M
+	  core that could provide misc functions such as board control.
+
+	  This driver can also be built as a module.

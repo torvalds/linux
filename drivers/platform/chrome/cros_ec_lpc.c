@@ -631,12 +631,12 @@ static const struct acpi_device_id cros_ec_lpc_acpi_device_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, cros_ec_lpc_acpi_device_ids);
 
-static const struct lpc_driver_data framework_laptop_amd_lpc_driver_data __initconst = {
+static const struct lpc_driver_data framework_laptop_npcx_lpc_driver_data __initconst = {
 	.quirks = CROS_EC_LPC_QUIRK_REMAP_MEMORY,
 	.quirk_mmio_memory_base = 0xE00,
 };
 
-static const struct lpc_driver_data framework_laptop_11_lpc_driver_data __initconst = {
+static const struct lpc_driver_data framework_laptop_mec_lpc_driver_data __initconst = {
 	.quirks = CROS_EC_LPC_QUIRK_ACPI_ID|CROS_EC_LPC_QUIRK_AML_MUTEX,
 	.quirk_acpi_id = "PNP0C09",
 	.quirk_aml_mutex_name = "ECMT",
@@ -696,21 +696,39 @@ static const struct dmi_system_id cros_ec_lpc_dmi_table[] __initconst = {
 	},
 	/* A small number of non-Chromebook/box machines also use the ChromeOS EC */
 	{
-		/* the Framework Laptop 13 (AMD Ryzen) and 16 (AMD Ryzen) */
+		/* Framework Laptop (11th Gen Intel Core) */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Framework"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "AMD Ryzen"),
-			DMI_MATCH(DMI_PRODUCT_FAMILY, "Laptop"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "Laptop"),
 		},
-		.driver_data = (void *)&framework_laptop_amd_lpc_driver_data,
+		.driver_data = (void *)&framework_laptop_mec_lpc_driver_data,
 	},
 	{
-		/* the Framework Laptop (Intel 11th, 12th, 13th Generation) */
+		/* Framework Laptop (12th Gen Intel Core) */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Framework"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Laptop"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "12th Gen Intel Core"),
 		},
-		.driver_data = (void *)&framework_laptop_11_lpc_driver_data,
+		.driver_data = (void *)&framework_laptop_mec_lpc_driver_data,
+	},
+	{
+		/* Framework Laptop (13th Gen Intel Core) */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Framework"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "13th Gen Intel Core"),
+		},
+		.driver_data = (void *)&framework_laptop_mec_lpc_driver_data,
+	},
+	{
+		/*
+		 * All remaining Framework Laptop models (13 AMD Ryzen, 16 AMD
+		 * Ryzen, Intel Core Ultra)
+		 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Framework"),
+			DMI_MATCH(DMI_PRODUCT_FAMILY, "Laptop"),
+		},
+		.driver_data = (void *)&framework_laptop_npcx_lpc_driver_data,
 	},
 	{ /* sentinel */ }
 };
@@ -765,7 +783,7 @@ static struct platform_driver cros_ec_lpc_driver = {
 		.probe_type = PROBE_FORCE_SYNCHRONOUS,
 	},
 	.probe = cros_ec_lpc_probe,
-	.remove_new = cros_ec_lpc_remove,
+	.remove = cros_ec_lpc_remove,
 };
 
 static struct platform_device cros_ec_lpc_device = {

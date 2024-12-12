@@ -108,6 +108,7 @@ struct snd_opl3sa2 {
 	int irq;
 	int single_dma;
 	spinlock_t reg_lock;
+	struct snd_card *card;
 	struct snd_hwdep *synth;
 	struct snd_rawmidi *rmidi;
 	struct snd_wss *wss;
@@ -157,12 +158,12 @@ static unsigned char __snd_opl3sa2_read(struct snd_opl3sa2 *chip, unsigned char 
 	unsigned char result;
 #if 0
 	outb(0x1d, port);	/* password */
-	printk(KERN_DEBUG "read [0x%lx] = 0x%x\n", port, inb(port));
+	dev_dbg(chip->card->dev, "read [0x%lx] = 0x%x\n", port, inb(port));
 #endif
 	outb(reg, chip->port);	/* register */
 	result = inb(chip->port + 1);
 #if 0
-	printk(KERN_DEBUG "read [0x%lx] = 0x%x [0x%x]\n",
+	dev_dbg(chip->card->dev, "read [0x%lx] = 0x%x [0x%x]\n",
 	       port, result, inb(port));
 #endif
 	return result;
@@ -211,17 +212,13 @@ static int snd_opl3sa2_detect(struct snd_card *card)
 	chip->res_port = devm_request_region(card->dev, port, 2,
 					     "OPL3-SA control");
 	if (!chip->res_port) {
-		snd_printk(KERN_ERR PFX "can't grab port 0x%lx\n", port);
+		dev_err(card->dev, "can't grab port 0x%lx\n", port);
 		return -EBUSY;
 	}
-	/*
-	snd_printk(KERN_DEBUG "REG 0A = 0x%x\n",
-		   snd_opl3sa2_read(chip, 0x0a));
-	*/
 	chip->version = 0;
 	tmp = snd_opl3sa2_read(chip, OPL3SA2_MISC);
 	if (tmp == 0xff) {
-		snd_printd("OPL3-SA [0x%lx] detect = 0x%x\n", port, tmp);
+		dev_dbg(card->dev, "OPL3-SA [0x%lx] detect = 0x%x\n", port, tmp);
 		return -ENODEV;
 	}
 	switch (tmp & 0x07) {
@@ -243,7 +240,7 @@ static int snd_opl3sa2_detect(struct snd_card *card)
 	snd_opl3sa2_write(chip, OPL3SA2_MISC, tmp ^ 7);
 	tmp1 = snd_opl3sa2_read(chip, OPL3SA2_MISC);
 	if (tmp1 != tmp) {
-		snd_printd("OPL3-SA [0x%lx] detect (1) = 0x%x (0x%x)\n", port, tmp, tmp1);
+		dev_dbg(card->dev, "OPL3-SA [0x%lx] detect (1) = 0x%x (0x%x)\n", port, tmp, tmp1);
 		return -ENODEV;
 	}
 	/* try if the MIC register is accessible */
@@ -251,7 +248,7 @@ static int snd_opl3sa2_detect(struct snd_card *card)
 	snd_opl3sa2_write(chip, OPL3SA2_MIC, 0x8a);
 	tmp1 = snd_opl3sa2_read(chip, OPL3SA2_MIC);
 	if ((tmp1 & 0x9f) != 0x8a) {
-		snd_printd("OPL3-SA [0x%lx] detect (2) = 0x%x (0x%x)\n", port, tmp, tmp1);
+		dev_dbg(card->dev, "OPL3-SA [0x%lx] detect (2) = 0x%x (0x%x)\n", port, tmp, tmp1);
 		return -ENODEV;
 	}
 	snd_opl3sa2_write(chip, OPL3SA2_MIC, 0x9f);
@@ -495,14 +492,14 @@ static int snd_opl3sa2_mixer(struct snd_card *card)
         strcpy(id2.name, "CD Playback Switch");
 	err = snd_ctl_rename_id(card, &id1, &id2);
 	if (err < 0) {
-		snd_printk(KERN_ERR "Cannot rename opl3sa2 control\n");
+		dev_err(card->dev, "Cannot rename opl3sa2 control\n");
                 return err;
 	}
         strcpy(id1.name, "Aux Playback Volume");
         strcpy(id2.name, "CD Playback Volume");
 	err = snd_ctl_rename_id(card, &id1, &id2);
 	if (err < 0) {
-		snd_printk(KERN_ERR "Cannot rename opl3sa2 control\n");
+		dev_err(card->dev, "Cannot rename opl3sa2 control\n");
                 return err;
 	}
 	/* reassign AUX1 to FM */
@@ -510,14 +507,14 @@ static int snd_opl3sa2_mixer(struct snd_card *card)
         strcpy(id2.name, "FM Playback Switch");
 	err = snd_ctl_rename_id(card, &id1, &id2);
 	if (err < 0) {
-		snd_printk(KERN_ERR "Cannot rename opl3sa2 control\n");
+		dev_err(card->dev, "Cannot rename opl3sa2 control\n");
                 return err;
 	}
         strcpy(id1.name, "Aux Playback Volume");
         strcpy(id2.name, "FM Playback Volume");
 	err = snd_ctl_rename_id(card, &id1, &id2);
 	if (err < 0) {
-		snd_printk(KERN_ERR "Cannot rename opl3sa2 control\n");
+		dev_err(card->dev, "Cannot rename opl3sa2 control\n");
                 return err;
 	}
 	/* add OPL3SA2 controls */
@@ -591,7 +588,7 @@ static int snd_opl3sa2_pnp(int dev, struct snd_opl3sa2 *chip,
 			   struct pnp_dev *pdev)
 {
 	if (pnp_activate_dev(pdev) < 0) {
-		snd_printk(KERN_ERR "PnP configure failure (out of resources?)\n");
+		dev_err(chip->card->dev, "PnP configure failure (out of resources?)\n");
 		return -EBUSY;
 	}
 	sb_port[dev] = pnp_port_start(pdev, 0);
@@ -602,9 +599,9 @@ static int snd_opl3sa2_pnp(int dev, struct snd_opl3sa2 *chip,
 	dma1[dev] = pnp_dma(pdev, 0);
 	dma2[dev] = pnp_dma(pdev, 1);
 	irq[dev] = pnp_irq(pdev, 0);
-	snd_printdd("%sPnP OPL3-SA: sb port=0x%lx, wss port=0x%lx, fm port=0x%lx, midi port=0x%lx\n",
+	dev_dbg(chip->card->dev, "%sPnP OPL3-SA: sb port=0x%lx, wss port=0x%lx, fm port=0x%lx, midi port=0x%lx\n",
 		pnp_device_is_pnpbios(pdev) ? "BIOS" : "ISA", sb_port[dev], wss_port[dev], fm_port[dev], midi_port[dev]);
-	snd_printdd("%sPnP OPL3-SA: control port=0x%lx, dma1=%i, dma2=%i, irq=%i\n",
+	dev_dbg(chip->card->dev, "%sPnP OPL3-SA: control port=0x%lx, dma1=%i, dma2=%i, irq=%i\n",
 		pnp_device_is_pnpbios(pdev) ? "BIOS" : "ISA", port[dev], dma1[dev], dma2[dev], irq[dev]);
 	return 0;
 }
@@ -640,6 +637,7 @@ static int snd_opl3sa2_probe(struct snd_card *card, int dev)
 
 	/* initialise this card from supplied (or default) parameter*/ 
 	chip = card->private_data;
+	chip->card = card;
 	chip->ymode = opl3sa3_ymode[dev] & 0x03 ;
 	chip->port = port[dev];
 	xirq = irq[dev];
@@ -653,7 +651,7 @@ static int snd_opl3sa2_probe(struct snd_card *card, int dev)
 	err = devm_request_irq(card->dev, xirq, snd_opl3sa2_interrupt, 0,
 			       "OPL3-SA2", card);
 	if (err) {
-		snd_printk(KERN_ERR PFX "can't grab IRQ %d\n", xirq);
+		dev_err(card->dev, "can't grab IRQ %d\n", xirq);
 		return -ENODEV;
 	}
 	chip->irq = xirq;
@@ -663,7 +661,7 @@ static int snd_opl3sa2_probe(struct snd_card *card, int dev)
 			     xirq, xdma1, xdma2,
 			     WSS_HW_OPL3SA2, WSS_HWSHARE_IRQ, &wss);
 	if (err < 0) {
-		snd_printd("Oops, WSS not detected at 0x%lx\n", wss_port[dev] + 4);
+		dev_dbg(card->dev, "Oops, WSS not detected at 0x%lx\n", wss_port[dev] + 4);
 		return err;
 	}
 	chip->wss = wss;
@@ -770,7 +768,7 @@ static int snd_opl3sa2_pnp_cdetect(struct pnp_card_link *pcard,
 
 	pdev = pnp_request_card_device(pcard, id->devs[0].id, NULL);
 	if (pdev == NULL) {
-		snd_printk(KERN_ERR PFX "can't get pnp device from id '%s'\n",
+		dev_err(&pcard->card->dev, "can't get pnp device from id '%s'\n",
 			   id->devs[0].id);
 		return -EBUSY;
 	}
@@ -828,19 +826,19 @@ static int snd_opl3sa2_isa_match(struct device *pdev,
 		return 0;
 #endif
 	if (port[dev] == SNDRV_AUTO_PORT) {
-		snd_printk(KERN_ERR PFX "specify port\n");
+		dev_err(pdev, "specify port\n");
 		return 0;
 	}
 	if (wss_port[dev] == SNDRV_AUTO_PORT) {
-		snd_printk(KERN_ERR PFX "specify wss_port\n");
+		dev_err(pdev, "specify wss_port\n");
 		return 0;
 	}
 	if (fm_port[dev] == SNDRV_AUTO_PORT) {
-		snd_printk(KERN_ERR PFX "specify fm_port\n");
+		dev_err(pdev, "specify fm_port\n");
 		return 0;
 	}
 	if (midi_port[dev] == SNDRV_AUTO_PORT) {
-		snd_printk(KERN_ERR PFX "specify midi_port\n");
+		dev_err(pdev, "specify midi_port\n");
 		return 0;
 	}
 	return 1;

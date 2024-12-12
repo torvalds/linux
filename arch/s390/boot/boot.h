@@ -70,7 +70,7 @@ void print_pgm_check_info(void);
 unsigned long randomize_within_range(unsigned long size, unsigned long align,
 				     unsigned long min, unsigned long max);
 void setup_vmem(unsigned long kernel_start, unsigned long kernel_end, unsigned long asce_limit);
-void __printf(1, 2) decompressor_printk(const char *fmt, ...);
+void __printf(1, 2) boot_printk(const char *fmt, ...);
 void print_stacktrace(unsigned long sp);
 void error(char *m);
 int get_random(unsigned long limit, unsigned long *value);

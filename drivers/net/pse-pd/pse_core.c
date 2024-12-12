@@ -113,7 +113,7 @@ static void pse_release_pis(struct pse_controller_dev *pcdev)
 {
 	int i;
 
-	for (i = 0; i <= pcdev->nr_lines; i++) {
+	for (i = 0; i < pcdev->nr_lines; i++) {
 		of_node_put(pcdev->pi[i].pairset[0].np);
 		of_node_put(pcdev->pi[i].pairset[1].np);
 		of_node_put(pcdev->pi[i].np);
@@ -647,7 +647,7 @@ static int of_pse_match_pi(struct pse_controller_dev *pcdev,
 {
 	int i;
 
-	for (i = 0; i <= pcdev->nr_lines; i++) {
+	for (i = 0; i < pcdev->nr_lines; i++) {
 		if (pcdev->pi[i].np == np)
 			return i;
 	}
@@ -785,6 +785,17 @@ static int pse_ethtool_c33_set_config(struct pse_control *psec,
 	 */
 	switch (config->c33_admin_control) {
 	case ETHTOOL_C33_PSE_ADMIN_STATE_ENABLED:
+		/* We could have mismatch between admin_state_enabled and
+		 * state reported by regulator_is_enabled. This can occur when
+		 * the PI is forcibly turn off by the controller. Call
+		 * regulator_disable on that case to fix the counters state.
+		 */
+		if (psec->pcdev->pi[psec->id].admin_state_enabled &&
+		    !regulator_is_enabled(psec->ps)) {
+			err = regulator_disable(psec->ps);
+			if (err)
+				break;
+		}
 		if (!psec->pcdev->pi[psec->id].admin_state_enabled)
 			err = regulator_enable(psec->ps);
 		break;

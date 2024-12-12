@@ -95,6 +95,10 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 		chip->name = "acp_asoc_acp70";
 		chip->acp_rev = ACP70_DEV;
 		break;
+	case 0x71:
+		chip->name = "acp_asoc_acp70";
+		chip->acp_rev = ACP71_DEV;
+		break;
 	default:
 		dev_err(dev, "Unsupported device revision:0x%x\n", pci->revision);
 		ret = -EINVAL;

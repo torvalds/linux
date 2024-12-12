@@ -16,7 +16,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <net/mrp.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 static unsigned int mrp_join_time __read_mostly = 200;
 module_param(mrp_join_time, uint, 0644);

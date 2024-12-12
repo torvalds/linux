@@ -37,9 +37,10 @@ struct {
 
 
 int enabled = 0;
-int has_cpu = 0;
-int has_task = 0;
-int use_nsec = 0;
+
+const volatile int has_cpu = 0;
+const volatile int has_task = 0;
+const volatile int use_nsec = 0;
 
 SEC("kprobe/func")
 int BPF_PROG(func_begin)

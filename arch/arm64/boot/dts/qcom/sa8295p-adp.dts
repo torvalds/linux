@@ -9,6 +9,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 #include <dt-bindings/spmi/spmi.h>
+#include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 
 #include "sa8540p.dtsi"
 #include "sa8540p-pmics.dtsi"
@@ -107,6 +108,46 @@
 				remote-endpoint = <&mdss1_dp3_phy_out>;
 			};
 		};
+	};
+
+	regulator-usb2-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "USB2_VBUS";
+		gpio = <&pmm8540c_gpios 9 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&usb2_en>;
+		pinctrl-names = "default";
+		enable-active-high;
+		regulator-always-on;
+	};
+
+	regulator-usb3-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "USB3_VBUS";
+		gpio = <&pmm8540e_gpios 5 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&usb3_en>;
+		pinctrl-names = "default";
+		enable-active-high;
+		regulator-always-on;
+	};
+
+	regulator-usb4-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "USB4_VBUS";
+		gpio = <&pmm8540g_gpios 5 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&usb4_en>;
+		pinctrl-names = "default";
+		enable-active-high;
+		regulator-always-on;
+	};
+
+	regulator-usb5-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "USB5_VBUS";
+		gpio = <&pmm8540g_gpios 9 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&usb5_en>;
+		pinctrl-names = "default";
+		enable-active-high;
+		regulator-always-on;
 	};
 
 	reserved-memory {
@@ -637,6 +678,10 @@
 	status = "okay";
 };
 
+&usb_2 {
+	status = "okay";
+};
+
 &usb_2_hsphy0 {
 	vdda-pll-supply = <&vreg_l5a>;
 	vdda18-supply = <&vreg_l7g>;
@@ -694,6 +739,44 @@
 		pins = "gpio2";
 		function = "normal";
 		output-enable;
+	};
+};
+
+&pmm8540c_gpios {
+	usb2_en: usb2-en-state {
+		pins = "gpio9";
+		function = "normal";
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_HIGH>;
+		output-enable;
+		power-source = <0>;
+	};
+};
+
+&pmm8540e_gpios {
+	usb3_en: usb3-en-state {
+		pins = "gpio5";
+		function = "normal";
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_HIGH>;
+		output-enable;
+		power-source = <0>;
+	};
+};
+
+&pmm8540g_gpios {
+	usb4_en: usb4-en-state {
+		pins = "gpio5";
+		function = "normal";
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_HIGH>;
+		output-enable;
+		power-source = <0>;
+	};
+
+	usb5_en: usb5-en-state {
+		pins = "gpio9";
+		function = "normal";
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_HIGH>;
+		output-enable;
+		power-source = <0>;
 	};
 };
 

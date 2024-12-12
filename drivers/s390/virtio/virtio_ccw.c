@@ -58,6 +58,8 @@ struct virtio_ccw_device {
 	struct virtio_device vdev;
 	__u8 config[VIRTIO_CCW_CONFIG_SIZE];
 	struct ccw_device *cdev;
+	/* we make cdev->dev.dma_parms point to this */
+	struct device_dma_parameters dma_parms;
 	__u32 curr_io;
 	int err;
 	unsigned int revision; /* Transport revision */
@@ -1303,6 +1305,7 @@ static int virtio_ccw_offline(struct ccw_device *cdev)
 	unregister_virtio_device(&vcdev->vdev);
 	spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
 	dev_set_drvdata(&cdev->dev, NULL);
+	cdev->dev.dma_parms = NULL;
 	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 	return 0;
 }
@@ -1366,6 +1369,7 @@ static int virtio_ccw_online(struct ccw_device *cdev)
 	}
 	vcdev->vdev.dev.parent = &cdev->dev;
 	vcdev->cdev = cdev;
+	cdev->dev.dma_parms = &vcdev->dma_parms;
 	vcdev->dma_area = ccw_device_dma_zalloc(vcdev->cdev,
 						sizeof(*vcdev->dma_area),
 						&vcdev->dma_area_addr);

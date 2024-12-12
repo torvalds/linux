@@ -72,6 +72,11 @@
 	};
 };
 
+&clks {
+	assigned-clocks = <&clks IMX6SX_CLK_ENET_REF>;
+	assigned-clock-rates = <50000000>;
+};
+
 &fec1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet1>;

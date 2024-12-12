@@ -26,17 +26,21 @@
 #define PPC_MIN_STKFRM	112
 
 #ifdef __BIG_ENDIAN__
-#define LHZX_BE	stringify_in_c(lhzx)
 #define LWZX_BE	stringify_in_c(lwzx)
 #define LDX_BE	stringify_in_c(ldx)
 #define STWX_BE	stringify_in_c(stwx)
 #define STDX_BE	stringify_in_c(stdx)
 #else
-#define LHZX_BE	stringify_in_c(lhbrx)
 #define LWZX_BE	stringify_in_c(lwbrx)
 #define LDX_BE	stringify_in_c(ldbrx)
 #define STWX_BE	stringify_in_c(stwbrx)
 #define STDX_BE	stringify_in_c(stdbrx)
+#endif
+
+#ifdef CONFIG_CC_IS_CLANG
+#define DS_FORM_CONSTRAINT "Z<>"
+#else
+#define DS_FORM_CONSTRAINT "YZ<>"
 #endif
 
 #else /* 32-bit */

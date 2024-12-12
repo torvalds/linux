@@ -20,6 +20,7 @@
 #include <asm/cacheflush.h>
 #include <asm/cpufeature.h>
 #include <asm/daifflags.h>
+#include <asm/gcs.h>
 #include <asm/proc-fns.h>
 #include <asm/cputype.h>
 #include <asm/sysreg.h>
@@ -310,6 +311,14 @@ static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
 
 	return por_el0_allows_pkey(vma_pkey(vma), write, execute);
 }
+
+#define deactivate_mm deactivate_mm
+static inline void deactivate_mm(struct task_struct *tsk,
+			struct mm_struct *mm)
+{
+	gcs_free(tsk);
+}
+
 
 #include <asm-generic/mmu_context.h>
 

@@ -50,7 +50,7 @@ void blk_set_stacking_limits(struct queue_limits *lim)
 	lim->max_sectors = UINT_MAX;
 	lim->max_dev_sectors = UINT_MAX;
 	lim->max_write_zeroes_sectors = UINT_MAX;
-	lim->max_zone_append_sectors = UINT_MAX;
+	lim->max_hw_zone_append_sectors = UINT_MAX;
 	lim->max_user_discard_sectors = UINT_MAX;
 }
 EXPORT_SYMBOL(blk_set_stacking_limits);
@@ -91,17 +91,16 @@ static int blk_validate_zoned_limits(struct queue_limits *lim)
 	if (lim->zone_write_granularity < lim->logical_block_size)
 		lim->zone_write_granularity = lim->logical_block_size;
 
-	if (lim->max_zone_append_sectors) {
-		/*
-		 * The Zone Append size is limited by the maximum I/O size
-		 * and the zone size given that it can't span zones.
-		 */
-		lim->max_zone_append_sectors =
-			min3(lim->max_hw_sectors,
-			     lim->max_zone_append_sectors,
-			     lim->chunk_sectors);
-	}
-
+	/*
+	 * The Zone Append size is limited by the maximum I/O size and the zone
+	 * size given that it can't span zones.
+	 *
+	 * If no max_hw_zone_append_sectors limit is provided, the block layer
+	 * will emulated it, else we're also bound by the hardware limit.
+	 */
+	lim->max_zone_append_sectors =
+		min_not_zero(lim->max_hw_zone_append_sectors,
+			min(lim->chunk_sectors, lim->max_hw_sectors));
 	return 0;
 }
 
@@ -223,7 +222,7 @@ unsupported:
  * Check that the limits in lim are valid, initialize defaults for unset
  * values, and cap values based on others where needed.
  */
-static int blk_validate_limits(struct queue_limits *lim)
+int blk_validate_limits(struct queue_limits *lim)
 {
 	unsigned int max_hw_sectors;
 	unsigned int logical_block_sectors;
@@ -366,6 +365,7 @@ static int blk_validate_limits(struct queue_limits *lim)
 		return err;
 	return blk_validate_zoned_limits(lim);
 }
+EXPORT_SYMBOL_GPL(blk_validate_limits);
 
 /*
  * Set the default limits for a newly allocated queue.  @lim contains the
@@ -436,48 +436,6 @@ int queue_limits_set(struct request_queue *q, struct queue_limits *lim)
 	return queue_limits_commit_update(q, lim);
 }
 EXPORT_SYMBOL_GPL(queue_limits_set);
-
-/**
- * blk_limits_io_min - set minimum request size for a device
- * @limits: the queue limits
- * @min:  smallest I/O size in bytes
- *
- * Description:
- *   Some devices have an internal block size bigger than the reported
- *   hardware sector size.  This function can be used to signal the
- *   smallest I/O the device can perform without incurring a performance
- *   penalty.
- */
-void blk_limits_io_min(struct queue_limits *limits, unsigned int min)
-{
-	limits->io_min = min;
-
-	if (limits->io_min < limits->logical_block_size)
-		limits->io_min = limits->logical_block_size;
-
-	if (limits->io_min < limits->physical_block_size)
-		limits->io_min = limits->physical_block_size;
-}
-EXPORT_SYMBOL(blk_limits_io_min);
-
-/**
- * blk_limits_io_opt - set optimal request size for a device
- * @limits: the queue limits
- * @opt:  smallest I/O size in bytes
- *
- * Description:
- *   Storage devices may report an optimal I/O size, which is the
- *   device's preferred unit for sustained I/O.  This is rarely reported
- *   for disk drives.  For RAID arrays it is usually the stripe width or
- *   the internal track size.  A properly aligned multiple of
- *   optimal_io_size is the preferred request size for workloads where
- *   sustained throughput is desired.
- */
-void blk_limits_io_opt(struct queue_limits *limits, unsigned int opt)
-{
-	limits->io_opt = opt;
-}
-EXPORT_SYMBOL(blk_limits_io_opt);
 
 static int queue_limit_alignment_offset(const struct queue_limits *lim,
 		sector_t sector)
@@ -550,10 +508,10 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 	t->features |= (b->features & BLK_FEAT_INHERIT_MASK);
 
 	/*
-	 * BLK_FEAT_NOWAIT and BLK_FEAT_POLL need to be supported both by the
-	 * stacking driver and all underlying devices.  The stacking driver sets
-	 * the flags before stacking the limits, and this will clear the flags
-	 * if any of the underlying devices does not support it.
+	 * Some feaures need to be supported both by the stacking driver and all
+	 * underlying devices.  The stacking driver sets these flags before
+	 * stacking the limits, and this will clear the flags if any of the
+	 * underlying devices does not support it.
 	 */
 	if (!(b->features & BLK_FEAT_NOWAIT))
 		t->features &= ~BLK_FEAT_NOWAIT;
@@ -569,8 +527,8 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 	t->max_dev_sectors = min_not_zero(t->max_dev_sectors, b->max_dev_sectors);
 	t->max_write_zeroes_sectors = min(t->max_write_zeroes_sectors,
 					b->max_write_zeroes_sectors);
-	t->max_zone_append_sectors = min(queue_limits_max_zone_append_sectors(t),
-					 queue_limits_max_zone_append_sectors(b));
+	t->max_hw_zone_append_sectors = min(t->max_hw_zone_append_sectors,
+					b->max_hw_zone_append_sectors);
 
 	t->seg_boundary_mask = min_not_zero(t->seg_boundary_mask,
 					    b->seg_boundary_mask);
@@ -703,7 +661,7 @@ EXPORT_SYMBOL(blk_stack_limits);
 void queue_limits_stack_bdev(struct queue_limits *t, struct block_device *bdev,
 		sector_t offset, const char *pfx)
 {
-	if (blk_stack_limits(t, &bdev_get_queue(bdev)->limits,
+	if (blk_stack_limits(t, bdev_limits(bdev),
 			get_start_sect(bdev) + offset))
 		pr_notice("%s: Warning: Device %pg is misaligned\n",
 			pfx, bdev);

@@ -131,7 +131,6 @@ identifier llseek_f;
 identifier fops0.fops;
 @@
   struct file_operations fops = {
-    .llseek = no_llseek,
   };
 
 @ has_noop_llseek @

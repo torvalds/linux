@@ -166,8 +166,7 @@ static int adc084s021_buffer_preenable(struct iio_dev *indio_dev)
 	int scan_index;
 	int i = 0;
 
-	for_each_set_bit(scan_index, indio_dev->active_scan_mask,
-			 indio_dev->masklength) {
+	iio_for_each_active_channel(indio_dev, scan_index) {
 		const struct iio_chan_spec *channel =
 			&indio_dev->channels[scan_index];
 		adc->tx_buf[i++] = channel->channel << 3;
@@ -243,13 +242,13 @@ static int adc084s021_probe(struct spi_device *spi)
 
 static const struct of_device_id adc084s021_of_match[] = {
 	{ .compatible = "ti,adc084s021", },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, adc084s021_of_match);
 
 static const struct spi_device_id adc084s021_id[] = {
 	{ ADC084S021_DRIVER_NAME, 0 },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, adc084s021_id);
 

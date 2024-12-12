@@ -15,6 +15,8 @@ int bpf_iter_bits_new(struct bpf_iter_bits *it, const u64 *unsafe_ptr__ign,
 int *bpf_iter_bits_next(struct bpf_iter_bits *it) __ksym __weak;
 void bpf_iter_bits_destroy(struct bpf_iter_bits *it) __ksym __weak;
 
+u64 bits_array[511] = {};
+
 SEC("iter.s/cgroup")
 __description("bits iter without destroy")
 __failure __msg("Unreleased reference")
@@ -55,8 +57,14 @@ __description("null pointer")
 __success __retval(0)
 int null_pointer(void)
 {
-	int nr = 0;
+	struct bpf_iter_bits iter;
+	int err, nr = 0;
 	int *bit;
+
+	err = bpf_iter_bits_new(&iter, NULL, 1);
+	bpf_iter_bits_destroy(&iter);
+	if (err != -EINVAL)
+		return 1;
 
 	bpf_for_each(bits, bit, NULL, 1)
 		nr++;
@@ -87,7 +95,7 @@ int bits_memalloc(void)
 	int *bit;
 
 	__builtin_memset(&data, 0xf0, sizeof(data)); /* 4 * 16 */
-	bpf_for_each(bits, bit, &data[0], sizeof(data) / sizeof(u64))
+	bpf_for_each(bits, bit, &data[0], ARRAY_SIZE(data))
 		nr++;
 	return nr;
 }
@@ -110,16 +118,16 @@ int bit_index(void)
 }
 
 SEC("syscall")
-__description("bits nomem")
+__description("bits too big")
 __success __retval(0)
-int bits_nomem(void)
+int bits_too_big(void)
 {
 	u64 data[4];
 	int nr = 0;
 	int *bit;
 
 	__builtin_memset(&data, 0xff, sizeof(data));
-	bpf_for_each(bits, bit, &data[0], 513) /* Be greater than 512 */
+	bpf_for_each(bits, bit, &data[0], 512) /* Be greater than 511 */
 		nr++;
 	return nr;
 }
@@ -150,4 +158,75 @@ int zero_words(void)
 	bpf_for_each(bits, bit, &data[0], 0)
 		nr++;
 	return nr;
+}
+
+SEC("syscall")
+__description("huge words")
+__success __retval(0)
+int huge_words(void)
+{
+	u64 data[8] = {0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1};
+	int nr = 0;
+	int *bit;
+
+	bpf_for_each(bits, bit, &data[0], 67108865)
+		nr++;
+	return nr;
+}
+
+SEC("syscall")
+__description("max words")
+__success __retval(4)
+int max_words(void)
+{
+	volatile int nr = 0;
+	int *bit;
+
+	bits_array[0] = (1ULL << 63) | 1U;
+	bits_array[510] = (1ULL << 33) | (1ULL << 32);
+
+	bpf_for_each(bits, bit, bits_array, 511) {
+		if (nr == 0 && *bit != 0)
+			break;
+		if (nr == 2 && *bit != 32672)
+			break;
+		nr++;
+	}
+	return nr;
+}
+
+SEC("syscall")
+__description("bad words")
+__success __retval(0)
+int bad_words(void)
+{
+	void *bad_addr = (void *)-4095;
+	struct bpf_iter_bits iter;
+	volatile int nr;
+	int *bit;
+	int err;
+
+	err = bpf_iter_bits_new(&iter, bad_addr, 1);
+	bpf_iter_bits_destroy(&iter);
+	if (err != -EFAULT)
+		return 1;
+
+	nr = 0;
+	bpf_for_each(bits, bit, bad_addr, 1)
+		nr++;
+	if (nr != 0)
+		return 2;
+
+	err = bpf_iter_bits_new(&iter, bad_addr, 4);
+	bpf_iter_bits_destroy(&iter);
+	if (err != -EFAULT)
+		return 3;
+
+	nr = 0;
+	bpf_for_each(bits, bit, bad_addr, 4)
+		nr++;
+	if (nr != 0)
+		return 4;
+
+	return 0;
 }

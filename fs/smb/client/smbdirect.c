@@ -219,7 +219,7 @@ static int smbd_conn_upcall(
 
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
 	case RDMA_CM_EVENT_DISCONNECTED:
-		/* This happenes when we fail the negotiation */
+		/* This happens when we fail the negotiation */
 		if (info->transport_status == SMBD_NEGOTIATE_FAILED) {
 			info->transport_status = SMBD_DISCONNECTED;
 			wake_up(&info->conn_wait);
@@ -1344,7 +1344,7 @@ void smbd_destroy(struct TCP_Server_Info *server)
 	 * are not locked by srv_mutex. It is possible some processes are
 	 * blocked on transport srv_mutex while holding memory registration.
 	 * Release the transport srv_mutex to allow them to hit the failure
-	 * path when sending data, and then release memory registartions.
+	 * path when sending data, and then release memory registrations.
 	 */
 	log_rdma_event(INFO, "freeing mr list\n");
 	wake_up_interruptible_all(&info->wait_mr);
@@ -1586,10 +1586,8 @@ static struct smbd_connection *_smbd_get_connection(
 	conn_param.initiator_depth = 0;
 
 	conn_param.responder_resources =
-		info->id->device->attrs.max_qp_rd_atom
-			< SMBD_CM_RESPONDER_RESOURCES ?
-		info->id->device->attrs.max_qp_rd_atom :
-		SMBD_CM_RESPONDER_RESOURCES;
+		min(info->id->device->attrs.max_qp_rd_atom,
+		    SMBD_CM_RESPONDER_RESOURCES);
 	info->responder_resources = conn_param.responder_resources;
 	log_rdma_mr(INFO, "responder_resources=%d\n",
 		info->responder_resources);

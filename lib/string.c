@@ -27,7 +27,7 @@
 
 #include <asm/page.h>
 #include <asm/rwonce.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <asm/word-at-a-time.h>
 
 #ifndef __HAVE_ARCH_STRNCASECMP

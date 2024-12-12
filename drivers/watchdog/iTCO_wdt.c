@@ -563,8 +563,8 @@ static int iTCO_wdt_probe(struct platform_device *pdev)
 	}
 
 	ident.firmware_version = p->iTCO_version;
-	p->wddev.info = &ident,
-	p->wddev.ops = &iTCO_wdt_ops,
+	p->wddev.info = &ident;
+	p->wddev.ops = &iTCO_wdt_ops;
 	p->wddev.bootstatus = 0;
 	p->wddev.timeout = WATCHDOG_TIMEOUT;
 	watchdog_set_nowayout(&p->wddev, nowayout);

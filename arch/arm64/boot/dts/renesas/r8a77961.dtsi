@@ -2502,6 +2502,7 @@
 			clocks = <&cpg CPG_MOD 615>;
 			power-domains = <&sysc R8A77961_PD_A3VC>;
 			resets = <&cpg 615>;
+			iommus = <&ipmmu_vc0 16>;
 		};
 
 		fcpvb0: fcp@fe96f000 {
@@ -2510,6 +2511,7 @@
 			clocks = <&cpg CPG_MOD 607>;
 			power-domains = <&sysc R8A77961_PD_A3VC>;
 			resets = <&cpg 607>;
+			iommus = <&ipmmu_vi0 5>;
 		};
 
 		fcpvi0: fcp@fe9af000 {

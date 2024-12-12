@@ -46,10 +46,11 @@ properties:
       - description: Module Clock
       - description: Bus Clock
 
-  # Even though it only applies to subschemas under the conditionals,
-  # not listing them here will trigger a warning because of the
-  # additionalsProperties set to false.
-  clock-names: true
+  clock-names:
+    minItems: 1
+    items:
+      - const: mod
+      - const: bus
 
   resets:
     maxItems: 1

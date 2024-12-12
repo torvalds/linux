@@ -5,7 +5,7 @@
 
 #include <linux/module.h>
 #include <linux/skbuff.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <net/tcp.h>
 #include <net/netns/generic.h>
 #include <linux/proc_fs.h>

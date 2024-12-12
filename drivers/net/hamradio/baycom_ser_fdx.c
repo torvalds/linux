@@ -373,6 +373,7 @@ static enum uart ser12_check_uart(unsigned int iobase)
 
 static int ser12_open(struct net_device *dev)
 {
+	const unsigned int nr_irqs = irq_get_nr_irqs();
 	struct baycom_state *bc = netdev_priv(dev);
 	enum uart u;
 

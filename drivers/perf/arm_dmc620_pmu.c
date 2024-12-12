@@ -750,7 +750,7 @@ static struct platform_driver dmc620_pmu_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe	= dmc620_pmu_device_probe,
-	.remove_new = dmc620_pmu_device_remove,
+	.remove	= dmc620_pmu_device_remove,
 };
 
 static int __init dmc620_pmu_init(void)

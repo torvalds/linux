@@ -273,10 +273,11 @@ OPTIONS
 -m::
 --mmap-pages=::
 	Number of mmap data pages (must be a power of two) or size
-	specification with appended unit character - B/K/M/G. The
-	size is rounded up to have nearest pages power of two value.
-	Also, by adding a comma, the number of mmap pages for AUX
-	area tracing can be specified.
+	specification in bytes with appended unit character - B/K/M/G.
+	The size is rounded up to the nearest power-of-two page value.
+	By adding a comma, an additional parameter with the same
+	semantics used for the normal mmap areas can be specified for
+	AUX tracing area.
 
 -g::
 	Enables call-graph (stack chain/backtrace) recording for both
@@ -827,6 +828,11 @@ filtered through the mask provided by -C option.
 	Note that BPF can collect stack traces using frame pointer ("fp")
 	only, as of now.  So the applications built without the frame
 	pointer might see bogus addresses.
+
+--setup-filter=<action>::
+	Prepare BPF filter to be used by regular users.  The action should be
+	either "pin" or "unpin".  The filter can be used after it's pinned.
+
 
 include::intel-hybrid.txt[]
 

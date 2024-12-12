@@ -411,6 +411,8 @@
 };
 
 &ufs_mem_hc {
+	reset-gpios = <&tlmm 119 GPIO_ACTIVE_LOW>;
+
 	vcc-supply = <&vreg_l19a_3p0>;
 	vcc-max-microamp = <600000>;
 	vccq2-supply = <&vreg_l12a_1p8>;

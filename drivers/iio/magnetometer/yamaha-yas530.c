@@ -43,7 +43,7 @@
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /* Commonly used registers */
 #define YAS5XX_DEVICE_ID		0x80

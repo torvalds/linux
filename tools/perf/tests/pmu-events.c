@@ -819,8 +819,7 @@ static bool is_number(const char *str)
 	return errno == 0 && end_ptr != str;
 }
 
-static int check_parse_id(const char *id, struct parse_events_error *error,
-			  struct perf_pmu *fake_pmu)
+static int check_parse_id(const char *id, struct parse_events_error *error)
 {
 	struct evlist *evlist;
 	int ret;
@@ -841,7 +840,7 @@ static int check_parse_id(const char *id, struct parse_events_error *error,
 	for (cur = strchr(dup, '@') ; cur; cur = strchr(++cur, '@'))
 		*cur = '/';
 
-	ret = __parse_events(evlist, dup, /*pmu_filter=*/NULL, error, fake_pmu,
+	ret = __parse_events(evlist, dup, /*pmu_filter=*/NULL, error, /*fake_pmu=*/true,
 			     /*warn_if_reordered=*/true, /*fake_tp=*/false);
 	free(dup);
 
@@ -855,7 +854,7 @@ static int check_parse_fake(const char *id)
 	int ret;
 
 	parse_events_error__init(&error);
-	ret = check_parse_id(id, &error, &perf_pmu__fake);
+	ret = check_parse_id(id, &error);
 	parse_events_error__exit(&error);
 	return ret;
 }
@@ -1051,9 +1050,8 @@ static int test__parsing_fake_callback(const struct pmu_metric *pm,
 }
 
 /*
- * Parse all the metrics for current architecture,
- * or all defined cpus via the 'fake_pmu'
- * in parse_events.
+ * Parse all the metrics for current architecture, or all defined cpus via the
+ * 'fake_pmu' in parse_events.
  */
 static int test__parsing_fake(struct test_suite *test __maybe_unused,
 			      int subtest __maybe_unused)

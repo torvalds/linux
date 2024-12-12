@@ -3495,7 +3495,7 @@ xlog_force_shutdown(
 	 * If this log shutdown also sets the mount shutdown state, issue a
 	 * shutdown warning message.
 	 */
-	if (!test_and_set_bit(XFS_OPSTATE_SHUTDOWN, &log->l_mp->m_opstate)) {
+	if (!xfs_set_shutdown(log->l_mp)) {
 		xfs_alert_tag(log->l_mp, XFS_PTAG_SHUTDOWN_LOGERROR,
 "Filesystem has been shut down due to log error (0x%x).",
 				shutdown_flags);

@@ -21,6 +21,6 @@ struct perf_insn {
 
 const char *dump_insn(struct perf_insn *x, u64 ip,
 		      u8 *inbuf, int inlen, int *lenp);
-int arch_is_branch(const unsigned char *buf, size_t len, int x86_64);
+int arch_is_uncond_branch(const unsigned char *buf, size_t len, int x86_64);
 
 #endif

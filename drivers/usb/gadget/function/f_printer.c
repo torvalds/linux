@@ -37,7 +37,7 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/uaccess.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <linux/usb/ch9.h>
 #include <linux/usb/composite.h>

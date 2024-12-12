@@ -185,6 +185,8 @@
 			reset-gpios = <&expander2 7 GPIO_ACTIVE_LOW>;
 			reset-assert-us = <500000>;
 			reset-deassert-us = <500>;
+			interrupt-parent = <&expander2>;
+			interrupts = <6 IRQ_TYPE_EDGE_FALLING>;
 		};
 	};
 };
@@ -237,7 +239,6 @@
 };
 
 &i2c2 {
-	clock-frequency = <100000>;
 	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c2>;
 	pinctrl-1 = <&pinctrl_i2c2_gpio>;
@@ -258,6 +259,11 @@
 		reg = <0x1f>;
 	};
 
+	/*
+	 * TUSB8041 is at 0x41, but not connected by default
+	 * Note: TUSB8041 only supports 100 kHz!
+	 */
+
 	eeprom3: eeprom@57 {
 		compatible = "nxp,se97b", "atmel,24c02";
 		reg = <0x57>;
@@ -274,7 +280,6 @@
 };
 
 &i2c3 {
-	clock-frequency = <100000>;
 	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c3>;
 	pinctrl-1 = <&pinctrl_i2c3_gpio>;

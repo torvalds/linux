@@ -339,7 +339,7 @@ static inline u8 convert_buswidth(enum dma_slave_buswidth addr_width)
  * @regs: memory mapped register base
  * @clk: dma controller clock
  * @save_imr: interrupt mask register that is saved on suspend/resume cycle
- * @all_chan_mask: all channels availlable in a mask
+ * @all_chan_mask: all channels available in a mask
  * @lli_pool: hw lli table
  * @memset_pool: hw memset pool
  * @chan: channels table to store at_dma_chan structures
@@ -668,7 +668,7 @@ static inline u32 atc_calc_bytes_left(u32 current_len, u32 ctrla)
  * CTRLA is read in turn, next the DSCR is read a second time. If the two
  * consecutive read values of the DSCR are the same then we assume both refers
  * to the very same LLI as well as the CTRLA value read inbetween does. For
- * cyclic tranfers, the assumption is that a full loop is "not so fast". If the
+ * cyclic transfers, the assumption is that a full loop is "not so fast". If the
  * two DSCR values are different, we read again the CTRLA then the DSCR till two
  * consecutive read values from DSCR are equal or till the maximum trials is
  * reach. This algorithm is very unlikely not to find a stable value for DSCR.
@@ -700,7 +700,7 @@ static int atc_get_llis_residue(struct at_dma_chan *atchan,
 			break;
 
 		/*
-		 * DSCR has changed inside the DMA controller, so the previouly
+		 * DSCR has changed inside the DMA controller, so the previously
 		 * read value of CTRLA may refer to an already processed
 		 * descriptor hence could be outdated. We need to update ctrla
 		 * to match the current descriptor.

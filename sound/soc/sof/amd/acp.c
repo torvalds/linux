@@ -64,13 +64,24 @@ static void init_dma_descriptor(struct acp_dev_data *adata)
 {
 	struct snd_sof_dev *sdev = adata->dev;
 	const struct sof_amd_acp_desc *desc = get_chip_info(sdev->pdata);
+	struct acp_dev_data *acp_data = sdev->pdata->hw_pdata;
 	unsigned int addr;
+	unsigned int acp_dma_desc_base_addr, acp_dma_desc_max_num_dscr;
 
 	addr = desc->sram_pte_offset + sdev->debug_box.offset +
 	       offsetof(struct scratch_reg_conf, dma_desc);
 
-	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_DMA_DESC_BASE_ADDR, addr);
-	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_DMA_DESC_MAX_NUM_DSCR, ACP_MAX_DESC_CNT);
+	switch (acp_data->pci_rev) {
+	case ACP70_PCI_ID:
+		acp_dma_desc_base_addr = ACP70_DMA_DESC_BASE_ADDR;
+		acp_dma_desc_max_num_dscr = ACP70_DMA_DESC_MAX_NUM_DSCR;
+		break;
+	default:
+		acp_dma_desc_base_addr = ACP_DMA_DESC_BASE_ADDR;
+		acp_dma_desc_max_num_dscr = ACP_DMA_DESC_MAX_NUM_DSCR;
+	}
+	snd_sof_dsp_write(sdev, ACP_DSP_BAR, acp_dma_desc_base_addr, addr);
+	snd_sof_dsp_write(sdev, ACP_DSP_BAR, acp_dma_desc_max_num_dscr, ACP_MAX_DESC_CNT);
 }
 
 static void configure_dma_descriptor(struct acp_dev_data *adata, unsigned short idx,
@@ -92,29 +103,51 @@ static int config_dma_channel(struct acp_dev_data *adata, unsigned int ch,
 			      unsigned int idx, unsigned int dscr_count)
 {
 	struct snd_sof_dev *sdev = adata->dev;
+	struct acp_dev_data *acp_data = sdev->pdata->hw_pdata;
 	const struct sof_amd_acp_desc *desc = get_chip_info(sdev->pdata);
 	unsigned int val, status;
+	unsigned int acp_dma_cntl_0, acp_dma_ch_rst_sts, acp_dma_dscr_err_sts_0;
+	unsigned int acp_dma_dscr_cnt_0, acp_dma_prio_0, acp_dma_dscr_strt_idx_0;
 	int ret;
 
-	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_DMA_CNTL_0 + ch * sizeof(u32),
+	switch (acp_data->pci_rev) {
+	case ACP70_PCI_ID:
+		acp_dma_cntl_0 = ACP70_DMA_CNTL_0;
+		acp_dma_ch_rst_sts = ACP70_DMA_CH_RST_STS;
+		acp_dma_dscr_err_sts_0 = ACP70_DMA_ERR_STS_0;
+		acp_dma_dscr_cnt_0 = ACP70_DMA_DSCR_CNT_0;
+		acp_dma_prio_0 = ACP70_DMA_PRIO_0;
+		acp_dma_dscr_strt_idx_0 = ACP70_DMA_DSCR_STRT_IDX_0;
+		break;
+	default:
+		acp_dma_cntl_0 = ACP_DMA_CNTL_0;
+		acp_dma_ch_rst_sts = ACP_DMA_CH_RST_STS;
+		acp_dma_dscr_err_sts_0 = ACP_DMA_ERR_STS_0;
+		acp_dma_dscr_cnt_0 = ACP_DMA_DSCR_CNT_0;
+		acp_dma_prio_0 = ACP_DMA_PRIO_0;
+		acp_dma_dscr_strt_idx_0 = ACP_DMA_DSCR_STRT_IDX_0;
+	}
+
+	snd_sof_dsp_write(sdev, ACP_DSP_BAR, acp_dma_cntl_0 + ch * sizeof(u32),
 			  ACP_DMA_CH_RST | ACP_DMA_CH_GRACEFUL_RST_EN);
 
-	ret = snd_sof_dsp_read_poll_timeout(sdev, ACP_DSP_BAR, ACP_DMA_CH_RST_STS, val,
+	ret = snd_sof_dsp_read_poll_timeout(sdev, ACP_DSP_BAR, acp_dma_ch_rst_sts, val,
 					    val & (1 << ch), ACP_REG_POLL_INTERVAL,
 					    ACP_REG_POLL_TIMEOUT_US);
 	if (ret < 0) {
 		status = snd_sof_dsp_read(sdev, ACP_DSP_BAR, desc->acp_error_stat);
-		val = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP_DMA_ERR_STS_0 + ch * sizeof(u32));
+		val = snd_sof_dsp_read(sdev, ACP_DSP_BAR, acp_dma_dscr_err_sts_0 +
+				       ch * sizeof(u32));
 
 		dev_err(sdev->dev, "ACP_DMA_ERR_STS :0x%x ACP_ERROR_STATUS :0x%x\n", val, status);
 		return ret;
 	}
 
-	snd_sof_dsp_write(sdev, ACP_DSP_BAR, (ACP_DMA_CNTL_0 + ch * sizeof(u32)), 0);
-	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_DMA_DSCR_CNT_0 + ch * sizeof(u32), dscr_count);
-	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_DMA_DSCR_STRT_IDX_0 + ch * sizeof(u32), idx);
-	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_DMA_PRIO_0 + ch * sizeof(u32), 0);
-	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_DMA_CNTL_0 + ch * sizeof(u32), ACP_DMA_CH_RUN);
+	snd_sof_dsp_write(sdev, ACP_DSP_BAR, (acp_dma_cntl_0 + ch * sizeof(u32)), 0);
+	snd_sof_dsp_write(sdev, ACP_DSP_BAR, acp_dma_dscr_cnt_0 + ch * sizeof(u32), dscr_count);
+	snd_sof_dsp_write(sdev, ACP_DSP_BAR, acp_dma_dscr_strt_idx_0 + ch * sizeof(u32), idx);
+	snd_sof_dsp_write(sdev, ACP_DSP_BAR, acp_dma_prio_0 + ch * sizeof(u32), 0);
+	snd_sof_dsp_write(sdev, ACP_DSP_BAR, acp_dma_cntl_0 + ch * sizeof(u32), ACP_DMA_CH_RUN);
 
 	return ret;
 }
@@ -236,7 +269,6 @@ int configure_and_run_sha_dma(struct acp_dev_data *adata, void *image_addr,
 			      unsigned int image_length)
 {
 	struct snd_sof_dev *sdev = adata->dev;
-	const struct sof_amd_acp_desc *desc = get_chip_info(sdev->pdata);
 	unsigned int tx_count, fw_qualifier, val;
 	int ret;
 
@@ -265,8 +297,9 @@ int configure_and_run_sha_dma(struct acp_dev_data *adata, void *image_addr,
 	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_SHA_DMA_DESTINATION_ADDR, dest_addr);
 	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_SHA_MSG_LENGTH, image_length);
 
-	/* psp_send_cmd only required for vangogh platform (rev - 5) */
-	if (desc->rev == 5 && !(adata->quirks && adata->quirks->skip_iram_dram_size_mod)) {
+	/* psp_send_cmd only required for vangogh platform */
+	if (adata->pci_rev == ACP_VANGOGH_PCI_ID &&
+	    !(adata->quirks && adata->quirks->skip_iram_dram_size_mod)) {
 		/* Modify IRAM and DRAM size */
 		ret = psp_send_cmd(adata, MBOX_ACP_IRAM_DRAM_FENCE_COMMAND | IRAM_DRAM_FENCE_2);
 		if (ret)
@@ -285,8 +318,8 @@ int configure_and_run_sha_dma(struct acp_dev_data *adata, void *image_addr,
 		return ret;
 	}
 
-	/* psp_send_cmd only required for renoir platform (rev - 3) */
-	if (desc->rev == 3) {
+	/* psp_send_cmd only required for renoir platform*/
+	if (adata->pci_rev == ACP_RN_PCI_ID) {
 		ret = psp_send_cmd(adata, MBOX_ACP_SHA_DMA_COMMAND);
 		if (ret)
 			return ret;
@@ -296,7 +329,9 @@ int configure_and_run_sha_dma(struct acp_dev_data *adata, void *image_addr,
 					    fw_qualifier, fw_qualifier & DSP_FW_RUN_ENABLE,
 					    ACP_REG_POLL_INTERVAL, ACP_DMA_COMPLETE_TIMEOUT_US);
 	if (ret < 0) {
-		dev_err(sdev->dev, "PSP validation failed\n");
+		val = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP_SHA_PSP_ACK);
+		dev_err(sdev->dev, "PSP validation failed: fw_qualifier = %#x, ACP_SHA_PSP_ACK = %#x\n",
+			fw_qualifier, val);
 		return ret;
 	}
 
@@ -307,11 +342,19 @@ int acp_dma_status(struct acp_dev_data *adata, unsigned char ch)
 {
 	struct snd_sof_dev *sdev = adata->dev;
 	unsigned int val;
+	unsigned int acp_dma_ch_sts;
 	int ret = 0;
 
+	switch (adata->pci_rev) {
+	case ACP70_PCI_ID:
+		acp_dma_ch_sts = ACP70_DMA_CH_STS;
+		break;
+	default:
+		acp_dma_ch_sts = ACP_DMA_CH_STS;
+	}
 	val = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP_DMA_CNTL_0 + ch * sizeof(u32));
 	if (val & ACP_DMA_CH_RUN) {
-		ret = snd_sof_dsp_read_poll_timeout(sdev, ACP_DSP_BAR, ACP_DMA_CH_STS, val, !val,
+		ret = snd_sof_dsp_read_poll_timeout(sdev, ACP_DSP_BAR, acp_dma_ch_sts, val, !val,
 						    ACP_REG_POLL_INTERVAL,
 						    ACP_DMA_COMPLETE_TIMEOUT_US);
 		if (ret < 0)
@@ -405,7 +448,7 @@ static irqreturn_t acp_irq_handler(int irq, void *dev_id)
 		snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->ext_intr_stat, ACP_ERROR_IRQ_MASK);
 		snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->acp_sw0_i2s_err_reason, 0);
 		/* ACP_SW1_I2S_ERROR_REASON is newly added register from rmb platform onwards */
-		if (desc->rev >= 6)
+		if (adata->pci_rev >= ACP_RMB_PCI_ID)
 			snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_SW1_I2S_ERROR_REASON, 0);
 		snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->acp_error_stat, 0);
 		irq_flag = 1;
@@ -431,6 +474,7 @@ static irqreturn_t acp_irq_handler(int irq, void *dev_id)
 static int acp_power_on(struct snd_sof_dev *sdev)
 {
 	const struct sof_amd_acp_desc *desc = get_chip_info(sdev->pdata);
+	struct acp_dev_data *adata = sdev->pdata->hw_pdata;
 	unsigned int base = desc->pgfsm_base;
 	unsigned int val;
 	unsigned int acp_pgfsm_status_mask, acp_pgfsm_cntl_mask;
@@ -441,15 +485,20 @@ static int acp_power_on(struct snd_sof_dev *sdev)
 	if (val == ACP_POWERED_ON)
 		return 0;
 
-	switch (desc->rev) {
-	case 3:
-	case 5:
+	switch (adata->pci_rev) {
+	case ACP_RN_PCI_ID:
+	case ACP_VANGOGH_PCI_ID:
 		acp_pgfsm_status_mask = ACP3X_PGFSM_STATUS_MASK;
 		acp_pgfsm_cntl_mask = ACP3X_PGFSM_CNTL_POWER_ON_MASK;
 		break;
-	case 6:
+	case ACP_RMB_PCI_ID:
+	case ACP63_PCI_ID:
 		acp_pgfsm_status_mask = ACP6X_PGFSM_STATUS_MASK;
 		acp_pgfsm_cntl_mask = ACP6X_PGFSM_CNTL_POWER_ON_MASK;
+		break;
+	case ACP70_PCI_ID:
+		acp_pgfsm_status_mask = ACP70_PGFSM_STATUS_MASK;
+		acp_pgfsm_cntl_mask = ACP70_PGFSM_CNTL_POWER_ON_MASK;
 		break;
 	default:
 		return -EINVAL;
@@ -559,8 +608,11 @@ static bool check_acp_sdw_enable_status(struct snd_sof_dev *sdev)
 
 int amd_sof_acp_suspend(struct snd_sof_dev *sdev, u32 target_state)
 {
+	struct acp_dev_data *acp_data;
 	int ret;
+	bool enable = false;
 
+	acp_data = sdev->pdata->hw_pdata;
 	/* When acp_reset() function is invoked, it will apply ACP SOFT reset and
 	 * DSP reset. ACP Soft reset sequence will cause all ACP IP registers will
 	 * be reset to default values which will break the ClockStop Mode functionality.
@@ -575,8 +627,9 @@ int amd_sof_acp_suspend(struct snd_sof_dev *sdev, u32 target_state)
 		dev_err(sdev->dev, "ACP Reset failed\n");
 		return ret;
 	}
-
-	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_CONTROL, 0x00);
+	if (acp_data->pci_rev == ACP70_PCI_ID)
+		enable = true;
+	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_CONTROL, enable);
 
 	return 0;
 }
@@ -713,6 +766,7 @@ int amd_sof_acp_probe(struct snd_sof_dev *sdev)
 	pci_set_master(pci);
 	adata->addr = addr;
 	adata->reg_range = chip->reg_end_addr - chip->reg_start_addr;
+	adata->pci_rev = pci->revision;
 	mutex_init(&adata->acp_lock);
 	sdev->pdata->hw_pdata = adata;
 	adata->smn_dev = pci_get_device(PCI_VENDOR_ID_AMD, chip->host_bridge_id, NULL);

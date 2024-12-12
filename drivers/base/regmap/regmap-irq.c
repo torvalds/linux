@@ -608,6 +608,30 @@ int regmap_irq_set_type_config_simple(unsigned int **buf, unsigned int type,
 }
 EXPORT_SYMBOL_GPL(regmap_irq_set_type_config_simple);
 
+static int regmap_irq_create_domain(struct fwnode_handle *fwnode, int irq_base,
+				    const struct regmap_irq_chip *chip,
+				    struct regmap_irq_chip_data *d)
+{
+	struct irq_domain_info info = {
+		.fwnode = fwnode,
+		.size = chip->num_irqs,
+		.hwirq_max = chip->num_irqs,
+		.virq_base = irq_base,
+		.ops = &regmap_domain_ops,
+		.host_data = d,
+		.name_suffix = chip->domain_suffix,
+	};
+
+	d->domain = irq_domain_instantiate(&info);
+	if (IS_ERR(d->domain)) {
+		dev_err(d->map->dev, "Failed to create IRQ domain\n");
+		return PTR_ERR(d->domain);
+	}
+
+	return 0;
+}
+
+
 /**
  * regmap_add_irq_chip_fwnode() - Use standard regmap IRQ controller handling
  *
@@ -856,18 +880,9 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 		}
 	}
 
-	if (irq_base)
-		d->domain = irq_domain_create_legacy(fwnode, chip->num_irqs,
-						     irq_base, 0,
-						     &regmap_domain_ops, d);
-	else
-		d->domain = irq_domain_create_linear(fwnode, chip->num_irqs,
-						     &regmap_domain_ops, d);
-	if (!d->domain) {
-		dev_err(map->dev, "Failed to create IRQ domain\n");
-		ret = -ENOMEM;
+	ret = regmap_irq_create_domain(fwnode, irq_base, chip, d);
+	if (ret)
 		goto err_alloc;
-	}
 
 	ret = request_threaded_irq(irq, NULL, regmap_irq_thread,
 				   irq_flags | IRQF_ONESHOT,

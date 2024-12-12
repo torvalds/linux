@@ -342,7 +342,7 @@ static const struct backlight_ops acx565akm_bl_ops = {
 static int acx565akm_backlight_init(struct acx565akm_panel *lcd)
 {
 	struct backlight_properties props = {
-		.power = FB_BLANK_UNBLANK,
+		.power = BACKLIGHT_POWER_ON,
 		.type = BACKLIGHT_RAW,
 	};
 	int ret;

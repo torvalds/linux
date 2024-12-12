@@ -9,6 +9,8 @@
 
 	aliases {
 		serial0 = &tcu;
+		serial1 = &uarta;
+		serial2 = &uarte;
 	};
 
 	chosen {
@@ -16,6 +18,18 @@
 	};
 
 	bus@0 {
+		serial@3100000 {
+			compatible = "nvidia,tegra194-hsuart";
+			reset-names = "serial";
+			status = "okay";
+		};
+
+		serial@3140000 {
+			compatible = "nvidia,tegra194-hsuart";
+			reset-names = "serial";
+			status = "okay";
+		};
+
 		i2c@3160000 {
 			status = "okay";
 
@@ -170,6 +184,18 @@
 			phys = <&p2u_hsio_4>, <&p2u_hsio_5>, <&p2u_hsio_6>,
 			       <&p2u_hsio_7>;
 			phy-names = "p2u-0", "p2u-1", "p2u-2", "p2u-3";
+		};
+
+		pcie-ep@14160000 {/* C4 - End Point */
+			phys = <&p2u_hsio_4>, <&p2u_hsio_5>, <&p2u_hsio_6>,
+					<&p2u_hsio_7>;
+			phy-names = "p2u-0", "p2u-1", "p2u-2", "p2u-3";
+			reset-gpios = <&gpio
+					TEGRA234_MAIN_GPIO(L, 1)
+					GPIO_ACTIVE_LOW>;
+			nvidia,refclk-select-gpios = <&gpio_aon
+							TEGRA234_AON_GPIO(AA, 4)
+							GPIO_ACTIVE_HIGH>;
 		};
 
 		/* C7 - M.2 Key-M */

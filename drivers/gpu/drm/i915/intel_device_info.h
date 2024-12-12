@@ -128,7 +128,9 @@ enum intel_platform {
 #define INTEL_SUBPLATFORM_RPLU  2
 
 /* MTL */
-#define INTEL_SUBPLATFORM_ARL	0
+#define INTEL_SUBPLATFORM_ARL_H	0
+#define INTEL_SUBPLATFORM_ARL_U	1
+#define INTEL_SUBPLATFORM_ARL_S	2
 
 enum intel_ppgtt_type {
 	INTEL_PPGTT_NONE = I915_GEM_PPGTT_NONE,
@@ -206,8 +208,6 @@ struct intel_runtime_info {
 	u32 platform_mask[2];
 
 	u16 device_id;
-
-	u32 rawclk_freq;
 
 	struct intel_step_info step;
 

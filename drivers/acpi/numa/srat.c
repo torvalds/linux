@@ -17,6 +17,7 @@
 #include <linux/numa.h>
 #include <linux/nodemask.h>
 #include <linux/topology.h>
+#include <linux/numa_memblks.h>
 
 static nodemask_t nodes_found_map = NODE_MASK_NONE;
 

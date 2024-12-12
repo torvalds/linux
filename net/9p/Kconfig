@@ -40,6 +40,14 @@ config NET_9P_XEN
 	  This builds support for a transport for 9pfs between
 	  two Xen domains.
 
+config NET_9P_USBG
+	bool "9P USB Gadget Transport"
+	depends on USB_GADGET=y || USB_GADGET=NET_9P
+	select CONFIGFS_FS
+	select USB_LIBCOMPOSITE
+	help
+	  This builds support for a transport for 9pfs over
+	  usb gadget.
 
 config NET_9P_RDMA
 	depends on INET && INFINIBAND && INFINIBAND_ADDR_TRANS

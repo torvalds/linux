@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/property.h>
 #include <linux/spinlock.h>
 
 #define GPIO_RX_DAT	0x0
@@ -533,7 +534,7 @@ static int thunderx_gpio_probe(struct pci_dev *pdev,
 	chip->set_config = thunderx_gpio_set_config;
 	girq = &chip->irq;
 	gpio_irq_chip_set_chip(girq, &thunderx_gpio_irq_chip);
-	girq->fwnode = of_node_to_fwnode(dev->of_node);
+	girq->fwnode = dev_fwnode(dev);
 	girq->parent_domain =
 		irq_get_irq_data(txgpio->msix_entries[0].vector)->domain;
 	girq->child_to_parent_hwirq = thunderx_gpio_child_to_parent_hwirq;
@@ -549,7 +550,7 @@ static int thunderx_gpio_probe(struct pci_dev *pdev,
 	for (i = 0; i < ngpio; i++) {
 		struct irq_fwspec fwspec;
 
-		fwspec.fwnode = of_node_to_fwnode(dev->of_node);
+		fwspec.fwnode = dev_fwnode(dev);
 		fwspec.param_count = 2;
 		fwspec.param[0] = i;
 		fwspec.param[1] = IRQ_TYPE_NONE;

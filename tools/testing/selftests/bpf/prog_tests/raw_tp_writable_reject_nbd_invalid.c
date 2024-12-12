@@ -2,6 +2,7 @@
 
 #include <test_progs.h>
 #include <linux/nbd.h>
+#include "bpf_util.h"
 
 void test_raw_tp_writable_reject_nbd_invalid(void)
 {
@@ -25,7 +26,7 @@ void test_raw_tp_writable_reject_nbd_invalid(void)
 	);
 
 	bpf_fd = bpf_prog_load(BPF_PROG_TYPE_RAW_TRACEPOINT_WRITABLE, NULL, "GPL v2",
-			       program, sizeof(program) / sizeof(struct bpf_insn),
+			       program, ARRAY_SIZE(program),
 			       &opts);
 	if (CHECK(bpf_fd < 0, "bpf_raw_tracepoint_writable load",
 		  "failed: %d errno %d\n", bpf_fd, errno))

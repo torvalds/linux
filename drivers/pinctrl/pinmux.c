@@ -442,8 +442,7 @@ int pinmux_enable_setting(const struct pinctrl_setting *setting)
 			gname = pctlops->get_group_name(pctldev,
 						setting->data.mux.group);
 			dev_err_probe(pctldev->dev, ret,
-				"could not request pin %d (%s) from group %s "
-				" on device %s\n",
+				"could not request pin %d (%s) from group %s on device %s\n",
 				pins[i], pname, gname,
 				pinctrl_dev_get_name(pctldev));
 			goto err_pin_request;
@@ -526,9 +525,7 @@ void pinmux_disable_setting(const struct pinctrl_setting *setting)
 			gname = pctlops->get_group_name(pctldev,
 						setting->data.mux.group);
 			dev_warn(pctldev->dev,
-				 "not freeing pin %d (%s) as part of "
-				 "deactivating group %s - it is already "
-				 "used for some other setting",
+				 "not freeing pin %d (%s) as part of deactivating group %s - it is already used for some other setting",
 				 pins[i], desc->name, gname);
 		}
 	}

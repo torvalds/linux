@@ -1734,9 +1734,9 @@ EXPORT_SYMBOL_GPL(snd_hda_ctl_add);
 /**
  * snd_hda_add_nid - Assign a NID to a control element
  * @codec: HD-audio codec
- * @nid: corresponding NID (optional)
  * @kctl: the control element to assign
  * @index: index to kctl
+ * @nid: corresponding NID (optional)
  *
  * Add the given control element to an array inside the codec instance.
  * This function is used when #snd_hda_ctl_add cannot be used for 1:1

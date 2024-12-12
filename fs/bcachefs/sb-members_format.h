@@ -66,6 +66,12 @@ struct bch_member {
 };
 
 /*
+ * btree_allocated_bitmap can represent sector addresses of a u64: it itself has
+ * 64 elements, so 64 - ilog2(64)
+ */
+#define BCH_MI_BTREE_BITMAP_SHIFT_MAX	58
+
+/*
  * This limit comes from the bucket_gens array - it's a single allocation, and
  * kernel allocation are limited to INT_MAX
  */

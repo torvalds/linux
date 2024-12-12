@@ -334,7 +334,7 @@ static struct platform_driver hac_pcm_driver = {
 	},
 
 	.probe = hac_soc_platform_probe,
-	.remove_new = hac_soc_platform_remove,
+	.remove = hac_soc_platform_remove,
 };
 
 module_platform_driver(hac_pcm_driver);

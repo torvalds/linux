@@ -68,7 +68,6 @@ static ssize_t fw_regs_read(struct file *file, char __user *to, size_t count, lo
 static const struct file_operations fw_regs_fops = {
 	.open = simple_open,
 	.read = fw_regs_read,
-	.llseek = no_llseek,
 };
 
 static ssize_t debug_window_read(struct file *file, char __user *to, size_t count, loff_t *ppos)
@@ -93,7 +92,6 @@ static ssize_t debug_window_read(struct file *file, char __user *to, size_t coun
 static const struct file_operations debug_window_fops = {
 	.open = simple_open,
 	.read = debug_window_read,
-	.llseek = no_llseek,
 };
 
 static ssize_t probe_points_read(struct file *file, char __user *to, size_t count, loff_t *ppos)
@@ -170,7 +168,6 @@ static const struct file_operations probe_points_fops = {
 	.open = simple_open,
 	.read = probe_points_read,
 	.write = probe_points_write,
-	.llseek = no_llseek,
 };
 
 static ssize_t probe_points_disconnect_write(struct file *file, const char __user *from,

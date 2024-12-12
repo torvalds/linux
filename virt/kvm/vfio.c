@@ -190,11 +190,10 @@ static int kvm_vfio_file_del(struct kvm_device *dev, unsigned int fd)
 {
 	struct kvm_vfio *kv = dev->private;
 	struct kvm_vfio_file *kvf;
-	struct fd f;
+	CLASS(fd, f)(fd);
 	int ret;
 
-	f = fdget(fd);
-	if (!f.file)
+	if (fd_empty(f))
 		return -EBADF;
 
 	ret = -ENOENT;
@@ -202,7 +201,7 @@ static int kvm_vfio_file_del(struct kvm_device *dev, unsigned int fd)
 	mutex_lock(&kv->lock);
 
 	list_for_each_entry(kvf, &kv->file_list, node) {
-		if (kvf->file != f.file)
+		if (kvf->file != fd_file(f))
 			continue;
 
 		list_del(&kvf->node);
@@ -220,9 +219,6 @@ static int kvm_vfio_file_del(struct kvm_device *dev, unsigned int fd)
 	kvm_vfio_update_coherency(dev);
 
 	mutex_unlock(&kv->lock);
-
-	fdput(f);
-
 	return ret;
 }
 
@@ -233,14 +229,13 @@ static int kvm_vfio_file_set_spapr_tce(struct kvm_device *dev,
 	struct kvm_vfio_spapr_tce param;
 	struct kvm_vfio *kv = dev->private;
 	struct kvm_vfio_file *kvf;
-	struct fd f;
 	int ret;
 
 	if (copy_from_user(&param, arg, sizeof(struct kvm_vfio_spapr_tce)))
 		return -EFAULT;
 
-	f = fdget(param.groupfd);
-	if (!f.file)
+	CLASS(fd, f)(param.groupfd);
+	if (fd_empty(f))
 		return -EBADF;
 
 	ret = -ENOENT;
@@ -248,7 +243,7 @@ static int kvm_vfio_file_set_spapr_tce(struct kvm_device *dev,
 	mutex_lock(&kv->lock);
 
 	list_for_each_entry(kvf, &kv->file_list, node) {
-		if (kvf->file != f.file)
+		if (kvf->file != fd_file(f))
 			continue;
 
 		if (!kvf->iommu_group) {
@@ -266,7 +261,6 @@ static int kvm_vfio_file_set_spapr_tce(struct kvm_device *dev,
 
 err_fdput:
 	mutex_unlock(&kv->lock);
-	fdput(f);
 	return ret;
 }
 #endif

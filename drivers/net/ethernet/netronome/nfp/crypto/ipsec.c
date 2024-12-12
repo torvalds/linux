@@ -6,7 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/ktime.h>
 #include <net/xfrm.h>
 

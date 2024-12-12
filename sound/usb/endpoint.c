@@ -921,6 +921,9 @@ static int endpoint_set_interface(struct snd_usb_audio *chip,
 
 	if (ep->iface_ref->altset == altset)
 		return 0;
+	/* already disconnected? */
+	if (unlikely(atomic_read(&chip->shutdown)))
+		return -ENODEV;
 
 	usb_audio_dbg(chip, "Setting usb interface %d:%d for EP 0x%x\n",
 		      ep->iface, altset, ep->ep_num);

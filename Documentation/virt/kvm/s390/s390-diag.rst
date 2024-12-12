@@ -35,19 +35,23 @@ DIAGNOSE function codes not specific to KVM, please refer to the
 documentation for the s390 hypervisors defining them.
 
 
-DIAGNOSE function code 'X'500' - KVM virtio functions
------------------------------------------------------
+DIAGNOSE function code 'X'500' - KVM functions
+----------------------------------------------
 
-If the function code specifies 0x500, various virtio-related functions
-are performed.
+If the function code specifies 0x500, various KVM-specific functions
+are performed, including virtio functions.
 
-General register 1 contains the virtio subfunction code. Supported
-virtio subfunctions depend on KVM's userspace. Generally, userspace
-provides either s390-virtio (subcodes 0-2) or virtio-ccw (subcode 3).
+General register 1 contains the subfunction code. Supported subfunctions
+depend on KVM's userspace. Regarding virtio subfunctions, generally
+userspace provides either s390-virtio (subcodes 0-2) or virtio-ccw
+(subcode 3).
 
 Upon completion of the DIAGNOSE instruction, general register 2 contains
 the function's return code, which is either a return code or a subcode
 specific value.
+
+If the specified subfunction is not supported, a SPECIFICATION exception
+will be triggered.
 
 Subcode 0 - s390-virtio notification and early console printk
     Handled by userspace.
@@ -75,6 +79,23 @@ Subcode 3 - virtio-ccw notification
     error value, if an internal error occurred.
 
     See also the virtio standard for a discussion of this hypercall.
+
+Subcode 4 - storage-limit
+    Handled by userspace.
+
+    After completion of the DIAGNOSE call, general register 2 will
+    contain the storage limit: the maximum physical address that might be
+    used for storage throughout the lifetime of the VM.
+
+    The storage limit does not indicate currently usable storage, it may
+    include holes, standby storage and areas reserved for other means, such
+    as memory hotplug or virtio-mem devices. Other interfaces for detecting
+    actually usable storage, such as SCLP, must be used in conjunction with
+    this subfunction.
+
+    Note that the storage limit can be larger, but never smaller than the
+    maximum storage address indicated by SCLP via the "maximum storage
+    increment" and the "increment size".
 
 
 DIAGNOSE function code 'X'501 - KVM breakpoint

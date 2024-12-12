@@ -436,7 +436,7 @@ static struct platform_driver mmp2_audio_clk_driver = {
 		.pm = &mmp2_audio_clk_pm_ops,
 	},
 	.probe = mmp2_audio_clk_probe,
-	.remove_new = mmp2_audio_clk_remove,
+	.remove = mmp2_audio_clk_remove,
 };
 module_platform_driver(mmp2_audio_clk_driver);
 

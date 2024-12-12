@@ -5,7 +5,7 @@
 #include <linux/device.h>
 #include <linux/usb/storage.h>
 #include <scsi/scsi.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #ifndef DEBUG
 #undef VERBOSE_DEBUG

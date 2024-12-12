@@ -1368,7 +1368,6 @@ static int lpg_add_led(struct lpg *lpg, struct device_node *np)
 {
 	struct led_init_data init_data = {};
 	struct led_classdev *cdev;
-	struct device_node *child;
 	struct mc_subled *info;
 	struct lpg_led *led;
 	const char *state;
@@ -1399,12 +1398,10 @@ static int lpg_add_led(struct lpg *lpg, struct device_node *np)
 		if (!info)
 			return -ENOMEM;
 		i = 0;
-		for_each_available_child_of_node(np, child) {
+		for_each_available_child_of_node_scoped(np, child) {
 			ret = lpg_parse_channel(lpg, child, &led->channels[i]);
-			if (ret < 0) {
-				of_node_put(child);
+			if (ret < 0)
 				return ret;
-			}
 
 			info[i].color_index = led->channels[i]->color;
 			info[i].intensity = 0;
@@ -1600,7 +1597,6 @@ static int lpg_init_sdam(struct lpg *lpg)
 
 static int lpg_probe(struct platform_device *pdev)
 {
-	struct device_node *np;
 	struct lpg *lpg;
 	int ret;
 	int i;
@@ -1640,12 +1636,10 @@ static int lpg_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	for_each_available_child_of_node(pdev->dev.of_node, np) {
+	for_each_available_child_of_node_scoped(pdev->dev.of_node, np) {
 		ret = lpg_add_led(lpg, np);
-		if (ret) {
-			of_node_put(np);
+		if (ret)
 			return ret;
-		}
 	}
 
 	for (i = 0; i < lpg->num_channels; i++)

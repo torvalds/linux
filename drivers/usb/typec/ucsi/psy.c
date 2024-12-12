@@ -254,12 +254,6 @@ static int ucsi_psy_get_prop(struct power_supply *psy,
 	}
 }
 
-static enum power_supply_usb_type ucsi_psy_usb_types[] = {
-	POWER_SUPPLY_USB_TYPE_C,
-	POWER_SUPPLY_USB_TYPE_PD,
-	POWER_SUPPLY_USB_TYPE_PD_PPS,
-};
-
 int ucsi_register_port_psy(struct ucsi_connector *con)
 {
 	struct power_supply_config psy_cfg = {};
@@ -276,8 +270,9 @@ int ucsi_register_port_psy(struct ucsi_connector *con)
 
 	con->psy_desc.name = psy_name;
 	con->psy_desc.type = POWER_SUPPLY_TYPE_USB;
-	con->psy_desc.usb_types = ucsi_psy_usb_types;
-	con->psy_desc.num_usb_types = ARRAY_SIZE(ucsi_psy_usb_types);
+	con->psy_desc.usb_types = BIT(POWER_SUPPLY_USB_TYPE_C)  |
+				  BIT(POWER_SUPPLY_USB_TYPE_PD) |
+				  BIT(POWER_SUPPLY_USB_TYPE_PD_PPS);
 	con->psy_desc.properties = ucsi_psy_props;
 	con->psy_desc.num_properties = ARRAY_SIZE(ucsi_psy_props);
 	con->psy_desc.get_property = ucsi_psy_get_prop;

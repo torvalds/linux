@@ -56,3 +56,12 @@ void kgd_gfx_v10_build_grace_period_packet_info(struct amdgpu_device *adev,
 					       uint32_t grace_period,
 					       uint32_t *reg_offset,
 					       uint32_t *reg_data);
+uint64_t kgd_gfx_v10_hqd_get_pq_addr(struct amdgpu_device *adev,
+				    uint32_t pipe_id,
+				    uint32_t queue_id,
+				    uint32_t inst);
+uint64_t kgd_gfx_v10_hqd_reset(struct amdgpu_device *adev,
+			      uint32_t pipe_id,
+			      uint32_t queue_id,
+			      uint32_t inst,
+			      unsigned int utimeout);

@@ -232,7 +232,7 @@ static void eud_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id eud_dt_match[] = {
-	{ .compatible = "qcom,sc7280-eud" },
+	{ .compatible = "qcom,eud" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, eud_dt_match);

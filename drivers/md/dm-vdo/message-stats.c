@@ -4,6 +4,7 @@
  */
 
 #include "dedupe.h"
+#include "indexer.h"
 #include "logger.h"
 #include "memory-alloc.h"
 #include "message-stats.h"
@@ -428,5 +429,52 @@ int vdo_write_stats(struct vdo *vdo, char *buf, unsigned int maxlen)
 	vdo_fetch_statistics(vdo, stats);
 	write_vdo_statistics(NULL, stats, NULL, &buf, &maxlen);
 	vdo_free(stats);
+	return VDO_SUCCESS;
+}
+
+static void write_index_memory(u32 mem, char **buf, unsigned int *maxlen)
+{
+	char *prefix = "memorySize : ";
+
+	/* Convert index memory to fractional value */
+	if (mem == (u32)UDS_MEMORY_CONFIG_256MB)
+		write_string(prefix, "0.25, ", NULL, buf, maxlen);
+	else if (mem == (u32)UDS_MEMORY_CONFIG_512MB)
+		write_string(prefix, "0.50, ", NULL, buf, maxlen);
+	else if (mem == (u32)UDS_MEMORY_CONFIG_768MB)
+		write_string(prefix, "0.75, ", NULL, buf, maxlen);
+	else
+		write_u32(prefix, mem, ", ", buf, maxlen);
+}
+
+static void write_index_config(struct index_config *config, char **buf,
+			       unsigned int *maxlen)
+{
+	write_string("index :  ", "{ ", NULL, buf, maxlen);
+	/* index mem size */
+	write_index_memory(config->mem, buf, maxlen);
+	/* whether the index is sparse or not */
+	write_bool("isSparse : ", config->sparse, ", ", buf, maxlen);
+	write_string(NULL, "}", ", ", buf, maxlen);
+}
+
+int vdo_write_config(struct vdo *vdo, char **buf, unsigned int *maxlen)
+{
+	struct vdo_config *config = &vdo->states.vdo.config;
+
+	write_string(NULL, "{ ", NULL, buf, maxlen);
+	/* version */
+	write_u32("version : ", 1, ", ", buf, maxlen);
+	/* physical size */
+	write_block_count_t("physicalSize : ", config->physical_blocks * VDO_BLOCK_SIZE, ", ",
+			    buf, maxlen);
+	/* logical size */
+	write_block_count_t("logicalSize : ", config->logical_blocks * VDO_BLOCK_SIZE, ", ",
+			    buf, maxlen);
+	/* slab size */
+	write_block_count_t("slabSize : ", config->slab_size, ", ", buf, maxlen);
+	/* index config */
+	write_index_config(&vdo->geometry.index_config, buf, maxlen);
+	write_string(NULL, "}", NULL, buf, maxlen);
 	return VDO_SUCCESS;
 }

@@ -35,7 +35,7 @@
  *	Copyright (C) 2011 Andy Walls <awalls@md.metrocast.net>
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>

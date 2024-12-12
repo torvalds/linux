@@ -161,6 +161,9 @@ struct qcom_smp2p {
 	struct list_head outbound;
 };
 
+#define CREATE_TRACE_POINTS
+#include "trace-smp2p.h"
+
 static void qcom_smp2p_kick(struct qcom_smp2p *smp2p)
 {
 	/* Make sure any updated data is written before the kick */
@@ -192,6 +195,7 @@ static void qcom_smp2p_do_ssr_ack(struct qcom_smp2p *smp2p)
 	struct smp2p_smem_item *out = smp2p->out;
 	u32 val;
 
+	trace_smp2p_ssr_ack(smp2p->dev);
 	smp2p->ssr_ack = !smp2p->ssr_ack;
 
 	val = out->flags & ~BIT(SMP2P_FLAGS_RESTART_ACK_BIT);
@@ -214,6 +218,7 @@ static void qcom_smp2p_negotiate(struct qcom_smp2p *smp2p)
 			smp2p->ssr_ack_enabled = true;
 
 		smp2p->negotiation_done = true;
+		trace_smp2p_negotiate(smp2p->dev, out->features);
 	}
 }
 
@@ -251,6 +256,8 @@ static void qcom_smp2p_notify_in(struct qcom_smp2p *smp2p)
 
 		status = val ^ entry->last_value;
 		entry->last_value = val;
+
+		trace_smp2p_notify_in(entry, status, val);
 
 		/* No changes of this entry? */
 		if (!status)
@@ -415,6 +422,8 @@ static int smp2p_update_bits(void *data, u32 mask, u32 value)
 	writel(val, entry->value);
 	spin_unlock_irqrestore(&entry->lock, flags);
 
+	trace_smp2p_update_bits(entry, orig, val);
+
 	if (val != orig)
 		qcom_smp2p_kick(entry->smp2p);
 
@@ -530,7 +539,6 @@ static int smp2p_parse_ipc(struct qcom_smp2p *smp2p)
 static int qcom_smp2p_probe(struct platform_device *pdev)
 {
 	struct smp2p_entry *entry;
-	struct device_node *node;
 	struct qcom_smp2p *smp2p;
 	const char *key;
 	int irq;
@@ -584,11 +592,10 @@ static int qcom_smp2p_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto release_mbox;
 
-	for_each_available_child_of_node(pdev->dev.of_node, node) {
+	for_each_available_child_of_node_scoped(pdev->dev.of_node, node) {
 		entry = devm_kzalloc(&pdev->dev, sizeof(*entry), GFP_KERNEL);
 		if (!entry) {
 			ret = -ENOMEM;
-			of_node_put(node);
 			goto unwind_interfaces;
 		}
 
@@ -596,25 +603,19 @@ static int qcom_smp2p_probe(struct platform_device *pdev)
 		spin_lock_init(&entry->lock);
 
 		ret = of_property_read_string(node, "qcom,entry-name", &entry->name);
-		if (ret < 0) {
-			of_node_put(node);
+		if (ret < 0)
 			goto unwind_interfaces;
-		}
 
 		if (of_property_read_bool(node, "interrupt-controller")) {
 			ret = qcom_smp2p_inbound_entry(smp2p, entry, node);
-			if (ret < 0) {
-				of_node_put(node);
+			if (ret < 0)
 				goto unwind_interfaces;
-			}
 
 			list_add(&entry->node, &smp2p->inbound);
 		} else  {
 			ret = qcom_smp2p_outbound_entry(smp2p, entry, node);
-			if (ret < 0) {
-				of_node_put(node);
+			if (ret < 0)
 				goto unwind_interfaces;
-			}
 
 			list_add(&entry->node, &smp2p->outbound);
 		}

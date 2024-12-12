@@ -60,7 +60,7 @@ static bool is_cpuid_mangled(const struct kvm_cpuid_entry2 *entrie)
 {
 	int i;
 
-	for (i = 0; i < sizeof(mangled_cpuids); i++) {
+	for (i = 0; i < ARRAY_SIZE(mangled_cpuids); i++) {
 		if (mangled_cpuids[i].function == entrie->function &&
 		    mangled_cpuids[i].index == entrie->index)
 			return true;

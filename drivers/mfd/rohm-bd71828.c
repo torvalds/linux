@@ -316,7 +316,7 @@ static const struct regmap_irq bd71815_irqs[] = {
 	REGMAP_IRQ_REG(BD71815_INT_RTC2, 11, BD71815_INT_RTC2_MASK),
 };
 
-static struct regmap_irq bd71828_irqs[] = {
+static const struct regmap_irq bd71828_irqs[] = {
 	REGMAP_IRQ_REG(BD71828_INT_BUCK1_OCP, 0, BD71828_INT_BUCK1_OCP_MASK),
 	REGMAP_IRQ_REG(BD71828_INT_BUCK2_OCP, 0, BD71828_INT_BUCK2_OCP_MASK),
 	REGMAP_IRQ_REG(BD71828_INT_BUCK3_OCP, 0, BD71828_INT_BUCK3_OCP_MASK),
@@ -407,7 +407,7 @@ static struct regmap_irq bd71828_irqs[] = {
 	REGMAP_IRQ_REG(BD71828_INT_RTC2, 11, BD71828_INT_RTC2_MASK),
 };
 
-static struct regmap_irq_chip bd71828_irq_chip = {
+static const struct regmap_irq_chip bd71828_irq_chip = {
 	.name = "bd71828_irq",
 	.main_status = BD71828_REG_INT_MAIN,
 	.irqs = &bd71828_irqs[0],
@@ -423,7 +423,7 @@ static struct regmap_irq_chip bd71828_irq_chip = {
 	.irq_reg_stride = 1,
 };
 
-static struct regmap_irq_chip bd71815_irq_chip = {
+static const struct regmap_irq_chip bd71815_irq_chip = {
 	.name = "bd71815_irq",
 	.main_status = BD71815_REG_INT_STAT,
 	.irqs = &bd71815_irqs[0],
@@ -491,7 +491,7 @@ static int bd71828_i2c_probe(struct i2c_client *i2c)
 	int ret;
 	struct regmap *regmap;
 	const struct regmap_config *regmap_config;
-	struct regmap_irq_chip *irqchip;
+	const struct regmap_irq_chip *irqchip;
 	unsigned int chip_type;
 	struct mfd_cell *mfd;
 	int cells;

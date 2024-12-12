@@ -14,8 +14,8 @@ properties:
     oneOf:
       - const: fsl,imx21-rnga
       - const: fsl,imx25-rngb
+      - const: fsl,imx31-rnga
       - items:
-          - const: fsl,imx31-rnga
           - const: fsl,imx21-rnga
       - items:
           - enum:

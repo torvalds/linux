@@ -560,7 +560,7 @@ static struct platform_driver evea_codec_driver = {
 		.of_match_table = of_match_ptr(evea_of_match),
 	},
 	.probe  = evea_probe,
-	.remove_new = evea_remove,
+	.remove = evea_remove,
 };
 module_platform_driver(evea_codec_driver);
 

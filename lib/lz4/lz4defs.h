@@ -35,7 +35,7 @@
  *	Sven Schmidt <4sschmid@informatik.uni-hamburg.de>
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <linux/bitops.h>
 #include <linux/string.h>	 /* memset, memcpy */

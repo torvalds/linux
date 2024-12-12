@@ -23,7 +23,7 @@
 #include <linux/platform_data/cros_ec_proto.h>
 #include <linux/platform_device.h>
 #include <linux/pm_wakeup.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "hid-ids.h"
 #include "hid-vivaldi-common.h"
@@ -418,38 +418,15 @@ static int hammer_event(struct hid_device *hid, struct hid_field *field,
 	return 0;
 }
 
-static bool hammer_has_usage(struct hid_device *hdev, unsigned int report_type,
-			unsigned application, unsigned usage)
-{
-	struct hid_report_enum *re = &hdev->report_enum[report_type];
-	struct hid_report *report;
-	int i, j;
-
-	list_for_each_entry(report, &re->report_list, list) {
-		if (report->application != application)
-			continue;
-
-		for (i = 0; i < report->maxfield; i++) {
-			struct hid_field *field = report->field[i];
-
-			for (j = 0; j < field->maxusage; j++)
-				if (field->usage[j].hid == usage)
-					return true;
-		}
-	}
-
-	return false;
-}
-
 static bool hammer_has_folded_event(struct hid_device *hdev)
 {
-	return hammer_has_usage(hdev, HID_INPUT_REPORT,
+	return !!hid_find_field(hdev, HID_INPUT_REPORT,
 				HID_GD_KEYBOARD, HID_USAGE_KBD_FOLDED);
 }
 
 static bool hammer_has_backlight_control(struct hid_device *hdev)
 {
-	return hammer_has_usage(hdev, HID_OUTPUT_REPORT,
+	return !!hid_find_field(hdev, HID_OUTPUT_REPORT,
 				HID_GD_KEYBOARD, HID_AD_BRIGHTNESS);
 }
 

@@ -1845,7 +1845,7 @@ hws_definer_find_best_match_fit(struct mlx5hws_context *ctx,
 		return 0;
 	}
 
-	return E2BIG;
+	return -E2BIG;
 }
 
 static void
@@ -1925,13 +1925,13 @@ mlx5hws_definer_calc_layout(struct mlx5hws_context *ctx,
 	ret = hws_definer_conv_match_params_to_hl(ctx, mt, match_hl);
 	if (ret) {
 		mlx5hws_err(ctx, "Failed to convert items to header layout\n");
-		goto free_fc;
+		goto free_match_hl;
 	}
 
 	/* Find the match definer layout for header layout match union */
 	ret = hws_definer_find_best_match_fit(ctx, match_definer, match_hl);
 	if (ret) {
-		if (ret == E2BIG)
+		if (ret == -E2BIG)
 			mlx5hws_dbg(ctx,
 				    "Failed to create match definer from header layout - E2BIG\n");
 		else
@@ -1946,7 +1946,7 @@ mlx5hws_definer_calc_layout(struct mlx5hws_context *ctx,
 
 free_fc:
 	kfree(mt->fc);
-
+free_match_hl:
 	kfree(match_hl);
 	return ret;
 }

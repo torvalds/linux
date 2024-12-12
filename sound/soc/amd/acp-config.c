@@ -321,5 +321,17 @@ struct snd_soc_acpi_mach snd_soc_acpi_amd_acp63_sof_machines[] = {
 };
 EXPORT_SYMBOL(snd_soc_acpi_amd_acp63_sof_machines);
 
+struct snd_soc_acpi_mach snd_soc_acpi_amd_acp70_sof_machines[] = {
+	{
+		.id = "AMDI1010",
+		.drv_name = "acp70-dsp",
+		.pdata = &acp_quirk_data,
+		.fw_filename = "sof-acp_7_0.ri",
+		.sof_tplg_filename = "sof-acp_7_0.tplg",
+	},
+	{},
+};
+EXPORT_SYMBOL(snd_soc_acpi_amd_acp70_sof_machines);
+
 MODULE_DESCRIPTION("AMD ACP Machine Configuration Module");
 MODULE_LICENSE("Dual BSD/GPL");

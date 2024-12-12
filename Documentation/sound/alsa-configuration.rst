@@ -1059,6 +1059,9 @@ power_save
     Automatic power-saving timeout (in second, 0 = disable)
 power_save_controller
     Reset HD-audio controller in power-saving mode (default = on)
+pm_blacklist
+    Enable / disable power-management deny-list (default = look up PM
+    deny-list, 0 = skip PM deny-list, 1 = force to turn off runtime PM)
 align_buffer_size
     Force rounding of buffer/period sizes to multiples of 128 bytes.
     This is more efficient in terms of memory access but isn't

@@ -159,7 +159,7 @@ static int ad7091r_regmap_bus_reg_write(void *context, unsigned int reg,
 	return spi_write(spi, &st->tx_buf, 2);
 }
 
-static struct regmap_bus ad7091r8_regmap_bus = {
+static const struct regmap_bus ad7091r8_regmap_bus = {
 	.reg_read = ad7091r_regmap_bus_reg_read,
 	.reg_write = ad7091r_regmap_bus_reg_write,
 	.reg_format_endian_default = REGMAP_ENDIAN_BIG,

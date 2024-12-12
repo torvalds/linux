@@ -17,7 +17,7 @@ struct pxrc_priv {
 	bool alternate;
 };
 
-static __u8 pxrc_rdesc_fixed[] = {
+static const __u8 pxrc_rdesc_fixed[] = {
 	0x05, 0x01,        // Usage Page (Generic Desktop Ctrls)
 	0x09, 0x04,        // Usage (Joystick)
 	0xA1, 0x01,        // Collection (Application)
@@ -42,8 +42,8 @@ static __u8 pxrc_rdesc_fixed[] = {
 	0xC0,              // End Collection
 };
 
-static __u8 *pxrc_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-				unsigned int *rsize)
+static const __u8 *pxrc_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+				     unsigned int *rsize)
 {
 	hid_info(hdev, "fixing up PXRC report descriptor\n");
 	*rsize = sizeof(pxrc_rdesc_fixed);

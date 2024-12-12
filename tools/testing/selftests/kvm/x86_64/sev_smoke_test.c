@@ -160,6 +160,36 @@ static void test_sev(void *guest_code, uint64_t policy)
 	kvm_vm_free(vm);
 }
 
+static void guest_shutdown_code(void)
+{
+	struct desc_ptr idt;
+
+	/* Clobber the IDT so that #UD is guaranteed to trigger SHUTDOWN. */
+	memset(&idt, 0, sizeof(idt));
+	__asm__ __volatile__("lidt %0" :: "m"(idt));
+
+	__asm__ __volatile__("ud2");
+}
+
+static void test_sev_es_shutdown(void)
+{
+	struct kvm_vcpu *vcpu;
+	struct kvm_vm *vm;
+
+	uint32_t type = KVM_X86_SEV_ES_VM;
+
+	vm = vm_sev_create_with_one_vcpu(type, guest_shutdown_code, &vcpu);
+
+	vm_sev_launch(vm, SEV_POLICY_ES, NULL);
+
+	vcpu_run(vcpu);
+	TEST_ASSERT(vcpu->run->exit_reason == KVM_EXIT_SHUTDOWN,
+		    "Wanted SHUTDOWN, got %s",
+		    exit_reason_str(vcpu->run->exit_reason));
+
+	kvm_vm_free(vm);
+}
+
 int main(int argc, char *argv[])
 {
 	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_SEV));
@@ -170,6 +200,8 @@ int main(int argc, char *argv[])
 	if (kvm_cpu_has(X86_FEATURE_SEV_ES)) {
 		test_sev(guest_sev_es_code, SEV_POLICY_ES | SEV_POLICY_NO_DBG);
 		test_sev(guest_sev_es_code, SEV_POLICY_ES);
+
+		test_sev_es_shutdown();
 
 		if (kvm_has_cap(KVM_CAP_XCRS) &&
 		    (xgetbv(0) & XFEATURE_MASK_X87_AVX) == XFEATURE_MASK_X87_AVX) {

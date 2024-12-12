@@ -31,6 +31,25 @@ config IPE_BOOT_POLICY
 
 	  If unsure, leave blank.
 
+config IPE_POLICY_SIG_SECONDARY_KEYRING
+	bool "IPE policy update verification with secondary keyring"
+	default y
+	depends on SECONDARY_TRUSTED_KEYRING
+	help
+	  Also allow the secondary trusted keyring to verify IPE policy
+	  updates.
+
+	  If unsure, answer Y.
+
+config IPE_POLICY_SIG_PLATFORM_KEYRING
+	bool "IPE policy update verification with platform keyring"
+	default y
+	depends on INTEGRITY_PLATFORM_KEYRING
+	help
+	  Also allow the platform keyring to verify IPE policy updates.
+
+	  If unsure, answer Y.
+
 menu "IPE Trust Providers"
 
 config IPE_PROP_DM_VERITY

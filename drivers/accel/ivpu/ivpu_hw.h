@@ -52,6 +52,7 @@ struct ivpu_hw_info {
 	int dma_bits;
 	ktime_t d0i3_entry_host_ts;
 	u64 d0i3_entry_vpu_ts;
+	atomic_t firewall_irq_counter;
 };
 
 int ivpu_hw_init(struct ivpu_device *vdev);

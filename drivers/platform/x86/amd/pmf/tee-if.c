@@ -160,6 +160,46 @@ static void amd_pmf_apply_policies(struct amd_pmf_dev *dev, struct ta_pmf_enact_
 			dev_dbg(dev->dev, "update SYSTEM_STATE: %s\n",
 				amd_pmf_uevent_as_str(val));
 			break;
+
+		case PMF_POLICY_BIOS_OUTPUT_1:
+			amd_pmf_smartpc_apply_bios_output(dev, val, BIT(0), 0);
+			break;
+
+		case PMF_POLICY_BIOS_OUTPUT_2:
+			amd_pmf_smartpc_apply_bios_output(dev, val, BIT(1), 1);
+			break;
+
+		case PMF_POLICY_BIOS_OUTPUT_3:
+			amd_pmf_smartpc_apply_bios_output(dev, val, BIT(2), 2);
+			break;
+
+		case PMF_POLICY_BIOS_OUTPUT_4:
+			amd_pmf_smartpc_apply_bios_output(dev, val, BIT(3), 3);
+			break;
+
+		case PMF_POLICY_BIOS_OUTPUT_5:
+			amd_pmf_smartpc_apply_bios_output(dev, val, BIT(4), 4);
+			break;
+
+		case PMF_POLICY_BIOS_OUTPUT_6:
+			amd_pmf_smartpc_apply_bios_output(dev, val, BIT(5), 5);
+			break;
+
+		case PMF_POLICY_BIOS_OUTPUT_7:
+			amd_pmf_smartpc_apply_bios_output(dev, val, BIT(6), 6);
+			break;
+
+		case PMF_POLICY_BIOS_OUTPUT_8:
+			amd_pmf_smartpc_apply_bios_output(dev, val, BIT(7), 7);
+			break;
+
+		case PMF_POLICY_BIOS_OUTPUT_9:
+			amd_pmf_smartpc_apply_bios_output(dev, val, BIT(8), 8);
+			break;
+
+		case PMF_POLICY_BIOS_OUTPUT_10:
+			amd_pmf_smartpc_apply_bios_output(dev, val, BIT(9), 9);
+			break;
 		}
 	}
 }

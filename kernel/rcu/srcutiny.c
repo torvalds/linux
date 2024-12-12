@@ -122,8 +122,8 @@ void srcu_drive_gp(struct work_struct *wp)
 	ssp = container_of(wp, struct srcu_struct, srcu_work);
 	preempt_disable();  // Needed for PREEMPT_AUTO
 	if (ssp->srcu_gp_running || ULONG_CMP_GE(ssp->srcu_idx, READ_ONCE(ssp->srcu_idx_max))) {
-		return; /* Already running or nothing to do. */
 		preempt_enable();
+		return; /* Already running or nothing to do. */
 	}
 
 	/* Remove recently arrived callbacks and wait for readers. */

@@ -1609,7 +1609,7 @@ mptctl_eventreport (MPT_ADAPTER *ioc, unsigned long arg)
 	maxEvents = numBytes/sizeof(MPT_IOCTL_EVENTS);
 
 
-	max = MPTCTL_EVENT_LOG_SIZE < maxEvents ? MPTCTL_EVENT_LOG_SIZE : maxEvents;
+	max = min(maxEvents, MPTCTL_EVENT_LOG_SIZE);
 
 	/* If fewer than 1 event is requested, there must have
 	 * been some type of error.
@@ -2691,7 +2691,6 @@ mptctl_hp_targetinfo(MPT_ADAPTER *ioc, unsigned long arg)
 
 static const struct file_operations mptctl_fops = {
 	.owner =	THIS_MODULE,
-	.llseek =	no_llseek,
 	.fasync = 	mptctl_fasync,
 	.unlocked_ioctl = mptctl_ioctl,
 #ifdef CONFIG_COMPAT

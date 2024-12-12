@@ -41,23 +41,29 @@
 #define PKEY_KEYTYPE_ECC_P521		7
 #define PKEY_KEYTYPE_ECC_ED25519	8
 #define PKEY_KEYTYPE_ECC_ED448		9
+#define PKEY_KEYTYPE_AES_XTS_128	10
+#define PKEY_KEYTYPE_AES_XTS_256	11
+#define PKEY_KEYTYPE_HMAC_512		12
+#define PKEY_KEYTYPE_HMAC_1024		13
 
 /* the newer ioctls use a pkey_key_type enum for type information */
 enum pkey_key_type {
-	PKEY_TYPE_CCA_DATA   = (__u32) 1,
-	PKEY_TYPE_CCA_CIPHER = (__u32) 2,
-	PKEY_TYPE_EP11	     = (__u32) 3,
-	PKEY_TYPE_CCA_ECC    = (__u32) 0x1f,
-	PKEY_TYPE_EP11_AES   = (__u32) 6,
-	PKEY_TYPE_EP11_ECC   = (__u32) 7,
+	PKEY_TYPE_CCA_DATA   = (__u32)1,
+	PKEY_TYPE_CCA_CIPHER = (__u32)2,
+	PKEY_TYPE_EP11	     = (__u32)3,
+	PKEY_TYPE_CCA_ECC    = (__u32)0x1f,
+	PKEY_TYPE_EP11_AES   = (__u32)6,
+	PKEY_TYPE_EP11_ECC   = (__u32)7,
+	PKEY_TYPE_PROTKEY    = (__u32)8,
+	PKEY_TYPE_UVSECRET   = (__u32)9,
 };
 
 /* the newer ioctls use a pkey_key_size enum for key size information */
 enum pkey_key_size {
-	PKEY_SIZE_AES_128 = (__u32) 128,
-	PKEY_SIZE_AES_192 = (__u32) 192,
-	PKEY_SIZE_AES_256 = (__u32) 256,
-	PKEY_SIZE_UNKNOWN = (__u32) 0xFFFFFFFF,
+	PKEY_SIZE_AES_128 = (__u32)128,
+	PKEY_SIZE_AES_192 = (__u32)192,
+	PKEY_SIZE_AES_256 = (__u32)256,
+	PKEY_SIZE_UNKNOWN = (__u32)0xFFFFFFFF,
 };
 
 /* some of the newer ioctls use these flags */
@@ -120,6 +126,7 @@ struct pkey_genseck {
 	__u32 keytype;		    /* in: key type to generate		 */
 	struct pkey_seckey seckey;  /* out: the secure key blob		 */
 };
+
 #define PKEY_GENSECK _IOWR(PKEY_IOCTL_MAGIC, 0x01, struct pkey_genseck)
 
 /*
@@ -132,6 +139,7 @@ struct pkey_clr2seck {
 	struct pkey_clrkey clrkey;  /* in: the clear key value		 */
 	struct pkey_seckey seckey;  /* out: the secure key blob		 */
 };
+
 #define PKEY_CLR2SECK _IOWR(PKEY_IOCTL_MAGIC, 0x02, struct pkey_clr2seck)
 
 /*
@@ -143,6 +151,7 @@ struct pkey_sec2protk {
 	struct pkey_seckey seckey;   /* in: the secure key blob		  */
 	struct pkey_protkey protkey; /* out: the protected key		  */
 };
+
 #define PKEY_SEC2PROTK _IOWR(PKEY_IOCTL_MAGIC, 0x03, struct pkey_sec2protk)
 
 /*
@@ -153,6 +162,7 @@ struct pkey_clr2protk {
 	struct pkey_clrkey clrkey;   /* in: the clear key value		  */
 	struct pkey_protkey protkey; /* out: the protected key		  */
 };
+
 #define PKEY_CLR2PROTK _IOWR(PKEY_IOCTL_MAGIC, 0x04, struct pkey_clr2protk)
 
 /*
@@ -164,6 +174,7 @@ struct pkey_findcard {
 	__u16  cardnr;			       /* out: card number	  */
 	__u16  domain;			       /* out: domain number	  */
 };
+
 #define PKEY_FINDCARD _IOWR(PKEY_IOCTL_MAGIC, 0x05, struct pkey_findcard)
 
 /*
@@ -173,6 +184,7 @@ struct pkey_skey2pkey {
 	struct pkey_seckey seckey;   /* in: the secure key blob		  */
 	struct pkey_protkey protkey; /* out: the protected key		  */
 };
+
 #define PKEY_SKEY2PKEY _IOWR(PKEY_IOCTL_MAGIC, 0x06, struct pkey_skey2pkey)
 
 /*
@@ -190,6 +202,7 @@ struct pkey_verifykey {
 	__u16  keysize;			       /* out: key size in bits   */
 	__u32  attributes;		       /* out: attribute bits	  */
 };
+
 #define PKEY_VERIFYKEY _IOWR(PKEY_IOCTL_MAGIC, 0x07, struct pkey_verifykey)
 #define PKEY_VERIFY_ATTR_AES	   0x00000001  /* key is an AES key */
 #define PKEY_VERIFY_ATTR_OLD_MKVP  0x00000100  /* key has old MKVP value */
@@ -221,6 +234,7 @@ struct pkey_kblob2pkey {
 	__u32 keylen;			/* in: the key blob length */
 	struct pkey_protkey protkey;	/* out: the protected key  */
 };
+
 #define PKEY_KBLOB2PROTK _IOWR(PKEY_IOCTL_MAGIC, 0x0A, struct pkey_kblob2pkey)
 
 /*
@@ -253,6 +267,7 @@ struct pkey_genseck2 {
 	__u32 keylen;		    /* in: available key blob buffer size */
 				    /* out: actual key blob size	  */
 };
+
 #define PKEY_GENSECK2 _IOWR(PKEY_IOCTL_MAGIC, 0x11, struct pkey_genseck2)
 
 /*
@@ -287,6 +302,7 @@ struct pkey_clr2seck2 {
 	__u32 keylen;		    /* in: available key blob buffer size  */
 				    /* out: actual key blob size	   */
 };
+
 #define PKEY_CLR2SECK2 _IOWR(PKEY_IOCTL_MAGIC, 0x12, struct pkey_clr2seck2)
 
 /*
@@ -324,6 +340,7 @@ struct pkey_verifykey2 {
 	enum pkey_key_size size;    /* out: the key size		 */
 	__u32 flags;		    /* out: additional key info flags	 */
 };
+
 #define PKEY_VERIFYKEY2 _IOWR(PKEY_IOCTL_MAGIC, 0x17, struct pkey_verifykey2)
 
 /*
@@ -346,6 +363,7 @@ struct pkey_kblob2pkey2 {
 	__u32 apqn_entries;	     /* in: # of apqn target list entries  */
 	struct pkey_protkey protkey; /* out: the protected key		   */
 };
+
 #define PKEY_KBLOB2PROTK2 _IOWR(PKEY_IOCTL_MAGIC, 0x1A, struct pkey_kblob2pkey2)
 
 /*
@@ -382,6 +400,7 @@ struct pkey_apqns4key {
 	__u32 apqn_entries;	   /* in: max # of apqn entries in the list   */
 				   /* out: # apqns stored into the list	      */
 };
+
 #define PKEY_APQNS4K _IOWR(PKEY_IOCTL_MAGIC, 0x1B, struct pkey_apqns4key)
 
 /*
@@ -421,6 +440,7 @@ struct pkey_apqns4keytype {
 	__u32 apqn_entries;	   /* in: max # of apqn entries in the list   */
 				   /* out: # apqns stored into the list	      */
 };
+
 #define PKEY_APQNS4KT _IOWR(PKEY_IOCTL_MAGIC, 0x1C, struct pkey_apqns4keytype)
 
 /*
@@ -447,6 +467,7 @@ struct pkey_kblob2pkey3 {
 	__u32 pkeylen;	 /* in/out: size of pkey buffer/actual len of pkey */
 	__u8 __user *pkey;		 /* in: pkey blob buffer space ptr */
 };
+
 #define PKEY_KBLOB2PROTK3 _IOWR(PKEY_IOCTL_MAGIC, 0x1D, struct pkey_kblob2pkey3)
 
 #endif /* _UAPI_PKEY_H */

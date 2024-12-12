@@ -19,7 +19,7 @@
 #include "hid-ids.h"
 
 /* Petalynx Maxter Remote has maximum for consumer page set too low */
-static __u8 *pl_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+static const __u8 *pl_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
 	if (*rsize >= 62 && rdesc[39] == 0x2a && rdesc[40] == 0xf5 &&

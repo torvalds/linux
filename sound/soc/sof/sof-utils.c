@@ -8,7 +8,7 @@
 // Author: Keyon Jie <yang.jie@linux.intel.com>
 //
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/device.h>
 #include <sound/memalloc.h>

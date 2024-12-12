@@ -206,7 +206,7 @@ static struct platform_driver clk_mt8192_apmixed_drv = {
 		.of_match_table = of_match_clk_mt8192_apmixed,
 	},
 	.probe = clk_mt8192_apmixed_probe,
-	.remove_new = clk_mt8192_apmixed_remove,
+	.remove = clk_mt8192_apmixed_remove,
 };
 module_platform_driver(clk_mt8192_apmixed_drv);
 MODULE_DESCRIPTION("MediaTek MT8192 apmixed clocks driver");

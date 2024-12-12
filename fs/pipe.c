@@ -1231,7 +1231,6 @@ err:
 
 const struct file_operations pipefifo_fops = {
 	.open		= fifo_open,
-	.llseek		= no_llseek,
 	.read_iter	= pipe_read,
 	.write_iter	= pipe_write,
 	.poll		= pipe_poll,

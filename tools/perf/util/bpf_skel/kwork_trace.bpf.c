@@ -68,8 +68,9 @@ struct {
 } perf_kwork_name_filter SEC(".maps");
 
 int enabled = 0;
-int has_cpu_filter = 0;
-int has_name_filter = 0;
+
+const volatile int has_cpu_filter = 0;
+const volatile int has_name_filter = 0;
 
 static __always_inline int local_strncmp(const char *s1,
 					 unsigned int sz, const char *s2)

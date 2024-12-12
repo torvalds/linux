@@ -171,6 +171,10 @@ struct io_pgtable_cfg {
 			u64 ttbr[4];
 			u32 n_ttbrs;
 		} apple_dart_cfg;
+
+		struct {
+			int nid;
+		} amd;
 	};
 };
 

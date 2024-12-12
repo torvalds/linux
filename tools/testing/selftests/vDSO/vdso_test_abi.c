@@ -20,10 +20,8 @@
 
 #include "../kselftest.h"
 #include "vdso_config.h"
-
-extern void *vdso_sym(const char *version, const char *name);
-extern void vdso_init_from_sysinfo_ehdr(uintptr_t base);
-extern void vdso_init_from_auxv(void *auxv);
+#include "vdso_call.h"
+#include "parse_vdso.h"
 
 static const char *version;
 static const char **name;
@@ -61,7 +59,7 @@ static void vdso_test_gettimeofday(void)
 	}
 
 	struct timeval tv;
-	long ret = vdso_gettimeofday(&tv, 0);
+	long ret = VDSO_CALL(vdso_gettimeofday, 2, &tv, 0);
 
 	if (ret == 0) {
 		ksft_print_msg("The time is %lld.%06lld\n",
@@ -86,7 +84,7 @@ static void vdso_test_clock_gettime(clockid_t clk_id)
 	}
 
 	struct timespec ts;
-	long ret = vdso_clock_gettime(clk_id, &ts);
+	long ret = VDSO_CALL(vdso_clock_gettime, 2, clk_id, &ts);
 
 	if (ret == 0) {
 		ksft_print_msg("The time is %lld.%06lld\n",
@@ -111,7 +109,7 @@ static void vdso_test_time(void)
 		return;
 	}
 
-	long ret = vdso_time(NULL);
+	long ret = VDSO_CALL(vdso_time, 1, NULL);
 
 	if (ret > 0) {
 		ksft_print_msg("The time in hours since January 1, 1970 is %lld\n",
@@ -138,7 +136,7 @@ static void vdso_test_clock_getres(clockid_t clk_id)
 	}
 
 	struct timespec ts, sys_ts;
-	long ret = vdso_clock_getres(clk_id, &ts);
+	long ret = VDSO_CALL(vdso_clock_getres, 2, clk_id, &ts);
 
 	if (ret == 0) {
 		ksft_print_msg("The vdso resolution is %lld %lld\n",

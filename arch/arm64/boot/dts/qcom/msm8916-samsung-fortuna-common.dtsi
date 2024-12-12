@@ -262,6 +262,8 @@
 
 		pinctrl-0 = <&tsp_int_default>;
 		pinctrl-names = "default";
+
+		linux,keycodes = <KEY_APPSELECT KEY_BACK>;
 	};
 };
 

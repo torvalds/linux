@@ -18,12 +18,11 @@
 
 #include <linux/module.h>
 #include <linux/crypto.h>
+#include <crypto/sig.h>
 #include <crypto/streebog.h>
-#include <crypto/internal/akcipher.h>
 #include <crypto/internal/ecc.h>
-#include <crypto/akcipher.h>
+#include <crypto/internal/sig.h>
 #include <linux/oid_registry.h>
-#include <linux/scatterlist.h>
 #include "ecrdsa_params.asn1.h"
 #include "ecrdsa_pub_key.asn1.h"
 #include "ecrdsa_defs.h"
@@ -68,13 +67,12 @@ static const struct ecc_curve *get_curve_by_oid(enum OID oid)
 	}
 }
 
-static int ecrdsa_verify(struct akcipher_request *req)
+static int ecrdsa_verify(struct crypto_sig *tfm,
+			 const void *src, unsigned int slen,
+			 const void *digest, unsigned int dlen)
 {
-	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
-	struct ecrdsa_ctx *ctx = akcipher_tfm_ctx(tfm);
-	unsigned char sig[ECRDSA_MAX_SIG_SIZE];
-	unsigned char digest[STREEBOG512_DIGEST_SIZE];
-	unsigned int ndigits = req->dst_len / sizeof(u64);
+	struct ecrdsa_ctx *ctx = crypto_sig_ctx(tfm);
+	unsigned int ndigits = dlen / sizeof(u64);
 	u64 r[ECRDSA_MAX_DIGITS]; /* witness (r) */
 	u64 _r[ECRDSA_MAX_DIGITS]; /* -r */
 	u64 s[ECRDSA_MAX_DIGITS]; /* second part of sig (s) */
@@ -91,25 +89,19 @@ static int ecrdsa_verify(struct akcipher_request *req)
 	 */
 	if (!ctx->curve ||
 	    !ctx->digest ||
-	    !req->src ||
+	    !src ||
+	    !digest ||
 	    !ctx->pub_key.x ||
-	    req->dst_len != ctx->digest_len ||
-	    req->dst_len != ctx->curve->g.ndigits * sizeof(u64) ||
+	    dlen != ctx->digest_len ||
+	    dlen != ctx->curve->g.ndigits * sizeof(u64) ||
 	    ctx->pub_key.ndigits != ctx->curve->g.ndigits ||
-	    req->dst_len * 2 != req->src_len ||
-	    WARN_ON(req->src_len > sizeof(sig)) ||
-	    WARN_ON(req->dst_len > sizeof(digest)))
+	    dlen * 2 != slen ||
+	    WARN_ON(slen > ECRDSA_MAX_SIG_SIZE) ||
+	    WARN_ON(dlen > STREEBOG512_DIGEST_SIZE))
 		return -EBADMSG;
 
-	sg_copy_to_buffer(req->src, sg_nents_for_len(req->src, req->src_len),
-			  sig, req->src_len);
-	sg_pcopy_to_buffer(req->src,
-			   sg_nents_for_len(req->src,
-					    req->src_len + req->dst_len),
-			   digest, req->dst_len, req->src_len);
-
-	vli_from_be64(s, sig, ndigits);
-	vli_from_be64(r, sig + ndigits * sizeof(u64), ndigits);
+	vli_from_be64(s, src, ndigits);
+	vli_from_be64(r, src + ndigits * sizeof(u64), ndigits);
 
 	/* Step 1: verify that 0 < r < q, 0 < s < q */
 	if (vli_is_zero(r, ndigits) ||
@@ -188,10 +180,10 @@ static u8 *ecrdsa_unpack_u32(u32 *dst, void *src)
 }
 
 /* Parse BER encoded subjectPublicKey. */
-static int ecrdsa_set_pub_key(struct crypto_akcipher *tfm, const void *key,
+static int ecrdsa_set_pub_key(struct crypto_sig *tfm, const void *key,
 			      unsigned int keylen)
 {
-	struct ecrdsa_ctx *ctx = akcipher_tfm_ctx(tfm);
+	struct ecrdsa_ctx *ctx = crypto_sig_ctx(tfm);
 	unsigned int ndigits;
 	u32 algo, paramlen;
 	u8 *params;
@@ -249,9 +241,9 @@ static int ecrdsa_set_pub_key(struct crypto_akcipher *tfm, const void *key,
 	return 0;
 }
 
-static unsigned int ecrdsa_max_size(struct crypto_akcipher *tfm)
+static unsigned int ecrdsa_key_size(struct crypto_sig *tfm)
 {
-	struct ecrdsa_ctx *ctx = akcipher_tfm_ctx(tfm);
+	struct ecrdsa_ctx *ctx = crypto_sig_ctx(tfm);
 
 	/*
 	 * Verify doesn't need any output, so it's just informational
@@ -260,13 +252,21 @@ static unsigned int ecrdsa_max_size(struct crypto_akcipher *tfm)
 	return ctx->pub_key.ndigits * sizeof(u64);
 }
 
-static void ecrdsa_exit_tfm(struct crypto_akcipher *tfm)
+static unsigned int ecrdsa_max_size(struct crypto_sig *tfm)
+{
+	struct ecrdsa_ctx *ctx = crypto_sig_ctx(tfm);
+
+	return 2 * ctx->pub_key.ndigits * sizeof(u64);
+}
+
+static void ecrdsa_exit_tfm(struct crypto_sig *tfm)
 {
 }
 
-static struct akcipher_alg ecrdsa_alg = {
+static struct sig_alg ecrdsa_alg = {
 	.verify		= ecrdsa_verify,
 	.set_pub_key	= ecrdsa_set_pub_key,
+	.key_size	= ecrdsa_key_size,
 	.max_size	= ecrdsa_max_size,
 	.exit		= ecrdsa_exit_tfm,
 	.base = {
@@ -280,12 +280,12 @@ static struct akcipher_alg ecrdsa_alg = {
 
 static int __init ecrdsa_mod_init(void)
 {
-	return crypto_register_akcipher(&ecrdsa_alg);
+	return crypto_register_sig(&ecrdsa_alg);
 }
 
 static void __exit ecrdsa_mod_fini(void)
 {
-	crypto_unregister_akcipher(&ecrdsa_alg);
+	crypto_unregister_sig(&ecrdsa_alg);
 }
 
 module_init(ecrdsa_mod_init);

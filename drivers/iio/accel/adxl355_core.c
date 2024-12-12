@@ -22,7 +22,7 @@
 #include <linux/regmap.h>
 #include <linux/units.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "adxl355.h"
 

@@ -281,37 +281,6 @@ void gmap_remove(struct gmap *gmap)
 }
 EXPORT_SYMBOL_GPL(gmap_remove);
 
-/**
- * gmap_enable - switch primary space to the guest address space
- * @gmap: pointer to the guest address space structure
- */
-void gmap_enable(struct gmap *gmap)
-{
-	get_lowcore()->gmap = (unsigned long)gmap;
-}
-EXPORT_SYMBOL_GPL(gmap_enable);
-
-/**
- * gmap_disable - switch back to the standard primary address space
- * @gmap: pointer to the guest address space structure
- */
-void gmap_disable(struct gmap *gmap)
-{
-	get_lowcore()->gmap = 0UL;
-}
-EXPORT_SYMBOL_GPL(gmap_disable);
-
-/**
- * gmap_get_enabled - get a pointer to the currently enabled gmap
- *
- * Returns a pointer to the currently enabled gmap. 0 if none is enabled.
- */
-struct gmap *gmap_get_enabled(void)
-{
-	return (struct gmap *)get_lowcore()->gmap;
-}
-EXPORT_SYMBOL_GPL(gmap_get_enabled);
-
 /*
  * gmap_alloc_table is assumed to be called with mmap_lock held
  */
@@ -637,44 +606,124 @@ int __gmap_link(struct gmap *gmap, unsigned long gaddr, unsigned long vmaddr)
 }
 
 /**
+ * fixup_user_fault_nowait - manually resolve a user page fault without waiting
+ * @mm:		mm_struct of target mm
+ * @address:	user address
+ * @fault_flags:flags to pass down to handle_mm_fault()
+ * @unlocked:	did we unlock the mmap_lock while retrying
+ *
+ * This function behaves similarly to fixup_user_fault(), but it guarantees
+ * that the fault will be resolved without waiting. The function might drop
+ * and re-acquire the mm lock, in which case @unlocked will be set to true.
+ *
+ * The guarantee is that the fault is handled without waiting, but the
+ * function itself might sleep, due to the lock.
+ *
+ * Context: Needs to be called with mm->mmap_lock held in read mode, and will
+ * return with the lock held in read mode; @unlocked will indicate whether
+ * the lock has been dropped and re-acquired. This is the same behaviour as
+ * fixup_user_fault().
+ *
+ * Return: 0 on success, -EAGAIN if the fault cannot be resolved without
+ * waiting, -EFAULT if the fault cannot be resolved, -ENOMEM if out of
+ * memory.
+ */
+static int fixup_user_fault_nowait(struct mm_struct *mm, unsigned long address,
+				   unsigned int fault_flags, bool *unlocked)
+{
+	struct vm_area_struct *vma;
+	unsigned int test_flags;
+	vm_fault_t fault;
+	int rc;
+
+	fault_flags |= FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_RETRY_NOWAIT;
+	test_flags = fault_flags & FAULT_FLAG_WRITE ? VM_WRITE : VM_READ;
+
+	vma = find_vma(mm, address);
+	if (unlikely(!vma || address < vma->vm_start))
+		return -EFAULT;
+	if (unlikely(!(vma->vm_flags & test_flags)))
+		return -EFAULT;
+
+	fault = handle_mm_fault(vma, address, fault_flags, NULL);
+	/* the mm lock has been dropped, take it again */
+	if (fault & VM_FAULT_COMPLETED) {
+		*unlocked = true;
+		mmap_read_lock(mm);
+		return 0;
+	}
+	/* the mm lock has not been dropped */
+	if (fault & VM_FAULT_ERROR) {
+		rc = vm_fault_to_errno(fault, 0);
+		BUG_ON(!rc);
+		return rc;
+	}
+	/* the mm lock has not been dropped because of FAULT_FLAG_RETRY_NOWAIT */
+	if (fault & VM_FAULT_RETRY)
+		return -EAGAIN;
+	/* nothing needed to be done and the mm lock has not been dropped */
+	return 0;
+}
+
+/**
+ * __gmap_fault - resolve a fault on a guest address
+ * @gmap: pointer to guest mapping meta data structure
+ * @gaddr: guest address
+ * @fault_flags: flags to pass down to handle_mm_fault()
+ *
+ * Context: Needs to be called with mm->mmap_lock held in read mode. Might
+ * drop and re-acquire the lock. Will always return with the lock held.
+ */
+static int __gmap_fault(struct gmap *gmap, unsigned long gaddr, unsigned int fault_flags)
+{
+	unsigned long vmaddr;
+	bool unlocked;
+	int rc = 0;
+
+retry:
+	unlocked = false;
+
+	vmaddr = __gmap_translate(gmap, gaddr);
+	if (IS_ERR_VALUE(vmaddr))
+		return vmaddr;
+
+	if (fault_flags & FAULT_FLAG_RETRY_NOWAIT)
+		rc = fixup_user_fault_nowait(gmap->mm, vmaddr, fault_flags, &unlocked);
+	else
+		rc = fixup_user_fault(gmap->mm, vmaddr, fault_flags, &unlocked);
+	if (rc)
+		return rc;
+	/*
+	 * In the case that fixup_user_fault unlocked the mmap_lock during
+	 * fault-in, redo __gmap_translate() to avoid racing with a
+	 * map/unmap_segment.
+	 * In particular, __gmap_translate(), fixup_user_fault{,_nowait}(),
+	 * and __gmap_link() must all be called atomically in one go; if the
+	 * lock had been dropped in between, a retry is needed.
+	 */
+	if (unlocked)
+		goto retry;
+
+	return __gmap_link(gmap, gaddr, vmaddr);
+}
+
+/**
  * gmap_fault - resolve a fault on a guest address
  * @gmap: pointer to guest mapping meta data structure
  * @gaddr: guest address
  * @fault_flags: flags to pass down to handle_mm_fault()
  *
- * Returns 0 on success, -ENOMEM for out of memory conditions, and -EFAULT
- * if the vm address is already mapped to a different guest segment.
+ * Returns 0 on success, -ENOMEM for out of memory conditions, -EFAULT if the
+ * vm address is already mapped to a different guest segment, and -EAGAIN if
+ * FAULT_FLAG_RETRY_NOWAIT was specified and the fault could not be processed
+ * immediately.
  */
-int gmap_fault(struct gmap *gmap, unsigned long gaddr,
-	       unsigned int fault_flags)
+int gmap_fault(struct gmap *gmap, unsigned long gaddr, unsigned int fault_flags)
 {
-	unsigned long vmaddr;
 	int rc;
-	bool unlocked;
 
 	mmap_read_lock(gmap->mm);
-
-retry:
-	unlocked = false;
-	vmaddr = __gmap_translate(gmap, gaddr);
-	if (IS_ERR_VALUE(vmaddr)) {
-		rc = vmaddr;
-		goto out_up;
-	}
-	if (fixup_user_fault(gmap->mm, vmaddr, fault_flags,
-			     &unlocked)) {
-		rc = -EFAULT;
-		goto out_up;
-	}
-	/*
-	 * In the case that fixup_user_fault unlocked the mmap_lock during
-	 * faultin redo __gmap_translate to not race with a map/unmap_segment.
-	 */
-	if (unlocked)
-		goto retry;
-
-	rc = __gmap_link(gmap, gaddr, vmaddr);
-out_up:
+	rc = __gmap_fault(gmap, gaddr, fault_flags);
 	mmap_read_unlock(gmap->mm);
 	return rc;
 }
@@ -851,7 +900,7 @@ static inline unsigned long *gmap_table_walk(struct gmap *gmap,
 		if (*table & _REGION_ENTRY_INVALID)
 			return NULL;
 		table = __va(*table & _SEGMENT_ENTRY_ORIGIN);
-		table += (gaddr & _PAGE_INDEX) >> _PAGE_SHIFT;
+		table += (gaddr & _PAGE_INDEX) >> PAGE_SHIFT;
 	}
 	return table;
 }
@@ -1317,7 +1366,7 @@ static void gmap_unshadow_page(struct gmap *sg, unsigned long raddr)
 	table = gmap_table_walk(sg, raddr, 0); /* get page table pointer */
 	if (!table || *table & _PAGE_INVALID)
 		return;
-	gmap_call_notifier(sg, raddr, raddr + _PAGE_SIZE - 1);
+	gmap_call_notifier(sg, raddr, raddr + PAGE_SIZE - 1);
 	ptep_unshadow_pte(sg->mm, raddr, (pte_t *) table);
 }
 
@@ -1335,7 +1384,7 @@ static void __gmap_unshadow_pgt(struct gmap *sg, unsigned long raddr,
 	int i;
 
 	BUG_ON(!gmap_is_shadow(sg));
-	for (i = 0; i < _PAGE_ENTRIES; i++, raddr += _PAGE_SIZE)
+	for (i = 0; i < _PAGE_ENTRIES; i++, raddr += PAGE_SIZE)
 		pgt[i] = _PAGE_INVALID;
 }
 

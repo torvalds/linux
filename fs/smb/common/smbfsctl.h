@@ -140,20 +140,21 @@
 /* Used by the DFS filter See MS-DFSC */
 #define IO_REPARSE_TAG_DFSR          0x80000012
 #define IO_REPARSE_TAG_FILTER_MANAGER 0x8000000B
-/* See section MS-FSCC 2.1.2.4 */
+/* Native SMB symlinks since Windows Vista, see MS-FSCC 2.1.2.4 */
 #define IO_REPARSE_TAG_SYMLINK       0xA000000C
 #define IO_REPARSE_TAG_DEDUP         0x80000013
 #define IO_REPARSE_APPXSTREAM	     0xC0000014
-/* NFS symlinks, Win 8/SMB3 and later */
+/* NFS special files used by Windows NFS server since Windows Server 2012, see MS-FSCC 2.1.2.6 */
 #define IO_REPARSE_TAG_NFS           0x80000014
 /*
  * AzureFileSync - see
  * https://docs.microsoft.com/en-us/azure/storage/files/storage-sync-cloud-tiering
  */
 #define IO_REPARSE_TAG_AZ_FILE_SYNC  0x8000001e
+/* Native Win32 AF_UNIX sockets since Windows 10 April 2018 Update, used also by WSL */
+#define IO_REPARSE_TAG_AF_UNIX       0x80000023
 /* WSL reparse tags */
 #define IO_REPARSE_TAG_LX_SYMLINK    0xA000001D
-#define IO_REPARSE_TAG_AF_UNIX	     0x80000023
 #define IO_REPARSE_TAG_LX_FIFO	     0x80000024
 #define IO_REPARSE_TAG_LX_CHR	     0x80000025
 #define IO_REPARSE_TAG_LX_BLK	     0x80000026

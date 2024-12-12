@@ -178,6 +178,52 @@ static bool is_sibling_call(struct instruction *insn)
 }
 
 /*
+ * Checks if a string ends with another.
+ */
+static bool str_ends_with(const char *s, const char *sub)
+{
+	const int slen = strlen(s);
+	const int sublen = strlen(sub);
+
+	if (sublen > slen)
+		return 0;
+
+	return !memcmp(s + slen - sublen, sub, sublen);
+}
+
+/*
+ * Checks if a function is a Rust "noreturn" one.
+ */
+static bool is_rust_noreturn(const struct symbol *func)
+{
+	/*
+	 * If it does not start with "_R", then it is not a Rust symbol.
+	 */
+	if (strncmp(func->name, "_R", 2))
+		return false;
+
+	/*
+	 * These are just heuristics -- we do not control the precise symbol
+	 * name, due to the crate disambiguators (which depend on the compiler)
+	 * as well as changes to the source code itself between versions (since
+	 * these come from the Rust standard library).
+	 */
+	return str_ends_with(func->name, "_4core5sliceSp15copy_from_slice17len_mismatch_fail")		||
+	       str_ends_with(func->name, "_4core6option13unwrap_failed")				||
+	       str_ends_with(func->name, "_4core6result13unwrap_failed")				||
+	       str_ends_with(func->name, "_4core9panicking5panic")					||
+	       str_ends_with(func->name, "_4core9panicking9panic_fmt")					||
+	       str_ends_with(func->name, "_4core9panicking14panic_explicit")				||
+	       str_ends_with(func->name, "_4core9panicking14panic_nounwind")				||
+	       str_ends_with(func->name, "_4core9panicking18panic_bounds_check")			||
+	       str_ends_with(func->name, "_4core9panicking19assert_failed_inner")			||
+	       str_ends_with(func->name, "_4core9panicking36panic_misaligned_pointer_dereference")	||
+	       strstr(func->name, "_4core9panicking11panic_const24panic_const_")			||
+	       (strstr(func->name, "_4core5slice5index24slice_") &&
+		str_ends_with(func->name, "_fail"));
+}
+
+/*
  * This checks to see if the given function is a "noreturn" function.
  *
  * For global functions which are outside the scope of this object file, we
@@ -202,10 +248,14 @@ static bool __dead_end_function(struct objtool_file *file, struct symbol *func,
 	if (!func)
 		return false;
 
-	if (func->bind == STB_GLOBAL || func->bind == STB_WEAK)
+	if (func->bind == STB_GLOBAL || func->bind == STB_WEAK) {
+		if (is_rust_noreturn(func))
+			return true;
+
 		for (i = 0; i < ARRAY_SIZE(global_noreturns); i++)
 			if (!strcmp(func->name, global_noreturns[i]))
 				return true;
+	}
 
 	if (func->bind == STB_WEAK)
 		return false;
@@ -2993,10 +3043,27 @@ static int update_cfi_state(struct instruction *insn,
 				break;
 			}
 
-			if (op->dest.reg == CFI_SP && op->src.reg == CFI_BP) {
+			if (op->dest.reg == CFI_BP && op->src.reg == CFI_SP &&
+			    insn->sym->frame_pointer) {
+				/* addi.d fp,sp,imm on LoongArch */
+				if (cfa->base == CFI_SP && cfa->offset == op->src.offset) {
+					cfa->base = CFI_BP;
+					cfa->offset = 0;
+				}
+				break;
+			}
 
-				/* lea disp(%rbp), %rsp */
-				cfi->stack_size = -(op->src.offset + regs[CFI_BP].offset);
+			if (op->dest.reg == CFI_SP && op->src.reg == CFI_BP) {
+				/* addi.d sp,fp,imm on LoongArch */
+				if (cfa->base == CFI_BP && cfa->offset == 0) {
+					if (insn->sym->frame_pointer) {
+						cfa->base = CFI_SP;
+						cfa->offset = -op->src.offset;
+					}
+				} else {
+					/* lea disp(%rbp), %rsp */
+					cfi->stack_size = -(op->src.offset + regs[CFI_BP].offset);
+				}
 				break;
 			}
 
@@ -4325,6 +4392,51 @@ static bool noendbr_range(struct objtool_file *file, struct instruction *insn)
 	return insn->offset == sym->offset + sym->len;
 }
 
+static int __validate_ibt_insn(struct objtool_file *file, struct instruction *insn,
+			       struct instruction *dest)
+{
+	if (dest->type == INSN_ENDBR) {
+		mark_endbr_used(dest);
+		return 0;
+	}
+
+	if (insn_func(dest) && insn_func(insn) &&
+	    insn_func(dest)->pfunc == insn_func(insn)->pfunc) {
+		/*
+		 * Anything from->to self is either _THIS_IP_ or
+		 * IRET-to-self.
+		 *
+		 * There is no sane way to annotate _THIS_IP_ since the
+		 * compiler treats the relocation as a constant and is
+		 * happy to fold in offsets, skewing any annotation we
+		 * do, leading to vast amounts of false-positives.
+		 *
+		 * There's also compiler generated _THIS_IP_ through
+		 * KCOV and such which we have no hope of annotating.
+		 *
+		 * As such, blanket accept self-references without
+		 * issue.
+		 */
+		return 0;
+	}
+
+	/*
+	 * Accept anything ANNOTATE_NOENDBR.
+	 */
+	if (dest->noendbr)
+		return 0;
+
+	/*
+	 * Accept if this is the instruction after a symbol
+	 * that is (no)endbr -- typical code-range usage.
+	 */
+	if (noendbr_range(file, dest))
+		return 0;
+
+	WARN_INSN(insn, "relocation to !ENDBR: %s", offstr(dest->sec, dest->offset));
+	return 1;
+}
+
 static int validate_ibt_insn(struct objtool_file *file, struct instruction *insn)
 {
 	struct instruction *dest;
@@ -4337,6 +4449,7 @@ static int validate_ibt_insn(struct objtool_file *file, struct instruction *insn
 	 * direct/indirect branches:
 	 */
 	switch (insn->type) {
+
 	case INSN_CALL:
 	case INSN_CALL_DYNAMIC:
 	case INSN_JUMP_CONDITIONAL:
@@ -4346,6 +4459,23 @@ static int validate_ibt_insn(struct objtool_file *file, struct instruction *insn
 	case INSN_RETURN:
 	case INSN_NOP:
 		return 0;
+
+	case INSN_LEA_RIP:
+		if (!insn_reloc(file, insn)) {
+			/* local function pointer reference without reloc */
+
+			off = arch_jump_destination(insn);
+
+			dest = find_insn(file, insn->sec, off);
+			if (!dest) {
+				WARN_INSN(insn, "corrupt function pointer reference");
+				return 1;
+			}
+
+			return __validate_ibt_insn(file, insn, dest);
+		}
+		break;
+
 	default:
 		break;
 	}
@@ -4355,13 +4485,6 @@ static int validate_ibt_insn(struct objtool_file *file, struct instruction *insn
 	     reloc = find_reloc_by_dest_range(file->elf, insn->sec,
 					      reloc_offset(reloc) + 1,
 					      (insn->offset + insn->len) - (reloc_offset(reloc) + 1))) {
-
-		/*
-		 * static_call_update() references the trampoline, which
-		 * doesn't have (or need) ENDBR.  Skip warning in that case.
-		 */
-		if (reloc->sym->static_call_tramp)
-			continue;
 
 		off = reloc->sym->offset;
 		if (reloc_type(reloc) == R_X86_64_PC32 ||
@@ -4374,47 +4497,7 @@ static int validate_ibt_insn(struct objtool_file *file, struct instruction *insn
 		if (!dest)
 			continue;
 
-		if (dest->type == INSN_ENDBR) {
-			mark_endbr_used(dest);
-			continue;
-		}
-
-		if (insn_func(dest) && insn_func(insn) &&
-		    insn_func(dest)->pfunc == insn_func(insn)->pfunc) {
-			/*
-			 * Anything from->to self is either _THIS_IP_ or
-			 * IRET-to-self.
-			 *
-			 * There is no sane way to annotate _THIS_IP_ since the
-			 * compiler treats the relocation as a constant and is
-			 * happy to fold in offsets, skewing any annotation we
-			 * do, leading to vast amounts of false-positives.
-			 *
-			 * There's also compiler generated _THIS_IP_ through
-			 * KCOV and such which we have no hope of annotating.
-			 *
-			 * As such, blanket accept self-references without
-			 * issue.
-			 */
-			continue;
-		}
-
-		/*
-		 * Accept anything ANNOTATE_NOENDBR.
-		 */
-		if (dest->noendbr)
-			continue;
-
-		/*
-		 * Accept if this is the instruction after a symbol
-		 * that is (no)endbr -- typical code-range usage.
-		 */
-		if (noendbr_range(file, dest))
-			continue;
-
-		WARN_INSN(insn, "relocation to !ENDBR: %s", offstr(dest->sec, dest->offset));
-
-		warnings++;
+		warnings += __validate_ibt_insn(file, insn, dest);
 	}
 
 	return warnings;
@@ -4490,6 +4573,7 @@ static int validate_ibt(struct objtool_file *file)
 		    !strcmp(sec->name, "__jump_table")			||
 		    !strcmp(sec->name, "__mcount_loc")			||
 		    !strcmp(sec->name, ".kcfi_traps")			||
+		    !strcmp(sec->name, "__tracepoints")			||
 		    strstr(sec->name, "__patchable_function_entries"))
 			continue;
 

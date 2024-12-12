@@ -65,8 +65,7 @@ int ia_css_iterator_configure(const struct ia_css_binary *binary,
 	 * the original out res. for video pipe, it has two output pins --- out and
 	 * vf_out, so it can keep these two resolutions already. */
 	if (binary->info->sp.pipeline.mode == IA_CSS_BINARY_MODE_PREVIEW &&
-	    binary->vf_downscale_log2 > 0)
-	{
+	    binary->vf_downscale_log2 > 0) {
 		/* TODO: Remove this after preview output decimation is fixed
 		 * by configuring out&vf info files properly */
 		my_info.padded_width <<= binary->vf_downscale_log2;

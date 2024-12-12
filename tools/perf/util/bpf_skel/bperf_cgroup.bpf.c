@@ -57,9 +57,9 @@ struct cgroup___old {
 
 const volatile __u32 num_events = 1;
 const volatile __u32 num_cpus = 1;
+const volatile int use_cgroup_v2 = 0;
 
 int enabled = 0;
-int use_cgroup_v2 = 0;
 int perf_subsys_id = -1;
 
 static inline __u64 get_cgroup_v1_ancestor_id(struct cgroup *cgrp, int level)

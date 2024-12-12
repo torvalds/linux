@@ -78,9 +78,6 @@
         "ArchStdEvent": "OP_RETIRED"
     },
     {
-        "ArchStdEvent": "OP_SPEC"
-    },
-    {
         "PublicDescription": "Operation speculatively executed, NOP",
         "EventCode": "0x100",
         "EventName": "NOP_SPEC",

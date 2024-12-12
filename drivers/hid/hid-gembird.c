@@ -57,7 +57,7 @@ static const __u8 gembird_jpd_fixed_rdesc[] = {
 	0x81, 0x02,			/*   Input (Data,Var,Abs)	*/
 };
 
-static __u8 *gembird_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+static const __u8 *gembird_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
 	__u8 *new_rdesc;

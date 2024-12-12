@@ -4,6 +4,142 @@
 
 #include <linux/compiler.h>
 
+/**
+ * DOC: scope-based cleanup helpers
+ *
+ * The "goto error" pattern is notorious for introducing subtle resource
+ * leaks. It is tedious and error prone to add new resource acquisition
+ * constraints into code paths that already have several unwind
+ * conditions. The "cleanup" helpers enable the compiler to help with
+ * this tedium and can aid in maintaining LIFO (last in first out)
+ * unwind ordering to avoid unintentional leaks.
+ *
+ * As drivers make up the majority of the kernel code base, here is an
+ * example of using these helpers to clean up PCI drivers. The target of
+ * the cleanups are occasions where a goto is used to unwind a device
+ * reference (pci_dev_put()), or unlock the device (pci_dev_unlock())
+ * before returning.
+ *
+ * The DEFINE_FREE() macro can arrange for PCI device references to be
+ * dropped when the associated variable goes out of scope::
+ *
+ *	DEFINE_FREE(pci_dev_put, struct pci_dev *, if (_T) pci_dev_put(_T))
+ *	...
+ *	struct pci_dev *dev __free(pci_dev_put) =
+ *		pci_get_slot(parent, PCI_DEVFN(0, 0));
+ *
+ * The above will automatically call pci_dev_put() if @dev is non-NULL
+ * when @dev goes out of scope (automatic variable scope). If a function
+ * wants to invoke pci_dev_put() on error, but return @dev (i.e. without
+ * freeing it) on success, it can do::
+ *
+ *	return no_free_ptr(dev);
+ *
+ * ...or::
+ *
+ *	return_ptr(dev);
+ *
+ * The DEFINE_GUARD() macro can arrange for the PCI device lock to be
+ * dropped when the scope where guard() is invoked ends::
+ *
+ *	DEFINE_GUARD(pci_dev, struct pci_dev *, pci_dev_lock(_T), pci_dev_unlock(_T))
+ *	...
+ *	guard(pci_dev)(dev);
+ *
+ * The lifetime of the lock obtained by the guard() helper follows the
+ * scope of automatic variable declaration. Take the following example::
+ *
+ *	func(...)
+ *	{
+ *		if (...) {
+ *			...
+ *			guard(pci_dev)(dev); // pci_dev_lock() invoked here
+ *			...
+ *		} // <- implied pci_dev_unlock() triggered here
+ *	}
+ *
+ * Observe the lock is held for the remainder of the "if ()" block not
+ * the remainder of "func()".
+ *
+ * Now, when a function uses both __free() and guard(), or multiple
+ * instances of __free(), the LIFO order of variable definition order
+ * matters. GCC documentation says:
+ *
+ * "When multiple variables in the same scope have cleanup attributes,
+ * at exit from the scope their associated cleanup functions are run in
+ * reverse order of definition (last defined, first cleanup)."
+ *
+ * When the unwind order matters it requires that variables be defined
+ * mid-function scope rather than at the top of the file.  Take the
+ * following example and notice the bug highlighted by "!!"::
+ *
+ *	LIST_HEAD(list);
+ *	DEFINE_MUTEX(lock);
+ *
+ *	struct object {
+ *	        struct list_head node;
+ *	};
+ *
+ *	static struct object *alloc_add(void)
+ *	{
+ *	        struct object *obj;
+ *
+ *	        lockdep_assert_held(&lock);
+ *	        obj = kzalloc(sizeof(*obj), GFP_KERNEL);
+ *	        if (obj) {
+ *	                LIST_HEAD_INIT(&obj->node);
+ *	                list_add(obj->node, &list):
+ *	        }
+ *	        return obj;
+ *	}
+ *
+ *	static void remove_free(struct object *obj)
+ *	{
+ *	        lockdep_assert_held(&lock);
+ *	        list_del(&obj->node);
+ *	        kfree(obj);
+ *	}
+ *
+ *	DEFINE_FREE(remove_free, struct object *, if (_T) remove_free(_T))
+ *	static int init(void)
+ *	{
+ *	        struct object *obj __free(remove_free) = NULL;
+ *	        int err;
+ *
+ *	        guard(mutex)(&lock);
+ *	        obj = alloc_add();
+ *
+ *	        if (!obj)
+ *	                return -ENOMEM;
+ *
+ *	        err = other_init(obj);
+ *	        if (err)
+ *	                return err; // remove_free() called without the lock!!
+ *
+ *	        no_free_ptr(obj);
+ *	        return 0;
+ *	}
+ *
+ * That bug is fixed by changing init() to call guard() and define +
+ * initialize @obj in this order::
+ *
+ *	guard(mutex)(&lock);
+ *	struct object *obj __free(remove_free) = alloc_add();
+ *
+ * Given that the "__free(...) = NULL" pattern for variables defined at
+ * the top of the function poses this potential interdependency problem
+ * the recommendation is to always define and assign variables in one
+ * statement and not group variable definitions at the top of the
+ * function when __free() is used.
+ *
+ * Lastly, given that the benefit of cleanup helpers is removal of
+ * "goto", and that the "goto" statement can jump between scopes, the
+ * expectation is that usage of "goto" and cleanup helpers is never
+ * mixed in the same function. I.e. for a given routine, convert all
+ * resources that need a "goto" cleanup to scope-based cleanup, or
+ * convert none of them.
+ */
+
 /*
  * DEFINE_FREE(name, type, free):
  *	simple helper macro that defines the required wrapper for a __free()
@@ -98,7 +234,7 @@ const volatile void * __must_check_fn(const volatile void *val)
  * DEFINE_CLASS(fdget, struct fd, fdput(_T), fdget(fd), int fd)
  *
  *	CLASS(fdget, f)(fd);
- *	if (!f.file)
+ *	if (fd_empty(f))
  *		return -EBADF;
  *
  *	// use 'f' without concern
@@ -137,6 +273,12 @@ static inline class_##_name##_t class_##_name##ext##_constructor(_init_args) \
  *	an anonymous instance of the (guard) class, not recommended for
  *	conditional locks.
  *
+ * if_not_guard(name, args...) { <error handling> }:
+ *	convenience macro for conditional guards that calls the statement that
+ *	follows only if the lock was not acquired (typically an error return).
+ *
+ *	Only for conditional locks.
+ *
  * scoped_guard (name, args...) { }:
  *	similar to CLASS(name, scope)(args), except the variable (with the
  *	explicit name 'scope') is declard in a for-loop such that its scope is
@@ -149,14 +291,20 @@ static inline class_##_name##_t class_##_name##ext##_constructor(_init_args) \
  *      similar to scoped_guard(), except it does fail when the lock
  *      acquire fails.
  *
+ *      Only for conditional locks.
  */
 
+#define __DEFINE_CLASS_IS_CONDITIONAL(_name, _is_cond)	\
+static __maybe_unused const bool class_##_name##_is_conditional = _is_cond
+
 #define DEFINE_GUARD(_name, _type, _lock, _unlock) \
+	__DEFINE_CLASS_IS_CONDITIONAL(_name, false); \
 	DEFINE_CLASS(_name, _type, if (_T) { _unlock; }, ({ _lock; _T; }), _type _T); \
 	static inline void * class_##_name##_lock_ptr(class_##_name##_t *_T) \
-	{ return *_T; }
+	{ return (void *)(__force unsigned long)*_T; }
 
 #define DEFINE_GUARD_COND(_name, _ext, _condlock) \
+	__DEFINE_CLASS_IS_CONDITIONAL(_name##_ext, true); \
 	EXTEND_CLASS(_name, _ext, \
 		     ({ void *_t = _T; if (_T && !(_condlock)) _t = NULL; _t; }), \
 		     class_##_name##_t _T) \
@@ -167,16 +315,48 @@ static inline class_##_name##_t class_##_name##ext##_constructor(_init_args) \
 	CLASS(_name, __UNIQUE_ID(guard))
 
 #define __guard_ptr(_name) class_##_name##_lock_ptr
+#define __is_cond_ptr(_name) class_##_name##_is_conditional
 
-#define scoped_guard(_name, args...)					\
-	for (CLASS(_name, scope)(args),					\
-	     *done = NULL; __guard_ptr(_name)(&scope) && !done; done = (void *)1)
+/*
+ * Helper macro for scoped_guard().
+ *
+ * Note that the "!__is_cond_ptr(_name)" part of the condition ensures that
+ * compiler would be sure that for the unconditional locks the body of the
+ * loop (caller-provided code glued to the else clause) could not be skipped.
+ * It is needed because the other part - "__guard_ptr(_name)(&scope)" - is too
+ * hard to deduce (even if could be proven true for unconditional locks).
+ */
+#define __scoped_guard(_name, _label, args...)				\
+	for (CLASS(_name, scope)(args);					\
+	     __guard_ptr(_name)(&scope) || !__is_cond_ptr(_name);	\
+	     ({ goto _label; }))					\
+		if (0) {						\
+_label:									\
+			break;						\
+		} else
 
-#define scoped_cond_guard(_name, _fail, args...) \
-	for (CLASS(_name, scope)(args), \
-	     *done = NULL; !done; done = (void *)1) \
-		if (!__guard_ptr(_name)(&scope)) _fail; \
-		else
+#define scoped_guard(_name, args...)	\
+	__scoped_guard(_name, __UNIQUE_ID(label), args)
+
+#define __scoped_cond_guard(_name, _fail, _label, args...)		\
+	for (CLASS(_name, scope)(args); true; ({ goto _label; }))	\
+		if (!__guard_ptr(_name)(&scope)) {			\
+			BUILD_BUG_ON(!__is_cond_ptr(_name));		\
+			_fail;						\
+_label:									\
+			break;						\
+		} else
+
+#define scoped_cond_guard(_name, _fail, args...)	\
+	__scoped_cond_guard(_name, _fail, __UNIQUE_ID(label), args)
+
+#define __if_not_guard(_name, _id, args...)		\
+	BUILD_BUG_ON(!__is_cond_ptr(_name));		\
+	CLASS(_name, _id)(args);			\
+	if (!__guard_ptr(_name)(&_id))
+
+#define if_not_guard(_name, args...) \
+	__if_not_guard(_name, __UNIQUE_ID(guard), args)
 
 /*
  * Additional helper macros for generating lock guards with types, either for
@@ -211,7 +391,7 @@ static inline void class_##_name##_destructor(class_##_name##_t *_T)	\
 									\
 static inline void *class_##_name##_lock_ptr(class_##_name##_t *_T)	\
 {									\
-	return _T->lock;						\
+	return (void *)(__force unsigned long)_T->lock;			\
 }
 
 
@@ -233,14 +413,17 @@ static inline class_##_name##_t class_##_name##_constructor(void)	\
 }
 
 #define DEFINE_LOCK_GUARD_1(_name, _type, _lock, _unlock, ...)		\
+__DEFINE_CLASS_IS_CONDITIONAL(_name, false);				\
 __DEFINE_UNLOCK_GUARD(_name, _type, _unlock, __VA_ARGS__)		\
 __DEFINE_LOCK_GUARD_1(_name, _type, _lock)
 
 #define DEFINE_LOCK_GUARD_0(_name, _lock, _unlock, ...)			\
+__DEFINE_CLASS_IS_CONDITIONAL(_name, false);				\
 __DEFINE_UNLOCK_GUARD(_name, void, _unlock, __VA_ARGS__)		\
 __DEFINE_LOCK_GUARD_0(_name, _lock)
 
 #define DEFINE_LOCK_GUARD_1_COND(_name, _ext, _condlock)		\
+	__DEFINE_CLASS_IS_CONDITIONAL(_name##_ext, true);		\
 	EXTEND_CLASS(_name, _ext,					\
 		     ({ class_##_name##_t _t = { .lock = l }, *_T = &_t;\
 		        if (_T->lock && !(_condlock)) _T->lock = NULL;	\

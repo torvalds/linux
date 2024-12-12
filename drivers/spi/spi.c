@@ -1440,7 +1440,7 @@ static int spi_transfer_wait(struct spi_controller *ctlr,
 	u32 speed_hz = xfer->speed_hz;
 	unsigned long long ms;
 
-	if (spi_controller_is_slave(ctlr)) {
+	if (spi_controller_is_target(ctlr)) {
 		if (wait_for_completion_interruptible(&ctlr->xfer_completion)) {
 			dev_dbg(&msg->spi->dev, "SPI transfer interrupted\n");
 			return -EINTR;
@@ -2425,7 +2425,7 @@ static int of_spi_parse_dt(struct spi_controller *ctlr, struct spi_device *spi,
 		}
 	}
 
-	if (spi_controller_is_slave(ctlr)) {
+	if (spi_controller_is_target(ctlr)) {
 		if (!of_node_name_eq(nc, "slave")) {
 			dev_err(&ctlr->dev, "%pOF is not called 'slave'\n",
 				nc);
@@ -2934,21 +2934,10 @@ static struct class spi_master_class = {
 
 #ifdef CONFIG_SPI_SLAVE
 /**
- * spi_slave_abort - abort the ongoing transfer request on an SPI slave
+ * spi_target_abort - abort the ongoing transfer request on an SPI slave
  *		     controller
  * @spi: device used for the current transfer
  */
-int spi_slave_abort(struct spi_device *spi)
-{
-	struct spi_controller *ctlr = spi->controller;
-
-	if (spi_controller_is_slave(ctlr) && ctlr->slave_abort)
-		return ctlr->slave_abort(ctlr);
-
-	return -ENOTSUPP;
-}
-EXPORT_SYMBOL_GPL(spi_slave_abort);
-
 int spi_target_abort(struct spi_device *spi)
 {
 	struct spi_controller *ctlr = spi->controller;
@@ -3321,7 +3310,7 @@ int spi_register_controller(struct spi_controller *ctlr)
 	 */
 	dev_set_name(&ctlr->dev, "spi%u", ctlr->bus_num);
 
-	if (!spi_controller_is_slave(ctlr) && ctlr->use_gpio_descriptors) {
+	if (!spi_controller_is_target(ctlr) && ctlr->use_gpio_descriptors) {
 		status = spi_get_gpio_descs(ctlr);
 		if (status)
 			goto free_bus_id;
@@ -3349,7 +3338,7 @@ int spi_register_controller(struct spi_controller *ctlr)
 	if (status < 0)
 		goto free_bus_id;
 	dev_dbg(dev, "registered %s %s\n",
-			spi_controller_is_slave(ctlr) ? "slave" : "master",
+			spi_controller_is_target(ctlr) ? "target" : "host",
 			dev_name(&ctlr->dev));
 
 	/*
@@ -3921,6 +3910,12 @@ int spi_setup(struct spi_device *spi)
 		(SPI_TX_DUAL | SPI_TX_QUAD | SPI_TX_OCTAL |
 		 SPI_RX_DUAL | SPI_RX_QUAD | SPI_RX_OCTAL)))
 		return -EINVAL;
+	/* Check against conflicting MOSI idle configuration */
+	if ((spi->mode & SPI_MOSI_IDLE_LOW) && (spi->mode & SPI_MOSI_IDLE_HIGH)) {
+		dev_err(&spi->dev,
+			"setup: MOSI configured to idle low and high at the same time.\n");
+		return -EINVAL;
+	}
 	/*
 	 * Help drivers fail *cleanly* when they need options
 	 * that aren't supported with their current controller.

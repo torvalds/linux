@@ -24,6 +24,5 @@ extern int iscsit_start_kthreads(struct iscsit_conn *);
 extern void iscsi_post_login_handler(struct iscsi_np *, struct iscsit_conn *, u8);
 extern void iscsi_target_login_sess_out(struct iscsit_conn *, bool, bool);
 extern int iscsi_target_login_thread(void *);
-extern void iscsi_handle_login_thread_timeout(struct timer_list *t);
 
 #endif   /*** ISCSI_TARGET_LOGIN_H ***/

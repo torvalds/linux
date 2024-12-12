@@ -37,6 +37,7 @@ config HP_ACCEL
 config HP_WMI
 	tristate "HP WMI extras"
 	default m
+	depends on ACPI_EC
 	depends on ACPI_WMI
 	depends on INPUT
 	depends on RFKILL || RFKILL = n

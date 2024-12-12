@@ -101,8 +101,12 @@ struct am65_cpsw_rx_flow {
 	struct hrtimer rx_hrtimer;
 	unsigned long rx_pace_timeout;
 	struct page_pool *page_pool;
-	struct page **pages;
 	char name[32];
+};
+
+struct am65_cpsw_swdata {
+	u32 flow_id;
+	struct page *page;
 };
 
 struct am65_cpsw_rx_chn {

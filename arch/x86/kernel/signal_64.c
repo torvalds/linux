@@ -260,13 +260,13 @@ SYSCALL_DEFINE0(rt_sigreturn)
 
 	set_current_blocked(&set);
 
+	if (restore_altstack(&frame->uc.uc_stack))
+		goto badframe;
+
 	if (!restore_sigcontext(regs, &frame->uc.uc_mcontext, uc_flags))
 		goto badframe;
 
 	if (restore_signal_shadow_stack())
-		goto badframe;
-
-	if (restore_altstack(&frame->uc.uc_stack))
 		goto badframe;
 
 	return regs->ax;

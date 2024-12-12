@@ -352,7 +352,7 @@ static const unsigned int tdmb_dout2_pins[] = {GPIOA_12};
 static const unsigned int tdmb_din3_pins[] = {GPIOA_13};
 static const unsigned int tdmb_dout3_pins[] = {GPIOA_13};
 
-static struct meson_pmx_group meson_axg_periphs_groups[] = {
+static const struct meson_pmx_group meson_axg_periphs_groups[] = {
 	GPIO_GROUP(GPIOZ_0),
 	GPIO_GROUP(GPIOZ_1),
 	GPIO_GROUP(GPIOZ_2),
@@ -675,7 +675,7 @@ static const unsigned int jtag_ao_tms_pins[] = {GPIOAO_7};
 /* gen_clk */
 static const unsigned int gen_clk_ee_pins[] = {GPIOAO_13};
 
-static struct meson_pmx_group meson_axg_aobus_groups[] = {
+static const struct meson_pmx_group meson_axg_aobus_groups[] = {
 	GPIO_GROUP(GPIOAO_0),
 	GPIO_GROUP(GPIOAO_1),
 	GPIO_GROUP(GPIOAO_2),
@@ -955,7 +955,7 @@ static const char * const gen_clk_ee_groups[] = {
 	"gen_clk_ee",
 };
 
-static struct meson_pmx_func meson_axg_periphs_functions[] = {
+static const struct meson_pmx_func meson_axg_periphs_functions[] = {
 	FUNCTION(gpio_periphs),
 	FUNCTION(emmc),
 	FUNCTION(nor),
@@ -987,7 +987,7 @@ static struct meson_pmx_func meson_axg_periphs_functions[] = {
 	FUNCTION(tdmc),
 };
 
-static struct meson_pmx_func meson_axg_aobus_functions[] = {
+static const struct meson_pmx_func meson_axg_aobus_functions[] = {
 	FUNCTION(gpio_aobus),
 	FUNCTION(uart_ao_a),
 	FUNCTION(uart_ao_b),
@@ -1003,7 +1003,7 @@ static struct meson_pmx_func meson_axg_aobus_functions[] = {
 	FUNCTION(gen_clk_ee),
 };
 
-static struct meson_bank meson_axg_periphs_banks[] = {
+static const struct meson_bank meson_axg_periphs_banks[] = {
 	/*   name    first      last       irq	     pullen  pull    dir     out     in  */
 	BANK("Z",    GPIOZ_0,	GPIOZ_10, 14,  24, 3,  0,  3,  0,  9,  0,  10, 0,  11, 0),
 	BANK("BOOT", BOOT_0,	BOOT_14,  25,  39, 4,  0,  4,  0,  12, 0,  13, 0,  14, 0),
@@ -1012,12 +1012,12 @@ static struct meson_bank meson_axg_periphs_banks[] = {
 	BANK("Y", 	 GPIOY_0,	GPIOY_15, 84,  99, 1,  0,  1,  0,  3,  0,  4,  0,  5,  0),
 };
 
-static struct meson_bank meson_axg_aobus_banks[] = {
+static const struct meson_bank meson_axg_aobus_banks[] = {
 	/*   name    first      last      irq	pullen  pull    dir     out     in  */
 	BANK("AO",   GPIOAO_0,  GPIOAO_13, 0, 13, 0,  16,  0, 0,  0,  0,  0, 16,  1,  0),
 };
 
-static struct meson_pmx_bank meson_axg_periphs_pmx_banks[] = {
+static const struct meson_pmx_bank meson_axg_periphs_pmx_banks[] = {
 	/*	 name	 first		lask	   reg	offset  */
 	BANK_PMX("Z",	 GPIOZ_0, GPIOZ_10, 0x2, 0),
 	BANK_PMX("BOOT", BOOT_0,  BOOT_14,  0x0, 0),
@@ -1026,21 +1026,21 @@ static struct meson_pmx_bank meson_axg_periphs_pmx_banks[] = {
 	BANK_PMX("Y",	 GPIOY_0, GPIOY_15, 0x8, 0),
 };
 
-static struct meson_axg_pmx_data meson_axg_periphs_pmx_banks_data = {
+static const struct meson_axg_pmx_data meson_axg_periphs_pmx_banks_data = {
 	.pmx_banks	= meson_axg_periphs_pmx_banks,
 	.num_pmx_banks = ARRAY_SIZE(meson_axg_periphs_pmx_banks),
 };
 
-static struct meson_pmx_bank meson_axg_aobus_pmx_banks[] = {
+static const struct meson_pmx_bank meson_axg_aobus_pmx_banks[] = {
 	BANK_PMX("AO", GPIOAO_0, GPIOAO_13, 0x0, 0),
 };
 
-static struct meson_axg_pmx_data meson_axg_aobus_pmx_banks_data = {
+static const struct meson_axg_pmx_data meson_axg_aobus_pmx_banks_data = {
 	.pmx_banks	= meson_axg_aobus_pmx_banks,
 	.num_pmx_banks = ARRAY_SIZE(meson_axg_aobus_pmx_banks),
 };
 
-static struct meson_pinctrl_data meson_axg_periphs_pinctrl_data = {
+static const struct meson_pinctrl_data meson_axg_periphs_pinctrl_data = {
 	.name		= "periphs-banks",
 	.pins		= meson_axg_periphs_pins,
 	.groups		= meson_axg_periphs_groups,
@@ -1054,7 +1054,7 @@ static struct meson_pinctrl_data meson_axg_periphs_pinctrl_data = {
 	.pmx_data	= &meson_axg_periphs_pmx_banks_data,
 };
 
-static struct meson_pinctrl_data meson_axg_aobus_pinctrl_data = {
+static const struct meson_pinctrl_data meson_axg_aobus_pinctrl_data = {
 	.name		= "aobus-banks",
 	.pins		= meson_axg_aobus_pins,
 	.groups		= meson_axg_aobus_groups,

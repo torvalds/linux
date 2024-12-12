@@ -76,17 +76,10 @@ static void plda_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 		(int)data->hwirq, msg->address_hi, msg->address_lo);
 }
 
-static int plda_msi_set_affinity(struct irq_data *irq_data,
-				 const struct cpumask *mask, bool force)
-{
-	return -EINVAL;
-}
-
 static struct irq_chip plda_msi_bottom_irq_chip = {
 	.name = "PLDA MSI",
 	.irq_ack = plda_msi_bottom_irq_ack,
 	.irq_compose_msi_msg = plda_compose_msi_msg,
-	.irq_set_affinity = plda_msi_set_affinity,
 };
 
 static int plda_irq_msi_domain_alloc(struct irq_domain *domain,
@@ -146,8 +139,8 @@ static struct irq_chip plda_msi_irq_chip = {
 };
 
 static struct msi_domain_info plda_msi_domain_info = {
-	.flags = (MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
-		  MSI_FLAG_PCI_MSIX),
+	.flags = MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
+		 MSI_FLAG_NO_AFFINITY | MSI_FLAG_PCI_MSIX,
 	.chip = &plda_msi_irq_chip,
 };
 

@@ -1724,7 +1724,6 @@ static void mos7720_port_remove(struct usb_serial_port *port)
 
 static struct usb_serial_driver moschip7720_2port_driver = {
 	.driver = {
-		.owner =	THIS_MODULE,
 		.name =		"moschip7720",
 	},
 	.description		= "Moschip 2 port adapter",

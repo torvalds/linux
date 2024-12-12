@@ -8,7 +8,7 @@
  *
  * Many thanks to Klaus Hitschler <klaus.hitschler@gmx.de>
  */
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <linux/ethtool.h>
 #include <linux/module.h>

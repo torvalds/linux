@@ -31,6 +31,9 @@ u32 sis_read_driver_scratch(struct pqi_ctrl_info *ctrl_info);
 void sis_soft_reset(struct pqi_ctrl_info *ctrl_info);
 u32 sis_get_product_id(struct pqi_ctrl_info *ctrl_info);
 int sis_wait_for_fw_triage_completion(struct pqi_ctrl_info *ctrl_info);
+bool sis_is_ctrl_logging_supported(struct pqi_ctrl_info *ctrl_info);
+void sis_notify_kdump(struct pqi_ctrl_info *ctrl_info);
+int sis_wait_for_ctrl_logging_completion(struct pqi_ctrl_info *ctrl_info);
 
 extern unsigned int sis_ctrl_ready_timeout_secs;
 

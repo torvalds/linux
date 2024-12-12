@@ -198,7 +198,7 @@ static void ttm_resource_fini_basic(struct kunit *test)
 	ttm_resource_init(bo, place, res);
 	ttm_resource_fini(man, res);
 
-	KUNIT_ASSERT_TRUE(test, list_empty(&res->lru));
+	KUNIT_ASSERT_TRUE(test, list_empty(&res->lru.link));
 	KUNIT_ASSERT_EQ(test, man->usage, 0);
 }
 

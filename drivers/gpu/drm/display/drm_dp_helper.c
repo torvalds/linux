@@ -2328,6 +2328,31 @@ drm_dp_get_quirks(const struct drm_dp_dpcd_ident *ident, bool is_branch)
 #undef DEVICE_ID_ANY
 #undef DEVICE_ID
 
+static int drm_dp_read_ident(struct drm_dp_aux *aux, unsigned int offset,
+			     struct drm_dp_dpcd_ident *ident)
+{
+	int ret;
+
+	ret = drm_dp_dpcd_read(aux, offset, ident, sizeof(*ident));
+
+	return ret < 0 ? ret : 0;
+}
+
+static void drm_dp_dump_desc(struct drm_dp_aux *aux,
+			     const char *device_name, const struct drm_dp_desc *desc)
+{
+	const struct drm_dp_dpcd_ident *ident = &desc->ident;
+
+	drm_dbg_kms(aux->drm_dev,
+		    "%s: %s: OUI %*phD dev-ID %*pE HW-rev %d.%d SW-rev %d.%d quirks 0x%04x\n",
+		    aux->name, device_name,
+		    (int)sizeof(ident->oui), ident->oui,
+		    (int)strnlen(ident->device_id, sizeof(ident->device_id)), ident->device_id,
+		    ident->hw_rev >> 4, ident->hw_rev & 0xf,
+		    ident->sw_major_rev, ident->sw_minor_rev,
+		    desc->quirks);
+}
+
 /**
  * drm_dp_read_desc - read sink/branch descriptor from DPCD
  * @aux: DisplayPort AUX channel
@@ -2344,26 +2369,47 @@ int drm_dp_read_desc(struct drm_dp_aux *aux, struct drm_dp_desc *desc,
 {
 	struct drm_dp_dpcd_ident *ident = &desc->ident;
 	unsigned int offset = is_branch ? DP_BRANCH_OUI : DP_SINK_OUI;
-	int ret, dev_id_len;
+	int ret;
 
-	ret = drm_dp_dpcd_read(aux, offset, ident, sizeof(*ident));
+	ret = drm_dp_read_ident(aux, offset, ident);
 	if (ret < 0)
 		return ret;
 
 	desc->quirks = drm_dp_get_quirks(ident, is_branch);
 
-	dev_id_len = strnlen(ident->device_id, sizeof(ident->device_id));
-
-	drm_dbg_kms(aux->drm_dev,
-		    "%s: DP %s: OUI %*phD dev-ID %*pE HW-rev %d.%d SW-rev %d.%d quirks 0x%04x\n",
-		    aux->name, is_branch ? "branch" : "sink",
-		    (int)sizeof(ident->oui), ident->oui, dev_id_len,
-		    ident->device_id, ident->hw_rev >> 4, ident->hw_rev & 0xf,
-		    ident->sw_major_rev, ident->sw_minor_rev, desc->quirks);
+	drm_dp_dump_desc(aux, is_branch ? "DP branch" : "DP sink", desc);
 
 	return 0;
 }
 EXPORT_SYMBOL(drm_dp_read_desc);
+
+/**
+ * drm_dp_dump_lttpr_desc - read and dump the DPCD descriptor for an LTTPR PHY
+ * @aux: DisplayPort AUX channel
+ * @dp_phy: LTTPR PHY instance
+ *
+ * Read the DPCD LTTPR PHY descriptor for @dp_phy and print a debug message
+ * with its details to dmesg.
+ *
+ * Returns 0 on success or a negative error code on failure.
+ */
+int drm_dp_dump_lttpr_desc(struct drm_dp_aux *aux, enum drm_dp_phy dp_phy)
+{
+	struct drm_dp_desc desc = {};
+	int ret;
+
+	if (drm_WARN_ON(aux->drm_dev, dp_phy < DP_PHY_LTTPR1 || dp_phy > DP_MAX_LTTPR_COUNT))
+		return -EINVAL;
+
+	ret = drm_dp_read_ident(aux, DP_OUI_PHY_REPEATER(dp_phy), &desc.ident);
+	if (ret < 0)
+		return ret;
+
+	drm_dp_dump_desc(aux, drm_dp_phy_name(dp_phy), &desc);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_dump_lttpr_desc);
 
 /**
  * drm_dp_dsc_sink_bpp_incr() - Get bits per pixel increment

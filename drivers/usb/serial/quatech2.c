@@ -9,7 +9,7 @@
  *
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
@@ -924,7 +924,6 @@ write_out:
 
 static struct usb_serial_driver qt2_device = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "quatech-serial",
 	},
 	.description	     = DRIVER_DESC,

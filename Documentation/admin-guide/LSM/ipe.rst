@@ -223,7 +223,10 @@ are signed through the PKCS#7 message format to enforce some level of
 authorization of the policies (prohibiting an attacker from gaining
 unconstrained root, and deploying an "allow all" policy). These
 policies must be signed by a certificate that chains to the
-``SYSTEM_TRUSTED_KEYRING``. With openssl, the policy can be signed by::
+``SYSTEM_TRUSTED_KEYRING``, or to the secondary and/or platform keyrings if
+``CONFIG_IPE_POLICY_SIG_SECONDARY_KEYRING`` and/or
+``CONFIG_IPE_POLICY_SIG_PLATFORM_KEYRING`` are enabled, respectively.
+With openssl, the policy can be signed by::
 
    openssl smime -sign \
       -in "$MY_POLICY" \
@@ -266,7 +269,7 @@ in the kernel. This file is write-only and accepts a PKCS#7 signed
 policy. Two checks will always be performed on this policy: First, the
 ``policy_names`` must match with the updated version and the existing
 version. Second the updated policy must have a policy version greater than
-or equal to the currently-running version. This is to prevent rollback attacks.
+the currently-running version. This is to prevent rollback attacks.
 
 The ``delete`` file is used to remove a policy that is no longer needed.
 This file is write-only and accepts a value of ``1`` to delete the policy.

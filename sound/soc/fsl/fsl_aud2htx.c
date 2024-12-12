@@ -296,7 +296,7 @@ static const struct dev_pm_ops fsl_aud2htx_pm_ops = {
 
 static struct platform_driver fsl_aud2htx_driver = {
 	.probe = fsl_aud2htx_probe,
-	.remove_new = fsl_aud2htx_remove,
+	.remove = fsl_aud2htx_remove,
 	.driver = {
 		.name = "fsl-aud2htx",
 		.pm = pm_ptr(&fsl_aud2htx_pm_ops),

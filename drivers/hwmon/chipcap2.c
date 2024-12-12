@@ -740,37 +740,26 @@ static int cc2_probe(struct i2c_client *client)
 	data->client = client;
 
 	data->regulator = devm_regulator_get_exclusive(dev, "vdd");
-	if (IS_ERR(data->regulator)) {
-		dev_err_probe(dev, PTR_ERR(data->regulator),
-			      "Failed to get regulator\n");
-		return PTR_ERR(data->regulator);
-	}
+	if (IS_ERR(data->regulator))
+		return dev_err_probe(dev, PTR_ERR(data->regulator),
+				     "Failed to get regulator\n");
 
 	ret = cc2_request_ready_irq(data, dev);
-	if (ret) {
-		dev_err_probe(dev, ret, "Failed to request ready irq\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to request ready irq\n");
 
 	ret = cc2_request_alarm_irqs(data, dev);
-	if (ret) {
-		dev_err_probe(dev, ret, "Failed to request alarm irqs\n");
-		goto disable;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to request alarm irqs\n");
 
 	data->hwmon = devm_hwmon_device_register_with_info(dev, client->name,
 							   data, &cc2_chip_info,
 							   NULL);
-	if (IS_ERR(data->hwmon)) {
-		dev_err_probe(dev, PTR_ERR(data->hwmon),
-			      "Failed to register hwmon device\n");
-		ret = PTR_ERR(data->hwmon);
-	}
+	if (IS_ERR(data->hwmon))
+		return dev_err_probe(dev, PTR_ERR(data->hwmon),
+				     "Failed to register hwmon device\n");
 
-disable:
-	cc2_disable(data);
-
-	return ret;
+	return 0;
 }
 
 static void cc2_remove(struct i2c_client *client)

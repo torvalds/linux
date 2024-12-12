@@ -109,8 +109,6 @@ static inline void snd_seq_inc_time_nsec(snd_seq_real_time_t *tm, unsigned long 
 struct snd_seq_queue;
 int snd_seq_timer_open(struct snd_seq_queue *q);
 int snd_seq_timer_close(struct snd_seq_queue *q);
-int snd_seq_timer_midi_open(struct snd_seq_queue *q);
-int snd_seq_timer_midi_close(struct snd_seq_queue *q);
 void snd_seq_timer_defaults(struct snd_seq_timer *tmr);
 void snd_seq_timer_reset(struct snd_seq_timer *tmr);
 int snd_seq_timer_stop(struct snd_seq_timer *tmr);

@@ -13,7 +13,7 @@
 #include <linux/netdevice.h>
 #include <net/mac80211.h>
 #include <linux/etherdevice.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include "iwl-io.h"
 #include "iwl-trans.h"
 #include "iwl-modparams.h"

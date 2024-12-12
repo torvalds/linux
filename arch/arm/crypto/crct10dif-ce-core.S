@@ -112,55 +112,120 @@
 	FOLD_CONST_L	.req	q10l
 	FOLD_CONST_H	.req	q10h
 
+	/*
+	 * Pairwise long polynomial multiplication of two 16-bit values
+	 *
+	 *   { w0, w1 }, { y0, y1 }
+	 *
+	 * by two 64-bit values
+	 *
+	 *   { x0, x1, x2, x3, x4, x5, x6, x7 }, { z0, z1, z2, z3, z4, z5, z6, z7 }
+	 *
+	 * where each vector element is a byte, ordered from least to most
+	 * significant. The resulting 80-bit vectors are XOR'ed together.
+	 *
+	 * This can be implemented using 8x8 long polynomial multiplication, by
+	 * reorganizing the input so that each pairwise 8x8 multiplication
+	 * produces one of the terms from the decomposition below, and
+	 * combining the results of each rank and shifting them into place.
+	 *
+	 * Rank
+	 *  0            w0*x0 ^              |        y0*z0 ^
+	 *  1       (w0*x1 ^ w1*x0) <<  8 ^   |   (y0*z1 ^ y1*z0) <<  8 ^
+	 *  2       (w0*x2 ^ w1*x1) << 16 ^   |   (y0*z2 ^ y1*z1) << 16 ^
+	 *  3       (w0*x3 ^ w1*x2) << 24 ^   |   (y0*z3 ^ y1*z2) << 24 ^
+	 *  4       (w0*x4 ^ w1*x3) << 32 ^   |   (y0*z4 ^ y1*z3) << 32 ^
+	 *  5       (w0*x5 ^ w1*x4) << 40 ^   |   (y0*z5 ^ y1*z4) << 40 ^
+	 *  6       (w0*x6 ^ w1*x5) << 48 ^   |   (y0*z6 ^ y1*z5) << 48 ^
+	 *  7       (w0*x7 ^ w1*x6) << 56 ^   |   (y0*z7 ^ y1*z6) << 56 ^
+	 *  8            w1*x7      << 64     |        y1*z7      << 64
+	 *
+	 * The inputs can be reorganized into
+	 *
+	 *   { w0, w0, w0, w0, y0, y0, y0, y0 }, { w1, w1, w1, w1, y1, y1, y1, y1 }
+	 *   { x0, x2, x4, x6, z0, z2, z4, z6 }, { x1, x3, x5, x7, z1, z3, z5, z7 }
+	 *
+	 * and after performing 8x8->16 bit long polynomial multiplication of
+	 * each of the halves of the first vector with those of the second one,
+	 * we obtain the following four vectors of 16-bit elements:
+	 *
+	 *   a := { w0*x0, w0*x2, w0*x4, w0*x6 }, { y0*z0, y0*z2, y0*z4, y0*z6 }
+	 *   b := { w0*x1, w0*x3, w0*x5, w0*x7 }, { y0*z1, y0*z3, y0*z5, y0*z7 }
+	 *   c := { w1*x0, w1*x2, w1*x4, w1*x6 }, { y1*z0, y1*z2, y1*z4, y1*z6 }
+	 *   d := { w1*x1, w1*x3, w1*x5, w1*x7 }, { y1*z1, y1*z3, y1*z5, y1*z7 }
+	 *
+	 * Results b and c can be XORed together, as the vector elements have
+	 * matching ranks. Then, the final XOR can be pulled forward, and
+	 * applied between the halves of each of the remaining three vectors,
+	 * which are then shifted into place, and XORed together to produce the
+	 * final 80-bit result.
+	 */
+        .macro		pmull16x64_p8, v16, v64
+	vext.8		q11, \v64, \v64, #1
+	vld1.64		{q12}, [r4, :128]
+	vuzp.8		q11, \v64
+	vtbl.8		d24, {\v16\()_L-\v16\()_H}, d24
+	vtbl.8		d25, {\v16\()_L-\v16\()_H}, d25
+	bl		__pmull16x64_p8
+	veor		\v64, q12, q14
+        .endm
+
+__pmull16x64_p8:
+	vmull.p8	q13, d23, d24
+	vmull.p8	q14, d23, d25
+	vmull.p8	q15, d22, d24
+	vmull.p8	q12, d22, d25
+
+	veor		q14, q14, q15
+	veor		d24, d24, d25
+	veor		d26, d26, d27
+	veor		d28, d28, d29
+	vmov.i32	d25, #0
+	vmov.i32	d29, #0
+	vext.8		q12, q12, q12, #14
+	vext.8		q14, q14, q14, #15
+	veor		d24, d24, d26
+	bx		lr
+ENDPROC(__pmull16x64_p8)
+
+        .macro		pmull16x64_p64, v16, v64
+	vmull.p64	q11, \v64\()l, \v16\()_L
+	vmull.p64	\v64, \v64\()h, \v16\()_H
+	veor		\v64, \v64, q11
+	.endm
+
 	// Fold reg1, reg2 into the next 32 data bytes, storing the result back
 	// into reg1, reg2.
-	.macro		fold_32_bytes, reg1, reg2
-	vld1.64		{q11-q12}, [buf]!
+	.macro		fold_32_bytes, reg1, reg2, p
+	vld1.64		{q8-q9}, [buf]!
 
-	vmull.p64	q8, \reg1\()h, FOLD_CONST_H
-	vmull.p64	\reg1, \reg1\()l, FOLD_CONST_L
-	vmull.p64	q9, \reg2\()h, FOLD_CONST_H
-	vmull.p64	\reg2, \reg2\()l, FOLD_CONST_L
+	pmull16x64_\p	FOLD_CONST, \reg1
+	pmull16x64_\p	FOLD_CONST, \reg2
 
-CPU_LE(	vrev64.8	q11, q11	)
-CPU_LE(	vrev64.8	q12, q12	)
-	vswp		q11l, q11h
-	vswp		q12l, q12h
+CPU_LE(	vrev64.8	q8, q8	)
+CPU_LE(	vrev64.8	q9, q9	)
+	vswp		q8l, q8h
+	vswp		q9l, q9h
 
 	veor.8		\reg1, \reg1, q8
 	veor.8		\reg2, \reg2, q9
-	veor.8		\reg1, \reg1, q11
-	veor.8		\reg2, \reg2, q12
 	.endm
 
 	// Fold src_reg into dst_reg, optionally loading the next fold constants
-	.macro		fold_16_bytes, src_reg, dst_reg, load_next_consts
-	vmull.p64	q8, \src_reg\()l, FOLD_CONST_L
-	vmull.p64	\src_reg, \src_reg\()h, FOLD_CONST_H
+	.macro		fold_16_bytes, src_reg, dst_reg, p, load_next_consts
+	pmull16x64_\p	FOLD_CONST, \src_reg
 	.ifnb		\load_next_consts
 	vld1.64		{FOLD_CONSTS}, [fold_consts_ptr, :128]!
 	.endif
-	veor.8		\dst_reg, \dst_reg, q8
 	veor.8		\dst_reg, \dst_reg, \src_reg
 	.endm
 
-	.macro		__adrl, out, sym
-	movw		\out, #:lower16:\sym
-	movt		\out, #:upper16:\sym
-	.endm
-
-//
-// u16 crc_t10dif_pmull(u16 init_crc, const u8 *buf, size_t len);
-//
-// Assumes len >= 16.
-//
-ENTRY(crc_t10dif_pmull)
-
+	.macro		crct10dif, p
 	// For sizes less than 256 bytes, we can't fold 128 bytes at a time.
 	cmp		len, #256
-	blt		.Lless_than_256_bytes
+	blt		.Lless_than_256_bytes\@
 
-	__adrl		fold_consts_ptr, .Lfold_across_128_bytes_consts
+	mov_l		fold_consts_ptr, .Lfold_across_128_bytes_consts
 
 	// Load the first 128 data bytes.  Byte swapping is necessary to make
 	// the bit order match the polynomial coefficient order.
@@ -199,27 +264,27 @@ CPU_LE(	vrev64.8	q7, q7	)
 
 	// While >= 128 data bytes remain (not counting q0-q7), fold the 128
 	// bytes q0-q7 into them, storing the result back into q0-q7.
-.Lfold_128_bytes_loop:
-	fold_32_bytes	q0, q1
-	fold_32_bytes	q2, q3
-	fold_32_bytes	q4, q5
-	fold_32_bytes	q6, q7
+.Lfold_128_bytes_loop\@:
+	fold_32_bytes	q0, q1, \p
+	fold_32_bytes	q2, q3, \p
+	fold_32_bytes	q4, q5, \p
+	fold_32_bytes	q6, q7, \p
 	subs		len, len, #128
-	bge		.Lfold_128_bytes_loop
+	bge		.Lfold_128_bytes_loop\@
 
 	// Now fold the 112 bytes in q0-q6 into the 16 bytes in q7.
 
 	// Fold across 64 bytes.
 	vld1.64		{FOLD_CONSTS}, [fold_consts_ptr, :128]!
-	fold_16_bytes	q0, q4
-	fold_16_bytes	q1, q5
-	fold_16_bytes	q2, q6
-	fold_16_bytes	q3, q7, 1
+	fold_16_bytes	q0, q4, \p
+	fold_16_bytes	q1, q5, \p
+	fold_16_bytes	q2, q6, \p
+	fold_16_bytes	q3, q7, \p, 1
 	// Fold across 32 bytes.
-	fold_16_bytes	q4, q6
-	fold_16_bytes	q5, q7, 1
+	fold_16_bytes	q4, q6, \p
+	fold_16_bytes	q5, q7, \p, 1
 	// Fold across 16 bytes.
-	fold_16_bytes	q6, q7
+	fold_16_bytes	q6, q7, \p
 
 	// Add 128 to get the correct number of data bytes remaining in 0...127
 	// (not counting q7), following the previous extra subtraction by 128.
@@ -229,25 +294,23 @@ CPU_LE(	vrev64.8	q7, q7	)
 
 	// While >= 16 data bytes remain (not counting q7), fold the 16 bytes q7
 	// into them, storing the result back into q7.
-	blt		.Lfold_16_bytes_loop_done
-.Lfold_16_bytes_loop:
-	vmull.p64	q8, q7l, FOLD_CONST_L
-	vmull.p64	q7, q7h, FOLD_CONST_H
-	veor.8		q7, q7, q8
+	blt		.Lfold_16_bytes_loop_done\@
+.Lfold_16_bytes_loop\@:
+	pmull16x64_\p	FOLD_CONST, q7
 	vld1.64		{q0}, [buf]!
 CPU_LE(	vrev64.8	q0, q0	)
 	vswp		q0l, q0h
 	veor.8		q7, q7, q0
 	subs		len, len, #16
-	bge		.Lfold_16_bytes_loop
+	bge		.Lfold_16_bytes_loop\@
 
-.Lfold_16_bytes_loop_done:
+.Lfold_16_bytes_loop_done\@:
 	// Add 16 to get the correct number of data bytes remaining in 0...15
 	// (not counting q7), following the previous extra subtraction by 16.
 	adds		len, len, #16
-	beq		.Lreduce_final_16_bytes
+	beq		.Lreduce_final_16_bytes\@
 
-.Lhandle_partial_segment:
+.Lhandle_partial_segment\@:
 	// Reduce the last '16 + len' bytes where 1 <= len <= 15 and the first
 	// 16 bytes are in q7 and the rest are the remaining data in 'buf'.  To
 	// do this without needing a fold constant for each possible 'len',
@@ -262,9 +325,9 @@ CPU_LE(	vrev64.8	q0, q0	)
 	vswp		q0l, q0h
 
 	// q1 = high order part of second chunk: q7 left-shifted by 'len' bytes.
-	__adrl		r3, .Lbyteshift_table + 16
-	sub		r3, r3, len
-	vld1.8		{q2}, [r3]
+	mov_l		r1, .Lbyteshift_table + 16
+	sub		r1, r1, len
+	vld1.8		{q2}, [r1]
 	vtbl.8		q1l, {q7l-q7h}, q2l
 	vtbl.8		q1h, {q7l-q7h}, q2h
 
@@ -282,12 +345,46 @@ CPU_LE(	vrev64.8	q0, q0	)
 	vbsl.8		q2, q1, q0
 
 	// Fold the first chunk into the second chunk, storing the result in q7.
-	vmull.p64	q0, q3l, FOLD_CONST_L
-	vmull.p64	q7, q3h, FOLD_CONST_H
-	veor.8		q7, q7, q0
-	veor.8		q7, q7, q2
+	pmull16x64_\p	FOLD_CONST, q3
+	veor.8		q7, q3, q2
+	b		.Lreduce_final_16_bytes\@
 
-.Lreduce_final_16_bytes:
+.Lless_than_256_bytes\@:
+	// Checksumming a buffer of length 16...255 bytes
+
+	mov_l		fold_consts_ptr, .Lfold_across_16_bytes_consts
+
+	// Load the first 16 data bytes.
+	vld1.64		{q7}, [buf]!
+CPU_LE(	vrev64.8	q7, q7	)
+	vswp		q7l, q7h
+
+	// XOR the first 16 data *bits* with the initial CRC value.
+	vmov.i8		q0h, #0
+	vmov.u16	q0h[3], init_crc
+	veor.8		q7h, q7h, q0h
+
+	// Load the fold-across-16-bytes constants.
+	vld1.64		{FOLD_CONSTS}, [fold_consts_ptr, :128]!
+
+	cmp		len, #16
+	beq		.Lreduce_final_16_bytes\@	// len == 16
+	subs		len, len, #32
+	addlt		len, len, #16
+	blt		.Lhandle_partial_segment\@	// 17 <= len <= 31
+	b		.Lfold_16_bytes_loop\@		// 32 <= len <= 255
+
+.Lreduce_final_16_bytes\@:
+	.endm
+
+//
+// u16 crc_t10dif_pmull(u16 init_crc, const u8 *buf, size_t len);
+//
+// Assumes len >= 16.
+//
+ENTRY(crc_t10dif_pmull64)
+	crct10dif	p64
+
 	// Reduce the 128-bit value M(x), stored in q7, to the final 16-bit CRC.
 
 	// Load 'x^48 * (x^48 mod G(x))' and 'x^48 * (x^80 mod G(x))'.
@@ -320,32 +417,19 @@ CPU_LE(	vrev64.8	q0, q0	)
 
 	vmov.u16	r0, q0l[0]
 	bx		lr
+ENDPROC(crc_t10dif_pmull64)
 
-.Lless_than_256_bytes:
-	// Checksumming a buffer of length 16...255 bytes
+ENTRY(crc_t10dif_pmull8)
+	push		{r4, lr}
+	mov_l		r4, .L16x64perm
 
-	__adrl		fold_consts_ptr, .Lfold_across_16_bytes_consts
+	crct10dif	p8
 
-	// Load the first 16 data bytes.
-	vld1.64		{q7}, [buf]!
 CPU_LE(	vrev64.8	q7, q7	)
 	vswp		q7l, q7h
-
-	// XOR the first 16 data *bits* with the initial CRC value.
-	vmov.i8		q0h, #0
-	vmov.u16	q0h[3], init_crc
-	veor.8		q7h, q7h, q0h
-
-	// Load the fold-across-16-bytes constants.
-	vld1.64		{FOLD_CONSTS}, [fold_consts_ptr, :128]!
-
-	cmp		len, #16
-	beq		.Lreduce_final_16_bytes		// len == 16
-	subs		len, len, #32
-	addlt		len, len, #16
-	blt		.Lhandle_partial_segment	// 17 <= len <= 31
-	b		.Lfold_16_bytes_loop		// 32 <= len <= 255
-ENDPROC(crc_t10dif_pmull)
+	vst1.64		{q7}, [r3, :128]
+	pop		{r4, pc}
+ENDPROC(crc_t10dif_pmull8)
 
 	.section	".rodata", "a"
 	.align		4
@@ -379,3 +463,6 @@ ENDPROC(crc_t10dif_pmull)
 	.byte		0x88, 0x89, 0x8a, 0x8b, 0x8c, 0x8d, 0x8e, 0x8f
 	.byte		 0x0,  0x1,  0x2,  0x3,  0x4,  0x5,  0x6,  0x7
 	.byte		 0x8,  0x9,  0xa,  0xb,  0xc,  0xd,  0xe , 0x0
+
+.L16x64perm:
+	.quad		0x808080800000000, 0x909090901010101

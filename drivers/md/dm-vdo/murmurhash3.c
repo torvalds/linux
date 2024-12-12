@@ -8,7 +8,7 @@
 
 #include "murmurhash3.h"
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 static inline u64 rotl64(u64 x, s8 r)
 {

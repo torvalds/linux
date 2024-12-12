@@ -106,6 +106,10 @@ static void __ref zero_pte_populate(pmd_t *pmd, unsigned long addr,
 	}
 }
 
+void __weak __meminit kernel_pte_init(void *addr)
+{
+}
+
 static int __ref zero_pmd_populate(pud_t *pud, unsigned long addr,
 				unsigned long end)
 {
@@ -126,8 +130,10 @@ static int __ref zero_pmd_populate(pud_t *pud, unsigned long addr,
 
 			if (slab_is_available())
 				p = pte_alloc_one_kernel(&init_mm);
-			else
+			else {
 				p = early_alloc(PAGE_SIZE, NUMA_NO_NODE);
+				kernel_pte_init(p);
+			}
 			if (!p)
 				return -ENOMEM;
 

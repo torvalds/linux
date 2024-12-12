@@ -27,7 +27,7 @@
 #define _CRYPTO_ECC_H
 
 #include <crypto/ecc_curve.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /* One digit is u64 qword. */
 #define ECC_CURVE_NIST_P192_DIGITS  3
@@ -41,6 +41,18 @@
 #define ECC_MAX_BYTES (ECC_MAX_DIGITS << ECC_DIGITS_TO_BYTES_SHIFT)
 
 #define ECC_POINT_INIT(x, y, ndigits)	(struct ecc_point) { x, y, ndigits }
+
+/*
+ * The integers r and s making up the signature are expected to be
+ * formatted as two consecutive u64 arrays of size ECC_MAX_BYTES.
+ * The bytes within each u64 digit are in native endianness,
+ * but the order of the u64 digits themselves is little endian.
+ * This format allows direct use by internal vli_*() functions.
+ */
+struct ecdsa_raw_sig {
+	u64 r[ECC_MAX_DIGITS];
+	u64 s[ECC_MAX_DIGITS];
+};
 
 /**
  * ecc_swap_digits() - Copy ndigits from big endian array to native array
@@ -293,4 +305,6 @@ void ecc_point_mult_shamir(const struct ecc_point *result,
 			   const u64 *y, const struct ecc_point *q,
 			   const struct ecc_curve *curve);
 
+extern struct crypto_template ecdsa_x962_tmpl;
+extern struct crypto_template ecdsa_p1363_tmpl;
 #endif

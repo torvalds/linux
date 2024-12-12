@@ -749,10 +749,9 @@ chromeos_laptop_prepare_i2c_peripherals(struct chromeos_laptop *cros_laptop,
 	if (!src->num_i2c_peripherals)
 		return 0;
 
-	i2c_peripherals = kmemdup(src->i2c_peripherals,
-					      src->num_i2c_peripherals *
-					  sizeof(*src->i2c_peripherals),
-					  GFP_KERNEL);
+	i2c_peripherals = kmemdup_array(src->i2c_peripherals,
+					src->num_i2c_peripherals,
+					sizeof(*i2c_peripherals), GFP_KERNEL);
 	if (!i2c_peripherals)
 		return -ENOMEM;
 

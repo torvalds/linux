@@ -102,7 +102,9 @@ void ni_clear(struct ntfs_inode *ni)
 {
 	struct rb_node *node;
 
-	if (!ni->vfs_inode.i_nlink && ni->mi.mrec && is_rec_inuse(ni->mi.mrec))
+	if (!ni->vfs_inode.i_nlink && ni->mi.mrec &&
+	    is_rec_inuse(ni->mi.mrec) &&
+	    !(ni->mi.sbi->flags & NTFS_FLAGS_LOG_REPLAYING))
 		ni_delete_all(ni);
 
 	al_destroy(ni);
@@ -1900,13 +1902,13 @@ enum REPARSE_SIGN ni_parse_reparse(struct ntfs_inode *ni, struct ATTRIB *attr,
 
 /*
  * fiemap_fill_next_extent_k - a copy of fiemap_fill_next_extent
- * but it accepts kernel address for fi_extents_start
+ * but it uses 'fe_k' instead of fieinfo->fi_extents_start
  */
 static int fiemap_fill_next_extent_k(struct fiemap_extent_info *fieinfo,
-				     u64 logical, u64 phys, u64 len, u32 flags)
+				     struct fiemap_extent *fe_k, u64 logical,
+				     u64 phys, u64 len, u32 flags)
 {
 	struct fiemap_extent extent;
-	struct fiemap_extent __user *dest = fieinfo->fi_extents_start;
 
 	/* only count the extents */
 	if (fieinfo->fi_extents_max == 0) {
@@ -1930,8 +1932,7 @@ static int fiemap_fill_next_extent_k(struct fiemap_extent_info *fieinfo,
 	extent.fe_length = len;
 	extent.fe_flags = flags;
 
-	dest += fieinfo->fi_extents_mapped;
-	memcpy(dest, &extent, sizeof(extent));
+	memcpy(fe_k + fieinfo->fi_extents_mapped, &extent, sizeof(extent));
 
 	fieinfo->fi_extents_mapped++;
 	if (fieinfo->fi_extents_mapped == fieinfo->fi_extents_max)
@@ -1949,7 +1950,6 @@ int ni_fiemap(struct ntfs_inode *ni, struct fiemap_extent_info *fieinfo,
 	      __u64 vbo, __u64 len)
 {
 	int err = 0;
-	struct fiemap_extent __user *fe_u = fieinfo->fi_extents_start;
 	struct fiemap_extent *fe_k = NULL;
 	struct ntfs_sb_info *sbi = ni->mi.sbi;
 	u8 cluster_bits = sbi->cluster_bits;
@@ -2008,7 +2008,6 @@ int ni_fiemap(struct ntfs_inode *ni, struct fiemap_extent_info *fieinfo,
 		err = -ENOMEM;
 		goto out;
 	}
-	fieinfo->fi_extents_start = fe_k;
 
 	end = vbo + len;
 	alloc_size = le64_to_cpu(attr->nres.alloc_size);
@@ -2098,8 +2097,8 @@ int ni_fiemap(struct ntfs_inode *ni, struct fiemap_extent_info *fieinfo,
 			if (vbo + dlen >= end)
 				flags |= FIEMAP_EXTENT_LAST;
 
-			err = fiemap_fill_next_extent_k(fieinfo, vbo, lbo, dlen,
-							flags);
+			err = fiemap_fill_next_extent_k(fieinfo, fe_k, vbo, lbo,
+							dlen, flags);
 
 			if (err < 0)
 				break;
@@ -2120,7 +2119,7 @@ int ni_fiemap(struct ntfs_inode *ni, struct fiemap_extent_info *fieinfo,
 		if (vbo + bytes >= end)
 			flags |= FIEMAP_EXTENT_LAST;
 
-		err = fiemap_fill_next_extent_k(fieinfo, vbo, lbo, bytes,
+		err = fiemap_fill_next_extent_k(fieinfo, fe_k, vbo, lbo, bytes,
 						flags);
 		if (err < 0)
 			break;
@@ -2137,15 +2136,13 @@ int ni_fiemap(struct ntfs_inode *ni, struct fiemap_extent_info *fieinfo,
 	/*
 	 * Copy to user memory out of lock
 	 */
-	if (copy_to_user(fe_u, fe_k,
+	if (copy_to_user(fieinfo->fi_extents_start, fe_k,
 			 fieinfo->fi_extents_max *
 				 sizeof(struct fiemap_extent))) {
 		err = -EFAULT;
 	}
 
 out:
-	/* Restore original pointer. */
-	fieinfo->fi_extents_start = fe_u;
 	kfree(fe_k);
 	return err;
 }
@@ -3454,4 +3451,76 @@ out:
 		mark_inode_dirty_sync(inode);
 
 	return 0;
+}
+
+/*
+ * ni_set_compress
+ *
+ * Helper for 'ntfs_fileattr_set'.
+ * Changes compression for empty files and directories only.
+ */
+int ni_set_compress(struct inode *inode, bool compr)
+{
+	int err;
+	struct ntfs_inode *ni = ntfs_i(inode);
+	struct ATTR_STD_INFO *std;
+	const char *bad_inode;
+
+	if (is_compressed(ni) == !!compr)
+		return 0;
+
+	if (is_sparsed(ni)) {
+		/* sparse and compress not compatible. */
+		return -EOPNOTSUPP;
+	}
+
+	if (!S_ISREG(inode->i_mode) && !S_ISDIR(inode->i_mode)) {
+		/*Skip other inodes. (symlink,fifo,...) */
+		return -EOPNOTSUPP;
+	}
+
+	bad_inode = NULL;
+
+	ni_lock(ni);
+
+	std = ni_std(ni);
+	if (!std) {
+		bad_inode = "no std";
+		goto out;
+	}
+
+	if (S_ISREG(inode->i_mode)) {
+		err = attr_set_compress(ni, compr);
+		if (err) {
+			if (err == -ENOENT) {
+				/* Fix on the fly? */
+				/* Each file must contain data attribute. */
+				bad_inode = "no data attribute";
+			}
+			goto out;
+		}
+	}
+
+	ni->std_fa = std->fa;
+	if (compr)
+		std->fa |= FILE_ATTRIBUTE_COMPRESSED;
+	else
+		std->fa &= ~FILE_ATTRIBUTE_COMPRESSED;
+
+	if (ni->std_fa != std->fa) {
+		ni->std_fa = std->fa;
+		ni->mi.dirty = true;
+	}
+	/* update duplicate information and directory entries in ni_write_inode.*/
+	ni->ni_flags |= NI_FLAG_UPDATE_PARENT;
+	err = 0;
+
+out:
+	ni_unlock(ni);
+	if (bad_inode) {
+		ntfs_bad_inode(inode, bad_inode);
+		err = -EINVAL;
+	}
+
+	return err;
 }
