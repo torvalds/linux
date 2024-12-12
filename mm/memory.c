@@ -3082,7 +3082,6 @@ int apply_to_existing_page_range(struct mm_struct *mm, unsigned long addr,
 {
 	return __apply_to_page_range(mm, addr, size, fn, data, false);
 }
-EXPORT_SYMBOL_GPL(apply_to_existing_page_range);
 
 /*
  * handle_pte_fault chooses page fault handler according to an entry which was
