@@ -1421,9 +1421,7 @@ int bch2_snapshot_node_create(struct btree_trans *trans, u32 parent,
 static int delete_dead_snapshots_process_key(struct btree_trans *trans,
 			       struct btree_iter *iter,
 			       struct bkey_s_c k,
-			       snapshot_id_list *deleted,
-			       snapshot_id_list *equiv_seen,
-			       struct bpos *last_pos)
+			       snapshot_id_list *deleted)
 {
 	int ret = bch2_check_key_has_snapshot(trans, iter, k);
 	if (ret)
@@ -1434,23 +1432,9 @@ static int delete_dead_snapshots_process_key(struct btree_trans *trans,
 	if (!equiv) /* key for invalid snapshot node, but we chose not to delete */
 		return 0;
 
-	if (!bkey_eq(k.k->p, *last_pos))
-		equiv_seen->nr = 0;
-
 	if (snapshot_list_has_id(deleted, k.k->p.snapshot))
 		return bch2_btree_delete_at(trans, iter,
 					    BTREE_UPDATE_internal_snapshot_node);
-
-	if (!bpos_eq(*last_pos, k.k->p) &&
-	    snapshot_list_has_id(equiv_seen, equiv))
-		return bch2_btree_delete_at(trans, iter,
-					    BTREE_UPDATE_internal_snapshot_node);
-
-	*last_pos = k.k->p;
-
-	ret = snapshot_list_add_nodup(c, equiv_seen, equiv);
-	if (ret)
-		return ret;
 
 	/*
 	 * When we have a linear chain of snapshot nodes, we consider
@@ -1473,20 +1457,23 @@ static int delete_dead_snapshots_process_key(struct btree_trans *trans,
 
 		new->k.p.snapshot = equiv;
 
-		struct btree_iter new_iter;
-		bch2_trans_iter_init(trans, &new_iter, iter->btree_id, new->k.p,
-				     BTREE_ITER_all_snapshots|
-				     BTREE_ITER_cached|
-				     BTREE_ITER_intent);
-
-		ret =   bch2_btree_iter_traverse(&new_iter) ?:
-			bch2_trans_update(trans, &new_iter, new,
-					BTREE_UPDATE_internal_snapshot_node) ?:
-			bch2_btree_delete_at(trans, iter,
-					BTREE_UPDATE_internal_snapshot_node);
-		bch2_trans_iter_exit(trans, &new_iter);
+		struct btree_iter dst_iter;
+		struct bkey_s_c dst_k = bch2_bkey_get_iter(trans, &dst_iter,
+							   iter->btree_id, new->k.p,
+							   BTREE_ITER_all_snapshots|
+							   BTREE_ITER_intent);
+		ret = bkey_err(dst_k);
 		if (ret)
 			return ret;
+
+		ret =   (bkey_deleted(dst_k.k)
+			 ? bch2_trans_update(trans, &dst_iter, new,
+					     BTREE_UPDATE_internal_snapshot_node)
+			 : 0) ?:
+			bch2_btree_delete_at(trans, iter,
+					     BTREE_UPDATE_internal_snapshot_node);
+		bch2_trans_iter_exit(trans, &dst_iter);
+		return ret;
 	}
 
 	return 0;
@@ -1648,8 +1635,6 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 		goto err;
 
 	for (unsigned btree = 0; btree < BTREE_ID_NR; btree++) {
-		struct bpos last_pos = POS_MIN;
-		snapshot_id_list equiv_seen = { 0 };
 		struct disk_reservation res = { 0 };
 
 		if (!btree_type_has_snapshots(btree))
@@ -1659,11 +1644,9 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 				btree, POS_MIN,
 				BTREE_ITER_prefetch|BTREE_ITER_all_snapshots, k,
 				&res, NULL, BCH_TRANS_COMMIT_no_enospc,
-			delete_dead_snapshots_process_key(trans, &iter, k, &deleted,
-							  &equiv_seen, &last_pos));
+			delete_dead_snapshots_process_key(trans, &iter, k, &deleted));
 
 		bch2_disk_reservation_put(c, &res);
-		darray_exit(&equiv_seen);
 
 		bch_err_msg(c, ret, "deleting keys from dying snapshots");
 		if (ret)
