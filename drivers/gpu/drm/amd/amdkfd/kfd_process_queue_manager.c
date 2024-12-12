@@ -212,13 +212,17 @@ static void pqm_clean_queue_resource(struct process_queue_manager *pqm,
 void pqm_uninit(struct process_queue_manager *pqm)
 {
 	struct process_queue_node *pqn, *next;
-	struct kfd_process_device *pdd;
 
 	list_for_each_entry_safe(pqn, next, &pqm->queues, process_queue_list) {
 		if (pqn->q) {
-			pdd = kfd_get_process_device_data(pqn->q->device, pqm->process);
-			kfd_queue_unref_bo_vas(pdd, &pqn->q->properties);
-			kfd_queue_release_buffers(pdd, &pqn->q->properties);
+			struct kfd_process_device *pdd = kfd_get_process_device_data(pqn->q->device,
+										     pqm->process);
+			if (pdd) {
+				kfd_queue_unref_bo_vas(pdd, &pqn->q->properties);
+				kfd_queue_release_buffers(pdd, &pqn->q->properties);
+			} else {
+				WARN_ON(!pdd);
+			}
 			pqm_clean_queue_resource(pqm, pqn);
 		}
 
