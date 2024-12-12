@@ -64,6 +64,9 @@ unsigned int fnic_log_level;
 module_param(fnic_log_level, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(fnic_log_level, "bit mask of fnic logging levels");
 
+unsigned int fnic_fdmi_support = 1;
+module_param(fnic_fdmi_support, int, 0644);
+MODULE_PARM_DESC(fnic_fdmi_support, "FDMI support");
 
 unsigned int io_completions = FNIC_DFLT_IO_COMPLETIONS;
 module_param(io_completions, int, S_IRUGO|S_IWUSR);
@@ -612,6 +615,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	unsigned long flags;
 	int hwq;
 	char *desc, *subsys_desc;
+	int len;
 
 	/*
 	 * Allocate SCSI Host and set up association between host,
@@ -646,9 +650,17 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	fnic_stats_debugfs_init(fnic);
 
 	/* Find model name from PCIe subsys ID */
-	if (fnic_get_desc_by_devid(pdev, &desc, &subsys_desc) == 0)
+	if (fnic_get_desc_by_devid(pdev, &desc, &subsys_desc) == 0) {
 		dev_info(&fnic->pdev->dev, "Model: %s\n", subsys_desc);
-	else {
+
+		/* Update FDMI model */
+		fnic->subsys_desc_len = strlen(subsys_desc);
+		len = ARRAY_SIZE(fnic->subsys_desc);
+		if (fnic->subsys_desc_len > len)
+			fnic->subsys_desc_len = len;
+		memcpy(fnic->subsys_desc, subsys_desc, fnic->subsys_desc_len);
+		dev_info(&fnic->pdev->dev, "FDMI Model: %s\n", fnic->subsys_desc);
+	} else {
 		fnic->subsys_desc_len = 0;
 		dev_info(&fnic->pdev->dev, "Model: %s subsys_id: 0x%04x\n", "Unknown",
 				pdev->subsystem_device);
@@ -1050,6 +1062,9 @@ static void fnic_remove(struct pci_dev *pdev)
 		fnic_fcoe_reset_vlans(fnic);
 		fnic_fcoe_evlist_free(fnic);
 	}
+
+	if ((fnic_fdmi_support == 1) && (fnic->iport.fabric.fdmi_pending > 0))
+		del_timer_sync(&fnic->iport.fabric.fdmi_timer);
 
 	/*
 	 * Log off the fabric. This stops all remote ports, dns port,

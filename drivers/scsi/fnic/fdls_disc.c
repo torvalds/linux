@@ -18,6 +18,52 @@
 #define PORT_SPEED_BIT_14 14
 #define PORT_SPEED_BIT_15 15
 
+/* FNIC FDMI Register HBA Macros */
+#define FNIC_FDMI_NUM_PORTS 1
+#define FNIC_FDMI_NUM_HBA_ATTRS 9
+#define FNIC_FDMI_TYPE_NODE_NAME	0X1
+#define FNIC_FDMI_TYPE_MANUFACTURER	0X2
+#define FNIC_FDMI_MANUFACTURER		"Cisco Systems"
+#define FNIC_FDMI_TYPE_SERIAL_NUMBER	0X3
+#define FNIC_FDMI_TYPE_MODEL		0X4
+#define FNIC_FDMI_TYPE_MODEL_DES	0X5
+#define FNIC_FDMI_MODEL_DESCRIPTION	"Cisco Virtual Interface Card"
+#define FNIC_FDMI_TYPE_HARDWARE_VERSION	0X6
+#define FNIC_FDMI_TYPE_DRIVER_VERSION	0X7
+#define FNIC_FDMI_TYPE_ROM_VERSION	0X8
+#define FNIC_FDMI_TYPE_FIRMWARE_VERSION	0X9
+#define FNIC_FDMI_NN_LEN 8
+#define FNIC_FDMI_MANU_LEN 20
+#define FNIC_FDMI_SERIAL_LEN 16
+#define FNIC_FDMI_MODEL_LEN 12
+#define FNIC_FDMI_MODEL_DES_LEN 56
+#define FNIC_FDMI_HW_VER_LEN 16
+#define FNIC_FDMI_DR_VER_LEN 28
+#define FNIC_FDMI_ROM_VER_LEN 8
+#define FNIC_FDMI_FW_VER_LEN 16
+
+/* FNIC FDMI Register PA Macros */
+#define FNIC_FDMI_TYPE_FC4_TYPES	0X1
+#define FNIC_FDMI_TYPE_SUPPORTED_SPEEDS 0X2
+#define FNIC_FDMI_TYPE_CURRENT_SPEED	0X3
+#define FNIC_FDMI_TYPE_MAX_FRAME_SIZE	0X4
+#define FNIC_FDMI_TYPE_OS_NAME		0X5
+#define FNIC_FDMI_TYPE_HOST_NAME	0X6
+#define FNIC_FDMI_NUM_PORT_ATTRS 6
+#define FNIC_FDMI_FC4_LEN 32
+#define FNIC_FDMI_SUPP_SPEED_LEN 4
+#define FNIC_FDMI_CUR_SPEED_LEN 4
+#define FNIC_FDMI_MFS_LEN 4
+#define FNIC_FDMI_MFS 0x800
+#define FNIC_FDMI_OS_NAME_LEN 16
+#define FNIC_FDMI_HN_LEN 24
+
+#define FDLS_FDMI_PLOGI_PENDING 0x1
+#define FDLS_FDMI_REG_HBA_PENDING 0x2
+#define FDLS_FDMI_RPA_PENDING 0x4
+#define FDLS_FDMI_ABORT_PENDING 0x8
+#define FDLS_FDMI_MAX_RETRY 3
+
 #define RETRIES_EXHAUSTED(iport)      \
 	(iport->fabric.retry_counter == FABRIC_LOGO_MAX_RETRY)
 
@@ -26,6 +72,8 @@
 #define SCHEDULE_OXID_FREE_RETRY_TIME (300)
 
 /* Private Functions */
+static void fdls_fdmi_register_hba(struct fnic_iport_s *iport);
+static void fdls_fdmi_register_pa(struct fnic_iport_s *iport);
 static void fdls_send_rpn_id(struct fnic_iport_s *iport);
 static void fdls_process_flogi_rsp(struct fnic_iport_s *iport,
 				   struct fc_frame_header *fchdr,
@@ -39,6 +87,7 @@ static void fdls_target_restart_nexus(struct fnic_tport_s *tport);
 static void fdls_start_tport_timer(struct fnic_iport_s *iport,
 					struct fnic_tport_s *tport, int timeout);
 static void fdls_tport_timer_callback(struct timer_list *t);
+static void fdls_send_fdmi_plogi(struct fnic_iport_s *iport);
 static void fdls_start_fabric_timer(struct fnic_iport_s *iport,
 			int timeout);
 static void fdls_init_plogi_frame(uint8_t *frame, struct fnic_iport_s *iport);
@@ -721,6 +770,52 @@ static void fdls_send_fabric_abts(struct fnic_iport_s *iport)
 	iport->fabric.timer_pending = 1;
 }
 
+static void fdls_send_fdmi_abts(struct fnic_iport_s *iport)
+{
+	uint8_t *frame;
+	uint8_t d_id[3];
+	struct fnic *fnic = iport->fnic;
+	struct fc_frame_header *pfabric_abts;
+	unsigned long fdmi_tov;
+	uint16_t oxid;
+	uint16_t frame_size = FNIC_ETH_FCOE_HDRS_OFFSET +
+			sizeof(struct fc_frame_header);
+
+	frame = fdls_alloc_frame(iport);
+	if (frame == NULL) {
+		FNIC_FCS_DBG(KERN_ERR, fnic->lport->host, fnic->fnic_num,
+				"Failed to allocate frame to send FDMI ABTS");
+		return;
+	}
+
+	pfabric_abts = (struct fc_frame_header *) (frame + FNIC_ETH_FCOE_HDRS_OFFSET);
+	fdls_init_fabric_abts_frame(frame, iport);
+
+	hton24(d_id, FC_FID_MGMT_SERV);
+	FNIC_STD_SET_D_ID(*pfabric_abts, d_id);
+
+	if (iport->fabric.fdmi_pending & FDLS_FDMI_PLOGI_PENDING) {
+		oxid = iport->active_oxid_fdmi_plogi;
+		FNIC_STD_SET_OX_ID(*pfabric_abts, oxid);
+		fnic_send_fcoe_frame(iport, frame, frame_size);
+	} else {
+		if (iport->fabric.fdmi_pending & FDLS_FDMI_REG_HBA_PENDING) {
+			oxid = iport->active_oxid_fdmi_rhba;
+			FNIC_STD_SET_OX_ID(*pfabric_abts, oxid);
+			fnic_send_fcoe_frame(iport, frame, frame_size);
+		}
+		if (iport->fabric.fdmi_pending & FDLS_FDMI_RPA_PENDING) {
+			oxid = iport->active_oxid_fdmi_rpa;
+			FNIC_STD_SET_OX_ID(*pfabric_abts, oxid);
+			fnic_send_fcoe_frame(iport, frame, frame_size);
+		}
+	}
+
+	fdmi_tov = jiffies + msecs_to_jiffies(2 * iport->e_d_tov);
+	mod_timer(&iport->fabric.fdmi_timer, round_jiffies(fdmi_tov));
+	iport->fabric.fdmi_pending |= FDLS_FDMI_ABORT_PENDING;
+}
+
 static void fdls_send_fabric_flogi(struct fnic_iport_s *iport)
 {
 	uint8_t *frame;
@@ -821,6 +916,54 @@ static void fdls_send_fabric_plogi(struct fnic_iport_s *iport)
 err_out:
 	/* Even if fnic_send_fcoe_frame() fails we want to retry after timeout */
 	fdls_start_fabric_timer(iport, 2 * iport->e_d_tov);
+}
+
+static void fdls_send_fdmi_plogi(struct fnic_iport_s *iport)
+{
+	uint8_t *frame;
+	struct fc_std_flogi *pplogi;
+	struct fnic *fnic = iport->fnic;
+	uint16_t oxid;
+	uint16_t frame_size = FNIC_ETH_FCOE_HDRS_OFFSET +
+			sizeof(struct fc_std_flogi);
+	uint8_t d_id[3];
+	u64 fdmi_tov;
+
+	frame = fdls_alloc_frame(iport);
+	if (frame == NULL) {
+		FNIC_FCS_DBG(KERN_ERR, fnic->lport->host, fnic->fnic_num,
+		     "Failed to allocate frame to send FDMI PLOGI");
+		goto err_out;
+	}
+
+	pplogi = (struct fc_std_flogi *) (frame + FNIC_ETH_FCOE_HDRS_OFFSET);
+	fdls_init_plogi_frame(frame, iport);
+
+	oxid = fdls_alloc_oxid(iport, FNIC_FRAME_TYPE_FDMI_PLOGI,
+		&iport->active_oxid_fdmi_plogi);
+
+	if (oxid == FNIC_UNASSIGNED_OXID) {
+		FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+			     "0x%x: Failed to allocate OXID to send FDMI PLOGI",
+			     iport->fcid);
+		mempool_free(frame, fnic->frame_pool);
+		goto err_out;
+	}
+	FNIC_STD_SET_OX_ID(pplogi->fchdr, oxid);
+
+	hton24(d_id, FC_FID_MGMT_SERV);
+	FNIC_STD_SET_D_ID(pplogi->fchdr, d_id);
+
+	FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+		     "0x%x: FDLS send FDMI PLOGI with oxid: 0x%x",
+		     iport->fcid, oxid);
+
+	fnic_send_fcoe_frame(iport, frame, frame_size);
+
+err_out:
+	fdmi_tov = jiffies + msecs_to_jiffies(2 * iport->e_d_tov);
+	mod_timer(&iport->fabric.fdmi_timer, round_jiffies(fdmi_tov));
+	iport->fabric.fdmi_pending = FDLS_FDMI_PLOGI_PENDING;
 }
 
 static void fdls_send_rpn_id(struct fnic_iport_s *iport)
@@ -1644,6 +1787,300 @@ struct fnic_tport_s *fnic_find_tport_by_wwpn(struct fnic_iport_s *iport,
 	return NULL;
 }
 
+static void
+fnic_fdmi_attr_set(void *attr_start, u16 type, u16 len,
+		void *data, u32 *off)
+{
+	u16 size = len + FC_FDMI_ATTR_ENTRY_HEADER_LEN;
+	struct fc_fdmi_attr_entry *fdmi_attr = (struct fc_fdmi_attr_entry *)
+		((u8 *)attr_start + *off);
+
+	put_unaligned_be16(type, &fdmi_attr->type);
+	put_unaligned_be16(size, &fdmi_attr->len);
+	memcpy(fdmi_attr->value, data, len);
+	*off += size;
+}
+
+static void fdls_fdmi_register_hba(struct fnic_iport_s *iport)
+{
+	uint8_t *frame;
+	struct fc_std_fdmi_rhba *prhba;
+	struct fc_fdmi_attr_entry *fdmi_attr;
+	uint8_t fcid[3];
+	int err;
+	struct fnic *fnic = iport->fnic;
+	struct vnic_devcmd_fw_info *fw_info = NULL;
+	uint16_t oxid;
+	u32 attr_off_bytes, len;
+	u8 data[64];
+	uint16_t frame_size = FNIC_ETH_FCOE_HDRS_OFFSET;
+
+	frame = fdls_alloc_frame(iport);
+	if (frame == NULL) {
+		FNIC_FCS_DBG(KERN_ERR, fnic->lport->host, fnic->fnic_num,
+		     "Failed to allocate frame to send FDMI RHBA");
+		return;
+	}
+
+	prhba = (struct fc_std_fdmi_rhba *) (frame + FNIC_ETH_FCOE_HDRS_OFFSET);
+	*prhba = (struct fc_std_fdmi_rhba) {
+		.fchdr = {
+			.fh_r_ctl = FC_RCTL_DD_UNSOL_CTL,
+			.fh_d_id = {0xFF, 0XFF, 0XFA},
+			.fh_type = FC_TYPE_CT,
+			.fh_f_ctl = {FNIC_ELS_REQ_FCTL, 0, 0},
+			.fh_rx_id = cpu_to_be16(FNIC_UNASSIGNED_RXID)
+		},
+		.fc_std_ct_hdr = {
+			.ct_rev = FC_CT_REV, .ct_fs_type = FC_FST_MGMT,
+			.ct_fs_subtype = FC_FDMI_SUBTYPE,
+			.ct_cmd = cpu_to_be16(FC_FDMI_RHBA)
+		},
+	};
+
+	hton24(fcid, iport->fcid);
+	FNIC_STD_SET_S_ID(prhba->fchdr, fcid);
+
+	oxid = fdls_alloc_oxid(iport, FNIC_FRAME_TYPE_FDMI_RHBA,
+		&iport->active_oxid_fdmi_rhba);
+
+	if (oxid == FNIC_UNASSIGNED_OXID) {
+		FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+			     "0x%x: Failed to allocate OXID to send FDMI RHBA",
+		     iport->fcid);
+		mempool_free(frame, fnic->frame_pool);
+		return;
+	}
+	FNIC_STD_SET_OX_ID(prhba->fchdr, oxid);
+
+	put_unaligned_be64(iport->wwpn, &prhba->rhba.hbaid.id);
+	put_unaligned_be32(FNIC_FDMI_NUM_PORTS, &prhba->rhba.port.numport);
+	put_unaligned_be64(iport->wwpn, &prhba->rhba.port.port[0].portname);
+	put_unaligned_be32(FNIC_FDMI_NUM_HBA_ATTRS,
+			&prhba->rhba.hba_attrs.numattrs);
+
+	fdmi_attr = prhba->rhba.hba_attrs.attr;
+	attr_off_bytes = 0;
+
+	put_unaligned_be64(iport->wwnn, data);
+	fnic_fdmi_attr_set(fdmi_attr, FNIC_FDMI_TYPE_NODE_NAME,
+		FNIC_FDMI_NN_LEN, data, &attr_off_bytes);
+
+	FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+			"NN set, off=%d", attr_off_bytes);
+
+	strscpy_pad(data, FNIC_FDMI_MANUFACTURER, FNIC_FDMI_MANU_LEN);
+	fnic_fdmi_attr_set(fdmi_attr, FNIC_FDMI_TYPE_MANUFACTURER,
+		FNIC_FDMI_MANU_LEN, data, &attr_off_bytes);
+
+	FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+			"MFG set <%s>, off=%d", data, attr_off_bytes);
+
+	err = vnic_dev_fw_info(fnic->vdev, &fw_info);
+	if (!err) {
+		strscpy_pad(data, fw_info->hw_serial_number,
+				FNIC_FDMI_SERIAL_LEN);
+		fnic_fdmi_attr_set(fdmi_attr, FNIC_FDMI_TYPE_SERIAL_NUMBER,
+			FNIC_FDMI_SERIAL_LEN, data, &attr_off_bytes);
+		FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+				"SERIAL set <%s>, off=%d", data, attr_off_bytes);
+
+	}
+
+	if (fnic->subsys_desc_len >= FNIC_FDMI_MODEL_LEN)
+		fnic->subsys_desc_len = FNIC_FDMI_MODEL_LEN - 1;
+	strscpy_pad(data, fnic->subsys_desc, FNIC_FDMI_MODEL_LEN);
+	data[FNIC_FDMI_MODEL_LEN - 1] = 0;
+	fnic_fdmi_attr_set(fdmi_attr, FNIC_FDMI_TYPE_MODEL, FNIC_FDMI_MODEL_LEN,
+		data, &attr_off_bytes);
+
+	FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+			"MODEL set <%s>, off=%d", data, attr_off_bytes);
+
+	strscpy_pad(data, FNIC_FDMI_MODEL_DESCRIPTION, FNIC_FDMI_MODEL_DES_LEN);
+	fnic_fdmi_attr_set(fdmi_attr, FNIC_FDMI_TYPE_MODEL_DES,
+		FNIC_FDMI_MODEL_DES_LEN, data, &attr_off_bytes);
+
+	FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+			"MODEL_DESC set <%s>, off=%d", data, attr_off_bytes);
+
+	if (!err) {
+		strscpy_pad(data, fw_info->hw_version, FNIC_FDMI_HW_VER_LEN);
+		fnic_fdmi_attr_set(fdmi_attr, FNIC_FDMI_TYPE_HARDWARE_VERSION,
+			FNIC_FDMI_HW_VER_LEN, data, &attr_off_bytes);
+		FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+				"HW_VER set <%s>, off=%d", data, attr_off_bytes);
+
+	}
+
+	strscpy_pad(data, DRV_VERSION, FNIC_FDMI_DR_VER_LEN);
+	fnic_fdmi_attr_set(fdmi_attr, FNIC_FDMI_TYPE_DRIVER_VERSION,
+		FNIC_FDMI_DR_VER_LEN, data, &attr_off_bytes);
+
+	FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+			"DRV_VER set <%s>, off=%d", data, attr_off_bytes);
+
+	strscpy_pad(data, "N/A", FNIC_FDMI_ROM_VER_LEN);
+	fnic_fdmi_attr_set(fdmi_attr, FNIC_FDMI_TYPE_ROM_VERSION,
+		FNIC_FDMI_ROM_VER_LEN, data, &attr_off_bytes);
+
+	FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+			"ROM_VER set <%s>, off=%d", data, attr_off_bytes);
+
+	if (!err) {
+		strscpy_pad(data, fw_info->fw_version, FNIC_FDMI_FW_VER_LEN);
+		fnic_fdmi_attr_set(fdmi_attr, FNIC_FDMI_TYPE_FIRMWARE_VERSION,
+			FNIC_FDMI_FW_VER_LEN, data, &attr_off_bytes);
+
+		FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+				"FW_VER set <%s>, off=%d", data, attr_off_bytes);
+	}
+
+	len = sizeof(struct fc_std_fdmi_rhba) + attr_off_bytes;
+	frame_size += len;
+
+	FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+		 "0x%x: FDLS send FDMI RHBA with oxid: 0x%x fs: %d", iport->fcid,
+		 oxid, frame_size);
+
+	fnic_send_fcoe_frame(iport, frame, frame_size);
+	iport->fabric.fdmi_pending |= FDLS_FDMI_REG_HBA_PENDING;
+}
+
+static void fdls_fdmi_register_pa(struct fnic_iport_s *iport)
+{
+	uint8_t *frame;
+	struct fc_std_fdmi_rpa *prpa;
+	struct fc_fdmi_attr_entry *fdmi_attr;
+	uint8_t fcid[3];
+	struct fnic *fnic = iport->fnic;
+	u32 port_speed_bm;
+	u32 port_speed = vnic_dev_port_speed(fnic->vdev);
+	uint16_t oxid;
+	u32 attr_off_bytes, len;
+	u8 tmp_data[16], data[64];
+	uint16_t frame_size = FNIC_ETH_FCOE_HDRS_OFFSET;
+
+	frame = fdls_alloc_frame(iport);
+	if (frame == NULL) {
+		FNIC_FCS_DBG(KERN_ERR, fnic->lport->host, fnic->fnic_num,
+		     "Failed to allocate frame to send FDMI RPA");
+		return;
+	}
+
+	prpa = (struct fc_std_fdmi_rpa *) (frame + FNIC_ETH_FCOE_HDRS_OFFSET);
+	*prpa = (struct fc_std_fdmi_rpa) {
+		.fchdr = {
+			.fh_r_ctl = FC_RCTL_DD_UNSOL_CTL,
+			.fh_d_id = {0xFF, 0xFF, 0xFA},
+			.fh_type = FC_TYPE_CT,
+			.fh_f_ctl = {FNIC_ELS_REQ_FCTL, 0, 0},
+			.fh_rx_id = cpu_to_be16(FNIC_UNASSIGNED_RXID)
+		},
+		.fc_std_ct_hdr = {
+			.ct_rev = FC_CT_REV, .ct_fs_type = FC_FST_MGMT,
+			.ct_fs_subtype = FC_FDMI_SUBTYPE,
+			.ct_cmd = cpu_to_be16(FC_FDMI_RPA)
+		},
+	};
+
+	hton24(fcid, iport->fcid);
+	FNIC_STD_SET_S_ID(prpa->fchdr, fcid);
+
+	oxid = fdls_alloc_oxid(iport, FNIC_FRAME_TYPE_FDMI_RPA,
+		&iport->active_oxid_fdmi_rpa);
+
+	if (oxid == FNIC_UNASSIGNED_OXID) {
+		FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+			     "0x%x: Failed to allocate OXID to send FDMI RPA",
+			     iport->fcid);
+		mempool_free(frame, fnic->frame_pool);
+		return;
+	}
+	FNIC_STD_SET_OX_ID(prpa->fchdr, oxid);
+
+	put_unaligned_be64(iport->wwpn, &prpa->rpa.port.portname);
+	put_unaligned_be32(FNIC_FDMI_NUM_PORT_ATTRS,
+				&prpa->rpa.hba_attrs.numattrs);
+
+	/* MDS does not support GIGE speed.
+	 * Bit shift standard definitions from scsi_transport_fc.h to
+	 * match FC spec.
+	 */
+	switch (port_speed) {
+	case DCEM_PORTSPEED_10G:
+	case DCEM_PORTSPEED_20G:
+		/* There is no bit for 20G */
+		port_speed_bm = FC_PORTSPEED_10GBIT << PORT_SPEED_BIT_14;
+		break;
+	case DCEM_PORTSPEED_25G:
+		port_speed_bm = FC_PORTSPEED_25GBIT << PORT_SPEED_BIT_8;
+		break;
+	case DCEM_PORTSPEED_40G:
+	case DCEM_PORTSPEED_4x10G:
+		port_speed_bm = FC_PORTSPEED_40GBIT << PORT_SPEED_BIT_9;
+		break;
+	case DCEM_PORTSPEED_100G:
+		port_speed_bm = FC_PORTSPEED_100GBIT << PORT_SPEED_BIT_8;
+		break;
+	default:
+		port_speed_bm = FC_PORTSPEED_1GBIT << PORT_SPEED_BIT_15;
+		break;
+	}
+	attr_off_bytes = 0;
+
+	fdmi_attr = prpa->rpa.hba_attrs.attr;
+
+	put_unaligned_be64(iport->wwnn, data);
+
+	memset(data, 0, FNIC_FDMI_FC4_LEN);
+	data[2] = 1;
+	fnic_fdmi_attr_set(fdmi_attr, FNIC_FDMI_TYPE_FC4_TYPES,
+		FNIC_FDMI_FC4_LEN, data, &attr_off_bytes);
+
+	put_unaligned_be32(port_speed_bm, data);
+	fnic_fdmi_attr_set(fdmi_attr, FNIC_FDMI_TYPE_SUPPORTED_SPEEDS,
+		FNIC_FDMI_SUPP_SPEED_LEN, data, &attr_off_bytes);
+
+	put_unaligned_be32(port_speed_bm, data);
+	fnic_fdmi_attr_set(fdmi_attr, FNIC_FDMI_TYPE_CURRENT_SPEED,
+		FNIC_FDMI_CUR_SPEED_LEN, data, &attr_off_bytes);
+
+	put_unaligned_be32(FNIC_FDMI_MFS, data);
+	fnic_fdmi_attr_set(fdmi_attr, FNIC_FDMI_TYPE_MAX_FRAME_SIZE,
+		FNIC_FDMI_MFS_LEN, data, &attr_off_bytes);
+
+	snprintf(tmp_data, FNIC_FDMI_OS_NAME_LEN - 1, "host%d",
+		 fnic->lport->host->host_no);
+	strscpy_pad(data, tmp_data, FNIC_FDMI_OS_NAME_LEN);
+	data[FNIC_FDMI_OS_NAME_LEN - 1] = 0;
+	fnic_fdmi_attr_set(fdmi_attr, FNIC_FDMI_TYPE_OS_NAME,
+		FNIC_FDMI_OS_NAME_LEN, data, &attr_off_bytes);
+
+	FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+			"OS name set <%s>, off=%d", data, attr_off_bytes);
+
+	sprintf(fc_host_system_hostname(fnic->lport->host), "%s", utsname()->nodename);
+	strscpy_pad(data, fc_host_system_hostname(fnic->lport->host),
+					FNIC_FDMI_HN_LEN);
+	data[FNIC_FDMI_HN_LEN - 1] = 0;
+	fnic_fdmi_attr_set(fdmi_attr, FNIC_FDMI_TYPE_HOST_NAME,
+		FNIC_FDMI_HN_LEN, data, &attr_off_bytes);
+
+	FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+			"Host name set <%s>, off=%d", data, attr_off_bytes);
+
+	len = sizeof(struct fc_std_fdmi_rpa) + attr_off_bytes;
+	frame_size += len;
+
+	FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+		 "0x%x: FDLS send FDMI RPA with oxid: 0x%x fs: %d", iport->fcid,
+		 oxid, frame_size);
+
+	fnic_send_fcoe_frame(iport, frame, frame_size);
+	iport->fabric.fdmi_pending |= FDLS_FDMI_RPA_PENDING;
+}
+
 void fdls_fabric_timer_callback(struct timer_list *t)
 {
 	struct fnic_fdls_fabric_s *fabric = from_timer(fabric, t, retry_timer);
@@ -1817,6 +2254,64 @@ void fdls_fabric_timer_callback(struct timer_list *t)
 	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 }
 
+void fdls_fdmi_timer_callback(struct timer_list *t)
+{
+	struct fnic_fdls_fabric_s *fabric = from_timer(fabric, t, fdmi_timer);
+	struct fnic_iport_s *iport =
+		container_of(fabric, struct fnic_iport_s, fabric);
+	struct fnic *fnic = iport->fnic;
+	unsigned long flags;
+
+	spin_lock_irqsave(&fnic->fnic_lock, flags);
+
+	FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+		"fdmi timer callback : 0x%x\n", iport->fabric.fdmi_pending);
+
+	if (!iport->fabric.fdmi_pending) {
+		/* timer expired after fdmi responses received. */
+		spin_unlock_irqrestore(&fnic->fnic_lock, flags);
+		return;
+	}
+	FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+		"fdmi timer callback : 0x%x\n", iport->fabric.fdmi_pending);
+
+	/* if not abort pending, send an abort */
+	if (!(iport->fabric.fdmi_pending & FDLS_FDMI_ABORT_PENDING)) {
+		fdls_send_fdmi_abts(iport);
+		spin_unlock_irqrestore(&fnic->fnic_lock, flags);
+		return;
+	}
+	FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+		"fdmi timer callback : 0x%x\n", iport->fabric.fdmi_pending);
+
+	/* ABTS pending for an active fdmi request that is pending.
+	 * That means FDMI ABTS timed out
+	 * Schedule to free the OXID after 2*r_a_tov and proceed
+	 */
+	if (iport->fabric.fdmi_pending & FDLS_FDMI_PLOGI_PENDING) {
+		fdls_schedule_oxid_free(iport, &iport->active_oxid_fdmi_plogi);
+	} else {
+		if (iport->fabric.fdmi_pending & FDLS_FDMI_REG_HBA_PENDING)
+			fdls_schedule_oxid_free(iport, &iport->active_oxid_fdmi_rhba);
+		if (iport->fabric.fdmi_pending & FDLS_FDMI_RPA_PENDING)
+			fdls_schedule_oxid_free(iport, &iport->active_oxid_fdmi_rpa);
+	}
+	FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+		"fdmi timer callback : 0x%x\n", iport->fabric.fdmi_pending);
+
+	iport->fabric.fdmi_pending = 0;
+	/* If max retries not exhaused, start over from fdmi plogi */
+	if (iport->fabric.fdmi_retry < FDLS_FDMI_MAX_RETRY) {
+		iport->fabric.fdmi_retry++;
+		FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+					 "retry fdmi timer %d", iport->fabric.fdmi_retry);
+		fdls_send_fdmi_plogi(iport);
+	}
+	FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+		"fdmi timer callback : 0x%x\n", iport->fabric.fdmi_pending);
+	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
+}
+
 static void fdls_send_delete_tport_msg(struct fnic_tport_s *tport)
 {
 	struct fnic_iport_s *iport = (struct fnic_iport_s *) tport->iport;
@@ -1956,6 +2451,15 @@ static void fnic_fdls_start_plogi(struct fnic_iport_s *iport)
 	fdls_send_fabric_plogi(iport);
 	fdls_set_state((&iport->fabric), FDLS_STATE_FABRIC_PLOGI);
 	iport->fabric.flags &= ~FNIC_FDLS_FABRIC_ABORT_ISSUED;
+
+	if ((fnic_fdmi_support == 1) && (!(iport->flags & FNIC_FDMI_ACTIVE))) {
+		/* we can do FDMI at the same time */
+		iport->fabric.fdmi_retry = 0;
+		timer_setup(&iport->fabric.fdmi_timer, fdls_fdmi_timer_callback,
+					0);
+		fdls_send_fdmi_plogi(iport);
+		iport->flags |= FNIC_FDMI_ACTIVE;
+	}
 }
 static void
 fdls_process_tgt_adisc_rsp(struct fnic_iport_s *iport,
@@ -3090,6 +3594,144 @@ fdls_process_fabric_plogi_rsp(struct fnic_iport_s *iport,
 	}
 }
 
+static void fdls_process_fdmi_plogi_rsp(struct fnic_iport_s *iport,
+					struct fc_frame_header *fchdr)
+{
+	struct fc_std_flogi *plogi_rsp = (struct fc_std_flogi *)fchdr;
+	struct fc_std_els_rjt_rsp *els_rjt = (struct fc_std_els_rjt_rsp *)fchdr;
+	struct fnic_fdls_fabric_s *fdls = &iport->fabric;
+	struct fnic *fnic = iport->fnic;
+	u64 fdmi_tov;
+	uint16_t oxid = FNIC_STD_GET_OX_ID(fchdr);
+
+	if (iport->active_oxid_fdmi_plogi != oxid) {
+		FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+			"Incorrect OXID in response. state: %d, oxid recvd: 0x%x, active oxid: 0x%x\n",
+			fdls_get_state(fdls), oxid, iport->active_oxid_fdmi_plogi);
+		return;
+	}
+
+	iport->fabric.fdmi_pending &= ~FDLS_FDMI_PLOGI_PENDING;
+	fdls_free_oxid(iport, oxid, &iport->active_oxid_fdmi_plogi);
+
+	if (ntoh24(fchdr->fh_s_id) == FC_FID_MGMT_SERV) {
+		del_timer_sync(&iport->fabric.fdmi_timer);
+		iport->fabric.fdmi_pending = 0;
+		switch (plogi_rsp->els.fl_cmd) {
+		case ELS_LS_ACC:
+			FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+				 "FDLS process fdmi PLOGI response status: ELS_LS_ACC\n");
+			FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+				 "Sending fdmi registration for port 0x%x\n",
+				 iport->fcid);
+
+			fdls_fdmi_register_hba(iport);
+			fdls_fdmi_register_pa(iport);
+			fdmi_tov = jiffies + msecs_to_jiffies(5000);
+			mod_timer(&iport->fabric.fdmi_timer,
+				  round_jiffies(fdmi_tov));
+			break;
+		case ELS_LS_RJT:
+			FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+				 "Fabric FDMI PLOGI returned ELS_LS_RJT reason: 0x%x",
+				     els_rjt->rej.er_reason);
+
+			if (((els_rjt->rej.er_reason == ELS_RJT_BUSY)
+			     || (els_rjt->rej.er_reason == ELS_RJT_UNAB))
+				&& (iport->fabric.fdmi_retry < 7)) {
+				iport->fabric.fdmi_retry++;
+				fdls_send_fdmi_plogi(iport);
+			}
+			break;
+		default:
+			break;
+		}
+	}
+}
+static void fdls_process_fdmi_reg_ack(struct fnic_iport_s *iport,
+				      struct fc_frame_header *fchdr,
+				      int rsp_type)
+{
+	struct fnic *fnic = iport->fnic;
+	uint16_t oxid;
+
+	if (!iport->fabric.fdmi_pending) {
+		FNIC_FCS_DBG(KERN_ERR, fnic->lport->host, fnic->fnic_num,
+			     "Received FDMI ack while not waiting: 0x%x\n",
+			     FNIC_STD_GET_OX_ID(fchdr));
+		return;
+	}
+
+	oxid =  FNIC_STD_GET_OX_ID(fchdr);
+
+	if ((iport->active_oxid_fdmi_rhba != oxid) &&
+		(iport->active_oxid_fdmi_rpa != oxid))  {
+		FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+			"Incorrect OXID in response. oxid recvd: 0x%x, active oxids(rhba,rpa): 0x%x, 0x%x\n",
+			oxid, iport->active_oxid_fdmi_rhba, iport->active_oxid_fdmi_rpa);
+		return;
+	}
+	if (FNIC_FRAME_TYPE(oxid) == FNIC_FRAME_TYPE_FDMI_RHBA) {
+		iport->fabric.fdmi_pending &= ~FDLS_FDMI_REG_HBA_PENDING;
+		fdls_free_oxid(iport, oxid, &iport->active_oxid_fdmi_rhba);
+	} else {
+		iport->fabric.fdmi_pending &= ~FDLS_FDMI_RPA_PENDING;
+		fdls_free_oxid(iport, oxid, &iport->active_oxid_fdmi_rpa);
+	}
+
+	FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+		"iport fcid: 0x%x: Received FDMI registration ack\n",
+		 iport->fcid);
+
+	if (!iport->fabric.fdmi_pending) {
+		del_timer_sync(&iport->fabric.fdmi_timer);
+		FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+					 "iport fcid: 0x%x: Canceling FDMI timer\n",
+					 iport->fcid);
+	}
+}
+
+static void fdls_process_fdmi_abts_rsp(struct fnic_iport_s *iport,
+				       struct fc_frame_header *fchdr)
+{
+	uint32_t s_id;
+	struct fnic *fnic = iport->fnic;
+	uint16_t oxid;
+
+	s_id = ntoh24(FNIC_STD_GET_S_ID(fchdr));
+
+	if (!(s_id != FC_FID_MGMT_SERV)) {
+		FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+			     "Received abts rsp with invalid SID: 0x%x. Dropping frame",
+			     s_id);
+		return;
+	}
+
+	oxid =  FNIC_STD_GET_OX_ID(fchdr);
+
+	switch (FNIC_FRAME_TYPE(oxid)) {
+	case FNIC_FRAME_TYPE_FDMI_PLOGI:
+		fdls_free_oxid(iport, oxid, &iport->active_oxid_fdmi_plogi);
+		break;
+	case FNIC_FRAME_TYPE_FDMI_RHBA:
+		fdls_free_oxid(iport, oxid, &iport->active_oxid_fdmi_rhba);
+		break;
+	case FNIC_FRAME_TYPE_FDMI_RPA:
+		fdls_free_oxid(iport, oxid, &iport->active_oxid_fdmi_rpa);
+		break;
+	default:
+		FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+			"Received abts rsp with invalid oxid: 0x%x. Dropping frame",
+			oxid);
+		break;
+	}
+
+	del_timer_sync(&iport->fabric.fdmi_timer);
+	iport->fabric.fdmi_pending &= ~FDLS_FDMI_ABORT_PENDING;
+
+	fdls_send_fdmi_plogi(iport);
+}
+
 static void
 fdls_process_fabric_abts_rsp(struct fnic_iport_s *iport,
 			     struct fc_frame_header *fchdr)
@@ -4094,6 +4736,12 @@ fnic_fdls_validate_and_get_frame_type(struct fnic_iport_s *iport,
 
 	case FNIC_FRAME_TYPE_FABRIC_LOGO:
 		return FNIC_FABRIC_LOGO_RSP;
+	case FNIC_FRAME_TYPE_FDMI_PLOGI:
+		return FNIC_FDMI_PLOGI_RSP;
+	case FNIC_FRAME_TYPE_FDMI_RHBA:
+		return FNIC_FDMI_REG_HBA_RSP;
+	case FNIC_FRAME_TYPE_FDMI_RPA:
+		return FNIC_FDMI_RPA_RSP;
 	case FNIC_FRAME_TYPE_TGT_PLOGI:
 		return FNIC_TPORT_PLOGI_RSP;
 	case FNIC_FRAME_TYPE_TGT_PRLI:
@@ -4148,6 +4796,9 @@ void fnic_fdls_recv_frame(struct fnic_iport_s *iport, void *rx_frame,
 	case FNIC_FABRIC_PLOGI_RSP:
 		fdls_process_fabric_plogi_rsp(iport, fchdr);
 		break;
+	case FNIC_FDMI_PLOGI_RSP:
+		fdls_process_fdmi_plogi_rsp(iport, fchdr);
+		break;
 	case FNIC_FABRIC_RPN_RSP:
 		fdls_process_rpn_id_rsp(iport, fchdr);
 		break;
@@ -4187,6 +4838,9 @@ void fnic_fdls_recv_frame(struct fnic_iport_s *iport, void *rx_frame,
 	case FNIC_FABRIC_BLS_ABTS_RSP:
 			fdls_process_fabric_abts_rsp(iport, fchdr);
 		break;
+	case FNIC_FDMI_BLS_ABTS_RSP:
+		fdls_process_fdmi_abts_rsp(iport, fchdr);
+		break;
 	case FNIC_BLS_ABTS_REQ:
 		fdls_process_abts_req(iport, fchdr);
 		break;
@@ -4211,6 +4865,10 @@ void fnic_fdls_recv_frame(struct fnic_iport_s *iport, void *rx_frame,
 		break;
 	case FNIC_ELS_RLS:
 		fdls_process_rls_req(iport, fchdr);
+		break;
+	case FNIC_FDMI_REG_HBA_RSP:
+	case FNIC_FDMI_RPA_RSP:
+		fdls_process_fdmi_reg_ack(iport, fchdr, frame_type);
 		break;
 	default:
 		FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
