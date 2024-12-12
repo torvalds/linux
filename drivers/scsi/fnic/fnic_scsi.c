@@ -183,7 +183,7 @@ int fnic_fw_reset_handler(struct fnic *fnic)
 	/* indicate fwreset to io path */
 	fnic_set_state_flags(fnic, FNIC_FLAGS_FWRESET);
 
-	skb_queue_purge(&fnic->frame_queue);
+	fnic_free_txq(&fnic->frame_queue);
 	fnic_free_txq(&fnic->tx_queue);
 
 	/* wait for io cmpl */
@@ -2575,23 +2575,30 @@ int fnic_reset(struct Scsi_Host *shost)
  * host is offlined by SCSI.
  *
  */
-int fnic_host_reset(struct scsi_cmnd *sc)
+int fnic_host_reset(struct Scsi_Host *shost)
 {
-	int ret;
+	int ret = SUCCESS;
 	unsigned long wait_host_tmo;
-	struct Scsi_Host *shost = sc->device->host;
-	struct fc_lport *lp = shost_priv(shost);
-	struct fnic *fnic = lport_priv(lp);
+	struct fnic *fnic = *((struct fnic **) shost_priv(shost));
 	unsigned long flags;
+	struct fnic_iport_s *iport = &fnic->iport;
 
 	spin_lock_irqsave(&fnic->fnic_lock, flags);
-	if (!fnic->internal_reset_inprogress) {
-		fnic->internal_reset_inprogress = true;
+	if (fnic->reset_in_progress == NOT_IN_PROGRESS) {
+		fnic->reset_in_progress = IN_PROGRESS;
 	} else {
 		spin_unlock_irqrestore(&fnic->fnic_lock, flags);
-		FNIC_SCSI_DBG(KERN_DEBUG, fnic->lport->host, fnic->fnic_num,
-			"host reset in progress skipping another host reset\n");
-		return SUCCESS;
+		wait_for_completion_timeout(&fnic->reset_completion_wait,
+									msecs_to_jiffies(10000));
+
+		spin_lock_irqsave(&fnic->fnic_lock, flags);
+		if (fnic->reset_in_progress == IN_PROGRESS) {
+			spin_unlock_irqrestore(&fnic->fnic_lock, flags);
+			FNIC_SCSI_DBG(KERN_WARNING, fnic->lport->host, fnic->fnic_num,
+			  "Firmware reset in progress. Skipping another host reset\n");
+			return SUCCESS;
+		}
+		fnic->reset_in_progress = IN_PROGRESS;
 	}
 	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 
@@ -2600,23 +2607,33 @@ int fnic_host_reset(struct scsi_cmnd *sc)
 	 * scsi-ml tries to send a TUR to every device if host reset is
 	 * successful, so before returning to scsi, fabric should be up
 	 */
-	ret = (fnic_reset(shost) == 0) ? SUCCESS : FAILED;
-	if (ret == SUCCESS) {
+	fnic_reset(shost);
+
+	spin_lock_irqsave(&fnic->fnic_lock, flags);
+	fnic->reset_in_progress = NOT_IN_PROGRESS;
+	complete(&fnic->reset_completion_wait);
+	fnic->soft_reset_count++;
+
+	/* wait till the link is up */
+	if (fnic->link_status) {
 		wait_host_tmo = jiffies + FNIC_HOST_RESET_SETTLE_TIME * HZ;
 		ret = FAILED;
 		while (time_before(jiffies, wait_host_tmo)) {
-			if ((lp->state == LPORT_ST_READY) &&
-			    (lp->link_up)) {
+			if (iport->state != FNIC_IPORT_STATE_READY
+				&& fnic->link_status) {
+				spin_unlock_irqrestore(&fnic->fnic_lock, flags);
+				ssleep(1);
+				spin_lock_irqsave(&fnic->fnic_lock, flags);
+			} else {
 				ret = SUCCESS;
 				break;
 			}
-			ssleep(1);
 		}
 	}
-
-	spin_lock_irqsave(&fnic->fnic_lock, flags);
-	fnic->internal_reset_inprogress = false;
 	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
+
+	FNIC_SCSI_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+				  "host reset return status: %d\n", ret);
 	return ret;
 }
 
@@ -2808,4 +2825,76 @@ int fnic_is_abts_pending(struct fnic *fnic, struct scsi_cmnd *lr_sc)
 			    fnic_abts_pending_iter, &iter_data);
 
 	return iter_data.ret;
+}
+
+/*
+ * SCSI Error handling calls driver's eh_host_reset if all prior
+ * error handling levels return FAILED. If host reset completes
+ * successfully, and if link is up, then Fabric login begins.
+ *
+ * Host Reset is the highest level of error recovery. If this fails, then
+ * host is offlined by SCSI.
+ *
+ */
+int fnic_eh_host_reset_handler(struct scsi_cmnd *sc)
+{
+	int ret = 0;
+	struct Scsi_Host *shost = sc->device->host;
+	struct fnic *fnic = *((struct fnic **) shost_priv(shost));
+
+	FNIC_SCSI_DBG(KERN_ERR, fnic->lport->host, fnic->fnic_num,
+				  "SCSI error handling: fnic host reset");
+
+	ret = fnic_host_reset(shost);
+	return ret;
+}
+
+
+void fnic_scsi_fcpio_reset(struct fnic *fnic)
+{
+	unsigned long flags;
+	enum fnic_state old_state;
+	struct fnic_iport_s *iport = &fnic->iport;
+	DECLARE_COMPLETION_ONSTACK(fw_reset_done);
+	int time_remain;
+
+	/* issue fw reset */
+	spin_lock_irqsave(&fnic->fnic_lock, flags);
+	if (unlikely(fnic->state == FNIC_IN_FC_TRANS_ETH_MODE)) {
+		/* fw reset is in progress, poll for its completion */
+		spin_unlock_irqrestore(&fnic->fnic_lock, flags);
+		FNIC_SCSI_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+			  "fnic is in unexpected state: %d for fw_reset\n",
+			  fnic->state);
+		return;
+	}
+
+	old_state = fnic->state;
+	fnic->state = FNIC_IN_FC_TRANS_ETH_MODE;
+
+	fnic_update_mac_locked(fnic, iport->hwmac);
+	fnic->fw_reset_done = &fw_reset_done;
+	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
+
+	FNIC_SCSI_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+				  "Issuing fw reset\n");
+	if (fnic_fw_reset_handler(fnic)) {
+		spin_lock_irqsave(&fnic->fnic_lock, flags);
+		if (fnic->state == FNIC_IN_FC_TRANS_ETH_MODE)
+			fnic->state = old_state;
+		spin_unlock_irqrestore(&fnic->fnic_lock, flags);
+	} else {
+		FNIC_SCSI_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+					  "Waiting for fw completion\n");
+		time_remain = wait_for_completion_timeout(&fw_reset_done,
+						  msecs_to_jiffies(FNIC_FW_RESET_TIMEOUT));
+		FNIC_SCSI_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+					  "Woken up after fw completion timeout\n");
+		if (time_remain == 0) {
+			FNIC_SCSI_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+				  "FW reset completion timed out after %d ms)\n",
+				  FNIC_FW_RESET_TIMEOUT);
+		}
+	}
+	fnic->fw_reset_done = NULL;
 }

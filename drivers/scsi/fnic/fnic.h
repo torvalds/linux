@@ -84,6 +84,7 @@
 
 #define IS_FNIC_FCP_INITIATOR(fnic) (fnic->role == FNIC_ROLE_FCP_INITIATOR)
 
+#define FNIC_FW_RESET_TIMEOUT        60000	/* mSec   */
 /* Retry supported by rport (returned by PRLI service parameters) */
 #define FNIC_FC_RP_FLAGS_RETRY            0x1
 
@@ -204,6 +205,12 @@ static inline u64 fnic_flags_and_state(struct scsi_cmnd *cmd)
 
 #define fnic_clear_state_flags(fnicp, st_flags)  \
 	__fnic_set_state_flags(fnicp, st_flags, 1)
+
+enum reset_states {
+	NOT_IN_PROGRESS = 0,
+	IN_PROGRESS,
+	RESET_ERROR
+};
 
 extern unsigned int fnic_fdmi_support;
 extern unsigned int fnic_log_level;
@@ -357,6 +364,7 @@ struct fnic {
 	unsigned int wq_count;
 	unsigned int cq_count;
 
+	struct completion reset_completion_wait;
 	struct mutex sgreset_mutex;
 	spinlock_t sgreset_lock; /* lock for sgreset */
 	struct scsi_cmnd *sgreset_sc;
@@ -374,6 +382,8 @@ struct fnic {
 
 	struct completion *remove_wait; /* device remove thread blocks */
 
+	struct completion *fw_reset_done;
+	u32 reset_in_progress;
 	atomic_t in_flight;		/* io counter */
 	bool internal_reset_inprogress;
 	u32 _reserved;			/* fill hole */
@@ -387,6 +397,7 @@ struct fnic {
 	u64 fcp_input_bytes;		/* internal statistic */
 	u64 fcp_output_bytes;		/* internal statistic */
 	u32 link_down_cnt;
+	u32 soft_reset_count;
 	int link_status;
 
 	struct list_head list;
@@ -409,7 +420,7 @@ struct fnic {
 	struct work_struct link_work;
 	struct work_struct frame_work;
 	struct work_struct flush_work;
-	struct sk_buff_head frame_queue;
+	struct list_head frame_queue;
 	struct list_head tx_queue;
 	mempool_t *frame_pool;
 	mempool_t *frame_elem_pool;
@@ -471,6 +482,7 @@ int fnic_request_intr(struct fnic *fnic);
 int fnic_send(struct fc_lport *, struct fc_frame *);
 void fnic_free_wq_buf(struct vnic_wq *wq, struct vnic_wq_buf *buf);
 void fnic_handle_frame(struct work_struct *work);
+void fnic_tport_event_handler(struct work_struct *work);
 void fnic_handle_link(struct work_struct *work);
 void fnic_handle_event(struct work_struct *work);
 void fdls_reclaim_oxid_handler(struct work_struct *work);
@@ -485,7 +497,8 @@ void fnic_update_mac_locked(struct fnic *, u8 *new);
 int fnic_queuecommand(struct Scsi_Host *, struct scsi_cmnd *);
 int fnic_abort_cmd(struct scsi_cmnd *);
 int fnic_device_reset(struct scsi_cmnd *);
-int fnic_host_reset(struct scsi_cmnd *);
+int fnic_eh_host_reset_handler(struct scsi_cmnd *sc);
+int fnic_host_reset(struct Scsi_Host *shost);
 int fnic_reset(struct Scsi_Host *);
 void fnic_scsi_cleanup(struct fc_lport *);
 void fnic_scsi_abort_io(struct fc_lport *);
@@ -520,6 +533,9 @@ void fnic_dump_fchost_stats(struct Scsi_Host *, struct fc_host_statistics *);
 void fnic_free_txq(struct list_head *head);
 int fnic_get_desc_by_devid(struct pci_dev *pdev, char **desc,
 						   char **subsys_desc);
+void fnic_fdls_link_status_change(struct fnic *fnic, int linkup);
+void fnic_delete_fcp_tports(struct fnic *fnic);
+void fnic_flush_tport_event_list(struct fnic *fnic);
 
 struct fnic_scsi_iter_data {
 	struct fnic *fnic;
