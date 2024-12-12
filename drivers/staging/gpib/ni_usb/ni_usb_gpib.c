@@ -85,7 +85,7 @@ static void ni_usb_bulk_complete(struct urb *urb)
 
 //	printk("debug: %s: status=0x%x, error_count=%i, actual_length=%i\n",  __func__,
 //		urb->status, urb->error_count, urb->actual_length);
-	up(&context->complete);
+	complete(&context->complete);
 }
 
 static void ni_usb_timeout_handler(struct timer_list *t)
@@ -94,7 +94,7 @@ static void ni_usb_timeout_handler(struct timer_list *t)
 	struct ni_usb_urb_ctx *context = &ni_priv->context;
 
 	context->timed_out = 1;
-	up(&context->complete);
+	complete(&context->complete);
 };
 
 // I'm using nonblocking loosely here, it only means -EAGAIN can be returned in certain cases
@@ -124,7 +124,7 @@ static int ni_usb_nonblocking_send_bulk_msg(struct ni_usb_priv *ni_priv, void *d
 	}
 	usb_dev = interface_to_usbdev(ni_priv->bus_interface);
 	out_pipe = usb_sndbulkpipe(usb_dev, ni_priv->bulk_out_endpoint);
-	sema_init(&context->complete, 0);
+	init_completion(&context->complete);
 	context->timed_out = 0;
 	usb_fill_bulk_urb(ni_priv->bulk_urb, usb_dev, out_pipe, data, data_length,
 			  &ni_usb_bulk_complete, context);
@@ -143,7 +143,7 @@ static int ni_usb_nonblocking_send_bulk_msg(struct ni_usb_priv *ni_priv, void *d
 		return retval;
 	}
 	mutex_unlock(&ni_priv->bulk_transfer_lock);
-	down(&context->complete);    // wait for ni_usb_bulk_complete
+	wait_for_completion(&context->complete);    // wait for ni_usb_bulk_complete
 	if (context->timed_out) {
 		usb_kill_urb(ni_priv->bulk_urb);
 		dev_err(&usb_dev->dev, "%s: killed urb due to timeout\n", __func__);
@@ -210,7 +210,7 @@ static int ni_usb_nonblocking_receive_bulk_msg(struct ni_usb_priv *ni_priv,
 	}
 	usb_dev = interface_to_usbdev(ni_priv->bus_interface);
 	in_pipe = usb_rcvbulkpipe(usb_dev, ni_priv->bulk_in_endpoint);
-	sema_init(&context->complete, 0);
+	init_completion(&context->complete);
 	context->timed_out = 0;
 	usb_fill_bulk_urb(ni_priv->bulk_urb, usb_dev, in_pipe, data, data_length,
 			  &ni_usb_bulk_complete, context);
@@ -231,7 +231,7 @@ static int ni_usb_nonblocking_receive_bulk_msg(struct ni_usb_priv *ni_priv,
 	}
 	mutex_unlock(&ni_priv->bulk_transfer_lock);
 	if (interruptible) {
-		if (down_interruptible(&context->complete)) {
+		if (wait_for_completion_interruptible(&context->complete)) {
 			/* If we got interrupted by a signal while
 			 * waiting for the usb gpib to respond, we
 			 * should send a stop command so it will
@@ -243,10 +243,10 @@ static int ni_usb_nonblocking_receive_bulk_msg(struct ni_usb_priv *ni_priv,
 			/* now do an uninterruptible wait, it shouldn't take long
 			 *	for the board to respond now.
 			 */
-			down(&context->complete);
+			wait_for_completion(&context->complete);
 		}
 	} else {
-		down(&context->complete);
+		wait_for_completion(&context->complete);
 	}
 	if (context->timed_out) {
 		usb_kill_urb(ni_priv->bulk_urb);
