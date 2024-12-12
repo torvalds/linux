@@ -1086,15 +1086,14 @@ int usb_register_driver(struct usb_driver *new_driver, struct module *owner,
 	pr_info("%s: registered new interface driver %s\n",
 			usbcore_name, new_driver->name);
 
-out:
-	return retval;
+	return 0;
 
 out_newid:
 	driver_unregister(&new_driver->driver);
-
+out:
 	pr_err("%s: error %d registering interface driver %s\n",
 		usbcore_name, retval, new_driver->name);
-	goto out;
+	return retval;
 }
 EXPORT_SYMBOL_GPL(usb_register_driver);
 
