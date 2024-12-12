@@ -492,21 +492,22 @@ lpfc_send_npiv_logo(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(waitq);
 
 	spin_lock_irq(&ndlp->lock);
-	if (!(ndlp->save_flags & NLP_WAIT_FOR_LOGO) &&
+	if (!test_bit(NLP_WAIT_FOR_LOGO, &ndlp->save_flags) &&
 	    !ndlp->logo_waitq) {
 		ndlp->logo_waitq = &waitq;
 		ndlp->nlp_fcp_info &= ~NLP_FCP_2_DEVICE;
 		set_bit(NLP_ISSUE_LOGO, &ndlp->nlp_flag);
-		ndlp->save_flags |= NLP_WAIT_FOR_LOGO;
+		set_bit(NLP_WAIT_FOR_LOGO, &ndlp->save_flags);
 	}
 	spin_unlock_irq(&ndlp->lock);
 	rc = lpfc_issue_els_npiv_logo(vport, ndlp);
 	if (!rc) {
 		wait_event_timeout(waitq,
-				   (!(ndlp->save_flags & NLP_WAIT_FOR_LOGO)),
+				   !test_bit(NLP_WAIT_FOR_LOGO,
+					     &ndlp->save_flags),
 				   msecs_to_jiffies(phba->fc_ratov * 2000));
 
-		if (!(ndlp->save_flags & NLP_WAIT_FOR_LOGO))
+		if (!test_bit(NLP_WAIT_FOR_LOGO, &ndlp->save_flags))
 			goto logo_cmpl;
 		/* LOGO wait failed.  Correct status. */
 		rc = -EINTR;
@@ -516,9 +517,7 @@ lpfc_send_npiv_logo(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 
 	/* Error - clean up node flags. */
 	clear_bit(NLP_ISSUE_LOGO, &ndlp->nlp_flag);
-	spin_lock_irq(&ndlp->lock);
-	ndlp->save_flags &= ~NLP_WAIT_FOR_LOGO;
-	spin_unlock_irq(&ndlp->lock);
+	clear_bit(NLP_WAIT_FOR_LOGO, &ndlp->save_flags);
 
  logo_cmpl:
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_VPORT,
@@ -696,19 +695,20 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 
 			spin_lock_irq(&ndlp->lock);
 			ndlp->da_id_waitq = &waitq;
-			ndlp->save_flags |= NLP_WAIT_FOR_DA_ID;
 			spin_unlock_irq(&ndlp->lock);
+			set_bit(NLP_WAIT_FOR_DA_ID, &ndlp->save_flags);
 
 			rc = lpfc_ns_cmd(vport, SLI_CTNS_DA_ID, 0, 0);
 			if (!rc) {
 				wait_event_timeout(waitq,
-				   !(ndlp->save_flags & NLP_WAIT_FOR_DA_ID),
+				   !test_bit(NLP_WAIT_FOR_DA_ID,
+					     &ndlp->save_flags),
 				   msecs_to_jiffies(phba->fc_ratov * 2000));
 			}
 
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_VPORT | LOG_ELS,
 					 "1829 DA_ID issue status %d. "
-					 "SFlag x%x NState x%x, NFlag x%lx "
+					 "SFlag x%lx NState x%x, NFlag x%lx "
 					 "Rpi x%x\n",
 					 rc, ndlp->save_flags, ndlp->nlp_state,
 					 ndlp->nlp_flag, ndlp->nlp_rpi);
@@ -718,8 +718,8 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 			 */
 			spin_lock_irq(&ndlp->lock);
 			ndlp->da_id_waitq = NULL;
-			ndlp->save_flags &= ~NLP_WAIT_FOR_DA_ID;
 			spin_unlock_irq(&ndlp->lock);
+			clear_bit(NLP_WAIT_FOR_DA_ID, &ndlp->save_flags);
 		}
 
 issue_logo:

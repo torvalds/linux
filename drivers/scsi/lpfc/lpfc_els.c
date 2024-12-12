@@ -2988,12 +2988,8 @@ lpfc_cmpl_els_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	}
 
 	clear_bit(NLP_LOGO_SND, &ndlp->nlp_flag);
-	spin_lock_irq(&ndlp->lock);
-	if (ndlp->save_flags & NLP_WAIT_FOR_LOGO) {
+	if (test_and_clear_bit(NLP_WAIT_FOR_LOGO, &ndlp->save_flags))
 		wake_up_waiter = 1;
-		ndlp->save_flags &= ~NLP_WAIT_FOR_LOGO;
-	}
-	spin_unlock_irq(&ndlp->lock);
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 		"LOGO cmpl:       status:x%x/x%x did:x%x",
@@ -11509,15 +11505,13 @@ lpfc_cmpl_els_npiv_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		lpfc_can_disctmo(vport);
 	}
 
-	if (ndlp->save_flags & NLP_WAIT_FOR_LOGO) {
+	if (test_bit(NLP_WAIT_FOR_LOGO, &ndlp->save_flags)) {
 		/* Wake up lpfc_vport_delete if waiting...*/
 		if (ndlp->logo_waitq)
 			wake_up(ndlp->logo_waitq);
 		clear_bit(NLP_ISSUE_LOGO, &ndlp->nlp_flag);
 		clear_bit(NLP_LOGO_SND, &ndlp->nlp_flag);
-		spin_lock_irq(&ndlp->lock);
-		ndlp->save_flags &= ~NLP_WAIT_FOR_LOGO;
-		spin_unlock_irq(&ndlp->lock);
+		clear_bit(NLP_WAIT_FOR_LOGO, &ndlp->save_flags);
 	}
 
 	/* Safe to release resources now. */
