@@ -5689,7 +5689,7 @@ void __init kvfree_rcu_init(void)
 		krcp->initialized = true;
 	}
 
-	kfree_rcu_shrinker = shrinker_alloc(0, "rcu-kfree");
+	kfree_rcu_shrinker = shrinker_alloc(0, "slab-kvfree-rcu");
 	if (!kfree_rcu_shrinker) {
 		pr_err("Failed to allocate kfree_rcu() shrinker!\n");
 		return;
