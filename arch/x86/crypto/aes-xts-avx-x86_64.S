@@ -235,8 +235,12 @@
 	vpshufd		$0x13, \src, \tmp
 	vpaddq		\src, \src, \dst
 	vpsrad		$31, \tmp, \tmp
+.if USE_AVX10
+	vpternlogd	$0x78, GF_POLY_XMM, \tmp, \dst
+.else
 	vpand		GF_POLY_XMM, \tmp, \tmp
 	vpxor		\tmp, \dst, \dst
+.endif
 .endm
 
 // Given the XTS tweak(s) in the vector \src, compute the next vector of
@@ -454,84 +458,94 @@
 .endif
 .endm
 
-// Do a single round of AES encryption (if \enc==1) or decryption (if \enc==0)
-// on the block(s) in \data using the round key(s) in \key.  The register length
-// determines the number of AES blocks en/decrypted.
-.macro	_vaes	enc, last, key, data
+// Do a single non-last round of AES encryption (if \enc==1) or decryption (if
+// \enc==0) on the block(s) in \data using the round key(s) in \key.  The
+// register length determines the number of AES blocks en/decrypted.
+.macro	_vaes	enc, key, data
 .if \enc
-.if \last
-	vaesenclast	\key, \data, \data
-.else
 	vaesenc		\key, \data, \data
-.endif
-.else
-.if \last
-	vaesdeclast	\key, \data, \data
 .else
 	vaesdec		\key, \data, \data
 .endif
+.endm
+
+// Same as _vaes, but does the last round.
+.macro	_vaeslast	enc, key, data
+.if \enc
+	vaesenclast	\key, \data, \data
+.else
+	vaesdeclast	\key, \data, \data
 .endif
 .endm
 
-// Do a single round of AES en/decryption on the block(s) in \data, using the
-// same key for all block(s).  The round key is loaded from the appropriate
-// register or memory location for round \i.  May clobber V4.
-.macro _vaes_1x		enc, last, i, xmm_suffix, data
+// Do a single non-last round of AES en/decryption on the block(s) in \data,
+// using the same key for all block(s).  The round key is loaded from the
+// appropriate register or memory location for round \i.  May clobber \tmp.
+.macro _vaes_1x		enc, i, xmm_suffix, data, tmp
 .if USE_AVX10
-	_vaes		\enc, \last, KEY\i\xmm_suffix, \data
+	_vaes		\enc, KEY\i\xmm_suffix, \data
 .else
 .ifnb \xmm_suffix
-	_vaes		\enc, \last, (\i-7)*16(KEY), \data
+	_vaes		\enc, (\i-7)*16(KEY), \data
 .else
-	_vbroadcast128	(\i-7)*16(KEY), V4
-	_vaes		\enc, \last, V4, \data
+	_vbroadcast128	(\i-7)*16(KEY), \tmp
+	_vaes		\enc, \tmp, \data
 .endif
 .endif
 .endm
 
-// Do a single round of AES en/decryption on the blocks in registers V0-V3,
-// using the same key for all blocks.  The round key is loaded from the
+// Do a single non-last round of AES en/decryption on the blocks in registers
+// V0-V3, using the same key for all blocks.  The round key is loaded from the
 // appropriate register or memory location for round \i.  In addition, does two
 // steps of the computation of the next set of tweaks.  May clobber V4 and V5.
-.macro	_vaes_4x	enc, last, i
+.macro	_vaes_4x	enc, i
 .if USE_AVX10
 	_tweak_step	(2*(\i-5))
-	_vaes		\enc, \last, KEY\i, V0
-	_vaes		\enc, \last, KEY\i, V1
+	_vaes		\enc, KEY\i, V0
+	_vaes		\enc, KEY\i, V1
 	_tweak_step	(2*(\i-5) + 1)
-	_vaes		\enc, \last, KEY\i, V2
-	_vaes		\enc, \last, KEY\i, V3
+	_vaes		\enc, KEY\i, V2
+	_vaes		\enc, KEY\i, V3
 .else
 	_vbroadcast128	(\i-7)*16(KEY), V4
 	_tweak_step	(2*(\i-5))
-	_vaes		\enc, \last, V4, V0
-	_vaes		\enc, \last, V4, V1
+	_vaes		\enc, V4, V0
+	_vaes		\enc, V4, V1
 	_tweak_step	(2*(\i-5) + 1)
-	_vaes		\enc, \last, V4, V2
-	_vaes		\enc, \last, V4, V3
+	_vaes		\enc, V4, V2
+	_vaes		\enc, V4, V3
 .endif
 .endm
 
 // Do tweaked AES en/decryption (i.e., XOR with \tweak, then AES en/decrypt,
 // then XOR with \tweak again) of the block(s) in \data.  To process a single
 // block, use xmm registers and set \xmm_suffix=_XMM.  To process a vector of
-// length VL, use V* registers and leave \xmm_suffix empty.  May clobber V4.
-.macro	_aes_crypt	enc, xmm_suffix, tweak, data
+// length VL, use V* registers and leave \xmm_suffix empty.  Clobbers \tmp.
+.macro	_aes_crypt	enc, xmm_suffix, tweak, data, tmp
 	_xor3		KEY0\xmm_suffix, \tweak, \data
 	cmp		$24, KEYLEN
 	jl		.Laes128\@
 	je		.Laes192\@
-	_vaes_1x	\enc, 0, 1, \xmm_suffix, \data
-	_vaes_1x	\enc, 0, 2, \xmm_suffix, \data
+	_vaes_1x	\enc, 1, \xmm_suffix, \data, tmp=\tmp
+	_vaes_1x	\enc, 2, \xmm_suffix, \data, tmp=\tmp
 .Laes192\@:
-	_vaes_1x	\enc, 0, 3, \xmm_suffix, \data
-	_vaes_1x	\enc, 0, 4, \xmm_suffix, \data
+	_vaes_1x	\enc, 3, \xmm_suffix, \data, tmp=\tmp
+	_vaes_1x	\enc, 4, \xmm_suffix, \data, tmp=\tmp
 .Laes128\@:
 .irp i, 5,6,7,8,9,10,11,12,13
-	_vaes_1x	\enc, 0, \i, \xmm_suffix, \data
+	_vaes_1x	\enc, \i, \xmm_suffix, \data, tmp=\tmp
 .endr
-	_vaes_1x	\enc, 1, 14, \xmm_suffix, \data
-	_vpxor		\tweak, \data, \data
+.if USE_AVX10
+	vpxord		KEY14\xmm_suffix, \tweak, \tmp
+.else
+.ifnb \xmm_suffix
+	vpxor		7*16(KEY), \tweak, \tmp
+.else
+	_vbroadcast128	7*16(KEY), \tmp
+	vpxor		\tweak, \tmp, \tmp
+.endif
+.endif
+	_vaeslast	\enc, \tmp, \data
 .endm
 
 .macro	_aes_xts_crypt	enc
@@ -588,22 +602,43 @@
 	je		.Laes192\@
 	// Do all the AES rounds on the data blocks, interleaved with
 	// the computation of the next set of tweaks.
-	_vaes_4x	\enc, 0, 1
-	_vaes_4x	\enc, 0, 2
+	_vaes_4x	\enc, 1
+	_vaes_4x	\enc, 2
 .Laes192\@:
-	_vaes_4x	\enc, 0, 3
-	_vaes_4x	\enc, 0, 4
+	_vaes_4x	\enc, 3
+	_vaes_4x	\enc, 4
 .Laes128\@:
 .irp i, 5,6,7,8,9,10,11,12,13
-	_vaes_4x	\enc, 0, \i
+	_vaes_4x	\enc, \i
 .endr
-	_vaes_4x	\enc, 1, 14
-
-	// XOR in the tweaks again.
-	_vpxor		TWEAK0, V0, V0
-	_vpxor		TWEAK1, V1, V1
-	_vpxor		TWEAK2, V2, V2
-	_vpxor		TWEAK3, V3, V3
+	// Do the last AES round, then XOR the results with the tweaks again.
+	// Reduce latency by doing the XOR before the vaesenclast, utilizing the
+	// property vaesenclast(key, a) ^ b == vaesenclast(key ^ b, a)
+	// (and likewise for vaesdeclast).
+.if USE_AVX10
+	_tweak_step	18
+	_tweak_step	19
+	vpxord		TWEAK0, KEY14, V4
+	vpxord		TWEAK1, KEY14, V5
+	_vaeslast	\enc, V4, V0
+	_vaeslast	\enc, V5, V1
+	vpxord		TWEAK2, KEY14, V4
+	vpxord		TWEAK3, KEY14, V5
+	_vaeslast	\enc, V4, V2
+	_vaeslast	\enc, V5, V3
+.else
+	_vbroadcast128	7*16(KEY), V4
+	_tweak_step	18 // uses V5
+	_tweak_step	19 // uses V5
+	vpxor		TWEAK0, V4, V5
+	_vaeslast	\enc, V5, V0
+	vpxor		TWEAK1, V4, V5
+	_vaeslast	\enc, V5, V1
+	vpxor		TWEAK2, V4, V5
+	vpxor		TWEAK3, V4, V4
+	_vaeslast	\enc, V5, V2
+	_vaeslast	\enc, V4, V3
+.endif
 
 	// Store the destination blocks.
 	_vmovdqu	V0, 0*VL(DST)
@@ -640,7 +675,7 @@
 	jl		.Lvec_at_a_time_done\@
 .Lvec_at_a_time\@:
 	_vmovdqu	(SRC), V0
-	_aes_crypt	\enc, , TWEAK0, V0
+	_aes_crypt	\enc, , TWEAK0, V0, tmp=V1
 	_vmovdqu	V0, (DST)
 	_next_tweakvec	TWEAK0, V0, V1, TWEAK0
 	add		$VL, SRC
@@ -657,7 +692,7 @@
 	jl		.Lblock_at_a_time_done\@
 .Lblock_at_a_time\@:
 	vmovdqu		(SRC), %xmm0
-	_aes_crypt	\enc, _XMM, TWEAK0_XMM, %xmm0
+	_aes_crypt	\enc, _XMM, TWEAK0_XMM, %xmm0, tmp=%xmm1
 	vmovdqu		%xmm0, (DST)
 	_next_tweak	TWEAK0_XMM, %xmm0, TWEAK0_XMM
 	add		$16, SRC
@@ -685,7 +720,7 @@
 	// Do it now by advancing the tweak and decrypting the last full block.
 	_next_tweak	TWEAK0_XMM, %xmm0, TWEAK1_XMM
 	vmovdqu		(SRC), %xmm0
-	_aes_crypt	\enc, _XMM, TWEAK1_XMM, %xmm0
+	_aes_crypt	\enc, _XMM, TWEAK1_XMM, %xmm0, tmp=%xmm1
 .endif
 
 .if USE_AVX10
@@ -728,7 +763,7 @@
 	vpblendvb	%xmm3, %xmm0, %xmm1, %xmm0
 .endif
 	// En/decrypt again and store the last full block.
-	_aes_crypt	\enc, _XMM, TWEAK0_XMM, %xmm0
+	_aes_crypt	\enc, _XMM, TWEAK0_XMM, %xmm0, tmp=%xmm1
 	vmovdqu		%xmm0, (DST)
 	jmp		.Ldone\@
 .endm
