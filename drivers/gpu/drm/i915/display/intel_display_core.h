@@ -386,7 +386,6 @@ struct intel_display {
 	struct {
 		/* list of fbdev register on this device */
 		struct intel_fbdev *fbdev;
-		struct work_struct suspend_work;
 	} fbdev;
 
 	struct {

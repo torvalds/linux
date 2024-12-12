@@ -56,6 +56,7 @@
 #include "display/intel_dp.h"
 #include "display/intel_dpt.h"
 #include "display/intel_encoder.h"
+#include "display/intel_fbdev.h"
 #include "display/intel_hotplug.h"
 #include "display/intel_overlay.h"
 #include "display/intel_pch_refclk.h"
@@ -1807,6 +1808,8 @@ static const struct drm_driver i915_drm_driver = {
 
 	.dumb_create = i915_gem_dumb_create,
 	.dumb_map_offset = i915_gem_dumb_mmap_offset,
+
+	INTEL_FBDEV_DRIVER_OPS,
 
 	.ioctls = i915_ioctls,
 	.num_ioctls = ARRAY_SIZE(i915_ioctls),

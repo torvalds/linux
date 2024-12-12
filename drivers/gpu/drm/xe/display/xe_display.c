@@ -27,6 +27,7 @@
 #include "intel_dmc_wl.h"
 #include "intel_dp.h"
 #include "intel_encoder.h"
+#include "intel_fbdev.h"
 #include "intel_hdcp.h"
 #include "intel_hotplug.h"
 #include "intel_opregion.h"
@@ -67,6 +68,10 @@ void xe_display_driver_set_hooks(struct drm_driver *driver)
 {
 	if (!xe_modparam.probe_display)
 		return;
+
+#ifdef CONFIG_DRM_FBDEV_EMULATION
+	driver->fbdev_probe = intel_fbdev_driver_fbdev_probe;
+#endif
 
 	driver->driver_features |= DRIVER_MODESET | DRIVER_ATOMIC;
 }
