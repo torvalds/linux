@@ -4570,6 +4570,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	int link_reset = 0, rc;
 	u32 ulp_status = get_job_ulpstatus(phba, rspiocb);
 	u32 ulp_word4 = get_job_word4(phba, rspiocb);
+	u8 rsn_code_exp = 0;
 
 
 	/* Note: cmd_dmabuf may be 0 for internal driver abort
@@ -4785,11 +4786,22 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			break;
 
 		case LSRJT_LOGICAL_BSY:
+			rsn_code_exp = stat.un.b.lsRjtRsnCodeExp;
 			if ((cmd == ELS_CMD_PLOGI) ||
 			    (cmd == ELS_CMD_PRLI) ||
 			    (cmd == ELS_CMD_NVMEPRLI)) {
 				delay = 1000;
 				maxretry = 48;
+
+				/* An authentication LS_RJT reason code
+				 * explanation means some error in the
+				 * security settings end-to-end.  Reduce
+				 * the retry count to allow lpfc to clear
+				 * RSCN mode and not race with dev_loss.
+				 */
+				if (cmd == ELS_CMD_PLOGI &&
+				    rsn_code_exp == LSEXP_AUTH_REQ)
+					maxretry = 8;
 			} else if (cmd == ELS_CMD_FDISC) {
 				/* FDISC retry policy */
 				maxretry = 48;
@@ -4818,6 +4830,20 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 					      "0820 FLOGI (x%x). "
 					      "BBCredit Not Supported\n",
 					      stat.un.lsRjtError);
+			} else if (cmd == ELS_CMD_PLOGI) {
+				rsn_code_exp = stat.un.b.lsRjtRsnCodeExp;
+
+				/* An authentication LS_RJT reason code
+				 * explanation means some error in the
+				 * security settings end-to-end.  Reduce
+				 * the retry count to allow lpfc to clear
+				 * RSCN mode and not race with dev_loss.
+				 */
+				if (rsn_code_exp == LSEXP_AUTH_REQ) {
+					delay = 1000;
+					retry = 1;
+					maxretry = 8;
+				}
 			}
 			break;
 
