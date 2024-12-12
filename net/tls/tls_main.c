@@ -640,8 +640,11 @@ static int do_tls_setsockopt_conf(struct sock *sk, sockptr_t optval,
 		/* Currently we only support setting crypto info more
 		 * than one time for TLS 1.3
 		 */
-		if (crypto_info->version != TLS_1_3_VERSION)
+		if (crypto_info->version != TLS_1_3_VERSION) {
+			TLS_INC_STATS(sock_net(sk), tx ? LINUX_MIB_TLSTXREKEYERROR
+						       : LINUX_MIB_TLSRXREKEYERROR);
 			return -EBUSY;
+		}
 
 		update = true;
 		old_crypto_info = crypto_info;
@@ -696,8 +699,13 @@ static int do_tls_setsockopt_conf(struct sock *sk, sockptr_t optval,
 						update ? crypto_info : NULL);
 			if (rc)
 				goto err_crypto_info;
-			TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSTXSW);
-			TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSCURRTXSW);
+
+			if (update) {
+				TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSTXREKEYOK);
+			} else {
+				TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSTXSW);
+				TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSCURRTXSW);
+			}
 			conf = TLS_SW;
 		}
 	} else {
@@ -711,8 +719,13 @@ static int do_tls_setsockopt_conf(struct sock *sk, sockptr_t optval,
 						update ? crypto_info : NULL);
 			if (rc)
 				goto err_crypto_info;
-			TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSRXSW);
-			TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSCURRRXSW);
+
+			if (update) {
+				TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSRXREKEYOK);
+			} else {
+				TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSRXSW);
+				TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSCURRRXSW);
+			}
 			conf = TLS_SW;
 		}
 		if (!update)
@@ -735,6 +748,10 @@ static int do_tls_setsockopt_conf(struct sock *sk, sockptr_t optval,
 	return 0;
 
 err_crypto_info:
+	if (update) {
+		TLS_INC_STATS(sock_net(sk), tx ? LINUX_MIB_TLSTXREKEYERROR
+					       : LINUX_MIB_TLSRXREKEYERROR);
+	}
 	memzero_explicit(crypto_ctx, sizeof(*crypto_ctx));
 	return rc;
 }

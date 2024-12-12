@@ -1724,7 +1724,8 @@ tls_decrypt_device(struct sock *sk, struct msghdr *msg,
 	return 1;
 }
 
-static int tls_check_pending_rekey(struct tls_context *ctx, struct sk_buff *skb)
+static int tls_check_pending_rekey(struct sock *sk, struct tls_context *ctx,
+				   struct sk_buff *skb)
 {
 	const struct strp_msg *rxm = strp_msg(skb);
 	const struct tls_msg *tlm = tls_msg(skb);
@@ -1747,6 +1748,7 @@ static int tls_check_pending_rekey(struct tls_context *ctx, struct sk_buff *skb)
 		struct tls_sw_context_rx *rx_ctx = ctx->priv_ctx_rx;
 
 		WRITE_ONCE(rx_ctx->key_update_pending, true);
+		TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSRXREKEYRECEIVED);
 	}
 
 	return 0;
@@ -1771,7 +1773,7 @@ static int tls_rx_one_record(struct sock *sk, struct msghdr *msg,
 	rxm->full_len -= prot->overhead_size;
 	tls_advance_record_sn(sk, prot, &tls_ctx->rx);
 
-	return tls_check_pending_rekey(tls_ctx, darg->skb);
+	return tls_check_pending_rekey(sk, tls_ctx, darg->skb);
 }
 
 int decrypt_skb(struct sock *sk, struct scatterlist *sgout)
