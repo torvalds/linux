@@ -182,10 +182,23 @@
 /* Family 19 */
 #define INTEL_PANTHERCOVE_X		IFM(19, 0x01) /* Diamond Rapids */
 
-/* CPU core types */
+/*
+ * Intel CPU core types
+ *
+ * CPUID.1AH.EAX[31:0] uniquely identifies the microarchitecture
+ * of the core. Bits 31-24 indicates its core type (Core or Atom)
+ * and Bits [23:0] indicates the native model ID of the core.
+ * Core type and native model ID are defined in below enumerations.
+ */
 enum intel_cpu_type {
+	INTEL_CPU_TYPE_UNKNOWN,
 	INTEL_CPU_TYPE_ATOM = 0x20,
 	INTEL_CPU_TYPE_CORE = 0x40,
+};
+
+enum intel_native_id {
+	INTEL_ATOM_CMT_NATIVE_ID = 0x2,  /* Crestmont */
+	INTEL_ATOM_SKT_NATIVE_ID = 0x3,  /* Skymont */
 };
 
 #endif /* _ASM_X86_INTEL_FAMILY_H */
