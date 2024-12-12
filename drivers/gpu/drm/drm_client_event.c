@@ -60,6 +60,12 @@ static void drm_client_hotplug(struct drm_client_dev *client)
 	if (client->hotplug_failed)
 		return;
 
+	if (client->suspended) {
+		client->hotplug_pending = true;
+		return;
+	}
+
+	client->hotplug_pending = false;
 	ret = client->funcs->hotplug(client);
 	drm_dbg_kms(dev, "%s: ret=%d\n", client->name, ret);
 	if (ret)
@@ -158,6 +164,9 @@ static int drm_client_resume(struct drm_client_dev *client, bool holds_console_l
 	drm_dbg_kms(dev, "%s: ret=%d\n", client->name, ret);
 
 	client->suspended = false;
+
+	if (client->hotplug_pending)
+		drm_client_hotplug(client);
 
 	return ret;
 }
