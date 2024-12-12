@@ -235,6 +235,12 @@ do {								\
 				"fnic<%d>: %s: %d: " fmt, fnic_num,\
 				__func__, __LINE__, ##args);)
 
+#define FNIC_FIP_DBG(kern_level, host, fnic_num, fmt, args...)		\
+	FNIC_CHECK_LOGGING(FNIC_FCS_LOGGING,			\
+			 shost_printk(kern_level, host,			\
+				"fnic<%d>: %s: %d: " fmt, fnic_num,\
+				__func__, __LINE__, ##args);)
+
 #define FNIC_SCSI_DBG(kern_level, host, fnic_num, fmt, args...)		\
 	FNIC_CHECK_LOGGING(FNIC_SCSI_LOGGING,			\
 			 shost_printk(kern_level, host,			\
@@ -416,13 +422,15 @@ struct fnic {
 	/*** FIP related data members  -- start ***/
 	void (*set_vlan)(struct fnic *, u16 vlan);
 	struct work_struct      fip_frame_work;
-	struct sk_buff_head     fip_frame_queue;
+	struct work_struct		fip_timer_work;
+	struct list_head		fip_frame_queue;
 	struct timer_list       fip_timer;
-	struct list_head        vlans;
 	spinlock_t              vlans_lock;
-
-	struct work_struct      event_work;
-	struct list_head        evlist;
+	struct timer_list retry_fip_timer;
+	struct timer_list fcs_ka_timer;
+	struct timer_list enode_ka_timer;
+	struct timer_list vn_ka_timer;
+	struct list_head vlan_list;
 	/*** FIP related data members  -- end ***/
 
 	/* copy work queue cache line section */
@@ -472,9 +480,6 @@ int fnic_rq_cmpl_handler(struct fnic *fnic, int);
 int fnic_alloc_rq_frame(struct vnic_rq *rq);
 void fnic_free_rq_buf(struct vnic_rq *rq, struct vnic_rq_buf *buf);
 void fnic_flush_tx(struct work_struct *work);
-void fnic_eth_send(struct fcoe_ctlr *, struct sk_buff *skb);
-void fnic_set_port_id(struct fc_lport *, u32, struct fc_frame *);
-void fnic_update_mac(struct fc_lport *, u8 *new);
 void fnic_update_mac_locked(struct fnic *, u8 *new);
 
 int fnic_queuecommand(struct Scsi_Host *, struct scsi_cmnd *);
@@ -503,7 +508,7 @@ int fnic_is_abts_pending(struct fnic *, struct scsi_cmnd *);
 void fnic_handle_fip_frame(struct work_struct *work);
 void fnic_handle_fip_event(struct fnic *fnic);
 void fnic_fcoe_reset_vlans(struct fnic *fnic);
-void fnic_fcoe_evlist_free(struct fnic *fnic);
+extern void fnic_handle_fip_timer(struct timer_list *t);
 
 static inline int
 fnic_chk_state_flags_locked(struct fnic *fnic, unsigned long st_flags)

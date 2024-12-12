@@ -29,7 +29,6 @@
 #include "vnic_intr.h"
 #include "vnic_stats.h"
 #include "fnic_io.h"
-#include "fnic_fip.h"
 #include "fnic.h"
 #include "fnic_fdls.h"
 #include "fdls_fc.h"
@@ -87,11 +86,12 @@ module_param(fnic_max_qdepth, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(fnic_max_qdepth, "Queue depth to report for each LUN");
 
 static struct libfc_function_template fnic_transport_template = {
-	.lport_set_port_id = fnic_set_port_id,
 	.fcp_abort_io = fnic_empty_scsi_cleanup,
 	.fcp_cleanup = fnic_empty_scsi_cleanup,
 	.exch_mgr_reset = fnic_exch_mgr_reset
 };
+
+struct workqueue_struct *fnic_fip_queue;
 
 static int fnic_slave_alloc(struct scsi_device *sdev)
 {
@@ -415,13 +415,6 @@ static void fnic_notify_timer(struct timer_list *t)
 		  round_jiffies(jiffies + FNIC_NOTIFY_TIMER_PERIOD));
 }
 
-static void fnic_fip_notify_timer(struct timer_list *t)
-{
-	struct fnic *fnic = from_timer(fnic, t, fip_timer);
-
-	/* Placeholder function */
-}
-
 static void fnic_notify_timer_start(struct fnic *fnic)
 {
 	switch (vnic_dev_get_intr_mode(fnic->vdev)) {
@@ -533,17 +526,6 @@ static void fnic_iounmap(struct fnic *fnic)
 {
 	if (fnic->bar0.vaddr)
 		iounmap(fnic->bar0.vaddr);
-}
-
-/**
- * fnic_get_mac() - get assigned data MAC address for FIP code.
- * @lport: 	local port.
- */
-static u8 *fnic_get_mac(struct fc_lport *lport)
-{
-	struct fnic *fnic = lport_priv(lport);
-
-	return fnic->data_src_addr;
 }
 
 static void fnic_set_vlan(struct fnic *fnic, u16 vlan_id)
@@ -829,25 +811,22 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	fnic->vlan_hw_insert = 1;
 	fnic->vlan_id = 0;
 
-	/* Initialize the FIP fcoe_ctrl struct */
-	fnic->ctlr.send = fnic_eth_send;
-	fnic->ctlr.update_mac = fnic_update_mac;
-	fnic->ctlr.get_src_addr = fnic_get_mac;
 	if (fnic->config.flags & VFCF_FIP_CAPABLE) {
 		dev_info(&fnic->pdev->dev, "firmware supports FIP\n");
 		/* enable directed and multicast */
 		vnic_dev_packet_filter(fnic->vdev, 1, 1, 0, 0, 0);
 		vnic_dev_add_addr(fnic->vdev, FIP_ALL_ENODE_MACS);
 		vnic_dev_add_addr(fnic->vdev, fnic->ctlr.ctl_src_addr);
-		fnic->set_vlan = fnic_set_vlan;
 		fcoe_ctlr_init(&fnic->ctlr, FIP_MODE_AUTO);
-		timer_setup(&fnic->fip_timer, fnic_fip_notify_timer, 0);
 		spin_lock_init(&fnic->vlans_lock);
 		INIT_WORK(&fnic->fip_frame_work, fnic_handle_fip_frame);
-		INIT_WORK(&fnic->event_work, fnic_handle_event);
-		skb_queue_head_init(&fnic->fip_frame_queue);
-		INIT_LIST_HEAD(&fnic->evlist);
-		INIT_LIST_HEAD(&fnic->vlans);
+		INIT_LIST_HEAD(&fnic->fip_frame_queue);
+		INIT_LIST_HEAD(&fnic->vlan_list);
+		timer_setup(&fnic->retry_fip_timer, fnic_handle_fip_timer, 0);
+		timer_setup(&fnic->fcs_ka_timer, fnic_handle_fcs_ka_timer, 0);
+		timer_setup(&fnic->enode_ka_timer, fnic_handle_enode_ka_timer, 0);
+		timer_setup(&fnic->vn_ka_timer, fnic_handle_vn_ka_timer, 0);
+		fnic->set_vlan = fnic_set_vlan;
 	} else {
 		dev_info(&fnic->pdev->dev, "firmware uses non-FIP mode\n");
 		fcoe_ctlr_init(&fnic->ctlr, FIP_MODE_NON_FIP);
@@ -1057,10 +1036,13 @@ static void fnic_remove(struct pci_dev *pdev)
 	fnic_free_txq(&fnic->tx_queue);
 
 	if (fnic->config.flags & VFCF_FIP_CAPABLE) {
-		del_timer_sync(&fnic->fip_timer);
-		skb_queue_purge(&fnic->fip_frame_queue);
+		del_timer_sync(&fnic->retry_fip_timer);
+		del_timer_sync(&fnic->fcs_ka_timer);
+		del_timer_sync(&fnic->enode_ka_timer);
+		del_timer_sync(&fnic->vn_ka_timer);
+
+		fnic_free_txq(&fnic->fip_frame_queue);
 		fnic_fcoe_reset_vlans(fnic);
-		fnic_fcoe_evlist_free(fnic);
 	}
 
 	if ((fnic_fdmi_support == 1) && (fnic->iport.fabric.fdmi_pending > 0))

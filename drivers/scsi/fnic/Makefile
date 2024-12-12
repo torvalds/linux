@@ -2,6 +2,7 @@
 obj-$(CONFIG_FCOE_FNIC) += fnic.o
 
 fnic-y	:= \
+	fip.o\
 	fnic_attrs.o \
 	fnic_isr.o \
 	fnic_main.o \
