@@ -384,8 +384,8 @@
 	vpshufd		$0xd3, H_CUR_XMM, %xmm0
 	vpsrad		$31, %xmm0, %xmm0
 	vpaddq		H_CUR_XMM, H_CUR_XMM, H_CUR_XMM
-	vpand		.Lgfpoly_and_internal_carrybit(%rip), %xmm0, %xmm0
-	vpxor		%xmm0, H_CUR_XMM, H_CUR_XMM
+	// H_CUR_XMM ^= xmm0 & gfpoly_and_internal_carrybit
+	vpternlogd	$0x78, .Lgfpoly_and_internal_carrybit(%rip), %xmm0, H_CUR_XMM
 
 	// Load the gfpoly constant.
 	vbroadcasti32x4	.Lgfpoly(%rip), GFPOLY
@@ -713,7 +713,7 @@
 	// Pre-subtracting 4*VL from DATALEN saves an instruction from the main
 	// loop and also ensures that at least one write always occurs to
 	// DATALEN, zero-extending it and allowing DATALEN64 to be used later.
-	sub		$4*VL, DATALEN
+	add		$-4*VL, DATALEN  // shorter than 'sub 4*VL' when VL=32
 	jl		.Lcrypt_loop_4x_done\@
 
 	// Load powers of the hash key.
@@ -760,9 +760,9 @@
 	vmovdqu8	GHASHDATA1, 1*VL(DST)
 	vmovdqu8	GHASHDATA2, 2*VL(DST)
 	vmovdqu8	GHASHDATA3, 3*VL(DST)
-	add		$4*VL, SRC
-	add		$4*VL, DST
-	sub		$4*VL, DATALEN
+	sub		$-4*VL, SRC  // shorter than 'add 4*VL' when VL=32
+	sub		$-4*VL, DST
+	add		$-4*VL, DATALEN
 	jl		.Lghash_last_ciphertext_4x\@
 .endif
 
@@ -840,9 +840,9 @@
 	vmovdqu8	GHASHDATA2, 2*VL(DST)
 	vmovdqu8	GHASHDATA3, 3*VL(DST)
 
-	add		$4*VL, SRC
-	add		$4*VL, DST
-	sub		$4*VL, DATALEN
+	sub		$-4*VL, SRC  // shorter than 'add 4*VL' when VL=32
+	sub		$-4*VL, DST
+	add		$-4*VL, DATALEN
 	jge		.Lcrypt_loop_4x\@
 
 .if \enc
@@ -856,7 +856,7 @@
 .Lcrypt_loop_4x_done\@:
 
 	// Undo the extra subtraction by 4*VL and check whether data remains.
-	add		$4*VL, DATALEN
+	sub		$-4*VL, DATALEN  // shorter than 'add 4*VL' when VL=32
 	jz		.Ldone\@
 
 	// The data length isn't a multiple of 4*VL.  Process the remaining data
