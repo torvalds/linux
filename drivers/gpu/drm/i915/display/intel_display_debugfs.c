@@ -114,7 +114,6 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 	struct intel_framebuffer *fbdev_fb = NULL;
 	struct drm_framebuffer *drm_fb;
 
-#ifdef CONFIG_DRM_FBDEV_EMULATION
 	fbdev_fb = intel_fbdev_framebuffer(display->fbdev.fbdev);
 	if (fbdev_fb) {
 		seq_printf(m, "fbcon size: %d x %d, depth %d, %d bpp, modifier 0x%llx, refcount %d, obj ",
@@ -127,7 +126,6 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 		intel_bo_describe(m, intel_fb_bo(&fbdev_fb->base));
 		seq_putc(m, '\n');
 	}
-#endif
 
 	mutex_lock(&display->drm->mode_config.fb_lock);
 	drm_for_each_fb(drm_fb, display->drm) {
