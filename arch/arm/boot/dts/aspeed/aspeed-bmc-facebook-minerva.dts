@@ -101,6 +101,11 @@
 			gpios = <&leds_gpio 10 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
+
+		led-5 {
+			label = "bmc_ready_noled";
+			gpios = <&sgpiom0 141 (GPIO_ACTIVE_HIGH|GPIO_TRANSITORY)>;
+		};
 	};
 
 	spi_gpio: spi {
