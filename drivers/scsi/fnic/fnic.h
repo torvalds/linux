@@ -84,6 +84,9 @@
 
 #define IS_FNIC_FCP_INITIATOR(fnic) (fnic->role == FNIC_ROLE_FCP_INITIATOR)
 
+/* Retry supported by rport (returned by PRLI service parameters) */
+#define FNIC_FC_RP_FLAGS_RETRY            0x1
+
 /*
  * fnic private data per SCSI command.
  * These fields are locked by the hashed io_req_lock.
@@ -138,6 +141,7 @@ static inline u64 fnic_flags_and_state(struct scsi_cmnd *cmd)
 
 extern unsigned int fnic_log_level;
 extern unsigned int io_completions;
+extern struct workqueue_struct *fnic_event_queue;
 
 #define FNIC_MAIN_LOGGING 0x01
 #define FNIC_FCS_LOGGING 0x02
@@ -336,6 +340,8 @@ struct fnic {
 	struct list_head tx_queue;
 	mempool_t *frame_pool;
 	mempool_t *frame_elem_pool;
+	struct work_struct tport_work;
+	struct list_head tport_event_list;
 
 	/*** FIP related data members  -- start ***/
 	void (*set_vlan)(struct fnic *, u16 vlan);

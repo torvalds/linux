@@ -388,7 +388,7 @@ void fdls_send_fabric_logo(struct fnic_iport_s *iport);
 int fnic_fdls_validate_and_get_frame_type(struct fnic_iport_s *iport,
 	struct fc_frame_header *fchdr);
 void fdls_send_tport_abts(struct fnic_iport_s *iport,
-			  struct fnic_tport_s *tport);
+						struct fnic_tport_s *tport);
 bool fdls_delete_tport(struct fnic_iport_s *iport,
 		       struct fnic_tport_s *tport);
 void fdls_fdmi_timer_callback(struct timer_list *t);
