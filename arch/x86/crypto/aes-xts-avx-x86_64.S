@@ -112,39 +112,13 @@
 	// Define register aliases V0-V15, or V0-V31 if all 32 SIMD registers
 	// are available, that map to the xmm, ymm, or zmm registers according
 	// to the selected Vector Length (VL).
-	_define_Vi	0
-	_define_Vi	1
-	_define_Vi	2
-	_define_Vi	3
-	_define_Vi	4
-	_define_Vi	5
-	_define_Vi	6
-	_define_Vi	7
-	_define_Vi	8
-	_define_Vi	9
-	_define_Vi	10
-	_define_Vi	11
-	_define_Vi	12
-	_define_Vi	13
-	_define_Vi	14
-	_define_Vi	15
+.irp i, 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
+	_define_Vi	\i
+.endr
 .if USE_AVX10
-	_define_Vi	16
-	_define_Vi	17
-	_define_Vi	18
-	_define_Vi	19
-	_define_Vi	20
-	_define_Vi	21
-	_define_Vi	22
-	_define_Vi	23
-	_define_Vi	24
-	_define_Vi	25
-	_define_Vi	26
-	_define_Vi	27
-	_define_Vi	28
-	_define_Vi	29
-	_define_Vi	30
-	_define_Vi	31
+.irp i, 16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31
+	_define_Vi	\i
+.endr
 .endif
 
 	// V0-V3 hold the data blocks during the main loop, or temporary values
@@ -545,15 +519,9 @@
 	_vaes_1x	\enc, 0, 3, \xmm_suffix, \data
 	_vaes_1x	\enc, 0, 4, \xmm_suffix, \data
 .Laes128\@:
-	_vaes_1x	\enc, 0, 5, \xmm_suffix, \data
-	_vaes_1x	\enc, 0, 6, \xmm_suffix, \data
-	_vaes_1x	\enc, 0, 7, \xmm_suffix, \data
-	_vaes_1x	\enc, 0, 8, \xmm_suffix, \data
-	_vaes_1x	\enc, 0, 9, \xmm_suffix, \data
-	_vaes_1x	\enc, 0, 10, \xmm_suffix, \data
-	_vaes_1x	\enc, 0, 11, \xmm_suffix, \data
-	_vaes_1x	\enc, 0, 12, \xmm_suffix, \data
-	_vaes_1x	\enc, 0, 13, \xmm_suffix, \data
+.irp i, 5,6,7,8,9,10,11,12,13
+	_vaes_1x	\enc, 0, \i, \xmm_suffix, \data
+.endr
 	_vaes_1x	\enc, 1, 14, \xmm_suffix, \data
 	_vpxor		\tweak, \data, \data
 .endm
@@ -618,15 +586,9 @@
 	_vaes_4x	\enc, 0, 3
 	_vaes_4x	\enc, 0, 4
 .Laes128\@:
-	_vaes_4x	\enc, 0, 5
-	_vaes_4x	\enc, 0, 6
-	_vaes_4x	\enc, 0, 7
-	_vaes_4x	\enc, 0, 8
-	_vaes_4x	\enc, 0, 9
-	_vaes_4x	\enc, 0, 10
-	_vaes_4x	\enc, 0, 11
-	_vaes_4x	\enc, 0, 12
-	_vaes_4x	\enc, 0, 13
+.irp i, 5,6,7,8,9,10,11,12,13
+	_vaes_4x	\enc, 0, \i
+.endr
 	_vaes_4x	\enc, 1, 14
 
 	// XOR in the tweaks again.
@@ -779,15 +741,9 @@ SYM_TYPED_FUNC_START(aes_xts_encrypt_iv)
 	vaesenc		-4*16(%rdi), %xmm0, %xmm0
 	vaesenc		-3*16(%rdi), %xmm0, %xmm0
 .Lencrypt_iv_aes128:
-	vaesenc		-2*16(%rdi), %xmm0, %xmm0
-	vaesenc		-1*16(%rdi), %xmm0, %xmm0
-	vaesenc		0*16(%rdi), %xmm0, %xmm0
-	vaesenc		1*16(%rdi), %xmm0, %xmm0
-	vaesenc		2*16(%rdi), %xmm0, %xmm0
-	vaesenc		3*16(%rdi), %xmm0, %xmm0
-	vaesenc		4*16(%rdi), %xmm0, %xmm0
-	vaesenc		5*16(%rdi), %xmm0, %xmm0
-	vaesenc		6*16(%rdi), %xmm0, %xmm0
+.irp i, -2,-1,0,1,2,3,4,5,6
+	vaesenc		\i*16(%rdi), %xmm0, %xmm0
+.endr
 	vaesenclast	7*16(%rdi), %xmm0, %xmm0
 	vmovdqu		%xmm0, (%rsi)
 	RET
