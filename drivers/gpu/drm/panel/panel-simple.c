@@ -3340,6 +3340,33 @@ static const struct panel_desc multi_inno_mi1010ait_1cp = {
 	.connector_type = DRM_MODE_CONNECTOR_LVDS,
 };
 
+static const struct display_timing multi_inno_mi1010z1t_1cp11_timing = {
+	.pixelclock = { 40800000, 51200000, 67200000 },
+	.hactive = { 1024, 1024, 1024 },
+	.hfront_porch = { 30, 110, 130 },
+	.hback_porch = { 30, 110, 130 },
+	.hsync_len = { 30, 100, 116 },
+	.vactive = { 600, 600, 600 },
+	.vfront_porch = { 4, 13, 80 },
+	.vback_porch = { 4, 13, 80 },
+	.vsync_len = { 2, 9, 40 },
+	.flags = DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW |
+		 DISPLAY_FLAGS_DE_HIGH,
+};
+
+static const struct panel_desc multi_inno_mi1010z1t_1cp11 = {
+	.timings = &multi_inno_mi1010z1t_1cp11_timing,
+	.num_timings = 1,
+	.bpc = 6,
+	.size = {
+		.width = 260,
+		.height = 162,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X7X3_SPWG,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH,
+	.connector_type = DRM_MODE_CONNECTOR_LVDS,
+};
+
 static const struct display_timing nec_nl12880bc20_05_timing = {
 	.pixelclock = { 67000000, 71000000, 75000000 },
 	.hactive = { 1280, 1280, 1280 },
@@ -4983,6 +5010,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "multi-inno,mi1010ait-1cp",
 		.data = &multi_inno_mi1010ait_1cp,
+	}, {
+		.compatible = "multi-inno,mi1010z1t-1cp11",
+		.data = &multi_inno_mi1010z1t_1cp11,
 	}, {
 		.compatible = "nec,nl12880bc20-05",
 		.data = &nec_nl12880bc20_05,
