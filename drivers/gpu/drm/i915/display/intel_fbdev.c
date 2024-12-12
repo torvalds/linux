@@ -43,6 +43,7 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_print.h>
 
 #include "i915_drv.h"
@@ -56,7 +57,6 @@
 #include "intel_frontbuffer.h"
 
 struct intel_fbdev {
-	struct drm_fb_helper helper;
 	struct intel_framebuffer *fb;
 	struct i915_vma *vma;
 	unsigned long vma_flags;
@@ -64,7 +64,9 @@ struct intel_fbdev {
 
 static struct intel_fbdev *to_intel_fbdev(struct drm_fb_helper *fb_helper)
 {
-	return container_of(fb_helper, struct intel_fbdev, helper);
+	struct drm_i915_private *i915 = to_i915(fb_helper->client.dev);
+
+	return i915->display.fbdev.fbdev;
 }
 
 static struct intel_frontbuffer *to_frontbuffer(struct intel_fbdev *ifbdev)
@@ -120,8 +122,8 @@ static int intel_fbdev_pan_display(struct fb_var_screeninfo *var,
 
 static int intel_fbdev_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
-	struct intel_fbdev *fbdev = to_intel_fbdev(info->par);
-	struct drm_gem_object *obj = drm_gem_fb_get_obj(&fbdev->fb->base, 0);
+	struct drm_fb_helper *fb_helper = info->par;
+	struct drm_gem_object *obj = drm_gem_fb_get_obj(fb_helper->fb, 0);
 
 	return intel_bo_fb_mmap(obj, vma);
 }
@@ -129,9 +131,9 @@ static int intel_fbdev_mmap(struct fb_info *info, struct vm_area_struct *vma)
 static void intel_fbdev_fb_destroy(struct fb_info *info)
 {
 	struct drm_fb_helper *fb_helper = info->par;
-	struct intel_fbdev *ifbdev = container_of(fb_helper, struct intel_fbdev, helper);
+	struct intel_fbdev *ifbdev = to_intel_fbdev(fb_helper);
 
-	drm_fb_helper_fini(&ifbdev->helper);
+	drm_fb_helper_fini(fb_helper);
 
 	/*
 	 * We rely on the object-free to release the VMA pinning for
@@ -139,11 +141,11 @@ static void intel_fbdev_fb_destroy(struct fb_info *info)
 	 * trying to rectify all the possible error paths leading here.
 	 */
 	intel_fb_unpin_vma(ifbdev->vma, ifbdev->vma_flags);
-	drm_framebuffer_remove(&ifbdev->fb->base);
+	drm_framebuffer_remove(fb_helper->fb);
 
 	drm_client_release(&fb_helper->client);
-	drm_fb_helper_unprepare(&ifbdev->helper);
-	kfree(ifbdev);
+	drm_fb_helper_unprepare(fb_helper);
+	kfree(fb_helper);
 }
 
 __diag_push();
@@ -227,7 +229,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		goto out_unpin;
 	}
 
-	ifbdev->helper.fb = &fb->base;
+	helper->fb = &fb->base;
 
 	info->fbops = &intelfb_ops;
 
@@ -237,7 +239,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	if (ret)
 		goto out_unpin;
 
-	drm_fb_helper_fill_info(info, &ifbdev->helper, sizes);
+	drm_fb_helper_fill_info(info, dev->fb_helper, sizes);
 
 	/* If the object is shmemfs backed, it will have given us zeroed pages.
 	 * If the object is stolen however, it will be full of whatever
@@ -528,13 +530,14 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous
 		}
 	}
 
-	drm_fb_helper_set_suspend(&ifbdev->helper, state);
+	drm_fb_helper_set_suspend(dev->fb_helper, state);
 	console_unlock();
 }
 
 static int intel_fbdev_restore_mode(struct drm_i915_private *dev_priv)
 {
 	struct intel_fbdev *ifbdev = dev_priv->display.fbdev.fbdev;
+	struct drm_device *dev = &dev_priv->drm;
 	int ret;
 
 	if (!ifbdev)
@@ -543,7 +546,7 @@ static int intel_fbdev_restore_mode(struct drm_i915_private *dev_priv)
 	if (!ifbdev->vma)
 		return -ENOMEM;
 
-	ret = drm_fb_helper_restore_fbdev_mode_unlocked(&ifbdev->helper);
+	ret = drm_fb_helper_restore_fbdev_mode_unlocked(dev->fb_helper);
 	if (ret)
 		return ret;
 
@@ -640,13 +643,14 @@ void intel_fbdev_setup(struct drm_i915_private *i915)
 {
 	struct drm_device *dev = &i915->drm;
 	struct intel_fbdev *ifbdev;
+	struct drm_fb_helper *fb_helper;
 	unsigned int preferred_bpp = 0;
 	int ret;
 
 	if (!HAS_DISPLAY(i915))
 		return;
 
-	ifbdev = kzalloc(sizeof(*ifbdev), GFP_KERNEL);
+	ifbdev = drmm_kzalloc(dev, sizeof(*ifbdev), GFP_KERNEL);
 	if (!ifbdev)
 		return;
 
@@ -657,30 +661,33 @@ void intel_fbdev_setup(struct drm_i915_private *i915)
 	if (!preferred_bpp)
 		preferred_bpp = 32;
 
-	drm_fb_helper_prepare(dev, &ifbdev->helper, preferred_bpp, &intel_fb_helper_funcs);
+	fb_helper = kzalloc(sizeof(*fb_helper), GFP_KERNEL);
+	if (!fb_helper)
+		return;
+	drm_fb_helper_prepare(dev, fb_helper, preferred_bpp, &intel_fb_helper_funcs);
 
-	ret = drm_client_init(dev, &ifbdev->helper.client, "intel-fbdev",
+	ret = drm_client_init(dev, &fb_helper->client, "intel-fbdev",
 			      &intel_fbdev_client_funcs);
 	if (ret) {
 		drm_err(dev, "Failed to register client: %d\n", ret);
 		goto err_drm_fb_helper_unprepare;
 	}
 
-	drm_client_register(&ifbdev->helper.client);
+	drm_client_register(&fb_helper->client);
 
 	return;
 
 err_drm_fb_helper_unprepare:
-	drm_fb_helper_unprepare(&ifbdev->helper);
-	kfree(ifbdev);
+	drm_fb_helper_unprepare(dev->fb_helper);
+	kfree(fb_helper);
 }
 
 struct intel_framebuffer *intel_fbdev_framebuffer(struct intel_fbdev *fbdev)
 {
-	if (!fbdev || !fbdev->helper.fb)
+	if (!fbdev)
 		return NULL;
 
-	return to_intel_framebuffer(fbdev->helper.fb);
+	return fbdev->fb;
 }
 
 struct i915_vma *intel_fbdev_vma_pointer(struct intel_fbdev *fbdev)
