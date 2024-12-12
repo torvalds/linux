@@ -58,13 +58,13 @@ static vm_fault_t ttm_bo_vm_fault_idle(struct ttm_buffer_object *bo,
 		if (vmf->flags & FAULT_FLAG_RETRY_NOWAIT)
 			return VM_FAULT_RETRY;
 
-		ttm_bo_get(bo);
+		drm_gem_object_get(&bo->base);
 		mmap_read_unlock(vmf->vma->vm_mm);
 		(void)dma_resv_wait_timeout(bo->base.resv,
 					    DMA_RESV_USAGE_KERNEL, true,
 					    MAX_SCHEDULE_TIMEOUT);
 		dma_resv_unlock(bo->base.resv);
-		ttm_bo_put(bo);
+		drm_gem_object_put(&bo->base);
 		return VM_FAULT_RETRY;
 	}
 
@@ -130,12 +130,12 @@ vm_fault_t ttm_bo_vm_reserve(struct ttm_buffer_object *bo,
 		 */
 		if (fault_flag_allow_retry_first(vmf->flags)) {
 			if (!(vmf->flags & FAULT_FLAG_RETRY_NOWAIT)) {
-				ttm_bo_get(bo);
+				drm_gem_object_get(&bo->base);
 				mmap_read_unlock(vmf->vma->vm_mm);
 				if (!dma_resv_lock_interruptible(bo->base.resv,
 								 NULL))
 					dma_resv_unlock(bo->base.resv);
-				ttm_bo_put(bo);
+				drm_gem_object_put(&bo->base);
 			}
 
 			return VM_FAULT_RETRY;
@@ -353,7 +353,7 @@ void ttm_bo_vm_open(struct vm_area_struct *vma)
 
 	WARN_ON(bo->bdev->dev_mapping != vma->vm_file->f_mapping);
 
-	ttm_bo_get(bo);
+	drm_gem_object_get(&bo->base);
 }
 EXPORT_SYMBOL(ttm_bo_vm_open);
 
@@ -361,7 +361,7 @@ void ttm_bo_vm_close(struct vm_area_struct *vma)
 {
 	struct ttm_buffer_object *bo = vma->vm_private_data;
 
-	ttm_bo_put(bo);
+	drm_gem_object_put(&bo->base);
 	vma->vm_private_data = NULL;
 }
 EXPORT_SYMBOL(ttm_bo_vm_close);
@@ -462,7 +462,7 @@ int ttm_bo_mmap_obj(struct vm_area_struct *vma, struct ttm_buffer_object *bo)
 	if (is_cow_mapping(vma->vm_flags))
 		return -EINVAL;
 
-	ttm_bo_get(bo);
+	drm_gem_object_get(&bo->base);
 
 	/*
 	 * Drivers may want to override the vm_ops field. Otherwise we

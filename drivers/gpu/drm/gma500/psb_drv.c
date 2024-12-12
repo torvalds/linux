@@ -19,8 +19,8 @@
 
 #include <acpi/video.h>
 
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm.h>
-#include <drm/drm_client_setup.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
 #include <drm/drm_ioctl.h>
@@ -513,7 +513,6 @@ static const struct drm_driver driver = {
 	.fops = &psb_gem_fops,
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
-	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
 	.minor = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL

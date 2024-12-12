@@ -25,7 +25,6 @@
 
 #define DRIVER_NAME		"mgag200"
 #define DRIVER_DESC		"MGA G200 SE"
-#define DRIVER_DATE		"20110418"
 
 #define DRIVER_MAJOR		1
 #define DRIVER_MINOR		0

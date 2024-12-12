@@ -18,8 +18,8 @@
 #include <linux/slab.h>
 #include <linux/wait.h>
 
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_client_setup.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_dma.h>
 #include <drm/drm_gem_dma_helper.h>
@@ -611,7 +611,6 @@ static const struct drm_driver rcar_du_driver = {
 	.fops			= &rcar_du_fops,
 	.name			= "rcar-du",
 	.desc			= "Renesas R-Car Display Unit",
-	.date			= "20130110",
 	.major			= 1,
 	.minor			= 0,
 };

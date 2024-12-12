@@ -1235,7 +1235,7 @@ static void lt9611_remove(struct i2c_client *client)
 	of_node_put(lt9611->dsi0_node);
 }
 
-static struct i2c_device_id lt9611_id[] = {
+static const struct i2c_device_id lt9611_id[] = {
 	{ "lontium,lt9611", 0 },
 	{}
 };

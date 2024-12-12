@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 
-#include <drm/drm_client_setup.h>
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_device.h>
-#include <drm/drm_fbdev_client.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_print.h>
+
+#include "drm_client_internal.h"
 
 /**
  * drm_client_setup() - Setup in-kernel DRM clients

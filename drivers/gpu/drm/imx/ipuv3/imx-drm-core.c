@@ -13,9 +13,9 @@
 
 #include <video/imx-ipu-v3.h>
 
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_client_setup.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_dma.h>
 #include <drm/drm_gem_dma_helper.h>
@@ -163,7 +163,6 @@ static const struct drm_driver imx_drm_driver = {
 	.fops			= &imx_drm_driver_fops,
 	.name			= "imx-drm",
 	.desc			= "i.MX DRM graphics",
-	.date			= "20120507",
 	.major			= 1,
 	.minor			= 0,
 	.patchlevel		= 0,

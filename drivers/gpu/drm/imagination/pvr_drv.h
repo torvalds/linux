@@ -9,7 +9,6 @@
 
 #define PVR_DRIVER_NAME "powervr"
 #define PVR_DRIVER_DESC "Imagination PowerVR (Series 6 and later) & IMG Graphics"
-#define PVR_DRIVER_DATE "20230904"
 
 /*
  * Driver interface version:

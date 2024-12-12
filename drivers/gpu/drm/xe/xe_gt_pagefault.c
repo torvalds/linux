@@ -10,7 +10,6 @@
 
 #include <drm/drm_exec.h>
 #include <drm/drm_managed.h>
-#include <drm/ttm/ttm_execbuf_util.h>
 
 #include "abi/guc_actions_abi.h"
 #include "xe_bo.h"

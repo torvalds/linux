@@ -1387,7 +1387,6 @@ static struct drm_driver pvr_drm_driver = {
 
 	.name = PVR_DRIVER_NAME,
 	.desc = PVR_DRIVER_DESC,
-	.date = PVR_DRIVER_DATE,
 	.major = PVR_DRIVER_MAJOR,
 	.minor = PVR_DRIVER_MINOR,
 	.patchlevel = PVR_DRIVER_PATCHLEVEL,

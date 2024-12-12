@@ -240,17 +240,18 @@ void v3d_perfmon_start(struct v3d_dev *v3d, struct v3d_perfmon *perfmon)
 
 	for (i = 0; i < ncounters; i++) {
 		u32 source = i / 4;
-		u32 channel = V3D_SET_FIELD(perfmon->counters[i], V3D_PCTR_S0);
+		u32 channel = V3D_SET_FIELD_VER(perfmon->counters[i], V3D_PCTR_S0,
+						v3d->ver);
 
 		i++;
-		channel |= V3D_SET_FIELD(i < ncounters ? perfmon->counters[i] : 0,
-					 V3D_PCTR_S1);
+		channel |= V3D_SET_FIELD_VER(i < ncounters ? perfmon->counters[i] : 0,
+					     V3D_PCTR_S1, v3d->ver);
 		i++;
-		channel |= V3D_SET_FIELD(i < ncounters ? perfmon->counters[i] : 0,
-					 V3D_PCTR_S2);
+		channel |= V3D_SET_FIELD_VER(i < ncounters ? perfmon->counters[i] : 0,
+					     V3D_PCTR_S2, v3d->ver);
 		i++;
-		channel |= V3D_SET_FIELD(i < ncounters ? perfmon->counters[i] : 0,
-					 V3D_PCTR_S3);
+		channel |= V3D_SET_FIELD_VER(i < ncounters ? perfmon->counters[i] : 0,
+					     V3D_PCTR_S3, v3d->ver);
 		V3D_CORE_WRITE(0, V3D_V4_PCTR_0_SRC_X(source), channel);
 	}
 
@@ -311,6 +312,9 @@ static int v3d_perfmon_idr_del(int id, void *elem, void *data)
 	/* If the active perfmon is being destroyed, stop it first */
 	if (perfmon == v3d->active_perfmon)
 		v3d_perfmon_stop(v3d, perfmon, false);
+
+	/* If the global perfmon is being destroyed, set it to NULL */
+	cmpxchg(&v3d->global_perfmon, perfmon, NULL);
 
 	v3d_perfmon_put(perfmon);
 
@@ -383,6 +387,7 @@ int v3d_perfmon_destroy_ioctl(struct drm_device *dev, void *data,
 {
 	struct v3d_file_priv *v3d_priv = file_priv->driver_priv;
 	struct drm_v3d_perfmon_destroy *req = data;
+	struct v3d_dev *v3d = v3d_priv->v3d;
 	struct v3d_perfmon *perfmon;
 
 	mutex_lock(&v3d_priv->perfmon.lock);
@@ -391,6 +396,13 @@ int v3d_perfmon_destroy_ioctl(struct drm_device *dev, void *data,
 
 	if (!perfmon)
 		return -EINVAL;
+
+	/* If the active perfmon is being destroyed, stop it first */
+	if (perfmon == v3d->active_perfmon)
+		v3d_perfmon_stop(v3d, perfmon, false);
+
+	/* If the global perfmon is being destroyed, set it to NULL */
+	cmpxchg(&v3d->global_perfmon, perfmon, NULL);
 
 	v3d_perfmon_put(perfmon);
 
@@ -448,6 +460,37 @@ int v3d_perfmon_get_counter_ioctl(struct drm_device *dev, void *data,
 	strscpy(req->name, counter->name, sizeof(req->name));
 	strscpy(req->category, counter->category, sizeof(req->category));
 	strscpy(req->description, counter->description, sizeof(req->description));
+
+	return 0;
+}
+
+int v3d_perfmon_set_global_ioctl(struct drm_device *dev, void *data,
+				 struct drm_file *file_priv)
+{
+	struct v3d_file_priv *v3d_priv = file_priv->driver_priv;
+	struct drm_v3d_perfmon_set_global *req = data;
+	struct v3d_dev *v3d = to_v3d_dev(dev);
+	struct v3d_perfmon *perfmon;
+
+	if (req->flags & ~DRM_V3D_PERFMON_CLEAR_GLOBAL)
+		return -EINVAL;
+
+	perfmon = v3d_perfmon_find(v3d_priv, req->id);
+	if (!perfmon)
+		return -EINVAL;
+
+	/* If the request is to clear the global performance monitor */
+	if (req->flags & DRM_V3D_PERFMON_CLEAR_GLOBAL) {
+		if (!v3d->global_perfmon)
+			return -EINVAL;
+
+		xchg(&v3d->global_perfmon, NULL);
+
+		return 0;
+	}
+
+	if (cmpxchg(&v3d->global_perfmon, NULL, perfmon))
+		return -EBUSY;
 
 	return 0;
 }

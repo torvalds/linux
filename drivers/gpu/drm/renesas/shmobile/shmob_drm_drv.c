@@ -17,8 +17,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_client_setup.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_dma.h>
 #include <drm/drm_fourcc.h>
@@ -107,7 +107,6 @@ static const struct drm_driver shmob_drm_driver = {
 	.fops			= &shmob_drm_fops,
 	.name			= "shmob-drm",
 	.desc			= "Renesas SH Mobile DRM",
-	.date			= "20120424",
 	.major			= 1,
 	.minor			= 0,
 };

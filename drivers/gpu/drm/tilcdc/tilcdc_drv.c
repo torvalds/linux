@@ -13,8 +13,8 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_client_setup.h>
 #include <drm/drm_debugfs.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_dma.h>
@@ -481,7 +481,6 @@ static const struct drm_driver tilcdc_driver = {
 	.fops               = &fops,
 	.name               = "tilcdc",
 	.desc               = "TI LCD Controller DRM",
-	.date               = "20121205",
 	.major              = 1,
 	.minor              = 0,
 };

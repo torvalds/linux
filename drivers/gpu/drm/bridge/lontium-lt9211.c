@@ -773,7 +773,7 @@ static void lt9211_remove(struct i2c_client *client)
 	drm_bridge_remove(&ctx->bridge);
 }
 
-static struct i2c_device_id lt9211_id[] = {
+static const struct i2c_device_id lt9211_id[] = {
 	{ "lontium,lt9211" },
 	{},
 };

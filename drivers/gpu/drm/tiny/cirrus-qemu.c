@@ -24,10 +24,10 @@
 #include <video/cirrus.h>
 #include <video/vga.h>
 
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_atomic_state_helper.h>
-#include <drm/drm_client_setup.h>
 #include <drm/drm_connector.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_drv.h>
@@ -46,9 +46,8 @@
 #include <drm/drm_module.h>
 #include <drm/drm_probe_helper.h>
 
-#define DRIVER_NAME "cirrus"
+#define DRIVER_NAME "cirrus-qemu"
 #define DRIVER_DESC "qemu cirrus vga"
-#define DRIVER_DATE "2019"
 #define DRIVER_MAJOR 2
 #define DRIVER_MINOR 0
 
@@ -589,14 +588,14 @@ static int cirrus_pipe_init(struct cirrus_device *cirrus)
 
 	encoder = &cirrus->encoder;
 	ret = drm_encoder_init(dev, encoder, &cirrus_encoder_funcs,
-			       DRM_MODE_ENCODER_DAC, NULL);
+			       DRM_MODE_ENCODER_VIRTUAL, NULL);
 	if (ret)
 		return ret;
 	encoder->possible_crtcs = drm_crtc_mask(crtc);
 
 	connector = &cirrus->connector;
 	ret = drm_connector_init(dev, connector, &cirrus_connector_funcs,
-				 DRM_MODE_CONNECTOR_VGA);
+				 DRM_MODE_CONNECTOR_VIRTUAL);
 	if (ret)
 		return ret;
 	drm_connector_helper_add(connector, &cirrus_connector_helper_funcs);
@@ -659,7 +658,6 @@ static const struct drm_driver cirrus_driver = {
 
 	.name		 = DRIVER_NAME,
 	.desc		 = DRIVER_DESC,
-	.date		 = DRIVER_DATE,
 	.major		 = DRIVER_MAJOR,
 	.minor		 = DRIVER_MINOR,
 

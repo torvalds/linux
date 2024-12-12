@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: MIT */
 
-#ifndef DRM_FBDEV_CLIENT_H
-#define DRM_FBDEV_CLIENT_H
+#ifndef DRM_CLIENT_INTERNAL_H
+#define DRM_CLIENT_INTERNAL_H
 
 struct drm_device;
 struct drm_format_info;
