@@ -53,6 +53,17 @@ struct cs_dsp_mock_alg_def {
 	unsigned int zm_size_words;
 };
 
+struct cs_dsp_mock_coeff_def {
+	const char *shortname;
+	const char *fullname;
+	const char *description;
+	u16 type;
+	u16 flags;
+	u16 mem_type;
+	unsigned int offset_dsp_words;
+	unsigned int length_bytes;
+};
+
 /**
  * struct cs_dsp_mock_xm_header - XM header builder
  *
@@ -65,6 +76,8 @@ struct cs_dsp_mock_xm_header {
 	void *blob_data;
 	size_t blob_size_bytes;
 };
+
+struct cs_dsp_mock_wmfw_builder;
 
 extern const unsigned int cs_dsp_mock_adsp2_32bit_sysbase;
 extern const unsigned int cs_dsp_mock_adsp2_16bit_sysbase;
@@ -107,3 +120,23 @@ void cs_dsp_mock_regmap_drop_bytes(struct cs_dsp_test *priv,
 				   unsigned int first_reg, size_t num_bytes);
 void cs_dsp_mock_regmap_drop_system_regs(struct cs_dsp_test *priv);
 bool cs_dsp_mock_regmap_is_dirty(struct cs_dsp_test *priv, bool drop_system_regs);
+
+struct cs_dsp_mock_wmfw_builder *cs_dsp_mock_wmfw_init(struct cs_dsp_test *priv,
+						       int format_version);
+void cs_dsp_mock_wmfw_add_raw_block(struct cs_dsp_mock_wmfw_builder *builder,
+				    int mem_region, unsigned int mem_offset_dsp_words,
+				    const void *payload_data, size_t payload_len_bytes);
+void cs_dsp_mock_wmfw_add_info(struct cs_dsp_mock_wmfw_builder *builder,
+			       const char *info);
+void cs_dsp_mock_wmfw_add_data_block(struct cs_dsp_mock_wmfw_builder *builder,
+				     int mem_region, unsigned int mem_offset_dsp_words,
+				     const void *payload_data, size_t payload_len_bytes);
+void cs_dsp_mock_wmfw_start_alg_info_block(struct cs_dsp_mock_wmfw_builder *builder,
+					   unsigned int alg_id,
+					   const char *name,
+					   const char *description);
+void cs_dsp_mock_wmfw_add_coeff_desc(struct cs_dsp_mock_wmfw_builder *builder,
+				     const struct cs_dsp_mock_coeff_def *def);
+void cs_dsp_mock_wmfw_end_alg_info_block(struct cs_dsp_mock_wmfw_builder *builder);
+struct firmware *cs_dsp_mock_wmfw_get_firmware(struct cs_dsp_mock_wmfw_builder *builder);
+int cs_dsp_mock_wmfw_format_version(struct cs_dsp_mock_wmfw_builder *builder);
