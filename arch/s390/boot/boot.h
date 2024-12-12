@@ -47,8 +47,8 @@ void physmem_set_usable_limit(unsigned long limit);
 void physmem_reserve(enum reserved_range_type type, unsigned long addr, unsigned long size);
 void physmem_free(enum reserved_range_type type);
 /* for continuous/multiple allocations per type */
-unsigned long physmem_alloc_top_down(enum reserved_range_type type, unsigned long size,
-				     unsigned long align);
+unsigned long physmem_alloc_or_die(enum reserved_range_type type, unsigned long size,
+				   unsigned long align);
 /* for single allocations, 1 per type */
 unsigned long physmem_alloc_range(enum reserved_range_type type, unsigned long size,
 				  unsigned long align, unsigned long min, unsigned long max,

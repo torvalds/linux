@@ -201,7 +201,7 @@ static void *boot_crst_alloc(unsigned long val)
 	unsigned long size = PAGE_SIZE << CRST_ALLOC_ORDER;
 	unsigned long *table;
 
-	table = (unsigned long *)physmem_alloc_top_down(RR_VMEM, size, size);
+	table = (unsigned long *)physmem_alloc_or_die(RR_VMEM, size, size);
 	crst_table_init(table, val);
 	__arch_set_page_dat(table, 1UL << CRST_ALLOC_ORDER);
 	return table;
@@ -217,7 +217,7 @@ static pte_t *boot_pte_alloc(void)
 	 * during POPULATE_KASAN_MAP_SHADOW when EDAT is off
 	 */
 	if (!pte_leftover) {
-		pte_leftover = (void *)physmem_alloc_top_down(RR_VMEM, PAGE_SIZE, PAGE_SIZE);
+		pte_leftover = (void *)physmem_alloc_or_die(RR_VMEM, PAGE_SIZE, PAGE_SIZE);
 		pte = pte_leftover + _PAGE_TABLE_SIZE;
 		__arch_set_page_dat(pte, 1);
 	} else {
@@ -247,7 +247,7 @@ static unsigned long resolve_pa_may_alloc(unsigned long addr, unsigned long size
 		return __identity_pa(addr);
 #ifdef CONFIG_KASAN
 	case POPULATE_KASAN_MAP_SHADOW:
-		addr = physmem_alloc_top_down(RR_VMEM, size, size);
+		addr = physmem_alloc_or_die(RR_VMEM, size, size);
 		memset((void *)addr, 0, size);
 		return addr;
 #endif

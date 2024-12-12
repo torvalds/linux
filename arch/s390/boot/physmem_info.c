@@ -343,8 +343,8 @@ unsigned long physmem_alloc_range(enum reserved_range_type type, unsigned long s
 	return addr;
 }
 
-unsigned long physmem_alloc_top_down(enum reserved_range_type type, unsigned long size,
-				     unsigned long align)
+unsigned long physmem_alloc_or_die(enum reserved_range_type type, unsigned long size,
+				   unsigned long align)
 {
 	struct reserved_range *range = &physmem_info.reserved[type];
 	struct reserved_range *new_range;

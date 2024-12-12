@@ -143,7 +143,7 @@ static void rescue_initrd(unsigned long min, unsigned long max)
 		return;
 	old_addr = addr;
 	physmem_free(RR_INITRD);
-	addr = physmem_alloc_top_down(RR_INITRD, size, 0);
+	addr = physmem_alloc_or_die(RR_INITRD, size, 0);
 	memmove((void *)addr, (void *)old_addr, size);
 }
 
