@@ -5648,7 +5648,7 @@ static void __init rcu_dump_rcu_node_tree(void)
 
 struct workqueue_struct *rcu_gp_wq;
 
-static void __init kfree_rcu_batch_init(void)
+void __init kvfree_rcu_init(void)
 {
 	int cpu;
 	int i, j;
@@ -5703,7 +5703,6 @@ void __init rcu_init(void)
 
 	rcu_early_boot_tests();
 
-	kfree_rcu_batch_init();
 	rcu_bootup_announce();
 	sanitize_kthread_prio();
 	rcu_init_geometry();

@@ -118,6 +118,7 @@ static inline void call_rcu_hurry(struct rcu_head *head, rcu_callback_t func)
 
 /* Internal to kernel */
 void rcu_init(void);
+void __init kvfree_rcu_init(void);
 extern int rcu_scheduler_active;
 void rcu_sched_clock_irq(int user);
 
