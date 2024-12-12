@@ -1134,14 +1134,19 @@ static bool find_next_delalloc_bitmap(struct folio *folio,
 }
 
 /*
- * helper for extent_writepage(), doing all of the delayed allocation setup.
+ * Do all of the delayed allocation setup.
  *
- * This returns 1 if btrfs_run_delalloc_range function did all the work required
- * to write the page (copy into inline extent).  In this case the IO has
- * been started and the page is already unlocked.
+ * Return >0 if all the dirty blocks are submitted async (compression) or inlined.
+ * The @folio should no longer be touched (treat it as already unlocked).
  *
- * This returns 0 if all went well (page still locked)
- * This returns < 0 if there were errors (page still locked)
+ * Return 0 if there is still dirty block that needs to be submitted through
+ * extent_writepage_io().
+ * bio_ctrl->submit_bitmap will indicate which blocks of the folio should be
+ * submitted, and @folio is still kept locked.
+ *
+ * Return <0 if there is any error hit.
+ * Any allocated ordered extent range covering this folio will be marked
+ * finished (IOERR), and @folio is still kept locked.
  */
 static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 						 struct folio *folio,
@@ -1159,6 +1164,16 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 	 * last delalloc end.
 	 */
 	u64 last_delalloc_end = 0;
+	/*
+	 * The range end (exclusive) of the last successfully finished delalloc
+	 * range.
+	 * Any range covered by ordered extent must either be manually marked
+	 * finished (error handling), or has IO submitted (and finish the
+	 * ordered extent normally).
+	 *
+	 * This records the end of ordered extent cleanup if we hit an error.
+	 */
+	u64 last_finished_delalloc_end = page_start;
 	u64 delalloc_start = page_start;
 	u64 delalloc_end = page_end;
 	u64 delalloc_to_write = 0;
@@ -1227,11 +1242,19 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 			found_len = last_delalloc_end + 1 - found_start;
 
 		if (ret >= 0) {
+			/*
+			 * Some delalloc range may be created by previous folios.
+			 * Thus we still need to clean up this range during error
+			 * handling.
+			 */
+			last_finished_delalloc_end = found_start;
 			/* No errors hit so far, run the current delalloc range. */
 			ret = btrfs_run_delalloc_range(inode, folio,
 						       found_start,
 						       found_start + found_len - 1,
 						       wbc);
+			if (ret >= 0)
+				last_finished_delalloc_end = found_start + found_len;
 		} else {
 			/*
 			 * We've hit an error during previous delalloc range,
@@ -1266,8 +1289,22 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 
 		delalloc_start = found_start + found_len;
 	}
-	if (ret < 0)
+	/*
+	 * It's possible we had some ordered extents created before we hit
+	 * an error, cleanup non-async successfully created delalloc ranges.
+	 */
+	if (unlikely(ret < 0)) {
+		unsigned int bitmap_size = min(
+				(last_finished_delalloc_end - page_start) >>
+				fs_info->sectorsize_bits,
+				fs_info->sectors_per_page);
+
+		for_each_set_bit(bit, &bio_ctrl->submit_bitmap, bitmap_size)
+			btrfs_mark_ordered_io_finished(inode, folio,
+				page_start + (bit << fs_info->sectorsize_bits),
+				fs_info->sectorsize, false);
 		return ret;
+	}
 out:
 	if (last_delalloc_end)
 		delalloc_end = last_delalloc_end;
@@ -1501,13 +1538,13 @@ static int extent_writepage(struct folio *folio, struct btrfs_bio_ctrl *bio_ctrl
 
 	bio_ctrl->wbc->nr_to_write--;
 
-done:
-	if (ret) {
+	if (ret)
 		btrfs_mark_ordered_io_finished(inode, folio,
 					       page_start, PAGE_SIZE, !ret);
-		mapping_set_error(folio->mapping, ret);
-	}
 
+done:
+	if (ret < 0)
+		mapping_set_error(folio->mapping, ret);
 	/*
 	 * Only unlock ranges that are submitted. As there can be some async
 	 * submitted ranges inside the folio.

@@ -2301,8 +2301,7 @@ int btrfs_run_delalloc_range(struct btrfs_inode *inode, struct folio *locked_fol
 
 out:
 	if (ret < 0)
-		btrfs_cleanup_ordered_extents(inode, locked_folio, start,
-					      end - start + 1);
+		btrfs_cleanup_ordered_extents(inode, NULL, start, end - start + 1);
 	return ret;
 }
 
