@@ -2260,7 +2260,7 @@ static struct bkey_s_c __bch2_btree_iter_peek(struct btree_iter *iter, struct bp
 			/* ensure that iter->k is consistent with iter->pos: */
 			bch2_btree_iter_set_pos(iter, iter->pos);
 			k = bkey_s_c_err(ret);
-			goto out;
+			break;
 		}
 
 		struct btree_path *path = btree_iter_path(trans, iter);
@@ -2270,7 +2270,7 @@ static struct bkey_s_c __bch2_btree_iter_peek(struct btree_iter *iter, struct bp
 			/* No btree nodes at requested level: */
 			bch2_btree_iter_set_pos(iter, SPOS_MAX);
 			k = bkey_s_c_null;
-			goto out;
+			break;
 		}
 
 		btree_path_set_should_be_locked(trans, path);
@@ -2281,10 +2281,9 @@ static struct bkey_s_c __bch2_btree_iter_peek(struct btree_iter *iter, struct bp
 		    k.k &&
 		    (k2 = btree_trans_peek_key_cache(iter, k.k->p)).k) {
 			k = k2;
-			ret = bkey_err(k);
-			if (ret) {
+			if (bkey_err(k)) {
 				bch2_btree_iter_set_pos(iter, iter->pos);
-				goto out;
+				break;
 			}
 		}
 
@@ -2318,12 +2317,11 @@ static struct bkey_s_c __bch2_btree_iter_peek(struct btree_iter *iter, struct bp
 			/* End of btree: */
 			bch2_btree_iter_set_pos(iter, SPOS_MAX);
 			k = bkey_s_c_null;
-			goto out;
+			break;
 		}
 	}
-out:
-	bch2_btree_iter_verify(iter);
 
+	bch2_btree_iter_verify(iter);
 	return k;
 }
 
