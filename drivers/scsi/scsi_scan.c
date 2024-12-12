@@ -1634,6 +1634,24 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 }
 EXPORT_SYMBOL(__scsi_add_device);
 
+/**
+ * scsi_add_device - creates a new SCSI (LU) instance
+ * @host: the &Scsi_Host instance where the device is located
+ * @channel: target channel number (rarely other than %0)
+ * @target: target id number
+ * @lun: LUN of target device
+ *
+ * Probe for a specific LUN and add it if found.
+ *
+ * Notes: This call is usually performed internally during a SCSI
+ * bus scan when an HBA is added (i.e. scsi_scan_host()). So it
+ * should only be called if the HBA becomes aware of a new SCSI
+ * device (LU) after scsi_scan_host() has completed. If successful
+ * this call can lead to sdev_init() and sdev_configure() callbacks
+ * into the LLD.
+ *
+ * Return: %0 on success or negative error code on failure
+ */
 int scsi_add_device(struct Scsi_Host *host, uint channel,
 		    uint target, u64 lun)
 {
@@ -2025,6 +2043,8 @@ static void do_scan_async(void *_data, async_cookie_t c)
 /**
  * scsi_scan_host - scan the given adapter
  * @shost:	adapter to scan
+ *
+ * Notes: Should be called after scsi_add_host()
  **/
 void scsi_scan_host(struct Scsi_Host *shost)
 {
