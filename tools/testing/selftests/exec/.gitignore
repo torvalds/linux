@@ -11,9 +11,11 @@ non-regular
 null-argv
 /check-exec
 /false
+/inc
 /load_address.*
 !load_address.c
 /recursion-depth
+/set-exec
 xxxxxxxx*
 pipe
 S_I*.test

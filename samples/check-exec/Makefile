@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 userprogs-always-y := \
+	inc \
 	set-exec
 
 userccflags += -I usr/include
