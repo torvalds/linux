@@ -198,7 +198,7 @@ struct bio *erofs_fscache_bio_alloc(struct erofs_map_dev *mdev)
 
 	io = kmalloc(sizeof(*io), GFP_KERNEL | __GFP_NOFAIL);
 	bio_init(&io->bio, NULL, io->bvecs, BIO_MAX_VECS, REQ_OP_READ);
-	io->io.private = mdev->m_fscache->cookie;
+	io->io.private = mdev->m_dif->fscache->cookie;
 	io->io.end_io = erofs_fscache_bio_endio;
 	refcount_set(&io->io.ref, 1);
 	return &io->bio;
@@ -316,7 +316,7 @@ static int erofs_fscache_data_read_slice(struct erofs_fscache_rq *req)
 	if (!io)
 		return -ENOMEM;
 	iov_iter_xarray(&io->iter, ITER_DEST, &mapping->i_pages, pos, count);
-	ret = erofs_fscache_read_io_async(mdev.m_fscache->cookie,
+	ret = erofs_fscache_read_io_async(mdev.m_dif->fscache->cookie,
 			mdev.m_pa + (pos - map.m_la), io);
 	erofs_fscache_req_io_put(io);
 
