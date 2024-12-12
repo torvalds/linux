@@ -3335,9 +3335,11 @@ static int ccs_probe(struct i2c_client *client)
 
 	rval = request_firmware(&fw, filename, &client->dev);
 	if (!rval) {
-		ccs_data_parse(&sensor->sdata, fw->data, fw->size, &client->dev,
-			       true);
+		rval = ccs_data_parse(&sensor->sdata, fw->data, fw->size,
+				      &client->dev, true);
 		release_firmware(fw);
+		if (rval)
+			goto out_power_off;
 	}
 
 	if (!(ccsdev->flags & CCS_DEVICE_FLAG_IS_SMIA) ||
@@ -3351,9 +3353,11 @@ static int ccs_probe(struct i2c_client *client)
 
 		rval = request_firmware(&fw, filename, &client->dev);
 		if (!rval) {
-			ccs_data_parse(&sensor->mdata, fw->data, fw->size,
-				       &client->dev, true);
+			rval = ccs_data_parse(&sensor->mdata, fw->data,
+					      fw->size, &client->dev, true);
 			release_firmware(fw);
+			if (rval)
+				goto out_release_sdata;
 		}
 	}
 
