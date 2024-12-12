@@ -3379,14 +3379,14 @@ kvfree_rcu_bulk(struct kfree_rcu_cpu *krcp,
 		rcu_lock_acquire(&rcu_callback_map);
 		if (idx == 0) { // kmalloc() / kfree().
 			trace_rcu_invoke_kfree_bulk_callback(
-				rcu_state.name, bnode->nr_records,
+				"slab", bnode->nr_records,
 				bnode->records);
 
 			kfree_bulk(bnode->nr_records, bnode->records);
 		} else { // vmalloc() / vfree().
 			for (i = 0; i < bnode->nr_records; i++) {
 				trace_rcu_invoke_kvfree_callback(
-					rcu_state.name, bnode->records[i], 0);
+					"slab", bnode->records[i], 0);
 
 				vfree(bnode->records[i]);
 			}
@@ -3417,7 +3417,7 @@ kvfree_rcu_list(struct rcu_head *head)
 		next = head->next;
 		debug_rcu_head_unqueue((struct rcu_head *)ptr);
 		rcu_lock_acquire(&rcu_callback_map);
-		trace_rcu_invoke_kvfree_callback(rcu_state.name, head, offset);
+		trace_rcu_invoke_kvfree_callback("slab", head, offset);
 
 		if (!WARN_ON_ONCE(!__is_kvfree_rcu_offset(offset)))
 			kvfree(ptr);
