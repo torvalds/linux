@@ -1302,20 +1302,37 @@ int cap_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 		     & (old->securebits ^ arg2))			/*[1]*/
 		    || ((old->securebits & SECURE_ALL_LOCKS & ~arg2))	/*[2]*/
 		    || (arg2 & ~(SECURE_ALL_LOCKS | SECURE_ALL_BITS))	/*[3]*/
-		    || (cap_capable(current_cred(),
-				    current_cred()->user_ns,
-				    CAP_SETPCAP,
-				    CAP_OPT_NONE) != 0)			/*[4]*/
 			/*
 			 * [1] no changing of bits that are locked
 			 * [2] no unlocking of locks
 			 * [3] no setting of unsupported bits
-			 * [4] doing anything requires privilege (go read about
-			 *     the "sendmail capabilities bug")
 			 */
 		    )
 			/* cannot change a locked bit */
 			return -EPERM;
+
+		/*
+		 * Doing anything requires privilege (go read about the
+		 * "sendmail capabilities bug"), except for unprivileged bits.
+		 * Indeed, the SECURE_ALL_UNPRIVILEGED bits are not
+		 * restrictions enforced by the kernel but by user space on
+		 * itself.
+		 */
+		if (cap_capable(current_cred(), current_cred()->user_ns,
+				CAP_SETPCAP, CAP_OPT_NONE) != 0) {
+			const unsigned long unpriv_and_locks =
+				SECURE_ALL_UNPRIVILEGED |
+				SECURE_ALL_UNPRIVILEGED << 1;
+			const unsigned long changed = old->securebits ^ arg2;
+
+			/* For legacy reason, denies non-change. */
+			if (!changed)
+				return -EPERM;
+
+			/* Denies privileged changes. */
+			if (changed & ~unpriv_and_locks)
+				return -EPERM;
+		}
 
 		new = prepare_creds();
 		if (!new)
