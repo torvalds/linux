@@ -210,7 +210,7 @@ static int skel_do_release(gpib_board_t *);
  *		 (unix time in sec and NANOsec)
  */
 
-inline int usec_diff(struct timespec64 *a, struct timespec64 *b)
+static inline int usec_diff(struct timespec64 *a, struct timespec64 *b)
 {
 	return ((a->tv_sec - b->tv_sec) * 1000000 +
 		(a->tv_nsec - b->tv_nsec) / 1000);
