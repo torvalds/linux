@@ -50,6 +50,11 @@ struct adreno_smmu_fault_info {
  *                 the GPU driver must call resume_translation()
  * @resume_translation: Resume translation after a fault
  *
+ * @set_prr_bit:   [optional] Configure the GPU's Partially Resident
+ *                 Region (PRR) bit in the ACTLR register.
+ * @set_prr_addr:  [optional] Configure the PRR_CFG_*ADDR register with
+ *                 the physical address of PRR page passed from GPU
+ *                 driver.
  *
  * The GPU driver (drm/msm) and adreno-smmu work together for controlling
  * the GPU's SMMU instance.  This is by necessity, as the GPU is directly
@@ -67,6 +72,8 @@ struct adreno_smmu_priv {
     void (*get_fault_info)(const void *cookie, struct adreno_smmu_fault_info *info);
     void (*set_stall)(const void *cookie, bool enabled);
     void (*resume_translation)(const void *cookie, bool terminate);
+    void (*set_prr_bit)(const void *cookie, bool set);
+    void (*set_prr_addr)(const void *cookie, phys_addr_t page_addr);
 };
 
 #endif /* __ADRENO_SMMU_PRIV_H */
