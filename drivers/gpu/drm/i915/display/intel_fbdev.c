@@ -643,11 +643,27 @@ err_drm_err:
 	return ret;
 }
 
+static int intel_fbdev_client_suspend(struct drm_client_dev *client, bool holds_console_lock)
+{
+	intel_fbdev_set_suspend(client->dev, FBINFO_STATE_SUSPENDED, true);
+
+	return 0;
+}
+
+static int intel_fbdev_client_resume(struct drm_client_dev *client, bool holds_console_lock)
+{
+	intel_fbdev_set_suspend(client->dev, FBINFO_STATE_RUNNING, false);
+
+	return 0;
+}
+
 static const struct drm_client_funcs intel_fbdev_client_funcs = {
 	.owner		= THIS_MODULE,
 	.unregister	= intel_fbdev_client_unregister,
 	.restore	= intel_fbdev_client_restore,
 	.hotplug	= intel_fbdev_client_hotplug,
+	.suspend	= intel_fbdev_client_suspend,
+	.resume		= intel_fbdev_client_resume,
 };
 
 void intel_fbdev_setup(struct drm_i915_private *i915)

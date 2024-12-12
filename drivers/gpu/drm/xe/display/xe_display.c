@@ -8,6 +8,8 @@
 
 #include <linux/fb.h>
 
+#include <drm/drm_client.h>
+#include <drm/drm_client_event.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_probe_helper.h>
@@ -25,7 +27,6 @@
 #include "intel_dmc_wl.h"
 #include "intel_dp.h"
 #include "intel_encoder.h"
-#include "intel_fbdev.h"
 #include "intel_hdcp.h"
 #include "intel_hotplug.h"
 #include "intel_opregion.h"
@@ -348,7 +349,7 @@ void xe_display_pm_suspend(struct xe_device *xe)
 	 * properly.
 	 */
 	intel_power_domains_disable(display);
-	intel_fbdev_set_suspend(&xe->drm, FBINFO_STATE_SUSPENDED, true);
+	drm_client_dev_suspend(&xe->drm, false);
 
 	if (has_display(xe)) {
 		drm_kms_helper_poll_disable(&xe->drm);
@@ -378,7 +379,8 @@ void xe_display_pm_shutdown(struct xe_device *xe)
 		return;
 
 	intel_power_domains_disable(display);
-	intel_fbdev_set_suspend(&xe->drm, FBINFO_STATE_SUSPENDED, true);
+	drm_client_dev_suspend(&xe->drm, false);
+
 	if (has_display(xe)) {
 		drm_kms_helper_poll_disable(&xe->drm);
 		intel_display_driver_disable_user_access(display);
@@ -497,7 +499,7 @@ void xe_display_pm_resume(struct xe_device *xe)
 
 	intel_opregion_resume(display);
 
-	intel_fbdev_set_suspend(&xe->drm, FBINFO_STATE_RUNNING, false);
+	drm_client_dev_resume(&xe->drm, false);
 
 	intel_power_domains_enable(display);
 }
