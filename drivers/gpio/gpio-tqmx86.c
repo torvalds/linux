@@ -66,6 +66,18 @@ static void tqmx86_gpio_write(struct tqmx86_gpio_data *gd, u8 val,
 	iowrite8(val, gd->io_base + reg);
 }
 
+static void tqmx86_gpio_clrsetbits(struct tqmx86_gpio_data *gpio,
+				   u8 clr, u8 set, unsigned int reg)
+	__must_hold(&gpio->spinlock)
+{
+	u8 val = tqmx86_gpio_read(gpio, reg);
+
+	val &= ~clr;
+	val |= set;
+
+	tqmx86_gpio_write(gpio, val, reg);
+}
+
 static int tqmx86_gpio_get(struct gpio_chip *chip, unsigned int offset)
 {
 	struct tqmx86_gpio_data *gpio = gpiochip_get_data(chip);
@@ -118,7 +130,7 @@ static int tqmx86_gpio_get_direction(struct gpio_chip *chip,
 static void tqmx86_gpio_irq_config(struct tqmx86_gpio_data *gpio, int hwirq)
 	__must_hold(&gpio->spinlock)
 {
-	u8 type = TQMX86_INT_TRIG_NONE, gpiic;
+	u8 type = TQMX86_INT_TRIG_NONE;
 	int gpiic_irq = hwirq - TQMX86_NGPO;
 
 	if (gpio->irq_type[hwirq] & TQMX86_INT_UNMASKED) {
@@ -130,10 +142,10 @@ static void tqmx86_gpio_irq_config(struct tqmx86_gpio_data *gpio, int hwirq)
 				: TQMX86_INT_TRIG_RISING;
 	}
 
-	gpiic = tqmx86_gpio_read(gpio, TQMX86_GPIIC);
-	gpiic &= ~TQMX86_GPIIC_MASK(gpiic_irq);
-	gpiic |= TQMX86_GPIIC_CONFIG(gpiic_irq, type);
-	tqmx86_gpio_write(gpio, gpiic, TQMX86_GPIIC);
+	tqmx86_gpio_clrsetbits(gpio,
+			       TQMX86_GPIIC_MASK(gpiic_irq),
+			       TQMX86_GPIIC_CONFIG(gpiic_irq, type),
+			       TQMX86_GPIIC);
 }
 
 static void tqmx86_gpio_irq_mask(struct irq_data *data)
