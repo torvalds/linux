@@ -35,6 +35,7 @@ Security-related interfaces
    mfd_noexec
    spec_ctrl
    tee
+   check_exec
 
 Devices and I/O
 ===============
