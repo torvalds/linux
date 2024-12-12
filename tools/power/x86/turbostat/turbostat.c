@@ -1589,6 +1589,93 @@ struct pmt_counter {
 	struct pmt_domain_info *domains;
 };
 
+/*
+ * PMT telemetry directory iterator.
+ * Used to iterate telemetry files in sysfs in correct order.
+ */
+struct pmt_diriter_t
+{
+	DIR *dir;
+	struct dirent **namelist;
+	unsigned int num_names;
+	unsigned int current_name_idx;
+};
+
+int pmt_telemdir_filter(const struct dirent *e)
+{
+	unsigned int dummy;
+	return sscanf(e->d_name, "telem%u", &dummy);
+}
+
+int pmt_telemdir_sort(const struct dirent **a, const struct dirent **b)
+{
+	unsigned int aidx = 0, bidx = 0;
+
+	sscanf((*a)->d_name, "telem%u", &aidx);
+	sscanf((*b)->d_name, "telem%u", &bidx);
+
+	return aidx >= bidx;
+}
+
+const struct dirent* pmt_diriter_next(struct pmt_diriter_t *iter)
+{
+	const struct dirent *ret = NULL;
+
+	if (!iter->dir)
+		return NULL;
+
+	if (iter->current_name_idx >= iter->num_names)
+		return NULL;
+
+	ret = iter->namelist[iter->current_name_idx];
+	++iter->current_name_idx;
+
+	return ret;
+}
+
+const struct dirent* pmt_diriter_begin(struct pmt_diriter_t *iter, const char *pmt_root_path)
+{
+	int num_names = iter->num_names;
+
+	if (!iter->dir) {
+		iter->dir = opendir(pmt_root_path);
+		if (iter->dir == NULL)
+			return NULL;
+
+		num_names = scandir(pmt_root_path, &iter->namelist, pmt_telemdir_filter, pmt_telemdir_sort);
+		if (num_names == -1)
+			return NULL;
+	}
+
+	iter->current_name_idx = 0;
+	iter->num_names = num_names;
+
+	return pmt_diriter_next(iter);
+}
+
+void pmt_diriter_init(struct pmt_diriter_t *iter)
+{
+	memset(iter, 0, sizeof(*iter));
+}
+
+void pmt_diriter_remove(struct pmt_diriter_t *iter)
+{
+	if (iter->namelist) {
+		for (unsigned int i = 0; i < iter->num_names; i++) {
+			free(iter->namelist[i]);
+			iter->namelist[i] = NULL;
+		}
+	}
+
+	free(iter->namelist);
+	iter->namelist = NULL;
+	iter->num_names = 0;
+	iter->current_name_idx = 0;
+
+	closedir(iter->dir);
+	iter->dir = NULL;
+}
+
 unsigned int pmt_counter_get_width(const struct pmt_counter *p)
 {
 	return (p->msb - p->lsb) + 1;
