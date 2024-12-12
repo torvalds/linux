@@ -901,7 +901,7 @@ MODULE_DEVICE_TABLE(of, dt_match);
 
 static struct platform_driver ramoops_driver = {
 	.probe		= ramoops_probe,
-	.remove_new	= ramoops_remove,
+	.remove		= ramoops_remove,
 	.driver		= {
 		.name		= "ramoops",
 		.of_match_table	= dt_match,

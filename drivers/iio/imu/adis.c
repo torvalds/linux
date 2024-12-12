@@ -115,7 +115,7 @@ int __adis_write_reg(struct adis *adis, unsigned int reg, unsigned int value,
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(__adis_write_reg, IIO_ADISLIB);
+EXPORT_SYMBOL_NS_GPL(__adis_write_reg, "IIO_ADISLIB");
 
 /**
  * __adis_read_reg() - read N bytes from register (unlocked version)
@@ -206,7 +206,7 @@ int __adis_read_reg(struct adis *adis, unsigned int reg, unsigned int *val,
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(__adis_read_reg, IIO_ADISLIB);
+EXPORT_SYMBOL_NS_GPL(__adis_read_reg, "IIO_ADISLIB");
 /**
  * __adis_update_bits_base() - ADIS Update bits function - Unlocked version
  * @adis: The adis device
@@ -231,7 +231,7 @@ int __adis_update_bits_base(struct adis *adis, unsigned int reg, const u32 mask,
 
 	return __adis_write_reg(adis, reg, __val, size);
 }
-EXPORT_SYMBOL_NS_GPL(__adis_update_bits_base, IIO_ADISLIB);
+EXPORT_SYMBOL_NS_GPL(__adis_update_bits_base, "IIO_ADISLIB");
 
 #ifdef CONFIG_DEBUG_FS
 
@@ -253,7 +253,7 @@ int adis_debugfs_reg_access(struct iio_dev *indio_dev, unsigned int reg,
 
 	return adis_write_reg_16(adis, reg, writeval);
 }
-EXPORT_SYMBOL_NS(adis_debugfs_reg_access, IIO_ADISLIB);
+EXPORT_SYMBOL_NS(adis_debugfs_reg_access, "IIO_ADISLIB");
 
 #endif
 
@@ -294,7 +294,7 @@ int __adis_enable_irq(struct adis *adis, bool enable)
 
 	return __adis_write_reg_16(adis, adis->data->msc_ctrl_reg, msc);
 }
-EXPORT_SYMBOL_NS(__adis_enable_irq, IIO_ADISLIB);
+EXPORT_SYMBOL_NS(__adis_enable_irq, "IIO_ADISLIB");
 
 /**
  * __adis_check_status() - Check the device for error conditions (unlocked)
@@ -326,7 +326,7 @@ int __adis_check_status(struct adis *adis)
 
 	return -EIO;
 }
-EXPORT_SYMBOL_NS_GPL(__adis_check_status, IIO_ADISLIB);
+EXPORT_SYMBOL_NS_GPL(__adis_check_status, "IIO_ADISLIB");
 
 /**
  * __adis_reset() - Reset the device (unlocked version)
@@ -350,7 +350,7 @@ int __adis_reset(struct adis *adis)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(__adis_reset, IIO_ADIS_LIB);
+EXPORT_SYMBOL_NS_GPL(__adis_reset, "IIO_ADIS_LIB");
 
 static int adis_self_test(struct adis *adis)
 {
@@ -441,7 +441,7 @@ int __adis_initial_startup(struct adis *adis)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(__adis_initial_startup, IIO_ADISLIB);
+EXPORT_SYMBOL_NS_GPL(__adis_initial_startup, "IIO_ADISLIB");
 
 /**
  * adis_single_conversion() - Performs a single sample conversion
@@ -486,7 +486,7 @@ int adis_single_conversion(struct iio_dev *indio_dev,
 
 	return IIO_VAL_INT;
 }
-EXPORT_SYMBOL_NS_GPL(adis_single_conversion, IIO_ADISLIB);
+EXPORT_SYMBOL_NS_GPL(adis_single_conversion, "IIO_ADISLIB");
 
 /**
  * adis_init() - Initialize adis device structure
@@ -529,7 +529,7 @@ int adis_init(struct adis *adis, struct iio_dev *indio_dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(adis_init, IIO_ADISLIB);
+EXPORT_SYMBOL_NS_GPL(adis_init, "IIO_ADISLIB");
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");

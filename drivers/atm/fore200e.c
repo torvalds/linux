@@ -2569,7 +2569,7 @@ static struct platform_driver fore200e_sba_driver = {
 		.of_match_table = fore200e_sba_match,
 	},
 	.probe		= fore200e_sba_probe,
-	.remove_new	= fore200e_sba_remove,
+	.remove		= fore200e_sba_remove,
 };
 #endif
 

@@ -810,7 +810,7 @@ struct platform_driver sti_hda_driver = {
 		.of_match_table = hda_of_match,
 	},
 	.probe = sti_hda_probe,
-	.remove_new = sti_hda_remove,
+	.remove = sti_hda_remove,
 };
 
 MODULE_AUTHOR("Benjamin Gaignard <benjamin.gaignard@st.com>");

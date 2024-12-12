@@ -227,7 +227,7 @@ static void bcm2835_wdt_remove(struct platform_device *pdev)
 
 static struct platform_driver bcm2835_wdt_driver = {
 	.probe		= bcm2835_wdt_probe,
-	.remove_new	= bcm2835_wdt_remove,
+	.remove		= bcm2835_wdt_remove,
 	.driver = {
 		.name =		"bcm2835-wdt",
 	},
