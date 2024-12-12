@@ -56,6 +56,9 @@
 #include "intel_fbdev_fb.h"
 #include "intel_frontbuffer.h"
 
+static int intelfb_create(struct drm_fb_helper *helper,
+			  struct drm_fb_helper_surface_size *sizes);
+
 struct intel_fbdev {
 	struct intel_framebuffer *fb;
 	struct i915_vma *vma;
@@ -165,6 +168,47 @@ static const struct fb_ops intelfb_ops = {
 
 __diag_pop();
 
+static int intelfb_dirty(struct drm_fb_helper *helper, struct drm_clip_rect *clip)
+{
+	if (!(clip->x1 < clip->x2 && clip->y1 < clip->y2))
+		return 0;
+
+	if (helper->fb->funcs->dirty)
+		return helper->fb->funcs->dirty(helper->fb, NULL, 0, 0, clip, 1);
+
+	return 0;
+}
+
+static void intelfb_restore(struct drm_fb_helper *fb_helper)
+{
+	struct intel_fbdev *ifbdev = to_intel_fbdev(fb_helper);
+
+	intel_fbdev_invalidate(ifbdev);
+}
+
+static void intelfb_set_suspend(struct drm_fb_helper *fb_helper, bool suspend)
+{
+	struct fb_info *info = fb_helper->info;
+
+	/*
+	 * When resuming from hibernation, Linux restores the object's
+	 * content from swap if the buffer is backed by shmemfs. If the
+	 * object is stolen however, it will be full of whatever garbage
+	 * was left in there. Clear it to zero in this case.
+	 */
+	if (!suspend && !intel_bo_is_shmem(intel_fb_bo(fb_helper->fb)))
+		memset_io(info->screen_base, 0, info->screen_size);
+
+	fb_set_suspend(info, suspend);
+}
+
+static const struct drm_fb_helper_funcs intel_fb_helper_funcs = {
+	.fb_probe = intelfb_create,
+	.fb_dirty = intelfb_dirty,
+	.fb_restore = intelfb_restore,
+	.fb_set_suspend = intelfb_set_suspend,
+};
+
 static int intelfb_create(struct drm_fb_helper *helper,
 			  struct drm_fb_helper_surface_size *sizes)
 {
@@ -267,47 +311,6 @@ out_unlock:
 	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 	return ret;
 }
-
-static int intelfb_dirty(struct drm_fb_helper *helper, struct drm_clip_rect *clip)
-{
-	if (!(clip->x1 < clip->x2 && clip->y1 < clip->y2))
-		return 0;
-
-	if (helper->fb->funcs->dirty)
-		return helper->fb->funcs->dirty(helper->fb, NULL, 0, 0, clip, 1);
-
-	return 0;
-}
-
-static void intelfb_restore(struct drm_fb_helper *fb_helper)
-{
-	struct intel_fbdev *ifbdev = to_intel_fbdev(fb_helper);
-
-	intel_fbdev_invalidate(ifbdev);
-}
-
-static void intelfb_set_suspend(struct drm_fb_helper *fb_helper, bool suspend)
-{
-	struct fb_info *info = fb_helper->info;
-
-	/*
-	 * When resuming from hibernation, Linux restores the object's
-	 * content from swap if the buffer is backed by shmemfs. If the
-	 * object is stolen however, it will be full of whatever garbage
-	 * was left in there. Clear it to zero in this case.
-	 */
-	if (!suspend && !intel_bo_is_shmem(intel_fb_bo(fb_helper->fb)))
-		memset_io(info->screen_base, 0, info->screen_size);
-
-	fb_set_suspend(info, suspend);
-}
-
-static const struct drm_fb_helper_funcs intel_fb_helper_funcs = {
-	.fb_probe = intelfb_create,
-	.fb_dirty = intelfb_dirty,
-	.fb_restore = intelfb_restore,
-	.fb_set_suspend = intelfb_set_suspend,
-};
 
 /*
  * Build an intel_fbdev struct using a BIOS allocated framebuffer, if possible.
