@@ -140,7 +140,7 @@ fnic_debug_dump_fip_frame(struct fnic *fnic, struct ethhdr *eth,
 	u16 op = be16_to_cpu(fiph->fip_op);
 	u8 sub = fiph->fip_subcode;
 
-	FNIC_FCS_DBG(KERN_DEBUG, fnic->lport->host, fnic->fnic_num,
+	FNIC_FCS_DBG(KERN_DEBUG, fnic->host, fnic->fnic_num,
 		"FIP %s packet contents: op: 0x%x sub: 0x%x (len = %d)",
 		pfx, op, sub, len);
 

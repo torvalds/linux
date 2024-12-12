@@ -682,7 +682,7 @@ int fnic_stats_debugfs_init(struct fnic *fnic)
 	int rc = -1;
 	char name[16];
 
-	snprintf(name, sizeof(name), "host%d", fnic->lport->host->host_no);
+	snprintf(name, sizeof(name), "host%d", fnic->host->host_no);
 
 	if (!fnic_stats_debugfs_root) {
 		pr_debug("fnic_stats root doesn't exist\n");

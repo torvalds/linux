@@ -22,7 +22,6 @@
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_fc.h>
 #include <scsi/scsi_tcq.h>
-#include <scsi/libfc.h>
 #include <scsi/fc_frame.h>
 
 #include "vnic_dev.h"
@@ -176,7 +175,7 @@ static void fnic_get_host_speed(struct Scsi_Host *shost)
 	u32 port_speed = vnic_dev_port_speed(fnic->vdev);
 	struct fnic_stats *fnic_stats = &fnic->fnic_stats;
 
-	FNIC_MAIN_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+	FNIC_MAIN_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
 				  "port_speed: %d Mbps", port_speed);
 	atomic64_set(&fnic_stats->misc_stats.port_speed_in_mbps, port_speed);
 
@@ -226,7 +225,7 @@ static void fnic_get_host_speed(struct Scsi_Host *shost)
 		fc_host_speed(shost) = FC_PORTSPEED_128GBIT;
 		break;
 	default:
-		FNIC_MAIN_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+		FNIC_MAIN_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
 					  "Unknown FC speed: %d Mbps", port_speed);
 		fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;
 		break;
@@ -252,7 +251,7 @@ static struct fc_host_statistics *fnic_get_stats(struct Scsi_Host *host)
 	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 
 	if (ret) {
-		FNIC_MAIN_DBG(KERN_DEBUG, fnic->lport->host, fnic->fnic_num,
+		FNIC_MAIN_DBG(KERN_DEBUG, fnic->host, fnic->fnic_num,
 					  "fnic: Get vnic stats failed: 0x%x", ret);
 		return stats;
 	}
@@ -361,7 +360,7 @@ static void fnic_reset_host_stats(struct Scsi_Host *host)
 	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 
 	if (ret) {
-		FNIC_MAIN_DBG(KERN_DEBUG, fnic->lport->host, fnic->fnic_num,
+		FNIC_MAIN_DBG(KERN_DEBUG, fnic->host, fnic->fnic_num,
 				"fnic: Reset vnic stats failed"
 				" 0x%x", ret);
 		return;
@@ -565,7 +564,7 @@ static void fnic_set_vlan(struct fnic *fnic, u16 vlan_id)
 
 static void fnic_scsi_init(struct fnic *fnic)
 {
-	struct Scsi_Host *host = fnic->lport->host;
+	struct Scsi_Host *host = fnic->host;
 
 	snprintf(fnic->name, sizeof(fnic->name) - 1, "%s%d", DRV_NAME,
 			 host->host_no);
@@ -575,7 +574,7 @@ static void fnic_scsi_init(struct fnic *fnic)
 
 static int fnic_scsi_drv_init(struct fnic *fnic)
 {
-	struct Scsi_Host *host = fnic->lport->host;
+	struct Scsi_Host *host = fnic->host;
 	int err;
 	struct pci_dev *pdev = fnic->pdev;
 	struct fnic_iport_s *iport = &fnic->iport;
@@ -612,41 +611,41 @@ static int fnic_scsi_drv_init(struct fnic *fnic)
 
 	fnic_scsi_init(fnic);
 
-	err = scsi_add_host(fnic->lport->host, &pdev->dev);
+	err = scsi_add_host(fnic->host, &pdev->dev);
 	if (err) {
 		dev_err(&fnic->pdev->dev, "fnic: scsi add host failed: aborting\n");
 		return -1;
 	}
-	fc_host_maxframe_size(fnic->lport->host) = iport->max_payload_size;
-	fc_host_dev_loss_tmo(fnic->lport->host) =
+	fc_host_maxframe_size(fnic->host) = iport->max_payload_size;
+	fc_host_dev_loss_tmo(fnic->host) =
 		fnic->config.port_down_timeout / 1000;
-	sprintf(fc_host_symbolic_name(fnic->lport->host),
+	sprintf(fc_host_symbolic_name(fnic->host),
 			DRV_NAME " v" DRV_VERSION " over %s", fnic->name);
-	fc_host_port_type(fnic->lport->host) = FC_PORTTYPE_NPORT;
-	fc_host_node_name(fnic->lport->host) = iport->wwnn;
-	fc_host_port_name(fnic->lport->host) = iport->wwpn;
-	fc_host_supported_classes(fnic->lport->host) = FC_COS_CLASS3;
-	memset(fc_host_supported_fc4s(fnic->lport->host), 0,
-		   sizeof(fc_host_supported_fc4s(fnic->lport->host)));
-	fc_host_supported_fc4s(fnic->lport->host)[2] = 1;
-	fc_host_supported_fc4s(fnic->lport->host)[7] = 1;
-	fc_host_supported_speeds(fnic->lport->host) = 0;
-	fc_host_supported_speeds(fnic->lport->host) |= FC_PORTSPEED_8GBIT;
+	fc_host_port_type(fnic->host) = FC_PORTTYPE_NPORT;
+	fc_host_node_name(fnic->host) = iport->wwnn;
+	fc_host_port_name(fnic->host) = iport->wwpn;
+	fc_host_supported_classes(fnic->host) = FC_COS_CLASS3;
+	memset(fc_host_supported_fc4s(fnic->host), 0,
+		   sizeof(fc_host_supported_fc4s(fnic->host)));
+	fc_host_supported_fc4s(fnic->host)[2] = 1;
+	fc_host_supported_fc4s(fnic->host)[7] = 1;
+	fc_host_supported_speeds(fnic->host) = 0;
+	fc_host_supported_speeds(fnic->host) |= FC_PORTSPEED_8GBIT;
 
-	dev_info(&fnic->pdev->dev, "shost_data: 0x%p\n", fnic->lport->host->shost_data);
-	if (fnic->lport->host->shost_data != NULL) {
+	dev_info(&fnic->pdev->dev, "shost_data: 0x%p\n", fnic->host->shost_data);
+	if (fnic->host->shost_data != NULL) {
 		if (fnic_tgt_id_binding == 0) {
 			dev_info(&fnic->pdev->dev, "Setting target binding to NONE\n");
-			fc_host_tgtid_bind_type(fnic->lport->host) = FC_TGTID_BIND_NONE;
+			fc_host_tgtid_bind_type(fnic->host) = FC_TGTID_BIND_NONE;
 		} else {
 			dev_info(&fnic->pdev->dev, "Setting target binding to WWPN\n");
-			fc_host_tgtid_bind_type(fnic->lport->host) = FC_TGTID_BIND_BY_WWPN;
+			fc_host_tgtid_bind_type(fnic->host) = FC_TGTID_BIND_BY_WWPN;
 		}
 	}
 
 	fnic->io_req_pool = mempool_create_slab_pool(2, fnic_io_req_cache);
 	if (!fnic->io_req_pool) {
-		scsi_remove_host(fnic->lport->host);
+		scsi_remove_host(fnic->host);
 		return -ENOMEM;
 	}
 
@@ -661,16 +660,16 @@ void fnic_mq_map_queues_cpus(struct Scsi_Host *host)
 	struct blk_mq_queue_map *qmap = &host->tag_set.map[HCTX_TYPE_DEFAULT];
 
 	if (intr_mode == VNIC_DEV_INTR_MODE_MSI || intr_mode == VNIC_DEV_INTR_MODE_INTX) {
-		FNIC_MAIN_DBG(KERN_ERR, fnic->lport->host, fnic->fnic_num,
+		FNIC_MAIN_DBG(KERN_ERR, fnic->host, fnic->fnic_num,
 			"intr_mode is not msix\n");
 		return;
 	}
 
-	FNIC_MAIN_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+	FNIC_MAIN_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
 			"qmap->nr_queues: %d\n", qmap->nr_queues);
 
 	if (l_pdev == NULL) {
-		FNIC_MAIN_DBG(KERN_ERR, fnic->lport->host, fnic->fnic_num,
+		FNIC_MAIN_DBG(KERN_ERR, fnic->host, fnic->fnic_num,
 						"l_pdev is null\n");
 		return;
 	}
@@ -832,7 +831,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			}
 			*((struct fnic **) shost_priv(host)) = fnic;
 
-			fnic->lport->host = host;
+			fnic->host = host;
 			fnic->role = FNIC_ROLE_FCP_INITIATOR;
 			dev_info(&fnic->pdev->dev, "fnic: %d is scsi initiator\n",
 					fnic->fnic_num);
@@ -1042,7 +1041,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 err_out_free_stats_debugfs:
 	fnic_stats_debugfs_remove(fnic);
-	scsi_remove_host(fnic->lport->host);
+	scsi_remove_host(fnic->host);
 err_out_scsi_drv_init:
 	fnic_free_intr(fnic);
 err_out_fnic_request_intr:
@@ -1067,7 +1066,7 @@ err_out_fnic_alloc_vnic_res:
 	fnic_clear_intr_mode(fnic);
 err_out_fnic_set_intr_mode:
 	if (IS_FNIC_FCP_INITIATOR(fnic))
-		scsi_host_put(fnic->lport->host);
+		scsi_host_put(fnic->host);
 err_out_fnic_role:
 err_out_scsi_host_alloc:
 err_out_fnic_get_config:
@@ -1164,7 +1163,7 @@ static void fnic_remove(struct pci_dev *pdev)
 	ida_free(&fnic_ida, fnic->fnic_num);
 	if (IS_FNIC_FCP_INITIATOR(fnic)) {
 		fnic_scsi_unload_cleanup(fnic);
-		scsi_host_put(fnic->lport->host);
+		scsi_host_put(fnic->host);
 	}
 	kfree(fnic);
 }

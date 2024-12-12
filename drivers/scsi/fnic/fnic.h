@@ -10,8 +10,6 @@
 #include <linux/netdevice.h>
 #include <linux/workqueue.h>
 #include <linux/bitops.h>
-#include <scsi/libfc.h>
-#include <scsi/libfcoe.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_fc.h>
@@ -346,8 +344,6 @@ struct fnic {
 	enum fnic_role_e role;
 	struct fnic_iport_s iport;
 	struct Scsi_Host *host;
-	struct fc_lport *lport;
-	struct fcoe_ctlr ctlr;		/* FIP FCoE controller structure */
 	struct vnic_dev_bar bar0;
 
 	struct fnic_msix_entry msix[FNIC_MSIX_INTR_MAX];
@@ -380,9 +376,6 @@ struct fnic {
 	u32 vlan_hw_insert:1;	        /* let hw insert the tag */
 	u32 in_remove:1;                /* fnic device in removal */
 	u32 stop_rx_link_events:1;      /* stop proc. rx frames, link events */
-	u32 link_events:1;              /* set when we get any link event*/
-
-	struct completion *remove_wait; /* device remove thread blocks */
 
 	struct completion *fw_reset_done;
 	u32 reset_in_progress;
@@ -572,7 +565,7 @@ fnic_scsi_io_iter(struct fnic *fnic,
 		.data1 = data1,
 		.data2 = data2,
 	};
-	scsi_host_busy_iter(fnic->lport->host, fnic_io_iter_handler, &iter_data);
+	scsi_host_busy_iter(fnic->host, fnic_io_iter_handler, &iter_data);
 }
 
 #ifdef FNIC_DEBUG
@@ -582,7 +575,7 @@ fnic_debug_dump(struct fnic *fnic, uint8_t *u8arr, int len)
 	int i;
 
 	for (i = 0; i < len; i = i+8) {
-		FNIC_FCS_DBG(KERN_DEBUG, fnic->lport->host, fnic->fnic_num,
+		FNIC_FCS_DBG(KERN_DEBUG, fnic->host, fnic->fnic_num,
 		    "%d: %02x %02x %02x %02x %02x %02x %02x %02x", i / 8,
 		    u8arr[i + 0], u8arr[i + 1], u8arr[i + 2], u8arr[i + 3],
 		    u8arr[i + 4], u8arr[i + 5], u8arr[i + 6], u8arr[i + 7]);
@@ -597,7 +590,7 @@ fnic_debug_dump_fc_frame(struct fnic *fnic, struct fc_frame_header *fchdr,
 
 	s_id = ntoh24(fchdr->fh_s_id);
 	d_id = ntoh24(fchdr->fh_d_id);
-	FNIC_FCS_DBG(KERN_DEBUG, fnic->lport->host, fnic->fnic_num,
+	FNIC_FCS_DBG(KERN_DEBUG, fnic->host, fnic->fnic_num,
 		"%s packet contents: sid/did/type/oxid = 0x%x/0x%x/0x%x/0x%x (len = %d)\n",
 		pfx, s_id, d_id, fchdr->fh_type,
 		FNIC_STD_GET_OX_ID(fchdr), len);
