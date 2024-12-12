@@ -797,7 +797,7 @@ int ethtool_net_get_ts_info_by_phc(struct net_device *dev,
 	return -ENODEV;
 }
 
-int
+struct phy_device *
 ethtool_phy_get_ts_info_by_phc(struct net_device *dev,
 			       struct kernel_ethtool_ts_info *info,
 			       struct hwtstamp_provider_desc *hwprov_desc)
@@ -806,7 +806,7 @@ ethtool_phy_get_ts_info_by_phc(struct net_device *dev,
 
 	/* Only precise qualifier is supported in phydev */
 	if (hwprov_desc->qualifier != HWTSTAMP_PROVIDER_QUALIFIER_PRECISE)
-		return -ENODEV;
+		return ERR_PTR(-ENODEV);
 
 	/* Look in the phy topology */
 	if (dev->link_topo) {
@@ -820,12 +820,12 @@ ethtool_phy_get_ts_info_by_phc(struct net_device *dev,
 			ethtool_init_tsinfo(info);
 			err = phy_ts_info(pdn->phy, info);
 			if (err)
-				return err;
+				return ERR_PTR(err);
 
 			if (info->phc_index == hwprov_desc->index)
-				return 0;
+				return pdn->phy;
 		}
-		return -ENODEV;
+		return ERR_PTR(-ENODEV);
 	}
 
 	/* Look on the dev->phydev */
@@ -833,13 +833,13 @@ ethtool_phy_get_ts_info_by_phc(struct net_device *dev,
 		ethtool_init_tsinfo(info);
 		err = phy_ts_info(dev->phydev, info);
 		if (err)
-			return err;
+			return ERR_PTR(err);
 
 		if (info->phc_index == hwprov_desc->index)
-			return 0;
+			return dev->phydev;
 	}
 
-	return -ENODEV;
+	return ERR_PTR(-ENODEV);
 }
 
 int ethtool_get_ts_info_by_phc(struct net_device *dev,
@@ -849,8 +849,15 @@ int ethtool_get_ts_info_by_phc(struct net_device *dev,
 	int err;
 
 	err = ethtool_net_get_ts_info_by_phc(dev, info, hwprov_desc);
-	if (err == -ENODEV)
-		err = ethtool_phy_get_ts_info_by_phc(dev, info, hwprov_desc);
+	if (err == -ENODEV) {
+		struct phy_device *phy;
+
+		phy = ethtool_phy_get_ts_info_by_phc(dev, info, hwprov_desc);
+		if (IS_ERR(phy))
+			err = PTR_ERR(phy);
+		else
+			err = 0;
+	}
 
 	info->so_timestamping |= SOF_TIMESTAMPING_RX_SOFTWARE |
 				 SOF_TIMESTAMPING_SOFTWARE;

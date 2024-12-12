@@ -56,7 +56,7 @@ int ethtool_get_ts_info_by_phc(struct net_device *dev,
 int ethtool_net_get_ts_info_by_phc(struct net_device *dev,
 				   struct kernel_ethtool_ts_info *info,
 				   struct hwtstamp_provider_desc *hwprov_desc);
-int
+struct phy_device *
 ethtool_phy_get_ts_info_by_phc(struct net_device *dev,
 			       struct kernel_ethtool_ts_info *info,
 			       struct hwtstamp_provider_desc *hwprov_desc);
