@@ -9,6 +9,8 @@ execveat.ephemeral
 execveat.denatured
 non-regular
 null-argv
+/check-exec
+/false
 /load_address.*
 !load_address.c
 /recursion-depth
