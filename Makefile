@@ -1367,6 +1367,10 @@ PHONY += scripts_unifdef
 scripts_unifdef: scripts_basic
 	$(Q)$(MAKE) $(build)=scripts scripts/unifdef
 
+PHONY += scripts_gen_packed_field_checks
+scripts_gen_packed_field_checks: scripts_basic
+	$(Q)$(MAKE) $(build)=scripts scripts/gen_packed_field_checks
+
 # ---------------------------------------------------------------------------
 # Install
 
