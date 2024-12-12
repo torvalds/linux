@@ -1297,6 +1297,29 @@ static struct hpo_dp_link_encoder *dcn401_hpo_dp_link_encoder_create(
 	return &hpo_dp_enc31->base;
 }
 
+static unsigned int dcn401_calc_num_avail_chans_for_mall(struct dc *dc, unsigned int num_chans)
+{
+	unsigned int num_available_chans = 1;
+
+	/* channels for MALL must be a power of 2 */
+	while (num_chans > 1) {
+		num_available_chans = (num_available_chans << 1);
+		num_chans = (num_chans >> 1);
+	}
+
+	/* cannot be odd */
+	num_available_chans &= ~1;
+
+	/* clamp to max available channels for MALL per ASIC */
+	if (ASICREV_IS_GC_12_0_0_A0(dc->ctx->asic_id.hw_internal_rev)) {
+		num_available_chans = num_available_chans > 16 ? 16 : num_available_chans;
+	} else if (ASICREV_IS_GC_12_0_1_A0(dc->ctx->asic_id.hw_internal_rev)) {
+		num_available_chans = num_available_chans > 8 ? 8 : num_available_chans;
+	}
+
+	return num_available_chans;
+}
+
 static struct dce_hwseq *dcn401_hwseq_create(
 	struct dc_context *ctx)
 {
@@ -1592,6 +1615,14 @@ static void dcn401_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *b
 
 	memcpy(dml2_opt, &dc->dml2_options, sizeof(dc->dml2_options));
 
+	/* re-calculate the available MALL size if required */
+	if (bw_params->num_channels > 0) {
+		dc->caps.max_cab_allocation_bytes = dcn401_calc_num_avail_chans_for_mall(
+			dc, bw_params->num_channels) *
+			dc->caps.mall_size_per_mem_channel * 1024 * 1024;
+		dc->caps.mall_size_total = dc->caps.max_cab_allocation_bytes;
+	}
+
 	DC_FP_START();
 
 	dcn401_update_bw_bounding_box_fpu(dc, bw_params);
@@ -1712,29 +1743,6 @@ static int dcn401_get_power_profile(const struct dc_state *context)
 static unsigned int dcn401_get_vstartup_for_pipe(struct pipe_ctx *pipe_ctx)
 {
 	return pipe_ctx->global_sync.dcn4x.vstartup_lines;
-}
-
-static unsigned int dcn401_calc_num_avail_chans_for_mall(struct dc *dc, unsigned int num_chans)
-{
-	unsigned int num_available_chans = 1;
-
-	/* channels for MALL must be a power of 2 */
-	while (num_chans > 1) {
-		num_available_chans = (num_available_chans << 1);
-		num_chans = (num_chans >> 1);
-	}
-
-	/* cannot be odd */
-	num_available_chans &= ~1;
-
-	/* clamp to max available channels for MALL per ASIC */
-	if (ASICREV_IS_GC_12_0_0_A0(dc->ctx->asic_id.hw_internal_rev)) {
-		num_available_chans = num_available_chans > 16 ? 16 : num_available_chans;
-	} else if (ASICREV_IS_GC_12_0_1_A0(dc->ctx->asic_id.hw_internal_rev)) {
-		num_available_chans = num_available_chans > 8 ? 8 : num_available_chans;
-	}
-
-	return num_available_chans;
 }
 
 static struct resource_funcs dcn401_res_pool_funcs = {

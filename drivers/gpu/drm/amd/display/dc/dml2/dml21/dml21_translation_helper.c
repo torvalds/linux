@@ -294,12 +294,17 @@ void dml21_apply_soc_bb_overrides(struct dml2_initialize_instance_in_out *dml_in
 		dml_soc_bb->power_management_parameters.stutter_exit_latency_us =
 			(in_dc->ctx->dc_bios->bb_info.dram_sr_exit_latency_100ns + 9) / 10;
 
-	if (in_dc->ctx->dc_bios->vram_info.num_chans) {
+	if (dc_bw_params->num_channels) {
+		dml_clk_table->dram_config.channel_count = dc_bw_params->num_channels;
+		dml_soc_bb->mall_allocated_for_dcn_mbytes = in_dc->caps.mall_size_total / 1048576;
+	} else if (in_dc->ctx->dc_bios->vram_info.num_chans) {
 		dml_clk_table->dram_config.channel_count = in_dc->ctx->dc_bios->vram_info.num_chans;
 		dml_soc_bb->mall_allocated_for_dcn_mbytes = in_dc->caps.mall_size_total / 1048576;
 	}
 
-	if (in_dc->ctx->dc_bios->vram_info.dram_channel_width_bytes) {
+	if (dc_bw_params->dram_channel_width_bytes) {
+		dml_clk_table->dram_config.channel_width_bytes = dc_bw_params->dram_channel_width_bytes;
+	} else if (in_dc->ctx->dc_bios->vram_info.dram_channel_width_bytes) {
 		dml_clk_table->dram_config.channel_width_bytes = in_dc->ctx->dc_bios->vram_info.dram_channel_width_bytes;
 	}
 

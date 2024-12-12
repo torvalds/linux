@@ -1403,6 +1403,15 @@ static void dcn401_get_memclk_states_from_smu(struct clk_mgr *clk_mgr_base)
 	if (clk_mgr->dpm_present && !num_levels)
 		clk_mgr->dpm_present = false;
 
+	clk_mgr_base->bw_params->num_channels = dcn401_smu_get_num_of_umc_channels(clk_mgr);
+	if (clk_mgr_base->ctx->dc_bios) {
+		/* use BIOS values if none provided by PMFW */
+		if (clk_mgr_base->bw_params->num_channels == 0) {
+			clk_mgr_base->bw_params->num_channels = clk_mgr_base->ctx->dc_bios->vram_info.num_chans;
+		}
+		clk_mgr_base->bw_params->dram_channel_width_bytes = clk_mgr_base->ctx->dc_bios->vram_info.dram_channel_width_bytes;
+	}
+
 	/* Refresh bounding box */
 	clk_mgr_base->ctx->dc->res_pool->funcs->update_bw_bounding_box(
 			clk_mgr->base.ctx->dc, clk_mgr_base->bw_params);
