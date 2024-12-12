@@ -1936,7 +1936,7 @@ static void apply_quirks_amd(struct cpuinfo_x86 *c)
 	 * Various K7s with broken bank 0 around. Always disable
 	 * by default.
 	 */
-	if (c->x86 == 6 && this_cpu_read(mce_num_banks) > 0)
+	if (c->x86 == 6 && this_cpu_read(mce_num_banks))
 		mce_banks[0].ctl = 0;
 
 	/*
@@ -1954,6 +1954,10 @@ static void apply_quirks_intel(struct cpuinfo_x86 *c)
 {
 	struct mce_bank *mce_banks = this_cpu_ptr(mce_banks_array);
 
+	/* Older CPUs (prior to family 6) don't need quirks. */
+	if (c->x86_vfm < INTEL_PENTIUM_PRO)
+		return;
+
 	/*
 	 * SDM documents that on family 6 bank 0 should not be written
 	 * because it aliases to another special BIOS controlled
@@ -1962,22 +1966,21 @@ static void apply_quirks_intel(struct cpuinfo_x86 *c)
 	 * Don't ignore bank 0 completely because there could be a
 	 * valid event later, merely don't write CTL0.
 	 */
-	if (c->x86 == 6 && c->x86_model < 0x1A && this_cpu_read(mce_num_banks) > 0)
+	if (c->x86_vfm < INTEL_NEHALEM_EP && this_cpu_read(mce_num_banks))
 		mce_banks[0].init = false;
 
 	/*
 	 * All newer Intel systems support MCE broadcasting. Enable
 	 * synchronization with a one second timeout.
 	 */
-	if ((c->x86 > 6 || (c->x86 == 6 && c->x86_model >= 0xe)) &&
-	    mca_cfg.monarch_timeout < 0)
+	if (c->x86_vfm >= INTEL_CORE_YONAH && mca_cfg.monarch_timeout < 0)
 		mca_cfg.monarch_timeout = USEC_PER_SEC;
 
 	/*
 	 * There are also broken BIOSes on some Pentium M and
 	 * earlier systems:
 	 */
-	if (c->x86 == 6 && c->x86_model <= 13 && mca_cfg.bootlog < 0)
+	if (c->x86_vfm < INTEL_CORE_YONAH && mca_cfg.bootlog < 0)
 		mca_cfg.bootlog = 0;
 
 	if (c->x86_vfm == INTEL_SANDYBRIDGE_X)
