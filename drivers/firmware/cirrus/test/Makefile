@@ -12,6 +12,7 @@ cs_dsp_test-objs :=	\
 		cs_dsp_test_bin.o \
 		cs_dsp_test_control_parse.o \
 		cs_dsp_test_control_cache.o \
+		cs_dsp_test_control_rw.o \
 		cs_dsp_test_wmfw.o \
 		cs_dsp_tests.o
 
