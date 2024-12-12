@@ -386,8 +386,6 @@ static inline bool amd_mce_is_memory_error(struct mce *m)		{ return false; };
 static inline void mce_amd_feature_init(struct cpuinfo_x86 *c)		{ }
 #endif
 
-static inline void mce_hygon_feature_init(struct cpuinfo_x86 *c)	{ return mce_amd_feature_init(c); }
-
 unsigned long copy_mc_fragile_handle_tail(char *to, char *from, unsigned len);
 
 #endif /* _ASM_X86_MCE_H */

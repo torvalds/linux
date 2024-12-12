@@ -2118,13 +2118,9 @@ static void __mcheck_cpu_init_vendor(struct cpuinfo_x86 *c)
 		mce_intel_feature_init(c);
 		break;
 
-	case X86_VENDOR_AMD: {
-		mce_amd_feature_init(c);
-		break;
-		}
-
+	case X86_VENDOR_AMD:
 	case X86_VENDOR_HYGON:
-		mce_hygon_feature_init(c);
+		mce_amd_feature_init(c);
 		break;
 
 	case X86_VENDOR_CENTAUR:
