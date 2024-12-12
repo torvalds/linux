@@ -218,6 +218,9 @@ struct xe_oa_stream {
 	/** @pollin: Whether there is data available to read */
 	bool pollin;
 
+	/** @wait_num_reports: Number of reports to wait for before signalling pollin */
+	int wait_num_reports;
+
 	/** @periodic: Whether periodic sampling is currently enabled */
 	bool periodic;
 

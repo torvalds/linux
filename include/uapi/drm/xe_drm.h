@@ -1487,6 +1487,7 @@ struct drm_xe_oa_unit {
 #define DRM_XE_OA_CAPS_BASE		(1 << 0)
 #define DRM_XE_OA_CAPS_SYNCS		(1 << 1)
 #define DRM_XE_OA_CAPS_OA_BUFFER_SIZE	(1 << 2)
+#define DRM_XE_OA_CAPS_WAIT_NUM_REPORTS	(1 << 3)
 
 	/** @oa_timestamp_freq: OA timestamp freq */
 	__u64 oa_timestamp_freq;
@@ -1660,6 +1661,12 @@ enum drm_xe_oa_property_id {
 	 * buffer is allocated by default.
 	 */
 	DRM_XE_OA_PROPERTY_OA_BUFFER_SIZE,
+
+	/**
+	 * @DRM_XE_OA_PROPERTY_WAIT_NUM_REPORTS: Number of reports to wait
+	 * for before unblocking poll or read
+	 */
+	DRM_XE_OA_PROPERTY_WAIT_NUM_REPORTS,
 };
 
 /**
