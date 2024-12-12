@@ -611,6 +611,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int i;
 	unsigned long flags;
 	int hwq;
+	char *desc, *subsys_desc;
 
 	/*
 	 * Allocate SCSI Host and set up association between host,
@@ -643,6 +644,15 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	host->transportt = fnic_fc_transport;
 	fnic->fnic_num = fnic_id;
 	fnic_stats_debugfs_init(fnic);
+
+	/* Find model name from PCIe subsys ID */
+	if (fnic_get_desc_by_devid(pdev, &desc, &subsys_desc) == 0)
+		dev_info(&fnic->pdev->dev, "Model: %s\n", subsys_desc);
+	else {
+		fnic->subsys_desc_len = 0;
+		dev_info(&fnic->pdev->dev, "Model: %s subsys_id: 0x%04x\n", "Unknown",
+				pdev->subsystem_device);
+	}
 
 	err = pci_enable_device(pdev);
 	if (err) {
