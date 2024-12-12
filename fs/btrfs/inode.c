@@ -393,34 +393,13 @@ void btrfs_inode_unlock(struct btrfs_inode *inode, unsigned int ilock_flags)
  * extent (btrfs_finish_ordered_io()).
  */
 static inline void btrfs_cleanup_ordered_extents(struct btrfs_inode *inode,
-						 struct folio *locked_folio,
 						 u64 offset, u64 bytes)
 {
 	unsigned long index = offset >> PAGE_SHIFT;
 	unsigned long end_index = (offset + bytes - 1) >> PAGE_SHIFT;
-	u64 page_start = 0, page_end = 0;
 	struct folio *folio;
 
-	if (locked_folio) {
-		page_start = folio_pos(locked_folio);
-		page_end = page_start + folio_size(locked_folio) - 1;
-	}
-
 	while (index <= end_index) {
-		/*
-		 * For locked page, we will call btrfs_mark_ordered_io_finished
-		 * through btrfs_mark_ordered_io_finished() on it
-		 * in run_delalloc_range() for the error handling, which will
-		 * clear page Ordered and run the ordered extent accounting.
-		 *
-		 * Here we can't just clear the Ordered bit, or
-		 * btrfs_mark_ordered_io_finished() would skip the accounting
-		 * for the page range, and the ordered extent will never finish.
-		 */
-		if (locked_folio && index == (page_start >> PAGE_SHIFT)) {
-			index++;
-			continue;
-		}
 		folio = filemap_get_folio(inode->vfs_inode.i_mapping, index);
 		index++;
 		if (IS_ERR(folio))
@@ -434,23 +413,6 @@ static inline void btrfs_cleanup_ordered_extents(struct btrfs_inode *inode,
 		btrfs_folio_clamp_clear_ordered(inode->root->fs_info, folio,
 						offset, bytes);
 		folio_put(folio);
-	}
-
-	if (locked_folio) {
-		/* The locked page covers the full range, nothing needs to be done */
-		if (bytes + offset <= page_start + folio_size(locked_folio))
-			return;
-		/*
-		 * In case this page belongs to the delalloc range being
-		 * instantiated then skip it, since the first page of a range is
-		 * going to be properly cleaned up by the caller of
-		 * run_delalloc_range
-		 */
-		if (page_start >= offset && page_end <= (offset + bytes - 1)) {
-			bytes = offset + bytes - folio_pos(locked_folio) -
-				folio_size(locked_folio);
-			offset = folio_pos(locked_folio) + folio_size(locked_folio);
-		}
 	}
 
 	return btrfs_mark_ordered_io_finished(inode, NULL, offset, bytes, false);
@@ -1128,7 +1090,7 @@ static void submit_uncompressed_range(struct btrfs_inode *inode,
 			       &wbc, false);
 	wbc_detach_inode(&wbc);
 	if (ret < 0) {
-		btrfs_cleanup_ordered_extents(inode, NULL, start, end - start + 1);
+		btrfs_cleanup_ordered_extents(inode, start, end - start + 1);
 		if (locked_folio)
 			btrfs_folio_end_lock(inode->root->fs_info, locked_folio,
 					     start, async_extent->ram_size);
@@ -2384,7 +2346,7 @@ int btrfs_run_delalloc_range(struct btrfs_inode *inode, struct folio *locked_fol
 
 out:
 	if (ret < 0)
-		btrfs_cleanup_ordered_extents(inode, NULL, start, end - start + 1);
+		btrfs_cleanup_ordered_extents(inode, start, end - start + 1);
 	return ret;
 }
 
