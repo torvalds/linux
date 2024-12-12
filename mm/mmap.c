@@ -291,6 +291,8 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
 
 	*populate = 0;
 
+	mmap_assert_write_locked(mm);
+
 	if (!len)
 		return -EINVAL;
 
@@ -1022,6 +1024,8 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
 {
 	unsigned long ret;
 	bool writable_file_mapping = false;
+
+	mmap_assert_write_locked(current->mm);
 
 	/* Check to see if MDWE is applicable. */
 	if (map_deny_write_exec(vm_flags, vm_flags))
