@@ -16,7 +16,6 @@ struct snapshot_t {
 	u32			children[2];
 	u32			subvol; /* Nonzero only if a subvolume points to this node: */
 	u32			tree;
-	u32			equiv;
 	unsigned long		is_ancestor[BITS_TO_LONGS(IS_ANCESTOR_BITMAP)];
 };
 

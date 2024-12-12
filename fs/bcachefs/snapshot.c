@@ -280,23 +280,6 @@ fsck_err:
 	return ret;
 }
 
-static void __set_is_ancestor_bitmap(struct bch_fs *c, u32 id)
-{
-	struct snapshot_t *t = snapshot_t_mut(c, id);
-	u32 parent = id;
-
-	while ((parent = bch2_snapshot_parent_early(c, parent)) &&
-	       parent - id - 1 < IS_ANCESTOR_BITMAP)
-		__set_bit(parent - id - 1, t->is_ancestor);
-}
-
-static void set_is_ancestor_bitmap(struct bch_fs *c, u32 id)
-{
-	mutex_lock(&c->snapshot_table_lock);
-	__set_is_ancestor_bitmap(c, id);
-	mutex_unlock(&c->snapshot_table_lock);
-}
-
 static int __bch2_mark_snapshot(struct btree_trans *trans,
 		       enum btree_id btree, unsigned level,
 		       struct bkey_s_c old, struct bkey_s_c new,
@@ -337,7 +320,11 @@ static int __bch2_mark_snapshot(struct btree_trans *trans,
 			t->skip[2]	= 0;
 		}
 
-		__set_is_ancestor_bitmap(c, id);
+		u32 parent = id;
+
+		while ((parent = bch2_snapshot_parent_early(c, parent)) &&
+		       parent - id - 1 < IS_ANCESTOR_BITMAP)
+			__set_bit(parent - id - 1, t->is_ancestor);
 
 		if (BCH_SNAPSHOT_DELETED(s.v)) {
 			set_bit(BCH_FS_need_delete_dead_snapshots, &c->flags);
@@ -365,70 +352,6 @@ int bch2_snapshot_lookup(struct btree_trans *trans, u32 id,
 {
 	return bch2_bkey_get_val_typed(trans, BTREE_ID_snapshots, POS(0, id),
 				       BTREE_ITER_with_updates, snapshot, s);
-}
-
-static int bch2_snapshot_live(struct btree_trans *trans, u32 id)
-{
-	struct bch_snapshot v;
-	int ret;
-
-	if (!id)
-		return 0;
-
-	ret = bch2_snapshot_lookup(trans, id, &v);
-	if (bch2_err_matches(ret, ENOENT))
-		bch_err(trans->c, "snapshot node %u not found", id);
-	if (ret)
-		return ret;
-
-	return !BCH_SNAPSHOT_DELETED(&v);
-}
-
-/*
- * If @k is a snapshot with just one live child, it's part of a linear chain,
- * which we consider to be an equivalence class: and then after snapshot
- * deletion cleanup, there should only be a single key at a given position in
- * this equivalence class.
- *
- * This sets the equivalence class of @k to be the child's equivalence class, if
- * it's part of such a linear chain: this correctly sets equivalence classes on
- * startup if we run leaf to root (i.e. in natural key order).
- */
-static int bch2_snapshot_set_equiv(struct btree_trans *trans, struct bkey_s_c k)
-{
-	struct bch_fs *c = trans->c;
-	unsigned i, nr_live = 0, live_idx = 0;
-	struct bkey_s_c_snapshot snap;
-	u32 id = k.k->p.offset, child[2];
-
-	if (k.k->type != KEY_TYPE_snapshot)
-		return 0;
-
-	snap = bkey_s_c_to_snapshot(k);
-
-	child[0] = le32_to_cpu(snap.v->children[0]);
-	child[1] = le32_to_cpu(snap.v->children[1]);
-
-	for (i = 0; i < 2; i++) {
-		int ret = bch2_snapshot_live(trans, child[i]);
-
-		if (ret < 0)
-			return ret;
-
-		if (ret)
-			live_idx = i;
-		nr_live += ret;
-	}
-
-	mutex_lock(&c->snapshot_table_lock);
-
-	snapshot_t_mut(c, id)->equiv = nr_live == 1
-		? snapshot_t_mut(c, child[live_idx])->equiv
-		: id;
-
-	mutex_unlock(&c->snapshot_table_lock);
-
-	return 0;
 }
 
 /* fsck: */
@@ -964,8 +887,7 @@ static int check_snapshot_exists(struct btree_trans *trans, u32 id)
 
 	return  bch2_btree_insert_trans(trans, BTREE_ID_snapshots, &snapshot->k_i, 0) ?:
 		bch2_mark_snapshot(trans, BTREE_ID_snapshots, 0,
-				   bkey_s_c_null, bkey_i_to_s(&snapshot->k_i), 0) ?:
-		bch2_snapshot_set_equiv(trans, bkey_i_to_s_c(&snapshot->k_i));
+				   bkey_s_c_null, bkey_i_to_s(&snapshot->k_i), 0);
 }
 
 /* Figure out which snapshot nodes belong in the same tree: */
@@ -1309,10 +1231,6 @@ static int create_snapids(struct btree_trans *trans, u32 parent, u32 tree,
 			goto err;
 
 		new_snapids[i]	= iter.pos.offset;
-
-		mutex_lock(&c->snapshot_table_lock);
-		snapshot_t_mut(c, new_snapids[i])->equiv = new_snapids[i];
-		mutex_unlock(&c->snapshot_table_lock);
 	}
 err:
 	bch2_trans_iter_exit(trans, &iter);
@@ -1774,15 +1692,15 @@ static int bch2_check_snapshot_needs_deletion(struct btree_trans *trans, struct 
 
 int bch2_snapshots_read(struct bch_fs *c)
 {
+	/*
+	 * Initializing the is_ancestor bitmaps requires ancestors to already be
+	 * initialized - so mark in reverse:
+	 */
 	int ret = bch2_trans_run(c,
-		for_each_btree_key(trans, iter, BTREE_ID_snapshots,
-				   POS_MIN, 0, k,
+		for_each_btree_key_reverse(trans, iter, BTREE_ID_snapshots,
+				   POS_MAX, 0, k,
 			__bch2_mark_snapshot(trans, BTREE_ID_snapshots, 0, bkey_s_c_null, k, 0) ?:
-			bch2_snapshot_set_equiv(trans, k) ?:
-			bch2_check_snapshot_needs_deletion(trans, k)) ?:
-		for_each_btree_key(trans, iter, BTREE_ID_snapshots,
-				   POS_MIN, 0, k,
-			   (set_is_ancestor_bitmap(c, k.k->p.offset), 0)));
+			bch2_check_snapshot_needs_deletion(trans, k)));
 	bch_err_fn(c, ret);
 
 	/*
