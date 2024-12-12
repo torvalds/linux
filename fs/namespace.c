@@ -78,8 +78,7 @@ static struct kmem_cache *mnt_cache __ro_after_init;
 static DECLARE_RWSEM(namespace_sem);
 static HLIST_HEAD(unmounted);	/* protected by namespace_sem */
 static LIST_HEAD(ex_mountpoints); /* protected by namespace_sem */
-static DEFINE_RWLOCK(mnt_ns_tree_lock);
-static seqcount_rwlock_t mnt_ns_tree_seqcount = SEQCNT_RWLOCK_ZERO(mnt_ns_tree_seqcount, &mnt_ns_tree_lock);
+static DEFINE_SEQLOCK(mnt_ns_tree_lock);
 
 static struct rb_root mnt_ns_tree = RB_ROOT; /* protected by mnt_ns_tree_lock */
 static LIST_HEAD(mnt_ns_list); /* protected by mnt_ns_tree_lock */
@@ -131,14 +130,12 @@ static int mnt_ns_cmp(struct rb_node *a, const struct rb_node *b)
 
 static inline void mnt_ns_tree_write_lock(void)
 {
-	write_lock(&mnt_ns_tree_lock);
-	write_seqcount_begin(&mnt_ns_tree_seqcount);
+	write_seqlock(&mnt_ns_tree_lock);
 }
 
 static inline void mnt_ns_tree_write_unlock(void)
 {
-	write_seqcount_end(&mnt_ns_tree_seqcount);
-	write_unlock(&mnt_ns_tree_lock);
+	write_sequnlock(&mnt_ns_tree_lock);
 }
 
 static void mnt_ns_tree_add(struct mnt_namespace *ns)
@@ -163,7 +160,7 @@ static void mnt_ns_tree_add(struct mnt_namespace *ns)
 
 static void mnt_ns_release(struct mnt_namespace *ns)
 {
-	lockdep_assert_not_held(&mnt_ns_tree_lock);
+	lockdep_assert_not_held(&mnt_ns_tree_lock.lock);
 
 	/* keep alive for {list,stat}mount() */
 	if (refcount_dec_and_test(&ns->passive)) {
@@ -225,11 +222,11 @@ static struct mnt_namespace *lookup_mnt_ns(u64 mnt_ns_id)
 
 	guard(rcu)();
 	do {
-		seq = read_seqcount_begin(&mnt_ns_tree_seqcount);
+		seq = read_seqbegin(&mnt_ns_tree_lock);
 		node = rb_find_rcu(&mnt_ns_id, &mnt_ns_tree, mnt_ns_find);
 		if (node)
 			break;
-	} while (read_seqcount_retry(&mnt_ns_tree_seqcount, seq));
+	} while (read_seqretry(&mnt_ns_tree_lock, seq));
 
 	if (!node)
 		return NULL;
