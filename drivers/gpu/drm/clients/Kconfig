@@ -77,6 +77,7 @@ config DRM_CLIENT_LOG
 	select DRM_CLIENT
 	select DRM_CLIENT_SETUP
 	select DRM_DRAW
+	select FONT_SUPPORT
 	help
 	  This enable a drm logger, that will print the kernel messages to the
 	  screen until the userspace is ready to take over.
