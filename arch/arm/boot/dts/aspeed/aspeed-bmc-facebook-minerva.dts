@@ -208,6 +208,63 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 	};
+
+	gpio@11 {
+		compatible = "nxp,pca9555";
+		reg = <0x11>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-parent = <&sgpiom0>;
+		interrupts = <238 IRQ_TYPE_LEVEL_LOW>;
+
+		gpio-line-names =
+		"PWRGD_P24V_SMPWROK", "P1V5_PWROK",
+		"P3V3_PWROK", "P5V_PWROK",
+		"P12V_SCM_PWROK", "P12V_PWROK",
+		"P24V_PWROK", "P48V_HSC_PWROK",
+		"ERR_GPIO_IRQ", "TMP75_ALERT_N",
+		"BMC_PWROK", "P12V_INA230_ALERT_N",
+		"P24V_INA230_ALERT_N","",
+		"P48V_HSC_ALERT_N", "P1V05_PWROK";
+	};
+
+	gpio@12 {
+		compatible = "nxp,pca9555";
+		reg = <0x12>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-parent = <&sgpiom0>;
+		interrupts = <240 IRQ_TYPE_LEVEL_LOW>;
+
+		gpio-line-names =
+		"P1V05_PWR_FAIL", "P1V5_PWR_FAIL",
+		"P24V_PWR_FAIL", "P24V_SM_PWR_FAIL",
+		"IRQ_NW0/1/2_N", "IRQ_NW3/4/5_N",
+		"RTC_INT_N_R", "ERR_GPIO_IRQ",
+		"", "",
+		"", "",
+		"", "",
+		"", "";
+	};
+
+	gpio@13 {
+		compatible = "nxp,pca9555";
+		reg = <0x13>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-parent = <&sgpiom0>;
+		interrupts = <242 IRQ_TYPE_LEVEL_LOW>;
+
+		gpio-line-names =
+		"", "",
+		"", "",
+		"", "",
+		"", "",
+		"RACKMON_A_1", "RACKMON_A_2",
+		"RACKMON_B_1", "RACKMON_B_2",
+		"", "",
+		"", "";
+	};
 };
 
 &i2c1 {
