@@ -188,6 +188,7 @@
 .endm
 
 // Move a vector between memory and a register.
+// The register operand must be in the first 16 vector registers.
 .macro	_vmovdqu	src, dst
 .if VL < 64
 	vmovdqu		\src, \dst
@@ -208,11 +209,12 @@
 .endm
 
 // XOR two vectors together.
+// Any register operands must be in the first 16 vector registers.
 .macro	_vpxor	src1, src2, dst
-.if USE_AVX10
-	vpxord		\src1, \src2, \dst
-.else
+.if VL < 64
 	vpxor		\src1, \src2, \dst
+.else
+	vpxord		\src1, \src2, \dst
 .endif
 .endm
 
@@ -555,7 +557,7 @@
 	// Compute the first set of tweaks TWEAK[0-3].
 	_compute_first_set_of_tweaks
 
-	sub		$4*VL, LEN
+	add		$-4*VL, LEN  // shorter than 'sub 4*VL' when VL=32
 	jl		.Lhandle_remainder\@
 
 .Lmain_loop\@:
@@ -563,10 +565,10 @@
 
 	// XOR each source block with its tweak and the zero-th round key.
 .if USE_AVX10
-	vmovdqu8	0*VL(SRC), V0
-	vmovdqu8	1*VL(SRC), V1
-	vmovdqu8	2*VL(SRC), V2
-	vmovdqu8	3*VL(SRC), V3
+	_vmovdqu	0*VL(SRC), V0
+	_vmovdqu	1*VL(SRC), V1
+	_vmovdqu	2*VL(SRC), V2
+	_vmovdqu	3*VL(SRC), V3
 	vpternlogd	$0x96, TWEAK0, KEY0, V0
 	vpternlogd	$0x96, TWEAK1, KEY0, V1
 	vpternlogd	$0x96, TWEAK2, KEY0, V2
@@ -612,9 +614,9 @@
 	// Finish computing the next set of tweaks.
 	_tweak_step	1000
 
-	add		$4*VL, SRC
-	add		$4*VL, DST
-	sub		$4*VL, LEN
+	sub		$-4*VL, SRC  // shorter than 'add 4*VL' when VL=32
+	sub		$-4*VL, DST
+	add		$-4*VL, LEN
 	jge		.Lmain_loop\@
 
 	// Check for the uncommon case where the data length isn't a multiple of
