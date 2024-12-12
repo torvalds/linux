@@ -213,6 +213,69 @@
 			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
+		spdma0: dma-controller@10180000 {
+			compatible = "arm,pl330", "arm,primecell";
+			reg = <0x10180000 0x1000>;
+			interrupts = <GIC_SPI 918 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cmu_misc CLK_MOUT_MISC_NOC_USER>;
+			clock-names = "apb_pclk";
+			#dma-cells = <1>;
+		};
+
+		spdma1: dma-controller@10190000 {
+			compatible = "arm,pl330", "arm,primecell";
+			reg = <0x10190000 0x1000>;
+			interrupts = <GIC_SPI 917 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cmu_misc CLK_MOUT_MISC_NOC_USER>;
+			clock-names = "apb_pclk";
+			#dma-cells = <1>;
+		};
+
+		pdma0: dma-controller@101a0000 {
+			compatible = "arm,pl330", "arm,primecell";
+			reg = <0x101a0000 0x1000>;
+			interrupts = <GIC_SPI 916 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cmu_misc CLK_MOUT_MISC_NOC_USER>;
+			clock-names = "apb_pclk";
+			#dma-cells = <1>;
+		};
+
+		pdma1: dma-controller@101b0000 {
+			compatible = "arm,pl330", "arm,primecell";
+			reg = <0x101b0000 0x1000>;
+			interrupts = <GIC_SPI 915 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cmu_misc CLK_MOUT_MISC_NOC_USER>;
+			clock-names = "apb_pclk";
+			#dma-cells = <1>;
+		};
+
+		pdma2: dma-controller@101c0000 {
+			compatible = "arm,pl330", "arm,primecell";
+			reg = <0x101c0000 0x1000>;
+			interrupts = <GIC_SPI 914 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cmu_misc CLK_MOUT_MISC_NOC_USER>;
+			clock-names = "apb_pclk";
+			#dma-cells = <1>;
+		};
+
+		pdma3: dma-controller@101d0000 {
+			compatible = "arm,pl330", "arm,primecell";
+			reg = <0x101d0000 0x1000>;
+			interrupts = <GIC_SPI 913 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cmu_misc CLK_MOUT_MISC_NOC_USER>;
+			clock-names = "apb_pclk";
+			#dma-cells = <1>;
+		};
+
+		pdma4: dma-controller@101e0000 {
+			compatible = "arm,pl330", "arm,primecell";
+			reg = <0x101e0000 0x1000>;
+			interrupts = <GIC_SPI 912 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cmu_misc CLK_MOUT_MISC_NOC_USER>;
+			clock-names = "apb_pclk";
+			#dma-cells = <1>;
+		};
+
 		cmu_peric0: clock-controller@10800000 {
 			compatible = "samsung,exynosautov920-cmu-peric0";
 			reg = <0x10800000 0x8000>;
