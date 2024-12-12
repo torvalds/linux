@@ -12,6 +12,10 @@
 #include <linux/bitops.h>
 #include <scsi/libfc.h>
 #include <scsi/libfcoe.h>
+#include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_transport.h>
+#include <scsi/scsi_transport_fc.h>
+#include <scsi/fc_frame.h>
 #include "fnic_io.h"
 #include "fnic_res.h"
 #include "fnic_trace.h"
@@ -24,6 +28,7 @@
 #include "vnic_intr.h"
 #include "vnic_stats.h"
 #include "vnic_scsi.h"
+#include "fnic_fdls.h"
 
 #define DRV_NAME		"fnic"
 #define DRV_DESCRIPTION		"Cisco FCoE HBA Driver"
@@ -31,6 +36,7 @@
 #define PFX			DRV_NAME ": "
 #define DFX                     DRV_NAME "%d: "
 
+#define FABRIC_LOGO_MAX_RETRY 3
 #define DESC_CLEAN_LOW_WATERMARK 8
 #define FNIC_UCSM_DFLT_THROTTLE_CNT_BLD	16 /* UCSM default throttle count */
 #define FNIC_MIN_IO_REQ			256 /* Min IO throttle count */
@@ -38,6 +44,7 @@
 #define FNIC_DFLT_IO_REQ        256 /* Default scsi_cmnd tag map entries */
 #define FNIC_DFLT_QUEUE_DEPTH	256
 #define	FNIC_STATS_RATE_LIMIT	4 /* limit rate at which stats are pulled up */
+#define LUN0_DELAY_TIME			9
 
 /*
  * Tag bits used for special requests.
@@ -74,6 +81,8 @@
 #define FNIC_DEV_RST_ABTS_DONE          BIT(19)
 #define FNIC_DEV_RST_TERM_DONE          BIT(20)
 #define FNIC_DEV_RST_ABTS_PENDING       BIT(21)
+
+#define IS_FNIC_FCP_INITIATOR(fnic) (fnic->role == FNIC_ROLE_FCP_INITIATOR)
 
 /*
  * fnic private data per SCSI command.
@@ -213,10 +222,24 @@ enum fnic_state {
 
 struct mempool;
 
+enum fnic_role_e {
+	FNIC_ROLE_FCP_INITIATOR = 0,
+};
+
 enum fnic_evt {
 	FNIC_EVT_START_VLAN_DISC = 1,
 	FNIC_EVT_START_FCF_DISC = 2,
 	FNIC_EVT_MAX,
+};
+
+struct fnic_frame_list {
+	/*
+	 * Link to frame lists
+	 */
+	struct list_head links;
+	void *fp;
+	int frame_len;
+	int rx_ethhdr_stripped;
 };
 
 struct fnic_event {
@@ -235,6 +258,8 @@ struct fnic_cpy_wq {
 /* Per-instance private data structure */
 struct fnic {
 	int fnic_num;
+	enum fnic_role_e role;
+	struct fnic_iport_s iport;
 	struct fc_lport *lport;
 	struct fcoe_ctlr ctlr;		/* FIP FCoE controller structure */
 	struct vnic_dev_bar bar0;
@@ -278,6 +303,7 @@ struct fnic {
 	unsigned long state_flags;	/* protected by host lock */
 	enum fnic_state state;
 	spinlock_t fnic_lock;
+	unsigned long lock_flags;
 
 	u16 vlan_id;	                /* VLAN tag including priority */
 	u8 data_src_addr[ETH_ALEN];
@@ -307,7 +333,9 @@ struct fnic {
 	struct work_struct frame_work;
 	struct work_struct flush_work;
 	struct sk_buff_head frame_queue;
-	struct sk_buff_head tx_queue;
+	struct list_head tx_queue;
+	mempool_t *frame_pool;
+	mempool_t *frame_elem_pool;
 
 	/*** FIP related data members  -- start ***/
 	void (*set_vlan)(struct fnic *, u16 vlan);
@@ -361,6 +389,9 @@ void fnic_free_wq_buf(struct vnic_wq *wq, struct vnic_wq_buf *buf);
 void fnic_handle_frame(struct work_struct *work);
 void fnic_handle_link(struct work_struct *work);
 void fnic_handle_event(struct work_struct *work);
+void fdls_reclaim_oxid_handler(struct work_struct *work);
+void fdls_schedule_oxid_free(struct fnic_iport_s *iport, uint16_t *active_oxid);
+void fdls_schedule_oxid_free_retry_work(struct work_struct *work);
 int fnic_rq_cmpl_handler(struct fnic *fnic, int);
 int fnic_alloc_rq_frame(struct vnic_rq *rq);
 void fnic_free_rq_buf(struct vnic_rq *rq, struct vnic_rq_buf *buf);
@@ -397,7 +428,6 @@ void fnic_handle_fip_frame(struct work_struct *work);
 void fnic_handle_fip_event(struct fnic *fnic);
 void fnic_fcoe_reset_vlans(struct fnic *fnic);
 void fnic_fcoe_evlist_free(struct fnic *fnic);
-extern void fnic_handle_fip_timer(struct fnic *fnic);
 
 static inline int
 fnic_chk_state_flags_locked(struct fnic *fnic, unsigned long st_flags)
@@ -406,4 +436,74 @@ fnic_chk_state_flags_locked(struct fnic *fnic, unsigned long st_flags)
 }
 void __fnic_set_state_flags(struct fnic *, unsigned long, unsigned long);
 void fnic_dump_fchost_stats(struct Scsi_Host *, struct fc_host_statistics *);
+void fnic_free_txq(struct list_head *head);
+
+struct fnic_scsi_iter_data {
+	struct fnic *fnic;
+	void *data1;
+	void *data2;
+	bool (*fn)(struct fnic *fnic, struct scsi_cmnd *sc,
+			void *data1, void *data2);
+};
+
+static inline bool
+fnic_io_iter_handler(struct scsi_cmnd *sc, void *iter_data)
+{
+	struct fnic_scsi_iter_data *iter = iter_data;
+
+	return iter->fn(iter->fnic, sc, iter->data1, iter->data2);
+}
+
+static inline void
+fnic_scsi_io_iter(struct fnic *fnic,
+		bool (*fn)(struct fnic *fnic, struct scsi_cmnd *sc,
+				void *data1, void *data2),
+		void *data1, void *data2)
+{
+	struct fnic_scsi_iter_data iter_data = {
+		.fn = fn,
+		.fnic = fnic,
+		.data1 = data1,
+		.data2 = data2,
+	};
+	scsi_host_busy_iter(fnic->lport->host, fnic_io_iter_handler, &iter_data);
+}
+
+#ifdef FNIC_DEBUG
+static inline void
+fnic_debug_dump(struct fnic *fnic, uint8_t *u8arr, int len)
+{
+	int i;
+
+	for (i = 0; i < len; i = i+8) {
+		FNIC_FCS_DBG(KERN_DEBUG, fnic->lport->host, fnic->fnic_num,
+		    "%d: %02x %02x %02x %02x %02x %02x %02x %02x", i / 8,
+		    u8arr[i + 0], u8arr[i + 1], u8arr[i + 2], u8arr[i + 3],
+		    u8arr[i + 4], u8arr[i + 5], u8arr[i + 6], u8arr[i + 7]);
+	}
+}
+
+static inline void
+fnic_debug_dump_fc_frame(struct fnic *fnic, struct fc_frame_header *fchdr,
+				int len, char *pfx)
+{
+	uint32_t s_id, d_id;
+
+	s_id = ntoh24(fchdr->fh_s_id);
+	d_id = ntoh24(fchdr->fh_d_id);
+	FNIC_FCS_DBG(KERN_DEBUG, fnic->lport->host, fnic->fnic_num,
+		"%s packet contents: sid/did/type/oxid = 0x%x/0x%x/0x%x/0x%x (len = %d)\n",
+		pfx, s_id, d_id, fchdr->fh_type,
+		FNIC_STD_GET_OX_ID(fchdr), len);
+
+	fnic_debug_dump(fnic, (uint8_t *)fchdr, len);
+
+}
+#else /* FNIC_DEBUG */
+static inline void
+fnic_debug_dump(struct fnic *fnic, uint8_t *u8arr, int len) {}
+static inline void
+fnic_debug_dump_fc_frame(struct fnic *fnic, struct fc_frame_header *fchdr,
+				uint32_t len, char *pfx) {}
+#endif /* FNIC_DEBUG */
 #endif /* _FNIC_H_ */

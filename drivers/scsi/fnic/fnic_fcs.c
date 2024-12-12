@@ -17,9 +17,12 @@
 #include <scsi/fc/fc_fcoe.h>
 #include <scsi/fc_frame.h>
 #include <scsi/libfc.h>
+#include <scsi/scsi_transport_fc.h>
 #include "fnic_io.h"
 #include "fnic.h"
 #include "fnic_fip.h"
+#include "fnic_fdls.h"
+#include "fdls_fc.h"
 #include "cq_enet_desc.h"
 #include "cq_exch_desc.h"
 
@@ -28,11 +31,90 @@ struct workqueue_struct *fnic_fip_queue;
 struct workqueue_struct *fnic_event_queue;
 
 static void fnic_set_eth_mode(struct fnic *);
-static void fnic_fcoe_send_vlan_req(struct fnic *fnic);
 static void fnic_fcoe_start_fcf_disc(struct fnic *fnic);
 static void fnic_fcoe_process_vlan_resp(struct fnic *fnic, struct sk_buff *);
 static int fnic_fcoe_vlan_check(struct fnic *fnic, u16 flag);
 static int fnic_fcoe_handle_fip_frame(struct fnic *fnic, struct sk_buff *skb);
+
+static uint8_t FCOE_ALL_FCF_MAC[6] = FC_FCOE_FLOGI_MAC;
+
+/*
+ * Internal Functions
+ * This function will initialize the src_mac address to be
+ * used in outgoing frames
+ */
+static inline void fnic_fdls_set_fcoe_srcmac(struct fnic *fnic,
+							 uint8_t *src_mac)
+{
+	FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+				 "Setting src mac: %02x:%02x:%02x:%02x:%02x:%02x",
+				 src_mac[0], src_mac[1], src_mac[2], src_mac[3],
+				 src_mac[4], src_mac[5]);
+
+	memcpy(fnic->iport.fpma, src_mac, 6);
+}
+
+/*
+ * This function will initialize the dst_mac address to be
+ * used in outgoing frames
+ */
+static inline  void fnic_fdls_set_fcoe_dstmac(struct fnic *fnic,
+							 uint8_t *dst_mac)
+{
+	FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+				 "Setting dst mac: %02x:%02x:%02x:%02x:%02x:%02x",
+				 dst_mac[0], dst_mac[1], dst_mac[2], dst_mac[3],
+				 dst_mac[4], dst_mac[5]);
+
+	memcpy(fnic->iport.fcfmac, dst_mac, 6);
+}
+
+/*
+ * FPMA can be either taken from ethhdr(dst_mac) or flogi resp
+ * or derive from FC_MAP and FCID combination. While it should be
+ * same, revisit this if there is any possibility of not-correct.
+ */
+void fnic_fdls_learn_fcoe_macs(struct fnic_iport_s *iport, void *rx_frame,
+							   uint8_t *fcid)
+{
+	struct fnic *fnic = iport->fnic;
+	struct ethhdr *ethhdr = (struct ethhdr *) rx_frame;
+	uint8_t fcmac[6] = { 0x0E, 0xFC, 0x00, 0x00, 0x00, 0x00 };
+
+	memcpy(&fcmac[3], fcid, 3);
+
+	FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+				 "learn fcoe: dst_mac: %02x:%02x:%02x:%02x:%02x:%02x",
+				 ethhdr->h_dest[0], ethhdr->h_dest[1],
+				 ethhdr->h_dest[2], ethhdr->h_dest[3],
+				 ethhdr->h_dest[4], ethhdr->h_dest[5]);
+
+	FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+				 "learn fcoe: fc_mac: %02x:%02x:%02x:%02x:%02x:%02x",
+				 fcmac[0], fcmac[1], fcmac[2], fcmac[3], fcmac[4],
+				 fcmac[5]);
+
+	fnic_fdls_set_fcoe_srcmac(fnic, fcmac);
+	fnic_fdls_set_fcoe_dstmac(fnic, ethhdr->h_source);
+}
+
+void fnic_fdls_init(struct fnic *fnic, int usefip)
+{
+	struct fnic_iport_s *iport = &fnic->iport;
+
+	/* Initialize iPort structure */
+	iport->state = FNIC_IPORT_STATE_INIT;
+	iport->fnic = fnic;
+	iport->usefip = usefip;
+
+	FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+				 "iportsrcmac: %02x:%02x:%02x:%02x:%02x:%02x",
+				 iport->hwmac[0], iport->hwmac[1], iport->hwmac[2],
+				 iport->hwmac[3], iport->hwmac[4], iport->hwmac[5]);
+
+	INIT_LIST_HEAD(&iport->tport_list);
+	INIT_LIST_HEAD(&iport->tport_list_pending_del);
+}
 
 void fnic_handle_link(struct work_struct *work)
 {
@@ -363,7 +445,7 @@ static inline int is_fnic_fip_flogi_reject(struct fcoe_ctlr *fip,
 	return 0;
 }
 
-static void fnic_fcoe_send_vlan_req(struct fnic *fnic)
+void fnic_fcoe_send_vlan_req(struct fnic *fnic)
 {
 	struct fcoe_ctlr *fip = &fnic->ctlr;
 	struct fnic_stats *fnic_stats = &fnic->fnic_stats;
@@ -1068,116 +1150,137 @@ free_skb:
 /*
  * Send FC frame.
  */
-static int fnic_send_frame(struct fnic *fnic, struct fc_frame *fp)
+static int fnic_send_frame(struct fnic *fnic, void *frame, int frame_len)
 {
 	struct vnic_wq *wq = &fnic->wq[0];
-	struct sk_buff *skb;
 	dma_addr_t pa;
-	struct ethhdr *eth_hdr;
-	struct vlan_ethhdr *vlan_hdr;
-	struct fcoe_hdr *fcoe_hdr;
-	struct fc_frame_header *fh;
-	u32 tot_len, eth_hdr_len;
 	int ret = 0;
 	unsigned long flags;
 
-	fh = fc_frame_header_get(fp);
-	skb = fp_skb(fp);
+	pa = dma_map_single(&fnic->pdev->dev, frame, frame_len, DMA_TO_DEVICE);
 
-	if (unlikely(fh->fh_r_ctl == FC_RCTL_ELS_REQ) &&
-	    fcoe_ctlr_els_send(&fnic->ctlr, fnic->lport, skb))
-		return 0;
-
-	if (!fnic->vlan_hw_insert) {
-		eth_hdr_len = sizeof(*vlan_hdr) + sizeof(*fcoe_hdr);
-		vlan_hdr = skb_push(skb, eth_hdr_len);
-		eth_hdr = (struct ethhdr *)vlan_hdr;
-		vlan_hdr->h_vlan_proto = htons(ETH_P_8021Q);
-		vlan_hdr->h_vlan_encapsulated_proto = htons(ETH_P_FCOE);
-		vlan_hdr->h_vlan_TCI = htons(fnic->vlan_id);
-		fcoe_hdr = (struct fcoe_hdr *)(vlan_hdr + 1);
-	} else {
-		eth_hdr_len = sizeof(*eth_hdr) + sizeof(*fcoe_hdr);
-		eth_hdr = skb_push(skb, eth_hdr_len);
-		eth_hdr->h_proto = htons(ETH_P_FCOE);
-		fcoe_hdr = (struct fcoe_hdr *)(eth_hdr + 1);
-	}
-
-	if (fnic->ctlr.map_dest)
-		fc_fcoe_set_mac(eth_hdr->h_dest, fh->fh_d_id);
-	else
-		memcpy(eth_hdr->h_dest, fnic->ctlr.dest_addr, ETH_ALEN);
-	memcpy(eth_hdr->h_source, fnic->data_src_addr, ETH_ALEN);
-
-	tot_len = skb->len;
-	BUG_ON(tot_len % 4);
-
-	memset(fcoe_hdr, 0, sizeof(*fcoe_hdr));
-	fcoe_hdr->fcoe_sof = fr_sof(fp);
-	if (FC_FCOE_VER)
-		FC_FCOE_ENCAPS_VER(fcoe_hdr, FC_FCOE_VER);
-
-	pa = dma_map_single(&fnic->pdev->dev, eth_hdr, tot_len, DMA_TO_DEVICE);
-	if (dma_mapping_error(&fnic->pdev->dev, pa)) {
-		ret = -ENOMEM;
-		printk(KERN_ERR "DMA map failed with error %d\n", ret);
-		goto free_skb_on_err;
-	}
-
-	if ((fnic_fc_trace_set_data(fnic->lport->host->host_no, FNIC_FC_SEND,
-				(char *)eth_hdr, tot_len)) != 0) {
-		printk(KERN_ERR "fnic ctlr frame trace error!!!");
+	if ((fnic_fc_trace_set_data(fnic->fnic_num,
+				FNIC_FC_SEND | 0x80, (char *) frame,
+				frame_len)) != 0) {
+		FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+					 "fnic ctlr frame trace error");
 	}
 
 	spin_lock_irqsave(&fnic->wq_lock[0], flags);
 
 	if (!vnic_wq_desc_avail(wq)) {
-		dma_unmap_single(&fnic->pdev->dev, pa, tot_len, DMA_TO_DEVICE);
+		dma_unmap_single(&fnic->pdev->dev, pa, frame_len, DMA_TO_DEVICE);
+		FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+					 "vnic work queue descriptor is not available");
 		ret = -1;
-		goto irq_restore;
+		goto fnic_send_frame_end;
 	}
 
-	fnic_queue_wq_desc(wq, skb, pa, tot_len, fr_eof(fp),
-			   0 /* hw inserts cos value */,
-			   fnic->vlan_id, 1, 1, 1);
+	/* hw inserts cos value */
+	fnic_queue_wq_desc(wq, frame, pa, frame_len, FC_EOF_T,
+					   0, fnic->vlan_id, 1, 1, 1);
 
-irq_restore:
+fnic_send_frame_end:
 	spin_unlock_irqrestore(&fnic->wq_lock[0], flags);
-
-free_skb_on_err:
-	if (ret)
-		dev_kfree_skb_any(fp_skb(fp));
-
 	return ret;
 }
 
-/*
- * fnic_send
- * Routine to send a raw frame
+/**
+ * fdls_send_fcoe_frame - send a filled-in FC frame, filling in eth and FCoE
+ *	info. This interface is used only in the non fast path. (login, fabric
+ *	registrations etc.)
+ *
+ * @fnic:	fnic instance
+ * @frame:	frame structure with FC payload filled in
+ * @frame_size:	length of the frame to be sent
+ * @srcmac:	source mac address
+ * @dstmac:	destination mac address
+ *
+ * Called with the fnic lock held.
  */
-int fnic_send(struct fc_lport *lp, struct fc_frame *fp)
+static int
+fdls_send_fcoe_frame(struct fnic *fnic, void *frame, int frame_size,
+					 uint8_t *srcmac, uint8_t *dstmac)
 {
-	struct fnic *fnic = lport_priv(lp);
-	unsigned long flags;
+	struct ethhdr *pethhdr;
+	struct fcoe_hdr *pfcoe_hdr;
+	struct fnic_frame_list *frame_elem;
+	int len = frame_size;
+	int ret;
+	struct fc_frame_header *fchdr = (struct fc_frame_header *) (frame +
+			FNIC_ETH_FCOE_HDRS_OFFSET);
 
-	if (fnic->in_remove) {
-		dev_kfree_skb(fp_skb(fp));
-		return -1;
-	}
+	pethhdr = (struct ethhdr *) frame;
+	pethhdr->h_proto = cpu_to_be16(ETH_P_FCOE);
+
+	memcpy(pethhdr->h_source, srcmac, ETH_ALEN);
+	memcpy(pethhdr->h_dest, dstmac, ETH_ALEN);
+
+	pfcoe_hdr = (struct fcoe_hdr *) (frame + sizeof(struct ethhdr));
+	pfcoe_hdr->fcoe_sof = FC_SOF_I3;
 
 	/*
 	 * Queue frame if in a transitional state.
 	 * This occurs while registering the Port_ID / MAC address after FLOGI.
 	 */
-	spin_lock_irqsave(&fnic->fnic_lock, flags);
-	if (fnic->state != FNIC_IN_FC_MODE && fnic->state != FNIC_IN_ETH_MODE) {
-		skb_queue_tail(&fnic->tx_queue, fp_skb(fp));
-		spin_unlock_irqrestore(&fnic->fnic_lock, flags);
+	if ((fnic->state != FNIC_IN_FC_MODE)
+		&& (fnic->state != FNIC_IN_ETH_MODE)) {
+		frame_elem = mempool_alloc(fnic->frame_elem_pool,
+						GFP_ATOMIC | __GFP_ZERO);
+		if (!frame_elem) {
+			FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+				 "Failed to allocate memory for frame elem");
+			return -ENOMEM;
+		}
+
+		FNIC_FCS_DBG(KERN_DEBUG, fnic->lport->host, fnic->fnic_num,
+			"Queueing FC frame: sid/did/type/oxid = 0x%x/0x%x/0x%x/0x%x\n",
+			ntoh24(fchdr->fh_s_id), ntoh24(fchdr->fh_d_id),
+			fchdr->fh_type, FNIC_STD_GET_OX_ID(fchdr));
+
+		frame_elem->fp = frame;
+		frame_elem->frame_len = len;
+		list_add_tail(&frame_elem->links, &fnic->tx_queue);
 		return 0;
 	}
-	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 
-	return fnic_send_frame(fnic, fp);
+	fnic_debug_dump_fc_frame(fnic, fchdr, frame_size, "Outgoing");
+
+	ret = fnic_send_frame(fnic, frame, len);
+	return ret;
+}
+
+void fnic_send_fcoe_frame(struct fnic_iport_s *iport, void *frame,
+						 int frame_size)
+{
+	struct fnic *fnic = iport->fnic;
+	uint8_t *dstmac, *srcmac;
+
+	/* If module unload is in-progress, don't send */
+	if (fnic->in_remove)
+		return;
+
+	if (iport->fabric.flags & FNIC_FDLS_FPMA_LEARNT) {
+		srcmac = iport->fpma;
+		dstmac = iport->fcfmac;
+	} else {
+		srcmac = iport->hwmac;
+		dstmac = FCOE_ALL_FCF_MAC;
+	}
+
+	fdls_send_fcoe_frame(fnic, frame, frame_size, srcmac, dstmac);
+}
+
+int
+fnic_send_fip_frame(struct fnic_iport_s *iport, void *frame,
+					int frame_size)
+{
+	struct fnic *fnic = iport->fnic;
+
+	if (fnic->in_remove)
+		return -1;
+
+	return fnic_send_frame(fnic, frame, frame_size);
 }
 
 /**
@@ -1193,13 +1296,65 @@ int fnic_send(struct fc_lport *lp, struct fc_frame *fp)
 void fnic_flush_tx(struct work_struct *work)
 {
 	struct fnic *fnic = container_of(work, struct fnic, flush_work);
-	struct sk_buff *skb;
 	struct fc_frame *fp;
+	struct fnic_frame_list *cur_frame, *next;
 
-	while ((skb = skb_dequeue(&fnic->tx_queue))) {
-		fp = (struct fc_frame *)skb;
-		fnic_send_frame(fnic, fp);
+	FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+				 "Flush queued frames");
+
+	list_for_each_entry_safe(cur_frame, next, &fnic->tx_queue, links) {
+		fp = cur_frame->fp;
+		list_del(&cur_frame->links);
+		fnic_send_frame(fnic, fp, cur_frame->frame_len);
+		mempool_free(cur_frame, fnic->frame_elem_pool);
 	}
+}
+
+int
+fnic_fdls_register_portid(struct fnic_iport_s *iport, u32 port_id,
+						  void *fp)
+{
+	struct fnic *fnic = iport->fnic;
+	struct ethhdr *ethhdr;
+	int ret;
+
+	FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+				 "Setting port id: 0x%x fp: 0x%p fnic state: %d", port_id,
+				 fp, fnic->state);
+
+	if (fp) {
+		ethhdr = (struct ethhdr *) fp;
+		vnic_dev_add_addr(fnic->vdev, ethhdr->h_dest);
+	}
+
+	/* Change state to reflect transition to FC mode */
+	if (fnic->state == FNIC_IN_ETH_MODE || fnic->state == FNIC_IN_FC_MODE)
+		fnic->state = FNIC_IN_ETH_TRANS_FC_MODE;
+	else {
+		FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+			 "Unexpected fnic state while processing FLOGI response\n");
+		return -1;
+	}
+
+	/*
+	 * Send FLOGI registration to firmware to set up FC mode.
+	 * The new address will be set up when registration completes.
+	 */
+	ret = fnic_flogi_reg_handler(fnic, port_id);
+	if (ret < 0) {
+		FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+					 "FLOGI registration error ret: %d fnic state: %d\n",
+					 ret, fnic->state);
+		if (fnic->state == FNIC_IN_ETH_TRANS_FC_MODE)
+			fnic->state = FNIC_IN_ETH_MODE;
+
+		return -1;
+	}
+	iport->fabric.flags |= FNIC_FDLS_FPMA_LEARNT;
+
+	FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
+				 "FLOGI registration success\n");
+	return 0;
 }
 
 /**
@@ -1238,6 +1393,17 @@ again:
 		break;
 	}
 	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
+}
+
+void fnic_free_txq(struct list_head *head)
+{
+	struct fnic_frame_list *cur_frame, *next;
+
+	list_for_each_entry_safe(cur_frame, next, head, links) {
+		list_del(&cur_frame->links);
+		kfree(cur_frame->fp);
+		kfree(cur_frame);
+	}
 }
 
 static void fnic_wq_complete_frame_send(struct vnic_wq *wq,
@@ -1319,88 +1485,3 @@ void fnic_fcoe_reset_vlans(struct fnic *fnic)
 	spin_unlock_irqrestore(&fnic->vlans_lock, flags);
 }
 
-void fnic_handle_fip_timer(struct fnic *fnic)
-{
-	unsigned long flags;
-	struct fcoe_vlan *vlan;
-	struct fnic_stats *fnic_stats = &fnic->fnic_stats;
-	u64 sol_time;
-
-	spin_lock_irqsave(&fnic->fnic_lock, flags);
-	if (fnic->stop_rx_link_events) {
-		spin_unlock_irqrestore(&fnic->fnic_lock, flags);
-		return;
-	}
-	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
-
-	if (fnic->ctlr.mode == FIP_MODE_NON_FIP)
-		return;
-
-	spin_lock_irqsave(&fnic->vlans_lock, flags);
-	if (list_empty(&fnic->vlans)) {
-		spin_unlock_irqrestore(&fnic->vlans_lock, flags);
-		/* no vlans available, try again */
-		if (unlikely(fnic_log_level & FNIC_FCS_LOGGING))
-			if (printk_ratelimit())
-				shost_printk(KERN_DEBUG, fnic->lport->host,
-						"Start VLAN Discovery\n");
-		fnic_event_enq(fnic, FNIC_EVT_START_VLAN_DISC);
-		return;
-	}
-
-	vlan = list_first_entry(&fnic->vlans, struct fcoe_vlan, list);
-	FNIC_FCS_DBG(KERN_DEBUG, fnic->lport->host, fnic->fnic_num,
-		  "fip_timer: vlan %d state %d sol_count %d\n",
-		  vlan->vid, vlan->state, vlan->sol_count);
-	switch (vlan->state) {
-	case FIP_VLAN_USED:
-		FNIC_FCS_DBG(KERN_DEBUG, fnic->lport->host, fnic->fnic_num,
-			  "FIP VLAN is selected for FC transaction\n");
-		spin_unlock_irqrestore(&fnic->vlans_lock, flags);
-		break;
-	case FIP_VLAN_FAILED:
-		spin_unlock_irqrestore(&fnic->vlans_lock, flags);
-		/* if all vlans are in failed state, restart vlan disc */
-		if (unlikely(fnic_log_level & FNIC_FCS_LOGGING))
-			if (printk_ratelimit())
-				shost_printk(KERN_DEBUG, fnic->lport->host,
-					  "Start VLAN Discovery\n");
-		fnic_event_enq(fnic, FNIC_EVT_START_VLAN_DISC);
-		break;
-	case FIP_VLAN_SENT:
-		if (vlan->sol_count >= FCOE_CTLR_MAX_SOL) {
-			/*
-			 * no response on this vlan, remove  from the list.
-			 * Try the next vlan
-			 */
-			FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
-				  "Dequeue this VLAN ID %d from list\n",
-				  vlan->vid);
-			list_del(&vlan->list);
-			kfree(vlan);
-			vlan = NULL;
-			if (list_empty(&fnic->vlans)) {
-				/* we exhausted all vlans, restart vlan disc */
-				spin_unlock_irqrestore(&fnic->vlans_lock,
-							flags);
-				FNIC_FCS_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
-					  "fip_timer: vlan list empty, "
-					  "trigger vlan disc\n");
-				fnic_event_enq(fnic, FNIC_EVT_START_VLAN_DISC);
-				return;
-			}
-			/* check the next vlan */
-			vlan = list_first_entry(&fnic->vlans, struct fcoe_vlan,
-							list);
-			fnic->set_vlan(fnic, vlan->vid);
-			vlan->state = FIP_VLAN_SENT; /* sent now */
-		}
-		spin_unlock_irqrestore(&fnic->vlans_lock, flags);
-		atomic64_inc(&fnic_stats->vlan_stats.sol_expiry_count);
-		vlan->sol_count++;
-		sol_time = jiffies + msecs_to_jiffies
-					(FCOE_CTLR_START_DELAY);
-		mod_timer(&fnic->fip_timer, round_jiffies(sol_time));
-		break;
-	}
-}

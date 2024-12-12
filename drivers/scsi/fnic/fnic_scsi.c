@@ -184,7 +184,7 @@ int fnic_fw_reset_handler(struct fnic *fnic)
 	fnic_set_state_flags(fnic, FNIC_FLAGS_FWRESET);
 
 	skb_queue_purge(&fnic->frame_queue);
-	skb_queue_purge(&fnic->tx_queue);
+	fnic_free_txq(&fnic->tx_queue);
 
 	/* wait for io cmpl */
 	while (atomic_read(&fnic->in_flight))
@@ -674,7 +674,7 @@ static int fnic_fcpio_fw_reset_cmpl_handler(struct fnic *fnic,
 	 */
 	if (fnic->remove_wait || ret) {
 		spin_unlock_irqrestore(&fnic->fnic_lock, flags);
-		skb_queue_purge(&fnic->tx_queue);
+		fnic_free_txq(&fnic->tx_queue);
 		goto reset_cmpl_handler_end;
 	}
 
@@ -1717,7 +1717,7 @@ static bool fnic_rport_abort_io_iter(struct scsi_cmnd *sc, void *data)
 	return true;
 }
 
-static void fnic_rport_exch_reset(struct fnic *fnic, u32 port_id)
+void fnic_rport_exch_reset(struct fnic *fnic, u32 port_id)
 {
 	struct terminate_stats *term_stats = &fnic->fnic_stats.term_stats;
 	struct fnic_rport_abort_io_iter_data iter_data = {

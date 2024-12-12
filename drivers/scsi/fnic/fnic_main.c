@@ -31,6 +31,8 @@
 #include "fnic_io.h"
 #include "fnic_fip.h"
 #include "fnic.h"
+#include "fnic_fdls.h"
+#include "fdls_fc.h"
 
 #define PCI_DEVICE_ID_CISCO_FNIC	0x0045
 
@@ -39,6 +41,8 @@
 
 static struct kmem_cache *fnic_sgl_cache[FNIC_SGL_NUM_CACHES];
 static struct kmem_cache *fnic_io_req_cache;
+static struct kmem_cache *fdls_frame_cache;
+static struct kmem_cache *fdls_frame_elem_cache;
 static LIST_HEAD(fnic_list);
 static DEFINE_SPINLOCK(fnic_list_lock);
 static DEFINE_IDA(fnic_ida);
@@ -80,7 +84,6 @@ module_param(fnic_max_qdepth, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(fnic_max_qdepth, "Queue depth to report for each LUN");
 
 static struct libfc_function_template fnic_transport_template = {
-	.frame_send = fnic_send,
 	.lport_set_port_id = fnic_set_port_id,
 	.fcp_abort_io = fnic_empty_scsi_cleanup,
 	.fcp_cleanup = fnic_empty_scsi_cleanup,
@@ -413,7 +416,7 @@ static void fnic_fip_notify_timer(struct timer_list *t)
 {
 	struct fnic *fnic = from_timer(fnic, t, fip_timer);
 
-	fnic_handle_fip_timer(fnic);
+	/* Placeholder function */
 }
 
 static void fnic_notify_timer_start(struct fnic *fnic)
@@ -515,6 +518,8 @@ static int fnic_cleanup(struct fnic *fnic)
 		vnic_intr_clean(&fnic->intr[i]);
 
 	mempool_destroy(fnic->io_req_pool);
+	mempool_destroy(fnic->frame_pool);
+	mempool_destroy(fnic->frame_elem_pool);
 	for (i = 0; i < FNIC_SGL_NUM_CACHES; i++)
 		mempool_destroy(fnic->io_sgl_pool[i]);
 
@@ -787,6 +792,17 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_free_dflt_pool;
 	fnic->io_sgl_pool[FNIC_SGL_CACHE_MAX] = pool;
 
+	pool = mempool_create_slab_pool(FDLS_MIN_FRAMES, fdls_frame_cache);
+	if (!pool)
+		goto err_out_fdls_frame_pool;
+	fnic->frame_pool = pool;
+
+	pool = mempool_create_slab_pool(FDLS_MIN_FRAME_ELEM,
+						fdls_frame_elem_cache);
+	if (!pool)
+		goto err_out_fdls_frame_elem_pool;
+	fnic->frame_elem_pool = pool;
+
 	/* setup vlan config, hw inserts vlan header */
 	fnic->vlan_hw_insert = 1;
 	fnic->vlan_id = 0;
@@ -921,7 +937,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	INIT_WORK(&fnic->frame_work, fnic_handle_frame);
 	INIT_WORK(&fnic->flush_work, fnic_flush_tx);
 	skb_queue_head_init(&fnic->frame_queue);
-	skb_queue_head_init(&fnic->tx_queue);
+	INIT_LIST_HEAD(&fnic->tx_queue);
 
 	fc_fabric_login(lp);
 
@@ -946,6 +962,10 @@ err_out_request_intr:
 		vnic_rq_clean(&fnic->rq[i], fnic_free_rq_buf);
 err_out_rq_buf:
 	vnic_dev_notify_unset(fnic->vdev);
+	mempool_destroy(fnic->frame_elem_pool);
+err_out_fdls_frame_elem_pool:
+	mempool_destroy(fnic->frame_pool);
+err_out_fdls_frame_pool:
 err_out_free_max_pool:
 	mempool_destroy(fnic->io_sgl_pool[FNIC_SGL_CACHE_MAX]);
 err_out_free_dflt_pool:
@@ -986,6 +1006,14 @@ static void fnic_remove(struct pci_dev *pdev)
 	int hwq;
 
 	/*
+	 * Sometimes when probe() fails and do not exit with an error code,
+	 * remove() gets called with 'drvdata' not set. Avoid a crash by
+	 * adding a defensive check.
+	 */
+	if (!fnic)
+		return;
+
+	/*
 	 * Mark state so that the workqueue thread stops forwarding
 	 * received frames and link events to the local port. ISR and
 	 * other threads that can queue work items will also stop
@@ -1004,7 +1032,7 @@ static void fnic_remove(struct pci_dev *pdev)
 	 */
 	flush_workqueue(fnic_event_queue);
 	skb_queue_purge(&fnic->frame_queue);
-	skb_queue_purge(&fnic->tx_queue);
+	fnic_free_txq(&fnic->tx_queue);
 
 	if (fnic->config.flags & VFCF_FIP_CAPABLE) {
 		del_timer_sync(&fnic->fip_timer);
@@ -1036,7 +1064,6 @@ static void fnic_remove(struct pci_dev *pdev)
 	fnic_cleanup(fnic);
 
 	BUG_ON(!skb_queue_empty(&fnic->frame_queue));
-	BUG_ON(!skb_queue_empty(&fnic->tx_queue));
 
 	spin_lock_irqsave(&fnic_list_lock, flags);
 	list_del(&fnic->list);
@@ -1133,6 +1160,24 @@ static int __init fnic_init_module(void)
 		goto err_create_fnic_ioreq_slab;
 	}
 
+	fdls_frame_cache = kmem_cache_create("fdls_frames",
+					FNIC_FCOE_FRAME_MAXSZ,
+					0, SLAB_HWCACHE_ALIGN, NULL);
+	if (!fdls_frame_cache) {
+		pr_err("fnic fdls frame cache create failed\n");
+		err = -ENOMEM;
+		goto err_create_fdls_frame_cache;
+	}
+
+	fdls_frame_elem_cache = kmem_cache_create("fdls_frame_elem",
+					sizeof(struct fnic_frame_list),
+					0, SLAB_HWCACHE_ALIGN, NULL);
+	if (!fdls_frame_elem_cache) {
+		pr_err("fnic fdls frame elem cache create failed\n");
+		err = -ENOMEM;
+		goto err_create_fdls_frame_cache_elem;
+	}
+
 	fnic_event_queue =
 		alloc_ordered_workqueue("%s", WQ_MEM_RECLAIM, "fnic_event_wq");
 	if (!fnic_event_queue) {
@@ -1171,6 +1216,10 @@ err_fc_transport:
 err_create_fip_workq:
 	destroy_workqueue(fnic_event_queue);
 err_create_fnic_workq:
+	kmem_cache_destroy(fdls_frame_elem_cache);
+err_create_fdls_frame_cache_elem:
+	kmem_cache_destroy(fdls_frame_cache);
+err_create_fdls_frame_cache:
 	kmem_cache_destroy(fnic_io_req_cache);
 err_create_fnic_ioreq_slab:
 	kmem_cache_destroy(fnic_sgl_cache[FNIC_SGL_CACHE_MAX]);
@@ -1192,6 +1241,7 @@ static void __exit fnic_cleanup_module(void)
 	kmem_cache_destroy(fnic_sgl_cache[FNIC_SGL_CACHE_MAX]);
 	kmem_cache_destroy(fnic_sgl_cache[FNIC_SGL_CACHE_DFLT]);
 	kmem_cache_destroy(fnic_io_req_cache);
+	kmem_cache_destroy(fdls_frame_cache);
 	fc_release_transport(fnic_fc_transport);
 	fnic_trace_free();
 	fnic_fc_trace_free();

@@ -7,6 +7,7 @@ fnic-y	:= \
 	fnic_main.o \
 	fnic_res.o \
 	fnic_fcs.o \
+	fdls_disc.o \
 	fnic_scsi.o \
 	fnic_trace.o \
 	fnic_debugfs.o \
