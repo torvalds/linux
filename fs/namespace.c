@@ -32,7 +32,6 @@
 #include <linux/fs_context.h>
 #include <linux/shmem_fs.h>
 #include <linux/mnt_idmapping.h>
-#include <linux/nospec.h>
 
 #include "pnode.h"
 #include "internal.h"
