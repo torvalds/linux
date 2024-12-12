@@ -78,6 +78,7 @@ struct cs_dsp_mock_xm_header {
 };
 
 struct cs_dsp_mock_wmfw_builder;
+struct cs_dsp_mock_bin_builder;
 
 extern const unsigned int cs_dsp_mock_adsp2_32bit_sysbase;
 extern const unsigned int cs_dsp_mock_adsp2_16bit_sysbase;
@@ -120,6 +121,23 @@ void cs_dsp_mock_regmap_drop_bytes(struct cs_dsp_test *priv,
 				   unsigned int first_reg, size_t num_bytes);
 void cs_dsp_mock_regmap_drop_system_regs(struct cs_dsp_test *priv);
 bool cs_dsp_mock_regmap_is_dirty(struct cs_dsp_test *priv, bool drop_system_regs);
+
+struct cs_dsp_mock_bin_builder *cs_dsp_mock_bin_init(struct cs_dsp_test *priv,
+						     int format_version,
+						     unsigned int fw_version);
+void cs_dsp_mock_bin_add_raw_block(struct cs_dsp_mock_bin_builder *builder,
+				   unsigned int alg_id, unsigned int alg_ver,
+				   int type, unsigned int offset,
+				   const void *payload_data, size_t payload_len_bytes);
+void cs_dsp_mock_bin_add_info(struct cs_dsp_mock_bin_builder *builder,
+			      const char *info);
+void cs_dsp_mock_bin_add_name(struct cs_dsp_mock_bin_builder *builder,
+			      const char *name);
+void cs_dsp_mock_bin_add_patch(struct cs_dsp_mock_bin_builder *builder,
+			       unsigned int alg_id, unsigned int alg_ver,
+			       int mem_region, unsigned int reg_addr_offset,
+			       const void *payload_data, size_t payload_len_bytes);
+struct firmware *cs_dsp_mock_bin_get_firmware(struct cs_dsp_mock_bin_builder *builder);
 
 struct cs_dsp_mock_wmfw_builder *cs_dsp_mock_wmfw_init(struct cs_dsp_test *priv,
 						       int format_version);
