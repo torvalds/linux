@@ -12,7 +12,10 @@ struct mnt_namespace {
 	struct user_namespace	*user_ns;
 	struct ucounts		*ucounts;
 	u64			seq;	/* Sequence number to prevent loops */
-	wait_queue_head_t poll;
+	union {
+		wait_queue_head_t	poll;
+		struct rcu_head		mnt_ns_rcu;
+	};
 	u64 event;
 	unsigned int		nr_mounts; /* # of mounts in the namespace */
 	unsigned int		pending_mounts;
