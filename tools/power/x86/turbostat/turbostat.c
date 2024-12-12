@@ -9788,11 +9788,96 @@ bool starts_with(const char *str, const char *prefix)
 	return strncmp(prefix, str, strlen(prefix)) == 0;
 }
 
+int pmt_parse_from_path(const char *target_path, unsigned int *out_guid, unsigned int *out_seq)
+{
+	struct pmt_diriter_t pmt_iter;
+	const struct dirent *dirname;
+	struct stat stat, target_stat;
+	int fd_telem_dir = -1;
+	int fd_target_dir;
+	unsigned int seq = 0;
+	unsigned long guid, target_guid;
+	int ret = -1;
+
+	fd_target_dir = open(target_path, O_RDONLY | O_DIRECTORY);
+	if (fd_target_dir == -1) {
+		return -1;
+	}
+
+	if (fstat(fd_target_dir, &target_stat) == -1) {
+		fprintf(stderr, "%s: Failed to stat the target: %s", __func__, strerror(errno));
+		exit(1);
+	}
+
+	if (parse_telem_info_file(fd_target_dir, "guid", "%lx", &target_guid)) {
+		fprintf(stderr, "%s: Failed to parse the target guid file: %s", __func__, strerror(errno));
+		exit(1);
+	}
+
+	close(fd_target_dir);
+
+	pmt_diriter_init(&pmt_iter);
+
+	for (dirname = pmt_diriter_begin(&pmt_iter, SYSFS_TELEM_PATH); dirname != NULL;
+	     dirname = pmt_diriter_next(&pmt_iter)) {
+
+		fd_telem_dir = openat(dirfd(pmt_iter.dir), dirname->d_name, O_RDONLY | O_DIRECTORY);
+		if (fd_telem_dir == -1) {
+			continue;
+		}
+
+		if (parse_telem_info_file(fd_telem_dir, "guid", "%lx", &guid)) {
+			fprintf(stderr, "%s: Failed to parse the guid file: %s", __func__, strerror(errno));
+			continue;
+		}
+
+		if (fstat(fd_telem_dir, &stat) == -1) {
+			fprintf(stderr, "%s: Failed to stat %s directory: %s", __func__,
+				dirname->d_name, strerror(errno));
+			continue;
+		}
+
+		/*
+		 * If reached the same directory as target, exit the loop.
+		 * Seq has the correct value now.
+		 */
+		if (stat.st_dev == target_stat.st_dev && stat.st_ino == target_stat.st_ino) {
+			ret = 0;
+			break;
+		}
+
+		/*
+		 * If reached directory with the same guid,
+		 * but it's not the target directory yet,
+		 * increment seq and continue the search.
+		 */
+		if (guid == target_guid)
+			++seq;
+
+		close(fd_telem_dir);
+		fd_telem_dir = -1;
+	}
+
+	pmt_diriter_remove(&pmt_iter);
+
+	if (fd_telem_dir != -1)
+		close(fd_telem_dir);
+
+	if (!ret) {
+		*out_guid = target_guid;
+		*out_seq = seq;
+	}
+
+	return ret;
+}
+
 void parse_add_command_pmt(char *add_command)
 {
 	char *name = NULL;
 	char *type_name = NULL;
 	char *format_name = NULL;
+	char *direct_path = NULL;
+	static const char direct_path_prefix[] = "path=";
 	unsigned int offset;
 	unsigned int lsb;
 	unsigned int msb;
@@ -9881,6 +9966,10 @@ void parse_add_command_pmt(char *add_command)
 			goto next;
 		}
 
+		if (strncmp(add_command, direct_path_prefix, strlen(direct_path_prefix)) == 0) {
+			direct_path = add_command + strlen(direct_path_prefix);
+			goto next;
+		}
 next:
 		add_command = strchr(add_command, ',');
 		if (add_command) {
@@ -9952,8 +10041,24 @@ next:
 		exit(1);
 	}
 
+	if (direct_path && has_guid) {
+		printf("%s: path and guid+seq parameters are mutually exclusive\n"
+		       "notice: passed guid=0x%x and path=%s\n", __func__, guid, direct_path);
+		exit(1);
+	}
+
+	if (direct_path) {
+		if (pmt_parse_from_path(direct_path, &guid, &seq)) {
+			printf("%s: failed to parse PMT file from %s\n", __func__, direct_path);
+			exit(1);
+		}
+
+		/* GUID was just infered from the direct path. */
+		has_guid = true;
+	}
+
 	if (!has_guid) {
-		printf("%s: missing %s\n", __func__, "guid");
+		printf("%s: missing %s\n", __func__, "guid or path");
 		exit(1);
 	}
 
