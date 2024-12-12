@@ -20,6 +20,7 @@ struct mnt_namespace {
 	unsigned int		nr_mounts; /* # of mounts in the namespace */
 	unsigned int		pending_mounts;
 	struct rb_node		mnt_ns_tree_node; /* node in the mnt_ns_tree */
+	struct list_head	mnt_ns_list; /* entry in the sequential list of mounts namespace */
 	refcount_t		passive; /* number references not pinning @mounts */
 } __randomize_layout;
 
@@ -160,15 +161,9 @@ static inline void move_from_ns(struct mount *mnt, struct list_head *dt_list)
 }
 
 bool has_locked_children(struct mount *mnt, struct dentry *dentry);
-struct mnt_namespace *__lookup_next_mnt_ns(struct mnt_namespace *mnt_ns, bool previous);
-static inline struct mnt_namespace *lookup_next_mnt_ns(struct mnt_namespace *mntns)
-{
-	return __lookup_next_mnt_ns(mntns, false);
-}
-static inline struct mnt_namespace *lookup_prev_mnt_ns(struct mnt_namespace *mntns)
-{
-	return __lookup_next_mnt_ns(mntns, true);
-}
+struct mnt_namespace *get_sequential_mnt_ns(struct mnt_namespace *mnt_ns,
+					    bool previous);
+
 static inline struct mnt_namespace *to_mnt_ns(struct ns_common *ns)
 {
 	return container_of(ns, struct mnt_namespace, ns);
