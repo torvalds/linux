@@ -95,9 +95,9 @@ struct dcmipp_pipeline_config {
 
 static const struct dcmipp_ent_config stm32mp13_ent_config[] = {
 	{
-		.name = "dcmipp_parallel",
-		.init = dcmipp_par_ent_init,
-		.release = dcmipp_par_ent_release,
+		.name = "dcmipp_input",
+		.init = dcmipp_inp_ent_init,
+		.release = dcmipp_inp_ent_release,
 	},
 	{
 		.name = "dcmipp_dump_postproc",
@@ -111,12 +111,12 @@ static const struct dcmipp_ent_config stm32mp13_ent_config[] = {
 	},
 };
 
-#define ID_PARALLEL 0
+#define ID_INPUT 0
 #define ID_DUMP_BYTEPROC 1
 #define ID_DUMP_CAPTURE 2
 
 static const struct dcmipp_ent_link stm32mp13_ent_links[] = {
-	DCMIPP_ENT_LINK(ID_PARALLEL,      1, ID_DUMP_BYTEPROC, 0,
+	DCMIPP_ENT_LINK(ID_INPUT, 1, ID_DUMP_BYTEPROC, 0,
 			MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE),
 	DCMIPP_ENT_LINK(ID_DUMP_BYTEPROC, 1, ID_DUMP_CAPTURE,  0,
 			MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE),
@@ -309,7 +309,7 @@ static int dcmipp_graph_notify_bound(struct v4l2_async_notifier *notifier,
 	}
 
 	/* Parallel input device detected, connect it to parallel subdev */
-	sink = dcmipp->entity[ID_PARALLEL];
+	sink = dcmipp->entity[ID_INPUT];
 	sink->bus.flags = vep.bus.parallel.flags;
 	sink->bus.bus_width = vep.bus.parallel.bus_width;
 	sink->bus.data_shift = vep.bus.parallel.data_shift;
