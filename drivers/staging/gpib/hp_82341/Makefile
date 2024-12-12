@@ -1,2 +1,2 @@
 
-obj-m += hp_82341.o
+obj-$(CONFIG_GPIB_HP82341) += hp_82341.o
