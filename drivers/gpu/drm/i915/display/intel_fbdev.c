@@ -60,7 +60,6 @@ struct intel_fbdev {
 	struct intel_framebuffer *fb;
 	struct i915_vma *vma;
 	unsigned long vma_flags;
-	int preferred_bpp;
 };
 
 static struct intel_fbdev *to_intel_fbdev(struct drm_fb_helper *fb_helper)
@@ -430,7 +429,6 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 		goto out;
 	}
 
-	ifbdev->preferred_bpp = fb->base.format->cpp[0] * 8;
 	ifbdev->fb = fb;
 
 	drm_framebuffer_get(&ifbdev->fb->base);
@@ -459,6 +457,23 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 out:
 
 	return false;
+}
+
+static unsigned int intel_fbdev_color_mode(const struct drm_format_info *info)
+{
+	unsigned int bpp;
+
+	if (!info->depth || info->num_planes != 1 || info->has_alpha || info->is_yuv)
+		return 0;
+
+	bpp = drm_format_info_bpp(info, 0);
+
+	switch (bpp) {
+	case 16:
+		return info->depth; // 15 or 16
+	default:
+		return bpp;
+	}
 }
 
 static void intel_fbdev_suspend_worker(struct work_struct *work)
@@ -625,6 +640,7 @@ void intel_fbdev_setup(struct drm_i915_private *i915)
 {
 	struct drm_device *dev = &i915->drm;
 	struct intel_fbdev *ifbdev;
+	unsigned int preferred_bpp = 0;
 	int ret;
 
 	if (!HAS_DISPLAY(i915))
@@ -633,14 +649,15 @@ void intel_fbdev_setup(struct drm_i915_private *i915)
 	ifbdev = kzalloc(sizeof(*ifbdev), GFP_KERNEL);
 	if (!ifbdev)
 		return;
-	drm_fb_helper_prepare(dev, &ifbdev->helper, 32, &intel_fb_helper_funcs);
 
 	i915->display.fbdev.fbdev = ifbdev;
 	INIT_WORK(&i915->display.fbdev.suspend_work, intel_fbdev_suspend_worker);
 	if (intel_fbdev_init_bios(dev, ifbdev))
-		ifbdev->helper.preferred_bpp = ifbdev->preferred_bpp;
-	else
-		ifbdev->preferred_bpp = ifbdev->helper.preferred_bpp;
+		preferred_bpp = intel_fbdev_color_mode(ifbdev->fb->base.format);
+	if (!preferred_bpp)
+		preferred_bpp = 32;
+
+	drm_fb_helper_prepare(dev, &ifbdev->helper, preferred_bpp, &intel_fb_helper_funcs);
 
 	ret = drm_client_init(dev, &ifbdev->helper.client, "intel-fbdev",
 			      &intel_fbdev_client_funcs);
