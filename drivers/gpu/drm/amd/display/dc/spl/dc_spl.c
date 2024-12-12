@@ -11,6 +11,41 @@
 #define IDENTITY_RATIO(ratio) (spl_fixpt_u2d19(ratio) == (1 << 19))
 #define MIN_VIEWPORT_SIZE 12
 
+static bool spl_is_yuv420(enum spl_pixel_format format)
+{
+	if ((format >= SPL_PIXEL_FORMAT_420BPP8) &&
+		(format <= SPL_PIXEL_FORMAT_420BPP10))
+		return true;
+
+	return false;
+}
+
+static bool spl_is_rgb8(enum spl_pixel_format format)
+{
+	if (format == SPL_PIXEL_FORMAT_ARGB8888)
+		return true;
+
+	return false;
+}
+
+static bool spl_is_video_format(enum spl_pixel_format format)
+{
+	if (format >= SPL_PIXEL_FORMAT_VIDEO_BEGIN
+		&& format <= SPL_PIXEL_FORMAT_VIDEO_END)
+		return true;
+	else
+		return false;
+}
+
+static bool spl_is_subsampled_format(enum spl_pixel_format format)
+{
+	if (format >= SPL_PIXEL_FORMAT_SUBSAMPLED_BEGIN
+		&& format <= SPL_PIXEL_FORMAT_SUBSAMPLED_END)
+		return true;
+	else
+		return false;
+}
+
 static struct spl_rect intersect_rec(const struct spl_rect *r0, const struct spl_rect *r1)
 {
 	struct spl_rect rec;
@@ -408,8 +443,7 @@ static void spl_calculate_scaling_ratios(struct spl_in *spl_in,
 	spl_scratch->scl_data.ratios.horz_c = spl_scratch->scl_data.ratios.horz;
 	spl_scratch->scl_data.ratios.vert_c = spl_scratch->scl_data.ratios.vert;
 
-	if (spl_in->basic_in.format == SPL_PIXEL_FORMAT_420BPP8
-			|| spl_in->basic_in.format == SPL_PIXEL_FORMAT_420BPP10) {
+	if (spl_is_yuv420(spl_in->basic_in.format)) {
 		spl_scratch->scl_data.ratios.horz_c.value /= 2;
 		spl_scratch->scl_data.ratios.vert_c.value /= 2;
 	}
@@ -546,41 +580,6 @@ static void spl_calculate_init_and_vp(bool flip_scan_dir,
 		*vp_offset = src_size - *vp_offset - *vp_size;
 }
 
-static bool spl_is_yuv420(enum spl_pixel_format format)
-{
-	if ((format >= SPL_PIXEL_FORMAT_420BPP8) &&
-		(format <= SPL_PIXEL_FORMAT_420BPP10))
-		return true;
-
-	return false;
-}
-
-static bool spl_is_rgb8(enum spl_pixel_format format)
-{
-	if (format == SPL_PIXEL_FORMAT_ARGB8888)
-		return true;
-
-	return false;
-}
-
-static bool spl_is_video_format(enum spl_pixel_format format)
-{
-	if (format >= SPL_PIXEL_FORMAT_VIDEO_BEGIN
-			&& format <= SPL_PIXEL_FORMAT_VIDEO_END)
-		return true;
-	else
-		return false;
-}
-
-static bool spl_is_subsampled_format(enum spl_pixel_format format)
-{
-	if (format >= SPL_PIXEL_FORMAT_SUBSAMPLED_BEGIN
-			&& format <= SPL_PIXEL_FORMAT_SUBSAMPLED_END)
-		return true;
-	else
-		return false;
-}
-
 /*Calculate inits and viewport */
 static void spl_calculate_inits_and_viewports(struct spl_in *spl_in,
 		struct spl_scratch *spl_scratch)
@@ -591,8 +590,7 @@ static void spl_calculate_inits_and_viewports(struct spl_in *spl_in,
 	struct spl_rect recout_clip_in_recout_dst;
 	struct spl_rect overlap_in_active_timing;
 	struct spl_rect odm_slice = calculate_odm_slice_in_timing_active(spl_in);
-	int vpc_div = (spl_in->basic_in.format == SPL_PIXEL_FORMAT_420BPP8
-			|| spl_in->basic_in.format == SPL_PIXEL_FORMAT_420BPP10) ? 2 : 1;
+	int vpc_div = spl_is_subsampled_format(spl_in->basic_in.format) ? 2 : 1;
 	bool orthogonal_rotation, flip_vert_scan_dir, flip_horz_scan_dir;
 	struct spl_fixed31_32 init_adj_h = spl_fixpt_zero;
 	struct spl_fixed31_32 init_adj_v = spl_fixpt_zero;
@@ -620,11 +618,6 @@ static void spl_calculate_inits_and_viewports(struct spl_in *spl_in,
 			&flip_vert_scan_dir,
 			&flip_horz_scan_dir);
 
-	if (orthogonal_rotation) {
-		spl_swap(src.width, src.height);
-		spl_swap(flip_vert_scan_dir, flip_horz_scan_dir);
-	}
-
 	if (spl_is_subsampled_format(spl_in->basic_in.format)) {
 		/* this gives the direction of the cositing (negative will move
 		 * left, right otherwise)
@@ -647,7 +640,12 @@ static void spl_calculate_inits_and_viewports(struct spl_in *spl_in,
 			init_adj_v = spl_fixpt_zero;
 			break;
 		}
+	}
 
+	if (orthogonal_rotation) {
+		spl_swap(src.width, src.height);
+		spl_swap(flip_vert_scan_dir, flip_horz_scan_dir);
+		spl_swap(init_adj_h, init_adj_v);
 	}
 
 	spl_calculate_init_and_vp(
@@ -1600,7 +1598,7 @@ static void spl_set_easf_data(struct spl_scratch *spl_scratch, struct spl_out *s
 			0x0;	// fp1.5.10, C3 coefficient
 	}
 
-	if (spl_is_video_format(format)) { /* TODO: 0 = RGB, 1 = YUV */
+	if (spl_is_subsampled_format(format)) { /* TODO: 0 = RGB, 1 = YUV */
 		dscl_prog_data->easf_matrix_mode = 1;
 		/*
 		 * 2-bit, BF3 chroma mode correction calculation mode
