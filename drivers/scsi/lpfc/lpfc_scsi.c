@@ -6422,7 +6422,7 @@ lpfc_create_device_data(struct lpfc_hba *phba, struct lpfc_name *vport_wwpn,
 {
 
 	struct lpfc_device_data *lun_info;
-	int memory_flags;
+	gfp_t memory_flags;
 
 	if (unlikely(!phba) || !vport_wwpn || !target_wwpn  ||
 	    !(phba->cfg_fof))
