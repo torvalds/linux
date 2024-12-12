@@ -171,21 +171,29 @@ int siw_query_device(struct ib_device *base_dev, struct ib_device_attr *attr,
 int siw_query_port(struct ib_device *base_dev, u32 port,
 		   struct ib_port_attr *attr)
 {
-	struct siw_device *sdev = to_siw_dev(base_dev);
+	struct net_device *ndev;
 	int rv;
 
 	memset(attr, 0, sizeof(*attr));
 
 	rv = ib_get_eth_speed(base_dev, port, &attr->active_speed,
 			 &attr->active_width);
+	if (rv)
+		return rv;
+
+	ndev = ib_device_get_netdev(base_dev, SIW_PORT);
+	if (!ndev)
+		return -ENODEV;
+
 	attr->gid_tbl_len = 1;
 	attr->max_msg_sz = -1;
-	attr->max_mtu = ib_mtu_int_to_enum(sdev->netdev->mtu);
-	attr->active_mtu = ib_mtu_int_to_enum(sdev->netdev->mtu);
-	attr->phys_state = sdev->state == IB_PORT_ACTIVE ?
+	attr->max_mtu = ib_mtu_int_to_enum(ndev->max_mtu);
+	attr->active_mtu = ib_mtu_int_to_enum(READ_ONCE(ndev->mtu));
+	attr->phys_state = (netif_running(ndev) && netif_carrier_ok(ndev)) ?
 		IB_PORT_PHYS_STATE_LINK_UP : IB_PORT_PHYS_STATE_DISABLED;
+	attr->state = attr->phys_state == IB_PORT_PHYS_STATE_LINK_UP ?
+		IB_PORT_ACTIVE : IB_PORT_DOWN;
 	attr->port_cap_flags = IB_PORT_CM_SUP | IB_PORT_DEVICE_MGMT_SUP;
-	attr->state = sdev->state;
 	/*
 	 * All zero
 	 *
@@ -199,6 +207,7 @@ int siw_query_port(struct ib_device *base_dev, u32 port,
 	 * attr->subnet_timeout = 0;
 	 * attr->init_type_repy = 0;
 	 */
+	dev_put(ndev);
 	return rv;
 }
 
@@ -505,21 +514,24 @@ int siw_query_qp(struct ib_qp *base_qp, struct ib_qp_attr *qp_attr,
 		 int qp_attr_mask, struct ib_qp_init_attr *qp_init_attr)
 {
 	struct siw_qp *qp;
-	struct siw_device *sdev;
+	struct net_device *ndev;
 
-	if (base_qp && qp_attr && qp_init_attr) {
+	if (base_qp && qp_attr && qp_init_attr)
 		qp = to_siw_qp(base_qp);
-		sdev = to_siw_dev(base_qp->device);
-	} else {
+	else
 		return -EINVAL;
-	}
+
+	ndev = ib_device_get_netdev(base_qp->device, SIW_PORT);
+	if (!ndev)
+		return -ENODEV;
+
 	qp_attr->qp_state = siw_qp_state_to_ib_qp_state[qp->attrs.state];
 	qp_attr->cap.max_inline_data = SIW_MAX_INLINE;
 	qp_attr->cap.max_send_wr = qp->attrs.sq_size;
 	qp_attr->cap.max_send_sge = qp->attrs.sq_max_sges;
 	qp_attr->cap.max_recv_wr = qp->attrs.rq_size;
 	qp_attr->cap.max_recv_sge = qp->attrs.rq_max_sges;
-	qp_attr->path_mtu = ib_mtu_int_to_enum(sdev->netdev->mtu);
+	qp_attr->path_mtu = ib_mtu_int_to_enum(READ_ONCE(ndev->mtu));
 	qp_attr->max_rd_atomic = qp->attrs.irq_size;
 	qp_attr->max_dest_rd_atomic = qp->attrs.orq_size;
 
@@ -534,6 +546,7 @@ int siw_query_qp(struct ib_qp *base_qp, struct ib_qp_attr *qp_attr,
 
 	qp_init_attr->cap = qp_attr->cap;
 
+	dev_put(ndev);
 	return 0;
 }
 
