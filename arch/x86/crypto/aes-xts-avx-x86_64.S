@@ -767,7 +767,7 @@ SYM_FUNC_END(aes_xts_encrypt_iv)
 // instantiated from the above macro.  They all have the following prototype:
 //
 // void (*xts_crypt_func)(const struct crypto_aes_ctx *key,
-//			  const u8 *src, u8 *dst, unsigned int len,
+//			  const u8 *src, u8 *dst, int len,
 //			  u8 tweak[AES_BLOCK_SIZE]);
 //
 // |key| is the data key.  |tweak| contains the next tweak; the encryption of
