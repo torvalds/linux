@@ -823,10 +823,17 @@ int bch2_btree_bit_mod_buffered(struct btree_trans *trans, enum btree_id btree,
 	return bch2_trans_update_buffered(trans, btree, &k);
 }
 
-static int __bch2_trans_log_msg(struct btree_trans *trans, struct printbuf *buf, unsigned u64s)
+int bch2_trans_log_msg(struct btree_trans *trans, struct printbuf *buf)
 {
+	unsigned u64s = DIV_ROUND_UP(buf->pos, sizeof(u64));
+	prt_chars(buf, '\0', u64s * sizeof(u64) - buf->pos);
+
+	int ret = buf->allocation_failure ? -BCH_ERR_ENOMEM_trans_log_msg : 0;
+	if (ret)
+		return ret;
+
 	struct jset_entry *e = bch2_trans_jset_entry_alloc(trans, jset_u64s(u64s));
-	int ret = PTR_ERR_OR_ZERO(e);
+	ret = PTR_ERR_OR_ZERO(e);
 	if (ret)
 		return ret;
 
@@ -862,7 +869,7 @@ __bch2_fs_log_msg(struct bch_fs *c, unsigned commit_flags, const char *fmt,
 		c->journal.early_journal_entries.nr += jset_u64s(u64s);
 	} else {
 		ret = bch2_trans_commit_do(c, NULL, NULL, commit_flags,
-			__bch2_trans_log_msg(trans, &buf, u64s));
+			bch2_trans_log_msg(trans, &buf));
 	}
 err:
 	printbuf_exit(&buf);

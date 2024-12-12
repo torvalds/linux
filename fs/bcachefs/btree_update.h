@@ -159,6 +159,7 @@ void bch2_trans_commit_hook(struct btree_trans *,
 			    struct btree_trans_commit_hook *);
 int __bch2_trans_commit(struct btree_trans *, unsigned);
 
+int bch2_trans_log_msg(struct btree_trans *, struct printbuf *);
 __printf(2, 3) int bch2_fs_log_msg(struct bch_fs *, const char *, ...);
 __printf(2, 3) int bch2_journal_log_msg(struct bch_fs *, const char *, ...);
 
