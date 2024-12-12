@@ -837,6 +837,20 @@ attribute-sets:
         name: tx-err
         type: uint
   -
+    name: ts-hwtstamp-provider
+    attr-cnt-name: __ethtool-a-ts-hwtstamp-provider-cnt
+    attributes:
+      -
+        name: unspec
+        type: unused
+        value: 0
+      -
+        name: index
+        type: u32
+      -
+        name: qualifier
+        type: u32
+  -
     name: tsinfo
     attr-cnt-name: __ethtool-a-tsinfo-cnt
     attributes:
@@ -867,6 +881,10 @@ attribute-sets:
         name: stats
         type: nest
         nested-attributes: ts-stat
+      -
+        name: hwtstamp-provider
+        type: nest
+        nested-attributes: ts-hwtstamp-provider
   -
     name: cable-result
     attr-cnt-name: __ethtool-a-cable-result-cnt
@@ -1912,6 +1930,7 @@ operations:
         request:
           attributes:
             - header
+            - hwtstamp-provider
         reply:
           attributes:
             - header
@@ -1920,6 +1939,7 @@ operations:
             - rx-filters
             - phc-index
             - stats
+            - hwtstamp-provider
       dump: *tsinfo-get-op
     -
       name: cable-test-act
