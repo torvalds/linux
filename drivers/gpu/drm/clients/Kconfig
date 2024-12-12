@@ -87,6 +87,7 @@ config DRM_CLIENT_LOG
 choice
 	prompt "Default DRM Client"
 	depends on DRM_CLIENT_SELECTION
+	depends on DRM_FBDEV_EMULATION || DRM_CLIENT_LOG
 	default DRM_CLIENT_DEFAULT_FBDEV
 	help
 	  Selects the default drm client.
