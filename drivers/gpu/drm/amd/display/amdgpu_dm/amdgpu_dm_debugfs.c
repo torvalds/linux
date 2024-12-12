@@ -902,7 +902,7 @@ static int dmub_tracebuffer_show(struct seq_file *m, void *data)
 {
 	struct amdgpu_device *adev = m->private;
 	struct dmub_srv_fb_info *fb_info = adev->dm.dmub_fb_info;
-	struct dmub_fw_meta_info *fw_meta_info = &adev->dm.dmub_srv->meta_info;
+	struct dmub_fw_meta_info *fw_meta_info = NULL;
 	struct dmub_debugfs_trace_entry *entries;
 	uint8_t *tbuf_base;
 	uint32_t tbuf_size, max_entries, num_entries, first_entry, i;
@@ -913,6 +913,9 @@ static int dmub_tracebuffer_show(struct seq_file *m, void *data)
 	tbuf_base = (uint8_t *)fb_info->fb[DMUB_WINDOW_5_TRACEBUFF].cpu_addr;
 	if (!tbuf_base)
 		return 0;
+
+	if (adev->dm.dmub_srv)
+		fw_meta_info = &adev->dm.dmub_srv->meta_info;
 
 	tbuf_size = fw_meta_info ? fw_meta_info->trace_buffer_size :
 				   DMUB_TRACE_BUFFER_SIZE;
