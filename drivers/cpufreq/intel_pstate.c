@@ -2200,28 +2200,20 @@ static int knl_get_turbo_pstate(int cpu)
 	return ret;
 }
 
-static void hybrid_get_type(void *data)
-{
-	u8 *cpu_type = data;
-
-	*cpu_type = get_this_hybrid_cpu_type();
-}
-
 static int hwp_get_cpu_scaling(int cpu)
 {
 	if (hybrid_scaling_factor) {
-		u8 cpu_type = 0;
-
-		smp_call_function_single(cpu, hybrid_get_type, &cpu_type, 1);
+		struct cpuinfo_x86 *c = &cpu_data(smp_processor_id());
+		u8 cpu_type = c->topo.intel_type;
 
 		/*
 		 * Return the hybrid scaling factor for P-cores and use the
 		 * default core scaling for E-cores.
 		 */
-		if (cpu_type == 0x40)
+		if (cpu_type == INTEL_CPU_TYPE_CORE)
 			return hybrid_scaling_factor;
 
-		if (cpu_type == 0x20)
+		if (cpu_type == INTEL_CPU_TYPE_ATOM)
 			return core_get_scaling();
 	}
 
