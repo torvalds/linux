@@ -479,7 +479,6 @@ int fnic_set_intr_mode_msix(struct fnic *fnic);
 void fnic_free_intr(struct fnic *fnic);
 int fnic_request_intr(struct fnic *fnic);
 
-int fnic_send(struct fc_lport *, struct fc_frame *);
 void fnic_free_wq_buf(struct vnic_wq *wq, struct vnic_wq_buf *buf);
 void fnic_handle_frame(struct work_struct *work);
 void fnic_tport_event_handler(struct work_struct *work);
@@ -499,11 +498,9 @@ int fnic_abort_cmd(struct scsi_cmnd *);
 int fnic_device_reset(struct scsi_cmnd *);
 int fnic_eh_host_reset_handler(struct scsi_cmnd *sc);
 int fnic_host_reset(struct Scsi_Host *shost);
-int fnic_reset(struct Scsi_Host *);
-void fnic_scsi_cleanup(struct fc_lport *);
-void fnic_scsi_abort_io(struct fc_lport *);
-void fnic_empty_scsi_cleanup(struct fc_lport *);
-void fnic_exch_mgr_reset(struct fc_lport *, u32, u32);
+void fnic_reset(struct Scsi_Host *shost);
+int fnic_issue_fc_host_lip(struct Scsi_Host *shost);
+void fnic_scsi_fcpio_reset(struct fnic *fnic);
 int fnic_wq_copy_cmpl_handler(struct fnic *fnic, int copy_work_to_do, unsigned int cq_index);
 int fnic_wq_cmpl_handler(struct fnic *fnic, int);
 int fnic_flogi_reg_handler(struct fnic *fnic, u32);
@@ -515,7 +512,8 @@ const char *fnic_state_to_str(unsigned int state);
 void fnic_mq_map_queues_cpus(struct Scsi_Host *host);
 void fnic_log_q_error(struct fnic *fnic);
 void fnic_handle_link_event(struct fnic *fnic);
-
+void fnic_stats_debugfs_init(struct fnic *fnic);
+void fnic_stats_debugfs_remove(struct fnic *fnic);
 int fnic_is_abts_pending(struct fnic *, struct scsi_cmnd *);
 
 void fnic_handle_fip_frame(struct work_struct *work);
@@ -536,6 +534,13 @@ int fnic_get_desc_by_devid(struct pci_dev *pdev, char **desc,
 void fnic_fdls_link_status_change(struct fnic *fnic, int linkup);
 void fnic_delete_fcp_tports(struct fnic *fnic);
 void fnic_flush_tport_event_list(struct fnic *fnic);
+int fnic_count_ioreqs_wq(struct fnic *fnic, u32 hwq, u32 portid);
+unsigned int fnic_count_ioreqs(struct fnic *fnic, u32 portid);
+unsigned int fnic_count_all_ioreqs(struct fnic *fnic);
+unsigned int fnic_count_lun_ioreqs_wq(struct fnic *fnic, u32 hwq,
+						  struct scsi_device *device);
+unsigned int fnic_count_lun_ioreqs(struct fnic *fnic,
+					   struct scsi_device *device);
 
 struct fnic_scsi_iter_data {
 	struct fnic *fnic;

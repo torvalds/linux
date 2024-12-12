@@ -127,6 +127,4 @@ struct stats_debug_info {
 };
 
 int fnic_get_stats_data(struct stats_debug_info *, struct fnic_stats *);
-void fnic_stats_debugfs_init(struct fnic *);
-void fnic_stats_debugfs_remove(struct fnic *);
 #endif /* _FNIC_STATS_H_ */

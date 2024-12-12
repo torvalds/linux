@@ -7,6 +7,7 @@
 #define _FNIC_IO_H_
 
 #include <scsi/fc/fc_fcp.h>
+#include "fnic_fdls.h"
 
 #define FNIC_DFLT_SG_DESC_CNT  32
 #define FNIC_MAX_SG_DESC_CNT        256     /* Maximum descriptors per sgl */
@@ -41,6 +42,8 @@ enum fnic_ioreq_state {
 };
 
 struct fnic_io_req {
+	struct fnic_iport_s *iport;
+	struct fnic_tport_s *tport;
 	struct host_sg_desc *sgl_list; /* sgl list */
 	void *sgl_list_alloc; /* sgl list address used for free */
 	dma_addr_t sense_buf_pa; /* dma address for sense buffer*/
