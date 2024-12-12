@@ -1314,6 +1314,10 @@ tls_rx_rec_wait(struct sock *sk, struct sk_psock *psock, bool nonblock,
 	int ret = 0;
 	long timeo;
 
+	/* a rekey is pending, let userspace deal with it */
+	if (unlikely(ctx->key_update_pending))
+		return -EKEYEXPIRED;
+
 	timeo = sock_rcvtimeo(sk, nonblock);
 
 	while (!tls_strp_msg_ready(ctx)) {
@@ -1720,6 +1724,34 @@ tls_decrypt_device(struct sock *sk, struct msghdr *msg,
 	return 1;
 }
 
+static int tls_check_pending_rekey(struct tls_context *ctx, struct sk_buff *skb)
+{
+	const struct strp_msg *rxm = strp_msg(skb);
+	const struct tls_msg *tlm = tls_msg(skb);
+	char hs_type;
+	int err;
+
+	if (likely(tlm->control != TLS_RECORD_TYPE_HANDSHAKE))
+		return 0;
+
+	if (rxm->full_len < 1)
+		return 0;
+
+	err = skb_copy_bits(skb, rxm->offset, &hs_type, 1);
+	if (err < 0) {
+		DEBUG_NET_WARN_ON_ONCE(1);
+		return err;
+	}
+
+	if (hs_type == TLS_HANDSHAKE_KEYUPDATE) {
+		struct tls_sw_context_rx *rx_ctx = ctx->priv_ctx_rx;
+
+		WRITE_ONCE(rx_ctx->key_update_pending, true);
+	}
+
+	return 0;
+}
+
 static int tls_rx_one_record(struct sock *sk, struct msghdr *msg,
 			     struct tls_decrypt_arg *darg)
 {
@@ -1739,7 +1771,7 @@ static int tls_rx_one_record(struct sock *sk, struct msghdr *msg,
 	rxm->full_len -= prot->overhead_size;
 	tls_advance_record_sn(sk, prot, &tls_ctx->rx);
 
-	return 0;
+	return tls_check_pending_rekey(tls_ctx, darg->skb);
 }
 
 int decrypt_skb(struct sock *sk, struct scatterlist *sgout)
@@ -2719,6 +2751,7 @@ int tls_set_sw_offload(struct sock *sk, int tx)
 		crypto_info = &ctx->crypto_recv.info;
 		cctx = &ctx->rx;
 		aead = &sw_ctx_rx->aead_recv;
+		sw_ctx_rx->key_update_pending = false;
 	}
 
 	cipher_desc = get_cipher_desc(crypto_info->cipher_type);
