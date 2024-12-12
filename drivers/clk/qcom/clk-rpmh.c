@@ -928,6 +928,21 @@ static const struct clk_rpmh_desc clk_rpmh_volcano = {
 	.num_clks = ARRAY_SIZE(volcano_rpmh_clocks),
 };
 
+static struct clk_hw *seraph_rpmh_clocks[] = {
+	[RPMH_CXO_PAD_CLK]	= &pineapple_xo_pad.hw,
+	[RPMH_CXO_PAD_CLK_A]	= &pineapple_xo_pad_ao.hw,
+	[RPMH_CXO_CLK]		= &pineapple_bi_tcxo.hw,
+	[RPMH_CXO_CLK_A]	= &pineapple_bi_tcxo_ao.hw,
+	[RPMH_RF_CLK1]		= &pineapple_rf_clk1.hw,
+	[RPMH_RF_CLK1_A]	= &pineapple_rf_clk1_ao.hw,
+	[RPMH_IPA_CLK]		= &sdm845_ipa.hw,
+};
+
+static const struct clk_rpmh_desc clk_rpmh_seraph = {
+	.clks = seraph_rpmh_clocks,
+	.num_clks = ARRAY_SIZE(seraph_rpmh_clocks),
+};
+
 static int clk_rpmh_probe(struct platform_device *pdev)
 {
 	struct clk_hw **hw_clks;
@@ -1030,6 +1045,7 @@ static const struct of_device_id clk_rpmh_match_table[] = {
 	{ .compatible = "qcom,volcano-rpmh-clk", .data = &clk_rpmh_volcano},
 	{ .compatible = "qcom,anorak-rpmh-clk", .data = &clk_rpmh_anorak},
 	{ .compatible = "qcom,neo-rpmh-clk", .data = &clk_rpmh_neo},
+	{ .compatible = "qcom,seraph-rpmh-clk", .data = &clk_rpmh_seraph},
 	{ }
 };
 MODULE_DEVICE_TABLE(of, clk_rpmh_match_table);
