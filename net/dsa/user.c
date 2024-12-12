@@ -1229,8 +1229,12 @@ static int dsa_user_set_eee(struct net_device *dev, struct ethtool_keee *e)
 	struct dsa_switch *ds = dp->ds;
 	int ret;
 
+	/* Check whether the switch supports EEE */
+	if (!ds->ops->support_eee || !ds->ops->support_eee(ds, dp->index))
+		return -EOPNOTSUPP;
+
 	/* Port's PHY and MAC both need to be EEE capable */
-	if (!dev->phydev || !dp->pl)
+	if (!dev->phydev)
 		return -ENODEV;
 
 	if (!ds->ops->set_mac_eee)
@@ -1249,8 +1253,12 @@ static int dsa_user_get_eee(struct net_device *dev, struct ethtool_keee *e)
 	struct dsa_switch *ds = dp->ds;
 	int ret;
 
+	/* Check whether the switch supports EEE */
+	if (!ds->ops->support_eee || !ds->ops->support_eee(ds, dp->index))
+		return -EOPNOTSUPP;
+
 	/* Port's PHY and MAC both need to be EEE capable */
-	if (!dev->phydev || !dp->pl)
+	if (!dev->phydev)
 		return -ENODEV;
 
 	if (!ds->ops->get_mac_eee)
