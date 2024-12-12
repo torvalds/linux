@@ -1568,6 +1568,22 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 	if (!delete_leaves.nr && !delete_interior.nr)
 		goto err;
 
+	{
+		struct printbuf buf = PRINTBUF;
+		prt_printf(&buf, "deleting leaves");
+		darray_for_each(delete_leaves, i)
+			prt_printf(&buf, " %u", *i);
+
+		prt_printf(&buf, " interior");
+		darray_for_each(delete_interior, i)
+			prt_printf(&buf, " %u->%u", i->id, i->live_child);
+
+		ret = commit_do(trans, NULL, NULL, 0, bch2_trans_log_msg(trans, &buf));
+		printbuf_exit(&buf);
+		if (ret)
+			goto err;
+	}
+
 	for (unsigned btree = 0; btree < BTREE_ID_NR; btree++) {
 		struct disk_reservation res = { 0 };
 
