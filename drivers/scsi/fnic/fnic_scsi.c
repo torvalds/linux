@@ -1945,6 +1945,45 @@ void fnic_terminate_rport_io(struct fc_rport *rport)
 }
 
 /*
+ * FCP-SCSI specific handling for module unload
+ *
+ */
+void fnic_scsi_unload(struct fnic *fnic)
+{
+	unsigned long flags;
+
+	/*
+	 * Mark state so that the workqueue thread stops forwarding
+	 * received frames and link events to the local port. ISR and
+	 * other threads that can queue work items will also stop
+	 * creating work items on the fnic workqueue
+	 */
+	spin_lock_irqsave(&fnic->fnic_lock, flags);
+	fnic->iport.state = FNIC_IPORT_STATE_LINK_WAIT;
+	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
+
+	if (fdls_get_state(&fnic->iport.fabric) != FDLS_STATE_INIT)
+		fnic_scsi_fcpio_reset(fnic);
+
+	spin_lock_irqsave(&fnic->fnic_lock, flags);
+	fnic->in_remove = 1;
+	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
+
+	fnic_flush_tport_event_list(fnic);
+	fnic_delete_fcp_tports(fnic);
+}
+
+void fnic_scsi_unload_cleanup(struct fnic *fnic)
+{
+	int hwq = 0;
+
+	fc_remove_host(fnic->host);
+	scsi_remove_host(fnic->host);
+	for (hwq = 0; hwq < fnic->wq_copy_count; hwq++)
+		kfree(fnic->sw_copy_wq[hwq].io_req_table);
+}
+
+/*
  * This function is exported to SCSI for sending abort cmnds.
  * A SCSI IO is represented by a io_req in the driver.
  * The ioreq is linked to the SCSI Cmd, thus a link with the ULP's IO.

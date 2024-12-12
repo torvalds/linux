@@ -3,6 +3,7 @@
 #ifndef _FNIC_STATS_H_
 #define _FNIC_STATS_H_
 #define FNIC_MQ_MAX_QUEUES 64
+#include <scsi/scsi_transport_fc.h>
 
 struct stats_timestamps {
 	struct timespec64 last_reset_time;
@@ -116,6 +117,7 @@ struct fnic_stats {
 	struct reset_stats reset_stats;
 	struct fw_stats fw_stats;
 	struct vlan_stats vlan_stats;
+	struct fc_host_statistics host_stats;
 	struct misc_stats misc_stats;
 };
 

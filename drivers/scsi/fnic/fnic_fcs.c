@@ -63,6 +63,22 @@ static inline  void fnic_fdls_set_fcoe_dstmac(struct fnic *fnic,
 	memcpy(fnic->iport.fcfmac, dst_mac, 6);
 }
 
+void fnic_get_host_port_state(struct Scsi_Host *shost)
+{
+	struct fnic *fnic = *((struct fnic **) shost_priv(shost));
+	struct fnic_iport_s *iport = &fnic->iport;
+	unsigned long flags;
+
+	spin_lock_irqsave(&fnic->fnic_lock, flags);
+	if (!fnic->link_status)
+		fc_host_port_state(shost) = FC_PORTSTATE_LINKDOWN;
+	else if (iport->state == FNIC_IPORT_STATE_READY)
+		fc_host_port_state(shost) = FC_PORTSTATE_ONLINE;
+	else
+		fc_host_port_state(shost) = FC_PORTSTATE_OFFLINE;
+	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
+}
+
 void fnic_fdls_link_status_change(struct fnic *fnic, int linkup)
 {
 	struct fnic_iport_s *iport = &fnic->iport;

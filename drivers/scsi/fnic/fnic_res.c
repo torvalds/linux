@@ -58,6 +58,11 @@ int fnic_get_vnic_config(struct fnic *fnic)
 	GET_CONFIG(intr_mode);
 	GET_CONFIG(wq_copy_count);
 
+	if ((c->flags & (VFCF_FC_INITIATOR)) == 0) {
+		dev_info(&fnic->pdev->dev, "vNIC role not defined (def role: FC Init)\n");
+		c->flags |= VFCF_FC_INITIATOR;
+	}
+
 	c->wq_enet_desc_count =
 		min_t(u32, VNIC_FNIC_WQ_DESCS_MAX,
 		      max_t(u32, VNIC_FNIC_WQ_DESCS_MIN,
@@ -137,29 +142,28 @@ int fnic_get_vnic_config(struct fnic *fnic)
 
 	c->wq_copy_count = min_t(u16, FNIC_WQ_COPY_MAX, c->wq_copy_count);
 
-	dev_info(&fnic->pdev->dev, "vNIC MAC addr %pM "
-		     "wq/wq_copy/rq %d/%d/%d\n",
-		     fnic->ctlr.ctl_src_addr,
+	dev_info(&fnic->pdev->dev, "fNIC MAC addr %p wq/wq_copy/rq %d/%d/%d\n",
+			fnic->data_src_addr,
 		     c->wq_enet_desc_count, c->wq_copy_desc_count,
 		     c->rq_desc_count);
-	dev_info(&fnic->pdev->dev, "vNIC node wwn %llx port wwn %llx\n",
+	dev_info(&fnic->pdev->dev, "fNIC node wwn 0x%llx port wwn 0x%llx\n",
 		     c->node_wwn, c->port_wwn);
-	dev_info(&fnic->pdev->dev, "vNIC ed_tov %d ra_tov %d\n",
+	dev_info(&fnic->pdev->dev, "fNIC ed_tov %d ra_tov %d\n",
 		     c->ed_tov, c->ra_tov);
-	dev_info(&fnic->pdev->dev, "vNIC mtu %d intr timer %d\n",
+	dev_info(&fnic->pdev->dev, "fNIC mtu %d intr timer %d\n",
 		     c->maxdatafieldsize, c->intr_timer);
-	dev_info(&fnic->pdev->dev, "vNIC flags 0x%x luns per tgt %d\n",
+	dev_info(&fnic->pdev->dev, "fNIC flags 0x%x luns per tgt %d\n",
 		     c->flags, c->luns_per_tgt);
-	dev_info(&fnic->pdev->dev, "vNIC flogi_retries %d flogi timeout %d\n",
+	dev_info(&fnic->pdev->dev, "fNIC flogi_retries %d flogi timeout %d\n",
 		     c->flogi_retries, c->flogi_timeout);
-	dev_info(&fnic->pdev->dev, "vNIC plogi retries %d plogi timeout %d\n",
+	dev_info(&fnic->pdev->dev, "fNIC plogi retries %d plogi timeout %d\n",
 		     c->plogi_retries, c->plogi_timeout);
-	dev_info(&fnic->pdev->dev, "vNIC io throttle count %d link dn timeout %d\n",
+	dev_info(&fnic->pdev->dev, "fNIC io throttle count %d link dn timeout %d\n",
 		     c->io_throttle_count, c->link_down_timeout);
-	dev_info(&fnic->pdev->dev, "vNIC port dn io retries %d port dn timeout %d\n",
+	dev_info(&fnic->pdev->dev, "fNIC port dn io retries %d port dn timeout %d\n",
 		     c->port_down_io_retries, c->port_down_timeout);
-	dev_info(&fnic->pdev->dev, "vNIC wq_copy_count: %d\n", c->wq_copy_count);
-	dev_info(&fnic->pdev->dev, "vNIC intr mode: %d\n", c->intr_mode);
+	dev_info(&fnic->pdev->dev, "fNIC wq_copy_count: %d\n", c->wq_copy_count);
+	dev_info(&fnic->pdev->dev, "fNIC intr mode: %d\n", c->intr_mode);
 
 	return 0;
 }

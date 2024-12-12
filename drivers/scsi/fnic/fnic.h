@@ -85,6 +85,7 @@
 #define IS_FNIC_FCP_INITIATOR(fnic) (fnic->role == FNIC_ROLE_FCP_INITIATOR)
 
 #define FNIC_FW_RESET_TIMEOUT        60000	/* mSec   */
+#define FNIC_FCOE_MAX_CMD_LEN        16
 /* Retry supported by rport (returned by PRLI service parameters) */
 #define FNIC_FC_RP_FLAGS_RETRY            0x1
 
@@ -344,6 +345,7 @@ struct fnic {
 	int fnic_num;
 	enum fnic_role_e role;
 	struct fnic_iport_s iport;
+	struct Scsi_Host *host;
 	struct fc_lport *lport;
 	struct fcoe_ctlr ctlr;		/* FIP FCoE controller structure */
 	struct vnic_dev_bar bar0;
@@ -464,11 +466,6 @@ struct fnic {
 	____cacheline_aligned struct vnic_intr intr[FNIC_MSIX_INTR_MAX];
 };
 
-static inline struct fnic *fnic_from_ctlr(struct fcoe_ctlr *fip)
-{
-	return container_of(fip, struct fnic, ctlr);
-}
-
 extern struct workqueue_struct *fnic_event_queue;
 extern struct workqueue_struct *fnic_fip_queue;
 extern const struct attribute_group *fnic_host_groups[];
@@ -500,6 +497,7 @@ int fnic_eh_host_reset_handler(struct scsi_cmnd *sc);
 int fnic_host_reset(struct Scsi_Host *shost);
 void fnic_reset(struct Scsi_Host *shost);
 int fnic_issue_fc_host_lip(struct Scsi_Host *shost);
+void fnic_get_host_port_state(struct Scsi_Host *shost);
 void fnic_scsi_fcpio_reset(struct fnic *fnic);
 int fnic_wq_copy_cmpl_handler(struct fnic *fnic, int copy_work_to_do, unsigned int cq_index);
 int fnic_wq_cmpl_handler(struct fnic *fnic, int);
@@ -512,7 +510,7 @@ const char *fnic_state_to_str(unsigned int state);
 void fnic_mq_map_queues_cpus(struct Scsi_Host *host);
 void fnic_log_q_error(struct fnic *fnic);
 void fnic_handle_link_event(struct fnic *fnic);
-void fnic_stats_debugfs_init(struct fnic *fnic);
+int fnic_stats_debugfs_init(struct fnic *fnic);
 void fnic_stats_debugfs_remove(struct fnic *fnic);
 int fnic_is_abts_pending(struct fnic *, struct scsi_cmnd *);
 
@@ -541,6 +539,10 @@ unsigned int fnic_count_lun_ioreqs_wq(struct fnic *fnic, u32 hwq,
 						  struct scsi_device *device);
 unsigned int fnic_count_lun_ioreqs(struct fnic *fnic,
 					   struct scsi_device *device);
+void fnic_scsi_unload(struct fnic *fnic);
+void fnic_scsi_unload_cleanup(struct fnic *fnic);
+int fnic_get_debug_info(struct stats_debug_info *info,
+			struct fnic *fnic);
 
 struct fnic_scsi_iter_data {
 	struct fnic *fnic;

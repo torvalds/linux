@@ -458,6 +458,12 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 
 }
 
+int fnic_get_debug_info(struct stats_debug_info *info, struct fnic *fnic)
+{
+	/* Placeholder function */
+	return 0;
+}
+
 /*
  * fnic_trace_buf_init - Initialize fnic trace buffer logging facility
  *
