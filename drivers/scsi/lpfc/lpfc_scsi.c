@@ -5136,6 +5136,12 @@ lpfc_info(struct Scsi_Host *host)
 				goto buffer_done;
 		}
 
+		/* Support for BSG ioctls */
+		scnprintf(tmp, sizeof(tmp), " BSG");
+		if (strlcat(lpfcinfobuf, tmp, sizeof(lpfcinfobuf)) >=
+		    sizeof(lpfcinfobuf))
+			goto buffer_done;
+
 		/* PCI resettable */
 		if (!lpfc_check_pci_resettable(phba)) {
 			scnprintf(tmp, sizeof(tmp), " PCI resettable");

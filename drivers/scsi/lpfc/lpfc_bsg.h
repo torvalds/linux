@@ -239,12 +239,27 @@ struct lpfc_sli_config_emb0_subsys {
 	uint32_t timeout;		/* comn_set_feature timeout */
 	uint32_t request_length;	/* comn_set_feature request len */
 	uint32_t version;		/* comn_set_feature version */
-	uint32_t csf_feature;		/* comn_set_feature feature */
+	uint32_t word68;		/* comn_set_feature feature */
+#define lpfc_emb0_subcmnd_csf_feat_SHIFT		0
+#define lpfc_emb0_subcmnd_csf_feat_MASK			0xffffffff
+#define lpfc_emb0_subcmnd_csf_feat_WORD			word68
+#define lpfc_emb0_subcmnd_rd_obj_des_rd_len_SHIFT	0
+#define lpfc_emb0_subcmnd_rd_obj_des_rd_len_MASK	0x00ffffff
+#define lpfc_emb0_subcmnd_rd_obj_des_rd_len_WORD	word68
 	uint32_t word69;		/* comn_set_feature parameter len */
 	uint32_t word70;		/* comn_set_feature parameter val0 */
 #define lpfc_emb0_subcmnd_csf_p0_SHIFT	0
 #define lpfc_emb0_subcmnd_csf_p0_MASK	0x3
 #define lpfc_emb0_subcmnd_csf_p0_WORD	word70
+	uint32_t reserved71[25];
+	uint32_t word96;		/* rd_obj hbd_count */
+#define lpfc_emb0_subcmnd_rd_obj_hbd_cnt_SHIFT	0
+#define lpfc_emb0_subcmnd_rd_obj_hbd_cnt_MASK	0xffffffff
+#define lpfc_emb0_subcmnd_rd_obj_hbd_cnt_WORD	word96
+#define LPFC_EMB0_MAX_RD_OBJ_HBD_CNT		31
+	struct lpfc_sli_config_hbd hbd[LPFC_EMB0_MAX_RD_OBJ_HBD_CNT];
+	uint32_t word190;
+	uint32_t word191;
 };
 
 struct lpfc_sli_config_emb1_subsys {
