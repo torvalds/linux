@@ -249,6 +249,7 @@ config CROS_EC_TYPEC
 	depends on USB_ROLE_SWITCH
 	default MFD_CROS_EC_DEV
 	select CROS_EC_TYPEC_ALTMODES if TYPEC_DP_ALTMODE
+	select CROS_EC_TYPEC_ALTMODES if TYPEC_TBT_ALTMODE
 	help
 	  If you say Y here, you get support for accessing Type C connector
 	  information from the Chrome OS EC.
