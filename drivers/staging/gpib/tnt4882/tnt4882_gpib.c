@@ -45,10 +45,6 @@ struct tnt4882_priv {
 	unsigned short imr0_bits;
 	unsigned short imr3_bits;
 	unsigned short auxg_bits;	// bits written to auxiliary register G
-	void (*io_writeb)(unsigned int value, void *address);
-	void (*io_writew)(unsigned int value, void *address);
-	unsigned int (*io_readb)(void *address);
-	unsigned int (*io_readw)(void *address);
 };
 
 // interface functions
@@ -104,17 +100,17 @@ static const int atgpib_iosize = 32;
 /* paged io */
 static inline unsigned int tnt_paged_readb(struct tnt4882_priv *priv, unsigned long offset)
 {
-	priv->io_writeb(AUX_PAGEIN, priv->nec7210_priv.iobase + AUXMR * priv->nec7210_priv.offset);
+	iowrite8(AUX_PAGEIN, priv->nec7210_priv.iobase + AUXMR * priv->nec7210_priv.offset);
 	udelay(1);
-	return priv->io_readb(priv->nec7210_priv.iobase + offset);
+	return ioread8(priv->nec7210_priv.iobase + offset);
 }
 
 static inline void tnt_paged_writeb(struct tnt4882_priv *priv, unsigned int value,
 				    unsigned long offset)
 {
-	priv->io_writeb(AUX_PAGEIN, priv->nec7210_priv.iobase + AUXMR * priv->nec7210_priv.offset);
+	iowrite8(AUX_PAGEIN, priv->nec7210_priv.iobase + AUXMR * priv->nec7210_priv.offset);
 	udelay(1);
-	priv->io_writeb(value, priv->nec7210_priv.iobase + offset);
+	iowrite8(value, priv->nec7210_priv.iobase + offset);
 }
 
 /* readb/writeb wrappers */
@@ -134,7 +130,7 @@ static inline unsigned short tnt_readb(struct tnt4882_priv *priv, unsigned long 
 		switch (priv->nec7210_priv.type) {
 		case TNT4882:
 		case TNT5004:
-			retval = priv->io_readb(address);
+			retval = ioread8(address);
 			break;
 		case NAT4882:
 			retval = tnt_paged_readb(priv, offset - tnt_pagein_offset);
@@ -149,7 +145,7 @@ static inline unsigned short tnt_readb(struct tnt4882_priv *priv, unsigned long 
 		}
 		break;
 	default:
-		retval = priv->io_readb(address);
+		retval = ioread8(address);
 		break;
 	}
 	spin_unlock_irqrestore(register_lock, flags);
@@ -170,7 +166,7 @@ static inline void tnt_writeb(struct tnt4882_priv *priv, unsigned short value, u
 		switch (priv->nec7210_priv.type) {
 		case TNT4882:
 		case TNT5004:
-			priv->io_writeb(value, address);
+			iowrite8(value, address);
 			break;
 		case NAT4882:
 			tnt_paged_writeb(priv, value, offset - tnt_pagein_offset);
@@ -183,7 +179,7 @@ static inline void tnt_writeb(struct tnt4882_priv *priv, unsigned short value, u
 		}
 		break;
 	default:
-		priv->io_writeb(value, address);
+		iowrite8(value, address);
 		break;
 	}
 	spin_unlock_irqrestore(register_lock, flags);
@@ -288,7 +284,7 @@ static int drain_fifo_words(struct tnt4882_priv *tnt_priv, uint8_t *buffer, int 
 	while (fifo_word_available(tnt_priv) && count + 2 <= num_bytes)	{
 		short word;
 
-		word = tnt_priv->io_readw(nec_priv->iobase + FIFOB);
+		word = ioread16(nec_priv->iobase + FIFOB);
 		buffer[count++] = word & 0xff;
 		buffer[count++] = (word >> 8) & 0xff;
 	}
@@ -573,7 +569,7 @@ static int generic_write(gpib_board_t *board, uint8_t *buffer, size_t length,
 			word = buffer[count++] & 0xff;
 			if (count < length)
 				word |= (buffer[count++] << 8) & 0xff00;
-			tnt_priv->io_writew(word, nec_priv->iobase + FIFOB);
+			iowrite16(word, nec_priv->iobase + FIFOB);
 		}
 //  avoid unnecessary HR_NFF interrupts
 //		tnt_priv->imr3_bits |= HR_NFF;
@@ -1269,10 +1265,6 @@ int ni_pci_attach(gpib_board_t *board, const gpib_board_config_t *config)
 	if (tnt4882_allocate_private(board))
 		return -ENOMEM;
 	tnt_priv = board->private_data;
-	tnt_priv->io_writeb = writeb_wrapper;
-	tnt_priv->io_readb = readb_wrapper;
-	tnt_priv->io_writew = writew_wrapper;
-	tnt_priv->io_readw = readw_wrapper;
 	nec_priv = &tnt_priv->nec7210_priv;
 	nec_priv->type = TNT4882;
 	nec_priv->read_byte = nec7210_locking_iomem_read_byte;
@@ -1408,10 +1400,6 @@ static int ni_isa_attach_common(gpib_board_t *board, const gpib_board_config_t *
 	if (tnt4882_allocate_private(board))
 		return -ENOMEM;
 	tnt_priv = board->private_data;
-	tnt_priv->io_writeb = outb_wrapper;
-	tnt_priv->io_readb = inb_wrapper;
-	tnt_priv->io_writew = outw_wrapper;
-	tnt_priv->io_readw = inw_wrapper;
 	nec_priv = &tnt_priv->nec7210_priv;
 	nec_priv->type = chipset;
 	nec_priv->read_byte = nec7210_locking_ioport_read_byte;
@@ -1438,7 +1426,9 @@ static int ni_isa_attach_common(gpib_board_t *board, const gpib_board_config_t *
 		pr_err("tnt4882: failed to allocate ioports\n");
 		return -1;
 	}
-	nec_priv->iobase = iobase;
+	nec_priv->iobase = ioport_map(iobase, atgpib_iosize);
+	if (!nec_priv->iobase)
+		return -1;
 
 	// get irq
 	if (request_irq(irq, tnt4882_interrupt, isr_flags, "atgpib", board)) {
@@ -1478,6 +1468,8 @@ void ni_isa_detach(gpib_board_t *board)
 			tnt4882_board_reset(tnt_priv, board);
 		if (tnt_priv->irq)
 			free_irq(tnt_priv->irq, board);
+		if (nec_priv->iobase)
+			ioport_unmap(nec_priv->iobase);
 		if (nec_priv->iobase)
 			release_region((unsigned long)(nec_priv->iobase), atgpib_iosize);
 		if (tnt_priv->pnp_dev)
@@ -1817,10 +1809,6 @@ int ni_pcmcia_attach(gpib_board_t *board, const gpib_board_config_t *config)
 	if (tnt4882_allocate_private(board))
 		return -ENOMEM;
 	tnt_priv = board->private_data;
-	tnt_priv->io_writeb = outb_wrapper;
-	tnt_priv->io_readb = inb_wrapper;
-	tnt_priv->io_writew = outw_wrapper;
-	tnt_priv->io_readw = inw_wrapper;
 	nec_priv = &tnt_priv->nec7210_priv;
 	nec_priv->type = TNT4882;
 	nec_priv->read_byte = nec7210_locking_ioport_read_byte;
@@ -1835,7 +1823,10 @@ int ni_pcmcia_attach(gpib_board_t *board, const gpib_board_config_t *config)
 		return -EIO;
 	}
 
-	nec_priv->iobase = (void *)(unsigned long)curr_dev->resource[0]->start;
+	nec_priv->iobase = ioport_map(curr_dev->resource[0]->start,
+					resource_size(curr_dev->resource[0]));
+	if (!nec_priv->iobase)
+		return -1;
 
 	// get irq
 	if (request_irq(curr_dev->irq, tnt4882_interrupt, isr_flags, "tnt4882", board))	{
@@ -1860,6 +1851,8 @@ void ni_pcmcia_detach(gpib_board_t *board)
 		nec_priv = &tnt_priv->nec7210_priv;
 		if (tnt_priv->irq)
 			free_irq(tnt_priv->irq, board);
+		if (nec_priv->iobase)
+			ioport_unmap(nec_priv->iobase);
 		if (nec_priv->iobase) {
 			tnt4882_board_reset(tnt_priv, board);
 			release_region((unsigned long)nec_priv->iobase, pcmcia_gpib_iosize);

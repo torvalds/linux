@@ -66,6 +66,7 @@ config GPIB_NI_PCI_ISA
 	depends on HAS_IOPORT
 	depends on !X86_PAE
 	depends on PCMCIA || !PCMCIA
+	depends on HAS_IOPORT_MAP
 	select GPIB_COMMON
 	select GPIB_NEC7210
 	help
