@@ -2046,6 +2046,8 @@ void intel_guc_submission_cancel_requests(struct intel_guc *guc)
 
 void intel_guc_submission_reset_finish(struct intel_guc *guc)
 {
+	int outstanding;
+
 	/* Reset called during driver load or during wedge? */
 	if (unlikely(!guc_submission_initialized(guc) ||
 		     !intel_guc_is_fw_running(guc) ||
@@ -2059,8 +2061,10 @@ void intel_guc_submission_reset_finish(struct intel_guc *guc)
 	 * see in CI if this happens frequently / a precursor to taking down the
 	 * machine.
 	 */
-	if (atomic_read(&guc->outstanding_submission_g2h))
-		guc_err(guc, "Unexpected outstanding GuC to Host in reset finish\n");
+	outstanding = atomic_read(&guc->outstanding_submission_g2h);
+	if (outstanding)
+		guc_err(guc, "Unexpected outstanding GuC to Host response(s) in reset finish: %d\n",
+			outstanding);
 	atomic_set(&guc->outstanding_submission_g2h, 0);
 
 	intel_guc_global_policies_update(guc);
