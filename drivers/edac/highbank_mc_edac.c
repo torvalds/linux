@@ -261,7 +261,7 @@ static void highbank_mc_remove(struct platform_device *pdev)
 
 static struct platform_driver highbank_mc_edac_driver = {
 	.probe = highbank_mc_probe,
-	.remove_new = highbank_mc_remove,
+	.remove = highbank_mc_remove,
 	.driver = {
 		.name = "hb_mc_edac",
 		.of_match_table = hb_ddr_ctrl_of_match,

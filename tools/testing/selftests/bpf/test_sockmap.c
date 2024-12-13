@@ -1579,8 +1579,12 @@ static void test_txmsg_redir(int cgrp, struct sockmap_options *opt)
 
 static void test_txmsg_redir_wait_sndmem(int cgrp, struct sockmap_options *opt)
 {
-	txmsg_redir = 1;
 	opt->tx_wait_mem = true;
+	txmsg_redir = 1;
+	test_send_large(opt, cgrp);
+
+	txmsg_redir = 1;
+	txmsg_apply = 4097;
 	test_send_large(opt, cgrp);
 	opt->tx_wait_mem = false;
 }

@@ -250,7 +250,7 @@ MODULE_DEVICE_TABLE(platform, armada_drm_platform_ids);
 
 static struct platform_driver armada_drm_platform_driver = {
 	.probe	= armada_drm_probe,
-	.remove_new = armada_drm_remove,
+	.remove = armada_drm_remove,
 	.shutdown = armada_drm_shutdown,
 	.driver	= {
 		.name	= "armada-drm",

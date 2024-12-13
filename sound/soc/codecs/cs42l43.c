@@ -2424,7 +2424,7 @@ static struct platform_driver cs42l43_codec_driver = {
 };
 module_platform_driver(cs42l43_codec_driver);
 
-MODULE_IMPORT_NS(SND_SOC_CS42L43);
+MODULE_IMPORT_NS("SND_SOC_CS42L43");
 
 MODULE_DESCRIPTION("CS42L43 CODEC Driver");
 MODULE_AUTHOR("Charles Keepax <ckeepax@opensource.cirrus.com>");

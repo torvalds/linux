@@ -783,7 +783,7 @@ static const struct dev_pm_ops dw_mipi_dsi_stm_pm_ops = {
 
 static struct platform_driver dw_mipi_dsi_stm_driver = {
 	.probe		= dw_mipi_dsi_stm_probe,
-	.remove_new	= dw_mipi_dsi_stm_remove,
+	.remove		= dw_mipi_dsi_stm_remove,
 	.driver		= {
 		.of_match_table = dw_mipi_dsi_stm_dt_ids,
 		.name	= "stm32-display-dsi",

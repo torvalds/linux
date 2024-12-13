@@ -299,7 +299,7 @@ int vsc_tp_xfer(struct vsc_tp *tp, u8 cmd, const void *obuf, size_t olen,
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(vsc_tp_xfer, VSC_TP);
+EXPORT_SYMBOL_NS_GPL(vsc_tp_xfer, "VSC_TP");
 
 /**
  * vsc_tp_rom_xfer - transfer data to rom code
@@ -365,7 +365,7 @@ void vsc_tp_reset(struct vsc_tp *tp)
 
 	atomic_set(&tp->assert_cnt, 0);
 }
-EXPORT_SYMBOL_NS_GPL(vsc_tp_reset, VSC_TP);
+EXPORT_SYMBOL_NS_GPL(vsc_tp_reset, "VSC_TP");
 
 /**
  * vsc_tp_need_read - check if device has data to sent
@@ -383,7 +383,7 @@ bool vsc_tp_need_read(struct vsc_tp *tp)
 
 	return true;
 }
-EXPORT_SYMBOL_NS_GPL(vsc_tp_need_read, VSC_TP);
+EXPORT_SYMBOL_NS_GPL(vsc_tp_need_read, "VSC_TP");
 
 /**
  * vsc_tp_register_event_cb - register a callback function to receive event
@@ -400,7 +400,7 @@ int vsc_tp_register_event_cb(struct vsc_tp *tp, vsc_tp_event_cb_t event_cb,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(vsc_tp_register_event_cb, VSC_TP);
+EXPORT_SYMBOL_NS_GPL(vsc_tp_register_event_cb, "VSC_TP");
 
 /**
  * vsc_tp_request_irq - request irq for vsc_tp device
@@ -421,7 +421,7 @@ int vsc_tp_request_irq(struct vsc_tp *tp)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(vsc_tp_request_irq, VSC_TP);
+EXPORT_SYMBOL_NS_GPL(vsc_tp_request_irq, "VSC_TP");
 
 /**
  * vsc_tp_free_irq - free irq for vsc_tp device
@@ -431,7 +431,7 @@ void vsc_tp_free_irq(struct vsc_tp *tp)
 {
 	free_irq(tp->spi->irq, tp);
 }
-EXPORT_SYMBOL_NS_GPL(vsc_tp_free_irq, VSC_TP);
+EXPORT_SYMBOL_NS_GPL(vsc_tp_free_irq, "VSC_TP");
 
 /**
  * vsc_tp_intr_synchronize - synchronize vsc_tp interrupt
@@ -441,7 +441,7 @@ void vsc_tp_intr_synchronize(struct vsc_tp *tp)
 {
 	synchronize_irq(tp->spi->irq);
 }
-EXPORT_SYMBOL_NS_GPL(vsc_tp_intr_synchronize, VSC_TP);
+EXPORT_SYMBOL_NS_GPL(vsc_tp_intr_synchronize, "VSC_TP");
 
 /**
  * vsc_tp_intr_enable - enable vsc_tp interrupt
@@ -451,7 +451,7 @@ void vsc_tp_intr_enable(struct vsc_tp *tp)
 {
 	enable_irq(tp->spi->irq);
 }
-EXPORT_SYMBOL_NS_GPL(vsc_tp_intr_enable, VSC_TP);
+EXPORT_SYMBOL_NS_GPL(vsc_tp_intr_enable, "VSC_TP");
 
 /**
  * vsc_tp_intr_disable - disable vsc_tp interrupt
@@ -461,7 +461,7 @@ void vsc_tp_intr_disable(struct vsc_tp *tp)
 {
 	disable_irq(tp->spi->irq);
 }
-EXPORT_SYMBOL_NS_GPL(vsc_tp_intr_disable, VSC_TP);
+EXPORT_SYMBOL_NS_GPL(vsc_tp_intr_disable, "VSC_TP");
 
 static int vsc_tp_match_any(struct acpi_device *adev, void *data)
 {
