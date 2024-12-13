@@ -104,7 +104,11 @@ static ssize_t __xe_devcoredump_read(char *buffer, size_t count,
 	drm_puts(&p, "\n**** GuC CT ****\n");
 	xe_guc_ct_snapshot_print(ss->ct, &p);
 
-	drm_puts(&p, "\n**** Contexts ****\n");
+	/*
+	 * Don't add a new section header here because the mesa debug decoder
+	 * tool expects the context information to be in the 'GuC CT' section.
+	 */
+	/* drm_puts(&p, "\n**** Contexts ****\n"); */
 	xe_guc_exec_queue_snapshot_print(ss->ge, &p);
 
 	drm_puts(&p, "\n**** Job ****\n");
@@ -357,6 +361,15 @@ void xe_print_blob_ascii85(struct drm_printer *p, const char *prefix,
 	const u32 *blob32 = (const u32 *)blob;
 	char buff[ASCII85_BUFSZ], *line_buff;
 	size_t line_pos = 0;
+
+	/*
+	 * Splitting blobs across multiple lines is not compatible with the mesa
+	 * debug decoder tool. Note that even dropping the explicit '\n' below
+	 * doesn't help because the GuC log is so big some underlying implementation
+	 * still splits the lines at 512K characters. So just bail completely for
+	 * the moment.
+	 */
+	return;
 
 #define DMESG_MAX_LINE_LEN	800
 #define MIN_SPACE		(ASCII85_BUFSZ + 2)		/* 85 + "\n\0" */
