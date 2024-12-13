@@ -8,6 +8,10 @@
 #include "mib.h"
 #include "mptcp_pm_gen.h"
 
+#define mptcp_for_each_userspace_pm_addr(__msk, __entry)			\
+	list_for_each_entry(__entry,						\
+			    &((__msk)->pm.userspace_pm_local_addr_list), list)
+
 void mptcp_free_local_addr_list(struct mptcp_sock *msk)
 {
 	struct mptcp_pm_addr_entry *entry, *tmp;
@@ -32,7 +36,7 @@ mptcp_userspace_pm_lookup_addr(struct mptcp_sock *msk,
 {
 	struct mptcp_pm_addr_entry *entry;
 
-	list_for_each_entry(entry, &msk->pm.userspace_pm_local_addr_list, list) {
+	mptcp_for_each_userspace_pm_addr(msk, entry) {
 		if (mptcp_addresses_equal(&entry->addr, addr, false))
 			return entry;
 	}
@@ -54,7 +58,7 @@ static int mptcp_userspace_pm_append_new_local_addr(struct mptcp_sock *msk,
 	bitmap_zero(id_bitmap, MPTCP_PM_MAX_ADDR_ID + 1);
 
 	spin_lock_bh(&msk->pm.lock);
-	list_for_each_entry(e, &msk->pm.userspace_pm_local_addr_list, list) {
+	mptcp_for_each_userspace_pm_addr(msk, e) {
 		addr_match = mptcp_addresses_equal(&e->addr, &entry->addr, true);
 		if (addr_match && entry->addr.id == 0 && needs_id)
 			entry->addr.id = e->addr.id;
@@ -124,7 +128,7 @@ mptcp_userspace_pm_lookup_addr_by_id(struct mptcp_sock *msk, unsigned int id)
 {
 	struct mptcp_pm_addr_entry *entry;
 
-	list_for_each_entry(entry, &msk->pm.userspace_pm_local_addr_list, list) {
+	mptcp_for_each_userspace_pm_addr(msk, entry) {
 		if (entry->addr.id == id)
 			return entry;
 	}
@@ -659,7 +663,7 @@ int mptcp_userspace_pm_dump_addr(struct sk_buff *msg,
 
 	lock_sock(sk);
 	spin_lock_bh(&msk->pm.lock);
-	list_for_each_entry(entry, &msk->pm.userspace_pm_local_addr_list, list) {
+	mptcp_for_each_userspace_pm_addr(msk, entry) {
 		if (test_bit(entry->addr.id, bitmap->map))
 			continue;
 
