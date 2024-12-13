@@ -160,7 +160,7 @@ struct sahara_context {
 	struct work_struct		fw_work;
 	struct work_struct		dump_work;
 	struct mhi_device		*mhi_dev;
-	const char			**image_table;
+	const char * const		*image_table;
 	u32				table_size;
 	u32				active_image_id;
 	const struct firmware		*firmware;
@@ -177,7 +177,7 @@ struct sahara_context {
 	bool				is_mem_dump_mode;
 };
 
-static const char *aic100_image_table[] = {
+static const char * const aic100_image_table[] = {
 	[1]  = "qcom/aic100/fw1.bin",
 	[2]  = "qcom/aic100/fw2.bin",
 	[4]  = "qcom/aic100/fw4.bin",
