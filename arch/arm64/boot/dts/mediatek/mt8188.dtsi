@@ -2125,6 +2125,11 @@
 				reg = <0x1ac 0x40>;
 			};
 
+			gpu_speedbin: gpu-speedbin@581 {
+				reg = <0x581 0x1>;
+				bits = <0 3>;
+			};
+
 			socinfo-data1@7a0 {
 				reg = <0x7a0 0x4>;
 			};
@@ -2143,6 +2148,8 @@
 				     <GIC_SPI 382 IRQ_TYPE_LEVEL_HIGH 0>,
 				     <GIC_SPI 381 IRQ_TYPE_LEVEL_HIGH 0>;
 			interrupt-names = "job", "mmu", "gpu";
+			nvmem-cells = <&gpu_speedbin>;
+			nvmem-cell-names = "speed-bin";
 			operating-points-v2 = <&gpu_opp_table>;
 			power-domains = <&spm MT8188_POWER_DOMAIN_MFG2>,
 					<&spm MT8188_POWER_DOMAIN_MFG3>,
