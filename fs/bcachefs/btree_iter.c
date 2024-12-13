@@ -2144,21 +2144,18 @@ struct bkey_s_c btree_trans_peek_slot_journal(struct btree_trans *trans,
 }
 
 static noinline
-struct bkey_s_c btree_trans_peek_journal(struct btree_trans *trans,
-					 struct btree_iter *iter,
-					 struct bkey_s_c k)
+void btree_trans_peek_journal(struct btree_trans *trans,
+			      struct btree_iter *iter,
+			      struct bkey_s_c *k)
 {
 	struct btree_path *path = btree_iter_path(trans, iter);
 	struct bkey_i *next_journal =
 		bch2_btree_journal_peek(trans, iter,
-				k.k ? k.k->p : path_l(path)->b->key.k.p);
-
+				k->k ? k->k->p : path_l(path)->b->key.k.p);
 	if (next_journal) {
 		iter->k = next_journal->k;
-		k = bkey_i_to_s_c(next_journal);
+		*k = bkey_i_to_s_c(next_journal);
 	}
-
-	return k;
 }
 
 static struct bkey_i *bch2_btree_journal_peek_prev(struct btree_trans *trans,
@@ -2175,21 +2172,19 @@ static struct bkey_i *bch2_btree_journal_peek_prev(struct btree_trans *trans,
 }
 
 static noinline
-struct bkey_s_c btree_trans_peek_prev_journal(struct btree_trans *trans,
-					 struct btree_iter *iter,
-					 struct bkey_s_c k)
+void btree_trans_peek_prev_journal(struct btree_trans *trans,
+				   struct btree_iter *iter,
+				   struct bkey_s_c *k)
 {
 	struct btree_path *path = btree_iter_path(trans, iter);
 	struct bkey_i *next_journal =
 		bch2_btree_journal_peek_prev(trans, iter,
-				k.k ? k.k->p : path_l(path)->b->key.k.p);
+				k->k ? k->k->p : path_l(path)->b->key.k.p);
 
 	if (next_journal) {
 		iter->k = next_journal->k;
-		k = bkey_i_to_s_c(next_journal);
+		*k = bkey_i_to_s_c(next_journal);
 	}
-
-	return k;
 }
 
 /*
@@ -2288,7 +2283,7 @@ static struct bkey_s_c __bch2_btree_iter_peek(struct btree_iter *iter, struct bp
 		}
 
 		if (unlikely(iter->flags & BTREE_ITER_with_journal))
-			k = btree_trans_peek_journal(trans, iter, k);
+			btree_trans_peek_journal(trans, iter, &k);
 
 		if (unlikely((iter->flags & BTREE_ITER_with_updates) &&
 			     trans->nr_updates))
@@ -2545,7 +2540,7 @@ static struct bkey_s_c __bch2_btree_iter_peek_prev(struct btree_iter *iter, stru
 		}
 
 		if (unlikely(iter->flags & BTREE_ITER_with_journal))
-			k = btree_trans_peek_prev_journal(trans, iter, k);
+			btree_trans_peek_prev_journal(trans, iter, &k);
 
 		if (unlikely((iter->flags & BTREE_ITER_with_updates) &&
 			     trans->nr_updates))
