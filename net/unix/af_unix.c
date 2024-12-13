@@ -2046,11 +2046,6 @@ static int unix_dgram_sendmsg(struct socket *sock, struct msghdr *msg,
 
 restart:
 	if (!other) {
-		if (!sunaddr) {
-			err = -ECONNRESET;
-			goto out_free;
-		}
-
 		other = unix_find_other(sock_net(sk), sunaddr, msg->msg_namelen,
 					sk->sk_type);
 		if (IS_ERR(other)) {
@@ -2105,6 +2100,9 @@ restart_locked:
 			err = -ECONNREFUSED;
 		} else {
 			unix_state_unlock(sk);
+
+			if (!sunaddr)
+				err = -ECONNRESET;
 		}
 
 		other = NULL;
