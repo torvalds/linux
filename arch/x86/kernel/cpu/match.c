@@ -86,3 +86,14 @@ bool x86_cpu_has_min_microcode_rev(const struct x86_cpu_desc *table)
 	return true;
 }
 EXPORT_SYMBOL_GPL(x86_cpu_has_min_microcode_rev);
+
+bool x86_match_min_microcode_rev(const struct x86_cpu_id *table)
+{
+	const struct x86_cpu_id *res = x86_match_cpu(table);
+
+	if (!res || res->driver_data > boot_cpu_data.microcode)
+		return false;
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(x86_match_min_microcode_rev);
