@@ -63,6 +63,8 @@ struct xe_exec_queue {
 	char name[MAX_FENCE_NAME_LEN];
 	/** @width: width (number BB submitted per exec) of this exec queue */
 	u16 width;
+	/** @msix_vec: MSI-X vector (for platforms that support it) */
+	u16 msix_vec;
 	/** @fence_irq: fence IRQ used to signal job completion */
 	struct xe_hw_fence_irq *fence_irq;
 
