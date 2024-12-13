@@ -1602,7 +1602,7 @@ static int sdma_v4_4_2_reset_queue(struct amdgpu_ring *ring, unsigned int vmid)
 	int i, r;
 	u32 inst_mask;
 
-	if ((adev->flags & AMD_IS_APU) || amdgpu_sriov_vf(adev))
+	if (amdgpu_sriov_vf(adev))
 		return -EINVAL;
 
 	/* stop queue */
