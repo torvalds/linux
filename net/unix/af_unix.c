@@ -2042,8 +2042,8 @@ static int unix_dgram_sendmsg(struct socket *sock, struct msghdr *msg,
 
 	timeo = sock_sndtimeo(sk, msg->msg_flags & MSG_DONTWAIT);
 
-restart:
 	if (!other) {
+lookup:
 		other = unix_find_other(sock_net(sk), msg->msg_name,
 					msg->msg_namelen, sk->sk_type);
 		if (IS_ERR(other)) {
@@ -2059,6 +2059,7 @@ restart:
 		goto out_free;
 	}
 
+restart:
 	sk_locked = 0;
 	unix_state_lock(other);
 restart_locked:
@@ -2106,7 +2107,8 @@ restart_locked:
 		other = NULL;
 		if (err)
 			goto out_free;
-		goto restart;
+
+		goto lookup;
 	}
 
 	if (other->sk_shutdown & RCV_SHUTDOWN) {
