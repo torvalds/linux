@@ -25,10 +25,7 @@ static const struct cqhci_crypto_alg_entry {
 static inline struct cqhci_host *
 cqhci_host_from_crypto_profile(struct blk_crypto_profile *profile)
 {
-	struct mmc_host *mmc =
-		container_of(profile, struct mmc_host, crypto_profile);
-
-	return mmc->cqe_private;
+	return mmc_from_crypto_profile(profile)->cqe_private;
 }
 
 static int cqhci_crypto_program_key(struct cqhci_host *cq_host,
