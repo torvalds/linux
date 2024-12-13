@@ -2070,23 +2070,23 @@ restart_locked:
 	}
 
 	if (unlikely(sock_flag(other, SOCK_DEAD))) {
-		/*
-		 *	Check with 1003.1g - what should
-		 *	datagram error
-		 */
-		unix_state_unlock(other);
+		/* Check with 1003.1g - what should datagram error */
 
-		if (!sk_locked)
-			unix_state_lock(sk);
+		unix_state_unlock(other);
 
 		if (sk->sk_type == SOCK_SEQPACKET) {
 			/* We are here only when racing with unix_release_sock()
 			 * is clearing @other. Never change state to TCP_CLOSE
 			 * unlike SOCK_DGRAM wants.
 			 */
-			unix_state_unlock(sk);
 			err = -EPIPE;
-		} else if (unix_peer(sk) == other) {
+			goto out_free;
+		}
+
+		if (!sk_locked)
+			unix_state_lock(sk);
+
+		if (unix_peer(sk) == other) {
 			unix_peer(sk) = NULL;
 			unix_dgram_peer_wake_disconnect_wakeup(sk, other);
 
@@ -2096,15 +2096,15 @@ restart_locked:
 			unix_dgram_disconnected(sk, other);
 			sock_put(other);
 			err = -ECONNREFUSED;
-		} else {
-			unix_state_unlock(sk);
-
-			if (!msg->msg_namelen)
-				err = -ECONNRESET;
+			goto out_free;
 		}
 
-		if (err)
+		unix_state_unlock(sk);
+
+		if (!msg->msg_namelen) {
+			err = -ECONNRESET;
 			goto out_free;
+		}
 
 		goto lookup;
 	}
