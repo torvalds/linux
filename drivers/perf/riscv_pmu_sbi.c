@@ -507,7 +507,7 @@ static int pmu_sbi_event_map(struct perf_event *event, u64 *econfig)
 {
 	u32 type = event->attr.type;
 	u64 config = event->attr.config;
-	int ret;
+	int ret = -ENOENT;
 
 	/*
 	 * Ensure we are finished checking standard hardware events for
@@ -551,10 +551,11 @@ static int pmu_sbi_event_map(struct perf_event *event, u64 *econfig)
 			ret = SBI_PMU_EVENT_TYPE_FW << 16 | RISCV_PLAT_FW_EVENT;
 			*econfig = config & RISCV_PMU_PLAT_FW_EVENT_MASK;
 			break;
+		default:
+			break;
 		}
 		break;
 	default:
-		ret = -ENOENT;
 		break;
 	}
 
