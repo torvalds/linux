@@ -996,7 +996,7 @@ static inline bool is_file_hugepages(struct file *)
 
 static inline int security_vm_enough_memory_mm(struct mm_struct *, long)
 {
-	return true;
+	return 0;
 }
 
 static inline bool may_expand_vm(struct mm_struct *, vm_flags_t, unsigned long)
