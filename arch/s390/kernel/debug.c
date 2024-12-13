@@ -24,6 +24,7 @@
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/fs.h>
+#include <linux/math.h>
 #include <linux/minmax.h>
 #include <linux/debugfs.h>
 
@@ -354,7 +355,10 @@ static debug_info_t *debug_info_copy(debug_info_t *in, int mode)
 	for (i = 0; i < in->nr_areas; i++) {
 		for (j = 0; j < in->pages_per_area; j++)
 			memcpy(rc->areas[i][j], in->areas[i][j], PAGE_SIZE);
+		rc->active_pages[i] = in->active_pages[i];
+		rc->active_entries[i] = in->active_entries[i];
 	}
+	rc->active_area = in->active_area;
 out:
 	spin_unlock_irqrestore(&in->lock, flags);
 	return rc;
@@ -459,6 +463,84 @@ static inline bool debug_next_entry(file_private_info_t *p_info)
 			return false;
 	}
 	return true;
+}
+
+/**
+ * debug_to_act_entry - Go to the currently active entry
+ * @p_info:	Private info that is manipulated
+ *
+ * Sets the current position in @p_info to the currently active
+ * entry of @p_info->debug_info_snap
+ */
+static void debug_to_act_entry(file_private_info_t *p_info)
+{
+	debug_info_t *snap_id;
+
+	snap_id = p_info->debug_info_snap;
+	p_info->act_area = snap_id->active_area;
+	p_info->act_page = snap_id->active_pages[snap_id->active_area];
+	p_info->act_entry = snap_id->active_entries[snap_id->active_area];
+}
+
+/**
+ * debug_prev_entry - Go to the previous entry
+ * @p_info:	Private info that is manipulated
+ *
+ * Sets the current position in @p_info to the previous entry. If no previous entry
+ * exists the current position is set left as DEBUG_PROLOG_ENTRY and the return value
+ * indicates that no previous entries exist.
+ *
+ * Return: True if there are more previous entries, false otherwise
+ */
+
+static inline bool debug_prev_entry(file_private_info_t *p_info)
+{
+	debug_info_t *id;
+
+	id = p_info->debug_info_snap;
+	if (p_info->act_entry == DEBUG_PROLOG_ENTRY)
+		debug_to_act_entry(p_info);
+	if (!id->areas)
+		return false;
+	p_info->act_entry -= id->entry_size;
+	/* switch to prev page, if we reached the beginning of the page  */
+	if (p_info->act_entry < 0) {
+		/* end of previous page */
+		p_info->act_entry = rounddown(PAGE_SIZE, id->entry_size) - id->entry_size;
+		p_info->act_page--;
+		if (p_info->act_page < 0) {
+			/* previous area */
+			p_info->act_area--;
+			p_info->act_page = id->pages_per_area - 1;
+		}
+		if (p_info->act_area < 0)
+			p_info->act_area = (id->nr_areas - 1) % id->nr_areas;
+	}
+	/* check full circle */
+	if (id->active_area == p_info->act_area &&
+	    id->active_pages[id->active_area] == p_info->act_page &&
+	    id->active_entries[id->active_area] == p_info->act_entry)
+		return false;
+	return true;
+}
+
+/**
+ * debug_move_entry - Go to next entry in either the forward or backward direction
+ * @p_info:	Private info that is manipulated
+ * @reverse:	If true go to the next entry in reverse i.e. previous
+ *
+ * Sets the current position in @p_info to the next (@reverse == false) or
+ * previous (@reverse == true) entry.
+ *
+ * Return: True if there are further entries in that direction,
+ * false otherwise.
+ */
+static bool debug_move_entry(file_private_info_t *p_info, bool reverse)
+{
+	if (reverse)
+		return debug_prev_entry(p_info);
+	else
+		return debug_next_entry(p_info);
 }
 
 /*
@@ -638,6 +720,7 @@ static int debug_close(struct inode *inode, struct file *file)
  * @view:	View with which to dump the debug information
  * @buf:	Buffer the textual debug data representation is written to
  * @buf_size:	Size of the buffer, including the trailing '\0' byte
+ * @reverse:	Go backwards from the last written entry
  *
  * This function may be used whenever a textual representation of the debug
  * information is required without using an s390dbf file.
@@ -650,7 +733,7 @@ static int debug_close(struct inode *inode, struct file *file)
  * On failure an error code less than 0 is returned.
  */
 ssize_t debug_dump(debug_info_t *id, struct debug_view *view,
-		   char *buf, size_t buf_size)
+		   char *buf, size_t buf_size, bool reverse)
 {
 	file_private_info_t *p_info;
 	size_t size, offset = 0;
@@ -672,7 +755,7 @@ ssize_t debug_dump(debug_info_t *id, struct debug_view *view,
 		offset += size;
 		if (offset >= buf_size)
 			break;
-	} while (debug_next_entry(p_info));
+	} while (debug_move_entry(p_info, reverse));
 	debug_file_private_free(p_info);
 	buf[offset] = '\0';
 

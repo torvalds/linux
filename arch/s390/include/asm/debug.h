@@ -115,7 +115,7 @@ debug_info_t *debug_register_mode(const char *name, int pages, int nr_areas,
 				  gid_t gid);
 
 ssize_t debug_dump(debug_info_t *id, struct debug_view *view,
-		   char *buf, size_t buf_size);
+		   char *buf, size_t buf_size, bool reverse);
 
 void debug_unregister(debug_info_t *id);
 
