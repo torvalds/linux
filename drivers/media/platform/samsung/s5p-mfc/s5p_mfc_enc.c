@@ -1297,7 +1297,7 @@ static int enc_post_frame_start(struct s5p_mfc_ctx *ctx)
 	if (ctx->state == MFCINST_FINISHING && ctx->ref_queue_cnt == 0)
 		src_ready = false;
 	if (!src_ready || ctx->dst_queue_cnt == 0)
-		clear_work_bit(ctx);
+		clear_work_bit_irqsave(ctx);
 
 	return 0;
 }

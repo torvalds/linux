@@ -16,6 +16,7 @@ DECLARE_HOOK(android_vh_ptype_head,
 
 struct nf_conn;
 struct sock;
+struct net_device;
 DECLARE_RESTRICTED_HOOK(android_rvh_nf_conn_alloc,
 	TP_PROTO(struct nf_conn *nf_conn), TP_ARGS(nf_conn), 1);
 DECLARE_RESTRICTED_HOOK(android_rvh_nf_conn_free,
@@ -31,7 +32,10 @@ DECLARE_HOOK(android_vh_netlink_poll,
 	TP_PROTO(struct file *file, struct socket *sock, poll_table *wait,
 		__poll_t *mask),
 	TP_ARGS(file, sock, wait, mask));
-
+DECLARE_HOOK(android_vh_dc_send_copy,
+	TP_PROTO(struct sk_buff *skb, struct net_device *dev), TP_ARGS(skb, dev));
+DECLARE_HOOK(android_vh_dc_receive,
+	TP_PROTO(struct sk_buff *skb, int *flag), TP_ARGS(skb, flag));
 /* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_NET_VH_H */

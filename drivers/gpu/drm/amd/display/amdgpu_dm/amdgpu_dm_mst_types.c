@@ -1255,6 +1255,9 @@ static bool is_dsc_need_re_compute(
 		}
 	}
 
+	if (new_stream_on_link_num == 0)
+		return false;
+
 	/* check current_state if there stream on link but it is not in
 	 * new request state
 	 */
