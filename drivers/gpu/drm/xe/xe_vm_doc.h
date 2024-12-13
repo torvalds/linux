@@ -64,8 +64,8 @@
  *	update page level 2 PDE[1] to page level 3b phys address (GPU)
  *
  *	bind BO2 0x1ff000-0x201000
- *	update page level 3a PTE[511] to BO2 phys addres (GPU)
- *	update page level 3b PTE[0] to BO2 phys addres + 0x1000 (GPU)
+ *	update page level 3a PTE[511] to BO2 phys address (GPU)
+ *	update page level 3b PTE[0] to BO2 phys address + 0x1000 (GPU)
  *
  * GPU bypass
  * ~~~~~~~~~~
@@ -192,7 +192,7 @@
  *
  * If a VM is in fault mode (TODO: link to fault mode), new bind operations that
  * create mappings are by default deferred to the page fault handler (first
- * use). This behavior can be overriden by setting the flag
+ * use). This behavior can be overridden by setting the flag
  * DRM_XE_VM_BIND_FLAG_IMMEDIATE which indicates to creating the mapping
  * immediately.
  *
@@ -209,7 +209,7 @@
  *
  * Since this a core kernel managed memory the kernel can move this memory
  * whenever it wants. We register an invalidation MMU notifier to alert XE when
- * a user poiter is about to move. The invalidation notifier needs to block
+ * a user pointer is about to move. The invalidation notifier needs to block
  * until all pending users (jobs or compute mode engines) of the userptr are
  * idle to ensure no faults. This done by waiting on all of VM's dma-resv slots.
  *
@@ -252,7 +252,7 @@
  * Rebind worker
  * -------------
  *
- * The rebind worker is very similar to an exec. It is resposible for rebinding
+ * The rebind worker is very similar to an exec. It is responsible for rebinding
  * evicted BOs or userptrs, waiting on those operations, installing new preempt
  * fences, and finally resuming executing of engines in the VM.
  *
@@ -317,11 +317,11 @@
  * are not allowed, only long running workloads and ULLS are enabled on a faulting
  * VM.
  *
- * Defered VM binds
+ * Deferred VM binds
  * ----------------
  *
  * By default, on a faulting VM binds just allocate the VMA and the actual
- * updating of the page tables is defered to the page fault handler. This
+ * updating of the page tables is deferred to the page fault handler. This
  * behavior can be overridden by setting the flag DRM_XE_VM_BIND_FLAG_IMMEDIATE in
  * the VM bind which will then do the bind immediately.
  *
@@ -500,18 +500,18 @@
  * Slot waiting
  * ------------
  *
- * 1. The exection of all jobs from kernel ops shall wait on all slots
+ * 1. The execution of all jobs from kernel ops shall wait on all slots
  * (DMA_RESV_USAGE_PREEMPT_FENCE) of either an external BO or VM (depends on if
  * kernel op is operating on external or private BO)
  *
- * 2. In non-compute mode, the exection of all jobs from rebinds in execs shall
+ * 2. In non-compute mode, the execution of all jobs from rebinds in execs shall
  * wait on the DMA_RESV_USAGE_KERNEL slot of either an external BO or VM
  * (depends on if the rebind is operatiing on an external or private BO)
  *
- * 3. In non-compute mode, the exection of all jobs from execs shall wait on the
+ * 3. In non-compute mode, the execution of all jobs from execs shall wait on the
  * last rebind job
  *
- * 4. In compute mode, the exection of all jobs from rebinds in the rebind
+ * 4. In compute mode, the execution of all jobs from rebinds in the rebind
  * worker shall wait on the DMA_RESV_USAGE_KERNEL slot of either an external BO
  * or VM (depends on if rebind is operating on external or private BO)
  *

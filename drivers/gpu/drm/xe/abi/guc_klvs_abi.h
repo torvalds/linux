@@ -291,6 +291,14 @@ enum  {
  *
  *      :0: (default)
  *      :1-65535: number of contexts (Gen12)
+ *
+ * _`GUC_KLV_VF_CFG_SCHED_PRIORITY` : 0x8A0C
+ *      This config controls VF’s scheduling priority.
+ *
+ *      :0: LOW = schedule VF only if it has active work (default)
+ *      :1: NORMAL = schedule VF always, irrespective of whether it has work or not
+ *      :2: HIGH = schedule VF in the next time-slice after current active
+ *          time-slice completes if it has active work
  */
 
 #define GUC_KLV_VF_CFG_GGTT_START_KEY		0x0001
@@ -342,6 +350,12 @@ enum  {
 
 #define GUC_KLV_VF_CFG_BEGIN_CONTEXT_ID_KEY	0x8a0b
 #define GUC_KLV_VF_CFG_BEGIN_CONTEXT_ID_LEN	1u
+
+#define GUC_KLV_VF_CFG_SCHED_PRIORITY_KEY	0x8a0c
+#define GUC_KLV_VF_CFG_SCHED_PRIORITY_LEN	1u
+#define   GUC_SCHED_PRIORITY_LOW		0u
+#define   GUC_SCHED_PRIORITY_NORMAL		1u
+#define   GUC_SCHED_PRIORITY_HIGH		2u
 
 /*
  * Workaround keys:

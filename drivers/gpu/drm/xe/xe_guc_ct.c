@@ -54,6 +54,7 @@ enum {
 	CT_DEAD_PARSE_G2H_UNKNOWN,		/* 0x1000 */
 	CT_DEAD_PARSE_G2H_ORIGIN,		/* 0x2000 */
 	CT_DEAD_PARSE_G2H_TYPE,			/* 0x4000 */
+	CT_DEAD_CRASH,				/* 0x8000 */
 };
 
 static void ct_dead_worker_func(struct work_struct *w);
@@ -469,8 +470,10 @@ int xe_guc_ct_enable(struct xe_guc_ct *ct)
 	 * after any existing dead state has been dumped.
 	 */
 	spin_lock_irq(&ct->dead.lock);
-	if (ct->dead.reason)
+	if (ct->dead.reason) {
 		ct->dead.reason |= (1 << CT_DEAD_STATE_REARM);
+		queue_work(system_unbound_wq, &ct->dead.worker);
+	}
 	spin_unlock_irq(&ct->dead.lock);
 #endif
 
@@ -1017,7 +1020,6 @@ retry_same_fence:
 	}
 
 	ret = wait_event_timeout(ct->g2h_fence_wq, g2h_fence.done, HZ);
-
 	if (!ret) {
 		LNL_FLUSH_WORK(&ct->g2h_worker);
 		if (g2h_fence.done) {
@@ -1117,6 +1119,24 @@ static int parse_g2h_event(struct xe_guc_ct *ct, u32 *msg, u32 len)
 	case XE_GUC_ACTION_TLB_INVALIDATION_DONE:
 		g2h_release_space(ct, len);
 	}
+
+	return 0;
+}
+
+static int guc_crash_process_msg(struct xe_guc_ct *ct, u32 action)
+{
+	struct xe_gt *gt = ct_to_gt(ct);
+
+	if (action == XE_GUC_ACTION_NOTIFY_CRASH_DUMP_POSTED)
+		xe_gt_err(gt, "GuC Crash dump notification\n");
+	else if (action == XE_GUC_ACTION_NOTIFY_EXCEPTION)
+		xe_gt_err(gt, "GuC Exception notification\n");
+	else
+		xe_gt_err(gt, "Unknown GuC crash notification: 0x%04X\n", action);
+
+	CT_DEAD(ct, NULL, CRASH);
+
+	kick_reset(ct);
 
 	return 0;
 }
@@ -1295,13 +1315,17 @@ static int process_g2h_msg(struct xe_guc_ct *ct, u32 *msg, u32 len)
 	case GUC_ACTION_GUC2PF_ADVERSE_EVENT:
 		ret = xe_gt_sriov_pf_monitor_process_guc2pf(gt, hxg, hxg_len);
 		break;
+	case XE_GUC_ACTION_NOTIFY_CRASH_DUMP_POSTED:
+	case XE_GUC_ACTION_NOTIFY_EXCEPTION:
+		ret = guc_crash_process_msg(ct, action);
+		break;
 	default:
 		xe_gt_err(gt, "unexpected G2H action 0x%04x\n", action);
 	}
 
 	if (ret) {
-		xe_gt_err(gt, "G2H action 0x%04x failed (%pe)\n",
-			  action, ERR_PTR(ret));
+		xe_gt_err(gt, "G2H action %#04x failed (%pe) len %u msg %*ph\n",
+			  action, ERR_PTR(ret), hxg_len, (int)sizeof(u32) * hxg_len, hxg);
 		CT_DEAD(ct, NULL, PROCESS_FAILED);
 	}
 

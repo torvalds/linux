@@ -207,6 +207,11 @@ static int pf_push_vf_cfg_preempt_timeout(struct xe_gt *gt, unsigned int vfid, u
 	return pf_push_vf_cfg_u32(gt, vfid, GUC_KLV_VF_CFG_PREEMPT_TIMEOUT_KEY, *preempt_timeout);
 }
 
+static int pf_push_vf_cfg_sched_priority(struct xe_gt *gt, unsigned int vfid, u32 priority)
+{
+	return pf_push_vf_cfg_u32(gt, vfid, GUC_KLV_VF_CFG_SCHED_PRIORITY_KEY, priority);
+}
+
 static int pf_push_vf_cfg_lmem(struct xe_gt *gt, unsigned int vfid, u64 size)
 {
 	return pf_push_vf_cfg_u64(gt, vfid, GUC_KLV_VF_CFG_LMEM_SIZE_KEY, size);
@@ -1540,8 +1545,6 @@ static u64 pf_query_max_lmem(struct xe_gt *gt)
 
 #ifdef CONFIG_DRM_XE_DEBUG_SRIOV
 #define MAX_FAIR_LMEM	SZ_128M	/* XXX: make it small for the driver bringup */
-#else
-#define MAX_FAIR_LMEM	SZ_2G	/* XXX: known issue with allocating BO over 2GiB */
 #endif
 
 static u64 pf_estimate_fair_lmem(struct xe_gt *gt, unsigned int num_vfs)
@@ -1765,6 +1768,77 @@ u32 xe_gt_sriov_pf_config_get_preempt_timeout(struct xe_gt *gt, unsigned int vfi
 	mutex_unlock(xe_gt_sriov_pf_master_mutex(gt));
 
 	return preempt_timeout;
+}
+
+static const char *sched_priority_unit(u32 priority)
+{
+	return priority == GUC_SCHED_PRIORITY_LOW ? "(low)" :
+		priority == GUC_SCHED_PRIORITY_NORMAL ? "(normal)" :
+		priority == GUC_SCHED_PRIORITY_HIGH ? "(high)" :
+		"(?)";
+}
+
+static int pf_provision_sched_priority(struct xe_gt *gt, unsigned int vfid, u32 priority)
+{
+	struct xe_gt_sriov_config *config = pf_pick_vf_config(gt, vfid);
+	int err;
+
+	err = pf_push_vf_cfg_sched_priority(gt, vfid, priority);
+	if (unlikely(err))
+		return err;
+
+	config->sched_priority = priority;
+	return 0;
+}
+
+static int pf_get_sched_priority(struct xe_gt *gt, unsigned int vfid)
+{
+	struct xe_gt_sriov_config *config = pf_pick_vf_config(gt, vfid);
+
+	return config->sched_priority;
+}
+
+/**
+ * xe_gt_sriov_pf_config_set_sched_priority() - Configure scheduling priority.
+ * @gt: the &xe_gt
+ * @vfid: the VF identifier
+ * @priority: requested scheduling priority
+ *
+ * This function can only be called on PF.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_gt_sriov_pf_config_set_sched_priority(struct xe_gt *gt, unsigned int vfid, u32 priority)
+{
+	int err;
+
+	mutex_lock(xe_gt_sriov_pf_master_mutex(gt));
+	err = pf_provision_sched_priority(gt, vfid, priority);
+	mutex_unlock(xe_gt_sriov_pf_master_mutex(gt));
+
+	return pf_config_set_u32_done(gt, vfid, priority,
+				      xe_gt_sriov_pf_config_get_sched_priority(gt, vfid),
+				      "scheduling priority", sched_priority_unit, err);
+}
+
+/**
+ * xe_gt_sriov_pf_config_get_sched_priority - Get VF's scheduling priority.
+ * @gt: the &xe_gt
+ * @vfid: the VF identifier
+ *
+ * This function can only be called on PF.
+ *
+ * Return: VF's (or PF's) scheduling priority.
+ */
+u32 xe_gt_sriov_pf_config_get_sched_priority(struct xe_gt *gt, unsigned int vfid)
+{
+	u32 priority;
+
+	mutex_lock(xe_gt_sriov_pf_master_mutex(gt));
+	priority = pf_get_sched_priority(gt, vfid);
+	mutex_unlock(xe_gt_sriov_pf_master_mutex(gt));
+
+	return priority;
 }
 
 static void pf_reset_config_sched(struct xe_gt *gt, struct xe_gt_sriov_config *config)

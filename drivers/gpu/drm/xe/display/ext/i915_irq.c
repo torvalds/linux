@@ -53,18 +53,7 @@ void gen2_irq_init(struct intel_uncore *uncore, struct i915_irq_regs regs,
 
 bool intel_irqs_enabled(struct xe_device *xe)
 {
-	/*
-	 * XXX: i915 has a racy handling of the irq.enabled, since it doesn't
-	 * lock its transitions. Because of that, the irq.enabled sometimes
-	 * is not read with the irq.lock in place.
-	 * However, the most critical cases like vblank and page flips are
-	 * properly using the locks.
-	 * We cannot take the lock in here or run any kind of assert because
-	 * of i915 inconsistency.
-	 * But at this point the xe irq is better protected against races,
-	 * although the full solution would be protecting the i915 side.
-	 */
-	return xe->irq.enabled;
+	return atomic_read(&xe->irq.enabled);
 }
 
 void intel_synchronize_irq(struct xe_device *xe)

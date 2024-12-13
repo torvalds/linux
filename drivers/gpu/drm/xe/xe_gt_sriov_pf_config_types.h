@@ -33,6 +33,8 @@ struct xe_gt_sriov_config {
 	u32 exec_quantum;
 	/** @preempt_timeout: preemption timeout in microseconds. */
 	u32 preempt_timeout;
+	/** @sched_priority: scheduling priority. */
+	u32 sched_priority;
 	/** @thresholds: GuC thresholds for adverse events notifications. */
 	u32 thresholds[XE_GUC_KLV_NUM_THRESHOLDS];
 };
