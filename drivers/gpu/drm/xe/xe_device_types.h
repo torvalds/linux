@@ -353,6 +353,8 @@ struct xe_device {
 		struct {
 			/** @irq.msix.nvec: number of MSI-X interrupts */
 			u16 nvec;
+			/** @irq.msix.indexes: used to allocate MSI-X indexes */
+			struct xarray indexes;
 		} msix;
 	} irq;
 
