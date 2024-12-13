@@ -886,6 +886,7 @@ static int do_dump(int argc, char **argv)
 	const char *src;
 	int fd = -1;
 	int err = 0;
+	int i;
 
 	if (!REQ_ARGS(2)) {
 		usage();
@@ -1013,6 +1014,17 @@ static int do_dump(int argc, char **argv)
 		if (!btf) {
 			err = -errno;
 			p_err("get btf by id (%u): %s", btf_id, strerror(errno));
+			goto done;
+		}
+	}
+
+	/* Invalid root IDs causes half emitted boilerplate and then unclean
+	 * exit. It's an ugly user experience, so handle common error here.
+	 */
+	for (i = 0; i < root_type_cnt; i++) {
+		if (root_type_ids[i] >= btf__type_cnt(btf)) {
+			err = -EINVAL;
+			p_err("invalid root ID: %u", root_type_ids[i]);
 			goto done;
 		}
 	}
