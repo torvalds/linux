@@ -861,7 +861,7 @@ int nfs42_proc_layoutstats_generic(struct nfs_server *server,
 		.rpc_message = &msg,
 		.callback_ops = &nfs42_layoutstat_ops,
 		.callback_data = data,
-		.flags = RPC_TASK_ASYNC,
+		.flags = RPC_TASK_ASYNC | RPC_TASK_MOVEABLE,
 	};
 	struct rpc_task *task;
 
@@ -1016,7 +1016,7 @@ int nfs42_proc_layouterror(struct pnfs_layout_segment *lseg,
 	struct rpc_task_setup task_setup = {
 		.rpc_message = &msg,
 		.callback_ops = &nfs42_layouterror_ops,
-		.flags = RPC_TASK_ASYNC,
+		.flags = RPC_TASK_ASYNC | RPC_TASK_MOVEABLE,
 	};
 	unsigned int i;
 
