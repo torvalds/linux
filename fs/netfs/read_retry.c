@@ -56,6 +56,8 @@ static void netfs_retry_read_subrequests(struct netfs_io_request *rreq)
 			if (test_bit(NETFS_SREQ_FAILED, &subreq->flags))
 				break;
 			if (__test_and_clear_bit(NETFS_SREQ_NEED_RETRY, &subreq->flags)) {
+				__clear_bit(NETFS_SREQ_MADE_PROGRESS, &subreq->flags);
+				subreq->retry_count++;
 				netfs_reset_iter(subreq);
 				netfs_reissue_read(rreq, subreq);
 			}
@@ -137,7 +139,8 @@ static void netfs_retry_read_subrequests(struct netfs_io_request *rreq)
 			stream0->sreq_max_len = subreq->len;
 
 			__clear_bit(NETFS_SREQ_NEED_RETRY, &subreq->flags);
-			__set_bit(NETFS_SREQ_RETRYING, &subreq->flags);
+			__clear_bit(NETFS_SREQ_MADE_PROGRESS, &subreq->flags);
+			subreq->retry_count++;
 
 			spin_lock_bh(&rreq->lock);
 			list_add_tail(&subreq->rreq_link, &rreq->subrequests);
@@ -213,7 +216,6 @@ abandon:
 			subreq->error = -ENOMEM;
 		__clear_bit(NETFS_SREQ_FAILED, &subreq->flags);
 		__clear_bit(NETFS_SREQ_NEED_RETRY, &subreq->flags);
-		__clear_bit(NETFS_SREQ_RETRYING, &subreq->flags);
 	}
 	spin_lock_bh(&rreq->lock);
 	list_splice_tail_init(&queue, &rreq->subrequests);

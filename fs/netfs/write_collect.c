@@ -179,7 +179,6 @@ static void netfs_retry_write_stream(struct netfs_io_request *wreq,
 				struct iov_iter source = subreq->io_iter;
 
 				iov_iter_revert(&source, subreq->len - source.count);
-				__set_bit(NETFS_SREQ_RETRYING, &subreq->flags);
 				netfs_get_subrequest(subreq, netfs_sreq_trace_get_resubmit);
 				netfs_reissue_write(stream, subreq, &source);
 			}
@@ -234,7 +233,7 @@ static void netfs_retry_write_stream(struct netfs_io_request *wreq,
 			/* Renegotiate max_len (wsize) */
 			trace_netfs_sreq(subreq, netfs_sreq_trace_retry);
 			__clear_bit(NETFS_SREQ_NEED_RETRY, &subreq->flags);
-			__set_bit(NETFS_SREQ_RETRYING, &subreq->flags);
+			subreq->retry_count++;
 			stream->prepare_write(subreq);
 
 			part = min(len, stream->sreq_max_len);
@@ -279,7 +278,7 @@ static void netfs_retry_write_stream(struct netfs_io_request *wreq,
 			subreq->start		= start;
 			subreq->debug_index	= atomic_inc_return(&wreq->subreq_counter);
 			subreq->stream_nr	= to->stream_nr;
-			__set_bit(NETFS_SREQ_RETRYING, &subreq->flags);
+			subreq->retry_count	= 1;
 
 			trace_netfs_sreq_ref(wreq->debug_id, subreq->debug_index,
 					     refcount_read(&subreq->ref),
