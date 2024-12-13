@@ -422,11 +422,17 @@ out:
 	return len;
 }
 
-/*
- * debug_next_entry:
- * - goto next entry in p_info
+/**
+ * debug_next_entry - Go to the next entry
+ * @p_info:	Private info that is manipulated
+ *
+ * Sets the current position in @p_info to the next entry. If no further entry
+ * exists the current position is set to one after the end the return value
+ * indicates that no further entries exist.
+ *
+ * Return: True if there are more following entries, false otherwise
  */
-static inline int debug_next_entry(file_private_info_t *p_info)
+static inline bool debug_next_entry(file_private_info_t *p_info)
 {
 	debug_info_t *id;
 
@@ -434,10 +440,10 @@ static inline int debug_next_entry(file_private_info_t *p_info)
 	if (p_info->act_entry == DEBUG_PROLOG_ENTRY) {
 		p_info->act_entry = 0;
 		p_info->act_page  = 0;
-		goto out;
+		return true;
 	}
 	if (!id->areas)
-		return 1;
+		return false;
 	p_info->act_entry += id->entry_size;
 	/* switch to next page, if we reached the end of the page  */
 	if (p_info->act_entry > (PAGE_SIZE - id->entry_size)) {
@@ -450,10 +456,9 @@ static inline int debug_next_entry(file_private_info_t *p_info)
 			p_info->act_page = 0;
 		}
 		if (p_info->act_area >= id->nr_areas)
-			return 1;
+			return false;
 	}
-out:
-	return 0;
+	return true;
 }
 
 /*
@@ -495,7 +500,7 @@ static ssize_t debug_output(struct file *file,		/* file descriptor */
 		}
 		if (copy_size == formatted_line_residue) {
 			entry_offset = 0;
-			if (debug_next_entry(p_info))
+			if (!debug_next_entry(p_info))
 				goto out;
 		}
 	}
