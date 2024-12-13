@@ -1563,15 +1563,14 @@ static int unix_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 	timeo = sock_sndtimeo(sk, flags & O_NONBLOCK);
 
 	/* First of all allocate resources.
-	   If we will make it after state is locked,
-	   we will have to recheck all again in any case.
+	 * If we will make it after state is locked,
+	 * we will have to recheck all again in any case.
 	 */
 
 	/* create new sock for complete connection */
 	newsk = unix_create1(net, NULL, 0, sock->type);
 	if (IS_ERR(newsk)) {
 		err = PTR_ERR(newsk);
-		newsk = NULL;
 		goto out;
 	}
 
@@ -1579,7 +1578,7 @@ static int unix_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 	skb = sock_wmalloc(newsk, 1, 0, GFP_KERNEL);
 	if (!skb) {
 		err = -ENOMEM;
-		goto out;
+		goto out_free_sk;
 	}
 
 restart:
@@ -1587,8 +1586,7 @@ restart:
 	other = unix_find_other(net, sunaddr, addr_len, sk->sk_type);
 	if (IS_ERR(other)) {
 		err = PTR_ERR(other);
-		other = NULL;
-		goto out;
+		goto out_free_skb;
 	}
 
 	unix_state_lock(other);
@@ -1613,11 +1611,12 @@ restart:
 		}
 
 		timeo = unix_wait_for_peer(other, timeo);
+		sock_put(other);
 
 		err = sock_intr_errno(timeo);
 		if (signal_pending(current))
-			goto out;
-		sock_put(other);
+			goto out_free_skb;
+
 		goto restart;
 	}
 
@@ -1702,15 +1701,13 @@ restart:
 	return 0;
 
 out_unlock:
-	if (other)
-		unix_state_unlock(other);
-
-out:
+	unix_state_unlock(other);
+	sock_put(other);
+out_free_skb:
 	kfree_skb(skb);
-	if (newsk)
-		unix_release_sock(newsk, 0);
-	if (other)
-		sock_put(other);
+out_free_sk:
+	unix_release_sock(newsk, 0);
+out:
 	return err;
 }
 
