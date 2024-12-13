@@ -19,7 +19,6 @@ etc.
    devices
    sysctl/index
 
-   abi
    features
 
 This section describes CPU vulnerabilities and their mitigations.
@@ -49,14 +48,14 @@ problems and bugs in particular.
    perf/index
    pstore-blk
 
-This is the beginning of a section with information of interest to
-application developers.  Documents covering various aspects of the kernel
-ABI will be found here.
+A big part of the kernel's administrative interface is the sysfs virtual
+filesystem; these documents describe how to interact with sysfs.
 
 .. toctree::
    :maxdepth: 1
 
    sysfs-rules
+   abi
 
 This is the beginning of a section with information of interest to
 application developers and system integrators doing analysis of the
