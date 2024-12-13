@@ -1067,11 +1067,6 @@
 #define CLKGATE_DIS_PSL_EXT(pipe) \
 	_MMIO_PIPE(pipe, _CLKGATE_DIS_PSL_EXT_A, _CLKGATE_DIS_PSL_EXT_B)
 
-/* DDI Buffer Control */
-#define _DDI_CLK_VALFREQ_A		0x64030
-#define _DDI_CLK_VALFREQ_B		0x64130
-#define DDI_CLK_VALFREQ(port)		_MMIO_PORT(port, _DDI_CLK_VALFREQ_A, _DDI_CLK_VALFREQ_B)
-
 /*
  * Display engine regs
  */
