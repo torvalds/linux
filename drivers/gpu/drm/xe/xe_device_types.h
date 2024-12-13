@@ -348,6 +348,12 @@ struct xe_device {
 
 		/** @irq.enabled: interrupts enabled on this device */
 		atomic_t enabled;
+
+		/** @irq.msix: irq info for platforms that support MSI-X */
+		struct {
+			/** @irq.msix.nvec: number of MSI-X interrupts */
+			u16 nvec;
+		} msix;
 	} irq;
 
 	/** @ttm: ttm device */
