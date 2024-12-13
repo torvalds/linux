@@ -789,6 +789,30 @@ static void rtw_usb_dynamic_rx_agg_v1(struct rtw_dev *rtwdev, bool enable)
 	rtw_write16(rtwdev, REG_RXDMA_AGG_PG_TH, val16);
 }
 
+static void rtw_usb_dynamic_rx_agg_v2(struct rtw_dev *rtwdev, bool enable)
+{
+	struct rtw_usb *rtwusb = rtw_get_usb_priv(rtwdev);
+	u8 size, timeout;
+	u16 val16;
+
+	if (!enable) {
+		size = 0x0;
+		timeout = 0x1;
+	} else if (rtwusb->udev->speed == USB_SPEED_SUPER) {
+		size = 0x6;
+		timeout = 0x1a;
+	} else {
+		size = 0x5;
+		timeout = 0x20;
+	}
+
+	val16 = u16_encode_bits(size, BIT_RXDMA_AGG_PG_TH) |
+		u16_encode_bits(timeout, BIT_DMA_AGG_TO_V1);
+
+	rtw_write16(rtwdev, REG_RXDMA_AGG_PG_TH, val16);
+	rtw_write8_set(rtwdev, REG_TXDMA_PQ_MAP, BIT_RXDMA_AGG_EN);
+}
+
 static void rtw_usb_dynamic_rx_agg(struct rtw_dev *rtwdev, bool enable)
 {
 	switch (rtwdev->chip->id) {
@@ -796,6 +820,10 @@ static void rtw_usb_dynamic_rx_agg(struct rtw_dev *rtwdev, bool enable)
 	case RTW_CHIP_TYPE_8822B:
 	case RTW_CHIP_TYPE_8821C:
 		rtw_usb_dynamic_rx_agg_v1(rtwdev, enable);
+		break;
+	case RTW_CHIP_TYPE_8821A:
+	case RTW_CHIP_TYPE_8812A:
+		rtw_usb_dynamic_rx_agg_v2(rtwdev, enable);
 		break;
 	case RTW_CHIP_TYPE_8723D:
 		/* Doesn't like aggregation. */
@@ -930,6 +958,32 @@ static void rtw_usb_intf_deinit(struct rtw_dev *rtwdev,
 	usb_set_intfdata(intf, NULL);
 }
 
+static int rtw_usb_switch_mode_old(struct rtw_dev *rtwdev)
+{
+	struct rtw_usb *rtwusb = rtw_get_usb_priv(rtwdev);
+	enum usb_device_speed cur_speed = rtwusb->udev->speed;
+	u8 hci_opt;
+
+	if (cur_speed == USB_SPEED_HIGH) {
+		hci_opt = rtw_read8(rtwdev, REG_HCI_OPT_CTRL);
+
+		if ((hci_opt & (BIT(2) | BIT(3))) != BIT(3)) {
+			rtw_write8(rtwdev, REG_HCI_OPT_CTRL, 0x8);
+			rtw_write8(rtwdev, REG_SYS_SDIO_CTRL, 0x2);
+			rtw_write8(rtwdev, REG_ACLK_MON, 0x1);
+			rtw_write8(rtwdev, 0x3d, 0x3);
+			/* usb disconnect */
+			rtw_write8(rtwdev, REG_SYS_PW_CTRL + 1, 0x80);
+			return 1;
+		}
+	} else if (cur_speed == USB_SPEED_SUPER) {
+		rtw_write8_clr(rtwdev, REG_SYS_SDIO_CTRL, BIT(1));
+		rtw_write8_clr(rtwdev, REG_ACLK_MON, BIT(0));
+	}
+
+	return 0;
+}
+
 static int rtw_usb_switch_mode_new(struct rtw_dev *rtwdev)
 {
 	enum usb_device_speed cur_speed;
@@ -979,11 +1033,22 @@ static int rtw_usb_switch_mode_new(struct rtw_dev *rtwdev)
 	return 1;
 }
 
+static bool rtw_usb3_chip_old(u8 chip_id)
+{
+	return chip_id == RTW_CHIP_TYPE_8812A;
+}
+
+static bool rtw_usb3_chip_new(u8 chip_id)
+{
+	return chip_id == RTW_CHIP_TYPE_8822C ||
+	       chip_id == RTW_CHIP_TYPE_8822B;
+}
+
 static int rtw_usb_switch_mode(struct rtw_dev *rtwdev)
 {
 	u8 id = rtwdev->chip->id;
 
-	if (id != RTW_CHIP_TYPE_8822C && id != RTW_CHIP_TYPE_8822B)
+	if (!rtw_usb3_chip_new(id) && !rtw_usb3_chip_old(id))
 		return 0;
 
 	if (!rtwdev->efuse.usb_mode_switch) {
@@ -998,7 +1063,10 @@ static int rtw_usb_switch_mode(struct rtw_dev *rtwdev)
 		return 0;
 	}
 
-	return rtw_usb_switch_mode_new(rtwdev);
+	if (rtw_usb3_chip_old(id))
+		return rtw_usb_switch_mode_old(rtwdev);
+	else
+		return rtw_usb_switch_mode_new(rtwdev);
 }
 
 int rtw_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)

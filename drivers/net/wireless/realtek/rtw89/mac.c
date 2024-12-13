@@ -4788,9 +4788,11 @@ rtw89_mac_c2h_scanofld_rsp(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 	struct rtw89_vif_link *rtwvif_link = rtwdev->scan_info.scanning_vif;
 	struct rtw89_vif *rtwvif;
 	struct rtw89_chan new;
-	u8 reason, status, tx_fail, band, actual_period, expect_period;
 	u32 last_chan = rtwdev->scan_info.last_chan_idx, report_tsf;
+	u16 actual_period, expect_period;
+	u8 reason, status, tx_fail, band;
 	u8 mac_idx, sw_def, fw_def;
+	u8 ver = U8_MAX;
 	u16 chan;
 	int ret;
 
@@ -4798,6 +4800,9 @@ rtw89_mac_c2h_scanofld_rsp(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 		return;
 
 	rtwvif = rtwvif_link->rtwvif;
+
+	if (RTW89_CHK_FW_FEATURE(CH_INFO_BE_V0, &rtwdev->fw))
+		ver = 0;
 
 	tx_fail = le32_get_bits(c2h->w5, RTW89_C2H_SCANOFLD_W5_TX_FAIL);
 	status = le32_get_bits(c2h->w2, RTW89_C2H_SCANOFLD_W2_STATUS);
@@ -4811,20 +4816,27 @@ rtw89_mac_c2h_scanofld_rsp(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 	if (!(rtwdev->chip->support_bands & BIT(NL80211_BAND_6GHZ)))
 		band = chan > 14 ? RTW89_BAND_5G : RTW89_BAND_2G;
 
-	rtw89_debug(rtwdev, RTW89_DBG_HW_SCAN,
-		    "mac_idx[%d] band: %d, chan: %d, reason: %d, status: %d, tx_fail: %d, actual: %d\n",
-		    mac_idx, band, chan, reason, status, tx_fail, actual_period);
-
 	if (rtwdev->chip->chip_gen == RTW89_CHIP_BE) {
 		sw_def = le32_get_bits(c2h->w6, RTW89_C2H_SCANOFLD_W6_SW_DEF);
-		expect_period = le32_get_bits(c2h->w6, RTW89_C2H_SCANOFLD_W6_EXPECT_PERIOD);
 		fw_def = le32_get_bits(c2h->w6, RTW89_C2H_SCANOFLD_W6_FW_DEF);
 		report_tsf = le32_get_bits(c2h->w7, RTW89_C2H_SCANOFLD_W7_REPORT_TSF);
+		if (ver == 0) {
+			expect_period =
+				le32_get_bits(c2h->w6, RTW89_C2H_SCANOFLD_W6_EXPECT_PERIOD);
+		} else {
+			actual_period = le32_get_bits(c2h->w8, RTW89_C2H_SCANOFLD_W8_PERIOD_V1);
+			expect_period =
+				le32_get_bits(c2h->w8, RTW89_C2H_SCANOFLD_W8_EXPECT_PERIOD_V1);
+		}
 
 		rtw89_debug(rtwdev, RTW89_DBG_HW_SCAN,
 			    "sw_def: %d, fw_def: %d, tsf: %x, expect: %d\n",
 			    sw_def, fw_def, report_tsf, expect_period);
 	}
+
+	rtw89_debug(rtwdev, RTW89_DBG_HW_SCAN,
+		    "mac_idx[%d] band: %d, chan: %d, reason: %d, status: %d, tx_fail: %d, actual: %d\n",
+		    mac_idx, band, chan, reason, status, tx_fail, actual_period);
 
 	switch (reason) {
 	case RTW89_SCAN_LEAVE_OP_NOTIFY:
@@ -5364,6 +5376,39 @@ rtw89_mac_c2h_mrc_status_rpt(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 
 	rtw89_complete_cond(wait, cond, &data);
 }
 
+static void
+rtw89_mac_c2h_pwr_int_notify(struct rtw89_dev *rtwdev, struct sk_buff *skb, u32 len)
+{
+	const struct rtw89_c2h_pwr_int_notify *c2h;
+	struct rtw89_sta_link *rtwsta_link;
+	struct ieee80211_sta *sta;
+	struct rtw89_sta *rtwsta;
+	u16 macid;
+	bool ps;
+
+	c2h = (const struct rtw89_c2h_pwr_int_notify *)skb->data;
+	macid = le32_get_bits(c2h->w2, RTW89_C2H_PWR_INT_NOTIFY_W2_MACID);
+	ps = le32_get_bits(c2h->w2, RTW89_C2H_PWR_INT_NOTIFY_W2_PWR_STATUS);
+
+	rcu_read_lock();
+
+	rtwsta_link = rtw89_assoc_link_rcu_dereference(rtwdev, macid);
+	if (unlikely(!rtwsta_link))
+		goto out;
+
+	rtwsta = rtwsta_link->rtwsta;
+	if (ps)
+		set_bit(RTW89_REMOTE_STA_IN_PS, rtwsta->flags);
+	else
+		clear_bit(RTW89_REMOTE_STA_IN_PS, rtwsta->flags);
+
+	sta = rtwsta_to_sta(rtwsta);
+	ieee80211_sta_ps_transition(sta, ps);
+
+out:
+	rcu_read_unlock();
+}
+
 static
 void (* const rtw89_mac_c2h_ofld_handler[])(struct rtw89_dev *rtwdev,
 					    struct sk_buff *c2h, u32 len) = {
@@ -5407,6 +5452,12 @@ static
 void (* const rtw89_mac_c2h_wow_handler[])(struct rtw89_dev *rtwdev,
 					   struct sk_buff *c2h, u32 len) = {
 	[RTW89_MAC_C2H_FUNC_AOAC_REPORT] = rtw89_mac_c2h_wow_aoac_rpt,
+};
+
+static
+void (* const rtw89_mac_c2h_ap_handler[])(struct rtw89_dev *rtwdev,
+					  struct sk_buff *c2h, u32 len) = {
+	[RTW89_MAC_C2H_FUNC_PWR_INT_NOTIFY] = rtw89_mac_c2h_pwr_int_notify,
 };
 
 static void rtw89_mac_c2h_scanofld_rsp_atomic(struct rtw89_dev *rtwdev,
@@ -5463,6 +5514,13 @@ bool rtw89_mac_c2h_chk_atomic(struct rtw89_dev *rtwdev, struct sk_buff *c2h,
 		return true;
 	case RTW89_MAC_C2H_CLASS_WOW:
 		return true;
+	case RTW89_MAC_C2H_CLASS_AP:
+		switch (func) {
+		default:
+			return false;
+		case RTW89_MAC_C2H_FUNC_PWR_INT_NOTIFY:
+			return true;
+		}
 	}
 }
 
@@ -5493,14 +5551,18 @@ void rtw89_mac_c2h_handle(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 		if (func < NUM_OF_RTW89_MAC_C2H_FUNC_WOW)
 			handler = rtw89_mac_c2h_wow_handler[func];
 		break;
+	case RTW89_MAC_C2H_CLASS_AP:
+		if (func < NUM_OF_RTW89_MAC_C2H_FUNC_AP)
+			handler = rtw89_mac_c2h_ap_handler[func];
+		break;
 	case RTW89_MAC_C2H_CLASS_FWDBG:
 		return;
 	default:
-		rtw89_info(rtwdev, "c2h class %d not support\n", class);
+		rtw89_info(rtwdev, "MAC c2h class %d not support\n", class);
 		return;
 	}
 	if (!handler) {
-		rtw89_info(rtwdev, "c2h class %d func %d not support\n", class,
+		rtw89_info(rtwdev, "MAC c2h class %d func %d not support\n", class,
 			   func);
 		return;
 	}
@@ -6674,6 +6736,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 
 	.typ_fltr_opt = rtw89_mac_typ_fltr_opt_ax,
 	.cfg_ppdu_status = rtw89_mac_cfg_ppdu_status_ax,
+	.cfg_phy_rpt = NULL,
 
 	.dle_mix_cfg = dle_mix_cfg_ax,
 	.chk_dle_rdy = chk_dle_rdy_ax,
