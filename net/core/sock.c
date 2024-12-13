@@ -1519,6 +1519,10 @@ set_sndbuf:
 		sock_valbool_flag(sk, SOCK_RCVMARK, valbool);
 		break;
 
+	case SO_RCVPRIORITY:
+		sock_valbool_flag(sk, SOCK_RCVPRIORITY, valbool);
+		break;
+
 	case SO_RXQ_OVFL:
 		sock_valbool_flag(sk, SOCK_RXQ_OVFL, valbool);
 		break;
@@ -1945,6 +1949,10 @@ int sk_getsockopt(struct sock *sk, int level, int optname,
 
 	case SO_RCVMARK:
 		v.val = sock_flag(sk, SOCK_RCVMARK);
+		break;
+
+	case SO_RCVPRIORITY:
+		v.val = sock_flag(sk, SOCK_RCVPRIORITY);
 		break;
 
 	case SO_RXQ_OVFL:
