@@ -147,6 +147,34 @@ static u32 guc_ctl_ads_flags(struct xe_guc *guc)
 	return flags;
 }
 
+static bool needs_wa_dual_queue(struct xe_gt *gt)
+{
+	/*
+	 * The DUAL_QUEUE_WA tells the GuC to not allow concurrent submissions
+	 * on RCS and CCSes with different address spaces, which on DG2 is
+	 * required as a WA for an HW bug.
+	 */
+	if (XE_WA(gt, 22011391025))
+		return true;
+
+	/*
+	 * On newer platforms, the HW has been updated to not allow parallel
+	 * execution of different address spaces, so the RCS/CCS will stall the
+	 * context switch if one of the other RCS/CCSes is busy with a different
+	 * address space. While functionally correct, having a submission
+	 * stalled on the HW limits the GuC ability to shuffle things around and
+	 * can cause complications if the non-stalled submission runs for a long
+	 * time, because the GuC doesn't know that the stalled submission isn't
+	 * actually running and might declare it as hung. Therefore, we enable
+	 * the DUAL_QUEUE_WA on all newer platforms on GTs that have CCS engines
+	 * to move management back to the GuC.
+	 */
+	if (CCS_MASK(gt) && GRAPHICS_VERx100(gt_to_xe(gt)) >= 1270)
+		return true;
+
+	return false;
+}
+
 static u32 guc_ctl_wa_flags(struct xe_guc *guc)
 {
 	struct xe_device *xe = guc_to_xe(guc);
@@ -159,7 +187,7 @@ static u32 guc_ctl_wa_flags(struct xe_guc *guc)
 	if (XE_WA(gt, 14014475959))
 		flags |= GUC_WA_HOLD_CCS_SWITCHOUT;
 
-	if (XE_WA(gt, 22011391025))
+	if (needs_wa_dual_queue(gt))
 		flags |= GUC_WA_DUAL_QUEUE;
 
 	/*
