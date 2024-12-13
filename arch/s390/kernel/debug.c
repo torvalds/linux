@@ -95,9 +95,6 @@ static int debug_input_flush_fn(debug_info_t *id, struct debug_view *view,
 static int debug_hex_ascii_format_fn(debug_info_t *id, struct debug_view *view,
 				     char *out_buf, size_t out_buf_size,
 				     const char *in_buf);
-static int debug_sprintf_format_fn(debug_info_t *id, struct debug_view *view,
-				   char *out_buf, size_t out_buf_size,
-				   const char *inbuf);
 static void debug_areas_swap(debug_info_t *a, debug_info_t *b);
 static void debug_events_append(debug_info_t *dest, debug_info_t *src);
 
@@ -1685,8 +1682,8 @@ EXPORT_SYMBOL(debug_dflt_header_fn);
 
 #define DEBUG_SPRINTF_MAX_ARGS 10
 
-static int debug_sprintf_format_fn(debug_info_t *id, struct debug_view *view,
-				   char *out_buf, size_t out_buf_size, const char *inbuf)
+int debug_sprintf_format_fn(debug_info_t *id, struct debug_view *view,
+			    char *out_buf, size_t out_buf_size, const char *inbuf)
 {
 	debug_sprintf_entry_t *curr_event = (debug_sprintf_entry_t *)inbuf;
 	int num_longs, num_used_args = 0, i, rc = 0;
@@ -1723,6 +1720,7 @@ static int debug_sprintf_format_fn(debug_info_t *id, struct debug_view *view,
 out:
 	return rc;
 }
+EXPORT_SYMBOL(debug_sprintf_format_fn);
 
 /*
  * debug_init:

@@ -15,6 +15,8 @@
 #include <linux/pci.h>
 
 #include <asm/sclp.h>
+#include <asm/debug.h>
+#include <asm/pci_debug.h>
 
 #include "pci_report.h"
 
@@ -48,6 +50,44 @@ static const char *zpci_state_str(pci_channel_state_t state)
 	};
 }
 
+static int debug_log_header_fn(debug_info_t *id, struct debug_view *view,
+			       int area, debug_entry_t *entry, char *out_buf,
+			       size_t out_buf_size)
+{
+	unsigned long sec, usec;
+	unsigned int level;
+	char *except_str;
+	int rc = 0;
+
+	level = entry->level;
+	sec = entry->clock;
+	usec = do_div(sec, USEC_PER_SEC);
+
+	if (entry->exception)
+		except_str = "*";
+	else
+		except_str = "-";
+	rc += scnprintf(out_buf, out_buf_size, "%011ld:%06lu %1u %1s %04u  ",
+			sec, usec, level, except_str,
+			entry->cpu);
+	return rc;
+}
+
+static int debug_prolog_header(debug_info_t *id, struct debug_view *view,
+			       char *out_buf, size_t out_buf_size)
+{
+	return scnprintf(out_buf, out_buf_size, "sec:usec level except cpu  msg\n");
+}
+
+static struct debug_view debug_log_view = {
+	"pci_msg_log",
+	&debug_prolog_header,
+	&debug_log_header_fn,
+	&debug_sprintf_format_fn,
+	NULL,
+	NULL
+};
+
 /**
  * zpci_report_status - Report the status of operations on a PCI device
  * @zdev:	The PCI device for which to report status
@@ -59,6 +99,8 @@ static const char *zpci_state_str(pci_channel_state_t state)
  * Event Data mechanism. Besides the operation and status strings the report
  * also contains additional information about the device deemed useful for
  * debug such as the currently bound device driver, if any, and error state.
+ * Additionally a string representation of pci_debug_msg_id, or as much as fits,
+ * is also included.
  *
  * Return: 0 on success an error code < 0 otherwise.
  */
@@ -92,6 +134,11 @@ int zpci_report_status(struct zpci_dev *zdev, const char *operation, const char 
 	buf += scnprintf(buf, end - buf, "state: %s\n",
 			 (pdev) ? zpci_state_str(pdev->error_state) : "n/a");
 	buf += scnprintf(buf, end - buf, "driver: %s\n", (driver) ? driver->name : "n/a");
+	ret = debug_dump(pci_debug_msg_id, &debug_log_view, buf, end - buf, true);
+	if (ret < 0)
+		pr_err("Reading PCI debug messages failed with code %d\n", ret);
+	else
+		buf += ret;
 
 	report->header.version = 1;
 	report->header.action = SCLP_ERRNOTIFY_AQ_INFO_LOG;
