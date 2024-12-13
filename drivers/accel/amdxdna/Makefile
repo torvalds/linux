@@ -17,5 +17,6 @@ amdxdna-y := \
 	npu1_regs.o \
 	npu2_regs.o \
 	npu4_regs.o \
-	npu5_regs.o
+	npu5_regs.o \
+	npu6_regs.o
 obj-$(CONFIG_DRM_ACCEL_AMDXDNA) = amdxdna.o
