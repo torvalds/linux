@@ -27,6 +27,8 @@
 #define KFUNC_DECL_TAG		"bpf_kfunc"
 #define FASTCALL_DECL_TAG	"bpf_fastcall"
 
+#define MAX_ROOT_IDS		16
+
 static const char * const btf_kind_str[NR_BTF_KINDS] = {
 	[BTF_KIND_UNKN]		= "UNKNOWN",
 	[BTF_KIND_INT]		= "INT",
@@ -880,12 +882,14 @@ static int do_dump(int argc, char **argv)
 {
 	bool dump_c = false, sort_dump_c = true;
 	struct btf *btf = NULL, *base = NULL;
-	__u32 root_type_ids[2];
+	__u32 root_type_ids[MAX_ROOT_IDS];
+	bool have_id_filtering;
 	int root_type_cnt = 0;
 	__u32 btf_id = -1;
 	const char *src;
 	int fd = -1;
 	int err = 0;
+	int i;
 
 	if (!REQ_ARGS(2)) {
 		usage();
@@ -973,6 +977,8 @@ static int do_dump(int argc, char **argv)
 		goto done;
 	}
 
+	have_id_filtering = !!root_type_cnt;
+
 	while (argc) {
 		if (is_prefix(*argv, "format")) {
 			NEXT_ARG();
@@ -991,6 +997,36 @@ static int do_dump(int argc, char **argv)
 				err = -EINVAL;
 				goto done;
 			}
+			NEXT_ARG();
+		} else if (is_prefix(*argv, "root_id")) {
+			__u32 root_id;
+			char *end;
+
+			if (have_id_filtering) {
+				p_err("cannot use root_id with other type filtering");
+				err = -EINVAL;
+				goto done;
+			} else if (root_type_cnt == MAX_ROOT_IDS) {
+				p_err("only %d root_id are supported", MAX_ROOT_IDS);
+				err = -E2BIG;
+				goto done;
+			}
+
+			NEXT_ARG();
+			root_id = strtoul(*argv, &end, 0);
+			if (*end) {
+				err = -1;
+				p_err("can't parse %s as root ID", *argv);
+				goto done;
+			}
+			for (i = 0; i < root_type_cnt; i++) {
+				if (root_type_ids[i] == root_id) {
+					err = -EINVAL;
+					p_err("duplicate root_id %d supplied", root_id);
+					goto done;
+				}
+			}
+			root_type_ids[root_type_cnt++] = root_id;
 			NEXT_ARG();
 		} else if (is_prefix(*argv, "unsorted")) {
 			sort_dump_c = false;
@@ -1013,6 +1049,17 @@ static int do_dump(int argc, char **argv)
 		if (!btf) {
 			err = -errno;
 			p_err("get btf by id (%u): %s", btf_id, strerror(errno));
+			goto done;
+		}
+	}
+
+	/* Invalid root IDs causes half emitted boilerplate and then unclean
+	 * exit. It's an ugly user experience, so handle common error here.
+	 */
+	for (i = 0; i < root_type_cnt; i++) {
+		if (root_type_ids[i] >= btf__type_cnt(btf)) {
+			err = -EINVAL;
+			p_err("invalid root ID: %u", root_type_ids[i]);
 			goto done;
 		}
 	}
@@ -1391,7 +1438,7 @@ static int do_help(int argc, char **argv)
 
 	fprintf(stderr,
 		"Usage: %1$s %2$s { show | list } [id BTF_ID]\n"
-		"       %1$s %2$s dump BTF_SRC [format FORMAT]\n"
+		"       %1$s %2$s dump BTF_SRC [format FORMAT] [root_id ROOT_ID]\n"
 		"       %1$s %2$s help\n"
 		"\n"
 		"       BTF_SRC := { id BTF_ID | prog PROG | map MAP [{key | value | kv | all}] | file FILE }\n"
