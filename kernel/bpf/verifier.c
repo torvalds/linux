@@ -19218,50 +19218,68 @@ static int find_btf_percpu_datasec(struct btf *btf)
 	return -ENOENT;
 }
 
+/*
+ * Add btf to the used_btfs array and return the index. (If the btf was
+ * already added, then just return the index.) Upon successful insertion
+ * increase btf refcnt, and, if present, also refcount the corresponding
+ * kernel module.
+ */
+static int __add_used_btf(struct bpf_verifier_env *env, struct btf *btf)
+{
+	struct btf_mod_pair *btf_mod;
+	int i;
+
+	/* check whether we recorded this BTF (and maybe module) already */
+	for (i = 0; i < env->used_btf_cnt; i++)
+		if (env->used_btfs[i].btf == btf)
+			return i;
+
+	if (env->used_btf_cnt >= MAX_USED_BTFS)
+		return -E2BIG;
+
+	btf_get(btf);
+
+	btf_mod = &env->used_btfs[env->used_btf_cnt];
+	btf_mod->btf = btf;
+	btf_mod->module = NULL;
+
+	/* if we reference variables from kernel module, bump its refcount */
+	if (btf_is_module(btf)) {
+		btf_mod->module = btf_try_get_module(btf);
+		if (!btf_mod->module) {
+			btf_put(btf);
+			return -ENXIO;
+		}
+	}
+
+	return env->used_btf_cnt++;
+}
+
 /* replace pseudo btf_id with kernel symbol address */
-static int check_pseudo_btf_id(struct bpf_verifier_env *env,
-			       struct bpf_insn *insn,
-			       struct bpf_insn_aux_data *aux)
+static int __check_pseudo_btf_id(struct bpf_verifier_env *env,
+				 struct bpf_insn *insn,
+				 struct bpf_insn_aux_data *aux,
+				 struct btf *btf)
 {
 	const struct btf_var_secinfo *vsi;
 	const struct btf_type *datasec;
-	struct btf_mod_pair *btf_mod;
 	const struct btf_type *t;
 	const char *sym_name;
 	bool percpu = false;
 	u32 type, id = insn->imm;
-	struct btf *btf;
 	s32 datasec_id;
 	u64 addr;
-	int i, btf_fd, err;
-
-	btf_fd = insn[1].imm;
-	if (btf_fd) {
-		btf = btf_get_by_fd(btf_fd);
-		if (IS_ERR(btf)) {
-			verbose(env, "invalid module BTF object FD specified.\n");
-			return -EINVAL;
-		}
-	} else {
-		if (!btf_vmlinux) {
-			verbose(env, "kernel is missing BTF, make sure CONFIG_DEBUG_INFO_BTF=y is specified in Kconfig.\n");
-			return -EINVAL;
-		}
-		btf = btf_vmlinux;
-		btf_get(btf);
-	}
+	int i;
 
 	t = btf_type_by_id(btf, id);
 	if (!t) {
 		verbose(env, "ldimm64 insn specifies invalid btf_id %d.\n", id);
-		err = -ENOENT;
-		goto err_put;
+		return -ENOENT;
 	}
 
 	if (!btf_type_is_var(t) && !btf_type_is_func(t)) {
 		verbose(env, "pseudo btf_id %d in ldimm64 isn't KIND_VAR or KIND_FUNC\n", id);
-		err = -EINVAL;
-		goto err_put;
+		return -EINVAL;
 	}
 
 	sym_name = btf_name_by_offset(btf, t->name_off);
@@ -19269,8 +19287,7 @@ static int check_pseudo_btf_id(struct bpf_verifier_env *env,
 	if (!addr) {
 		verbose(env, "ldimm64 failed to find the address for kernel symbol '%s'.\n",
 			sym_name);
-		err = -ENOENT;
-		goto err_put;
+		return -ENOENT;
 	}
 	insn[0].imm = (u32)addr;
 	insn[1].imm = addr >> 32;
@@ -19278,7 +19295,7 @@ static int check_pseudo_btf_id(struct bpf_verifier_env *env,
 	if (btf_type_is_func(t)) {
 		aux->btf_var.reg_type = PTR_TO_MEM | MEM_RDONLY;
 		aux->btf_var.mem_size = 0;
-		goto check_btf;
+		return 0;
 	}
 
 	datasec_id = find_btf_percpu_datasec(btf);
@@ -19309,8 +19326,7 @@ static int check_pseudo_btf_id(struct bpf_verifier_env *env,
 			tname = btf_name_by_offset(btf, t->name_off);
 			verbose(env, "ldimm64 unable to resolve the size of type '%s': %ld\n",
 				tname, PTR_ERR(ret));
-			err = -EINVAL;
-			goto err_put;
+			return -EINVAL;
 		}
 		aux->btf_var.reg_type = PTR_TO_MEM | MEM_RDONLY;
 		aux->btf_var.mem_size = tsize;
@@ -19319,39 +19335,43 @@ static int check_pseudo_btf_id(struct bpf_verifier_env *env,
 		aux->btf_var.btf = btf;
 		aux->btf_var.btf_id = type;
 	}
-check_btf:
-	/* check whether we recorded this BTF (and maybe module) already */
-	for (i = 0; i < env->used_btf_cnt; i++) {
-		if (env->used_btfs[i].btf == btf) {
-			btf_put(btf);
-			return 0;
-		}
-	}
-
-	if (env->used_btf_cnt >= MAX_USED_BTFS) {
-		err = -E2BIG;
-		goto err_put;
-	}
-
-	btf_mod = &env->used_btfs[env->used_btf_cnt];
-	btf_mod->btf = btf;
-	btf_mod->module = NULL;
-
-	/* if we reference variables from kernel module, bump its refcount */
-	if (btf_is_module(btf)) {
-		btf_mod->module = btf_try_get_module(btf);
-		if (!btf_mod->module) {
-			err = -ENXIO;
-			goto err_put;
-		}
-	}
-
-	env->used_btf_cnt++;
 
 	return 0;
-err_put:
-	btf_put(btf);
-	return err;
+}
+
+static int check_pseudo_btf_id(struct bpf_verifier_env *env,
+			       struct bpf_insn *insn,
+			       struct bpf_insn_aux_data *aux)
+{
+	struct btf *btf;
+	int btf_fd;
+	int err;
+
+	btf_fd = insn[1].imm;
+	if (btf_fd) {
+		CLASS(fd, f)(btf_fd);
+
+		btf = __btf_get_by_fd(f);
+		if (IS_ERR(btf)) {
+			verbose(env, "invalid module BTF object FD specified.\n");
+			return -EINVAL;
+		}
+	} else {
+		if (!btf_vmlinux) {
+			verbose(env, "kernel is missing BTF, make sure CONFIG_DEBUG_INFO_BTF=y is specified in Kconfig.\n");
+			return -EINVAL;
+		}
+		btf = btf_vmlinux;
+	}
+
+	err = __check_pseudo_btf_id(env, insn, aux, btf);
+	if (err)
+		return err;
+
+	err = __add_used_btf(env, btf);
+	if (err < 0)
+		return err;
+	return 0;
 }
 
 static bool is_tracing_prog_type(enum bpf_prog_type type)
