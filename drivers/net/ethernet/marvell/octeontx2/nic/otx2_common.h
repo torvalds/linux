@@ -505,9 +505,9 @@ struct otx2_nic {
 
 	/* Devlink */
 	struct otx2_devlink	*dl;
-#ifdef CONFIG_DCB
 	/* PFC */
 	u8			pfc_en;
+#ifdef CONFIG_DCB
 	u8			*queue_to_pfc_map;
 	u16			pfc_schq_list[NIX_TXSCH_LVL_CNT][MAX_TXSCHQ_PER_FUNC];
 	bool			pfc_alloc_status[NIX_PF_PFC_PRIO_MAX];

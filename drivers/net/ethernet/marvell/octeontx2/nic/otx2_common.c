@@ -10,6 +10,7 @@
 #include <net/page_pool/helpers.h>
 #include <net/tso.h>
 #include <linux/bitfield.h>
+#include <linux/dcbnl.h>
 #include <net/xfrm.h>
 
 #include "otx2_reg.h"
