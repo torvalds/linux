@@ -2075,7 +2075,6 @@ restart_locked:
 		 *	datagram error
 		 */
 		unix_state_unlock(other);
-		sock_put(other);
 
 		if (!sk_locked)
 			unix_state_lock(sk);
@@ -2104,7 +2103,6 @@ restart_locked:
 				err = -ECONNRESET;
 		}
 
-		other = NULL;
 		if (err)
 			goto out_free;
 
