@@ -2254,8 +2254,8 @@ static int unix_stream_sendmsg(struct socket *sock, struct msghdr *msg,
 
 	wait_for_unix_gc(scm.fp);
 
-	err = -EOPNOTSUPP;
 	if (msg->msg_flags & MSG_OOB) {
+		err = -EOPNOTSUPP;
 #if IS_ENABLED(CONFIG_AF_UNIX_OOB)
 		if (len)
 			len--;
@@ -2268,10 +2268,11 @@ static int unix_stream_sendmsg(struct socket *sock, struct msghdr *msg,
 		err = READ_ONCE(sk->sk_state) == TCP_ESTABLISHED ? -EISCONN : -EOPNOTSUPP;
 		goto out_err;
 	} else {
-		err = -ENOTCONN;
 		other = unix_peer(sk);
-		if (!other)
+		if (!other) {
+			err = -ENOTCONN;
 			goto out_err;
+		}
 	}
 
 	if (READ_ONCE(sk->sk_shutdown) & SEND_SHUTDOWN)
