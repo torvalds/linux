@@ -165,7 +165,6 @@ static int ntsync_obj_get_fd(struct ntsync_obj *obj)
 
 static int ntsync_create_sem(struct ntsync_device *dev, void __user *argp)
 {
-	struct ntsync_sem_args __user *user_args = argp;
 	struct ntsync_sem_args args;
 	struct ntsync_obj *sem;
 	int fd;
@@ -182,12 +181,10 @@ static int ntsync_create_sem(struct ntsync_device *dev, void __user *argp)
 	sem->u.sem.count = args.count;
 	sem->u.sem.max = args.max;
 	fd = ntsync_obj_get_fd(sem);
-	if (fd < 0) {
+	if (fd < 0)
 		kfree(sem);
-		return fd;
-	}
 
-	return put_user(fd, &user_args->sem);
+	return fd;
 }
 
 static int ntsync_char_open(struct inode *inode, struct file *file)
