@@ -632,6 +632,53 @@ static int debug_close(struct inode *inode, struct file *file)
 	return 0; /* success */
 }
 
+/**
+ * debug_dump - Get a textual representation of debug info, or as much as fits
+ * @id:		Debug information to use
+ * @view:	View with which to dump the debug information
+ * @buf:	Buffer the textual debug data representation is written to
+ * @buf_size:	Size of the buffer, including the trailing '\0' byte
+ *
+ * This function may be used whenever a textual representation of the debug
+ * information is required without using an s390dbf file.
+ *
+ * Note: It is the callers responsibility to supply a view that is compatible
+ * with the debug information data.
+ *
+ * Return: On success returns the number of bytes written to the buffer not
+ * including the trailing '\0' byte. If bug_size == 0 the function returns 0.
+ * On failure an error code less than 0 is returned.
+ */
+ssize_t debug_dump(debug_info_t *id, struct debug_view *view,
+		   char *buf, size_t buf_size)
+{
+	file_private_info_t *p_info;
+	size_t size, offset = 0;
+
+	/* Need space for '\0' byte */
+	if (buf_size < 1)
+		return 0;
+	buf_size--;
+
+	p_info = debug_file_private_alloc(id, view);
+	if (!p_info)
+		return -ENOMEM;
+
+	/* There is always at least the DEBUG_PROLOG_ENTRY */
+	do {
+		size = debug_format_entry(p_info);
+		size = min(size, buf_size - offset);
+		memcpy(buf + offset, p_info->temp_buf, size);
+		offset += size;
+		if (offset >= buf_size)
+			break;
+	} while (debug_next_entry(p_info));
+	debug_file_private_free(p_info);
+	buf[offset] = '\0';
+
+	return offset;
+}
+
 /* Create debugfs entries and add to internal list. */
 static void _debug_register(debug_info_t *id)
 {
