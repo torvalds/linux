@@ -6,6 +6,8 @@
 #ifndef _AMDXDNA_PCI_DRV_H_
 #define _AMDXDNA_PCI_DRV_H_
 
+#include <linux/xarray.h>
+
 #define XDNA_INFO(xdna, fmt, args...)	drm_info(&(xdna)->ddev, fmt, ##args)
 #define XDNA_WARN(xdna, fmt, args...)	drm_warn(&(xdna)->ddev, "%s: "fmt, __func__, ##args)
 #define XDNA_ERR(xdna, fmt, args...)	drm_err(&(xdna)->ddev, "%s: "fmt, __func__, ##args)
@@ -100,7 +102,8 @@ struct amdxdna_client {
 	struct mutex			hwctx_lock; /* protect hwctx */
 	/* do NOT wait this srcu when hwctx_lock is held */
 	struct srcu_struct		hwctx_srcu;
-	struct idr			hwctx_idr;
+	struct xarray			hwctx_xa;
+	u32				next_hwctxid;
 	struct amdxdna_dev		*xdna;
 	struct drm_file			*filp;
 
@@ -110,6 +113,9 @@ struct amdxdna_client {
 	struct iommu_sva		*sva;
 	int				pasid;
 };
+
+#define amdxdna_for_each_hwctx(client, hwctx_id, entry)		\
+	xa_for_each(&(client)->hwctx_xa, hwctx_id, entry)
 
 /* Add device info below */
 extern const struct amdxdna_dev_info dev_npu1_info;

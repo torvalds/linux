@@ -11,6 +11,7 @@
 #include <drm/drm_syncobj.h>
 #include <linux/hmm.h>
 #include <linux/types.h>
+#include <linux/xarray.h>
 #include <trace/events/amdxdna.h>
 
 #include "aie2_msg_priv.h"
@@ -90,11 +91,11 @@ void aie2_restart_ctx(struct amdxdna_client *client)
 {
 	struct amdxdna_dev *xdna = client->xdna;
 	struct amdxdna_hwctx *hwctx;
-	int next = 0;
+	unsigned long hwctx_id;
 
 	drm_WARN_ON(&xdna->ddev, !mutex_is_locked(&xdna->dev_lock));
 	mutex_lock(&client->hwctx_lock);
-	idr_for_each_entry_continue(&client->hwctx_idr, hwctx, next) {
+	amdxdna_for_each_hwctx(client, hwctx_id, hwctx) {
 		if (hwctx->status != HWCTX_STAT_STOP)
 			continue;
 
