@@ -34,7 +34,8 @@ struct ntsync_wait_args {
 	__u32 index;
 	__u32 flags;
 	__u32 owner;
-	__u32 pad[2];
+	__u32 alert;
+	__u32 pad;
 };
 
 #define NTSYNC_MAX_WAIT_COUNT 64
