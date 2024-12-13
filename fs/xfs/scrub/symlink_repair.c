@@ -36,6 +36,7 @@
 #include "scrub/tempfile.h"
 #include "scrub/tempexch.h"
 #include "scrub/reap.h"
+#include "scrub/health.h"
 
 /*
  * Symbolic Link Repair
@@ -233,7 +234,7 @@ xrep_symlink_salvage(
 	 * target zapped flag.
 	 */
 	if (buflen == 0) {
-		sc->sick_mask |= XFS_SICK_INO_SYMLINK_ZAPPED;
+		xchk_mark_healthy_if_clean(sc, XFS_SICK_INO_SYMLINK_ZAPPED);
 		sprintf(target_buf, DUMMY_TARGET);
 	}
 

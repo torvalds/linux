@@ -496,7 +496,7 @@ xfs_rtginode_create(
 
 	error = xfs_metadir_create(&upd, S_IFREG);
 	if (error)
-		return error;
+		goto out_cancel;
 
 	xfs_rtginode_lockdep_setup(upd.ip, rtg_rgno(rtg), type);
 
