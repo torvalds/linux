@@ -573,8 +573,6 @@ void intel_display_driver_register(struct intel_display *display)
 /* part #1: call before irq uninstall */
 void intel_display_driver_remove(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
 	if (!HAS_DISPLAY(display))
 		return;
 
@@ -587,7 +585,7 @@ void intel_display_driver_remove(struct intel_display *display)
 	 * fbdev after it's finalized. MST will be destroyed later as part of
 	 * drm_mode_config_cleanup()
 	 */
-	intel_dp_mst_suspend(i915);
+	intel_dp_mst_suspend(display);
 }
 
 /* part #2: call after irq uninstall */
@@ -672,7 +670,6 @@ void intel_display_driver_unregister(struct intel_display *display)
  */
 int intel_display_driver_suspend(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct drm_atomic_state *state;
 	int ret;
 
@@ -690,7 +687,7 @@ int intel_display_driver_suspend(struct intel_display *display)
 	/* ensure all DPT VMAs have been unpinned for intel_dpt_suspend() */
 	flush_workqueue(display->wq.cleanup);
 
-	intel_dp_mst_suspend(i915);
+	intel_dp_mst_suspend(display);
 
 	return ret;
 }
@@ -747,7 +744,7 @@ void intel_display_driver_resume(struct intel_display *display)
 		return;
 
 	/* MST sideband requires HPD interrupts enabled */
-	intel_dp_mst_resume(i915);
+	intel_dp_mst_resume(display);
 
 	display->restore.modeset_state = NULL;
 	if (state)

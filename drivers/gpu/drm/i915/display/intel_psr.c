@@ -871,7 +871,7 @@ static u32 intel_psr1_get_tp_time(struct intel_dp *intel_dp)
 		val |= EDP_PSR_TP2_TP3_TIME_100us;
 
 check_tp3_sel:
-	if (intel_dp_source_supports_tps3(dev_priv) &&
+	if (intel_dp_source_supports_tps3(display) &&
 	    drm_dp_tps3_supported(intel_dp->dpcd))
 		val |= EDP_PSR_TP_TP1_TP3;
 	else

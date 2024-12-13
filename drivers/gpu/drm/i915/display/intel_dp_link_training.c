@@ -959,7 +959,6 @@ static u32 intel_dp_training_pattern(struct intel_dp *intel_dp,
 				     enum drm_dp_phy dp_phy)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	bool source_tps3, sink_tps3, source_tps4, sink_tps4;
 
 	/* UHBR+ use separate 128b/132b TPS2 */
@@ -972,7 +971,7 @@ static u32 intel_dp_training_pattern(struct intel_dp *intel_dp,
 	 * TPS4 as of Feb 2018 as per VESA eDP_v1.4b_E1 specification.
 	 * LTTPRs must support TPS4.
 	 */
-	source_tps4 = intel_dp_source_supports_tps4(i915);
+	source_tps4 = intel_dp_source_supports_tps4(display);
 	sink_tps4 = dp_phy != DP_PHY_DPRX ||
 		    drm_dp_tps4_supported(intel_dp->dpcd);
 	if (source_tps4 && sink_tps4) {
@@ -990,7 +989,7 @@ static u32 intel_dp_training_pattern(struct intel_dp *intel_dp,
 	 * TPS3 support is mandatory for downstream devices that
 	 * support HBR2. However, not all sinks follow the spec.
 	 */
-	source_tps3 = intel_dp_source_supports_tps3(i915);
+	source_tps3 = intel_dp_source_supports_tps3(display);
 	sink_tps3 = dp_phy != DP_PHY_DPRX ||
 		    drm_dp_tps3_supported(intel_dp->dpcd);
 	if (source_tps3 && sink_tps3) {

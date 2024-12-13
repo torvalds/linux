@@ -981,7 +981,7 @@ void i915_driver_shutdown(struct drm_i915_private *i915)
 		drm_atomic_helper_shutdown(&i915->drm);
 	}
 
-	intel_dp_mst_suspend(i915);
+	intel_dp_mst_suspend(display);
 
 	intel_irq_suspend(i915);
 	intel_hpd_cancel_work(i915);

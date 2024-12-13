@@ -828,9 +828,8 @@ small_joiner_ram_size_bits(struct intel_display *display)
 		return 6144 * 8;
 }
 
-u32 intel_dp_dsc_nearest_valid_bpp(struct drm_i915_private *i915, u32 bpp, u32 pipe_bpp)
+u32 intel_dp_dsc_nearest_valid_bpp(struct intel_display *display, u32 bpp, u32 pipe_bpp)
 {
-	struct intel_display *display = &i915->display;
 	u32 bits_per_pixel = bpp;
 	int i;
 
@@ -937,7 +936,7 @@ u32 get_max_compressed_bpp_with_joiner(struct intel_display *display,
 	return max_bpp;
 }
 
-u16 intel_dp_dsc_get_max_compressed_bpp(struct drm_i915_private *i915,
+u16 intel_dp_dsc_get_max_compressed_bpp(struct intel_display *display,
 					u32 link_clock, u32 lane_count,
 					u32 mode_clock, u32 mode_hdisplay,
 					int num_joined_pipes,
@@ -945,7 +944,6 @@ u16 intel_dp_dsc_get_max_compressed_bpp(struct drm_i915_private *i915,
 					u32 pipe_bpp,
 					u32 timeslots)
 {
-	struct intel_display *display = &i915->display;
 	u32 bits_per_pixel, joiner_max_bpp;
 
 	/*
@@ -990,7 +988,7 @@ u16 intel_dp_dsc_get_max_compressed_bpp(struct drm_i915_private *i915,
 							    mode_hdisplay, num_joined_pipes);
 	bits_per_pixel = min(bits_per_pixel, joiner_max_bpp);
 
-	bits_per_pixel = intel_dp_dsc_nearest_valid_bpp(i915, bits_per_pixel, pipe_bpp);
+	bits_per_pixel = intel_dp_dsc_nearest_valid_bpp(display, bits_per_pixel, pipe_bpp);
 
 	return bits_per_pixel;
 }
@@ -1470,7 +1468,7 @@ intel_dp_mode_valid(struct drm_connector *_connector,
 								true);
 		} else if (drm_dp_sink_supports_fec(connector->dp.fec_capability)) {
 			dsc_max_compressed_bpp =
-				intel_dp_dsc_get_max_compressed_bpp(dev_priv,
+				intel_dp_dsc_get_max_compressed_bpp(display,
 								    max_link_clock,
 								    max_lanes,
 								    target_clock,
@@ -1488,7 +1486,7 @@ intel_dp_mode_valid(struct drm_connector *_connector,
 		dsc = dsc_max_compressed_bpp && dsc_slice_count;
 	}
 
-	if (intel_dp_joiner_needs_dsc(dev_priv, num_joined_pipes) && !dsc)
+	if (intel_dp_joiner_needs_dsc(display, num_joined_pipes) && !dsc)
 		return MODE_CLOCK_HIGH;
 
 	if (mode_rate > max_rate && !dsc)
@@ -1501,18 +1499,14 @@ intel_dp_mode_valid(struct drm_connector *_connector,
 	return intel_mode_valid_max_plane_size(dev_priv, mode, num_joined_pipes);
 }
 
-bool intel_dp_source_supports_tps3(struct drm_i915_private *i915)
+bool intel_dp_source_supports_tps3(struct intel_display *display)
 {
-	struct intel_display *display = &i915->display;
-
 	return DISPLAY_VER(display) >= 9 ||
 		display->platform.broadwell || display->platform.haswell;
 }
 
-bool intel_dp_source_supports_tps4(struct drm_i915_private *i915)
+bool intel_dp_source_supports_tps4(struct intel_display *display)
 {
-	struct intel_display *display = &i915->display;
-
 	return DISPLAY_VER(display) >= 10;
 }
 
@@ -2590,11 +2584,9 @@ int intel_dp_config_required_rate(const struct intel_crtc_state *crtc_state)
 	return intel_dp_link_required(adjusted_mode->crtc_clock, bpp);
 }
 
-bool intel_dp_joiner_needs_dsc(struct drm_i915_private *i915,
+bool intel_dp_joiner_needs_dsc(struct intel_display *display,
 			       int num_joined_pipes)
 {
-	struct intel_display *display = &i915->display;
-
 	/*
 	 * Pipe joiner needs compression up to display 12 due to bandwidth
 	 * limitation. DG2 onwards pipe joiner can be enabled without
@@ -2612,7 +2604,6 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 			     bool respect_downstream_limits)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	struct intel_connector *connector =
 		to_intel_connector(conn_state->connector);
@@ -2634,7 +2625,7 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 	if (num_joined_pipes > 1)
 		pipe_config->joiner_pipes = GENMASK(crtc->pipe + num_joined_pipes - 1, crtc->pipe);
 
-	joiner_needs_dsc = intel_dp_joiner_needs_dsc(i915, num_joined_pipes);
+	joiner_needs_dsc = intel_dp_joiner_needs_dsc(display, num_joined_pipes);
 
 	dsc_needed = joiner_needs_dsc || intel_dp->force_dsc_en ||
 		     !intel_dp_compute_config_limits(intel_dp, pipe_config,
@@ -6231,9 +6222,8 @@ static bool _intel_dp_is_port_edp(struct intel_display *display,
 	return devdata && intel_bios_encoder_supports_edp(devdata);
 }
 
-bool intel_dp_is_port_edp(struct drm_i915_private *i915, enum port port)
+bool intel_dp_is_port_edp(struct intel_display *display, enum port port)
 {
-	struct intel_display *display = &i915->display;
 	const struct intel_bios_encoder_data *devdata =
 		intel_bios_encoder_data_lookup(display, port);
 
@@ -6633,9 +6623,8 @@ fail:
 	return false;
 }
 
-void intel_dp_mst_suspend(struct drm_i915_private *dev_priv)
+void intel_dp_mst_suspend(struct intel_display *display)
 {
-	struct intel_display *display = &dev_priv->display;
 	struct intel_encoder *encoder;
 
 	if (!HAS_DISPLAY(display))
@@ -6657,9 +6646,8 @@ void intel_dp_mst_suspend(struct drm_i915_private *dev_priv)
 	}
 }
 
-void intel_dp_mst_resume(struct drm_i915_private *dev_priv)
+void intel_dp_mst_resume(struct intel_display *display)
 {
-	struct intel_display *display = &dev_priv->display;
 	struct intel_encoder *encoder;
 
 	if (!HAS_DISPLAY(display))

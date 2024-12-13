@@ -382,7 +382,7 @@ void xe_display_pm_shutdown(struct xe_device *xe)
 	}
 
 	xe_display_flush_cleanup_work(xe);
-	intel_dp_mst_suspend(xe);
+	intel_dp_mst_suspend(display);
 	intel_hpd_cancel_work(xe);
 
 	if (has_display(xe))

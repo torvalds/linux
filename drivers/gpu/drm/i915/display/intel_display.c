@@ -8156,7 +8156,7 @@ void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		intel_lvds_init(dev_priv);
 		intel_crt_init(display);
 
-		dpd_is_edp = intel_dp_is_port_edp(dev_priv, PORT_D);
+		dpd_is_edp = intel_dp_is_port_edp(display, PORT_D);
 
 		if (ilk_has_edp_a(dev_priv))
 			g4x_dp_init(dev_priv, DP_A, PORT_A);
@@ -8202,14 +8202,14 @@ void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		 * trust the port type the VBT declares as we've seen at least
 		 * HDMI ports that the VBT claim are DP or eDP.
 		 */
-		has_edp = intel_dp_is_port_edp(dev_priv, PORT_B);
+		has_edp = intel_dp_is_port_edp(display, PORT_B);
 		has_port = intel_bios_is_port_present(display, PORT_B);
 		if (intel_de_read(dev_priv, VLV_DP_B) & DP_DETECTED || has_port)
 			has_edp &= g4x_dp_init(dev_priv, VLV_DP_B, PORT_B);
 		if ((intel_de_read(dev_priv, VLV_HDMIB) & SDVO_DETECTED || has_port) && !has_edp)
 			g4x_hdmi_init(dev_priv, VLV_HDMIB, PORT_B);
 
-		has_edp = intel_dp_is_port_edp(dev_priv, PORT_C);
+		has_edp = intel_dp_is_port_edp(display, PORT_C);
 		has_port = intel_bios_is_port_present(display, PORT_C);
 		if (intel_de_read(dev_priv, VLV_DP_C) & DP_DETECTED || has_port)
 			has_edp &= g4x_dp_init(dev_priv, VLV_DP_C, PORT_C);
