@@ -61,18 +61,12 @@
 #define NPU5_SMU_BAR_BASE	MMNPU_APERTURE4_BASE
 #define NPU5_SRAM_BAR_BASE	MMNPU_APERTURE1_BASE
 
-#define NPU5_RT_CFG_TYPE_PDI_LOAD 5
-#define NPU5_RT_CFG_VAL_PDI_LOAD_MGMT 0
-#define NPU5_RT_CFG_VAL_PDI_LOAD_APP 1
-
-#define NPU5_MPNPUCLK_FREQ_MAX  1267
-#define NPU5_HCLK_FREQ_MAX      1800
-
 const struct amdxdna_dev_priv npu5_dev_priv = {
 	.fw_path        = "amdnpu/17f0_11/npu.sbin",
 	.protocol_major = 0x6,
 	.protocol_minor = 0x1,
-	.rt_config	= {NPU5_RT_CFG_TYPE_PDI_LOAD, NPU5_RT_CFG_VAL_PDI_LOAD_APP},
+	.rt_config	= npu4_default_rt_cfg,
+	.dpm_clk_tbl	= npu4_dpm_clk_table,
 	.col_align	= COL_ALIGN_NATURE,
 	.mbox_dev_addr  = NPU5_MBOX_BAR_BASE,
 	.mbox_size      = 0, /* Use BAR size */
@@ -97,8 +91,9 @@ const struct amdxdna_dev_priv npu5_dev_priv = {
 		DEFINE_BAR_OFFSET(SMU_RESP_REG, NPU5_SMU, MP1_C2PMSG_61),
 		DEFINE_BAR_OFFSET(SMU_OUT_REG,  NPU5_SMU, MP1_C2PMSG_60),
 	},
-	.smu_mpnpuclk_freq_max = NPU5_MPNPUCLK_FREQ_MAX,
-	.smu_hclk_freq_max     = NPU5_HCLK_FREQ_MAX,
+	.hw_ops		= {
+		.set_dpm = npu4_set_dpm,
+	},
 };
 
 const struct amdxdna_dev_info dev_npu5_info = {

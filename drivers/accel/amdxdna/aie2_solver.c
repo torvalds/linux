@@ -25,6 +25,7 @@ struct solver_node {
 
 	struct partition_node	*pt_node;
 	void			*cb_arg;
+	u32			dpm_level;
 	u32			cols_len;
 	u32			start_cols[] __counted_by(cols_len);
 };
@@ -95,6 +96,51 @@ static int sanity_check(struct solver_state *xrs, struct alloc_requests *req)
 	return 0;
 }
 
+static bool is_valid_qos_dpm_params(struct aie_qos *rqos)
+{
+	/*
+	 * gops is retrieved from the xmodel, so it's always set
+	 * fps and latency are the configurable params from the application
+	 */
+	if (rqos->gops > 0 && (rqos->fps > 0 ||  rqos->latency > 0))
+		return true;
+
+	return false;
+}
+
+static int set_dpm_level(struct solver_state *xrs, struct alloc_requests *req, u32 *dpm_level)
+{
+	struct solver_rgroup *rgp = &xrs->rgp;
+	struct cdo_parts *cdop = &req->cdo;
+	struct aie_qos *rqos = &req->rqos;
+	u32 freq, max_dpm_level, level;
+	struct solver_node *node;
+
+	max_dpm_level = xrs->cfg.clk_list.num_levels - 1;
+	/* If no QoS parameters are passed, set it to the max DPM level */
+	if (!is_valid_qos_dpm_params(rqos)) {
+		level = max_dpm_level;
+		goto set_dpm;
+	}
+
+	/* Find one CDO group that meet the GOPs requirement. */
+	for (level = 0; level < max_dpm_level; level++) {
+		freq = xrs->cfg.clk_list.cu_clk_list[level];
+		if (!qos_meet(xrs, rqos, cdop->qos_cap.opc * freq / 1000))
+			break;
+	}
+
+	/* set the dpm level which fits all the sessions */
+	list_for_each_entry(node, &rgp->node_list, list) {
+		if (node->dpm_level > level)
+			level = node->dpm_level;
+	}
+
+set_dpm:
+	*dpm_level = level;
+	return xrs->cfg.actions->set_dft_dpm_level(xrs->cfg.ddev, level);
+}
+
 static struct solver_node *rg_search_node(struct solver_rgroup *rgp, u64 rid)
 {
 	struct solver_node *node;
@@ -159,12 +205,9 @@ static int get_free_partition(struct solver_state *xrs,
 	pt_node->ncols = ncols;
 
 	/*
-	 * Before fully support latency in QoS, if a request
-	 * specifies a non-zero latency value, it will not share
-	 * the partition with other requests.
+	 * Always set exclusive to false for now.
 	 */
-	if (req->rqos.latency)
-		pt_node->exclusive = true;
+	pt_node->exclusive = false;
 
 	list_add_tail(&pt_node->list, &xrs->rgp.pt_node_list);
 	xrs->rgp.npartition_node++;
@@ -257,6 +300,7 @@ int xrs_allocate_resource(void *hdl, struct alloc_requests *req, void *cb_arg)
 	struct xrs_action_load load_act;
 	struct solver_node *snode;
 	struct solver_state *xrs;
+	u32 dpm_level;
 	int ret;
 
 	xrs = (struct solver_state *)hdl;
@@ -281,6 +325,11 @@ int xrs_allocate_resource(void *hdl, struct alloc_requests *req, void *cb_arg)
 	if (ret)
 		goto free_node;
 
+	ret = set_dpm_level(xrs, req, &dpm_level);
+	if (ret)
+		goto free_node;
+
+	snode->dpm_level = dpm_level;
 	snode->cb_arg = cb_arg;
 
 	drm_dbg(xrs->cfg.ddev, "start col %d ncols %d\n",

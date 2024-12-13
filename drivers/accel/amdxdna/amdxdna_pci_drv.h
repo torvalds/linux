@@ -14,6 +14,21 @@
 #define XDNA_DBG(xdna, fmt, args...)	drm_dbg(&(xdna)->ddev, fmt, ##args)
 #define XDNA_INFO_ONCE(xdna, fmt, args...) drm_info_once(&(xdna)->ddev, fmt, ##args)
 
+#define XDNA_MBZ_DBG(xdna, ptr, sz)					\
+	({								\
+		int __i;						\
+		int __ret = 0;						\
+		u8 *__ptr = (u8 *)(ptr);				\
+		for (__i = 0; __i < (sz); __i++) {			\
+			if (__ptr[__i]) {				\
+				XDNA_DBG(xdna, "MBZ check failed");	\
+				__ret = -EINVAL;			\
+				break;					\
+			}						\
+		}							\
+		__ret;							\
+	})
+
 #define to_xdna_dev(drm_dev) \
 	((struct amdxdna_dev *)container_of(drm_dev, struct amdxdna_dev, ddev))
 
@@ -22,6 +37,7 @@ extern const struct drm_driver amdxdna_drm_drv;
 struct amdxdna_client;
 struct amdxdna_dev;
 struct amdxdna_drm_get_info;
+struct amdxdna_drm_set_state;
 struct amdxdna_gem_obj;
 struct amdxdna_hwctx;
 struct amdxdna_sched_job;
@@ -42,6 +58,7 @@ struct amdxdna_dev_ops {
 	void (*hwctx_resume)(struct amdxdna_hwctx *hwctx);
 	int (*cmd_submit)(struct amdxdna_hwctx *hwctx, struct amdxdna_sched_job *job, u64 *seq);
 	int (*get_aie_info)(struct amdxdna_client *client, struct amdxdna_drm_get_info *args);
+	int (*set_aie_state)(struct amdxdna_client *client, struct amdxdna_drm_set_state *args);
 };
 
 /*

@@ -33,6 +33,7 @@ enum amdxdna_drm_ioctl_id {
 	DRM_AMDXDNA_SYNC_BO,
 	DRM_AMDXDNA_EXEC_CMD,
 	DRM_AMDXDNA_GET_INFO,
+	DRM_AMDXDNA_SET_STATE,
 };
 
 /**
@@ -375,6 +376,24 @@ struct amdxdna_drm_query_hwctx {
 	__u64 errors;
 };
 
+enum amdxdna_power_mode_type {
+	POWER_MODE_DEFAULT, /* Fallback to calculated DPM */
+	POWER_MODE_LOW,     /* Set frequency to lowest DPM */
+	POWER_MODE_MEDIUM,  /* Set frequency to medium DPM */
+	POWER_MODE_HIGH,    /* Set frequency to highest DPM */
+	POWER_MODE_TURBO,   /* Maximum power */
+};
+
+/**
+ * struct amdxdna_drm_get_power_mode - Get the configured power mode
+ * @power_mode: The mode type from enum amdxdna_power_mode_type
+ * @pad: Structure padding.
+ */
+struct amdxdna_drm_get_power_mode {
+	__u8 power_mode;
+	__u8 pad[7];
+};
+
 /**
  * struct amdxdna_drm_query_firmware_version - Query the firmware version
  * @major: The major version number
@@ -397,6 +416,7 @@ enum amdxdna_drm_get_param {
 	DRM_AMDXDNA_QUERY_SENSORS,
 	DRM_AMDXDNA_QUERY_HW_CONTEXTS,
 	DRM_AMDXDNA_QUERY_FIRMWARE_VERSION = 8,
+	DRM_AMDXDNA_GET_POWER_MODE,
 };
 
 /**
@@ -409,6 +429,34 @@ struct amdxdna_drm_get_info {
 	__u32 param; /* in */
 	__u32 buffer_size; /* in/out */
 	__u64 buffer; /* in/out */
+};
+
+enum amdxdna_drm_set_param {
+	DRM_AMDXDNA_SET_POWER_MODE,
+	DRM_AMDXDNA_WRITE_AIE_MEM,
+	DRM_AMDXDNA_WRITE_AIE_REG,
+};
+
+/**
+ * struct amdxdna_drm_set_state - Set the state of the AIE hardware.
+ * @param: Value in enum amdxdna_drm_set_param.
+ * @buffer_size: Size of the input param.
+ * @buffer: Pointer to the input param.
+ */
+struct amdxdna_drm_set_state {
+	__u32 param; /* in */
+	__u32 buffer_size; /* in */
+	__u64 buffer; /* in */
+};
+
+/**
+ * struct amdxdna_drm_set_power_mode - Set the power mode of the AIE hardware
+ * @power_mode: The sensor type from enum amdxdna_power_mode_type
+ * @pad: MBZ.
+ */
+struct amdxdna_drm_set_power_mode {
+	__u8 power_mode;
+	__u8 pad[7];
 };
 
 #define DRM_IOCTL_AMDXDNA_CREATE_HWCTX \
@@ -442,6 +490,10 @@ struct amdxdna_drm_get_info {
 #define DRM_IOCTL_AMDXDNA_GET_INFO \
 	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDXDNA_GET_INFO, \
 		 struct amdxdna_drm_get_info)
+
+#define DRM_IOCTL_AMDXDNA_SET_STATE \
+	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDXDNA_SET_STATE, \
+		 struct amdxdna_drm_set_state)
 
 #if defined(__cplusplus)
 } /* extern c end */

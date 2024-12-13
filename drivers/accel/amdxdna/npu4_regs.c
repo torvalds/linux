@@ -61,18 +61,33 @@
 #define NPU4_SMU_BAR_BASE	MMNPU_APERTURE4_BASE
 #define NPU4_SRAM_BAR_BASE	MMNPU_APERTURE1_BASE
 
-#define NPU4_RT_CFG_TYPE_PDI_LOAD 5
-#define NPU4_RT_CFG_VAL_PDI_LOAD_MGMT 0
-#define NPU4_RT_CFG_VAL_PDI_LOAD_APP 1
+const struct rt_config npu4_default_rt_cfg[] = {
+	{ 5, 1, AIE2_RT_CFG_INIT }, /* PDI APP LOAD MODE */
+	{ 1, 1, AIE2_RT_CFG_CLK_GATING }, /* Clock gating on */
+	{ 2, 1, AIE2_RT_CFG_CLK_GATING }, /* Clock gating on */
+	{ 3, 1, AIE2_RT_CFG_CLK_GATING }, /* Clock gating on */
+	{ 4, 1, AIE2_RT_CFG_CLK_GATING }, /* Clock gating on */
+	{ 0 },
+};
 
-#define NPU4_MPNPUCLK_FREQ_MAX  1267
-#define NPU4_HCLK_FREQ_MAX      1800
+const struct dpm_clk_freq npu4_dpm_clk_table[] = {
+	{396, 792},
+	{600, 1056},
+	{792, 1152},
+	{975, 1267},
+	{975, 1267},
+	{1056, 1408},
+	{1152, 1584},
+	{1267, 1800},
+	{ 0 }
+};
 
 const struct amdxdna_dev_priv npu4_dev_priv = {
 	.fw_path        = "amdnpu/17f0_10/npu.sbin",
 	.protocol_major = 0x6,
 	.protocol_minor = 0x1,
-	.rt_config	= {NPU4_RT_CFG_TYPE_PDI_LOAD, NPU4_RT_CFG_VAL_PDI_LOAD_APP},
+	.rt_config	= npu4_default_rt_cfg,
+	.dpm_clk_tbl	= npu4_dpm_clk_table,
 	.col_align	= COL_ALIGN_NATURE,
 	.mbox_dev_addr  = NPU4_MBOX_BAR_BASE,
 	.mbox_size      = 0, /* Use BAR size */
@@ -97,8 +112,9 @@ const struct amdxdna_dev_priv npu4_dev_priv = {
 		DEFINE_BAR_OFFSET(SMU_RESP_REG, NPU4_SMU, MP1_C2PMSG_61),
 		DEFINE_BAR_OFFSET(SMU_OUT_REG,  NPU4_SMU, MP1_C2PMSG_60),
 	},
-	.smu_mpnpuclk_freq_max = NPU4_MPNPUCLK_FREQ_MAX,
-	.smu_hclk_freq_max     = NPU4_HCLK_FREQ_MAX,
+	.hw_ops		= {
+		.set_dpm = npu4_set_dpm,
+	},
 };
 
 const struct amdxdna_dev_info dev_npu4_info = {

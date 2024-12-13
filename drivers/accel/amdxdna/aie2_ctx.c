@@ -519,6 +519,7 @@ int aie2_hwctx_init(struct amdxdna_hwctx *hwctx)
 	struct drm_gpu_scheduler *sched;
 	struct amdxdna_hwctx_priv *priv;
 	struct amdxdna_gem_obj *heap;
+	struct amdxdna_dev_hdl *ndev;
 	int i, ret;
 
 	priv = kzalloc(sizeof(*hwctx->priv), GFP_KERNEL);
@@ -613,6 +614,8 @@ int aie2_hwctx_init(struct amdxdna_hwctx *hwctx)
 	}
 
 	hwctx->status = HWCTX_STAT_INIT;
+	ndev = xdna->dev_handle;
+	ndev->hwctx_num++;
 
 	XDNA_DBG(xdna, "hwctx %s init completed", hwctx->name);
 
@@ -642,10 +645,13 @@ free_priv:
 
 void aie2_hwctx_fini(struct amdxdna_hwctx *hwctx)
 {
+	struct amdxdna_dev_hdl *ndev;
 	struct amdxdna_dev *xdna;
 	int idx;
 
 	xdna = hwctx->client->xdna;
+	ndev = xdna->dev_handle;
+	ndev->hwctx_num--;
 	drm_sched_wqueue_stop(&hwctx->priv->sched);
 
 	/* Now, scheduler will not send command to device. */

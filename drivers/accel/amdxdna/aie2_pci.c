@@ -110,27 +110,25 @@ static int aie2_get_mgmt_chann_info(struct amdxdna_dev_hdl *ndev)
 	return 0;
 }
 
-static int aie2_runtime_cfg(struct amdxdna_dev_hdl *ndev)
+int aie2_runtime_cfg(struct amdxdna_dev_hdl *ndev,
+		     enum rt_config_category category, u32 *val)
 {
-	const struct rt_config *cfg = &ndev->priv->rt_config;
-	u64 value;
+	const struct rt_config *cfg;
+	u32 value;
 	int ret;
 
-	ret = aie2_set_runtime_cfg(ndev, cfg->type, cfg->value);
-	if (ret) {
-		XDNA_ERR(ndev->xdna, "Set runtime type %d value %d failed",
-			 cfg->type, cfg->value);
-		return ret;
-	}
+	for (cfg = ndev->priv->rt_config; cfg->type; cfg++) {
+		if (cfg->category != category)
+			continue;
 
-	ret = aie2_get_runtime_cfg(ndev, cfg->type, &value);
-	if (ret) {
-		XDNA_ERR(ndev->xdna, "Get runtime cfg failed");
-		return ret;
+		value = val ? *val : cfg->value;
+		ret = aie2_set_runtime_cfg(ndev, cfg->type, value);
+		if (ret) {
+			XDNA_ERR(ndev->xdna, "Set type %d value %d failed",
+				 cfg->type, value);
+			return ret;
+		}
 	}
-
-	if (value != cfg->value)
-		return -EINVAL;
 
 	return 0;
 }
@@ -164,7 +162,7 @@ static int aie2_mgmt_fw_init(struct amdxdna_dev_hdl *ndev)
 		return ret;
 	}
 
-	ret = aie2_runtime_cfg(ndev);
+	ret = aie2_runtime_cfg(ndev, AIE2_RT_CFG_INIT, NULL);
 	if (ret) {
 		XDNA_ERR(ndev->xdna, "Runtime config failed");
 		return ret;
@@ -258,9 +256,25 @@ static int aie2_xrs_unload(void *cb_arg)
 	return ret;
 }
 
+static int aie2_xrs_set_dft_dpm_level(struct drm_device *ddev, u32 dpm_level)
+{
+	struct amdxdna_dev *xdna = to_xdna_dev(ddev);
+	struct amdxdna_dev_hdl *ndev;
+
+	drm_WARN_ON(&xdna->ddev, !mutex_is_locked(&xdna->dev_lock));
+
+	ndev = xdna->dev_handle;
+	ndev->dft_dpm_level = dpm_level;
+	if (ndev->pw_mode != POWER_MODE_DEFAULT || ndev->dpm_level == dpm_level)
+		return 0;
+
+	return ndev->priv->hw_ops.set_dpm(ndev, dpm_level);
+}
+
 static struct xrs_action_ops aie2_xrs_actions = {
 	.load = aie2_xrs_load,
 	.unload = aie2_xrs_unload,
+	.set_dft_dpm_level = aie2_xrs_set_dft_dpm_level,
 };
 
 static void aie2_hw_stop(struct amdxdna_dev *xdna)
@@ -353,6 +367,12 @@ static int aie2_hw_start(struct amdxdna_dev *xdna)
 		XDNA_ERR(xdna, "failed to create management mailbox channel");
 		ret = -EINVAL;
 		goto stop_psp;
+	}
+
+	ret = aie2_pm_init(ndev);
+	if (ret) {
+		XDNA_ERR(xdna, "failed to init pm, ret %d", ret);
+		goto destroy_mgmt_chann;
 	}
 
 	ret = aie2_mgmt_fw_init(ndev);
@@ -481,10 +501,9 @@ static int aie2_init(struct amdxdna_dev *xdna)
 	}
 	ndev->total_col = min(aie2_max_col, ndev->metadata.cols);
 
-	xrs_cfg.clk_list.num_levels = 3;
-	xrs_cfg.clk_list.cu_clk_list[0] = 0;
-	xrs_cfg.clk_list.cu_clk_list[1] = 800;
-	xrs_cfg.clk_list.cu_clk_list[2] = 1000;
+	xrs_cfg.clk_list.num_levels = ndev->max_dpm_level + 1;
+	for (i = 0; i < xrs_cfg.clk_list.num_levels; i++)
+		xrs_cfg.clk_list.cu_clk_list[i] = ndev->priv->dpm_clk_tbl[i].hclk;
 	xrs_cfg.sys_eff_factor = 1;
 	xrs_cfg.ddev = &xdna->ddev;
 	xrs_cfg.actions = &aie2_xrs_actions;
@@ -658,6 +677,22 @@ static int aie2_get_firmware_version(struct amdxdna_client *client,
 	return 0;
 }
 
+static int aie2_get_power_mode(struct amdxdna_client *client,
+			       struct amdxdna_drm_get_info *args)
+{
+	struct amdxdna_drm_get_power_mode mode = {};
+	struct amdxdna_dev *xdna = client->xdna;
+	struct amdxdna_dev_hdl *ndev;
+
+	ndev = xdna->dev_handle;
+	mode.power_mode = ndev->pw_mode;
+
+	if (copy_to_user(u64_to_user_ptr(args->buffer), &mode, sizeof(mode)))
+		return -EFAULT;
+
+	return 0;
+}
+
 static int aie2_get_clock_metadata(struct amdxdna_client *client,
 				   struct amdxdna_drm_get_info *args)
 {
@@ -671,11 +706,11 @@ static int aie2_get_clock_metadata(struct amdxdna_client *client,
 	if (!clock)
 		return -ENOMEM;
 
-	memcpy(clock->mp_npu_clock.name, ndev->mp_npu_clock.name,
-	       sizeof(clock->mp_npu_clock.name));
-	clock->mp_npu_clock.freq_mhz = ndev->mp_npu_clock.freq_mhz;
-	memcpy(clock->h_clock.name, ndev->h_clock.name, sizeof(clock->h_clock.name));
-	clock->h_clock.freq_mhz = ndev->h_clock.freq_mhz;
+	snprintf(clock->mp_npu_clock.name, sizeof(clock->mp_npu_clock.name),
+		 "MP-NPU Clock");
+	clock->mp_npu_clock.freq_mhz = ndev->npuclk_freq;
+	snprintf(clock->h_clock.name, sizeof(clock->h_clock.name), "H Clock");
+	clock->h_clock.freq_mhz = ndev->hclk_freq;
 
 	if (copy_to_user(u64_to_user_ptr(args->buffer), clock, sizeof(*clock)))
 		ret = -EFAULT;
@@ -773,11 +808,62 @@ static int aie2_get_info(struct amdxdna_client *client, struct amdxdna_drm_get_i
 	case DRM_AMDXDNA_QUERY_FIRMWARE_VERSION:
 		ret = aie2_get_firmware_version(client, args);
 		break;
+	case DRM_AMDXDNA_GET_POWER_MODE:
+		ret = aie2_get_power_mode(client, args);
+		break;
 	default:
 		XDNA_ERR(xdna, "Not supported request parameter %u", args->param);
 		ret = -EOPNOTSUPP;
 	}
 	XDNA_DBG(xdna, "Got param %d", args->param);
+
+	drm_dev_exit(idx);
+	return ret;
+}
+
+static int aie2_set_power_mode(struct amdxdna_client *client,
+			       struct amdxdna_drm_set_state *args)
+{
+	struct amdxdna_drm_set_power_mode power_state;
+	enum amdxdna_power_mode_type power_mode;
+	struct amdxdna_dev *xdna = client->xdna;
+
+	if (copy_from_user(&power_state, u64_to_user_ptr(args->buffer),
+			   sizeof(power_state))) {
+		XDNA_ERR(xdna, "Failed to copy power mode request into kernel");
+		return -EFAULT;
+	}
+
+	if (XDNA_MBZ_DBG(xdna, power_state.pad, sizeof(power_state.pad)))
+		return -EINVAL;
+
+	power_mode = power_state.power_mode;
+	if (power_mode > POWER_MODE_TURBO) {
+		XDNA_ERR(xdna, "Invalid power mode %d", power_mode);
+		return -EINVAL;
+	}
+
+	return aie2_pm_set_mode(xdna->dev_handle, power_mode);
+}
+
+static int aie2_set_state(struct amdxdna_client *client,
+			  struct amdxdna_drm_set_state *args)
+{
+	struct amdxdna_dev *xdna = client->xdna;
+	int ret, idx;
+
+	if (!drm_dev_enter(&xdna->ddev, &idx))
+		return -ENODEV;
+
+	switch (args->param) {
+	case DRM_AMDXDNA_SET_POWER_MODE:
+		ret = aie2_set_power_mode(client, args);
+		break;
+	default:
+		XDNA_ERR(xdna, "Not supported request parameter %u", args->param);
+		ret = -EOPNOTSUPP;
+		break;
+	}
 
 	drm_dev_exit(idx);
 	return ret;
@@ -789,6 +875,7 @@ const struct amdxdna_dev_ops aie2_ops = {
 	.resume         = aie2_hw_start,
 	.suspend        = aie2_hw_stop,
 	.get_aie_info   = aie2_get_info,
+	.set_aie_state	= aie2_set_state,
 	.hwctx_init     = aie2_hwctx_init,
 	.hwctx_fini     = aie2_hwctx_fini,
 	.hwctx_config   = aie2_hwctx_config,

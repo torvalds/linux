@@ -71,11 +71,18 @@ int aie2_resume_fw(struct amdxdna_dev_hdl *ndev)
 int aie2_set_runtime_cfg(struct amdxdna_dev_hdl *ndev, u32 type, u64 value)
 {
 	DECLARE_AIE2_MSG(set_runtime_cfg, MSG_OP_SET_RUNTIME_CONFIG);
+	int ret;
 
 	req.type = type;
 	req.value = value;
 
-	return aie2_send_mgmt_msg_wait(ndev, &msg);
+	ret = aie2_send_mgmt_msg_wait(ndev, &msg);
+	if (ret) {
+		XDNA_ERR(ndev->xdna, "Failed to set runtime config, ret %d", ret);
+		return ret;
+	}
+
+	return 0;
 }
 
 int aie2_get_runtime_cfg(struct amdxdna_dev_hdl *ndev, u32 type, u64 *value)
