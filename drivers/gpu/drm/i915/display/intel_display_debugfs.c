@@ -13,6 +13,7 @@
 #include "hsw_ips.h"
 #include "i915_irq.h"
 #include "i915_reg.h"
+#include "i9xx_wm_regs.h"
 #include "intel_alpm.h"
 #include "intel_bo.h"
 #include "intel_crtc.h"
