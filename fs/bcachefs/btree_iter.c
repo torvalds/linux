@@ -2229,14 +2229,15 @@ struct bkey_s_c btree_trans_peek_key_cache(struct btree_iter *iter, struct bpos 
 	btree_path_set_should_be_locked(trans, trans->paths + iter->key_cache_path);
 
 	k = bch2_btree_path_peek_slot(trans->paths + iter->key_cache_path, &u);
-	if (k.k && !bkey_err(k)) {
-		if ((iter->flags & BTREE_ITER_all_snapshots) &&
-		    !bpos_eq(pos, k.k->p))
-			return bkey_s_c_null;
+	if (!k.k)
+		return k;
 
-		iter->k = u;
-		k.k = &iter->k;
-	}
+	if ((iter->flags & BTREE_ITER_all_snapshots) &&
+	    !bpos_eq(pos, k.k->p))
+		return bkey_s_c_null;
+
+	iter->k = u;
+	k.k = &iter->k;
 	return k;
 }
 
