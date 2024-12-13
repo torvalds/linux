@@ -535,6 +535,42 @@ static ssize_t debug_input(struct file *file, const char __user *user_buf,
 	return rc; /* number of input characters */
 }
 
+static file_private_info_t *debug_file_private_alloc(debug_info_t *debug_info,
+						     struct debug_view *view)
+{
+	debug_info_t *debug_info_snapshot;
+	file_private_info_t *p_info;
+
+	/*
+	 * Make snapshot of current debug areas to get it consistent.
+	 * To copy all the areas is only needed, if we have a view which
+	 * formats the debug areas.
+	 */
+	if (!view->format_proc && !view->header_proc)
+		debug_info_snapshot = debug_info_copy(debug_info, NO_AREAS);
+	else
+		debug_info_snapshot = debug_info_copy(debug_info, ALL_AREAS);
+
+	if (!debug_info_snapshot)
+		return NULL;
+	p_info = kmalloc(sizeof(file_private_info_t), GFP_KERNEL);
+	if (!p_info) {
+		debug_info_free(debug_info_snapshot);
+		return NULL;
+	}
+	p_info->offset = 0;
+	p_info->debug_info_snap = debug_info_snapshot;
+	p_info->debug_info_org	= debug_info;
+	p_info->view = view;
+	p_info->act_area = 0;
+	p_info->act_page = 0;
+	p_info->act_entry = DEBUG_PROLOG_ENTRY;
+	p_info->act_entry_offset = 0;
+	debug_info_get(debug_info);
+
+	return p_info;
+}
+
 /*
  * debug_open:
  * - called for user open()
@@ -543,7 +579,7 @@ static ssize_t debug_input(struct file *file, const char __user *user_buf,
  */
 static int debug_open(struct inode *inode, struct file *file)
 {
-	debug_info_t *debug_info, *debug_info_snapshot;
+	debug_info_t *debug_info;
 	file_private_info_t *p_info;
 	int i, rc = 0;
 
@@ -561,40 +597,24 @@ static int debug_open(struct inode *inode, struct file *file)
 	goto out;
 
 found:
-
-	/* Make snapshot of current debug areas to get it consistent.	  */
-	/* To copy all the areas is only needed, if we have a view which  */
-	/* formats the debug areas. */
-
-	if (!debug_info->views[i]->format_proc && !debug_info->views[i]->header_proc)
-		debug_info_snapshot = debug_info_copy(debug_info, NO_AREAS);
-	else
-		debug_info_snapshot = debug_info_copy(debug_info, ALL_AREAS);
-
-	if (!debug_info_snapshot) {
-		rc = -ENOMEM;
-		goto out;
-	}
-	p_info = kmalloc(sizeof(file_private_info_t), GFP_KERNEL);
+	p_info = debug_file_private_alloc(debug_info, debug_info->views[i]);
 	if (!p_info) {
-		debug_info_free(debug_info_snapshot);
 		rc = -ENOMEM;
 		goto out;
 	}
-	p_info->offset = 0;
-	p_info->debug_info_snap = debug_info_snapshot;
-	p_info->debug_info_org	= debug_info;
-	p_info->view = debug_info->views[i];
-	p_info->act_area = 0;
-	p_info->act_page = 0;
-	p_info->act_entry = DEBUG_PROLOG_ENTRY;
-	p_info->act_entry_offset = 0;
 	file->private_data = p_info;
-	debug_info_get(debug_info);
 	nonseekable_open(inode, file);
 out:
 	mutex_unlock(&debug_mutex);
 	return rc;
+}
+
+static void debug_file_private_free(file_private_info_t *p_info)
+{
+	if (p_info->debug_info_snap)
+		debug_info_free(p_info->debug_info_snap);
+	debug_info_put(p_info->debug_info_org);
+	kfree(p_info);
 }
 
 /*
@@ -607,10 +627,8 @@ static int debug_close(struct inode *inode, struct file *file)
 	file_private_info_t *p_info;
 
 	p_info = (file_private_info_t *) file->private_data;
-	if (p_info->debug_info_snap)
-		debug_info_free(p_info->debug_info_snap);
-	debug_info_put(p_info->debug_info_org);
-	kfree(file->private_data);
+	debug_file_private_free(p_info);
+	file->private_data = NULL;
 	return 0; /* success */
 }
 
