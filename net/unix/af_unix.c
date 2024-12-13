@@ -1962,7 +1962,6 @@ static void scm_stat_del(struct sock *sk, struct sk_buff *skb)
 static int unix_dgram_sendmsg(struct socket *sock, struct msghdr *msg,
 			      size_t len)
 {
-	DECLARE_SOCKADDR(struct sockaddr_un *, sunaddr, msg->msg_name);
 	struct sock *sk = sock->sk, *other = NULL;
 	struct unix_sock *u = unix_sk(sk);
 	struct scm_cookie scm;
@@ -1984,7 +1983,7 @@ static int unix_dgram_sendmsg(struct socket *sock, struct msghdr *msg,
 	}
 
 	if (msg->msg_namelen) {
-		err = unix_validate_addr(sunaddr, msg->msg_namelen);
+		err = unix_validate_addr(msg->msg_name, msg->msg_namelen);
 		if (err)
 			goto out;
 
@@ -1995,7 +1994,6 @@ static int unix_dgram_sendmsg(struct socket *sock, struct msghdr *msg,
 		if (err)
 			goto out;
 	} else {
-		sunaddr = NULL;
 		other = unix_peer_get(sk);
 		if (!other) {
 			err = -ENOTCONN;
@@ -2046,8 +2044,8 @@ static int unix_dgram_sendmsg(struct socket *sock, struct msghdr *msg,
 
 restart:
 	if (!other) {
-		other = unix_find_other(sock_net(sk), sunaddr, msg->msg_namelen,
-					sk->sk_type);
+		other = unix_find_other(sock_net(sk), msg->msg_name,
+					msg->msg_namelen, sk->sk_type);
 		if (IS_ERR(other)) {
 			err = PTR_ERR(other);
 			other = NULL;
@@ -2101,7 +2099,7 @@ restart_locked:
 		} else {
 			unix_state_unlock(sk);
 
-			if (!sunaddr)
+			if (!msg->msg_namelen)
 				err = -ECONNRESET;
 		}
 
