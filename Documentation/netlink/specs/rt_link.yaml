@@ -2086,6 +2086,9 @@ attribute-sets:
       -
         name: mctp-net
         type: u32
+      -
+        name: phys-binding
+        type: u8
   -
     name: stats-attrs
     name-prefix: ifla-stats-
