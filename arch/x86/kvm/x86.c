@@ -10052,6 +10052,13 @@ unsigned long __kvm_emulate_hypercall(struct kvm_vcpu *vcpu, unsigned long nr,
 
 		vcpu->run->exit_reason        = KVM_EXIT_HYPERCALL;
 		vcpu->run->hypercall.nr       = KVM_HC_MAP_GPA_RANGE;
+		/*
+		 * In principle this should have been -KVM_ENOSYS, but userspace (QEMU <=9.2)
+		 * assumed that vcpu->run->hypercall.ret is never changed by KVM and thus that
+		 * it was always zero on KVM_EXIT_HYPERCALL.  Since KVM is now overwriting
+		 * vcpu->run->hypercall.ret, ensuring that it is zero to not break QEMU.
+		 */
+		vcpu->run->hypercall.ret = 0;
 		vcpu->run->hypercall.args[0]  = gpa;
 		vcpu->run->hypercall.args[1]  = npages;
 		vcpu->run->hypercall.args[2]  = attrs;

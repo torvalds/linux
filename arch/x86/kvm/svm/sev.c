@@ -3634,6 +3634,13 @@ static int snp_begin_psc_msr(struct vcpu_svm *svm, u64 ghcb_msr)
 
 	vcpu->run->exit_reason = KVM_EXIT_HYPERCALL;
 	vcpu->run->hypercall.nr = KVM_HC_MAP_GPA_RANGE;
+	/*
+	 * In principle this should have been -KVM_ENOSYS, but userspace (QEMU <=9.2)
+	 * assumed that vcpu->run->hypercall.ret is never changed by KVM and thus that
+	 * it was always zero on KVM_EXIT_HYPERCALL.  Since KVM is now overwriting
+	 * vcpu->run->hypercall.ret, ensuring that it is zero to not break QEMU.
+	 */
+	vcpu->run->hypercall.ret = 0;
 	vcpu->run->hypercall.args[0] = gpa;
 	vcpu->run->hypercall.args[1] = 1;
 	vcpu->run->hypercall.args[2] = (op == SNP_PAGE_STATE_PRIVATE)
@@ -3797,6 +3804,13 @@ next_range:
 	case VMGEXIT_PSC_OP_SHARED:
 		vcpu->run->exit_reason = KVM_EXIT_HYPERCALL;
 		vcpu->run->hypercall.nr = KVM_HC_MAP_GPA_RANGE;
+		/*
+		 * In principle this should have been -KVM_ENOSYS, but userspace (QEMU <=9.2)
+		 * assumed that vcpu->run->hypercall.ret is never changed by KVM and thus that
+		 * it was always zero on KVM_EXIT_HYPERCALL.  Since KVM is now overwriting
+		 * vcpu->run->hypercall.ret, ensuring that it is zero to not break QEMU.
+		 */
+		vcpu->run->hypercall.ret = 0;
 		vcpu->run->hypercall.args[0] = gfn_to_gpa(gfn);
 		vcpu->run->hypercall.args[1] = npages;
 		vcpu->run->hypercall.args[2] = entry_start.operation == VMGEXIT_PSC_OP_PRIVATE
