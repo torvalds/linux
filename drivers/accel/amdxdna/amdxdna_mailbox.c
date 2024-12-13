@@ -6,6 +6,7 @@
 #include <drm/drm_device.h>
 #include <drm/drm_managed.h>
 #include <linux/bitfield.h>
+#include <linux/interrupt.h>
 #include <linux/iopoll.h>
 
 #define CREATE_TRACE_POINTS
