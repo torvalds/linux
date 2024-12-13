@@ -1922,10 +1922,11 @@ static int skl_wm_max_lines(struct drm_i915_private *i915)
 		return 31;
 }
 
-static bool xe3_auto_min_alloc_capable(struct intel_display *display,
-				       int level)
+static bool xe3_auto_min_alloc_capable(struct intel_plane *plane, int level)
 {
-	return DISPLAY_VER(display) >= 30 && level == 0;
+	struct intel_display *display = to_intel_display(plane);
+
+	return DISPLAY_VER(display) >= 30 && level == 0 && plane->id != PLANE_CURSOR;
 }
 
 static void skl_compute_plane_wm(const struct intel_crtc_state *crtc_state,
@@ -1937,7 +1938,6 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *crtc_state,
 				 struct skl_wm_level *result /* out */)
 {
 	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
-	struct intel_display *display = to_intel_display(crtc_state);
 	uint_fixed_16_16_t method1, method2;
 	uint_fixed_16_16_t selected_result;
 	u32 blocks, lines, min_ddb_alloc = 0;
@@ -2061,7 +2061,7 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *crtc_state,
 	/* Bspec says: value >= plane ddb allocation -> invalid, hence the +1 here */
 	result->min_ddb_alloc = max(min_ddb_alloc, blocks) + 1;
 	result->enable = true;
-	result->auto_min_alloc_wm_enable = xe3_auto_min_alloc_capable(display, level);
+	result->auto_min_alloc_wm_enable = xe3_auto_min_alloc_capable(plane, level);
 
 	if (DISPLAY_VER(i915) < 12 && i915->display.sagv.block_time_us)
 		result->can_sagv = latency >= i915->display.sagv.block_time_us;
