@@ -1575,12 +1575,12 @@ static int unix_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 		goto out;
 	}
 
-	err = -ENOMEM;
-
 	/* Allocate skb for sending to listening sock */
 	skb = sock_wmalloc(newsk, 1, 0, GFP_KERNEL);
-	if (skb == NULL)
+	if (!skb) {
+		err = -ENOMEM;
 		goto out;
+	}
 
 restart:
 	/*  Find listening sock. */
@@ -1600,16 +1600,17 @@ restart:
 		goto restart;
 	}
 
-	err = -ECONNREFUSED;
-	if (other->sk_state != TCP_LISTEN)
+	if (other->sk_state != TCP_LISTEN ||
+	    other->sk_shutdown & RCV_SHUTDOWN) {
+		err = -ECONNREFUSED;
 		goto out_unlock;
-	if (other->sk_shutdown & RCV_SHUTDOWN)
-		goto out_unlock;
+	}
 
 	if (unix_recvq_full_lockless(other)) {
-		err = -EAGAIN;
-		if (!timeo)
+		if (!timeo) {
+			err = -EAGAIN;
 			goto out_unlock;
+		}
 
 		timeo = unix_wait_for_peer(other, timeo);
 
