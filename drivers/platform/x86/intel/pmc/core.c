@@ -936,13 +936,13 @@ static unsigned int pmc_core_get_crystal_freq(void)
 {
 	unsigned int eax_denominator, ebx_numerator, ecx_hz, edx;
 
-	if (boot_cpu_data.cpuid_level < CPUID_TSC_LEAF)
+	if (boot_cpu_data.cpuid_level < CPUID_LEAF_TSC)
 		return 0;
 
 	eax_denominator = ebx_numerator = ecx_hz = edx = 0;
 
 	/* TSC/Crystal ratio, plus optionally Crystal Hz */
-	cpuid(CPUID_TSC_LEAF, &eax_denominator, &ebx_numerator, &ecx_hz, &edx);
+	cpuid(CPUID_LEAF_TSC, &eax_denominator, &ebx_numerator, &ecx_hz, &edx);
 
 	if (ebx_numerator == 0 || eax_denominator == 0)
 		return 0;

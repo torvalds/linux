@@ -637,9 +637,9 @@ struct cpuid_dependent_feature {
 
 static const struct cpuid_dependent_feature
 cpuid_dependent_features[] = {
-	{ X86_FEATURE_MWAIT,		CPUID_MWAIT_LEAF },
-	{ X86_FEATURE_DCA,		CPUID_DCA_LEAF },
-	{ X86_FEATURE_XSAVE,		XSTATE_CPUID },
+	{ X86_FEATURE_MWAIT,		CPUID_LEAF_MWAIT },
+	{ X86_FEATURE_DCA,		CPUID_LEAF_DCA },
+	{ X86_FEATURE_XSAVE,		CPUID_LEAF_XSTATE },
 	{ 0, 0 }
 };
 

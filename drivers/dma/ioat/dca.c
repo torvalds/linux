@@ -63,7 +63,7 @@ static int dca_enabled_in_bios(struct pci_dev *pdev)
 	u32 eax;
 	int res;
 
-	eax = cpuid_eax(CPUID_DCA_LEAF);
+	eax = cpuid_eax(CPUID_LEAF_DCA);
 	res = eax & BIT(0);
 	if (!res)
 		dev_dbg(&pdev->dev, "DCA is disabled in BIOS\n");

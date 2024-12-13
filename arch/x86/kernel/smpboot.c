@@ -1293,7 +1293,7 @@ static inline void mwait_play_dead(void)
 	if (!this_cpu_has(X86_FEATURE_CLFLUSH))
 		return;
 
-	eax = CPUID_MWAIT_LEAF;
+	eax = CPUID_LEAF_MWAIT;
 	ecx = 0;
 	native_cpuid(&eax, &ebx, &ecx, &edx);
 
