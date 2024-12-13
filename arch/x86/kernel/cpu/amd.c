@@ -795,10 +795,9 @@ static void init_amd_bd(struct cpuinfo_x86 *c)
 	clear_rdrand_cpuid_bit(c);
 }
 
-static const struct x86_cpu_desc erratum_1386_microcode[] = {
-	AMD_CPU_DESC(0x17,  0x1, 0x2, 0x0800126e),
-	AMD_CPU_DESC(0x17, 0x31, 0x0, 0x08301052),
-	{},
+static const struct x86_cpu_id erratum_1386_microcode[] = {
+	X86_MATCH_VFM_STEPS(VFM_MAKE(X86_VENDOR_AMD, 0x17, 0x01), 0x2, 0x2, 0x0800126e),
+	X86_MATCH_VFM_STEPS(VFM_MAKE(X86_VENDOR_AMD, 0x17, 0x31), 0x0, 0x0, 0x08301052),
 };
 
 static void fix_erratum_1386(struct cpuinfo_x86 *c)
@@ -814,7 +813,7 @@ static void fix_erratum_1386(struct cpuinfo_x86 *c)
 	 * Clear the feature flag only on microcode revisions which
 	 * don't have the fix.
 	 */
-	if (x86_cpu_has_min_microcode_rev(erratum_1386_microcode))
+	if (x86_match_min_microcode_rev(erratum_1386_microcode))
 		return;
 
 	clear_cpu_cap(c, X86_FEATURE_XSAVES);
