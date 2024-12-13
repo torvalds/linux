@@ -5291,6 +5291,7 @@ static int put_file_data(struct send_ctx *sctx, u64 offset, u32 len)
 		unsigned cur_len = min_t(unsigned, len,
 					 PAGE_SIZE - pg_offset);
 
+again:
 		folio = filemap_lock_folio(mapping, index);
 		if (IS_ERR(folio)) {
 			page_cache_sync_readahead(mapping,
@@ -5322,6 +5323,11 @@ static int put_file_data(struct send_ctx *sctx, u64 offset, u32 len)
 				folio_put(folio);
 				ret = -EIO;
 				break;
+			}
+			if (folio->mapping != mapping) {
+				folio_unlock(folio);
+				folio_put(folio);
+				goto again;
 			}
 		}
 
