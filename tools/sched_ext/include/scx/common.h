@@ -71,5 +71,11 @@ typedef int64_t s64;
 
 #include "user_exit_info.h"
 #include "compat.h"
+#include "enums.h"
+
+/* not available when building kernel tools/sched_ext */
+#if __has_include(<lib/sdt_task.h>)
+#include <lib/sdt_task.h>
+#endif
 
 #endif	/* __SCHED_EXT_COMMON_H */

@@ -57,7 +57,7 @@ enum {
 char _license[] SEC("license") = "GPL";
 
 const volatile u32 nr_cpus = 32;	/* !0 for veristat, set during init */
-const volatile u64 cgrp_slice_ns = SCX_SLICE_DFL;
+const volatile u64 cgrp_slice_ns;
 const volatile bool fifo_sched;
 
 u64 cvtime_now;

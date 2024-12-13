@@ -57,7 +57,7 @@ enum {
 
 const volatile s32 central_cpu;
 const volatile u32 nr_cpu_ids = 1;	/* !0 for veristat, set during init */
-const volatile u64 slice_ns = SCX_SLICE_DFL;
+const volatile u64 slice_ns;
 
 bool timer_pinned = true;
 u64 nr_total, nr_locals, nr_queued, nr_lost_pids;
