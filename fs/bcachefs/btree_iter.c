@@ -1854,7 +1854,7 @@ struct bkey_s_c bch2_btree_path_peek_slot(struct btree_path *path, struct bkey *
 			!bkey_eq(path->pos, ck->key.pos));
 
 		*u = ck->k->k;
-		k = bkey_i_to_s_c(ck->k);
+		k = (struct bkey_s_c) { u, &ck->k->v };
 	}
 
 	return k;
@@ -2421,7 +2421,8 @@ struct bkey_s_c bch2_btree_iter_peek_max(struct btree_iter *iter, struct bpos en
 				continue;
 			}
 
-			if (bkey_whiteout(k.k)) {
+			if (bkey_whiteout(k.k) &&
+			    !(iter->flags & BTREE_ITER_key_cache_fill)) {
 				search_key = bkey_successor(iter, k.k->p);
 				continue;
 			}
@@ -2781,6 +2782,11 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 		k = bch2_btree_path_peek_slot(trans->paths + iter->path, &iter->k);
 		if (unlikely(!k.k))
 			goto out_no_locked;
+
+		if (unlikely(k.k->type == KEY_TYPE_whiteout &&
+			     (iter->flags & BTREE_ITER_filter_snapshots) &&
+			     !(iter->flags & BTREE_ITER_key_cache_fill)))
+			iter->k.type = KEY_TYPE_deleted;
 	} else {
 		struct bpos next;
 		struct bpos end = iter->pos;
