@@ -619,6 +619,7 @@ static int cros_typec_configure_mux(struct cros_typec_data *typec, int port_num,
 	};
 	struct ec_params_usb_pd_mux_ack mux_ack;
 	enum typec_orientation orientation;
+	struct cros_typec_altmode_node *node;
 	int ret;
 
 	ret = cros_ec_cmd(typec->ec, 0, EC_CMD_USB_PD_MUX_INFO,
@@ -675,6 +676,14 @@ static int cros_typec_configure_mux(struct cros_typec_data *typec, int port_num,
 		dev_dbg(typec->dev,
 			"Unrecognized mode requested, mux flags: %x\n",
 			port->mux_flags);
+	}
+
+	/* Iterate all partner alt-modes and set the active alternate mode. */
+	list_for_each_entry(node, &port->partner_mode_list, list) {
+		typec_altmode_update_active(
+			node->amode,
+			port->state.alt &&
+				node->amode->svid == port->state.alt->svid);
 	}
 
 mux_ack:
