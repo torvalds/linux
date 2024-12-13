@@ -85,13 +85,6 @@ typedef unsigned int sclp_cmdw_t;
 
 typedef u64 sccb_mask_t;
 
-struct sccb_header {
-	u16	length;
-	u8	function_code;
-	u8	control_mask[3];
-	u16	response_code;
-} __attribute__((packed));
-
 struct init_sccb {
 	struct sccb_header header;
 	u16 _reserved;
@@ -236,13 +229,6 @@ struct gds_subvector {
 struct gds_vector {
 	u16	length;
 	u16	gds_id;
-} __attribute__((packed));
-
-struct evbuf_header {
-	u16	length;
-	u8	type;
-	u8	flags;
-	u16	_reserved;
 } __attribute__((packed));
 
 struct sclp_req {
