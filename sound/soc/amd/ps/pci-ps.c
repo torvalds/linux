@@ -375,10 +375,17 @@ static int get_acp63_device_config(struct pci_dev *pci, struct acp63_dev_data *a
 {
 	struct acpi_device *pdm_dev;
 	const union acpi_object *obj;
+	acpi_handle handle;
+	acpi_integer dmic_status;
 	u32 config;
 	bool is_dmic_dev = false;
 	bool is_sdw_dev = false;
+	bool wov_en, dmic_en;
 	int ret;
+
+	/* IF WOV entry not found, enable dmic based on acp-audio-device-type entry*/
+	wov_en = true;
+	dmic_en = false;
 
 	config = readl(acp_data->acp63_base + ACP_PIN_CONFIG);
 	switch (config) {
@@ -412,9 +419,17 @@ static int get_acp63_device_config(struct pci_dev *pci, struct acp63_dev_data *a
 			if (!acpi_dev_get_property(pdm_dev, "acp-audio-device-type",
 						   ACPI_TYPE_INTEGER, &obj) &&
 						   obj->integer.value == ACP_DMIC_DEV)
-				is_dmic_dev = true;
+				dmic_en = true;
 		}
+
+		handle = ACPI_HANDLE(&pci->dev);
+		ret = acpi_evaluate_integer(handle, "_WOV", NULL, &dmic_status);
+		if (!ACPI_FAILURE(ret))
+			wov_en = dmic_status;
 	}
+
+	if (dmic_en && wov_en)
+		is_dmic_dev = true;
 
 	if (acp_data->is_sdw_config) {
 		ret = acp_scan_sdw_devices(&pci->dev, ACP63_SDW_ADDR);
