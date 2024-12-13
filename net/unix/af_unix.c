@@ -1993,12 +1993,6 @@ static int unix_dgram_sendmsg(struct socket *sock, struct msghdr *msg,
 							    NULL);
 		if (err)
 			goto out;
-	} else {
-		other = unix_peer_get(sk);
-		if (!other) {
-			err = -ENOTCONN;
-			goto out;
-		}
 	}
 
 	if ((test_bit(SOCK_PASSCRED, &sock->flags) ||
@@ -2026,7 +2020,7 @@ static int unix_dgram_sendmsg(struct socket *sock, struct msghdr *msg,
 	skb = sock_alloc_send_pskb(sk, len - data_len, data_len,
 				   msg->msg_flags & MSG_DONTWAIT, &err,
 				   PAGE_ALLOC_COSTLY_ORDER);
-	if (skb == NULL)
+	if (!skb)
 		goto out;
 
 	err = unix_scm_to_skb(&scm, skb, true);
@@ -2042,13 +2036,18 @@ static int unix_dgram_sendmsg(struct socket *sock, struct msghdr *msg,
 
 	timeo = sock_sndtimeo(sk, msg->msg_flags & MSG_DONTWAIT);
 
-	if (!other) {
+	if (msg->msg_namelen) {
 lookup:
 		other = unix_find_other(sock_net(sk), msg->msg_name,
 					msg->msg_namelen, sk->sk_type);
 		if (IS_ERR(other)) {
 			err = PTR_ERR(other);
-			other = NULL;
+			goto out_free;
+		}
+	} else {
+		other = unix_peer_get(sk);
+		if (!other) {
+			err = -ENOTCONN;
 			goto out_free;
 		}
 	}
@@ -2056,7 +2055,7 @@ lookup:
 	if (sk_filter(other, skb) < 0) {
 		/* Toss the packet but do not return any error to the sender */
 		err = len;
-		goto out_free;
+		goto out_sock_put;
 	}
 
 restart:
@@ -2080,7 +2079,7 @@ restart_locked:
 			 * unlike SOCK_DGRAM wants.
 			 */
 			err = -EPIPE;
-			goto out_free;
+			goto out_sock_put;
 		}
 
 		if (!sk_locked)
@@ -2096,14 +2095,14 @@ restart_locked:
 			unix_dgram_disconnected(sk, other);
 			sock_put(other);
 			err = -ECONNREFUSED;
-			goto out_free;
+			goto out_sock_put;
 		}
 
 		unix_state_unlock(sk);
 
 		if (!msg->msg_namelen) {
 			err = -ECONNRESET;
-			goto out_free;
+			goto out_sock_put;
 		}
 
 		goto lookup;
@@ -2132,7 +2131,7 @@ restart_locked:
 
 			err = sock_intr_errno(timeo);
 			if (signal_pending(current))
-				goto out_free;
+				goto out_sock_put;
 
 			goto restart;
 		}
@@ -2173,11 +2172,11 @@ out_unlock:
 	if (sk_locked)
 		unix_state_unlock(sk);
 	unix_state_unlock(other);
+out_sock_put:
+	sock_put(other);
 out_free:
 	kfree_skb(skb);
 out:
-	if (other)
-		sock_put(other);
 	scm_destroy(&scm);
 	return err;
 }
