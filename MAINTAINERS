@@ -5501,8 +5501,8 @@ L:	patches@opensource.cirrus.com
 S:	Supported
 W:	https://github.com/CirrusLogic/linux-drivers/wiki
 T:	git https://github.com/CirrusLogic/linux-drivers.git
-F:	drivers/firmware/cirrus/*
-F:	include/linux/firmware/cirrus/*
+F:	drivers/firmware/cirrus/
+F:	include/linux/firmware/cirrus/
 
 CIRRUS LOGIC EP93XX ETHERNET DRIVER
 M:	Hartley Sweeten <hsweeten@visionengravers.com>
