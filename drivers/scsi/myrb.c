@@ -1627,8 +1627,6 @@ static int myrb_ldev_sdev_init(struct scsi_device *sdev)
 	enum raid_level level;
 
 	ldev_info = cb->ldev_info_buf + ldev_num;
-	if (!ldev_info)
-		return -ENXIO;
 
 	sdev->hostdata = kzalloc(sizeof(*ldev_info), GFP_KERNEL);
 	if (!sdev->hostdata)
