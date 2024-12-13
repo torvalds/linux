@@ -34,9 +34,9 @@ struct mite_struct {
 
 	struct pci_dev *pcidev;
 	unsigned long mite_phys_addr;
-	void *mite_io_addr;
+	void __iomem *mite_io_addr;
 	unsigned long daq_phys_addr;
-	void *daq_io_addr;
+	void __iomem *daq_io_addr;
 
 	int DMA_CheckNearEnd;
 

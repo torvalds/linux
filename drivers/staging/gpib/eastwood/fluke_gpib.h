@@ -72,7 +72,7 @@ static inline uint8_t fluke_read_byte_nolock(struct nec7210_priv *nec_priv,
 {
 	u8 retval;
 
-	retval = readl(nec_priv->iobase + register_num * nec_priv->offset);
+	retval = readl(nec_priv->mmiobase + register_num * nec_priv->offset);
 	return retval;
 }
 
@@ -80,7 +80,7 @@ static inline uint8_t fluke_read_byte_nolock(struct nec7210_priv *nec_priv,
 static inline void fluke_write_byte_nolock(struct nec7210_priv *nec_priv, uint8_t data,
 					   int register_num)
 {
-	writel(data, nec_priv->iobase + register_num * nec_priv->offset);
+	writel(data, nec_priv->mmiobase + register_num * nec_priv->offset);
 }
 
 static inline uint8_t fluke_paged_read_byte(struct fluke_priv *e_priv,

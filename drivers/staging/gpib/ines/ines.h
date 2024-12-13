@@ -83,14 +83,14 @@ void ines_set_xfer_counter(struct ines_priv *priv, unsigned int count);
 /* inb/outb wrappers */
 static inline unsigned int ines_inb(struct ines_priv *priv, unsigned int register_number)
 {
-	return inb((unsigned long)(priv->nec7210_priv.iobase) +
+	return inb(priv->nec7210_priv.iobase +
 		   register_number * priv->nec7210_priv.offset);
 }
 
 static inline void ines_outb(struct ines_priv *priv, unsigned int value,
 			     unsigned int register_number)
 {
-	outb(value, (unsigned long)(priv->nec7210_priv.iobase) +
+	outb(value, priv->nec7210_priv.iobase +
 	     register_number * priv->nec7210_priv.offset);
 }
 

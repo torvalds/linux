@@ -100,23 +100,23 @@ static const int atgpib_iosize = 32;
 /* paged io */
 static inline unsigned int tnt_paged_readb(struct tnt4882_priv *priv, unsigned long offset)
 {
-	iowrite8(AUX_PAGEIN, priv->nec7210_priv.iobase + AUXMR * priv->nec7210_priv.offset);
+	iowrite8(AUX_PAGEIN, priv->nec7210_priv.mmiobase + AUXMR * priv->nec7210_priv.offset);
 	udelay(1);
-	return ioread8(priv->nec7210_priv.iobase + offset);
+	return ioread8(priv->nec7210_priv.mmiobase + offset);
 }
 
 static inline void tnt_paged_writeb(struct tnt4882_priv *priv, unsigned int value,
 				    unsigned long offset)
 {
-	iowrite8(AUX_PAGEIN, priv->nec7210_priv.iobase + AUXMR * priv->nec7210_priv.offset);
+	iowrite8(AUX_PAGEIN, priv->nec7210_priv.mmiobase + AUXMR * priv->nec7210_priv.offset);
 	udelay(1);
-	iowrite8(value, priv->nec7210_priv.iobase + offset);
+	iowrite8(value, priv->nec7210_priv.mmiobase + offset);
 }
 
 /* readb/writeb wrappers */
 static inline unsigned short tnt_readb(struct tnt4882_priv *priv, unsigned long offset)
 {
-	void *address = priv->nec7210_priv.iobase + offset;
+	void *address = priv->nec7210_priv.mmiobase + offset;
 	unsigned long flags;
 	unsigned short retval;
 	spinlock_t *register_lock = &priv->nec7210_priv.register_page_lock;
@@ -154,7 +154,7 @@ static inline unsigned short tnt_readb(struct tnt4882_priv *priv, unsigned long 
 
 static inline void tnt_writeb(struct tnt4882_priv *priv, unsigned short value, unsigned long offset)
 {
-	void *address = priv->nec7210_priv.iobase + offset;
+	void *address = priv->nec7210_priv.mmiobase + offset;
 	unsigned long flags;
 	spinlock_t *register_lock = &priv->nec7210_priv.register_page_lock;
 
@@ -284,7 +284,7 @@ static int drain_fifo_words(struct tnt4882_priv *tnt_priv, uint8_t *buffer, int 
 	while (fifo_word_available(tnt_priv) && count + 2 <= num_bytes)	{
 		short word;
 
-		word = ioread16(nec_priv->iobase + FIFOB);
+		word = ioread16(nec_priv->mmiobase + FIFOB);
 		buffer[count++] = word & 0xff;
 		buffer[count++] = (word >> 8) & 0xff;
 	}
@@ -569,7 +569,7 @@ static int generic_write(gpib_board_t *board, uint8_t *buffer, size_t length,
 			word = buffer[count++] & 0xff;
 			if (count < length)
 				word |= (buffer[count++] << 8) & 0xff00;
-			iowrite16(word, nec_priv->iobase + FIFOB);
+			iowrite16(word, nec_priv->mmiobase + FIFOB);
 		}
 //  avoid unnecessary HR_NFF interrupts
 //		tnt_priv->imr3_bits |= HR_NFF;
@@ -1316,7 +1316,7 @@ int ni_pci_attach(gpib_board_t *board, const gpib_board_config_t *config)
 		return retval;
 	}
 
-	nec_priv->iobase = tnt_priv->mite->daq_io_addr;
+	nec_priv->mmiobase = tnt_priv->mite->daq_io_addr;
 
 	// get irq
 	if (request_irq(mite_irq(tnt_priv->mite), tnt4882_interrupt, isr_flags,
@@ -1351,7 +1351,7 @@ void ni_pci_detach(gpib_board_t *board)
 	if (tnt_priv) {
 		nec_priv = &tnt_priv->nec7210_priv;
 
-		if (nec_priv->iobase)
+		if (nec_priv->mmiobase)
 			tnt4882_board_reset(tnt_priv, board);
 		if (tnt_priv->irq)
 			free_irq(tnt_priv->irq, board);
@@ -1392,7 +1392,7 @@ static int ni_isa_attach_common(gpib_board_t *board, const gpib_board_config_t *
 	struct tnt4882_priv *tnt_priv;
 	struct nec7210_priv *nec_priv;
 	int isr_flags = 0;
-	void *iobase;
+	u32 iobase;
 	int irq;
 
 	board->status = 0;
@@ -1415,19 +1415,19 @@ static int ni_isa_attach_common(gpib_board_t *board, const gpib_board_config_t *
 		if (retval < 0)
 			return retval;
 		tnt_priv->pnp_dev = dev;
-		iobase = (void *)(pnp_port_start(dev, 0));
+		iobase = pnp_port_start(dev, 0);
 		irq = pnp_irq(dev, 0);
 	} else {
 		iobase = config->ibbase;
 		irq = config->ibirq;
 	}
 	// allocate ioports
-	if (!request_region((unsigned long)(iobase), atgpib_iosize, "atgpib")) {
+	if (!request_region(iobase, atgpib_iosize, "atgpib")) {
 		pr_err("tnt4882: failed to allocate ioports\n");
 		return -1;
 	}
-	nec_priv->iobase = ioport_map(iobase, atgpib_iosize);
-	if (!nec_priv->iobase)
+	nec_priv->mmiobase = ioport_map(iobase, atgpib_iosize);
+	if (!nec_priv->mmiobase)
 		return -1;
 
 	// get irq
@@ -1468,10 +1468,10 @@ void ni_isa_detach(gpib_board_t *board)
 			tnt4882_board_reset(tnt_priv, board);
 		if (tnt_priv->irq)
 			free_irq(tnt_priv->irq, board);
+		if (nec_priv->mmiobase)
+			ioport_unmap(nec_priv->mmiobase);
 		if (nec_priv->iobase)
-			ioport_unmap(nec_priv->iobase);
-		if (nec_priv->iobase)
-			release_region((unsigned long)(nec_priv->iobase), atgpib_iosize);
+			release_region(nec_priv->iobase, atgpib_iosize);
 		if (tnt_priv->pnp_dev)
 			pnp_device_detach(tnt_priv->pnp_dev);
 	}
@@ -1823,9 +1823,9 @@ int ni_pcmcia_attach(gpib_board_t *board, const gpib_board_config_t *config)
 		return -EIO;
 	}
 
-	nec_priv->iobase = ioport_map(curr_dev->resource[0]->start,
+	nec_priv->mmiobase = ioport_map(curr_dev->resource[0]->start,
 					resource_size(curr_dev->resource[0]));
-	if (!nec_priv->iobase)
+	if (!nec_priv->mmiobase)
 		return -1;
 
 	// get irq
@@ -1851,11 +1851,11 @@ void ni_pcmcia_detach(gpib_board_t *board)
 		nec_priv = &tnt_priv->nec7210_priv;
 		if (tnt_priv->irq)
 			free_irq(tnt_priv->irq, board);
-		if (nec_priv->iobase)
-			ioport_unmap(nec_priv->iobase);
+		if (nec_priv->mmiobase)
+			ioport_unmap(nec_priv->mmiobase);
 		if (nec_priv->iobase) {
 			tnt4882_board_reset(tnt_priv, board);
-			release_region((unsigned long)nec_priv->iobase, pcmcia_gpib_iosize);
+			release_region(nec_priv->iobase, pcmcia_gpib_iosize);
 		}
 	}
 	tnt4882_free_private(board);

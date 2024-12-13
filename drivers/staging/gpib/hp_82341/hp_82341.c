@@ -473,12 +473,12 @@ void hp_82341_free_private(gpib_board_t *board)
 
 static uint8_t hp_82341_read_byte(struct tms9914_priv *priv, unsigned int register_num)
 {
-	return inb((unsigned long)(priv->iobase) + register_num);
+	return inb(priv->iobase + register_num);
 }
 
 static void hp_82341_write_byte(struct tms9914_priv *priv, uint8_t data, unsigned int register_num)
 {
-	outb(data, (unsigned long)(priv->iobase) + register_num);
+	outb(data, priv->iobase + register_num);
 }
 
 static int hp_82341_find_isapnp_board(struct pnp_dev **dev)
@@ -682,8 +682,8 @@ int hp_82341_attach(gpib_board_t *board, const gpib_board_config_t *config)
 {
 	struct hp_82341_priv *hp_priv;
 	struct tms9914_priv *tms_priv;
-	unsigned long start_addr;
-	void *iobase;
+	u32 start_addr;
+	u32 iobase;
 	int irq;
 	int i;
 	int retval;
@@ -704,7 +704,7 @@ int hp_82341_attach(gpib_board_t *board, const gpib_board_config_t *config)
 		if (retval < 0)
 			return retval;
 		hp_priv->pnp_dev = dev;
-		iobase = (void *)(pnp_port_start(dev, 0));
+		iobase = pnp_port_start(dev, 0);
 		irq = pnp_irq(dev, 0);
 		hp_priv->hw_version = HW_VERSION_82341D;
 		hp_priv->io_region_offset = 0x8;
@@ -714,9 +714,9 @@ int hp_82341_attach(gpib_board_t *board, const gpib_board_config_t *config)
 		hp_priv->hw_version = HW_VERSION_82341C;
 		hp_priv->io_region_offset = 0x400;
 	}
-	pr_info("hp_82341: base io 0x%p\n", iobase);
+	pr_info("hp_82341: base io 0x%u\n", iobase);
 	for (i = 0; i < hp_82341_num_io_regions; ++i) {
-		start_addr = (unsigned long)(iobase) + i * hp_priv->io_region_offset;
+		start_addr = iobase + i * hp_priv->io_region_offset;
 		if (!request_region(start_addr, hp_82341_region_iosize, "hp_82341")) {
 			pr_err("hp_82341: failed to allocate io ports 0x%lx-0x%lx\n",
 			       start_addr,
@@ -725,7 +725,7 @@ int hp_82341_attach(gpib_board_t *board, const gpib_board_config_t *config)
 		}
 		hp_priv->iobase[i] = start_addr;
 	}
-	tms_priv->iobase = (void *)(hp_priv->iobase[2]);
+	tms_priv->iobase = hp_priv->iobase[2];
 	if (hp_priv->hw_version == HW_VERSION_82341D) {
 		retval = isapnp_cfg_begin(hp_priv->pnp_dev->card->number,
 					  hp_priv->pnp_dev->number);

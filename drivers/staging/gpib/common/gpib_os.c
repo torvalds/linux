@@ -1573,7 +1573,7 @@ static int iobase_ioctl(gpib_board_config_t *config, unsigned long arg)
 
 	if (WARN_ON_ONCE(sizeof(void *) > sizeof(base_addr)))
 		return -EFAULT;
-	config->ibbase = (void *)(unsigned long)(base_addr);
+	config->ibbase = base_addr;
 
 	return 0;
 }

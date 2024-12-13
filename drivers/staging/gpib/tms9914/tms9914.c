@@ -866,14 +866,14 @@ EXPORT_SYMBOL_GPL(tms9914_online);
 // wrapper for inb
 uint8_t tms9914_ioport_read_byte(struct tms9914_priv *priv, unsigned int register_num)
 {
-	return inb((unsigned long)(priv->iobase) + register_num * priv->offset);
+	return inb(priv->iobase + register_num * priv->offset);
 }
 EXPORT_SYMBOL_GPL(tms9914_ioport_read_byte);
 
 // wrapper for outb
 void tms9914_ioport_write_byte(struct tms9914_priv *priv, uint8_t data, unsigned int register_num)
 {
-	outb(data, (unsigned long)(priv->iobase) + register_num * priv->offset);
+	outb(data, priv->iobase + register_num * priv->offset);
 	if (register_num == AUXCR)
 		udelay(1);
 }
@@ -883,14 +883,14 @@ EXPORT_SYMBOL_GPL(tms9914_ioport_write_byte);
 // wrapper for readb
 uint8_t tms9914_iomem_read_byte(struct tms9914_priv *priv, unsigned int register_num)
 {
-	return readb(priv->iobase + register_num * priv->offset);
+	return readb(priv->mmiobase + register_num * priv->offset);
 }
 EXPORT_SYMBOL_GPL(tms9914_iomem_read_byte);
 
 // wrapper for writeb
 void tms9914_iomem_write_byte(struct tms9914_priv *priv, uint8_t data, unsigned int register_num)
 {
-	writeb(data, priv->iobase + register_num * priv->offset);
+	writeb(data, priv->mmiobase + register_num * priv->offset);
 	if (register_num == AUXCR)
 		udelay(1);
 }

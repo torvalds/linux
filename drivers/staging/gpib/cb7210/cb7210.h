@@ -113,9 +113,9 @@ enum hs_regs {
 	HS_STATUS = 0x8,	/* HS_STATUS register */
 };
 
-static inline unsigned long nec7210_iobase(const struct cb7210_priv *cb_priv)
+static inline u32 nec7210_iobase(const struct cb7210_priv *cb_priv)
 {
-	return (unsigned long)(cb_priv->nec7210_priv.iobase);
+	return cb_priv->nec7210_priv.iobase;
 }
 
 static inline int cb7210_page_in_bits(unsigned int page)

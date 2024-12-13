@@ -436,7 +436,7 @@ static void set_timeout(gpib_board_t *board)
 static int usb_gpib_attach(gpib_board_t *board, const gpib_board_config_t *config)
 {
 	int retval, j;
-	int base = (long)config->ibbase;
+	u32 base = config->ibbase;
 	char *device_path;
 	int match;
 	struct usb_device *udev;
