@@ -7,6 +7,9 @@ added to the kernel over time.  There is, as yet, little overall order or
 organization here — this material was not written to be a single, coherent
 document!  With luck things will improve quickly over time.
 
+General guides to kernel administration
+---------------------------------------
+
 This initial section contains overall information, including the README
 file describing the kernel as a whole, documentation on kernel parameters,
 etc.
@@ -28,6 +31,9 @@ This section describes CPU vulnerabilities and their mitigations.
 
    hw-vuln/index
 
+Tracking down and identifying problems
+--------------------------------------
+
 Here is a set of documents aimed at users who are trying to track down
 problems and bugs in particular.
 
@@ -48,6 +54,9 @@ problems and bugs in particular.
    perf/index
    pstore-blk
 
+sysfs
+-----
+
 A big part of the kernel's administrative interface is the sysfs virtual
 filesystem; these documents describe how to interact with sysfs.
 
@@ -56,6 +65,9 @@ filesystem; these documents describe how to interact with sysfs.
 
    sysfs-rules
    abi
+
+Workload analysis
+-----------------
 
 This is the beginning of a section with information of interest to
 application developers and system integrators doing analysis of the
@@ -67,6 +79,9 @@ subsystems expectations will be found here.
    :maxdepth: 1
 
    workload-tracing
+
+Everything else
+---------------
 
 The rest of this manual consists of various unordered guides on how to
 configure specific aspects of kernel behavior to your liking.
