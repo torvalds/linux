@@ -764,11 +764,6 @@ void __init fpu__init_system_xstate(unsigned int legacy_size)
 		return;
 	}
 
-	if (boot_cpu_data.cpuid_level < XSTATE_CPUID) {
-		WARN_ON_FPU(1);
-		return;
-	}
-
 	/*
 	 * Find user xstates supported by the processor.
 	 */
