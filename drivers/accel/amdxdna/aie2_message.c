@@ -101,32 +101,6 @@ int aie2_get_runtime_cfg(struct amdxdna_dev_hdl *ndev, u32 type, u64 *value)
 	return 0;
 }
 
-int aie2_check_protocol_version(struct amdxdna_dev_hdl *ndev)
-{
-	DECLARE_AIE2_MSG(protocol_version, MSG_OP_GET_PROTOCOL_VERSION);
-	struct amdxdna_dev *xdna = ndev->xdna;
-	int ret;
-
-	ret = aie2_send_mgmt_msg_wait(ndev, &msg);
-	if (ret) {
-		XDNA_ERR(xdna, "Failed to get protocol version, ret %d", ret);
-		return ret;
-	}
-
-	if (resp.major != ndev->priv->protocol_major) {
-		XDNA_ERR(xdna, "Incompatible firmware protocol version major %d minor %d",
-			 resp.major, resp.minor);
-		return -EINVAL;
-	}
-
-	if (resp.minor < ndev->priv->protocol_minor) {
-		XDNA_ERR(xdna, "Firmware minor version smaller than supported");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 int aie2_assign_mgmt_pasid(struct amdxdna_dev_hdl *ndev, u16 pasid)
 {
 	DECLARE_AIE2_MSG(assign_mgmt_pasid, MSG_OP_ASSIGN_MGMT_PASID);
