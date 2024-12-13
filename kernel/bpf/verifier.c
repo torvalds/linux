@@ -19505,21 +19505,9 @@ static int check_map_prog_compatibility(struct bpf_verifier_env *env,
 	return 0;
 }
 
-/* Add map behind fd to used maps list, if it's not already there, and return
- * its index.
- * Returns <0 on error, or >= 0 index, on success.
- */
-static int add_used_map_from_fd(struct bpf_verifier_env *env, int fd)
+static int __add_used_map(struct bpf_verifier_env *env, struct bpf_map *map)
 {
-	CLASS(fd, f)(fd);
-	struct bpf_map *map;
 	int i, err;
-
-	map = __bpf_map_get(f);
-	if (IS_ERR(map)) {
-		verbose(env, "fd %d is not pointing to valid bpf_map\n", fd);
-		return PTR_ERR(map);
-	}
 
 	/* check whether we recorded this map already */
 	for (i = 0; i < env->used_map_cnt; i++)
@@ -19549,6 +19537,24 @@ static int add_used_map_from_fd(struct bpf_verifier_env *env, int fd)
 	env->used_maps[env->used_map_cnt++] = map;
 
 	return env->used_map_cnt - 1;
+}
+
+/* Add map behind fd to used maps list, if it's not already there, and return
+ * its index.
+ * Returns <0 on error, or >= 0 index, on success.
+ */
+static int add_used_map(struct bpf_verifier_env *env, int fd)
+{
+	struct bpf_map *map;
+	CLASS(fd, f)(fd);
+
+	map = __bpf_map_get(f);
+	if (IS_ERR(map)) {
+		verbose(env, "fd %d is not pointing to valid bpf_map\n", fd);
+		return PTR_ERR(map);
+	}
+
+	return __add_used_map(env, map);
 }
 
 /* find and rewrite pseudo imm in ld_imm64 instructions:
@@ -19642,7 +19648,7 @@ static int resolve_pseudo_ldimm64(struct bpf_verifier_env *env)
 				break;
 			}
 
-			map_idx = add_used_map_from_fd(env, fd);
+			map_idx = add_used_map(env, fd);
 			if (map_idx < 0)
 				return map_idx;
 			map = env->used_maps[map_idx];
@@ -22850,6 +22856,73 @@ struct btf *bpf_get_btf_vmlinux(void)
 	return btf_vmlinux;
 }
 
+/*
+ * The add_fd_from_fd_array() is executed only if fd_array_cnt is non-zero. In
+ * this case expect that every file descriptor in the array is either a map or
+ * a BTF. Everything else is considered to be trash.
+ */
+static int add_fd_from_fd_array(struct bpf_verifier_env *env, int fd)
+{
+	struct bpf_map *map;
+	struct btf *btf;
+	CLASS(fd, f)(fd);
+	int err;
+
+	map = __bpf_map_get(f);
+	if (!IS_ERR(map)) {
+		err = __add_used_map(env, map);
+		if (err < 0)
+			return err;
+		return 0;
+	}
+
+	btf = __btf_get_by_fd(f);
+	if (!IS_ERR(btf)) {
+		err = __add_used_btf(env, btf);
+		if (err < 0)
+			return err;
+		return 0;
+	}
+
+	verbose(env, "fd %d is not pointing to valid bpf_map or btf\n", fd);
+	return PTR_ERR(map);
+}
+
+static int process_fd_array(struct bpf_verifier_env *env, union bpf_attr *attr, bpfptr_t uattr)
+{
+	size_t size = sizeof(int);
+	int ret;
+	int fd;
+	u32 i;
+
+	env->fd_array = make_bpfptr(attr->fd_array, uattr.is_kernel);
+
+	/*
+	 * The only difference between old (no fd_array_cnt is given) and new
+	 * APIs is that in the latter case the fd_array is expected to be
+	 * continuous and is scanned for map fds right away
+	 */
+	if (!attr->fd_array_cnt)
+		return 0;
+
+	/* Check for integer overflow */
+	if (attr->fd_array_cnt >= (U32_MAX / size)) {
+		verbose(env, "fd_array_cnt is too big (%u)\n", attr->fd_array_cnt);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < attr->fd_array_cnt; i++) {
+		if (copy_from_bpfptr_offset(&fd, env->fd_array, i * size, size))
+			return -EFAULT;
+
+		ret = add_fd_from_fd_array(env, fd);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 int bpf_check(struct bpf_prog **prog, union bpf_attr *attr, bpfptr_t uattr, __u32 uattr_size)
 {
 	u64 start_time = ktime_get_ns();
@@ -22881,7 +22954,6 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr, bpfptr_t uattr, __u3
 		env->insn_aux_data[i].orig_idx = i;
 	env->prog = *prog;
 	env->ops = bpf_verifier_ops[env->prog->type];
-	env->fd_array = make_bpfptr(attr->fd_array, uattr.is_kernel);
 
 	env->allow_ptr_leaks = bpf_allow_ptr_leaks(env->prog->aux->token);
 	env->allow_uninit_stack = bpf_allow_uninit_stack(env->prog->aux->token);
@@ -22903,6 +22975,10 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr, bpfptr_t uattr, __u3
 			    attr->log_size);
 	if (ret)
 		goto err_unlock;
+
+	ret = process_fd_array(env, attr, uattr);
+	if (ret)
+		goto skip_full_check;
 
 	mark_verifier_state_clean(env);
 
