@@ -24,6 +24,8 @@
 #include <linux/slab.h>
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("GPIB Driver for fmh_gpib_core");
+MODULE_AUTHOR("Frank Mori Hess <fmh6jj@gmail.com>");
 
 static irqreturn_t fmh_gpib_interrupt(int irq, void *arg);
 static int fmh_gpib_attach_holdoff_all(gpib_board_t *board, const gpib_board_config_t *config);
