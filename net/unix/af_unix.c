@@ -286,14 +286,9 @@ static inline bool unix_secdata_eq(struct scm_cookie *scm, struct sk_buff *skb)
 }
 #endif /* CONFIG_SECURITY_NETWORK */
 
-static inline int unix_our_peer(struct sock *sk, struct sock *osk)
-{
-	return unix_peer(osk) == sk;
-}
-
 static inline int unix_may_send(struct sock *sk, struct sock *osk)
 {
-	return unix_peer(osk) == NULL || unix_our_peer(sk, osk);
+	return !unix_peer(osk) || unix_peer(osk) == sk;
 }
 
 static inline int unix_recvq_full_lockless(const struct sock *sk)
