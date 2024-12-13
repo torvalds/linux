@@ -309,6 +309,16 @@ static noinline int btree_key_cache_fill(struct btree_trans *trans,
 	ret = btree_key_cache_create(trans, ck_path, k);
 	if (ret)
 		goto err;
+
+	if (trace_key_cache_fill_enabled()) {
+		struct printbuf buf = PRINTBUF;
+
+		bch2_bpos_to_text(&buf, ck_path->pos);
+		prt_char(&buf, ' ');
+		bch2_bkey_val_to_text(&buf, trans->c, k);
+		trace_key_cache_fill(trans, buf.buf);
+		printbuf_exit(&buf);
+	}
 out:
 	/* We're not likely to need this iterator again: */
 	bch2_set_btree_iter_dontneed(&iter);
