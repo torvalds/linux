@@ -36,8 +36,40 @@
 #include <linux/typecheck.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
+#include <asm/asm.h>
+
+#define arch___set_bit			generic___set_bit
+#define arch___clear_bit		generic___clear_bit
+#define arch___change_bit		generic___change_bit
+#define arch___test_and_set_bit		generic___test_and_set_bit
+#define arch___test_and_clear_bit	generic___test_and_clear_bit
+#define arch___test_and_change_bit	generic___test_and_change_bit
+#define arch_test_bit_acquire		generic_test_bit_acquire
+
+static __always_inline bool arch_test_bit(unsigned long nr, const volatile unsigned long *ptr)
+{
+#ifdef __HAVE_ASM_FLAG_OUTPUTS__
+	const volatile unsigned char *addr;
+	unsigned long mask;
+	int cc;
+
+	if (__builtin_constant_p(nr)) {
+		addr = (const volatile unsigned char *)ptr;
+		addr += (nr ^ (BITS_PER_LONG - BITS_PER_BYTE)) / BITS_PER_BYTE;
+		mask = 1UL << (nr & (BITS_PER_BYTE - 1));
+		asm volatile(
+			"	tm	%[addr],%[mask]\n"
+			: "=@cc" (cc)
+			: [addr] "R" (*addr), [mask] "I" (mask)
+			);
+		return cc == 3;
+	}
+#endif
+	return generic_test_bit(nr, ptr);
+}
+
 #include <asm-generic/bitops/atomic.h>
-#include <asm-generic/bitops/non-atomic.h>
+#include <asm-generic/bitops/non-instrumented-non-atomic.h>
 #include <asm-generic/bitops/lock.h>
 
 /*
