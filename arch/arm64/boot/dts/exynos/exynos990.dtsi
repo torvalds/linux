@@ -46,7 +46,14 @@
 				     <&cpu5>;
 	};
 
-	/* There's no PMU model for cluster2, which are the Mongoose cores. */
+	mongoose-m5-pmu {
+		compatible = "samsung,mongoose-pmu";
+		interrupts = <GIC_SPI 180 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 181 IRQ_TYPE_LEVEL_HIGH>;
+
+		interrupt-affinity = <&cpu6>,
+				     <&cpu7>;
+	};
 
 	cpus {
 		#address-cells = <1>;
