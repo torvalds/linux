@@ -70,7 +70,6 @@ struct ksmbd_conn *ksmbd_conn_alloc(void)
 	atomic_set(&conn->req_running, 0);
 	atomic_set(&conn->r_count, 0);
 	atomic_set(&conn->refcnt, 1);
-	atomic_set(&conn->mux_smb_requests, 0);
 	conn->total_credits = 1;
 	conn->outstanding_credits = 0;
 
@@ -133,6 +132,8 @@ void ksmbd_conn_try_dequeue_request(struct ksmbd_work *work)
 	struct ksmbd_conn *conn = work->conn;
 
 	atomic_dec(&conn->req_running);
+	if (waitqueue_active(&conn->req_running_q))
+		wake_up(&conn->req_running_q);
 
 	if (list_empty(&work->request_entry) &&
 	    list_empty(&work->async_request_entry))
@@ -309,7 +310,7 @@ int ksmbd_conn_handler_loop(void *p)
 {
 	struct ksmbd_conn *conn = (struct ksmbd_conn *)p;
 	struct ksmbd_transport *t = conn->transport;
-	unsigned int pdu_size, max_allowed_pdu_size;
+	unsigned int pdu_size, max_allowed_pdu_size, max_req;
 	char hdr_buf[4] = {0,};
 	int size;
 
@@ -319,6 +320,7 @@ int ksmbd_conn_handler_loop(void *p)
 	if (t->ops->prepare && t->ops->prepare(t))
 		goto out;
 
+	max_req = server_conf.max_inflight_req;
 	conn->last_active = jiffies;
 	set_freezable();
 	while (ksmbd_conn_alive(conn)) {
@@ -327,6 +329,13 @@ int ksmbd_conn_handler_loop(void *p)
 
 		kvfree(conn->request_buf);
 		conn->request_buf = NULL;
+
+recheck:
+		if (atomic_read(&conn->req_running) + 1 > max_req) {
+			wait_event_interruptible(conn->req_running_q,
+				atomic_read(&conn->req_running) < max_req);
+			goto recheck;
+		}
 
 		size = t->ops->read(t, hdr_buf, sizeof(hdr_buf), -1);
 		if (size != sizeof(hdr_buf))
