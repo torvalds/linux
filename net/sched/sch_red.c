@@ -70,6 +70,7 @@ static int red_use_nodrop(struct red_sched_data *q)
 static int red_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		       struct sk_buff **to_free)
 {
+	enum skb_drop_reason reason = SKB_DROP_REASON_QDISC_CONGESTED;
 	struct red_sched_data *q = qdisc_priv(sch);
 	struct Qdisc *child = q->qdisc;
 	unsigned int len;
@@ -107,6 +108,7 @@ static int red_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		break;
 
 	case RED_HARD_MARK:
+		reason = SKB_DROP_REASON_QDISC_OVERLIMIT;
 		qdisc_qstats_overlimit(sch);
 		if (red_use_harddrop(q) || !red_use_ecn(q)) {
 			q->stats.forced_drop++;
@@ -143,7 +145,7 @@ congestion_drop:
 	if (!skb)
 		return NET_XMIT_CN | ret;
 
-	qdisc_drop(skb, sch, to_free);
+	qdisc_drop_reason(skb, sch, to_free, reason);
 	return NET_XMIT_CN;
 }
 
