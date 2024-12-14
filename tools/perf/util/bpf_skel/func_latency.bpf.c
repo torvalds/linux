@@ -116,7 +116,8 @@ int BPF_PROG(func_end)
 			// Less than 1 unit (ms or ns), or, in the future,
 			// than the min latency desired.
 			if (delta > 0) { // 1st entry: [ 1 unit .. bucket_range units )
-				key = delta / bucket_range + 1;
+				// clang 12 doesn't like s64 / u32 division
+				key = (__u64)delta / bucket_range + 1;
 				if (key >= NUM_BUCKET ||
 					delta >= max_latency - min_latency)
 					key = NUM_BUCKET - 1;
