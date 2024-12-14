@@ -272,6 +272,18 @@ static int read_sys_metadata_field(u64 field_id, u64 *data)
 
 #include "tdx_global_metadata.c"
 
+static int check_features(struct tdx_sys_info *sysinfo)
+{
+	u64 tdx_features0 = sysinfo->features.tdx_features0;
+
+	if (!(tdx_features0 & TDX_FEATURES0_NO_RBP_MOD)) {
+		pr_err("frame pointer (RBP) clobber bug present, upgrade TDX module\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /* Calculate the actual TDMR size */
 static int tdmr_size_single(u16 max_reserved_per_tdmr)
 {
@@ -1052,6 +1064,11 @@ static int init_tdx_module(void)
 	int ret;
 
 	ret = get_tdx_sys_info(&sysinfo);
+	if (ret)
+		return ret;
+
+	/* Check whether the kernel can support this module */
+	ret = check_features(&sysinfo);
 	if (ret)
 		return ret;
 

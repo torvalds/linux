@@ -2,6 +2,7 @@
 #ifndef _X86_VIRT_TDX_H
 #define _X86_VIRT_TDX_H
 
+#include <linux/bits.h>
 #include "tdx_global_metadata.h"
 
 /*
@@ -50,6 +51,9 @@ struct tdmr_info {
 	 */
 	DECLARE_FLEX_ARRAY(struct tdmr_reserved_area, reserved_areas);
 } __packed __aligned(TDMR_INFO_ALIGNMENT);
+
+/* Bit definitions of TDX_FEATURES0 metadata field */
+#define TDX_FEATURES0_NO_RBP_MOD	BIT(18)
 
 /*
  * Do not put any hardware-defined TDX structure representations below
