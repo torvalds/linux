@@ -7416,7 +7416,7 @@ create_validate_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 }
 
 enum drm_mode_status amdgpu_dm_connector_mode_valid(struct drm_connector *connector,
-				   struct drm_display_mode *mode)
+				   const struct drm_display_mode *mode)
 {
 	int result = MODE_ERROR;
 	struct dc_sink *dc_sink;

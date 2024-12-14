@@ -327,7 +327,7 @@ static int drm_bridge_connector_get_modes(struct drm_connector *connector)
 
 static enum drm_mode_status
 drm_bridge_connector_mode_valid(struct drm_connector *connector,
-				struct drm_display_mode *mode)
+				const struct drm_display_mode *mode)
 {
 	struct drm_bridge_connector *bridge_connector =
 		to_drm_bridge_connector(connector);

@@ -957,7 +957,7 @@ static const struct tv_mode *intel_tv_mode_find(const struct drm_connector_state
 
 static enum drm_mode_status
 intel_tv_mode_valid(struct drm_connector *connector,
-		    struct drm_display_mode *mode)
+		    const struct drm_display_mode *mode)
 {
 	struct intel_display *display = to_intel_display(connector->dev);
 	struct drm_i915_private *i915 = to_i915(connector->dev);

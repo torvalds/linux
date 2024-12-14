@@ -331,7 +331,7 @@ static void psb_intel_lvds_restore(struct drm_connector *connector)
 }
 
 enum drm_mode_status psb_intel_lvds_mode_valid(struct drm_connector *connector,
-				 struct drm_display_mode *mode)
+				 const struct drm_display_mode *mode)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(connector->dev);
 	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);

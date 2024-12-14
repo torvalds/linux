@@ -430,7 +430,7 @@ void amdgpu_atombios_dp_set_link_config(struct drm_connector *connector,
 }
 
 int amdgpu_atombios_dp_mode_valid_helper(struct drm_connector *connector,
-				  struct drm_display_mode *mode)
+				  const struct drm_display_mode *mode)
 {
 	struct amdgpu_connector *amdgpu_connector = to_amdgpu_connector(connector);
 	struct amdgpu_connector_atom_dig *dig_connector;

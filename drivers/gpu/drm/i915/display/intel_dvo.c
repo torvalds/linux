@@ -217,7 +217,7 @@ static void intel_enable_dvo(struct intel_atomic_state *state,
 
 static enum drm_mode_status
 intel_dvo_mode_valid(struct drm_connector *_connector,
-		     struct drm_display_mode *mode)
+		     const struct drm_display_mode *mode)
 {
 	struct intel_connector *connector = to_intel_connector(_connector);
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);

@@ -1074,7 +1074,7 @@ get_tmds_link_bandwidth(struct drm_connector *connector)
 
 static enum drm_mode_status
 nouveau_connector_mode_valid(struct drm_connector *connector,
-			     struct drm_display_mode *mode)
+			     const struct drm_display_mode *mode)
 {
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_encoder *nv_encoder = nv_connector->detected_encoder;

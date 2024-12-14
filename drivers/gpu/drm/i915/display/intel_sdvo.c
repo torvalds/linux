@@ -1938,7 +1938,7 @@ static void intel_enable_sdvo(struct intel_atomic_state *state,
 
 static enum drm_mode_status
 intel_sdvo_mode_valid(struct drm_connector *connector,
-		      struct drm_display_mode *mode)
+		      const struct drm_display_mode *mode)
 {
 	struct drm_i915_private *i915 = to_i915(connector->dev);
 	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(to_intel_connector(connector));

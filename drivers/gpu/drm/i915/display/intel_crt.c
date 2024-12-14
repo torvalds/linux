@@ -352,7 +352,7 @@ static void intel_enable_crt(struct intel_atomic_state *state,
 
 static enum drm_mode_status
 intel_crt_mode_valid(struct drm_connector *connector,
-		     struct drm_display_mode *mode)
+		     const struct drm_display_mode *mode)
 {
 	struct intel_display *display = to_intel_display(connector->dev);
 	struct drm_device *dev = connector->dev;

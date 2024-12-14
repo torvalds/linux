@@ -505,7 +505,7 @@ static void cdv_intel_edp_backlight_off (struct gma_encoder *intel_encoder)
 
 static enum drm_mode_status
 cdv_intel_dp_mode_valid(struct drm_connector *connector,
-		    struct drm_display_mode *mode)
+		    const struct drm_display_mode *mode)
 {
 	struct gma_encoder *encoder = gma_attached_encoder(connector);
 	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
