@@ -24,18 +24,9 @@
 #include "internal.h"
 #include "mount.h"
 
-static DEFINE_IDR(pidfs_ino_idr);
-
-static u32 pidfs_ino_upper_32_bits = 0;
+static struct rb_root pidfs_ino_tree = RB_ROOT;
 
 #if BITS_PER_LONG == 32
-/*
- * On 32 bit systems the lower 32 bits are the inode number and
- * the higher 32 bits are the generation number. The starting
- * value for the inode number and the generation number is one.
- */
-static u32 pidfs_ino_lower_32_bits = 1;
-
 static inline unsigned long pidfs_ino(u64 ino)
 {
 	return lower_32_bits(ino);
@@ -49,52 +40,79 @@ static inline u32 pidfs_gen(u64 ino)
 
 #else
 
-static u32 pidfs_ino_lower_32_bits = 0;
-
 /* On 64 bit simply return ino. */
 static inline unsigned long pidfs_ino(u64 ino)
 {
 	return ino;
 }
 
-/* On 64 bit the generation number is 1. */
+/* On 64 bit the generation number is 0. */
 static inline u32 pidfs_gen(u64 ino)
 {
-	return 1;
+	return 0;
 }
 #endif
 
-/*
- * Construct an inode number for struct pid in a way that we can use the
- * lower 32bit to lookup struct pid independent of any pid numbers that
- * could be leaked into userspace (e.g., via file handle encoding).
- */
-int pidfs_add_pid(struct pid *pid)
+static int pidfs_ino_cmp(struct rb_node *a, const struct rb_node *b)
 {
-	u32 upper;
-	int lower;
+	struct pid *pid_a = rb_entry(a, struct pid, pidfs_node);
+	struct pid *pid_b = rb_entry(b, struct pid, pidfs_node);
+	u64 pid_ino_a = pid_a->ino;
+	u64 pid_ino_b = pid_b->ino;
 
-        /*
-	 * Inode numbering for pidfs start at 2. This avoids collisions
-	 * with the root inode which is 1 for pseudo filesystems.
-         */
-	lower = idr_alloc_cyclic(&pidfs_ino_idr, pid, 2, 0, GFP_ATOMIC);
-	if (lower >= 0 && lower < pidfs_ino_lower_32_bits)
-		pidfs_ino_upper_32_bits++;
-	upper = pidfs_ino_upper_32_bits;
-	pidfs_ino_lower_32_bits = lower;
-	if (lower < 0)
-		return lower;
-
-	pid->ino = ((u64)upper << 32) | lower;
-	pid->stashed = NULL;
+	if (pid_ino_a < pid_ino_b)
+		return -1;
+	if (pid_ino_a > pid_ino_b)
+		return 1;
 	return 0;
 }
 
-/* The idr number to remove is the lower 32 bits of the inode. */
+void pidfs_add_pid(struct pid *pid)
+{
+	static u64 pidfs_ino_nr = 2;
+
+	/*
+	 * On 64 bit nothing special happens. The 64bit number assigned
+	 * to struct pid is the inode number.
+	 *
+	 * On 32 bit the 64 bit number assigned to struct pid is split
+	 * into two 32 bit numbers. The lower 32 bits are used as the
+	 * inode number and the upper 32 bits are used as the inode
+	 * generation number.
+	 *
+	 * On 32 bit pidfs_ino() will return the lower 32 bit. When
+	 * pidfs_ino() returns zero a wrap around happened. When a
+	 * wraparound happens the 64 bit number will be incremented by 2
+	 * so inode numbering starts at 2 again.
+	 *
+	 * On 64 bit comparing two pidfds is as simple as comparing
+	 * inode numbers.
+	 *
+	 * When a wraparound happens on 32 bit multiple pidfds with the
+	 * same inode number are likely to exist (This isn't a problem
+	 * since before pidfs pidfds used the anonymous inode meaning
+	 * all pidfds had the same inode number.). Userspace can
+	 * reconstruct the 64 bit identifier by retrieving both the
+	 * inode number and the inode generation number to compare or
+	 * use file handles.
+	 */
+	if (pidfs_ino(pidfs_ino_nr) == 0)
+		pidfs_ino_nr += 2;
+
+	pid->ino = pidfs_ino_nr;
+	pid->stashed = NULL;
+	pidfs_ino_nr++;
+
+	write_seqcount_begin(&pidmap_lock_seq);
+	rb_find_add_rcu(&pid->pidfs_node, &pidfs_ino_tree, pidfs_ino_cmp);
+	write_seqcount_end(&pidmap_lock_seq);
+}
+
 void pidfs_remove_pid(struct pid *pid)
 {
-	idr_remove(&pidfs_ino_idr, lower_32_bits(pid->ino));
+	write_seqcount_begin(&pidmap_lock_seq);
+	rb_erase(&pid->pidfs_node, &pidfs_ino_tree);
+	write_seqcount_end(&pidmap_lock_seq);
 }
 
 #ifdef CONFIG_PROC_FS
@@ -513,24 +531,37 @@ static int pidfs_encode_fh(struct inode *inode, u32 *fh, int *max_len,
 	return FILEID_KERNFS;
 }
 
+static int pidfs_ino_find(const void *key, const struct rb_node *node)
+{
+	const u64 pid_ino = *(u64 *)key;
+	const struct pid *pid = rb_entry(node, struct pid, pidfs_node);
+
+	if (pid_ino < pid->ino)
+		return -1;
+	if (pid_ino > pid->ino)
+		return 1;
+	return 0;
+}
+
 /* Find a struct pid based on the inode number. */
 static struct pid *pidfs_ino_get_pid(u64 ino)
 {
-	unsigned long pid_ino = pidfs_ino(ino);
-	u32 gen = pidfs_gen(ino);
 	struct pid *pid;
+	struct rb_node *node;
+	unsigned int seq;
 
 	guard(rcu)();
+	do {
+		seq = read_seqcount_begin(&pidmap_lock_seq);
+		node = rb_find_rcu(&ino, &pidfs_ino_tree, pidfs_ino_find);
+		if (node)
+			break;
+	} while (read_seqcount_retry(&pidmap_lock_seq, seq));
 
-	pid = idr_find(&pidfs_ino_idr, lower_32_bits(pid_ino));
-	if (!pid)
+	if (!node)
 		return NULL;
 
-	if (pidfs_ino(pid->ino) != pid_ino)
-		return NULL;
-
-	if (pidfs_gen(pid->ino) != gen)
-		return NULL;
+	pid = rb_entry(node, struct pid, pidfs_node);
 
 	/* Within our pid namespace hierarchy? */
 	if (pid_vnr(pid) == 0)
