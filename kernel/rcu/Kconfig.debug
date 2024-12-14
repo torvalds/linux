@@ -53,6 +53,37 @@ config RCU_TORTURE_TEST
 	  Say M if you want the RCU torture tests to build as a module.
 	  Say N if you are unsure.
 
+config RCU_TORTURE_TEST_CHK_RDR_STATE
+	tristate "Check rcutorture reader state"
+	depends on RCU_TORTURE_TEST
+	default n
+	help
+	  This option causes rcutorture to check the desired rcutorture
+	  reader state for each segment against the actual context.
+	  Note that PREEMPT_COUNT must be enabled if the preempt-disabled
+	  and bh-disabled checks are to take effect, and that PREEMPT_RCU
+	  must be enabled for the RCU-nesting checks to take effect.
+	  These checks add overhead, and this Kconfig options is therefore
+	  disabled by default.
+
+	  Say Y here if you want rcutorture reader contexts checked.
+	  Say N if you are unsure.
+
+config RCU_TORTURE_TEST_LOG_CPU
+	tristate "Log CPU for rcutorture failures"
+	depends on RCU_TORTURE_TEST
+	default n
+	help
+	  This option causes rcutorture to decorate each entry of its
+	  log of failure/close-call rcutorture reader segments with the
+	  number of the CPU that the reader was running on at the time.
+	  This information can be useful, but it does incur additional
+	  overhead, overhead that can make both failures and close calls
+	  less probable.
+
+	  Say Y here if you want CPU IDs logged.
+	  Say N if you are unsure.
+
 config RCU_REF_SCALE_TEST
 	tristate "Scalability tests for read-side synchronization (RCU and others)"
 	depends on DEBUG_KERNEL

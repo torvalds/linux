@@ -738,7 +738,8 @@ EXPORT_SYMBOL_GPL(__srcu_check_read_flavor);
 /*
  * Counts the new reader in the appropriate per-CPU element of the
  * srcu_struct.
- * Returns an index that must be passed to the matching srcu_read_unlock().
+ * Returns a guaranteed non-negative index that must be passed to the
+ * matching __srcu_read_unlock().
  */
 int __srcu_read_lock(struct srcu_struct *ssp)
 {
@@ -1076,7 +1077,6 @@ static void srcu_funnel_gp_start(struct srcu_struct *ssp, struct srcu_data *sdp,
 	/* If grace period not already in progress, start it. */
 	if (!WARN_ON_ONCE(rcu_seq_done(&sup->srcu_gp_seq, s)) &&
 	    rcu_seq_state(sup->srcu_gp_seq) == SRCU_STATE_IDLE) {
-		WARN_ON_ONCE(ULONG_CMP_GE(sup->srcu_gp_seq, sup->srcu_gp_seq_needed));
 		srcu_gp_start(ssp);
 
 		// And how can that list_add() in the "else" clause
