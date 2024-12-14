@@ -37,7 +37,7 @@ int iio_pop_from_buffer(struct iio_buffer *buffer, void *data);
 static inline int iio_push_to_buffers_with_timestamp(struct iio_dev *indio_dev,
 	void *data, int64_t timestamp)
 {
-	if (indio_dev->scan_timestamp) {
+	if (ACCESS_PRIVATE(indio_dev, scan_timestamp)) {
 		size_t ts_offset = indio_dev->scan_bytes / sizeof(int64_t) - 1;
 		((int64_t *)data)[ts_offset] = timestamp;
 	}
