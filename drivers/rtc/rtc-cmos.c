@@ -151,11 +151,6 @@ static inline int hpet_set_periodic_freq(unsigned long freq)
 	return 0;
 }
 
-static inline int hpet_rtc_dropped_irq(void)
-{
-	return 0;
-}
-
 static inline int hpet_rtc_timer_init(void)
 {
 	return 0;
