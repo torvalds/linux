@@ -206,7 +206,7 @@ struct bu27034_data {
 	struct {
 		u32 mlux;
 		__le16 channels[BU27034_NUM_HW_DATA_CHANS];
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} scan;
 };
 
