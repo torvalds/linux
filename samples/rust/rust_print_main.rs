@@ -83,7 +83,7 @@ impl Drop for RustPrint {
 }
 
 mod trace {
-    use core::ffi::c_int;
+    use kernel::ffi::c_int;
 
     kernel::declare_trace! {
         /// # Safety

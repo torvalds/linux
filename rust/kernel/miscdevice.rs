@@ -11,16 +11,12 @@
 use crate::{
     bindings,
     error::{to_result, Error, Result, VTABLE_DEFAULT_ERROR},
+    ffi::{c_int, c_long, c_uint, c_ulong},
     prelude::*,
     str::CStr,
     types::{ForeignOwnable, Opaque},
 };
-use core::{
-    ffi::{c_int, c_long, c_uint, c_ulong},
-    marker::PhantomData,
-    mem::MaybeUninit,
-    pin::Pin,
-};
+use core::{marker::PhantomData, mem::MaybeUninit, pin::Pin};
 
 /// Options for creating a misc device.
 #[derive(Copy, Clone)]
