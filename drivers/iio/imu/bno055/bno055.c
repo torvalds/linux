@@ -207,7 +207,7 @@ struct bno055_priv {
 	bool sw_reset;
 	struct {
 		__le16 chans[BNO055_SCAN_CH_COUNT];
-		s64 timestamp __aligned(8);
+		aligned_s64 timestamp;
 	} buf;
 	struct dentry *debugfs;
 };
