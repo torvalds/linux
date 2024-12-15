@@ -232,12 +232,13 @@ static inline int arm_lpae_max_entries(int i, struct arm_lpae_io_pgtable *data)
  *   c) 42 bits PA size with 4K: use level 1 instead of level 0 (8 tables for ias = oas)
  *   d) 48 bits PA size with 16K: use level 1 instead of level 0 (2 tables for ias = oas)
  */
-static inline bool arm_lpae_concat_mandatory(struct arm_lpae_io_pgtable *data)
+static inline bool arm_lpae_concat_mandatory(struct io_pgtable_cfg *cfg,
+					     struct arm_lpae_io_pgtable *data)
 {
-	unsigned int ias = data->iop.cfg.ias;
-	unsigned int oas = data->iop.cfg.oas;
+	unsigned int ias = cfg->ias;
+	unsigned int oas = cfg->oas;
 
-	/* Covers 1  and 2.d */
+	/* Covers 1 and 2.d */
 	if ((ARM_LPAE_GRANULE(data) == SZ_16K) && (data->start_level == 0))
 		return (oas == 48) || (ias == 48);
 
@@ -1033,7 +1034,7 @@ arm_64_lpae_alloc_pgtable_s2(struct io_pgtable_cfg *cfg, void *cookie)
 	if (!data)
 		return NULL;
 
-	if (arm_lpae_concat_mandatory(data))  {
+	if (arm_lpae_concat_mandatory(cfg, data)) {
 		if (WARN_ON((ARM_LPAE_PGD_SIZE(data) / sizeof(arm_lpae_iopte)) >
 			    ARM_LPAE_S2_MAX_CONCAT_PAGES))
 			return NULL;
