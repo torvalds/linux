@@ -407,7 +407,7 @@ int num_to_str(char *buf, int size, unsigned long long num, unsigned int width)
 	return len + width;
 }
 
-#define SIGN	1		/* unsigned/signed, must be 1 */
+#define SIGN	1		/* unsigned/signed */
 #define LEFT	2		/* left justified */
 #define PLUS	4		/* show plus */
 #define SPACE	8		/* space if plus */
@@ -415,12 +415,15 @@ int num_to_str(char *buf, int size, unsigned long long num, unsigned int width)
 #define SMALL	32		/* use lowercase in hex (must be 32 == 0x20) */
 #define SPECIAL	64		/* prefix hex with "0x", octal with "0" */
 
-static_assert(SIGN == 1);
 static_assert(ZEROPAD == ('0' - ' '));
 static_assert(SMALL == ('a' ^ 'A'));
 
 enum format_type {
 	FORMAT_TYPE_NONE, /* Just a string part */
+	FORMAT_TYPE_1BYTE = 1, /* char/short/int are their own sizes */
+	FORMAT_TYPE_2BYTE = 2,
+	FORMAT_TYPE_8BYTE = 3,
+	FORMAT_TYPE_4BYTE = 4,
 	FORMAT_TYPE_WIDTH,
 	FORMAT_TYPE_PRECISION,
 	FORMAT_TYPE_CHAR,
@@ -428,18 +431,9 @@ enum format_type {
 	FORMAT_TYPE_PTR,
 	FORMAT_TYPE_PERCENT_CHAR,
 	FORMAT_TYPE_INVALID,
-	FORMAT_TYPE_LONG_LONG,
-	FORMAT_TYPE_ULONG,
-	FORMAT_TYPE_LONG,
-	FORMAT_TYPE_UBYTE,
-	FORMAT_TYPE_BYTE,
-	FORMAT_TYPE_USHORT,
-	FORMAT_TYPE_SHORT,
-	FORMAT_TYPE_UINT,
-	FORMAT_TYPE_INT,
-	FORMAT_TYPE_SIZE_T,
-	FORMAT_TYPE_PTRDIFF
 };
+
+#define FORMAT_TYPE_SIZE(type) (sizeof(type) <= 4 ? sizeof(type) : FORMAT_TYPE_8BYTE)
 
 struct printf_spec {
 	unsigned int	type:8;		/* format_type enum */
@@ -2707,23 +2701,19 @@ qualifier:
 	}
 
 	if (qualifier == 'L')
-		spec->type = FORMAT_TYPE_LONG_LONG;
+		spec->type = FORMAT_TYPE_SIZE(long long);
 	else if (qualifier == 'l') {
-		BUILD_BUG_ON(FORMAT_TYPE_ULONG + SIGN != FORMAT_TYPE_LONG);
-		spec->type = FORMAT_TYPE_ULONG + (spec->flags & SIGN);
+		spec->type = FORMAT_TYPE_SIZE(long);
 	} else if (qualifier == 'z') {
-		spec->type = FORMAT_TYPE_SIZE_T;
+		spec->type = FORMAT_TYPE_SIZE(size_t);
 	} else if (qualifier == 't') {
-		spec->type = FORMAT_TYPE_PTRDIFF;
+		spec->type = FORMAT_TYPE_SIZE(ptrdiff_t);
 	} else if (qualifier == 'H') {
-		BUILD_BUG_ON(FORMAT_TYPE_UBYTE + SIGN != FORMAT_TYPE_BYTE);
-		spec->type = FORMAT_TYPE_UBYTE + (spec->flags & SIGN);
+		spec->type = FORMAT_TYPE_SIZE(char);
 	} else if (qualifier == 'h') {
-		BUILD_BUG_ON(FORMAT_TYPE_USHORT + SIGN != FORMAT_TYPE_SHORT);
-		spec->type = FORMAT_TYPE_USHORT + (spec->flags & SIGN);
+		spec->type = FORMAT_TYPE_SIZE(short);
 	} else {
-		BUILD_BUG_ON(FORMAT_TYPE_UINT + SIGN != FORMAT_TYPE_INT);
-		spec->type = FORMAT_TYPE_UINT + (spec->flags & SIGN);
+		spec->type = FORMAT_TYPE_SIZE(int);
 	}
 
 	return ++fmt - start;
@@ -2745,6 +2735,22 @@ set_precision(struct printf_spec *spec, int prec)
 	if (WARN_ONCE(spec->precision != prec, "precision %d too large", prec)) {
 		spec->precision = clamp(prec, 0, PRECISION_MAX);
 	}
+}
+
+/*
+ * Turn a 1/2/4-byte value into a 64-bit one for printing: truncate
+ * as necessary and deal with signedness.
+ *
+ * The 'spec.type' is the size of the value in bytes.
+ */
+static unsigned long long convert_num_spec(unsigned int val, struct printf_spec spec)
+{
+	unsigned int shift = 32 - spec.type*8;
+
+	val <<= shift;
+	if (!(spec.flags & SIGN))
+		return val >> shift;
+	return (int)val >> shift;
 }
 
 /**
@@ -2873,43 +2879,10 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 			goto out;
 
 		default:
-			switch (spec.type) {
-			case FORMAT_TYPE_LONG_LONG:
+			if (spec.type == FORMAT_TYPE_8BYTE)
 				num = va_arg(args, long long);
-				break;
-			case FORMAT_TYPE_ULONG:
-				num = va_arg(args, unsigned long);
-				break;
-			case FORMAT_TYPE_LONG:
-				num = va_arg(args, long);
-				break;
-			case FORMAT_TYPE_SIZE_T:
-				if (spec.flags & SIGN)
-					num = va_arg(args, ssize_t);
-				else
-					num = va_arg(args, size_t);
-				break;
-			case FORMAT_TYPE_PTRDIFF:
-				num = va_arg(args, ptrdiff_t);
-				break;
-			case FORMAT_TYPE_UBYTE:
-				num = (unsigned char) va_arg(args, int);
-				break;
-			case FORMAT_TYPE_BYTE:
-				num = (signed char) va_arg(args, int);
-				break;
-			case FORMAT_TYPE_USHORT:
-				num = (unsigned short) va_arg(args, int);
-				break;
-			case FORMAT_TYPE_SHORT:
-				num = (short) va_arg(args, int);
-				break;
-			case FORMAT_TYPE_INT:
-				num = (int) va_arg(args, int);
-				break;
-			default:
-				num = va_arg(args, unsigned int);
-			}
+			else
+				num = convert_num_spec(va_arg(args, int), spec);
 
 			str = number(str, end, num, spec);
 		}
@@ -3183,26 +3156,13 @@ int vbin_printf(u32 *bin_buf, size_t size, const char *fmt, va_list args)
 
 		default:
 			switch (spec.type) {
-
-			case FORMAT_TYPE_LONG_LONG:
+			case FORMAT_TYPE_8BYTE:
 				save_arg(long long);
 				break;
-			case FORMAT_TYPE_ULONG:
-			case FORMAT_TYPE_LONG:
-				save_arg(unsigned long);
-				break;
-			case FORMAT_TYPE_SIZE_T:
-				save_arg(size_t);
-				break;
-			case FORMAT_TYPE_PTRDIFF:
-				save_arg(ptrdiff_t);
-				break;
-			case FORMAT_TYPE_UBYTE:
-			case FORMAT_TYPE_BYTE:
+			case FORMAT_TYPE_1BYTE:
 				save_arg(char);
 				break;
-			case FORMAT_TYPE_USHORT:
-			case FORMAT_TYPE_SHORT:
+			case FORMAT_TYPE_2BYTE:
 				save_arg(short);
 				break;
 			default:
@@ -3375,37 +3335,17 @@ int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
 			unsigned long long num;
 
 			switch (spec.type) {
-
-			case FORMAT_TYPE_LONG_LONG:
+			case FORMAT_TYPE_8BYTE:
 				num = get_arg(long long);
 				break;
-			case FORMAT_TYPE_ULONG:
-			case FORMAT_TYPE_LONG:
-				num = get_arg(unsigned long);
+			case FORMAT_TYPE_2BYTE:
+				num = convert_num_spec(get_arg(short), spec);
 				break;
-			case FORMAT_TYPE_SIZE_T:
-				num = get_arg(size_t);
-				break;
-			case FORMAT_TYPE_PTRDIFF:
-				num = get_arg(ptrdiff_t);
-				break;
-			case FORMAT_TYPE_UBYTE:
-				num = get_arg(unsigned char);
-				break;
-			case FORMAT_TYPE_BYTE:
-				num = get_arg(signed char);
-				break;
-			case FORMAT_TYPE_USHORT:
-				num = get_arg(unsigned short);
-				break;
-			case FORMAT_TYPE_SHORT:
-				num = get_arg(short);
-				break;
-			case FORMAT_TYPE_UINT:
-				num = get_arg(unsigned int);
+			case FORMAT_TYPE_1BYTE:
+				num = convert_num_spec(get_arg(char), spec);
 				break;
 			default:
-				num = get_arg(int);
+				num = convert_num_spec(get_arg(int), spec);
 			}
 
 			str = number(str, end, num, spec);
