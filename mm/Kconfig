@@ -881,6 +881,20 @@ config READ_ONLY_THP_FOR_FS
 	  support of file THPs will be developed in the next few release
 	  cycles.
 
+config MAX_MULTI_THP_ORDER
+    int "Maximum allowed mTHP order"
+    range 2 ARCH_FORCE_MAX_ORDER
+    default 13
+    help
+      Specify the max order used for mTHP (PTE & PMD-mapped). This value
+      determines mTHP allowable allocation size which will be any
+      order <= MAX_MULTI_THP_ORDER.
+
+      This value can not go beyond ARCH_FORCE_MAX_ORDER. First change
+      the ARCH_FORCE_MAX_ORDER to any allowable values to increase
+      the range. Beware that ARCH_FORCE_MAX_ORDER highly depends on
+      architecture and page_size, So the range of PMD_MTHP_MAX_ORDER
+
 endif # TRANSPARENT_HUGEPAGE
 
 #
