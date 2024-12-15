@@ -30,7 +30,7 @@ static struct cbmem_entry *to_cbmem_entry(struct kobject *kobj)
 }
 
 static ssize_t mem_read(struct file *filp, struct kobject *kobj,
-			struct bin_attribute *bin_attr, char *buf, loff_t pos,
+			const struct bin_attribute *bin_attr, char *buf, loff_t pos,
 			size_t count)
 {
 	struct cbmem_entry *entry = to_cbmem_entry(kobj);
@@ -40,7 +40,7 @@ static ssize_t mem_read(struct file *filp, struct kobject *kobj,
 }
 
 static ssize_t mem_write(struct file *filp, struct kobject *kobj,
-			 struct bin_attribute *bin_attr, char *buf, loff_t pos,
+			 const struct bin_attribute *bin_attr, char *buf, loff_t pos,
 			 size_t count)
 {
 	struct cbmem_entry *entry = to_cbmem_entry(kobj);
@@ -53,7 +53,7 @@ static ssize_t mem_write(struct file *filp, struct kobject *kobj,
 	memcpy(entry->mem_file_buf + pos, buf, count);
 	return count;
 }
-static BIN_ATTR_ADMIN_RW(mem, 0);
+static const BIN_ATTR_ADMIN_RW(mem, 0);
 
 static ssize_t address_show(struct device *dev, struct device_attribute *attr,
 			    char *buf)
@@ -79,14 +79,14 @@ static struct attribute *attrs[] = {
 	NULL,
 };
 
-static struct bin_attribute *bin_attrs[] = {
+static const struct bin_attribute *const bin_attrs[] = {
 	&bin_attr_mem,
 	NULL,
 };
 
 static const struct attribute_group cbmem_entry_group = {
 	.attrs = attrs,
-	.bin_attrs = bin_attrs,
+	.bin_attrs_new = bin_attrs,
 };
 
 static const struct attribute_group *dev_groups[] = {
