@@ -3032,7 +3032,7 @@ void bch2_trans_iter_init_outlined(struct btree_trans *trans,
 			  unsigned flags)
 {
 	bch2_trans_iter_init_common(trans, iter, btree_id, pos, 0, 0,
-			       bch2_btree_iter_flags(trans, btree_id, flags),
+			       bch2_btree_iter_flags(trans, btree_id, 0, flags),
 			       _RET_IP_);
 }
 
@@ -3048,8 +3048,11 @@ void bch2_trans_node_iter_init(struct btree_trans *trans,
 	flags |= BTREE_ITER_snapshot_field;
 	flags |= BTREE_ITER_all_snapshots;
 
+	if (!depth && btree_id_cached(trans->c, btree_id))
+		flags |= BTREE_ITER_with_key_cache;
+
 	bch2_trans_iter_init_common(trans, iter, btree_id, pos, locks_want, depth,
-			       __bch2_btree_iter_flags(trans, btree_id, flags),
+			       bch2_btree_iter_flags(trans, btree_id, depth, flags),
 			       _RET_IP_);
 
 	iter->min_depth	= depth;

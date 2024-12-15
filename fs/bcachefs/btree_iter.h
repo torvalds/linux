@@ -446,10 +446,17 @@ static inline void bch2_btree_iter_set_snapshot(struct btree_iter *iter, u32 sna
 
 void bch2_trans_iter_exit(struct btree_trans *, struct btree_iter *);
 
-static inline unsigned __bch2_btree_iter_flags(struct btree_trans *trans,
-					       unsigned btree_id,
-					       unsigned flags)
+static inline unsigned bch2_btree_iter_flags(struct btree_trans *trans,
+					     unsigned btree_id,
+					     unsigned level,
+					     unsigned flags)
 {
+	if (level || !btree_id_cached(trans->c, btree_id)) {
+		flags &= ~BTREE_ITER_cached;
+		flags &= ~BTREE_ITER_with_key_cache;
+	} else if (!(flags & BTREE_ITER_cached))
+		flags |= BTREE_ITER_with_key_cache;
+
 	if (!(flags & (BTREE_ITER_all_snapshots|BTREE_ITER_not_extents)) &&
 	    btree_id_is_extents(btree_id))
 		flags |= BTREE_ITER_is_extents;
@@ -466,19 +473,6 @@ static inline unsigned __bch2_btree_iter_flags(struct btree_trans *trans,
 		flags |= BTREE_ITER_with_journal;
 
 	return flags;
-}
-
-static inline unsigned bch2_btree_iter_flags(struct btree_trans *trans,
-					     unsigned btree_id,
-					     unsigned flags)
-{
-	if (!btree_id_cached(trans->c, btree_id)) {
-		flags &= ~BTREE_ITER_cached;
-		flags &= ~BTREE_ITER_with_key_cache;
-	} else if (!(flags & BTREE_ITER_cached))
-		flags |= BTREE_ITER_with_key_cache;
-
-	return __bch2_btree_iter_flags(trans, btree_id, flags);
 }
 
 static inline void bch2_trans_iter_init_common(struct btree_trans *trans,
@@ -517,7 +511,7 @@ static inline void bch2_trans_iter_init(struct btree_trans *trans,
 	if (__builtin_constant_p(btree_id) &&
 	    __builtin_constant_p(flags))
 		bch2_trans_iter_init_common(trans, iter, btree_id, pos, 0, 0,
-				bch2_btree_iter_flags(trans, btree_id, flags),
+				bch2_btree_iter_flags(trans, btree_id, 0, flags),
 				_THIS_IP_);
 	else
 		bch2_trans_iter_init_outlined(trans, iter, btree_id, pos, flags);
