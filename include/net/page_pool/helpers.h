@@ -306,7 +306,7 @@ static inline void page_pool_ref_page(struct page *page)
 	page_pool_ref_netmem(page_to_netmem(page));
 }
 
-static inline bool page_pool_is_last_ref(netmem_ref netmem)
+static inline bool page_pool_unref_and_test(netmem_ref netmem)
 {
 	/* If page_pool_unref_page() returns 0, we were the last user */
 	return page_pool_unref_netmem(netmem, 1) == 0;
@@ -321,7 +321,7 @@ static inline void page_pool_put_netmem(struct page_pool *pool,
 	 * allow registering MEM_TYPE_PAGE_POOL, but shield linker.
 	 */
 #ifdef CONFIG_PAGE_POOL
-	if (!page_pool_is_last_ref(netmem))
+	if (!page_pool_unref_and_test(netmem))
 		return;
 
 	page_pool_put_unrefed_netmem(pool, netmem, dma_sync_size, allow_direct);

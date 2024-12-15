@@ -897,7 +897,7 @@ void page_pool_put_netmem_bulk(netmem_ref *data, u32 count)
 	for (u32 i = 0; i < count; i++) {
 		netmem_ref netmem = netmem_compound_head(data[i]);
 
-		if (page_pool_is_last_ref(netmem))
+		if (page_pool_unref_and_test(netmem))
 			data[bulk_len++] = netmem;
 	}
 
