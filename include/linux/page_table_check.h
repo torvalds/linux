@@ -20,6 +20,8 @@ void __page_table_check_pud_clear(struct mm_struct *mm, pud_t pud);
 void __page_table_check_ptes_set(struct mm_struct *mm, pte_t *ptep, pte_t pte,
 		unsigned int nr);
 void __page_table_check_pmd_set(struct mm_struct *mm, pmd_t *pmdp, pmd_t pmd);
+void __page_table_check_pmds_set(struct mm_struct *mm, pmd_t *pmdp, pmd_t pmd,
+				 unsigned int nr_pmds);
 void __page_table_check_pud_set(struct mm_struct *mm, pud_t *pudp, pud_t pud);
 void __page_table_check_pte_clear_range(struct mm_struct *mm,
 					unsigned long addr,
@@ -83,6 +85,15 @@ static inline void page_table_check_pmd_set(struct mm_struct *mm, pmd_t *pmdp,
 	__page_table_check_pmd_set(mm, pmdp, pmd);
 }
 
+static inline void page_table_check_pmds_set(struct mm_struct *mm, pmd_t *pmdp,
+					     pmd_t pmd, unsigned int nr_pmds)
+{
+	if (static_branch_likely(&page_table_check_disabled))
+		return;
+
+	__page_table_check_pmds_set(mm, pmdp, pmd, nr_pmds);
+}
+
 static inline void page_table_check_pud_set(struct mm_struct *mm, pud_t *pudp,
 					    pud_t pud)
 {
@@ -131,6 +142,11 @@ static inline void page_table_check_ptes_set(struct mm_struct *mm,
 
 static inline void page_table_check_pmd_set(struct mm_struct *mm, pmd_t *pmdp,
 					    pmd_t pmd)
+{
+}
+
+static inline void page_table_check_pmds_set(struct mm_struct *mm, pmd_t *pmdp,
+					    pmd_t pmd, unsigned int nr_pmds)
 {
 }
 

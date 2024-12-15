@@ -234,22 +234,31 @@ static inline void page_table_check_pmd_flags(pmd_t pmd)
 		WARN_ON_ONCE(swap_cached_writable(pmd_to_swp_entry(pmd)));
 }
 
-void __page_table_check_pmd_set(struct mm_struct *mm, pmd_t *pmdp, pmd_t pmd)
+void __page_table_check_pmds_set(struct mm_struct *mm, pmd_t *pmdp, pmd_t pmd,
+				 unsigned int nr_pmds)
 {
+	int i;
 	if (&init_mm == mm)
 		return;
 
 	page_table_check_pmd_flags(pmd);
 
-	__page_table_check_pmd_clear(mm, *pmdp);
+	for (i = 0; i < nr_pmds; i++)
+		__page_table_check_pmd_clear(mm, pmdp_get(pmdp + i));
 	if (pmd_user_accessible_page(pmd)) {
-		page_table_check_set(pmd_pfn(pmd), PMD_SIZE >> PAGE_SHIFT,
+		page_table_check_set(pmd_pfn(pmd), (nr_pmds * PMD_SIZE) >> PAGE_SHIFT,
 				     pmd_write(pmd));
 	}
 }
+
+void __page_table_check_pmd_set(struct mm_struct *mm, pmd_t *pmdp, pmd_t pmd)
+{
+	__page_table_check_pmds_set(mm, pmdp, pmd, 1);
+}
 EXPORT_SYMBOL(__page_table_check_pmd_set);
 
-void __page_table_check_pud_set(struct mm_struct *mm, pud_t *pudp, pud_t pud)
+void __page_table_check_pud_set(struct mm_struct *mm, pud_t *pudp,
+					pud_t pud)
 {
 	if (&init_mm == mm)
 		return;
