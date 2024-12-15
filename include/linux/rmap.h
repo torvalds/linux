@@ -225,7 +225,6 @@ static inline void __folio_rmap_sanity_checks(const struct folio *folio,
 		 * when RMAP_LEVEL_PMD is set, we assume that we are creating
 		 * a single "entire" mapping of the folio.
 		 */
-		VM_WARN_ON_FOLIO(folio_nr_pages(folio) != HPAGE_PMD_NR, folio);
 		VM_WARN_ON_FOLIO(nr_pages != HPAGE_PMD_NR, folio);
 		break;
 	default:

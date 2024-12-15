@@ -1344,9 +1344,7 @@ static __always_inline void __folio_add_anon_rmap(struct folio *folio,
 		struct page *cur_page = page + i;
 
 		/* While PTE-mapping a THP we have a PMD and a PTE mapping. */
-		VM_WARN_ON_FOLIO((atomic_read(&cur_page->_mapcount) > 0 ||
-				  (folio_test_large(folio) &&
-				   folio_entire_mapcount(folio) > 1)) &&
+		VM_WARN_ON_FOLIO((atomic_read(&cur_page->_mapcount) > 0) &&
 				 PageAnonExclusive(cur_page), folio);
 	}
 
@@ -1465,9 +1463,9 @@ void folio_add_new_anon_rmap(struct folio *folio, struct vm_area_struct *vma,
 		atomic_set(&folio->_nr_pages_mapped, nr);
 	} else {
 		/* increment count (starts at -1) */
-		atomic_set(&folio->_entire_mapcount, 0);
+		atomic_set(&folio->_entire_mapcount, (nr >> HPAGE_PMD_ORDER) - 1);
 		/* increment count (starts at -1) */
-		atomic_set(&folio->_large_mapcount, 0);
+		atomic_set(&folio->_large_mapcount, (nr >> HPAGE_PMD_ORDER) - 1);
 		atomic_set(&folio->_nr_pages_mapped, ENTIRELY_MAPPED);
 		if (exclusive)
 			SetPageAnonExclusive(&folio->page);
