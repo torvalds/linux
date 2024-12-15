@@ -710,23 +710,6 @@ static int __hwspin_lock_request(struct hwspinlock *hwlock)
 }
 
 /**
- * hwspin_lock_get_id() - retrieve id number of a given hwspinlock
- * @hwlock: a valid hwspinlock instance
- *
- * Returns: the id number of a given @hwlock, or -EINVAL if @hwlock is invalid.
- */
-int hwspin_lock_get_id(struct hwspinlock *hwlock)
-{
-	if (!hwlock) {
-		pr_err("invalid hwlock\n");
-		return -EINVAL;
-	}
-
-	return hwlock_to_id(hwlock);
-}
-EXPORT_SYMBOL_GPL(hwspin_lock_get_id);
-
-/**
  * hwspin_lock_request_specific() - request for a specific hwspinlock
  * @id: index of the specific hwspinlock that is requested
  *

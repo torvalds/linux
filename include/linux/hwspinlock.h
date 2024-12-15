@@ -61,7 +61,6 @@ int hwspin_lock_unregister(struct hwspinlock_device *bank);
 struct hwspinlock *hwspin_lock_request_specific(unsigned int id);
 int hwspin_lock_free(struct hwspinlock *hwlock);
 int of_hwspin_lock_get_id(struct device_node *np, int index);
-int hwspin_lock_get_id(struct hwspinlock *hwlock);
 int __hwspin_lock_timeout(struct hwspinlock *, unsigned int, int,
 							unsigned long *);
 int __hwspin_trylock(struct hwspinlock *, int, unsigned long *);
@@ -127,11 +126,6 @@ static inline int hwspin_lock_bust(struct hwspinlock *hwlock, unsigned int id)
 }
 
 static inline int of_hwspin_lock_get_id(struct device_node *np, int index)
-{
-	return 0;
-}
-
-static inline int hwspin_lock_get_id(struct hwspinlock *hwlock)
 {
 	return 0;
 }

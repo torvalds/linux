@@ -301,17 +301,6 @@ The caller should **never** unlock an hwspinlock which is already unlocked.
 Doing so is considered a bug (there is no protection against this).
 This function will never sleep.
 
-::
-
-  int hwspin_lock_get_id(struct hwspinlock *hwlock);
-
-Retrieve id number of a given hwspinlock. This is needed when an
-hwspinlock is dynamically assigned: before it can be used to achieve
-mutual exclusion with a remote cpu, the id number should be communicated
-to the remote task with which we want to synchronize.
-
-Returns the hwspinlock id number, or -EINVAL if hwlock is null.
-
 Typical usage
 =============
 
