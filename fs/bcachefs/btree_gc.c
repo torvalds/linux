@@ -733,16 +733,8 @@ static int bch2_gc_btrees(struct bch_fs *c)
 			continue;
 
 		ret = bch2_gc_btree(trans, btree, true);
-
-		if (mustfix_fsck_err_on(bch2_err_matches(ret, EIO),
-					trans, btree_node_read_error,
-			       "btree node read error for %s",
-			       (printbuf_reset(&buf),
-				bch2_btree_id_to_text(&buf, btree),
-				buf.buf)))
-			ret = bch2_btree_lost_data(c, btree);
 	}
-fsck_err:
+
 	printbuf_exit(&buf);
 	bch2_trans_put(trans);
 	bch_err_fn(c, ret);
