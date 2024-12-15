@@ -1627,7 +1627,7 @@ config ARCH_FORCE_MAX_ORDER
 	int
 	default "13" if ARM64_64K_PAGES
 	default "11" if ARM64_16K_PAGES
-	default "10"
+	default "15"
 	help
 	  The kernel page allocator limits the size of maximal physically
 	  contiguous allocations. The limit is called MAX_PAGE_ORDER and it
