@@ -625,15 +625,6 @@ do_io:
 		BUG_ON(!bio_add_folio(&w->io->op.wbio.bio, folio,
 				     sectors << 9, offset << 9));
 
-		/* Check for writing past i_size: */
-		WARN_ONCE((bio_end_sector(&w->io->op.wbio.bio) << 9) >
-			  round_up(i_size, block_bytes(c)) &&
-			  !test_bit(BCH_FS_emergency_ro, &c->flags),
-			  "writing past i_size: %llu > %llu (unrounded %llu)\n",
-			  bio_end_sector(&w->io->op.wbio.bio) << 9,
-			  round_up(i_size, block_bytes(c)),
-			  i_size);
-
 		w->io->op.res.sectors += reserved_sectors;
 		w->io->op.i_sectors_delta -= dirty_sectors;
 		w->io->op.new_i_size = i_size;
