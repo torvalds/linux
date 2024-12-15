@@ -939,7 +939,7 @@ MODULE_DEVICE_TABLE(acpi, mlxbf_bootctl_acpi_ids);
 
 static ssize_t mlxbf_bootctl_bootfifo_read(struct file *filp,
 					   struct kobject *kobj,
-					   struct bin_attribute *bin_attr,
+					   const struct bin_attribute *bin_attr,
 					   char *buf, loff_t pos,
 					   size_t count)
 {
@@ -971,9 +971,9 @@ static ssize_t mlxbf_bootctl_bootfifo_read(struct file *filp,
 	return p - buf;
 }
 
-static struct bin_attribute mlxbf_bootctl_bootfifo_sysfs_attr = {
+static const struct bin_attribute mlxbf_bootctl_bootfifo_sysfs_attr = {
 	.attr = { .name = "bootfifo", .mode = 0400 },
-	.read = mlxbf_bootctl_bootfifo_read,
+	.read_new = mlxbf_bootctl_bootfifo_read,
 };
 
 static bool mlxbf_bootctl_guid_match(const guid_t *guid,
