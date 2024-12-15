@@ -8,7 +8,6 @@
 
 #include <linux/platform_device.h>
 
-#include "dp_panel.h"
 #include "dp_catalog.h"
 #include <sound/hdmi-codec.h>
 
@@ -28,14 +27,12 @@ struct msm_dp_audio {
  * Creates and instance of dp audio.
  *
  * @pdev: caller's platform device instance.
- * @panel: an instance of msm_dp_panel module.
  * @catalog: an instance of msm_dp_catalog module.
  *
  * Returns the error code in case of failure, otherwize
  * an instance of newly created msm_dp_module.
  */
 struct msm_dp_audio *msm_dp_audio_get(struct platform_device *pdev,
-			struct msm_dp_panel *panel,
 			struct msm_dp_catalog *catalog);
 
 /**
