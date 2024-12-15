@@ -448,7 +448,7 @@ static irqreturn_t ads1015_trigger_handler(int irq, void *p)
 	/* Ensure natural alignment of timestamp */
 	struct {
 		s16 chan;
-		s64 timestamp __aligned(8);
+		aligned_s64 timestamp;
 	} scan;
 	int chan, ret, res;
 

@@ -173,7 +173,7 @@ struct vf610_adc {
 	/* Ensure the timestamp is naturally aligned */
 	struct {
 		u16 chan;
-		s64 timestamp __aligned(8);
+		aligned_s64 timestamp;
 	} scan;
 };
 

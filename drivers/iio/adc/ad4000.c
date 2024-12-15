@@ -414,7 +414,7 @@ struct ad4000_state {
 			__be16 sample_buf16;
 			__be32 sample_buf32;
 		} data;
-		s64 timestamp __aligned(8);
+		aligned_s64 timestamp;
 	} scan __aligned(IIO_DMA_MINALIGN);
 	u8 tx_buf[2];
 	u8 rx_buf[2];

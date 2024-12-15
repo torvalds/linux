@@ -209,7 +209,7 @@ struct pac1921_priv {
 
 	struct {
 		u16 chan[PAC1921_NUM_MEAS_CHANS];
-		s64 timestamp __aligned(8);
+		aligned_s64 timestamp;
 	} scan;
 };
 

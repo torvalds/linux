@@ -122,7 +122,7 @@ struct mcp3911 {
 	const struct mcp3911_chip_info *chip;
 	struct {
 		u32 channels[MCP39XX_MAX_NUM_CHANNELS];
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} scan;
 
 	u8 tx_buf __aligned(IIO_DMA_MINALIGN);
