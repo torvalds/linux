@@ -79,14 +79,15 @@ where
    * - link_freq
      - The value of the ``V4L2_CID_LINK_FREQ`` integer64 menu item.
    * - nr_of_lanes
-     - Number of data lanes used on the CSI-2 link. This can
-       be obtained from the OF endpoint configuration.
+     - Number of data lanes used on the CSI-2 link.
    * - 2
      - Data is transferred on both rising and falling edge of the signal.
    * - bits_per_sample
      - Number of bits per sample.
    * - k
-     - 16 for D-PHY and 7 for C-PHY
+     - 16 for D-PHY and 7 for C-PHY.
+
+Information on whether D-PHY or C-PHY is used, and the value of ``nr_of_lanes``, can be obtained from the OF endpoint configuration.
 
 .. note::
 
