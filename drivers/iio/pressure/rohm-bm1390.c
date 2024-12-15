@@ -139,7 +139,7 @@ enum {
 struct bm1390_data_buf {
 	u32 pressure;
 	__be16 temp;
-	s64 ts __aligned(8);
+	aligned_s64 ts;
 };
 
 /* BM1390 has FIFO for 4 pressure samples */
