@@ -58,6 +58,10 @@
 # include "test-libelf-getshdrstrndx.c"
 #undef main
 
+#define main main_test_libelf_zstd
+# include "test-libelf-zstd.c"
+#undef main
+
 #define main main_test_libslang
 # include "test-libslang.c"
 #undef main

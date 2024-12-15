@@ -77,6 +77,7 @@ FEATURE_TESTS_BASIC :=                  \
         libelf-getphdrnum               \
         libelf-gelf_getnote             \
         libelf-getshdrstrndx            \
+        libelf-zstd                     \
         libnuma                         \
         numa_num_possible_cpus          \
         libperl                         \
