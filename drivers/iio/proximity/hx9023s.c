@@ -146,7 +146,7 @@ struct hx9023s_data {
 
 	struct {
 		__le16 channels[HX9023S_CH_NUM];
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} buffer;
 
 	/*
