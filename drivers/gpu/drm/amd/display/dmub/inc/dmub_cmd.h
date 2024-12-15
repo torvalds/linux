@@ -436,8 +436,13 @@ union replay_debug_flags {
 		 * @enable_coasting_vtotal_check: Enable Coasting_vtotal_check
 		 */
 		uint32_t enable_coasting_vtotal_check : 1;
+		/**
+		 * 0x2000 (bit 13)
+		 * @enable_visual_confirm_debug: Enable Visual Confirm Debug
+		 */
+		uint32_t enable_visual_confirm_debug : 1;
 
-		uint32_t reserved : 19;
+		uint32_t reserved : 18;
 	} bitfields;
 
 	uint32_t u32All;
@@ -446,7 +451,7 @@ union replay_debug_flags {
 /**
  * Flags record error state.
  */
-union replay_error_state_flags {
+union replay_visual_confirm_error_state_flags {
 	struct {
 		/**
 		 * 0x1 (bit 0) - Desync Error flag.
@@ -483,15 +488,11 @@ union replay_error_state_flags {
 		 * Reserved bit 6-7
 		 */
 		uint32_t reserved_6_7 : 2;
-		/**
-		 * 0x100 (bit 8) - DQE Only.
-		 */
-		uint32_t pass_low_hz : 1;
 
 		/**
 		 * Reserved bit 9-31
 		 */
-		uint32_t reserved_9_31 : 23;
+		uint32_t reserved_9_31 : 24;
 	} bitfields;
 
 	uint32_t u32All;
