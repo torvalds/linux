@@ -441,6 +441,44 @@ static const struct snd_soc_acpi_adr_device cs42l43_0_adr[] = {
 	}
 };
 
+/* CS42L43 - speaker DAI aggregated with 4 amps */
+static const struct snd_soc_acpi_endpoint cs42l43_4amp_spkagg_endpoints[] = {
+	{ /* Jack Playback Endpoint */
+		.num = 0,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+	{ /* DMIC Capture Endpoint */
+		.num = 1,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+	{ /* Jack Capture Endpoint */
+		.num = 2,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+	{ /* Speaker Playback Endpoint */
+		.num = 3,
+		.aggregated = 1,
+		.group_position = 4,
+		.group_id = 1,
+	},
+};
+
+/* CS42L43 on link3 aggregated with 4 amps */
+static const struct snd_soc_acpi_adr_device cs42l43_l3_4amp_spkagg_adr[] = {
+	{
+		.adr = 0x00033001FA424301ull,
+		.num_endpoints = ARRAY_SIZE(cs42l43_4amp_spkagg_endpoints),
+		.endpoints = cs42l43_4amp_spkagg_endpoints,
+		.name_prefix = "cs42l43"
+	}
+};
+
 static const struct snd_soc_acpi_endpoint cs35l56_l_fb_endpoints[] = {
 	{ /* Speaker Playback Endpoint */
 		.num = 0,
@@ -499,6 +537,21 @@ static const struct snd_soc_acpi_endpoint cs35l56_3_fb_endpoints[] = {
 		.group_position = 3,
 		.group_id = 2,
 	},
+};
+
+static const struct snd_soc_acpi_adr_device cs35l56_0_adr[] = {
+	{
+		.adr = 0x00003301FA355601ull,
+		.num_endpoints = 1,
+		.endpoints = &spk_l_endpoint,
+		.name_prefix = "AMP1"
+	},
+	{
+		.adr = 0x00003201FA355601ull,
+		.num_endpoints = 1,
+		.endpoints = &spk_2_endpoint,
+		.name_prefix = "AMP2"
+	}
 };
 
 static const struct snd_soc_acpi_adr_device cs35l56_1_adr[] = {
@@ -825,6 +878,26 @@ static const struct snd_soc_acpi_link_adr cs42l43_link0_cs35l56_link2_link3[] = 
 	{}
 };
 
+static const struct snd_soc_acpi_link_adr cs42l43_link3_cs35l56_x4_link0_link1_spkagg[] = {
+	/* Expected order: jack -> amp */
+	{
+		.mask = BIT(3),
+		.num_adr = ARRAY_SIZE(cs42l43_l3_4amp_spkagg_adr),
+		.adr_d = cs42l43_l3_4amp_spkagg_adr,
+	},
+	{
+		.mask = BIT(1),
+		.num_adr = 2,
+		.adr_d = cs35l56_1_adr,
+	},
+	{
+		.mask = BIT(0),
+		.num_adr = 2,
+		.adr_d = cs35l56_0_adr,
+	},
+	{}
+};
+
 /* this table is used when there is no I2S codec present */
 struct snd_soc_acpi_mach snd_soc_acpi_intel_mtl_sdw_machines[] = {
 	/* mockup tests need to be first */
@@ -900,6 +973,12 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_mtl_sdw_machines[] = {
 		.links = cs42l43_link0_cs35l56_link2_link3,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-mtl-cs42l43-l0-cs35l56-l23.tplg",
+	},
+	{
+		.link_mask = BIT(0) | BIT(1) | BIT(3),
+		.links = cs42l43_link3_cs35l56_x4_link0_link1_spkagg,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-mtl-cs42l43-l3-cs35l56-l01-spkagg.tplg",
 	},
 	{
 		.link_mask = GENMASK(2, 0),
