@@ -732,6 +732,8 @@ enum rswitch_etha_mode {
 #define MPIC_LSC_100M		1
 #define MPIC_LSC_1G		2
 #define MPIC_LSC_2_5G		3
+#define MPIC_PSMCS		GENMASK(22, 16)
+#define MPIC_PSMHT		GENMASK(26, 24)
 
 #define MDIO_READ_C45		0x03
 #define MDIO_WRITE_C45		0x01
@@ -746,14 +748,6 @@ enum rswitch_etha_mode {
 #define MMIS1_PWACS             BIT(1) /* Write */
 #define MMIS1_PRACS             BIT(0) /* Read */
 #define MMIS1_CLEAR_FLAGS       0xf
-
-#define MPIC_PSMCS_SHIFT	16
-#define MPIC_PSMCS_MASK		GENMASK(22, MPIC_PSMCS_SHIFT)
-#define MPIC_PSMCS(val)		((val) << MPIC_PSMCS_SHIFT)
-
-#define MPIC_PSMHT_SHIFT	24
-#define MPIC_PSMHT_MASK		GENMASK(26, MPIC_PSMHT_SHIFT)
-#define MPIC_PSMHT(val)		((val) << MPIC_PSMHT_SHIFT)
 
 #define MLVC_PLV		BIT(16)
 
