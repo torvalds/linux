@@ -190,7 +190,7 @@ static struct quirk_entry quirk_asm201 = {
 };
 
 static struct quirk_entry quirk_g_series = {
-	.num_zones = 2,
+	.num_zones = 0,
 	.hdmi_mux = 0,
 	.amplifier = 0,
 	.deepslp = 0,
@@ -199,7 +199,7 @@ static struct quirk_entry quirk_g_series = {
 };
 
 static struct quirk_entry quirk_x_series = {
-	.num_zones = 2,
+	.num_zones = 0,
 	.hdmi_mux = 0,
 	.amplifier = 0,
 	.deepslp = 0,
@@ -240,6 +240,15 @@ static const struct dmi_system_id alienware_quirks[] __initconst = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "ASM201"),
 		},
 		.driver_data = &quirk_asm201,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Alienware m16 R1 AMD",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Alienware"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Alienware m16 R1 AMD"),
+		},
+		.driver_data = &quirk_x_series,
 	},
 	{
 		.callback = dmi_matched,
@@ -686,6 +695,9 @@ static int alienware_zone_init(struct platform_device *dev)
 static void alienware_zone_exit(struct platform_device *dev)
 {
 	u8 zone;
+
+	if (!quirks->num_zones)
+		return;
 
 	sysfs_remove_group(&dev->dev.kobj, &zone_attribute_group);
 	led_classdev_unregister(&global_led);
@@ -1229,9 +1241,11 @@ static int __init alienware_wmi_init(void)
 			goto fail_prep_thermal_profile;
 	}
 
-	ret = alienware_zone_init(platform_device);
-	if (ret)
-		goto fail_prep_zones;
+	if (quirks->num_zones > 0) {
+		ret = alienware_zone_init(platform_device);
+		if (ret)
+			goto fail_prep_zones;
+	}
 
 	return 0;
 
