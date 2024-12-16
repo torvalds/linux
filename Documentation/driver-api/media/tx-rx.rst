@@ -50,7 +50,7 @@ The :ref:`V4L2_CID_LINK_FREQ <v4l2-cid-link-freq>` control is used to tell the
 receiver the frequency of the bus (i.e. it is not the same as the symbol rate).
 
 ``.enable_streams()`` and ``.disable_streams()`` callbacks
-^^^^^^^^^^^^^^^^^^^^^^^^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The struct v4l2_subdev_pad_ops->enable_streams() and struct
 v4l2_subdev_pad_ops->disable_streams() callbacks are used by the receiver driver
