@@ -452,27 +452,25 @@ EXPORT_SYMBOL(netfs_read_subreq_progress);
 /**
  * netfs_read_subreq_terminated - Note the termination of an I/O operation.
  * @subreq: The I/O request that has terminated.
- * @error: Error code indicating type of completion.
- * @was_async: The termination was asynchronous
+ * @was_async: True if we're in an asynchronous context.
  *
  * This tells the read helper that a contributory I/O operation has terminated,
  * one way or another, and that it should integrate the results.
  *
- * The caller indicates the outcome of the operation through @error, supplying
- * 0 to indicate a successful or retryable transfer (if NETFS_SREQ_NEED_RETRY
- * is set) or a negative error code.  The helper will look after reissuing I/O
- * operations as appropriate and writing downloaded data to the cache.
+ * The caller indicates the outcome of the operation through @subreq->error,
+ * supplying 0 to indicate a successful or retryable transfer (if
+ * NETFS_SREQ_NEED_RETRY is set) or a negative error code.  The helper will
+ * look after reissuing I/O operations as appropriate and writing downloaded
+ * data to the cache.
  *
  * Before calling, the filesystem should update subreq->transferred to track
  * the amount of data copied into the output buffer.
- *
- * If @was_async is true, the caller might be running in softirq or interrupt
- * context and we can't sleep.
  */
-void netfs_read_subreq_terminated(struct netfs_io_subrequest *subreq,
-				  int error, bool was_async)
+void netfs_read_subreq_terminated(struct netfs_io_subrequest *subreq, bool was_async)
 {
 	struct netfs_io_request *rreq = subreq->rreq;
+
+	might_sleep();
 
 	switch (subreq->source) {
 	case NETFS_READ_FROM_CACHE:
@@ -491,7 +489,7 @@ void netfs_read_subreq_terminated(struct netfs_io_subrequest *subreq,
 		 * If the read completed validly short, then we can clear the
 		 * tail before going on to unlock the folios.
 		 */
-		if (error == 0 && subreq->transferred < subreq->len &&
+		if (subreq->error == 0 && subreq->transferred < subreq->len &&
 		    (test_bit(NETFS_SREQ_HIT_EOF, &subreq->flags) ||
 		     test_bit(NETFS_SREQ_CLEAR_TAIL, &subreq->flags))) {
 			netfs_clear_unread(subreq);
@@ -511,7 +509,7 @@ void netfs_read_subreq_terminated(struct netfs_io_subrequest *subreq,
 	/* Deal with retry requests, short reads and errors.  If we retry
 	 * but don't make progress, we abandon the attempt.
 	 */
-	if (!error && subreq->transferred < subreq->len) {
+	if (!subreq->error && subreq->transferred < subreq->len) {
 		if (test_bit(NETFS_SREQ_HIT_EOF, &subreq->flags)) {
 			trace_netfs_sreq(subreq, netfs_sreq_trace_hit_eof);
 		} else {
@@ -528,16 +526,15 @@ void netfs_read_subreq_terminated(struct netfs_io_subrequest *subreq,
 				set_bit(NETFS_RREQ_NEED_RETRY, &rreq->flags);
 			} else {
 				__set_bit(NETFS_SREQ_FAILED, &subreq->flags);
-				error = -ENODATA;
+				subreq->error = -ENODATA;
 			}
 		}
 	}
 
-	subreq->error = error;
 	trace_netfs_sreq(subreq, netfs_sreq_trace_terminated);
 
-	if (unlikely(error < 0)) {
-		trace_netfs_failure(rreq, subreq, error, netfs_fail_read);
+	if (unlikely(subreq->error < 0)) {
+		trace_netfs_failure(rreq, subreq, subreq->error, netfs_fail_read);
 		if (subreq->source == NETFS_READ_FROM_CACHE) {
 			netfs_stat(&netfs_n_rh_read_failed);
 		} else {
@@ -553,3 +550,19 @@ void netfs_read_subreq_terminated(struct netfs_io_subrequest *subreq,
 	netfs_put_subrequest(subreq, was_async, netfs_sreq_trace_put_terminated);
 }
 EXPORT_SYMBOL(netfs_read_subreq_terminated);
+
+/**
+ * netfs_read_subreq_termination_worker - Workqueue helper for read termination
+ * @work: The subreq->work in the I/O request that has been terminated.
+ *
+ * Helper function to jump to netfs_read_subreq_terminated() from the
+ * subrequest work item.
+ */
+void netfs_read_subreq_termination_worker(struct work_struct *work)
+{
+	struct netfs_io_subrequest *subreq =
+		container_of(work, struct netfs_io_subrequest, work);
+
+	netfs_read_subreq_terminated(subreq, false);
+}
+EXPORT_SYMBOL(netfs_read_subreq_termination_worker);

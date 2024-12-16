@@ -191,7 +191,20 @@ struct netfs_io_subrequest *netfs_alloc_subrequest(struct netfs_io_request *rreq
 	}
 
 	memset(subreq, 0, kmem_cache_size(cache));
-	INIT_WORK(&subreq->work, NULL);
+
+	switch (rreq->origin) {
+	case NETFS_READAHEAD:
+	case NETFS_READPAGE:
+	case NETFS_READ_GAPS:
+	case NETFS_READ_FOR_WRITE:
+	case NETFS_DIO_READ:
+		INIT_WORK(&subreq->work, netfs_read_subreq_termination_worker);
+		break;
+	default:
+		INIT_WORK(&subreq->work, NULL);
+		break;
+	}
+
 	INIT_LIST_HEAD(&subreq->rreq_link);
 	refcount_set(&subreq->ref, 2);
 	subreq->rreq = rreq;
