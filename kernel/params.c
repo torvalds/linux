@@ -555,13 +555,13 @@ struct module_param_attrs
 };
 
 #ifdef CONFIG_SYSFS
-#define to_param_attr(n) container_of(n, struct param_attribute, mattr)
+#define to_param_attr(n) container_of_const(n, struct param_attribute, mattr)
 
 static ssize_t param_attr_show(struct module_attribute *mattr,
 			       struct module_kobject *mk, char *buf)
 {
 	int count;
-	struct param_attribute *attribute = to_param_attr(mattr);
+	const struct param_attribute *attribute = to_param_attr(mattr);
 
 	if (!attribute->param->ops->get)
 		return -EPERM;
@@ -578,7 +578,7 @@ static ssize_t param_attr_store(struct module_attribute *mattr,
 				const char *buf, size_t len)
 {
  	int err;
-	struct param_attribute *attribute = to_param_attr(mattr);
+	const struct param_attribute *attribute = to_param_attr(mattr);
 
 	if (!attribute->param->ops->set)
 		return -EPERM;
