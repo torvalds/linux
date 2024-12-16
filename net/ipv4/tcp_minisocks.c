@@ -326,6 +326,10 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 		tcptw->tw_last_oow_ack_time = 0;
 		tcptw->tw_tx_delay	= tp->tcp_tx_delay;
 		tw->tw_txhash		= sk->sk_txhash;
+		tw->tw_tx_queue_mapping = sk->sk_tx_queue_mapping;
+#ifdef CONFIG_SOCK_RX_QUEUE_MAPPING
+		tw->tw_rx_queue_mapping = sk->sk_rx_queue_mapping;
+#endif
 #if IS_ENABLED(CONFIG_IPV6)
 		if (tw->tw_family == PF_INET6) {
 			struct ipv6_pinfo *np = inet6_sk(sk);

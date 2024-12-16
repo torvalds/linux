@@ -26,7 +26,6 @@ enum kunwind_source {
 	KUNWIND_SOURCE_CALLER,
 	KUNWIND_SOURCE_TASK,
 	KUNWIND_SOURCE_REGS_PC,
-	KUNWIND_SOURCE_REGS_LR,
 };
 
 union unwind_flags {
@@ -138,8 +137,10 @@ kunwind_recover_return_address(struct kunwind_state *state)
 		orig_pc = ftrace_graph_ret_addr(state->task, &state->graph_idx,
 						state->common.pc,
 						(void *)state->common.fp);
-		if (WARN_ON_ONCE(state->common.pc == orig_pc))
+		if (state->common.pc == orig_pc) {
+			WARN_ON_ONCE(state->task == current);
 			return -EINVAL;
+		}
 		state->common.pc = orig_pc;
 		state->flags.fgraph = 1;
 	}
@@ -178,23 +179,8 @@ int kunwind_next_regs_pc(struct kunwind_state *state)
 	state->regs = regs;
 	state->common.pc = regs->pc;
 	state->common.fp = regs->regs[29];
-	state->source = KUNWIND_SOURCE_REGS_PC;
-	return 0;
-}
-
-static __always_inline int
-kunwind_next_regs_lr(struct kunwind_state *state)
-{
-	/*
-	 * The stack for the regs was consumed by kunwind_next_regs_pc(), so we
-	 * cannot consume that again here, but we know the regs are safe to
-	 * access.
-	 */
-	state->common.pc = state->regs->regs[30];
-	state->common.fp = state->regs->regs[29];
 	state->regs = NULL;
-	state->source = KUNWIND_SOURCE_REGS_LR;
-
+	state->source = KUNWIND_SOURCE_REGS_PC;
 	return 0;
 }
 
@@ -215,12 +201,12 @@ kunwind_next_frame_record_meta(struct kunwind_state *state)
 	case FRAME_META_TYPE_FINAL:
 		if (meta == &task_pt_regs(tsk)->stackframe)
 			return -ENOENT;
-		WARN_ON_ONCE(1);
+		WARN_ON_ONCE(tsk == current);
 		return -EINVAL;
 	case FRAME_META_TYPE_PT_REGS:
 		return kunwind_next_regs_pc(state);
 	default:
-		WARN_ON_ONCE(1);
+		WARN_ON_ONCE(tsk == current);
 		return -EINVAL;
 	}
 }
@@ -274,11 +260,8 @@ kunwind_next(struct kunwind_state *state)
 	case KUNWIND_SOURCE_FRAME:
 	case KUNWIND_SOURCE_CALLER:
 	case KUNWIND_SOURCE_TASK:
-	case KUNWIND_SOURCE_REGS_LR:
-		err = kunwind_next_frame_record(state);
-		break;
 	case KUNWIND_SOURCE_REGS_PC:
-		err = kunwind_next_regs_lr(state);
+		err = kunwind_next_frame_record(state);
 		break;
 	default:
 		err = -EINVAL;
@@ -436,7 +419,6 @@ static const char *state_source_string(const struct kunwind_state *state)
 	case KUNWIND_SOURCE_CALLER:	return "C";
 	case KUNWIND_SOURCE_TASK:	return "T";
 	case KUNWIND_SOURCE_REGS_PC:	return "P";
-	case KUNWIND_SOURCE_REGS_LR:	return "L";
 	default:			return "U";
 	}
 }

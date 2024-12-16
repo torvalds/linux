@@ -231,7 +231,7 @@ xfs_iflags_clear(xfs_inode_t *ip, unsigned long flags)
 }
 
 static inline int
-__xfs_iflags_test(xfs_inode_t *ip, unsigned long flags)
+__xfs_iflags_test(const struct xfs_inode *ip, unsigned long flags)
 {
 	return (ip->i_flags & flags);
 }

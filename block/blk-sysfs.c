@@ -263,7 +263,7 @@ static ssize_t queue_nr_zones_show(struct gendisk *disk, char *page)
 
 static ssize_t queue_iostats_passthrough_show(struct gendisk *disk, char *page)
 {
-	return queue_var_show(blk_queue_passthrough_stat(disk->queue), page);
+	return queue_var_show(!!blk_queue_passthrough_stat(disk->queue), page);
 }
 
 static ssize_t queue_iostats_passthrough_store(struct gendisk *disk,
@@ -706,11 +706,11 @@ queue_attr_store(struct kobject *kobj, struct attribute *attr,
 	if (entry->load_module)
 		entry->load_module(disk, page, length);
 
-	blk_mq_freeze_queue(q);
 	mutex_lock(&q->sysfs_lock);
+	blk_mq_freeze_queue(q);
 	res = entry->store(disk, page, length);
-	mutex_unlock(&q->sysfs_lock);
 	blk_mq_unfreeze_queue(q);
+	mutex_unlock(&q->sysfs_lock);
 	return res;
 }
 
