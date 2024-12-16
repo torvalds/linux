@@ -28,6 +28,7 @@
 #include <net/arp.h>
 #include <net/ndisc.h>
 #include <net/inet_dscp.h>
+#include <net/sock.h>
 #include <linux/in_route.h>
 #include <linux/rtnetlink.h>
 #include <linux/rcupdate.h>
@@ -129,6 +130,33 @@ struct in_device;
 int ip_rt_init(void);
 void rt_cache_flush(struct net *net);
 void rt_flush_dev(struct net_device *dev);
+
+static inline void inet_sk_init_flowi4(const struct inet_sock *inet,
+				       struct flowi4 *fl4)
+{
+	const struct ip_options_rcu *ip4_opt;
+	const struct sock *sk;
+	__be32 daddr;
+
+	rcu_read_lock();
+	ip4_opt = rcu_dereference(inet->inet_opt);
+
+	/* Source routing option overrides the socket destination address */
+	if (ip4_opt && ip4_opt->opt.srr)
+		daddr = ip4_opt->opt.faddr;
+	else
+		daddr = inet->inet_daddr;
+	rcu_read_unlock();
+
+	sk = &inet->sk;
+	flowi4_init_output(fl4, sk->sk_bound_dev_if, READ_ONCE(sk->sk_mark),
+			   ip_sock_rt_tos(sk), ip_sock_rt_scope(sk),
+			   sk->sk_protocol, inet_sk_flowi_flags(sk), daddr,
+			   inet->inet_saddr, inet->inet_dport,
+			   inet->inet_sport, sk->sk_uid);
+	security_sk_classify_flow(sk, flowi4_to_flowi_common(fl4));
+}
+
 struct rtable *ip_route_output_key_hash(struct net *net, struct flowi4 *flp,
 					const struct sk_buff *skb);
 struct rtable *ip_route_output_key_hash_rcu(struct net *net, struct flowi4 *flp,
