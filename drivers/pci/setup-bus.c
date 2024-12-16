@@ -841,9 +841,9 @@ resource_size_t __weak pcibios_window_alignment(struct pci_bus *bus,
 	return 1;
 }
 
-#define PCI_P2P_DEFAULT_MEM_ALIGN	0x100000	/* 1MiB */
-#define PCI_P2P_DEFAULT_IO_ALIGN	0x1000		/* 4KiB */
-#define PCI_P2P_DEFAULT_IO_ALIGN_1K	0x400		/* 1KiB */
+#define PCI_P2P_DEFAULT_MEM_ALIGN	SZ_1M
+#define PCI_P2P_DEFAULT_IO_ALIGN	SZ_4K
+#define PCI_P2P_DEFAULT_IO_ALIGN_1K	SZ_1K
 
 static resource_size_t window_alignment(struct pci_bus *bus, unsigned long type)
 {
@@ -908,7 +908,7 @@ static void pbus_size_io(struct pci_bus *bus, resource_size_t min_size,
 				continue;
 			r_size = resource_size(r);
 
-			if (r_size < 0x400)
+			if (r_size < SZ_1K)
 				/* Might be re-aligned for ISA */
 				size += r_size;
 			else
