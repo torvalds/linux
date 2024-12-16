@@ -130,7 +130,7 @@ static const struct kobj_type secvar_ktype = {
 	.default_groups = secvar_attr_groups,
 };
 
-static int update_kobj_size(void)
+static __init int update_kobj_size(void)
 {
 
 	u64 varsize;
@@ -145,7 +145,7 @@ static int update_kobj_size(void)
 	return 0;
 }
 
-static int secvar_sysfs_config(struct kobject *kobj)
+static __init int secvar_sysfs_config(struct kobject *kobj)
 {
 	struct attribute_group config_group = {
 		.name = "config",
@@ -158,7 +158,7 @@ static int secvar_sysfs_config(struct kobject *kobj)
 	return 0;
 }
 
-static int add_var(const char *name)
+static __init int add_var(const char *name)
 {
 	struct kobject *kobj;
 	int rc;
@@ -181,7 +181,7 @@ static int add_var(const char *name)
 	return 0;
 }
 
-static int secvar_sysfs_load(void)
+static __init int secvar_sysfs_load(void)
 {
 	u64 namesize = 0;
 	char *name;
@@ -209,7 +209,7 @@ static int secvar_sysfs_load(void)
 	return rc;
 }
 
-static int secvar_sysfs_load_static(void)
+static __init int secvar_sysfs_load_static(void)
 {
 	const char * const *name_ptr = secvar_ops->var_names;
 	int rc;
@@ -224,7 +224,7 @@ static int secvar_sysfs_load_static(void)
 	return 0;
 }
 
-static int secvar_sysfs_init(void)
+static __init int secvar_sysfs_init(void)
 {
 	u64 max_size;
 	int rc;
