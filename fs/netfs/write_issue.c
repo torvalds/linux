@@ -94,9 +94,10 @@ struct netfs_io_request *netfs_create_write_req(struct address_space *mapping,
 {
 	struct netfs_io_request *wreq;
 	struct netfs_inode *ictx;
-	bool is_buffered = (origin == NETFS_WRITEBACK ||
-			    origin == NETFS_WRITETHROUGH ||
-			    origin == NETFS_PGPRIV2_COPY_TO_CACHE);
+	bool is_cacheable = (origin == NETFS_WRITEBACK ||
+			     origin == NETFS_WRITEBACK_SINGLE ||
+			     origin == NETFS_WRITETHROUGH ||
+			     origin == NETFS_PGPRIV2_COPY_TO_CACHE);
 
 	wreq = netfs_alloc_request(mapping, file, start, 0, origin);
 	if (IS_ERR(wreq))
@@ -105,7 +106,7 @@ struct netfs_io_request *netfs_create_write_req(struct address_space *mapping,
 	_enter("R=%x", wreq->debug_id);
 
 	ictx = netfs_inode(wreq->inode);
-	if (is_buffered && netfs_is_cache_enabled(ictx))
+	if (is_cacheable && netfs_is_cache_enabled(ictx))
 		fscache_begin_write_operation(&wreq->cache_resources, netfs_i_cookie(ictx));
 	if (rolling_buffer_init(&wreq->buffer, wreq->debug_id, ITER_SOURCE) < 0)
 		goto nomem;
@@ -452,7 +453,8 @@ static int netfs_write_folio(struct netfs_io_request *wreq,
 		stream = &wreq->io_streams[s];
 		stream->submit_off = foff;
 		stream->submit_len = flen;
-		if ((stream->source == NETFS_WRITE_TO_CACHE && streamw) ||
+		if (!stream->avail ||
+		    (stream->source == NETFS_WRITE_TO_CACHE && streamw) ||
 		    (stream->source == NETFS_UPLOAD_TO_SERVER &&
 		     fgroup == NETFS_FOLIO_COPY_TO_CACHE)) {
 			stream->submit_off = UINT_MAX;
@@ -731,3 +733,194 @@ int netfs_unbuffered_write(struct netfs_io_request *wreq, bool may_wait, size_t 
 	_leave(" = %d", error);
 	return error;
 }
+
+/*
+ * Write some of a pending folio data back to the server and/or the cache.
+ */
+static int netfs_write_folio_single(struct netfs_io_request *wreq,
+				    struct folio *folio)
+{
+	struct netfs_io_stream *upload = &wreq->io_streams[0];
+	struct netfs_io_stream *cache  = &wreq->io_streams[1];
+	struct netfs_io_stream *stream;
+	size_t iter_off = 0;
+	size_t fsize = folio_size(folio), flen;
+	loff_t fpos = folio_pos(folio);
+	bool to_eof = false;
+	bool no_debug = false;
+
+	_enter("");
+
+	flen = folio_size(folio);
+	if (flen > wreq->i_size - fpos) {
+		flen = wreq->i_size - fpos;
+		folio_zero_segment(folio, flen, fsize);
+		to_eof = true;
+	} else if (flen == wreq->i_size - fpos) {
+		to_eof = true;
+	}
+
+	_debug("folio %zx/%zx", flen, fsize);
+
+	if (!upload->avail && !cache->avail) {
+		trace_netfs_folio(folio, netfs_folio_trace_cancel_store);
+		return 0;
+	}
+
+	if (!upload->construct)
+		trace_netfs_folio(folio, netfs_folio_trace_store);
+	else
+		trace_netfs_folio(folio, netfs_folio_trace_store_plus);
+
+	/* Attach the folio to the rolling buffer. */
+	folio_get(folio);
+	rolling_buffer_append(&wreq->buffer, folio, NETFS_ROLLBUF_PUT_MARK);
+
+	/* Move the submission point forward to allow for write-streaming data
+	 * not starting at the front of the page.  We don't do write-streaming
+	 * with the cache as the cache requires DIO alignment.
+	 *
+	 * Also skip uploading for data that's been read and just needs copying
+	 * to the cache.
+	 */
+	for (int s = 0; s < NR_IO_STREAMS; s++) {
+		stream = &wreq->io_streams[s];
+		stream->submit_off = 0;
+		stream->submit_len = flen;
+		if (!stream->avail) {
+			stream->submit_off = UINT_MAX;
+			stream->submit_len = 0;
+		}
+	}
+
+	/* Attach the folio to one or more subrequests.  For a big folio, we
+	 * could end up with thousands of subrequests if the wsize is small -
+	 * but we might need to wait during the creation of subrequests for
+	 * network resources (eg. SMB credits).
+	 */
+	for (;;) {
+		ssize_t part;
+		size_t lowest_off = ULONG_MAX;
+		int choose_s = -1;
+
+		/* Always add to the lowest-submitted stream first. */
+		for (int s = 0; s < NR_IO_STREAMS; s++) {
+			stream = &wreq->io_streams[s];
+			if (stream->submit_len > 0 &&
+			    stream->submit_off < lowest_off) {
+				lowest_off = stream->submit_off;
+				choose_s = s;
+			}
+		}
+
+		if (choose_s < 0)
+			break;
+		stream = &wreq->io_streams[choose_s];
+
+		/* Advance the iterator(s). */
+		if (stream->submit_off > iter_off) {
+			rolling_buffer_advance(&wreq->buffer, stream->submit_off - iter_off);
+			iter_off = stream->submit_off;
+		}
+
+		atomic64_set(&wreq->issued_to, fpos + stream->submit_off);
+		stream->submit_extendable_to = fsize - stream->submit_off;
+		part = netfs_advance_write(wreq, stream, fpos + stream->submit_off,
+					   stream->submit_len, to_eof);
+		stream->submit_off += part;
+		if (part > stream->submit_len)
+			stream->submit_len = 0;
+		else
+			stream->submit_len -= part;
+		if (part > 0)
+			no_debug = true;
+	}
+
+	wreq->buffer.iter.iov_offset = 0;
+	if (fsize > iter_off)
+		rolling_buffer_advance(&wreq->buffer, fsize - iter_off);
+	atomic64_set(&wreq->issued_to, fpos + fsize);
+
+	if (!no_debug)
+		kdebug("R=%x: No submit", wreq->debug_id);
+	_leave(" = 0");
+	return 0;
+}
+
+/**
+ * netfs_writeback_single - Write back a monolithic payload
+ * @mapping: The mapping to write from
+ * @wbc: Hints from the VM
+ * @iter: Data to write, must be ITER_FOLIOQ.
+ *
+ * Write a monolithic, non-pagecache object back to the server and/or
+ * the cache.
+ */
+int netfs_writeback_single(struct address_space *mapping,
+			   struct writeback_control *wbc,
+			   struct iov_iter *iter)
+{
+	struct netfs_io_request *wreq;
+	struct netfs_inode *ictx = netfs_inode(mapping->host);
+	struct folio_queue *fq;
+	size_t size = iov_iter_count(iter);
+	int ret;
+
+	if (WARN_ON_ONCE(!iov_iter_is_folioq(iter)))
+		return -EIO;
+
+	if (!mutex_trylock(&ictx->wb_lock)) {
+		if (wbc->sync_mode == WB_SYNC_NONE) {
+			netfs_stat(&netfs_n_wb_lock_skip);
+			return 0;
+		}
+		netfs_stat(&netfs_n_wb_lock_wait);
+		mutex_lock(&ictx->wb_lock);
+	}
+
+	wreq = netfs_create_write_req(mapping, NULL, 0, NETFS_WRITEBACK_SINGLE);
+	if (IS_ERR(wreq)) {
+		ret = PTR_ERR(wreq);
+		goto couldnt_start;
+	}
+
+	trace_netfs_write(wreq, netfs_write_trace_writeback);
+	netfs_stat(&netfs_n_wh_writepages);
+
+	if (__test_and_set_bit(NETFS_RREQ_UPLOAD_TO_SERVER, &wreq->flags))
+		wreq->netfs_ops->begin_writeback(wreq);
+
+	for (fq = (struct folio_queue *)iter->folioq; fq; fq = fq->next) {
+		for (int slot = 0; slot < folioq_count(fq); slot++) {
+			struct folio *folio = folioq_folio(fq, slot);
+			size_t part = umin(folioq_folio_size(fq, slot), size);
+
+			_debug("wbiter %lx %llx", folio->index, atomic64_read(&wreq->issued_to));
+
+			ret = netfs_write_folio_single(wreq, folio);
+			if (ret < 0)
+				goto stop;
+			size -= part;
+			if (size <= 0)
+				goto stop;
+		}
+	}
+
+stop:
+	for (int s = 0; s < NR_IO_STREAMS; s++)
+		netfs_issue_write(wreq, &wreq->io_streams[s]);
+	smp_wmb(); /* Write lists before ALL_QUEUED. */
+	set_bit(NETFS_RREQ_ALL_QUEUED, &wreq->flags);
+
+	mutex_unlock(&ictx->wb_lock);
+
+	netfs_put_request(wreq, false, netfs_rreq_trace_put_return);
+	_leave(" = %d", ret);
+	return ret;
+
+couldnt_start:
+	mutex_unlock(&ictx->wb_lock);
+	_leave(" = %d", ret);
+	return ret;
+}
+EXPORT_SYMBOL(netfs_writeback_single);

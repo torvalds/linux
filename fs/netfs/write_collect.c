@@ -17,7 +17,7 @@
 #define HIT_PENDING		0x01	/* A front op was still pending */
 #define NEED_REASSESS		0x02	/* Need to loop round and reassess */
 #define MADE_PROGRESS		0x04	/* Made progress cleaning up a stream or the folio set */
-#define BUFFERED		0x08	/* The pagecache needs cleaning up */
+#define NEED_UNLOCK		0x08	/* The pagecache needs unlocking */
 #define NEED_RETRY		0x10	/* A front op requests retrying */
 #define SAW_FAILURE		0x20	/* One stream or hit a permanent failure */
 
@@ -179,7 +179,7 @@ reassess_streams:
 	if (wreq->origin == NETFS_WRITEBACK ||
 	    wreq->origin == NETFS_WRITETHROUGH ||
 	    wreq->origin == NETFS_PGPRIV2_COPY_TO_CACHE)
-		notes = BUFFERED;
+		notes = NEED_UNLOCK;
 	else
 		notes = 0;
 
@@ -276,7 +276,7 @@ reassess_streams:
 	trace_netfs_collect_state(wreq, wreq->collected_to, notes);
 
 	/* Unlock any folios that we have now finished with. */
-	if (notes & BUFFERED) {
+	if (notes & NEED_UNLOCK) {
 		if (wreq->cleaned_to < wreq->collected_to)
 			netfs_writeback_unlock_folios(wreq, &notes);
 	} else {

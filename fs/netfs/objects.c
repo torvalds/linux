@@ -54,6 +54,7 @@ struct netfs_io_request *netfs_alloc_request(struct address_space *mapping,
 	if (origin == NETFS_READAHEAD ||
 	    origin == NETFS_READPAGE ||
 	    origin == NETFS_READ_GAPS ||
+	    origin == NETFS_READ_SINGLE ||
 	    origin == NETFS_READ_FOR_WRITE ||
 	    origin == NETFS_DIO_READ)
 		INIT_WORK(&rreq->work, NULL);
@@ -196,6 +197,7 @@ struct netfs_io_subrequest *netfs_alloc_subrequest(struct netfs_io_request *rreq
 	case NETFS_READAHEAD:
 	case NETFS_READPAGE:
 	case NETFS_READ_GAPS:
+	case NETFS_READ_SINGLE:
 	case NETFS_READ_FOR_WRITE:
 	case NETFS_DIO_READ:
 		INIT_WORK(&subreq->work, netfs_read_subreq_termination_worker);

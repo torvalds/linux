@@ -362,6 +362,39 @@ static void netfs_rreq_assess_dio(struct netfs_io_request *rreq)
 }
 
 /*
+ * Do processing after reading a monolithic single object.
+ */
+static void netfs_rreq_assess_single(struct netfs_io_request *rreq)
+{
+	struct netfs_io_subrequest *subreq;
+	struct netfs_io_stream *stream = &rreq->io_streams[0];
+
+	subreq = list_first_entry_or_null(&stream->subrequests,
+					  struct netfs_io_subrequest, rreq_link);
+	if (subreq) {
+		if (test_bit(NETFS_SREQ_FAILED, &subreq->flags))
+			rreq->error = subreq->error;
+		else
+			rreq->transferred = subreq->transferred;
+
+		if (!rreq->error && subreq->source == NETFS_DOWNLOAD_FROM_SERVER &&
+		    fscache_resources_valid(&rreq->cache_resources)) {
+			trace_netfs_rreq(rreq, netfs_rreq_trace_dirty);
+			netfs_single_mark_inode_dirty(rreq->inode);
+		}
+	}
+
+	if (rreq->iocb) {
+		rreq->iocb->ki_pos += rreq->transferred;
+		if (rreq->iocb->ki_complete)
+			rreq->iocb->ki_complete(
+				rreq->iocb, rreq->error ? rreq->error : rreq->transferred);
+	}
+	if (rreq->netfs_ops->done)
+		rreq->netfs_ops->done(rreq);
+}
+
+/*
  * Assess the state of a read request and decide what to do next.
  *
  * Note that we're in normal kernel thread context at this point, possibly
@@ -378,9 +411,17 @@ void netfs_rreq_terminated(struct netfs_io_request *rreq)
 		return;
 	}
 
-	if (rreq->origin == NETFS_DIO_READ ||
-	    rreq->origin == NETFS_READ_GAPS)
+	switch (rreq->origin) {
+	case NETFS_DIO_READ:
+	case NETFS_READ_GAPS:
 		netfs_rreq_assess_dio(rreq);
+		break;
+	case NETFS_READ_SINGLE:
+		netfs_rreq_assess_single(rreq);
+		break;
+	default:
+		break;
+	}
 	task_io_account_read(rreq->transferred);
 
 	trace_netfs_rreq(rreq, netfs_rreq_trace_wake_ip);

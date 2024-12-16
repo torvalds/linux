@@ -23,6 +23,7 @@
 /*
  * buffered_read.c
  */
+void netfs_cache_read_terminated(void *priv, ssize_t transferred_or_error, bool was_async);
 int netfs_prefetch_for_write(struct file *file, struct folio *folio,
 			     size_t offset, size_t len);
 
@@ -110,6 +111,7 @@ void netfs_unlock_abandoned_read_pages(struct netfs_io_request *rreq);
 extern atomic_t netfs_n_rh_dio_read;
 extern atomic_t netfs_n_rh_readahead;
 extern atomic_t netfs_n_rh_read_folio;
+extern atomic_t netfs_n_rh_read_single;
 extern atomic_t netfs_n_rh_rreq;
 extern atomic_t netfs_n_rh_sreq;
 extern atomic_t netfs_n_rh_download;

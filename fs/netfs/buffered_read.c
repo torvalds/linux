@@ -137,14 +137,17 @@ static enum netfs_io_source netfs_cache_prepare_read(struct netfs_io_request *rr
 						     loff_t i_size)
 {
 	struct netfs_cache_resources *cres = &rreq->cache_resources;
+	enum netfs_io_source source;
 
 	if (!cres->ops)
 		return NETFS_DOWNLOAD_FROM_SERVER;
-	return cres->ops->prepare_read(subreq, i_size);
+	source = cres->ops->prepare_read(subreq, i_size);
+	trace_netfs_sreq(subreq, netfs_sreq_trace_prepare);
+	return source;
+
 }
 
-static void netfs_cache_read_terminated(void *priv, ssize_t transferred_or_error,
-					bool was_async)
+void netfs_cache_read_terminated(void *priv, ssize_t transferred_or_error, bool was_async)
 {
 	struct netfs_io_subrequest *subreq = priv;
 
@@ -213,6 +216,8 @@ static void netfs_read_to_pagecache(struct netfs_io_request *rreq)
 			unsigned long long zp = umin(ictx->zero_point, rreq->i_size);
 			size_t len = subreq->len;
 
+			if (unlikely(rreq->origin == NETFS_READ_SINGLE))
+				zp = rreq->i_size;
 			if (subreq->start >= zp) {
 				subreq->source = source = NETFS_FILL_WITH_ZEROES;
 				goto fill_with_zeroes;
