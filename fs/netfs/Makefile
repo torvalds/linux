@@ -13,6 +13,7 @@ netfs-y := \
 	read_collect.o \
 	read_pgpriv2.o \
 	read_retry.o \
+	rolling_buffer.o \
 	write_collect.o \
 	write_issue.o
 

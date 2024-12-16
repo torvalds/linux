@@ -143,7 +143,7 @@ static void netfs_free_request(struct work_struct *work)
 		}
 		kvfree(rreq->direct_bv);
 	}
-	netfs_clear_buffer(rreq);
+	rolling_buffer_clear(&rreq->buffer);
 
 	if (atomic_dec_and_test(&ictx->io_count))
 		wake_up_var(&ictx->io_count);

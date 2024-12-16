@@ -18,6 +18,7 @@
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 #include <linux/uio.h>
+#include <linux/rolling_buffer.h>
 
 enum netfs_sreq_ref_trace;
 typedef struct mempool_s mempool_t;
@@ -238,10 +239,9 @@ struct netfs_io_request {
 	struct netfs_io_stream	io_streams[2];	/* Streams of parallel I/O operations */
 #define NR_IO_STREAMS 2 //wreq->nr_io_streams
 	struct netfs_group	*group;		/* Writeback group being written back */
-	struct folio_queue	*buffer;	/* Head of I/O buffer */
-	struct folio_queue	*buffer_tail;	/* Tail of I/O buffer */
-	struct iov_iter		iter;		/* Unencrypted-side iterator */
-	struct iov_iter		io_iter;	/* I/O (Encrypted-side) iterator */
+	struct rolling_buffer	buffer;		/* Unencrypted buffer */
+#define NETFS_ROLLBUF_PUT_MARK		ROLLBUF_MARK_1
+#define NETFS_ROLLBUF_PAGECACHE_MARK	ROLLBUF_MARK_2
 	void			*netfs_priv;	/* Private data for the netfs */
 	void			*netfs_priv2;	/* Private data for the netfs */
 	struct bio_vec		*direct_bv;	/* DIO buffer list (when handling iovec-iter) */
@@ -259,8 +259,6 @@ struct netfs_io_request {
 	long			error;		/* 0 or error that occurred */
 	enum netfs_io_origin	origin;		/* Origin of the request */
 	bool			direct_bv_unpin; /* T if direct_bv[] must be unpinned */
-	u8			buffer_head_slot; /* First slot in ->buffer */
-	u8			buffer_tail_slot; /* Next slot in ->buffer_tail */
 	unsigned long long	i_size;		/* Size of the file */
 	unsigned long long	start;		/* Start position */
 	atomic64_t		issued_to;	/* Write issuer folio cursor */

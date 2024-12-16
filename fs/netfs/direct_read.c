@@ -25,7 +25,7 @@ static void netfs_prepare_dio_read_iterator(struct netfs_io_subrequest *subreq)
 	subreq->len = rsize;
 
 	if (unlikely(rreq->io_streams[0].sreq_max_segs)) {
-		size_t limit = netfs_limit_iter(&rreq->iter, 0, rsize,
+		size_t limit = netfs_limit_iter(&rreq->buffer.iter, 0, rsize,
 						rreq->io_streams[0].sreq_max_segs);
 
 		if (limit < rsize) {
@@ -36,9 +36,9 @@ static void netfs_prepare_dio_read_iterator(struct netfs_io_subrequest *subreq)
 
 	trace_netfs_sreq(subreq, netfs_sreq_trace_prepare);
 
-	subreq->io_iter	= rreq->iter;
+	subreq->io_iter	= rreq->buffer.iter;
 	iov_iter_truncate(&subreq->io_iter, subreq->len);
-	iov_iter_advance(&rreq->iter, subreq->len);
+	iov_iter_advance(&rreq->buffer.iter, subreq->len);
 }
 
 /*
@@ -199,15 +199,15 @@ ssize_t netfs_unbuffered_read_iter_locked(struct kiocb *iocb, struct iov_iter *i
 	 * the request.
 	 */
 	if (user_backed_iter(iter)) {
-		ret = netfs_extract_user_iter(iter, rreq->len, &rreq->iter, 0);
+		ret = netfs_extract_user_iter(iter, rreq->len, &rreq->buffer.iter, 0);
 		if (ret < 0)
 			goto out;
-		rreq->direct_bv = (struct bio_vec *)rreq->iter.bvec;
+		rreq->direct_bv = (struct bio_vec *)rreq->buffer.iter.bvec;
 		rreq->direct_bv_count = ret;
 		rreq->direct_bv_unpin = iov_iter_extract_will_pin(iter);
-		rreq->len = iov_iter_count(&rreq->iter);
+		rreq->len = iov_iter_count(&rreq->buffer.iter);
 	} else {
-		rreq->iter = *iter;
+		rreq->buffer.iter = *iter;
 		rreq->len = orig_count;
 		rreq->direct_bv_unpin = false;
 		iov_iter_advance(iter, orig_count);

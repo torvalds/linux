@@ -198,7 +198,9 @@
 	EM(netfs_trace_folioq_alloc_read_sing,	"alloc-r-sing")	\
 	EM(netfs_trace_folioq_clear,		"clear")	\
 	EM(netfs_trace_folioq_delete,		"delete")	\
+	EM(netfs_trace_folioq_make_space,	"make-space")	\
 	EM(netfs_trace_folioq_prep_write,	"prep-wr")	\
+	EM(netfs_trace_folioq_rollbuf_init,	"roll-init")	\
 	E_(netfs_trace_folioq_read_progress,	"r-progress")
 
 #ifndef __NETFS_DECLARE_TRACE_ENUMS_ONCE_ONLY
