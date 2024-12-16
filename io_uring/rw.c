@@ -208,33 +208,29 @@ static void io_req_rw_cleanup(struct io_kiocb *req, unsigned int issue_flags)
 	}
 }
 
+static void io_rw_async_data_init(void *obj)
+{
+	struct io_async_rw *rw = (struct io_async_rw *)obj;
+
+	rw->free_iovec = 0;
+	rw->bytes_done = 0;
+}
+
 static int io_rw_alloc_async(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_async_rw *rw;
 
-	rw = io_alloc_cache_get(&ctx->rw_cache);
-	if (rw) {
-		if (rw->free_iovec) {
-			kasan_mempool_unpoison_object(rw->free_iovec,
-				rw->free_iov_nr * sizeof(struct iovec));
-			req->flags |= REQ_F_NEED_CLEANUP;
-		}
-		req->flags |= REQ_F_ASYNC_DATA;
-		req->async_data = rw;
-		goto done;
-	}
-
-	if (!io_alloc_async_data(req)) {
-		rw = req->async_data;
-		rw->free_iovec = NULL;
-		rw->free_iov_nr = 0;
-done:
+	rw = io_uring_alloc_async_data(&ctx->rw_cache, req, io_rw_async_data_init);
+	if (!rw)
+		return -ENOMEM;
+	if (rw->free_iovec) {
+		kasan_mempool_unpoison_object(rw->free_iovec,
+					      rw->free_iov_nr * sizeof(struct iovec));
+		req->flags |= REQ_F_NEED_CLEANUP;
 		rw->bytes_done = 0;
-		return 0;
 	}
-
-	return -ENOMEM;
+	return 0;
 }
 
 static int io_prep_rw_setup(struct io_kiocb *req, int ddir, bool do_import)
