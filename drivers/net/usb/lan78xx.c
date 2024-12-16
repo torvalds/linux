@@ -439,7 +439,7 @@ struct lan78xx_net {
 	struct usb_anchor	deferred;
 
 	struct mutex		dev_mutex; /* serialise open/stop wrt suspend/resume */
-	struct mutex		phy_mutex; /* for phy access */
+	struct mutex		mdiobus_mutex; /* for MDIO bus access */
 	unsigned int		pipe_in, pipe_out, pipe_intr;
 
 	unsigned int		bulk_in_delay;
@@ -952,7 +952,7 @@ static int lan78xx_flush_rx_fifo(struct lan78xx_net *dev)
 	return lan78xx_flush_fifo(dev, FCT_RX_CTL, FCT_RX_CTL_RST_);
 }
 
-/* Loop until the read is completed with timeout called with phy_mutex held */
+/* Loop until the read is completed with timeout called with mdiobus_mutex held */
 static int lan78xx_mdiobus_wait_not_busy(struct lan78xx_net *dev)
 {
 	unsigned long start_time = jiffies;
@@ -1596,7 +1596,7 @@ static int lan78xx_mac_reset(struct lan78xx_net *dev)
 	u32 val;
 	int ret;
 
-	mutex_lock(&dev->phy_mutex);
+	mutex_lock(&dev->mdiobus_mutex);
 
 	/* Resetting the device while there is activity on the MDIO
 	 * bus can result in the MAC interface locking up and not
@@ -1631,7 +1631,7 @@ static int lan78xx_mac_reset(struct lan78xx_net *dev)
 
 	ret = -ETIMEDOUT;
 exit_unlock:
-	mutex_unlock(&dev->phy_mutex);
+	mutex_unlock(&dev->mdiobus_mutex);
 
 	return ret;
 }
@@ -2249,7 +2249,7 @@ static int lan78xx_mdiobus_read(struct mii_bus *bus, int phy_id, int idx)
 	if (ret < 0)
 		return ret;
 
-	mutex_lock(&dev->phy_mutex);
+	mutex_lock(&dev->mdiobus_mutex);
 
 	/* confirm MII not busy */
 	ret = lan78xx_mdiobus_wait_not_busy(dev);
@@ -2273,7 +2273,7 @@ static int lan78xx_mdiobus_read(struct mii_bus *bus, int phy_id, int idx)
 	ret = (int)(val & 0xFFFF);
 
 done:
-	mutex_unlock(&dev->phy_mutex);
+	mutex_unlock(&dev->mdiobus_mutex);
 	usb_autopm_put_interface(dev->intf);
 
 	return ret;
@@ -2290,7 +2290,7 @@ static int lan78xx_mdiobus_write(struct mii_bus *bus, int phy_id, int idx,
 	if (ret < 0)
 		return ret;
 
-	mutex_lock(&dev->phy_mutex);
+	mutex_lock(&dev->mdiobus_mutex);
 
 	/* confirm MII not busy */
 	ret = lan78xx_mdiobus_wait_not_busy(dev);
@@ -2313,7 +2313,7 @@ static int lan78xx_mdiobus_write(struct mii_bus *bus, int phy_id, int idx,
 		goto done;
 
 done:
-	mutex_unlock(&dev->phy_mutex);
+	mutex_unlock(&dev->mdiobus_mutex);
 	usb_autopm_put_interface(dev->intf);
 	return ret;
 }
@@ -4476,7 +4476,7 @@ static int lan78xx_probe(struct usb_interface *intf,
 	skb_queue_head_init(&dev->rxq_done);
 	skb_queue_head_init(&dev->txq_pend);
 	skb_queue_head_init(&dev->rxq_overflow);
-	mutex_init(&dev->phy_mutex);
+	mutex_init(&dev->mdiobus_mutex);
 	mutex_init(&dev->dev_mutex);
 
 	ret = lan78xx_urb_config_init(dev);
