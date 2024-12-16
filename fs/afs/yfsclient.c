@@ -397,7 +397,6 @@ static int yfs_deliver_fs_fetch_data64(struct afs_call *call)
 
 		ret = afs_extract_data(call, true);
 		subreq->transferred += count_before - call->iov_len;
-		netfs_read_subreq_progress(subreq);
 		if (ret < 0)
 			return ret;
 
@@ -457,7 +456,9 @@ static int yfs_deliver_fs_fetch_data64(struct afs_call *call)
 static const struct afs_call_type yfs_RXYFSFetchData64 = {
 	.name		= "YFS.FetchData64",
 	.op		= yfs_FS_FetchData64,
+	.async_rx	= afs_fetch_data_async_rx,
 	.deliver	= yfs_deliver_fs_fetch_data64,
+	.immediate_cancel = afs_fetch_data_immediate_cancel,
 	.destructor	= afs_flat_call_destructor,
 };
 
@@ -485,6 +486,9 @@ void yfs_fs_fetch_data(struct afs_operation *op)
 				   sizeof(struct yfs_xdr_YFSVolSync));
 	if (!call)
 		return afs_op_nomem(op);
+
+	if (op->flags & AFS_OPERATION_ASYNC)
+		call->async = true;
 
 	/* marshall the parameters */
 	bp = call->request;

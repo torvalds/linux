@@ -196,6 +196,18 @@ void afs_retry_request(struct netfs_io_request *wreq, struct netfs_io_stream *st
 		list_first_entry(&stream->subrequests,
 				 struct netfs_io_subrequest, rreq_link);
 
+	switch (wreq->origin) {
+	case NETFS_READAHEAD:
+	case NETFS_READPAGE:
+	case NETFS_READ_GAPS:
+	case NETFS_READ_SINGLE:
+	case NETFS_READ_FOR_WRITE:
+	case NETFS_DIO_READ:
+		return;
+	default:
+		break;
+	}
+
 	switch (subreq->error) {
 	case -EACCES:
 	case -EPERM:
