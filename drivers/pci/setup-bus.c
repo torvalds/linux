@@ -2134,6 +2134,45 @@ pci_root_bus_distribute_available_resources(struct pci_bus *bus,
 	}
 }
 
+static void pci_prepare_next_assign_round(struct list_head *fail_head,
+					  int tried_times,
+					  enum release_type rel_type)
+{
+	struct pci_dev_resource *fail_res;
+
+	pr_info("PCI: No. %d try to assign unassigned res\n", tried_times + 1);
+
+	/*
+	 * Try to release leaf bridge's resources that aren't big
+	 * enough to contain child device resources.
+	 */
+	list_for_each_entry(fail_res, fail_head, list) {
+		pci_bus_release_bridge_resources(fail_res->dev->bus,
+						 fail_res->flags & PCI_RES_TYPE_MASK,
+						 rel_type);
+	}
+
+	/* Restore size and flags */
+	list_for_each_entry(fail_res, fail_head, list) {
+		struct resource *res = fail_res->res;
+		struct pci_dev *dev = fail_res->dev;
+		int idx = pci_resource_num(dev, res);
+
+		res->start = fail_res->start;
+		res->end = fail_res->end;
+		res->flags = fail_res->flags;
+
+		if (!pci_is_bridge(dev))
+			continue;
+
+		if (idx >= PCI_BRIDGE_RESOURCES &&
+		    idx <= PCI_BRIDGE_RESOURCE_END)
+			res->flags = 0;
+	}
+
+	free_list(fail_head);
+}
+
 /*
  * First try will not touch PCI bridge res.
  * Second and later try will clear small leaf bridge res.
@@ -2147,7 +2186,6 @@ void pci_assign_unassigned_root_bus_resources(struct pci_bus *bus)
 	int tried_times = 0;
 	enum release_type rel_type = leaf_only;
 	LIST_HEAD(fail_head);
-	struct pci_dev_resource *fail_res;
 	int pci_try_num = 1;
 	enum enable_type enable_local;
 
@@ -2198,40 +2236,11 @@ void pci_assign_unassigned_root_bus_resources(struct pci_bus *bus)
 			break;
 		}
 
-		dev_info(&bus->dev, "No. %d try to assign unassigned res\n",
-			 tried_times + 1);
-
 		/* Third times and later will not check if it is leaf */
 		if (tried_times + 1 > 2)
 			rel_type = whole_subtree;
 
-		/*
-		 * Try to release leaf bridge's resources that doesn't fit
-		 * resource of child device under that bridge.
-		 */
-		list_for_each_entry(fail_res, &fail_head, list) {
-			pci_bus_release_bridge_resources(fail_res->dev->bus,
-							 fail_res->flags & PCI_RES_TYPE_MASK,
-							 rel_type);
-		}
-
-		/* Restore size and flags */
-		list_for_each_entry(fail_res, &fail_head, list) {
-			struct resource *res = fail_res->res;
-			int idx;
-
-			res->start = fail_res->start;
-			res->end = fail_res->end;
-			res->flags = fail_res->flags;
-
-			if (pci_is_bridge(fail_res->dev)) {
-				idx = pci_resource_num(fail_res->dev, res);
-				if (idx >= PCI_BRIDGE_RESOURCES &&
-				    idx <= PCI_BRIDGE_RESOURCE_END)
-					res->flags = 0;
-			}
-		}
-		free_list(&fail_head);
+		pci_prepare_next_assign_round(&fail_head, tried_times, rel_type);
 	}
 
 	pci_bus_dump_resources(bus);
@@ -2257,7 +2266,6 @@ void pci_assign_unassigned_bridge_resources(struct pci_dev *bridge)
 	LIST_HEAD(add_list);
 	int tried_times = 0;
 	LIST_HEAD(fail_head);
-	struct pci_dev_resource *fail_res;
 	int ret;
 
 	while (1) {
@@ -2283,36 +2291,8 @@ void pci_assign_unassigned_bridge_resources(struct pci_dev *bridge)
 			break;
 		}
 
-		printk(KERN_DEBUG "PCI: No. %d try to assign unassigned res\n",
-				 tried_times + 1);
-
-		/*
-		 * Try to release leaf bridge's resources that aren't big
-		 * enough to contain child device resources.
-		 */
-		list_for_each_entry(fail_res, &fail_head, list) {
-			pci_bus_release_bridge_resources(fail_res->dev->bus,
-							 fail_res->flags & PCI_RES_TYPE_MASK,
-							 whole_subtree);
-		}
-
-		/* Restore size and flags */
-		list_for_each_entry(fail_res, &fail_head, list) {
-			struct resource *res = fail_res->res;
-			int idx;
-
-			res->start = fail_res->start;
-			res->end = fail_res->end;
-			res->flags = fail_res->flags;
-
-			if (pci_is_bridge(fail_res->dev)) {
-				idx = pci_resource_num(fail_res->dev, res);
-				if (idx >= PCI_BRIDGE_RESOURCES &&
-				    idx <= PCI_BRIDGE_RESOURCE_END)
-					res->flags = 0;
-			}
-		}
-		free_list(&fail_head);
+		pci_prepare_next_assign_round(&fail_head, tried_times,
+					      whole_subtree);
 	}
 
 	ret = pci_reenable_device(bridge);
