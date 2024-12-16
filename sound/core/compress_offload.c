@@ -1180,9 +1180,9 @@ static int snd_compr_task_seq(struct snd_compr_stream *stream, unsigned long arg
 
 	if (stream->runtime->state != SNDRV_PCM_STATE_SETUP)
 		return -EPERM;
-	retval = get_user(seqno, (__u64 __user *)arg);
-	if (retval < 0)
-		return retval;
+	retval = copy_from_user(&seqno, (__u64 __user *)arg, sizeof(seqno));
+	if (retval)
+		return -EFAULT;
 	retval = 0;
 	if (seqno == 0) {
 		list_for_each_entry_reverse(task, &stream->runtime->tasks, list)
