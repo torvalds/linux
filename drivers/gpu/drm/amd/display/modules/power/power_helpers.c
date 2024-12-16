@@ -1039,3 +1039,8 @@ bool fill_custom_backlight_caps(unsigned int config_no, struct dm_acpi_atif_back
 	memcpy(caps->data_points, custom_backlight_profiles[config_no].data_points, data_points_size);
 	return true;
 }
+
+void reset_replay_dsync_error_count(struct dc_link *link)
+{
+	link->replay_settings.replay_desync_error_fail_count = 0;
+}

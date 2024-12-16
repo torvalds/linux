@@ -239,6 +239,9 @@ static void handle_hpd_irq_replay_sink(struct dc_link *link)
 			&replay_configuration.raw,
 			sizeof(replay_configuration.raw));
 
+		/* Update desync error counter */
+		link->replay_settings.replay_desync_error_fail_count++;
+
 		/* Acknowledge and clear error bits */
 		dm_helpers_dp_write_dpcd(
 			link->ctx,
