@@ -200,50 +200,12 @@ int afs_release(struct inode *inode, struct file *file)
 	return ret;
 }
 
-/*
- * Allocate a new read record.
- */
-struct afs_read *afs_alloc_read(gfp_t gfp)
-{
-	struct afs_read *req;
-
-	req = kzalloc(sizeof(struct afs_read), gfp);
-	if (req)
-		refcount_set(&req->usage, 1);
-
-	return req;
-}
-
-/*
- * Dispose of a ref to a read record.
- */
-void afs_put_read(struct afs_read *req)
-{
-	if (refcount_dec_and_test(&req->usage)) {
-		if (req->cleanup)
-			req->cleanup(req);
-		key_put(req->key);
-		kfree(req);
-	}
-}
-
 static void afs_fetch_data_notify(struct afs_operation *op)
 {
-	struct afs_read *req = op->fetch.req;
-	struct netfs_io_subrequest *subreq = req->subreq;
-	int error = afs_op_error(op);
+	struct netfs_io_subrequest *subreq = op->fetch.subreq;
 
-	req->error = error;
-	if (subreq) {
-		subreq->rreq->i_size = req->file_size;
-		if (req->pos + req->actual_len >= req->file_size)
-			__set_bit(NETFS_SREQ_HIT_EOF, &subreq->flags);
-		subreq->error = error;
-		netfs_read_subreq_terminated(subreq);
-		req->subreq = NULL;
-	} else if (req->done) {
-		req->done(req);
-	}
+	subreq->error = afs_op_error(op);
+	netfs_read_subreq_terminated(subreq);
 }
 
 static void afs_fetch_data_success(struct afs_operation *op)
@@ -253,7 +215,7 @@ static void afs_fetch_data_success(struct afs_operation *op)
 	_enter("op=%08x", op->debug_id);
 	afs_vnode_commit_status(op, &op->file[0]);
 	afs_stat_v(vnode, n_fetches);
-	atomic_long_add(op->fetch.req->actual_len, &op->net->n_fetch_bytes);
+	atomic_long_add(op->fetch.subreq->transferred, &op->net->n_fetch_bytes);
 	afs_fetch_data_notify(op);
 }
 
@@ -265,11 +227,10 @@ static void afs_fetch_data_aborted(struct afs_operation *op)
 
 static void afs_fetch_data_put(struct afs_operation *op)
 {
-	op->fetch.req->error = afs_op_error(op);
-	afs_put_read(op->fetch.req);
+	op->fetch.subreq->error = afs_op_error(op);
 }
 
-static const struct afs_operation_ops afs_fetch_data_operation = {
+const struct afs_operation_ops afs_fetch_data_operation = {
 	.issue_afs_rpc	= afs_fs_fetch_data,
 	.issue_yfs_rpc	= yfs_fs_fetch_data,
 	.success	= afs_fetch_data_success,
@@ -281,55 +242,34 @@ static const struct afs_operation_ops afs_fetch_data_operation = {
 /*
  * Fetch file data from the volume.
  */
-int afs_fetch_data(struct afs_vnode *vnode, struct afs_read *req)
+static void afs_read_worker(struct work_struct *work)
 {
+	struct netfs_io_subrequest *subreq = container_of(work, struct netfs_io_subrequest, work);
 	struct afs_operation *op;
+	struct afs_vnode *vnode = AFS_FS_I(subreq->rreq->inode);
+	struct key *key = subreq->rreq->netfs_priv;
 
 	_enter("%s{%llx:%llu.%u},%x,,,",
 	       vnode->volume->name,
 	       vnode->fid.vid,
 	       vnode->fid.vnode,
 	       vnode->fid.unique,
-	       key_serial(req->key));
+	       key_serial(key));
 
-	op = afs_alloc_operation(req->key, vnode->volume);
+	op = afs_alloc_operation(key, vnode->volume);
 	if (IS_ERR(op)) {
-		if (req->subreq) {
-			req->subreq->error = PTR_ERR(op);
-			netfs_read_subreq_terminated(req->subreq);
-		}
-		return PTR_ERR(op);
+		subreq->error = PTR_ERR(op);
+		netfs_read_subreq_terminated(subreq);
+		return;
 	}
 
 	afs_op_set_vnode(op, 0, vnode);
 
-	op->fetch.req	= afs_get_read(req);
+	op->fetch.subreq = subreq;
 	op->ops		= &afs_fetch_data_operation;
-	return afs_do_sync_operation(op);
-}
-
-static void afs_read_worker(struct work_struct *work)
-{
-	struct netfs_io_subrequest *subreq = container_of(work, struct netfs_io_subrequest, work);
-	struct afs_vnode *vnode = AFS_FS_I(subreq->rreq->inode);
-	struct afs_read *fsreq;
-
-	fsreq = afs_alloc_read(GFP_NOFS);
-	if (!fsreq) {
-		subreq->error = -ENOMEM;
-		return netfs_read_subreq_terminated(subreq);
-	}
-
-	fsreq->subreq	= subreq;
-	fsreq->pos	= subreq->start + subreq->transferred;
-	fsreq->len	= subreq->len   - subreq->transferred;
-	fsreq->key	= key_get(subreq->rreq->netfs_priv);
-	fsreq->vnode	= vnode;
-	fsreq->iter	= &subreq->io_iter;
 
 	trace_netfs_sreq(subreq, netfs_sreq_trace_submit);
-	afs_fetch_data(fsreq->vnode, fsreq);
-	afs_put_read(fsreq);
+	afs_do_sync_operation(op);
 }
 
 static void afs_issue_read(struct netfs_io_subrequest *subreq)

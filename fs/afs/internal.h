@@ -163,6 +163,7 @@ struct afs_call {
 	spinlock_t		state_lock;
 	int			error;		/* error code */
 	u32			abort_code;	/* Remote abort ID or 0 */
+	unsigned long long	remaining;	/* How much is left to receive */
 	unsigned int		max_lifespan;	/* Maximum lifespan in secs to set if not 0 */
 	unsigned		request_size;	/* size of request data */
 	unsigned		reply_max;	/* maximum size of reply */
@@ -231,28 +232,6 @@ static inline struct key *afs_file_key(struct file *file)
 
 	return af->key;
 }
-
-/*
- * Record of an outstanding read operation on a vnode.
- */
-struct afs_read {
-	loff_t			pos;		/* Where to start reading */
-	loff_t			len;		/* How much we're asking for */
-	loff_t			actual_len;	/* How much we're actually getting */
-	loff_t			file_size;	/* File size returned by server */
-	struct key		*key;		/* The key to use to reissue the read */
-	struct afs_vnode	*vnode;		/* The file being read into. */
-	struct netfs_io_subrequest *subreq;	/* Fscache helper read request this belongs to */
-	afs_dataversion_t	data_version;	/* Version number returned by server */
-	refcount_t		usage;
-	unsigned int		call_debug_id;
-	unsigned int		nr_pages;
-	int			error;
-	void (*done)(struct afs_read *);
-	void (*cleanup)(struct afs_read *);
-	struct iov_iter		*iter;		/* Iterator representing the buffer */
-	struct iov_iter		def_iter;	/* Default iterator */
-};
 
 /*
  * AFS superblock private data
@@ -911,7 +890,7 @@ struct afs_operation {
 			bool	new_negative;
 		} rename;
 		struct {
-			struct afs_read *req;
+			struct netfs_io_subrequest *subreq;
 		} fetch;
 		struct {
 			afs_lock_type_t type;
@@ -1118,21 +1097,13 @@ extern void afs_dynroot_depopulate(struct super_block *);
 extern const struct address_space_operations afs_file_aops;
 extern const struct inode_operations afs_file_inode_operations;
 extern const struct file_operations afs_file_operations;
+extern const struct afs_operation_ops afs_fetch_data_operation;
 extern const struct netfs_request_ops afs_req_ops;
 
 extern int afs_cache_wb_key(struct afs_vnode *, struct afs_file *);
 extern void afs_put_wb_key(struct afs_wb_key *);
 extern int afs_open(struct inode *, struct file *);
 extern int afs_release(struct inode *, struct file *);
-extern int afs_fetch_data(struct afs_vnode *, struct afs_read *);
-extern struct afs_read *afs_alloc_read(gfp_t);
-extern void afs_put_read(struct afs_read *);
-
-static inline struct afs_read *afs_get_read(struct afs_read *req)
-{
-	refcount_inc(&req->usage);
-	return req;
-}
 
 /*
  * flock.c

@@ -317,6 +317,8 @@ static void afs_apply_status(struct afs_operation *op,
 			inode_set_ctime_to_ts(inode, t);
 			inode_set_atime_to_ts(inode, t);
 		}
+		if (op->ops == &afs_fetch_data_operation)
+			op->fetch.subreq->rreq->i_size = status->size;
 	}
 }
 
