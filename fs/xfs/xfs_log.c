@@ -3456,6 +3456,16 @@ xlog_force_shutdown(
 		return false;
 
 	/*
+	 * Ensure that there is only ever one log shutdown being processed.
+	 * If we allow the log force below on a second pass after shutting
+	 * down the log, we risk deadlocking the CIL push as it may require
+	 * locks on objects the current shutdown context holds (e.g. taking
+	 * buffer locks to abort buffers on last unpin of buf log items).
+	 */
+	if (test_and_set_bit(XLOG_SHUTDOWN_STARTED, &log->l_opstate))
+		return false;
+
+	/*
 	 * Flush all the completed transactions to disk before marking the log
 	 * being shut down. We need to do this first as shutting down the log
 	 * before the force will prevent the log force from flushing the iclogs
@@ -3487,6 +3497,7 @@ xlog_force_shutdown(
 	spin_lock(&log->l_icloglock);
 	if (test_and_set_bit(XLOG_IO_ERROR, &log->l_opstate)) {
 		spin_unlock(&log->l_icloglock);
+		ASSERT(0);
 		return false;
 	}
 	spin_unlock(&log->l_icloglock);

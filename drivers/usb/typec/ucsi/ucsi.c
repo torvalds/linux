@@ -46,11 +46,11 @@ void ucsi_notify_common(struct ucsi *ucsi, u32 cci)
 		ucsi_connector_change(ucsi, UCSI_CCI_CONNECTOR(cci));
 
 	if (cci & UCSI_CCI_ACK_COMPLETE &&
-	    test_bit(ACK_PENDING, &ucsi->flags))
+	    test_and_clear_bit(ACK_PENDING, &ucsi->flags))
 		complete(&ucsi->complete);
 
 	if (cci & UCSI_CCI_COMMAND_COMPLETE &&
-	    test_bit(COMMAND_PENDING, &ucsi->flags))
+	    test_and_clear_bit(COMMAND_PENDING, &ucsi->flags))
 		complete(&ucsi->complete);
 }
 EXPORT_SYMBOL_GPL(ucsi_notify_common);
@@ -64,6 +64,8 @@ int ucsi_sync_control_common(struct ucsi *ucsi, u64 command)
 		set_bit(ACK_PENDING, &ucsi->flags);
 	else
 		set_bit(COMMAND_PENDING, &ucsi->flags);
+
+	reinit_completion(&ucsi->complete);
 
 	ret = ucsi->ops->async_control(ucsi, command);
 	if (ret)
@@ -651,7 +653,8 @@ static void ucsi_unregister_altmodes(struct ucsi_connector *con, u8 recipient)
 static int ucsi_get_connector_status(struct ucsi_connector *con, bool conn_ack)
 {
 	u64 command = UCSI_GET_CONNECTOR_STATUS | UCSI_CONNECTOR_NUMBER(con->num);
-	size_t size = min(UCSI_GET_CONNECTOR_STATUS_SIZE, UCSI_MAX_DATA_LENGTH(con->ucsi));
+	size_t size = min(sizeof(con->status),
+			  UCSI_MAX_DATA_LENGTH(con->ucsi));
 	int ret;
 
 	ret = ucsi_send_command_common(con->ucsi, command, &con->status, size, conn_ack);
