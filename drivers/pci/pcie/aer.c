@@ -17,6 +17,7 @@
 
 #include <linux/bitops.h>
 #include <linux/cper.h>
+#include <linux/dev_printk.h>
 #include <linux/pci.h>
 #include <linux/pci-acpi.h>
 #include <linux/sched.h>
@@ -34,6 +35,9 @@
 
 #include "../pci.h"
 #include "portdrv.h"
+
+#define aer_printk(level, pdev, fmt, arg...) \
+	dev_printk(level, &(pdev)->dev, fmt, ##arg)
 
 #define AER_ERROR_SOURCES_MAX		128
 
@@ -686,7 +690,7 @@ static void __aer_print_error(struct pci_dev *dev,
 		if (!errmsg)
 			errmsg = "Unknown Error Bit";
 
-		pci_printk(level, dev, "   [%2d] %-22s%s\n", i, errmsg,
+		aer_printk(level, dev, "   [%2d] %-22s%s\n", i, errmsg,
 				info->first_error == i ? " (First)" : "");
 	}
 	pci_dev_aer_stats_incr(dev, info);
@@ -709,11 +713,11 @@ void aer_print_error(struct pci_dev *dev, struct aer_err_info *info)
 
 	level = (info->severity == AER_CORRECTABLE) ? KERN_WARNING : KERN_ERR;
 
-	pci_printk(level, dev, "PCIe Bus Error: severity=%s, type=%s, (%s)\n",
+	aer_printk(level, dev, "PCIe Bus Error: severity=%s, type=%s, (%s)\n",
 		   aer_error_severity_string[info->severity],
 		   aer_error_layer[layer], aer_agent_string[agent]);
 
-	pci_printk(level, dev, "  device [%04x:%04x] error status/mask=%08x/%08x\n",
+	aer_printk(level, dev, "  device [%04x:%04x] error status/mask=%08x/%08x\n",
 		   dev->vendor, dev->device, info->status, info->mask);
 
 	__aer_print_error(dev, info);
