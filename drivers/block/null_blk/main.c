@@ -907,7 +907,7 @@ static struct nullb_page *null_radix_tree_insert(struct nullb *nullb, u64 idx,
 	if (radix_tree_insert(root, idx, t_page)) {
 		null_free_page(t_page);
 		t_page = radix_tree_lookup(root, idx);
-		WARN_ON(!t_page || t_page->page->index != idx);
+		WARN_ON(!t_page || t_page->page->private != idx);
 	} else if (is_cache)
 		nullb->dev->curr_cache += PAGE_SIZE;
 
@@ -930,7 +930,7 @@ static void null_free_device_storage(struct nullb_device *dev, bool is_cache)
 				(void **)t_pages, pos, FREE_BATCH);
 
 		for (i = 0; i < nr_pages; i++) {
-			pos = t_pages[i]->page->index;
+			pos = t_pages[i]->page->private;
 			ret = radix_tree_delete_item(root, pos, t_pages[i]);
 			WARN_ON(ret != t_pages[i]);
 			null_free_page(ret);
@@ -956,7 +956,7 @@ static struct nullb_page *__null_lookup_page(struct nullb *nullb,
 
 	root = is_cache ? &nullb->dev->cache : &nullb->dev->data;
 	t_page = radix_tree_lookup(root, idx);
-	WARN_ON(t_page && t_page->page->index != idx);
+	WARN_ON(t_page && t_page->page->private != idx);
 
 	if (t_page && (for_write || test_bit(sector_bit, t_page->bitmap)))
 		return t_page;
@@ -999,7 +999,7 @@ static struct nullb_page *null_insert_page(struct nullb *nullb,
 
 	spin_lock_irq(&nullb->lock);
 	idx = sector >> PAGE_SECTORS_SHIFT;
-	t_page->page->index = idx;
+	t_page->page->private = idx;
 	t_page = null_radix_tree_insert(nullb, idx, t_page, !ignore_cache);
 	radix_tree_preload_end();
 
@@ -1019,7 +1019,7 @@ static int null_flush_cache_page(struct nullb *nullb, struct nullb_page *c_page)
 	struct nullb_page *t_page, *ret;
 	void *dst, *src;
 
-	idx = c_page->page->index;
+	idx = c_page->page->private;
 
 	t_page = null_insert_page(nullb, idx << PAGE_SECTORS_SHIFT, true);
 
@@ -1078,7 +1078,7 @@ again:
 	 * avoid race, we don't allow page free
 	 */
 	for (i = 0; i < nr_pages; i++) {
-		nullb->cache_flush_pos = c_pages[i]->page->index;
+		nullb->cache_flush_pos = c_pages[i]->page->private;
 		/*
 		 * We found the page which is being flushed to disk by other
 		 * threads
