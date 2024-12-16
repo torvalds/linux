@@ -869,7 +869,8 @@ xfs_statfs_rt(
 {
 	st->f_bfree = xfs_rtbxlen_to_blen(mp,
 			xfs_sum_freecounter(mp, XC_FREE_RTEXTENTS));
-	st->f_blocks = mp->m_sb.sb_rblocks;
+	st->f_blocks = mp->m_sb.sb_rblocks - xfs_rtbxlen_to_blen(mp,
+			mp->m_free[XC_FREE_RTEXTENTS].res_total);
 }
 
 static void
