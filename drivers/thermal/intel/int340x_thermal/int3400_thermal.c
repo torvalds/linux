@@ -521,7 +521,6 @@ static struct thermal_zone_device_ops int3400_thermal_ops = {
 };
 
 static struct thermal_zone_params int3400_thermal_params = {
-	.governor_name = "user_space",
 	.no_hwmon = true,
 };
 

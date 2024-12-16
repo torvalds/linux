@@ -272,7 +272,6 @@ static const struct thermal_zone_device_ops tzone_ops = {
 };
 
 static struct thermal_zone_params tzone_params = {
-	.governor_name = "user_space",
 	.no_hwmon = true,
 };
 
