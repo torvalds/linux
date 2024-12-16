@@ -2096,10 +2096,7 @@ exit:
 
 static int lan78xx_get_regs_len(struct net_device *netdev)
 {
-	if (!netdev->phydev)
-		return (sizeof(lan78xx_regs));
-	else
-		return (sizeof(lan78xx_regs) + PHY_REG_SIZE);
+	return sizeof(lan78xx_regs);
 }
 
 static void
@@ -2109,7 +2106,7 @@ lan78xx_get_regs(struct net_device *netdev, struct ethtool_regs *regs,
 	struct lan78xx_net *dev = netdev_priv(netdev);
 	unsigned int data_count = 0;
 	u32 *data = buf;
-	int i, j, ret;
+	int i, ret;
 
 	/* Read Device/MAC registers */
 	for (i = 0; i < ARRAY_SIZE(lan78xx_regs); i++) {
@@ -2121,22 +2118,6 @@ lan78xx_get_regs(struct net_device *netdev, struct ethtool_regs *regs,
 			goto clean_data;
 		}
 
-		data_count++;
-	}
-
-	if (!netdev->phydev)
-		return;
-
-	/* Read PHY registers */
-	for (j = 0; j < 32; i++, j++) {
-		ret = phy_read(netdev->phydev, j);
-		if (ret < 0) {
-			netdev_warn(dev->net,
-				    "failed to read PHY register 0x%02x\n", j);
-			goto clean_data;
-		}
-
-		data[i] = ret;
 		data_count++;
 	}
 
