@@ -400,14 +400,18 @@ static void __assign_resources_sorted(struct list_head *head,
 	 */
 	LIST_HEAD(save_head);
 	LIST_HEAD(local_fail_head);
+	LIST_HEAD(dummy_head);
 	struct pci_dev_resource *save_res;
 	struct pci_dev_resource *dev_res, *tmp_res, *dev_res2;
 	struct resource *res;
 	unsigned long fail_type;
 	resource_size_t add_align, align;
 
+	if (!realloc_head)
+		realloc_head = &dummy_head;
+
 	/* Check if optional add_size is there */
-	if (!realloc_head || list_empty(realloc_head))
+	if (list_empty(realloc_head))
 		goto requested_and_reassign;
 
 	/* Save original start, end, flags etc at first */
@@ -503,7 +507,7 @@ requested_and_reassign:
 	assign_requested_resources_sorted(head, fail_head);
 
 	/* Try to satisfy any additional optional resource requests */
-	if (realloc_head)
+	if (!list_empty(realloc_head))
 		reassign_resources_sorted(realloc_head, head);
 
 out:
