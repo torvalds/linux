@@ -57,7 +57,7 @@ static int hbg_hw_txrx_clear(struct hbg_priv *priv)
 
 	/* After reset, regs need to be reconfigured */
 	hbg_hw_init(priv);
-	hbg_hw_set_uc_addr(priv, ether_addr_to_u64(priv->netdev->dev_addr));
+	hbg_hw_set_uc_addr(priv, ether_addr_to_u64(priv->netdev->dev_addr), 0);
 	hbg_change_mtu(priv, priv->netdev->mtu);
 
 	return 0;
@@ -75,19 +75,123 @@ static int hbg_net_stop(struct net_device *netdev)
 	return hbg_hw_txrx_clear(priv);
 }
 
+static void hbg_update_promisc_mode(struct net_device *netdev, bool overflow)
+{
+	struct hbg_priv *priv = netdev_priv(netdev);
+
+	/* Only when not table_overflow, and netdev->flags not set IFF_PROMISC,
+	 * The MAC filter will be enabled.
+	 * Otherwise the filter will be disabled.
+	 */
+	priv->filter.enabled = !(overflow || (netdev->flags & IFF_PROMISC));
+	hbg_hw_set_mac_filter_enable(priv, priv->filter.enabled);
+}
+
+static void hbg_set_mac_to_mac_table(struct hbg_priv *priv,
+				     u32 index, const u8 *addr)
+{
+	if (addr) {
+		ether_addr_copy(priv->filter.mac_table[index].addr, addr);
+		hbg_hw_set_uc_addr(priv, ether_addr_to_u64(addr), index);
+	} else {
+		eth_zero_addr(priv->filter.mac_table[index].addr);
+		hbg_hw_set_uc_addr(priv, 0, index);
+	}
+}
+
+static int hbg_get_index_from_mac_table(struct hbg_priv *priv,
+					const u8 *addr, u32 *index)
+{
+	u32 i;
+
+	for (i = 0; i < priv->filter.table_max_len; i++)
+		if (ether_addr_equal(priv->filter.mac_table[i].addr, addr)) {
+			*index = i;
+			return 0;
+		}
+
+	return -EINVAL;
+}
+
+static int hbg_add_mac_to_filter(struct hbg_priv *priv, const u8 *addr)
+{
+	u32 index;
+
+	/* already exists */
+	if (!hbg_get_index_from_mac_table(priv, addr, &index))
+		return 0;
+
+	for (index = 0; index < priv->filter.table_max_len; index++)
+		if (is_zero_ether_addr(priv->filter.mac_table[index].addr)) {
+			hbg_set_mac_to_mac_table(priv, index, addr);
+			return 0;
+		}
+
+	return -ENOSPC;
+}
+
+static void hbg_del_mac_from_filter(struct hbg_priv *priv, const u8 *addr)
+{
+	u32 index;
+
+	/* not exists */
+	if (hbg_get_index_from_mac_table(priv, addr, &index))
+		return;
+
+	hbg_set_mac_to_mac_table(priv, index, NULL);
+}
+
+static int hbg_uc_sync(struct net_device *netdev, const unsigned char *addr)
+{
+	struct hbg_priv *priv = netdev_priv(netdev);
+
+	return hbg_add_mac_to_filter(priv, addr);
+}
+
+static int hbg_uc_unsync(struct net_device *netdev, const unsigned char *addr)
+{
+	struct hbg_priv *priv = netdev_priv(netdev);
+
+	if (ether_addr_equal(netdev->dev_addr, (u8 *)addr))
+		return 0;
+
+	hbg_del_mac_from_filter(priv, addr);
+	return 0;
+}
+
+static void hbg_net_set_rx_mode(struct net_device *netdev)
+{
+	int ret;
+
+	ret = __dev_uc_sync(netdev, hbg_uc_sync, hbg_uc_unsync);
+
+	/* If ret != 0, overflow has occurred */
+	hbg_update_promisc_mode(netdev, !!ret);
+}
+
 static int hbg_net_set_mac_address(struct net_device *netdev, void *addr)
 {
 	struct hbg_priv *priv = netdev_priv(netdev);
 	u8 *mac_addr;
+	bool exists;
+	u32 index;
 
 	mac_addr = ((struct sockaddr *)addr)->sa_data;
 
 	if (!is_valid_ether_addr(mac_addr))
 		return -EADDRNOTAVAIL;
 
-	hbg_hw_set_uc_addr(priv, ether_addr_to_u64(mac_addr));
-	dev_addr_set(netdev, mac_addr);
+	/* The index of host mac is always 0.
+	 * If new mac address already exists,
+	 * delete the existing mac address and
+	 * add it to the position with index 0.
+	 */
+	exists = !hbg_get_index_from_mac_table(priv, mac_addr, &index);
+	hbg_set_mac_to_mac_table(priv, 0, mac_addr);
+	if (exists)
+		hbg_set_mac_to_mac_table(priv, index, NULL);
 
+	dev_addr_set(netdev, mac_addr);
 	return 0;
 }
 
@@ -143,7 +247,27 @@ static const struct net_device_ops hbg_netdev_ops = {
 	.ndo_set_mac_address	= hbg_net_set_mac_address,
 	.ndo_change_mtu		= hbg_net_change_mtu,
 	.ndo_tx_timeout		= hbg_net_tx_timeout,
+	.ndo_set_rx_mode	= hbg_net_set_rx_mode,
 };
+
+static int hbg_mac_filter_init(struct hbg_priv *priv)
+{
+	struct hbg_dev_specs *dev_specs = &priv->dev_specs;
+	struct hbg_mac_filter *filter = &priv->filter;
+	struct hbg_mac_table_entry *tmp_table;
+
+	tmp_table = devm_kcalloc(&priv->pdev->dev, dev_specs->uc_mac_num,
+				 sizeof(*tmp_table), GFP_KERNEL);
+	if (!tmp_table)
+		return -ENOMEM;
+
+	filter->mac_table = tmp_table;
+	filter->table_max_len = dev_specs->uc_mac_num;
+	filter->enabled = true;
+
+	hbg_hw_set_mac_filter_enable(priv, filter->enabled);
+	return 0;
+}
 
 static int hbg_init(struct hbg_priv *priv)
 {
@@ -162,6 +286,10 @@ static int hbg_init(struct hbg_priv *priv)
 		return ret;
 
 	ret = hbg_mdio_init(priv);
+	if (ret)
+		return ret;
+
+	ret = hbg_mac_filter_init(priv);
 	if (ret)
 		return ret;
 
@@ -221,6 +349,8 @@ static int hbg_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ret = hbg_init(priv);
 	if (ret)
 		return ret;
+
+	netdev->priv_flags |= IFF_UNICAST_FLT;
 
 	netdev->pcpu_stat_type = NETDEV_PCPU_STAT_TSTATS;
 	netdev->max_mtu = priv->dev_specs.max_mtu;

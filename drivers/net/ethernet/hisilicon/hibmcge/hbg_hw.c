@@ -67,6 +67,8 @@ static int hbg_hw_dev_specs_init(struct hbg_priv *priv)
 	specs->vlan_layers = hbg_reg_read(priv, HBG_REG_VLAN_LAYERS_ADDR);
 	specs->rx_fifo_num = hbg_reg_read(priv, HBG_REG_RX_FIFO_NUM_ADDR);
 	specs->tx_fifo_num = hbg_reg_read(priv, HBG_REG_TX_FIFO_NUM_ADDR);
+	specs->uc_mac_num = hbg_reg_read(priv, HBG_REG_UC_MAC_NUM_ADDR);
+
 	mac_addr = hbg_reg_read64(priv, HBG_REG_MAC_ADDR_ADDR);
 	u64_to_ether_addr(mac_addr, (u8 *)specs->mac_addr.sa_data);
 
@@ -135,9 +137,13 @@ void hbg_hw_irq_enable(struct hbg_priv *priv, u32 mask, bool enable)
 	hbg_reg_write(priv, HBG_REG_CF_INTRPT_MSK_ADDR, value);
 }
 
-void hbg_hw_set_uc_addr(struct hbg_priv *priv, u64 mac_addr)
+void hbg_hw_set_uc_addr(struct hbg_priv *priv, u64 mac_addr, u32 index)
 {
-	hbg_reg_write64(priv, HBG_REG_STATION_ADDR_LOW_2_ADDR, mac_addr);
+	u32 addr;
+
+	/* mac addr is u64, so the addr offset is 0x8 */
+	addr = HBG_REG_STATION_ADDR_LOW_2_ADDR + (index * 0x8);
+	hbg_reg_write64(priv, addr, mac_addr);
 }
 
 static void hbg_hw_set_pcu_max_frame_len(struct hbg_priv *priv,
@@ -205,6 +211,13 @@ void hbg_hw_adjust_link(struct hbg_priv *priv, u32 speed, u32 duplex)
 			    HBG_REG_PORT_MODE_M, speed);
 	hbg_reg_write_field(priv, HBG_REG_DUPLEX_TYPE_ADDR,
 			    HBG_REG_DUPLEX_B, duplex);
+}
+
+/* only support uc filter */
+void hbg_hw_set_mac_filter_enable(struct hbg_priv *priv, u32 enable)
+{
+	hbg_reg_write_field(priv, HBG_REG_REC_FILT_CTRL_ADDR,
+			    HBG_REG_REC_FILT_CTRL_UC_MATCH_EN_B, enable);
 }
 
 static void hbg_hw_init_transmit_ctrl(struct hbg_priv *priv)

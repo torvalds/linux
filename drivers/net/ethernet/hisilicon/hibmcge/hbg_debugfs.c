@@ -76,10 +76,32 @@ static int hbg_dbg_irq_info(struct seq_file *s, void *unused)
 	return 0;
 }
 
+static int hbg_dbg_mac_table(struct seq_file *s, void *unused)
+{
+	struct net_device *netdev = dev_get_drvdata(s->private);
+	struct hbg_priv *priv = netdev_priv(netdev);
+	struct hbg_mac_filter *filter;
+	u32 i;
+
+	filter = &priv->filter;
+	seq_printf(s, "mac addr max count: %u\n", filter->table_max_len);
+	seq_printf(s, "filter enabled: %s\n", str_true_false(filter->enabled));
+
+	for (i = 0; i < filter->table_max_len; i++) {
+		if (is_zero_ether_addr(filter->mac_table[i].addr))
+			continue;
+
+		seq_printf(s, "[%u] %pM\n", i, filter->mac_table[i].addr);
+	}
+
+	return 0;
+}
+
 static const struct hbg_dbg_info hbg_dbg_infos[] = {
 	{ "tx_ring", hbg_dbg_tx_ring },
 	{ "rx_ring", hbg_dbg_rx_ring },
 	{ "irq_info", hbg_dbg_irq_info },
+	{ "mac_table", hbg_dbg_mac_table },
 };
 
 static void hbg_debugfs_uninit(void *data)
