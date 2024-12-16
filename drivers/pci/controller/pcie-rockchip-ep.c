@@ -40,6 +40,10 @@
  * @irq_pci_fn: the latest PCI function that has updated the mapping of
  *		the MSI/INTX IRQ dedicated outbound region.
  * @irq_pending: bitmask of asserted INTX IRQs.
+ * @perst_irq: IRQ used for the PERST# signal.
+ * @perst_asserted: True if the PERST# signal was asserted.
+ * @link_up: True if the PCI link is up.
+ * @link_training: Work item to execute PCI link training.
  */
 struct rockchip_pcie_ep {
 	struct rockchip_pcie	rockchip;
