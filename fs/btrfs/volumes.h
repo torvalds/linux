@@ -485,6 +485,7 @@ struct btrfs_io_context {
 	struct bio *orig_bio;
 	atomic_t error;
 	u16 max_errors;
+	bool use_rst;
 
 	u64 logical;
 	u64 size;
