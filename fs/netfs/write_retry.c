@@ -93,15 +93,21 @@ static void netfs_retry_write_stream(struct netfs_io_request *wreq,
 		list_for_each_entry_from(subreq, &stream->subrequests, rreq_link) {
 			if (!len)
 				break;
-			/* Renegotiate max_len (wsize) */
-			trace_netfs_sreq(subreq, netfs_sreq_trace_retry);
+
+			subreq->start	= start;
+			subreq->len	= len;
 			__clear_bit(NETFS_SREQ_NEED_RETRY, &subreq->flags);
 			subreq->retry_count++;
+			trace_netfs_sreq(subreq, netfs_sreq_trace_retry);
+
+			/* Renegotiate max_len (wsize) */
+			stream->sreq_max_len = len;
 			stream->prepare_write(subreq);
 
-			part = min(len, stream->sreq_max_len);
+			part = umin(len, stream->sreq_max_len);
+			if (unlikely(stream->sreq_max_segs))
+				part = netfs_limit_iter(&source, 0, part, stream->sreq_max_segs);
 			subreq->len = part;
-			subreq->start = start;
 			subreq->transferred = 0;
 			len -= part;
 			start += part;

@@ -50,18 +50,23 @@
 	EM(netfs_rreq_trace_assess,		"ASSESS ")	\
 	EM(netfs_rreq_trace_copy,		"COPY   ")	\
 	EM(netfs_rreq_trace_collect,		"COLLECT")	\
+	EM(netfs_rreq_trace_complete,		"COMPLET")	\
 	EM(netfs_rreq_trace_dirty,		"DIRTY  ")	\
 	EM(netfs_rreq_trace_done,		"DONE   ")	\
 	EM(netfs_rreq_trace_free,		"FREE   ")	\
 	EM(netfs_rreq_trace_redirty,		"REDIRTY")	\
 	EM(netfs_rreq_trace_resubmit,		"RESUBMT")	\
+	EM(netfs_rreq_trace_set_abandon,	"S-ABNDN")	\
 	EM(netfs_rreq_trace_set_pause,		"PAUSE  ")	\
 	EM(netfs_rreq_trace_unlock,		"UNLOCK ")	\
 	EM(netfs_rreq_trace_unlock_pgpriv2,	"UNLCK-2")	\
 	EM(netfs_rreq_trace_unmark,		"UNMARK ")	\
 	EM(netfs_rreq_trace_wait_ip,		"WAIT-IP")	\
 	EM(netfs_rreq_trace_wait_pause,		"WT-PAUS")	\
+	EM(netfs_rreq_trace_wait_queue,		"WAIT-Q ")	\
 	EM(netfs_rreq_trace_wake_ip,		"WAKE-IP")	\
+	EM(netfs_rreq_trace_wake_queue,		"WAKE-Q ")	\
+	EM(netfs_rreq_trace_woke_queue,		"WOKE-Q ")	\
 	EM(netfs_rreq_trace_unpause,		"UNPAUSE")	\
 	E_(netfs_rreq_trace_write_done,		"WR-DONE")
 
@@ -81,6 +86,7 @@
 	EM(netfs_sreq_trace_cache_nowrite,	"CA-NW")	\
 	EM(netfs_sreq_trace_cache_prepare,	"CA-PR")	\
 	EM(netfs_sreq_trace_cache_write,	"CA-WR")	\
+	EM(netfs_sreq_trace_cancel,		"CANCL")	\
 	EM(netfs_sreq_trace_clear,		"CLEAR")	\
 	EM(netfs_sreq_trace_discard,		"DSCRD")	\
 	EM(netfs_sreq_trace_donate_to_prev,	"DON-P")	\
@@ -91,6 +97,9 @@
 	EM(netfs_sreq_trace_hit_eof,		"EOF  ")	\
 	EM(netfs_sreq_trace_io_progress,	"IO   ")	\
 	EM(netfs_sreq_trace_limited,		"LIMIT")	\
+	EM(netfs_sreq_trace_need_clear,		"N-CLR")	\
+	EM(netfs_sreq_trace_partial_read,	"PARTR")	\
+	EM(netfs_sreq_trace_need_retry,		"NRTRY")	\
 	EM(netfs_sreq_trace_prepare,		"PREP ")	\
 	EM(netfs_sreq_trace_prep_failed,	"PRPFL")	\
 	EM(netfs_sreq_trace_progress,		"PRGRS")	\
@@ -136,6 +145,7 @@
 	EM(netfs_sreq_trace_get_submit,		"GET SUBMIT")	\
 	EM(netfs_sreq_trace_get_short_read,	"GET SHORTRD")	\
 	EM(netfs_sreq_trace_new,		"NEW        ")	\
+	EM(netfs_sreq_trace_put_abandon,	"PUT ABANDON")	\
 	EM(netfs_sreq_trace_put_cancel,		"PUT CANCEL ")	\
 	EM(netfs_sreq_trace_put_clear,		"PUT CLEAR  ")	\
 	EM(netfs_sreq_trace_put_consumed,	"PUT CONSUME")	\
@@ -176,6 +186,7 @@
 	EM(netfs_folio_trace_mkwrite,		"mkwrite")	\
 	EM(netfs_folio_trace_mkwrite_plus,	"mkwrite+")	\
 	EM(netfs_folio_trace_not_under_wback,	"!wback")	\
+	EM(netfs_folio_trace_not_locked,	"!locked")	\
 	EM(netfs_folio_trace_put,		"put")		\
 	EM(netfs_folio_trace_read,		"read")		\
 	EM(netfs_folio_trace_read_done,		"read-done")	\
@@ -204,7 +215,6 @@
 	EM(netfs_trace_folioq_clear,		"clear")	\
 	EM(netfs_trace_folioq_delete,		"delete")	\
 	EM(netfs_trace_folioq_make_space,	"make-space")	\
-	EM(netfs_trace_folioq_prep_write,	"prep-wr")	\
 	EM(netfs_trace_folioq_rollbuf_init,	"roll-init")	\
 	E_(netfs_trace_folioq_read_progress,	"r-progress")
 
@@ -352,7 +362,7 @@ TRACE_EVENT(netfs_sreq,
 		    __entry->len	= sreq->len;
 		    __entry->transferred = sreq->transferred;
 		    __entry->start	= sreq->start;
-		    __entry->slot	= sreq->curr_folioq_slot;
+		    __entry->slot	= sreq->io_iter.folioq_slot;
 			   ),
 
 	    TP_printk("R=%08x[%x] %s %s f=%02x s=%llx %zx/%zx s=%u e=%d",
@@ -699,71 +709,6 @@ TRACE_EVENT(netfs_collect_stream,
 	    TP_printk("R=%08x[%x:] cto=%llx frn=%llx",
 		      __entry->wreq, __entry->stream,
 		      __entry->collected_to, __entry->front)
-	    );
-
-TRACE_EVENT(netfs_progress,
-	    TP_PROTO(const struct netfs_io_subrequest *subreq,
-		     unsigned long long start, size_t avail, size_t part),
-
-	    TP_ARGS(subreq, start, avail, part),
-
-	    TP_STRUCT__entry(
-		    __field(unsigned int,		rreq)
-		    __field(unsigned int,		subreq)
-		    __field(unsigned int,		consumed)
-		    __field(unsigned int,		transferred)
-		    __field(unsigned long long,		f_start)
-		    __field(unsigned int,		f_avail)
-		    __field(unsigned int,		f_part)
-		    __field(unsigned char,		slot)
-			     ),
-
-	    TP_fast_assign(
-		    __entry->rreq	= subreq->rreq->debug_id;
-		    __entry->subreq	= subreq->debug_index;
-		    __entry->consumed	= subreq->consumed;
-		    __entry->transferred = subreq->transferred;
-		    __entry->f_start	= start;
-		    __entry->f_avail	= avail;
-		    __entry->f_part	= part;
-		    __entry->slot	= subreq->curr_folioq_slot;
-			   ),
-
-	    TP_printk("R=%08x[%02x] s=%llx ct=%x/%x pa=%x/%x sl=%x",
-		      __entry->rreq, __entry->subreq, __entry->f_start,
-		      __entry->consumed, __entry->transferred,
-		      __entry->f_part, __entry->f_avail,  __entry->slot)
-	    );
-
-TRACE_EVENT(netfs_donate,
-	    TP_PROTO(const struct netfs_io_request *rreq,
-		     const struct netfs_io_subrequest *from,
-		     const struct netfs_io_subrequest *to,
-		     size_t amount,
-		     enum netfs_donate_trace trace),
-
-	    TP_ARGS(rreq, from, to, amount, trace),
-
-	    TP_STRUCT__entry(
-		    __field(unsigned int,		rreq)
-		    __field(unsigned int,		from)
-		    __field(unsigned int,		to)
-		    __field(unsigned int,		amount)
-		    __field(enum netfs_donate_trace,	trace)
-			     ),
-
-	    TP_fast_assign(
-		    __entry->rreq	= rreq->debug_id;
-		    __entry->from	= from->debug_index;
-		    __entry->to		= to ? to->debug_index : -1;
-		    __entry->amount	= amount;
-		    __entry->trace	= trace;
-			   ),
-
-	    TP_printk("R=%08x[%02x] -> [%02x] %s am=%x",
-		      __entry->rreq, __entry->from, __entry->to,
-		      __print_symbolic(__entry->trace, netfs_donate_traces),
-		      __entry->amount)
 	    );
 
 TRACE_EVENT(netfs_folioq,

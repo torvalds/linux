@@ -223,10 +223,13 @@ static void finish_netfs_read(struct ceph_osd_request *req)
 	      subreq->len, i_size_read(req->r_inode));
 
 	/* no object means success but no data */
-	if (err == -ENOENT)
+	if (err == -ENOENT) {
+		__set_bit(NETFS_SREQ_CLEAR_TAIL, &subreq->flags);
+		__set_bit(NETFS_SREQ_MADE_PROGRESS, &subreq->flags);
 		err = 0;
-	else if (err == -EBLOCKLISTED)
+	} else if (err == -EBLOCKLISTED) {
 		fsc->blocklisted = true;
+	}
 
 	if (err >= 0) {
 		if (sparse && err > 0)
@@ -242,6 +245,8 @@ static void finish_netfs_read(struct ceph_osd_request *req)
 			if (err > subreq->len)
 				err = subreq->len;
 		}
+		if (err > 0)
+			__set_bit(NETFS_SREQ_CLEAR_TAIL, &subreq->flags);
 	}
 
 	if (osd_data->type == CEPH_OSD_DATA_TYPE_PAGES) {

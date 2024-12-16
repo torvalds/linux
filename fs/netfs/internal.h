@@ -82,20 +82,27 @@ static inline void netfs_see_request(struct netfs_io_request *rreq,
 	trace_netfs_rreq_ref(rreq->debug_id, refcount_read(&rreq->ref), what);
 }
 
+static inline void netfs_see_subrequest(struct netfs_io_subrequest *subreq,
+					enum netfs_sreq_ref_trace what)
+{
+	trace_netfs_sreq_ref(subreq->rreq->debug_id, subreq->debug_index,
+			     refcount_read(&subreq->ref), what);
+}
+
 /*
  * read_collect.c
  */
-void netfs_read_termination_worker(struct work_struct *work);
-void netfs_rreq_terminated(struct netfs_io_request *rreq);
+void netfs_read_collection_worker(struct work_struct *work);
+void netfs_wake_read_collector(struct netfs_io_request *rreq);
+void netfs_cache_read_terminated(void *priv, ssize_t transferred_or_error, bool was_async);
+ssize_t netfs_wait_for_read(struct netfs_io_request *rreq);
+void netfs_wait_for_pause(struct netfs_io_request *rreq);
 
 /*
  * read_pgpriv2.c
  */
-void netfs_pgpriv2_mark_copy_to_cache(struct netfs_io_subrequest *subreq,
-				      struct netfs_io_request *rreq,
-				      struct folio_queue *folioq,
-				      int slot);
-void netfs_pgpriv2_write_to_the_cache(struct netfs_io_request *rreq);
+void netfs_pgpriv2_copy_to_cache(struct netfs_io_request *rreq, struct folio *folio);
+void netfs_pgpriv2_end_copy_to_cache(struct netfs_io_request *rreq);
 bool netfs_pgpriv2_unlock_copied_folios(struct netfs_io_request *wreq);
 
 /*

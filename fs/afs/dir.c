@@ -325,8 +325,10 @@ static ssize_t afs_read_dir(struct afs_vnode *dvnode, struct file *file)
 	 * haven't read it yet.
 	 */
 	if (test_bit(AFS_VNODE_DIR_VALID, &dvnode->flags) &&
-	    test_bit(AFS_VNODE_DIR_READ, &dvnode->flags))
+	    test_bit(AFS_VNODE_DIR_READ, &dvnode->flags)) {
+		ret = i_size;
 		goto valid;
+	}
 
 	up_read(&dvnode->validate_lock);
 	if (down_write_killable(&dvnode->validate_lock) < 0)
@@ -346,11 +348,13 @@ static ssize_t afs_read_dir(struct afs_vnode *dvnode, struct file *file)
 
 		set_bit(AFS_VNODE_DIR_VALID, &dvnode->flags);
 		set_bit(AFS_VNODE_DIR_READ, &dvnode->flags);
+	} else {
+		ret = i_size;
 	}
 
 	downgrade_write(&dvnode->validate_lock);
 valid:
-	return i_size;
+	return ret;
 
 error_unlock:
 	up_write(&dvnode->validate_lock);

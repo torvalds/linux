@@ -289,7 +289,9 @@ reassess_streams:
 		goto need_retry;
 	if ((notes & MADE_PROGRESS) && test_bit(NETFS_RREQ_PAUSE, &wreq->flags)) {
 		trace_netfs_rreq(wreq, netfs_rreq_trace_unpause);
-		clear_and_wake_up_bit(NETFS_RREQ_PAUSE, &wreq->flags);
+		clear_bit_unlock(NETFS_RREQ_PAUSE, &wreq->flags);
+		smp_mb__after_atomic(); /* Set PAUSE before task state */
+		wake_up(&wreq->waitq);
 	}
 
 	if (notes & NEED_REASSESS) {

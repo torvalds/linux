@@ -1322,6 +1322,8 @@ cifs_readv_callback(struct mid_q_entry *mid)
 		} else if (rdata->got_bytes > 0) {
 			__set_bit(NETFS_SREQ_MADE_PROGRESS, &rdata->subreq.flags);
 		}
+		if (rdata->got_bytes)
+			__set_bit(NETFS_SREQ_MADE_PROGRESS, &rdata->subreq.flags);
 	}
 
 	rdata->credits.value = 0;

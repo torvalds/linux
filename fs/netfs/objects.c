@@ -48,7 +48,7 @@ struct netfs_io_request *netfs_alloc_request(struct address_space *mapping,
 	spin_lock_init(&rreq->lock);
 	INIT_LIST_HEAD(&rreq->io_streams[0].subrequests);
 	INIT_LIST_HEAD(&rreq->io_streams[1].subrequests);
-	INIT_LIST_HEAD(&rreq->subrequests);
+	init_waitqueue_head(&rreq->waitq);
 	refcount_set(&rreq->ref, 1);
 
 	if (origin == NETFS_READAHEAD ||
@@ -56,10 +56,12 @@ struct netfs_io_request *netfs_alloc_request(struct address_space *mapping,
 	    origin == NETFS_READ_GAPS ||
 	    origin == NETFS_READ_SINGLE ||
 	    origin == NETFS_READ_FOR_WRITE ||
-	    origin == NETFS_DIO_READ)
-		INIT_WORK(&rreq->work, NULL);
-	else
+	    origin == NETFS_DIO_READ) {
+		INIT_WORK(&rreq->work, netfs_read_collection_worker);
+		rreq->io_streams[0].avail = true;
+	} else {
 		INIT_WORK(&rreq->work, netfs_write_collection_worker);
+	}
 
 	__set_bit(NETFS_RREQ_IN_PROGRESS, &rreq->flags);
 	if (file && file->f_flags & O_NONBLOCK)
@@ -92,14 +94,6 @@ void netfs_clear_subrequests(struct netfs_io_request *rreq, bool was_async)
 	struct netfs_io_subrequest *subreq;
 	struct netfs_io_stream *stream;
 	int s;
-
-	while (!list_empty(&rreq->subrequests)) {
-		subreq = list_first_entry(&rreq->subrequests,
-					  struct netfs_io_subrequest, rreq_link);
-		list_del(&subreq->rreq_link);
-		netfs_put_subrequest(subreq, was_async,
-				     netfs_sreq_trace_put_clear);
-	}
 
 	for (s = 0; s < ARRAY_SIZE(rreq->io_streams); s++) {
 		stream = &rreq->io_streams[s];
@@ -192,21 +186,7 @@ struct netfs_io_subrequest *netfs_alloc_subrequest(struct netfs_io_request *rreq
 	}
 
 	memset(subreq, 0, kmem_cache_size(cache));
-
-	switch (rreq->origin) {
-	case NETFS_READAHEAD:
-	case NETFS_READPAGE:
-	case NETFS_READ_GAPS:
-	case NETFS_READ_SINGLE:
-	case NETFS_READ_FOR_WRITE:
-	case NETFS_DIO_READ:
-		INIT_WORK(&subreq->work, netfs_read_subreq_termination_worker);
-		break;
-	default:
-		INIT_WORK(&subreq->work, NULL);
-		break;
-	}
-
+	INIT_WORK(&subreq->work, NULL);
 	INIT_LIST_HEAD(&subreq->rreq_link);
 	refcount_set(&subreq->ref, 2);
 	subreq->rreq = rreq;

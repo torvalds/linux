@@ -77,6 +77,7 @@ static void netfs_single_read_cache(struct netfs_io_request *rreq,
 {
 	struct netfs_cache_resources *cres = &rreq->cache_resources;
 
+	_enter("R=%08x[%x]", rreq->debug_id, subreq->debug_index);
 	netfs_stat(&netfs_n_rh_read);
 	cres->ops->read(cres, subreq->start, &subreq->io_iter, NETFS_READ_HOLE_FAIL,
 			netfs_cache_read_terminated, subreq);
@@ -88,28 +89,28 @@ static void netfs_single_read_cache(struct netfs_io_request *rreq,
  */
 static int netfs_single_dispatch_read(struct netfs_io_request *rreq)
 {
+	struct netfs_io_stream *stream = &rreq->io_streams[0];
 	struct netfs_io_subrequest *subreq;
 	int ret = 0;
 
-	atomic_set(&rreq->nr_outstanding, 1);
-
 	subreq = netfs_alloc_subrequest(rreq);
-	if (!subreq) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!subreq)
+		return -ENOMEM;
 
 	subreq->source	= NETFS_DOWNLOAD_FROM_SERVER;
 	subreq->start	= 0;
 	subreq->len	= rreq->len;
 	subreq->io_iter	= rreq->buffer.iter;
 
-	atomic_inc(&rreq->nr_outstanding);
+	__set_bit(NETFS_SREQ_IN_PROGRESS, &subreq->flags);
 
-	spin_lock_bh(&rreq->lock);
-	list_add_tail(&subreq->rreq_link, &rreq->subrequests);
+	spin_lock(&rreq->lock);
+	list_add_tail(&subreq->rreq_link, &stream->subrequests);
 	trace_netfs_sreq(subreq, netfs_sreq_trace_added);
-	spin_unlock_bh(&rreq->lock);
+	stream->front = subreq;
+	/* Store list pointers before active flag */
+	smp_store_release(&stream->active, true);
+	spin_unlock(&rreq->lock);
 
 	netfs_single_cache_prepare_read(rreq, subreq);
 	switch (subreq->source) {
@@ -137,14 +138,12 @@ static int netfs_single_dispatch_read(struct netfs_io_request *rreq)
 		break;
 	}
 
-out:
-	if (atomic_dec_and_test(&rreq->nr_outstanding))
-		netfs_rreq_terminated(rreq);
+	smp_wmb(); /* Write lists before ALL_QUEUED. */
+	set_bit(NETFS_RREQ_ALL_QUEUED, &rreq->flags);
 	return ret;
 cancel:
-	atomic_dec(&rreq->nr_outstanding);
 	netfs_put_subrequest(subreq, false, netfs_sreq_trace_put_cancel);
-	goto out;
+	return ret;
 }
 
 /**
@@ -185,13 +184,7 @@ ssize_t netfs_read_single(struct inode *inode, struct file *file, struct iov_ite
 	rreq->buffer.iter = *iter;
 	netfs_single_dispatch_read(rreq);
 
-	trace_netfs_rreq(rreq, netfs_rreq_trace_wait_ip);
-	wait_on_bit(&rreq->flags, NETFS_RREQ_IN_PROGRESS,
-		    TASK_UNINTERRUPTIBLE);
-
-	ret = rreq->error;
-	if (ret == 0)
-		ret = rreq->transferred;
+	ret = netfs_wait_for_read(rreq);
 	netfs_put_request(rreq, true, netfs_rreq_trace_put_return);
 	return ret;
 

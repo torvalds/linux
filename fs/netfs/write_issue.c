@@ -723,7 +723,7 @@ int netfs_unbuffered_write(struct netfs_io_request *wreq, bool may_wait, size_t 
 		rolling_buffer_advance(&wreq->buffer, part);
 		if (test_bit(NETFS_RREQ_PAUSE, &wreq->flags)) {
 			trace_netfs_rreq(wreq, netfs_rreq_trace_wait_pause);
-			wait_on_bit(&wreq->flags, NETFS_RREQ_PAUSE, TASK_UNINTERRUPTIBLE);
+			wait_event(wreq->waitq, !test_bit(NETFS_RREQ_PAUSE, &wreq->flags));
 		}
 		if (test_bit(NETFS_RREQ_FAILED, &wreq->flags))
 			break;
