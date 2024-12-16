@@ -247,7 +247,7 @@ static void afs_fetch_data_notify(struct afs_operation *op)
 		if (req->pos + req->actual_len >= req->file_size)
 			__set_bit(NETFS_SREQ_HIT_EOF, &subreq->flags);
 		subreq->error = error;
-		netfs_read_subreq_terminated(subreq, false);
+		netfs_read_subreq_terminated(subreq);
 		req->subreq = NULL;
 	} else if (req->done) {
 		req->done(req);
@@ -304,7 +304,7 @@ int afs_fetch_data(struct afs_vnode *vnode, struct afs_read *req)
 	if (IS_ERR(op)) {
 		if (req->subreq) {
 			req->subreq->error = PTR_ERR(op);
-			netfs_read_subreq_terminated(req->subreq, false);
+			netfs_read_subreq_terminated(req->subreq);
 		}
 		return PTR_ERR(op);
 	}
@@ -325,7 +325,7 @@ static void afs_read_worker(struct work_struct *work)
 	fsreq = afs_alloc_read(GFP_NOFS);
 	if (!fsreq) {
 		subreq->error = -ENOMEM;
-		return netfs_read_subreq_terminated(subreq, false);
+		return netfs_read_subreq_terminated(subreq);
 	}
 
 	fsreq->subreq	= subreq;

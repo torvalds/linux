@@ -316,7 +316,7 @@ static void nfs_netfs_issue_read(struct netfs_io_subrequest *sreq)
 	netfs = nfs_netfs_alloc(sreq);
 	if (!netfs) {
 		sreq->error = -ENOMEM;
-		return netfs_read_subreq_terminated(sreq, false);
+		return netfs_read_subreq_terminated(sreq);
 	}
 
 	pgio.pg_netfs = netfs; /* used in completion */
