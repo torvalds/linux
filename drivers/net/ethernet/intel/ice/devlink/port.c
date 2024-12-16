@@ -5,7 +5,7 @@
 
 #include "ice.h"
 #include "devlink.h"
-#include "devlink_port.h"
+#include "port.h"
 #include "ice_lib.h"
 #include "ice_fltr.h"
 
