@@ -9,7 +9,6 @@
 
 #include <asm/kvm_emulate.h>
 
-#include <nvhe/fixed_config.h>
 #include <nvhe/mem_protect.h>
 #include <nvhe/memory.h>
 #include <nvhe/pkvm.h>

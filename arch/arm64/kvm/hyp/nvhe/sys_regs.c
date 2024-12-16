@@ -11,7 +11,6 @@
 
 #include <hyp/adjust_pc.h>
 
-#include <nvhe/fixed_config.h>
 #include <nvhe/pkvm.h>
 
 #include "../../sys_regs.h"
