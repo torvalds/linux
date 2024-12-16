@@ -55,6 +55,15 @@ size_t __attribute_const__ btrfs_get_num_csums(void)
 	return ARRAY_SIZE(btrfs_csums);
 }
 
+bool __pure btrfs_is_empty_uuid(const u8 *uuid)
+{
+	for (int i = 0; i < BTRFS_UUID_SIZE; i++) {
+		if (uuid[i] != 0)
+			return false;
+	}
+	return true;
+}
+
 /*
  * Start exclusive operation @type, return true on success.
  */
