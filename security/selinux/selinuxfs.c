@@ -2001,7 +2001,7 @@ static int sel_fill_super(struct super_block *sb, struct fs_context *fc)
 		[SEL_POLICY] = {"policy", &sel_policy_ops, S_IRUGO},
 		[SEL_VALIDATE_TRANS] = {"validatetrans", &sel_transition_ops,
 					S_IWUGO},
-		/* last one */ {""}
+		/* last one */ {"", NULL, 0}
 	};
 
 	ret = selinux_fs_info_create(sb);
