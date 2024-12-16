@@ -444,8 +444,7 @@ static void __assign_resources_sorted(struct list_head *head,
 		list_for_each_entry(dev_res, head, list)
 			remove_from_list(realloc_head, dev_res->res);
 		free_list(&save_head);
-		free_list(head);
-		return;
+		goto out;
 	}
 
 	/* Check failed type */
@@ -488,6 +487,8 @@ requested_and_reassign:
 	/* Try to satisfy any additional optional resource requests */
 	if (realloc_head)
 		reassign_resources_sorted(realloc_head, head);
+
+out:
 	free_list(head);
 }
 
