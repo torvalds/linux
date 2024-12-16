@@ -1145,7 +1145,7 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 
 	if (bus->self && size0 &&
 	    !pbus_upstream_space_available(bus, mask | IORESOURCE_PREFETCH, type,
-					   size0, add_align)) {
+					   size0, min_align)) {
 		min_align = 1ULL << (max_order + __ffs(SZ_1M));
 		min_align = max(min_align, win_align);
 		size0 = calculate_memsize(size, min_size, 0, 0, resource_size(b_res), win_align);
