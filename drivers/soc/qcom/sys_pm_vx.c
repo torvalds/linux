@@ -150,18 +150,18 @@ static const char * const drv_names_niobe[][MAX_DRV_NAMES] = {
 			"DISPLAY_2ND", "MODEM", "WLAN RF", "WLAN BB", "CAM", "PCIE", ""},
 };
 
-static const char * const drv_names_anorak[] = {
-	"TZ", "L3", "HLOS", "HYP", "SECPROC", "AUDIO", "SENSOR", "AOP", "DEBUG",
-	"GPU", "DISPLAY", "COMPUTE_DSP", "TIME_HW", "TIME_SW", "DISPLAY_1",
-	"MDM SW", "MDM HW", "WLAN RF", "WLAN BB", "DDR AUX", "ARC CPRF",
-	""
+static const char * const drv_names_anorak[][MAX_DRV_NAMES] = {
+	[CXPC_DRV_NAME] = {"TZ", "L3", "HLOS", "HYP", "SECPROC", "AUDIO", "SENSOR", "AOP", "DEBUG",
+			"GPU", "DISPLAY", "COMPUTE_DSP", "TIME_HW", "TIME_SW", "DISPLAY_1",
+			"MDM SW", "MDM HW", "WLAN RF", "WLAN BB", "DDR AUX", "ARC CPRF", ""},
+	[AOSS_DRV_NAME] = {""},
 };
 
-static const char * const drv_names_neo[] = {
-	"TZ", "HYP", "HLOS", "L3", "SECPROC", "AUDIO", "SENSOR", "AOP", "DEBUG",
-	"GPU", "DISPLAY", "COMPUTE_DSP", "TME_HW", "TME_SW", "WPSS",
-	"MDM SW", "MDM HW", "WLAN RF", "WLAN BB", "DDR AUX", "ARC CPRF",
-	""
+static const char * const drv_names_neo[][MAX_DRV_NAMES] = {
+	[CXPC_DRV_NAME] = {"TZ", "HYP", "HLOS", "L3", "SECPROC", "AUDIO", "SENSOR", "AOP",
+			"DEBUG", "GPU", "DISPLAY", "COMPUTE_DSP", "TME_HW", "TME_SW", "WPSS",
+			"MDM SW", "MDM HW", "WLAN RF", "WLAN BB", "DDR AUX", "ARC CPRF", ""},
+	[AOSS_DRV_NAME] = {""},
 };
 
 static ssize_t debug_time_ms_show(struct device *dev,
