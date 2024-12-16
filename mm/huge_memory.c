@@ -4181,20 +4181,21 @@ static ssize_t split_huge_pages_write(struct file *file, const char __user *buf,
 
 	if (input_buf[0] == '/') {
 		char *tok;
-		char *buf = input_buf;
+		char *tok_buf = input_buf;
 		char file_path[MAX_INPUT_BUF_SZ];
 		pgoff_t off_start = 0, off_end = 0;
 		size_t input_len = strlen(input_buf);
 
-		tok = strsep(&buf, ",");
-		if (tok && buf) {
+		tok = strsep(&tok_buf, ",");
+		if (tok && tok_buf) {
 			strscpy(file_path, tok);
 		} else {
 			ret = -EINVAL;
 			goto out;
 		}
 
-		ret = sscanf(buf, "0x%lx,0x%lx,%d", &off_start, &off_end, &new_order);
+		ret = sscanf(tok_buf, "0x%lx,0x%lx,%d", &off_start,
+			    &off_end, &new_order);
 		if (ret != 2 && ret != 3) {
 			ret = -EINVAL;
 			goto out;
