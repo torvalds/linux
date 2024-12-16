@@ -1657,7 +1657,7 @@ static int fuse_notify_inval_entry(struct fuse_conn *fc, unsigned int size,
 		goto err;
 
 	err = -ENAMETOOLONG;
-	if (outarg.namelen > FUSE_NAME_MAX)
+	if (outarg.namelen > fc->name_max)
 		goto err;
 
 	err = -EINVAL;
@@ -1706,7 +1706,7 @@ static int fuse_notify_delete(struct fuse_conn *fc, unsigned int size,
 		goto err;
 
 	err = -ENAMETOOLONG;
-	if (outarg.namelen > FUSE_NAME_MAX)
+	if (outarg.namelen > fc->name_max)
 		goto err;
 
 	err = -EINVAL;
