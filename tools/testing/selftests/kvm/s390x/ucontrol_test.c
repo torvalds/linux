@@ -210,9 +210,12 @@ TEST_F(uc_kvm, uc_attr_mem_limit)
 	struct kvm_device_attr attr = {
 		.group = KVM_S390_VM_MEM_CTRL,
 		.attr = KVM_S390_VM_MEM_LIMIT_SIZE,
-		.addr = (unsigned long)&limit,
+		.addr = (u64)&limit,
 	};
 	int rc;
+
+	rc = ioctl(self->vm_fd, KVM_HAS_DEVICE_ATTR, &attr);
+	EXPECT_EQ(0, rc);
 
 	rc = ioctl(self->vm_fd, KVM_GET_DEVICE_ATTR, &attr);
 	EXPECT_EQ(0, rc);
