@@ -320,38 +320,39 @@ static unsigned long dax_end_pfn(void *entry)
 	for (pfn = dax_to_pfn(entry); \
 			pfn < dax_end_pfn(entry); pfn++)
 
-static inline bool dax_page_is_shared(struct page *page)
+static inline bool dax_folio_is_shared(struct folio *folio)
 {
-	return page->mapping == PAGE_MAPPING_DAX_SHARED;
+	return folio->mapping == PAGE_MAPPING_DAX_SHARED;
 }
 
 /*
- * Set the page->mapping with PAGE_MAPPING_DAX_SHARED flag, increase the
+ * Set the folio->mapping with PAGE_MAPPING_DAX_SHARED flag, increase the
  * refcount.
  */
-static inline void dax_page_share_get(struct page *page)
+static inline void dax_folio_share_get(struct folio *folio)
 {
-	if (page->mapping != PAGE_MAPPING_DAX_SHARED) {
+	if (folio->mapping != PAGE_MAPPING_DAX_SHARED) {
 		/*
 		 * Reset the index if the page was already mapped
 		 * regularly before.
 		 */
-		if (page->mapping)
-			page->share = 1;
-		page->mapping = PAGE_MAPPING_DAX_SHARED;
+		if (folio->mapping)
+			folio->page.share = 1;
+		folio->mapping = PAGE_MAPPING_DAX_SHARED;
 	}
-	page->share++;
+	folio->page.share++;
 }
 
-static inline unsigned long dax_page_share_put(struct page *page)
+static inline unsigned long dax_folio_share_put(struct folio *folio)
 {
-	return --page->share;
+	return --folio->page.share;
 }
 
 /*
- * When it is called in dax_insert_entry(), the shared flag will indicate that
- * whether this entry is shared by multiple files.  If so, set the page->mapping
- * PAGE_MAPPING_DAX_SHARED, and use page->share as refcount.
+ * When it is called in dax_insert_entry(), the shared flag will indicate
+ * that whether this entry is shared by multiple files.  If so, set
+ * the folio->mapping PAGE_MAPPING_DAX_SHARED, and use page->share
+ * as refcount.
  */
 static void dax_associate_entry(void *entry, struct address_space *mapping,
 		struct vm_area_struct *vma, unsigned long address, bool shared)
@@ -364,14 +365,14 @@ static void dax_associate_entry(void *entry, struct address_space *mapping,
 
 	index = linear_page_index(vma, address & ~(size - 1));
 	for_each_mapped_pfn(entry, pfn) {
-		struct page *page = pfn_to_page(pfn);
+		struct folio *folio = pfn_folio(pfn);
 
 		if (shared) {
-			dax_page_share_get(page);
+			dax_folio_share_get(folio);
 		} else {
-			WARN_ON_ONCE(page->mapping);
-			page->mapping = mapping;
-			page->index = index + i++;
+			WARN_ON_ONCE(folio->mapping);
+			folio->mapping = mapping;
+			folio->index = index + i++;
 		}
 	}
 }
@@ -385,17 +386,17 @@ static void dax_disassociate_entry(void *entry, struct address_space *mapping,
 		return;
 
 	for_each_mapped_pfn(entry, pfn) {
-		struct page *page = pfn_to_page(pfn);
+		struct folio *folio = pfn_folio(pfn);
 
-		WARN_ON_ONCE(trunc && page_ref_count(page) > 1);
-		if (dax_page_is_shared(page)) {
+		WARN_ON_ONCE(trunc && folio_ref_count(folio) > 1);
+		if (dax_folio_is_shared(folio)) {
 			/* keep the shared flag if this page is still shared */
-			if (dax_page_share_put(page) > 0)
+			if (dax_folio_share_put(folio) > 0)
 				continue;
 		} else
-			WARN_ON_ONCE(page->mapping && page->mapping != mapping);
-		page->mapping = NULL;
-		page->index = 0;
+			WARN_ON_ONCE(folio->mapping && folio->mapping != mapping);
+		folio->mapping = NULL;
+		folio->index = 0;
 	}
 }
 
