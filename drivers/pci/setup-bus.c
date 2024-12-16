@@ -127,6 +127,15 @@ static resource_size_t get_res_add_align(struct list_head *head,
 	return dev_res ? dev_res->min_align : 0;
 }
 
+static void restore_dev_resource(struct pci_dev_resource *dev_res)
+{
+	struct resource *res = dev_res->res;
+
+	res->start = dev_res->start;
+	res->end = dev_res->end;
+	res->flags = dev_res->flags;
+}
+
 static bool pdev_resources_assignable(struct pci_dev *dev)
 {
 	u16 class = dev->class >> 8, command;
@@ -473,13 +482,8 @@ static void __assign_resources_sorted(struct list_head *head,
 			release_resource(res);
 	}
 	/* Restore start/end/flags from saved list */
-	list_for_each_entry(save_res, &save_head, list) {
-		res = save_res->res;
-
-		res->start = save_res->start;
-		res->end = save_res->end;
-		res->flags = save_res->flags;
-	}
+	list_for_each_entry(save_res, &save_head, list)
+		restore_dev_resource(save_res);
 	free_list(&save_head);
 
 requested_and_reassign:
@@ -2158,9 +2162,7 @@ static void pci_prepare_next_assign_round(struct list_head *fail_head,
 		struct pci_dev *dev = fail_res->dev;
 		int idx = pci_resource_num(dev, res);
 
-		res->start = fail_res->start;
-		res->end = fail_res->end;
-		res->flags = fail_res->flags;
+		restore_dev_resource(fail_res);
 
 		if (!pci_is_bridge(dev))
 			continue;
@@ -2377,13 +2379,8 @@ int pci_reassign_bridge_resources(struct pci_dev *bridge, unsigned long type)
 
 cleanup:
 	/* Restore size and flags */
-	list_for_each_entry(dev_res, &failed, list) {
-		struct resource *res = dev_res->res;
-
-		res->start = dev_res->start;
-		res->end = dev_res->end;
-		res->flags = dev_res->flags;
-	}
+	list_for_each_entry(dev_res, &failed, list)
+		restore_dev_resource(dev_res);
 	free_list(&failed);
 
 	/* Revert to the old configuration */
@@ -2393,9 +2390,7 @@ cleanup:
 		bridge = dev_res->dev;
 		i = pci_resource_num(bridge, res);
 
-		res->start = dev_res->start;
-		res->end = dev_res->end;
-		res->flags = dev_res->flags;
+		restore_dev_resource(dev_res);
 
 		pci_claim_resource(bridge, i);
 		pci_setup_bridge(bridge->subordinate);
