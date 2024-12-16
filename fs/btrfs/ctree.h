@@ -756,12 +756,4 @@ static inline bool btrfs_is_data_reloc_root(const struct btrfs_root *root)
 	return root->root_key.objectid == BTRFS_DATA_RELOC_TREE_OBJECTID;
 }
 
-/*
- * We use folio flag owner_2 to indicate there is an ordered extent with
- * unfinished IO.
- */
-#define folio_test_ordered(folio)	folio_test_owner_2(folio)
-#define folio_set_ordered(folio)	folio_set_owner_2(folio)
-#define folio_clear_ordered(folio)	folio_clear_owner_2(folio)
-
 #endif

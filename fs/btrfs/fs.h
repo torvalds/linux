@@ -1066,6 +1066,14 @@ static inline void btrfs_wake_unfinished_drop(struct btrfs_fs_info *fs_info)
 	(unlikely(test_bit(BTRFS_FS_STATE_LOG_CLEANUP_ERROR,		\
 			   &(fs_info)->fs_state)))
 
+/*
+ * We use folio flag owner_2 to indicate there is an ordered extent with
+ * unfinished IO.
+ */
+#define folio_test_ordered(folio)	folio_test_owner_2(folio)
+#define folio_set_ordered(folio)	folio_set_owner_2(folio)
+#define folio_clear_ordered(folio)	folio_clear_owner_2(folio)
+
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 
 #define EXPORT_FOR_TESTS
