@@ -252,9 +252,14 @@ static void reassign_resources_sorted(struct list_head *realloc_head,
 
 		res = add_res->res;
 		dev = add_res->dev;
+		idx = pci_resource_num(dev, res);
 
-		/* Skip resource that has been reset */
-		if (!res->flags)
+		/*
+		 * Skip resource that failed the earlier assignment and is
+		 * not optional as it would just fail again.
+		 */
+		if (!res->parent && resource_size(res) &&
+		    !pci_resource_is_optional(dev, idx))
 			goto out;
 
 		/* Skip this resource if not found in head list */
@@ -267,7 +272,6 @@ static void reassign_resources_sorted(struct list_head *realloc_head,
 		if (!found_match) /* Just skip */
 			continue;
 
-		idx = pci_resource_num(dev, res);
 		res_name = pci_resource_name(dev, idx);
 		add_size = add_res->add_size;
 		align = add_res->min_align;
@@ -277,7 +281,6 @@ static void reassign_resources_sorted(struct list_head *realloc_head,
 				pci_dbg(dev,
 					"%s %pR: ignoring failure in optional allocation\n",
 					res_name, res);
-				reset_resource(res);
 			}
 		} else {
 			res->flags |= add_res->flags &
@@ -332,7 +335,6 @@ static void assign_requested_resources_sorted(struct list_head *head,
 						    0 /* don't care */,
 						    0 /* don't care */);
 			}
-			reset_resource(res);
 		}
 	}
 }
@@ -518,13 +520,34 @@ static void __assign_resources_sorted(struct list_head *head,
 
 requested_and_reassign:
 	/* Satisfy the must-have resource requests */
-	assign_requested_resources_sorted(head, fail_head);
+	assign_requested_resources_sorted(head, NULL);
 
 	/* Try to satisfy any additional optional resource requests */
 	if (!list_empty(realloc_head))
 		reassign_resources_sorted(realloc_head, head);
 
 out:
+	/* Reset any failed resource, cannot use fail_head as it can be NULL. */
+	list_for_each_entry(dev_res, head, list) {
+		res = dev_res->res;
+		dev = dev_res->dev;
+
+		if (res->parent)
+			continue;
+
+		/*
+		 * If the failed resource is a ROM BAR and it will
+		 * be enabled later, don't add it to the list.
+		 */
+		if (fail_head && !pci_resource_is_disabled_rom(res, idx)) {
+			add_to_list(fail_head, dev, res,
+				    0 /* don't care */,
+				    0 /* don't care */);
+		}
+
+		reset_resource(res);
+	}
+
 	free_list(head);
 }
 
