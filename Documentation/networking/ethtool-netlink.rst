@@ -237,6 +237,8 @@ Userspace to kernel:
   ``ETHTOOL_MSG_MM_SET``                set MAC merge layer parameters
   ``ETHTOOL_MSG_MODULE_FW_FLASH_ACT``   flash transceiver module firmware
   ``ETHTOOL_MSG_PHY_GET``               get Ethernet PHY information
+  ``ETHTOOL_MSG_TSCONFIG_GET``          get hw timestamping configuration
+  ``ETHTOOL_MSG_TSCONFIG_SET``          set hw timestamping configuration
   ===================================== =================================
 
 Kernel to userspace:
@@ -286,6 +288,8 @@ Kernel to userspace:
   ``ETHTOOL_MSG_MODULE_FW_FLASH_NTF``      transceiver module flash updates
   ``ETHTOOL_MSG_PHY_GET_REPLY``            Ethernet PHY information
   ``ETHTOOL_MSG_PHY_NTF``                  Ethernet PHY information change
+  ``ETHTOOL_MSG_TSCONFIG_GET_REPLY``       hw timestamping configuration
+  ``ETHTOOL_MSG_TSCONFIG_SET_REPLY``       new hw timestamping configuration
   ======================================== =================================
 
 ``GET`` requests are sent by userspace applications to retrieve device
@@ -1245,9 +1249,10 @@ Gets timestamping information like ``ETHTOOL_GET_TS_INFO`` ioctl request.
 
 Request contents:
 
-  =====================================  ======  ==========================
-  ``ETHTOOL_A_TSINFO_HEADER``            nested  request header
-  =====================================  ======  ==========================
+  ========================================  ======  ============================
+  ``ETHTOOL_A_TSINFO_HEADER``               nested  request header
+  ``ETHTOOL_A_TSINFO_HWTSTAMP_PROVIDER``    nested  PTP hw clock provider
+  ========================================  ======  ============================
 
 Kernel response contents:
 
@@ -2243,6 +2248,75 @@ Kernel response contents:
 When ``ETHTOOL_A_PHY_UPSTREAM_TYPE`` is PHY_UPSTREAM_PHY, the PHY's parent is
 another PHY.
 
+TSCONFIG_GET
+============
+
+Retrieves the information about the current hardware timestamping source and
+configuration.
+
+It is similar to the deprecated ``SIOCGHWTSTAMP`` ioctl request.
+
+Request contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_TSCONFIG_HEADER``         nested  request header
+  ====================================  ======  ==========================
+
+Kernel response contents:
+
+  ======================================== ======  ============================
+  ``ETHTOOL_A_TSCONFIG_HEADER``            nested  request header
+  ``ETHTOOL_A_TSCONFIG_HWTSTAMP_PROVIDER`` nested  PTP hw clock provider
+  ``ETHTOOL_A_TSCONFIG_TX_TYPES``          bitset  hwtstamp Tx type
+  ``ETHTOOL_A_TSCONFIG_RX_FILTERS``        bitset  hwtstamp Rx filter
+  ``ETHTOOL_A_TSCONFIG_HWTSTAMP_FLAGS``	   u32     hwtstamp flags
+  ======================================== ======  ============================
+
+When set the ``ETHTOOL_A_TSCONFIG_HWTSTAMP_PROVIDER`` attribute identifies the
+source of the hw timestamping provider. It is composed by
+``ETHTOOL_A_TS_HWTSTAMP_PROVIDER_INDEX`` attribute which describe the index of
+the PTP device and ``ETHTOOL_A_TS_HWTSTAMP_PROVIDER_QUALIFIER`` which describe
+the qualifier of the timestamp.
+
+When set the ``ETHTOOL_A_TSCONFIG_TX_TYPES``, ``ETHTOOL_A_TSCONFIG_RX_FILTERS``
+and the ``ETHTOOL_A_TSCONFIG_HWTSTAMP_FLAGS`` attributes identify the Tx
+type, the Rx filter and the flags configured for the current hw timestamping
+provider. The attributes are propagated to the driver through the following
+structure:
+
+.. kernel-doc:: include/linux/net_tstamp.h
+    :identifiers: kernel_hwtstamp_config
+
+TSCONFIG_SET
+============
+
+Set the information about the current hardware timestamping source and
+configuration.
+
+It is similar to the deprecated ``SIOCSHWTSTAMP`` ioctl request.
+
+Request contents:
+
+  ======================================== ======  ============================
+  ``ETHTOOL_A_TSCONFIG_HEADER``            nested  request header
+  ``ETHTOOL_A_TSCONFIG_HWTSTAMP_PROVIDER`` nested  PTP hw clock provider
+  ``ETHTOOL_A_TSCONFIG_TX_TYPES``          bitset  hwtstamp Tx type
+  ``ETHTOOL_A_TSCONFIG_RX_FILTERS``        bitset  hwtstamp Rx filter
+  ``ETHTOOL_A_TSCONFIG_HWTSTAMP_FLAGS``	   u32     hwtstamp flags
+  ======================================== ======  ============================
+
+Kernel response contents:
+
+  ======================================== ======  ============================
+  ``ETHTOOL_A_TSCONFIG_HEADER``            nested  request header
+  ``ETHTOOL_A_TSCONFIG_HWTSTAMP_PROVIDER`` nested  PTP hw clock provider
+  ``ETHTOOL_A_TSCONFIG_TX_TYPES``          bitset  hwtstamp Tx type
+  ``ETHTOOL_A_TSCONFIG_RX_FILTERS``        bitset  hwtstamp Rx filter
+  ``ETHTOOL_A_TSCONFIG_HWTSTAMP_FLAGS``	   u32     hwtstamp flags
+  ======================================== ======  ============================
+
+For a description of each attribute, see ``TSCONFIG_GET``.
+
 Request translation
 ===================
 
@@ -2351,4 +2425,6 @@ are netlink only.
   n/a                                 ``ETHTOOL_MSG_MM_SET``
   n/a                                 ``ETHTOOL_MSG_MODULE_FW_FLASH_ACT``
   n/a                                 ``ETHTOOL_MSG_PHY_GET``
+  ``SIOCGHWTSTAMP``                   ``ETHTOOL_MSG_TSCONFIG_GET``
+  ``SIOCSHWTSTAMP``                   ``ETHTOOL_MSG_TSCONFIG_SET``
   =================================== =====================================

@@ -837,6 +837,20 @@ attribute-sets:
         name: tx-err
         type: uint
   -
+    name: ts-hwtstamp-provider
+    attr-cnt-name: __ethtool-a-ts-hwtstamp-provider-cnt
+    attributes:
+      -
+        name: unspec
+        type: unused
+        value: 0
+      -
+        name: index
+        type: u32
+      -
+        name: qualifier
+        type: u32
+  -
     name: tsinfo
     attr-cnt-name: __ethtool-a-tsinfo-cnt
     attributes:
@@ -867,6 +881,10 @@ attribute-sets:
         name: stats
         type: nest
         nested-attributes: ts-stat
+      -
+        name: hwtstamp-provider
+        type: nest
+        nested-attributes: ts-hwtstamp-provider
   -
     name: cable-result
     attr-cnt-name: __ethtool-a-cable-result-cnt
@@ -1471,6 +1489,33 @@ attribute-sets:
       -
         name: downstream-sfp-name
         type: string
+  -
+    name: tsconfig
+    attr-cnt-name: __ethtool-a-tsconfig-cnt
+    attributes:
+      -
+        name: unspec
+        type: unused
+        value: 0
+      -
+        name: header
+        type: nest
+        nested-attributes: header
+      -
+        name: hwtstamp-provider
+        type: nest
+        nested-attributes: ts-hwtstamp-provider
+      -
+        name: tx-types
+        type: nest
+        nested-attributes: bitset
+      -
+        name: rx-filters
+        type: nest
+        nested-attributes: bitset
+      -
+        name: hwtstamp-flags
+        type: u32
 
 operations:
   enum-model: directional
@@ -1912,6 +1957,7 @@ operations:
         request:
           attributes:
             - header
+            - hwtstamp-provider
         reply:
           attributes:
             - header
@@ -1920,6 +1966,7 @@ operations:
             - rx-filters
             - phc-index
             - stats
+            - hwtstamp-provider
       dump: *tsinfo-get-op
     -
       name: cable-test-act
@@ -2294,3 +2341,32 @@ operations:
       name: phy-ntf
       doc: Notification for change in PHY devices.
       notify: phy-get
+    -
+      name: tsconfig-get
+      doc: Get hwtstamp config.
+
+      attribute-set: tsconfig
+
+      do: &tsconfig-get-op
+        request:
+          attributes:
+            - header
+        reply:
+          attributes: &tsconfig
+            - header
+            - hwtstamp-provider
+            - tx-types
+            - rx-filters
+            - hwtstamp-flags
+      dump: *tsconfig-get-op
+    -
+      name: tsconfig-set
+      doc: Set hwtstamp config.
+
+      attribute-set: tsconfig
+
+      do:
+        request:
+          attributes: *tsconfig
+        reply:
+          attributes: *tsconfig
