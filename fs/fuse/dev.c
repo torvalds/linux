@@ -1644,13 +1644,9 @@ static int fuse_notify_inval_entry(struct fuse_conn *fc, unsigned int size,
 				   struct fuse_copy_state *cs)
 {
 	struct fuse_notify_inval_entry_out outarg;
-	int err = -ENOMEM;
-	char *buf;
+	int err;
+	char *buf = NULL;
 	struct qstr name;
-
-	buf = kzalloc(FUSE_NAME_MAX + 1, GFP_KERNEL);
-	if (!buf)
-		goto err;
 
 	err = -EINVAL;
 	if (size < sizeof(outarg))
@@ -1666,6 +1662,11 @@ static int fuse_notify_inval_entry(struct fuse_conn *fc, unsigned int size,
 
 	err = -EINVAL;
 	if (size != sizeof(outarg) + outarg.namelen + 1)
+		goto err;
+
+	err = -ENOMEM;
+	buf = kzalloc(outarg.namelen + 1, GFP_KERNEL);
+	if (!buf)
 		goto err;
 
 	name.name = buf;
@@ -1692,13 +1693,9 @@ static int fuse_notify_delete(struct fuse_conn *fc, unsigned int size,
 			      struct fuse_copy_state *cs)
 {
 	struct fuse_notify_delete_out outarg;
-	int err = -ENOMEM;
-	char *buf;
+	int err;
+	char *buf = NULL;
 	struct qstr name;
-
-	buf = kzalloc(FUSE_NAME_MAX + 1, GFP_KERNEL);
-	if (!buf)
-		goto err;
 
 	err = -EINVAL;
 	if (size < sizeof(outarg))
@@ -1714,6 +1711,11 @@ static int fuse_notify_delete(struct fuse_conn *fc, unsigned int size,
 
 	err = -EINVAL;
 	if (size != sizeof(outarg) + outarg.namelen + 1)
+		goto err;
+
+	err = -ENOMEM;
+	buf = kzalloc(outarg.namelen + 1, GFP_KERNEL);
+	if (!buf)
 		goto err;
 
 	name.name = buf;
