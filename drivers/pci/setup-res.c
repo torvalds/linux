@@ -387,7 +387,6 @@ int pci_reassign_resource(struct pci_dev *dev, int resno,
 		return -EINVAL;
 	}
 
-	/* already aligned with min_align */
 	new_size = resource_size(res) + addsize;
 	ret = _pci_assign_resource(dev, resno, new_size, min_align);
 	if (ret) {
