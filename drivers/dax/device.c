@@ -89,14 +89,13 @@ static void dax_set_mapping(struct vm_fault *vmf, pfn_t pfn,
 			ALIGN_DOWN(vmf->address, fault_size));
 
 	for (i = 0; i < nr_pages; i++) {
-		struct page *page = pfn_to_page(pfn_t_to_pfn(pfn) + i);
+		struct folio *folio = pfn_folio(pfn_t_to_pfn(pfn) + i);
 
-		page = compound_head(page);
-		if (page->mapping)
+		if (folio->mapping)
 			continue;
 
-		page->mapping = filp->f_mapping;
-		page->index = pgoff + i;
+		folio->mapping = filp->f_mapping;
+		folio->index = pgoff + i;
 	}
 }
 
