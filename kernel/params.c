@@ -860,8 +860,8 @@ static void __init param_sysfs_builtin(void)
 ssize_t __modver_version_show(struct module_attribute *mattr,
 			      struct module_kobject *mk, char *buf)
 {
-	struct module_version_attribute *vattr =
-		container_of(mattr, struct module_version_attribute, mattr);
+	const struct module_version_attribute *vattr =
+		container_of_const(mattr, struct module_version_attribute, mattr);
 
 	return scnprintf(buf, PAGE_SIZE, "%s\n", vattr->version);
 }

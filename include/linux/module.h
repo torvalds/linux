@@ -275,7 +275,7 @@ extern typeof(name) __mod_device_table__##type##__##name		\
 #else
 #define MODULE_VERSION(_version)					\
 	MODULE_INFO(version, _version);					\
-	static struct module_version_attribute __modver_attr		\
+	static const struct module_version_attribute __modver_attr	\
 		__used __section("__modver")				\
 		__aligned(__alignof__(struct module_version_attribute)) \
 		= {							\
