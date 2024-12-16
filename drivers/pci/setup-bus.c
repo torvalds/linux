@@ -271,7 +271,7 @@ static void reassign_resources_sorted(struct list_head *realloc_head,
 		res_name = pci_resource_name(dev, idx);
 		add_size = add_res->add_size;
 		align = add_res->min_align;
-		if (!resource_size(res)) {
+		if (!res->parent) {
 			resource_set_range(res, align, add_size);
 			if (pci_assign_resource(dev, idx)) {
 				pci_dbg(dev,
