@@ -66,7 +66,7 @@
 子系统的 ``Makefile`` 中定义默认命名空间。例如，如果要将usb-common中定义的所有符号导
 出到USB_COMMON命名空间，可以在drivers/usb/common/Makefile中添加这样一行::
 
-       ccflags-y += -DDEFAULT_SYMBOL_NAMESPACE=USB_COMMON
+       ccflags-y += -DDEFAULT_SYMBOL_NAMESPACE='"USB_COMMON"'
 
 这将影响所有 EXPORT_SYMBOL() 和 EXPORT_SYMBOL_GPL() 语句。当这个定义存在时，
 用EXPORT_SYMBOL_NS()导出的符号仍然会被导出到作为命名空间参数传递的命名空间中，
@@ -76,7 +76,7 @@
 成::
 
        #undef  DEFAULT_SYMBOL_NAMESPACE
-       #define DEFAULT_SYMBOL_NAMESPACE USB_COMMON
+       #define DEFAULT_SYMBOL_NAMESPACE "USB_COMMON"
 
 应置于相关编译单元中任何 EXPORT_SYMBOL 宏之前
 
@@ -99,7 +99,7 @@
        [...]
 
 
-建议将 MODULE_IMPORT_NS("") 语句添加到靠近其他模块元数据定义的地方，
+建议将 MODULE_IMPORT_NS() 语句添加到靠近其他模块元数据定义的地方，
 如 MODULE_AUTHOR() 或 MODULE_LICENSE() 。关于自动创建缺失的导入
 语句的方法，请参考第5节。
 
@@ -118,7 +118,7 @@ EINVAL方式失败。要允许加载不满足这个前提条件的模块，可�
 
 缺少命名空间的导入可以在构建时很容易被检测到。事实上，如果一个模块
 使用了一个命名空间的符号而没有导入它，modpost会发出警告。
-MODULE_IMPORT_NS("")语句通常会被添加到一个明确的位置（和其他模块元
+MODULE_IMPORT_NS()语句通常会被添加到一个明确的位置（和其他模块元
 数据一起）。为了使模块作者（和子系统维护者）的生活更加轻松，我们提
 供了一个脚本和make目标来修复丢失的导入。修复丢失的导入可以用::
 

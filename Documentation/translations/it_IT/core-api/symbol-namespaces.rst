@@ -69,7 +69,7 @@ Per esempio per esportare tutti i simboli definiti in usb-common nello spazio
 dei nomi USB_COMMON, si può aggiungere la seguente linea in
 drivers/usb/common/Makefile::
 
-	ccflags-y += -DDEFAULT_SYMBOL_NAMESPACE=USB_COMMON
+	ccflags-y += -DDEFAULT_SYMBOL_NAMESPACE='"USB_COMMON"'
 
 Questo cambierà tutte le macro EXPORT_SYMBOL() ed EXPORT_SYMBOL_GPL(). Invece,
 un simbolo esportato con EXPORT_SYMBOL_NS() non verrà cambiato e il simbolo
@@ -79,7 +79,7 @@ Una seconda possibilità è quella di definire il simbolo di preprocessore
 direttamente nei file da compilare. L'esempio precedente diventerebbe::
 
 	#undef  DEFAULT_SYMBOL_NAMESPACE
-	#define DEFAULT_SYMBOL_NAMESPACE USB_COMMON
+	#define DEFAULT_SYMBOL_NAMESPACE "USB_COMMON"
 
 Questo va messo prima di un qualsiasi uso di EXPORT_SYMBOL.
 
@@ -107,7 +107,7 @@ modinfo::
 	[...]
 
 
-Si consiglia di posizionare la dichiarazione MODULE_IMPORT_NS("") vicino
+Si consiglia di posizionare la dichiarazione MODULE_IMPORT_NS() vicino
 ai metadati del modulo come MODULE_AUTHOR() o MODULE_LICENSE(). Fate
 riferimento alla sezione 5. per creare automaticamente le importazioni
 mancanti.
@@ -131,7 +131,7 @@ emetterà un avviso.
 La mancanza di un'importazione può essere individuata facilmente al momento
 della compilazione. Infatti, modpost emetterà un avviso se il modulo usa
 un simbolo da uno spazio dei nomi che non è stato importato.
-La dichiarazione MODULE_IMPORT_NS("") viene solitamente aggiunta in un posto
+La dichiarazione MODULE_IMPORT_NS() viene solitamente aggiunta in un posto
 ben definito (assieme agli altri metadati del modulo). Per facilitare
 la vita di chi scrive moduli (e i manutentori di sottosistemi), esistono uno
 script e un target make per correggere le importazioni mancanti. Questo può

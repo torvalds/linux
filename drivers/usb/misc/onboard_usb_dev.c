@@ -407,8 +407,10 @@ static int onboard_dev_probe(struct platform_device *pdev)
 		}
 
 		if (of_device_is_compatible(pdev->dev.of_node, "usb424,2744") ||
-		    of_device_is_compatible(pdev->dev.of_node, "usb424,5744"))
+		    of_device_is_compatible(pdev->dev.of_node, "usb424,5744")) {
 			err = onboard_dev_5744_i2c_init(client);
+			onboard_dev->always_powered_in_suspend = true;
+		}
 
 		put_device(&client->dev);
 		if (err < 0)

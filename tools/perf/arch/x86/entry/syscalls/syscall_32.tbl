@@ -468,3 +468,7 @@
 460	i386	lsm_set_self_attr	sys_lsm_set_self_attr
 461	i386	lsm_list_modules	sys_lsm_list_modules
 462	i386	mseal 			sys_mseal
+463	i386	setxattrat		sys_setxattrat
+464	i386	getxattrat		sys_getxattrat
+465	i386	listxattrat		sys_listxattrat
+466	i386	removexattrat		sys_removexattrat

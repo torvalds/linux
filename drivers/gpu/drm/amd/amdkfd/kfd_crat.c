@@ -1423,6 +1423,7 @@ err:
 
 
 static int kfd_fill_gpu_cache_info_from_gfx_config(struct kfd_dev *kdev,
+						   bool cache_line_size_missing,
 						   struct kfd_gpu_cache_info *pcache_info)
 {
 	struct amdgpu_device *adev = kdev->adev;
@@ -1437,6 +1438,8 @@ static int kfd_fill_gpu_cache_info_from_gfx_config(struct kfd_dev *kdev,
 					CRAT_CACHE_FLAGS_SIMD_CACHE);
 		pcache_info[i].num_cu_shared = adev->gfx.config.gc_num_tcp_per_wpg / 2;
 		pcache_info[i].cache_line_size = adev->gfx.config.gc_tcp_cache_line_size;
+		if (cache_line_size_missing && !pcache_info[i].cache_line_size)
+			pcache_info[i].cache_line_size = 128;
 		i++;
 	}
 	/* Scalar L1 Instruction Cache per SQC */
@@ -1449,6 +1452,8 @@ static int kfd_fill_gpu_cache_info_from_gfx_config(struct kfd_dev *kdev,
 					CRAT_CACHE_FLAGS_SIMD_CACHE);
 		pcache_info[i].num_cu_shared = adev->gfx.config.gc_num_sqc_per_wgp * 2;
 		pcache_info[i].cache_line_size = adev->gfx.config.gc_instruction_cache_line_size;
+		if (cache_line_size_missing && !pcache_info[i].cache_line_size)
+			pcache_info[i].cache_line_size = 128;
 		i++;
 	}
 	/* Scalar L1 Data Cache per SQC */
@@ -1460,6 +1465,8 @@ static int kfd_fill_gpu_cache_info_from_gfx_config(struct kfd_dev *kdev,
 					CRAT_CACHE_FLAGS_SIMD_CACHE);
 		pcache_info[i].num_cu_shared = adev->gfx.config.gc_num_sqc_per_wgp * 2;
 		pcache_info[i].cache_line_size = adev->gfx.config.gc_scalar_data_cache_line_size;
+		if (cache_line_size_missing && !pcache_info[i].cache_line_size)
+			pcache_info[i].cache_line_size = 64;
 		i++;
 	}
 	/* GL1 Data Cache per SA */
@@ -1472,7 +1479,8 @@ static int kfd_fill_gpu_cache_info_from_gfx_config(struct kfd_dev *kdev,
 					CRAT_CACHE_FLAGS_DATA_CACHE |
 					CRAT_CACHE_FLAGS_SIMD_CACHE);
 		pcache_info[i].num_cu_shared = adev->gfx.config.max_cu_per_sh;
-		pcache_info[i].cache_line_size = 0;
+		if (cache_line_size_missing)
+			pcache_info[i].cache_line_size = 128;
 		i++;
 	}
 	/* L2 Data Cache per GPU (Total Tex Cache) */
@@ -1484,6 +1492,8 @@ static int kfd_fill_gpu_cache_info_from_gfx_config(struct kfd_dev *kdev,
 					CRAT_CACHE_FLAGS_SIMD_CACHE);
 		pcache_info[i].num_cu_shared = adev->gfx.config.max_cu_per_sh;
 		pcache_info[i].cache_line_size = adev->gfx.config.gc_tcc_cache_line_size;
+		if (cache_line_size_missing && !pcache_info[i].cache_line_size)
+			pcache_info[i].cache_line_size = 128;
 		i++;
 	}
 	/* L3 Data Cache per GPU */
@@ -1494,7 +1504,7 @@ static int kfd_fill_gpu_cache_info_from_gfx_config(struct kfd_dev *kdev,
 					CRAT_CACHE_FLAGS_DATA_CACHE |
 					CRAT_CACHE_FLAGS_SIMD_CACHE);
 		pcache_info[i].num_cu_shared = adev->gfx.config.max_cu_per_sh;
-		pcache_info[i].cache_line_size = 0;
+		pcache_info[i].cache_line_size = 64;
 		i++;
 	}
 	return i;
@@ -1510,6 +1520,8 @@ static int kfd_fill_gpu_cache_info_from_gfx_config_v2(struct kfd_dev *kdev,
 	if (adev->gfx.config.gc_tcp_size_per_cu) {
 		pcache_info[i].cache_size = adev->gfx.config.gc_tcp_size_per_cu;
 		pcache_info[i].cache_level = 1;
+		/* Cacheline size not available in IP discovery for gc943,gc944 */
+		pcache_info[i].cache_line_size = 128;
 		pcache_info[i].flags = (CRAT_CACHE_FLAGS_ENABLED |
 					CRAT_CACHE_FLAGS_DATA_CACHE |
 					CRAT_CACHE_FLAGS_SIMD_CACHE);
@@ -1521,6 +1533,7 @@ static int kfd_fill_gpu_cache_info_from_gfx_config_v2(struct kfd_dev *kdev,
 		pcache_info[i].cache_size =
 			adev->gfx.config.gc_l1_instruction_cache_size_per_sqc;
 		pcache_info[i].cache_level = 1;
+		pcache_info[i].cache_line_size = 64;
 		pcache_info[i].flags = (CRAT_CACHE_FLAGS_ENABLED |
 					CRAT_CACHE_FLAGS_INST_CACHE |
 					CRAT_CACHE_FLAGS_SIMD_CACHE);
@@ -1531,6 +1544,7 @@ static int kfd_fill_gpu_cache_info_from_gfx_config_v2(struct kfd_dev *kdev,
 	if (adev->gfx.config.gc_l1_data_cache_size_per_sqc) {
 		pcache_info[i].cache_size = adev->gfx.config.gc_l1_data_cache_size_per_sqc;
 		pcache_info[i].cache_level = 1;
+		pcache_info[i].cache_line_size = 64;
 		pcache_info[i].flags = (CRAT_CACHE_FLAGS_ENABLED |
 					CRAT_CACHE_FLAGS_DATA_CACHE |
 					CRAT_CACHE_FLAGS_SIMD_CACHE);
@@ -1541,6 +1555,7 @@ static int kfd_fill_gpu_cache_info_from_gfx_config_v2(struct kfd_dev *kdev,
 	if (adev->gfx.config.gc_tcc_size) {
 		pcache_info[i].cache_size = adev->gfx.config.gc_tcc_size;
 		pcache_info[i].cache_level = 2;
+		pcache_info[i].cache_line_size = 128;
 		pcache_info[i].flags = (CRAT_CACHE_FLAGS_ENABLED |
 					CRAT_CACHE_FLAGS_DATA_CACHE |
 					CRAT_CACHE_FLAGS_SIMD_CACHE);
@@ -1551,6 +1566,7 @@ static int kfd_fill_gpu_cache_info_from_gfx_config_v2(struct kfd_dev *kdev,
 	if (adev->gmc.mall_size) {
 		pcache_info[i].cache_size = adev->gmc.mall_size / 1024;
 		pcache_info[i].cache_level = 3;
+		pcache_info[i].cache_line_size = 64;
 		pcache_info[i].flags = (CRAT_CACHE_FLAGS_ENABLED |
 					CRAT_CACHE_FLAGS_DATA_CACHE |
 					CRAT_CACHE_FLAGS_SIMD_CACHE);
@@ -1563,6 +1579,7 @@ static int kfd_fill_gpu_cache_info_from_gfx_config_v2(struct kfd_dev *kdev,
 int kfd_get_gpu_cache_info(struct kfd_node *kdev, struct kfd_gpu_cache_info **pcache_info)
 {
 	int num_of_cache_types = 0;
+	bool cache_line_size_missing = false;
 
 	switch (kdev->adev->asic_type) {
 	case CHIP_KAVERI:
@@ -1686,10 +1703,17 @@ int kfd_get_gpu_cache_info(struct kfd_node *kdev, struct kfd_gpu_cache_info **pc
 		case IP_VERSION(11, 5, 0):
 		case IP_VERSION(11, 5, 1):
 		case IP_VERSION(11, 5, 2):
+			/* Cacheline size not available in IP discovery for gc11.
+			 * kfd_fill_gpu_cache_info_from_gfx_config to hard code it
+			 */
+			cache_line_size_missing = true;
+			fallthrough;
 		case IP_VERSION(12, 0, 0):
 		case IP_VERSION(12, 0, 1):
 			num_of_cache_types =
-				kfd_fill_gpu_cache_info_from_gfx_config(kdev->kfd, *pcache_info);
+				kfd_fill_gpu_cache_info_from_gfx_config(kdev->kfd,
+									cache_line_size_missing,
+									*pcache_info);
 			break;
 		default:
 			*pcache_info = dummy_cache_info;
