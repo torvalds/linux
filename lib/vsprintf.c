@@ -418,29 +418,28 @@ int num_to_str(char *buf, int size, unsigned long long num, unsigned int width)
 static_assert(ZEROPAD == ('0' - ' '));
 static_assert(SMALL == ('a' ^ 'A'));
 
-enum format_type {
-	FORMAT_TYPE_NONE, /* Just a string part */
-	FORMAT_TYPE_1BYTE = 1, /* char/short/int are their own sizes */
-	FORMAT_TYPE_2BYTE = 2,
-	FORMAT_TYPE_8BYTE = 3,
-	FORMAT_TYPE_4BYTE = 4,
-	FORMAT_TYPE_WIDTH,
-	FORMAT_TYPE_PRECISION,
-	FORMAT_TYPE_CHAR,
-	FORMAT_TYPE_STR,
-	FORMAT_TYPE_PTR,
-	FORMAT_TYPE_PERCENT_CHAR,
-	FORMAT_TYPE_INVALID,
+enum format_state {
+	FORMAT_STATE_NONE, /* Just a string part */
+	FORMAT_STATE_1BYTE = 1, /* char/short/int are their own sizes */
+	FORMAT_STATE_2BYTE = 2,
+	FORMAT_STATE_8BYTE = 3,
+	FORMAT_STATE_4BYTE = 4,
+	FORMAT_STATE_WIDTH,
+	FORMAT_STATE_PRECISION,
+	FORMAT_STATE_CHAR,
+	FORMAT_STATE_STR,
+	FORMAT_STATE_PTR,
+	FORMAT_STATE_PERCENT_CHAR,
+	FORMAT_STATE_INVALID,
 };
 
-#define FORMAT_TYPE_SIZE(type) (sizeof(type) <= 4 ? sizeof(type) : FORMAT_TYPE_8BYTE)
+#define FORMAT_STATE_SIZE(type) (sizeof(type) <= 4 ? sizeof(type) : FORMAT_STATE_8BYTE)
 
 struct printf_spec {
-	unsigned int	type:8;		/* format_type enum */
-	signed int	field_width:24;	/* width of output field */
-	unsigned int	flags:8;	/* flags to number() */
-	unsigned int	base:8;		/* number base, 8, 10 or 16 only */
-	signed int	precision:16;	/* # of digits/chars */
+	unsigned char	flags;		/* flags to number() */
+	unsigned char	base;		/* number base, 8, 10 or 16 only */
+	short		precision;	/* # of digits/chars */
+	int		field_width;	/* width of output field */
 } __packed;
 static_assert(sizeof(struct printf_spec) == 8);
 
@@ -573,7 +572,6 @@ char *special_hex_number(char *buf, char *end, unsigned long long num, int size)
 {
 	struct printf_spec spec;
 
-	spec.type = FORMAT_TYPE_PTR;
 	spec.field_width = 2 + 2 * size;	/* 0x + hex */
 	spec.flags = SPECIAL | SMALL | ZEROPAD;
 	spec.base = 16;
@@ -2524,6 +2522,11 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 	}
 }
 
+struct fmt {
+	const char *str;
+	enum format_state state;
+};
+
 /*
  * Helper function to decode printf style format.
  * Each call decode a token from the format and return the
@@ -2546,40 +2549,40 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
  * @qualifier: qualifier of a number (long, size_t, ...)
  */
 static noinline_for_stack
-const char *format_decode(const char *fmt, struct printf_spec *spec)
+struct fmt format_decode(struct fmt fmt, struct printf_spec *spec)
 {
-	const char *start = fmt;
+	const char *start = fmt.str;
 	char qualifier;
 
 	/* we finished early by reading the field width */
-	if (spec->type == FORMAT_TYPE_WIDTH) {
+	if (fmt.state == FORMAT_STATE_WIDTH) {
 		if (spec->field_width < 0) {
 			spec->field_width = -spec->field_width;
 			spec->flags |= LEFT;
 		}
-		spec->type = FORMAT_TYPE_NONE;
+		fmt.state = FORMAT_STATE_NONE;
 		goto precision;
 	}
 
 	/* we finished early by reading the precision */
-	if (spec->type == FORMAT_TYPE_PRECISION) {
+	if (fmt.state == FORMAT_STATE_PRECISION) {
 		if (spec->precision < 0)
 			spec->precision = 0;
 
-		spec->type = FORMAT_TYPE_NONE;
+		fmt.state = FORMAT_STATE_NONE;
 		goto qualifier;
 	}
 
 	/* By default */
-	spec->type = FORMAT_TYPE_NONE;
+	fmt.state = FORMAT_STATE_NONE;
 
-	for (; *fmt ; ++fmt) {
-		if (*fmt == '%')
+	for (; *fmt.str ; fmt.str++) {
+		if (*fmt.str == '%')
 			break;
 	}
 
 	/* Return the current non-format string */
-	if (fmt != start || !*fmt)
+	if (fmt.str != start || !*fmt.str)
 		return fmt;
 
 	/* Process flags */
@@ -2588,9 +2591,9 @@ const char *format_decode(const char *fmt, struct printf_spec *spec)
 	while (1) { /* this also skips first '%' */
 		bool found = true;
 
-		++fmt;
+		fmt.str++;
 
-		switch (*fmt) {
+		switch (*fmt.str) {
 		case '-': spec->flags |= LEFT;    break;
 		case '+': spec->flags |= PLUS;    break;
 		case ' ': spec->flags |= SPACE;   break;
@@ -2606,65 +2609,71 @@ const char *format_decode(const char *fmt, struct printf_spec *spec)
 	/* get field width */
 	spec->field_width = -1;
 
-	if (isdigit(*fmt))
-		spec->field_width = skip_atoi(&fmt);
-	else if (*fmt == '*') {
+	if (isdigit(*fmt.str))
+		spec->field_width = skip_atoi(&fmt.str);
+	else if (*fmt.str == '*') {
 		/* it's the next argument */
-		spec->type = FORMAT_TYPE_WIDTH;
-		return ++fmt;
+		fmt.state = FORMAT_STATE_WIDTH;
+		fmt.str++;
+		return fmt;
 	}
 
 precision:
 	/* get the precision */
 	spec->precision = -1;
-	if (*fmt == '.') {
-		++fmt;
-		if (isdigit(*fmt)) {
-			spec->precision = skip_atoi(&fmt);
+	if (*fmt.str == '.') {
+		fmt.str++;
+		if (isdigit(*fmt.str)) {
+			spec->precision = skip_atoi(&fmt.str);
 			if (spec->precision < 0)
 				spec->precision = 0;
-		} else if (*fmt == '*') {
+		} else if (*fmt.str == '*') {
 			/* it's the next argument */
-			spec->type = FORMAT_TYPE_PRECISION;
-			return ++fmt;
+			fmt.state = FORMAT_STATE_PRECISION;
+			fmt.str++;
+			return fmt;
 		}
 	}
 
 qualifier:
 	/* get the conversion qualifier */
 	qualifier = 0;
-	if (*fmt == 'h' || _tolower(*fmt) == 'l' ||
-	    *fmt == 'z' || *fmt == 't') {
-		qualifier = *fmt++;
-		if (unlikely(qualifier == *fmt)) {
+	if (*fmt.str == 'h' || _tolower(*fmt.str) == 'l' ||
+	    *fmt.str == 'z' || *fmt.str == 't') {
+		qualifier = *fmt.str++;
+		if (unlikely(qualifier == *fmt.str)) {
 			if (qualifier == 'l') {
 				qualifier = 'L';
-				++fmt;
+				fmt.str++;
 			} else if (qualifier == 'h') {
 				qualifier = 'H';
-				++fmt;
+				fmt.str++;
 			}
 		}
 	}
 
 	/* default base */
 	spec->base = 10;
-	switch (*fmt) {
+	switch (*fmt.str) {
 	case 'c':
-		spec->type = FORMAT_TYPE_CHAR;
-		return ++fmt;
+		fmt.state = FORMAT_STATE_CHAR;
+		fmt.str++;
+		return fmt;
 
 	case 's':
-		spec->type = FORMAT_TYPE_STR;
-		return ++fmt;
+		fmt.state = FORMAT_STATE_STR;
+		fmt.str++;
+		return fmt;
 
 	case 'p':
-		spec->type = FORMAT_TYPE_PTR;
-		return ++fmt;
+		fmt.state = FORMAT_STATE_PTR;
+		fmt.str++;
+		return fmt;
 
 	case '%':
-		spec->type = FORMAT_TYPE_PERCENT_CHAR;
-		return ++fmt;
+		fmt.state = FORMAT_STATE_PERCENT_CHAR;
+		fmt.str++;
+		return fmt;
 
 	/* integer number formats - set up the flags and "break" */
 	case 'o':
@@ -2695,28 +2704,29 @@ qualifier:
 		fallthrough;
 
 	default:
-		WARN_ONCE(1, "Please remove unsupported %%%c in format string\n", *fmt);
-		spec->type = FORMAT_TYPE_INVALID;
+		WARN_ONCE(1, "Please remove unsupported %%%c in format string\n", *fmt.str);
+		fmt.state = FORMAT_STATE_INVALID;
 		return fmt;
 	}
 
 	if (qualifier == 'L')
-		spec->type = FORMAT_TYPE_SIZE(long long);
+		fmt.state = FORMAT_STATE_SIZE(long long);
 	else if (qualifier == 'l') {
-		spec->type = FORMAT_TYPE_SIZE(long);
+		fmt.state = FORMAT_STATE_SIZE(long);
 	} else if (qualifier == 'z') {
-		spec->type = FORMAT_TYPE_SIZE(size_t);
+		fmt.state = FORMAT_STATE_SIZE(size_t);
 	} else if (qualifier == 't') {
-		spec->type = FORMAT_TYPE_SIZE(ptrdiff_t);
+		fmt.state = FORMAT_STATE_SIZE(ptrdiff_t);
 	} else if (qualifier == 'H') {
-		spec->type = FORMAT_TYPE_SIZE(char);
+		fmt.state = FORMAT_STATE_SIZE(char);
 	} else if (qualifier == 'h') {
-		spec->type = FORMAT_TYPE_SIZE(short);
+		fmt.state = FORMAT_STATE_SIZE(short);
 	} else {
-		spec->type = FORMAT_TYPE_SIZE(int);
+		fmt.state = FORMAT_STATE_SIZE(int);
 	}
 
-	return ++fmt;
+	fmt.str++;
+	return fmt;
 }
 
 static void
@@ -2741,11 +2751,11 @@ set_precision(struct printf_spec *spec, int prec)
  * Turn a 1/2/4-byte value into a 64-bit one for printing: truncate
  * as necessary and deal with signedness.
  *
- * The 'spec.type' is the size of the value in bytes.
+ * 'size' is the size of the value in bytes.
  */
-static unsigned long long convert_num_spec(unsigned int val, struct printf_spec spec)
+static unsigned long long convert_num_spec(unsigned int val, int size, struct printf_spec spec)
 {
-	unsigned int shift = 32 - spec.type*8;
+	unsigned int shift = 32 - size*8;
 
 	val <<= shift;
 	if (!(spec.flags & SIGN))
@@ -2781,11 +2791,15 @@ static unsigned long long convert_num_spec(unsigned int val, struct printf_spec 
  *
  * If you're not already dealing with a va_list consider using snprintf().
  */
-int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
+int vsnprintf(char *buf, size_t size, const char *fmt_str, va_list args)
 {
 	unsigned long long num;
 	char *str, *end;
 	struct printf_spec spec = {0};
+	struct fmt fmt = {
+		.str = fmt_str,
+		.state = FORMAT_STATE_NONE,
+	};
 
 	/* Reject out-of-range values early.  Large positive sizes are
 	   used for unknown buffer sizes. */
@@ -2801,14 +2815,14 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 		size = end - buf;
 	}
 
-	while (*fmt) {
-		const char *old_fmt = fmt;
+	while (*fmt.str) {
+		const char *old_fmt = fmt.str;
 
 		fmt = format_decode(fmt, &spec);
 
-		switch (spec.type) {
-		case FORMAT_TYPE_NONE: {
-			int read = fmt - old_fmt;
+		switch (fmt.state) {
+		case FORMAT_STATE_NONE: {
+			int read = fmt.str - old_fmt;
 			if (str < end) {
 				int copy = read;
 				if (copy > end - str)
@@ -2819,15 +2833,15 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 			continue;
 		}
 
-		case FORMAT_TYPE_WIDTH:
+		case FORMAT_STATE_WIDTH:
 			set_field_width(&spec, va_arg(args, int));
 			continue;
 
-		case FORMAT_TYPE_PRECISION:
+		case FORMAT_STATE_PRECISION:
 			set_precision(&spec, va_arg(args, int));
 			continue;
 
-		case FORMAT_TYPE_CHAR: {
+		case FORMAT_STATE_CHAR: {
 			char c;
 
 			if (!(spec.flags & LEFT)) {
@@ -2850,24 +2864,24 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 			continue;
 		}
 
-		case FORMAT_TYPE_STR:
+		case FORMAT_STATE_STR:
 			str = string(str, end, va_arg(args, char *), spec);
 			continue;
 
-		case FORMAT_TYPE_PTR:
-			str = pointer(fmt, str, end, va_arg(args, void *),
+		case FORMAT_STATE_PTR:
+			str = pointer(fmt.str, str, end, va_arg(args, void *),
 				      spec);
-			while (isalnum(*fmt))
-				fmt++;
+			while (isalnum(*fmt.str))
+				fmt.str++;
 			continue;
 
-		case FORMAT_TYPE_PERCENT_CHAR:
+		case FORMAT_STATE_PERCENT_CHAR:
 			if (str < end)
 				*str = '%';
 			++str;
 			continue;
 
-		case FORMAT_TYPE_INVALID:
+		case FORMAT_STATE_INVALID:
 			/*
 			 * Presumably the arguments passed gcc's type
 			 * checking, but there is no safe or sane way
@@ -2878,12 +2892,12 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 			 */
 			goto out;
 
-		case FORMAT_TYPE_8BYTE:
+		case FORMAT_STATE_8BYTE:
 			num = va_arg(args, long long);
 			break;
 
 		default:
-			num = convert_num_spec(va_arg(args, int), spec);
+			num = convert_num_spec(va_arg(args, int), fmt.state, spec);
 			break;
 		}
 
@@ -3055,8 +3069,12 @@ EXPORT_SYMBOL(sprintf);
  * If the return value is greater than @size, the resulting bin_buf is NOT
  * valid for bstr_printf().
  */
-int vbin_printf(u32 *bin_buf, size_t size, const char *fmt, va_list args)
+int vbin_printf(u32 *bin_buf, size_t size, const char *fmt_str, va_list args)
 {
+	struct fmt fmt = {
+		.str = fmt_str,
+		.state = FORMAT_STATE_NONE,
+	};
 	struct printf_spec spec = {0};
 	char *str, *end;
 	int width;
@@ -3088,29 +3106,29 @@ int vbin_printf(u32 *bin_buf, size_t size, const char *fmt, va_list args)
 	value;								\
 })
 
-	while (*fmt) {
+	while (*fmt.str) {
 		fmt = format_decode(fmt, &spec);
 
-		switch (spec.type) {
-		case FORMAT_TYPE_NONE:
-		case FORMAT_TYPE_PERCENT_CHAR:
+		switch (fmt.state) {
+		case FORMAT_STATE_NONE:
+		case FORMAT_STATE_PERCENT_CHAR:
 			break;
-		case FORMAT_TYPE_INVALID:
+		case FORMAT_STATE_INVALID:
 			goto out;
 
-		case FORMAT_TYPE_WIDTH:
-		case FORMAT_TYPE_PRECISION:
+		case FORMAT_STATE_WIDTH:
+		case FORMAT_STATE_PRECISION:
 			width = (int)save_arg(int);
 			/* Pointers may require the width */
-			if (*fmt == 'p')
+			if (*fmt.str == 'p')
 				set_field_width(&spec, width);
 			break;
 
-		case FORMAT_TYPE_CHAR:
+		case FORMAT_STATE_CHAR:
 			save_arg(char);
 			break;
 
-		case FORMAT_TYPE_STR: {
+		case FORMAT_STATE_STR: {
 			const char *save_str = va_arg(args, char *);
 			const char *err_msg;
 			size_t len;
@@ -3126,9 +3144,9 @@ int vbin_printf(u32 *bin_buf, size_t size, const char *fmt, va_list args)
 			break;
 		}
 
-		case FORMAT_TYPE_PTR:
+		case FORMAT_STATE_PTR:
 			/* Dereferenced pointers must be done now */
-			switch (*fmt) {
+			switch (*fmt.str) {
 			/* Dereference of functions is still OK */
 			case 'S':
 			case 's':
@@ -3138,11 +3156,11 @@ int vbin_printf(u32 *bin_buf, size_t size, const char *fmt, va_list args)
 				save_arg(void *);
 				break;
 			default:
-				if (!isalnum(*fmt)) {
+				if (!isalnum(*fmt.str)) {
 					save_arg(void *);
 					break;
 				}
-				str = pointer(fmt, str, end, va_arg(args, void *),
+				str = pointer(fmt.str, str, end, va_arg(args, void *),
 					      spec);
 				if (str + 1 < end)
 					*str++ = '\0';
@@ -3150,17 +3168,17 @@ int vbin_printf(u32 *bin_buf, size_t size, const char *fmt, va_list args)
 					end[-1] = '\0'; /* Must be nul terminated */
 			}
 			/* skip all alphanumeric pointer suffixes */
-			while (isalnum(*fmt))
-				fmt++;
+			while (isalnum(*fmt.str))
+				fmt.str++;
 			break;
 
-		case FORMAT_TYPE_8BYTE:
+		case FORMAT_STATE_8BYTE:
 			save_arg(long long);
 			break;
-		case FORMAT_TYPE_1BYTE:
+		case FORMAT_STATE_1BYTE:
 			save_arg(char);
 			break;
-		case FORMAT_TYPE_2BYTE:
+		case FORMAT_STATE_2BYTE:
 			save_arg(short);
 			break;
 		default:
@@ -3196,8 +3214,12 @@ EXPORT_SYMBOL_GPL(vbin_printf);
  * return is greater than or equal to @size, the resulting
  * string is truncated.
  */
-int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
+int bstr_printf(char *buf, size_t size, const char *fmt_str, const u32 *bin_buf)
 {
+	struct fmt fmt = {
+		.str = fmt_str,
+		.state = FORMAT_STATE_NONE,
+	};
 	struct printf_spec spec = {0};
 	char *str, *end;
 	const char *args = (const char *)bin_buf;
@@ -3229,14 +3251,14 @@ int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
 		size = end - buf;
 	}
 
-	while (*fmt) {
-		const char *old_fmt = fmt;
+	while (*fmt.str) {
+		const char *old_fmt = fmt.str;
 		unsigned long long num;
 
 		fmt = format_decode(fmt, &spec);
-		switch (spec.type) {
-		case FORMAT_TYPE_NONE: {
-			int read = fmt - old_fmt;
+		switch (fmt.state) {
+		case FORMAT_STATE_NONE: {
+			int read = fmt.str - old_fmt;
 			if (str < end) {
 				int copy = read;
 				if (copy > end - str)
@@ -3247,15 +3269,15 @@ int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
 			continue;
 		}
 
-		case FORMAT_TYPE_WIDTH:
+		case FORMAT_STATE_WIDTH:
 			set_field_width(&spec, get_arg(int));
 			continue;
 
-		case FORMAT_TYPE_PRECISION:
+		case FORMAT_STATE_PRECISION:
 			set_precision(&spec, get_arg(int));
 			continue;
 
-		case FORMAT_TYPE_CHAR: {
+		case FORMAT_STATE_CHAR: {
 			char c;
 
 			if (!(spec.flags & LEFT)) {
@@ -3277,18 +3299,18 @@ int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
 			continue;
 		}
 
-		case FORMAT_TYPE_STR: {
+		case FORMAT_STATE_STR: {
 			const char *str_arg = args;
 			args += strlen(str_arg) + 1;
 			str = string(str, end, (char *)str_arg, spec);
 			continue;
 		}
 
-		case FORMAT_TYPE_PTR: {
+		case FORMAT_STATE_PTR: {
 			bool process = false;
 			int copy, len;
 			/* Non function dereferences were already done */
-			switch (*fmt) {
+			switch (*fmt.str) {
 			case 'S':
 			case 's':
 			case 'x':
@@ -3297,7 +3319,7 @@ int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
 				process = true;
 				break;
 			default:
-				if (!isalnum(*fmt)) {
+				if (!isalnum(*fmt.str)) {
 					process = true;
 					break;
 				}
@@ -3312,38 +3334,38 @@ int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
 				}
 			}
 			if (process)
-				str = pointer(fmt, str, end, get_arg(void *), spec);
+				str = pointer(fmt.str, str, end, get_arg(void *), spec);
 
-			while (isalnum(*fmt))
-				fmt++;
+			while (isalnum(*fmt.str))
+				fmt.str++;
 			continue;
 		}
 
-		case FORMAT_TYPE_PERCENT_CHAR:
+		case FORMAT_STATE_PERCENT_CHAR:
 			if (str < end)
 				*str = '%';
 			++str;
 			continue;
 
-		case FORMAT_TYPE_INVALID:
+		case FORMAT_STATE_INVALID:
 			goto out;
 
-		case FORMAT_TYPE_8BYTE:
+		case FORMAT_STATE_8BYTE:
 			num = get_arg(long long);
 			break;
-		case FORMAT_TYPE_2BYTE:
-			num = convert_num_spec(get_arg(short), spec);
+		case FORMAT_STATE_2BYTE:
+			num = convert_num_spec(get_arg(short), fmt.state, spec);
 			break;
-		case FORMAT_TYPE_1BYTE:
-			num = convert_num_spec(get_arg(char), spec);
+		case FORMAT_STATE_1BYTE:
+			num = convert_num_spec(get_arg(char), fmt.state, spec);
 			break;
 		default:
-			num = convert_num_spec(get_arg(int), spec);
+			num = convert_num_spec(get_arg(int), fmt.state, spec);
 			break;
 		}
 
 		str = number(str, end, num, spec);
-	} /* while(*fmt) */
+	} /* while(*fmt.str) */
 
 out:
 	if (size > 0) {
