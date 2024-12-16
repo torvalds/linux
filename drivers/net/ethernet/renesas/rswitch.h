@@ -743,12 +743,6 @@ enum rswitch_etha_mode {
 #define MPSM_PRD_SHIFT		16
 #define MPSM_PRD_MASK		GENMASK(31, MPSM_PRD_SHIFT)
 
-/* Completion flags */
-#define MMIS1_PAACS             BIT(2) /* Address */
-#define MMIS1_PWACS             BIT(1) /* Write */
-#define MMIS1_PRACS             BIT(0) /* Read */
-#define MMIS1_CLEAR_FLAGS       0xf
-
 #define MLVC_PLV		BIT(16)
 
 /* GWCA */
