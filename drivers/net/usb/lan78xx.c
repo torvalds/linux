@@ -1857,6 +1857,7 @@ static void lan78xx_get_wol(struct net_device *netdev,
 
 	ret = lan78xx_read_reg(dev, USB_CFG0, &buf);
 	if (unlikely(ret < 0)) {
+		netdev_warn(dev->net, "failed to get WoL %pe", ERR_PTR(ret));
 		wol->supported = 0;
 		wol->wolopts = 0;
 	} else {
@@ -1888,10 +1889,13 @@ static int lan78xx_set_wol(struct net_device *netdev,
 
 	pdata->wol = wol->wolopts;
 
-	device_set_wakeup_enable(&dev->udev->dev, (bool)wol->wolopts);
+	ret = device_set_wakeup_enable(&dev->udev->dev, (bool)wol->wolopts);
+	if (ret < 0)
+		goto exit_pm_put;
 
-	phy_ethtool_set_wol(netdev->phydev, wol);
+	ret = phy_ethtool_set_wol(netdev->phydev, wol);
 
+exit_pm_put:
 	usb_autopm_put_interface(dev->intf);
 
 	return ret;
