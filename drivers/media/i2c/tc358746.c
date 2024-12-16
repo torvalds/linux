@@ -896,6 +896,7 @@ tc358746_link_validate(struct v4l2_subdev *sd, struct media_link *link,
 	const struct tc358746_format *fmt;
 	unsigned int fifo_sz, tmp, n;
 	struct v4l2_subdev *source;
+	struct media_pad *src_pad;
 	s64 source_link_freq;
 	int err;
 
@@ -910,7 +911,8 @@ tc358746_link_validate(struct v4l2_subdev *sd, struct media_link *link,
 	fmt = tc358746_get_format_by_code(TC358746_SINK, mbusfmt->code);
 
 	source = media_entity_to_v4l2_subdev(link->source->entity);
-	source_link_freq = v4l2_get_link_freq(source->ctrl_handler, 0, 0);
+	src_pad = &source->entity.pads[source_fmt->pad];
+	source_link_freq = v4l2_get_link_freq(src_pad, 0, 0);
 	if (source_link_freq <= 0) {
 		dev_err(tc358746->sd.dev,
 			"Failed to query or invalid source link frequency\n");

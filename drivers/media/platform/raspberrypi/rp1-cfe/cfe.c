@@ -1102,6 +1102,8 @@ static void cfe_buffer_queue(struct vb2_buffer *vb)
 
 static s64 cfe_get_source_link_freq(struct cfe_device *cfe)
 {
+	struct media_pad *src_pad =
+		&cfe->source_sd->entity.pads[cfe->source_pad];
 	struct v4l2_subdev_state *state;
 	s64 link_freq;
 	u32 bpp;
@@ -1136,7 +1138,7 @@ static s64 cfe_get_source_link_freq(struct cfe_device *cfe)
 		bpp = 0;
 	}
 
-	link_freq = v4l2_get_link_freq(cfe->source_sd->ctrl_handler, bpp,
+	link_freq = v4l2_get_link_freq(src_pad, bpp,
 				       2 * cfe->csi2.dphy.active_lanes);
 	if (link_freq < 0)
 		cfe_err(cfe, "failed to get link freq for subdev '%s'\n",

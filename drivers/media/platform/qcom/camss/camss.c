@@ -2501,12 +2501,12 @@ void camss_disable_clocks(int nclocks, struct camss_clock *clock)
 }
 
 /*
- * camss_find_sensor - Find a linked media entity which represents a sensor
+ * camss_find_sensor_pad - Find the media pad via which the sensor is linked
  * @entity: Media entity to start searching from
  *
- * Return a pointer to sensor media entity or NULL if not found
+ * Return a pointer to sensor media pad or NULL if not found
  */
-struct media_entity *camss_find_sensor(struct media_entity *entity)
+struct media_pad *camss_find_sensor_pad(struct media_entity *entity)
 {
 	struct media_pad *pad;
 
@@ -2522,7 +2522,7 @@ struct media_entity *camss_find_sensor(struct media_entity *entity)
 		entity = pad->entity;
 
 		if (entity->function == MEDIA_ENT_F_CAM_SENSOR)
-			return entity;
+			return pad;
 	}
 }
 
@@ -2537,16 +2537,13 @@ struct media_entity *camss_find_sensor(struct media_entity *entity)
 s64 camss_get_link_freq(struct media_entity *entity, unsigned int bpp,
 			unsigned int lanes)
 {
-	struct media_entity *sensor;
-	struct v4l2_subdev *subdev;
+	struct media_pad *sensor_pad;
 
-	sensor = camss_find_sensor(entity);
-	if (!sensor)
+	sensor_pad = camss_find_sensor_pad(entity);
+	if (!sensor_pad)
 		return -ENODEV;
 
-	subdev = media_entity_to_v4l2_subdev(sensor);
-
-	return v4l2_get_link_freq(subdev->ctrl_handler, bpp, 2 * lanes);
+	return v4l2_get_link_freq(sensor_pad, bpp, 2 * lanes);
 }
 
 /*
@@ -2558,15 +2555,15 @@ s64 camss_get_link_freq(struct media_entity *entity, unsigned int bpp,
  */
 int camss_get_pixel_clock(struct media_entity *entity, u64 *pixel_clock)
 {
-	struct media_entity *sensor;
+	struct media_pad *sensor_pad;
 	struct v4l2_subdev *subdev;
 	struct v4l2_ctrl *ctrl;
 
-	sensor = camss_find_sensor(entity);
-	if (!sensor)
+	sensor_pad = camss_find_sensor_pad(entity);
+	if (!sensor_pad)
 		return -ENODEV;
 
-	subdev = media_entity_to_v4l2_subdev(sensor);
+	subdev = media_entity_to_v4l2_subdev(sensor_pad->entity);
 
 	ctrl = v4l2_ctrl_find(subdev->ctrl_handler, V4L2_CID_PIXEL_RATE);
 
