@@ -2546,7 +2546,7 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
  * @qualifier: qualifier of a number (long, size_t, ...)
  */
 static noinline_for_stack
-int format_decode(const char *fmt, struct printf_spec *spec)
+const char *format_decode(const char *fmt, struct printf_spec *spec)
 {
 	const char *start = fmt;
 	char qualifier;
@@ -2580,7 +2580,7 @@ int format_decode(const char *fmt, struct printf_spec *spec)
 
 	/* Return the current non-format string */
 	if (fmt != start || !*fmt)
-		return fmt - start;
+		return fmt;
 
 	/* Process flags */
 	spec->flags = 0;
@@ -2611,7 +2611,7 @@ int format_decode(const char *fmt, struct printf_spec *spec)
 	else if (*fmt == '*') {
 		/* it's the next argument */
 		spec->type = FORMAT_TYPE_WIDTH;
-		return ++fmt - start;
+		return ++fmt;
 	}
 
 precision:
@@ -2626,7 +2626,7 @@ precision:
 		} else if (*fmt == '*') {
 			/* it's the next argument */
 			spec->type = FORMAT_TYPE_PRECISION;
-			return ++fmt - start;
+			return ++fmt;
 		}
 	}
 
@@ -2652,19 +2652,19 @@ qualifier:
 	switch (*fmt) {
 	case 'c':
 		spec->type = FORMAT_TYPE_CHAR;
-		return ++fmt - start;
+		return ++fmt;
 
 	case 's':
 		spec->type = FORMAT_TYPE_STR;
-		return ++fmt - start;
+		return ++fmt;
 
 	case 'p':
 		spec->type = FORMAT_TYPE_PTR;
-		return ++fmt - start;
+		return ++fmt;
 
 	case '%':
 		spec->type = FORMAT_TYPE_PERCENT_CHAR;
-		return ++fmt - start;
+		return ++fmt;
 
 	/* integer number formats - set up the flags and "break" */
 	case 'o':
@@ -2697,7 +2697,7 @@ qualifier:
 	default:
 		WARN_ONCE(1, "Please remove unsupported %%%c in format string\n", *fmt);
 		spec->type = FORMAT_TYPE_INVALID;
-		return fmt - start;
+		return fmt;
 	}
 
 	if (qualifier == 'L')
@@ -2716,7 +2716,7 @@ qualifier:
 		spec->type = FORMAT_TYPE_SIZE(int);
 	}
 
-	return ++fmt - start;
+	return ++fmt;
 }
 
 static void
@@ -2803,14 +2803,14 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 
 	while (*fmt) {
 		const char *old_fmt = fmt;
-		int read = format_decode(fmt, &spec);
 
-		fmt += read;
+		fmt = format_decode(fmt, &spec);
 
 		switch (spec.type) {
 		case FORMAT_TYPE_NONE: {
-			int copy = read;
+			int read = fmt - old_fmt;
 			if (str < end) {
+				int copy = read;
 				if (copy > end - str)
 					copy = end - str;
 				memcpy(str, old_fmt, copy);
@@ -3089,9 +3089,7 @@ int vbin_printf(u32 *bin_buf, size_t size, const char *fmt, va_list args)
 })
 
 	while (*fmt) {
-		int read = format_decode(fmt, &spec);
-
-		fmt += read;
+		fmt = format_decode(fmt, &spec);
 
 		switch (spec.type) {
 		case FORMAT_TYPE_NONE:
@@ -3233,15 +3231,14 @@ int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
 
 	while (*fmt) {
 		const char *old_fmt = fmt;
-		int read = format_decode(fmt, &spec);
 		unsigned long long num;
 
-		fmt += read;
-
+		fmt = format_decode(fmt, &spec);
 		switch (spec.type) {
 		case FORMAT_TYPE_NONE: {
-			int copy = read;
+			int read = fmt - old_fmt;
 			if (str < end) {
+				int copy = read;
 				if (copy > end - str)
 					copy = end - str;
 				memcpy(str, old_fmt, copy);
