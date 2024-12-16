@@ -657,7 +657,7 @@ int erofs_fscache_register_fs(struct super_block *sb)
 	if (IS_ERR(fscache))
 		return PTR_ERR(fscache);
 
-	sbi->s_fscache = fscache;
+	sbi->dif0.fscache = fscache;
 	return 0;
 }
 
@@ -665,14 +665,14 @@ void erofs_fscache_unregister_fs(struct super_block *sb)
 {
 	struct erofs_sb_info *sbi = EROFS_SB(sb);
 
-	erofs_fscache_unregister_cookie(sbi->s_fscache);
+	erofs_fscache_unregister_cookie(sbi->dif0.fscache);
 
 	if (sbi->domain)
 		erofs_fscache_domain_put(sbi->domain);
 	else
 		fscache_relinquish_volume(sbi->volume, NULL, false);
 
-	sbi->s_fscache = NULL;
+	sbi->dif0.fscache = NULL;
 	sbi->volume = NULL;
 	sbi->domain = NULL;
 }
