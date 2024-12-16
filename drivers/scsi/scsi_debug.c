@@ -8733,6 +8733,7 @@ static struct scsi_host_template sdebug_driver_template = {
 	.max_sectors =		-1U,
 	.max_segment_size =	-1U,
 	.module =		THIS_MODULE,
+	.skip_settle_delay =	1,
 	.track_queue_depth =	1,
 	.cmd_size = sizeof(struct sdebug_scsi_cmd),
 	.init_cmd_priv = sdebug_init_cmd_priv,
