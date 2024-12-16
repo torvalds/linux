@@ -1265,7 +1265,7 @@ static int a6xx_gmu_memory_alloc(struct a6xx_gmu *gmu, struct a6xx_gmu_bo *bo,
 	bo->virt = msm_gem_get_vaddr(bo->obj);
 	bo->size = size;
 
-	msm_gem_object_set_name(bo->obj, name);
+	msm_gem_object_set_name(bo->obj, "%s", name);
 
 	return 0;
 }
