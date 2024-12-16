@@ -2744,17 +2744,31 @@ static int smu_v13_0_6_send_rma_reason(struct smu_context *smu)
 
 static int smu_v13_0_6_reset_sdma(struct smu_context *smu, uint32_t inst_mask)
 {
-	struct amdgpu_device *adev = smu->adev;
+	uint32_t smu_program;
 	int ret = 0;
 
-	/* the message is only valid on SMU 13.0.6 with pmfw 85.121.00 and above */
-	if ((adev->flags & AMD_IS_APU) ||
-	    amdgpu_ip_version(adev, MP1_HWIP, 0) != IP_VERSION(13, 0, 6) ||
-	    smu->smc_fw_version < 0x00557900)
-		return 0;
+	smu_program = (smu->smc_fw_version >> 24) & 0xff;
+	switch (amdgpu_ip_version(smu->adev, MP1_HWIP, 0)) {
+	case IP_VERSION(13, 0, 6):
+		if (((smu_program == 7) && (smu->smc_fw_version > 0x07550700)) ||
+			((smu_program == 0) && (smu->smc_fw_version > 0x00557700)))
+			ret = smu_cmn_send_smc_msg_with_param(smu,
+				SMU_MSG_ResetSDMA, inst_mask, NULL);
+		else if ((smu_program == 4) &&
+			(smu->smc_fw_version > 0x4556e6c))
+			ret = smu_cmn_send_smc_msg_with_param(smu,
+				      SMU_MSG_ResetSDMA2, inst_mask, NULL);
+		break;
+	case IP_VERSION(13, 0, 14):
+		if ((smu_program == 5) &&
+			(smu->smc_fw_version > 0x05550f00))
+			ret = smu_cmn_send_smc_msg_with_param(smu,
+				      SMU_MSG_ResetSDMA2, inst_mask, NULL);
+		break;
+	default:
+		break;
+	}
 
-	ret = smu_cmn_send_smc_msg_with_param(smu,
-					      SMU_MSG_ResetSDMA, inst_mask, NULL);
 	if (ret)
 		dev_err(smu->adev->dev,
 			"failed to send ResetSDMA event with mask 0x%x\n",
