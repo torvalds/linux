@@ -2255,11 +2255,10 @@ void pci_assign_unassigned_bridge_resources(struct pci_dev *bridge)
 	struct pci_bus *parent = bridge->subordinate;
 	/* List of resources that want additional resources */
 	LIST_HEAD(add_list);
-
 	int tried_times = 0;
 	LIST_HEAD(fail_head);
 	struct pci_dev_resource *fail_res;
-	int retval;
+	int ret;
 
 	while (1) {
 		__pci_bus_size_bridges(parent, &add_list);
@@ -2316,9 +2315,9 @@ void pci_assign_unassigned_bridge_resources(struct pci_dev *bridge)
 		free_list(&fail_head);
 	}
 
-	retval = pci_reenable_device(bridge);
-	if (retval)
-		pci_err(bridge, "Error reenabling bridge (%d)\n", retval);
+	ret = pci_reenable_device(bridge);
+	if (ret)
+		pci_err(bridge, "Error reenabling bridge (%d)\n", ret);
 	pci_set_master(bridge);
 }
 EXPORT_SYMBOL_GPL(pci_assign_unassigned_bridge_resources);
