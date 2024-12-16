@@ -3004,6 +3004,22 @@ void phy_support_eee(struct phy_device *phydev)
 EXPORT_SYMBOL(phy_support_eee);
 
 /**
+ * phy_disable_eee - Disable EEE for the PHY
+ * @phydev: Target phy_device struct
+ *
+ * This function is used by MAC drivers for MAC's which don't support EEE.
+ * It disables EEE on the PHY layer.
+ */
+void phy_disable_eee(struct phy_device *phydev)
+{
+	linkmode_zero(phydev->supported_eee);
+	linkmode_zero(phydev->advertising_eee);
+	phydev->eee_cfg.tx_lpi_enabled = false;
+	phydev->eee_cfg.eee_enabled = false;
+}
+EXPORT_SYMBOL_GPL(phy_disable_eee);
+
+/**
  * phy_support_sym_pause - Enable support of symmetrical pause
  * @phydev: target phy_device struct
  *
