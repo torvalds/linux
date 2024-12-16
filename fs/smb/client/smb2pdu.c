@@ -6204,7 +6204,7 @@ SMB2_lease_break(const unsigned int xid, struct cifs_tcon *tcon,
 	req->StructureSize = cpu_to_le16(36);
 	total_len += 12;
 
-	memcpy(req->LeaseKey, lease_key, 16);
+	memcpy(req->LeaseKey, lease_key, SMB2_LEASE_KEY_SIZE);
 	req->LeaseState = lease_state;
 
 	flags |= CIFS_NO_RSP_BUF;
