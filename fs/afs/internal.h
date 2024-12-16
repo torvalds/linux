@@ -720,7 +720,9 @@ struct afs_vnode {
 #define AFS_VNODE_NEW_CONTENT	8		/* Set if file has new content (create/trunc-0) */
 #define AFS_VNODE_SILLY_DELETED	9		/* Set if file has been silly-deleted */
 #define AFS_VNODE_MODIFYING	10		/* Set if we're performing a modification op */
+#define AFS_VNODE_DIR_READ	11		/* Set if we've read a dir's contents */
 
+	struct folio_queue	*directory;	/* Directory contents */
 	struct list_head	wb_keys;	/* List of keys available for writeback */
 	struct list_head	pending_locks;	/* locks waiting to be granted */
 	struct list_head	granted_locks;	/* locks granted on this file */
@@ -729,6 +731,7 @@ struct afs_vnode {
 	ktime_t			locked_at;	/* Time at which lock obtained */
 	enum afs_lock_state	lock_state : 8;
 	afs_lock_type_t		lock_type : 8;
+	unsigned int		directory_size;	/* Amount of space in ->directory */
 
 	/* outstanding callback notification on this file */
 	struct work_struct	cb_work;	/* Work for mmap'd files */
@@ -984,6 +987,16 @@ static inline void afs_invalidate_cache(struct afs_vnode *vnode, unsigned int fl
 			   i_size_read(&vnode->netfs.inode), flags);
 }
 
+/*
+ * Directory iteration management.
+ */
+struct afs_dir_iter {
+	struct afs_vnode	*dvnode;
+	struct folio_queue	*fq;
+	unsigned int		fpos;
+	int			fq_slot;
+};
+
 #include <trace/events/afs.h>
 
 /*****************************************************************************/
@@ -1065,8 +1078,11 @@ extern const struct inode_operations afs_dir_inode_operations;
 extern const struct address_space_operations afs_dir_aops;
 extern const struct dentry_operations afs_fs_dentry_operations;
 
+ssize_t afs_read_single(struct afs_vnode *dvnode, struct file *file);
 extern void afs_d_release(struct dentry *);
 extern void afs_check_for_remote_deletion(struct afs_operation *);
+int afs_single_writepages(struct address_space *mapping,
+			  struct writeback_control *wbc);
 
 /*
  * dir_edit.c

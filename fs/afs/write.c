@@ -182,8 +182,8 @@ void afs_issue_write(struct netfs_io_subrequest *subreq)
  */
 void afs_begin_writeback(struct netfs_io_request *wreq)
 {
-	afs_get_writeback_key(wreq);
-	wreq->io_streams[0].avail = true;
+	if (S_ISREG(wreq->inode->i_mode))
+		afs_get_writeback_key(wreq);
 }
 
 /*

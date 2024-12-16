@@ -930,9 +930,9 @@ TRACE_EVENT(afs_sent_data,
 	    );
 
 TRACE_EVENT(afs_dir_check_failed,
-	    TP_PROTO(struct afs_vnode *vnode, loff_t off, loff_t i_size),
+	    TP_PROTO(struct afs_vnode *vnode, loff_t off),
 
-	    TP_ARGS(vnode, off, i_size),
+	    TP_ARGS(vnode, off),
 
 	    TP_STRUCT__entry(
 		    __field(struct afs_vnode *,		vnode)
@@ -943,7 +943,7 @@ TRACE_EVENT(afs_dir_check_failed,
 	    TP_fast_assign(
 		    __entry->vnode = vnode;
 		    __entry->off = off;
-		    __entry->i_size = i_size;
+		    __entry->i_size = i_size_read(&vnode->netfs.inode);
 			   ),
 
 	    TP_printk("vn=%p %llx/%llx",

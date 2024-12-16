@@ -110,7 +110,9 @@ static int afs_inode_init_from_status(struct afs_operation *op,
 		inode->i_op	= &afs_dir_inode_operations;
 		inode->i_fop	= &afs_dir_file_operations;
 		inode->i_mapping->a_ops	= &afs_dir_aops;
-		mapping_set_large_folios(inode->i_mapping);
+		__set_bit(NETFS_ICTX_SINGLE_NO_UPLOAD, &vnode->netfs.flags);
+		/* Assume locally cached directory data will be valid. */
+		__set_bit(AFS_VNODE_DIR_VALID, &vnode->flags);
 		break;
 	case AFS_FTYPE_SYMLINK:
 		/* Symlinks with a mode of 0644 are actually mountpoints. */
@@ -440,7 +442,8 @@ static void afs_get_inode_cache(struct afs_vnode *vnode)
 	} __packed key;
 	struct afs_vnode_cache_aux aux;
 
-	if (vnode->status.type != AFS_FTYPE_FILE) {
+	if (vnode->status.type != AFS_FTYPE_FILE &&
+	    vnode->status.type != AFS_FTYPE_DIR) {
 		vnode->netfs.cache = NULL;
 		return;
 	}
@@ -642,6 +645,7 @@ int afs_drop_inode(struct inode *inode)
 void afs_evict_inode(struct inode *inode)
 {
 	struct afs_vnode_cache_aux aux;
+	struct afs_super_info *sbi = AFS_FS_S(inode->i_sb);
 	struct afs_vnode *vnode = AFS_FS_I(inode);
 
 	_enter("{%llx:%llu.%d}",
@@ -653,8 +657,21 @@ void afs_evict_inode(struct inode *inode)
 
 	ASSERTCMP(inode->i_ino, ==, vnode->fid.vnode);
 
+	if ((S_ISDIR(inode->i_mode)) &&
+	    (inode->i_state & I_DIRTY) &&
+	    !sbi->dyn_root) {
+		struct writeback_control wbc = {
+			.sync_mode = WB_SYNC_ALL,
+			.for_sync = true,
+			.range_end = LLONG_MAX,
+		};
+
+		afs_single_writepages(inode->i_mapping, &wbc);
+	}
+
 	netfs_wait_for_outstanding_io(inode);
 	truncate_inode_pages_final(&inode->i_data);
+	netfs_free_folioq_buffer(vnode->directory);
 
 	afs_set_cache_aux(vnode, &aux);
 	netfs_clear_inode_writeback(inode, &aux);

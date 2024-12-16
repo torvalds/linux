@@ -389,6 +389,14 @@ static int afs_init_request(struct netfs_io_request *rreq, struct file *file)
 			rreq->netfs_priv = key;
 		}
 		break;
+	case NETFS_WRITEBACK:
+	case NETFS_WRITETHROUGH:
+	case NETFS_UNBUFFERED_WRITE:
+	case NETFS_DIO_WRITE:
+		if (S_ISREG(rreq->inode->i_mode))
+			rreq->io_streams[0].avail = true;
+		break;
+	case NETFS_WRITEBACK_SINGLE:
 	default:
 		break;
 	}
