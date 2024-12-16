@@ -978,9 +978,14 @@ static inline void afs_invalidate_cache(struct afs_vnode *vnode, unsigned int fl
  */
 struct afs_dir_iter {
 	struct afs_vnode	*dvnode;
+	union afs_xdr_dir_block *block;
 	struct folio_queue	*fq;
 	unsigned int		fpos;
 	int			fq_slot;
+	unsigned int		loop_check;
+	u8			nr_slots;
+	u8			bucket;
+	unsigned int		prev_entry;
 };
 
 #include <trace/events/afs.h>
@@ -1065,6 +1070,8 @@ extern const struct address_space_operations afs_dir_aops;
 extern const struct dentry_operations afs_fs_dentry_operations;
 
 ssize_t afs_read_single(struct afs_vnode *dvnode, struct file *file);
+ssize_t afs_read_dir(struct afs_vnode *dvnode, struct file *file)
+	__acquires(&dvnode->validate_lock);
 extern void afs_d_release(struct dentry *);
 extern void afs_check_for_remote_deletion(struct afs_operation *);
 int afs_single_writepages(struct address_space *mapping,
@@ -1079,6 +1086,17 @@ extern void afs_edit_dir_remove(struct afs_vnode *, struct qstr *, enum afs_edit
 void afs_edit_dir_update_dotdot(struct afs_vnode *vnode, struct afs_vnode *new_dvnode,
 				enum afs_edit_dir_reason why);
 void afs_mkdir_init_dir(struct afs_vnode *dvnode, struct afs_vnode *parent_vnode);
+
+/*
+ * dir_search.c
+ */
+unsigned int afs_dir_hash_name(const struct qstr *name);
+bool afs_dir_init_iter(struct afs_dir_iter *iter, const struct qstr *name);
+union afs_xdr_dir_block *afs_dir_find_block(struct afs_dir_iter *iter, size_t block);
+int afs_dir_search_bucket(struct afs_dir_iter *iter, const struct qstr *name,
+			  struct afs_fid *_fid);
+int afs_dir_search(struct afs_vnode *dvnode, struct qstr *name,
+		   struct afs_fid *_fid, afs_dataversion_t *_dir_version);
 
 /*
  * dir_silly.c

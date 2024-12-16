@@ -88,8 +88,6 @@ struct afs_lookup_one_cookie {
 struct afs_lookup_cookie {
 	struct dir_context	ctx;
 	struct qstr		name;
-	bool			found;
-	bool			one_only;
 	unsigned short		nr_fids;
 	struct afs_fid		fids[50];
 };
@@ -309,7 +307,7 @@ ssize_t afs_read_single(struct afs_vnode *dvnode, struct file *file)
  * Read the directory into a folio_queue buffer in one go, scrubbing the
  * previous contents.  We return -ESTALE if the caller needs to call us again.
  */
-static ssize_t afs_read_dir(struct afs_vnode *dvnode, struct file *file)
+ssize_t afs_read_dir(struct afs_vnode *dvnode, struct file *file)
 	__acquires(&dvnode->validate_lock)
 {
 	ssize_t ret;
@@ -649,19 +647,10 @@ static bool afs_lookup_filldir(struct dir_context *ctx, const char *name,
 	BUILD_BUG_ON(sizeof(union afs_xdr_dir_block) != 2048);
 	BUILD_BUG_ON(sizeof(union afs_xdr_dirent) != 32);
 
-	if (cookie->found) {
-		if (cookie->nr_fids < 50) {
-			cookie->fids[cookie->nr_fids].vnode	= ino;
-			cookie->fids[cookie->nr_fids].unique	= dtype;
-			cookie->nr_fids++;
-		}
-	} else if (cookie->name.len == nlen &&
-		   memcmp(cookie->name.name, name, nlen) == 0) {
-		cookie->fids[1].vnode	= ino;
-		cookie->fids[1].unique	= dtype;
-		cookie->found = 1;
-		if (cookie->one_only)
-			return false;
+	if (cookie->nr_fids < 50) {
+		cookie->fids[cookie->nr_fids].vnode	= ino;
+		cookie->fids[cookie->nr_fids].unique	= dtype;
+		cookie->nr_fids++;
 	}
 
 	return cookie->nr_fids < 50;
@@ -789,6 +778,7 @@ static struct inode *afs_do_lookup(struct inode *dir, struct dentry *dentry)
 	struct afs_vnode *dvnode = AFS_FS_I(dir), *vnode;
 	struct inode *inode = NULL, *ti;
 	afs_dataversion_t data_version = READ_ONCE(dvnode->status.data_version);
+	bool supports_ibulk;
 	long ret;
 	int i;
 
@@ -805,19 +795,19 @@ static struct inode *afs_do_lookup(struct inode *dir, struct dentry *dentry)
 	cookie->nr_fids = 2; /* slot 1 is saved for the fid we actually want
 			      * and slot 0 for the directory */
 
-	if (!afs_server_supports_ibulk(dvnode))
-		cookie->one_only = true;
-
-	/* search the directory */
-	ret = afs_dir_iterate(dir, &cookie->ctx, NULL, &data_version);
+	/* Search the directory for the named entry using the hash table... */
+	ret = afs_dir_search(dvnode, &dentry->d_name, &cookie->fids[1], &data_version);
 	if (ret < 0)
 		goto out;
 
-	dentry->d_fsdata = (void *)(unsigned long)data_version;
+	supports_ibulk = afs_server_supports_ibulk(dvnode);
+	if (supports_ibulk) {
+		/* ...then scan linearly from that point for entries to lookup-ahead. */
+		cookie->ctx.pos = (ret + 1) * AFS_DIR_DIRENT_SIZE;
+		afs_dir_iterate(dir, &cookie->ctx, NULL, &data_version);
+	}
 
-	ret = -ENOENT;
-	if (!cookie->found)
-		goto out;
+	dentry->d_fsdata = (void *)(unsigned long)data_version;
 
 	/* Check to see if we already have an inode for the primary fid. */
 	inode = ilookup5(dir->i_sb, cookie->fids[1].vnode,
@@ -876,7 +866,7 @@ static struct inode *afs_do_lookup(struct inode *dir, struct dentry *dentry)
 	 * the whole operation.
 	 */
 	afs_op_set_error(op, -ENOTSUPP);
-	if (!cookie->one_only) {
+	if (supports_ibulk) {
 		op->ops = &afs_inline_bulk_status_operation;
 		afs_begin_vnode_operation(op);
 		afs_wait_for_operation(op);

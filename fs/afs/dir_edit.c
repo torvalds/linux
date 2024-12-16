@@ -245,7 +245,7 @@ void afs_edit_dir_add(struct afs_vnode *vnode,
 	union afs_xdr_dir_block *meta, *block;
 	union afs_xdr_dirent *de;
 	struct afs_dir_iter iter = { .dvnode = vnode };
-	unsigned int need_slots, nr_blocks, b;
+	unsigned int nr_blocks, b, entry;
 	loff_t i_size;
 	int slot;
 
@@ -263,7 +263,7 @@ void afs_edit_dir_add(struct afs_vnode *vnode,
 		return;
 
 	/* Work out how many slots we're going to need. */
-	need_slots = afs_dir_calc_slots(name->len);
+	iter.nr_slots = afs_dir_calc_slots(name->len);
 
 	if (i_size == 0)
 		goto new_directory;
@@ -281,7 +281,7 @@ void afs_edit_dir_add(struct afs_vnode *vnode,
 
 		/* Lower dir blocks have a counter in the header we can check. */
 		if (b < AFS_DIR_BLOCKS_WITH_CTR &&
-		    meta->meta.alloc_ctrs[b] < need_slots)
+		    meta->meta.alloc_ctrs[b] < iter.nr_slots)
 			continue;
 
 		block = afs_dir_get_block(&iter, b);
@@ -308,7 +308,7 @@ void afs_edit_dir_add(struct afs_vnode *vnode,
 		/* We need to try and find one or more consecutive slots to
 		 * hold the entry.
 		 */
-		slot = afs_find_contig_bits(block, need_slots);
+		slot = afs_find_contig_bits(block, iter.nr_slots);
 		if (slot >= 0) {
 			_debug("slot %u", slot);
 			goto found_space;
@@ -347,12 +347,18 @@ found_space:
 	de->u.name[name->len] = 0;
 
 	/* Adjust the bitmap. */
-	afs_set_contig_bits(block, slot, need_slots);
-	kunmap_local(block);
+	afs_set_contig_bits(block, slot, iter.nr_slots);
 
 	/* Adjust the allocation counter. */
 	if (b < AFS_DIR_BLOCKS_WITH_CTR)
-		meta->meta.alloc_ctrs[b] -= need_slots;
+		meta->meta.alloc_ctrs[b] -= iter.nr_slots;
+
+	/* Adjust the hash chain. */
+	entry = b * AFS_DIR_SLOTS_PER_BLOCK + slot;
+	iter.bucket = afs_dir_hash_name(name);
+	de->u.hash_next = meta->meta.hashtable[iter.bucket];
+	meta->meta.hashtable[iter.bucket] = htons(entry);
+	kunmap_local(block);
 
 	inode_inc_iversion_raw(&vnode->netfs.inode);
 	afs_stat_v(vnode, n_dir_cr);
@@ -387,12 +393,14 @@ error:
 void afs_edit_dir_remove(struct afs_vnode *vnode,
 			 struct qstr *name, enum afs_edit_dir_reason why)
 {
-	union afs_xdr_dir_block *meta, *block;
-	union afs_xdr_dirent *de;
+	union afs_xdr_dir_block *meta, *block, *pblock;
+	union afs_xdr_dirent *de, *pde;
 	struct afs_dir_iter iter = { .dvnode = vnode };
-	unsigned int need_slots, nr_blocks, b;
+	struct afs_fid fid;
+	unsigned int b, slot, entry;
 	loff_t i_size;
-	int slot;
+	__be16 next;
+	int found;
 
 	_enter(",,{%d,%s},", name->len, name->name);
 
@@ -403,59 +411,90 @@ void afs_edit_dir_remove(struct afs_vnode *vnode,
 		afs_invalidate_dir(vnode, afs_dir_invalid_edit_rem_bad_size);
 		return;
 	}
-	nr_blocks = i_size / AFS_DIR_BLOCK_SIZE;
 
-	meta = afs_dir_get_block(&iter, 0);
+	if (!afs_dir_init_iter(&iter, name))
+		return;
+
+	meta = afs_dir_find_block(&iter, 0);
 	if (!meta)
 		return;
 
-	/* Work out how many slots we're going to discard. */
-	need_slots = afs_dir_calc_slots(name->len);
-
-	/* Find a block that has sufficient slots available.  Each folio
-	 * contains two or more directory blocks.
-	 */
-	for (b = 0; b < nr_blocks; b++) {
-		block = afs_dir_get_block(&iter, b);
-		if (!block)
-			goto error;
-
-		/* Abandon the edit if we got a callback break. */
-		if (!test_bit(AFS_VNODE_DIR_VALID, &vnode->flags))
-			goto already_invalidated;
-
-		if (b > AFS_DIR_BLOCKS_WITH_CTR ||
-		    meta->meta.alloc_ctrs[b] <= AFS_DIR_SLOTS_PER_BLOCK - 1 - need_slots) {
-			slot = afs_dir_scan_block(block, name, b);
-			if (slot >= 0)
-				goto found_dirent;
-		}
-
-		kunmap_local(block);
+	/* Find the entry in the blob. */
+	found = afs_dir_search_bucket(&iter, name, &fid);
+	if (found < 0) {
+		/* Didn't find the dirent to clobber.  Re-download. */
+		trace_afs_edit_dir(vnode, why, afs_edit_dir_delete_noent,
+				   0, 0, 0, 0, name->name);
+		afs_invalidate_dir(vnode, afs_dir_invalid_edit_rem_wrong_name);
+		goto out_unmap;
 	}
 
-	/* Didn't find the dirent to clobber.  Download the directory again. */
-	trace_afs_edit_dir(vnode, why, afs_edit_dir_delete_noent,
-			   0, 0, 0, 0, name->name);
-	afs_invalidate_dir(vnode, afs_dir_invalid_edit_rem_wrong_name);
-	goto out_unmap;
+	entry = found;
+	b    = entry / AFS_DIR_SLOTS_PER_BLOCK;
+	slot = entry % AFS_DIR_SLOTS_PER_BLOCK;
 
-found_dirent:
+	block = afs_dir_find_block(&iter, b);
+	if (!block)
+		goto error;
+	if (!test_bit(AFS_VNODE_DIR_VALID, &vnode->flags))
+		goto already_invalidated;
+
+	/* Check and clear the entry. */
 	de = &block->dirents[slot];
+	if (de->u.valid != 1)
+		goto error_unmap;
 
 	trace_afs_edit_dir(vnode, why, afs_edit_dir_delete, b, slot,
 			   ntohl(de->u.vnode), ntohl(de->u.unique),
 			   name->name);
 
-	memset(de, 0, sizeof(*de) * need_slots);
-
 	/* Adjust the bitmap. */
-	afs_clear_contig_bits(block, slot, need_slots);
-	kunmap_local(block);
+	afs_clear_contig_bits(block, slot, iter.nr_slots);
 
 	/* Adjust the allocation counter. */
 	if (b < AFS_DIR_BLOCKS_WITH_CTR)
-		meta->meta.alloc_ctrs[b] += need_slots;
+		meta->meta.alloc_ctrs[b] += iter.nr_slots;
+
+	/* Clear the constituent entries. */
+	next = de->u.hash_next;
+	memset(de, 0, sizeof(*de) * iter.nr_slots);
+	kunmap_local(block);
+
+	/* Adjust the hash chain: if iter->prev_entry is 0, the hashtable head
+	 * index is previous; otherwise it's slot number of the previous entry.
+	 */
+	if (!iter.prev_entry) {
+		__be16 prev_next = meta->meta.hashtable[iter.bucket];
+
+		if (unlikely(prev_next != htons(entry))) {
+			pr_warn("%llx:%llx:%x: not head of chain b=%x p=%x,%x e=%x %*s",
+				vnode->fid.vid, vnode->fid.vnode, vnode->fid.unique,
+				iter.bucket, iter.prev_entry, prev_next, entry,
+				name->len, name->name);
+			goto error;
+		}
+		meta->meta.hashtable[iter.bucket] = next;
+	} else {
+		unsigned int pb = iter.prev_entry / AFS_DIR_SLOTS_PER_BLOCK;
+		unsigned int ps = iter.prev_entry % AFS_DIR_SLOTS_PER_BLOCK;
+		__be16 prev_next;
+
+		pblock = afs_dir_find_block(&iter, pb);
+		if (!pblock)
+			goto error;
+		pde = &pblock->dirents[ps];
+		prev_next = pde->u.hash_next;
+		if (prev_next != htons(entry)) {
+			kunmap_local(pblock);
+			pr_warn("%llx:%llx:%x: not prev in chain b=%x p=%x,%x e=%x %*s",
+				vnode->fid.vid, vnode->fid.vnode, vnode->fid.unique,
+				iter.bucket, iter.prev_entry, prev_next, entry,
+				name->len, name->name);
+			goto error;
+		}
+		pde->u.hash_next = next;
+		kunmap_local(pblock);
+	}
 
 	netfs_single_mark_inode_dirty(&vnode->netfs.inode);
 
@@ -474,6 +513,8 @@ already_invalidated:
 			   0, 0, 0, 0, name->name);
 	goto out_unmap;
 
+error_unmap:
+	kunmap_local(block);
 error:
 	trace_afs_edit_dir(vnode, why, afs_edit_dir_delete_error,
 			   0, 0, 0, 0, name->name);
