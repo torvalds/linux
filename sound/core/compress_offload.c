@@ -1247,6 +1247,7 @@ void snd_compr_task_finished(struct snd_compr_stream *stream,
 }
 EXPORT_SYMBOL_GPL(snd_compr_task_finished);
 
+MODULE_IMPORT_NS("DMA_BUF");
 #endif /* CONFIG_SND_COMPRESS_ACCEL */
 
 static long snd_compr_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
