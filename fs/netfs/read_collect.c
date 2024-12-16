@@ -103,6 +103,7 @@ static bool netfs_consume_read_data(struct netfs_io_subrequest *subreq, bool was
 		 subreq->transferred, subreq->len))
 		subreq->transferred = subreq->len;
 
+	trace_netfs_folioq(folioq, netfs_trace_folioq_read_progress);
 next_folio:
 	fsize = PAGE_SIZE << subreq->curr_folio_order;
 	fpos = round_down(subreq->start + subreq->consumed, fsize);
@@ -119,9 +120,11 @@ next_folio:
 		if (folioq) {
 			struct folio *folio = folioq_folio(folioq, slot);
 
-			pr_err("folioq: orders=%02x%02x%02x%02x\n",
+			pr_err("folioq: fq=%x orders=%02x%02x%02x%02x %px\n",
+			       folioq->debug_id,
 			       folioq->orders[0], folioq->orders[1],
-			       folioq->orders[2], folioq->orders[3]);
+			       folioq->orders[2], folioq->orders[3],
+			       folioq);
 			if (folio)
 				pr_err("folio: %llx-%llx ix=%llx o=%u qo=%u\n",
 				       fpos, fend - 1, folio_pos(folio), folio_order(folio),
@@ -222,6 +225,7 @@ donation_changed:
 			slot = 0;
 			folioq = folioq->next;
 			subreq->curr_folioq = folioq;
+			trace_netfs_folioq(folioq, netfs_trace_folioq_read_progress);
 		}
 		subreq->curr_folioq_slot = slot;
 		if (folioq && folioq_folio(folioq, slot))

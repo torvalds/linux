@@ -161,7 +161,7 @@ static void netfs_prepare_write(struct netfs_io_request *wreq,
 	 */
 	if (iov_iter_is_folioq(wreq_iter) &&
 	    wreq_iter->folioq_slot >= folioq_nr_slots(wreq_iter->folioq)) {
-		netfs_buffer_make_space(wreq);
+		netfs_buffer_make_space(wreq, netfs_trace_folioq_prep_write);
 	}
 
 	subreq = netfs_alloc_subrequest(wreq);

@@ -455,8 +455,10 @@ int netfs_start_io_direct(struct inode *inode);
 void netfs_end_io_direct(struct inode *inode);
 
 /* Miscellaneous APIs. */
-struct folio_queue *netfs_folioq_alloc(gfp_t gfp);
-void netfs_folioq_free(struct folio_queue *folioq);
+struct folio_queue *netfs_folioq_alloc(unsigned int rreq_id, gfp_t gfp,
+				       unsigned int trace /*enum netfs_folioq_trace*/);
+void netfs_folioq_free(struct folio_queue *folioq,
+		       unsigned int trace /*enum netfs_trace_folioq*/);
 
 /**
  * netfs_inode - Get the netfs inode context from the inode

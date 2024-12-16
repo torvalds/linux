@@ -10,18 +10,25 @@
 
 /**
  * netfs_folioq_alloc - Allocate a folio_queue struct
+ * @rreq_id: Associated debugging ID for tracing purposes
  * @gfp: Allocation constraints
+ * @trace: Trace tag to indicate the purpose of the allocation
  *
- * Allocate, initialise and account the folio_queue struct.
+ * Allocate, initialise and account the folio_queue struct and log a trace line
+ * to mark the allocation.
  */
-struct folio_queue *netfs_folioq_alloc(gfp_t gfp)
+struct folio_queue *netfs_folioq_alloc(unsigned int rreq_id, gfp_t gfp,
+				       unsigned int /*enum netfs_folioq_trace*/ trace)
 {
+	static atomic_t debug_ids;
 	struct folio_queue *fq;
 
 	fq = kmalloc(sizeof(*fq), gfp);
 	if (fq) {
 		netfs_stat(&netfs_n_folioq);
-		folioq_init(fq);
+		folioq_init(fq, rreq_id);
+		fq->debug_id = atomic_inc_return(&debug_ids);
+		trace_netfs_folioq(fq, trace);
 	}
 	return fq;
 }
@@ -30,11 +37,14 @@ EXPORT_SYMBOL(netfs_folioq_alloc);
 /**
  * netfs_folioq_free - Free a folio_queue struct
  * @folioq: The object to free
+ * @trace: Trace tag to indicate which free
  *
  * Free and unaccount the folio_queue struct.
  */
-void netfs_folioq_free(struct folio_queue *folioq)
+void netfs_folioq_free(struct folio_queue *folioq,
+		       unsigned int /*enum netfs_trace_folioq*/ trace)
 {
+	trace_netfs_folioq(folioq, trace);
 	netfs_stat_d(&netfs_n_folioq);
 	kfree(folioq);
 }
@@ -43,7 +53,8 @@ EXPORT_SYMBOL(netfs_folioq_free);
 /*
  * Make sure there's space in the rolling queue.
  */
-struct folio_queue *netfs_buffer_make_space(struct netfs_io_request *rreq)
+struct folio_queue *netfs_buffer_make_space(struct netfs_io_request *rreq,
+					    enum netfs_folioq_trace trace)
 {
 	struct folio_queue *tail = rreq->buffer_tail, *prev;
 	unsigned int prev_nr_slots = 0;
@@ -59,11 +70,9 @@ struct folio_queue *netfs_buffer_make_space(struct netfs_io_request *rreq)
 		prev_nr_slots = folioq_nr_slots(tail);
 	}
 
-	tail = kmalloc(sizeof(*tail), GFP_NOFS);
+	tail = netfs_folioq_alloc(rreq->debug_id, GFP_NOFS, trace);
 	if (!tail)
 		return ERR_PTR(-ENOMEM);
-	netfs_stat(&netfs_n_folioq);
-	folioq_init(tail);
 	tail->prev = prev;
 	if (prev)
 		/* [!] NOTE: After we set prev->next, the consumer is entirely
@@ -98,7 +107,7 @@ int netfs_buffer_append_folio(struct netfs_io_request *rreq, struct folio *folio
 	struct folio_queue *tail;
 	unsigned int slot, order = folio_order(folio);
 
-	tail = netfs_buffer_make_space(rreq);
+	tail = netfs_buffer_make_space(rreq, netfs_trace_folioq_alloc_append_folio);
 	if (IS_ERR(tail))
 		return PTR_ERR(tail);
 
@@ -119,7 +128,7 @@ struct folio_queue *netfs_delete_buffer_head(struct netfs_io_request *wreq)
 
 	if (next)
 		next->prev = NULL;
-	netfs_folioq_free(head);
+	netfs_folioq_free(head, netfs_trace_folioq_delete);
 	wreq->buffer = next;
 	return next;
 }
@@ -142,7 +151,7 @@ void netfs_clear_buffer(struct netfs_io_request *rreq)
 				folio_put(folio);
 			}
 		}
-		netfs_folioq_free(p);
+		netfs_folioq_free(p, netfs_trace_folioq_clear);
 	}
 }
 
