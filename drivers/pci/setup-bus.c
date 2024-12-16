@@ -1146,7 +1146,6 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 	min_align = calculate_mem_align(aligns, max_order);
 	min_align = max(min_align, win_align);
 	size0 = calculate_memsize(size, min_size, 0, 0, resource_size(b_res), min_align);
-	add_align = max(min_align, add_align);
 
 	if (bus->self && size0 &&
 	    !pbus_upstream_space_available(bus, mask | IORESOURCE_PREFETCH, type,
@@ -1159,8 +1158,21 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 	}
 
 	if (realloc_head && (add_size > 0 || children_add_size > 0)) {
+		add_align = max(min_align, add_align);
 		size1 = calculate_memsize(size, min_size, add_size, children_add_size,
 					  resource_size(b_res), add_align);
+
+		if (bus->self && size1 &&
+		    !pbus_upstream_space_available(bus, mask | IORESOURCE_PREFETCH, type,
+						   size1, add_align)) {
+			min_align = 1ULL << (max_order + __ffs(SZ_1M));
+			min_align = max(min_align, win_align);
+			size1 = calculate_memsize(size, min_size, add_size, children_add_size,
+						  resource_size(b_res), win_align);
+			pci_info(bus->self,
+				 "bridge window %pR to %pR requires relaxed alignment rules\n",
+				 b_res, &bus->busn_res);
+		}
 	}
 
 	if (!size0 && !size1) {
