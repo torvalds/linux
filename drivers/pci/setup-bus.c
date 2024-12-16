@@ -127,11 +127,32 @@ static resource_size_t get_res_add_align(struct list_head *head,
 	return dev_res ? dev_res->min_align : 0;
 }
 
+static bool pdev_resources_assignable(struct pci_dev *dev)
+{
+	u16 class = dev->class >> 8, command;
+
+	/* Don't touch classless devices or host bridges or IOAPICs */
+	if (class == PCI_CLASS_NOT_DEFINED || class == PCI_CLASS_BRIDGE_HOST)
+		return false;
+
+	/* Don't touch IOAPIC devices already enabled by firmware */
+	if (class == PCI_CLASS_SYSTEM_PIC) {
+		pci_read_config_word(dev, PCI_COMMAND, &command);
+		if (command & (PCI_COMMAND_IO | PCI_COMMAND_MEMORY))
+			return false;
+	}
+
+	return true;
+}
+
 /* Sort resources by alignment */
 static void pdev_sort_resources(struct pci_dev *dev, struct list_head *head)
 {
 	struct resource *r;
 	int i;
+
+	if (!pdev_resources_assignable(dev))
+		return;
 
 	pci_dev_for_each_resource(dev, r, i) {
 		const char *r_name = pci_resource_name(dev, i);
@@ -174,25 +195,6 @@ static void pdev_sort_resources(struct pci_dev *dev, struct list_head *head)
 		/* Insert it just before n */
 		list_add_tail(&tmp->list, n);
 	}
-}
-
-static void __dev_sort_resources(struct pci_dev *dev, struct list_head *head)
-{
-	u16 class = dev->class >> 8;
-
-	/* Don't touch classless devices or host bridges or IOAPICs */
-	if (class == PCI_CLASS_NOT_DEFINED || class == PCI_CLASS_BRIDGE_HOST)
-		return;
-
-	/* Don't touch IOAPIC devices already enabled by firmware */
-	if (class == PCI_CLASS_SYSTEM_PIC) {
-		u16 command;
-		pci_read_config_word(dev, PCI_COMMAND, &command);
-		if (command & (PCI_COMMAND_IO | PCI_COMMAND_MEMORY))
-			return;
-	}
-
-	pdev_sort_resources(dev, head);
 }
 
 static inline void reset_resource(struct resource *res)
@@ -498,7 +500,7 @@ static void pdev_assign_resources_sorted(struct pci_dev *dev,
 {
 	LIST_HEAD(head);
 
-	__dev_sort_resources(dev, &head);
+	pdev_sort_resources(dev, &head);
 	__assign_resources_sorted(&head, add_head, fail_head);
 
 }
@@ -511,7 +513,7 @@ static void pbus_assign_resources_sorted(const struct pci_bus *bus,
 	LIST_HEAD(head);
 
 	list_for_each_entry(dev, &bus->devices, bus_list)
-		__dev_sort_resources(dev, &head);
+		pdev_sort_resources(dev, &head);
 
 	__assign_resources_sorted(&head, realloc_head, fail_head);
 }
