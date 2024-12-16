@@ -412,6 +412,12 @@ static void omap_8250_set_termios(struct uart_port *port,
 	 */
 	uart_update_timeout(port, termios->c_cflag, baud);
 
+	/*
+	 * Specify which conditions may be considered for error
+	 * handling and the ignoring of characters. The actual
+	 * ignoring of characters only occurs if the bit is set
+	 * in @ignore_status_mask as well.
+	 */
 	up->port.read_status_mask = UART_LSR_OE | UART_LSR_DR;
 	if (termios->c_iflag & INPCK)
 		up->port.read_status_mask |= UART_LSR_FE | UART_LSR_PE;
