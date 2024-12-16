@@ -62,6 +62,15 @@ to control the transmitter driver's streaming state. These callbacks may not be
 called directly, but by using ``v4l2_subdev_enable_streams()`` and
 ``v4l2_subdev_disable_streams()``.
 
+Stopping the transmitter
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+A transmitter stops sending the stream of images as a result of
+calling the ``.disable_streams()`` callback. Some transmitters may stop the
+stream at a frame boundary whereas others stop immediately,
+effectively leaving the current frame unfinished. The receiver driver
+should not make assumptions either way, but function properly in both
+cases.
 
 CSI-2 transmitter drivers
 -------------------------
@@ -130,13 +139,3 @@ device, so this should be only done when it is needed.
 
 Receiver drivers that do not need explicit LP-11 or LP-111 state setup are
 waived from calling the two callbacks.
-
-Stopping the transmitter
-^^^^^^^^^^^^^^^^^^^^^^^^
-
-A transmitter stops sending the stream of images as a result of
-calling the ``.disable_streams()`` callback. Some transmitters may stop the
-stream at a frame boundary whereas others stop immediately,
-effectively leaving the current frame unfinished. The receiver driver
-should not make assumptions either way, but function properly in both
-cases.
