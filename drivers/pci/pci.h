@@ -333,6 +333,7 @@ void pci_walk_bus_locked(struct pci_bus *top,
 			 void *userdata);
 
 const char *pci_resource_name(struct pci_dev *dev, unsigned int i);
+bool pci_resource_is_optional(const struct pci_dev *dev, int resno);
 
 /**
  * pci_resource_num - Reverse lookup resource number from device resources

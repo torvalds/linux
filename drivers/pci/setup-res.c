@@ -494,8 +494,7 @@ int pci_enable_resources(struct pci_dev *dev, int mask)
 
 		if (!(r->flags & (IORESOURCE_IO | IORESOURCE_MEM)))
 			continue;
-		if ((i == PCI_ROM_RESOURCE) &&
-				(!(r->flags & IORESOURCE_ROM_ENABLE)))
+		if (pci_resource_is_optional(dev, i))
 			continue;
 
 		if (r->flags & IORESOURCE_UNSET) {

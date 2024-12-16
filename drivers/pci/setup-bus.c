@@ -206,6 +206,18 @@ static void pdev_sort_resources(struct pci_dev *dev, struct list_head *head)
 	}
 }
 
+bool pci_resource_is_optional(const struct pci_dev *dev, int resno)
+{
+	const struct resource *res = pci_resource_n(dev, resno);
+
+	if (pci_resource_is_iov(resno))
+		return true;
+	if (resno == PCI_ROM_RESOURCE && !(res->flags & IORESOURCE_ROM_ENABLE))
+		return true;
+
+	return false;
+}
+
 static inline void reset_resource(struct resource *res)
 {
 	res->start = 0;
