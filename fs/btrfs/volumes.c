@@ -13,8 +13,8 @@
 #include <linux/list_sort.h>
 #include <linux/namei.h>
 #include "misc.h"
-#include "ctree.h"
 #include "disk-io.h"
+#include "extent-tree.h"
 #include "transaction.h"
 #include "volumes.h"
 #include "raid56.h"

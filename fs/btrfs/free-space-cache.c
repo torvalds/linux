@@ -12,7 +12,7 @@
 #include <linux/error-injection.h>
 #include <linux/sched/mm.h>
 #include <linux/string_choices.h>
-#include "ctree.h"
+#include "extent-tree.h"
 #include "fs.h"
 #include "messages.h"
 #include "misc.h"
