@@ -79,6 +79,8 @@ static inline void accounting_key_init(struct bkey_i *k, struct disk_accounting_
 	memcpy_u64s_small(acc->v.d, d, nr);
 }
 
+static int bch2_accounting_update_sb_one(struct bch_fs *, struct bpos);
+
 int bch2_disk_accounting_mod(struct btree_trans *trans,
 			     struct disk_accounting_pos *k,
 			     s64 *d, unsigned nr, bool gc)
@@ -96,9 +98,16 @@ int bch2_disk_accounting_mod(struct btree_trans *trans,
 
 	accounting_key_init(&k_i.k, k, d, nr);
 
-	return likely(!gc)
-		? bch2_trans_update_buffered(trans, BTREE_ID_accounting, &k_i.k)
-		: bch2_accounting_mem_add(trans, bkey_i_to_s_c_accounting(&k_i.k), true);
+	if (unlikely(gc)) {
+		int ret = bch2_accounting_mem_add(trans, bkey_i_to_s_c_accounting(&k_i.k), true);
+		if (ret == -BCH_ERR_btree_insert_need_mark_replicas)
+			ret = drop_locks_do(trans,
+				bch2_accounting_update_sb_one(trans->c, disk_accounting_pos_to_bpos(k))) ?:
+				bch2_accounting_mem_add(trans, bkey_i_to_s_c_accounting(&k_i.k), true);
+		return ret;
+	} else {
+		return bch2_trans_update_buffered(trans, BTREE_ID_accounting, &k_i.k);
+	}
 }
 
 int bch2_mod_dev_cached_sectors(struct btree_trans *trans,
