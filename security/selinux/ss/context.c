@@ -20,7 +20,7 @@ u32 context_compute_hash(const struct context *c)
 	 * context struct with only the len & str set (and vice versa)
 	 * under a given policy. Since context structs from different
 	 * policies should never meet, it is safe to hash valid and
-	 * invalid contexts differently. The context_cmp() function
+	 * invalid contexts differently. The context_equal() function
 	 * already operates under the same assumption.
 	 */
 	if (c->len)

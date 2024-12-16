@@ -25,12 +25,12 @@
 
 static struct kmem_cache *ebitmap_node_cachep __ro_after_init;
 
-int ebitmap_cmp(const struct ebitmap *e1, const struct ebitmap *e2)
+bool ebitmap_equal(const struct ebitmap *e1, const struct ebitmap *e2)
 {
 	const struct ebitmap_node *n1, *n2;
 
 	if (e1->highbit != e2->highbit)
-		return 0;
+		return false;
 
 	n1 = e1->node;
 	n2 = e2->node;
@@ -41,9 +41,9 @@ int ebitmap_cmp(const struct ebitmap *e1, const struct ebitmap *e2)
 	}
 
 	if (n1 || n2)
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
 int ebitmap_cpy(struct ebitmap *dst, const struct ebitmap *src)

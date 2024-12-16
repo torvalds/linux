@@ -3331,7 +3331,7 @@ int security_net_peersid_resolve(u32 nlbl_sid, u32 nlbl_type,
 		       __func__, xfrm_sid);
 		goto out;
 	}
-	rc = (mls_context_cmp(nlbl_ctx, xfrm_ctx) ? 0 : -EACCES);
+	rc = (mls_context_equal(nlbl_ctx, xfrm_ctx) ? 0 : -EACCES);
 	if (rc)
 		goto out;
 

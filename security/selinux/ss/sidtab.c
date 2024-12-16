@@ -66,7 +66,7 @@ static u32 context_to_sid(struct sidtab *s, struct context *context, u32 hash)
 	hash_for_each_possible_rcu(s->context_to_sid, entry, list, hash) {
 		if (entry->hash != hash)
 			continue;
-		if (context_cmp(&entry->context, context)) {
+		if (context_equal(&entry->context, context)) {
 			sid = entry->sid;
 			break;
 		}

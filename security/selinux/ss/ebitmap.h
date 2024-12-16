@@ -120,7 +120,7 @@ static inline void ebitmap_node_clr_bit(struct ebitmap_node *n, u32 bit)
 	     (bit) < ebitmap_length(e);               \
 	     (bit) = ebitmap_next_positive(e, &(n), bit))
 
-int ebitmap_cmp(const struct ebitmap *e1, const struct ebitmap *e2);
+bool ebitmap_equal(const struct ebitmap *e1, const struct ebitmap *e2);
 int ebitmap_cpy(struct ebitmap *dst, const struct ebitmap *src);
 int ebitmap_and(struct ebitmap *dst, const struct ebitmap *e1,
 		const struct ebitmap *e2);
