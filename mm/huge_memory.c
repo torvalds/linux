@@ -1149,116 +1149,222 @@ unsigned long thp_get_unmapped_area(struct file *filp, unsigned long addr,
 }
 EXPORT_SYMBOL_GPL(thp_get_unmapped_area);
 
-static struct folio *vma_alloc_anon_folio_pmd(struct vm_area_struct *vma,
-		unsigned long addr)
+static bool pmd_range_none(pmd_t *pmd, int nr_entries)
 {
+	int i;
+
+	for (i = 0; i < nr_entries; i++) {
+		if (!pmd_none(pmdp_get_lockless(pmd + i)))
+			return false;
+	}
+
+	return true;
+}
+
+/**
+ * get_highest_unmapped_orders - Find the highest unmapped order in a bitmap.
+ * @vmf: Pointer to the vm_fault structure describing the fault context.
+ * @orders: Bitmap of candidate orders to evaluate.
+ *
+ * This function identifies the highest order from @orders that is not
+ * mapped in the PMD range of the faulting virtual address in @vmf (No PMD entry
+ * is available).
+ *
+ * Returns:
+ * The updated bitmap starting with the highest unmapped order.
+ */
+static unsigned long get_highest_unmapped_orders(struct vm_fault *vmf,
+						 unsigned long orders)
+{
+	pmd_t *pmdp;
+	unsigned long addr;
+	int order;
+
+	pmdp = pmd_offset(vmf->pud, vmf->address & PUD_MASK);
+	order = highest_order(orders);
+	while (orders) {
+		addr = ALIGN_DOWN(vmf->address, PAGE_SIZE << order);
+		if (pmd_range_none(pmdp + pmd_index(addr),
+				   1 << (order - HPAGE_PMD_ORDER)))
+			break;
+		order = next_order(&orders, order);
+	}
+	return orders;
+}
+
+/**
+ * alloc_anon_folio_pmd - Allocate a non-compound anonymous folio for a PMD-mapped area.
+ * @vmf: Pointer to the vm_fault structure describing the fault context.
+ *
+ * This function determines the maximum order from the @orders bitmap that can span
+ * the virtual memory area (VMA) specified in @vmf->vma. It ensures that the chosen
+ * order does not exceed the not-mapped region in VMA which aligns with given vmf->address.
+ *
+ * Once the appropriate order is determined, the function allocates a folio
+ * (which is inherently a compound page) of the corresponding size. It performs
+ * additional steps including:
+ *  - Charging the memory to the memory control group (memcg) for accounting.
+ *  - Zeroing the allocated folio, unless it has already been initialized during allocation.
+ *
+ * Returns:
+ * A pointer to the allocated folio structure on success, or NULL on failure.
+ */
+static struct folio *alloc_anon_folio_pmd(struct vm_fault *vmf)
+{
+	struct vm_area_struct *vma = vmf->vma;
 	gfp_t gfp = vma_thp_gfp_mask(vma);
-	const int order = HPAGE_PMD_ORDER;
+	unsigned long *orders = &(vmf->orders);
 	struct folio *folio;
+	bool charge_fallback_event;
+	int order;
+	unsigned long addr;
 
-	folio = vma_alloc_folio(gfp, order, vma, addr & HPAGE_PMD_MASK);
+	if (!userfaultfd_armed(vma)) {
+		vmf->ptl = pmd_lock(vma->vm_mm, vmf->pmd);
+		*orders = get_highest_unmapped_orders(vmf, *orders);
+		spin_unlock(vmf->ptl);
+	} else
+		*orders = 1 << HPAGE_PMD_ORDER;
 
-	if (unlikely(!folio)) {
-		count_vm_event(THP_FAULT_FALLBACK);
+	while (*orders) {
+		order = highest_order(*orders);
+		charge_fallback_event = false;
+		addr = ALIGN_DOWN(vmf->address, PAGE_SIZE << order);
+		folio = vma_alloc_folio(gfp, order, vma, addr);
+
+		if (folio) {
+			VM_BUG_ON_FOLIO(!folio_test_large(folio), folio);
+			if (mem_cgroup_charge(folio, vma->vm_mm, gfp)) {
+				folio_put(folio);
+				count_mthp_stat(
+					order,
+					MTHP_STAT_ANON_FAULT_FALLBACK_CHARGE);
+				charge_fallback_event = true;
+				goto try_next_order;
+			}
+			folio_throttle_swaprate(folio, gfp);
+
+			/*
+			 * When a folio is not zeroed during allocation (__GFP_ZERO not used),
+			 * folio_zero_user() is used to make sure that the page corresponding
+			 * to the faulting address will be hot in the cache after zeroing.
+			 */
+			if (!alloc_zeroed())
+				folio_zero_user(folio, addr);
+			/*
+			 * The memory barrier inside __folio_mark_uptodate makes sure that
+			 * folio_zero_user writes become visible before the set_pmd_at()
+			 * write.
+			 */
+			__folio_mark_uptodate(folio);
+			return folio;
+		}
+try_next_order:
 		count_mthp_stat(order, MTHP_STAT_ANON_FAULT_FALLBACK);
-		return NULL;
+		order = next_order(orders, order);
 	}
-
-	VM_BUG_ON_FOLIO(!folio_test_large(folio), folio);
-	if (mem_cgroup_charge(folio, vma->vm_mm, gfp)) {
-		folio_put(folio);
-		count_vm_event(THP_FAULT_FALLBACK);
+	if (charge_fallback_event)
 		count_vm_event(THP_FAULT_FALLBACK_CHARGE);
-		count_mthp_stat(order, MTHP_STAT_ANON_FAULT_FALLBACK);
-		count_mthp_stat(order, MTHP_STAT_ANON_FAULT_FALLBACK_CHARGE);
-		return NULL;
-	}
-	folio_throttle_swaprate(folio, gfp);
-
-       /*
-	* When a folio is not zeroed during allocation (__GFP_ZERO not used),
-	* folio_zero_user() is used to make sure that the page corresponding
-	* to the faulting address will be hot in the cache after zeroing.
-	*/
-	if (!alloc_zeroed())
-		folio_zero_user(folio, addr);
-	/*
-	 * The memory barrier inside __folio_mark_uptodate makes sure that
-	 * folio_zero_user writes become visible before the set_pmd_at()
-	 * write.
-	 */
-	__folio_mark_uptodate(folio);
-	return folio;
+	count_vm_event(THP_FAULT_FALLBACK);
+	return NULL;
 }
 
 static void map_anon_folio_pmd(struct folio *folio, pmd_t *pmd,
 		struct vm_area_struct *vma, unsigned long haddr)
 {
 	pmd_t entry;
+	long nr_pages = folio_nr_pages(folio);
+	unsigned long nr_pmds = nr_pages >> HPAGE_PMD_ORDER;
 
 	entry = mk_huge_pmd(&folio->page, vma->vm_page_prot);
 	entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
 	folio_add_new_anon_rmap(folio, vma, haddr, RMAP_EXCLUSIVE);
 	folio_add_lru_vma(folio, vma);
-	set_pmd_at(vma->vm_mm, haddr, pmd, entry);
-	update_mmu_cache_pmd(vma, haddr, pmd);
-	add_mm_counter(vma->vm_mm, MM_ANONPAGES, HPAGE_PMD_NR);
+	set_pmd_ptes(vma->vm_mm, haddr, pmd, entry, nr_pmds);
+	update_mmu_cache_pmd_range(vma, haddr, pmd, nr_pmds);
+	add_mm_counter(vma->vm_mm, MM_ANONPAGES, nr_pages);
 	count_vm_event(THP_FAULT_ALLOC);
-	count_mthp_stat(HPAGE_PMD_ORDER, MTHP_STAT_ANON_FAULT_ALLOC);
+	count_mthp_stat(folio_order(folio), MTHP_STAT_ANON_FAULT_ALLOC);
 	count_memcg_event_mm(vma->vm_mm, THP_FAULT_ALLOC);
 }
 
 static vm_fault_t __do_huge_pmd_anonymous_page(struct vm_fault *vmf)
 {
-	unsigned long haddr = vmf->address & HPAGE_PMD_MASK;
+	unsigned long haddr;
 	struct vm_area_struct *vma = vmf->vma;
 	struct folio *folio;
-	pgtable_t pgtable;
+	pgtable_t *pgtable_array;
 	vm_fault_t ret = 0;
+	int index;
+	unsigned long nr_pmds;
+	int order;
 
-	folio = vma_alloc_anon_folio_pmd(vma, vmf->address);
+	folio = alloc_anon_folio_pmd(vmf);
 	if (unlikely(!folio))
 		return VM_FAULT_FALLBACK;
 
-	pgtable = pte_alloc_one(vma->vm_mm);
-	if (unlikely(!pgtable)) {
+	order = folio_order(folio);
+	nr_pmds = 1 << (order - HPAGE_PMD_ORDER);
+	haddr = ALIGN_DOWN(vmf->address, PAGE_SIZE << order);
+
+	pgtable_array = kcalloc(nr_pmds, sizeof(pgtable_t), GFP_KERNEL);
+	if (unlikely(!pgtable_array)) {
 		ret = VM_FAULT_OOM;
 		goto release;
 	}
 
-	vmf->ptl = pmd_lock(vma->vm_mm, vmf->pmd);
-	if (unlikely(!pmd_none(*vmf->pmd))) {
-		goto unlock_release;
-	} else {
-		ret = check_stable_address_space(vma->vm_mm);
-		if (ret)
-			goto unlock_release;
-
-		/* Deliver the page fault to userland */
-		if (userfaultfd_missing(vma)) {
-			spin_unlock(vmf->ptl);
-			folio_put(folio);
-			pte_free(vma->vm_mm, pgtable);
-			ret = handle_userfault(vmf, VM_UFFD_MISSING);
-			VM_BUG_ON(ret & VM_FAULT_FALLBACK);
-			return ret;
+	for (index = 0; index < nr_pmds; ++index) {
+		pgtable_array[index] = pte_alloc_one(vma->vm_mm);
+		if (unlikely(!pgtable_array[index])) {
+			ret = VM_FAULT_OOM;
+			goto release;
 		}
-		pgtable_trans_huge_deposit(vma->vm_mm, vmf->pmd, pgtable);
-		map_anon_folio_pmd(folio, vmf->pmd, vma, haddr);
-		mm_inc_nr_ptes(vma->vm_mm);
-		deferred_split_folio(folio, false);
-		spin_unlock(vmf->ptl);
 	}
 
+	vmf->ptl = pmd_lock(vma->vm_mm, vmf->pmd);
+	if (unlikely(!pmd_none(*vmf->pmd)))
+		goto unlock_release;
+
+	if (vmf->orders != get_highest_unmapped_orders(vmf, vmf->orders)) {
+		ret = VM_FAULT_RETRY;
+		goto unlock_release;
+	}
+
+	vmf->pmd = pmd_offset(vmf->pud, haddr);
+	ret = check_stable_address_space(vma->vm_mm);
+	if (ret)
+		goto unlock_release;
+
+	/* Deliver the page fault to userland */
+	if (userfaultfd_missing(vma)) {
+		spin_unlock(vmf->ptl);
+		while (--index >= 0)
+			pte_free(vma->vm_mm, pgtable_array[index]);
+		kfree(pgtable_array);
+		folio_put(folio);
+		ret = handle_userfault(vmf, VM_UFFD_MISSING);
+		VM_BUG_ON(ret & VM_FAULT_FALLBACK);
+		return ret;
+	}
+	for (index = 0; index < nr_pmds; index++) {
+		pgtable_trans_huge_deposit(vma->vm_mm, vmf->pmd,
+					   pgtable_array[index]);
+		mm_inc_nr_ptes(vma->vm_mm);
+	}
+	folio_ref_add(folio, nr_pmds - 1);
+	map_anon_folio_pmd(folio, vmf->pmd, vma, haddr);
+	deferred_split_folio(folio, false);
+	spin_unlock(vmf->ptl);
+	kfree(pgtable_array);
 	return 0;
 unlock_release:
 	spin_unlock(vmf->ptl);
 release:
-	if (pgtable)
-		pte_free(vma->vm_mm, pgtable);
+	while (--index >= 0)
+		pte_free(vma->vm_mm, pgtable_array[index]);
+	kfree(pgtable_array);
 	folio_put(folio);
 	return ret;
-
 }
 
 /*
@@ -1317,7 +1423,8 @@ vm_fault_t do_huge_pmd_anonymous_page(struct vm_fault *vmf)
 	unsigned long haddr = vmf->address & HPAGE_PMD_MASK;
 	vm_fault_t ret;
 
-	if (!thp_vma_suitable_order(vma, haddr, PMD_ORDER))
+	vmf->orders = thp_vma_suitable_orders(vma, haddr, vmf->orders);
+	if (!vmf->orders)
 		return VM_FAULT_FALLBACK;
 	ret = vmf_anon_prepare(vmf);
 	if (ret)
@@ -1805,7 +1912,9 @@ static vm_fault_t do_huge_zero_wp_pmd(struct vm_fault *vmf)
 	struct folio *folio;
 	vm_fault_t ret = 0;
 
-	folio = vma_alloc_anon_folio_pmd(vma, vmf->address);
+	vmf->orders = 1 << HPAGE_PMD_ORDER;
+	folio = alloc_anon_folio_pmd(vmf);
+
 	if (unlikely(!folio))
 		return VM_FAULT_FALLBACK;
 

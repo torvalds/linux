@@ -5662,14 +5662,14 @@ out_map:
 static inline vm_fault_t try_create_huge_pmd(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
-	unsigned long orders = thp_vma_allowable_orders(vma, vma->vm_flags,
+	vmf->orders = thp_vma_allowable_orders(vma, vma->vm_flags,
 						TVA_IN_PF | TVA_ENFORCE_SYSFS,
-						PMD_ORDER);
-	if (orders & PMD_ORDER)
+						THP_ORDER_PMD_ANON);
+	if (!vmf->orders)
 		return VM_FAULT_FALLBACK;
 	if (vma_is_anonymous(vma))
 		return do_huge_pmd_anonymous_page(vmf);
-	if (vma->vm_ops->huge_fault)
+	if ((vmf->orders & PMD_ORDER) && vma->vm_ops->huge_fault)
 		return vma->vm_ops->huge_fault(vmf, PMD_ORDER);
 	return VM_FAULT_FALLBACK;
 }
