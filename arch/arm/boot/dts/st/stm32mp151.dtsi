@@ -578,6 +578,11 @@
 				access-controllers = <&etzpc 20>;
 				status = "disabled";
 
+				counter {
+					compatible = "st,stm32-timer-counter";
+					status = "disabled";
+				};
+
 				timer@5 {
 					compatible = "st,stm32h7-timer-trigger";
 					reg = <5>;
@@ -599,6 +604,11 @@
 				access-controllers = <&etzpc 21>;
 				status = "disabled";
 
+				counter {
+					compatible = "st,stm32-timer-counter";
+					status = "disabled";
+				};
+
 				timer@6 {
 					compatible = "st,stm32h7-timer-trigger";
 					reg = <6>;
@@ -617,6 +627,11 @@
 				clock-names = "int";
 				access-controllers = <&etzpc 22>;
 				status = "disabled";
+
+				counter {
+					compatible = "st,stm32-timer-counter";
+					status = "disabled";
+				};
 
 				pwm {
 					compatible = "st,stm32-pwm";
@@ -643,6 +658,11 @@
 				access-controllers = <&etzpc 23>;
 				status = "disabled";
 
+				counter {
+					compatible = "st,stm32-timer-counter";
+					status = "disabled";
+				};
+
 				pwm {
 					compatible = "st,stm32-pwm";
 					#pwm-cells = <3>;
@@ -667,6 +687,11 @@
 				clock-names = "int";
 				access-controllers = <&etzpc 24>;
 				status = "disabled";
+
+				counter {
+					compatible = "st,stm32-timer-counter";
+					status = "disabled";
+				};
 
 				pwm {
 					compatible = "st,stm32-pwm";
@@ -1116,6 +1141,11 @@
 				access-controllers = <&etzpc 54>;
 				status = "disabled";
 
+				counter {
+					compatible = "st,stm32-timer-counter";
+					status = "disabled";
+				};
+
 				pwm {
 					compatible = "st,stm32-pwm";
 					#pwm-cells = <3>;
@@ -1144,11 +1174,17 @@
 				access-controllers = <&etzpc 55>;
 				status = "disabled";
 
+				counter {
+					compatible = "st,stm32-timer-counter";
+					status = "disabled";
+				};
+
 				pwm {
 					compatible = "st,stm32-pwm";
 					#pwm-cells = <3>;
 					status = "disabled";
 				};
+
 				timer@15 {
 					compatible = "st,stm32h7-timer-trigger";
 					reg = <15>;
@@ -1170,6 +1206,11 @@
 				dma-names = "ch1", "up";
 				access-controllers = <&etzpc 56>;
 				status = "disabled";
+
+				counter {
+					compatible = "st,stm32-timer-counter";
+					status = "disabled";
+				};
 
 				pwm {
 					compatible = "st,stm32-pwm";
