@@ -115,6 +115,7 @@ struct hbg_mac {
 	u32 duplex;
 	u32 autoneg;
 	u32 link_status;
+	u32 pause_autoneg;
 };
 
 struct hbg_mac_table_entry {

@@ -191,6 +191,7 @@ static int hbg_net_set_mac_address(struct net_device *netdev, void *addr)
 	if (exists)
 		hbg_set_mac_to_mac_table(priv, index, NULL);
 
+	hbg_hw_set_rx_pause_mac_addr(priv, ether_addr_to_u64(mac_addr));
 	dev_addr_set(netdev, mac_addr);
 	return 0;
 }
