@@ -89,7 +89,7 @@ struct avtab {
 };
 
 void avtab_init(struct avtab *h);
-int avtab_alloc(struct avtab *, u32);
+int avtab_alloc(struct avtab *h, u32 nrules);
 int avtab_alloc_dup(struct avtab *new, const struct avtab *orig);
 void avtab_destroy(struct avtab *h);
 

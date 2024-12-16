@@ -290,7 +290,7 @@ int security_context_to_sid_default(const char *scontext, u32 scontext_len,
 int security_context_to_sid_force(const char *scontext, u32 scontext_len,
 				  u32 *sid);
 
-int security_get_user_sids(u32 callsid, char *username, u32 **sids, u32 *nel);
+int security_get_user_sids(u32 fromsid, const char *username, u32 **sids, u32 *nel);
 
 int security_port_sid(u8 protocol, u16 port, u32 *out_sid);
 
@@ -308,7 +308,7 @@ int security_validate_transition(u32 oldsid, u32 newsid, u32 tasksid,
 int security_validate_transition_user(u32 oldsid, u32 newsid, u32 tasksid,
 				      u16 tclass);
 
-int security_bounded_transition(u32 oldsid, u32 newsid);
+int security_bounded_transition(u32 old_sid, u32 new_sid);
 
 int security_sid_mls_copy(u32 sid, u32 mls_sid, u32 *new_sid);
 

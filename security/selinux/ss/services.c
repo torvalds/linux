@@ -2712,7 +2712,7 @@ out:
  */
 
 int security_get_user_sids(u32 fromsid,
-			   char *username,
+			   const char *username,
 			   u32 **sids,
 			   u32 *nel)
 {
@@ -3034,7 +3034,7 @@ err:
 }
 
 
-int security_set_bools(u32 len, int *values)
+int security_set_bools(u32 len, const int *values)
 {
 	struct selinux_state *state = &selinux_state;
 	struct selinux_policy *newpolicy, *oldpolicy;
