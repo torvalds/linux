@@ -273,13 +273,17 @@ static void reassign_resources_sorted(struct list_head *realloc_head,
 		align = add_res->min_align;
 		if (!resource_size(res)) {
 			resource_set_range(res, align, add_size);
-			if (pci_assign_resource(dev, idx))
+			if (pci_assign_resource(dev, idx)) {
+				pci_dbg(dev,
+					"%s %pR: ignoring failure in optional allocation\n",
+					res_name, res);
 				reset_resource(res);
+			}
 		} else {
 			res->flags |= add_res->flags &
 				 (IORESOURCE_STARTALIGN|IORESOURCE_SIZEALIGN);
 			if (pci_reassign_resource(dev, idx, add_size, align))
-				pci_info(dev, "%s %pR: failed to add %llx\n",
+				pci_info(dev, "%s %pR: failed to add optional %llx\n",
 					 res_name, res,
 					 (unsigned long long) add_size);
 		}
