@@ -334,6 +334,28 @@ void pci_walk_bus_locked(struct pci_bus *top,
 
 const char *pci_resource_name(struct pci_dev *dev, unsigned int i);
 
+/**
+ * pci_resource_num - Reverse lookup resource number from device resources
+ * @dev: PCI device
+ * @res: Resource to lookup index for (MUST be a @dev's resource)
+ *
+ * Perform reverse lookup to determine the resource number for @res within
+ * @dev resource array. NOTE: The caller is responsible for ensuring @res is
+ * among @dev's resources!
+ *
+ * Returns: resource number.
+ */
+static inline int pci_resource_num(const struct pci_dev *dev,
+				   const struct resource *res)
+{
+	int resno = res - &dev->resource[0];
+
+	/* Passing a resource that is not among dev's resources? */
+	WARN_ON_ONCE(resno >= PCI_NUM_RESOURCES);
+
+	return resno;
+}
+
 void pci_reassigndev_resource_alignment(struct pci_dev *dev);
 void pci_disable_bridge_window(struct pci_dev *dev);
 struct pci_bus *pci_bus_get(struct pci_bus *bus);
@@ -693,7 +715,7 @@ unsigned long pci_cardbus_resource_alignment(struct resource *);
 static inline resource_size_t pci_resource_alignment(struct pci_dev *dev,
 						     struct resource *res)
 {
-	int resno = res - dev->resource;
+	int resno = pci_resource_num(dev, res);
 
 	if (pci_resource_is_iov(resno))
 		return pci_sriov_resource_alignment(dev, resno);

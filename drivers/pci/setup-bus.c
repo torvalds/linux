@@ -242,7 +242,7 @@ static void reassign_resources_sorted(struct list_head *realloc_head,
 		if (!found_match) /* Just skip */
 			continue;
 
-		idx = res - &add_res->dev->resource[0];
+		idx = pci_resource_num(add_res->dev, res);
 		res_name = pci_resource_name(add_res->dev, idx);
 		add_size = add_res->add_size;
 		align = add_res->min_align;
@@ -284,7 +284,7 @@ static void assign_requested_resources_sorted(struct list_head *head,
 
 	list_for_each_entry(dev_res, head, list) {
 		res = dev_res->res;
-		idx = res - &dev_res->dev->resource[0];
+		idx = pci_resource_num(dev_res->dev, res);
 
 		if (!resource_size(res))
 			continue;
@@ -2210,7 +2210,7 @@ again:
 		res->flags = fail_res->flags;
 
 		if (pci_is_bridge(fail_res->dev)) {
-			idx = res - &fail_res->dev->resource[0];
+			idx = pci_resource_num(fail_res->dev, res);
 			if (idx >= PCI_BRIDGE_RESOURCES &&
 			    idx <= PCI_BRIDGE_RESOURCE_END)
 				res->flags = 0;
@@ -2294,7 +2294,7 @@ again:
 		res->flags = fail_res->flags;
 
 		if (pci_is_bridge(fail_res->dev)) {
-			idx = res - &fail_res->dev->resource[0];
+			idx = pci_resource_num(fail_res->dev, res);
 			if (idx >= PCI_BRIDGE_RESOURCES &&
 			    idx <= PCI_BRIDGE_RESOURCE_END)
 				res->flags = 0;
@@ -2401,7 +2401,7 @@ cleanup:
 		struct resource *res = dev_res->res;
 
 		bridge = dev_res->dev;
-		i = res - bridge->resource;
+		i = pci_resource_num(bridge, res);
 
 		res->start = dev_res->start;
 		res->end = dev_res->end;
