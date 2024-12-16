@@ -3738,6 +3738,34 @@ static noinline void __init alloc_cyclic_testing(struct maple_tree *mt)
 	}
 
 	mtree_destroy(mt);
+
+	/*
+	 * Issue with reverse search was discovered
+	 * https://lore.kernel.org/all/20241216060600.287B4C4CED0@smtp.kernel.org/
+	 * Exhausting the allocation area and forcing the search to wrap needs a
+	 * mas_reset() in mas_alloc_cyclic().
+	 */
+	next = 0;
+	mt_init_flags(mt, MT_FLAGS_ALLOC_RANGE);
+	for (int i = 0; i < 1023; i++) {
+		mtree_alloc_cyclic(mt, &location, mt, 2, 1024, &next, GFP_KERNEL);
+		MT_BUG_ON(mt, i != location - 2);
+		MT_BUG_ON(mt, i != next - 3);
+		MT_BUG_ON(mt, mtree_load(mt, location) != mt);
+	}
+	mtree_erase(mt, 123);
+	MT_BUG_ON(mt, mtree_load(mt, 123) != NULL);
+	mtree_alloc_cyclic(mt, &location, mt, 2, 1024, &next, GFP_KERNEL);
+	MT_BUG_ON(mt, 123 != location);
+	MT_BUG_ON(mt, 124 != next);
+	MT_BUG_ON(mt, mtree_load(mt, location) != mt);
+	mtree_erase(mt, 100);
+	mtree_alloc_cyclic(mt, &location, mt, 2, 1024, &next, GFP_KERNEL);
+	MT_BUG_ON(mt, 100 != location);
+	MT_BUG_ON(mt, 101 != next);
+	MT_BUG_ON(mt, mtree_load(mt, location) != mt);
+	mtree_destroy(mt);
+
 	/* Overflow test */
 	next = ULONG_MAX - 1;
 	ret = mtree_alloc_cyclic(mt, &location, mt, 2, ULONG_MAX, &next, GFP_KERNEL);
