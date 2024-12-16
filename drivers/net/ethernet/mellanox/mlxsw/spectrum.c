@@ -2449,7 +2449,7 @@ void mlxsw_sp_rx_listener_no_mark_func(struct sk_buff *skb,
 	u64_stats_update_end(&pcpu_stats->syncp);
 
 	skb->protocol = eth_type_trans(skb, skb->dev);
-	netif_receive_skb(skb);
+	napi_gro_receive(mlxsw_skb_cb(skb)->rx_md_info.napi, skb);
 }
 
 static void mlxsw_sp_rx_listener_mark_func(struct sk_buff *skb, u16 local_port,

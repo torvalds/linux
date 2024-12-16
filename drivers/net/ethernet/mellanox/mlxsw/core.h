@@ -73,6 +73,7 @@ struct mlxsw_tx_info {
 };
 
 struct mlxsw_rx_md_info {
+	struct napi_struct *napi;
 	u32 cookie_index;
 	u32 latency;
 	u32 tx_congestion;
