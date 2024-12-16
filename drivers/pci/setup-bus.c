@@ -408,6 +408,9 @@ static void __assign_resources_sorted(struct list_head *head,
 	struct pci_dev_resource *save_res;
 	struct pci_dev_resource *dev_res, *tmp_res, *dev_res2;
 	struct resource *res;
+	struct pci_dev *dev;
+	const char *res_name;
+	int idx;
 	unsigned long fail_type;
 	resource_size_t add_align, align;
 
@@ -497,9 +500,16 @@ static void __assign_resources_sorted(struct list_head *head,
 	/* Release assigned resource */
 	list_for_each_entry(dev_res, head, list) {
 		res = dev_res->res;
+		dev = dev_res->dev;
 
-		if (res->parent)
-			release_resource(res);
+		if (!res->parent)
+			continue;
+
+		idx = pci_resource_num(dev, res);
+		res_name = pci_resource_name(dev, idx);
+		pci_dbg(dev, "%s %pR: releasing\n", res_name, res);
+
+		release_resource(res);
 	}
 	/* Restore start/end/flags from saved list */
 	list_for_each_entry(save_res, &save_head, list)
