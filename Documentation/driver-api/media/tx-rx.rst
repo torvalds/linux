@@ -53,6 +53,9 @@ Drivers that do not have user-configurable link frequency should report it
 through the ``.get_mbus_config()`` subdev pad operation, in the ``link_freq``
 field of struct v4l2_mbus_config, instead of through controls.
 
+Receiver drivers should use :c:func:`v4l2_get_link_freq` helper to obtain the
+link frequency from the transmitter sub-device.
+
 ``.enable_streams()`` and ``.disable_streams()`` callbacks
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
