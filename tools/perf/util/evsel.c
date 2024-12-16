@@ -2145,16 +2145,17 @@ int evsel__prepare_open(struct evsel *evsel, struct perf_cpu_map *cpus,
 	return err;
 }
 
-static bool has_attr_feature(struct perf_event_attr *attr, unsigned long flags)
+static bool __has_attr_feature(struct perf_event_attr *attr,
+			       struct perf_cpu cpu, unsigned long flags)
 {
-	int fd = syscall(SYS_perf_event_open, attr, /*pid=*/0, /*cpu=*/-1,
+	int fd = syscall(SYS_perf_event_open, attr, /*pid=*/0, cpu.cpu,
 			 /*group_fd=*/-1, flags);
 	close(fd);
 
 	if (fd < 0) {
 		attr->exclude_kernel = 1;
 
-		fd = syscall(SYS_perf_event_open, attr, /*pid=*/0, /*cpu=*/-1,
+		fd = syscall(SYS_perf_event_open, attr, /*pid=*/0, cpu.cpu,
 			     /*group_fd=*/-1, flags);
 		close(fd);
 	}
@@ -2162,7 +2163,7 @@ static bool has_attr_feature(struct perf_event_attr *attr, unsigned long flags)
 	if (fd < 0) {
 		attr->exclude_hv = 1;
 
-		fd = syscall(SYS_perf_event_open, attr, /*pid=*/0, /*cpu=*/-1,
+		fd = syscall(SYS_perf_event_open, attr, /*pid=*/0, cpu.cpu,
 			     /*group_fd=*/-1, flags);
 		close(fd);
 	}
@@ -2170,7 +2171,7 @@ static bool has_attr_feature(struct perf_event_attr *attr, unsigned long flags)
 	if (fd < 0) {
 		attr->exclude_guest = 1;
 
-		fd = syscall(SYS_perf_event_open, attr, /*pid=*/0, /*cpu=*/-1,
+		fd = syscall(SYS_perf_event_open, attr, /*pid=*/0, cpu.cpu,
 			     /*group_fd=*/-1, flags);
 		close(fd);
 	}
@@ -2180,6 +2181,13 @@ static bool has_attr_feature(struct perf_event_attr *attr, unsigned long flags)
 	attr->exclude_hv = 0;
 
 	return fd >= 0;
+}
+
+static bool has_attr_feature(struct perf_event_attr *attr, unsigned long flags)
+{
+	struct perf_cpu cpu = {.cpu = -1};
+
+	return __has_attr_feature(attr, cpu, flags);
 }
 
 static void evsel__detect_missing_pmu_features(struct evsel *evsel)
@@ -2270,7 +2278,65 @@ found:
 	errno = old_errno;
 }
 
-static bool evsel__detect_missing_features(struct evsel *evsel)
+static bool evsel__probe_aux_action(struct evsel *evsel, struct perf_cpu cpu)
+{
+	struct perf_event_attr attr = evsel->core.attr;
+	int old_errno = errno;
+
+	attr.disabled = 1;
+	attr.aux_start_paused = 1;
+
+	if (__has_attr_feature(&attr, cpu, /*flags=*/0)) {
+		errno = old_errno;
+		return true;
+	}
+
+	/*
+	 * EOPNOTSUPP means the kernel supports the feature but the PMU does
+	 * not, so keep that distinction if possible.
+	 */
+	if (errno != EOPNOTSUPP)
+		errno = old_errno;
+
+	return false;
+}
+
+static void evsel__detect_missing_aux_action_feature(struct evsel *evsel, struct perf_cpu cpu)
+{
+	static bool detection_done;
+	struct evsel *leader;
+
+	/*
+	 * Don't bother probing aux_action if it is not being used or has been
+	 * probed before.
+	 */
+	if (!evsel->core.attr.aux_action || detection_done)
+		return;
+
+	detection_done = true;
+
+	/*
+	 * The leader is an AUX area event. If it has failed, assume the feature
+	 * is not supported.
+	 */
+	leader = evsel__leader(evsel);
+	if (evsel == leader) {
+		perf_missing_features.aux_action = true;
+		return;
+	}
+
+	/*
+	 * AUX area event with aux_action must have been opened successfully
+	 * already, so feature is supported.
+	 */
+	if (leader->core.attr.aux_action)
+		return;
+
+	if (!evsel__probe_aux_action(leader, cpu))
+		perf_missing_features.aux_action = true;
+}
+
+static bool evsel__detect_missing_features(struct evsel *evsel, struct perf_cpu cpu)
 {
 	static bool detection_done = false;
 	struct perf_event_attr attr = {
@@ -2279,6 +2345,8 @@ static bool evsel__detect_missing_features(struct evsel *evsel)
 		.disabled = 1,
 	};
 	int old_errno;
+
+	evsel__detect_missing_aux_action_feature(evsel, cpu);
 
 	evsel__detect_missing_pmu_features(evsel);
 
@@ -2494,6 +2562,7 @@ static int evsel__open_cpu(struct evsel *evsel, struct perf_cpu_map *cpus,
 	int idx, thread, nthreads;
 	int pid = -1, err, old_errno;
 	enum rlimit_action set_rlimit = NO_CHANGE;
+	struct perf_cpu cpu;
 
 	if (evsel__is_retire_lat(evsel))
 		return tpebs_start(evsel->evlist);
@@ -2531,6 +2600,7 @@ fallback_missing_features:
 	}
 
 	for (idx = start_cpu_map_idx; idx < end_cpu_map_idx; idx++) {
+		cpu = perf_cpu_map__cpu(cpus, idx);
 
 		for (thread = 0; thread < nthreads; thread++) {
 			int fd, group_fd;
@@ -2551,10 +2621,9 @@ retry_open:
 
 			/* Debug message used by test scripts */
 			pr_debug2_peo("sys_perf_event_open: pid %d  cpu %d  group_fd %d  flags %#lx",
-				pid, perf_cpu_map__cpu(cpus, idx).cpu, group_fd, evsel->open_flags);
+				pid, cpu.cpu, group_fd, evsel->open_flags);
 
-			fd = sys_perf_event_open(&evsel->core.attr, pid,
-						perf_cpu_map__cpu(cpus, idx).cpu,
+			fd = sys_perf_event_open(&evsel->core.attr, pid, cpu.cpu,
 						group_fd, evsel->open_flags);
 
 			FD(evsel, idx, thread) = fd;
@@ -2570,8 +2639,7 @@ retry_open:
 			bpf_counter__install_pe(evsel, idx, fd);
 
 			if (unlikely(test_attr__enabled())) {
-				test_attr__open(&evsel->core.attr, pid,
-						perf_cpu_map__cpu(cpus, idx),
+				test_attr__open(&evsel->core.attr, pid, cpu,
 						fd, group_fd, evsel->open_flags);
 			}
 
@@ -2626,7 +2694,7 @@ try_fallback:
 	if (err == -EMFILE && rlimit__increase_nofile(&set_rlimit))
 		goto retry_open;
 
-	if (err == -EINVAL && evsel__detect_missing_features(evsel))
+	if (err == -EINVAL && evsel__detect_missing_features(evsel, cpu))
 		goto fallback_missing_features;
 
 	if (evsel__precise_ip_fallback(evsel))
@@ -3585,6 +3653,10 @@ int evsel__open_strerror(struct evsel *evsel, struct target *target,
 			return scnprintf(msg, size,
 	"%s: PMU Hardware doesn't support 'aux_output' feature",
 					 evsel__name(evsel));
+		if (evsel->core.attr.aux_action)
+			return scnprintf(msg, size,
+	"%s: PMU Hardware doesn't support 'aux_action' feature",
+					evsel__name(evsel));
 		if (evsel->core.attr.sample_period != 0)
 			return scnprintf(msg, size,
 	"%s: PMU Hardware doesn't support sampling/overflow-interrupts. Try 'perf stat'",
@@ -3615,6 +3687,8 @@ int evsel__open_strerror(struct evsel *evsel, struct target *target,
 			return scnprintf(msg, size, "clockid feature not supported.");
 		if (perf_missing_features.clockid_wrong)
 			return scnprintf(msg, size, "wrong clockid (%d).", clockid);
+		if (perf_missing_features.aux_action)
+			return scnprintf(msg, size, "The 'aux_action' feature is not supported, update the kernel.");
 		if (perf_missing_features.aux_output)
 			return scnprintf(msg, size, "The 'aux_output' feature is not supported, update the kernel.");
 		if (!target__has_cpu(target))
