@@ -69,7 +69,7 @@
 				compatible = "snps,dw-apb-gpio-port";
 				gpio-controller;
 				#gpio-cells = <2>;
-				snps,nr-gpios = <30>;
+				ngpios = <30>;
 				reg = <0>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
