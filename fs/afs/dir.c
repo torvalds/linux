@@ -324,8 +324,7 @@ expand:
 
 		folio = filemap_get_folio(mapping, i);
 		if (IS_ERR(folio)) {
-			if (test_and_clear_bit(AFS_VNODE_DIR_VALID, &dvnode->flags))
-				afs_stat_v(dvnode, n_inval);
+			afs_invalidate_dir(dvnode, afs_dir_invalid_reclaimed_folio);
 			folio = __filemap_get_folio(mapping,
 						    i, FGP_LOCK | FGP_CREAT,
 						    mapping->gfp_mask);
@@ -1388,8 +1387,8 @@ static void afs_dir_remove_subdir(struct dentry *dentry)
 
 		clear_nlink(&vnode->netfs.inode);
 		set_bit(AFS_VNODE_DELETED, &vnode->flags);
-		atomic64_set(&vnode->cb_expires_at, AFS_NO_CB_PROMISE);
-		clear_bit(AFS_VNODE_DIR_VALID, &vnode->flags);
+		afs_clear_cb_promise(vnode, afs_cb_promise_clear_rmdir);
+		afs_invalidate_dir(vnode, afs_dir_invalid_subdir_removed);
 	}
 }
 
@@ -1851,6 +1850,7 @@ static void afs_rename_success(struct afs_operation *op)
 		write_seqlock(&vnode->cb_lock);
 
 		new_dv = vnode->status.data_version + 1;
+		trace_afs_set_dv(vnode, new_dv);
 		vnode->status.data_version = new_dv;
 		inode_set_iversion_raw(&vnode->netfs.inode, new_dv);
 
@@ -2063,8 +2063,7 @@ static bool afs_dir_release_folio(struct folio *folio, gfp_t gfp_flags)
 	folio_detach_private(folio);
 
 	/* The directory will need reloading. */
-	if (test_and_clear_bit(AFS_VNODE_DIR_VALID, &dvnode->flags))
-		afs_stat_v(dvnode, n_relpg);
+	afs_invalidate_dir(dvnode, afs_dir_invalid_release_folio);
 	return true;
 }
 
@@ -2081,8 +2080,7 @@ static void afs_dir_invalidate_folio(struct folio *folio, size_t offset,
 	BUG_ON(!folio_test_locked(folio));
 
 	/* The directory will need reloading. */
-	if (test_and_clear_bit(AFS_VNODE_DIR_VALID, &dvnode->flags))
-		afs_stat_v(dvnode, n_inval);
+	afs_invalidate_dir(dvnode, afs_dir_invalid_inval_folio);
 
 	/* we clean up only if the entire folio is being invalidated */
 	if (offset == 0 && length == folio_size(folio))
