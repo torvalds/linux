@@ -216,10 +216,11 @@ static inline void reset_resource(struct resource *res)
 static void reassign_resources_sorted(struct list_head *realloc_head,
 				      struct list_head *head)
 {
-	struct resource *res;
-	const char *res_name;
 	struct pci_dev_resource *add_res, *tmp;
 	struct pci_dev_resource *dev_res;
+	struct pci_dev *dev;
+	struct resource *res;
+	const char *res_name;
 	resource_size_t add_size, align;
 	int idx;
 
@@ -227,6 +228,7 @@ static void reassign_resources_sorted(struct list_head *realloc_head,
 		bool found_match = false;
 
 		res = add_res->res;
+		dev = add_res->dev;
 
 		/* Skip resource that has been reset */
 		if (!res->flags)
@@ -242,20 +244,19 @@ static void reassign_resources_sorted(struct list_head *realloc_head,
 		if (!found_match) /* Just skip */
 			continue;
 
-		idx = pci_resource_num(add_res->dev, res);
-		res_name = pci_resource_name(add_res->dev, idx);
+		idx = pci_resource_num(dev, res);
+		res_name = pci_resource_name(dev, idx);
 		add_size = add_res->add_size;
 		align = add_res->min_align;
 		if (!resource_size(res)) {
 			resource_set_range(res, align, add_size);
-			if (pci_assign_resource(add_res->dev, idx))
+			if (pci_assign_resource(dev, idx))
 				reset_resource(res);
 		} else {
 			res->flags |= add_res->flags &
 				 (IORESOURCE_STARTALIGN|IORESOURCE_SIZEALIGN);
-			if (pci_reassign_resource(add_res->dev, idx,
-						  add_size, align))
-				pci_info(add_res->dev, "%s %pR: failed to add %llx\n",
+			if (pci_reassign_resource(dev, idx, add_size, align))
+				pci_info(dev, "%s %pR: failed to add %llx\n",
 					 res_name, res,
 					 (unsigned long long) add_size);
 		}
@@ -278,18 +279,20 @@ out:
 static void assign_requested_resources_sorted(struct list_head *head,
 				 struct list_head *fail_head)
 {
-	struct resource *res;
 	struct pci_dev_resource *dev_res;
+	struct resource *res;
+	struct pci_dev *dev;
 	int idx;
 
 	list_for_each_entry(dev_res, head, list) {
 		res = dev_res->res;
-		idx = pci_resource_num(dev_res->dev, res);
+		dev = dev_res->dev;
+		idx = pci_resource_num(dev, res);
 
 		if (!resource_size(res))
 			continue;
 
-		if (pci_assign_resource(dev_res->dev, idx)) {
+		if (pci_assign_resource(dev, idx)) {
 			if (fail_head) {
 				/*
 				 * If the failed resource is a ROM BAR and
@@ -298,8 +301,7 @@ static void assign_requested_resources_sorted(struct list_head *head,
 				 */
 				if (!((idx == PCI_ROM_RESOURCE) &&
 				      (!(res->flags & IORESOURCE_ROM_ENABLE))))
-					add_to_list(fail_head,
-						    dev_res->dev, res,
+					add_to_list(fail_head, dev, res,
 						    0 /* don't care */,
 						    0 /* don't care */);
 			}
@@ -377,6 +379,7 @@ static void __assign_resources_sorted(struct list_head *head,
 	LIST_HEAD(local_fail_head);
 	struct pci_dev_resource *save_res;
 	struct pci_dev_resource *dev_res, *tmp_res, *dev_res2;
+	struct resource *res;
 	unsigned long fail_type;
 	resource_size_t add_align, align;
 
@@ -394,8 +397,9 @@ static void __assign_resources_sorted(struct list_head *head,
 
 	/* Update res in head list with add_size in realloc_head list */
 	list_for_each_entry_safe(dev_res, tmp_res, head, list) {
-		dev_res->res->end += get_res_add_size(realloc_head,
-							dev_res->res);
+		res = dev_res->res;
+
+		res->end += get_res_add_size(realloc_head, res);
 
 		/*
 		 * There are two kinds of additional resources in the list:
@@ -403,10 +407,10 @@ static void __assign_resources_sorted(struct list_head *head,
 		 * 2. SR-IOV resource  -- IORESOURCE_SIZEALIGN
 		 * Here just fix the additional alignment for bridge
 		 */
-		if (!(dev_res->res->flags & IORESOURCE_STARTALIGN))
+		if (!(res->flags & IORESOURCE_STARTALIGN))
 			continue;
 
-		add_align = get_res_add_align(realloc_head, dev_res->res);
+		add_align = get_res_add_align(realloc_head, res);
 
 		/*
 		 * The "head" list is sorted by alignment so resources with
@@ -415,9 +419,8 @@ static void __assign_resources_sorted(struct list_head *head,
 		 * need to reorder the list by alignment to make it
 		 * consistent.
 		 */
-		if (add_align > dev_res->res->start) {
-			resource_set_range(dev_res->res, add_align,
-					   resource_size(dev_res->res));
+		if (add_align > res->start) {
+			resource_set_range(res, add_align, resource_size(res));
 
 			list_for_each_entry(dev_res2, head, list) {
 				align = pci_resource_alignment(dev_res2->dev,
@@ -448,24 +451,29 @@ static void __assign_resources_sorted(struct list_head *head,
 	/* Check failed type */
 	fail_type = pci_fail_res_type_mask(&local_fail_head);
 	/* Remove not need to be released assigned res from head list etc */
-	list_for_each_entry_safe(dev_res, tmp_res, head, list)
-		if (dev_res->res->parent &&
-		    !pci_need_to_release(fail_type, dev_res->res)) {
+	list_for_each_entry_safe(dev_res, tmp_res, head, list) {
+		res = dev_res->res;
+
+		if (res->parent && !pci_need_to_release(fail_type, res)) {
 			/* Remove it from realloc_head list */
-			remove_from_list(realloc_head, dev_res->res);
-			remove_from_list(&save_head, dev_res->res);
+			remove_from_list(realloc_head, res);
+			remove_from_list(&save_head, res);
 			list_del(&dev_res->list);
 			kfree(dev_res);
 		}
+	}
 
 	free_list(&local_fail_head);
 	/* Release assigned resource */
-	list_for_each_entry(dev_res, head, list)
-		if (dev_res->res->parent)
-			release_resource(dev_res->res);
+	list_for_each_entry(dev_res, head, list) {
+		res = dev_res->res;
+
+		if (res->parent)
+			release_resource(res);
+	}
 	/* Restore start/end/flags from saved list */
 	list_for_each_entry(save_res, &save_head, list) {
-		struct resource *res = save_res->res;
+		res = save_res->res;
 
 		res->start = save_res->start;
 		res->end = save_res->end;
