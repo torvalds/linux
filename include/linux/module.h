@@ -52,9 +52,9 @@ struct module_kobject {
 
 struct module_attribute {
 	struct attribute attr;
-	ssize_t (*show)(struct module_attribute *, struct module_kobject *,
+	ssize_t (*show)(const struct module_attribute *, struct module_kobject *,
 			char *);
-	ssize_t (*store)(struct module_attribute *, struct module_kobject *,
+	ssize_t (*store)(const struct module_attribute *, struct module_kobject *,
 			 const char *, size_t count);
 	void (*setup)(struct module *, const char *);
 	int (*test)(struct module *);
@@ -67,10 +67,10 @@ struct module_version_attribute {
 	const char *version;
 };
 
-extern ssize_t __modver_version_show(struct module_attribute *,
+extern ssize_t __modver_version_show(const struct module_attribute *,
 				     struct module_kobject *, char *);
 
-extern struct module_attribute module_uevent;
+extern const struct module_attribute module_uevent;
 
 /* These are either module local, or the kernel's dummy ones. */
 extern int init_module(void);

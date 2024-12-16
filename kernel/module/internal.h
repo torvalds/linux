@@ -47,8 +47,8 @@ struct kernel_symbol {
 extern struct mutex module_mutex;
 extern struct list_head modules;
 
-extern struct module_attribute *modinfo_attrs[];
-extern size_t modinfo_attrs_count;
+extern const struct module_attribute *const modinfo_attrs[];
+extern const size_t modinfo_attrs_count;
 
 /* Provided by the linker */
 extern const struct kernel_symbol __start___ksymtab[];

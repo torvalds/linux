@@ -275,7 +275,7 @@ static int add_usage_links(struct module *mod)
 
 static void module_remove_modinfo_attrs(struct module *mod, int end)
 {
-	struct module_attribute *attr;
+	const struct module_attribute *attr;
 	int i;
 
 	for (i = 0; (attr = &mod->modinfo_attrs[i]); i++) {
@@ -293,7 +293,7 @@ static void module_remove_modinfo_attrs(struct module *mod, int end)
 
 static int module_add_modinfo_attrs(struct module *mod)
 {
-	struct module_attribute *attr;
+	const struct module_attribute *attr;
 	struct module_attribute *temp_attr;
 	int error = 0;
 	int i;

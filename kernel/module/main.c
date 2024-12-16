@@ -538,7 +538,7 @@ static void setup_modinfo_##field(struct module *mod, const char *s)  \
 {                                                                     \
 	mod->field = kstrdup(s, GFP_KERNEL);                          \
 }                                                                     \
-static ssize_t show_modinfo_##field(struct module_attribute *mattr,   \
+static ssize_t show_modinfo_##field(const struct module_attribute *mattr, \
 			struct module_kobject *mk, char *buffer)      \
 {                                                                     \
 	return scnprintf(buffer, PAGE_SIZE, "%s\n", mk->mod->field);  \
@@ -552,7 +552,7 @@ static void free_modinfo_##field(struct module *mod)                  \
 	kfree(mod->field);                                            \
 	mod->field = NULL;                                            \
 }                                                                     \
-static struct module_attribute modinfo_##field = {                    \
+static const struct module_attribute modinfo_##field = {              \
 	.attr = { .name = __stringify(field), .mode = 0444 },         \
 	.show = show_modinfo_##field,                                 \
 	.setup = setup_modinfo_##field,                               \
@@ -842,13 +842,13 @@ void symbol_put_addr(void *addr)
 }
 EXPORT_SYMBOL_GPL(symbol_put_addr);
 
-static ssize_t show_refcnt(struct module_attribute *mattr,
+static ssize_t show_refcnt(const struct module_attribute *mattr,
 			   struct module_kobject *mk, char *buffer)
 {
 	return sprintf(buffer, "%i\n", module_refcount(mk->mod));
 }
 
-static struct module_attribute modinfo_refcnt =
+static const struct module_attribute modinfo_refcnt =
 	__ATTR(refcnt, 0444, show_refcnt, NULL);
 
 void __module_get(struct module *module)
@@ -917,7 +917,7 @@ size_t module_flags_taint(unsigned long taints, char *buf)
 	return l;
 }
 
-static ssize_t show_initstate(struct module_attribute *mattr,
+static ssize_t show_initstate(const struct module_attribute *mattr,
 			      struct module_kobject *mk, char *buffer)
 {
 	const char *state = "unknown";
@@ -938,10 +938,10 @@ static ssize_t show_initstate(struct module_attribute *mattr,
 	return sprintf(buffer, "%s\n", state);
 }
 
-static struct module_attribute modinfo_initstate =
+static const struct module_attribute modinfo_initstate =
 	__ATTR(initstate, 0444, show_initstate, NULL);
 
-static ssize_t store_uevent(struct module_attribute *mattr,
+static ssize_t store_uevent(const struct module_attribute *mattr,
 			    struct module_kobject *mk,
 			    const char *buffer, size_t count)
 {
@@ -951,10 +951,10 @@ static ssize_t store_uevent(struct module_attribute *mattr,
 	return rc ? rc : count;
 }
 
-struct module_attribute module_uevent =
+const struct module_attribute module_uevent =
 	__ATTR(uevent, 0200, NULL, store_uevent);
 
-static ssize_t show_coresize(struct module_attribute *mattr,
+static ssize_t show_coresize(const struct module_attribute *mattr,
 			     struct module_kobject *mk, char *buffer)
 {
 	unsigned int size = mk->mod->mem[MOD_TEXT].size;
@@ -966,11 +966,11 @@ static ssize_t show_coresize(struct module_attribute *mattr,
 	return sprintf(buffer, "%u\n", size);
 }
 
-static struct module_attribute modinfo_coresize =
+static const struct module_attribute modinfo_coresize =
 	__ATTR(coresize, 0444, show_coresize, NULL);
 
 #ifdef CONFIG_ARCH_WANTS_MODULES_DATA_IN_VMALLOC
-static ssize_t show_datasize(struct module_attribute *mattr,
+static ssize_t show_datasize(const struct module_attribute *mattr,
 			     struct module_kobject *mk, char *buffer)
 {
 	unsigned int size = 0;
@@ -980,11 +980,11 @@ static ssize_t show_datasize(struct module_attribute *mattr,
 	return sprintf(buffer, "%u\n", size);
 }
 
-static struct module_attribute modinfo_datasize =
+static const struct module_attribute modinfo_datasize =
 	__ATTR(datasize, 0444, show_datasize, NULL);
 #endif
 
-static ssize_t show_initsize(struct module_attribute *mattr,
+static ssize_t show_initsize(const struct module_attribute *mattr,
 			     struct module_kobject *mk, char *buffer)
 {
 	unsigned int size = 0;
@@ -994,10 +994,10 @@ static ssize_t show_initsize(struct module_attribute *mattr,
 	return sprintf(buffer, "%u\n", size);
 }
 
-static struct module_attribute modinfo_initsize =
+static const struct module_attribute modinfo_initsize =
 	__ATTR(initsize, 0444, show_initsize, NULL);
 
-static ssize_t show_taint(struct module_attribute *mattr,
+static ssize_t show_taint(const struct module_attribute *mattr,
 			  struct module_kobject *mk, char *buffer)
 {
 	size_t l;
@@ -1007,10 +1007,10 @@ static ssize_t show_taint(struct module_attribute *mattr,
 	return l;
 }
 
-static struct module_attribute modinfo_taint =
+static const struct module_attribute modinfo_taint =
 	__ATTR(taint, 0444, show_taint, NULL);
 
-struct module_attribute *modinfo_attrs[] = {
+const struct module_attribute *const modinfo_attrs[] = {
 	&module_uevent,
 	&modinfo_version,
 	&modinfo_srcversion,
@@ -1027,7 +1027,7 @@ struct module_attribute *modinfo_attrs[] = {
 	NULL,
 };
 
-size_t modinfo_attrs_count = ARRAY_SIZE(modinfo_attrs);
+const size_t modinfo_attrs_count = ARRAY_SIZE(modinfo_attrs);
 
 static const char vermagic[] = VERMAGIC_STRING;
 
@@ -1681,7 +1681,7 @@ static void module_license_taint_check(struct module *mod, const char *license)
 
 static void setup_modinfo(struct module *mod, struct load_info *info)
 {
-	struct module_attribute *attr;
+	const struct module_attribute *attr;
 	int i;
 
 	for (i = 0; (attr = modinfo_attrs[i]); i++) {
@@ -1692,7 +1692,7 @@ static void setup_modinfo(struct module *mod, struct load_info *info)
 
 static void free_modinfo(struct module *mod)
 {
-	struct module_attribute *attr;
+	const struct module_attribute *attr;
 	int i;
 
 	for (i = 0; (attr = modinfo_attrs[i]); i++) {
