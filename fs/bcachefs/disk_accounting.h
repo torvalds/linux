@@ -138,7 +138,8 @@ static inline int bch2_accounting_mem_mod_locked(struct btree_trans *trans,
 	bpos_to_disk_accounting_pos(&acc_k, a.k->p);
 	bool gc = mode == BCH_ACCOUNTING_gc;
 
-	EBUG_ON(gc && !acc->gc_running);
+	if (gc && !acc->gc_running)
+		return 0;
 
 	if (!bch2_accounting_is_mem(acc_k))
 		return 0;
