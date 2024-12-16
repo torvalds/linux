@@ -2161,78 +2161,79 @@ void pci_assign_unassigned_root_bus_resources(struct pci_bus *bus)
 			 max_depth, pci_try_num);
 	}
 
-again:
-	/*
-	 * Last try will use add_list, otherwise will try good to have as must
-	 * have, so can realloc parent bridge resource
-	 */
-	if (tried_times + 1 == pci_try_num)
-		add_list = &realloc_head;
-	/*
-	 * Depth first, calculate sizes and alignments of all subordinate buses.
-	 */
-	__pci_bus_size_bridges(bus, add_list);
+	while (1) {
+		/*
+		 * Last try will use add_list, otherwise will try good to
+		 * have as must have, so can realloc parent bridge resource
+		 */
+		if (tried_times + 1 == pci_try_num)
+			add_list = &realloc_head;
+		/*
+		 * Depth first, calculate sizes and alignments of all
+		 * subordinate buses.
+		 */
+		__pci_bus_size_bridges(bus, add_list);
 
-	pci_root_bus_distribute_available_resources(bus, add_list);
+		pci_root_bus_distribute_available_resources(bus, add_list);
 
-	/* Depth last, allocate resources and update the hardware. */
-	__pci_bus_assign_resources(bus, add_list, &fail_head);
-	if (add_list)
-		BUG_ON(!list_empty(add_list));
-	tried_times++;
+		/* Depth last, allocate resources and update the hardware. */
+		__pci_bus_assign_resources(bus, add_list, &fail_head);
+		if (add_list)
+			BUG_ON(!list_empty(add_list));
+		tried_times++;
 
-	/* Any device complain? */
-	if (list_empty(&fail_head))
-		goto dump;
+		/* Any device complain? */
+		if (list_empty(&fail_head))
+			break;
 
-	if (tried_times >= pci_try_num) {
-		if (enable_local == undefined)
-			dev_info(&bus->dev, "Some PCI device resources are unassigned, try booting with pci=realloc\n");
-		else if (enable_local == auto_enabled)
-			dev_info(&bus->dev, "Automatically enabled pci realloc, if you have problem, try booting with pci=realloc=off\n");
-
-		free_list(&fail_head);
-		goto dump;
-	}
-
-	dev_info(&bus->dev, "No. %d try to assign unassigned res\n",
-		 tried_times + 1);
-
-	/* Third times and later will not check if it is leaf */
-	if ((tried_times + 1) > 2)
-		rel_type = whole_subtree;
-
-	/*
-	 * Try to release leaf bridge's resources that doesn't fit resource of
-	 * child device under that bridge.
-	 */
-	list_for_each_entry(fail_res, &fail_head, list)
-		pci_bus_release_bridge_resources(fail_res->dev->bus,
-						 fail_res->flags & PCI_RES_TYPE_MASK,
-						 rel_type);
-
-	/* Restore size and flags */
-	list_for_each_entry(fail_res, &fail_head, list) {
-		struct resource *res = fail_res->res;
-		int idx;
-
-		res->start = fail_res->start;
-		res->end = fail_res->end;
-		res->flags = fail_res->flags;
-
-		if (pci_is_bridge(fail_res->dev)) {
-			idx = pci_resource_num(fail_res->dev, res);
-			if (idx >= PCI_BRIDGE_RESOURCES &&
-			    idx <= PCI_BRIDGE_RESOURCE_END)
-				res->flags = 0;
+		if (tried_times >= pci_try_num) {
+			if (enable_local == undefined) {
+				dev_info(&bus->dev,
+					 "Some PCI device resources are unassigned, try booting with pci=realloc\n");
+			} else if (enable_local == auto_enabled) {
+				dev_info(&bus->dev,
+					 "Automatically enabled pci realloc, if you have problem, try booting with pci=realloc=off\n");
+			}
+			free_list(&fail_head);
+			break;
 		}
+
+		dev_info(&bus->dev, "No. %d try to assign unassigned res\n",
+			 tried_times + 1);
+
+		/* Third times and later will not check if it is leaf */
+		if (tried_times + 1 > 2)
+			rel_type = whole_subtree;
+
+		/*
+		 * Try to release leaf bridge's resources that doesn't fit
+		 * resource of child device under that bridge.
+		 */
+		list_for_each_entry(fail_res, &fail_head, list) {
+			pci_bus_release_bridge_resources(fail_res->dev->bus,
+							 fail_res->flags & PCI_RES_TYPE_MASK,
+							 rel_type);
+		}
+
+		/* Restore size and flags */
+		list_for_each_entry(fail_res, &fail_head, list) {
+			struct resource *res = fail_res->res;
+			int idx;
+
+			res->start = fail_res->start;
+			res->end = fail_res->end;
+			res->flags = fail_res->flags;
+
+			if (pci_is_bridge(fail_res->dev)) {
+				idx = pci_resource_num(fail_res->dev, res);
+				if (idx >= PCI_BRIDGE_RESOURCES &&
+				    idx <= PCI_BRIDGE_RESOURCE_END)
+					res->flags = 0;
+			}
+		}
+		free_list(&fail_head);
 	}
-	free_list(&fail_head);
 
-	goto again;
-
-dump:
-	/* Dump the resource on buses */
 	pci_bus_dump_resources(bus);
 }
 
@@ -2260,62 +2261,61 @@ void pci_assign_unassigned_bridge_resources(struct pci_dev *bridge)
 	struct pci_dev_resource *fail_res;
 	int retval;
 
-again:
-	__pci_bus_size_bridges(parent, &add_list);
+	while (1) {
+		__pci_bus_size_bridges(parent, &add_list);
 
-	/*
-	 * Distribute remaining resources (if any) equally between hotplug
-	 * bridges below.  This makes it possible to extend the hierarchy
-	 * later without running out of resources.
-	 */
-	pci_bridge_distribute_available_resources(bridge, &add_list);
+		/*
+		 * Distribute remaining resources (if any) equally between
+		 * hotplug bridges below. This makes it possible to extend
+		 * the hierarchy later without running out of resources.
+		 */
+		pci_bridge_distribute_available_resources(bridge, &add_list);
 
-	__pci_bridge_assign_resources(bridge, &add_list, &fail_head);
-	BUG_ON(!list_empty(&add_list));
-	tried_times++;
+		__pci_bridge_assign_resources(bridge, &add_list, &fail_head);
+		BUG_ON(!list_empty(&add_list));
+		tried_times++;
 
-	if (list_empty(&fail_head))
-		goto enable_all;
+		if (list_empty(&fail_head))
+			break;
 
-	if (tried_times >= 2) {
-		/* Still fail, don't need to try more */
-		free_list(&fail_head);
-		goto enable_all;
-	}
-
-	printk(KERN_DEBUG "PCI: No. %d try to assign unassigned res\n",
-			 tried_times + 1);
-
-	/*
-	 * Try to release leaf bridge's resources that aren't big enough
-	 * to contain child device resources.
-	 */
-	list_for_each_entry(fail_res, &fail_head, list)
-		pci_bus_release_bridge_resources(fail_res->dev->bus,
-						 fail_res->flags & PCI_RES_TYPE_MASK,
-						 whole_subtree);
-
-	/* Restore size and flags */
-	list_for_each_entry(fail_res, &fail_head, list) {
-		struct resource *res = fail_res->res;
-		int idx;
-
-		res->start = fail_res->start;
-		res->end = fail_res->end;
-		res->flags = fail_res->flags;
-
-		if (pci_is_bridge(fail_res->dev)) {
-			idx = pci_resource_num(fail_res->dev, res);
-			if (idx >= PCI_BRIDGE_RESOURCES &&
-			    idx <= PCI_BRIDGE_RESOURCE_END)
-				res->flags = 0;
+		if (tried_times >= 2) {
+			/* Still fail, don't need to try more */
+			free_list(&fail_head);
+			break;
 		}
+
+		printk(KERN_DEBUG "PCI: No. %d try to assign unassigned res\n",
+				 tried_times + 1);
+
+		/*
+		 * Try to release leaf bridge's resources that aren't big
+		 * enough to contain child device resources.
+		 */
+		list_for_each_entry(fail_res, &fail_head, list) {
+			pci_bus_release_bridge_resources(fail_res->dev->bus,
+							 fail_res->flags & PCI_RES_TYPE_MASK,
+							 whole_subtree);
+		}
+
+		/* Restore size and flags */
+		list_for_each_entry(fail_res, &fail_head, list) {
+			struct resource *res = fail_res->res;
+			int idx;
+
+			res->start = fail_res->start;
+			res->end = fail_res->end;
+			res->flags = fail_res->flags;
+
+			if (pci_is_bridge(fail_res->dev)) {
+				idx = pci_resource_num(fail_res->dev, res);
+				if (idx >= PCI_BRIDGE_RESOURCES &&
+				    idx <= PCI_BRIDGE_RESOURCE_END)
+					res->flags = 0;
+			}
+		}
+		free_list(&fail_head);
 	}
-	free_list(&fail_head);
 
-	goto again;
-
-enable_all:
 	retval = pci_reenable_device(bridge);
 	if (retval)
 		pci_err(bridge, "Error reenabling bridge (%d)\n", retval);
