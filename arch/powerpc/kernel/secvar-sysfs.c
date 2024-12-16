@@ -52,7 +52,7 @@ static ssize_t size_show(struct kobject *kobj, struct kobj_attribute *attr,
 }
 
 static ssize_t data_read(struct file *filep, struct kobject *kobj,
-			 struct bin_attribute *attr, char *buf, loff_t off,
+			 const struct bin_attribute *attr, char *buf, loff_t off,
 			 size_t count)
 {
 	char *data;
@@ -85,7 +85,7 @@ data_fail:
 }
 
 static ssize_t update_write(struct file *filep, struct kobject *kobj,
-			    struct bin_attribute *attr, char *buf, loff_t off,
+			    const struct bin_attribute *attr, char *buf, loff_t off,
 			    size_t count)
 {
 	int rc;
@@ -104,11 +104,11 @@ static struct kobj_attribute format_attr = __ATTR_RO(format);
 
 static struct kobj_attribute size_attr = __ATTR_RO(size);
 
-static struct bin_attribute data_attr = __BIN_ATTR_RO(data, 0);
+static struct bin_attribute data_attr __ro_after_init = __BIN_ATTR_RO(data, 0);
 
-static struct bin_attribute update_attr = __BIN_ATTR_WO(update, 0);
+static struct bin_attribute update_attr __ro_after_init = __BIN_ATTR_WO(update, 0);
 
-static struct bin_attribute *secvar_bin_attrs[] = {
+static const struct bin_attribute *const secvar_bin_attrs[] = {
 	&data_attr,
 	&update_attr,
 	NULL,
@@ -121,7 +121,7 @@ static struct attribute *secvar_attrs[] = {
 
 static const struct attribute_group secvar_attr_group = {
 	.attrs = secvar_attrs,
-	.bin_attrs = secvar_bin_attrs,
+	.bin_attrs_new = secvar_bin_attrs,
 };
 __ATTRIBUTE_GROUPS(secvar_attr);
 
