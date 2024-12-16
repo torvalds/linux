@@ -6362,7 +6362,7 @@ static bool is_single_device_io(struct btrfs_fs_info *fs_info,
 				const struct btrfs_io_stripe *smap,
 				const struct btrfs_chunk_map *map,
 				int num_alloc_stripes,
-				enum btrfs_map_op op, int mirror_num)
+				struct btrfs_io_geometry *io_geom)
 {
 	if (!smap)
 		return false;
@@ -6370,10 +6370,10 @@ static bool is_single_device_io(struct btrfs_fs_info *fs_info,
 	if (num_alloc_stripes != 1)
 		return false;
 
-	if (btrfs_need_stripe_tree_update(fs_info, map->type) && op != BTRFS_MAP_READ)
+	if (io_geom->use_rst && io_geom->op != BTRFS_MAP_READ)
 		return false;
 
-	if ((map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) && mirror_num > 1)
+	if ((map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) && io_geom->mirror_num > 1)
 		return false;
 
 	return true;
@@ -6648,8 +6648,7 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 	 * physical block information on the stack instead of allocating an
 	 * I/O context structure.
 	 */
-	if (is_single_device_io(fs_info, smap, map, num_alloc_stripes, op,
-				io_geom.mirror_num)) {
+	if (is_single_device_io(fs_info, smap, map, num_alloc_stripes, &io_geom)) {
 		ret = set_io_stripe(fs_info, logical, length, smap, map, &io_geom);
 		if (mirror_num_ret)
 			*mirror_num_ret = io_geom.mirror_num;
