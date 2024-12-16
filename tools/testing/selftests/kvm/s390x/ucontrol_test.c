@@ -783,4 +783,23 @@ TEST_F(uc_kvm, uc_flic_attrs)
 	close(cd.fd);
 }
 
+TEST_F(uc_kvm, uc_set_gsi_routing)
+{
+	struct kvm_irq_routing *routing = kvm_gsi_routing_create();
+	struct kvm_irq_routing_entry ue = {
+		.type = KVM_IRQ_ROUTING_S390_ADAPTER,
+		.gsi = 1,
+		.u.adapter = (struct kvm_irq_routing_s390_adapter) {
+			.ind_addr = 0,
+		},
+	};
+	int rc;
+
+	routing->entries[0] = ue;
+	routing->nr = 1;
+	rc = ioctl(self->vm_fd, KVM_SET_GSI_ROUTING, routing);
+	ASSERT_EQ(-1, rc) TH_LOG("err %s (%i)", strerror(errno), errno);
+	ASSERT_EQ(EINVAL, errno) TH_LOG("err %s (%i)", strerror(errno), errno);
+}
+
 TEST_HARNESS_MAIN
