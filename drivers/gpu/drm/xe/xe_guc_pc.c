@@ -457,8 +457,8 @@ int xe_guc_pc_get_cur_freq(struct xe_guc_pc *pc, u32 *freq)
 	 * GuC SLPC plays with cur freq request when GuCRC is enabled
 	 * Block RC6 for a more reliable read.
 	 */
-	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
-	if (!xe_force_wake_ref_has_domain(fw_ref, XE_FORCEWAKE_ALL)) {
+	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
+	if (!xe_force_wake_ref_has_domain(fw_ref, XE_FW_GT)) {
 		xe_force_wake_put(gt_to_fw(gt), fw_ref);
 		return -ETIMEDOUT;
 	}
@@ -530,9 +530,9 @@ u32 xe_guc_pc_get_rpn_freq(struct xe_guc_pc *pc)
  */
 int xe_guc_pc_get_min_freq(struct xe_guc_pc *pc, u32 *freq)
 {
-	struct xe_gt *gt = pc_to_gt(pc);
-	unsigned int fw_ref;
 	int ret;
+
+	xe_device_assert_mem_access(pc_to_xe(pc));
 
 	mutex_lock(&pc->freq_lock);
 	if (!pc->freq_ready) {
@@ -541,24 +541,12 @@ int xe_guc_pc_get_min_freq(struct xe_guc_pc *pc, u32 *freq)
 		goto out;
 	}
 
-	/*
-	 * GuC SLPC plays with min freq request when GuCRC is enabled
-	 * Block RC6 for a more reliable read.
-	 */
-	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
-	if (!xe_force_wake_ref_has_domain(fw_ref, XE_FORCEWAKE_ALL)) {
-		ret = -ETIMEDOUT;
-		goto fw;
-	}
-
 	ret = pc_action_query_task_state(pc);
 	if (ret)
-		goto fw;
+		goto out;
 
 	*freq = pc_get_min_freq(pc);
 
-fw:
-	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 out:
 	mutex_unlock(&pc->freq_lock);
 	return ret;
@@ -1018,8 +1006,8 @@ int xe_guc_pc_start(struct xe_guc_pc *pc)
 
 	xe_gt_assert(gt, xe_device_uc_enabled(xe));
 
-	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
-	if (!xe_force_wake_ref_has_domain(fw_ref, XE_FORCEWAKE_ALL)) {
+	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
+	if (!xe_force_wake_ref_has_domain(fw_ref, XE_FW_GT)) {
 		xe_force_wake_put(gt_to_fw(gt), fw_ref);
 		return -ETIMEDOUT;
 	}
