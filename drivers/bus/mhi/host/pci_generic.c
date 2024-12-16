@@ -917,7 +917,7 @@ static int mhi_pci_claim(struct mhi_controller *mhi_cntrl,
 		return err;
 	}
 
-	mhi_cntrl->regs = pcim_iomap_region(pdev, 1 << bar_num, pci_name(pdev));
+	mhi_cntrl->regs = pcim_iomap_region(pdev, bar_num, pci_name(pdev));
 	if (IS_ERR(mhi_cntrl->regs)) {
 		err = PTR_ERR(mhi_cntrl->regs);
 		dev_err(&pdev->dev, "failed to map pci region: %d\n", err);
