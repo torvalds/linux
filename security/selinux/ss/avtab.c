@@ -336,7 +336,7 @@ static const uint16_t spec_order[] = {
 };
 /* clang-format on */
 
-int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
+int avtab_read_item(struct avtab *a, struct policy_file *fp, struct policydb *pol,
 		    int (*insertf)(struct avtab *a, const struct avtab_key *k,
 				   const struct avtab_datum *d, void *p),
 		    void *p, bool conditional)
@@ -507,7 +507,7 @@ static int avtab_insertf(struct avtab *a, const struct avtab_key *k,
 	return avtab_insert(a, k, d);
 }
 
-int avtab_read(struct avtab *a, void *fp, struct policydb *pol)
+int avtab_read(struct avtab *a, struct policy_file *fp, struct policydb *pol)
 {
 	int rc;
 	__le32 buf[1];
@@ -550,7 +550,7 @@ bad:
 	goto out;
 }
 
-int avtab_write_item(struct policydb *p, const struct avtab_node *cur, void *fp)
+int avtab_write_item(struct policydb *p, const struct avtab_node *cur, struct policy_file *fp)
 {
 	__le16 buf16[4];
 	__le32 buf32[ARRAY_SIZE(cur->datum.u.xperms->perms.p)];
@@ -586,7 +586,7 @@ int avtab_write_item(struct policydb *p, const struct avtab_node *cur, void *fp)
 	return 0;
 }
 
-int avtab_write(struct policydb *p, struct avtab *a, void *fp)
+int avtab_write(struct policydb *p, struct avtab *a, struct policy_file *fp)
 {
 	u32 i;
 	int rc = 0;

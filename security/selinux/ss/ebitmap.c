@@ -360,7 +360,7 @@ void ebitmap_destroy(struct ebitmap *e)
 	e->node = NULL;
 }
 
-int ebitmap_read(struct ebitmap *e, void *fp)
+int ebitmap_read(struct ebitmap *e, struct policy_file *fp)
 {
 	struct ebitmap_node *n = NULL;
 	u32 mapunit, count, startbit, index, i;
@@ -478,7 +478,7 @@ bad:
 	goto out;
 }
 
-int ebitmap_write(const struct ebitmap *e, void *fp)
+int ebitmap_write(const struct ebitmap *e, struct policy_file *fp)
 {
 	struct ebitmap_node *n;
 	u32 bit, count, last_bit, last_startbit;
