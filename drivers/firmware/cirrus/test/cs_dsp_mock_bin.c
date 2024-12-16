@@ -53,7 +53,7 @@ EXPORT_SYMBOL_NS_GPL(cs_dsp_mock_bin_get_firmware, "FW_CS_DSP_KUNIT_TEST_UTILS")
  * cs_dsp_mock_bin_add_raw_block() - Add a data block to the bin file.
  *
  * @builder:		Pointer to struct cs_dsp_mock_bin_builder.
- * @alg_ig:		Algorithm ID.
+ * @alg_id:		Algorithm ID.
  * @alg_ver:		Algorithm version.
  * @type:		Type of the block.
  * @offset:		Offset.
@@ -139,7 +139,7 @@ EXPORT_SYMBOL_NS_GPL(cs_dsp_mock_bin_add_name, "FW_CS_DSP_KUNIT_TEST_UTILS");
  * cs_dsp_mock_bin_add_patch() - Add a patch data block to the bin file.
  *
  * @builder:		Pointer to struct cs_dsp_mock_bin_builder.
- * @alg_ig:		Algorithm ID for the patch.
+ * @alg_id:		Algorithm ID for the patch.
  * @alg_ver:		Algorithm version for the patch.
  * @mem_region:		Memory region for the patch.
  * @reg_addr_offset:	Offset to start of data in register addresses.
