@@ -4169,7 +4169,7 @@ static ssize_t split_huge_pages_write(struct file *file, const char __user *buf,
 		size_t input_len = strlen(input_buf);
 
 		tok = strsep(&buf, ",");
-		if (tok) {
+		if (tok && buf) {
 			strscpy(file_path, tok);
 		} else {
 			ret = -EINVAL;
