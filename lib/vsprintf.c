@@ -2816,16 +2816,16 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 				memcpy(str, old_fmt, copy);
 			}
 			str += read;
-			break;
+			continue;
 		}
 
 		case FORMAT_TYPE_WIDTH:
 			set_field_width(&spec, va_arg(args, int));
-			break;
+			continue;
 
 		case FORMAT_TYPE_PRECISION:
 			set_precision(&spec, va_arg(args, int));
-			break;
+			continue;
 
 		case FORMAT_TYPE_CHAR: {
 			char c;
@@ -2847,25 +2847,25 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 					*str = ' ';
 				++str;
 			}
-			break;
+			continue;
 		}
 
 		case FORMAT_TYPE_STR:
 			str = string(str, end, va_arg(args, char *), spec);
-			break;
+			continue;
 
 		case FORMAT_TYPE_PTR:
 			str = pointer(fmt, str, end, va_arg(args, void *),
 				      spec);
 			while (isalnum(*fmt))
 				fmt++;
-			break;
+			continue;
 
 		case FORMAT_TYPE_PERCENT_CHAR:
 			if (str < end)
 				*str = '%';
 			++str;
-			break;
+			continue;
 
 		case FORMAT_TYPE_INVALID:
 			/*
@@ -2878,14 +2878,16 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 			 */
 			goto out;
 
-		default:
-			if (spec.type == FORMAT_TYPE_8BYTE)
-				num = va_arg(args, long long);
-			else
-				num = convert_num_spec(va_arg(args, int), spec);
+		case FORMAT_TYPE_8BYTE:
+			num = va_arg(args, long long);
+			break;
 
-			str = number(str, end, num, spec);
+		default:
+			num = convert_num_spec(va_arg(args, int), spec);
+			break;
 		}
+
+		str = number(str, end, num, spec);
 	}
 
 out:
@@ -3154,20 +3156,17 @@ int vbin_printf(u32 *bin_buf, size_t size, const char *fmt, va_list args)
 				fmt++;
 			break;
 
+		case FORMAT_TYPE_8BYTE:
+			save_arg(long long);
+			break;
+		case FORMAT_TYPE_1BYTE:
+			save_arg(char);
+			break;
+		case FORMAT_TYPE_2BYTE:
+			save_arg(short);
+			break;
 		default:
-			switch (spec.type) {
-			case FORMAT_TYPE_8BYTE:
-				save_arg(long long);
-				break;
-			case FORMAT_TYPE_1BYTE:
-				save_arg(char);
-				break;
-			case FORMAT_TYPE_2BYTE:
-				save_arg(short);
-				break;
-			default:
-				save_arg(int);
-			}
+			save_arg(int);
 		}
 	}
 
@@ -3235,6 +3234,7 @@ int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
 	while (*fmt) {
 		const char *old_fmt = fmt;
 		int read = format_decode(fmt, &spec);
+		unsigned long long num;
 
 		fmt += read;
 
@@ -3247,16 +3247,16 @@ int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
 				memcpy(str, old_fmt, copy);
 			}
 			str += read;
-			break;
+			continue;
 		}
 
 		case FORMAT_TYPE_WIDTH:
 			set_field_width(&spec, get_arg(int));
-			break;
+			continue;
 
 		case FORMAT_TYPE_PRECISION:
 			set_precision(&spec, get_arg(int));
-			break;
+			continue;
 
 		case FORMAT_TYPE_CHAR: {
 			char c;
@@ -3277,14 +3277,14 @@ int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
 					*str = ' ';
 				++str;
 			}
-			break;
+			continue;
 		}
 
 		case FORMAT_TYPE_STR: {
 			const char *str_arg = args;
 			args += strlen(str_arg) + 1;
 			str = string(str, end, (char *)str_arg, spec);
-			break;
+			continue;
 		}
 
 		case FORMAT_TYPE_PTR: {
@@ -3319,38 +3319,33 @@ int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
 
 			while (isalnum(*fmt))
 				fmt++;
-			break;
+			continue;
 		}
 
 		case FORMAT_TYPE_PERCENT_CHAR:
 			if (str < end)
 				*str = '%';
 			++str;
-			break;
+			continue;
 
 		case FORMAT_TYPE_INVALID:
 			goto out;
 
-		default: {
-			unsigned long long num;
+		case FORMAT_TYPE_8BYTE:
+			num = get_arg(long long);
+			break;
+		case FORMAT_TYPE_2BYTE:
+			num = convert_num_spec(get_arg(short), spec);
+			break;
+		case FORMAT_TYPE_1BYTE:
+			num = convert_num_spec(get_arg(char), spec);
+			break;
+		default:
+			num = convert_num_spec(get_arg(int), spec);
+			break;
+		}
 
-			switch (spec.type) {
-			case FORMAT_TYPE_8BYTE:
-				num = get_arg(long long);
-				break;
-			case FORMAT_TYPE_2BYTE:
-				num = convert_num_spec(get_arg(short), spec);
-				break;
-			case FORMAT_TYPE_1BYTE:
-				num = convert_num_spec(get_arg(char), spec);
-				break;
-			default:
-				num = convert_num_spec(get_arg(int), spec);
-			}
-
-			str = number(str, end, num, spec);
-		} /* default: */
-		} /* switch(spec.type) */
+		str = number(str, end, num, spec);
 	} /* while(*fmt) */
 
 out:
