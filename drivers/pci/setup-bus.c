@@ -276,13 +276,14 @@ static void reassign_resources_sorted(struct list_head *realloc_head,
 		add_size = add_res->add_size;
 		align = add_res->min_align;
 		if (!res->parent) {
-			resource_set_range(res, align, add_size);
+			resource_set_range(res, align,
+					   resource_size(res) + add_size);
 			if (pci_assign_resource(dev, idx)) {
 				pci_dbg(dev,
 					"%s %pR: ignoring failure in optional allocation\n",
 					res_name, res);
 			}
-		} else {
+		} else if (add_size > 0) {
 			res->flags |= add_res->flags &
 				 (IORESOURCE_STARTALIGN|IORESOURCE_SIZEALIGN);
 			if (pci_reassign_resource(dev, idx, add_size, align))
@@ -302,38 +303,38 @@ out:
  * @head:	Head of the list tracking requests for resources
  * @fail_head:	Head of the list tracking requests that could not be
  *		allocated
+ * @optional:	Assign also optional resources
  *
  * Satisfy resource requests of each element in the list.  Add requests that
  * could not be satisfied to the failed_list.
  */
 static void assign_requested_resources_sorted(struct list_head *head,
-				 struct list_head *fail_head)
+					      struct list_head *fail_head,
+					      bool optional)
 {
 	struct pci_dev_resource *dev_res;
 	struct resource *res;
 	struct pci_dev *dev;
+	bool optional_res;
 	int idx;
 
 	list_for_each_entry(dev_res, head, list) {
 		res = dev_res->res;
 		dev = dev_res->dev;
 		idx = pci_resource_num(dev, res);
+		optional_res = pci_resource_is_optional(dev, idx);
 
 		if (!resource_size(res))
 			continue;
 
+		if (!optional && optional_res)
+			continue;
+
 		if (pci_assign_resource(dev, idx)) {
 			if (fail_head) {
-				/*
-				 * If the failed resource is a ROM BAR and
-				 * it will be enabled later, don't add it
-				 * to the list.
-				 */
-				if (!((idx == PCI_ROM_RESOURCE) &&
-				      (!(res->flags & IORESOURCE_ROM_ENABLE))))
-					add_to_list(fail_head, dev, res,
-						    0 /* don't care */,
-						    0 /* don't care */);
+				add_to_list(fail_head, dev, res,
+					    0 /* don't care */,
+					    0 /* don't care */);
 			}
 		}
 	}
@@ -379,6 +380,20 @@ static bool pci_need_to_release(unsigned long mask, struct resource *res)
 	return false;	/* Should not get here */
 }
 
+/* Return: @true if assignment of a required resource failed. */
+static bool pci_required_resource_failed(struct list_head *fail_head)
+{
+	struct pci_dev_resource *fail_res;
+
+	list_for_each_entry(fail_res, fail_head, list) {
+		int idx = pci_resource_num(fail_res->dev, fail_res->res);
+
+		if (!pci_resource_is_optional(fail_res->dev, idx))
+			return true;
+	}
+	return false;
+}
+
 static void __assign_resources_sorted(struct list_head *head,
 				      struct list_head *realloc_head,
 				      struct list_head *fail_head)
@@ -388,9 +403,11 @@ static void __assign_resources_sorted(struct list_head *head,
 	 * adjacent, so later reassign can not reallocate them one by one in
 	 * parent resource window.
 	 *
-	 * Try to assign requested + add_size at beginning.  If could do that,
-	 * could get out early.  If could not do that, we still try to assign
-	 * requested at first, then try to reassign add_size for some resources.
+	 * Try to assign required and any optional resources at beginning
+	 * (add_size included). If all required resources were successfully
+	 * assigned, get out early. If could not do that, we still try to
+	 * assign required at first, then try to reassign some optional
+	 * resources.
 	 *
 	 * Separate three resource type checking if we need to release
 	 * assigned resource after requested + add_size try.
@@ -421,13 +438,13 @@ static void __assign_resources_sorted(struct list_head *head,
 
 	/* Check if optional add_size is there */
 	if (list_empty(realloc_head))
-		goto requested_and_reassign;
+		goto assign;
 
 	/* Save original start, end, flags etc at first */
 	list_for_each_entry(dev_res, head, list) {
 		if (add_to_list(&save_head, dev_res->dev, dev_res->res, 0, 0)) {
 			free_list(&save_head);
-			goto requested_and_reassign;
+			goto assign;
 		}
 	}
 
@@ -471,14 +488,30 @@ static void __assign_resources_sorted(struct list_head *head,
 
 	}
 
-	/* Try updated head list with add_size added */
-	assign_requested_resources_sorted(head, &local_fail_head);
+assign:
+	assign_requested_resources_sorted(head, &local_fail_head, true);
 
-	/* All assigned with add_size? */
+	/* All non-optional resources assigned? */
 	if (list_empty(&local_fail_head)) {
 		/* Remove head list from realloc_head list */
 		list_for_each_entry(dev_res, head, list)
 			remove_from_list(realloc_head, dev_res->res);
+		free_list(&save_head);
+		goto out;
+	}
+
+	/* Without realloc_head and only optional fails, nothing more to do. */
+	if (!pci_required_resource_failed(&local_fail_head) &&
+	    list_empty(realloc_head)) {
+		list_for_each_entry(save_res, &save_head, list) {
+			struct resource *res = save_res->res;
+
+			if (res->parent)
+				continue;
+
+			restore_dev_resource(save_res);
+		}
+		free_list(&local_fail_head);
 		free_list(&save_head);
 		goto out;
 	}
@@ -518,9 +551,8 @@ static void __assign_resources_sorted(struct list_head *head,
 		restore_dev_resource(save_res);
 	free_list(&save_head);
 
-requested_and_reassign:
 	/* Satisfy the must-have resource requests */
-	assign_requested_resources_sorted(head, NULL);
+	assign_requested_resources_sorted(head, NULL, false);
 
 	/* Try to satisfy any additional optional resource requests */
 	if (!list_empty(realloc_head))
@@ -535,11 +567,7 @@ out:
 		if (res->parent)
 			continue;
 
-		/*
-		 * If the failed resource is a ROM BAR and it will
-		 * be enabled later, don't add it to the list.
-		 */
-		if (fail_head && !pci_resource_is_disabled_rom(res, idx)) {
+		if (fail_head) {
 			add_to_list(fail_head, dev, res,
 				    0 /* don't care */,
 				    0 /* don't care */);
@@ -1166,10 +1194,9 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 			r_size = resource_size(r);
 
 			/* Put SRIOV requested res to the optional list */
-			if (realloc_head && pci_resource_is_iov(i)) {
+			if (realloc_head && pci_resource_is_optional(dev, i)) {
 				add_align = max(pci_resource_alignment(dev, r), add_align);
-				resource_set_size(r, 0);
-				add_to_list(realloc_head, dev, r, r_size, 0 /* Don't care */);
+				add_to_list(realloc_head, dev, r, 0, 0 /* Don't care */);
 				children_add_size += r_size;
 				continue;
 			}
