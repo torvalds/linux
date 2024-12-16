@@ -257,10 +257,10 @@ static pkvm_handle_t idx_to_vm_handle(unsigned int idx)
 
 /*
  * Spinlock for protecting state related to the VM table. Protects writes
- * to 'vm_table' and 'nr_table_entries' as well as reads and writes to
- * 'last_hyp_vcpu_lookup'.
+ * to 'vm_table', 'nr_table_entries', and other per-vm state on initialization.
+ * Also protects reads and writes to 'last_hyp_vcpu_lookup'.
  */
-static DEFINE_HYP_SPINLOCK(vm_table_lock);
+DEFINE_HYP_SPINLOCK(vm_table_lock);
 
 /*
  * The table of VM entries for protected VMs in hyp.
@@ -381,6 +381,7 @@ static void init_pkvm_hyp_vm(struct kvm *host_kvm, struct pkvm_hyp_vm *hyp_vm,
 	hyp_vm->kvm.created_vcpus = nr_vcpus;
 	hyp_vm->kvm.arch.mmu.vtcr = host_mmu.arch.mmu.vtcr;
 	hyp_vm->kvm.arch.pkvm.enabled = READ_ONCE(host_kvm->arch.pkvm.enabled);
+	hyp_vm->kvm.arch.flags = 0;
 	pkvm_init_features_from_host(hyp_vm, host_kvm);
 }
 
@@ -418,6 +419,9 @@ static int init_pkvm_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu,
 	hyp_vcpu->vcpu.arch.hw_mmu = &hyp_vm->kvm.arch.mmu;
 	hyp_vcpu->vcpu.arch.cflags = READ_ONCE(host_vcpu->arch.cflags);
 	hyp_vcpu->vcpu.arch.mp_state.mp_state = KVM_MP_STATE_STOPPED;
+
+	if (pkvm_hyp_vcpu_is_protected(hyp_vcpu))
+		kvm_init_pvm_id_regs(&hyp_vcpu->vcpu);
 
 	ret = pkvm_vcpu_init_traps(hyp_vcpu);
 	if (ret)
