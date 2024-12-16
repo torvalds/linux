@@ -303,10 +303,10 @@ int io_waitid(struct io_kiocb *req, unsigned int issue_flags)
 	struct io_waitid_async *iwa;
 	int ret;
 
-	if (io_alloc_async_data(req))
+	iwa = io_uring_alloc_async_data_nocache(req);
+	if (!iwa)
 		return -ENOMEM;
 
-	iwa = req->async_data;
 	iwa->req = req;
 
 	ret = kernel_waitid_prepare(&iwa->wo, iw->which, iw->upid, &iw->info,

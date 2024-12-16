@@ -12,6 +12,7 @@
 #include "io-wq.h"
 #include "slist.h"
 #include "filetable.h"
+#include "opdef.h"
 
 #ifndef CREATE_TRACE_POINTS
 #include <trace/events/io_uring.h>
@@ -228,6 +229,17 @@ static inline void *io_uring_alloc_async_data(struct io_alloc_cache *cache,
 					      void (*init_once)(void *obj))
 {
 	req->async_data = io_cache_alloc(cache, GFP_KERNEL, init_once);
+	if (req->async_data)
+		req->flags |= REQ_F_ASYNC_DATA;
+	return req->async_data;
+}
+
+static inline void *io_uring_alloc_async_data_nocache(struct io_kiocb *req)
+{
+	const struct io_issue_def *def = &io_issue_defs[req->opcode];
+
+	WARN_ON_ONCE(!def->async_size);
+	req->async_data = kmalloc(def->async_size, GFP_KERNEL);
 	if (req->async_data)
 		req->flags |= REQ_F_ASYNC_DATA;
 	return req->async_data;
