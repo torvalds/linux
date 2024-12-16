@@ -190,6 +190,11 @@ int netfs_end_writethrough(struct netfs_io_request *wreq, struct writeback_contr
 int netfs_unbuffered_write(struct netfs_io_request *wreq, bool may_wait, size_t len);
 
 /*
+ * write_retry.c
+ */
+void netfs_retry_writes(struct netfs_io_request *wreq);
+
+/*
  * Miscellaneous functions.
  */
 static inline bool netfs_is_cache_enabled(struct netfs_inode *ctx)
