@@ -413,10 +413,8 @@ static void __assign_resources_sorted(struct list_head *head,
 		 * consistent.
 		 */
 		if (add_align > dev_res->res->start) {
-			resource_size_t r_size = resource_size(dev_res->res);
-
-			dev_res->res->start = add_align;
-			dev_res->res->end = add_align + r_size - 1;
+			resource_set_range(dev_res->res, add_align,
+					   resource_size(dev_res->res));
 
 			list_for_each_entry(dev_res2, head, list) {
 				align = pci_resource_alignment(dev_res2->dev,
@@ -1100,7 +1098,7 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 			if (realloc_head && i >= PCI_IOV_RESOURCES &&
 					i <= PCI_IOV_RESOURCE_END) {
 				add_align = max(pci_resource_alignment(dev, r), add_align);
-				r->end = r->start - 1;
+				resource_set_size(r, 0);
 				add_to_list(realloc_head, dev, r, r_size, 0 /* Don't care */);
 				children_add_size += r_size;
 				continue;
@@ -1180,8 +1178,8 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 		b_res->flags = 0;
 		return 0;
 	}
-	b_res->start = min_align;
-	b_res->end = size0 + min_align - 1;
+
+	resource_set_range(b_res, min_align, size0);
 	b_res->flags |= IORESOURCE_STARTALIGN;
 	if (bus->self && size1 > size0 && realloc_head) {
 		add_to_list(realloc_head, bus->self, b_res, size1-size0, add_align);
@@ -1656,8 +1654,7 @@ static void pci_bridge_release_resources(struct pci_bus *bus,
 		pci_info(dev, "resource %d %pR released\n",
 			 PCI_BRIDGE_RESOURCES + idx, r);
 		/* Keep the old size */
-		r->end = resource_size(r) - 1;
-		r->start = 0;
+		resource_set_range(r, 0, resource_size(r));
 		r->flags = 0;
 
 		/* Avoiding touch the one without PREF */
