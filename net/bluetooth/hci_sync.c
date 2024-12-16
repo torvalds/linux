@@ -1786,30 +1786,6 @@ int hci_remove_ext_adv_instance_sync(struct hci_dev *hdev, u8 instance,
 					HCI_CMD_TIMEOUT, sk);
 }
 
-static int remove_ext_adv_sync(struct hci_dev *hdev, void *data)
-{
-	struct adv_info *adv = data;
-	u8 instance = 0;
-
-	if (adv)
-		instance = adv->instance;
-
-	return hci_remove_ext_adv_instance_sync(hdev, instance, NULL);
-}
-
-int hci_remove_ext_adv_instance(struct hci_dev *hdev, u8 instance)
-{
-	struct adv_info *adv = NULL;
-
-	if (instance) {
-		adv = hci_find_adv_instance(hdev, instance);
-		if (!adv)
-			return -EINVAL;
-	}
-
-	return hci_cmd_sync_queue(hdev, remove_ext_adv_sync, adv, NULL);
-}
-
 int hci_le_terminate_big_sync(struct hci_dev *hdev, u8 handle, u8 reason)
 {
 	struct hci_cp_le_term_big cp;

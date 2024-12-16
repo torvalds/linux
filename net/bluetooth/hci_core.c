@@ -2181,26 +2181,6 @@ int hci_bdaddr_list_del_with_irk(struct list_head *list, bdaddr_t *bdaddr,
 	return 0;
 }
 
-int hci_bdaddr_list_del_with_flags(struct list_head *list, bdaddr_t *bdaddr,
-				   u8 type)
-{
-	struct bdaddr_list_with_flags *entry;
-
-	if (!bacmp(bdaddr, BDADDR_ANY)) {
-		hci_bdaddr_list_clear(list);
-		return 0;
-	}
-
-	entry = hci_bdaddr_list_lookup_with_flags(list, bdaddr, type);
-	if (!entry)
-		return -ENOENT;
-
-	list_del(&entry->list);
-	kfree(entry);
-
-	return 0;
-}
-
 /* This function requires the caller holds hdev->lock */
 struct hci_conn_params *hci_conn_params_lookup(struct hci_dev *hdev,
 					       bdaddr_t *addr, u8 addr_type)
