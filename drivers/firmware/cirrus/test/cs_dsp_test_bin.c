@@ -1978,8 +1978,10 @@ static void bin_patch_mixed_packed_unpacked_random(struct kunit *test)
 		 4, 51, 76, 72, 16,  6, 39, 62, 15, 41, 28, 73, 53, 40, 45, 54,
 		14, 55, 46, 66, 64, 59, 23,  9, 67, 47, 19, 71, 35, 18, 42,  1,
 	};
-	u32 packed_payload[80][3];
-	u32 unpacked_payload[80];
+	struct {
+		u32 packed[80][3];
+		u32 unpacked[80];
+	} *payload;
 	u32 readback[3];
 	unsigned int alg_base_words, patch_pos_words;
 	unsigned int alg_base_in_packed_regs, patch_pos_in_packed_regs;
@@ -1988,8 +1990,11 @@ static void bin_patch_mixed_packed_unpacked_random(struct kunit *test)
 	struct firmware *fw;
 	int i;
 
-	get_random_bytes(packed_payload, sizeof(packed_payload));
-	get_random_bytes(unpacked_payload, sizeof(unpacked_payload));
+	payload = kunit_kmalloc(test, sizeof(*payload), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, payload);
+
+	get_random_bytes(payload->packed, sizeof(payload->packed));
+	get_random_bytes(payload->unpacked, sizeof(payload->unpacked));
 
 	/* Create a patch entry for every offset in offset_words[] */
 	for (i = 0; i < ARRAY_SIZE(offset_words); ++i) {
@@ -2010,8 +2015,8 @@ static void bin_patch_mixed_packed_unpacked_random(struct kunit *test)
 						  bin_test_mock_algs[0].ver,
 						  param->mem_type,
 						  payload_offset,
-						  packed_payload[i],
-						  sizeof(packed_payload[i]));
+						  payload->packed[i],
+						  sizeof(payload->packed[i]));
 		} else {
 			payload_offset = offset_words[i] * 4;
 			cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
@@ -2019,8 +2024,8 @@ static void bin_patch_mixed_packed_unpacked_random(struct kunit *test)
 						  bin_test_mock_algs[0].ver,
 						  unpacked_mem_type,
 						  payload_offset,
-						  &unpacked_payload[i],
-						  sizeof(unpacked_payload[i]));
+						  &payload->unpacked[i],
+						  sizeof(payload->unpacked[i]));
 		}
 	}
 
@@ -2033,7 +2038,7 @@ static void bin_patch_mixed_packed_unpacked_random(struct kunit *test)
 	/*
 	 * Readback the packed registers that should have been written.
 	 * Place the values into the expected location in readback[] so
-	 * that the content of readback[] should match packed_payload[]
+	 * that the content of readback[] should match payload->packed[]
 	 */
 	for (i = 0; i < ARRAY_SIZE(offset_words); ++i) {
 		alg_base_words = cs_dsp_mock_xm_header_get_alg_base_in_words(priv,
@@ -2055,16 +2060,16 @@ static void bin_patch_mixed_packed_unpacked_random(struct kunit *test)
 				regmap_raw_read(priv->dsp->regmap, reg_addr, readback,
 						sizeof(readback)),
 				0);
-		KUNIT_EXPECT_MEMEQ(test, readback, packed_payload[i], sizeof(packed_payload[i]));
+		KUNIT_EXPECT_MEMEQ(test, readback, payload->packed[i], sizeof(payload->packed[i]));
 
 		/* Drop expected writes from the cache */
-		cs_dsp_mock_regmap_drop_bytes(priv, reg_addr, sizeof(packed_payload[i]));
+		cs_dsp_mock_regmap_drop_bytes(priv, reg_addr, sizeof(payload->packed[i]));
 	}
 
 	/*
 	 * Readback the unpacked registers that should have been written.
 	 * Place the values into the expected location in readback[] so
-	 * that the content of readback[] should match unpacked_payload[]
+	 * that the content of readback[] should match payload->unpacked[]
 	 */
 	for (i = 0; i < ARRAY_SIZE(offset_words); ++i) {
 		alg_base_words = cs_dsp_mock_xm_header_get_alg_base_in_words(priv,
@@ -2085,10 +2090,10 @@ static void bin_patch_mixed_packed_unpacked_random(struct kunit *test)
 				regmap_raw_read(priv->dsp->regmap, reg_addr,
 						&readback[0], sizeof(readback[0])),
 				0);
-		KUNIT_EXPECT_EQ(test, readback[0], unpacked_payload[i]);
+		KUNIT_EXPECT_EQ(test, readback[0], payload->unpacked[i]);
 
 		/* Drop expected writes from the cache */
-		cs_dsp_mock_regmap_drop_bytes(priv, reg_addr, sizeof(unpacked_payload[i]));
+		cs_dsp_mock_regmap_drop_bytes(priv, reg_addr, sizeof(payload->unpacked[i]));
 	}
 
 	/* Drop expected writes and the cache should then be clean */
