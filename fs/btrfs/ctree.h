@@ -505,7 +505,6 @@ static inline u32 BTRFS_MAX_XATTR_SIZE(const struct btrfs_fs_info *info)
 	return BTRFS_MAX_ITEM_SIZE(info) - sizeof(struct btrfs_dir_item);
 }
 
-/* ctree.c */
 int __init btrfs_ctree_init(void);
 void __cold btrfs_ctree_exit(void);
 
