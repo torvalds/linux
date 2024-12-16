@@ -331,10 +331,8 @@ static void pkvm_init_features_from_host(struct pkvm_hyp_vm *hyp_vm, const struc
 
 	/*
 	 * For protected VMs, always allow:
-	 * - CPU starting in poweroff state
 	 * - PSCI v0.2
 	 */
-	set_bit(KVM_ARM_VCPU_POWER_OFF, allowed_features);
 	set_bit(KVM_ARM_VCPU_PSCI_0_2, allowed_features);
 
 	/*
