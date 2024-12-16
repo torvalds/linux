@@ -5,6 +5,55 @@
 #include "fs.h"
 #include "accessors.h"
 
+static const struct btrfs_csums {
+	u16		size;
+	const char	name[10];
+	const char	driver[12];
+} btrfs_csums[] = {
+	[BTRFS_CSUM_TYPE_CRC32] = { .size = 4, .name = "crc32c" },
+	[BTRFS_CSUM_TYPE_XXHASH] = { .size = 8, .name = "xxhash64" },
+	[BTRFS_CSUM_TYPE_SHA256] = { .size = 32, .name = "sha256" },
+	[BTRFS_CSUM_TYPE_BLAKE2] = { .size = 32, .name = "blake2b",
+				     .driver = "blake2b-256" },
+};
+
+/* This exists for btrfs-progs usages. */
+u16 btrfs_csum_type_size(u16 type)
+{
+	return btrfs_csums[type].size;
+}
+
+int btrfs_super_csum_size(const struct btrfs_super_block *s)
+{
+	u16 t = btrfs_super_csum_type(s);
+
+	/* csum type is validated at mount time. */
+	return btrfs_csum_type_size(t);
+}
+
+const char *btrfs_super_csum_name(u16 csum_type)
+{
+	/* csum type is validated at mount time. */
+	return btrfs_csums[csum_type].name;
+}
+
+/*
+ * Return driver name if defined, otherwise the name that's also a valid driver
+ * name.
+ */
+const char *btrfs_super_csum_driver(u16 csum_type)
+{
+	/* csum type is validated at mount time */
+	return btrfs_csums[csum_type].driver[0] ?
+		btrfs_csums[csum_type].driver :
+		btrfs_csums[csum_type].name;
+}
+
+size_t __attribute_const__ btrfs_get_num_csums(void)
+{
+	return ARRAY_SIZE(btrfs_csums);
+}
+
 void __btrfs_set_fs_incompat(struct btrfs_fs_info *fs_info, u64 flag,
 			     const char *name)
 {
