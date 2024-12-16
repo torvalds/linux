@@ -10287,7 +10287,6 @@ F:	drivers/input/touchscreen/himax_hx83112b.c
 
 HIPPI
 M:	Jes Sorensen <jes@trained-monkey.org>
-L:	linux-hippi@sunsite.dk
 S:	Maintained
 F:	drivers/net/hippi/
 F:	include/linux/hippidevice.h
