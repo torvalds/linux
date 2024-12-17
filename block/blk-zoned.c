@@ -11,12 +11,8 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/blkdev.h>
 #include <linux/blk-mq.h>
-#include <linux/mm.h>
-#include <linux/vmalloc.h>
-#include <linux/sched/mm.h>
 #include <linux/spinlock.h>
 #include <linux/refcount.h>
 #include <linux/mempool.h>
