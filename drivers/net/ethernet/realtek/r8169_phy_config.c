@@ -1162,8 +1162,9 @@ void r8169_hw_phy_config(struct rtl8169_private *tp, struct phy_device *phydev,
 		[RTL_GIGA_MAC_VER_61] = rtl8125a_2_hw_phy_config,
 		[RTL_GIGA_MAC_VER_63] = rtl8125b_hw_phy_config,
 		[RTL_GIGA_MAC_VER_64] = rtl8125d_hw_phy_config,
-		[RTL_GIGA_MAC_VER_65] = rtl8126a_hw_phy_config,
-		[RTL_GIGA_MAC_VER_66] = rtl8126a_hw_phy_config,
+		[RTL_GIGA_MAC_VER_65] = rtl8125d_hw_phy_config,
+		[RTL_GIGA_MAC_VER_70] = rtl8126a_hw_phy_config,
+		[RTL_GIGA_MAC_VER_71] = rtl8126a_hw_phy_config,
 	};
 
 	if (phy_configs[ver])
