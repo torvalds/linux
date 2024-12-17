@@ -151,6 +151,13 @@ void kvm_timer_cpu_down(void);
 /* CNTKCTL_EL1 valid bits as of DDI0487J.a */
 #define CNTKCTL_VALID_BITS	(BIT(17) | GENMASK_ULL(9, 0))
 
+DECLARE_STATIC_KEY_FALSE(broken_cntvoff_key);
+
+static inline bool has_broken_cntvoff(void)
+{
+	return static_branch_unlikely(&broken_cntvoff_key);
+}
+
 static inline bool has_cntpoff(void)
 {
 	return (has_vhe() && cpus_have_final_cap(ARM64_HAS_ECV_CNTPOFF));

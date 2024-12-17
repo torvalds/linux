@@ -30,6 +30,7 @@ static u32 host_vtimer_irq_flags;
 static u32 host_ptimer_irq_flags;
 
 static DEFINE_STATIC_KEY_FALSE(has_gic_active_state);
+DEFINE_STATIC_KEY_FALSE(broken_cntvoff_key);
 
 static const u8 default_ppi[] = {
 	[TIMER_PTIMER]  = 30,
@@ -519,7 +520,12 @@ static void timer_save_state(struct arch_timer_context *ctx)
 	case TIMER_VTIMER:
 	case TIMER_HVTIMER:
 		timer_set_ctl(ctx, read_sysreg_el0(SYS_CNTV_CTL));
-		timer_set_cval(ctx, read_sysreg_el0(SYS_CNTV_CVAL));
+		cval = read_sysreg_el0(SYS_CNTV_CVAL);
+
+		if (has_broken_cntvoff())
+			cval -= timer_get_offset(ctx);
+
+		timer_set_cval(ctx, cval);
 
 		/* Disable the timer */
 		write_sysreg_el0(0, SYS_CNTV_CTL);
@@ -624,8 +630,15 @@ static void timer_restore_state(struct arch_timer_context *ctx)
 
 	case TIMER_VTIMER:
 	case TIMER_HVTIMER:
-		set_cntvoff(timer_get_offset(ctx));
-		write_sysreg_el0(timer_get_cval(ctx), SYS_CNTV_CVAL);
+		cval = timer_get_cval(ctx);
+		offset = timer_get_offset(ctx);
+		if (has_broken_cntvoff()) {
+			set_cntvoff(0);
+			cval += offset;
+		} else {
+			set_cntvoff(offset);
+		}
+		write_sysreg_el0(cval, SYS_CNTV_CVAL);
 		isb();
 		write_sysreg_el0(timer_get_ctl(ctx), SYS_CNTV_CTL);
 		break;
@@ -819,6 +832,13 @@ static void timer_set_traps(struct kvm_vcpu *vcpu, struct timer_map *map)
 	 */
 	if (!has_cntpoff() && timer_get_offset(map->direct_ptimer))
 		tpt = tpc = true;
+
+	/*
+	 * For the poor sods that could not correctly substract one value
+	 * from another, trap the full virtual timer and counter.
+	 */
+	if (has_broken_cntvoff() && timer_get_offset(map->direct_vtimer))
+		tvt = tvc = true;
 
 	/*
 	 * Apply the enable bits that the guest hypervisor has requested for
@@ -1450,6 +1470,37 @@ static int kvm_irq_init(struct arch_timer_kvm_info *info)
 	return 0;
 }
 
+static void kvm_timer_handle_errata(void)
+{
+	u64 mmfr0, mmfr1, mmfr4;
+
+	/*
+	 * CNTVOFF_EL2 is broken on some implementations. For those, we trap
+	 * all virtual timer/counter accesses, requiring FEAT_ECV.
+	 *
+	 * However, a hypervisor supporting nesting is likely to mitigate the
+	 * erratum at L0, and not require other levels to mitigate it (which
+	 * would otherwise be a terrible performance sink due to trap
+	 * amplification).
+	 *
+	 * Given that the affected HW implements both FEAT_VHE and FEAT_E2H0,
+	 * and that NV is likely not to (because of limitations of the
+	 * architecture), only enable the workaround when FEAT_VHE and
+	 * FEAT_E2H0 are both detected. Time will tell if this actually holds.
+	 */
+	mmfr0 = read_sanitised_ftr_reg(SYS_ID_AA64MMFR0_EL1);
+	mmfr1 = read_sanitised_ftr_reg(SYS_ID_AA64MMFR1_EL1);
+	mmfr4 = read_sanitised_ftr_reg(SYS_ID_AA64MMFR4_EL1);
+	if (SYS_FIELD_GET(ID_AA64MMFR1_EL1, VH, mmfr1)		&&
+	    !SYS_FIELD_GET(ID_AA64MMFR4_EL1, E2H0, mmfr4)	&&
+	    SYS_FIELD_GET(ID_AA64MMFR0_EL1, ECV, mmfr0)		&&
+	    (has_vhe() || has_hvhe())				&&
+	    cpus_have_final_cap(ARM64_WORKAROUND_QCOM_ORYON_CNTVOFF)) {
+		static_branch_enable(&broken_cntvoff_key);
+		kvm_info("Broken CNTVOFF_EL2, trapping virtual timer\n");
+	}
+}
+
 int __init kvm_timer_hyp_init(bool has_gic)
 {
 	struct arch_timer_kvm_info *info;
@@ -1518,6 +1569,7 @@ int __init kvm_timer_hyp_init(bool has_gic)
 		goto out_free_vtimer_irq;
 	}
 
+	kvm_timer_handle_errata();
 	return 0;
 
 out_free_ptimer_irq:
