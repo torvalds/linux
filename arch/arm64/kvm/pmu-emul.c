@@ -617,8 +617,14 @@ void kvm_pmu_handle_pmcr(struct kvm_vcpu *vcpu, u64 val)
 		kvm_pmu_set_counter_value(vcpu, ARMV8_PMU_CYCLE_IDX, 0);
 
 	if (val & ARMV8_PMU_PMCR_P) {
-		unsigned long mask = kvm_pmu_accessible_counter_mask(vcpu);
-		mask &= ~BIT(ARMV8_PMU_CYCLE_IDX);
+		/*
+		 * Unlike other PMU sysregs, the controls in PMCR_EL0 always apply
+		 * to the 'guest' range of counters and never the 'hyp' range.
+		 */
+		unsigned long mask = kvm_pmu_implemented_counter_mask(vcpu) &
+				     ~kvm_pmu_hyp_counter_mask(vcpu) &
+				     ~BIT(ARMV8_PMU_CYCLE_IDX);
+
 		for_each_set_bit(i, &mask, 32)
 			kvm_pmu_set_pmc_value(kvm_vcpu_idx_to_pmc(vcpu, i), 0, true);
 	}
