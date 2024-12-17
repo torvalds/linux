@@ -245,6 +245,10 @@
 	};
 };
 
+&serial0 {
+	status = "okay";
+};
+
 &watchdog {
 	status = "okay";
 };
