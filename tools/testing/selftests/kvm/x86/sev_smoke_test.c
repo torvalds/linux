@@ -155,7 +155,7 @@ static void guest_shutdown_code(void)
 
 	/* Clobber the IDT so that #UD is guaranteed to trigger SHUTDOWN. */
 	memset(&idt, 0, sizeof(idt));
-	__asm__ __volatile__("lidt %0" :: "m"(idt));
+	set_idt(&idt);
 
 	__asm__ __volatile__("ud2");
 }

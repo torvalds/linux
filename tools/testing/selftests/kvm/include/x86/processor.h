@@ -569,6 +569,11 @@ static inline void set_cr4(uint64_t val)
 	__asm__ __volatile__("mov %0, %%cr4" : : "r" (val) : "memory");
 }
 
+static inline void set_idt(const struct desc_ptr *idt_desc)
+{
+	__asm__ __volatile__("lidt %0"::"m"(*idt_desc));
+}
+
 static inline u64 xgetbv(u32 index)
 {
 	u32 eax, edx;
