@@ -1774,37 +1774,41 @@ int blk_zone_issue_zeroout(struct block_device *bdev, sector_t sector,
 EXPORT_SYMBOL_GPL(blk_zone_issue_zeroout);
 
 #ifdef CONFIG_BLK_DEBUG_FS
+static void queue_zone_wplug_show(struct blk_zone_wplug *zwplug,
+				  struct seq_file *m)
+{
+	unsigned int zwp_wp_offset, zwp_flags;
+	unsigned int zwp_zone_no, zwp_ref;
+	unsigned int zwp_bio_list_size;
+	unsigned long flags;
+
+	spin_lock_irqsave(&zwplug->lock, flags);
+	zwp_zone_no = zwplug->zone_no;
+	zwp_flags = zwplug->flags;
+	zwp_ref = refcount_read(&zwplug->ref);
+	zwp_wp_offset = zwplug->wp_offset;
+	zwp_bio_list_size = bio_list_size(&zwplug->bio_list);
+	spin_unlock_irqrestore(&zwplug->lock, flags);
+
+	seq_printf(m, "%u 0x%x %u %u %u\n", zwp_zone_no, zwp_flags, zwp_ref,
+		   zwp_wp_offset, zwp_bio_list_size);
+}
 
 int queue_zone_wplugs_show(void *data, struct seq_file *m)
 {
 	struct request_queue *q = data;
 	struct gendisk *disk = q->disk;
 	struct blk_zone_wplug *zwplug;
-	unsigned int zwp_wp_offset, zwp_flags;
-	unsigned int zwp_zone_no, zwp_ref;
-	unsigned int zwp_bio_list_size, i;
-	unsigned long flags;
+	unsigned int i;
 
 	if (!disk->zone_wplugs_hash)
 		return 0;
 
 	rcu_read_lock();
-	for (i = 0; i < disk_zone_wplugs_hash_size(disk); i++) {
-		hlist_for_each_entry_rcu(zwplug,
-					 &disk->zone_wplugs_hash[i], node) {
-			spin_lock_irqsave(&zwplug->lock, flags);
-			zwp_zone_no = zwplug->zone_no;
-			zwp_flags = zwplug->flags;
-			zwp_ref = refcount_read(&zwplug->ref);
-			zwp_wp_offset = zwplug->wp_offset;
-			zwp_bio_list_size = bio_list_size(&zwplug->bio_list);
-			spin_unlock_irqrestore(&zwplug->lock, flags);
-
-			seq_printf(m, "%u 0x%x %u %u %u\n",
-				   zwp_zone_no, zwp_flags, zwp_ref,
-				   zwp_wp_offset, zwp_bio_list_size);
-		}
-	}
+	for (i = 0; i < disk_zone_wplugs_hash_size(disk); i++)
+		hlist_for_each_entry_rcu(zwplug, &disk->zone_wplugs_hash[i],
+					 node)
+			queue_zone_wplug_show(zwplug, m);
 	rcu_read_unlock();
 
 	return 0;
