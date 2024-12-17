@@ -306,6 +306,10 @@
 	status = "okay";
 };
 
+&ssusb1 {
+	status = "okay";
+};
+
 &tphy {
 	status = "okay";
 };
