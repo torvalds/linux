@@ -1292,13 +1292,7 @@ static int __sched task_blocks_on_rt_mutex(struct rt_mutex_base *lock,
 	 */
 	get_task_struct(owner);
 
-	preempt_disable();
-	raw_spin_unlock_irq(&lock->wait_lock);
-	/* wake up any tasks on the wake_q before calling rt_mutex_adjust_prio_chain */
-	wake_up_q(wake_q);
-	wake_q_init(wake_q);
-	preempt_enable();
-
+	raw_spin_unlock_irq_wake(&lock->wait_lock, wake_q);
 
 	res = rt_mutex_adjust_prio_chain(owner, chwalk, lock,
 					 next_lock, waiter, task);
@@ -1642,13 +1636,7 @@ static int __sched rt_mutex_slowlock_block(struct rt_mutex_base *lock,
 			owner = rt_mutex_owner(lock);
 		else
 			owner = NULL;
-		preempt_disable();
-		raw_spin_unlock_irq(&lock->wait_lock);
-		if (wake_q) {
-			wake_up_q(wake_q);
-			wake_q_init(wake_q);
-		}
-		preempt_enable();
+		raw_spin_unlock_irq_wake(&lock->wait_lock, wake_q);
 
 		if (!owner || !rtmutex_spin_on_owner(lock, waiter, owner))
 			rt_mutex_schedule();
@@ -1799,10 +1787,7 @@ static int __sched rt_mutex_slowlock(struct rt_mutex_base *lock,
 	 */
 	raw_spin_lock_irqsave(&lock->wait_lock, flags);
 	ret = __rt_mutex_slowlock_locked(lock, ww_ctx, state, &wake_q);
-	preempt_disable();
-	raw_spin_unlock_irqrestore(&lock->wait_lock, flags);
-	wake_up_q(&wake_q);
-	preempt_enable();
+	raw_spin_unlock_irqrestore_wake(&lock->wait_lock, flags, &wake_q);
 	rt_mutex_post_schedule();
 
 	return ret;
@@ -1860,11 +1845,7 @@ static void __sched rtlock_slowlock_locked(struct rt_mutex_base *lock,
 			owner = rt_mutex_owner(lock);
 		else
 			owner = NULL;
-		preempt_disable();
-		raw_spin_unlock_irq(&lock->wait_lock);
-		wake_up_q(wake_q);
-		wake_q_init(wake_q);
-		preempt_enable();
+		raw_spin_unlock_irq_wake(&lock->wait_lock, wake_q);
 
 		if (!owner || !rtmutex_spin_on_owner(lock, &waiter, owner))
 			schedule_rtlock();
@@ -1893,10 +1874,7 @@ static __always_inline void __sched rtlock_slowlock(struct rt_mutex_base *lock)
 
 	raw_spin_lock_irqsave(&lock->wait_lock, flags);
 	rtlock_slowlock_locked(lock, &wake_q);
-	preempt_disable();
-	raw_spin_unlock_irqrestore(&lock->wait_lock, flags);
-	wake_up_q(&wake_q);
-	preempt_enable();
+	raw_spin_unlock_irqrestore_wake(&lock->wait_lock, flags, &wake_q);
 }
 
 #endif /* RT_MUTEX_BUILD_SPINLOCKS */
