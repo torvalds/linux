@@ -4999,6 +4999,7 @@ kernel/bpf/helpers.c
 kernel/bpf/inode.c
 kernel/bpf/link_iter.c
 kernel/bpf/local_storage.c
+kernel/bpf/log.c
 kernel/bpf/lpm_trie.c
 kernel/bpf/map_in_map.c
 kernel/bpf/map_in_map.h
