@@ -173,43 +173,41 @@ void btrfs_put_block_group(struct btrfs_block_group *cache)
 	}
 }
 
+static int btrfs_bg_start_cmp(const struct rb_node *new,
+			      const struct rb_node *exist)
+{
+	const struct btrfs_block_group *new_bg =
+		rb_entry(new, struct btrfs_block_group, cache_node);
+	const struct btrfs_block_group *exist_bg =
+		rb_entry(exist, struct btrfs_block_group, cache_node);
+
+	if (new_bg->start < exist_bg->start)
+		return -1;
+	if (new_bg->start > exist_bg->start)
+		return 1;
+	return 0;
+}
+
 /*
  * This adds the block group to the fs_info rb tree for the block group cache
  */
 static int btrfs_add_block_group_cache(struct btrfs_fs_info *info,
 				       struct btrfs_block_group *block_group)
 {
-	struct rb_node **p;
-	struct rb_node *parent = NULL;
-	struct btrfs_block_group *cache;
-	bool leftmost = true;
+	struct rb_node *exist;
+	int ret = 0;
 
 	ASSERT(block_group->length != 0);
 
 	write_lock(&info->block_group_cache_lock);
-	p = &info->block_group_cache_tree.rb_root.rb_node;
 
-	while (*p) {
-		parent = *p;
-		cache = rb_entry(parent, struct btrfs_block_group, cache_node);
-		if (block_group->start < cache->start) {
-			p = &(*p)->rb_left;
-		} else if (block_group->start > cache->start) {
-			p = &(*p)->rb_right;
-			leftmost = false;
-		} else {
-			write_unlock(&info->block_group_cache_lock);
-			return -EEXIST;
-		}
-	}
-
-	rb_link_node(&block_group->cache_node, parent, p);
-	rb_insert_color_cached(&block_group->cache_node,
-			       &info->block_group_cache_tree, leftmost);
-
+	exist = rb_find_add_cached(&block_group->cache_node,
+			&info->block_group_cache_tree, btrfs_bg_start_cmp);
+	if (exist)
+		ret = -EEXIST;
 	write_unlock(&info->block_group_cache_lock);
 
-	return 0;
+	return ret;
 }
 
 /*
