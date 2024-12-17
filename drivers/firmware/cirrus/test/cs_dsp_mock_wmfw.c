@@ -334,7 +334,7 @@ void cs_dsp_mock_wmfw_add_coeff_desc(struct cs_dsp_mock_wmfw_builder *builder,
 				  sizeof(*ple32)) / sizeof(*ple32);
 
 		longstring = (__force struct wmfw_long_string *)ple32;
-		longstring->len = description_len;
+		longstring->len = cpu_to_le16(description_len);
 		memcpy(longstring->data, def->description, description_len);
 
 		/* Round up to next __le32 multiple */
