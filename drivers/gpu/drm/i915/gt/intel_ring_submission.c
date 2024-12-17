@@ -230,8 +230,13 @@ static int xcs_resume(struct intel_engine_cs *engine)
 
 	set_pp_dir(engine);
 
-	/* First wake the ring up to an empty/idle ring */
-	for ((kt) = ktime_get() + (2 * NSEC_PER_MSEC);
+	/*
+	 * First wake the ring up to an empty/idle ring.
+	 * Use 50ms of delay to let the engine write successfully
+	 * for all platforms. Experimented with different values and
+	 * determined that 50ms works best based on testing.
+	 */
+	for ((kt) = ktime_get() + (50 * NSEC_PER_MSEC);
 			ktime_before(ktime_get(), (kt)); cpu_relax()) {
 		/*
 		 * In case of resets fails because engine resumes from
