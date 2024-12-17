@@ -234,6 +234,17 @@ struct intel_display_platforms {
 	(drm_WARN_ON(__to_intel_display(__display)->drm, INTEL_DISPLAY_STEP(__display) == STEP_NONE), \
 	 INTEL_DISPLAY_STEP(__display) >= (since) && INTEL_DISPLAY_STEP(__display) < (until))
 
+#define ARLS_HOST_BRIDGE_PCI_ID1 0x7D1C
+#define ARLS_HOST_BRIDGE_PCI_ID2 0x7D2D
+#define ARLS_HOST_BRIDGE_PCI_ID3 0x7D2E
+#define ARLS_HOST_BRIDGE_PCI_ID4 0x7D2F
+
+#define IS_ARROWLAKE_S_BY_HOST_BRIDGE_ID(id)  \
+	(((id) == ARLS_HOST_BRIDGE_PCI_ID1) || \
+	 ((id) == ARLS_HOST_BRIDGE_PCI_ID2) || \
+	 ((id) == ARLS_HOST_BRIDGE_PCI_ID3) || \
+	 ((id) == ARLS_HOST_BRIDGE_PCI_ID4))
+
 struct intel_display_runtime_info {
 	struct intel_display_ip_ver {
 		u16 ver;
