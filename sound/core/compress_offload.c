@@ -1025,7 +1025,7 @@ static u64 snd_compr_seqno_next(struct snd_compr_stream *stream)
 static int snd_compr_task_new(struct snd_compr_stream *stream, struct snd_compr_task *utask)
 {
 	struct snd_compr_task_runtime *task;
-	int retval;
+	int retval, fd_i, fd_o;
 
 	if (stream->runtime->total_tasks >= stream->runtime->fragments)
 		return -EBUSY;
@@ -1039,16 +1039,24 @@ static int snd_compr_task_new(struct snd_compr_stream *stream, struct snd_compr_
 	retval = stream->ops->task_create(stream, task);
 	if (retval < 0)
 		goto cleanup;
-	utask->input_fd = dma_buf_fd(task->input, O_WRONLY|O_CLOEXEC);
-	if (utask->input_fd < 0) {
-		retval = utask->input_fd;
+	/* similar functionality as in dma_buf_fd(), but ensure that both
+	   file descriptors are allocated before fd_install() */
+	if (!task->input || !task->input->file || !task->output || !task->output->file) {
+		retval = -EINVAL;
 		goto cleanup;
 	}
-	utask->output_fd = dma_buf_fd(task->output, O_RDONLY|O_CLOEXEC);
-	if (utask->output_fd < 0) {
-		retval = utask->output_fd;
+	fd_i = get_unused_fd_flags(O_WRONLY|O_CLOEXEC);
+	if (fd_i < 0)
+		goto cleanup;
+	fd_o = get_unused_fd_flags(O_RDONLY|O_CLOEXEC);
+	if (fd_o < 0) {
+		put_unused_fd(fd_i);
 		goto cleanup;
 	}
+	fd_install(fd_i, task->input->file);
+	fd_install(fd_o, task->output->file);
+	utask->input_fd = fd_i;
+	utask->output_fd = fd_o;
 	/* keep dmabuf reference until freed with task free ioctl */
 	dma_buf_get(utask->input_fd);
 	dma_buf_get(utask->output_fd);
