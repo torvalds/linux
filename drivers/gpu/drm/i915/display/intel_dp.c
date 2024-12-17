@@ -2193,20 +2193,11 @@ int intel_dp_dsc_min_src_input_bpc(void)
 }
 
 static
-bool is_dsc_pipe_bpp_sufficient(struct intel_display *display,
-				struct link_config_limits *limits,
+bool is_dsc_pipe_bpp_sufficient(struct link_config_limits *limits,
 				int pipe_bpp)
 {
-	int dsc_max_bpc, dsc_min_bpc, dsc_max_pipe_bpp, dsc_min_pipe_bpp;
-
-	dsc_max_bpc = intel_dp_dsc_max_src_input_bpc(display);
-	dsc_min_bpc = intel_dp_dsc_min_src_input_bpc();
-
-	dsc_max_pipe_bpp = min(dsc_max_bpc * 3, limits->pipe.max_bpp);
-	dsc_min_pipe_bpp = max(dsc_min_bpc * 3, limits->pipe.min_bpp);
-
-	return pipe_bpp >= dsc_min_pipe_bpp &&
-	       pipe_bpp <= dsc_max_pipe_bpp;
+	return pipe_bpp >= limits->pipe.min_bpp &&
+	       pipe_bpp <= limits->pipe.max_bpp;
 }
 
 static
@@ -2221,7 +2212,7 @@ int intel_dp_force_dsc_pipe_bpp(struct intel_dp *intel_dp,
 
 	forced_bpp = intel_dp->force_dsc_bpc * 3;
 
-	if (is_dsc_pipe_bpp_sufficient(display, limits, forced_bpp)) {
+	if (is_dsc_pipe_bpp_sufficient(limits, forced_bpp)) {
 		drm_dbg_kms(display->drm, "Input DSC BPC forced to %d\n",
 			    intel_dp->force_dsc_bpc);
 		return forced_bpp;
@@ -2240,11 +2231,10 @@ static int intel_dp_dsc_compute_pipe_bpp(struct intel_dp *intel_dp,
 					 struct link_config_limits *limits,
 					 int timeslots)
 {
-	struct intel_display *display = to_intel_display(intel_dp);
 	const struct intel_connector *connector =
 		to_intel_connector(conn_state->connector);
-	int dsc_max_bpc, dsc_max_bpp;
-	int dsc_min_bpc, dsc_min_bpp;
+	int dsc_max_bpp;
+	int dsc_min_bpp;
 	u8 dsc_bpc[3] = {};
 	int forced_bpp, pipe_bpp;
 	int num_bpc, i, ret;
@@ -2260,14 +2250,8 @@ static int intel_dp_dsc_compute_pipe_bpp(struct intel_dp *intel_dp,
 		}
 	}
 
-	dsc_max_bpc = intel_dp_dsc_max_src_input_bpc(display);
-	if (!dsc_max_bpc)
-		return -EINVAL;
-
-	dsc_max_bpp = min(dsc_max_bpc * 3, limits->pipe.max_bpp);
-
-	dsc_min_bpc = intel_dp_dsc_min_src_input_bpc();
-	dsc_min_bpp = max(dsc_min_bpc * 3, limits->pipe.min_bpp);
+	dsc_max_bpp = limits->pipe.max_bpp;
+	dsc_min_bpp = limits->pipe.min_bpp;
 
 	/*
 	 * Get the maximum DSC bpc that will be supported by any valid
@@ -2312,7 +2296,7 @@ static int intel_edp_dsc_compute_pipe_bpp(struct intel_dp *intel_dp,
 
 		/* For eDP use max bpp that can be supported with DSC. */
 		pipe_bpp = intel_dp_dsc_compute_max_bpp(connector, max_bpc);
-		if (!is_dsc_pipe_bpp_sufficient(display, limits, pipe_bpp)) {
+		if (!is_dsc_pipe_bpp_sufficient(limits, pipe_bpp)) {
 			drm_dbg_kms(display->drm,
 				    "Computed BPC is not in DSC BPC limits\n");
 			return -EINVAL;
@@ -2518,6 +2502,18 @@ intel_dp_compute_config_link_bpp_limits(struct intel_dp *intel_dp,
 	return true;
 }
 
+static void
+intel_dp_dsc_compute_pipe_bpp_limits(struct intel_dp *intel_dp,
+				     struct link_config_limits *limits)
+{
+	struct intel_display *display = to_intel_display(intel_dp);
+	int dsc_min_bpc = intel_dp_dsc_min_src_input_bpc();
+	int dsc_max_bpc = intel_dp_dsc_max_src_input_bpc(display);
+
+	limits->pipe.max_bpp = min(limits->pipe.max_bpp, dsc_max_bpc * 3);
+	limits->pipe.min_bpp = max(limits->pipe.min_bpp, dsc_min_bpc * 3);
+}
+
 bool
 intel_dp_compute_config_limits(struct intel_dp *intel_dp,
 			       struct intel_crtc_state *crtc_state,
@@ -2553,6 +2549,9 @@ intel_dp_compute_config_limits(struct intel_dp *intel_dp,
 		limits->pipe.max_bpp = intel_dp_max_bpp(intel_dp, crtc_state,
 							respect_downstream_limits);
 	}
+
+	if (dsc)
+		intel_dp_dsc_compute_pipe_bpp_limits(intel_dp, limits);
 
 	if (is_mst || intel_dp->use_max_params) {
 		/*
