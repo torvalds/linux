@@ -373,6 +373,158 @@
 			status = "disabled";
 		};
 
+		pcie@11280000 {
+			compatible = "mediatek,mt7986-pcie",
+				     "mediatek,mt8192-pcie";
+			device_type = "pci";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			reg = <0 0x11280000 0 0x2000>;
+			reg-names = "pcie-mac";
+			linux,pci-domain = <3>;
+			interrupts = <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>;
+			bus-range = <0x00 0xff>;
+			ranges = <0x81000000 0x00 0x20000000 0x00
+				  0x20000000 0x00 0x00200000>,
+				 <0x82000000 0x00 0x20200000 0x00
+				  0x20200000 0x00 0x07e00000>;
+			clocks = <&infracfg CLK_INFRA_PCIE_PIPE_P2>,
+				 <&infracfg CLK_INFRA_PCIE_GFMUX_TL_P2>,
+				 <&infracfg CLK_INFRA_PCIE_PERI_26M_CK_P2>,
+				 <&infracfg CLK_INFRA_133M_PCIE_CK_P2>;
+			clock-names = "pl_250m", "tl_26m", "peri_26m",
+				      "top_133m";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pcie2_pins>;
+			status = "disabled";
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 0x7>;
+			interrupt-map = <0 0 0 1 &pcie_intc2 0>,
+					<0 0 0 2 &pcie_intc2 1>,
+					<0 0 0 3 &pcie_intc2 2>,
+					<0 0 0 4 &pcie_intc2 3>;
+			pcie_intc2: interrupt-controller {
+				#address-cells = <0>;
+				#interrupt-cells = <1>;
+				interrupt-controller;
+			};
+		};
+
+		pcie@11290000 {
+			compatible = "mediatek,mt7986-pcie",
+				     "mediatek,mt8192-pcie";
+			device_type = "pci";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			reg = <0 0x11290000 0 0x2000>;
+			reg-names = "pcie-mac";
+			linux,pci-domain = <2>;
+			interrupts = <GIC_SPI 171 IRQ_TYPE_LEVEL_HIGH>;
+			bus-range = <0x00 0xff>;
+			ranges = <0x81000000 0x00 0x28000000 0x00
+				  0x28000000 0x00 0x00200000>,
+				 <0x82000000 0x00 0x28200000 0x00
+				  0x28200000 0x00 0x07e00000>;
+			clocks = <&infracfg CLK_INFRA_PCIE_PIPE_P3>,
+				 <&infracfg CLK_INFRA_PCIE_GFMUX_TL_P3>,
+				 <&infracfg CLK_INFRA_PCIE_PERI_26M_CK_P3>,
+				 <&infracfg CLK_INFRA_133M_PCIE_CK_P3>;
+			clock-names = "pl_250m", "tl_26m", "peri_26m",
+				      "top_133m";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pcie3_pins>;
+			status = "disabled";
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 0x7>;
+			interrupt-map = <0 0 0 1 &pcie_intc3 0>,
+					<0 0 0 2 &pcie_intc3 1>,
+					<0 0 0 3 &pcie_intc3 2>,
+					<0 0 0 4 &pcie_intc3 3>;
+			pcie_intc3: interrupt-controller {
+				#address-cells = <0>;
+				#interrupt-cells = <1>;
+				interrupt-controller;
+			};
+		};
+
+		pcie@11300000 {
+			compatible = "mediatek,mt7986-pcie",
+				     "mediatek,mt8192-pcie";
+			device_type = "pci";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			reg = <0 0x11300000 0 0x2000>;
+			reg-names = "pcie-mac";
+			linux,pci-domain = <0>;
+			interrupts = <GIC_SPI 168 IRQ_TYPE_LEVEL_HIGH>;
+			bus-range = <0x00 0xff>;
+			ranges = <0x81000000 0x00 0x30000000 0x00
+				  0x30000000 0x00 0x00200000>,
+				 <0x82000000 0x00 0x30200000 0x00
+				  0x30200000 0x00 0x07e00000>;
+			clocks = <&infracfg CLK_INFRA_PCIE_PIPE_P0>,
+				 <&infracfg CLK_INFRA_PCIE_GFMUX_TL_P0>,
+				 <&infracfg CLK_INFRA_PCIE_PERI_26M_CK_P0>,
+				 <&infracfg CLK_INFRA_133M_PCIE_CK_P0>;
+			clock-names = "pl_250m", "tl_26m", "peri_26m",
+				      "top_133m";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pcie0_pins>;
+			status = "disabled";
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 0x7>;
+			interrupt-map = <0 0 0 1 &pcie_intc0 0>,
+					<0 0 0 2 &pcie_intc0 1>,
+					<0 0 0 3 &pcie_intc0 2>,
+					<0 0 0 4 &pcie_intc0 3>;
+			pcie_intc0: interrupt-controller {
+				#address-cells = <0>;
+				#interrupt-cells = <1>;
+				interrupt-controller;
+			};
+		};
+
+		pcie@11310000 {
+			compatible = "mediatek,mt7986-pcie",
+				     "mediatek,mt8192-pcie";
+			device_type = "pci";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			reg = <0 0x11310000 0 0x2000>;
+			reg-names = "pcie-mac";
+			linux,pci-domain = <1>;
+			interrupts = <GIC_SPI 169 IRQ_TYPE_LEVEL_HIGH>;
+			bus-range = <0x00 0xff>;
+			ranges = <0x81000000 0x00 0x38000000 0x00
+				  0x38000000 0x00 0x00200000>,
+				 <0x82000000 0x00 0x38200000 0x00
+				  0x38200000 0x00 0x07e00000>;
+			clocks = <&infracfg CLK_INFRA_PCIE_PIPE_P1>,
+				 <&infracfg CLK_INFRA_PCIE_GFMUX_TL_P1>,
+				 <&infracfg CLK_INFRA_PCIE_PERI_26M_CK_P1>,
+				 <&infracfg CLK_INFRA_133M_PCIE_CK_P1>;
+			clock-names = "pl_250m", "tl_26m", "peri_26m",
+				      "top_133m";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pcie1_pins>;
+			status = "disabled";
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 0x7>;
+			interrupt-map = <0 0 0 1 &pcie_intc1 0>,
+					<0 0 0 2 &pcie_intc1 1>,
+					<0 0 0 3 &pcie_intc1 2>,
+					<0 0 0 4 &pcie_intc1 3>;
+			pcie_intc1: interrupt-controller {
+				#address-cells = <0>;
+				#interrupt-cells = <1>;
+				interrupt-controller;
+			};
+		};
+
 		t-phy@11c50000 {
 			compatible = "mediatek,mt7986-tphy",
 				     "mediatek,generic-tphy-v2";
