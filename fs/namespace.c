@@ -1155,16 +1155,25 @@ static void mnt_add_to_ns(struct mnt_namespace *ns, struct mount *mnt)
 {
 	struct rb_node **link = &ns->mounts.rb_node;
 	struct rb_node *parent = NULL;
+	bool mnt_first_node = true, mnt_last_node = true;
 
 	WARN_ON(mnt_ns_attached(mnt));
 	mnt->mnt_ns = ns;
 	while (*link) {
 		parent = *link;
-		if (mnt->mnt_id_unique < node_to_mount(parent)->mnt_id_unique)
+		if (mnt->mnt_id_unique < node_to_mount(parent)->mnt_id_unique) {
 			link = &parent->rb_left;
-		else
+			mnt_last_node = false;
+		} else {
 			link = &parent->rb_right;
+			mnt_first_node = false;
+		}
 	}
+
+	if (mnt_last_node)
+		ns->mnt_last_node = &mnt->mnt_node;
+	if (mnt_first_node)
+		ns->mnt_first_node = &mnt->mnt_node;
 	rb_link_node(&mnt->mnt_node, parent, link);
 	rb_insert_color(&mnt->mnt_node, &ns->mounts);
 }
@@ -5563,9 +5572,9 @@ static ssize_t do_listmount(struct mnt_namespace *ns, u64 mnt_parent_id,
 
 	if (!last_mnt_id) {
 		if (reverse)
-			first = node_to_mount(rb_last(&ns->mounts));
+			first = node_to_mount(ns->mnt_last_node);
 		else
-			first = node_to_mount(rb_first(&ns->mounts));
+			first = node_to_mount(ns->mnt_first_node);
 	} else {
 		if (reverse)
 			first = mnt_find_id_at_reverse(ns, last_mnt_id - 1);

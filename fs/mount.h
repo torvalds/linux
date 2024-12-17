@@ -8,7 +8,11 @@
 struct mnt_namespace {
 	struct ns_common	ns;
 	struct mount *	root;
-	struct rb_root		mounts; /* Protected by namespace_sem */
+	struct {
+		struct rb_root	mounts;		 /* Protected by namespace_sem */
+		struct rb_node	*mnt_last_node;	 /* last (rightmost) mount in the rbtree */
+		struct rb_node	*mnt_first_node; /* first (leftmost) mount in the rbtree */
+	};
 	struct user_namespace	*user_ns;
 	struct ucounts		*ucounts;
 	u64			seq;	/* Sequence number to prevent loops */
@@ -154,8 +158,13 @@ static inline bool mnt_ns_attached(const struct mount *mnt)
 
 static inline void move_from_ns(struct mount *mnt, struct list_head *dt_list)
 {
+	struct mnt_namespace *ns = mnt->mnt_ns;
 	WARN_ON(!mnt_ns_attached(mnt));
-	rb_erase(&mnt->mnt_node, &mnt->mnt_ns->mounts);
+	if (ns->mnt_last_node == &mnt->mnt_node)
+		ns->mnt_last_node = rb_prev(&mnt->mnt_node);
+	if (ns->mnt_first_node == &mnt->mnt_node)
+		ns->mnt_first_node = rb_next(&mnt->mnt_node);
+	rb_erase(&mnt->mnt_node, &ns->mounts);
 	RB_CLEAR_NODE(&mnt->mnt_node);
 	list_add_tail(&mnt->mnt_list, dt_list);
 }
