@@ -12,7 +12,6 @@
 #define GPLL2					2
 #define GPLL2_OUT_MAIN                          3
 #define GCC_SLEEP_CLK_SRC			4
-#define GCC_APSS_DBG_CLK                        5
 #define GCC_USB0_EUD_AT_CLK			6
 #define GCC_PCIE0_AXI_M_CLK_SRC			7
 #define GCC_PCIE0_AXI_M_CLK			8
