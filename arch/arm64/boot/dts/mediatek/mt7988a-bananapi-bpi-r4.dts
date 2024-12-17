@@ -306,6 +306,10 @@
 	status = "okay";
 };
 
+&tphy {
+	status = "okay";
+};
+
 &watchdog {
 	status = "okay";
 };

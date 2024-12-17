@@ -525,7 +525,7 @@
 			};
 		};
 
-		t-phy@11c50000 {
+		tphy: t-phy@11c50000 {
 			compatible = "mediatek,mt7986-tphy",
 				     "mediatek,generic-tphy-v2";
 			#address-cells = <2>;
