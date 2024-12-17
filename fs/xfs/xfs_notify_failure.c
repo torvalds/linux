@@ -19,6 +19,9 @@
 #include "xfs_rtalloc.h"
 #include "xfs_trans.h"
 #include "xfs_ag.h"
+#include "xfs_notify_failure.h"
+#include "xfs_rtgroup.h"
+#include "xfs_rtrmap_btree.h"
 
 #include <linux/mm.h>
 #include <linux/dax.h>
@@ -227,23 +230,42 @@ xfs_dax_notify_logdev_failure(
 }
 
 static int
-xfs_dax_notify_ddev_failure(
+xfs_dax_notify_dev_failure(
 	struct xfs_mount	*mp,
-	xfs_daddr_t		daddr,
-	xfs_daddr_t		bblen,
-	int			mf_flags)
+	u64			offset,
+	u64			len,
+	int			mf_flags,
+	enum xfs_group_type	type)
 {
 	struct xfs_failure_info	notify = { .mf_flags = mf_flags };
 	struct xfs_trans	*tp = NULL;
 	struct xfs_btree_cur	*cur = NULL;
-	struct xfs_buf		*agf_bp = NULL;
 	int			error = 0;
 	bool			kernel_frozen = false;
-	xfs_fsblock_t		fsbno = XFS_DADDR_TO_FSB(mp, daddr);
-	xfs_agnumber_t		agno = XFS_FSB_TO_AGNO(mp, fsbno);
-	xfs_fsblock_t		end_fsbno = XFS_DADDR_TO_FSB(mp,
-							     daddr + bblen - 1);
-	xfs_agnumber_t		end_agno = XFS_FSB_TO_AGNO(mp, end_fsbno);
+	uint32_t		start_gno, end_gno;
+	xfs_fsblock_t		start_bno, end_bno;
+	xfs_daddr_t		daddr;
+	uint64_t		bblen;
+	struct xfs_group	*xg = NULL;
+
+	if (!xfs_has_rmapbt(mp)) {
+		xfs_debug(mp, "notify_failure() needs rmapbt enabled!");
+		return -EOPNOTSUPP;
+	}
+
+	error = xfs_dax_translate_range(type == XG_TYPE_RTG ?
+			mp->m_rtdev_targp : mp->m_ddev_targp,
+			offset, len, &daddr, &bblen);
+	if (error)
+		return error;
+
+	if (type == XG_TYPE_RTG) {
+		start_bno = xfs_daddr_to_rtb(mp, daddr);
+		end_bno = xfs_daddr_to_rtb(mp, daddr + bblen - 1);
+	} else {
+		start_bno = XFS_DADDR_TO_FSB(mp, daddr);
+		end_bno = XFS_DADDR_TO_FSB(mp, daddr + bblen - 1);
+	}
 
 	if (mf_flags & MF_MEM_PRE_REMOVE) {
 		xfs_info(mp, "Device is about to be removed!");
@@ -262,46 +284,58 @@ xfs_dax_notify_ddev_failure(
 	if (error)
 		goto out;
 
-	for (; agno <= end_agno; agno++) {
+	start_gno = xfs_fsb_to_gno(mp, start_bno, type);
+	end_gno = xfs_fsb_to_gno(mp, end_bno, type);
+	while ((xg = xfs_group_next_range(mp, xg, start_gno, end_gno, type))) {
+		struct xfs_buf		*agf_bp = NULL;
+		struct xfs_rtgroup	*rtg = NULL;
 		struct xfs_rmap_irec	ri_low = { };
 		struct xfs_rmap_irec	ri_high;
-		struct xfs_agf		*agf;
-		struct xfs_perag	*pag;
-		xfs_agblock_t		range_agend;
 
-		pag = xfs_perag_get(mp, agno);
-		error = xfs_alloc_read_agf(pag, tp, 0, &agf_bp);
-		if (error) {
-			xfs_perag_put(pag);
-			break;
+		if (type == XG_TYPE_AG) {
+			struct xfs_perag	*pag = to_perag(xg);
+
+			error = xfs_alloc_read_agf(pag, tp, 0, &agf_bp);
+			if (error) {
+				xfs_perag_put(pag);
+				break;
+			}
+
+			cur = xfs_rmapbt_init_cursor(mp, tp, agf_bp, pag);
+		} else {
+			rtg = to_rtg(xg);
+			xfs_rtgroup_lock(rtg, XFS_RTGLOCK_RMAP);
+			cur = xfs_rtrmapbt_init_cursor(tp, rtg);
 		}
-
-		cur = xfs_rmapbt_init_cursor(mp, tp, agf_bp, pag);
 
 		/*
 		 * Set the rmap range from ri_low to ri_high, which represents
 		 * a [start, end] where we looking for the files or metadata.
 		 */
 		memset(&ri_high, 0xFF, sizeof(ri_high));
-		ri_low.rm_startblock = XFS_FSB_TO_AGBNO(mp, fsbno);
-		if (agno == end_agno)
-			ri_high.rm_startblock = XFS_FSB_TO_AGBNO(mp, end_fsbno);
+		if (xg->xg_gno == start_gno)
+			ri_low.rm_startblock =
+				xfs_fsb_to_gbno(mp, start_bno, type);
+		if (xg->xg_gno == end_gno)
+			ri_high.rm_startblock =
+				xfs_fsb_to_gbno(mp, end_bno, type);
 
-		agf = agf_bp->b_addr;
-		range_agend = min(be32_to_cpu(agf->agf_length) - 1,
-				ri_high.rm_startblock);
 		notify.startblock = ri_low.rm_startblock;
-		notify.blockcount = range_agend + 1 - ri_low.rm_startblock;
+		notify.blockcount = min(xg->xg_block_count,
+					ri_high.rm_startblock + 1) -
+					ri_low.rm_startblock;
 
 		error = xfs_rmap_query_range(cur, &ri_low, &ri_high,
 				xfs_dax_failure_fn, &notify);
 		xfs_btree_del_cursor(cur, error);
-		xfs_trans_brelse(tp, agf_bp);
-		xfs_perag_put(pag);
-		if (error)
+		if (agf_bp)
+			xfs_trans_brelse(tp, agf_bp);
+		if (rtg)
+			xfs_rtgroup_unlock(rtg, XFS_RTGLOCK_RMAP);
+		if (error) {
+			xfs_group_put(xg);
 			break;
-
-		fsbno = XFS_AGB_TO_FSB(mp, agno + 1, 0);
+		}
 	}
 
 	xfs_trans_cancel(tp);
@@ -336,37 +370,20 @@ xfs_dax_notify_failure(
 	int			mf_flags)
 {
 	struct xfs_mount	*mp = dax_holder(dax_dev);
-	xfs_daddr_t		daddr;
-	uint64_t		bblen;
-	int			error;
 
 	if (!(mp->m_super->s_flags & SB_BORN)) {
 		xfs_warn(mp, "filesystem is not ready for notify_failure()!");
 		return -EIO;
 	}
 
-	if (mp->m_rtdev_targp && mp->m_rtdev_targp->bt_daxdev == dax_dev) {
-		xfs_debug(mp,
-			 "notify_failure() not supported on realtime device!");
-		return -EOPNOTSUPP;
-	}
-
-	if (mp->m_logdev_targp && mp->m_logdev_targp->bt_daxdev == dax_dev &&
-	    mp->m_logdev_targp != mp->m_ddev_targp) {
+	if (mp->m_logdev_targp != mp->m_ddev_targp &&
+	    mp->m_logdev_targp->bt_daxdev == dax_dev) {
 		return xfs_dax_notify_logdev_failure(mp, offset, len, mf_flags);
 	}
 
-	if (!xfs_has_rmapbt(mp)) {
-		xfs_debug(mp, "notify_failure() needs rmapbt enabled!");
-		return -EOPNOTSUPP;
-	}
-
-	error = xfs_dax_translate_range(mp->m_ddev_targp, offset, len, &daddr,
-			&bblen);
-	if (error)
-		return error;
-
-	return xfs_dax_notify_ddev_failure(mp, daddr, bblen, mf_flags);
+	return xfs_dax_notify_dev_failure(mp, offset, len, mf_flags,
+		(mp->m_rtdev_targp && mp->m_rtdev_targp->bt_daxdev == dax_dev) ?
+				XG_TYPE_RTG : XG_TYPE_AG);
 }
 
 const struct dax_holder_operations xfs_dax_holder_operations = {
