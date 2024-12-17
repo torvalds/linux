@@ -17,6 +17,12 @@
 
 #define DRM_TEST_CONN_0 BIT(0)
 
+struct drm_clone_mode_test {
+	const char *name;
+	u32 encoder_mask;
+	int expected_result;
+};
+
 static const struct drm_display_mode drm_atomic_test_mode = {
 	DRM_MODE("1024x768", 0, 65000, 1024, 1048,
 		 1184, 1344, 0, 768, 771, 777, 806, 0,
@@ -227,8 +233,56 @@ static void drm_test_check_connector_changed_modeset(struct kunit *test)
 	KUNIT_ASSERT_EQ(test, modeset_counter, initial_modeset_count + 1);
 }
 
+/*
+ * Test that the drm_crtc_in_clone_mode() helper can detect if a given CRTC
+ * state is in clone mode
+ */
+static void drm_test_check_in_clone_mode(struct kunit *test)
+{
+	bool ret;
+	const struct drm_clone_mode_test *param = test->param_value;
+	struct drm_crtc_state *crtc_state;
+
+	crtc_state = kunit_kzalloc(test, sizeof(*crtc_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, crtc_state);
+
+	crtc_state->encoder_mask = param->encoder_mask;
+
+	ret = drm_crtc_in_clone_mode(crtc_state);
+
+	KUNIT_ASSERT_EQ(test, ret, param->expected_result);
+}
+
+static void drm_check_in_clone_mode_desc(const struct drm_clone_mode_test *t,
+				      char *desc)
+{
+	sprintf(desc, "%s", t->name);
+}
+
+static const struct drm_clone_mode_test drm_clone_mode_tests[] = {
+	{
+		.name = "in_clone_mode",
+		.encoder_mask = DRM_TEST_ENC_0 | DRM_TEST_ENC_1,
+		.expected_result = true,
+	},
+	{
+		.name = "not_in_clone_mode",
+		.encoder_mask = DRM_TEST_ENC_0,
+		.expected_result = false,
+	},
+};
+
+KUNIT_ARRAY_PARAM(drm_check_in_clone_mode, drm_clone_mode_tests,
+		  drm_check_in_clone_mode_desc);
+
 static struct kunit_case drm_test_check_modeset_test[] = {
 	KUNIT_CASE(drm_test_check_connector_changed_modeset),
+	{}
+};
+
+static struct kunit_case drm_in_clone_mode_check_test[] = {
+	KUNIT_CASE_PARAM(drm_test_check_in_clone_mode,
+			 drm_check_in_clone_mode_gen_params),
 	{}
 };
 
@@ -237,7 +291,13 @@ static struct kunit_suite drm_test_check_modeset_test_suite = {
 	.test_cases = drm_test_check_modeset_test,
 };
 
-kunit_test_suite(drm_test_check_modeset_test_suite);
+static struct kunit_suite drm_in_clone_mode_check_test_suite = {
+	.name = "drm_validate_clone_mode",
+	.test_cases = drm_in_clone_mode_check_test,
+};
+
+kunit_test_suites(&drm_in_clone_mode_check_test_suite,
+		  &drm_test_check_modeset_test_suite);
 
 MODULE_AUTHOR("Jessica Zhang <quic_jesszhan@quicinc.com");
 MODULE_DESCRIPTION("Test cases for the drm_atomic_helper functions");
