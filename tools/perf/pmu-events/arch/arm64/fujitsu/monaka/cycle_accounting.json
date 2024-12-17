@@ -1,0 +1,122 @@
+[
+    {
+        "EventCode": "0x0182",
+        "EventName": "LD_COMP_WAIT_L1_MISS",
+        "BriefDescription": "This event counts every cycle that no instruction was committed because the oldest and uncommitted load/store/prefetch operation waits for L2 cache access."
+    },
+    {
+        "EventCode": "0x0183",
+        "EventName": "LD_COMP_WAIT_L1_MISS_EX",
+        "BriefDescription": "This event counts every cycle that no instruction was committed because the oldest and uncommitted integer load operation waits for L2 cache access."
+    },
+    {
+        "EventCode": "0x0184",
+        "EventName": "LD_COMP_WAIT",
+        "BriefDescription": "This event counts every cycle that no instruction was committed because the oldest and uncommitted load/store/prefetch operation waits for L1D cache, L2 cache and memory access."
+    },
+    {
+        "EventCode": "0x0185",
+        "EventName": "LD_COMP_WAIT_EX",
+        "BriefDescription": "This event counts every cycle that no instruction was committed because the oldest and uncommitted integer load operation waits for L1D cache, L2 cache and memory access."
+    },
+    {
+        "EventCode": "0x0186",
+        "EventName": "LD_COMP_WAIT_PFP_BUSY",
+        "BriefDescription": "This event counts every cycle that no instruction was committed due to the lack of an available prefetch port."
+    },
+    {
+        "EventCode": "0x0187",
+        "EventName": "LD_COMP_WAIT_PFP_BUSY_EX",
+        "BriefDescription": "This event counts the LD_COMP_WAIT_PFP_BUSY caused by an integer load operation."
+    },
+    {
+        "EventCode": "0x0188",
+        "EventName": "LD_COMP_WAIT_PFP_BUSY_SWPF",
+        "BriefDescription": "This event counts the LD_COMP_WAIT_PFP_BUSY caused by a software prefetch instruction."
+    },
+    {
+        "EventCode": "0x0189",
+        "EventName": "EU_COMP_WAIT",
+        "BriefDescription": "This event counts every cycle that no instruction was committed and the oldest and uncommitted instruction is an integer or floating-point/SIMD instruction."
+    },
+    {
+        "EventCode": "0x018A",
+        "EventName": "FL_COMP_WAIT",
+        "BriefDescription": "This event counts every cycle that no instruction was committed and the oldest and uncommitted instruction is a floating-point/SIMD instruction."
+    },
+    {
+        "EventCode": "0x018B",
+        "EventName": "BR_COMP_WAIT",
+        "BriefDescription": "This event counts every cycle that no instruction was committed and the oldest and uncommitted instruction is a branch instruction."
+    },
+    {
+        "EventCode": "0x018C",
+        "EventName": "ROB_EMPTY",
+        "BriefDescription": "This event counts every cycle that no instruction was committed because the CSE is empty."
+    },
+    {
+        "EventCode": "0x018D",
+        "EventName": "ROB_EMPTY_STQ_BUSY",
+        "BriefDescription": "This event counts every cycle that no instruction was committed because the CSE is empty and the store port (SP) is full."
+    },
+    {
+        "EventCode": "0x018E",
+        "EventName": "WFE_WFI_CYCLE",
+        "BriefDescription": "This event counts every cycle that the instruction unit is halted by the WFE/WFI instruction."
+    },
+    {
+        "EventCode": "0x018F",
+        "EventName": "RETENTION_CYCLE",
+        "BriefDescription": "This event counts every cycle that the instruction unit is halted by the RETENTION state."
+    },
+    {
+        "EventCode": "0x0190",
+        "EventName": "_0INST_COMMIT",
+        "BriefDescription": "This event counts every cycle that no instruction was committed, but counts at the time when commits MOVPRFX only."
+    },
+    {
+        "EventCode": "0x0191",
+        "EventName": "_1INST_COMMIT",
+        "BriefDescription": "This event counts every cycle that one instruction is committed."
+    },
+    {
+        "EventCode": "0x0192",
+        "EventName": "_2INST_COMMIT",
+        "BriefDescription": "This event counts every cycle that two instructions are committed."
+    },
+    {
+        "EventCode": "0x0193",
+        "EventName": "_3INST_COMMIT",
+        "BriefDescription": "This event counts every cycle that three instructions are committed."
+    },
+    {
+        "EventCode": "0x0194",
+        "EventName": "_4INST_COMMIT",
+        "BriefDescription": "This event counts every cycle that four instructions are committed."
+    },
+    {
+        "EventCode": "0x0195",
+        "EventName": "_5INST_COMMIT",
+        "BriefDescription": "This event counts every cycle that five instructions are committed."
+    },
+    {
+        "EventCode": "0x0198",
+        "EventName": "UOP_ONLY_COMMIT",
+        "BriefDescription": "This event counts every cycle that only any micro-operations are committed."
+    },
+    {
+        "EventCode": "0x0199",
+        "EventName": "SINGLE_MOVPRFX_COMMIT",
+        "BriefDescription": "This event counts every cycle that only the MOVPRFX instruction is committed."
+    },
+    {
+        "EventCode": "0x019C",
+        "EventName": "LD_COMP_WAIT_L2_MISS",
+        "BriefDescription": "This event counts every cycle that no instruction was committed because the oldest and uncommitted load/store/prefetch operation waits for L2 cache miss."
+    },
+    {
+        "EventCode": "0x019D",
+        "EventName": "LD_COMP_WAIT_L2_MISS_EX",
+        "BriefDescription": "This event counts every cycle that no instruction was committed because the oldest and uncommitted integer load operation waits for L2 cache miss."
+    }
+]

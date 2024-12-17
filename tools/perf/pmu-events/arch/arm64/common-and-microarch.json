@@ -534,6 +534,11 @@
         "BriefDescription": "SVE operations speculatively executed"
     },
     {
+        "EventCode": "0x8007",
+        "EventName": "ASE_SVE_INST_SPEC",
+        "BriefDescription": "Operation speculatively executed, Advanced SIMD or SVE."
+    },
+    {
         "PublicDescription": "Microarchitectural operation, Operations speculatively executed.",
         "EventCode": "0x8008",
         "EventName": "UOP_SPEC",
@@ -552,10 +557,40 @@
         "BriefDescription": "Floating-point Operations speculatively executed."
     },
     {
+        "EventCode": "0x8011",
+        "EventName": "ASE_FP_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, Advanced SIMD."
+    },
+    {
+        "EventCode": "0x8012",
+        "EventName": "SVE_FP_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, SVE."
+    },
+    {
+        "EventCode": "0x8013",
+        "EventName": "ASE_SVE_FP_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, Advanced SIMD or SVE."
+    },
+    {
         "PublicDescription": "Floating-point half-precision operations speculatively executed",
         "EventCode": "0x8014",
         "EventName": "FP_HP_SPEC",
         "BriefDescription": "Floating-point half-precision operations speculatively executed"
+    },
+    {
+        "EventCode": "0x8015",
+        "EventName": "ASE_FP_HP_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, Advanced SIMD half precision."
+    },
+    {
+        "EventCode": "0x8016",
+        "EventName": "SVE_FP_HP_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, SVE half precision."
+    },
+    {
+        "EventCode": "0x8017",
+        "EventName": "ASE_SVE_FP_HP_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, Advanced SIMD or SVE half precision."
     },
     {
         "PublicDescription": "Floating-point single-precision operations speculatively executed",
@@ -564,10 +599,80 @@
         "BriefDescription": "Floating-point single-precision operations speculatively executed"
     },
     {
+        "EventCode": "0x8019",
+        "EventName": "ASE_FP_SP_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, Advanced SIMD single precision."
+    },
+    {
+        "EventCode": "0x801A",
+        "EventName": "SVE_FP_SP_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, SVE single precision."
+    },
+    {
+        "EventCode": "0x801B",
+        "EventName": "ASE_SVE_FP_SP_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, Advanced SIMD or SVE single precision."
+    },
+    {
         "PublicDescription": "Floating-point double-precision operations speculatively executed",
         "EventCode": "0x801C",
         "EventName": "FP_DP_SPEC",
         "BriefDescription": "Floating-point double-precision operations speculatively executed"
+    },
+    {
+        "EventCode": "0x801D",
+        "EventName": "ASE_FP_DP_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, Advanced SIMD double precision."
+    },
+    {
+        "EventCode": "0x801E",
+        "EventName": "SVE_FP_DP_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, SVE double precision."
+    },
+    {
+        "EventCode": "0x801F",
+        "EventName": "ASE_SVE_FP_DP_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, Advanced SIMD or SVE double precision."
+    },
+    {
+        "EventCode": "0x8020",
+        "EventName": "FP_DIV_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, divide."
+    },
+    {
+        "EventCode": "0x8021",
+        "EventName": "ASE_FP_DIV_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, Advanced SIMD divide."
+    },
+    {
+        "EventCode": "0x8022",
+        "EventName": "SVE_FP_DIV_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, SVE divide."
+    },
+    {
+        "EventCode": "0x8023",
+        "EventName": "ASE_SVE_FP_DIV_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, Advanced SIMD or SVE divide."
+    },
+    {
+        "EventCode": "0x8024",
+        "EventName": "FP_SQRT_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, square root."
+    },
+    {
+        "EventCode": "0x8025",
+        "EventName": "ASE_FP_SQRT_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, Advanced SIMD square root."
+    },
+    {
+        "EventCode": "0x8026",
+        "EventName": "SVE_FP_SQRT_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, SVE square root."
+    },
+    {
+        "EventCode": "0x8027",
+        "EventName": "ASE_SVE_FP_SQRT_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, Advanced SIMD or SVE square-root."
     },
     {
         "PublicDescription": "Floating-point FMA Operations speculatively executed.",
@@ -576,10 +681,80 @@
         "BriefDescription": "Floating-point FMA Operations speculatively executed."
     },
     {
+        "EventCode": "0x8029",
+        "EventName": "ASE_FP_FMA_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, Advanced SIMD FMA."
+    },
+    {
+        "EventCode": "0x802A",
+        "EventName": "SVE_FP_FMA_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, SVE FMA."
+    },
+    {
+        "EventCode": "0x802B",
+        "EventName": "ASE_SVE_FP_FMA_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, Advanced SIMD or SVE FMA."
+    },
+    {
+        "EventCode": "0x802C",
+        "EventName": "FP_MUL_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, multiply."
+    },
+    {
+        "EventCode": "0x802D",
+        "EventName": "ASE_FP_MUL_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, Advanced SIMD multiply."
+    },
+    {
+        "EventCode": "0x802E",
+        "EventName": "SVE_FP_MUL_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, SVE multiply."
+    },
+    {
+        "EventCode": "0x802F",
+        "EventName": "ASE_SVE_FP_MUL_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, Advanced SIMD or SVE multiply."
+    },
+    {
+        "EventCode": "0x8030",
+        "EventName": "FP_ADDSUB_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, add or subtract."
+    },
+    {
+        "EventCode": "0x8031",
+        "EventName": "ASE_FP_ADDSUB_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, Advanced SIMD add or subtract."
+    },
+    {
+        "EventCode": "0x8032",
+        "EventName": "SVE_FP_ADDSUB_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, SVE add or subtract."
+    },
+    {
+        "EventCode": "0x8033",
+        "EventName": "ASE_SVE_FP_ADDSUB_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, Advanced SIMD or SVE add or subtract."
+    },
+    {
         "PublicDescription": "Floating-point reciprocal estimate Operations speculatively executed.",
         "EventCode": "0x8034",
         "EventName": "FP_RECPE_SPEC",
         "BriefDescription": "Floating-point reciprocal estimate Operations speculatively executed."
+    },
+    {
+        "EventCode": "0x8035",
+        "EventName": "ASE_FP_RECPE_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, Advanced SIMD reciprocal estimate."
+    },
+    {
+        "EventCode": "0x8036",
+        "EventName": "SVE_FP_RECPE_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, SVE reciprocal estimate."
+    },
+    {
+        "EventCode": "0x8037",
+        "EventName": "ASE_SVE_FP_RECPE_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, Advanced SIMD or SVE reciprocal estimate."
     },
     {
         "PublicDescription": "floating-point convert Operations speculatively executed.",
@@ -588,10 +763,185 @@
         "BriefDescription": "floating-point convert Operations speculatively executed."
     },
     {
+        "EventCode": "0x8039",
+        "EventName": "ASE_FP_CVT_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, Advanced SIMD convert."
+    },
+    {
+        "EventCode": "0x803A",
+        "EventName": "SVE_FP_CVT_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, SVE convert."
+    },
+    {
+        "EventCode": "0x803B",
+        "EventName": "ASE_SVE_FP_CVT_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, Advanced SIMD or SVE convert."
+    },
+    {
+        "EventCode": "0x803C",
+        "EventName": "SVE_FP_AREDUCE_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, SVE accumulating reduction."
+    },
+    {
+        "EventCode": "0x803D",
+        "EventName": "ASE_FP_PREDUCE_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, Advanced SIMD pairwise add step."
+    },
+    {
+        "EventCode": "0x803E",
+        "EventName": "SVE_FP_VREDUCE_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, SVE vector reduction."
+    },
+    {
+        "EventCode": "0x803F",
+        "EventName": "ASE_SVE_FP_VREDUCE_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, Advanced SIMD or SVE vector reduction."
+    },
+    {
+        "EventCode": "0x8040",
+        "EventName": "INT_SPEC",
+        "BriefDescription": "Integer Operation speculatively executed."
+    },
+    {
+        "EventCode": "0x8041",
+        "EventName": "ASE_INT_SPEC",
+        "BriefDescription": "Integer Operation speculatively executed, Advanced SIMD."
+    },
+    {
+        "EventCode": "0x8042",
+        "EventName": "SVE_INT_SPEC",
+        "BriefDescription": "Integer Operation speculatively executed, SVE."
+    },
+    {
         "PublicDescription": "Advanced SIMD and SVE integer Operations speculatively executed.",
         "EventCode": "0x8043",
         "EventName": "ASE_SVE_INT_SPEC",
         "BriefDescription": "Advanced SIMD and SVE integer Operations speculatively executed."
+    },
+    {
+        "EventCode": "0x8044",
+        "EventName": "INT_DIV_SPEC",
+        "BriefDescription": "Integer Operation speculatively executed, divide."
+    },
+    {
+        "EventCode": "0x8045",
+        "EventName": "INT_DIV64_SPEC",
+        "BriefDescription": "Integer Operation speculatively executed, 64-bit divide."
+    },
+    {
+        "EventCode": "0x8046",
+        "EventName": "SVE_INT_DIV_SPEC",
+        "BriefDescription": "Integer Operation speculatively executed, SVE divide."
+    },
+    {
+        "EventCode": "0x8047",
+        "EventName": "SVE_INT_DIV64_SPEC",
+        "BriefDescription": "Integer Operation speculatively executed, SVE 64-bit divide."
+    },
+    {
+        "EventCode": "0x8048",
+        "EventName": "INT_MUL_SPEC",
+        "BriefDescription": "Integer Operation speculatively executed, multiply."
+    },
+    {
+        "EventCode": "0x8049",
+        "EventName": "ASE_INT_MUL_SPEC",
+        "BriefDescription": "Integer Operation speculatively executed, Advanced SIMD multiply."
+    },
+    {
+        "EventCode": "0x804A",
+        "EventName": "SVE_INT_MUL_SPEC",
+        "BriefDescription": "Integer Operation speculatively executed, SVE multiply."
+    },
+    {
+        "EventCode": "0x804B",
+        "EventName": "ASE_SVE_INT_MUL_SPEC",
+        "BriefDescription": "Integer Operation speculatively executed, Advanced SIMD or SVE multiply."
+    },
+    {
+        "EventCode": "0x804C",
+        "EventName": "INT_MUL64_SPEC",
+        "BriefDescription": "Integer Operation speculatively executed, 64\u00d764 multiply."
+    },
+    {
+        "EventCode": "0x804D",
+        "EventName": "SVE_INT_MUL64_SPEC",
+        "BriefDescription": "Integer Operation speculatively executed, SVE 64\u00d764 multiply."
+    },
+    {
+        "EventCode": "0x804E",
+        "EventName": "INT_MULH64_SPEC",
+        "BriefDescription": "Integer Operation speculatively executed, 64\u00d764 multiply returning high part."
+    },
+    {
+        "EventCode": "0x804F",
+        "EventName": "SVE_INT_MULH64_SPEC",
+        "BriefDescription": "Integer Operation speculatively executed, SVE 64\u00d764 multiply high part."
+    },
+    {
+        "EventCode": "0x8058",
+        "EventName": "NONFP_SPEC",
+        "BriefDescription": "Non-floating-point Operation speculatively executed."
+    },
+    {
+        "EventCode": "0x8059",
+        "EventName": "ASE_NONFP_SPEC",
+        "BriefDescription": "Non-floating-point Operation speculatively executed, Advanced SIMD."
+    },
+    {
+        "EventCode": "0x805A",
+        "EventName": "SVE_NONFP_SPEC",
+        "BriefDescription": "Non-floating-point Operation speculatively executed, SVE."
+    },
+    {
+        "EventCode": "0x805B",
+        "EventName": "ASE_SVE_NONFP_SPEC",
+        "BriefDescription": "Non-floating-point Operation speculatively executed, Advanced SIMD or SVE."
+    },
+    {
+        "EventCode": "0x805D",
+        "EventName": "ASE_INT_VREDUCE_SPEC",
+        "BriefDescription": "Integer Operation speculatively executed, Advanced SIMD reduction."
+    },
+    {
+        "EventCode": "0x805E",
+        "EventName": "SVE_INT_VREDUCE_SPEC",
+        "BriefDescription": "Integer Operation speculatively executed, SVE reduction."
+    },
+    {
+        "EventCode": "0x805F",
+        "EventName": "ASE_SVE_INT_VREDUCE_SPEC",
+        "BriefDescription": "Integer Operation speculatively executed, Advanced SIMD or SVE reduction."
+    },
+    {
+        "EventCode": "0x8060",
+        "EventName": "SVE_PERM_SPEC",
+        "BriefDescription": "Operation speculatively executed, SVE permute."
+    },
+    {
+        "EventCode": "0x8065",
+        "EventName": "SVE_XPIPE_Z2R_SPEC",
+        "BriefDescription": "Operation speculatively executed, SVE vector to scalar cross-pipe."
+    },
+    {
+        "EventCode": "0x8066",
+        "EventName": "SVE_XPIPE_R2Z_SPEC",
+        "BriefDescription": "Operation speculatively executed, SVE scalar to vector cross-pipe."
+    },
+    {
+        "EventCode": "0x8068",
+        "EventName": "SVE_PGEN_SPEC",
+        "BriefDescription": "Operation speculatively executed, SVE predicate generating."
+    },
+    {
+        "EventCode": "0x8069",
+        "EventName": "SVE_PGEN_FLG_SPEC",
+        "BriefDescription": "Operation speculatively executed, SVE predicate flag setting."
+    },
+    {
+        "EventCode": "0x806D",
+        "EventName": "SVE_PPERM_SPEC",
+        "BriefDescription": "Operation speculatively executed, SVE predicate permute."
     },
     {
         "PublicDescription": "SVE predicated Operations speculatively executed.",
@@ -628,6 +978,16 @@
         "EventCode": "0x807C",
         "EventName": "SVE_MOVPRFX_SPEC",
         "BriefDescription": "SVE MOVPRFX Operations speculatively executed."
+    },
+    {
+        "EventCode": "0x807D",
+        "EventName": "SVE_MOVPRFX_Z_SPEC",
+        "BriefDescription": "Operation speculatively executed, SVE MOVPRFX zeroing predication."
+    },
+    {
+        "EventCode": "0x807E",
+        "EventName": "SVE_MOVPRFX_M_SPEC",
+        "BriefDescription": "Operation speculatively executed, SVE MOVPRFX merging predication."
     },
     {
         "PublicDescription": "SVE MOVPRFX unfused Operations speculatively executed.",
@@ -694,6 +1054,16 @@
         "EventCode": "0x809F",
         "EventName": "SVE_PRF_CONTIG_SPEC",
         "BriefDescription": "SVE contiguous prefetch element Operations speculatively executed."
+    },
+    {
+        "EventCode": "0x80A1",
+        "EventName": "SVE_LDNT_CONTIG_SPEC",
+        "BriefDescription": "Operation speculatively executed, SVE non-temporal contiguous load element."
+    },
+    {
+        "EventCode": "0x80A2",
+        "EventName": "SVE_STNT_CONTIG_SPEC",
+        "BriefDescription": "Operation speculatively executed, SVE non-temporal contiguous store element."
     },
     {
         "PublicDescription": "Advanced SIMD and SVE contiguous load multiple vector Operations speculatively executed.",
@@ -786,6 +1156,16 @@
         "BriefDescription": "Non-scalable double-precision floating-point element Operations speculatively executed."
     },
     {
+        "EventCode": "0x80C8",
+        "EventName": "INT_SCALE_OPS_SPEC",
+        "BriefDescription": "Scalable integer element arithmetic operations Speculatively executed."
+    },
+    {
+        "EventCode": "0x80C9",
+        "EventName": "INT_FIXED_OPS_SPEC",
+        "BriefDescription": "Non-scalable integer element arithmetic operations Speculatively executed."
+    },
+    {
         "PublicDescription": "Advanced SIMD and SVE 8-bit integer operations speculatively executed",
         "EventCode": "0x80E3",
         "EventName": "ASE_SVE_INT8_SPEC",
@@ -808,5 +1188,340 @@
         "EventCode": "0x80EF",
         "EventName": "ASE_SVE_INT64_SPEC",
         "BriefDescription": "Advanced SIMD and SVE 64-bit integer operations speculatively executed"
+    },
+    {
+        "EventCode": "0x80F3",
+        "EventName": "ASE_SVE_FP_DOT_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, Advanced SIMD or SVE dot-product."
+    },
+    {
+        "EventCode": "0x80F7",
+        "EventName": "ASE_SVE_FP_MMLA_SPEC",
+        "BriefDescription": "Floating-point Operation speculatively executed, Advanced SIMD or SVE matrix multiply."
+    },
+    {
+        "EventCode": "0x80FB",
+        "EventName": "ASE_SVE_INT_DOT_SPEC",
+        "BriefDescription": "Integer Operation speculatively executed, Advanced SIMD or SVE dot-product."
+    },
+    {
+        "EventCode": "0x80FF",
+        "EventName": "ASE_SVE_INT_MMLA_SPEC",
+        "BriefDescription": "Integer Operation speculatively executed, Advanced SIMD or SVE matrix multiply."
+    },
+    {
+        "EventCode": "0x8128",
+        "EventName": "DTLB_WALK_PERCYC",
+        "BriefDescription": "Data translation table walks in progress."
+    },
+    {
+        "EventCode": "0x8129",
+        "EventName": "ITLB_WALK_PERCYC",
+        "BriefDescription": "Instruction translation table walks in progress."
+    },
+    {
+        "EventCode": "0x8136",
+        "EventName": "DTLB_STEP",
+        "BriefDescription": "Data TLB translation table walk, step."
+    },
+    {
+        "EventCode": "0x8137",
+        "EventName": "ITLB_STEP",
+        "BriefDescription": "Instruction TLB translation table walk, step."
+    },
+    {
+        "EventCode": "0x8138",
+        "EventName": "DTLB_WALK_LARGE",
+        "BriefDescription": "Data TLB large page translation table walk."
+    },
+    {
+        "EventCode": "0x8139",
+        "EventName": "ITLB_WALK_LARGE",
+        "BriefDescription": "Instruction TLB large page translation table walk."
+    },
+    {
+        "EventCode": "0x813A",
+        "EventName": "DTLB_WALK_SMALL",
+        "BriefDescription": "Data TLB small page translation table walk."
+    },
+    {
+        "EventCode": "0x813B",
+        "EventName": "ITLB_WALK_SMALL",
+        "BriefDescription": "Instruction TLB small page translation table walk."
+    },
+    {
+        "EventCode": "0x8144",
+        "EventName": "L1D_CACHE_MISS",
+        "BriefDescription": "Level 1 data cache demand access miss."
+    },
+    {
+        "EventCode": "0x8145",
+        "EventName": "L1I_CACHE_HWPRF",
+        "BriefDescription": "Level 1 instruction cache hardware prefetch."
+    },
+    {
+        "EventCode": "0x814C",
+        "EventName": "L2D_CACHE_MISS",
+        "BriefDescription": "Level 2 data cache demand access miss."
+    },
+    {
+        "EventCode": "0x8154",
+        "EventName": "L1D_CACHE_HWPRF",
+        "BriefDescription": "Level 1 data cache hardware prefetch."
+    },
+    {
+        "EventCode": "0x8155",
+        "EventName": "L2D_CACHE_HWPRF",
+        "BriefDescription": "Level 2 data cache hardware prefetch."
+    },
+    {
+        "EventCode": "0x8158",
+        "EventName": "STALL_FRONTEND_MEMBOUND",
+        "BriefDescription": "Frontend stall cycles, memory bound."
+    },
+    {
+        "EventCode": "0x8159",
+        "EventName": "STALL_FRONTEND_L1I",
+        "BriefDescription": "Frontend stall cycles, level 1 instruction cache."
+    },
+    {
+        "EventCode": "0x815A",
+        "EventName": "STALL_FRONTEND_L2I",
+        "BriefDescription": "Frontend stall cycles, level 2 instruction cache."
+    },
+    {
+        "EventCode": "0x815B",
+        "EventName": "STALL_FRONTEND_MEM",
+        "BriefDescription": "Frontend stall cycles, last level PE cache or memory."
+    },
+    {
+        "EventCode": "0x815C",
+        "EventName": "STALL_FRONTEND_TLB",
+        "BriefDescription": "Frontend stall cycles, TLB."
+    },
+    {
+        "EventCode": "0x8160",
+        "EventName": "STALL_FRONTEND_CPUBOUND",
+        "BriefDescription": "Frontend stall cycles, processor bound."
+    },
+    {
+        "EventCode": "0x8161",
+        "EventName": "STALL_FRONTEND_FLOW",
+        "BriefDescription": "Frontend stall cycles, flow control."
+    },
+    {
+        "EventCode": "0x8162",
+        "EventName": "STALL_FRONTEND_FLUSH",
+        "BriefDescription": "Frontend stall cycles, flush recovery."
+    },
+    {
+        "EventCode": "0x8163",
+        "EventName": "STALL_FRONTEND_RENAME",
+        "BriefDescription": "Frontend stall cycles, rename full."
+    },
+    {
+        "EventCode": "0x8164",
+        "EventName": "STALL_BACKEND_MEMBOUND",
+        "BriefDescription": "Backend stall cycles, memory bound."
+    },
+    {
+        "EventCode": "0x8165",
+        "EventName": "STALL_BACKEND_L1D",
+        "BriefDescription": "Backend stall cycles, level 1 data cache."
+    },
+    {
+        "EventCode": "0x8166",
+        "EventName": "STALL_BACKEND_L2D",
+        "BriefDescription": "Backend stall cycles, level 2 data cache."
+    },
+    {
+        "EventCode": "0x8167",
+        "EventName": "STALL_BACKEND_TLB",
+        "BriefDescription": "Backend stall cycles, TLB."
+    },
+    {
+        "EventCode": "0x8168",
+        "EventName": "STALL_BACKEND_ST",
+        "BriefDescription": "Backend stall cycles, store."
+    },
+    {
+        "EventCode": "0x816A",
+        "EventName": "STALL_BACKEND_CPUBOUND",
+        "BriefDescription": "Backend stall cycles, processor bound."
+    },
+    {
+        "EventCode": "0x816B",
+        "EventName": "STALL_BACKEND_BUSY",
+        "BriefDescription": "Backend stall cycles, backend busy."
+    },
+    {
+        "EventCode": "0x816C",
+        "EventName": "STALL_BACKEND_ILOCK",
+        "BriefDescription": "Backend stall cycles, input dependency."
+    },
+    {
+        "EventCode": "0x816D",
+        "EventName": "STALL_BACKEND_RENAME",
+        "BriefDescription": "Backend stall cycles, rename full."
+    },
+    {
+        "EventCode": "0x816E",
+        "EventName": "STALL_BACKEND_ATOMIC",
+        "BriefDescription": "Backend stall cycles, atomic operation."
+    },
+    {
+        "EventCode": "0x816F",
+        "EventName": "STALL_BACKEND_MEMCPYSET",
+        "BriefDescription": "Backend stall cycles, Memory Copy or Set operation."
+    },
+    {
+        "EventCode": "0x8186",
+        "EventName": "UOP_RETIRED",
+        "BriefDescription": "Micro-operation architecturally executed."
+    },
+    {
+        "EventCode": "0x8188",
+        "EventName": "DTLB_WALK_BLOCK",
+        "BriefDescription": "Data TLB block translation table walk."
+    },
+    {
+        "EventCode": "0x8189",
+        "EventName": "ITLB_WALK_BLOCK",
+        "BriefDescription": "Instruction TLB block translation table walk."
+    },
+    {
+        "EventCode": "0x818A",
+        "EventName": "DTLB_WALK_PAGE",
+        "BriefDescription": "Data TLB page translation table walk."
+    },
+    {
+        "EventCode": "0x818B",
+        "EventName": "ITLB_WALK_PAGE",
+        "BriefDescription": "Instruction TLB page translation table walk."
+    },
+    {
+        "EventCode": "0x81B8",
+        "EventName": "L1I_CACHE_REFILL_HWPRF",
+        "BriefDescription": "Level 1 instruction cache refill, hardware prefetch."
+    },
+    {
+        "EventCode": "0x81BC",
+        "EventName": "L1D_CACHE_REFILL_HWPRF",
+        "BriefDescription": "Level 1 data cache refill, hardware prefetch."
+    },
+    {
+        "EventCode": "0x81BD",
+        "EventName": "L2D_CACHE_REFILL_HWPRF",
+        "BriefDescription": "Level 2 data cache refill, hardware prefetch."
+    },
+    {
+        "EventCode": "0x81C0",
+        "EventName": "L1I_CACHE_HIT_RD",
+        "BriefDescription": "Level 1 instruction cache demand fetch hit."
+    },
+    {
+        "EventCode": "0x81C4",
+        "EventName": "L1D_CACHE_HIT_RD",
+        "BriefDescription": "Level 1 data cache demand access hit, read."
+    },
+    {
+        "EventCode": "0x81C5",
+        "EventName": "L2D_CACHE_HIT_RD",
+        "BriefDescription": "Level 2 data cache demand access hit, read."
+    },
+    {
+        "EventCode": "0x81C8",
+        "EventName": "L1D_CACHE_HIT_WR",
+        "BriefDescription": "Level 1 data cache demand access hit, write."
+    },
+    {
+        "EventCode": "0x81C9",
+        "EventName": "L2D_CACHE_HIT_WR",
+        "BriefDescription": "Level 2 data cache demand access hit, write."
+    },
+    {
+        "EventCode": "0x8200",
+        "EventName": "L1I_CACHE_HIT",
+        "BriefDescription": "Level 1 instruction cache hit."
+    },
+    {
+        "EventCode": "0x8204",
+        "EventName": "L1D_CACHE_HIT",
+        "BriefDescription": "Level 1 data cache hit."
+    },
+    {
+        "EventCode": "0x8205",
+        "EventName": "L2D_CACHE_HIT",
+        "BriefDescription": "Level 2 data cache hit."
+    },
+    {
+        "EventCode": "0x8240",
+        "EventName": "L1I_LFB_HIT_RD",
+        "BriefDescription": "Level 1 instruction cache demand fetch line-fill buffer hit."
+    },
+    {
+        "EventCode": "0x8244",
+        "EventName": "L1D_LFB_HIT_RD",
+        "BriefDescription": "Level 1 data cache demand access line-fill buffer hit, read."
+    },
+    {
+        "EventCode": "0x8245",
+        "EventName": "L2D_LFB_HIT_RD",
+        "BriefDescription": "Level 2 data cache demand access line-fill buffer hit, read."
+    },
+    {
+        "EventCode": "0x8248",
+        "EventName": "L1D_LFB_HIT_WR",
+        "BriefDescription": "Level 1 data cache demand access line-fill buffer hit, write."
+    },
+    {
+        "EventCode": "0x8249",
+        "EventName": "L2D_LFB_HIT_WR",
+        "BriefDescription": "Level 2 data cache demand access line-fill buffer hit, write."
+    },
+    {
+        "EventCode": "0x8280",
+        "EventName": "L1I_CACHE_PRF",
+        "BriefDescription": "Level 1 instruction cache, preload or prefetch hit."
+    },
+    {
+        "EventCode": "0x8284",
+        "EventName": "L1D_CACHE_PRF",
+        "BriefDescription": "Level 1 data cache, preload or prefetch hit."
+    },
+    {
+        "EventCode": "0x8285",
+        "EventName": "L2D_CACHE_PRF",
+        "BriefDescription": "Level 2 data cache, preload or prefetch hit."
+    },
+    {
+        "EventCode": "0x8288",
+        "EventName": "L1I_CACHE_REFILL_PRF",
+        "BriefDescription": "Level 1 instruction cache refill, preload or prefetch hit."
+    },
+    {
+        "EventCode": "0x828C",
+        "EventName": "L1D_CACHE_REFILL_PRF",
+        "BriefDescription": "Level 1 data cache refill, preload or prefetch hit."
+    },
+    {
+        "EventCode": "0x828D",
+        "EventName": "L2D_CACHE_REFILL_PRF",
+        "BriefDescription": "Level 2 data cache refill, preload or prefetch hit."
+    },
+    {
+        "EventCode": "0x8320",
+        "EventName": "L1D_CACHE_REFILL_PERCYC",
+        "BriefDescription": "Level 1 data or unified cache refills in progress."
+    },
+    {
+        "EventCode": "0x8321",
+        "EventName": "L2D_CACHE_REFILL_PERCYC",
+        "BriefDescription": "Level 2 data or unified cache refills in progress."
+    },
+    {
+        "EventCode": "0x8324",
+        "EventName": "L1I_CACHE_REFILL_PERCYC",
+        "BriefDescription": "Level 1 instruction or unified cache refills in progress."
     }
 ]
