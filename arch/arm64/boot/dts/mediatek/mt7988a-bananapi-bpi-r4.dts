@@ -9,6 +9,10 @@
 	model = "Banana Pi BPI-R4";
 	chassis-type = "embedded";
 
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
 	reg_1p8v: regulator-1p8v {
 		compatible = "regulator-fixed";
 		regulator-name = "fixed-1.8V";
