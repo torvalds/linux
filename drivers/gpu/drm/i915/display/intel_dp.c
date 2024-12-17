@@ -2157,27 +2157,17 @@ static int dsc_compute_compressed_bpp(struct intel_dp *intel_dp,
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	const struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
-	int dsc_src_min_bpp, dsc_sink_min_bpp, dsc_min_bpp;
-	int dsc_src_max_bpp, dsc_sink_max_bpp, dsc_max_bpp;
+	int dsc_min_bpp;
+	int dsc_max_bpp;
 	int dsc_joiner_max_bpp;
 	int num_joined_pipes = intel_crtc_num_joined_pipes(pipe_config);
 
-	dsc_src_min_bpp = dsc_src_min_compressed_bpp();
-	dsc_sink_min_bpp = intel_dp_dsc_sink_min_compressed_bpp(pipe_config);
-	dsc_min_bpp = max(dsc_src_min_bpp, dsc_sink_min_bpp);
-	dsc_min_bpp = max(dsc_min_bpp, fxp_q4_to_int_roundup(limits->link.min_bpp_x16));
-
-	dsc_src_max_bpp = dsc_src_max_compressed_bpp(intel_dp);
-	dsc_sink_max_bpp = intel_dp_dsc_sink_max_compressed_bpp(connector,
-								pipe_config,
-								pipe_bpp / 3);
-	dsc_max_bpp = dsc_sink_max_bpp ? min(dsc_sink_max_bpp, dsc_src_max_bpp) : dsc_src_max_bpp;
+	dsc_min_bpp = fxp_q4_to_int_roundup(limits->link.min_bpp_x16);
 
 	dsc_joiner_max_bpp = get_max_compressed_bpp_with_joiner(display, adjusted_mode->clock,
 								adjusted_mode->hdisplay,
 								num_joined_pipes);
-	dsc_max_bpp = min(dsc_max_bpp, dsc_joiner_max_bpp);
-	dsc_max_bpp = min(dsc_max_bpp, fxp_q4_to_int(limits->link.max_bpp_x16));
+	dsc_max_bpp = min(dsc_joiner_max_bpp, fxp_q4_to_int(limits->link.max_bpp_x16));
 
 	if (DISPLAY_VER(display) >= 13)
 		return xelpd_dsc_compute_link_config(intel_dp, connector, pipe_config, limits,
@@ -2284,8 +2274,8 @@ static int intel_edp_dsc_compute_pipe_bpp(struct intel_dp *intel_dp,
 	struct intel_connector *connector =
 		to_intel_connector(conn_state->connector);
 	int pipe_bpp, forced_bpp;
-	int dsc_src_min_bpp, dsc_sink_min_bpp, dsc_min_bpp;
-	int dsc_src_max_bpp, dsc_sink_max_bpp, dsc_max_bpp;
+	int dsc_min_bpp;
+	int dsc_max_bpp;
 
 	forced_bpp = intel_dp_force_dsc_pipe_bpp(intel_dp, limits);
 
@@ -2305,17 +2295,9 @@ static int intel_edp_dsc_compute_pipe_bpp(struct intel_dp *intel_dp,
 	pipe_config->port_clock = limits->max_rate;
 	pipe_config->lane_count = limits->max_lane_count;
 
-	dsc_src_min_bpp = dsc_src_min_compressed_bpp();
-	dsc_sink_min_bpp = intel_dp_dsc_sink_min_compressed_bpp(pipe_config);
-	dsc_min_bpp = max(dsc_src_min_bpp, dsc_sink_min_bpp);
-	dsc_min_bpp = max(dsc_min_bpp, fxp_q4_to_int_roundup(limits->link.min_bpp_x16));
+	dsc_min_bpp = fxp_q4_to_int_roundup(limits->link.min_bpp_x16);
 
-	dsc_src_max_bpp = dsc_src_max_compressed_bpp(intel_dp);
-	dsc_sink_max_bpp = intel_dp_dsc_sink_max_compressed_bpp(connector,
-								pipe_config,
-								pipe_bpp / 3);
-	dsc_max_bpp = dsc_sink_max_bpp ? min(dsc_sink_max_bpp, dsc_src_max_bpp) : dsc_src_max_bpp;
-	dsc_max_bpp = min(dsc_max_bpp, fxp_q4_to_int(limits->link.max_bpp_x16));
+	dsc_max_bpp = fxp_q4_to_int(limits->link.max_bpp_x16);
 
 	/* Compressed BPP should be less than the Input DSC bpp */
 	dsc_max_bpp = min(dsc_max_bpp, pipe_bpp - 1);
@@ -2456,6 +2438,7 @@ int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
  */
 static bool
 intel_dp_compute_config_link_bpp_limits(struct intel_dp *intel_dp,
+					const struct intel_connector *connector,
 					const struct intel_crtc_state *crtc_state,
 					bool dsc,
 					struct link_config_limits *limits)
@@ -2478,12 +2461,22 @@ intel_dp_compute_config_link_bpp_limits(struct intel_dp *intel_dp,
 
 		limits->link.min_bpp_x16 = fxp_q4_from_int(limits->pipe.min_bpp);
 	} else {
-		/*
-		 * TODO: set the DSC link limits already here, atm these are
-		 * initialized only later in intel_edp_dsc_compute_pipe_bpp() /
-		 * intel_dp_dsc_compute_pipe_bpp()
-		 */
-		limits->link.min_bpp_x16 = 0;
+		int dsc_src_min_bpp, dsc_sink_min_bpp, dsc_min_bpp;
+		int dsc_src_max_bpp, dsc_sink_max_bpp, dsc_max_bpp;
+
+		dsc_src_min_bpp = dsc_src_min_compressed_bpp();
+		dsc_sink_min_bpp = intel_dp_dsc_sink_min_compressed_bpp(crtc_state);
+		dsc_min_bpp = max(dsc_src_min_bpp, dsc_sink_min_bpp);
+		limits->link.min_bpp_x16 = fxp_q4_from_int(dsc_min_bpp);
+
+		dsc_src_max_bpp = dsc_src_max_compressed_bpp(intel_dp);
+		dsc_sink_max_bpp = intel_dp_dsc_sink_max_compressed_bpp(connector,
+									crtc_state,
+									limits->pipe.max_bpp / 3);
+		dsc_max_bpp = dsc_sink_max_bpp ?
+			      min(dsc_sink_max_bpp, dsc_src_max_bpp) : dsc_src_max_bpp;
+
+		max_link_bpp_x16 = min(max_link_bpp_x16, fxp_q4_from_int(dsc_max_bpp));
 	}
 
 	limits->link.max_bpp_x16 = max_link_bpp_x16;
@@ -2572,6 +2565,7 @@ intel_dp_compute_config_limits(struct intel_dp *intel_dp,
 	intel_dp_test_compute_config(intel_dp, crtc_state, limits);
 
 	return intel_dp_compute_config_link_bpp_limits(intel_dp,
+						       intel_dp->attached_connector,
 						       crtc_state,
 						       dsc,
 						       limits);
