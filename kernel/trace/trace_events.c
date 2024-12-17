@@ -82,7 +82,7 @@ static int system_refcount_dec(struct event_subsystem *system)
 	}
 
 static struct ftrace_event_field *
-__find_event_field(struct list_head *head, char *name)
+__find_event_field(struct list_head *head, const char *name)
 {
 	struct ftrace_event_field *field;
 
@@ -114,7 +114,8 @@ trace_find_event_field(struct trace_event_call *call, char *name)
 
 static int __trace_define_field(struct list_head *head, const char *type,
 				const char *name, int offset, int size,
-				int is_signed, int filter_type, int len)
+				int is_signed, int filter_type, int len,
+				int need_test)
 {
 	struct ftrace_event_field *field;
 
@@ -133,6 +134,7 @@ static int __trace_define_field(struct list_head *head, const char *type,
 	field->offset = offset;
 	field->size = size;
 	field->is_signed = is_signed;
+	field->needs_test = need_test;
 	field->len = len;
 
 	list_add(&field->link, head);
@@ -151,13 +153,13 @@ int trace_define_field(struct trace_event_call *call, const char *type,
 
 	head = trace_get_fields(call);
 	return __trace_define_field(head, type, name, offset, size,
-				    is_signed, filter_type, 0);
+				    is_signed, filter_type, 0, 0);
 }
 EXPORT_SYMBOL_GPL(trace_define_field);
 
 static int trace_define_field_ext(struct trace_event_call *call, const char *type,
 		       const char *name, int offset, int size, int is_signed,
-		       int filter_type, int len)
+		       int filter_type, int len, int need_test)
 {
 	struct list_head *head;
 
@@ -166,13 +168,13 @@ static int trace_define_field_ext(struct trace_event_call *call, const char *typ
 
 	head = trace_get_fields(call);
 	return __trace_define_field(head, type, name, offset, size,
-				    is_signed, filter_type, len);
+				    is_signed, filter_type, len, need_test);
 }
 
 #define __generic_field(type, item, filter_type)			\
 	ret = __trace_define_field(&ftrace_generic_fields, #type,	\
 				   #item, 0, 0, is_signed_type(type),	\
-				   filter_type, 0);			\
+				   filter_type, 0, 0);			\
 	if (ret)							\
 		return ret;
 
@@ -181,7 +183,8 @@ static int trace_define_field_ext(struct trace_event_call *call, const char *typ
 				   "common_" #item,			\
 				   offsetof(typeof(ent), item),		\
 				   sizeof(ent.item),			\
-				   is_signed_type(type), FILTER_OTHER, 0);	\
+				   is_signed_type(type), FILTER_OTHER,	\
+				   0, 0);				\
 	if (ret)							\
 		return ret;
 
@@ -332,6 +335,7 @@ static bool process_pointer(const char *fmt, int len, struct trace_event_call *c
 /* Return true if the string is safe */
 static bool process_string(const char *fmt, int len, struct trace_event_call *call)
 {
+	struct trace_event_fields *field;
 	const char *r, *e, *s;
 
 	e = fmt + len;
@@ -372,8 +376,16 @@ static bool process_string(const char *fmt, int len, struct trace_event_call *ca
 	if (process_pointer(fmt, len, call))
 		return true;
 
-	/* Make sure the field is found, and consider it OK for now if it is */
-	return find_event_field(fmt, call) != NULL;
+	/* Make sure the field is found */
+	field = find_event_field(fmt, call);
+	if (!field)
+		return false;
+
+	/* Test this field's string before printing the event */
+	call->flags |= TRACE_EVENT_FL_TEST_STR;
+	field->needs_test = 1;
+
+	return true;
 }
 
 /*
@@ -2586,7 +2598,7 @@ event_define_fields(struct trace_event_call *call)
 			ret = trace_define_field_ext(call, field->type, field->name,
 						 offset, field->size,
 						 field->is_signed, field->filter_type,
-						 field->len);
+						 field->len, field->needs_test);
 			if (WARN_ON_ONCE(ret)) {
 				pr_err("error code is %d\n", ret);
 				break;
