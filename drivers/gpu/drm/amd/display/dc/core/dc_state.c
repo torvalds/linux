@@ -483,9 +483,9 @@ bool dc_state_add_plane(
 	if (stream_status == NULL) {
 		dm_error("Existing stream not found; failed to attach surface!\n");
 		goto out;
-	} else if (stream_status->plane_count == MAX_SURFACE_NUM) {
+	} else if (stream_status->plane_count == MAX_SURFACES) {
 		dm_error("Surface: can not attach plane_state %p! Maximum is: %d\n",
-				plane_state, MAX_SURFACE_NUM);
+				plane_state, MAX_SURFACES);
 		goto out;
 	} else if (!otg_master_pipe) {
 		goto out;
@@ -600,7 +600,7 @@ bool dc_state_rem_all_planes_for_stream(
 {
 	int i, old_plane_count;
 	struct dc_stream_status *stream_status = NULL;
-	struct dc_plane_state *del_planes[MAX_SURFACE_NUM] = { 0 };
+	struct dc_plane_state *del_planes[MAX_SURFACES] = { 0 };
 
 	for (i = 0; i < state->stream_count; i++)
 		if (state->streams[i] == stream) {
@@ -875,7 +875,7 @@ bool dc_state_rem_all_phantom_planes_for_stream(
 {
 	int i, old_plane_count;
 	struct dc_stream_status *stream_status = NULL;
-	struct dc_plane_state *del_planes[MAX_SURFACE_NUM] = { 0 };
+	struct dc_plane_state *del_planes[MAX_SURFACES] = { 0 };
 
 	for (i = 0; i < state->stream_count; i++)
 		if (state->streams[i] == phantom_stream) {
