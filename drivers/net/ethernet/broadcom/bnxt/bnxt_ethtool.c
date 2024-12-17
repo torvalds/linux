@@ -4899,21 +4899,24 @@ static void bnxt_self_test(struct net_device *dev, struct ethtool_test *etest,
 		bnxt_close_nic(bp, true, false);
 		bnxt_run_fw_tests(bp, test_mask, &test_results);
 
-		buf[BNXT_MACLPBK_TEST_IDX] = 1;
-		bnxt_hwrm_mac_loopback(bp, true);
-		msleep(250);
 		rc = bnxt_half_open_nic(bp);
 		if (rc) {
-			bnxt_hwrm_mac_loopback(bp, false);
 			etest->flags |= ETH_TEST_FL_FAILED;
 			return;
 		}
+		buf[BNXT_MACLPBK_TEST_IDX] = 1;
+		if (bp->mac_flags & BNXT_MAC_FL_NO_MAC_LPBK)
+			goto skip_mac_loopback;
+
+		bnxt_hwrm_mac_loopback(bp, true);
+		msleep(250);
 		if (bnxt_run_loopback(bp))
 			etest->flags |= ETH_TEST_FL_FAILED;
 		else
 			buf[BNXT_MACLPBK_TEST_IDX] = 0;
 
 		bnxt_hwrm_mac_loopback(bp, false);
+skip_mac_loopback:
 		buf[BNXT_PHYLPBK_TEST_IDX] = 1;
 		if (bp->phy_flags & BNXT_PHY_FL_NO_PHY_LPBK)
 			goto skip_phy_loopback;
