@@ -268,8 +268,8 @@ int btrfs_delayed_refs_rsv_refill(struct btrfs_fs_info *fs_info,
 /*
  * compare two delayed data backrefs with same bytenr and type
  */
-static int comp_data_refs(struct btrfs_delayed_ref_node *ref1,
-			  struct btrfs_delayed_ref_node *ref2)
+static int comp_data_refs(const struct btrfs_delayed_ref_node *ref1,
+			  const struct btrfs_delayed_ref_node *ref2)
 {
 	if (ref1->data_ref.objectid < ref2->data_ref.objectid)
 		return -1;
@@ -282,8 +282,8 @@ static int comp_data_refs(struct btrfs_delayed_ref_node *ref1,
 	return 0;
 }
 
-static int comp_refs(struct btrfs_delayed_ref_node *ref1,
-		     struct btrfs_delayed_ref_node *ref2,
+static int comp_refs(const struct btrfs_delayed_ref_node *ref1,
+		     const struct btrfs_delayed_ref_node *ref2,
 		     bool check_seq)
 {
 	int ret = 0;
@@ -317,34 +317,25 @@ static int comp_refs(struct btrfs_delayed_ref_node *ref1,
 	return 0;
 }
 
+static int cmp_refs_node(const struct rb_node *new, const struct rb_node *exist)
+{
+	const struct btrfs_delayed_ref_node *new_node =
+		rb_entry(new, struct btrfs_delayed_ref_node, ref_node);
+	const struct btrfs_delayed_ref_node *exist_node =
+		rb_entry(exist, struct btrfs_delayed_ref_node, ref_node);
+
+	return comp_refs(new_node, exist_node, true);
+}
+
 static struct btrfs_delayed_ref_node* tree_insert(struct rb_root_cached *root,
 		struct btrfs_delayed_ref_node *ins)
 {
-	struct rb_node **p = &root->rb_root.rb_node;
 	struct rb_node *node = &ins->ref_node;
-	struct rb_node *parent_node = NULL;
-	struct btrfs_delayed_ref_node *entry;
-	bool leftmost = true;
+	struct rb_node *exist;
 
-	while (*p) {
-		int comp;
-
-		parent_node = *p;
-		entry = rb_entry(parent_node, struct btrfs_delayed_ref_node,
-				 ref_node);
-		comp = comp_refs(ins, entry, true);
-		if (comp < 0) {
-			p = &(*p)->rb_left;
-		} else if (comp > 0) {
-			p = &(*p)->rb_right;
-			leftmost = false;
-		} else {
-			return entry;
-		}
-	}
-
-	rb_link_node(node, parent_node, p);
-	rb_insert_color_cached(node, root, leftmost);
+	exist = rb_find_add_cached(node, root, cmp_refs_node);
+	if (exist)
+		return rb_entry(exist, struct btrfs_delayed_ref_node, ref_node);
 	return NULL;
 }
 
