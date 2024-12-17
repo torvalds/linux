@@ -33,12 +33,13 @@
 #define MI_TOPOLOGY_FILTER		__MI_INSTR(0xD)
 #define MI_FORCE_WAKEUP			__MI_INSTR(0x1D)
 
-#define MI_STORE_DATA_IMM		__MI_INSTR(0x20)
-#define   MI_SDI_GGTT			REG_BIT(22)
-#define   MI_SDI_LEN_DW			GENMASK(9, 0)
-#define   MI_SDI_NUM_DW(x)		REG_FIELD_PREP(MI_SDI_LEN_DW, (x) + 3 - 2)
-#define   MI_SDI_NUM_QW(x)		(REG_FIELD_PREP(MI_SDI_LEN_DW, 2 * (x) + 3 - 2) | \
-					 REG_BIT(21))
+#define MI_STORE_DATA_IMM			__MI_INSTR(0x20)
+#define   MI_SDI_GGTT				REG_BIT(22)
+#define   MI_FORCE_WRITE_COMPLETION_CHECK	REG_BIT(10)
+#define   MI_SDI_LEN_DW				GENMASK(9, 0)
+#define   MI_SDI_NUM_DW(x)			REG_FIELD_PREP(MI_SDI_LEN_DW, (x) + 3 - 2)
+#define   MI_SDI_NUM_QW(x)			(REG_FIELD_PREP(MI_SDI_LEN_DW, 2 * (x) + 3 - 2) | \
+						 REG_BIT(21))
 
 #define MI_LOAD_REGISTER_IMM		__MI_INSTR(0x22)
 #define   MI_LRI_LRM_CS_MMIO		REG_BIT(19)
