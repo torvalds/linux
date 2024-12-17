@@ -33,7 +33,6 @@
 
 #include <drm/drm_edid.h>
 
-#include "i915_drv.h"
 #include "intel_backlight.h"
 #include "intel_connector.h"
 #include "intel_display_core.h"

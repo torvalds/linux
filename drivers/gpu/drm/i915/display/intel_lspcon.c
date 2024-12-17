@@ -28,13 +28,13 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
 
-#include "i915_drv.h"
 #include "i915_reg.h"
+#include "i915_utils.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
-#include "intel_lspcon.h"
 #include "intel_hdmi.h"
+#include "intel_lspcon.h"
 
 /* LSPCON OUI Vendor ID(signatures) */
 #define LSPCON_VENDOR_PARADE_OUI 0x001CF8
