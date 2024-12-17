@@ -16,6 +16,46 @@
 #include "pmf.h"
 
 #ifdef CONFIG_AMD_PMF_DEBUG
+static const char *platform_type_as_str(u16 platform_type)
+{
+	switch (platform_type) {
+	case CLAMSHELL:
+		return "CLAMSHELL";
+	case FLAT:
+		return "FLAT";
+	case TENT:
+		return "TENT";
+	case STAND:
+		return "STAND";
+	case TABLET:
+		return "TABLET";
+	case BOOK:
+		return "BOOK";
+	case PRESENTATION:
+		return "PRESENTATION";
+	case PULL_FWD:
+		return "PULL_FWD";
+	default:
+		return "UNKNOWN";
+	}
+}
+
+static const char *laptop_placement_as_str(u16 device_state)
+{
+	switch (device_state) {
+	case ON_TABLE:
+		return "ON_TABLE";
+	case ON_LAP_MOTION:
+		return "ON_LAP_MOTION";
+	case IN_BAG:
+		return "IN_BAG";
+	case OUT_OF_BAG:
+		return "OUT_OF_BAG";
+	default:
+		return "UNKNOWN";
+	}
+}
+
 static const char *ta_slider_as_str(unsigned int state)
 {
 	switch (state) {
@@ -47,6 +87,9 @@ void amd_pmf_dump_ta_inputs(struct amd_pmf_dev *dev, struct ta_pmf_enact_table *
 	dev_dbg(dev->dev, "LID State: %s\n", in->ev_info.lid_state ? "close" : "open");
 	dev_dbg(dev->dev, "User Presence: %s\n", in->ev_info.user_present ? "Present" : "Away");
 	dev_dbg(dev->dev, "Ambient Light: %d\n", in->ev_info.ambient_light);
+	dev_dbg(dev->dev, "Platform type: %s\n", platform_type_as_str(in->ev_info.platform_type));
+	dev_dbg(dev->dev, "Laptop placement: %s\n",
+		laptop_placement_as_str(in->ev_info.device_state));
 	dev_dbg(dev->dev, "Custom BIOS input1: %u\n", in->ev_info.bios_input1);
 	dev_dbg(dev->dev, "Custom BIOS input2: %u\n", in->ev_info.bios_input2);
 	dev_dbg(dev->dev, "==== TA inputs END ====\n");
@@ -212,6 +255,14 @@ static void amd_pmf_get_sensor_info(struct amd_pmf_dev *dev, struct ta_pmf_enact
 			in->ev_info.user_present = true;
 	} else {
 		dev_dbg(dev->dev, "HPD is not enabled/detected\n");
+	}
+
+	/* Get SRA (Secondary Accelerometer) data */
+	if (!amd_get_sfh_info(&sfh_info, MT_SRA)) {
+		in->ev_info.platform_type = sfh_info.platform_type;
+		in->ev_info.device_state = sfh_info.laptop_placement;
+	} else {
+		dev_dbg(dev->dev, "SRA is not enabled/detected\n");
 	}
 }
 
