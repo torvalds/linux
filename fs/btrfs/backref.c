@@ -250,6 +250,21 @@ static int prelim_ref_compare(const struct prelim_ref *ref1,
 	return 0;
 }
 
+static int prelim_ref_rb_add_cmp(const struct rb_node *new,
+				 const struct rb_node *exist)
+{
+	const struct prelim_ref *ref_new =
+		rb_entry(new, struct prelim_ref, rbnode);
+	const struct prelim_ref *ref_exist =
+		rb_entry(exist, struct prelim_ref, rbnode);
+
+	/*
+	 * prelim_ref_compare() expects the first parameter as the existing one,
+	 * different from the rb_find_add_cached() order.
+	 */
+	return prelim_ref_compare(ref_exist, ref_new);
+}
+
 static void update_share_count(struct share_check *sc, int oldcount,
 			       int newcount, const struct prelim_ref *newref)
 {
@@ -278,55 +293,39 @@ static void prelim_ref_insert(const struct btrfs_fs_info *fs_info,
 			      struct share_check *sc)
 {
 	struct rb_root_cached *root;
-	struct rb_node **p;
-	struct rb_node *parent = NULL;
-	struct prelim_ref *ref;
-	int result;
-	bool leftmost = true;
+	struct rb_node *exist;
 
 	root = &preftree->root;
-	p = &root->rb_root.rb_node;
+	exist = rb_find_add_cached(&newref->rbnode, root, prelim_ref_rb_add_cmp);
+	if (exist) {
+		struct prelim_ref *ref = rb_entry(exist, struct prelim_ref, rbnode);
+		/* Identical refs, merge them and free @newref */
+		struct extent_inode_elem *eie = ref->inode_list;
 
-	while (*p) {
-		parent = *p;
-		ref = rb_entry(parent, struct prelim_ref, rbnode);
-		result = prelim_ref_compare(ref, newref);
-		if (result < 0) {
-			p = &(*p)->rb_left;
-		} else if (result > 0) {
-			p = &(*p)->rb_right;
-			leftmost = false;
-		} else {
-			/* Identical refs, merge them and free @newref */
-			struct extent_inode_elem *eie = ref->inode_list;
+		while (eie && eie->next)
+			eie = eie->next;
 
-			while (eie && eie->next)
-				eie = eie->next;
-
-			if (!eie)
-				ref->inode_list = newref->inode_list;
-			else
-				eie->next = newref->inode_list;
-			trace_btrfs_prelim_ref_merge(fs_info, ref, newref,
-						     preftree->count);
-			/*
-			 * A delayed ref can have newref->count < 0.
-			 * The ref->count is updated to follow any
-			 * BTRFS_[ADD|DROP]_DELAYED_REF actions.
-			 */
-			update_share_count(sc, ref->count,
-					   ref->count + newref->count, newref);
-			ref->count += newref->count;
-			free_pref(newref);
-			return;
-		}
+		if (!eie)
+			ref->inode_list = newref->inode_list;
+		else
+			eie->next = newref->inode_list;
+		trace_btrfs_prelim_ref_merge(fs_info, ref, newref,
+							preftree->count);
+		/*
+		 * A delayed ref can have newref->count < 0.
+		 * The ref->count is updated to follow any
+		 * BTRFS_[ADD|DROP]_DELAYED_REF actions.
+		 */
+		update_share_count(sc, ref->count,
+					ref->count + newref->count, newref);
+		ref->count += newref->count;
+		free_pref(newref);
+		return;
 	}
 
 	update_share_count(sc, 0, newref->count, newref);
 	preftree->count++;
 	trace_btrfs_prelim_ref_insert(fs_info, newref, NULL, preftree->count);
-	rb_link_node(&newref->rbnode, parent, p);
-	rb_insert_color_cached(&newref->rbnode, root, leftmost);
 }
 
 /*
