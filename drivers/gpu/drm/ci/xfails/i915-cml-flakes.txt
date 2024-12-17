@@ -25,3 +25,10 @@ kms_plane_alpha_blend@constant-alpha-min
 # IGT Version: 1.28-ga73311079
 # Linux Version: 6.11.0-rc2
 kms_async_flips@crc
+
+# Board Name: asus-C436FA-Flip-hatch
+# Bug Report: https://gitlab.freedesktop.org/drm/i915/kernel/-/issues/13347
+# Failure Rate: 100
+# IGT Version: 1.29-g33adea9eb
+# Linux Version: 6.13.0-rc2
+gen9_exec_parse@unaligned-access
