@@ -1947,6 +1947,9 @@ int dc_link_aux_transfer_raw(struct ddc_service *ddc,
 		struct aux_payload *payload,
 		enum aux_return_code_type *operation_result);
 
+struct ddc_service *
+dc_get_oem_i2c_device(struct dc *dc);
+
 bool dc_is_oem_i2c_device_present(
 	struct dc *dc,
 	size_t slave_address
