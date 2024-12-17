@@ -1709,6 +1709,11 @@ static int dcn401_get_power_profile(const struct dc_state *context)
 	return dpm_level;
 }
 
+static unsigned int dcn401_get_vstartup_for_pipe(struct pipe_ctx *pipe_ctx)
+{
+	return pipe_ctx->global_sync.dcn4x.vstartup_lines;
+}
+
 static unsigned int dcn401_calc_num_avail_chans_for_mall(struct dc *dc, unsigned int num_chans)
 {
 	unsigned int num_available_chans = 1;
@@ -1759,6 +1764,7 @@ static struct resource_funcs dcn401_res_pool_funcs = {
 	.build_pipe_pix_clk_params = dcn401_build_pipe_pix_clk_params,
 	.calculate_mall_ways_from_bytes = dcn32_calculate_mall_ways_from_bytes,
 	.get_power_profile = dcn401_get_power_profile,
+	.get_vstartup_for_pipe = dcn401_get_vstartup_for_pipe
 };
 
 static uint32_t read_pipe_fuses(struct dc_context *ctx)

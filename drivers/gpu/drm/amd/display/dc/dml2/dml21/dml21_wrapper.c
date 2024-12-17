@@ -75,7 +75,6 @@ static void dml21_init(const struct dc *in_dc, struct dml2_context **dml_ctx, co
 {
 	switch (in_dc->ctx->dce_version) {
 	case DCN_VERSION_4_01:
-	case DCN_VERSION_3_2:	// TODO : Temporary for N-1 validation. Remove this after N-1 validation phase is complete.
 		(*dml_ctx)->v21.dml_init.options.project_id = dml2_project_dcn4x_stage2_auto_drr_svp;
 		break;
 	default:
@@ -233,13 +232,6 @@ static bool dml21_mode_check_and_programming(const struct dc *in_dc, struct dc_s
 		dml21_calculate_rq_and_dlg_params(in_dc, context, &context->res_ctx, dml_ctx, in_dc->res_pool->pipe_count);
 		dml21_copy_clocks_to_dc_state(dml_ctx, context);
 		dml21_extract_watermark_sets(in_dc, &context->bw_ctx.bw.dcn.watermarks, dml_ctx);
-		if (in_dc->ctx->dce_version == DCN_VERSION_3_2) {
-			dml21_extract_legacy_watermark_set(in_dc, &context->bw_ctx.bw.dcn.watermarks.a, DML2_DCHUB_WATERMARK_SET_A, dml_ctx);
-			dml21_extract_legacy_watermark_set(in_dc, &context->bw_ctx.bw.dcn.watermarks.b, DML2_DCHUB_WATERMARK_SET_A, dml_ctx);
-			dml21_extract_legacy_watermark_set(in_dc, &context->bw_ctx.bw.dcn.watermarks.c, DML2_DCHUB_WATERMARK_SET_A, dml_ctx);
-			dml21_extract_legacy_watermark_set(in_dc, &context->bw_ctx.bw.dcn.watermarks.d, DML2_DCHUB_WATERMARK_SET_A, dml_ctx);
-		}
-
 		dml21_build_fams2_programming(in_dc, context, dml_ctx);
 	}
 

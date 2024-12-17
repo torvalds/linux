@@ -302,7 +302,6 @@ void optc1_program_timing(
 	/* Enable stereo - only when we need to pack 3D frame. Other types
 	 * of stereo handled in explicit call
 	 */
-
 	if (optc->funcs->is_two_pixels_per_container(&patched_crtc_timing) || optc1->opp_count == 2)
 		h_div = H_TIMING_DIV_BY2;
 

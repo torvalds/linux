@@ -42,6 +42,7 @@
 #include "cursor_reg_cache.h"
 
 #include "dml2/dml21/inc/dml_top_dchub_registers.h"
+#include "dml2/dml21/inc/dml_top_types.h"
 
 #define OPP_ID_INVALID 0xf
 #define MAX_TTU 0xffffff
@@ -144,10 +145,20 @@ struct hubp_funcs {
 			struct _vcs_dpi_display_rq_regs_st *rq_regs,
 			struct _vcs_dpi_display_pipe_dest_params_st *pipe_dest);
 
+	void (*hubp_setup2)(
+		struct hubp *hubp,
+		struct dml2_dchub_per_pipe_register_set *pipe_regs,
+		union dml2_global_sync_programming *pipe_global_sync,
+		struct dc_crtc_timing *timing);
+
 	void (*hubp_setup_interdependent)(
 			struct hubp *hubp,
 			struct _vcs_dpi_display_dlg_regs_st *dlg_regs,
 			struct _vcs_dpi_display_ttu_regs_st *ttu_regs);
+
+	void (*hubp_setup_interdependent2)(
+		struct hubp *hubp,
+		struct dml2_dchub_per_pipe_register_set *pipe_regs);
 
 	void (*dcc_control)(struct hubp *hubp, bool enable,
 			enum hubp_ind_block_size blk_size);

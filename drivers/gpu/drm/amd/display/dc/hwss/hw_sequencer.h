@@ -457,6 +457,18 @@ struct hw_sequencer_funcs {
 			struct dc_state *context);
 	void (*setup_hpo_hw_control)(const struct dce_hwseq *hws, bool enable);
 	void (*wait_for_all_pending_updates)(const struct pipe_ctx *pipe_ctx);
+	void (*detect_pipe_changes)(struct dc_state *old_state,
+			struct dc_state *new_state,
+			struct pipe_ctx *old_pipe,
+			struct pipe_ctx *new_pipe);
+	void (*enable_plane)(struct dc *dc,
+			struct pipe_ctx *pipe_ctx,
+			struct dc_state *context);
+	void (*update_dchubp_dpp)(struct dc *dc,
+			struct pipe_ctx *pipe_ctx,
+			struct dc_state *context);
+	void (*post_unlock_reset_opp)(struct dc *dc,
+			struct pipe_ctx *opp_head);
 };
 
 void color_space_to_black_color(

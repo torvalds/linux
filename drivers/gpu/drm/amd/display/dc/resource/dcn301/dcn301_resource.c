@@ -1400,7 +1400,8 @@ static struct resource_funcs dcn301_res_pool_funcs = {
 	.acquire_post_bldn_3dlut = dcn30_acquire_post_bldn_3dlut,
 	.release_post_bldn_3dlut = dcn30_release_post_bldn_3dlut,
 	.update_bw_bounding_box = dcn301_update_bw_bounding_box,
-	.patch_unknown_plane_state = dcn20_patch_unknown_plane_state
+	.patch_unknown_plane_state = dcn20_patch_unknown_plane_state,
+	.get_vstartup_for_pipe = dcn10_get_vstartup_for_pipe
 };
 
 static bool dcn301_resource_construct(

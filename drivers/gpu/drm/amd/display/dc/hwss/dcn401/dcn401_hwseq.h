@@ -96,5 +96,12 @@ void dcn401_reset_hw_ctx_wrap(
 		struct dc *dc,
 		struct dc_state *context);
 void dcn401_perform_3dlut_wa_unlock(struct pipe_ctx *pipe_ctx);
-
+void dcn401_program_front_end_for_ctx(struct dc *dc, struct dc_state *context);
+void dcn401_post_unlock_program_front_end(struct dc *dc, struct dc_state *context);
+bool dcn401_update_bandwidth(struct dc *dc, struct dc_state *context);
+void dcn401_detect_pipe_changes(
+	struct dc_state *old_state,
+	struct dc_state *new_state,
+	struct pipe_ctx *old_pipe,
+	struct pipe_ctx *new_pipe);
 #endif /* __DC_HWSS_DCN401_H__ */
