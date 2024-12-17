@@ -324,6 +324,10 @@ static bool kvm_hyp_handle_timer(struct kvm_vcpu *vcpu, u64 *exit_code)
 			val = __vcpu_sys_reg(vcpu, CNTP_CVAL_EL0);
 		}
 		break;
+	case SYS_CNTPCT_EL0:
+	case SYS_CNTPCTSS_EL0:
+		val = compute_counter_value(vcpu_hptimer(vcpu));
+		break;
 	case SYS_CNTV_CTL_EL02:
 		val = compute_emulated_cntx_ctl_el0(vcpu, CNTV_CTL_EL0);
 		break;
@@ -341,6 +345,10 @@ static bool kvm_hyp_handle_timer(struct kvm_vcpu *vcpu, u64 *exit_code)
 			val = read_sysreg_el0(SYS_CNTV_CVAL);
 		else
 			val = __vcpu_sys_reg(vcpu, CNTV_CVAL_EL0);
+		break;
+	case SYS_CNTVCT_EL0:
+	case SYS_CNTVCTSS_EL0:
+		val = compute_counter_value(vcpu_hvtimer(vcpu));
 		break;
 	default:
 		return false;
