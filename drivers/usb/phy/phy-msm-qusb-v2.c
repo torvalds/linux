@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -1327,10 +1327,6 @@ static int qusb_phy_probe(struct platform_device *pdev)
 	qphy->phy.notify_disconnect     = qusb_phy_notify_disconnect;
 	qphy->phy.charger_detect	= usb_phy_drive_dp_pulse;
 
-	ret = usb_add_phy_dev(&qphy->phy);
-	if (ret)
-		return ret;
-
 	ret = qusb_phy_regulator_init(qphy);
 	if (ret)
 		usb_remove_phy(&qphy->phy);
@@ -1345,6 +1341,9 @@ static int qusb_phy_probe(struct platform_device *pdev)
 	 */
 	if (qphy->eud_enable_reg && readl_relaxed(qphy->eud_enable_reg))
 		qusb_phy_enable_power(qphy);
+
+	/* Placed at the end to ensure the probe is complete */
+	ret = usb_add_phy_dev(&qphy->phy);
 
 	return ret;
 }
