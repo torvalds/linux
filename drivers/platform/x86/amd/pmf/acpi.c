@@ -339,11 +339,11 @@ static void apmf_event_handler(acpi_handle handle, u32 event, void *data)
 	struct apmf_sbios_req req;
 	int ret;
 
-	mutex_lock(&pmf_dev->update_mutex);
+	guard(mutex)(&pmf_dev->update_mutex);
 	ret = apmf_get_sbios_requests(pmf_dev, &req);
 	if (ret) {
 		dev_err(pmf_dev->dev, "Failed to get SBIOS requests:%d\n", ret);
-		goto out;
+		return;
 	}
 
 	if (req.pending_req & BIT(APMF_AMT_NOTIFICATION)) {
@@ -365,8 +365,6 @@ static void apmf_event_handler(acpi_handle handle, u32 event, void *data)
 		if (pmf_dev->amt_enabled)
 			amd_pmf_update_2_cql(pmf_dev, req.cql_event);
 	}
-out:
-	mutex_unlock(&pmf_dev->update_mutex);
 }
 
 static int apmf_if_verify_interface(struct amd_pmf_dev *pdev)
