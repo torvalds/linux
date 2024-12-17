@@ -428,15 +428,8 @@ static int mst_stream_dsc_compute_link_config(struct intel_dp *intel_dp,
 
 	crtc_state->pipe_bpp = max_bpp;
 
-	max_compressed_bpp = intel_dp_dsc_sink_max_compressed_bpp(connector,
-								  crtc_state,
-								  max_bpp / 3);
-	max_compressed_bpp = min(max_compressed_bpp,
-				 fxp_q4_to_int(limits->link.max_bpp_x16));
-
-	min_compressed_bpp = intel_dp_dsc_sink_min_compressed_bpp(crtc_state);
-	min_compressed_bpp = max(min_compressed_bpp,
-				 fxp_q4_to_int_roundup(limits->link.min_bpp_x16));
+	max_compressed_bpp = fxp_q4_to_int(limits->link.max_bpp_x16);
+	min_compressed_bpp = fxp_q4_to_int_roundup(limits->link.min_bpp_x16);
 
 	drm_dbg_kms(display->drm, "DSC Sink supported compressed min bpp %d compressed max bpp %d\n",
 		    min_compressed_bpp, max_compressed_bpp);
