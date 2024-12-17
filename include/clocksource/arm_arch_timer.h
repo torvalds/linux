@@ -26,6 +26,8 @@
 #define CNTHCTL_EL1TVCT			(1 << 14)
 #define CNTHCTL_EL1NVPCT		(1 << 15)
 #define CNTHCTL_EL1NVVCT		(1 << 16)
+#define CNTHCTL_CNTVMASK		(1 << 18)
+#define CNTHCTL_CNTPMASK		(1 << 19)
 
 enum arch_timer_reg {
 	ARCH_TIMER_REG_CTRL,

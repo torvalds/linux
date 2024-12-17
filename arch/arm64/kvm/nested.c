@@ -1271,6 +1271,21 @@ int kvm_init_nv_sysregs(struct kvm *kvm)
 		res0 |= MDCR_EL2_EnSTEPOP;
 	set_sysreg_masks(kvm, MDCR_EL2, res0, res1);
 
+	/* CNTHCTL_EL2 */
+	res0 = GENMASK(63, 20);
+	res1 = 0;
+	if (!kvm_has_feat(kvm, ID_AA64PFR0_EL1, RME, IMP))
+		res0 |= CNTHCTL_CNTPMASK | CNTHCTL_CNTVMASK;
+	if (!kvm_has_feat(kvm, ID_AA64MMFR0_EL1, ECV, CNTPOFF)) {
+		res0 |= CNTHCTL_ECV;
+		if (!kvm_has_feat(kvm, ID_AA64MMFR0_EL1, ECV, IMP))
+			res0 |= (CNTHCTL_EL1TVT | CNTHCTL_EL1TVCT |
+				 CNTHCTL_EL1NVPCT | CNTHCTL_EL1NVVCT);
+	}
+	if (!kvm_has_feat(kvm, ID_AA64MMFR1_EL1, VH, IMP))
+		res0 |= GENMASK(11, 8);
+	set_sysreg_masks(kvm, CNTHCTL_EL2, res0, res1);
+
 	return 0;
 }
 
