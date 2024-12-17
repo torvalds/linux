@@ -9098,6 +9098,10 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 		if (r == X86EMUL_RETRY_INSTR || r == X86EMUL_PROPAGATE_FAULT)
 			return 1;
 
+		if (kvm_unprotect_and_retry_on_failure(vcpu, cr2_or_gpa,
+						       emulation_type))
+			return 1;
+
 		if (r == X86EMUL_UNHANDLEABLE_VECTORING) {
 			kvm_prepare_event_vectoring_exit(vcpu, cr2_or_gpa);
 			return 0;
