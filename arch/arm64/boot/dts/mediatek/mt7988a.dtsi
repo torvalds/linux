@@ -373,7 +373,7 @@
 			status = "disabled";
 		};
 
-		pcie@11280000 {
+		pcie2: pcie@11280000 {
 			compatible = "mediatek,mt7986-pcie",
 				     "mediatek,mt8192-pcie";
 			device_type = "pci";
@@ -411,7 +411,7 @@
 			};
 		};
 
-		pcie@11290000 {
+		pcie3: pcie@11290000 {
 			compatible = "mediatek,mt7986-pcie",
 				     "mediatek,mt8192-pcie";
 			device_type = "pci";
@@ -449,7 +449,7 @@
 			};
 		};
 
-		pcie@11300000 {
+		pcie0: pcie@11300000 {
 			compatible = "mediatek,mt7986-pcie",
 				     "mediatek,mt8192-pcie";
 			device_type = "pci";
@@ -487,7 +487,7 @@
 			};
 		};
 
-		pcie@11310000 {
+		pcie1: pcie@11310000 {
 			compatible = "mediatek,mt7986-pcie",
 				     "mediatek,mt8192-pcie";
 			device_type = "pci";
