@@ -42,7 +42,6 @@ struct amdgpu_bo_va;
 struct amdgpu_job;
 struct amdgpu_bo_list_entry;
 struct amdgpu_bo_vm;
-struct amdgpu_mem_stats;
 
 /*
  * GPUVM handling
@@ -304,8 +303,8 @@ struct amdgpu_vm_update_params {
 
 struct amdgpu_vm_update_funcs {
 	int (*map_table)(struct amdgpu_bo_vm *bo);
-	int (*prepare)(struct amdgpu_vm_update_params *p, struct dma_resv *resv,
-		       enum amdgpu_sync_mode sync_mode);
+	int (*prepare)(struct amdgpu_vm_update_params *p,
+		       struct amdgpu_sync *sync);
 	int (*update)(struct amdgpu_vm_update_params *p,
 		      struct amdgpu_bo_vm *bo, uint64_t pe, uint64_t addr,
 		      unsigned count, uint32_t incr, uint64_t flags);
@@ -320,6 +319,16 @@ struct amdgpu_vm_fault_info {
 	uint32_t	status;
 	/* which vmhub? gfxhub, mmhub, etc. */
 	unsigned int	vmhub;
+};
+
+struct amdgpu_mem_stats {
+	struct drm_memory_stats drm;
+
+	/* buffers that requested this placement */
+	uint64_t requested;
+	/* buffers that requested this placement
+	 * but are currently evicted */
+	uint64_t evicted;
 };
 
 struct amdgpu_vm {
@@ -505,9 +514,10 @@ int amdgpu_vm_flush_compute_tlb(struct amdgpu_device *adev,
 void amdgpu_vm_bo_base_init(struct amdgpu_vm_bo_base *base,
 			    struct amdgpu_vm *vm, struct amdgpu_bo *bo);
 int amdgpu_vm_update_range(struct amdgpu_device *adev, struct amdgpu_vm *vm,
-			   bool immediate, bool unlocked, bool flush_tlb, bool allow_override,
-			   struct dma_resv *resv, uint64_t start, uint64_t last,
-			   uint64_t flags, uint64_t offset, uint64_t vram_base,
+			   bool immediate, bool unlocked, bool flush_tlb,
+			   bool allow_override, struct amdgpu_sync *sync,
+			   uint64_t start, uint64_t last, uint64_t flags,
+			   uint64_t offset, uint64_t vram_base,
 			   struct ttm_resource *res, dma_addr_t *pages_addr,
 			   struct dma_fence **fence);
 int amdgpu_vm_bo_update(struct amdgpu_device *adev,
@@ -558,7 +568,7 @@ amdgpu_vm_get_task_info_vm(struct amdgpu_vm *vm);
 void amdgpu_vm_put_task_info(struct amdgpu_task_info *task_info);
 
 bool amdgpu_vm_handle_fault(struct amdgpu_device *adev, u32 pasid,
-			    u32 vmid, u32 node_id, uint64_t addr,
+			    u32 vmid, u32 node_id, uint64_t addr, uint64_t ts,
 			    bool write_fault);
 
 void amdgpu_vm_set_task_info(struct amdgpu_vm *vm);
@@ -566,7 +576,8 @@ void amdgpu_vm_set_task_info(struct amdgpu_vm *vm);
 void amdgpu_vm_move_to_lru_tail(struct amdgpu_device *adev,
 				struct amdgpu_vm *vm);
 void amdgpu_vm_get_memory(struct amdgpu_vm *vm,
-			  struct amdgpu_mem_stats *stats);
+			  struct amdgpu_mem_stats *stats,
+			  unsigned int size);
 
 int amdgpu_vm_pt_clear(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		       struct amdgpu_bo_vm *vmbo, bool immediate);

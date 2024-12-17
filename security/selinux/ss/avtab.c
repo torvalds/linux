@@ -604,9 +604,6 @@ int avtab_write(struct policydb *p, struct avtab *a, void *fp)
 
 void __init avtab_cache_init(void)
 {
-	avtab_node_cachep = kmem_cache_create(
-		"avtab_node", sizeof(struct avtab_node), 0, SLAB_PANIC, NULL);
-	avtab_xperms_cachep = kmem_cache_create(
-		"avtab_extended_perms", sizeof(struct avtab_extended_perms), 0,
-		SLAB_PANIC, NULL);
+	avtab_node_cachep = KMEM_CACHE(avtab_node, SLAB_PANIC);
+	avtab_xperms_cachep = KMEM_CACHE(avtab_extended_perms, SLAB_PANIC);
 }

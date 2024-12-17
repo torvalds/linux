@@ -144,6 +144,118 @@ __naked void ldsx_s32_range(void)
 	: __clobber_all);
 }
 
+SEC("xdp")
+__description("LDSX, xdp s32 xdp_md->data")
+__failure __msg("invalid bpf_context access")
+__naked void ldsx_ctx_1(void)
+{
+	asm volatile (
+	"r2 = *(s32 *)(r1 + %[xdp_md_data]);"
+	"r0 = 0;"
+	"exit;"
+	:
+	: __imm_const(xdp_md_data, offsetof(struct xdp_md, data))
+	: __clobber_all);
+}
+
+SEC("xdp")
+__description("LDSX, xdp s32 xdp_md->data_end")
+__failure __msg("invalid bpf_context access")
+__naked void ldsx_ctx_2(void)
+{
+	asm volatile (
+	"r2 = *(s32 *)(r1 + %[xdp_md_data_end]);"
+	"r0 = 0;"
+	"exit;"
+	:
+	: __imm_const(xdp_md_data_end, offsetof(struct xdp_md, data_end))
+	: __clobber_all);
+}
+
+SEC("xdp")
+__description("LDSX, xdp s32 xdp_md->data_meta")
+__failure __msg("invalid bpf_context access")
+__naked void ldsx_ctx_3(void)
+{
+	asm volatile (
+	"r2 = *(s32 *)(r1 + %[xdp_md_data_meta]);"
+	"r0 = 0;"
+	"exit;"
+	:
+	: __imm_const(xdp_md_data_meta, offsetof(struct xdp_md, data_meta))
+	: __clobber_all);
+}
+
+SEC("tcx/ingress")
+__description("LDSX, tcx s32 __sk_buff->data")
+__failure __msg("invalid bpf_context access")
+__naked void ldsx_ctx_4(void)
+{
+	asm volatile (
+	"r2 = *(s32 *)(r1 + %[sk_buff_data]);"
+	"r0 = 0;"
+	"exit;"
+	:
+	: __imm_const(sk_buff_data, offsetof(struct __sk_buff, data))
+	: __clobber_all);
+}
+
+SEC("tcx/ingress")
+__description("LDSX, tcx s32 __sk_buff->data_end")
+__failure __msg("invalid bpf_context access")
+__naked void ldsx_ctx_5(void)
+{
+	asm volatile (
+	"r2 = *(s32 *)(r1 + %[sk_buff_data_end]);"
+	"r0 = 0;"
+	"exit;"
+	:
+	: __imm_const(sk_buff_data_end, offsetof(struct __sk_buff, data_end))
+	: __clobber_all);
+}
+
+SEC("tcx/ingress")
+__description("LDSX, tcx s32 __sk_buff->data_meta")
+__failure __msg("invalid bpf_context access")
+__naked void ldsx_ctx_6(void)
+{
+	asm volatile (
+	"r2 = *(s32 *)(r1 + %[sk_buff_data_meta]);"
+	"r0 = 0;"
+	"exit;"
+	:
+	: __imm_const(sk_buff_data_meta, offsetof(struct __sk_buff, data_meta))
+	: __clobber_all);
+}
+
+SEC("flow_dissector")
+__description("LDSX, flow_dissector s32 __sk_buff->data")
+__failure __msg("invalid bpf_context access")
+__naked void ldsx_ctx_7(void)
+{
+	asm volatile (
+	"r2 = *(s32 *)(r1 + %[sk_buff_data]);"
+	"r0 = 0;"
+	"exit;"
+	:
+	: __imm_const(sk_buff_data, offsetof(struct __sk_buff, data))
+	: __clobber_all);
+}
+
+SEC("flow_dissector")
+__description("LDSX, flow_dissector s32 __sk_buff->data_end")
+__failure __msg("invalid bpf_context access")
+__naked void ldsx_ctx_8(void)
+{
+	asm volatile (
+	"r2 = *(s32 *)(r1 + %[sk_buff_data_end]);"
+	"r0 = 0;"
+	"exit;"
+	:
+	: __imm_const(sk_buff_data_end, offsetof(struct __sk_buff, data_end))
+	: __clobber_all);
+}
+
 #else
 
 SEC("socket")

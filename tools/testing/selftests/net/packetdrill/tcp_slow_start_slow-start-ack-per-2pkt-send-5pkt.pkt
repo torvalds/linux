@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: GPL-2.0
+// Test of slow start when an outstanding flight of packets is
+// less than the current cwnd, and not big enough to bump up cwnd.
+//
+// In this variant, the receiver ACKs every other packet,
+// approximating standard delayed ACKs.
+
+// Set up config.
+`./defaults.sh`
+
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+   +0 < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 7>
+   +0 > S. 0:0(0) ack 1 <mss 1460,nop,nop,sackOK,nop,wscale 8>
+   +0 < . 1:1(0) ack 1 win 257
+   +0 accept(3, ..., ...) = 4
+
+// Only send 5 packets.
+   +0 write(4, ..., 5000) = 5000
+   +0 > P. 1:5001(5000) ack 1
+   +0 %{ assert tcpi_snd_cwnd == 10, tcpi_snd_cwnd }%
+
+   +0 < . 1:1(0) ack 2001 win 257
+   +0 %{ assert tcpi_snd_cwnd == 10, 'cwnd=%d' % tcpi_snd_cwnd }%
+
+   +0 < . 1:1(0) ack 4001 win 257
+   +0 %{ assert tcpi_snd_cwnd == 10, 'cwnd=%d' % tcpi_snd_cwnd }%
+
+   +0 < . 1:1(0) ack 5001 win 257
+   +0 %{ assert tcpi_snd_cwnd == 10, 'cwnd=%d' % tcpi_snd_cwnd }%

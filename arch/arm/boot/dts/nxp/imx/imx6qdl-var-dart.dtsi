@@ -194,7 +194,7 @@
 };
 
 &iomuxc {
-	pinctrl_audmux: audmux {
+	pinctrl_audmux: audmuxgrp {
 		fsl,pins = <
 			MX6QDL_PAD_CSI0_DAT7__AUD3_RXD		0x130b0
 			MX6QDL_PAD_CSI0_DAT4__AUD3_TXC		0x130b0
@@ -205,7 +205,7 @@
 		>;
 	};
 
-	pinctrl_bt: bt {
+	pinctrl_bt: btgrp {
 		fsl,pins = <
 			/* Bluetooth enable */
 			MX6QDL_PAD_SD3_DAT6__GPIO6_IO18		0x1b0b1
@@ -346,7 +346,7 @@
 		>;
 	};
 
-	pinctrl_usdhc1_100mhz: usdhc1grp100mhz {
+	pinctrl_usdhc1_100mhz: usdhc1-100mhz-grp {
 		fsl,pins = <
 			MX6QDL_PAD_SD1_CMD__SD1_CMD	0x170B9
 			MX6QDL_PAD_SD1_CLK__SD1_CLK	0x100B9
@@ -357,7 +357,7 @@
 		>;
 	};
 
-	pinctrl_usdhc1_200mhz: usdhc1grp200mhz {
+	pinctrl_usdhc1_200mhz: usdhc1-200mhz-grp {
 		fsl,pins = <
 			MX6QDL_PAD_SD1_CMD__SD1_CMD	0x170F9
 			MX6QDL_PAD_SD1_CLK__SD1_CLK	0x100F9

@@ -216,6 +216,8 @@ struct cmdq_initialize_fw {
 	__le16	flags;
 	#define CMDQ_INITIALIZE_FW_FLAGS_MRAV_RESERVATION_SPLIT          0x1UL
 	#define CMDQ_INITIALIZE_FW_FLAGS_HW_REQUESTER_RETX_SUPPORTED     0x2UL
+	#define CMDQ_INITIALIZE_FW_FLAGS_OPTIMIZE_MODIFY_QP_SUPPORTED    0x8UL
+	#define CMDQ_INITIALIZE_FW_FLAGS_L2_VF_RESOURCE_MGMT		 0x10UL
 	__le16	cookie;
 	u8	resp_size;
 	u8	reserved8;
@@ -409,7 +411,7 @@ struct creq_deinitialize_fw_resp {
 	u8	reserved48[6];
 };
 
-/* cmdq_create_qp (size:768b/96B) */
+/* cmdq_create_qp (size:832b/104B) */
 struct cmdq_create_qp {
 	u8	opcode;
 	#define CMDQ_CREATE_QP_OPCODE_CREATE_QP 0x1UL
@@ -430,8 +432,11 @@ struct cmdq_create_qp {
 	#define CMDQ_CREATE_QP_QP_FLAGS_OPTIMIZED_TRANSMIT_ENABLED 0x20UL
 	#define CMDQ_CREATE_QP_QP_FLAGS_RESPONDER_UD_CQE_WITH_CFA  0x40UL
 	#define CMDQ_CREATE_QP_QP_FLAGS_EXT_STATS_ENABLED          0x80UL
+	#define CMDQ_CREATE_QP_QP_FLAGS_EXPRESS_MODE_ENABLED       0x100UL
+	#define CMDQ_CREATE_QP_QP_FLAGS_STEERING_TAG_VALID         0x200UL
+	#define CMDQ_CREATE_QP_QP_FLAGS_RDMA_READ_OR_ATOMICS_USED  0x400UL
 	#define CMDQ_CREATE_QP_QP_FLAGS_LAST                      \
-		CMDQ_CREATE_QP_QP_FLAGS_EXT_STATS_ENABLED
+		CMDQ_CREATE_QP_QP_FLAGS_RDMA_READ_OR_ATOMICS_USED
 	u8	type;
 	#define CMDQ_CREATE_QP_TYPE_RC            0x2UL
 	#define CMDQ_CREATE_QP_TYPE_UD            0x4UL
@@ -492,6 +497,9 @@ struct cmdq_create_qp {
 	__le64	rq_pbl;
 	__le64	irrq_addr;
 	__le64	orrq_addr;
+	__le32	request_xid;
+	__le16	steering_tag;
+	__le16	reserved16;
 };
 
 /* creq_create_qp_resp (size:128b/16B) */
@@ -553,6 +561,7 @@ struct cmdq_modify_qp {
 	#define CMDQ_MODIFY_QP_OPCODE_LAST     CMDQ_MODIFY_QP_OPCODE_MODIFY_QP
 	u8	cmd_size;
 	__le16	flags;
+	 #define CMDQ_MODIFY_QP_FLAGS_SRQ_USED       0x1UL
 	__le16	cookie;
 	u8	resp_size;
 	u8	qp_type;
@@ -972,13 +981,14 @@ struct creq_query_qp_extend_resp_sb_tlv {
 	__le16	reserved_16;
 };
 
-/* cmdq_create_srq (size:384b/48B) */
+/* cmdq_create_srq (size:448b/56B) */
 struct cmdq_create_srq {
 	u8	opcode;
 	#define CMDQ_CREATE_SRQ_OPCODE_CREATE_SRQ 0x5UL
 	#define CMDQ_CREATE_SRQ_OPCODE_LAST      CMDQ_CREATE_SRQ_OPCODE_CREATE_SRQ
 	u8	cmd_size;
 	__le16	flags;
+	#define CMDQ_CREATE_SRQ_FLAGS_STEERING_TAG_VALID	0x1UL
 	__le16	cookie;
 	u8	resp_size;
 	u8	reserved8;
@@ -1012,6 +1022,8 @@ struct cmdq_create_srq {
 	__le32	dpi;
 	__le32	pd_id;
 	__le64	pbl;
+	__le16	steering_tag;
+	u8	reserved48[6];
 };
 
 /* creq_create_srq_resp (size:128b/16B) */
@@ -1118,7 +1130,7 @@ struct creq_query_srq_resp_sb {
 	__le32	data[4];
 };
 
-/* cmdq_create_cq (size:384b/48B) */
+/* cmdq_create_cq (size:448b/56B) */
 struct cmdq_create_cq {
 	u8	opcode;
 	#define CMDQ_CREATE_CQ_OPCODE_CREATE_CQ 0x9UL
@@ -1126,6 +1138,9 @@ struct cmdq_create_cq {
 	u8	cmd_size;
 	__le16	flags;
 	#define CMDQ_CREATE_CQ_FLAGS_DISABLE_CQ_OVERFLOW_DETECTION     0x1UL
+	#define CMDQ_CREATE_CQ_FLAGS_STEERING_TAG_VALID                0x2UL
+	#define CMDQ_CREATE_CQ_FLAGS_INFINITE_CQ_MODE                  0x4UL
+	#define CMDQ_CREATE_CQ_FLAGS_COALESCING_VALID                  0x8UL
 	__le16	cookie;
 	u8	resp_size;
 	u8	reserved8;
@@ -1157,6 +1172,19 @@ struct cmdq_create_cq {
 	__le32	dpi;
 	__le32	cq_size;
 	__le64	pbl;
+	__le16	steering_tag;
+	u8	reserved48[2];
+	__le32  coalescing;
+	#define CMDQ_CREATE_CQ_BUF_MAXTIME_MASK          0x1ffUL
+	#define CMDQ_CREATE_CQ_BUF_MAXTIME_SFT           0
+	#define CMDQ_CREATE_CQ_NORMAL_MAXBUF_MASK        0x3e00UL
+	#define CMDQ_CREATE_CQ_NORMAL_MAXBUF_SFT         9
+	#define CMDQ_CREATE_CQ_DURING_MAXBUF_MASK        0x7c000UL
+	#define CMDQ_CREATE_CQ_DURING_MAXBUF_SFT         14
+	#define CMDQ_CREATE_CQ_ENABLE_RING_IDLE_MODE     0x80000UL
+	#define CMDQ_CREATE_CQ_UNUSED12_MASK             0xfff00000UL
+	#define CMDQ_CREATE_CQ_UNUSED12_SFT              20
+	__le64  reserved64;
 };
 
 /* creq_create_cq_resp (size:128b/16B) */
@@ -1288,11 +1316,12 @@ struct cmdq_allocate_mrw {
 	#define CMDQ_ALLOCATE_MRW_MRW_FLAGS_MW_TYPE2A  0x3UL
 	#define CMDQ_ALLOCATE_MRW_MRW_FLAGS_MW_TYPE2B  0x4UL
 	#define CMDQ_ALLOCATE_MRW_MRW_FLAGS_LAST      CMDQ_ALLOCATE_MRW_MRW_FLAGS_MW_TYPE2B
-	#define CMDQ_ALLOCATE_MRW_UNUSED4_MASK       0xf0UL
-	#define CMDQ_ALLOCATE_MRW_UNUSED4_SFT        4
+	#define CMDQ_ALLOCATE_MRW_STEERING_TAG_VALID     0x10UL
+	#define CMDQ_ALLOCATE_MRW_UNUSED4_MASK       0xe0UL
+	#define CMDQ_ALLOCATE_MRW_UNUSED4_SFT        5
 	u8	access;
 	#define CMDQ_ALLOCATE_MRW_ACCESS_CONSUMER_OWNED_KEY     0x20UL
-	__le16	unused16;
+	__le16	steering_tag;
 	__le32	pd_id;
 };
 
@@ -1359,14 +1388,16 @@ struct creq_deallocate_key_resp {
 	__le32	bound_window_info;
 };
 
-/* cmdq_register_mr (size:384b/48B) */
+/* cmdq_register_mr (size:448b/56B) */
 struct cmdq_register_mr {
 	u8	opcode;
 	#define CMDQ_REGISTER_MR_OPCODE_REGISTER_MR 0xfUL
 	#define CMDQ_REGISTER_MR_OPCODE_LAST       CMDQ_REGISTER_MR_OPCODE_REGISTER_MR
 	u8	cmd_size;
 	__le16	flags;
-	#define CMDQ_REGISTER_MR_FLAGS_ALLOC_MR     0x1UL
+	#define CMDQ_REGISTER_MR_FLAGS_ALLOC_MR			0x1UL
+	#define CMDQ_REGISTER_MR_FLAGS_STEERING_TAG_VALID	0x2UL
+	#define CMDQ_REGISTER_MR_FLAGS_ENABLE_RO		0x4UL
 	__le16	cookie;
 	u8	resp_size;
 	u8	reserved8;
@@ -1415,6 +1446,8 @@ struct cmdq_register_mr {
 	__le64	pbl;
 	__le64	va;
 	__le64	mr_size;
+	__le16  steering_tag;
+	u8      reserved48[6];
 };
 
 /* creq_register_mr_resp (size:128b/16B) */
@@ -2231,6 +2264,46 @@ struct creq_set_func_resources_resp {
 	#define CREQ_SET_FUNC_RESOURCES_RESP_EVENT_LAST \
 		CREQ_SET_FUNC_RESOURCES_RESP_EVENT_SET_FUNC_RESOURCES
 	u8	reserved48[6];
+};
+
+/* cmdq_read_context (size:192b/24B) */
+struct cmdq_read_context {
+	u8	opcode;
+	#define CMDQ_READ_CONTEXT_OPCODE_READ_CONTEXT 0x85UL
+	#define CMDQ_READ_CONTEXT_OPCODE_LAST        CMDQ_READ_CONTEXT_OPCODE_READ_CONTEXT
+	u8	cmd_size;
+	__le16	flags;
+	__le16	cookie;
+	u8	resp_size;
+	u8	reserved8;
+	__le64	resp_addr;
+	__le32	xid;
+	u8	type;
+	#define CMDQ_READ_CONTEXT_TYPE_QPC 0x0UL
+	#define CMDQ_READ_CONTEXT_TYPE_CQ  0x1UL
+	#define CMDQ_READ_CONTEXT_TYPE_MRW 0x2UL
+	#define CMDQ_READ_CONTEXT_TYPE_SRQ 0x3UL
+	#define CMDQ_READ_CONTEXT_TYPE_LAST CMDQ_READ_CONTEXT_TYPE_SRQ
+	u8	unused_0[3];
+};
+
+/* creq_read_context (size:128b/16B) */
+struct creq_read_context {
+	u8	type;
+	#define CREQ_READ_CONTEXT_TYPE_MASK    0x3fUL
+	#define CREQ_READ_CONTEXT_TYPE_SFT     0
+	#define CREQ_READ_CONTEXT_TYPE_QP_EVENT  0x38UL
+	#define CREQ_READ_CONTEXT_TYPE_LAST     CREQ_READ_CONTEXT_TYPE_QP_EVENT
+	u8	status;
+	__le16	cookie;
+	__le32	reserved32;
+	u8	v;
+	#define CREQ_READ_CONTEXT_V     0x1UL
+	u8	event;
+	#define CREQ_READ_CONTEXT_EVENT_READ_CONTEXT 0x85UL
+	#define CREQ_READ_CONTEXT_EVENT_LAST        CREQ_READ_CONTEXT_EVENT_READ_CONTEXT
+	__le16	reserved16;
+	__le32	reserved_32;
 };
 
 /* cmdq_map_tc_to_cos (size:192b/24B) */

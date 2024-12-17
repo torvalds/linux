@@ -191,7 +191,7 @@ static int dtl_enable(struct dtl *dtl)
 		return -EBUSY;
 
 	/* ensure there are no other conflicting dtl users */
-	if (!read_trylock(&dtl_access_lock))
+	if (!down_read_trylock(&dtl_access_lock))
 		return -EBUSY;
 
 	n_entries = dtl_buf_entries;
@@ -199,7 +199,7 @@ static int dtl_enable(struct dtl *dtl)
 	if (!buf) {
 		printk(KERN_WARNING "%s: buffer alloc failed for cpu %d\n",
 				__func__, dtl->cpu);
-		read_unlock(&dtl_access_lock);
+		up_read(&dtl_access_lock);
 		return -ENOMEM;
 	}
 
@@ -217,7 +217,7 @@ static int dtl_enable(struct dtl *dtl)
 	spin_unlock(&dtl->lock);
 
 	if (rc) {
-		read_unlock(&dtl_access_lock);
+		up_read(&dtl_access_lock);
 		kmem_cache_free(dtl_cache, buf);
 	}
 
@@ -232,7 +232,7 @@ static void dtl_disable(struct dtl *dtl)
 	dtl->buf = NULL;
 	dtl->buf_entries = 0;
 	spin_unlock(&dtl->lock);
-	read_unlock(&dtl_access_lock);
+	up_read(&dtl_access_lock);
 }
 
 /* file interface */
@@ -325,7 +325,6 @@ static const struct file_operations dtl_fops = {
 	.open		= dtl_file_open,
 	.release	= dtl_file_release,
 	.read		= dtl_file_read,
-	.llseek		= no_llseek,
 };
 
 static struct dentry *dtl_dir;

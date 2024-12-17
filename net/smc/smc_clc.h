@@ -145,6 +145,8 @@ struct smc_clc_v2_extension {
 	);
 	u8 user_eids[][SMC_MAX_EID_LEN];
 };
+static_assert(offsetof(struct smc_clc_v2_extension, user_eids) == sizeof(struct smc_clc_v2_extension_fixed),
+	      "struct member likely outside of struct_group_tagged()");
 
 struct smc_clc_msg_proposal_prefix {	/* prefix part of clc proposal message*/
 	__be32 outgoing_subnet;	/* subnet mask */
@@ -154,7 +156,7 @@ struct smc_clc_msg_proposal_prefix {	/* prefix part of clc proposal message*/
 } __aligned(4);
 
 struct smc_clc_msg_smcd {	/* SMC-D GID information */
-	struct smc_clc_smcd_gid_chid ism; /* ISM native GID+CHID of requestor */
+	struct smc_clc_smcd_gid_chid ism; /* ISM native GID+CHID of requester */
 	__be16 v2_ext_offset;	/* SMC Version 2 Extension Offset */
 	u8 vendor_oui[3];	/* vendor organizationally unique identifier */
 	u8 vendor_exp_options[5];
@@ -169,6 +171,8 @@ struct smc_clc_smcd_v2_extension {
 	);
 	struct smc_clc_smcd_gid_chid gidchid[];
 };
+static_assert(offsetof(struct smc_clc_smcd_v2_extension, gidchid) == sizeof(struct smc_clc_smcd_v2_extension_fixed),
+	      "struct member likely outside of struct_group_tagged()");
 
 struct smc_clc_msg_proposal {	/* clc proposal message sent by Linux */
 	struct smc_clc_msg_hdr hdr;

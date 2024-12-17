@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 
+#include <linux/aperture.h>
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -30,7 +31,7 @@
 #include <linux/mmu_notifier.h>
 #include <linux/dynamic_debug.h>
 
-#include <drm/drm_aperture.h>
+#include <drm/drm_client_setup.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_ttm.h>
 #include <drm/drm_gem_ttm_helper.h>
@@ -63,7 +64,6 @@
 #include "nouveau_abi16.h"
 #include "nouveau_fence.h"
 #include "nouveau_debugfs.h"
-#include "nouveau_usif.h"
 #include "nouveau_connector.h"
 #include "nouveau_platform.h"
 #include "nouveau_svm.h"
@@ -200,7 +200,6 @@ nouveau_cli_fini(struct nouveau_cli *cli)
 	flush_work(&cli->work);
 	WARN_ON(!list_empty(&cli->worker));
 
-	usif_client_fini(cli);
 	if (cli->sched)
 		nouveau_sched_destroy(&cli->sched);
 	if (uvmm)
@@ -208,10 +207,11 @@ nouveau_cli_fini(struct nouveau_cli *cli)
 	nouveau_vmm_fini(&cli->svm);
 	nouveau_vmm_fini(&cli->vmm);
 	nvif_mmu_dtor(&cli->mmu);
+	cli->device.object.map.ptr = NULL;
 	nvif_device_dtor(&cli->device);
-	mutex_lock(&cli->drm->master.lock);
+	mutex_lock(&cli->drm->client_mutex);
 	nvif_client_dtor(&cli->base);
-	mutex_unlock(&cli->drm->master.lock);
+	mutex_unlock(&cli->drm->client_mutex);
 }
 
 static int
@@ -226,13 +226,6 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 		{}
 	};
 	static const struct nvif_mclass
-	mmus[] = {
-		{ NVIF_CLASS_MMU_GF100, -1 },
-		{ NVIF_CLASS_MMU_NV50 , -1 },
-		{ NVIF_CLASS_MMU_NV04 , -1 },
-		{}
-	};
-	static const struct nvif_mclass
 	vmms[] = {
 		{ NVIF_CLASS_VMM_GP100, -1 },
 		{ NVIF_CLASS_VMM_GM200, -1 },
@@ -241,50 +234,33 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 		{ NVIF_CLASS_VMM_NV04 , -1 },
 		{}
 	};
-	u64 device = nouveau_name(drm->dev);
 	int ret;
 
 	snprintf(cli->name, sizeof(cli->name), "%s", sname);
 	cli->drm = drm;
 	mutex_init(&cli->mutex);
-	usif_client_init(cli);
 
 	INIT_WORK(&cli->work, nouveau_cli_work);
 	INIT_LIST_HEAD(&cli->worker);
 	mutex_init(&cli->lock);
 
-	if (cli == &drm->master) {
-		ret = nvif_driver_init(NULL, nouveau_config, nouveau_debug,
-				       cli->name, device, &cli->base);
-	} else {
-		mutex_lock(&drm->master.lock);
-		ret = nvif_client_ctor(&drm->master.base, cli->name, device,
-				       &cli->base);
-		mutex_unlock(&drm->master.lock);
-	}
+	mutex_lock(&drm->client_mutex);
+	ret = nvif_client_ctor(&drm->_client, cli->name, &cli->base);
+	mutex_unlock(&drm->client_mutex);
 	if (ret) {
 		NV_PRINTK(err, cli, "Client allocation failed: %d\n", ret);
 		goto done;
 	}
 
-	ret = nvif_device_ctor(&cli->base.object, "drmDevice", 0, NV_DEVICE,
-			       &(struct nv_device_v0) {
-					.device = ~0,
-					.priv = true,
-			       }, sizeof(struct nv_device_v0),
-			       &cli->device);
+	ret = nvif_device_ctor(&cli->base, "drmDevice", &cli->device);
 	if (ret) {
 		NV_PRINTK(err, cli, "Device allocation failed: %d\n", ret);
 		goto done;
 	}
 
-	ret = nvif_mclass(&cli->device.object, mmus);
-	if (ret < 0) {
-		NV_PRINTK(err, cli, "No supported MMU class\n");
-		goto done;
-	}
+	cli->device.object.map.ptr = drm->device.object.map.ptr;
 
-	ret = nvif_mmu_ctor(&cli->device.object, "drmMmu", mmus[ret].oclass,
+	ret = nvif_mmu_ctor(&cli->device.object, "drmMmu", drm->mmu.object.oclass,
 			    &cli->mmu);
 	if (ret) {
 		NV_PRINTK(err, cli, "MMU allocation failed: %d\n", ret);
@@ -356,7 +332,7 @@ nouveau_accel_ce_init(struct nouveau_drm *drm)
 		return;
 	}
 
-	ret = nouveau_channel_new(drm, device, false, runm, NvDmaFB, NvDmaTT, &drm->cechan);
+	ret = nouveau_channel_new(&drm->client, true, runm, NvDmaFB, NvDmaTT, &drm->cechan);
 	if (ret)
 		NV_ERROR(drm, "failed to create ce channel, %d\n", ret);
 }
@@ -384,7 +360,7 @@ nouveau_accel_gr_init(struct nouveau_drm *drm)
 		return;
 	}
 
-	ret = nouveau_channel_new(drm, device, false, runm, NvDmaFB, NvDmaTT, &drm->channel);
+	ret = nouveau_channel_new(&drm->client, false, runm, NvDmaFB, NvDmaTT, &drm->channel);
 	if (ret) {
 		NV_ERROR(drm, "failed to create kernel channel, %d\n", ret);
 		nouveau_accel_gr_fini(drm);
@@ -407,7 +383,8 @@ nouveau_accel_gr_init(struct nouveau_drm *drm)
 		}
 
 		if (ret == 0) {
-			struct nvif_push *push = drm->channel->chan.push;
+			struct nvif_push *push = &drm->channel->chan.push;
+
 			ret = PUSH_WAIT(push, 8);
 			if (ret == 0) {
 				if (device->info.chipset >= 0x11) {
@@ -432,8 +409,7 @@ nouveau_accel_gr_init(struct nouveau_drm *drm)
 	 * any GPU where it's possible we'll end up using M2MF for BO moves.
 	 */
 	if (device->info.family < NV_DEVICE_INFO_V0_FERMI) {
-		ret = nvkm_gpuobj_new(nvxx_device(device), 32, 0, false, NULL,
-				      &drm->notify);
+		ret = nvkm_gpuobj_new(nvxx_device(drm), 32, 0, false, NULL, &drm->notify);
 		if (ret) {
 			NV_ERROR(drm, "failed to allocate notifier, %d\n", ret);
 			nouveau_accel_gr_fini(drm);
@@ -578,37 +554,70 @@ nouveau_parent = {
 	.errorf = nouveau_drm_errorf,
 };
 
-static int
-nouveau_drm_device_init(struct drm_device *dev)
+static void
+nouveau_drm_device_fini(struct nouveau_drm *drm)
 {
-	struct nouveau_drm *drm;
+	struct drm_device *dev = drm->dev;
+	struct nouveau_cli *cli, *temp_cli;
+
+	if (nouveau_pmops_runtime()) {
+		pm_runtime_get_sync(dev->dev);
+		pm_runtime_forbid(dev->dev);
+	}
+
+	nouveau_led_fini(dev);
+	nouveau_dmem_fini(drm);
+	nouveau_svm_fini(drm);
+	nouveau_hwmon_fini(dev);
+	nouveau_debugfs_fini(drm);
+
+	if (dev->mode_config.num_crtc)
+		nouveau_display_fini(dev, false, false);
+	nouveau_display_destroy(dev);
+
+	nouveau_accel_fini(drm);
+	nouveau_bios_takedown(dev);
+
+	nouveau_ttm_fini(drm);
+	nouveau_vga_fini(drm);
+
+	/*
+	 * There may be existing clients from as-yet unclosed files. For now,
+	 * clean them up here rather than deferring until the file is closed,
+	 * but this likely not correct if we want to support hot-unplugging
+	 * properly.
+	 */
+	mutex_lock(&drm->clients_lock);
+	list_for_each_entry_safe(cli, temp_cli, &drm->clients, head) {
+		list_del(&cli->head);
+		mutex_lock(&cli->mutex);
+		if (cli->abi16)
+			nouveau_abi16_fini(cli->abi16);
+		mutex_unlock(&cli->mutex);
+		nouveau_cli_fini(cli);
+		kfree(cli);
+	}
+	mutex_unlock(&drm->clients_lock);
+
+	nouveau_cli_fini(&drm->client);
+	destroy_workqueue(drm->sched_wq);
+	mutex_destroy(&drm->clients_lock);
+}
+
+static int
+nouveau_drm_device_init(struct nouveau_drm *drm)
+{
+	struct drm_device *dev = drm->dev;
 	int ret;
-
-	if (!(drm = kzalloc(sizeof(*drm), GFP_KERNEL)))
-		return -ENOMEM;
-	dev->dev_private = drm;
-	drm->dev = dev;
-
-	nvif_parent_ctor(&nouveau_parent, &drm->parent);
-	drm->master.base.object.parent = &drm->parent;
 
 	drm->sched_wq = alloc_workqueue("nouveau_sched_wq_shared", 0,
 					WQ_MAX_ACTIVE);
-	if (!drm->sched_wq) {
-		ret = -ENOMEM;
-		goto fail_alloc;
-	}
-
-	ret = nouveau_cli_init(drm, "DRM-master", &drm->master);
-	if (ret)
-		goto fail_wq;
+	if (!drm->sched_wq)
+		return -ENOMEM;
 
 	ret = nouveau_cli_init(drm, "DRM", &drm->client);
 	if (ret)
-		goto fail_master;
-
-	nvxx_client(&drm->client.base)->debug =
-		nvkm_dbgopt(nouveau_debug, "DRM");
+		goto fail_wq;
 
 	INIT_LIST_HEAD(&drm->clients);
 	mutex_init(&drm->clients_lock);
@@ -658,6 +667,12 @@ nouveau_drm_device_init(struct drm_device *dev)
 		pm_runtime_put(dev->dev);
 	}
 
+	ret = drm_dev_register(drm->dev, 0);
+	if (ret) {
+		nouveau_drm_device_fini(drm);
+		return ret;
+	}
+
 	return 0;
 fail_dispinit:
 	nouveau_display_destroy(dev);
@@ -669,67 +684,95 @@ fail_bios:
 fail_ttm:
 	nouveau_vga_fini(drm);
 	nouveau_cli_fini(&drm->client);
-fail_master:
-	nouveau_cli_fini(&drm->master);
 fail_wq:
 	destroy_workqueue(drm->sched_wq);
-fail_alloc:
-	nvif_parent_dtor(&drm->parent);
-	kfree(drm);
 	return ret;
 }
 
 static void
-nouveau_drm_device_fini(struct drm_device *dev)
+nouveau_drm_device_del(struct nouveau_drm *drm)
 {
-	struct nouveau_cli *cli, *temp_cli;
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	if (drm->dev)
+		drm_dev_put(drm->dev);
 
-	if (nouveau_pmops_runtime()) {
-		pm_runtime_get_sync(dev->dev);
-		pm_runtime_forbid(dev->dev);
-	}
-
-	nouveau_led_fini(dev);
-	nouveau_dmem_fini(drm);
-	nouveau_svm_fini(drm);
-	nouveau_hwmon_fini(dev);
-	nouveau_debugfs_fini(drm);
-
-	if (dev->mode_config.num_crtc)
-		nouveau_display_fini(dev, false, false);
-	nouveau_display_destroy(dev);
-
-	nouveau_accel_fini(drm);
-	nouveau_bios_takedown(dev);
-
-	nouveau_ttm_fini(drm);
-	nouveau_vga_fini(drm);
-
-	/*
-	 * There may be existing clients from as-yet unclosed files. For now,
-	 * clean them up here rather than deferring until the file is closed,
-	 * but this likely not correct if we want to support hot-unplugging
-	 * properly.
-	 */
-	mutex_lock(&drm->clients_lock);
-	list_for_each_entry_safe(cli, temp_cli, &drm->clients, head) {
-		list_del(&cli->head);
-		mutex_lock(&cli->mutex);
-		if (cli->abi16)
-			nouveau_abi16_fini(cli->abi16);
-		mutex_unlock(&cli->mutex);
-		nouveau_cli_fini(cli);
-		kfree(cli);
-	}
-	mutex_unlock(&drm->clients_lock);
-
-	nouveau_cli_fini(&drm->client);
-	nouveau_cli_fini(&drm->master);
-	destroy_workqueue(drm->sched_wq);
+	nvif_mmu_dtor(&drm->mmu);
+	nvif_device_dtor(&drm->device);
+	nvif_client_dtor(&drm->_client);
 	nvif_parent_dtor(&drm->parent);
-	mutex_destroy(&drm->clients_lock);
+
+	mutex_destroy(&drm->client_mutex);
 	kfree(drm);
+}
+
+static struct nouveau_drm *
+nouveau_drm_device_new(const struct drm_driver *drm_driver, struct device *parent,
+		       struct nvkm_device *device)
+{
+	static const struct nvif_mclass
+	mmus[] = {
+		{ NVIF_CLASS_MMU_GF100, -1 },
+		{ NVIF_CLASS_MMU_NV50 , -1 },
+		{ NVIF_CLASS_MMU_NV04 , -1 },
+		{}
+	};
+	struct nouveau_drm *drm;
+	int ret;
+
+	drm = kzalloc(sizeof(*drm), GFP_KERNEL);
+	if (!drm)
+		return ERR_PTR(-ENOMEM);
+
+	drm->nvkm = device;
+
+	drm->dev = drm_dev_alloc(drm_driver, parent);
+	if (IS_ERR(drm->dev)) {
+		ret = PTR_ERR(drm->dev);
+		goto done;
+	}
+
+	drm->dev->dev_private = drm;
+	dev_set_drvdata(parent, drm);
+
+	nvif_parent_ctor(&nouveau_parent, &drm->parent);
+	mutex_init(&drm->client_mutex);
+	drm->_client.object.parent = &drm->parent;
+
+	ret = nvif_driver_init(NULL, nouveau_config, nouveau_debug, "drm",
+			       nouveau_name(drm->dev), &drm->_client);
+	if (ret)
+		goto done;
+
+	ret = nvif_device_ctor(&drm->_client, "drmDevice", &drm->device);
+	if (ret) {
+		NV_ERROR(drm, "Device allocation failed: %d\n", ret);
+		goto done;
+	}
+
+	ret = nvif_device_map(&drm->device);
+	if (ret) {
+		NV_ERROR(drm, "Failed to map PRI: %d\n", ret);
+		goto done;
+	}
+
+	ret = nvif_mclass(&drm->device.object, mmus);
+	if (ret < 0) {
+		NV_ERROR(drm, "No supported MMU class\n");
+		goto done;
+	}
+
+	ret = nvif_mmu_ctor(&drm->device.object, "drmMmu", mmus[ret].oclass, &drm->mmu);
+	if (ret) {
+		NV_ERROR(drm, "MMU allocation failed: %d\n", ret);
+		goto done;
+	}
+
+done:
+	if (ret) {
+		nouveau_drm_device_del(drm);
+		drm = NULL;
+	}
+
+	return ret ? ERR_PTR(ret) : drm;
 }
 
 /*
@@ -774,8 +817,7 @@ nouveau_drm_device_fini(struct drm_device *dev)
 
 static void quirk_broken_nv_runpm(struct pci_dev *pdev)
 {
-	struct drm_device *dev = pci_get_drvdata(pdev);
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_drm *drm = pci_get_drvdata(pdev);
 	struct pci_dev *bridge = pci_upstream_bridge(pdev);
 
 	if (!bridge || bridge->vendor != PCI_VENDOR_ID_INTEL)
@@ -794,7 +836,8 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 			     const struct pci_device_id *pent)
 {
 	struct nvkm_device *device;
-	struct drm_device *drm_dev;
+	struct nouveau_drm *drm;
+	const struct drm_format_info *format;
 	int ret;
 
 	if (vga_switcheroo_client_probe_defer(pdev))
@@ -803,20 +846,12 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 	/* We need to check that the chipset is supported before booting
 	 * fbdev off the hardware, as there's no way to put it back.
 	 */
-	ret = nvkm_device_pci_new(pdev, nouveau_config, "error",
-				  true, false, 0, &device);
+	ret = nvkm_device_pci_new(pdev, nouveau_config, nouveau_debug, &device);
 	if (ret)
 		return ret;
-
-	nvkm_device_del(&device);
 
 	/* Remove conflicting drivers (vesafb, efifb etc). */
-	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, &driver_pci);
-	if (ret)
-		return ret;
-
-	ret = nvkm_device_pci_new(pdev, nouveau_config, nouveau_debug,
-				  true, true, ~0ULL, &device);
+	ret = aperture_remove_conflicting_pci_devices(pdev, driver_pci.name);
 	if (ret)
 		return ret;
 
@@ -825,9 +860,9 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 	if (nouveau_atomic)
 		driver_pci.driver_features |= DRIVER_ATOMIC;
 
-	drm_dev = drm_dev_alloc(&driver_pci, &pdev->dev);
-	if (IS_ERR(drm_dev)) {
-		ret = PTR_ERR(drm_dev);
+	drm = nouveau_drm_device_new(&driver_pci, &pdev->dev, device);
+	if (IS_ERR(drm)) {
+		ret = PTR_ERR(drm);
 		goto fail_nvkm;
 	}
 
@@ -835,69 +870,57 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 	if (ret)
 		goto fail_drm;
 
-	pci_set_drvdata(pdev, drm_dev);
-
-	ret = nouveau_drm_device_init(drm_dev);
+	ret = nouveau_drm_device_init(drm);
 	if (ret)
 		goto fail_pci;
 
-	ret = drm_dev_register(drm_dev, pent->driver_data);
-	if (ret)
-		goto fail_drm_dev_init;
-
-	if (nouveau_drm(drm_dev)->client.device.info.ram_size <= 32 * 1024 * 1024)
-		drm_fbdev_ttm_setup(drm_dev, 8);
+	if (drm->client.device.info.ram_size <= 32 * 1024 * 1024)
+		format = drm_format_info(DRM_FORMAT_C8);
 	else
-		drm_fbdev_ttm_setup(drm_dev, 32);
+		format = NULL;
+
+	drm_client_setup(drm->dev, format);
 
 	quirk_broken_nv_runpm(pdev);
 	return 0;
 
-fail_drm_dev_init:
-	nouveau_drm_device_fini(drm_dev);
 fail_pci:
 	pci_disable_device(pdev);
 fail_drm:
-	drm_dev_put(drm_dev);
+	nouveau_drm_device_del(drm);
 fail_nvkm:
 	nvkm_device_del(&device);
 	return ret;
 }
 
 void
-nouveau_drm_device_remove(struct drm_device *dev)
+nouveau_drm_device_remove(struct nouveau_drm *drm)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvkm_client *client;
-	struct nvkm_device *device;
+	struct nvkm_device *device = drm->nvkm;
 
-	drm_dev_unplug(dev);
+	drm_dev_unplug(drm->dev);
 
-	client = nvxx_client(&drm->client.base);
-	device = nvkm_device_find(client->device);
-
-	nouveau_drm_device_fini(dev);
-	drm_dev_put(dev);
+	nouveau_drm_device_fini(drm);
+	nouveau_drm_device_del(drm);
 	nvkm_device_del(&device);
 }
 
 static void
 nouveau_drm_remove(struct pci_dev *pdev)
 {
-	struct drm_device *dev = pci_get_drvdata(pdev);
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_drm *drm = pci_get_drvdata(pdev);
 
 	/* revert our workaround */
 	if (drm->old_pm_cap)
 		pdev->pm_cap = drm->old_pm_cap;
-	nouveau_drm_device_remove(dev);
+	nouveau_drm_device_remove(drm);
 	pci_disable_device(pdev);
 }
 
 static int
-nouveau_do_suspend(struct drm_device *dev, bool runtime)
+nouveau_do_suspend(struct nouveau_drm *drm, bool runtime)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct drm_device *dev = drm->dev;
 	struct ttm_resource_manager *man;
 	int ret;
 
@@ -939,7 +962,7 @@ nouveau_do_suspend(struct drm_device *dev, bool runtime)
 	}
 
 	NV_DEBUG(drm, "suspending object tree...\n");
-	ret = nvif_client_suspend(&drm->master.base);
+	ret = nvif_client_suspend(&drm->_client);
 	if (ret)
 		goto fail_client;
 
@@ -958,13 +981,13 @@ fail_display:
 }
 
 static int
-nouveau_do_resume(struct drm_device *dev, bool runtime)
+nouveau_do_resume(struct nouveau_drm *drm, bool runtime)
 {
+	struct drm_device *dev = drm->dev;
 	int ret = 0;
-	struct nouveau_drm *drm = nouveau_drm(dev);
 
 	NV_DEBUG(drm, "resuming object tree...\n");
-	ret = nvif_client_resume(&drm->master.base);
+	ret = nvif_client_resume(&drm->_client);
 	if (ret) {
 		NV_ERROR(drm, "Client resume failed with error: %d\n", ret);
 		return ret;
@@ -991,14 +1014,14 @@ int
 nouveau_pmops_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct nouveau_drm *drm = pci_get_drvdata(pdev);
 	int ret;
 
-	if (drm_dev->switch_power_state == DRM_SWITCH_POWER_OFF ||
-	    drm_dev->switch_power_state == DRM_SWITCH_POWER_DYNAMIC_OFF)
+	if (drm->dev->switch_power_state == DRM_SWITCH_POWER_OFF ||
+	    drm->dev->switch_power_state == DRM_SWITCH_POWER_DYNAMIC_OFF)
 		return 0;
 
-	ret = nouveau_do_suspend(drm_dev, false);
+	ret = nouveau_do_suspend(drm, false);
 	if (ret)
 		return ret;
 
@@ -1013,11 +1036,11 @@ int
 nouveau_pmops_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct nouveau_drm *drm = pci_get_drvdata(pdev);
 	int ret;
 
-	if (drm_dev->switch_power_state == DRM_SWITCH_POWER_OFF ||
-	    drm_dev->switch_power_state == DRM_SWITCH_POWER_DYNAMIC_OFF)
+	if (drm->dev->switch_power_state == DRM_SWITCH_POWER_OFF ||
+	    drm->dev->switch_power_state == DRM_SWITCH_POWER_DYNAMIC_OFF)
 		return 0;
 
 	pci_set_power_state(pdev, PCI_D0);
@@ -1027,10 +1050,10 @@ nouveau_pmops_resume(struct device *dev)
 		return ret;
 	pci_set_master(pdev);
 
-	ret = nouveau_do_resume(drm_dev, false);
+	ret = nouveau_do_resume(drm, false);
 
 	/* Monitors may have been connected / disconnected during suspend */
-	nouveau_display_hpd_resume(drm_dev);
+	nouveau_display_hpd_resume(drm);
 
 	return ret;
 }
@@ -1038,17 +1061,17 @@ nouveau_pmops_resume(struct device *dev)
 static int
 nouveau_pmops_freeze(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-	return nouveau_do_suspend(drm_dev, false);
+	struct nouveau_drm *drm = dev_get_drvdata(dev);
+
+	return nouveau_do_suspend(drm, false);
 }
 
 static int
 nouveau_pmops_thaw(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-	return nouveau_do_resume(drm_dev, false);
+	struct nouveau_drm *drm = dev_get_drvdata(dev);
+
+	return nouveau_do_resume(drm, false);
 }
 
 bool
@@ -1063,7 +1086,7 @@ static int
 nouveau_pmops_runtime_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct nouveau_drm *drm = pci_get_drvdata(pdev);
 	int ret;
 
 	if (!nouveau_pmops_runtime()) {
@@ -1072,12 +1095,12 @@ nouveau_pmops_runtime_suspend(struct device *dev)
 	}
 
 	nouveau_switcheroo_optimus_dsm();
-	ret = nouveau_do_suspend(drm_dev, true);
+	ret = nouveau_do_suspend(drm, true);
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
 	pci_ignore_hotplug(pdev);
 	pci_set_power_state(pdev, PCI_D3cold);
-	drm_dev->switch_power_state = DRM_SWITCH_POWER_DYNAMIC_OFF;
+	drm->dev->switch_power_state = DRM_SWITCH_POWER_DYNAMIC_OFF;
 	return ret;
 }
 
@@ -1085,9 +1108,8 @@ static int
 nouveau_pmops_runtime_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-	struct nouveau_drm *drm = nouveau_drm(drm_dev);
-	struct nvif_device *device = &nouveau_drm(drm_dev)->client.device;
+	struct nouveau_drm *drm = pci_get_drvdata(pdev);
+	struct nvif_device *device = &drm->client.device;
 	int ret;
 
 	if (!nouveau_pmops_runtime()) {
@@ -1102,7 +1124,7 @@ nouveau_pmops_runtime_resume(struct device *dev)
 		return ret;
 	pci_set_master(pdev);
 
-	ret = nouveau_do_resume(drm_dev, true);
+	ret = nouveau_do_resume(drm, true);
 	if (ret) {
 		NV_ERROR(drm, "resume failed with: %d\n", ret);
 		return ret;
@@ -1110,10 +1132,10 @@ nouveau_pmops_runtime_resume(struct device *dev)
 
 	/* do magic */
 	nvif_mask(&device->object, 0x088488, (1 << 25), (1 << 25));
-	drm_dev->switch_power_state = DRM_SWITCH_POWER_ON;
+	drm->dev->switch_power_state = DRM_SWITCH_POWER_ON;
 
 	/* Monitors may have been connected / disconnected during suspend */
-	nouveau_display_hpd_resume(drm_dev);
+	nouveau_display_hpd_resume(drm);
 
 	return ret;
 }
@@ -1249,7 +1271,7 @@ nouveau_drm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	switch (_IOC_NR(cmd) - DRM_COMMAND_BASE) {
 	case DRM_NOUVEAU_NVIF:
-		ret = usif_ioctl(filp, (void __user *)arg, _IOC_SIZE(cmd));
+		ret = nouveau_abi16_ioctl(filp, (void __user *)arg, _IOC_SIZE(cmd));
 		break;
 	default:
 		ret = drm_ioctl(file, cmd, arg);
@@ -1274,6 +1296,7 @@ nouveau_driver_fops = {
 	.compat_ioctl = nouveau_compat_ioctl,
 #endif
 	.llseek = noop_llseek,
+	.fop_flags = FOP_UNSIGNED_OFFSET,
 };
 
 static struct drm_driver
@@ -1285,7 +1308,6 @@ driver_stub = {
 			   DRIVER_RENDER,
 	.open = nouveau_drm_open,
 	.postclose = nouveau_drm_postclose,
-	.lastclose = nouveau_vga_lastclose,
 
 #if defined(CONFIG_DEBUG_FS)
 	.debugfs_init = nouveau_drm_debugfs_init,
@@ -1299,6 +1321,8 @@ driver_stub = {
 
 	.dumb_create = nouveau_display_dumb_create,
 	.dumb_map_offset = drm_gem_ttm_dumb_map_offset,
+
+	DRM_FBDEV_TTM_DRIVER_OPS,
 
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
@@ -1369,15 +1393,14 @@ nouveau_platform_device_create(const struct nvkm_device_tegra_func *func,
 			       struct platform_device *pdev,
 			       struct nvkm_device **pdevice)
 {
-	struct drm_device *drm;
+	struct nouveau_drm *drm;
 	int err;
 
-	err = nvkm_device_tegra_new(func, pdev, nouveau_config, nouveau_debug,
-				    true, true, ~0ULL, pdevice);
+	err = nvkm_device_tegra_new(func, pdev, nouveau_config, nouveau_debug, pdevice);
 	if (err)
 		goto err_free;
 
-	drm = drm_dev_alloc(&driver_platform, &pdev->dev);
+	drm = nouveau_drm_device_new(&driver_platform, &pdev->dev, *pdevice);
 	if (IS_ERR(drm)) {
 		err = PTR_ERR(drm);
 		goto err_free;
@@ -1387,12 +1410,10 @@ nouveau_platform_device_create(const struct nvkm_device_tegra_func *func,
 	if (err)
 		goto err_put;
 
-	platform_set_drvdata(pdev, drm);
-
-	return drm;
+	return drm->dev;
 
 err_put:
-	drm_dev_put(drm);
+	nouveau_drm_device_del(drm);
 err_free:
 	nvkm_device_del(pdevice);
 

@@ -2,7 +2,7 @@
 #ifndef _ACENIC_H_
 #define _ACENIC_H_
 #include <linux/interrupt.h>
-
+#include <linux/workqueue.h>
 
 /*
  * Generate TX index update each time, when TX ring is closed.
@@ -667,8 +667,8 @@ struct ace_private
 	struct rx_desc		*rx_mini_ring;
 	struct rx_desc		*rx_return_ring;
 
-	int			tasklet_pending, jumbo;
-	struct tasklet_struct	ace_tasklet;
+	int			bh_work_pending, jumbo;
+	struct work_struct	ace_bh_work;
 
 	struct event		*evt_ring;
 
@@ -776,7 +776,7 @@ static int ace_open(struct net_device *dev);
 static netdev_tx_t ace_start_xmit(struct sk_buff *skb,
 				  struct net_device *dev);
 static int ace_close(struct net_device *dev);
-static void ace_tasklet(struct tasklet_struct *t);
+static void ace_bh_work(struct work_struct *work);
 static void ace_dump_trace(struct ace_private *ap);
 static void ace_set_multicast_list(struct net_device *dev);
 static int ace_change_mtu(struct net_device *dev, int new_mtu);

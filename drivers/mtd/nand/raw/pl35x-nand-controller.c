@@ -187,7 +187,7 @@ static const struct mtd_ooblayout_ops pl35x_ecc_ooblayout16_ops = {
 	.free = pl35x_ecc_ooblayout16_free,
 };
 
-/* Generic flash bbt decriptors */
+/* Generic flash bbt descriptors */
 static u8 bbt_pattern[] = { 'B', 'b', 't', '0' };
 static u8 mirror_pattern[] = { '1', 't', 'b', 'B' };
 
@@ -1111,7 +1111,7 @@ static void pl35x_nand_chips_cleanup(struct pl35x_nandc *nfc)
 
 static int pl35x_nand_chips_init(struct pl35x_nandc *nfc)
 {
-	struct device_node *np = nfc->dev->of_node, *nand_np;
+	struct device_node *np = nfc->dev->of_node;
 	int nchips = of_get_child_count(np);
 	int ret;
 
@@ -1121,10 +1121,9 @@ static int pl35x_nand_chips_init(struct pl35x_nandc *nfc)
 		return -EINVAL;
 	}
 
-	for_each_child_of_node(np, nand_np) {
+	for_each_child_of_node_scoped(np, nand_np) {
 		ret = pl35x_nand_chip_init(nfc, nand_np);
 		if (ret) {
-			of_node_put(nand_np);
 			pl35x_nand_chips_cleanup(nfc);
 			break;
 		}
@@ -1185,7 +1184,7 @@ MODULE_DEVICE_TABLE(of, pl35x_nand_of_match);
 
 static struct platform_driver pl35x_nandc_driver = {
 	.probe = pl35x_nand_probe,
-	.remove_new = pl35x_nand_remove,
+	.remove = pl35x_nand_remove,
 	.driver = {
 		.name = PL35X_NANDC_DRIVER_NAME,
 		.of_match_table = pl35x_nand_of_match,

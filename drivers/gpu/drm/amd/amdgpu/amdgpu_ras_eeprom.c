@@ -58,7 +58,7 @@
 #define EEPROM_I2C_MADDR_4      0x40000
 
 /*
- * The 2 macros bellow represent the actual size in bytes that
+ * The 2 macros below represent the actual size in bytes that
  * those entities occupy in the EEPROM memory.
  * RAS_TABLE_RECORD_SIZE is different than sizeof(eeprom_table_record) which
  * uses uint64 to store 6b fields such as retired_page.

@@ -752,7 +752,7 @@ static int vf610_adc_buffer_postenable(struct iio_dev *indio_dev)
 	writel(val, info->regs + VF610_REG_ADC_GC);
 
 	channel = find_first_bit(indio_dev->active_scan_mask,
-						indio_dev->masklength);
+				 iio_get_masklength(indio_dev));
 
 	val = VF610_ADC_ADCHC(channel);
 	val |= VF610_ADC_AIEN;
@@ -972,7 +972,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(vf610_adc_pm_ops, vf610_adc_suspend,
 
 static struct platform_driver vf610_adc_driver = {
 	.probe          = vf610_adc_probe,
-	.remove_new     = vf610_adc_remove,
+	.remove         = vf610_adc_remove,
 	.driver         = {
 		.name   = DRIVER_NAME,
 		.of_match_table = vf610_adc_match,

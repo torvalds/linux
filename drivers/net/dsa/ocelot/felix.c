@@ -1370,9 +1370,8 @@ static int felix_parse_ports_node(struct felix *felix,
 				  phy_interface_t *port_phy_modes)
 {
 	struct device *dev = felix->ocelot.dev;
-	struct device_node *child;
 
-	for_each_available_child_of_node(ports_node, child) {
+	for_each_available_child_of_node_scoped(ports_node, child) {
 		phy_interface_t phy_mode;
 		u32 port;
 		int err;
@@ -1381,7 +1380,6 @@ static int felix_parse_ports_node(struct felix *felix,
 		if (of_property_read_u32(child, "reg", &port) < 0) {
 			dev_err(dev, "Port number not defined in device tree "
 				"(property \"reg\")\n");
-			of_node_put(child);
 			return -ENODEV;
 		}
 
@@ -1391,7 +1389,6 @@ static int felix_parse_ports_node(struct felix *felix,
 			dev_err(dev, "Failed to read phy-mode or "
 				"phy-interface-type property for port %d\n",
 				port);
-			of_node_put(child);
 			return -ENODEV;
 		}
 

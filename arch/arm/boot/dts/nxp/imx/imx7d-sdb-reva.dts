@@ -21,23 +21,21 @@
 };
 
 &iomuxc {
-	imx7d-sdb {
-		pinctrl_tsc2046_pendown: tsc2046_pendown {
-			fsl,pins = <
-				MX7D_PAD_EPDC_DATA13__GPIO2_IO13	0x59
-			>;
-		};
+	pinctrl_tsc2046_pendown: tsc2046-pendowngrp {
+		fsl,pins = <
+			MX7D_PAD_EPDC_DATA13__GPIO2_IO13	0x59
+		>;
+	};
 
-		pinctrl_hog: hoggrp {
-			fsl,pins = <
-				MX7D_PAD_ECSPI2_SS0__GPIO4_IO23		0x34  /* bt reg on */
-			>;
-		};
+	pinctrl_hog: hoggrp {
+		fsl,pins = <
+			MX7D_PAD_ECSPI2_SS0__GPIO4_IO23		0x34  /* bt reg on */
+		>;
+	};
 
-		pinctrl_usb_otg2_vbus_reg_reva: usbotg2vbusregrevagrp {
-			fsl,pins = <
-				MX7D_PAD_UART3_CTS_B__GPIO4_IO7		0x14
-			>;
-		};
+	pinctrl_usb_otg2_vbus_reg_reva: usbotg2vbusregrevagrp {
+		fsl,pins = <
+			MX7D_PAD_UART3_CTS_B__GPIO4_IO7		0x14
+		>;
 	};
 };

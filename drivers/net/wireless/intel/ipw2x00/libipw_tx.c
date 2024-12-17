@@ -138,7 +138,7 @@ static int libipw_copy_snap(u8 * data, __be16 h_proto)
 static int libipw_encrypt_fragment(struct libipw_device *ieee,
 					     struct sk_buff *frag, int hdr_len)
 {
-	struct lib80211_crypt_data *crypt =
+	struct libipw_crypt_data *crypt =
 		ieee->crypt_info.crypt[ieee->crypt_info.tx_keyidx];
 	int res;
 
@@ -255,7 +255,7 @@ netdev_tx_t libipw_xmit(struct sk_buff *skb, struct net_device *dev)
 		.qos_ctl = 0
 	};
 	u8 dest[ETH_ALEN], src[ETH_ALEN];
-	struct lib80211_crypt_data *crypt;
+	struct libipw_crypt_data *crypt;
 	int priority = skb->priority;
 	int snapped = 0;
 

@@ -80,6 +80,9 @@ static void aca_banks_release(struct aca_banks *banks)
 {
 	struct aca_bank_node *node, *tmp;
 
+	if (list_empty(&banks->list))
+		return;
+
 	list_for_each_entry_safe(node, tmp, &banks->list, node) {
 		list_del(&node->node);
 		kvfree(node);
@@ -155,7 +158,7 @@ static int aca_smu_get_valid_aca_banks(struct amdgpu_device *adev, enum aca_smu_
 		return -EINVAL;
 	}
 
-	if (start + count >= max_count)
+	if (start + count > max_count)
 		return -EINVAL;
 
 	count = min_t(int, count, max_count);
@@ -453,13 +456,13 @@ static int aca_log_aca_error_data(struct aca_bank_error *bank_error, enum aca_er
 
 	switch (type) {
 	case ACA_ERROR_TYPE_UE:
-		amdgpu_ras_error_statistic_ue_count(err_data, &mcm_info, NULL, count);
+		amdgpu_ras_error_statistic_ue_count(err_data, &mcm_info, count);
 		break;
 	case ACA_ERROR_TYPE_CE:
-		amdgpu_ras_error_statistic_ce_count(err_data, &mcm_info, NULL, count);
+		amdgpu_ras_error_statistic_ce_count(err_data, &mcm_info, count);
 		break;
 	case ACA_ERROR_TYPE_DEFERRED:
-		amdgpu_ras_error_statistic_de_count(err_data, &mcm_info, NULL, count);
+		amdgpu_ras_error_statistic_de_count(err_data, &mcm_info, count);
 		break;
 	default:
 		break;
@@ -508,7 +511,7 @@ static int __aca_get_error_data(struct amdgpu_device *adev, struct aca_handle *h
 		return -EINVAL;
 	}
 
-	/* udpate aca bank to aca source error_cache first */
+	/* update aca bank to aca source error_cache first */
 	ret = aca_banks_update(adev, smu_type, handler_aca_log_bank_error, qctx, NULL);
 	if (ret)
 		return ret;
@@ -562,9 +565,13 @@ static void aca_error_fini(struct aca_error *aerr)
 	struct aca_bank_error *bank_error, *tmp;
 
 	mutex_lock(&aerr->lock);
+	if (list_empty(&aerr->list))
+		goto out_unlock;
+
 	list_for_each_entry_safe(bank_error, tmp, &aerr->list, node)
 		aca_bank_error_remove(aerr, bank_error);
 
+out_unlock:
 	mutex_destroy(&aerr->lock);
 }
 
@@ -679,6 +686,9 @@ static int aca_manager_init(struct aca_handle_manager *mgr)
 static void aca_manager_fini(struct aca_handle_manager *mgr)
 {
 	struct aca_handle *handle, *tmp;
+
+	if (list_empty(&mgr->list))
+		return;
 
 	list_for_each_entry_safe(handle, tmp, &mgr->list, node)
 		amdgpu_aca_remove_handle(handle);

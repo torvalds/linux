@@ -707,7 +707,7 @@ static const struct snd_soc_dai_ops mchp_spdiftx_dai_ops = {
 static struct snd_soc_dai_driver mchp_spdiftx_dai = {
 	.name = "mchp-spdiftx",
 	.playback = {
-		.stream_name = "S/PDIF Playback",
+		.stream_name = "Playback",
 		.channels_min = 1,
 		.channels_max = 2,
 		.rates = MCHP_SPDIFTX_RATES,
@@ -888,7 +888,7 @@ static void mchp_spdiftx_remove(struct platform_device *pdev)
 
 static struct platform_driver mchp_spdiftx_driver = {
 	.probe	= mchp_spdiftx_probe,
-	.remove_new = mchp_spdiftx_remove,
+	.remove = mchp_spdiftx_remove,
 	.driver	= {
 		.name	= "mchp_spdiftx",
 		.of_match_table = mchp_spdiftx_dt_ids,

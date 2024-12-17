@@ -407,6 +407,9 @@ static int __skb_datagram_iter(const struct sk_buff *skb, int offset,
 			return 0;
 	}
 
+	if (!skb_frags_readable(skb))
+		goto short_copy;
+
 	/* Copy paged appendix. Hmm... why does this look so complicated? */
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		int end;
@@ -622,6 +625,9 @@ int zerocopy_fill_skb_from_iter(struct sk_buff *skb,
 				struct iov_iter *from, size_t length)
 {
 	int frag = skb_shinfo(skb)->nr_frags;
+
+	if (!skb_frags_readable(skb))
+		return -EFAULT;
 
 	while (length && iov_iter_count(from)) {
 		struct page *head, *last_head = NULL;

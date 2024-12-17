@@ -9,6 +9,7 @@
 #include <linux/device.h>
 #include <linux/iommu.h>
 #include <linux/iova.h>
+#include <linux/irqreturn.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 
@@ -81,6 +82,7 @@ struct host1x_intr_ops {
 	void (*disable_syncpt_intr)(struct host1x *host, unsigned int id);
 	void (*disable_all_syncpt_intrs)(struct host1x *host);
 	int (*free_syncpt_irq)(struct host1x *host);
+	irqreturn_t (*isr)(int irq, void *dev_id);
 };
 
 struct host1x_sid_entry {
@@ -173,11 +175,11 @@ struct host1x {
 };
 
 void host1x_common_writel(struct host1x *host1x, u32 v, u32 r);
-void host1x_hypervisor_writel(struct host1x *host1x, u32 r, u32 v);
+void host1x_hypervisor_writel(struct host1x *host1x, u32 v, u32 r);
 u32 host1x_hypervisor_readl(struct host1x *host1x, u32 r);
-void host1x_sync_writel(struct host1x *host1x, u32 r, u32 v);
+void host1x_sync_writel(struct host1x *host1x, u32 v, u32 r);
 u32 host1x_sync_readl(struct host1x *host1x, u32 r);
-void host1x_ch_writel(struct host1x_channel *ch, u32 r, u32 v);
+void host1x_ch_writel(struct host1x_channel *ch, u32 v, u32 r);
 u32 host1x_ch_readl(struct host1x_channel *ch, u32 r);
 
 static inline void host1x_hw_syncpt_restore(struct host1x *host,

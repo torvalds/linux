@@ -57,6 +57,7 @@ Structure of this header is
   ``ETHTOOL_A_HEADER_DEV_INDEX``  u32     device ifindex
   ``ETHTOOL_A_HEADER_DEV_NAME``   string  device name
   ``ETHTOOL_A_HEADER_FLAGS``      u32     flags common for all requests
+  ``ETHTOOL_A_HEADER_PHY_INDEX``  u32     phy device index
   ==============================  ======  =============================
 
 ``ETHTOOL_A_HEADER_DEV_INDEX`` and ``ETHTOOL_A_HEADER_DEV_NAME`` identify the
@@ -81,6 +82,12 @@ the behaviour is backward compatible, i.e. requests from old clients not aware
 of the flag should be interpreted the way the client expects. A client must
 not set flags it does not understand.
 
+``ETHTOOL_A_HEADER_PHY_INDEX`` identifies the Ethernet PHY the message relates to.
+As there are numerous commands that are related to PHY configuration, and because
+there may be more than one PHY on the link, the PHY index can be passed in the
+request for the commands that needs it. It is, however, not mandatory, and if it
+is not passed for commands that target a PHY, the net_device.phydev pointer
+is used.
 
 Bit sets
 ========
@@ -229,6 +236,7 @@ Userspace to kernel:
   ``ETHTOOL_MSG_MM_GET``                get MAC merge layer state
   ``ETHTOOL_MSG_MM_SET``                set MAC merge layer parameters
   ``ETHTOOL_MSG_MODULE_FW_FLASH_ACT``   flash transceiver module firmware
+  ``ETHTOOL_MSG_PHY_GET``               get Ethernet PHY information
   ===================================== =================================
 
 Kernel to userspace:
@@ -276,6 +284,8 @@ Kernel to userspace:
   ``ETHTOOL_MSG_PLCA_NTF``                 PLCA RS parameters
   ``ETHTOOL_MSG_MM_GET_REPLY``             MAC merge layer status
   ``ETHTOOL_MSG_MODULE_FW_FLASH_NTF``      transceiver module flash updates
+  ``ETHTOOL_MSG_PHY_GET_REPLY``            Ethernet PHY information
+  ``ETHTOOL_MSG_PHY_NTF``                  Ethernet PHY information change
   ======================================== =================================
 
 ``GET`` requests are sent by userspace applications to retrieve device
@@ -934,18 +944,18 @@ Request contents:
   ====================================  ======  ===========================
 
 Kernel checks that requested ring sizes do not exceed limits reported by
-driver. Driver may impose additional constraints and may not suspport all
+driver. Driver may impose additional constraints and may not support all
 attributes.
 
 
 ``ETHTOOL_A_RINGS_CQE_SIZE`` specifies the completion queue event size.
-Completion queue events(CQE) are the events posted by NIC to indicate the
-completion status of a packet when the packet is sent(like send success or
-error) or received(like pointers to packet fragments). The CQE size parameter
+Completion queue events (CQE) are the events posted by NIC to indicate the
+completion status of a packet when the packet is sent (like send success or
+error) or received (like pointers to packet fragments). The CQE size parameter
 enables to modify the CQE size other than default size if NIC supports it.
-A bigger CQE can have more receive buffer pointers inturn NIC can transfer
-a bigger frame from wire. Based on the NIC hardware, the overall completion
-queue size can be adjusted in the driver if CQE size is modified.
+A bigger CQE can have more receive buffer pointers, and in turn the NIC can
+transfer a bigger frame from wire. Based on the NIC hardware, the overall
+completion queue size can be adjusted in the driver if CQE size is modified.
 
 CHANNELS_GET
 ============
@@ -989,7 +999,7 @@ Request contents:
   =====================================  ======  ==========================
 
 Kernel checks that requested channel counts do not exceed limits reported by
-driver. Driver may impose additional constraints and may not suspport all
+driver. Driver may impose additional constraints and may not support all
 attributes.
 
 
@@ -1307,12 +1317,17 @@ information.
  +-+-+-----------------------------------------+--------+---------------------+
  | | | ``ETHTOOL_A_CABLE_RESULTS_CODE``        | u8     | result code         |
  +-+-+-----------------------------------------+--------+---------------------+
+ | | | ``ETHTOOL_A_CABLE_RESULT_SRC``          | u32    | information source  |
+ +-+-+-----------------------------------------+--------+---------------------+
  | | ``ETHTOOL_A_CABLE_NEST_FAULT_LENGTH``     | nested | cable length        |
  +-+-+-----------------------------------------+--------+---------------------+
  | | | ``ETHTOOL_A_CABLE_FAULT_LENGTH_PAIR``   | u8     | pair number         |
  +-+-+-----------------------------------------+--------+---------------------+
  | | | ``ETHTOOL_A_CABLE_FAULT_LENGTH_CM``     | u32    | length in cm        |
  +-+-+-----------------------------------------+--------+---------------------+
+ | | | ``ETHTOOL_A_CABLE_FAULT_LENGTH_SRC``    | u32    | information source  |
+ +-+-+-----------------------------------------+--------+---------------------+
+
 
 CABLE_TEST TDR
 ==============
@@ -1756,7 +1771,7 @@ Kernel response contents:
 When set, the optional ``ETHTOOL_A_PODL_PSE_ADMIN_STATE`` attribute identifies
 the operational state of the PoDL PSE functions.  The operational state of the
 PSE function can be changed using the ``ETHTOOL_A_PODL_PSE_ADMIN_CONTROL``
-action. This option is corresponding to ``IEEE 802.3-2018`` 30.15.1.1.2
+action. This attribute corresponds to ``IEEE 802.3-2018`` 30.15.1.1.2
 aPoDLPSEAdminState. Possible values are:
 
 .. kernel-doc:: include/uapi/linux/ethtool.h
@@ -1770,8 +1785,8 @@ The same goes for ``ETHTOOL_A_C33_PSE_ADMIN_STATE`` implementing
 
 When set, the optional ``ETHTOOL_A_PODL_PSE_PW_D_STATUS`` attribute identifies
 the power detection status of the PoDL PSE.  The status depend on internal PSE
-state machine and automatic PD classification support. This option is
-corresponding to ``IEEE 802.3-2018`` 30.15.1.1.3 aPoDLPSEPowerDetectionStatus.
+state machine and automatic PD classification support. This attribute
+corresponds to ``IEEE 802.3-2018`` 30.15.1.1.3 aPoDLPSEPowerDetectionStatus.
 Possible values are:
 
 .. kernel-doc:: include/uapi/linux/ethtool.h
@@ -1785,12 +1800,13 @@ The same goes for ``ETHTOOL_A_C33_PSE_ADMIN_PW_D_STATUS`` implementing
 
 When set, the optional ``ETHTOOL_A_C33_PSE_PW_CLASS`` attribute identifies
 the power class of the C33 PSE. It depends on the class negotiated between
-the PSE and the PD. This option is corresponding to ``IEEE 802.3-2022``
+the PSE and the PD. This attribute corresponds to ``IEEE 802.3-2022``
 30.9.1.1.8 aPSEPowerClassification.
 
 When set, the optional ``ETHTOOL_A_C33_PSE_ACTUAL_PW`` attribute identifies
-This option is corresponding to ``IEEE 802.3-2022`` 30.9.1.1.23 aPSEActualPower.
-Actual power is reported in mW.
+the actual power drawn by the C33 PSE. This attribute corresponds to
+``IEEE 802.3-2022`` 30.9.1.1.23 aPSEActualPower. Actual power is reported
+in mW.
 
 When set, the optional ``ETHTOOL_A_C33_PSE_EXT_STATE`` attribute identifies
 the extended error state of the C33 PSE. Possible values are:
@@ -1839,7 +1855,7 @@ Request contents:
   ======================================  ======  =============================
 
 When set, the optional ``ETHTOOL_A_PODL_PSE_ADMIN_CONTROL`` attribute is used
-to control PoDL PSE Admin functions. This option is implementing
+to control PoDL PSE Admin functions. This option implements
 ``IEEE 802.3-2018`` 30.15.1.2.1 acPoDLPSEAdminControl. See
 ``ETHTOOL_A_PODL_PSE_ADMIN_STATE`` for supported values.
 
@@ -1866,10 +1882,18 @@ RSS context of an interface similar to ``ETHTOOL_GRSSH`` ioctl request.
 
 Request contents:
 
-=====================================  ======  ==========================
+=====================================  ======  ============================
   ``ETHTOOL_A_RSS_HEADER``             nested  request header
   ``ETHTOOL_A_RSS_CONTEXT``            u32     context number
-=====================================  ======  ==========================
+  ``ETHTOOL_A_RSS_START_CONTEXT``      u32     start context number (dumps)
+=====================================  ======  ============================
+
+``ETHTOOL_A_RSS_CONTEXT`` specifies which RSS context number to query,
+if not set context 0 (the main context) is queried. Dumps can be filtered
+by device (only listing contexts of a given netdev). Filtering single
+context number is not supported but ``ETHTOOL_A_RSS_START_CONTEXT``
+can be used to start dumping context from the given number (primarily
+used to ignore context 0s and only dump additional contexts).
 
 Kernel response contents:
 
@@ -1927,7 +1951,7 @@ When set, the optional ``ETHTOOL_A_PLCA_VERSION`` attribute indicates which
 standard and version the PLCA management interface complies to. When not set,
 the interface is vendor-specific and (possibly) supplied by the driver.
 The OPEN Alliance SIG specifies a standard register map for 10BASE-T1S PHYs
-embedding the PLCA Reconcialiation Sublayer. See "10BASE-T1S PLCA Management
+embedding the PLCA Reconciliation Sublayer. See "10BASE-T1S PLCA Management
 Registers" at https://www.opensig.org/about/specifications/.
 
 When set, the optional ``ETHTOOL_A_PLCA_ENABLED`` attribute indicates the
@@ -1989,7 +2013,7 @@ Request contents:
   ``ETHTOOL_A_PLCA_ENABLED``              u8      PLCA Admin State
   ``ETHTOOL_A_PLCA_NODE_ID``              u8      PLCA unique local node ID
   ``ETHTOOL_A_PLCA_NODE_CNT``             u8      Number of PLCA nodes on the
-                                                  netkork, including the
+                                                  network, including the
                                                   coordinator
   ``ETHTOOL_A_PLCA_TO_TMR``               u8      Transmit Opportunity Timer
                                                   value in bit-times (BT)
@@ -2176,6 +2200,49 @@ string.
 The ``ETHTOOL_A_MODULE_FW_FLASH_DONE`` and ``ETHTOOL_A_MODULE_FW_FLASH_TOTAL``
 attributes encode the completed and total amount of work, respectively.
 
+PHY_GET
+=======
+
+Retrieve information about a given Ethernet PHY sitting on the link. The DO
+operation returns all available information about dev->phydev. User can also
+specify a PHY_INDEX, in which case the DO request returns information about that
+specific PHY.
+
+As there can be more than one PHY, the DUMP operation can be used to list the PHYs
+present on a given interface, by passing an interface index or name in
+the dump request.
+
+For more information, refer to :ref:`phy_link_topology`
+
+Request contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_PHY_HEADER``              nested  request header
+  ====================================  ======  ==========================
+
+Kernel response contents:
+
+  ===================================== ======  ===============================
+  ``ETHTOOL_A_PHY_HEADER``              nested  request header
+  ``ETHTOOL_A_PHY_INDEX``               u32     the phy's unique index, that can
+                                                be used for phy-specific
+                                                requests
+  ``ETHTOOL_A_PHY_DRVNAME``             string  the phy driver name
+  ``ETHTOOL_A_PHY_NAME``                string  the phy device name
+  ``ETHTOOL_A_PHY_UPSTREAM_TYPE``       u32     the type of device this phy is
+                                                connected to
+  ``ETHTOOL_A_PHY_UPSTREAM_INDEX``      u32     the PHY index of the upstream
+                                                PHY
+  ``ETHTOOL_A_PHY_UPSTREAM_SFP_NAME``   string  if this PHY is connected to
+                                                its parent PHY through an SFP
+                                                bus, the name of this sfp bus
+  ``ETHTOOL_A_PHY_DOWNSTREAM_SFP_NAME`` string  if the phy controls an sfp bus,
+                                                the name of the sfp bus
+  ===================================== ======  ===============================
+
+When ``ETHTOOL_A_PHY_UPSTREAM_TYPE`` is PHY_UPSTREAM_PHY, the PHY's parent is
+another PHY.
+
 Request translation
 ===================
 
@@ -2283,4 +2350,5 @@ are netlink only.
   n/a                                 ``ETHTOOL_MSG_MM_GET``
   n/a                                 ``ETHTOOL_MSG_MM_SET``
   n/a                                 ``ETHTOOL_MSG_MODULE_FW_FLASH_ACT``
+  n/a                                 ``ETHTOOL_MSG_PHY_GET``
   =================================== =====================================

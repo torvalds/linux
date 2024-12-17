@@ -360,10 +360,26 @@ static int vfio_ap_validate_nib(struct kvm_vcpu *vcpu, dma_addr_t *nib)
 	return 0;
 }
 
-static int ensure_nib_shared(unsigned long addr, struct gmap *gmap)
+/**
+ * ensure_nib_shared() - Ensure the address of the NIB is secure and shared
+ * @addr: the physical (absolute) address of the NIB
+ *
+ * This function checks whether the NIB page, which has been pinned with
+ * vfio_pin_pages(), is a shared page belonging to a secure guest.
+ *
+ * It will call uv_pin_shared() on it; if the page was already pinned shared
+ * (i.e. if the NIB belongs to a secure guest and is shared), then 0
+ * (success) is returned. If the NIB was not shared, vfio_pin_pages() had
+ * exported it and now it does not belong to the secure guest anymore. In
+ * that case, an error is returned.
+ *
+ * Context: the NIB (at physical address @addr) has to be pinned with
+ *	    vfio_pin_pages() before calling this function.
+ *
+ * Return: 0 in case of success, otherwise an error < 0.
+ */
+static int ensure_nib_shared(unsigned long addr)
 {
-	int ret;
-
 	/*
 	 * The nib has to be located in shared storage since guest and
 	 * host access it. vfio_pin_pages() will do a pin shared and
@@ -374,12 +390,7 @@ static int ensure_nib_shared(unsigned long addr, struct gmap *gmap)
 	 *
 	 * If the page is already pinned shared the UV will return a success.
 	 */
-	ret = uv_pin_shared(addr);
-	if (ret) {
-		/* vfio_pin_pages() likely exported the page so let's re-import */
-		gmap_convert_to_secure(gmap, addr);
-	}
-	return ret;
+	return uv_pin_shared(addr);
 }
 
 /**
@@ -425,6 +436,7 @@ static struct ap_queue_status vfio_ap_irq_enable(struct vfio_ap_queue *q,
 		return status;
 	}
 
+	/* The pin will probably be successful even if the NIB was not shared */
 	ret = vfio_pin_pages(&q->matrix_mdev->vdev, nib, 1,
 			     IOMMU_READ | IOMMU_WRITE, &h_page);
 	switch (ret) {
@@ -447,7 +459,7 @@ static struct ap_queue_status vfio_ap_irq_enable(struct vfio_ap_queue *q,
 
 	/* NIB in non-shared storage is a rc 6 for PV guests */
 	if (kvm_s390_pv_cpu_is_protected(vcpu) &&
-	    ensure_nib_shared(h_nib & PAGE_MASK, kvm->arch.gmap)) {
+	    ensure_nib_shared(h_nib & PAGE_MASK)) {
 		vfio_unpin_pages(&q->matrix_mdev->vdev, nib, 1);
 		status.response_code = AP_RESPONSE_INVALID_ADDRESS;
 		return status;
@@ -1521,18 +1533,13 @@ static ssize_t control_domains_show(struct device *dev,
 				    char *buf)
 {
 	unsigned long id;
-	int nchars = 0;
-	int n;
-	char *bufpos = buf;
 	struct ap_matrix_mdev *matrix_mdev = dev_get_drvdata(dev);
 	unsigned long max_domid = matrix_mdev->matrix.adm_max;
+	int nchars = 0;
 
 	mutex_lock(&matrix_dev->mdevs_lock);
-	for_each_set_bit_inv(id, matrix_mdev->matrix.adm, max_domid + 1) {
-		n = sprintf(bufpos, "%04lx\n", id);
-		bufpos += n;
-		nchars += n;
-	}
+	for_each_set_bit_inv(id, matrix_mdev->matrix.adm, max_domid + 1)
+		nchars += sysfs_emit_at(buf, nchars, "%04lx\n", id);
 	mutex_unlock(&matrix_dev->mdevs_lock);
 
 	return nchars;
@@ -1541,7 +1548,6 @@ static DEVICE_ATTR_RO(control_domains);
 
 static ssize_t vfio_ap_mdev_matrix_show(struct ap_matrix *matrix, char *buf)
 {
-	char *bufpos = buf;
 	unsigned long apid;
 	unsigned long apqi;
 	unsigned long apid1;
@@ -1549,33 +1555,21 @@ static ssize_t vfio_ap_mdev_matrix_show(struct ap_matrix *matrix, char *buf)
 	unsigned long napm_bits = matrix->apm_max + 1;
 	unsigned long naqm_bits = matrix->aqm_max + 1;
 	int nchars = 0;
-	int n;
 
 	apid1 = find_first_bit_inv(matrix->apm, napm_bits);
 	apqi1 = find_first_bit_inv(matrix->aqm, naqm_bits);
 
 	if ((apid1 < napm_bits) && (apqi1 < naqm_bits)) {
 		for_each_set_bit_inv(apid, matrix->apm, napm_bits) {
-			for_each_set_bit_inv(apqi, matrix->aqm,
-					     naqm_bits) {
-				n = sprintf(bufpos, "%02lx.%04lx\n", apid,
-					    apqi);
-				bufpos += n;
-				nchars += n;
-			}
+			for_each_set_bit_inv(apqi, matrix->aqm, naqm_bits)
+				nchars += sysfs_emit_at(buf, nchars, "%02lx.%04lx\n", apid, apqi);
 		}
 	} else if (apid1 < napm_bits) {
-		for_each_set_bit_inv(apid, matrix->apm, napm_bits) {
-			n = sprintf(bufpos, "%02lx.\n", apid);
-			bufpos += n;
-			nchars += n;
-		}
+		for_each_set_bit_inv(apid, matrix->apm, napm_bits)
+			nchars += sysfs_emit_at(buf, nchars, "%02lx.\n", apid);
 	} else if (apqi1 < naqm_bits) {
-		for_each_set_bit_inv(apqi, matrix->aqm, naqm_bits) {
-			n = sprintf(bufpos, ".%04lx\n", apqi);
-			bufpos += n;
-			nchars += n;
-		}
+		for_each_set_bit_inv(apqi, matrix->aqm, naqm_bits)
+			nchars += sysfs_emit_at(buf, nchars, ".%04lx\n", apqi);
 	}
 
 	return nchars;
@@ -2263,14 +2257,11 @@ static ssize_t status_show(struct device *dev,
 		if (matrix_mdev->kvm &&
 		    test_bit_inv(apid, matrix_mdev->shadow_apcb.apm) &&
 		    test_bit_inv(apqi, matrix_mdev->shadow_apcb.aqm))
-			nchars = scnprintf(buf, PAGE_SIZE, "%s\n",
-					   AP_QUEUE_IN_USE);
+			nchars = sysfs_emit(buf, "%s\n", AP_QUEUE_IN_USE);
 		else
-			nchars = scnprintf(buf, PAGE_SIZE, "%s\n",
-					   AP_QUEUE_ASSIGNED);
+			nchars = sysfs_emit(buf, "%s\n", AP_QUEUE_ASSIGNED);
 	} else {
-		nchars = scnprintf(buf, PAGE_SIZE, "%s\n",
-				   AP_QUEUE_UNASSIGNED);
+		nchars = sysfs_emit(buf, "%s\n", AP_QUEUE_UNASSIGNED);
 	}
 
 	mutex_unlock(&matrix_dev->mdevs_lock);

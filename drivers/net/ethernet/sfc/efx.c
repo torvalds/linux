@@ -22,6 +22,7 @@
 #include "net_driver.h"
 #include <net/gre.h>
 #include <net/udp_tunnel.h>
+#include <net/netdev_queues.h>
 #include "efx.h"
 #include "efx_common.h"
 #include "efx_channels.h"
@@ -417,14 +418,6 @@ unsigned int efx_usecs_to_ticks(struct efx_nic *efx, unsigned int usecs)
 	return usecs * 1000 / efx->timer_quantum_ns;
 }
 
-unsigned int efx_ticks_to_usecs(struct efx_nic *efx, unsigned int ticks)
-{
-	/* We must round up when converting ticks to microseconds
-	 * because we round down when converting the other way.
-	 */
-	return DIV_ROUND_UP(ticks * efx->timer_quantum_ns, 1000);
-}
-
 /* Set interrupt moderation parameters */
 int efx_init_irq_moderation(struct efx_nic *efx, unsigned int tx_usecs,
 			    unsigned int rx_usecs, bool rx_adaptive,
@@ -626,6 +619,113 @@ static const struct net_device_ops efx_netdev_ops = {
 	.ndo_bpf		= efx_xdp
 };
 
+static void efx_get_queue_stats_rx(struct net_device *net_dev, int idx,
+				   struct netdev_queue_stats_rx *stats)
+{
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
+	struct efx_rx_queue *rx_queue;
+	struct efx_channel *channel;
+
+	channel = efx_get_channel(efx, idx);
+	rx_queue = efx_channel_get_rx_queue(channel);
+	/* Count only packets since last time datapath was started */
+	stats->packets = rx_queue->rx_packets - rx_queue->old_rx_packets;
+	stats->bytes = rx_queue->rx_bytes - rx_queue->old_rx_bytes;
+	stats->hw_drops = efx_get_queue_stat_rx_hw_drops(channel) -
+			  channel->old_n_rx_hw_drops;
+	stats->hw_drop_overruns = channel->n_rx_nodesc_trunc -
+				  channel->old_n_rx_hw_drop_overruns;
+}
+
+static void efx_get_queue_stats_tx(struct net_device *net_dev, int idx,
+				   struct netdev_queue_stats_tx *stats)
+{
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
+	struct efx_tx_queue *tx_queue;
+	struct efx_channel *channel;
+
+	channel = efx_get_tx_channel(efx, idx);
+	stats->packets = 0;
+	stats->bytes = 0;
+	stats->hw_gso_packets = 0;
+	stats->hw_gso_wire_packets = 0;
+	efx_for_each_channel_tx_queue(tx_queue, channel) {
+		stats->packets += tx_queue->complete_packets -
+				  tx_queue->old_complete_packets;
+		stats->bytes += tx_queue->complete_bytes -
+				tx_queue->old_complete_bytes;
+		/* Note that, unlike stats->packets and stats->bytes,
+		 * these count TXes enqueued, rather than completed,
+		 * which may not be what users expect.
+		 */
+		stats->hw_gso_packets += tx_queue->tso_bursts -
+					 tx_queue->old_tso_bursts;
+		stats->hw_gso_wire_packets += tx_queue->tso_packets -
+					      tx_queue->old_tso_packets;
+	}
+}
+
+static void efx_get_base_stats(struct net_device *net_dev,
+			       struct netdev_queue_stats_rx *rx,
+			       struct netdev_queue_stats_tx *tx)
+{
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
+	struct efx_tx_queue *tx_queue;
+	struct efx_rx_queue *rx_queue;
+	struct efx_channel *channel;
+
+	rx->packets = 0;
+	rx->bytes = 0;
+	rx->hw_drops = 0;
+	rx->hw_drop_overruns = 0;
+	tx->packets = 0;
+	tx->bytes = 0;
+	tx->hw_gso_packets = 0;
+	tx->hw_gso_wire_packets = 0;
+
+	/* Count all packets on non-core queues, and packets before last
+	 * datapath start on core queues.
+	 */
+	efx_for_each_channel(channel, efx) {
+		rx_queue = efx_channel_get_rx_queue(channel);
+		if (channel->channel >= net_dev->real_num_rx_queues) {
+			rx->packets += rx_queue->rx_packets;
+			rx->bytes += rx_queue->rx_bytes;
+			rx->hw_drops += efx_get_queue_stat_rx_hw_drops(channel);
+			rx->hw_drop_overruns += channel->n_rx_nodesc_trunc;
+		} else {
+			rx->packets += rx_queue->old_rx_packets;
+			rx->bytes += rx_queue->old_rx_bytes;
+			rx->hw_drops += channel->old_n_rx_hw_drops;
+			rx->hw_drop_overruns += channel->old_n_rx_hw_drop_overruns;
+		}
+		efx_for_each_channel_tx_queue(tx_queue, channel) {
+			if (channel->channel < efx->tx_channel_offset ||
+			    channel->channel >= efx->tx_channel_offset +
+						net_dev->real_num_tx_queues) {
+				tx->packets += tx_queue->complete_packets;
+				tx->bytes += tx_queue->complete_bytes;
+				tx->hw_gso_packets += tx_queue->tso_bursts;
+				tx->hw_gso_wire_packets += tx_queue->tso_packets;
+			} else {
+				tx->packets += tx_queue->old_complete_packets;
+				tx->bytes += tx_queue->old_complete_bytes;
+				tx->hw_gso_packets += tx_queue->old_tso_bursts;
+				tx->hw_gso_wire_packets += tx_queue->old_tso_packets;
+			}
+			/* Include XDP TX in device-wide stats */
+			tx->packets += tx_queue->complete_xdp_packets;
+			tx->bytes += tx_queue->complete_xdp_bytes;
+		}
+	}
+}
+
+static const struct netdev_stat_ops efx_stat_ops = {
+	.get_queue_stats_rx	= efx_get_queue_stats_rx,
+	.get_queue_stats_tx	= efx_get_queue_stats_tx,
+	.get_base_stats		= efx_get_base_stats,
+};
+
 static int efx_xdp_setup_prog(struct efx_nic *efx, struct bpf_prog *prog)
 {
 	struct bpf_prog *old_prog;
@@ -716,6 +816,7 @@ static int efx_register_netdev(struct efx_nic *efx)
 	net_dev->watchdog_timeo = 5 * HZ;
 	net_dev->irq = efx->pci_dev->irq;
 	net_dev->netdev_ops = &efx_netdev_ops;
+	net_dev->stat_ops = &efx_stat_ops;
 	if (efx_nic_rev(efx) >= EFX_REV_HUNT_A0)
 		net_dev->priv_flags |= IFF_UNICAST_FLT;
 	net_dev->ethtool_ops = &efx_ethtool_ops;
@@ -821,6 +922,10 @@ static const struct pci_device_id efx_pci_table[] = {
 	 .driver_data = (unsigned long) &efx_hunt_a0_nic_type},
 	{PCI_DEVICE(PCI_VENDOR_ID_SOLARFLARE, 0x1b03),  /* SFC9250 VF */
 	 .driver_data = (unsigned long) &efx_hunt_a0_vf_nic_type},
+	{PCI_DEVICE(PCI_VENDOR_ID_SOLARFLARE, 0x0c03),  /* X4 PF (FF/LL) */
+	 .driver_data = (unsigned long)&efx_x4_nic_type},
+	{PCI_DEVICE(PCI_VENDOR_ID_SOLARFLARE, 0x2c03),  /* X4 PF (FF only) */
+	 .driver_data = (unsigned long)&efx_x4_nic_type},
 	{0}			/* end of list */
 };
 

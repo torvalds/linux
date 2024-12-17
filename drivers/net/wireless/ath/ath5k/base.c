@@ -59,7 +59,7 @@
 #include <net/cfg80211.h>
 #include <net/ieee80211_radiotap.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <net/mac80211.h>
 #include "base.h"

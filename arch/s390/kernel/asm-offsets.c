@@ -13,7 +13,6 @@
 #include <linux/purgatory.h>
 #include <linux/pgtable.h>
 #include <linux/ftrace.h>
-#include <asm/gmap.h>
 #include <asm/stacktrace.h>
 
 int main(void)
@@ -112,8 +111,7 @@ int main(void)
 	OFFSET(__LC_MCK_NEW_PSW, lowcore, mcck_new_psw);
 	OFFSET(__LC_IO_NEW_PSW, lowcore, io_new_psw);
 	/* software defined lowcore locations 0x200 - 0xdff*/
-	OFFSET(__LC_SAVE_AREA_SYNC, lowcore, save_area_sync);
-	OFFSET(__LC_SAVE_AREA_ASYNC, lowcore, save_area_async);
+	OFFSET(__LC_SAVE_AREA, lowcore, save_area);
 	OFFSET(__LC_SAVE_AREA_RESTART, lowcore, save_area_restart);
 	OFFSET(__LC_PCPU, lowcore, pcpu);
 	OFFSET(__LC_RETURN_PSW, lowcore, return_psw);
@@ -139,7 +137,6 @@ int main(void)
 	OFFSET(__LC_USER_ASCE, lowcore, user_asce);
 	OFFSET(__LC_LPP, lowcore, lpp);
 	OFFSET(__LC_CURRENT_PID, lowcore, current_pid);
-	OFFSET(__LC_GMAP, lowcore, gmap);
 	OFFSET(__LC_LAST_BREAK, lowcore, last_break);
 	/* software defined ABI-relevant lowcore locations 0xe00 - 0xe20 */
 	OFFSET(__LC_DUMP_REIPL, lowcore, ipib);
@@ -162,7 +159,6 @@ int main(void)
 	OFFSET(__LC_PGM_TDB, lowcore, pgm_tdb);
 	BLANK();
 	/* gmap/sie offsets */
-	OFFSET(__GMAP_ASCE, gmap, asce);
 	OFFSET(__SIE_PROG0C, kvm_s390_sie_block, prog0c);
 	OFFSET(__SIE_PROG20, kvm_s390_sie_block, prog20);
 	/* kexec_sha_region */
@@ -185,8 +181,8 @@ int main(void)
 	OFFSET(__FGRAPH_RET_FP, fgraph_ret_regs, fp);
 	DEFINE(__FGRAPH_RET_SIZE, sizeof(struct fgraph_ret_regs));
 #endif
-	OFFSET(__FTRACE_REGS_PT_REGS, ftrace_regs, regs);
-	DEFINE(__FTRACE_REGS_SIZE, sizeof(struct ftrace_regs));
+	OFFSET(__FTRACE_REGS_PT_REGS, __arch_ftrace_regs, regs);
+	DEFINE(__FTRACE_REGS_SIZE, sizeof(struct __arch_ftrace_regs));
 
 	OFFSET(__PCPU_FLAGS, pcpu, flags);
 	return 0;

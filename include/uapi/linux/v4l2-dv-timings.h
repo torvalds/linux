@@ -2,7 +2,7 @@
 /*
  * V4L2 DV timings header.
  *
- * Copyright (C) 2012-2016  Hans Verkuil <hans.verkuil@cisco.com>
+ * Copyright (C) 2012-2016  Hans Verkuil <hansverk@cisco.com>
  */
 
 #ifndef _V4L2_DV_TIMINGS_H

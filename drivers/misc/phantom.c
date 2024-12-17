@@ -279,7 +279,6 @@ static const struct file_operations phantom_file_ops = {
 	.unlocked_ioctl = phantom_ioctl,
 	.compat_ioctl = phantom_compat_ioctl,
 	.poll = phantom_poll,
-	.llseek = no_llseek,
 };
 
 static irqreturn_t phantom_isr(int irq, void *data)

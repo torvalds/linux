@@ -98,14 +98,13 @@ static int _rsa_dec_crt(const struct rsa_mpi_key *key, MPI m_or_m1_or_h, MPI c)
 		goto err_free_mpi;
 
 	/* (2iii) h = (m_1 - m_2) * qInv mod p */
-	mpi_sub(m12_or_qh, m_or_m1_or_h, m2);
-	mpi_mulm(m_or_m1_or_h, m12_or_qh, key->qinv, key->p);
+	ret = mpi_sub(m12_or_qh, m_or_m1_or_h, m2) ?:
+	      mpi_mulm(m_or_m1_or_h, m12_or_qh, key->qinv, key->p);
 
 	/* (2iv) m = m_2 + q * h */
-	mpi_mul(m12_or_qh, key->q, m_or_m1_or_h);
-	mpi_addm(m_or_m1_or_h, m2, m12_or_qh, key->n);
-
-	ret = 0;
+	ret = ret ?:
+	      mpi_mul(m12_or_qh, key->q, m_or_m1_or_h) ?:
+	      mpi_addm(m_or_m1_or_h, m2, m12_or_qh, key->n);
 
 err_free_mpi:
 	mpi_free(m12_or_qh);
@@ -236,6 +235,7 @@ static int rsa_check_key_length(unsigned int len)
 static int rsa_check_exponent_fips(MPI e)
 {
 	MPI e_max = NULL;
+	int err;
 
 	/* check if odd */
 	if (!mpi_test_bit(e, 0)) {
@@ -250,7 +250,12 @@ static int rsa_check_exponent_fips(MPI e)
 	e_max = mpi_alloc(0);
 	if (!e_max)
 		return -ENOMEM;
-	mpi_set_bit(e_max, 256);
+
+	err = mpi_set_bit(e_max, 256);
+	if (err) {
+		mpi_free(e_max);
+		return err;
+	}
 
 	if (mpi_cmp(e, e_max) >= 0) {
 		mpi_free(e_max);
@@ -402,16 +407,25 @@ static int __init rsa_init(void)
 		return err;
 
 	err = crypto_register_template(&rsa_pkcs1pad_tmpl);
-	if (err) {
-		crypto_unregister_akcipher(&rsa);
-		return err;
-	}
+	if (err)
+		goto err_unregister_rsa;
+
+	err = crypto_register_template(&rsassa_pkcs1_tmpl);
+	if (err)
+		goto err_unregister_rsa_pkcs1pad;
 
 	return 0;
+
+err_unregister_rsa_pkcs1pad:
+	crypto_unregister_template(&rsa_pkcs1pad_tmpl);
+err_unregister_rsa:
+	crypto_unregister_akcipher(&rsa);
+	return err;
 }
 
 static void __exit rsa_exit(void)
 {
+	crypto_unregister_template(&rsassa_pkcs1_tmpl);
 	crypto_unregister_template(&rsa_pkcs1pad_tmpl);
 	crypto_unregister_akcipher(&rsa);
 }

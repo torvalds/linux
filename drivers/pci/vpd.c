@@ -9,7 +9,7 @@
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <linux/sched/signal.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include "pci.h"
 
 #define PCI_VPD_LRDT_TAG_SIZE		3
@@ -325,7 +325,7 @@ static struct bin_attribute *vpd_attrs[] = {
 };
 
 static umode_t vpd_attr_is_visible(struct kobject *kobj,
-				   struct bin_attribute *a, int n)
+				   const struct bin_attribute *a, int n)
 {
 	struct pci_dev *pdev = to_pci_dev(kobj_to_dev(kobj));
 

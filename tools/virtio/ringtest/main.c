@@ -276,7 +276,7 @@ static void help(void)
 	fprintf(stderr, "Usage: <test> [--help]"
 		" [--host-affinity H]"
 		" [--guest-affinity G]"
-		" [--ring-size R (default: %d)]"
+		" [--ring-size R (default: %u)]"
 		" [--run-cycles C (default: %d)]"
 		" [--batch b]"
 		" [--outstanding o]"

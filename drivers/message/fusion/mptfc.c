@@ -137,7 +137,7 @@ static const struct scsi_host_template mptfc_driver_template = {
  * Supported hardware
  */
 
-static struct pci_device_id mptfc_pci_table[] = {
+static const struct pci_device_id mptfc_pci_table[] = {
 	{ PCI_VENDOR_ID_LSI_LOGIC, MPI_MANUFACTPAGE_DEVICEID_FC909,
 		PCI_ANY_ID, PCI_ANY_ID },
 	{ PCI_VENDOR_ID_LSI_LOGIC, MPI_MANUFACTPAGE_DEVICEID_FC919,
@@ -1349,11 +1349,8 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* initialize workqueue */
 
-	snprintf(ioc->fc_rescan_work_q_name, sizeof(ioc->fc_rescan_work_q_name),
-		 "mptfc_wq_%d", sh->host_no);
-	ioc->fc_rescan_work_q =
-		alloc_ordered_workqueue(ioc->fc_rescan_work_q_name,
-					WQ_MEM_RECLAIM);
+	ioc->fc_rescan_work_q = alloc_ordered_workqueue(
+		"mptfc_wq_%d", WQ_MEM_RECLAIM, sh->host_no);
 	if (!ioc->fc_rescan_work_q) {
 		error = -ENOMEM;
 		goto out_mptfc_host;

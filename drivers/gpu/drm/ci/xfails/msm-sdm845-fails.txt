@@ -1,8 +1,4 @@
-device_reset@cold-reset-bound,Fail
-device_reset@reset-bound,Fail
-device_reset@unbind-cold-reset-rebind,Fail
-device_reset@unbind-reset-rebind,Fail
-dumb_buffer@invalid-bpp,Fail
+drm_read@invalid-buffer,Fail
 kms_color@ctm-0-25,Fail
 kms_color@ctm-0-50,Fail
 kms_color@ctm-0-75,Fail
@@ -33,4 +29,3 @@ kms_plane_alpha_blend@coverage-vs-premult-vs-constant,Fail
 kms_plane_cursor@overlay,Fail
 kms_plane_cursor@viewport,Fail
 kms_rmfb@close-fd,Fail
-tools_test@tools_test,Fail

@@ -433,7 +433,6 @@ static int bcmbca_hsspi_probe(struct platform_device *pdev)
 {
 	struct spi_controller *host;
 	struct bcmbca_hsspi *bs;
-	struct resource *res_mem;
 	void __iomem *spim_ctrl;
 	void __iomem *regs;
 	struct device *dev = &pdev->dev;
@@ -445,17 +444,11 @@ static int bcmbca_hsspi_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	res_mem = platform_get_resource_byname(pdev, IORESOURCE_MEM, "hsspi");
-	if (!res_mem)
-		return -EINVAL;
-	regs = devm_ioremap_resource(dev, res_mem);
+	regs = devm_platform_ioremap_resource_byname(pdev, "hsspi");
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
-	res_mem = platform_get_resource_byname(pdev, IORESOURCE_MEM, "spim-ctrl");
-	if (!res_mem)
-		return -EINVAL;
-	spim_ctrl = devm_ioremap_resource(dev, res_mem);
+	spim_ctrl = devm_platform_ioremap_resource_byname(pdev, "spim-ctrl");
 	if (IS_ERR(spim_ctrl))
 		return PTR_ERR(spim_ctrl);
 
@@ -487,7 +480,7 @@ static int bcmbca_hsspi_probe(struct platform_device *pdev)
 		}
 	}
 
-	host = spi_alloc_host(&pdev->dev, sizeof(*bs));
+	host = devm_spi_alloc_host(&pdev->dev, sizeof(*bs));
 	if (!host) {
 		ret = -ENOMEM;
 		goto out_disable_pll_clk;
@@ -543,15 +536,17 @@ static int bcmbca_hsspi_probe(struct platform_device *pdev)
 		ret = devm_request_irq(dev, irq, bcmbca_hsspi_interrupt, IRQF_SHARED,
 			       pdev->name, bs);
 		if (ret)
-			goto out_put_host;
+			goto out_disable_pll_clk;
 	}
 
-	pm_runtime_enable(&pdev->dev);
+	ret = devm_pm_runtime_enable(&pdev->dev);
+	if (ret)
+		goto out_disable_pll_clk;
 
 	ret = sysfs_create_group(&pdev->dev.kobj, &bcmbca_hsspi_group);
 	if (ret) {
 		dev_err(&pdev->dev, "couldn't register sysfs group\n");
-		goto out_pm_disable;
+		goto out_disable_pll_clk;
 	}
 
 	/* register and we are done */
@@ -565,10 +560,6 @@ static int bcmbca_hsspi_probe(struct platform_device *pdev)
 
 out_sysgroup_disable:
 	sysfs_remove_group(&pdev->dev.kobj, &bcmbca_hsspi_group);
-out_pm_disable:
-	pm_runtime_disable(&pdev->dev);
-out_put_host:
-	spi_controller_put(host);
 out_disable_pll_clk:
 	clk_disable_unprepare(pll_clk);
 out_disable_clk:
@@ -642,7 +633,7 @@ static struct platform_driver bcmbca_hsspi_driver = {
 		   .of_match_table = bcmbca_hsspi_of_match,
 		   },
 	.probe = bcmbca_hsspi_probe,
-	.remove_new = bcmbca_hsspi_remove,
+	.remove = bcmbca_hsspi_remove,
 };
 
 module_platform_driver(bcmbca_hsspi_driver);

@@ -37,7 +37,7 @@
 #include <linux/mlx5/fs.h>
 #include <linux/rhashtable.h>
 #include <linux/llist.h>
-#include <steering/fs_dr.h>
+#include <steering/sws/fs_dr.h>
 
 #define FDB_TC_MAX_CHAIN 3
 #define FDB_FT_CHAIN (FDB_TC_MAX_CHAIN + 1)
@@ -63,7 +63,7 @@ struct mlx5_modify_hdr {
 	enum mlx5_flow_namespace_type ns_type;
 	enum mlx5_flow_resource_owner owner;
 	union {
-		struct mlx5_fs_dr_action action;
+		struct mlx5_fs_dr_action fs_dr_action;
 		u32 id;
 	};
 };
@@ -73,7 +73,7 @@ struct mlx5_pkt_reformat {
 	int reformat_type; /* from mlx5_ifc */
 	enum mlx5_flow_resource_owner owner;
 	union {
-		struct mlx5_fs_dr_action action;
+		struct mlx5_fs_dr_action fs_dr_action;
 		u32 id;
 	};
 };
@@ -110,7 +110,9 @@ enum fs_flow_table_type {
 	FS_FT_RDMA_RX		= 0X7,
 	FS_FT_RDMA_TX		= 0X8,
 	FS_FT_PORT_SEL		= 0X9,
-	FS_FT_MAX_TYPE = FS_FT_PORT_SEL,
+	FS_FT_FDB_RX		= 0xa,
+	FS_FT_FDB_TX		= 0xb,
+	FS_FT_MAX_TYPE = FS_FT_FDB_TX,
 };
 
 enum fs_flow_table_op_mod {
@@ -131,6 +133,7 @@ enum mlx5_flow_steering_capabilty {
 	MLX5_FLOW_STEERING_CAP_VLAN_PUSH_ON_RX = 1UL << 0,
 	MLX5_FLOW_STEERING_CAP_VLAN_POP_ON_TX = 1UL << 1,
 	MLX5_FLOW_STEERING_CAP_MATCH_RANGES = 1UL << 2,
+	MLX5_FLOW_STEERING_CAP_DUPLICATE_MATCH = 1UL << 3,
 };
 
 struct mlx5_flow_steering {
@@ -228,20 +231,29 @@ struct mlx5_ft_underlay_qp {
 			   MLX5_BYTE_OFF(fte_match_param,		     \
 					 MLX5_FTE_MATCH_PARAM_RESERVED)))
 
+struct fs_fte_action {
+	int				modify_mask;
+	u32				dests_size;
+	u32				fwd_dests;
+	struct mlx5_flow_context	flow_context;
+	struct mlx5_flow_act		action;
+};
+
+struct fs_fte_dup {
+	struct list_head children;
+	struct fs_fte_action act_dests;
+};
+
 /* Type of children is mlx5_flow_rule */
 struct fs_fte {
 	struct fs_node			node;
 	struct mlx5_fs_dr_rule		fs_dr_rule;
 	u32				val[MLX5_ST_SZ_DW_MATCH_PARAM];
-	u32				dests_size;
-	u32				fwd_dests;
+	struct fs_fte_action		act_dests;
+	struct fs_fte_dup		*dup;
 	u32				index;
-	struct mlx5_flow_context	flow_context;
-	struct mlx5_flow_act		action;
 	enum fs_fte_status		status;
-	struct mlx5_fc			*counter;
 	struct rhash_head		hash;
-	int				modify_mask;
 };
 
 /* Type of children is mlx5_flow_table/namespace */
@@ -368,7 +380,9 @@ struct mlx5_flow_root_namespace *find_root(struct fs_node *node);
 	(type == FS_FT_RDMA_RX) ? MLX5_CAP_FLOWTABLE_RDMA_RX(mdev, cap) :		\
 	(type == FS_FT_RDMA_TX) ? MLX5_CAP_FLOWTABLE_RDMA_TX(mdev, cap) :      \
 	(type == FS_FT_PORT_SEL) ? MLX5_CAP_FLOWTABLE_PORT_SELECTION(mdev, cap) :      \
-	(BUILD_BUG_ON_ZERO(FS_FT_PORT_SEL != FS_FT_MAX_TYPE))\
+	(type == FS_FT_FDB_RX) ? MLX5_CAP_ESW_FLOWTABLE_FDB(mdev, cap) :      \
+	(type == FS_FT_FDB_TX) ? MLX5_CAP_ESW_FLOWTABLE_FDB(mdev, cap) :      \
+	(BUILD_BUG_ON_ZERO(FS_FT_FDB_TX != FS_FT_MAX_TYPE))\
 	)
 
 #endif

@@ -778,7 +778,7 @@ MODULE_DEVICE_TABLE(of, meson_ao_cec_g12a_of_match);
 
 static struct platform_driver meson_ao_cec_g12a_driver = {
 	.probe   = meson_ao_cec_g12a_probe,
-	.remove_new = meson_ao_cec_g12a_remove,
+	.remove = meson_ao_cec_g12a_remove,
 	.driver  = {
 		.name = "meson-ao-cec-g12a",
 		.of_match_table = of_match_ptr(meson_ao_cec_g12a_of_match),

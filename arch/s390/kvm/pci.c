@@ -103,7 +103,7 @@ static int zpci_reset_aipb(u8 nisc)
 	/*
 	 * AEN registration can only happen once per system boot.  If
 	 * an aipb already exists then AEN was already registered and
-	 * we can re-use the aipb contents.  This can only happen if
+	 * we can reuse the aipb contents.  This can only happen if
 	 * the KVM module was removed and re-inserted.  However, we must
 	 * ensure that the same forwarding ISC is used as this is assigned
 	 * during KVM module load.
@@ -208,13 +208,12 @@ static inline int account_mem(unsigned long nr_pages)
 
 	page_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
 
+	cur_pages = atomic_long_read(&user->locked_vm);
 	do {
-		cur_pages = atomic_long_read(&user->locked_vm);
 		new_pages = cur_pages + nr_pages;
 		if (new_pages > page_limit)
 			return -ENOMEM;
-	} while (atomic_long_cmpxchg(&user->locked_vm, cur_pages,
-					new_pages) != cur_pages);
+	} while (!atomic_long_try_cmpxchg(&user->locked_vm, &cur_pages, new_pages));
 
 	atomic64_add(nr_pages, &current->mm->pinned_vm);
 

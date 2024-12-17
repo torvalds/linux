@@ -384,7 +384,7 @@ static int nand_ecc_sw_bch_finish_io_req(struct nand_device *nand,
 	return max_bitflips;
 }
 
-static struct nand_ecc_engine_ops nand_ecc_sw_bch_engine_ops = {
+static const struct nand_ecc_engine_ops nand_ecc_sw_bch_engine_ops = {
 	.init_ctx = nand_ecc_sw_bch_init_ctx,
 	.cleanup_ctx = nand_ecc_sw_bch_cleanup_ctx,
 	.prepare_io_req = nand_ecc_sw_bch_prepare_io_req,

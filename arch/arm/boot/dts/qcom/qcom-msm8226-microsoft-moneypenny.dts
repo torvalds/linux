@@ -10,6 +10,9 @@
 
 #include "qcom-msm8226-microsoft-common.dtsi"
 
+/* This device has no magnetometer */
+/delete-node/ &magnetometer;
+
 / {
 	model = "Nokia Lumia 630";
 	compatible = "microsoft,moneypenny", "qcom,msm8226";

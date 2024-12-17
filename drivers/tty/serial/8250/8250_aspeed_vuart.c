@@ -561,6 +561,7 @@ static const struct of_device_id aspeed_vuart_table[] = {
 	{ .compatible = "aspeed,ast2500-vuart" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, aspeed_vuart_table);
 
 static struct platform_driver aspeed_vuart_driver = {
 	.driver = {
@@ -568,7 +569,7 @@ static struct platform_driver aspeed_vuart_driver = {
 		.of_match_table = aspeed_vuart_table,
 	},
 	.probe = aspeed_vuart_probe,
-	.remove_new = aspeed_vuart_remove,
+	.remove = aspeed_vuart_remove,
 };
 
 module_platform_driver(aspeed_vuart_driver);

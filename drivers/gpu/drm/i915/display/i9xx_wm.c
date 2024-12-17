@@ -7,12 +7,22 @@
 #include "i915_reg.h"
 #include "i9xx_wm.h"
 #include "intel_atomic.h"
+#include "intel_bo.h"
 #include "intel_display.h"
 #include "intel_display_trace.h"
+#include "intel_fb.h"
 #include "intel_mchbar_regs.h"
 #include "intel_wm.h"
 #include "skl_watermark.h"
 #include "vlv_sideband.h"
+
+struct intel_watermark_params {
+	u16 fifo_size;
+	u16 max_wm;
+	u8 default_wm;
+	u8 guard_size;
+	u8 cacheline_size;
+};
 
 /* used in computing the new watermarks state */
 struct intel_wm_config {
@@ -136,6 +146,7 @@ static void chv_set_memory_pm5(struct drm_i915_private *dev_priv, bool enable)
 
 static bool _intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable)
 {
+	struct intel_display *display = &dev_priv->display;
 	bool was_enabled;
 	u32 val;
 
@@ -177,7 +188,7 @@ static bool _intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enabl
 		return false;
 	}
 
-	trace_intel_memory_cxsr(dev_priv, was_enabled, enable);
+	trace_intel_memory_cxsr(display, was_enabled, enable);
 
 	drm_dbg_kms(&dev_priv->drm, "memory self-refresh is %s (was %s)\n",
 		    str_enabled_disabled(enable),
@@ -695,6 +706,76 @@ static void pnv_update_wm(struct drm_i915_private *dev_priv)
 	}
 }
 
+static bool i9xx_wm_need_update(const struct intel_plane_state *old_plane_state,
+				const struct intel_plane_state *new_plane_state)
+{
+	/* Update watermarks on tiling or size changes. */
+	if (old_plane_state->uapi.visible != new_plane_state->uapi.visible)
+		return true;
+
+	if (!old_plane_state->hw.fb || !new_plane_state->hw.fb)
+		return false;
+
+	if (old_plane_state->hw.fb->modifier != new_plane_state->hw.fb->modifier ||
+	    old_plane_state->hw.rotation != new_plane_state->hw.rotation ||
+	    drm_rect_width(&old_plane_state->uapi.src) != drm_rect_width(&new_plane_state->uapi.src) ||
+	    drm_rect_height(&old_plane_state->uapi.src) != drm_rect_height(&new_plane_state->uapi.src) ||
+	    drm_rect_width(&old_plane_state->uapi.dst) != drm_rect_width(&new_plane_state->uapi.dst) ||
+	    drm_rect_height(&old_plane_state->uapi.dst) != drm_rect_height(&new_plane_state->uapi.dst))
+		return true;
+
+	return false;
+}
+
+static void i9xx_wm_compute(struct intel_crtc_state *new_crtc_state,
+			    const struct intel_plane_state *old_plane_state,
+			    const struct intel_plane_state *new_plane_state)
+{
+	bool turn_off, turn_on, visible, was_visible, mode_changed;
+
+	mode_changed = intel_crtc_needs_modeset(new_crtc_state);
+	was_visible = old_plane_state->uapi.visible;
+	visible = new_plane_state->uapi.visible;
+
+	if (!was_visible && !visible)
+		return;
+
+	turn_off = was_visible && (!visible || mode_changed);
+	turn_on = visible && (!was_visible || mode_changed);
+
+	/* FIXME nuke when all wm code is atomic */
+	if (turn_on) {
+		new_crtc_state->update_wm_pre = true;
+	} else if (turn_off) {
+		new_crtc_state->update_wm_post = true;
+	} else if (i9xx_wm_need_update(old_plane_state, new_plane_state)) {
+		/* FIXME bollocks */
+		new_crtc_state->update_wm_pre = true;
+		new_crtc_state->update_wm_post = true;
+	}
+}
+
+static int i9xx_compute_watermarks(struct intel_atomic_state *state,
+				   struct intel_crtc *crtc)
+{
+	struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	const struct intel_plane_state *old_plane_state;
+	const struct intel_plane_state *new_plane_state;
+	struct intel_plane *plane;
+	int i;
+
+	for_each_oldnew_intel_plane_in_state(state, plane, old_plane_state,
+					     new_plane_state, i) {
+		if (plane->pipe != crtc->pipe)
+			continue;
+
+		i9xx_wm_compute(new_crtc_state, old_plane_state, new_plane_state);
+	}
+
+	return 0;
+}
+
 /*
  * Documentation says:
  * "If the line size is small, the TLB fetches can get in the way of the
@@ -715,10 +796,11 @@ static unsigned int g4x_tlb_miss_wa(int fifo_size, int width, int cpp)
 static void g4x_write_wm_values(struct drm_i915_private *dev_priv,
 				const struct g4x_wm_values *wm)
 {
+	struct intel_display *display = &dev_priv->display;
 	enum pipe pipe;
 
 	for_each_pipe(dev_priv, pipe)
-		trace_g4x_wm(intel_crtc_for_pipe(dev_priv, pipe), wm);
+		trace_g4x_wm(intel_crtc_for_pipe(display, pipe), wm);
 
 	intel_uncore_write(&dev_priv->uncore, DSPFW1(dev_priv),
 			   FW_WM(wm->sr.plane, SR) |
@@ -747,10 +829,11 @@ static void g4x_write_wm_values(struct drm_i915_private *dev_priv,
 static void vlv_write_wm_values(struct drm_i915_private *dev_priv,
 				const struct vlv_wm_values *wm)
 {
+	struct intel_display *display = &dev_priv->display;
 	enum pipe pipe;
 
 	for_each_pipe(dev_priv, pipe) {
-		trace_vlv_wm(intel_crtc_for_pipe(dev_priv, pipe), wm);
+		trace_vlv_wm(intel_crtc_for_pipe(display, pipe), wm);
 
 		intel_uncore_write(&dev_priv->uncore, VLV_DDL(pipe),
 				   (wm->ddl[pipe].plane[PLANE_CURSOR] << DDL_CURSOR_SHIFT) |
@@ -1272,6 +1355,22 @@ out:
 	 */
 	if (memcmp(intermediate, optimal, sizeof(*intermediate)) != 0)
 		new_crtc_state->wm.need_postvbl_update = true;
+
+	return 0;
+}
+
+static int g4x_compute_watermarks(struct intel_atomic_state *state,
+				  struct intel_crtc *crtc)
+{
+	int ret;
+
+	ret = g4x_compute_pipe_wm(state, crtc);
+	if (ret)
+		return ret;
+
+	ret = g4x_compute_intermediate_wm(state, crtc);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -1902,6 +2001,22 @@ out:
 	return 0;
 }
 
+static int vlv_compute_watermarks(struct intel_atomic_state *state,
+				  struct intel_crtc *crtc)
+{
+	int ret;
+
+	ret = vlv_compute_pipe_wm(state, crtc);
+	if (ret)
+		return ret;
+
+	ret = vlv_compute_intermediate_wm(state, crtc);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static void vlv_merge_wm(struct drm_i915_private *dev_priv,
 			 struct vlv_wm_values *wm)
 {
@@ -2088,12 +2203,13 @@ static void i965_update_wm(struct drm_i915_private *dev_priv)
 static struct intel_crtc *intel_crtc_for_plane(struct drm_i915_private *i915,
 					       enum i9xx_plane_id i9xx_plane)
 {
+	struct intel_display *display = &i915->display;
 	struct intel_plane *plane;
 
 	for_each_intel_plane(&i915->drm, plane) {
 		if (plane->id == PLANE_PRIMARY &&
 		    plane->i9xx_plane == i9xx_plane)
-			return intel_crtc_for_pipe(i915, plane->pipe);
+			return intel_crtc_for_pipe(display, plane->pipe);
 	}
 
 	return NULL;
@@ -2172,12 +2288,12 @@ static void i9xx_update_wm(struct drm_i915_private *dev_priv)
 
 	crtc = single_enabled_crtc(dev_priv);
 	if (IS_I915GM(dev_priv) && crtc) {
-		struct drm_i915_gem_object *obj;
+		struct drm_gem_object *obj;
 
-		obj = intel_fb_obj(crtc->base.primary->state->fb);
+		obj = intel_fb_bo(crtc->base.primary->state->fb);
 
 		/* self-refresh seems busted with untiled */
-		if (!i915_gem_object_is_tiled(obj))
+		if (!intel_bo_is_tiled(obj))
 			crtc = NULL;
 	}
 
@@ -2878,8 +2994,9 @@ static int ilk_compute_intermediate_wm(struct intel_atomic_state *state,
 		intel_atomic_get_new_crtc_state(state, crtc);
 	const struct intel_crtc_state *old_crtc_state =
 		intel_atomic_get_old_crtc_state(state, crtc);
-	struct intel_pipe_wm *a = &new_crtc_state->wm.ilk.intermediate;
-	const struct intel_pipe_wm *b = &old_crtc_state->wm.ilk.optimal;
+	struct intel_pipe_wm *intermediate = &new_crtc_state->wm.ilk.intermediate;
+	const struct intel_pipe_wm *optimal = &new_crtc_state->wm.ilk.optimal;
+	const struct intel_pipe_wm *active = &old_crtc_state->wm.ilk.optimal;
 	int level;
 
 	/*
@@ -2887,25 +3004,29 @@ static int ilk_compute_intermediate_wm(struct intel_atomic_state *state,
 	 * currently active watermarks to get values that are safe both before
 	 * and after the vblank.
 	 */
-	*a = new_crtc_state->wm.ilk.optimal;
+	*intermediate = *optimal;
 	if (!new_crtc_state->hw.active ||
 	    intel_crtc_needs_modeset(new_crtc_state) ||
 	    state->skip_intermediate_wm)
 		return 0;
 
-	a->pipe_enabled |= b->pipe_enabled;
-	a->sprites_enabled |= b->sprites_enabled;
-	a->sprites_scaled |= b->sprites_scaled;
+	intermediate->pipe_enabled |= active->pipe_enabled;
+	intermediate->sprites_enabled |= active->sprites_enabled;
+	intermediate->sprites_scaled |= active->sprites_scaled;
 
 	for (level = 0; level < dev_priv->display.wm.num_levels; level++) {
-		struct intel_wm_level *a_wm = &a->wm[level];
-		const struct intel_wm_level *b_wm = &b->wm[level];
+		struct intel_wm_level *intermediate_wm = &intermediate->wm[level];
+		const struct intel_wm_level *active_wm = &active->wm[level];
 
-		a_wm->enable &= b_wm->enable;
-		a_wm->pri_val = max(a_wm->pri_val, b_wm->pri_val);
-		a_wm->spr_val = max(a_wm->spr_val, b_wm->spr_val);
-		a_wm->cur_val = max(a_wm->cur_val, b_wm->cur_val);
-		a_wm->fbc_val = max(a_wm->fbc_val, b_wm->fbc_val);
+		intermediate_wm->enable &= active_wm->enable;
+		intermediate_wm->pri_val = max(intermediate_wm->pri_val,
+					       active_wm->pri_val);
+		intermediate_wm->spr_val = max(intermediate_wm->spr_val,
+					       active_wm->spr_val);
+		intermediate_wm->cur_val = max(intermediate_wm->cur_val,
+					       active_wm->cur_val);
+		intermediate_wm->fbc_val = max(intermediate_wm->fbc_val,
+					       active_wm->fbc_val);
 	}
 
 	/*
@@ -2914,15 +3035,31 @@ static int ilk_compute_intermediate_wm(struct intel_atomic_state *state,
 	 * there's no safe way to transition from the old state to
 	 * the new state, so we need to fail the atomic transaction.
 	 */
-	if (!ilk_validate_pipe_wm(dev_priv, a))
+	if (!ilk_validate_pipe_wm(dev_priv, intermediate))
 		return -EINVAL;
 
 	/*
 	 * If our intermediate WM are identical to the final WM, then we can
 	 * omit the post-vblank programming; only update if it's different.
 	 */
-	if (memcmp(a, &new_crtc_state->wm.ilk.optimal, sizeof(*a)) != 0)
+	if (memcmp(intermediate, optimal, sizeof(*intermediate)) != 0)
 		new_crtc_state->wm.need_postvbl_update = true;
+
+	return 0;
+}
+
+static int ilk_compute_watermarks(struct intel_atomic_state *state,
+				  struct intel_crtc *crtc)
+{
+	int ret;
+
+	ret = ilk_compute_pipe_wm(state, crtc);
+	if (ret)
+		return ret;
+
+	ret = ilk_compute_intermediate_wm(state, crtc);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -3265,7 +3402,7 @@ static void ilk_write_wm_values(struct drm_i915_private *dev_priv,
 	dev_priv->display.wm.hw = *results;
 }
 
-bool ilk_disable_lp_wm(struct drm_i915_private *dev_priv)
+bool ilk_disable_cxsr(struct drm_i915_private *dev_priv)
 {
 	return _ilk_disable_lp_wm(dev_priv, WM_DIRTY_LP_ALL);
 }
@@ -3716,6 +3853,7 @@ static void g4x_wm_get_hw_state(struct drm_i915_private *dev_priv)
 
 static void g4x_wm_sanitize(struct drm_i915_private *dev_priv)
 {
+	struct intel_display *display = &dev_priv->display;
 	struct intel_plane *plane;
 	struct intel_crtc *crtc;
 
@@ -3723,7 +3861,7 @@ static void g4x_wm_sanitize(struct drm_i915_private *dev_priv)
 
 	for_each_intel_plane(&dev_priv->drm, plane) {
 		struct intel_crtc *crtc =
-			intel_crtc_for_pipe(dev_priv, plane->pipe);
+			intel_crtc_for_pipe(display, plane->pipe);
 		struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
 		struct intel_plane_state *plane_state =
@@ -3871,6 +4009,7 @@ static void vlv_wm_get_hw_state(struct drm_i915_private *dev_priv)
 
 static void vlv_wm_sanitize(struct drm_i915_private *dev_priv)
 {
+	struct intel_display *display = &dev_priv->display;
 	struct intel_plane *plane;
 	struct intel_crtc *crtc;
 
@@ -3878,7 +4017,7 @@ static void vlv_wm_sanitize(struct drm_i915_private *dev_priv)
 
 	for_each_intel_plane(&dev_priv->drm, plane) {
 		struct intel_crtc *crtc =
-			intel_crtc_for_pipe(dev_priv, plane->pipe);
+			intel_crtc_for_pipe(display, plane->pipe);
 		struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
 		struct intel_plane_state *plane_state =
@@ -3971,16 +4110,14 @@ static void ilk_wm_get_hw_state(struct drm_i915_private *dev_priv)
 }
 
 static const struct intel_wm_funcs ilk_wm_funcs = {
-	.compute_pipe_wm = ilk_compute_pipe_wm,
-	.compute_intermediate_wm = ilk_compute_intermediate_wm,
+	.compute_watermarks = ilk_compute_watermarks,
 	.initial_watermarks = ilk_initial_watermarks,
 	.optimize_watermarks = ilk_optimize_watermarks,
 	.get_hw_state = ilk_wm_get_hw_state,
 };
 
 static const struct intel_wm_funcs vlv_wm_funcs = {
-	.compute_pipe_wm = vlv_compute_pipe_wm,
-	.compute_intermediate_wm = vlv_compute_intermediate_wm,
+	.compute_watermarks = vlv_compute_watermarks,
 	.initial_watermarks = vlv_initial_watermarks,
 	.optimize_watermarks = vlv_optimize_watermarks,
 	.atomic_update_watermarks = vlv_atomic_update_fifo,
@@ -3988,26 +4125,29 @@ static const struct intel_wm_funcs vlv_wm_funcs = {
 };
 
 static const struct intel_wm_funcs g4x_wm_funcs = {
-	.compute_pipe_wm = g4x_compute_pipe_wm,
-	.compute_intermediate_wm = g4x_compute_intermediate_wm,
+	.compute_watermarks = g4x_compute_watermarks,
 	.initial_watermarks = g4x_initial_watermarks,
 	.optimize_watermarks = g4x_optimize_watermarks,
 	.get_hw_state = g4x_wm_get_hw_state_and_sanitize,
 };
 
 static const struct intel_wm_funcs pnv_wm_funcs = {
+	.compute_watermarks = i9xx_compute_watermarks,
 	.update_wm = pnv_update_wm,
 };
 
 static const struct intel_wm_funcs i965_wm_funcs = {
+	.compute_watermarks = i9xx_compute_watermarks,
 	.update_wm = i965_update_wm,
 };
 
 static const struct intel_wm_funcs i9xx_wm_funcs = {
+	.compute_watermarks = i9xx_compute_watermarks,
 	.update_wm = i9xx_update_wm,
 };
 
 static const struct intel_wm_funcs i845_wm_funcs = {
+	.compute_watermarks = i9xx_compute_watermarks,
 	.update_wm = i845_update_wm,
 };
 
@@ -4028,7 +4168,7 @@ void i9xx_wm_init(struct drm_i915_private *dev_priv)
 		dev_priv->display.funcs.wm = &g4x_wm_funcs;
 	} else if (IS_PINEVIEW(dev_priv)) {
 		if (!pnv_get_cxsr_latency(dev_priv)) {
-			drm_info(&dev_priv->drm,  "Unknown FSB/MEM, disabling CxSR\n");
+			drm_info(&dev_priv->drm, "Unknown FSB/MEM, disabling CxSR\n");
 			/* Disable CxSR and never update its watermark again */
 			intel_set_memory_cxsr(dev_priv, false);
 			dev_priv->display.funcs.wm = &nop_funcs;

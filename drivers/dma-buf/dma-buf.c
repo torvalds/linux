@@ -176,8 +176,9 @@ static loff_t dma_buf_llseek(struct file *file, loff_t offset, int whence)
 	dmabuf = file->private_data;
 
 	/* only support discovering the end of the buffer,
-	   but also allow SEEK_SET to maintain the idiomatic
-	   SEEK_END(0), SEEK_CUR(0) pattern */
+	 * but also allow SEEK_SET to maintain the idiomatic
+	 * SEEK_END(0), SEEK_CUR(0) pattern.
+	 */
 	if (whence == SEEK_END)
 		base = dmabuf->size;
 	else if (whence == SEEK_SET)
@@ -558,7 +559,7 @@ static struct file *dma_buf_getfile(size_t size, int flags)
 	 * Override ->i_ino with the unique and dmabuffs specific
 	 * value.
 	 */
-	inode->i_ino = atomic64_add_return(1, &dmabuf_inode);
+	inode->i_ino = atomic64_inc_return(&dmabuf_inode);
 	flags &= O_ACCMODE | O_NONBLOCK;
 	file = alloc_file_pseudo(inode, dma_buf_mnt, "dmabuf",
 				 flags, &dma_buf_fops);
@@ -702,7 +703,7 @@ err_module:
 	module_put(exp_info->owner);
 	return ERR_PTR(ret);
 }
-EXPORT_SYMBOL_NS_GPL(dma_buf_export, DMA_BUF);
+EXPORT_SYMBOL_NS_GPL(dma_buf_export, "DMA_BUF");
 
 /**
  * dma_buf_fd - returns a file descriptor for the given struct dma_buf
@@ -726,7 +727,7 @@ int dma_buf_fd(struct dma_buf *dmabuf, int flags)
 
 	return fd;
 }
-EXPORT_SYMBOL_NS_GPL(dma_buf_fd, DMA_BUF);
+EXPORT_SYMBOL_NS_GPL(dma_buf_fd, "DMA_BUF");
 
 /**
  * dma_buf_get - returns the struct dma_buf related to an fd
@@ -752,7 +753,7 @@ struct dma_buf *dma_buf_get(int fd)
 
 	return file->private_data;
 }
-EXPORT_SYMBOL_NS_GPL(dma_buf_get, DMA_BUF);
+EXPORT_SYMBOL_NS_GPL(dma_buf_get, "DMA_BUF");
 
 /**
  * dma_buf_put - decreases refcount of the buffer
@@ -771,7 +772,7 @@ void dma_buf_put(struct dma_buf *dmabuf)
 
 	fput(dmabuf->file);
 }
-EXPORT_SYMBOL_NS_GPL(dma_buf_put, DMA_BUF);
+EXPORT_SYMBOL_NS_GPL(dma_buf_put, "DMA_BUF");
 
 static void mangle_sg_table(struct sg_table *sg_table)
 {
@@ -782,13 +783,14 @@ static void mangle_sg_table(struct sg_table *sg_table)
 	/* To catch abuse of the underlying struct page by importers mix
 	 * up the bits, but take care to preserve the low SG_ bits to
 	 * not corrupt the sgt. The mixing is undone in __unmap_dma_buf
-	 * before passing the sgt back to the exporter. */
+	 * before passing the sgt back to the exporter.
+	 */
 	for_each_sgtable_sg(sg_table, sg, i)
 		sg->page_link ^= ~0xffUL;
 #endif
 
 }
-static struct sg_table * __map_dma_buf(struct dma_buf_attachment *attach,
+static struct sg_table *__map_dma_buf(struct dma_buf_attachment *attach,
 				       enum dma_data_direction direction)
 {
 	struct sg_table *sg_table;
@@ -976,7 +978,7 @@ err_unlock:
 	dma_buf_detach(dmabuf, attach);
 	return ERR_PTR(ret);
 }
-EXPORT_SYMBOL_NS_GPL(dma_buf_dynamic_attach, DMA_BUF);
+EXPORT_SYMBOL_NS_GPL(dma_buf_dynamic_attach, "DMA_BUF");
 
 /**
  * dma_buf_attach - Wrapper for dma_buf_dynamic_attach
@@ -991,7 +993,7 @@ struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
 {
 	return dma_buf_dynamic_attach(dmabuf, dev, NULL, NULL);
 }
-EXPORT_SYMBOL_NS_GPL(dma_buf_attach, DMA_BUF);
+EXPORT_SYMBOL_NS_GPL(dma_buf_attach, "DMA_BUF");
 
 static void __unmap_dma_buf(struct dma_buf_attachment *attach,
 			    struct sg_table *sg_table,
@@ -1035,7 +1037,7 @@ void dma_buf_detach(struct dma_buf *dmabuf, struct dma_buf_attachment *attach)
 
 	kfree(attach);
 }
-EXPORT_SYMBOL_NS_GPL(dma_buf_detach, DMA_BUF);
+EXPORT_SYMBOL_NS_GPL(dma_buf_detach, "DMA_BUF");
 
 /**
  * dma_buf_pin - Lock down the DMA-buf
@@ -1065,7 +1067,7 @@ int dma_buf_pin(struct dma_buf_attachment *attach)
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(dma_buf_pin, DMA_BUF);
+EXPORT_SYMBOL_NS_GPL(dma_buf_pin, "DMA_BUF");
 
 /**
  * dma_buf_unpin - Unpin a DMA-buf
@@ -1086,7 +1088,7 @@ void dma_buf_unpin(struct dma_buf_attachment *attach)
 	if (dmabuf->ops->unpin)
 		dmabuf->ops->unpin(attach);
 }
-EXPORT_SYMBOL_NS_GPL(dma_buf_unpin, DMA_BUF);
+EXPORT_SYMBOL_NS_GPL(dma_buf_unpin, "DMA_BUF");
 
 /**
  * dma_buf_map_attachment - Returns the scatterlist table of the attachment;
@@ -1174,7 +1176,7 @@ struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *attach,
 #endif /* CONFIG_DMA_API_DEBUG */
 	return sg_table;
 }
-EXPORT_SYMBOL_NS_GPL(dma_buf_map_attachment, DMA_BUF);
+EXPORT_SYMBOL_NS_GPL(dma_buf_map_attachment, "DMA_BUF");
 
 /**
  * dma_buf_map_attachment_unlocked - Returns the scatterlist table of the attachment;
@@ -1202,7 +1204,7 @@ dma_buf_map_attachment_unlocked(struct dma_buf_attachment *attach,
 
 	return sg_table;
 }
-EXPORT_SYMBOL_NS_GPL(dma_buf_map_attachment_unlocked, DMA_BUF);
+EXPORT_SYMBOL_NS_GPL(dma_buf_map_attachment_unlocked, "DMA_BUF");
 
 /**
  * dma_buf_unmap_attachment - unmaps and decreases usecount of the buffer;might
@@ -1234,7 +1236,7 @@ void dma_buf_unmap_attachment(struct dma_buf_attachment *attach,
 	    !IS_ENABLED(CONFIG_DMABUF_MOVE_NOTIFY))
 		dma_buf_unpin(attach);
 }
-EXPORT_SYMBOL_NS_GPL(dma_buf_unmap_attachment, DMA_BUF);
+EXPORT_SYMBOL_NS_GPL(dma_buf_unmap_attachment, "DMA_BUF");
 
 /**
  * dma_buf_unmap_attachment_unlocked - unmaps and decreases usecount of the buffer;might
@@ -1259,7 +1261,7 @@ void dma_buf_unmap_attachment_unlocked(struct dma_buf_attachment *attach,
 	dma_buf_unmap_attachment(attach, sg_table, direction);
 	dma_resv_unlock(attach->dmabuf->resv);
 }
-EXPORT_SYMBOL_NS_GPL(dma_buf_unmap_attachment_unlocked, DMA_BUF);
+EXPORT_SYMBOL_NS_GPL(dma_buf_unmap_attachment_unlocked, "DMA_BUF");
 
 /**
  * dma_buf_move_notify - notify attachments that DMA-buf is moving
@@ -1279,7 +1281,7 @@ void dma_buf_move_notify(struct dma_buf *dmabuf)
 		if (attach->importer_ops)
 			attach->importer_ops->move_notify(attach);
 }
-EXPORT_SYMBOL_NS_GPL(dma_buf_move_notify, DMA_BUF);
+EXPORT_SYMBOL_NS_GPL(dma_buf_move_notify, "DMA_BUF");
 
 /**
  * DOC: cpu access
@@ -1296,10 +1298,12 @@ EXPORT_SYMBOL_NS_GPL(dma_buf_move_notify, DMA_BUF);
  *   vmap interface is introduced. Note that on very old 32-bit architectures
  *   vmalloc space might be limited and result in vmap calls failing.
  *
- *   Interfaces::
+ *   Interfaces:
  *
- *      void \*dma_buf_vmap(struct dma_buf \*dmabuf, struct iosys_map \*map)
- *      void dma_buf_vunmap(struct dma_buf \*dmabuf, struct iosys_map \*map)
+ *   .. code-block:: c
+ *
+ *     void *dma_buf_vmap(struct dma_buf *dmabuf, struct iosys_map *map)
+ *     void dma_buf_vunmap(struct dma_buf *dmabuf, struct iosys_map *map)
  *
  *   The vmap call can fail if there is no vmap support in the exporter, or if
  *   it runs out of vmalloc space. Note that the dma-buf layer keeps a reference
@@ -1356,10 +1360,11 @@ EXPORT_SYMBOL_NS_GPL(dma_buf_move_notify, DMA_BUF);
  *   enough, since adding interfaces to intercept pagefaults and allow pte
  *   shootdowns would increase the complexity quite a bit.
  *
- *   Interface::
+ *   Interface:
  *
- *      int dma_buf_mmap(struct dma_buf \*, struct vm_area_struct \*,
- *		       unsigned long);
+ *   .. code-block:: c
+ *
+ *     int dma_buf_mmap(struct dma_buf *, struct vm_area_struct *, unsigned long);
  *
  *   If the importing subsystem simply provides a special-purpose mmap call to
  *   set up a mapping in userspace, calling do_mmap with &dma_buf.file will
@@ -1424,7 +1429,7 @@ int dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(dma_buf_begin_cpu_access, DMA_BUF);
+EXPORT_SYMBOL_NS_GPL(dma_buf_begin_cpu_access, "DMA_BUF");
 
 /**
  * dma_buf_end_cpu_access - Must be called after accessing a dma_buf from the
@@ -1452,7 +1457,7 @@ int dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(dma_buf_end_cpu_access, DMA_BUF);
+EXPORT_SYMBOL_NS_GPL(dma_buf_end_cpu_access, "DMA_BUF");
 
 
 /**
@@ -1494,7 +1499,7 @@ int dma_buf_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma,
 
 	return dmabuf->ops->mmap(dmabuf, vma);
 }
-EXPORT_SYMBOL_NS_GPL(dma_buf_mmap, DMA_BUF);
+EXPORT_SYMBOL_NS_GPL(dma_buf_mmap, "DMA_BUF");
 
 /**
  * dma_buf_vmap - Create virtual mapping for the buffer object into kernel
@@ -1547,7 +1552,7 @@ int dma_buf_vmap(struct dma_buf *dmabuf, struct iosys_map *map)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(dma_buf_vmap, DMA_BUF);
+EXPORT_SYMBOL_NS_GPL(dma_buf_vmap, "DMA_BUF");
 
 /**
  * dma_buf_vmap_unlocked - Create virtual mapping for the buffer object into kernel
@@ -1574,7 +1579,7 @@ int dma_buf_vmap_unlocked(struct dma_buf *dmabuf, struct iosys_map *map)
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(dma_buf_vmap_unlocked, DMA_BUF);
+EXPORT_SYMBOL_NS_GPL(dma_buf_vmap_unlocked, "DMA_BUF");
 
 /**
  * dma_buf_vunmap - Unmap a vmap obtained by dma_buf_vmap.
@@ -1598,7 +1603,7 @@ void dma_buf_vunmap(struct dma_buf *dmabuf, struct iosys_map *map)
 		iosys_map_clear(&dmabuf->vmap_ptr);
 	}
 }
-EXPORT_SYMBOL_NS_GPL(dma_buf_vunmap, DMA_BUF);
+EXPORT_SYMBOL_NS_GPL(dma_buf_vunmap, "DMA_BUF");
 
 /**
  * dma_buf_vunmap_unlocked - Unmap a vmap obtained by dma_buf_vmap.
@@ -1614,7 +1619,7 @@ void dma_buf_vunmap_unlocked(struct dma_buf *dmabuf, struct iosys_map *map)
 	dma_buf_vunmap(dmabuf, map);
 	dma_resv_unlock(dmabuf->resv);
 }
-EXPORT_SYMBOL_NS_GPL(dma_buf_vunmap_unlocked, DMA_BUF);
+EXPORT_SYMBOL_NS_GPL(dma_buf_vunmap_unlocked, "DMA_BUF");
 
 #ifdef CONFIG_DEBUG_FS
 static int dma_buf_debug_show(struct seq_file *s, void *unused)
@@ -1694,7 +1699,7 @@ static int dma_buf_init_debugfs(void)
 
 	dma_buf_debugfs_dir = d;
 
-	d = debugfs_create_file("bufinfo", S_IRUGO, dma_buf_debugfs_dir,
+	d = debugfs_create_file("bufinfo", 0444, dma_buf_debugfs_dir,
 				NULL, &dma_buf_debug_fops);
 	if (IS_ERR(d)) {
 		pr_debug("dma_buf: debugfs: failed to create node bufinfo\n");

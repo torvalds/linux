@@ -27,6 +27,7 @@ struct fib6_rule {
 	struct rt6key		src;
 	struct rt6key		dst;
 	dscp_t			dscp;
+	u8			dscp_full:1;	/* DSCP or TOS selector */
 };
 
 static bool fib6_rule_matchall(const struct fib_rule *rule)
@@ -55,7 +56,7 @@ int fib6_rules_dump(struct net *net, struct notifier_block *nb,
 	return fib_rules_dump(net, nb, AF_INET6, extack);
 }
 
-unsigned int fib6_rules_seq_read(struct net *net)
+unsigned int fib6_rules_seq_read(const struct net *net)
 {
 	return fib_rules_seq_read(net, AF_INET6);
 }
@@ -345,6 +346,20 @@ INDIRECT_CALLABLE_SCOPE int fib6_rule_match(struct fib_rule *rule,
 	return 1;
 }
 
+static int fib6_nl2rule_dscp(const struct nlattr *nla, struct fib6_rule *rule6,
+			     struct netlink_ext_ack *extack)
+{
+	if (rule6->dscp) {
+		NL_SET_ERR_MSG(extack, "Cannot specify both TOS and DSCP");
+		return -EINVAL;
+	}
+
+	rule6->dscp = inet_dsfield_to_dscp(nla_get_u8(nla) << 2);
+	rule6->dscp_full = true;
+
+	return 0;
+}
+
 static int fib6_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 			       struct fib_rule_hdr *frh,
 			       struct nlattr **tb,
@@ -360,6 +375,9 @@ static int fib6_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 		goto errout;
 	}
 	rule6->dscp = inet_dsfield_to_dscp(frh->tos);
+
+	if (tb[FRA_DSCP] && fib6_nl2rule_dscp(tb[FRA_DSCP], rule6, extack) < 0)
+		goto errout;
 
 	if (rule->action == FR_ACT_TO_TBL && !rule->l3mdev) {
 		if (rule->table == RT6_TABLE_UNSPEC) {
@@ -413,8 +431,18 @@ static int fib6_rule_compare(struct fib_rule *rule, struct fib_rule_hdr *frh,
 	if (frh->dst_len && (rule6->dst.plen != frh->dst_len))
 		return 0;
 
-	if (frh->tos && inet_dscp_to_dsfield(rule6->dscp) != frh->tos)
+	if (frh->tos &&
+	    (rule6->dscp_full ||
+	     inet_dscp_to_dsfield(rule6->dscp) != frh->tos))
 		return 0;
+
+	if (tb[FRA_DSCP]) {
+		dscp_t dscp;
+
+		dscp = inet_dsfield_to_dscp(nla_get_u8(tb[FRA_DSCP]) << 2);
+		if (!rule6->dscp_full || rule6->dscp != dscp)
+			return 0;
+	}
 
 	if (frh->src_len &&
 	    nla_memcmp(tb[FRA_SRC], &rule6->src.addr, sizeof(struct in6_addr)))
@@ -434,7 +462,15 @@ static int fib6_rule_fill(struct fib_rule *rule, struct sk_buff *skb,
 
 	frh->dst_len = rule6->dst.plen;
 	frh->src_len = rule6->src.plen;
-	frh->tos = inet_dscp_to_dsfield(rule6->dscp);
+
+	if (rule6->dscp_full) {
+		frh->tos = 0;
+		if (nla_put_u8(skb, FRA_DSCP,
+			       inet_dscp_to_dsfield(rule6->dscp) >> 2))
+			goto nla_put_failure;
+	} else {
+		frh->tos = inet_dscp_to_dsfield(rule6->dscp);
+	}
 
 	if ((rule6->dst.plen &&
 	     nla_put_in6_addr(skb, FRA_DST, &rule6->dst.addr)) ||
@@ -450,7 +486,8 @@ nla_put_failure:
 static size_t fib6_rule_nlmsg_payload(struct fib_rule *rule)
 {
 	return nla_total_size(16) /* dst */
-	       + nla_total_size(16); /* src */
+	       + nla_total_size(16) /* src */
+	       + nla_total_size(1); /* dscp */
 }
 
 static void fib6_rule_flush_cache(struct fib_rules_ops *ops)

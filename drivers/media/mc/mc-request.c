@@ -6,7 +6,7 @@
  * Copyright (C) 2018 Intel Corporation
  * Copyright (C) 2018 Google, Inc.
  *
- * Author: Hans Verkuil <hans.verkuil@cisco.com>
+ * Author: Hans Verkuil <hansverk@cisco.com>
  * Author: Sakari Ailus <sakari.ailus@linux.intel.com>
  */
 
@@ -246,22 +246,21 @@ static const struct file_operations request_fops = {
 struct media_request *
 media_request_get_by_fd(struct media_device *mdev, int request_fd)
 {
-	struct fd f;
 	struct media_request *req;
 
 	if (!mdev || !mdev->ops ||
 	    !mdev->ops->req_validate || !mdev->ops->req_queue)
 		return ERR_PTR(-EBADR);
 
-	f = fdget(request_fd);
-	if (!f.file)
-		goto err_no_req_fd;
+	CLASS(fd, f)(request_fd);
+	if (fd_empty(f))
+		goto err;
 
-	if (f.file->f_op != &request_fops)
-		goto err_fput;
-	req = f.file->private_data;
+	if (fd_file(f)->f_op != &request_fops)
+		goto err;
+	req = fd_file(f)->private_data;
 	if (req->mdev != mdev)
-		goto err_fput;
+		goto err;
 
 	/*
 	 * Note: as long as someone has an open filehandle of the request,
@@ -272,14 +271,9 @@ media_request_get_by_fd(struct media_device *mdev, int request_fd)
 	 * before media_request_get() is called.
 	 */
 	media_request_get(req);
-	fdput(f);
-
 	return req;
 
-err_fput:
-	fdput(f);
-
-err_no_req_fd:
+err:
 	dev_dbg(mdev->dev, "cannot find request_fd %d\n", request_fd);
 	return ERR_PTR(-EINVAL);
 }

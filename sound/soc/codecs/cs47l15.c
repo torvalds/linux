@@ -1493,7 +1493,7 @@ static struct platform_driver cs47l15_codec_driver = {
 		.name = "cs47l15-codec",
 	},
 	.probe = &cs47l15_probe,
-	.remove_new = cs47l15_remove,
+	.remove = cs47l15_remove,
 };
 
 module_platform_driver(cs47l15_codec_driver);

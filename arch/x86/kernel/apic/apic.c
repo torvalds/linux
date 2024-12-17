@@ -440,7 +440,19 @@ static int lapic_timer_shutdown(struct clock_event_device *evt)
 	v = apic_read(APIC_LVTT);
 	v |= (APIC_LVT_MASKED | LOCAL_TIMER_VECTOR);
 	apic_write(APIC_LVTT, v);
-	apic_write(APIC_TMICT, 0);
+
+	/*
+	 * Setting APIC_LVT_MASKED (above) should be enough to tell
+	 * the hardware that this timer will never fire. But AMD
+	 * erratum 411 and some Intel CPU behavior circa 2024 say
+	 * otherwise.  Time for belt and suspenders programming: mask
+	 * the timer _and_ zero the counter registers:
+	 */
+	if (v & APIC_LVT_TIMER_TSCDEADLINE)
+		wrmsrl(MSR_IA32_TSC_DEADLINE, 0);
+	else
+		apic_write(APIC_TMICT, 0);
+
 	return 0;
 }
 
@@ -677,7 +689,7 @@ calibrate_by_pmtimer(u32 deltapm, long *delta, long *deltatsc)
 	return -1;
 #endif
 
-	apic_printk(APIC_VERBOSE, "... PM-Timer delta = %u\n", deltapm);
+	apic_pr_verbose("... PM-Timer delta = %u\n", deltapm);
 
 	/* Check, if the PM timer is available */
 	if (!deltapm)
@@ -687,14 +699,14 @@ calibrate_by_pmtimer(u32 deltapm, long *delta, long *deltatsc)
 
 	if (deltapm > (pm_100ms - pm_thresh) &&
 	    deltapm < (pm_100ms + pm_thresh)) {
-		apic_printk(APIC_VERBOSE, "... PM-Timer result ok\n");
+		apic_pr_verbose("... PM-Timer result ok\n");
 		return 0;
 	}
 
 	res = (((u64)deltapm) *  mult) >> 22;
 	do_div(res, 1000000);
-	pr_warn("APIC calibration not consistent "
-		"with PM-Timer: %ldms instead of 100ms\n", (long)res);
+	pr_warn("APIC calibration not consistent with PM-Timer: %ldms instead of 100ms\n",
+		(long)res);
 
 	/* Correct the lapic counter value */
 	res = (((u64)(*delta)) * pm_100ms);
@@ -707,9 +719,8 @@ calibrate_by_pmtimer(u32 deltapm, long *delta, long *deltatsc)
 	if (boot_cpu_has(X86_FEATURE_TSC)) {
 		res = (((u64)(*deltatsc)) * pm_100ms);
 		do_div(res, deltapm);
-		apic_printk(APIC_VERBOSE, "TSC delta adjusted to "
-					  "PM-Timer: %lu (%ld)\n",
-					(unsigned long)res, *deltatsc);
+		apic_pr_verbose("TSC delta adjusted to PM-Timer: %lu (%ld)\n",
+				(unsigned long)res, *deltatsc);
 		*deltatsc = (long)res;
 	}
 
@@ -792,8 +803,7 @@ static int __init calibrate_APIC_clock(void)
 	 * in the clockevent structure and return.
 	 */
 	if (!lapic_init_clockevent()) {
-		apic_printk(APIC_VERBOSE, "lapic timer already calibrated %d\n",
-			    lapic_timer_period);
+		apic_pr_verbose("lapic timer already calibrated %d\n", lapic_timer_period);
 		/*
 		 * Direct calibration methods must have an always running
 		 * local APIC timer, no need for broadcast timer.
@@ -802,8 +812,7 @@ static int __init calibrate_APIC_clock(void)
 		return 0;
 	}
 
-	apic_printk(APIC_VERBOSE, "Using local APIC timer interrupts.\n"
-		    "calibrating APIC timer ...\n");
+	apic_pr_verbose("Using local APIC timer interrupts. Calibrating APIC timer ...\n");
 
 	/*
 	 * There are platforms w/o global clockevent devices. Instead of
@@ -866,7 +875,7 @@ static int __init calibrate_APIC_clock(void)
 
 	/* Build delta t1-t2 as apic timer counts down */
 	delta = lapic_cal_t1 - lapic_cal_t2;
-	apic_printk(APIC_VERBOSE, "... lapic delta = %ld\n", delta);
+	apic_pr_verbose("... lapic delta = %ld\n", delta);
 
 	deltatsc = (long)(lapic_cal_tsc2 - lapic_cal_tsc1);
 
@@ -877,22 +886,19 @@ static int __init calibrate_APIC_clock(void)
 	lapic_timer_period = (delta * APIC_DIVISOR) / LAPIC_CAL_LOOPS;
 	lapic_init_clockevent();
 
-	apic_printk(APIC_VERBOSE, "..... delta %ld\n", delta);
-	apic_printk(APIC_VERBOSE, "..... mult: %u\n", lapic_clockevent.mult);
-	apic_printk(APIC_VERBOSE, "..... calibration result: %u\n",
-		    lapic_timer_period);
+	apic_pr_verbose("..... delta %ld\n", delta);
+	apic_pr_verbose("..... mult: %u\n", lapic_clockevent.mult);
+	apic_pr_verbose("..... calibration result: %u\n", lapic_timer_period);
 
 	if (boot_cpu_has(X86_FEATURE_TSC)) {
-		apic_printk(APIC_VERBOSE, "..... CPU clock speed is "
-			    "%ld.%04ld MHz.\n",
-			    (deltatsc / LAPIC_CAL_LOOPS) / (1000000 / HZ),
-			    (deltatsc / LAPIC_CAL_LOOPS) % (1000000 / HZ));
+		apic_pr_verbose("..... CPU clock speed is %ld.%04ld MHz.\n",
+				(deltatsc / LAPIC_CAL_LOOPS) / (1000000 / HZ),
+				(deltatsc / LAPIC_CAL_LOOPS) % (1000000 / HZ));
 	}
 
-	apic_printk(APIC_VERBOSE, "..... host bus clock speed is "
-		    "%u.%04u MHz.\n",
-		    lapic_timer_period / (1000000 / HZ),
-		    lapic_timer_period % (1000000 / HZ));
+	apic_pr_verbose("..... host bus clock speed is %u.%04u MHz.\n",
+			lapic_timer_period / (1000000 / HZ),
+			lapic_timer_period % (1000000 / HZ));
 
 	/*
 	 * Do a sanity check on the APIC calibration result
@@ -911,7 +917,7 @@ static int __init calibrate_APIC_clock(void)
 	 * available.
 	 */
 	if (!pm_referenced && global_clock_event) {
-		apic_printk(APIC_VERBOSE, "... verify APIC timer\n");
+		apic_pr_verbose("... verify APIC timer\n");
 
 		/*
 		 * Setup the apic timer manually
@@ -932,11 +938,11 @@ static int __init calibrate_APIC_clock(void)
 
 		/* Jiffies delta */
 		deltaj = lapic_cal_j2 - lapic_cal_j1;
-		apic_printk(APIC_VERBOSE, "... jiffies delta = %lu\n", deltaj);
+		apic_pr_verbose("... jiffies delta = %lu\n", deltaj);
 
 		/* Check, if the jiffies result is consistent */
 		if (deltaj >= LAPIC_CAL_LOOPS-2 && deltaj <= LAPIC_CAL_LOOPS+2)
-			apic_printk(APIC_VERBOSE, "... jiffies result ok\n");
+			apic_pr_verbose("... jiffies result ok\n");
 		else
 			levt->features |= CLOCK_EVT_FEAT_DUMMY;
 	}
@@ -1221,9 +1227,8 @@ void __init sync_Arb_IDs(void)
 	 */
 	apic_wait_icr_idle();
 
-	apic_printk(APIC_DEBUG, "Synchronizing Arb IDs.\n");
-	apic_write(APIC_ICR, APIC_DEST_ALLINC |
-			APIC_INT_LEVELTRIG | APIC_DM_INIT);
+	apic_pr_debug("Synchronizing Arb IDs.\n");
+	apic_write(APIC_ICR, APIC_DEST_ALLINC | APIC_INT_LEVELTRIG | APIC_DM_INIT);
 }
 
 enum apic_intr_mode_id apic_intr_mode __ro_after_init;
@@ -1409,10 +1414,10 @@ static void lapic_setup_esr(void)
 	if (maxlvt > 3)
 		apic_write(APIC_ESR, 0);
 	value = apic_read(APIC_ESR);
-	if (value != oldvalue)
-		apic_printk(APIC_VERBOSE, "ESR value before enabling "
-			"vector: 0x%08x  after: 0x%08x\n",
-			oldvalue, value);
+	if (value != oldvalue) {
+		apic_pr_verbose("ESR value before enabling vector: 0x%08x  after: 0x%08x\n",
+				oldvalue, value);
+	}
 }
 
 #define APIC_IR_REGS		APIC_ISR_NR
@@ -1599,10 +1604,10 @@ static void setup_local_APIC(void)
 	value = apic_read(APIC_LVT0) & APIC_LVT_MASKED;
 	if (!cpu && (pic_mode || !value || ioapic_is_disabled)) {
 		value = APIC_DM_EXTINT;
-		apic_printk(APIC_VERBOSE, "enabled ExtINT on CPU#%d\n", cpu);
+		apic_pr_verbose("Enabled ExtINT on CPU#%d\n", cpu);
 	} else {
 		value = APIC_DM_EXTINT | APIC_LVT_MASKED;
-		apic_printk(APIC_VERBOSE, "masked ExtINT on CPU#%d\n", cpu);
+		apic_pr_verbose("Masked ExtINT on CPU#%d\n", cpu);
 	}
 	apic_write(APIC_LVT0, value);
 
@@ -1775,12 +1780,9 @@ static __init void apic_set_fixmap(bool read_apic);
 
 static __init void x2apic_disable(void)
 {
-	u32 x2apic_id, state = x2apic_state;
+	u32 x2apic_id;
 
-	x2apic_mode = 0;
-	x2apic_state = X2APIC_DISABLED;
-
-	if (state != X2APIC_ON)
+	if (x2apic_state < X2APIC_ON)
 		return;
 
 	x2apic_id = read_apic_id();
@@ -1793,6 +1795,10 @@ static __init void x2apic_disable(void)
 	}
 
 	__x2apic_disable();
+
+	x2apic_mode = 0;
+	x2apic_state = X2APIC_DISABLED;
+
 	/*
 	 * Don't reread the APIC ID as it was already done from
 	 * check_x2apic() and the APIC driver still is a x2APIC variant,
@@ -2066,8 +2072,7 @@ static __init void apic_set_fixmap(bool read_apic)
 {
 	set_fixmap_nocache(FIX_APIC_BASE, mp_lapic_addr);
 	apic_mmio_base = APIC_BASE;
-	apic_printk(APIC_VERBOSE, "mapped APIC to %16lx (%16lx)\n",
-		    apic_mmio_base, mp_lapic_addr);
+	apic_pr_verbose("Mapped APIC to %16lx (%16lx)\n", apic_mmio_base, mp_lapic_addr);
 	if (read_apic)
 		apic_read_boot_cpu_id(false);
 }
@@ -2170,18 +2175,17 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_error_interrupt)
 	apic_eoi();
 	atomic_inc(&irq_err_count);
 
-	apic_printk(APIC_DEBUG, KERN_DEBUG "APIC error on CPU%d: %02x",
-		    smp_processor_id(), v);
+	apic_pr_debug("APIC error on CPU%d: %02x", smp_processor_id(), v);
 
 	v &= 0xff;
 	while (v) {
 		if (v & 0x1)
-			apic_printk(APIC_DEBUG, KERN_CONT " : %s", error_interrupt_reason[i]);
+			apic_pr_debug_cont(" : %s", error_interrupt_reason[i]);
 		i++;
 		v >>= 1;
 	}
 
-	apic_printk(APIC_DEBUG, KERN_CONT "\n");
+	apic_pr_debug_cont("\n");
 
 	trace_error_apic_exit(ERROR_APIC_VECTOR);
 }
@@ -2201,8 +2205,7 @@ static void __init connect_bsp_APIC(void)
 		 * PIC mode, enable APIC mode in the IMCR, i.e.  connect BSP's
 		 * local APIC to INT and NMI lines.
 		 */
-		apic_printk(APIC_VERBOSE, "leaving PIC mode, "
-				"enabling APIC mode.\n");
+		apic_pr_verbose("Leaving PIC mode, enabling APIC mode.\n");
 		imcr_pic_to_apic();
 	}
 #endif
@@ -2227,8 +2230,7 @@ void disconnect_bsp_APIC(int virt_wire_setup)
 		 * IPIs, won't work beyond this point!  The only exception are
 		 * INIT IPIs.
 		 */
-		apic_printk(APIC_VERBOSE, "disabling APIC mode, "
-				"entering PIC mode.\n");
+		apic_pr_verbose("Disabling APIC mode, entering PIC mode.\n");
 		imcr_apic_to_pic();
 		return;
 	}

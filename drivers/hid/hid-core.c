@@ -20,7 +20,7 @@
 #include <linux/list.h>
 #include <linux/mm.h>
 #include <linux/spinlock.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <asm/byteorder.h>
 #include <linux/input.h>
 #include <linux/wait.h>
@@ -44,6 +44,34 @@
 static int hid_ignore_special_drivers = 0;
 module_param_named(ignore_special_drivers, hid_ignore_special_drivers, int, 0600);
 MODULE_PARM_DESC(ignore_special_drivers, "Ignore any special drivers and handle all devices by generic driver");
+
+/*
+ * Convert a signed n-bit integer to signed 32-bit integer.
+ */
+
+static s32 snto32(__u32 value, unsigned int n)
+{
+	if (!value || !n)
+		return 0;
+
+	if (n > 32)
+		n = 32;
+
+	return sign_extend32(value, n - 1);
+}
+
+/*
+ * Convert a signed 32-bit integer to a signed n-bit integer.
+ */
+
+static u32 s32ton(__s32 value, unsigned int n)
+{
+	s32 a = value >> (n - 1);
+
+	if (a && a != -1)
+		return value < 0 ? 1 << (n - 1) : (1 << (n - 1)) - 1;
+	return value & ((1 << n) - 1);
+}
 
 /*
  * Register a new report for a device.
@@ -425,7 +453,7 @@ static int hid_parser_global(struct hid_parser *parser, struct hid_item *item)
 		 * both this and the standard encoding. */
 		raw_value = item_sdata(item);
 		if (!(raw_value & 0xfffffff0))
-			parser->global.unit_exponent = hid_snto32(raw_value, 4);
+			parser->global.unit_exponent = snto32(raw_value, 4);
 		else
 			parser->global.unit_exponent = raw_value;
 		return 0;
@@ -685,7 +713,14 @@ static void hid_close_report(struct hid_device *device)
 		INIT_LIST_HEAD(&report_enum->report_list);
 	}
 
-	kfree(device->rdesc);
+	/*
+	 * If the HID driver had a rdesc_fixup() callback, dev->rdesc
+	 * will be allocated by hid-core and needs to be freed.
+	 * Otherwise, it is either equal to dev_rdesc or bpf_rdesc, in
+	 * which cases it'll be freed later on device removal or destroy.
+	 */
+	if (device->rdesc != device->dev_rdesc && device->rdesc != device->bpf_rdesc)
+		kfree(device->rdesc);
 	device->rdesc = NULL;
 	device->rsize = 0;
 
@@ -698,6 +733,14 @@ static void hid_close_report(struct hid_device *device)
 	device->status &= ~HID_STAT_PARSED;
 }
 
+static inline void hid_free_bpf_rdesc(struct hid_device *hdev)
+{
+	/* bpf_rdesc is either equal to dev_rdesc or allocated by call_hid_bpf_rdesc_fixup() */
+	if (hdev->bpf_rdesc != hdev->dev_rdesc)
+		kfree(hdev->bpf_rdesc);
+	hdev->bpf_rdesc = NULL;
+}
+
 /*
  * Free a device structure, all reports, and all fields.
  */
@@ -707,6 +750,7 @@ void hiddev_free(struct kref *ref)
 	struct hid_device *hid = container_of(ref, struct hid_device, ref);
 
 	hid_close_report(hid);
+	hid_free_bpf_rdesc(hid);
 	kfree(hid->dev_rdesc);
 	kfree(hid);
 }
@@ -723,7 +767,7 @@ static void hid_device_release(struct device *dev)
  * items, though they are not used yet.
  */
 
-static u8 *fetch_item(__u8 *start, __u8 *end, struct hid_item *item)
+static const u8 *fetch_item(const __u8 *start, const __u8 *end, struct hid_item *item)
 {
 	u8 b;
 
@@ -754,35 +798,29 @@ static u8 *fetch_item(__u8 *start, __u8 *end, struct hid_item *item)
 	}
 
 	item->format = HID_ITEM_FORMAT_SHORT;
-	item->size = b & 3;
+	item->size = BIT(b & 3) >> 1; /* 0, 1, 2, 3 -> 0, 1, 2, 4 */
+
+	if (end - start < item->size)
+		return NULL;
 
 	switch (item->size) {
 	case 0:
-		return start;
+		break;
 
 	case 1:
-		if ((end - start) < 1)
-			return NULL;
-		item->data.u8 = *start++;
-		return start;
+		item->data.u8 = *start;
+		break;
 
 	case 2:
-		if ((end - start) < 2)
-			return NULL;
 		item->data.u16 = get_unaligned_le16(start);
-		start = (__u8 *)((__le16 *)start + 1);
-		return start;
+		break;
 
-	case 3:
-		item->size++;
-		if ((end - start) < 4)
-			return NULL;
+	case 4:
 		item->data.u32 = get_unaligned_le32(start);
-		start = (__u8 *)((__le32 *)start + 1);
-		return start;
+		break;
 	}
 
-	return NULL;
+	return start + item->size;
 }
 
 static void hid_scan_input_usage(struct hid_parser *parser, u32 usage)
@@ -880,8 +918,8 @@ static int hid_scan_report(struct hid_device *hid)
 {
 	struct hid_parser *parser;
 	struct hid_item item;
-	__u8 *start = hid->dev_rdesc;
-	__u8 *end = start + hid->dev_rsize;
+	const __u8 *start = hid->dev_rdesc;
+	const __u8 *end = start + hid->dev_rsize;
 	static int (*dispatch_type[])(struct hid_parser *parser,
 				      struct hid_item *item) = {
 		hid_scan_main,
@@ -946,7 +984,7 @@ static int hid_scan_report(struct hid_device *hid)
  * Allocate the device report as read by the bus driver. This function should
  * only be called from parse() in ll drivers.
  */
-int hid_parse_report(struct hid_device *hid, __u8 *start, unsigned size)
+int hid_parse_report(struct hid_device *hid, const __u8 *start, unsigned size)
 {
 	hid->dev_rdesc = kmemdup(start, size, GFP_KERNEL);
 	if (!hid->dev_rdesc)
@@ -1204,10 +1242,9 @@ int hid_open_report(struct hid_device *device)
 	struct hid_parser *parser;
 	struct hid_item item;
 	unsigned int size;
-	__u8 *start;
-	__u8 *buf;
-	__u8 *end;
-	__u8 *next;
+	const __u8 *start;
+	const __u8 *end;
+	const __u8 *next;
 	int ret;
 	int i;
 	static int (*dispatch_type[])(struct hid_parser *parser,
@@ -1221,25 +1258,34 @@ int hid_open_report(struct hid_device *device)
 	if (WARN_ON(device->status & HID_STAT_PARSED))
 		return -EBUSY;
 
-	start = device->dev_rdesc;
+	start = device->bpf_rdesc;
 	if (WARN_ON(!start))
 		return -ENODEV;
-	size = device->dev_rsize;
+	size = device->bpf_rsize;
 
-	/* call_hid_bpf_rdesc_fixup() ensures we work on a copy of rdesc */
-	buf = call_hid_bpf_rdesc_fixup(device, start, &size);
-	if (buf == NULL)
-		return -ENOMEM;
+	if (device->driver->report_fixup) {
+		/*
+		 * device->driver->report_fixup() needs to work
+		 * on a copy of our report descriptor so it can
+		 * change it.
+		 */
+		__u8 *buf = kmemdup(start, size, GFP_KERNEL);
 
-	if (device->driver->report_fixup)
+		if (buf == NULL)
+			return -ENOMEM;
+
 		start = device->driver->report_fixup(device, buf, &size);
-	else
-		start = buf;
 
-	start = kmemdup(start, size, GFP_KERNEL);
-	kfree(buf);
-	if (start == NULL)
-		return -ENOMEM;
+		/*
+		 * The second kmemdup is required in case report_fixup() returns
+		 * a static read-only memory, but we have no idea if that memory
+		 * needs to be cleaned up or not at the end.
+		 */
+		start = kmemdup(start, size, GFP_KERNEL);
+		kfree(buf);
+		if (start == NULL)
+			return -ENOMEM;
+	}
 
 	device->rdesc = start;
 	device->rsize = size;
@@ -1314,46 +1360,6 @@ alloc_err:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(hid_open_report);
-
-/*
- * Convert a signed n-bit integer to signed 32-bit integer. Common
- * cases are done through the compiler, the screwed things has to be
- * done by hand.
- */
-
-static s32 snto32(__u32 value, unsigned n)
-{
-	if (!value || !n)
-		return 0;
-
-	if (n > 32)
-		n = 32;
-
-	switch (n) {
-	case 8:  return ((__s8)value);
-	case 16: return ((__s16)value);
-	case 32: return ((__s32)value);
-	}
-	return value & (1 << (n - 1)) ? value | (~0U << n) : value;
-}
-
-s32 hid_snto32(__u32 value, unsigned n)
-{
-	return snto32(value, n);
-}
-EXPORT_SYMBOL_GPL(hid_snto32);
-
-/*
- * Convert a signed 32-bit integer to a signed n-bit integer.
- */
-
-static u32 s32ton(__s32 value, unsigned n)
-{
-	s32 a = value >> (n - 1);
-	if (a && a != -1)
-		return value < 0 ? 1 << (n - 1) : (1 << (n - 1)) - 1;
-	return value & ((1 << n) - 1);
-}
 
 /*
  * Extract/implement a data field from/to a little endian report (bit array).
@@ -1875,7 +1881,7 @@ u8 *hid_alloc_report_buf(struct hid_report *report, gfp_t flags)
 
 	u32 len = hid_report_len(report) + 7;
 
-	return kmalloc(len, flags);
+	return kzalloc(len, flags);
 }
 EXPORT_SYMBOL_GPL(hid_alloc_report_buf);
 
@@ -1911,6 +1917,31 @@ int hid_set_field(struct hid_field *field, unsigned offset, __s32 value)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(hid_set_field);
+
+struct hid_field *hid_find_field(struct hid_device *hdev, unsigned int report_type,
+				 unsigned int application, unsigned int usage)
+{
+	struct list_head *report_list = &hdev->report_enum[report_type].report_list;
+	struct hid_report *report;
+	int i, j;
+
+	list_for_each_entry(report, report_list, list) {
+		if (report->application != application)
+			continue;
+
+		for (i = 0; i < report->maxfield; i++) {
+			struct hid_field *field = report->field[i];
+
+			for (j = 0; j < field->maxusage; j++) {
+				if (field->usage[j].hid == usage)
+					return field;
+			}
+		}
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(hid_find_field);
 
 static struct hid_report *hid_get_report(struct hid_report_enum *report_enum,
 		const u8 *data)
@@ -2649,15 +2680,28 @@ static bool hid_check_device_match(struct hid_device *hdev,
 	/*
 	 * hid-generic implements .match(), so we must be dealing with a
 	 * different HID driver here, and can simply check if
-	 * hid_ignore_special_drivers is set or not.
+	 * hid_ignore_special_drivers or HID_QUIRK_IGNORE_SPECIAL_DRIVER
+	 * are set or not.
 	 */
-	return !hid_ignore_special_drivers;
+	return !hid_ignore_special_drivers && !(hdev->quirks & HID_QUIRK_IGNORE_SPECIAL_DRIVER);
 }
 
 static int __hid_device_probe(struct hid_device *hdev, struct hid_driver *hdrv)
 {
 	const struct hid_device_id *id;
 	int ret;
+
+	if (!hdev->bpf_rsize) {
+		/* in case a bpf program gets detached, we need to free the old one */
+		hid_free_bpf_rdesc(hdev);
+
+		/* keep this around so we know we called it once */
+		hdev->bpf_rsize = hdev->dev_rsize;
+
+		/* call_hid_bpf_rdesc_fixup will always return a valid pointer */
+		hdev->bpf_rdesc = call_hid_bpf_rdesc_fixup(hdev, hdev->dev_rdesc,
+							   &hdev->bpf_rsize);
+	}
 
 	if (!hid_check_device_match(hdev, hdrv, &id))
 		return -ENODEV;
@@ -2915,9 +2959,11 @@ static void hid_remove_device(struct hid_device *hdev)
 		hid_debug_unregister(hdev);
 		hdev->status &= ~HID_STAT_ADDED;
 	}
+	hid_free_bpf_rdesc(hdev);
 	kfree(hdev->dev_rdesc);
 	hdev->dev_rdesc = NULL;
 	hdev->dev_rsize = 0;
+	hdev->bpf_rsize = 0;
 }
 
 /**
@@ -3018,7 +3064,7 @@ int hid_check_keys_pressed(struct hid_device *hid)
 EXPORT_SYMBOL_GPL(hid_check_keys_pressed);
 
 #ifdef CONFIG_HID_BPF
-static struct hid_ops __hid_ops = {
+static const struct hid_ops __hid_ops = {
 	.hid_get_report = hid_get_report,
 	.hid_hw_raw_request = __hid_hw_raw_request,
 	.hid_hw_output_report = __hid_hw_output_report,

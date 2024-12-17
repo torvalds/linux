@@ -12,6 +12,7 @@
 #include <linux/gpio/machine.h>
 #include <linux/input.h>
 #include <linux/leds.h>
+#include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
 
@@ -20,7 +21,7 @@
 #include "shared-psy-info.h"
 #include "x86-android-tablets.h"
 
-/* Acer Iconia One 7 B1-750 has an Android factory img with everything hardcoded */
+/* Acer Iconia One 7 B1-750 has an Android factory image with everything hardcoded */
 static const char * const acer_b1_750_mount_matrix[] = {
 	"-1", "0", "0",
 	"0", "1", "0",
@@ -98,7 +99,7 @@ const struct x86_dev_info acer_b1_750_info __initconst = {
  * Advantech MICA-071
  * This is a standard Windows tablet, but it has an extra "quick launch" button
  * which is not described in the ACPI tables in anyway.
- * Use the x86-android-tablets infra to create a gpio-button device for this.
+ * Use the x86-android-tablets infra to create a gpio-keys device for this.
  */
 static const struct x86_gpio_button advantech_mica_071_button __initconst = {
 	.button = {
@@ -209,7 +210,7 @@ const struct x86_dev_info chuwi_hi8_info __initconst = {
  * This comes in both Windows and Android versions and even on Android
  * the DSDT is mostly sane. This tablet has 2 extra general purpose buttons
  * in the button row with the power + volume-buttons labeled P and F.
- * Use the x86-android-tablets infra to create a gpio-button device for these.
+ * Use the x86-android-tablets infra to create a gpio-keys device for these.
  */
 static const struct x86_gpio_button cyberbook_t116_buttons[] __initconst = {
 	{
@@ -276,7 +277,7 @@ const struct x86_dev_info czc_p10t __initconst = {
 	.init = czc_p10t_init,
 };
 
-/* Medion Lifetab S10346 tablets have an Android factory img with everything hardcoded */
+/* Medion Lifetab S10346 tablets have an Android factory image with everything hardcoded */
 static const char * const medion_lifetab_s10346_accel_mount_matrix[] = {
 	"0", "1", "0",
 	"1", "0", "0",
@@ -305,7 +306,7 @@ static const struct software_node medion_lifetab_s10346_touchscreen_node = {
 
 static const struct x86_i2c_client_info medion_lifetab_s10346_i2c_clients[] __initconst = {
 	{
-		/* kxtj21009 accel */
+		/* kxtj21009 accelerometer */
 		.board_info = {
 			.type = "kxtj21009",
 			.addr = 0x0f,
@@ -359,7 +360,7 @@ const struct x86_dev_info medion_lifetab_s10346_info __initconst = {
 	.gpiod_lookup_tables = medion_lifetab_s10346_gpios,
 };
 
-/* Nextbook Ares 8 (BYT) tablets have an Android factory img with everything hardcoded */
+/* Nextbook Ares 8 (BYT) tablets have an Android factory image with everything hardcoded */
 static const char * const nextbook_ares8_accel_mount_matrix[] = {
 	"0", "-1", "0",
 	"-1", "0", "0",
@@ -387,7 +388,7 @@ static const struct software_node nextbook_ares8_touchscreen_node = {
 
 static const struct x86_i2c_client_info nextbook_ares8_i2c_clients[] __initconst = {
 	{
-		/* Freescale MMA8653FC accel */
+		/* Freescale MMA8653FC accelerometer */
 		.board_info = {
 			.type = "mma8653",
 			.addr = 0x1d,
@@ -428,7 +429,7 @@ const struct x86_dev_info nextbook_ares8_info __initconst = {
 	.gpiod_lookup_tables = nextbook_ares8_gpios,
 };
 
-/* Nextbook Ares 8A (CHT) tablets have an Android factory img with everything hardcoded */
+/* Nextbook Ares 8A (CHT) tablets have an Android factory image with everything hardcoded */
 static const char * const nextbook_ares8a_accel_mount_matrix[] = {
 	"1", "0", "0",
 	"0", "-1", "0",
@@ -446,7 +447,7 @@ static const struct software_node nextbook_ares8a_accel_node = {
 
 static const struct x86_i2c_client_info nextbook_ares8a_i2c_clients[] __initconst = {
 	{
-		/* Freescale MMA8653FC accel */
+		/* Freescale MMA8653FC accelerometer */
 		.board_info = {
 			.type = "mma8653",
 			.addr = 0x1d,
@@ -497,7 +498,7 @@ const struct x86_dev_info nextbook_ares8a_info __initconst = {
  * Peaq C1010
  * This is a standard Windows tablet, but it has a special Dolby button.
  * This button has a WMI interface, but that is broken. Instead of trying to
- * use the broken WMI interface, instantiate a gpio_keys device for this.
+ * use the broken WMI interface, instantiate a gpio-keys device for this.
  */
 static const struct x86_gpio_button peaq_c1010_button __initconst = {
 	.button = {
@@ -521,7 +522,7 @@ const struct x86_dev_info peaq_c1010_info __initconst = {
  * Whitelabel (sold as various brands) TM800A550L tablets.
  * These tablet's DSDT contains a whole bunch of bogus ACPI I2C devices
  * (removed through acpi_quirk_skip_i2c_client_enumeration()) and
- * the touchscreen fwnode has the wrong GPIOs.
+ * the touchscreen firmware node has the wrong GPIOs.
  */
 static const char * const whitelabel_tm800a550l_accel_mount_matrix[] = {
 	"-1", "0", "0",
@@ -566,7 +567,7 @@ static const struct x86_i2c_client_info whitelabel_tm800a550l_i2c_clients[] __in
 			.polarity = ACPI_ACTIVE_HIGH,
 		},
 	}, {
-		/* kxcj91008 accel */
+		/* kxcj91008 accelerometer */
 		.board_info = {
 			.type = "kxcj91008",
 			.addr = 0x0f,
@@ -598,12 +599,174 @@ const struct x86_dev_info whitelabel_tm800a550l_info __initconst = {
 };
 
 /*
- * The fwnode for ktd2026 on Xaomi pad2. It composed of a RGB LED node
+ * Vexia EDU ATLA 10 tablet, Android 4.2 / 4.4 + Guadalinex Ubuntu tablet
+ * distributed to schools in the Spanish Andalucía region.
+ */
+const char * const crystal_cove_pwrsrc_psy[] = { "crystal_cove_pwrsrc" };
+
+static const struct property_entry vexia_edu_atla10_ulpmc_props[] = {
+	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", crystal_cove_pwrsrc_psy),
+	{ }
+};
+
+const struct software_node vexia_edu_atla10_ulpmc_node = {
+	.properties = vexia_edu_atla10_ulpmc_props,
+};
+
+static const char * const vexia_edu_atla10_accel_mount_matrix[] = {
+	"0", "-1", "0",
+	"1", "0", "0",
+	"0", "0", "1"
+};
+
+static const struct property_entry vexia_edu_atla10_accel_props[] = {
+	PROPERTY_ENTRY_STRING_ARRAY("mount-matrix", vexia_edu_atla10_accel_mount_matrix),
+	{ }
+};
+
+static const struct software_node vexia_edu_atla10_accel_node = {
+	.properties = vexia_edu_atla10_accel_props,
+};
+
+static const struct property_entry vexia_edu_atla10_touchscreen_props[] = {
+	PROPERTY_ENTRY_U32("hid-descr-addr", 0x0000),
+	PROPERTY_ENTRY_U32("post-reset-deassert-delay-ms", 120),
+	{ }
+};
+
+static const struct software_node vexia_edu_atla10_touchscreen_node = {
+	.properties = vexia_edu_atla10_touchscreen_props,
+};
+
+static const struct property_entry vexia_edu_atla10_pmic_props[] = {
+	PROPERTY_ENTRY_BOOL("linux,register-pwrsrc-power_supply"),
+	{ }
+};
+
+static const struct software_node vexia_edu_atla10_pmic_node = {
+	.properties = vexia_edu_atla10_pmic_props,
+};
+
+static const struct x86_i2c_client_info vexia_edu_atla10_i2c_clients[] __initconst = {
+	{
+		/* I2C attached embedded controller, used to access fuel-gauge */
+		.board_info = {
+			.type = "vexia_atla10_ec",
+			.addr = 0x76,
+			.dev_name = "ulpmc",
+			.swnode = &vexia_edu_atla10_ulpmc_node,
+		},
+		.adapter_path = "0000:00:18.1",
+	}, {
+		/* RT5642 audio codec */
+		.board_info = {
+			.type = "rt5640",
+			.addr = 0x1c,
+			.dev_name = "rt5640",
+		},
+		.adapter_path = "0000:00:18.2",
+		.irq_data = {
+			.type = X86_ACPI_IRQ_TYPE_GPIOINT,
+			.chip = "INT33FC:02",
+			.index = 4,
+			.trigger = ACPI_EDGE_SENSITIVE,
+			.polarity = ACPI_ACTIVE_HIGH,
+			.con_id = "rt5640_irq",
+		},
+	}, {
+		/* kxtj21009 accelerometer */
+		.board_info = {
+			.type = "kxtj21009",
+			.addr = 0x0f,
+			.dev_name = "kxtj21009",
+			.swnode = &vexia_edu_atla10_accel_node,
+		},
+		.adapter_path = "0000:00:18.5",
+	}, {
+		/* FT5416DQ9 touchscreen controller */
+		.board_info = {
+			.type = "hid-over-i2c",
+			.addr = 0x38,
+			.dev_name = "FTSC1000",
+			.swnode = &vexia_edu_atla10_touchscreen_node,
+		},
+		.adapter_path = "0000:00:18.6",
+		.irq_data = {
+			.type = X86_ACPI_IRQ_TYPE_APIC,
+			.index = 0x45,
+			.trigger = ACPI_LEVEL_SENSITIVE,
+			.polarity = ACPI_ACTIVE_HIGH,
+		},
+	}, {
+		/* Crystal Cove PMIC */
+		.board_info = {
+			.type = "intel_soc_pmic_crc",
+			.addr = 0x6e,
+			.dev_name = "intel_soc_pmic_crc",
+			.swnode = &vexia_edu_atla10_pmic_node,
+		},
+		.adapter_path = "0000:00:18.7",
+		.irq_data = {
+			.type = X86_ACPI_IRQ_TYPE_APIC,
+			.index = 0x43,
+			.trigger = ACPI_LEVEL_SENSITIVE,
+			.polarity = ACPI_ACTIVE_HIGH,
+		},
+	}
+};
+
+static struct gpiod_lookup_table vexia_edu_atla10_ft5416_gpios = {
+	.dev_id = "i2c-FTSC1000",
+	.table = {
+		GPIO_LOOKUP("INT33FC:00", 60, "reset", GPIO_ACTIVE_LOW),
+		{ }
+	},
+};
+
+static struct gpiod_lookup_table * const vexia_edu_atla10_gpios[] = {
+	&vexia_edu_atla10_ft5416_gpios,
+	NULL
+};
+
+static int __init vexia_edu_atla10_init(struct device *dev)
+{
+	struct pci_dev *pdev;
+	int ret;
+
+	/* Enable the Wifi module by setting the wifi_enable pin to 1 */
+	ret = x86_android_tablet_get_gpiod("INT33FC:02", 20, "wifi_enable",
+					   false, GPIOD_OUT_HIGH, NULL);
+	if (ret)
+		return ret;
+
+	/* Reprobe the SDIO controller to enumerate the now enabled Wifi module */
+	pdev = pci_get_domain_bus_and_slot(0, 0, PCI_DEVFN(0x11, 0));
+	if (!pdev)
+		return -EPROBE_DEFER;
+
+	ret = device_reprobe(&pdev->dev);
+	if (ret)
+		pci_warn(pdev, "Reprobing error: %d\n", ret);
+
+	pci_dev_put(pdev);
+	return 0;
+}
+
+const struct x86_dev_info vexia_edu_atla10_info __initconst = {
+	.i2c_client_info = vexia_edu_atla10_i2c_clients,
+	.i2c_client_count = ARRAY_SIZE(vexia_edu_atla10_i2c_clients),
+	.gpiod_lookup_tables = vexia_edu_atla10_gpios,
+	.init = vexia_edu_atla10_init,
+	.use_pci_devname = true,
+};
+
+/*
+ * The firmware node for ktd2026 on Xaomi pad2. It composed of a RGB LED node
  * with three subnodes for each color (B/G/R). The RGB LED node is named
  * "multi-led" to align with the name in the device tree.
  */
 
-/* main fwnode for ktd2026 */
+/* Main firmware node for ktd2026 */
 static const struct software_node ktd2026_node = {
 	.name = "ktd2026",
 };
@@ -665,12 +828,12 @@ static const struct software_node *ktd2026_node_group[] = {
 };
 
 /*
- * For the LEDs which backlight the menu / home / back capacitive buttons on
+ * For the LEDs which backlight the Menu / Home / Back capacitive buttons on
  * the bottom bezel. These are attached to a TPS61158 LED controller which
  * is controlled by the "pwm_soc_lpss_2" PWM output.
  */
 #define XIAOMI_MIPAD2_LED_PERIOD_NS		19200
-#define XIAOMI_MIPAD2_LED_DEFAULT_DUTY		 6000 /* From Android kernel */
+#define XIAOMI_MIPAD2_LED_MAX_DUTY_NS		 6000 /* From Android kernel */
 
 static struct pwm_device *xiaomi_mipad2_led_pwm;
 
@@ -679,7 +842,7 @@ static int xiaomi_mipad2_brightness_set(struct led_classdev *led_cdev,
 {
 	struct pwm_state state = {
 		.period = XIAOMI_MIPAD2_LED_PERIOD_NS,
-		.duty_cycle = val,
+		.duty_cycle = XIAOMI_MIPAD2_LED_MAX_DUTY_NS * val / LED_FULL,
 		/* Always set PWM enabled to avoid the pin floating */
 		.enabled = true,
 	};
@@ -701,11 +864,11 @@ static int __init xiaomi_mipad2_init(struct device *dev)
 		return -ENOMEM;
 
 	led_cdev->name = "mipad2:white:touch-buttons-backlight";
-	led_cdev->max_brightness = XIAOMI_MIPAD2_LED_PERIOD_NS;
-	/* "input-events" trigger uses blink_brightness */
-	led_cdev->blink_brightness = XIAOMI_MIPAD2_LED_DEFAULT_DUTY;
+	led_cdev->max_brightness = LED_FULL;
 	led_cdev->default_trigger = "input-events";
 	led_cdev->brightness_set_blocking = xiaomi_mipad2_brightness_set;
+	/* Turn LED off during suspend */
+	led_cdev->flags = LED_CORE_SUSPENDRESUME;
 
 	ret = devm_led_classdev_register(dev, led_cdev);
 	if (ret)

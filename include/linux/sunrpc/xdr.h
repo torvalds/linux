@@ -13,7 +13,7 @@
 
 #include <linux/uio.h>
 #include <asm/byteorder.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/scatterlist.h>
 
 struct bio_vec;
@@ -677,6 +677,27 @@ xdr_stream_decode_u32(struct xdr_stream *xdr, __u32 *ptr)
 	if (unlikely(!p))
 		return -EBADMSG;
 	*ptr = be32_to_cpup(p);
+	return 0;
+}
+
+/**
+ * xdr_stream_decode_be32 - Decode a big-endian 32-bit integer
+ * @xdr: pointer to xdr_stream
+ * @ptr: location to store integer
+ *
+ * Return values:
+ *   %0 on success
+ *   %-EBADMSG on XDR buffer overflow
+ */
+static inline ssize_t
+xdr_stream_decode_be32(struct xdr_stream *xdr, __be32 *ptr)
+{
+	const size_t count = sizeof(*ptr);
+	__be32 *p = xdr_inline_decode(xdr, count);
+
+	if (unlikely(!p))
+		return -EBADMSG;
+	*ptr = *p;
 	return 0;
 }
 

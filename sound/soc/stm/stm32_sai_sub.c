@@ -53,13 +53,16 @@
 #define STM_SAI_PROTOCOL_IS_SPDIF(ip)	((ip)->spdif)
 #define STM_SAI_HAS_SPDIF(x)	((x)->pdata->conf.has_spdif_pdm)
 #define STM_SAI_HAS_PDM(x)	((x)->pdata->conf.has_spdif_pdm)
-#define STM_SAI_HAS_EXT_SYNC(x) (!STM_SAI_IS_F4(sai->pdata))
+#define STM_SAI_HAS_EXT_SYNC(x) (!STM_SAI_IS_F4((x)->pdata))
 
 #define SAI_IEC60958_BLOCK_FRAMES	192
 #define SAI_IEC60958_STATUS_BYTES	24
 
 #define SAI_MCLK_NAME_LEN		32
 #define SAI_RATE_11K			11025
+#define SAI_MAX_SAMPLE_RATE_8K		192000
+#define SAI_MAX_SAMPLE_RATE_11K		176400
+#define SAI_CK_RATE_TOLERANCE		1000 /* ppm */
 
 /**
  * struct stm32_sai_sub_data - private data of SAI sub block (block A or B)
@@ -80,6 +83,7 @@
  * @dir: SAI block direction (playback or capture). set at init
  * @master: SAI block mode flag. (true=master, false=slave) set at init
  * @spdif: SAI S/PDIF iec60958 mode flag. set at init
+ * @sai_ck_used: flag set while exclusivity on SAI kernel clock is active
  * @fmt: SAI block format. relevant only for custom protocols. set at init
  * @sync: SAI block synchronization mode. (none, internal or external)
  * @synco: SAI block ext sync source (provider setting). (none, sub-block A/B)
@@ -93,6 +97,8 @@
  * @iec958: iec958 data
  * @ctrl_lock: control lock
  * @irq_lock: prevent race condition with IRQ
+ * @set_sai_ck_rate: set SAI kernel clock rate
+ * @put_sai_ck_rate: put SAI kernel clock rate
  */
 struct stm32_sai_sub_data {
 	struct platform_device *pdev;
@@ -112,6 +118,7 @@ struct stm32_sai_sub_data {
 	int dir;
 	bool master;
 	bool spdif;
+	bool sai_ck_used;
 	int fmt;
 	int sync;
 	int synco;
@@ -125,6 +132,8 @@ struct stm32_sai_sub_data {
 	struct snd_aes_iec958 iec958;
 	struct mutex ctrl_lock; /* protect resources accessed by controls */
 	spinlock_t irq_lock; /* used to prevent race condition with IRQ */
+	int (*set_sai_ck_rate)(struct stm32_sai_sub_data *sai, unsigned int rate);
+	void (*put_sai_ck_rate)(struct stm32_sai_sub_data *sai);
 };
 
 enum stm32_sai_fifo_th {
@@ -317,7 +326,7 @@ static int stm32_sai_get_clk_div(struct stm32_sai_sub_data *sai,
 	int div;
 
 	div = DIV_ROUND_CLOSEST(input_rate, output_rate);
-	if (div > SAI_XCR1_MCKDIV_MAX(version)) {
+	if (div > SAI_XCR1_MCKDIV_MAX(version) || div <= 0) {
 		dev_err(&sai->pdev->dev, "Divider %d out of range\n", div);
 		return -EINVAL;
 	}
@@ -351,8 +360,26 @@ static int stm32_sai_set_clk_div(struct stm32_sai_sub_data *sai,
 	return ret;
 }
 
-static int stm32_sai_set_parent_clock(struct stm32_sai_sub_data *sai,
-				      unsigned int rate)
+static bool stm32_sai_rate_accurate(unsigned int max_rate, unsigned int rate)
+{
+	u64 delta, dividend;
+	int ratio;
+
+	ratio = DIV_ROUND_CLOSEST(max_rate, rate);
+	if (!ratio)
+		return false;
+
+	dividend = mul_u32_u32(1000000, abs(max_rate - (ratio * rate)));
+	delta = div_u64(dividend, max_rate);
+
+	if (delta <= SAI_CK_RATE_TOLERANCE)
+		return true;
+
+	return false;
+}
+
+static int stm32_sai_set_parent_clk(struct stm32_sai_sub_data *sai,
+				    unsigned int rate)
 {
 	struct platform_device *pdev = sai->pdev;
 	struct clk *parent_clk = sai->pdata->clk_x8k;
@@ -370,6 +397,92 @@ static int stm32_sai_set_parent_clock(struct stm32_sai_sub_data *sai,
 	return ret;
 }
 
+static void stm32_sai_put_parent_rate(struct stm32_sai_sub_data *sai)
+{
+	if (sai->sai_ck_used) {
+		sai->sai_ck_used = false;
+		clk_rate_exclusive_put(sai->sai_ck);
+	}
+}
+
+static int stm32_sai_set_parent_rate(struct stm32_sai_sub_data *sai,
+				     unsigned int rate)
+{
+	struct platform_device *pdev = sai->pdev;
+	unsigned int sai_ck_rate, sai_ck_max_rate, sai_curr_rate, sai_new_rate;
+	int div, ret;
+
+	/*
+	 * Set maximum expected kernel clock frequency
+	 * - mclk on or spdif:
+	 *   f_sai_ck = MCKDIV * mclk-fs * fs
+	 *   Here typical 256 ratio is assumed for mclk-fs
+	 * - mclk off:
+	 *   f_sai_ck = MCKDIV * FRL * fs
+	 *   Where FRL=[8..256], MCKDIV=[1..n] (n depends on SAI version)
+	 *   Set constraint MCKDIV * FRL <= 256, to ensure MCKDIV is in available range
+	 *   f_sai_ck = sai_ck_max_rate * pow_of_two(FRL) / 256
+	 */
+	if (!(rate % SAI_RATE_11K))
+		sai_ck_max_rate = SAI_MAX_SAMPLE_RATE_11K * 256;
+	else
+		sai_ck_max_rate = SAI_MAX_SAMPLE_RATE_8K * 256;
+
+	if (!sai->sai_mclk && !STM_SAI_PROTOCOL_IS_SPDIF(sai))
+		sai_ck_max_rate /= DIV_ROUND_CLOSEST(256, roundup_pow_of_two(sai->fs_length));
+
+	/*
+	 * Request exclusivity, as the clock is shared by SAI sub-blocks and by
+	 * some SAI instances. This allows to ensure that the rate cannot be
+	 * changed while one or more SAIs are using the clock.
+	 */
+	clk_rate_exclusive_get(sai->sai_ck);
+	sai->sai_ck_used = true;
+
+	/*
+	 * Check current kernel clock rate. If it gives the expected accuracy
+	 * return immediately.
+	 */
+	sai_curr_rate = clk_get_rate(sai->sai_ck);
+	if (stm32_sai_rate_accurate(sai_ck_max_rate, sai_curr_rate))
+		return 0;
+
+	/*
+	 * Otherwise try to set the maximum rate and check the new actual rate.
+	 * If the new rate does not give the expected accuracy, try to set
+	 * lower rates for the kernel clock.
+	 */
+	sai_ck_rate = sai_ck_max_rate;
+	div = 1;
+	do {
+		/* Check new rate accuracy. Return if ok */
+		sai_new_rate = clk_round_rate(sai->sai_ck, sai_ck_rate);
+		if (stm32_sai_rate_accurate(sai_ck_rate, sai_new_rate)) {
+			ret = clk_set_rate(sai->sai_ck, sai_ck_rate);
+			if (ret) {
+				dev_err(&pdev->dev, "Error %d setting sai_ck rate. %s",
+					ret, ret == -EBUSY ?
+					"Active stream rates may be in conflict\n" : "\n");
+				goto err;
+			}
+
+			return 0;
+		}
+
+		/* Try a lower frequency */
+		div++;
+		sai_ck_rate = sai_ck_max_rate / div;
+	} while (sai_ck_rate > rate);
+
+	/* No accurate rate found */
+	dev_err(&pdev->dev, "Failed to find an accurate rate");
+
+err:
+	stm32_sai_put_parent_rate(sai);
+
+	return -EINVAL;
+}
+
 static long stm32_sai_mclk_round_rate(struct clk_hw *hw, unsigned long rate,
 				      unsigned long *prate)
 {
@@ -378,8 +491,8 @@ static long stm32_sai_mclk_round_rate(struct clk_hw *hw, unsigned long rate,
 	int div;
 
 	div = stm32_sai_get_clk_div(sai, *prate, rate);
-	if (div < 0)
-		return div;
+	if (div <= 0)
+		return -EINVAL;
 
 	mclk->freq = *prate / div;
 
@@ -565,11 +678,15 @@ static int stm32_sai_set_sysclk(struct snd_soc_dai *cpu_dai,
 				clk_rate_exclusive_put(sai->sai_mclk);
 				sai->mclk_rate = 0;
 			}
+
+			if (sai->put_sai_ck_rate)
+				sai->put_sai_ck_rate(sai);
+
 			return 0;
 		}
 
-		/* If master clock is used, set parent clock now */
-		ret = stm32_sai_set_parent_clock(sai, freq);
+		/* If master clock is used, configure SAI kernel clock now */
+		ret = sai->set_sai_ck_rate(sai, freq);
 		if (ret)
 			return ret;
 
@@ -993,7 +1110,7 @@ static int stm32_sai_configure_clock(struct snd_soc_dai *cpu_dai,
 	int ret;
 
 	if (!sai->sai_mclk) {
-		ret = stm32_sai_set_parent_clock(sai, rate);
+		ret = sai->set_sai_ck_rate(sai, rate);
 		if (ret)
 			return ret;
 	}
@@ -1154,6 +1271,14 @@ static void stm32_sai_shutdown(struct snd_pcm_substream *substream,
 
 	clk_disable_unprepare(sai->sai_ck);
 
+	/*
+	 * Release kernel clock if following conditions are fulfilled
+	 * - Master clock is not used. Kernel clock won't be released trough sysclk
+	 * - Put handler is defined. Involve that clock is managed exclusively
+	 */
+	if (!sai->sai_mclk && sai->put_sai_ck_rate)
+		sai->put_sai_ck_rate(sai);
+
 	spin_lock_irqsave(&sai->irq_lock, flags);
 	sai->substream = NULL;
 	spin_unlock_irqrestore(&sai->irq_lock, flags);
@@ -1188,7 +1313,7 @@ static int stm32_sai_dai_probe(struct snd_soc_dai *cpu_dai)
 	 * constraints).
 	 */
 	sai->dma_params.maxburst = 4;
-	if (sai->pdata->conf.fifo_size < 8)
+	if (sai->pdata->conf.fifo_size < 8 || sai->pdata->conf.no_dma_burst)
 		sai->dma_params.maxburst = 1;
 	/* Buswidth will be set by framework at runtime */
 	sai->dma_params.addr_width = DMA_SLAVE_BUSWIDTH_UNDEFINED;
@@ -1526,6 +1651,13 @@ static int stm32_sai_sub_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	if (sai->pdata->conf.get_sai_ck_parent) {
+		sai->set_sai_ck_rate = stm32_sai_set_parent_clk;
+	} else {
+		sai->set_sai_ck_rate = stm32_sai_set_parent_rate;
+		sai->put_sai_ck_rate = stm32_sai_put_parent_rate;
+	}
+
 	ret = stm32_sai_sub_parse_of(pdev, sai);
 	if (ret)
 		return ret;
@@ -1619,7 +1751,7 @@ static struct platform_driver stm32_sai_sub_driver = {
 		.pm = &stm32_sai_sub_pm_ops,
 	},
 	.probe = stm32_sai_sub_probe,
-	.remove_new = stm32_sai_sub_remove,
+	.remove = stm32_sai_sub_remove,
 };
 
 module_platform_driver(stm32_sai_sub_driver);

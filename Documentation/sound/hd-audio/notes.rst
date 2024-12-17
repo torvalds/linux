@@ -42,7 +42,7 @@ If you are interested in the deep debugging of HD-audio, read the
 HD-audio specification at first.  The specification is found on
 Intel's web page, for example:
 
-* https://www.intel.com/standards/hdaudio/
+* https://www.intel.com/content/www/us/en/standards/high-definition-audio-specification.html
 
 
 HD-Audio Controller
@@ -321,12 +321,6 @@ Kernel Configuration
 --------------------
 In general, I recommend you to enable the sound debug option,
 ``CONFIG_SND_DEBUG=y``, no matter whether you are debugging or not.
-This enables snd_printd() macro and others, and you'll get additional
-kernel messages at probing.
-
-In addition, you can enable ``CONFIG_SND_DEBUG_VERBOSE=y``.  But this
-will give you far more messages.  Thus turn this on only when you are
-sure to want it.
 
 Don't forget to turn on the appropriate ``CONFIG_SND_HDA_CODEC_*``
 options.  Note that each of them corresponds to the codec chip, not

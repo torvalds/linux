@@ -242,7 +242,6 @@ static long rc32434_wdt_ioctl(struct file *file, unsigned int cmd,
 
 static const struct file_operations rc32434_wdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 	.write		= rc32434_wdt_write,
 	.unlocked_ioctl	= rc32434_wdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -310,7 +309,7 @@ static void rc32434_wdt_shutdown(struct platform_device *pdev)
 
 static struct platform_driver rc32434_wdt_driver = {
 	.probe		= rc32434_wdt_probe,
-	.remove_new	= rc32434_wdt_remove,
+	.remove		= rc32434_wdt_remove,
 	.shutdown	= rc32434_wdt_shutdown,
 	.driver		= {
 			.name = "rc32434_wdt",

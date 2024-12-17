@@ -16,20 +16,11 @@
 ACPI_MODULE_NAME("hwxfsleep")
 
 /* Local prototypes */
-#if (!ACPI_REDUCED_HARDWARE)
 static acpi_status
 acpi_hw_set_firmware_waking_vector(struct acpi_table_facs *facs,
 				   acpi_physical_address physical_address,
 				   acpi_physical_address physical_address64);
-#endif
 
-/*
- * These functions are removed for the ACPI_REDUCED_HARDWARE case:
- *      acpi_set_firmware_waking_vector
- *      acpi_enter_sleep_state_s4bios
- */
-
-#if (!ACPI_REDUCED_HARDWARE)
 /*******************************************************************************
  *
  * FUNCTION:    acpi_hw_set_firmware_waking_vector
@@ -115,6 +106,12 @@ acpi_set_firmware_waking_vector(acpi_physical_address physical_address,
 
 ACPI_EXPORT_SYMBOL(acpi_set_firmware_waking_vector)
 
+/*
+ * These functions are removed for the ACPI_REDUCED_HARDWARE case:
+ *      acpi_enter_sleep_state_s4bios
+ */
+
+#if (!ACPI_REDUCED_HARDWARE)
 /*******************************************************************************
  *
  * FUNCTION:    acpi_enter_sleep_state_s4bios

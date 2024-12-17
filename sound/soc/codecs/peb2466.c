@@ -6,7 +6,7 @@
 //
 // Author: Herve Codina <herve.codina@bootlin.com>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/clk.h>
 #include <linux/firmware.h>
 #include <linux/gpio/consumer.h>
@@ -229,7 +229,8 @@ static int peb2466_reg_read(void *context, unsigned int reg, unsigned int *val)
 	case PEB2466_CMD_XOP:
 	case PEB2466_CMD_SOP:
 		ret = peb2466_read_byte(peb2466, reg, &tmp);
-		*val = tmp;
+		if (!ret)
+			*val = tmp;
 		break;
 	default:
 		dev_err(&peb2466->spi->dev, "Not a XOP or SOP command\n");
@@ -1975,12 +1976,9 @@ static int peb2466_spi_probe(struct spi_device *spi)
 	if (IS_ERR(peb2466->reset_gpio))
 		return PTR_ERR(peb2466->reset_gpio);
 
-	peb2466->mclk = devm_clk_get(&peb2466->spi->dev, "mclk");
+	peb2466->mclk = devm_clk_get_enabled(&peb2466->spi->dev, "mclk");
 	if (IS_ERR(peb2466->mclk))
 		return PTR_ERR(peb2466->mclk);
-	ret = clk_prepare_enable(peb2466->mclk);
-	if (ret)
-		return ret;
 
 	if (peb2466->reset_gpio) {
 		gpiod_set_value_cansleep(peb2466->reset_gpio, 1);
@@ -2031,15 +2029,7 @@ static int peb2466_spi_probe(struct spi_device *spi)
 	return 0;
 
 failed:
-	clk_disable_unprepare(peb2466->mclk);
 	return ret;
-}
-
-static void peb2466_spi_remove(struct spi_device *spi)
-{
-	struct peb2466 *peb2466 = spi_get_drvdata(spi);
-
-	clk_disable_unprepare(peb2466->mclk);
 }
 
 static const struct of_device_id peb2466_of_match[] = {
@@ -2061,7 +2051,6 @@ static struct spi_driver peb2466_spi_driver = {
 	},
 	.id_table = peb2466_id_table,
 	.probe  = peb2466_spi_probe,
-	.remove = peb2466_spi_remove,
 };
 
 module_spi_driver(peb2466_spi_driver);

@@ -114,6 +114,7 @@ int ucc_mux_set_grant_tsa_bkpt(unsigned int ucc_num, int set, u32 mask)
 
 	return 0;
 }
+EXPORT_SYMBOL(ucc_mux_set_grant_tsa_bkpt);
 
 int ucc_set_qe_mux_rxtx(unsigned int ucc_num, enum qe_clock clock,
 	enum comm_dir mode)

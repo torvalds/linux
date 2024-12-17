@@ -539,7 +539,7 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
 
 	if (!nd_pfn->uuid) {
 		/*
-		 * When probing a namepace via nd_pfn_probe() the uuid
+		 * When probing a namespace via nd_pfn_probe() the uuid
 		 * is NULL (see: nd_pfn_devinit()) we init settings from
 		 * pfn_sb
 		 */

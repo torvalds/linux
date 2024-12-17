@@ -6,6 +6,7 @@
 #ifndef XFS_DRAIN_H_
 #define XFS_DRAIN_H_
 
+struct xfs_group;
 struct xfs_perag;
 
 #ifdef CONFIG_XFS_DRAIN_INTENTS
@@ -61,27 +62,22 @@ void xfs_drain_wait_enable(void);
  * soon as the item is added to the transaction and cannot drop the counter
  * until the item is finished or cancelled.
  */
-struct xfs_perag *xfs_perag_intent_get(struct xfs_mount *mp,
-		xfs_fsblock_t fsbno);
-void xfs_perag_intent_put(struct xfs_perag *pag);
+struct xfs_group *xfs_group_intent_get(struct xfs_mount *mp,
+		xfs_fsblock_t fsbno, enum xfs_group_type type);
+void xfs_group_intent_put(struct xfs_group *rtg);
 
-void xfs_perag_intent_hold(struct xfs_perag *pag);
-void xfs_perag_intent_rele(struct xfs_perag *pag);
+int xfs_group_intent_drain(struct xfs_group *xg);
+bool xfs_group_intent_busy(struct xfs_group *xg);
 
-int xfs_perag_intent_drain(struct xfs_perag *pag);
-bool xfs_perag_intent_busy(struct xfs_perag *pag);
 #else
 struct xfs_defer_drain { /* empty */ };
 
 #define xfs_defer_drain_free(dr)		((void)0)
 #define xfs_defer_drain_init(dr)		((void)0)
 
-#define xfs_perag_intent_get(mp, fsbno) \
-	xfs_perag_get((mp), XFS_FSB_TO_AGNO(mp, fsbno))
-#define xfs_perag_intent_put(pag)		xfs_perag_put(pag)
-
-static inline void xfs_perag_intent_hold(struct xfs_perag *pag) { }
-static inline void xfs_perag_intent_rele(struct xfs_perag *pag) { }
+#define xfs_group_intent_get(_mp, _fsbno, _type) \
+	xfs_group_get_by_fsb((_mp), (_fsbno), (_type))
+#define xfs_group_intent_put(xg)		xfs_group_put(xg)
 
 #endif /* CONFIG_XFS_DRAIN_INTENTS */
 

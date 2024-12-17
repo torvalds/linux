@@ -6,7 +6,6 @@
  ******************************************************************************/
 
 #include <drv_types.h>
-#include <rtw_debug.h>
 #include "odm_precomp.h"
 
 /*  MACRO definition for pRFCalibrateInfo->TxIQC_8723B[0] */

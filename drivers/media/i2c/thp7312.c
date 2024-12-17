@@ -4,7 +4,7 @@
  * Copyright (C) 2023 Ideas on Board Oy
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -27,7 +27,6 @@
 #include <media/v4l2-cci.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-event.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
@@ -879,8 +878,6 @@ static int thp7312_init_state(struct v4l2_subdev *sd,
 
 static const struct v4l2_subdev_core_ops thp7312_core_ops = {
 	.log_status = v4l2_ctrl_subdev_log_status,
-	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
-	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
 };
 
 static const struct v4l2_subdev_video_ops thp7312_video_ops = {
@@ -1503,7 +1500,7 @@ static int __thp7312_flash_reg_read(struct thp7312_device *thp7312,
 
 	msgs[0].addr = client->addr;
 	msgs[0].flags = 0;
-	msgs[0].len = sizeof(thp7312_cmd_read_reg),
+	msgs[0].len = sizeof(thp7312_cmd_read_reg);
 	msgs[0].buf = (u8 *)thp7312_cmd_read_reg;
 
 	msgs[1].addr = client->addr;
@@ -2127,7 +2124,7 @@ static int thp7312_probe(struct i2c_client *client)
 
 	v4l2_i2c_subdev_init(&thp7312->sd, client, &thp7312_subdev_ops);
 	thp7312->sd.internal_ops = &thp7312_internal_ops;
-	thp7312->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
+	thp7312->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	thp7312->pad.flags = MEDIA_PAD_FL_SOURCE;
 	thp7312->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 

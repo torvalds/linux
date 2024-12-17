@@ -8,7 +8,9 @@
 
 #include <linux/bits.h>
 
+#include "abi/guc_capture_abi.h"
 #include "abi/guc_klvs_abi.h"
+#include "xe_hw_engine_types.h"
 
 #define G2H_LEN_DW_SCHED_CONTEXT_MODE_SET	4
 #define G2H_LEN_DW_DEREGISTER_CONTEXT		3
@@ -103,6 +105,7 @@ struct guc_update_exec_queue_policy {
 
 #define GUC_CTL_FEATURE			2
 #define   GUC_CTL_ENABLE_SLPC		BIT(2)
+#define   GUC_CTL_ENABLE_LITE_RESTORE	BIT(4)
 #define   GUC_CTL_DISABLE_SCHEDULER	BIT(14)
 
 #define GUC_CTL_DEBUG			3
@@ -157,24 +160,6 @@ struct guc_policies {
 	u32 reserved[4];
 } __packed;
 
-/* GuC MMIO reg state struct */
-struct guc_mmio_reg {
-	u32 offset;
-	u32 value;
-	u32 flags;
-	u32 mask;
-#define GUC_REGSET_MASKED		BIT(0)
-#define GUC_REGSET_MASKED_WITH_VALUE	BIT(2)
-#define GUC_REGSET_RESTORE_ONLY		BIT(3)
-} __packed;
-
-/* GuC register sets */
-struct guc_mmio_reg_set {
-	u32 address;
-	u16 count;
-	u16 reserved;
-} __packed;
-
 /* Generic GT SysInfo data types */
 #define GUC_GENERIC_GT_SYSINFO_SLICE_ENABLED		0
 #define GUC_GENERIC_GT_SYSINFO_VDBOX_SFC_SUPPORT_MASK	1
@@ -187,12 +172,6 @@ struct guc_gt_system_info {
 	u32 engine_enabled_masks[GUC_MAX_ENGINE_CLASSES];
 	u32 generic_gt_sysinfo[GUC_GENERIC_GT_SYSINFO_MAX];
 } __packed;
-
-enum {
-	GUC_CAPTURE_LIST_INDEX_PF = 0,
-	GUC_CAPTURE_LIST_INDEX_VF = 1,
-	GUC_CAPTURE_LIST_INDEX_MAX = 2,
-};
 
 /* GuC Additional Data Struct */
 struct guc_ads {

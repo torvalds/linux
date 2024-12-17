@@ -23,6 +23,8 @@
  * (in the "-8,-16,...,-512" form)
  */
 #define TMP_STR_BUF_LEN 320
+/* Patch buffer size */
+#define INSN_BUF_SIZE 32
 
 /* Liveness marks, used for registers and spilled-regs (in stack slots).
  * Read marks propagate upwards until they find a write mark; they record that
@@ -44,22 +46,6 @@ enum bpf_reg_liveness {
 	REG_LIVE_READ = REG_LIVE_READ32 | REG_LIVE_READ64,
 	REG_LIVE_WRITTEN = 0x4, /* reg was written first, screening off later reads */
 	REG_LIVE_DONE = 0x8, /* liveness won't be updating this register anymore */
-};
-
-/* For every reg representing a map value or allocated object pointer,
- * we consider the tuple of (ptr, id) for them to be unique in verifier
- * context and conside them to not alias each other for the purposes of
- * tracking lock state.
- */
-struct bpf_active_lock {
-	/* This can either be reg->map_ptr or reg->btf. If ptr is NULL,
-	 * there's no active lock held, and other fields have no
-	 * meaning. If non-NULL, it indicates that a lock is held and
-	 * id member has the reg->id of the register which can be >= 0.
-	 */
-	void *ptr;
-	/* This will be reg->id */
-	u32 id;
 };
 
 #define ITER_PREFIX "bpf_iter_"
@@ -264,6 +250,13 @@ struct bpf_stack_state {
 };
 
 struct bpf_reference_state {
+	/* Each reference object has a type. Ensure REF_TYPE_PTR is zero to
+	 * default to pointer reference on zero initialization of a state.
+	 */
+	enum ref_state_type {
+		REF_TYPE_PTR = 0,
+		REF_TYPE_LOCK,
+	} type;
 	/* Track each reference created with a unique id, even if the same
 	 * instruction creates the reference multiple times (eg, via CALL).
 	 */
@@ -272,17 +265,10 @@ struct bpf_reference_state {
 	 * is used purely to inform the user of a reference leak.
 	 */
 	int insn_idx;
-	/* There can be a case like:
-	 * main (frame 0)
-	 *  cb (frame 1)
-	 *   func (frame 3)
-	 *    cb (frame 4)
-	 * Hence for frame 4, if callback_ref just stored boolean, it would be
-	 * impossible to distinguish nested callback refs. Hence store the
-	 * frameno and compare that to callback_ref in check_reference_leak when
-	 * exiting a callback function.
+	/* Use to keep track of the source object of a lock, to ensure
+	 * it matches on unlock.
 	 */
-	int callback_ref;
+	void *ptr;
 };
 
 struct bpf_retval_range {
@@ -330,6 +316,7 @@ struct bpf_func_state {
 
 	/* The following fields should be last. See copy_func_state() */
 	int acquired_refs;
+	int active_locks;
 	struct bpf_reference_state *refs;
 	/* The state of the stack. Each element of the array describes BPF_REG_SIZE
 	 * (i.e. 8) bytes worth of stack memory.
@@ -347,7 +334,7 @@ struct bpf_func_state {
 
 #define MAX_CALL_FRAMES 8
 
-/* instruction history flags, used in bpf_jmp_history_entry.flags field */
+/* instruction history flags, used in bpf_insn_hist_entry.flags field */
 enum {
 	/* instruction references stack slot through PTR_TO_STACK register;
 	 * we also store stack's frame number in lower 3 bits (MAX_CALL_FRAMES is 8)
@@ -365,12 +352,16 @@ enum {
 static_assert(INSN_F_FRAMENO_MASK + 1 >= MAX_CALL_FRAMES);
 static_assert(INSN_F_SPI_MASK + 1 >= MAX_BPF_STACK / 8);
 
-struct bpf_jmp_history_entry {
+struct bpf_insn_hist_entry {
 	u32 idx;
 	/* insn idx can't be bigger than 1 million */
 	u32 prev_idx : 22;
 	/* special flags, e.g., whether insn is doing register stack spill/load */
 	u32 flags : 10;
+	/* additional registers that need precision tracking when this
+	 * jump is backtracked, vector of six 10-bit records
+	 */
+	u64 linked_regs;
 };
 
 /* Maximum number of register states that can exist at once */
@@ -428,7 +419,6 @@ struct bpf_verifier_state {
 	u32 insn_idx;
 	u32 curframe;
 
-	struct bpf_active_lock active_lock;
 	bool speculative;
 	bool active_rcu_lock;
 	u32 active_preempt_lock;
@@ -452,13 +442,14 @@ struct bpf_verifier_state {
 	 * See get_loop_entry() for more information.
 	 */
 	struct bpf_verifier_state *loop_entry;
-	/* jmp history recorded from first to last.
-	 * backtracking is using it to go from last to first.
-	 * For most states jmp_history_cnt is [0-3].
+	/* Sub-range of env->insn_hist[] corresponding to this state's
+	 * instruction history.
+	 * Backtracking is using it to go from last to first.
+	 * For most states instruction history is short, 0-3 instructions.
 	 * For loops can go up to ~40.
 	 */
-	struct bpf_jmp_history_entry *jmp_history;
-	u32 jmp_history_cnt;
+	u32 insn_hist_start;
+	u32 insn_hist_end;
 	u32 dfs_depth;
 	u32 callback_unroll_depth;
 	u32 may_goto_depth;
@@ -572,6 +563,14 @@ struct bpf_insn_aux_data {
 	bool is_iter_next; /* bpf_iter_<type>_next() kfunc call */
 	bool call_with_percpu_alloc_ptr; /* {this,per}_cpu_ptr() with prog percpu alloc */
 	u8 alu_state; /* used in combination with alu_limit */
+	/* true if STX or LDX instruction is a part of a spill/fill
+	 * pattern for a bpf_fastcall call.
+	 */
+	u8 fastcall_pattern:1;
+	/* for CALL instructions, a number of spill/fill pairs in the
+	 * bpf_fastcall pattern.
+	 */
+	u8 fastcall_spills_num:3;
 
 	/* below fields are initialized once */
 	unsigned int orig_idx; /* original instruction index */
@@ -635,12 +634,22 @@ struct bpf_subprog_arg_info {
 	};
 };
 
+enum priv_stack_mode {
+	PRIV_STACK_UNKNOWN,
+	NO_PRIV_STACK,
+	PRIV_STACK_ADAPTIVE,
+};
+
 struct bpf_subprog_info {
 	/* 'start' has to be the first field otherwise find_subprog() won't work */
 	u32 start; /* insn idx of function entry point */
 	u32 linfo_idx; /* The idx to the main_prog->aux->linfo */
 	u16 stack_depth; /* max. stack depth used by this function */
 	u16 stack_extra;
+	/* offsets in range [stack_depth .. fastcall_stack_off)
+	 * are used for bpf_fastcall spills and fills.
+	 */
+	s16 fastcall_stack_off;
 	bool has_tail_call: 1;
 	bool tail_call_reachable: 1;
 	bool has_ld_abs: 1;
@@ -648,7 +657,11 @@ struct bpf_subprog_info {
 	bool is_async_cb: 1;
 	bool is_exception_cb: 1;
 	bool args_cached: 1;
+	/* true if bpf_fastcall stack region is used by functions that can't be inlined */
+	bool keep_fastcall_stack: 1;
+	bool changes_pkt_data: 1;
 
+	enum priv_stack_mode priv_stack_mode;
 	u8 arg_cnt;
 	struct bpf_subprog_arg_info args[MAX_BPF_FUNC_REG_ARGS];
 };
@@ -727,7 +740,9 @@ struct bpf_verifier_env {
 		int cur_stack;
 	} cfg;
 	struct backtrack_state bt;
-	struct bpf_jmp_history_entry *cur_hist_ent;
+	struct bpf_insn_hist_entry *insn_hist;
+	struct bpf_insn_hist_entry *cur_hist_ent;
+	u32 insn_hist_cap;
 	u32 pass_cnt; /* number of times do_check() was called */
 	u32 subprog_cnt;
 	/* number of instructions analyzed by the verifier */
@@ -762,6 +777,8 @@ struct bpf_verifier_env {
 	 * e.g., in reg_type_str() to generate reg_type string
 	 */
 	char tmp_str_buf[TMP_STR_BUF_LEN];
+	struct bpf_insn insn_buf[INSN_BUF_SIZE];
+	struct bpf_insn epilogue_buf[INSN_BUF_SIZE];
 };
 
 static inline struct bpf_func_info_aux *subprog_aux(struct bpf_verifier_env *env, int subprog)
@@ -866,6 +883,7 @@ static inline bool bpf_prog_check_recur(const struct bpf_prog *prog)
 	case BPF_PROG_TYPE_TRACING:
 		return prog->expected_attach_type != BPF_TRACE_ITER;
 	case BPF_PROG_TYPE_STRUCT_OPS:
+		return prog->aux->jits_use_priv_stack;
 	case BPF_PROG_TYPE_LSM:
 		return false;
 	default:
@@ -903,6 +921,11 @@ static inline bool type_is_sk_pointer(enum bpf_reg_type type)
 		type == PTR_TO_SOCK_COMMON ||
 		type == PTR_TO_TCP_SOCK ||
 		type == PTR_TO_XDP_SOCK;
+}
+
+static inline bool type_may_be_null(u32 type)
+{
+	return type & PTR_MAYBE_NULL;
 }
 
 static inline void mark_reg_scratched(struct bpf_verifier_env *env, u32 regno)

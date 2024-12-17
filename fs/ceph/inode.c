@@ -160,7 +160,7 @@ struct inode *ceph_get_inode(struct super_block *sb, struct ceph_vino vino,
 }
 
 /*
- * get/constuct snapdir inode for a given directory
+ * get/construct snapdir inode for a given directory
  */
 struct inode *ceph_get_snapdir(struct inode *parent)
 {
@@ -1779,7 +1779,7 @@ retry_lookup:
 		if (err < 0)
 			goto done;
 	} else if (rinfo->head->is_dentry && req->r_dentry) {
-		/* parent inode is not locked, be carefull */
+		/* parent inode is not locked, be careful */
 		struct ceph_vino *ptvino = NULL;
 		dvino.ino = le64_to_cpu(rinfo->diri.in->ino);
 		dvino.snap = le64_to_cpu(rinfo->diri.in->snapid);

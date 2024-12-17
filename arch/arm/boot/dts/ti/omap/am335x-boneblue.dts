@@ -313,14 +313,18 @@
 };
 
 &i2c0 {
-	baseboard_eeprom: baseboard_eeprom@50 {
+	baseboard_eeprom: eeprom@50 {
 		compatible = "atmel,24c256";
 		reg = <0x50>;
 
-		#address-cells = <1>;
-		#size-cells = <1>;
-		baseboard_data: baseboard_data@0 {
-			reg = <0 0x100>;
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			baseboard_data: baseboard_data@0 {
+				reg = <0 0x100>;
+			};
 		};
 	};
 };

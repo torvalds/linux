@@ -2,7 +2,7 @@
 /*
  * Window watchdog device driver for Xilinx Versal WWDT
  *
- * Copyright (C) 2022 - 2023, Advanced Micro Devices, Inc.
+ * Copyright (C) 2022 - 2024, Advanced Micro Devices, Inc.
  */
 
 #include <linux/clk.h>
@@ -36,6 +36,12 @@
 
 #define XWWDT_CLOSE_WINDOW_PERCENT	50
 
+/* Maximum count value of each 32 bit window */
+#define XWWDT_MAX_COUNT_WINDOW		GENMASK(31, 0)
+
+/* Maximum count value of closed and open window combined */
+#define XWWDT_MAX_COUNT_WINDOW_COMBINED	GENMASK_ULL(32, 1)
+
 static int wwdt_timeout;
 static int closed_window_percent;
 
@@ -54,6 +60,8 @@ MODULE_PARM_DESC(closed_window_percent,
  * @xilinx_wwdt_wdd: watchdog device structure
  * @freq: source clock frequency of WWDT
  * @close_percent: Closed window percent
+ * @closed_timeout: Closed window timeout in ticks
+ * @open_timeout: Open window timeout in ticks
  */
 struct xwwdt_device {
 	void __iomem *base;
@@ -61,27 +69,22 @@ struct xwwdt_device {
 	struct watchdog_device xilinx_wwdt_wdd;
 	unsigned long freq;
 	u32 close_percent;
+	u64 closed_timeout;
+	u64 open_timeout;
 };
 
 static int xilinx_wwdt_start(struct watchdog_device *wdd)
 {
 	struct xwwdt_device *xdev = watchdog_get_drvdata(wdd);
 	struct watchdog_device *xilinx_wwdt_wdd = &xdev->xilinx_wwdt_wdd;
-	u64 time_out, closed_timeout, open_timeout;
 	u32 control_status_reg;
-
-	/* Calculate timeout count */
-	time_out = xdev->freq * wdd->timeout;
-	closed_timeout = div_u64(time_out * xdev->close_percent, 100);
-	open_timeout = time_out - closed_timeout;
-	wdd->min_hw_heartbeat_ms = xdev->close_percent * 10 * wdd->timeout;
 
 	spin_lock(&xdev->spinlock);
 
 	iowrite32(XWWDT_MWR_MASK, xdev->base + XWWDT_MWR_OFFSET);
 	iowrite32(~(u32)XWWDT_ESR_WEN_MASK, xdev->base + XWWDT_ESR_OFFSET);
-	iowrite32((u32)closed_timeout, xdev->base + XWWDT_FWR_OFFSET);
-	iowrite32((u32)open_timeout, xdev->base + XWWDT_SWR_OFFSET);
+	iowrite32((u32)xdev->closed_timeout, xdev->base + XWWDT_FWR_OFFSET);
+	iowrite32((u32)xdev->open_timeout, xdev->base + XWWDT_SWR_OFFSET);
 
 	/* Enable the window watchdog timer */
 	control_status_reg = ioread32(xdev->base + XWWDT_ESR_OFFSET);
@@ -133,7 +136,12 @@ static int xwwdt_probe(struct platform_device *pdev)
 	struct watchdog_device *xilinx_wwdt_wdd;
 	struct device *dev = &pdev->dev;
 	struct xwwdt_device *xdev;
+	u64 max_per_window_ms;
+	u64 min_per_window_ms;
+	u64 timeout_count;
 	struct clk *clk;
+	u32 timeout_ms;
+	u64 ms_count;
 	int ret;
 
 	xdev = devm_kzalloc(dev, sizeof(*xdev), GFP_KERNEL);
@@ -154,12 +162,13 @@ static int xwwdt_probe(struct platform_device *pdev)
 		return PTR_ERR(clk);
 
 	xdev->freq = clk_get_rate(clk);
-	if (!xdev->freq)
+	if (xdev->freq < 1000000)
 		return -EINVAL;
 
 	xilinx_wwdt_wdd->min_timeout = XWWDT_MIN_TIMEOUT;
 	xilinx_wwdt_wdd->timeout = XWWDT_DEFAULT_TIMEOUT;
-	xilinx_wwdt_wdd->max_hw_heartbeat_ms = 1000 * xilinx_wwdt_wdd->timeout;
+	xilinx_wwdt_wdd->max_hw_heartbeat_ms =
+		div64_u64(XWWDT_MAX_COUNT_WINDOW_COMBINED, xdev->freq) * 1000;
 
 	if (closed_window_percent == 0 || closed_window_percent >= 100)
 		xdev->close_percent = XWWDT_CLOSE_WINDOW_PERCENT;
@@ -167,6 +176,48 @@ static int xwwdt_probe(struct platform_device *pdev)
 		xdev->close_percent = closed_window_percent;
 
 	watchdog_init_timeout(xilinx_wwdt_wdd, wwdt_timeout, &pdev->dev);
+
+	/* Calculate ticks for 1 milli-second */
+	ms_count = div_u64(xdev->freq, 1000);
+	timeout_ms = xilinx_wwdt_wdd->timeout * 1000;
+	timeout_count = timeout_ms * ms_count;
+
+	if (timeout_ms > xilinx_wwdt_wdd->max_hw_heartbeat_ms) {
+		/*
+		 * To avoid ping restrictions until the minimum hardware heartbeat,
+		 * we will solely rely on the open window and
+		 * adjust the minimum hardware heartbeat to 0.
+		 */
+		xdev->closed_timeout = 0;
+		xdev->open_timeout = XWWDT_MAX_COUNT_WINDOW;
+		xilinx_wwdt_wdd->min_hw_heartbeat_ms = 0;
+		xilinx_wwdt_wdd->max_hw_heartbeat_ms = xilinx_wwdt_wdd->max_hw_heartbeat_ms / 2;
+	} else {
+		xdev->closed_timeout  = div64_u64(timeout_count * xdev->close_percent, 100);
+		xilinx_wwdt_wdd->min_hw_heartbeat_ms =
+			div64_u64(timeout_ms * xdev->close_percent, 100);
+
+		if (timeout_ms > xilinx_wwdt_wdd->max_hw_heartbeat_ms / 2) {
+			max_per_window_ms = xilinx_wwdt_wdd->max_hw_heartbeat_ms / 2;
+			min_per_window_ms = timeout_ms - max_per_window_ms;
+
+			if (xilinx_wwdt_wdd->min_hw_heartbeat_ms > max_per_window_ms) {
+				dev_info(xilinx_wwdt_wdd->parent,
+					 "Closed window cannot be set to %d%%. Using maximum supported value.\n",
+					xdev->close_percent);
+				xdev->closed_timeout = max_per_window_ms * ms_count;
+				xilinx_wwdt_wdd->min_hw_heartbeat_ms = max_per_window_ms;
+			} else if (xilinx_wwdt_wdd->min_hw_heartbeat_ms < min_per_window_ms) {
+				dev_info(xilinx_wwdt_wdd->parent,
+					 "Closed window cannot be set to %d%%. Using minimum supported value.\n",
+					xdev->close_percent);
+				xdev->closed_timeout = min_per_window_ms * ms_count;
+				xilinx_wwdt_wdd->min_hw_heartbeat_ms = min_per_window_ms;
+			}
+		}
+		xdev->open_timeout = timeout_count - xdev->closed_timeout;
+	}
+
 	spin_lock_init(&xdev->spinlock);
 	watchdog_set_drvdata(xilinx_wwdt_wdd, xdev);
 	watchdog_set_nowayout(xilinx_wwdt_wdd, 1);

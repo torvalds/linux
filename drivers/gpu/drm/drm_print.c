@@ -100,8 +100,9 @@ void __drm_puts_coredump(struct drm_printer *p, const char *str)
 			copy = iterator->remain;
 
 		/* Copy out the bit of the string that we need */
-		memcpy(iterator->data,
-			str + (iterator->start - iterator->offset), copy);
+		if (iterator->data)
+			memcpy(iterator->data,
+			       str + (iterator->start - iterator->offset), copy);
 
 		iterator->offset = iterator->start + copy;
 		iterator->remain -= copy;
@@ -110,7 +111,8 @@ void __drm_puts_coredump(struct drm_printer *p, const char *str)
 
 		len = min_t(ssize_t, strlen(str), iterator->remain);
 
-		memcpy(iterator->data + pos, str, len);
+		if (iterator->data)
+			memcpy(iterator->data + pos, str, len);
 
 		iterator->offset += len;
 		iterator->remain -= len;
@@ -140,8 +142,9 @@ void __drm_printfn_coredump(struct drm_printer *p, struct va_format *vaf)
 	if ((iterator->offset >= iterator->start) && (len < iterator->remain)) {
 		ssize_t pos = iterator->offset - iterator->start;
 
-		snprintf(((char *) iterator->data) + pos,
-			iterator->remain, "%pV", vaf);
+		if (iterator->data)
+			snprintf(((char *) iterator->data) + pos,
+				 iterator->remain, "%pV", vaf);
 
 		iterator->offset += len;
 		iterator->remain -= len;
@@ -231,6 +234,20 @@ void __drm_printfn_err(struct drm_printer *p, struct va_format *vaf)
 		drm_err(drm, "%pV", vaf);
 }
 EXPORT_SYMBOL(__drm_printfn_err);
+
+void __drm_printfn_line(struct drm_printer *p, struct va_format *vaf)
+{
+	unsigned int counter = ++p->line.counter;
+	const char *prefix = p->prefix ?: "";
+	const char *pad = p->prefix ? " " : "";
+
+	if (p->line.series)
+		drm_printf(p->arg, "%s%s%u.%u: %pV",
+			   prefix, pad, p->line.series, counter, vaf);
+	else
+		drm_printf(p->arg, "%s%s%u: %pV", prefix, pad, counter, vaf);
+}
+EXPORT_SYMBOL(__drm_printfn_line);
 
 /**
  * drm_puts - print a const string to a &drm_printer stream

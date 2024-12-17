@@ -4,6 +4,7 @@
 #define _GNU_SOURCE
 #include <linux/compiler.h>
 #include <linux/ring_buffer.h>
+#include <linux/build_bug.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -642,7 +643,7 @@ static void test_user_ringbuf_blocking_reserve(void)
 	if (!ASSERT_EQ(err, 0, "deferred_kick_thread\n"))
 		goto cleanup;
 
-	/* After spawning another thread that asychronously kicks the kernel to
+	/* After spawning another thread that asynchronously kicks the kernel to
 	 * drain the messages, we're able to block and successfully get a
 	 * sample once we receive an event notification.
 	 */

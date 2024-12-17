@@ -565,7 +565,7 @@ static void wait_on_hash_lock(struct hash_lock *lock, struct data_vio *data_vio)
  * @waiter: The data_vio's waiter link.
  * @context: Not used.
  */
-static void abort_waiter(struct vdo_waiter *waiter, void *context __always_unused)
+static void abort_waiter(struct vdo_waiter *waiter, void __always_unused *context)
 {
 	write_data_vio(vdo_waiter_as_data_vio(waiter));
 }
@@ -729,6 +729,7 @@ static void process_update_result(struct data_vio *agent)
 	    !change_context_state(context, DEDUPE_CONTEXT_COMPLETE, DEDUPE_CONTEXT_IDLE))
 		return;
 
+	agent->dedupe_context = NULL;
 	release_context(context);
 }
 
@@ -1648,6 +1649,7 @@ static void process_query_result(struct data_vio *agent)
 
 	if (change_context_state(context, DEDUPE_CONTEXT_COMPLETE, DEDUPE_CONTEXT_IDLE)) {
 		agent->is_duplicate = decode_uds_advice(context);
+		agent->dedupe_context = NULL;
 		release_context(context);
 	}
 }
@@ -1725,7 +1727,7 @@ static void report_bogus_lock_state(struct hash_lock *lock, struct data_vio *dat
 /**
  * vdo_continue_hash_lock() - Continue the processing state after writing, compressing, or
  *                            deduplicating.
- * @data_vio: The data_vio to continue processing in its hash lock.
+ * @completion: The data_vio completion to continue processing in its hash lock.
  *
  * Asynchronously continue processing a data_vio in its hash lock after it has finished writing,
  * compressing, or deduplicating, so it can share the result with any data_vios waiting in the hash
@@ -1823,7 +1825,7 @@ static inline int assert_hash_lock_preconditions(const struct data_vio *data_vio
 
 /**
  * vdo_acquire_hash_lock() - Acquire or share a lock on a record name.
- * @data_vio: The data_vio acquiring a lock on its record name.
+ * @completion: The data_vio completion acquiring a lock on its record name.
  *
  * Acquire or share a lock on the hash (record name) of the data in a data_vio, updating the
  * data_vio to reference the lock. This must only be called in the correct thread for the zone. In
@@ -2321,6 +2323,7 @@ static void timeout_index_operations_callback(struct vdo_completion *completion)
 		 * send its requestor on its way.
 		 */
 		list_del_init(&context->list_entry);
+		context->requestor->dedupe_context = NULL;
 		continue_data_vio(context->requestor);
 		timed_out++;
 	}
@@ -2676,7 +2679,8 @@ static void get_index_statistics(struct hash_zones *zones,
 
 /**
  * vdo_get_dedupe_statistics() - Tally the statistics from all the hash zones and the UDS index.
- * @hash_zones: The hash zones to query
+ * @zones: The hash zones to query
+ * @stats: A structure to store the statistics
  *
  * Return: The sum of the hash lock statistics from all hash zones plus the statistics from the UDS
  *         index

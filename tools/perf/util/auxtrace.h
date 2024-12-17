@@ -75,7 +75,6 @@ enum itrace_period_type {
  *          (not fully accurate, since CYC packets are only emitted
  *          together with other events, such as branches)
  * @branches: whether to synthesize 'branches' events
- *            (branch misses only for Arm SPE)
  * @transactions: whether to synthesize events for transactions
  * @ptwrites: whether to synthesize events for ptwrites
  * @pwr_events: whether to synthesize power events
@@ -208,17 +207,17 @@ struct auxtrace {
 	int (*process_event)(struct perf_session *session,
 			     union perf_event *event,
 			     struct perf_sample *sample,
-			     struct perf_tool *tool);
+			     const struct perf_tool *tool);
 	int (*process_auxtrace_event)(struct perf_session *session,
 				      union perf_event *event,
-				      struct perf_tool *tool);
+				      const struct perf_tool *tool);
 	int (*queue_data)(struct perf_session *session,
 			  struct perf_sample *sample, union perf_event *event,
 			  u64 data_offset);
 	void (*dump_auxtrace_sample)(struct perf_session *session,
 				     struct perf_sample *sample);
 	int (*flush_events)(struct perf_session *session,
-			    struct perf_tool *tool);
+			    const struct perf_tool *tool);
 	void (*free_events)(struct perf_session *session);
 	void (*free)(struct perf_session *session);
 	bool (*evsel_is_auxtrace)(struct perf_session *session,
@@ -411,7 +410,6 @@ struct auxtrace_record {
 	int (*read_finish)(struct auxtrace_record *itr, int idx);
 	unsigned int alignment;
 	unsigned int default_aux_sample_size;
-	struct perf_pmu *pmu;
 	struct evlist *evlist;
 };
 
@@ -508,17 +506,17 @@ void auxtrace_mmap_params__set_idx(struct auxtrace_mmap_params *mp,
 				   struct evlist *evlist,
 				   struct evsel *evsel, int idx);
 
-typedef int (*process_auxtrace_t)(struct perf_tool *tool,
+typedef int (*process_auxtrace_t)(const struct perf_tool *tool,
 				  struct mmap *map,
 				  union perf_event *event, void *data1,
 				  size_t len1, void *data2, size_t len2);
 
 int auxtrace_mmap__read(struct mmap *map, struct auxtrace_record *itr,
-			struct perf_tool *tool, process_auxtrace_t fn);
+			const struct perf_tool *tool, process_auxtrace_t fn);
 
 int auxtrace_mmap__read_snapshot(struct mmap *map,
 				 struct auxtrace_record *itr,
-				 struct perf_tool *tool, process_auxtrace_t fn,
+				 const struct perf_tool *tool, process_auxtrace_t fn,
 				 size_t snapshot_size);
 
 int auxtrace_queues__init_nr(struct auxtrace_queues *queues, int nr_queues);
@@ -639,10 +637,10 @@ int addr_filters__parse_bare_filter(struct addr_filters *filts,
 int auxtrace_parse_filters(struct evlist *evlist);
 
 int auxtrace__process_event(struct perf_session *session, union perf_event *event,
-			    struct perf_sample *sample, struct perf_tool *tool);
+			    struct perf_sample *sample, const struct perf_tool *tool);
 void auxtrace__dump_auxtrace_sample(struct perf_session *session,
 				    struct perf_sample *sample);
-int auxtrace__flush_events(struct perf_session *session, struct perf_tool *tool);
+int auxtrace__flush_events(struct perf_session *session, const struct perf_tool *tool);
 void auxtrace__free_events(struct perf_session *session);
 void auxtrace__free(struct perf_session *session);
 bool auxtrace__evsel_is_auxtrace(struct perf_session *session,
@@ -651,7 +649,7 @@ bool auxtrace__evsel_is_auxtrace(struct perf_session *session,
 #define ITRACE_HELP \
 "				i[period]:    		synthesize instructions events\n" \
 "				y[period]:    		synthesize cycles events (same period as i)\n" \
-"				b:	    		synthesize branches events (branch misses for Arm SPE)\n" \
+"				b:	    		synthesize branches events\n" \
 "				c:	    		synthesize branches events (calls only)\n"	\
 "				r:	    		synthesize branches events (returns only)\n" \
 "				x:	    		synthesize transactions events\n"		\
@@ -809,7 +807,7 @@ static inline
 int auxtrace__process_event(struct perf_session *session __maybe_unused,
 			    union perf_event *event __maybe_unused,
 			    struct perf_sample *sample __maybe_unused,
-			    struct perf_tool *tool __maybe_unused)
+			    const struct perf_tool *tool __maybe_unused)
 {
 	return 0;
 }
@@ -822,7 +820,7 @@ void auxtrace__dump_auxtrace_sample(struct perf_session *session __maybe_unused,
 
 static inline
 int auxtrace__flush_events(struct perf_session *session __maybe_unused,
-			   struct perf_tool *tool __maybe_unused)
+			   const struct perf_tool *tool __maybe_unused)
 {
 	return 0;
 }

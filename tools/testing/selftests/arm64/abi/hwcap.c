@@ -98,6 +98,17 @@ static void fpmr_sigill(void)
 	asm volatile("mrs x0, S3_3_C4_C4_2" : : : "x0");
 }
 
+static void gcs_sigill(void)
+{
+	unsigned long *gcspr;
+
+	asm volatile(
+		"mrs	%0, S3_3_C2_C5_1"
+	: "=r" (gcspr)
+	:
+	: "cc");
+}
+
 static void ilrcpc_sigill(void)
 {
 	/* LDAPUR W0, [SP, #8] */
@@ -154,6 +165,12 @@ static void pmull_sigill(void)
 {
 	/* PMULL V0.1Q, V0.1D, V0.1D */
 	asm volatile(".inst 0x0ee0e000" : : : );
+}
+
+static void poe_sigill(void)
+{
+	/* mrs x0, POR_EL0 */
+	asm volatile("mrs x0, S3_3_C10_C2_4" : : : "x0");
 }
 
 static void rng_sigill(void)
@@ -355,8 +372,8 @@ static void sveaes_sigill(void)
 
 static void sveb16b16_sigill(void)
 {
-	/* BFADD ZA.H[W0, 0], {Z0.H-Z1.H} */
-	asm volatile(".inst 0xC1E41C00" : : : );
+	/* BFADD Z0.H, Z0.H, Z0.H */
+	asm volatile(".inst 0x65000000" : : : );
 }
 
 static void svepmull_sigill(void)
@@ -484,7 +501,7 @@ static const struct hwcap_data {
 		.name = "F8DP2",
 		.at_hwcap = AT_HWCAP2,
 		.hwcap_bit = HWCAP2_F8DP2,
-		.cpuinfo = "f8dp4",
+		.cpuinfo = "f8dp2",
 		.sigill_fn = f8dp2_sigill,
 	},
 	{
@@ -526,6 +543,14 @@ static const struct hwcap_data {
 		.hwcap_bit = HWCAP2_FPMR,
 		.cpuinfo = "fpmr",
 		.sigill_fn = fpmr_sigill,
+		.sigill_reliable = true,
+	},
+	{
+		.name = "GCS",
+		.at_hwcap = AT_HWCAP,
+		.hwcap_bit = HWCAP_GCS,
+		.cpuinfo = "gcs",
+		.sigill_fn = gcs_sigill,
 		.sigill_reliable = true,
 	},
 	{
@@ -600,6 +625,14 @@ static const struct hwcap_data {
 		.hwcap_bit = HWCAP_PMULL,
 		.cpuinfo = "pmull",
 		.sigill_fn = pmull_sigill,
+	},
+	{
+		.name = "POE",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_POE,
+		.cpuinfo = "poe",
+		.sigill_fn = poe_sigill,
+		.sigill_reliable = true,
 	},
 	{
 		.name = "RNG",

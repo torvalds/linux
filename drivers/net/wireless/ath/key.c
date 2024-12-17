@@ -16,7 +16,7 @@
  */
 
 #include <linux/export.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <net/mac80211.h>
 
 #include "ath.h"

@@ -536,20 +536,17 @@ EXPORT_SYMBOL_GPL(find_ge_pid);
 
 struct pid *pidfd_get_pid(unsigned int fd, unsigned int *flags)
 {
-	struct fd f;
+	CLASS(fd, f)(fd);
 	struct pid *pid;
 
-	f = fdget(fd);
-	if (!f.file)
+	if (fd_empty(f))
 		return ERR_PTR(-EBADF);
 
-	pid = pidfd_pid(f.file);
+	pid = pidfd_pid(fd_file(f));
 	if (!IS_ERR(pid)) {
 		get_pid(pid);
-		*flags = f.file->f_flags;
+		*flags = fd_file(f)->f_flags;
 	}
-
-	fdput(f);
 	return pid;
 }
 
@@ -747,23 +744,18 @@ SYSCALL_DEFINE3(pidfd_getfd, int, pidfd, int, fd,
 		unsigned int, flags)
 {
 	struct pid *pid;
-	struct fd f;
-	int ret;
 
 	/* flags is currently unused - make sure it's unset */
 	if (flags)
 		return -EINVAL;
 
-	f = fdget(pidfd);
-	if (!f.file)
+	CLASS(fd, f)(pidfd);
+	if (fd_empty(f))
 		return -EBADF;
 
-	pid = pidfd_pid(f.file);
+	pid = pidfd_pid(fd_file(f));
 	if (IS_ERR(pid))
-		ret = PTR_ERR(pid);
-	else
-		ret = pidfd_getfd(pid, fd);
+		return PTR_ERR(pid);
 
-	fdput(f);
-	return ret;
+	return pidfd_getfd(pid, fd);
 }

@@ -61,7 +61,7 @@ struct cpuidle_state {
 			struct cpuidle_driver *drv,
 			int index);
 
-	int (*enter_dead) (struct cpuidle_device *dev, int index);
+	void (*enter_dead) (struct cpuidle_device *dev, int index);
 
 	/*
 	 * CPUs execute ->enter_s2idle with the local tick or entire timekeeping

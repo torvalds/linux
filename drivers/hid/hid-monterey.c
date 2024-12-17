@@ -18,7 +18,7 @@
 
 #include "hid-ids.h"
 
-static __u8 *mr_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+static const __u8 *mr_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
 	if (*rsize >= 31 && rdesc[29] == 0x05 && rdesc[30] == 0x09) {

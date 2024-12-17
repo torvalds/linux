@@ -395,7 +395,7 @@ fail:
 		test->flags |= ETH_TEST_FL_FAILED;
 }
 
-static size_t efx_describe_per_queue_stats(struct efx_nic *efx, u8 *strings)
+static size_t efx_describe_per_queue_stats(struct efx_nic *efx, u8 **strings)
 {
 	size_t n_stats = 0;
 	struct efx_channel *channel;
@@ -403,24 +403,22 @@ static size_t efx_describe_per_queue_stats(struct efx_nic *efx, u8 *strings)
 	efx_for_each_channel(channel, efx) {
 		if (efx_channel_has_tx_queues(channel)) {
 			n_stats++;
-			if (strings != NULL) {
-				snprintf(strings, ETH_GSTRING_LEN,
-					 "tx-%u.tx_packets",
-					 channel->tx_queue[0].queue /
-					 EFX_MAX_TXQ_PER_CHANNEL);
+			if (!strings)
+				continue;
 
-				strings += ETH_GSTRING_LEN;
-			}
+			ethtool_sprintf(strings, "tx-%u.tx_packets",
+					channel->tx_queue[0].queue /
+						EFX_MAX_TXQ_PER_CHANNEL);
 		}
 	}
 	efx_for_each_channel(channel, efx) {
 		if (efx_channel_has_rx_queue(channel)) {
 			n_stats++;
-			if (strings != NULL) {
-				snprintf(strings, ETH_GSTRING_LEN,
-					 "rx-%d.rx_packets", channel->channel);
-				strings += ETH_GSTRING_LEN;
-			}
+			if (!strings)
+				continue;
+
+			ethtool_sprintf(strings, "rx-%d.rx_packets",
+					channel->channel);
 		}
 	}
 	if (efx->xdp_tx_queue_count && efx->xdp_tx_queues) {
@@ -428,11 +426,11 @@ static size_t efx_describe_per_queue_stats(struct efx_nic *efx, u8 *strings)
 
 		for (xdp = 0; xdp < efx->xdp_tx_queue_count; xdp++) {
 			n_stats++;
-			if (strings) {
-				snprintf(strings, ETH_GSTRING_LEN,
-					 "tx-xdp-cpu-%hu.tx_packets", xdp);
-				strings += ETH_GSTRING_LEN;
-			}
+			if (!strings)
+				continue;
+
+			ethtool_sprintf(strings, "tx-xdp-cpu-%hu.tx_packets",
+					xdp);
 		}
 	}
 
@@ -464,15 +462,11 @@ void efx_siena_ethtool_get_strings(struct net_device *net_dev,
 
 	switch (string_set) {
 	case ETH_SS_STATS:
-		strings += (efx->type->describe_stats(efx, strings) *
-			    ETH_GSTRING_LEN);
+		efx->type->describe_stats(efx, &strings);
 		for (i = 0; i < EFX_ETHTOOL_SW_STAT_COUNT; i++)
-			strscpy(strings + i * ETH_GSTRING_LEN,
-				efx_sw_stat_desc[i].name, ETH_GSTRING_LEN);
-		strings += EFX_ETHTOOL_SW_STAT_COUNT * ETH_GSTRING_LEN;
-		strings += (efx_describe_per_queue_stats(efx, strings) *
-			    ETH_GSTRING_LEN);
-		efx_siena_ptp_describe_stats(efx, strings);
+			ethtool_puts(&strings, efx_sw_stat_desc[i].name);
+		efx_describe_per_queue_stats(efx, &strings);
+		efx_siena_ptp_describe_stats(efx, &strings);
 		break;
 	case ETH_SS_TEST:
 		efx_ethtool_fill_self_tests(efx, NULL, strings, NULL);
@@ -820,27 +814,16 @@ int efx_siena_ethtool_get_rxnfc(struct net_device *net_dev,
 		return 0;
 
 	case ETHTOOL_GRXFH: {
-		struct efx_rss_context *ctx = &efx->rss_context;
 		__u64 data;
 
-		mutex_lock(&efx->rss_lock);
-		if (info->flow_type & FLOW_RSS && info->rss_context) {
-			ctx = efx_siena_find_rss_context_entry(efx,
-							info->rss_context);
-			if (!ctx) {
-				rc = -ENOENT;
-				goto out_unlock;
-			}
-		}
-
 		data = 0;
-		if (!efx_rss_active(ctx)) /* No RSS */
-			goto out_setdata_unlock;
+		if (!efx_rss_active(&efx->rss_context)) /* No RSS */
+			goto out_setdata;
 
-		switch (info->flow_type & ~FLOW_RSS) {
+		switch (info->flow_type) {
 		case UDP_V4_FLOW:
 		case UDP_V6_FLOW:
-			if (ctx->rx_hash_udp_4tuple)
+			if (efx->rss_context.rx_hash_udp_4tuple)
 				data = (RXH_L4_B_0_1 | RXH_L4_B_2_3 |
 					RXH_IP_SRC | RXH_IP_DST);
 			else
@@ -862,10 +845,8 @@ int efx_siena_ethtool_get_rxnfc(struct net_device *net_dev,
 		default:
 			break;
 		}
-out_setdata_unlock:
+out_setdata:
 		info->data = data;
-out_unlock:
-		mutex_unlock(&efx->rss_lock);
 		return rc;
 	}
 
@@ -1164,46 +1145,11 @@ u32 efx_siena_ethtool_get_rxfh_key_size(struct net_device *net_dev)
 	return efx->type->rx_hash_key_size;
 }
 
-static int efx_siena_ethtool_get_rxfh_context(struct net_device *net_dev,
-					      struct ethtool_rxfh_param *rxfh)
-{
-	struct efx_nic *efx = netdev_priv(net_dev);
-	struct efx_rss_context *ctx;
-	int rc = 0;
-
-	if (!efx->type->rx_pull_rss_context_config)
-		return -EOPNOTSUPP;
-
-	mutex_lock(&efx->rss_lock);
-	ctx = efx_siena_find_rss_context_entry(efx, rxfh->rss_context);
-	if (!ctx) {
-		rc = -ENOENT;
-		goto out_unlock;
-	}
-	rc = efx->type->rx_pull_rss_context_config(efx, ctx);
-	if (rc)
-		goto out_unlock;
-
-	rxfh->hfunc = ETH_RSS_HASH_TOP;
-	if (rxfh->indir)
-		memcpy(rxfh->indir, ctx->rx_indir_table,
-		       sizeof(ctx->rx_indir_table));
-	if (rxfh->key)
-		memcpy(rxfh->key, ctx->rx_hash_key,
-		       efx->type->rx_hash_key_size);
-out_unlock:
-	mutex_unlock(&efx->rss_lock);
-	return rc;
-}
-
 int efx_siena_ethtool_get_rxfh(struct net_device *net_dev,
 			       struct ethtool_rxfh_param *rxfh)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	int rc;
-
-	if (rxfh->rss_context)
-		return efx_siena_ethtool_get_rxfh_context(net_dev, rxfh);
 
 	rc = efx->type->rx_pull_rss_config(efx);
 	if (rc)
@@ -1219,70 +1165,6 @@ int efx_siena_ethtool_get_rxfh(struct net_device *net_dev,
 	return 0;
 }
 
-static int efx_siena_ethtool_set_rxfh_context(struct net_device *net_dev,
-					      struct ethtool_rxfh_param *rxfh,
-					      struct netlink_ext_ack *extack)
-{
-	struct efx_nic *efx = netdev_priv(net_dev);
-	u32 *rss_context = &rxfh->rss_context;
-	struct efx_rss_context *ctx;
-	u32 *indir = rxfh->indir;
-	bool allocated = false;
-	u8 *key = rxfh->key;
-	int rc;
-
-	if (!efx->type->rx_push_rss_context_config)
-		return -EOPNOTSUPP;
-
-	mutex_lock(&efx->rss_lock);
-
-	if (*rss_context == ETH_RXFH_CONTEXT_ALLOC) {
-		if (rxfh->rss_delete) {
-			/* alloc + delete == Nothing to do */
-			rc = -EINVAL;
-			goto out_unlock;
-		}
-		ctx = efx_siena_alloc_rss_context_entry(efx);
-		if (!ctx) {
-			rc = -ENOMEM;
-			goto out_unlock;
-		}
-		ctx->context_id = EFX_MCDI_RSS_CONTEXT_INVALID;
-		/* Initialise indir table and key to defaults */
-		efx_siena_set_default_rx_indir_table(efx, ctx);
-		netdev_rss_key_fill(ctx->rx_hash_key, sizeof(ctx->rx_hash_key));
-		allocated = true;
-	} else {
-		ctx = efx_siena_find_rss_context_entry(efx, *rss_context);
-		if (!ctx) {
-			rc = -ENOENT;
-			goto out_unlock;
-		}
-	}
-
-	if (rxfh->rss_delete) {
-		/* delete this context */
-		rc = efx->type->rx_push_rss_context_config(efx, ctx, NULL, NULL);
-		if (!rc)
-			efx_siena_free_rss_context_entry(ctx);
-		goto out_unlock;
-	}
-
-	if (!key)
-		key = ctx->rx_hash_key;
-	if (!indir)
-		indir = ctx->rx_indir_table;
-
-	rc = efx->type->rx_push_rss_context_config(efx, ctx, indir, key);
-	if (rc && allocated)
-		efx_siena_free_rss_context_entry(ctx);
-	else
-		*rss_context = ctx->user_id;
-out_unlock:
-	mutex_unlock(&efx->rss_lock);
-	return rc;
-}
-
 int efx_siena_ethtool_set_rxfh(struct net_device *net_dev,
 			       struct ethtool_rxfh_param *rxfh,
 			       struct netlink_ext_ack *extack)
@@ -1295,9 +1177,6 @@ int efx_siena_ethtool_set_rxfh(struct net_device *net_dev,
 	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
 	    rxfh->hfunc != ETH_RSS_HASH_TOP)
 		return -EOPNOTSUPP;
-
-	if (rxfh->rss_context)
-		efx_siena_ethtool_set_rxfh_context(net_dev, rxfh, extack);
 
 	if (!indir && !key)
 		return 0;

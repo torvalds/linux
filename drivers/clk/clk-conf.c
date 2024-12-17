@@ -10,6 +10,7 @@
 #include <linux/device.h>
 #include <linux/of.h>
 #include <linux/printk.h>
+#include <linux/slab.h>
 
 static int __set_clk_parents(struct device_node *node, bool clk_supplier)
 {
@@ -81,11 +82,44 @@ err:
 static int __set_clk_rates(struct device_node *node, bool clk_supplier)
 {
 	struct of_phandle_args clkspec;
-	int rc, index = 0;
+	int rc, count, count_64, index;
 	struct clk *clk;
-	u32 rate;
+	u64 *rates_64 __free(kfree) = NULL;
+	u32 *rates __free(kfree) = NULL;
 
-	of_property_for_each_u32(node, "assigned-clock-rates", rate) {
+	count = of_property_count_u32_elems(node, "assigned-clock-rates");
+	count_64 = of_property_count_u64_elems(node, "assigned-clock-rates-u64");
+	if (count_64 > 0) {
+		count = count_64;
+		rates_64 = kcalloc(count, sizeof(*rates_64), GFP_KERNEL);
+		if (!rates_64)
+			return -ENOMEM;
+
+		rc = of_property_read_u64_array(node,
+						"assigned-clock-rates-u64",
+						rates_64, count);
+	} else if (count > 0) {
+		rates = kcalloc(count, sizeof(*rates), GFP_KERNEL);
+		if (!rates)
+			return -ENOMEM;
+
+		rc = of_property_read_u32_array(node, "assigned-clock-rates",
+						rates, count);
+	} else {
+		return 0;
+	}
+
+	if (rc)
+		return rc;
+
+	for (index = 0; index < count; index++) {
+		unsigned long rate;
+
+		if (rates_64)
+			rate = rates_64[index];
+		else
+			rate = rates[index];
+
 		if (rate) {
 			rc = of_parse_phandle_with_args(node, "assigned-clocks",
 					"#clock-cells",	index, &clkspec);
@@ -112,12 +146,11 @@ static int __set_clk_rates(struct device_node *node, bool clk_supplier)
 
 			rc = clk_set_rate(clk, rate);
 			if (rc < 0)
-				pr_err("clk: couldn't set %s clk rate to %u (%d), current rate: %lu\n",
+				pr_err("clk: couldn't set %s clk rate to %lu (%d), current rate: %lu\n",
 				       __clk_get_name(clk), rate, rc,
 				       clk_get_rate(clk));
 			clk_put(clk);
 		}
-		index++;
 	}
 	return 0;
 }

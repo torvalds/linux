@@ -30,6 +30,60 @@
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
 #include "amdgpu_reset.h"
+#include "amdgpu_dev_coredump.h"
+#include "amdgpu_xgmi.h"
+
+static void amdgpu_job_do_core_dump(struct amdgpu_device *adev,
+				    struct amdgpu_job *job)
+{
+	int i;
+
+	dev_info(adev->dev, "Dumping IP State\n");
+	for (i = 0; i < adev->num_ip_blocks; i++)
+		if (adev->ip_blocks[i].version->funcs->dump_ip_state)
+			adev->ip_blocks[i].version->funcs
+				->dump_ip_state((void *)&adev->ip_blocks[i]);
+	dev_info(adev->dev, "Dumping IP State Completed\n");
+
+	amdgpu_coredump(adev, true, false, job);
+}
+
+static void amdgpu_job_core_dump(struct amdgpu_device *adev,
+				 struct amdgpu_job *job)
+{
+	struct list_head device_list, *device_list_handle =  NULL;
+	struct amdgpu_device *tmp_adev = NULL;
+	struct amdgpu_hive_info *hive = NULL;
+
+	if (!amdgpu_sriov_vf(adev))
+		hive = amdgpu_get_xgmi_hive(adev);
+	if (hive)
+		mutex_lock(&hive->hive_lock);
+	/*
+	 * Reuse the logic in amdgpu_device_gpu_recover() to build list of
+	 * devices for code dump
+	 */
+	INIT_LIST_HEAD(&device_list);
+	if (!amdgpu_sriov_vf(adev) && (adev->gmc.xgmi.num_physical_nodes > 1) && hive) {
+		list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head)
+			list_add_tail(&tmp_adev->reset_list, &device_list);
+		if (!list_is_first(&adev->reset_list, &device_list))
+			list_rotate_to_front(&adev->reset_list, &device_list);
+		device_list_handle = &device_list;
+	} else {
+		list_add_tail(&adev->reset_list, &device_list);
+		device_list_handle = &device_list;
+	}
+
+	/* Do the coredump for each device */
+	list_for_each_entry(tmp_adev, device_list_handle, reset_list)
+		amdgpu_job_do_core_dump(tmp_adev, job);
+
+	if (hive) {
+		mutex_unlock(&hive->hive_lock);
+		amdgpu_put_xgmi_hive(hive);
+	}
+}
 
 static enum drm_gpu_sched_stat amdgpu_job_timedout(struct drm_sched_job *s_job)
 {
@@ -48,8 +102,16 @@ static enum drm_gpu_sched_stat amdgpu_job_timedout(struct drm_sched_job *s_job)
 		return DRM_GPU_SCHED_STAT_ENODEV;
 	}
 
-
 	adev->job_hang = true;
+
+	/*
+	 * Do the coredump immediately after a job timeout to get a very
+	 * close dump/snapshot/representation of GPU's current error status
+	 * Skip it for SRIOV, since VF FLR will be triggered by host driver
+	 * before job timeout
+	 */
+	if (!amdgpu_sriov_vf(adev))
+		amdgpu_job_core_dump(adev, job);
 
 	if (amdgpu_gpu_recovery &&
 	    amdgpu_ring_soft_recovery(ring, job->vmid, s_job->s_fence->parent)) {
@@ -72,6 +134,28 @@ static enum drm_gpu_sched_stat amdgpu_job_timedout(struct drm_sched_job *s_job)
 
 	dma_fence_set_error(&s_job->s_fence->finished, -ETIME);
 
+	/* attempt a per ring reset */
+	if (amdgpu_gpu_recovery &&
+	    ring->funcs->reset) {
+		dev_err(adev->dev, "Starting %s ring reset\n", s_job->sched->name);
+		/* stop the scheduler, but don't mess with the
+		 * bad job yet because if ring reset fails
+		 * we'll fall back to full GPU reset.
+		 */
+		drm_sched_wqueue_stop(&ring->sched);
+		r = amdgpu_ring_reset(ring, job->vmid);
+		if (!r) {
+			if (amdgpu_ring_sched_ready(ring))
+				drm_sched_stop(&ring->sched, s_job);
+			atomic_inc(&ring->adev->gpu_reset_counter);
+			amdgpu_fence_driver_force_completion(ring);
+			if (amdgpu_ring_sched_ready(ring))
+				drm_sched_start(&ring->sched, 0);
+			goto exit;
+		}
+		dev_err(adev->dev, "Ring %s reset failure\n", ring->sched.name);
+	}
+
 	if (amdgpu_device_should_recover_gpu(ring->adev)) {
 		struct amdgpu_reset_context reset_context;
 		memset(&reset_context, 0, sizeof(reset_context));
@@ -80,6 +164,12 @@ static enum drm_gpu_sched_stat amdgpu_job_timedout(struct drm_sched_job *s_job)
 		reset_context.reset_req_dev = adev;
 		reset_context.src = AMDGPU_RESET_SRC_JOB;
 		clear_bit(AMDGPU_NEED_FULL_RESET, &reset_context.flags);
+
+		/*
+		 * To avoid an unnecessary extra coredump, as we have already
+		 * got the very close representation of GPU's error status
+		 */
+		set_bit(AMDGPU_SKIP_COREDUMP, &reset_context.flags);
 
 		r = amdgpu_device_gpu_recover(ring->adev, job, &reset_context);
 		if (r)
@@ -268,10 +358,10 @@ amdgpu_job_prepare_job(struct drm_sched_job *sched_job,
 	if (r)
 		goto error;
 
-	if (!fence && job->gang_submit)
+	if (job->gang_submit)
 		fence = amdgpu_device_switch_gang(ring->adev, job->gang_submit);
 
-	while (!fence && job->vm && !job->vmid) {
+	if (!fence && job->vm && !job->vmid) {
 		r = amdgpu_vmid_grab(job->vm, ring, job, &fence);
 		if (r) {
 			dev_err(ring->adev->dev, "Error getting VM ID (%d)\n", r);

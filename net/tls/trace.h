@@ -7,7 +7,7 @@
 #if !defined(_TLS_TRACE_H_) || defined(TRACE_HEADER_MULTI_READ)
 #define _TLS_TRACE_H_
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/tracepoint.h>
 
 struct sock;

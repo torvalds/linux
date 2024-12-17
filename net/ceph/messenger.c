@@ -1254,7 +1254,7 @@ static int ceph_dns_resolve_name(const char *name, size_t namelen,
 	colon_p = memchr(name, ':', namelen);
 
 	if (delim_p && colon_p)
-		end = delim_p < colon_p ? delim_p : colon_p;
+		end = min(delim_p, colon_p);
 	else if (!delim_p && colon_p)
 		end = colon_p;
 	else {

@@ -18,6 +18,7 @@ struct rtw_hci_ops {
 	void (*deep_ps)(struct rtw_dev *rtwdev, bool enter);
 	void (*link_ps)(struct rtw_dev *rtwdev, bool enter);
 	void (*interface_cfg)(struct rtw_dev *rtwdev);
+	void (*dynamic_rx_agg)(struct rtw_dev *rtwdev, bool enable);
 
 	int (*write_data_rsvd_page)(struct rtw_dev *rtwdev, u8 *buf, u32 size);
 	int (*write_data_h2c)(struct rtw_dev *rtwdev, u8 *buf, u32 size);
@@ -70,6 +71,12 @@ static inline void rtw_hci_link_ps(struct rtw_dev *rtwdev, bool enter)
 static inline void rtw_hci_interface_cfg(struct rtw_dev *rtwdev)
 {
 	rtwdev->hci.ops->interface_cfg(rtwdev);
+}
+
+static inline void rtw_hci_dynamic_rx_agg(struct rtw_dev *rtwdev, bool enable)
+{
+	if (rtwdev->hci.ops->dynamic_rx_agg)
+		rtwdev->hci.ops->dynamic_rx_agg(rtwdev, enable);
 }
 
 static inline int

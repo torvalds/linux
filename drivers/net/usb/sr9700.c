@@ -177,9 +177,9 @@ static int sr9700_get_eeprom(struct net_device *netdev,
 static int sr_mdio_read(struct net_device *netdev, int phy_id, int loc)
 {
 	struct usbnet *dev = netdev_priv(netdev);
-	__le16 res;
+	int err, res;
+	__le16 word;
 	int rc = 0;
-	int err;
 
 	if (phy_id) {
 		netdev_dbg(netdev, "Only internal phy supported\n");
@@ -197,14 +197,14 @@ static int sr_mdio_read(struct net_device *netdev, int phy_id, int loc)
 		if (value & NSR_LINKST)
 			rc = 1;
 	}
-	err = sr_share_read_word(dev, 1, loc, &res);
+	err = sr_share_read_word(dev, 1, loc, &word);
 	if (err < 0)
 		return err;
 
 	if (rc == 1)
-		res = le16_to_cpu(res) | BMSR_LSTATUS;
+		res = le16_to_cpu(word) | BMSR_LSTATUS;
 	else
-		res = le16_to_cpu(res) & ~BMSR_LSTATUS;
+		res = le16_to_cpu(word) & ~BMSR_LSTATUS;
 
 	netdev_dbg(netdev, "sr_mdio_read() phy_id=0x%02x, loc=0x%02x, returns=0x%04x\n",
 		   phy_id, loc, res);

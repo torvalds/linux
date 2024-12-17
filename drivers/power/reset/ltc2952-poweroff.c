@@ -305,7 +305,7 @@ MODULE_DEVICE_TABLE(of, of_ltc2952_poweroff_match);
 
 static struct platform_driver ltc2952_poweroff_driver = {
 	.probe = ltc2952_poweroff_probe,
-	.remove_new = ltc2952_poweroff_remove,
+	.remove = ltc2952_poweroff_remove,
 	.driver = {
 		.name = "ltc2952-poweroff",
 		.of_match_table = of_ltc2952_poweroff_match,

@@ -534,7 +534,7 @@
 		>;
 	};
 
-	pinctrl_usdhc2_100mhz: h100-usdhc2-100mhz {
+	pinctrl_usdhc2_100mhz: h100-usdhc2-100mhzgrp {
 		fsl,pins = <
 			MX6QDL_PAD_GPIO_4__GPIO1_IO04		0x1b0b0	/* CD */
 			MX6QDL_PAD_SD2_CMD__SD2_CMD		0x170b9
@@ -546,7 +546,7 @@
 		>;
 	};
 
-	pinctrl_usdhc2_200mhz: h100-usdhc2-200mhz {
+	pinctrl_usdhc2_200mhz: h100-usdhc2-200mhzgrp {
 		fsl,pins = <
 			MX6QDL_PAD_GPIO_4__GPIO1_IO04		0x1b0b0	/* CD */
 			MX6QDL_PAD_SD2_CMD__SD2_CMD		0x170f9

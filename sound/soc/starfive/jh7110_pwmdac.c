@@ -516,7 +516,7 @@ static struct platform_driver jh7110_pwmdac_driver = {
 		.pm = pm_ptr(&jh7110_pwmdac_pm_ops),
 	},
 	.probe		= jh7110_pwmdac_probe,
-	.remove_new	= jh7110_pwmdac_remove,
+	.remove		= jh7110_pwmdac_remove,
 };
 module_platform_driver(jh7110_pwmdac_driver);
 

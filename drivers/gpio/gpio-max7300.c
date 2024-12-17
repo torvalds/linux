@@ -53,7 +53,7 @@ static void max7300_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id max7300_id[] = {
-	{ "max7300", 0 },
+	{ "max7300" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max7300_id);

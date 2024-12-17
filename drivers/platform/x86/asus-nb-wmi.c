@@ -7,12 +7,12 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/backlight.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
-#include <linux/fb.h>
 #include <linux/dmi.h>
 #include <linux/i8042.h>
 
@@ -538,7 +538,7 @@ static void asus_nb_wmi_quirks(struct asus_wmi_driver *driver)
 	dmi_check_system(asus_quirks);
 
 	driver->quirks = quirks;
-	driver->panel_power = FB_BLANK_UNBLANK;
+	driver->panel_power = BACKLIGHT_POWER_ON;
 
 	/* overwrite the wapf setting if the wapf paramater is specified */
 	if (wapf != -1)
@@ -623,6 +623,7 @@ static const struct key_entry asus_nb_wmi_keymap[] = {
 	{ KE_KEY, 0xC4, { KEY_KBDILLUMUP } },
 	{ KE_KEY, 0xC5, { KEY_KBDILLUMDOWN } },
 	{ KE_IGNORE, 0xC6, },  /* Ambient Light Sensor notification */
+	{ KE_IGNORE, 0xCF, },	/* AC mode */
 	{ KE_KEY, 0xFA, { KEY_PROG2 } },           /* Lid flip action */
 	{ KE_KEY, 0xBD, { KEY_PROG2 } },           /* Lid flip action on ROG xflow laptops */
 	{ KE_END, 0},

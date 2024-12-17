@@ -39,6 +39,11 @@ definitions:
         - ovld-detected
         - power-not-available
         - short-detected
+  -
+    name: phy-upstream-type
+    enum-name:
+    type: enum
+    entries: [ mac, phy ]
 
 attribute-sets:
   -
@@ -54,6 +59,9 @@ attribute-sets:
         name: flags
         type: u32
         enum: header-flags
+      -
+        name: phy-index
+        type: u32
 
   -
     name: bitset-bit
@@ -88,7 +96,12 @@ attribute-sets:
         name: bits
         type: nest
         nested-attributes: bitset-bits
-
+      -
+        name: value
+        type: binary
+      -
+        name: mask
+        type: binary
   -
     name: string
     attributes:
@@ -659,6 +672,9 @@ attribute-sets:
       -
         name: code
         type: u8
+      -
+        name: src
+        type: u32
   -
     name: cable-fault-length
     attributes:
@@ -667,6 +683,9 @@ attribute-sets:
         type: u8
       -
         name: cm
+        type: u32
+      -
+        name: src
         type: u32
   -
     name: cable-nest
@@ -1022,11 +1041,15 @@ attribute-sets:
       -
         name: indir
         type: binary
+        sub-type: u32
       -
         name: hkey
         type: binary
       -
         name: input_xfrm
+        type: u32
+      -
+        name: start-context
         type: u32
   -
     name: plca
@@ -1085,6 +1108,35 @@ attribute-sets:
       -
         name: total
         type: uint
+  -
+    name: phy
+    attributes:
+      -
+        name: header
+        type: nest
+        nested-attributes: header
+      -
+        name: index
+        type: u32
+      -
+        name: drvname
+        type: string
+      -
+        name: name
+        type: string
+      -
+        name: upstream-type
+        type: u32
+        enum: phy-upstream-type
+      -
+        name: upstream-index
+        type: u32
+      -
+        name: upstream-sfp-name
+        type: string
+      -
+        name: downstream-sfp-name
+        type: string
 
 operations:
   enum-model: directional
@@ -1749,12 +1801,12 @@ operations:
 
       attribute-set: rss
 
-      do: &rss-get-op
+      do:
         request:
           attributes:
             - header
             - context
-        reply:
+        reply: &rss-reply
           attributes:
             - header
             - context
@@ -1762,6 +1814,12 @@ operations:
             - indir
             - hkey
             - input_xfrm
+      dump:
+        request:
+          attributes:
+            - header
+            - start-context
+        reply: *rss-reply
     -
       name: plca-get-cfg
       doc: Get PLCA params.
@@ -1877,3 +1935,28 @@ operations:
           - status-msg
           - done
           - total
+    -
+      name: phy-get
+      doc: Get PHY devices attached to an interface
+
+      attribute-set: phy
+
+      do: &phy-get-op
+        request:
+          attributes:
+            - header
+        reply:
+          attributes:
+            - header
+            - index
+            - drvname
+            - name
+            - upstream-type
+            - upstream-index
+            - upstream-sfp-name
+            - downstream-sfp-name
+      dump: *phy-get-op
+    -
+      name: phy-ntf
+      doc: Notification for change in PHY devices.
+      notify: phy-get

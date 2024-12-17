@@ -18,6 +18,8 @@
 #include <linux/module.h>
 #include <sound/soc.h>
 
+#include "acp_common.h"
+
 #define TDM_CHANNELS	8
 
 #define ACP_OPS(priv, cb)	((priv)->ops.cb)
@@ -51,13 +53,6 @@ enum codec_endpoints {
 	ES83XX,
 };
 
-enum platform_end_point {
-	RENOIR = 0,
-	REMBRANDT,
-	ACP63,
-	ACP70,
-};
-
 struct acp_mach_ops {
 	int (*probe)(struct snd_soc_card *card);
 	int (*configure_link)(struct snd_soc_card *card, struct snd_soc_dai_link *dai_link);
@@ -76,7 +71,7 @@ struct acp_card_drvdata {
 	unsigned int bt_codec_id;
 	unsigned int dmic_codec_id;
 	unsigned int dai_fmt;
-	unsigned int platform;
+	unsigned int acp_rev;
 	struct clk *wclk;
 	struct clk *bclk;
 	struct acp_mach_ops ops;

@@ -159,7 +159,7 @@ static int ad7091r_regmap_bus_reg_write(void *context, unsigned int reg,
 	return spi_write(spi, &st->tx_buf, 2);
 }
 
-static struct regmap_bus ad7091r8_regmap_bus = {
+static const struct regmap_bus ad7091r8_regmap_bus = {
 	.reg_read = ad7091r_regmap_bus_reg_read,
 	.reg_write = ad7091r_regmap_bus_reg_write,
 	.reg_format_endian_default = REGMAP_ENDIAN_BIG,
@@ -269,4 +269,4 @@ module_spi_driver(ad7091r8_driver);
 MODULE_AUTHOR("Marcelo Schmitt <marcelo.schmitt@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD7091R8 ADC driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(IIO_AD7091R);
+MODULE_IMPORT_NS("IIO_AD7091R");

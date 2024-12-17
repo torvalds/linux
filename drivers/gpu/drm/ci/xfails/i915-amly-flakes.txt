@@ -1,9 +1,55 @@
 # Board Name: asus-C433TA-AJ0005-rammus
 # Bug Report: https://lore.kernel.org/intel-gfx/af4ca4df-a3ef-4943-bdbf-4c3af2c333af@collabora.com/T/#u
+# Failure Rate: 50
 # IGT Version: 1.28-g0df7b9b97
 # Linux Version: 6.9.0-rc7
-# Failure Rate: 50
 i915_hangman@engine-engine-error
+
+# Board Name: asus-C433TA-AJ0005-rammus
+# Bug Report: https://lore.kernel.org/intel-gfx/af4ca4df-a3ef-4943-bdbf-4c3af2c333af@collabora.com/T/#u
+# Failure Rate: 50
+# IGT Version: 1.28-g0df7b9b97
+# Linux Version: 6.9.0-rc7
 i915_hangman@gt-engine-hang
+
+# Board Name: asus-C433TA-AJ0005-rammus
+# Bug Report: https://lore.kernel.org/intel-gfx/af4ca4df-a3ef-4943-bdbf-4c3af2c333af@collabora.com/T/#u
+# Failure Rate: 50
+# IGT Version: 1.28-g0df7b9b97
+# Linux Version: 6.9.0-rc7
 kms_async_flips@crc
+
+# Board Name: asus-C433TA-AJ0005-rammus
+# Bug Report: https://lore.kernel.org/intel-gfx/af4ca4df-a3ef-4943-bdbf-4c3af2c333af@collabora.com/T/#u
+# Failure Rate: 50
+# IGT Version: 1.28-g0df7b9b97
+# Linux Version: 6.9.0-rc7
 kms_universal_plane@cursor-fb-leak
+
+# Board Name: asus-C433TA-AJ0005-rammus
+# Bug Report: https://lore.kernel.org/intel-gfx/af4ca4df-a3ef-4943-bdbf-4c3af2c333af@collabora.com/T/#u
+# Failure Rate: 50
+# IGT Version: 1.28-gf13702b8e
+# Linux Version: 6.10.0-rc5
+kms_sysfs_edid_timing
+
+# Board Name: asus-C433TA-AJ0005-rammus
+# Bug Report: https://lore.kernel.org/intel-gfx/af4ca4df-a3ef-4943-bdbf-4c3af2c333af@collabora.com/T/#u
+# Failure Rate: 50
+# IGT Version: 1.28-gf13702b8e
+# Linux Version: 6.10.0-rc5
+i915_hangman@engine-engine-hang
+
+# Board Name: asus-C433TA-AJ0005-rammus
+# Bug Report: https://lore.kernel.org/intel-gfx/af4ca4df-a3ef-4943-bdbf-4c3af2c333af@collabora.com/T/#u
+# Failure Rate: 50
+# IGT Version: 1.28-gf13702b8e
+# Linux Version: 6.10.0-rc5
+kms_pm_rpm@modeset-lpsp-stress
+
+# Board Name: asus-C433TA-AJ0005-rammus
+# Bug Report: https://lore.kernel.org/intel-gfx/61f62c86-3e82-4eff-bd3c-8123fa0ca332@collabora.com/T/#t
+# Failure Rate: 50
+# IGT Version: 1.28-ga73311079
+# Linux Version: 6.11.0-rc2
+kms_pm_rpm@drm-resources-equal

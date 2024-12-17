@@ -14,7 +14,7 @@
 #include <media/tuner.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include "tuner-i2c.h"
 #include "xc2028.h"
 #include "xc2028-types.h"

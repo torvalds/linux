@@ -450,7 +450,7 @@ void assert_on_unhandled_exception(struct kvm_vcpu *vcpu)
 }
 
 struct handlers {
-	handler_fn exception_handlers[VECTOR_NUM][ESR_EC_NUM];
+	handler_fn exception_handlers[VECTOR_NUM][ESR_ELx_EC_MAX + 1];
 };
 
 void vcpu_init_descriptor_tables(struct kvm_vcpu *vcpu)
@@ -469,7 +469,7 @@ void route_exception(struct ex_regs *regs, int vector)
 	switch (vector) {
 	case VECTOR_SYNC_CURRENT:
 	case VECTOR_SYNC_LOWER_64:
-		ec = (read_sysreg(esr_el1) >> ESR_EC_SHIFT) & ESR_EC_MASK;
+		ec = ESR_ELx_EC(read_sysreg(esr_el1));
 		valid_ec = true;
 		break;
 	case VECTOR_IRQ_CURRENT:
@@ -508,7 +508,7 @@ void vm_install_sync_handler(struct kvm_vm *vm, int vector, int ec,
 
 	assert(VECTOR_IS_SYNC(vector));
 	assert(vector < VECTOR_NUM);
-	assert(ec < ESR_EC_NUM);
+	assert(ec <= ESR_ELx_EC_MAX);
 	handlers->exception_handlers[vector][ec] = handler;
 }
 
@@ -638,4 +638,10 @@ void vm_vaddr_populate_bitmap(struct kvm_vm *vm)
 	 */
 	sparsebit_set_num(vm->vpages_valid, 0,
 			  (1ULL << vm->va_bits) >> vm->page_shift);
+}
+
+/* Helper to call wfi instruction. */
+void wfi(void)
+{
+	asm volatile("wfi");
 }

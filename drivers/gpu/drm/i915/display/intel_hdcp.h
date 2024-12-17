@@ -12,13 +12,13 @@
 
 struct drm_connector;
 struct drm_connector_state;
-struct drm_i915_private;
 struct intel_atomic_state;
 struct intel_connector;
 struct intel_crtc_state;
+struct intel_digital_port;
+struct intel_display;
 struct intel_encoder;
 struct intel_hdcp_shim;
-struct intel_digital_port;
 enum port;
 enum transcoder;
 
@@ -37,14 +37,14 @@ void intel_hdcp_update_pipe(struct intel_atomic_state *state,
 			    struct intel_encoder *encoder,
 			    const struct intel_crtc_state *crtc_state,
 			    const struct drm_connector_state *conn_state);
-bool is_hdcp_supported(struct drm_i915_private *i915, enum port port);
+bool is_hdcp_supported(struct intel_display *display, enum port port);
 bool intel_hdcp_get_capability(struct intel_connector *connector);
 bool intel_hdcp2_get_capability(struct intel_connector *connector);
 void intel_hdcp_get_remote_capability(struct intel_connector *connector,
 				      bool *hdcp_capable,
 				      bool *hdcp2_capable);
-void intel_hdcp_component_init(struct drm_i915_private *i915);
-void intel_hdcp_component_fini(struct drm_i915_private *i915);
+void intel_hdcp_component_init(struct intel_display *display);
+void intel_hdcp_component_fini(struct intel_display *display);
 void intel_hdcp_cleanup(struct intel_connector *connector);
 void intel_hdcp_handle_cp_irq(struct intel_connector *connector);
 

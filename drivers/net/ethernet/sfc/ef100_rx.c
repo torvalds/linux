@@ -134,6 +134,9 @@ void __ef100_rx_packet(struct efx_channel *channel)
 		goto free_rx_buffer;
 	}
 
+	++rx_queue->rx_packets;
+	rx_queue->rx_bytes += rx_buf->len;
+
 	efx_rx_packet_gro(channel, rx_buf, channel->rx_pkt_n_frags, eh, csum);
 	goto out;
 
@@ -148,8 +151,6 @@ static void ef100_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index)
 	struct efx_rx_buffer *rx_buf = efx_rx_buffer(rx_queue, index);
 	struct efx_channel *channel = efx_rx_queue_channel(rx_queue);
 	struct efx_nic *efx = rx_queue->efx;
-
-	++rx_queue->rx_packets;
 
 	netif_vdbg(efx, rx_status, efx->net_dev,
 		   "RX queue %d received id %x\n",

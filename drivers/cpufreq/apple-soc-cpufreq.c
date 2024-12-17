@@ -85,7 +85,7 @@ static const struct apple_soc_cpufreq_info soc_default_info = {
 	.cur_pstate_mask = 0, /* fallback */
 };
 
-static const struct of_device_id apple_soc_cpufreq_of_match[] = {
+static const struct of_device_id apple_soc_cpufreq_of_match[] __maybe_unused = {
 	{
 		.compatible = "apple,t8103-cluster-cpufreq",
 		.data = &soc_t8103_info,

@@ -2532,7 +2532,7 @@ static const struct dev_pm_ops stm32_hash_pm_ops = {
 
 static struct platform_driver stm32_hash_driver = {
 	.probe		= stm32_hash_probe,
-	.remove_new	= stm32_hash_remove,
+	.remove		= stm32_hash_remove,
 	.driver		= {
 		.name	= "stm32-hash",
 		.pm = &stm32_hash_pm_ops,

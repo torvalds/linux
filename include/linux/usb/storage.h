@@ -53,7 +53,7 @@ struct bulk_cb_wrap {
 	__le32	Signature;		/* contains 'USBC' */
 	__u32	Tag;			/* unique per command id */
 	__le32	DataTransferLength;	/* size of data */
-	__u8	Flags;			/* direction in bit 0 */
+	__u8	Flags;			/* direction in bit 7 */
 	__u8	Lun;			/* LUN normally 0 */
 	__u8	Length;			/* length of the CDB */
 	__u8	CDB[16];		/* max command */

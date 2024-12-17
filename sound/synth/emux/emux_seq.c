@@ -61,16 +61,17 @@ snd_emux_init_seq(struct snd_emux *emu, struct snd_card *card, int index)
 	emu->client = snd_seq_create_kernel_client(card, index,
 						   "%s WaveTable", emu->name);
 	if (emu->client < 0) {
-		snd_printk(KERN_ERR "can't create client\n");
+		dev_err(card->dev, "can't create client\n");
 		return -ENODEV;
 	}
 
 	if (emu->num_ports <= 0) {
-		snd_printk(KERN_WARNING "seqports must be greater than zero\n");
+		dev_warn(card->dev, "seqports must be greater than zero\n");
 		emu->num_ports = 1;
 	} else if (emu->num_ports > SNDRV_EMUX_MAX_PORTS) {
-		snd_printk(KERN_WARNING "too many ports. "
-			   "limited max. ports %d\n", SNDRV_EMUX_MAX_PORTS);
+		dev_warn(card->dev,
+			 "too many ports. limited max. ports %d\n",
+			 SNDRV_EMUX_MAX_PORTS);
 		emu->num_ports = SNDRV_EMUX_MAX_PORTS;
 	}
 
@@ -87,7 +88,7 @@ snd_emux_init_seq(struct snd_emux *emu, struct snd_card *card, int index)
 		p = snd_emux_create_port(emu, tmpname, MIDI_CHANNELS,
 					 0, &pinfo);
 		if (!p) {
-			snd_printk(KERN_ERR "can't create port\n");
+			dev_err(card->dev, "can't create port\n");
 			return -ENOMEM;
 		}
 
@@ -376,12 +377,10 @@ int snd_emux_init_virmidi(struct snd_emux *emu, struct snd_card *card)
 			goto __error;
 		}
 		emu->vmidi[i] = rmidi;
-		/* snd_printk(KERN_DEBUG "virmidi %d ok\n", i); */
 	}
 	return 0;
 
 __error:
-	/* snd_printk(KERN_DEBUG "error init..\n"); */
 	snd_emux_delete_virmidi(emu);
 	return -ENOMEM;
 }

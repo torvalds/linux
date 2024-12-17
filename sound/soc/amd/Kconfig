@@ -163,6 +163,7 @@ config SND_SOC_AMD_SOUNDWIRE
 config SND_SOC_AMD_PS
         tristate "AMD Audio Coprocessor-v6.3 Pink Sardine support"
 	select SND_SOC_AMD_SOUNDWIRE_LINK_BASELINE
+	select SND_SOC_ACPI_AMD_MATCH
         depends on X86 && PCI && ACPI
         help
           This option enables Audio Coprocessor i.e ACP v6.3 support on

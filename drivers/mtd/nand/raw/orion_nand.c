@@ -214,7 +214,7 @@ MODULE_DEVICE_TABLE(of, orion_nand_of_match_table);
 #endif
 
 static struct platform_driver orion_nand_driver = {
-	.remove_new	= orion_nand_remove,
+	.remove		= orion_nand_remove,
 	.driver		= {
 		.name	= "orion_nand",
 		.of_match_table = of_match_ptr(orion_nand_of_match_table),

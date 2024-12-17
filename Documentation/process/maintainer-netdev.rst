@@ -355,6 +355,8 @@ just do it. As a result, a sequence of smaller series gets merged quicker and
 with better review coverage. Re-posting large series also increases the mailing
 list traffic.
 
+.. _rcs:
+
 Local variable ordering ("reverse xmas tree", "RCS")
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -374,6 +376,37 @@ Format precedence
 When working in existing code which uses nonstandard formatting make
 your code follow the most recent guidelines, so that eventually all code
 in the domain of netdev is in the preferred format.
+
+Using device-managed and cleanup.h constructs
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Netdev remains skeptical about promises of all "auto-cleanup" APIs,
+including even ``devm_`` helpers, historically. They are not the preferred
+style of implementation, merely an acceptable one.
+
+Use of ``guard()`` is discouraged within any function longer than 20 lines,
+``scoped_guard()`` is considered more readable. Using normal lock/unlock is
+still (weakly) preferred.
+
+Low level cleanup constructs (such as ``__free()``) can be used when building
+APIs and helpers, especially scoped iterators. However, direct use of
+``__free()`` within networking core and drivers is discouraged.
+Similar guidance applies to declaring variables mid-function.
+
+Clean-up patches
+~~~~~~~~~~~~~~~~
+
+Netdev discourages patches which perform simple clean-ups, which are not in
+the context of other work. For example:
+
+* Addressing ``checkpatch.pl`` warnings
+* Addressing :ref:`Local variable ordering<rcs>` issues
+* Conversions to device-managed APIs (``devm_`` helpers)
+
+This is because it is felt that the churn that such changes produce comes
+at a greater cost than the value of such clean-ups.
+
+Conversely, spelling and grammar fixes are not discouraged.
 
 Resending after review
 ~~~~~~~~~~~~~~~~~~~~~~

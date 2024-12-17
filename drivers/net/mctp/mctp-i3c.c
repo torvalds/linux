@@ -13,7 +13,7 @@
 #include <linux/i3c/device.h>
 #include <linux/i3c/master.h>
 #include <linux/if_arp.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <net/mctp.h>
 #include <net/mctpdevice.h>
 
@@ -607,7 +607,7 @@ __must_hold(&busdevs_lock)
 		goto err_free_uninit;
 	}
 
-	rc = mctp_register_netdev(ndev, NULL);
+	rc = mctp_register_netdev(ndev, NULL, MCTP_PHYS_BINDING_I3C);
 	if (rc < 0) {
 		dev_warn(&ndev->dev, "netdev register failed: %d\n", rc);
 		goto err_free_netdev;

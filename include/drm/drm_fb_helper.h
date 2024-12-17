@@ -256,7 +256,9 @@ void drm_fb_helper_fill_info(struct fb_info *info,
 void drm_fb_helper_damage_range(struct fb_info *info, off_t off, size_t len);
 void drm_fb_helper_damage_area(struct fb_info *info, u32 x, u32 y, u32 width, u32 height);
 
+#ifdef CONFIG_FB_DEFERRED_IO
 void drm_fb_helper_deferred_io(struct fb_info *info, struct list_head *pagereflist);
+#endif
 
 void drm_fb_helper_set_suspend(struct drm_fb_helper *fb_helper, bool suspend);
 void drm_fb_helper_set_suspend_unlocked(struct drm_fb_helper *fb_helper,
@@ -271,9 +273,7 @@ int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper);
 int drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper);
 int drm_fb_helper_debug_enter(struct fb_info *info);
 int drm_fb_helper_debug_leave(struct fb_info *info);
-
 void drm_fb_helper_lastclose(struct drm_device *dev);
-void drm_fb_helper_output_poll_changed(struct drm_device *dev);
 #else
 static inline void drm_fb_helper_prepare(struct drm_device *dev,
 					 struct drm_fb_helper *helper,
@@ -363,10 +363,12 @@ static inline int drm_fb_helper_ioctl(struct fb_info *info, unsigned int cmd,
 	return 0;
 }
 
+#ifdef CONFIG_FB_DEFERRED_IO
 static inline void drm_fb_helper_deferred_io(struct fb_info *info,
 					     struct list_head *pagelist)
 {
 }
+#endif
 
 static inline void drm_fb_helper_set_suspend(struct drm_fb_helper *fb_helper,
 					     bool suspend)
@@ -399,10 +401,6 @@ static inline int drm_fb_helper_debug_leave(struct fb_info *info)
 }
 
 static inline void drm_fb_helper_lastclose(struct drm_device *dev)
-{
-}
-
-static inline void drm_fb_helper_output_poll_changed(struct drm_device *dev)
 {
 }
 #endif

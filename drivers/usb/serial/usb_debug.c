@@ -83,7 +83,6 @@ static void usb_debug_init_termios(struct tty_struct *tty)
 
 static struct usb_serial_driver debug_device = {
 	.driver = {
-		.owner =	THIS_MODULE,
 		.name =		"debug",
 	},
 	.id_table =		id_table,
@@ -96,7 +95,6 @@ static struct usb_serial_driver debug_device = {
 
 static struct usb_serial_driver dbc_device = {
 	.driver = {
-		.owner =	THIS_MODULE,
 		.name =		"xhci_dbc",
 	},
 	.id_table =		dbc_id_table,

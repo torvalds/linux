@@ -763,25 +763,16 @@ static int ena_com_wait_and_process_admin_cq_interrupts(struct ena_comp_ctx *com
 
 		if (comp_ctx->status == ENA_CMD_COMPLETED) {
 			netdev_err(admin_queue->ena_dev->net_device,
-				   "The ena device sent a completion but the driver didn't receive a MSI-X interrupt (cmd %d), autopolling mode is %s\n",
-				   comp_ctx->cmd_opcode, admin_queue->auto_polling ? "ON" : "OFF");
-			/* Check if fallback to polling is enabled */
-			if (admin_queue->auto_polling)
-				admin_queue->polling = true;
+				   "The ena device sent a completion but the driver didn't receive a MSI-X interrupt (cmd %d)\n",
+				   comp_ctx->cmd_opcode);
 		} else {
 			netdev_err(admin_queue->ena_dev->net_device,
 				   "The ena device didn't send a completion for the admin cmd %d status %d\n",
 				   comp_ctx->cmd_opcode, comp_ctx->status);
 		}
-		/* Check if shifted to polling mode.
-		 * This will happen if there is a completion without an interrupt
-		 * and autopolling mode is enabled. Continuing normal execution in such case
-		 */
-		if (!admin_queue->polling) {
-			admin_queue->running_state = false;
-			ret = -ETIME;
-			goto err;
-		}
+		admin_queue->running_state = false;
+		ret = -ETIME;
+		goto err;
 	}
 
 	ret = ena_com_comp_status_to_errno(admin_queue, comp_ctx->comp_status);
@@ -1650,12 +1641,6 @@ void ena_com_set_admin_polling_mode(struct ena_com_dev *ena_dev, bool polling)
 	ena_dev->admin_queue.polling = polling;
 }
 
-void ena_com_set_admin_auto_polling_mode(struct ena_com_dev *ena_dev,
-					 bool polling)
-{
-	ena_dev->admin_queue.auto_polling = polling;
-}
-
 int ena_com_mmio_reg_read_request_init(struct ena_com_dev *ena_dev)
 {
 	struct ena_com_mmio_read *mmio_read = &ena_dev->mmio_read;
@@ -1881,6 +1866,56 @@ int ena_com_get_link_params(struct ena_com_dev *ena_dev,
 	return ena_com_get_feature(ena_dev, resp, ENA_ADMIN_LINK_CONFIG, 0);
 }
 
+static int ena_get_dev_stats(struct ena_com_dev *ena_dev,
+			     struct ena_com_stats_ctx *ctx,
+			     enum ena_admin_get_stats_type type)
+{
+	struct ena_admin_acq_get_stats_resp *get_resp = &ctx->get_resp;
+	struct ena_admin_aq_get_stats_cmd *get_cmd = &ctx->get_cmd;
+	struct ena_com_admin_queue *admin_queue;
+	int ret;
+
+	admin_queue = &ena_dev->admin_queue;
+
+	get_cmd->aq_common_descriptor.opcode = ENA_ADMIN_GET_STATS;
+	get_cmd->aq_common_descriptor.flags = 0;
+	get_cmd->type = type;
+
+	ret = ena_com_execute_admin_command(admin_queue,
+					    (struct ena_admin_aq_entry *)get_cmd,
+					    sizeof(*get_cmd),
+					    (struct ena_admin_acq_entry *)get_resp,
+					    sizeof(*get_resp));
+
+	if (unlikely(ret))
+		netdev_err(ena_dev->net_device, "Failed to get stats. error: %d\n", ret);
+
+	return ret;
+}
+
+static void ena_com_set_supported_customer_metrics(struct ena_com_dev *ena_dev)
+{
+	struct ena_customer_metrics *customer_metrics;
+	struct ena_com_stats_ctx ctx;
+	int ret;
+
+	customer_metrics = &ena_dev->customer_metrics;
+	if (!ena_com_get_cap(ena_dev, ENA_ADMIN_CUSTOMER_METRICS)) {
+		customer_metrics->supported_metrics = ENA_ADMIN_CUSTOMER_METRICS_MIN_SUPPORT_MASK;
+		return;
+	}
+
+	memset(&ctx, 0x0, sizeof(ctx));
+	ctx.get_cmd.requested_metrics = ENA_ADMIN_CUSTOMER_METRICS_SUPPORT_MASK;
+	ret = ena_get_dev_stats(ena_dev, &ctx, ENA_ADMIN_GET_STATS_TYPE_CUSTOMER_METRICS);
+	if (likely(ret == 0))
+		customer_metrics->supported_metrics =
+			ctx.get_resp.u.customer_metrics.reported_metrics;
+	else
+		netdev_err(ena_dev->net_device,
+			   "Failed to query customer metrics support. error: %d\n", ret);
+}
+
 int ena_com_get_dev_attr_feat(struct ena_com_dev *ena_dev,
 			      struct ena_com_dev_get_features_ctx *get_feat_ctx)
 {
@@ -1959,6 +1994,8 @@ int ena_com_get_dev_attr_feat(struct ena_com_dev *ena_dev,
 		memset(&get_feat_ctx->llq, 0x0, sizeof(get_feat_ctx->llq));
 	else
 		return rc;
+
+	ena_com_set_supported_customer_metrics(ena_dev);
 
 	return 0;
 }
@@ -2104,33 +2141,6 @@ int ena_com_dev_reset(struct ena_com_dev *ena_dev,
 	return 0;
 }
 
-static int ena_get_dev_stats(struct ena_com_dev *ena_dev,
-			     struct ena_com_stats_ctx *ctx,
-			     enum ena_admin_get_stats_type type)
-{
-	struct ena_admin_aq_get_stats_cmd *get_cmd = &ctx->get_cmd;
-	struct ena_admin_acq_get_stats_resp *get_resp = &ctx->get_resp;
-	struct ena_com_admin_queue *admin_queue;
-	int ret;
-
-	admin_queue = &ena_dev->admin_queue;
-
-	get_cmd->aq_common_descriptor.opcode = ENA_ADMIN_GET_STATS;
-	get_cmd->aq_common_descriptor.flags = 0;
-	get_cmd->type = type;
-
-	ret =  ena_com_execute_admin_command(admin_queue,
-					     (struct ena_admin_aq_entry *)get_cmd,
-					     sizeof(*get_cmd),
-					     (struct ena_admin_acq_entry *)get_resp,
-					     sizeof(*get_resp));
-
-	if (unlikely(ret))
-		netdev_err(ena_dev->net_device, "Failed to get stats. error: %d\n", ret);
-
-	return ret;
-}
-
 int ena_com_get_eni_stats(struct ena_com_dev *ena_dev,
 			  struct ena_admin_eni_stats *stats)
 {
@@ -2152,17 +2162,67 @@ int ena_com_get_eni_stats(struct ena_com_dev *ena_dev,
 	return ret;
 }
 
-int ena_com_get_dev_basic_stats(struct ena_com_dev *ena_dev,
-				struct ena_admin_basic_stats *stats)
+int ena_com_get_ena_srd_info(struct ena_com_dev *ena_dev,
+			     struct ena_admin_ena_srd_info *info)
 {
 	struct ena_com_stats_ctx ctx;
 	int ret;
 
+	if (!ena_com_get_cap(ena_dev, ENA_ADMIN_ENA_SRD_INFO)) {
+		netdev_err(ena_dev->net_device, "Capability %d isn't supported\n",
+			   ENA_ADMIN_ENA_SRD_INFO);
+		return -EOPNOTSUPP;
+	}
+
 	memset(&ctx, 0x0, sizeof(ctx));
-	ret = ena_get_dev_stats(ena_dev, &ctx, ENA_ADMIN_GET_STATS_TYPE_BASIC);
+	ret = ena_get_dev_stats(ena_dev, &ctx, ENA_ADMIN_GET_STATS_TYPE_ENA_SRD);
 	if (likely(ret == 0))
-		memcpy(stats, &ctx.get_resp.u.basic_stats,
-		       sizeof(ctx.get_resp.u.basic_stats));
+		memcpy(info, &ctx.get_resp.u.ena_srd_info,
+		       sizeof(ctx.get_resp.u.ena_srd_info));
+
+	return ret;
+}
+
+int ena_com_get_customer_metrics(struct ena_com_dev *ena_dev, char *buffer, u32 len)
+{
+	struct ena_admin_aq_get_stats_cmd *get_cmd;
+	struct ena_com_stats_ctx ctx;
+	int ret;
+
+	if (unlikely(len > ena_dev->customer_metrics.buffer_len)) {
+		netdev_err(ena_dev->net_device,
+			   "Invalid buffer size %u. The given buffer is too big.\n", len);
+		return -EINVAL;
+	}
+
+	if (!ena_com_get_cap(ena_dev, ENA_ADMIN_CUSTOMER_METRICS)) {
+		netdev_err(ena_dev->net_device, "Capability %d not supported.\n",
+			   ENA_ADMIN_CUSTOMER_METRICS);
+		return -EOPNOTSUPP;
+	}
+
+	if (!ena_dev->customer_metrics.supported_metrics) {
+		netdev_err(ena_dev->net_device, "No supported customer metrics.\n");
+		return -EOPNOTSUPP;
+	}
+
+	get_cmd = &ctx.get_cmd;
+	memset(&ctx, 0x0, sizeof(ctx));
+	ret = ena_com_mem_addr_set(ena_dev,
+				   &get_cmd->u.control_buffer.address,
+				   ena_dev->customer_metrics.buffer_dma_addr);
+	if (unlikely(ret)) {
+		netdev_err(ena_dev->net_device, "Memory address set failed.\n");
+		return ret;
+	}
+
+	get_cmd->u.control_buffer.length = ena_dev->customer_metrics.buffer_len;
+	get_cmd->requested_metrics = ena_dev->customer_metrics.supported_metrics;
+	ret = ena_get_dev_stats(ena_dev, &ctx, ENA_ADMIN_GET_STATS_TYPE_CUSTOMER_METRICS);
+	if (likely(ret == 0))
+		memcpy(buffer, ena_dev->customer_metrics.buffer_virt_addr, len);
+	else
+		netdev_err(ena_dev->net_device, "Failed to get customer metrics. error: %d\n", ret);
 
 	return ret;
 }
@@ -2197,24 +2257,6 @@ int ena_com_set_dev_mtu(struct ena_com_dev *ena_dev, u32 mtu)
 		netdev_err(ena_dev->net_device, "Failed to set mtu %d. error: %d\n", mtu, ret);
 
 	return ret;
-}
-
-int ena_com_get_offload_settings(struct ena_com_dev *ena_dev,
-				 struct ena_admin_feature_offload_desc *offload)
-{
-	int ret;
-	struct ena_admin_get_feat_resp resp;
-
-	ret = ena_com_get_feature(ena_dev, &resp,
-				  ENA_ADMIN_STATELESS_OFFLOAD_CONFIG, 0);
-	if (unlikely(ret)) {
-		netdev_err(ena_dev->net_device, "Failed to get offload capabilities %d\n", ret);
-		return ret;
-	}
-
-	memcpy(offload, &resp.u.offload, sizeof(resp.u.offload));
-
-	return 0;
 }
 
 int ena_com_set_hash_function(struct ena_com_dev *ena_dev)
@@ -2706,6 +2748,24 @@ int ena_com_allocate_debug_area(struct ena_com_dev *ena_dev,
 	return 0;
 }
 
+int ena_com_allocate_customer_metrics_buffer(struct ena_com_dev *ena_dev)
+{
+	struct ena_customer_metrics *customer_metrics = &ena_dev->customer_metrics;
+
+	customer_metrics->buffer_len = ENA_CUSTOMER_METRICS_BUFFER_SIZE;
+	customer_metrics->buffer_virt_addr = NULL;
+
+	customer_metrics->buffer_virt_addr =
+		dma_alloc_coherent(ena_dev->dmadev, customer_metrics->buffer_len,
+				   &customer_metrics->buffer_dma_addr, GFP_KERNEL);
+	if (!customer_metrics->buffer_virt_addr) {
+		customer_metrics->buffer_len = 0;
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
 void ena_com_delete_host_info(struct ena_com_dev *ena_dev)
 {
 	struct ena_host_attribute *host_attr = &ena_dev->host_attr;
@@ -2725,6 +2785,19 @@ void ena_com_delete_debug_area(struct ena_com_dev *ena_dev)
 		dma_free_coherent(ena_dev->dmadev, host_attr->debug_area_size,
 				  host_attr->debug_area_virt_addr, host_attr->debug_area_dma_addr);
 		host_attr->debug_area_virt_addr = NULL;
+	}
+}
+
+void ena_com_delete_customer_metrics_buffer(struct ena_com_dev *ena_dev)
+{
+	struct ena_customer_metrics *customer_metrics = &ena_dev->customer_metrics;
+
+	if (customer_metrics->buffer_virt_addr) {
+		dma_free_coherent(ena_dev->dmadev, customer_metrics->buffer_len,
+				  customer_metrics->buffer_virt_addr,
+				  customer_metrics->buffer_dma_addr);
+		customer_metrics->buffer_virt_addr = NULL;
+		customer_metrics->buffer_len = 0;
 	}
 }
 

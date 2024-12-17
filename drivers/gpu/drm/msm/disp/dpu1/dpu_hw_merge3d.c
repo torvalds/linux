@@ -39,6 +39,14 @@ static void _setup_merge_3d_ops(struct dpu_hw_merge_3d *c,
 	c->ops.setup_3d_mode = dpu_hw_merge_3d_setup_3d_mode;
 };
 
+/**
+ * dpu_hw_merge_3d_init() - Initializes the merge_3d driver for the passed
+ * merge3d catalog entry.
+ * @dev:  Corresponding device for devres management
+ * @cfg:  Pingpong catalog entry for which driver object is required
+ * @addr: Mapped register io address of MDP
+ * Return: Error code or allocated dpu_hw_merge_3d context
+ */
 struct dpu_hw_merge_3d *dpu_hw_merge_3d_init(struct drm_device *dev,
 					     const struct dpu_merge_3d_cfg *cfg,
 					     void __iomem *addr)

@@ -8,6 +8,7 @@
 #include <linux/logic_pio.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
+#include <linux/overflow.h>
 #include <linux/pci.h>
 #include <linux/pci_regs.h>
 #include <linux/sizes.h>
@@ -146,7 +147,7 @@ static unsigned int of_bus_pci_get_flags(const __be32 *addr)
  * PCI bus specific translator
  */
 
-static bool of_node_is_pcie(struct device_node *np)
+static bool of_node_is_pcie(const struct device_node *np)
 {
 	bool is_pcie = of_node_name_eq(np, "pcie");
 
@@ -197,6 +198,23 @@ static u64 of_bus_pci_map(__be32 *addr, const __be32 *range, int na, int ns,
 
 #endif /* CONFIG_PCI */
 
+static int __of_address_resource_bounds(struct resource *r, u64 start, u64 size)
+{
+	u64 end = start;
+
+	if (overflows_type(start, r->start))
+		return -EOVERFLOW;
+	if (size && check_add_overflow(end, size - 1, &end))
+		return -EOVERFLOW;
+	if (overflows_type(end, r->end))
+		return -EOVERFLOW;
+
+	r->start = start;
+	r->end = end;
+
+	return 0;
+}
+
 /*
  * of_pci_range_to_resource - Create a resource from an of_pci_range
  * @range:	the PCI range that describes the resource
@@ -212,9 +230,10 @@ static u64 of_bus_pci_map(__be32 *addr, const __be32 *range, int na, int ns,
  * To guard against that we try to register the IO range first.
  * If that fails we know that pci_address_to_pio() will do too.
  */
-int of_pci_range_to_resource(struct of_pci_range *range,
-			     struct device_node *np, struct resource *res)
+int of_pci_range_to_resource(const struct of_pci_range *range,
+			     const struct device_node *np, struct resource *res)
 {
+	u64 start;
 	int err;
 	res->flags = range->flags;
 	res->parent = res->child = res->sibling = NULL;
@@ -231,18 +250,11 @@ int of_pci_range_to_resource(struct of_pci_range *range,
 			err = -EINVAL;
 			goto invalid_range;
 		}
-		res->start = port;
+		start = port;
 	} else {
-		if ((sizeof(resource_size_t) < 8) &&
-		    upper_32_bits(range->cpu_addr)) {
-			err = -EINVAL;
-			goto invalid_range;
-		}
-
-		res->start = range->cpu_addr;
+		start = range->cpu_addr;
 	}
-	res->end = res->start + range->size - 1;
-	return 0;
+	return __of_address_resource_bounds(res, start, range->size);
 
 invalid_range:
 	res->start = (resource_size_t)OF_BAD_ADDR;
@@ -258,8 +270,8 @@ EXPORT_SYMBOL(of_pci_range_to_resource);
  * @res:	pointer to a valid resource that will be updated to
  *              reflect the values contained in the range.
  *
- * Returns ENOENT if the entry is not found or EINVAL if the range cannot be
- * converted to resource.
+ * Returns -ENOENT if the entry is not found or -EOVERFLOW if the range
+ * cannot be converted to resource.
  */
 int of_range_to_resource(struct device_node *np, int index, struct resource *res)
 {
@@ -321,14 +333,18 @@ static unsigned int of_bus_isa_get_flags(const __be32 *addr)
 
 static int of_bus_default_flags_match(struct device_node *np)
 {
-	return of_bus_n_addr_cells(np) == 3;
+	/*
+	 * Check for presence first since of_bus_n_addr_cells() will warn when
+	 * walking parent nodes.
+	 */
+	return of_property_present(np, "#address-cells") && (of_bus_n_addr_cells(np) == 3);
 }
 
 /*
  * Array of bus specific translators
  */
 
-static struct of_bus of_busses[] = {
+static const struct of_bus of_busses[] = {
 #ifdef CONFIG_PCI
 	/* PCI */
 	{
@@ -376,7 +392,7 @@ static struct of_bus of_busses[] = {
 	},
 };
 
-static struct of_bus *of_match_bus(struct device_node *np)
+static const struct of_bus *of_match_bus(struct device_node *np)
 {
 	int i;
 
@@ -387,7 +403,7 @@ static struct of_bus *of_match_bus(struct device_node *np)
 	return NULL;
 }
 
-static int of_empty_ranges_quirk(struct device_node *np)
+static int of_empty_ranges_quirk(const struct device_node *np)
 {
 	if (IS_ENABLED(CONFIG_PPC)) {
 		/* To save cycles, we cache the result for global "Mac" setting */
@@ -407,8 +423,8 @@ static int of_empty_ranges_quirk(struct device_node *np)
 	return false;
 }
 
-static int of_translate_one(struct device_node *parent, struct of_bus *bus,
-			    struct of_bus *pbus, __be32 *addr,
+static int of_translate_one(const struct device_node *parent, const struct of_bus *bus,
+			    const struct of_bus *pbus, __be32 *addr,
 			    int na, int ns, int pna, const char *rprop)
 {
 	const __be32 *ranges;
@@ -493,7 +509,7 @@ static u64 __of_translate_address(struct device_node *node,
 {
 	struct device_node *dev __free(device_node) = of_node_get(node);
 	struct device_node *parent __free(device_node) = get_parent(dev);
-	struct of_bus *bus, *pbus;
+	const struct of_bus *bus, *pbus;
 	__be32 addr[OF_MAX_ADDR_CELLS];
 	int na, ns, pna, pns;
 
@@ -678,7 +694,7 @@ const __be32 *__of_get_address(struct device_node *dev, int index, int bar_no,
 	const __be32 *prop;
 	unsigned int psize;
 	struct device_node *parent __free(device_node) = of_get_parent(dev);
-	struct of_bus *bus;
+	const struct of_bus *bus;
 	int onesize, i, na, ns;
 
 	if (parent == NULL)
@@ -689,15 +705,15 @@ const __be32 *__of_get_address(struct device_node *dev, int index, int bar_no,
 	if (strcmp(bus->name, "pci") && (bar_no >= 0))
 		return NULL;
 
-	bus->count_cells(dev, &na, &ns);
-	if (!OF_CHECK_ADDR_COUNT(na))
-		return NULL;
-
 	/* Get "reg" or "assigned-addresses" property */
 	prop = of_get_property(dev, bus->addresses, &psize);
 	if (prop == NULL)
 		return NULL;
 	psize /= 4;
+
+	bus->count_cells(dev, &na, &ns);
+	if (!OF_CHECK_ADDR_COUNT(na))
+		return NULL;
 
 	onesize = na + ns;
 	for (i = 0; psize >= onesize; psize -= onesize, prop += onesize, i++) {
@@ -1018,7 +1034,7 @@ EXPORT_SYMBOL_GPL(of_dma_is_coherent);
  * This is currently only enabled on builds that support Apple ARM devices, as
  * an optimization.
  */
-static bool of_mmio_is_nonposted(struct device_node *np)
+static bool of_mmio_is_nonposted(const struct device_node *np)
 {
 	if (!IS_ENABLED(CONFIG_ARCH_APPLE))
 		return false;
@@ -1061,12 +1077,10 @@ static int __of_address_to_resource(struct device_node *dev, int index, int bar_
 	if (of_mmio_is_nonposted(dev))
 		flags |= IORESOURCE_MEM_NONPOSTED;
 
-	r->start = taddr;
-	r->end = taddr + size - 1;
 	r->flags = flags;
 	r->name = name ? name : dev->full_name;
 
-	return 0;
+	return __of_address_resource_bounds(r, taddr, size);
 }
 
 /**

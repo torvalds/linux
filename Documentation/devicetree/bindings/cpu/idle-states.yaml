@@ -385,7 +385,7 @@ patternProperties:
 
           This property is required in idle state nodes of device tree meant
           for RISC-V systems. For more details on the suspend_type parameter
-          refer the SBI specifiation v0.3 (or higher) [7].
+          refer the SBI specification v0.3 (or higher) [7].
 
       local-timer-stop:
         description:

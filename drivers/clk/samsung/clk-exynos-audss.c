@@ -4,7 +4,7 @@
  * Author: Padmavathi Venna <padma.v@samsung.com>
  *
  * Common Clock Framework support for Audio Subsystem Clock Controller.
-*/
+ */
 
 #include <linux/slab.h>
 #include <linux/io.h>
@@ -292,7 +292,7 @@ static struct platform_driver exynos_audss_clk_driver = {
 		.pm = &exynos_audss_clk_pm_ops,
 	},
 	.probe = exynos_audss_clk_probe,
-	.remove_new = exynos_audss_clk_remove,
+	.remove = exynos_audss_clk_remove,
 };
 
 module_platform_driver(exynos_audss_clk_driver);

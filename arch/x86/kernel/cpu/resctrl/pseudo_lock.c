@@ -1567,7 +1567,6 @@ static int pseudo_lock_dev_mmap(struct file *filp, struct vm_area_struct *vma)
 
 static const struct file_operations pseudo_lock_dev_fops = {
 	.owner =	THIS_MODULE,
-	.llseek =	no_llseek,
 	.read =		NULL,
 	.write =	NULL,
 	.open =		pseudo_lock_dev_open,

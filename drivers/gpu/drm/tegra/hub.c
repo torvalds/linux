@@ -521,12 +521,11 @@ static void tegra_shared_plane_atomic_disable(struct drm_plane *plane,
 
 static inline u32 compute_phase_incr(fixed20_12 in, unsigned int out)
 {
-	u64 tmp, tmp1, tmp2;
+	u64 tmp, tmp1;
 
 	tmp = (u64)dfixed_trunc(in);
-	tmp2 = (u64)out;
-	tmp1 = (tmp << NFB) + (tmp2 >> 1);
-	do_div(tmp1, tmp2);
+	tmp1 = (tmp << NFB) + ((u64)out >> 1);
+	do_div(tmp1, out);
 
 	return lower_32_bits(tmp1);
 }
@@ -1219,5 +1218,5 @@ struct platform_driver tegra_display_hub_driver = {
 		.of_match_table = tegra_display_hub_of_match,
 	},
 	.probe = tegra_display_hub_probe,
-	.remove_new = tegra_display_hub_remove,
+	.remove = tegra_display_hub_remove,
 };

@@ -616,7 +616,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.supports_dynamic_smps_6ghz = false,
 		.alloc_cacheable_memory = false,
 		.supports_rssi_stats = true,
-		.fw_wmi_diag_event = false,
+		.fw_wmi_diag_event = true,
 		.current_cc_support = true,
 		.dbr_debug_support = false,
 		.global_reset = false,
@@ -906,6 +906,12 @@ int ath11k_core_suspend(struct ath11k_base *ab)
 		return ret;
 	}
 
+	ret = ath11k_wow_enable(ab);
+	if (ret) {
+		ath11k_warn(ab, "failed to enable wow during suspend: %d\n", ret);
+		return ret;
+	}
+
 	ret = ath11k_dp_rx_pktlog_stop(ab, false);
 	if (ret) {
 		ath11k_warn(ab, "failed to stop dp rx pktlog during suspend: %d\n",
@@ -916,85 +922,29 @@ int ath11k_core_suspend(struct ath11k_base *ab)
 	ath11k_ce_stop_shadow_timers(ab);
 	ath11k_dp_stop_shadow_timers(ab);
 
-	/* PM framework skips suspend_late/resume_early callbacks
-	 * if other devices report errors in their suspend callbacks.
-	 * However ath11k_core_resume() would still be called because
-	 * here we return success thus kernel put us on dpm_suspended_list.
-	 * Since we won't go through a power down/up cycle, there is
-	 * no chance to call complete(&ab->restart_completed) in
-	 * ath11k_core_restart(), making ath11k_core_resume() timeout.
-	 * So call it here to avoid this issue. This also works in case
-	 * no error happens thus suspend_late/resume_early get called,
-	 * because it will be reinitialized in ath11k_core_resume_early().
-	 */
-	complete(&ab->restart_completed);
+	ath11k_hif_irq_disable(ab);
+	ath11k_hif_ce_irq_disable(ab);
+
+	ret = ath11k_hif_suspend(ab);
+	if (ret) {
+		ath11k_warn(ab, "failed to suspend hif: %d\n", ret);
+		return ret;
+	}
 
 	return 0;
 }
 EXPORT_SYMBOL(ath11k_core_suspend);
-
-int ath11k_core_suspend_late(struct ath11k_base *ab)
-{
-	struct ath11k_pdev *pdev;
-	struct ath11k *ar;
-
-	if (!ab->hw_params.supports_suspend)
-		return -EOPNOTSUPP;
-
-	/* so far single_pdev_only chips have supports_suspend as true
-	 * and only the first pdev is valid.
-	 */
-	pdev = ath11k_core_get_single_pdev(ab);
-	ar = pdev->ar;
-	if (!ar || ar->state != ATH11K_STATE_OFF)
-		return 0;
-
-	ath11k_hif_irq_disable(ab);
-	ath11k_hif_ce_irq_disable(ab);
-
-	ath11k_hif_power_down(ab, true);
-
-	return 0;
-}
-EXPORT_SYMBOL(ath11k_core_suspend_late);
-
-int ath11k_core_resume_early(struct ath11k_base *ab)
-{
-	int ret;
-	struct ath11k_pdev *pdev;
-	struct ath11k *ar;
-
-	if (!ab->hw_params.supports_suspend)
-		return -EOPNOTSUPP;
-
-	/* so far single_pdev_only chips have supports_suspend as true
-	 * and only the first pdev is valid.
-	 */
-	pdev = ath11k_core_get_single_pdev(ab);
-	ar = pdev->ar;
-	if (!ar || ar->state != ATH11K_STATE_OFF)
-		return 0;
-
-	reinit_completion(&ab->restart_completed);
-	ret = ath11k_hif_power_up(ab);
-	if (ret)
-		ath11k_warn(ab, "failed to power up hif during resume: %d\n", ret);
-
-	return ret;
-}
-EXPORT_SYMBOL(ath11k_core_resume_early);
 
 int ath11k_core_resume(struct ath11k_base *ab)
 {
 	int ret;
 	struct ath11k_pdev *pdev;
 	struct ath11k *ar;
-	long time_left;
 
 	if (!ab->hw_params.supports_suspend)
 		return -EOPNOTSUPP;
 
-	/* so far single_pdev_only chips have supports_suspend as true
+	/* so far signle_pdev_only chips have supports_suspend as true
 	 * and only the first pdev is valid.
 	 */
 	pdev = ath11k_core_get_single_pdev(ab);
@@ -1002,29 +952,29 @@ int ath11k_core_resume(struct ath11k_base *ab)
 	if (!ar || ar->state != ATH11K_STATE_OFF)
 		return 0;
 
-	time_left = wait_for_completion_timeout(&ab->restart_completed,
-						ATH11K_RESET_TIMEOUT_HZ);
-	if (time_left == 0) {
-		ath11k_warn(ab, "timeout while waiting for restart complete");
-		return -ETIMEDOUT;
+	ret = ath11k_hif_resume(ab);
+	if (ret) {
+		ath11k_warn(ab, "failed to resume hif during resume: %d\n", ret);
+		return ret;
 	}
 
-	if (ab->hw_params.current_cc_support &&
-	    ar->alpha2[0] != 0 && ar->alpha2[1] != 0) {
-		ret = ath11k_reg_set_cc(ar);
-		if (ret) {
-			ath11k_warn(ab, "failed to set country code during resume: %d\n",
-				    ret);
-			return ret;
-		}
-	}
+	ath11k_hif_ce_irq_enable(ab);
+	ath11k_hif_irq_enable(ab);
 
 	ret = ath11k_dp_rx_pktlog_start(ab);
-	if (ret)
+	if (ret) {
 		ath11k_warn(ab, "failed to start rx pktlog during resume: %d\n",
 			    ret);
+		return ret;
+	}
 
-	return ret;
+	ret = ath11k_wow_wakeup(ab);
+	if (ret) {
+		ath11k_warn(ab, "failed to wakeup wow during resume: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
 }
 EXPORT_SYMBOL(ath11k_core_resume);
 
@@ -2119,8 +2069,6 @@ static void ath11k_core_restart(struct work_struct *work)
 
 	if (!ab->is_reset)
 		ath11k_core_post_reconfigure_recovery(ab);
-
-	complete(&ab->restart_completed);
 }
 
 static void ath11k_core_reset(struct work_struct *work)
@@ -2190,7 +2138,7 @@ static void ath11k_core_reset(struct work_struct *work)
 	ath11k_hif_irq_disable(ab);
 	ath11k_hif_ce_irq_disable(ab);
 
-	ath11k_hif_power_down(ab, false);
+	ath11k_hif_power_down(ab);
 	ath11k_hif_power_up(ab);
 
 	ath11k_dbg(ab, ATH11K_DBG_BOOT, "reset started\n");
@@ -2263,7 +2211,7 @@ void ath11k_core_deinit(struct ath11k_base *ab)
 
 	mutex_unlock(&ab->core_lock);
 
-	ath11k_hif_power_down(ab, false);
+	ath11k_hif_power_down(ab);
 	ath11k_mac_destroy(ab);
 	ath11k_core_soc_destroy(ab);
 	ath11k_fw_destroy(ab);
@@ -2316,7 +2264,6 @@ struct ath11k_base *ath11k_core_alloc(struct device *dev, size_t priv_size,
 	timer_setup(&ab->rx_replenish_retry, ath11k_ce_rx_replenish_retry, 0);
 	init_completion(&ab->htc_suspend);
 	init_completion(&ab->wow.wakeup_completed);
-	init_completion(&ab->restart_completed);
 
 	ab->dev = dev;
 	ab->hif.bus = bus;

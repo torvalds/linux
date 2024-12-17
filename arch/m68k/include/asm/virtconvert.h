@@ -28,9 +28,6 @@ static inline void *phys_to_virt(unsigned long address)
 	return __va(address);
 }
 
-/* Permanent address of a page. */
-#define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
-
 /*
  * IO bus memory addresses are 1:1 with the physical address,
  * deprecated globally but still used on two machines.

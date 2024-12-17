@@ -844,7 +844,7 @@
      font-style="normal"
      y="1547.8876"
      x="4417.6396"
-     xml:space="preserve">dyntick_save_progress_counter()</text>
+     xml:space="preserve">rcu_watching_snap_save()</text>
   <g
      style="fill:none;stroke-width:0.025in"
      transform="translate(6501.9719,-10685.904)"
@@ -899,7 +899,7 @@
      font-style="normal"
      y="1858.8729"
      x="4414.1836"
-     xml:space="preserve">rcu_implicit_dynticks_qs()</text>
+     xml:space="preserve">rcu_watching_snap_recheck()</text>
   <text
      xml:space="preserve"
      x="14659.87"
@@ -977,7 +977,7 @@
        font-weight="bold"
        font-size="192"
        id="text202-7-5-3-27-6"
-       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">rcu_dynticks_eqs_enter()</text>
+       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">ct_kernel_exit_state()</text>
     <text
        xml:space="preserve"
        x="3745.7725"
@@ -1008,7 +1008,7 @@
        font-weight="bold"
        font-size="192"
        id="text202-7-5-3-27-6-1"
-       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">rcu_dynticks_eqs_exit()</text>
+       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">ct_kernel_enter_state()</text>
     <text
        xml:space="preserve"
        x="3745.7725"

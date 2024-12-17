@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/string.h>
 #include <linux/of.h>
+#include <linux/of_graph.h>
 #include <linux/component.h>
 
 #include <video/omapfb_dss.h>
@@ -382,9 +383,9 @@ static void sdi_remove(struct platform_device *pdev)
 
 static struct platform_driver omap_sdi_driver = {
 	.probe		= sdi_probe,
-	.remove_new     = sdi_remove,
-	.driver         = {
-		.name   = "omapdss_sdi",
+	.remove		= sdi_remove,
+	.driver		= {
+		.name	= "omapdss_sdi",
 		.suppress_bind_attrs = true,
 	},
 };
@@ -405,7 +406,7 @@ int sdi_init_port(struct platform_device *pdev, struct device_node *port)
 	u32 datapairs;
 	int r;
 
-	ep = omapdss_of_get_next_endpoint(port, NULL);
+	ep = of_graph_get_next_port_endpoint(port, NULL);
 	if (!ep)
 		return 0;
 

@@ -27,7 +27,6 @@
 #include <linux/timer.h>
 #include <linux/cper.h>
 #include <linux/cleanup.h>
-#include <linux/cxl-event.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
 #include <linux/ratelimit.h>
@@ -50,6 +49,7 @@
 #include <acpi/apei.h>
 #include <asm/fixmap.h>
 #include <asm/tlbflush.h>
+#include <cxl/event.h>
 #include <ras/ras_event.h>
 
 #include "apei-internal.h"
@@ -726,7 +726,7 @@ int cxl_cper_register_work(struct work_struct *work)
 	cxl_cper_work = work;
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(cxl_cper_register_work, CXL);
+EXPORT_SYMBOL_NS_GPL(cxl_cper_register_work, "CXL");
 
 int cxl_cper_unregister_work(struct work_struct *work)
 {
@@ -737,13 +737,13 @@ int cxl_cper_unregister_work(struct work_struct *work)
 	cxl_cper_work = NULL;
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(cxl_cper_unregister_work, CXL);
+EXPORT_SYMBOL_NS_GPL(cxl_cper_unregister_work, "CXL");
 
 int cxl_cper_kfifo_get(struct cxl_cper_work_data *wd)
 {
 	return kfifo_get(&cxl_cper_fifo, wd);
 }
-EXPORT_SYMBOL_NS_GPL(cxl_cper_kfifo_get, CXL);
+EXPORT_SYMBOL_NS_GPL(cxl_cper_kfifo_get, "CXL");
 
 static bool ghes_do_proc(struct ghes *ghes,
 			 const struct acpi_hest_generic_status *estatus)
@@ -1605,7 +1605,7 @@ static struct platform_driver ghes_platform_driver = {
 		.name	= "GHES",
 	},
 	.probe		= ghes_probe,
-	.remove_new	= ghes_remove,
+	.remove		= ghes_remove,
 };
 
 void __init acpi_ghes_init(void)

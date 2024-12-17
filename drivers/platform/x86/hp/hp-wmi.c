@@ -834,28 +834,16 @@ static struct attribute *hp_wmi_attrs[] = {
 };
 ATTRIBUTE_GROUPS(hp_wmi);
 
-static void hp_wmi_notify(u32 value, void *context)
+static void hp_wmi_notify(union acpi_object *obj, void *context)
 {
-	struct acpi_buffer response = { ACPI_ALLOCATE_BUFFER, NULL };
 	u32 event_id, event_data;
-	union acpi_object *obj;
-	acpi_status status;
 	u32 *location;
 	int key_code;
-
-	status = wmi_get_event_data(value, &response);
-	if (status != AE_OK) {
-		pr_info("bad event status 0x%x\n", status);
-		return;
-	}
-
-	obj = (union acpi_object *)response.pointer;
 
 	if (!obj)
 		return;
 	if (obj->type != ACPI_TYPE_BUFFER) {
 		pr_info("Unknown response received %d\n", obj->type);
-		kfree(obj);
 		return;
 	}
 
@@ -872,10 +860,8 @@ static void hp_wmi_notify(u32 value, void *context)
 		event_data = *(location + 2);
 	} else {
 		pr_info("Unknown buffer length %d\n", obj->buffer.length);
-		kfree(obj);
 		return;
 	}
-	kfree(obj);
 
 	switch (event_id) {
 	case HPWMI_DOCK_EVENT:
@@ -1762,7 +1748,7 @@ static struct platform_driver hp_wmi_driver __refdata = {
 		.pm = &hp_wmi_pm_ops,
 		.dev_groups = hp_wmi_groups,
 	},
-	.remove_new = __exit_p(hp_wmi_bios_remove),
+	.remove = __exit_p(hp_wmi_bios_remove),
 };
 
 static umode_t hp_wmi_hwmon_is_visible(const void *data,

@@ -664,7 +664,7 @@ il4965_hdl_rx(struct il_priv *il, struct il_rx_buf *rxb)
 	if (!(rx_pkt_status & RX_RES_STATUS_NO_CRC32_ERROR) ||
 	    !(rx_pkt_status & RX_RES_STATUS_NO_RXE_OVERFLOW)) {
 		D_RX("Bad CRC or FIFO: 0x%08X.\n", le32_to_cpu(rx_pkt_status));
-		rx_status.flag |= RX_FLAG_FAILED_FCS_CRC;
+		return;
 	}
 
 	/* This will be used in several places later */
@@ -1769,7 +1769,7 @@ il4965_tx_skb(struct il_priv *il,
 	/* Set up first empty entry in queue's array of Tx/cmd buffers */
 	out_cmd = txq->cmd[q->write_ptr];
 	out_meta = &txq->meta[q->write_ptr];
-	tx_cmd = &out_cmd->cmd.tx;
+	tx_cmd = container_of(&out_cmd->cmd.tx, struct il_tx_cmd, __hdr);
 	memset(&out_cmd->hdr, 0, sizeof(out_cmd->hdr));
 	memset(tx_cmd, 0, sizeof(struct il_tx_cmd));
 

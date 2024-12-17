@@ -7,7 +7,7 @@
 #ifndef FWEH_H_
 #define FWEH_H_
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/skbuff.h>
 #include <linux/if_ether.h>
 #include <linux/if.h>

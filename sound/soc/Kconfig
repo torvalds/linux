@@ -106,9 +106,10 @@ source "sound/soc/meson/Kconfig"
 source "sound/soc/mxs/Kconfig"
 source "sound/soc/pxa/Kconfig"
 source "sound/soc/qcom/Kconfig"
+source "sound/soc/renesas/Kconfig"
 source "sound/soc/rockchip/Kconfig"
 source "sound/soc/samsung/Kconfig"
-source "sound/soc/sh/Kconfig"
+source "sound/soc/sdca/Kconfig"
 source "sound/soc/sof/Kconfig"
 source "sound/soc/spear/Kconfig"
 source "sound/soc/sprd/Kconfig"
@@ -125,6 +126,8 @@ source "sound/soc/xtensa/Kconfig"
 
 # Supported codecs
 source "sound/soc/codecs/Kconfig"
+
+source "sound/soc/sdw_utils/Kconfig"
 
 # generic frame-work
 source "sound/soc/generic/Kconfig"

@@ -681,7 +681,7 @@ static struct platform_driver w5300_driver = {
 		.pm	= &w5300_pm_ops,
 	},
 	.probe		= w5300_probe,
-	.remove_new	= w5300_remove,
+	.remove		= w5300_remove,
 };
 
 module_platform_driver(w5300_driver);

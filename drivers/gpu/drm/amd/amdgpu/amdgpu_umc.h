@@ -127,13 +127,8 @@ int amdgpu_umc_page_retirement_mca(struct amdgpu_device *adev,
 int amdgpu_umc_loop_channels(struct amdgpu_device *adev,
 			umc_func func, void *data);
 
-int amdgpu_umc_bad_page_polling_timeout(struct amdgpu_device *adev,
-			uint32_t reset, uint32_t timeout_ms);
-
 int amdgpu_umc_update_ecc_status(struct amdgpu_device *adev,
 				uint64_t status, uint64_t ipid, uint64_t addr);
-int amdgpu_umc_build_pages_hash(struct amdgpu_device *adev,
-		uint64_t *pfns, int len, uint64_t *val);
 int amdgpu_umc_logs_ecc_err(struct amdgpu_device *adev,
 		struct radix_tree_root *ecc_tree, struct ras_ecc_err *ecc_err);
 

@@ -77,11 +77,11 @@
 #define MPT3SAS_DRIVER_NAME		"mpt3sas"
 #define MPT3SAS_AUTHOR "Avago Technologies <MPT-FusionLinux.pdl@avagotech.com>"
 #define MPT3SAS_DESCRIPTION	"LSI MPT Fusion SAS 3.0 Device Driver"
-#define MPT3SAS_DRIVER_VERSION		"48.100.00.00"
-#define MPT3SAS_MAJOR_VERSION		48
+#define MPT3SAS_DRIVER_VERSION		"51.100.00.00"
+#define MPT3SAS_MAJOR_VERSION		51
 #define MPT3SAS_MINOR_VERSION		100
-#define MPT3SAS_BUILD_VERSION		0
-#define MPT3SAS_RELEASE_VERSION	00
+#define MPT3SAS_BUILD_VERSION		00
+#define MPT3SAS_RELEASE_VERSION		00
 
 #define MPT2SAS_DRIVER_NAME		"mpt2sas"
 #define MPT2SAS_DESCRIPTION	"LSI MPT Fusion SAS 2.0 Device Driver"
@@ -1162,8 +1162,7 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  * @fault_reset_work_q_name: fw fault work queue
  * @fault_reset_work_q: ""
  * @fault_reset_work: ""
- * @firmware_event_name: fw event work queue
- * @firmware_event_thread: ""
+ * @firmware_event_thread: fw event work queue
  * @fw_event_lock:
  * @fw_event_list: list of fw events
  * @current_evet: current processing firmware event
@@ -1351,7 +1350,6 @@ struct MPT3SAS_ADAPTER {
 	struct delayed_work fault_reset_work;
 
 	/* fw event handler */
-	char		firmware_event_name[20];
 	struct workqueue_struct	*firmware_event_thread;
 	spinlock_t	fw_event_lock;
 	struct list_head fw_event_list;

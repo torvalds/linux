@@ -16,7 +16,6 @@
 #include <linux/security.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
-#include <linux/fdtable.h>
 #include <linux/fsnotify_backend.h>
 
 static int dir_notify_enable __read_mostly = 1;
@@ -110,7 +109,7 @@ static int dnotify_handle_event(struct fsnotify_mark *inode_mark, u32 mask,
 			prev = &dn->dn_next;
 			continue;
 		}
-		fown = &dn->dn_filp->f_owner;
+		fown = file_f_owner(dn->dn_filp);
 		send_sigio(fown, dn->dn_fd, POLL_MSG);
 		if (dn->dn_mask & FS_DN_MULTISHOT)
 			prev = &dn->dn_next;
@@ -316,6 +315,10 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned int arg)
 		goto out_err;
 	}
 
+	error = file_f_owner_allocate(filp);
+	if (error)
+		goto out_err;
+
 	/* set up the new_fsn_mark and new_dn_mark */
 	new_fsn_mark = &new_dn_mark->fsn_mark;
 	fsnotify_init_mark(new_fsn_mark, dnotify_group);
@@ -343,9 +346,7 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned int arg)
 		new_fsn_mark = NULL;
 	}
 
-	rcu_read_lock();
-	f = lookup_fdget_rcu(fd);
-	rcu_read_unlock();
+	f = fget_raw(fd);
 
 	/* if (f != filp) means that we lost a race and another task/thread
 	 * actually closed the fd we are still playing with before we grabbed
@@ -402,8 +403,7 @@ static int __init dnotify_init(void)
 					  SLAB_PANIC|SLAB_ACCOUNT);
 	dnotify_mark_cache = KMEM_CACHE(dnotify_mark, SLAB_PANIC|SLAB_ACCOUNT);
 
-	dnotify_group = fsnotify_alloc_group(&dnotify_fsnotify_ops,
-					     FSNOTIFY_GROUP_NOFS);
+	dnotify_group = fsnotify_alloc_group(&dnotify_fsnotify_ops, 0);
 	if (IS_ERR(dnotify_group))
 		panic("unable to allocate fsnotify group for dnotify\n");
 	dnotify_sysctl_init();

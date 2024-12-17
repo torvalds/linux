@@ -627,12 +627,13 @@ int smsc_phy_probe(struct phy_device *phydev)
 	phydev->priv = priv;
 
 	/* Make clk optional to keep DTB backward compatibility. */
-	refclk = devm_clk_get_optional_enabled(dev, NULL);
+	refclk = devm_clk_get_optional_enabled_with_rate(dev, NULL,
+							 50 * 1000 * 1000);
 	if (IS_ERR(refclk))
 		return dev_err_probe(dev, PTR_ERR(refclk),
 				     "Failed to request clock\n");
 
-	return clk_set_rate(refclk, 50 * 1000 * 1000);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(smsc_phy_probe);
 

@@ -158,7 +158,7 @@ int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
 		return -EINVAL;
 	}
 
-	r = amdgpu_ucode_request(adev, &adev->vce.fw, fw_name);
+	r = amdgpu_ucode_request(adev, &adev->vce.fw, "%s", fw_name);
 	if (r) {
 		dev_err(adev->dev, "amdgpu_vce: Can't validate firmware \"%s\"\n",
 			fw_name);
@@ -214,14 +214,14 @@ int amdgpu_vce_sw_fini(struct amdgpu_device *adev)
 
 	drm_sched_entity_destroy(&adev->vce.entity);
 
-	amdgpu_bo_free_kernel(&adev->vce.vcpu_bo, &adev->vce.gpu_addr,
-		(void **)&adev->vce.cpu_addr);
-
 	for (i = 0; i < adev->vce.num_rings; i++)
 		amdgpu_ring_fini(&adev->vce.ring[i]);
 
 	amdgpu_ucode_release(&adev->vce.fw);
 	mutex_destroy(&adev->vce.idle_mutex);
+
+	amdgpu_bo_free_kernel(&adev->vce.vcpu_bo, &adev->vce.gpu_addr,
+		(void **)&adev->vce.cpu_addr);
 
 	return 0;
 }
@@ -749,7 +749,6 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p,
 	int i, r = 0;
 
 	job->vm = NULL;
-	ib->gpu_addr = amdgpu_sa_bo_gpu_addr(ib->sa_bo);
 
 	for (idx = 0; idx < ib->length_dw;) {
 		uint32_t len = amdgpu_ib_get_value(ib, idx);
@@ -1044,7 +1043,6 @@ out:
 	if (!r) {
 		/* No error, free all destroyed handle slots */
 		tmp = destroyed;
-		amdgpu_ib_free(p->adev, ib, NULL);
 	} else {
 		/* Error during parsing, free all allocated handle slots */
 		tmp = allocated;

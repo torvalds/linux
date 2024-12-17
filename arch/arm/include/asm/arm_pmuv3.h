@@ -127,6 +127,12 @@ static inline u32 read_pmuver(void)
 	return (dfr0 >> 24) & 0xf;
 }
 
+static inline bool pmuv3_has_icntr(void)
+{
+	/* FEAT_PMUv3_ICNTR not accessible for 32-bit */
+	return false;
+}
+
 static inline void write_pmcr(u32 val)
 {
 	write_sysreg(val, PMCR);
@@ -150,6 +156,13 @@ static inline void write_pmccntr(u64 val)
 static inline u64 read_pmccntr(void)
 {
 	return read_sysreg(PMCCNTR);
+}
+
+static inline void write_pmicntr(u64 val) {}
+
+static inline u64 read_pmicntr(void)
+{
+	return 0;
 }
 
 static inline void write_pmcntenset(u32 val)
@@ -177,6 +190,13 @@ static inline void write_pmccfiltr(u32 val)
 	write_sysreg(val, PMCCFILTR);
 }
 
+static inline void write_pmicfiltr(u64 val) {}
+
+static inline u64 read_pmicfiltr(void)
+{
+	return 0;
+}
+
 static inline void write_pmovsclr(u32 val)
 {
 	write_sysreg(val, PMOVSR);
@@ -191,6 +211,8 @@ static inline void write_pmuserenr(u32 val)
 {
 	write_sysreg(val, PMUSERENR);
 }
+
+static inline void write_pmuacr(u64 val) {}
 
 static inline void kvm_set_pmu_events(u32 set, struct perf_event_attr *attr) {}
 static inline void kvm_clr_pmu_events(u32 clr) {}
@@ -211,6 +233,7 @@ static inline void kvm_vcpu_pmu_resync_el0(void) {}
 #define ARMV8_PMU_DFR_VER_V3P1      0x4
 #define ARMV8_PMU_DFR_VER_V3P4      0x5
 #define ARMV8_PMU_DFR_VER_V3P5      0x6
+#define ARMV8_PMU_DFR_VER_V3P9      0x9
 #define ARMV8_PMU_DFR_VER_IMP_DEF   0xF
 
 static inline bool pmuv3_implemented(int pmuver)
@@ -227,6 +250,11 @@ static inline bool is_pmuv3p4(int pmuver)
 static inline bool is_pmuv3p5(int pmuver)
 {
 	return pmuver >= ARMV8_PMU_DFR_VER_V3P5;
+}
+
+static inline bool is_pmuv3p9(int pmuver)
+{
+	return pmuver >= ARMV8_PMU_DFR_VER_V3P9;
 }
 
 static inline u64 read_pmceid0(void)

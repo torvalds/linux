@@ -80,6 +80,7 @@ static const char *const hwcap_str[] = {
 	[KERNEL_HWCAP_SB]		= "sb",
 	[KERNEL_HWCAP_PACA]		= "paca",
 	[KERNEL_HWCAP_PACG]		= "pacg",
+	[KERNEL_HWCAP_GCS]		= "gcs",
 	[KERNEL_HWCAP_DCPODP]		= "dcpodp",
 	[KERNEL_HWCAP_SVE2]		= "sve2",
 	[KERNEL_HWCAP_SVEAES]		= "sveaes",
@@ -143,6 +144,7 @@ static const char *const hwcap_str[] = {
 	[KERNEL_HWCAP_SME_SF8FMA]	= "smesf8fma",
 	[KERNEL_HWCAP_SME_SF8DP4]	= "smesf8dp4",
 	[KERNEL_HWCAP_SME_SF8DP2]	= "smesf8dp2",
+	[KERNEL_HWCAP_POE]		= "poe",
 };
 
 #ifdef CONFIG_COMPAT
@@ -280,7 +282,7 @@ const struct seq_operations cpuinfo_op = {
 };
 
 
-static struct kobj_type cpuregs_kobj_type = {
+static const struct kobj_type cpuregs_kobj_type = {
 	.sysfs_ops = &kobj_sysfs_ops,
 };
 
@@ -476,6 +478,9 @@ static void __cpuinfo_store_cpu(struct cpuinfo_arm64 *info)
 
 	if (id_aa64pfr0_32bit_el0(info->reg_id_aa64pfr0))
 		__cpuinfo_store_cpu_32bit(&info->aarch32);
+
+	if (id_aa64pfr0_mpam(info->reg_id_aa64pfr0))
+		info->reg_mpamidr = read_cpuid(MPAMIDR_EL1);
 
 	cpuinfo_detect_icache_policy(info);
 }

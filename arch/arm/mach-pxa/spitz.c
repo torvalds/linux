@@ -403,7 +403,7 @@ static const struct software_node_ref_args spitz_mkp_col_gpios[] = {
 };
 
 static const struct property_entry spitz_mkp_properties[] = {
-	PROPERTY_ENTRY_ARRAY_U32("linux,keymap", spitz_keymap),
+	PROPERTY_ENTRY_U32_ARRAY("linux,keymap", spitz_keymap),
 	PROPERTY_ENTRY_REF_ARRAY("row-gpios", spitz_mkp_row_gpios),
 	PROPERTY_ENTRY_REF_ARRAY("col-gpios", spitz_mkp_col_gpios),
 	PROPERTY_ENTRY_U32("col-scan-delay-us", 10),

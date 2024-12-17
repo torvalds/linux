@@ -31,6 +31,10 @@ properties:
 allOf:
   - $ref: reboot-mode.yaml#
 
+patternProperties:
+  "^mode-.*$":
+    maxItems: 1
+
 required:
   - compatible
   - nvmem-cells

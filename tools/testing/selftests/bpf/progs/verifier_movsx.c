@@ -287,6 +287,46 @@ l0_%=:							\
 	: __clobber_all);
 }
 
+SEC("socket")
+__description("MOV64SX, S8, unsigned range_check")
+__success __retval(0)
+__naked void mov64sx_s8_range_check(void)
+{
+	asm volatile ("					\
+	call %[bpf_get_prandom_u32];			\
+	r0 &= 0x1;					\
+	r0 += 0xfe;					\
+	r0 = (s8)r0;					\
+	if r0 < 0xfffffffffffffffe goto label_%=;	\
+	r0 = 0;						\
+	exit;						\
+label_%=:						\
+	exit;						\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("socket")
+__description("MOV32SX, S8, unsigned range_check")
+__success __retval(0)
+__naked void mov32sx_s8_range_check(void)
+{
+	asm volatile ("                                 \
+	call %[bpf_get_prandom_u32];                    \
+	w0 &= 0x1;                                      \
+	w0 += 0xfe;                                     \
+	w0 = (s8)w0;                                    \
+	if w0 < 0xfffffffe goto label_%=;               \
+	r0 = 0;                                         \
+	exit;                                           \
+label_%=: 	                                        \
+	exit;                                           \
+	"      :
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
 #else
 
 SEC("socket")

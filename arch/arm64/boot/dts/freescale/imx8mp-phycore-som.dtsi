@@ -20,6 +20,15 @@
 		device_type = "memory";
 		reg = <0x0 0x40000000 0 0x80000000>;
 	};
+
+	reg_vdd_io: regulator-vdd-io {
+		compatible = "regulator-fixed";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-max-microvolt = <3300000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-name = "VDD_IO";
+	};
 };
 
 &A53_0 {
@@ -170,6 +179,7 @@
 		compatible = "atmel,24c32";
 		reg = <0x51>;
 		pagesize = <32>;
+		vcc-supply = <&reg_vdd_io>;
 	};
 
 	rv3028: rtc@52 {
@@ -199,9 +209,7 @@
 };
 
 &gpio1 {
-	gpio-line-names = "", "", "X_PMIC_WDOG_B", "",
-		"", "", "", "", "", "",
-		"", "", "", "", "", "X_nETHPHY_INT";
+	gpio-line-names = "", "", "X_PMIC_WDOG_B";
 };
 
 &gpio4 {

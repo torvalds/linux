@@ -67,6 +67,13 @@ struct dpu_vsync_source_cfg {
 	enum dpu_vsync_source vsync_source;
 };
 
+enum dpu_dp_phy_sel {
+	DPU_DP_PHY_NONE,
+	DPU_DP_PHY_0,
+	DPU_DP_PHY_1,
+	DPU_DP_PHY_2,
+};
+
 /**
  * struct dpu_hw_mdp_ops - interface to the MDP TOP Hw driver functions
  * Assumption is these functions will be called after clocks are enabled.
@@ -126,6 +133,13 @@ struct dpu_hw_mdp_ops {
 			struct dpu_danger_safe_status *status);
 
 	/**
+	 * dp_phy_intf_sel - configure intf to phy mapping
+	 * @mdp: mdp top context driver
+	 * @phys: list of phys the DP interfaces should be connected to. 0 disables the INTF.
+	 */
+	void (*dp_phy_intf_sel)(struct dpu_hw_mdp *mdp, enum dpu_dp_phy_sel phys[2]);
+
+	/**
 	 * intf_audio_select - select the external interface for audio
 	 * @mdp: mdp top context driver
 	 */
@@ -143,18 +157,9 @@ struct dpu_hw_mdp {
 	struct dpu_hw_mdp_ops ops;
 };
 
-/**
- * dpu_hw_mdptop_init - initializes the top driver for the passed config
- * @dev:  Corresponding device for devres management
- * @cfg:  MDP TOP configuration from catalog
- * @addr: Mapped register io address of MDP
- * @m:    Pointer to mdss catalog data
- */
 struct dpu_hw_mdp *dpu_hw_mdptop_init(struct drm_device *dev,
 				      const struct dpu_mdp_cfg *cfg,
 				      void __iomem *addr,
-				      const struct dpu_mdss_cfg *m);
-
-void dpu_hw_mdp_destroy(struct dpu_hw_mdp *mdp);
+				      const struct dpu_mdss_version *mdss_rev);
 
 #endif /*_DPU_HW_TOP_H */

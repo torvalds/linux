@@ -157,7 +157,7 @@ static int renoir_audio_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (chip->acp_rev != ACP3X_DEV) {
+	if (chip->acp_rev != ACP_RN_PCI_ID) {
 		dev_err(&pdev->dev, "Un-supported ACP Revision %d\n", chip->acp_rev);
 		return -ENODEV;
 	}
@@ -185,7 +185,7 @@ static int renoir_audio_probe(struct platform_device *pdev)
 	adata->dai_driver = acp_renoir_dai;
 	adata->num_dai = ARRAY_SIZE(acp_renoir_dai);
 	adata->rsrc = &rsrc;
-	adata->platform = RENOIR;
+	adata->acp_rev = chip->acp_rev;
 	adata->flag = chip->flag;
 
 	adata->machines = snd_soc_acpi_amd_acp_machines;
@@ -244,7 +244,7 @@ static const struct dev_pm_ops rn_dma_pm_ops = {
 
 static struct platform_driver renoir_driver = {
 	.probe = renoir_audio_probe,
-	.remove_new = renoir_audio_remove,
+	.remove = renoir_audio_remove,
 	.driver = {
 		.name = "acp_asoc_renoir",
 		.pm = &rn_dma_pm_ops,
@@ -254,6 +254,6 @@ static struct platform_driver renoir_driver = {
 module_platform_driver(renoir_driver);
 
 MODULE_DESCRIPTION("AMD ACP Renoir Driver");
-MODULE_IMPORT_NS(SND_SOC_ACP_COMMON);
+MODULE_IMPORT_NS("SND_SOC_ACP_COMMON");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_ALIAS("platform:" DRV_NAME);

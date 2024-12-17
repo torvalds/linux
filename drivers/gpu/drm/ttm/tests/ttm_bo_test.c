@@ -271,7 +271,7 @@ static void ttm_bo_unreserve_basic(struct kunit *test)
 
 	man = ttm_manager_type(priv->ttm_dev, mem_type);
 	KUNIT_ASSERT_EQ(test,
-			list_is_last(&res1->lru, &man->lru[bo->priority]), 1);
+			list_is_last(&res1->lru.link, &man->lru[bo->priority]), 1);
 
 	ttm_resource_free(bo, &res2);
 	ttm_resource_free(bo, &res1);
@@ -308,11 +308,11 @@ static void ttm_bo_unreserve_pinned(struct kunit *test)
 	err = ttm_resource_alloc(bo, place, &res2);
 	KUNIT_ASSERT_EQ(test, err, 0);
 	KUNIT_ASSERT_EQ(test,
-			list_is_last(&res2->lru, &priv->ttm_dev->pinned), 1);
+			list_is_last(&res2->lru.link, &priv->ttm_dev->unevictable), 1);
 
 	ttm_bo_unreserve(bo);
 	KUNIT_ASSERT_EQ(test,
-			list_is_last(&res1->lru, &priv->ttm_dev->pinned), 1);
+			list_is_last(&res1->lru.link, &priv->ttm_dev->unevictable), 1);
 
 	ttm_resource_free(bo, &res1);
 	ttm_resource_free(bo, &res2);

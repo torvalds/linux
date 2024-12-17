@@ -347,7 +347,9 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
 
   `int pm_runtime_resume_and_get(struct device *dev);`
     - run pm_runtime_resume(dev) and if successful, increment the device's
-      usage counter; return the result of pm_runtime_resume
+      usage counter; returns 0 on success (whether or not the device's
+      runtime PM status was already 'active') or the error code from
+      pm_runtime_resume() on failure.
 
   `int pm_request_idle(struct device *dev);`
     - submit a request to execute the subsystem-level idle callback for the
@@ -811,8 +813,8 @@ subsystem-level dev_pm_ops structure.
 
 Device drivers that wish to use the same function as a system suspend, freeze,
 poweroff and runtime suspend callback, and similarly for system resume, thaw,
-restore, and runtime resume, can achieve this with the help of the
-UNIVERSAL_DEV_PM_OPS macro defined in include/linux/pm.h (possibly setting its
+restore, and runtime resume, can achieve similar behaviour with the help of the
+DEFINE_RUNTIME_DEV_PM_OPS() defined in include/linux/pm_runtime.h (possibly setting its
 last argument to NULL).
 
 8. "No-Callback" Devices

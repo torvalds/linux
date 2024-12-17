@@ -7,10 +7,8 @@ config IPW2100
 	tristate "Intel PRO/Wireless 2100 Network Connection"
 	depends on PCI && CFG80211
 	select WIRELESS_EXT
-	select WEXT_SPY
 	select WEXT_PRIV
 	select FW_LOADER
-	select LIB80211
 	select LIBIPW
 	help
 	  A driver for the Intel PRO/Wireless 2100 Network
@@ -67,12 +65,9 @@ config IPW2100_DEBUG
 config IPW2200
 	tristate "Intel PRO/Wireless 2200BG and 2915ABG Network Connection"
 	depends on PCI && CFG80211
-	select CFG80211_WEXT_EXPORT
 	select WIRELESS_EXT
-	select WEXT_SPY
 	select WEXT_PRIV
 	select FW_LOADER
-	select LIB80211
 	select LIBIPW
 	help
 	  A driver for the Intel PRO/Wireless 2200BG and 2915ABG Network
@@ -158,14 +153,10 @@ config LIBIPW
 	tristate
 	depends on PCI && CFG80211
 	select WIRELESS_EXT
-	select WEXT_SPY
 	select CRYPTO
 	select CRYPTO_MICHAEL_MIC
+	select CRYPTO_LIB_ARC4
 	select CRC32
-	select LIB80211
-	select LIB80211_CRYPT_WEP
-	select LIB80211_CRYPT_TKIP
-	select LIB80211_CRYPT_CCMP
 	help
 	This option enables the hardware independent IEEE 802.11
 	networking stack.  This component is deprecated in favor of the

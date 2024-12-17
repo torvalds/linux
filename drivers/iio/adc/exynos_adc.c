@@ -519,7 +519,7 @@ static const struct of_device_id exynos_adc_match[] = {
 		.compatible = "samsung,exynos7-adc",
 		.data = &exynos7_adc_data,
 	},
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, exynos_adc_match);
 
@@ -1008,7 +1008,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(exynos_adc_pm_ops, exynos_adc_suspend,
 
 static struct platform_driver exynos_adc_driver = {
 	.probe		= exynos_adc_probe,
-	.remove_new	= exynos_adc_remove,
+	.remove		= exynos_adc_remove,
 	.driver		= {
 		.name	= "exynos-adc",
 		.of_match_table = exynos_adc_match,

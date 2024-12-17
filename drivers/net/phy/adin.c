@@ -801,10 +801,8 @@ static void adin_get_strings(struct phy_device *phydev, u8 *data)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(adin_hw_stats); i++) {
-		strscpy(&data[i * ETH_GSTRING_LEN],
-			adin_hw_stats[i].string, ETH_GSTRING_LEN);
-	}
+	for (i = 0; i < ARRAY_SIZE(adin_hw_stats); i++)
+		ethtool_puts(&data, adin_hw_stats[i].string);
 }
 
 static int adin_read_mmd_stat_regs(struct phy_device *phydev,

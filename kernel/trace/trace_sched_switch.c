@@ -187,7 +187,7 @@ static inline char *get_saved_cmdlines(int idx)
 
 static inline void set_cmdline(int idx, const char *cmdline)
 {
-	strncpy(get_saved_cmdlines(idx), cmdline, TASK_COMM_LEN);
+	strscpy(get_saved_cmdlines(idx), cmdline, TASK_COMM_LEN);
 }
 
 static void free_saved_cmdlines_buffer(struct saved_cmdlines_buffer *s)

@@ -79,7 +79,10 @@ int main(int argc, char **argv)
 		goto err_close;
 
 	printf("Select ifc ($ifindex; or 0 = dump; or -2 ntf check): ");
-	scanf("%d", &ifindex);
+	if (scanf("%d", &ifindex) != 1) {
+		fprintf(stderr, "Error: unable to parse input\n");
+		goto err_destroy;
+	}
 
 	if (ifindex > 0) {
 		struct netdev_dev_get_req *req;
@@ -119,6 +122,7 @@ int main(int argc, char **argv)
 
 err_close:
 	fprintf(stderr, "YNL: %s\n", ys->err.msg);
+err_destroy:
 	ynl_sock_destroy(ys);
 	return 2;
 }

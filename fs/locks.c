@@ -1451,7 +1451,7 @@ int lease_modify(struct file_lease *fl, int arg, struct list_head *dispose)
 		struct file *filp = fl->c.flc_file;
 
 		f_delown(filp);
-		filp->f_owner.signum = 0;
+		file_f_owner(filp)->signum = 0;
 		fasync_helper(0, fl->c.flc_file, 0, &fl->fl_fasync);
 		if (fl->fl_fasync != NULL) {
 			printk(KERN_ERR "locks_delete_lock: fasync == %p\n", fl->fl_fasync);
@@ -1782,6 +1782,10 @@ generic_add_lease(struct file *filp, int arg, struct file_lease **flp, void **pr
 
 	lease = *flp;
 	trace_generic_add_lease(inode, lease);
+
+	error = file_f_owner_allocate(filp);
+	if (error)
+		return error;
 
 	/* Note that arg is never F_UNLCK here */
 	ctx = locks_get_lock_context(inode, arg);
@@ -2132,7 +2136,6 @@ SYSCALL_DEFINE2(flock, unsigned int, fd, unsigned int, cmd)
 {
 	int can_sleep, error, type;
 	struct file_lock fl;
-	struct fd f;
 
 	/*
 	 * LOCK_MAND locks were broken for a long time in that they never
@@ -2151,35 +2154,31 @@ SYSCALL_DEFINE2(flock, unsigned int, fd, unsigned int, cmd)
 	if (type < 0)
 		return type;
 
-	error = -EBADF;
-	f = fdget(fd);
-	if (!f.file)
-		return error;
+	CLASS(fd, f)(fd);
+	if (fd_empty(f))
+		return -EBADF;
 
-	if (type != F_UNLCK && !(f.file->f_mode & (FMODE_READ | FMODE_WRITE)))
-		goto out_putf;
+	if (type != F_UNLCK && !(fd_file(f)->f_mode & (FMODE_READ | FMODE_WRITE)))
+		return -EBADF;
 
-	flock_make_lock(f.file, &fl, type);
+	flock_make_lock(fd_file(f), &fl, type);
 
-	error = security_file_lock(f.file, fl.c.flc_type);
+	error = security_file_lock(fd_file(f), fl.c.flc_type);
 	if (error)
-		goto out_putf;
+		return error;
 
 	can_sleep = !(cmd & LOCK_NB);
 	if (can_sleep)
 		fl.c.flc_flags |= FL_SLEEP;
 
-	if (f.file->f_op->flock)
-		error = f.file->f_op->flock(f.file,
+	if (fd_file(f)->f_op->flock)
+		error = fd_file(f)->f_op->flock(fd_file(f),
 					    (can_sleep) ? F_SETLKW : F_SETLK,
 					    &fl);
 	else
-		error = locks_lock_file_wait(f.file, &fl);
+		error = locks_lock_file_wait(fd_file(f), &fl);
 
 	locks_release_private(&fl);
- out_putf:
-	fdput(f);
-
 	return error;
 }
 

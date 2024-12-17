@@ -26,10 +26,6 @@
 #include "test_maps.h"
 #include "testing_helpers.h"
 
-#ifndef ENOTSUPP
-#define ENOTSUPP 524
-#endif
-
 int skips;
 
 static struct bpf_map_create_opts map_opts = { .sz = sizeof(map_opts) };
@@ -1515,7 +1511,7 @@ again:
 		       value == key);
 	}
 
-	/* Now let's delete all elemenets in parallel. */
+	/* Now let's delete all elements in parallel. */
 	data[1] = DO_DELETE;
 	run_parallel(TASKS, test_update_delete, data);
 

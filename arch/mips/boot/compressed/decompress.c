@@ -16,7 +16,7 @@
 #include <linux/libfdt.h>
 
 #include <asm/addrspace.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <asm-generic/vmlinux.lds.h>
 
 #include "decompress.h"

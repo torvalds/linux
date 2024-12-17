@@ -152,7 +152,7 @@ struct bpf_object_open_opts {
 	 * log_buf and log_level settings.
 	 *
 	 * If specified, this log buffer will be passed for:
-	 *   - each BPF progral load (BPF_PROG_LOAD) attempt, unless overriden
+	 *   - each BPF progral load (BPF_PROG_LOAD) attempt, unless overridden
 	 *     with bpf_program__set_log() on per-program level, to get
 	 *     BPF verifier log output.
 	 *   - during BPF object's BTF load into kernel (BPF_BTF_LOAD) to get
@@ -293,6 +293,14 @@ LIBBPF_API int bpf_object__unpin(struct bpf_object *object, const char *path);
 LIBBPF_API const char *bpf_object__name(const struct bpf_object *obj);
 LIBBPF_API unsigned int bpf_object__kversion(const struct bpf_object *obj);
 LIBBPF_API int bpf_object__set_kversion(struct bpf_object *obj, __u32 kern_version);
+
+/**
+ * @brief **bpf_object__token_fd** is an accessor for BPF token FD associated
+ * with BPF object.
+ * @param obj Pointer to a valid BPF object
+ * @return BPF token FD or -1, if it wasn't set
+ */
+LIBBPF_API int bpf_object__token_fd(const struct bpf_object *obj);
 
 struct btf;
 LIBBPF_API struct btf *bpf_object__btf(const struct bpf_object *obj);
@@ -455,7 +463,7 @@ LIBBPF_API int bpf_link__destroy(struct bpf_link *link);
 /**
  * @brief **bpf_program__attach()** is a generic function for attaching
  * a BPF program based on auto-detection of program type, attach type,
- * and extra paremeters, where applicable.
+ * and extra parameters, where applicable.
  *
  * @param prog BPF program to attach
  * @return Reference to the newly created BPF link; or NULL is returned on error,
@@ -569,10 +577,12 @@ struct bpf_uprobe_multi_opts {
 	size_t cnt;
 	/* create return uprobes */
 	bool retprobe;
+	/* create session kprobes */
+	bool session;
 	size_t :0;
 };
 
-#define bpf_uprobe_multi_opts__last_field retprobe
+#define bpf_uprobe_multi_opts__last_field session
 
 /**
  * @brief **bpf_program__attach_uprobe_multi()** attaches a BPF program
@@ -679,7 +689,7 @@ struct bpf_uprobe_opts {
 /**
  * @brief **bpf_program__attach_uprobe()** attaches a BPF program
  * to the userspace function which is found by binary path and
- * offset. You can optionally specify a particular proccess to attach
+ * offset. You can optionally specify a particular process to attach
  * to. You can also optionally attach the program to the function
  * exit instead of entry.
  *
@@ -1593,11 +1603,11 @@ LIBBPF_API int perf_buffer__buffer_fd(const struct perf_buffer *pb, size_t buf_i
  * memory region of the ring buffer.
  * This ring buffer can be used to implement a custom events consumer.
  * The ring buffer starts with the *struct perf_event_mmap_page*, which
- * holds the ring buffer managment fields, when accessing the header
+ * holds the ring buffer management fields, when accessing the header
  * structure it's important to be SMP aware.
  * You can refer to *perf_event_read_simple* for a simple example.
  * @param pb the perf buffer structure
- * @param buf_idx the buffer index to retreive
+ * @param buf_idx the buffer index to retrieve
  * @param buf (out) gets the base pointer of the mmap()'ed memory
  * @param buf_size (out) gets the size of the mmap()'ed region
  * @return 0 on success, negative error code for failure

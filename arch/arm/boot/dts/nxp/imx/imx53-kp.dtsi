@@ -98,56 +98,54 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_kp_common>;
 
-	imx53-kp-common {
-		pinctrl_buzzer: buzzergrp {
-			fsl,pins = <
-				MX53_PAD_SD1_DATA3__PWM1_PWMO 0x1e4
-			>;
-		};
+	pinctrl_buzzer: buzzergrp {
+		fsl,pins = <
+			MX53_PAD_SD1_DATA3__PWM1_PWMO 0x1e4
+		>;
+	};
 
-		pinctrl_gpiobuttons: gpiobuttonsgrp {
-			fsl,pins = <
-				MX53_PAD_EIM_RW__GPIO2_26 0x1e4
-				MX53_PAD_EIM_D22__GPIO3_22 0x1e4
-			>;
-		};
+	pinctrl_gpiobuttons: gpiobuttonsgrp {
+		fsl,pins = <
+			MX53_PAD_EIM_RW__GPIO2_26 0x1e4
+			MX53_PAD_EIM_D22__GPIO3_22 0x1e4
+		>;
+	};
 
-		pinctrl_kp_common: kpcommongrp {
-			fsl,pins = <
-				MX53_PAD_EIM_CS0__GPIO2_23 0x1e4
-				MX53_PAD_GPIO_19__GPIO4_5  0x1e4
-				MX53_PAD_PATA_DATA6__GPIO2_6 0x1e4
-				MX53_PAD_PATA_DATA7__GPIO2_7 0xe0
-				MX53_PAD_CSI0_DAT14__GPIO6_0 0x1e4
-				MX53_PAD_CSI0_DAT16__GPIO6_2 0x1e4
-				MX53_PAD_CSI0_DAT18__GPIO6_4 0x1e4
-				MX53_PAD_EIM_D17__GPIO3_17 0x1e4
-				MX53_PAD_EIM_D18__GPIO3_18 0x1e4
-				MX53_PAD_EIM_D21__GPIO3_21 0x1e4
-				MX53_PAD_EIM_D29__GPIO3_29 0x1e4
-				MX53_PAD_EIM_DA11__GPIO3_11 0x1e4
-				MX53_PAD_EIM_DA13__GPIO3_13 0x1e4
-				MX53_PAD_EIM_DA14__GPIO3_14 0x1e4
-				MX53_PAD_SD1_DATA0__GPIO1_16 0x1e4
-				MX53_PAD_SD1_CMD__GPIO1_18 0x1e4
-				MX53_PAD_SD1_CLK__GPIO1_20 0x1e4
-			>;
-		};
+	pinctrl_kp_common: kpcommongrp {
+		fsl,pins = <
+			MX53_PAD_EIM_CS0__GPIO2_23 0x1e4
+			MX53_PAD_GPIO_19__GPIO4_5  0x1e4
+			MX53_PAD_PATA_DATA6__GPIO2_6 0x1e4
+			MX53_PAD_PATA_DATA7__GPIO2_7 0xe0
+			MX53_PAD_CSI0_DAT14__GPIO6_0 0x1e4
+			MX53_PAD_CSI0_DAT16__GPIO6_2 0x1e4
+			MX53_PAD_CSI0_DAT18__GPIO6_4 0x1e4
+			MX53_PAD_EIM_D17__GPIO3_17 0x1e4
+			MX53_PAD_EIM_D18__GPIO3_18 0x1e4
+			MX53_PAD_EIM_D21__GPIO3_21 0x1e4
+			MX53_PAD_EIM_D29__GPIO3_29 0x1e4
+			MX53_PAD_EIM_DA11__GPIO3_11 0x1e4
+			MX53_PAD_EIM_DA13__GPIO3_13 0x1e4
+			MX53_PAD_EIM_DA14__GPIO3_14 0x1e4
+			MX53_PAD_SD1_DATA0__GPIO1_16 0x1e4
+			MX53_PAD_SD1_CMD__GPIO1_18 0x1e4
+			MX53_PAD_SD1_CLK__GPIO1_20 0x1e4
+		>;
+	};
 
-		pinctrl_leds: ledgrp {
-			fsl,pins = <
-				MX53_PAD_EIM_EB2__GPIO2_30 0x1d4
-				MX53_PAD_EIM_D28__GPIO3_28 0x1d4
-				MX53_PAD_EIM_WAIT__GPIO5_0 0x1d4
-			>;
-		};
+	pinctrl_leds: ledgrp {
+		fsl,pins = <
+			MX53_PAD_EIM_EB2__GPIO2_30 0x1d4
+			MX53_PAD_EIM_D28__GPIO3_28 0x1d4
+			MX53_PAD_EIM_WAIT__GPIO5_0 0x1d4
+		>;
+	};
 
-		pinctrl_uart4: uart4grp {
-			fsl,pins = <
-				MX53_PAD_CSI0_DAT12__UART4_TXD_MUX 0x1e4
-				MX53_PAD_CSI0_DAT13__UART4_RXD_MUX 0x1e4
-			>;
-		};
+	pinctrl_uart4: uart4grp {
+		fsl,pins = <
+			MX53_PAD_CSI0_DAT12__UART4_TXD_MUX 0x1e4
+			MX53_PAD_CSI0_DAT13__UART4_RXD_MUX 0x1e4
+		>;
 	};
 };
 

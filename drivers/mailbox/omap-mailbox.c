@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/kfifo.h>
 #include <linux/err.h>
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -603,7 +604,7 @@ static struct platform_driver omap_mbox_driver = {
 	.driver	= {
 		.name = "omap-mailbox",
 		.pm = &omap_mbox_pm_ops,
-		.of_match_table = of_match_ptr(omap_mailbox_of_match),
+		.of_match_table = omap_mailbox_of_match,
 	},
 };
 module_platform_driver(omap_mbox_driver);

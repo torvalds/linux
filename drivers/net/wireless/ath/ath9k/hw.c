@@ -21,7 +21,7 @@
 #include <linux/bitops.h>
 #include <linux/etherdevice.h>
 #include <linux/gpio.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "hw.h"
 #include "hw-ops.h"
@@ -490,7 +490,7 @@ static void ath9k_hw_init_macaddr(struct ath_hw *ah)
 	u16 eeval;
 	static const u32 EEP_MAC[] = { EEP_MAC_LSW, EEP_MAC_MID, EEP_MAC_MSW };
 
-	/* MAC address may already be loaded via ath9k_platform_data */
+	/* MAC address may already be loaded via NVMEM */
 	if (is_valid_ether_addr(common->macaddr))
 		return;
 
@@ -2732,7 +2732,7 @@ static void ath9k_hw_gpio_cfg_soc(struct ath_hw *ah, u32 gpio, bool out,
 	if (ah->caps.gpio_requested & BIT(gpio))
 		return;
 
-	err = gpio_request_one(gpio, out ? GPIOF_OUT_INIT_LOW : GPIOF_IN, label);
+	err = devm_gpio_request_one(ah->dev, gpio, out ? GPIOF_OUT_INIT_LOW : GPIOF_IN, label);
 	if (err) {
 		ath_err(ath9k_hw_common(ah), "request GPIO%d failed:%d\n",
 			gpio, err);
@@ -2801,10 +2801,8 @@ void ath9k_hw_gpio_free(struct ath_hw *ah, u32 gpio)
 
 	WARN_ON(gpio >= ah->caps.num_gpio_pins);
 
-	if (ah->caps.gpio_requested & BIT(gpio)) {
-		gpio_free(gpio);
+	if (ah->caps.gpio_requested & BIT(gpio))
 		ah->caps.gpio_requested &= ~BIT(gpio);
-	}
 }
 EXPORT_SYMBOL(ath9k_hw_gpio_free);
 

@@ -10,7 +10,6 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
-#include "leds.h"
 
 #define OMNIA_BOARD_LEDS	12
 #define OMNIA_LED_NUM_CHANNELS	3
@@ -452,7 +451,7 @@ static int omnia_mcu_get_features(const struct i2c_client *client)
 static int omnia_leds_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
-	struct device_node *np = dev_of_node(dev), *child;
+	struct device_node *np = dev_of_node(dev);
 	struct omnia_leds *leds;
 	struct omnia_led *led;
 	int ret, count;
@@ -497,12 +496,10 @@ static int omnia_leds_probe(struct i2c_client *client)
 	}
 
 	led = &leds->leds[0];
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_node_scoped(np, child) {
 		ret = omnia_led_register(client, led, child);
-		if (ret < 0) {
-			of_node_put(child);
+		if (ret < 0)
 			return ret;
-		}
 
 		led += ret;
 	}
@@ -532,6 +529,7 @@ static const struct of_device_id of_omnia_leds_match[] = {
 	{ .compatible = "cznic,turris-omnia-leds", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, of_omnia_leds_match);
 
 static const struct i2c_device_id omnia_id[] = {
 	{ "omnia" },

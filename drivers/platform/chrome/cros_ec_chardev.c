@@ -415,7 +415,7 @@ static struct platform_driver cros_ec_chardev_driver = {
 		.name = DRV_NAME,
 	},
 	.probe = cros_ec_chardev_probe,
-	.remove_new = cros_ec_chardev_remove,
+	.remove = cros_ec_chardev_remove,
 	.id_table = cros_ec_chardev_id,
 };
 

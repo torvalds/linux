@@ -9,6 +9,7 @@
  *  Modified: 2004, Oct     Szabolcs Gyurko
  */
 
+#include <linux/cleanup.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/init.h>
@@ -151,7 +152,7 @@ static void power_supply_deferred_register_work(struct work_struct *work)
 						deferred_register_work.work);
 
 	if (psy->dev.parent) {
-		while (!mutex_trylock(&psy->dev.parent->mutex)) {
+		while (!device_trylock(psy->dev.parent)) {
 			if (psy->removing)
 				return;
 			msleep(10);
@@ -161,7 +162,7 @@ static void power_supply_deferred_register_work(struct work_struct *work)
 	power_supply_changed(psy);
 
 	if (psy->dev.parent)
-		mutex_unlock(&psy->dev.parent->mutex);
+		device_unlock(psy->dev.parent);
 }
 
 #ifdef CONFIG_OF
@@ -483,8 +484,6 @@ EXPORT_SYMBOL_GPL(power_supply_get_by_name);
  */
 void power_supply_put(struct power_supply *psy)
 {
-	might_sleep();
-
 	atomic_dec(&psy->use_cnt);
 	put_device(&psy->dev);
 }
@@ -756,10 +755,10 @@ int power_supply_get_battery_info(struct power_supply *psy,
 
 	for (index = 0; index < len; index++) {
 		struct power_supply_battery_ocv_table *table;
-		char *propname;
 		int i, tab_len, size;
 
-		propname = kasprintf(GFP_KERNEL, "ocv-capacity-table-%d", index);
+		char *propname __free(kfree) = kasprintf(GFP_KERNEL, "ocv-capacity-table-%d",
+							 index);
 		if (!propname) {
 			power_supply_put_battery_info(psy, info);
 			err = -ENOMEM;
@@ -768,17 +767,15 @@ int power_supply_get_battery_info(struct power_supply *psy,
 		list = of_get_property(battery_np, propname, &size);
 		if (!list || !size) {
 			dev_err(&psy->dev, "failed to get %s\n", propname);
-			kfree(propname);
 			power_supply_put_battery_info(psy, info);
 			err = -EINVAL;
 			goto out_put_node;
 		}
 
-		kfree(propname);
 		tab_len = size / (2 * sizeof(__be32));
 		info->ocv_table_size[index] = tab_len;
 
-		table = info->ocv_table[index] =
+		info->ocv_table[index] = table =
 			devm_kcalloc(&psy->dev, tab_len, sizeof(*table), GFP_KERNEL);
 		if (!info->ocv_table[index]) {
 			power_supply_put_battery_info(psy, info);
@@ -799,7 +796,7 @@ int power_supply_get_battery_info(struct power_supply *psy,
 		goto out_ret_pointer;
 
 	info->resist_table_size = len / (2 * sizeof(__be32));
-	resist_table = info->resist_table = devm_kcalloc(&psy->dev,
+	info->resist_table = resist_table = devm_kcalloc(&psy->dev,
 							 info->resist_table_size,
 							 sizeof(*resist_table),
 							 GFP_KERNEL);
@@ -983,7 +980,7 @@ EXPORT_SYMBOL_GPL(power_supply_battery_info_get_prop);
  *
  * Return: the battery internal resistance percent
  */
-int power_supply_temp2resist_simple(struct power_supply_resistance_temp_table *table,
+int power_supply_temp2resist_simple(const struct power_supply_resistance_temp_table *table,
 				    int table_len, int temp)
 {
 	int i, high, low;
@@ -1094,7 +1091,7 @@ EXPORT_SYMBOL_GPL(power_supply_get_maintenance_charging_setting);
  *
  * Return: the battery capacity.
  */
-int power_supply_ocv2cap_simple(struct power_supply_battery_ocv_table *table,
+int power_supply_ocv2cap_simple(const struct power_supply_battery_ocv_table *table,
 				int table_len, int ocv)
 {
 	int i, high, low;
@@ -1119,7 +1116,7 @@ int power_supply_ocv2cap_simple(struct power_supply_battery_ocv_table *table,
 }
 EXPORT_SYMBOL_GPL(power_supply_ocv2cap_simple);
 
-struct power_supply_battery_ocv_table *
+const struct power_supply_battery_ocv_table *
 power_supply_find_ocv2cap_table(struct power_supply_battery_info *info,
 				int temp, int *table_len)
 {
@@ -1150,7 +1147,7 @@ EXPORT_SYMBOL_GPL(power_supply_find_ocv2cap_table);
 int power_supply_batinfo_ocv2cap(struct power_supply_battery_info *info,
 				 int ocv, int temp)
 {
-	struct power_supply_battery_ocv_table *table;
+	const struct power_supply_battery_ocv_table *table;
 	int table_len;
 
 	table = power_supply_find_ocv2cap_table(info, temp, &table_len);
@@ -1232,13 +1229,8 @@ EXPORT_SYMBOL_GPL(power_supply_set_property);
 int power_supply_property_is_writeable(struct power_supply *psy,
 					enum power_supply_property psp)
 {
-	if (atomic_read(&psy->use_cnt) <= 0 ||
-			!psy->desc->property_is_writeable)
-		return -ENODEV;
-
-	return psy->desc->property_is_writeable(psy, psp);
+	return psy->desc->property_is_writeable && psy->desc->property_is_writeable(psy, psp);
 }
-EXPORT_SYMBOL_GPL(power_supply_property_is_writeable);
 
 void power_supply_external_power_changed(struct power_supply *psy)
 {
@@ -1296,7 +1288,7 @@ static int power_supply_read_temp(struct thermal_zone_device *tzd,
 	return ret;
 }
 
-static struct thermal_zone_device_ops psy_tzd_ops = {
+static const struct thermal_zone_device_ops psy_tzd_ops = {
 	.get_temp = power_supply_read_temp,
 };
 
@@ -1347,8 +1339,7 @@ static void psy_unregister_thermal(struct power_supply *psy)
 static struct power_supply *__must_check
 __power_supply_register(struct device *parent,
 				   const struct power_supply_desc *desc,
-				   const struct power_supply_config *cfg,
-				   bool ws)
+				   const struct power_supply_config *cfg)
 {
 	struct device *dev;
 	struct power_supply *psy;
@@ -1360,10 +1351,6 @@ __power_supply_register(struct device *parent,
 	if (!parent)
 		pr_warn("%s: Expected proper parent device for '%s'\n",
 			__func__, desc->name);
-
-	if (psy_has_property(desc, POWER_SUPPLY_PROP_USB_TYPE) &&
-	    (!desc->usb_types || !desc->num_usb_types))
-		return ERR_PTR(-EINVAL);
 
 	psy = kzalloc(sizeof(*psy), GFP_KERNEL);
 	if (!psy)
@@ -1419,7 +1406,7 @@ __power_supply_register(struct device *parent,
 	if (rc)
 		goto device_add_failed;
 
-	rc = device_init_wakeup(dev, ws);
+	rc = device_init_wakeup(dev, cfg ? !cfg->no_wakeup_source : true);
 	if (rc)
 		goto wakeup_init_failed;
 
@@ -1485,32 +1472,9 @@ struct power_supply *__must_check power_supply_register(struct device *parent,
 		const struct power_supply_desc *desc,
 		const struct power_supply_config *cfg)
 {
-	return __power_supply_register(parent, desc, cfg, true);
+	return __power_supply_register(parent, desc, cfg);
 }
 EXPORT_SYMBOL_GPL(power_supply_register);
-
-/**
- * power_supply_register_no_ws() - Register new non-waking-source power supply
- * @parent:	Device to be a parent of power supply's device, usually
- *		the device which probe function calls this
- * @desc:	Description of power supply, must be valid through whole
- *		lifetime of this power supply
- * @cfg:	Run-time specific configuration accessed during registering,
- *		may be NULL
- *
- * Return: A pointer to newly allocated power_supply on success
- * or ERR_PTR otherwise.
- * Use power_supply_unregister() on returned power_supply pointer to release
- * resources.
- */
-struct power_supply *__must_check
-power_supply_register_no_ws(struct device *parent,
-		const struct power_supply_desc *desc,
-		const struct power_supply_config *cfg)
-{
-	return __power_supply_register(parent, desc, cfg, false);
-}
-EXPORT_SYMBOL_GPL(power_supply_register_no_ws);
 
 static void devm_power_supply_release(struct device *dev, void *res)
 {
@@ -1544,7 +1508,7 @@ devm_power_supply_register(struct device *parent,
 
 	if (!ptr)
 		return ERR_PTR(-ENOMEM);
-	psy = __power_supply_register(parent, desc, cfg, true);
+	psy = __power_supply_register(parent, desc, cfg);
 	if (IS_ERR(psy)) {
 		devres_free(ptr);
 	} else {
@@ -1554,42 +1518,6 @@ devm_power_supply_register(struct device *parent,
 	return psy;
 }
 EXPORT_SYMBOL_GPL(devm_power_supply_register);
-
-/**
- * devm_power_supply_register_no_ws() - Register managed non-waking-source power supply
- * @parent:	Device to be a parent of power supply's device, usually
- *		the device which probe function calls this
- * @desc:	Description of power supply, must be valid through whole
- *		lifetime of this power supply
- * @cfg:	Run-time specific configuration accessed during registering,
- *		may be NULL
- *
- * Return: A pointer to newly allocated power_supply on success
- * or ERR_PTR otherwise.
- * The returned power_supply pointer will be automatically unregistered
- * on driver detach.
- */
-struct power_supply *__must_check
-devm_power_supply_register_no_ws(struct device *parent,
-		const struct power_supply_desc *desc,
-		const struct power_supply_config *cfg)
-{
-	struct power_supply **ptr, *psy;
-
-	ptr = devres_alloc(devm_power_supply_release, sizeof(*ptr), GFP_KERNEL);
-
-	if (!ptr)
-		return ERR_PTR(-ENOMEM);
-	psy = __power_supply_register(parent, desc, cfg, false);
-	if (IS_ERR(psy)) {
-		devres_free(ptr);
-	} else {
-		*ptr = psy;
-		devres_add(parent, ptr);
-	}
-	return psy;
-}
-EXPORT_SYMBOL_GPL(devm_power_supply_register_no_ws);
 
 /**
  * power_supply_unregister() - Remove this power supply from system

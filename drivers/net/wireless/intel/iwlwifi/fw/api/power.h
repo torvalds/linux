@@ -285,18 +285,12 @@ enum iwl_dev_tx_power_cmd_mode {
  * @set_mode: see &enum iwl_dev_tx_power_cmd_mode
  * @mac_context_id: id of the mac ctx for which we are reducing TX power.
  * @pwr_restriction: TX power restriction in 1/8 dBms.
- * @dev_24: device TX power restriction in 1/8 dBms
- * @dev_52_low: device TX power restriction upper band - low
- * @dev_52_high: device TX power restriction upper band - high
  */
 struct iwl_dev_tx_power_common {
 	__le32 set_mode;
 	__le32 mac_context_id;
 	__le16 pwr_restriction;
-	__le16 dev_24;
-	__le16 dev_52_low;
-	__le16 dev_52_high;
-};
+} __packed;
 
 /**
  * struct iwl_dev_tx_power_cmd_v3 - TX power reduction command version 3
@@ -412,8 +406,20 @@ struct iwl_dev_tx_power_cmd_v8 {
 	__le32 tpc_vlp_backoff_level;
 } __packed; /* TX_REDUCED_POWER_API_S_VER_8 */
 
+/*
+ * @dev_24: device TX power restriction in 1/8 dBms
+ * @dev_52_low: device TX power restriction upper band - low
+ * @dev_52_high: device TX power restriction upper band - high
+ */
+struct iwl_dev_tx_power_cmd_per_band {
+	__le16 dev_24;
+	__le16 dev_52_low;
+	__le16 dev_52_high;
+} __packed;
+
 /**
- * struct iwl_dev_tx_power_cmd - TX power reduction command (multiversion)
+ * struct iwl_dev_tx_power_cmd_v3_v8 - TX power reduction command (multiversion)
+ * @per_band: per band restrictions
  * @common: common part of the command
  * @v3: version 3 part of the command
  * @v4: version 4 part of the command
@@ -422,8 +428,9 @@ struct iwl_dev_tx_power_cmd_v8 {
  * @v7: version 7 part of the command
  * @v8: version 8 part of the command
  */
-struct iwl_dev_tx_power_cmd {
+struct iwl_dev_tx_power_cmd_v3_v8 {
 	struct iwl_dev_tx_power_common common;
+	struct iwl_dev_tx_power_cmd_per_band per_band;
 	union {
 		struct iwl_dev_tx_power_cmd_v3 v3;
 		struct iwl_dev_tx_power_cmd_v4 v4;
@@ -433,6 +440,60 @@ struct iwl_dev_tx_power_cmd {
 		struct iwl_dev_tx_power_cmd_v8 v8;
 	};
 };
+
+/**
+ * struct iwl_dev_tx_power_cmd_v9 - TX power reduction cmd
+ * @reserved: reserved (padding)
+ * @per_chain: per chain restrictions
+ * @per_chain_restriction_changed: is per_chain_restriction has changed
+ *	from last command. used if set_mode is
+ *	IWL_TX_POWER_MODE_SET_SAR_TIMER.
+ *	note: if not changed, the command is used for keep alive only.
+ * @reserved1: reserved (padding)
+ * @timer_period: timer in milliseconds. if expires FW will change to default
+ *	BIOS values. relevant if setMode is IWL_TX_POWER_MODE_SET_SAR_TIMER
+ */
+struct iwl_dev_tx_power_cmd_v9 {
+	__le16 reserved;
+	__le16 per_chain[IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS_V1];
+	u8 per_chain_restriction_changed;
+	u8 reserved1[3];
+	__le32 timer_period;
+} __packed; /* TX_REDUCED_POWER_API_S_VER_9 */
+
+/**
+ * struct iwl_dev_tx_power_cmd_v10 - TX power reduction cmd
+ * @per_chain: per chain restrictions
+ * @per_chain_restriction_changed: is per_chain_restriction has changed
+ *	from last command. used if set_mode is
+ *	IWL_TX_POWER_MODE_SET_SAR_TIMER.
+ *	note: if not changed, the command is used for keep alive only.
+ * @reserved: reserved (padding)
+ * @timer_period: timer in milliseconds. if expires FW will change to default
+ *	BIOS values. relevant if setMode is IWL_TX_POWER_MODE_SET_SAR_TIMER
+ * @flags: reduce power flags.
+ */
+struct iwl_dev_tx_power_cmd_v10 {
+	__le16 per_chain[IWL_NUM_CHAIN_TABLES_V2][IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS_V2];
+	u8 per_chain_restriction_changed;
+	u8 reserved;
+	__le32 timer_period;
+	__le32 flags;
+} __packed; /* TX_REDUCED_POWER_API_S_VER_10 */
+
+/*
+ * struct iwl_dev_tx_power_cmd - TX power reduction command (multiversion)
+ * @common: common part of the command
+ * @v9: version 9 part of the command
+ * @v10: version 10 part of the command
+ */
+struct iwl_dev_tx_power_cmd {
+	struct iwl_dev_tx_power_common common;
+	union {
+		struct iwl_dev_tx_power_cmd_v9 v9;
+		struct iwl_dev_tx_power_cmd_v10 v10;
+	};
+} __packed; /* TX_REDUCED_POWER_API_S_VER_9_VER10 */
 
 #define IWL_NUM_GEO_PROFILES		3
 #define IWL_NUM_GEO_PROFILES_V3		8

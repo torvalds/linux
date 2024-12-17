@@ -36,8 +36,9 @@
 #define XE_BO_FLAG_PAGETABLE		BIT(12)
 #define XE_BO_FLAG_NEEDS_CPU_ACCESS	BIT(13)
 #define XE_BO_FLAG_NEEDS_UC		BIT(14)
-#define XE_BO_NEEDS_64K			BIT(15)
-#define XE_BO_FLAG_GGTT_INVALIDATE	BIT(16)
+#define XE_BO_FLAG_NEEDS_64K		BIT(15)
+#define XE_BO_FLAG_NEEDS_2M		BIT(16)
+#define XE_BO_FLAG_GGTT_INVALIDATE	BIT(17)
 /* this one is trigger internally only */
 #define XE_BO_FLAG_INTERNAL_TEST	BIT(30)
 #define XE_BO_FLAG_INTERNAL_64K		BIT(31)
@@ -76,7 +77,7 @@ struct xe_bo *
 xe_bo_create_locked_range(struct xe_device *xe,
 			  struct xe_tile *tile, struct xe_vm *vm,
 			  size_t size, u64 start, u64 end,
-			  enum ttm_bo_type type, u32 flags);
+			  enum ttm_bo_type type, u32 flags, u64 alignment);
 struct xe_bo *xe_bo_create_locked(struct xe_device *xe, struct xe_tile *tile,
 				  struct xe_vm *vm, size_t size,
 				  enum ttm_bo_type type, u32 flags);
@@ -86,7 +87,6 @@ struct xe_bo *xe_bo_create(struct xe_device *xe, struct xe_tile *tile,
 struct xe_bo *xe_bo_create_user(struct xe_device *xe, struct xe_tile *tile,
 				struct xe_vm *vm, size_t size,
 				u16 cpu_caching,
-				enum ttm_bo_type type,
 				u32 flags);
 struct xe_bo *xe_bo_create_pin_map(struct xe_device *xe, struct xe_tile *tile,
 				   struct xe_vm *vm, size_t size,
@@ -94,6 +94,12 @@ struct xe_bo *xe_bo_create_pin_map(struct xe_device *xe, struct xe_tile *tile,
 struct xe_bo *xe_bo_create_pin_map_at(struct xe_device *xe, struct xe_tile *tile,
 				      struct xe_vm *vm, size_t size, u64 offset,
 				      enum ttm_bo_type type, u32 flags);
+struct xe_bo *xe_bo_create_pin_map_at_aligned(struct xe_device *xe,
+					      struct xe_tile *tile,
+					      struct xe_vm *vm,
+					      size_t size, u64 offset,
+					      enum ttm_bo_type type, u32 flags,
+					      u64 alignment);
 struct xe_bo *xe_bo_create_from_data(struct xe_device *xe, struct xe_tile *tile,
 				     const void *data, size_t size,
 				     enum ttm_bo_type type, u32 flags);
@@ -126,11 +132,7 @@ static inline struct xe_bo *xe_bo_get(struct xe_bo *bo)
 	return bo;
 }
 
-static inline void xe_bo_put(struct xe_bo *bo)
-{
-	if (bo)
-		drm_gem_object_put(&bo->ttm.base);
-}
+void xe_bo_put(struct xe_bo *bo);
 
 static inline void __xe_bo_unset_bulk_move(struct xe_bo *bo)
 {
@@ -194,9 +196,12 @@ xe_bo_main_addr(struct xe_bo *bo, size_t page_size)
 static inline u32
 xe_bo_ggtt_addr(struct xe_bo *bo)
 {
-	XE_WARN_ON(bo->ggtt_node.size > bo->size);
-	XE_WARN_ON(bo->ggtt_node.start + bo->ggtt_node.size > (1ull << 32));
-	return bo->ggtt_node.start;
+	if (XE_WARN_ON(!bo->ggtt_node))
+		return 0;
+
+	XE_WARN_ON(bo->ggtt_node->base.size > bo->size);
+	XE_WARN_ON(bo->ggtt_node->base.start + bo->ggtt_node->base.size > (1ull << 32));
+	return bo->ggtt_node->base.start;
 }
 
 int xe_bo_vmap(struct xe_bo *bo);
@@ -312,8 +317,6 @@ static inline unsigned int xe_sg_segment_size(struct device *dev)
 	 */
 	return round_down(max / 2, PAGE_SIZE);
 }
-
-#define i915_gem_object_flush_if_display(obj)		((void)(obj))
 
 #if IS_ENABLED(CONFIG_DRM_XE_KUNIT_TEST)
 /**

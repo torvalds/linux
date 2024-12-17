@@ -2,15 +2,6 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #ifndef IA_CSS_NO_DEBUG
@@ -172,25 +163,21 @@ ia_css_eed1_8_vmem_encode(
 		base = shuffle_block * i;
 
 		for (j = 0; j < IA_CSS_NUMBER_OF_DEW_ENHANCE_SEGMENTS; j++) {
-			to->e_dew_enh_x[0][base + j] = min_t(int, max_t(int,
-							     from->dew_enhance_seg_x[j], 0),
-							     8191);
-			to->e_dew_enh_y[0][base + j] = min_t(int, max_t(int,
-							     from->dew_enhance_seg_y[j], -8192),
-							     8191);
+			to->e_dew_enh_x[0][base + j] = clamp(from->dew_enhance_seg_x[j],
+							     0, 8191);
+			to->e_dew_enh_y[0][base + j] = clamp(from->dew_enhance_seg_y[j],
+							     -8192, 8191);
 		}
 
 		for (j = 0; j < (IA_CSS_NUMBER_OF_DEW_ENHANCE_SEGMENTS - 1); j++) {
-			to->e_dew_enh_a[0][base + j] = min_t(int, max_t(int,
-							     from->dew_enhance_seg_slope[j],
-							     -8192), 8191);
+			to->e_dew_enh_a[0][base + j] = clamp(from->dew_enhance_seg_slope[j],
+							     -8192, 8191);
 			/* Convert dew_enhance_seg_exp to flag:
 			 * 0 -> 0
 			 * 1...13 -> 1
 			 */
-			to->e_dew_enh_f[0][base + j] = (min_t(int, max_t(int,
-							      from->dew_enhance_seg_exp[j],
-							      0), 13) > 0);
+			to->e_dew_enh_f[0][base + j] = clamp(from->dew_enhance_seg_exp[j],
+							     0, 13) > 0;
 		}
 
 		/* Hard-coded to 0, in order to be able to handle out of
@@ -276,7 +263,7 @@ ia_css_eed1_8_encode(
 	for (i = 0; i < (IA_CSS_NUMBER_OF_DEW_ENHANCE_SEGMENTS - 1); i++) {
 		min_exp = max(min_exp, from->dew_enhance_seg_exp[i]);
 	}
-	to->e_dew_enh_asr = 13 - min(max(min_exp, 0), 13);
+	to->e_dew_enh_asr = 13 - clamp(min_exp, 0, 13);
 
 	to->dedgew_max = from->dedgew_max;
 }

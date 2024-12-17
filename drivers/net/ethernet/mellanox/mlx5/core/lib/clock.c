@@ -38,6 +38,10 @@
 #include "lib/eq.h"
 #include "en.h"
 #include "clock.h"
+#ifdef CONFIG_X86
+#include <linux/timekeeping.h>
+#include <linux/cpufeature.h>
+#endif /* CONFIG_X86 */
 
 enum {
 	MLX5_PIN_MODE_IN		= 0x0,
@@ -147,6 +151,87 @@ static int mlx5_set_mtutc(struct mlx5_core_dev *dev, u32 *mtutc, u32 size)
 	return mlx5_core_access_reg(dev, mtutc, size, out, sizeof(out),
 				    MLX5_REG_MTUTC, 0, 1);
 }
+
+#ifdef CONFIG_X86
+static bool mlx5_is_ptm_source_time_available(struct mlx5_core_dev *dev)
+{
+	u32 out[MLX5_ST_SZ_DW(mtptm_reg)] = {0};
+	u32 in[MLX5_ST_SZ_DW(mtptm_reg)] = {0};
+	int err;
+
+	if (!MLX5_CAP_MCAM_REG3(dev, mtptm))
+		return false;
+
+	err = mlx5_core_access_reg(dev, in, sizeof(in), out, sizeof(out), MLX5_REG_MTPTM,
+				   0, 0);
+	if (err)
+		return false;
+
+	return !!MLX5_GET(mtptm_reg, out, psta);
+}
+
+static int mlx5_mtctr_syncdevicetime(ktime_t *device_time,
+				     struct system_counterval_t *sys_counterval,
+				     void *ctx)
+{
+	u32 out[MLX5_ST_SZ_DW(mtctr_reg)] = {0};
+	u32 in[MLX5_ST_SZ_DW(mtctr_reg)] = {0};
+	struct mlx5_core_dev *mdev = ctx;
+	bool real_time_mode;
+	u64 host, device;
+	int err;
+
+	real_time_mode = mlx5_real_time_mode(mdev);
+
+	MLX5_SET(mtctr_reg, in, first_clock_timestamp_request,
+		 MLX5_MTCTR_REQUEST_PTM_ROOT_CLOCK);
+	MLX5_SET(mtctr_reg, in, second_clock_timestamp_request,
+		 real_time_mode ? MLX5_MTCTR_REQUEST_REAL_TIME_CLOCK :
+		 MLX5_MTCTR_REQUEST_FREE_RUNNING_COUNTER);
+
+	err = mlx5_core_access_reg(mdev, in, sizeof(in), out, sizeof(out), MLX5_REG_MTCTR,
+				   0, 0);
+	if (err)
+		return err;
+
+	if (!MLX5_GET(mtctr_reg, out, first_clock_valid) ||
+	    !MLX5_GET(mtctr_reg, out, second_clock_valid))
+		return -EINVAL;
+
+	host = MLX5_GET64(mtctr_reg, out, first_clock_timestamp);
+	*sys_counterval = (struct system_counterval_t) {
+			.cycles = host,
+			.cs_id = CSID_X86_ART,
+			.use_nsecs = true,
+	};
+
+	device = MLX5_GET64(mtctr_reg, out, second_clock_timestamp);
+	if (real_time_mode)
+		*device_time = ns_to_ktime(REAL_TIME_TO_NS(device >> 32, device & U32_MAX));
+	else
+		*device_time = mlx5_timecounter_cyc2time(&mdev->clock, device);
+
+	return 0;
+}
+
+static int mlx5_ptp_getcrosststamp(struct ptp_clock_info *ptp,
+				   struct system_device_crosststamp *cts)
+{
+	struct mlx5_clock *clock = container_of(ptp, struct mlx5_clock, ptp_info);
+	struct system_time_snapshot history_begin = {0};
+	struct mlx5_core_dev *mdev;
+
+	mdev = container_of(clock, struct mlx5_core_dev, clock);
+
+	if (!mlx5_is_ptm_source_time_available(mdev))
+		return -EBUSY;
+
+	ktime_get_snapshot(&history_begin);
+
+	return get_device_system_crosststamp(mlx5_mtctr_syncdevicetime, mdev,
+					     &history_begin, cts);
+}
+#endif /* CONFIG_X86 */
 
 static u64 mlx5_read_time(struct mlx5_core_dev *dev,
 			  struct ptp_system_timestamp *sts,
@@ -317,9 +402,7 @@ static int mlx5_ptp_gettimex(struct ptp_clock_info *ptp, struct timespec64 *ts,
 			     struct ptp_system_timestamp *sts)
 {
 	struct mlx5_clock *clock = container_of(ptp, struct mlx5_clock, ptp_info);
-	struct mlx5_timer *timer = &clock->timer;
 	struct mlx5_core_dev *mdev;
-	unsigned long flags;
 	u64 cycles, ns;
 
 	mdev = container_of(clock, struct mlx5_core_dev, clock);
@@ -328,10 +411,8 @@ static int mlx5_ptp_gettimex(struct ptp_clock_info *ptp, struct timespec64 *ts,
 		goto out;
 	}
 
-	write_seqlock_irqsave(&clock->lock, flags);
 	cycles = mlx5_read_time(mdev, sts, false);
-	ns = timecounter_cyc2time(&timer->tc, cycles);
-	write_sequnlock_irqrestore(&clock->lock, flags);
+	ns = mlx5_timecounter_cyc2time(clock, cycles);
 	*ts = ns_to_timespec64(ns);
 out:
 	return 0;
@@ -1033,6 +1114,12 @@ static void mlx5_init_timer_clock(struct mlx5_core_dev *mdev)
 
 	if (MLX5_CAP_MCAM_REG(mdev, mtutc))
 		mlx5_init_timer_max_freq_adjustment(mdev);
+
+#ifdef CONFIG_X86
+	if (MLX5_CAP_MCAM_REG3(mdev, mtptm) &&
+	    MLX5_CAP_MCAM_REG3(mdev, mtctr) && boot_cpu_has(X86_FEATURE_ART))
+		clock->ptp_info.getcrosststamp = mlx5_ptp_getcrosststamp;
+#endif /* CONFIG_X86 */
 
 	mlx5_timecounter_init(mdev);
 	mlx5_init_clock_info(mdev);

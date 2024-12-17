@@ -300,6 +300,8 @@ struct dmub_srv_hw_params {
 	enum dmub_ips_disable_type disable_ips;
 	bool disallow_phy_access;
 	bool disable_sldo_opt;
+	bool enable_non_transparent_setconfig;
+	bool lower_hbr3_phy_ssc;
 };
 
 /**
@@ -330,6 +332,9 @@ struct dmub_diagnostic_data {
 	uint32_t inbox0_rptr;
 	uint32_t inbox0_wptr;
 	uint32_t inbox0_size;
+	uint32_t outbox1_rptr;
+	uint32_t outbox1_wptr;
+	uint32_t outbox1_size;
 	uint32_t gpint_datain0;
 	struct dmub_srv_debug timeout_info;
 	uint8_t is_dmcub_enabled : 1;
@@ -564,6 +569,14 @@ struct dmub_notification {
 		struct dmub_rb_cmd_dpia_notification dpia_notification;
 		struct dmub_rb_cmd_hpd_sense_notify_data hpd_sense_notify;
 	};
+};
+
+/* enum dmub_ips_mode - IPS mode identifier */
+enum dmub_ips_mode {
+	DMUB_IPS_MODE_IPS1_MAX		= 0,
+	DMUB_IPS_MODE_IPS2,
+	DMUB_IPS_MODE_IPS1_RCG,
+	DMUB_IPS_MODE_IPS1_ONO2_ON
 };
 
 /**

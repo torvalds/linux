@@ -29,7 +29,7 @@ MODULE_DESCRIPTION("HID driver for Network Technologies USB-SUN keyboard adapter
 /*
  * NTI Sun keyboard adapter has wrong logical maximum in report descriptor
  */
-static __u8 *nti_usbsun_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+static const __u8 *nti_usbsun_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
 	if (*rsize >= 60 && rdesc[53] == 0x65 && rdesc[59] == 0x65) {

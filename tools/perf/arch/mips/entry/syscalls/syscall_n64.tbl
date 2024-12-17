@@ -377,3 +377,7 @@
 460	n64	lsm_set_self_attr		sys_lsm_set_self_attr
 461	n64	lsm_list_modules		sys_lsm_list_modules
 462	n64	mseal				sys_mseal
+463	n64	setxattrat			sys_setxattrat
+464	n64	getxattrat			sys_getxattrat
+465	n64	listxattrat			sys_listxattrat
+466	n64	removexattrat			sys_removexattrat

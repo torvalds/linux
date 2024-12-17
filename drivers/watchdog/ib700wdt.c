@@ -256,7 +256,6 @@ static int ibwdt_close(struct inode *inode, struct file *file)
 
 static const struct file_operations ibwdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 	.write		= ibwdt_write,
 	.unlocked_ioctl	= ibwdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -332,7 +331,7 @@ static void ibwdt_shutdown(struct platform_device *dev)
 }
 
 static struct platform_driver ibwdt_driver = {
-	.remove_new	= ibwdt_remove,
+	.remove		= ibwdt_remove,
 	.shutdown	= ibwdt_shutdown,
 	.driver		= {
 		.name	= DRV_NAME,

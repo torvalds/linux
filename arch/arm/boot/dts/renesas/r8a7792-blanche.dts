@@ -224,8 +224,7 @@
 		compatible = "smsc,lan89218", "smsc,lan9115";
 		reg = <0x18000000 0x100>;
 		phy-mode = "mii";
-		interrupt-parent = <&irqc>;
-		interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
+		interrupts-extended = <&irqc 0 IRQ_TYPE_EDGE_FALLING>;
 		smsc,irq-push-pull;
 		reg-io-width = <4>;
 		vddvario-supply = <&d3_3v>;
@@ -336,8 +335,7 @@
 	hdmi@39 {
 		compatible = "adi,adv7511w";
 		reg = <0x39>;
-		interrupt-parent = <&irqc>;
-		interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
+		interrupts-extended = <&irqc 3 IRQ_TYPE_EDGE_FALLING>;
 
 		avdd-supply = <&d1_8v>;
 		dvdd-supply = <&d1_8v>;
@@ -378,8 +376,7 @@
 		reg = <0x58>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_irq_pins>;
-		interrupt-parent = <&irqc>;
-		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&irqc 2 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
 

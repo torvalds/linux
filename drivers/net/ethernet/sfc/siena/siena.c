@@ -545,7 +545,7 @@ static const unsigned long siena_stat_mask[] = {
 	[0 ... BITS_TO_LONGS(SIENA_STAT_COUNT) - 1] = ~0UL,
 };
 
-static size_t siena_describe_nic_stats(struct efx_nic *efx, u8 *names)
+static size_t siena_describe_nic_stats(struct efx_nic *efx, u8 **names)
 {
 	return efx_siena_describe_stats(siena_stat_desc, SIENA_STAT_COUNT,
 					siena_stat_mask, names);

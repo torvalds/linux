@@ -163,7 +163,7 @@
  *   thing with or without extra unallocated space.
  */
 
-u64 __pure btrfs_space_info_used(struct btrfs_space_info *s_info,
+u64 __pure btrfs_space_info_used(const struct btrfs_space_info *s_info,
 			  bool may_use_included)
 {
 	ASSERT(s_info);
@@ -368,7 +368,7 @@ static u64 calc_effective_data_chunk_size(struct btrfs_fs_info *fs_info)
 }
 
 static u64 calc_available_free_space(struct btrfs_fs_info *fs_info,
-			  struct btrfs_space_info *space_info,
+			  const struct btrfs_space_info *space_info,
 			  enum btrfs_reserve_flush_enum flush)
 {
 	u64 profile;
@@ -437,7 +437,7 @@ static u64 calc_available_free_space(struct btrfs_fs_info *fs_info,
 }
 
 int btrfs_can_overcommit(struct btrfs_fs_info *fs_info,
-			 struct btrfs_space_info *space_info, u64 bytes,
+			 const struct btrfs_space_info *space_info, u64 bytes,
 			 enum btrfs_reserve_flush_enum flush)
 {
 	u64 avail;
@@ -542,8 +542,8 @@ static void dump_global_block_rsv(struct btrfs_fs_info *fs_info)
 	DUMP_BLOCK_RSV(fs_info, delayed_refs_rsv);
 }
 
-static void __btrfs_dump_space_info(struct btrfs_fs_info *fs_info,
-				    struct btrfs_space_info *info)
+static void __btrfs_dump_space_info(const struct btrfs_fs_info *fs_info,
+				    const struct btrfs_space_info *info)
 {
 	const char *flag_str = space_info_flag_to_str(info);
 	lockdep_assert_held(&info->lock);
@@ -844,9 +844,8 @@ static void flush_space(struct btrfs_fs_info *fs_info,
 	return;
 }
 
-static inline u64
-btrfs_calc_reclaim_metadata_size(struct btrfs_fs_info *fs_info,
-				 struct btrfs_space_info *space_info)
+static u64 btrfs_calc_reclaim_metadata_size(struct btrfs_fs_info *fs_info,
+					    const struct btrfs_space_info *space_info)
 {
 	u64 used;
 	u64 avail;
@@ -871,7 +870,7 @@ btrfs_calc_reclaim_metadata_size(struct btrfs_fs_info *fs_info,
 }
 
 static bool need_preemptive_reclaim(struct btrfs_fs_info *fs_info,
-				    struct btrfs_space_info *space_info)
+				    const struct btrfs_space_info *space_info)
 {
 	const u64 global_rsv_size = btrfs_block_rsv_reserved(&fs_info->global_block_rsv);
 	u64 ordered, delalloc;
@@ -1280,7 +1279,7 @@ static void btrfs_preempt_reclaim_metadata_space(struct work_struct *work)
  *   If we are freeing inodes, we want to make sure all delayed iputs have
  *   completed, because they could have been on an inode with i_nlink == 0, and
  *   thus have been truncated and freed up space.  But again this space is not
- *   immediately re-usable, it comes in the form of a delayed ref, which must be
+ *   immediately reusable, it comes in the form of a delayed ref, which must be
  *   run and then the transaction must be committed.
  *
  * COMMIT_TRANS
@@ -1489,8 +1488,7 @@ static void priority_reclaim_data_space(struct btrfs_fs_info *fs_info,
 	spin_unlock(&space_info->lock);
 }
 
-static void wait_reserve_ticket(struct btrfs_fs_info *fs_info,
-				struct btrfs_space_info *space_info,
+static void wait_reserve_ticket(struct btrfs_space_info *space_info,
 				struct reserve_ticket *ticket)
 
 {
@@ -1548,7 +1546,7 @@ static int handle_reserve_ticket(struct btrfs_fs_info *fs_info,
 	case BTRFS_RESERVE_FLUSH_DATA:
 	case BTRFS_RESERVE_FLUSH_ALL:
 	case BTRFS_RESERVE_FLUSH_ALL_STEAL:
-		wait_reserve_ticket(fs_info, space_info, ticket);
+		wait_reserve_ticket(space_info, ticket);
 		break;
 	case BTRFS_RESERVE_FLUSH_LIMIT:
 		priority_reclaim_metadata_space(fs_info, space_info, ticket,
@@ -1943,7 +1941,7 @@ static u64 calc_unalloc_target(struct btrfs_fs_info *fs_info)
  * Typically with 10 block groups as the target, the discrete values this comes
  * out to are 0, 10, 20, ... , 80, 90, and 99.
  */
-static int calc_dynamic_reclaim_threshold(struct btrfs_space_info *space_info)
+static int calc_dynamic_reclaim_threshold(const struct btrfs_space_info *space_info)
 {
 	struct btrfs_fs_info *fs_info = space_info->fs_info;
 	u64 unalloc = atomic64_read(&fs_info->free_chunk_space);
@@ -1962,7 +1960,7 @@ static int calc_dynamic_reclaim_threshold(struct btrfs_space_info *space_info)
 	return calc_pct_ratio(want, target);
 }
 
-int btrfs_calc_reclaim_threshold(struct btrfs_space_info *space_info)
+int btrfs_calc_reclaim_threshold(const struct btrfs_space_info *space_info)
 {
 	lockdep_assert_held(&space_info->lock);
 
@@ -1985,8 +1983,7 @@ static bool is_reclaim_urgent(struct btrfs_space_info *space_info)
 	return unalloc < data_chunk_size;
 }
 
-static void do_reclaim_sweep(struct btrfs_fs_info *fs_info,
-			     struct btrfs_space_info *space_info, int raid)
+static void do_reclaim_sweep(struct btrfs_space_info *space_info, int raid)
 {
 	struct btrfs_block_group *bg;
 	int thresh_pct;
@@ -2073,7 +2070,7 @@ bool btrfs_should_periodic_reclaim(struct btrfs_space_info *space_info)
 	return ret;
 }
 
-void btrfs_reclaim_sweep(struct btrfs_fs_info *fs_info)
+void btrfs_reclaim_sweep(const struct btrfs_fs_info *fs_info)
 {
 	int raid;
 	struct btrfs_space_info *space_info;
@@ -2082,6 +2079,6 @@ void btrfs_reclaim_sweep(struct btrfs_fs_info *fs_info)
 		if (!btrfs_should_periodic_reclaim(space_info))
 			continue;
 		for (raid = 0; raid < BTRFS_NR_RAID_TYPES; raid++)
-			do_reclaim_sweep(fs_info, space_info, raid);
+			do_reclaim_sweep(space_info, raid);
 	}
 }

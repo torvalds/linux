@@ -19,7 +19,7 @@
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 #include <linux/serial.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define DEFAULT_BAUD_RATE 9600
 #define DEFAULT_TIMEOUT   1000
@@ -837,7 +837,6 @@ static int ch341_reset_resume(struct usb_serial *serial)
 
 static struct usb_serial_driver ch341_device = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "ch341-uart",
 	},
 	.id_table          = id_table,

@@ -327,7 +327,7 @@ static int tcs3472_read_event_config(struct iio_dev *indio_dev,
 
 static int tcs3472_write_event_config(struct iio_dev *indio_dev,
 	const struct iio_chan_spec *chan, enum iio_event_type type,
-	enum iio_event_direction dir, int state)
+	enum iio_event_direction dir, bool state)
 {
 	struct tcs3472_data *data = iio_priv(indio_dev);
 	int ret = 0;
@@ -383,8 +383,7 @@ static irqreturn_t tcs3472_trigger_handler(int irq, void *p)
 	if (ret < 0)
 		goto done;
 
-	for_each_set_bit(i, indio_dev->active_scan_mask,
-		indio_dev->masklength) {
+	iio_for_each_active_channel(indio_dev, i) {
 		ret = i2c_smbus_read_word_data(data->client,
 			TCS3472_CDATA + 2*i);
 		if (ret < 0)

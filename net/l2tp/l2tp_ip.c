@@ -22,8 +22,18 @@
 #include <net/tcp_states.h>
 #include <net/protocol.h>
 #include <net/xfrm.h>
+#include <net/net_namespace.h>
+#include <net/netns/generic.h>
 
 #include "l2tp_core.h"
+
+/* per-net private data for this module */
+static unsigned int l2tp_ip_net_id;
+struct l2tp_ip_net {
+	rwlock_t l2tp_ip_lock;
+	struct hlist_head l2tp_ip_table;
+	struct hlist_head l2tp_ip_bind_table;
+};
 
 struct l2tp_ip_sock {
 	/* inet_sock has to be the first member of l2tp_ip_sock */
@@ -33,21 +43,23 @@ struct l2tp_ip_sock {
 	u32			peer_conn_id;
 };
 
-static DEFINE_RWLOCK(l2tp_ip_lock);
-static struct hlist_head l2tp_ip_table;
-static struct hlist_head l2tp_ip_bind_table;
-
-static inline struct l2tp_ip_sock *l2tp_ip_sk(const struct sock *sk)
+static struct l2tp_ip_sock *l2tp_ip_sk(const struct sock *sk)
 {
 	return (struct l2tp_ip_sock *)sk;
+}
+
+static struct l2tp_ip_net *l2tp_ip_pernet(const struct net *net)
+{
+	return net_generic(net, l2tp_ip_net_id);
 }
 
 static struct sock *__l2tp_ip_bind_lookup(const struct net *net, __be32 laddr,
 					  __be32 raddr, int dif, u32 tunnel_id)
 {
+	struct l2tp_ip_net *pn = l2tp_ip_pernet(net);
 	struct sock *sk;
 
-	sk_for_each_bound(sk, &l2tp_ip_bind_table) {
+	sk_for_each_bound(sk, &pn->l2tp_ip_bind_table) {
 		const struct l2tp_ip_sock *l2tp = l2tp_ip_sk(sk);
 		const struct inet_sock *inet = inet_sk(sk);
 		int bound_dev_if;
@@ -113,6 +125,7 @@ found:
 static int l2tp_ip_recv(struct sk_buff *skb)
 {
 	struct net *net = dev_net(skb->dev);
+	struct l2tp_ip_net *pn;
 	struct sock *sk;
 	u32 session_id;
 	u32 tunnel_id;
@@ -120,6 +133,8 @@ static int l2tp_ip_recv(struct sk_buff *skb)
 	struct l2tp_session *session;
 	struct l2tp_tunnel *tunnel = NULL;
 	struct iphdr *iph;
+
+	pn = l2tp_ip_pernet(net);
 
 	if (!pskb_may_pull(skb, 4))
 		goto discard;
@@ -152,7 +167,7 @@ static int l2tp_ip_recv(struct sk_buff *skb)
 		goto discard_sess;
 
 	l2tp_recv_common(session, skb, ptr, optr, 0, skb->len);
-	l2tp_session_dec_refcount(session);
+	l2tp_session_put(session);
 
 	return 0;
 
@@ -167,15 +182,15 @@ pass_up:
 	tunnel_id = ntohl(*(__be32 *)&skb->data[4]);
 	iph = (struct iphdr *)skb_network_header(skb);
 
-	read_lock_bh(&l2tp_ip_lock);
+	read_lock_bh(&pn->l2tp_ip_lock);
 	sk = __l2tp_ip_bind_lookup(net, iph->daddr, iph->saddr, inet_iif(skb),
 				   tunnel_id);
 	if (!sk) {
-		read_unlock_bh(&l2tp_ip_lock);
+		read_unlock_bh(&pn->l2tp_ip_lock);
 		goto discard;
 	}
 	sock_hold(sk);
-	read_unlock_bh(&l2tp_ip_lock);
+	read_unlock_bh(&pn->l2tp_ip_lock);
 
 	if (!xfrm4_policy_check(sk, XFRM_POLICY_IN, skb))
 		goto discard_put;
@@ -185,7 +200,7 @@ pass_up:
 	return sk_receive_skb(sk, skb, 1);
 
 discard_sess:
-	l2tp_session_dec_refcount(session);
+	l2tp_session_put(session);
 	goto discard;
 
 discard_put:
@@ -198,21 +213,25 @@ discard:
 
 static int l2tp_ip_hash(struct sock *sk)
 {
+	struct l2tp_ip_net *pn = l2tp_ip_pernet(sock_net(sk));
+
 	if (sk_unhashed(sk)) {
-		write_lock_bh(&l2tp_ip_lock);
-		sk_add_node(sk, &l2tp_ip_table);
-		write_unlock_bh(&l2tp_ip_lock);
+		write_lock_bh(&pn->l2tp_ip_lock);
+		sk_add_node(sk, &pn->l2tp_ip_table);
+		write_unlock_bh(&pn->l2tp_ip_lock);
 	}
 	return 0;
 }
 
 static void l2tp_ip_unhash(struct sock *sk)
 {
+	struct l2tp_ip_net *pn = l2tp_ip_pernet(sock_net(sk));
+
 	if (sk_unhashed(sk))
 		return;
-	write_lock_bh(&l2tp_ip_lock);
+	write_lock_bh(&pn->l2tp_ip_lock);
 	sk_del_node_init(sk);
-	write_unlock_bh(&l2tp_ip_lock);
+	write_unlock_bh(&pn->l2tp_ip_lock);
 }
 
 static int l2tp_ip_open(struct sock *sk)
@@ -226,23 +245,26 @@ static int l2tp_ip_open(struct sock *sk)
 
 static void l2tp_ip_close(struct sock *sk, long timeout)
 {
-	write_lock_bh(&l2tp_ip_lock);
+	struct l2tp_ip_net *pn = l2tp_ip_pernet(sock_net(sk));
+
+	write_lock_bh(&pn->l2tp_ip_lock);
 	hlist_del_init(&sk->sk_bind_node);
 	sk_del_node_init(sk);
-	write_unlock_bh(&l2tp_ip_lock);
+	write_unlock_bh(&pn->l2tp_ip_lock);
 	sk_common_release(sk);
 }
 
 static void l2tp_ip_destroy_sock(struct sock *sk)
 {
-	struct l2tp_tunnel *tunnel = l2tp_sk_to_tunnel(sk);
-	struct sk_buff *skb;
+	struct l2tp_tunnel *tunnel;
 
-	while ((skb = __skb_dequeue_tail(&sk->sk_write_queue)) != NULL)
-		kfree_skb(skb);
+	__skb_queue_purge(&sk->sk_write_queue);
 
-	if (tunnel)
+	tunnel = l2tp_sk_to_tunnel(sk);
+	if (tunnel) {
 		l2tp_tunnel_delete(tunnel);
+		l2tp_tunnel_put(tunnel);
+	}
 }
 
 static int l2tp_ip_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
@@ -250,6 +272,7 @@ static int l2tp_ip_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	struct inet_sock *inet = inet_sk(sk);
 	struct sockaddr_l2tpip *addr = (struct sockaddr_l2tpip *)uaddr;
 	struct net *net = sock_net(sk);
+	struct l2tp_ip_net *pn;
 	int ret;
 	int chk_addr_ret;
 
@@ -280,10 +303,11 @@ static int l2tp_ip_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	if (chk_addr_ret == RTN_MULTICAST || chk_addr_ret == RTN_BROADCAST)
 		inet->inet_saddr = 0;  /* Use device */
 
-	write_lock_bh(&l2tp_ip_lock);
+	pn = l2tp_ip_pernet(net);
+	write_lock_bh(&pn->l2tp_ip_lock);
 	if (__l2tp_ip_bind_lookup(net, addr->l2tp_addr.s_addr, 0,
 				  sk->sk_bound_dev_if, addr->l2tp_conn_id)) {
-		write_unlock_bh(&l2tp_ip_lock);
+		write_unlock_bh(&pn->l2tp_ip_lock);
 		ret = -EADDRINUSE;
 		goto out;
 	}
@@ -291,9 +315,9 @@ static int l2tp_ip_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	sk_dst_reset(sk);
 	l2tp_ip_sk(sk)->conn_id = addr->l2tp_conn_id;
 
-	sk_add_bind_node(sk, &l2tp_ip_bind_table);
+	sk_add_bind_node(sk, &pn->l2tp_ip_bind_table);
 	sk_del_node_init(sk);
-	write_unlock_bh(&l2tp_ip_lock);
+	write_unlock_bh(&pn->l2tp_ip_lock);
 
 	ret = 0;
 	sock_reset_flag(sk, SOCK_ZAPPED);
@@ -307,6 +331,7 @@ out:
 static int l2tp_ip_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 {
 	struct sockaddr_l2tpip *lsa = (struct sockaddr_l2tpip *)uaddr;
+	struct l2tp_ip_net *pn = l2tp_ip_pernet(sock_net(sk));
 	int rc;
 
 	if (addr_len < sizeof(*lsa))
@@ -329,10 +354,10 @@ static int l2tp_ip_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len
 
 	l2tp_ip_sk(sk)->peer_conn_id = lsa->l2tp_conn_id;
 
-	write_lock_bh(&l2tp_ip_lock);
+	write_lock_bh(&pn->l2tp_ip_lock);
 	hlist_del_init(&sk->sk_bind_node);
-	sk_add_bind_node(sk, &l2tp_ip_bind_table);
-	write_unlock_bh(&l2tp_ip_lock);
+	sk_add_bind_node(sk, &pn->l2tp_ip_bind_table);
+	write_unlock_bh(&pn->l2tp_ip_lock);
 
 out_sk:
 	release_sock(sk);
@@ -637,25 +662,58 @@ static struct net_protocol l2tp_ip_protocol __read_mostly = {
 	.handler	= l2tp_ip_recv,
 };
 
+static __net_init int l2tp_ip_init_net(struct net *net)
+{
+	struct l2tp_ip_net *pn = net_generic(net, l2tp_ip_net_id);
+
+	rwlock_init(&pn->l2tp_ip_lock);
+	INIT_HLIST_HEAD(&pn->l2tp_ip_table);
+	INIT_HLIST_HEAD(&pn->l2tp_ip_bind_table);
+	return 0;
+}
+
+static __net_exit void l2tp_ip_exit_net(struct net *net)
+{
+	struct l2tp_ip_net *pn = l2tp_ip_pernet(net);
+
+	write_lock_bh(&pn->l2tp_ip_lock);
+	WARN_ON_ONCE(hlist_count_nodes(&pn->l2tp_ip_table) != 0);
+	WARN_ON_ONCE(hlist_count_nodes(&pn->l2tp_ip_bind_table) != 0);
+	write_unlock_bh(&pn->l2tp_ip_lock);
+}
+
+static struct pernet_operations l2tp_ip_net_ops = {
+	.init = l2tp_ip_init_net,
+	.exit = l2tp_ip_exit_net,
+	.id   = &l2tp_ip_net_id,
+	.size = sizeof(struct l2tp_ip_net),
+};
+
 static int __init l2tp_ip_init(void)
 {
 	int err;
 
 	pr_info("L2TP IP encapsulation support (L2TPv3)\n");
 
+	err = register_pernet_device(&l2tp_ip_net_ops);
+	if (err)
+		goto out;
+
 	err = proto_register(&l2tp_ip_prot, 1);
 	if (err != 0)
-		goto out;
+		goto out1;
 
 	err = inet_add_protocol(&l2tp_ip_protocol, IPPROTO_L2TP);
 	if (err)
-		goto out1;
+		goto out2;
 
 	inet_register_protosw(&l2tp_ip_protosw);
 	return 0;
 
-out1:
+out2:
 	proto_unregister(&l2tp_ip_prot);
+out1:
+	unregister_pernet_device(&l2tp_ip_net_ops);
 out:
 	return err;
 }
@@ -665,6 +723,7 @@ static void __exit l2tp_ip_exit(void)
 	inet_unregister_protosw(&l2tp_ip_protosw);
 	inet_del_protocol(&l2tp_ip_protocol, IPPROTO_L2TP);
 	proto_unregister(&l2tp_ip_prot);
+	unregister_pernet_device(&l2tp_ip_net_ops);
 }
 
 module_init(l2tp_ip_init);

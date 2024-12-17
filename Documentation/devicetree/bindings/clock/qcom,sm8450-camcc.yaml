@@ -21,14 +21,12 @@ description: |
     include/dt-bindings/clock/qcom,sm8650-camcc.h
     include/dt-bindings/clock/qcom,x1e80100-camcc.h
 
-allOf:
-  - $ref: qcom,gcc.yaml#
-
 properties:
   compatible:
     enum:
       - qcom,sc8280xp-camcc
       - qcom,sm8450-camcc
+      - qcom,sm8475-camcc
       - qcom,sm8550-camcc
       - qcom,sm8650-camcc
       - qcom,x1e80100-camcc
@@ -57,7 +55,21 @@ required:
   - compatible
   - clocks
   - power-domains
-  - required-opps
+
+allOf:
+  - $ref: qcom,gcc.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,sc8280xp-camcc
+              - qcom,sm8450-camcc
+              - qcom,sm8550-camcc
+              - qcom,x1e80100-camcc
+    then:
+      required:
+        - required-opps
 
 unevaluatedProperties: false
 

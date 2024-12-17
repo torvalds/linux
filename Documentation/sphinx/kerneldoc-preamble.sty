@@ -199,6 +199,8 @@
     % Inactivate CJK after tableofcontents
     \apptocmd{\sphinxtableofcontents}{\kerneldocCJKoff}{}{}
     \xeCJKsetup{CJKspace = true}% For inter-phrase space of Korean TOC
+    % Suppress extra white space at latin .. non-latin in literal blocks
+    \AtBeginEnvironment{sphinxVerbatim}{\CJKsetecglue{}}
 }{ % Don't enable CJK
     % Custom macros to on/off CJK and switch CJK fonts (Dummy)
     \newcommand{\kerneldocCJKon}{}

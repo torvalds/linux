@@ -427,7 +427,7 @@ static int max77857_probe(struct i2c_client *client)
 	return 0;
 }
 
-const struct i2c_device_id max77857_id[] = {
+static const struct i2c_device_id max77857_id[] = {
 	{ "max77831", ID_MAX77831 },
 	{ "max77857", ID_MAX77857 },
 	{ "max77859", ID_MAX77859 },

@@ -6,8 +6,7 @@
  */
 
 #include <dt-bindings/input/input.h>
-#include "rk3399.dtsi"
-#include "rk3399-op1-opp.dtsi"
+#include "rk3399-op1.dtsi"
 
 / {
 	aliases {
@@ -43,14 +42,14 @@
 	 *   schematic.
 	 */
 
-	ppvar_sys: ppvar-sys {
+	ppvar_sys: regulator-ppvar-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "ppvar_sys";
 		regulator-always-on;
 		regulator-boot-on;
 	};
 
-	pp1200_lpddr: pp1200-lpddr {
+	pp1200_lpddr: regulator-pp1200-lpddr {
 		compatible = "regulator-fixed";
 		regulator-name = "pp1200_lpddr";
 
@@ -63,7 +62,7 @@
 		vin-supply = <&ppvar_sys>;
 	};
 
-	pp1800: pp1800 {
+	pp1800: regulator-pp1800 {
 		compatible = "regulator-fixed";
 		regulator-name = "pp1800";
 
@@ -76,7 +75,7 @@
 		vin-supply = <&ppvar_sys>;
 	};
 
-	pp3300: pp3300 {
+	pp3300: regulator-pp3300 {
 		compatible = "regulator-fixed";
 		regulator-name = "pp3300";
 
@@ -89,7 +88,7 @@
 		vin-supply = <&ppvar_sys>;
 	};
 
-	pp5000: pp5000 {
+	pp5000: regulator-pp5000 {
 		compatible = "regulator-fixed";
 		regulator-name = "pp5000";
 
@@ -102,7 +101,7 @@
 		vin-supply = <&ppvar_sys>;
 	};
 
-	ppvar_bigcpu_pwm: ppvar-bigcpu-pwm {
+	ppvar_bigcpu_pwm: regulator-ppvar-bigcpu-pwm {
 		compatible = "pwm-regulator";
 		regulator-name = "ppvar_bigcpu_pwm";
 
@@ -131,7 +130,7 @@
 		regulator-settling-time-up-us = <322>;
 	};
 
-	ppvar_litcpu_pwm: ppvar-litcpu-pwm {
+	ppvar_litcpu_pwm: regulator-ppvar-litcpu-pwm {
 		compatible = "pwm-regulator";
 		regulator-name = "ppvar_litcpu_pwm";
 
@@ -160,7 +159,7 @@
 		regulator-settling-time-up-us = <384>;
 	};
 
-	ppvar_gpu_pwm: ppvar-gpu-pwm {
+	ppvar_gpu_pwm: regulator-ppvar-gpu-pwm {
 		compatible = "pwm-regulator";
 		regulator-name = "ppvar_gpu_pwm";
 
@@ -225,7 +224,7 @@
 	pp1800_usb: pp1800 {
 	};
 
-	pp3000_sd_slot: pp3000-sd-slot {
+	pp3000_sd_slot: regulator-pp3000-sd-slot {
 		compatible = "regulator-fixed";
 		regulator-name = "pp3000_sd_slot";
 		pinctrl-names = "default";
@@ -725,7 +724,7 @@ ap_i2c_audio: &i2c8 {
 		};
 	};
 
-	discrete-regulators {
+	discretes {
 		sd_io_pwr_en: sd-io-pwr-en {
 			rockchip,pins = <2 RK_PA2 RK_FUNC_GPIO
 					 &pcfg_pull_none>;

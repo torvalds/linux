@@ -63,7 +63,6 @@ EXPORT_SYMBOL(__drm_crtc_commit_free);
  * hardware and flipped to.
  *
  * Returns:
- *
  * 0 on success, a negative error code otherwise.
  */
 int drm_crtc_commit_wait(struct drm_crtc_commit *commit)
@@ -337,7 +336,6 @@ EXPORT_SYMBOL(__drm_atomic_state_free);
  * not created by userspace through an IOCTL call.
  *
  * Returns:
- *
  * Either the allocated state or the error code encoded into the pointer. When
  * the error is EDEADLK then the w/w mutex code has detected a deadlock and the
  * entire atomic sequence must be restarted. All other errors are fatal.
@@ -518,7 +516,6 @@ static int drm_atomic_connector_check(struct drm_connector *connector,
  * is consistent.
  *
  * Returns:
- *
  * Either the allocated state or the error code encoded into the pointer. When
  * the error is EDEADLK then the w/w mutex code has detected a deadlock and the
  * entire atomic sequence must be restarted. All other errors are fatal.
@@ -828,7 +825,6 @@ EXPORT_SYMBOL(drm_atomic_private_obj_fini);
  * object lock to make sure that the state is consistent.
  *
  * RETURNS:
- *
  * Either the allocated state or the error code encoded into a pointer.
  */
 struct drm_private_state *
@@ -1061,7 +1057,6 @@ EXPORT_SYMBOL(drm_atomic_get_new_crtc_for_encoder);
  * make sure that the state is consistent.
  *
  * Returns:
- *
  * Either the allocated state or the error code encoded into the pointer. When
  * the error is EDEADLK then the w/w mutex code has detected a deadlock and the
  * entire atomic sequence must be restarted. All other errors are fatal.
@@ -1137,6 +1132,8 @@ static void drm_atomic_connector_print_state(struct drm_printer *p,
 	drm_printf(p, "connector[%u]: %s\n", connector->base.id, connector->name);
 	drm_printf(p, "\tcrtc=%s\n", state->crtc ? state->crtc->name : "(null)");
 	drm_printf(p, "\tself_refresh_aware=%d\n", state->self_refresh_aware);
+	drm_printf(p, "\tinterlace_allowed=%d\n", connector->interlace_allowed);
+	drm_printf(p, "\tycbcr_420_allowed=%d\n", connector->ycbcr_420_allowed);
 	drm_printf(p, "\tmax_requested_bpc=%d\n", state->max_requested_bpc);
 	drm_printf(p, "\tcolorspace=%s\n", drm_get_colorspace_name(state->colorspace));
 
@@ -1169,7 +1166,6 @@ static void drm_atomic_connector_print_state(struct drm_printer *p,
  * state is consistent.
  *
  * Returns:
- *
  * Either the allocated state or the error code encoded into the pointer. When
  * the error is EDEADLK then the w/w mutex code has detected a deadlock and the
  * entire atomic sequence must be restarted.

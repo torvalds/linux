@@ -32,7 +32,7 @@ void sparx5_xtr_flush(struct sparx5 *sparx5, u8 grp)
 	spx5_wr(0, sparx5, QS_XTR_FLUSH);
 }
 
-void sparx5_ifh_parse(u32 *ifh, struct frame_info *info)
+void sparx5_ifh_parse(struct sparx5 *sparx5, u32 *ifh, struct frame_info *info)
 {
 	u8 *xtr_hdr = (u8 *)ifh;
 
@@ -43,10 +43,15 @@ void sparx5_ifh_parse(u32 *ifh, struct frame_info *info)
 		((u32)xtr_hdr[29] <<  8) |
 		((u32)xtr_hdr[30] <<  0);
 	fwd = (fwd >> 5);
-	info->src_port = FIELD_GET(GENMASK(7, 1), fwd);
+	info->src_port = spx5_field_get(GENMASK(is_sparx5(sparx5) ? 7 : 6, 1),
+					fwd);
 
+	/*
+	 * Bit 270-271 are occasionally unexpectedly set by the hardware,
+	 * clear bits before extracting timestamp
+	 */
 	info->timestamp =
-		((u64)xtr_hdr[2] << 24) |
+		((u64)(xtr_hdr[2] & GENMASK(5, 0)) << 24) |
 		((u64)xtr_hdr[3] << 16) |
 		((u64)xtr_hdr[4] <<  8) |
 		((u64)xtr_hdr[5] <<  0);
@@ -68,10 +73,10 @@ static void sparx5_xtr_grp(struct sparx5 *sparx5, u8 grp, bool byte_swap)
 		ifh[i] = spx5_rd(sparx5, QS_XTR_RD(grp));
 
 	/* Decode IFH (what's needed) */
-	sparx5_ifh_parse(ifh, &fi);
+	sparx5_ifh_parse(sparx5, ifh, &fi);
 
 	/* Map to port netdev */
-	port = fi.src_port < SPX5_PORTS ?
+	port = fi.src_port < sparx5->data->consts->n_ports ?
 		sparx5->ports[fi.src_port] : NULL;
 	if (!port || !port->ndev) {
 		dev_err(sparx5->dev, "Data on inactive port %d\n", fi.src_port);
@@ -231,16 +236,19 @@ netdev_tx_t sparx5_port_xmit_impl(struct sk_buff *skb, struct net_device *dev)
 	netdev_tx_t ret;
 
 	memset(ifh, 0, IFH_LEN * 4);
-	sparx5_set_port_ifh(ifh, port->portno);
+	sparx5_set_port_ifh(sparx5, ifh, port->portno);
 
 	if (sparx5->ptp && skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) {
 		if (sparx5_ptp_txtstamp_request(port, skb) < 0)
 			return NETDEV_TX_BUSY;
 
 		sparx5_set_port_ifh_rew_op(ifh, SPARX5_SKB_CB(skb)->rew_op);
-		sparx5_set_port_ifh_pdu_type(ifh, SPARX5_SKB_CB(skb)->pdu_type);
-		sparx5_set_port_ifh_pdu_w16_offset(ifh, SPARX5_SKB_CB(skb)->pdu_w16_offset);
-		sparx5_set_port_ifh_timestamp(ifh, SPARX5_SKB_CB(skb)->ts_id);
+		sparx5_set_port_ifh_pdu_type(sparx5, ifh,
+					     SPARX5_SKB_CB(skb)->pdu_type);
+		sparx5_set_port_ifh_pdu_w16_offset(sparx5, ifh,
+						   SPARX5_SKB_CB(skb)->pdu_w16_offset);
+		sparx5_set_port_ifh_timestamp(sparx5, ifh,
+					      SPARX5_SKB_CB(skb)->ts_id);
 	}
 
 	skb_tx_timestamp(skb);
@@ -313,7 +321,9 @@ int sparx5_manual_injection_mode(struct sparx5 *sparx5)
 		sparx5, QS_INJ_GRP_CFG(INJ_QUEUE));
 
 	/* CPU ports capture setup */
-	for (portno = SPX5_PORT_CPU_0; portno <= SPX5_PORT_CPU_1; portno++) {
+	for (portno = sparx5_get_internal_port(sparx5, SPX5_PORT_CPU_0);
+	     portno <= sparx5_get_internal_port(sparx5, SPX5_PORT_CPU_1);
+	     portno++) {
 		/* ASM CPU port: No preamble, IFH, enable padding */
 		spx5_wr(ASM_PORT_CFG_PAD_ENA_SET(1) |
 			ASM_PORT_CFG_NO_PREAMBLE_ENA_SET(1) |

@@ -90,19 +90,6 @@ static void ivpu_pgtable_free_page(struct ivpu_device *vdev, u64 *cpu_addr, dma_
 	}
 }
 
-static int ivpu_mmu_pgtable_init(struct ivpu_device *vdev, struct ivpu_mmu_pgtable *pgtable)
-{
-	dma_addr_t pgd_dma;
-
-	pgtable->pgd_dma_ptr = ivpu_pgtable_alloc_page(vdev, &pgd_dma);
-	if (!pgtable->pgd_dma_ptr)
-		return -ENOMEM;
-
-	pgtable->pgd_dma = pgd_dma;
-
-	return 0;
-}
-
 static void ivpu_mmu_pgtables_free(struct ivpu_device *vdev, struct ivpu_mmu_pgtable *pgtable)
 {
 	int pgd_idx, pud_idx, pmd_idx;
@@ -140,6 +127,27 @@ static void ivpu_mmu_pgtables_free(struct ivpu_device *vdev, struct ivpu_mmu_pgt
 	}
 
 	ivpu_pgtable_free_page(vdev, pgtable->pgd_dma_ptr, pgtable->pgd_dma);
+	pgtable->pgd_dma_ptr = NULL;
+	pgtable->pgd_dma = 0;
+}
+
+static u64*
+ivpu_mmu_ensure_pgd(struct ivpu_device *vdev, struct ivpu_mmu_pgtable *pgtable)
+{
+	u64 *pgd_dma_ptr = pgtable->pgd_dma_ptr;
+	dma_addr_t pgd_dma;
+
+	if (pgd_dma_ptr)
+		return pgd_dma_ptr;
+
+	pgd_dma_ptr = ivpu_pgtable_alloc_page(vdev, &pgd_dma);
+	if (!pgd_dma_ptr)
+		return NULL;
+
+	pgtable->pgd_dma_ptr = pgd_dma_ptr;
+	pgtable->pgd_dma = pgd_dma;
+
+	return pgd_dma_ptr;
 }
 
 static u64*
@@ -236,6 +244,12 @@ ivpu_mmu_context_map_page(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx
 	int pud_idx = FIELD_GET(IVPU_MMU_PUD_INDEX_MASK, vpu_addr);
 	int pmd_idx = FIELD_GET(IVPU_MMU_PMD_INDEX_MASK, vpu_addr);
 	int pte_idx = FIELD_GET(IVPU_MMU_PTE_INDEX_MASK, vpu_addr);
+
+	drm_WARN_ON(&vdev->drm, ctx->id == IVPU_RESERVED_CONTEXT_MMU_SSID);
+
+	/* Allocate PGD - first level page table if needed */
+	if (!ivpu_mmu_ensure_pgd(vdev, &ctx->pgtable))
+		return -ENOMEM;
 
 	/* Allocate PUD - second level page table if needed */
 	if (!ivpu_mmu_ensure_pud(vdev, &ctx->pgtable, pgd_idx))
@@ -418,6 +432,7 @@ int
 ivpu_mmu_context_map_sgt(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx,
 			 u64 vpu_addr, struct sg_table *sgt,  bool llc_coherent)
 {
+	size_t start_vpu_addr = vpu_addr;
 	struct scatterlist *sg;
 	int ret;
 	u64 prot;
@@ -448,20 +463,36 @@ ivpu_mmu_context_map_sgt(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx,
 		ret = ivpu_mmu_context_map_pages(vdev, ctx, vpu_addr, dma_addr, size, prot);
 		if (ret) {
 			ivpu_err(vdev, "Failed to map context pages\n");
-			mutex_unlock(&ctx->lock);
-			return ret;
+			goto err_unmap_pages;
 		}
 		vpu_addr += size;
+	}
+
+	if (!ctx->is_cd_valid) {
+		ret = ivpu_mmu_cd_set(vdev, ctx->id, &ctx->pgtable);
+		if (ret) {
+			ivpu_err(vdev, "Failed to set context descriptor for context %u: %d\n",
+				 ctx->id, ret);
+			goto err_unmap_pages;
+		}
+		ctx->is_cd_valid = true;
 	}
 
 	/* Ensure page table modifications are flushed from wc buffers to memory */
 	wmb();
 
-	mutex_unlock(&ctx->lock);
-
 	ret = ivpu_mmu_invalidate_tlb(vdev, ctx->id);
-	if (ret)
+	if (ret) {
 		ivpu_err(vdev, "Failed to invalidate TLB for ctx %u: %d\n", ctx->id, ret);
+		goto err_unmap_pages;
+	}
+
+	mutex_unlock(&ctx->lock);
+	return 0;
+
+err_unmap_pages:
+	ivpu_mmu_context_unmap_pages(ctx, start_vpu_addr, vpu_addr - start_vpu_addr);
+	mutex_unlock(&ctx->lock);
 	return ret;
 }
 
@@ -530,65 +561,75 @@ ivpu_mmu_context_remove_node(struct ivpu_mmu_context *ctx, struct drm_mm_node *n
 	mutex_unlock(&ctx->lock);
 }
 
-static int
-ivpu_mmu_context_init(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx, u32 context_id)
+void ivpu_mmu_context_init(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx, u32 context_id)
 {
 	u64 start, end;
-	int ret;
 
 	mutex_init(&ctx->lock);
-
-	ret = ivpu_mmu_pgtable_init(vdev, &ctx->pgtable);
-	if (ret) {
-		ivpu_err(vdev, "Failed to initialize pgtable for ctx %u: %d\n", context_id, ret);
-		return ret;
-	}
 
 	if (!context_id) {
 		start = vdev->hw->ranges.global.start;
 		end = vdev->hw->ranges.shave.end;
 	} else {
-		start = vdev->hw->ranges.user.start;
-		end = vdev->hw->ranges.dma.end;
+		start = min_t(u64, vdev->hw->ranges.user.start, vdev->hw->ranges.shave.start);
+		end = max_t(u64, vdev->hw->ranges.user.end, vdev->hw->ranges.dma.end);
 	}
 
 	drm_mm_init(&ctx->mm, start, end - start);
 	ctx->id = context_id;
-
-	return 0;
 }
 
-static void ivpu_mmu_context_fini(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx)
+void ivpu_mmu_context_fini(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx)
 {
-	if (drm_WARN_ON(&vdev->drm, !ctx->pgtable.pgd_dma_ptr))
-		return;
+	if (ctx->is_cd_valid) {
+		ivpu_mmu_cd_clear(vdev, ctx->id);
+		ctx->is_cd_valid = false;
+	}
 
 	mutex_destroy(&ctx->lock);
 	ivpu_mmu_pgtables_free(vdev, &ctx->pgtable);
 	drm_mm_takedown(&ctx->mm);
-
-	ctx->pgtable.pgd_dma_ptr = NULL;
-	ctx->pgtable.pgd_dma = 0;
 }
 
-int ivpu_mmu_global_context_init(struct ivpu_device *vdev)
+void ivpu_mmu_global_context_init(struct ivpu_device *vdev)
 {
-	return ivpu_mmu_context_init(vdev, &vdev->gctx, IVPU_GLOBAL_CONTEXT_MMU_SSID);
+	ivpu_mmu_context_init(vdev, &vdev->gctx, IVPU_GLOBAL_CONTEXT_MMU_SSID);
 }
 
 void ivpu_mmu_global_context_fini(struct ivpu_device *vdev)
 {
-	return ivpu_mmu_context_fini(vdev, &vdev->gctx);
+	ivpu_mmu_context_fini(vdev, &vdev->gctx);
 }
 
 int ivpu_mmu_reserved_context_init(struct ivpu_device *vdev)
 {
-	return ivpu_mmu_user_context_init(vdev, &vdev->rctx, IVPU_RESERVED_CONTEXT_MMU_SSID);
+	int ret;
+
+	ivpu_mmu_context_init(vdev, &vdev->rctx, IVPU_RESERVED_CONTEXT_MMU_SSID);
+
+	mutex_lock(&vdev->rctx.lock);
+
+	if (!ivpu_mmu_ensure_pgd(vdev, &vdev->rctx.pgtable)) {
+		ivpu_err(vdev, "Failed to allocate root page table for reserved context\n");
+		ret = -ENOMEM;
+		goto unlock;
+	}
+
+	ret = ivpu_mmu_cd_set(vdev, vdev->rctx.id, &vdev->rctx.pgtable);
+	if (ret) {
+		ivpu_err(vdev, "Failed to set context descriptor for reserved context\n");
+		goto unlock;
+	}
+
+unlock:
+	mutex_unlock(&vdev->rctx.lock);
+	return ret;
 }
 
 void ivpu_mmu_reserved_context_fini(struct ivpu_device *vdev)
 {
-	return ivpu_mmu_user_context_fini(vdev, &vdev->rctx);
+	ivpu_mmu_cd_clear(vdev, vdev->rctx.id);
+	ivpu_mmu_context_fini(vdev, &vdev->rctx);
 }
 
 void ivpu_mmu_user_context_mark_invalid(struct ivpu_device *vdev, u32 ssid)
@@ -602,37 +643,4 @@ void ivpu_mmu_user_context_mark_invalid(struct ivpu_device *vdev, u32 ssid)
 		file_priv->has_mmu_faults = true;
 
 	xa_unlock(&vdev->context_xa);
-}
-
-int ivpu_mmu_user_context_init(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx, u32 ctx_id)
-{
-	int ret;
-
-	drm_WARN_ON(&vdev->drm, !ctx_id);
-
-	ret = ivpu_mmu_context_init(vdev, ctx, ctx_id);
-	if (ret) {
-		ivpu_err(vdev, "Failed to initialize context %u: %d\n", ctx_id, ret);
-		return ret;
-	}
-
-	ret = ivpu_mmu_set_pgtable(vdev, ctx_id, &ctx->pgtable);
-	if (ret) {
-		ivpu_err(vdev, "Failed to set page table for context %u: %d\n", ctx_id, ret);
-		goto err_context_fini;
-	}
-
-	return 0;
-
-err_context_fini:
-	ivpu_mmu_context_fini(vdev, ctx);
-	return ret;
-}
-
-void ivpu_mmu_user_context_fini(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx)
-{
-	drm_WARN_ON(&vdev->drm, !ctx->id);
-
-	ivpu_mmu_clear_pgtable(vdev, ctx->id);
-	ivpu_mmu_context_fini(vdev, ctx);
 }

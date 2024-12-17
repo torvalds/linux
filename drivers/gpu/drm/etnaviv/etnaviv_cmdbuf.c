@@ -5,8 +5,6 @@
 
 #include <linux/dma-mapping.h>
 
-#include <drm/drm_mm.h>
-
 #include "etnaviv_cmdbuf.h"
 #include "etnaviv_gem.h"
 #include "etnaviv_gpu.h"
@@ -55,6 +53,7 @@ etnaviv_cmdbuf_suballoc_new(struct device *dev)
 	return suballoc;
 
 free_suballoc:
+	mutex_destroy(&suballoc->lock);
 	kfree(suballoc);
 
 	return ERR_PTR(ret);
@@ -79,6 +78,7 @@ void etnaviv_cmdbuf_suballoc_destroy(struct etnaviv_cmdbuf_suballoc *suballoc)
 {
 	dma_free_wc(suballoc->dev, SUBALLOC_SIZE, suballoc->vaddr,
 		    suballoc->paddr);
+	mutex_destroy(&suballoc->lock);
 	kfree(suballoc);
 }
 

@@ -15,7 +15,7 @@
  * More information about BLAKE2 can be found at https://blake2.net.
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/bitops.h>

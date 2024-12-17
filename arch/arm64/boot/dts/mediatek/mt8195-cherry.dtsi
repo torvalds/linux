@@ -438,7 +438,7 @@
 		/* Realtek RT5682i or RT5682s, sharing the same configuration */
 		reg = <0x1a>;
 		interrupts-extended = <&pio 89 IRQ_TYPE_EDGE_BOTH>;
-		#sound-dai-cells = <0>;
+		#sound-dai-cells = <1>;
 		realtek,jd-src = <1>;
 
 		AVDD-supply = <&mt6359_vio18_ldo_reg>;
@@ -1181,7 +1181,7 @@
 		link-name = "ETDM1_OUT_BE";
 		mediatek,clk-provider = "cpu";
 		codec {
-			sound-dai = <&audio_codec>;
+			sound-dai = <&audio_codec 0>;
 		};
 	};
 
@@ -1189,7 +1189,7 @@
 		link-name = "ETDM2_IN_BE";
 		mediatek,clk-provider = "cpu";
 		codec {
-			sound-dai = <&audio_codec>;
+			sound-dai = <&audio_codec 0>;
 		};
 	};
 
@@ -1227,10 +1227,6 @@
 		pinctrl-0 = <&cros_ec_int>;
 		spi-max-frequency = <3000000>;
 		wakeup-source;
-
-		keyboard-backlight {
-			compatible = "google,cros-kbd-led-backlight";
-		};
 
 		i2c_tunnel: i2c-tunnel {
 			compatible = "google,cros-ec-i2c-tunnel";
@@ -1401,9 +1397,11 @@
 &xhci1 {
 	status = "okay";
 
+	phys = <&u2port1 PHY_TYPE_USB2>;
 	rx-fifo-depth = <3072>;
 	vusb33-supply = <&mt6359_vusb_ldo_reg>;
 	vbus-supply = <&usb_vbus>;
+	mediatek,u3p-dis-msk = <1>;
 };
 
 &xhci2 {

@@ -11,9 +11,9 @@
 #include <drm/drm_managed.h>
 #include <drm/drm_print.h>
 
-#include "xe_device_types.h"
 #include "xe_gt_sysfs.h"
 #include "xe_gt_throttle.h"
+#include "xe_gt_types.h"
 #include "xe_guc_pc.h"
 #include "xe_pm.h"
 
@@ -237,11 +237,11 @@ int xe_gt_freq_init(struct xe_gt *gt)
 	if (!gt->freq)
 		return -ENOMEM;
 
-	err = devm_add_action(xe->drm.dev, freq_fini, gt->freq);
+	err = sysfs_create_files(gt->freq, freq_attrs);
 	if (err)
 		return err;
 
-	err = sysfs_create_files(gt->freq, freq_attrs);
+	err = devm_add_action_or_reset(xe->drm.dev, freq_fini, gt->freq);
 	if (err)
 		return err;
 

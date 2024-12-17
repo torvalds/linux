@@ -72,9 +72,6 @@ static int set_var(struct fbtft_par *par)
 
 	if (par->fbtftops.init_display != init_display) {
 		/* don't risk messing up register A0h */
-		fbtft_par_dbg(DEBUG_INIT_DISPLAY, par,
-			      "%s: skipping since custom init_display() is used\n",
-			       __func__);
 		return 0;
 	}
 
@@ -213,7 +210,7 @@ static void register_onboard_backlight(struct fbtft_par *par)
 	struct backlight_properties bl_props = { 0, };
 
 	bl_props.type = BACKLIGHT_RAW;
-	bl_props.power = FB_BLANK_POWERDOWN;
+	bl_props.power = BACKLIGHT_POWER_OFF;
 
 	bd = backlight_device_register(dev_driver_string(par->info->device),
 				       par->info->device, par, &bl_ops,

@@ -125,7 +125,7 @@ FSGSBASE instructions enablement
 FSGSBASE instructions compiler support
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-GCC version 4.6.4 and newer provide instrinsics for the FSGSBASE
+GCC version 4.6.4 and newer provide intrinsics for the FSGSBASE
 instructions. Clang 5 supports them as well.
 
   =================== ===========================
@@ -135,7 +135,7 @@ instructions. Clang 5 supports them as well.
   _writegsbase_u64()  Write the GS base register
   =================== ===========================
 
-To utilize these instrinsics <immintrin.h> must be included in the source
+To utilize these intrinsics <immintrin.h> must be included in the source
 code and the compiler option -mfsgsbase has to be added.
 
 Compiler support for FS/GS based addressing

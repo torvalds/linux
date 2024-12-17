@@ -591,8 +591,8 @@ static int twl_rtc_probe(struct platform_device *pdev)
 	memset(&nvmem_cfg, 0, sizeof(nvmem_cfg));
 	nvmem_cfg.name = "twl-secured-";
 	nvmem_cfg.type = NVMEM_TYPE_BATTERY_BACKED;
-	nvmem_cfg.reg_read = twl_nvram_read,
-	nvmem_cfg.reg_write = twl_nvram_write,
+	nvmem_cfg.reg_read = twl_nvram_read;
+	nvmem_cfg.reg_write = twl_nvram_write;
 	nvmem_cfg.word_size = 1;
 	nvmem_cfg.stride = 1;
 	if (twl_class_is_4030()) {
@@ -673,7 +673,7 @@ MODULE_DEVICE_TABLE(of, twl_rtc_of_match);
 
 static struct platform_driver twl4030rtc_driver = {
 	.probe		= twl_rtc_probe,
-	.remove_new	= twl_rtc_remove,
+	.remove		= twl_rtc_remove,
 	.shutdown	= twl_rtc_shutdown,
 	.driver		= {
 		.name		= "twl_rtc",

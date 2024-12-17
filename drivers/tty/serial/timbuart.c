@@ -485,7 +485,7 @@ static struct platform_driver timbuart_platform_driver = {
 		.name	= "timb-uart",
 	},
 	.probe		= timbuart_probe,
-	.remove_new	= timbuart_remove,
+	.remove		= timbuart_remove,
 };
 
 module_platform_driver(timbuart_platform_driver);

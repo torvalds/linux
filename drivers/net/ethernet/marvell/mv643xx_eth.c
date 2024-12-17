@@ -1698,13 +1698,9 @@ static void mv643xx_eth_get_strings(struct net_device *dev,
 {
 	int i;
 
-	if (stringset == ETH_SS_STATS) {
-		for (i = 0; i < ARRAY_SIZE(mv643xx_eth_stats); i++) {
-			memcpy(data + i * ETH_GSTRING_LEN,
-				mv643xx_eth_stats[i].stat_string,
-				ETH_GSTRING_LEN);
-		}
-	}
+	if (stringset == ETH_SS_STATS)
+		for (i = 0; i < ARRAY_SIZE(mv643xx_eth_stats); i++)
+			ethtool_puts(&data, mv643xx_eth_stats[i].stat_string);
 }
 
 static void mv643xx_eth_get_ethtool_stats(struct net_device *dev,
@@ -2802,7 +2798,7 @@ port_err:
 static int mv643xx_eth_shared_of_probe(struct platform_device *pdev)
 {
 	struct mv643xx_eth_shared_platform_data *pd;
-	struct device_node *pnp, *np = pdev->dev.of_node;
+	struct device_node *np = pdev->dev.of_node;
 	int ret;
 
 	/* bail out if not registered from DT */
@@ -2816,10 +2812,9 @@ static int mv643xx_eth_shared_of_probe(struct platform_device *pdev)
 
 	mv643xx_eth_property(np, "tx-checksum-limit", pd->tx_csum_limit);
 
-	for_each_available_child_of_node(np, pnp) {
+	for_each_available_child_of_node_scoped(np, pnp) {
 		ret = mv643xx_eth_shared_of_add_port(pdev, pnp);
 		if (ret) {
-			of_node_put(pnp);
 			mv643xx_eth_shared_of_remove();
 			return ret;
 		}
@@ -2844,29 +2839,24 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 	struct mv643xx_eth_shared_platform_data *pd;
 	struct mv643xx_eth_shared_private *msp;
 	const struct mbus_dram_target_info *dram;
-	struct resource *res;
 	int ret;
 
 	if (!mv643xx_eth_version_printed++)
 		pr_notice("MV-643xx 10/100/1000 ethernet driver version %s\n",
 			  mv643xx_eth_driver_version);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL)
-		return -EINVAL;
-
 	msp = devm_kzalloc(&pdev->dev, sizeof(*msp), GFP_KERNEL);
 	if (msp == NULL)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, msp);
 
-	msp->base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
-	if (msp->base == NULL)
-		return -ENOMEM;
+	msp->base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(msp->base))
+		return PTR_ERR(msp->base);
 
-	msp->clk = devm_clk_get(&pdev->dev, NULL);
-	if (!IS_ERR(msp->clk))
-		clk_prepare_enable(msp->clk);
+	msp->clk = devm_clk_get_optional_enabled(&pdev->dev, NULL);
+	if (IS_ERR(msp->clk))
+		return PTR_ERR(msp->clk);
 
 	/*
 	 * (Re-)program MBUS remapping windows if we are asked to.
@@ -2877,7 +2867,7 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 
 	ret = mv643xx_eth_shared_of_probe(pdev);
 	if (ret)
-		goto err_put_clk;
+		return ret;
 	pd = dev_get_platdata(&pdev->dev);
 
 	msp->tx_csum_limit = (pd != NULL && pd->tx_csum_limit) ?
@@ -2885,25 +2875,16 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 	infer_hw_params(msp);
 
 	return 0;
-
-err_put_clk:
-	if (!IS_ERR(msp->clk))
-		clk_disable_unprepare(msp->clk);
-	return ret;
 }
 
 static void mv643xx_eth_shared_remove(struct platform_device *pdev)
 {
-	struct mv643xx_eth_shared_private *msp = platform_get_drvdata(pdev);
-
 	mv643xx_eth_shared_of_remove();
-	if (!IS_ERR(msp->clk))
-		clk_disable_unprepare(msp->clk);
 }
 
 static struct platform_driver mv643xx_eth_shared_driver = {
 	.probe		= mv643xx_eth_shared_probe,
-	.remove_new	= mv643xx_eth_shared_remove,
+	.remove		= mv643xx_eth_shared_remove,
 	.driver = {
 		.name	= MV643XX_ETH_SHARED_NAME,
 		.of_match_table = of_match_ptr(mv643xx_eth_shared_ids),
@@ -3308,7 +3289,7 @@ static void mv643xx_eth_shutdown(struct platform_device *pdev)
 
 static struct platform_driver mv643xx_eth_driver = {
 	.probe		= mv643xx_eth_probe,
-	.remove_new	= mv643xx_eth_remove,
+	.remove		= mv643xx_eth_remove,
 	.shutdown	= mv643xx_eth_shutdown,
 	.driver = {
 		.name	= MV643XX_ETH_NAME,

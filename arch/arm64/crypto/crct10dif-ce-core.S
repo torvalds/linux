@@ -1,8 +1,11 @@
 //
 // Accelerated CRC-T10DIF using arm64 NEON and Crypto Extensions instructions
 //
-// Copyright (C) 2016 Linaro Ltd <ard.biesheuvel@linaro.org>
-// Copyright (C) 2019 Google LLC <ebiggers@google.com>
+// Copyright (C) 2016 Linaro Ltd
+// Copyright (C) 2019-2024 Google LLC
+//
+// Authors: Ard Biesheuvel <ardb@google.com>
+//          Eric Biggers <ebiggers@google.com>
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License version 2 as
@@ -71,14 +74,9 @@
 	init_crc	.req	w0
 	buf		.req	x1
 	len		.req	x2
-	fold_consts_ptr	.req	x3
+	fold_consts_ptr	.req	x5
 
 	fold_consts	.req	v10
-
-	ad		.req	v14
-
-	k00_16		.req	v15
-	k32_48		.req	v16
 
 	t3		.req	v17
 	t4		.req	v18
@@ -86,146 +84,107 @@
 	t6		.req	v20
 	t7		.req	v21
 	t8		.req	v22
-	t9		.req	v23
 
-	perm1		.req	v24
-	perm2		.req	v25
-	perm3		.req	v26
-	perm4		.req	v27
+	perm		.req	v27
 
-	bd1		.req	v28
-	bd2		.req	v29
-	bd3		.req	v30
-	bd4		.req	v31
-
-	.macro		__pmull_init_p64
+	.macro		pmull16x64_p64, a16, b64, c64
+	pmull2		\c64\().1q, \a16\().2d, \b64\().2d
+	pmull		\b64\().1q, \a16\().1d, \b64\().1d
 	.endm
 
-	.macro		__pmull_pre_p64, bd
+	/*
+	 * Pairwise long polynomial multiplication of two 16-bit values
+	 *
+	 *   { w0, w1 }, { y0, y1 }
+	 *
+	 * by two 64-bit values
+	 *
+	 *   { x0, x1, x2, x3, x4, x5, x6, x7 }, { z0, z1, z2, z3, z4, z5, z6, z7 }
+	 *
+	 * where each vector element is a byte, ordered from least to most
+	 * significant.
+	 *
+	 * This can be implemented using 8x8 long polynomial multiplication, by
+	 * reorganizing the input so that each pairwise 8x8 multiplication
+	 * produces one of the terms from the decomposition below, and
+	 * combining the results of each rank and shifting them into place.
+	 *
+	 * Rank
+	 *  0            w0*x0 ^              |        y0*z0 ^
+	 *  1       (w0*x1 ^ w1*x0) <<  8 ^   |   (y0*z1 ^ y1*z0) <<  8 ^
+	 *  2       (w0*x2 ^ w1*x1) << 16 ^   |   (y0*z2 ^ y1*z1) << 16 ^
+	 *  3       (w0*x3 ^ w1*x2) << 24 ^   |   (y0*z3 ^ y1*z2) << 24 ^
+	 *  4       (w0*x4 ^ w1*x3) << 32 ^   |   (y0*z4 ^ y1*z3) << 32 ^
+	 *  5       (w0*x5 ^ w1*x4) << 40 ^   |   (y0*z5 ^ y1*z4) << 40 ^
+	 *  6       (w0*x6 ^ w1*x5) << 48 ^   |   (y0*z6 ^ y1*z5) << 48 ^
+	 *  7       (w0*x7 ^ w1*x6) << 56 ^   |   (y0*z7 ^ y1*z6) << 56 ^
+	 *  8            w1*x7      << 64     |        y1*z7      << 64
+	 *
+	 * The inputs can be reorganized into
+	 *
+	 *   { w0, w0, w0, w0, y0, y0, y0, y0 }, { w1, w1, w1, w1, y1, y1, y1, y1 }
+	 *   { x0, x2, x4, x6, z0, z2, z4, z6 }, { x1, x3, x5, x7, z1, z3, z5, z7 }
+	 *
+	 * and after performing 8x8->16 bit long polynomial multiplication of
+	 * each of the halves of the first vector with those of the second one,
+	 * we obtain the following four vectors of 16-bit elements:
+	 *
+	 *   a := { w0*x0, w0*x2, w0*x4, w0*x6 }, { y0*z0, y0*z2, y0*z4, y0*z6 }
+	 *   b := { w0*x1, w0*x3, w0*x5, w0*x7 }, { y0*z1, y0*z3, y0*z5, y0*z7 }
+	 *   c := { w1*x0, w1*x2, w1*x4, w1*x6 }, { y1*z0, y1*z2, y1*z4, y1*z6 }
+	 *   d := { w1*x1, w1*x3, w1*x5, w1*x7 }, { y1*z1, y1*z3, y1*z5, y1*z7 }
+	 *
+	 * Results b and c can be XORed together, as the vector elements have
+	 * matching ranks. Then, the final XOR (*) can be pulled forward, and
+	 * applied between the halves of each of the remaining three vectors,
+	 * which are then shifted into place, and combined to produce two
+	 * 80-bit results.
+	 *
+	 * (*) NOTE: the 16x64 bit polynomial multiply below is not equivalent
+	 * to the 64x64 bit one above, but XOR'ing the outputs together will
+	 * produce the expected result, and this is sufficient in the context of
+	 * this algorithm.
+	 */
+	.macro		pmull16x64_p8, a16, b64, c64
+	ext		t7.16b, \b64\().16b, \b64\().16b, #1
+	tbl		t5.16b, {\a16\().16b}, perm.16b
+	uzp1		t7.16b, \b64\().16b, t7.16b
+	bl		__pmull_p8_16x64
+	ext		\b64\().16b, t4.16b, t4.16b, #15
+	eor		\c64\().16b, t8.16b, t5.16b
 	.endm
 
-	.macro		__pmull_init_p8
-	// k00_16 := 0x0000000000000000_000000000000ffff
-	// k32_48 := 0x00000000ffffffff_0000ffffffffffff
-	movi		k32_48.2d, #0xffffffff
-	mov		k32_48.h[2], k32_48.h[0]
-	ushr		k00_16.2d, k32_48.2d, #32
+SYM_FUNC_START_LOCAL(__pmull_p8_16x64)
+	ext		t6.16b, t5.16b, t5.16b, #8
 
-	// prepare the permutation vectors
-	mov_q		x5, 0x080f0e0d0c0b0a09
-	movi		perm4.8b, #8
-	dup		perm1.2d, x5
-	eor		perm1.16b, perm1.16b, perm4.16b
-	ushr		perm2.2d, perm1.2d, #8
-	ushr		perm3.2d, perm1.2d, #16
-	ushr		perm4.2d, perm1.2d, #24
-	sli		perm2.2d, perm1.2d, #56
-	sli		perm3.2d, perm1.2d, #48
-	sli		perm4.2d, perm1.2d, #40
-	.endm
+	pmull		t3.8h, t7.8b, t5.8b
+	pmull		t4.8h, t7.8b, t6.8b
+	pmull2		t5.8h, t7.16b, t5.16b
+	pmull2		t6.8h, t7.16b, t6.16b
 
-	.macro		__pmull_pre_p8, bd
-	tbl		bd1.16b, {\bd\().16b}, perm1.16b
-	tbl		bd2.16b, {\bd\().16b}, perm2.16b
-	tbl		bd3.16b, {\bd\().16b}, perm3.16b
-	tbl		bd4.16b, {\bd\().16b}, perm4.16b
-	.endm
-
-SYM_FUNC_START_LOCAL(__pmull_p8_core)
-.L__pmull_p8_core:
-	ext		t4.8b, ad.8b, ad.8b, #1			// A1
-	ext		t5.8b, ad.8b, ad.8b, #2			// A2
-	ext		t6.8b, ad.8b, ad.8b, #3			// A3
-
-	pmull		t4.8h, t4.8b, fold_consts.8b		// F = A1*B
-	pmull		t8.8h, ad.8b, bd1.8b			// E = A*B1
-	pmull		t5.8h, t5.8b, fold_consts.8b		// H = A2*B
-	pmull		t7.8h, ad.8b, bd2.8b			// G = A*B2
-	pmull		t6.8h, t6.8b, fold_consts.8b		// J = A3*B
-	pmull		t9.8h, ad.8b, bd3.8b			// I = A*B3
-	pmull		t3.8h, ad.8b, bd4.8b			// K = A*B4
-	b		0f
-
-.L__pmull_p8_core2:
-	tbl		t4.16b, {ad.16b}, perm1.16b		// A1
-	tbl		t5.16b, {ad.16b}, perm2.16b		// A2
-	tbl		t6.16b, {ad.16b}, perm3.16b		// A3
-
-	pmull2		t4.8h, t4.16b, fold_consts.16b		// F = A1*B
-	pmull2		t8.8h, ad.16b, bd1.16b			// E = A*B1
-	pmull2		t5.8h, t5.16b, fold_consts.16b		// H = A2*B
-	pmull2		t7.8h, ad.16b, bd2.16b			// G = A*B2
-	pmull2		t6.8h, t6.16b, fold_consts.16b		// J = A3*B
-	pmull2		t9.8h, ad.16b, bd3.16b			// I = A*B3
-	pmull2		t3.8h, ad.16b, bd4.16b			// K = A*B4
-
-0:	eor		t4.16b, t4.16b, t8.16b			// L = E + F
-	eor		t5.16b, t5.16b, t7.16b			// M = G + H
-	eor		t6.16b, t6.16b, t9.16b			// N = I + J
-
-	uzp1		t8.2d, t4.2d, t5.2d
-	uzp2		t4.2d, t4.2d, t5.2d
-	uzp1		t7.2d, t6.2d, t3.2d
-	uzp2		t6.2d, t6.2d, t3.2d
-
-	// t4 = (L) (P0 + P1) << 8
-	// t5 = (M) (P2 + P3) << 16
-	eor		t8.16b, t8.16b, t4.16b
-	and		t4.16b, t4.16b, k32_48.16b
-
-	// t6 = (N) (P4 + P5) << 24
-	// t7 = (K) (P6 + P7) << 32
-	eor		t7.16b, t7.16b, t6.16b
-	and		t6.16b, t6.16b, k00_16.16b
-
-	eor		t8.16b, t8.16b, t4.16b
-	eor		t7.16b, t7.16b, t6.16b
-
-	zip2		t5.2d, t8.2d, t4.2d
-	zip1		t4.2d, t8.2d, t4.2d
-	zip2		t3.2d, t7.2d, t6.2d
-	zip1		t6.2d, t7.2d, t6.2d
-
-	ext		t4.16b, t4.16b, t4.16b, #15
+	ext		t8.16b, t3.16b, t3.16b, #8
+	eor		t4.16b, t4.16b, t6.16b
+	ext		t7.16b, t5.16b, t5.16b, #8
+	ext		t6.16b, t4.16b, t4.16b, #8
+	eor		t8.8b, t8.8b, t3.8b
+	eor		t5.8b, t5.8b, t7.8b
+	eor		t4.8b, t4.8b, t6.8b
 	ext		t5.16b, t5.16b, t5.16b, #14
-	ext		t6.16b, t6.16b, t6.16b, #13
-	ext		t3.16b, t3.16b, t3.16b, #12
-
-	eor		t4.16b, t4.16b, t5.16b
-	eor		t6.16b, t6.16b, t3.16b
 	ret
-SYM_FUNC_END(__pmull_p8_core)
+SYM_FUNC_END(__pmull_p8_16x64)
 
-	.macro		__pmull_p8, rq, ad, bd, i
-	.ifnc		\bd, fold_consts
-	.err
-	.endif
-	mov		ad.16b, \ad\().16b
-	.ifb		\i
-	pmull		\rq\().8h, \ad\().8b, \bd\().8b		// D = A*B
-	.else
-	pmull2		\rq\().8h, \ad\().16b, \bd\().16b	// D = A*B
-	.endif
-
-	bl		.L__pmull_p8_core\i
-
-	eor		\rq\().16b, \rq\().16b, t4.16b
-	eor		\rq\().16b, \rq\().16b, t6.16b
-	.endm
 
 	// Fold reg1, reg2 into the next 32 data bytes, storing the result back
 	// into reg1, reg2.
 	.macro		fold_32_bytes, p, reg1, reg2
 	ldp		q11, q12, [buf], #0x20
 
-	__pmull_\p	v8, \reg1, fold_consts, 2
-	__pmull_\p	\reg1, \reg1, fold_consts
+	pmull16x64_\p	fold_consts, \reg1, v8
 
 CPU_LE(	rev64		v11.16b, v11.16b		)
 CPU_LE(	rev64		v12.16b, v12.16b		)
 
-	__pmull_\p	v9, \reg2, fold_consts, 2
-	__pmull_\p	\reg2, \reg2, fold_consts
+	pmull16x64_\p	fold_consts, \reg2, v9
 
 CPU_LE(	ext		v11.16b, v11.16b, v11.16b, #8	)
 CPU_LE(	ext		v12.16b, v12.16b, v12.16b, #8	)
@@ -238,26 +197,15 @@ CPU_LE(	ext		v12.16b, v12.16b, v12.16b, #8	)
 
 	// Fold src_reg into dst_reg, optionally loading the next fold constants
 	.macro		fold_16_bytes, p, src_reg, dst_reg, load_next_consts
-	__pmull_\p	v8, \src_reg, fold_consts
-	__pmull_\p	\src_reg, \src_reg, fold_consts, 2
+	pmull16x64_\p	fold_consts, \src_reg, v8
 	.ifnb		\load_next_consts
 	ld1		{fold_consts.2d}, [fold_consts_ptr], #16
-	__pmull_pre_\p	fold_consts
 	.endif
 	eor		\dst_reg\().16b, \dst_reg\().16b, v8.16b
 	eor		\dst_reg\().16b, \dst_reg\().16b, \src_reg\().16b
 	.endm
 
-	.macro		__pmull_p64, rd, rn, rm, n
-	.ifb		\n
-	pmull		\rd\().1q, \rn\().1d, \rm\().1d
-	.else
-	pmull2		\rd\().1q, \rn\().2d, \rm\().2d
-	.endif
-	.endm
-
 	.macro		crc_t10dif_pmull, p
-	__pmull_init_\p
 
 	// For sizes less than 256 bytes, we can't fold 128 bytes at a time.
 	cmp		len, #256
@@ -296,7 +244,6 @@ CPU_LE(	ext		v7.16b, v7.16b, v7.16b, #8	)
 
 	// Load the constants for folding across 128 bytes.
 	ld1		{fold_consts.2d}, [fold_consts_ptr]
-	__pmull_pre_\p	fold_consts
 
 	// Subtract 128 for the 128 data bytes just consumed.  Subtract another
 	// 128 to simplify the termination condition of the following loop.
@@ -318,7 +265,6 @@ CPU_LE(	ext		v7.16b, v7.16b, v7.16b, #8	)
 	// Fold across 64 bytes.
 	add		fold_consts_ptr, fold_consts_ptr, #16
 	ld1		{fold_consts.2d}, [fold_consts_ptr], #16
-	__pmull_pre_\p	fold_consts
 	fold_16_bytes	\p, v0, v4
 	fold_16_bytes	\p, v1, v5
 	fold_16_bytes	\p, v2, v6
@@ -339,8 +285,7 @@ CPU_LE(	ext		v7.16b, v7.16b, v7.16b, #8	)
 	// into them, storing the result back into v7.
 	b.lt		.Lfold_16_bytes_loop_done_\@
 .Lfold_16_bytes_loop_\@:
-	__pmull_\p	v8, v7, fold_consts
-	__pmull_\p	v7, v7, fold_consts, 2
+	pmull16x64_\p	fold_consts, v7, v8
 	eor		v7.16b, v7.16b, v8.16b
 	ldr		q0, [buf], #16
 CPU_LE(	rev64		v0.16b, v0.16b			)
@@ -387,51 +332,10 @@ CPU_LE(	ext		v0.16b, v0.16b, v0.16b, #8	)
 	bsl		v2.16b, v1.16b, v0.16b
 
 	// Fold the first chunk into the second chunk, storing the result in v7.
-	__pmull_\p	v0, v3, fold_consts
-	__pmull_\p	v7, v3, fold_consts, 2
-	eor		v7.16b, v7.16b, v0.16b
+	pmull16x64_\p	fold_consts, v3, v0
+	eor		v7.16b, v3.16b, v0.16b
 	eor		v7.16b, v7.16b, v2.16b
-
-.Lreduce_final_16_bytes_\@:
-	// Reduce the 128-bit value M(x), stored in v7, to the final 16-bit CRC.
-
-	movi		v2.16b, #0		// init zero register
-
-	// Load 'x^48 * (x^48 mod G(x))' and 'x^48 * (x^80 mod G(x))'.
-	ld1		{fold_consts.2d}, [fold_consts_ptr], #16
-	__pmull_pre_\p	fold_consts
-
-	// Fold the high 64 bits into the low 64 bits, while also multiplying by
-	// x^64.  This produces a 128-bit value congruent to x^64 * M(x) and
-	// whose low 48 bits are 0.
-	ext		v0.16b, v2.16b, v7.16b, #8
-	__pmull_\p	v7, v7, fold_consts, 2	// high bits * x^48 * (x^80 mod G(x))
-	eor		v0.16b, v0.16b, v7.16b	// + low bits * x^64
-
-	// Fold the high 32 bits into the low 96 bits.  This produces a 96-bit
-	// value congruent to x^64 * M(x) and whose low 48 bits are 0.
-	ext		v1.16b, v0.16b, v2.16b, #12	// extract high 32 bits
-	mov		v0.s[3], v2.s[0]	// zero high 32 bits
-	__pmull_\p	v1, v1, fold_consts	// high 32 bits * x^48 * (x^48 mod G(x))
-	eor		v0.16b, v0.16b, v1.16b	// + low bits
-
-	// Load G(x) and floor(x^48 / G(x)).
-	ld1		{fold_consts.2d}, [fold_consts_ptr]
-	__pmull_pre_\p	fold_consts
-
-	// Use Barrett reduction to compute the final CRC value.
-	__pmull_\p	v1, v0, fold_consts, 2	// high 32 bits * floor(x^48 / G(x))
-	ushr		v1.2d, v1.2d, #32	// /= x^32
-	__pmull_\p	v1, v1, fold_consts	// *= G(x)
-	ushr		v0.2d, v0.2d, #48
-	eor		v0.16b, v0.16b, v1.16b	// + low 16 nonzero bits
-	// Final CRC value (x^16 * M(x)) mod G(x) is in low 16 bits of v0.
-
-	umov		w0, v0.h[0]
-	.ifc		\p, p8
-	frame_pop
-	.endif
-	ret
+	b		.Lreduce_final_16_bytes_\@
 
 .Lless_than_256_bytes_\@:
 	// Checksumming a buffer of length 16...255 bytes
@@ -450,7 +354,6 @@ CPU_LE(	ext		v7.16b, v7.16b, v7.16b, #8	)
 
 	// Load the fold-across-16-bytes constants.
 	ld1		{fold_consts.2d}, [fold_consts_ptr], #16
-	__pmull_pre_\p	fold_consts
 
 	cmp		len, #16
 	b.eq		.Lreduce_final_16_bytes_\@	// len == 16
@@ -458,6 +361,8 @@ CPU_LE(	ext		v7.16b, v7.16b, v7.16b, #8	)
 	b.ge		.Lfold_16_bytes_loop_\@		// 32 <= len <= 255
 	add		len, len, #16
 	b		.Lhandle_partial_segment_\@	// 17 <= len <= 31
+
+.Lreduce_final_16_bytes_\@:
 	.endm
 
 //
@@ -467,7 +372,22 @@ CPU_LE(	ext		v7.16b, v7.16b, v7.16b, #8	)
 //
 SYM_FUNC_START(crc_t10dif_pmull_p8)
 	frame_push	1
+
+	// Compose { 0,0,0,0, 8,8,8,8, 1,1,1,1, 9,9,9,9 }
+	movi		perm.4h, #8, lsl #8
+	orr		perm.2s, #1, lsl #16
+	orr		perm.2s, #1, lsl #24
+	zip1		perm.16b, perm.16b, perm.16b
+	zip1		perm.16b, perm.16b, perm.16b
+
 	crc_t10dif_pmull p8
+
+CPU_LE(	rev64		v7.16b, v7.16b			)
+CPU_LE(	ext		v7.16b, v7.16b, v7.16b, #8	)
+	str		q7, [x3]
+
+	frame_pop
+	ret
 SYM_FUNC_END(crc_t10dif_pmull_p8)
 
 	.align		5
@@ -478,6 +398,41 @@ SYM_FUNC_END(crc_t10dif_pmull_p8)
 //
 SYM_FUNC_START(crc_t10dif_pmull_p64)
 	crc_t10dif_pmull	p64
+
+	// Reduce the 128-bit value M(x), stored in v7, to the final 16-bit CRC.
+
+	movi		v2.16b, #0		// init zero register
+
+	// Load 'x^48 * (x^48 mod G(x))' and 'x^48 * (x^80 mod G(x))'.
+	ld1		{fold_consts.2d}, [fold_consts_ptr], #16
+
+	// Fold the high 64 bits into the low 64 bits, while also multiplying by
+	// x^64.  This produces a 128-bit value congruent to x^64 * M(x) and
+	// whose low 48 bits are 0.
+	ext		v0.16b, v2.16b, v7.16b, #8
+	pmull2		v7.1q, v7.2d, fold_consts.2d	// high bits * x^48 * (x^80 mod G(x))
+	eor		v0.16b, v0.16b, v7.16b		// + low bits * x^64
+
+	// Fold the high 32 bits into the low 96 bits.  This produces a 96-bit
+	// value congruent to x^64 * M(x) and whose low 48 bits are 0.
+	ext		v1.16b, v0.16b, v2.16b, #12	// extract high 32 bits
+	mov		v0.s[3], v2.s[0]		// zero high 32 bits
+	pmull		v1.1q, v1.1d, fold_consts.1d	// high 32 bits * x^48 * (x^48 mod G(x))
+	eor		v0.16b, v0.16b, v1.16b		// + low bits
+
+	// Load G(x) and floor(x^48 / G(x)).
+	ld1		{fold_consts.2d}, [fold_consts_ptr]
+
+	// Use Barrett reduction to compute the final CRC value.
+	pmull2		v1.1q, v0.2d, fold_consts.2d	// high 32 bits * floor(x^48 / G(x))
+	ushr		v1.2d, v1.2d, #32		// /= x^32
+	pmull		v1.1q, v1.1d, fold_consts.1d	// *= G(x)
+	ushr		v0.2d, v0.2d, #48
+	eor		v0.16b, v0.16b, v1.16b		// + low 16 nonzero bits
+	// Final CRC value (x^16 * M(x)) mod G(x) is in low 16 bits of v0.
+
+	umov		w0, v0.h[0]
+	ret
 SYM_FUNC_END(crc_t10dif_pmull_p64)
 
 	.section	".rodata", "a"

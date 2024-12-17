@@ -54,6 +54,14 @@
 		};
 	};
 
+	main_esm: esm@700000 {
+		compatible = "ti,j721e-esm";
+		reg = <0x00 0x700000 0x00 0x1000>;
+		bootph-pre-ram;
+		/* Interrupt sources: rti0, rti1, rti2, rti3 */
+		ti,esm-pins = <224>, <225>, <226>, <227>;
+	};
+
 	serdes0: serdes@900000 {
 		compatible = "ti,phy-am654-serdes";
 		reg = <0x0 0x900000 0x0 0x2000>;
@@ -478,7 +486,7 @@
 		ranges = <0x0 0x0 0x00100000 0x1c000>;
 
 		serdes0_clk: clock@4080 {
-			compatible = "ti,am654-serdes-ctrl", "syscon";
+			compatible = "ti,am654-serdes-ctrl", "syscon", "simple-mfd";
 			reg = <0x4080 0x4>;
 
 			serdes0_mux: mux-controller {
@@ -489,7 +497,7 @@
 		};
 
 		serdes1_clk: clock@4090 {
-			compatible = "ti,am654-serdes-ctrl", "syscon";
+			compatible = "ti,am654-serdes-ctrl", "syscon", "simple-mfd";
 			reg = <0x4090 0x4>;
 
 			serdes1_mux: mux-controller {
@@ -1159,6 +1167,11 @@
 			reg = <0x33000 0x1000>;
 		};
 
+		icssg0_pa_stats: pa-stats@2c000 {
+			compatible = "ti,pruss-pa-st", "syscon";
+			reg = <0x2c000 0x1000>;
+		};
+
 		icssg0_intc: interrupt-controller@20000 {
 			compatible = "ti,icssg-intc";
 			reg = <0x20000 0x2000>;
@@ -1325,6 +1338,11 @@
 			reg = <0x33000 0x1000>;
 		};
 
+		icssg1_pa_stats: pa-stats@2c000 {
+			compatible = "ti,pruss-pa-st", "syscon";
+			reg = <0x2c000 0x1000>;
+		};
+
 		icssg1_intc: interrupt-controller@20000 {
 			compatible = "ti,icssg-intc";
 			reg = <0x20000 0x2000>;
@@ -1489,6 +1507,11 @@
 		icssg2_mii_g_rt: mii-g-rt@33000 {
 			compatible = "ti,pruss-mii-g", "syscon";
 			reg = <0x33000 0x1000>;
+		};
+
+		icssg2_pa_stats: pa-stats@2c000 {
+			compatible = "ti,pruss-pa-st", "syscon";
+			reg = <0x2c000 0x1000>;
 		};
 
 		icssg2_intc: interrupt-controller@20000 {

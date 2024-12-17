@@ -18,6 +18,9 @@
 #include "intel_frontbuffer.h"
 #include "intel_plane_initial.h"
 #include "xe_bo.h"
+#include "xe_wa.h"
+
+#include <generated/xe_wa_oob.h>
 
 static bool
 intel_reuse_initial_plane_obj(struct intel_crtc *this,
@@ -104,6 +107,9 @@ initial_plane_bo(struct xe_device *xe,
 		phys_base = base;
 		flags |= XE_BO_FLAG_STOLEN;
 
+		if (XE_WA(xe_root_mmio_gt(xe), 22019338487_display))
+			return NULL;
+
 		/*
 		 * If the FB is too big, just don't use it since fbdev is not very
 		 * important and we should probably use that space with FBC or other
@@ -164,7 +170,7 @@ intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 		return false;
 
 	if (intel_framebuffer_init(to_intel_framebuffer(fb),
-				   bo, &mode_cmd)) {
+				   &bo->ttm.base, &mode_cmd)) {
 		drm_dbg_kms(&xe->drm, "intel fb init failed\n");
 		goto err_bo;
 	}
@@ -242,7 +248,7 @@ intel_find_initial_plane_obj(struct intel_crtc *crtc,
 	 * the lookup of sysmem scratch pages.
 	 */
 	plane->check_plane(crtc_state, plane_state);
-	plane->async_flip(plane, crtc_state, plane_state, true);
+	plane->async_flip(NULL, plane, crtc_state, plane_state, true);
 	return;
 
 nofb:

@@ -310,6 +310,10 @@ struct kfd_node {
 	struct kfd_local_mem_info local_mem_info;
 
 	struct kfd_dev *kfd;
+
+	/* Track per device allocated watch points */
+	uint32_t alloc_watch_ids;
+	spinlock_t watch_points_lock;
 };
 
 struct kfd_dev {
@@ -362,10 +366,6 @@ struct kfd_dev {
 	struct kfd_node *nodes[MAX_KFD_NODES];
 	unsigned int num_nodes;
 
-	/* Track per device allocated watch points */
-	uint32_t alloc_watch_ids;
-	spinlock_t watch_points_lock;
-
 	/* Kernel doorbells for KFD device */
 	struct amdgpu_bo *doorbells;
 
@@ -414,13 +414,16 @@ enum kfd_unmap_queues_filter {
  * @KFD_QUEUE_TYPE_DIQ: DIQ queue type.
  *
  * @KFD_QUEUE_TYPE_SDMA_XGMI: Special SDMA queue for XGMI interface.
+ *
+ * @KFD_QUEUE_TYPE_SDMA_BY_ENG_ID:  SDMA user mode queue with target SDMA engine ID.
  */
 enum kfd_queue_type  {
 	KFD_QUEUE_TYPE_COMPUTE,
 	KFD_QUEUE_TYPE_SDMA,
 	KFD_QUEUE_TYPE_HIQ,
 	KFD_QUEUE_TYPE_DIQ,
-	KFD_QUEUE_TYPE_SDMA_XGMI
+	KFD_QUEUE_TYPE_SDMA_XGMI,
+	KFD_QUEUE_TYPE_SDMA_BY_ENG_ID
 };
 
 enum kfd_queue_format {
@@ -494,8 +497,8 @@ struct queue_properties {
 	uint64_t  queue_size;
 	uint32_t priority;
 	uint32_t queue_percent;
-	uint32_t *read_ptr;
-	uint32_t *write_ptr;
+	void __user *read_ptr;
+	void __user *write_ptr;
 	void __iomem *doorbell_ptr;
 	uint32_t doorbell_off;
 	bool is_interop;
@@ -522,6 +525,12 @@ struct queue_properties {
 	uint64_t tba_addr;
 	uint64_t tma_addr;
 	uint64_t exception_status;
+
+	struct amdgpu_bo *wptr_bo;
+	struct amdgpu_bo *rptr_bo;
+	struct amdgpu_bo *ring_bo;
+	struct amdgpu_bo *eop_buf_bo;
+	struct amdgpu_bo *cwsr_bo;
 };
 
 #define QUEUE_IS_ACTIVE(q) ((q).queue_size > 0 &&	\
@@ -604,7 +613,7 @@ struct queue {
 	uint64_t gang_ctx_gpu_addr;
 	void *gang_ctx_cpu_ptr;
 
-	struct amdgpu_bo *wptr_bo;
+	struct amdgpu_bo *wptr_bo_gart;
 };
 
 enum KFD_MQD_TYPE {
@@ -766,7 +775,7 @@ struct kfd_process_device {
 	enum kfd_pdd_bound bound;
 
 	/* VRAM usage */
-	uint64_t vram_usage;
+	atomic64_t vram_usage;
 	struct attribute attr_vram;
 	char vram_filename[MAX_SYSFS_FILENAME_LEN];
 
@@ -837,6 +846,9 @@ struct kfd_process_device {
 	void *proc_ctx_bo;
 	uint64_t proc_ctx_gpu_addr;
 	void *proc_ctx_cpu_ptr;
+
+	/* Tracks queue reset status */
+	bool has_reset_queue;
 };
 
 #define qpd_to_pdd(x) container_of(x, struct kfd_process_device, qpd)
@@ -854,6 +866,14 @@ struct svm_range_list {
 	struct delayed_work		restore_work;
 	DECLARE_BITMAP(bitmap_supported, MAX_GPU_INSTANCE);
 	struct task_struct		*faulting_task;
+	/* check point ts decides if page fault recovery need be dropped */
+	uint64_t			checkpoint_ts[MAX_GPU_INSTANCE];
+
+	/* Default granularity to use in buffer migration
+	 * and restoration of backing memory while handling
+	 * recoverable page faults
+	 */
+	uint8_t default_granularity;
 };
 
 /* Process data */
@@ -1284,6 +1304,15 @@ int init_queue(struct queue **q, const struct queue_properties *properties);
 void uninit_queue(struct queue *q);
 void print_queue_properties(struct queue_properties *q);
 void print_queue(struct queue *q);
+int kfd_queue_buffer_get(struct amdgpu_vm *vm, void __user *addr, struct amdgpu_bo **pbo,
+			 u64 expected_size);
+void kfd_queue_buffer_put(struct amdgpu_bo **bo);
+int kfd_queue_acquire_buffers(struct kfd_process_device *pdd, struct queue_properties *properties);
+int kfd_queue_release_buffers(struct kfd_process_device *pdd, struct queue_properties *properties);
+void kfd_queue_unref_bo_va(struct amdgpu_vm *vm, struct amdgpu_bo **bo);
+int kfd_queue_unref_bo_vas(struct kfd_process_device *pdd,
+			   struct queue_properties *properties);
+void kfd_queue_ctx_save_restore_size(struct kfd_topology_device *dev);
 
 struct mqd_manager *mqd_manager_init_cik(enum KFD_MQD_TYPE type,
 		struct kfd_node *dev);
@@ -1303,6 +1332,7 @@ struct kernel_queue *kernel_queue_init(struct kfd_node *dev,
 					enum kfd_queue_type type);
 void kernel_queue_uninit(struct kernel_queue *kq);
 int kfd_dqm_evict_pasid(struct device_queue_manager *dqm, u32 pasid);
+int kfd_dqm_suspend_bad_queue_mes(struct kfd_node *knode, u32 pasid, u32 doorbell_id);
 
 /* Process Queue Manager */
 struct process_queue_node {
@@ -1317,10 +1347,8 @@ int pqm_init(struct process_queue_manager *pqm, struct kfd_process *p);
 void pqm_uninit(struct process_queue_manager *pqm);
 int pqm_create_queue(struct process_queue_manager *pqm,
 			    struct kfd_node *dev,
-			    struct file *f,
 			    struct queue_properties *properties,
 			    unsigned int *qid,
-			    struct amdgpu_bo *wptr_bo,
 			    const struct kfd_criu_queue_priv_data *q_data,
 			    const void *restore_mqd,
 			    const void *restore_ctl_stack,

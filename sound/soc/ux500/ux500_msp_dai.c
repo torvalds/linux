@@ -733,7 +733,7 @@ static int ux500_msp_drv_probe(struct platform_device *pdev)
 
 	drvdata->reg_vape = devm_regulator_get(&pdev->dev, "v-ape");
 	if (IS_ERR(drvdata->reg_vape)) {
-		ret = (int)PTR_ERR(drvdata->reg_vape);
+		ret = PTR_ERR(drvdata->reg_vape);
 		dev_err(&pdev->dev,
 			"%s: ERROR: Failed to get Vape supply (%d)!\n",
 			__func__, ret);
@@ -743,7 +743,7 @@ static int ux500_msp_drv_probe(struct platform_device *pdev)
 
 	drvdata->pclk = devm_clk_get(&pdev->dev, "apb_pclk");
 	if (IS_ERR(drvdata->pclk)) {
-		ret = (int)PTR_ERR(drvdata->pclk);
+		ret = PTR_ERR(drvdata->pclk);
 		dev_err(&pdev->dev,
 			"%s: ERROR: devm_clk_get of pclk failed (%d)!\n",
 			__func__, ret);
@@ -752,7 +752,7 @@ static int ux500_msp_drv_probe(struct platform_device *pdev)
 
 	drvdata->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(drvdata->clk)) {
-		ret = (int)PTR_ERR(drvdata->clk);
+		ret = PTR_ERR(drvdata->clk);
 		dev_err(&pdev->dev,
 			"%s: ERROR: devm_clk_get failed (%d)!\n",
 			__func__, ret);
@@ -816,7 +816,7 @@ static struct platform_driver msp_i2s_driver = {
 		.of_match_table = ux500_msp_i2s_match,
 	},
 	.probe = ux500_msp_drv_probe,
-	.remove_new = ux500_msp_drv_remove,
+	.remove = ux500_msp_drv_remove,
 };
 module_platform_driver(msp_i2s_driver);
 

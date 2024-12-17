@@ -72,6 +72,14 @@
 		device_type = "memory";
 		reg = <0x60000000 0x10000000>; /* 256 MiB DDR3L-1066 16-bit */
 	};
+
+	reg_5v: regulator-5v {
+		compatible = "regulator-fixed";
+		regulator-name = "5V_MAIN";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+	};
 };
 
 &adc {
@@ -178,6 +186,37 @@
 		i2c-digital-filter-width-ns = <35>;
 		status = "okay";
 
+		power-monitor@1f {
+			compatible = "microchip,pac1934";
+			reg = <0x1f>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			channel@1 {
+				reg = <0x1>;
+				shunt-resistor-micro-ohms = <47000>;
+				label = "VDD3V3";
+			};
+
+			channel@2 {
+				reg = <0x2>;
+				shunt-resistor-micro-ohms = <47000>;
+				label = "VDDIODDR";
+			};
+
+			channel@3 {
+				reg = <0x3>;
+				shunt-resistor-micro-ohms = <47000>;
+				label = "VDDCORE";
+			};
+
+			channel@4 {
+				reg = <0x4>;
+				shunt-resistor-micro-ohms = <47000>;
+				label = "VDDCPU";
+			};
+		};
+
 		eeprom@51 {
 			compatible = "atmel,24c02";
 			reg = <0x51>;
@@ -189,6 +228,11 @@
 		pmic@5b {
 			compatible = "microchip,mcp16502";
 			reg = <0x5b>;
+			lvin-supply = <&reg_5v>;
+			pvin1-supply = <&reg_5v>;
+			pvin2-supply = <&reg_5v>;
+			pvin3-supply = <&reg_5v>;
+			pvin4-supply = <&reg_5v>;
 
 			regulators {
 				vdd_3v3: VDD_IO {

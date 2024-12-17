@@ -375,7 +375,6 @@ static void opticon_port_remove(struct usb_serial_port *port)
 
 static struct usb_serial_driver opticon_device = {
 	.driver = {
-		.owner =	THIS_MODULE,
 		.name =		"opticon",
 	},
 	.id_table =		id_table,

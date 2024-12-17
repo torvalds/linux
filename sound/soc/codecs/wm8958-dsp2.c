@@ -25,7 +25,7 @@
 #include <linux/mfd/wm8994/pdata.h>
 #include <linux/mfd/wm8994/gpio.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "wm8994.h"
 

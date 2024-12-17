@@ -2,7 +2,7 @@
 
 import time
 
-from lib.py import ksft_pr, cmd, ip, rand_port, wait_port_listen
+from lib.py import ksft_pr, cmd, ip, rand_port, wait_port_listen, bkg
 
 class GenerateTraffic:
     def __init__(self, env, port=None):
@@ -22,6 +22,24 @@ class GenerateTraffic:
         if not self._wait_pkts(pps=1000):
             self.stop(verbose=True)
             raise Exception("iperf3 traffic did not ramp up")
+
+    def run_remote_test(self, env: object, port=None, command=None):
+        if port is None:
+            port = rand_port()
+        try:
+            server_cmd = f"iperf3 -s 1 -p {port} --one-off"
+            with bkg(server_cmd, host=env.remote):
+                #iperf3 opens TCP connection as default in server
+                #-u to be specified in client command for UDP
+                wait_port_listen(port, host=env.remote)
+        except Exception as e:
+            raise Exception(f"Unexpected error occurred while running server command: {e}")
+        try:
+            client_cmd = f"iperf3 -c {env.remote_addr} -p {port} {command}"
+            proc = cmd(client_cmd)
+            return proc
+        except Exception as e:
+            raise Exception(f"Unexpected error occurred while running client command: {e}")
 
     def _wait_pkts(self, pkt_cnt=None, pps=None):
         """

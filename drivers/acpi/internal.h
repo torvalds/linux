@@ -118,8 +118,9 @@ void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 			     int type, void (*release)(struct device *));
 int acpi_tie_acpi_dev(struct acpi_device *adev);
 int acpi_device_add(struct acpi_device *device);
-int acpi_device_setup_files(struct acpi_device *dev);
+void acpi_device_setup_files(struct acpi_device *dev);
 void acpi_device_remove_files(struct acpi_device *dev);
+extern const struct attribute_group *acpi_groups[];
 void acpi_device_add_finalize(struct acpi_device *device);
 void acpi_free_pnp_ids(struct acpi_device_pnp *pnp);
 bool acpi_device_is_enabled(const struct acpi_device *adev);
@@ -214,6 +215,8 @@ extern struct acpi_ec *first_ec;
 /* External interfaces use first EC only, so remember */
 typedef int (*acpi_ec_query_func) (void *data);
 
+#ifdef CONFIG_ACPI_EC
+
 void acpi_ec_init(void);
 void acpi_ec_ecdt_probe(void);
 void acpi_ec_dsdt_probe(void);
@@ -230,6 +233,29 @@ void acpi_ec_flush_work(void);
 bool acpi_ec_dispatch_gpe(void);
 #endif
 
+#else
+
+static inline void acpi_ec_init(void) {}
+static inline void acpi_ec_ecdt_probe(void) {}
+static inline void acpi_ec_dsdt_probe(void) {}
+static inline void acpi_ec_block_transactions(void) {}
+static inline void acpi_ec_unblock_transactions(void) {}
+static inline int acpi_ec_add_query_handler(struct acpi_ec *ec, u8 query_bit,
+			      acpi_handle handle, acpi_ec_query_func func,
+			      void *data)
+{
+	return -ENXIO;
+}
+static inline void acpi_ec_remove_query_handler(struct acpi_ec *ec, u8 query_bit) {}
+static inline void acpi_ec_register_opregions(struct acpi_device *adev) {}
+
+static inline void acpi_ec_flush_work(void) {}
+static inline bool acpi_ec_dispatch_gpe(void)
+{
+	return false;
+}
+
+#endif
 
 /*--------------------------------------------------------------------------
                                   Suspend/Resume

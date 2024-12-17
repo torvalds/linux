@@ -23,6 +23,7 @@
 
 #include <linux/mctp.h>
 #include <net/mctp.h>
+#include <net/mctpdevice.h>
 #include <net/pkt_sched.h>
 
 #define MCTP_SERIAL_MTU		68 /* base mtu (64) + mctp header */
@@ -64,18 +65,18 @@ struct mctp_serial {
 	u16			txfcs, rxfcs, rxfcs_rcvd;
 	unsigned int		txlen, rxlen;
 	unsigned int		txpos, rxpos;
-	unsigned char		txbuf[BUFSIZE],
+	u8			txbuf[BUFSIZE],
 				rxbuf[BUFSIZE];
 };
 
-static bool needs_escape(unsigned char c)
+static bool needs_escape(u8 c)
 {
 	return c == BYTE_ESC || c == BYTE_FRAME;
 }
 
-static int next_chunk_len(struct mctp_serial *dev)
+static unsigned int next_chunk_len(struct mctp_serial *dev)
 {
-	int i;
+	unsigned int i;
 
 	/* either we have no bytes to send ... */
 	if (dev->txpos == dev->txlen)
@@ -91,15 +92,15 @@ static int next_chunk_len(struct mctp_serial *dev)
 	 * will be those non-escaped bytes, and does not include the escaped
 	 * byte.
 	 */
-	for (i = 1; i + dev->txpos + 1 < dev->txlen; i++) {
-		if (needs_escape(dev->txbuf[dev->txpos + i + 1]))
+	for (i = 1; i + dev->txpos < dev->txlen; i++) {
+		if (needs_escape(dev->txbuf[dev->txpos + i]))
 			break;
 	}
 
 	return i;
 }
 
-static int write_chunk(struct mctp_serial *dev, unsigned char *buf, int len)
+static ssize_t write_chunk(struct mctp_serial *dev, u8 *buf, size_t len)
 {
 	return dev->tty->ops->write(dev->tty, buf, len);
 }
@@ -108,9 +109,10 @@ static void mctp_serial_tx_work(struct work_struct *work)
 {
 	struct mctp_serial *dev = container_of(work, struct mctp_serial,
 					       tx_work);
-	unsigned char c, buf[3];
 	unsigned long flags;
-	int len, txlen;
+	ssize_t txlen;
+	unsigned int len;
+	u8 c, buf[3];
 
 	spin_lock_irqsave(&dev->lock, flags);
 
@@ -293,7 +295,7 @@ static void mctp_serial_rx(struct mctp_serial *dev)
 	dev->netdev->stats.rx_bytes += dev->rxlen;
 }
 
-static void mctp_serial_push_header(struct mctp_serial *dev, unsigned char c)
+static void mctp_serial_push_header(struct mctp_serial *dev, u8 c)
 {
 	switch (dev->rxpos) {
 	case 0:
@@ -323,7 +325,7 @@ static void mctp_serial_push_header(struct mctp_serial *dev, unsigned char c)
 	}
 }
 
-static void mctp_serial_push_trailer(struct mctp_serial *dev, unsigned char c)
+static void mctp_serial_push_trailer(struct mctp_serial *dev, u8 c)
 {
 	switch (dev->rxpos) {
 	case 0:
@@ -347,7 +349,7 @@ static void mctp_serial_push_trailer(struct mctp_serial *dev, unsigned char c)
 	}
 }
 
-static void mctp_serial_push(struct mctp_serial *dev, unsigned char c)
+static void mctp_serial_push(struct mctp_serial *dev, u8 c)
 {
 	switch (dev->rxstate) {
 	case STATE_IDLE:
@@ -394,7 +396,7 @@ static void mctp_serial_tty_receive_buf(struct tty_struct *tty, const u8 *c,
 					const u8 *f, size_t len)
 {
 	struct mctp_serial *dev = tty->disc_data;
-	int i;
+	size_t i;
 
 	if (!netif_running(dev->netdev))
 		return;
@@ -469,7 +471,7 @@ static int mctp_serial_open(struct tty_struct *tty)
 	spin_lock_init(&dev->lock);
 	INIT_WORK(&dev->tx_work, mctp_serial_tx_work);
 
-	rc = register_netdev(ndev);
+	rc = mctp_register_netdev(ndev, NULL, MCTP_PHYS_BINDING_SERIAL);
 	if (rc)
 		goto free_netdev;
 
@@ -491,7 +493,7 @@ static void mctp_serial_close(struct tty_struct *tty)
 	struct mctp_serial *dev = tty->disc_data;
 	int idx = dev->idx;
 
-	unregister_netdev(dev->netdev);
+	mctp_unregister_netdev(dev->netdev);
 	ida_free(&mctp_serial_ida, idx);
 }
 
@@ -521,3 +523,112 @@ module_exit(mctp_serial_exit);
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Jeremy Kerr <jk@codeconstruct.com.au>");
 MODULE_DESCRIPTION("MCTP Serial transport");
+
+#if IS_ENABLED(CONFIG_MCTP_SERIAL_TEST)
+#include <kunit/test.h>
+
+#define MAX_CHUNKS 6
+struct test_chunk_tx {
+	u8 input_len;
+	u8 input[MCTP_SERIAL_MTU];
+	u8 chunks[MAX_CHUNKS];
+};
+
+static void test_next_chunk_len(struct kunit *test)
+{
+	struct mctp_serial devx;
+	struct mctp_serial *dev = &devx;
+	int next;
+
+	const struct test_chunk_tx *params = test->param_value;
+
+	memset(dev, 0x0, sizeof(*dev));
+	memcpy(dev->txbuf, params->input, params->input_len);
+	dev->txlen = params->input_len;
+
+	for (size_t i = 0; i < MAX_CHUNKS; i++) {
+		next = next_chunk_len(dev);
+		dev->txpos += next;
+		KUNIT_EXPECT_EQ(test, next, params->chunks[i]);
+
+		if (next == 0) {
+			KUNIT_EXPECT_EQ(test, dev->txpos, dev->txlen);
+			return;
+		}
+	}
+
+	KUNIT_FAIL_AND_ABORT(test, "Ran out of chunks");
+}
+
+static struct test_chunk_tx chunk_tx_tests[] = {
+	{
+		.input_len = 5,
+		.input = { 0x00, 0x11, 0x22, 0x7e, 0x80 },
+		.chunks = { 3, 1, 1, 0},
+	},
+	{
+		.input_len = 5,
+		.input = { 0x00, 0x11, 0x22, 0x7e, 0x7d },
+		.chunks = { 3, 1, 1, 0},
+	},
+	{
+		.input_len = 3,
+		.input = { 0x7e, 0x11, 0x22, },
+		.chunks = { 1, 2, 0},
+	},
+	{
+		.input_len = 3,
+		.input = { 0x7e, 0x7e, 0x7d, },
+		.chunks = { 1, 1, 1, 0},
+	},
+	{
+		.input_len = 4,
+		.input = { 0x7e, 0x7e, 0x00, 0x7d, },
+		.chunks = { 1, 1, 1, 1, 0},
+	},
+	{
+		.input_len = 6,
+		.input = { 0x7e, 0x7e, 0x00, 0x7d, 0x10, 0x10},
+		.chunks = { 1, 1, 1, 1, 2, 0},
+	},
+	{
+		.input_len = 1,
+		.input = { 0x7e },
+		.chunks = { 1, 0 },
+	},
+	{
+		.input_len = 1,
+		.input = { 0x80 },
+		.chunks = { 1, 0 },
+	},
+	{
+		.input_len = 3,
+		.input = { 0x80, 0x80, 0x00 },
+		.chunks = { 3, 0 },
+	},
+	{
+		.input_len = 7,
+		.input = { 0x01, 0x00, 0x08, 0xc8, 0x00, 0x80, 0x02 },
+		.chunks = { 7, 0 },
+	},
+	{
+		.input_len = 7,
+		.input = { 0x01, 0x00, 0x08, 0xc8, 0x7e, 0x80, 0x02 },
+		.chunks = { 4, 1, 2, 0 },
+	},
+};
+
+KUNIT_ARRAY_PARAM(chunk_tx, chunk_tx_tests, NULL);
+
+static struct kunit_case mctp_serial_test_cases[] = {
+	KUNIT_CASE_PARAM(test_next_chunk_len, chunk_tx_gen_params),
+};
+
+static struct kunit_suite mctp_serial_test_suite = {
+	.name = "mctp_serial",
+	.test_cases = mctp_serial_test_cases,
+};
+
+kunit_test_suite(mctp_serial_test_suite);
+
+#endif /* CONFIG_MCTP_SERIAL_TEST */

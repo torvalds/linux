@@ -340,7 +340,7 @@ static int gp2ap002_write_event_config(struct iio_dev *indio_dev,
 				       const struct iio_chan_spec *chan,
 				       enum iio_event_type type,
 				       enum iio_event_direction dir,
-				       int state)
+				       bool state)
 {
 	struct gp2ap002 *gp2ap002 = iio_priv(indio_dev);
 
@@ -420,7 +420,7 @@ static int gp2ap002_regmap_i2c_write(void *context, unsigned int reg,
 	return i2c_smbus_write_byte_data(i2c, reg, val);
 }
 
-static struct regmap_bus gp2ap002_regmap_bus = {
+static const struct regmap_bus gp2ap002_regmap_bus = {
 	.reg_read = gp2ap002_regmap_i2c_read,
 	.reg_write = gp2ap002_regmap_i2c_write,
 };

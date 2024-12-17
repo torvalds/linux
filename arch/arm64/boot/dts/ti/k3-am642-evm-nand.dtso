@@ -12,7 +12,7 @@
 #include "k3-pinctrl.h"
 
 &main_pmx0 {
-	gpmc0_pins_default: gpmc0-pins-default {
+	gpmc0_default_pins: gpmc0-default-pins {
 		bootph-all;
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x0094, PIN_INPUT, 7) /* (T19) GPMC0_BE1n.GPIO0_36 */
@@ -50,7 +50,7 @@
 };
 
 &main_gpio0 {
-	gpio0-36 {
+	gpmc0-hog {
 		bootph-all;
 		gpio-hog;
 		gpios = <36 0>;
@@ -67,7 +67,7 @@
 &gpmc0 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&gpmc0_pins_default>;
+	pinctrl-0 = <&gpmc0_default_pins>;
 	#address-cells = <2>;
 	#size-cells = <1>;
 

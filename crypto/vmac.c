@@ -28,7 +28,7 @@
  *	Last modified: 17 APR 08, 1700 PDT
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/crypto.h>
@@ -693,4 +693,4 @@ module_exit(vmac_module_exit);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("VMAC hash algorithm");
 MODULE_ALIAS_CRYPTO("vmac64");
-MODULE_IMPORT_NS(CRYPTO_INTERNAL);
+MODULE_IMPORT_NS("CRYPTO_INTERNAL");

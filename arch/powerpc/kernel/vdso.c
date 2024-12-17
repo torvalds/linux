@@ -16,7 +16,6 @@
 #include <linux/user.h>
 #include <linux/elf.h>
 #include <linux/security.h>
-#include <linux/memblock.h>
 #include <linux/syscalls.h>
 #include <linux/time_namespace.h>
 #include <vdso/datapage.h>
@@ -48,12 +47,13 @@ long sys_ni_syscall(void);
  */
 static union {
 	struct vdso_arch_data	data;
-	u8			page[PAGE_SIZE];
+	u8			page[2 * PAGE_SIZE];
 } vdso_data_store __page_aligned_data;
 struct vdso_arch_data *vdso_data = &vdso_data_store.data;
 
 enum vvar_pages {
-	VVAR_DATA_PAGE_OFFSET,
+	VVAR_BASE_PAGE_OFFSET,
+	VVAR_TIME_PAGE_OFFSET,
 	VVAR_TIMENS_PAGE_OFFSET,
 	VVAR_NR_PAGES,
 };
@@ -81,6 +81,21 @@ static int vdso64_mremap(const struct vm_special_mapping *sm, struct vm_area_str
 	return vdso_mremap(sm, new_vma, &vdso64_end - &vdso64_start);
 }
 
+static void vdso_close(const struct vm_special_mapping *sm, struct vm_area_struct *vma)
+{
+	struct mm_struct *mm = vma->vm_mm;
+
+	/*
+	 * close() is called for munmap() but also for mremap(). In the mremap()
+	 * case the vdso pointer has already been updated by the mremap() hook
+	 * above, so it must not be set to NULL here.
+	 */
+	if (vma->vm_start != (unsigned long)mm->context.vdso)
+		return;
+
+	mm->context.vdso = NULL;
+}
+
 static vm_fault_t vvar_fault(const struct vm_special_mapping *sm,
 			     struct vm_area_struct *vma, struct vm_fault *vmf);
 
@@ -92,17 +107,19 @@ static struct vm_special_mapping vvar_spec __ro_after_init = {
 static struct vm_special_mapping vdso32_spec __ro_after_init = {
 	.name = "[vdso]",
 	.mremap = vdso32_mremap,
+	.close = vdso_close,
 };
 
 static struct vm_special_mapping vdso64_spec __ro_after_init = {
 	.name = "[vdso]",
 	.mremap = vdso64_mremap,
+	.close = vdso_close,
 };
 
 #ifdef CONFIG_TIME_NS
 struct vdso_data *arch_get_vdso_data(void *vvar_page)
 {
-	return ((struct vdso_arch_data *)vvar_page)->data;
+	return vvar_page;
 }
 
 /*
@@ -136,11 +153,14 @@ static vm_fault_t vvar_fault(const struct vm_special_mapping *sm,
 	unsigned long pfn;
 
 	switch (vmf->pgoff) {
-	case VVAR_DATA_PAGE_OFFSET:
+	case VVAR_BASE_PAGE_OFFSET:
+		pfn = virt_to_pfn(vdso_data);
+		break;
+	case VVAR_TIME_PAGE_OFFSET:
 		if (timens_page)
 			pfn = page_to_pfn(timens_page);
 		else
-			pfn = virt_to_pfn(vdso_data);
+			pfn = virt_to_pfn(vdso_data->data);
 		break;
 #ifdef CONFIG_TIME_NS
 	case VVAR_TIMENS_PAGE_OFFSET:
@@ -153,7 +173,7 @@ static vm_fault_t vvar_fault(const struct vm_special_mapping *sm,
 		 */
 		if (!timens_page)
 			return VM_FAULT_SIGBUS;
-		pfn = virt_to_pfn(vdso_data);
+		pfn = virt_to_pfn(vdso_data->data);
 		break;
 #endif /* CONFIG_TIME_NS */
 	default:
@@ -197,13 +217,6 @@ static int __arch_setup_additional_pages(struct linux_binprm *bprm, int uses_int
 	/* Add required alignment. */
 	vdso_base = ALIGN(vdso_base, VDSO_ALIGNMENT);
 
-	/*
-	 * Put vDSO base into mm struct. We need to do this before calling
-	 * install_special_mapping or the perf counter mmap tracking code
-	 * will fail to recognise it as a vDSO.
-	 */
-	mm->context.vdso = (void __user *)vdso_base + vvar_size;
-
 	vma = _install_special_mapping(mm, vdso_base, vvar_size,
 				       VM_READ | VM_MAYREAD | VM_IO |
 				       VM_DONTDUMP | VM_PFNMAP, &vvar_spec);
@@ -223,10 +236,15 @@ static int __arch_setup_additional_pages(struct linux_binprm *bprm, int uses_int
 	vma = _install_special_mapping(mm, vdso_base + vvar_size, vdso_size,
 				       VM_READ | VM_EXEC | VM_MAYREAD |
 				       VM_MAYWRITE | VM_MAYEXEC, vdso_spec);
-	if (IS_ERR(vma))
+	if (IS_ERR(vma)) {
 		do_munmap(mm, vdso_base, vvar_size, NULL);
+		return PTR_ERR(vma);
+	}
 
-	return PTR_ERR_OR_ZERO(vma);
+	// Now that the mappings are in place, set the mm VDSO pointer
+	mm->context.vdso = (void __user *)vdso_base + vvar_size;
+
+	return 0;
 }
 
 int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
@@ -240,8 +258,6 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 		return -EINTR;
 
 	rc = __arch_setup_additional_pages(bprm, uses_interp);
-	if (rc)
-		mm->context.vdso = NULL;
 
 	mmap_write_unlock(mm);
 	return rc;
@@ -336,25 +352,6 @@ static struct page ** __init vdso_setup_pages(void *start, void *end)
 static int __init vdso_init(void)
 {
 #ifdef CONFIG_PPC64
-	/*
-	 * Fill up the "systemcfg" stuff for backward compatibility
-	 */
-	strcpy((char *)vdso_data->eye_catcher, "SYSTEMCFG:PPC64");
-	vdso_data->version.major = SYSTEMCFG_MAJOR;
-	vdso_data->version.minor = SYSTEMCFG_MINOR;
-	vdso_data->processor = mfspr(SPRN_PVR);
-	/*
-	 * Fake the old platform number for pSeries and add
-	 * in LPAR bit if necessary
-	 */
-	vdso_data->platform = 0x100;
-	if (firmware_has_feature(FW_FEATURE_LPAR))
-		vdso_data->platform |= 1;
-	vdso_data->physicalMemorySize = memblock_phys_mem_size();
-	vdso_data->dcache_size = ppc64_caches.l1d.size;
-	vdso_data->dcache_line_size = ppc64_caches.l1d.line_size;
-	vdso_data->icache_size = ppc64_caches.l1i.size;
-	vdso_data->icache_line_size = ppc64_caches.l1i.line_size;
 	vdso_data->dcache_block_size = ppc64_caches.l1d.block_size;
 	vdso_data->icache_block_size = ppc64_caches.l1i.block_size;
 	vdso_data->dcache_log_block_size = ppc64_caches.l1d.log_block_size;

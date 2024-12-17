@@ -121,7 +121,7 @@
 		>;
 	};
 
-	pinctrl_i2c1_sleep: i2c1grp-sleep {
+	pinctrl_i2c1_sleep: i2c1sleep-grp {
 		fsl,pins = <
 			MX6SLL_PAD_I2C1_SCL__I2C1_SCL   0x400108b1
 			MX6SLL_PAD_I2C1_SDA__I2C1_SDA   0x400108b1
@@ -135,7 +135,7 @@
 		>;
 	};
 
-	pinctrl_i2c2_sleep: i2c2grp-sleep {
+	pinctrl_i2c2_sleep: i2c2sleep-grp {
 		fsl,pins = <
 			MX6SLL_PAD_I2C2_SCL__I2C2_SCL   0x400108b1
 			MX6SLL_PAD_I2C2_SDA__I2C2_SDA   0x400108b1

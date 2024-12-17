@@ -50,7 +50,7 @@
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
 #include <asm/byteorder.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/cdrom.h>
 #include <linux/ratelimit.h>
 #include <linux/leds.h>
@@ -72,19 +72,11 @@ const struct ata_port_operations ata_base_port_ops = {
 	.end_eh			= ata_std_end_eh,
 };
 
-const struct ata_port_operations sata_port_ops = {
-	.inherits		= &ata_base_port_ops,
-
-	.qc_defer		= ata_std_qc_defer,
-	.hardreset		= sata_std_hardreset,
-};
-EXPORT_SYMBOL_GPL(sata_port_ops);
-
 static unsigned int ata_dev_init_params(struct ata_device *dev,
 					u16 heads, u16 sectors);
 static unsigned int ata_dev_set_xfermode(struct ata_device *dev);
 static void ata_dev_xfermask(struct ata_device *dev);
-static unsigned long ata_dev_blacklisted(const struct ata_device *dev);
+static unsigned int ata_dev_quirks(const struct ata_device *dev);
 
 static DEFINE_IDA(ata_ida);
 
@@ -94,8 +86,8 @@ struct ata_force_param {
 	u8		cbl;
 	u8		spd_limit;
 	unsigned int	xfer_mask;
-	unsigned int	horkage_on;
-	unsigned int	horkage_off;
+	unsigned int	quirk_on;
+	unsigned int	quirk_off;
 	u16		lflags_on;
 	u16		lflags_off;
 };
@@ -160,16 +152,11 @@ MODULE_DESCRIPTION("Library module for ATA devices");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 
-static inline bool ata_dev_print_info(struct ata_device *dev)
+static inline bool ata_dev_print_info(const struct ata_device *dev)
 {
 	struct ata_eh_context *ehc = &dev->link->eh_context;
 
 	return ehc->i.flags & ATA_EHI_PRINTINFO;
-}
-
-static bool ata_sstatus_online(u32 sstatus)
-{
-	return (sstatus & 0xf) == 0x3;
 }
 
 /**
@@ -457,17 +444,17 @@ static void ata_force_xfermask(struct ata_device *dev)
 }
 
 /**
- *	ata_force_horkage - force horkage according to libata.force
+ *	ata_force_quirks - force quirks according to libata.force
  *	@dev: ATA device of interest
  *
- *	Force horkage according to libata.force and whine about it.
+ *	Force quirks according to libata.force and whine about it.
  *	For consistency with link selection, device number 15 selects
  *	the first device connected to the host link.
  *
  *	LOCKING:
  *	EH context.
  */
-static void ata_force_horkage(struct ata_device *dev)
+static void ata_force_quirks(struct ata_device *dev)
 {
 	int devno = dev->link->pmp + dev->devno;
 	int alt_devno = devno;
@@ -487,21 +474,21 @@ static void ata_force_horkage(struct ata_device *dev)
 		    fe->device != alt_devno)
 			continue;
 
-		if (!(~dev->horkage & fe->param.horkage_on) &&
-		    !(dev->horkage & fe->param.horkage_off))
+		if (!(~dev->quirks & fe->param.quirk_on) &&
+		    !(dev->quirks & fe->param.quirk_off))
 			continue;
 
-		dev->horkage |= fe->param.horkage_on;
-		dev->horkage &= ~fe->param.horkage_off;
+		dev->quirks |= fe->param.quirk_on;
+		dev->quirks &= ~fe->param.quirk_off;
 
-		ata_dev_notice(dev, "FORCE: horkage modified (%s)\n",
+		ata_dev_notice(dev, "FORCE: modified (%s)\n",
 			       fe->param.name);
 	}
 }
 #else
 static inline void ata_force_link_limits(struct ata_link *link) { }
 static inline void ata_force_xfermask(struct ata_device *dev) { }
-static inline void ata_force_horkage(struct ata_device *dev) { }
+static inline void ata_force_quirks(struct ata_device *dev) { }
 #endif
 
 /**
@@ -1221,7 +1208,7 @@ static int ata_read_native_max_address(struct ata_device *dev, u64 *max_sectors)
 		*max_sectors = ata_tf_to_lba48(&tf) + 1;
 	else
 		*max_sectors = ata_tf_to_lba(&tf) + 1;
-	if (dev->horkage & ATA_HORKAGE_HPA_SIZE)
+	if (dev->quirks & ATA_QUIRK_HPA_SIZE)
 		(*max_sectors)--;
 	return 0;
 }
@@ -1306,7 +1293,7 @@ static int ata_hpa_resize(struct ata_device *dev)
 	/* do we need to do it? */
 	if ((dev->class != ATA_DEV_ATA && dev->class != ATA_DEV_ZAC) ||
 	    !ata_id_has_lba(dev->id) || !ata_id_hpa_enabled(dev->id) ||
-	    (dev->horkage & ATA_HORKAGE_BROKEN_HPA))
+	    (dev->quirks & ATA_QUIRK_BROKEN_HPA))
 		return 0;
 
 	/* read native max address */
@@ -1318,7 +1305,7 @@ static int ata_hpa_resize(struct ata_device *dev)
 		if (rc == -EACCES || !unlock_hpa) {
 			ata_dev_warn(dev,
 				     "HPA support seems broken, skipping HPA handling\n");
-			dev->horkage |= ATA_HORKAGE_BROKEN_HPA;
+			dev->quirks |= ATA_QUIRK_BROKEN_HPA;
 
 			/* we can continue if device aborted the command */
 			if (rc == -EACCES)
@@ -1355,7 +1342,7 @@ static int ata_hpa_resize(struct ata_device *dev)
 			     "device aborted resize (%llu -> %llu), skipping HPA handling\n",
 			     (unsigned long long)sectors,
 			     (unsigned long long)native_sectors);
-		dev->horkage |= ATA_HORKAGE_BROKEN_HPA;
+		dev->quirks |= ATA_QUIRK_BROKEN_HPA;
 		return 0;
 	} else if (rc)
 		return rc;
@@ -1835,7 +1822,7 @@ retry:
 		goto err_out;
 	}
 
-	if (dev->horkage & ATA_HORKAGE_DUMP_ID) {
+	if (dev->quirks & ATA_QUIRK_DUMP_ID) {
 		ata_dev_info(dev, "dumping IDENTIFY data, "
 			    "class=%d may_fallback=%d tried_spinup=%d\n",
 			    class, may_fallback, tried_spinup);
@@ -2104,7 +2091,7 @@ unsigned int ata_read_log_page(struct ata_device *dev, u8 log,
 retry:
 	ata_tf_init(dev, &tf);
 	if (ata_dma_enabled(dev) && ata_id_has_read_log_dma_ext(dev->id) &&
-	    !(dev->horkage & ATA_HORKAGE_NO_DMA_LOG)) {
+	    !(dev->quirks & ATA_QUIRK_NO_DMA_LOG)) {
 		tf.command = ATA_CMD_READ_LOG_DMA_EXT;
 		tf.protocol = ATA_PROT_DMA;
 		dma = true;
@@ -2124,7 +2111,7 @@ retry:
 
 	if (err_mask) {
 		if (dma) {
-			dev->horkage |= ATA_HORKAGE_NO_DMA_LOG;
+			dev->quirks |= ATA_QUIRK_NO_DMA_LOG;
 			if (!ata_port_is_frozen(dev->link->ap))
 				goto retry;
 		}
@@ -2138,22 +2125,19 @@ retry:
 
 static int ata_log_supported(struct ata_device *dev, u8 log)
 {
-	struct ata_port *ap = dev->link->ap;
-
-	if (dev->horkage & ATA_HORKAGE_NO_LOG_DIR)
+	if (dev->quirks & ATA_QUIRK_NO_LOG_DIR)
 		return 0;
 
-	if (ata_read_log_page(dev, ATA_LOG_DIRECTORY, 0, ap->sector_buf, 1))
+	if (ata_read_log_page(dev, ATA_LOG_DIRECTORY, 0, dev->sector_buf, 1))
 		return 0;
-	return get_unaligned_le16(&ap->sector_buf[log * 2]);
+	return get_unaligned_le16(&dev->sector_buf[log * 2]);
 }
 
 static bool ata_identify_page_supported(struct ata_device *dev, u8 page)
 {
-	struct ata_port *ap = dev->link->ap;
 	unsigned int err, i;
 
-	if (dev->horkage & ATA_HORKAGE_NO_ID_DEV_LOG)
+	if (dev->quirks & ATA_QUIRK_NO_ID_DEV_LOG)
 		return false;
 
 	if (!ata_log_supported(dev, ATA_LOG_IDENTIFY_DEVICE)) {
@@ -2165,7 +2149,7 @@ static bool ata_identify_page_supported(struct ata_device *dev, u8 page)
 		if (ata_id_major_version(dev->id) >= 10)
 			ata_dev_warn(dev,
 				"ATA Identify Device Log not supported\n");
-		dev->horkage |= ATA_HORKAGE_NO_ID_DEV_LOG;
+		dev->quirks |= ATA_QUIRK_NO_ID_DEV_LOG;
 		return false;
 	}
 
@@ -2173,20 +2157,20 @@ static bool ata_identify_page_supported(struct ata_device *dev, u8 page)
 	 * Read IDENTIFY DEVICE data log, page 0, to figure out if the page is
 	 * supported.
 	 */
-	err = ata_read_log_page(dev, ATA_LOG_IDENTIFY_DEVICE, 0, ap->sector_buf,
-				1);
+	err = ata_read_log_page(dev, ATA_LOG_IDENTIFY_DEVICE, 0,
+				dev->sector_buf, 1);
 	if (err)
 		return false;
 
-	for (i = 0; i < ap->sector_buf[8]; i++) {
-		if (ap->sector_buf[9 + i] == page)
+	for (i = 0; i < dev->sector_buf[8]; i++) {
+		if (dev->sector_buf[9 + i] == page)
 			return true;
 	}
 
 	return false;
 }
 
-static int ata_do_link_spd_horkage(struct ata_device *dev)
+static int ata_do_link_spd_quirk(struct ata_device *dev)
 {
 	struct ata_link *plink = ata_dev_phys_link(dev);
 	u32 target, target_limit;
@@ -2194,7 +2178,7 @@ static int ata_do_link_spd_horkage(struct ata_device *dev)
 	if (!sata_scr_valid(plink))
 		return 0;
 
-	if (dev->horkage & ATA_HORKAGE_1_5_GBPS)
+	if (dev->quirks & ATA_QUIRK_1_5_GBPS)
 		target = 1;
 	else
 		return 0;
@@ -2212,26 +2196,25 @@ static int ata_do_link_spd_horkage(struct ata_device *dev)
 	 * guaranteed by setting sata_spd_limit to target_limit above.
 	 */
 	if (plink->sata_spd > target) {
-		ata_dev_info(dev, "applying link speed limit horkage to %s\n",
+		ata_dev_info(dev, "applying link speed limit quirk to %s\n",
 			     sata_spd_string(target));
 		return -EAGAIN;
 	}
 	return 0;
 }
 
-static inline u8 ata_dev_knobble(struct ata_device *dev)
+static inline bool ata_dev_knobble(struct ata_device *dev)
 {
 	struct ata_port *ap = dev->link->ap;
 
-	if (ata_dev_blacklisted(dev) & ATA_HORKAGE_BRIDGE_OK)
-		return 0;
+	if (ata_dev_quirks(dev) & ATA_QUIRK_BRIDGE_OK)
+		return false;
 
 	return ((ap->cbl == ATA_CBL_SATA) && (!ata_id_is_sata(dev->id)));
 }
 
 static void ata_dev_config_ncq_send_recv(struct ata_device *dev)
 {
-	struct ata_port *ap = dev->link->ap;
 	unsigned int err_mask;
 
 	if (!ata_log_supported(dev, ATA_LOG_NCQ_SEND_RECV)) {
@@ -2239,14 +2222,14 @@ static void ata_dev_config_ncq_send_recv(struct ata_device *dev)
 		return;
 	}
 	err_mask = ata_read_log_page(dev, ATA_LOG_NCQ_SEND_RECV,
-				     0, ap->sector_buf, 1);
+				     0, dev->sector_buf, 1);
 	if (!err_mask) {
 		u8 *cmds = dev->ncq_send_recv_cmds;
 
 		dev->flags |= ATA_DFLAG_NCQ_SEND_RECV;
-		memcpy(cmds, ap->sector_buf, ATA_LOG_NCQ_SEND_RECV_SIZE);
+		memcpy(cmds, dev->sector_buf, ATA_LOG_NCQ_SEND_RECV_SIZE);
 
-		if (dev->horkage & ATA_HORKAGE_NO_NCQ_TRIM) {
+		if (dev->quirks & ATA_QUIRK_NO_NCQ_TRIM) {
 			ata_dev_dbg(dev, "disabling queued TRIM support\n");
 			cmds[ATA_LOG_NCQ_SEND_RECV_DSM_OFFSET] &=
 				~ATA_LOG_NCQ_SEND_RECV_DSM_TRIM;
@@ -2256,7 +2239,6 @@ static void ata_dev_config_ncq_send_recv(struct ata_device *dev)
 
 static void ata_dev_config_ncq_non_data(struct ata_device *dev)
 {
-	struct ata_port *ap = dev->link->ap;
 	unsigned int err_mask;
 
 	if (!ata_log_supported(dev, ATA_LOG_NCQ_NON_DATA)) {
@@ -2265,17 +2247,14 @@ static void ata_dev_config_ncq_non_data(struct ata_device *dev)
 		return;
 	}
 	err_mask = ata_read_log_page(dev, ATA_LOG_NCQ_NON_DATA,
-				     0, ap->sector_buf, 1);
-	if (!err_mask) {
-		u8 *cmds = dev->ncq_non_data_cmds;
-
-		memcpy(cmds, ap->sector_buf, ATA_LOG_NCQ_NON_DATA_SIZE);
-	}
+				     0, dev->sector_buf, 1);
+	if (!err_mask)
+		memcpy(dev->ncq_non_data_cmds, dev->sector_buf,
+		       ATA_LOG_NCQ_NON_DATA_SIZE);
 }
 
 static void ata_dev_config_ncq_prio(struct ata_device *dev)
 {
-	struct ata_port *ap = dev->link->ap;
 	unsigned int err_mask;
 
 	if (!ata_identify_page_supported(dev, ATA_LOG_SATA_SETTINGS))
@@ -2284,12 +2263,11 @@ static void ata_dev_config_ncq_prio(struct ata_device *dev)
 	err_mask = ata_read_log_page(dev,
 				     ATA_LOG_IDENTIFY_DEVICE,
 				     ATA_LOG_SATA_SETTINGS,
-				     ap->sector_buf,
-				     1);
+				     dev->sector_buf, 1);
 	if (err_mask)
 		goto not_supported;
 
-	if (!(ap->sector_buf[ATA_LOG_NCQ_PRIO_OFFSET] & BIT(3)))
+	if (!(dev->sector_buf[ATA_LOG_NCQ_PRIO_OFFSET] & BIT(3)))
 		goto not_supported;
 
 	dev->flags |= ATA_DFLAG_NCQ_PRIO;
@@ -2334,12 +2312,12 @@ static int ata_dev_config_ncq(struct ata_device *dev,
 	}
 	if (!IS_ENABLED(CONFIG_SATA_HOST))
 		return 0;
-	if (dev->horkage & ATA_HORKAGE_NONCQ) {
+	if (dev->quirks & ATA_QUIRK_NONCQ) {
 		snprintf(desc, desc_sz, "NCQ (not used)");
 		return 0;
 	}
 
-	if (dev->horkage & ATA_HORKAGE_NO_NCQ_ON_ATI &&
+	if (dev->quirks & ATA_QUIRK_NO_NCQ_ON_ATI &&
 	    ata_dev_check_adapter(dev, PCI_VENDOR_ID_ATI)) {
 		snprintf(desc, desc_sz, "NCQ (not used)");
 		return 0;
@@ -2350,7 +2328,7 @@ static int ata_dev_config_ncq(struct ata_device *dev,
 		dev->flags |= ATA_DFLAG_NCQ;
 	}
 
-	if (!(dev->horkage & ATA_HORKAGE_BROKEN_FPDMA_AA) &&
+	if (!(dev->quirks & ATA_QUIRK_BROKEN_FPDMA_AA) &&
 		(ap->flags & ATA_FLAG_FPDMA_AA) &&
 		ata_id_has_fpdma_aa(dev->id)) {
 		err_mask = ata_dev_set_feature(dev, SETFEATURES_SATA_ENABLE,
@@ -2360,7 +2338,7 @@ static int ata_dev_config_ncq(struct ata_device *dev,
 				    "failed to enable AA (error_mask=0x%x)\n",
 				    err_mask);
 			if (err_mask != AC_ERR_DEV) {
-				dev->horkage |= ATA_HORKAGE_BROKEN_FPDMA_AA;
+				dev->quirks |= ATA_QUIRK_BROKEN_FPDMA_AA;
 				return -EIO;
 			}
 		} else
@@ -2405,9 +2383,8 @@ static void ata_dev_config_sense_reporting(struct ata_device *dev)
 
 static void ata_dev_config_zac(struct ata_device *dev)
 {
-	struct ata_port *ap = dev->link->ap;
 	unsigned int err_mask;
-	u8 *identify_buf = ap->sector_buf;
+	u8 *identify_buf = dev->sector_buf;
 
 	dev->zac_zones_optimal_open = U32_MAX;
 	dev->zac_zones_optimal_nonseq = U32_MAX;
@@ -2459,7 +2436,6 @@ static void ata_dev_config_zac(struct ata_device *dev)
 
 static void ata_dev_config_trusted(struct ata_device *dev)
 {
-	struct ata_port *ap = dev->link->ap;
 	u64 trusted_cap;
 	unsigned int err;
 
@@ -2473,11 +2449,11 @@ static void ata_dev_config_trusted(struct ata_device *dev)
 	}
 
 	err = ata_read_log_page(dev, ATA_LOG_IDENTIFY_DEVICE, ATA_LOG_SECURITY,
-			ap->sector_buf, 1);
+				dev->sector_buf, 1);
 	if (err)
 		return;
 
-	trusted_cap = get_unaligned_le64(&ap->sector_buf[40]);
+	trusted_cap = get_unaligned_le64(&dev->sector_buf[40]);
 	if (!(trusted_cap & (1ULL << 63))) {
 		ata_dev_dbg(dev,
 			    "Trusted Computing capability qword not valid!\n");
@@ -2488,12 +2464,41 @@ static void ata_dev_config_trusted(struct ata_device *dev)
 		dev->flags |= ATA_DFLAG_TRUSTED;
 }
 
+void ata_dev_cleanup_cdl_resources(struct ata_device *dev)
+{
+	kfree(dev->cdl);
+	dev->cdl = NULL;
+}
+
+static int ata_dev_init_cdl_resources(struct ata_device *dev)
+{
+	struct ata_cdl *cdl = dev->cdl;
+	unsigned int err_mask;
+
+	if (!cdl) {
+		cdl = kzalloc(sizeof(*cdl), GFP_KERNEL);
+		if (!cdl)
+			return -ENOMEM;
+		dev->cdl = cdl;
+	}
+
+	err_mask = ata_read_log_page(dev, ATA_LOG_CDL, 0, cdl->desc_log_buf,
+				     ATA_LOG_CDL_SIZE / ATA_SECT_SIZE);
+	if (err_mask) {
+		ata_dev_warn(dev, "Read Command Duration Limits log failed\n");
+		ata_dev_cleanup_cdl_resources(dev);
+		return -EIO;
+	}
+
+	return 0;
+}
+
 static void ata_dev_config_cdl(struct ata_device *dev)
 {
-	struct ata_port *ap = dev->link->ap;
 	unsigned int err_mask;
 	bool cdl_enabled;
 	u64 val;
+	int ret;
 
 	if (ata_id_major_version(dev->id) < 11)
 		goto not_supported;
@@ -2505,12 +2510,12 @@ static void ata_dev_config_cdl(struct ata_device *dev)
 
 	err_mask = ata_read_log_page(dev, ATA_LOG_IDENTIFY_DEVICE,
 				     ATA_LOG_SUPPORTED_CAPABILITIES,
-				     ap->sector_buf, 1);
+				     dev->sector_buf, 1);
 	if (err_mask)
 		goto not_supported;
 
 	/* Check Command Duration Limit Supported bits */
-	val = get_unaligned_le64(&ap->sector_buf[168]);
+	val = get_unaligned_le64(&dev->sector_buf[168]);
 	if (!(val & BIT_ULL(63)) || !(val & BIT_ULL(0)))
 		goto not_supported;
 
@@ -2523,7 +2528,7 @@ static void ata_dev_config_cdl(struct ata_device *dev)
 	 * We must have support for the sense data for successful NCQ commands
 	 * log indicated by the successful NCQ command sense data supported bit.
 	 */
-	val = get_unaligned_le64(&ap->sector_buf[8]);
+	val = get_unaligned_le64(&dev->sector_buf[8]);
 	if (!(val & BIT_ULL(63)) || !(val & BIT_ULL(47))) {
 		ata_dev_warn(dev,
 			"CDL supported but Successful NCQ Command Sense Data is not supported\n");
@@ -2543,11 +2548,11 @@ static void ata_dev_config_cdl(struct ata_device *dev)
 	 */
 	err_mask = ata_read_log_page(dev, ATA_LOG_IDENTIFY_DEVICE,
 				     ATA_LOG_CURRENT_SETTINGS,
-				     ap->sector_buf, 1);
+				     dev->sector_buf, 1);
 	if (err_mask)
 		goto not_supported;
 
-	val = get_unaligned_le64(&ap->sector_buf[8]);
+	val = get_unaligned_le64(&dev->sector_buf[8]);
 	cdl_enabled = val & BIT_ULL(63) && val & BIT_ULL(21);
 	if (dev->flags & ATA_DFLAG_CDL_ENABLED) {
 		if (!cdl_enabled) {
@@ -2588,37 +2593,20 @@ static void ata_dev_config_cdl(struct ata_device *dev)
 		}
 	}
 
-	/*
-	 * Allocate a buffer to handle reading the sense data for successful
-	 * NCQ Commands log page for commands using a CDL with one of the limit
-	 * policy set to 0xD (successful completion with sense data available
-	 * bit set).
-	 */
-	if (!ap->ncq_sense_buf) {
-		ap->ncq_sense_buf = kmalloc(ATA_LOG_SENSE_NCQ_SIZE, GFP_KERNEL);
-		if (!ap->ncq_sense_buf)
-			goto not_supported;
-	}
-
-	/*
-	 * Command duration limits is supported: cache the CDL log page 18h
-	 * (command duration descriptors).
-	 */
-	err_mask = ata_read_log_page(dev, ATA_LOG_CDL, 0, ap->sector_buf, 1);
-	if (err_mask) {
-		ata_dev_warn(dev, "Read Command Duration Limits log failed\n");
+	/* CDL is supported: allocate and initialize needed resources. */
+	ret = ata_dev_init_cdl_resources(dev);
+	if (ret) {
+		ata_dev_warn(dev, "Initialize CDL resources failed\n");
 		goto not_supported;
 	}
 
-	memcpy(dev->cdl, ap->sector_buf, ATA_LOG_CDL_SIZE);
 	dev->flags |= ATA_DFLAG_CDL;
 
 	return;
 
 not_supported:
 	dev->flags &= ~(ATA_DFLAG_CDL | ATA_DFLAG_CDL_ENABLED);
-	kfree(ap->ncq_sense_buf);
-	ap->ncq_sense_buf = NULL;
+	ata_dev_cleanup_cdl_resources(dev);
 }
 
 static int ata_dev_config_lba(struct ata_device *dev)
@@ -2689,7 +2677,7 @@ static void ata_dev_config_fua(struct ata_device *dev)
 		goto nofua;
 
 	/* Ignore known bad devices and devices that lack NCQ support */
-	if (!ata_ncq_supported(dev) || (dev->horkage & ATA_HORKAGE_NO_FUA))
+	if (!ata_ncq_supported(dev) || (dev->quirks & ATA_QUIRK_NO_FUA))
 		goto nofua;
 
 	dev->flags |= ATA_DFLAG_FUA;
@@ -2702,7 +2690,7 @@ nofua:
 
 static void ata_dev_config_devslp(struct ata_device *dev)
 {
-	u8 *sata_setting = dev->link->ap->sector_buf;
+	u8 *sata_setting = dev->sector_buf;
 	unsigned int err_mask;
 	int i, j;
 
@@ -2829,11 +2817,11 @@ int ata_dev_configure(struct ata_device *dev)
 		return 0;
 	}
 
-	/* set horkage */
-	dev->horkage |= ata_dev_blacklisted(dev);
-	ata_force_horkage(dev);
+	/* Set quirks */
+	dev->quirks |= ata_dev_quirks(dev);
+	ata_force_quirks(dev);
 
-	if (dev->horkage & ATA_HORKAGE_DISABLE) {
+	if (dev->quirks & ATA_QUIRK_DISABLE) {
 		ata_dev_info(dev, "unsupported device, disabling\n");
 		ata_dev_disable(dev);
 		return 0;
@@ -2848,19 +2836,19 @@ int ata_dev_configure(struct ata_device *dev)
 		return 0;
 	}
 
-	rc = ata_do_link_spd_horkage(dev);
+	rc = ata_do_link_spd_quirk(dev);
 	if (rc)
 		return rc;
 
 	/* some WD SATA-1 drives have issues with LPM, turn on NOLPM for them */
-	if ((dev->horkage & ATA_HORKAGE_WD_BROKEN_LPM) &&
+	if ((dev->quirks & ATA_QUIRK_WD_BROKEN_LPM) &&
 	    (id[ATA_ID_SATA_CAPABILITY] & 0xe) == 0x2)
-		dev->horkage |= ATA_HORKAGE_NOLPM;
+		dev->quirks |= ATA_QUIRK_NOLPM;
 
 	if (ap->flags & ATA_FLAG_NO_LPM)
-		dev->horkage |= ATA_HORKAGE_NOLPM;
+		dev->quirks |= ATA_QUIRK_NOLPM;
 
-	if (dev->horkage & ATA_HORKAGE_NOLPM) {
+	if (dev->quirks & ATA_QUIRK_NOLPM) {
 		ata_dev_warn(dev, "LPM support broken, forcing max_power\n");
 		dev->link->ap->target_lpm_policy = ATA_LPM_MAX_POWER;
 	}
@@ -3006,7 +2994,8 @@ int ata_dev_configure(struct ata_device *dev)
 			cdb_intr_string = ", CDB intr";
 		}
 
-		if (atapi_dmadir || (dev->horkage & ATA_HORKAGE_ATAPI_DMADIR) || atapi_id_dmadir(dev->id)) {
+		if (atapi_dmadir || (dev->quirks & ATA_QUIRK_ATAPI_DMADIR) ||
+		    atapi_id_dmadir(dev->id)) {
 			dev->flags |= ATA_DFLAG_DMADIR;
 			dma_dir_string = ", DMADIR";
 		}
@@ -3043,24 +3032,24 @@ int ata_dev_configure(struct ata_device *dev)
 	if ((dev->class == ATA_DEV_ATAPI) &&
 	    (atapi_command_packet_set(id) == TYPE_TAPE)) {
 		dev->max_sectors = ATA_MAX_SECTORS_TAPE;
-		dev->horkage |= ATA_HORKAGE_STUCK_ERR;
+		dev->quirks |= ATA_QUIRK_STUCK_ERR;
 	}
 
-	if (dev->horkage & ATA_HORKAGE_MAX_SEC_128)
+	if (dev->quirks & ATA_QUIRK_MAX_SEC_128)
 		dev->max_sectors = min_t(unsigned int, ATA_MAX_SECTORS_128,
 					 dev->max_sectors);
 
-	if (dev->horkage & ATA_HORKAGE_MAX_SEC_1024)
+	if (dev->quirks & ATA_QUIRK_MAX_SEC_1024)
 		dev->max_sectors = min_t(unsigned int, ATA_MAX_SECTORS_1024,
 					 dev->max_sectors);
 
-	if (dev->horkage & ATA_HORKAGE_MAX_SEC_LBA48)
+	if (dev->quirks & ATA_QUIRK_MAX_SEC_LBA48)
 		dev->max_sectors = ATA_MAX_SECTORS_LBA48;
 
 	if (ap->ops->dev_config)
 		ap->ops->dev_config(dev);
 
-	if (dev->horkage & ATA_HORKAGE_DIAGNOSTIC) {
+	if (dev->quirks & ATA_QUIRK_DIAGNOSTIC) {
 		/* Let the user know. We don't want to disallow opens for
 		   rescue purposes, or in case the vendor is just a blithering
 		   idiot. Do this after the dev_config call as some controllers
@@ -3075,7 +3064,7 @@ int ata_dev_configure(struct ata_device *dev)
 		}
 	}
 
-	if ((dev->horkage & ATA_HORKAGE_FIRMWARE_WARN) && print_info) {
+	if ((dev->quirks & ATA_QUIRK_FIRMWARE_WARN) && print_info) {
 		ata_dev_warn(dev, "WARNING: device requires firmware update to be fully functional\n");
 		ata_dev_warn(dev, "         contact the vendor or visit http://ata.wiki.kernel.org\n");
 	}
@@ -3198,86 +3187,6 @@ struct ata_device *ata_dev_pair(struct ata_device *adev)
 	return pair;
 }
 EXPORT_SYMBOL_GPL(ata_dev_pair);
-
-/**
- *	sata_down_spd_limit - adjust SATA spd limit downward
- *	@link: Link to adjust SATA spd limit for
- *	@spd_limit: Additional limit
- *
- *	Adjust SATA spd limit of @link downward.  Note that this
- *	function only adjusts the limit.  The change must be applied
- *	using sata_set_spd().
- *
- *	If @spd_limit is non-zero, the speed is limited to equal to or
- *	lower than @spd_limit if such speed is supported.  If
- *	@spd_limit is slower than any supported speed, only the lowest
- *	supported speed is allowed.
- *
- *	LOCKING:
- *	Inherited from caller.
- *
- *	RETURNS:
- *	0 on success, negative errno on failure
- */
-int sata_down_spd_limit(struct ata_link *link, u32 spd_limit)
-{
-	u32 sstatus, spd, mask;
-	int rc, bit;
-
-	if (!sata_scr_valid(link))
-		return -EOPNOTSUPP;
-
-	/* If SCR can be read, use it to determine the current SPD.
-	 * If not, use cached value in link->sata_spd.
-	 */
-	rc = sata_scr_read(link, SCR_STATUS, &sstatus);
-	if (rc == 0 && ata_sstatus_online(sstatus))
-		spd = (sstatus >> 4) & 0xf;
-	else
-		spd = link->sata_spd;
-
-	mask = link->sata_spd_limit;
-	if (mask <= 1)
-		return -EINVAL;
-
-	/* unconditionally mask off the highest bit */
-	bit = fls(mask) - 1;
-	mask &= ~(1 << bit);
-
-	/*
-	 * Mask off all speeds higher than or equal to the current one.  At
-	 * this point, if current SPD is not available and we previously
-	 * recorded the link speed from SStatus, the driver has already
-	 * masked off the highest bit so mask should already be 1 or 0.
-	 * Otherwise, we should not force 1.5Gbps on a link where we have
-	 * not previously recorded speed from SStatus.  Just return in this
-	 * case.
-	 */
-	if (spd > 1)
-		mask &= (1 << (spd - 1)) - 1;
-	else if (link->sata_spd)
-		return -EINVAL;
-
-	/* were we already at the bottom? */
-	if (!mask)
-		return -EINVAL;
-
-	if (spd_limit) {
-		if (mask & ((1 << spd_limit) - 1))
-			mask &= (1 << spd_limit) - 1;
-		else {
-			bit = ffs(mask) - 1;
-			mask = 1 << bit;
-		}
-	}
-
-	link->sata_spd_limit = mask;
-
-	ata_link_warn(link, "limiting SATA link speed to %s\n",
-		      sata_spd_string(fls(mask)));
-
-	return 0;
-}
 
 #ifdef CONFIG_ATA_ACPI
 /**
@@ -3425,7 +3334,7 @@ static int ata_dev_set_mode(struct ata_device *dev)
 {
 	struct ata_port *ap = dev->link->ap;
 	struct ata_eh_context *ehc = &dev->link->eh_context;
-	const bool nosetxfer = dev->horkage & ATA_HORKAGE_NOSETXFER;
+	const bool nosetxfer = dev->quirks & ATA_QUIRK_NOSETXFER;
 	const char *dev_err_whine = "";
 	int ign_dev_err = 0;
 	unsigned int err_mask = 0;
@@ -3761,33 +3670,6 @@ int ata_std_prereset(struct ata_link *link, unsigned long deadline)
 EXPORT_SYMBOL_GPL(ata_std_prereset);
 
 /**
- *	sata_std_hardreset - COMRESET w/o waiting or classification
- *	@link: link to reset
- *	@class: resulting class of attached device
- *	@deadline: deadline jiffies for the operation
- *
- *	Standard SATA COMRESET w/o waiting or classification.
- *
- *	LOCKING:
- *	Kernel thread context (may sleep)
- *
- *	RETURNS:
- *	0 if link offline, -EAGAIN if link online, -errno on errors.
- */
-int sata_std_hardreset(struct ata_link *link, unsigned int *class,
-		       unsigned long deadline)
-{
-	const unsigned int *timing = sata_ehc_deb_timing(&link->eh_context);
-	bool online;
-	int rc;
-
-	/* do hardreset */
-	rc = sata_link_hardreset(link, timing, deadline, &online, NULL);
-	return online ? -EAGAIN : rc;
-}
-EXPORT_SYMBOL_GPL(sata_std_hardreset);
-
-/**
  *	ata_std_postreset - standard postreset callback
  *	@link: the target ata_link
  *	@classes: classes of attached devices
@@ -3878,7 +3760,7 @@ static int ata_dev_same_device(struct ata_device *dev, unsigned int new_class,
 int ata_dev_reread_id(struct ata_device *dev, unsigned int readid_flags)
 {
 	unsigned int class = dev->class;
-	u16 *id = (void *)dev->link->ap->sector_buf;
+	u16 *id = (void *)dev->sector_buf;
 	int rc;
 
 	/* read ID data */
@@ -3969,7 +3851,7 @@ int ata_dev_revalidate(struct ata_device *dev, unsigned int new_class,
 	 */
 	if (dev->n_native_sectors == n_native_sectors &&
 	    dev->n_sectors < n_sectors && n_sectors == n_native_sectors &&
-	    !(dev->horkage & ATA_HORKAGE_BROKEN_HPA)) {
+	    !(dev->quirks & ATA_QUIRK_BROKEN_HPA)) {
 		ata_dev_warn(dev,
 			     "old n_sectors matches native, probably "
 			     "late HPA lock, will try to unlock HPA\n");
@@ -3987,223 +3869,292 @@ int ata_dev_revalidate(struct ata_device *dev, unsigned int new_class,
 	return rc;
 }
 
-struct ata_blacklist_entry {
-	const char *model_num;
-	const char *model_rev;
-	unsigned long horkage;
+static const char * const ata_quirk_names[] = {
+	[__ATA_QUIRK_DIAGNOSTIC]	= "diagnostic",
+	[__ATA_QUIRK_NODMA]		= "nodma",
+	[__ATA_QUIRK_NONCQ]		= "noncq",
+	[__ATA_QUIRK_MAX_SEC_128]	= "maxsec128",
+	[__ATA_QUIRK_BROKEN_HPA]	= "brokenhpa",
+	[__ATA_QUIRK_DISABLE]		= "disable",
+	[__ATA_QUIRK_HPA_SIZE]		= "hpasize",
+	[__ATA_QUIRK_IVB]		= "ivb",
+	[__ATA_QUIRK_STUCK_ERR]		= "stuckerr",
+	[__ATA_QUIRK_BRIDGE_OK]		= "bridgeok",
+	[__ATA_QUIRK_ATAPI_MOD16_DMA]	= "atapimod16dma",
+	[__ATA_QUIRK_FIRMWARE_WARN]	= "firmwarewarn",
+	[__ATA_QUIRK_1_5_GBPS]		= "1.5gbps",
+	[__ATA_QUIRK_NOSETXFER]		= "nosetxfer",
+	[__ATA_QUIRK_BROKEN_FPDMA_AA]	= "brokenfpdmaaa",
+	[__ATA_QUIRK_DUMP_ID]		= "dumpid",
+	[__ATA_QUIRK_MAX_SEC_LBA48]	= "maxseclba48",
+	[__ATA_QUIRK_ATAPI_DMADIR]	= "atapidmadir",
+	[__ATA_QUIRK_NO_NCQ_TRIM]	= "noncqtrim",
+	[__ATA_QUIRK_NOLPM]		= "nolpm",
+	[__ATA_QUIRK_WD_BROKEN_LPM]	= "wdbrokenlpm",
+	[__ATA_QUIRK_ZERO_AFTER_TRIM]	= "zeroaftertrim",
+	[__ATA_QUIRK_NO_DMA_LOG]	= "nodmalog",
+	[__ATA_QUIRK_NOTRIM]		= "notrim",
+	[__ATA_QUIRK_MAX_SEC_1024]	= "maxsec1024",
+	[__ATA_QUIRK_MAX_TRIM_128M]	= "maxtrim128m",
+	[__ATA_QUIRK_NO_NCQ_ON_ATI]	= "noncqonati",
+	[__ATA_QUIRK_NO_ID_DEV_LOG]	= "noiddevlog",
+	[__ATA_QUIRK_NO_LOG_DIR]	= "nologdir",
+	[__ATA_QUIRK_NO_FUA]		= "nofua",
 };
 
-static const struct ata_blacklist_entry ata_device_blacklist [] = {
+static void ata_dev_print_quirks(const struct ata_device *dev,
+				 const char *model, const char *rev,
+				 unsigned int quirks)
+{
+	struct ata_eh_context *ehc = &dev->link->eh_context;
+	int n = 0, i;
+	size_t sz;
+	char *str;
+
+	if (!ata_dev_print_info(dev) || ehc->i.flags & ATA_EHI_DID_PRINT_QUIRKS)
+		return;
+
+	ehc->i.flags |= ATA_EHI_DID_PRINT_QUIRKS;
+
+	if (!quirks)
+		return;
+
+	sz = 64 + ARRAY_SIZE(ata_quirk_names) * 16;
+	str = kmalloc(sz, GFP_KERNEL);
+	if (!str)
+		return;
+
+	n = snprintf(str, sz, "Model '%s', rev '%s', applying quirks:",
+		     model, rev);
+
+	for (i = 0; i < ARRAY_SIZE(ata_quirk_names); i++) {
+		if (quirks & (1U << i))
+			n += snprintf(str + n, sz - n,
+				      " %s", ata_quirk_names[i]);
+	}
+
+	ata_dev_warn(dev, "%s\n", str);
+
+	kfree(str);
+}
+
+struct ata_dev_quirks_entry {
+	const char *model_num;
+	const char *model_rev;
+	unsigned int quirks;
+};
+
+static const struct ata_dev_quirks_entry __ata_dev_quirks[] = {
 	/* Devices with DMA related problems under Linux */
-	{ "WDC AC11000H",	NULL,		ATA_HORKAGE_NODMA },
-	{ "WDC AC22100H",	NULL,		ATA_HORKAGE_NODMA },
-	{ "WDC AC32500H",	NULL,		ATA_HORKAGE_NODMA },
-	{ "WDC AC33100H",	NULL,		ATA_HORKAGE_NODMA },
-	{ "WDC AC31600H",	NULL,		ATA_HORKAGE_NODMA },
-	{ "WDC AC32100H",	"24.09P07",	ATA_HORKAGE_NODMA },
-	{ "WDC AC23200L",	"21.10N21",	ATA_HORKAGE_NODMA },
-	{ "Compaq CRD-8241B", 	NULL,		ATA_HORKAGE_NODMA },
-	{ "CRD-8400B",		NULL, 		ATA_HORKAGE_NODMA },
-	{ "CRD-848[02]B",	NULL,		ATA_HORKAGE_NODMA },
-	{ "CRD-84",		NULL,		ATA_HORKAGE_NODMA },
-	{ "SanDisk SDP3B",	NULL,		ATA_HORKAGE_NODMA },
-	{ "SanDisk SDP3B-64",	NULL,		ATA_HORKAGE_NODMA },
-	{ "SANYO CD-ROM CRD",	NULL,		ATA_HORKAGE_NODMA },
-	{ "HITACHI CDR-8",	NULL,		ATA_HORKAGE_NODMA },
-	{ "HITACHI CDR-8[34]35",NULL,		ATA_HORKAGE_NODMA },
-	{ "Toshiba CD-ROM XM-6202B", NULL,	ATA_HORKAGE_NODMA },
-	{ "TOSHIBA CD-ROM XM-1702BC", NULL,	ATA_HORKAGE_NODMA },
-	{ "CD-532E-A", 		NULL,		ATA_HORKAGE_NODMA },
-	{ "E-IDE CD-ROM CR-840",NULL,		ATA_HORKAGE_NODMA },
-	{ "CD-ROM Drive/F5A",	NULL,		ATA_HORKAGE_NODMA },
-	{ "WPI CDD-820", 	NULL,		ATA_HORKAGE_NODMA },
-	{ "SAMSUNG CD-ROM SC-148C", NULL,	ATA_HORKAGE_NODMA },
-	{ "SAMSUNG CD-ROM SC",	NULL,		ATA_HORKAGE_NODMA },
-	{ "ATAPI CD-ROM DRIVE 40X MAXIMUM",NULL,ATA_HORKAGE_NODMA },
-	{ "_NEC DV5800A", 	NULL,		ATA_HORKAGE_NODMA },
-	{ "SAMSUNG CD-ROM SN-124", "N001",	ATA_HORKAGE_NODMA },
-	{ "Seagate STT20000A", NULL,		ATA_HORKAGE_NODMA },
-	{ " 2GB ATA Flash Disk", "ADMA428M",	ATA_HORKAGE_NODMA },
-	{ "VRFDFC22048UCHC-TE*", NULL,		ATA_HORKAGE_NODMA },
+	{ "WDC AC11000H",	NULL,		ATA_QUIRK_NODMA },
+	{ "WDC AC22100H",	NULL,		ATA_QUIRK_NODMA },
+	{ "WDC AC32500H",	NULL,		ATA_QUIRK_NODMA },
+	{ "WDC AC33100H",	NULL,		ATA_QUIRK_NODMA },
+	{ "WDC AC31600H",	NULL,		ATA_QUIRK_NODMA },
+	{ "WDC AC32100H",	"24.09P07",	ATA_QUIRK_NODMA },
+	{ "WDC AC23200L",	"21.10N21",	ATA_QUIRK_NODMA },
+	{ "Compaq CRD-8241B",	NULL,		ATA_QUIRK_NODMA },
+	{ "CRD-8400B",		NULL,		ATA_QUIRK_NODMA },
+	{ "CRD-848[02]B",	NULL,		ATA_QUIRK_NODMA },
+	{ "CRD-84",		NULL,		ATA_QUIRK_NODMA },
+	{ "SanDisk SDP3B",	NULL,		ATA_QUIRK_NODMA },
+	{ "SanDisk SDP3B-64",	NULL,		ATA_QUIRK_NODMA },
+	{ "SANYO CD-ROM CRD",	NULL,		ATA_QUIRK_NODMA },
+	{ "HITACHI CDR-8",	NULL,		ATA_QUIRK_NODMA },
+	{ "HITACHI CDR-8[34]35", NULL,		ATA_QUIRK_NODMA },
+	{ "Toshiba CD-ROM XM-6202B", NULL,	ATA_QUIRK_NODMA },
+	{ "TOSHIBA CD-ROM XM-1702BC", NULL,	ATA_QUIRK_NODMA },
+	{ "CD-532E-A",		NULL,		ATA_QUIRK_NODMA },
+	{ "E-IDE CD-ROM CR-840", NULL,		ATA_QUIRK_NODMA },
+	{ "CD-ROM Drive/F5A",	NULL,		ATA_QUIRK_NODMA },
+	{ "WPI CDD-820",	NULL,		ATA_QUIRK_NODMA },
+	{ "SAMSUNG CD-ROM SC-148C", NULL,	ATA_QUIRK_NODMA },
+	{ "SAMSUNG CD-ROM SC",	NULL,		ATA_QUIRK_NODMA },
+	{ "ATAPI CD-ROM DRIVE 40X MAXIMUM", NULL, ATA_QUIRK_NODMA },
+	{ "_NEC DV5800A",	NULL,		ATA_QUIRK_NODMA },
+	{ "SAMSUNG CD-ROM SN-124", "N001",	ATA_QUIRK_NODMA },
+	{ "Seagate STT20000A", NULL,		ATA_QUIRK_NODMA },
+	{ " 2GB ATA Flash Disk", "ADMA428M",	ATA_QUIRK_NODMA },
+	{ "VRFDFC22048UCHC-TE*", NULL,		ATA_QUIRK_NODMA },
 	/* Odd clown on sil3726/4726 PMPs */
-	{ "Config  Disk",	NULL,		ATA_HORKAGE_DISABLE },
+	{ "Config  Disk",	NULL,		ATA_QUIRK_DISABLE },
 	/* Similar story with ASMedia 1092 */
-	{ "ASMT109x- Config",	NULL,		ATA_HORKAGE_DISABLE },
+	{ "ASMT109x- Config",	NULL,		ATA_QUIRK_DISABLE },
 
 	/* Weird ATAPI devices */
-	{ "TORiSAN DVD-ROM DRD-N216", NULL,	ATA_HORKAGE_MAX_SEC_128 },
-	{ "QUANTUM DAT    DAT72-000", NULL,	ATA_HORKAGE_ATAPI_MOD16_DMA },
-	{ "Slimtype DVD A  DS8A8SH", NULL,	ATA_HORKAGE_MAX_SEC_LBA48 },
-	{ "Slimtype DVD A  DS8A9SH", NULL,	ATA_HORKAGE_MAX_SEC_LBA48 },
+	{ "TORiSAN DVD-ROM DRD-N216", NULL,	ATA_QUIRK_MAX_SEC_128 },
+	{ "QUANTUM DAT    DAT72-000", NULL,	ATA_QUIRK_ATAPI_MOD16_DMA },
+	{ "Slimtype DVD A  DS8A8SH", NULL,	ATA_QUIRK_MAX_SEC_LBA48 },
+	{ "Slimtype DVD A  DS8A9SH", NULL,	ATA_QUIRK_MAX_SEC_LBA48 },
 
 	/*
 	 * Causes silent data corruption with higher max sects.
 	 * http://lkml.kernel.org/g/x49wpy40ysk.fsf@segfault.boston.devel.redhat.com
 	 */
-	{ "ST380013AS",		"3.20",		ATA_HORKAGE_MAX_SEC_1024 },
+	{ "ST380013AS",		"3.20",		ATA_QUIRK_MAX_SEC_1024 },
 
 	/*
 	 * These devices time out with higher max sects.
 	 * https://bugzilla.kernel.org/show_bug.cgi?id=121671
 	 */
-	{ "LITEON CX1-JB*-HP",	NULL,		ATA_HORKAGE_MAX_SEC_1024 },
-	{ "LITEON EP1-*",	NULL,		ATA_HORKAGE_MAX_SEC_1024 },
+	{ "LITEON CX1-JB*-HP",	NULL,		ATA_QUIRK_MAX_SEC_1024 },
+	{ "LITEON EP1-*",	NULL,		ATA_QUIRK_MAX_SEC_1024 },
 
 	/* Devices we expect to fail diagnostics */
 
 	/* Devices where NCQ should be avoided */
 	/* NCQ is slow */
-	{ "WDC WD740ADFD-00",	NULL,		ATA_HORKAGE_NONCQ },
-	{ "WDC WD740ADFD-00NLR1", NULL,		ATA_HORKAGE_NONCQ },
+	{ "WDC WD740ADFD-00",	NULL,		ATA_QUIRK_NONCQ },
+	{ "WDC WD740ADFD-00NLR1", NULL,		ATA_QUIRK_NONCQ },
 	/* http://thread.gmane.org/gmane.linux.ide/14907 */
-	{ "FUJITSU MHT2060BH",	NULL,		ATA_HORKAGE_NONCQ },
+	{ "FUJITSU MHT2060BH",	NULL,		ATA_QUIRK_NONCQ },
 	/* NCQ is broken */
-	{ "Maxtor *",		"BANC*",	ATA_HORKAGE_NONCQ },
-	{ "Maxtor 7V300F0",	"VA111630",	ATA_HORKAGE_NONCQ },
-	{ "ST380817AS",		"3.42",		ATA_HORKAGE_NONCQ },
-	{ "ST3160023AS",	"3.42",		ATA_HORKAGE_NONCQ },
-	{ "OCZ CORE_SSD",	"02.10104",	ATA_HORKAGE_NONCQ },
+	{ "Maxtor *",		"BANC*",	ATA_QUIRK_NONCQ },
+	{ "Maxtor 7V300F0",	"VA111630",	ATA_QUIRK_NONCQ },
+	{ "ST380817AS",		"3.42",		ATA_QUIRK_NONCQ },
+	{ "ST3160023AS",	"3.42",		ATA_QUIRK_NONCQ },
+	{ "OCZ CORE_SSD",	"02.10104",	ATA_QUIRK_NONCQ },
 
 	/* Seagate NCQ + FLUSH CACHE firmware bug */
-	{ "ST31500341AS",	"SD1[5-9]",	ATA_HORKAGE_NONCQ |
-						ATA_HORKAGE_FIRMWARE_WARN },
+	{ "ST31500341AS",	"SD1[5-9]",	ATA_QUIRK_NONCQ |
+						ATA_QUIRK_FIRMWARE_WARN },
 
-	{ "ST31000333AS",	"SD1[5-9]",	ATA_HORKAGE_NONCQ |
-						ATA_HORKAGE_FIRMWARE_WARN },
+	{ "ST31000333AS",	"SD1[5-9]",	ATA_QUIRK_NONCQ |
+						ATA_QUIRK_FIRMWARE_WARN },
 
-	{ "ST3640[36]23AS",	"SD1[5-9]",	ATA_HORKAGE_NONCQ |
-						ATA_HORKAGE_FIRMWARE_WARN },
+	{ "ST3640[36]23AS",	"SD1[5-9]",	ATA_QUIRK_NONCQ |
+						ATA_QUIRK_FIRMWARE_WARN },
 
-	{ "ST3320[68]13AS",	"SD1[5-9]",	ATA_HORKAGE_NONCQ |
-						ATA_HORKAGE_FIRMWARE_WARN },
+	{ "ST3320[68]13AS",	"SD1[5-9]",	ATA_QUIRK_NONCQ |
+						ATA_QUIRK_FIRMWARE_WARN },
 
 	/* drives which fail FPDMA_AA activation (some may freeze afterwards)
 	   the ST disks also have LPM issues */
-	{ "ST1000LM024 HN-M101MBB", NULL,	ATA_HORKAGE_BROKEN_FPDMA_AA |
-						ATA_HORKAGE_NOLPM },
-	{ "VB0250EAVER",	"HPG7",		ATA_HORKAGE_BROKEN_FPDMA_AA },
+	{ "ST1000LM024 HN-M101MBB", NULL,	ATA_QUIRK_BROKEN_FPDMA_AA |
+						ATA_QUIRK_NOLPM },
+	{ "VB0250EAVER",	"HPG7",		ATA_QUIRK_BROKEN_FPDMA_AA },
 
 	/* Blacklist entries taken from Silicon Image 3124/3132
 	   Windows driver .inf file - also several Linux problem reports */
-	{ "HTS541060G9SA00",    "MB3OC60D",     ATA_HORKAGE_NONCQ },
-	{ "HTS541080G9SA00",    "MB4OC60D",     ATA_HORKAGE_NONCQ },
-	{ "HTS541010G9SA00",    "MBZOC60D",     ATA_HORKAGE_NONCQ },
+	{ "HTS541060G9SA00",    "MB3OC60D",     ATA_QUIRK_NONCQ },
+	{ "HTS541080G9SA00",    "MB4OC60D",     ATA_QUIRK_NONCQ },
+	{ "HTS541010G9SA00",    "MBZOC60D",     ATA_QUIRK_NONCQ },
 
 	/* https://bugzilla.kernel.org/show_bug.cgi?id=15573 */
-	{ "C300-CTFDDAC128MAG",	"0001",		ATA_HORKAGE_NONCQ },
+	{ "C300-CTFDDAC128MAG",	"0001",		ATA_QUIRK_NONCQ },
 
 	/* Sandisk SD7/8/9s lock up hard on large trims */
-	{ "SanDisk SD[789]*",	NULL,		ATA_HORKAGE_MAX_TRIM_128M },
+	{ "SanDisk SD[789]*",	NULL,		ATA_QUIRK_MAX_TRIM_128M },
 
 	/* devices which puke on READ_NATIVE_MAX */
-	{ "HDS724040KLSA80",	"KFAOA20N",	ATA_HORKAGE_BROKEN_HPA },
-	{ "WDC WD3200JD-00KLB0", "WD-WCAMR1130137", ATA_HORKAGE_BROKEN_HPA },
-	{ "WDC WD2500JD-00HBB0", "WD-WMAL71490727", ATA_HORKAGE_BROKEN_HPA },
-	{ "MAXTOR 6L080L4",	"A93.0500",	ATA_HORKAGE_BROKEN_HPA },
+	{ "HDS724040KLSA80",	"KFAOA20N",	ATA_QUIRK_BROKEN_HPA },
+	{ "WDC WD3200JD-00KLB0", "WD-WCAMR1130137", ATA_QUIRK_BROKEN_HPA },
+	{ "WDC WD2500JD-00HBB0", "WD-WMAL71490727", ATA_QUIRK_BROKEN_HPA },
+	{ "MAXTOR 6L080L4",	"A93.0500",	ATA_QUIRK_BROKEN_HPA },
 
 	/* this one allows HPA unlocking but fails IOs on the area */
-	{ "OCZ-VERTEX",		    "1.30",	ATA_HORKAGE_BROKEN_HPA },
+	{ "OCZ-VERTEX",		    "1.30",	ATA_QUIRK_BROKEN_HPA },
 
 	/* Devices which report 1 sector over size HPA */
-	{ "ST340823A",		NULL,		ATA_HORKAGE_HPA_SIZE },
-	{ "ST320413A",		NULL,		ATA_HORKAGE_HPA_SIZE },
-	{ "ST310211A",		NULL,		ATA_HORKAGE_HPA_SIZE },
+	{ "ST340823A",		NULL,		ATA_QUIRK_HPA_SIZE },
+	{ "ST320413A",		NULL,		ATA_QUIRK_HPA_SIZE },
+	{ "ST310211A",		NULL,		ATA_QUIRK_HPA_SIZE },
 
 	/* Devices which get the IVB wrong */
-	{ "QUANTUM FIREBALLlct10 05", "A03.0900", ATA_HORKAGE_IVB },
-	/* Maybe we should just blacklist TSSTcorp... */
-	{ "TSSTcorp CDDVDW SH-S202[HJN]", "SB0[01]",  ATA_HORKAGE_IVB },
+	{ "QUANTUM FIREBALLlct10 05", "A03.0900", ATA_QUIRK_IVB },
+	/* Maybe we should just add all TSSTcorp devices... */
+	{ "TSSTcorp CDDVDW SH-S202[HJN]", "SB0[01]",  ATA_QUIRK_IVB },
 
 	/* Devices that do not need bridging limits applied */
-	{ "MTRON MSP-SATA*",		NULL,	ATA_HORKAGE_BRIDGE_OK },
-	{ "BUFFALO HD-QSU2/R5",		NULL,	ATA_HORKAGE_BRIDGE_OK },
+	{ "MTRON MSP-SATA*",		NULL,	ATA_QUIRK_BRIDGE_OK },
+	{ "BUFFALO HD-QSU2/R5",		NULL,	ATA_QUIRK_BRIDGE_OK },
 
 	/* Devices which aren't very happy with higher link speeds */
-	{ "WD My Book",			NULL,	ATA_HORKAGE_1_5_GBPS },
-	{ "Seagate FreeAgent GoFlex",	NULL,	ATA_HORKAGE_1_5_GBPS },
+	{ "WD My Book",			NULL,	ATA_QUIRK_1_5_GBPS },
+	{ "Seagate FreeAgent GoFlex",	NULL,	ATA_QUIRK_1_5_GBPS },
 
 	/*
 	 * Devices which choke on SETXFER.  Applies only if both the
 	 * device and controller are SATA.
 	 */
-	{ "PIONEER DVD-RW  DVRTD08",	NULL,	ATA_HORKAGE_NOSETXFER },
-	{ "PIONEER DVD-RW  DVRTD08A",	NULL,	ATA_HORKAGE_NOSETXFER },
-	{ "PIONEER DVD-RW  DVR-215",	NULL,	ATA_HORKAGE_NOSETXFER },
-	{ "PIONEER DVD-RW  DVR-212D",	NULL,	ATA_HORKAGE_NOSETXFER },
-	{ "PIONEER DVD-RW  DVR-216D",	NULL,	ATA_HORKAGE_NOSETXFER },
+	{ "PIONEER DVD-RW  DVRTD08",	NULL,	ATA_QUIRK_NOSETXFER },
+	{ "PIONEER DVD-RW  DVRTD08A",	NULL,	ATA_QUIRK_NOSETXFER },
+	{ "PIONEER DVD-RW  DVR-215",	NULL,	ATA_QUIRK_NOSETXFER },
+	{ "PIONEER DVD-RW  DVR-212D",	NULL,	ATA_QUIRK_NOSETXFER },
+	{ "PIONEER DVD-RW  DVR-216D",	NULL,	ATA_QUIRK_NOSETXFER },
 
 	/* These specific Pioneer models have LPM issues */
-	{ "PIONEER BD-RW   BDR-207M",	NULL,	ATA_HORKAGE_NOLPM },
-	{ "PIONEER BD-RW   BDR-205",	NULL,	ATA_HORKAGE_NOLPM },
+	{ "PIONEER BD-RW   BDR-207M",	NULL,	ATA_QUIRK_NOLPM },
+	{ "PIONEER BD-RW   BDR-205",	NULL,	ATA_QUIRK_NOLPM },
 
 	/* Crucial devices with broken LPM support */
-	{ "CT*0BX*00SSD1",		NULL,	ATA_HORKAGE_NOLPM },
+	{ "CT*0BX*00SSD1",		NULL,	ATA_QUIRK_NOLPM },
 
 	/* 512GB MX100 with MU01 firmware has both queued TRIM and LPM issues */
-	{ "Crucial_CT512MX100*",	"MU01",	ATA_HORKAGE_NO_NCQ_TRIM |
-						ATA_HORKAGE_ZERO_AFTER_TRIM |
-						ATA_HORKAGE_NOLPM },
+	{ "Crucial_CT512MX100*",	"MU01",	ATA_QUIRK_NO_NCQ_TRIM |
+						ATA_QUIRK_ZERO_AFTER_TRIM |
+						ATA_QUIRK_NOLPM },
 	/* 512GB MX100 with newer firmware has only LPM issues */
-	{ "Crucial_CT512MX100*",	NULL,	ATA_HORKAGE_ZERO_AFTER_TRIM |
-						ATA_HORKAGE_NOLPM },
+	{ "Crucial_CT512MX100*",	NULL,	ATA_QUIRK_ZERO_AFTER_TRIM |
+						ATA_QUIRK_NOLPM },
 
 	/* 480GB+ M500 SSDs have both queued TRIM and LPM issues */
-	{ "Crucial_CT480M500*",		NULL,	ATA_HORKAGE_NO_NCQ_TRIM |
-						ATA_HORKAGE_ZERO_AFTER_TRIM |
-						ATA_HORKAGE_NOLPM },
-	{ "Crucial_CT960M500*",		NULL,	ATA_HORKAGE_NO_NCQ_TRIM |
-						ATA_HORKAGE_ZERO_AFTER_TRIM |
-						ATA_HORKAGE_NOLPM },
+	{ "Crucial_CT480M500*",		NULL,	ATA_QUIRK_NO_NCQ_TRIM |
+						ATA_QUIRK_ZERO_AFTER_TRIM |
+						ATA_QUIRK_NOLPM },
+	{ "Crucial_CT960M500*",		NULL,	ATA_QUIRK_NO_NCQ_TRIM |
+						ATA_QUIRK_ZERO_AFTER_TRIM |
+						ATA_QUIRK_NOLPM },
 
 	/* AMD Radeon devices with broken LPM support */
-	{ "R3SL240G",			NULL,	ATA_HORKAGE_NOLPM },
+	{ "R3SL240G",			NULL,	ATA_QUIRK_NOLPM },
 
 	/* Apacer models with LPM issues */
-	{ "Apacer AS340*",		NULL,	ATA_HORKAGE_NOLPM },
+	{ "Apacer AS340*",		NULL,	ATA_QUIRK_NOLPM },
 
 	/* These specific Samsung models/firmware-revs do not handle LPM well */
-	{ "SAMSUNG MZMPC128HBFU-000MV", "CXM14M1Q", ATA_HORKAGE_NOLPM },
-	{ "SAMSUNG SSD PM830 mSATA *",  "CXM13D1Q", ATA_HORKAGE_NOLPM },
-	{ "SAMSUNG MZ7TD256HAFV-000L9", NULL,       ATA_HORKAGE_NOLPM },
-	{ "SAMSUNG MZ7TE512HMHP-000L1", "EXT06L0Q", ATA_HORKAGE_NOLPM },
+	{ "SAMSUNG MZMPC128HBFU-000MV", "CXM14M1Q", ATA_QUIRK_NOLPM },
+	{ "SAMSUNG SSD PM830 mSATA *",  "CXM13D1Q", ATA_QUIRK_NOLPM },
+	{ "SAMSUNG MZ7TD256HAFV-000L9", NULL,       ATA_QUIRK_NOLPM },
+	{ "SAMSUNG MZ7TE512HMHP-000L1", "EXT06L0Q", ATA_QUIRK_NOLPM },
 
 	/* devices that don't properly handle queued TRIM commands */
-	{ "Micron_M500IT_*",		"MU01",	ATA_HORKAGE_NO_NCQ_TRIM |
-						ATA_HORKAGE_ZERO_AFTER_TRIM },
-	{ "Micron_M500_*",		NULL,	ATA_HORKAGE_NO_NCQ_TRIM |
-						ATA_HORKAGE_ZERO_AFTER_TRIM },
-	{ "Micron_M5[15]0_*",		"MU01",	ATA_HORKAGE_NO_NCQ_TRIM |
-						ATA_HORKAGE_ZERO_AFTER_TRIM },
-	{ "Micron_1100_*",		NULL,	ATA_HORKAGE_NO_NCQ_TRIM |
-						ATA_HORKAGE_ZERO_AFTER_TRIM, },
-	{ "Crucial_CT*M500*",		NULL,	ATA_HORKAGE_NO_NCQ_TRIM |
-						ATA_HORKAGE_ZERO_AFTER_TRIM },
-	{ "Crucial_CT*M550*",		"MU01",	ATA_HORKAGE_NO_NCQ_TRIM |
-						ATA_HORKAGE_ZERO_AFTER_TRIM },
-	{ "Crucial_CT*MX100*",		"MU01",	ATA_HORKAGE_NO_NCQ_TRIM |
-						ATA_HORKAGE_ZERO_AFTER_TRIM },
-	{ "Samsung SSD 840 EVO*",	NULL,	ATA_HORKAGE_NO_NCQ_TRIM |
-						ATA_HORKAGE_NO_DMA_LOG |
-						ATA_HORKAGE_ZERO_AFTER_TRIM },
-	{ "Samsung SSD 840*",		NULL,	ATA_HORKAGE_NO_NCQ_TRIM |
-						ATA_HORKAGE_ZERO_AFTER_TRIM },
-	{ "Samsung SSD 850*",		NULL,	ATA_HORKAGE_NO_NCQ_TRIM |
-						ATA_HORKAGE_ZERO_AFTER_TRIM },
-	{ "Samsung SSD 860*",		NULL,	ATA_HORKAGE_NO_NCQ_TRIM |
-						ATA_HORKAGE_ZERO_AFTER_TRIM |
-						ATA_HORKAGE_NO_NCQ_ON_ATI },
-	{ "Samsung SSD 870*",		NULL,	ATA_HORKAGE_NO_NCQ_TRIM |
-						ATA_HORKAGE_ZERO_AFTER_TRIM |
-						ATA_HORKAGE_NO_NCQ_ON_ATI },
-	{ "SAMSUNG*MZ7LH*",		NULL,	ATA_HORKAGE_NO_NCQ_TRIM |
-						ATA_HORKAGE_ZERO_AFTER_TRIM |
-						ATA_HORKAGE_NO_NCQ_ON_ATI, },
-	{ "FCCT*M500*",			NULL,	ATA_HORKAGE_NO_NCQ_TRIM |
-						ATA_HORKAGE_ZERO_AFTER_TRIM },
+	{ "Micron_M500IT_*",		"MU01",	ATA_QUIRK_NO_NCQ_TRIM |
+						ATA_QUIRK_ZERO_AFTER_TRIM },
+	{ "Micron_M500_*",		NULL,	ATA_QUIRK_NO_NCQ_TRIM |
+						ATA_QUIRK_ZERO_AFTER_TRIM },
+	{ "Micron_M5[15]0_*",		"MU01",	ATA_QUIRK_NO_NCQ_TRIM |
+						ATA_QUIRK_ZERO_AFTER_TRIM },
+	{ "Micron_1100_*",		NULL,	ATA_QUIRK_NO_NCQ_TRIM |
+						ATA_QUIRK_ZERO_AFTER_TRIM, },
+	{ "Crucial_CT*M500*",		NULL,	ATA_QUIRK_NO_NCQ_TRIM |
+						ATA_QUIRK_ZERO_AFTER_TRIM },
+	{ "Crucial_CT*M550*",		"MU01",	ATA_QUIRK_NO_NCQ_TRIM |
+						ATA_QUIRK_ZERO_AFTER_TRIM },
+	{ "Crucial_CT*MX100*",		"MU01",	ATA_QUIRK_NO_NCQ_TRIM |
+						ATA_QUIRK_ZERO_AFTER_TRIM },
+	{ "Samsung SSD 840 EVO*",	NULL,	ATA_QUIRK_NO_NCQ_TRIM |
+						ATA_QUIRK_NO_DMA_LOG |
+						ATA_QUIRK_ZERO_AFTER_TRIM },
+	{ "Samsung SSD 840*",		NULL,	ATA_QUIRK_NO_NCQ_TRIM |
+						ATA_QUIRK_ZERO_AFTER_TRIM },
+	{ "Samsung SSD 850*",		NULL,	ATA_QUIRK_NO_NCQ_TRIM |
+						ATA_QUIRK_ZERO_AFTER_TRIM },
+	{ "Samsung SSD 860*",		NULL,	ATA_QUIRK_NO_NCQ_TRIM |
+						ATA_QUIRK_ZERO_AFTER_TRIM |
+						ATA_QUIRK_NO_NCQ_ON_ATI },
+	{ "Samsung SSD 870*",		NULL,	ATA_QUIRK_NO_NCQ_TRIM |
+						ATA_QUIRK_ZERO_AFTER_TRIM |
+						ATA_QUIRK_NO_NCQ_ON_ATI },
+	{ "SAMSUNG*MZ7LH*",		NULL,	ATA_QUIRK_NO_NCQ_TRIM |
+						ATA_QUIRK_ZERO_AFTER_TRIM |
+						ATA_QUIRK_NO_NCQ_ON_ATI, },
+	{ "FCCT*M500*",			NULL,	ATA_QUIRK_NO_NCQ_TRIM |
+						ATA_QUIRK_ZERO_AFTER_TRIM },
 
 	/* devices that don't properly handle TRIM commands */
-	{ "SuperSSpeed S238*",		NULL,	ATA_HORKAGE_NOTRIM },
-	{ "M88V29*",			NULL,	ATA_HORKAGE_NOTRIM },
+	{ "SuperSSpeed S238*",		NULL,	ATA_QUIRK_NOTRIM },
+	{ "M88V29*",			NULL,	ATA_QUIRK_NOTRIM },
 
 	/*
 	 * As defined, the DRAT (Deterministic Read After Trim) and RZAT
@@ -4223,14 +4174,14 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	 */
 	{ "INTEL*SSDSC2MH*",		NULL,	0 },
 
-	{ "Micron*",			NULL,	ATA_HORKAGE_ZERO_AFTER_TRIM },
-	{ "Crucial*",			NULL,	ATA_HORKAGE_ZERO_AFTER_TRIM },
-	{ "INTEL*SSD*", 		NULL,	ATA_HORKAGE_ZERO_AFTER_TRIM },
-	{ "SSD*INTEL*",			NULL,	ATA_HORKAGE_ZERO_AFTER_TRIM },
-	{ "Samsung*SSD*",		NULL,	ATA_HORKAGE_ZERO_AFTER_TRIM },
-	{ "SAMSUNG*SSD*",		NULL,	ATA_HORKAGE_ZERO_AFTER_TRIM },
-	{ "SAMSUNG*MZ7KM*",		NULL,	ATA_HORKAGE_ZERO_AFTER_TRIM },
-	{ "ST[1248][0248]0[FH]*",	NULL,	ATA_HORKAGE_ZERO_AFTER_TRIM },
+	{ "Micron*",			NULL,	ATA_QUIRK_ZERO_AFTER_TRIM },
+	{ "Crucial*",			NULL,	ATA_QUIRK_ZERO_AFTER_TRIM },
+	{ "INTEL*SSD*",			NULL,	ATA_QUIRK_ZERO_AFTER_TRIM },
+	{ "SSD*INTEL*",			NULL,	ATA_QUIRK_ZERO_AFTER_TRIM },
+	{ "Samsung*SSD*",		NULL,	ATA_QUIRK_ZERO_AFTER_TRIM },
+	{ "SAMSUNG*SSD*",		NULL,	ATA_QUIRK_ZERO_AFTER_TRIM },
+	{ "SAMSUNG*MZ7KM*",		NULL,	ATA_QUIRK_ZERO_AFTER_TRIM },
+	{ "ST[1248][0248]0[FH]*",	NULL,	ATA_QUIRK_ZERO_AFTER_TRIM },
 
 	/*
 	 * Some WD SATA-I drives spin up and down erratically when the link
@@ -4241,62 +4192,66 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	 *
 	 * https://bugzilla.kernel.org/show_bug.cgi?id=57211
 	 */
-	{ "WDC WD800JD-*",		NULL,	ATA_HORKAGE_WD_BROKEN_LPM },
-	{ "WDC WD1200JD-*",		NULL,	ATA_HORKAGE_WD_BROKEN_LPM },
-	{ "WDC WD1600JD-*",		NULL,	ATA_HORKAGE_WD_BROKEN_LPM },
-	{ "WDC WD2000JD-*",		NULL,	ATA_HORKAGE_WD_BROKEN_LPM },
-	{ "WDC WD2500JD-*",		NULL,	ATA_HORKAGE_WD_BROKEN_LPM },
-	{ "WDC WD3000JD-*",		NULL,	ATA_HORKAGE_WD_BROKEN_LPM },
-	{ "WDC WD3200JD-*",		NULL,	ATA_HORKAGE_WD_BROKEN_LPM },
+	{ "WDC WD800JD-*",		NULL,	ATA_QUIRK_WD_BROKEN_LPM },
+	{ "WDC WD1200JD-*",		NULL,	ATA_QUIRK_WD_BROKEN_LPM },
+	{ "WDC WD1600JD-*",		NULL,	ATA_QUIRK_WD_BROKEN_LPM },
+	{ "WDC WD2000JD-*",		NULL,	ATA_QUIRK_WD_BROKEN_LPM },
+	{ "WDC WD2500JD-*",		NULL,	ATA_QUIRK_WD_BROKEN_LPM },
+	{ "WDC WD3000JD-*",		NULL,	ATA_QUIRK_WD_BROKEN_LPM },
+	{ "WDC WD3200JD-*",		NULL,	ATA_QUIRK_WD_BROKEN_LPM },
 
 	/*
 	 * This sata dom device goes on a walkabout when the ATA_LOG_DIRECTORY
 	 * log page is accessed. Ensure we never ask for this log page with
 	 * these devices.
 	 */
-	{ "SATADOM-ML 3ME",		NULL,	ATA_HORKAGE_NO_LOG_DIR },
+	{ "SATADOM-ML 3ME",		NULL,	ATA_QUIRK_NO_LOG_DIR },
 
 	/* Buggy FUA */
-	{ "Maxtor",		"BANC1G10",	ATA_HORKAGE_NO_FUA },
-	{ "WDC*WD2500J*",	NULL,		ATA_HORKAGE_NO_FUA },
-	{ "OCZ-VERTEX*",	NULL,		ATA_HORKAGE_NO_FUA },
-	{ "INTEL*SSDSC2CT*",	NULL,		ATA_HORKAGE_NO_FUA },
+	{ "Maxtor",		"BANC1G10",	ATA_QUIRK_NO_FUA },
+	{ "WDC*WD2500J*",	NULL,		ATA_QUIRK_NO_FUA },
+	{ "OCZ-VERTEX*",	NULL,		ATA_QUIRK_NO_FUA },
+	{ "INTEL*SSDSC2CT*",	NULL,		ATA_QUIRK_NO_FUA },
 
 	/* End Marker */
 	{ }
 };
 
-static unsigned long ata_dev_blacklisted(const struct ata_device *dev)
+static unsigned int ata_dev_quirks(const struct ata_device *dev)
 {
 	unsigned char model_num[ATA_ID_PROD_LEN + 1];
 	unsigned char model_rev[ATA_ID_FW_REV_LEN + 1];
-	const struct ata_blacklist_entry *ad = ata_device_blacklist;
+	const struct ata_dev_quirks_entry *ad = __ata_dev_quirks;
+
+	/* dev->quirks is an unsigned int. */
+	BUILD_BUG_ON(__ATA_QUIRK_MAX > 32);
 
 	ata_id_c_string(dev->id, model_num, ATA_ID_PROD, sizeof(model_num));
 	ata_id_c_string(dev->id, model_rev, ATA_ID_FW_REV, sizeof(model_rev));
 
 	while (ad->model_num) {
-		if (glob_match(ad->model_num, model_num)) {
-			if (ad->model_rev == NULL)
-				return ad->horkage;
-			if (glob_match(ad->model_rev, model_rev))
-				return ad->horkage;
+		if (glob_match(ad->model_num, model_num) &&
+		    (!ad->model_rev || glob_match(ad->model_rev, model_rev))) {
+			ata_dev_print_quirks(dev, model_num, model_rev,
+					     ad->quirks);
+			return ad->quirks;
 		}
 		ad++;
 	}
 	return 0;
 }
 
-static int ata_dma_blacklisted(const struct ata_device *dev)
+static bool ata_dev_nodma(const struct ata_device *dev)
 {
-	/* We don't support polling DMA.
-	 * DMA blacklist those ATAPI devices with CDB-intr (and use PIO)
-	 * if the LLDD handles only interrupts in the HSM_ST_LAST state.
+	/*
+	 * We do not support polling DMA. Deny DMA for those ATAPI devices
+	 * with CDB-intr (and use PIO) if the LLDD handles only interrupts in
+	 * the HSM_ST_LAST state.
 	 */
 	if ((dev->link->ap->flags & ATA_FLAG_PIO_POLLING) &&
 	    (dev->flags & ATA_DFLAG_CDB_INTR))
-		return 1;
-	return (dev->horkage & ATA_HORKAGE_NODMA) ? 1 : 0;
+		return true;
+	return dev->quirks & ATA_QUIRK_NODMA;
 }
 
 /**
@@ -4309,7 +4264,7 @@ static int ata_dma_blacklisted(const struct ata_device *dev)
 
 static int ata_is_40wire(struct ata_device *dev)
 {
-	if (dev->horkage & ATA_HORKAGE_IVB)
+	if (dev->quirks & ATA_QUIRK_IVB)
 		return ata_drive_40wire_relaxed(dev->id);
 	return ata_drive_40wire(dev->id);
 }
@@ -4371,8 +4326,7 @@ static int cable_is_40wire(struct ata_port *ap)
  *
  *	Compute supported xfermask of @dev and store it in
  *	dev->*_mask.  This function is responsible for applying all
- *	known limits including host controller limits, device
- *	blacklist, etc...
+ *	known limits including host controller limits, device quirks, etc...
  *
  *	LOCKING:
  *	None.
@@ -4404,10 +4358,10 @@ static void ata_dev_xfermask(struct ata_device *dev)
 		xfer_mask &= ~(0x03 << (ATA_SHIFT_MWDMA + 3));
 	}
 
-	if (ata_dma_blacklisted(dev)) {
+	if (ata_dev_nodma(dev)) {
 		xfer_mask &= ~(ATA_MASK_MWDMA | ATA_MASK_UDMA);
 		ata_dev_warn(dev,
-			     "device is on DMA blacklist, disabling DMA\n");
+			     "device does not support DMA, disabling DMA\n");
 	}
 
 	if ((host->flags & ATA_HOST_SIMPLEX) &&
@@ -4588,7 +4542,7 @@ int atapi_check_dma(struct ata_queued_cmd *qc)
 	/* Don't allow DMA if it isn't multiple of 16 bytes.  Quite a
 	 * few ATAPI devices choke on such DMA requests.
 	 */
-	if (!(qc->dev->horkage & ATA_HORKAGE_ATAPI_MOD16_DMA) &&
+	if (!(qc->dev->quirks & ATA_QUIRK_ATAPI_MOD16_DMA) &&
 	    unlikely(qc->nbytes & 15))
 		return 1;
 
@@ -4628,12 +4582,6 @@ int ata_std_qc_defer(struct ata_queued_cmd *qc)
 	return ATA_DEFER_LINK;
 }
 EXPORT_SYMBOL_GPL(ata_std_qc_defer);
-
-enum ata_completion_errors ata_noop_qc_prep(struct ata_queued_cmd *qc)
-{
-	return AC_ERR_OK;
-}
-EXPORT_SYMBOL_GPL(ata_noop_qc_prep);
 
 /**
  *	ata_sg_init - Associate command with scatter-gather table.
@@ -4762,8 +4710,9 @@ void __ata_qc_complete(struct ata_queued_cmd *qc)
 	struct ata_port *ap;
 	struct ata_link *link;
 
-	WARN_ON_ONCE(qc == NULL); /* ata_qc_from_tag _might_ return NULL */
-	WARN_ON_ONCE(!(qc->flags & ATA_QCFLAG_ACTIVE));
+	if (WARN_ON_ONCE(!(qc->flags & ATA_QCFLAG_ACTIVE)))
+		return;
+
 	ap = qc->ap;
 	link = qc->dev->link;
 
@@ -4785,9 +4734,10 @@ void __ata_qc_complete(struct ata_queued_cmd *qc)
 		     ap->excl_link == link))
 		ap->excl_link = NULL;
 
-	/* atapi: mark qc as inactive to prevent the interrupt handler
-	 * from completing the command twice later, before the error handler
-	 * is called. (when rc != 0 and atapi request sense is needed)
+	/*
+	 * Mark qc as inactive to prevent the port interrupt handler from
+	 * completing the command twice later, before the error handler is
+	 * called.
 	 */
 	qc->flags &= ~ATA_QCFLAG_ACTIVE;
 	ap->qc_active &= ~(1ULL << qc->tag);
@@ -5021,10 +4971,13 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 		return;
 	}
 
-	trace_ata_qc_prep(qc);
-	qc->err_mask |= ap->ops->qc_prep(qc);
-	if (unlikely(qc->err_mask))
-		goto err;
+	if (ap->ops->qc_prep) {
+		trace_ata_qc_prep(qc);
+		qc->err_mask |= ap->ops->qc_prep(qc);
+		if (unlikely(qc->err_mask))
+			goto err;
+	}
+
 	trace_ata_qc_issue(qc);
 	qc->err_mask |= ap->ops->qc_issue(qc);
 	if (unlikely(qc->err_mask))
@@ -5368,7 +5321,7 @@ void ata_dev_init(struct ata_device *dev)
 	 */
 	spin_lock_irqsave(ap->lock, flags);
 	dev->flags &= ~ATA_DFLAG_INIT_MASK;
-	dev->horkage = 0;
+	dev->quirks = 0;
 	spin_unlock_irqrestore(ap->lock, flags);
 
 	memset((void *)dev + ATA_DEVICE_CLEAR_BEGIN, 0,
@@ -5510,7 +5463,6 @@ void ata_port_free(struct ata_port *ap)
 
 	kfree(ap->pmp_link);
 	kfree(ap->slave_link);
-	kfree(ap->ncq_sense_buf);
 	ida_free(&ata_ida, ap->print_id);
 	kfree(ap);
 }
@@ -5593,8 +5545,10 @@ struct ata_host *ata_host_alloc(struct device *dev, int n_ports)
 	}
 
 	dr = devres_alloc(ata_devres_release, 0, GFP_KERNEL);
-	if (!dr)
+	if (!dr) {
+		kfree(host);
 		goto err_out;
+	}
 
 	devres_add(dev, dr);
 	dev_set_drvdata(dev, host);
@@ -6036,6 +5990,23 @@ int ata_host_activate(struct ata_host *host, int irq,
 EXPORT_SYMBOL_GPL(ata_host_activate);
 
 /**
+ *	ata_dev_free_resources - Free a device resources
+ *	@dev: Target ATA device
+ *
+ *	Free resources allocated to support a device features.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep).
+ */
+void ata_dev_free_resources(struct ata_device *dev)
+{
+	if (zpodd_dev_enabled(dev))
+		zpodd_exit(dev);
+
+	ata_dev_cleanup_cdl_resources(dev);
+}
+
+/**
  *	ata_port_detach - Detach ATA port in preparation of device removal
  *	@ap: ATA port to be detached
  *
@@ -6089,19 +6060,15 @@ static void ata_port_detach(struct ata_port *ap)
 	cancel_delayed_work_sync(&ap->hotplug_task);
 	cancel_delayed_work_sync(&ap->scsi_rescan_task);
 
-	/* clean up zpodd on port removal */
-	ata_for_each_link(link, ap, HOST_FIRST) {
-		ata_for_each_dev(dev, link, ALL) {
-			if (zpodd_dev_enabled(dev))
-				zpodd_exit(dev);
-		}
-	}
+	/* Delete port multiplier link transport devices */
 	if (ap->pmp_link) {
 		int i;
+
 		for (i = 0; i < SATA_PMP_MAX_PORTS; i++)
 			ata_tlink_delete(&ap->pmp_link[i]);
 	}
-	/* remove the associated SCSI host */
+
+	/* Remove the associated SCSI host */
 	scsi_remove_host(ap->scsi_host);
 	ata_tport_delete(ap);
 }
@@ -6297,12 +6264,12 @@ EXPORT_SYMBOL_GPL(ata_platform_remove_one);
 	{ "no" #name,	.lflags_on	= (flags) },	\
 	{ #name,	.lflags_off	= (flags) }
 
-#define force_horkage_on(name, flag)			\
-	{ #name,	.horkage_on	= (flag) }
+#define force_quirk_on(name, flag)			\
+	{ #name,	.quirk_on	= (flag) }
 
-#define force_horkage_onoff(name, flag)			\
-	{ "no" #name,	.horkage_on	= (flag) },	\
-	{ #name,	.horkage_off	= (flag) }
+#define force_quirk_onoff(name, flag)			\
+	{ "no" #name,	.quirk_on	= (flag) },	\
+	{ #name,	.quirk_off	= (flag) }
 
 static const struct ata_force_param force_tbl[] __initconst = {
 	force_cbl(40c,			ATA_CBL_PATA40),
@@ -6356,32 +6323,32 @@ static const struct ata_force_param force_tbl[] __initconst = {
 	force_lflag_on(rstonce,		ATA_LFLAG_RST_ONCE),
 	force_lflag_onoff(dbdelay,	ATA_LFLAG_NO_DEBOUNCE_DELAY),
 
-	force_horkage_onoff(ncq,	ATA_HORKAGE_NONCQ),
-	force_horkage_onoff(ncqtrim,	ATA_HORKAGE_NO_NCQ_TRIM),
-	force_horkage_onoff(ncqati,	ATA_HORKAGE_NO_NCQ_ON_ATI),
+	force_quirk_onoff(ncq,		ATA_QUIRK_NONCQ),
+	force_quirk_onoff(ncqtrim,	ATA_QUIRK_NO_NCQ_TRIM),
+	force_quirk_onoff(ncqati,	ATA_QUIRK_NO_NCQ_ON_ATI),
 
-	force_horkage_onoff(trim,	ATA_HORKAGE_NOTRIM),
-	force_horkage_on(trim_zero,	ATA_HORKAGE_ZERO_AFTER_TRIM),
-	force_horkage_on(max_trim_128m, ATA_HORKAGE_MAX_TRIM_128M),
+	force_quirk_onoff(trim,		ATA_QUIRK_NOTRIM),
+	force_quirk_on(trim_zero,	ATA_QUIRK_ZERO_AFTER_TRIM),
+	force_quirk_on(max_trim_128m,	ATA_QUIRK_MAX_TRIM_128M),
 
-	force_horkage_onoff(dma,	ATA_HORKAGE_NODMA),
-	force_horkage_on(atapi_dmadir,	ATA_HORKAGE_ATAPI_DMADIR),
-	force_horkage_on(atapi_mod16_dma, ATA_HORKAGE_ATAPI_MOD16_DMA),
+	force_quirk_onoff(dma,		ATA_QUIRK_NODMA),
+	force_quirk_on(atapi_dmadir,	ATA_QUIRK_ATAPI_DMADIR),
+	force_quirk_on(atapi_mod16_dma,	ATA_QUIRK_ATAPI_MOD16_DMA),
 
-	force_horkage_onoff(dmalog,	ATA_HORKAGE_NO_DMA_LOG),
-	force_horkage_onoff(iddevlog,	ATA_HORKAGE_NO_ID_DEV_LOG),
-	force_horkage_onoff(logdir,	ATA_HORKAGE_NO_LOG_DIR),
+	force_quirk_onoff(dmalog,	ATA_QUIRK_NO_DMA_LOG),
+	force_quirk_onoff(iddevlog,	ATA_QUIRK_NO_ID_DEV_LOG),
+	force_quirk_onoff(logdir,	ATA_QUIRK_NO_LOG_DIR),
 
-	force_horkage_on(max_sec_128,	ATA_HORKAGE_MAX_SEC_128),
-	force_horkage_on(max_sec_1024,	ATA_HORKAGE_MAX_SEC_1024),
-	force_horkage_on(max_sec_lba48,	ATA_HORKAGE_MAX_SEC_LBA48),
+	force_quirk_on(max_sec_128,	ATA_QUIRK_MAX_SEC_128),
+	force_quirk_on(max_sec_1024,	ATA_QUIRK_MAX_SEC_1024),
+	force_quirk_on(max_sec_lba48,	ATA_QUIRK_MAX_SEC_LBA48),
 
-	force_horkage_onoff(lpm,	ATA_HORKAGE_NOLPM),
-	force_horkage_onoff(setxfer,	ATA_HORKAGE_NOSETXFER),
-	force_horkage_on(dump_id,	ATA_HORKAGE_DUMP_ID),
-	force_horkage_onoff(fua,	ATA_HORKAGE_NO_FUA),
+	force_quirk_onoff(lpm,		ATA_QUIRK_NOLPM),
+	force_quirk_onoff(setxfer,	ATA_QUIRK_NOSETXFER),
+	force_quirk_on(dump_id,		ATA_QUIRK_DUMP_ID),
+	force_quirk_onoff(fua,		ATA_QUIRK_NO_FUA),
 
-	force_horkage_on(disable,	ATA_HORKAGE_DISABLE),
+	force_quirk_on(disable,		ATA_QUIRK_DISABLE),
 };
 
 static int __init ata_parse_force_one(char **cur,
@@ -6657,7 +6624,6 @@ static void ata_dummy_error_handler(struct ata_port *ap)
 }
 
 struct ata_port_operations ata_dummy_port_ops = {
-	.qc_prep		= ata_noop_qc_prep,
 	.qc_issue		= ata_dummy_qc_issue,
 	.error_handler		= ata_dummy_error_handler,
 	.sched_eh		= ata_std_sched_eh,

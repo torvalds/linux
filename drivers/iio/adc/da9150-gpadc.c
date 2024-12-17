@@ -291,27 +291,11 @@ static const struct iio_chan_spec da9150_gpadc_channels[] = {
 };
 
 /* Default maps used by da9150-charger */
-static struct iio_map da9150_gpadc_default_maps[] = {
-	{
-		.consumer_dev_name = "da9150-charger",
-		.consumer_channel = "CHAN_IBUS",
-		.adc_channel_label = "IBUS",
-	},
-	{
-		.consumer_dev_name = "da9150-charger",
-		.consumer_channel = "CHAN_VBUS",
-		.adc_channel_label = "VBUS",
-	},
-	{
-		.consumer_dev_name = "da9150-charger",
-		.consumer_channel = "CHAN_TJUNC",
-		.adc_channel_label = "TJUNC_CORE",
-	},
-	{
-		.consumer_dev_name = "da9150-charger",
-		.consumer_channel = "CHAN_VBAT",
-		.adc_channel_label = "VBAT",
-	},
+static const struct iio_map da9150_gpadc_default_maps[] = {
+	IIO_MAP("IBUS", "da9150-charger", "CHAN_IBUS"),
+	IIO_MAP("VBUS", "da9150-charger", "CHAN_VBUS"),
+	IIO_MAP("TJUNC_CORE", "da9150-charger", "CHAN_TJUNC"),
+	IIO_MAP("VBAT", "da9150-charger", "CHAN_VBAT"),
 	{},
 };
 

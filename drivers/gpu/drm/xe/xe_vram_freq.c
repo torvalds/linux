@@ -34,7 +34,6 @@ static ssize_t max_freq_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
 	struct xe_tile *tile = dev_to_tile(dev);
-	struct xe_gt *gt = tile->primary_gt;
 	u32 val, mbox;
 	int err;
 
@@ -42,7 +41,7 @@ static ssize_t max_freq_show(struct device *dev, struct device_attribute *attr,
 		| REG_FIELD_PREP(PCODE_MB_PARAM1, PCODE_MBOX_FC_SC_READ_FUSED_P0)
 		| REG_FIELD_PREP(PCODE_MB_PARAM2, PCODE_MBOX_DOMAIN_HBM);
 
-	err = xe_pcode_read(gt, mbox, &val, NULL);
+	err = xe_pcode_read(tile, mbox, &val, NULL);
 	if (err)
 		return err;
 
@@ -57,7 +56,6 @@ static ssize_t min_freq_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
 	struct xe_tile *tile = dev_to_tile(dev);
-	struct xe_gt *gt = tile->primary_gt;
 	u32 val, mbox;
 	int err;
 
@@ -65,7 +63,7 @@ static ssize_t min_freq_show(struct device *dev, struct device_attribute *attr,
 		| REG_FIELD_PREP(PCODE_MB_PARAM1, PCODE_MBOX_FC_SC_READ_FUSED_PN)
 		| REG_FIELD_PREP(PCODE_MB_PARAM2, PCODE_MBOX_DOMAIN_HBM);
 
-	err = xe_pcode_read(gt, mbox, &val, NULL);
+	err = xe_pcode_read(tile, mbox, &val, NULL);
 	if (err)
 		return err;
 

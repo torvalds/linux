@@ -108,10 +108,10 @@ static int vfio_fsl_mc_set_irq_trigger(struct vfio_fsl_mc_device *vdev,
 				       void *data)
 {
 	struct fsl_mc_device *mc_dev = vdev->mc_dev;
-	int ret, hwirq;
 	struct vfio_fsl_mc_irq *irq;
 	struct device *cont_dev = fsl_mc_cont_dev(&mc_dev->dev);
 	struct fsl_mc_device *mc_cont = to_fsl_mc_device(cont_dev);
+	int ret;
 
 	if (!count && (flags & VFIO_IRQ_SET_DATA_NONE))
 		return vfio_set_trigger(vdev, index, -1);
@@ -135,8 +135,6 @@ static int vfio_fsl_mc_set_irq_trigger(struct vfio_fsl_mc_device *vdev,
 
 		return vfio_set_trigger(vdev, index, fd);
 	}
-
-	hwirq = vdev->mc_dev->irqs[index]->virq;
 
 	irq = &vdev->mc_irqs[index];
 

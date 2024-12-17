@@ -446,7 +446,7 @@ static int wlf_gf_module_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id wlf_gf_module_id[] = {
-	{ "wlf-gf-module", 0 },
+	{ "wlf-gf-module" },
 	{ }
 };
 

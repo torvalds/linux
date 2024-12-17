@@ -2456,7 +2456,7 @@ static void mlxbf_i2c_remove(struct platform_device *pdev)
 
 static struct platform_driver mlxbf_i2c_driver = {
 	.probe = mlxbf_i2c_probe,
-	.remove_new = mlxbf_i2c_remove,
+	.remove = mlxbf_i2c_remove,
 	.driver = {
 		.name = "i2c-mlxbf",
 		.acpi_match_table = ACPI_PTR(mlxbf_i2c_acpi_ids),

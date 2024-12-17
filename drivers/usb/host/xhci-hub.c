@@ -10,7 +10,7 @@
 
 
 #include <linux/slab.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/bitfield.h>
 
 #include "xhci.h"
@@ -752,6 +752,42 @@ static int xhci_exit_test_mode(struct xhci_hcd *xhci)
 	return xhci_reset(xhci, XHCI_RESET_SHORT_USEC);
 }
 
+/**
+ * xhci_port_is_tunneled() - Check if USB3 connection is tunneled over USB4
+ * @xhci: xhci host controller
+ * @port: USB3 port to be checked.
+ *
+ * Some hosts can detect if a USB3 connection is native USB3 or tunneled over
+ * USB4. Intel hosts expose this via vendor specific extended capability 206
+ * eSS PORT registers TUNEN (tunnel enabled) bit.
+ *
+ * A USB3 device must be connected to the port to detect the tunnel.
+ *
+ * Return: link tunnel mode enum, USB_LINK_UNKNOWN if host is incapable of
+ * detecting USB3 over USB4 tunnels. USB_LINK_NATIVE or USB_LINK_TUNNELED
+ * otherwise.
+ */
+enum usb_link_tunnel_mode xhci_port_is_tunneled(struct xhci_hcd *xhci,
+						struct xhci_port *port)
+{
+	void __iomem *base;
+	u32 offset;
+
+	base = &xhci->cap_regs->hc_capbase;
+	offset = xhci_find_next_ext_cap(base, 0, XHCI_EXT_CAPS_INTEL_SPR_SHADOW);
+
+	if (offset && offset <= XHCI_INTEL_SPR_ESS_PORT_OFFSET) {
+		offset = XHCI_INTEL_SPR_ESS_PORT_OFFSET + port->hcd_portnum * 0x20;
+
+		if (readl(base + offset) & XHCI_INTEL_SPR_TUNEN)
+			return USB_LINK_TUNNELED;
+		else
+			return USB_LINK_NATIVE;
+	}
+
+	return USB_LINK_UNKNOWN;
+}
+
 void xhci_set_link_state(struct xhci_hcd *xhci, struct xhci_port *port,
 			 u32 link_state)
 {
@@ -910,9 +946,9 @@ static int xhci_handle_usb2_port_link_resume(struct xhci_port *port,
 	}
 	/* did port event handler already start resume timing? */
 	if (!port->resume_timestamp) {
-		/* If not, maybe we are in a host initated resume? */
+		/* If not, maybe we are in a host initiated resume? */
 		if (test_bit(wIndex, &bus_state->resuming_ports)) {
-			/* Host initated resume doesn't time the resume
+			/* Host initiated resume doesn't time the resume
 			 * signalling using resume_done[].
 			 * It manually sets RESUME state, sleeps 20ms
 			 * and sets U0 state. This should probably be
@@ -1888,7 +1924,7 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 				/* resume already initiated */
 				break;
 			default:
-				/* not in a resumeable state, ignore it */
+				/* not in a resumable state, ignore it */
 				clear_bit(port_index,
 					  &bus_state->bus_suspended);
 				break;

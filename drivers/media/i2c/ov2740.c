@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2020 Intel Corporation.
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/acpi.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -530,7 +530,7 @@ struct ov2740 {
 	/* Current mode */
 	const struct ov2740_mode *cur_mode;
 
-	/* NVM data inforamtion */
+	/* NVM data information */
 	struct nvm_data *nvm;
 
 	/* Supported modes */
@@ -1132,7 +1132,8 @@ static int ov2740_check_hwcfg(struct device *dev)
 	 */
 	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
 	if (!ep)
-		return -EPROBE_DEFER;
+		return dev_err_probe(dev, -EPROBE_DEFER,
+				     "waiting for fwnode graph endpoint\n");
 
 	ret = fwnode_property_read_u32(fwnode, "clock-frequency", &mclk);
 	if (ret) {
@@ -1330,7 +1331,7 @@ static int ov2740_probe(struct i2c_client *client)
 
 	ret = ov2740_check_hwcfg(dev);
 	if (ret)
-		return dev_err_probe(dev, ret, "failed to check HW configuration\n");
+		return ret;
 
 	ov2740->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(ov2740->reset_gpio)) {

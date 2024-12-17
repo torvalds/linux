@@ -1891,7 +1891,7 @@ static int cadence_nand_read_buf(struct cdns_nand_ctrl *cdns_ctrl,
 
 		int len_in_words = (data_dma_width == 4) ? len >> 2 : len >> 3;
 
-		/* read alingment data */
+		/* read alignment data */
 		if (data_dma_width == 4)
 			ioread32_rep(cdns_ctrl->io.virt, buf, len_in_words);
 #ifdef CONFIG_64BIT
@@ -2836,7 +2836,6 @@ static void cadence_nand_chips_cleanup(struct cdns_nand_ctrl *cdns_ctrl)
 static int cadence_nand_chips_init(struct cdns_nand_ctrl *cdns_ctrl)
 {
 	struct device_node *np = cdns_ctrl->dev->of_node;
-	struct device_node *nand_np;
 	int max_cs = cdns_ctrl->caps2.max_banks;
 	int nchips, ret;
 
@@ -2849,10 +2848,9 @@ static int cadence_nand_chips_init(struct cdns_nand_ctrl *cdns_ctrl)
 		return -EINVAL;
 	}
 
-	for_each_child_of_node(np, nand_np) {
+	for_each_child_of_node_scoped(np, nand_np) {
 		ret = cadence_nand_chip_init(cdns_ctrl, nand_np);
 		if (ret) {
-			of_node_put(nand_np);
 			cadence_nand_chips_cleanup(cdns_ctrl);
 			return ret;
 		}
@@ -3057,7 +3055,7 @@ static void cadence_nand_dt_remove(struct platform_device *ofdev)
 
 static struct platform_driver cadence_nand_dt_driver = {
 	.probe		= cadence_nand_dt_probe,
-	.remove_new	= cadence_nand_dt_remove,
+	.remove		= cadence_nand_dt_remove,
 	.driver		= {
 		.name	= "cadence-nand-controller",
 		.of_match_table = cadence_nand_dt_ids,

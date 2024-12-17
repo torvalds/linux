@@ -10,6 +10,5 @@ struct nvkm_device_pci {
 };
 
 int nvkm_device_pci_new(struct pci_dev *, const char *cfg, const char *dbg,
-			bool detect, bool mmio, u64 subdev_mask,
 			struct nvkm_device **);
 #endif

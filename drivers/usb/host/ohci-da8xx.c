@@ -22,7 +22,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "ohci.h"
 
@@ -531,7 +531,7 @@ static const struct ohci_driver_overrides da8xx_overrides __initconst = {
  */
 static struct platform_driver ohci_hcd_da8xx_driver = {
 	.probe		= ohci_da8xx_probe,
-	.remove_new	= ohci_da8xx_remove,
+	.remove		= ohci_da8xx_remove,
 	.shutdown 	= usb_hcd_platform_shutdown,
 #ifdef	CONFIG_PM
 	.suspend	= ohci_da8xx_suspend,

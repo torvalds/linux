@@ -43,15 +43,18 @@ int amd_iommu_enable_faulting(unsigned int cpu);
 extern int amd_iommu_guest_ir;
 extern enum io_pgtable_fmt amd_iommu_pgtable;
 extern int amd_iommu_gpt_level;
+extern unsigned long amd_iommu_pgsize_bitmap;
 
 /* Protection domain ops */
-struct protection_domain *protection_domain_alloc(unsigned int type);
+void amd_iommu_init_identity_domain(void);
+struct protection_domain *protection_domain_alloc(unsigned int type, int nid);
 void protection_domain_free(struct protection_domain *domain);
 struct iommu_domain *amd_iommu_domain_alloc_sva(struct device *dev,
 						struct mm_struct *mm);
 void amd_iommu_domain_free(struct iommu_domain *dom);
 int iommu_sva_set_dev_pasid(struct iommu_domain *domain,
-			    struct device *dev, ioasid_t pasid);
+			    struct device *dev, ioasid_t pasid,
+			    struct iommu_domain *old);
 void amd_iommu_remove_dev_pasid(struct device *dev, ioasid_t pasid,
 				struct iommu_domain *domain);
 
@@ -87,14 +90,10 @@ int amd_iommu_complete_ppr(struct device *dev, u32 pasid, int status, int tag);
 void amd_iommu_flush_all_caches(struct amd_iommu *iommu);
 void amd_iommu_update_and_flush_device_table(struct protection_domain *domain);
 void amd_iommu_domain_update(struct protection_domain *domain);
-void amd_iommu_dev_update_dte(struct iommu_dev_data *dev_data, bool set);
-void amd_iommu_domain_flush_complete(struct protection_domain *domain);
 void amd_iommu_domain_flush_pages(struct protection_domain *domain,
 				  u64 address, size_t size);
 void amd_iommu_dev_flush_pasid_pages(struct iommu_dev_data *dev_data,
 				     ioasid_t pasid, u64 address, size_t size);
-void amd_iommu_dev_flush_pasid_all(struct iommu_dev_data *dev_data,
-				   ioasid_t pasid);
 
 #ifdef CONFIG_IRQ_REMAP
 int amd_iommu_create_irq_domain(struct amd_iommu *iommu);
@@ -121,14 +120,14 @@ static inline bool check_feature2(u64 mask)
 	return (amd_iommu_efr2 & mask);
 }
 
-static inline int check_feature_gpt_level(void)
+static inline bool amd_iommu_v2_pgtbl_supported(void)
 {
-	return ((amd_iommu_efr >> FEATURE_GATS_SHIFT) & FEATURE_GATS_MASK);
+	return (check_feature(FEATURE_GIOSUP) && check_feature(FEATURE_GT));
 }
 
 static inline bool amd_iommu_gt_ppr_supported(void)
 {
-	return (check_feature(FEATURE_GT) &&
+	return (amd_iommu_v2_pgtbl_supported() &&
 		check_feature(FEATURE_PPR) &&
 		check_feature(FEATURE_EPHSUP));
 }
@@ -141,19 +140,6 @@ static inline u64 iommu_virt_to_phys(void *vaddr)
 static inline void *iommu_phys_to_virt(unsigned long paddr)
 {
 	return phys_to_virt(__sme_clr(paddr));
-}
-
-static inline
-void amd_iommu_domain_set_pt_root(struct protection_domain *domain, u64 root)
-{
-	domain->iop.root = (u64 *)(root & PAGE_MASK);
-	domain->iop.mode = root & 7; /* lowest 3 bits encode pgtable mode */
-}
-
-static inline
-void amd_iommu_domain_clr_pt_root(struct protection_domain *domain)
-{
-	amd_iommu_domain_set_pt_root(domain, 0);
 }
 
 static inline int get_pci_sbdf_id(struct pci_dev *pdev)
@@ -185,7 +171,6 @@ static inline struct protection_domain *to_pdomain(struct iommu_domain *dom)
 }
 
 bool translation_pre_enabled(struct amd_iommu *iommu);
-bool amd_iommu_is_attach_deferred(struct device *dev);
 int __init add_special_device(u8 type, u8 id, u32 *devid, bool cmd_line);
 
 #ifdef CONFIG_DMI

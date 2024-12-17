@@ -1222,6 +1222,7 @@ static dml_bool_t CalculatePrefetchSchedule(struct display_mode_lib_scratch_st *
 	s->dst_y_prefetch_oto = s->Tvm_oto_lines + 2 * s->Tr0_oto_lines + s->Lsw_oto;
 
 	s->dst_y_prefetch_equ = p->VStartup - (*p->TSetup + dml_max(p->TWait + p->TCalc, *p->Tdmdl)) / s->LineTime - (*p->DSTYAfterScaler + (dml_float_t) *p->DSTXAfterScaler / (dml_float_t)p->myPipe->HTotal);
+	s->dst_y_prefetch_equ = dml_min(s->dst_y_prefetch_equ, 63.75); // limit to the reg limit of U6.2 for DST_Y_PREFETCH
 
 #ifdef __DML_VBA_DEBUG__
 	dml_print("DML::%s: HTotal = %u\n", __func__, p->myPipe->HTotal);
@@ -8926,7 +8927,7 @@ void dml_core_mode_programming(struct display_mode_lib_st *mode_lib, const struc
 
 	// The prefetch scheduling should only be calculated once as per AllowForPStateChangeOrStutterInVBlank requirement
 	// If the AllowForPStateChangeOrStutterInVBlank requirement is not strict (i.e. only try those power saving feature
-	// if possible, then will try to program for the best power saving features in order of diffculty (dram, fclk, stutter)
+	// if possible, then will try to program for the best power saving features in order of difficulty (dram, fclk, stutter)
 	s->iteration = 0;
 	s->MaxTotalRDBandwidth = 0;
 	s->AllPrefetchModeTested = false;
@@ -9977,7 +9978,7 @@ void dml_core_get_row_heights(
 	dml_print("DML_DLG: %s: GPUVMMinPageSizeKBytes = %u\n", __func__, GPUVMMinPageSizeKBytes);
 #endif
 
-	// just suppluy with enough parameters to calculate meta and dte
+	// just supply with enough parameters to calculate meta and dte
 	CalculateVMAndRowBytes(
 			0, // dml_bool_t ViewportStationary,
 			1, // dml_bool_t DCCEnable,
@@ -10110,7 +10111,7 @@ dml_bool_t dml_mode_support(
 /// Note: In this function, it is assumed that DCFCLK, SOCCLK freq are the state values, and mode_program will just use the DML calculated DPPCLK and DISPCLK
 /// @param mode_lib mode_lib data struct that house all the input/output/bbox and calculation values.
 /// @param state_idx Power state idx chosen
-/// @param display_cfg Display Congiuration
+/// @param display_cfg Display Configuration
 /// @param call_standalone Calling mode_programming without calling mode support.  Some of the "support" struct member will be pre-calculated before doing mode programming
 /// TODO: Add clk_cfg input, could be useful for standalone mode
 dml_bool_t dml_mode_programming(

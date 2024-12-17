@@ -105,7 +105,7 @@ enum amba_vendor {
 	AMBA_VENDOR_LSI = 0xb6,
 };
 
-extern struct bus_type amba_bustype;
+extern const struct bus_type amba_bustype;
 
 #define to_amba_device(d)	container_of_const(d, struct amba_device, dev)
 
@@ -121,6 +121,7 @@ extern struct bus_type amba_bustype;
 #ifdef CONFIG_ARM_AMBA
 int __amba_driver_register(struct amba_driver *, struct module *);
 void amba_driver_unregister(struct amba_driver *);
+bool dev_is_amba(const struct device *dev);
 #else
 static inline int __amba_driver_register(struct amba_driver *drv,
 					 struct module *owner)
@@ -129,6 +130,10 @@ static inline int __amba_driver_register(struct amba_driver *drv,
 }
 static inline void amba_driver_unregister(struct amba_driver *drv)
 {
+}
+static inline bool dev_is_amba(const struct device *dev)
+{
+	return false;
 }
 #endif
 

@@ -441,8 +441,8 @@ static struct platform_driver mbox_test_driver = {
 		.name = "mailbox_test",
 		.of_match_table = mbox_test_match,
 	},
-	.probe  = mbox_test_probe,
-	.remove_new = mbox_test_remove,
+	.probe = mbox_test_probe,
+	.remove = mbox_test_remove,
 };
 module_platform_driver(mbox_test_driver);
 

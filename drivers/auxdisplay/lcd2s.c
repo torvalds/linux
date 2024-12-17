@@ -349,7 +349,7 @@ static void lcd2s_i2c_remove(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id lcd2s_i2c_id[] = {
-	{ "lcd2s", 0 },
+	{ "lcd2s" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lcd2s_i2c_id);

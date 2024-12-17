@@ -15,9 +15,10 @@ use super::*;
 /// [this table]: https://doc.rust-lang.org/nomicon/phantom-data.html#table-of-phantomdata-patterns
 pub(super) type Invariant<T> = PhantomData<fn(*mut T) -> *mut T>;
 
-/// This is the module-internal type implementing `PinInit` and `Init`. It is unsafe to create this
-/// type, since the closure needs to fulfill the same safety requirement as the
-/// `__pinned_init`/`__init` functions.
+/// Module-internal type implementing `PinInit` and `Init`.
+///
+/// It is unsafe to create this type, since the closure needs to fulfill the same safety
+/// requirement as the `__pinned_init`/`__init` functions.
 pub(crate) struct InitClosure<F, T: ?Sized, E>(pub(crate) F, pub(crate) Invariant<(E, T)>);
 
 // SAFETY: While constructing the `InitClosure`, the user promised that it upholds the
@@ -53,6 +54,7 @@ where
 pub unsafe trait HasPinData {
     type PinData: PinData;
 
+    #[expect(clippy::missing_safety_doc)]
     unsafe fn __pin_data() -> Self::PinData;
 }
 
@@ -82,6 +84,7 @@ pub unsafe trait PinData: Copy {
 pub unsafe trait HasInitData {
     type InitData: InitData;
 
+    #[expect(clippy::missing_safety_doc)]
     unsafe fn __init_data() -> Self::InitData;
 }
 
@@ -102,7 +105,7 @@ pub unsafe trait InitData: Copy {
     }
 }
 
-pub struct AllData<T: ?Sized>(PhantomData<fn(Box<T>) -> Box<T>>);
+pub struct AllData<T: ?Sized>(PhantomData<fn(KBox<T>) -> KBox<T>>);
 
 impl<T: ?Sized> Clone for AllData<T> {
     fn clone(&self) -> Self {
@@ -112,10 +115,12 @@ impl<T: ?Sized> Clone for AllData<T> {
 
 impl<T: ?Sized> Copy for AllData<T> {}
 
+// SAFETY: TODO.
 unsafe impl<T: ?Sized> InitData for AllData<T> {
     type Datee = T;
 }
 
+// SAFETY: TODO.
 unsafe impl<T: ?Sized> HasInitData for T {
     type InitData = AllData<T>;
 
@@ -226,5 +231,34 @@ impl OnlyCallFromDrop {
     /// delegate the destruction to the pinned destructor [`PinnedDrop::drop`] of the same type.
     pub unsafe fn new() -> Self {
         Self(())
+    }
+}
+
+/// Initializer that always fails.
+///
+/// Used by [`assert_pinned!`].
+///
+/// [`assert_pinned!`]: crate::assert_pinned
+pub struct AlwaysFail<T: ?Sized> {
+    _t: PhantomData<T>,
+}
+
+impl<T: ?Sized> AlwaysFail<T> {
+    /// Creates a new initializer that always fails.
+    pub fn new() -> Self {
+        Self { _t: PhantomData }
+    }
+}
+
+impl<T: ?Sized> Default for AlwaysFail<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// SAFETY: `__pinned_init` always fails, which is always okay.
+unsafe impl<T: ?Sized> PinInit<T, ()> for AlwaysFail<T> {
+    unsafe fn __pinned_init(self, _slot: *mut T) -> Result<(), ()> {
+        Err(())
     }
 }

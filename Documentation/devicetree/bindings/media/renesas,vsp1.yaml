@@ -23,6 +23,7 @@ properties:
           - renesas,vsp2 # R-Car Gen3 and RZ/G2
       - items:
           - enum:
+              - renesas,r9a07g043u-vsp2   # RZ/G2UL
               - renesas,r9a07g054-vsp2    # RZ/V2L
           - const: renesas,r9a07g044-vsp2 # RZ/G2L fallback
 

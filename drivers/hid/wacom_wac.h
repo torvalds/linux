@@ -300,7 +300,7 @@ struct hid_data {
 	__s16 inputmode_index;	/* InputMode HID feature index in the report */
 	bool sense_state;
 	bool inrange_state;
-	bool invert_state;
+	bool eraser;
 	bool tipswitch;
 	bool barrelswitch;
 	bool barrelswitch2;
@@ -312,6 +312,8 @@ struct hid_data {
 	int width;
 	int height;
 	int id;
+	int ring_value;
+	int ring2_value;
 	int cc_report;
 	int cc_index;
 	int cc_value_index;
@@ -324,7 +326,7 @@ struct hid_data {
 	int bat_connected;
 	int ps_connected;
 	bool pad_input_event_flag;
-	unsigned short sequence_number;
+	int sequence_number;
 	ktime_t time_delayed;
 };
 
@@ -355,6 +357,8 @@ struct wacom_wac {
 	int num_contacts_left;
 	u8 bt_features;
 	u8 bt_high_speed;
+	u8 absring_count;
+	u8 relring_count;
 	int mode_report;
 	int mode_value;
 	struct hid_data hid_data;

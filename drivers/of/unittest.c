@@ -900,8 +900,8 @@ static void __init of_unittest_changeset(void)
 	unittest(!of_find_node_by_path("/testcase-data/changeset/n2/n21"),
 		 "'%pOF' still present after revert\n", n21);
 
-	ppremove = of_find_property(parent, "prop-remove", NULL);
-	unittest(ppremove, "failed to find removed prop after revert\n");
+	unittest(of_property_present(parent, "prop-remove"),
+		 "failed to find removed prop after revert\n");
 
 	ret = of_property_read_string(parent, "prop-update", &propstr);
 	unittest(!ret, "failed to find updated prop after revert\n");
@@ -1861,7 +1861,7 @@ static int __init unittest_data_add(void)
 	struct device_node *unittest_data_node = NULL, *np;
 	/*
 	 * __dtbo_testcases_begin[] and __dtbo_testcases_end[] are magically
-	 * created by cmd_dt_S_dtbo in scripts/Makefile.lib
+	 * created by cmd_wrap_S_dtbo in scripts/Makefile.dtbs
 	 */
 	extern uint8_t __dtbo_testcases_begin[];
 	extern uint8_t __dtbo_testcases_end[];
@@ -1970,7 +1970,7 @@ static const struct of_device_id unittest_match[] = {
 
 static struct platform_driver unittest_driver = {
 	.probe			= unittest_probe,
-	.remove_new		= unittest_remove,
+	.remove			= unittest_remove,
 	.driver = {
 		.name		= "unittest",
 		.of_match_table	= unittest_match,
@@ -2071,7 +2071,7 @@ static const struct of_device_id unittest_gpio_id[] = {
 
 static struct platform_driver unittest_gpio_driver = {
 	.probe	= unittest_gpio_probe,
-	.remove_new = unittest_gpio_remove,
+	.remove = unittest_gpio_remove,
 	.driver	= {
 		.name		= "unittest-gpio",
 		.of_match_table	= unittest_gpio_id,
@@ -2891,7 +2891,7 @@ static const struct of_device_id unittest_i2c_bus_match[] = {
 
 static struct platform_driver unittest_i2c_bus_driver = {
 	.probe			= unittest_i2c_bus_probe,
-	.remove_new		= unittest_i2c_bus_remove,
+	.remove			= unittest_i2c_bus_remove,
 	.driver = {
 		.name		= "unittest-i2c-bus",
 		.of_match_table	= unittest_i2c_bus_match,
@@ -3525,7 +3525,7 @@ out_skip_tests:
 
 /*
  * __dtbo_##overlay_name##_begin[] and __dtbo_##overlay_name##_end[] are
- * created by cmd_dt_S_dtbo in scripts/Makefile.lib
+ * created by cmd_wrap_S_dtbo in scripts/Makefile.dtbs
  */
 
 #define OVERLAY_INFO_EXTERN(overlay_name) \

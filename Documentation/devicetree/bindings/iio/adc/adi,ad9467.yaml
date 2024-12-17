@@ -28,6 +28,9 @@ properties:
       - adi,ad9265
       - adi,ad9434
       - adi,ad9467
+      - adi,ad9643
+      - adi,ad9649
+      - adi,ad9652
 
   reg:
     maxItems: 1

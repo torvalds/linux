@@ -125,13 +125,13 @@ unsigned int mv88e6352_serdes_irq_mapping(struct mv88e6xxx_chip *chip,
 unsigned int mv88e6390_serdes_irq_mapping(struct mv88e6xxx_chip *chip,
 					  int port);
 int mv88e6352_serdes_get_sset_count(struct mv88e6xxx_chip *chip, int port);
-int mv88e6352_serdes_get_strings(struct mv88e6xxx_chip *chip,
-				 int port, uint8_t *data);
+int mv88e6352_serdes_get_strings(struct mv88e6xxx_chip *chip, int port,
+				 uint8_t **data);
 size_t mv88e6352_serdes_get_stats(struct mv88e6xxx_chip *chip, int port,
 				  uint64_t *data);
 int mv88e6390_serdes_get_sset_count(struct mv88e6xxx_chip *chip, int port);
-int mv88e6390_serdes_get_strings(struct mv88e6xxx_chip *chip,
-				 int port, uint8_t *data);
+int mv88e6390_serdes_get_strings(struct mv88e6xxx_chip *chip, int port,
+				 uint8_t **data);
 size_t mv88e6390_serdes_get_stats(struct mv88e6xxx_chip *chip, int port,
 				  uint64_t *data);
 

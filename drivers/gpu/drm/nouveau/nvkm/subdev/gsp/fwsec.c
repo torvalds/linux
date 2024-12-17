@@ -324,7 +324,7 @@ nvkm_gsp_fwsec_sb(struct nvkm_gsp *gsp)
 		return ret;
 
 	/* Verify. */
-	err = nvkm_rd32(device, 0x001400 + (0xf * 4)) & 0x0000ffff;
+	err = nvkm_rd32(device, 0x001400 + (0x15 * 4)) & 0x0000ffff;
 	if (err) {
 		nvkm_error(subdev, "fwsec-sb: 0x%04x\n", err);
 		return -EIO;

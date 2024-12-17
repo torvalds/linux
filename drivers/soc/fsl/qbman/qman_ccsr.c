@@ -791,8 +791,6 @@ static int fsl_qman_probe(struct platform_device *pdev)
 	 * FQD memory MUST be zero'd by software
 	 */
 	zero_priv_mem(fqd_a, fqd_sz);
-#else
-	WARN(1, "Unexpected architecture using non shared-dma-mem reservations");
 #endif
 	dev_dbg(dev, "Allocated FQD 0x%llx 0x%zx\n", fqd_a, fqd_sz);
 

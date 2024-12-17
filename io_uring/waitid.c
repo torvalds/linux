@@ -184,7 +184,7 @@ int io_waitid_cancel(struct io_ring_ctx *ctx, struct io_cancel_data *cd,
 	return -ENOENT;
 }
 
-bool io_waitid_remove_all(struct io_ring_ctx *ctx, struct task_struct *task,
+bool io_waitid_remove_all(struct io_ring_ctx *ctx, struct io_uring_task *tctx,
 			  bool cancel_all)
 {
 	struct hlist_node *tmp;
@@ -194,7 +194,7 @@ bool io_waitid_remove_all(struct io_ring_ctx *ctx, struct task_struct *task,
 	lockdep_assert_held(&ctx->uring_lock);
 
 	hlist_for_each_entry_safe(req, tmp, &ctx->waitid_list, hash_node) {
-		if (!io_match_task_safe(req, task, cancel_all))
+		if (!io_match_task_safe(req, tctx, cancel_all))
 			continue;
 		hlist_del_init(&req->hash_node);
 		__io_waitid_cancel(ctx, req);
@@ -331,7 +331,7 @@ int io_waitid(struct io_kiocb *req, unsigned int issue_flags)
 	hlist_add_head(&req->hash_node, &ctx->waitid_list);
 
 	init_waitqueue_func_entry(&iwa->wo.child_wait, io_waitid_wait);
-	iwa->wo.child_wait.private = req->task;
+	iwa->wo.child_wait.private = req->tctx->task;
 	iw->head = &current->signal->wait_chldexit;
 	add_wait_queue(iw->head, &iwa->wo.child_wait);
 

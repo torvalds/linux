@@ -197,7 +197,7 @@ static int rembrandt_audio_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (chip->acp_rev != ACP6X_DEV) {
+	if (chip->acp_rev != ACP_RMB_PCI_ID) {
 		dev_err(&pdev->dev, "Un-supported ACP Revision %d\n", chip->acp_rev);
 		return -ENODEV;
 	}
@@ -227,7 +227,7 @@ static int rembrandt_audio_probe(struct platform_device *pdev)
 	adata->dai_driver = acp_rmb_dai;
 	adata->num_dai = ARRAY_SIZE(acp_rmb_dai);
 	adata->rsrc = &rsrc;
-	adata->platform = REMBRANDT;
+	adata->acp_rev = chip->acp_rev;
 	adata->flag = chip->flag;
 	adata->is_i2s_config = chip->is_i2s_config;
 	adata->machines = snd_soc_acpi_amd_rmb_acp_machines;
@@ -295,7 +295,7 @@ static const struct dev_pm_ops rmb_dma_pm_ops = {
 
 static struct platform_driver rembrandt_driver = {
 	.probe = rembrandt_audio_probe,
-	.remove_new = rembrandt_audio_remove,
+	.remove = rembrandt_audio_remove,
 	.driver = {
 		.name = "acp_asoc_rembrandt",
 		.pm = &rmb_dma_pm_ops,
@@ -305,6 +305,6 @@ static struct platform_driver rembrandt_driver = {
 module_platform_driver(rembrandt_driver);
 
 MODULE_DESCRIPTION("AMD ACP Rembrandt Driver");
-MODULE_IMPORT_NS(SND_SOC_ACP_COMMON);
+MODULE_IMPORT_NS("SND_SOC_ACP_COMMON");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_ALIAS("platform:" DRV_NAME);

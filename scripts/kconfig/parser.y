@@ -11,6 +11,7 @@
 #include <string.h>
 #include <stdbool.h>
 
+#include <xalloc.h>
 #include "lkc.h"
 #include "internal.h"
 #include "preprocess.h"
@@ -23,7 +24,6 @@
 int cdebug = PRINTD;
 
 static void yyerror(const char *err);
-static void zconfprint(const char *err, ...);
 static void zconf_error(const char *err, ...);
 static bool zconf_endtoken(const char *tokenname,
 			   const char *expected_tokenname);
@@ -158,8 +158,14 @@ config_stmt: config_entry_start config_option_list
 			yynerrs++;
 		}
 
-		list_add_tail(&current_entry->sym->choice_link,
-			      &current_choice->choice_members);
+		/*
+		 * If the same symbol appears twice in a choice block, the list
+		 * node would be added twice, leading to a broken linked list.
+		 * list_empty() ensures that this symbol has not yet added.
+		 */
+		if (list_empty(&current_entry->sym->choice_link))
+			list_add_tail(&current_entry->sym->choice_link,
+				      &current_choice->choice_members);
 	}
 
 	printd(DEBUG_PARSE, "%s:%d:endconfig\n", cur_filename, cur_lineno);
@@ -176,7 +182,7 @@ menuconfig_stmt: menuconfig_entry_start config_option_list
 	if (current_entry->prompt)
 		current_entry->prompt->type = P_MENU;
 	else
-		zconfprint("warning: menuconfig statement without prompt");
+		zconf_error("menuconfig statement without prompt");
 	printd(DEBUG_PARSE, "%s:%d:endconfig\n", cur_filename, cur_lineno);
 };
 
@@ -284,12 +290,6 @@ choice_option: T_PROMPT T_WORD_QUOTE if_expr T_EOL
 {
 	menu_add_prompt(P_PROMPT, $2, $3);
 	printd(DEBUG_PARSE, "%s:%d:prompt\n", cur_filename, cur_lineno);
-};
-
-choice_option: T_BOOL T_WORD_QUOTE if_expr T_EOL
-{
-	menu_add_prompt(P_PROMPT, $2, $3);
-	printd(DEBUG_PARSE, "%s:%d:bool\n", cur_filename, cur_lineno);
 };
 
 choice_option: T_DEFAULT nonconst_symbol if_expr T_EOL
@@ -401,14 +401,14 @@ help: help_start T_HELPTEXT
 {
 	if (current_entry->help) {
 		free(current_entry->help);
-		zconfprint("warning: '%s' defined with more than one help text -- only the last one will be used",
-			   current_entry->sym->name ?: "<choice>");
+		zconf_error("'%s' defined with more than one help text",
+			    current_entry->sym->name ?: "<choice>");
 	}
 
 	/* Is the help text empty or all whitespace? */
 	if ($2[strspn($2, " \f\n\r\t\v")] == '\0')
-		zconfprint("warning: '%s' defined with blank help text",
-			   current_entry->sym->name ?: "<choice>");
+		zconf_error("'%s' defined with blank help text",
+			    current_entry->sym->name ?: "<choice>");
 
 	current_entry->help = $2;
 };
@@ -530,14 +530,6 @@ void conf_parse(const char *name)
 		yydebug = 1;
 	yyparse();
 
-	/*
-	 * FIXME:
-	 * cur_filename and cur_lineno are used even after yyparse();
-	 * menu_finalize() calls menu_add_symbol(). This should be fixed.
-	 */
-	cur_filename = "<none>";
-	cur_lineno = 0;
-
 	str_printf(&autoconf_cmd,
 		   "\n"
 		   "$(autoconfig): $(deps_config)\n"
@@ -597,17 +589,6 @@ static bool zconf_endtoken(const char *tokenname,
 		return false;
 	}
 	return true;
-}
-
-static void zconfprint(const char *err, ...)
-{
-	va_list ap;
-
-	fprintf(stderr, "%s:%d: ", cur_filename, cur_lineno);
-	va_start(ap, err);
-	vfprintf(stderr, err, ap);
-	va_end(ap);
-	fprintf(stderr, "\n");
 }
 
 static void zconf_error(const char *err, ...)
@@ -714,10 +695,6 @@ static void print_symbol(FILE *out, const struct menu *menu)
 			fputs( "  menu ", out);
 			print_quoted_string(out, prop->text);
 			fputc('\n', out);
-			break;
-		case P_SYMBOL:
-			fputs( "  symbol ", out);
-			fprintf(out, "%s\n", prop->menu->sym->name);
 			break;
 		default:
 			fprintf(out, "  unknown prop %d!\n", prop->type);

@@ -315,7 +315,7 @@ MODULE_DEVICE_TABLE(of, tegra_bpmp_thermal_of_match);
 
 static struct platform_driver tegra_bpmp_thermal_driver = {
 	.probe = tegra_bpmp_thermal_probe,
-	.remove_new = tegra_bpmp_thermal_remove,
+	.remove = tegra_bpmp_thermal_remove,
 	.driver = {
 		.name = "tegra-bpmp-thermal",
 		.of_match_table = tegra_bpmp_thermal_of_match,

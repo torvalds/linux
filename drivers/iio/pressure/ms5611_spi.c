@@ -11,7 +11,7 @@
 #include <linux/spi/spi.h>
 #include <linux/mod_devicetable.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "ms5611.h"
 
@@ -134,4 +134,4 @@ module_spi_driver(ms5611_driver);
 MODULE_AUTHOR("Tomasz Duszynski <tduszyns@gmail.com>");
 MODULE_DESCRIPTION("MS5611 spi driver");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(IIO_MS5611);
+MODULE_IMPORT_NS("IIO_MS5611");

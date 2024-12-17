@@ -124,6 +124,10 @@ struct xfs_buftarg {
 	struct percpu_counter	bt_io_count;
 	struct ratelimit_state	bt_ioerror_rl;
 
+	/* Atomic write unit values */
+	unsigned int		bt_bdev_awu_min;
+	unsigned int		bt_bdev_awu_max;
+
 	/* built-in cache, if we're not using the perag one */
 	struct xfs_buf_cache	bt_cache[];
 };
@@ -210,7 +214,7 @@ struct xfs_buf {
 	 * success the write is considered to be failed permanently and the
 	 * iodone handler will take appropriate action.
 	 *
-	 * For retry timeouts, we record the jiffie of the first failure. This
+	 * For retry timeouts, we record the jiffy of the first failure. This
 	 * means that we can change the retry timeout for buffers already under
 	 * I/O and thus avoid getting stuck in a retry loop with a long timeout.
 	 *

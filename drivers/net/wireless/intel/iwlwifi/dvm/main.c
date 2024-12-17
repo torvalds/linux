@@ -48,7 +48,7 @@
 #define DRV_DESCRIPTION	"Intel(R) Wireless WiFi Link AGN driver for Linux"
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(IWLWIFI);
+MODULE_IMPORT_NS("IWLWIFI");
 
 /* Please keep this array *SORTED* by hex value.
  * Access is done through binary search.
@@ -1324,8 +1324,6 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 		pr_err("Unsupported amsdu_size: %d\n",
 		       iwlwifi_mod_params.amsdu_size);
 	}
-
-	trans_cfg.cmd_q_wdg_timeout = IWL_WATCHDOG_DISABLED;
 
 	trans_cfg.command_groups = iwl_dvm_groups;
 	trans_cfg.command_groups_size = ARRAY_SIZE(iwl_dvm_groups);

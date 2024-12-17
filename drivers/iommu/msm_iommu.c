@@ -838,6 +838,6 @@ static struct platform_driver msm_iommu_driver = {
 		.of_match_table = msm_iommu_dt_match,
 	},
 	.probe		= msm_iommu_probe,
-	.remove_new	= msm_iommu_remove,
+	.remove		= msm_iommu_remove,
 };
 builtin_platform_driver(msm_iommu_driver);

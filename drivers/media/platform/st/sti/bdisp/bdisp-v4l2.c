@@ -531,8 +531,6 @@ static const struct vb2_ops bdisp_qops = {
 	.queue_setup     = bdisp_queue_setup,
 	.buf_prepare     = bdisp_buf_prepare,
 	.buf_queue       = bdisp_buf_queue,
-	.wait_prepare    = vb2_ops_wait_prepare,
-	.wait_finish     = vb2_ops_wait_finish,
 	.stop_streaming  = bdisp_stop_streaming,
 	.start_streaming = bdisp_start_streaming,
 };
@@ -1160,7 +1158,7 @@ static void bdisp_irq_timeout(struct work_struct *ptr)
 static int bdisp_m2m_suspend(struct bdisp_dev *bdisp)
 {
 	unsigned long flags;
-	int timeout;
+	long time_left;
 
 	spin_lock_irqsave(&bdisp->slock, flags);
 	if (!test_bit(ST_M2M_RUNNING, &bdisp->state)) {
@@ -1171,13 +1169,13 @@ static int bdisp_m2m_suspend(struct bdisp_dev *bdisp)
 	set_bit(ST_M2M_SUSPENDING, &bdisp->state);
 	spin_unlock_irqrestore(&bdisp->slock, flags);
 
-	timeout = wait_event_timeout(bdisp->irq_queue,
-				     test_bit(ST_M2M_SUSPENDED, &bdisp->state),
-				     BDISP_WORK_TIMEOUT);
+	time_left = wait_event_timeout(bdisp->irq_queue,
+				       test_bit(ST_M2M_SUSPENDED, &bdisp->state),
+				       BDISP_WORK_TIMEOUT);
 
 	clear_bit(ST_M2M_SUSPENDING, &bdisp->state);
 
-	if (!timeout) {
+	if (!time_left) {
 		dev_err(bdisp->dev, "%s IRQ timeout\n", __func__);
 		return -EAGAIN;
 	}
@@ -1411,7 +1409,7 @@ MODULE_DEVICE_TABLE(of, bdisp_match_types);
 
 static struct platform_driver bdisp_driver = {
 	.probe          = bdisp_probe,
-	.remove_new     = bdisp_remove,
+	.remove         = bdisp_remove,
 	.driver         = {
 		.name           = BDISP_NAME,
 		.of_match_table = bdisp_match_types,

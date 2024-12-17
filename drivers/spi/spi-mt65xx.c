@@ -743,24 +743,12 @@ static int mtk_spi_setup(struct spi_device *spi)
 	return 0;
 }
 
-static irqreturn_t mtk_spi_interrupt(int irq, void *dev_id)
+static irqreturn_t mtk_spi_interrupt_thread(int irq, void *dev_id)
 {
 	u32 cmd, reg_val, cnt, remainder, len;
 	struct spi_controller *host = dev_id;
 	struct mtk_spi *mdata = spi_controller_get_devdata(host);
 	struct spi_transfer *xfer = mdata->cur_transfer;
-
-	reg_val = readl(mdata->base + SPI_STATUS0_REG);
-	if (reg_val & MTK_SPI_PAUSE_INT_STATUS)
-		mdata->state = MTK_SPI_PAUSED;
-	else
-		mdata->state = MTK_SPI_IDLE;
-
-	/* SPI-MEM ops */
-	if (mdata->use_spimem) {
-		complete(&mdata->spimem_done);
-		return IRQ_HANDLED;
-	}
 
 	if (!host->can_dma(host, NULL, xfer)) {
 		if (xfer->rx_buf) {
@@ -843,6 +831,27 @@ static irqreturn_t mtk_spi_interrupt(int irq, void *dev_id)
 	mtk_spi_enable_transfer(host);
 
 	return IRQ_HANDLED;
+}
+
+static irqreturn_t mtk_spi_interrupt(int irq, void *dev_id)
+{
+	struct spi_controller *host = dev_id;
+	struct mtk_spi *mdata = spi_controller_get_devdata(host);
+	u32 reg_val;
+
+	reg_val = readl(mdata->base + SPI_STATUS0_REG);
+	if (reg_val & MTK_SPI_PAUSE_INT_STATUS)
+		mdata->state = MTK_SPI_PAUSED;
+	else
+		mdata->state = MTK_SPI_IDLE;
+
+	/* SPI-MEM ops */
+	if (mdata->use_spimem) {
+		complete(&mdata->spimem_done);
+		return IRQ_HANDLED;
+	}
+
+	return IRQ_WAKE_THREAD;
 }
 
 static int mtk_spi_mem_adjust_op_size(struct spi_mem *mem,
@@ -1255,8 +1264,9 @@ static int mtk_spi_probe(struct platform_device *pdev)
 		dev_notice(dev, "SPI dma_set_mask(%d) failed, ret:%d\n",
 			   addr_bits, ret);
 
-	ret = devm_request_irq(dev, irq, mtk_spi_interrupt,
-			       IRQF_TRIGGER_NONE, dev_name(dev), host);
+	ret = devm_request_threaded_irq(dev, irq, mtk_spi_interrupt,
+					mtk_spi_interrupt_thread,
+					IRQF_TRIGGER_NONE, dev_name(dev), host);
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to register irq\n");
 
@@ -1422,7 +1432,7 @@ static struct platform_driver mtk_spi_driver = {
 		.of_match_table = mtk_spi_of_match,
 	},
 	.probe = mtk_spi_probe,
-	.remove_new = mtk_spi_remove,
+	.remove = mtk_spi_remove,
 };
 
 module_platform_driver(mtk_spi_driver);

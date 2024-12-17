@@ -27,7 +27,13 @@ struct btrfs_root_item;
 struct btrfs_root;
 struct btrfs_path;
 
-/* Radix-tree tag for roots that are part of the trasaction. */
+/*
+ * Signal that a direct IO write is in progress, to avoid deadlock for sync
+ * direct IO writes when fsync is called during the direct IO write path.
+ */
+#define BTRFS_TRANS_DIO_WRITE_STUB	((void *) 1)
+
+/* Radix-tree tag for roots that are part of the transaction. */
 #define BTRFS_ROOT_TRANS_TAG			0
 
 enum btrfs_trans_state {

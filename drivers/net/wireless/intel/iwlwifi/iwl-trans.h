@@ -386,7 +386,6 @@ struct iwl_dump_sanitize_ops {
  * @cmd_queue: the index of the command queue.
  *	Must be set before start_fw.
  * @cmd_fifo: the fifo for host commands
- * @cmd_q_wdg_timeout: the timeout of the watchdog timer for the command queue.
  * @no_reclaim_cmds: Some devices erroneously don't set the
  *	SEQ_RX_FRAME bit on some notifications, this is the
  *	list of such notifications to filter. Max length is
@@ -412,7 +411,6 @@ struct iwl_trans_config {
 
 	u8 cmd_queue;
 	u8 cmd_fifo;
-	unsigned int cmd_q_wdg_timeout;
 	const u8 *no_reclaim_cmds;
 	unsigned int n_no_reclaim_cmds;
 
@@ -1076,12 +1074,13 @@ int iwl_trans_read_config32(struct iwl_trans *trans, u32 ofs,
 void iwl_trans_debugfs_cleanup(struct iwl_trans *trans);
 #endif
 
-#define iwl_trans_read_mem_bytes(trans, addr, buf, bufsize)		      \
-	do {								      \
-		if (__builtin_constant_p(bufsize))			      \
-			BUILD_BUG_ON((bufsize) % sizeof(u32));		      \
-		iwl_trans_read_mem(trans, addr, buf, (bufsize) / sizeof(u32));\
-	} while (0)
+#define iwl_trans_read_mem_bytes(trans, addr, buf, bufsize)	\
+	({							\
+		if (__builtin_constant_p(bufsize))		\
+			BUILD_BUG_ON((bufsize) % sizeof(u32));	\
+		iwl_trans_read_mem(trans, addr, buf,		\
+				   (bufsize) / sizeof(u32));	\
+	})
 
 int iwl_trans_write_imr_mem(struct iwl_trans *trans, u32 dst_addr,
 			    u64 src_addr, u32 byte_cnt);

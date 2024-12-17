@@ -1,0 +1,63 @@
+// SPDX-License-Identifier: GPL-2.0
+// Test of slow start when not application-limited, so that
+// the cwnd continues to grow, even if TSQ triggers.
+// In this variant, the receiver ACKs every other packet,
+// approximating standard delayed ACKs.
+
+// Note we use FQ/pacing to check if TCP Small Queues is not hurting
+
+`./defaults.sh
+tc qdisc replace dev tun0 root fq
+sysctl -q net/ipv4/tcp_pacing_ss_ratio=200
+sysctl -e -q net.ipv4.tcp_min_tso_segs=2`
+
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+  +.1 < S 0:0(0) win 32792 <mss 1460,sackOK,nop,nop,nop,wscale 7>
+   +0 > S. 0:0(0) ack 1 <mss 1460,nop,nop,sackOK,nop,wscale 8>
+  +.1 < . 1:1(0) ack 1 win 500
+   +0 accept(3, ..., ...) = 4
+   +0 setsockopt(4, SOL_SOCKET, SO_SNDBUF, [200000], 4) = 0
+
+   +0 write(4, ..., 40000) = 40000
+// This might change if we cook the initial packet with 10 MSS.
+   +0 > P. 1:2921(2920) ack 1
+   +0 > P. 2921:5841(2920) ack 1
+   +0 > P. 5841:8761(2920) ack 1
+   +0 > P. 8761:11681(2920) ack 1
+   +0 > P. 11681:14601(2920) ack 1
+   +0 %{ assert tcpi_snd_cwnd == 10, tcpi_snd_cwnd }%
+
++.105 < . 1:1(0) ack 2921 win 500
+   +0 %{ assert tcpi_snd_cwnd == 12, tcpi_snd_cwnd }%
+
+// Note: after this commit : "net_sched: sch_fq: account for schedule/timers drifts"
+// FQ notices that this packet missed the 'time to send next packet' computed
+// when prior packet (11681:14601(2920)) was sent.
+// So FQ will allow following packet to be sent a bit earlier (quantum/2)
+// (FQ commit allows an application/cwnd limited flow to get at most quantum/2 extra credit)
+   +0 > P. 14601:17521(2920) ack 1
+
++.003 < . 1:1(0) ack 5841 win 500
+   +0 %{ assert tcpi_snd_cwnd == 14, tcpi_snd_cwnd }%
+
++.001 > P. 17521:20441(2920) ack 1
+
++.001 < . 1:1(0) ack 8761 win 500
+   +0 %{ assert tcpi_snd_cwnd == 16, tcpi_snd_cwnd }%
+
+// remaining packets are delivered at a constant rate.
++.007 > P. 20441:23361(2920) ack 1
+
++.002 < . 1:1(0) ack 11681 win 500
+   +0 %{ assert tcpi_snd_cwnd == 18, tcpi_snd_cwnd }%
++.001 < . 1:1(0) ack 14601 win 500
+
++.004 > P. 23361:26281(2920) ack 1
+
++.007 > P. 26281:29201(2920) ack 1
+
+   +0 %{ assert tcpi_snd_cwnd == 20, 'cwnd=%d' % tcpi_snd_cwnd }%

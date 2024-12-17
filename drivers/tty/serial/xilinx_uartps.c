@@ -219,7 +219,7 @@ struct cdns_platform_data {
 	u32 quirks;
 };
 
-struct serial_rs485 cdns_rs485_supported = {
+static struct serial_rs485 cdns_rs485_supported = {
 	.flags = SER_RS485_ENABLED | SER_RS485_RTS_ON_SEND |
 		 SER_RS485_RTS_AFTER_SEND,
 	.delay_rts_before_send = 1,
@@ -1903,7 +1903,7 @@ static void cdns_uart_remove(struct platform_device *pdev)
 
 static struct platform_driver cdns_uart_platform_driver = {
 	.probe   = cdns_uart_probe,
-	.remove_new = cdns_uart_remove,
+	.remove  = cdns_uart_remove,
 	.driver  = {
 		.name = CDNS_UART_NAME,
 		.of_match_table = cdns_uart_of_match,

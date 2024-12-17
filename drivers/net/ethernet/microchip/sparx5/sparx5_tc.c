@@ -60,8 +60,8 @@ static int sparx5_tc_setup_block(struct net_device *ndev,
 					  cb, ndev, ndev, false);
 }
 
-static void sparx5_tc_get_layer_and_idx(u32 parent, u32 portno, u32 *layer,
-					u32 *idx)
+static void sparx5_tc_get_layer_and_idx(struct sparx5 *sparx5, u32 parent,
+					u32 portno, u32 *layer, u32 *idx)
 {
 	if (parent == TC_H_ROOT) {
 		*layer = 2;
@@ -90,8 +90,8 @@ static int sparx5_tc_setup_qdisc_tbf(struct net_device *ndev,
 	struct sparx5_port *port = netdev_priv(ndev);
 	u32 layer, se_idx;
 
-	sparx5_tc_get_layer_and_idx(qopt->parent, port->portno, &layer,
-				    &se_idx);
+	sparx5_tc_get_layer_and_idx(port->sparx5, qopt->parent, port->portno,
+				    &layer, &se_idx);
 
 	switch (qopt->command) {
 	case TC_TBF_REPLACE:

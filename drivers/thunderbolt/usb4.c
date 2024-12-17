@@ -48,7 +48,7 @@ enum usb4_ba_index {
 
 /* Delays in us used with usb4_port_wait_for_bit() */
 #define USB4_PORT_DELAY			50
-#define USB4_PORT_SB_DELAY		5000
+#define USB4_PORT_SB_DELAY		1000
 
 static int usb4_native_switch_op(struct tb_switch *sw, u16 opcode,
 				 u32 *metadata, u8 *status,
@@ -1631,11 +1631,12 @@ int usb4_port_asym_start(struct tb_port *port)
  * @target: Sideband target
  * @index: Retimer index if taget is %USB4_SB_TARGET_RETIMER
  * @caps: Array with at least two elements to hold the results
+ * @ncaps: Number of elements in the caps array
  *
  * Reads the USB4 port lane margining capabilities into @caps.
  */
 int usb4_port_margining_caps(struct tb_port *port, enum usb4_sb_target target,
-			     u8 index, u32 *caps)
+			     u8 index, u32 *caps, size_t ncaps)
 {
 	int ret;
 
@@ -1645,7 +1646,7 @@ int usb4_port_margining_caps(struct tb_port *port, enum usb4_sb_target target,
 		return ret;
 
 	return usb4_port_sb_read(port, target, index, USB4_SB_DATA, caps,
-				 sizeof(*caps) * 2);
+				 sizeof(*caps) * ncaps);
 }
 
 /**
@@ -1653,31 +1654,32 @@ int usb4_port_margining_caps(struct tb_port *port, enum usb4_sb_target target,
  * @port: USB4 port
  * @target: Sideband target
  * @index: Retimer index if taget is %USB4_SB_TARGET_RETIMER
- * @lanes: Which lanes to run (must match the port capabilities). Can be
- *	   %0, %1 or %7.
- * @ber_level: BER level contour value
- * @timing: Perform timing margining instead of voltage
- * @right_high: Use Right/high margin instead of left/low
- * @results: Array with at least two elements to hold the results
+ * @params: Parameters for USB4 hardware margining
+ * @results: Array to hold the results
+ * @nresults: Number of elements in the results array
  *
  * Runs hardware lane margining on USB4 port and returns the result in
  * @results.
  */
 int usb4_port_hw_margin(struct tb_port *port, enum usb4_sb_target target,
-			u8 index, unsigned int lanes, unsigned int ber_level,
-			bool timing, bool right_high, u32 *results)
+			u8 index, const struct usb4_port_margining_params *params,
+			u32 *results, size_t nresults)
 {
 	u32 val;
 	int ret;
 
-	val = lanes;
-	if (timing)
+	if (WARN_ON_ONCE(!params))
+		return -EINVAL;
+
+	val = params->lanes;
+	if (params->time)
 		val |= USB4_MARGIN_HW_TIME;
-	if (right_high)
-		val |= USB4_MARGIN_HW_RH;
-	if (ber_level)
-		val |= (ber_level << USB4_MARGIN_HW_BER_SHIFT) &
-			USB4_MARGIN_HW_BER_MASK;
+	if (params->right_high || params->upper_eye)
+		val |= USB4_MARGIN_HW_RHU;
+	if (params->ber_level)
+		val |= FIELD_PREP(USB4_MARGIN_HW_BER_MASK, params->ber_level);
+	if (params->optional_voltage_offset_range)
+		val |= USB4_MARGIN_HW_OPT_VOLTAGE;
 
 	ret = usb4_port_sb_write(port, target, index, USB4_SB_METADATA, &val,
 				 sizeof(val));
@@ -1690,7 +1692,7 @@ int usb4_port_hw_margin(struct tb_port *port, enum usb4_sb_target target,
 		return ret;
 
 	return usb4_port_sb_read(port, target, index, USB4_SB_DATA, results,
-				 sizeof(*results) * 2);
+				 sizeof(*results) * nresults);
 }
 
 /**
@@ -1698,38 +1700,48 @@ int usb4_port_hw_margin(struct tb_port *port, enum usb4_sb_target target,
  * @port: USB4 port
  * @target: Sideband target
  * @index: Retimer index if taget is %USB4_SB_TARGET_RETIMER
- * @lanes: Which lanes to run (must match the port capabilities). Can be
- *	   %0, %1 or %7.
- * @timing: Perform timing margining instead of voltage
- * @right_high: Use Right/high margin instead of left/low
- * @counter: What to do with the error counter
+ * @params: Parameters for USB4 software margining
+ * @results: Data word for the operation completion data
  *
  * Runs software lane margining on USB4 port. Read back the error
  * counters by calling usb4_port_sw_margin_errors(). Returns %0 in
  * success and negative errno otherwise.
  */
 int usb4_port_sw_margin(struct tb_port *port, enum usb4_sb_target target,
-			u8 index, unsigned int lanes, bool timing,
-			bool right_high, u32 counter)
+			u8 index, const struct usb4_port_margining_params *params,
+			u32 *results)
 {
 	u32 val;
 	int ret;
 
-	val = lanes;
-	if (timing)
+	if (WARN_ON_ONCE(!params))
+		return -EINVAL;
+
+	val = params->lanes;
+	if (params->time)
 		val |= USB4_MARGIN_SW_TIME;
-	if (right_high)
+	if (params->optional_voltage_offset_range)
+		val |= USB4_MARGIN_SW_OPT_VOLTAGE;
+	if (params->right_high)
 		val |= USB4_MARGIN_SW_RH;
-	val |= (counter << USB4_MARGIN_SW_COUNTER_SHIFT) &
-		USB4_MARGIN_SW_COUNTER_MASK;
+	if (params->upper_eye)
+		val |= USB4_MARGIN_SW_UPPER_EYE;
+	val |= FIELD_PREP(USB4_MARGIN_SW_COUNTER_MASK, params->error_counter);
+	val |= FIELD_PREP(USB4_MARGIN_SW_VT_MASK, params->voltage_time_offset);
 
 	ret = usb4_port_sb_write(port, target, index, USB4_SB_METADATA, &val,
 				 sizeof(val));
 	if (ret)
 		return ret;
 
-	return usb4_port_sb_op(port, target, index,
-			       USB4_SB_OPCODE_RUN_SW_LANE_MARGINING, 2500);
+	ret = usb4_port_sb_op(port, target, index,
+			      USB4_SB_OPCODE_RUN_SW_LANE_MARGINING, 2500);
+	if (ret)
+		return ret;
+
+	return usb4_port_sb_read(port, target, index, USB4_SB_DATA, results,
+				 sizeof(*results));
+
 }
 
 /**

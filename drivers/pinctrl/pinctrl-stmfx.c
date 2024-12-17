@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/seq_file.h>
+#include <linux/string_choices.h>
 
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinmux.h>
@@ -369,14 +370,14 @@ static void stmfx_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 		return;
 
 	if (dir == GPIO_LINE_DIRECTION_OUT) {
-		seq_printf(s, "output %s ", val ? "high" : "low");
+		seq_printf(s, "output %s ", str_high_low(val));
 		if (type)
 			seq_printf(s, "open drain %s internal pull-up ",
 				   pupd ? "with" : "without");
 		else
 			seq_puts(s, "push pull no pull ");
 	} else {
-		seq_printf(s, "input %s ", val ? "high" : "low");
+		seq_printf(s, "input %s ", str_high_low(val));
 		if (type)
 			seq_printf(s, "with internal pull-%s ",
 				   pupd ? "up" : "down");
@@ -598,7 +599,7 @@ static void stmfx_pinctrl_irq_print_chip(struct irq_data *d, struct seq_file *p)
 	struct gpio_chip *gpio_chip = irq_data_get_irq_chip_data(d);
 	struct stmfx_pinctrl *pctl = gpiochip_get_data(gpio_chip);
 
-	seq_printf(p, dev_name(pctl->dev));
+	seq_puts(p, dev_name(pctl->dev));
 }
 
 static const struct irq_chip stmfx_pinctrl_irq_chip = {
@@ -854,7 +855,7 @@ static struct platform_driver stmfx_pinctrl_driver = {
 		.pm = &stmfx_pinctrl_dev_pm_ops,
 	},
 	.probe = stmfx_pinctrl_probe,
-	.remove_new = stmfx_pinctrl_remove,
+	.remove = stmfx_pinctrl_remove,
 };
 module_platform_driver(stmfx_pinctrl_driver);
 

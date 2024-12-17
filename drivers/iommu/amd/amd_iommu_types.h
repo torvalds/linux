@@ -8,6 +8,7 @@
 #ifndef _ASM_X86_AMD_IOMMU_TYPES_H
 #define _ASM_X86_AMD_IOMMU_TYPES_H
 
+#include <linux/bitfield.h>
 #include <linux/iommu.h>
 #include <linux/types.h>
 #include <linux/mmu_notifier.h>
@@ -95,26 +96,21 @@
 #define FEATURE_GA		BIT_ULL(7)
 #define FEATURE_HE		BIT_ULL(8)
 #define FEATURE_PC		BIT_ULL(9)
-#define FEATURE_GATS_SHIFT	(12)
-#define FEATURE_GATS_MASK	(3ULL)
+#define FEATURE_GATS		GENMASK_ULL(13, 12)
+#define FEATURE_GLX		GENMASK_ULL(15, 14)
 #define FEATURE_GAM_VAPIC	BIT_ULL(21)
+#define FEATURE_PASMAX		GENMASK_ULL(36, 32)
 #define FEATURE_GIOSUP		BIT_ULL(48)
 #define FEATURE_HASUP		BIT_ULL(49)
 #define FEATURE_EPHSUP		BIT_ULL(50)
 #define FEATURE_HDSUP		BIT_ULL(52)
 #define FEATURE_SNP		BIT_ULL(63)
 
-#define FEATURE_PASID_SHIFT	32
-#define FEATURE_PASID_MASK	(0x1fULL << FEATURE_PASID_SHIFT)
-
-#define FEATURE_GLXVAL_SHIFT	14
-#define FEATURE_GLXVAL_MASK	(0x03ULL << FEATURE_GLXVAL_SHIFT)
 
 /* Extended Feature 2 Bits */
-#define FEATURE_SNPAVICSUP_SHIFT	5
-#define FEATURE_SNPAVICSUP_MASK		(0x07ULL << FEATURE_SNPAVICSUP_SHIFT)
+#define FEATURE_SNPAVICSUP	GENMASK_ULL(7, 5)
 #define FEATURE_SNPAVICSUP_GAM(x) \
-	((x & FEATURE_SNPAVICSUP_MASK) >> FEATURE_SNPAVICSUP_SHIFT == 0x1)
+	(FIELD_GET(FEATURE_SNPAVICSUP, x) == 0x1)
 
 /* Note:
  * The current driver only support 16-bit PASID.
@@ -294,8 +290,13 @@
  * that we support.
  *
  * 512GB Pages are not supported due to a hardware bug
+ * Page sizes >= the 52 bit max physical address of the CPU are not supported.
  */
-#define AMD_IOMMU_PGSIZES	((~0xFFFUL) & ~(2ULL << 38))
+#define AMD_IOMMU_PGSIZES	(GENMASK_ULL(51, 12) ^ SZ_512G)
+
+/* Special mode where page-sizes are limited to 4 KiB */
+#define AMD_IOMMU_PGSIZES_4K	(PAGE_SIZE)
+
 /* 4K, 2MB, 1G page sizes are supported */
 #define AMD_IOMMU_PGSIZES_V2	(PAGE_SIZE | (1ULL << 21) | (1ULL << 30))
 
@@ -419,10 +420,6 @@
 #define DTE_GCR3_VAL_B(x)	(((x) >> 15) & 0x0ffffULL)
 #define DTE_GCR3_VAL_C(x)	(((x) >> 31) & 0x1fffffULL)
 
-#define DTE_GCR3_INDEX_A	0
-#define DTE_GCR3_INDEX_B	1
-#define DTE_GCR3_INDEX_C	1
-
 #define DTE_GCR3_SHIFT_A	58
 #define DTE_GCR3_SHIFT_B	16
 #define DTE_GCR3_SHIFT_C	43
@@ -527,7 +524,7 @@ struct amd_irte_ops;
 #define AMD_IOMMU_FLAG_TRANS_PRE_ENABLED      (1 << 0)
 
 #define io_pgtable_to_data(x) \
-	container_of((x), struct amd_io_pgtable, iop)
+	container_of((x), struct amd_io_pgtable, pgtbl)
 
 #define io_pgtable_ops_to_data(x) \
 	io_pgtable_to_data(io_pgtable_ops_to_pgtable(x))
@@ -537,7 +534,7 @@ struct amd_irte_ops;
 		     struct protection_domain, iop)
 
 #define io_pgtable_cfg_to_data(x) \
-	container_of((x), struct amd_io_pgtable, pgtbl_cfg)
+	container_of((x), struct amd_io_pgtable, pgtbl.cfg)
 
 struct gcr3_tbl_info {
 	u64	*gcr3_tbl;	/* Guest CR3 table */
@@ -547,8 +544,7 @@ struct gcr3_tbl_info {
 };
 
 struct amd_io_pgtable {
-	struct io_pgtable_cfg	pgtbl_cfg;
-	struct io_pgtable	iop;
+	struct io_pgtable	pgtbl;
 	int			mode;
 	u64			*root;
 	u64			*pgd;		/* v2 pgtable pgd pointer */
@@ -569,6 +565,12 @@ struct pdom_dev_data {
 	struct list_head list;
 };
 
+/* Keeps track of the IOMMUs attached to protection domain */
+struct pdom_iommu_info {
+	struct amd_iommu *iommu; /* IOMMUs attach to protection domain */
+	u32 refcnt;	/* Count of attached dev/pasid per domain/IOMMU */
+};
+
 /*
  * This structure contains generic data for  IOMMU protection domains
  * independent of their use.
@@ -580,11 +582,9 @@ struct protection_domain {
 	struct amd_io_pgtable iop;
 	spinlock_t lock;	/* mostly used to lock the page table*/
 	u16 id;			/* the domain id written to the device table */
-	int nid;		/* Node ID */
 	enum protection_domain_mode pd_mode; /* Track page table type */
 	bool dirty_tracking;	/* dirty tracking is enabled in the domain */
-	unsigned dev_cnt;	/* devices assigned to this domain */
-	unsigned dev_iommu[MAX_IOMMUS]; /* per-IOMMU reference count */
+	struct xarray iommu_array;	/* per-IOMMU reference count */
 
 	struct mmu_notifier mn;	/* mmu notifier for the SVA domain */
 	struct list_head dev_data_list; /* List of pdom_dev_data */
@@ -836,7 +836,7 @@ struct devid_map {
  */
 struct iommu_dev_data {
 	/*Protect against attach/detach races */
-	spinlock_t lock;
+	struct mutex mutex;
 
 	struct list_head list;		  /* For domain->dev_list */
 	struct llist_node dev_data_list;  /* For global dev_data_list */
@@ -878,12 +878,6 @@ extern struct list_head amd_iommu_pci_seg_list;
 extern struct list_head amd_iommu_list;
 
 /*
- * Array with pointers to each IOMMU struct
- * The indices are referenced in the protection domains
- */
-extern struct amd_iommu *amd_iommus[MAX_IOMMUS];
-
-/*
  * Structure defining one entry in the device table
  */
 struct dev_table_entry {
@@ -917,13 +911,13 @@ struct unity_map_entry {
 /* size of the dma_ops aperture as power of 2 */
 extern unsigned amd_iommu_aperture_order;
 
-/* allocation bitmap for domain ids */
-extern unsigned long *amd_iommu_pd_alloc_bitmap;
-
 extern bool amd_iommu_force_isolation;
 
 /* Max levels of glxval supported */
 extern int amd_iommu_max_glx_val;
+
+/* IDA to track protection domain IDs */
+extern struct ida pdom_ids;
 
 /* Global EFR and EFR2 registers */
 extern u64 amd_iommu_efr;

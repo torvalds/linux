@@ -734,7 +734,7 @@ static void armada_37xx_irq_print_chip(struct irq_data *d, struct seq_file *p)
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(d);
 	struct armada_37xx_pinctrl *info = gpiochip_get_data(chip);
 
-	seq_printf(p, info->data->name);
+	seq_puts(p, info->data->name);
 }
 
 static const struct irq_chip armada_37xx_irqchip = {

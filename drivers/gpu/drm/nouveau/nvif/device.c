@@ -21,8 +21,8 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-
 #include <nvif/device.h>
+#include <nvif/client.h>
 
 u64
 nvif_device_time(struct nvif_device *device)
@@ -38,6 +38,12 @@ nvif_device_time(struct nvif_device *device)
 	return device->user.func->time(&device->user);
 }
 
+int
+nvif_device_map(struct nvif_device *device)
+{
+	return nvif_object_map(&device->object, NULL, 0);
+}
+
 void
 nvif_device_dtor(struct nvif_device *device)
 {
@@ -48,11 +54,10 @@ nvif_device_dtor(struct nvif_device *device)
 }
 
 int
-nvif_device_ctor(struct nvif_object *parent, const char *name, u32 handle,
-		 s32 oclass, void *data, u32 size, struct nvif_device *device)
+nvif_device_ctor(struct nvif_client *client, const char *name, struct nvif_device *device)
 {
-	int ret = nvif_object_ctor(parent, name ? name : "nvifDevice", handle,
-				   oclass, data, size, &device->object);
+	int ret = nvif_object_ctor(&client->object, name ? name : "nvifDevice", 0,
+				   0x0080, NULL, 0, &device->object);
 	device->runlist = NULL;
 	device->user.func = NULL;
 	if (ret == 0) {

@@ -27,7 +27,7 @@ config ADIS16136
 	select IIO_ADIS_LIB_BUFFER if IIO_BUFFER
 	help
 	  Say yes here to build support for the Analog Devices ADIS16133, ADIS16135,
-	  ADIS16136 gyroscope devices.
+	  ADIS16136, ADIS16137 gyroscope devices.
 
 config ADIS16260
 	tristate "Analog Devices ADIS16260 Digital Gyroscope Sensor SPI driver"

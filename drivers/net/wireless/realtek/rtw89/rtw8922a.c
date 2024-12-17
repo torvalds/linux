@@ -2,6 +2,7 @@
 /* Copyright(c) 2023  Realtek Corporation
  */
 
+#include "chan.h"
 #include "coex.h"
 #include "debug.h"
 #include "efuse.h"
@@ -13,10 +14,10 @@
 #include "rtw8922a_rfk.h"
 #include "util.h"
 
-#define RTW8922A_FW_FORMAT_MAX 0
+#define RTW8922A_FW_FORMAT_MAX 2
 #define RTW8922A_FW_BASENAME "rtw89/rtw8922a_fw"
 #define RTW8922A_MODULE_FIRMWARE \
-	RTW8922A_FW_BASENAME ".bin"
+	RTW8922A_FW_BASENAME "-" __stringify(RTW8922A_FW_FORMAT_MAX) ".bin"
 
 #define HE_N_USER_MAX_8922A 4
 
@@ -163,6 +164,15 @@ static const struct rtw89_imr_table rtw8922a_imr_cmac_table = {
 static const struct rtw89_rrsr_cfgs rtw8922a_rrsr_cfgs = {
 	.ref_rate = {R_BE_TRXPTCL_RESP_1, B_BE_WMAC_RESP_REF_RATE_SEL, 0},
 	.rsc = {R_BE_PTCL_RRSR1, B_BE_RSC_MASK, 2},
+};
+
+static const struct rtw89_rfkill_regs rtw8922a_rfkill_regs = {
+	.pinmux = {R_BE_GPIO8_15_FUNC_SEL,
+		   B_BE_PINMUX_GPIO9_FUNC_SEL_MASK,
+		   0xf},
+	.mode = {R_BE_GPIO_EXT_CTRL + 2,
+		 (B_BE_GPIO_MOD_9 | B_BE_GPIO_IO_SEL_9) >> 16,
+		 0x0},
 };
 
 static const struct rtw89_dig_regs rtw8922a_dig_regs = {
@@ -388,9 +398,6 @@ static int rtw8922a_pwr_on_func(struct rtw89_dev *rtwdev)
 
 	rtw89_write32_set(rtwdev, R_BE_FEN_RST_ENABLE, B_BE_FEN_BB_IP_RSTN |
 						       B_BE_FEN_BBPLAT_RSTB);
-
-	if (!test_bit(RTW89_FLAG_PROBE_DONE, rtwdev->flags))
-		rtw89_efuse_read_fw_secure_be(rtwdev);
 
 	return 0;
 }
@@ -956,6 +963,42 @@ static const struct rtw8922a_bb_gain bb_gain_tia[TIA_GAIN_NUM] = {
 	  .gain_g_mask = 0x1FF, .gain_a_mask = 0x3FE00 },
 };
 
+static const struct rtw8922a_bb_gain bb_op1db_lna[LNA_GAIN_NUM] = {
+	{ .gain_g = {0x40ac, 0x44ac}, .gain_a = {0x4078, 0x4478},
+	  .gain_g_mask = 0xFF00, .gain_a_mask = 0xFF000000},
+	{ .gain_g = {0x40ac, 0x44ac}, .gain_a = {0x407c, 0x447c},
+	  .gain_g_mask = 0xFF0000, .gain_a_mask = 0xFF},
+	{ .gain_g = {0x40ac, 0x44ac}, .gain_a = {0x407c, 0x447c},
+	  .gain_g_mask = 0xFF000000, .gain_a_mask = 0xFF00},
+	{ .gain_g = {0x40b0, 0x44b0}, .gain_a = {0x407c, 0x447c},
+	  .gain_g_mask = 0xFF, .gain_a_mask = 0xFF0000},
+	{ .gain_g = {0x40b0, 0x44b0}, .gain_a = {0x407c, 0x447c},
+	  .gain_g_mask = 0xFF00, .gain_a_mask = 0xFF000000},
+	{ .gain_g = {0x40b0, 0x44b0}, .gain_a = {0x4080, 0x4480},
+	  .gain_g_mask = 0xFF0000, .gain_a_mask = 0xFF},
+	{ .gain_g = {0x40b0, 0x44b0}, .gain_a = {0x4080, 0x4480},
+	  .gain_g_mask = 0xFF000000, .gain_a_mask = 0xFF00},
+};
+
+static const struct rtw8922a_bb_gain bb_op1db_tia_lna[TIA_LNA_OP1DB_NUM] = {
+	{ .gain_g = {0x40b4, 0x44b4}, .gain_a = {0x4080, 0x4480},
+	  .gain_g_mask = 0xFF0000, .gain_a_mask = 0xFF000000},
+	{ .gain_g = {0x40b4, 0x44b4}, .gain_a = {0x4084, 0x4484},
+	  .gain_g_mask = 0xFF000000, .gain_a_mask = 0xFF},
+	{ .gain_g = {0x40b8, 0x44b8}, .gain_a = {0x4084, 0x4484},
+	  .gain_g_mask = 0xFF, .gain_a_mask = 0xFF00},
+	{ .gain_g = {0x40b8, 0x44b8}, .gain_a = {0x4084, 0x4484},
+	  .gain_g_mask = 0xFF00, .gain_a_mask = 0xFF0000},
+	{ .gain_g = {0x40b8, 0x44b8}, .gain_a = {0x4084, 0x4484},
+	  .gain_g_mask = 0xFF0000, .gain_a_mask = 0xFF000000},
+	{ .gain_g = {0x40b8, 0x44b8}, .gain_a = {0x4088, 0x4488},
+	  .gain_g_mask = 0xFF000000, .gain_a_mask = 0xFF},
+	{ .gain_g = {0x40bc, 0x44bc}, .gain_a = {0x4088, 0x4488},
+	  .gain_g_mask = 0xFF, .gain_a_mask = 0xFF00},
+	{ .gain_g = {0x40bc, 0x44bc}, .gain_a = {0x4088, 0x4488},
+	  .gain_g_mask = 0xFF00, .gain_a_mask = 0xFF0000},
+};
+
 struct rtw8922a_bb_gain_bypass {
 	u32 gain_g[BB_PATH_NUM_8922A];
 	u32 gain_a[BB_PATH_NUM_8922A];
@@ -1045,6 +1088,30 @@ static void rtw8922a_set_lna_tia_gain(struct rtw89_dev *rtwdev,
 			mask = bb_gain_tia[i].gain_a_mask;
 		}
 		val = gain->tia_gain[gain_band][bw_type][path][i];
+		rtw89_phy_write32_idx(rtwdev, reg, mask, val, phy_idx);
+	}
+
+	for (i = 0; i < LNA_GAIN_NUM; i++) {
+		if (chan->band_type == RTW89_BAND_2G) {
+			reg = bb_op1db_lna[i].gain_g[path];
+			mask = bb_op1db_lna[i].gain_g_mask;
+		} else {
+			reg = bb_op1db_lna[i].gain_a[path];
+			mask = bb_op1db_lna[i].gain_a_mask;
+		}
+		val = gain->lna_op1db[gain_band][bw_type][path][i];
+		rtw89_phy_write32_idx(rtwdev, reg, mask, val, phy_idx);
+	}
+
+	for (i = 0; i < TIA_LNA_OP1DB_NUM; i++) {
+		if (chan->band_type == RTW89_BAND_2G) {
+			reg = bb_op1db_tia_lna[i].gain_g[path];
+			mask = bb_op1db_tia_lna[i].gain_g_mask;
+		} else {
+			reg = bb_op1db_tia_lna[i].gain_a[path];
+			mask = bb_op1db_tia_lna[i].gain_a_mask;
+		}
+		val = gain->tia_lna_op1db[gain_band][bw_type][path][i];
 		rtw89_phy_write32_idx(rtwdev, reg, mask, val, phy_idx);
 	}
 }
@@ -1680,9 +1747,63 @@ static int rtw8922a_ctrl_rx_path_tmac(struct rtw89_dev *rtwdev,
 	return 0;
 }
 
+#define DIGITAL_PWR_COMP_REG_NUM 22
+static const u32 rtw8922a_digital_pwr_comp_val[][DIGITAL_PWR_COMP_REG_NUM] = {
+	{0x012C0096, 0x044C02BC, 0x00322710, 0x015E0096, 0x03C8028A,
+	 0x0BB80708, 0x17701194, 0x02020100, 0x03030303, 0x01000303,
+	 0x05030302, 0x06060605, 0x06050300, 0x0A090807, 0x02000B0B,
+	 0x09080604, 0x0D0D0C0B, 0x08060400, 0x110F0C0B, 0x05001111,
+	 0x0D0C0907, 0x12121210},
+	{0x012C0096, 0x044C02BC, 0x00322710, 0x015E0096, 0x03C8028A,
+	 0x0BB80708, 0x17701194, 0x04030201, 0x05050505, 0x01000505,
+	 0x07060504, 0x09090908, 0x09070400, 0x0E0D0C0B, 0x03000E0E,
+	 0x0D0B0907, 0x1010100F, 0x0B080500, 0x1512100D, 0x05001515,
+	 0x100D0B08, 0x15151512},
+};
+
+static void rtw8922a_set_digital_pwr_comp(struct rtw89_dev *rtwdev,
+					  bool enable, u8 nss,
+					  enum rtw89_rf_path path)
+{
+	static const u32 ltpc_t0[2] = {R_BE_LTPC_T0_PATH0, R_BE_LTPC_T0_PATH1};
+	const u32 *digital_pwr_comp;
+	u32 addr, val;
+	u32 i;
+
+	if (nss == 1)
+		digital_pwr_comp = rtw8922a_digital_pwr_comp_val[0];
+	else
+		digital_pwr_comp = rtw8922a_digital_pwr_comp_val[1];
+
+	addr = ltpc_t0[path];
+	for (i = 0; i < DIGITAL_PWR_COMP_REG_NUM; i++, addr += 4) {
+		val = enable ? digital_pwr_comp[i] : 0;
+		rtw89_phy_write32(rtwdev, addr, val);
+	}
+}
+
+static void rtw8922a_digital_pwr_comp(struct rtw89_dev *rtwdev,
+				      enum rtw89_phy_idx phy_idx)
+{
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
+	bool enable = chan->band_type != RTW89_BAND_2G;
+	u8 path;
+
+	if (rtwdev->mlo_dbcc_mode == MLO_1_PLUS_1_1RF) {
+		if (phy_idx == RTW89_PHY_0)
+			path = RF_PATH_A;
+		else
+			path = RF_PATH_B;
+		rtw8922a_set_digital_pwr_comp(rtwdev, enable, 1, path);
+	} else {
+		rtw8922a_set_digital_pwr_comp(rtwdev, enable, 2, RF_PATH_A);
+		rtw8922a_set_digital_pwr_comp(rtwdev, enable, 2, RF_PATH_B);
+	}
+}
+
 static int rtw8922a_ctrl_mlo(struct rtw89_dev *rtwdev, enum rtw89_mlo_dbcc_mode mode)
 {
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	const struct rtw89_chan *chan0, *chan1;
 
 	if (mode == MLO_1_PLUS_1_1RF || mode == DBCC_LEGACY) {
 		rtw89_phy_write32_mask(rtwdev, R_DBCC, B_DBCC_EN, 0x1);
@@ -1695,12 +1816,19 @@ static int rtw8922a_ctrl_mlo(struct rtw89_dev *rtwdev, enum rtw89_mlo_dbcc_mode 
 		return -EOPNOTSUPP;
 	}
 
-	if (mode == MLO_2_PLUS_0_1RF) {
-		rtw8922a_ctrl_afe_dac(rtwdev, chan->band_width, RF_PATH_A);
-		rtw8922a_ctrl_afe_dac(rtwdev, chan->band_width, RF_PATH_B);
+	if (mode == MLO_1_PLUS_1_1RF) {
+		chan0 = rtw89_mgnt_chan_get(rtwdev, 0);
+		chan1 = rtw89_mgnt_chan_get(rtwdev, 1);
+	} else if (mode == MLO_0_PLUS_2_1RF) {
+		chan1 = rtw89_mgnt_chan_get(rtwdev, 1);
+		chan0 = chan1;
 	} else {
-		rtw89_warn(rtwdev, "unsupported MLO mode %d\n", mode);
+		chan0 = rtw89_mgnt_chan_get(rtwdev, 0);
+		chan1 = chan0;
 	}
+
+	rtw8922a_ctrl_afe_dac(rtwdev, chan0->band_width, RF_PATH_A);
+	rtw8922a_ctrl_afe_dac(rtwdev, chan1->band_width, RF_PATH_B);
 
 	rtw89_phy_write32_mask(rtwdev, R_EMLSR, B_EMLSR_PARM, 0x6180);
 
@@ -1801,11 +1929,13 @@ static void rtw8922a_pre_set_channel_bb(struct rtw89_dev *rtwdev,
 }
 
 static void rtw8922a_post_set_channel_bb(struct rtw89_dev *rtwdev,
-					 enum rtw89_mlo_dbcc_mode mode)
+					 enum rtw89_mlo_dbcc_mode mode,
+					 enum rtw89_phy_idx phy_idx)
 {
 	if (!rtwdev->dbcc_en)
 		return;
 
+	rtw8922a_digital_pwr_comp(rtwdev, phy_idx);
 	rtw8922a_ctrl_mlo(rtwdev, mode);
 }
 
@@ -1912,7 +2042,7 @@ static void rtw8922a_set_channel_help(struct rtw89_dev *rtwdev, bool enter,
 	rtw8922a_hal_reset(rtwdev, phy_idx, mac_idx, chan->band_type, &p->tx_en, enter);
 
 	if (!enter) {
-		rtw8922a_post_set_channel_bb(rtwdev, rtwdev->mlo_dbcc_mode);
+		rtw8922a_post_set_channel_bb(rtwdev, rtwdev->mlo_dbcc_mode, phy_idx);
 		rtw8922a_post_set_channel_rf(rtwdev, phy_idx);
 	}
 }
@@ -1926,12 +2056,23 @@ static void rtw8922a_rfk_init(struct rtw89_dev *rtwdev)
 	memset(rfk_mcc, 0, sizeof(*rfk_mcc));
 }
 
+static void __rtw8922a_rfk_init_late(struct rtw89_dev *rtwdev,
+				     enum rtw89_phy_idx phy_idx,
+				     const struct rtw89_chan *chan)
+{
+	rtw89_phy_rfk_pre_ntfy_and_wait(rtwdev, phy_idx, 5);
+
+	rtw89_phy_rfk_dack_and_wait(rtwdev, phy_idx, chan, 58);
+	rtw89_phy_rfk_rxdck_and_wait(rtwdev, phy_idx, chan, false, 32);
+}
+
 static void rtw8922a_rfk_init_late(struct rtw89_dev *rtwdev)
 {
-	rtw89_phy_rfk_pre_ntfy_and_wait(rtwdev, RTW89_PHY_0, 5);
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
 
-	rtw89_phy_rfk_dack_and_wait(rtwdev, RTW89_PHY_0, 58);
-	rtw89_phy_rfk_rxdck_and_wait(rtwdev, RTW89_PHY_0, 32);
+	__rtw8922a_rfk_init_late(rtwdev, RTW89_PHY_0, chan);
+	if (rtwdev->dbcc_en)
+		__rtw8922a_rfk_init_late(rtwdev, RTW89_PHY_1, chan);
 }
 
 static void _wait_rx_mode(struct rtw89_dev *rtwdev, u8 kpath)
@@ -1953,10 +2094,13 @@ static void _wait_rx_mode(struct rtw89_dev *rtwdev, u8 kpath)
 	}
 }
 
-static void rtw8922a_rfk_channel(struct rtw89_dev *rtwdev)
+static void rtw8922a_rfk_channel(struct rtw89_dev *rtwdev,
+				 struct rtw89_vif_link *rtwvif_link)
 {
-	enum rtw89_phy_idx phy_idx = RTW89_PHY_0;
-	u8 phy_map = rtw89_btc_phymap(rtwdev, phy_idx, RF_AB);
+	enum rtw89_chanctx_idx chanctx_idx = rtwvif_link->chanctx_idx;
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, chanctx_idx);
+	enum rtw89_phy_idx phy_idx = rtwvif_link->phy_idx;
+	u8 phy_map = rtw89_btc_phymap(rtwdev, phy_idx, RF_AB, chanctx_idx);
 	u32 tx_en;
 
 	rtw89_btc_ntfy_wl_rfk(rtwdev, phy_map, BTC_WRFKT_CHLK, BTC_WRFK_START);
@@ -1964,23 +2108,26 @@ static void rtw8922a_rfk_channel(struct rtw89_dev *rtwdev)
 	_wait_rx_mode(rtwdev, RF_AB);
 
 	rtw89_phy_rfk_pre_ntfy_and_wait(rtwdev, phy_idx, 5);
-	rtw89_phy_rfk_txgapk_and_wait(rtwdev, phy_idx, 54);
-	rtw89_phy_rfk_iqk_and_wait(rtwdev, phy_idx, 84);
-	rtw89_phy_rfk_tssi_and_wait(rtwdev, phy_idx, RTW89_TSSI_NORMAL, 6);
-	rtw89_phy_rfk_dpk_and_wait(rtwdev, phy_idx, 34);
-	rtw89_phy_rfk_rxdck_and_wait(rtwdev, RTW89_PHY_0, 32);
+	rtw89_phy_rfk_txgapk_and_wait(rtwdev, phy_idx, chan, 54);
+	rtw89_phy_rfk_iqk_and_wait(rtwdev, phy_idx, chan, 84);
+	rtw89_phy_rfk_tssi_and_wait(rtwdev, phy_idx, chan, RTW89_TSSI_NORMAL, 20);
+	rtw89_phy_rfk_dpk_and_wait(rtwdev, phy_idx, chan, 34);
+	rtw89_phy_rfk_rxdck_and_wait(rtwdev, RTW89_PHY_0, chan, true, 32);
 
 	rtw89_chip_resume_sch_tx(rtwdev, phy_idx, tx_en);
 	rtw89_btc_ntfy_wl_rfk(rtwdev, phy_map, BTC_WRFKT_CHLK, BTC_WRFK_STOP);
 }
 
 static void rtw8922a_rfk_band_changed(struct rtw89_dev *rtwdev,
-				      enum rtw89_phy_idx phy_idx)
+				      enum rtw89_phy_idx phy_idx,
+				      const struct rtw89_chan *chan)
 {
-	rtw89_phy_rfk_tssi_and_wait(rtwdev, phy_idx, RTW89_TSSI_SCAN, 6);
+	rtw89_phy_rfk_tssi_and_wait(rtwdev, phy_idx, chan, RTW89_TSSI_SCAN, 6);
 }
 
-static void rtw8922a_rfk_scan(struct rtw89_dev *rtwdev, bool start)
+static void rtw8922a_rfk_scan(struct rtw89_dev *rtwdev,
+			      struct rtw89_vif_link *rtwvif_link,
+			      bool start)
 {
 }
 
@@ -2109,7 +2256,7 @@ static void rtw8922a_ctrl_nbtg_bt_tx(struct rtw89_dev *rtwdev, bool en,
 
 static void rtw8922a_bb_cfg_txrx_path(struct rtw89_dev *rtwdev)
 {
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
 	enum rtw89_band band = chan->band_type;
 	struct rtw89_hal *hal = &rtwdev->hal;
 	u8 ntx_path = RF_PATH_AB;
@@ -2136,10 +2283,12 @@ static void rtw8922a_bb_cfg_txrx_path(struct rtw89_dev *rtwdev)
 static u8 rtw8922a_get_thermal(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path)
 {
 	struct rtw89_power_trim_info *info = &rtwdev->pwr_trim;
+	struct rtw89_hal *hal = &rtwdev->hal;
 	int th;
 
-	/* read thermal only if debugging */
-	if (!rtw89_debug_is_enabled(rtwdev, RTW89_DBG_CFO | RTW89_DBG_RFK_TRACK))
+	/* read thermal only if debugging or thermal protection enabled */
+	if (!rtw89_debug_is_enabled(rtwdev, RTW89_DBG_CFO | RTW89_DBG_RFK_TRACK) &&
+	    !hal->thermal_prot_th)
 		return 80;
 
 	rtw89_write_rf(rtwdev, rf_path, RR_TM, RR_TM_TRI, 0x1);
@@ -2426,6 +2575,38 @@ static void rtw8922a_query_ppdu(struct rtw89_dev *rtwdev,
 		rtw8922a_fill_freq_with_ppdu(rtwdev, phy_ppdu, status);
 }
 
+static void rtw8922a_convert_rpl_to_rssi(struct rtw89_dev *rtwdev,
+					 struct rtw89_rx_phy_ppdu *phy_ppdu)
+{
+	/* Mapping to BW: 5, 10, 20, 40, 80, 160, 80_80 */
+	static const u8 bw_compensate[] = {0, 0, 0, 6, 12, 18, 0};
+	u8 *rssi = phy_ppdu->rssi;
+	u8 compensate = 0;
+	u16 rpl_tmp;
+	u8 i;
+
+	if (phy_ppdu->bw_idx < ARRAY_SIZE(bw_compensate))
+		compensate = bw_compensate[phy_ppdu->bw_idx];
+
+	for (i = 0; i < RF_PATH_NUM_8922A; i++) {
+		if (!(phy_ppdu->rx_path_en & BIT(i))) {
+			rssi[i] = 0;
+			phy_ppdu->rpl_path[i] = 0;
+			phy_ppdu->rpl_fd[i] = 0;
+		}
+		if (phy_ppdu->rate >= RTW89_HW_RATE_OFDM6) {
+			rpl_tmp = phy_ppdu->rpl_fd[i];
+			if (rpl_tmp)
+				rpl_tmp += compensate;
+
+			phy_ppdu->rpl_path[i] = rpl_tmp;
+		}
+		rssi[i] = phy_ppdu->rpl_path[i];
+	}
+
+	phy_ppdu->rssi_avg = phy_ppdu->rpl_avg;
+}
+
 static int rtw8922a_mac_enable_bb_rf(struct rtw89_dev *rtwdev)
 {
 	rtw89_write8_set(rtwdev, R_BE_FEN_RST_ENABLE,
@@ -2445,10 +2626,12 @@ static int rtw8922a_mac_disable_bb_rf(struct rtw89_dev *rtwdev)
 
 #ifdef CONFIG_PM
 static const struct wiphy_wowlan_support rtw_wowlan_stub_8922a = {
-	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_DISCONNECT,
+	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_DISCONNECT |
+		 WIPHY_WOWLAN_NET_DETECT,
 	.n_patterns = RTW89_MAX_PATTERN_NUM,
 	.pattern_max_len = RTW89_MAX_PATTERN_SIZE,
 	.pattern_min_len = 1,
+	.max_nd_match_sets = RTW89_SCANOFLD_MAX_SSID,
 };
 #endif
 
@@ -2481,9 +2664,11 @@ static const struct rtw89_chip_ops rtw8922a_chip_ops = {
 	.get_thermal		= rtw8922a_get_thermal,
 	.ctrl_btg_bt_rx		= rtw8922a_ctrl_btg_bt_rx,
 	.query_ppdu		= rtw8922a_query_ppdu,
+	.convert_rpl_to_rssi	= rtw8922a_convert_rpl_to_rssi,
 	.ctrl_nbtg_bt_tx	= rtw8922a_ctrl_nbtg_bt_tx,
 	.cfg_txrx_path		= rtw8922a_bb_cfg_txrx_path,
 	.set_txpwr_ul_tb_offset	= NULL,
+	.digital_pwr_comp	= rtw8922a_digital_pwr_comp,
 	.pwr_on_func		= rtw8922a_pwr_on_func,
 	.pwr_off_func		= rtw8922a_pwr_off_func,
 	.query_rxdesc		= rtw89_core_query_rxdesc_v2,
@@ -2534,6 +2719,7 @@ const struct rtw89_chip_info rtw8922a_chip_info = {
 	.wde_qempty_acq_grpnum	= 4,
 	.wde_qempty_mgq_grpsel	= 4,
 	.rf_base_addr		= {0xe000, 0xf000},
+	.thermal_th		= {0xad, 0xb4},
 	.pwr_on_seq		= NULL,
 	.pwr_off_seq		= NULL,
 	.bb_table		= NULL,
@@ -2549,6 +2735,7 @@ const struct rtw89_chip_info rtw8922a_chip_info = {
 	.dig_regs		= &rtw8922a_dig_regs,
 	.tssi_dbw_table		= NULL,
 	.support_macid_num	= 32,
+	.support_link_num	= 2,
 	.support_chanctx_num	= 2,
 	.support_rnr		= true,
 	.support_bands		= BIT(NL80211_BAND_2GHZ) |
@@ -2562,6 +2749,7 @@ const struct rtw89_chip_info rtw8922a_chip_info = {
 	.ul_tb_waveform_ctrl	= false,
 	.ul_tb_pwr_diff		= false,
 	.hw_sec_hdr		= true,
+	.hw_mgmt_tx_encrypt	= true,
 	.rf_path_num		= 2,
 	.tx_nss			= 2,
 	.rx_nss			= 2,
@@ -2624,6 +2812,8 @@ const struct rtw89_chip_info rtw8922a_chip_info = {
 	.rrsr_cfgs		= &rtw8922a_rrsr_cfgs,
 	.bss_clr_vld		= {R_BSS_CLR_VLD_V2, B_BSS_CLR_VLD0_V2},
 	.bss_clr_map_reg	= R_BSS_CLR_MAP_V2,
+	.rfkill_init		= &rtw8922a_rfkill_regs,
+	.rfkill_get		= {R_BE_GPIO_EXT_CTRL, B_BE_GPIO_IN_9},
 	.dma_ch_mask		= 0,
 	.edcca_regs		= &rtw8922a_edcca_regs,
 #ifdef CONFIG_PM

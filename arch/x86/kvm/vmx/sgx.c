@@ -4,12 +4,11 @@
 
 #include <asm/sgx.h>
 
-#include "cpuid.h"
+#include "x86.h"
 #include "kvm_cache_regs.h"
 #include "nested.h"
 #include "sgx.h"
 #include "vmx.h"
-#include "x86.h"
 
 bool __read_mostly enable_sgx = 1;
 module_param_named(sgx, enable_sgx, bool, 0444);
@@ -38,7 +37,7 @@ static int sgx_get_encls_gva(struct kvm_vcpu *vcpu, unsigned long offset,
 		fault = true;
 	} else if (likely(is_64_bit_mode(vcpu))) {
 		*gva = vmx_get_untagged_addr(vcpu, *gva, 0);
-		fault = is_noncanonical_address(*gva, vcpu);
+		fault = is_noncanonical_address(*gva, vcpu, 0);
 	} else {
 		*gva &= 0xffffffff;
 		fault = (s.unusable) ||
@@ -274,7 +273,7 @@ static int handle_encls_ecreate(struct kvm_vcpu *vcpu)
 	 * simultaneously set SGX_ATTR_PROVISIONKEY to bypass the check to
 	 * enforce restriction of access to the PROVISIONKEY.
 	 */
-	contents = (struct sgx_secs *)__get_free_page(GFP_KERNEL_ACCOUNT);
+	contents = (struct sgx_secs *)__get_free_page(GFP_KERNEL);
 	if (!contents)
 		return -ENOMEM;
 

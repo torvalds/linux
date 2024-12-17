@@ -50,6 +50,7 @@ properties:
       - rockchip,rk3188-io-voltage-domain
       - rockchip,rk3228-io-voltage-domain
       - rockchip,rk3288-io-voltage-domain
+      - rockchip,rk3308-io-voltage-domain
       - rockchip,rk3328-io-voltage-domain
       - rockchip,rk3368-io-voltage-domain
       - rockchip,rk3368-pmu-io-voltage-domain
@@ -71,6 +72,7 @@ allOf:
   - $ref: "#/$defs/rk3188"
   - $ref: "#/$defs/rk3228"
   - $ref: "#/$defs/rk3288"
+  - $ref: "#/$defs/rk3308"
   - $ref: "#/$defs/rk3328"
   - $ref: "#/$defs/rk3368"
   - $ref: "#/$defs/rk3368-pmu"
@@ -193,6 +195,28 @@ $defs:
           description: The supply connected to SDMMC0_VDD.
         wifi-supply:
           description: The supply connected to APIO3_VDD. Also known as SDIO0.
+
+  rk3308:
+    if:
+      properties:
+        compatible:
+          contains:
+            const: rockchip,rk3308-io-voltage-domain
+
+    then:
+      properties:
+        vccio0-supply:
+          description: The supply connected to VCCIO0.
+        vccio1-supply:
+          description: The supply connected to VCCIO1.
+        vccio2-supply:
+          description: The supply connected to VCCIO2.
+        vccio3-supply:
+          description: The supply connected to VCCIO3.
+        vccio4-supply:
+          description: The supply connected to VCCIO4.
+        vccio5-supply:
+          description: The supply connected to VCCIO5.
 
   rk3328:
     if:

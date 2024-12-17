@@ -77,7 +77,17 @@ enum _slab_flag_bits {
 #define SLAB_POISON		__SLAB_FLAG_BIT(_SLAB_POISON)
 /* Indicate a kmalloc slab */
 #define SLAB_KMALLOC		__SLAB_FLAG_BIT(_SLAB_KMALLOC)
-/* Align objs on cache lines */
+/**
+ * define SLAB_HWCACHE_ALIGN - Align objects on cache line boundaries.
+ *
+ * Sufficiently large objects are aligned on cache line boundary. For object
+ * size smaller than a half of cache line size, the alignment is on the half of
+ * cache line size. In general, if object size is smaller than 1/2^n of cache
+ * line size, the alignment is adjusted to 1/2^n.
+ *
+ * If explicit alignment is also requested by the respective
+ * &struct kmem_cache_args field, the greater of both is alignments is applied.
+ */
 #define SLAB_HWCACHE_ALIGN	__SLAB_FLAG_BIT(_SLAB_HWCACHE_ALIGN)
 /* Use GFP_DMA memory */
 #define SLAB_CACHE_DMA		__SLAB_FLAG_BIT(_SLAB_CACHE_DMA)
@@ -87,8 +97,8 @@ enum _slab_flag_bits {
 #define SLAB_STORE_USER		__SLAB_FLAG_BIT(_SLAB_STORE_USER)
 /* Panic if kmem_cache_create() fails */
 #define SLAB_PANIC		__SLAB_FLAG_BIT(_SLAB_PANIC)
-/*
- * SLAB_TYPESAFE_BY_RCU - **WARNING** READ THIS!
+/**
+ * define SLAB_TYPESAFE_BY_RCU - **WARNING** READ THIS!
  *
  * This delays freeing the SLAB page by a grace period, it does _NOT_
  * delay object freeing. This means that if you do kmem_cache_free()
@@ -99,20 +109,22 @@ enum _slab_flag_bits {
  * stays valid, the trick to using this is relying on an independent
  * object validation pass. Something like:
  *
- * begin:
- *  rcu_read_lock();
- *  obj = lockless_lookup(key);
- *  if (obj) {
- *    if (!try_get_ref(obj)) // might fail for free objects
- *      rcu_read_unlock();
- *      goto begin;
+ * ::
  *
- *    if (obj->key != key) { // not the object we expected
- *      put_ref(obj);
- *      rcu_read_unlock();
- *      goto begin;
- *    }
- *  }
+ *  begin:
+ *   rcu_read_lock();
+ *   obj = lockless_lookup(key);
+ *   if (obj) {
+ *     if (!try_get_ref(obj)) // might fail for free objects
+ *       rcu_read_unlock();
+ *       goto begin;
+ *
+ *     if (obj->key != key) { // not the object we expected
+ *       put_ref(obj);
+ *       rcu_read_unlock();
+ *       goto begin;
+ *     }
+ *   }
  *  rcu_read_unlock();
  *
  * This is useful if we need to approach a kernel structure obliquely,
@@ -137,7 +149,6 @@ enum _slab_flag_bits {
  *
  * Note that SLAB_TYPESAFE_BY_RCU was originally named SLAB_DESTROY_BY_RCU.
  */
-/* Defer freeing slabs to RCU */
 #define SLAB_TYPESAFE_BY_RCU	__SLAB_FLAG_BIT(_SLAB_TYPESAFE_BY_RCU)
 /* Trace allocations and frees */
 #define SLAB_TRACE		__SLAB_FLAG_BIT(_SLAB_TRACE)
@@ -170,7 +181,12 @@ enum _slab_flag_bits {
 #else
 # define SLAB_FAILSLAB		__SLAB_FLAG_UNUSED
 #endif
-/* Account to memcg */
+/**
+ * define SLAB_ACCOUNT - Account allocations to memcg.
+ *
+ * All object allocations from this cache will be memcg accounted, regardless of
+ * __GFP_ACCOUNT being or not being passed to individual allocations.
+ */
 #ifdef CONFIG_MEMCG
 # define SLAB_ACCOUNT		__SLAB_FLAG_BIT(_SLAB_ACCOUNT)
 #else
@@ -197,7 +213,13 @@ enum _slab_flag_bits {
 #endif
 
 /* The following flags affect the page allocator grouping pages by mobility */
-/* Objects are reclaimable */
+/**
+ * define SLAB_RECLAIM_ACCOUNT - Objects are reclaimable.
+ *
+ * Use this flag for caches that have an associated shrinker. As a result, slab
+ * pages are allocated with __GFP_RECLAIMABLE, which affects grouping pages by
+ * mobility, and are accounted in SReclaimable counter in /proc/meminfo
+ */
 #ifndef CONFIG_SLUB_TINY
 #define SLAB_RECLAIM_ACCOUNT	__SLAB_FLAG_BIT(_SLAB_RECLAIM_ACCOUNT)
 #else
@@ -211,6 +233,12 @@ enum _slab_flag_bits {
 #else
 #define SLAB_NO_OBJ_EXT		__SLAB_FLAG_UNUSED
 #endif
+
+/*
+ * freeptr_t represents a SLUB freelist pointer, which might be encoded
+ * and not dereferenceable if CONFIG_SLAB_FREELIST_HARDENED is enabled.
+ */
+typedef struct { unsigned long v; } freeptr_t;
 
 /*
  * ZERO_SIZE_PTR will be returned for zero sized kmalloc requests.
@@ -234,14 +262,173 @@ struct mem_cgroup;
  */
 bool slab_is_available(void);
 
-struct kmem_cache *kmem_cache_create(const char *name, unsigned int size,
-			unsigned int align, slab_flags_t flags,
-			void (*ctor)(void *));
-struct kmem_cache *kmem_cache_create_usercopy(const char *name,
-			unsigned int size, unsigned int align,
-			slab_flags_t flags,
-			unsigned int useroffset, unsigned int usersize,
-			void (*ctor)(void *));
+/**
+ * struct kmem_cache_args - Less common arguments for kmem_cache_create()
+ *
+ * Any uninitialized fields of the structure are interpreted as unused. The
+ * exception is @freeptr_offset where %0 is a valid value, so
+ * @use_freeptr_offset must be also set to %true in order to interpret the field
+ * as used. For @useroffset %0 is also valid, but only with non-%0
+ * @usersize.
+ *
+ * When %NULL args is passed to kmem_cache_create(), it is equivalent to all
+ * fields unused.
+ */
+struct kmem_cache_args {
+	/**
+	 * @align: The required alignment for the objects.
+	 *
+	 * %0 means no specific alignment is requested.
+	 */
+	unsigned int align;
+	/**
+	 * @useroffset: Usercopy region offset.
+	 *
+	 * %0 is a valid offset, when @usersize is non-%0
+	 */
+	unsigned int useroffset;
+	/**
+	 * @usersize: Usercopy region size.
+	 *
+	 * %0 means no usercopy region is specified.
+	 */
+	unsigned int usersize;
+	/**
+	 * @freeptr_offset: Custom offset for the free pointer
+	 * in &SLAB_TYPESAFE_BY_RCU caches
+	 *
+	 * By default &SLAB_TYPESAFE_BY_RCU caches place the free pointer
+	 * outside of the object. This might cause the object to grow in size.
+	 * Cache creators that have a reason to avoid this can specify a custom
+	 * free pointer offset in their struct where the free pointer will be
+	 * placed.
+	 *
+	 * Note that placing the free pointer inside the object requires the
+	 * caller to ensure that no fields are invalidated that are required to
+	 * guard against object recycling (See &SLAB_TYPESAFE_BY_RCU for
+	 * details).
+	 *
+	 * Using %0 as a value for @freeptr_offset is valid. If @freeptr_offset
+	 * is specified, %use_freeptr_offset must be set %true.
+	 *
+	 * Note that @ctor currently isn't supported with custom free pointers
+	 * as a @ctor requires an external free pointer.
+	 */
+	unsigned int freeptr_offset;
+	/**
+	 * @use_freeptr_offset: Whether a @freeptr_offset is used.
+	 */
+	bool use_freeptr_offset;
+	/**
+	 * @ctor: A constructor for the objects.
+	 *
+	 * The constructor is invoked for each object in a newly allocated slab
+	 * page. It is the cache user's responsibility to free object in the
+	 * same state as after calling the constructor, or deal appropriately
+	 * with any differences between a freshly constructed and a reallocated
+	 * object.
+	 *
+	 * %NULL means no constructor.
+	 */
+	void (*ctor)(void *);
+};
+
+struct kmem_cache *__kmem_cache_create_args(const char *name,
+					    unsigned int object_size,
+					    struct kmem_cache_args *args,
+					    slab_flags_t flags);
+static inline struct kmem_cache *
+__kmem_cache_create(const char *name, unsigned int size, unsigned int align,
+		    slab_flags_t flags, void (*ctor)(void *))
+{
+	struct kmem_cache_args kmem_args = {
+		.align	= align,
+		.ctor	= ctor,
+	};
+
+	return __kmem_cache_create_args(name, size, &kmem_args, flags);
+}
+
+/**
+ * kmem_cache_create_usercopy - Create a kmem cache with a region suitable
+ * for copying to userspace.
+ * @name: A string which is used in /proc/slabinfo to identify this cache.
+ * @size: The size of objects to be created in this cache.
+ * @align: The required alignment for the objects.
+ * @flags: SLAB flags
+ * @useroffset: Usercopy region offset
+ * @usersize: Usercopy region size
+ * @ctor: A constructor for the objects, or %NULL.
+ *
+ * This is a legacy wrapper, new code should use either KMEM_CACHE_USERCOPY()
+ * if whitelisting a single field is sufficient, or kmem_cache_create() with
+ * the necessary parameters passed via the args parameter (see
+ * &struct kmem_cache_args)
+ *
+ * Return: a pointer to the cache on success, NULL on failure.
+ */
+static inline struct kmem_cache *
+kmem_cache_create_usercopy(const char *name, unsigned int size,
+			   unsigned int align, slab_flags_t flags,
+			   unsigned int useroffset, unsigned int usersize,
+			   void (*ctor)(void *))
+{
+	struct kmem_cache_args kmem_args = {
+		.align		= align,
+		.ctor		= ctor,
+		.useroffset	= useroffset,
+		.usersize	= usersize,
+	};
+
+	return __kmem_cache_create_args(name, size, &kmem_args, flags);
+}
+
+/* If NULL is passed for @args, use this variant with default arguments. */
+static inline struct kmem_cache *
+__kmem_cache_default_args(const char *name, unsigned int size,
+			  struct kmem_cache_args *args,
+			  slab_flags_t flags)
+{
+	struct kmem_cache_args kmem_default_args = {};
+
+	/* Make sure we don't get passed garbage. */
+	if (WARN_ON_ONCE(args))
+		return ERR_PTR(-EINVAL);
+
+	return __kmem_cache_create_args(name, size, &kmem_default_args, flags);
+}
+
+/**
+ * kmem_cache_create - Create a kmem cache.
+ * @__name: A string which is used in /proc/slabinfo to identify this cache.
+ * @__object_size: The size of objects to be created in this cache.
+ * @__args: Optional arguments, see &struct kmem_cache_args. Passing %NULL
+ *	    means defaults will be used for all the arguments.
+ *
+ * This is currently implemented as a macro using ``_Generic()`` to call
+ * either the new variant of the function, or a legacy one.
+ *
+ * The new variant has 4 parameters:
+ * ``kmem_cache_create(name, object_size, args, flags)``
+ *
+ * See __kmem_cache_create_args() which implements this.
+ *
+ * The legacy variant has 5 parameters:
+ * ``kmem_cache_create(name, object_size, align, flags, ctor)``
+ *
+ * The align and ctor parameters map to the respective fields of
+ * &struct kmem_cache_args
+ *
+ * Context: Cannot be called within a interrupt, but can be interrupted.
+ *
+ * Return: a pointer to the cache on success, NULL on failure.
+ */
+#define kmem_cache_create(__name, __object_size, __args, ...)           \
+	_Generic((__args),                                              \
+		struct kmem_cache_args *: __kmem_cache_create_args,	\
+		void *: __kmem_cache_default_args,			\
+		default: __kmem_cache_create)(__name, __object_size, __args, __VA_ARGS__)
+
 void kmem_cache_destroy(struct kmem_cache *s);
 int kmem_cache_shrink(struct kmem_cache *s);
 
@@ -253,20 +440,23 @@ int kmem_cache_shrink(struct kmem_cache *s);
  * f.e. add ____cacheline_aligned_in_smp to the struct declaration
  * then the objects will be properly aligned in SMP configurations.
  */
-#define KMEM_CACHE(__struct, __flags)					\
-		kmem_cache_create(#__struct, sizeof(struct __struct),	\
-			__alignof__(struct __struct), (__flags), NULL)
+#define KMEM_CACHE(__struct, __flags)                                   \
+	__kmem_cache_create_args(#__struct, sizeof(struct __struct),    \
+			&(struct kmem_cache_args) {			\
+				.align	= __alignof__(struct __struct), \
+			}, (__flags))
 
 /*
  * To whitelist a single field for copying to/from usercopy, use this
  * macro instead for KMEM_CACHE() above.
  */
-#define KMEM_CACHE_USERCOPY(__struct, __flags, __field)			\
-		kmem_cache_create_usercopy(#__struct,			\
-			sizeof(struct __struct),			\
-			__alignof__(struct __struct), (__flags),	\
-			offsetof(struct __struct, __field),		\
-			sizeof_field(struct __struct, __field), NULL)
+#define KMEM_CACHE_USERCOPY(__struct, __flags, __field)						\
+	__kmem_cache_create_args(#__struct, sizeof(struct __struct),				\
+			&(struct kmem_cache_args) {						\
+				.align		= __alignof__(struct __struct),			\
+				.useroffset	= offsetof(struct __struct, __field),		\
+				.usersize	= sizeof_field(struct __struct, __field),	\
+			}, (__flags))
 
 /*
  * Common kmalloc functions provided by all allocators
@@ -280,6 +470,7 @@ void kfree_sensitive(const void *objp);
 size_t __ksize(const void *objp);
 
 DEFINE_FREE(kfree, void *, if (!IS_ERR_OR_NULL(_T)) kfree(_T))
+DEFINE_FREE(kfree_sensitive, void *, if (_T) kfree_sensitive(_T))
 
 /**
  * ksize - Report actual allocation size of associated object
@@ -547,6 +738,35 @@ void *kmem_cache_alloc_lru_noprof(struct kmem_cache *s, struct list_lru *lru,
 			    gfp_t gfpflags) __assume_slab_alignment __malloc;
 #define kmem_cache_alloc_lru(...)	alloc_hooks(kmem_cache_alloc_lru_noprof(__VA_ARGS__))
 
+/**
+ * kmem_cache_charge - memcg charge an already allocated slab memory
+ * @objp: address of the slab object to memcg charge
+ * @gfpflags: describe the allocation context
+ *
+ * kmem_cache_charge allows charging a slab object to the current memcg,
+ * primarily in cases where charging at allocation time might not be possible
+ * because the target memcg is not known (i.e. softirq context)
+ *
+ * The objp should be pointer returned by the slab allocator functions like
+ * kmalloc (with __GFP_ACCOUNT in flags) or kmem_cache_alloc. The memcg charge
+ * behavior can be controlled through gfpflags parameter, which affects how the
+ * necessary internal metadata can be allocated. Including __GFP_NOFAIL denotes
+ * that overcharging is requested instead of failure, but is not applied for the
+ * internal metadata allocation.
+ *
+ * There are several cases where it will return true even if the charging was
+ * not done:
+ * More specifically:
+ *
+ * 1. For !CONFIG_MEMCG or cgroup_disable=memory systems.
+ * 2. Already charged slab objects.
+ * 3. For slab objects from KMALLOC_NORMAL caches - allocated by kmalloc()
+ *    without __GFP_ACCOUNT
+ * 4. Allocating internal metadata has failed
+ *
+ * Return: true if charge was successful otherwise false.
+ */
+bool kmem_cache_charge(void *objp, gfp_t gfpflags);
 void kmem_cache_free(struct kmem_cache *s, void *objp);
 
 kmem_buckets *kmem_buckets_create(const char *name, slab_flags_t flags,
@@ -733,6 +953,16 @@ static inline __alloc_size(1, 2) void *kmalloc_array_noprof(size_t n, size_t siz
  * @new_n: new number of elements to alloc
  * @new_size: new size of a single member of the array
  * @flags: the type of memory to allocate (see kmalloc)
+ *
+ * If __GFP_ZERO logic is requested, callers must ensure that, starting with the
+ * initial memory allocation, every subsequent call to this API for the same
+ * memory allocation is flagged with __GFP_ZERO. Otherwise, it is possible that
+ * __GFP_ZERO is not fully honored by this API.
+ *
+ * See krealloc_noprof() for further details.
+ *
+ * In any case, the contents of the object pointed to are preserved up to the
+ * lesser of the new and old sizes.
  */
 static inline __realloc_size(2, 3) void * __must_check krealloc_array_noprof(void *p,
 								       size_t new_n,
@@ -841,8 +1071,8 @@ kvmalloc_array_node_noprof(size_t n, size_t size, gfp_t flags, int node)
 #define kvcalloc_node(...)			alloc_hooks(kvcalloc_node_noprof(__VA_ARGS__))
 #define kvcalloc(...)				alloc_hooks(kvcalloc_noprof(__VA_ARGS__))
 
-extern void *kvrealloc_noprof(const void *p, size_t oldsize, size_t newsize, gfp_t flags)
-		      __realloc_size(3);
+void *kvrealloc_noprof(const void *p, size_t size, gfp_t flags)
+		__realloc_size(2);
 #define kvrealloc(...)				alloc_hooks(kvrealloc_noprof(__VA_ARGS__))
 
 extern void kvfree(const void *addr);

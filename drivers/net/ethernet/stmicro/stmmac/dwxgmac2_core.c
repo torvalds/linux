@@ -8,6 +8,7 @@
 #include <linux/crc32.h>
 #include <linux/iopoll.h>
 #include "stmmac.h"
+#include "stmmac_fpe.h"
 #include "stmmac_ptp.h"
 #include "dwxlgmac2.h"
 #include "dwxgmac2.h"
@@ -846,42 +847,41 @@ static const struct dwxgmac3_error_desc dwxgmac3_dma_errors[32]= {
 	{ false, "UNKNOWN", "Unknown Error" }, /* 31 */
 };
 
-#define DPP_RX_ERR "Read Rx Descriptor Parity checker Error"
-#define DPP_TX_ERR "Read Tx Descriptor Parity checker Error"
-
+static const char dpp_rx_err[] = "Read Rx Descriptor Parity checker Error";
+static const char dpp_tx_err[] = "Read Tx Descriptor Parity checker Error";
 static const struct dwxgmac3_error_desc dwxgmac3_dma_dpp_errors[32] = {
-	{ true, "TDPES0", DPP_TX_ERR },
-	{ true, "TDPES1", DPP_TX_ERR },
-	{ true, "TDPES2", DPP_TX_ERR },
-	{ true, "TDPES3", DPP_TX_ERR },
-	{ true, "TDPES4", DPP_TX_ERR },
-	{ true, "TDPES5", DPP_TX_ERR },
-	{ true, "TDPES6", DPP_TX_ERR },
-	{ true, "TDPES7", DPP_TX_ERR },
-	{ true, "TDPES8", DPP_TX_ERR },
-	{ true, "TDPES9", DPP_TX_ERR },
-	{ true, "TDPES10", DPP_TX_ERR },
-	{ true, "TDPES11", DPP_TX_ERR },
-	{ true, "TDPES12", DPP_TX_ERR },
-	{ true, "TDPES13", DPP_TX_ERR },
-	{ true, "TDPES14", DPP_TX_ERR },
-	{ true, "TDPES15", DPP_TX_ERR },
-	{ true, "RDPES0", DPP_RX_ERR },
-	{ true, "RDPES1", DPP_RX_ERR },
-	{ true, "RDPES2", DPP_RX_ERR },
-	{ true, "RDPES3", DPP_RX_ERR },
-	{ true, "RDPES4", DPP_RX_ERR },
-	{ true, "RDPES5", DPP_RX_ERR },
-	{ true, "RDPES6", DPP_RX_ERR },
-	{ true, "RDPES7", DPP_RX_ERR },
-	{ true, "RDPES8", DPP_RX_ERR },
-	{ true, "RDPES9", DPP_RX_ERR },
-	{ true, "RDPES10", DPP_RX_ERR },
-	{ true, "RDPES11", DPP_RX_ERR },
-	{ true, "RDPES12", DPP_RX_ERR },
-	{ true, "RDPES13", DPP_RX_ERR },
-	{ true, "RDPES14", DPP_RX_ERR },
-	{ true, "RDPES15", DPP_RX_ERR },
+	{ true, "TDPES0", dpp_tx_err },
+	{ true, "TDPES1", dpp_tx_err },
+	{ true, "TDPES2", dpp_tx_err },
+	{ true, "TDPES3", dpp_tx_err },
+	{ true, "TDPES4", dpp_tx_err },
+	{ true, "TDPES5", dpp_tx_err },
+	{ true, "TDPES6", dpp_tx_err },
+	{ true, "TDPES7", dpp_tx_err },
+	{ true, "TDPES8", dpp_tx_err },
+	{ true, "TDPES9", dpp_tx_err },
+	{ true, "TDPES10", dpp_tx_err },
+	{ true, "TDPES11", dpp_tx_err },
+	{ true, "TDPES12", dpp_tx_err },
+	{ true, "TDPES13", dpp_tx_err },
+	{ true, "TDPES14", dpp_tx_err },
+	{ true, "TDPES15", dpp_tx_err },
+	{ true, "RDPES0", dpp_rx_err },
+	{ true, "RDPES1", dpp_rx_err },
+	{ true, "RDPES2", dpp_rx_err },
+	{ true, "RDPES3", dpp_rx_err },
+	{ true, "RDPES4", dpp_rx_err },
+	{ true, "RDPES5", dpp_rx_err },
+	{ true, "RDPES6", dpp_rx_err },
+	{ true, "RDPES7", dpp_rx_err },
+	{ true, "RDPES8", dpp_rx_err },
+	{ true, "RDPES9", dpp_rx_err },
+	{ true, "RDPES10", dpp_rx_err },
+	{ true, "RDPES11", dpp_rx_err },
+	{ true, "RDPES12", dpp_rx_err },
+	{ true, "RDPES13", dpp_rx_err },
+	{ true, "RDPES14", dpp_rx_err },
+	{ true, "RDPES15", dpp_rx_err },
 };
 
 static void dwxgmac3_handle_dma_err(struct net_device *ndev,
@@ -1505,31 +1505,6 @@ static void dwxgmac2_set_arp_offload(struct mac_device_info *hw, bool en,
 	writel(value, ioaddr + XGMAC_RX_CONFIG);
 }
 
-static void dwxgmac3_fpe_configure(void __iomem *ioaddr, struct stmmac_fpe_cfg *cfg,
-				   u32 num_txq,
-				   u32 num_rxq, bool enable)
-{
-	u32 value;
-
-	if (!enable) {
-		value = readl(ioaddr + XGMAC_FPE_CTRL_STS);
-
-		value &= ~XGMAC_EFPE;
-
-		writel(value, ioaddr + XGMAC_FPE_CTRL_STS);
-		return;
-	}
-
-	value = readl(ioaddr + XGMAC_RXQ_CTRL1);
-	value &= ~XGMAC_RQ;
-	value |= (num_rxq - 1) << XGMAC_RQ_SHIFT;
-	writel(value, ioaddr + XGMAC_RXQ_CTRL1);
-
-	value = readl(ioaddr + XGMAC_FPE_CTRL_STS);
-	value |= XGMAC_EFPE;
-	writel(value, ioaddr + XGMAC_FPE_CTRL_STS);
-}
-
 const struct stmmac_ops dwxgmac210_ops = {
 	.core_init = dwxgmac2_core_init,
 	.set_mac = dwxgmac2_set_mac,
@@ -1570,7 +1545,7 @@ const struct stmmac_ops dwxgmac210_ops = {
 	.config_l3_filter = dwxgmac2_config_l3_filter,
 	.config_l4_filter = dwxgmac2_config_l4_filter,
 	.set_arp_offload = dwxgmac2_set_arp_offload,
-	.fpe_configure = dwxgmac3_fpe_configure,
+	.fpe_map_preemption_class = dwxgmac3_fpe_map_preemption_class,
 };
 
 static void dwxlgmac2_rx_queue_enable(struct mac_device_info *hw, u8 mode,
@@ -1627,7 +1602,7 @@ const struct stmmac_ops dwxlgmac2_ops = {
 	.config_l3_filter = dwxgmac2_config_l3_filter,
 	.config_l4_filter = dwxgmac2_config_l4_filter,
 	.set_arp_offload = dwxgmac2_set_arp_offload,
-	.fpe_configure = dwxgmac3_fpe_configure,
+	.fpe_map_preemption_class = dwxgmac3_fpe_map_preemption_class,
 };
 
 int dwxgmac2_setup(struct stmmac_priv *priv)

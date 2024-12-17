@@ -134,11 +134,11 @@ int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 	iio_trigger_set_drvdata(sdata->trig, indio_dev);
 	sdata->trig->ops = trigger_ops;
 
-	irq_trig = irqd_get_trigger_type(irq_get_irq_data(sdata->irq));
 	/*
 	 * If the IRQ is triggered on falling edge, we need to mark the
 	 * interrupt as active low, if the hardware supports this.
 	 */
+	irq_trig = irq_get_trigger_type(sdata->irq);
 	switch(irq_trig) {
 	case IRQF_TRIGGER_FALLING:
 	case IRQF_TRIGGER_LOW:
@@ -227,7 +227,7 @@ int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(st_sensors_allocate_trigger, IIO_ST_SENSORS);
+EXPORT_SYMBOL_NS(st_sensors_allocate_trigger, "IIO_ST_SENSORS");
 
 int st_sensors_validate_device(struct iio_trigger *trig,
 			       struct iio_dev *indio_dev)
@@ -239,4 +239,4 @@ int st_sensors_validate_device(struct iio_trigger *trig,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(st_sensors_validate_device, IIO_ST_SENSORS);
+EXPORT_SYMBOL_NS(st_sensors_validate_device, "IIO_ST_SENSORS");

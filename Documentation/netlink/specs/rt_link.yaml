@@ -903,6 +903,29 @@ definitions:
       - cfm-config
       - cfm-status
       - mst
+  -
+    name: netkit-policy
+    type: enum
+    entries:
+      -
+        name: forward
+        value: 0
+      -
+        name: blackhole
+        value: 2
+  -
+    name: netkit-mode
+    type: enum
+    entries:
+      - name: l2
+      - name: l3
+
+  -
+    name: netkit-scrub
+    type: enum
+    entries:
+      - name: none
+      - name: default
 
 attribute-sets:
   -
@@ -1121,6 +1144,10 @@ attribute-sets:
         name: dpll-pin
         type: nest
         nested-attributes: link-dpll-pin-attrs
+      -
+        name: max-pacing-offload-horizon
+        type: uint
+        doc: EDT offload horizon supported by the device (in nsec).
   -
     name: af-spec-attrs
     attributes:
@@ -2109,6 +2136,36 @@ attribute-sets:
       -
         name: id
         type: u32
+  -
+    name: linkinfo-netkit-attrs
+    name-prefix: ifla-netkit-
+    attributes:
+      -
+        name: peer-info
+        type: binary
+      -
+        name: primary
+        type: u8
+      -
+        name: policy
+        type: u32
+        enum: netkit-policy
+      -
+        name: peer-policy
+        type: u32
+        enum: netkit-policy
+      -
+        name: mode
+        type: u32
+        enum: netkit-mode
+      -
+        name: scrub
+        type: u32
+        enum: netkit-scrub
+      -
+        name: peer-scrub
+        type: u32
+        enum: netkit-scrub
 
 sub-messages:
   -
@@ -2147,6 +2204,9 @@ sub-messages:
       -
         value: vrf
         attribute-set: linkinfo-vrf-attrs
+      -
+        value: netkit
+        attribute-set: linkinfo-netkit-attrs
   -
     name: linkinfo-member-data-msg
     formats:

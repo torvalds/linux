@@ -268,7 +268,7 @@ struct cnic_local {
 	u32				bnx2x_igu_sb_id;
 	u32				int_num;
 	u32				last_status_idx;
-	struct tasklet_struct		cnic_irq_task;
+	struct work_struct		cnic_irq_bh_work;
 
 	struct kcqe		*completed_kcq[MAX_COMPLETED_KCQE];
 

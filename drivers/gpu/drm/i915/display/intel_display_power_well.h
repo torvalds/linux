@@ -12,6 +12,7 @@
 
 struct drm_i915_private;
 struct i915_power_well_ops;
+struct intel_display;
 struct intel_encoder;
 
 #define for_each_power_well(__dev_priv, __power_well)				\
@@ -154,13 +155,13 @@ void chv_phy_powergate_lanes(struct intel_encoder *encoder,
 bool chv_phy_powergate_ch(struct drm_i915_private *dev_priv, enum dpio_phy phy,
 			  enum dpio_channel ch, bool override);
 
-void gen9_enable_dc5(struct drm_i915_private *dev_priv);
-void skl_enable_dc6(struct drm_i915_private *dev_priv);
-void gen9_sanitize_dc_state(struct drm_i915_private *dev_priv);
-void gen9_set_dc_state(struct drm_i915_private *dev_priv, u32 state);
-void gen9_disable_dc_states(struct drm_i915_private *dev_priv);
-void bxt_enable_dc9(struct drm_i915_private *dev_priv);
-void bxt_disable_dc9(struct drm_i915_private *dev_priv);
+void gen9_enable_dc5(struct intel_display *display);
+void skl_enable_dc6(struct intel_display *display);
+void gen9_sanitize_dc_state(struct intel_display *display);
+void gen9_set_dc_state(struct intel_display *display, u32 state);
+void gen9_disable_dc_states(struct intel_display *display);
+void bxt_enable_dc9(struct intel_display *display);
+void bxt_disable_dc9(struct intel_display *display);
 
 extern const struct i915_power_well_ops i9xx_always_on_power_well_ops;
 extern const struct i915_power_well_ops chv_pipe_power_well_ops;

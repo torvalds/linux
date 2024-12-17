@@ -2351,6 +2351,10 @@ void iwl_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 	txq_write_ptr = txq->write_ptr;
 	spin_unlock(&txq->lock);
 
+	/* There is nothing to do if we are flushing an empty queue */
+	if (is_flush && txq_write_ptr == txq_read_ptr)
+		goto out;
+
 	read_ptr = iwl_txq_get_cmd_index(txq, txq_read_ptr);
 
 	if (!test_bit(txq_id, trans_pcie->txqs.queue_used)) {

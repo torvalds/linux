@@ -602,7 +602,7 @@ static int dma_init(struct device_node *cloud, struct device_node *dma_node)
 	unsigned max_tx_chan, max_rx_chan, max_rx_flow, max_tx_sched;
 	struct device_node *node = dma_node;
 	struct knav_dma_device *dma;
-	int ret, len, num_chan = 0;
+	int ret, num_chan = 0;
 	resource_size_t size;
 	u32 timeout;
 	u32 i;
@@ -615,25 +615,13 @@ static int dma_init(struct device_node *cloud, struct device_node *dma_node)
 	INIT_LIST_HEAD(&dma->list);
 	INIT_LIST_HEAD(&dma->chan_list);
 
-	if (!of_find_property(cloud, "ti,navigator-cloud-address", &len)) {
-		dev_err(kdev->dev, "unspecified navigator cloud addresses\n");
-		return -ENODEV;
-	}
-
-	dma->logical_queue_managers = len / sizeof(u32);
-	if (dma->logical_queue_managers > DMA_MAX_QMS) {
-		dev_warn(kdev->dev, "too many queue mgrs(>%d) rest ignored\n",
-			 dma->logical_queue_managers);
-		dma->logical_queue_managers = DMA_MAX_QMS;
-	}
-
-	ret = of_property_read_u32_array(cloud, "ti,navigator-cloud-address",
-					dma->qm_base_address,
-					dma->logical_queue_managers);
-	if (ret) {
+	ret = of_property_read_variable_u32_array(cloud, "ti,navigator-cloud-address",
+						  dma->qm_base_address, 1, DMA_MAX_QMS);
+	if (ret < 0) {
 		dev_err(kdev->dev, "invalid navigator cloud addresses\n");
 		return -ENODEV;
 	}
+	dma->logical_queue_managers = ret;
 
 	dma->reg_global	 = pktdma_get_regs(dma, node, 0, &size);
 	if (IS_ERR(dma->reg_global))
@@ -795,8 +783,8 @@ MODULE_DEVICE_TABLE(of, of_match);
 
 static struct platform_driver knav_dma_driver = {
 	.probe	= knav_dma_probe,
-	.remove_new = knav_dma_remove,
-	.driver = {
+	.remove	= knav_dma_remove,
+	.driver	= {
 		.name		= "keystone-navigator-dma",
 		.of_match_table	= of_match,
 	},

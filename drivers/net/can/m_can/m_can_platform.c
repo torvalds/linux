@@ -231,7 +231,7 @@ static struct platform_driver m_can_plat_driver = {
 		.pm     = &m_can_pmops,
 	},
 	.probe = m_can_plat_probe,
-	.remove_new = m_can_plat_remove,
+	.remove = m_can_plat_remove,
 };
 
 module_platform_driver(m_can_plat_driver);

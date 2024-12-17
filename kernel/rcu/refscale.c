@@ -28,6 +28,7 @@
 #include <linux/rcupdate_trace.h>
 #include <linux/reboot.h>
 #include <linux/sched.h>
+#include <linux/seq_buf.h>
 #include <linux/spinlock.h>
 #include <linux/smp.h>
 #include <linux/stat.h>
@@ -74,6 +75,9 @@ MODULE_PARM_DESC(scale_type, "Type of test (rcu, srcu, refcnt, rwsem, rwlock.");
 torture_param(int, verbose, 0, "Enable verbose debugging printk()s");
 torture_param(int, verbose_batched, 0, "Batch verbose debugging printk()s");
 
+// Number of seconds to extend warm-up and cool-down for multiple guest OSes
+torture_param(long, guest_os_delay, 0,
+	      "Number of seconds to extend warm-up/cool-down for multiple guest OSes.");
 // Wait until there are multiple CPUs before starting test.
 torture_param(int, holdoff, IS_BUILTIN(CONFIG_RCU_REF_SCALE_TEST) ? 10 : 0,
 	      "Holdoff time before test start (s)");
@@ -134,7 +138,7 @@ struct ref_scale_ops {
 	const char *name;
 };
 
-static struct ref_scale_ops *cur_ops;
+static const struct ref_scale_ops *cur_ops;
 
 static void un_delay(const int udl, const int ndl)
 {
@@ -170,7 +174,7 @@ static bool rcu_sync_scale_init(void)
 	return true;
 }
 
-static struct ref_scale_ops rcu_ops = {
+static const struct ref_scale_ops rcu_ops = {
 	.init		= rcu_sync_scale_init,
 	.readsection	= ref_rcu_read_section,
 	.delaysection	= ref_rcu_delay_section,
@@ -204,11 +208,41 @@ static void srcu_ref_scale_delay_section(const int nloops, const int udl, const 
 	}
 }
 
-static struct ref_scale_ops srcu_ops = {
+static const struct ref_scale_ops srcu_ops = {
 	.init		= rcu_sync_scale_init,
 	.readsection	= srcu_ref_scale_read_section,
 	.delaysection	= srcu_ref_scale_delay_section,
 	.name		= "srcu"
+};
+
+static void srcu_lite_ref_scale_read_section(const int nloops)
+{
+	int i;
+	int idx;
+
+	for (i = nloops; i >= 0; i--) {
+		idx = srcu_read_lock_lite(srcu_ctlp);
+		srcu_read_unlock_lite(srcu_ctlp, idx);
+	}
+}
+
+static void srcu_lite_ref_scale_delay_section(const int nloops, const int udl, const int ndl)
+{
+	int i;
+	int idx;
+
+	for (i = nloops; i >= 0; i--) {
+		idx = srcu_read_lock_lite(srcu_ctlp);
+		un_delay(udl, ndl);
+		srcu_read_unlock_lite(srcu_ctlp, idx);
+	}
+}
+
+static const struct ref_scale_ops srcu_lite_ops = {
+	.init		= rcu_sync_scale_init,
+	.readsection	= srcu_lite_ref_scale_read_section,
+	.delaysection	= srcu_lite_ref_scale_delay_section,
+	.name		= "srcu-lite"
 };
 
 #ifdef CONFIG_TASKS_RCU
@@ -231,7 +265,7 @@ static void rcu_tasks_ref_scale_delay_section(const int nloops, const int udl, c
 		un_delay(udl, ndl);
 }
 
-static struct ref_scale_ops rcu_tasks_ops = {
+static const struct ref_scale_ops rcu_tasks_ops = {
 	.init		= rcu_sync_scale_init,
 	.readsection	= rcu_tasks_ref_scale_read_section,
 	.delaysection	= rcu_tasks_ref_scale_delay_section,
@@ -270,7 +304,7 @@ static void rcu_trace_ref_scale_delay_section(const int nloops, const int udl, c
 	}
 }
 
-static struct ref_scale_ops rcu_trace_ops = {
+static const struct ref_scale_ops rcu_trace_ops = {
 	.init		= rcu_sync_scale_init,
 	.readsection	= rcu_trace_ref_scale_read_section,
 	.delaysection	= rcu_trace_ref_scale_delay_section,
@@ -309,7 +343,7 @@ static void ref_refcnt_delay_section(const int nloops, const int udl, const int 
 	}
 }
 
-static struct ref_scale_ops refcnt_ops = {
+static const struct ref_scale_ops refcnt_ops = {
 	.init		= rcu_sync_scale_init,
 	.readsection	= ref_refcnt_section,
 	.delaysection	= ref_refcnt_delay_section,
@@ -346,7 +380,7 @@ static void ref_rwlock_delay_section(const int nloops, const int udl, const int 
 	}
 }
 
-static struct ref_scale_ops rwlock_ops = {
+static const struct ref_scale_ops rwlock_ops = {
 	.init		= ref_rwlock_init,
 	.readsection	= ref_rwlock_section,
 	.delaysection	= ref_rwlock_delay_section,
@@ -383,7 +417,7 @@ static void ref_rwsem_delay_section(const int nloops, const int udl, const int n
 	}
 }
 
-static struct ref_scale_ops rwsem_ops = {
+static const struct ref_scale_ops rwsem_ops = {
 	.init		= ref_rwsem_init,
 	.readsection	= ref_rwsem_section,
 	.delaysection	= ref_rwsem_delay_section,
@@ -418,7 +452,7 @@ static void ref_lock_delay_section(const int nloops, const int udl, const int nd
 	preempt_enable();
 }
 
-static struct ref_scale_ops lock_ops = {
+static const struct ref_scale_ops lock_ops = {
 	.readsection	= ref_lock_section,
 	.delaysection	= ref_lock_delay_section,
 	.name		= "lock"
@@ -453,7 +487,7 @@ static void ref_lock_irq_delay_section(const int nloops, const int udl, const in
 	preempt_enable();
 }
 
-static struct ref_scale_ops lock_irq_ops = {
+static const struct ref_scale_ops lock_irq_ops = {
 	.readsection	= ref_lock_irq_section,
 	.delaysection	= ref_lock_irq_delay_section,
 	.name		= "lock-irq"
@@ -489,7 +523,7 @@ static void ref_acqrel_delay_section(const int nloops, const int udl, const int 
 	preempt_enable();
 }
 
-static struct ref_scale_ops acqrel_ops = {
+static const struct ref_scale_ops acqrel_ops = {
 	.readsection	= ref_acqrel_section,
 	.delaysection	= ref_acqrel_delay_section,
 	.name		= "acqrel"
@@ -523,7 +557,7 @@ static void ref_clock_delay_section(const int nloops, const int udl, const int n
 	stopopts = x;
 }
 
-static struct ref_scale_ops clock_ops = {
+static const struct ref_scale_ops clock_ops = {
 	.readsection	= ref_clock_section,
 	.delaysection	= ref_clock_delay_section,
 	.name		= "clock"
@@ -555,7 +589,7 @@ static void ref_jiffies_delay_section(const int nloops, const int udl, const int
 	stopopts = x;
 }
 
-static struct ref_scale_ops jiffies_ops = {
+static const struct ref_scale_ops jiffies_ops = {
 	.readsection	= ref_jiffies_section,
 	.delaysection	= ref_jiffies_delay_section,
 	.name		= "jiffies"
@@ -705,9 +739,9 @@ static void refscale_typesafe_ctor(void *rtsp_in)
 	preempt_enable();
 }
 
-static struct ref_scale_ops typesafe_ref_ops;
-static struct ref_scale_ops typesafe_lock_ops;
-static struct ref_scale_ops typesafe_seqlock_ops;
+static const struct ref_scale_ops typesafe_ref_ops;
+static const struct ref_scale_ops typesafe_lock_ops;
+static const struct ref_scale_ops typesafe_seqlock_ops;
 
 // Initialize for a typesafe test.
 static bool typesafe_init(void)
@@ -768,7 +802,7 @@ static void typesafe_cleanup(void)
 }
 
 // The typesafe_init() function distinguishes these structures by address.
-static struct ref_scale_ops typesafe_ref_ops = {
+static const struct ref_scale_ops typesafe_ref_ops = {
 	.init		= typesafe_init,
 	.cleanup	= typesafe_cleanup,
 	.readsection	= typesafe_read_section,
@@ -776,7 +810,7 @@ static struct ref_scale_ops typesafe_ref_ops = {
 	.name		= "typesafe_ref"
 };
 
-static struct ref_scale_ops typesafe_lock_ops = {
+static const struct ref_scale_ops typesafe_lock_ops = {
 	.init		= typesafe_init,
 	.cleanup	= typesafe_cleanup,
 	.readsection	= typesafe_read_section,
@@ -784,7 +818,7 @@ static struct ref_scale_ops typesafe_lock_ops = {
 	.name		= "typesafe_lock"
 };
 
-static struct ref_scale_ops typesafe_seqlock_ops = {
+static const struct ref_scale_ops typesafe_seqlock_ops = {
 	.init		= typesafe_init,
 	.cleanup	= typesafe_cleanup,
 	.readsection	= typesafe_read_section,
@@ -798,6 +832,18 @@ static void rcu_scale_one_reader(void)
 		cur_ops->readsection(loops);
 	else
 		cur_ops->delaysection(loops, readdelay / 1000, readdelay % 1000);
+}
+
+// Warm up cache, or, if needed run a series of rcu_scale_one_reader()
+// to allow multiple rcuscale guest OSes to collect mutually valid data.
+static void rcu_scale_warm_cool(void)
+{
+	unsigned long jdone = jiffies + (guest_os_delay > 0 ? guest_os_delay * HZ : -1);
+
+	do {
+		rcu_scale_one_reader();
+		cond_resched();
+	} while (time_before(jiffies, jdone));
 }
 
 // Reader kthread.  Repeatedly does empty RCU read-side
@@ -828,7 +874,7 @@ repeat:
 		goto end;
 
 	// Make sure that the CPU is affinitized appropriately during testing.
-	WARN_ON_ONCE(raw_smp_processor_id() != me);
+	WARN_ON_ONCE(raw_smp_processor_id() != me % nr_cpu_ids);
 
 	WRITE_ONCE(rt->start_reader, 0);
 	if (!atomic_dec_return(&n_started))
@@ -891,32 +937,34 @@ static u64 process_durations(int n)
 {
 	int i;
 	struct reader_task *rt;
-	char buf1[64];
+	struct seq_buf s;
 	char *buf;
 	u64 sum = 0;
 
 	buf = kmalloc(800 + 64, GFP_KERNEL);
 	if (!buf)
 		return 0;
-	buf[0] = 0;
-	sprintf(buf, "Experiment #%d (Format: <THREAD-NUM>:<Total loop time in ns>)",
-		exp_idx);
+	seq_buf_init(&s, buf, 800 + 64);
+
+	seq_buf_printf(&s, "Experiment #%d (Format: <THREAD-NUM>:<Total loop time in ns>)",
+		       exp_idx);
 
 	for (i = 0; i < n && !torture_must_stop(); i++) {
 		rt = &(reader_tasks[i]);
-		sprintf(buf1, "%d: %llu\t", i, rt->last_duration_ns);
 
 		if (i % 5 == 0)
-			strcat(buf, "\n");
-		if (strlen(buf) >= 800) {
-			pr_alert("%s", buf);
-			buf[0] = 0;
+			seq_buf_putc(&s, '\n');
+
+		if (seq_buf_used(&s) >= 800) {
+			pr_alert("%s", seq_buf_str(&s));
+			seq_buf_clear(&s);
 		}
-		strcat(buf, buf1);
+
+		seq_buf_printf(&s, "%d: %llu\t", i, rt->last_duration_ns);
 
 		sum += rt->last_duration_ns;
 	}
-	pr_alert("%s\n", buf);
+	pr_alert("%s\n", seq_buf_str(&s));
 
 	kfree(buf);
 	return sum;
@@ -954,6 +1002,7 @@ static int main_func(void *arg)
 		schedule_timeout_uninterruptible(1);
 
 	// Start exp readers up per experiment
+	rcu_scale_warm_cool();
 	for (exp = 0; exp < nruns && !torture_must_stop(); exp++) {
 		if (torture_must_stop())
 			goto end;
@@ -984,6 +1033,7 @@ static int main_func(void *arg)
 
 		result_avg[exp] = div_u64(1000 * process_durations(nreaders), nreaders * loops);
 	}
+	rcu_scale_warm_cool();
 
 	// Print the average of all experiments
 	SCALEOUT("END OF TEST. Calculating average duration per loop (nanoseconds)...\n");
@@ -1023,7 +1073,7 @@ end:
 }
 
 static void
-ref_scale_print_module_parms(struct ref_scale_ops *cur_ops, const char *tag)
+ref_scale_print_module_parms(const struct ref_scale_ops *cur_ops, const char *tag)
 {
 	pr_alert("%s" SCALE_FLAG
 		 "--- %s:  verbose=%d verbose_batched=%d shutdown=%d holdoff=%d lookup_instances=%ld loops=%ld nreaders=%d nruns=%d readdelay=%d\n", scale_type, tag,
@@ -1078,10 +1128,11 @@ ref_scale_init(void)
 {
 	long i;
 	int firsterr = 0;
-	static struct ref_scale_ops *scale_ops[] = {
-		&rcu_ops, &srcu_ops, RCU_TRACE_OPS RCU_TASKS_OPS &refcnt_ops, &rwlock_ops,
-		&rwsem_ops, &lock_ops, &lock_irq_ops, &acqrel_ops, &clock_ops, &jiffies_ops,
-		&typesafe_ref_ops, &typesafe_lock_ops, &typesafe_seqlock_ops,
+	static const struct ref_scale_ops *scale_ops[] = {
+		&rcu_ops, &srcu_ops, &srcu_lite_ops, RCU_TRACE_OPS RCU_TASKS_OPS
+		&refcnt_ops, &rwlock_ops, &rwsem_ops, &lock_ops, &lock_irq_ops, &acqrel_ops,
+		&clock_ops, &jiffies_ops, &typesafe_ref_ops, &typesafe_lock_ops,
+		&typesafe_seqlock_ops,
 	};
 
 	if (!torture_init_begin(scale_type, verbose))

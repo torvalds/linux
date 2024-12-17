@@ -84,6 +84,4 @@ const struct vb2_ops em28xx_vbi_qops = {
 	.buf_queue      = vbi_buffer_queue,
 	.start_streaming = em28xx_start_analog_streaming,
 	.stop_streaming = em28xx_stop_vbi_streaming,
-	.wait_prepare   = vb2_ops_wait_prepare,
-	.wait_finish    = vb2_ops_wait_finish,
 };

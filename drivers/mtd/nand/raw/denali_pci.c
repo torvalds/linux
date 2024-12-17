@@ -77,18 +77,20 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	denali->reg = devm_ioremap(denali->dev, csr_base, csr_len);
 	if (!denali->reg) {
 		dev_err(&dev->dev, "Spectra: Unable to remap memory region\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto regions_release;
 	}
 
 	denali->host = devm_ioremap(denali->dev, mem_base, mem_len);
 	if (!denali->host) {
 		dev_err(&dev->dev, "Spectra: ioremap failed!");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto regions_release;
 	}
 
 	ret = denali_init(denali);
 	if (ret)
-		return ret;
+		goto regions_release;
 
 	nsels = denali->nbanks;
 
@@ -116,6 +118,8 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 out_remove_denali:
 	denali_remove(denali);
+regions_release:
+	pci_release_regions(dev);
 	return ret;
 }
 
@@ -123,6 +127,7 @@ static void denali_pci_remove(struct pci_dev *dev)
 {
 	struct denali_controller *denali = pci_get_drvdata(dev);
 
+	pci_release_regions(dev);
 	denali_remove(denali);
 }
 

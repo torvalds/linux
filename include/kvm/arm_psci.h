@@ -14,8 +14,10 @@
 #define KVM_ARM_PSCI_0_2	PSCI_VERSION(0, 2)
 #define KVM_ARM_PSCI_1_0	PSCI_VERSION(1, 0)
 #define KVM_ARM_PSCI_1_1	PSCI_VERSION(1, 1)
+#define KVM_ARM_PSCI_1_2	PSCI_VERSION(1, 2)
+#define KVM_ARM_PSCI_1_3	PSCI_VERSION(1, 3)
 
-#define KVM_ARM_PSCI_LATEST	KVM_ARM_PSCI_1_1
+#define KVM_ARM_PSCI_LATEST	KVM_ARM_PSCI_1_3
 
 static inline int kvm_psci_version(struct kvm_vcpu *vcpu)
 {

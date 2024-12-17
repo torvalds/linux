@@ -427,7 +427,7 @@ static struct platform_driver cht_int33fe_typec_driver = {
 		.acpi_match_table = ACPI_PTR(cht_int33fe_acpi_ids),
 	},
 	.probe = cht_int33fe_typec_probe,
-	.remove_new = cht_int33fe_typec_remove,
+	.remove = cht_int33fe_typec_remove,
 };
 
 module_platform_driver(cht_int33fe_typec_driver);

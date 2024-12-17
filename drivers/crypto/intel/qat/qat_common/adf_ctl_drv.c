@@ -247,7 +247,7 @@ static void adf_ctl_stop_devices(u32 id)
 			if (!accel_dev->is_vf)
 				continue;
 
-			adf_dev_down(accel_dev, false);
+			adf_dev_down(accel_dev);
 		}
 	}
 
@@ -256,7 +256,7 @@ static void adf_ctl_stop_devices(u32 id)
 			if (!adf_dev_started(accel_dev))
 				continue;
 
-			adf_dev_down(accel_dev, false);
+			adf_dev_down(accel_dev);
 		}
 	}
 }
@@ -319,7 +319,7 @@ static int adf_ctl_ioctl_dev_start(struct file *fp, unsigned int cmd,
 	if (ret) {
 		dev_err(&GET_DEV(accel_dev), "Failed to start qat_dev%d\n",
 			ctl_data->device_id);
-		adf_dev_down(accel_dev, false);
+		adf_dev_down(accel_dev);
 	}
 out:
 	kfree(ctl_data);
@@ -475,4 +475,4 @@ MODULE_AUTHOR("Intel");
 MODULE_DESCRIPTION("Intel(R) QuickAssist Technology");
 MODULE_ALIAS_CRYPTO("intel_qat");
 MODULE_VERSION(ADF_DRV_VERSION);
-MODULE_IMPORT_NS(CRYPTO_INTERNAL);
+MODULE_IMPORT_NS("CRYPTO_INTERNAL");

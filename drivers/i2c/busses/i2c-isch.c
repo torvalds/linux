@@ -1,41 +1,39 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
-    i2c-isch.c - Linux kernel driver for Intel SCH chipset SMBus
-    - Based on i2c-piix4.c
-    Copyright (c) 1998 - 2002 Frodo Looijaard <frodol@dds.nl> and
-    Philip Edelbrock <phil@netroedge.com>
-    - Intel SCH support
-    Copyright (c) 2007 - 2008 Jacob Jun Pan <jacob.jun.pan@intel.com>
+ *  Linux kernel driver for Intel SCH chipset SMBus
+ *  - Based on i2c-piix4.c
+ *  Copyright (c) 1998 - 2002 Frodo Looijaard <frodol@dds.nl> and
+ *  Philip Edelbrock <phil@netroedge.com>
+ *  - Intel SCH support
+ *  Copyright (c) 2007 - 2008 Jacob Jun Pan <jacob.jun.pan@intel.com>
+ */
 
-*/
+/* Supports: Intel SCH chipsets (AF82US15W, AF82US15L, AF82UL11L) */
 
-/*
-   Supports:
-	Intel SCH chipsets (AF82US15W, AF82US15L, AF82UL11L)
-   Note: we assume there can only be one device, with one SMBus interface.
-*/
-
+#include <linux/container_of.h>
+#include <linux/delay.h>
+#include <linux/device.h>
+#include <linux/errno.h>
+#include <linux/gfp_types.h>
+#include <linux/i2c.h>
+#include <linux/iopoll.h>
+#include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/kernel.h>
-#include <linux/delay.h>
+#include <linux/sprintf.h>
 #include <linux/stddef.h>
-#include <linux/ioport.h>
-#include <linux/i2c.h>
-#include <linux/io.h>
+#include <linux/string_choices.h>
+#include <linux/types.h>
 
 /* SCH SMBus address offsets */
-#define SMBHSTCNT	(0 + sch_smba)
-#define SMBHSTSTS	(1 + sch_smba)
-#define SMBHSTCLK	(2 + sch_smba)
-#define SMBHSTADD	(4 + sch_smba) /* TSA */
-#define SMBHSTCMD	(5 + sch_smba)
-#define SMBHSTDAT0	(6 + sch_smba)
-#define SMBHSTDAT1	(7 + sch_smba)
-#define SMBBLKDAT	(0x20 + sch_smba)
-
-/* Other settings */
-#define MAX_RETRIES	5000
+#define SMBHSTCNT	0x00
+#define SMBHSTSTS	0x01
+#define SMBHSTCLK	0x02
+#define SMBHSTADD	0x04	/* TSA */
+#define SMBHSTCMD	0x05
+#define SMBHSTDAT0	0x06
+#define SMBHSTDAT1	0x07
+#define SMBBLKDAT	0x20
 
 /* I2C constants */
 #define SCH_QUICK		0x00
@@ -44,110 +42,134 @@
 #define SCH_WORD_DATA		0x03
 #define SCH_BLOCK_DATA		0x05
 
-static unsigned short sch_smba;
-static struct i2c_adapter sch_adapter;
+struct sch_i2c {
+	struct i2c_adapter adapter;
+	void __iomem *smba;
+};
+
 static int backbone_speed = 33000; /* backbone speed in kHz */
-module_param(backbone_speed, int, S_IRUSR | S_IWUSR);
+module_param(backbone_speed, int, 0600);
 MODULE_PARM_DESC(backbone_speed, "Backbone speed in kHz, (default = 33000)");
 
-/*
- * Start the i2c transaction -- the i2c_access will prepare the transaction
- * and this function will execute it.
- * return 0 for success and others for failure.
- */
-static int sch_transaction(void)
+static inline u8 sch_io_rd8(struct sch_i2c *priv, unsigned int offset)
 {
-	int temp;
-	int result = 0;
-	int retries = 0;
+	return ioread8(priv->smba + offset);
+}
 
-	dev_dbg(&sch_adapter.dev, "Transaction (pre): CNT=%02x, CMD=%02x, "
-		"ADD=%02x, DAT0=%02x, DAT1=%02x\n", inb(SMBHSTCNT),
-		inb(SMBHSTCMD), inb(SMBHSTADD), inb(SMBHSTDAT0),
-		inb(SMBHSTDAT1));
+static inline void sch_io_wr8(struct sch_i2c *priv, unsigned int offset, u8 value)
+{
+	iowrite8(value, priv->smba + offset);
+}
+
+static inline u16 sch_io_rd16(struct sch_i2c *priv, unsigned int offset)
+{
+	return ioread16(priv->smba + offset);
+}
+
+static inline void sch_io_wr16(struct sch_i2c *priv, unsigned int offset, u16 value)
+{
+	iowrite16(value, priv->smba + offset);
+}
+
+/**
+ * sch_transaction - Start the i2c transaction
+ * @adap: the i2c adapter pointer
+ *
+ * The sch_access() will prepare the transaction and
+ * this function will execute it.
+ *
+ * Return: 0 for success and others for failure.
+ */
+static int sch_transaction(struct i2c_adapter *adap)
+{
+	struct sch_i2c *priv = container_of(adap, struct sch_i2c, adapter);
+	int temp;
+	int rc;
+
+	dev_dbg(&adap->dev,
+		"Transaction (pre): CNT=%02x, CMD=%02x, ADD=%02x, DAT0=%02x, DAT1=%02x\n",
+		sch_io_rd8(priv, SMBHSTCNT), sch_io_rd8(priv, SMBHSTCMD),
+		sch_io_rd8(priv, SMBHSTADD),
+		sch_io_rd8(priv, SMBHSTDAT0), sch_io_rd8(priv, SMBHSTDAT1));
 
 	/* Make sure the SMBus host is ready to start transmitting */
-	temp = inb(SMBHSTSTS) & 0x0f;
+	temp = sch_io_rd8(priv, SMBHSTSTS) & 0x0f;
 	if (temp) {
 		/* Can not be busy since we checked it in sch_access */
-		if (temp & 0x01) {
-			dev_dbg(&sch_adapter.dev, "Completion (%02x). "
-				"Clear...\n", temp);
-		}
-		if (temp & 0x06) {
-			dev_dbg(&sch_adapter.dev, "SMBus error (%02x). "
-				"Resetting...\n", temp);
-		}
-		outb(temp, SMBHSTSTS);
-		temp = inb(SMBHSTSTS) & 0x0f;
+		if (temp & 0x01)
+			dev_dbg(&adap->dev, "Completion (%02x). Clear...\n", temp);
+		if (temp & 0x06)
+			dev_dbg(&adap->dev, "SMBus error (%02x). Resetting...\n", temp);
+		sch_io_wr8(priv, SMBHSTSTS, temp);
+		temp = sch_io_rd8(priv, SMBHSTSTS) & 0x0f;
 		if (temp) {
-			dev_err(&sch_adapter.dev,
-				"SMBus is not ready: (%02x)\n", temp);
+			dev_err(&adap->dev, "SMBus is not ready: (%02x)\n", temp);
 			return -EAGAIN;
 		}
 	}
 
-	/* start the transaction by setting bit 4 */
-	outb(inb(SMBHSTCNT) | 0x10, SMBHSTCNT);
+	/* Start the transaction by setting bit 4 */
+	temp = sch_io_rd8(priv, SMBHSTCNT);
+	temp |= 0x10;
+	sch_io_wr8(priv, SMBHSTCNT, temp);
 
-	do {
-		usleep_range(100, 200);
-		temp = inb(SMBHSTSTS) & 0x0f;
-	} while ((temp & 0x08) && (retries++ < MAX_RETRIES));
-
+	rc = read_poll_timeout(sch_io_rd8, temp, !(temp & 0x08), 200, 500000, true, priv, SMBHSTSTS);
 	/* If the SMBus is still busy, we give up */
-	if (retries > MAX_RETRIES) {
-		dev_err(&sch_adapter.dev, "SMBus Timeout!\n");
-		result = -ETIMEDOUT;
-	}
-	if (temp & 0x04) {
-		result = -EIO;
-		dev_dbg(&sch_adapter.dev, "Bus collision! SMBus may be "
-			"locked until next hard reset. (sorry!)\n");
+	if (rc) {
+		dev_err(&adap->dev, "SMBus Timeout!\n");
+	} else if (temp & 0x04) {
+		rc = -EIO;
+		dev_dbg(&adap->dev, "Bus collision! SMBus may be locked until next hard reset. (sorry!)\n");
 		/* Clock stops and target is stuck in mid-transmission */
 	} else if (temp & 0x02) {
-		result = -EIO;
-		dev_err(&sch_adapter.dev, "Error: no response!\n");
+		rc = -EIO;
+		dev_err(&adap->dev, "Error: no response!\n");
 	} else if (temp & 0x01) {
-		dev_dbg(&sch_adapter.dev, "Post complete!\n");
-		outb(temp, SMBHSTSTS);
-		temp = inb(SMBHSTSTS) & 0x07;
+		dev_dbg(&adap->dev, "Post complete!\n");
+		sch_io_wr8(priv, SMBHSTSTS, temp & 0x0f);
+		temp = sch_io_rd8(priv, SMBHSTSTS) & 0x07;
 		if (temp & 0x06) {
 			/* Completion clear failed */
-			dev_dbg(&sch_adapter.dev, "Failed reset at end of "
-				"transaction (%02x), Bus error!\n", temp);
+			dev_dbg(&adap->dev,
+				"Failed reset at end of transaction (%02x), Bus error!\n", temp);
 		}
 	} else {
-		result = -ENXIO;
-		dev_dbg(&sch_adapter.dev, "No such address.\n");
+		rc = -ENXIO;
+		dev_dbg(&adap->dev, "No such address.\n");
 	}
-	dev_dbg(&sch_adapter.dev, "Transaction (post): CNT=%02x, CMD=%02x, "
-		"ADD=%02x, DAT0=%02x, DAT1=%02x\n", inb(SMBHSTCNT),
-		inb(SMBHSTCMD), inb(SMBHSTADD), inb(SMBHSTDAT0),
-		inb(SMBHSTDAT1));
-	return result;
+	dev_dbg(&adap->dev, "Transaction (post): CNT=%02x, CMD=%02x, ADD=%02x, DAT0=%02x, DAT1=%02x\n",
+		sch_io_rd8(priv, SMBHSTCNT), sch_io_rd8(priv, SMBHSTCMD),
+		sch_io_rd8(priv, SMBHSTADD),
+		sch_io_rd8(priv, SMBHSTDAT0), sch_io_rd8(priv, SMBHSTDAT1));
+	return rc;
 }
 
-/*
- * This is the main access entry for i2c-sch access
- * adap is i2c_adapter pointer, addr is the i2c device bus address, read_write
- * (0 for read and 1 for write), size is i2c transaction type and data is the
- * union of transaction for data to be transferred or data read from bus.
- * return 0 for success and others for failure.
+/**
+ * sch_access - the main access entry for i2c-sch access
+ * @adap: the i2c adapter pointer
+ * @addr: the i2c device bus address
+ * @flags: I2C_CLIENT_* flags (usually zero or I2C_CLIENT_PEC)
+ * @read_write: 0 for read and 1 for write
+ * @command: Byte interpreted by slave, for protocols which use such bytes
+ * @size: the i2c transaction type
+ * @data: the union of transaction for data to be transferred or data read from bus
+ *
+ * Return: 0 for success and others for failure.
  */
 static s32 sch_access(struct i2c_adapter *adap, u16 addr,
 		 unsigned short flags, char read_write,
 		 u8 command, int size, union i2c_smbus_data *data)
 {
+	struct sch_i2c *priv = container_of(adap, struct sch_i2c, adapter);
 	int i, len, temp, rc;
 
 	/* Make sure the SMBus host is not busy */
-	temp = inb(SMBHSTSTS) & 0x0f;
+	temp = sch_io_rd8(priv, SMBHSTSTS) & 0x0f;
 	if (temp & 0x08) {
-		dev_dbg(&sch_adapter.dev, "SMBus busy (%02x)\n", temp);
+		dev_dbg(&adap->dev, "SMBus busy (%02x)\n", temp);
 		return -EAGAIN;
 	}
-	temp = inw(SMBHSTCLK);
+	temp = sch_io_rd16(priv, SMBHSTCLK);
 	if (!temp) {
 		/*
 		 * We can't determine if we have 33 or 25 MHz clock for
@@ -155,50 +177,48 @@ static s32 sch_access(struct i2c_adapter *adap, u16 addr,
 		 * 100 kHz. If we actually run at 25 MHz the bus will be
 		 * run ~75 kHz instead which should do no harm.
 		 */
-		dev_notice(&sch_adapter.dev,
-			"Clock divider uninitialized. Setting defaults\n");
-		outw(backbone_speed / (4 * 100), SMBHSTCLK);
+		dev_notice(&adap->dev, "Clock divider uninitialized. Setting defaults\n");
+		sch_io_wr16(priv, SMBHSTCLK, backbone_speed / (4 * 100));
 	}
 
-	dev_dbg(&sch_adapter.dev, "access size: %d %s\n", size,
-		(read_write)?"READ":"WRITE");
+	dev_dbg(&adap->dev, "access size: %d %s\n", size, str_read_write(read_write));
 	switch (size) {
 	case I2C_SMBUS_QUICK:
-		outb((addr << 1) | read_write, SMBHSTADD);
+		sch_io_wr8(priv, SMBHSTADD, (addr << 1) | read_write);
 		size = SCH_QUICK;
 		break;
 	case I2C_SMBUS_BYTE:
-		outb((addr << 1) | read_write, SMBHSTADD);
+		sch_io_wr8(priv, SMBHSTADD, (addr << 1) | read_write);
 		if (read_write == I2C_SMBUS_WRITE)
-			outb(command, SMBHSTCMD);
+			sch_io_wr8(priv, SMBHSTCMD, command);
 		size = SCH_BYTE;
 		break;
 	case I2C_SMBUS_BYTE_DATA:
-		outb((addr << 1) | read_write, SMBHSTADD);
-		outb(command, SMBHSTCMD);
+		sch_io_wr8(priv, SMBHSTADD, (addr << 1) | read_write);
+		sch_io_wr8(priv, SMBHSTCMD, command);
 		if (read_write == I2C_SMBUS_WRITE)
-			outb(data->byte, SMBHSTDAT0);
+			sch_io_wr8(priv, SMBHSTDAT0, data->byte);
 		size = SCH_BYTE_DATA;
 		break;
 	case I2C_SMBUS_WORD_DATA:
-		outb((addr << 1) | read_write, SMBHSTADD);
-		outb(command, SMBHSTCMD);
+		sch_io_wr8(priv, SMBHSTADD, (addr << 1) | read_write);
+		sch_io_wr8(priv, SMBHSTCMD, command);
 		if (read_write == I2C_SMBUS_WRITE) {
-			outb(data->word & 0xff, SMBHSTDAT0);
-			outb((data->word & 0xff00) >> 8, SMBHSTDAT1);
+			sch_io_wr8(priv, SMBHSTDAT0, data->word >> 0);
+			sch_io_wr8(priv, SMBHSTDAT1, data->word >> 8);
 		}
 		size = SCH_WORD_DATA;
 		break;
 	case I2C_SMBUS_BLOCK_DATA:
-		outb((addr << 1) | read_write, SMBHSTADD);
-		outb(command, SMBHSTCMD);
+		sch_io_wr8(priv, SMBHSTADD, (addr << 1) | read_write);
+		sch_io_wr8(priv, SMBHSTCMD, command);
 		if (read_write == I2C_SMBUS_WRITE) {
 			len = data->block[0];
 			if (len == 0 || len > I2C_SMBUS_BLOCK_MAX)
 				return -EINVAL;
-			outb(len, SMBHSTDAT0);
+			sch_io_wr8(priv, SMBHSTDAT0, len);
 			for (i = 1; i <= len; i++)
-				outb(data->block[i], SMBBLKDAT+i-1);
+				sch_io_wr8(priv, SMBBLKDAT + i - 1, data->block[i]);
 		}
 		size = SCH_BLOCK_DATA;
 		break;
@@ -206,10 +226,13 @@ static s32 sch_access(struct i2c_adapter *adap, u16 addr,
 		dev_warn(&adap->dev, "Unsupported transaction %d\n", size);
 		return -EOPNOTSUPP;
 	}
-	dev_dbg(&sch_adapter.dev, "write size %d to 0x%04x\n", size, SMBHSTCNT);
-	outb((inb(SMBHSTCNT) & 0xb0) | (size & 0x7), SMBHSTCNT);
+	dev_dbg(&adap->dev, "write size %d to 0x%04x\n", size, SMBHSTCNT);
 
-	rc = sch_transaction();
+	temp = sch_io_rd8(priv, SMBHSTCNT);
+	temp = (temp & 0xb0) | (size & 0x7);
+	sch_io_wr8(priv, SMBHSTCNT, temp);
+
+	rc = sch_transaction(adap);
 	if (rc)	/* Error in transaction */
 		return rc;
 
@@ -219,17 +242,18 @@ static s32 sch_access(struct i2c_adapter *adap, u16 addr,
 	switch (size) {
 	case SCH_BYTE:
 	case SCH_BYTE_DATA:
-		data->byte = inb(SMBHSTDAT0);
+		data->byte = sch_io_rd8(priv, SMBHSTDAT0);
 		break;
 	case SCH_WORD_DATA:
-		data->word = inb(SMBHSTDAT0) + (inb(SMBHSTDAT1) << 8);
+		data->word = (sch_io_rd8(priv, SMBHSTDAT0) << 0) +
+			     (sch_io_rd8(priv, SMBHSTDAT1) << 8);
 		break;
 	case SCH_BLOCK_DATA:
-		data->block[0] = inb(SMBHSTDAT0);
+		data->block[0] = sch_io_rd8(priv, SMBHSTDAT0);
 		if (data->block[0] == 0 || data->block[0] > I2C_SMBUS_BLOCK_MAX)
 			return -EPROTO;
 		for (i = 1; i <= data->block[0]; i++)
-			data->block[i] = inb(SMBBLKDAT+i-1);
+			data->block[i] = sch_io_rd8(priv, SMBBLKDAT + i - 1);
 		break;
 	}
 	return 0;
@@ -247,51 +271,34 @@ static const struct i2c_algorithm smbus_algorithm = {
 	.functionality	= sch_func,
 };
 
-static struct i2c_adapter sch_adapter = {
-	.owner		= THIS_MODULE,
-	.class		= I2C_CLASS_HWMON,
-	.algo		= &smbus_algorithm,
-};
-
-static int smbus_sch_probe(struct platform_device *dev)
+static int smbus_sch_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
+	struct sch_i2c *priv;
 	struct resource *res;
-	int retval;
 
-	res = platform_get_resource(dev, IORESOURCE_IO, 0);
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (!res)
 		return -EBUSY;
 
-	if (!devm_request_region(&dev->dev, res->start, resource_size(res),
-				 dev->name)) {
-		dev_err(&dev->dev, "SMBus region 0x%x already in use!\n",
-			sch_smba);
-		return -EBUSY;
-	}
+	priv->smba = devm_ioport_map(dev, res->start, resource_size(res));
+	if (!priv->smba)
+		return dev_err_probe(dev, -EBUSY, "SMBus region %pR already in use!\n", res);
 
-	sch_smba = res->start;
+	/* Set up the sysfs linkage to our parent device */
+	priv->adapter.dev.parent = dev;
+	priv->adapter.owner = THIS_MODULE,
+	priv->adapter.class = I2C_CLASS_HWMON,
+	priv->adapter.algo = &smbus_algorithm,
 
-	dev_dbg(&dev->dev, "SMBA = 0x%X\n", sch_smba);
+	snprintf(priv->adapter.name, sizeof(priv->adapter.name),
+		 "SMBus SCH adapter at %04x", (unsigned short)res->start);
 
-	/* set up the sysfs linkage to our parent device */
-	sch_adapter.dev.parent = &dev->dev;
-
-	snprintf(sch_adapter.name, sizeof(sch_adapter.name),
-		"SMBus SCH adapter at %04x", sch_smba);
-
-	retval = i2c_add_adapter(&sch_adapter);
-	if (retval)
-		sch_smba = 0;
-
-	return retval;
-}
-
-static void smbus_sch_remove(struct platform_device *pdev)
-{
-	if (sch_smba) {
-		i2c_del_adapter(&sch_adapter);
-		sch_smba = 0;
-	}
+	return devm_i2c_add_adapter(dev, &priv->adapter);
 }
 
 static struct platform_driver smbus_sch_driver = {
@@ -299,7 +306,6 @@ static struct platform_driver smbus_sch_driver = {
 		.name = "isch_smbus",
 	},
 	.probe		= smbus_sch_probe,
-	.remove_new	= smbus_sch_remove,
 };
 
 module_platform_driver(smbus_sch_driver);

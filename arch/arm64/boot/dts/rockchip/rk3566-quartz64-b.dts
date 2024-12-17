@@ -81,7 +81,7 @@
 		power-off-delay-us = <5000000>;
 	};
 
-	vcc3v3_pcie_p: vcc3v3-pcie-p-regulator {
+	vcc3v3_pcie_p: regulator-vcc3v3-pcie-p {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio0 RK_PA6 GPIO_ACTIVE_HIGH>;
@@ -93,7 +93,7 @@
 		vin-supply = <&vcc_3v3>;
 	};
 
-	vcc5v0_in: vcc5v0-in-regulator {
+	vcc5v0_in: regulator-vcc5v0-in {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_in";
 		regulator-always-on;
@@ -102,7 +102,7 @@
 		regulator-max-microvolt = <5000000>;
 	};
 
-	vcc5v0_sys: vcc5v0-sys-regulator {
+	vcc5v0_sys: regulator-vcc5v0-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_sys";
 		regulator-always-on;
@@ -112,7 +112,7 @@
 		vin-supply = <&vcc5v0_in>;
 	};
 
-	vcc3v3_sys: vcc3v3-sys-regulator {
+	vcc3v3_sys: regulator-vcc3v3-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_sys";
 		regulator-min-microvolt = <3300000>;
@@ -121,7 +121,7 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	vcc5v0_usb30_host: vcc5v0-usb30-host-regulator {
+	vcc5v0_usb30_host: regulator-vcc5v0-usb30-host {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_usb30_host";
 		enable-active-high;
@@ -134,7 +134,7 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	vcc5v0_usb_otg: vcc5v0-usb-otg-regulator {
+	vcc5v0_usb_otg: regulator-vcc5v0-usb-otg {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_usb_otg";
 		enable-active-high;
@@ -255,7 +255,7 @@
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int>, <&i2s1m0_mclk>;
-		rockchip,system-power-controller;
+		system-power-controller;
 		#sound-dai-cells = <0>;
 		wakeup-source;
 		#clock-cells = <1>;
@@ -648,6 +648,8 @@
 };
 
 &tsadc {
+	rockchip,hw-tshut-mode = <1>;
+	rockchip,hw-tshut-polarity = <0>;
 	status = "okay";
 };
 

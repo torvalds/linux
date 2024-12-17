@@ -852,7 +852,8 @@ static int cp2112_set_usb_config(struct hid_device *hdev,
 {
 	int ret;
 
-	BUG_ON(cfg->report != CP2112_USB_CONFIG);
+	if (WARN_ON(cfg->report != CP2112_USB_CONFIG))
+		return -EINVAL;
 
 	ret = cp2112_hid_output(hdev, (u8 *)cfg, sizeof(*cfg),
 				HID_FEATURE_REPORT);
@@ -1094,7 +1095,6 @@ static void cp2112_gpio_poll_callback(struct work_struct *work)
 {
 	struct cp2112_device *dev = container_of(work, struct cp2112_device,
 						 gpio_poll_worker.work);
-	struct irq_data *d;
 	u8 gpio_mask;
 	u32 irq_type;
 	int irq, virq, ret;
@@ -1111,11 +1111,9 @@ static void cp2112_gpio_poll_callback(struct work_struct *work)
 		if (!irq)
 			continue;
 
-		d = irq_get_irq_data(irq);
-		if (!d)
+		irq_type = irq_get_trigger_type(irq);
+		if (!irq_type)
 			continue;
-
-		irq_type = irqd_get_trigger_type(d);
 
 		if (gpio_mask & BIT(virq)) {
 			/* Level High */

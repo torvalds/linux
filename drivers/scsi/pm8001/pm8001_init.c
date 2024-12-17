@@ -68,6 +68,10 @@ static bool pm8001_read_wwn = true;
 module_param_named(read_wwn, pm8001_read_wwn, bool, 0444);
 MODULE_PARM_DESC(zoned, "Get WWN from the controller. Default: true");
 
+uint pcs_event_log_severity = 0x03;
+module_param(pcs_event_log_severity, int, 0644);
+MODULE_PARM_DESC(pcs_event_log_severity, "PCS event log severity level");
+
 static struct scsi_transport_template *pm8001_stt;
 static int pm8001_init_ccb_tag(struct pm8001_hba_info *);
 
@@ -100,10 +104,12 @@ static void pm8001_map_queues(struct Scsi_Host *shost)
 	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
 	struct blk_mq_queue_map *qmap = &shost->tag_set.map[HCTX_TYPE_DEFAULT];
 
-	if (pm8001_ha->number_of_intr > 1)
+	if (pm8001_ha->number_of_intr > 1) {
 		blk_mq_pci_map_queues(qmap, pm8001_ha->pdev, 1);
+		return;
+	}
 
-	return blk_mq_map_queues(qmap);
+	blk_mq_map_queues(qmap);
 }
 
 /*
@@ -115,6 +121,7 @@ static const struct scsi_host_template pm8001_sht = {
 	.scan_start		= pm8001_scan_start,
 	.can_queue		= 1,
 	.sg_tablesize		= PM8001_MAX_DMA_SG,
+	.max_sectors		= PM8001_MAX_SECTORS,
 	.shost_groups		= pm8001_host_groups,
 	.sdev_groups		= pm8001_sdev_groups,
 	.track_queue_depth	= 1,
@@ -445,9 +452,6 @@ static int pm8001_alloc(struct pm8001_hba_info *pm8001_ha,
 	}
 	for (i = 0; i < PM8001_MAX_DEVICES; i++) {
 		pm8001_ha->devices[i].dev_type = SAS_PHY_UNUSED;
-		pm8001_ha->devices[i].id = i;
-		pm8001_ha->devices[i].device_id = PM8001_MAX_DEVICES;
-		atomic_set(&pm8001_ha->devices[i].running_req, 0);
 	}
 	pm8001_ha->flags = PM8001F_INIT_TIME;
 	return 0;

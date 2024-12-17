@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /* Copyright (c) 2021, Microsoft Corporation. */
 
+#include <linux/debugfs.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/utsname.h>
 #include <linux/version.h>
 
 #include <net/mana/mana.h>
+
+struct dentry *mana_debugfs_root;
 
 static u32 mana_gd_r32(struct gdma_context *g, u64 offset)
 {
@@ -174,7 +177,7 @@ int mana_gd_send_request(struct gdma_context *gc, u32 req_len, const void *req,
 
 	return mana_hwc_send_request(hwc, req_len, req, resp_len, resp);
 }
-EXPORT_SYMBOL_NS(mana_gd_send_request, NET_MANA);
+EXPORT_SYMBOL_NS(mana_gd_send_request, "NET_MANA");
 
 int mana_gd_alloc_memory(struct gdma_context *gc, unsigned int length,
 			 struct gdma_mem_info *gmi)
@@ -713,7 +716,7 @@ int mana_gd_destroy_dma_region(struct gdma_context *gc, u64 dma_region_handle)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(mana_gd_destroy_dma_region, NET_MANA);
+EXPORT_SYMBOL_NS(mana_gd_destroy_dma_region, "NET_MANA");
 
 static int mana_gd_create_dma_region(struct gdma_dev *gd,
 				     struct gdma_mem_info *gmi)
@@ -817,7 +820,7 @@ free_q:
 	kfree(queue);
 	return err;
 }
-EXPORT_SYMBOL_NS(mana_gd_create_mana_eq, NET_MANA);
+EXPORT_SYMBOL_NS(mana_gd_create_mana_eq, "NET_MANA");
 
 int mana_gd_create_mana_wq_cq(struct gdma_dev *gd,
 			      const struct gdma_queue_spec *spec,
@@ -894,7 +897,7 @@ void mana_gd_destroy_queue(struct gdma_context *gc, struct gdma_queue *queue)
 	mana_gd_free_memory(gmi);
 	kfree(queue);
 }
-EXPORT_SYMBOL_NS(mana_gd_destroy_queue, NET_MANA);
+EXPORT_SYMBOL_NS(mana_gd_destroy_queue, "NET_MANA");
 
 int mana_gd_verify_vf_version(struct pci_dev *pdev)
 {
@@ -971,7 +974,7 @@ int mana_gd_register_device(struct gdma_dev *gd)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(mana_gd_register_device, NET_MANA);
+EXPORT_SYMBOL_NS(mana_gd_register_device, "NET_MANA");
 
 int mana_gd_deregister_device(struct gdma_dev *gd)
 {
@@ -1002,7 +1005,7 @@ int mana_gd_deregister_device(struct gdma_dev *gd)
 
 	return err;
 }
-EXPORT_SYMBOL_NS(mana_gd_deregister_device, NET_MANA);
+EXPORT_SYMBOL_NS(mana_gd_deregister_device, "NET_MANA");
 
 u32 mana_gd_wq_avail_space(struct gdma_queue *wq)
 {
@@ -1315,7 +1318,7 @@ static int mana_gd_setup_irqs(struct pci_dev *pdev)
 				   GFP_KERNEL);
 	if (!gc->irq_contexts) {
 		err = -ENOMEM;
-		goto free_irq_vector;
+		goto free_irq_array;
 	}
 
 	for (i = 0; i < nvec; i++) {
@@ -1372,6 +1375,7 @@ static int mana_gd_setup_irqs(struct pci_dev *pdev)
 	gc->max_num_msix = nvec;
 	gc->num_msix_usable = nvec;
 	cpus_read_unlock();
+	kfree(irqs);
 	return 0;
 
 free_irq:
@@ -1384,8 +1388,9 @@ free_irq:
 	}
 
 	kfree(gc->irq_contexts);
-	kfree(irqs);
 	gc->irq_contexts = NULL;
+free_irq_array:
+	kfree(irqs);
 free_irq_vector:
 	cpus_read_unlock();
 	pci_free_irq_vectors(pdev);
@@ -1496,11 +1501,7 @@ static int mana_gd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto release_region;
 
-	err = dma_set_max_seg_size(&pdev->dev, UINT_MAX);
-	if (err) {
-		dev_err(&pdev->dev, "Failed to set dma device segment size\n");
-		goto release_region;
-	}
+	dma_set_max_seg_size(&pdev->dev, UINT_MAX);
 
 	err = -ENOMEM;
 	gc = vzalloc(sizeof(*gc));
@@ -1520,6 +1521,12 @@ static int mana_gd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	gc->bar0_va = bar0_va;
 	gc->dev = &pdev->dev;
 
+	if (gc->is_pf)
+		gc->mana_pci_debugfs = debugfs_create_dir("0", mana_debugfs_root);
+	else
+		gc->mana_pci_debugfs = debugfs_create_dir(pci_slot_name(pdev->slot),
+							  mana_debugfs_root);
+
 	err = mana_gd_setup(pdev);
 	if (err)
 		goto unmap_bar;
@@ -1533,6 +1540,13 @@ static int mana_gd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 cleanup_gd:
 	mana_gd_cleanup(pdev);
 unmap_bar:
+	/*
+	 * at this point we know that the other debugfs child dir/files
+	 * are either not yet created or are already cleaned up.
+	 * The pci debugfs folder clean-up now, will only be cleaning up
+	 * adapter-MTU file and apc->mana_pci_debugfs folder.
+	 */
+	debugfs_remove_recursive(gc->mana_pci_debugfs);
 	pci_iounmap(pdev, bar0_va);
 free_gc:
 	pci_set_drvdata(pdev, NULL);
@@ -1552,6 +1566,8 @@ static void mana_gd_remove(struct pci_dev *pdev)
 	mana_remove(&gc->mana, false);
 
 	mana_gd_cleanup(pdev);
+
+	debugfs_remove_recursive(gc->mana_pci_debugfs);
 
 	pci_iounmap(pdev, gc->bar0_va);
 
@@ -1604,6 +1620,8 @@ static void mana_gd_shutdown(struct pci_dev *pdev)
 
 	mana_gd_cleanup(pdev);
 
+	debugfs_remove_recursive(gc->mana_pci_debugfs);
+
 	pci_disable_device(pdev);
 }
 
@@ -1623,7 +1641,28 @@ static struct pci_driver mana_driver = {
 	.shutdown	= mana_gd_shutdown,
 };
 
-module_pci_driver(mana_driver);
+static int __init mana_driver_init(void)
+{
+	int err;
+
+	mana_debugfs_root = debugfs_create_dir("mana", NULL);
+
+	err = pci_register_driver(&mana_driver);
+	if (err)
+		debugfs_remove(mana_debugfs_root);
+
+	return err;
+}
+
+static void __exit mana_driver_exit(void)
+{
+	debugfs_remove(mana_debugfs_root);
+
+	pci_unregister_driver(&mana_driver);
+}
+
+module_init(mana_driver_init);
+module_exit(mana_driver_exit);
 
 MODULE_DEVICE_TABLE(pci, mana_id_table);
 

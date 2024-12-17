@@ -291,8 +291,8 @@ static int mp9941_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id mp9941_id[] = {
-	{"mp9941", 0},
-	{}
+	{ "mp9941" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mp9941_id);
 
@@ -316,4 +316,4 @@ module_i2c_driver(mp9941_driver);
 MODULE_AUTHOR("Noah Wang <noahwang.wang@outlook.com>");
 MODULE_DESCRIPTION("PMBus driver for MPS MP9941");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(PMBUS);
+MODULE_IMPORT_NS("PMBUS");

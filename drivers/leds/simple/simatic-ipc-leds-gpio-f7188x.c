@@ -93,7 +93,7 @@ static void simatic_ipc_leds_gpio_f7188x_remove(struct platform_device *pdev)
 
 static struct platform_driver simatic_ipc_led_gpio_driver = {
 	.probe = simatic_ipc_leds_gpio_f7188x_probe,
-	.remove_new = simatic_ipc_leds_gpio_f7188x_remove,
+	.remove = simatic_ipc_leds_gpio_f7188x_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
 	},

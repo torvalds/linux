@@ -85,7 +85,7 @@ void iwl_drv_stop(struct iwl_drv *drv);
  * everything is built-in, then we can avoid that.
  */
 #ifdef CONFIG_IWLWIFI_OPMODE_MODULAR
-#define IWL_EXPORT_SYMBOL(sym)	EXPORT_SYMBOL_NS_GPL(sym, IWLWIFI)
+#define IWL_EXPORT_SYMBOL(sym)	EXPORT_SYMBOL_NS_GPL(sym, "IWLWIFI")
 #else
 #define IWL_EXPORT_SYMBOL(sym)
 #endif
@@ -97,6 +97,9 @@ void iwl_drv_stop(struct iwl_drv *drv);
 #define EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(sym)
 #define VISIBLE_IF_IWLWIFI_KUNIT static
 #endif
+
+/* max retry for init flow */
+#define IWL_MAX_INIT_RETRY 2
 
 #define FW_NAME_PRE_BUFSIZE	64
 struct iwl_trans;

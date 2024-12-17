@@ -877,7 +877,10 @@ static void ub913_remove(struct i2c_client *client)
 	ub913_gpiochip_remove(priv);
 }
 
-static const struct i2c_device_id ub913_id[] = { { "ds90ub913a-q1", 0 }, {} };
+static const struct i2c_device_id ub913_id[] = {
+	{ "ds90ub913a-q1" },
+	{}
+};
 MODULE_DEVICE_TABLE(i2c, ub913_id);
 
 static const struct of_device_id ub913_dt_ids[] = {
@@ -901,4 +904,4 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Texas Instruments DS90UB913 FPD-Link III Serializer Driver");
 MODULE_AUTHOR("Luca Ceresoli <luca@lucaceresoli.net>");
 MODULE_AUTHOR("Tomi Valkeinen <tomi.valkeinen@ideasonboard.com>");
-MODULE_IMPORT_NS(I2C_ATR);
+MODULE_IMPORT_NS("I2C_ATR");

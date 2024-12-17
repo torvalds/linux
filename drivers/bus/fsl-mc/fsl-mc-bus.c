@@ -309,7 +309,7 @@ static struct attribute *fsl_mc_bus_attrs[] = {
 
 ATTRIBUTE_GROUPS(fsl_mc_bus);
 
-struct bus_type fsl_mc_bus_type = {
+const struct bus_type fsl_mc_bus_type = {
 	.name = "fsl-mc",
 	.match = fsl_mc_bus_match,
 	.uevent = fsl_mc_bus_uevent,
@@ -1210,7 +1210,7 @@ static struct platform_driver fsl_mc_bus_driver = {
 		   .acpi_match_table = fsl_mc_bus_acpi_match_table,
 		   },
 	.probe = fsl_mc_bus_probe,
-	.remove_new = fsl_mc_bus_remove,
+	.remove = fsl_mc_bus_remove,
 	.shutdown = fsl_mc_bus_remove,
 };
 

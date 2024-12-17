@@ -74,6 +74,7 @@ static const struct platform_test_case cases[] = {
 	GMDID_CASE(METEORLAKE, 1274, A0, 1300, A0),
 	GMDID_CASE(LUNARLAKE, 2004, A0, 2000, A0),
 	GMDID_CASE(LUNARLAKE, 2004, B0, 2000, A0),
+	GMDID_CASE(BATTLEMAGE, 2001, A0, 1301, A1),
 };
 
 static void platform_desc(const struct platform_test_case *t, char *desc)

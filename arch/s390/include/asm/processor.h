@@ -39,11 +39,13 @@
 #include <asm/runtime_instr.h>
 #include <asm/irqflags.h>
 #include <asm/alternative.h>
+#include <asm/fault.h>
 
 struct pcpu {
 	unsigned long ec_mask;		/* bit mask for ec_xxx functions */
 	unsigned long ec_clk;		/* sigp timestamp for ec_xxx */
 	unsigned long flags;		/* per CPU flags */
+	unsigned long capacity;		/* cpu capacity for scheduler */
 	signed char state;		/* physical cpu state */
 	signed char polarization;	/* physical polarization */
 	u16 address;			/* physical cpu address */
@@ -186,10 +188,8 @@ struct thread_struct {
 	unsigned long hardirq_timer;		/* task cputime in hardirq context */
 	unsigned long softirq_timer;		/* task cputime in softirq context */
 	const sys_call_ptr_t *sys_call_table;	/* system call table address */
-	unsigned long gmap_addr;		/* address of last gmap fault. */
-	unsigned int gmap_write_flag;		/* gmap fault write indication */
+	union teid gmap_teid;			/* address and flags of last gmap fault */
 	unsigned int gmap_int_code;		/* int code of last gmap fault */
-	unsigned int gmap_pfault;		/* signal of a pending guest pfault */
 	int ufpu_flags;				/* user fpu flags */
 	int kfpu_flags;				/* kernel fpu flags */
 

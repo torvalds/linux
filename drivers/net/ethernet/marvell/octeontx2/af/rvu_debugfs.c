@@ -45,33 +45,6 @@ enum {
 	CGX_STAT18,
 };
 
-/* NIX TX stats */
-enum nix_stat_lf_tx {
-	TX_UCAST	= 0x0,
-	TX_BCAST	= 0x1,
-	TX_MCAST	= 0x2,
-	TX_DROP		= 0x3,
-	TX_OCTS		= 0x4,
-	TX_STATS_ENUM_LAST,
-};
-
-/* NIX RX stats */
-enum nix_stat_lf_rx {
-	RX_OCTS		= 0x0,
-	RX_UCAST	= 0x1,
-	RX_BCAST	= 0x2,
-	RX_MCAST	= 0x3,
-	RX_DROP		= 0x4,
-	RX_DROP_OCTS	= 0x5,
-	RX_FCS		= 0x6,
-	RX_ERR		= 0x7,
-	RX_DRP_BCAST	= 0x8,
-	RX_DRP_MCAST	= 0x9,
-	RX_DRP_L3BCAST	= 0xa,
-	RX_DRP_L3MCAST	= 0xb,
-	RX_STATS_ENUM_LAST,
-};
-
 static char *cgx_rx_stats_fields[] = {
 	[CGX_STAT0]	= "Received packets",
 	[CGX_STAT1]	= "Octets of received packets",
@@ -663,16 +636,16 @@ static ssize_t rvu_dbg_lmtst_map_table_display(struct file *filp,
 
 RVU_DEBUG_FOPS(lmtst_map_table, lmtst_map_table_display, NULL);
 
-static void get_lf_str_list(struct rvu_block block, int pcifunc,
+static void get_lf_str_list(const struct rvu_block *block, int pcifunc,
 			    char *lfs)
 {
-	int lf = 0, seq = 0, len = 0, prev_lf = block.lf.max;
+	int lf = 0, seq = 0, len = 0, prev_lf = block->lf.max;
 
-	for_each_set_bit(lf, block.lf.bmap, block.lf.max) {
-		if (lf >= block.lf.max)
+	for_each_set_bit(lf, block->lf.bmap, block->lf.max) {
+		if (lf >= block->lf.max)
 			break;
 
-		if (block.fn_map[lf] != pcifunc)
+		if (block->fn_map[lf] != pcifunc)
 			continue;
 
 		if (lf == prev_lf + 1) {
@@ -719,7 +692,7 @@ static int get_max_column_width(struct rvu *rvu)
 				if (!strlen(block.name))
 					continue;
 
-				get_lf_str_list(block, pcifunc, buf);
+				get_lf_str_list(&block, pcifunc, buf);
 				if (lf_str_size <= strlen(buf))
 					lf_str_size = strlen(buf) + 1;
 			}
@@ -803,7 +776,7 @@ static ssize_t rvu_dbg_rsrc_attach_status(struct file *filp,
 					continue;
 				len = 0;
 				lfs[len] = '\0';
-				get_lf_str_list(block, pcifunc, lfs);
+				get_lf_str_list(&block, pcifunc, lfs);
 				if (strlen(lfs))
 					flag = 1;
 
@@ -838,10 +811,10 @@ RVU_DEBUG_FOPS(rsrc_status, rsrc_attach_status, NULL);
 
 static int rvu_dbg_rvu_pf_cgx_map_display(struct seq_file *filp, void *unused)
 {
+	char cgx[10], lmac[10], chan[10];
 	struct rvu *rvu = filp->private;
 	struct pci_dev *pdev = NULL;
 	struct mac_ops *mac_ops;
-	char cgx[10], lmac[10];
 	struct rvu_pfvf *pfvf;
 	int pf, domain, blkid;
 	u8 cgx_id, lmac_id;
@@ -852,7 +825,7 @@ static int rvu_dbg_rvu_pf_cgx_map_display(struct seq_file *filp, void *unused)
 	/* There can be no CGX devices at all */
 	if (!mac_ops)
 		return 0;
-	seq_printf(filp, "PCI dev\t\tRVU PF Func\tNIX block\t%s\tLMAC\n",
+	seq_printf(filp, "PCI dev\t\tRVU PF Func\tNIX block\t%s\tLMAC\tCHAN\n",
 		   mac_ops->name);
 	for (pf = 0; pf < rvu->hw->total_pfs; pf++) {
 		if (!is_pf_cgxmapped(rvu, pf))
@@ -876,8 +849,11 @@ static int rvu_dbg_rvu_pf_cgx_map_display(struct seq_file *filp, void *unused)
 				    &lmac_id);
 		sprintf(cgx, "%s%d", mac_ops->name, cgx_id);
 		sprintf(lmac, "LMAC%d", lmac_id);
-		seq_printf(filp, "%s\t0x%x\t\tNIX%d\t\t%s\t%s\n",
-			   dev_name(&pdev->dev), pcifunc, blkid, cgx, lmac);
+		sprintf(chan, "%d",
+			rvu_nix_chan_cgx(rvu, cgx_id, lmac_id, 0));
+		seq_printf(filp, "%s\t0x%x\t\tNIX%d\t\t%s\t%s\t%s\n",
+			   dev_name(&pdev->dev), pcifunc, blkid, cgx, lmac,
+			   chan);
 
 		pci_dev_put(pdev);
 	}

@@ -338,11 +338,9 @@ static int brcmstb_thermal_probe(struct platform_device *pdev)
 
 	thermal = devm_thermal_of_zone_register(&pdev->dev, 0, priv,
 						of_ops);
-	if (IS_ERR(thermal)) {
-		ret = PTR_ERR(thermal);
-		dev_err(&pdev->dev, "could not register sensor: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(thermal))
+		return dev_err_probe(&pdev->dev, PTR_ERR(thermal),
+					"could not register sensor\n");
 
 	priv->thermal = thermal;
 
@@ -352,10 +350,9 @@ static int brcmstb_thermal_probe(struct platform_device *pdev)
 						brcmstb_tmon_irq_thread,
 						IRQF_ONESHOT,
 						DRV_NAME, priv);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "could not request IRQ: %d\n", ret);
-			return ret;
-		}
+		if (ret < 0)
+			return dev_err_probe(&pdev->dev, ret,
+						"could not request IRQ\n");
 	}
 
 	dev_info(&pdev->dev, "registered AVS TMON of-sensor driver\n");

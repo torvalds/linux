@@ -112,7 +112,7 @@ More Information
 
 - How to contribute to TIPC:
 
-- http://tipc.io/contacts.html
+  http://tipc.io/contacts.html
 
 - More details about TIPC specification:
 

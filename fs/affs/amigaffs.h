@@ -49,12 +49,13 @@ struct affs_short_date {
 
 struct affs_root_head {
 	__be32 ptype;
+	/* The following fields are not used, but kept as documentation. */
 	__be32 spare1;
 	__be32 spare2;
 	__be32 hash_size;
 	__be32 spare3;
 	__be32 checksum;
-	__be32 hashtable[1];
+	__be32 hashtable[];
 };
 
 struct affs_root_tail {

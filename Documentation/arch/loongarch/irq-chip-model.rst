@@ -85,6 +85,102 @@ to CPUINTC directly::
     | Devices |
     +---------+
 
+Virtual Extended IRQ model
+==========================
+
+In this model, IPI (Inter-Processor Interrupt) and CPU Local Timer interrupt
+go to CPUINTC directly, CPU UARTS interrupts go to PCH-PIC, while all other
+devices interrupts go to PCH-PIC/PCH-MSI and gathered by V-EIOINTC (Virtual
+Extended I/O Interrupt Controller), and then go to CPUINTC directly::
+
+       +-----+    +-------------------+     +-------+
+       | IPI |--> | CPUINTC(0-255vcpu)| <-- | Timer |
+       +-----+    +-------------------+     +-------+
+                            ^
+                            |
+                      +-----------+
+                      | V-EIOINTC |
+                      +-----------+
+                       ^         ^
+                       |         |
+                +---------+ +---------+
+                | PCH-PIC | | PCH-MSI |
+                +---------+ +---------+
+                  ^      ^          ^
+                  |      |          |
+           +--------+ +---------+ +---------+
+           | UARTs  | | Devices | | Devices |
+           +--------+ +---------+ +---------+
+
+
+Description
+-----------
+V-EIOINTC (Virtual Extended I/O Interrupt Controller) is an extension of
+EIOINTC, it only works in VM mode which runs in KVM hypervisor. Interrupts can
+be routed to up to four vCPUs via standard EIOINTC, however with V-EIOINTC
+interrupts can be routed to up to 256 virtual cpus.
+
+With standard EIOINTC, interrupt routing setting includes two parts: eight
+bits for CPU selection and four bits for CPU IP (Interrupt Pin) selection.
+For CPU selection there is four bits for EIOINTC node selection, four bits
+for EIOINTC CPU selection. Bitmap method is used for CPU selection and
+CPU IP selection, so interrupt can only route to CPU0 - CPU3 and IP0-IP3 in
+one EIOINTC node.
+
+With V-EIOINTC it supports to route more CPUs and CPU IP (Interrupt Pin),
+there are two newly added registers with V-EIOINTC.
+
+EXTIOI_VIRT_FEATURES
+--------------------
+This register is read-only register, which indicates supported features with
+V-EIOINTC. Feature EXTIOI_HAS_INT_ENCODE and EXTIOI_HAS_CPU_ENCODE is added.
+
+Feature EXTIOI_HAS_INT_ENCODE is part of standard EIOINTC. If it is 1, it
+indicates that CPU Interrupt Pin selection can be normal method rather than
+bitmap method, so interrupt can be routed to IP0 - IP15.
+
+Feature EXTIOI_HAS_CPU_ENCODE is entension of V-EIOINTC. If it is 1, it
+indicates that CPU selection can be normal method rather than bitmap method,
+so interrupt can be routed to CPU0 - CPU255.
+
+EXTIOI_VIRT_CONFIG
+------------------
+This register is read-write register, for compatibility intterupt routed uses
+the default method which is the same with standard EIOINTC. If the bit is set
+with 1, it indicated HW to use normal method rather than bitmap method.
+
+Advanced Extended IRQ model
+===========================
+
+In this model, IPI (Inter-Processor Interrupt) and CPU Local Timer interrupt go
+to CPUINTC directly, CPU UARTS interrupts go to LIOINTC, PCH-MSI interrupts go
+to AVECINTC, and then go to CPUINTC directly, while all other devices interrupts
+go to PCH-PIC/PCH-LPC and gathered by EIOINTC, and then go to CPUINTC directly::
+
+ +-----+     +-----------------------+     +-------+
+ | IPI | --> |        CPUINTC        | <-- | Timer |
+ +-----+     +-----------------------+     +-------+
+              ^          ^          ^
+              |          |          |
+       +---------+ +----------+ +---------+     +-------+
+       | EIOINTC | | AVECINTC | | LIOINTC | <-- | UARTs |
+       +---------+ +----------+ +---------+     +-------+
+            ^            ^
+            |            |
+       +---------+  +---------+
+       | PCH-PIC |  | PCH-MSI |
+       +---------+  +---------+
+         ^     ^           ^
+         |     |           |
+ +---------+ +---------+ +---------+
+ | Devices | | PCH-LPC | | Devices |
+ +---------+ +---------+ +---------+
+                  ^
+                  |
+             +---------+
+             | Devices |
+             +---------+
+
 ACPI-related definitions
 ========================
 

@@ -31,7 +31,6 @@
 
 struct cdns_gpio_chip {
 	struct gpio_chip gc;
-	struct clk *pclk;
 	void __iomem *regs;
 	u32 bypass_orig;
 };
@@ -155,6 +154,7 @@ static int cdns_gpio_probe(struct platform_device *pdev)
 	int ret, irq;
 	u32 dir_prev;
 	u32 num_gpios = 32;
+	struct clk *clk;
 
 	cgpio = devm_kzalloc(&pdev->dev, sizeof(*cgpio), GFP_KERNEL);
 	if (!cgpio)
@@ -203,18 +203,11 @@ static int cdns_gpio_probe(struct platform_device *pdev)
 	cgpio->gc.request = cdns_gpio_request;
 	cgpio->gc.free = cdns_gpio_free;
 
-	cgpio->pclk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(cgpio->pclk)) {
-		ret = PTR_ERR(cgpio->pclk);
+	clk = devm_clk_get_enabled(&pdev->dev, NULL);
+	if (IS_ERR(clk)) {
+		ret = PTR_ERR(clk);
 		dev_err(&pdev->dev,
 			"Failed to retrieve peripheral clock, %d\n", ret);
-		goto err_revert_dir;
-	}
-
-	ret = clk_prepare_enable(cgpio->pclk);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"Failed to enable the peripheral clock, %d\n", ret);
 		goto err_revert_dir;
 	}
 
@@ -234,7 +227,7 @@ static int cdns_gpio_probe(struct platform_device *pdev)
 					     GFP_KERNEL);
 		if (!girq->parents) {
 			ret = -ENOMEM;
-			goto err_disable_clk;
+			goto err_revert_dir;
 		}
 		girq->parents[0] = irq;
 		girq->default_type = IRQ_TYPE_NONE;
@@ -244,7 +237,7 @@ static int cdns_gpio_probe(struct platform_device *pdev)
 	ret = devm_gpiochip_add_data(&pdev->dev, &cgpio->gc, cgpio);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Could not register gpiochip, %d\n", ret);
-		goto err_disable_clk;
+		goto err_revert_dir;
 	}
 
 	cgpio->bypass_orig = ioread32(cgpio->regs + CDNS_GPIO_BYPASS_MODE);
@@ -259,9 +252,6 @@ static int cdns_gpio_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, cgpio);
 	return 0;
 
-err_disable_clk:
-	clk_disable_unprepare(cgpio->pclk);
-
 err_revert_dir:
 	iowrite32(dir_prev, cgpio->regs + CDNS_GPIO_DIRECTION_MODE);
 
@@ -273,7 +263,6 @@ static void cdns_gpio_remove(struct platform_device *pdev)
 	struct cdns_gpio_chip *cgpio = platform_get_drvdata(pdev);
 
 	iowrite32(cgpio->bypass_orig, cgpio->regs + CDNS_GPIO_BYPASS_MODE);
-	clk_disable_unprepare(cgpio->pclk);
 }
 
 static const struct of_device_id cdns_of_ids[] = {
@@ -288,7 +277,7 @@ static struct platform_driver cdns_gpio_driver = {
 		.of_match_table = cdns_of_ids,
 	},
 	.probe = cdns_gpio_probe,
-	.remove_new = cdns_gpio_remove,
+	.remove = cdns_gpio_remove,
 };
 module_platform_driver(cdns_gpio_driver);
 

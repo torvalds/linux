@@ -20,12 +20,14 @@ enum gve_adminq_opcodes {
 	GVE_ADMINQ_DESTROY_TX_QUEUE		= 0x7,
 	GVE_ADMINQ_DESTROY_RX_QUEUE		= 0x8,
 	GVE_ADMINQ_DECONFIGURE_DEVICE_RESOURCES	= 0x9,
+	GVE_ADMINQ_CONFIGURE_RSS		= 0xA,
 	GVE_ADMINQ_SET_DRIVER_PARAMETER		= 0xB,
 	GVE_ADMINQ_REPORT_STATS			= 0xC,
 	GVE_ADMINQ_REPORT_LINK_SPEED		= 0xD,
 	GVE_ADMINQ_GET_PTYPE_MAP		= 0xE,
 	GVE_ADMINQ_VERIFY_DRIVER_COMPATIBILITY	= 0xF,
 	GVE_ADMINQ_QUERY_FLOW_RULES		= 0x10,
+	GVE_ADMINQ_QUERY_RSS			= 0x12,
 
 	/* For commands that are larger than 56 bytes */
 	GVE_ADMINQ_EXTENDED_COMMAND		= 0xFF,
@@ -164,6 +166,14 @@ struct gve_device_option_flow_steering {
 
 static_assert(sizeof(struct gve_device_option_flow_steering) == 12);
 
+struct gve_device_option_rss_config {
+	__be32 supported_features_mask;
+	__be16 hash_key_size;
+	__be16 hash_lut_size;
+};
+
+static_assert(sizeof(struct gve_device_option_rss_config) == 8);
+
 /* Terminology:
  *
  * RDA - Raw DMA Addressing - Buffers associated with SKBs are directly DMA
@@ -182,6 +192,7 @@ enum gve_dev_opt_id {
 	GVE_DEV_OPT_ID_JUMBO_FRAMES		= 0x8,
 	GVE_DEV_OPT_ID_BUFFER_SIZES		= 0xa,
 	GVE_DEV_OPT_ID_FLOW_STEERING		= 0xb,
+	GVE_DEV_OPT_ID_RSS_CONFIG		= 0xe,
 };
 
 enum gve_dev_opt_req_feat_mask {
@@ -194,6 +205,7 @@ enum gve_dev_opt_req_feat_mask {
 	GVE_DEV_OPT_REQ_FEAT_MASK_BUFFER_SIZES		= 0x0,
 	GVE_DEV_OPT_REQ_FEAT_MASK_MODIFY_RING		= 0x0,
 	GVE_DEV_OPT_REQ_FEAT_MASK_FLOW_STEERING		= 0x0,
+	GVE_DEV_OPT_REQ_FEAT_MASK_RSS_CONFIG		= 0x0,
 };
 
 enum gve_sup_feature_mask {
@@ -201,6 +213,7 @@ enum gve_sup_feature_mask {
 	GVE_SUP_JUMBO_FRAMES_MASK	= 1 << 2,
 	GVE_SUP_BUFFER_SIZES_MASK	= 1 << 4,
 	GVE_SUP_FLOW_STEERING_MASK	= 1 << 5,
+	GVE_SUP_RSS_CONFIG_MASK		= 1 << 7,
 };
 
 #define GVE_DEV_OPT_LEN_GQI_RAW_ADDRESSING 0x0
@@ -214,6 +227,7 @@ enum gve_driver_capbility {
 	gve_driver_capability_dqo_rda = 3,
 	gve_driver_capability_alt_miss_compl = 4,
 	gve_driver_capability_flexible_buffer_size = 5,
+	gve_driver_capability_flexible_rss_size = 6,
 };
 
 #define GVE_CAP1(a) BIT((int)a)
@@ -226,7 +240,8 @@ enum gve_driver_capbility {
 	 GVE_CAP1(gve_driver_capability_gqi_rda) | \
 	 GVE_CAP1(gve_driver_capability_dqo_rda) | \
 	 GVE_CAP1(gve_driver_capability_alt_miss_compl) | \
-	 GVE_CAP1(gve_driver_capability_flexible_buffer_size))
+	 GVE_CAP1(gve_driver_capability_flexible_buffer_size) | \
+	 GVE_CAP1(gve_driver_capability_flexible_rss_size))
 
 #define GVE_DRIVER_CAPABILITY_FLAGS2 0x0
 #define GVE_DRIVER_CAPABILITY_FLAGS3 0x0
@@ -509,6 +524,44 @@ struct gve_adminq_query_flow_rules {
 
 static_assert(sizeof(struct gve_adminq_query_flow_rules) == 24);
 
+enum gve_rss_hash_type {
+	GVE_RSS_HASH_IPV4,
+	GVE_RSS_HASH_TCPV4,
+	GVE_RSS_HASH_IPV6,
+	GVE_RSS_HASH_IPV6_EX,
+	GVE_RSS_HASH_TCPV6,
+	GVE_RSS_HASH_TCPV6_EX,
+	GVE_RSS_HASH_UDPV4,
+	GVE_RSS_HASH_UDPV6,
+	GVE_RSS_HASH_UDPV6_EX,
+};
+
+struct gve_adminq_configure_rss {
+	__be16 hash_types;
+	u8 hash_alg;
+	u8 reserved;
+	__be16 hash_key_size;
+	__be16 hash_lut_size;
+	__be64 hash_key_addr;
+	__be64 hash_lut_addr;
+};
+
+static_assert(sizeof(struct gve_adminq_configure_rss) == 24);
+
+struct gve_query_rss_descriptor {
+	__be32 total_length;
+	__be16 hash_types;
+	u8 hash_alg;
+	u8 reserved;
+};
+
+struct gve_adminq_query_rss {
+	__be64 available_length;
+	__be64 rss_descriptor_addr;
+};
+
+static_assert(sizeof(struct gve_adminq_query_rss) == 16);
+
 union gve_adminq_command {
 	struct {
 		__be32 opcode;
@@ -530,6 +583,8 @@ union gve_adminq_command {
 			struct gve_adminq_verify_driver_compatibility
 						verify_driver_compatibility;
 			struct gve_adminq_query_flow_rules query_flow_rules;
+			struct gve_adminq_configure_rss configure_rss;
+			struct gve_adminq_query_rss query_rss;
 			struct gve_adminq_extended_command extended_command;
 		};
 	};
@@ -568,6 +623,8 @@ int gve_adminq_add_flow_rule(struct gve_priv *priv, struct gve_adminq_flow_rule 
 int gve_adminq_del_flow_rule(struct gve_priv *priv, u32 loc);
 int gve_adminq_reset_flow_rules(struct gve_priv *priv);
 int gve_adminq_query_flow_rules(struct gve_priv *priv, u16 query_opcode, u32 starting_loc);
+int gve_adminq_configure_rss(struct gve_priv *priv, struct ethtool_rxfh_param *rxfh);
+int gve_adminq_query_rss_config(struct gve_priv *priv, struct ethtool_rxfh_param *rxfh);
 
 struct gve_ptype_lut;
 int gve_adminq_get_ptype_map_dqo(struct gve_priv *priv,

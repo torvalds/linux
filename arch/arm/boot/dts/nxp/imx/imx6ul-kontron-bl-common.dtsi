@@ -351,7 +351,7 @@
 		>;
 	};
 
-	pinctrl_usbotg1: usbotg1 {
+	pinctrl_usbotg1: usbotg1grp {
 		fsl,pins = <
 			MX6UL_PAD_GPIO1_IO04__GPIO1_IO04	0x1b0b0
 		>;

@@ -64,25 +64,39 @@ static void nflog_tg_destroy(const struct xt_tgdtor_param *par)
 	nf_logger_put(par->family, NF_LOG_TYPE_ULOG);
 }
 
-static struct xt_target nflog_tg_reg __read_mostly = {
-	.name       = "NFLOG",
-	.revision   = 0,
-	.family     = NFPROTO_UNSPEC,
-	.checkentry = nflog_tg_check,
-	.destroy    = nflog_tg_destroy,
-	.target     = nflog_tg,
-	.targetsize = sizeof(struct xt_nflog_info),
-	.me         = THIS_MODULE,
+static struct xt_target nflog_tg_reg[] __read_mostly = {
+	{
+		.name       = "NFLOG",
+		.revision   = 0,
+		.family     = NFPROTO_IPV4,
+		.checkentry = nflog_tg_check,
+		.destroy    = nflog_tg_destroy,
+		.target     = nflog_tg,
+		.targetsize = sizeof(struct xt_nflog_info),
+		.me         = THIS_MODULE,
+	},
+#if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
+	{
+		.name       = "NFLOG",
+		.revision   = 0,
+		.family     = NFPROTO_IPV6,
+		.checkentry = nflog_tg_check,
+		.destroy    = nflog_tg_destroy,
+		.target     = nflog_tg,
+		.targetsize = sizeof(struct xt_nflog_info),
+		.me         = THIS_MODULE,
+	},
+#endif
 };
 
 static int __init nflog_tg_init(void)
 {
-	return xt_register_target(&nflog_tg_reg);
+	return xt_register_targets(nflog_tg_reg, ARRAY_SIZE(nflog_tg_reg));
 }
 
 static void __exit nflog_tg_exit(void)
 {
-	xt_unregister_target(&nflog_tg_reg);
+	xt_unregister_targets(nflog_tg_reg, ARRAY_SIZE(nflog_tg_reg));
 }
 
 module_init(nflog_tg_init);

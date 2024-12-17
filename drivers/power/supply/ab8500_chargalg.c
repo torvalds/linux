@@ -1837,7 +1837,7 @@ static const struct of_device_id ab8500_chargalg_match[] = {
 
 struct platform_driver ab8500_chargalg_driver = {
 	.probe = ab8500_chargalg_probe,
-	.remove_new = ab8500_chargalg_remove,
+	.remove = ab8500_chargalg_remove,
 	.driver = {
 		.name = "ab8500_chargalg",
 		.of_match_table = ab8500_chargalg_match,

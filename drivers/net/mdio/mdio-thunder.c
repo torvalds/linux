@@ -23,7 +23,6 @@ static int thunder_mdiobus_pci_probe(struct pci_dev *pdev,
 				     const struct pci_device_id *ent)
 {
 	struct device_node *node;
-	struct fwnode_handle *fwn;
 	struct thunder_mdiobus_nexus *nexus;
 	int err;
 	int i;
@@ -54,7 +53,7 @@ static int thunder_mdiobus_pci_probe(struct pci_dev *pdev,
 	}
 
 	i = 0;
-	device_for_each_child_node(&pdev->dev, fwn) {
+	device_for_each_child_node_scoped(&pdev->dev, fwn) {
 		struct resource r;
 		struct mii_bus *mii_bus;
 		struct cavium_mdiobus *bus;
@@ -106,7 +105,6 @@ static int thunder_mdiobus_pci_probe(struct pci_dev *pdev,
 		if (i >= ARRAY_SIZE(nexus->buses))
 			break;
 	}
-	fwnode_handle_put(fwn);
 	return 0;
 
 err_release_regions:

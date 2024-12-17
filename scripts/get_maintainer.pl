@@ -54,6 +54,7 @@ my $output_section_maxlen = 50;
 my $scm = 0;
 my $tree = 1;
 my $web = 0;
+my $bug = 0;
 my $subsystem = 0;
 my $status = 0;
 my $letters = "";
@@ -271,6 +272,7 @@ if (!GetOptions(
 		'scm!' => \$scm,
 		'tree!' => \$tree,
 		'web!' => \$web,
+		'bug!' => \$bug,
 		'letters=s' => \$letters,
 		'pattern-depth=i' => \$pattern_depth,
 		'k|keywords!' => \$keywords,
@@ -320,13 +322,14 @@ if ($sections || $letters ne "") {
     $status = 0;
     $subsystem = 0;
     $web = 0;
+    $bug = 0;
     $keywords = 0;
     $keywords_in_file = 0;
     $interactive = 0;
 } else {
-    my $selections = $email + $scm + $status + $subsystem + $web;
+    my $selections = $email + $scm + $status + $subsystem + $web + $bug;
     if ($selections == 0) {
-	die "$P:  Missing required option: email, scm, status, subsystem or web\n";
+	die "$P:  Missing required option: email, scm, status, subsystem, web or bug\n";
     }
 }
 
@@ -631,6 +634,7 @@ my %hash_list_to;
 my @list_to = ();
 my @scm = ();
 my @web = ();
+my @bug = ();
 my @subsystem = ();
 my @status = ();
 my %deduplicate_name_hash = ();
@@ -660,6 +664,11 @@ if ($subsystem) {
 if ($web) {
     @web = uniq(@web);
     output(@web);
+}
+
+if ($bug) {
+    @bug = uniq(@bug);
+    output(@bug);
 }
 
 exit($exit);
@@ -847,6 +856,7 @@ sub get_maintainers {
     @list_to = ();
     @scm = ();
     @web = ();
+    @bug = ();
     @subsystem = ();
     @status = ();
     %deduplicate_name_hash = ();
@@ -1069,6 +1079,7 @@ MAINTAINER field selection options:
   --status => print status if any
   --subsystem => print subsystem name if any
   --web => print website(s) if any
+  --bug => print bug reporting info if any
 
 Output type options:
   --separator [, ] => separator for multiple entries on 1 line
@@ -1382,6 +1393,8 @@ sub add_categories {
 		push(@scm, $pvalue . $suffix);
 	    } elsif ($ptype eq "W") {
 		push(@web, $pvalue . $suffix);
+	    } elsif ($ptype eq "B") {
+		push(@bug, $pvalue . $suffix);
 	    } elsif ($ptype eq "S") {
 		push(@status, $pvalue . $suffix);
 	    }

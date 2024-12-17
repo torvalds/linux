@@ -1349,7 +1349,7 @@ static int sof_parse_pin_binding(struct snd_sof_widget *swidget,
 
 	/* copy pin binding array to swidget only if it is defined in topology */
 	if (pin_binding[0]) {
-		pb = kmemdup(pin_binding, num_pins * sizeof(char *), GFP_KERNEL);
+		pb = kmemdup_array(pin_binding, num_pins, sizeof(char *), GFP_KERNEL);
 		if (!pb) {
 			ret = -ENOMEM;
 			goto err;
@@ -1889,9 +1889,9 @@ static int sof_link_load(struct snd_soc_component *scomp, int index, struct snd_
 		return -ENOMEM;
 
 	slink->num_hw_configs = le32_to_cpu(cfg->num_hw_configs);
-	slink->hw_configs = kmemdup(cfg->hw_config,
-				    sizeof(*slink->hw_configs) * slink->num_hw_configs,
-				    GFP_KERNEL);
+	slink->hw_configs = kmemdup_array(cfg->hw_config,
+					  slink->num_hw_configs, sizeof(*slink->hw_configs),
+					  GFP_KERNEL);
 	if (!slink->hw_configs) {
 		kfree(slink);
 		return -ENOMEM;
@@ -2049,6 +2049,8 @@ static int sof_link_unload(struct snd_soc_component *scomp, struct snd_soc_dobj 
 
 	if (!slink)
 		return 0;
+
+	slink->link->platforms->name = NULL;
 
 	kfree(slink->tuples);
 	list_del(&slink->list);

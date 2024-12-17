@@ -323,6 +323,8 @@ static void adf_dev_stop(struct adf_accel_dev *accel_dev)
 	if (hw_data->stop_timer)
 		hw_data->stop_timer(accel_dev);
 
+	hw_data->disable_iov(accel_dev);
+
 	if (wait)
 		msleep(100);
 
@@ -386,16 +388,14 @@ static void adf_dev_shutdown(struct adf_accel_dev *accel_dev)
 
 	adf_tl_shutdown(accel_dev);
 
-	hw_data->disable_iov(accel_dev);
-
 	if (test_bit(ADF_STATUS_IRQ_ALLOCATED, &accel_dev->status)) {
 		hw_data->free_irq(accel_dev);
 		clear_bit(ADF_STATUS_IRQ_ALLOCATED, &accel_dev->status);
 	}
 
-	/* Delete configuration only if not restarting */
+	/* If not restarting, delete all cfg sections except for GENERAL */
 	if (!test_bit(ADF_STATUS_RESTARTING, &accel_dev->status))
-		adf_cfg_del_all(accel_dev);
+		adf_cfg_del_all_except(accel_dev, ADF_GENERAL_SEC);
 
 	if (hw_data->exit_arb)
 		hw_data->exit_arb(accel_dev);
@@ -445,33 +445,7 @@ void adf_error_notifier(struct adf_accel_dev *accel_dev)
 	}
 }
 
-static int adf_dev_shutdown_cache_cfg(struct adf_accel_dev *accel_dev)
-{
-	char services[ADF_CFG_MAX_VAL_LEN_IN_BYTES] = {0};
-	int ret;
-
-	ret = adf_cfg_get_param_value(accel_dev, ADF_GENERAL_SEC,
-				      ADF_SERVICES_ENABLED, services);
-
-	adf_dev_stop(accel_dev);
-	adf_dev_shutdown(accel_dev);
-
-	if (!ret) {
-		ret = adf_cfg_section_add(accel_dev, ADF_GENERAL_SEC);
-		if (ret)
-			return ret;
-
-		ret = adf_cfg_add_key_value_param(accel_dev, ADF_GENERAL_SEC,
-						  ADF_SERVICES_ENABLED,
-						  services, ADF_STR);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
-int adf_dev_down(struct adf_accel_dev *accel_dev, bool reconfig)
+int adf_dev_down(struct adf_accel_dev *accel_dev)
 {
 	int ret = 0;
 
@@ -480,15 +454,9 @@ int adf_dev_down(struct adf_accel_dev *accel_dev, bool reconfig)
 
 	mutex_lock(&accel_dev->state_lock);
 
-	if (reconfig) {
-		ret = adf_dev_shutdown_cache_cfg(accel_dev);
-		goto out;
-	}
-
 	adf_dev_stop(accel_dev);
 	adf_dev_shutdown(accel_dev);
 
-out:
 	mutex_unlock(&accel_dev->state_lock);
 	return ret;
 }
@@ -535,7 +503,7 @@ int adf_dev_restart(struct adf_accel_dev *accel_dev)
 	if (!accel_dev)
 		return -EFAULT;
 
-	adf_dev_down(accel_dev, false);
+	adf_dev_down(accel_dev);
 
 	ret = adf_dev_up(accel_dev, false);
 	/* if device is already up return success*/

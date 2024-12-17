@@ -475,7 +475,7 @@ MODULE_DEVICE_TABLE(of, spear_rtc_id_table);
 
 static struct platform_driver spear_rtc_driver = {
 	.probe = spear_rtc_probe,
-	.remove_new = spear_rtc_remove,
+	.remove = spear_rtc_remove,
 	.shutdown = spear_rtc_shutdown,
 	.driver = {
 		.name = "rtc-spear",

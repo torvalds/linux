@@ -250,7 +250,7 @@ MODULE_DEVICE_TABLE(of, of_k3_bandgap_match);
 
 static struct platform_driver k3_bandgap_sensor_driver = {
 	.probe = k3_bandgap_probe,
-	.remove_new = k3_bandgap_remove,
+	.remove = k3_bandgap_remove,
 	.driver = {
 		.name = "k3-soc-thermal",
 		.of_match_table	= of_k3_bandgap_match,

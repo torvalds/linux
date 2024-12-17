@@ -37,7 +37,7 @@ static inline int _soc_dai_ret(const struct snd_soc_dai *dai,
  * In such case, we can update these macros.
  */
 #define soc_dai_mark_push(dai, substream, tgt)	((dai)->mark_##tgt = substream)
-#define soc_dai_mark_pop(dai, substream, tgt)	((dai)->mark_##tgt = NULL)
+#define soc_dai_mark_pop(dai, tgt)	((dai)->mark_##tgt = NULL)
 #define soc_dai_mark_match(dai, substream, tgt)	((dai)->mark_##tgt == substream)
 
 /**
@@ -416,7 +416,7 @@ void snd_soc_dai_hw_free(struct snd_soc_dai *dai,
 		dai->driver->ops->hw_free(substream, dai);
 
 	/* remove marked substream */
-	soc_dai_mark_pop(dai, substream, hw_params);
+	soc_dai_mark_pop(dai, hw_params);
 }
 
 int snd_soc_dai_startup(struct snd_soc_dai *dai,
@@ -453,16 +453,16 @@ void snd_soc_dai_shutdown(struct snd_soc_dai *dai,
 		dai->driver->ops->shutdown(substream, dai);
 
 	/* remove marked substream */
-	soc_dai_mark_pop(dai, substream, startup);
+	soc_dai_mark_pop(dai, startup);
 }
 
 int snd_soc_dai_compress_new(struct snd_soc_dai *dai,
-			     struct snd_soc_pcm_runtime *rtd, int num)
+			     struct snd_soc_pcm_runtime *rtd)
 {
 	int ret = -ENOTSUPP;
 	if (dai->driver->ops &&
 	    dai->driver->ops->compress_new)
-		ret = dai->driver->ops->compress_new(rtd, num);
+		ret = dai->driver->ops->compress_new(rtd);
 	return soc_dai_ret(dai, ret);
 }
 
@@ -478,44 +478,6 @@ bool snd_soc_dai_stream_valid(const struct snd_soc_dai *dai, int dir)
 	/* If the codec specifies any channels at all, it supports the stream */
 	return stream->channels_min;
 }
-
-/*
- * snd_soc_dai_link_set_capabilities() - set dai_link properties based on its DAIs
- */
-void snd_soc_dai_link_set_capabilities(struct snd_soc_dai_link *dai_link)
-{
-	bool supported[SNDRV_PCM_STREAM_LAST + 1];
-	int direction;
-
-	for_each_pcm_streams(direction) {
-		struct snd_soc_dai_link_component *cpu;
-		struct snd_soc_dai_link_component *codec;
-		struct snd_soc_dai *dai;
-		bool supported_cpu = false;
-		bool supported_codec = false;
-		int i;
-
-		for_each_link_cpus(dai_link, i, cpu) {
-			dai = snd_soc_find_dai_with_mutex(cpu);
-			if (dai && snd_soc_dai_stream_valid(dai, direction)) {
-				supported_cpu = true;
-				break;
-			}
-		}
-		for_each_link_codecs(dai_link, i, codec) {
-			dai = snd_soc_find_dai_with_mutex(codec);
-			if (dai && snd_soc_dai_stream_valid(dai, direction)) {
-				supported_codec = true;
-				break;
-			}
-		}
-		supported[direction] = supported_cpu && supported_codec;
-	}
-
-	dai_link->dpcm_playback = supported[SNDRV_PCM_STREAM_PLAYBACK];
-	dai_link->dpcm_capture  = supported[SNDRV_PCM_STREAM_CAPTURE];
-}
-EXPORT_SYMBOL_GPL(snd_soc_dai_link_set_capabilities);
 
 void snd_soc_dai_action(struct snd_soc_dai *dai,
 			int stream, int action)
@@ -678,31 +640,11 @@ int snd_soc_pcm_dai_trigger(struct snd_pcm_substream *substream,
 			r = soc_dai_trigger(dai, substream, cmd);
 			if (r < 0)
 				ret = r; /* use last ret */
-			soc_dai_mark_pop(dai, substream, trigger);
+			soc_dai_mark_pop(dai, trigger);
 		}
 	}
 
 	return ret;
-}
-
-int snd_soc_pcm_dai_bespoke_trigger(struct snd_pcm_substream *substream,
-				    int cmd)
-{
-	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
-	struct snd_soc_dai *dai;
-	int i, ret;
-
-	for_each_rtd_dais(rtd, i, dai) {
-		if (dai->driver->ops &&
-		    dai->driver->ops->bespoke_trigger) {
-			ret = dai->driver->ops->bespoke_trigger(substream,
-								cmd, dai);
-			if (ret < 0)
-				return soc_dai_ret(dai, ret);
-		}
-	}
-
-	return 0;
 }
 
 void snd_soc_pcm_dai_delay(struct snd_pcm_substream *substream,
@@ -762,7 +704,7 @@ void snd_soc_dai_compr_shutdown(struct snd_soc_dai *dai,
 		dai->driver->cops->shutdown(cstream, dai);
 
 	/* remove marked cstream */
-	soc_dai_mark_pop(dai, cstream, compr_startup);
+	soc_dai_mark_pop(dai, compr_startup);
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_compr_shutdown);
 

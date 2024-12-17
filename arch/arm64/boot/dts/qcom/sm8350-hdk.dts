@@ -382,10 +382,6 @@
 	firmware-name = "qcom/sm8350/cdsp.mbn";
 };
 
-&dispcc {
-	status = "okay";
-};
-
 &mdss_dsi0 {
 	vdda-supply = <&vreg_l6b_1p2>;
 	status = "okay";

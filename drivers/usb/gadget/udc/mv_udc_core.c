@@ -30,7 +30,7 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/platform_data/mv_usb.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "mv_udc.h"
 
@@ -2409,7 +2409,7 @@ static void mv_udc_shutdown(struct platform_device *pdev)
 
 static struct platform_driver udc_driver = {
 	.probe		= mv_udc_probe,
-	.remove_new	= mv_udc_remove,
+	.remove		= mv_udc_remove,
 	.shutdown	= mv_udc_shutdown,
 	.driver		= {
 		.name	= "mv-udc",

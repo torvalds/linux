@@ -306,7 +306,7 @@ struct folio *folio_alloc_noprof(gfp_t gfp, unsigned int order);
 struct folio *folio_alloc_mpol_noprof(gfp_t gfp, unsigned int order,
 		struct mempolicy *mpol, pgoff_t ilx, int nid);
 struct folio *vma_alloc_folio_noprof(gfp_t gfp, int order, struct vm_area_struct *vma,
-		unsigned long addr, bool hugepage);
+		unsigned long addr);
 #else
 static inline struct page *alloc_pages_noprof(gfp_t gfp_mask, unsigned int order)
 {
@@ -319,14 +319,14 @@ static inline struct page *alloc_pages_mpol_noprof(gfp_t gfp, unsigned int order
 }
 static inline struct folio *folio_alloc_noprof(gfp_t gfp, unsigned int order)
 {
-	return __folio_alloc_node(gfp, order, numa_node_id());
+	return __folio_alloc_node_noprof(gfp, order, numa_node_id());
 }
 static inline struct folio *folio_alloc_mpol_noprof(gfp_t gfp, unsigned int order,
 		struct mempolicy *mpol, pgoff_t ilx, int nid)
 {
 	return folio_alloc_noprof(gfp, order);
 }
-#define vma_alloc_folio_noprof(gfp, order, vma, addr, hugepage)		\
+#define vma_alloc_folio_noprof(gfp, order, vma, addr)		\
 	folio_alloc_noprof(gfp, order)
 #endif
 
@@ -341,7 +341,7 @@ static inline struct folio *folio_alloc_mpol_noprof(gfp_t gfp, unsigned int orde
 static inline struct page *alloc_page_vma_noprof(gfp_t gfp,
 		struct vm_area_struct *vma, unsigned long addr)
 {
-	struct folio *folio = vma_alloc_folio_noprof(gfp, 0, vma, addr, false);
+	struct folio *folio = vma_alloc_folio_noprof(gfp, 0, vma, addr);
 
 	return &folio->page;
 }
@@ -370,28 +370,6 @@ __meminit void *alloc_pages_exact_nid_noprof(int nid, size_t size, gfp_t gfp_mas
 
 extern void __free_pages(struct page *page, unsigned int order);
 extern void free_pages(unsigned long addr, unsigned int order);
-
-struct page_frag_cache;
-void page_frag_cache_drain(struct page_frag_cache *nc);
-extern void __page_frag_cache_drain(struct page *page, unsigned int count);
-void *__page_frag_alloc_align(struct page_frag_cache *nc, unsigned int fragsz,
-			      gfp_t gfp_mask, unsigned int align_mask);
-
-static inline void *page_frag_alloc_align(struct page_frag_cache *nc,
-					  unsigned int fragsz, gfp_t gfp_mask,
-					  unsigned int align)
-{
-	WARN_ON_ONCE(!is_power_of_2(align));
-	return __page_frag_alloc_align(nc, fragsz, gfp_mask, -align);
-}
-
-static inline void *page_frag_alloc(struct page_frag_cache *nc,
-			     unsigned int fragsz, gfp_t gfp_mask)
-{
-	return __page_frag_alloc_align(nc, fragsz, gfp_mask, ~0u);
-}
-
-extern void page_frag_free(void *addr);
 
 #define __free_page(page) __free_pages((page), 0)
 #define free_page(addr) free_pages((addr), 0)
@@ -445,5 +423,28 @@ extern struct page *alloc_contig_pages_noprof(unsigned long nr_pages, gfp_t gfp_
 
 #endif
 void free_contig_range(unsigned long pfn, unsigned long nr_pages);
+
+#ifdef CONFIG_CONTIG_ALLOC
+static inline struct folio *folio_alloc_gigantic_noprof(int order, gfp_t gfp,
+							int nid, nodemask_t *node)
+{
+	struct page *page;
+
+	if (WARN_ON(!order || !(gfp & __GFP_COMP)))
+		return NULL;
+
+	page = alloc_contig_pages_noprof(1 << order, gfp, nid, node);
+
+	return page ? page_folio(page) : NULL;
+}
+#else
+static inline struct folio *folio_alloc_gigantic_noprof(int order, gfp_t gfp,
+							int nid, nodemask_t *node)
+{
+	return NULL;
+}
+#endif
+/* This should be paired with folio_put() rather than free_contig_range(). */
+#define folio_alloc_gigantic(...) alloc_hooks(folio_alloc_gigantic_noprof(__VA_ARGS__))
 
 #endif /* __LINUX_GFP_H */

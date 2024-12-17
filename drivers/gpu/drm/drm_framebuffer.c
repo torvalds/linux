@@ -99,6 +99,7 @@ int drm_framebuffer_check_src_coords(uint32_t src_x, uint32_t src_y,
 
 	return 0;
 }
+EXPORT_SYMBOL_FOR_TESTS_ONLY(drm_framebuffer_check_src_coords);
 
 /**
  * drm_mode_addfb - add an FB to the graphics configuration
@@ -838,6 +839,7 @@ void drm_framebuffer_free(struct kref *kref)
 
 	fb->funcs->destroy(fb);
 }
+EXPORT_SYMBOL_FOR_TESTS_ONLY(drm_framebuffer_free);
 
 /**
  * drm_framebuffer_init - initialize a framebuffer
@@ -868,7 +870,7 @@ int drm_framebuffer_init(struct drm_device *dev, struct drm_framebuffer *fb,
 	INIT_LIST_HEAD(&fb->filp_head);
 
 	fb->funcs = funcs;
-	strcpy(fb->comm, current->comm);
+	strscpy(fb->comm, current->comm);
 
 	ret = __drm_mode_object_add(dev, &fb->base, DRM_MODE_OBJECT_FB,
 				    false, drm_framebuffer_free);

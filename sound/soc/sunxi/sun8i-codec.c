@@ -1713,7 +1713,7 @@ static struct platform_driver sun8i_codec_driver = {
 		.pm = &sun8i_codec_pm_ops,
 	},
 	.probe = sun8i_codec_probe,
-	.remove_new = sun8i_codec_remove,
+	.remove = sun8i_codec_remove,
 };
 module_platform_driver(sun8i_codec_driver);
 

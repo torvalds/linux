@@ -1943,7 +1943,7 @@ static void xgene_pmu_remove(struct platform_device *pdev)
 
 static struct platform_driver xgene_pmu_driver = {
 	.probe = xgene_pmu_probe,
-	.remove_new = xgene_pmu_remove,
+	.remove = xgene_pmu_remove,
 	.driver = {
 		.name		= "xgene-pmu",
 		.of_match_table = xgene_pmu_of_match,

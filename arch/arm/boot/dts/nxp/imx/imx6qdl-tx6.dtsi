@@ -70,9 +70,8 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		mclk: clock@0 {
+		mclk: clock {
 			compatible = "fixed-clock";
-			reg = <0>;
 			#clock-cells = <0>;
 			clock-frequency = <26000000>;
 		};
@@ -373,7 +372,7 @@
 		>;
 	};
 
-	pinctrl_disp0_1: disp0grp-1 {
+	pinctrl_disp0_1: disp0-1-grp {
 		fsl,pins = <
 			MX6QDL_PAD_DI0_DISP_CLK__IPU1_DI0_DISP_CLK 0x10
 			MX6QDL_PAD_DI0_PIN15__IPU1_DI0_PIN15       0x10
@@ -406,7 +405,7 @@
 		>;
 	};
 
-	pinctrl_disp0_2: disp0grp-2 {
+	pinctrl_disp0_2: disp0-2-grp {
 		fsl,pins = <
 			MX6QDL_PAD_DI0_DISP_CLK__IPU1_DI0_DISP_CLK 0x10
 			MX6QDL_PAD_DI0_PIN15__IPU1_DI0_PIN15       0x10

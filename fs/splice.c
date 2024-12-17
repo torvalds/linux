@@ -1564,21 +1564,6 @@ static ssize_t vmsplice_to_pipe(struct file *file, struct iov_iter *iter,
 	return ret;
 }
 
-static int vmsplice_type(struct fd f, int *type)
-{
-	if (!f.file)
-		return -EBADF;
-	if (f.file->f_mode & FMODE_WRITE) {
-		*type = ITER_SOURCE;
-	} else if (f.file->f_mode & FMODE_READ) {
-		*type = ITER_DEST;
-	} else {
-		fdput(f);
-		return -EBADF;
-	}
-	return 0;
-}
-
 /*
  * Note that vmsplice only really supports true splicing _from_ user memory
  * to a pipe, not the other way around. Splicing from user memory is a simple
@@ -1602,32 +1587,34 @@ SYSCALL_DEFINE4(vmsplice, int, fd, const struct iovec __user *, uiov,
 	struct iovec *iov = iovstack;
 	struct iov_iter iter;
 	ssize_t error;
-	struct fd f;
 	int type;
 
 	if (unlikely(flags & ~SPLICE_F_ALL))
 		return -EINVAL;
 
-	f = fdget(fd);
-	error = vmsplice_type(f, &type);
-	if (error)
-		return error;
+	CLASS(fd, f)(fd);
+	if (fd_empty(f))
+		return -EBADF;
+	if (fd_file(f)->f_mode & FMODE_WRITE)
+		type = ITER_SOURCE;
+	else if (fd_file(f)->f_mode & FMODE_READ)
+		type = ITER_DEST;
+	else
+		return -EBADF;
 
 	error = import_iovec(type, uiov, nr_segs,
 			     ARRAY_SIZE(iovstack), &iov, &iter);
 	if (error < 0)
-		goto out_fdput;
+		return error;
 
 	if (!iov_iter_count(&iter))
 		error = 0;
 	else if (type == ITER_SOURCE)
-		error = vmsplice_to_pipe(f.file, &iter, flags);
+		error = vmsplice_to_pipe(fd_file(f), &iter, flags);
 	else
-		error = vmsplice_to_user(f.file, &iter, flags);
+		error = vmsplice_to_user(fd_file(f), &iter, flags);
 
 	kfree(iov);
-out_fdput:
-	fdput(f);
 	return error;
 }
 
@@ -1635,27 +1622,22 @@ SYSCALL_DEFINE6(splice, int, fd_in, loff_t __user *, off_in,
 		int, fd_out, loff_t __user *, off_out,
 		size_t, len, unsigned int, flags)
 {
-	struct fd in, out;
-	ssize_t error;
-
 	if (unlikely(!len))
 		return 0;
 
 	if (unlikely(flags & ~SPLICE_F_ALL))
 		return -EINVAL;
 
-	error = -EBADF;
-	in = fdget(fd_in);
-	if (in.file) {
-		out = fdget(fd_out);
-		if (out.file) {
-			error = __do_splice(in.file, off_in, out.file, off_out,
+	CLASS(fd, in)(fd_in);
+	if (fd_empty(in))
+		return -EBADF;
+
+	CLASS(fd, out)(fd_out);
+	if (fd_empty(out))
+		return -EBADF;
+
+	return __do_splice(fd_file(in), off_in, fd_file(out), off_out,
 					    len, flags);
-			fdput(out);
-		}
-		fdput(in);
-	}
-	return error;
 }
 
 /*
@@ -2005,25 +1987,19 @@ ssize_t do_tee(struct file *in, struct file *out, size_t len,
 
 SYSCALL_DEFINE4(tee, int, fdin, int, fdout, size_t, len, unsigned int, flags)
 {
-	struct fd in, out;
-	ssize_t error;
-
 	if (unlikely(flags & ~SPLICE_F_ALL))
 		return -EINVAL;
 
 	if (unlikely(!len))
 		return 0;
 
-	error = -EBADF;
-	in = fdget(fdin);
-	if (in.file) {
-		out = fdget(fdout);
-		if (out.file) {
-			error = do_tee(in.file, out.file, len, flags);
-			fdput(out);
-		}
- 		fdput(in);
- 	}
+	CLASS(fd, in)(fdin);
+	if (fd_empty(in))
+		return -EBADF;
 
-	return error;
+	CLASS(fd, out)(fdout);
+	if (fd_empty(out))
+		return -EBADF;
+
+	return do_tee(fd_file(in), fd_file(out), len, flags);
 }

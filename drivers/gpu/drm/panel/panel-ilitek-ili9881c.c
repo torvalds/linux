@@ -42,6 +42,7 @@ struct ili9881c_desc {
 	const size_t init_length;
 	const struct drm_display_mode *mode;
 	const unsigned long mode_flags;
+	u8 default_address_mode;
 };
 
 struct ili9881c {
@@ -53,6 +54,7 @@ struct ili9881c {
 	struct gpio_desc	*reset;
 
 	enum drm_panel_orientation	orientation;
+	u8 address_mode;
 };
 
 #define ILI9881C_SWITCH_PAGE_INSTR(_page)	\
@@ -815,8 +817,6 @@ static const struct ili9881c_instr tl050hdv35_init[] = {
 	ILI9881C_COMMAND_INSTR(0xd1, 0x4b),
 	ILI9881C_COMMAND_INSTR(0xd2, 0x60),
 	ILI9881C_COMMAND_INSTR(0xd3, 0x39),
-	ILI9881C_SWITCH_PAGE_INSTR(0),
-	ILI9881C_COMMAND_INSTR(0x36, 0x03),
 };
 
 static const struct ili9881c_instr w552946ab_init[] = {
@@ -1299,6 +1299,14 @@ static int ili9881c_prepare(struct drm_panel *panel)
 	if (ret)
 		return ret;
 
+	if (ctx->address_mode) {
+		ret = mipi_dsi_dcs_write(ctx->dsi, MIPI_DCS_SET_ADDRESS_MODE,
+					 &ctx->address_mode,
+					 sizeof(ctx->address_mode));
+		if (ret < 0)
+			return ret;
+	}
+
 	ret = mipi_dsi_dcs_set_tear_on(ctx->dsi, MIPI_DSI_DCS_TEAR_MODE_VBLANK);
 	if (ret)
 		return ret;
@@ -1463,6 +1471,10 @@ static int ili9881c_get_modes(struct drm_panel *panel,
 
 	connector->display_info.width_mm = mode->width_mm;
 	connector->display_info.height_mm = mode->height_mm;
+	if (ctx->address_mode == 0x3)
+		connector->display_info.subpixel_order = SubPixelHorizontalBGR;
+	else
+		connector->display_info.subpixel_order = SubPixelHorizontalRGB;
 
 	/*
 	 * TODO: Remove once all drm drivers call
@@ -1521,6 +1533,12 @@ static int ili9881c_dsi_probe(struct mipi_dsi_device *dsi)
 		return ret;
 	}
 
+	ctx->address_mode = ctx->desc->default_address_mode;
+	if (ctx->orientation == DRM_MODE_PANEL_ORIENTATION_BOTTOM_UP) {
+		ctx->address_mode ^= 0x03;
+		ctx->orientation = DRM_MODE_PANEL_ORIENTATION_NORMAL;
+	}
+
 	ctx->panel.prepare_prev_first = true;
 
 	ret = drm_panel_of_backlight(&ctx->panel);
@@ -1572,6 +1590,7 @@ static const struct ili9881c_desc tl050hdv35_desc = {
 	.mode = &tl050hdv35_default_mode,
 	.mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
 		      MIPI_DSI_MODE_LPM,
+	.default_address_mode = 0x03,
 };
 
 static const struct ili9881c_desc w552946aba_desc = {

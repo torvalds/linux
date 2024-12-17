@@ -51,9 +51,10 @@
 #include "dc_dmub_srv.h"
 #include "gpio_service_interface.h"
 
+#define DC_TRACE_LEVEL_MESSAGE(...) /* do nothing */
+
 #define DC_LOGGER \
 	link->ctx->logger
-#define DC_TRACE_LEVEL_MESSAGE(...) /* do nothing */
 
 #ifndef MAX
 #define MAX(X, Y) ((X) > (Y) ? (X) : (Y))
@@ -212,6 +213,13 @@ static enum dc_link_rate linkRateInKHzToLinkRateMultiplier(uint32_t link_rate_in
 	case 10000000:
 		link_rate = LINK_RATE_UHBR10;	// UHBR10 - 10.0 Gbps/Lane
 		break;
+	case 13500000:
+		link_rate = LINK_RATE_UHBR13_5;	// UHBR13.5 - 13.5 Gbps/Lane
+		break;
+	case 20000000:
+		link_rate = LINK_RATE_UHBR20;	// UHBR20 - 20.0 Gbps/Lane
+		break;
+
 	default:
 		link_rate = LINK_RATE_UNKNOWN;
 		break;
@@ -541,6 +549,23 @@ static enum dc_link_rate increase_link_rate(struct dc_link *link,
 	}
 }
 
+static void increase_edp_link_rate(struct dc_link *link,
+		struct dc_link_settings *current_link_setting)
+{
+	if (current_link_setting->use_link_rate_set) {
+		if (current_link_setting->link_rate_set < link->dpcd_caps.edp_supported_link_rates_count) {
+			current_link_setting->link_rate_set++;
+			current_link_setting->link_rate =
+				link->dpcd_caps.edp_supported_link_rates[current_link_setting->link_rate_set];
+		} else {
+			current_link_setting->use_link_rate_set = false;
+			current_link_setting->link_rate = LINK_RATE_UHBR10;
+		}
+	} else {
+		current_link_setting->link_rate = increase_link_rate(link, current_link_setting->link_rate);
+	}
+}
+
 static bool decide_fallback_link_setting_max_bw_policy(
 		struct dc_link *link,
 		const struct dc_link_settings *max,
@@ -759,14 +784,7 @@ bool edp_decide_link_settings(struct dc_link *link,
 					increase_lane_count(
 							current_link_setting.lane_count);
 		} else {
-			if (current_link_setting.link_rate_set < link->dpcd_caps.edp_supported_link_rates_count) {
-				current_link_setting.link_rate_set++;
-				current_link_setting.link_rate =
-					link->dpcd_caps.edp_supported_link_rates[current_link_setting.link_rate_set];
-				current_link_setting.lane_count =
-									initial_link_setting.lane_count;
-			} else
-				break;
+			increase_edp_link_rate(link, &current_link_setting);
 		}
 	}
 	return false;
@@ -818,9 +836,7 @@ bool decide_edp_link_settings_with_dsc(struct dc_link *link,
 			if (policy) {
 				/* minimize lane */
 				if (current_link_setting.link_rate < max_link_rate) {
-					current_link_setting.link_rate =
-							increase_link_rate(link,
-									current_link_setting.link_rate);
+					increase_edp_link_rate(link, &current_link_setting);
 				} else {
 					if (current_link_setting.lane_count <
 									link->verified_link_cap.lane_count) {
@@ -839,9 +855,7 @@ bool decide_edp_link_settings_with_dsc(struct dc_link *link,
 							increase_lane_count(
 									current_link_setting.lane_count);
 				} else {
-					current_link_setting.link_rate =
-							increase_link_rate(link,
-									current_link_setting.link_rate);
+					increase_edp_link_rate(link, &current_link_setting);
 					current_link_setting.lane_count =
 							initial_link_setting.lane_count;
 				}
@@ -874,18 +888,15 @@ bool decide_edp_link_settings_with_dsc(struct dc_link *link,
 		}
 		if (policy) {
 			/* minimize lane */
-			if (current_link_setting.link_rate_set <
-					link->dpcd_caps.edp_supported_link_rates_count
-					&& current_link_setting.link_rate < max_link_rate) {
-				current_link_setting.link_rate_set++;
-				current_link_setting.link_rate =
-					link->dpcd_caps.edp_supported_link_rates[current_link_setting.link_rate_set];
+			if (current_link_setting.link_rate < max_link_rate) {
+				increase_edp_link_rate(link, &current_link_setting);
 			} else {
 				if (current_link_setting.lane_count < link->verified_link_cap.lane_count) {
 					current_link_setting.lane_count =
 							increase_lane_count(
 									current_link_setting.lane_count);
 					current_link_setting.link_rate_set = initial_link_setting.link_rate_set;
+					current_link_setting.use_link_rate_set = initial_link_setting.use_link_rate_set;
 					current_link_setting.link_rate =
 						link->dpcd_caps.edp_supported_link_rates[current_link_setting.link_rate_set];
 				} else
@@ -899,13 +910,8 @@ bool decide_edp_link_settings_with_dsc(struct dc_link *link,
 						increase_lane_count(
 								current_link_setting.lane_count);
 			} else {
-				if (current_link_setting.link_rate_set < link->dpcd_caps.edp_supported_link_rates_count) {
-					current_link_setting.link_rate_set++;
-					current_link_setting.link_rate =
-						link->dpcd_caps.edp_supported_link_rates[current_link_setting.link_rate_set];
-					current_link_setting.lane_count =
-						initial_link_setting.lane_count;
-				} else
+				increase_edp_link_rate(link, &current_link_setting);
+				if (current_link_setting.link_rate == LINK_RATE_UNKNOWN)
 					break;
 			}
 		}
@@ -1166,6 +1172,8 @@ static void get_active_converter_info(
 							link->dpcd_caps.dongle_caps.dp_hdmi_frl_max_link_bw_in_kbps = intersect_frl_link_bw_support(
 									link->dpcd_caps.dongle_caps.dp_hdmi_frl_max_link_bw_in_kbps,
 									hdmi_encoded_link_bw);
+							DC_LOG_DC("%s: pcon frl link bw = %u\n", __func__,
+								link->dpcd_caps.dongle_caps.dp_hdmi_frl_max_link_bw_in_kbps);
 						}
 
 						if (link->dpcd_caps.dongle_caps.dp_hdmi_frl_max_link_bw_in_kbps > 0)
@@ -1200,6 +1208,13 @@ static void get_active_converter_info(
 			dp_hw_fw_revision.ieee_fw_rev,
 			sizeof(dp_hw_fw_revision.ieee_fw_rev));
 	}
+
+	core_link_read_dpcd(
+		link,
+		DP_BRANCH_VENDOR_SPECIFIC_START,
+		(uint8_t *)link->dpcd_caps.branch_vendor_specific_data,
+		sizeof(link->dpcd_caps.branch_vendor_specific_data));
+
 	if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_14 &&
 			link->dpcd_caps.dongle_type != DISPLAY_DONGLE_NONE) {
 		union dp_dfp_cap_ext dfp_cap_ext;
@@ -1541,7 +1556,11 @@ enum dc_status dp_retrieve_lttpr_cap(struct dc_link *link)
 	 * Override count to 1 if we receive a known bad count (0 or an invalid value) */
 	if ((link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
 			(dp_parse_lttpr_repeater_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt) == 0)) {
-		ASSERT(0);
+		/* If you see this message consistently, either the host platform has FIXED_VS flag
+		 * incorrectly configured or the sink device is returning an invalid count.
+		 */
+		DC_LOG_ERROR("lttpr_caps phy_repeater_cnt is 0x%x, forcing it to 0x80.",
+			     link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 		link->dpcd_caps.lttpr_caps.phy_repeater_cnt = 0x80;
 		DC_LOG_DC("lttpr_caps forced phy_repeater_cnt = %d\n", link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 	}
@@ -1614,7 +1633,11 @@ static bool retrieve_link_cap(struct dc_link *link)
 	}
 
 	/* Read DP tunneling information. */
-	status = dpcd_get_tunneling_device_data(link);
+	if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) {
+		status = dpcd_get_tunneling_device_data(link);
+		if (status != DC_OK)
+			dm_error("%s: Read tunneling device data failed.\n", __func__);
+	}
 
 	dpcd_set_source_specific_data(link);
 	/* Sink may need to configure internals based on vendor, so allow some
@@ -1831,6 +1854,9 @@ static bool retrieve_link_cap(struct dc_link *link)
 				DP_FEC_CAPABILITY,
 				&link->dpcd_caps.fec_cap.raw,
 				sizeof(link->dpcd_caps.fec_cap.raw));
+		if (status != DC_OK)
+			DC_LOG_ERROR("%s:%d: core_link_read_dpcd (DP_FEC_CAPABILITY) failed\n", __func__, __LINE__);
+
 		status = core_link_read_dpcd(
 				link,
 				DP_DSC_SUPPORT,
@@ -1853,6 +1879,9 @@ static bool retrieve_link_cap(struct dc_link *link)
 					DP_DSC_BRANCH_OVERALL_THROUGHPUT_0,
 					link->dpcd_caps.dsc_caps.dsc_branch_decoder_caps.raw,
 					sizeof(link->dpcd_caps.dsc_caps.dsc_branch_decoder_caps.raw));
+			if (status != DC_OK)
+				DC_LOG_ERROR("%s:%d: core_link_read_dpcd (DP_DSC_BRANCH_OVERALL_THROUGHPUT_0) failed\n", __func__, __LINE__);
+
 			DC_LOG_DSC("DSC branch decoder capability is read at link %d", link->link_index);
 			DC_LOG_DSC("\tBRANCH_OVERALL_THROUGHPUT_0 = 0x%02x",
 					link->dpcd_caps.dsc_caps.dsc_branch_decoder_caps.fields.BRANCH_OVERALL_THROUGHPUT_0);
@@ -1930,6 +1959,11 @@ static bool retrieve_link_cap(struct dc_link *link)
 		if (link->dpcd_caps.fec_cap1.bits.AGGREGATED_ERROR_COUNTERS_CAPABLE)
 			DC_LOG_DP2("\tFEC aggregated error counters are supported");
 	}
+
+	core_link_read_dpcd(link,
+			DPCD_MAX_UNCOMPRESSED_PIXEL_RATE_CAP,
+			link->dpcd_caps.max_uncompressed_pixel_rate_cap.raw,
+			sizeof(link->dpcd_caps.max_uncompressed_pixel_rate_cap.raw));
 
 	retrieve_cable_id(link);
 	dpcd_write_cable_id_to_dprx(link);
@@ -2039,6 +2073,14 @@ void detect_edp_sink_caps(struct dc_link *link)
 	core_link_read_dpcd(link, DP_SINK_PR_MAX_NUMBER_OF_DEVIATION_LINE,
 			&link->dpcd_caps.pr_info.max_deviation_line,
 			sizeof(link->dpcd_caps.pr_info.max_deviation_line));
+
+	/*
+	 * OLED Emission Rate info
+	 */
+	if (link->dpcd_sink_ext_caps.bits.emission_output)
+		core_link_read_dpcd(link, DP_SINK_EMISSION_RATE,
+				(uint8_t *)&link->dpcd_caps.edp_oled_emission_rate,
+				sizeof(link->dpcd_caps.edp_oled_emission_rate));
 }
 
 bool dp_get_max_link_enc_cap(const struct dc_link *link, struct dc_link_settings *max_link_enc_cap)
@@ -2254,7 +2296,7 @@ bool dp_verify_link_cap_with_retries(
 
 		memset(&link->verified_link_cap, 0,
 				sizeof(struct dc_link_settings));
-		if (!link_detect_connection_type(link, &type) || type == dc_connection_none) {
+		if (link->link_enc && (!link_detect_connection_type(link, &type) || type == dc_connection_none)) {
 			link->verified_link_cap = fail_safe_link_settings;
 			break;
 		} else if (dp_verify_link_cap(link, known_limit_link_setting, &fail_count)) {

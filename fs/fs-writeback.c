@@ -290,7 +290,6 @@ void __inode_attach_wb(struct inode *inode, struct folio *folio)
 	if (unlikely(cmpxchg(&inode->i_wb, NULL, wb)))
 		wb_put(wb);
 }
-EXPORT_SYMBOL_GPL(__inode_attach_wb);
 
 /**
  * inode_cgwb_move_to_attached - put the inode onto wb->b_attached list
@@ -731,8 +730,9 @@ bool cleanup_offline_cgwb(struct bdi_writeback *wb)
  * writeback completion, wbc_detach_inode() should be called.  This is used
  * to track the cgroup writeback context.
  */
-void wbc_attach_and_unlock_inode(struct writeback_control *wbc,
-				 struct inode *inode)
+static void wbc_attach_and_unlock_inode(struct writeback_control *wbc,
+		struct inode *inode)
+	__releases(&inode->i_lock)
 {
 	if (!inode_cgwb_enabled(inode)) {
 		spin_unlock(&inode->i_lock);
@@ -762,7 +762,24 @@ void wbc_attach_and_unlock_inode(struct writeback_control *wbc,
 	if (unlikely(wb_dying(wbc->wb) && !css_is_dying(wbc->wb->memcg_css)))
 		inode_switch_wbs(inode, wbc->wb_id);
 }
-EXPORT_SYMBOL_GPL(wbc_attach_and_unlock_inode);
+
+/**
+ * wbc_attach_fdatawrite_inode - associate wbc and inode for fdatawrite
+ * @wbc: writeback_control of interest
+ * @inode: target inode
+ *
+ * This function is to be used by __filemap_fdatawrite_range(), which is an
+ * alternative entry point into writeback code, and first ensures @inode is
+ * associated with a bdi_writeback and attaches it to @wbc.
+ */
+void wbc_attach_fdatawrite_inode(struct writeback_control *wbc,
+		struct inode *inode)
+{
+	spin_lock(&inode->i_lock);
+	inode_attach_wb(inode, NULL);
+	wbc_attach_and_unlock_inode(wbc, inode);
+}
+EXPORT_SYMBOL_GPL(wbc_attach_fdatawrite_inode);
 
 /**
  * wbc_detach_inode - disassociate wbc from inode and perform foreign detection
@@ -890,17 +907,16 @@ EXPORT_SYMBOL_GPL(wbc_detach_inode);
 /**
  * wbc_account_cgroup_owner - account writeback to update inode cgroup ownership
  * @wbc: writeback_control of the writeback in progress
- * @page: page being written out
+ * @folio: folio being written out
  * @bytes: number of bytes being written out
  *
- * @bytes from @page are about to written out during the writeback
+ * @bytes from @folio are about to written out during the writeback
  * controlled by @wbc.  Keep the book for foreign inode detection.  See
  * wbc_detach_inode().
  */
-void wbc_account_cgroup_owner(struct writeback_control *wbc, struct page *page,
+void wbc_account_cgroup_owner(struct writeback_control *wbc, struct folio *folio,
 			      size_t bytes)
 {
-	struct folio *folio;
 	struct cgroup_subsys_state *css;
 	int id;
 
@@ -913,7 +929,6 @@ void wbc_account_cgroup_owner(struct writeback_control *wbc, struct page *page,
 	if (!wbc->wb || wbc->no_cgroup_owner)
 		return;
 
-	folio = page_folio(page);
 	css = mem_cgroup_css_from_folio(folio);
 	/* dead cgroups shouldn't contribute to inode ownership arbitration */
 	if (!(css->flags & CSS_ONLINE))
@@ -1132,6 +1147,7 @@ out_bdi_put:
 
 /**
  * cgroup_writeback_umount - flush inode wb switches for umount
+ * @sb: target super_block
  *
  * This function is called when a super_block is about to be destroyed and
  * flushes in-flight inode wb switches.  An inode wb switch goes through
@@ -1140,8 +1156,12 @@ out_bdi_put:
  * rare occurrences and synchronize_rcu() can take a while, perform
  * flushing iff wb switches are in flight.
  */
-void cgroup_writeback_umount(void)
+void cgroup_writeback_umount(struct super_block *sb)
 {
+
+	if (!(sb->s_bdi->capabilities & BDI_CAP_WRITEBACK))
+		return;
+
 	/*
 	 * SB_ACTIVE should be reliably cleared before checking
 	 * isw_nr_in_flight, see generic_shutdown_super().
@@ -1220,6 +1240,13 @@ static void bdi_split_work_to_wbs(struct backing_dev_info *bdi,
 		base_work->auto_free = 0;
 		wb_queue_work(&bdi->wb, base_work);
 	}
+}
+
+static inline void wbc_attach_and_unlock_inode(struct writeback_control *wbc,
+					       struct inode *inode)
+	__releases(&inode->i_lock)
+{
+	spin_unlock(&inode->i_lock);
 }
 
 #endif	/* CONFIG_CGROUP_WRITEBACK */
@@ -1381,12 +1408,13 @@ static void requeue_io(struct inode *inode, struct bdi_writeback *wb)
 
 static void inode_sync_complete(struct inode *inode)
 {
+	assert_spin_locked(&inode->i_lock);
+
 	inode->i_state &= ~I_SYNC;
 	/* If inode is clean an unused, put it into LRU now... */
 	inode_add_lru(inode);
-	/* Waiters must see I_SYNC cleared before being woken up */
-	smp_mb();
-	wake_up_bit(&inode->i_state, __I_SYNC);
+	/* Called with inode->i_lock which ensures memory ordering. */
+	inode_wake_up_bit(inode, __I_SYNC);
 }
 
 static bool inode_dirtied_after(struct inode *inode, unsigned long t)
@@ -1505,30 +1533,27 @@ static int write_inode(struct inode *inode, struct writeback_control *wbc)
  * Wait for writeback on an inode to complete. Called with i_lock held.
  * Caller must make sure inode cannot go away when we drop i_lock.
  */
-static void __inode_wait_for_writeback(struct inode *inode)
-	__releases(inode->i_lock)
-	__acquires(inode->i_lock)
-{
-	DEFINE_WAIT_BIT(wq, &inode->i_state, __I_SYNC);
-	wait_queue_head_t *wqh;
-
-	wqh = bit_waitqueue(&inode->i_state, __I_SYNC);
-	while (inode->i_state & I_SYNC) {
-		spin_unlock(&inode->i_lock);
-		__wait_on_bit(wqh, &wq, bit_wait,
-			      TASK_UNINTERRUPTIBLE);
-		spin_lock(&inode->i_lock);
-	}
-}
-
-/*
- * Wait for writeback on an inode to complete. Caller must have inode pinned.
- */
 void inode_wait_for_writeback(struct inode *inode)
 {
-	spin_lock(&inode->i_lock);
-	__inode_wait_for_writeback(inode);
-	spin_unlock(&inode->i_lock);
+	struct wait_bit_queue_entry wqe;
+	struct wait_queue_head *wq_head;
+
+	assert_spin_locked(&inode->i_lock);
+
+	if (!(inode->i_state & I_SYNC))
+		return;
+
+	wq_head = inode_bit_waitqueue(&wqe, inode, __I_SYNC);
+	for (;;) {
+		prepare_to_wait_event(wq_head, &wqe.wq_entry, TASK_UNINTERRUPTIBLE);
+		/* Checking I_SYNC with inode->i_lock guarantees memory ordering. */
+		if (!(inode->i_state & I_SYNC))
+			break;
+		spin_unlock(&inode->i_lock);
+		schedule();
+		spin_lock(&inode->i_lock);
+	}
+	finish_wait(wq_head, &wqe.wq_entry);
 }
 
 /*
@@ -1539,16 +1564,20 @@ void inode_wait_for_writeback(struct inode *inode)
 static void inode_sleep_on_writeback(struct inode *inode)
 	__releases(inode->i_lock)
 {
-	DEFINE_WAIT(wait);
-	wait_queue_head_t *wqh = bit_waitqueue(&inode->i_state, __I_SYNC);
-	int sleep;
+	struct wait_bit_queue_entry wqe;
+	struct wait_queue_head *wq_head;
+	bool sleep;
 
-	prepare_to_wait(wqh, &wait, TASK_UNINTERRUPTIBLE);
-	sleep = inode->i_state & I_SYNC;
+	assert_spin_locked(&inode->i_lock);
+
+	wq_head = inode_bit_waitqueue(&wqe, inode, __I_SYNC);
+	prepare_to_wait_event(wq_head, &wqe.wq_entry, TASK_UNINTERRUPTIBLE);
+	/* Checking I_SYNC with inode->i_lock guarantees memory ordering. */
+	sleep = !!(inode->i_state & I_SYNC);
 	spin_unlock(&inode->i_lock);
 	if (sleep)
 		schedule();
-	finish_wait(wqh, &wait);
+	finish_wait(wq_head, &wqe.wq_entry);
 }
 
 /*
@@ -1752,7 +1781,7 @@ static int writeback_single_inode(struct inode *inode,
 		 */
 		if (wbc->sync_mode != WB_SYNC_ALL)
 			goto out;
-		__inode_wait_for_writeback(inode);
+		inode_wait_for_writeback(inode);
 	}
 	WARN_ON(inode->i_state & I_SYNC);
 	/*

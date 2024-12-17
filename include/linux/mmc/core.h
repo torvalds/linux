@@ -11,16 +11,18 @@
 struct mmc_data;
 struct mmc_request;
 
-enum mmc_blk_status {
-	MMC_BLK_SUCCESS = 0,
-	MMC_BLK_PARTIAL,
-	MMC_BLK_CMD_ERR,
-	MMC_BLK_RETRY,
-	MMC_BLK_ABORT,
-	MMC_BLK_DATA_ERR,
-	MMC_BLK_ECC_ERR,
-	MMC_BLK_NOMEDIUM,
-	MMC_BLK_NEW_REQUEST,
+#define UHS2_MAX_PAYLOAD_LEN 2
+#define UHS2_MAX_RESP_LEN 20
+
+struct uhs2_command {
+	u16	header;
+	u16	arg;
+	__be32	payload[UHS2_MAX_PAYLOAD_LEN];
+	u8	payload_len;
+	u8	packet_len;
+	u8	tmode_half_duplex;
+	u8	uhs2_resp[UHS2_MAX_RESP_LEN];	/* UHS2 native cmd resp */
+	u8	uhs2_resp_len;			/* UHS2 native cmd resp len */
 };
 
 struct mmc_command {
@@ -108,6 +110,12 @@ struct mmc_command {
 	unsigned int		busy_timeout;	/* busy detect timeout in ms */
 	struct mmc_data		*data;		/* data segment associated with cmd */
 	struct mmc_request	*mrq;		/* associated request */
+
+	struct uhs2_command	*uhs2_cmd;	/* UHS2 command */
+
+	/* for SDUC */
+	bool has_ext_addr;
+	u8 ext_addr;
 };
 
 struct mmc_data {
@@ -166,6 +174,7 @@ struct mmc_request {
 	const struct bio_crypt_ctx *crypto_ctx;
 	int			crypto_key_slot;
 #endif
+	struct uhs2_command	uhs2_cmd;
 };
 
 struct mmc_card;

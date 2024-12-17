@@ -386,6 +386,66 @@ kernel_ptr(void)
 static void __init
 struct_resource(void)
 {
+	struct resource test_resource = {
+		.start = 0xc0ffee00,
+		.end = 0xc0ffee00,
+		.flags = IORESOURCE_MEM,
+	};
+
+	test("[mem 0xc0ffee00 flags 0x200]",
+	     "%pr", &test_resource);
+
+	test_resource = (struct resource) {
+		.start = 0xc0ffee,
+		.end = 0xba5eba11,
+		.flags = IORESOURCE_MEM,
+	};
+	test("[mem 0x00c0ffee-0xba5eba11 flags 0x200]",
+	     "%pr", &test_resource);
+
+	test_resource = (struct resource) {
+		.start = 0xba5eba11,
+		.end = 0xc0ffee,
+		.flags = IORESOURCE_MEM,
+	};
+	test("[mem 0xba5eba11-0x00c0ffee flags 0x200]",
+	     "%pr", &test_resource);
+
+	test_resource = (struct resource) {
+		.start = 0xba5eba11,
+		.end = 0xba5eca11,
+		.flags = IORESOURCE_MEM,
+	};
+
+	test("[mem 0xba5eba11-0xba5eca11 flags 0x200]",
+	     "%pr", &test_resource);
+
+	test_resource = (struct resource) {
+		.start = 0xba11,
+		.end = 0xca10,
+		.flags = IORESOURCE_IO |
+			 IORESOURCE_DISABLED |
+			 IORESOURCE_UNSET,
+	};
+
+	test("[io  size 0x1000 disabled]",
+	     "%pR", &test_resource);
+}
+
+static void __init
+struct_range(void)
+{
+	struct range test_range = DEFINE_RANGE(0xc0ffee00ba5eba11,
+					       0xc0ffee00ba5eba11);
+	test("[range 0xc0ffee00ba5eba11]", "%pra", &test_range);
+
+	test_range = DEFINE_RANGE(0xc0ffee, 0xba5eba11);
+	test("[range 0x0000000000c0ffee-0x00000000ba5eba11]",
+	     "%pra", &test_range);
+
+	test_range = DEFINE_RANGE(0xba5eba11, 0xc0ffee);
+	test("[range 0x00000000ba5eba11-0x0000000000c0ffee]",
+	     "%pra", &test_range);
 }
 
 static void __init
@@ -641,26 +701,12 @@ page_flags_test(int section, int node, int zone, int last_cpupid,
 	test(cmp_buf, "%pGp", &flags);
 }
 
-static void __init page_type_test(unsigned int page_type, const char *name,
-				  char *cmp_buf)
-{
-	unsigned long size;
-
-	size = scnprintf(cmp_buf, BUF_SIZE, "%#x(", page_type);
-	if (page_type_has_type(page_type))
-		size += scnprintf(cmp_buf + size, BUF_SIZE - size, "%s", name);
-
-	snprintf(cmp_buf + size, BUF_SIZE - size, ")");
-	test(cmp_buf, "%pGt", &page_type);
-}
-
 static void __init
 flags(void)
 {
 	unsigned long flags;
 	char *cmp_buffer;
 	gfp_t gfp;
-	unsigned int page_type;
 
 	cmp_buffer = kmalloc(BUF_SIZE, GFP_KERNEL);
 	if (!cmp_buffer)
@@ -699,18 +745,6 @@ flags(void)
 							(unsigned long) gfp);
 	gfp |= __GFP_HIGH;
 	test(cmp_buffer, "%pGg", &gfp);
-
-	page_type = ~0;
-	page_type_test(page_type, "", cmp_buffer);
-
-	page_type = 10;
-	page_type_test(page_type, "", cmp_buffer);
-
-	page_type = ~PG_buddy;
-	page_type_test(page_type, "buddy", cmp_buffer);
-
-	page_type = ~(PG_table | PG_buddy);
-	page_type_test(page_type, "table|buddy", cmp_buffer);
 
 	kfree(cmp_buffer);
 }
@@ -789,6 +823,7 @@ test_pointer(void)
 	symbol_ptr();
 	kernel_ptr();
 	struct_resource();
+	struct_range();
 	addr();
 	escaped_str();
 	hex_string();

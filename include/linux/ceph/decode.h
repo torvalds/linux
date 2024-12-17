@@ -6,7 +6,7 @@
 #include <linux/bug.h>
 #include <linux/slab.h>
 #include <linux/time.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <linux/ceph/types.h>
 

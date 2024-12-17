@@ -87,7 +87,7 @@
 	flash@2 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "en25s64", "jedec,spi-nor";
+		compatible = "jedec,spi-nor";
 		spi-cpol;
 		spi-cpha;
 		reg = <2>;

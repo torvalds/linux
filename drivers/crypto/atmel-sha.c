@@ -2623,27 +2623,23 @@ static int atmel_sha_probe(struct platform_device *pdev)
 	}
 
 	/* Initializing the clock */
-	sha_dd->iclk = devm_clk_get(&pdev->dev, "sha_clk");
+	sha_dd->iclk = devm_clk_get_prepared(&pdev->dev, "sha_clk");
 	if (IS_ERR(sha_dd->iclk)) {
 		dev_err(dev, "clock initialization failed.\n");
 		err = PTR_ERR(sha_dd->iclk);
 		goto err_tasklet_kill;
 	}
 
-	err = clk_prepare(sha_dd->iclk);
-	if (err)
-		goto err_tasklet_kill;
-
 	err = atmel_sha_hw_version_init(sha_dd);
 	if (err)
-		goto err_iclk_unprepare;
+		goto err_tasklet_kill;
 
 	atmel_sha_get_cap(sha_dd);
 
 	if (sha_dd->caps.has_dma) {
 		err = atmel_sha_dma_init(sha_dd);
 		if (err)
-			goto err_iclk_unprepare;
+			goto err_tasklet_kill;
 
 		dev_info(dev, "using %s for DMA transfers\n",
 				dma_chan_name(sha_dd->dma_lch_in.chan));
@@ -2669,8 +2665,6 @@ err_algs:
 	spin_unlock(&atmel_sha.lock);
 	if (sha_dd->caps.has_dma)
 		atmel_sha_dma_cleanup(sha_dd);
-err_iclk_unprepare:
-	clk_unprepare(sha_dd->iclk);
 err_tasklet_kill:
 	tasklet_kill(&sha_dd->queue_task);
 	tasklet_kill(&sha_dd->done_task);
@@ -2693,13 +2687,11 @@ static void atmel_sha_remove(struct platform_device *pdev)
 
 	if (sha_dd->caps.has_dma)
 		atmel_sha_dma_cleanup(sha_dd);
-
-	clk_unprepare(sha_dd->iclk);
 }
 
 static struct platform_driver atmel_sha_driver = {
 	.probe		= atmel_sha_probe,
-	.remove_new	= atmel_sha_remove,
+	.remove		= atmel_sha_remove,
 	.driver		= {
 		.name	= "atmel_sha",
 		.of_match_table	= atmel_sha_dt_ids,

@@ -167,6 +167,12 @@ static int rtw_ops_add_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&rtwdev->mutex);
 
+	rtwvif->mac_id = rtw_acquire_macid(rtwdev);
+	if (rtwvif->mac_id >= RTW_MAX_MAC_ID_NUM) {
+		mutex_unlock(&rtwdev->mutex);
+		return -ENOSPC;
+	}
+
 	port = find_first_zero_bit(rtwdev->hw_port, RTW_PORT_NUM);
 	if (port >= RTW_PORT_NUM) {
 		mutex_unlock(&rtwdev->mutex);
@@ -214,7 +220,8 @@ static int rtw_ops_add_interface(struct ieee80211_hw *hw,
 
 	mutex_unlock(&rtwdev->mutex);
 
-	rtw_dbg(rtwdev, RTW_DBG_STATE, "start vif %pM on port %d\n", vif->addr, rtwvif->port);
+	rtw_dbg(rtwdev, RTW_DBG_STATE, "start vif %pM mac_id %d on port %d\n",
+		vif->addr, rtwvif->mac_id, rtwvif->port);
 	return 0;
 }
 
@@ -225,7 +232,8 @@ static void rtw_ops_remove_interface(struct ieee80211_hw *hw,
 	struct rtw_vif *rtwvif = (struct rtw_vif *)vif->drv_priv;
 	u32 config = 0;
 
-	rtw_dbg(rtwdev, RTW_DBG_STATE, "stop vif %pM on port %d\n", vif->addr, rtwvif->port);
+	rtw_dbg(rtwdev, RTW_DBG_STATE, "stop vif %pM mac_id %d on port %d\n",
+		vif->addr, rtwvif->mac_id, rtwvif->port);
 
 	mutex_lock(&rtwdev->mutex);
 
@@ -242,6 +250,7 @@ static void rtw_ops_remove_interface(struct ieee80211_hw *hw,
 	config |= PORT_SET_BCN_CTRL;
 	rtw_vif_port_config(rtwdev, rtwvif, config);
 	clear_bit(rtwvif->port, rtwdev->hw_port);
+	rtw_release_macid(rtwdev, rtwvif->mac_id);
 	rtw_recalc_lps(rtwdev, NULL);
 
 	mutex_unlock(&rtwdev->mutex);
@@ -919,8 +928,10 @@ static int rtw_ops_set_sar_specs(struct ieee80211_hw *hw,
 
 static void rtw_ops_sta_rc_update(struct ieee80211_hw *hw,
 				  struct ieee80211_vif *vif,
-				  struct ieee80211_sta *sta, u32 changed)
+				  struct ieee80211_link_sta *link_sta,
+				  u32 changed)
 {
+	struct ieee80211_sta *sta = link_sta->sta;
 	struct rtw_dev *rtwdev = hw->priv;
 	struct rtw_sta_info *si = (struct rtw_sta_info *)sta->drv_priv;
 
@@ -964,7 +975,7 @@ const struct ieee80211_ops rtw_ops = {
 	.reconfig_complete	= rtw_reconfig_complete,
 	.hw_scan		= rtw_ops_hw_scan,
 	.cancel_hw_scan		= rtw_ops_cancel_hw_scan,
-	.sta_rc_update		= rtw_ops_sta_rc_update,
+	.link_sta_rc_update	= rtw_ops_sta_rc_update,
 	.set_sar_specs          = rtw_ops_set_sar_specs,
 #ifdef CONFIG_PM
 	.suspend		= rtw_ops_suspend,

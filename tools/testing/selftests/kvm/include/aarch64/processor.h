@@ -12,6 +12,8 @@
 
 #include <linux/stringify.h>
 #include <linux/types.h>
+#include <asm/brk-imm.h>
+#include <asm/esr.h>
 #include <asm/sysreg.h>
 
 
@@ -99,19 +101,6 @@ enum {
 			   (v) == VECTOR_SYNC_CURRENT     || \
 			   (v) == VECTOR_SYNC_LOWER_64    || \
 			   (v) == VECTOR_SYNC_LOWER_32)
-
-#define ESR_EC_NUM		64
-#define ESR_EC_SHIFT		26
-#define ESR_EC_MASK		(ESR_EC_NUM - 1)
-
-#define ESR_EC_UNKNOWN		0x0
-#define ESR_EC_SVC64		0x15
-#define ESR_EC_IABT		0x21
-#define ESR_EC_DABT		0x25
-#define ESR_EC_HW_BP_CURRENT	0x31
-#define ESR_EC_SSTEP_CURRENT	0x33
-#define ESR_EC_WP_CURRENT	0x35
-#define ESR_EC_BRK_INS		0x3c
 
 /* Access flag */
 #define PTE_AF			(1ULL << 10)
@@ -242,5 +231,8 @@ void smccc_hvc(uint32_t function_id, uint64_t arg0, uint64_t arg1,
 void smccc_smc(uint32_t function_id, uint64_t arg0, uint64_t arg1,
 	       uint64_t arg2, uint64_t arg3, uint64_t arg4, uint64_t arg5,
 	       uint64_t arg6, struct arm_smccc_res *res);
+
+/* Execute a Wait For Interrupt instruction. */
+void wfi(void);
 
 #endif /* SELFTEST_KVM_PROCESSOR_H */

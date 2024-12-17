@@ -993,7 +993,7 @@ MODULE_DEVICE_TABLE(of, sprd_mcdt_of_match);
 
 static struct platform_driver sprd_mcdt_driver = {
 	.probe = sprd_mcdt_probe,
-	.remove_new = sprd_mcdt_remove,
+	.remove = sprd_mcdt_remove,
 	.driver = {
 		.name = "sprd-mcdt",
 		.of_match_table = sprd_mcdt_of_match,

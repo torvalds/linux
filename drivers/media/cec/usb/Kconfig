@@ -3,6 +3,7 @@
 # USB drivers
 
 if USB_SUPPORT && TTY
+source "drivers/media/cec/usb/extron-da-hd-4k-plus/Kconfig"
 source "drivers/media/cec/usb/pulse8/Kconfig"
 source "drivers/media/cec/usb/rainshadow/Kconfig"
 endif

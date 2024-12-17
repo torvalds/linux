@@ -226,6 +226,10 @@ static inline int arch_within_stack_frames(const void * const stack,
 	return BAD_STACK;
 }
 
+#ifdef CONFIG_PPC32
+extern void *emergency_ctx[];
+#endif
+
 #endif	/* !__ASSEMBLY__ */
 
 #endif /* __KERNEL__ */

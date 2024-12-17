@@ -90,6 +90,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <libgen.h>
 #include <string.h>
 #include <stddef.h>
 #include <sys/mman.h>
@@ -322,6 +323,25 @@ out:
 	xsk_umem__delete(umem->umem);
 	free(umem);
 	return zc_avail;
+}
+
+#define MAX_SKB_FRAGS_PATH "/proc/sys/net/core/max_skb_frags"
+static unsigned int get_max_skb_frags(void)
+{
+	unsigned int max_skb_frags = 0;
+	FILE *file;
+
+	file = fopen(MAX_SKB_FRAGS_PATH, "r");
+	if (!file) {
+		ksft_print_msg("Error opening %s\n", MAX_SKB_FRAGS_PATH);
+		return 0;
+	}
+
+	if (fscanf(file, "%u", &max_skb_frags) != 1)
+		ksft_print_msg("Error reading %s\n", MAX_SKB_FRAGS_PATH);
+
+	fclose(file);
+	return max_skb_frags;
 }
 
 static struct option long_options[] = {
@@ -2244,13 +2264,24 @@ static int testapp_poll_rxq_tmout(struct test_spec *test)
 
 static int testapp_too_many_frags(struct test_spec *test)
 {
-	struct pkt pkts[2 * XSK_DESC__MAX_SKB_FRAGS + 2] = {};
+	struct pkt *pkts;
 	u32 max_frags, i;
+	int ret;
 
-	if (test->mode == TEST_MODE_ZC)
+	if (test->mode == TEST_MODE_ZC) {
 		max_frags = test->ifobj_tx->xdp_zc_max_segs;
-	else
-		max_frags = XSK_DESC__MAX_SKB_FRAGS;
+	} else {
+		max_frags = get_max_skb_frags();
+		if (!max_frags) {
+			ksft_print_msg("Couldn't retrieve MAX_SKB_FRAGS from system, using default (17) value\n");
+			max_frags = 17;
+		}
+		max_frags += 1;
+	}
+
+	pkts = calloc(2 * max_frags + 2, sizeof(struct pkt));
+	if (!pkts)
+		return TEST_FAILURE;
 
 	test->mtu = MAX_ETH_JUMBO_SIZE;
 
@@ -2280,7 +2311,10 @@ static int testapp_too_many_frags(struct test_spec *test)
 	pkts[2 * max_frags + 1].valid = true;
 
 	pkt_stream_generate_custom(test, pkts, 2 * max_frags + 2);
-	return testapp_validate_traffic(test);
+	ret = testapp_validate_traffic(test);
+
+	free(pkts);
+	return ret;
 }
 
 static int xsk_load_xdp_programs(struct ifobject *ifobj)

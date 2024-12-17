@@ -75,7 +75,6 @@
 &usdhc1 {
 	bus-width = <4>;
 	keep-power-in-suspend;
-	max-frequency = <100000000>;
 	non-removable;
 	pinctrl-names = "default", "state_100mhz", "state_200mhz";
 	pinctrl-0 = <&pinctrl_usdhc1>, <&pinctrl_wifi_ctrl>;

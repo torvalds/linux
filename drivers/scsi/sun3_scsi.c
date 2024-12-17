@@ -304,7 +304,7 @@ static int sun3scsi_dma_setup(struct NCR5380_hostdata *hostdata,
 	sun3_udc_write(UDC_INT_ENABLE, UDC_CSR);
 #endif
 	
-       	return count;
+	return count;
 
 }
 
@@ -656,8 +656,14 @@ static void __exit sun3_scsi_remove(struct platform_device *pdev)
 	iounmap(ioaddr);
 }
 
-static struct platform_driver sun3_scsi_driver = {
-	.remove_new = __exit_p(sun3_scsi_remove),
+/*
+ * sun3_scsi_remove() lives in .exit.text. For drivers registered via
+ * module_platform_driver_probe() this is ok because they cannot get unbound at
+ * runtime. So mark the driver struct with __refdata to prevent modpost
+ * triggering a section mismatch warning.
+ */
+static struct platform_driver sun3_scsi_driver __refdata = {
+	.remove = __exit_p(sun3_scsi_remove),
 	.driver = {
 		.name	= DRV_MODULE_NAME,
 	},

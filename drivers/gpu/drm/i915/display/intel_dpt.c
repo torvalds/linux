@@ -242,7 +242,7 @@ void intel_dpt_suspend(struct drm_i915_private *i915)
 struct i915_address_space *
 intel_dpt_create(struct intel_framebuffer *fb)
 {
-	struct drm_gem_object *obj = &intel_fb_obj(&fb->base)->base;
+	struct drm_gem_object *obj = intel_fb_bo(&fb->base);
 	struct drm_i915_private *i915 = to_i915(obj->dev);
 	struct drm_i915_gem_object *dpt_obj;
 	struct i915_address_space *vm;
@@ -317,3 +317,7 @@ void intel_dpt_destroy(struct i915_address_space *vm)
 	i915_vm_put(&dpt->vm);
 }
 
+u64 intel_dpt_offset(struct i915_vma *dpt_vma)
+{
+	return dpt_vma->node.start;
+}

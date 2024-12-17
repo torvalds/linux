@@ -452,6 +452,7 @@ static int max77976_probe(struct i2c_client *client)
 
 	i2c_set_clientdata(client, chg);
 	psy_cfg.drv_data = chg;
+	psy_cfg.no_wakeup_source = true;
 	chg->client = client;
 
 	chg->regmap = devm_regmap_init_i2c(client, &max77976_regmap_config);
@@ -475,7 +476,7 @@ static int max77976_probe(struct i2c_client *client)
 	if (err)
 		return err;
 
-	psy = devm_power_supply_register_no_ws(dev, &max77976_psy_desc, &psy_cfg);
+	psy = devm_power_supply_register(dev, &max77976_psy_desc, &psy_cfg);
 	if (IS_ERR(psy))
 		return dev_err_probe(dev, PTR_ERR(psy), "cannot register\n");
 

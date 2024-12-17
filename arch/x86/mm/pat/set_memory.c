@@ -354,7 +354,7 @@ bool cpu_cache_has_invalidate_memregion(void)
 {
 	return !cpu_feature_enabled(X86_FEATURE_HYPERVISOR);
 }
-EXPORT_SYMBOL_NS_GPL(cpu_cache_has_invalidate_memregion, DEVMEM);
+EXPORT_SYMBOL_NS_GPL(cpu_cache_has_invalidate_memregion, "DEVMEM");
 
 int cpu_cache_invalidate_memregion(int res_desc)
 {
@@ -363,7 +363,7 @@ int cpu_cache_invalidate_memregion(int res_desc)
 	wbinvd_on_all_cpus();
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(cpu_cache_invalidate_memregion, DEVMEM);
+EXPORT_SYMBOL_NS_GPL(cpu_cache_invalidate_memregion, "DEVMEM");
 #endif
 
 static void __cpa_flush_all(void *arg)
@@ -2442,6 +2442,14 @@ int set_direct_map_invalid_noflush(struct page *page)
 int set_direct_map_default_noflush(struct page *page)
 {
 	return __set_pages_p(page, 1);
+}
+
+int set_direct_map_valid_noflush(struct page *page, unsigned nr, bool valid)
+{
+	if (valid)
+		return __set_pages_p(page, nr);
+
+	return __set_pages_np(page, nr);
 }
 
 #ifdef CONFIG_DEBUG_PAGEALLOC

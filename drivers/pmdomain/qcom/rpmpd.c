@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved. */
 
+#include <linux/cleanup.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -1024,19 +1025,16 @@ static int rpmpd_power_on(struct generic_pm_domain *domain)
 	int ret;
 	struct rpmpd *pd = domain_to_rpmpd(domain);
 
-	mutex_lock(&rpmpd_lock);
+	guard(mutex)(&rpmpd_lock);
 
 	ret = rpmpd_send_enable(pd, true);
 	if (ret)
-		goto out;
+		return ret;
 
 	pd->enabled = true;
 
 	if (pd->corner)
 		ret = rpmpd_aggregate_corner(pd);
-
-out:
-	mutex_unlock(&rpmpd_lock);
 
 	return ret;
 }
@@ -1060,27 +1058,21 @@ static int rpmpd_power_off(struct generic_pm_domain *domain)
 static int rpmpd_set_performance(struct generic_pm_domain *domain,
 				 unsigned int state)
 {
-	int ret = 0;
 	struct rpmpd *pd = domain_to_rpmpd(domain);
 
 	if (state > pd->max_state)
 		state = pd->max_state;
 
-	mutex_lock(&rpmpd_lock);
+	guard(mutex)(&rpmpd_lock);
 
 	pd->corner = state;
 
 	/* Always send updates for vfc and vfl */
 	if (!pd->enabled && pd->key != cpu_to_le32(KEY_FLOOR_CORNER) &&
 	    pd->key != cpu_to_le32(KEY_FLOOR_LEVEL))
-		goto out;
+		return 0;
 
-	ret = rpmpd_aggregate_corner(pd);
-
-out:
-	mutex_unlock(&rpmpd_lock);
-
-	return ret;
+	return rpmpd_aggregate_corner(pd);
 }
 
 static int rpmpd_probe(struct platform_device *pdev)

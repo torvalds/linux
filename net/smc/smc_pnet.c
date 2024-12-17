@@ -753,7 +753,7 @@ static int smc_pnet_add_pnetid(struct net *net, u8 *pnetid)
 
 	write_lock(&sn->pnetids_ndev.lock);
 	list_for_each_entry(pi, &sn->pnetids_ndev.list, list) {
-		if (smc_pnet_match(pnetid, pe->pnetid)) {
+		if (smc_pnet_match(pnetid, pi->pnetid)) {
 			refcount_inc(&pi->refcnt);
 			kfree(pe);
 			goto unlock;
@@ -886,9 +886,6 @@ int smc_pnet_net_init(struct net *net)
 	rwlock_init(&pnetids_ndev->lock);
 
 	smc_pnet_create_pnetids_list(net);
-
-	/* disable handshake limitation by default */
-	net->smc.limit_smc_hs = 0;
 
 	return 0;
 }
@@ -1057,9 +1054,7 @@ static void smc_pnet_find_rdma_dev(struct net_device *netdev,
 		for (i = 1; i <= SMC_MAX_PORTS; i++) {
 			if (!rdma_is_port_valid(ibdev->ibdev, i))
 				continue;
-			if (!ibdev->ibdev->ops.get_netdev)
-				continue;
-			ndev = ibdev->ibdev->ops.get_netdev(ibdev->ibdev, i);
+			ndev = ib_device_get_netdev(ibdev->ibdev, i);
 			if (!ndev)
 				continue;
 			dev_put(ndev);

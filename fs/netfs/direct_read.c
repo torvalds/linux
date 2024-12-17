@@ -16,6 +16,143 @@
 #include <linux/netfs.h>
 #include "internal.h"
 
+static void netfs_prepare_dio_read_iterator(struct netfs_io_subrequest *subreq)
+{
+	struct netfs_io_request *rreq = subreq->rreq;
+	size_t rsize;
+
+	rsize = umin(subreq->len, rreq->io_streams[0].sreq_max_len);
+	subreq->len = rsize;
+
+	if (unlikely(rreq->io_streams[0].sreq_max_segs)) {
+		size_t limit = netfs_limit_iter(&rreq->iter, 0, rsize,
+						rreq->io_streams[0].sreq_max_segs);
+
+		if (limit < rsize) {
+			subreq->len = limit;
+			trace_netfs_sreq(subreq, netfs_sreq_trace_limited);
+		}
+	}
+
+	trace_netfs_sreq(subreq, netfs_sreq_trace_prepare);
+
+	subreq->io_iter	= rreq->iter;
+	iov_iter_truncate(&subreq->io_iter, subreq->len);
+	iov_iter_advance(&rreq->iter, subreq->len);
+}
+
+/*
+ * Perform a read to a buffer from the server, slicing up the region to be read
+ * according to the network rsize.
+ */
+static int netfs_dispatch_unbuffered_reads(struct netfs_io_request *rreq)
+{
+	unsigned long long start = rreq->start;
+	ssize_t size = rreq->len;
+	int ret = 0;
+
+	atomic_set(&rreq->nr_outstanding, 1);
+
+	do {
+		struct netfs_io_subrequest *subreq;
+		ssize_t slice;
+
+		subreq = netfs_alloc_subrequest(rreq);
+		if (!subreq) {
+			ret = -ENOMEM;
+			break;
+		}
+
+		subreq->source	= NETFS_DOWNLOAD_FROM_SERVER;
+		subreq->start	= start;
+		subreq->len	= size;
+
+		atomic_inc(&rreq->nr_outstanding);
+		spin_lock_bh(&rreq->lock);
+		list_add_tail(&subreq->rreq_link, &rreq->subrequests);
+		subreq->prev_donated = rreq->prev_donated;
+		rreq->prev_donated = 0;
+		trace_netfs_sreq(subreq, netfs_sreq_trace_added);
+		spin_unlock_bh(&rreq->lock);
+
+		netfs_stat(&netfs_n_rh_download);
+		if (rreq->netfs_ops->prepare_read) {
+			ret = rreq->netfs_ops->prepare_read(subreq);
+			if (ret < 0) {
+				atomic_dec(&rreq->nr_outstanding);
+				netfs_put_subrequest(subreq, false, netfs_sreq_trace_put_cancel);
+				break;
+			}
+		}
+
+		netfs_prepare_dio_read_iterator(subreq);
+		slice = subreq->len;
+		rreq->netfs_ops->issue_read(subreq);
+
+		size -= slice;
+		start += slice;
+		rreq->submitted += slice;
+
+		if (test_bit(NETFS_RREQ_BLOCKED, &rreq->flags) &&
+		    test_bit(NETFS_RREQ_NONBLOCK, &rreq->flags))
+			break;
+		cond_resched();
+	} while (size > 0);
+
+	if (atomic_dec_and_test(&rreq->nr_outstanding))
+		netfs_rreq_terminated(rreq, false);
+	return ret;
+}
+
+/*
+ * Perform a read to an application buffer, bypassing the pagecache and the
+ * local disk cache.
+ */
+static int netfs_unbuffered_read(struct netfs_io_request *rreq, bool sync)
+{
+	int ret;
+
+	_enter("R=%x %llx-%llx",
+	       rreq->debug_id, rreq->start, rreq->start + rreq->len - 1);
+
+	if (rreq->len == 0) {
+		pr_err("Zero-sized read [R=%x]\n", rreq->debug_id);
+		return -EIO;
+	}
+
+	// TODO: Use bounce buffer if requested
+
+	inode_dio_begin(rreq->inode);
+
+	ret = netfs_dispatch_unbuffered_reads(rreq);
+
+	if (!rreq->submitted) {
+		netfs_put_request(rreq, false, netfs_rreq_trace_put_no_submit);
+		inode_dio_end(rreq->inode);
+		ret = 0;
+		goto out;
+	}
+
+	if (sync) {
+		trace_netfs_rreq(rreq, netfs_rreq_trace_wait_ip);
+		wait_on_bit(&rreq->flags, NETFS_RREQ_IN_PROGRESS,
+			    TASK_UNINTERRUPTIBLE);
+
+		ret = rreq->error;
+		if (ret == 0 && rreq->submitted < rreq->len &&
+		    rreq->origin != NETFS_DIO_READ) {
+			trace_netfs_failure(rreq, NULL, ret, netfs_fail_short_read);
+			ret = -EIO;
+		}
+	} else {
+		ret = -EIOCBQUEUED;
+	}
+
+out:
+	_leave(" = %d", ret);
+	return ret;
+}
+
 /**
  * netfs_unbuffered_read_iter_locked - Perform an unbuffered or direct I/O read
  * @iocb: The I/O control descriptor describing the read
@@ -31,7 +168,7 @@ ssize_t netfs_unbuffered_read_iter_locked(struct kiocb *iocb, struct iov_iter *i
 	struct netfs_io_request *rreq;
 	ssize_t ret;
 	size_t orig_count = iov_iter_count(iter);
-	bool async = !is_sync_kiocb(iocb);
+	bool sync = is_sync_kiocb(iocb);
 
 	_enter("");
 
@@ -78,13 +215,13 @@ ssize_t netfs_unbuffered_read_iter_locked(struct kiocb *iocb, struct iov_iter *i
 
 	// TODO: Set up bounce buffer if needed
 
-	if (async)
+	if (!sync)
 		rreq->iocb = iocb;
 
-	ret = netfs_begin_read(rreq, is_sync_kiocb(iocb));
+	ret = netfs_unbuffered_read(rreq, sync);
 	if (ret < 0)
 		goto out; /* May be -EIOCBQUEUED */
-	if (!async) {
+	if (sync) {
 		// TODO: Copy from bounce buffer
 		iocb->ki_pos += rreq->transferred;
 		ret = rreq->transferred;
@@ -94,8 +231,6 @@ out:
 	netfs_put_request(rreq, false, netfs_rreq_trace_put_return);
 	if (ret > 0)
 		orig_count -= ret;
-	if (ret != -EIOCBQUEUED)
-		iov_iter_revert(iter, orig_count - iov_iter_count(iter));
 	return ret;
 }
 EXPORT_SYMBOL(netfs_unbuffered_read_iter_locked);

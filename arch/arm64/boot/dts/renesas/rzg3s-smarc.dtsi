@@ -11,6 +11,7 @@
 
 / {
 	aliases {
+		i2c0 = &i2c0;
 		serial0 = &scif0;
 		mmc1 = &sdhi1;
 	};
@@ -19,8 +20,7 @@
 		compatible = "gpio-keys";
 
 		key-1 {
-			interrupts = <RZG2L_GPIO(18, 0) IRQ_TYPE_EDGE_FALLING>;
-			interrupt-parent = <&pinctrl>;
+			interrupts-extended = <&pinctrl RZG2L_GPIO(18, 0) IRQ_TYPE_EDGE_FALLING>;
 			linux,code = <KEY_1>;
 			label = "USER_SW1";
 			wakeup-source;
@@ -28,8 +28,7 @@
 		};
 
 		key-2 {
-			interrupts = <RZG2L_GPIO(0, 1) IRQ_TYPE_EDGE_FALLING>;
-			interrupt-parent = <&pinctrl>;
+			interrupts-extended = <&pinctrl RZG2L_GPIO(0, 1) IRQ_TYPE_EDGE_FALLING>;
 			linux,code = <KEY_2>;
 			label = "USER_SW2";
 			wakeup-source;
@@ -37,8 +36,7 @@
 		};
 
 		key-3 {
-			interrupts = <RZG2L_GPIO(0, 3) IRQ_TYPE_EDGE_FALLING>;
-			interrupt-parent = <&pinctrl>;
+			interrupts-extended = <&pinctrl RZG2L_GPIO(0, 3) IRQ_TYPE_EDGE_FALLING>;
 			linux,code = <KEY_3>;
 			label = "USER_SW3";
 			wakeup-source;
@@ -64,6 +62,12 @@
 		gpios-states = <1>;
 		states = <3300000 1>, <1800000 0>;
 	};
+};
+
+&i2c0 {
+	status = "okay";
+
+	clock-frequency = <1000000>;
 };
 
 &pinctrl {

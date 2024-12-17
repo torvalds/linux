@@ -21,6 +21,12 @@
 		serial0 = &uart0;
 	};
 
+	battery: battery {
+		compatible = "simple-battery";
+		constant-charge-current-max-microamp = <1024000>;
+		voltage-max-design-microvolt = <4200000>;
+	};
+
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
@@ -171,6 +177,12 @@
 	};
 };
 
+&codec {
+	allwinner,audio-routing = "Line Out", "LINEOUT";
+	allwinner,pa-gpios = <&pio 8 5 GPIO_ACTIVE_HIGH>; // PI5
+	status = "okay";
+};
+
 &cpu0 {
 	cpu-supply = <&reg_dcdc1>;
 };
@@ -201,12 +213,12 @@
 	vcc-pi-supply = <&reg_cldo3>;
 };
 
-&r_rsb {
+&r_i2c {
 	status = "okay";
 
-	axp717: pmic@3a3 {
+	axp717: pmic@34 {
 		compatible = "x-powers,axp717";
-		reg = <0x3a3>;
+		reg = <0x34>;
 		interrupt-controller;
 		#interrupt-cells = <1>;
 		interrupt-parent = <&nmi_intc>;
@@ -216,6 +228,16 @@
 		vin2-supply = <&reg_vcc5v>;
 		vin3-supply = <&reg_vcc5v>;
 		vin4-supply = <&reg_vcc5v>;
+
+		axp_adc: adc {
+			compatible = "x-powers,axp717-adc";
+			#io-channel-cells = <1>;
+		};
+
+		battery_power: battery-power {
+			compatible = "x-powers,axp717-battery-power-supply";
+			monitored-battery = <&battery>;
+		};
 
 		regulators {
 			reg_dcdc1: dcdc1 {
@@ -254,7 +276,7 @@
 			reg_aldo4: aldo4 {
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
-				regulator-name = "vcc-pg";
+				regulator-name = "avcc";
 			};
 
 			reg_bldo1: bldo1 {
@@ -277,7 +299,10 @@
 			};
 
 			reg_cldo1: cldo1 {
-				/* 3.3v - audio codec - not yet implemented */
+				regulator-always-on;
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-name = "vcc-spkr-amp";
 			};
 
 			reg_cldo2: cldo2 {
@@ -306,6 +331,11 @@
 			reg_cpusldo: cpusldo {
 				/* unused */
 			};
+		};
+
+		usb_power: usb-power {
+			compatible = "x-powers,axp717-usb-power-supply";
+			input-current-limit-microamp = <1500000>;
 		};
 	};
 };

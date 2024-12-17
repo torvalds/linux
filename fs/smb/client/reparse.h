@@ -12,20 +12,15 @@
 #include "fs_context.h"
 #include "cifsglob.h"
 
+#define REPARSE_SYM_PATH_MAX 4060
+
 /*
  * Used only by cifs.ko to ignore reparse points from files when client or
  * server doesn't support FSCTL_GET_REPARSE_POINT.
  */
 #define IO_REPARSE_TAG_INTERNAL ((__u32)~0U)
 
-static inline dev_t reparse_nfs_mkdev(struct reparse_posix_data *buf)
-{
-	u64 v = le64_to_cpu(*(__le64 *)buf->DataBuffer);
-
-	return MKDEV(v >> 32, v & 0xffffffff);
-}
-
-static inline dev_t wsl_mkdev(void *ptr)
+static inline dev_t reparse_mkdev(void *ptr)
 {
 	u64 v = le64_to_cpu(*(__le64 *)ptr);
 
@@ -122,7 +117,9 @@ int smb2_create_reparse_symlink(const unsigned int xid, struct inode *inode,
 int smb2_mknod_reparse(unsigned int xid, struct inode *inode,
 		       struct dentry *dentry, struct cifs_tcon *tcon,
 		       const char *full_path, umode_t mode, dev_t dev);
-int smb2_parse_reparse_point(struct cifs_sb_info *cifs_sb, struct kvec *rsp_iov,
+int smb2_parse_reparse_point(struct cifs_sb_info *cifs_sb,
+			     const char *full_path,
+			     struct kvec *rsp_iov,
 			     struct cifs_open_info_data *data);
 
 #endif /* _CIFS_REPARSE_H */

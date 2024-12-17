@@ -201,6 +201,8 @@ struct dcn_optc_registers {
 	uint32_t OTG_CRC1_WINDOWB_Y_CONTROL_READBACK;
 	uint32_t OPTC_CLOCK_CONTROL;
 	uint32_t OPTC_WIDTH_CONTROL2;
+	uint32_t OTG_PSTATE_REGISTER;
+	uint32_t OTG_PIPE_UPDATE_STATUS;
 };
 
 #define TG_COMMON_MASK_SH_LIST_DCN(mask_sh)\
@@ -565,6 +567,12 @@ struct dcn_optc_registers {
 	type OTG_H_TIMING_DIV_MODE_DB_UPDATE_PENDING;\
 	type OPTC_DOUBLE_BUFFER_PENDING;\
 
+#define TG_REG_FIELD_LIST_DCN2_0(type) \
+	type OTG_FLIP_PENDING;\
+	type OTG_DC_REG_UPDATE_PENDING;\
+	type OTG_CURSOR_UPDATE_PENDING;\
+	type OTG_VUPDATE_KEEPOUT_STATUS;\
+
 #define TG_REG_FIELD_LIST_DCN3_2(type) \
 	type OTG_H_TIMING_DIV_MODE_MANUAL;
 
@@ -590,11 +598,16 @@ struct dcn_optc_registers {
 	type OTG_V_COUNT_STOP_TIMER;
 
 #define TG_REG_FIELD_LIST_DCN401(type) \
-	type OPTC_SEGMENT_WIDTH_LAST;
+	type OPTC_SEGMENT_WIDTH_LAST;\
+	type OTG_PSTATE_KEEPOUT_START;\
+	type OTG_PSTATE_EXTEND;\
+	type OTG_UNBLANK;\
+	type OTG_PSTATE_ALLOW_WIDTH_MIN;
 
 
 struct dcn_optc_shift {
 	TG_REG_FIELD_LIST(uint8_t)
+	TG_REG_FIELD_LIST_DCN2_0(uint8_t)
 	TG_REG_FIELD_LIST_DCN3_2(uint8_t)
 	TG_REG_FIELD_LIST_DCN3_5(uint8_t)
 	TG_REG_FIELD_LIST_DCN401(uint8_t)
@@ -602,6 +615,7 @@ struct dcn_optc_shift {
 
 struct dcn_optc_mask {
 	TG_REG_FIELD_LIST(uint32_t)
+	TG_REG_FIELD_LIST_DCN2_0(uint32_t)
 	TG_REG_FIELD_LIST_DCN3_2(uint32_t)
 	TG_REG_FIELD_LIST_DCN3_5(uint32_t)
 	TG_REG_FIELD_LIST_DCN401(uint32_t)

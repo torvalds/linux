@@ -941,7 +941,7 @@ static struct platform_driver vf610_nfc_driver = {
 		.pm	= &vf610_nfc_pm_ops,
 	},
 	.probe		= vf610_nfc_probe,
-	.remove_new	= vf610_nfc_remove,
+	.remove		= vf610_nfc_remove,
 };
 
 module_platform_driver(vf610_nfc_driver);

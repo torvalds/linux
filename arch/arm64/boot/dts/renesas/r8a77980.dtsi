@@ -1266,6 +1266,7 @@
 			clocks = <&cpg CPG_MOD 813>;
 			power-domains = <&sysc R8A77980_PD_ALWAYS_ON>;
 			resets = <&cpg 813>;
+			iommus = <&ipmmu_ds1 34>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -1430,6 +1431,7 @@
 			clocks = <&cpg CPG_MOD 603>;
 			power-domains = <&sysc R8A77980_PD_ALWAYS_ON>;
 			resets = <&cpg 603>;
+			iommus = <&ipmmu_vi0 8>;
 		};
 
 		csi40: csi2@feaa0000 {

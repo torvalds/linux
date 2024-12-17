@@ -138,6 +138,8 @@ struct psp_funcs {
 	int (*vbflash_stat)(struct psp_context *psp);
 	int (*fatal_error_recovery_quirk)(struct psp_context *psp);
 	bool (*get_ras_capability)(struct psp_context *psp);
+	bool (*is_aux_sos_load_required)(struct psp_context *psp);
+	bool (*is_reload_needed)(struct psp_context *psp);
 };
 
 struct ta_funcs {
@@ -464,6 +466,9 @@ struct amdgpu_psp_funcs {
 	((psp)->funcs->fatal_error_recovery_quirk ? \
 	(psp)->funcs->fatal_error_recovery_quirk((psp)) : 0)
 
+#define psp_is_aux_sos_load_required(psp) \
+	((psp)->funcs->is_aux_sos_load_required ? (psp)->funcs->is_aux_sos_load_required((psp)) : 0)
+
 extern const struct amd_ip_funcs psp_ip_funcs;
 
 extern const struct amdgpu_ip_block_version psp_v3_1_ip_block;
@@ -548,9 +553,15 @@ int psp_load_fw_list(struct psp_context *psp,
 void psp_copy_fw(struct psp_context *psp, uint8_t *start_addr, uint32_t bin_size);
 
 int psp_spatial_partition(struct psp_context *psp, int mode);
+int psp_memory_partition(struct psp_context *psp, int mode);
 
 int is_psp_fw_valid(struct psp_bin_desc bin);
 
 int amdgpu_psp_wait_for_bootloader(struct amdgpu_device *adev);
 bool amdgpu_psp_get_ras_capability(struct psp_context *psp);
+
+int psp_config_sq_perfmon(struct psp_context *psp, uint32_t xcp_id,
+	bool core_override_enable, bool reg_override_enable, bool perfmon_override_enable);
+bool amdgpu_psp_tos_reload_needed(struct amdgpu_device *adev);
+
 #endif

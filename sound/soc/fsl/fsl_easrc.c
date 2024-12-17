@@ -1748,7 +1748,7 @@ static const struct regmap_config fsl_easrc_regmap_config = {
 	.rd_table = &fsl_easrc_readable_table,
 	.wr_table = &fsl_easrc_writeable_table,
 	.volatile_table = &fsl_easrc_volatileable_table,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 #ifdef DEBUG
@@ -2093,7 +2093,7 @@ static const struct dev_pm_ops fsl_easrc_pm_ops = {
 
 static struct platform_driver fsl_easrc_driver = {
 	.probe = fsl_easrc_probe,
-	.remove_new = fsl_easrc_remove,
+	.remove = fsl_easrc_remove,
 	.driver = {
 		.name = "fsl-easrc",
 		.pm = pm_ptr(&fsl_easrc_pm_ops),

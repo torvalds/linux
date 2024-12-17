@@ -1169,6 +1169,7 @@ static const struct qcom_icc_desc msm8953_bimc = {
 	.nodes = msm8953_bimc_nodes,
 	.num_nodes = ARRAY_SIZE(msm8953_bimc_nodes),
 	.qos_offset = 0x8000,
+	.ab_coeff = 153,
 	.regmap_cfg = &msm8953_bimc_regmap_config
 };
 
@@ -1295,6 +1296,7 @@ static const struct qcom_icc_desc msm8953_snoc_mm = {
 	.nodes = msm8953_snoc_mm_nodes,
 	.num_nodes = ARRAY_SIZE(msm8953_snoc_mm_nodes),
 	.qos_offset = 0x7000,
+	.ab_coeff = 153,
 	.regmap_cfg = &msm8953_snoc_regmap_config,
 };
 
@@ -1308,7 +1310,7 @@ static const struct of_device_id msm8953_noc_of_match[] = {
 
 static struct platform_driver msm8953_noc_driver = {
 	.probe = qnoc_probe,
-	.remove_new = qnoc_remove,
+	.remove = qnoc_remove,
 	.driver = {
 		.name = "qnoc-msm8953",
 		.of_match_table = msm8953_noc_of_match,

@@ -359,7 +359,7 @@ MODULE_DEVICE_TABLE(of, mmpcam_of_match);
 
 static struct platform_driver mmpcam_driver = {
 	.probe		= mmpcam_probe,
-	.remove_new	= mmpcam_remove,
+	.remove		= mmpcam_remove,
 	.driver = {
 		.name	= "mmp-camera",
 		.of_match_table = mmpcam_of_match,

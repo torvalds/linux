@@ -32,7 +32,7 @@
 #include <linux/slab.h>
 #include <linux/string_helpers.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
@@ -56,7 +56,7 @@
 #define MIPI_PORT_SHIFT			3
 
 struct i2c_adapter_lookup {
-	u16 slave_addr;
+	u16 target_addr;
 	struct intel_dsi *intel_dsi;
 	acpi_handle dev_handle;
 };
@@ -323,6 +323,7 @@ enum {
 static void icl_native_gpio_set_value(struct drm_i915_private *dev_priv,
 				      int gpio, bool value)
 {
+	struct intel_display *display = &dev_priv->display;
 	int index;
 
 	if (drm_WARN_ON(&dev_priv->drm, DISPLAY_VER(dev_priv) == 11 && gpio >= MIPI_RESET_2))
@@ -367,7 +368,7 @@ static void icl_native_gpio_set_value(struct drm_i915_private *dev_priv,
 	case MIPI_AVEE_EN_2:
 		index = gpio == MIPI_AVEE_EN_1 ? 1 : 2;
 
-		intel_de_rmw(dev_priv, GPIO(dev_priv, index),
+		intel_de_rmw(display, GPIO(display, index),
 			     GPIO_CLOCK_VAL_OUT,
 			     GPIO_CLOCK_DIR_MASK | GPIO_CLOCK_DIR_OUT |
 			     GPIO_CLOCK_VAL_MASK | (value ? GPIO_CLOCK_VAL_OUT : 0));
@@ -376,7 +377,7 @@ static void icl_native_gpio_set_value(struct drm_i915_private *dev_priv,
 	case MIPI_VIO_EN_2:
 		index = gpio == MIPI_VIO_EN_1 ? 1 : 2;
 
-		intel_de_rmw(dev_priv, GPIO(dev_priv, index),
+		intel_de_rmw(display, GPIO(display, index),
 			     GPIO_DATA_VAL_OUT,
 			     GPIO_DATA_DIR_MASK | GPIO_DATA_DIR_OUT |
 			     GPIO_DATA_VAL_MASK | (value ? GPIO_DATA_VAL_OUT : 0));
@@ -443,7 +444,7 @@ static int i2c_adapter_lookup(struct acpi_resource *ares, void *data)
 	if (!i2c_acpi_get_i2c_resource(ares, &sb))
 		return 1;
 
-	if (lookup->slave_addr != sb->slave_address)
+	if (lookup->target_addr != sb->slave_address)
 		return 1;
 
 	status = acpi_get_handle(lookup->dev_handle,
@@ -460,12 +461,12 @@ static int i2c_adapter_lookup(struct acpi_resource *ares, void *data)
 }
 
 static void i2c_acpi_find_adapter(struct intel_dsi *intel_dsi,
-				  const u16 slave_addr)
+				  const u16 target_addr)
 {
 	struct drm_device *drm_dev = intel_dsi->base.base.dev;
 	struct acpi_device *adev = ACPI_COMPANION(drm_dev->dev);
 	struct i2c_adapter_lookup lookup = {
-		.slave_addr = slave_addr,
+		.target_addr = target_addr,
 		.intel_dsi = intel_dsi,
 		.dev_handle = acpi_device_handle(adev),
 	};
@@ -476,7 +477,7 @@ static void i2c_acpi_find_adapter(struct intel_dsi *intel_dsi,
 }
 #else
 static inline void i2c_acpi_find_adapter(struct intel_dsi *intel_dsi,
-					 const u16 slave_addr)
+					 const u16 target_addr)
 {
 }
 #endif
@@ -488,17 +489,17 @@ static const u8 *mipi_exec_i2c(struct intel_dsi *intel_dsi, const u8 *data)
 	struct i2c_msg msg;
 	int ret;
 	u8 vbt_i2c_bus_num = *(data + 2);
-	u16 slave_addr = *(u16 *)(data + 3);
+	u16 target_addr = *(u16 *)(data + 3);
 	u8 reg_offset = *(data + 5);
 	u8 payload_size = *(data + 6);
 	u8 *payload_data;
 
-	drm_dbg_kms(&i915->drm, "bus %d client-addr 0x%02x reg 0x%02x data %*ph\n",
-		    vbt_i2c_bus_num, slave_addr, reg_offset, payload_size, data + 7);
+	drm_dbg_kms(&i915->drm, "bus %d target-addr 0x%02x reg 0x%02x data %*ph\n",
+		    vbt_i2c_bus_num, target_addr, reg_offset, payload_size, data + 7);
 
 	if (intel_dsi->i2c_bus_num < 0) {
 		intel_dsi->i2c_bus_num = vbt_i2c_bus_num;
-		i2c_acpi_find_adapter(intel_dsi, slave_addr);
+		i2c_acpi_find_adapter(intel_dsi, target_addr);
 	}
 
 	adapter = i2c_get_adapter(intel_dsi->i2c_bus_num);
@@ -514,7 +515,7 @@ static const u8 *mipi_exec_i2c(struct intel_dsi *intel_dsi, const u8 *data)
 	payload_data[0] = reg_offset;
 	memcpy(&payload_data[1], (data + 7), payload_size);
 
-	msg.addr = slave_addr;
+	msg.addr = target_addr;
 	msg.flags = 0;
 	msg.len = payload_size + 1;
 	msg.buf = payload_data;

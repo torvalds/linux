@@ -549,7 +549,7 @@ void cal_ctx_start(struct cal_ctx *ctx)
 void cal_ctx_stop(struct cal_ctx *ctx)
 {
 	struct cal_camerarx *phy = ctx->phy;
-	long timeout;
+	long time_left;
 
 	WARN_ON(phy->vc_enable_count[ctx->vc] == 0);
 
@@ -565,9 +565,9 @@ void cal_ctx_stop(struct cal_ctx *ctx)
 	ctx->dma.state = CAL_DMA_STOP_REQUESTED;
 	spin_unlock_irq(&ctx->dma.lock);
 
-	timeout = wait_event_timeout(ctx->dma.wait, cal_ctx_wr_dma_stopped(ctx),
-				     msecs_to_jiffies(500));
-	if (!timeout) {
+	time_left = wait_event_timeout(ctx->dma.wait, cal_ctx_wr_dma_stopped(ctx),
+				       msecs_to_jiffies(500));
+	if (!time_left) {
 		ctx_err(ctx, "failed to disable dma cleanly\n");
 		cal_ctx_wr_dma_disable(ctx);
 	}
@@ -1332,7 +1332,7 @@ static const struct dev_pm_ops cal_pm_ops = {
 
 static struct platform_driver cal_pdrv = {
 	.probe		= cal_probe,
-	.remove_new	= cal_remove,
+	.remove		= cal_remove,
 	.driver		= {
 		.name	= CAL_MODULE_NAME,
 		.pm	= &cal_pm_ops,

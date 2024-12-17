@@ -13,6 +13,8 @@
 #include <linux/dmaengine.h>
 #include "mgb4_regs.h"
 
+#define MGB4_HW_FREQ 125000000
+
 #define MGB4_VIN_DEVICES  2
 #define MGB4_VOUT_DEVICES 2
 
@@ -66,9 +68,7 @@ struct mgb4_dev {
 	u8 module_version;
 	u32 serial_number;
 
-#ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs;
-#endif
 };
 
 #endif

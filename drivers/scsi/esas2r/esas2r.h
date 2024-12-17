@@ -929,7 +929,6 @@ struct esas2r_adapter {
 	struct list_head fw_event_list;
 	spinlock_t fw_event_lock;
 	u8 fw_events_off;                       /* if '1', then ignore events */
-	char fw_event_q_name[ESAS2R_KOBJ_NAME_LEN];
 	/*
 	 * intr_mode stores the interrupt mode currently being used by this
 	 * adapter. it is based on the interrupt_mode module parameter, but
@@ -1046,10 +1045,6 @@ void esas2r_build_mgt_req(struct esas2r_adapter *a,
 			  u32 length,
 			  void *data);
 void esas2r_build_ae_req(struct esas2r_adapter *a, struct esas2r_request *rq);
-void esas2r_build_cli_req(struct esas2r_adapter *a,
-			  struct esas2r_request *rq,
-			  u32 length,
-			  u32 cmd_rsp_len);
 void esas2r_build_ioctl_req(struct esas2r_adapter *a,
 			    struct esas2r_request *rq,
 			    u32 length,

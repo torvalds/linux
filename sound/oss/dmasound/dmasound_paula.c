@@ -732,7 +732,7 @@ static void __exit amiga_audio_remove(struct platform_device *pdev)
  * triggering a section mismatch warning.
  */
 static struct platform_driver amiga_audio_driver __refdata = {
-	.remove_new = __exit_p(amiga_audio_remove),
+	.remove = __exit_p(amiga_audio_remove),
 	.driver = {
 		.name	= "amiga-audio",
 	},

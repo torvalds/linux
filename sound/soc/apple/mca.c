@@ -616,7 +616,7 @@ static int mca_fe_hw_params(struct snd_pcm_substream *substream,
 			tdm_slot_width = 32;
 
 		if (tdm_slot_width < params_width(params)) {
-			dev_err(dev, "TDM slots too narrow (tdm=%d params=%d)\n",
+			dev_err(dev, "TDM slots too narrow (tdm=%u params=%d)\n",
 				tdm_slot_width, params_width(params));
 			return -EINVAL;
 		}
@@ -1179,7 +1179,7 @@ static struct platform_driver apple_mca_driver = {
 		.of_match_table = apple_mca_of_match,
 	},
 	.probe = apple_mca_probe,
-	.remove_new = apple_mca_remove,
+	.remove = apple_mca_remove,
 };
 module_platform_driver(apple_mca_driver);
 

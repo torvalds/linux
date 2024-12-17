@@ -170,7 +170,7 @@ static int perf_event__synthesize_one_bpf_prog(struct perf_session *session,
 {
 	struct perf_record_ksymbol *ksymbol_event = &event->ksymbol;
 	struct perf_record_bpf_event *bpf_event = &event->bpf;
-	struct perf_tool *tool = session->tool;
+	const struct perf_tool *tool = session->tool;
 	struct bpf_prog_info_node *info_node;
 	struct perf_bpil *info_linear;
 	struct bpf_prog_info *info;
@@ -310,7 +310,7 @@ struct kallsyms_parse {
 	union perf_event	*event;
 	perf_event__handler_t	 process;
 	struct machine		*machine;
-	struct perf_tool	*tool;
+	const struct perf_tool	*tool;
 };
 
 static int

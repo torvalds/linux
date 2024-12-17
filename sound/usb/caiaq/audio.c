@@ -174,17 +174,9 @@ static int snd_usb_caiaq_pcm_hw_free(struct snd_pcm_substream *sub)
 	return 0;
 }
 
-/* this should probably go upstream */
-#if SNDRV_PCM_RATE_5512 != 1 << 0 || SNDRV_PCM_RATE_192000 != 1 << 12
-#error "Change this table"
-#endif
-
-static const unsigned int rates[] = { 5512, 8000, 11025, 16000, 22050, 32000, 44100,
-				48000, 64000, 88200, 96000, 176400, 192000 };
-
 static int snd_usb_caiaq_pcm_prepare(struct snd_pcm_substream *substream)
 {
-	int bytes_per_sample, bpp, ret, i;
+	int bytes_per_sample, bpp, ret;
 	int index = substream->number;
 	struct snd_usb_caiaqdev *cdev = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -233,10 +225,7 @@ static int snd_usb_caiaq_pcm_prepare(struct snd_pcm_substream *substream)
 
 	/* the first client that opens a stream defines the sample rate
 	 * setting for all subsequent calls, until the last client closed. */
-	for (i=0; i < ARRAY_SIZE(rates); i++)
-		if (runtime->rate == rates[i])
-			cdev->pcm_info.rates = 1 << i;
-
+	cdev->pcm_info.rates = snd_pcm_rate_to_rate_bit(runtime->rate);
 	snd_pcm_limit_hw_rates(runtime);
 
 	bytes_per_sample = BYTES_PER_SAMPLE;
@@ -869,14 +858,20 @@ int snd_usb_caiaq_audio_init(struct snd_usb_caiaqdev *cdev)
 	return 0;
 }
 
-void snd_usb_caiaq_audio_free(struct snd_usb_caiaqdev *cdev)
+void snd_usb_caiaq_audio_disconnect(struct snd_usb_caiaqdev *cdev)
 {
 	struct device *dev = caiaqdev_to_dev(cdev);
 
 	dev_dbg(dev, "%s(%p)\n", __func__, cdev);
 	stream_stop(cdev);
+}
+
+void snd_usb_caiaq_audio_free(struct snd_usb_caiaqdev *cdev)
+{
+	struct device *dev = caiaqdev_to_dev(cdev);
+
+	dev_dbg(dev, "%s(%p)\n", __func__, cdev);
 	free_urbs(cdev->data_urbs_in);
 	free_urbs(cdev->data_urbs_out);
 	kfree(cdev->data_cb_info);
 }
-

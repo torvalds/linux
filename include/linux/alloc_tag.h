@@ -30,6 +30,21 @@ struct alloc_tag {
 	struct alloc_tag_counters __percpu	*counters;
 } __aligned(8);
 
+struct alloc_tag_kernel_section {
+	struct alloc_tag *first_tag;
+	unsigned long count;
+};
+
+struct alloc_tag_module_section {
+	union {
+		unsigned long start_addr;
+		struct alloc_tag *first_tag;
+	};
+	unsigned long end_addr;
+	/* used size */
+	unsigned long size;
+};
+
 #ifdef CONFIG_MEM_ALLOC_PROFILING_DEBUG
 
 #define CODETAG_EMPTY	((void *)1)
@@ -54,6 +69,8 @@ static inline void set_codetag_empty(union codetag_ref *ref) {}
 
 #ifdef CONFIG_MEM_ALLOC_PROFILING
 
+#define ALLOC_TAG_SECTION_NAME	"alloc_tags"
+
 struct codetag_bytes {
 	struct codetag *ct;
 	s64 bytes;
@@ -70,13 +87,13 @@ static inline struct alloc_tag *ct_to_alloc_tag(struct codetag *ct)
 /*
  * When percpu variables are required to be defined as weak, static percpu
  * variables can't be used inside a function (see comments for DECLARE_PER_CPU_SECTION).
- * Instead we will accound all module allocations to a single counter.
+ * Instead we will account all module allocations to a single counter.
  */
 DECLARE_PER_CPU(struct alloc_tag_counters, _shared_alloc_tag);
 
 #define DEFINE_ALLOC_TAG(_alloc_tag)						\
 	static struct alloc_tag _alloc_tag __used __aligned(8)			\
-	__section("alloc_tags") = {						\
+	__section(ALLOC_TAG_SECTION_NAME) = {					\
 		.ct = CODE_TAG_INIT,						\
 		.counters = &_shared_alloc_tag };
 
@@ -85,7 +102,7 @@ DECLARE_PER_CPU(struct alloc_tag_counters, _shared_alloc_tag);
 #define DEFINE_ALLOC_TAG(_alloc_tag)						\
 	static DEFINE_PER_CPU(struct alloc_tag_counters, _alloc_tag_cntr);	\
 	static struct alloc_tag _alloc_tag __used __aligned(8)			\
-	__section("alloc_tags") = {						\
+	__section(ALLOC_TAG_SECTION_NAME) = {					\
 		.ct = CODE_TAG_INIT,						\
 		.counters = &_alloc_tag_cntr };
 
@@ -135,9 +152,21 @@ static inline void alloc_tag_sub_check(union codetag_ref *ref) {}
 #endif
 
 /* Caller should verify both ref and tag to be valid */
-static inline void __alloc_tag_ref_set(union codetag_ref *ref, struct alloc_tag *tag)
+static inline bool __alloc_tag_ref_set(union codetag_ref *ref, struct alloc_tag *tag)
 {
+	alloc_tag_add_check(ref, tag);
+	if (!ref || !tag)
+		return false;
+
 	ref->ct = &tag->ct;
+	return true;
+}
+
+static inline bool alloc_tag_ref_set(union codetag_ref *ref, struct alloc_tag *tag)
+{
+	if (unlikely(!__alloc_tag_ref_set(ref, tag)))
+		return false;
+
 	/*
 	 * We need in increment the call counter every time we have a new
 	 * allocation or when we split a large allocation into smaller ones.
@@ -145,25 +174,13 @@ static inline void __alloc_tag_ref_set(union codetag_ref *ref, struct alloc_tag 
 	 * counter because when we free each part the counter will be decremented.
 	 */
 	this_cpu_inc(tag->counters->calls);
-}
-
-static inline void alloc_tag_ref_set(union codetag_ref *ref, struct alloc_tag *tag)
-{
-	alloc_tag_add_check(ref, tag);
-	if (!ref || !tag)
-		return;
-
-	__alloc_tag_ref_set(ref, tag);
+	return true;
 }
 
 static inline void alloc_tag_add(union codetag_ref *ref, struct alloc_tag *tag, size_t bytes)
 {
-	alloc_tag_add_check(ref, tag);
-	if (!ref || !tag)
-		return;
-
-	__alloc_tag_ref_set(ref, tag);
-	this_cpu_add(tag->counters->bytes, bytes);
+	if (likely(alloc_tag_ref_set(ref, tag)))
+		this_cpu_add(tag->counters->bytes, bytes);
 }
 
 static inline void alloc_tag_sub(union codetag_ref *ref, size_t bytes)

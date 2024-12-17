@@ -74,7 +74,8 @@
 	 * do the trick here).						\
 	 */								\
 	uint64_t ___res, ___x, ___t, ___m, ___n = (n);			\
-	uint32_t ___p, ___bias;						\
+	uint32_t ___p;							\
+	bool ___bias = false;						\
 									\
 	/* determine MSB of b */					\
 	___p = 1 << ilog2(___b);					\
@@ -87,22 +88,14 @@
 	___x = ~0ULL / ___b * ___b - 1;					\
 									\
 	/* test our ___m with res = m * x / (p << 64) */		\
-	___res = ((___m & 0xffffffff) * (___x & 0xffffffff)) >> 32;	\
-	___t = ___res += (___m & 0xffffffff) * (___x >> 32);		\
-	___res += (___x & 0xffffffff) * (___m >> 32);			\
-	___t = (___res < ___t) ? (1ULL << 32) : 0;			\
-	___res = (___res >> 32) + ___t;					\
-	___res += (___m >> 32) * (___x >> 32);				\
-	___res /= ___p;							\
+	___res = (___m & 0xffffffff) * (___x & 0xffffffff);		\
+	___t = (___m & 0xffffffff) * (___x >> 32) + (___res >> 32);	\
+	___res = (___m >> 32) * (___x >> 32) + (___t >> 32);		\
+	___t = (___m >> 32) * (___x & 0xffffffff) + (___t & 0xffffffff);\
+	___res = (___res + (___t >> 32)) / ___p;			\
 									\
-	/* Now sanitize and optimize what we've got. */			\
-	if (~0ULL % (___b / (___b & -___b)) == 0) {			\
-		/* special case, can be simplified to ... */		\
-		___n /= (___b & -___b);					\
-		___m = ~0ULL / (___b / (___b & -___b));			\
-		___p = 1;						\
-		___bias = 1;						\
-	} else if (___res != ___x / ___b) {				\
+	/* Now validate what we've got. */				\
+	if (___res != ___x / ___b) {					\
 		/*							\
 		 * We can't get away without a bias to compensate	\
 		 * for bit truncation errors.  To avoid it we'd need an	\
@@ -111,45 +104,18 @@
 		 *							\
 		 * Instead we do m = p / b and n / b = (n * m + m) / p.	\
 		 */							\
-		___bias = 1;						\
+		___bias = true;						\
 		/* Compute m = (p << 64) / b */				\
 		___m = (~0ULL / ___b) * ___p;				\
 		___m += ((~0ULL % ___b + 1) * ___p) / ___b;		\
-	} else {							\
-		/*							\
-		 * Reduce m / p, and try to clear bit 31 of m when	\
-		 * possible, otherwise that'll need extra overflow	\
-		 * handling later.					\
-		 */							\
-		uint32_t ___bits = -(___m & -___m);			\
-		___bits |= ___m >> 32;					\
-		___bits = (~___bits) << 1;				\
-		/*							\
-		 * If ___bits == 0 then setting bit 31 is  unavoidable.	\
-		 * Simply apply the maximum possible reduction in that	\
-		 * case. Otherwise the MSB of ___bits indicates the	\
-		 * best reduction we should apply.			\
-		 */							\
-		if (!___bits) {						\
-			___p /= (___m & -___m);				\
-			___m /= (___m & -___m);				\
-		} else {						\
-			___p >>= ilog2(___bits);			\
-			___m >>= ilog2(___bits);			\
-		}							\
-		/* No bias needed. */					\
-		___bias = 0;						\
 	}								\
 									\
+	/* Reduce m / p to help avoid overflow handling later. */	\
+	___p /= (___m & -___m);						\
+	___m /= (___m & -___m);						\
+									\
 	/*								\
-	 * Now we have a combination of 2 conditions:			\
-	 *								\
-	 * 1) whether or not we need to apply a bias, and		\
-	 *								\
-	 * 2) whether or not there might be an overflow in the cross	\
-	 *    product determined by (___m & ((1 << 63) | (1 << 31))).	\
-	 *								\
-	 * Select the best way to do (m_bias + m * n) / (1 << 64).	\
+	 * Perform (m_bias + m * n) / (1 << 64).			\
 	 * From now on there will be actual runtime code generated.	\
 	 */								\
 	___res = __arch_xprod_64(___m, ___n, ___bias);			\
@@ -165,47 +131,42 @@
  * Semantic:  retval = ((bias ? m : 0) + m * n) >> 64
  *
  * The product is a 128-bit value, scaled down to 64 bits.
- * Assuming constant propagation to optimize away unused conditional code.
+ * Hoping for compile-time optimization of  conditional code.
  * Architectures may provide their own optimized assembly implementation.
  */
-static inline uint64_t __arch_xprod_64(const uint64_t m, uint64_t n, bool bias)
+#ifdef CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE
+static __always_inline
+#else
+static inline
+#endif
+uint64_t __arch_xprod_64(const uint64_t m, uint64_t n, bool bias)
 {
 	uint32_t m_lo = m;
 	uint32_t m_hi = m >> 32;
 	uint32_t n_lo = n;
 	uint32_t n_hi = n >> 32;
-	uint64_t res;
-	uint32_t res_lo, res_hi, tmp;
+	uint64_t x, y;
 
-	if (!bias) {
-		res = ((uint64_t)m_lo * n_lo) >> 32;
-	} else if (!(m & ((1ULL << 63) | (1ULL << 31)))) {
-		/* there can't be any overflow here */
-		res = (m + (uint64_t)m_lo * n_lo) >> 32;
+	/* Determine if overflow handling can be dispensed with. */
+	bool no_ovf = __builtin_constant_p(m) &&
+		      ((m >> 32) + (m & 0xffffffff) < 0x100000000);
+
+	if (no_ovf) {
+		x = (uint64_t)m_lo * n_lo + (bias ? m : 0);
+		x >>= 32;
+		x += (uint64_t)m_lo * n_hi;
+		x += (uint64_t)m_hi * n_lo;
+		x >>= 32;
+		x += (uint64_t)m_hi * n_hi;
 	} else {
-		res = m + (uint64_t)m_lo * n_lo;
-		res_lo = res >> 32;
-		res_hi = (res_lo < m_hi);
-		res = res_lo | ((uint64_t)res_hi << 32);
+		x = (uint64_t)m_lo * n_lo + (bias ? m_lo : 0);
+		y = (uint64_t)m_lo * n_hi + (uint32_t)(x >> 32) + (bias ? m_hi : 0);
+		x = (uint64_t)m_hi * n_hi + (uint32_t)(y >> 32);
+		y = (uint64_t)m_hi * n_lo + (uint32_t)y;
+		x += (uint32_t)(y >> 32);
 	}
 
-	if (!(m & ((1ULL << 63) | (1ULL << 31)))) {
-		/* there can't be any overflow here */
-		res += (uint64_t)m_lo * n_hi;
-		res += (uint64_t)m_hi * n_lo;
-		res >>= 32;
-	} else {
-		res += (uint64_t)m_lo * n_hi;
-		tmp = res >> 32;
-		res += (uint64_t)m_hi * n_lo;
-		res_lo = res >> 32;
-		res_hi = (res_lo < tmp);
-		res = res_lo | ((uint64_t)res_hi << 32);
-	}
-
-	res += (uint64_t)m_hi * n_hi;
-
-	return res;
+	return x;
 }
 #endif
 

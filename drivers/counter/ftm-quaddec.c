@@ -311,6 +311,7 @@ static const struct of_device_id ftm_quaddec_match[] = {
 	{ .compatible = "fsl,ftm-quaddec" },
 	{},
 };
+MODULE_DEVICE_TABLE(of, ftm_quaddec_match);
 
 static struct platform_driver ftm_quaddec_driver = {
 	.driver = {
@@ -326,4 +327,4 @@ MODULE_DESCRIPTION("Flex Timer Module Quadrature decoder");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kjeld Flarup <kfa@deif.com>");
 MODULE_AUTHOR("Patrick Havelange <patrick.havelange@essensium.com>");
-MODULE_IMPORT_NS(COUNTER);
+MODULE_IMPORT_NS("COUNTER");

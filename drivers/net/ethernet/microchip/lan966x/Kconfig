@@ -8,6 +8,7 @@ config LAN966X_SWITCH
 	select PHYLINK
 	select PAGE_POOL
 	select VCAP
+	select FDMA
 	help
 	  This driver supports the Lan966x network switch device.
 

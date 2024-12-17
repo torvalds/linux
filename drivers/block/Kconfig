@@ -130,7 +130,7 @@ config BLK_DEV_UBD_SYNC
           kernel command line option.  Alternatively, you can say Y here to
           turn on synchronous operation by default for all block devices.
 
-          If you're running a journalling file system (like reiserfs, for
+          If you're running a journalling file system (like xfs, for
           example) in your virtual machine, you will want to say Y here.  If
           you care for the safety of the data in your virtual machine, Y is a
           wise choice too.  In all other cases (for example, if you're just

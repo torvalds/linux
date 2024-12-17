@@ -9,7 +9,7 @@
 
 static wait_queue_head_t bit_wait_table[WAIT_TABLE_SIZE] __cacheline_aligned;
 
-wait_queue_head_t *bit_waitqueue(void *word, int bit)
+wait_queue_head_t *bit_waitqueue(unsigned long *word, int bit)
 {
 	const int shift = BITS_PER_LONG == 32 ? 5 : 6;
 	unsigned long val = (unsigned long)word << shift | bit;
@@ -55,7 +55,7 @@ __wait_on_bit(struct wait_queue_head *wq_head, struct wait_bit_queue_entry *wbq_
 }
 EXPORT_SYMBOL(__wait_on_bit);
 
-int __sched out_of_line_wait_on_bit(void *word, int bit,
+int __sched out_of_line_wait_on_bit(unsigned long *word, int bit,
 				    wait_bit_action_f *action, unsigned mode)
 {
 	struct wait_queue_head *wq_head = bit_waitqueue(word, bit);
@@ -66,7 +66,7 @@ int __sched out_of_line_wait_on_bit(void *word, int bit,
 EXPORT_SYMBOL(out_of_line_wait_on_bit);
 
 int __sched out_of_line_wait_on_bit_timeout(
-	void *word, int bit, wait_bit_action_f *action,
+	unsigned long *word, int bit, wait_bit_action_f *action,
 	unsigned mode, unsigned long timeout)
 {
 	struct wait_queue_head *wq_head = bit_waitqueue(word, bit);
@@ -108,7 +108,7 @@ __wait_on_bit_lock(struct wait_queue_head *wq_head, struct wait_bit_queue_entry 
 }
 EXPORT_SYMBOL(__wait_on_bit_lock);
 
-int __sched out_of_line_wait_on_bit_lock(void *word, int bit,
+int __sched out_of_line_wait_on_bit_lock(unsigned long *word, int bit,
 					 wait_bit_action_f *action, unsigned mode)
 {
 	struct wait_queue_head *wq_head = bit_waitqueue(word, bit);
@@ -118,7 +118,7 @@ int __sched out_of_line_wait_on_bit_lock(void *word, int bit,
 }
 EXPORT_SYMBOL(out_of_line_wait_on_bit_lock);
 
-void __wake_up_bit(struct wait_queue_head *wq_head, void *word, int bit)
+void __wake_up_bit(struct wait_queue_head *wq_head, unsigned long *word, int bit)
 {
 	struct wait_bit_key key = __WAIT_BIT_KEY_INITIALIZER(word, bit);
 
@@ -128,23 +128,31 @@ void __wake_up_bit(struct wait_queue_head *wq_head, void *word, int bit)
 EXPORT_SYMBOL(__wake_up_bit);
 
 /**
- * wake_up_bit - wake up a waiter on a bit
- * @word: the word being waited on, a kernel virtual address
- * @bit: the bit of the word being waited on
+ * wake_up_bit - wake up waiters on a bit
+ * @word: the address containing the bit being waited on
+ * @bit: the bit at that address being waited on
  *
- * There is a standard hashed waitqueue table for generic use. This
- * is the part of the hash-table's accessor API that wakes up waiters
- * on a bit. For instance, if one were to have waiters on a bitflag,
- * one would call wake_up_bit() after clearing the bit.
+ * Wake up any process waiting in wait_on_bit() or similar for the
+ * given bit to be cleared.
  *
- * In order for this to function properly, as it uses waitqueue_active()
- * internally, some kind of memory barrier must be done prior to calling
- * this. Typically, this will be smp_mb__after_atomic(), but in some
- * cases where bitflags are manipulated non-atomically under a lock, one
- * may need to use a less regular barrier, such fs/inode.c's smp_mb(),
- * because spin_unlock() does not guarantee a memory barrier.
+ * The wake-up is sent to tasks in a waitqueue selected by hash from a
+ * shared pool.  Only those tasks on that queue which have requested
+ * wake_up on this specific address and bit will be woken, and only if the
+ * bit is clear.
+ *
+ * In order for this to function properly there must be a full memory
+ * barrier after the bit is cleared and before this function is called.
+ * If the bit was cleared atomically, such as a by clear_bit() then
+ * smb_mb__after_atomic() can be used, othwewise smb_mb() is needed.
+ * If the bit was cleared with a fully-ordered operation, no further
+ * barrier is required.
+ *
+ * Normally the bit should be cleared by an operation with RELEASE
+ * semantics so that any changes to memory made before the bit is
+ * cleared are guaranteed to be visible after the matching wait_on_bit()
+ * completes.
  */
-void wake_up_bit(void *word, int bit)
+void wake_up_bit(unsigned long *word, int bit)
 {
 	__wake_up_bit(bit_waitqueue(word, bit), word, bit);
 }
@@ -188,6 +196,36 @@ void init_wait_var_entry(struct wait_bit_queue_entry *wbq_entry, void *var, int 
 }
 EXPORT_SYMBOL(init_wait_var_entry);
 
+/**
+ * wake_up_var - wake up waiters on a variable (kernel address)
+ * @var: the address of the variable being waited on
+ *
+ * Wake up any process waiting in wait_var_event() or similar for the
+ * given variable to change.  wait_var_event() can be waiting for an
+ * arbitrary condition to be true and associates that condition with an
+ * address.  Calling wake_up_var() suggests that the condition has been
+ * made true, but does not strictly require the condtion to use the
+ * address given.
+ *
+ * The wake-up is sent to tasks in a waitqueue selected by hash from a
+ * shared pool.  Only those tasks on that queue which have requested
+ * wake_up on this specific address will be woken.
+ *
+ * In order for this to function properly there must be a full memory
+ * barrier after the variable is updated (or more accurately, after the
+ * condition waited on has been made to be true) and before this function
+ * is called.  If the variable was updated atomically, such as a by
+ * atomic_dec() then smb_mb__after_atomic() can be used.  If the
+ * variable was updated by a fully ordered operation such as
+ * atomic_dec_and_test() then no extra barrier is required.  Otherwise
+ * smb_mb() is needed.
+ *
+ * Normally the variable should be updated (the condition should be made
+ * to be true) by an operation with RELEASE semantics such as
+ * smp_store_release() so that any changes to memory made before the
+ * variable was updated are guaranteed to be visible after the matching
+ * wait_var_event() completes.
+ */
 void wake_up_var(void *var)
 {
 	__wake_up_bit(__var_waitqueue(var), var, -1);
@@ -227,20 +265,6 @@ __sched int bit_wait_timeout(struct wait_bit_key *word, int mode)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(bit_wait_timeout);
-
-__sched int bit_wait_io_timeout(struct wait_bit_key *word, int mode)
-{
-	unsigned long now = READ_ONCE(jiffies);
-
-	if (time_after_eq(now, word->timeout))
-		return -EAGAIN;
-	io_schedule_timeout(word->timeout - now);
-	if (signal_pending_state(mode, current))
-		return -EINTR;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(bit_wait_io_timeout);
 
 void __init wait_bit_init(void)
 {

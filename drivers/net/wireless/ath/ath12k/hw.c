@@ -913,7 +913,7 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 		.rfkill_cfg = 0,
 		.rfkill_on_level = 0,
 
-		.rddm_size = 0,
+		.rddm_size = 0x600000,
 
 		.def_num_link = 0,
 		.max_mlo_peer = 256,
@@ -926,6 +926,8 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 		.supports_dynamic_smps_6ghz = true,
 
 		.iova_mask = 0,
+
+		.supports_aspm = false,
 	},
 	{
 		.name = "wcn7850 hw2.0",
@@ -1004,6 +1006,8 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 		.supports_dynamic_smps_6ghz = false,
 
 		.iova_mask = ATH12K_PCIE_MAX_PAYLOAD_SIZE - 1,
+
+		.supports_aspm = true,
 	},
 	{
 		.name = "qcn9274 hw2.0",
@@ -1065,7 +1069,7 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 		.rfkill_cfg = 0,
 		.rfkill_on_level = 0,
 
-		.rddm_size = 0,
+		.rddm_size = 0x600000,
 
 		.def_num_link = 0,
 		.max_mlo_peer = 256,
@@ -1078,6 +1082,8 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 		.supports_dynamic_smps_6ghz = true,
 
 		.iova_mask = 0,
+
+		.supports_aspm = false,
 	},
 };
 

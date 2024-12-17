@@ -57,7 +57,6 @@ static const struct file_operations __fops = {				\
 	.release = simple_attr_release,					\
 	.read	 = debugfs_attr_read,					\
 	.write	 = (__is_signed) ? debugfs_attr_write_signed : debugfs_attr_write,	\
-	.llseek  = no_llseek,						\
 }
 
 #define DEFINE_DEBUGFS_ATTRIBUTE(__fops, __get, __set, __fmt)		\
@@ -72,9 +71,63 @@ typedef struct vfsmount *(*debugfs_automount_t)(struct dentry *, void *);
 
 struct dentry *debugfs_lookup(const char *name, struct dentry *parent);
 
-struct dentry *debugfs_create_file(const char *name, umode_t mode,
-				   struct dentry *parent, void *data,
-				   const struct file_operations *fops);
+struct debugfs_short_fops {
+	ssize_t (*read)(struct file *, char __user *, size_t, loff_t *);
+	ssize_t (*write)(struct file *, const char __user *, size_t, loff_t *);
+	loff_t (*llseek) (struct file *, loff_t, int);
+};
+
+struct dentry *debugfs_create_file_full(const char *name, umode_t mode,
+					struct dentry *parent, void *data,
+					const struct file_operations *fops);
+struct dentry *debugfs_create_file_short(const char *name, umode_t mode,
+					 struct dentry *parent, void *data,
+					 const struct debugfs_short_fops *fops);
+
+/**
+ * debugfs_create_file - create a file in the debugfs filesystem
+ * @name: a pointer to a string containing the name of the file to create.
+ * @mode: the permission that the file should have.
+ * @parent: a pointer to the parent dentry for this file.  This should be a
+ *          directory dentry if set.  If this parameter is NULL, then the
+ *          file will be created in the root of the debugfs filesystem.
+ * @data: a pointer to something that the caller will want to get to later
+ *        on.  The inode.i_private pointer will point to this value on
+ *        the open() call.
+ * @fops: a pointer to a struct file_operations or struct debugfs_short_fops that
+ *        should be used for this file.
+ *
+ * This is the basic "create a file" function for debugfs.  It allows for a
+ * wide range of flexibility in creating a file, or a directory (if you want
+ * to create a directory, the debugfs_create_dir() function is
+ * recommended to be used instead.)
+ *
+ * This function will return a pointer to a dentry if it succeeds.  This
+ * pointer must be passed to the debugfs_remove() function when the file is
+ * to be removed (no automatic cleanup happens if your module is unloaded,
+ * you are responsible here.)  If an error occurs, ERR_PTR(-ERROR) will be
+ * returned.
+ *
+ * If debugfs is not enabled in the kernel, the value -%ENODEV will be
+ * returned.
+ *
+ * If fops points to a struct debugfs_short_fops, then simple_open() will be
+ * used for the open, and only read/write/llseek are supported and are proxied,
+ * so no module reference or release are needed.
+ *
+ * NOTE: it's expected that most callers should _ignore_ the errors returned
+ * by this function. Other debugfs functions handle the fact that the "dentry"
+ * passed to them could be an error and they don't crash in that case.
+ * Drivers should generally work fine even if debugfs fails to init anyway.
+ */
+#define debugfs_create_file(name, mode, parent, data, fops)			\
+	_Generic(fops,								\
+		 const struct file_operations *: debugfs_create_file_full,	\
+		 const struct debugfs_short_fops *: debugfs_create_file_short,	\
+		 struct file_operations *: debugfs_create_file_full,		\
+		 struct debugfs_short_fops *: debugfs_create_file_short)	\
+		(name, mode, parent, data, fops)
+
 struct dentry *debugfs_create_file_unsafe(const char *name, umode_t mode,
 				   struct dentry *parent, void *data,
 				   const struct file_operations *fops);
@@ -208,7 +261,7 @@ static inline struct dentry *debugfs_lookup(const char *name,
 
 static inline struct dentry *debugfs_create_file(const char *name, umode_t mode,
 					struct dentry *parent, void *data,
-					const struct file_operations *fops)
+					const void *fops)
 {
 	return ERR_PTR(-ENODEV);
 }

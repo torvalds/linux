@@ -288,16 +288,14 @@ static int tcf_mpls_init(struct net *net, struct nlattr *nla,
 	}
 
 	p->tcfm_action = parm->m_action;
-	p->tcfm_label = tb[TCA_MPLS_LABEL] ? nla_get_u32(tb[TCA_MPLS_LABEL]) :
-					     ACT_MPLS_LABEL_NOT_SET;
-	p->tcfm_tc = tb[TCA_MPLS_TC] ? nla_get_u8(tb[TCA_MPLS_TC]) :
-				       ACT_MPLS_TC_NOT_SET;
-	p->tcfm_ttl = tb[TCA_MPLS_TTL] ? nla_get_u8(tb[TCA_MPLS_TTL]) :
-					 mpls_ttl;
-	p->tcfm_bos = tb[TCA_MPLS_BOS] ? nla_get_u8(tb[TCA_MPLS_BOS]) :
-					 ACT_MPLS_BOS_NOT_SET;
-	p->tcfm_proto = tb[TCA_MPLS_PROTO] ? nla_get_be16(tb[TCA_MPLS_PROTO]) :
-					     htons(ETH_P_MPLS_UC);
+	p->tcfm_label = nla_get_u32_default(tb[TCA_MPLS_LABEL],
+					    ACT_MPLS_LABEL_NOT_SET);
+	p->tcfm_tc = nla_get_u8_default(tb[TCA_MPLS_TC], ACT_MPLS_TC_NOT_SET);
+	p->tcfm_ttl = nla_get_u8_default(tb[TCA_MPLS_TTL], mpls_ttl);
+	p->tcfm_bos = nla_get_u8_default(tb[TCA_MPLS_BOS],
+					 ACT_MPLS_BOS_NOT_SET);
+	p->tcfm_proto = nla_get_be16_default(tb[TCA_MPLS_PROTO],
+					     htons(ETH_P_MPLS_UC));
 
 	spin_lock_bh(&m->tcf_lock);
 	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);

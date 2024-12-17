@@ -191,17 +191,26 @@
 			"MIC_IN", "Mic Jack",
 			"Mic Jack", "Mic Bias",
 			"Headphone Jack", "HP_OUT";
-		model = "imx6q-apalis-sgtl5000";
+		model = "apalis-imx6";
 		mux-ext-port = <4>;
 		mux-int-port = <1>;
 		ssi-controller = <&ssi1>;
 	};
 
+	spdif_out: spdif-out {
+		compatible = "linux,spdif-dit";
+		#sound-dai-cells = <0>;
+	};
+
+	spdif_in: spdif-in {
+		compatible = "linux,spdif-dir";
+		#sound-dai-cells = <0>;
+	};
+
 	sound_spdif: sound-spdif {
 		compatible = "fsl,imx-audio-spdif";
-		spdif-controller = <&spdif>;
-		spdif-in;
-		spdif-out;
+		audio-cpu = <&spdif>;
+		audio-codec = <&spdif_out>, <&spdif_in>;
 		model = "imx-spdif";
 		status = "disabled";
 	};

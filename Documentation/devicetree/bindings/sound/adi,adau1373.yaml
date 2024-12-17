@@ -1,0 +1,111 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/adi,adau1373.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices ADAU1373 CODEC
+
+maintainers:
+  - Nuno Sá <nuno.sa@analog.com>
+
+description: |
+  Analog Devices ADAU1373 Low power codec with speaker and headphone amplifiers.
+  https://www.analog.com/media/en/technical-documentation/data-sheets/ADAU1373.pdf
+
+allOf:
+  - $ref: dai-common.yaml#
+
+properties:
+  compatible:
+    enum:
+      - adi,adau1373
+
+  reg:
+    maxItems: 1
+
+  "#sound-dai-cells":
+    const: 0
+
+  powerdown-gpios:
+    description: GPIO used for hardware power-down.
+    maxItems: 1
+
+  adi,micbias1-microvolt:
+    description:
+      This property sets the microphone bias voltage for the first microphone.
+    enum: [1800000, 2200000, 2600000, 2900000]
+    default: 2900000
+
+  adi,micbias2-microvolt:
+    description:
+      This property sets the microphone bias voltage for the second microphone.
+    enum: [1800000, 2200000, 2600000, 2900000]
+    default: 2900000
+
+  adi,input1-differential:
+    description: This property sets the first analog input as differential.
+    type: boolean
+
+  adi,input2-differential:
+    description: This property sets the second analog input as differential.
+    type: boolean
+
+  adi,input3-differential:
+    description: This property sets the third analog input as differential.
+    type: boolean
+
+  adi,input4-differential:
+    description: This property sets the fourth analog input as differential.
+    type: boolean
+
+  adi,lineout-differential:
+    description: This property sets the line output as differential.
+    type: boolean
+
+  adi,lineout-gnd-sense:
+    description: This property enables the line output ground sense control.
+    type: boolean
+
+  adi,drc-settings:
+    description:
+      This setting is used to control the dynamic range of the signal. The
+      device provides a maximum of three full band DRCs with 13 entries each.
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+    oneOf:
+      - minItems: 13
+        maxItems: 13
+      - minItems: 26
+        maxItems: 26
+      - minItems: 39
+        maxItems: 39
+
+required:
+  - "#sound-dai-cells"
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        audio-codec@1a {
+            compatible = "adi,adau1373";
+            reg = <0x1a>;
+            #sound-dai-cells = <0>;
+            powerdown-gpios = <&gpio 100 GPIO_ACTIVE_LOW>;
+            adi,input2-differential;
+            adi,input1-differential;
+            adi,lineout-differential;
+            adi,micbias2-microvolt = <1800000>;
+            adi,drc-settings = /bits/ 8 <
+                0xff 0xff 0x1 0x2 0xa 0xa 0xd 0x1 0xff 0xff 0x5 0xd 0xff
+            >;
+        };
+    };
+...

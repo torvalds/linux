@@ -178,6 +178,10 @@ struct dc_panel_patch {
 	unsigned int skip_avmute;
 	unsigned int mst_start_top_delay;
 	unsigned int remove_sink_ext_caps;
+	unsigned int disable_colorimetry;
+	uint8_t blankstream_before_otg_off;
+	bool oled_optimize_display_on;
+	unsigned int force_mst_blocked_discovery;
 };
 
 struct dc_edid_caps {
@@ -590,6 +594,7 @@ enum dc_psr_state {
 	PSR_STATE5c,
 	PSR_STATE_HWLOCK_MGR,
 	PSR_STATE_POLLVUPDATE,
+	PSR_STATE_RELEASE_HWLOCK_MGR_FULL_FRAME,
 	PSR_STATE_INVALID = 0xFF
 };
 
@@ -920,6 +925,12 @@ struct display_endpoint_id {
 	enum display_endpoint_type ep_type;
 };
 
+enum backlight_control_type {
+	BACKLIGHT_CONTROL_PWM = 0,
+	BACKLIGHT_CONTROL_VESA_AUX = 1,
+	BACKLIGHT_CONTROL_AMD_AUX = 2,
+};
+
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
 struct otg_phy_mux {
 	uint8_t phy_output_num;
@@ -1049,6 +1060,23 @@ union replay_error_status {
 	unsigned char raw;
 };
 
+union replay_low_refresh_rate_enable_options {
+	struct {
+	//BIT[0-3]: Replay Low Hz Support control
+		unsigned int ENABLE_LOW_RR_SUPPORT          :1;
+		unsigned int RESERVED_1_3                   :3;
+	//BIT[4-15]: Replay Low Hz Enable Scenarios
+		unsigned int ENABLE_STATIC_SCREEN           :1;
+		unsigned int ENABLE_FULL_SCREEN_VIDEO       :1;
+		unsigned int ENABLE_GENERAL_UI              :1;
+		unsigned int RESERVED_7_15                  :9;
+	//BIT[16-31]: Replay Low Hz Enable Check
+		unsigned int ENABLE_STATIC_FLICKER_CHECK    :1;
+		unsigned int RESERVED_17_31                 :15;
+	} bits;
+	unsigned int raw;
+};
+
 struct replay_config {
 	/* Replay feature is supported */
 	bool replay_supported;
@@ -1072,6 +1100,8 @@ struct replay_config {
 	bool replay_support_fast_resync_in_ultra_sleep_mode;
 	/* Replay error status */
 	union replay_error_status replay_error_status;
+	/* Replay Low Hz enable Options */
+	union replay_low_refresh_rate_enable_options low_rr_enable_options;
 };
 
 /* Replay feature flags*/
@@ -1272,6 +1302,33 @@ struct dc_commit_streams_params {
 	struct dc_stream_state **streams;
 	uint8_t stream_count;
 	enum dc_power_source_type power_source;
+};
+
+struct set_backlight_level_params {
+	/* backlight in pwm */
+	uint32_t backlight_pwm_u16_16;
+	/* brightness ramping */
+	uint32_t frame_ramp;
+	/* backlight control type
+	 * 0: PWM backlight control
+	 * 1: VESA AUX backlight control
+	 * 2: AMD AUX backlight control
+	 */
+	enum backlight_control_type control_type;
+	/* backlight in millinits */
+	uint32_t backlight_millinits;
+	/* transition time in ms */
+	uint32_t transition_time_in_ms;
+	/* minimum luminance in nits */
+	uint32_t min_luminance;
+	/* maximum luminance in nits */
+	uint32_t max_luminance;
+	/* minimum backlight in pwm */
+	uint32_t min_backlight_pwm;
+	/* maximum backlight in pwm */
+	uint32_t max_backlight_pwm;
+	/* AUX HW instance */
+	uint8_t aux_inst;
 };
 
 #endif /* DC_TYPES_H_ */

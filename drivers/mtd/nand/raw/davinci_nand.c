@@ -10,18 +10,81 @@
  *   Dirk Behme <Dirk.Behme@gmail.com>
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/platform_device.h>
 #include <linux/err.h>
 #include <linux/iopoll.h>
-#include <linux/mtd/rawnand.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mtd/rawnand.h>
+#include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/slab.h>
-#include <linux/of.h>
 
-#include <linux/platform_data/mtd-davinci.h>
-#include <linux/platform_data/mtd-davinci-aemif.h>
+#define NRCSR_OFFSET		0x00
+#define NANDFCR_OFFSET		0x60
+#define NANDFSR_OFFSET		0x64
+#define NANDF1ECC_OFFSET	0x70
+
+/* 4-bit ECC syndrome registers */
+#define NAND_4BIT_ECC_LOAD_OFFSET	0xbc
+#define NAND_4BIT_ECC1_OFFSET		0xc0
+#define NAND_4BIT_ECC2_OFFSET		0xc4
+#define NAND_4BIT_ECC3_OFFSET		0xc8
+#define NAND_4BIT_ECC4_OFFSET		0xcc
+#define NAND_ERR_ADD1_OFFSET		0xd0
+#define NAND_ERR_ADD2_OFFSET		0xd4
+#define NAND_ERR_ERRVAL1_OFFSET		0xd8
+#define NAND_ERR_ERRVAL2_OFFSET		0xdc
+
+/* NOTE:  boards don't need to use these address bits
+ * for ALE/CLE unless they support booting from NAND.
+ * They're used unless platform data overrides them.
+ */
+#define	MASK_ALE		0x08
+#define	MASK_CLE		0x10
+
+struct davinci_nand_pdata {
+	uint32_t		mask_ale;
+	uint32_t		mask_cle;
+
+	/*
+	 * 0-indexed chip-select number of the asynchronous
+	 * interface to which the NAND device has been connected.
+	 *
+	 * So, if you have NAND connected to CS3 of DA850, you
+	 * will pass '1' here. Since the asynchronous interface
+	 * on DA850 starts from CS2.
+	 */
+	uint32_t		core_chipsel;
+
+	/* for packages using two chipselects */
+	uint32_t		mask_chipsel;
+
+	/* board's default static partition info */
+	struct mtd_partition	*parts;
+	unsigned int		nr_parts;
+
+	/* none  == NAND_ECC_ENGINE_TYPE_NONE (strongly *not* advised!!)
+	 * soft  == NAND_ECC_ENGINE_TYPE_SOFT
+	 * else  == NAND_ECC_ENGINE_TYPE_ON_HOST, according to ecc_bits
+	 *
+	 * All DaVinci-family chips support 1-bit hardware ECC.
+	 * Newer ones also support 4-bit ECC, but are awkward
+	 * using it with large page chips.
+	 */
+	enum nand_ecc_engine_type engine_type;
+	enum nand_ecc_placement ecc_placement;
+	u8			ecc_bits;
+
+	/* e.g. NAND_BUSWIDTH_16 */
+	unsigned int		options;
+	/* e.g. NAND_BBT_USE_FLASH */
+	unsigned int		bbt_options;
+
+	/* Main and mirror bbt descriptor overrides */
+	struct nand_bbt_descr	*bbt_td;
+	struct nand_bbt_descr	*bbt_md;
+};
 
 /*
  * This is a device driver for the NAND flash controller found on the
@@ -54,8 +117,6 @@ struct davinci_nand_info {
 	uint32_t		mask_cle;
 
 	uint32_t		core_chipsel;
-
-	struct davinci_aemif_timing	*timing;
 };
 
 static DEFINE_SPINLOCK(davinci_nand_lock);
@@ -426,10 +487,10 @@ static const struct of_device_id davinci_nand_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, davinci_nand_of_match);
 
-static struct davinci_nand_pdata
-	*nand_davinci_get_pdata(struct platform_device *pdev)
+static struct davinci_nand_pdata *
+nand_davinci_get_pdata(struct platform_device *pdev)
 {
-	if (!dev_get_platdata(&pdev->dev) && pdev->dev.of_node) {
+	if (!dev_get_platdata(&pdev->dev)) {
 		struct davinci_nand_pdata *pdata;
 		const char *mode;
 		u32 prop;
@@ -440,23 +501,24 @@ static struct davinci_nand_pdata
 		pdev->dev.platform_data = pdata;
 		if (!pdata)
 			return ERR_PTR(-ENOMEM);
-		if (!of_property_read_u32(pdev->dev.of_node,
-			"ti,davinci-chipselect", &prop))
+		if (!device_property_read_u32(&pdev->dev,
+					      "ti,davinci-chipselect", &prop))
 			pdata->core_chipsel = prop;
 		else
 			return ERR_PTR(-EINVAL);
 
-		if (!of_property_read_u32(pdev->dev.of_node,
-			"ti,davinci-mask-ale", &prop))
+		if (!device_property_read_u32(&pdev->dev,
+					      "ti,davinci-mask-ale", &prop))
 			pdata->mask_ale = prop;
-		if (!of_property_read_u32(pdev->dev.of_node,
-			"ti,davinci-mask-cle", &prop))
+		if (!device_property_read_u32(&pdev->dev,
+					      "ti,davinci-mask-cle", &prop))
 			pdata->mask_cle = prop;
-		if (!of_property_read_u32(pdev->dev.of_node,
-			"ti,davinci-mask-chipsel", &prop))
+		if (!device_property_read_u32(&pdev->dev,
+					      "ti,davinci-mask-chipsel", &prop))
 			pdata->mask_chipsel = prop;
-		if (!of_property_read_string(pdev->dev.of_node,
-			"ti,davinci-ecc-mode", &mode)) {
+		if (!device_property_read_string(&pdev->dev,
+						 "ti,davinci-ecc-mode",
+						 &mode)) {
 			if (!strncmp("none", mode, 4))
 				pdata->engine_type = NAND_ECC_ENGINE_TYPE_NONE;
 			if (!strncmp("soft", mode, 4))
@@ -464,16 +526,17 @@ static struct davinci_nand_pdata
 			if (!strncmp("hw", mode, 2))
 				pdata->engine_type = NAND_ECC_ENGINE_TYPE_ON_HOST;
 		}
-		if (!of_property_read_u32(pdev->dev.of_node,
-			"ti,davinci-ecc-bits", &prop))
+		if (!device_property_read_u32(&pdev->dev,
+					      "ti,davinci-ecc-bits", &prop))
 			pdata->ecc_bits = prop;
 
-		if (!of_property_read_u32(pdev->dev.of_node,
-			"ti,davinci-nand-buswidth", &prop) && prop == 16)
+		if (!device_property_read_u32(&pdev->dev,
+					      "ti,davinci-nand-buswidth",
+					      &prop) && prop == 16)
 			pdata->options |= NAND_BUSWIDTH_16;
 
-		if (of_property_read_bool(pdev->dev.of_node,
-			"ti,davinci-nand-use-bbt"))
+		if (device_property_read_bool(&pdev->dev,
+					      "ti,davinci-nand-use-bbt"))
 			pdata->bbt_options = NAND_BBT_USE_FLASH;
 
 		/*
@@ -487,17 +550,15 @@ static struct davinci_nand_pdata
 		 * then use "ti,davinci-nand" as the compatible in your
 		 * device-tree file.
 		 */
-		if (of_device_is_compatible(pdev->dev.of_node,
-					    "ti,keystone-nand")) {
+		if (device_is_compatible(&pdev->dev, "ti,keystone-nand"))
 			pdata->options |= NAND_NO_SUBPAGE_WRITE;
-		}
 	}
 
 	return dev_get_platdata(&pdev->dev);
 }
 #else
-static struct davinci_nand_pdata
-	*nand_davinci_get_pdata(struct platform_device *pdev)
+static struct davinci_nand_pdata *
+nand_davinci_get_pdata(struct platform_device *pdev)
 {
 	return dev_get_platdata(&pdev->dev);
 }
@@ -775,7 +836,6 @@ static int nand_davinci_probe(struct platform_device *pdev)
 	info->chip.options	= pdata->options;
 	info->chip.bbt_td	= pdata->bbt_td;
 	info->chip.bbt_md	= pdata->bbt_md;
-	info->timing		= pdata->timing;
 
 	info->current_cs	= info->vaddr;
 	info->core_chipsel	= pdata->core_chipsel;
@@ -841,7 +901,7 @@ static void nand_davinci_remove(struct platform_device *pdev)
 
 static struct platform_driver nand_davinci_driver = {
 	.probe		= nand_davinci_probe,
-	.remove_new	= nand_davinci_remove,
+	.remove		= nand_davinci_remove,
 	.driver		= {
 		.name	= "davinci_nand",
 		.of_match_table = of_match_ptr(davinci_nand_of_match),

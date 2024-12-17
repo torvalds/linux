@@ -138,7 +138,6 @@ struct sp_device *sp_alloc_struct(struct device *dev);
 
 int sp_init(struct sp_device *sp);
 void sp_destroy(struct sp_device *sp);
-struct sp_device *sp_get_master(void);
 
 int sp_suspend(struct sp_device *sp);
 int sp_resume(struct sp_device *sp);

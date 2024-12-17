@@ -24,13 +24,13 @@ do {							\
 	__rt_rwlock_init(rwl, #rwl, &__key);		\
 } while (0)
 
-extern void rt_read_lock(rwlock_t *rwlock);
+extern void rt_read_lock(rwlock_t *rwlock)	__acquires(rwlock);
 extern int rt_read_trylock(rwlock_t *rwlock);
-extern void rt_read_unlock(rwlock_t *rwlock);
-extern void rt_write_lock(rwlock_t *rwlock);
-extern void rt_write_lock_nested(rwlock_t *rwlock, int subclass);
+extern void rt_read_unlock(rwlock_t *rwlock)	__releases(rwlock);
+extern void rt_write_lock(rwlock_t *rwlock)	__acquires(rwlock);
+extern void rt_write_lock_nested(rwlock_t *rwlock, int subclass)	__acquires(rwlock);
 extern int rt_write_trylock(rwlock_t *rwlock);
-extern void rt_write_unlock(rwlock_t *rwlock);
+extern void rt_write_unlock(rwlock_t *rwlock)	__releases(rwlock);
 
 static __always_inline void read_lock(rwlock_t *rwlock)
 {

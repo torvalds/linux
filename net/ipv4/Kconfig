@@ -661,7 +661,8 @@ config TCP_CONG_CDG
 
 	  For further details see:
 	    D.A. Hayes and G. Armitage. "Revisiting TCP congestion control using
-	    delay gradients." In Networking 2011. Preprint: http://goo.gl/No3vdg
+	    delay gradients." In Networking 2011. Preprint:
+	    http://caia.swin.edu.au/cv/dahayes/content/networking2011-cdg-preprint.pdf
 
 config TCP_CONG_BBR
 	tristate "BBR TCP"

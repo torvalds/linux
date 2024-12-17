@@ -48,7 +48,7 @@
 
 struct ad7923_state {
 	struct spi_device		*spi;
-	struct spi_transfer		ring_xfer[5];
+	struct spi_transfer		ring_xfer[9];
 	struct spi_transfer		scan_single_xfer[2];
 	struct spi_message		ring_msg;
 	struct spi_message		scan_single_msg;
@@ -64,7 +64,7 @@ struct ad7923_state {
 	 * Length = 8 channels + 4 extra for 8 byte timestamp
 	 */
 	__be16				rx_buf[12] __aligned(IIO_DMA_MINALIGN);
-	__be16				tx_buf[4];
+	__be16				tx_buf[8];
 };
 
 struct ad7923_chip_info {
@@ -361,14 +361,14 @@ static int ad7923_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id ad7923_id[] = {
-	{"ad7904", AD7904},
-	{"ad7914", AD7914},
-	{"ad7923", AD7924},
-	{"ad7924", AD7924},
-	{"ad7908", AD7908},
-	{"ad7918", AD7918},
-	{"ad7928", AD7928},
-	{}
+	{ "ad7904", AD7904 },
+	{ "ad7914", AD7914 },
+	{ "ad7923", AD7924 },
+	{ "ad7924", AD7924 },
+	{ "ad7908", AD7908 },
+	{ "ad7918", AD7918 },
+	{ "ad7928", AD7928 },
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad7923_id);
 
@@ -380,7 +380,7 @@ static const struct of_device_id ad7923_of_match[] = {
 	{ .compatible = "adi,ad7908", },
 	{ .compatible = "adi,ad7918", },
 	{ .compatible = "adi,ad7928", },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ad7923_of_match);
 

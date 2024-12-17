@@ -103,8 +103,7 @@ static int txgbe_calc_eeprom_checksum(struct wx *wx, u16 *checksum)
 		if (i != wx->eeprom.sw_region_offset + TXGBE_EEPROM_CHECKSUM)
 			*checksum += local_buffer[i];
 
-	if (eeprom_ptrs)
-		kvfree(eeprom_ptrs);
+	kvfree(eeprom_ptrs);
 
 	*checksum = TXGBE_EEPROM_SUM - *checksum;
 

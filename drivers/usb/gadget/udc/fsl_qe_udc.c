@@ -511,7 +511,7 @@ static int qe_ep_register_init(struct qe_udc *udc, unsigned char pipe_num)
 	out_8(&epparam->tbmr, rtfcr);
 
 	tmp = (u16)(ep->ep.maxpacket + USB_CRC_SIZE);
-	/* MRBLR must be divisble by 4 */
+	/* MRBLR must be divisible by 4 */
 	tmp = (u16)(((tmp >> 2) << 2) + 4);
 	out_be16(&epparam->mrblr, tmp);
 
@@ -1413,7 +1413,7 @@ static int ep_txframe_handle(struct qe_ep *ep)
 	return 0;
 }
 
-/* confirm the already trainsmited bd */
+/* confirm the already transmitted bd */
 static int qe_ep_txconf(struct qe_ep *ep)
 {
 	struct qe_bd __iomem *bd;
@@ -2196,7 +2196,7 @@ static int tx_irq(struct qe_udc *udc)
 }
 
 
-/* setup packect's rx is handle in the function too */
+/* setup packet's rx is handle in the function too */
 static void rx_irq(struct qe_udc *udc)
 {
 	struct qe_ep *ep;
@@ -2704,7 +2704,7 @@ static struct platform_driver udc_driver = {
 		.of_match_table = qe_udc_match,
 	},
 	.probe          = qe_udc_probe,
-	.remove_new     = qe_udc_remove,
+	.remove         = qe_udc_remove,
 #ifdef CONFIG_PM
 	.suspend        = qe_udc_suspend,
 	.resume         = qe_udc_resume,

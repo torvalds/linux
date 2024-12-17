@@ -3535,8 +3535,8 @@ static struct platform_driver qcom_nandc_driver = {
 		.name = "qcom-nandc",
 		.of_match_table = qcom_nandc_of_match,
 	},
-	.probe   = qcom_nandc_probe,
-	.remove_new = qcom_nandc_remove,
+	.probe = qcom_nandc_probe,
+	.remove = qcom_nandc_remove,
 };
 module_platform_driver(qcom_nandc_driver);
 

@@ -789,3 +789,16 @@ void fbnic_mbx_flush_tx(struct fbnic_dev *fbd)
 		count += (tx_mbx->head - head) % FBNIC_IPC_MBX_DESC_LEN;
 	} while (count < FBNIC_IPC_MBX_DESC_LEN && --attempts);
 }
+
+void fbnic_get_fw_ver_commit_str(struct fbnic_dev *fbd, char *fw_version,
+				 const size_t str_sz)
+{
+	struct fbnic_fw_ver *mgmt = &fbd->fw_cap.running.mgmt;
+	const char *delim = "";
+
+	if (mgmt->commit[0])
+		delim = "_";
+
+	fbnic_mk_full_fw_ver_str(mgmt->version, delim, mgmt->commit,
+				 fw_version, str_sz);
+}

@@ -61,9 +61,11 @@ static int ucsi_acpi_read_cci(struct ucsi *ucsi, u32 *cci)
 	struct ucsi_acpi *ua = ucsi_get_drvdata(ucsi);
 	int ret;
 
-	ret = ucsi_acpi_dsm(ua, UCSI_DSM_FUNC_READ);
-	if (ret)
-		return ret;
+	if (UCSI_COMMAND(ua->cmd) == UCSI_PPM_RESET) {
+		ret = ucsi_acpi_dsm(ua, UCSI_DSM_FUNC_READ);
+		if (ret)
+			return ret;
+	}
 
 	memcpy(cci, ua->base + UCSI_CCI, sizeof(*cci));
 
@@ -73,11 +75,6 @@ static int ucsi_acpi_read_cci(struct ucsi *ucsi, u32 *cci)
 static int ucsi_acpi_read_message_in(struct ucsi *ucsi, void *val, size_t val_len)
 {
 	struct ucsi_acpi *ua = ucsi_get_drvdata(ucsi);
-	int ret;
-
-	ret = ucsi_acpi_dsm(ua, UCSI_DSM_FUNC_READ);
-	if (ret)
-		return ret;
 
 	memcpy(val, ua->base + UCSI_MESSAGE_IN, val_len);
 
@@ -102,48 +99,11 @@ static const struct ucsi_operations ucsi_acpi_ops = {
 	.async_control = ucsi_acpi_async_control
 };
 
-static int
-ucsi_zenbook_read_cci(struct ucsi *ucsi, u32 *cci)
-{
-	struct ucsi_acpi *ua = ucsi_get_drvdata(ucsi);
-	int ret;
-
-	if (UCSI_COMMAND(ua->cmd) == UCSI_PPM_RESET) {
-		ret = ucsi_acpi_dsm(ua, UCSI_DSM_FUNC_READ);
-		if (ret)
-			return ret;
-	}
-
-	memcpy(cci, ua->base + UCSI_CCI, sizeof(*cci));
-
-	return 0;
-}
-
-static int
-ucsi_zenbook_read_message_in(struct ucsi *ucsi, void *val, size_t val_len)
-{
-	struct ucsi_acpi *ua = ucsi_get_drvdata(ucsi);
-
-	/* UCSI_MESSAGE_IN is never read for PPM_RESET, return stored data */
-	memcpy(val, ua->base + UCSI_MESSAGE_IN, val_len);
-
-	return 0;
-}
-
-static const struct ucsi_operations ucsi_zenbook_ops = {
-	.read_version = ucsi_acpi_read_version,
-	.read_cci = ucsi_zenbook_read_cci,
-	.read_message_in = ucsi_zenbook_read_message_in,
-	.sync_control = ucsi_sync_control_common,
-	.async_control = ucsi_acpi_async_control
-};
-
 static int ucsi_gram_read_message_in(struct ucsi *ucsi, void *val, size_t val_len)
 {
 	u16 bogus_change = UCSI_CONSTAT_POWER_LEVEL_CHANGE |
 			   UCSI_CONSTAT_PDOS_CHANGE;
 	struct ucsi_acpi *ua = ucsi_get_drvdata(ucsi);
-	struct ucsi_connector_status *status;
 	int ret;
 
 	ret = ucsi_acpi_read_message_in(ucsi, val, val_len);
@@ -152,11 +112,9 @@ static int ucsi_gram_read_message_in(struct ucsi *ucsi, void *val, size_t val_le
 
 	if (UCSI_COMMAND(ua->cmd) == UCSI_GET_CONNECTOR_STATUS &&
 	    ua->check_bogus_event) {
-		status = (struct ucsi_connector_status *)val;
-
 		/* Clear the bogus change */
-		if (status->change == bogus_change)
-			status->change = 0;
+		if (*(u16 *)val == bogus_change)
+			*(u16 *)val = 0;
 
 		ua->check_bogus_event = false;
 	}
@@ -190,13 +148,6 @@ static const struct ucsi_operations ucsi_gram_ops = {
 };
 
 static const struct dmi_system_id ucsi_acpi_quirks[] = {
-	{
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "ZenBook UX325UA_UM325UA"),
-		},
-		.driver_data = (void *)&ucsi_zenbook_ops,
-	},
 	{
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LG Electronics"),
@@ -320,7 +271,7 @@ static struct platform_driver ucsi_acpi_platform_driver = {
 		.acpi_match_table = ACPI_PTR(ucsi_acpi_match),
 	},
 	.probe = ucsi_acpi_probe,
-	.remove_new = ucsi_acpi_remove,
+	.remove = ucsi_acpi_remove,
 };
 
 module_platform_driver(ucsi_acpi_platform_driver);
