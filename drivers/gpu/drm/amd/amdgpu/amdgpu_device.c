@@ -2365,8 +2365,8 @@ int amdgpu_device_ip_block_add(struct amdgpu_device *adev,
 		break;
 	}
 
-	DRM_INFO("add ip block number %d <%s>\n", adev->num_ip_blocks,
-		  ip_block_version->funcs->name);
+	dev_info(adev->dev, "detected ip block number %d <%s>\n",
+		 adev->num_ip_blocks, ip_block_version->funcs->name);
 
 	adev->ip_blocks[adev->num_ip_blocks].adev = adev;
 
