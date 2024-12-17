@@ -390,5 +390,4 @@ module_platform_driver(tps65219_regulator_driver);
 
 MODULE_AUTHOR("Jerome Neanne <j-neanne@baylibre.com>");
 MODULE_DESCRIPTION("TPS65219 voltage regulator driver");
-MODULE_ALIAS("platform:tps65219-pmic");
 MODULE_LICENSE("GPL");
