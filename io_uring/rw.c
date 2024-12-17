@@ -212,7 +212,7 @@ static void io_rw_async_data_init(void *obj)
 {
 	struct io_async_rw *rw = (struct io_async_rw *)obj;
 
-	rw->free_iovec = 0;
+	rw->free_iovec = NULL;
 	rw->bytes_done = 0;
 }
 
