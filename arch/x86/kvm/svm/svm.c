@@ -4789,8 +4789,14 @@ static void svm_enable_smi_window(struct kvm_vcpu *vcpu)
 static int svm_check_emulate_instruction(struct kvm_vcpu *vcpu, int emul_type,
 					 void *insn, int insn_len)
 {
+	struct vcpu_svm *svm = to_svm(vcpu);
 	bool smep, smap, is_user;
 	u64 error_code;
+
+	/* Check that emulation is possible during event vectoring */
+	if ((svm->vmcb->control.exit_int_info & SVM_EXITINTINFO_TYPE_MASK) &&
+	    !kvm_can_emulate_event_vectoring(emul_type))
+		return X86EMUL_UNHANDLEABLE_VECTORING;
 
 	/* Emulation is always possible when KVM has access to all guest state. */
 	if (!sev_guest(vcpu->kvm))
@@ -4888,7 +4894,7 @@ static int svm_check_emulate_instruction(struct kvm_vcpu *vcpu, int emul_type,
 	 * In addition, don't apply the erratum workaround if the #NPF occurred
 	 * while translating guest page tables (see below).
 	 */
-	error_code = to_svm(vcpu)->vmcb->control.exit_info_1;
+	error_code = svm->vmcb->control.exit_info_1;
 	if (error_code & (PFERR_GUEST_PAGE_MASK | PFERR_FETCH_MASK))
 		goto resume_guest;
 
