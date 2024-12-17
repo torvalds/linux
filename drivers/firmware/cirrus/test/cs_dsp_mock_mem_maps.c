@@ -526,7 +526,8 @@ void cs_dsp_mock_xm_header_drop_from_regmap_cache(struct cs_dsp_test *priv)
 {
 	unsigned int xm = cs_dsp_mock_base_addr_for_mem(priv, WMFW_ADSP2_XM);
 	unsigned int bytes;
-	u32 num_algs;
+	__be32 num_algs_be32;
+	unsigned int num_algs;
 
 	switch (priv->dsp->type) {
 	case WMFW_ADSP2:
@@ -536,8 +537,8 @@ void cs_dsp_mock_xm_header_drop_from_regmap_cache(struct cs_dsp_test *priv)
 		 */
 		regmap_raw_read(priv->dsp->regmap,
 				xm + (offsetof(struct wmfw_adsp2_id_hdr, n_algs) / 2),
-				&num_algs, sizeof(num_algs));
-		num_algs = be32_to_cpu(num_algs);
+				&num_algs_be32, sizeof(num_algs_be32));
+		num_algs = be32_to_cpu(num_algs_be32);
 		bytes = sizeof(struct wmfw_adsp2_id_hdr) +
 			(num_algs * sizeof(struct wmfw_adsp2_alg_hdr)) +
 			4 /* terminator word */;
