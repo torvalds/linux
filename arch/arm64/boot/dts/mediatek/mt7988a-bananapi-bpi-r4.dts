@@ -302,6 +302,10 @@
 	};
 };
 
+&pwm {
+	status = "okay";
+};
+
 &serial0 {
 	status = "okay";
 };
