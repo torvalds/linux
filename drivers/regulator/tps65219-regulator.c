@@ -322,11 +322,11 @@ static int tps65219_regulator_probe(struct platform_device *pdev)
 		dev_dbg(tps->dev, "%s regul i= %d START", __func__, i);
 		rdev = devm_regulator_register(&pdev->dev, &regulators[i],
 					       &config);
-		if (IS_ERR(rdev)) {
-			dev_err(tps->dev, "failed to register %s regulator\n",
-				regulators[i].name);
-			return PTR_ERR(rdev);
-		}
+		if (IS_ERR(rdev))
+			return dev_err_probe(tps->dev, PTR_ERR(rdev),
+					"Failed to register %s regulator\n",
+					regulators[i].name);
+
 		rdevtbl[i] = rdev;
 		dev_dbg(tps->dev, "%s regul i= %d COMPLETED", __func__, i);
 	}
