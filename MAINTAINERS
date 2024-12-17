@@ -4611,6 +4611,7 @@ F:	drivers/net/ethernet/broadcom/bnx2x/
 
 BROADCOM BNXT_EN 50 GIGABIT ETHERNET DRIVER
 M:	Michael Chan <michael.chan@broadcom.com>
+M:	Pavan Chebbi <pavan.chebbi@broadcom.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/firmware/broadcom/tee_bnxt_fw.c
