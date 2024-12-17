@@ -171,9 +171,12 @@ static struct regmap *device_node_get_regmap(struct device_node *np,
 			break;
 		}
 
-	if (!syscon)
-		syscon = of_syscon_register(np, check_res);
-
+	if (!syscon) {
+		if (of_device_is_compatible(np, "syscon"))
+			syscon = of_syscon_register(np, check_res);
+		else
+			syscon = ERR_PTR(-EINVAL);
+	}
 	mutex_unlock(&syscon_list_lock);
 
 	if (IS_ERR(syscon))
@@ -238,9 +241,6 @@ EXPORT_SYMBOL_GPL(device_node_to_regmap);
 
 struct regmap *syscon_node_to_regmap(struct device_node *np)
 {
-	if (!of_device_is_compatible(np, "syscon"))
-		return ERR_PTR(-EINVAL);
-
 	return device_node_get_regmap(np, true);
 }
 EXPORT_SYMBOL_GPL(syscon_node_to_regmap);
