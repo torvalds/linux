@@ -26,6 +26,14 @@
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 #endif
 
+#ifndef max
+#define max(a, b) ((a) > (b) ? (a) : (b))
+#endif
+
+#ifndef min
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
 enum stat_id {
 	VERDICT,
 	DURATION,
@@ -904,7 +912,7 @@ static int line_cnt_cmp(const void *a, const void *b)
 	const struct line_cnt *b_cnt = (const struct line_cnt *)b;
 
 	if (a_cnt->cnt != b_cnt->cnt)
-		return a_cnt->cnt < b_cnt->cnt ? -1 : 1;
+		return a_cnt->cnt > b_cnt->cnt ? -1 : 1;
 	return strcmp(a_cnt->line, b_cnt->line);
 }
 
