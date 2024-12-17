@@ -1033,7 +1033,12 @@ int bnxt_qplib_create_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 				    : 0;
 	/* Update msn tbl size */
 	if (qp->is_host_msn_tbl && psn_sz) {
-		hwq_attr.aux_depth = roundup_pow_of_two(bnxt_qplib_set_sq_size(sq, qp->wqe_mode));
+		if (qp->wqe_mode == BNXT_QPLIB_WQE_MODE_STATIC)
+			hwq_attr.aux_depth =
+				roundup_pow_of_two(bnxt_qplib_set_sq_size(sq, qp->wqe_mode));
+		else
+			hwq_attr.aux_depth =
+				roundup_pow_of_two(bnxt_qplib_set_sq_size(sq, qp->wqe_mode)) / 2;
 		qp->msn_tbl_sz = hwq_attr.aux_depth;
 		qp->msn = 0;
 	}
