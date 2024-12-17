@@ -10054,7 +10054,6 @@ static int ath12k_mac_op_remain_on_channel(struct ieee80211_hw *hw,
 {
 	struct ath12k_vif *ahvif = ath12k_vif_to_ahvif(vif);
 	struct ath12k_hw *ah = ath12k_hw_to_ah(hw);
-	struct ath12k_wmi_scan_req_arg arg;
 	struct ath12k_link_vif *arvif;
 	struct ath12k *ar;
 	u32 scan_time_msec;
@@ -10065,10 +10064,8 @@ static int ath12k_mac_op_remain_on_channel(struct ieee80211_hw *hw,
 	lockdep_assert_wiphy(hw->wiphy);
 
 	ar = ath12k_mac_select_scan_device(hw, vif, chan->center_freq);
-	if (!ar) {
-		ret = -EINVAL;
-		goto exit;
-	}
+	if (!ar)
+		return -EINVAL;
 
 	/* check if any of the links of ML VIF is already started on
 	 * radio(ar) correpsondig to given scan frequency and use it,
@@ -10087,15 +10084,11 @@ static int ath12k_mac_op_remain_on_channel(struct ieee80211_hw *hw,
 	 * always on the same band for the vif
 	 */
 	if (arvif->is_created) {
-		if (WARN_ON(!arvif->ar)) {
-			ret = -EINVAL;
-			goto exit;
-		}
+		if (WARN_ON(!arvif->ar))
+			return -EINVAL;
 
-		if (ar != arvif->ar && arvif->is_started) {
-			ret = -EBUSY;
-			goto exit;
-		}
+		if (ar != arvif->ar && arvif->is_started)
+			return -EBUSY;
 
 		if (ar != arvif->ar) {
 			ath12k_mac_remove_link_interface(hw, arvif);
@@ -10112,7 +10105,7 @@ static int ath12k_mac_op_remain_on_channel(struct ieee80211_hw *hw,
 		if (ret) {
 			ath12k_warn(ar->ab, "unable to create scan vdev for roc: %d\n",
 				    ret);
-			goto exit;
+			return ret;
 		}
 	}
 
@@ -10140,37 +10133,41 @@ static int ath12k_mac_op_remain_on_channel(struct ieee80211_hw *hw,
 	spin_unlock_bh(&ar->data_lock);
 
 	if (ret)
-		goto exit;
+		return ret;
 
 	scan_time_msec = hw->wiphy->max_remain_on_channel_duration * 2;
 
-	memset(&arg, 0, sizeof(arg));
-	ath12k_wmi_start_scan_init(ar, &arg);
-	arg.num_chan = 1;
-	arg.chan_list = kcalloc(arg.num_chan, sizeof(*arg.chan_list),
-				GFP_KERNEL);
-	if (!arg.chan_list) {
-		ret = -ENOMEM;
-		goto exit;
-	}
+	struct ath12k_wmi_scan_req_arg *arg __free(kfree) =
+					kzalloc(sizeof(*arg), GFP_KERNEL);
+	if (!arg)
+		return -ENOMEM;
 
-	arg.vdev_id = arvif->vdev_id;
-	arg.scan_id = ATH12K_SCAN_ID;
-	arg.chan_list[0] = chan->center_freq;
-	arg.dwell_time_active = scan_time_msec;
-	arg.dwell_time_passive = scan_time_msec;
-	arg.max_scan_time = scan_time_msec;
-	arg.scan_f_passive = 1;
-	arg.burst_duration = duration;
+	ath12k_wmi_start_scan_init(ar, arg);
+	arg->num_chan = 1;
 
-	ret = ath12k_start_scan(ar, &arg);
+	u32 *chan_list __free(kfree) = kcalloc(arg->num_chan, sizeof(*chan_list),
+					       GFP_KERNEL);
+	if (!chan_list)
+		return -ENOMEM;
+
+	arg->chan_list = chan_list;
+	arg->vdev_id = arvif->vdev_id;
+	arg->scan_id = ATH12K_SCAN_ID;
+	arg->chan_list[0] = chan->center_freq;
+	arg->dwell_time_active = scan_time_msec;
+	arg->dwell_time_passive = scan_time_msec;
+	arg->max_scan_time = scan_time_msec;
+	arg->scan_f_passive = 1;
+	arg->burst_duration = duration;
+
+	ret = ath12k_start_scan(ar, arg);
 	if (ret) {
 		ath12k_warn(ar->ab, "failed to start roc scan: %d\n", ret);
 
 		spin_lock_bh(&ar->data_lock);
 		ar->scan.state = ATH12K_SCAN_IDLE;
 		spin_unlock_bh(&ar->data_lock);
-		goto free_chan_list;
+		return ret;
 	}
 
 	ret = wait_for_completion_timeout(&ar->scan.on_channel, 3 * HZ);
@@ -10179,20 +10176,13 @@ static int ath12k_mac_op_remain_on_channel(struct ieee80211_hw *hw,
 		ret = ath12k_scan_stop(ar);
 		if (ret)
 			ath12k_warn(ar->ab, "failed to stop scan: %d\n", ret);
-		ret = -ETIMEDOUT;
-		goto free_chan_list;
+		return -ETIMEDOUT;
 	}
 
 	ieee80211_queue_delayed_work(hw, &ar->scan.timeout,
 				     msecs_to_jiffies(duration));
 
-	ret = 0;
-
-free_chan_list:
-	kfree(arg.chan_list);
-
-exit:
-	return ret;
+	return 0;
 }
 
 static void ath12k_mac_op_set_rekey_data(struct ieee80211_hw *hw,
