@@ -441,10 +441,29 @@ void kvm_timer_update_run(struct kvm_vcpu *vcpu)
 		regs->device_irq_level |= KVM_ARM_DEV_EL1_PTIMER;
 }
 
+static void kvm_timer_update_status(struct arch_timer_context *ctx, bool level)
+{
+	/*
+	 * Paper over NV2 brokenness by publishing the interrupt status
+	 * bit. This still results in a poor quality of emulation (guest
+	 * writes will have no effect until the next exit).
+	 *
+	 * But hey, it's fast, right?
+	 */
+	if (is_hyp_ctxt(ctx->vcpu) &&
+	    (ctx == vcpu_vtimer(ctx->vcpu) || ctx == vcpu_ptimer(ctx->vcpu))) {
+		unsigned long val = timer_get_ctl(ctx);
+		__assign_bit(__ffs(ARCH_TIMER_CTRL_IT_STAT), &val, level);
+		timer_set_ctl(ctx, val);
+	}
+}
+
 static void kvm_timer_update_irq(struct kvm_vcpu *vcpu, bool new_level,
 				 struct arch_timer_context *timer_ctx)
 {
 	int ret;
+
+	kvm_timer_update_status(timer_ctx, new_level);
 
 	timer_ctx->irq.level = new_level;
 	trace_kvm_timer_update_irq(vcpu->vcpu_id, timer_irq(timer_ctx),
@@ -470,6 +489,8 @@ static void timer_emulate(struct arch_timer_context *ctx)
 		kvm_timer_update_irq(ctx->vcpu, should_fire, ctx);
 		return;
 	}
+
+	kvm_timer_update_status(ctx, should_fire);
 
 	/*
 	 * If the timer can fire now, we don't need to have a soft timer
