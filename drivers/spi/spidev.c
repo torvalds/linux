@@ -698,20 +698,24 @@ static const struct class spidev_class = {
 	.name = "spidev",
 };
 
+/*
+ * The spi device ids are expected to match the device names of the
+ * spidev_dt_ids array below. Both arrays are kept in the same ordering.
+ */
 static const struct spi_device_id spidev_spi_ids[] = {
-	{ .name = "bh2228fv" },
-	{ .name = "dh2228fv" },
-	{ .name = "jg10309-01" },
-	{ .name = "ltc2488" },
-	{ .name = "sx1301" },
-	{ .name = "bk4" },
-	{ .name = "bk4-spi" },
-	{ .name = "dhcom-board" },
-	{ .name = "m53cpld" },
-	{ .name = "spi-petra" },
-	{ .name = "spi-authenta" },
-	{ .name = "em3581" },
-	{ .name = "si3210" },
+	{ .name = /* cisco */ "spi-petra" },
+	{ .name = /* dh */ "dhcom-board" },
+	{ .name = /* elgin */ "jg10309-01" },
+	{ .name = /* lineartechnology */ "ltc2488" },
+	{ .name = /* lwn */ "bk4" },
+	{ .name = /* lwn */ "bk4-spi" },
+	{ .name = /* menlo */ "m53cpld" },
+	{ .name = /* micron */ "spi-authenta" },
+	{ .name = /* rohm */ "bh2228fv" },
+	{ .name = /* rohm */ "dh2228fv" },
+	{ .name = /* semtech */ "sx1301" },
+	{ .name = /* silabs */ "em3581" },
+	{ .name = /* silabs */ "si3210" },
 	{},
 };
 MODULE_DEVICE_TABLE(spi, spidev_spi_ids);
