@@ -329,7 +329,7 @@ static int loongson_rtc_probe(struct platform_device *pdev)
 					     alarm_irq);
 
 		priv->pm_base = regs - priv->config->pm_offset;
-		device_init_wakeup(dev, 1);
+		device_init_wakeup(dev, true);
 
 		if (has_acpi_companion(dev))
 			acpi_install_fixed_event_handler(ACPI_EVENT_RTC,
@@ -360,7 +360,7 @@ static void loongson_rtc_remove(struct platform_device *pdev)
 		acpi_remove_fixed_event_handler(ACPI_EVENT_RTC,
 						loongson_rtc_handler);
 
-	device_init_wakeup(dev, 0);
+	device_init_wakeup(dev, false);
 	loongson_rtc_alarm_irq_enable(dev, 0);
 }
 

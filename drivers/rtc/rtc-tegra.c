@@ -319,7 +319,7 @@ static int tegra_rtc_probe(struct platform_device *pdev)
 	writel(0xffffffff, info->base + TEGRA_RTC_REG_INTR_STATUS);
 	writel(0, info->base + TEGRA_RTC_REG_INTR_MASK);
 
-	device_init_wakeup(&pdev->dev, 1);
+	device_init_wakeup(&pdev->dev, true);
 
 	ret = devm_request_irq(&pdev->dev, info->irq, tegra_rtc_irq_handler,
 			       IRQF_TRIGGER_HIGH, dev_name(&pdev->dev),

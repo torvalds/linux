@@ -473,7 +473,7 @@ static int max8997_rtc_probe(struct platform_device *pdev)
 	max8997_rtc_enable_wtsr(info, true);
 	max8997_rtc_enable_smpl(info, true);
 
-	device_init_wakeup(&pdev->dev, 1);
+	device_init_wakeup(&pdev->dev, true);
 
 	info->rtc_dev = devm_rtc_device_register(&pdev->dev, "max8997-rtc",
 					&max8997_rtc_ops, THIS_MODULE);
