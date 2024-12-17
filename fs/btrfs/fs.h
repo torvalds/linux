@@ -14,7 +14,6 @@
 #include <linux/lockdep.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
-#include <linux/rwlock_types.h>
 #include <linux/rwsem.h>
 #include <linux/semaphore.h>
 #include <linux/list.h>
