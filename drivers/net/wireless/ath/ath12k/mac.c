@@ -4834,7 +4834,6 @@ static int ath12k_mac_station_assoc(struct ath12k *ar,
 {
 	struct ieee80211_vif *vif = ath12k_ahvif_to_vif(arvif->ahvif);
 	struct ieee80211_sta *sta = ath12k_ahsta_to_sta(arsta->ahsta);
-	struct ath12k_wmi_peer_assoc_arg peer_arg;
 	struct ieee80211_link_sta *link_sta;
 	int ret;
 	struct cfg80211_chan_def def;
@@ -4854,14 +4853,19 @@ static int ath12k_mac_station_assoc(struct ath12k *ar,
 	band = def.chan->band;
 	mask = &arvif->bitrate_mask;
 
-	ath12k_peer_assoc_prepare(ar, arvif, arsta, &peer_arg, reassoc);
+	struct ath12k_wmi_peer_assoc_arg *peer_arg __free(kfree) =
+		kzalloc(sizeof(*peer_arg), GFP_KERNEL);
+	if (!peer_arg)
+		return -ENOMEM;
 
-	if (peer_arg.peer_nss < 1) {
+	ath12k_peer_assoc_prepare(ar, arvif, arsta, peer_arg, reassoc);
+
+	if (peer_arg->peer_nss < 1) {
 		ath12k_warn(ar->ab,
-			    "invalid peer NSS %d\n", peer_arg.peer_nss);
+			    "invalid peer NSS %d\n", peer_arg->peer_nss);
 		return -EINVAL;
 	}
-	ret = ath12k_wmi_send_peer_assoc_cmd(ar, &peer_arg);
+	ret = ath12k_wmi_send_peer_assoc_cmd(ar, peer_arg);
 	if (ret) {
 		ath12k_warn(ar->ab, "failed to run peer assoc for STA %pM vdev %i: %d\n",
 			    arsta->addr, arvif->vdev_id, ret);
