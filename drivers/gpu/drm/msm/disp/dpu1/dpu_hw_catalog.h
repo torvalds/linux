@@ -613,6 +613,16 @@ struct dpu_wb_cfg {
 	enum dpu_clk_ctrl_type clk_ctrl;
 };
 
+/*
+ * struct dpu_cwb_cfg : MDP CWB mux instance info
+ * @id:                enum identifying this block
+ * @base:              register base offset to mdss
+ * @features           bit mask identifying sub-blocks/features
+ */
+struct dpu_cwb_cfg {
+	DPU_HW_BLK_INFO;
+};
+
 /**
  * struct dpu_vbif_dynamic_ot_cfg - dynamic OT setting
  * @pps                pixel per seconds
@@ -814,6 +824,9 @@ struct dpu_mdss_cfg {
 
 	u32 dspp_count;
 	const struct dpu_dspp_cfg *dspp;
+
+	u32 cwb_count;
+	const struct dpu_cwb_cfg *cwb;
 
 	/* Add additional block data structures here */
 
