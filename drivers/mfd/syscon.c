@@ -12,21 +12,14 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/hwspinlock.h>
-#include <linux/io.h>
-#include <linux/init.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_platform.h>
-#include <linux/platform_data/syscon.h>
-#include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/mfd/syscon.h>
 #include <linux/slab.h>
-
-static struct platform_driver syscon_driver;
 
 static DEFINE_MUTEX(syscon_list_lock);
 static LIST_HEAD(syscon_list);
@@ -337,62 +330,3 @@ struct regmap *syscon_regmap_lookup_by_phandle_optional(struct device_node *np,
 	return regmap;
 }
 EXPORT_SYMBOL_GPL(syscon_regmap_lookup_by_phandle_optional);
-
-static int syscon_probe(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	struct syscon_platform_data *pdata = dev_get_platdata(dev);
-	struct syscon *syscon;
-	struct regmap_config syscon_config = syscon_regmap_config;
-	struct resource *res;
-	void __iomem *base;
-
-	syscon = devm_kzalloc(dev, sizeof(*syscon), GFP_KERNEL);
-	if (!syscon)
-		return -ENOMEM;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENOENT;
-
-	base = devm_ioremap(dev, res->start, resource_size(res));
-	if (!base)
-		return -ENOMEM;
-
-	syscon_config.max_register = resource_size(res) - 4;
-	if (!syscon_config.max_register)
-		syscon_config.max_register_is_0 = true;
-
-	if (pdata)
-		syscon_config.name = pdata->label;
-	syscon->regmap = devm_regmap_init_mmio(dev, base, &syscon_config);
-	if (IS_ERR(syscon->regmap)) {
-		dev_err(dev, "regmap init failed\n");
-		return PTR_ERR(syscon->regmap);
-	}
-
-	platform_set_drvdata(pdev, syscon);
-
-	dev_dbg(dev, "regmap %pR registered\n", res);
-
-	return 0;
-}
-
-static const struct platform_device_id syscon_ids[] = {
-	{ "syscon", },
-	{ }
-};
-
-static struct platform_driver syscon_driver = {
-	.driver = {
-		.name = "syscon",
-	},
-	.probe		= syscon_probe,
-	.id_table	= syscon_ids,
-};
-
-static int __init syscon_init(void)
-{
-	return platform_driver_register(&syscon_driver);
-}
-postcore_initcall(syscon_init);
