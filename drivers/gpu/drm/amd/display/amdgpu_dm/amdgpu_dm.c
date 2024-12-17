@@ -8301,11 +8301,18 @@ static int amdgpu_dm_i2c_xfer(struct i2c_adapter *i2c_adap,
 		cmd.payloads[i].data = msgs[i].buf;
 	}
 
-	if (dc_submit_i2c(
-			ddc_service->ctx->dc,
-			ddc_service->link->link_index,
-			&cmd))
-		result = num;
+	if (i2c->oem) {
+		if (dc_submit_i2c_oem(
+			    ddc_service->ctx->dc,
+			    &cmd))
+			result = num;
+	} else {
+		if (dc_submit_i2c(
+			    ddc_service->ctx->dc,
+			    ddc_service->link->link_index,
+			    &cmd))
+			result = num;
+	}
 
 	kfree(cmd.payloads);
 	return result;
@@ -8322,7 +8329,7 @@ static const struct i2c_algorithm amdgpu_dm_i2c_algo = {
 };
 
 static struct amdgpu_i2c_adapter *
-create_i2c(struct ddc_service *ddc_service)
+create_i2c(struct ddc_service *ddc_service, bool oem)
 {
 	struct amdgpu_device *adev = ddc_service->ctx->driver_context;
 	struct amdgpu_i2c_adapter *i2c;
@@ -8333,10 +8340,14 @@ create_i2c(struct ddc_service *ddc_service)
 	i2c->base.owner = THIS_MODULE;
 	i2c->base.dev.parent = &adev->pdev->dev;
 	i2c->base.algo = &amdgpu_dm_i2c_algo;
-	snprintf(i2c->base.name, sizeof(i2c->base.name), "AMDGPU DM i2c hw bus %d",
-		 ddc_service->link->link_index);
+	if (oem)
+		snprintf(i2c->base.name, sizeof(i2c->base.name), "AMDGPU DM i2c OEM bus");
+	else
+		snprintf(i2c->base.name, sizeof(i2c->base.name), "AMDGPU DM i2c hw bus %d",
+			 ddc_service->link->link_index);
 	i2c_set_adapdata(&i2c->base, i2c);
 	i2c->ddc_service = ddc_service;
+	i2c->oem = oem;
 
 	return i2c;
 }
@@ -8382,7 +8393,7 @@ static int amdgpu_dm_connector_init(struct amdgpu_display_manager *dm,
 	link->priv = aconnector;
 
 
-	i2c = create_i2c(link->ddc);
+	i2c = create_i2c(link->ddc, false);
 	if (!i2c) {
 		DRM_ERROR("Failed to create i2c adapter data\n");
 		return -ENOMEM;
