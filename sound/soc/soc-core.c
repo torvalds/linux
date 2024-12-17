@@ -2237,7 +2237,6 @@ static int snd_soc_bind_card(struct snd_soc_card *card)
 				      card->num_dapm_routes);
 	if (ret < 0) {
 		if (card->disable_route_checks) {
-			ret = 0;
 			dev_info(card->dev,
 				 "%s: disable_route_checks set, ignoring errors on add_routes\n",
 				 __func__);
