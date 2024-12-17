@@ -96,6 +96,7 @@ struct pci_dev;
 	func(dg2_g12) \
 	/* Display ver 14 (based on GMD ID) */ \
 	func(meteorlake) \
+	func(meteorlake_u) \
 	/* Display ver 20 (based on GMD ID) */ \
 	func(lunarlake) \
 	/* Display ver 14.1 (based on GMD ID) */ \
