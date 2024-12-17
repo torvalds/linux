@@ -1174,7 +1174,7 @@ typedef void (*snd_compr_seq_func_t)(struct snd_compr_stream *stream,
 static int snd_compr_task_seq(struct snd_compr_stream *stream, unsigned long arg,
 					snd_compr_seq_func_t fcn)
 {
-	struct snd_compr_task_runtime *task;
+	struct snd_compr_task_runtime *task, *temp;
 	__u64 seqno;
 	int retval;
 
@@ -1185,7 +1185,7 @@ static int snd_compr_task_seq(struct snd_compr_stream *stream, unsigned long arg
 		return -EFAULT;
 	retval = 0;
 	if (seqno == 0) {
-		list_for_each_entry_reverse(task, &stream->runtime->tasks, list)
+		list_for_each_entry_safe_reverse(task, temp, &stream->runtime->tasks, list)
 			fcn(stream, task);
 	} else {
 		task = snd_compr_find_task(stream, seqno);
