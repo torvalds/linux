@@ -2350,6 +2350,30 @@ static int intel_edp_dsc_compute_pipe_bpp(struct intel_dp *intel_dp,
 	return 0;
 }
 
+static void intel_dp_fec_compute_config(struct intel_dp *intel_dp,
+					const struct intel_connector *connector,
+					struct intel_crtc_state *crtc_state)
+{
+	if (crtc_state->fec_enable)
+		return;
+
+	/*
+	 * Though eDP v1.5 supports FEC with DSC, unlike DP, it is optional.
+	 * Since, FEC is a bandwidth overhead, continue to not enable it for
+	 * eDP. Until, there is a good reason to do so.
+	 */
+	if (intel_dp_is_edp(intel_dp))
+		return;
+
+	if (!intel_dp_supports_fec(intel_dp, connector, crtc_state))
+		return;
+
+	if (intel_dp_is_uhbr(crtc_state))
+		return;
+
+	crtc_state->fec_enable = true;
+}
+
 int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 				struct intel_crtc_state *pipe_config,
 				struct drm_connector_state *conn_state,
@@ -2365,15 +2389,7 @@ int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 	int num_joined_pipes = intel_crtc_num_joined_pipes(pipe_config);
 	int ret;
 
-	/*
-	 * Though eDP v1.5 supports FEC with DSC, unlike DP, it is optional.
-	 * Since, FEC is a bandwidth overhead, continue to not enable it for
-	 * eDP. Until, there is a good reason to do so.
-	 */
-	pipe_config->fec_enable = pipe_config->fec_enable ||
-		(!intel_dp_is_edp(intel_dp) &&
-		 intel_dp_supports_fec(intel_dp, connector, pipe_config) &&
-		 !intel_dp_is_uhbr(pipe_config));
+	intel_dp_fec_compute_config(intel_dp, connector, pipe_config);
 
 	if (!intel_dp_dsc_supports_format(connector, pipe_config->output_format))
 		return -EINVAL;
