@@ -996,7 +996,10 @@ const char *btrfs_super_csum_name(u16 csum_type);
 const char *btrfs_super_csum_driver(u16 csum_type);
 size_t __attribute_const__ btrfs_get_num_csums(void);
 
-bool __pure btrfs_is_empty_uuid(const u8 *uuid);
+static inline bool btrfs_is_empty_uuid(const u8 *uuid)
+{
+	return uuid_is_null((const uuid_t *)uuid);
+}
 
 /* Compatibility and incompatibility defines */
 void __btrfs_set_fs_incompat(struct btrfs_fs_info *fs_info, u64 flag,
