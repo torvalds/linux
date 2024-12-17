@@ -243,6 +243,9 @@ int amdxdna_drm_destroy_hwctx_ioctl(struct drm_device *dev, void *data, struct d
 	struct amdxdna_hwctx *hwctx;
 	int ret = 0, idx;
 
+	if (XDNA_MBZ_DBG(xdna, &args->pad, sizeof(args->pad)))
+		return -EINVAL;
+
 	if (!drm_dev_enter(dev, &idx))
 		return -ENODEV;
 
@@ -276,6 +279,9 @@ int amdxdna_drm_config_hwctx_ioctl(struct drm_device *dev, void *data, struct dr
 	u32 buf_size;
 	void *buf;
 	u64 val;
+
+	if (XDNA_MBZ_DBG(xdna, &args->pad, sizeof(args->pad)))
+		return -EINVAL;
 
 	if (!xdna->dev_info->ops->hwctx_config)
 		return -EOPNOTSUPP;

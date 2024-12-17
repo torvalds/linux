@@ -552,7 +552,7 @@ int amdxdna_drm_get_bo_info_ioctl(struct drm_device *dev, void *data, struct drm
 	struct drm_gem_object *gobj;
 	int ret = 0;
 
-	if (args->ext || args->ext_flags)
+	if (args->ext || args->ext_flags || args->pad)
 		return -EINVAL;
 
 	gobj = drm_gem_object_lookup(filp, args->handle);
