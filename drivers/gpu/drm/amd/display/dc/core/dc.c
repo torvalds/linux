@@ -4421,7 +4421,7 @@ static bool commit_minimal_transition_based_on_current_context(struct dc *dc,
 	struct pipe_split_policy_backup policy;
 	struct dc_state *intermediate_context;
 	struct dc_state *old_current_state = dc->current_state;
-	struct dc_surface_update srf_updates[MAX_SURFACE_NUM] = {0};
+	struct dc_surface_update srf_updates[MAX_SURFACES] = {0};
 	int surface_count;
 
 	/*
