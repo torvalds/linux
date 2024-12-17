@@ -4956,7 +4956,6 @@ static void ath12k_sta_rc_update_wk(struct wiphy *wiphy, struct wiphy_work *wk)
 	u32 changed, bw, nss, smps, bw_prev;
 	int err, num_vht_rates;
 	const struct cfg80211_bitrate_mask *mask;
-	struct ath12k_wmi_peer_assoc_arg peer_arg;
 	enum wmi_phy_mode peer_phymode;
 	struct ath12k_link_sta *arsta;
 	struct ieee80211_vif *vif;
@@ -4992,9 +4991,14 @@ static void ath12k_sta_rc_update_wk(struct wiphy *wiphy, struct wiphy_work *wk)
 	nss = min(nss, max(ath12k_mac_max_ht_nss(ht_mcs_mask),
 			   ath12k_mac_max_vht_nss(vht_mcs_mask)));
 
+	struct ath12k_wmi_peer_assoc_arg *peer_arg __free(kfree) =
+					kzalloc(sizeof(*peer_arg), GFP_KERNEL);
+	if (!peer_arg)
+		return;
+
 	if (changed & IEEE80211_RC_BW_CHANGED) {
-		ath12k_peer_assoc_h_phymode(ar, arvif, arsta, &peer_arg);
-		peer_phymode = peer_arg.peer_phymode;
+		ath12k_peer_assoc_h_phymode(ar, arvif, arsta, peer_arg);
+		peer_phymode = peer_arg->peer_phymode;
 
 		if (bw > bw_prev) {
 			/* Phymode shows maximum supported channel width, if we
@@ -5096,9 +5100,9 @@ static void ath12k_sta_rc_update_wk(struct wiphy *wiphy, struct wiphy_work *wk)
 			 * other rates using peer_assoc command.
 			 */
 			ath12k_peer_assoc_prepare(ar, arvif, arsta,
-						  &peer_arg, true);
+						  peer_arg, true);
 
-			err = ath12k_wmi_send_peer_assoc_cmd(ar, &peer_arg);
+			err = ath12k_wmi_send_peer_assoc_cmd(ar, peer_arg);
 			if (err)
 				ath12k_warn(ar->ab, "failed to run peer assoc for STA %pM vdev %i: %d\n",
 					    arsta->addr, arvif->vdev_id, err);
