@@ -253,7 +253,54 @@ static void drm_test_check_in_clone_mode(struct kunit *test)
 	KUNIT_ASSERT_EQ(test, ret, param->expected_result);
 }
 
+/*
+ * Test that the atomic commit path will succeed for valid clones (or non-cloned
+ * states) and fail for states where the cloned encoders are not possible_clones
+ * of each other.
+ */
+static void drm_test_check_valid_clones(struct kunit *test)
+{
+	int ret;
+	const struct drm_clone_mode_test *param = test->param_value;
+	struct drm_atomic_test_priv *priv;
+	struct drm_modeset_acquire_ctx *ctx;
+	struct drm_device *drm;
+	struct drm_atomic_state *state;
+	struct drm_crtc_state *crtc_state;
+
+	priv = drm_atomic_test_init_drm_components(test, false);
+	KUNIT_ASSERT_NOT_NULL(test, priv);
+
+	drm = &priv->drm;
+
+	ctx = drm_kunit_helper_acquire_ctx_alloc(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx);
+
+	ret = set_up_atomic_state(test, priv, NULL, ctx);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	state = drm_kunit_helper_atomic_state_alloc(test, drm, ctx);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, state);
+
+	crtc_state = drm_atomic_get_crtc_state(state, priv->crtc);
+	KUNIT_ASSERT_NOT_NULL(test, crtc_state);
+
+	crtc_state->encoder_mask = param->encoder_mask;
+
+	// force modeset
+	crtc_state->mode_changed = true;
+
+	ret = drm_atomic_helper_check_modeset(drm, state);
+	KUNIT_ASSERT_EQ(test, ret, param->expected_result);
+}
+
 static void drm_check_in_clone_mode_desc(const struct drm_clone_mode_test *t,
+				      char *desc)
+{
+	sprintf(desc, "%s", t->name);
+}
+
+static void drm_check_valid_clones_desc(const struct drm_clone_mode_test *t,
 				      char *desc)
 {
 	sprintf(desc, "%s", t->name);
@@ -272,8 +319,30 @@ static const struct drm_clone_mode_test drm_clone_mode_tests[] = {
 	},
 };
 
+static const struct drm_clone_mode_test drm_valid_clone_mode_tests[] = {
+	{
+		.name = "not_in_clone_mode",
+		.encoder_mask = DRM_TEST_ENC_0,
+		.expected_result = 0,
+	},
+
+	{
+		.name = "valid_clone",
+		.encoder_mask = DRM_TEST_ENC_0 | DRM_TEST_ENC_1,
+		.expected_result = 0,
+	},
+	{
+		.name = "invalid_clone",
+		.encoder_mask = DRM_TEST_ENC_0 | DRM_TEST_ENC_2,
+		.expected_result = -EINVAL,
+	},
+};
+
 KUNIT_ARRAY_PARAM(drm_check_in_clone_mode, drm_clone_mode_tests,
 		  drm_check_in_clone_mode_desc);
+
+KUNIT_ARRAY_PARAM(drm_check_valid_clones, drm_valid_clone_mode_tests,
+		  drm_check_valid_clones_desc);
 
 static struct kunit_case drm_test_check_modeset_test[] = {
 	KUNIT_CASE(drm_test_check_connector_changed_modeset),
@@ -283,6 +352,8 @@ static struct kunit_case drm_test_check_modeset_test[] = {
 static struct kunit_case drm_in_clone_mode_check_test[] = {
 	KUNIT_CASE_PARAM(drm_test_check_in_clone_mode,
 			 drm_check_in_clone_mode_gen_params),
+	KUNIT_CASE_PARAM(drm_test_check_valid_clones,
+			 drm_check_valid_clones_gen_params),
 	{}
 };
 
