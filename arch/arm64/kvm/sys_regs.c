@@ -1208,16 +1208,14 @@ static bool access_pmcnten(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 	mask = kvm_pmu_accessible_counter_mask(vcpu);
 	if (p->is_write) {
 		val = p->regval & mask;
-		if (r->Op2 & 0x1) {
+		if (r->Op2 & 0x1)
 			/* accessing PMCNTENSET_EL0 */
 			__vcpu_sys_reg(vcpu, PMCNTENSET_EL0) |= val;
-			kvm_pmu_enable_counter_mask(vcpu, val);
-			kvm_vcpu_pmu_restore_guest(vcpu);
-		} else {
+		else
 			/* accessing PMCNTENCLR_EL0 */
 			__vcpu_sys_reg(vcpu, PMCNTENSET_EL0) &= ~val;
-			kvm_pmu_disable_counter_mask(vcpu, val);
-		}
+
+		kvm_pmu_reprogram_counter_mask(vcpu, val);
 	} else {
 		p->regval = __vcpu_sys_reg(vcpu, PMCNTENSET_EL0);
 	}
