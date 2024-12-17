@@ -582,6 +582,7 @@ static inline void blk_zone_wplug_bio_io_error(struct blk_zone_wplug *zwplug,
 	bio_clear_flag(bio, BIO_ZONE_WRITE_PLUGGING);
 	bio_io_error(bio);
 	disk_put_zone_wplug(zwplug);
+	/* Drop the reference taken by disk_zone_wplug_add_bio(() */
 	blk_queue_exit(q);
 }
 
@@ -893,10 +894,7 @@ void blk_zone_write_plug_init_request(struct request *req)
 			break;
 		}
 
-		/*
-		 * Drop the extra reference on the queue usage we got when
-		 * plugging the BIO and advance the write pointer offset.
-		 */
+		/* Drop the reference taken by disk_zone_wplug_add_bio(). */
 		blk_queue_exit(q);
 		zwplug->wp_offset += bio_sectors(bio);
 
