@@ -459,6 +459,8 @@ static inline void disk_put_zone_wplug(struct blk_zone_wplug *zwplug)
 static inline bool disk_should_remove_zone_wplug(struct gendisk *disk,
 						 struct blk_zone_wplug *zwplug)
 {
+	lockdep_assert_held(&zwplug->lock);
+
 	/* If the zone write plug was already removed, we are done. */
 	if (zwplug->flags & BLK_ZONE_WPLUG_UNHASHED)
 		return false;
@@ -912,6 +914,8 @@ static bool blk_zone_wplug_prepare_bio(struct blk_zone_wplug *zwplug,
 				       struct bio *bio)
 {
 	struct gendisk *disk = bio->bi_bdev->bd_disk;
+
+	lockdep_assert_held(&zwplug->lock);
 
 	/*
 	 * If we lost track of the zone write pointer due to a write error,
