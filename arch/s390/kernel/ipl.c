@@ -270,7 +270,7 @@ static ssize_t sys_##_prefix##_##_name##_store(struct kobject *kobj,	\
 	if (len >= sizeof(_value))					\
 		return -E2BIG;						\
 	len = strscpy(_value, buf, sizeof(_value));			\
-	if (len < 0)							\
+	if ((ssize_t)len < 0)						\
 		return len;						\
 	strim(_value);							\
 	return len;							\
