@@ -198,3 +198,7 @@
 		};
 	};
 };
+
+&watchdog {
+	status = "okay";
+};
