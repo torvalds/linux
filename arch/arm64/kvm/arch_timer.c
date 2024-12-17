@@ -824,6 +824,10 @@ static void timer_set_traps(struct kvm_vcpu *vcpu, struct timer_map *map)
 	 * Apply the enable bits that the guest hypervisor has requested for
 	 * its own guest. We can only add traps that wouldn't have been set
 	 * above.
+	 * Implementation choices: we do not support NV when E2H=0 in the
+	 * guest, and we don't support configuration where E2H is writable
+	 * by the guest (either FEAT_VHE or FEAT_E2H0 is implemented, but
+	 * not both). This simplifies the handling of the EL1NV* bits.
 	 */
 	if (vcpu_has_nv(vcpu) && !is_hyp_ctxt(vcpu)) {
 		u64 val = __vcpu_sys_reg(vcpu, CNTHCTL_EL2);
@@ -834,6 +838,9 @@ static void timer_set_traps(struct kvm_vcpu *vcpu, struct timer_map *map)
 
 		tpt |= !(val & (CNTHCTL_EL1PCEN << 10));
 		tpc |= !(val & (CNTHCTL_EL1PCTEN << 10));
+
+		tpt02 |= (val & CNTHCTL_EL1NVPCT);
+		tvt02 |= (val & CNTHCTL_EL1NVVCT);
 	}
 
 	/*
