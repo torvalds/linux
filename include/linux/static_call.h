@@ -138,6 +138,7 @@
 #ifdef CONFIG_HAVE_STATIC_CALL
 #include <asm/static_call.h>
 
+extern int static_call_initialized;
 /*
  * Either @site or @tramp can be NULL.
  */
