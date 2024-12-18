@@ -20,6 +20,7 @@
   alloc_contig_range
   alloc_etherdev_mqs
   alloc_io_pgtable_ops
+  alloc_iova_fast
   alloc_netdev_mqs
   __alloc_pages
   alloc_pages_exact
@@ -83,6 +84,7 @@
   bitmap_release_region
   __bitmap_set
   __bitmap_subset
+  bitmap_to_arr32
   __bitmap_weight
   __bitmap_xor
   bitmap_zalloc
@@ -103,6 +105,10 @@
   blocking_notifier_call_chain
   blocking_notifier_chain_register
   blocking_notifier_chain_unregister
+  bpf_dispatcher_xdp_func
+  bpf_master_redirect_enabled_key
+  bpf_prog_put
+  bpf_stats_enabled_key
   bpf_trace_run1
   bpf_trace_run10
   bpf_trace_run11
@@ -115,6 +121,7 @@
   bpf_trace_run7
   bpf_trace_run8
   bpf_trace_run9
+  bpf_warn_invalid_xdp_action
   build_skb
   bus_find_device
   bus_for_each_dev
@@ -414,6 +421,7 @@
   device_get_child_node_count
   device_get_match_data
   device_get_next_child_node
+  device_get_phy_mode
   device_initialize
   device_link_add
   device_link_remove
@@ -483,6 +491,9 @@
   devm_devfreq_remove_device
   devm_devfreq_unregister_notifier
   devm_devfreq_unregister_opp_notifier
+  devm_drm_bridge_add
+  devm_drm_of_get_bridge
+  devm_drm_panel_bridge_add
   devm_extcon_dev_allocate
   devm_extcon_dev_register
   devm_extcon_register_notifier
@@ -570,6 +581,7 @@
   devm_watchdog_register_device
   dev_nit_active
   _dev_notice
+  dev_open
   dev_pm_clear_wake_irq
   dev_pm_domain_attach_by_id
   dev_pm_domain_attach_by_name
@@ -631,6 +643,7 @@
   dma_async_tx_descriptor_init
   dma_buf_attach
   dma_buf_begin_cpu_access
+  dma_buf_begin_cpu_access_partial
   dma_buf_detach
   dma_buf_end_cpu_access
   dma_buf_end_cpu_access_partial
@@ -639,13 +652,16 @@
   dma_buf_get
   dma_buf_get_each
   dma_buf_map_attachment
+  dma_buf_map_attachment_unlocked
   dma_buf_mmap
   dmabuf_page_pool_alloc
   dmabuf_page_pool_create
   dmabuf_page_pool_destroy
   dmabuf_page_pool_free
+  dmabuf_page_pool_get_size
   dma_buf_put
   dma_buf_unmap_attachment
+  dma_buf_unmap_attachment_unlocked
   dma_buf_vmap
   dma_buf_vunmap
   dma_contiguous_default_area
@@ -719,6 +735,8 @@
   down_write_killable
   d_path
   dput
+  dql_completed
+  dql_reset
   drain_workqueue
   driver_attach
   driver_create_file
@@ -729,11 +747,16 @@
   drm_add_edid_modes
   drm_add_modes_noedid
   drm_atomic_add_affected_connectors
+  drm_atomic_bridge_chain_post_disable
+  drm_atomic_bridge_chain_pre_enable
   drm_atomic_get_connector_state
   drm_atomic_get_crtc_state
   drm_atomic_get_new_private_obj_state
   drm_atomic_get_old_private_obj_state
   drm_atomic_get_private_obj_state
+  drm_atomic_helper_bridge_destroy_state
+  drm_atomic_helper_bridge_duplicate_state
+  drm_atomic_helper_bridge_reset
   drm_atomic_helper_check
   drm_atomic_helper_check_plane_state
   drm_atomic_helper_cleanup_planes
@@ -769,7 +792,10 @@
   drm_atomic_state_default_release
   __drm_atomic_state_free
   drm_atomic_state_init
+  drm_bridge_add
   drm_bridge_attach
+  drm_bridge_connector_init
+  drm_bridge_remove
   drm_calc_timestamping_constants
   drm_compat_ioctl
   drm_connector_attach_encoder
@@ -783,6 +809,7 @@
   drm_crtc_cleanup
   __drm_crtc_commit_free
   drm_crtc_commit_wait
+  drm_crtc_from_index
   drm_crtc_handle_vblank
   drm_crtc_init_with_planes
   drm_crtc_send_vblank_event
@@ -800,7 +827,9 @@
   drm_dev_put
   drm_dev_register
   drm_dev_unregister
+  drm_display_info_set_bus_formats
   drm_display_mode_from_cea_vic
+  drm_display_mode_from_videomode
   drm_display_mode_to_videomode
   drm_edid_duplicate
   drm_edid_get_monitor_name
@@ -846,6 +875,7 @@
   drm_mode_config_cleanup
   drm_mode_config_reset
   drm_mode_copy
+  drm_mode_create
   drm_mode_crtc_set_gamma_size
   drm_mode_duplicate
   drm_mode_equal
@@ -860,6 +890,7 @@
   drm_mode_vrefresh
   drm_object_attach_property
   drm_object_property_set_value
+  drm_of_find_panel_or_bridge
   drm_open
   drm_panel_add
   drm_panel_disable
@@ -884,6 +915,7 @@
   drm_property_lookup_blob
   drm_read
   drm_release
+  drm_simple_encoder_init
   drm_universal_plane_init
   drm_vblank_init
   drm_writeback_connector_init
@@ -949,6 +981,11 @@
   firmware_request_nowarn
   fixed_phy_register
   fixed_phy_unregister
+  flow_block_cb_setup_simple
+  flow_rule_match_basic
+  flow_rule_match_ipv4_addrs
+  flow_rule_match_ports
+  flow_rule_match_vlan
   flush_dcache_page
   flush_delayed_fput
   flush_delayed_work
@@ -970,6 +1007,7 @@
   frame_vector_to_pfns
   free_contig_range
   free_io_pgtable_ops
+  free_iova_fast
   free_irq
   free_netdev
   __free_pages
@@ -992,7 +1030,9 @@
   fsg_config_from_params
   fwnode_device_is_available
   fwnode_get_name
+  fwnode_get_named_child_node
   fwnode_get_next_available_child_node
+  fwnode_get_phy_node
   fwnode_graph_get_next_endpoint
   fwnode_graph_get_port_parent
   fwnode_graph_get_remote_endpoint
@@ -1047,6 +1087,7 @@
   get_cpu_idle_time_us
   get_cpu_iowait_time_us
   get_device
+  get_device_system_crosststamp
   __get_free_pages
   get_governor_parent_kobj
   get_kernel_pages
@@ -1109,6 +1150,7 @@
   handle_simple_irq
   handle_sysrq
   have_governor_per_policy
+  hci_cmd_sync_status
   hex2bin
   hex_asc
   hex_asc_upper
@@ -1221,8 +1263,10 @@
   init_uts_ns
   init_wait_entry
   __init_waitqueue_head
+  input_alloc_absinfo
   input_allocate_device
   input_close_device
+  input_copy_abs
   input_event
   input_free_device
   input_mt_destroy_slots
@@ -1491,12 +1535,15 @@
   mdiobus_alloc_size
   mdiobus_free
   mdiobus_get_phy
+  mdiobus_modify_changed
   __mdiobus_read
   mdiobus_read
   __mdiobus_register
   mdiobus_unregister
   __mdiobus_write
   mdiobus_write
+  mdio_device_create
+  mdio_device_free
   media_create_ancillary_link
   media_create_intf_link
   media_create_pad_link
@@ -1522,6 +1569,7 @@
   memchr_inv
   memcmp
   memcpy
+  memcpy_and_pad
   __memcpy_fromio
   __memcpy_toio
   memdup_user
@@ -1583,6 +1631,7 @@
   mmc_send_tuning
   mmc_set_data_timeout
   mmc_switch
+  mmc_wait_for_cmd
   mmc_wait_for_req
   __mmdrop
   mmput
@@ -1620,13 +1669,16 @@
   nd_tbl
   neigh_destroy
   neigh_lookup
+  netdev_alert
   __netdev_alloc_frag_align
   __netdev_alloc_skb
   netdev_err
   netdev_info
   netdev_name_in_use
   netdev_notice
+  netdev_pick_tx
   netdev_printk
+  netdev_rss_key_fill
   netdev_set_default_ethtool_ops
   netdev_update_features
   netdev_upper_dev_link
@@ -1642,6 +1694,9 @@
   netif_receive_skb
   netif_receive_skb_list
   netif_rx
+  netif_schedule_queue
+  netif_set_real_num_rx_queues
+  netif_set_real_num_tx_queues
   netif_set_tso_max_size
   netif_stacked_transfer_operstate
   netif_tx_lock
@@ -1737,6 +1792,7 @@
   __of_get_address
   of_get_child_by_name
   of_get_cpu_node
+  of_get_display_timing
   of_get_mac_address
   of_get_named_gpio_flags
   of_get_next_available_child
@@ -1744,6 +1800,7 @@
   of_get_next_parent
   of_get_parent
   of_get_pci_domain_nr
+  of_get_phy_mode
   of_get_property
   of_get_regulator_init_data
   of_graph_get_next_endpoint
@@ -1767,7 +1824,9 @@
   of_pci_get_max_link_speed
   of_phandle_iterator_init
   of_phandle_iterator_next
+  of_phy_find_device
   of_phy_get_and_connect
+  of_phy_is_fixed_link
   of_phy_simple_xlate
   of_platform_depopulate
   of_platform_device_create
@@ -1804,6 +1863,7 @@
   page_pool_create
   page_pool_destroy
   page_pool_put_defragged_page
+  page_pool_release_page
   panic
   panic_notifier_list
   param_array_ops
@@ -1899,6 +1959,7 @@
   perf_trace_run_bpf_submit
   pfn_is_map_memory
   phy_attached_info
+  phy_configure
   phy_connect
   phy_connect_direct
   phy_create_lookup
@@ -1918,6 +1979,7 @@
   phy_ethtool_set_wol
   phy_exit
   phy_find_first
+  phy_gbit_features
   phy_get
   phy_get_c45_ids
   phy_get_pause
@@ -1928,10 +1990,25 @@
   phylink_create
   phylink_destroy
   phylink_disconnect_phy
+  phylink_ethtool_get_eee
   phylink_ethtool_get_pauseparam
+  phylink_ethtool_get_wol
+  phylink_ethtool_ksettings_get
+  phylink_ethtool_ksettings_set
+  phylink_ethtool_nway_reset
+  phylink_ethtool_set_eee
   phylink_ethtool_set_pauseparam
+  phylink_ethtool_set_wol
+  phylink_expects_phy
+  phylink_fwnode_phy_connect
   phylink_generic_validate
+  phylink_get_eee_err
+  phylink_mii_c22_pcs_decode_state
+  phylink_mii_c22_pcs_encode_advertisement
+  phylink_mii_ioctl
   phylink_resume
+  phylink_speed_down
+  phylink_speed_up
   phylink_start
   phylink_stop
   phylink_suspend
@@ -1943,6 +2020,7 @@
   phy_read_mmd
   phy_register_fixup_for_uid
   phy_remove_link_mode
+  phy_reset
   phy_restore_page
   phy_save_page
   phy_set_mode_ext
@@ -2183,6 +2261,7 @@
   regmap_bulk_write
   regmap_field_read
   regmap_field_update_bits_base
+  regmap_get_val_bytes
   regmap_irq_get_domain
   regmap_multi_reg_write
   regmap_raw_read
@@ -2434,6 +2513,7 @@
   simple_attr_write
   simple_open
   simple_read_from_buffer
+  simple_strtoul
   simple_write_to_buffer
   single_open
   single_open_size
@@ -2513,6 +2593,7 @@
   snd_soc_dapm_add_routes
   snd_soc_dapm_disable_pin
   snd_soc_dapm_enable_pin
+  snd_soc_dapm_force_enable_pin
   snd_soc_dapm_get_enum_double
   snd_soc_dapm_get_pin_switch
   snd_soc_dapm_get_volsw
@@ -2594,15 +2675,18 @@
   spi_add_device
   __spi_alloc_controller
   spi_alloc_device
+  spi_async
   spi_bus_type
   spi_controller_resume
   spi_controller_suspend
   spi_delay_to_ns
   spi_finalize_current_transfer
+  spi_get_device_id
   spi_mem_default_supports_op
   __spi_register_driver
   spi_setup
   spi_sync
+  spi_write_then_read
   split_page
   spmi_controller_add
   spmi_controller_alloc
@@ -2621,6 +2705,7 @@
   __stack_chk_fail
   stack_trace_print
   stack_trace_save
+  stack_trace_save_tsk
   static_key_slow_dec
   static_key_slow_inc
   stop_one_cpu
@@ -2674,6 +2759,7 @@
   sysfs_create_group
   sysfs_create_link
   sysfs_emit
+  __sysfs_match_string
   sysfs_merge_group
   sysfs_notify
   sysfs_remove_bin_file
@@ -2688,6 +2774,7 @@
   system_highpri_wq
   system_long_wq
   system_power_efficient_wq
+  system_state
   system_unbound_wq
   system_wq
   sys_tz
@@ -2712,6 +2799,7 @@
   thread_group_cputime_adjusted
   tick_nohz_get_sleep_length
   time64_to_tm
+  timecounter_cyc2time
   timecounter_init
   timecounter_read
   timer_of_init
@@ -2720,6 +2808,8 @@
   topology_clear_scale_freq_source
   topology_update_thermal_pressure
   _totalram_pages
+  touchscreen_parse_properties
+  touchscreen_report_pos
   _trace_android_vh_record_pcpu_rwsem_starttime
   _trace_android_vh_record_pcpu_rwsem_time_early
   __trace_bprintk
@@ -2836,6 +2926,7 @@
   __traceiter_pelt_se_tp
   __traceiter_sched_update_nr_running_tp
   __traceiter_task_newtask
+  __traceiter_xdp_exception
   trace_output_call
   __tracepoint_android_rvh_after_dequeue_task
   __tracepoint_android_rvh_after_enqueue_task
@@ -2948,6 +3039,7 @@
   __tracepoint_sched_update_nr_running_tp
   tracepoint_srcu
   __tracepoint_task_newtask
+  __tracepoint_xdp_exception
   trace_print_array_seq
   trace_print_flags_seq
   trace_print_hex_seq
@@ -3213,6 +3305,7 @@
   usb_role_switch_unregister
   usb_root_hub_lost_power
   usb_scuttle_anchored_urbs
+  usb_set_configuration
   usb_set_interface
   usb_show_dynids
   usb_speed_string
@@ -3353,6 +3446,7 @@
   video_device_release
   video_device_release_empty
   video_ioctl2
+  videomode_from_timing
   __video_register_device
   video_unregister_device
   virtqueue_add_inbuf
@@ -3370,6 +3464,7 @@
   vlan_uses_dev
   vlan_vid_add
   vlan_vid_del
+  __vmalloc
   vmalloc
   vmalloc_to_page
   vmalloc_to_pfn
@@ -3439,6 +3534,34 @@
   ww_mutex_unlock
   __xa_alloc
   xa_erase
+  xdp_convert_zc_to_xdp_frame
+  xdp_do_flush
+  xdp_do_redirect
+  xdp_master_redirect
+  xdp_return_frame
+  xdp_return_frame_rx_napi
+  xdp_rxq_info_is_reg
+  __xdp_rxq_info_reg
+  xdp_rxq_info_reg_mem_model
+  xdp_rxq_info_unreg
+  xdp_rxq_info_unreg_mem_model
+  xdp_warn
+  xp_alloc
+  xp_dma_map
+  xp_dma_sync_for_cpu_slow
+  xp_dma_sync_for_device_slow
+  xp_dma_unmap
+  xp_free
+  xp_raw_get_dma
+  xp_set_rxq_info
+  xsk_clear_rx_need_wakeup
+  xsk_get_pool_from_qid
+  xsk_set_rx_need_wakeup
+  xsk_set_tx_need_wakeup
+  xsk_tx_completed
+  xsk_tx_peek_desc
+  xsk_tx_release
+  xsk_uses_need_wakeup
   zlib_deflate
   zlib_deflateEnd
   zlib_deflateInit2
