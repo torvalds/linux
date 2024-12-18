@@ -535,6 +535,17 @@ void xdp_return_frame_bulk(struct xdp_frame *xdpf,
 }
 EXPORT_SYMBOL_GPL(xdp_return_frame_bulk);
 
+/**
+ * xdp_return_frag -- free one XDP frag or decrement its refcount
+ * @netmem: network memory reference to release
+ * @xdp: &xdp_buff to release the frag for
+ */
+void xdp_return_frag(netmem_ref netmem, const struct xdp_buff *xdp)
+{
+	__xdp_return(netmem, xdp->rxq->mem.type, true, NULL);
+}
+EXPORT_SYMBOL_GPL(xdp_return_frag);
+
 void xdp_return_buff(struct xdp_buff *xdp)
 {
 	struct skb_shared_info *sinfo;
