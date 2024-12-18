@@ -54,6 +54,8 @@ struct sdw_slave;
 #define SDW_MAX_PORTS			15
 #define SDW_VALID_PORT_RANGE(n)		((n) < SDW_MAX_PORTS && (n) >= 1)
 
+#define SDW_MAX_LANES		8
+
 enum {
 	SDW_PORT_DIRN_SINK = 0,
 	SDW_PORT_DIRN_SOURCE,
@@ -356,6 +358,7 @@ struct sdw_dpn_prop {
  * and masks are supported
  * @commit_register_supported: is PCP_Commit register supported
  * @scp_int1_mask: SCP_INT1_MASK desired settings
+ * @lane_maps: Lane mapping for the slave, only valid if lane_control_support is set
  * @clock_reg_supported: the Peripheral implements the clock base and scale
  * registers introduced with the SoundWire 1.2 specification. SDCA devices
  * do not need to set this boolean property as the registers are required.
@@ -385,6 +388,7 @@ struct sdw_slave_prop {
 	u32 sdca_interrupt_register_list;
 	u8 commit_register_supported;
 	u8 scp_int1_mask;
+	u8 lane_maps[SDW_MAX_LANES];
 	bool clock_reg_supported;
 	bool use_domain_irq;
 };
@@ -450,6 +454,7 @@ struct sdw_master_prop {
 
 int sdw_master_read_prop(struct sdw_bus *bus);
 int sdw_slave_read_prop(struct sdw_slave *slave);
+int sdw_slave_read_lane_mapping(struct sdw_slave *slave);
 
 /*
  * SDW Slave Structures and APIs
