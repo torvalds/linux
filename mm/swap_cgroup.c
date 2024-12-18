@@ -21,17 +21,6 @@ struct swap_cgroup_ctrl {
 
 static struct swap_cgroup_ctrl swap_cgroup_ctrl[MAX_SWAPFILES];
 
-/*
- * SwapCgroup implements "lookup" and "exchange" operations.
- * In typical usage, this swap_cgroup is accessed via memcg's charge/uncharge
- * against SwapCache. At swap_free(), this is accessed directly from swap.
- *
- * This means,
- *  - we have no race in "exchange" when we're accessed via SwapCache because
- *    SwapCache(and its swp_entry) is under lock.
- *  - When called via swap_free(), there is no user of this entry and no race.
- * Then, we don't need lock around "exchange".
- */
 static unsigned short __swap_cgroup_id_lookup(struct swap_cgroup *map,
 					      pgoff_t offset)
 {
@@ -63,29 +52,58 @@ static unsigned short __swap_cgroup_id_xchg(struct swap_cgroup *map,
 }
 
 /**
- * swap_cgroup_record - record mem_cgroup for a set of swap entries
+ * swap_cgroup_record - record mem_cgroup for a set of swap entries.
+ * These entries must belong to one single folio, and that folio
+ * must be being charged for swap space (swap out), and these
+ * entries must not have been charged
+ *
+ * @folio: the folio that the swap entry belongs to
+ * @ent: the first swap entry to be recorded
+ */
+void swap_cgroup_record(struct folio *folio, swp_entry_t ent)
+{
+	unsigned int nr_ents = folio_nr_pages(folio);
+	struct swap_cgroup *map;
+	pgoff_t offset, end;
+	unsigned short old;
+
+	offset = swp_offset(ent);
+	end = offset + nr_ents;
+	map = swap_cgroup_ctrl[swp_type(ent)].map;
+
+	do {
+		old = __swap_cgroup_id_xchg(map, offset,
+					    mem_cgroup_id(folio_memcg(folio)));
+		VM_BUG_ON(old);
+	} while (++offset != end);
+}
+
+/**
+ * swap_cgroup_clear - clear mem_cgroup for a set of swap entries.
+ * These entries must be being uncharged from swap. They either
+ * belongs to one single folio in the swap cache (swap in for
+ * cgroup v1), or no longer have any users (slot freeing).
+ *
  * @ent: the first swap entry to be recorded into
- * @id: mem_cgroup to be recorded
  * @nr_ents: number of swap entries to be recorded
  *
- * Returns old value at success, 0 at failure.
- * (Of course, old value can be 0.)
+ * Returns the existing old value.
  */
-unsigned short swap_cgroup_record(swp_entry_t ent, unsigned short id,
-				  unsigned int nr_ents)
+unsigned short swap_cgroup_clear(swp_entry_t ent, unsigned int nr_ents)
 {
-	struct swap_cgroup_ctrl *ctrl;
 	pgoff_t offset = swp_offset(ent);
 	pgoff_t end = offset + nr_ents;
-	unsigned short old, iter;
 	struct swap_cgroup *map;
+	unsigned short old, iter = 0;
 
-	ctrl = &swap_cgroup_ctrl[swp_type(ent)];
-	map = ctrl->map;
+	offset = swp_offset(ent);
+	end = offset + nr_ents;
+	map = swap_cgroup_ctrl[swp_type(ent)].map;
 
-	old = __swap_cgroup_id_lookup(map, offset);
 	do {
-		iter = __swap_cgroup_id_xchg(map, offset, id);
+		old = __swap_cgroup_id_xchg(map, offset, 0);
+		if (!iter)
+			iter = old;
 		VM_BUG_ON(iter != old);
 	} while (++offset != end);
 
@@ -119,7 +137,7 @@ int swap_cgroup_swapon(int type, unsigned long max_pages)
 
 	BUILD_BUG_ON(sizeof(unsigned short) * ID_PER_SC !=
 		     sizeof(struct swap_cgroup));
-	map = vcalloc(DIV_ROUND_UP(max_pages, ID_PER_SC),
+	map = vzalloc(DIV_ROUND_UP(max_pages, ID_PER_SC) *
 		      sizeof(struct swap_cgroup));
 	if (!map)
 		goto nomem;
