@@ -412,12 +412,9 @@ config ARCH_HAS_ADD_PAGES
 config PPC_DCR_NATIVE
 	bool
 
-config PPC_DCR_MMIO
-	bool
-
 config PPC_DCR
 	bool
-	depends on PPC_DCR_NATIVE || PPC_DCR_MMIO
+	depends on PPC_DCR_NATIVE
 	default y
 
 config PPC_PCI_OF_BUS_MAP
