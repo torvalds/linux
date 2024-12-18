@@ -42,6 +42,11 @@
 #define EC_MAX_RESPONSE_OVERHEAD	32
 
 /*
+ * ACPI notify value for MKBP host event.
+ */
+#define ACPI_NOTIFY_CROS_EC_MKBP 0x80
+
+/*
  * EC panic is not covered by the standard (0-F) ACPI notify values.
  * Arbitrarily choosing B0 to notify ec panic, which is in the 84-BF
  * device specific ACPI notify range.
