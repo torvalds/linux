@@ -102,6 +102,10 @@ unsigned long cpufreq_get_sysfs_value_from_table(unsigned int cpu,
 	if (len == 0)
 		return 0;
 
+	if (!strcmp(linebuf, "enabled\n"))
+		return 1;
+	if (!strcmp(linebuf, "disabled\n"))
+		return 0;
 	value = strtoul(linebuf, &endp, 0);
 
 	if (endp == linebuf || errno == ERANGE)
