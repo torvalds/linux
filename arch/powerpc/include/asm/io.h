@@ -580,19 +580,149 @@ __do_out_asm(_rec_outl, "stwbrx")
 				_memcpy_fromio(dst, src, n)
 #endif /* !CONFIG_EEH */
 
-#ifdef CONFIG_PPC_INDIRECT_PIO
-#define DEF_PCI_HOOK_pio(x)	x
-#else
-#define DEF_PCI_HOOK_pio(x)	NULL
-#endif
+static inline u8 readb(const PCI_IO_ADDR addr)
+{
+	return __do_readb(addr);
+}
+#define readb readb
 
-#define DEF_PCI_HOOK_mem(x)	NULL
+static inline u16 readw(const PCI_IO_ADDR addr)
+{
+	return __do_readw(addr);
+}
+#define readw readw
+
+static inline u32 readl(const PCI_IO_ADDR addr)
+{
+	return __do_readl(addr);
+}
+#define readl readl
+
+static inline u16 readw_be(const PCI_IO_ADDR addr)
+{
+	return __do_readw_be(addr);
+}
+
+static inline u32 readl_be(const PCI_IO_ADDR addr)
+{
+	return __do_readl_be(addr);
+}
+
+static inline void writeb(u8 val, PCI_IO_ADDR addr)
+{
+	__do_writeb(val, addr);
+}
+#define writeb writeb
+
+static inline void writew(u16 val, PCI_IO_ADDR addr)
+{
+	__do_writew(val, addr);
+}
+#define writew writew
+
+static inline void writel(u32 val, PCI_IO_ADDR addr)
+{
+	__do_writel(val, addr);
+}
+#define writel writel
+
+static inline void writew_be(u16 val, PCI_IO_ADDR addr)
+{
+	__do_writew_be(val, addr);
+}
+
+static inline void writel_be(u32 val, PCI_IO_ADDR addr)
+{
+	__do_writel_be(val, addr);
+}
+
+static inline void readsb(const PCI_IO_ADDR a, void *b, unsigned long c)
+{
+	__do_readsb(a, b, c);
+}
+#define readsb readsb
+
+static inline void readsw(const PCI_IO_ADDR a, void *b, unsigned long c)
+{
+	__do_readsw(a, b, c);
+}
+#define readsw readsw
+
+static inline void readsl(const PCI_IO_ADDR a, void *b, unsigned long c)
+{
+	__do_readsl(a, b, c);
+}
+#define readsl readsl
+
+static inline void writesb(PCI_IO_ADDR a, const void *b, unsigned long c)
+{
+	__do_writesb(a, b, c);
+}
+#define writesb writesb
+
+static inline void writesw(PCI_IO_ADDR a, const void *b, unsigned long c)
+{
+	__do_writesw(a, b, c);
+}
+#define writesw writesw
+
+static inline void writesl(PCI_IO_ADDR a, const void *b, unsigned long c)
+{
+	__do_writesl(a, b, c);
+}
+#define writesl writesl
+
+static inline void memset_io(PCI_IO_ADDR a, int c, unsigned long n)
+{
+	__do_memset_io(a, c, n);
+}
+#define memset_io memset_io
+
+static inline void memcpy_fromio(void *d, const PCI_IO_ADDR s, unsigned long n)
+{
+	__do_memcpy_fromio(d, s, n);
+}
+#define memcpy_fromio memcpy_fromio
+
+static inline void memcpy_toio(PCI_IO_ADDR d, const void *s, unsigned long n)
+{
+	__do_memcpy_toio(d, s, n);
+}
+#define memcpy_toio memcpy_toio
+
+#ifdef __powerpc64__
+static inline u64 readq(const PCI_IO_ADDR addr)
+{
+	return __do_readq(addr);
+}
+
+static inline u64 readq_be(const PCI_IO_ADDR addr)
+{
+	return __do_readq_be(addr);
+}
+
+static inline void writeq(u64 val, PCI_IO_ADDR addr)
+{
+	__do_writeq(val, addr);
+}
+
+static inline void writeq_be(u64 val, PCI_IO_ADDR addr)
+{
+	__do_writeq_be(val, addr);
+}
+#endif /* __powerpc64__ */
+
+#ifdef CONFIG_PPC_INDIRECT_PIO
+#define DEF_PCI_HOOK(x)	x
+#else
+#define DEF_PCI_HOOK(x)	NULL
+#endif
 
 /* Structure containing all the hooks */
 extern struct ppc_pci_io {
 
-#define DEF_PCI_AC_RET(name, ret, at, al, space, aa)	ret (*name) at;
-#define DEF_PCI_AC_NORET(name, at, al, space, aa)	void (*name) at;
+#define DEF_PCI_AC_RET(name, ret, at, al)	ret (*name) at;
+#define DEF_PCI_AC_NORET(name, at, al)		void (*name) at;
 
 #include <asm/io-defs.h>
 
@@ -602,18 +732,18 @@ extern struct ppc_pci_io {
 } ppc_pci_io;
 
 /* The inline wrappers */
-#define DEF_PCI_AC_RET(name, ret, at, al, space, aa)		\
+#define DEF_PCI_AC_RET(name, ret, at, al)			\
 static inline ret name at					\
 {								\
-	if (DEF_PCI_HOOK_##space(ppc_pci_io.name) != NULL)	\
+	if (DEF_PCI_HOOK(ppc_pci_io.name) != NULL)		\
 		return ppc_pci_io.name al;			\
 	return __do_##name al;					\
 }
 
-#define DEF_PCI_AC_NORET(name, at, al, space, aa)		\
+#define DEF_PCI_AC_NORET(name, at, al)		\
 static inline void name at					\
 {								\
-	if (DEF_PCI_HOOK_##space(ppc_pci_io.name) != NULL)		\
+	if (DEF_PCI_HOOK(ppc_pci_io.name) != NULL)		\
 		ppc_pci_io.name al;				\
 	else							\
 		__do_##name al;					\
@@ -624,21 +754,7 @@ static inline void name at					\
 #undef DEF_PCI_AC_RET
 #undef DEF_PCI_AC_NORET
 
-/* Some drivers check for the presence of readq & writeq with
- * a #ifdef, so we make them happy here.
- */
-#define readb readb
-#define readw readw
-#define readl readl
-#define writeb writeb
-#define writew writew
-#define writel writel
-#define readsb readsb
-#define readsw readsw
-#define readsl readsl
-#define writesb writesb
-#define writesw writesw
-#define writesl writesl
+// Signal to asm-generic/io.h that we have implemented these.
 #define inb inb
 #define inw inw
 #define inl inl
@@ -655,9 +771,6 @@ static inline void name at					\
 #define readq	readq
 #define writeq	writeq
 #endif
-#define memset_io memset_io
-#define memcpy_fromio memcpy_fromio
-#define memcpy_toio memcpy_toio
 
 /*
  * We don't do relaxed operations yet, at least not with this semantic
