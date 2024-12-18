@@ -8,6 +8,7 @@
 #include <linux/nospec.h>
 
 #include <drm/drm_device.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_file.h>
 #include <uapi/drm/xe_drm.h>
 
@@ -762,9 +763,11 @@ bool xe_exec_queue_is_idle(struct xe_exec_queue *q)
  */
 void xe_exec_queue_update_run_ticks(struct xe_exec_queue *q)
 {
+	struct xe_device *xe = gt_to_xe(q->gt);
 	struct xe_file *xef;
 	struct xe_lrc *lrc;
 	u32 old_ts, new_ts;
+	int idx;
 
 	/*
 	 * Jobs that are run during driver load may use an exec_queue, but are
@@ -772,6 +775,10 @@ void xe_exec_queue_update_run_ticks(struct xe_exec_queue *q)
 	 * for kernel specific work.
 	 */
 	if (!q->vm || !q->vm->xef)
+		return;
+
+	/* Synchronize with unbind while holding the xe file open */
+	if (!drm_dev_enter(&xe->drm, &idx))
 		return;
 
 	xef = q->vm->xef;
@@ -787,6 +794,8 @@ void xe_exec_queue_update_run_ticks(struct xe_exec_queue *q)
 	lrc = q->lrc[0];
 	new_ts = xe_lrc_update_timestamp(lrc, &old_ts);
 	xef->run_ticks[q->class] += (new_ts - old_ts) * q->width;
+
+	drm_dev_exit(idx);
 }
 
 /**
