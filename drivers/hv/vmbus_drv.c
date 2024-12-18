@@ -2507,7 +2507,7 @@ static int vmbus_bus_resume(struct device *dev)
 	vmbus_request_offers();
 
 	if (wait_for_completion_timeout(
-		&vmbus_connection.ready_for_resume_event, 10 * HZ) == 0)
+		&vmbus_connection.ready_for_resume_event, secs_to_jiffies(10)) == 0)
 		pr_err("Some vmbus device is missing after suspending?\n");
 
 	/* Reset the event for the next suspend. */
