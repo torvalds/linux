@@ -42,29 +42,6 @@ struct hns_mac_cb;
 
 #define HNS_MAX_WAIT_CNT 10000
 
-enum dsaf_roce_port_mode {
-	DSAF_ROCE_6PORT_MODE,
-	DSAF_ROCE_4PORT_MODE,
-	DSAF_ROCE_2PORT_MODE,
-	DSAF_ROCE_CHAN_MODE_NUM,
-};
-
-enum dsaf_roce_port_num {
-	DSAF_ROCE_PORT_0,
-	DSAF_ROCE_PORT_1,
-	DSAF_ROCE_PORT_2,
-	DSAF_ROCE_PORT_3,
-	DSAF_ROCE_PORT_4,
-	DSAF_ROCE_PORT_5,
-};
-
-enum dsaf_roce_qos_sl {
-	DSAF_ROCE_SL_0,
-	DSAF_ROCE_SL_1,
-	DSAF_ROCE_SL_2,
-	DSAF_ROCE_SL_3,
-};
-
 #define DSAF_STATS_READ(p, offset) (*((u64 *)((u8 *)(p) + (offset))))
 #define HNS_DSAF_IS_DEBUG(dev) ((dev)->dsaf_mode == DSAF_MODE_DISABLE_SP)
 
