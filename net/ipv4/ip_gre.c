@@ -924,15 +924,18 @@ static int ipgre_open(struct net_device *dev)
 	struct ip_tunnel *t = netdev_priv(dev);
 
 	if (ipv4_is_multicast(t->parms.iph.daddr)) {
-		struct flowi4 fl4;
+		struct flowi4 fl4 = {
+			.flowi4_oif = t->parms.link,
+			.flowi4_tos = t->parms.iph.tos & INET_DSCP_MASK,
+			.flowi4_scope = RT_SCOPE_UNIVERSE,
+			.flowi4_proto = IPPROTO_GRE,
+			.saddr = t->parms.iph.saddr,
+			.daddr = t->parms.iph.daddr,
+			.fl4_gre_key = t->parms.o_key,
+		};
 		struct rtable *rt;
 
-		rt = ip_route_output_gre(t->net, &fl4,
-					 t->parms.iph.daddr,
-					 t->parms.iph.saddr,
-					 t->parms.o_key,
-					 t->parms.iph.tos & INET_DSCP_MASK,
-					 t->parms.link);
+		rt = ip_route_output_key(t->net, &fl4);
 		if (IS_ERR(rt))
 			return -EADDRNOTAVAIL;
 		dev = rt->dst.dev;

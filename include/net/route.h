@@ -185,20 +185,6 @@ static inline struct rtable *ip_route_output_ports(struct net *net, struct flowi
 	return ip_route_output_flow(net, fl4, sk);
 }
 
-static inline struct rtable *ip_route_output_gre(struct net *net, struct flowi4 *fl4,
-						 __be32 daddr, __be32 saddr,
-						 __be32 gre_key, __u8 tos, int oif)
-{
-	memset(fl4, 0, sizeof(*fl4));
-	fl4->flowi4_oif = oif;
-	fl4->daddr = daddr;
-	fl4->saddr = saddr;
-	fl4->flowi4_tos = tos;
-	fl4->flowi4_proto = IPPROTO_GRE;
-	fl4->fl4_gre_key = gre_key;
-	return ip_route_output_key(net, fl4);
-}
-
 enum skb_drop_reason
 ip_mc_validate_source(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		      dscp_t dscp, struct net_device *dev,
