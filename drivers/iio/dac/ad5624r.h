@@ -42,10 +42,8 @@ struct ad5624r_chip_info {
 
 /**
  * struct ad5624r_state - driver instance specific data
- * @indio_dev:		the industrial I/O device
  * @us:			spi_device
  * @chip_info:		chip model specific constants, available modes etc
- * @reg:		supply regulator
  * @vref_mv:		actual reference voltage used
  * @pwr_down_mask	power down mask
  * @pwr_down_mode	current power down mode
