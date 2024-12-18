@@ -411,7 +411,7 @@ struct rcu_torture_ops {
 	void (*gp_slow_unregister)(atomic_t *rgssp);
 	bool (*reader_blocked)(void);
 	unsigned long long (*gather_gp_seqs)(void);
-	void (*format_gp_seqs)(unsigned long long seqs, char *cp);
+	void (*format_gp_seqs)(unsigned long long seqs, char *cp, size_t len);
 	long cbflood_max;
 	int irq_capable;
 	int can_boost;
@@ -3688,8 +3688,10 @@ rcu_torture_cleanup(void)
 				char buf2[20+1];
 				char sepchar = '-';
 
-				cur_ops->format_gp_seqs(err_segs[i].rt_gp_seq, buf1);
-				cur_ops->format_gp_seqs(err_segs[i].rt_gp_seq_end, buf2);
+				cur_ops->format_gp_seqs(err_segs[i].rt_gp_seq,
+							buf1, ARRAY_SIZE(buf1));
+				cur_ops->format_gp_seqs(err_segs[i].rt_gp_seq_end,
+							buf2, ARRAY_SIZE(buf2));
 				if (err_segs[i].rt_gp_seq == err_segs[i].rt_gp_seq_end) {
 					if (buf2[0]) {
 						for (j = 0; buf2[j]; j++)

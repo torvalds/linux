@@ -548,13 +548,13 @@ unsigned long long rcutorture_gather_gp_seqs(void)
 EXPORT_SYMBOL_GPL(rcutorture_gather_gp_seqs);
 
 /* Format grace-period sequence numbers for rcutorture diagnostics. */
-void rcutorture_format_gp_seqs(unsigned long long seqs, char *cp)
+void rcutorture_format_gp_seqs(unsigned long long seqs, char *cp, size_t len)
 {
 	unsigned int egp = (seqs >> 16) & 0xffffffULL;
 	unsigned int ggp = (seqs >> 40) & 0xffffULL;
 	unsigned int pgp = seqs & 0xffffULL;
 
-	snprintf(cp, 20, "g%04x:e%06x:p%04x", ggp, egp, pgp);
+	snprintf(cp, len, "g%04x:e%06x:p%04x", ggp, egp, pgp);
 }
 EXPORT_SYMBOL_GPL(rcutorture_format_gp_seqs);
 

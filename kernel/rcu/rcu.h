@@ -591,7 +591,7 @@ void do_trace_rcu_torture_read(const char *rcutorturename,
 static inline void rcu_gp_set_torture_wait(int duration) { }
 #endif
 unsigned long long rcutorture_gather_gp_seqs(void);
-void rcutorture_format_gp_seqs(unsigned long long seqs, char *cp);
+void rcutorture_format_gp_seqs(unsigned long long seqs, char *cp, size_t len);
 
 #ifdef CONFIG_TINY_SRCU
 
