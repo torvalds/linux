@@ -21,6 +21,7 @@
 #include "intel_vblank.h"
 
 #define __dev_name_display(display) dev_name((display)->drm->dev)
+#define __dev_name_drm(obj) dev_name((obj)->dev->dev)
 #define __dev_name_kms(obj) dev_name((obj)->base.dev->dev)
 
 /*
@@ -403,17 +404,17 @@ TRACE_EVENT(intel_plane_async_flip,
 );
 
 TRACE_EVENT(intel_plane_update_noarm,
-	    TP_PROTO(struct intel_plane *plane, struct intel_crtc *crtc),
-	    TP_ARGS(plane, crtc),
+	    TP_PROTO(const struct intel_plane_state *plane_state, struct intel_crtc *crtc),
+	    TP_ARGS(plane_state, crtc),
 
 	    TP_STRUCT__entry(
-			     __string(dev, __dev_name_kms(plane))
+			     __string(dev, __dev_name_drm(plane_state->uapi.plane))
 			     __field(char, pipe_name)
 			     __field(u32, frame)
 			     __field(u32, scanline)
 			     __array(int, src, 4)
 			     __array(int, dst, 4)
-			     __string(name, plane->base.name)
+			     __string(name, plane_state->uapi.plane->name)
 			     ),
 
 	    TP_fast_assign(
@@ -422,8 +423,8 @@ TRACE_EVENT(intel_plane_update_noarm,
 			   __entry->pipe_name = pipe_name(crtc->pipe);
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
-			   memcpy(__entry->src, &plane->base.state->src, sizeof(__entry->src));
-			   memcpy(__entry->dst, &plane->base.state->dst, sizeof(__entry->dst));
+			   memcpy(__entry->src, &plane_state->uapi.src, sizeof(__entry->src));
+			   memcpy(__entry->dst, &plane_state->uapi.dst, sizeof(__entry->dst));
 			   ),
 
 	    TP_printk("dev %s, pipe %c, %s, frame=%u, scanline=%u, " DRM_RECT_FP_FMT " -> " DRM_RECT_FMT,
@@ -434,17 +435,17 @@ TRACE_EVENT(intel_plane_update_noarm,
 );
 
 TRACE_EVENT(intel_plane_update_arm,
-	    TP_PROTO(struct intel_plane *plane, struct intel_crtc *crtc),
-	    TP_ARGS(plane, crtc),
+	    TP_PROTO(const struct intel_plane_state *plane_state, struct intel_crtc *crtc),
+	    TP_ARGS(plane_state, crtc),
 
 	    TP_STRUCT__entry(
-			     __string(dev, __dev_name_kms(plane))
+			     __string(dev, __dev_name_drm(plane_state->uapi.plane))
 			     __field(char, pipe_name)
 			     __field(u32, frame)
 			     __field(u32, scanline)
 			     __array(int, src, 4)
 			     __array(int, dst, 4)
-			     __string(name, plane->base.name)
+			     __string(name, plane_state->uapi.plane->name)
 			     ),
 
 	    TP_fast_assign(
@@ -453,8 +454,8 @@ TRACE_EVENT(intel_plane_update_arm,
 			   __entry->pipe_name = pipe_name(crtc->pipe);
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
-			   memcpy(__entry->src, &plane->base.state->src, sizeof(__entry->src));
-			   memcpy(__entry->dst, &plane->base.state->dst, sizeof(__entry->dst));
+			   memcpy(__entry->src, &plane_state->uapi.src, sizeof(__entry->src));
+			   memcpy(__entry->dst, &plane_state->uapi.dst, sizeof(__entry->dst));
 			   ),
 
 	    TP_printk("dev %s, pipe %c, %s, frame=%u, scanline=%u, " DRM_RECT_FP_FMT " -> " DRM_RECT_FMT,

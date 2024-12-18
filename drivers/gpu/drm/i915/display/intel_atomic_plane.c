@@ -772,7 +772,7 @@ void intel_plane_update_noarm(struct intel_dsb *dsb,
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
-	trace_intel_plane_update_noarm(plane, crtc);
+	trace_intel_plane_update_noarm(plane_state, crtc);
 
 	if (plane->update_noarm)
 		plane->update_noarm(dsb, plane, crtc_state, plane_state);
@@ -802,7 +802,7 @@ void intel_plane_update_arm(struct intel_dsb *dsb,
 		return;
 	}
 
-	trace_intel_plane_update_arm(plane, crtc);
+	trace_intel_plane_update_arm(plane_state, crtc);
 	plane->update_arm(dsb, plane, crtc_state, plane_state);
 }
 
