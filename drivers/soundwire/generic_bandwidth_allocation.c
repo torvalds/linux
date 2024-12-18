@@ -302,7 +302,6 @@ out:
 static int sdw_select_row_col(struct sdw_bus *bus, int clk_freq)
 {
 	struct sdw_master_prop *prop = &bus->prop;
-	int frame_int, frame_freq;
 	int r, c;
 
 	for (c = 0; c < SDW_FRAME_COLS; c++) {
@@ -311,11 +310,8 @@ static int sdw_select_row_col(struct sdw_bus *bus, int clk_freq)
 			    sdw_cols[c] != prop->default_col)
 				continue;
 
-			frame_int = sdw_rows[r] * sdw_cols[c];
-			frame_freq = clk_freq / frame_int;
-
-			if ((clk_freq - (frame_freq * SDW_FRAME_CTRL_BITS)) <
-			    bus->params.bandwidth)
+			if (clk_freq * (sdw_cols[c] - 1) <
+			    bus->params.bandwidth * sdw_cols[c])
 				continue;
 
 			bus->params.row = sdw_rows[r];
