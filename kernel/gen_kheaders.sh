@@ -7,7 +7,7 @@ set -e
 sfile="$(readlink -f "$0")"
 outdir="$(pwd)"
 tarfile=$1
-cpio_dir=$outdir/${tarfile%/*}/.tmp_cpio_dir
+tmpdir=$outdir/${tarfile%/*}/.tmp_dir
 
 dir_list="
 include/
@@ -65,15 +65,15 @@ fi
 
 echo "  GEN     $tarfile"
 
-rm -rf $cpio_dir
-mkdir $cpio_dir
+rm -rf "${tmpdir}"
+mkdir "${tmpdir}"
 
 if [ "$building_out_of_srctree" ]; then
 	(
 		cd $srctree
 		for f in $dir_list
 			do find "$f" -name "*.h";
-		done | cpio --quiet -pd $cpio_dir
+		done | cpio --quiet -pd "${tmpdir}"
 	)
 fi
 
@@ -81,23 +81,23 @@ fi
 # of tree builds having stale headers in srctree. Just silence CPIO for now.
 for f in $dir_list;
 	do find "$f" -name "*.h";
-done | cpio --quiet -pdu $cpio_dir >/dev/null 2>&1
+done | cpio --quiet -pdu "${tmpdir}" >/dev/null 2>&1
 
 # Always exclude include/generated/utsversion.h
 # Otherwise, the contents of the tarball may vary depending on the build steps.
-rm -f "${cpio_dir}/include/generated/utsversion.h"
+rm -f "${tmpdir}/include/generated/utsversion.h"
 
 # Remove comments except SDPX lines
-find $cpio_dir -type f -print0 |
+find "${tmpdir}" -type f -print0 |
 	xargs -0 -P8 -n1 perl -pi -e 'BEGIN {undef $/;}; s/\/\*((?!SPDX).)*?\*\///smg;'
 
 # Create archive and try to normalize metadata for reproducibility.
 tar "${KBUILD_BUILD_TIMESTAMP:+--mtime=$KBUILD_BUILD_TIMESTAMP}" \
     --owner=0 --group=0 --sort=name --numeric-owner --mode=u=rw,go=r,a+X \
-    -I $XZ -cf $tarfile -C $cpio_dir/ . > /dev/null
+    -I $XZ -cf $tarfile -C "${tmpdir}/" . > /dev/null
 
 echo $headers_md5 > kernel/kheaders.md5
 echo "$this_file_md5" >> kernel/kheaders.md5
 echo "$(md5sum $tarfile | cut -d ' ' -f1)" >> kernel/kheaders.md5
 
-rm -rf $cpio_dir
+rm -rf "${tmpdir}"
