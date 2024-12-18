@@ -6212,7 +6212,7 @@ static void ath12k_mgmt_rx_event(struct ath12k_base *ab, struct sk_buff *skb)
 		goto exit;
 	}
 
-	if ((test_bit(ATH12K_CAC_RUNNING, &ar->dev_flags)) ||
+	if ((test_bit(ATH12K_FLAG_CAC_RUNNING, &ar->dev_flags)) ||
 	    (rx_ev.status & (WMI_RX_STATUS_ERR_DECRYPT |
 			     WMI_RX_STATUS_ERR_KEY_CACHE_MISS |
 			     WMI_RX_STATUS_ERR_CRC))) {

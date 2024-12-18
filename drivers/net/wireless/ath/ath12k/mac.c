@@ -1323,8 +1323,8 @@ int ath12k_mac_vdev_stop(struct ath12k_link_vif *arvif)
 	ath12k_dbg(ar->ab, ATH12K_DBG_MAC, "vdev %pM stopped, vdev_id %d\n",
 		   ahvif->vif->addr, arvif->vdev_id);
 
-	if (test_bit(ATH12K_CAC_RUNNING, &ar->dev_flags)) {
-		clear_bit(ATH12K_CAC_RUNNING, &ar->dev_flags);
+	if (test_bit(ATH12K_FLAG_CAC_RUNNING, &ar->dev_flags)) {
+		clear_bit(ATH12K_FLAG_CAC_RUNNING, &ar->dev_flags);
 		ath12k_dbg(ar->ab, ATH12K_DBG_MAC, "CAC Stopped for vdev %d\n",
 			   arvif->vdev_id);
 	}
@@ -7475,7 +7475,7 @@ static void ath12k_mac_stop(struct ath12k *ar)
 		ath12k_err(ar->ab, "failed to clear rx_filter for monitor status ring: (%d)\n",
 			   ret);
 
-	clear_bit(ATH12K_CAC_RUNNING, &ar->dev_flags);
+	clear_bit(ATH12K_FLAG_CAC_RUNNING, &ar->dev_flags);
 
 	cancel_delayed_work_sync(&ar->scan.timeout);
 	wiphy_work_cancel(ath12k_ar_to_hw(ar)->wiphy, &ar->scan.vdev_clean_wk);
@@ -8794,7 +8794,7 @@ ath12k_mac_vdev_start_restart(struct ath12k_link_vif *arvif,
 	if (arvif->ahvif->vdev_type == WMI_VDEV_TYPE_AP &&
 	    chandef->chan->dfs_cac_ms &&
 	    chandef->chan->dfs_state == NL80211_DFS_USABLE) {
-		set_bit(ATH12K_CAC_RUNNING, &ar->dev_flags);
+		set_bit(ATH12K_FLAG_CAC_RUNNING, &ar->dev_flags);
 		ath12k_dbg(ab, ATH12K_DBG_MAC,
 			   "CAC Started in chan_freq %d for vdev %d\n",
 			   arg.freq, arg.vdev_id);
