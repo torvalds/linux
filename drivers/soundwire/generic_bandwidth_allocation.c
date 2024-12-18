@@ -188,6 +188,19 @@ static int sdw_compute_group_params(struct sdw_bus *bus,
 	}
 
 	list_for_each_entry(m_rt, &bus->m_rt_list, bus_node) {
+		if (m_rt->stream == stream) {
+			/* Only runtime during prepare should be added */
+			if (stream->state != SDW_STREAM_CONFIGURED)
+				continue;
+		} else {
+			/*
+			 * Include runtimes with running (ENABLED state) and paused (DISABLED state)
+			 * streams
+			 */
+			if (m_rt->stream->state != SDW_STREAM_ENABLED &&
+			    m_rt->stream->state != SDW_STREAM_DISABLED)
+				continue;
+		}
 		list_for_each_entry(p_rt, &m_rt->port_list, port_node) {
 			rate = m_rt->stream->params.rate;
 			bps = m_rt->stream->params.bps;
