@@ -8,6 +8,7 @@
 #include <drm/drm_print.h>
 #include <linux/bitops.h>
 #include <linux/bitmap.h>
+#include <linux/slab.h>
 
 #include "aie2_solver.h"
 
