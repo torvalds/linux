@@ -337,16 +337,98 @@ static bool is_clock_scaling_supported(struct sdw_bus *bus)
 }
 
 /**
+ * is_lane_connected_to_all_peripherals: Check if the given manager lane connects to all peripherals
+ * So that all peripherals can use the manager lane.
+ *
+ * @m_rt: Manager runtime
+ * @lane: Lane number
+ */
+static bool is_lane_connected_to_all_peripherals(struct sdw_master_runtime *m_rt, unsigned int lane)
+{
+	struct sdw_slave_prop *slave_prop;
+	struct sdw_slave_runtime *s_rt;
+	int i;
+
+	list_for_each_entry(s_rt, &m_rt->slave_rt_list, m_rt_node) {
+		slave_prop = &s_rt->slave->prop;
+		for (i = 1; i < SDW_MAX_LANES; i++) {
+			if (slave_prop->lane_maps[i] == lane) {
+				dev_dbg(&s_rt->slave->dev,
+					"M lane %d is connected to P lane %d\n",
+					lane, i);
+				break;
+			}
+		}
+		if (i == SDW_MAX_LANES) {
+			dev_dbg(&s_rt->slave->dev, "M lane %d is not connected\n", lane);
+			return false;
+		}
+	}
+	return true;
+}
+
+static int get_manager_lane(struct sdw_bus *bus, struct sdw_master_runtime *m_rt,
+			    struct sdw_slave_runtime *s_rt, unsigned int curr_dr_freq)
+{
+	struct sdw_slave_prop *slave_prop = &s_rt->slave->prop;
+	struct sdw_port_runtime *m_p_rt;
+	unsigned int required_bandwidth;
+	int m_lane;
+	int l;
+
+	for (l = 1; l < SDW_MAX_LANES; l++) {
+		if (!slave_prop->lane_maps[l])
+			continue;
+
+		required_bandwidth = 0;
+		list_for_each_entry(m_p_rt, &m_rt->port_list, port_node) {
+			required_bandwidth += m_rt->stream->params.rate *
+					      hweight32(m_p_rt->ch_mask) *
+					      m_rt->stream->params.bps;
+		}
+		if (required_bandwidth <=
+		    curr_dr_freq - bus->lane_used_bandwidth[l]) {
+			/* Check if m_lane is connected to all Peripherals */
+			if (!is_lane_connected_to_all_peripherals(m_rt,
+				slave_prop->lane_maps[l])) {
+				dev_dbg(bus->dev,
+					"Not all Peripherals are connected to M lane %d\n",
+					slave_prop->lane_maps[l]);
+				continue;
+			}
+			m_lane = slave_prop->lane_maps[l];
+			dev_dbg(&s_rt->slave->dev, "M lane %d is used\n", m_lane);
+			bus->lane_used_bandwidth[l] += required_bandwidth;
+			/*
+			 * Use non-zero manager lane, subtract the lane 0
+			 * bandwidth that is already calculated
+			 */
+			bus->params.bandwidth -= required_bandwidth;
+			return m_lane;
+		}
+	}
+
+	/* No available multi lane found, only lane 0 can be used */
+	return 0;
+}
+
+/**
  * sdw_compute_bus_params: Compute bus parameters
  *
  * @bus: SDW Bus instance
  */
 static int sdw_compute_bus_params(struct sdw_bus *bus)
 {
-	unsigned int curr_dr_freq = 0;
 	struct sdw_master_prop *mstr_prop = &bus->prop;
-	int i, clk_values, ret;
+	struct sdw_slave_prop *slave_prop;
+	struct sdw_port_runtime *m_p_rt;
+	struct sdw_port_runtime *s_p_rt;
+	struct sdw_master_runtime *m_rt;
+	struct sdw_slave_runtime *s_rt;
+	unsigned int curr_dr_freq = 0;
+	int i, l, clk_values, ret;
 	bool is_gear = false;
+	int m_lane = 0;
 	u32 *clk_buf;
 
 	if (mstr_prop->num_clk_gears) {
@@ -373,11 +455,26 @@ static int sdw_compute_bus_params(struct sdw_bus *bus)
 				(bus->params.max_dr_freq >>  clk_buf[i]) :
 				clk_buf[i] * SDW_DOUBLE_RATE_FACTOR;
 
-		if (curr_dr_freq * (mstr_prop->default_col - 1) <
+		if (curr_dr_freq * (mstr_prop->default_col - 1) >=
 		    bus->params.bandwidth * mstr_prop->default_col)
-			continue;
+			break;
 
-		break;
+		list_for_each_entry(m_rt, &bus->m_rt_list, bus_node) {
+			/*
+			 * Get the first s_rt that will be used to find the available lane that
+			 * can be used. No need to check all Peripherals because we can't use
+			 * multi-lane if we can't find any available lane for the first Peripheral.
+			 */
+			s_rt = list_first_entry(&m_rt->slave_rt_list,
+						struct sdw_slave_runtime, m_rt_node);
+
+			/*
+			 * Find the available Manager lane that connected to the first Peripheral.
+			 */
+			m_lane = get_manager_lane(bus, m_rt, s_rt, curr_dr_freq);
+			if (m_lane > 0)
+				goto out;
+		}
 
 		/*
 		 * TODO: Check all the Slave(s) port(s) audio modes and find
@@ -390,6 +487,32 @@ static int sdw_compute_bus_params(struct sdw_bus *bus)
 		dev_err(bus->dev, "%s: could not find clock value for bandwidth %d\n",
 			__func__, bus->params.bandwidth);
 		return -EINVAL;
+	}
+out:
+	/* multilane can be used */
+	if (m_lane > 0) {
+		/* Set Peripheral lanes */
+		list_for_each_entry(s_rt, &m_rt->slave_rt_list, m_rt_node) {
+			slave_prop = &s_rt->slave->prop;
+			for (l = 1; l < SDW_MAX_LANES; l++) {
+				if (slave_prop->lane_maps[l] == m_lane) {
+					list_for_each_entry(s_p_rt, &s_rt->port_list, port_node) {
+						s_p_rt->lane = l;
+						dev_dbg(&s_rt->slave->dev,
+							"Set P lane %d for port %d\n",
+							l, s_p_rt->num);
+					}
+					break;
+				}
+			}
+		}
+		/*
+		 * Set Manager lanes. Configure the last m_rt in bus->m_rt_list only since
+		 * we don't want to touch other m_rts that are already working.
+		 */
+		list_for_each_entry(m_p_rt, &m_rt->port_list, port_node) {
+			m_p_rt->lane = m_lane;
+		}
 	}
 
 	if (!mstr_prop->default_frame_rate || !mstr_prop->default_row)

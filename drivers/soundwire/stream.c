@@ -1678,6 +1678,9 @@ EXPORT_SYMBOL(sdw_disable_stream);
 static int _sdw_deprepare_stream(struct sdw_stream_runtime *stream)
 {
 	struct sdw_master_runtime *m_rt;
+	struct sdw_port_runtime *p_rt;
+	unsigned int multi_lane_bandwidth;
+	unsigned int bandwidth;
 	struct sdw_bus *bus;
 	int state = stream->state;
 	int ret = 0;
@@ -1699,9 +1702,22 @@ static int _sdw_deprepare_stream(struct sdw_stream_runtime *stream)
 			return ret;
 		}
 
+		multi_lane_bandwidth = 0;
+
+		list_for_each_entry(p_rt, &m_rt->port_list, port_node) {
+			if (!p_rt->lane)
+				continue;
+
+			bandwidth = m_rt->stream->params.rate * hweight32(p_rt->ch_mask) *
+				    m_rt->stream->params.bps;
+			multi_lane_bandwidth += bandwidth;
+			bus->lane_used_bandwidth[p_rt->lane] -= bandwidth;
+			if (!bus->lane_used_bandwidth[p_rt->lane])
+				p_rt->lane = 0;
+		}
 		/* TODO: Update this during Device-Device support */
-		bus->params.bandwidth -= m_rt->stream->params.rate *
-			m_rt->ch_count * m_rt->stream->params.bps;
+		bandwidth = m_rt->stream->params.rate * m_rt->ch_count * m_rt->stream->params.bps;
+		bus->params.bandwidth -= bandwidth - multi_lane_bandwidth;
 
 		/* Compute params */
 		if (bus->compute_params) {
