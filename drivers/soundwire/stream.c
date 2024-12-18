@@ -629,8 +629,44 @@ static int sdw_notify_config(struct sdw_master_runtime *m_rt)
 static int sdw_program_params(struct sdw_bus *bus, bool prepare)
 {
 	struct sdw_master_runtime *m_rt;
+	struct sdw_slave *slave;
 	int ret = 0;
+	u32 addr1;
 
+	/* Check if all Peripherals comply with SDCA */
+	list_for_each_entry(slave, &bus->slaves, node) {
+		if (!slave->dev_num_sticky)
+			continue;
+		if (!is_clock_scaling_supported_by_slave(slave)) {
+			dev_dbg(&slave->dev, "The Peripheral doesn't comply with SDCA\n");
+			goto manager_runtime;
+		}
+	}
+
+	if (bus->params.next_bank)
+		addr1 = SDW_SCP_BUSCLOCK_SCALE_B1;
+	else
+		addr1 = SDW_SCP_BUSCLOCK_SCALE_B0;
+
+	/* Program SDW_SCP_BUSCLOCK_SCALE if all Peripherals comply with SDCA */
+	list_for_each_entry(slave, &bus->slaves, node) {
+		int scale_index;
+		u8 base;
+
+		if (!slave->dev_num_sticky)
+			continue;
+		scale_index = sdw_slave_get_scale_index(slave, &base);
+		if (scale_index < 0)
+			return scale_index;
+
+		ret = sdw_write_no_pm(slave, addr1, scale_index);
+		if (ret < 0) {
+			dev_err(&slave->dev, "SDW_SCP_BUSCLOCK_SCALE register write failed\n");
+			return ret;
+		}
+	}
+
+manager_runtime:
 	list_for_each_entry(m_rt, &bus->m_rt_list, bus_node) {
 
 		/*
