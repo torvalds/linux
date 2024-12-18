@@ -189,9 +189,6 @@ config PPC_INDIRECT_PIO
 config PPC_INDIRECT_MMIO
 	bool
 
-config PPC_IO_WORKAROUNDS
-	bool
-
 source "drivers/cpufreq/Kconfig"
 
 menu "CPUIdle driver"
