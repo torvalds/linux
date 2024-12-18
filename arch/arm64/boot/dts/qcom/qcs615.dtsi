@@ -2753,6 +2753,78 @@
 			clock-names = "apb_pclk";
 		};
 
+		pmu@90b6300 {
+			compatible = "qcom,qcs615-cpu-bwmon", "qcom,sdm845-bwmon";
+			reg = <0x0 0x090b6300 0x0 0x600>;
+			interrupts = <GIC_SPI 581 IRQ_TYPE_LEVEL_HIGH>;
+			interconnects = <&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ACTIVE_ONLY
+					 &gem_noc SLAVE_LLCC QCOM_ICC_TAG_ACTIVE_ONLY>;
+
+			operating-points-v2 = <&cpu_bwmon_opp_table>;
+
+			cpu_bwmon_opp_table: opp-table {
+				compatible = "operating-points-v2";
+
+				opp-0 {
+					opp-peak-kBps = <12896000>;
+				};
+
+				opp-1 {
+					opp-peak-kBps = <14928000>;
+				};
+			};
+		};
+
+		pmu@90cd000 {
+			compatible = "qcom,qcs615-llcc-bwmon", "qcom,sc7280-llcc-bwmon";
+			reg = <0x0 0x090cd000 0x0 0x1000>;
+			interrupts = <GIC_SPI 667 IRQ_TYPE_LEVEL_HIGH>;
+			interconnects = <&mc_virt MASTER_LLCC QCOM_ICC_TAG_ACTIVE_ONLY
+					 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ACTIVE_ONLY>;
+
+			operating-points-v2 = <&llcc_bwmon_opp_table>;
+
+			llcc_bwmon_opp_table: opp-table {
+				compatible = "operating-points-v2";
+
+				opp-0 {
+					opp-peak-kBps = <800000>;
+				};
+
+				opp-1 {
+					opp-peak-kBps = <1200000>;
+				};
+
+				opp-2 {
+					opp-peak-kBps = <1804800>;
+				};
+
+				opp-3 {
+					opp-peak-kBps = <2188800>;
+				};
+
+				opp-4 {
+					opp-peak-kBps = <2726400>;
+				};
+
+				opp-5 {
+					opp-peak-kBps = <3072000>;
+				};
+
+				opp-6 {
+					opp-peak-kBps = <4070400>;
+				};
+
+				opp-7 {
+					opp-peak-kBps = <5414400>;
+				};
+
+				opp-8 {
+					opp-peak-kBps = <6220800>;
+				};
+			};
+		};
+
 		dc_noc: interconnect@9160000 {
 			reg = <0x0 0x09160000 0x0 0x3200>;
 			compatible = "qcom,qcs615-dc-noc";
