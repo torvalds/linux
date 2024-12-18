@@ -48,9 +48,9 @@ all_dirs="$all_dirs $dir_list"
 # check include/generated/autoconf.h explicitly.
 #
 # Ignore them for md5 calculation to avoid pointless regeneration.
-headers_md5="$(find $all_dirs -name "*.h"			|
-		grep -v "include/generated/utsversion.h"	|
-		grep -v "include/generated/autoconf.h"	|
+headers_md5="$(find $all_dirs -name "*.h" -a			\
+		! -path include/generated/utsversion.h -a	\
+		! -path include/generated/autoconf.h		|
 		xargs ls -l | md5sum | cut -d ' ' -f1)"
 
 # Any changes to this script will also cause a rebuild of the archive.
