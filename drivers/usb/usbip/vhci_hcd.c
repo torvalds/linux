@@ -1161,12 +1161,8 @@ static int vhci_setup(struct usb_hcd *hcd)
 		hcd->self.root_hub->speed = USB_SPEED_SUPER_PLUS;
 	}
 
-	/*
-	 * Support SG.
-	 * sg_tablesize is an arbitrary value to alleviate memory pressure
-	 * on the host.
-	 */
-	hcd->self.sg_tablesize = 32;
+	/* accept arbitrarily long scatter-gather lists */
+	hcd->self.sg_tablesize = ~0;
 	hcd->self.no_sg_constraint = 1;
 
 	return 0;
