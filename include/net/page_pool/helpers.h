@@ -144,6 +144,15 @@ static inline netmem_ref page_pool_alloc_netmem(struct page_pool *pool,
 	return netmem;
 }
 
+static inline netmem_ref page_pool_dev_alloc_netmem(struct page_pool *pool,
+						    unsigned int *offset,
+						    unsigned int *size)
+{
+	gfp_t gfp = GFP_ATOMIC | __GFP_NOWARN;
+
+	return page_pool_alloc_netmem(pool, offset, size, gfp);
+}
+
 static inline struct page *page_pool_alloc(struct page_pool *pool,
 					   unsigned int *offset,
 					   unsigned int *size, gfp_t gfp)
