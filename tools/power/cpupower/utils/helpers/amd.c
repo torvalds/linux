@@ -177,6 +177,8 @@ enum amd_pstate_value {
 	AMD_PSTATE_HIGHEST_PERF,
 	AMD_PSTATE_MAX_FREQ,
 	AMD_PSTATE_LOWEST_NONLINEAR_FREQ,
+	AMD_PSTATE_HW_PREFCORE,
+	AMD_PSTATE_PREFCORE_RANKING,
 	MAX_AMD_PSTATE_VALUE_READ_FILES,
 };
 
@@ -184,6 +186,8 @@ static const char *amd_pstate_value_files[MAX_AMD_PSTATE_VALUE_READ_FILES] = {
 	[AMD_PSTATE_HIGHEST_PERF] = "amd_pstate_highest_perf",
 	[AMD_PSTATE_MAX_FREQ] = "amd_pstate_max_freq",
 	[AMD_PSTATE_LOWEST_NONLINEAR_FREQ] = "amd_pstate_lowest_nonlinear_freq",
+	[AMD_PSTATE_HW_PREFCORE] = "amd_pstate_hw_prefcore",
+	[AMD_PSTATE_PREFCORE_RANKING] = "amd_pstate_prefcore_ranking",
 };
 
 static unsigned long amd_pstate_get_data(unsigned int cpu,
@@ -240,6 +244,10 @@ void amd_pstate_show_perf_and_freq(unsigned int cpu, int no_rounding)
 	       acpi_cppc_get_data(cpu, LOWEST_PERF));
 	print_speed(acpi_cppc_get_data(cpu, LOWEST_FREQ) * 1000, no_rounding);
 	printf(".\n");
+
+	printf(_("    Preferred Core Support: %lu. Preferred Core Ranking: %lu.\n"),
+	       amd_pstate_get_data(cpu, AMD_PSTATE_HW_PREFCORE),
+	       amd_pstate_get_data(cpu, AMD_PSTATE_PREFCORE_RANKING));
 }
 
 /* AMD P-State Helper Functions ************************************/
