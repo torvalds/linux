@@ -477,12 +477,33 @@ ip_link_set_addr()
 	defer ip link set dev "$name" address "$old_addr"
 }
 
+ip_link_is_up()
+{
+	local name=$1; shift
+
+	local state=$(ip -j link show "$name" |
+		      jq -r '(.[].flags[] | select(. == "UP")) // "DOWN"')
+	[[ $state == "UP" ]]
+}
+
 ip_link_set_up()
 {
 	local name=$1; shift
 
-	ip link set dev "$name" up
-	defer ip link set dev "$name" down
+	if ! ip_link_is_up "$name"; then
+		ip link set dev "$name" up
+		defer ip link set dev "$name" down
+	fi
+}
+
+ip_link_set_down()
+{
+	local name=$1; shift
+
+	if ip_link_is_up "$name"; then
+		ip link set dev "$name" down
+		defer ip link set dev "$name" up
+	fi
 }
 
 ip_addr_add()
@@ -497,4 +518,10 @@ ip_route_add()
 {
 	ip route add "$@"
 	defer ip route del "$@"
+}
+
+bridge_vlan_add()
+{
+	bridge vlan add "$@"
+	defer bridge vlan del "$@"
 }
