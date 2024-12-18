@@ -856,7 +856,6 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 	u32 i;
 	int ret = 0;
 	int first = 1;
-	int dirty = 0;
 
 	if (rc->stage != UPDATE_DATA_PTRS)
 		return 0;
@@ -936,7 +935,6 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 		}
 
 		btrfs_set_file_extent_disk_bytenr(leaf, fi, new_bytenr);
-		dirty = 1;
 
 		key.offset -= btrfs_file_extent_offset(leaf, fi);
 		ref.action = BTRFS_ADD_DELAYED_REF;
@@ -967,8 +965,6 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 			break;
 		}
 	}
-	if (dirty)
-		btrfs_mark_buffer_dirty(trans, leaf);
 	if (inode)
 		btrfs_add_delayed_iput(inode);
 	return ret;
@@ -1161,13 +1157,11 @@ again:
 		 */
 		btrfs_set_node_blockptr(parent, slot, new_bytenr);
 		btrfs_set_node_ptr_generation(parent, slot, new_ptr_gen);
-		btrfs_mark_buffer_dirty(trans, parent);
 
 		btrfs_set_node_blockptr(path->nodes[level],
 					path->slots[level], old_bytenr);
 		btrfs_set_node_ptr_generation(path->nodes[level],
 					      path->slots[level], old_ptr_gen);
-		btrfs_mark_buffer_dirty(trans, path->nodes[level]);
 
 		ref.action = BTRFS_ADD_DELAYED_REF;
 		ref.bytenr = old_bytenr;
@@ -3728,7 +3722,6 @@ static int __insert_orphan_inode(struct btrfs_trans_handle *trans,
 	btrfs_set_inode_mode(leaf, item, S_IFREG | 0600);
 	btrfs_set_inode_flags(leaf, item, BTRFS_INODE_NOCOMPRESS |
 					  BTRFS_INODE_PREALLOC);
-	btrfs_mark_buffer_dirty(trans, leaf);
 out:
 	btrfs_free_path(path);
 	return ret;
