@@ -186,9 +186,6 @@ config PPC_INDIRECT_PIO
 	bool
 	select GENERIC_IOMAP
 
-config PPC_INDIRECT_MMIO
-	bool
-
 source "drivers/cpufreq/Kconfig"
 
 menu "CPUIdle driver"

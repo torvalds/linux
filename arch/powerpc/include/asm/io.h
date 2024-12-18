@@ -65,8 +65,8 @@ extern resource_size_t isa_mem_base;
 extern bool isa_io_special;
 
 #ifdef CONFIG_PPC32
-#if defined(CONFIG_PPC_INDIRECT_PIO) || defined(CONFIG_PPC_INDIRECT_MMIO)
-#error CONFIG_PPC_INDIRECT_{PIO,MMIO} are not yet supported on 32 bits
+#ifdef CONFIG_PPC_INDIRECT_PIO
+#error CONFIG_PPC_INDIRECT_PIO is not yet supported on 32 bits
 #endif
 #endif
 
@@ -261,9 +261,9 @@ extern void _memcpy_toio(volatile void __iomem *dest, const void *src,
  * for PowerPC is as close as possible to the x86 version of these, and thus
  * provides fairly heavy weight barriers for the non-raw versions
  *
- * In addition, they support a hook mechanism when CONFIG_PPC_INDIRECT_MMIO
- * or CONFIG_PPC_INDIRECT_PIO are set allowing the platform to provide its
- * own implementation of some or all of the accessors.
+ * In addition, they support a hook mechanism when CONFIG_PPC_INDIRECT_PIO
+ * is set allowing the platform to provide its own implementation of some
+ * of the accessors.
  */
 
 /*
@@ -277,51 +277,7 @@ extern void _memcpy_toio(volatile void __iomem *dest, const void *src,
 /* Shortcut to the MMIO argument pointer */
 #define PCI_IO_ADDR	volatile void __iomem *
 
-/* Indirect IO address tokens:
- *
- * When CONFIG_PPC_INDIRECT_MMIO is set, the platform can provide hooks
- * on all MMIOs. (Note that this is all 64 bits only for now)
- *
- * To help platforms who may need to differentiate MMIO addresses in
- * their hooks, a bitfield is reserved for use by the platform near the
- * top of MMIO addresses (not PIO, those have to cope the hard way).
- *
- * The highest address in the kernel virtual space are:
- *
- *  d0003fffffffffff	# with Hash MMU
- *  c00fffffffffffff	# with Radix MMU
- *
- * The top 4 bits are reserved as the region ID on hash, leaving us 8 bits
- * that can be used for the field.
- *
- * The direct IO mapping operations will then mask off those bits
- * before doing the actual access, though that only happen when
- * CONFIG_PPC_INDIRECT_MMIO is set, thus be careful when you use that
- * mechanism
- *
- * For PIO, there is a separate CONFIG_PPC_INDIRECT_PIO which makes
- * all PIO functions call through a hook.
- */
-
-#ifdef CONFIG_PPC_INDIRECT_MMIO
-#define PCI_IO_IND_TOKEN_SHIFT	52
-#define PCI_IO_IND_TOKEN_MASK	(0xfful << PCI_IO_IND_TOKEN_SHIFT)
-#define PCI_FIX_ADDR(addr)						\
-	((PCI_IO_ADDR)(((unsigned long)(addr)) & ~PCI_IO_IND_TOKEN_MASK))
-#define PCI_GET_ADDR_TOKEN(addr)					\
-	(((unsigned long)(addr) & PCI_IO_IND_TOKEN_MASK) >> 		\
-		PCI_IO_IND_TOKEN_SHIFT)
-#define PCI_SET_ADDR_TOKEN(addr, token) 				\
-do {									\
-	unsigned long __a = (unsigned long)(addr);			\
-	__a &= ~PCI_IO_IND_TOKEN_MASK;					\
-	__a |= ((unsigned long)(token)) << PCI_IO_IND_TOKEN_SHIFT;	\
-	(addr) = (void __iomem *)__a;					\
-} while(0)
-#else
 #define PCI_FIX_ADDR(addr) (addr)
-#endif
-
 
 /*
  * Non ordered and non-swapping "raw" accessors
@@ -632,11 +588,7 @@ __do_out_asm(_rec_outl, "stwbrx")
 #define DEF_PCI_HOOK_pio(x)	NULL
 #endif
 
-#ifdef CONFIG_PPC_INDIRECT_MMIO
-#define DEF_PCI_HOOK_mem(x)	x
-#else
 #define DEF_PCI_HOOK_mem(x)	NULL
-#endif
 
 /* Structure containing all the hooks */
 extern struct ppc_pci_io {
