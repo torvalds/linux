@@ -83,6 +83,10 @@ for f in $dir_list;
 	do find "$f" -name "*.h";
 done | cpio --quiet -pdu $cpio_dir >/dev/null 2>&1
 
+# Always exclude include/generated/utsversion.h
+# Otherwise, the contents of the tarball may vary depending on the build steps.
+rm -f "${cpio_dir}/include/generated/utsversion.h"
+
 # Remove comments except SDPX lines
 find $cpio_dir -type f -print0 |
 	xargs -0 -P8 -n1 perl -pi -e 'BEGIN {undef $/;}; s/\/\*((?!SPDX).)*?\*\///smg;'
