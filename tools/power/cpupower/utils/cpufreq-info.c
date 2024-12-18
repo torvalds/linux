@@ -120,7 +120,6 @@ static void print_duration(unsigned long duration)
 		} else
 			printf("%lu ns", duration);
 	}
-	return;
 }
 
 static int get_boost_mode_x86(unsigned int cpu)
