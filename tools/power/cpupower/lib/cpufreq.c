@@ -127,12 +127,14 @@ static unsigned long sysfs_cpufreq_get_one_value(unsigned int cpu,
 enum cpufreq_string {
 	SCALING_DRIVER,
 	SCALING_GOVERNOR,
+	ENERGY_PERFORMANCE_PREFERENCE,
 	MAX_CPUFREQ_STRING_FILES
 };
 
 static const char *cpufreq_string_files[MAX_CPUFREQ_STRING_FILES] = {
 	[SCALING_DRIVER] = "scaling_driver",
 	[SCALING_GOVERNOR] = "scaling_governor",
+	[ENERGY_PERFORMANCE_PREFERENCE] = "energy_performance_preference",
 };
 
 
@@ -205,6 +207,18 @@ unsigned long cpufreq_get_freq_hardware(unsigned int cpu)
 unsigned long cpufreq_get_transition_latency(unsigned int cpu)
 {
 	return sysfs_cpufreq_get_one_value(cpu, CPUINFO_LATENCY);
+}
+
+char *cpufreq_get_energy_performance_preference(unsigned int cpu)
+{
+	return sysfs_cpufreq_get_one_string(cpu, ENERGY_PERFORMANCE_PREFERENCE);
+}
+
+void cpufreq_put_energy_performance_preference(char *ptr)
+{
+	if (!ptr)
+		return;
+	free(ptr);
 }
 
 int cpufreq_get_hardware_limits(unsigned int cpu,

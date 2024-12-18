@@ -422,6 +422,23 @@ static int get_freq_stats(unsigned int cpu, unsigned int human)
 	return 0;
 }
 
+/* --epp / -z */
+
+static int get_epp(unsigned int cpu, bool interactive)
+{
+	char *epp;
+
+	epp = cpufreq_get_energy_performance_preference(cpu);
+	if (!epp)
+		return -EINVAL;
+	if (interactive)
+		printf(_("  energy performance preference: %s\n"), epp);
+
+	cpufreq_put_energy_performance_preference(epp);
+
+	return 0;
+}
+
 /* --latency / -y */
 
 static int get_latency(unsigned int cpu, unsigned int human)
@@ -461,6 +478,7 @@ static void debug_output_one(unsigned int cpu)
 	get_related_cpus(cpu);
 	get_affected_cpus(cpu);
 	get_latency(cpu, 1);
+	get_epp(cpu, true);
 	get_hardware_limits(cpu, 1);
 
 	freqs = cpufreq_get_available_frequencies(cpu);
@@ -501,6 +519,7 @@ static struct option info_opts[] = {
 	{"human",	 no_argument,		 NULL,	 'm'},
 	{"no-rounding", no_argument,	 NULL,	 'n'},
 	{"performance", no_argument,	 NULL,	 'c'},
+	{"epp",		 no_argument,		 NULL,	 'z'},
 	{ },
 };
 
@@ -514,7 +533,7 @@ int cmd_freq_info(int argc, char **argv)
 	int output_param = 0;
 
 	do {
-		ret = getopt_long(argc, argv, "oefwldpgrasmybnc", info_opts,
+		ret = getopt_long(argc, argv, "oefwldpgrasmybncz", info_opts,
 				  NULL);
 		switch (ret) {
 		case '?':
@@ -538,6 +557,7 @@ int cmd_freq_info(int argc, char **argv)
 		case 's':
 		case 'y':
 		case 'c':
+		case 'z':
 			if (output_param) {
 				output_param = -1;
 				cont = 0;
@@ -646,6 +666,9 @@ int cmd_freq_info(int argc, char **argv)
 			break;
 		case 'c':
 			ret = get_perf_cap(cpu);
+			break;
+		case 'z':
+			ret = get_epp(cpu, true);
 			break;
 		}
 		if (ret)
