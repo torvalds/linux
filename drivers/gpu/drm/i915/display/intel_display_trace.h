@@ -397,7 +397,7 @@ TRACE_EVENT(intel_plane_async_flip,
 			   __entry->async_flip = async_flip;
 			   ),
 
-	    TP_printk("dev %s, pipe %c, plane %s, frame=%u, scanline=%u, async_flip=%s",
+	    TP_printk("dev %s, pipe %c, %s, frame=%u, scanline=%u, async_flip=%s",
 		      __get_str(dev), __entry->pipe_name, __get_str(name),
 		      __entry->frame, __entry->scanline, str_yes_no(__entry->async_flip))
 );
@@ -426,7 +426,7 @@ TRACE_EVENT(intel_plane_update_noarm,
 			   memcpy(__entry->dst, &plane->base.state->dst, sizeof(__entry->dst));
 			   ),
 
-	    TP_printk("dev %s, pipe %c, plane %s, frame=%u, scanline=%u, " DRM_RECT_FP_FMT " -> " DRM_RECT_FMT,
+	    TP_printk("dev %s, pipe %c, %s, frame=%u, scanline=%u, " DRM_RECT_FP_FMT " -> " DRM_RECT_FMT,
 		      __get_str(dev), __entry->pipe_name, __get_str(name),
 		      __entry->frame, __entry->scanline,
 		      DRM_RECT_FP_ARG((const struct drm_rect *)__entry->src),
@@ -457,7 +457,7 @@ TRACE_EVENT(intel_plane_update_arm,
 			   memcpy(__entry->dst, &plane->base.state->dst, sizeof(__entry->dst));
 			   ),
 
-	    TP_printk("dev %s, pipe %c, plane %s, frame=%u, scanline=%u, " DRM_RECT_FP_FMT " -> " DRM_RECT_FMT,
+	    TP_printk("dev %s, pipe %c, %s, frame=%u, scanline=%u, " DRM_RECT_FP_FMT " -> " DRM_RECT_FMT,
 		      __get_str(dev), __entry->pipe_name, __get_str(name),
 		      __entry->frame, __entry->scanline,
 		      DRM_RECT_FP_ARG((const struct drm_rect *)__entry->src),
@@ -484,7 +484,7 @@ TRACE_EVENT(intel_plane_disable_arm,
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
 			   ),
 
-	    TP_printk("dev %s, pipe %c, plane %s, frame=%u, scanline=%u",
+	    TP_printk("dev %s, pipe %c, %s, frame=%u, scanline=%u",
 		      __get_str(dev), __entry->pipe_name, __get_str(name),
 		      __entry->frame, __entry->scanline)
 );
@@ -611,7 +611,7 @@ TRACE_EVENT(intel_fbc_activate,
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
 			   ),
 
-	    TP_printk("dev %s, pipe %c, plane %s, frame=%u, scanline=%u",
+	    TP_printk("dev %s, pipe %c, %s, frame=%u, scanline=%u",
 		      __get_str(dev), __entry->pipe_name, __get_str(name),
 		      __entry->frame, __entry->scanline)
 );
@@ -639,7 +639,7 @@ TRACE_EVENT(intel_fbc_deactivate,
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
 			   ),
 
-	    TP_printk("dev %s, pipe %c, plane %s, frame=%u, scanline=%u",
+	    TP_printk("dev %s, pipe %c, %s, frame=%u, scanline=%u",
 		      __get_str(dev), __entry->pipe_name, __get_str(name),
 		      __entry->frame, __entry->scanline)
 );
@@ -667,7 +667,7 @@ TRACE_EVENT(intel_fbc_nuke,
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
 			   ),
 
-	    TP_printk("dev %s, pipe %c, plane %s, frame=%u, scanline=%u",
+	    TP_printk("dev %s, pipe %c, %s, frame=%u, scanline=%u",
 		      __get_str(dev), __entry->pipe_name, __get_str(name),
 		      __entry->frame, __entry->scanline)
 );
