@@ -8,7 +8,7 @@
 #include <linux/types.h>
 
 /*
- * SW bits 0-1 are reserved to track the memory ownership state of each page:
+ * Bits 0-1 are reserved to track the memory ownership state of each page:
  *   00: The page is owned exclusively by the page-table owner.
  *   01: The page is owned by the page-table owner, but is shared
  *       with another entity.
@@ -43,7 +43,9 @@ static inline enum pkvm_page_state pkvm_getstate(enum kvm_pgtable_prot prot)
 struct hyp_page {
 	u16 refcount;
 	u8 order;
-	u8 reserved;
+
+	/* Host (non-meta) state. Guarded by the host stage-2 lock. */
+	enum pkvm_page_state host_state : 8;
 };
 
 extern u64 __hyp_vmemmap;
@@ -63,7 +65,13 @@ static inline phys_addr_t hyp_virt_to_phys(void *addr)
 
 #define hyp_phys_to_pfn(phys)	((phys) >> PAGE_SHIFT)
 #define hyp_pfn_to_phys(pfn)	((phys_addr_t)((pfn) << PAGE_SHIFT))
-#define hyp_phys_to_page(phys)	(&hyp_vmemmap[hyp_phys_to_pfn(phys)])
+
+static inline struct hyp_page *hyp_phys_to_page(phys_addr_t phys)
+{
+	BUILD_BUG_ON(sizeof(struct hyp_page) != sizeof(u32));
+	return &hyp_vmemmap[hyp_phys_to_pfn(phys)];
+}
+
 #define hyp_virt_to_page(virt)	hyp_phys_to_page(__hyp_pa(virt))
 #define hyp_virt_to_pfn(virt)	hyp_phys_to_pfn(__hyp_pa(virt))
 
