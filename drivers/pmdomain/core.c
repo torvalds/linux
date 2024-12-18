@@ -2141,6 +2141,11 @@ static int genpd_set_default_power_state(struct generic_pm_domain *genpd)
 	return 0;
 }
 
+static void genpd_provider_release(struct device *dev)
+{
+	/* nothing to be done here */
+}
+
 static int genpd_alloc_data(struct generic_pm_domain *genpd)
 {
 	struct genpd_governor_data *gd = NULL;
@@ -2172,6 +2177,7 @@ static int genpd_alloc_data(struct generic_pm_domain *genpd)
 
 	genpd->gd = gd;
 	device_initialize(&genpd->dev);
+	genpd->dev.release = genpd_provider_release;
 
 	if (!genpd_is_dev_name_fw(genpd)) {
 		dev_set_name(&genpd->dev, "%s", genpd->name);
