@@ -5,6 +5,7 @@
  */
 
 #include <net/mac80211.h>
+#include <net/cfg80211.h>
 #include <linux/etherdevice.h>
 
 #include "mac.h"
@@ -8682,11 +8683,13 @@ ath12k_mac_vdev_start_restart(struct ath12k_link_vif *arvif,
 	struct ath12k_base *ab = ar->ab;
 	struct wmi_vdev_start_req_arg arg = {};
 	const struct cfg80211_chan_def *chandef = &ctx->def;
+	struct ieee80211_hw *hw = ath12k_ar_to_hw(ar);
 	struct ath12k_vif *ahvif = arvif->ahvif;
 	struct ieee80211_bss_conf *link_conf;
+	unsigned int dfs_cac_time;
 	int ret;
 
-	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
+	lockdep_assert_wiphy(hw->wiphy);
 
 	link_conf = ath12k_mac_get_link_bss_conf(arvif);
 	if (!link_conf) {
@@ -8784,20 +8787,20 @@ ath12k_mac_vdev_start_restart(struct ath12k_link_vif *arvif,
 	ath12k_dbg(ab, ATH12K_DBG_MAC,  "vdev %pM started, vdev_id %d\n",
 		   ahvif->vif->addr, arvif->vdev_id);
 
-	/* Enable CAC Flag in the driver by checking the channel DFS cac time,
-	 * i.e dfs_cac_ms value which will be valid only for radar channels
-	 * and state as NL80211_DFS_USABLE which indicates CAC needs to be
-	 * done before channel usage. This flags is used to drop rx packets.
+	/* Enable CAC Running Flag in the driver by checking all sub-channel's DFS
+	 * state as NL80211_DFS_USABLE which indicates CAC needs to be
+	 * done before channel usage. This flag is used to drop rx packets.
 	 * during CAC.
 	 */
 	/* TODO: Set the flag for other interface types as required */
-	if (arvif->ahvif->vdev_type == WMI_VDEV_TYPE_AP &&
-	    chandef->chan->dfs_cac_ms &&
-	    chandef->chan->dfs_state == NL80211_DFS_USABLE) {
+	if (arvif->ahvif->vdev_type == WMI_VDEV_TYPE_AP && ctx->radar_enabled &&
+	    cfg80211_chandef_dfs_usable(hw->wiphy, chandef)) {
 		set_bit(ATH12K_FLAG_CAC_RUNNING, &ar->dev_flags);
+		dfs_cac_time = cfg80211_chandef_dfs_cac_time(hw->wiphy, chandef);
+
 		ath12k_dbg(ab, ATH12K_DBG_MAC,
-			   "CAC Started in chan_freq %d for vdev %d\n",
-			   arg.freq, arg.vdev_id);
+			   "CAC started dfs_cac_time %u center_freq %d center_freq1 %d for vdev %d\n",
+			   dfs_cac_time, arg.freq, arg.band_center_freq1, arg.vdev_id);
 	}
 
 	ret = ath12k_mac_set_txbf_conf(arvif);
