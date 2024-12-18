@@ -586,7 +586,7 @@ static void rtw_usb_rx_handler(struct work_struct *work)
 				goto skip_packet;
 			}
 
-			skb = alloc_skb(skb_len, GFP_KERNEL);
+			skb = alloc_skb(skb_len, GFP_ATOMIC);
 			if (!skb) {
 				rtw_dbg(rtwdev, RTW_DBG_USB,
 					"failed to allocate RX skb of size %u\n",
@@ -613,32 +613,70 @@ skip_packet:
 			rx_desc += next_pkt;
 		} while (rx_desc + pkt_desc_sz < rx_skb->data + rx_skb->len);
 
-		dev_kfree_skb_any(rx_skb);
+		if (skb_queue_len(&rtwusb->rx_free_queue) >= RTW_USB_RX_SKB_NUM)
+			dev_kfree_skb_any(rx_skb);
+		else
+			skb_queue_tail(&rtwusb->rx_free_queue, rx_skb);
 	}
 }
 
 static void rtw_usb_read_port_complete(struct urb *urb);
 
-static void rtw_usb_rx_resubmit(struct rtw_usb *rtwusb, struct rx_usb_ctrl_block *rxcb)
+static void rtw_usb_rx_resubmit(struct rtw_usb *rtwusb,
+				struct rx_usb_ctrl_block *rxcb,
+				gfp_t gfp)
 {
 	struct rtw_dev *rtwdev = rtwusb->rtwdev;
+	struct sk_buff *rx_skb;
 	int error;
 
-	rxcb->rx_skb = alloc_skb(RTW_USB_MAX_RECVBUF_SZ, GFP_ATOMIC);
-	if (!rxcb->rx_skb)
-		return;
+	rx_skb = skb_dequeue(&rtwusb->rx_free_queue);
+	if (!rx_skb)
+		rx_skb = alloc_skb(RTW_USB_MAX_RECVBUF_SZ, gfp);
+
+	if (!rx_skb)
+		goto try_later;
+
+	skb_reset_tail_pointer(rx_skb);
+	rx_skb->len = 0;
+
+	rxcb->rx_skb = rx_skb;
 
 	usb_fill_bulk_urb(rxcb->rx_urb, rtwusb->udev,
 			  usb_rcvbulkpipe(rtwusb->udev, rtwusb->pipe_in),
 			  rxcb->rx_skb->data, RTW_USB_MAX_RECVBUF_SZ,
 			  rtw_usb_read_port_complete, rxcb);
 
-	error = usb_submit_urb(rxcb->rx_urb, GFP_ATOMIC);
+	error = usb_submit_urb(rxcb->rx_urb, gfp);
 	if (error) {
-		kfree_skb(rxcb->rx_skb);
+		skb_queue_tail(&rtwusb->rx_free_queue, rxcb->rx_skb);
+
 		if (error != -ENODEV)
 			rtw_err(rtwdev, "Err sending rx data urb %d\n",
 				error);
+
+		if (error == -ENOMEM)
+			goto try_later;
+	}
+
+	return;
+
+try_later:
+	rxcb->rx_skb = NULL;
+	queue_work(rtwusb->rxwq, &rtwusb->rx_urb_work);
+}
+
+static void rtw_usb_rx_resubmit_work(struct work_struct *work)
+{
+	struct rtw_usb *rtwusb = container_of(work, struct rtw_usb, rx_urb_work);
+	struct rx_usb_ctrl_block *rxcb;
+	int i;
+
+	for (i = 0; i < RTW_USB_RXCB_NUM; i++) {
+		rxcb = &rtwusb->rx_cb[i];
+
+		if (!rxcb->rx_skb)
+			rtw_usb_rx_resubmit(rtwusb, rxcb, GFP_ATOMIC);
 	}
 }
 
@@ -654,15 +692,16 @@ static void rtw_usb_read_port_complete(struct urb *urb)
 		    urb->actual_length < 24) {
 			rtw_err(rtwdev, "failed to get urb length:%d\n",
 				urb->actual_length);
-			if (skb)
-				dev_kfree_skb_any(skb);
+			skb_queue_tail(&rtwusb->rx_free_queue, skb);
 		} else {
 			skb_put(skb, urb->actual_length);
 			skb_queue_tail(&rtwusb->rx_queue, skb);
 			queue_work(rtwusb->rxwq, &rtwusb->rx_work);
 		}
-		rtw_usb_rx_resubmit(rtwusb, rxcb);
+		rtw_usb_rx_resubmit(rtwusb, rxcb, GFP_ATOMIC);
 	} else {
+		skb_queue_tail(&rtwusb->rx_free_queue, skb);
+
 		switch (urb->status) {
 		case -EINVAL:
 		case -EPIPE:
@@ -680,8 +719,6 @@ static void rtw_usb_read_port_complete(struct urb *urb)
 			rtw_err(rtwdev, "status %d\n", urb->status);
 			break;
 		}
-		if (skb)
-			dev_kfree_skb_any(skb);
 	}
 }
 
@@ -869,16 +906,26 @@ static struct rtw_hci_ops rtw_usb_ops = {
 static int rtw_usb_init_rx(struct rtw_dev *rtwdev)
 {
 	struct rtw_usb *rtwusb = rtw_get_usb_priv(rtwdev);
+	struct sk_buff *rx_skb;
+	int i;
 
-	rtwusb->rxwq = create_singlethread_workqueue("rtw88_usb: rx wq");
+	rtwusb->rxwq = alloc_workqueue("rtw88_usb: rx wq", WQ_BH, 0);
 	if (!rtwusb->rxwq) {
 		rtw_err(rtwdev, "failed to create RX work queue\n");
 		return -ENOMEM;
 	}
 
 	skb_queue_head_init(&rtwusb->rx_queue);
+	skb_queue_head_init(&rtwusb->rx_free_queue);
 
 	INIT_WORK(&rtwusb->rx_work, rtw_usb_rx_handler);
+	INIT_WORK(&rtwusb->rx_urb_work, rtw_usb_rx_resubmit_work);
+
+	for (i = 0; i < RTW_USB_RX_SKB_NUM; i++) {
+		rx_skb = alloc_skb(RTW_USB_MAX_RECVBUF_SZ, GFP_KERNEL);
+		if (rx_skb)
+			skb_queue_tail(&rtwusb->rx_free_queue, rx_skb);
+	}
 
 	return 0;
 }
@@ -891,7 +938,7 @@ static void rtw_usb_setup_rx(struct rtw_dev *rtwdev)
 	for (i = 0; i < RTW_USB_RXCB_NUM; i++) {
 		struct rx_usb_ctrl_block *rxcb = &rtwusb->rx_cb[i];
 
-		rtw_usb_rx_resubmit(rtwusb, rxcb);
+		rtw_usb_rx_resubmit(rtwusb, rxcb, GFP_KERNEL);
 	}
 }
 
@@ -903,6 +950,8 @@ static void rtw_usb_deinit_rx(struct rtw_dev *rtwdev)
 
 	flush_workqueue(rtwusb->rxwq);
 	destroy_workqueue(rtwusb->rxwq);
+
+	skb_queue_purge(&rtwusb->rx_free_queue);
 }
 
 static int rtw_usb_init_tx(struct rtw_dev *rtwdev)
