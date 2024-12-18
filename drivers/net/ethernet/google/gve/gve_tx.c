@@ -206,7 +206,10 @@ void gve_tx_stop_ring_gqi(struct gve_priv *priv, int idx)
 		return;
 
 	gve_remove_napi(priv, ntfy_idx);
-	gve_clean_tx_done(priv, tx, priv->tx_desc_cnt, false);
+	if (tx->q_num < priv->tx_cfg.num_queues)
+		gve_clean_tx_done(priv, tx, priv->tx_desc_cnt, false);
+	else
+		gve_clean_xdp_done(priv, tx, priv->tx_desc_cnt);
 	netdev_tx_reset_queue(tx->netdev_txq);
 	gve_tx_remove_from_block(priv, idx);
 }
