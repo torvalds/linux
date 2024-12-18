@@ -46,6 +46,8 @@ struct hyp_page {
 
 	/* Host (non-meta) state. Guarded by the host stage-2 lock. */
 	enum pkvm_page_state host_state : 8;
+
+	u32 host_share_guest_count;
 };
 
 extern u64 __hyp_vmemmap;
@@ -68,7 +70,7 @@ static inline phys_addr_t hyp_virt_to_phys(void *addr)
 
 static inline struct hyp_page *hyp_phys_to_page(phys_addr_t phys)
 {
-	BUILD_BUG_ON(sizeof(struct hyp_page) != sizeof(u32));
+	BUILD_BUG_ON(sizeof(struct hyp_page) != sizeof(u64));
 	return &hyp_vmemmap[hyp_phys_to_pfn(phys)];
 }
 
