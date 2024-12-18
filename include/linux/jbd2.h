@@ -700,12 +700,6 @@ struct transaction_s
 
 	/* Disk flush needs to be sent to fs partition [no locking] */
 	int			t_need_data_flush;
-
-	/*
-	 * For use by the filesystem to store fs-specific data
-	 * structures associated with the transaction
-	 */
-	struct list_head	t_private_list;
 };
 
 struct transaction_run_stats_s {
