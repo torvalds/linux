@@ -412,6 +412,7 @@ TRACE_EVENT(intel_plane_update_noarm,
 			     __field(char, pipe_name)
 			     __field(u32, frame)
 			     __field(u32, scanline)
+			     __field(u32, format)
 			     __array(int, src, 4)
 			     __array(int, dst, 4)
 			     __string(name, plane_state->uapi.plane->name)
@@ -423,13 +424,14 @@ TRACE_EVENT(intel_plane_update_noarm,
 			   __entry->pipe_name = pipe_name(crtc->pipe);
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
+			   __entry->format = plane_state->hw.fb->format->format;
 			   memcpy(__entry->src, &plane_state->uapi.src, sizeof(__entry->src));
 			   memcpy(__entry->dst, &plane_state->uapi.dst, sizeof(__entry->dst));
 			   ),
 
-	    TP_printk("dev %s, pipe %c, %s, frame=%u, scanline=%u, " DRM_RECT_FP_FMT " -> " DRM_RECT_FMT,
+	    TP_printk("dev %s, pipe %c, %s, frame=%u, scanline=%u, format=%p4cc, " DRM_RECT_FP_FMT " -> " DRM_RECT_FMT,
 		      __get_str(dev), __entry->pipe_name, __get_str(name),
-		      __entry->frame, __entry->scanline,
+		      __entry->frame, __entry->scanline, &__entry->format,
 		      DRM_RECT_FP_ARG((const struct drm_rect *)__entry->src),
 		      DRM_RECT_ARG((const struct drm_rect *)__entry->dst))
 );
@@ -443,6 +445,7 @@ TRACE_EVENT(intel_plane_update_arm,
 			     __field(char, pipe_name)
 			     __field(u32, frame)
 			     __field(u32, scanline)
+			     __field(u32, format)
 			     __array(int, src, 4)
 			     __array(int, dst, 4)
 			     __string(name, plane_state->uapi.plane->name)
@@ -454,13 +457,14 @@ TRACE_EVENT(intel_plane_update_arm,
 			   __entry->pipe_name = pipe_name(crtc->pipe);
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
+			   __entry->format = plane_state->hw.fb->format->format;
 			   memcpy(__entry->src, &plane_state->uapi.src, sizeof(__entry->src));
 			   memcpy(__entry->dst, &plane_state->uapi.dst, sizeof(__entry->dst));
 			   ),
 
-	    TP_printk("dev %s, pipe %c, %s, frame=%u, scanline=%u, " DRM_RECT_FP_FMT " -> " DRM_RECT_FMT,
+	    TP_printk("dev %s, pipe %c, %s, frame=%u, scanline=%u, format=%p4cc, " DRM_RECT_FP_FMT " -> " DRM_RECT_FMT,
 		      __get_str(dev), __entry->pipe_name, __get_str(name),
-		      __entry->frame, __entry->scanline,
+		      __entry->frame, __entry->scanline, &__entry->format,
 		      DRM_RECT_FP_ARG((const struct drm_rect *)__entry->src),
 		      DRM_RECT_ARG((const struct drm_rect *)__entry->dst))
 );
