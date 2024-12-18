@@ -430,10 +430,10 @@ static int
 netdev_nl_queue_fill(struct sk_buff *rsp, struct net_device *netdev, u32 q_idx,
 		     u32 q_type, const struct genl_info *info)
 {
-	int err = 0;
+	int err;
 
 	if (!(netdev->flags & IFF_UP))
-		return err;
+		return -ENOENT;
 
 	err = netdev_nl_queue_validate(netdev, q_idx, q_type);
 	if (err)
