@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: GPL-2.0
+// Test for blocking write.
+--tolerance_usecs=10000
+
+`./defaults.sh
+./set_sysctls.py /proc/sys/net/ipv4/tcp_min_tso_segs=10
+`
+
+// Establish a connection.
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+  +.1 < S 0:0(0) win 50000 <mss 1000,nop,wscale 0>
+   +0 > S. 0:0(0) ack 1 <mss 1460,nop,wscale 8>
+  +.1 < . 1:1(0) ack 1 win 50000
+   +0 accept(3, ..., ...) = 4
+
+// Kernel doubles our value -> sk->sk_sndbuf is set to 42000
+   +0 setsockopt(4, SOL_SOCKET, SO_SNDBUF,  [21000], 4) = 0
+   +0 getsockopt(4, SOL_SOCKET, SO_SNDBUF,  [42000], [4]) = 0
+
+// A write of 60000 does not block.
+   +0...0.300 write(4, ..., 61000) = 61000    // this write() blocks
+
+  +.1 < . 1:1(0) ack 10001 win 50000
+
+  +.1 < . 1:1(0) ack 30001 win 50000
+
+// This ACK should wakeup the write(). An ACK of 35001 does not.
+  +.1 < . 1:1(0) ack 36001 win 50000
+
+// Reset to sysctls defaults.
+`/tmp/sysctl_restore_${PPID}.sh`
