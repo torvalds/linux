@@ -276,67 +276,9 @@ extern void _memcpy_toio(volatile void __iomem *dest, const void *src,
 
 #define _IO_PORT(port)	((volatile void __iomem *)(_IO_BASE + (port)))
 
-/*
- * Non ordered and non-swapping "raw" accessors
- */
-
-static inline unsigned char __raw_readb(const volatile void __iomem *addr)
-{
-	return *(volatile unsigned char __force *)addr;
-}
-#define __raw_readb __raw_readb
-
-static inline unsigned short __raw_readw(const volatile void __iomem *addr)
-{
-	return *(volatile unsigned short __force *)addr;
-}
-#define __raw_readw __raw_readw
-
-static inline unsigned int __raw_readl(const volatile void __iomem *addr)
-{
-	return *(volatile unsigned int __force *)addr;
-}
-#define __raw_readl __raw_readl
-
-static inline void __raw_writeb(unsigned char v, volatile void __iomem *addr)
-{
-	*(volatile unsigned char __force *)addr = v;
-}
-#define __raw_writeb __raw_writeb
-
-static inline void __raw_writew(unsigned short v, volatile void __iomem *addr)
-{
-	*(volatile unsigned short __force *)addr = v;
-}
-#define __raw_writew __raw_writew
-
-static inline void __raw_writel(unsigned int v, volatile void __iomem *addr)
-{
-	*(volatile unsigned int __force *)addr = v;
-}
-#define __raw_writel __raw_writel
-
 #ifdef __powerpc64__
-static inline unsigned long __raw_readq(const volatile void __iomem *addr)
-{
-	return *(volatile unsigned long __force *)addr;
-}
-#define __raw_readq __raw_readq
-
-static inline void __raw_writeq(unsigned long v, volatile void __iomem *addr)
-{
-	*(volatile unsigned long __force *)addr = v;
-}
-#define __raw_writeq __raw_writeq
-
-static inline void __raw_writeq_be(unsigned long v, volatile void __iomem *addr)
-{
-	__raw_writeq((__force unsigned long)cpu_to_be64(v), addr);
-}
-#define __raw_writeq_be __raw_writeq_be
-
 /*
- * Real mode versions of the above. Those instructions are only supposed
+ * Real mode versions of raw accessors. Those instructions are only supposed
  * to be used in hypervisor real mode as per the architecture spec.
  */
 static inline void __raw_rm_writeb(u8 val, volatile void __iomem *paddr)
@@ -1079,6 +1021,14 @@ static inline void * bus_to_virt(unsigned long address)
 #define clrsetbits_8(addr, clear, set) clrsetbits(8, addr, clear, set)
 
 #include <asm-generic/io.h>
+
+#ifdef __powerpc64__
+static inline void __raw_writeq_be(unsigned long v, volatile void __iomem *addr)
+{
+	__raw_writeq((__force unsigned long)cpu_to_be64(v), addr);
+}
+#define __raw_writeq_be __raw_writeq_be
+#endif // __powerpc64__
 
 #endif /* __KERNEL__ */
 
