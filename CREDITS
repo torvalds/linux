@@ -2197,6 +2197,9 @@ S: Markham, Ontario
 S: L3R 8B2
 S: Canada
 
+N: Christian Krafft
+D: PowerPC Cell support
+
 N: Maxim Krasnyansky
 E: maxk@qualcomm.com
 W: http://vtun.sf.net
