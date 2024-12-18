@@ -930,11 +930,13 @@ static void gve_init_sync_stats(struct gve_priv *priv)
 static void gve_tx_get_curr_alloc_cfg(struct gve_priv *priv,
 				      struct gve_tx_alloc_rings_cfg *cfg)
 {
+	int num_xdp_queues = priv->xdp_prog ? priv->rx_cfg.num_queues : 0;
+
 	cfg->qcfg = &priv->tx_cfg;
 	cfg->raw_addressing = !gve_is_qpl(priv);
 	cfg->ring_size = priv->tx_desc_cnt;
 	cfg->start_idx = 0;
-	cfg->num_rings = gve_num_tx_queues(priv);
+	cfg->num_rings = priv->tx_cfg.num_queues + num_xdp_queues;
 	cfg->tx = priv->tx;
 }
 
@@ -1843,6 +1845,7 @@ int gve_adjust_queues(struct gve_priv *priv,
 {
 	struct gve_tx_alloc_rings_cfg tx_alloc_cfg = {0};
 	struct gve_rx_alloc_rings_cfg rx_alloc_cfg = {0};
+	int num_xdp_queues;
 	int err;
 
 	gve_get_curr_alloc_cfgs(priv, &tx_alloc_cfg, &rx_alloc_cfg);
@@ -1852,6 +1855,10 @@ int gve_adjust_queues(struct gve_priv *priv,
 	rx_alloc_cfg.qcfg_tx = &new_tx_config;
 	rx_alloc_cfg.qcfg = &new_rx_config;
 	tx_alloc_cfg.num_rings = new_tx_config.num_queues;
+
+	/* Add dedicated XDP TX queues if enabled. */
+	num_xdp_queues = priv->xdp_prog ? new_rx_config.num_queues : 0;
+	tx_alloc_cfg.num_rings += num_xdp_queues;
 
 	if (netif_running(priv->dev)) {
 		err = gve_adjust_config(priv, &tx_alloc_cfg, &rx_alloc_cfg);
