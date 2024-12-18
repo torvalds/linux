@@ -40,22 +40,6 @@ static inline u64 fec_interleave(struct dm_verity *v, u64 offset)
 }
 
 /*
- * Decode an RS block using Reed-Solomon.
- */
-static int fec_decode_rs8(struct dm_verity *v, struct dm_verity_fec_io *fio,
-			  u8 *data, u8 *fec, int neras)
-{
-	int i;
-	uint16_t par[DM_VERITY_FEC_RSM - DM_VERITY_FEC_MIN_RSN];
-
-	for (i = 0; i < v->fec->roots; i++)
-		par[i] = fec[i];
-
-	return decode_rs8(fio->rs, data, par, v->fec->rsn, NULL, neras,
-			  fio->erasures, 0, NULL);
-}
-
-/*
  * Read error-correcting codes for the requested RS block. Returns a pointer
  * to the data block. Caller is responsible for releasing buf.
  */
@@ -132,8 +116,9 @@ static int fec_decode_bufs(struct dm_verity *v, struct dm_verity_io *io,
 {
 	int r, corrected = 0, res;
 	struct dm_buffer *buf;
-	unsigned int n, i, offset, par_buf_offset = 0;
-	u8 *par, *block, par_buf[DM_VERITY_FEC_RSM - DM_VERITY_FEC_MIN_RSN];
+	unsigned int n, i, j, offset, par_buf_offset = 0;
+	uint16_t par_buf[DM_VERITY_FEC_RSM - DM_VERITY_FEC_MIN_RSN];
+	u8 *par, *block;
 	struct bio *bio = dm_bio_from_per_bio_data(io, v->ti->per_io_data_size);
 
 	par = fec_read_parity(v, rsb, block_offset, &offset,
@@ -147,8 +132,11 @@ static int fec_decode_bufs(struct dm_verity *v, struct dm_verity_io *io,
 	 */
 	fec_for_each_buffer_rs_block(fio, n, i) {
 		block = fec_buffer_rs_block(v, fio, n, i);
-		memcpy(&par_buf[par_buf_offset], &par[offset], v->fec->roots - par_buf_offset);
-		res = fec_decode_rs8(v, fio, block, par_buf, neras);
+		for (j = 0; j < v->fec->roots - par_buf_offset; j++)
+			par_buf[par_buf_offset + j] = par[offset + j];
+		/* Decode an RS block using Reed-Solomon */
+		res = decode_rs8(fio->rs, block, par_buf, v->fec->rsn,
+				 NULL, neras, fio->erasures, 0, NULL);
 		if (res < 0) {
 			r = res;
 			goto error;
@@ -166,7 +154,8 @@ static int fec_decode_bufs(struct dm_verity *v, struct dm_verity_io *io,
 		/* Check if parity bytes are split between blocks */
 		if (offset < v->fec->io_size && (offset + v->fec->roots) > v->fec->io_size) {
 			par_buf_offset = v->fec->io_size - offset;
-			memcpy(par_buf, &par[offset], par_buf_offset);
+			for (j = 0; j < par_buf_offset; j++)
+				par_buf[j] = par[offset + j];
 			offset += par_buf_offset;
 		} else
 			par_buf_offset = 0;
