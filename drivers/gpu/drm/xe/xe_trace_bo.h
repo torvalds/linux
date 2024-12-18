@@ -92,6 +92,7 @@ DECLARE_EVENT_CLASS(xe_vma,
 		    TP_STRUCT__entry(
 			     __string(dev, __dev_name_vma(vma))
 			     __field(struct xe_vma *, vma)
+			     __field(struct xe_vm *, vm)
 			     __field(u32, asid)
 			     __field(u64, start)
 			     __field(u64, end)
@@ -101,14 +102,16 @@ DECLARE_EVENT_CLASS(xe_vma,
 		    TP_fast_assign(
 			   __assign_str(dev);
 			   __entry->vma = vma;
+			   __entry->vm = xe_vma_vm(vma);
 			   __entry->asid = xe_vma_vm(vma)->usm.asid;
 			   __entry->start = xe_vma_start(vma);
 			   __entry->end = xe_vma_end(vma) - 1;
 			   __entry->ptr = xe_vma_userptr(vma);
 			   ),
 
-		    TP_printk("dev=%s, vma=%p, asid=0x%05x, start=0x%012llx, end=0x%012llx, userptr=0x%012llx,",
-			      __get_str(dev), __entry->vma, __entry->asid, __entry->start,
+		    TP_printk("dev=%s, vma=%p, vm=%p, asid=0x%05x, start=0x%012llx, end=0x%012llx, userptr=0x%012llx",
+			      __get_str(dev), __entry->vma, __entry->vm,
+			      __entry->asid, __entry->start,
 			      __entry->end, __entry->ptr)
 )
 
