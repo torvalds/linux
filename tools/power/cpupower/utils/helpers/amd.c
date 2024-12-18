@@ -219,7 +219,9 @@ void amd_pstate_boost_init(unsigned int cpu, int *support, int *active)
 
 void amd_pstate_show_perf_and_freq(unsigned int cpu, int no_rounding)
 {
-	printf(_("    AMD PSTATE Highest Performance: %lu. Maximum Frequency: "),
+
+	printf(_("  amd-pstate limits:\n"));
+	printf(_("    Highest Performance: %lu. Maximum Frequency: "),
 	       amd_pstate_get_data(cpu, AMD_PSTATE_HIGHEST_PERF));
 	/*
 	 * If boost isn't active, the cpuinfo_max doesn't indicate real max
@@ -228,19 +230,19 @@ void amd_pstate_show_perf_and_freq(unsigned int cpu, int no_rounding)
 	print_speed(amd_pstate_get_data(cpu, AMD_PSTATE_MAX_FREQ), no_rounding);
 	printf(".\n");
 
-	printf(_("    AMD PSTATE Nominal Performance: %lu. Nominal Frequency: "),
+	printf(_("    Nominal Performance: %lu. Nominal Frequency: "),
 	       acpi_cppc_get_data(cpu, NOMINAL_PERF));
 	print_speed(acpi_cppc_get_data(cpu, NOMINAL_FREQ) * 1000,
 		    no_rounding);
 	printf(".\n");
 
-	printf(_("    AMD PSTATE Lowest Non-linear Performance: %lu. Lowest Non-linear Frequency: "),
+	printf(_("    Lowest Non-linear Performance: %lu. Lowest Non-linear Frequency: "),
 	       acpi_cppc_get_data(cpu, LOWEST_NONLINEAR_PERF));
 	print_speed(amd_pstate_get_data(cpu, AMD_PSTATE_LOWEST_NONLINEAR_FREQ),
 		    no_rounding);
 	printf(".\n");
 
-	printf(_("    AMD PSTATE Lowest Performance: %lu. Lowest Frequency: "),
+	printf(_("    Lowest Performance: %lu. Lowest Frequency: "),
 	       acpi_cppc_get_data(cpu, LOWEST_PERF));
 	print_speed(acpi_cppc_get_data(cpu, LOWEST_FREQ) * 1000, no_rounding);
 	printf(".\n");
