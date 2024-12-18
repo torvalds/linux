@@ -505,13 +505,6 @@ __do_out_asm(_rec_outl, "stwbrx")
  * possible to hook directly at the toplevel PIO operation if they have to
  * be handled differently
  */
-#define __do_writeb(val, addr)	out_8(addr, val)
-#define __do_writew(val, addr)	out_le16(addr, val)
-#define __do_writel(val, addr)	out_le32(addr, val)
-#define __do_writeq(val, addr)	out_le64(addr, val)
-#define __do_writew_be(val, addr) out_be16(addr, val)
-#define __do_writel_be(val, addr) out_be32(addr, val)
-#define __do_writeq_be(val, addr) out_be64(addr, val)
 
 #ifdef CONFIG_EEH
 #define __do_readb(addr)	eeh_readb(addr)
@@ -567,11 +560,6 @@ __do_out_asm(_rec_outl, "stwbrx")
 #define __do_outsw(p, b, n)	writesw((PCI_IO_ADDR)(_IO_BASE+(p)),(b),(n))
 #define __do_outsl(p, b, n)	writesl((PCI_IO_ADDR)(_IO_BASE+(p)),(b),(n))
 
-#define __do_memset_io(addr, c, n)	\
-				_memset_io(addr, c, n)
-#define __do_memcpy_toio(dst, src, n)	\
-				_memcpy_toio(dst, src, n)
-
 #ifdef CONFIG_EEH
 #define __do_memcpy_fromio(dst, src, n)	\
 				eeh_memcpy_fromio(dst, src, n)
@@ -610,30 +598,30 @@ static inline u32 readl_be(const PCI_IO_ADDR addr)
 
 static inline void writeb(u8 val, PCI_IO_ADDR addr)
 {
-	__do_writeb(val, addr);
+	out_8(addr, val);
 }
 #define writeb writeb
 
 static inline void writew(u16 val, PCI_IO_ADDR addr)
 {
-	__do_writew(val, addr);
+	out_le16(addr, val);
 }
 #define writew writew
 
 static inline void writel(u32 val, PCI_IO_ADDR addr)
 {
-	__do_writel(val, addr);
+	out_le32(addr, val);
 }
 #define writel writel
 
 static inline void writew_be(u16 val, PCI_IO_ADDR addr)
 {
-	__do_writew_be(val, addr);
+	out_be16(addr, val);
 }
 
 static inline void writel_be(u32 val, PCI_IO_ADDR addr)
 {
-	__do_writel_be(val, addr);
+	out_be32(addr, val);
 }
 
 static inline void readsb(const PCI_IO_ADDR a, void *b, unsigned long c)
@@ -674,7 +662,7 @@ static inline void writesl(PCI_IO_ADDR a, const void *b, unsigned long c)
 
 static inline void memset_io(PCI_IO_ADDR a, int c, unsigned long n)
 {
-	__do_memset_io(a, c, n);
+	_memset_io(a, c, n);
 }
 #define memset_io memset_io
 
@@ -686,7 +674,7 @@ static inline void memcpy_fromio(void *d, const PCI_IO_ADDR s, unsigned long n)
 
 static inline void memcpy_toio(PCI_IO_ADDR d, const void *s, unsigned long n)
 {
-	__do_memcpy_toio(d, s, n);
+	_memcpy_toio(d, s, n);
 }
 #define memcpy_toio memcpy_toio
 
@@ -703,12 +691,12 @@ static inline u64 readq_be(const PCI_IO_ADDR addr)
 
 static inline void writeq(u64 val, PCI_IO_ADDR addr)
 {
-	__do_writeq(val, addr);
+	out_le64(addr, val);
 }
 
 static inline void writeq_be(u64 val, PCI_IO_ADDR addr)
 {
-	__do_writeq_be(val, addr);
+	out_be64(addr, val);
 }
 #endif /* __powerpc64__ */
 
