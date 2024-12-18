@@ -238,6 +238,9 @@ static int sdw_get_group_count(struct sdw_bus *bus,
 		return -ENOMEM;
 
 	list_for_each_entry(m_rt, &bus->m_rt_list, bus_node) {
+		if (m_rt->stream->state == SDW_STREAM_DEPREPARED)
+			continue;
+
 		rate = m_rt->stream->params.rate;
 		if (m_rt == list_first_entry(&bus->m_rt_list,
 					     struct sdw_master_runtime,
