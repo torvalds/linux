@@ -290,6 +290,8 @@ properties:
       - tianma,tm070jvhg33
         # Tianma Micro-electronics TM070RVHG71 7.0" WXGA TFT LCD panel
       - tianma,tm070rvhg71
+        # Topland TIAN-G07017-01 7.0" WSVGA TFT-LCD panel with capacitive touch
+      - topland,tian-g07017-01
         # Toshiba 8.9" WXGA (1280x768) TFT LCD panel
       - toshiba,lt089ac29000
         # TPK U.S.A. LLC Fusion 7" 800 x 480 (WVGA) LCD panel with capacitive touch
