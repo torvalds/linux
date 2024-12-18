@@ -770,24 +770,20 @@ bool xe_exec_queue_is_idle(struct xe_exec_queue *q)
 void xe_exec_queue_update_run_ticks(struct xe_exec_queue *q)
 {
 	struct xe_device *xe = gt_to_xe(q->gt);
-	struct xe_file *xef;
 	struct xe_lrc *lrc;
 	u32 old_ts, new_ts;
 	int idx;
 
 	/*
-	 * Jobs that are run during driver load may use an exec_queue, but are
-	 * not associated with a user xe file, so avoid accumulating busyness
-	 * for kernel specific work.
+	 * Jobs that are executed by kernel doesn't have a corresponding xe_file
+	 * and thus are not accounted.
 	 */
-	if (!q->vm || !q->vm->xef)
+	if (!q->xef)
 		return;
 
 	/* Synchronize with unbind while holding the xe file open */
 	if (!drm_dev_enter(&xe->drm, &idx))
 		return;
-
-	xef = q->vm->xef;
 
 	/*
 	 * Only sample the first LRC. For parallel submission, all of them are
@@ -799,7 +795,7 @@ void xe_exec_queue_update_run_ticks(struct xe_exec_queue *q)
 	 */
 	lrc = q->lrc[0];
 	new_ts = xe_lrc_update_timestamp(lrc, &old_ts);
-	xef->run_ticks[q->class] += (new_ts - old_ts) * q->width;
+	q->xef->run_ticks[q->class] += (new_ts - old_ts) * q->width;
 
 	drm_dev_exit(idx);
 }
