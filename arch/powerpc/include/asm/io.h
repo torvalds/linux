@@ -80,16 +80,12 @@ extern bool isa_io_special;
  *
  *	in_8, in_le16, in_be16, in_le32, in_be32, in_le64, in_be64
  *	out_8, out_le16, out_be16, out_le32, out_be32, out_le64, out_be64
- *	_insb, _insw_ns, _insl_ns, _outsb, _outsw_ns, _outsl_ns
+ *	_insb, _insw, _insl, _outsb, _outsw, _outsl
  *
  * Those operate directly on a kernel virtual address. Note that the prototype
  * for the out_* accessors has the arguments in opposite order from the usual
  * linux PCI accessors. Unlike those, they take the address first and the value
  * next.
- *
- * Note: I might drop the _ns suffix on the stream operations soon as it is
- * simply normal for stream operations to not swap in the first place.
- *
  */
 
 /* -mprefixed can generate offsets beyond range, fall back hack */
@@ -228,19 +224,10 @@ static inline void out_be64(volatile u64 __iomem *addr, u64 val)
  */
 extern void _insb(const volatile u8 __iomem *addr, void *buf, long count);
 extern void _outsb(volatile u8 __iomem *addr,const void *buf,long count);
-extern void _insw_ns(const volatile u16 __iomem *addr, void *buf, long count);
-extern void _outsw_ns(volatile u16 __iomem *addr, const void *buf, long count);
-extern void _insl_ns(const volatile u32 __iomem *addr, void *buf, long count);
-extern void _outsl_ns(volatile u32 __iomem *addr, const void *buf, long count);
-
-/* The _ns naming is historical and will be removed. For now, just #define
- * the non _ns equivalent names
- */
-#define _insw	_insw_ns
-#define _insl	_insl_ns
-#define _outsw	_outsw_ns
-#define _outsl	_outsl_ns
-
+extern void _insw(const volatile u16 __iomem *addr, void *buf, long count);
+extern void _outsw(volatile u16 __iomem *addr, const void *buf, long count);
+extern void _insl(const volatile u32 __iomem *addr, void *buf, long count);
+extern void _outsl(volatile u32 __iomem *addr, const void *buf, long count);
 
 /*
  * memset_io, memcpy_toio, memcpy_fromio base implementations are out of line
