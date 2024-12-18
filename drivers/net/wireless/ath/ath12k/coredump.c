@@ -27,6 +27,9 @@ ath12k_fw_crash_dump_type ath12k_coredump_get_dump_type(enum ath12k_qmi_target_m
 	case CALDB_MEM_REGION_TYPE:
 		dump_type = FW_CRASH_DUMP_NONE;
 		break;
+	case MLO_GLOBAL_MEM_REGION_TYPE:
+		dump_type = FW_CRASH_DUMP_MLO_GLOBAL_DATA;
+		break;
 	default:
 		dump_type = FW_CRASH_DUMP_TYPE_MAX;
 		break;
