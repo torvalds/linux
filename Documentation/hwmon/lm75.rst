@@ -129,7 +129,7 @@ Supported chips:
 
     Datasheet: Publicly available at the NXP website
 
-	       https://www.nxp.com/documents/data_sheet/LM75B.pdf
+               https://www.nxp.com/docs/en/data-sheet/LM75B.pdf
 
                https://www.nxp.com/docs/en/data-sheet/P3T1755.pdf
 
