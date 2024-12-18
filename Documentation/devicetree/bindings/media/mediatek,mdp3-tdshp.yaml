@@ -16,8 +16,12 @@ description:
 
 properties:
   compatible:
-    enum:
-      - mediatek,mt8195-mdp3-tdshp
+    oneOf:
+      - enum:
+          - mediatek,mt8195-mdp3-tdshp
+      - items:
+          - const: mediatek,mt8188-mdp3-tdshp
+          - const: mediatek,mt8195-mdp3-tdshp
 
   reg:
     maxItems: 1

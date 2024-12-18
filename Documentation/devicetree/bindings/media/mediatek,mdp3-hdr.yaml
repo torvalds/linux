@@ -16,8 +16,12 @@ description:
 
 properties:
   compatible:
-    enum:
-      - mediatek,mt8195-mdp3-hdr
+    oneOf:
+      - enum:
+          - mediatek,mt8195-mdp3-hdr
+      - items:
+          - const: mediatek,mt8188-mdp3-hdr
+          - const: mediatek,mt8195-mdp3-hdr
 
   reg:
     maxItems: 1
