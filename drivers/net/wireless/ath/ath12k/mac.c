@@ -751,6 +751,17 @@ static struct ath12k *ath12k_get_ar_by_vif(struct ieee80211_hw *hw,
 	return NULL;
 }
 
+void ath12k_mac_get_any_chanctx_conf_iter(struct ieee80211_hw *hw,
+					  struct ieee80211_chanctx_conf *conf,
+					  void *data)
+{
+	struct ath12k_mac_get_any_chanctx_conf_arg *arg = data;
+	struct ath12k *ctx_ar = ath12k_get_ar_by_ctx(hw, conf);
+
+	if (ctx_ar == arg->ar)
+		arg->chanctx_conf = conf;
+}
+
 static struct ath12k_link_vif *ath12k_mac_get_vif_up(struct ath12k *ar)
 {
 	struct ath12k_link_vif *arvif;

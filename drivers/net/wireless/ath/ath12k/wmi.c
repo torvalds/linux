@@ -6935,6 +6935,7 @@ static void
 ath12k_wmi_pdev_dfs_radar_detected_event(struct ath12k_base *ab, struct sk_buff *skb)
 {
 	const void **tb;
+	struct ath12k_mac_get_any_chanctx_conf_arg arg;
 	const struct ath12k_wmi_pdev_radar_event *ev;
 	struct ath12k *ar;
 	int ret;
@@ -6970,13 +6971,22 @@ ath12k_wmi_pdev_dfs_radar_detected_event(struct ath12k_base *ab, struct sk_buff 
 		goto exit;
 	}
 
+	arg.ar = ar;
+	arg.chanctx_conf = NULL;
+	ieee80211_iter_chan_contexts_atomic(ath12k_ar_to_hw(ar),
+					    ath12k_mac_get_any_chanctx_conf_iter, &arg);
+	if (!arg.chanctx_conf) {
+		ath12k_warn(ab, "failed to find valid chanctx_conf in radar detected event\n");
+		goto exit;
+	}
+
 	ath12k_dbg(ar->ab, ATH12K_DBG_REG, "DFS Radar Detected in pdev %d\n",
 		   ev->pdev_id);
 
 	if (ar->dfs_block_radar_events)
 		ath12k_info(ab, "DFS Radar detected, but ignored as requested\n");
 	else
-		ieee80211_radar_detected(ath12k_ar_to_hw(ar), NULL);
+		ieee80211_radar_detected(ath12k_ar_to_hw(ar), arg.chanctx_conf);
 
 exit:
 	rcu_read_unlock();
