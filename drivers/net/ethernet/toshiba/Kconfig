@@ -39,15 +39,6 @@ config GELIC_WIRELESS
 	  the driver automatically distinguishes the models, you can
 	  safely enable this option even if you have a wireless-less model.
 
-config SPIDER_NET
-	tristate "Spider Gigabit Ethernet driver"
-	depends on PCI && PPC_IBM_CELL_BLADE
-	select FW_LOADER
-	select SUNGEM_PHY
-	help
-	  This driver supports the Gigabit Ethernet chips present on the
-	  Cell Processor-Based Blades from IBM.
-
 config TC35815
 	tristate "TOSHIBA TC35815 Ethernet support"
 	depends on PCI && MIPS
