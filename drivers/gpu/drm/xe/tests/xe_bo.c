@@ -606,8 +606,6 @@ static void xe_bo_shrink_kunit(struct kunit *test)
 static struct kunit_case xe_bo_tests[] = {
 	KUNIT_CASE_PARAM(xe_ccs_migrate_kunit, xe_pci_live_device_gen_param),
 	KUNIT_CASE_PARAM(xe_bo_evict_kunit, xe_pci_live_device_gen_param),
-	KUNIT_CASE_PARAM_ATTR(xe_bo_shrink_kunit, xe_pci_live_device_gen_param,
-			      {.speed = KUNIT_SPEED_SLOW}),
 	{}
 };
 
@@ -618,3 +616,17 @@ struct kunit_suite xe_bo_test_suite = {
 	.init = xe_kunit_helper_xe_device_live_test_init,
 };
 EXPORT_SYMBOL_IF_KUNIT(xe_bo_test_suite);
+
+static struct kunit_case xe_bo_shrink_test[] = {
+	KUNIT_CASE_PARAM_ATTR(xe_bo_shrink_kunit, xe_pci_live_device_gen_param,
+			      {.speed = KUNIT_SPEED_SLOW}),
+	{}
+};
+
+VISIBLE_IF_KUNIT
+struct kunit_suite xe_bo_shrink_test_suite = {
+	.name = "xe_bo_shrink",
+	.test_cases = xe_bo_shrink_test,
+	.init = xe_kunit_helper_xe_device_live_test_init,
+};
+EXPORT_SYMBOL_IF_KUNIT(xe_bo_shrink_test_suite);
