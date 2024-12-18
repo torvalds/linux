@@ -893,6 +893,7 @@ struct sdw_master_ops {
  * @multi_link: Store bus property that indicates if multi links
  * are supported. This flag is populated by drivers after reading
  * appropriate firmware (ACPI/DT).
+ * @lane_used_bandwidth: how much bandwidth in bits per second is used by each lane
  */
 struct sdw_bus {
 	struct device *dev;
@@ -924,6 +925,7 @@ struct sdw_bus {
 	struct dentry *debugfs;
 #endif
 	bool multi_link;
+	unsigned int lane_used_bandwidth[SDW_MAX_LANES];
 };
 
 int sdw_bus_master_add(struct sdw_bus *bus, struct device *parent,
