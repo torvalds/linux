@@ -1125,6 +1125,7 @@ static u64 measure_power(struct intel_rps *rps, int *freq)
 static u64 measure_power_at(struct intel_rps *rps, int *freq)
 {
 	*freq = rps_set_check(rps, *freq);
+	msleep(100);
 	return measure_power(rps, freq);
 }
 
