@@ -21,13 +21,4 @@ config SPU_BASE
 	bool
 	select PPC_COPRO_BASE
 
-config CBE_CPUFREQ_SPU_GOVERNOR
-	tristate "CBE frequency scaling based on SPU usage"
-	depends on SPU_FS && CPU_FREQ
-	default m
-	help
-	  This governor checks for spu usage to adjust the cpu frequency.
-	  If no spu is running on a given cpu, that cpu will be throttled to
-	  the minimal possible frequency.
-
 endmenu
