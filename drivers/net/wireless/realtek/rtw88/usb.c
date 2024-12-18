@@ -7,6 +7,7 @@
 #include <linux/mutex.h>
 #include "main.h"
 #include "debug.h"
+#include "mac.h"
 #include "reg.h"
 #include "tx.h"
 #include "rx.h"
@@ -547,49 +548,58 @@ static void rtw_usb_rx_handler(struct work_struct *work)
 {
 	struct rtw_usb *rtwusb = container_of(work, struct rtw_usb, rx_work);
 	struct rtw_dev *rtwdev = rtwusb->rtwdev;
-	const struct rtw_chip_info *chip = rtwdev->chip;
-	u32 pkt_desc_sz = chip->rx_pkt_desc_sz;
 	struct ieee80211_rx_status rx_status;
-	u32 pkt_offset, next_pkt, urb_len;
 	struct rtw_rx_pkt_stat pkt_stat;
-	struct sk_buff *next_skb;
+	struct sk_buff *rx_skb;
 	struct sk_buff *skb;
+	u32 pkt_desc_sz = rtwdev->chip->rx_pkt_desc_sz;
+	u32 max_skb_len = pkt_desc_sz + PHY_STATUS_SIZE * 8 +
+			  IEEE80211_MAX_MPDU_LEN_VHT_11454;
+	u32 pkt_offset, next_pkt, skb_len;
 	u8 *rx_desc;
 	int limit;
 
 	for (limit = 0; limit < 200; limit++) {
-		skb = skb_dequeue(&rtwusb->rx_queue);
-		if (!skb)
+		rx_skb = skb_dequeue(&rtwusb->rx_queue);
+		if (!rx_skb)
 			break;
 
 		if (skb_queue_len(&rtwusb->rx_queue) >= RTW_USB_MAX_RXQ_LEN) {
 			dev_dbg_ratelimited(rtwdev->dev, "failed to get rx_queue, overflow\n");
-			dev_kfree_skb_any(skb);
+			dev_kfree_skb_any(rx_skb);
 			continue;
 		}
 
-		urb_len = skb->len;
+		rx_desc = rx_skb->data;
 
 		do {
-			rx_desc = skb->data;
 			rtw_rx_query_rx_desc(rtwdev, rx_desc, &pkt_stat,
 					     &rx_status);
 			pkt_offset = pkt_desc_sz + pkt_stat.drv_info_sz +
 				     pkt_stat.shift;
 
-			next_pkt = round_up(pkt_stat.pkt_len + pkt_offset, 8);
+			skb_len = pkt_stat.pkt_len + pkt_offset;
+			if (skb_len > max_skb_len) {
+				rtw_dbg(rtwdev, RTW_DBG_USB,
+					"skipping too big packet: %u\n",
+					skb_len);
+				goto skip_packet;
+			}
 
-			if (urb_len >= next_pkt + pkt_desc_sz)
-				next_skb = skb_clone(skb, GFP_KERNEL);
-			else
-				next_skb = NULL;
+			skb = alloc_skb(skb_len, GFP_KERNEL);
+			if (!skb) {
+				rtw_dbg(rtwdev, RTW_DBG_USB,
+					"failed to allocate RX skb of size %u\n",
+					skb_len);
+				goto skip_packet;
+			}
+
+			skb_put_data(skb, rx_desc, skb_len);
 
 			if (pkt_stat.is_c2h) {
-				skb_trim(skb, pkt_stat.pkt_len + pkt_offset);
 				rtw_fw_c2h_cmd_rx_irqsafe(rtwdev, pkt_offset, skb);
 			} else {
 				skb_pull(skb, pkt_offset);
-				skb_trim(skb, pkt_stat.pkt_len);
 				rtw_update_rx_freq_for_invalid(rtwdev, skb,
 							       &rx_status,
 							       &pkt_stat);
@@ -598,12 +608,12 @@ static void rtw_usb_rx_handler(struct work_struct *work)
 				ieee80211_rx_irqsafe(rtwdev->hw, skb);
 			}
 
-			skb = next_skb;
-			if (skb)
-				skb_pull(skb, next_pkt);
+skip_packet:
+			next_pkt = round_up(skb_len, 8);
+			rx_desc += next_pkt;
+		} while (rx_desc + pkt_desc_sz < rx_skb->data + rx_skb->len);
 
-			urb_len -= next_pkt;
-		} while (skb);
+		dev_kfree_skb_any(rx_skb);
 	}
 }
 
