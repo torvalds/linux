@@ -690,11 +690,11 @@ queue_attr_store(struct kobject *kobj, struct attribute *attr,
 			return res;
 	}
 
-	mutex_lock(&q->sysfs_lock);
 	blk_mq_freeze_queue(q);
+	mutex_lock(&q->sysfs_lock);
 	res = entry->store(disk, page, length);
-	blk_mq_unfreeze_queue(q);
 	mutex_unlock(&q->sysfs_lock);
+	blk_mq_unfreeze_queue(q);
 	return res;
 }
 
