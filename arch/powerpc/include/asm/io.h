@@ -277,58 +277,56 @@ extern void _memcpy_toio(volatile void __iomem *dest, const void *src,
 /* Shortcut to the MMIO argument pointer */
 #define PCI_IO_ADDR	volatile void __iomem *
 
-#define PCI_FIX_ADDR(addr) (addr)
-
 /*
  * Non ordered and non-swapping "raw" accessors
  */
 
 static inline unsigned char __raw_readb(const volatile void __iomem *addr)
 {
-	return *(volatile unsigned char __force *)PCI_FIX_ADDR(addr);
+	return *(volatile unsigned char __force *)addr;
 }
 #define __raw_readb __raw_readb
 
 static inline unsigned short __raw_readw(const volatile void __iomem *addr)
 {
-	return *(volatile unsigned short __force *)PCI_FIX_ADDR(addr);
+	return *(volatile unsigned short __force *)addr;
 }
 #define __raw_readw __raw_readw
 
 static inline unsigned int __raw_readl(const volatile void __iomem *addr)
 {
-	return *(volatile unsigned int __force *)PCI_FIX_ADDR(addr);
+	return *(volatile unsigned int __force *)addr;
 }
 #define __raw_readl __raw_readl
 
 static inline void __raw_writeb(unsigned char v, volatile void __iomem *addr)
 {
-	*(volatile unsigned char __force *)PCI_FIX_ADDR(addr) = v;
+	*(volatile unsigned char __force *)addr = v;
 }
 #define __raw_writeb __raw_writeb
 
 static inline void __raw_writew(unsigned short v, volatile void __iomem *addr)
 {
-	*(volatile unsigned short __force *)PCI_FIX_ADDR(addr) = v;
+	*(volatile unsigned short __force *)addr = v;
 }
 #define __raw_writew __raw_writew
 
 static inline void __raw_writel(unsigned int v, volatile void __iomem *addr)
 {
-	*(volatile unsigned int __force *)PCI_FIX_ADDR(addr) = v;
+	*(volatile unsigned int __force *)addr = v;
 }
 #define __raw_writel __raw_writel
 
 #ifdef __powerpc64__
 static inline unsigned long __raw_readq(const volatile void __iomem *addr)
 {
-	return *(volatile unsigned long __force *)PCI_FIX_ADDR(addr);
+	return *(volatile unsigned long __force *)addr;
 }
 #define __raw_readq __raw_readq
 
 static inline void __raw_writeq(unsigned long v, volatile void __iomem *addr)
 {
-	*(volatile unsigned long __force *)PCI_FIX_ADDR(addr) = v;
+	*(volatile unsigned long __force *)addr = v;
 }
 #define __raw_writeq __raw_writeq
 
@@ -507,30 +505,30 @@ __do_out_asm(_rec_outl, "stwbrx")
  * possible to hook directly at the toplevel PIO operation if they have to
  * be handled differently
  */
-#define __do_writeb(val, addr)	out_8(PCI_FIX_ADDR(addr), val)
-#define __do_writew(val, addr)	out_le16(PCI_FIX_ADDR(addr), val)
-#define __do_writel(val, addr)	out_le32(PCI_FIX_ADDR(addr), val)
-#define __do_writeq(val, addr)	out_le64(PCI_FIX_ADDR(addr), val)
-#define __do_writew_be(val, addr) out_be16(PCI_FIX_ADDR(addr), val)
-#define __do_writel_be(val, addr) out_be32(PCI_FIX_ADDR(addr), val)
-#define __do_writeq_be(val, addr) out_be64(PCI_FIX_ADDR(addr), val)
+#define __do_writeb(val, addr)	out_8(addr, val)
+#define __do_writew(val, addr)	out_le16(addr, val)
+#define __do_writel(val, addr)	out_le32(addr, val)
+#define __do_writeq(val, addr)	out_le64(addr, val)
+#define __do_writew_be(val, addr) out_be16(addr, val)
+#define __do_writel_be(val, addr) out_be32(addr, val)
+#define __do_writeq_be(val, addr) out_be64(addr, val)
 
 #ifdef CONFIG_EEH
-#define __do_readb(addr)	eeh_readb(PCI_FIX_ADDR(addr))
-#define __do_readw(addr)	eeh_readw(PCI_FIX_ADDR(addr))
-#define __do_readl(addr)	eeh_readl(PCI_FIX_ADDR(addr))
-#define __do_readq(addr)	eeh_readq(PCI_FIX_ADDR(addr))
-#define __do_readw_be(addr)	eeh_readw_be(PCI_FIX_ADDR(addr))
-#define __do_readl_be(addr)	eeh_readl_be(PCI_FIX_ADDR(addr))
-#define __do_readq_be(addr)	eeh_readq_be(PCI_FIX_ADDR(addr))
+#define __do_readb(addr)	eeh_readb(addr)
+#define __do_readw(addr)	eeh_readw(addr)
+#define __do_readl(addr)	eeh_readl(addr)
+#define __do_readq(addr)	eeh_readq(addr)
+#define __do_readw_be(addr)	eeh_readw_be(addr)
+#define __do_readl_be(addr)	eeh_readl_be(addr)
+#define __do_readq_be(addr)	eeh_readq_be(addr)
 #else /* CONFIG_EEH */
-#define __do_readb(addr)	in_8(PCI_FIX_ADDR(addr))
-#define __do_readw(addr)	in_le16(PCI_FIX_ADDR(addr))
-#define __do_readl(addr)	in_le32(PCI_FIX_ADDR(addr))
-#define __do_readq(addr)	in_le64(PCI_FIX_ADDR(addr))
-#define __do_readw_be(addr)	in_be16(PCI_FIX_ADDR(addr))
-#define __do_readl_be(addr)	in_be32(PCI_FIX_ADDR(addr))
-#define __do_readq_be(addr)	in_be64(PCI_FIX_ADDR(addr))
+#define __do_readb(addr)	in_8(addr)
+#define __do_readw(addr)	in_le16(addr)
+#define __do_readl(addr)	in_le32(addr)
+#define __do_readq(addr)	in_le64(addr)
+#define __do_readw_be(addr)	in_be16(addr)
+#define __do_readl_be(addr)	in_be32(addr)
+#define __do_readq_be(addr)	in_be64(addr)
 #endif /* !defined(CONFIG_EEH) */
 
 #ifdef CONFIG_PPC32
@@ -550,17 +548,17 @@ __do_out_asm(_rec_outl, "stwbrx")
 #endif /* !CONFIG_PPC32 */
 
 #ifdef CONFIG_EEH
-#define __do_readsb(a, b, n)	eeh_readsb(PCI_FIX_ADDR(a), (b), (n))
-#define __do_readsw(a, b, n)	eeh_readsw(PCI_FIX_ADDR(a), (b), (n))
-#define __do_readsl(a, b, n)	eeh_readsl(PCI_FIX_ADDR(a), (b), (n))
+#define __do_readsb(a, b, n)	eeh_readsb(a, (b), (n))
+#define __do_readsw(a, b, n)	eeh_readsw(a, (b), (n))
+#define __do_readsl(a, b, n)	eeh_readsl(a, (b), (n))
 #else /* CONFIG_EEH */
-#define __do_readsb(a, b, n)	_insb(PCI_FIX_ADDR(a), (b), (n))
-#define __do_readsw(a, b, n)	_insw(PCI_FIX_ADDR(a), (b), (n))
-#define __do_readsl(a, b, n)	_insl(PCI_FIX_ADDR(a), (b), (n))
+#define __do_readsb(a, b, n)	_insb(a, (b), (n))
+#define __do_readsw(a, b, n)	_insw(a, (b), (n))
+#define __do_readsl(a, b, n)	_insl(a, (b), (n))
 #endif /* !CONFIG_EEH */
-#define __do_writesb(a, b, n)	_outsb(PCI_FIX_ADDR(a),(b),(n))
-#define __do_writesw(a, b, n)	_outsw(PCI_FIX_ADDR(a),(b),(n))
-#define __do_writesl(a, b, n)	_outsl(PCI_FIX_ADDR(a),(b),(n))
+#define __do_writesb(a, b, n)	_outsb(a, (b), (n))
+#define __do_writesw(a, b, n)	_outsw(a, (b), (n))
+#define __do_writesl(a, b, n)	_outsl(a, (b), (n))
 
 #define __do_insb(p, b, n)	readsb((PCI_IO_ADDR)(_IO_BASE+(p)), (b), (n))
 #define __do_insw(p, b, n)	readsw((PCI_IO_ADDR)(_IO_BASE+(p)), (b), (n))
@@ -570,16 +568,16 @@ __do_out_asm(_rec_outl, "stwbrx")
 #define __do_outsl(p, b, n)	writesl((PCI_IO_ADDR)(_IO_BASE+(p)),(b),(n))
 
 #define __do_memset_io(addr, c, n)	\
-				_memset_io(PCI_FIX_ADDR(addr), c, n)
+				_memset_io(addr, c, n)
 #define __do_memcpy_toio(dst, src, n)	\
-				_memcpy_toio(PCI_FIX_ADDR(dst), src, n)
+				_memcpy_toio(dst, src, n)
 
 #ifdef CONFIG_EEH
 #define __do_memcpy_fromio(dst, src, n)	\
-				eeh_memcpy_fromio(dst, PCI_FIX_ADDR(src), n)
+				eeh_memcpy_fromio(dst, src, n)
 #else /* CONFIG_EEH */
 #define __do_memcpy_fromio(dst, src, n)	\
-				_memcpy_fromio(dst,PCI_FIX_ADDR(src),n)
+				_memcpy_fromio(dst, src, n)
 #endif /* !CONFIG_EEH */
 
 #ifdef CONFIG_PPC_INDIRECT_PIO
