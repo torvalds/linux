@@ -18,6 +18,7 @@
 
 struct sdw_group_params {
 	unsigned int rate;
+	unsigned int lane;
 	int full_bw;
 	int payload_bw;
 	int hwidth;
@@ -27,6 +28,7 @@ struct sdw_group {
 	unsigned int count;
 	unsigned int max_size;
 	unsigned int *rates;
+	unsigned int *lanes;
 };
 
 void sdw_compute_slave_ports(struct sdw_master_runtime *m_rt,
@@ -48,6 +50,9 @@ void sdw_compute_slave_ports(struct sdw_master_runtime *m_rt,
 		slave_total_ch = 0;
 
 		list_for_each_entry(p_rt, &s_rt->port_list, port_node) {
+			if (p_rt->lane != t_data->lane)
+				continue;
+
 			ch = hweight32(p_rt->ch_mask);
 
 			sdw_fill_xport_params(&p_rt->transport_params,
@@ -105,6 +110,8 @@ static void sdw_compute_master_ports(struct sdw_master_runtime *m_rt,
 	t_data.hstart = hstart;
 
 	list_for_each_entry(p_rt, &m_rt->port_list, port_node) {
+		if (p_rt->lane != params->lane)
+			continue;
 
 		sdw_fill_xport_params(&p_rt->transport_params, p_rt->num,
 				      false, SDW_BLK_GRP_CNT_1, sample_int,
@@ -131,6 +138,7 @@ static void sdw_compute_master_ports(struct sdw_master_runtime *m_rt,
 		(*port_bo) += bps * ch;
 	}
 
+	t_data.lane = params->lane;
 	sdw_compute_slave_ports(m_rt, &t_data);
 }
 
@@ -138,69 +146,93 @@ static void _sdw_compute_port_params(struct sdw_bus *bus,
 				     struct sdw_group_params *params, int count)
 {
 	struct sdw_master_runtime *m_rt;
-	int hstop = bus->params.col - 1;
-	int port_bo, i;
+	int port_bo, i, l;
+	int hstop;
 
 	/* Run loop for all groups to compute transport parameters */
-	for (i = 0; i < count; i++) {
-		port_bo = 1;
+	for (l = 0; l < SDW_MAX_LANES; l++) {
+		if (l > 0 && !bus->lane_used_bandwidth[l])
+			continue;
+		/* reset hstop for each lane */
+		hstop = bus->params.col - 1;
+		for (i = 0; i < count; i++) {
+			if (params[i].lane != l)
+				continue;
+			port_bo = 1;
 
-		list_for_each_entry(m_rt, &bus->m_rt_list, bus_node) {
-			sdw_compute_master_ports(m_rt, &params[i], &port_bo, hstop);
+			list_for_each_entry(m_rt, &bus->m_rt_list, bus_node) {
+				sdw_compute_master_ports(m_rt, &params[i], &port_bo, hstop);
+			}
+
+			hstop = hstop - params[i].hwidth;
 		}
-
-		hstop = hstop - params[i].hwidth;
 	}
 }
 
 static int sdw_compute_group_params(struct sdw_bus *bus,
 				    struct sdw_group_params *params,
-				    int *rates, int count)
+				    struct sdw_group *group)
 {
 	struct sdw_master_runtime *m_rt;
+	struct sdw_port_runtime *p_rt;
 	int sel_col = bus->params.col;
 	unsigned int rate, bps, ch;
-	int i, column_needed = 0;
+	int i, l, column_needed;
 
 	/* Calculate bandwidth per group */
-	for (i = 0; i < count; i++) {
-		params[i].rate = rates[i];
+	for (i = 0; i < group->count; i++) {
+		params[i].rate = group->rates[i];
+		params[i].lane = group->lanes[i];
 		params[i].full_bw = bus->params.curr_dr_freq / params[i].rate;
 	}
 
 	list_for_each_entry(m_rt, &bus->m_rt_list, bus_node) {
-		rate = m_rt->stream->params.rate;
-		bps = m_rt->stream->params.bps;
-		ch = m_rt->ch_count;
+		list_for_each_entry(p_rt, &m_rt->port_list, port_node) {
+			rate = m_rt->stream->params.rate;
+			bps = m_rt->stream->params.bps;
+			ch = hweight32(p_rt->ch_mask);
 
-		for (i = 0; i < count; i++) {
-			if (rate == params[i].rate)
-				params[i].payload_bw += bps * ch;
+			for (i = 0; i < group->count; i++) {
+				if (rate == params[i].rate && p_rt->lane == params[i].lane)
+					params[i].payload_bw += bps * ch;
+			}
 		}
 	}
 
-	for (i = 0; i < count; i++) {
-		params[i].hwidth = (sel_col *
-			params[i].payload_bw + params[i].full_bw - 1) /
-			params[i].full_bw;
+	for (l = 0; l < SDW_MAX_LANES; l++) {
+		if (l > 0 && !bus->lane_used_bandwidth[l])
+			continue;
+		/* reset column_needed for each lane */
+		column_needed = 0;
+		for (i = 0; i < group->count; i++) {
+			if (params[i].lane != l)
+				continue;
 
-		column_needed += params[i].hwidth;
+			params[i].hwidth = (sel_col * params[i].payload_bw +
+					    params[i].full_bw - 1) / params[i].full_bw;
+
+			column_needed += params[i].hwidth;
+			/* There is no control column for lane 1 and above */
+			if (column_needed > sel_col)
+				return -EINVAL;
+			/* Column 0 is control column on lane 0 */
+			if (params[i].lane == 0 && column_needed > sel_col - 1)
+				return -EINVAL;
+		}
 	}
 
-	if (column_needed > sel_col - 1)
-		return -EINVAL;
 
 	return 0;
 }
 
 static int sdw_add_element_group_count(struct sdw_group *group,
-				       unsigned int rate)
+				       unsigned int rate, unsigned int lane)
 {
 	int num = group->count;
 	int i;
 
 	for (i = 0; i <= num; i++) {
-		if (rate == group->rates[i])
+		if (rate == group->rates[i] && lane == group->lanes[i])
 			break;
 
 		if (i != num)
@@ -208,6 +240,7 @@ static int sdw_add_element_group_count(struct sdw_group *group,
 
 		if (group->count >= group->max_size) {
 			unsigned int *rates;
+			unsigned int *lanes;
 
 			group->max_size += 1;
 			rates = krealloc(group->rates,
@@ -215,10 +248,20 @@ static int sdw_add_element_group_count(struct sdw_group *group,
 					 GFP_KERNEL);
 			if (!rates)
 				return -ENOMEM;
+
 			group->rates = rates;
+
+			lanes = krealloc(group->lanes,
+					 (sizeof(int) * group->max_size),
+					 GFP_KERNEL);
+			if (!lanes)
+				return -ENOMEM;
+
+			group->lanes = lanes;
 		}
 
-		group->rates[group->count++] = rate;
+		group->rates[group->count] = rate;
+		group->lanes[group->count++] = lane;
 	}
 
 	return 0;
@@ -228,6 +271,7 @@ static int sdw_get_group_count(struct sdw_bus *bus,
 			       struct sdw_group *group)
 {
 	struct sdw_master_runtime *m_rt;
+	struct sdw_port_runtime *p_rt;
 	unsigned int rate;
 	int ret = 0;
 
@@ -236,6 +280,13 @@ static int sdw_get_group_count(struct sdw_bus *bus,
 	group->rates = kcalloc(group->max_size, sizeof(int), GFP_KERNEL);
 	if (!group->rates)
 		return -ENOMEM;
+
+	group->lanes = kcalloc(group->max_size, sizeof(int), GFP_KERNEL);
+	if (!group->lanes) {
+		kfree(group->rates);
+		group->rates = NULL;
+		return -ENOMEM;
+	}
 
 	list_for_each_entry(m_rt, &bus->m_rt_list, bus_node) {
 		if (m_rt->stream->state == SDW_STREAM_DEPREPARED)
@@ -246,11 +297,16 @@ static int sdw_get_group_count(struct sdw_bus *bus,
 					     struct sdw_master_runtime,
 					     bus_node)) {
 			group->rates[group->count++] = rate;
-
-		} else {
-			ret = sdw_add_element_group_count(group, rate);
+		}
+		/*
+		 * Different ports could use different lane, add group element
+		 * even if m_rt is the first entry
+		 */
+		list_for_each_entry(p_rt, &m_rt->port_list, port_node) {
+			ret = sdw_add_element_group_count(group, rate, p_rt->lane);
 			if (ret < 0) {
 				kfree(group->rates);
+				kfree(group->lanes);
 				return ret;
 			}
 		}
@@ -284,8 +340,7 @@ static int sdw_compute_port_params(struct sdw_bus *bus)
 	}
 
 	/* Compute transport parameters for grouped streams */
-	ret = sdw_compute_group_params(bus, params,
-				       &group.rates[0], group.count);
+	ret = sdw_compute_group_params(bus, params, &group);
 	if (ret < 0)
 		goto free_params;
 
@@ -295,6 +350,7 @@ free_params:
 	kfree(params);
 out:
 	kfree(group.rates);
+	kfree(group.lanes);
 
 	return ret;
 }
