@@ -274,10 +274,7 @@ extern void _memcpy_toio(volatile void __iomem *dest, const void *src,
 #include <asm/eeh.h>
 #endif
 
-/* Shortcut to the MMIO argument pointer */
-#define PCI_IO_ADDR	volatile void __iomem *
-
-#define _IO_PORT(port)	((PCI_IO_ADDR)(_IO_BASE + (port)))
+#define _IO_PORT(port)	((volatile void __iomem *)(_IO_BASE + (port)))
 
 /*
  * Non ordered and non-swapping "raw" accessors
@@ -570,133 +567,133 @@ __do_out_asm(_rec_outl, "stwbrx")
 				_memcpy_fromio(dst, src, n)
 #endif /* !CONFIG_EEH */
 
-static inline u8 readb(const PCI_IO_ADDR addr)
+static inline u8 readb(const volatile void __iomem *addr)
 {
 	return __do_readb(addr);
 }
 #define readb readb
 
-static inline u16 readw(const PCI_IO_ADDR addr)
+static inline u16 readw(const volatile void __iomem *addr)
 {
 	return __do_readw(addr);
 }
 #define readw readw
 
-static inline u32 readl(const PCI_IO_ADDR addr)
+static inline u32 readl(const volatile void __iomem *addr)
 {
 	return __do_readl(addr);
 }
 #define readl readl
 
-static inline u16 readw_be(const PCI_IO_ADDR addr)
+static inline u16 readw_be(const volatile void __iomem *addr)
 {
 	return __do_readw_be(addr);
 }
 
-static inline u32 readl_be(const PCI_IO_ADDR addr)
+static inline u32 readl_be(const volatile void __iomem *addr)
 {
 	return __do_readl_be(addr);
 }
 
-static inline void writeb(u8 val, PCI_IO_ADDR addr)
+static inline void writeb(u8 val, volatile void __iomem *addr)
 {
 	out_8(addr, val);
 }
 #define writeb writeb
 
-static inline void writew(u16 val, PCI_IO_ADDR addr)
+static inline void writew(u16 val, volatile void __iomem *addr)
 {
 	out_le16(addr, val);
 }
 #define writew writew
 
-static inline void writel(u32 val, PCI_IO_ADDR addr)
+static inline void writel(u32 val, volatile void __iomem *addr)
 {
 	out_le32(addr, val);
 }
 #define writel writel
 
-static inline void writew_be(u16 val, PCI_IO_ADDR addr)
+static inline void writew_be(u16 val, volatile void __iomem *addr)
 {
 	out_be16(addr, val);
 }
 
-static inline void writel_be(u32 val, PCI_IO_ADDR addr)
+static inline void writel_be(u32 val, volatile void __iomem *addr)
 {
 	out_be32(addr, val);
 }
 
-static inline void readsb(const PCI_IO_ADDR a, void *b, unsigned long c)
+static inline void readsb(const volatile void __iomem *a, void *b, unsigned long c)
 {
 	__do_readsb(a, b, c);
 }
 #define readsb readsb
 
-static inline void readsw(const PCI_IO_ADDR a, void *b, unsigned long c)
+static inline void readsw(const volatile void __iomem *a, void *b, unsigned long c)
 {
 	__do_readsw(a, b, c);
 }
 #define readsw readsw
 
-static inline void readsl(const PCI_IO_ADDR a, void *b, unsigned long c)
+static inline void readsl(const volatile void __iomem *a, void *b, unsigned long c)
 {
 	__do_readsl(a, b, c);
 }
 #define readsl readsl
 
-static inline void writesb(PCI_IO_ADDR a, const void *b, unsigned long c)
+static inline void writesb(volatile void __iomem *a, const void *b, unsigned long c)
 {
 	__do_writesb(a, b, c);
 }
 #define writesb writesb
 
-static inline void writesw(PCI_IO_ADDR a, const void *b, unsigned long c)
+static inline void writesw(volatile void __iomem *a, const void *b, unsigned long c)
 {
 	__do_writesw(a, b, c);
 }
 #define writesw writesw
 
-static inline void writesl(PCI_IO_ADDR a, const void *b, unsigned long c)
+static inline void writesl(volatile void __iomem *a, const void *b, unsigned long c)
 {
 	__do_writesl(a, b, c);
 }
 #define writesl writesl
 
-static inline void memset_io(PCI_IO_ADDR a, int c, unsigned long n)
+static inline void memset_io(volatile void __iomem *a, int c, unsigned long n)
 {
 	_memset_io(a, c, n);
 }
 #define memset_io memset_io
 
-static inline void memcpy_fromio(void *d, const PCI_IO_ADDR s, unsigned long n)
+static inline void memcpy_fromio(void *d, const volatile void __iomem *s, unsigned long n)
 {
 	__do_memcpy_fromio(d, s, n);
 }
 #define memcpy_fromio memcpy_fromio
 
-static inline void memcpy_toio(PCI_IO_ADDR d, const void *s, unsigned long n)
+static inline void memcpy_toio(volatile void __iomem *d, const void *s, unsigned long n)
 {
 	_memcpy_toio(d, s, n);
 }
 #define memcpy_toio memcpy_toio
 
 #ifdef __powerpc64__
-static inline u64 readq(const PCI_IO_ADDR addr)
+static inline u64 readq(const volatile void __iomem *addr)
 {
 	return __do_readq(addr);
 }
 
-static inline u64 readq_be(const PCI_IO_ADDR addr)
+static inline u64 readq_be(const volatile void __iomem *addr)
 {
 	return __do_readq_be(addr);
 }
 
-static inline void writeq(u64 val, PCI_IO_ADDR addr)
+static inline void writeq(u64 val, volatile void __iomem *addr)
 {
 	out_le64(addr, val);
 }
 
-static inline void writeq_be(u64 val, PCI_IO_ADDR addr)
+static inline void writeq_be(u64 val, volatile void __iomem *addr)
 {
 	out_be64(addr, val);
 }
