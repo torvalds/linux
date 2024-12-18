@@ -5,7 +5,6 @@
  */
 
 #include <linux/err.h>
-#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -32,7 +31,6 @@ struct pca9450_regulator_desc {
 struct pca9450 {
 	struct device *dev;
 	struct regmap *regmap;
-	struct gpio_desc *sd_vsel_gpio;
 	enum pca9450_chip_type type;
 	unsigned int rcnt;
 	int irq;
@@ -1030,17 +1028,6 @@ static int pca9450_i2c_probe(struct i2c_client *i2c)
 			return dev_err_probe(&i2c->dev, ret,
 					     "Failed to enable I2C level translator\n");
 	}
-
-	/*
-	 * The driver uses the LDO5CTRL_H register to control the LDO5 regulator.
-	 * This is only valid if the SD_VSEL input of the PMIC is high. Let's
-	 * check if the pin is available as GPIO and set it to high.
-	 */
-	pca9450->sd_vsel_gpio = gpiod_get_optional(pca9450->dev, "sd-vsel", GPIOD_OUT_HIGH);
-
-	if (IS_ERR(pca9450->sd_vsel_gpio))
-		return dev_err_probe(&i2c->dev, PTR_ERR(pca9450->sd_vsel_gpio),
-				     "Failed to get SD_VSEL GPIO\n");
 
 	dev_info(&i2c->dev, "%s probed.\n",
 		type == PCA9450_TYPE_PCA9450A ? "pca9450a" :
