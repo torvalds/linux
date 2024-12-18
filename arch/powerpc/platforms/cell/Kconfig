@@ -21,15 +21,6 @@ config SPU_BASE
 	bool
 	select PPC_COPRO_BASE
 
-config PPC_PMI
-	tristate
-	default y
-	depends on CPU_FREQ_CBE_PMI || PPC_IBM_CELL_POWERBUTTON
-	help
-	  PMI (Platform Management Interrupt) is a way to
-	  communicate with the BMC (Baseboard Management Controller).
-	  It is used in some IBM Cell blades.
-
 config CBE_CPUFREQ_SPU_GOVERNOR
 	tristate "CBE frequency scaling based on SPU usage"
 	depends on SPU_FS && CPU_FREQ
