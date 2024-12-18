@@ -373,7 +373,8 @@ static int sdw_compute_bus_params(struct sdw_bus *bus)
 				(bus->params.max_dr_freq >>  clk_buf[i]) :
 				clk_buf[i] * SDW_DOUBLE_RATE_FACTOR;
 
-		if (curr_dr_freq <= bus->params.bandwidth)
+		if (curr_dr_freq * (mstr_prop->default_col - 1) <
+		    bus->params.bandwidth * mstr_prop->default_col)
 			continue;
 
 		break;
