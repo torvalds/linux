@@ -92,6 +92,7 @@ struct ksz_chip_data {
 	bool supports_rgmii[KSZ_MAX_NUM_PORTS];
 	bool internal_phy[KSZ_MAX_NUM_PORTS];
 	bool gbit_capable[KSZ_MAX_NUM_PORTS];
+	bool ptp_capable;
 	const struct regmap_access_table *wr_table;
 	const struct regmap_access_table *rd_table;
 };
