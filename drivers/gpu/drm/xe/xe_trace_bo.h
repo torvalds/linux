@@ -190,16 +190,19 @@ DECLARE_EVENT_CLASS(xe_vm,
 			     __string(dev, __dev_name_vm(vm))
 			     __field(struct xe_vm *, vm)
 			     __field(u32, asid)
+			     __field(u32, flags)
 			     ),
 
 		    TP_fast_assign(
 			   __assign_str(dev);
 			   __entry->vm = vm;
 			   __entry->asid = vm->usm.asid;
+			   __entry->flags = vm->flags;
 			   ),
 
-		    TP_printk("dev=%s, vm=%p, asid=0x%05x", __get_str(dev),
-			      __entry->vm, __entry->asid)
+		    TP_printk("dev=%s, vm=%p, asid=0x%05x, vm flags=0x%05x",
+			      __get_str(dev), __entry->vm, __entry->asid,
+			      __entry->flags)
 );
 
 DEFINE_EVENT(xe_vm, xe_vm_kill,
