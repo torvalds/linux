@@ -1,22 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0-only
-config CPU_FREQ_CBE
-	tristate "CBE frequency scaling"
-	depends on CBE_RAS && PPC_CELL
-	default m
-	help
-	  This adds the cpufreq driver for Cell BE processors.
-	  For details, take a look at <file:Documentation/cpu-freq/>.
-	  If you don't have such processor, say N
-
-config CPU_FREQ_CBE_PMI
-	bool "CBE frequency scaling using PMI interface"
-	depends on CPU_FREQ_CBE
-	default n
-	help
-	  Select this, if you want to use the PMI interface to switch
-	  frequencies. Using PMI, the processor will not only be able to run at
-	  lower speed, but also at lower core voltage.
-
 config CPU_FREQ_PMAC
 	bool "Support for Apple PowerBooks"
 	depends on ADB_PMU && PPC32
