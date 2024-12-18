@@ -357,13 +357,13 @@ static int fsl_asrc_m2m_comp_set_params(struct snd_compr_stream *stream,
 	if (ret)
 		return -EINVAL;
 
-	if (pcm_format_to_bits(params->codec.format) & cap.fmt_in)
-		pair->sample_format[IN] = params->codec.format;
+	if (pcm_format_to_bits((__force snd_pcm_format_t)params->codec.format) & cap.fmt_in)
+		pair->sample_format[IN] = (__force snd_pcm_format_t)params->codec.format;
 	else
 		return -EINVAL;
 
-	if (pcm_format_to_bits(params->codec.pcm_format) & cap.fmt_out)
-		pair->sample_format[OUT] = params->codec.pcm_format;
+	if (pcm_format_to_bits((__force snd_pcm_format_t)params->codec.pcm_format) & cap.fmt_out)
+		pair->sample_format[OUT] = (__force snd_pcm_format_t)params->codec.pcm_format;
 	else
 		return -EINVAL;
 
@@ -592,7 +592,7 @@ static int fsl_asrc_m2m_fill_codec_caps(struct fsl_asrc *asrc,
 			       cap.rate_in,
 			       cap.rate_in_count * sizeof(__u32));
 			codec->descriptor[j].num_sample_rates = cap.rate_in_count;
-			codec->descriptor[j].formats = k;
+			codec->descriptor[j].formats = (__force __u32)k;
 			codec->descriptor[j].pcm_formats = cap.fmt_out;
 			codec->descriptor[j].src.out_sample_rate_min = cap.rate_out[0];
 			codec->descriptor[j].src.out_sample_rate_max =
