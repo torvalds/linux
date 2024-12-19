@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0
 
-from lib.py import ksft_run, ksft_exit, ksft_eq, KsftSkipEx
-from lib.py import EthtoolFamily, NetdevFamily
+from lib.py import ksft_disruptive, ksft_exit, ksft_run
+from lib.py import ksft_eq, ksft_raises, KsftSkipEx
+from lib.py import EthtoolFamily, NetdevFamily, NlError
 from lib.py import NetDrvEnv
-from lib.py import cmd
+from lib.py import cmd, defer, ip
+import errno
 import glob
 
 
@@ -59,9 +61,27 @@ def addremove_queues(cfg, nl) -> None:
     ksft_eq(queues, expected)
 
 
+@ksft_disruptive
+def check_down(cfg, nl) -> None:
+    # Check the NAPI IDs before interface goes down and hides them
+    napis = nl.napi_get({'ifindex': cfg.ifindex}, dump=True)
+
+    ip(f"link set dev {cfg.dev['ifname']} down")
+    defer(ip, f"link set dev {cfg.dev['ifname']} up")
+
+    with ksft_raises(NlError) as cm:
+        nl.queue_get({'ifindex': cfg.ifindex, 'id': 0, 'type': 'rx'})
+    ksft_eq(cm.exception.nl_msg.error, -errno.ENOENT)
+
+    if napis:
+        with ksft_raises(NlError) as cm:
+            nl.napi_get({'id': napis[0]['id']})
+        ksft_eq(cm.exception.nl_msg.error, -errno.ENOENT)
+
+
 def main() -> None:
     with NetDrvEnv(__file__, queue_count=100) as cfg:
-        ksft_run([get_queues, addremove_queues], args=(cfg, NetdevFamily()))
+        ksft_run([get_queues, addremove_queues, check_down], args=(cfg, NetdevFamily()))
     ksft_exit()
 
 
