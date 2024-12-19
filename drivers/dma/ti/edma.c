@@ -2460,10 +2460,10 @@ static int edma_probe(struct platform_device *pdev)
 			goto err_reg1;
 		}
 
-		for (i = 0;; i++) {
+		for (i = 0; i < ecc->num_tc; i++) {
 			ret = of_parse_phandle_with_fixed_args(node, "ti,tptcs",
 							       1, i, &tc_args);
-			if (ret || i == ecc->num_tc)
+			if (ret)
 				break;
 
 			ecc->tc_list[i].node = tc_args.np;
