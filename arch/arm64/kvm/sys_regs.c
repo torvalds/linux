@@ -658,143 +658,78 @@ static void dbg_to_reg(struct kvm_vcpu *vcpu,
 	p->regval = (*dbg_reg & mask) >> shift;
 }
 
-static bool trap_bvr(struct kvm_vcpu *vcpu,
-		     struct sys_reg_params *p,
-		     const struct sys_reg_desc *rd)
+static u64 *demux_wb_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd)
 {
-	u64 *dbg_reg = &vcpu->arch.vcpu_debug_state.dbg_bvr[rd->CRm];
+	struct kvm_guest_debug_arch *dbg = &vcpu->arch.vcpu_debug_state;
+
+	switch (rd->Op2) {
+	case 0b100:
+		return &dbg->dbg_bvr[rd->CRm];
+	case 0b101:
+		return &dbg->dbg_bcr[rd->CRm];
+	case 0b110:
+		return &dbg->dbg_wvr[rd->CRm];
+	case 0b111:
+		return &dbg->dbg_wcr[rd->CRm];
+	default:
+		KVM_BUG_ON(1, vcpu->kvm);
+		return NULL;
+	}
+}
+
+static bool trap_dbg_wb_reg(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
+			    const struct sys_reg_desc *rd)
+{
+	u64 *reg = demux_wb_reg(vcpu, rd);
+
+	if (!reg)
+		return false;
 
 	if (p->is_write)
-		reg_to_dbg(vcpu, p, rd, dbg_reg);
+		reg_to_dbg(vcpu, p, rd, reg);
 	else
-		dbg_to_reg(vcpu, p, rd, dbg_reg);
+		dbg_to_reg(vcpu, p, rd, reg);
 
 	return true;
 }
 
-static int set_bvr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
-		   u64 val)
+static int set_dbg_wb_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
+			  u64 val)
 {
-	vcpu->arch.vcpu_debug_state.dbg_bvr[rd->CRm] = val;
+	u64 *reg = demux_wb_reg(vcpu, rd);
+
+	if (!reg)
+		return -EINVAL;
+
+	*reg = val;
 	return 0;
 }
 
-static int get_bvr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
-		   u64 *val)
+static int get_dbg_wb_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
+			  u64 *val)
 {
-	*val = vcpu->arch.vcpu_debug_state.dbg_bvr[rd->CRm];
+	u64 *reg = demux_wb_reg(vcpu, rd);
+
+	if (!reg)
+		return -EINVAL;
+
+	*val = *reg;
 	return 0;
 }
 
-static u64 reset_bvr(struct kvm_vcpu *vcpu,
-		      const struct sys_reg_desc *rd)
+static u64 reset_dbg_wb_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd)
 {
-	vcpu->arch.vcpu_debug_state.dbg_bvr[rd->CRm] = rd->val;
-	return rd->val;
-}
+	u64 *reg = demux_wb_reg(vcpu, rd);
 
-static bool trap_bcr(struct kvm_vcpu *vcpu,
-		     struct sys_reg_params *p,
-		     const struct sys_reg_desc *rd)
-{
-	u64 *dbg_reg = &vcpu->arch.vcpu_debug_state.dbg_bcr[rd->CRm];
+	/*
+	 * Bail early if we couldn't find storage for the register, the
+	 * KVM_BUG_ON() in demux_wb_reg() will prevent this VM from ever
+	 * being run.
+	 */
+	if (!reg)
+		return 0;
 
-	if (p->is_write)
-		reg_to_dbg(vcpu, p, rd, dbg_reg);
-	else
-		dbg_to_reg(vcpu, p, rd, dbg_reg);
-
-	return true;
-}
-
-static int set_bcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
-		   u64 val)
-{
-	vcpu->arch.vcpu_debug_state.dbg_bcr[rd->CRm] = val;
-	return 0;
-}
-
-static int get_bcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
-		   u64 *val)
-{
-	*val = vcpu->arch.vcpu_debug_state.dbg_bcr[rd->CRm];
-	return 0;
-}
-
-static u64 reset_bcr(struct kvm_vcpu *vcpu,
-		      const struct sys_reg_desc *rd)
-{
-	vcpu->arch.vcpu_debug_state.dbg_bcr[rd->CRm] = rd->val;
-	return rd->val;
-}
-
-static bool trap_wvr(struct kvm_vcpu *vcpu,
-		     struct sys_reg_params *p,
-		     const struct sys_reg_desc *rd)
-{
-	u64 *dbg_reg = &vcpu->arch.vcpu_debug_state.dbg_wvr[rd->CRm];
-
-	if (p->is_write)
-		reg_to_dbg(vcpu, p, rd, dbg_reg);
-	else
-		dbg_to_reg(vcpu, p, rd, dbg_reg);
-
-	return true;
-}
-
-static int set_wvr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
-		   u64 val)
-{
-	vcpu->arch.vcpu_debug_state.dbg_wvr[rd->CRm] = val;
-	return 0;
-}
-
-static int get_wvr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
-		   u64 *val)
-{
-	*val = vcpu->arch.vcpu_debug_state.dbg_wvr[rd->CRm];
-	return 0;
-}
-
-static u64 reset_wvr(struct kvm_vcpu *vcpu,
-		      const struct sys_reg_desc *rd)
-{
-	vcpu->arch.vcpu_debug_state.dbg_wvr[rd->CRm] = rd->val;
-	return rd->val;
-}
-
-static bool trap_wcr(struct kvm_vcpu *vcpu,
-		     struct sys_reg_params *p,
-		     const struct sys_reg_desc *rd)
-{
-	u64 *dbg_reg = &vcpu->arch.vcpu_debug_state.dbg_wcr[rd->CRm];
-
-	if (p->is_write)
-		reg_to_dbg(vcpu, p, rd, dbg_reg);
-	else
-		dbg_to_reg(vcpu, p, rd, dbg_reg);
-
-	return true;
-}
-
-static int set_wcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
-		   u64 val)
-{
-	vcpu->arch.vcpu_debug_state.dbg_wcr[rd->CRm] = val;
-	return 0;
-}
-
-static int get_wcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
-		   u64 *val)
-{
-	*val = vcpu->arch.vcpu_debug_state.dbg_wcr[rd->CRm];
-	return 0;
-}
-
-static u64 reset_wcr(struct kvm_vcpu *vcpu,
-		      const struct sys_reg_desc *rd)
-{
-	vcpu->arch.vcpu_debug_state.dbg_wcr[rd->CRm] = rd->val;
+	*reg = rd->val;
 	return rd->val;
 }
 
@@ -1303,13 +1238,17 @@ static int set_pmcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
 /* Silly macro to expand the DBG{BCR,BVR,WVR,WCR}n_EL1 registers in one go */
 #define DBG_BCR_BVR_WCR_WVR_EL1(n)					\
 	{ SYS_DESC(SYS_DBGBVRn_EL1(n)),					\
-	  trap_bvr, reset_bvr, 0, 0, get_bvr, set_bvr },		\
+	  trap_dbg_wb_reg, reset_dbg_wb_reg, 0, 0,			\
+	  get_dbg_wb_reg, set_dbg_wb_reg },				\
 	{ SYS_DESC(SYS_DBGBCRn_EL1(n)),					\
-	  trap_bcr, reset_bcr, 0, 0, get_bcr, set_bcr },		\
+	  trap_dbg_wb_reg, reset_dbg_wb_reg, 0, 0,			\
+	  get_dbg_wb_reg, set_dbg_wb_reg },				\
 	{ SYS_DESC(SYS_DBGWVRn_EL1(n)),					\
-	  trap_wvr, reset_wvr, 0, 0,  get_wvr, set_wvr },		\
+	  trap_dbg_wb_reg, reset_dbg_wb_reg, 0, 0,			\
+	  get_dbg_wb_reg, set_dbg_wb_reg },				\
 	{ SYS_DESC(SYS_DBGWCRn_EL1(n)),					\
-	  trap_wcr, reset_wcr, 0, 0,  get_wcr, set_wcr }
+	  trap_dbg_wb_reg, reset_dbg_wb_reg, 0, 0,			\
+	  get_dbg_wb_reg, set_dbg_wb_reg }
 
 #define PMU_SYS_REG(name)						\
 	SYS_DESC(SYS_##name), .reset = reset_pmu_reg,			\
@@ -3523,18 +3462,20 @@ static bool trap_dbgdidr(struct kvm_vcpu *vcpu,
  * None of the other registers share their location, so treat them as
  * if they were 64bit.
  */
-#define DBG_BCR_BVR_WCR_WVR(n)						      \
-	/* DBGBVRn */							      \
-	{ AA32(LO), Op1( 0), CRn( 0), CRm((n)), Op2( 4), trap_bvr, NULL, n }, \
-	/* DBGBCRn */							      \
-	{ Op1( 0), CRn( 0), CRm((n)), Op2( 5), trap_bcr, NULL, n },	      \
-	/* DBGWVRn */							      \
-	{ Op1( 0), CRn( 0), CRm((n)), Op2( 6), trap_wvr, NULL, n },	      \
-	/* DBGWCRn */							      \
-	{ Op1( 0), CRn( 0), CRm((n)), Op2( 7), trap_wcr, NULL, n }
+#define DBG_BCR_BVR_WCR_WVR(n)							\
+	/* DBGBVRn */								\
+	{ AA32(LO), Op1( 0), CRn( 0), CRm((n)), Op2( 4),			\
+	  trap_dbg_wb_reg, NULL, n },						\
+	/* DBGBCRn */								\
+	{ Op1( 0), CRn( 0), CRm((n)), Op2( 5), trap_dbg_wb_reg, NULL, n },	\
+	/* DBGWVRn */								\
+	{ Op1( 0), CRn( 0), CRm((n)), Op2( 6), trap_dbg_wb_reg, NULL, n },	\
+	/* DBGWCRn */								\
+	{ Op1( 0), CRn( 0), CRm((n)), Op2( 7), trap_dbg_wb_reg, NULL, n }
 
-#define DBGBXVR(n)							      \
-	{ AA32(HI), Op1( 0), CRn( 1), CRm((n)), Op2( 1), trap_bvr, NULL, n }
+#define DBGBXVR(n)								\
+	{ AA32(HI), Op1( 0), CRn( 1), CRm((n)), Op2( 1),			\
+	  trap_dbg_wb_reg, NULL, n }
 
 /*
  * Trapped cp14 registers. We generally ignore most of the external
