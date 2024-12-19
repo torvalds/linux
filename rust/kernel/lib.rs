@@ -59,6 +59,7 @@ pub mod net;
 pub mod of;
 pub mod page;
 pub mod pid_namespace;
+pub mod platform;
 pub mod prelude;
 pub mod print;
 pub mod rbtree;
