@@ -2345,14 +2345,14 @@ inject:
 	return true;
 }
 
-static bool forward_traps(struct kvm_vcpu *vcpu, u64 control_bit)
+static bool __forward_traps(struct kvm_vcpu *vcpu, unsigned int reg, u64 control_bit)
 {
 	bool control_bit_set;
 
 	if (!vcpu_has_nv(vcpu))
 		return false;
 
-	control_bit_set = __vcpu_sys_reg(vcpu, HCR_EL2) & control_bit;
+	control_bit_set = __vcpu_sys_reg(vcpu, reg) & control_bit;
 	if (!is_hyp_ctxt(vcpu) && control_bit_set) {
 		kvm_inject_nested_sync(vcpu, kvm_vcpu_get_esr(vcpu));
 		return true;
@@ -2360,9 +2360,24 @@ static bool forward_traps(struct kvm_vcpu *vcpu, u64 control_bit)
 	return false;
 }
 
+static bool forward_hcr_traps(struct kvm_vcpu *vcpu, u64 control_bit)
+{
+	return __forward_traps(vcpu, HCR_EL2, control_bit);
+}
+
 bool forward_smc_trap(struct kvm_vcpu *vcpu)
 {
-	return forward_traps(vcpu, HCR_TSC);
+	return forward_hcr_traps(vcpu, HCR_TSC);
+}
+
+static bool forward_mdcr_traps(struct kvm_vcpu *vcpu, u64 control_bit)
+{
+	return __forward_traps(vcpu, MDCR_EL2, control_bit);
+}
+
+bool forward_debug_exception(struct kvm_vcpu *vcpu)
+{
+	return forward_mdcr_traps(vcpu, MDCR_EL2_TDE);
 }
 
 static u64 kvm_check_illegal_exception_return(struct kvm_vcpu *vcpu, u64 spsr)
@@ -2406,7 +2421,7 @@ void kvm_emulate_nested_eret(struct kvm_vcpu *vcpu)
 	 * Forward this trap to the virtual EL2 if the virtual
 	 * HCR_EL2.NV bit is set and this is coming from !EL2.
 	 */
-	if (forward_traps(vcpu, HCR_NV))
+	if (forward_hcr_traps(vcpu, HCR_NV))
 		return;
 
 	spsr = vcpu_read_sys_reg(vcpu, SPSR_EL2);

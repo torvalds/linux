@@ -183,6 +183,9 @@ static int kvm_handle_guest_debug(struct kvm_vcpu *vcpu)
 	struct kvm_run *run = vcpu->run;
 	u64 esr = kvm_vcpu_get_esr(vcpu);
 
+	if (!vcpu->guest_debug && forward_debug_exception(vcpu))
+		return 1;
+
 	run->exit_reason = KVM_EXIT_DEBUG;
 	run->debug.arch.hsr = lower_32_bits(esr);
 	run->debug.arch.hsr_high = upper_32_bits(esr);
