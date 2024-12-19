@@ -46,6 +46,9 @@ properties:
               - mediatek,mt8186-disp-ovl
               - mediatek,mt8365-disp-ovl
           - const: mediatek,mt8192-disp-ovl
+      - items:
+          - const: mediatek,mt8188-mdp3-ovl
+          - const: mediatek,mt8195-mdp3-ovl
 
   reg:
     maxItems: 1
