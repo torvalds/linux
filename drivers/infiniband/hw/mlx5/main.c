@@ -2839,7 +2839,7 @@ static int mlx5_ib_get_plane_num(struct mlx5_core_dev *mdev, u8 *num_plane)
 	int err;
 
 	*num_plane = 0;
-	if (!MLX5_CAP_GEN(mdev, ib_virt))
+	if (!MLX5_CAP_GEN(mdev, ib_virt) || !MLX5_CAP_GEN_2(mdev, multiplane))
 		return 0;
 
 	err = mlx5_query_hca_vport_context(mdev, 0, 1, 0, &vport_ctx);

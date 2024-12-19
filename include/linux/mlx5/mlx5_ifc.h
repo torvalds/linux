@@ -2119,7 +2119,9 @@ struct mlx5_ifc_cmd_hca_cap_2_bits {
 	u8	   migration_in_chunks[0x1];
 	u8	   reserved_at_d1[0x1];
 	u8	   sf_eq_usage[0x1];
-	u8	   reserved_at_d3[0xd];
+	u8	   reserved_at_d3[0x5];
+	u8	   multiplane[0x1];
+	u8	   reserved_at_d9[0x7];
 
 	u8	   cross_vhca_object_to_object_supported[0x20];
 
