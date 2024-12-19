@@ -15,12 +15,13 @@
 .. toctree::
    :maxdepth: 1
 
+   lsm
+
 TODOLIST:
 * credentials
 * snp-tdx-threat-model
 * IMA-templates
 * keys/index
-* lsm
 * lsm-development
 * sak
 * SCTP
