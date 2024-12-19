@@ -2527,6 +2527,20 @@ struct fmt {
 	enum format_state state;
 };
 
+#define SPEC_CHAR(x, flag) [(x)-32] = flag
+static unsigned char spec_flag(unsigned char c)
+{
+	static const unsigned char spec_flag_array[] = {
+		SPEC_CHAR(' ', SPACE),
+		SPEC_CHAR('#', SPECIAL),
+		SPEC_CHAR('+', PLUS),
+		SPEC_CHAR('-', LEFT),
+		SPEC_CHAR('0', ZEROPAD),
+	};
+	c -= 32;
+	return (c < sizeof(spec_flag_array)) ? spec_flag_array[c] : 0;
+}
+
 /*
  * Helper function to decode printf style format.
  * Each call decode a token from the format and return the
@@ -2552,7 +2566,7 @@ static noinline_for_stack
 struct fmt format_decode(struct fmt fmt, struct printf_spec *spec)
 {
 	const char *start = fmt.str;
-	char qualifier;
+	char flag, qualifier;
 
 	/* we finished early by reading the field width */
 	if (fmt.state == FORMAT_STATE_WIDTH) {
@@ -2585,26 +2599,13 @@ struct fmt format_decode(struct fmt fmt, struct printf_spec *spec)
 	if (fmt.str != start || !*fmt.str)
 		return fmt;
 
-	/* Process flags */
+	/* Process flags. This also skips the first '%' */
 	spec->flags = 0;
-
-	while (1) { /* this also skips first '%' */
-		bool found = true;
-
-		fmt.str++;
-
-		switch (*fmt.str) {
-		case '-': spec->flags |= LEFT;    break;
-		case '+': spec->flags |= PLUS;    break;
-		case ' ': spec->flags |= SPACE;   break;
-		case '#': spec->flags |= SPECIAL; break;
-		case '0': spec->flags |= ZEROPAD; break;
-		default:  found = false;
-		}
-
-		if (!found)
-			break;
-	}
+	do {
+		/* this also skips first '%' */
+		flag = spec_flag(*++fmt.str);
+		spec->flags |= flag;
+	} while (flag);
 
 	/* get field width */
 	spec->field_width = -1;
