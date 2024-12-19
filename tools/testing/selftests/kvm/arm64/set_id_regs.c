@@ -346,7 +346,7 @@ static uint64_t test_reg_set_success(struct kvm_vcpu *vcpu, uint64_t reg,
 	uint64_t mask = ftr_bits->mask;
 	uint64_t val, new_val, ftr;
 
-	vcpu_get_reg(vcpu, reg, &val);
+	val = vcpu_get_reg(vcpu, reg);
 	ftr = (val & mask) >> shift;
 
 	ftr = get_safe_value(ftr_bits, ftr);
@@ -356,7 +356,7 @@ static uint64_t test_reg_set_success(struct kvm_vcpu *vcpu, uint64_t reg,
 	val |= ftr;
 
 	vcpu_set_reg(vcpu, reg, val);
-	vcpu_get_reg(vcpu, reg, &new_val);
+	new_val = vcpu_get_reg(vcpu, reg);
 	TEST_ASSERT_EQ(new_val, val);
 
 	return new_val;
@@ -370,7 +370,7 @@ static void test_reg_set_fail(struct kvm_vcpu *vcpu, uint64_t reg,
 	uint64_t val, old_val, ftr;
 	int r;
 
-	vcpu_get_reg(vcpu, reg, &val);
+	val = vcpu_get_reg(vcpu, reg);
 	ftr = (val & mask) >> shift;
 
 	ftr = get_invalid_value(ftr_bits, ftr);
@@ -384,7 +384,7 @@ static void test_reg_set_fail(struct kvm_vcpu *vcpu, uint64_t reg,
 	TEST_ASSERT(r < 0 && errno == EINVAL,
 		    "Unexpected KVM_SET_ONE_REG error: r=%d, errno=%d", r, errno);
 
-	vcpu_get_reg(vcpu, reg, &val);
+	val = vcpu_get_reg(vcpu, reg);
 	TEST_ASSERT_EQ(val, old_val);
 }
 
@@ -471,7 +471,7 @@ static void test_user_set_mpam_reg(struct kvm_vcpu *vcpu)
 	}
 
 	/* Get the id register value */
-	vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64PFR0_EL1), &val);
+	val = vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64PFR0_EL1));
 
 	/* Try to set MPAM=0. This should always be possible. */
 	val &= ~ID_AA64PFR0_EL1_MPAM_MASK;
@@ -508,7 +508,7 @@ static void test_user_set_mpam_reg(struct kvm_vcpu *vcpu)
 	}
 
 	/* Get the id register value */
-	vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64PFR1_EL1), &val);
+	val = vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64PFR1_EL1));
 
 	/* Try to set MPAM_frac=0. This should always be possible. */
 	val &= ~ID_AA64PFR1_EL1_MPAM_frac_MASK;
@@ -576,7 +576,7 @@ static void test_clidr(struct kvm_vcpu *vcpu)
 	uint64_t clidr;
 	int level;
 
-	vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_CLIDR_EL1), &clidr);
+	clidr = vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_CLIDR_EL1));
 
 	/* find the first empty level in the cache hierarchy */
 	for (level = 1; level < 7; level++) {
@@ -601,7 +601,7 @@ static void test_ctr(struct kvm_vcpu *vcpu)
 {
 	u64 ctr;
 
-	vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_CTR_EL0), &ctr);
+	ctr = vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_CTR_EL0));
 	ctr &= ~CTR_EL0_DIC_MASK;
 	if (ctr & CTR_EL0_IminLine_MASK)
 		ctr--;
@@ -617,7 +617,7 @@ static void test_vcpu_ftr_id_regs(struct kvm_vcpu *vcpu)
 	test_clidr(vcpu);
 	test_ctr(vcpu);
 
-	vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_MPIDR_EL1), &val);
+	val = vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_MPIDR_EL1));
 	val++;
 	vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_MPIDR_EL1), val);
 
@@ -630,7 +630,7 @@ static void test_assert_id_reg_unchanged(struct kvm_vcpu *vcpu, uint32_t encodin
 	size_t idx = encoding_to_range_idx(encoding);
 	uint64_t observed;
 
-	vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(encoding), &observed);
+	observed = vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(encoding));
 	TEST_ASSERT_EQ(test_reg_vals[idx], observed);
 }
 
@@ -665,7 +665,7 @@ int main(void)
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 
 	/* Check for AARCH64 only system */
-	vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64PFR0_EL1), &val);
+	val = vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64PFR0_EL1));
 	el0 = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64PFR0_EL1_EL0), val);
 	aarch64_only = (el0 == ID_AA64PFR0_EL1_ELx_64BIT_ONLY);
 

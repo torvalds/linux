@@ -1,10 +1,4 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/*
- * tools/testing/selftests/kvm/include/x86_64/svm.h
- * This is a copy of arch/x86/include/asm/svm.h
- *
- */
-
 #ifndef SELFTEST_KVM_SVM_H
 #define SELFTEST_KVM_SVM_H
 

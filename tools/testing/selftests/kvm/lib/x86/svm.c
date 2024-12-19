@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * tools/testing/selftests/kvm/lib/x86_64/svm.c
  * Helpers used for nested SVM testing
  * Largely inspired from KVM unit test svm.c
  *

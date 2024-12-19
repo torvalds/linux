@@ -17,9 +17,9 @@
 #include <processor.h>
 
 /*
- * s390x needs at least 1MB alignment, and the x86_64 MOVE/DELETE tests need a
- * 2MB sized and aligned region so that the initial region corresponds to
- * exactly one large page.
+ * s390 needs at least 1MB alignment, and the x86 MOVE/DELETE tests need a 2MB
+ * sized and aligned region so that the initial region corresponds to exactly
+ * one large page.
  */
 #define MEM_REGION_SIZE		0x200000
 

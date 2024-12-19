@@ -173,7 +173,7 @@ static void test_fw_regs_before_vm_start(struct kvm_vcpu *vcpu)
 		const struct kvm_fw_reg_info *reg_info = &fw_reg_info[i];
 
 		/* First 'read' should be an upper limit of the features supported */
-		vcpu_get_reg(vcpu, reg_info->reg, &val);
+		val = vcpu_get_reg(vcpu, reg_info->reg);
 		TEST_ASSERT(val == FW_REG_ULIMIT_VAL(reg_info->max_feat_bit),
 			"Expected all the features to be set for reg: 0x%lx; expected: 0x%lx; read: 0x%lx",
 			reg_info->reg, FW_REG_ULIMIT_VAL(reg_info->max_feat_bit), val);
@@ -184,7 +184,7 @@ static void test_fw_regs_before_vm_start(struct kvm_vcpu *vcpu)
 			"Failed to clear all the features of reg: 0x%lx; ret: %d",
 			reg_info->reg, errno);
 
-		vcpu_get_reg(vcpu, reg_info->reg, &val);
+		val = vcpu_get_reg(vcpu, reg_info->reg);
 		TEST_ASSERT(val == 0,
 			"Expected all the features to be cleared for reg: 0x%lx", reg_info->reg);
 
@@ -214,7 +214,7 @@ static void test_fw_regs_after_vm_start(struct kvm_vcpu *vcpu)
 		 * Before starting the VM, the test clears all the bits.
 		 * Check if that's still the case.
 		 */
-		vcpu_get_reg(vcpu, reg_info->reg, &val);
+		val = vcpu_get_reg(vcpu, reg_info->reg);
 		TEST_ASSERT(val == 0,
 			"Expected all the features to be cleared for reg: 0x%lx",
 			reg_info->reg);

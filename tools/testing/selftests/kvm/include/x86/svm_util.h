@@ -1,8 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * tools/testing/selftests/kvm/include/x86_64/svm_utils.h
- * Header for nested SVM testing
- *
  * Copyright (C) 2020, Red Hat, Inc.
  */
 
