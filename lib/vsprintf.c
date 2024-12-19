@@ -2568,7 +2568,7 @@ struct fmt format_decode(struct fmt fmt, struct printf_spec *spec)
 	char flag;
 
 	/* we finished early by reading the field width */
-	if (fmt.state == FORMAT_STATE_WIDTH) {
+	if (unlikely(fmt.state == FORMAT_STATE_WIDTH)) {
 		if (spec->field_width < 0) {
 			spec->field_width = -spec->field_width;
 			spec->flags |= LEFT;
@@ -2578,7 +2578,7 @@ struct fmt format_decode(struct fmt fmt, struct printf_spec *spec)
 	}
 
 	/* we finished early by reading the precision */
-	if (fmt.state == FORMAT_STATE_PRECISION) {
+	if (unlikely(fmt.state == FORMAT_STATE_PRECISION)) {
 		if (spec->precision < 0)
 			spec->precision = 0;
 
@@ -2611,7 +2611,7 @@ struct fmt format_decode(struct fmt fmt, struct printf_spec *spec)
 
 	if (isdigit(*fmt.str))
 		spec->field_width = skip_atoi(&fmt.str);
-	else if (*fmt.str == '*') {
+	else if (unlikely(*fmt.str == '*')) {
 		/* it's the next argument */
 		fmt.state = FORMAT_STATE_WIDTH;
 		fmt.str++;
@@ -2621,7 +2621,7 @@ struct fmt format_decode(struct fmt fmt, struct printf_spec *spec)
 precision:
 	/* get the precision */
 	spec->precision = -1;
-	if (*fmt.str == '.') {
+	if (unlikely(*fmt.str == '.')) {
 		fmt.str++;
 		if (isdigit(*fmt.str)) {
 			spec->precision = skip_atoi(&fmt.str);
