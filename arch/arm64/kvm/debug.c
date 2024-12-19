@@ -14,7 +14,6 @@
 #include <asm/kvm_arm.h>
 #include <asm/kvm_emulate.h>
 
-#include "trace.h"
 
 /*
  * save/restore_guest_debug_regs
@@ -35,10 +34,6 @@ static void save_guest_debug_regs(struct kvm_vcpu *vcpu)
 	u64 val = vcpu_read_sys_reg(vcpu, MDSCR_EL1);
 
 	vcpu->arch.guest_debug_preserved.mdscr_el1 = val;
-
-	trace_kvm_arm_set_dreg32("Saved MDSCR_EL1",
-				vcpu->arch.guest_debug_preserved.mdscr_el1);
-
 	vcpu->arch.guest_debug_preserved.pstate_ss =
 					(*vcpu_cpsr(vcpu) & DBG_SPSR_SS);
 }
@@ -48,9 +43,6 @@ static void restore_guest_debug_regs(struct kvm_vcpu *vcpu)
 	u64 val = vcpu->arch.guest_debug_preserved.mdscr_el1;
 
 	vcpu_write_sys_reg(vcpu, val, MDSCR_EL1);
-
-	trace_kvm_arm_set_dreg32("Restored MDSCR_EL1",
-				vcpu_read_sys_reg(vcpu, MDSCR_EL1));
 
 	if (vcpu->arch.guest_debug_preserved.pstate_ss)
 		*vcpu_cpsr(vcpu) |= DBG_SPSR_SS;
@@ -110,8 +102,6 @@ static void kvm_arm_setup_mdcr_el2(struct kvm_vcpu *vcpu)
 		write_sysreg(vcpu->arch.mdcr_el2, mdcr_el2);
 
 	preempt_enable();
-
-	trace_kvm_arm_set_dreg32("MDCR_EL2", vcpu->arch.mdcr_el2);
 }
 
 /**
@@ -157,8 +147,6 @@ void kvm_arm_reset_debug_ptr(struct kvm_vcpu *vcpu)
 void kvm_arm_setup_debug(struct kvm_vcpu *vcpu)
 {
 	unsigned long mdscr;
-
-	trace_kvm_arm_setup_debug(vcpu, vcpu->guest_debug);
 
 	kvm_arm_setup_mdcr_el2(vcpu);
 
@@ -209,8 +197,6 @@ void kvm_arm_setup_debug(struct kvm_vcpu *vcpu)
 			vcpu_write_sys_reg(vcpu, mdscr, MDSCR_EL1);
 		}
 
-		trace_kvm_arm_set_dreg32("SPSR_EL2", *vcpu_cpsr(vcpu));
-
 		/*
 		 * HW Breakpoints and watchpoints
 		 *
@@ -227,14 +213,6 @@ void kvm_arm_setup_debug(struct kvm_vcpu *vcpu)
 
 			vcpu->arch.debug_ptr = &vcpu->arch.external_debug_state;
 			vcpu_set_flag(vcpu, DEBUG_DIRTY);
-
-			trace_kvm_arm_set_regset("BKPTS", get_num_brps(),
-						&vcpu->arch.debug_ptr->dbg_bcr[0],
-						&vcpu->arch.debug_ptr->dbg_bvr[0]);
-
-			trace_kvm_arm_set_regset("WAPTS", get_num_wrps(),
-						&vcpu->arch.debug_ptr->dbg_wcr[0],
-						&vcpu->arch.debug_ptr->dbg_wvr[0]);
 
 		/*
 		 * The OS Lock blocks debug exceptions in all ELs when it is
@@ -257,14 +235,10 @@ void kvm_arm_setup_debug(struct kvm_vcpu *vcpu)
 	/* If KDE or MDE are set, perform a full save/restore cycle. */
 	if (vcpu_read_sys_reg(vcpu, MDSCR_EL1) & (DBG_MDSCR_KDE | DBG_MDSCR_MDE))
 		vcpu_set_flag(vcpu, DEBUG_DIRTY);
-
-	trace_kvm_arm_set_dreg32("MDSCR_EL1", vcpu_read_sys_reg(vcpu, MDSCR_EL1));
 }
 
 void kvm_arm_clear_debug(struct kvm_vcpu *vcpu)
 {
-	trace_kvm_arm_clear_debug(vcpu->guest_debug);
-
 	/*
 	 * Restore the guest's debug registers if we were using them.
 	 */
@@ -286,14 +260,6 @@ void kvm_arm_clear_debug(struct kvm_vcpu *vcpu)
 		 */
 		if (vcpu->guest_debug & KVM_GUESTDBG_USE_HW) {
 			kvm_arm_reset_debug_ptr(vcpu);
-
-			trace_kvm_arm_set_regset("BKPTS", get_num_brps(),
-						&vcpu->arch.debug_ptr->dbg_bcr[0],
-						&vcpu->arch.debug_ptr->dbg_bvr[0]);
-
-			trace_kvm_arm_set_regset("WAPTS", get_num_wrps(),
-						&vcpu->arch.debug_ptr->dbg_wcr[0],
-						&vcpu->arch.debug_ptr->dbg_wvr[0]);
 		}
 	}
 }

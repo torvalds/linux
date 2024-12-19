@@ -657,8 +657,6 @@ static bool trap_debug_regs(struct kvm_vcpu *vcpu,
 		vcpu_set_flag(vcpu, DEBUG_DIRTY);
 
 	kvm_debug_set_guest_ownership(vcpu);
-	trace_trap_reg(__func__, r->reg, p->is_write, p->regval);
-
 	return true;
 }
 
@@ -711,8 +709,6 @@ static bool trap_bvr(struct kvm_vcpu *vcpu,
 	else
 		dbg_to_reg(vcpu, p, rd, dbg_reg);
 
-	trace_trap_reg(__func__, rd->CRm, p->is_write, *dbg_reg);
-
 	return true;
 }
 
@@ -747,8 +743,6 @@ static bool trap_bcr(struct kvm_vcpu *vcpu,
 		reg_to_dbg(vcpu, p, rd, dbg_reg);
 	else
 		dbg_to_reg(vcpu, p, rd, dbg_reg);
-
-	trace_trap_reg(__func__, rd->CRm, p->is_write, *dbg_reg);
 
 	return true;
 }
@@ -785,9 +779,6 @@ static bool trap_wvr(struct kvm_vcpu *vcpu,
 	else
 		dbg_to_reg(vcpu, p, rd, dbg_reg);
 
-	trace_trap_reg(__func__, rd->CRm, p->is_write,
-		vcpu->arch.vcpu_debug_state.dbg_wvr[rd->CRm]);
-
 	return true;
 }
 
@@ -822,8 +813,6 @@ static bool trap_wcr(struct kvm_vcpu *vcpu,
 		reg_to_dbg(vcpu, p, rd, dbg_reg);
 	else
 		dbg_to_reg(vcpu, p, rd, dbg_reg);
-
-	trace_trap_reg(__func__, rd->CRm, p->is_write, *dbg_reg);
 
 	return true;
 }
