@@ -246,23 +246,27 @@ void inet_putpeer(struct inet_peer *p)
 #define XRLIM_BURST_FACTOR 6
 bool inet_peer_xrlim_allow(struct inet_peer *peer, int timeout)
 {
-	unsigned long now, token;
+	unsigned long now, token, otoken, delta;
 	bool rc = false;
 
 	if (!peer)
 		return true;
 
-	token = peer->rate_tokens;
+	token = otoken = READ_ONCE(peer->rate_tokens);
 	now = jiffies;
-	token += now - peer->rate_last;
-	peer->rate_last = now;
-	if (token > XRLIM_BURST_FACTOR * timeout)
-		token = XRLIM_BURST_FACTOR * timeout;
+	delta = now - READ_ONCE(peer->rate_last);
+	if (delta) {
+		WRITE_ONCE(peer->rate_last, now);
+		token += delta;
+		if (token > XRLIM_BURST_FACTOR * timeout)
+			token = XRLIM_BURST_FACTOR * timeout;
+	}
 	if (token >= timeout) {
 		token -= timeout;
 		rc = true;
 	}
-	peer->rate_tokens = token;
+	if (token != otoken)
+		WRITE_ONCE(peer->rate_tokens, token);
 	return rc;
 }
 EXPORT_SYMBOL(inet_peer_xrlim_allow);
