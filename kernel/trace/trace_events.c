@@ -3799,24 +3799,22 @@ event_enable_func(struct trace_array *tr, struct ftrace_hash *hash,
 
 	ret = -ENOMEM;
 
-	if (!param)
-		goto out_reg;
+	if (param) {
+		number = strsep(&param, ":");
 
-	number = strsep(&param, ":");
+		ret = -EINVAL;
+		if (!strlen(number))
+			goto out;
 
-	ret = -EINVAL;
-	if (!strlen(number))
-		goto out;
+		/*
+		 * We use the callback data field (which is a pointer)
+		 * as our counter.
+		 */
+		ret = kstrtoul(number, 0, &count);
+		if (ret)
+			goto out;
+	}
 
-	/*
-	 * We use the callback data field (which is a pointer)
-	 * as our counter.
-	 */
-	ret = kstrtoul(number, 0, &count);
-	if (ret)
-		goto out;
-
- out_reg:
 	/* Don't let event modules unload while probe registered */
 	ret = trace_event_try_get_ref(file->event_call);
 	if (!ret) {
