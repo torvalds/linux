@@ -228,8 +228,12 @@ int netdev_nl_napi_get_doit(struct sk_buff *skb, struct genl_info *info)
 	rcu_read_unlock();
 	rtnl_unlock();
 
-	if (err)
+	if (err) {
 		goto err_free_msg;
+	} else if (!rsp->len) {
+		err = -ENOENT;
+		goto err_free_msg;
+	}
 
 	return genlmsg_reply(rsp, info);
 
