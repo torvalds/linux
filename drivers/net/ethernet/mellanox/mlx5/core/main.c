@@ -945,9 +945,7 @@ static int mlx5_pci_init(struct mlx5_core_dev *dev, struct pci_dev *pdev,
 
 	mlx5_pci_vsc_init(dev);
 
-	err = pci_enable_ptm(pdev, NULL);
-	if (err)
-		mlx5_core_info(dev, "PTM is not supported by PCIe\n");
+	pci_enable_ptm(pdev, NULL);
 
 	return 0;
 
