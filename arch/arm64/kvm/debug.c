@@ -317,3 +317,49 @@ void kvm_init_host_debug_data(void)
 	    !(read_sysreg_s(SYS_TRBIDR_EL1) & TRBIDR_EL1_P))
 		host_data_set_flag(HAS_TRBE);
 }
+
+void kvm_vcpu_load_debug(struct kvm_vcpu *vcpu)
+{
+	u64 mdscr;
+
+	/* Must be called before kvm_vcpu_load_vhe() */
+	KVM_BUG_ON(vcpu_get_flag(vcpu, SYSREGS_ON_CPU), vcpu->kvm);
+
+	/*
+	 * Determine which of the possible debug states we're in:
+	 *
+	 *  - VCPU_DEBUG_HOST_OWNED: KVM has taken ownership of the guest's
+	 *    breakpoint/watchpoint registers, or needs to use MDSCR_EL1 to do
+	 *    software step or emulate the effects of the OS Lock being enabled.
+	 *
+	 *  - VCPU_DEBUG_GUEST_OWNED: The guest has debug exceptions enabled, and
+	 *    the breakpoint/watchpoint registers need to be loaded eagerly.
+	 *
+	 *  - VCPU_DEBUG_FREE: Neither of the above apply, no breakpoint/watchpoint
+	 *    context needs to be loaded on the CPU.
+	 */
+	if (vcpu->guest_debug || kvm_vcpu_os_lock_enabled(vcpu)) {
+		vcpu->arch.debug_owner = VCPU_DEBUG_HOST_OWNED;
+	} else {
+		mdscr = vcpu_read_sys_reg(vcpu, MDSCR_EL1);
+
+		if (mdscr & (MDSCR_EL1_KDE | MDSCR_EL1_MDE))
+			vcpu->arch.debug_owner = VCPU_DEBUG_GUEST_OWNED;
+		else
+			vcpu->arch.debug_owner = VCPU_DEBUG_FREE;
+	}
+}
+
+/*
+ * Updates ownership of the debug registers after a trapped guest access to a
+ * breakpoint/watchpoint register. Host ownership of the debug registers is of
+ * strictly higher priority, and it is the responsibility of the VMM to emulate
+ * guest debug exceptions in this configuration.
+ */
+void kvm_debug_set_guest_ownership(struct kvm_vcpu *vcpu)
+{
+	if (kvm_host_owns_debug_regs(vcpu))
+		return;
+
+	vcpu->arch.debug_owner = VCPU_DEBUG_GUEST_OWNED;
+}
