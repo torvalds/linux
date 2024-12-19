@@ -419,9 +419,9 @@ static bool kvm_hyp_handle_fpsimd(struct kvm_vcpu *vcpu, u64 *exit_code)
 
 	/* First disable enough traps to allow us to update the registers */
 	if (sve_guest || (is_protected_kvm_enabled() && system_supports_sve()))
-		cpacr_clear_set(0, CPACR_ELx_FPEN | CPACR_ELx_ZEN);
+		cpacr_clear_set(0, CPACR_EL1_FPEN | CPACR_EL1_ZEN);
 	else
-		cpacr_clear_set(0, CPACR_ELx_FPEN);
+		cpacr_clear_set(0, CPACR_EL1_FPEN);
 	isb();
 
 	/* Write out the host state if it's in the registers */

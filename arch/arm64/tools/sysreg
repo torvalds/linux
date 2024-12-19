@@ -1986,7 +1986,7 @@ Field	1	A
 Field	0	M
 EndSysreg
 
-SysregFields	CPACR_ELx
+Sysreg	CPACR_EL1	3	0	1	0	2
 Res0	63:30
 Field	29	E0POE
 Field	28	TTA
@@ -1997,10 +1997,6 @@ Field	21:20	FPEN
 Res0	19:18
 Field	17:16	ZEN
 Res0	15:0
-EndSysregFields
-
-Sysreg	CPACR_EL1	3	0	1	0	2
-Fields	CPACR_ELx
 EndSysreg
 
 Sysreg	SMPRI_EL1	3	0	1	2	4

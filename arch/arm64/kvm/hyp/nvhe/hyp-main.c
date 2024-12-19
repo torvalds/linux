@@ -68,7 +68,7 @@ static void fpsimd_sve_sync(struct kvm_vcpu *vcpu)
 	if (!guest_owns_fp_regs())
 		return;
 
-	cpacr_clear_set(0, CPACR_ELx_FPEN | CPACR_ELx_ZEN);
+	cpacr_clear_set(0, CPACR_EL1_FPEN | CPACR_EL1_ZEN);
 	isb();
 
 	if (vcpu_has_sve(vcpu))
@@ -481,7 +481,7 @@ void handle_trap(struct kvm_cpu_context *host_ctxt)
 		handle_host_smc(host_ctxt);
 		break;
 	case ESR_ELx_EC_SVE:
-		cpacr_clear_set(0, CPACR_ELx_ZEN);
+		cpacr_clear_set(0, CPACR_EL1_ZEN);
 		isb();
 		sve_cond_update_zcr_vq(sve_vq_from_vl(kvm_host_sve_max_vl) - 1,
 				       SYS_ZCR_EL2);
