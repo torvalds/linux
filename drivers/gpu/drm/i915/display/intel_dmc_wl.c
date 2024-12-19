@@ -50,6 +50,15 @@
 #define DMC_WAKELOCK_CTL_TIMEOUT_US 5000
 #define DMC_WAKELOCK_HOLD_TIME 50
 
+/*
+ * Possible non-negative values for the enable_dmc_wl param.
+ */
+enum {
+	ENABLE_DMC_WL_DISABLED,
+	ENABLE_DMC_WL_ENABLED,
+	ENABLE_DMC_WL_MAX,
+};
+
 struct intel_dmc_wl_range {
 	u32 start;
 	u32 end;
@@ -270,12 +279,20 @@ static bool __intel_dmc_wl_supported(struct intel_display *display)
 
 static void intel_dmc_wl_sanitize_param(struct intel_display *display)
 {
-	if (!HAS_DMC_WAKELOCK(display))
-		display->params.enable_dmc_wl = 0;
-	else if (display->params.enable_dmc_wl >= 0)
-		display->params.enable_dmc_wl = !!display->params.enable_dmc_wl;
-	else
-		display->params.enable_dmc_wl = DISPLAY_VER(display) >= 30;
+	if (!HAS_DMC_WAKELOCK(display)) {
+		display->params.enable_dmc_wl = ENABLE_DMC_WL_DISABLED;
+	} else if (display->params.enable_dmc_wl < 0) {
+		if (DISPLAY_VER(display) >= 30)
+			display->params.enable_dmc_wl = ENABLE_DMC_WL_ENABLED;
+		else
+			display->params.enable_dmc_wl = ENABLE_DMC_WL_DISABLED;
+	} else if (display->params.enable_dmc_wl >= ENABLE_DMC_WL_MAX) {
+		display->params.enable_dmc_wl = ENABLE_DMC_WL_ENABLED;
+	}
+
+	drm_WARN_ON(display->drm,
+		    display->params.enable_dmc_wl < 0 ||
+		    display->params.enable_dmc_wl >= ENABLE_DMC_WL_MAX);
 
 	drm_dbg_kms(display->drm, "Sanitized enable_dmc_wl value: %d\n",
 		    display->params.enable_dmc_wl);
