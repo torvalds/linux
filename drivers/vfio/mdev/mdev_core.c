@@ -76,7 +76,7 @@ int mdev_register_parent(struct mdev_parent *parent, struct device *dev,
 	if (ret)
 		return ret;
 
-	ret = class_compat_create_link(mdev_bus_compat_class, dev, NULL);
+	ret = class_compat_create_link(mdev_bus_compat_class, dev);
 	if (ret)
 		dev_warn(dev, "Failed to create compatibility class link\n");
 
@@ -98,7 +98,7 @@ void mdev_unregister_parent(struct mdev_parent *parent)
 	dev_info(parent->dev, "MDEV: Unregistering\n");
 
 	down_write(&parent->unreg_sem);
-	class_compat_remove_link(mdev_bus_compat_class, parent->dev, NULL);
+	class_compat_remove_link(mdev_bus_compat_class, parent->dev);
 	device_for_each_child(parent->dev, NULL, mdev_device_remove_cb);
 	parent_remove_sysfs_files(parent);
 	up_write(&parent->unreg_sem);
