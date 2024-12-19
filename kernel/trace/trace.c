@@ -6116,7 +6116,7 @@ int tracing_set_tracer(struct trace_array *tr, const char *buf)
 	if (system_state < SYSTEM_RUNNING && t->noboot) {
 		pr_warn("Tracer '%s' is not allowed on command line, ignored\n",
 			t->name);
-		return 0;
+		return -EINVAL;
 	}
 
 	/* Some tracers are only allowed for the top level buffer */
