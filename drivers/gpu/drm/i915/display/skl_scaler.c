@@ -76,9 +76,7 @@ static u16 skl_scaler_calc_phase(int sub, int scale, bool chroma_cosited)
 	return ((phase >> 2) & PS_PHASE_MASK) | trip;
 }
 
-#define SKL_MIN_SRC_W 8
 #define SKL_MAX_SRC_W 4096
-#define SKL_MIN_SRC_H 8
 #define SKL_MAX_SRC_H 4096
 #define SKL_MIN_DST_W 8
 #define SKL_MAX_DST_W 4096
@@ -96,8 +94,18 @@ static u16 skl_scaler_calc_phase(int sub, int scale, bool chroma_cosited)
 #define MTL_MAX_SRC_H 8192
 #define MTL_MAX_DST_W 8192
 #define MTL_MAX_DST_H 8192
-#define SKL_MIN_YUV_420_SRC_W 16
-#define SKL_MIN_YUV_420_SRC_H 16
+
+static void skl_scaler_min_src_size(const struct drm_format_info *format,
+				    u64 modifier, int *min_w, int *min_h)
+{
+	if (format && intel_format_info_is_yuv_semiplanar(format, modifier)) {
+		*min_w = 16;
+		*min_h = 16;
+	} else {
+		*min_w = 8;
+		*min_h = 8;
+	}
+}
 
 static int
 skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
@@ -163,15 +171,8 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 		return 0;
 	}
 
-	if (format && intel_format_info_is_yuv_semiplanar(format, modifier) &&
-	    (src_h < SKL_MIN_YUV_420_SRC_H || src_w < SKL_MIN_YUV_420_SRC_W)) {
-		drm_dbg_kms(display->drm,
-			    "Planar YUV: src dimensions not met\n");
-		return -EINVAL;
-	}
+	skl_scaler_min_src_size(format, modifier, &min_src_w, &min_src_h);
 
-	min_src_w = SKL_MIN_SRC_W;
-	min_src_h = SKL_MIN_SRC_H;
 	min_dst_w = SKL_MIN_DST_W;
 	min_dst_h = SKL_MIN_DST_H;
 
