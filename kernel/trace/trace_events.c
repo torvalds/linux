@@ -1546,19 +1546,18 @@ event_enable_write(struct file *filp, const char __user *ubuf, size_t cnt,
 	if (ret)
 		return ret;
 
+	guard(mutex)(&event_mutex);
+
 	switch (val) {
 	case 0:
 	case 1:
-		mutex_lock(&event_mutex);
 		file = event_file_file(filp);
-		if (likely(file)) {
-			ret = tracing_update_buffers(file->tr);
-			if (ret >= 0)
-				ret = ftrace_event_enable_disable(file, val);
-		} else {
-			ret = -ENODEV;
-		}
-		mutex_unlock(&event_mutex);
+		if (!file)
+			return -ENODEV;
+		ret = tracing_update_buffers(file->tr);
+		if (ret < 0)
+			return ret;
+		ret = ftrace_event_enable_disable(file, val);
 		if (ret < 0)
 			return ret;
 		break;
@@ -2145,7 +2144,7 @@ event_pid_write(struct file *filp, const char __user *ubuf,
 	if (ret < 0)
 		return ret;
 
-	mutex_lock(&event_mutex);
+	guard(mutex)(&event_mutex);
 
 	if (type == TRACE_PIDS) {
 		filtered_pids = rcu_dereference_protected(tr->filtered_pids,
@@ -2161,7 +2160,7 @@ event_pid_write(struct file *filp, const char __user *ubuf,
 
 	ret = trace_pid_write(filtered_pids, &pid_list, ubuf, cnt);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	if (type == TRACE_PIDS)
 		rcu_assign_pointer(tr->filtered_pids, pid_list);
@@ -2186,11 +2185,7 @@ event_pid_write(struct file *filp, const char __user *ubuf,
 	 */
 	on_each_cpu(ignore_task_cpu, tr, 1);
 
- out:
-	mutex_unlock(&event_mutex);
-
-	if (ret > 0)
-		*ppos += ret;
+	*ppos += ret;
 
 	return ret;
 }
@@ -3257,13 +3252,13 @@ int trace_add_event_call(struct trace_event_call *call)
 	int ret;
 	lockdep_assert_held(&event_mutex);
 
-	mutex_lock(&trace_types_lock);
+	guard(mutex)(&trace_types_lock);
 
 	ret = __register_event(call, NULL);
-	if (ret >= 0)
-		__add_event_to_tracers(call);
+	if (ret < 0)
+		return ret;
 
-	mutex_unlock(&trace_types_lock);
+	__add_event_to_tracers(call);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(trace_add_event_call);
@@ -3517,29 +3512,20 @@ struct trace_event_file *trace_get_event_file(const char *instance,
 			return ERR_PTR(ret);
 	}
 
-	mutex_lock(&event_mutex);
+	guard(mutex)(&event_mutex);
 
 	file = find_event_file(tr, system, event);
 	if (!file) {
 		trace_array_put(tr);
-		ret = -EINVAL;
-		goto out;
+		return ERR_PTR(-EINVAL);
 	}
 
 	/* Don't let event modules unload while in use */
 	ret = trace_event_try_get_ref(file->event_call);
 	if (!ret) {
 		trace_array_put(tr);
-		ret = -EBUSY;
-		goto out;
+		return ERR_PTR(-EBUSY);
 	}
-
-	ret = 0;
- out:
-	mutex_unlock(&event_mutex);
-
-	if (ret)
-		file = ERR_PTR(ret);
 
 	return file;
 }
@@ -3778,12 +3764,11 @@ event_enable_func(struct trace_array *tr, struct ftrace_hash *hash,
 
 	event = strsep(&param, ":");
 
-	mutex_lock(&event_mutex);
+	guard(mutex)(&event_mutex);
 
-	ret = -EINVAL;
 	file = find_event_file(tr, system, event);
 	if (!file)
-		goto out;
+		return -EINVAL;
 
 	enable = strcmp(cmd, ENABLE_EVENT_STR) == 0;
 
@@ -3792,19 +3777,14 @@ event_enable_func(struct trace_array *tr, struct ftrace_hash *hash,
 	else
 		ops = param ? &event_disable_count_probe_ops : &event_disable_probe_ops;
 
-	if (glob[0] == '!') {
-		ret = unregister_ftrace_function_probe_func(glob+1, tr, ops);
-		goto out;
-	}
-
-	ret = -ENOMEM;
+	if (glob[0] == '!')
+		return unregister_ftrace_function_probe_func(glob+1, tr, ops);
 
 	if (param) {
 		number = strsep(&param, ":");
 
-		ret = -EINVAL;
 		if (!strlen(number))
-			goto out;
+			return -EINVAL;
 
 		/*
 		 * We use the callback data field (which is a pointer)
@@ -3812,20 +3792,19 @@ event_enable_func(struct trace_array *tr, struct ftrace_hash *hash,
 		 */
 		ret = kstrtoul(number, 0, &count);
 		if (ret)
-			goto out;
+			return ret;
 	}
 
 	/* Don't let event modules unload while probe registered */
 	ret = trace_event_try_get_ref(file->event_call);
-	if (!ret) {
-		ret = -EBUSY;
-		goto out;
-	}
+	if (!ret)
+		return -EBUSY;
 
 	ret = __ftrace_event_enable_disable(file, 1, 1);
 	if (ret < 0)
 		goto out_put;
 
+	ret = -ENOMEM;
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
 		goto out_put;
@@ -3840,23 +3819,20 @@ event_enable_func(struct trace_array *tr, struct ftrace_hash *hash,
 	 * but if it didn't find any functions it returns zero.
 	 * Consider no functions a failure too.
 	 */
-	if (!ret) {
-		ret = -ENOENT;
-		goto out_disable;
-	} else if (ret < 0)
-		goto out_disable;
-	/* Just return zero, not the number of enabled functions */
-	ret = 0;
- out:
-	mutex_unlock(&event_mutex);
-	return ret;
 
- out_disable:
+	/* Just return zero, not the number of enabled functions */
+	if (ret > 0)
+		return 0;
+
 	kfree(data);
+
+	if (!ret)
+		ret = -ENOENT;
+
 	__ftrace_event_enable_disable(file, 0, 1);
  out_put:
 	trace_event_put_ref(file->event_call);
-	goto out;
+	return ret;
 }
 
 static struct ftrace_func_command event_enable_cmd = {
@@ -4079,20 +4055,17 @@ early_event_add_tracer(struct dentry *parent, struct trace_array *tr)
 {
 	int ret;
 
-	mutex_lock(&event_mutex);
+	guard(mutex)(&event_mutex);
 
 	ret = create_event_toplevel_files(parent, tr);
 	if (ret)
-		goto out_unlock;
+		return ret;
 
 	down_write(&trace_event_sem);
 	__trace_early_add_event_dirs(tr);
 	up_write(&trace_event_sem);
 
- out_unlock:
-	mutex_unlock(&event_mutex);
-
-	return ret;
+	return 0;
 }
 
 /* Must be called with event_mutex held */
