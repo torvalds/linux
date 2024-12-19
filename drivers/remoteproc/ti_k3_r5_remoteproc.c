@@ -997,7 +997,7 @@ static int k3_r5_reserved_mem_init(struct k3_r5_rproc *kproc)
 		return ret;
 
 	num_rmems--;
-	kproc->rmem = kcalloc(num_rmems, sizeof(*kproc->rmem), GFP_KERNEL);
+	kproc->rmem = devm_kcalloc(dev, num_rmems, sizeof(*kproc->rmem), GFP_KERNEL);
 	if (!kproc->rmem)
 		return -ENOMEM;
 
@@ -1049,7 +1049,6 @@ static int k3_r5_reserved_mem_init(struct k3_r5_rproc *kproc)
 unmap_rmem:
 	for (i--; i >= 0; i--)
 		iounmap(kproc->rmem[i].cpu_addr);
-	kfree(kproc->rmem);
 	return ret;
 }
 
@@ -1059,7 +1058,6 @@ static void k3_r5_reserved_mem_exit(struct k3_r5_rproc *kproc)
 
 	for (i = 0; i < kproc->num_rmems; i++)
 		iounmap(kproc->rmem[i].cpu_addr);
-	kfree(kproc->rmem);
 }
 
 /*
