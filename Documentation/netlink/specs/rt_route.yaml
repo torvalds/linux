@@ -177,6 +177,11 @@ attribute-sets:
       -
         name: rta-nh-id
         type: u32
+      -
+        name: rta-flowlabel
+        type: u32
+        byte-order: big-endian
+        display-hint: hex
   -
     name: rta-metrics
     attributes:
@@ -260,6 +265,7 @@ operations:
             - rta-dport
             - rta-mark
             - rta-uid
+            - rta-flowlabel
         reply:
           value: 24
           attributes: &all-route-attrs
@@ -299,6 +305,7 @@ operations:
             - rta-sport
             - rta-dport
             - rta-nh-id
+            - rta-flowlabel
       dump:
         request:
           value: 26
