@@ -133,7 +133,7 @@ struct iwl_mvm_vif;
  * and no TID data as this is also not needed.
  * One thing to note, is that these stations have an ID in the fw, but not
  * in mac80211. In order to "reserve" them a sta_id in %fw_id_to_mac_id
- * we fill ERR_PTR(EINVAL) in this mapping and all other dereferencing of
+ * we fill ERR_PTR(-EINVAL) in this mapping and all other dereferencing of
  * pointers from this mapping need to check that the value is not error
  * or NULL.
  *
