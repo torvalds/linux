@@ -500,9 +500,6 @@ static void bin_patch_one_word_multiple_algs(struct kunit *test)
 
 	/* Add one payload per algorithm */
 	for (i = 0; i < ARRAY_SIZE(bin_test_mock_algs); ++i) {
-		alg_base_words = cs_dsp_mock_xm_header_get_alg_base_in_words(priv,
-								bin_test_mock_algs[i].id,
-								param->mem_type);
 		reg_inc_per_word = cs_dsp_mock_reg_addr_inc_per_unpacked_word(priv);
 
 		cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
@@ -566,9 +563,6 @@ static void bin_patch_one_word_multiple_algs_unordered(struct kunit *test)
 	/* Add one payload per algorithm */
 	for (i = 0; i < ARRAY_SIZE(bin_test_mock_algs); ++i) {
 		alg_idx = alg_order[i];
-		alg_base_words = cs_dsp_mock_xm_header_get_alg_base_in_words(priv,
-								bin_test_mock_algs[alg_idx].id,
-								param->mem_type);
 		reg_inc_per_word = cs_dsp_mock_reg_addr_inc_per_unpacked_word(priv);
 
 		cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
