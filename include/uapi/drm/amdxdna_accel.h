@@ -33,6 +33,7 @@ enum amdxdna_drm_ioctl_id {
 	DRM_AMDXDNA_SYNC_BO,
 	DRM_AMDXDNA_EXEC_CMD,
 	DRM_AMDXDNA_GET_INFO,
+	DRM_AMDXDNA_SET_STATE,
 };
 
 /**
@@ -86,7 +87,7 @@ struct amdxdna_drm_create_hwctx {
 /**
  * struct amdxdna_drm_destroy_hwctx - Destroy hardware context.
  * @handle: Hardware context handle.
- * @pad: Structure padding.
+ * @pad: MBZ.
  */
 struct amdxdna_drm_destroy_hwctx {
 	__u32 handle;
@@ -97,7 +98,7 @@ struct amdxdna_drm_destroy_hwctx {
  * struct amdxdna_cu_config - configuration for one CU
  * @cu_bo: CU configuration buffer bo handle.
  * @cu_func: Function of a CU.
- * @pad: Structure padding.
+ * @pad: MBZ.
  */
 struct amdxdna_cu_config {
 	__u32 cu_bo;
@@ -108,7 +109,7 @@ struct amdxdna_cu_config {
 /**
  * struct amdxdna_hwctx_param_config_cu - configuration for CUs in hardware context
  * @num_cus: Number of CUs to configure.
- * @pad: Structure padding.
+ * @pad: MBZ.
  * @cu_configs: Array of CU configurations of struct amdxdna_cu_config.
  */
 struct amdxdna_hwctx_param_config_cu {
@@ -121,7 +122,6 @@ enum amdxdna_drm_config_hwctx_param {
 	DRM_AMDXDNA_HWCTX_CONFIG_CU,
 	DRM_AMDXDNA_HWCTX_ASSIGN_DBG_BUF,
 	DRM_AMDXDNA_HWCTX_REMOVE_DBG_BUF,
-	DRM_AMDXDNA_HWCTX_CONFIG_NUM
 };
 
 /**
@@ -132,7 +132,7 @@ enum amdxdna_drm_config_hwctx_param {
  * @param_val: A structure specified by the param_type struct member.
  * @param_val_size: Size of the parameter buffer pointed to by the param_val.
  *		    If param_val is not a pointer, driver can ignore this.
- * @pad: Structure padding.
+ * @pad: MBZ.
  *
  * Note: if the param_val is a pointer pointing to a buffer, the maximum size
  * of the buffer is 4KiB(PAGE_SIZE).
@@ -174,7 +174,7 @@ struct amdxdna_drm_create_bo {
  * @ext: MBZ.
  * @ext_flags: MBZ.
  * @handle: DRM buffer object handle.
- * @pad: Structure padding.
+ * @pad: MBZ.
  * @map_offset: Returned DRM fake offset for mmap().
  * @vaddr: Returned user VA of buffer. 0 in case user needs mmap().
  * @xdna_addr: Returned XDNA device virtual address.
@@ -375,6 +375,38 @@ struct amdxdna_drm_query_hwctx {
 	__u64 errors;
 };
 
+enum amdxdna_power_mode_type {
+	POWER_MODE_DEFAULT, /* Fallback to calculated DPM */
+	POWER_MODE_LOW,     /* Set frequency to lowest DPM */
+	POWER_MODE_MEDIUM,  /* Set frequency to medium DPM */
+	POWER_MODE_HIGH,    /* Set frequency to highest DPM */
+	POWER_MODE_TURBO,   /* Maximum power */
+};
+
+/**
+ * struct amdxdna_drm_get_power_mode - Get the configured power mode
+ * @power_mode: The mode type from enum amdxdna_power_mode_type
+ * @pad: Structure padding.
+ */
+struct amdxdna_drm_get_power_mode {
+	__u8 power_mode;
+	__u8 pad[7];
+};
+
+/**
+ * struct amdxdna_drm_query_firmware_version - Query the firmware version
+ * @major: The major version number
+ * @minor: The minor version number
+ * @patch: The patch level version number
+ * @build: The build ID
+ */
+struct amdxdna_drm_query_firmware_version {
+	__u32 major; /* out */
+	__u32 minor; /* out */
+	__u32 patch; /* out */
+	__u32 build; /* out */
+};
+
 enum amdxdna_drm_get_param {
 	DRM_AMDXDNA_QUERY_AIE_STATUS,
 	DRM_AMDXDNA_QUERY_AIE_METADATA,
@@ -382,7 +414,8 @@ enum amdxdna_drm_get_param {
 	DRM_AMDXDNA_QUERY_CLOCK_METADATA,
 	DRM_AMDXDNA_QUERY_SENSORS,
 	DRM_AMDXDNA_QUERY_HW_CONTEXTS,
-	DRM_AMDXDNA_NUM_GET_PARAM,
+	DRM_AMDXDNA_QUERY_FIRMWARE_VERSION = 8,
+	DRM_AMDXDNA_GET_POWER_MODE,
 };
 
 /**
@@ -395,6 +428,34 @@ struct amdxdna_drm_get_info {
 	__u32 param; /* in */
 	__u32 buffer_size; /* in/out */
 	__u64 buffer; /* in/out */
+};
+
+enum amdxdna_drm_set_param {
+	DRM_AMDXDNA_SET_POWER_MODE,
+	DRM_AMDXDNA_WRITE_AIE_MEM,
+	DRM_AMDXDNA_WRITE_AIE_REG,
+};
+
+/**
+ * struct amdxdna_drm_set_state - Set the state of the AIE hardware.
+ * @param: Value in enum amdxdna_drm_set_param.
+ * @buffer_size: Size of the input param.
+ * @buffer: Pointer to the input param.
+ */
+struct amdxdna_drm_set_state {
+	__u32 param; /* in */
+	__u32 buffer_size; /* in */
+	__u64 buffer; /* in */
+};
+
+/**
+ * struct amdxdna_drm_set_power_mode - Set the power mode of the AIE hardware
+ * @power_mode: The sensor type from enum amdxdna_power_mode_type
+ * @pad: MBZ.
+ */
+struct amdxdna_drm_set_power_mode {
+	__u8 power_mode;
+	__u8 pad[7];
 };
 
 #define DRM_IOCTL_AMDXDNA_CREATE_HWCTX \
@@ -428,6 +489,10 @@ struct amdxdna_drm_get_info {
 #define DRM_IOCTL_AMDXDNA_GET_INFO \
 	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDXDNA_GET_INFO, \
 		 struct amdxdna_drm_get_info)
+
+#define DRM_IOCTL_AMDXDNA_SET_STATE \
+	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDXDNA_SET_STATE, \
+		 struct amdxdna_drm_set_state)
 
 #if defined(__cplusplus)
 } /* extern c end */

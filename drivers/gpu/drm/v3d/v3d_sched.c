@@ -5,16 +5,16 @@
  * DOC: Broadcom V3D scheduling
  *
  * The shared DRM GPU scheduler is used to coordinate submitting jobs
- * to the hardware.  Each DRM fd (roughly a client process) gets its
- * own scheduler entity, which will process jobs in order.  The GPU
- * scheduler will round-robin between clients to submit the next job.
+ * to the hardware. Each DRM fd (roughly a client process) gets its
+ * own scheduler entity, which will process jobs in order. The GPU
+ * scheduler will schedule the clients with a FIFO scheduling algorithm.
  *
  * For simplicity, and in order to keep latency low for interactive
  * jobs when bulk background jobs are queued up, we submit a new job
  * to the HW only when it has completed the last one, instead of
- * filling up the CT[01]Q FIFOs with jobs.  Similarly, we use
- * drm_sched_job_add_dependency() to manage the dependency between bin and
- * render, instead of having the clients submit jobs using the HW's
+ * filling up the CT[01]Q FIFOs with jobs. Similarly, we use
+ * `drm_sched_job_add_dependency()` to manage the dependency between bin
+ * and render, instead of having the clients submit jobs using the HW's
  * semaphores to interlock between them.
  */
 

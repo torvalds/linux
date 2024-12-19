@@ -11,6 +11,7 @@
 #include <drm/drm_syncobj.h>
 #include <linux/hmm.h>
 #include <linux/types.h>
+#include <linux/xarray.h>
 #include <trace/events/amdxdna.h>
 
 #include "aie2_msg_priv.h"
@@ -90,11 +91,11 @@ void aie2_restart_ctx(struct amdxdna_client *client)
 {
 	struct amdxdna_dev *xdna = client->xdna;
 	struct amdxdna_hwctx *hwctx;
-	int next = 0;
+	unsigned long hwctx_id;
 
 	drm_WARN_ON(&xdna->ddev, !mutex_is_locked(&xdna->dev_lock));
 	mutex_lock(&client->hwctx_lock);
-	idr_for_each_entry_continue(&client->hwctx_idr, hwctx, next) {
+	amdxdna_for_each_hwctx(client, hwctx_id, hwctx) {
 		if (hwctx->status != HWCTX_STAT_STOP)
 			continue;
 
@@ -179,7 +180,7 @@ aie2_sched_notify(struct amdxdna_sched_job *job)
 	up(&job->hwctx->priv->job_sem);
 	job->job_done = true;
 	dma_fence_put(fence);
-	mmput(job->mm);
+	mmput_async(job->mm);
 	aie2_job_put(job);
 }
 
@@ -518,6 +519,7 @@ int aie2_hwctx_init(struct amdxdna_hwctx *hwctx)
 	struct drm_gpu_scheduler *sched;
 	struct amdxdna_hwctx_priv *priv;
 	struct amdxdna_gem_obj *heap;
+	struct amdxdna_dev_hdl *ndev;
 	int i, ret;
 
 	priv = kzalloc(sizeof(*hwctx->priv), GFP_KERNEL);
@@ -612,6 +614,8 @@ int aie2_hwctx_init(struct amdxdna_hwctx *hwctx)
 	}
 
 	hwctx->status = HWCTX_STAT_INIT;
+	ndev = xdna->dev_handle;
+	ndev->hwctx_num++;
 
 	XDNA_DBG(xdna, "hwctx %s init completed", hwctx->name);
 
@@ -641,10 +645,13 @@ free_priv:
 
 void aie2_hwctx_fini(struct amdxdna_hwctx *hwctx)
 {
+	struct amdxdna_dev_hdl *ndev;
 	struct amdxdna_dev *xdna;
 	int idx;
 
 	xdna = hwctx->client->xdna;
+	ndev = xdna->dev_handle;
+	ndev->hwctx_num--;
 	drm_sched_wqueue_stop(&hwctx->priv->sched);
 
 	/* Now, scheduler will not send command to device. */
@@ -683,6 +690,9 @@ static int aie2_hwctx_cu_config(struct amdxdna_hwctx *hwctx, void *buf, u32 size
 	int ret;
 
 	XDNA_DBG(xdna, "Config %d CU to %s", config->num_cus, hwctx->name);
+	if (XDNA_MBZ_DBG(xdna, config->pad, sizeof(config->pad)))
+		return -EINVAL;
+
 	if (hwctx->status != HWCTX_STAT_INIT) {
 		XDNA_ERR(xdna, "Not support re-config CU");
 		return -EINVAL;

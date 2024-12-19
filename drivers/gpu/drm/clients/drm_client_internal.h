@@ -16,4 +16,10 @@ static inline int drm_fbdev_client_setup(struct drm_device *dev,
 }
 #endif
 
+#ifdef CONFIG_DRM_CLIENT_LOG
+void drm_log_register(struct drm_device *dev);
+#else
+static inline void drm_log_register(struct drm_device *dev) {}
+#endif
+
 #endif

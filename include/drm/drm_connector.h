@@ -2001,8 +2001,11 @@ struct drm_connector {
 	struct drm_encoder *encoder;
 
 #define MAX_ELD_BYTES	128
-	/** @eld: EDID-like data, if present */
+	/** @eld: EDID-like data, if present, protected by @eld_mutex */
 	uint8_t eld[MAX_ELD_BYTES];
+	/** @eld_mutex: protection for concurrenct access to @eld */
+	struct mutex eld_mutex;
+
 	/** @latency_present: AV delay info from ELD, if found */
 	bool latency_present[2];
 	/**
@@ -2126,6 +2129,11 @@ int drm_connector_init(struct drm_device *dev,
 		       struct drm_connector *connector,
 		       const struct drm_connector_funcs *funcs,
 		       int connector_type);
+int drm_connector_dynamic_init(struct drm_device *dev,
+			       struct drm_connector *connector,
+			       const struct drm_connector_funcs *funcs,
+			       int connector_type,
+			       struct i2c_adapter *ddc);
 int drm_connector_init_with_ddc(struct drm_device *dev,
 				struct drm_connector *connector,
 				const struct drm_connector_funcs *funcs,
@@ -2147,6 +2155,7 @@ int drmm_connector_hdmi_init(struct drm_device *dev,
 			     unsigned int max_bpc);
 void drm_connector_attach_edid_property(struct drm_connector *connector);
 int drm_connector_register(struct drm_connector *connector);
+int drm_connector_dynamic_register(struct drm_connector *connector);
 void drm_connector_unregister(struct drm_connector *connector);
 int drm_connector_attach_encoder(struct drm_connector *connector,
 				      struct drm_encoder *encoder);

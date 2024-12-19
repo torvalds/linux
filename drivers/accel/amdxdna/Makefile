@@ -5,6 +5,7 @@ amdxdna-y := \
 	aie2_error.o \
 	aie2_message.o \
 	aie2_pci.o \
+	aie2_pm.o \
 	aie2_psp.o \
 	aie2_smu.o \
 	aie2_solver.o \
@@ -17,5 +18,6 @@ amdxdna-y := \
 	npu1_regs.o \
 	npu2_regs.o \
 	npu4_regs.o \
-	npu5_regs.o
+	npu5_regs.o \
+	npu6_regs.o
 obj-$(CONFIG_DRM_ACCEL_AMDXDNA) = amdxdna.o

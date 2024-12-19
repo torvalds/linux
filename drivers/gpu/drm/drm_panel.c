@@ -24,6 +24,7 @@
 #include <linux/backlight.h>
 #include <linux/err.h>
 #include <linux/module.h>
+#include <linux/of.h>
 
 #include <drm/drm_crtc.h>
 #include <drm/drm_panel.h>

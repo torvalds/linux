@@ -6,6 +6,7 @@
 #ifndef _AIE2_PCI_H_
 #define _AIE2_PCI_H_
 
+#include <drm/amdxdna_accel.h>
 #include <linux/semaphore.h>
 
 #include "amdxdna_mailbox.h"
@@ -38,18 +39,12 @@
 })
 
 #define CHAN_SLOT_SZ SZ_8K
-#define CHANN_INDEX(ndev, rbuf_off) \
-	(((rbuf_off) - SRAM_REG_OFF((ndev), MBOX_CHANN_OFF)) / CHAN_SLOT_SZ)
-
 #define MBOX_SIZE(ndev) \
 ({ \
 	typeof(ndev) _ndev = (ndev); \
 	((_ndev)->priv->mbox_size) ? (_ndev)->priv->mbox_size : \
 	pci_resource_len(NDEV2PDEV(_ndev), (_ndev)->xdna->dev_info->mbox_bar); \
 })
-
-#define SMU_MPNPUCLK_FREQ_MAX(ndev) ((ndev)->priv->smu_mpnpuclk_freq_max)
-#define SMU_HCLK_FREQ_MAX(ndev) ((ndev)->priv->smu_hclk_freq_max)
 
 enum aie2_smu_reg_idx {
 	SMU_CMD_REG = 0,
@@ -112,14 +107,20 @@ struct aie_metadata {
 	struct aie_tile_metadata shim;
 };
 
-struct clock_entry {
-	char name[16];
-	u32 freq_mhz;
+enum rt_config_category {
+	AIE2_RT_CFG_INIT,
+	AIE2_RT_CFG_CLK_GATING,
 };
 
 struct rt_config {
 	u32	type;
 	u32	value;
+	u32	category;
+};
+
+struct dpm_clk_freq {
+	u32	npuclk;
+	u32	hclk;
 };
 
 /*
@@ -149,6 +150,12 @@ struct amdxdna_hwctx_priv {
 	struct drm_syncobj		*syncobj;
 };
 
+enum aie2_dev_status {
+	AIE2_DEV_UNINIT,
+	AIE2_DEV_INIT,
+	AIE2_DEV_START,
+};
+
 struct amdxdna_dev_hdl {
 	struct amdxdna_dev		*xdna;
 	const struct amdxdna_dev_priv	*priv;
@@ -160,17 +167,29 @@ struct amdxdna_dev_hdl {
 	struct xdna_mailbox_chann_res	mgmt_x2i;
 	struct xdna_mailbox_chann_res	mgmt_i2x;
 	u32				mgmt_chan_idx;
+	u32				mgmt_prot_major;
+	u32				mgmt_prot_minor;
 
 	u32				total_col;
 	struct aie_version		version;
 	struct aie_metadata		metadata;
-	struct clock_entry		mp_npu_clock;
-	struct clock_entry		h_clock;
+
+	/* power management and clock*/
+	enum amdxdna_power_mode_type	pw_mode;
+	u32				dpm_level;
+	u32				dft_dpm_level;
+	u32				max_dpm_level;
+	u32				clk_gating;
+	u32				npuclk_freq;
+	u32				hclk_freq;
 
 	/* Mailbox and the management channel */
 	struct mailbox			*mbox;
 	struct mailbox_channel		*mgmt_chann;
 	struct async_events		*async_events;
+
+	enum aie2_dev_status		dev_status;
+	u32				hwctx_num;
 };
 
 #define DEFINE_BAR_OFFSET(reg_name, bar, reg_addr) \
@@ -181,11 +200,17 @@ struct aie2_bar_off_pair {
 	u32	offset;
 };
 
+struct aie2_hw_ops {
+	int (*set_dpm)(struct amdxdna_dev_hdl *ndev, u32 dpm_level);
+};
+
 struct amdxdna_dev_priv {
 	const char			*fw_path;
 	u64				protocol_major;
 	u64				protocol_minor;
-	struct rt_config		rt_config;
+	const struct rt_config		*rt_config;
+	const struct dpm_clk_freq	*dpm_clk_tbl;
+
 #define COL_ALIGN_NONE   0
 #define COL_ALIGN_NATURE 1
 	u32				col_align;
@@ -196,15 +221,29 @@ struct amdxdna_dev_priv {
 	struct aie2_bar_off_pair	sram_offs[SRAM_MAX_INDEX];
 	struct aie2_bar_off_pair	psp_regs_off[PSP_MAX_REGS];
 	struct aie2_bar_off_pair	smu_regs_off[SMU_MAX_REGS];
-	u32				smu_mpnpuclk_freq_max;
-	u32				smu_hclk_freq_max;
+	struct aie2_hw_ops		hw_ops;
 };
 
 extern const struct amdxdna_dev_ops aie2_ops;
 
+int aie2_runtime_cfg(struct amdxdna_dev_hdl *ndev,
+		     enum rt_config_category category, u32 *val);
+
+/* aie2 npu hw config */
+extern const struct dpm_clk_freq npu1_dpm_clk_table[];
+extern const struct dpm_clk_freq npu4_dpm_clk_table[];
+extern const struct rt_config npu1_default_rt_cfg[];
+extern const struct rt_config npu4_default_rt_cfg[];
+
 /* aie2_smu.c */
 int aie2_smu_init(struct amdxdna_dev_hdl *ndev);
 void aie2_smu_fini(struct amdxdna_dev_hdl *ndev);
+int npu1_set_dpm(struct amdxdna_dev_hdl *ndev, u32 dpm_level);
+int npu4_set_dpm(struct amdxdna_dev_hdl *ndev, u32 dpm_level);
+
+/* aie2_pm.c */
+int aie2_pm_init(struct amdxdna_dev_hdl *ndev);
+int aie2_pm_set_mode(struct amdxdna_dev_hdl *ndev, enum amdxdna_power_mode_type target);
 
 /* aie2_psp.c */
 struct psp_device *aie2m_psp_create(struct drm_device *ddev, struct psp_config *conf);
@@ -222,7 +261,6 @@ int aie2_suspend_fw(struct amdxdna_dev_hdl *ndev);
 int aie2_resume_fw(struct amdxdna_dev_hdl *ndev);
 int aie2_set_runtime_cfg(struct amdxdna_dev_hdl *ndev, u32 type, u64 value);
 int aie2_get_runtime_cfg(struct amdxdna_dev_hdl *ndev, u32 type, u64 *value);
-int aie2_check_protocol_version(struct amdxdna_dev_hdl *ndev);
 int aie2_assign_mgmt_pasid(struct amdxdna_dev_hdl *ndev, u16 pasid);
 int aie2_query_aie_version(struct amdxdna_dev_hdl *ndev, struct aie_version *version);
 int aie2_query_aie_metadata(struct amdxdna_dev_hdl *ndev, struct aie_metadata *metadata);

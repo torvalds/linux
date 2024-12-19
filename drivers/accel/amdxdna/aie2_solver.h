@@ -99,6 +99,7 @@ struct clk_list_info {
 struct xrs_action_ops {
 	int (*load)(void *cb_arg, struct xrs_action_load *action);
 	int (*unload)(void *cb_arg);
+	int (*set_dft_dpm_level)(struct drm_device *ddev, u32 level);
 };
 
 /*

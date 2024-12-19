@@ -2672,7 +2672,8 @@ int panthor_vm_prepare_mapped_bos_resvs(struct drm_exec *exec, struct panthor_vm
  */
 void panthor_mmu_unplug(struct panthor_device *ptdev)
 {
-	panthor_mmu_irq_suspend(&ptdev->mmu->irq);
+	if (!IS_ENABLED(CONFIG_PM) || pm_runtime_active(ptdev->base.dev))
+		panthor_mmu_irq_suspend(&ptdev->mmu->irq);
 
 	mutex_lock(&ptdev->mmu->as.slots_lock);
 	for (u32 i = 0; i < ARRAY_SIZE(ptdev->mmu->as.slots); i++) {

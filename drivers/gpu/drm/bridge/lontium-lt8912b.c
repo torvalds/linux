@@ -815,8 +815,8 @@ static const struct of_device_id lt8912_dt_match[] = {
 MODULE_DEVICE_TABLE(of, lt8912_dt_match);
 
 static const struct i2c_device_id lt8912_id[] = {
-	{"lt8912", 0},
-	{},
+	{ "lt8912" },
+	{}
 };
 MODULE_DEVICE_TABLE(i2c, lt8912_id);
 

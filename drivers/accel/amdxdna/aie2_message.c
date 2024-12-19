@@ -14,6 +14,7 @@
 #include <linux/errno.h>
 #include <linux/pci.h>
 #include <linux/types.h>
+#include <linux/xarray.h>
 
 #include "aie2_msg_priv.h"
 #include "aie2_pci.h"
@@ -70,11 +71,18 @@ int aie2_resume_fw(struct amdxdna_dev_hdl *ndev)
 int aie2_set_runtime_cfg(struct amdxdna_dev_hdl *ndev, u32 type, u64 value)
 {
 	DECLARE_AIE2_MSG(set_runtime_cfg, MSG_OP_SET_RUNTIME_CONFIG);
+	int ret;
 
 	req.type = type;
 	req.value = value;
 
-	return aie2_send_mgmt_msg_wait(ndev, &msg);
+	ret = aie2_send_mgmt_msg_wait(ndev, &msg);
+	if (ret) {
+		XDNA_ERR(ndev->xdna, "Failed to set runtime config, ret %d", ret);
+		return ret;
+	}
+
+	return 0;
 }
 
 int aie2_get_runtime_cfg(struct amdxdna_dev_hdl *ndev, u32 type, u64 *value)
@@ -90,32 +98,6 @@ int aie2_get_runtime_cfg(struct amdxdna_dev_hdl *ndev, u32 type, u64 *value)
 	}
 
 	*value = resp.value;
-	return 0;
-}
-
-int aie2_check_protocol_version(struct amdxdna_dev_hdl *ndev)
-{
-	DECLARE_AIE2_MSG(protocol_version, MSG_OP_GET_PROTOCOL_VERSION);
-	struct amdxdna_dev *xdna = ndev->xdna;
-	int ret;
-
-	ret = aie2_send_mgmt_msg_wait(ndev, &msg);
-	if (ret) {
-		XDNA_ERR(xdna, "Failed to get protocol version, ret %d", ret);
-		return ret;
-	}
-
-	if (resp.major != ndev->priv->protocol_major) {
-		XDNA_ERR(xdna, "Incompatible firmware protocol version major %d minor %d",
-			 resp.major, resp.minor);
-		return -EINVAL;
-	}
-
-	if (resp.minor < ndev->priv->protocol_minor) {
-		XDNA_ERR(xdna, "Firmware minor version smaller than supported");
-		return -EINVAL;
-	}
-
 	return 0;
 }
 
@@ -315,10 +297,10 @@ int aie2_query_status(struct amdxdna_dev_hdl *ndev, char __user *buf,
 	struct amdxdna_dev *xdna = ndev->xdna;
 	struct amdxdna_client *client;
 	struct amdxdna_hwctx *hwctx;
+	unsigned long hwctx_id;
 	dma_addr_t dma_addr;
 	u32 aie_bitmap = 0;
 	u8 *buff_addr;
-	int next = 0;
 	int ret, idx;
 
 	buff_addr = dma_alloc_noncoherent(xdna->ddev.dev, size, &dma_addr,
@@ -329,7 +311,7 @@ int aie2_query_status(struct amdxdna_dev_hdl *ndev, char __user *buf,
 	/* Go through each hardware context and mark the AIE columns that are active */
 	list_for_each_entry(client, &xdna->client_list, node) {
 		idx = srcu_read_lock(&client->hwctx_srcu);
-		idr_for_each_entry_continue(&client->hwctx_idr, hwctx, next)
+		amdxdna_for_each_hwctx(client, hwctx_id, hwctx)
 			aie_bitmap |= amdxdna_hwctx_col_map(hwctx);
 		srcu_read_unlock(&client->hwctx_srcu, idx);
 	}
@@ -412,6 +394,9 @@ int aie2_config_cu(struct amdxdna_hwctx *hwctx)
 
 	for (i = 0; i < hwctx->cus->num_cus; i++) {
 		struct amdxdna_cu_config *cu = &hwctx->cus->cu_configs[i];
+
+		if (XDNA_MBZ_DBG(xdna, cu->pad, sizeof(cu->pad)))
+			return -EINVAL;
 
 		gobj = drm_gem_object_lookup(hwctx->client->filp, cu->cu_bo);
 		if (!gobj) {

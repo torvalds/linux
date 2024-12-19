@@ -7,6 +7,12 @@
 
 #include "drm_client_internal.h"
 
+static char drm_client_default[16] = CONFIG_DRM_CLIENT_DEFAULT;
+module_param_string(active, drm_client_default, sizeof(drm_client_default), 0444);
+MODULE_PARM_DESC(active,
+		 "Choose which drm client to start, default is"
+		 CONFIG_DRM_CLIENT_DEFAULT "]");
+
 /**
  * drm_client_setup() - Setup in-kernel DRM clients
  * @dev: DRM device
@@ -25,11 +31,26 @@
  */
 void drm_client_setup(struct drm_device *dev, const struct drm_format_info *format)
 {
-	int ret;
 
-	ret = drm_fbdev_client_setup(dev, format);
-	if (ret)
-		drm_warn(dev, "Failed to set up DRM client; error %d\n", ret);
+#ifdef CONFIG_DRM_FBDEV_EMULATION
+	if (!strcmp(drm_client_default, "fbdev")) {
+		int ret;
+
+		ret = drm_fbdev_client_setup(dev, format);
+		if (ret)
+			drm_warn(dev, "Failed to set up DRM client; error %d\n", ret);
+		return;
+	}
+#endif
+
+#ifdef CONFIG_DRM_CLIENT_LOG
+	if (!strcmp(drm_client_default, "log")) {
+		drm_log_register(dev);
+		return;
+	}
+#endif
+	if (strcmp(drm_client_default, ""))
+		drm_warn(dev, "Unknown DRM client %s\n", drm_client_default);
 }
 EXPORT_SYMBOL(drm_client_setup);
 
