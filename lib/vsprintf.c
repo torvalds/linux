@@ -2566,7 +2566,7 @@ static noinline_for_stack
 struct fmt format_decode(struct fmt fmt, struct printf_spec *spec)
 {
 	const char *start = fmt.str;
-	char flag, qualifier;
+	char flag;
 
 	/* we finished early by reading the field width */
 	if (fmt.state == FORMAT_STATE_WIDTH) {
@@ -2637,96 +2637,71 @@ precision:
 	}
 
 qualifier:
-	/* get the conversion qualifier */
-	qualifier = 0;
-	if (*fmt.str == 'h' || _tolower(*fmt.str) == 'l' ||
-	    *fmt.str == 'z' || *fmt.str == 't') {
-		qualifier = *fmt.str++;
-		if (unlikely(qualifier == *fmt.str)) {
-			if (qualifier == 'l') {
-				qualifier = 'L';
-				fmt.str++;
-			} else if (qualifier == 'h') {
-				qualifier = 'H';
-				fmt.str++;
-			}
-		}
-	}
-
-	/* default base */
+	/* Set up default numeric format */
 	spec->base = 10;
-	switch (*fmt.str) {
-	case 'c':
-		fmt.state = FORMAT_STATE_CHAR;
-		fmt.str++;
-		return fmt;
+	fmt.state = FORMAT_STATE_SIZE(int);
+	static const struct format_state {
+		unsigned char state;
+		unsigned char flags_or_double_state;
+		unsigned char modifier;
+		unsigned char base;
+	} lookup_state[256] = {
+		// Qualifiers
+		['l'] = { FORMAT_STATE_SIZE(long), FORMAT_STATE_SIZE(long long), 1 },
+		['L'] = { FORMAT_STATE_SIZE(long long), 0, 1 },
+		['h'] = { FORMAT_STATE_SIZE(short), FORMAT_STATE_SIZE(char), 1 },
+		['H'] = { FORMAT_STATE_SIZE(char), 0, 1 }, // Questionable, historic
+		['z'] = { FORMAT_STATE_SIZE(size_t), 0, 1 },
+		['t'] = { FORMAT_STATE_SIZE(ptrdiff_t), 0, 1 },
 
-	case 's':
-		fmt.state = FORMAT_STATE_STR;
-		fmt.str++;
-		return fmt;
+		// Non-numeric formats
+		['c'] = { FORMAT_STATE_CHAR },
+		['s'] = { FORMAT_STATE_STR },
+		['p'] = { FORMAT_STATE_PTR },
+		['%'] = { FORMAT_STATE_PERCENT_CHAR },
 
-	case 'p':
-		fmt.state = FORMAT_STATE_PTR;
-		fmt.str++;
-		return fmt;
+		// Numerics
+		['o'] = { 0, 0, 0, 8 },
+		['x'] = { 0, SMALL, 0, 16 },
+		['X'] = { 0, 0, 0, 16 },
+		['d'] = { 0, SIGN, 0, 10 },
+		['i'] = { 0, SIGN, 0, 10 },
+		['u'] = { 0, 0, 0, 10, },
 
-	case '%':
-		fmt.state = FORMAT_STATE_PERCENT_CHAR;
-		fmt.str++;
-		return fmt;
-
-	/* integer number formats - set up the flags and "break" */
-	case 'o':
-		spec->base = 8;
-		break;
-
-	case 'x':
-		spec->flags |= SMALL;
-		fallthrough;
-
-	case 'X':
-		spec->base = 16;
-		break;
-
-	case 'd':
-	case 'i':
-		spec->flags |= SIGN;
-		break;
-	case 'u':
-		break;
-
-	case 'n':
 		/*
 		 * Since %n poses a greater security risk than
 		 * utility, treat it as any other invalid or
 		 * unsupported format specifier.
 		 */
-		fallthrough;
+	};
 
-	default:
-		WARN_ONCE(1, "Please remove unsupported %%%c in format string\n", *fmt.str);
-		fmt.state = FORMAT_STATE_INVALID;
+	const struct format_state *p = lookup_state + (u8)*fmt.str;
+	if (p->modifier) {
+		fmt.state = p->state;
+		if (p->flags_or_double_state && fmt.str[0] == fmt.str[1]) {
+			fmt.state = p->flags_or_double_state;
+			fmt.str++;
+		}
+		fmt.str++;
+		p = lookup_state + *fmt.str;
+		if (unlikely(p->modifier))
+			goto invalid;
+	}
+	if (p->base) {
+		spec->base = p->base;
+		spec->flags |= p->flags_or_double_state;
+		fmt.str++;
+		return fmt;
+	}
+	if (p->state) {
+		fmt.state = p->state;
+		fmt.str++;
 		return fmt;
 	}
 
-	if (qualifier == 'L')
-		fmt.state = FORMAT_STATE_SIZE(long long);
-	else if (qualifier == 'l') {
-		fmt.state = FORMAT_STATE_SIZE(long);
-	} else if (qualifier == 'z') {
-		fmt.state = FORMAT_STATE_SIZE(size_t);
-	} else if (qualifier == 't') {
-		fmt.state = FORMAT_STATE_SIZE(ptrdiff_t);
-	} else if (qualifier == 'H') {
-		fmt.state = FORMAT_STATE_SIZE(char);
-	} else if (qualifier == 'h') {
-		fmt.state = FORMAT_STATE_SIZE(short);
-	} else {
-		fmt.state = FORMAT_STATE_SIZE(int);
-	}
-
-	fmt.str++;
+invalid:
+	WARN_ONCE(1, "Please remove unsupported %%%c in format string\n", *fmt.str);
+	fmt.state = FORMAT_STATE_INVALID;
 	return fmt;
 }
 
