@@ -8,6 +8,7 @@ enum mlx5hws_context_flags {
 	MLX5HWS_CONTEXT_FLAG_HWS_SUPPORT = 1 << 0,
 	MLX5HWS_CONTEXT_FLAG_PRIVATE_PD = 1 << 1,
 	MLX5HWS_CONTEXT_FLAG_BWC_SUPPORT = 1 << 2,
+	MLX5HWS_CONTEXT_FLAG_NATIVE_SUPPORT = 1 << 3,
 };
 
 enum mlx5hws_context_shared_stc_type {
@@ -56,6 +57,11 @@ struct mlx5hws_context {
 static inline bool mlx5hws_context_bwc_supported(struct mlx5hws_context *ctx)
 {
 	return ctx->flags & MLX5HWS_CONTEXT_FLAG_BWC_SUPPORT;
+}
+
+static inline bool mlx5hws_context_native_supported(struct mlx5hws_context *ctx)
+{
+	return ctx->flags & MLX5HWS_CONTEXT_FLAG_NATIVE_SUPPORT;
 }
 
 bool mlx5hws_context_cap_dynamic_reparse(struct mlx5hws_context *ctx);
