@@ -558,7 +558,16 @@ union enetc_tx_bd {
 		__le16 frm_len;
 		union {
 			struct {
-				u8 reserved[3];
+				u8 l3_aux0;
+#define ENETC_TX_BD_L3_START	GENMASK(6, 0)
+#define ENETC_TX_BD_IPCS	BIT(7)
+				u8 l3_aux1;
+#define ENETC_TX_BD_L3_HDR_LEN	GENMASK(6, 0)
+#define ENETC_TX_BD_L3T		BIT(7)
+				u8 l4_aux;
+#define ENETC_TX_BD_L4T		GENMASK(7, 5)
+#define ENETC_TXBD_L4T_UDP	1
+#define ENETC_TXBD_L4T_TCP	2
 				u8 flags;
 			}; /* default layout */
 			__le32 txstart;
@@ -582,10 +591,10 @@ union enetc_tx_bd {
 };
 
 enum enetc_txbd_flags {
-	ENETC_TXBD_FLAGS_RES0 = BIT(0), /* reserved */
+	ENETC_TXBD_FLAGS_L4CS = BIT(0), /* For ENETC 4.1 and later */
 	ENETC_TXBD_FLAGS_TSE = BIT(1),
 	ENETC_TXBD_FLAGS_W = BIT(2),
-	ENETC_TXBD_FLAGS_RES3 = BIT(3), /* reserved */
+	ENETC_TXBD_FLAGS_CSUM_LSO = BIT(3), /* For ENETC 4.1 and later */
 	ENETC_TXBD_FLAGS_TXSTART = BIT(4),
 	ENETC_TXBD_FLAGS_EX = BIT(6),
 	ENETC_TXBD_FLAGS_F = BIT(7)
