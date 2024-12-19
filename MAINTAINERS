@@ -20286,6 +20286,11 @@ L:	linux-serial@vger.kernel.org
 S:	Odd Fixes
 F:	drivers/tty/serial/rp2.*
 
+ROHM BD79703 DAC
+M:	Matti Vaittinen <mazziesaccount@gmail.com>
+S:	Supported
+F:	drivers/iio/dac/rohm-bd79703.c
+
 ROHM BD99954 CHARGER IC
 M:	Matti Vaittinen <mazziesaccount@gmail.com>
 S:	Supported
