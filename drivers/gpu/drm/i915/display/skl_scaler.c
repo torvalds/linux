@@ -64,7 +64,7 @@ static u16 skl_scaler_calc_phase(int sub, int scale, bool chroma_cosited)
 	/*
 	 * Hardware initial phase limited to [-0.5:1.5].
 	 * Since the max hardware scale factor is 3.0, we
-	 * should never actually excdeed 1.0 here.
+	 * should never actually exceed 1.0 here.
 	 */
 	WARN_ON(phase < -0x8000 || phase > 0x18000);
 
