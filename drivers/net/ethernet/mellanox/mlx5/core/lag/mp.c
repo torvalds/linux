@@ -153,6 +153,7 @@ static void mlx5_lag_fib_route_event(struct mlx5_lag *ldev, unsigned long event,
 	struct net_device *nh_dev0, *nh_dev1;
 	struct fib_info *fi = fen_info->fi;
 	struct lag_mp *mp = &ldev->lag_mp;
+	int i, dev_idx = 0;
 
 	/* Handle delete event */
 	if (event == FIB_EVENT_ENTRY_DEL) {
@@ -186,10 +187,12 @@ static void mlx5_lag_fib_route_event(struct mlx5_lag *ldev, unsigned long event,
 
 	if (!nh_dev1) {
 		if (__mlx5_lag_is_active(ldev)) {
-			int i = mlx5_lag_dev_get_netdev_idx(ldev, nh_dev0);
-
-			i++;
-			mlx5_lag_set_port_affinity(ldev, i);
+			mlx5_ldev_for_each(i, 0, ldev) {
+				dev_idx++;
+				if (ldev->pf[i].netdev == nh_dev0)
+					break;
+			}
+			mlx5_lag_set_port_affinity(ldev, dev_idx);
 			mlx5_lag_fib_set(mp, fi, fen_info->dst, fen_info->dst_len);
 		}
 
@@ -214,6 +217,7 @@ static void mlx5_lag_fib_nexthop_event(struct mlx5_lag *ldev,
 				       struct fib_info *fi)
 {
 	struct lag_mp *mp = &ldev->lag_mp;
+	int i, dev_idx = 0;
 
 	/* Check the nh event is related to the route */
 	if (!mp->fib.mfi || mp->fib.mfi != fi)
@@ -221,11 +225,15 @@ static void mlx5_lag_fib_nexthop_event(struct mlx5_lag *ldev,
 
 	/* nh added/removed */
 	if (event == FIB_EVENT_NH_DEL) {
-		int i = mlx5_lag_dev_get_netdev_idx(ldev, fib_nh->fib_nh_dev);
+		mlx5_ldev_for_each(i, 0, ldev) {
+			if (ldev->pf[i].netdev == fib_nh->fib_nh_dev)
+				break;
+			dev_idx++;
+		}
 
-		if (i >= 0) {
-			i = (i + 1) % 2 + 1; /* peer port */
-			mlx5_lag_set_port_affinity(ldev, i);
+		if (dev_idx >= 0) {
+			dev_idx = (dev_idx + 1) % 2 + 1; /* peer port */
+			mlx5_lag_set_port_affinity(ldev, dev_idx);
 		}
 	} else if (event == FIB_EVENT_NH_ADD &&
 		   fib_info_num_path(fi) == 2) {
