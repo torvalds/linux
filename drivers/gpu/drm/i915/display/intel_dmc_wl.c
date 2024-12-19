@@ -56,6 +56,7 @@
 enum {
 	ENABLE_DMC_WL_DISABLED,
 	ENABLE_DMC_WL_ENABLED,
+	ENABLE_DMC_WL_ANY_REGISTER,
 	ENABLE_DMC_WL_MAX,
 };
 
@@ -239,9 +240,14 @@ static bool intel_dmc_wl_reg_in_range(i915_reg_t reg,
 	return false;
 }
 
-static bool intel_dmc_wl_check_range(i915_reg_t reg, u32 dc_state)
+static bool intel_dmc_wl_check_range(struct intel_display *display,
+				     i915_reg_t reg,
+				     u32 dc_state)
 {
 	const struct intel_dmc_wl_range *ranges;
+
+	if (display->params.enable_dmc_wl == ENABLE_DMC_WL_ANY_REGISTER)
+		return true;
 
 	/*
 	 * Check that the offset is in one of the ranges for which
@@ -302,6 +308,9 @@ static void intel_dmc_wl_sanitize_param(struct intel_display *display)
 		break;
 	case ENABLE_DMC_WL_ENABLED:
 		desc = "enabled";
+		break;
+	case ENABLE_DMC_WL_ANY_REGISTER:
+		desc = "match any register";
 		break;
 	default:
 		desc = "unknown";
@@ -429,7 +438,8 @@ void intel_dmc_wl_get(struct intel_display *display, i915_reg_t reg)
 
 	spin_lock_irqsave(&wl->lock, flags);
 
-	if (i915_mmio_reg_valid(reg) && !intel_dmc_wl_check_range(reg, wl->dc_state))
+	if (i915_mmio_reg_valid(reg) &&
+	    !intel_dmc_wl_check_range(display, reg, wl->dc_state))
 		goto out_unlock;
 
 	if (!wl->enabled) {
@@ -461,7 +471,8 @@ void intel_dmc_wl_put(struct intel_display *display, i915_reg_t reg)
 
 	spin_lock_irqsave(&wl->lock, flags);
 
-	if (i915_mmio_reg_valid(reg) && !intel_dmc_wl_check_range(reg, wl->dc_state))
+	if (i915_mmio_reg_valid(reg) &&
+	    !intel_dmc_wl_check_range(display, reg, wl->dc_state))
 		goto out_unlock;
 
 	if (WARN_RATELIMIT(!refcount_read(&wl->refcount),
