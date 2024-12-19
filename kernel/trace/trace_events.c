@@ -3758,6 +3758,7 @@ event_enable_func(struct trace_array *tr, struct ftrace_hash *hash,
 	struct trace_event_file *file;
 	struct ftrace_probe_ops *ops;
 	struct event_probe_data *data;
+	unsigned long count = -1;
 	const char *system;
 	const char *event;
 	char *number;
@@ -3798,14 +3799,6 @@ event_enable_func(struct trace_array *tr, struct ftrace_hash *hash,
 
 	ret = -ENOMEM;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (!data)
-		goto out;
-
-	data->enable = enable;
-	data->count = -1;
-	data->file = file;
-
 	if (!param)
 		goto out_reg;
 
@@ -3813,27 +3806,35 @@ event_enable_func(struct trace_array *tr, struct ftrace_hash *hash,
 
 	ret = -EINVAL;
 	if (!strlen(number))
-		goto out_free;
+		goto out;
 
 	/*
 	 * We use the callback data field (which is a pointer)
 	 * as our counter.
 	 */
-	ret = kstrtoul(number, 0, &data->count);
+	ret = kstrtoul(number, 0, &count);
 	if (ret)
-		goto out_free;
+		goto out;
 
  out_reg:
 	/* Don't let event modules unload while probe registered */
 	ret = trace_event_try_get_ref(file->event_call);
 	if (!ret) {
 		ret = -EBUSY;
-		goto out_free;
+		goto out;
 	}
 
 	ret = __ftrace_event_enable_disable(file, 1, 1);
 	if (ret < 0)
 		goto out_put;
+
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		goto out_put;
+
+	data->enable = enable;
+	data->count = count;
+	data->file = file;
 
 	ret = register_ftrace_function_probe(glob, tr, ops, data);
 	/*
@@ -3853,11 +3854,10 @@ event_enable_func(struct trace_array *tr, struct ftrace_hash *hash,
 	return ret;
 
  out_disable:
+	kfree(data);
 	__ftrace_event_enable_disable(file, 0, 1);
  out_put:
 	trace_event_put_ref(file->event_call);
- out_free:
-	kfree(data);
 	goto out;
 }
 
