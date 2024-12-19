@@ -1819,7 +1819,6 @@ static int fd_alloc_drive(int drive)
 	unit[drive].tag_set.nr_maps = 1;
 	unit[drive].tag_set.queue_depth = 2;
 	unit[drive].tag_set.numa_node = NUMA_NO_NODE;
-	unit[drive].tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
 	if (blk_mq_alloc_tag_set(&unit[drive].tag_set))
 		goto out_cleanup_trackbuf;
 

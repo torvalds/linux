@@ -329,7 +329,7 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 		goto out_list_del;
 
 	ret = blk_mq_alloc_sq_tag_set(new->tag_set, &mtd_mq_ops, 2,
-			BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_BLOCKING);
+			BLK_MQ_F_BLOCKING);
 	if (ret)
 		goto out_kfree_tag_set;
 	

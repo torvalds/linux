@@ -56,7 +56,6 @@ int dasd_gendisk_alloc(struct dasd_block *block)
 	block->tag_set.cmd_size = sizeof(struct dasd_ccw_req);
 	block->tag_set.nr_hw_queues = nr_hw_queues;
 	block->tag_set.queue_depth = queue_depth;
-	block->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
 	block->tag_set.numa_node = NUMA_NO_NODE;
 	rc = blk_mq_alloc_tag_set(&block->tag_set);
 	if (rc)

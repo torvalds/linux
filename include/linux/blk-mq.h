@@ -668,7 +668,6 @@ struct blk_mq_ops {
 
 /* Keep hctx_flag_name[] in sync with the definitions below */
 enum {
-	BLK_MQ_F_SHOULD_MERGE	= 1 << 0,
 	BLK_MQ_F_TAG_QUEUE_SHARED = 1 << 1,
 	/*
 	 * Set when this device requires underlying blk-mq device for
