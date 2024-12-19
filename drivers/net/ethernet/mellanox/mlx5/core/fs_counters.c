@@ -43,6 +43,11 @@
 #define MLX5_FC_POOL_MAX_THRESHOLD BIT(18)
 #define MLX5_FC_POOL_USED_BUFF_RATIO 10
 
+enum mlx5_fc_type {
+	MLX5_FC_TYPE_ACQUIRED = 0,
+	MLX5_FC_TYPE_LOCAL,
+};
+
 struct mlx5_fc_cache {
 	u64 packets;
 	u64 bytes;
@@ -52,6 +57,7 @@ struct mlx5_fc_cache {
 struct mlx5_fc {
 	u32 id;
 	bool aging;
+	enum mlx5_fc_type type;
 	struct mlx5_fc_bulk *bulk;
 	struct mlx5_fc_cache cache;
 	/* last{packets,bytes} are used for calculating deltas since last reading. */
@@ -185,6 +191,9 @@ static void mlx5_fc_free(struct mlx5_core_dev *dev, struct mlx5_fc *counter)
 static void mlx5_fc_release(struct mlx5_core_dev *dev, struct mlx5_fc *counter)
 {
 	struct mlx5_fc_stats *fc_stats = dev->priv.fc_stats;
+
+	if (WARN_ON(counter->type == MLX5_FC_TYPE_LOCAL))
+		return;
 
 	if (counter->bulk)
 		mlx5_fc_pool_release_counter(&fc_stats->fc_pool, counter);
@@ -535,6 +544,50 @@ static int mlx5_fc_bulk_release_fc(struct mlx5_fc_bulk *bulk, struct mlx5_fc *fc
 	set_bit(fc_index, bulk->bitmask);
 	return 0;
 }
+
+/**
+ * mlx5_fc_local_create - Allocate mlx5_fc struct for a counter which
+ * was already acquired using its counter id and bulk data.
+ *
+ * @counter_id: counter acquired counter id
+ * @offset: counter offset from bulk base
+ * @bulk_size: counter's bulk size as was allocated
+ *
+ * Return: Pointer to mlx5_fc on success, ERR_PTR otherwise.
+ */
+struct mlx5_fc *
+mlx5_fc_local_create(u32 counter_id, u32 offset, u32 bulk_size)
+{
+	struct mlx5_fc_bulk *fc_bulk;
+	struct mlx5_fc *counter;
+
+	counter = kzalloc(sizeof(*counter), GFP_KERNEL);
+	if (!counter)
+		return ERR_PTR(-ENOMEM);
+	fc_bulk = kzalloc(sizeof(*fc_bulk), GFP_KERNEL);
+	if (!fc_bulk) {
+		kfree(counter);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	counter->type = MLX5_FC_TYPE_LOCAL;
+	counter->id = counter_id;
+	fc_bulk->base_id = counter_id - offset;
+	fc_bulk->bulk_len = bulk_size;
+	counter->bulk = fc_bulk;
+	return counter;
+}
+EXPORT_SYMBOL(mlx5_fc_local_create);
+
+void mlx5_fc_local_destroy(struct mlx5_fc *counter)
+{
+	if (!counter || counter->type != MLX5_FC_TYPE_LOCAL)
+		return;
+
+	kfree(counter->bulk);
+	kfree(counter);
+}
+EXPORT_SYMBOL(mlx5_fc_local_destroy);
 
 /* Flow counters pool API */
 

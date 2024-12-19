@@ -497,7 +497,7 @@ static int macsec_fs_tx_create(struct mlx5_macsec_fs *macsec_fs)
 	memset(&dest, 0, sizeof(struct mlx5_flow_destination));
 	memset(&flow_act, 0, sizeof(flow_act));
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
-	dest.counter_id = mlx5_fc_id(tx_tables->check_miss_rule_counter);
+	dest.counter = tx_tables->check_miss_rule_counter;
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_DROP | MLX5_FLOW_CONTEXT_ACTION_COUNT;
 	rule = mlx5_add_flow_rules(tx_tables->ft_check,  NULL, &flow_act, &dest, 1);
 	if (IS_ERR(rule)) {
@@ -519,7 +519,7 @@ static int macsec_fs_tx_create(struct mlx5_macsec_fs *macsec_fs)
 	flow_act.flags = FLOW_ACT_NO_APPEND;
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_ALLOW | MLX5_FLOW_CONTEXT_ACTION_COUNT;
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
-	dest.counter_id = mlx5_fc_id(tx_tables->check_rule_counter);
+	dest.counter = tx_tables->check_rule_counter;
 	rule = mlx5_add_flow_rules(tx_tables->ft_check, spec, &flow_act, &dest, 1);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
@@ -1200,7 +1200,7 @@ static int macsec_fs_rx_create_check_decap_rule(struct mlx5_macsec_fs *macsec_fs
 	flow_act->action |= MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT |
 			    MLX5_FLOW_CONTEXT_ACTION_COUNT;
 	roce_dest[dstn].type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
-	roce_dest[dstn].counter_id = mlx5_fc_id(rx_tables->check_rule_counter);
+	roce_dest[dstn].counter = rx_tables->check_rule_counter;
 	rule = mlx5_add_flow_rules(rx_tables->ft_check, spec, flow_act, roce_dest, dstn + 1);
 
 	if (IS_ERR(rule)) {
@@ -1592,7 +1592,7 @@ static int macsec_fs_rx_create(struct mlx5_macsec_fs *macsec_fs)
 	memset(&flow_act, 0, sizeof(flow_act));
 
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
-	dest.counter_id = mlx5_fc_id(rx_tables->check_miss_rule_counter);
+	dest.counter = rx_tables->check_miss_rule_counter;
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_DROP | MLX5_FLOW_CONTEXT_ACTION_COUNT;
 	rule = mlx5_add_flow_rules(rx_tables->ft_check,  NULL, &flow_act, &dest, 1);
 	if (IS_ERR(rule)) {
