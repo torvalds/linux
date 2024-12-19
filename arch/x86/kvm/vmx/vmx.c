@@ -6203,26 +6203,34 @@ static void vmx_destroy_pml_buffer(struct vcpu_vmx *vmx)
 static void vmx_flush_pml_buffer(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	u16 pml_idx, pml_tail_index;
 	u64 *pml_buf;
-	u16 pml_idx;
+	int i;
 
 	pml_idx = vmcs_read16(GUEST_PML_INDEX);
 
 	/* Do nothing if PML buffer is empty */
 	if (pml_idx == PML_HEAD_INDEX)
 		return;
+	/*
+	 * PML index always points to the next available PML buffer entity
+	 * unless PML log has just overflowed.
+	 */
+	pml_tail_index = (pml_idx >= PML_LOG_NR_ENTRIES) ? 0 : pml_idx + 1;
 
-	/* PML index always points to next available PML buffer entity */
-	if (pml_idx >= PML_LOG_NR_ENTRIES)
-		pml_idx = 0;
-	else
-		pml_idx++;
-
+	/*
+	 * PML log is written backwards: the CPU first writes the entry 511
+	 * then the entry 510, and so on.
+	 *
+	 * Read the entries in the same order they were written, to ensure that
+	 * the dirty ring is filled in the same order the CPU wrote them.
+	 */
 	pml_buf = page_address(vmx->pml_pg);
-	for (; pml_idx < PML_LOG_NR_ENTRIES; pml_idx++) {
+
+	for (i = PML_HEAD_INDEX; i >= pml_tail_index; i--) {
 		u64 gpa;
 
-		gpa = pml_buf[pml_idx];
+		gpa = pml_buf[i];
 		WARN_ON(gpa & (PAGE_SIZE - 1));
 		kvm_vcpu_mark_page_dirty(vcpu, gpa >> PAGE_SHIFT);
 	}
