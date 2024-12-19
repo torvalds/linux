@@ -279,6 +279,8 @@ static bool __intel_dmc_wl_supported(struct intel_display *display)
 
 static void intel_dmc_wl_sanitize_param(struct intel_display *display)
 {
+	const char *desc;
+
 	if (!HAS_DMC_WAKELOCK(display)) {
 		display->params.enable_dmc_wl = ENABLE_DMC_WL_DISABLED;
 	} else if (display->params.enable_dmc_wl < 0) {
@@ -294,8 +296,20 @@ static void intel_dmc_wl_sanitize_param(struct intel_display *display)
 		    display->params.enable_dmc_wl < 0 ||
 		    display->params.enable_dmc_wl >= ENABLE_DMC_WL_MAX);
 
-	drm_dbg_kms(display->drm, "Sanitized enable_dmc_wl value: %d\n",
-		    display->params.enable_dmc_wl);
+	switch (display->params.enable_dmc_wl) {
+	case ENABLE_DMC_WL_DISABLED:
+		desc = "disabled";
+		break;
+	case ENABLE_DMC_WL_ENABLED:
+		desc = "enabled";
+		break;
+	default:
+		desc = "unknown";
+		break;
+	}
+
+	drm_dbg_kms(display->drm, "Sanitized enable_dmc_wl value: %d (%s)\n",
+		    display->params.enable_dmc_wl, desc);
 }
 
 void intel_dmc_wl_init(struct intel_display *display)
