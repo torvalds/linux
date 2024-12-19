@@ -661,6 +661,10 @@ struct kvm_host_data {
 
 	/* Number of programmable event counters (PMCR_EL0.N) for this CPU */
 	unsigned int nr_event_counters;
+
+	/* Number of debug breakpoints/watchpoints for this CPU (minus 1) */
+	unsigned int debug_brps;
+	unsigned int debug_wrps;
 };
 
 struct kvm_host_psci_config {
