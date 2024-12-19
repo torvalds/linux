@@ -49,16 +49,11 @@ static char *last_cmd;
 
 static int errpos(const char *str)
 {
-	int ret = 0;
-
-	mutex_lock(&lastcmd_mutex);
+	guard(mutex)(&lastcmd_mutex);
 	if (!str || !last_cmd)
-		goto out;
+		return 0;
 
-	ret = err_pos(last_cmd, str);
- out:
-	mutex_unlock(&lastcmd_mutex);
-	return ret;
+	return err_pos(last_cmd, str);
 }
 
 static void last_cmd_set(const char *str)
@@ -74,14 +69,12 @@ static void last_cmd_set(const char *str)
 
 static void synth_err(u8 err_type, u16 err_pos)
 {
-	mutex_lock(&lastcmd_mutex);
+	guard(mutex)(&lastcmd_mutex);
 	if (!last_cmd)
-		goto out;
+		return;
 
 	tracing_log_err(NULL, "synthetic_events", last_cmd, err_text,
 			err_type, err_pos);
- out:
-	mutex_unlock(&lastcmd_mutex);
 }
 
 static int create_synth_event(const char *raw_command);
