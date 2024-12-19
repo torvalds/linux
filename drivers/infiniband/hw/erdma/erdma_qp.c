@@ -406,7 +406,7 @@ static void init_send_sqe_rc(struct erdma_qp *qp, struct erdma_send_sqe_rc *sqe,
 	if (wr->opcode == IB_WR_SEND_WITH_IMM) {
 		op = ERDMA_OP_SEND_WITH_IMM;
 		sqe->imm_data = wr->ex.imm_data;
-	} else if (op == IB_WR_SEND_WITH_INV) {
+	} else if (wr->opcode == IB_WR_SEND_WITH_INV) {
 		op = ERDMA_OP_SEND_WITH_INV;
 		sqe->invalid_stag = cpu_to_le32(wr->ex.invalidate_rkey);
 	}
