@@ -1393,50 +1393,37 @@ static int atmel_qspi_probe(struct platform_device *pdev)
 	aq->mmap_phys_base = (dma_addr_t)res->start;
 
 	/* Get the peripheral clock */
-	aq->pclk = devm_clk_get(&pdev->dev, "pclk");
+	aq->pclk = devm_clk_get_enabled(&pdev->dev, "pclk");
 	if (IS_ERR(aq->pclk))
-		aq->pclk = devm_clk_get(&pdev->dev, NULL);
+		aq->pclk = devm_clk_get_enabled(&pdev->dev, NULL);
 
 	if (IS_ERR(aq->pclk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(aq->pclk),
 				     "missing peripheral clock\n");
 
-	/* Enable the peripheral clock */
-	err = clk_prepare_enable(aq->pclk);
-	if (err)
-		return dev_err_probe(&pdev->dev, err,
-				     "failed to enable the peripheral clock\n");
-
 	if (aq->caps->has_qspick) {
 		/* Get the QSPI system clock */
-		aq->qspick = devm_clk_get(&pdev->dev, "qspick");
+		aq->qspick = devm_clk_get_enabled(&pdev->dev, "qspick");
 		if (IS_ERR(aq->qspick)) {
 			dev_err(&pdev->dev, "missing system clock\n");
 			err = PTR_ERR(aq->qspick);
-			goto disable_pclk;
+			return err;
 		}
 
-		/* Enable the QSPI system clock */
-		err = clk_prepare_enable(aq->qspick);
-		if (err) {
-			dev_err(&pdev->dev,
-				"failed to enable the QSPI system clock\n");
-			goto disable_pclk;
-		}
 	} else if (aq->caps->has_gclk) {
 		/* Get the QSPI generic clock */
 		aq->gclk = devm_clk_get(&pdev->dev, "gclk");
 		if (IS_ERR(aq->gclk)) {
 			dev_err(&pdev->dev, "missing Generic clock\n");
 			err = PTR_ERR(aq->gclk);
-			goto disable_pclk;
+			return err;
 		}
 	}
 
 	if (aq->caps->has_dma) {
 		err = atmel_qspi_dma_init(ctrl);
 		if (err == -EPROBE_DEFER)
-			goto disable_qspick;
+			return err;
 	}
 
 	/* Request the IRQ */
@@ -1476,10 +1463,6 @@ static int atmel_qspi_probe(struct platform_device *pdev)
 dma_release:
 	if (aq->caps->has_dma)
 		atmel_qspi_dma_release(aq);
-disable_qspick:
-	clk_disable_unprepare(aq->qspick);
-disable_pclk:
-	clk_disable_unprepare(aq->pclk);
 
 	return err;
 }
@@ -1518,7 +1501,6 @@ static int atmel_qspi_sama7g5_suspend(struct atmel_qspi *aq)
 	if (ret)
 		return ret;
 
-	clk_disable_unprepare(aq->pclk);
 	return 0;
 }
 
@@ -1543,8 +1525,6 @@ static void atmel_qspi_remove(struct platform_device *pdev)
 		}
 
 		atmel_qspi_write(QSPI_CR_QSPIDIS, aq, QSPI_CR);
-		clk_disable(aq->qspick);
-		clk_disable(aq->pclk);
 	} else {
 		/*
 		 * atmel_qspi_runtime_{suspend,resume} just disable and enable
@@ -1553,9 +1533,6 @@ static void atmel_qspi_remove(struct platform_device *pdev)
 		 */
 		dev_warn(&pdev->dev, "Failed to resume device on remove\n");
 	}
-
-	clk_unprepare(aq->qspick);
-	clk_unprepare(aq->pclk);
 
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
@@ -1572,8 +1549,11 @@ static int __maybe_unused atmel_qspi_suspend(struct device *dev)
 	if (ret < 0)
 		return ret;
 
-	if (aq->caps->has_gclk)
-		return atmel_qspi_sama7g5_suspend(aq);
+	if (aq->caps->has_gclk) {
+		ret = atmel_qspi_sama7g5_suspend(aq);
+		clk_disable_unprepare(aq->pclk);
+		return ret;
+	}
 
 	atmel_qspi_write(QSPI_CR_QSPIDIS, aq, QSPI_CR);
 
