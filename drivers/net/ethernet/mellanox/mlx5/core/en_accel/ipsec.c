@@ -980,6 +980,9 @@ static void mlx5e_xfrm_advance_esn_state(struct xfrm_state *x)
 	struct mlx5e_ipsec_sa_entry *sa_entry_shadow;
 	bool need_update;
 
+	if (x->xso.dir != XFRM_DEV_OFFLOAD_IN)
+		return;
+
 	need_update = mlx5e_ipsec_update_esn_state(sa_entry);
 	if (!need_update)
 		return;

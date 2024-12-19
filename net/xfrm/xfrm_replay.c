@@ -729,6 +729,7 @@ static int xfrm_replay_overflow_offload_esn(struct xfrm_state *x, struct sk_buff
 		}
 
 		replay_esn->oseq = oseq;
+		xfrm_dev_state_advance_esn(x);
 
 		if (xfrm_aevent_is_on(net))
 			xfrm_replay_notify(x, XFRM_REPLAY_UPDATE);
