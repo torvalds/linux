@@ -57,6 +57,7 @@ enum {
 	ENABLE_DMC_WL_DISABLED,
 	ENABLE_DMC_WL_ENABLED,
 	ENABLE_DMC_WL_ANY_REGISTER,
+	ENABLE_DMC_WL_ALWAYS_LOCKED,
 	ENABLE_DMC_WL_MAX,
 };
 
@@ -312,6 +313,9 @@ static void intel_dmc_wl_sanitize_param(struct intel_display *display)
 	case ENABLE_DMC_WL_ANY_REGISTER:
 		desc = "match any register";
 		break;
+	case ENABLE_DMC_WL_ALWAYS_LOCKED:
+		desc = "always locked";
+		break;
 	default:
 		desc = "unknown";
 		break;
@@ -332,7 +336,8 @@ void intel_dmc_wl_init(struct intel_display *display)
 
 	INIT_DELAYED_WORK(&wl->work, intel_dmc_wl_work);
 	spin_lock_init(&wl->lock);
-	refcount_set(&wl->refcount, 0);
+	refcount_set(&wl->refcount,
+		     display->params.enable_dmc_wl == ENABLE_DMC_WL_ALWAYS_LOCKED ? 1 : 0);
 }
 
 /* Must only be called as part of enabling dynamic DC states. */
