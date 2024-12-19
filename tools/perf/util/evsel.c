@@ -2571,11 +2571,11 @@ try_fallback:
 	if (err == -EMFILE && rlimit__increase_nofile(&set_rlimit))
 		goto retry_open;
 
-	if (err == -EOPNOTSUPP && evsel__precise_ip_fallback(evsel))
-		goto retry_open;
-
 	if (err == -EINVAL && evsel__detect_missing_features(evsel))
 		goto fallback_missing_features;
+
+	if (evsel__precise_ip_fallback(evsel))
+		goto retry_open;
 
 	if (evsel__handle_error_quirks(evsel, err))
 		goto retry_open;
