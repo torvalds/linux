@@ -1350,6 +1350,12 @@ int btrfs_rebuild_free_space_tree(struct btrfs_fs_info *fs_info)
 			btrfs_end_transaction(trans);
 			return ret;
 		}
+		if (btrfs_should_end_transaction(trans)) {
+			btrfs_end_transaction(trans);
+			trans = btrfs_start_transaction(free_space_root, 1);
+			if (IS_ERR(trans))
+				return PTR_ERR(trans);
+		}
 		node = rb_next(node);
 	}
 
