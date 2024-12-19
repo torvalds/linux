@@ -119,16 +119,6 @@ void kvm_arm_vcpu_init_debug(struct kvm_vcpu *vcpu)
 }
 
 /**
- * kvm_arm_reset_debug_ptr - reset the debug ptr to point to the vcpu state
- * @vcpu:	the vcpu pointer
- */
-
-void kvm_arm_reset_debug_ptr(struct kvm_vcpu *vcpu)
-{
-	vcpu->arch.debug_ptr = &vcpu->arch.vcpu_debug_state;
-}
-
-/**
  * kvm_arm_setup_debug - set up debug related stuff
  *
  * @vcpu:	the vcpu pointer
@@ -198,20 +188,13 @@ void kvm_arm_setup_debug(struct kvm_vcpu *vcpu)
 		}
 
 		/*
-		 * HW Breakpoints and watchpoints
-		 *
-		 * We simply switch the debug_ptr to point to our new
-		 * external_debug_state which has been populated by the
-		 * debug ioctl. The existing DEBUG_DIRTY mechanism ensures
-		 * the registers are updated on the world switch.
+		 * Enable breakpoints and watchpoints if userspace wants them.
 		 */
 		if (vcpu->guest_debug & KVM_GUESTDBG_USE_HW) {
-			/* Enable breakpoints/watchpoints */
 			mdscr = vcpu_read_sys_reg(vcpu, MDSCR_EL1);
 			mdscr |= DBG_MDSCR_MDE;
 			vcpu_write_sys_reg(vcpu, mdscr, MDSCR_EL1);
 
-			vcpu->arch.debug_ptr = &vcpu->arch.external_debug_state;
 			vcpu_set_flag(vcpu, DEBUG_DIRTY);
 
 		/*
@@ -228,9 +211,6 @@ void kvm_arm_setup_debug(struct kvm_vcpu *vcpu)
 			vcpu_write_sys_reg(vcpu, mdscr, MDSCR_EL1);
 		}
 	}
-
-	BUG_ON(!vcpu->guest_debug &&
-		vcpu->arch.debug_ptr != &vcpu->arch.vcpu_debug_state);
 
 	/* If KDE or MDE are set, perform a full save/restore cycle. */
 	if (vcpu_read_sys_reg(vcpu, MDSCR_EL1) & (DBG_MDSCR_KDE | DBG_MDSCR_MDE))
@@ -253,14 +233,6 @@ void kvm_arm_clear_debug(struct kvm_vcpu *vcpu)
 		}
 
 		restore_guest_debug_regs(vcpu);
-
-		/*
-		 * If we were using HW debug we need to restore the
-		 * debug_ptr to the guest debug state.
-		 */
-		if (vcpu->guest_debug & KVM_GUESTDBG_USE_HW) {
-			kvm_arm_reset_debug_ptr(vcpu);
-		}
 	}
 }
 

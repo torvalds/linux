@@ -748,11 +748,7 @@ struct kvm_vcpu_arch {
 	 *
 	 * external_debug_state contains the debug values we want to debug the
 	 * guest. This is set via the KVM_SET_GUEST_DEBUG ioctl.
-	 *
-	 * debug_ptr points to the set of debug registers that should be loaded
-	 * onto the hardware when running the guest.
 	 */
-	struct kvm_guest_debug_arch *debug_ptr;
 	struct kvm_guest_debug_arch vcpu_debug_state;
 	struct kvm_guest_debug_arch external_debug_state;
 
@@ -1350,7 +1346,6 @@ void kvm_init_host_debug_data(void);
 void kvm_arm_vcpu_init_debug(struct kvm_vcpu *vcpu);
 void kvm_arm_setup_debug(struct kvm_vcpu *vcpu);
 void kvm_arm_clear_debug(struct kvm_vcpu *vcpu);
-void kvm_arm_reset_debug_ptr(struct kvm_vcpu *vcpu);
 void kvm_vcpu_load_debug(struct kvm_vcpu *vcpu);
 void kvm_debug_set_guest_ownership(struct kvm_vcpu *vcpu);
 

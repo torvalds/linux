@@ -476,8 +476,6 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 
 	kvm_pmu_vcpu_init(vcpu);
 
-	kvm_arm_reset_debug_ptr(vcpu);
-
 	kvm_arm_pvtime_vcpu_init(&vcpu->arch);
 
 	vcpu->arch.hw_mmu = &vcpu->kvm->arch.mmu;
