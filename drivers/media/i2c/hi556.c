@@ -1226,7 +1226,7 @@ static int hi556_check_hwcfg(struct device *dev)
 	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
 	fwnode_handle_put(ep);
 	if (ret)
-		return ret;
+		return dev_err_probe(dev, ret, "parsing endpoint failed\n");
 
 	ret = fwnode_property_read_u32(fwnode, "clock-frequency", &mclk);
 	if (ret) {
@@ -1334,11 +1334,8 @@ static int hi556_probe(struct i2c_client *client)
 	int ret;
 
 	ret = hi556_check_hwcfg(&client->dev);
-	if (ret) {
-		dev_err(&client->dev, "failed to check HW configuration: %d\n",
-			ret);
+	if (ret)
 		return ret;
-	}
 
 	hi556 = devm_kzalloc(&client->dev, sizeof(*hi556), GFP_KERNEL);
 	if (!hi556)
