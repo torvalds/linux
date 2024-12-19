@@ -553,13 +553,53 @@ void dml2_init_soc_states(struct dml2_context *dml2, const struct dc *in_dc,
 		}
 	}
 
-	dml2_policy_build_synthetic_soc_states(s, p);
-	if (dml2->v20.dml_core_ctx.project == dml_project_dcn35) {
-		// Override last out_state with data from last in_state
-		// This will ensure that out_state contains max fclk
-		memcpy(&p->out_states->state_array[p->out_states->num_states - 1],
-				&p->in_states->state_array[p->in_states->num_states - 1],
-				sizeof(struct soc_state_bounding_box_st));
+	if (dml2->v20.dml_core_ctx.project == dml_project_dcn35 ||
+	    dml2->v20.dml_core_ctx.project == dml_project_dcn351) {
+		int max_dcfclk_mhz = 0, max_dispclk_mhz = 0, max_dppclk_mhz = 0, max_phyclk_mhz = 0,
+			max_dtbclk_mhz = 0, max_fclk_mhz = 0, max_uclk_mhz = 0, max_socclk_mhz = 0;
+
+		for (i = 0; i < p->in_states->num_states; i++) {
+			if (p->in_states->state_array[i].dcfclk_mhz > max_dcfclk_mhz)
+				max_dcfclk_mhz = (int)p->in_states->state_array[i].dcfclk_mhz;
+			if (p->in_states->state_array[i].fabricclk_mhz > max_fclk_mhz)
+				max_fclk_mhz = (int)p->in_states->state_array[i].fabricclk_mhz;
+			if (p->in_states->state_array[i].socclk_mhz > max_socclk_mhz)
+				max_socclk_mhz = (int)p->in_states->state_array[i].socclk_mhz;
+			if (p->in_states->state_array[i].dram_speed_mts > max_uclk_mhz)
+				max_uclk_mhz = (int)p->in_states->state_array[i].dram_speed_mts;
+			if (p->in_states->state_array[i].dispclk_mhz > max_dispclk_mhz)
+				max_dispclk_mhz = (int)p->in_states->state_array[i].dispclk_mhz;
+			if (p->in_states->state_array[i].dppclk_mhz > max_dppclk_mhz)
+				max_dppclk_mhz = (int)p->in_states->state_array[i].dppclk_mhz;
+			if (p->in_states->state_array[i].phyclk_mhz > max_phyclk_mhz)
+				max_phyclk_mhz = (int)p->in_states->state_array[i].phyclk_mhz;
+			if (p->in_states->state_array[i].dtbclk_mhz > max_dtbclk_mhz)
+				max_dtbclk_mhz = (int)p->in_states->state_array[i].dtbclk_mhz;
+		}
+
+		for (i = 0; i < p->in_states->num_states; i++) {
+			/* Independent states - including base (unlisted) parameters from state 0. */
+			p->out_states->state_array[i] = p->in_states->state_array[0];
+
+			p->out_states->state_array[i].dispclk_mhz = max_dispclk_mhz;
+			p->out_states->state_array[i].dppclk_mhz = max_dppclk_mhz;
+			p->out_states->state_array[i].dtbclk_mhz = max_dtbclk_mhz;
+			p->out_states->state_array[i].phyclk_mhz = max_phyclk_mhz;
+
+			p->out_states->state_array[i].dscclk_mhz = max_dispclk_mhz / 3.0;
+			p->out_states->state_array[i].phyclk_mhz = max_phyclk_mhz;
+			p->out_states->state_array[i].dtbclk_mhz = max_dtbclk_mhz;
+
+			/* Dependent states. */
+			p->out_states->state_array[i].dram_speed_mts = p->in_states->state_array[i].dram_speed_mts;
+			p->out_states->state_array[i].fabricclk_mhz = p->in_states->state_array[i].fabricclk_mhz;
+			p->out_states->state_array[i].socclk_mhz = p->in_states->state_array[i].socclk_mhz;
+			p->out_states->state_array[i].dcfclk_mhz = p->in_states->state_array[i].dcfclk_mhz;
+		}
+
+		p->out_states->num_states = p->in_states->num_states;
+	} else {
+		dml2_policy_build_synthetic_soc_states(s, p);
 	}
 }
 

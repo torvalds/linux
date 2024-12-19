@@ -794,4 +794,6 @@ void hubp1_soft_reset(struct hubp *hubp, bool reset);
 
 void hubp1_set_flip_int(struct hubp *hubp);
 
+void hubp1_clear_tiling(struct hubp *hubp);
+
 #endif

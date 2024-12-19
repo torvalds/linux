@@ -21,6 +21,11 @@
 
 #define smu_print(str, ...) {DC_LOG_SMU(str, ##__VA_ARGS__); }
 
+/* temporary define */
+#ifndef DALSMC_MSG_SubvpUclkFclk
+#define DALSMC_MSG_SubvpUclkFclk 0x1B
+#endif
+
 /*
  * Function to be used instead of REG_WAIT macro because the wait ends when
  * the register is NOT EQUAL to zero, and because the translation in msg_if.h
@@ -292,6 +297,24 @@ bool dcn401_smu_set_active_uclk_fclk_hardmin(struct clk_mgr_internal *clk_mgr,
 	/* wait until hardmin acknowledged */
 	success &= dcn401_smu_wait_hard_min_status(clk_mgr, PPCLK_UCLK);
 	smu_print("SMU hard_min_done %d\n", success);
+
+	return success;
+}
+
+bool dcn401_smu_set_subvp_uclk_fclk_hardmin(struct clk_mgr_internal *clk_mgr,
+		uint16_t uclk_freq_mhz,
+		uint16_t fclk_freq_mhz)
+{
+	uint32_t response = 0;
+	bool success;
+
+	/* 15:0 for uclk, 32:16 for fclk */
+	uint32_t param = (fclk_freq_mhz << 16) | uclk_freq_mhz;
+
+	smu_print("SMU Set active hardmin by freq: uclk_freq_mhz = %d MHz, fclk_freq_mhz = %d MHz\n", uclk_freq_mhz, fclk_freq_mhz);
+
+	success = dcn401_smu_send_msg_with_param(clk_mgr,
+			DALSMC_MSG_SubvpUclkFclk, param, &response);
 
 	return success;
 }

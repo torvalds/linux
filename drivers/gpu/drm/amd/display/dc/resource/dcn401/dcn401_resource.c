@@ -726,6 +726,10 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.disable_unbounded_requesting = false,
 	.enable_legacy_fast_update = false,
 	.dcc_meta_propagation_delay_us = 10,
+	.fams_version = {
+		.minor = 1,
+		.major = 2,
+	}, //v2.1
 	.fams2_config = {
 		.bits = {
 			.enable = true,

@@ -9,7 +9,7 @@
 #include "dml2_debug.h"
 #include "lib_float_math.h"
 
-static const struct dml2_core_ip_params core_dcn4_ip_caps_base = {
+struct dml2_core_ip_params core_dcn4_ip_caps_base = {
 	// Hardcoded values for DCN3x
 	.vblank_nom_default_us = 668,
 	.remote_iommu_outstanding_translations = 256,
@@ -90,6 +90,7 @@ static void patch_ip_caps_with_explicit_ip_params(struct dml2_ip_capabilities *i
 	ip_caps->config_return_buffer_segment_size_in_kbytes = ip_params->config_return_buffer_segment_size_in_kbytes;
 	ip_caps->meta_fifo_size_in_kentries = ip_params->meta_fifo_size_in_kentries;
 	ip_caps->compressed_buffer_segment_size_in_kbytes = ip_params->compressed_buffer_segment_size_in_kbytes;
+	ip_caps->cursor_buffer_size = ip_params->cursor_buffer_size;
 	ip_caps->max_flip_time_us = ip_params->max_flip_time_us;
 	ip_caps->max_flip_time_lines = ip_params->max_flip_time_lines;
 	ip_caps->hostvm_mode = ip_params->hostvm_mode;
@@ -114,6 +115,7 @@ static void patch_ip_params_with_ip_caps(struct dml2_core_ip_params *ip_params, 
 	ip_params->config_return_buffer_segment_size_in_kbytes = ip_caps->config_return_buffer_segment_size_in_kbytes;
 	ip_params->meta_fifo_size_in_kentries = ip_caps->meta_fifo_size_in_kentries;
 	ip_params->compressed_buffer_segment_size_in_kbytes = ip_caps->compressed_buffer_segment_size_in_kbytes;
+	ip_params->cursor_buffer_size = ip_caps->cursor_buffer_size;
 	ip_params->max_flip_time_us = ip_caps->max_flip_time_us;
 	ip_params->max_flip_time_lines = ip_caps->max_flip_time_lines;
 	ip_params->hostvm_mode = ip_caps->hostvm_mode;
@@ -316,28 +318,9 @@ static void pack_mode_programming_params_with_implicit_subvp(struct dml2_core_in
 
 		// Setup the appropriate p-state strategy
 		if (display_cfg->stage3.performed && display_cfg->stage3.success) {
-			switch (display_cfg->stage3.pstate_switch_modes[plane_index]) {
-			case dml2_uclk_pstate_support_method_vactive:
-			case dml2_uclk_pstate_support_method_vblank:
-			case dml2_uclk_pstate_support_method_fw_subvp_phantom:
-			case dml2_uclk_pstate_support_method_fw_drr:
-			case dml2_uclk_pstate_support_method_fw_vactive_drr:
-			case dml2_uclk_pstate_support_method_fw_vblank_drr:
-			case dml2_uclk_pstate_support_method_fw_subvp_phantom_drr:
-				programming->plane_programming[plane_index].uclk_pstate_support_method = display_cfg->stage3.pstate_switch_modes[plane_index];
-				break;
-			case dml2_uclk_pstate_support_method_reserved_hw:
-			case dml2_uclk_pstate_support_method_reserved_fw:
-			case dml2_uclk_pstate_support_method_reserved_fw_drr_fixed:
-			case dml2_uclk_pstate_support_method_reserved_fw_drr_var:
-			case dml2_uclk_pstate_support_method_not_supported:
-			case dml2_uclk_pstate_support_method_count:
-			default:
-				programming->plane_programming[plane_index].uclk_pstate_support_method = dml2_uclk_pstate_support_method_not_supported;
-				break;
-			}
+			programming->plane_programming[plane_index].uclk_pstate_support_method = display_cfg->stage3.pstate_switch_modes[plane_index];
 		} else {
-			programming->plane_programming[plane_index].uclk_pstate_support_method = dml2_uclk_pstate_support_method_not_supported;
+			programming->plane_programming[plane_index].uclk_pstate_support_method = dml2_pstate_method_na;
 		}
 
 		dml2_core_calcs_get_mall_allocation(&core->clean_me_up.mode_lib, &programming->plane_programming[plane_index].surface_size_mall_bytes, dml_internal_pipe_index);
@@ -360,7 +343,8 @@ static void pack_mode_programming_params_with_implicit_subvp(struct dml2_core_in
 				/* unconditionally populate fams2 params */
 				dml2_core_calcs_get_stream_fams2_programming(&core->clean_me_up.mode_lib,
 					display_cfg,
-					&programming->stream_programming[main_plane->stream_index].fams2_params,
+					&programming->stream_programming[main_plane->stream_index].fams2_base_params,
+					&programming->stream_programming[main_plane->stream_index].fams2_sub_params,
 					programming->stream_programming[main_plane->stream_index].uclk_pstate_method,
 					plane_index);
 
@@ -572,18 +556,18 @@ bool core_dcn4_mode_programming(struct dml2_core_mode_programming_in_out *in_out
 				in_out->programming->plane_programming[plane_index].num_dpps_required = core->clean_me_up.mode_lib.mp.NoOfDPP[plane_index];
 
 				if (in_out->programming->display_config.plane_descriptors[plane_index].overrides.legacy_svp_config == dml2_svp_mode_override_main_pipe)
-					in_out->programming->plane_programming[plane_index].uclk_pstate_support_method = dml2_uclk_pstate_support_method_fw_subvp_phantom;
+					in_out->programming->plane_programming[plane_index].uclk_pstate_support_method = dml2_pstate_method_fw_svp;
 				else if (in_out->programming->display_config.plane_descriptors[plane_index].overrides.legacy_svp_config == dml2_svp_mode_override_phantom_pipe)
-					in_out->programming->plane_programming[plane_index].uclk_pstate_support_method = dml2_uclk_pstate_support_method_fw_subvp_phantom;
+					in_out->programming->plane_programming[plane_index].uclk_pstate_support_method = dml2_pstate_method_fw_svp;
 				else if (in_out->programming->display_config.plane_descriptors[plane_index].overrides.legacy_svp_config == dml2_svp_mode_override_phantom_pipe_no_data_return)
-					in_out->programming->plane_programming[plane_index].uclk_pstate_support_method = dml2_uclk_pstate_support_method_fw_subvp_phantom;
+					in_out->programming->plane_programming[plane_index].uclk_pstate_support_method = dml2_pstate_method_fw_svp;
 				else {
 					if (core->clean_me_up.mode_lib.mp.MaxActiveDRAMClockChangeLatencySupported[plane_index] >= core->clean_me_up.mode_lib.soc.power_management_parameters.dram_clk_change_blackout_us)
-						in_out->programming->plane_programming[plane_index].uclk_pstate_support_method = dml2_uclk_pstate_support_method_vactive;
+						in_out->programming->plane_programming[plane_index].uclk_pstate_support_method = dml2_pstate_method_vactive;
 					else if (core->clean_me_up.mode_lib.mp.TWait[plane_index] >= core->clean_me_up.mode_lib.soc.power_management_parameters.dram_clk_change_blackout_us)
-						in_out->programming->plane_programming[plane_index].uclk_pstate_support_method = dml2_uclk_pstate_support_method_vblank;
+						in_out->programming->plane_programming[plane_index].uclk_pstate_support_method = dml2_pstate_method_vblank;
 					else
-						in_out->programming->plane_programming[plane_index].uclk_pstate_support_method = dml2_uclk_pstate_support_method_not_supported;
+						in_out->programming->plane_programming[plane_index].uclk_pstate_support_method = dml2_pstate_method_na;
 				}
 
 				dml2_core_calcs_get_mall_allocation(&core->clean_me_up.mode_lib, &in_out->programming->plane_programming[plane_index].surface_size_mall_bytes, dml_internal_pipe_index);
