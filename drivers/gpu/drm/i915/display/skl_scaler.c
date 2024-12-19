@@ -119,10 +119,7 @@ static void skl_scaler_max_dst_size(struct intel_crtc *crtc,
 {
 	struct intel_display *display = to_intel_display(crtc);
 
-	if (DISPLAY_VER(display) >= 14) {
-		*max_w = 8192;
-		*max_h = 8192;
-	} else if (DISPLAY_VER(display) >= 12) {
+	if (DISPLAY_VER(display) >= 12) {
 		*max_w = 8192;
 		*max_h = 8192;
 	} else if (DISPLAY_VER(display) == 11) {
