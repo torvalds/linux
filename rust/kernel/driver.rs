@@ -6,7 +6,7 @@
 //! register using the [`Registration`] class.
 
 use crate::error::{Error, Result};
-use crate::{init::PinInit, str::CStr, try_pin_init, types::Opaque, ThisModule};
+use crate::{device, init::PinInit, of, str::CStr, try_pin_init, types::Opaque, ThisModule};
 use core::pin::Pin;
 use macros::{pin_data, pinned_drop};
 
@@ -113,5 +113,61 @@ macro_rules! module_driver {
             type: DriverModule,
             $($f)*
         }
+    }
+}
+
+/// The bus independent adapter to match a drivers and a devices.
+///
+/// This trait should be implemented by the bus specific adapter, which represents the connection
+/// of a device and a driver.
+///
+/// It provides bus independent functions for device / driver interactions.
+pub trait Adapter {
+    /// The type holding driver private data about each device id supported by the driver.
+    type IdInfo: 'static;
+
+    /// The [`of::IdTable`] of the corresponding driver.
+    fn of_id_table() -> Option<of::IdTable<Self::IdInfo>>;
+
+    /// Returns the driver's private data from the matching entry in the [`of::IdTable`], if any.
+    ///
+    /// If this returns `None`, it means there is no match with an entry in the [`of::IdTable`].
+    #[cfg(CONFIG_OF)]
+    fn of_id_info(dev: &device::Device) -> Option<&'static Self::IdInfo> {
+        let table = Self::of_id_table()?;
+
+        // SAFETY:
+        // - `table` has static lifetime, hence it's valid for read,
+        // - `dev` is guaranteed to be valid while it's alive, and so is `pdev.as_ref().as_raw()`.
+        let raw_id = unsafe { bindings::of_match_device(table.as_ptr(), dev.as_raw()) };
+
+        if raw_id.is_null() {
+            None
+        } else {
+            // SAFETY: `DeviceId` is a `#[repr(transparent)` wrapper of `struct of_device_id` and
+            // does not add additional invariants, so it's safe to transmute.
+            let id = unsafe { &*raw_id.cast::<of::DeviceId>() };
+
+            Some(table.info(<of::DeviceId as crate::device_id::RawDeviceId>::index(id)))
+        }
+    }
+
+    #[cfg(not(CONFIG_OF))]
+    #[allow(missing_docs)]
+    fn of_id_info(_dev: &device::Device) -> Option<&'static Self::IdInfo> {
+        None
+    }
+
+    /// Returns the driver's private data from the matching entry of any of the ID tables, if any.
+    ///
+    /// If this returns `None`, it means that there is no match in any of the ID tables directly
+    /// associated with a [`device::Device`].
+    fn id_info(dev: &device::Device) -> Option<&'static Self::IdInfo> {
+        let id = Self::of_id_info(dev);
+        if id.is_some() {
+            return id;
+        }
+
+        None
     }
 }
