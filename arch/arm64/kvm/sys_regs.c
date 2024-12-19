@@ -643,8 +643,6 @@ static void reg_to_dbg(struct kvm_vcpu *vcpu,
 	val &= ~mask;
 	val |= (p->regval & (mask >> shift)) << shift;
 	*dbg_reg = val;
-
-	kvm_debug_set_guest_ownership(vcpu);
 }
 
 static void dbg_to_reg(struct kvm_vcpu *vcpu,
@@ -690,6 +688,7 @@ static bool trap_dbg_wb_reg(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 	else
 		dbg_to_reg(vcpu, p, rd, reg);
 
+	kvm_debug_set_guest_ownership(vcpu);
 	return true;
 }
 
