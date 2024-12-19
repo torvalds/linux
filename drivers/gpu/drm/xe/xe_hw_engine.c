@@ -775,7 +775,7 @@ static void check_gsc_availability(struct xe_gt *gt)
 		xe_mmio_write32(&gt->mmio, GUNIT_GSC_INTR_ENABLE, 0);
 		xe_mmio_write32(&gt->mmio, GUNIT_GSC_INTR_MASK, ~0);
 
-		drm_info(&xe->drm, "gsccs disabled due to lack of FW\n");
+		drm_dbg(&xe->drm, "GSC FW not used, disabling gsccs\n");
 	}
 }
 
