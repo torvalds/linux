@@ -29,6 +29,10 @@
 #include "control.h"
 #include "util.h"
 
+/* Basic messages for control_writeulong(), control_readulong() */
+#define CONTROL_CONTINUE	1
+#define CONTROL_DONE		0
+
 static void test_stream_connection_reset(const struct test_opts *opts)
 {
 	union {
@@ -1474,6 +1478,49 @@ static void test_stream_cred_upd_on_set_rcvlowat(const struct test_opts *opts)
 	test_stream_credit_update_test(opts, false);
 }
 
+/* The goal of test leak_acceptq is to stress the race between connect() and
+ * close(listener). Implementation of client/server loops boils down to:
+ *
+ * client                server
+ * ------                ------
+ * write(CONTINUE)
+ *                       expect(CONTINUE)
+ *                       listen()
+ *                       write(LISTENING)
+ * expect(LISTENING)
+ * connect()             close()
+ */
+#define ACCEPTQ_LEAK_RACE_TIMEOUT 2 /* seconds */
+
+static void test_stream_leak_acceptq_client(const struct test_opts *opts)
+{
+	time_t tout;
+	int fd;
+
+	tout = current_nsec() + ACCEPTQ_LEAK_RACE_TIMEOUT * NSEC_PER_SEC;
+	do {
+		control_writeulong(CONTROL_CONTINUE);
+
+		fd = vsock_stream_connect(opts->peer_cid, opts->peer_port);
+		if (fd >= 0)
+			close(fd);
+	} while (current_nsec() < tout);
+
+	control_writeulong(CONTROL_DONE);
+}
+
+/* Test for a memory leak. User is expected to run kmemleak scan, see README. */
+static void test_stream_leak_acceptq_server(const struct test_opts *opts)
+{
+	int fd;
+
+	while (control_readulong() == CONTROL_CONTINUE) {
+		fd = vsock_stream_listen(VMADDR_CID_ANY, opts->peer_port);
+		control_writeln("LISTENING");
+		close(fd);
+	}
+}
+
 static struct test_case test_cases[] = {
 	{
 		.name = "SOCK_STREAM connection reset",
@@ -1603,6 +1650,11 @@ static struct test_case test_cases[] = {
 		.name = "SOCK_SEQPACKET ioctl(SIOCOUTQ) 0 unsent bytes",
 		.run_client = test_seqpacket_unsent_bytes_client,
 		.run_server = test_seqpacket_unsent_bytes_server,
+	},
+	{
+		.name = "SOCK_STREAM leak accept queue",
+		.run_client = test_stream_leak_acceptq_client,
+		.run_server = test_stream_leak_acceptq_server,
 	},
 	{},
 };
