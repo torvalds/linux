@@ -76,22 +76,14 @@ static u16 skl_scaler_calc_phase(int sub, int scale, bool chroma_cosited)
 	return ((phase >> 2) & PS_PHASE_MASK) | trip;
 }
 
-#define SKL_MAX_SRC_W 4096
-#define SKL_MAX_SRC_H 4096
 #define SKL_MIN_DST_W 8
 #define SKL_MAX_DST_W 4096
 #define SKL_MIN_DST_H 8
 #define SKL_MAX_DST_H 4096
-#define ICL_MAX_SRC_W 5120
-#define ICL_MAX_SRC_H 4096
 #define ICL_MAX_DST_W 5120
 #define ICL_MAX_DST_H 4096
-#define TGL_MAX_SRC_W 5120
-#define TGL_MAX_SRC_H 8192
 #define TGL_MAX_DST_W 8192
 #define TGL_MAX_DST_H 8192
-#define MTL_MAX_SRC_W 4096
-#define MTL_MAX_SRC_H 8192
 #define MTL_MAX_DST_W 8192
 #define MTL_MAX_DST_H 8192
 
@@ -104,6 +96,26 @@ static void skl_scaler_min_src_size(const struct drm_format_info *format,
 	} else {
 		*min_w = 8;
 		*min_h = 8;
+	}
+}
+
+static void skl_scaler_max_src_size(struct intel_crtc *crtc,
+				    int *max_w, int *max_h)
+{
+	struct intel_display *display = to_intel_display(crtc);
+
+	if (DISPLAY_VER(display) >= 14) {
+		*max_w = 4096;
+		*max_h = 8192;
+	} else if (DISPLAY_VER(display) >= 12) {
+		*max_w = 5120;
+		*max_h = 8192;
+	} else if (DISPLAY_VER(display) == 11) {
+		*max_w = 5120;
+		*max_h = 4096;
+	} else {
+		*max_w = 4096;
+		*max_h = 4096;
 	}
 }
 
@@ -172,28 +184,21 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 	}
 
 	skl_scaler_min_src_size(format, modifier, &min_src_w, &min_src_h);
+	skl_scaler_max_src_size(crtc, &max_src_w, &max_src_h);
 
 	min_dst_w = SKL_MIN_DST_W;
 	min_dst_h = SKL_MIN_DST_H;
 
 	if (DISPLAY_VER(display) < 11) {
-		max_src_w = SKL_MAX_SRC_W;
-		max_src_h = SKL_MAX_SRC_H;
 		max_dst_w = SKL_MAX_DST_W;
 		max_dst_h = SKL_MAX_DST_H;
 	} else if (DISPLAY_VER(display) < 12) {
-		max_src_w = ICL_MAX_SRC_W;
-		max_src_h = ICL_MAX_SRC_H;
 		max_dst_w = ICL_MAX_DST_W;
 		max_dst_h = ICL_MAX_DST_H;
 	} else if (DISPLAY_VER(display) < 14) {
-		max_src_w = TGL_MAX_SRC_W;
-		max_src_h = TGL_MAX_SRC_H;
 		max_dst_w = TGL_MAX_DST_W;
 		max_dst_h = TGL_MAX_DST_H;
 	} else {
-		max_src_w = MTL_MAX_SRC_W;
-		max_src_h = MTL_MAX_SRC_H;
 		max_dst_w = MTL_MAX_DST_W;
 		max_dst_h = MTL_MAX_DST_H;
 	}
