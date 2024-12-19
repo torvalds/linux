@@ -804,8 +804,6 @@ int kvm_arch_vcpu_run_pid_change(struct kvm_vcpu *vcpu)
 
 	kvm_init_mpidr_data(kvm);
 
-	kvm_arm_vcpu_init_debug(vcpu);
-
 	if (likely(irqchip_in_kernel(kvm))) {
 		/*
 		 * Map the VGIC hardware resources before running a vcpu the
