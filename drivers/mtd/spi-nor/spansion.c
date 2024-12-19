@@ -973,6 +973,11 @@ static const struct flash_info spansion_nor_parts[] = {
 		.mfr_flags = USE_CLPEF,
 		.fixups = &s28hx_t_fixups,
 	}, {
+		/* S28HL02GT */
+		.id = SNOR_ID(0x34, 0x5a, 0x1c),
+		.mfr_flags = USE_CLPEF,
+		.fixups = &s28hx_t_fixups,
+	}, {
 		.id = SNOR_ID(0x34, 0x5b, 0x19),
 		.mfr_flags = USE_CLPEF,
 		.fixups = &s28hx_t_fixups,
