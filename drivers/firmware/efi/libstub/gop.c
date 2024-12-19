@@ -461,25 +461,25 @@ setup_pixel_info(struct screen_info *si, u32 pixels_per_scan_line,
 	}
 }
 
-static efi_graphics_output_protocol_t *
-find_gop(efi_guid_t *proto, unsigned long size, void **handles)
+static efi_graphics_output_protocol_t *find_gop(unsigned long num,
+						const efi_handle_t handles[])
 {
 	efi_graphics_output_protocol_t *first_gop;
 	efi_handle_t h;
 
 	first_gop = NULL;
 
-	for_each_efi_handle(h, handles, efi_get_handle_num(size)) {
+	for_each_efi_handle(h, handles, num) {
 		efi_status_t status;
 
 		efi_graphics_output_protocol_t *gop;
 		efi_graphics_output_protocol_mode_t *mode;
 		efi_graphics_output_mode_info_t *info;
-
-		efi_guid_t conout_proto = EFI_CONSOLE_OUT_DEVICE_GUID;
 		void *dummy = NULL;
 
-		status = efi_bs_call(handle_protocol, h, proto, (void **)&gop);
+		status = efi_bs_call(handle_protocol, h,
+				     &EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID,
+				     (void **)&gop);
 		if (status != EFI_SUCCESS)
 			continue;
 
@@ -499,7 +499,8 @@ find_gop(efi_guid_t *proto, unsigned long size, void **handles)
 		 * Once we've found a GOP supporting ConOut,
 		 * don't bother looking any further.
 		 */
-		status = efi_bs_call(handle_protocol, h, &conout_proto, &dummy);
+		status = efi_bs_call(handle_protocol, h,
+				     &EFI_CONSOLE_OUT_DEVICE_GUID, &dummy);
 		if (status == EFI_SUCCESS)
 			return gop;
 
@@ -510,16 +511,22 @@ find_gop(efi_guid_t *proto, unsigned long size, void **handles)
 	return first_gop;
 }
 
-static efi_status_t setup_gop(struct screen_info *si, efi_guid_t *proto,
-			      unsigned long size, void **handles)
+efi_status_t efi_setup_gop(struct screen_info *si)
 {
-	efi_graphics_output_protocol_t *gop;
+	efi_handle_t *handles __free(efi_pool) = NULL;
 	efi_graphics_output_protocol_mode_t *mode;
 	efi_graphics_output_mode_info_t *info;
+	efi_graphics_output_protocol_t *gop;
+	efi_status_t status;
+	unsigned long num;
 
-	gop = find_gop(proto, size, handles);
+	status = efi_bs_call(locate_handle_buffer, EFI_LOCATE_BY_PROTOCOL,
+			      &EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID, NULL, &num,
+			      &handles);
+	if (status != EFI_SUCCESS)
+		return status;
 
-	/* Did we find any GOPs? */
+	gop = find_gop(num, handles);
 	if (!gop)
 		return EFI_NOT_FOUND;
 
@@ -550,30 +557,4 @@ static efi_status_t setup_gop(struct screen_info *si, efi_guid_t *proto,
 	si->capabilities |= VIDEO_CAPABILITY_SKIP_QUIRKS;
 
 	return EFI_SUCCESS;
-}
-
-/*
- * See if we have Graphics Output Protocol
- */
-efi_status_t efi_setup_gop(struct screen_info *si, efi_guid_t *proto,
-			   unsigned long size)
-{
-	efi_status_t status;
-	void **gop_handle = NULL;
-
-	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, size,
-			     (void **)&gop_handle);
-	if (status != EFI_SUCCESS)
-		return status;
-
-	status = efi_bs_call(locate_handle, EFI_LOCATE_BY_PROTOCOL, proto, NULL,
-			     &size, gop_handle);
-	if (status != EFI_SUCCESS)
-		goto free_handle;
-
-	status = setup_gop(si, proto, size, gop_handle);
-
-free_handle:
-	efi_bs_call(free_pool, gop_handle);
-	return status;
 }

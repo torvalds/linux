@@ -406,23 +406,10 @@ static void setup_quirks(struct boot_params *boot_params)
 
 static void setup_graphics(struct boot_params *boot_params)
 {
-	efi_guid_t graphics_proto = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
-	struct screen_info *si;
-	efi_status_t status;
-	unsigned long size;
-	void **gop_handle = NULL;
+	struct screen_info *si = memset(&boot_params->screen_info, 0, sizeof(*si));
 
-	si = &boot_params->screen_info;
-	memset(si, 0, sizeof(*si));
-
-	size = 0;
-	status = efi_bs_call(locate_handle, EFI_LOCATE_BY_PROTOCOL,
-			     &graphics_proto, NULL, &size, gop_handle);
-	if (status == EFI_BUFFER_TOO_SMALL)
-		status = efi_setup_gop(si, &graphics_proto, size);
-
+	efi_setup_gop(si);
 }
-
 
 static void __noreturn efi_exit(efi_handle_t handle, efi_status_t status)
 {

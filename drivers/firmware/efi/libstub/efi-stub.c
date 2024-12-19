@@ -10,6 +10,7 @@
  */
 
 #include <linux/efi.h>
+#include <linux/screen_info.h>
 #include <asm/efi.h>
 
 #include "efistub.h"
@@ -53,25 +54,16 @@ void __weak free_screen_info(struct screen_info *si)
 
 static struct screen_info *setup_graphics(void)
 {
-	efi_guid_t gop_proto = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
-	efi_status_t status;
-	unsigned long size;
-	void **gop_handle = NULL;
-	struct screen_info *si = NULL;
+	struct screen_info *si, tmp = {};
 
-	size = 0;
-	status = efi_bs_call(locate_handle, EFI_LOCATE_BY_PROTOCOL,
-			     &gop_proto, NULL, &size, gop_handle);
-	if (status == EFI_BUFFER_TOO_SMALL) {
-		si = alloc_screen_info();
-		if (!si)
-			return NULL;
-		status = efi_setup_gop(si, &gop_proto, size);
-		if (status != EFI_SUCCESS) {
-			free_screen_info(si);
-			return NULL;
-		}
-	}
+	if (efi_setup_gop(&tmp) != EFI_SUCCESS)
+		return NULL;
+
+	si = alloc_screen_info();
+	if (!si)
+		return NULL;
+
+	*si = tmp;
 	return si;
 }
 
