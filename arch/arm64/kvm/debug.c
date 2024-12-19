@@ -31,19 +31,12 @@
  */
 static void save_guest_debug_regs(struct kvm_vcpu *vcpu)
 {
-	u64 val = vcpu_read_sys_reg(vcpu, MDSCR_EL1);
-
-	vcpu->arch.guest_debug_preserved.mdscr_el1 = val;
 	vcpu->arch.guest_debug_preserved.pstate_ss =
 					(*vcpu_cpsr(vcpu) & DBG_SPSR_SS);
 }
 
 static void restore_guest_debug_regs(struct kvm_vcpu *vcpu)
 {
-	u64 val = vcpu->arch.guest_debug_preserved.mdscr_el1;
-
-	vcpu_write_sys_reg(vcpu, val, MDSCR_EL1);
-
 	if (vcpu->arch.guest_debug_preserved.pstate_ss)
 		*vcpu_cpsr(vcpu) |= DBG_SPSR_SS;
 	else
@@ -115,8 +108,6 @@ static void kvm_arm_setup_mdcr_el2(struct kvm_vcpu *vcpu)
 
 void kvm_arm_setup_debug(struct kvm_vcpu *vcpu)
 {
-	unsigned long mdscr;
-
 	/* Check if we need to use the debug registers. */
 	if (vcpu->guest_debug || kvm_vcpu_os_lock_enabled(vcpu)) {
 		/* Save guest debug state */
@@ -154,36 +145,6 @@ void kvm_arm_setup_debug(struct kvm_vcpu *vcpu)
 				*vcpu_cpsr(vcpu) |= DBG_SPSR_SS;
 			else
 				*vcpu_cpsr(vcpu) &= ~DBG_SPSR_SS;
-
-			mdscr = vcpu_read_sys_reg(vcpu, MDSCR_EL1);
-			mdscr |= DBG_MDSCR_SS;
-			vcpu_write_sys_reg(vcpu, mdscr, MDSCR_EL1);
-		} else {
-			mdscr = vcpu_read_sys_reg(vcpu, MDSCR_EL1);
-			mdscr &= ~DBG_MDSCR_SS;
-			vcpu_write_sys_reg(vcpu, mdscr, MDSCR_EL1);
-		}
-
-		/*
-		 * Enable breakpoints and watchpoints if userspace wants them.
-		 */
-		if (vcpu->guest_debug & KVM_GUESTDBG_USE_HW) {
-			mdscr = vcpu_read_sys_reg(vcpu, MDSCR_EL1);
-			mdscr |= DBG_MDSCR_MDE;
-			vcpu_write_sys_reg(vcpu, mdscr, MDSCR_EL1);
-
-		/*
-		 * The OS Lock blocks debug exceptions in all ELs when it is
-		 * enabled. If the guest has enabled the OS Lock, constrain its
-		 * effects to the guest. Emulate the behavior by clearing
-		 * MDSCR_EL1.MDE. In so doing, we ensure that host debug
-		 * exceptions are unaffected by guest configuration of the OS
-		 * Lock.
-		 */
-		} else if (kvm_vcpu_os_lock_enabled(vcpu)) {
-			mdscr = vcpu_read_sys_reg(vcpu, MDSCR_EL1);
-			mdscr &= ~DBG_MDSCR_MDE;
-			vcpu_write_sys_reg(vcpu, mdscr, MDSCR_EL1);
 		}
 	}
 }
@@ -227,6 +188,41 @@ void kvm_init_host_debug_data(void)
 		host_data_set_flag(HAS_TRBE);
 }
 
+/*
+ * Configures the 'external' MDSCR_EL1 value for the guest, i.e. when the host
+ * has taken over MDSCR_EL1.
+ *
+ *  - Userspace is single-stepping the guest, and MDSCR_EL1.SS is forced to 1.
+ *
+ *  - Userspace is using the breakpoint/watchpoint registers to debug the
+ *    guest, and MDSCR_EL1.MDE is forced to 1.
+ *
+ *  - The guest has enabled the OS Lock, and KVM is forcing MDSCR_EL1.MDE to 0,
+ *    masking all debug exceptions affected by the OS Lock.
+ */
+static void setup_external_mdscr(struct kvm_vcpu *vcpu)
+{
+	/*
+	 * Use the guest's MDSCR_EL1 as a starting point, since there are
+	 * several other features controlled by MDSCR_EL1 that are not relevant
+	 * to the host.
+	 *
+	 * Clear the bits that KVM may use which also satisfies emulation of
+	 * the OS Lock as MDSCR_EL1.MDE is cleared.
+	 */
+	u64 mdscr = vcpu_read_sys_reg(vcpu, MDSCR_EL1) & ~(MDSCR_EL1_SS |
+							   MDSCR_EL1_MDE |
+							   MDSCR_EL1_KDE);
+
+	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)
+		mdscr |= MDSCR_EL1_SS;
+
+	if (vcpu->guest_debug & KVM_GUESTDBG_USE_HW)
+		mdscr |= MDSCR_EL1_MDE | MDSCR_EL1_KDE;
+
+	vcpu->arch.external_mdscr_el1 = mdscr;
+}
+
 void kvm_vcpu_load_debug(struct kvm_vcpu *vcpu)
 {
 	u64 mdscr;
@@ -249,6 +245,7 @@ void kvm_vcpu_load_debug(struct kvm_vcpu *vcpu)
 	 */
 	if (vcpu->guest_debug || kvm_vcpu_os_lock_enabled(vcpu)) {
 		vcpu->arch.debug_owner = VCPU_DEBUG_HOST_OWNED;
+		setup_external_mdscr(vcpu);
 	} else {
 		mdscr = vcpu_read_sys_reg(vcpu, MDSCR_EL1);
 
