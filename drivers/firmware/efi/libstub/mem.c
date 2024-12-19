@@ -20,10 +20,10 @@
 efi_status_t efi_get_memory_map(struct efi_boot_memmap **map,
 				bool install_cfg_tbl)
 {
+	struct efi_boot_memmap tmp, *m __free(efi_pool) = NULL;
 	int memtype = install_cfg_tbl ? EFI_ACPI_RECLAIM_MEMORY
 				      : EFI_LOADER_DATA;
 	efi_guid_t tbl_guid = LINUX_EFI_BOOT_MEMMAP_GUID;
-	struct efi_boot_memmap *m, tmp;
 	efi_status_t status;
 	unsigned long size;
 
@@ -48,24 +48,20 @@ efi_status_t efi_get_memory_map(struct efi_boot_memmap **map,
 		 */
 		status = efi_bs_call(install_configuration_table, &tbl_guid, m);
 		if (status != EFI_SUCCESS)
-			goto free_map;
+			return status;
 	}
 
 	m->buff_size = m->map_size = size;
 	status = efi_bs_call(get_memory_map, &m->map_size, m->map, &m->map_key,
 			     &m->desc_size, &m->desc_ver);
-	if (status != EFI_SUCCESS)
-		goto uninstall_table;
+	if (status != EFI_SUCCESS) {
+		if (install_cfg_tbl)
+			efi_bs_call(install_configuration_table, &tbl_guid, NULL);
+		return status;
+	}
 
-	*map = m;
+	*map = no_free_ptr(m);
 	return EFI_SUCCESS;
-
-uninstall_table:
-	if (install_cfg_tbl)
-		efi_bs_call(install_configuration_table, &tbl_guid, NULL);
-free_map:
-	efi_bs_call(free_pool, m);
-	return status;
 }
 
 /**

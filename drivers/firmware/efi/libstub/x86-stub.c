@@ -616,7 +616,7 @@ static efi_status_t allocate_e820(struct boot_params *params,
 				  struct setup_data **e820ext,
 				  u32 *e820ext_size)
 {
-	struct efi_boot_memmap *map;
+	struct efi_boot_memmap *map __free(efi_pool) = NULL;
 	efi_status_t status;
 	__u32 nr_desc;
 
@@ -630,13 +630,14 @@ static efi_status_t allocate_e820(struct boot_params *params,
 				 EFI_MMAP_NR_SLACK_SLOTS;
 
 		status = alloc_e820ext(nr_e820ext, e820ext, e820ext_size);
+		if (status != EFI_SUCCESS)
+			return status;
 	}
 
-	if (IS_ENABLED(CONFIG_UNACCEPTED_MEMORY) && status == EFI_SUCCESS)
-		status = allocate_unaccepted_bitmap(nr_desc, map);
+	if (IS_ENABLED(CONFIG_UNACCEPTED_MEMORY))
+		return allocate_unaccepted_bitmap(nr_desc, map);
 
-	efi_bs_call(free_pool, map);
-	return status;
+	return EFI_SUCCESS;
 }
 
 struct exit_boot_struct {
