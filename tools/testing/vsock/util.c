@@ -401,7 +401,7 @@ void recv_buf(int fd, void *buf, size_t len, int flags, ssize_t expected_ret)
  */
 void send_byte(int fd, int expected_ret, int flags)
 {
-	const uint8_t byte = 'A';
+	static const uint8_t byte = 'A';
 
 	send_buf(fd, &byte, sizeof(byte), flags, expected_ret);
 }
@@ -420,7 +420,7 @@ void recv_byte(int fd, int expected_ret, int flags)
 	recv_buf(fd, &byte, sizeof(byte), flags, expected_ret);
 
 	if (byte != 'A') {
-		fprintf(stderr, "unexpected byte read %c\n", byte);
+		fprintf(stderr, "unexpected byte read 0x%02x\n", byte);
 		exit(EXIT_FAILURE);
 	}
 }
