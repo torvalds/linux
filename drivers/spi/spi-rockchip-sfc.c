@@ -156,10 +156,9 @@
 
 #define SFC_MAX_CHIPSELECT_NUM		2
 
-/* The SFC can transfer max 16KB - 1 at one time
- * we set it to 15.5KB here for alignment.
- */
 #define SFC_MAX_IOSIZE_VER3		(512 * 31)
+/* Although up to 4GB, 64KB is enough with less mem reserved */
+#define SFC_MAX_IOSIZE_VER4		(0x10000U)
 
 /* DMA is only enabled for large data transmission */
 #define SFC_DMA_TRANS_THRETHOLD		(0x40)
@@ -456,8 +455,10 @@ static int rockchip_sfc_xfer_data_dma(struct rockchip_sfc *sfc,
 
 	dev_dbg(sfc->dev, "sfc xfer_dma len=%x\n", len);
 
-	if (op->data.dir == SPI_MEM_DATA_OUT)
+	if (op->data.dir == SPI_MEM_DATA_OUT) {
 		memcpy(sfc->buffer, op->data.buf.out, len);
+		dma_sync_single_for_device(sfc->dev, sfc->dma_buffer, len, DMA_TO_DEVICE);
+	}
 
 	ret = rockchip_sfc_fifo_transfer_dma(sfc, sfc->dma_buffer, len);
 	if (!wait_for_completion_timeout(&sfc->cp, msecs_to_jiffies(2000))) {
@@ -465,8 +466,11 @@ static int rockchip_sfc_xfer_data_dma(struct rockchip_sfc *sfc,
 		ret = -ETIMEDOUT;
 	}
 	rockchip_sfc_irq_mask(sfc, SFC_IMR_DMA);
-	if (op->data.dir == SPI_MEM_DATA_IN)
+
+	if (op->data.dir == SPI_MEM_DATA_IN) {
+		dma_sync_single_for_cpu(sfc->dev, sfc->dma_buffer, len, DMA_FROM_DEVICE);
 		memcpy(op->data.buf.in, sfc->buffer, len);
+	}
 
 	return ret;
 }
@@ -631,19 +635,6 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 
 	sfc->use_dma = !of_property_read_bool(sfc->dev->of_node, "rockchip,sfc-no-dma");
 
-	if (sfc->use_dma) {
-		ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
-		if (ret) {
-			dev_warn(dev, "Unable to set dma mask\n");
-			return ret;
-		}
-
-		sfc->buffer = dmam_alloc_coherent(dev, SFC_MAX_IOSIZE_VER3,
-						  &sfc->dma_buffer, GFP_KERNEL);
-		if (!sfc->buffer)
-			return -ENOMEM;
-	}
-
 	ret = clk_prepare_enable(sfc->hclk);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to enable ahb clk\n");
@@ -674,8 +665,8 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_irq;
 
-	sfc->max_iosize = rockchip_sfc_get_max_iosize(sfc);
 	sfc->version = rockchip_sfc_get_version(sfc);
+	sfc->max_iosize = rockchip_sfc_get_max_iosize(sfc);
 
 	pm_runtime_set_autosuspend_delay(dev, ROCKCHIP_AUTOSUSPEND_DELAY);
 	pm_runtime_use_autosuspend(dev);
@@ -683,16 +674,27 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 	pm_runtime_get_noresume(dev);
 
+	if (sfc->use_dma) {
+		sfc->buffer = (u8 *)__get_free_pages(GFP_KERNEL | GFP_DMA32,
+						     get_order(sfc->max_iosize));
+		if (!sfc->buffer) {
+			ret = -ENOMEM;
+			goto err_dma;
+		}
+		sfc->dma_buffer = virt_to_phys(sfc->buffer);
+	}
+
 	ret = devm_spi_register_controller(dev, host);
 	if (ret)
-		goto err_pm_runtime_free;
+		goto err_register;
 
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	return 0;
-
-err_pm_runtime_free:
+err_register:
+	free_pages((unsigned long)sfc->buffer, get_order(sfc->max_iosize));
+err_dma:
 	pm_runtime_get_sync(dev);
 	pm_runtime_put_noidle(dev);
 	pm_runtime_disable(dev);
@@ -712,6 +714,7 @@ static void rockchip_sfc_remove(struct platform_device *pdev)
 	struct rockchip_sfc *sfc = platform_get_drvdata(pdev);
 
 	spi_unregister_controller(host);
+	free_pages((unsigned long)sfc->buffer, get_order(sfc->max_iosize));
 
 	clk_disable_unprepare(sfc->clk);
 	clk_disable_unprepare(sfc->hclk);
