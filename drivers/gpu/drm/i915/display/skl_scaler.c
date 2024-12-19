@@ -76,15 +76,6 @@ static u16 skl_scaler_calc_phase(int sub, int scale, bool chroma_cosited)
 	return ((phase >> 2) & PS_PHASE_MASK) | trip;
 }
 
-#define SKL_MAX_DST_W 4096
-#define SKL_MAX_DST_H 4096
-#define ICL_MAX_DST_W 5120
-#define ICL_MAX_DST_H 4096
-#define TGL_MAX_DST_W 8192
-#define TGL_MAX_DST_H 8192
-#define MTL_MAX_DST_W 8192
-#define MTL_MAX_DST_H 8192
-
 static void skl_scaler_min_src_size(const struct drm_format_info *format,
 				    u64 modifier, int *min_w, int *min_h)
 {
@@ -121,6 +112,26 @@ static void skl_scaler_min_dst_size(int *min_w, int *min_h)
 {
 	*min_w = 8;
 	*min_h = 8;
+}
+
+static void skl_scaler_max_dst_size(struct intel_crtc *crtc,
+				    int *max_w, int *max_h)
+{
+	struct intel_display *display = to_intel_display(crtc);
+
+	if (DISPLAY_VER(display) >= 14) {
+		*max_w = 8192;
+		*max_h = 8192;
+	} else if (DISPLAY_VER(display) >= 12) {
+		*max_w = 8192;
+		*max_h = 8192;
+	} else if (DISPLAY_VER(display) == 11) {
+		*max_w = 5120;
+		*max_h = 4096;
+	} else {
+		*max_w = 4096;
+		*max_h = 4096;
+	}
 }
 
 static int
@@ -191,20 +202,7 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 	skl_scaler_max_src_size(crtc, &max_src_w, &max_src_h);
 
 	skl_scaler_min_dst_size(&min_dst_w, &min_dst_h);
-
-	if (DISPLAY_VER(display) < 11) {
-		max_dst_w = SKL_MAX_DST_W;
-		max_dst_h = SKL_MAX_DST_H;
-	} else if (DISPLAY_VER(display) < 12) {
-		max_dst_w = ICL_MAX_DST_W;
-		max_dst_h = ICL_MAX_DST_H;
-	} else if (DISPLAY_VER(display) < 14) {
-		max_dst_w = TGL_MAX_DST_W;
-		max_dst_h = TGL_MAX_DST_H;
-	} else {
-		max_dst_w = MTL_MAX_DST_W;
-		max_dst_h = MTL_MAX_DST_H;
-	}
+	skl_scaler_max_dst_size(crtc, &max_dst_w, &max_dst_h);
 
 	/* range checks */
 	if (src_w < min_src_w || src_h < min_src_h ||
