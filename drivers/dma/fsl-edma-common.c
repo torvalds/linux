@@ -480,8 +480,8 @@ void fsl_edma_fill_tcd(struct fsl_edma_chan *fsl_chan,
 		       bool disable_req, bool enable_sg)
 {
 	struct dma_slave_config *cfg = &fsl_chan->cfg;
+	u32 burst = 0;
 	u16 csr = 0;
-	u32 burst;
 
 	/*
 	 * eDMA hardware SGs require the TCDs to be stored in little
@@ -496,16 +496,30 @@ void fsl_edma_fill_tcd(struct fsl_edma_chan *fsl_chan,
 
 	fsl_edma_set_tcd_to_le(fsl_chan, tcd, soff, soff);
 
-	if (fsl_chan->is_multi_fifo) {
-		/* set mloff to support multiple fifo */
-		burst = cfg->direction == DMA_DEV_TO_MEM ?
-				cfg->src_maxburst : cfg->dst_maxburst;
-		nbytes |= EDMA_V3_TCD_NBYTES_MLOFF(-(burst * 4));
-		/* enable DMLOE/SMLOE */
-		if (cfg->direction == DMA_MEM_TO_DEV) {
+	/* If we expect to have either multi_fifo or a port window size,
+	 * we will use minor loop offset, meaning bits 29-10 will be used for
+	 * address offset, while bits 9-0 will be used to tell DMA how much
+	 * data to read from addr.
+	 * If we don't have either of those, will use a major loop reading from addr
+	 * nbytes (29bits).
+	 */
+	if (cfg->direction == DMA_MEM_TO_DEV) {
+		if (fsl_chan->is_multi_fifo)
+			burst = cfg->dst_maxburst * 4;
+		if (cfg->dst_port_window_size)
+			burst = cfg->dst_port_window_size * cfg->dst_addr_width;
+		if (burst) {
+			nbytes |= EDMA_V3_TCD_NBYTES_MLOFF(-burst);
 			nbytes |= EDMA_V3_TCD_NBYTES_DMLOE;
 			nbytes &= ~EDMA_V3_TCD_NBYTES_SMLOE;
-		} else {
+		}
+	} else {
+		if (fsl_chan->is_multi_fifo)
+			burst = cfg->src_maxburst * 4;
+		if (cfg->src_port_window_size)
+			burst = cfg->src_port_window_size * cfg->src_addr_width;
+		if (burst) {
+			nbytes |= EDMA_V3_TCD_NBYTES_MLOFF(-burst);
 			nbytes |= EDMA_V3_TCD_NBYTES_SMLOE;
 			nbytes &= ~EDMA_V3_TCD_NBYTES_DMLOE;
 		}
@@ -623,11 +637,15 @@ struct dma_async_tx_descriptor *fsl_edma_prep_dma_cyclic(
 			dst_addr = fsl_chan->dma_dev_addr;
 			soff = fsl_chan->cfg.dst_addr_width;
 			doff = fsl_chan->is_multi_fifo ? 4 : 0;
+			if (fsl_chan->cfg.dst_port_window_size)
+				doff = fsl_chan->cfg.dst_addr_width;
 		} else if (direction == DMA_DEV_TO_MEM) {
 			src_addr = fsl_chan->dma_dev_addr;
 			dst_addr = dma_buf_next;
 			soff = fsl_chan->is_multi_fifo ? 4 : 0;
 			doff = fsl_chan->cfg.src_addr_width;
+			if (fsl_chan->cfg.src_port_window_size)
+				soff = fsl_chan->cfg.src_addr_width;
 		} else {
 			/* DMA_DEV_TO_DEV */
 			src_addr = fsl_chan->cfg.src_addr;
