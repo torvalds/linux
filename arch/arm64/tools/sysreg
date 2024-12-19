@@ -24,8 +24,16 @@
 #	...
 # EndEnum
 
-# Alternatively if multiple registers share the same layout then
-# a SysregFields block can be used to describe the shared layout
+# For VHE aliases (*_EL12, *_EL02) of system registers, a Mapping
+# entry describes the register the alias actually accesses:
+
+# Sysreg 	<name_EL12>	<op0> 	<op1>	<crn>	<crm>	<op2>
+# Mapping	<name_EL1>
+# EndSysreg
+
+# Where multiple system regsiters are not VHE aliases but share a
+# common layout, a SysregFields block can be used to describe the
+# shared layout:
 
 # SysregFields	<fieldsname>
 # <field>
