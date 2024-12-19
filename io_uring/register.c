@@ -414,6 +414,9 @@ static int io_register_resize_rings(struct io_ring_ctx *ctx, void __user *arg)
 	if (ctx->flags & IORING_SETUP_SINGLE_ISSUER &&
 	    current != ctx->submitter_task)
 		return -EEXIST;
+	/* limited to DEFER_TASKRUN for now */
+	if (!(ctx->flags & IORING_SETUP_DEFER_TASKRUN))
+		return -EINVAL;
 	if (copy_from_user(&p, arg, sizeof(p)))
 		return -EFAULT;
 	if (p.flags & ~RESIZE_FLAGS)
