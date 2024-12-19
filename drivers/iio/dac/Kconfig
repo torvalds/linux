@@ -348,6 +348,14 @@ config AD8801
 	  To compile this driver as a module choose M here: the module will be called
 	  ad8801.
 
+config BD79703
+	tristate "ROHM Semiconductor BD79703 DAC driver"
+	depends on SPI
+	select REGMAP_SPI
+	help
+	  Say yes here to build support for ROHM Semiconductor BD79703 Digital
+	  to Analog Converter (DAC).
+
 config CIO_DAC
 	tristate "Measurement Computing CIO-DAC IIO driver"
 	depends on X86 && (ISA_BUS || PC104)
