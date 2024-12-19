@@ -105,9 +105,7 @@ static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b, 0x4c,
 #define LM75_REG_MAX		0x03
 #define PCT2075_REG_IDLE	0x04
 
-/* Each client has this additional data */
 struct lm75_data {
-	struct i2c_client		*client;
 	struct regmap			*regmap;
 	u16				orig_conf;
 	u8				resolution;	/* In bits, 9 to 16 */
@@ -572,8 +570,8 @@ static bool lm75_is_volatile_reg(struct device *dev, unsigned int reg)
 
 static int lm75_i2c_reg_read(void *context, unsigned int reg, unsigned int *val)
 {
-	struct lm75_data *data = context;
-	struct i2c_client *client = data->client;
+	struct i2c_client *client = context;
+	struct lm75_data *data = i2c_get_clientdata(client);
 	int ret;
 
 	if (reg == LM75_REG_CONF) {
@@ -592,8 +590,8 @@ static int lm75_i2c_reg_read(void *context, unsigned int reg, unsigned int *val)
 
 static int lm75_i2c_reg_write(void *context, unsigned int reg, unsigned int val)
 {
-	struct lm75_data *data = context;
-	struct i2c_client *client = data->client;
+	struct i2c_client *client = context;
+	struct lm75_data *data = i2c_get_clientdata(client);
 
 	if (reg == PCT2075_REG_IDLE ||
 	    (reg == LM75_REG_CONF && !data->params->config_reg_16bits))
@@ -645,14 +643,13 @@ static int lm75_probe(struct i2c_client *client)
 	/* needed by custom regmap callbacks */
 	dev_set_drvdata(dev, data);
 
-	data->client = client;
 	data->kind = (uintptr_t)i2c_get_match_data(client);
 
 	err = devm_regulator_get_enable(dev, "vs");
 	if (err)
 		return err;
 
-	data->regmap = devm_regmap_init(dev, &lm75_i2c_regmap_bus, data,
+	data->regmap = devm_regmap_init(dev, &lm75_i2c_regmap_bus, client,
 					&lm75_regmap_config);
 	if (IS_ERR(data->regmap))
 		return PTR_ERR(data->regmap);
