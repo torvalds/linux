@@ -86,15 +86,9 @@ static void kvm_arm_setup_mdcr_el2(struct kvm_vcpu *vcpu)
 		vcpu->arch.mdcr_el2 |= MDCR_EL2_TDE;
 
 	/*
-	 * Trap debug register access when one of the following is true:
-	 *  - Userspace is using the hardware to debug the guest
-	 *  (KVM_GUESTDBG_USE_HW is set).
-	 *  - The guest is not using debug (DEBUG_DIRTY clear).
-	 *  - The guest has enabled the OS Lock (debug exceptions are blocked).
+	 * Trap debug registers if the guest doesn't have ownership of them.
 	 */
-	if ((vcpu->guest_debug & KVM_GUESTDBG_USE_HW) ||
-	    !vcpu_get_flag(vcpu, DEBUG_DIRTY) ||
-	    kvm_vcpu_os_lock_enabled(vcpu))
+	if (!kvm_guest_owns_debug_regs(vcpu))
 		vcpu->arch.mdcr_el2 |= MDCR_EL2_TDA;
 
 	/* Write MDCR_EL2 directly if we're already at EL2 */
@@ -127,8 +121,7 @@ void kvm_arm_vcpu_init_debug(struct kvm_vcpu *vcpu)
  * debug related registers.
  *
  * Additionally, KVM only traps guest accesses to the debug registers if
- * the guest is not actively using them (see the DEBUG_DIRTY
- * flag on vcpu->arch.iflags).  Since the guest must not interfere
+ * the guest is not actively using them. Since the guest must not interfere
  * with the hardware state when debugging the guest, we must ensure that
  * trapping is enabled whenever we are debugging the guest using the
  * debug registers.
@@ -195,8 +188,6 @@ void kvm_arm_setup_debug(struct kvm_vcpu *vcpu)
 			mdscr |= DBG_MDSCR_MDE;
 			vcpu_write_sys_reg(vcpu, mdscr, MDSCR_EL1);
 
-			vcpu_set_flag(vcpu, DEBUG_DIRTY);
-
 		/*
 		 * The OS Lock blocks debug exceptions in all ELs when it is
 		 * enabled. If the guest has enabled the OS Lock, constrain its
@@ -211,10 +202,6 @@ void kvm_arm_setup_debug(struct kvm_vcpu *vcpu)
 			vcpu_write_sys_reg(vcpu, mdscr, MDSCR_EL1);
 		}
 	}
-
-	/* If KDE or MDE are set, perform a full save/restore cycle. */
-	if (vcpu_read_sys_reg(vcpu, MDSCR_EL1) & (DBG_MDSCR_KDE | DBG_MDSCR_MDE))
-		vcpu_set_flag(vcpu, DEBUG_DIRTY);
 }
 
 void kvm_arm_clear_debug(struct kvm_vcpu *vcpu)
