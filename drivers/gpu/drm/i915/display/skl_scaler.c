@@ -76,9 +76,7 @@ static u16 skl_scaler_calc_phase(int sub, int scale, bool chroma_cosited)
 	return ((phase >> 2) & PS_PHASE_MASK) | trip;
 }
 
-#define SKL_MIN_DST_W 8
 #define SKL_MAX_DST_W 4096
-#define SKL_MIN_DST_H 8
 #define SKL_MAX_DST_H 4096
 #define ICL_MAX_DST_W 5120
 #define ICL_MAX_DST_H 4096
@@ -117,6 +115,12 @@ static void skl_scaler_max_src_size(struct intel_crtc *crtc,
 		*max_w = 4096;
 		*max_h = 4096;
 	}
+}
+
+static void skl_scaler_min_dst_size(int *min_w, int *min_h)
+{
+	*min_w = 8;
+	*min_h = 8;
 }
 
 static int
@@ -186,8 +190,7 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 	skl_scaler_min_src_size(format, modifier, &min_src_w, &min_src_h);
 	skl_scaler_max_src_size(crtc, &max_src_w, &max_src_h);
 
-	min_dst_w = SKL_MIN_DST_W;
-	min_dst_h = SKL_MIN_DST_H;
+	skl_scaler_min_dst_size(&min_dst_w, &min_dst_h);
 
 	if (DISPLAY_VER(display) < 11) {
 		max_dst_w = SKL_MAX_DST_W;
