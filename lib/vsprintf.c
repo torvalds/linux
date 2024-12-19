@@ -419,10 +419,7 @@ static_assert(SMALL == ('a' ^ 'A'));
 
 enum format_state {
 	FORMAT_STATE_NONE, /* Just a string part */
-	FORMAT_STATE_1BYTE = 1, /* char/short/int are their own sizes */
-	FORMAT_STATE_2BYTE = 2,
-	FORMAT_STATE_8BYTE = 3,
-	FORMAT_STATE_4BYTE = 4,
+	FORMAT_STATE_NUM,
 	FORMAT_STATE_WIDTH,
 	FORMAT_STATE_PRECISION,
 	FORMAT_STATE_CHAR,
@@ -431,8 +428,6 @@ enum format_state {
 	FORMAT_STATE_PERCENT_CHAR,
 	FORMAT_STATE_INVALID,
 };
-
-#define FORMAT_STATE_SIZE(type) (sizeof(type) <= 4 ? sizeof(type) : FORMAT_STATE_8BYTE)
 
 struct printf_spec {
 	unsigned char	flags;		/* flags to number() */
@@ -2523,7 +2518,8 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 
 struct fmt {
 	const char *str;
-	enum format_state state;
+	unsigned char state;	// enum format_state
+	unsigned char size;	// size of numbers
 };
 
 #define SPEC_CHAR(x, flag) [(x)-32] = flag
@@ -2638,20 +2634,21 @@ precision:
 qualifier:
 	/* Set up default numeric format */
 	spec->base = 10;
-	fmt.state = FORMAT_STATE_SIZE(int);
+	fmt.state = FORMAT_STATE_NUM;
+	fmt.size = sizeof(int);
 	static const struct format_state {
 		unsigned char state;
-		unsigned char flags_or_double_state;
-		unsigned char modifier;
+		unsigned char size;
+		unsigned char flags_or_double_size;
 		unsigned char base;
 	} lookup_state[256] = {
-		// Qualifiers
-		['l'] = { FORMAT_STATE_SIZE(long), FORMAT_STATE_SIZE(long long), 1 },
-		['L'] = { FORMAT_STATE_SIZE(long long), 0, 1 },
-		['h'] = { FORMAT_STATE_SIZE(short), FORMAT_STATE_SIZE(char), 1 },
-		['H'] = { FORMAT_STATE_SIZE(char), 0, 1 }, // Questionable, historic
-		['z'] = { FORMAT_STATE_SIZE(size_t), 0, 1 },
-		['t'] = { FORMAT_STATE_SIZE(ptrdiff_t), 0, 1 },
+		// Length
+		['l'] = { 0, sizeof(long), sizeof(long long) },
+		['L'] = { 0, sizeof(long long) },
+		['h'] = { 0, sizeof(short), sizeof(char) },
+		['H'] = { 0, sizeof(char) },	// Questionable historical
+		['z'] = { 0, sizeof(size_t) },
+		['t'] = { 0, sizeof(ptrdiff_t) },
 
 		// Non-numeric formats
 		['c'] = { FORMAT_STATE_CHAR },
@@ -2660,12 +2657,12 @@ qualifier:
 		['%'] = { FORMAT_STATE_PERCENT_CHAR },
 
 		// Numerics
-		['o'] = { 0, 0, 0, 8 },
-		['x'] = { 0, SMALL, 0, 16 },
-		['X'] = { 0, 0, 0, 16 },
-		['d'] = { 0, SIGN, 0, 10 },
-		['i'] = { 0, SIGN, 0, 10 },
-		['u'] = { 0, 0, 0, 10, },
+		['o'] = { FORMAT_STATE_NUM, 0, 0, 8 },
+		['x'] = { FORMAT_STATE_NUM, 0, SMALL, 16 },
+		['X'] = { FORMAT_STATE_NUM, 0, 0, 16 },
+		['d'] = { FORMAT_STATE_NUM, 0, SIGN, 10 },
+		['i'] = { FORMAT_STATE_NUM, 0, SIGN, 10 },
+		['u'] = { FORMAT_STATE_NUM, 0, 0, 10, },
 
 		/*
 		 * Since %n poses a greater security risk than
@@ -2675,30 +2672,23 @@ qualifier:
 	};
 
 	const struct format_state *p = lookup_state + (u8)*fmt.str;
-	if (p->modifier) {
-		fmt.state = p->state;
-		if (p->flags_or_double_state && fmt.str[0] == fmt.str[1]) {
-			fmt.state = p->flags_or_double_state;
+	if (p->size) {
+		fmt.size = p->size;
+		if (p->flags_or_double_size && fmt.str[0] == fmt.str[1]) {
+			fmt.size = p->flags_or_double_size;
 			fmt.str++;
 		}
 		fmt.str++;
 		p = lookup_state + *fmt.str;
-		if (unlikely(p->modifier))
-			goto invalid;
-	}
-	if (p->base) {
-		spec->base = p->base;
-		spec->flags |= p->flags_or_double_state;
-		fmt.str++;
-		return fmt;
 	}
 	if (p->state) {
+		spec->base = p->base;
+		spec->flags |= p->flags_or_double_size;
 		fmt.state = p->state;
 		fmt.str++;
 		return fmt;
 	}
 
-invalid:
 	WARN_ONCE(1, "Please remove unsupported %%%c in format string\n", *fmt.str);
 	fmt.state = FORMAT_STATE_INVALID;
 	return fmt;
@@ -2768,7 +2758,6 @@ static unsigned long long convert_num_spec(unsigned int val, int size, struct pr
  */
 int vsnprintf(char *buf, size_t size, const char *fmt_str, va_list args)
 {
-	unsigned long long num;
 	char *str, *end;
 	struct printf_spec spec = {0};
 	struct fmt fmt = {
@@ -2805,6 +2794,16 @@ int vsnprintf(char *buf, size_t size, const char *fmt_str, va_list args)
 				memcpy(str, old_fmt, copy);
 			}
 			str += read;
+			continue;
+		}
+
+		case FORMAT_STATE_NUM: {
+			unsigned long long num;
+			if (fmt.size <= sizeof(int))
+				num = convert_num_spec(va_arg(args, int), fmt.size, spec);
+			else
+				num = va_arg(args, long long);
+			str = number(str, end, num, spec);
 			continue;
 		}
 
@@ -2856,7 +2855,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt_str, va_list args)
 			++str;
 			continue;
 
-		case FORMAT_STATE_INVALID:
+		default:
 			/*
 			 * Presumably the arguments passed gcc's type
 			 * checking, but there is no safe or sane way
@@ -2866,17 +2865,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt_str, va_list args)
 			 * sync.
 			 */
 			goto out;
-
-		case FORMAT_STATE_8BYTE:
-			num = va_arg(args, long long);
-			break;
-
-		default:
-			num = convert_num_spec(va_arg(args, int), fmt.state, spec);
-			break;
 		}
-
-		str = number(str, end, num, spec);
 	}
 
 out:
@@ -3147,17 +3136,20 @@ int vbin_printf(u32 *bin_buf, size_t size, const char *fmt_str, va_list args)
 				fmt.str++;
 			break;
 
-		case FORMAT_STATE_8BYTE:
-			save_arg(long long);
-			break;
-		case FORMAT_STATE_1BYTE:
-			save_arg(char);
-			break;
-		case FORMAT_STATE_2BYTE:
-			save_arg(short);
-			break;
-		default:
-			save_arg(int);
+		case FORMAT_STATE_NUM:
+			switch (fmt.size) {
+			case 8:
+				save_arg(long long);
+				break;
+			case 1:
+				save_arg(char);
+				break;
+			case 2:
+				save_arg(short);
+				break;
+			default:
+				save_arg(int);
+			}
 		}
 	}
 
@@ -3325,18 +3317,21 @@ int bstr_printf(char *buf, size_t size, const char *fmt_str, const u32 *bin_buf)
 		case FORMAT_STATE_INVALID:
 			goto out;
 
-		case FORMAT_STATE_8BYTE:
-			num = get_arg(long long);
-			break;
-		case FORMAT_STATE_2BYTE:
-			num = convert_num_spec(get_arg(short), fmt.state, spec);
-			break;
-		case FORMAT_STATE_1BYTE:
-			num = convert_num_spec(get_arg(char), fmt.state, spec);
-			break;
-		default:
-			num = convert_num_spec(get_arg(int), fmt.state, spec);
-			break;
+		case FORMAT_STATE_NUM:
+			switch (fmt.size) {
+			case 8:
+				num = get_arg(long long);
+				break;
+			case 1:
+				num = convert_num_spec(get_arg(char), fmt.size, spec);
+				break;
+			case 2:
+				num = convert_num_spec(get_arg(short), fmt.size, spec);
+				break;
+			default:
+				num = convert_num_spec(get_arg(int), fmt.size, spec);
+				break;
+			}
 		}
 
 		str = number(str, end, num, spec);
