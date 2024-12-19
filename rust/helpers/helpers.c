@@ -20,6 +20,7 @@
 #include "kunit.c"
 #include "mutex.c"
 #include "page.c"
+#include "pci.c"
 #include "pid_namespace.c"
 #include "rbtree.c"
 #include "rcu.c"
