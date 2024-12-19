@@ -1549,18 +1549,18 @@ event_enable_write(struct file *filp, const char __user *ubuf, size_t cnt,
 	switch (val) {
 	case 0:
 	case 1:
-		ret = -ENODEV;
 		mutex_lock(&event_mutex);
 		file = event_file_file(filp);
 		if (likely(file)) {
 			ret = tracing_update_buffers(file->tr);
-			if (ret < 0) {
-				mutex_unlock(&event_mutex);
-				return ret;
-			}
-			ret = ftrace_event_enable_disable(file, val);
+			if (ret >= 0)
+				ret = ftrace_event_enable_disable(file, val);
+		} else {
+			ret = -ENODEV;
 		}
 		mutex_unlock(&event_mutex);
+		if (ret < 0)
+			return ret;
 		break;
 
 	default:
@@ -1569,7 +1569,7 @@ event_enable_write(struct file *filp, const char __user *ubuf, size_t cnt,
 
 	*ppos += cnt;
 
-	return ret ? ret : cnt;
+	return cnt;
 }
 
 static ssize_t
