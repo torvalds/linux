@@ -510,7 +510,7 @@ static char *pidfs_dname(struct dentry *dentry, char *buffer, int buflen)
 	return dynamic_dname(buffer, buflen, "anon_inode:[pidfd]");
 }
 
-static const struct dentry_operations pidfs_dentry_operations = {
+const struct dentry_operations pidfs_dentry_operations = {
 	.d_delete	= always_delete_dentry,
 	.d_dname	= pidfs_dname,
 	.d_prune	= stashed_dentry_prune,
