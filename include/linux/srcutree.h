@@ -17,14 +17,19 @@
 struct srcu_node;
 struct srcu_struct;
 
+/* One element of the srcu_data srcu_ctrs array. */
+struct srcu_ctr {
+	atomic_long_t srcu_locks;	/* Locks per CPU. */
+	atomic_long_t srcu_unlocks;	/* Unlocks per CPU. */
+};
+
 /*
  * Per-CPU structure feeding into leaf srcu_node, similar in function
  * to rcu_node.
  */
 struct srcu_data {
 	/* Read-side state. */
-	atomic_long_t srcu_lock_count[2];	/* Locks per CPU. */
-	atomic_long_t srcu_unlock_count[2];	/* Unlocks per CPU. */
+	struct srcu_ctr srcu_ctrs[2];		/* Locks and unlocks per CPU. */
 	int srcu_reader_flavor;			/* Reader flavor for srcu_struct structure? */
 						/* Values: SRCU_READ_FLAVOR_.*  */
 
@@ -221,7 +226,7 @@ static inline int __srcu_read_lock_lite(struct srcu_struct *ssp)
 
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "RCU must be watching srcu_read_lock_lite().");
 	idx = READ_ONCE(ssp->srcu_idx) & 0x1;
-	this_cpu_inc(ssp->sda->srcu_lock_count[idx].counter); /* Y */
+	this_cpu_inc(ssp->sda->srcu_ctrs[idx].srcu_locks.counter); /* Y */
 	barrier(); /* Avoid leaking the critical section. */
 	return idx;
 }
@@ -240,7 +245,7 @@ static inline int __srcu_read_lock_lite(struct srcu_struct *ssp)
 static inline void __srcu_read_unlock_lite(struct srcu_struct *ssp, int idx)
 {
 	barrier();  /* Avoid leaking the critical section. */
-	this_cpu_inc(ssp->sda->srcu_unlock_count[idx].counter);  /* Z */
+	this_cpu_inc(ssp->sda->srcu_ctrs[idx].srcu_unlocks.counter);  /* Z */
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "RCU must be watching srcu_read_unlock_lite().");
 }
 

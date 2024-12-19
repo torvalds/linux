@@ -116,8 +116,9 @@ do {										\
 /*
  * Initialize SRCU per-CPU data.  Note that statically allocated
  * srcu_struct structures might already have srcu_read_lock() and
- * srcu_read_unlock() running against them.  So if the is_static parameter
- * is set, don't initialize ->srcu_lock_count[] and ->srcu_unlock_count[].
+ * srcu_read_unlock() running against them.  So if the is_static
+ * parameter is set, don't initialize ->srcu_ctrs[].srcu_locks and
+ * ->srcu_ctrs[].srcu_unlocks.
  */
 static void init_srcu_struct_data(struct srcu_struct *ssp)
 {
@@ -128,8 +129,6 @@ static void init_srcu_struct_data(struct srcu_struct *ssp)
 	 * Initialize the per-CPU srcu_data array, which feeds into the
 	 * leaves of the srcu_node tree.
 	 */
-	BUILD_BUG_ON(ARRAY_SIZE(sdp->srcu_lock_count) !=
-		     ARRAY_SIZE(sdp->srcu_unlock_count));
 	for_each_possible_cpu(cpu) {
 		sdp = per_cpu_ptr(ssp->sda, cpu);
 		spin_lock_init(&ACCESS_PRIVATE(sdp, lock));
@@ -429,10 +428,10 @@ static bool srcu_gp_is_expedited(struct srcu_struct *ssp)
 }
 
 /*
- * Computes approximate total of the readers' ->srcu_lock_count[] values
- * for the rank of per-CPU counters specified by idx, and returns true if
- * the caller did the proper barrier (gp), and if the count of the locks
- * matches that of the unlocks passed in.
+ * Computes approximate total of the readers' ->srcu_ctrs[].srcu_locks
+ * values for the rank of per-CPU counters specified by idx, and returns
+ * true if the caller did the proper barrier (gp), and if the count of
+ * the locks matches that of the unlocks passed in.
  */
 static bool srcu_readers_lock_idx(struct srcu_struct *ssp, int idx, bool gp, unsigned long unlocks)
 {
@@ -443,7 +442,7 @@ static bool srcu_readers_lock_idx(struct srcu_struct *ssp, int idx, bool gp, uns
 	for_each_possible_cpu(cpu) {
 		struct srcu_data *sdp = per_cpu_ptr(ssp->sda, cpu);
 
-		sum += atomic_long_read(&sdp->srcu_lock_count[idx]);
+		sum += atomic_long_read(&sdp->srcu_ctrs[idx].srcu_locks);
 		if (IS_ENABLED(CONFIG_PROVE_RCU))
 			mask = mask | READ_ONCE(sdp->srcu_reader_flavor);
 	}
@@ -455,8 +454,8 @@ static bool srcu_readers_lock_idx(struct srcu_struct *ssp, int idx, bool gp, uns
 }
 
 /*
- * Returns approximate total of the readers' ->srcu_unlock_count[] values
- * for the rank of per-CPU counters specified by idx.
+ * Returns approximate total of the readers' ->srcu_ctrs[].srcu_unlocks
+ * values for the rank of per-CPU counters specified by idx.
  */
 static unsigned long srcu_readers_unlock_idx(struct srcu_struct *ssp, int idx, unsigned long *rdm)
 {
@@ -467,7 +466,7 @@ static unsigned long srcu_readers_unlock_idx(struct srcu_struct *ssp, int idx, u
 	for_each_possible_cpu(cpu) {
 		struct srcu_data *sdp = per_cpu_ptr(ssp->sda, cpu);
 
-		sum += atomic_long_read(&sdp->srcu_unlock_count[idx]);
+		sum += atomic_long_read(&sdp->srcu_ctrs[idx].srcu_unlocks);
 		mask = mask | READ_ONCE(sdp->srcu_reader_flavor);
 	}
 	WARN_ONCE(IS_ENABLED(CONFIG_PROVE_RCU) && (mask & (mask - 1)),
@@ -510,9 +509,9 @@ static bool srcu_readers_active_idx_check(struct srcu_struct *ssp, int idx)
 	 * been no readers on this index at some point in this function.
 	 * But there might be more readers, as a task might have read
 	 * the current ->srcu_idx but not yet have incremented its CPU's
-	 * ->srcu_lock_count[idx] counter.  In fact, it is possible
+	 * ->srcu_ctrs[idx].srcu_locks counter.  In fact, it is possible
 	 * that most of the tasks have been preempted between fetching
-	 * ->srcu_idx and incrementing ->srcu_lock_count[idx].  And there
+	 * ->srcu_idx and incrementing ->srcu_ctrs[idx].srcu_locks.  And there
 	 * could be almost (ULONG_MAX / sizeof(struct task_struct)) tasks
 	 * in a system whose address space was fully populated with memory.
 	 * Call this quantity Nt.
@@ -521,36 +520,36 @@ static bool srcu_readers_active_idx_check(struct srcu_struct *ssp, int idx)
 	 * code for a long time.  That now-preempted updater has already
 	 * flipped ->srcu_idx (possibly during the preceding grace period),
 	 * done an smp_mb() (again, possibly during the preceding grace
-	 * period), and summed up the ->srcu_unlock_count[idx] counters.
+	 * period), and summed up the ->srcu_ctrs[idx].srcu_unlocks counters.
 	 * How many times can a given one of the aforementioned Nt tasks
-	 * increment the old ->srcu_idx value's ->srcu_lock_count[idx]
+	 * increment the old ->srcu_idx value's ->srcu_ctrs[idx].srcu_locks
 	 * counter, in the absence of nesting?
 	 *
 	 * It can clearly do so once, given that it has already fetched
-	 * the old value of ->srcu_idx and is just about to use that value
-	 * to index its increment of ->srcu_lock_count[idx].  But as soon as
-	 * it leaves that SRCU read-side critical section, it will increment
-	 * ->srcu_unlock_count[idx], which must follow the updater's above
-	 * read from that same value.  Thus, as soon the reading task does
-	 * an smp_mb() and a later fetch from ->srcu_idx, that task will be
-	 * guaranteed to get the new index.  Except that the increment of
-	 * ->srcu_unlock_count[idx] in __srcu_read_unlock() is after the
-	 * smp_mb(), and the fetch from ->srcu_idx in __srcu_read_lock()
-	 * is before the smp_mb().  Thus, that task might not see the new
-	 * value of ->srcu_idx until the -second- __srcu_read_lock(),
-	 * which in turn means that this task might well increment
-	 * ->srcu_lock_count[idx] for the old value of ->srcu_idx twice,
-	 * not just once.
+	 * the old value of ->srcu_idx and is just about to use that
+	 * value to index its increment of ->srcu_ctrs[idx].srcu_locks.
+	 * But as soon as it leaves that SRCU read-side critical section,
+	 * it will increment ->srcu_ctrs[idx].srcu_unlocks, which must
+	 * follow the updater's above read from that same value.	Thus,
+	 * as soon the reading task does an smp_mb() and a later fetch from
+	 * ->srcu_idx, that task will be guaranteed to get the new index.
+	 * Except that the increment of ->srcu_ctrs[idx].srcu_unlocks
+	 * in __srcu_read_unlock() is after the smp_mb(), and the fetch
+	 * from ->srcu_idx in __srcu_read_lock() is before the smp_mb().
+	 * Thus, that task might not see the new value of ->srcu_idx until
+	 * the -second- __srcu_read_lock(), which in turn means that this
+	 * task might well increment ->srcu_ctrs[idx].srcu_locks for the
+	 * old value of ->srcu_idx twice, not just once.
 	 *
 	 * However, it is important to note that a given smp_mb() takes
 	 * effect not just for the task executing it, but also for any
 	 * later task running on that same CPU.
 	 *
-	 * That is, there can be almost Nt + Nc further increments of
-	 * ->srcu_lock_count[idx] for the old index, where Nc is the number
-	 * of CPUs.  But this is OK because the size of the task_struct
-	 * structure limits the value of Nt and current systems limit Nc
-	 * to a few thousand.
+	 * That is, there can be almost Nt + Nc further increments
+	 * of ->srcu_ctrs[idx].srcu_locks for the old index, where Nc
+	 * is the number of CPUs.  But this is OK because the size of
+	 * the task_struct structure limits the value of Nt and current
+	 * systems limit Nc to a few thousand.
 	 *
 	 * OK, but what about nesting?  This does impose a limit on
 	 * nesting of half of the size of the task_struct structure
@@ -581,10 +580,10 @@ static bool srcu_readers_active(struct srcu_struct *ssp)
 	for_each_possible_cpu(cpu) {
 		struct srcu_data *sdp = per_cpu_ptr(ssp->sda, cpu);
 
-		sum += atomic_long_read(&sdp->srcu_lock_count[0]);
-		sum += atomic_long_read(&sdp->srcu_lock_count[1]);
-		sum -= atomic_long_read(&sdp->srcu_unlock_count[0]);
-		sum -= atomic_long_read(&sdp->srcu_unlock_count[1]);
+		sum += atomic_long_read(&sdp->srcu_ctrs[0].srcu_locks);
+		sum += atomic_long_read(&sdp->srcu_ctrs[1].srcu_locks);
+		sum -= atomic_long_read(&sdp->srcu_ctrs[0].srcu_unlocks);
+		sum -= atomic_long_read(&sdp->srcu_ctrs[1].srcu_unlocks);
 	}
 	return sum;
 }
@@ -746,7 +745,7 @@ int __srcu_read_lock(struct srcu_struct *ssp)
 	int idx;
 
 	idx = READ_ONCE(ssp->srcu_idx) & 0x1;
-	this_cpu_inc(ssp->sda->srcu_lock_count[idx].counter);
+	this_cpu_inc(ssp->sda->srcu_ctrs[idx].srcu_locks.counter);
 	smp_mb(); /* B */  /* Avoid leaking the critical section. */
 	return idx;
 }
@@ -760,7 +759,7 @@ EXPORT_SYMBOL_GPL(__srcu_read_lock);
 void __srcu_read_unlock(struct srcu_struct *ssp, int idx)
 {
 	smp_mb(); /* C */  /* Avoid leaking the critical section. */
-	this_cpu_inc(ssp->sda->srcu_unlock_count[idx].counter);
+	this_cpu_inc(ssp->sda->srcu_ctrs[idx].srcu_unlocks.counter);
 }
 EXPORT_SYMBOL_GPL(__srcu_read_unlock);
 
@@ -777,7 +776,7 @@ int __srcu_read_lock_nmisafe(struct srcu_struct *ssp)
 	struct srcu_data *sdp = raw_cpu_ptr(ssp->sda);
 
 	idx = READ_ONCE(ssp->srcu_idx) & 0x1;
-	atomic_long_inc(&sdp->srcu_lock_count[idx]);
+	atomic_long_inc(&sdp->srcu_ctrs[idx].srcu_locks);
 	smp_mb__after_atomic(); /* B */  /* Avoid leaking the critical section. */
 	return idx;
 }
@@ -793,7 +792,7 @@ void __srcu_read_unlock_nmisafe(struct srcu_struct *ssp, int idx)
 	struct srcu_data *sdp = raw_cpu_ptr(ssp->sda);
 
 	smp_mb__before_atomic(); /* C */  /* Avoid leaking the critical section. */
-	atomic_long_inc(&sdp->srcu_unlock_count[idx]);
+	atomic_long_inc(&sdp->srcu_ctrs[idx].srcu_unlocks);
 }
 EXPORT_SYMBOL_GPL(__srcu_read_unlock_nmisafe);
 
@@ -1123,17 +1122,17 @@ static void srcu_flip(struct srcu_struct *ssp)
 	/*
 	 * Because the flip of ->srcu_idx is executed only if the
 	 * preceding call to srcu_readers_active_idx_check() found that
-	 * the ->srcu_unlock_count[] and ->srcu_lock_count[] sums matched
-	 * and because that summing uses atomic_long_read(), there is
-	 * ordering due to a control dependency between that summing and
-	 * the WRITE_ONCE() in this call to srcu_flip().  This ordering
-	 * ensures that if this updater saw a given reader's increment from
-	 * __srcu_read_lock(), that reader was using a value of ->srcu_idx
-	 * from before the previous call to srcu_flip(), which should be
-	 * quite rare.  This ordering thus helps forward progress because
-	 * the grace period could otherwise be delayed by additional
-	 * calls to __srcu_read_lock() using that old (soon to be new)
-	 * value of ->srcu_idx.
+	 * the ->srcu_ctrs[].srcu_unlocks and ->srcu_ctrs[].srcu_locks sums
+	 * matched and because that summing uses atomic_long_read(),
+	 * there is ordering due to a control dependency between that
+	 * summing and the WRITE_ONCE() in this call to srcu_flip().
+	 * This ordering ensures that if this updater saw a given reader's
+	 * increment from __srcu_read_lock(), that reader was using a value
+	 * of ->srcu_idx from before the previous call to srcu_flip(),
+	 * which should be quite rare.  This ordering thus helps forward
+	 * progress because the grace period could otherwise be delayed
+	 * by additional calls to __srcu_read_lock() using that old (soon
+	 * to be new) value of ->srcu_idx.
 	 *
 	 * This sum-equality check and ordering also ensures that if
 	 * a given call to __srcu_read_lock() uses the new value of
@@ -1914,8 +1913,8 @@ void srcu_torture_stats_print(struct srcu_struct *ssp, char *tt, char *tf)
 			struct srcu_data *sdp;
 
 			sdp = per_cpu_ptr(ssp->sda, cpu);
-			u0 = data_race(atomic_long_read(&sdp->srcu_unlock_count[!idx]));
-			u1 = data_race(atomic_long_read(&sdp->srcu_unlock_count[idx]));
+			u0 = data_race(atomic_long_read(&sdp->srcu_ctrs[!idx].srcu_unlocks));
+			u1 = data_race(atomic_long_read(&sdp->srcu_ctrs[idx].srcu_unlocks));
 
 			/*
 			 * Make sure that a lock is always counted if the corresponding
@@ -1923,8 +1922,8 @@ void srcu_torture_stats_print(struct srcu_struct *ssp, char *tt, char *tf)
 			 */
 			smp_rmb();
 
-			l0 = data_race(atomic_long_read(&sdp->srcu_lock_count[!idx]));
-			l1 = data_race(atomic_long_read(&sdp->srcu_lock_count[idx]));
+			l0 = data_race(atomic_long_read(&sdp->srcu_ctrs[!idx].srcu_locks));
+			l1 = data_race(atomic_long_read(&sdp->srcu_ctrs[idx].srcu_locks));
 
 			c0 = l0 - u0;
 			c1 = l1 - u1;
