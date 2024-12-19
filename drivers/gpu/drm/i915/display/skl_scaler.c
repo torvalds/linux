@@ -166,7 +166,8 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 	if (DISPLAY_VER(display) >= 9 && crtc_state->hw.enable &&
 	    need_scaler && adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		drm_dbg_kms(display->drm,
-			    "Pipe/Plane scaling not supported with IF-ID mode\n");
+			    "[CRTC:%d:%s] scaling not supported with IF-ID mode\n",
+			    crtc->base.base.id, crtc->base.name);
 		return -EINVAL;
 	}
 
@@ -186,8 +187,9 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 			scaler_state->scalers[*scaler_id].in_use = false;
 
 			drm_dbg_kms(display->drm,
-				    "scaler_user index %u.%u: "
+				    "[CRTC:%d:%s] scaler_user index %u.%u: "
 				    "Staged freeing scaler id %d scaler_users = 0x%x\n",
+				    crtc->base.base.id, crtc->base.name,
 				    crtc->pipe, scaler_user, *scaler_id,
 				    scaler_state->scaler_users);
 			*scaler_id = -1;
@@ -207,8 +209,9 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 	    src_w > max_src_w || src_h > max_src_h ||
 	    dst_w > max_dst_w || dst_h > max_dst_h) {
 		drm_dbg_kms(display->drm,
-			    "scaler_user index %u.%u: src %ux%u dst %ux%u "
+			    "[CRTC:%d:%s] scaler_user index %u.%u: src %ux%u dst %ux%u "
 			    "size is out of scaler range\n",
+			    crtc->base.base.id, crtc->base.name,
 			    crtc->pipe, scaler_user, src_w, src_h,
 			    dst_w, dst_h);
 		return -EINVAL;
@@ -224,16 +227,18 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 	 */
 	if (pipe_src_w > max_dst_w || pipe_src_h > max_dst_h) {
 		drm_dbg_kms(display->drm,
-			    "scaler_user index %u.%u: pipe src size %ux%u "
+			    "[CRTC:%d:%s] scaler_user index %u.%u: pipe src size %ux%u "
 			    "is out of scaler range\n",
+			    crtc->base.base.id, crtc->base.name,
 			    crtc->pipe, scaler_user, pipe_src_w, pipe_src_h);
 		return -EINVAL;
 	}
 
 	/* mark this plane as a scaler user in crtc_state */
 	scaler_state->scaler_users |= (1 << scaler_user);
-	drm_dbg_kms(display->drm, "scaler_user index %u.%u: "
+	drm_dbg_kms(display->drm, "[CRTC:%d:%s] scaler_user index %u.%u: "
 		    "staged scaling request for %ux%u->%ux%u scaler_users = 0x%x\n",
+		    crtc->base.base.id, crtc->base.name,
 		    crtc->pipe, scaler_user, src_w, src_h, dst_w, dst_h,
 		    scaler_state->scaler_users);
 
@@ -421,8 +426,8 @@ static int intel_atomic_setup_scaler(struct intel_crtc_scaler_state *scaler_stat
 
 		if (hscale < 0 || vscale < 0) {
 			drm_dbg_kms(display->drm,
-				    "Scaler %d doesn't support required plane scaling\n",
-				    *scaler_id);
+				    "[CRTC:%d:%s] scaler %d doesn't support required plane scaling\n",
+				    crtc->base.base.id, crtc->base.name, *scaler_id);
 			drm_rect_debug_print("src: ", src, true);
 			drm_rect_debug_print("dst: ", dst, false);
 
@@ -430,7 +435,8 @@ static int intel_atomic_setup_scaler(struct intel_crtc_scaler_state *scaler_stat
 		}
 	}
 
-	drm_dbg_kms(display->drm, "Attached scaler id %u.%u to %s:%d\n",
+	drm_dbg_kms(display->drm, "[CRTC:%d:%s] attached scaler id %u.%u to %s:%d\n",
+		    crtc->base.base.id, crtc->base.name,
 		    crtc->pipe, *scaler_id, name, idx);
 	scaler_state->scalers[*scaler_id].mode = mode;
 
@@ -530,7 +536,8 @@ int intel_atomic_setup_scalers(struct intel_atomic_state *state,
 	/* fail if required scalers > available scalers */
 	if (num_scalers_need > crtc->num_scalers) {
 		drm_dbg_kms(display->drm,
-			    "Too many scaling requests %d > %d\n",
+			    "[CRTC:%d:%s] too many scaling requests %d > %d\n",
+			    crtc->base.base.id, crtc->base.name,
 			    num_scalers_need, crtc->num_scalers);
 		return -EINVAL;
 	}
