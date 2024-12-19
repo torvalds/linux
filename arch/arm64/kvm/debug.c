@@ -288,3 +288,16 @@ void kvm_debug_set_guest_ownership(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.debug_owner = VCPU_DEBUG_GUEST_OWNED;
 }
+
+void kvm_debug_handle_oslar(struct kvm_vcpu *vcpu, u64 val)
+{
+	if (val & OSLAR_EL1_OSLK)
+		__vcpu_sys_reg(vcpu, OSLSR_EL1) |= OSLSR_EL1_OSLK;
+	else
+		__vcpu_sys_reg(vcpu, OSLSR_EL1) &= ~OSLSR_EL1_OSLK;
+
+	preempt_disable();
+	kvm_arch_vcpu_put(vcpu);
+	kvm_arch_vcpu_load(vcpu, smp_processor_id());
+	preempt_enable();
+}
