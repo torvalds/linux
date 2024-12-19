@@ -896,15 +896,15 @@ close_cq:
 	return err;
 }
 
-void mlx5hws_send_queue_close(struct mlx5hws_send_engine *queue)
+static void mlx5hws_send_queue_close(struct mlx5hws_send_engine *queue)
 {
 	hws_send_ring_close(queue);
 	kfree(queue->completed.entries);
 }
 
-int mlx5hws_send_queue_open(struct mlx5hws_context *ctx,
-			    struct mlx5hws_send_engine *queue,
-			    u16 queue_size)
+static int mlx5hws_send_queue_open(struct mlx5hws_context *ctx,
+				   struct mlx5hws_send_engine *queue,
+				   u16 queue_size)
 {
 	int err;
 
