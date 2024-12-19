@@ -489,6 +489,105 @@ TRACE_EVENT(intel_plane_disable_arm,
 		      __entry->frame, __entry->scanline)
 );
 
+TRACE_EVENT(intel_plane_scaler_update_arm,
+	    TP_PROTO(struct intel_plane *plane,
+		     int scaler_id, int x, int y, int w, int h),
+	    TP_ARGS(plane, scaler_id, x, y, w, h),
+
+	    TP_STRUCT__entry(
+			     __string(dev, __dev_name_kms(plane))
+			     __field(char, pipe_name)
+			     __field(int, scaler_id)
+			     __field(u32, frame)
+			     __field(u32, scanline)
+			     __field(int, x)
+			     __field(int, y)
+			     __field(int, w)
+			     __field(int, h)
+			     __string(name, plane->base.name)
+			     ),
+
+	    TP_fast_assign(
+			   struct intel_display *display = to_intel_display(plane);
+			   struct intel_crtc *crtc = intel_crtc_for_pipe(display, plane->pipe);
+			   __assign_str(dev);
+			   __assign_str(name);
+			   __entry->pipe_name = pipe_name(crtc->pipe);
+			   __entry->scaler_id = scaler_id;
+			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
+			   __entry->scanline = intel_get_crtc_scanline(crtc);
+			   __entry->x = x;
+			   __entry->y = y;
+			   __entry->w = w;
+			   __entry->h = h;
+			   ),
+
+	    TP_printk("dev %s, pipe %c, scaler %d, plane %s, frame=%u, scanline=%u, " DRM_RECT_FMT,
+		      __get_str(dev), __entry->pipe_name, __entry->scaler_id,
+		      __get_str(name), __entry->frame, __entry->scanline,
+		      __entry->w, __entry->h, __entry->x, __entry->y)
+);
+
+TRACE_EVENT(intel_pipe_scaler_update_arm,
+	    TP_PROTO(struct intel_crtc *crtc, int scaler_id,
+		     int x, int y, int w, int h),
+	    TP_ARGS(crtc, scaler_id, x, y, w, h),
+
+	    TP_STRUCT__entry(
+			     __string(dev, __dev_name_kms(crtc))
+			     __field(char, pipe_name)
+			     __field(int, scaler_id)
+			     __field(u32, frame)
+			     __field(u32, scanline)
+			     __field(int, x)
+			     __field(int, y)
+			     __field(int, w)
+			     __field(int, h)
+			     ),
+
+	    TP_fast_assign(
+			   __assign_str(dev);
+			   __entry->pipe_name = pipe_name(crtc->pipe);
+			   __entry->scaler_id = scaler_id;
+			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
+			   __entry->scanline = intel_get_crtc_scanline(crtc);
+			   __entry->x = x;
+			   __entry->y = y;
+			   __entry->w = w;
+			   __entry->h = h;
+			   ),
+
+	    TP_printk("dev %s, pipe %c, scaler %d frame=%u, scanline=%u, " DRM_RECT_FMT,
+		      __get_str(dev), __entry->pipe_name, __entry->scaler_id,
+		      __entry->frame, __entry->scanline,
+		      __entry->w, __entry->h, __entry->x, __entry->y)
+);
+
+TRACE_EVENT(intel_scaler_disable_arm,
+	    TP_PROTO(struct intel_crtc *crtc, int scaler_id),
+	    TP_ARGS(crtc, scaler_id),
+
+	    TP_STRUCT__entry(
+			     __string(dev, __dev_name_kms(crtc))
+			     __field(char, pipe_name)
+			     __field(int, scaler_id)
+			     __field(u32, frame)
+			     __field(u32, scanline)
+			     ),
+
+	    TP_fast_assign(
+			   __assign_str(dev);
+			   __entry->pipe_name = pipe_name(crtc->pipe);
+			   __entry->scaler_id = scaler_id;
+			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
+			   __entry->scanline = intel_get_crtc_scanline(crtc);
+			   ),
+
+	    TP_printk("dev %s, pipe %c, scaler %d, frame=%u, scanline=%u",
+		      __get_str(dev), __entry->pipe_name, __entry->scaler_id,
+		      __entry->frame, __entry->scanline)
+);
+
 TRACE_EVENT(intel_fbc_activate,
 	    TP_PROTO(struct intel_plane *plane),
 	    TP_ARGS(plane),

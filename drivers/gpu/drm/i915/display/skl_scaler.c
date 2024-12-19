@@ -6,6 +6,7 @@
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_de.h"
+#include "intel_display_trace.h"
 #include "intel_display_types.h"
 #include "intel_fb.h"
 #include "skl_scaler.h"
@@ -706,6 +707,8 @@ void skl_pfit_enable(const struct intel_crtc_state *crtc_state)
 	ps_ctrl = PS_SCALER_EN | PS_BINDING_PIPE | scaler_state->scalers[id].mode |
 		skl_scaler_get_filter_select(crtc_state->hw.scaling_filter, 0);
 
+	trace_intel_pipe_scaler_update_arm(crtc, id, x, y, width, height);
+
 	skl_scaler_setup_filter(display, pipe, id, 0,
 				crtc_state->hw.scaling_filter);
 
@@ -770,6 +773,9 @@ skl_program_plane_scaler(struct intel_plane *plane,
 	ps_ctrl = PS_SCALER_EN | PS_BINDING_PLANE(plane->id) | scaler->mode |
 		skl_scaler_get_filter_select(plane_state->hw.scaling_filter, 0);
 
+	trace_intel_plane_scaler_update_arm(plane, scaler_id,
+					    crtc_x, crtc_y, crtc_w, crtc_h);
+
 	skl_scaler_setup_filter(display, pipe, scaler_id, 0,
 				plane_state->hw.scaling_filter);
 
@@ -787,6 +793,8 @@ skl_program_plane_scaler(struct intel_plane *plane,
 static void skl_detach_scaler(struct intel_crtc *crtc, int id)
 {
 	struct intel_display *display = to_intel_display(crtc);
+
+	trace_intel_scaler_disable_arm(crtc, id);
 
 	intel_de_write_fw(display, SKL_PS_CTRL(crtc->pipe, id), 0);
 	intel_de_write_fw(display, SKL_PS_WIN_POS(crtc->pipe, id), 0);
