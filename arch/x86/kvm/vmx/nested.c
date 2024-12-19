@@ -3442,7 +3442,7 @@ static int nested_vmx_write_pml_buffer(struct kvm_vcpu *vcpu, gpa_t gpa)
 	if (!nested_cpu_has_pml(vmcs12))
 		return 0;
 
-	if (vmcs12->guest_pml_index >= PML_ENTITY_NUM) {
+	if (vmcs12->guest_pml_index >= PML_LOG_NR_ENTRIES) {
 		vmx->nested.pml_full = true;
 		return 1;
 	}

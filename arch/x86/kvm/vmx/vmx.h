@@ -331,7 +331,10 @@ struct vcpu_vmx {
 	bool ple_window_dirty;
 
 	/* Support for PML */
-#define PML_ENTITY_NUM		512
+#define PML_LOG_NR_ENTRIES	512
+	/* PML is written backwards: this is the first entry written by the CPU */
+#define PML_HEAD_INDEX		(PML_LOG_NR_ENTRIES-1)
+
 	struct page *pml_pg;
 
 	/* apic deadline value in host tsc */

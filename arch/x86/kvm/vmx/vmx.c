@@ -4821,7 +4821,7 @@ static void init_vmcs(struct vcpu_vmx *vmx)
 
 	if (enable_pml) {
 		vmcs_write64(PML_ADDRESS, page_to_phys(vmx->pml_pg));
-		vmcs_write16(GUEST_PML_INDEX, PML_ENTITY_NUM - 1);
+		vmcs_write16(GUEST_PML_INDEX, PML_HEAD_INDEX);
 	}
 
 	vmx_write_encls_bitmap(&vmx->vcpu, NULL);
@@ -6209,17 +6209,17 @@ static void vmx_flush_pml_buffer(struct kvm_vcpu *vcpu)
 	pml_idx = vmcs_read16(GUEST_PML_INDEX);
 
 	/* Do nothing if PML buffer is empty */
-	if (pml_idx == (PML_ENTITY_NUM - 1))
+	if (pml_idx == PML_HEAD_INDEX)
 		return;
 
 	/* PML index always points to next available PML buffer entity */
-	if (pml_idx >= PML_ENTITY_NUM)
+	if (pml_idx >= PML_LOG_NR_ENTRIES)
 		pml_idx = 0;
 	else
 		pml_idx++;
 
 	pml_buf = page_address(vmx->pml_pg);
-	for (; pml_idx < PML_ENTITY_NUM; pml_idx++) {
+	for (; pml_idx < PML_LOG_NR_ENTRIES; pml_idx++) {
 		u64 gpa;
 
 		gpa = pml_buf[pml_idx];
@@ -6228,7 +6228,7 @@ static void vmx_flush_pml_buffer(struct kvm_vcpu *vcpu)
 	}
 
 	/* reset PML index */
-	vmcs_write16(GUEST_PML_INDEX, PML_ENTITY_NUM - 1);
+	vmcs_write16(GUEST_PML_INDEX, PML_HEAD_INDEX);
 }
 
 static void vmx_dump_sel(char *name, uint32_t sel)
