@@ -225,6 +225,14 @@ void amdgpu_i2c_destroy(struct amdgpu_i2c_chan *i2c)
 	kfree(i2c);
 }
 
+void amdgpu_i2c_init(struct amdgpu_device *adev)
+{
+	if (!adev->is_atom_fw) {
+		if (!amdgpu_device_has_dc_support(adev))
+			amdgpu_atombios_i2c_init(adev);
+	}
+}
+
 /* remove all the buses */
 void amdgpu_i2c_fini(struct amdgpu_device *adev)
 {
