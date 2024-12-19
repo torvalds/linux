@@ -462,7 +462,7 @@ static struct attribute *power_supply_extension_attrs[] = {
 	NULL
 };
 
-const struct attribute_group power_supply_extension_group = {
+static const struct attribute_group power_supply_extension_group = {
 	.name = "extensions",
 	.attrs = power_supply_extension_attrs,
 };
@@ -624,3 +624,16 @@ int power_supply_charge_types_parse(unsigned int available_types, const char *bu
 	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(power_supply_charge_types_parse);
+
+int power_supply_sysfs_add_extension(struct power_supply *psy, const struct power_supply_ext *ext,
+				     struct device *dev)
+{
+	return sysfs_add_link_to_group(&psy->dev.kobj, power_supply_extension_group.name,
+				       &dev->kobj, ext->name);
+}
+
+void power_supply_sysfs_remove_extension(struct power_supply *psy,
+					 const struct power_supply_ext *ext)
+{
+	sysfs_remove_link_from_group(&psy->dev.kobj, power_supply_extension_group.name, ext->name);
+}
