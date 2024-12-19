@@ -405,96 +405,13 @@ static void setup_quirks(struct boot_params *boot_params)
 	}
 }
 
-/*
- * See if we have Universal Graphics Adapter (UGA) protocol
- */
-static efi_status_t
-setup_uga(struct screen_info *si, efi_guid_t *uga_proto, unsigned long size)
-{
-	efi_status_t status;
-	u32 width, height;
-	void **uga_handle = NULL;
-	efi_uga_draw_protocol_t *uga = NULL, *first_uga;
-	efi_handle_t handle;
-	int i;
-
-	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, size,
-			     (void **)&uga_handle);
-	if (status != EFI_SUCCESS)
-		return status;
-
-	status = efi_bs_call(locate_handle, EFI_LOCATE_BY_PROTOCOL,
-			     uga_proto, NULL, &size, uga_handle);
-	if (status != EFI_SUCCESS)
-		goto free_handle;
-
-	height = 0;
-	width = 0;
-
-	first_uga = NULL;
-	for_each_efi_handle(handle, uga_handle, size, i) {
-		efi_guid_t pciio_proto = EFI_PCI_IO_PROTOCOL_GUID;
-		u32 w, h, depth, refresh;
-		void *pciio;
-
-		status = efi_bs_call(handle_protocol, handle, uga_proto,
-				     (void **)&uga);
-		if (status != EFI_SUCCESS)
-			continue;
-
-		pciio = NULL;
-		efi_bs_call(handle_protocol, handle, &pciio_proto, &pciio);
-
-		status = efi_call_proto(uga, get_mode, &w, &h, &depth, &refresh);
-		if (status == EFI_SUCCESS && (!first_uga || pciio)) {
-			width = w;
-			height = h;
-
-			/*
-			 * Once we've found a UGA supporting PCIIO,
-			 * don't bother looking any further.
-			 */
-			if (pciio)
-				break;
-
-			first_uga = uga;
-		}
-	}
-
-	if (!width && !height)
-		goto free_handle;
-
-	/* EFI framebuffer */
-	si->orig_video_isVGA	= VIDEO_TYPE_EFI;
-
-	si->lfb_depth		= 32;
-	si->lfb_width		= width;
-	si->lfb_height		= height;
-
-	si->red_size		= 8;
-	si->red_pos		= 16;
-	si->green_size		= 8;
-	si->green_pos		= 8;
-	si->blue_size		= 8;
-	si->blue_pos		= 0;
-	si->rsvd_size		= 8;
-	si->rsvd_pos		= 24;
-
-free_handle:
-	efi_bs_call(free_pool, uga_handle);
-
-	return status;
-}
-
 static void setup_graphics(struct boot_params *boot_params)
 {
 	efi_guid_t graphics_proto = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
 	struct screen_info *si;
-	efi_guid_t uga_proto = EFI_UGA_PROTOCOL_GUID;
 	efi_status_t status;
 	unsigned long size;
 	void **gop_handle = NULL;
-	void **uga_handle = NULL;
 
 	si = &boot_params->screen_info;
 	memset(si, 0, sizeof(*si));
@@ -505,13 +422,6 @@ static void setup_graphics(struct boot_params *boot_params)
 	if (status == EFI_BUFFER_TOO_SMALL)
 		status = efi_setup_gop(si, &graphics_proto, size);
 
-	if (status != EFI_SUCCESS) {
-		size = 0;
-		status = efi_bs_call(locate_handle, EFI_LOCATE_BY_PROTOCOL,
-				     &uga_proto, NULL, &size, uga_handle);
-		if (status == EFI_BUFFER_TOO_SMALL)
-			setup_uga(si, &uga_proto, size);
-	}
 }
 
 
