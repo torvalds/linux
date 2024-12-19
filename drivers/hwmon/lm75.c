@@ -601,6 +601,11 @@ static int lm75_i2c_reg_write(void *context, unsigned int reg, unsigned int val)
 	return i2c_smbus_write_word_swapped(client, reg, val);
 }
 
+static const struct regmap_bus lm75_i2c_regmap_bus = {
+	.reg_read = lm75_i2c_reg_read,
+	.reg_write = lm75_i2c_reg_write,
+};
+
 static const struct regmap_config lm75_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 16,
@@ -613,11 +618,6 @@ static const struct regmap_config lm75_regmap_config = {
 	.use_single_write = true,
 };
 
-static const struct regmap_bus lm75_i2c_regmap_bus = {
-	.reg_read = lm75_i2c_reg_read,
-	.reg_write = lm75_i2c_reg_write,
-};
-
 static void lm75_remove(void *data)
 {
 	struct lm75_data *lm75 = data;
@@ -625,16 +625,12 @@ static void lm75_remove(void *data)
 	regmap_write(lm75->regmap, LM75_REG_CONF, lm75->orig_conf);
 }
 
-static int lm75_probe(struct i2c_client *client)
+static int lm75_generic_probe(struct device *dev, const char *name,
+			      const void *kind_ptr, int irq, struct regmap *regmap)
 {
-	struct device *dev = &client->dev;
 	struct device *hwmon_dev;
 	struct lm75_data *data;
 	int status, err;
-
-	if (!i2c_check_functionality(client->adapter,
-			I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA))
-		return -EIO;
 
 	data = devm_kzalloc(dev, sizeof(struct lm75_data), GFP_KERNEL);
 	if (!data)
@@ -643,16 +639,12 @@ static int lm75_probe(struct i2c_client *client)
 	/* needed by custom regmap callbacks */
 	dev_set_drvdata(dev, data);
 
-	data->kind = (uintptr_t)i2c_get_match_data(client);
+	data->kind = (uintptr_t)kind_ptr;
+	data->regmap = regmap;
 
 	err = devm_regulator_get_enable(dev, "vs");
 	if (err)
 		return err;
-
-	data->regmap = devm_regmap_init(dev, &lm75_i2c_regmap_bus, client,
-					&lm75_regmap_config);
-	if (IS_ERR(data->regmap))
-		return PTR_ERR(data->regmap);
 
 	/* Set to LM75 resolution (9 bits, 1/2 degree C) and range.
 	 * Then tweak to be more precise when appropriate.
@@ -679,20 +671,19 @@ static int lm75_probe(struct i2c_client *client)
 	if (err)
 		return err;
 
-	hwmon_dev = devm_hwmon_device_register_with_info(dev, client->name,
-							 data, &lm75_chip_info,
-							 NULL);
+	hwmon_dev = devm_hwmon_device_register_with_info(dev, name, data,
+							 &lm75_chip_info, NULL);
 	if (IS_ERR(hwmon_dev))
 		return PTR_ERR(hwmon_dev);
 
-	if (client->irq) {
+	if (irq) {
 		if (data->params->alarm) {
 			err = devm_request_threaded_irq(dev,
-							client->irq,
+							irq,
 							NULL,
 							&lm75_alarm_handler,
 							IRQF_ONESHOT,
-							client->name,
+							name,
 							hwmon_dev);
 			if (err)
 				return err;
@@ -702,12 +693,29 @@ static int lm75_probe(struct i2c_client *client)
 		}
 	}
 
-	dev_info(dev, "%s: sensor '%s'\n", dev_name(hwmon_dev), client->name);
+	dev_info(dev, "%s: sensor '%s'\n", dev_name(hwmon_dev), name);
 
 	return 0;
 }
 
-static const struct i2c_device_id lm75_ids[] = {
+static int lm75_i2c_probe(struct i2c_client *client)
+{
+	struct device *dev = &client->dev;
+	struct regmap *regmap;
+
+	if (!i2c_check_functionality(client->adapter,
+			I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA))
+		return -EOPNOTSUPP;
+
+	regmap = devm_regmap_init(dev, &lm75_i2c_regmap_bus, client, &lm75_regmap_config);
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
+
+	return lm75_generic_probe(dev, client->name, i2c_get_match_data(client),
+				  client->irq, regmap);
+}
+
+static const struct i2c_device_id lm75_i2c_ids[] = {
 	{ "adt75", adt75, },
 	{ "as6200", as6200, },
 	{ "at30ts74", at30ts74, },
@@ -740,7 +748,7 @@ static const struct i2c_device_id lm75_ids[] = {
 	{ "tmp1075", tmp1075, },
 	{ /* LIST END */ }
 };
-MODULE_DEVICE_TABLE(i2c, lm75_ids);
+MODULE_DEVICE_TABLE(i2c, lm75_i2c_ids);
 
 static const struct of_device_id __maybe_unused lm75_of_match[] = {
 	{
@@ -987,20 +995,20 @@ static const struct dev_pm_ops lm75_dev_pm_ops = {
 #define LM75_DEV_PM_OPS NULL
 #endif /* CONFIG_PM */
 
-static struct i2c_driver lm75_driver = {
+static struct i2c_driver lm75_i2c_driver = {
 	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "lm75",
 		.of_match_table = of_match_ptr(lm75_of_match),
 		.pm	= LM75_DEV_PM_OPS,
 	},
-	.probe		= lm75_probe,
-	.id_table	= lm75_ids,
+	.probe		= lm75_i2c_probe,
+	.id_table	= lm75_i2c_ids,
 	.detect		= lm75_detect,
 	.address_list	= normal_i2c,
 };
 
-module_i2c_driver(lm75_driver);
+module_i2c_driver(lm75_i2c_driver);
 
 MODULE_AUTHOR("Frodo Looijaard <frodol@dds.nl>");
 MODULE_DESCRIPTION("LM75 driver");
