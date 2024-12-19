@@ -9,6 +9,12 @@
 #include "reg.h"
 #include "rtw8852bt.h"
 
+static const struct rtw89_pci_ssid_quirk rtw8852bt_pci_ssid_quirks[] = {
+	{RTW89_PCI_SSID(PCI_VENDOR_ID_REALTEK, 0xB520, 0x103C, 0x88E9, HP),
+	 .bitmap = BIT(RTW89_QUIRK_THERMAL_PROT_110C)},
+	{},
+};
+
 static const struct rtw89_pci_info rtw8852bt_pci_info = {
 	.gen_def		= &rtw89_pci_gen_ax,
 	.txbd_trunc_mode	= MAC_AX_BD_TRUNC,
@@ -61,7 +67,7 @@ static const struct rtw89_pci_info rtw8852bt_pci_info = {
 	.disable_intr		= rtw89_pci_disable_intr,
 	.recognize_intrs	= rtw89_pci_recognize_intrs,
 
-	.ssid_quirks		= NULL,
+	.ssid_quirks		= rtw8852bt_pci_ssid_quirks,
 };
 
 static const struct rtw89_driver_info rtw89_8852bte_info = {

@@ -4728,7 +4728,7 @@ enum rtw89_dm_type {
 };
 
 #define RTW89_THERMAL_PROT_LV_MAX 5
-#define RTW89_THERMAL_PROT_STEP 19 /* -19% for each level */
+#define RTW89_THERMAL_PROT_STEP 5 /* -5% for each level */
 
 struct rtw89_hal {
 	u32 rx_fltr;
