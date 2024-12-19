@@ -729,6 +729,7 @@ static int a6xx_gmu_fw_load(struct a6xx_gmu *gmu)
 	const struct firmware *fw_image = adreno_gpu->fw[ADRENO_FW_GMU];
 	const struct block_header *blk;
 	u32 reg_offset;
+	u32 ver;
 
 	u32 itcm_base = 0x00000000;
 	u32 dtcm_base = 0x00040000;
@@ -774,6 +775,12 @@ static int a6xx_gmu_fw_load(struct a6xx_gmu *gmu)
 				blk->addr, blk->size, blk->data[0]);
 		}
 	}
+
+	ver = gmu_read(gmu, REG_A6XX_GMU_CORE_FW_VERSION);
+	DRM_INFO("Loaded GMU firmware v%u.%u.%u\n",
+		 FIELD_GET(A6XX_GMU_CORE_FW_VERSION_MAJOR__MASK, ver),
+		 FIELD_GET(A6XX_GMU_CORE_FW_VERSION_MINOR__MASK, ver),
+		 FIELD_GET(A6XX_GMU_CORE_FW_VERSION_STEP__MASK, ver));
 
 	return 0;
 }
