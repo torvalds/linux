@@ -1940,6 +1940,7 @@
 
 			qcom,cmb-element-bits = <32>;
 			qcom,cmb-msrs-num = <32>;
+			status = "disabled";
 
 			out-ports {
 				port {
