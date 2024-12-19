@@ -160,8 +160,7 @@ long long simple_strtoll(const char *cp, char **endp, unsigned int base)
 }
 EXPORT_SYMBOL(simple_strtoll);
 
-static noinline_for_stack
-int skip_atoi(const char **s)
+static inline int skip_atoi(const char **s)
 {
 	int i = 0;
 
