@@ -3004,6 +3004,7 @@ static const struct llcc_slice_config x1e80100_data[] = {
 		.fixed_size = true,
 		.bonus_ways = 0xfff,
 		.cache_mode = 0,
+		.activate_on_init = true,
 	}, {
 		.usecase_id = LLCC_CAMEXP0,
 		.slice_id = 4,
