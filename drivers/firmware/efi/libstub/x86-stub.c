@@ -119,37 +119,23 @@ free_struct:
 static void setup_efi_pci(struct boot_params *params)
 {
 	efi_status_t status;
-	void **pci_handle = NULL;
+	efi_handle_t *pci_handle __free(efi_pool) = NULL;
 	efi_guid_t pci_proto = EFI_PCI_IO_PROTOCOL_GUID;
-	unsigned long size = 0;
 	struct setup_data *data;
+	unsigned long num;
 	efi_handle_t h;
 
-	status = efi_bs_call(locate_handle, EFI_LOCATE_BY_PROTOCOL,
-			     &pci_proto, NULL, &size, pci_handle);
-
-	if (status == EFI_BUFFER_TOO_SMALL) {
-		status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, size,
-				     (void **)&pci_handle);
-
-		if (status != EFI_SUCCESS) {
-			efi_err("Failed to allocate memory for 'pci_handle'\n");
-			return;
-		}
-
-		status = efi_bs_call(locate_handle, EFI_LOCATE_BY_PROTOCOL,
-				     &pci_proto, NULL, &size, pci_handle);
-	}
-
+	status = efi_bs_call(locate_handle_buffer, EFI_LOCATE_BY_PROTOCOL,
+			     &pci_proto, NULL, &num, &pci_handle);
 	if (status != EFI_SUCCESS)
-		goto free_handle;
+		return;
 
 	data = (struct setup_data *)(unsigned long)params->hdr.setup_data;
 
 	while (data && data->next)
 		data = (struct setup_data *)(unsigned long)data->next;
 
-	for_each_efi_handle(h, pci_handle, efi_get_handle_num(size)) {
+	for_each_efi_handle(h, pci_handle, num) {
 		efi_pci_io_protocol_t *pci = NULL;
 		struct pci_setup_rom *rom;
 
@@ -169,9 +155,6 @@ static void setup_efi_pci(struct boot_params *params)
 
 		data = (struct setup_data *)rom;
 	}
-
-free_handle:
-	efi_bs_call(free_pool, pci_handle);
 }
 
 static void retrieve_apple_device_properties(struct boot_params *boot_params)
