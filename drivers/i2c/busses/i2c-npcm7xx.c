@@ -2035,7 +2035,7 @@ static irqreturn_t npcm_i2c_bus_irq(int irq, void *dev_id)
 }
 
 static bool npcm_i2c_master_start_xmit(struct npcm_i2c *bus,
-				       u8 slave_addr, u16 nwrite, u16 nread,
+				       u16 nwrite, u16 nread,
 				       u8 *write_data, u8 *read_data,
 				       bool use_PEC, bool use_read_block)
 {
@@ -2043,7 +2043,6 @@ static bool npcm_i2c_master_start_xmit(struct npcm_i2c *bus,
 		bus->cmd_err = -EBUSY;
 		return false;
 	}
-	bus->dest_addr = slave_addr << 1;
 	bus->wr_buf = write_data;
 	bus->wr_size = nwrite;
 	bus->wr_ind = 0;
@@ -2086,7 +2085,6 @@ static int npcm_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 	unsigned long time_left, flags;
 	u16 nwrite, nread;
 	u8 *write_data, *read_data;
-	u8 slave_addr;
 	unsigned long timeout;
 	bool read_block = false;
 	bool read_PEC = false;
@@ -2099,7 +2097,6 @@ static int npcm_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 	}
 
 	msg0 = &msgs[0];
-	slave_addr = msg0->addr;
 	if (msg0->flags & I2C_M_RD) { /* read */
 		nwrite = 0;
 		write_data = NULL;
@@ -2156,6 +2153,21 @@ static int npcm_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 	} while (time_is_after_jiffies(time_left) && bus_busy);
 
 	/*
+	 * Store the address early in a global position to ensure it is
+	 * accessible for a potential call to i2c_recover_bus().
+	 *
+	 * Since the transfer might be a read operation, remove the I2C_M_RD flag
+	 * from the bus->dest_addr for the i2c_recover_bus() call later.
+	 *
+	 * The i2c_recover_bus() uses the address in a write direction to recover
+	 * the i2c bus if some error condition occurs.
+	 *
+	 * Remove the I2C_M_RD flag from the address since npcm_i2c_master_start_xmit()
+	 * handles the read/write operation internally.
+	 */
+	bus->dest_addr = i2c_8bit_addr_from_msg(msg0) & ~I2C_M_RD;
+
+	/*
 	 * Check the BER (bus error) state, when ber_state is true, it means that the module
 	 * detects the bus error which is caused by some factor like that the electricity
 	 * noise occurs on the bus. Under this condition, the module is reset and the bus
@@ -2172,7 +2184,6 @@ static int npcm_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 	}
 
 	npcm_i2c_init_params(bus);
-	bus->dest_addr = slave_addr;
 	bus->msgs = msgs;
 	bus->msgs_num = num;
 	bus->cmd_err = 0;
@@ -2182,7 +2193,7 @@ static int npcm_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 
 	npcm_i2c_int_enable(bus, true);
 
-	if (npcm_i2c_master_start_xmit(bus, slave_addr, nwrite, nread,
+	if (npcm_i2c_master_start_xmit(bus, nwrite, nread,
 				       write_data, read_data, read_PEC,
 				       read_block)) {
 		/*
