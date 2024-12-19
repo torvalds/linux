@@ -124,7 +124,6 @@ static void setup_efi_pci(struct boot_params *params)
 	unsigned long size = 0;
 	struct setup_data *data;
 	efi_handle_t h;
-	int i;
 
 	status = efi_bs_call(locate_handle, EFI_LOCATE_BY_PROTOCOL,
 			     &pci_proto, NULL, &size, pci_handle);
@@ -150,7 +149,7 @@ static void setup_efi_pci(struct boot_params *params)
 	while (data && data->next)
 		data = (struct setup_data *)(unsigned long)data->next;
 
-	for_each_efi_handle(h, pci_handle, size, i) {
+	for_each_efi_handle(h, pci_handle, efi_get_handle_num(size)) {
 		efi_pci_io_protocol_t *pci = NULL;
 		struct pci_setup_rom *rom;
 

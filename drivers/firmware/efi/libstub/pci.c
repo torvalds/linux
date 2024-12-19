@@ -21,7 +21,6 @@ void efi_pci_disable_bridge_busmaster(void)
 	efi_handle_t handle;
 	efi_status_t status;
 	u16 class, command;
-	int i;
 
 	status = efi_bs_call(locate_handle, EFI_LOCATE_BY_PROTOCOL, &pci_proto,
 			     NULL, &pci_handle_size, NULL);
@@ -46,7 +45,7 @@ void efi_pci_disable_bridge_busmaster(void)
 		goto free_handle;
 	}
 
-	for_each_efi_handle(handle, pci_handle, pci_handle_size, i) {
+	for_each_efi_handle(handle, pci_handle, efi_get_handle_num(pci_handle_size)) {
 		efi_pci_io_protocol_t *pci;
 		unsigned long segment_nr, bus_nr, device_nr, func_nr;
 
@@ -82,7 +81,7 @@ void efi_pci_disable_bridge_busmaster(void)
 		efi_bs_call(disconnect_controller, handle, NULL, NULL);
 	}
 
-	for_each_efi_handle(handle, pci_handle, pci_handle_size, i) {
+	for_each_efi_handle(handle, pci_handle, efi_get_handle_num(pci_handle_size)) {
 		efi_pci_io_protocol_t *pci;
 
 		status = efi_bs_call(handle_protocol, handle, &pci_proto,

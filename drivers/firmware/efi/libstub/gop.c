@@ -466,11 +466,10 @@ find_gop(efi_guid_t *proto, unsigned long size, void **handles)
 {
 	efi_graphics_output_protocol_t *first_gop;
 	efi_handle_t h;
-	int i;
 
 	first_gop = NULL;
 
-	for_each_efi_handle(h, handles, size, i) {
+	for_each_efi_handle(h, handles, efi_get_handle_num(size)) {
 		efi_status_t status;
 
 		efi_graphics_output_protocol_t *gop;

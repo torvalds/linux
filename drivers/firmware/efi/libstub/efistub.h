@@ -122,11 +122,10 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 #define efi_get_handle_num(size)					\
 	((size) / (efi_is_native() ? sizeof(efi_handle_t) : sizeof(u32)))
 
-#define for_each_efi_handle(handle, array, size, i)			\
-	for (i = 0;							\
-	     i < efi_get_handle_num(size) &&				\
-		((handle = efi_get_handle_at((array), i)) || true);	\
-	     i++)
+#define for_each_efi_handle(handle, array, num)				\
+	for (int __i = 0; __i < (num) &&				\
+		((handle = efi_get_handle_at((array), __i)) || true);	\
+	     __i++)
 
 static inline
 void efi_set_u64_split(u64 data, u32 *lo, u32 *hi)
