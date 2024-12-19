@@ -393,7 +393,9 @@ void psample_sample_packet(struct psample_group *group,
 		   nla_total_size_64bit(sizeof(u64)) +	/* timestamp */
 		   nla_total_size(sizeof(u16)) +	/* protocol */
 		   (md->user_cookie_len ?
-		    nla_total_size(md->user_cookie_len) : 0); /* user cookie */
+		    nla_total_size(md->user_cookie_len) : 0) + /* user cookie */
+		   (md->rate_as_probability ?
+		    nla_total_size(0) : 0);	/* rate as probability */
 
 #ifdef CONFIG_INET
 	tun_info = skb_tunnel_info(skb);
@@ -498,8 +500,9 @@ void psample_sample_packet(struct psample_group *group,
 		    md->user_cookie))
 		goto error;
 
-	if (md->rate_as_probability)
-		nla_put_flag(nl_skb, PSAMPLE_ATTR_SAMPLE_PROBABILITY);
+	if (md->rate_as_probability &&
+	    nla_put_flag(nl_skb, PSAMPLE_ATTR_SAMPLE_PROBABILITY))
+		goto error;
 
 	genlmsg_end(nl_skb, data);
 	genlmsg_multicast_netns(&psample_nl_family, group->net, nl_skb, 0,
