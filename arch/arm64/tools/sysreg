@@ -2955,23 +2955,23 @@ Field	63:0	PhysicalOffset
 EndSysreg
 
 Sysreg	CPACR_EL12	3	5	1	0	2
-Fields	CPACR_ELx
+Mapping	CPACR_EL1
 EndSysreg
 
 Sysreg	ZCR_EL12	3	5	1	2	0
-Fields	ZCR_ELx
+Mapping	ZCR_EL1
 EndSysreg
 
 Sysreg	SMCR_EL12	3	5	1	2	6
-Fields	SMCR_ELx
+Mapping	SMCR_EL1
 EndSysreg
 
 Sysreg	GCSCR_EL12	3	5	2	5	0
-Fields	GCSCR_ELx
+Mapping	GCSCR_EL1
 EndSysreg
 
 Sysreg	GCSPR_EL12	3	5	2	5	1
-Fields	GCSPR_ELx
+Mapping	GCSPR_EL1
 EndSysreg
 
 Sysreg	FAR_EL12	3	5	6	0	0
@@ -2983,7 +2983,7 @@ Fields	MPAM1_ELx
 EndSysreg
 
 Sysreg	CONTEXTIDR_EL12	3	5	13	0	1
-Fields	CONTEXTIDR_ELx
+Mapping	CONTEXTIDR_EL1
 EndSysreg
 
 SysregFields TTBRx_EL1
@@ -3088,7 +3088,7 @@ Fields	PIRx_ELx
 EndSysreg
 
 Sysreg	PIRE0_EL12	3	5	10	2	2
-Fields	PIRx_ELx
+Mapping	PIRE0_EL1
 EndSysreg
 
 Sysreg	PIRE0_EL2	3	4	10	2	2
@@ -3100,7 +3100,7 @@ Fields	PIRx_ELx
 EndSysreg
 
 Sysreg	PIR_EL12	3	5	10	2	3
-Fields	PIRx_ELx
+Mapping	PIR_EL1
 EndSysreg
 
 Sysreg	PIR_EL2		3	4	10	2	3
@@ -3120,7 +3120,7 @@ Fields	PIRx_ELx
 EndSysreg
 
 Sysreg	POR_EL12	3	5	10	2	4
-Fields	PIRx_ELx
+Mapping	POR_EL1
 EndSysreg
 
 Sysreg	S2POR_EL1	3	0	10	2	5
