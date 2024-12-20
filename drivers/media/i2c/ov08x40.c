@@ -1322,9 +1322,6 @@ static int ov08x40_power_on(struct device *dev)
 	struct ov08x40 *ov08x = to_ov08x40(sd);
 	int ret;
 
-	if (is_acpi_node(dev_fwnode(dev)))
-		return 0;
-
 	ret = clk_prepare_enable(ov08x->xvclk);
 	if (ret < 0) {
 		dev_err(dev, "failed to enable xvclk\n");
@@ -1359,9 +1356,6 @@ static int ov08x40_power_off(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov08x40 *ov08x = to_ov08x40(sd);
-
-	if (is_acpi_node(dev_fwnode(dev)))
-		return 0;
 
 	gpiod_set_value_cansleep(ov08x->reset_gpio, 1);
 	regulator_bulk_disable(ARRAY_SIZE(ov08x40_supply_names),
@@ -2165,6 +2159,22 @@ static int ov08x40_check_hwcfg(struct ov08x40 *ov08x, struct device *dev)
 	if (ret)
 		return ret;
 
+	ov08x->reset_gpio = devm_gpiod_get_optional(dev, "reset",
+						    GPIOD_OUT_LOW);
+	if (IS_ERR(ov08x->reset_gpio)) {
+		ret = dev_err_probe(dev, PTR_ERR(ov08x->reset_gpio),
+				    "getting reset GPIO\n");
+		goto out_err;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(ov08x40_supply_names); i++)
+		ov08x->supplies[i].supply = ov08x40_supply_names[i];
+
+	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(ov08x40_supply_names),
+				      ov08x->supplies);
+	if (ret)
+		goto out_err;
+
 	if (!is_acpi_node(fwnode)) {
 		ov08x->xvclk = devm_clk_get(dev, NULL);
 		if (IS_ERR(ov08x->xvclk)) {
@@ -2175,22 +2185,6 @@ static int ov08x40_check_hwcfg(struct ov08x40 *ov08x, struct device *dev)
 		}
 
 		xvclk_rate = clk_get_rate(ov08x->xvclk);
-
-		ov08x->reset_gpio = devm_gpiod_get_optional(dev, "reset",
-							    GPIOD_OUT_LOW);
-		if (IS_ERR(ov08x->reset_gpio)) {
-			ret = PTR_ERR(ov08x->reset_gpio);
-			goto out_err;
-		}
-
-		for (i = 0; i < ARRAY_SIZE(ov08x40_supply_names); i++)
-			ov08x->supplies[i].supply = ov08x40_supply_names[i];
-
-		ret = devm_regulator_bulk_get(dev,
-					      ARRAY_SIZE(ov08x40_supply_names),
-					      ov08x->supplies);
-		if (ret)
-			goto out_err;
 	} else {
 		ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
 					       &xvclk_rate);
