@@ -11,6 +11,7 @@
 
 #include "regs/xe_reg_defs.h"
 #include "xe_guc_ads_types.h"
+#include "xe_guc_buf_types.h"
 #include "xe_guc_ct_types.h"
 #include "xe_guc_fwif.h"
 #include "xe_guc_log_types.h"
@@ -58,6 +59,8 @@ struct xe_guc {
 	struct xe_guc_ads ads;
 	/** @ct: GuC ct */
 	struct xe_guc_ct ct;
+	/** @buf: GuC Buffer Cache manager */
+	struct xe_guc_buf_cache buf;
 	/** @capture: the error-state-capture module's data and objects */
 	struct xe_guc_state_capture *capture;
 	/** @pc: GuC Power Conservation */
