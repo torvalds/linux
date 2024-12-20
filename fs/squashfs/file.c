@@ -472,7 +472,7 @@ static int squashfs_read_folio(struct file *file, struct folio *folio)
 		if (res == 0)
 			res = squashfs_readpage_sparse(&folio->page, expected);
 		else
-			res = squashfs_readpage_block(&folio->page, block, res, expected);
+			res = squashfs_readpage_block(folio, block, res, expected);
 	} else
 		res = squashfs_readpage_fragment(folio, expected);
 
