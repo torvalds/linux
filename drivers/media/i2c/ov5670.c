@@ -1879,7 +1879,7 @@ struct ov5670 {
 	struct gpio_desc *pwdn_gpio; /* PWDNB pin. */
 	struct gpio_desc *reset_gpio; /* XSHUTDOWN pin. */
 
-	/* To serialize asynchronus callbacks */
+	/* To serialize asynchronous callbacks */
 	struct mutex mutex;
 
 	/* True if the device has been identified */

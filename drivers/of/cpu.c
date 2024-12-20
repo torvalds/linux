@@ -188,7 +188,7 @@ EXPORT_SYMBOL(of_cpu_node_to_id);
  * Return: An idle state node if found at @index. The refcount is incremented
  * for it, so call of_node_put() on it when done. Returns NULL if not found.
  */
-struct device_node *of_get_cpu_state_node(struct device_node *cpu_node,
+struct device_node *of_get_cpu_state_node(const struct device_node *cpu_node,
 					  int index)
 {
 	struct of_phandle_args args;

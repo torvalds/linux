@@ -460,7 +460,7 @@ MODULE_DEVICE_TABLE(of, exynos_mic_of_match);
 
 struct platform_driver mic_driver = {
 	.probe		= exynos_mic_probe,
-	.remove_new	= exynos_mic_remove,
+	.remove		= exynos_mic_remove,
 	.driver		= {
 		.name	= "exynos-mic",
 		.pm	= pm_ptr(&exynos_mic_pm_ops),

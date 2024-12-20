@@ -6,6 +6,7 @@
 #include <linux/sched.h>
 
 #include "ixgbe.h"
+#include "ixgbe_mbx.h"
 #include "ixgbe_phy.h"
 
 #define IXGBE_82598_MAX_TX_QUEUES 32

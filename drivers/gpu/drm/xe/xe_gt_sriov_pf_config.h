@@ -54,6 +54,10 @@ int xe_gt_sriov_pf_config_sanitize(struct xe_gt *gt, unsigned int vfid, long tim
 int xe_gt_sriov_pf_config_release(struct xe_gt *gt, unsigned int vfid, bool force);
 int xe_gt_sriov_pf_config_push(struct xe_gt *gt, unsigned int vfid, bool refresh);
 
+ssize_t xe_gt_sriov_pf_config_save(struct xe_gt *gt, unsigned int vfid, void *buf, size_t size);
+int xe_gt_sriov_pf_config_restore(struct xe_gt *gt, unsigned int vfid,
+				  const void *buf, size_t size);
+
 bool xe_gt_sriov_pf_config_is_empty(struct xe_gt *gt, unsigned int vfid);
 
 void xe_gt_sriov_pf_config_restart(struct xe_gt *gt);
@@ -61,6 +65,7 @@ void xe_gt_sriov_pf_config_restart(struct xe_gt *gt);
 int xe_gt_sriov_pf_config_print_ggtt(struct xe_gt *gt, struct drm_printer *p);
 int xe_gt_sriov_pf_config_print_ctxs(struct xe_gt *gt, struct drm_printer *p);
 int xe_gt_sriov_pf_config_print_dbs(struct xe_gt *gt, struct drm_printer *p);
+int xe_gt_sriov_pf_config_print_lmem(struct xe_gt *gt, struct drm_printer *p);
 
 int xe_gt_sriov_pf_config_print_available_ggtt(struct xe_gt *gt, struct drm_printer *p);
 

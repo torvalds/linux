@@ -400,9 +400,9 @@ static int thunder_pem_acpi_init(struct pci_config_window *cfg)
 		 * Reserve 64K size PEM specific resources. The full 16M range
 		 * size is required for thunder_pem_init() call.
 		 */
-		res_pem->end = res_pem->start + SZ_64K - 1;
+		resource_set_size(res_pem, SZ_64K);
 		thunder_pem_reserve_range(dev, root->segment, res_pem);
-		res_pem->end = res_pem->start + SZ_16M - 1;
+		resource_set_size(res_pem, SZ_16M);
 
 		/* Reserve PCI configuration space as well. */
 		thunder_pem_reserve_range(dev, root->segment, &cfg->res);

@@ -116,3 +116,17 @@ kms_cursor_legacy@flip-vs-cursor-toggle
 # IGT Version: 1.28-gf13702b8e
 # Linux Version: 6.10.0-rc5
 msm/msm_shrink@copy-mmap-oom-8
+
+# Board Name: sdm845-cheza-r3
+# Bug Report: https://lore.kernel.org/linux-arm-msm/64bc4bcf-de51-4e60-a9f7-1295a1e64c65@collabora.com/T/#t
+# Failure Rate: 50
+# IGT Version: 1.28-ga73311079
+# Linux Version: 6.11.0-rc2
+kms_lease@page-flip-implicit-plane
+
+# Board Name: sdm845-cheza-r3
+# Bug Report: https://lore.kernel.org/linux-arm-msm/64bc4bcf-de51-4e60-a9f7-1295a1e64c65@collabora.com/T/#t
+# Failure Rate: 50
+# IGT Version: 1.28-ga73311079
+# Linux Version: 6.11.0-rc5
+kms_flip@flip-vs-expired-vblank

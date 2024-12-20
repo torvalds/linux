@@ -43,6 +43,7 @@
 
 		ti,mii-g-rt = <&icssg0_mii_g_rt>;
 		ti,mii-rt = <&icssg0_mii_rt>;
+		ti,pa-stats = <&icssg0_pa_stats>;
 		ti,iep = <&icssg0_iep0>,  <&icssg0_iep1>;
 
 		interrupt-parent = <&icssg0_intc>;
@@ -109,6 +110,7 @@
 
 		ti,mii-g-rt = <&icssg1_mii_g_rt>;
 		ti,mii-rt = <&icssg1_mii_rt>;
+		ti,pa-stats = <&icssg1_pa_stats>;
 		ti,iep = <&icssg1_iep0>,  <&icssg1_iep1>;
 
 		interrupt-parent = <&icssg1_intc>;

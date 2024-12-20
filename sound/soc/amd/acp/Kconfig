@@ -119,10 +119,17 @@ config SND_SOC_AMD_SOF_MACH
 	help
 	  This option enables SOF sound card support for ACP audio.
 
+config SND_SOC_AMD_SDW_MACH_COMMON
+	tristate
+	help
+	  This option enables common SoundWire Machine driver module for
+	  AMD platforms.
+
 config SND_SOC_AMD_SOF_SDW_MACH
 	tristate "AMD SOF Soundwire Machine Driver Support"
 	depends on X86 && PCI && ACPI
 	depends on SOUNDWIRE
+	select SND_SOC_AMD_SDW_MACH_COMMON
 	select SND_SOC_SDW_UTILS
 	select SND_SOC_DMIC
 	select SND_SOC_RT711_SDW
@@ -133,6 +140,28 @@ config SND_SOC_AMD_SOF_SDW_MACH
 	help
 	  This option enables SOF sound card support for SoundWire enabled
 	  AMD platforms along with ACP PDM controller.
+	  Say Y if you want to enable SoundWire based machine driver support
+	  on AMD platform.
+	  If unsure select "N".
+
+config SND_SOC_AMD_LEGACY_SDW_MACH
+	tristate "AMD Legacy(No DSP) Soundwire Machine Driver Support"
+	depends on X86 && PCI && ACPI
+	depends on SOUNDWIRE
+	select SND_SOC_AMD_SDW_MACH_COMMON
+	select SND_SOC_SDW_UTILS
+	select SND_SOC_DMIC
+	select SND_SOC_RT711_SDW
+	select SND_SOC_RT711_SDCA_SDW
+	select SND_SOC_RT712_SDCA_SDW
+	select SND_SOC_RT712_SDCA_DMIC_SDW
+	select SND_SOC_RT1316_SDW
+	select SND_SOC_RT715_SDW
+	select SND_SOC_RT715_SDCA_SDW
+	select SND_SOC_RT722_SDCA_SDW
+	help
+	  This option enables Legacy(No DSP) sound card support for SoundWire
+	  enabled AMD platforms along with ACP PDM controller.
 	  Say Y if you want to enable SoundWire based machine driver support
 	  on AMD platform.
 	  If unsure select "N".

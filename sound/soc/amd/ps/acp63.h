@@ -231,6 +231,7 @@ struct sdw_dma_ring_buf_reg {
  * @sdw_en_stat: flag set to true when any one of the SoundWire manager instance is enabled
  * @addr: pci ioremap address
  * @reg_range: ACP reigister range
+ * @acp_rev: ACP PCI revision id
  * @sdw0-dma_intr_stat: DMA interrupt status array for SoundWire manager-SW0 instance
  * @sdw_dma_intr_stat: DMA interrupt status array for SoundWire manager-SW1 instance
  */
@@ -254,6 +255,7 @@ struct acp63_dev_data {
 	bool sdw_en_stat;
 	u32 addr;
 	u32 reg_range;
+	u32 acp_rev;
 	u16 sdw0_dma_intr_stat[ACP63_SDW0_DMA_MAX_STREAMS];
 	u16 sdw1_dma_intr_stat[ACP63_SDW1_DMA_MAX_STREAMS];
 };

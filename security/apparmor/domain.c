@@ -9,7 +9,6 @@
  */
 
 #include <linux/errno.h>
-#include <linux/fdtable.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/mount.h>
@@ -637,6 +636,7 @@ static struct aa_label *profile_transition(const struct cred *subj_cred,
 	struct aa_ruleset *rules = list_first_entry(&profile->rules,
 						    typeof(*rules), list);
 	struct aa_label *new = NULL;
+	struct aa_profile *new_profile = NULL;
 	const char *info = NULL, *name = NULL, *target = NULL;
 	aa_state_t state = rules->file->start[AA_CLASS_FILE];
 	struct aa_perms perms = {};
@@ -681,15 +681,18 @@ static struct aa_label *profile_transition(const struct cred *subj_cred,
 			/* hack ix fallback - improve how this is detected */
 			goto audit;
 		} else if (!new) {
-			error = -EACCES;
 			info = "profile transition not found";
-			/* remove MAY_EXEC to audit as failure */
+			/* remove MAY_EXEC to audit as failure or complaint */
 			perms.allow &= ~MAY_EXEC;
+			if (COMPLAIN_MODE(profile)) {
+				/* create null profile instead of failing */
+				goto create_learning_profile;
+			}
+			error = -EACCES;
 		}
 	} else if (COMPLAIN_MODE(profile)) {
+create_learning_profile:
 		/* no exec permission - learning mode */
-		struct aa_profile *new_profile = NULL;
-
 		new_profile = aa_new_learning_profile(profile, false, name,
 						      GFP_KERNEL);
 		if (!new_profile) {
@@ -710,8 +713,8 @@ static struct aa_label *profile_transition(const struct cred *subj_cred,
 
 	if (!(perms.xindex & AA_X_UNSAFE)) {
 		if (DEBUG_ON) {
-			dbg_printk("apparmor: scrubbing environment variables"
-				   " for %s profile=", name);
+			dbg_printk("apparmor: setting AT_SECURE for %s profile=",
+				   name);
 			aa_label_printk(new, GFP_KERNEL);
 			dbg_printk("\n");
 		}
@@ -790,8 +793,8 @@ static int profile_onexec(const struct cred *subj_cred,
 
 	if (!(perms.xindex & AA_X_UNSAFE)) {
 		if (DEBUG_ON) {
-			dbg_printk("apparmor: scrubbing environment "
-				   "variables for %s label=", xname);
+			dbg_printk("apparmor: setting AT_SECURE for %s label=",
+				   xname);
 			aa_label_printk(onexec, GFP_KERNEL);
 			dbg_printk("\n");
 		}
@@ -822,33 +825,19 @@ static struct aa_label *handle_onexec(const struct cred *subj_cred,
 	AA_BUG(!bprm);
 	AA_BUG(!buffer);
 
-	if (!stack) {
-		error = fn_for_each_in_ns(label, profile,
-				profile_onexec(subj_cred, profile, onexec, stack,
-					       bprm, buffer, cond, unsafe));
-		if (error)
-			return ERR_PTR(error);
-		new = fn_label_build_in_ns(label, profile, GFP_KERNEL,
-				aa_get_newest_label(onexec),
-				profile_transition(subj_cred, profile, bprm,
-						   buffer,
-						   cond, unsafe));
+	/* TODO: determine how much we want to loosen this */
+	error = fn_for_each_in_ns(label, profile,
+			profile_onexec(subj_cred, profile, onexec, stack,
+				       bprm, buffer, cond, unsafe));
+	if (error)
+		return ERR_PTR(error);
 
-	} else {
-		/* TODO: determine how much we want to loosen this */
-		error = fn_for_each_in_ns(label, profile,
-				profile_onexec(subj_cred, profile, onexec, stack, bprm,
-					       buffer, cond, unsafe));
-		if (error)
-			return ERR_PTR(error);
-		new = fn_label_build_in_ns(label, profile, GFP_KERNEL,
-				aa_label_merge(&profile->label, onexec,
-					       GFP_KERNEL),
-				profile_transition(subj_cred, profile, bprm,
-						   buffer,
-						   cond, unsafe));
-	}
-
+	new = fn_label_build_in_ns(label, profile, GFP_KERNEL,
+			stack ? aa_label_merge(&profile->label, onexec,
+					       GFP_KERNEL)
+			      : aa_get_newest_label(onexec),
+			profile_transition(subj_cred, profile, bprm,
+					   buffer, cond, unsafe));
 	if (new)
 		return new;
 
@@ -961,8 +950,8 @@ int apparmor_bprm_creds_for_exec(struct linux_binprm *bprm)
 
 	if (unsafe) {
 		if (DEBUG_ON) {
-			dbg_printk("scrubbing environment variables for %s "
-				   "label=", bprm->filename);
+			dbg_printk("setting AT_SECURE for %s label=",
+				   bprm->filename);
 			aa_label_printk(new, GFP_KERNEL);
 			dbg_printk("\n");
 		}
@@ -972,8 +961,8 @@ int apparmor_bprm_creds_for_exec(struct linux_binprm *bprm)
 	if (label->proxy != new->proxy) {
 		/* when transitioning clear unsafe personality bits */
 		if (DEBUG_ON) {
-			dbg_printk("apparmor: clearing unsafe personality "
-				   "bits. %s label=", bprm->filename);
+			dbg_printk("apparmor: clearing unsafe personality bits. %s label=",
+				   bprm->filename);
 			aa_label_printk(new, GFP_KERNEL);
 			dbg_printk("\n");
 		}

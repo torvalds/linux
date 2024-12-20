@@ -1304,9 +1304,9 @@ EXPORT_SYMBOL_GPL(wm8350_register_led);
 
 static struct platform_driver wm8350_regulator_driver = {
 	.probe = wm8350_regulator_probe,
-	.remove_new = wm8350_regulator_remove,
-	.driver		= {
-		.name	= "wm8350-regulator",
+	.remove = wm8350_regulator_remove,
+	.driver = {
+		.name = "wm8350-regulator",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };

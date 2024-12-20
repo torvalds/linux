@@ -34,16 +34,14 @@
 #include "ast_dram_tables.h"
 #include "ast_drv.h"
 
-static void ast_post_chip_2300(struct drm_device *dev);
-static void ast_post_chip_2500(struct drm_device *dev);
+static void ast_post_chip_2300(struct ast_device *ast);
+static void ast_post_chip_2500(struct ast_device *ast);
 
 static const u8 extreginfo[] = { 0x0f, 0x04, 0x1c, 0xff };
 static const u8 extreginfo_ast2300[] = { 0x0f, 0x04, 0x1f, 0xff };
 
-static void
-ast_set_def_ext_reg(struct drm_device *dev)
+static void ast_set_def_ext_reg(struct ast_device *ast)
 {
-	struct ast_device *ast = to_ast_device(dev);
 	u8 i, index, reg;
 	const u8 *ext_reg_info;
 
@@ -252,9 +250,8 @@ cbr_start:
 
 
 
-static void ast_init_dram_reg(struct drm_device *dev)
+static void ast_init_dram_reg(struct ast_device *ast)
 {
-	struct ast_device *ast = to_ast_device(dev);
 	u8 j;
 	u32 data, temp, i;
 	const struct ast_dramstruct *dram_reg_info;
@@ -343,26 +340,24 @@ static void ast_init_dram_reg(struct drm_device *dev)
 	} while ((j & 0x40) == 0);
 }
 
-void ast_post_gpu(struct drm_device *dev)
+void ast_post_gpu(struct ast_device *ast)
 {
-	struct ast_device *ast = to_ast_device(dev);
-
-	ast_set_def_ext_reg(dev);
+	ast_set_def_ext_reg(ast);
 
 	if (IS_AST_GEN7(ast)) {
-		if (ast->tx_chip_types & AST_TX_ASTDP_BIT)
+		if (ast->tx_chip == AST_TX_ASTDP)
 			ast_dp_launch(ast);
 	} else if (ast->config_mode == ast_use_p2a) {
 		if (IS_AST_GEN6(ast))
-			ast_post_chip_2500(dev);
+			ast_post_chip_2500(ast);
 		else if (IS_AST_GEN5(ast) || IS_AST_GEN4(ast))
-			ast_post_chip_2300(dev);
+			ast_post_chip_2300(ast);
 		else
-			ast_init_dram_reg(dev);
+			ast_init_dram_reg(ast);
 
-		ast_init_3rdtx(dev);
+		ast_init_3rdtx(ast);
 	} else {
-		if (ast->tx_chip_types & AST_TX_SIL164_BIT)
+		if (ast->tx_chip == AST_TX_SIL164)
 			ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xa3, 0xcf, 0x80);	/* Enable DVO */
 	}
 }
@@ -1569,9 +1564,8 @@ ddr2_init_start:
 
 }
 
-static void ast_post_chip_2300(struct drm_device *dev)
+static void ast_post_chip_2300(struct ast_device *ast)
 {
-	struct ast_device *ast = to_ast_device(dev);
 	struct ast2300_dram_param param;
 	u32 temp;
 	u8 reg;
@@ -2038,9 +2032,9 @@ void ast_patch_ahb_2500(void __iomem *regs)
 	__ast_moutdwm(regs, 0x1e6e207c, 0x08000000); /* clear fast reset */
 }
 
-void ast_post_chip_2500(struct drm_device *dev)
+void ast_post_chip_2500(struct ast_device *ast)
 {
-	struct ast_device *ast = to_ast_device(dev);
+	struct drm_device *dev = &ast->base;
 	u32 temp;
 	u8 reg;
 

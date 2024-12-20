@@ -195,7 +195,7 @@ static struct platform_driver fotg210_driver = {
 		.of_match_table = of_match_ptr(fotg210_of_match),
 	},
 	.probe  = fotg210_probe,
-	.remove_new = fotg210_remove,
+	.remove = fotg210_remove,
 };
 
 static int __init fotg210_init(void)

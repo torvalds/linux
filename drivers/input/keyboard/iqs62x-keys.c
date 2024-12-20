@@ -323,7 +323,7 @@ static struct platform_driver iqs62x_keys_platform_driver = {
 		.name = "iqs62x-keys",
 	},
 	.probe = iqs62x_keys_probe,
-	.remove_new = iqs62x_keys_remove,
+	.remove = iqs62x_keys_remove,
 };
 module_platform_driver(iqs62x_keys_platform_driver);
 

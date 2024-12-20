@@ -12,6 +12,17 @@
 #include <as-layout.h>
 #include <sysdep/tls.h>
 
+struct stub_init_data {
+	unsigned long stub_start;
+
+	int stub_code_fd;
+	unsigned long stub_code_offset;
+	int stub_data_fd;
+	unsigned long stub_data_offset;
+
+	unsigned long segv_handler;
+};
+
 #define STUB_NEXT_SYSCALL(s) \
 	((struct stub_syscall *) (((unsigned long) s) + (s)->cmd_len))
 
@@ -19,7 +30,6 @@ enum stub_syscall_type {
 	STUB_SYSCALL_UNSET = 0,
 	STUB_SYSCALL_MMAP,
 	STUB_SYSCALL_MUNMAP,
-	STUB_SYSCALL_MPROTECT,
 };
 
 struct stub_syscall {

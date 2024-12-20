@@ -132,10 +132,10 @@ static void amilo_rfkill_remove(struct platform_device *device)
 
 static struct platform_driver amilo_rfkill_driver = {
 	.driver = {
-		.name	= KBUILD_MODNAME,
+		.name = KBUILD_MODNAME,
 	},
-	.probe	= amilo_rfkill_probe,
-	.remove_new = amilo_rfkill_remove,
+	.probe = amilo_rfkill_probe,
+	.remove = amilo_rfkill_remove,
 };
 
 static int __init amilo_rfkill_init(void)

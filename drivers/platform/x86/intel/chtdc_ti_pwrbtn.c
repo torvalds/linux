@@ -84,7 +84,7 @@ static struct platform_driver chtdc_ti_pwrbtn_driver = {
 		.name	= KBUILD_MODNAME,
 	},
 	.probe		= chtdc_ti_pwrbtn_probe,
-	.remove_new	= chtdc_ti_pwrbtn_remove,
+	.remove		= chtdc_ti_pwrbtn_remove,
 	.id_table	= chtdc_ti_pwrbtn_id_table,
 };
 module_platform_driver(chtdc_ti_pwrbtn_driver);

@@ -449,7 +449,7 @@ int ms5611_probe(struct iio_dev *indio_dev, struct device *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(ms5611_probe, IIO_MS5611);
+EXPORT_SYMBOL_NS(ms5611_probe, "IIO_MS5611");
 
 MODULE_AUTHOR("Tomasz Duszynski <tduszyns@gmail.com>");
 MODULE_DESCRIPTION("MS5611 core driver");

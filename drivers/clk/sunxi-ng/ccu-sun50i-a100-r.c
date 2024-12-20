@@ -166,7 +166,7 @@ static struct clk_hw_onecell_data sun50i_a100_r_hw_clks = {
 	.num	= CLK_NUMBER,
 };
 
-static struct ccu_reset_map sun50i_a100_r_ccu_resets[] = {
+static const struct ccu_reset_map sun50i_a100_r_ccu_resets[] = {
 	[RST_R_APB1_TIMER]	=  { 0x11c, BIT(16) },
 	[RST_R_APB1_BUS_PWM]	=  { 0x13c, BIT(16) },
 	[RST_R_APB1_PPU]	=  { 0x17c, BIT(16) },
@@ -214,6 +214,6 @@ static struct platform_driver sun50i_a100_r_ccu_driver = {
 };
 module_platform_driver(sun50i_a100_r_ccu_driver);
 
-MODULE_IMPORT_NS(SUNXI_CCU);
+MODULE_IMPORT_NS("SUNXI_CCU");
 MODULE_DESCRIPTION("Support for the Allwinner A100 PRCM CCU");
 MODULE_LICENSE("GPL");

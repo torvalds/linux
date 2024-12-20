@@ -2270,7 +2270,7 @@ static struct platform_driver netcp_driver = {
 		.of_match_table	= of_match,
 	},
 	.probe = netcp_probe,
-	.remove_new = netcp_remove,
+	.remove = netcp_remove,
 };
 module_platform_driver(netcp_driver);
 

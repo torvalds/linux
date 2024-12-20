@@ -1233,7 +1233,7 @@ void intel_gt_reset(struct intel_gt *gt,
 	}
 
 	if (INTEL_INFO(gt->i915)->gpu_reset_clobbers_display)
-		intel_runtime_pm_disable_interrupts(gt->i915);
+		intel_irq_suspend(gt->i915);
 
 	if (do_reset(gt, stalled_mask)) {
 		gt_err(gt, "Failed to reset chip\n");
@@ -1241,7 +1241,7 @@ void intel_gt_reset(struct intel_gt *gt,
 	}
 
 	if (INTEL_INFO(gt->i915)->gpu_reset_clobbers_display)
-		intel_runtime_pm_enable_interrupts(gt->i915);
+		intel_irq_resume(gt->i915);
 
 	intel_overlay_reset(gt->i915);
 

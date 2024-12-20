@@ -119,7 +119,7 @@ size_t perf_event__fprintf_time_conv(union perf_event *event, FILE *fp)
 	size_t ret;
 
 	ret  = fprintf(fp, "\n... Time Shift      %" PRI_lu64 "\n", tc->time_shift);
-	ret += fprintf(fp, "... Time Muliplier  %" PRI_lu64 "\n", tc->time_mult);
+	ret += fprintf(fp, "... Time Multiplier %" PRI_lu64 "\n", tc->time_mult);
 	ret += fprintf(fp, "... Time Zero       %" PRI_lu64 "\n", tc->time_zero);
 
 	/*

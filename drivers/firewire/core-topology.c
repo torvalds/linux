@@ -56,7 +56,7 @@ static struct fw_node *fw_node_create(u32 sid, int port_count, int color)
  * two cases: either the path goes through this node, in which case
  * the hop count is the sum of the two biggest child depths plus 2.
  * Or it could be the case that the max hop path is entirely
- * containted in a child tree, in which case the max hop count is just
+ * contained in a child tree, in which case the max hop count is just
  * the max hop count of this child.
  */
 static void update_hop_count(struct fw_node *node)

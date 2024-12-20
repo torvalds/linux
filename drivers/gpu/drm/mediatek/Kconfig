@@ -2,11 +2,12 @@
 config DRM_MEDIATEK
 	tristate "DRM Support for Mediatek SoCs"
 	depends on DRM
-	depends on ARCH_MEDIATEK || (ARM && COMPILE_TEST)
+	depends on ARCH_MEDIATEK || COMPILE_TEST
 	depends on COMMON_CLK
-	depends on HAVE_ARM_SMCCC
+	depends on HAVE_ARM_SMCCC || COMPILE_TEST
 	depends on OF
 	depends on MTK_MMSYS
+	select DRM_CLIENT_SELECTION
 	select DRM_GEM_DMA_HELPER if DRM_FBDEV_EMULATION
 	select DRM_KMS_HELPER
 	select DRM_DISPLAY_HELPER

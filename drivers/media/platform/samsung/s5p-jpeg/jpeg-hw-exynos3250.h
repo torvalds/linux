@@ -45,7 +45,6 @@ void exynos3250_jpeg_rstart(void __iomem *regs);
 unsigned int exynos3250_jpeg_get_int_status(void __iomem *regs);
 void exynos3250_jpeg_clear_int_status(void __iomem *regs,
 						unsigned int value);
-unsigned int exynos3250_jpeg_operating(void __iomem *regs);
 unsigned int exynos3250_jpeg_compressed_size(void __iomem *regs);
 void exynos3250_jpeg_dec_stream_size(void __iomem *regs, unsigned int size);
 void exynos3250_jpeg_dec_scaling_ratio(void __iomem *regs, unsigned int sratio);

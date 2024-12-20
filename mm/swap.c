@@ -78,20 +78,6 @@ static void __page_cache_release(struct folio *folio, struct lruvec **lruvecp,
 		lruvec_del_folio(*lruvecp, folio);
 		__folio_clear_lru_flags(folio);
 	}
-
-	/*
-	 * In rare cases, when truncation or holepunching raced with
-	 * munlock after VM_LOCKED was cleared, Mlocked may still be
-	 * found set here.  This does not indicate a problem, unless
-	 * "unevictable_pgs_cleared" appears worryingly large.
-	 */
-	if (unlikely(folio_test_mlocked(folio))) {
-		long nr_pages = folio_nr_pages(folio);
-
-		__folio_clear_mlocked(folio);
-		zone_stat_mod_folio(folio, NR_MLOCK, -nr_pages);
-		count_vm_events(UNEVICTABLE_PGCLEARED, nr_pages);
-	}
 }
 
 /*
@@ -126,37 +112,6 @@ void __folio_put(struct folio *folio)
 	free_unref_page(&folio->page, folio_order(folio));
 }
 EXPORT_SYMBOL(__folio_put);
-
-/**
- * put_pages_list() - release a list of pages
- * @pages: list of pages threaded on page->lru
- *
- * Release a list of pages which are strung together on page.lru.
- */
-void put_pages_list(struct list_head *pages)
-{
-	struct folio_batch fbatch;
-	struct folio *folio, *next;
-
-	folio_batch_init(&fbatch);
-	list_for_each_entry_safe(folio, next, pages, lru) {
-		if (!folio_put_testzero(folio))
-			continue;
-		if (folio_test_hugetlb(folio)) {
-			free_huge_folio(folio);
-			continue;
-		}
-		/* LRU flag must be clear because it's passed using the lru */
-		if (folio_batch_add(&fbatch, folio) > 0)
-			continue;
-		free_unref_folios(&fbatch);
-	}
-
-	if (fbatch.nr)
-		free_unref_folios(&fbatch);
-	INIT_LIST_HEAD(pages);
-}
-EXPORT_SYMBOL(put_pages_list);
 
 typedef void (*move_fn_t)(struct lruvec *lruvec, struct folio *folio);
 

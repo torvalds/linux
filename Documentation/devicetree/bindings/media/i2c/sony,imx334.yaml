@@ -24,10 +24,6 @@ properties:
     description: I2C address
     maxItems: 1
 
-  assigned-clocks: true
-  assigned-clock-parents: true
-  assigned-clock-rates: true
-
   clocks:
     description: Clock frequency from 6 to 27 MHz, 37.125MHz, 74.25MHz
     maxItems: 1
@@ -73,10 +69,6 @@ examples:
             compatible = "sony,imx334";
             reg = <0x1a>;
             clocks = <&imx334_clk>;
-
-            assigned-clocks = <&imx334_clk>;
-            assigned-clock-parents = <&imx334_clk_parent>;
-            assigned-clock-rates = <24000000>;
 
             port {
                 imx334: endpoint {

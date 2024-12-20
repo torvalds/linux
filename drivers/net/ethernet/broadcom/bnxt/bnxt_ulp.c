@@ -414,6 +414,8 @@ static void bnxt_set_edev_info(struct bnxt_en_dev *edev, struct bnxt *bp)
 		edev->flags |= BNXT_EN_FLAG_ROCEV2_CAP;
 	if (bp->flags & BNXT_FLAG_VF)
 		edev->flags |= BNXT_EN_FLAG_VF;
+	if (BNXT_ROCE_VF_RESC_CAP(bp))
+		edev->flags |= BNXT_EN_FLAG_ROCE_VF_RES_MGMT;
 
 	edev->chip_num = bp->chip_num;
 	edev->hw_ring_stats_size = bp->hw_ring_stats_size;

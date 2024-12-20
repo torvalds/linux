@@ -457,11 +457,12 @@ int __weak arch_show_interrupts(struct seq_file *p, int prec)
 }
 
 #ifndef ACTUAL_NR_IRQS
-# define ACTUAL_NR_IRQS nr_irqs
+# define ACTUAL_NR_IRQS irq_get_nr_irqs()
 #endif
 
 int show_interrupts(struct seq_file *p, void *v)
 {
+	const unsigned int nr_irqs = irq_get_nr_irqs();
 	static int prec;
 
 	int i = *(loff_t *) v, j;
@@ -494,20 +495,24 @@ int show_interrupts(struct seq_file *p, void *v)
 	if (!desc->action || irq_desc_is_chained(desc) || !desc->kstat_irqs)
 		goto outsparse;
 
-	seq_printf(p, "%*d: ", prec, i);
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", desc->kstat_irqs ? per_cpu(desc->kstat_irqs->cnt, j) : 0);
+	seq_printf(p, "%*d:", prec, i);
+	for_each_online_cpu(j) {
+		unsigned int cnt = desc->kstat_irqs ? per_cpu(desc->kstat_irqs->cnt, j) : 0;
+
+		seq_put_decimal_ull_width(p, " ", cnt, 10);
+	}
+	seq_putc(p, ' ');
 
 	raw_spin_lock_irqsave(&desc->lock, flags);
 	if (desc->irq_data.chip) {
 		if (desc->irq_data.chip->irq_print_chip)
 			desc->irq_data.chip->irq_print_chip(&desc->irq_data, p);
 		else if (desc->irq_data.chip->name)
-			seq_printf(p, " %8s", desc->irq_data.chip->name);
+			seq_printf(p, "%8s", desc->irq_data.chip->name);
 		else
-			seq_printf(p, " %8s", "-");
+			seq_printf(p, "%8s", "-");
 	} else {
-		seq_printf(p, " %8s", "None");
+		seq_printf(p, "%8s", "None");
 	}
 	if (desc->irq_data.domain)
 		seq_printf(p, " %*lu", prec, desc->irq_data.hwirq);

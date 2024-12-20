@@ -22,6 +22,6 @@
 
 void __init early_init_devtree(void *params)
 {
-	early_init_dt_scan(params);
+	early_init_dt_scan(params, __pa(params));
 	memblock_allow_resize();
 }

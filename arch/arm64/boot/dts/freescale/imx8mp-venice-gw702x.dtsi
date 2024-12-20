@@ -11,6 +11,8 @@
 / {
 	aliases {
 		ethernet0 = &eqos;
+		rtc0 = &gsc_rtc;
+		rtc1 = &snvs_rtc;
 	};
 
 	memory@40000000 {
@@ -280,7 +282,7 @@
 		pagesize = <16>;
 	};
 
-	rtc@68 {
+	gsc_rtc: rtc@68 {
 		compatible = "dallas,ds1672";
 		reg = <0x68>;
 	};

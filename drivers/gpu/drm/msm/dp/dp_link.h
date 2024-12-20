@@ -12,7 +12,7 @@
 #define DP_TEST_BIT_DEPTH_UNKNOWN 0xFFFFFFFF
 #define DP_LINK_CAP_ENHANCED_FRAMING (1 << 0)
 
-struct dp_link_info {
+struct msm_dp_link_info {
 	unsigned char revision;
 	unsigned int rate;
 	unsigned int num_lanes;
@@ -21,7 +21,7 @@ struct dp_link_info {
 
 #define DP_TRAIN_LEVEL_MAX	3
 
-struct dp_link_test_video {
+struct msm_dp_link_test_video {
 	u32 test_video_pattern;
 	u32 test_bit_depth;
 	u32 test_dyn_range;
@@ -39,7 +39,7 @@ struct dp_link_test_video {
 	u32 test_rr_n;
 };
 
-struct dp_link_test_audio {
+struct msm_dp_link_test_audio {
 	u32 test_audio_sampling_rate;
 	u32 test_audio_channel_count;
 	u32 test_audio_pattern_type;
@@ -53,21 +53,21 @@ struct dp_link_test_audio {
 	u32 test_audio_period_ch_8;
 };
 
-struct dp_link_phy_params {
+struct msm_dp_link_phy_params {
 	u32 phy_test_pattern_sel;
 	u8 v_level;
 	u8 p_level;
 };
 
-struct dp_link {
+struct msm_dp_link {
 	u32 sink_request;
 	u32 test_response;
 
 	u8 sink_count;
-	struct dp_link_test_video test_video;
-	struct dp_link_test_audio test_audio;
-	struct dp_link_phy_params phy_params;
-	struct dp_link_info link_params;
+	struct msm_dp_link_test_video test_video;
+	struct msm_dp_link_test_audio test_audio;
+	struct msm_dp_link_phy_params phy_params;
+	struct msm_dp_link_info link_params;
 };
 
 /**
@@ -78,7 +78,7 @@ struct dp_link {
  * git bit depth value. This function assumes that bit depth has
  * already been validated.
  */
-static inline u32 dp_link_bit_depth_to_bpp(u32 tbd)
+static inline u32 msm_dp_link_bit_depth_to_bpp(u32 tbd)
 {
 	/*
 	 * Few simplistic rules and assumptions made here:
@@ -99,22 +99,22 @@ static inline u32 dp_link_bit_depth_to_bpp(u32 tbd)
 	}
 }
 
-void dp_link_reset_phy_params_vx_px(struct dp_link *dp_link);
-u32 dp_link_get_test_bits_depth(struct dp_link *dp_link, u32 bpp);
-int dp_link_process_request(struct dp_link *dp_link);
-int dp_link_get_colorimetry_config(struct dp_link *dp_link);
-int dp_link_adjust_levels(struct dp_link *dp_link, u8 *link_status);
-bool dp_link_send_test_response(struct dp_link *dp_link);
-int dp_link_psm_config(struct dp_link *dp_link,
-		struct dp_link_info *link_info, bool enable);
-bool dp_link_send_edid_checksum(struct dp_link *dp_link, u8 checksum);
+void msm_dp_link_reset_phy_params_vx_px(struct msm_dp_link *msm_dp_link);
+u32 msm_dp_link_get_test_bits_depth(struct msm_dp_link *msm_dp_link, u32 bpp);
+int msm_dp_link_process_request(struct msm_dp_link *msm_dp_link);
+int msm_dp_link_get_colorimetry_config(struct msm_dp_link *msm_dp_link);
+int msm_dp_link_adjust_levels(struct msm_dp_link *msm_dp_link, u8 *link_status);
+bool msm_dp_link_send_test_response(struct msm_dp_link *msm_dp_link);
+int msm_dp_link_psm_config(struct msm_dp_link *msm_dp_link,
+		struct msm_dp_link_info *link_info, bool enable);
+bool msm_dp_link_send_edid_checksum(struct msm_dp_link *msm_dp_link, u8 checksum);
 
 /**
- * dp_link_get() - get the functionalities of dp test module
+ * msm_dp_link_get() - get the functionalities of dp test module
  *
  *
- * return: a pointer to dp_link struct
+ * return: a pointer to msm_dp_link struct
  */
-struct dp_link *dp_link_get(struct device *dev, struct drm_dp_aux *aux);
+struct msm_dp_link *msm_dp_link_get(struct device *dev, struct drm_dp_aux *aux);
 
 #endif /* _DP_LINK_H_ */

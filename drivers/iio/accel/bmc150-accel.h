@@ -6,6 +6,7 @@
 #include <linux/iio/iio.h>
 #include <linux/mutex.h>
 #include <linux/regulator/consumer.h>
+#include <linux/types.h>
 #include <linux/workqueue.h>
 
 struct regmap;
@@ -69,7 +70,7 @@ struct bmc150_accel_data {
 	 */
 	struct {
 		__le16 channels[3];
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} scan;
 	u8 bw_bits;
 	u32 slope_dur;

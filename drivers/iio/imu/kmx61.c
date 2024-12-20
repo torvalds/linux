@@ -7,12 +7,13 @@
  * IIO driver for KMX61 (7-bit I2C slave address 0x0E or 0x0F).
  */
 
-#include <linux/module.h>
 #include <linux/i2c.h>
-#include <linux/acpi.h>
 #include <linux/interrupt.h>
+#include <linux/mod_devicetable.h>
+#include <linux/module.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
+
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/events.h>
@@ -941,7 +942,7 @@ static int kmx61_write_event_config(struct iio_dev *indio_dev,
 				    const struct iio_chan_spec *chan,
 				    enum iio_event_type type,
 				    enum iio_event_direction dir,
-				    int state)
+				    bool state)
 {
 	struct kmx61_data *data = kmx61_get_data(indio_dev);
 	int ret = 0;
@@ -1217,16 +1218,6 @@ err:
 	return IRQ_HANDLED;
 }
 
-static const char *kmx61_match_acpi_device(struct device *dev)
-{
-	const struct acpi_device_id *id;
-
-	id = acpi_match_device(dev->driver->acpi_match_table, dev);
-	if (!id)
-		return NULL;
-	return dev_name(dev);
-}
-
 static struct iio_dev *kmx61_indiodev_setup(struct kmx61_data *data,
 					    const struct iio_info *info,
 					    const struct iio_chan_spec *chan,
@@ -1293,8 +1284,6 @@ static int kmx61_probe(struct i2c_client *client)
 
 	if (id)
 		name = id->name;
-	else if (ACPI_HANDLE(&client->dev))
-		name = kmx61_match_acpi_device(&client->dev);
 	else
 		return -ENODEV;
 
@@ -1496,13 +1485,6 @@ static const struct dev_pm_ops kmx61_pm_ops = {
 	RUNTIME_PM_OPS(kmx61_runtime_suspend, kmx61_runtime_resume, NULL)
 };
 
-static const struct acpi_device_id kmx61_acpi_match[] = {
-	{"KMX61021", 0},
-	{}
-};
-
-MODULE_DEVICE_TABLE(acpi, kmx61_acpi_match);
-
 static const struct i2c_device_id kmx61_id[] = {
 	{ "kmx611021" },
 	{}
@@ -1513,7 +1495,6 @@ MODULE_DEVICE_TABLE(i2c, kmx61_id);
 static struct i2c_driver kmx61_driver = {
 	.driver = {
 		.name = KMX61_DRV_NAME,
-		.acpi_match_table = kmx61_acpi_match,
 		.pm = pm_ptr(&kmx61_pm_ops),
 	},
 	.probe		= kmx61_probe,

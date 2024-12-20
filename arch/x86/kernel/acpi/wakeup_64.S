@@ -87,6 +87,7 @@ SYM_FUNC_START(do_suspend_lowlevel)
 
 	.align 4
 .Lresume_point:
+	ANNOTATE_NOENDBR
 	/* We don't restore %rax, it must be 0 anyway */
 	movq	$saved_context, %rax
 	movq	saved_context_cr4(%rax), %rbx

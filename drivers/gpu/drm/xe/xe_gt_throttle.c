@@ -41,9 +41,9 @@ u32 xe_gt_throttle_get_limit_reasons(struct xe_gt *gt)
 
 	xe_pm_runtime_get(gt_to_xe(gt));
 	if (xe_gt_is_media_type(gt))
-		reg = xe_mmio_read32(gt, MTL_MEDIA_PERF_LIMIT_REASONS);
+		reg = xe_mmio_read32(&gt->mmio, MTL_MEDIA_PERF_LIMIT_REASONS);
 	else
-		reg = xe_mmio_read32(gt, GT0_PERF_LIMIT_REASONS);
+		reg = xe_mmio_read32(&gt->mmio, GT0_PERF_LIMIT_REASONS);
 	xe_pm_runtime_put(gt_to_xe(gt));
 
 	return reg;

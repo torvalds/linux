@@ -277,11 +277,11 @@ MODULE_DEVICE_TABLE(of, da8xx_usb_phy_ids);
 
 static struct platform_driver da8xx_usb_phy_driver = {
 	.probe	= da8xx_usb_phy_probe,
-	.remove_new = da8xx_usb_phy_remove,
+	.remove	= da8xx_usb_phy_remove,
 	.driver	= {
 		.name	= "da8xx-usb-phy",
 		.pm	= &da8xx_usb_phy_pm_ops,
-		.of_match_table = da8xx_usb_phy_ids,
+		.of_match_table	= da8xx_usb_phy_ids,
 	},
 };
 

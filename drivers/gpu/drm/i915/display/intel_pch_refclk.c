@@ -491,6 +491,7 @@ static void lpt_init_pch_refclk(struct drm_i915_private *dev_priv)
 
 static void ilk_init_pch_refclk(struct drm_i915_private *dev_priv)
 {
+	struct intel_display *display = &dev_priv->display;
 	struct intel_encoder *encoder;
 	struct intel_shared_dpll *pll;
 	int i;
@@ -572,11 +573,11 @@ static void ilk_init_pch_refclk(struct drm_i915_private *dev_priv)
 	if (has_panel) {
 		final |= DREF_SSC_SOURCE_ENABLE;
 
-		if (intel_panel_use_ssc(dev_priv) && can_ssc)
+		if (intel_panel_use_ssc(display) && can_ssc)
 			final |= DREF_SSC1_ENABLE;
 
 		if (has_cpu_edp) {
-			if (intel_panel_use_ssc(dev_priv) && can_ssc)
+			if (intel_panel_use_ssc(display) && can_ssc)
 				final |= DREF_CPU_SOURCE_OUTPUT_DOWNSPREAD;
 			else
 				final |= DREF_CPU_SOURCE_OUTPUT_NONSPREAD;
@@ -604,7 +605,7 @@ static void ilk_init_pch_refclk(struct drm_i915_private *dev_priv)
 		val |= DREF_SSC_SOURCE_ENABLE;
 
 		/* SSC must be turned on before enabling the CPU output  */
-		if (intel_panel_use_ssc(dev_priv) && can_ssc) {
+		if (intel_panel_use_ssc(display) && can_ssc) {
 			drm_dbg_kms(&dev_priv->drm, "Using SSC on panel\n");
 			val |= DREF_SSC1_ENABLE;
 		} else {
@@ -620,7 +621,7 @@ static void ilk_init_pch_refclk(struct drm_i915_private *dev_priv)
 
 		/* Enable CPU source on CPU attached eDP */
 		if (has_cpu_edp) {
-			if (intel_panel_use_ssc(dev_priv) && can_ssc) {
+			if (intel_panel_use_ssc(display) && can_ssc) {
 				drm_dbg_kms(&dev_priv->drm,
 					    "Using SSC on eDP\n");
 				val |= DREF_CPU_SOURCE_OUTPUT_DOWNSPREAD;

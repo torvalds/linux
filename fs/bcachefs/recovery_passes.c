@@ -27,6 +27,12 @@ const char * const bch2_recovery_passes[] = {
 	NULL
 };
 
+/* Fake recovery pass, so that scan_for_btree_nodes isn't 0: */
+static int bch2_recovery_pass_empty(struct bch_fs *c)
+{
+	return 0;
+}
+
 static int bch2_set_may_go_rw(struct bch_fs *c)
 {
 	struct journal_keys *keys = &c->journal_keys;

@@ -1,0 +1,80 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/vctrl-regulator.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Voltage controlled regulators
+
+maintainers:
+  - Heiko Stuebner <heiko@sntech.de>
+
+allOf:
+  - $ref: regulator.yaml#
+
+properties:
+  compatible:
+    const: vctrl-regulator
+
+  ctrl-supply:
+    description: Regulator supplying the control voltage
+
+  ctrl-voltage-range:
+    description:
+      Array of two integer values describing the range (min/max) of the
+      control voltage. The values specify the control voltage needed to
+      generate the corresponding regulator-min/max-microvolt output
+      voltage.
+    minItems: 2
+    maxItems: 2
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+
+  min-slew-down-rate:
+    description:
+      Describes how slowly the regulator voltage will decay down in the
+      worst case (lightest expected load). Specified in uV / us (like
+      main regulator ramp rate). This value is required when
+      ovp-threshold-percent is specified.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  ovp-threshold-percent:
+    description:
+      Overvoltage protection (OVP) threshold of the regulator in percent.
+      Some regulators have an OVP circuitry which shuts down the regulator
+      when the actual output voltage deviates beyond a certain margin from
+      the expected value for a given control voltage. On larger voltage
+      decreases this can occur undesiredly since the output voltage does
+      not adjust immediately to changes in the control voltage. To avoid
+      this situation the vctrl driver breaks down larger voltage decreases
+      into multiple steps, where each step is within the OVP threshold.
+    minimum: 0
+    maximum: 100
+
+unevaluatedProperties: false
+
+dependencies:
+  ovp-threshold-percent: [ min-slew-down-rate ]
+
+required:
+  - compatible
+  - ctrl-supply
+  - ctrl-voltage-range
+  - regulator-min-microvolt
+  - regulator-max-microvolt
+
+examples:
+  - |
+    vctrl-reg {
+            compatible = "vctrl-regulator";
+            regulator-name = "vctrl_reg";
+
+            ctrl-supply = <&ctrl_reg>;
+            ctrl-voltage-range = <200000 500000>;
+
+            min-slew-down-rate = <225>;
+            ovp-threshold-percent = <16>;
+
+            regulator-min-microvolt = <800000>;
+            regulator-max-microvolt = <1500000>;
+    };
+...

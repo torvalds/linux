@@ -75,12 +75,6 @@ do {									\
 #define xfs_debug_ratelimited(dev, fmt, ...)				\
 	xfs_printk_ratelimited(xfs_debug, dev, fmt, ##__VA_ARGS__)
 
-#define xfs_warn_mount(mp, warntag, fmt, ...)				\
-do {									\
-	if (xfs_should_warn((mp), (warntag)))				\
-		xfs_warn((mp), (fmt), ##__VA_ARGS__);			\
-} while (0)
-
 #define xfs_warn_once(dev, fmt, ...)				\
 	xfs_printk_once(xfs_warn, dev, fmt, ##__VA_ARGS__)
 #define xfs_notice_once(dev, fmt, ...)				\
@@ -95,5 +89,19 @@ extern void xfs_hex_dump(const void *p, int length);
 
 void xfs_buf_alert_ratelimited(struct xfs_buf *bp, const char *rlmsg,
 			       const char *fmt, ...);
+
+enum xfs_experimental_feat {
+	XFS_EXPERIMENTAL_PNFS,
+	XFS_EXPERIMENTAL_SCRUB,
+	XFS_EXPERIMENTAL_SHRINK,
+	XFS_EXPERIMENTAL_LARP,
+	XFS_EXPERIMENTAL_LBS,
+	XFS_EXPERIMENTAL_EXCHRANGE,
+	XFS_EXPERIMENTAL_PPTR,
+	XFS_EXPERIMENTAL_METADIR,
+
+	XFS_EXPERIMENTAL_MAX,
+};
+void xfs_warn_experimental(struct xfs_mount *mp, enum xfs_experimental_feat f);
 
 #endif	/* __XFS_MESSAGE_H */

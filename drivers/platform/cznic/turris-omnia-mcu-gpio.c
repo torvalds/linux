@@ -28,7 +28,7 @@
 #define OMNIA_CMD_INT_ARG_LEN		8
 #define FRONT_BUTTON_RELEASE_DELAY_MS	50
 
-static const char * const omnia_mcu_gpio_templates[64] = {
+static const char * const omnia_mcu_gpio_names[64] = {
 	/* GPIOs with value read from the 16-bit wide status */
 	[4]  = "MiniPCIe0 Card Detect",
 	[5]  = "MiniPCIe0 mSATA Indicator",
@@ -1018,7 +1018,7 @@ int omnia_mcu_register_gpiochip(struct omnia_mcu *mcu)
 	mcu->gc.set_multiple = omnia_gpio_set_multiple;
 	mcu->gc.init_valid_mask = omnia_gpio_init_valid_mask;
 	mcu->gc.can_sleep = true;
-	mcu->gc.names = omnia_mcu_gpio_templates;
+	mcu->gc.names = omnia_mcu_gpio_names;
 	mcu->gc.base = -1;
 	mcu->gc.ngpio = ARRAY_SIZE(omnia_gpios);
 	mcu->gc.label = "Turris Omnia MCU GPIOs";

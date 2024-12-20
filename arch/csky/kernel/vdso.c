@@ -8,15 +8,11 @@
 #include <linux/slab.h>
 
 #include <asm/page.h>
-#include <vdso/datapage.h>
 
 extern char vdso_start[], vdso_end[];
 
 static unsigned int vdso_pages;
 static struct page **vdso_pagelist;
-
-static union vdso_data_store vdso_data_store __page_aligned_data;
-struct vdso_data *vdso_data = vdso_data_store.data;
 
 static int __init vdso_init(void)
 {
@@ -24,7 +20,7 @@ static int __init vdso_init(void)
 
 	vdso_pages = (vdso_end - vdso_start) >> PAGE_SHIFT;
 	vdso_pagelist =
-		kcalloc(vdso_pages + 1, sizeof(struct page *), GFP_KERNEL);
+		kcalloc(vdso_pages, sizeof(struct page *), GFP_KERNEL);
 	if (unlikely(vdso_pagelist == NULL)) {
 		pr_err("vdso: pagelist allocation failed\n");
 		return -ENOMEM;
@@ -36,7 +32,6 @@ static int __init vdso_init(void)
 		pg = virt_to_page(vdso_start + (i << PAGE_SHIFT));
 		vdso_pagelist[i] = pg;
 	}
-	vdso_pagelist[i] = virt_to_page(vdso_data);
 
 	return 0;
 }
@@ -52,11 +47,8 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
 	static struct vm_special_mapping vdso_mapping = {
 		.name = "[vdso]",
 	};
-	static struct vm_special_mapping vvar_mapping = {
-		.name = "[vvar]",
-	};
 
-	vdso_len = (vdso_pages + 1) << PAGE_SHIFT;
+	vdso_len = vdso_pages << PAGE_SHIFT;
 
 	mmap_write_lock(mm);
 	vdso_base = get_unmapped_area(NULL, 0, vdso_len, 0, 0);
@@ -85,27 +77,8 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
 	}
 
 	vdso_base += (vdso_pages << PAGE_SHIFT);
-	vvar_mapping.pages = &vdso_pagelist[vdso_pages];
-	vma = _install_special_mapping(mm, vdso_base, PAGE_SIZE,
-		(VM_READ | VM_MAYREAD), &vvar_mapping);
-
-	if (IS_ERR(vma)) {
-		ret = PTR_ERR(vma);
-		mm->context.vdso = NULL;
-		goto end;
-	}
 	ret = 0;
 end:
 	mmap_write_unlock(mm);
 	return ret;
-}
-
-const char *arch_vma_name(struct vm_area_struct *vma)
-{
-	if (vma->vm_mm && (vma->vm_start == (long)vma->vm_mm->context.vdso))
-		return "[vdso]";
-	if (vma->vm_mm && (vma->vm_start ==
-			   (long)vma->vm_mm->context.vdso + PAGE_SIZE))
-		return "[vdso_data]";
-	return NULL;
 }

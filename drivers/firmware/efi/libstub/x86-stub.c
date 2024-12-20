@@ -537,7 +537,6 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	efi_guid_t proto = LOADED_IMAGE_PROTOCOL_GUID;
 	struct boot_params *boot_params;
 	struct setup_header *hdr;
-	int options_size = 0;
 	efi_status_t status;
 	unsigned long alloc;
 	char *cmdline_ptr;
@@ -569,7 +568,7 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	hdr->initrd_addr_max = INT_MAX;
 
 	/* Convert unicode cmdline to ascii */
-	cmdline_ptr = efi_convert_cmdline(image, &options_size);
+	cmdline_ptr = efi_convert_cmdline(image);
 	if (!cmdline_ptr) {
 		efi_free(PARAM_SIZE, alloc);
 		efi_exit(handle, EFI_OUT_OF_RESOURCES);

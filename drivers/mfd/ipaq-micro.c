@@ -130,6 +130,7 @@ static void micro_rx_msg(struct ipaq_micro *micro, u8 id, int len, u8 *data)
 	default:
 		dev_err(micro->dev,
 			"unknown msg %d [%d] %*ph\n", id, len, len, data);
+		break;
 	}
 	spin_unlock(&micro->lock);
 }

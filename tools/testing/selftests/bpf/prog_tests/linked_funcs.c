@@ -20,7 +20,7 @@ void test_linked_funcs(void)
 	bpf_program__set_autoload(skel->progs.handler1, true);
 	bpf_program__set_autoload(skel->progs.handler2, true);
 
-	skel->rodata->my_tid = syscall(SYS_gettid);
+	skel->rodata->my_tid = sys_gettid();
 	skel->bss->syscall_id = SYS_getpgid;
 
 	err = linked_funcs__load(skel);

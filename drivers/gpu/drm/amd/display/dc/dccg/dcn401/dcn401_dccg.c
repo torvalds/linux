@@ -580,9 +580,6 @@ static void dccg401_set_dpstreamclk(
 		int otg_inst,
 		int dp_hpo_inst)
 {
-	/* set the dtbclk_p source */
-	dccg401_set_dtbclk_p_src(dccg, src, otg_inst);
-
 	/* enabled to select one of the DTBCLKs for pipe */
 	if (src == REFCLK)
 		dccg401_disable_dpstreamclk(dccg, dp_hpo_inst);
@@ -805,33 +802,6 @@ static void dccg401_enable_symclk_se(struct dccg *dccg, uint32_t stream_enc_inst
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
-	switch (link_enc_inst) {
-	case 0:
-		REG_UPDATE(SYMCLKA_CLOCK_ENABLE,
-				SYMCLKA_CLOCK_ENABLE, 1);
-		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_se)
-			REG_UPDATE(DCCG_GATE_DISABLE_CNTL5, SYMCLKA_ROOT_GATE_DISABLE, 1);
-		break;
-	case 1:
-		REG_UPDATE(SYMCLKB_CLOCK_ENABLE,
-				SYMCLKB_CLOCK_ENABLE, 1);
-		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_se)
-			REG_UPDATE(DCCG_GATE_DISABLE_CNTL5, SYMCLKB_ROOT_GATE_DISABLE, 1);
-		break;
-	case 2:
-		REG_UPDATE(SYMCLKC_CLOCK_ENABLE,
-				SYMCLKC_CLOCK_ENABLE, 1);
-		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_se)
-			REG_UPDATE(DCCG_GATE_DISABLE_CNTL5, SYMCLKC_ROOT_GATE_DISABLE, 1);
-		break;
-	case 3:
-		REG_UPDATE(SYMCLKD_CLOCK_ENABLE,
-				SYMCLKD_CLOCK_ENABLE, 1);
-		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_se)
-			REG_UPDATE(DCCG_GATE_DISABLE_CNTL5, SYMCLKD_ROOT_GATE_DISABLE, 1);
-		break;
-	}
-
 	switch (stream_enc_inst) {
 	case 0:
 		REG_UPDATE_2(SYMCLKA_CLOCK_ENABLE,
@@ -864,37 +834,8 @@ static void dccg401_enable_symclk_se(struct dccg *dccg, uint32_t stream_enc_inst
 	}
 }
 
-/*get other front end connected to this backend*/
-static uint8_t dccg401_get_number_enabled_symclk_fe_connected_to_be(struct dccg *dccg, uint32_t link_enc_inst)
-{
-	uint8_t num_enabled_symclk_fe = 0;
-	uint32_t fe_clk_en[4] = {0}, be_clk_sel[4] = {0};
-	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
-	uint8_t i;
-
-	REG_GET_2(SYMCLKA_CLOCK_ENABLE, SYMCLKA_FE_EN, &fe_clk_en[0],
-			SYMCLKA_FE_SRC_SEL, &be_clk_sel[0]);
-
-	REG_GET_2(SYMCLKB_CLOCK_ENABLE, SYMCLKB_FE_EN, &fe_clk_en[1],
-			SYMCLKB_FE_SRC_SEL, &be_clk_sel[1]);
-
-	REG_GET_2(SYMCLKC_CLOCK_ENABLE, SYMCLKC_FE_EN, &fe_clk_en[2],
-			SYMCLKC_FE_SRC_SEL, &be_clk_sel[2]);
-
-	REG_GET_2(SYMCLKD_CLOCK_ENABLE,	SYMCLKD_FE_EN, &fe_clk_en[3],
-			SYMCLKD_FE_SRC_SEL, &be_clk_sel[3]);
-
-	for (i = 0; i < ARRAY_SIZE(fe_clk_en); i++) {
-		if (fe_clk_en[i] && be_clk_sel[i] == link_enc_inst)
-			num_enabled_symclk_fe++;
-	}
-
-	return num_enabled_symclk_fe;
-}
-
 static void dccg401_disable_symclk_se(struct dccg *dccg, uint32_t stream_enc_inst, uint32_t link_enc_inst)
 {
-	uint8_t num_enabled_symclk_fe = 0;
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
 	switch (stream_enc_inst) {
@@ -918,31 +859,6 @@ static void dccg401_disable_symclk_se(struct dccg *dccg, uint32_t stream_enc_ins
 				SYMCLKD_FE_EN, 0,
 				SYMCLKD_FE_SRC_SEL, 0);
 		break;
-	}
-
-	/*check other enabled symclk fe connected to this be */
-	num_enabled_symclk_fe = dccg401_get_number_enabled_symclk_fe_connected_to_be(dccg, link_enc_inst);
-	/*only turn off backend clk if other front ends attached to this backend are all off,
-	 for mst, only turn off the backend if this is the last front end*/
-	if (num_enabled_symclk_fe == 0) {
-		switch (link_enc_inst) {
-		case 0:
-			REG_UPDATE(SYMCLKA_CLOCK_ENABLE,
-					SYMCLKA_CLOCK_ENABLE, 0);
-			break;
-		case 1:
-			REG_UPDATE(SYMCLKB_CLOCK_ENABLE,
-					SYMCLKB_CLOCK_ENABLE, 0);
-			break;
-		case 2:
-			REG_UPDATE(SYMCLKC_CLOCK_ENABLE,
-					SYMCLKC_CLOCK_ENABLE, 0);
-			break;
-		case 3:
-			REG_UPDATE(SYMCLKD_CLOCK_ENABLE,
-					SYMCLKD_CLOCK_ENABLE, 0);
-			break;
-		}
 	}
 }
 

@@ -598,6 +598,17 @@ cifs_sfu_type(struct cifs_fattr *fattr, const char *path,
 				mjr = le64_to_cpu(*(__le64 *)(pbuf+8));
 				mnr = le64_to_cpu(*(__le64 *)(pbuf+16));
 				fattr->cf_rdev = MKDEV(mjr, mnr);
+			} else if (bytes_read == 16) {
+				/*
+				 * Windows NFS server before Windows Server 2012
+				 * stores major and minor number in SFU-modified
+				 * style, just as 32-bit numbers. Recognize it.
+				 */
+				__u32 mjr; /* major */
+				__u32 mnr; /* minor */
+				mjr = le32_to_cpu(*(__le32 *)(pbuf+8));
+				mnr = le32_to_cpu(*(__le32 *)(pbuf+12));
+				fattr->cf_rdev = MKDEV(mjr, mnr);
 			}
 		} else if (memcmp("IntxCHR\0", pbuf, 8) == 0) {
 			cifs_dbg(FYI, "Char device\n");
@@ -609,6 +620,17 @@ cifs_sfu_type(struct cifs_fattr *fattr, const char *path,
 				__u64 mnr; /* minor */
 				mjr = le64_to_cpu(*(__le64 *)(pbuf+8));
 				mnr = le64_to_cpu(*(__le64 *)(pbuf+16));
+				fattr->cf_rdev = MKDEV(mjr, mnr);
+			} else if (bytes_read == 16) {
+				/*
+				 * Windows NFS server before Windows Server 2012
+				 * stores major and minor number in SFU-modified
+				 * style, just as 32-bit numbers. Recognize it.
+				 */
+				__u32 mjr; /* major */
+				__u32 mnr; /* minor */
+				mjr = le32_to_cpu(*(__le32 *)(pbuf+8));
+				mnr = le32_to_cpu(*(__le32 *)(pbuf+12));
 				fattr->cf_rdev = MKDEV(mjr, mnr);
 			}
 		} else if (memcmp("LnxSOCK", pbuf, 8) == 0) {
@@ -724,6 +746,88 @@ static int cifs_sfu_mode(struct cifs_fattr *fattr, const unsigned char *path,
 #endif
 }
 
+#define POSIX_TYPE_FILE    0
+#define POSIX_TYPE_DIR     1
+#define POSIX_TYPE_SYMLINK 2
+#define POSIX_TYPE_CHARDEV 3
+#define POSIX_TYPE_BLKDEV  4
+#define POSIX_TYPE_FIFO    5
+#define POSIX_TYPE_SOCKET  6
+
+#define POSIX_X_OTH      0000001
+#define POSIX_W_OTH      0000002
+#define POSIX_R_OTH      0000004
+#define POSIX_X_GRP      0000010
+#define POSIX_W_GRP      0000020
+#define POSIX_R_GRP      0000040
+#define POSIX_X_USR      0000100
+#define POSIX_W_USR      0000200
+#define POSIX_R_USR      0000400
+#define POSIX_STICKY     0001000
+#define POSIX_SET_GID    0002000
+#define POSIX_SET_UID    0004000
+
+#define POSIX_OTH_MASK      0000007
+#define POSIX_GRP_MASK      0000070
+#define POSIX_USR_MASK      0000700
+#define POSIX_PERM_MASK     0000777
+#define POSIX_FILETYPE_MASK 0070000
+
+#define POSIX_FILETYPE_SHIFT 12
+
+static u32 wire_perms_to_posix(u32 wire)
+{
+	u32 mode = 0;
+
+	mode |= (wire & POSIX_X_OTH) ? S_IXOTH : 0;
+	mode |= (wire & POSIX_W_OTH) ? S_IWOTH : 0;
+	mode |= (wire & POSIX_R_OTH) ? S_IROTH : 0;
+	mode |= (wire & POSIX_X_GRP) ? S_IXGRP : 0;
+	mode |= (wire & POSIX_W_GRP) ? S_IWGRP : 0;
+	mode |= (wire & POSIX_R_GRP) ? S_IRGRP : 0;
+	mode |= (wire & POSIX_X_USR) ? S_IXUSR : 0;
+	mode |= (wire & POSIX_W_USR) ? S_IWUSR : 0;
+	mode |= (wire & POSIX_R_USR) ? S_IRUSR : 0;
+	mode |= (wire & POSIX_STICKY) ? S_ISVTX : 0;
+	mode |= (wire & POSIX_SET_GID) ? S_ISGID : 0;
+	mode |= (wire & POSIX_SET_UID) ? S_ISUID : 0;
+
+	return mode;
+}
+
+static u32 posix_filetypes[] = {
+	S_IFREG,
+	S_IFDIR,
+	S_IFLNK,
+	S_IFCHR,
+	S_IFBLK,
+	S_IFIFO,
+	S_IFSOCK
+};
+
+static u32 wire_filetype_to_posix(u32 wire_type)
+{
+	if (wire_type >= ARRAY_SIZE(posix_filetypes)) {
+		pr_warn("Unexpected type %u", wire_type);
+		return 0;
+	}
+	return posix_filetypes[wire_type];
+}
+
+umode_t wire_mode_to_posix(u32 wire, bool is_dir)
+{
+	u32 wire_type;
+	u32 mode;
+
+	wire_type = (wire & POSIX_FILETYPE_MASK) >> POSIX_FILETYPE_SHIFT;
+	/* older servers do not set POSIX file type in the mode field in the response */
+	if ((wire_type == 0) && is_dir)
+		mode = wire_perms_to_posix(wire) | S_IFDIR;
+	else
+		mode = (wire_perms_to_posix(wire) | wire_filetype_to_posix(wire_type));
+	return (umode_t)mode;
+}
+
 /* Fill a cifs_fattr struct with info from POSIX info struct */
 static void smb311_posix_info_to_fattr(struct cifs_fattr *fattr,
 				       struct cifs_open_info_data *data,
@@ -760,20 +864,14 @@ static void smb311_posix_info_to_fattr(struct cifs_fattr *fattr,
 	fattr->cf_bytes = le64_to_cpu(info->AllocationSize);
 	fattr->cf_createtime = le64_to_cpu(info->CreationTime);
 	fattr->cf_nlink = le32_to_cpu(info->HardLinks);
-	fattr->cf_mode = (umode_t) le32_to_cpu(info->Mode);
+	fattr->cf_mode = wire_mode_to_posix(le32_to_cpu(info->Mode),
+					    fattr->cf_cifsattrs & ATTR_DIRECTORY);
 
 	if (cifs_open_data_reparse(data) &&
 	    cifs_reparse_point_to_fattr(cifs_sb, fattr, data))
 		goto out_reparse;
 
-	fattr->cf_mode &= ~S_IFMT;
-	if (fattr->cf_cifsattrs & ATTR_DIRECTORY) {
-		fattr->cf_mode |= S_IFDIR;
-		fattr->cf_dtype = DT_DIR;
-	} else { /* file */
-		fattr->cf_mode |= S_IFREG;
-		fattr->cf_dtype = DT_REG;
-	}
+	fattr->cf_dtype = S_DT(fattr->cf_mode);
 
 out_reparse:
 	if (S_ISLNK(fattr->cf_mode)) {
@@ -1115,6 +1213,7 @@ static int reparse_info_to_fattr(struct cifs_open_info_data *data,
 			rc = 0;
 		} else if (iov && server->ops->parse_reparse_point) {
 			rc = server->ops->parse_reparse_point(cifs_sb,
+							      full_path,
 							      iov, data);
 		}
 		break;
@@ -1848,6 +1947,7 @@ int cifs_unlink(struct inode *dir, struct dentry *dentry)
 		goto unlink_out;
 	}
 
+	netfs_wait_for_outstanding_io(inode);
 	cifs_close_deferred_file_under_dentry(tcon, full_path);
 #ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
 	if (cap_unix(tcon->ses) && (CIFS_UNIX_POSIX_PATH_OPS_CAP &
@@ -2365,8 +2465,10 @@ cifs_rename2(struct mnt_idmap *idmap, struct inode *source_dir,
 	}
 
 	cifs_close_deferred_file_under_dentry(tcon, from_name);
-	if (d_inode(target_dentry) != NULL)
+	if (d_inode(target_dentry) != NULL) {
+		netfs_wait_for_outstanding_io(d_inode(target_dentry));
 		cifs_close_deferred_file_under_dentry(tcon, to_name);
+	}
 
 	rc = cifs_do_rename(xid, source_dentry, from_name, target_dentry,
 			    to_name);
@@ -2473,13 +2575,10 @@ cifs_dentry_needs_reval(struct dentry *dentry)
 		return true;
 
 	if (!open_cached_dir_by_dentry(tcon, dentry->d_parent, &cfid)) {
-		spin_lock(&cfid->fid_lock);
 		if (cfid->time && cifs_i->time > cfid->time) {
-			spin_unlock(&cfid->fid_lock);
 			close_cached_dir(cfid);
 			return false;
 		}
-		spin_unlock(&cfid->fid_lock);
 		close_cached_dir(cfid);
 	}
 	/*
@@ -3062,6 +3161,7 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 	int rc = -EACCES;
 	__u32 dosattr = 0;
 	__u64 mode = NO_CHANGE_64;
+	bool posix = cifs_sb_master_tcon(cifs_sb)->posix_extensions;
 
 	xid = get_xid();
 
@@ -3152,7 +3252,8 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 		mode = attrs->ia_mode;
 		rc = 0;
 		if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) ||
-		    (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MODE_FROM_SID)) {
+		    (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MODE_FROM_SID) ||
+		    posix) {
 			rc = id_mode_to_cifs_acl(inode, full_path, &mode,
 						INVALID_UID, INVALID_GID);
 			if (rc) {

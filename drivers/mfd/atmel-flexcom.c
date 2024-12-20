@@ -95,7 +95,7 @@ static int __maybe_unused atmel_flexcom_resume_noirq(struct device *dev)
 	if (err)
 		return err;
 
-	val = FLEX_MR_OPMODE(ddata->opmode),
+	val = FLEX_MR_OPMODE(ddata->opmode);
 	writel(val, ddata->base + FLEX_MR);
 
 	clk_disable_unprepare(ddata->clk);

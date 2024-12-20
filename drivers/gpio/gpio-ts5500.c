@@ -433,7 +433,7 @@ static struct platform_driver ts5500_dio_driver = {
 		.name = "ts5500-dio",
 	},
 	.probe = ts5500_dio_probe,
-	.remove_new = ts5500_dio_remove,
+	.remove = ts5500_dio_remove,
 	.id_table = ts5500_dio_ids,
 };
 

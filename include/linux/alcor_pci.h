@@ -11,6 +11,7 @@
 #define ALCOR_SD_CARD 0
 #define ALCOR_MS_CARD 1
 
+#define DRV_NAME_ALCOR_PCI			"alcor_pci"
 #define DRV_NAME_ALCOR_PCI_SDMMC		"alcor_sdmmc"
 #define DRV_NAME_ALCOR_PCI_MS			"alcor_ms"
 

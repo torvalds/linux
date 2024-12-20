@@ -2731,7 +2731,7 @@ MODULE_DEVICE_TABLE(of, cdns_sierra_id_table);
 
 static struct platform_driver cdns_sierra_driver = {
 	.probe		= cdns_sierra_phy_probe,
-	.remove_new	= cdns_sierra_phy_remove,
+	.remove		= cdns_sierra_phy_remove,
 	.driver		= {
 		.name	= "cdns-sierra-phy",
 		.of_match_table = cdns_sierra_id_table,

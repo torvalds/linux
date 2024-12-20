@@ -11,7 +11,7 @@
 #include <acpi/video.h>
 #include <drm/display/drm_dp_mst_helper.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_client.h>
+#include <drm/drm_client_event.h>
 #include <drm/drm_mode_config.h>
 #include <drm/drm_privacy_screen_consumer.h>
 #include <drm/drm_probe_helper.h>
@@ -82,16 +82,17 @@ bool intel_display_driver_probe_defer(struct pci_dev *pdev)
 
 void intel_display_driver_init_hw(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
 	struct intel_cdclk_state *cdclk_state;
 
 	if (!HAS_DISPLAY(i915))
 		return;
 
-	cdclk_state = to_intel_cdclk_state(i915->display.cdclk.obj.state);
+	cdclk_state = to_intel_cdclk_state(display->cdclk.obj.state);
 
-	intel_update_cdclk(i915);
-	intel_cdclk_dump_config(i915, &i915->display.cdclk.hw, "Current CDCLK");
-	cdclk_state->logical = cdclk_state->actual = i915->display.cdclk.hw;
+	intel_update_cdclk(display);
+	intel_cdclk_dump_config(display, &display->cdclk.hw, "Current CDCLK");
+	cdclk_state->logical = cdclk_state->actual = display->cdclk.hw;
 
 	intel_display_wa_apply(i915);
 }
@@ -168,10 +169,11 @@ static void intel_mode_config_cleanup(struct drm_i915_private *i915)
 
 static void intel_plane_possible_crtcs_init(struct drm_i915_private *dev_priv)
 {
+	struct intel_display *display = &dev_priv->display;
 	struct intel_plane *plane;
 
 	for_each_intel_plane(&dev_priv->drm, plane) {
-		struct intel_crtc *crtc = intel_crtc_for_pipe(dev_priv,
+		struct intel_crtc *crtc = intel_crtc_for_pipe(display,
 							      plane->pipe);
 
 		plane->base.possible_crtcs = drm_crtc_mask(&crtc->base);
@@ -192,8 +194,8 @@ void intel_display_driver_early_probe(struct drm_i915_private *i915)
 
 	intel_display_irq_init(i915);
 	intel_dkl_phy_init(i915);
-	intel_color_init_hooks(i915);
-	intel_init_cdclk_hooks(i915);
+	intel_color_init_hooks(&i915->display);
+	intel_init_cdclk_hooks(&i915->display);
 	intel_audio_hooks_init(i915);
 	intel_dpll_init_clock_hook(i915);
 	intel_init_display_hooks(i915);
@@ -219,7 +221,7 @@ int intel_display_driver_probe_noirq(struct drm_i915_private *i915)
 
 	intel_bios_init(display);
 
-	ret = intel_vga_register(i915);
+	ret = intel_vga_register(display);
 	if (ret)
 		goto cleanup_bios;
 
@@ -235,7 +237,7 @@ int intel_display_driver_probe_noirq(struct drm_i915_private *i915)
 	if (!HAS_DISPLAY(i915))
 		return 0;
 
-	intel_dmc_init(i915);
+	intel_dmc_init(display);
 
 	i915->display.wq.modeset = alloc_ordered_workqueue("i915_modeset", 0);
 	i915->display.wq.flip = alloc_workqueue("i915_flip", WQ_HIGHPRI |
@@ -243,11 +245,11 @@ int intel_display_driver_probe_noirq(struct drm_i915_private *i915)
 
 	intel_mode_config_init(i915);
 
-	ret = intel_cdclk_init(i915);
+	ret = intel_cdclk_init(display);
 	if (ret)
 		goto cleanup_vga_client_pw_domain_dmc;
 
-	ret = intel_color_init(i915);
+	ret = intel_color_init(display);
 	if (ret)
 		goto cleanup_vga_client_pw_domain_dmc;
 
@@ -270,10 +272,10 @@ int intel_display_driver_probe_noirq(struct drm_i915_private *i915)
 	return 0;
 
 cleanup_vga_client_pw_domain_dmc:
-	intel_dmc_fini(i915);
+	intel_dmc_fini(display);
 	intel_power_domains_driver_remove(i915);
 cleanup_vga:
-	intel_vga_unregister(i915);
+	intel_vga_unregister(display);
 cleanup_bios:
 	intel_bios_driver_remove(display);
 
@@ -430,7 +432,7 @@ int intel_display_driver_probe_nogem(struct drm_i915_private *i915)
 
 	intel_pps_setup(display);
 
-	intel_gmbus_setup(i915);
+	intel_gmbus_setup(display);
 
 	drm_dbg_kms(&i915->drm, "%d display pipe%s available.\n",
 		    INTEL_NUM_PIPES(i915),
@@ -450,13 +452,13 @@ int intel_display_driver_probe_nogem(struct drm_i915_private *i915)
 	intel_display_driver_init_hw(i915);
 	intel_dpll_update_ref_clks(i915);
 
-	if (i915->display.cdclk.max_cdclk_freq == 0)
-		intel_update_max_cdclk(i915);
+	if (display->cdclk.max_cdclk_freq == 0)
+		intel_update_max_cdclk(display);
 
 	intel_hti_init(display);
 
 	/* Just disable it once at startup */
-	intel_vga_disable(i915);
+	intel_vga_disable(display);
 	intel_setup_outputs(i915);
 
 	ret = intel_dp_tunnel_mgr_init(display);
@@ -483,7 +485,7 @@ int intel_display_driver_probe_nogem(struct drm_i915_private *i915)
 	return 0;
 
 err_hdcp:
-	intel_hdcp_component_fini(i915);
+	intel_hdcp_component_fini(display);
 err_mode_config:
 	intel_mode_config_cleanup(i915);
 
@@ -493,6 +495,7 @@ err_mode_config:
 /* part #3: call after gem init */
 int intel_display_driver_probe(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
 	int ret;
 
 	if (!HAS_DISPLAY(i915))
@@ -503,7 +506,7 @@ int intel_display_driver_probe(struct drm_i915_private *i915)
 	 * the BIOS fb takeover and whatever else magic ggtt reservations
 	 * happen during gem/ggtt init.
 	 */
-	intel_hdcp_component_init(i915);
+	intel_hdcp_component_init(display);
 
 	/*
 	 * Force all active planes to recompute their states. So that on
@@ -598,7 +601,7 @@ void intel_display_driver_remove_noirq(struct drm_i915_private *i915)
 	/* flush any delayed tasks or pending work */
 	flush_workqueue(i915->unordered_wq);
 
-	intel_hdcp_component_fini(i915);
+	intel_hdcp_component_fini(display);
 
 	intel_mode_config_cleanup(i915);
 
@@ -606,7 +609,7 @@ void intel_display_driver_remove_noirq(struct drm_i915_private *i915)
 
 	intel_overlay_cleanup(i915);
 
-	intel_gmbus_teardown(i915);
+	intel_gmbus_teardown(display);
 
 	destroy_workqueue(i915->display.wq.flip);
 	destroy_workqueue(i915->display.wq.modeset);
@@ -619,11 +622,11 @@ void intel_display_driver_remove_nogem(struct drm_i915_private *i915)
 {
 	struct intel_display *display = &i915->display;
 
-	intel_dmc_fini(i915);
+	intel_dmc_fini(display);
 
 	intel_power_domains_driver_remove(i915);
 
-	intel_vga_unregister(i915);
+	intel_vga_unregister(display);
 
 	intel_bios_driver_remove(display);
 }
@@ -681,12 +684,13 @@ __intel_display_driver_resume(struct drm_i915_private *i915,
 			      struct drm_atomic_state *state,
 			      struct drm_modeset_acquire_ctx *ctx)
 {
+	struct intel_display *display = &i915->display;
 	struct drm_crtc_state *crtc_state;
 	struct drm_crtc *crtc;
 	int ret, i;
 
 	intel_modeset_setup_hw_state(i915, ctx);
-	intel_vga_redisable(i915);
+	intel_vga_redisable(display);
 
 	if (!state)
 		return 0;

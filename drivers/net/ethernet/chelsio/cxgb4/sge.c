@@ -4874,22 +4874,6 @@ void free_rspq_fl(struct adapter *adap, struct sge_rspq *rq,
 	}
 }
 
-/**
- *      t4_free_ofld_rxqs - free a block of consecutive Rx queues
- *      @adap: the adapter
- *      @n: number of queues
- *      @q: pointer to first queue
- *
- *      Release the resources of a consecutive block of offload Rx queues.
- */
-void t4_free_ofld_rxqs(struct adapter *adap, int n, struct sge_ofld_rxq *q)
-{
-	for ( ; n; n--, q++)
-		if (q->rspq.desc)
-			free_rspq_fl(adap, &q->rspq,
-				     q->fl.size ? &q->fl : NULL);
-}
-
 void t4_sge_free_ethofld_txq(struct adapter *adap, struct sge_eohw_txq *txq)
 {
 	if (txq->q.desc) {

@@ -12,17 +12,16 @@
 #include "kvm_util.h"
 #include "processor.h"
 
-/* CPUIDs known to differ */
-struct {
-	u32 function;
-	u32 index;
-} mangled_cpuids[] = {
-	/*
-	 * These entries depend on the vCPU's XCR0 register and IA32_XSS MSR,
-	 * which are not controlled for by this test.
-	 */
-	{.function = 0xd, .index = 0},
-	{.function = 0xd, .index = 1},
+struct cpuid_mask {
+	union {
+		struct {
+			u32 eax;
+			u32 ebx;
+			u32 ecx;
+			u32 edx;
+		};
+		u32 regs[4];
+	};
 };
 
 static void test_guest_cpuids(struct kvm_cpuid2 *guest_cpuid)
@@ -56,17 +55,29 @@ static void guest_main(struct kvm_cpuid2 *guest_cpuid)
 	GUEST_DONE();
 }
 
-static bool is_cpuid_mangled(const struct kvm_cpuid_entry2 *entrie)
+static struct cpuid_mask get_const_cpuid_mask(const struct kvm_cpuid_entry2 *entry)
 {
-	int i;
+	struct cpuid_mask mask;
 
-	for (i = 0; i < ARRAY_SIZE(mangled_cpuids); i++) {
-		if (mangled_cpuids[i].function == entrie->function &&
-		    mangled_cpuids[i].index == entrie->index)
-			return true;
+	memset(&mask, 0xff, sizeof(mask));
+
+	switch (entry->function) {
+	case 0x1:
+		mask.regs[X86_FEATURE_OSXSAVE.reg] &= ~BIT(X86_FEATURE_OSXSAVE.bit);
+		break;
+	case 0x7:
+		mask.regs[X86_FEATURE_OSPKE.reg] &= ~BIT(X86_FEATURE_OSPKE.bit);
+		break;
+	case 0xd:
+		/*
+		 * CPUID.0xD.{0,1}.EBX enumerate XSAVE size based on the current
+		 * XCR0 and IA32_XSS MSR values.
+		 */
+		if (entry->index < 2)
+			mask.ebx = 0;
+		break;
 	}
-
-	return false;
+	return mask;
 }
 
 static void compare_cpuids(const struct kvm_cpuid2 *cpuid1,
@@ -79,6 +90,8 @@ static void compare_cpuids(const struct kvm_cpuid2 *cpuid1,
 		    "CPUID nent mismatch: %d vs. %d", cpuid1->nent, cpuid2->nent);
 
 	for (i = 0; i < cpuid1->nent; i++) {
+		struct cpuid_mask mask;
+
 		e1 = &cpuid1->entries[i];
 		e2 = &cpuid2->entries[i];
 
@@ -88,15 +101,19 @@ static void compare_cpuids(const struct kvm_cpuid2 *cpuid1,
 			    i, e1->function, e1->index, e1->flags,
 			    e2->function, e2->index, e2->flags);
 
-		if (is_cpuid_mangled(e1))
-			continue;
+		/* Mask off dynamic bits, e.g. OSXSAVE, when comparing entries. */
+		mask = get_const_cpuid_mask(e1);
 
-		TEST_ASSERT(e1->eax == e2->eax && e1->ebx == e2->ebx &&
-			    e1->ecx == e2->ecx && e1->edx == e2->edx,
+		TEST_ASSERT((e1->eax & mask.eax) == (e2->eax & mask.eax) &&
+			    (e1->ebx & mask.ebx) == (e2->ebx & mask.ebx) &&
+			    (e1->ecx & mask.ecx) == (e2->ecx & mask.ecx) &&
+			    (e1->edx & mask.edx) == (e2->edx & mask.edx),
 			    "CPUID 0x%x.%x differ: 0x%x:0x%x:0x%x:0x%x vs 0x%x:0x%x:0x%x:0x%x",
 			    e1->function, e1->index,
-			    e1->eax, e1->ebx, e1->ecx, e1->edx,
-			    e2->eax, e2->ebx, e2->ecx, e2->edx);
+			    e1->eax & mask.eax, e1->ebx & mask.ebx,
+			    e1->ecx & mask.ecx, e1->edx & mask.edx,
+			    e2->eax & mask.eax, e2->ebx & mask.ebx,
+			    e2->ecx & mask.ecx, e2->edx & mask.edx);
 	}
 }
 

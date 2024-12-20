@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 
 /dts-v1/;
-#include "rk3399-nanopi-r4s.dts"
+
+#include "rk3399-nanopi-r4s.dtsi"
 
 / {
 	model = "FriendlyElec NanoPi R4S Enterprise Edition";

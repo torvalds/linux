@@ -10,8 +10,6 @@ ifndef CONFIG_MIPS_GIC
 	obj-y += clk.o timer.o
 endif
 
-obj-$(CONFIG_CLKEVT_RT3352) += cevt-rt3352.o
-
 obj-$(CONFIG_RALINK_ILL_ACC) += ill_acc.o
 
 obj-$(CONFIG_IRQ_INTC) += irq.o

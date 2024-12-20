@@ -759,7 +759,7 @@ static struct platform_driver ixp4xx_npe_driver = {
 		.of_match_table = ixp4xx_npe_of_match,
 	},
 	.probe = ixp4xx_npe_probe,
-	.remove_new = ixp4xx_npe_remove,
+	.remove = ixp4xx_npe_remove,
 };
 module_platform_driver(ixp4xx_npe_driver);
 

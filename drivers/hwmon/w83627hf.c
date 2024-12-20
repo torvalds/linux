@@ -1844,7 +1844,7 @@ static struct platform_driver w83627hf_driver = {
 		.pm	= W83627HF_DEV_PM_OPS,
 	},
 	.probe		= w83627hf_probe,
-	.remove_new	= w83627hf_remove,
+	.remove		= w83627hf_remove,
 };
 
 static int __init w83627hf_find(int sioaddr, unsigned short *addr,

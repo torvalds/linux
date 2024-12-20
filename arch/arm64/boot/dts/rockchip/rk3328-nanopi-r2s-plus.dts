@@ -7,7 +7,8 @@
  */
 
 /dts-v1/;
-#include "rk3328-nanopi-r2s.dts"
+
+#include "rk3328-nanopi-r2s.dtsi"
 
 / {
 	compatible = "friendlyarm,nanopi-r2s-plus", "rockchip,rk3328";
@@ -27,4 +28,21 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_bus8>;
 	status = "okay";
+};
+
+&gmac2io {
+	phy-handle = <&rtl8211e>;
+	tx_delay = <0x24>;
+	rx_delay = <0x18>;
+
+	mdio {
+		rtl8211e: ethernet-phy@1 {
+			reg = <1>;
+			pinctrl-0 = <&eth_phy_reset_pin>;
+			pinctrl-names = "default";
+			reset-assert-us = <10000>;
+			reset-deassert-us = <50000>;
+			reset-gpios = <&gpio1 RK_PC2 GPIO_ACTIVE_LOW>;
+		};
+	};
 };

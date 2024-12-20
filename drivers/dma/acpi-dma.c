@@ -9,18 +9,21 @@
  *	    Mika Westerberg <mika.westerberg@linux.intel.com>
  */
 
+#include <linux/acpi.h>
+#include <linux/acpi_dma.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
-#include <linux/module.h>
+#include <linux/errno.h>
+#include <linux/export.h>
+#include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
-#include <linux/slab.h>
-#include <linux/ioport.h>
-#include <linux/acpi.h>
-#include <linux/acpi_dma.h>
 #include <linux/property.h>
+#include <linux/slab.h>
+#include <linux/string.h>
+#include <linux/types.h>
 
 static LIST_HEAD(acpi_dma_list);
 static DEFINE_MUTEX(acpi_dma_lock);
@@ -236,7 +239,7 @@ int acpi_dma_controller_free(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(acpi_dma_controller_free);
 
-static void devm_acpi_dma_release(struct device *dev, void *res)
+static void devm_acpi_dma_free(void *dev)
 {
 	acpi_dma_controller_free(dev);
 }
@@ -259,37 +262,15 @@ int devm_acpi_dma_controller_register(struct device *dev,
 		(struct acpi_dma_spec *, struct acpi_dma *),
 		void *data)
 {
-	void *res;
 	int ret;
 
-	res = devres_alloc(devm_acpi_dma_release, 0, GFP_KERNEL);
-	if (!res)
-		return -ENOMEM;
-
 	ret = acpi_dma_controller_register(dev, acpi_dma_xlate, data);
-	if (ret) {
-		devres_free(res);
+	if (ret)
 		return ret;
-	}
-	devres_add(dev, res);
-	return 0;
+
+	return devm_add_action_or_reset(dev, devm_acpi_dma_free, dev);
 }
 EXPORT_SYMBOL_GPL(devm_acpi_dma_controller_register);
-
-/**
- * devm_acpi_dma_controller_free - resource managed acpi_dma_controller_free()
- * @dev:	device that is unregistering as DMA controller
- *
- * Unregister a DMA controller registered with
- * devm_acpi_dma_controller_register(). Normally this function will not need to
- * be called and the resource management code will ensure that the resource is
- * freed.
- */
-void devm_acpi_dma_controller_free(struct device *dev)
-{
-	WARN_ON(devres_release(dev, devm_acpi_dma_release, NULL, NULL));
-}
-EXPORT_SYMBOL_GPL(devm_acpi_dma_controller_free);
 
 /**
  * acpi_dma_update_dma_spec - prepare dma specifier to pass to translation function

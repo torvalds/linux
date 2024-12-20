@@ -41,8 +41,8 @@ static void guest_sev_code(void)
 /* Stash state passed via VMSA before any compiled code runs.  */
 extern void guest_code_xsave(void);
 asm("guest_code_xsave:\n"
-    "mov $-1, %eax\n"
-    "mov $-1, %edx\n"
+    "mov $" __stringify(XFEATURE_MASK_X87_AVX) ", %eax\n"
+    "xor %edx, %edx\n"
     "xsave (%rdi)\n"
     "jmp guest_sev_es_code");
 
@@ -70,12 +70,6 @@ static void test_sync_vmsa(uint32_t policy)
 
 	double x87val = M_PI;
 	struct kvm_xsave __attribute__((aligned(64))) xsave = { 0 };
-	struct kvm_sregs sregs;
-	struct kvm_xcrs xcrs = {
-		.nr_xcrs = 1,
-		.xcrs[0].xcr = 0,
-		.xcrs[0].value = XFEATURE_MASK_X87_AVX,
-	};
 
 	vm = vm_sev_create_with_one_vcpu(KVM_X86_SEV_ES_VM, guest_code_xsave, &vcpu);
 	gva = vm_vaddr_alloc_shared(vm, PAGE_SIZE, KVM_UTIL_MIN_VADDR,
@@ -84,11 +78,6 @@ static void test_sync_vmsa(uint32_t policy)
 
 	vcpu_args_set(vcpu, 1, gva);
 
-	vcpu_sregs_get(vcpu, &sregs);
-	sregs.cr4 |= X86_CR4_OSFXSR | X86_CR4_OSXSAVE;
-	vcpu_sregs_set(vcpu, &sregs);
-
-	vcpu_xcrs_set(vcpu, &xcrs);
 	asm("fninit\n"
 	    "vpcmpeqb %%ymm4, %%ymm4, %%ymm4\n"
 	    "fldl %3\n"
@@ -192,6 +181,8 @@ static void test_sev_es_shutdown(void)
 
 int main(int argc, char *argv[])
 {
+	const u64 xf_mask = XFEATURE_MASK_X87_AVX;
+
 	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_SEV));
 
 	test_sev(guest_sev_code, SEV_POLICY_NO_DBG);
@@ -204,7 +195,7 @@ int main(int argc, char *argv[])
 		test_sev_es_shutdown();
 
 		if (kvm_has_cap(KVM_CAP_XCRS) &&
-		    (xgetbv(0) & XFEATURE_MASK_X87_AVX) == XFEATURE_MASK_X87_AVX) {
+		    (xgetbv(0) & kvm_cpu_supported_xcr0() & xf_mask) == xf_mask) {
 			test_sync_vmsa(0);
 			test_sync_vmsa(SEV_POLICY_NO_DBG);
 		}

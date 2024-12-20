@@ -1,0 +1,124 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/qcom,qcs615-tlmm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Technologies, Inc. QCS615 TLMM block
+
+maintainers:
+  - Lijuan Gao <quic_lijuang@quicinc.com>
+
+description:
+  Top Level Mode Multiplexer pin controller in Qualcomm QCS615 SoC.
+
+allOf:
+  - $ref: /schemas/pinctrl/qcom,tlmm-common.yaml#
+
+properties:
+  compatible:
+    const: qcom,qcs615-tlmm
+
+  reg:
+    maxItems: 3
+
+  reg-names:
+    items:
+      - const: east
+      - const: west
+      - const: south
+
+  interrupts:
+    maxItems: 1
+
+  gpio-reserved-ranges:
+    minItems: 1
+    maxItems: 62
+
+  gpio-line-names:
+    maxItems: 123
+
+patternProperties:
+  "-state$":
+    oneOf:
+      - $ref: "#/$defs/qcom-qcs615-tlmm-state"
+      - type: object
+        patternProperties:
+          "-pins$":
+            $ref: "#/$defs/qcom-qcs615-tlmm-state"
+        additionalProperties: false
+
+$defs:
+  qcom-qcs615-tlmm-state:
+    type: object
+    description:
+      Pinctrl node's client devices use subnodes for desired pin configuration.
+      Client device subnodes use below standard properties.
+    $ref: qcom,tlmm-common.yaml#/$defs/qcom-tlmm-state
+    unevaluatedProperties: false
+
+    properties:
+      pins:
+        description:
+          List of gpio pins affected by the properties specified in this
+          subnode.
+        items:
+          oneOf:
+            - pattern: "^gpio([0-9]|[1-9][0-9]|1[0-1][0-9]|12[0-2])$"
+            - enum: [ sdc1_clk, sdc1_cmd, sdc1_data, sdc1_rclk,
+                      sdc2_clk, sdc2_cmd, sdc2_data, ufs_reset ]
+        minItems: 1
+        maxItems: 36
+
+      function:
+        description:
+          Specify the alternative function to be configured for the specified
+          pins.
+        enum: [ gpio, adsp_ext, agera_pll, aoss_cti, atest_char, atest_tsens,
+                atest_usb, cam_mclk, cci_async, cci_i2c, cci_timer, copy_gp,
+                copy_phase, cri_trng, dbg_out_clk, ddr_bist, ddr_pxi, dp_hot,
+                edp_hot, edp_lcd, emac_gcc, emac_phy_intr, forced_usb, gcc_gp,
+                gp_pdm, gps_tx, hs0_mi2s, hs1_mi2s, jitter_bist, ldo_en,
+                ldo_update, m_voc, mclk1, mclk2, mdp_vsync, mdp_vsync0_out,
+                mdp_vsync1_out, mdp_vsync2_out, mdp_vsync3_out, mdp_vsync4_out,
+                mdp_vsync5_out, mi2s_1, mss_lte, nav_pps_in, nav_pps_out,
+                pa_indicator_or, pcie_clk_req, pcie_ep_rst, phase_flag, pll_bist,
+                pll_bypassnl, pll_reset_n, prng_rosc, qdss_cti, qdss_gpio,
+                qlink_enable, qlink_request, qspi, qup0, qup1, rgmii,
+                sd_write_protect, sp_cmu, ter_mi2s, tgu_ch, uim1, uim2, usb0_hs,
+                usb1_hs, usb_phy_ps, vfr_1, vsense_trigger_mirnat, wlan, wsa_clk,
+                wsa_data ]
+
+    required:
+      - pins
+
+required:
+  - compatible
+  - reg
+  - reg-names
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    tlmm: pinctrl@3000000 {
+        compatible = "qcom,qcs615-tlmm";
+        reg = <0x03100000 0x300000>,
+              <0x03500000 0x300000>,
+              <0x03c00000 0x300000>;
+        reg-names = "east", "west", "south";
+        interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
+        gpio-ranges = <&tlmm 0 0 123>;
+        gpio-controller;
+        #gpio-cells = <2>;
+        interrupt-controller;
+        #interrupt-cells = <2>;
+
+        qup3-uart2-state {
+            pins ="gpio16", "gpio17";
+            function = "qup0";
+        };
+    };
+...

@@ -23,7 +23,7 @@ static int brcmstb_nand_probe(struct platform_device *pdev)
 
 static struct platform_driver brcmstb_nand_driver = {
 	.probe			= brcmstb_nand_probe,
-	.remove_new		= brcmnand_remove,
+	.remove			= brcmnand_remove,
 	.driver = {
 		.name		= "brcmstb_nand",
 		.pm		= &brcmnand_pm_ops,

@@ -1,3 +1,4 @@
+core_setmaster@master-drop-set-shared-fd,Fail
 core_setmaster@master-drop-set-user,Fail
 core_setmaster_vs_auth,Fail
 i915_module_load@load,Fail
@@ -6,7 +7,6 @@ i915_module_load@reload-no-display,Fail
 i915_module_load@resize-bar,Fail
 i915_pm_rpm@gem-execbuf-stress,Timeout
 i915_pm_rpm@module-reload,Fail
-kms_ccs@crc-primary-rotation-180-yf-tiled-ccs,Timeout
 kms_cursor_legacy@short-flip-before-cursor-atomic-transitions,Timeout
 kms_fb_coherency@memset-crc,Crash
 kms_flip@busy-flip,Timeout

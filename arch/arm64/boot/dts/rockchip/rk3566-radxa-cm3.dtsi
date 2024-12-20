@@ -28,7 +28,7 @@
 		};
 	};
 
-	vcc_sys: vcc-sys-regulator {
+	vcc_sys: regulator-vcc-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_sys";
 		regulator-always-on;
@@ -37,7 +37,7 @@
 		regulator-max-microvolt = <5000000>;
 	};
 
-	vcc_1v8: vcc-1v8-regulator {
+	vcc_1v8: regulator-vcc-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_1v8";
 		regulator-always-on;
@@ -47,7 +47,7 @@
 		vin-supply = <&vcc_1v8_p>;
 	};
 
-	vcc_3v3: vcc-3v3-regulator {
+	vcc_3v3: regulator-vcc-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_3v3";
 		regulator-always-on;
@@ -57,7 +57,7 @@
 		vin-supply = <&vcc3v3_sys>;
 	};
 
-	vcca_1v8: vcca-1v8-regulator {
+	vcca_1v8: regulator-vcca-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcca_1v8";
 		regulator-always-on;
@@ -127,7 +127,7 @@
 		interrupts = <RK_PA3 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int_l>;
-		rockchip,system-power-controller;
+		system-power-controller;
 		wakeup-source;
 
 		vcc1-supply = <&vcc_sys>;

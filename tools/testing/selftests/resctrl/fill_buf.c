@@ -88,18 +88,6 @@ static int fill_one_span_read(unsigned char *buf, size_t buf_size)
 	return sum;
 }
 
-static void fill_one_span_write(unsigned char *buf, size_t buf_size)
-{
-	unsigned char *end_ptr = buf + buf_size;
-	unsigned char *p;
-
-	p = buf;
-	while (p < end_ptr) {
-		*p = '1';
-		p += (CL_SIZE / 2);
-	}
-}
-
 void fill_cache_read(unsigned char *buf, size_t buf_size, bool once)
 {
 	int ret = 0;
@@ -114,20 +102,11 @@ void fill_cache_read(unsigned char *buf, size_t buf_size, bool once)
 	*value_sink = ret;
 }
 
-static void fill_cache_write(unsigned char *buf, size_t buf_size, bool once)
-{
-	while (1) {
-		fill_one_span_write(buf, buf_size);
-		if (once)
-			break;
-	}
-}
-
-unsigned char *alloc_buffer(size_t buf_size, int memflush)
+unsigned char *alloc_buffer(size_t buf_size, bool memflush)
 {
 	void *buf = NULL;
 	uint64_t *p64;
-	size_t s64;
+	ssize_t s64;
 	int ret;
 
 	ret = posix_memalign(&buf, PAGE_SIZE, buf_size);
@@ -151,19 +130,15 @@ unsigned char *alloc_buffer(size_t buf_size, int memflush)
 	return buf;
 }
 
-int run_fill_buf(size_t buf_size, int memflush, int op, bool once)
+ssize_t get_fill_buf_size(int cpu_no, const char *cache_type)
 {
-	unsigned char *buf;
+	unsigned long cache_total_size = 0;
+	int ret;
 
-	buf = alloc_buffer(buf_size, memflush);
-	if (!buf)
-		return -1;
+	ret = get_cache_size(cpu_no, cache_type, &cache_total_size);
+	if (ret)
+		return ret;
 
-	if (op == 0)
-		fill_cache_read(buf, buf_size, once);
-	else
-		fill_cache_write(buf, buf_size, once);
-	free(buf);
-
-	return 0;
+	return cache_total_size * 2 > MINIMUM_SPAN ?
+			cache_total_size * 2 : MINIMUM_SPAN;
 }

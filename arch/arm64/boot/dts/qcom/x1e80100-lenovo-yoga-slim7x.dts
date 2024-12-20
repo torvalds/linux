@@ -15,6 +15,14 @@
 	model = "Lenovo Yoga Slim 7x";
 	compatible = "lenovo,yoga-slim7x", "qcom,x1e80100";
 
+	aliases {
+		serial0 = &uart21;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
 	pmic-glink {
 		compatible = "qcom,x1e80100-pmic-glink",
 			     "qcom,sm8550-pmic-glink",
@@ -166,17 +174,6 @@
 		};
 	};
 
-	vph_pwr: vph-pwr-regulator {
-		compatible = "regulator-fixed";
-
-		regulator-name = "vph_pwr";
-		regulator-min-microvolt = <3700000>;
-		regulator-max-microvolt = <3700000>;
-
-		regulator-always-on;
-		regulator-boot-on;
-	};
-
 	vreg_edp_3p3: regulator-edp-3p3 {
 		compatible = "regulator-fixed";
 
@@ -206,6 +203,17 @@
 		pinctrl-0 = <&nvme_reg_en>;
 		pinctrl-names = "default";
 
+		regulator-boot-on;
+	};
+
+	vph_pwr: regulator-vph-pwr {
+		compatible = "regulator-fixed";
+
+		regulator-name = "vph_pwr";
+		regulator-min-microvolt = <3700000>;
+		regulator-max-microvolt = <3700000>;
+
+		regulator-always-on;
 		regulator-boot-on;
 	};
 };
@@ -885,6 +893,11 @@
 
 };
 
+&uart21 {
+	compatible = "qcom,geni-debug-uart";
+	status = "okay";
+};
+
 &usb_1_ss0_hsphy {
 	vdd-supply = <&vreg_l3j_0p8>;
 	vdda12-supply = <&vreg_l2j_1p2>;
@@ -897,8 +910,6 @@
 &usb_1_ss0_qmpphy {
 	vdda-phy-supply = <&vreg_l3e_1p2>;
 	vdda-pll-supply = <&vreg_l1j_0p8>;
-
-	orientation-switch;
 
 	status = "okay";
 };
@@ -931,8 +942,6 @@
 &usb_1_ss1_qmpphy {
 	vdda-phy-supply = <&vreg_l3e_1p2>;
 	vdda-pll-supply = <&vreg_l2d_0p9>;
-
-	orientation-switch;
 
 	status = "okay";
 };

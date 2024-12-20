@@ -34,6 +34,7 @@
 #include <asm/cpufeature.h>
 #include <asm/debug-monitors.h>
 #include <asm/fpsimd.h>
+#include <asm/gcs.h>
 #include <asm/mte.h>
 #include <asm/pointer_auth.h>
 #include <asm/stacktrace.h>
@@ -719,6 +720,8 @@ static int fpmr_set(struct task_struct *target, const struct user_regset *regset
 	if (!system_supports_fpmr())
 		return -EINVAL;
 
+	fpmr = target->thread.uw.fpmr;
+
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &fpmr, 0, count);
 	if (ret)
 		return ret;
@@ -898,7 +901,11 @@ static int sve_set_common(struct task_struct *target,
 	if (ret)
 		goto out;
 
-	/* Actual VL set may be less than the user asked for: */
+	/*
+	 * Actual VL set may be different from what the user asked
+	 * for, or we may have configured the _ONEXEC VL not the
+	 * current VL:
+	 */
 	vq = sve_vq_from_vl(task_get_vl(target, type));
 
 	/* Enter/exit streaming mode */
@@ -1125,7 +1132,11 @@ static int za_set(struct task_struct *target,
 	if (ret)
 		goto out;
 
-	/* Actual VL set may be less than the user asked for: */
+	/*
+	 * Actual VL set may be different from what the user asked
+	 * for, or we may have configured the _ONEXEC rather than
+	 * current VL:
+	 */
 	vq = sve_vq_from_vl(task_get_sme_vl(target));
 
 	/* Ensure there is some SVE storage for streaming mode */
@@ -1418,7 +1429,7 @@ static int tagged_addr_ctrl_get(struct task_struct *target,
 {
 	long ctrl = get_tagged_addr_ctrl(target);
 
-	if (IS_ERR_VALUE(ctrl))
+	if (WARN_ON_ONCE(IS_ERR_VALUE(ctrl)))
 		return ctrl;
 
 	return membuf_write(&to, &ctrl, sizeof(ctrl));
@@ -1431,6 +1442,10 @@ static int tagged_addr_ctrl_set(struct task_struct *target, const struct
 {
 	int ret;
 	long ctrl;
+
+	ctrl = get_tagged_addr_ctrl(target);
+	if (WARN_ON_ONCE(IS_ERR_VALUE(ctrl)))
+		return ctrl;
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &ctrl, 0, -1);
 	if (ret)
@@ -1463,11 +1478,73 @@ static int poe_set(struct task_struct *target, const struct
 	if (!system_supports_poe())
 		return -EINVAL;
 
+	ctrl = target->thread.por_el0;
+
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &ctrl, 0, -1);
 	if (ret)
 		return ret;
 
 	target->thread.por_el0 = ctrl;
+
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_ARM64_GCS
+static void task_gcs_to_user(struct user_gcs *user_gcs,
+			     const struct task_struct *target)
+{
+	user_gcs->features_enabled = target->thread.gcs_el0_mode;
+	user_gcs->features_locked = target->thread.gcs_el0_locked;
+	user_gcs->gcspr_el0 = target->thread.gcspr_el0;
+}
+
+static void task_gcs_from_user(struct task_struct *target,
+			       const struct user_gcs *user_gcs)
+{
+	target->thread.gcs_el0_mode = user_gcs->features_enabled;
+	target->thread.gcs_el0_locked = user_gcs->features_locked;
+	target->thread.gcspr_el0 = user_gcs->gcspr_el0;
+}
+
+static int gcs_get(struct task_struct *target,
+		   const struct user_regset *regset,
+		   struct membuf to)
+{
+	struct user_gcs user_gcs;
+
+	if (!system_supports_gcs())
+		return -EINVAL;
+
+	if (target == current)
+		gcs_preserve_current_state();
+
+	task_gcs_to_user(&user_gcs, target);
+
+	return membuf_write(&to, &user_gcs, sizeof(user_gcs));
+}
+
+static int gcs_set(struct task_struct *target, const struct
+		   user_regset *regset, unsigned int pos,
+		   unsigned int count, const void *kbuf, const
+		   void __user *ubuf)
+{
+	int ret;
+	struct user_gcs user_gcs;
+
+	if (!system_supports_gcs())
+		return -EINVAL;
+
+	task_gcs_to_user(&user_gcs, target);
+
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &user_gcs, 0, -1);
+	if (ret)
+		return ret;
+
+	if (user_gcs.features_enabled & ~PR_SHADOW_STACK_SUPPORTED_STATUS_MASK)
+		return -EINVAL;
+
+	task_gcs_from_user(target, &user_gcs);
 
 	return 0;
 }
@@ -1503,7 +1580,10 @@ enum aarch64_regset {
 	REGSET_TAGGED_ADDR_CTRL,
 #endif
 #ifdef CONFIG_ARM64_POE
-	REGSET_POE
+	REGSET_POE,
+#endif
+#ifdef CONFIG_ARM64_GCS
+	REGSET_GCS,
 #endif
 };
 
@@ -1672,6 +1752,16 @@ static const struct user_regset aarch64_regsets[] = {
 		.align = sizeof(long),
 		.regset_get = poe_get,
 		.set = poe_set,
+	},
+#endif
+#ifdef CONFIG_ARM64_GCS
+	[REGSET_GCS] = {
+		.core_note_type = NT_ARM_GCS,
+		.n = sizeof(struct user_gcs) / sizeof(u64),
+		.size = sizeof(u64),
+		.align = sizeof(u64),
+		.regset_get = gcs_get,
+		.set = gcs_set,
 	},
 #endif
 };

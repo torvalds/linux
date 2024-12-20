@@ -32,7 +32,6 @@
  *                   swap_lock (in swap_duplicate, swap_info_get)
  *                     mmlist_lock (in mmput, drain_mmlist and others)
  *                     mapping->private_lock (in block_dirty_folio)
- *                       folio_lock_memcg move_lock (in block_dirty_folio)
  *                         i_pages lock (widely used)
  *                           lruvec->lru_lock (in folio_lruvec_lock_irq)
  *                     inode->i_lock (in set_page_dirty's __mark_inode_dirty)
@@ -497,7 +496,7 @@ void __init anon_vma_init(void)
  * concurrently without folio lock protection). See folio_lock_anon_vma_read()
  * which has already covered that, and comment above remap_pages().
  */
-struct anon_vma *folio_get_anon_vma(struct folio *folio)
+struct anon_vma *folio_get_anon_vma(const struct folio *folio)
 {
 	struct anon_vma *anon_vma = NULL;
 	unsigned long anon_mapping;
@@ -541,7 +540,7 @@ out:
  * reference like with folio_get_anon_vma() and then block on the mutex
  * on !rwc->try_lock case.
  */
-struct anon_vma *folio_lock_anon_vma_read(struct folio *folio,
+struct anon_vma *folio_lock_anon_vma_read(const struct folio *folio,
 					  struct rmap_walk_control *rwc)
 {
 	struct anon_vma *anon_vma = NULL;
@@ -768,15 +767,27 @@ static bool should_defer_flush(struct mm_struct *mm, enum ttu_flags flags)
 }
 #endif /* CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH */
 
-/*
- * At what user virtual address is page expected in vma?
- * Caller should check the page is actually part of the vma.
+/**
+ * page_address_in_vma - The virtual address of a page in this VMA.
+ * @folio: The folio containing the page.
+ * @page: The page within the folio.
+ * @vma: The VMA we need to know the address in.
+ *
+ * Calculates the user virtual address of this page in the specified VMA.
+ * It is the caller's responsibililty to check the page is actually
+ * within the VMA.  There may not currently be a PTE pointing at this
+ * page, but if a page fault occurs at this address, this is the page
+ * which will be accessed.
+ *
+ * Context: Caller should hold a reference to the folio.  Caller should
+ * hold a lock (eg the i_mmap_lock or the mmap_lock) which keeps the
+ * VMA from being altered.
+ *
+ * Return: The virtual address corresponding to this page in the VMA.
  */
-unsigned long page_address_in_vma(struct page *page, struct vm_area_struct *vma)
+unsigned long page_address_in_vma(const struct folio *folio,
+		const struct page *page, const struct vm_area_struct *vma)
 {
-	struct folio *folio = page_folio(page);
-	pgoff_t pgoff;
-
 	if (folio_test_anon(folio)) {
 		struct anon_vma *page__anon_vma = folio_anon_vma(folio);
 		/*
@@ -792,9 +803,8 @@ unsigned long page_address_in_vma(struct page *page, struct vm_area_struct *vma)
 		return -EFAULT;
 	}
 
-	/* The !page__anon_vma above handles KSM folios */
-	pgoff = folio->index + folio_page_idx(folio, page);
-	return vma_address(vma, pgoff, 1);
+	/* KSM folios don't reach here because of the !page__anon_vma check */
+	return vma_address(vma, page_pgoff(folio, page), 1);
 }
 
 /*
@@ -1261,8 +1271,9 @@ static void __folio_set_anon(struct folio *folio, struct vm_area_struct *vma,
  * @vma:	the vm area in which the mapping is added
  * @address:	the user virtual address mapped
  */
-static void __page_check_anon_rmap(struct folio *folio, struct page *page,
-	struct vm_area_struct *vma, unsigned long address)
+static void __page_check_anon_rmap(const struct folio *folio,
+		const struct page *page, struct vm_area_struct *vma,
+		unsigned long address)
 {
 	/*
 	 * The page's anon-rmap details (mapping and index) are guaranteed to
@@ -1277,7 +1288,7 @@ static void __page_check_anon_rmap(struct folio *folio, struct page *page,
 	 */
 	VM_BUG_ON_FOLIO(folio_anon_vma(folio)->root != vma->anon_vma->root,
 			folio);
-	VM_BUG_ON_PAGE(page_to_pgoff(page) != linear_page_index(vma, address),
+	VM_BUG_ON_PAGE(page_pgoff(folio, page) != linear_page_index(vma, address),
 		       page);
 }
 
@@ -2559,7 +2570,7 @@ void __put_anon_vma(struct anon_vma *anon_vma)
 		anon_vma_free(root);
 }
 
-static struct anon_vma *rmap_walk_anon_lock(struct folio *folio,
+static struct anon_vma *rmap_walk_anon_lock(const struct folio *folio,
 					    struct rmap_walk_control *rwc)
 {
 	struct anon_vma *anon_vma;

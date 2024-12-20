@@ -470,7 +470,7 @@ MODULE_DEVICE_TABLE(of, arche_apb_ctrl_of_match);
 
 static struct platform_driver arche_apb_ctrl_device_driver = {
 	.probe		= arche_apb_ctrl_probe,
-	.remove_new	= arche_apb_ctrl_remove,
+	.remove		= arche_apb_ctrl_remove,
 	.shutdown	= arche_apb_ctrl_shutdown,
 	.driver		= {
 		.name	= "arche-apb-ctrl",

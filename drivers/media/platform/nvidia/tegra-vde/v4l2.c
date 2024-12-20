@@ -328,8 +328,6 @@ static const struct vb2_ops tegra_qops = {
 	.buf_request_complete = tegra_buf_request_complete,
 	.start_streaming = tegra_start_streaming,
 	.stop_streaming = tegra_stop_streaming,
-	.wait_prepare = vb2_ops_wait_prepare,
-	.wait_finish = vb2_ops_wait_finish,
 };
 
 static int tegra_queue_init(void *priv,
@@ -929,13 +927,13 @@ int tegra_vde_v4l2_init(struct tegra_vde *vde)
 	media_device_init(&vde->mdev);
 	video_set_drvdata(&vde->vdev, vde);
 
-	vde->vdev.lock = &vde->v4l2_lock,
-	vde->vdev.fops = &tegra_v4l2_fops,
-	vde->vdev.vfl_dir = VFL_DIR_M2M,
-	vde->vdev.release = video_device_release_empty,
+	vde->vdev.lock = &vde->v4l2_lock;
+	vde->vdev.fops = &tegra_v4l2_fops;
+	vde->vdev.vfl_dir = VFL_DIR_M2M;
+	vde->vdev.release = video_device_release_empty;
 	vde->vdev.v4l2_dev = &vde->v4l2_dev;
-	vde->vdev.ioctl_ops = &tegra_v4l2_ioctl_ops,
-	vde->vdev.device_caps = V4L2_CAP_VIDEO_M2M_MPLANE | V4L2_CAP_STREAMING,
+	vde->vdev.ioctl_ops = &tegra_v4l2_ioctl_ops;
+	vde->vdev.device_caps = V4L2_CAP_VIDEO_M2M_MPLANE | V4L2_CAP_STREAMING;
 
 	vde->v4l2_dev.mdev = &vde->mdev;
 	vde->mdev.ops = &tegra_media_device_ops;

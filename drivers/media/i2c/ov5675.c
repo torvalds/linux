@@ -510,7 +510,7 @@ struct ov5675 {
 	/* Current mode */
 	const struct ov5675_mode *cur_mode;
 
-	/* To serialize asynchronus callbacks */
+	/* To serialize asynchronous callbacks */
 	struct mutex mutex;
 
 	/* True if the device has been identified */
@@ -732,7 +732,7 @@ static int ov5675_set_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_EXPOSURE:
 		/* 4 least significant bits of expsoure are fractional part
 		 * val = val << 4
-		 * for ov5675, the unit of exposure is differnt from other
+		 * for ov5675, the unit of exposure is different from other
 		 * OmniVision sensors, its exposure value is twice of the
 		 * register value, the exposure should be divided by 2 before
 		 * set register, e.g. val << 3.

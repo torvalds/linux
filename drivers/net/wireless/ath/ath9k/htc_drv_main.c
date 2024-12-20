@@ -1357,8 +1357,10 @@ static int ath9k_htc_sta_remove(struct ieee80211_hw *hw,
 
 static void ath9k_htc_sta_rc_update(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
-				    struct ieee80211_sta *sta, u32 changed)
+				    struct ieee80211_link_sta *link_sta,
+				    u32 changed)
 {
+	struct ieee80211_sta *sta = link_sta->sta;
 	struct ath9k_htc_sta *ista = (struct ath9k_htc_sta *) sta->drv_priv;
 
 	if (!(changed & IEEE80211_RC_SUPP_RATES_CHANGED))
@@ -1883,7 +1885,7 @@ struct ieee80211_ops ath9k_htc_ops = {
 	.sta_add            = ath9k_htc_sta_add,
 	.sta_remove         = ath9k_htc_sta_remove,
 	.conf_tx            = ath9k_htc_conf_tx,
-	.sta_rc_update      = ath9k_htc_sta_rc_update,
+	.link_sta_rc_update = ath9k_htc_sta_rc_update,
 	.bss_info_changed   = ath9k_htc_bss_info_changed,
 	.set_key            = ath9k_htc_set_key,
 	.get_tsf            = ath9k_htc_get_tsf,

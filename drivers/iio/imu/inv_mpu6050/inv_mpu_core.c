@@ -286,6 +286,24 @@ static const struct inv_mpu6050_hw hw_info[] = {
 		.temp = {INV_ICM20608_TEMP_OFFSET, INV_ICM20608_TEMP_SCALE},
 		.startup_time = {INV_MPU6500_GYRO_STARTUP_TIME, INV_MPU6500_ACCEL_STARTUP_TIME},
 	},
+	{
+		.whoami = INV_IAM20680HP_WHOAMI_VALUE,
+		.name = "IAM20680HP",
+		.reg = &reg_set_6500,
+		.config = &chip_config_6500,
+		.fifo_size = 4 * 1024,
+		.temp = {INV_ICM20608_TEMP_OFFSET, INV_ICM20608_TEMP_SCALE},
+		.startup_time = {INV_MPU6500_GYRO_STARTUP_TIME, INV_MPU6500_ACCEL_STARTUP_TIME},
+	},
+	{
+		.whoami = INV_IAM20680HT_WHOAMI_VALUE,
+		.name = "IAM20680HT",
+		.reg = &reg_set_6500,
+		.config = &chip_config_6500,
+		.fifo_size = 4 * 1024,
+		.temp = {INV_ICM20608_TEMP_OFFSET, INV_ICM20608_TEMP_SCALE},
+		.startup_time = {INV_MPU6500_GYRO_STARTUP_TIME, INV_MPU6500_ACCEL_STARTUP_TIME},
+	},
 };
 
 static int inv_mpu6050_pwr_mgmt_1_write(struct inv_mpu6050_state *st, bool sleep,
@@ -510,6 +528,8 @@ static int inv_mpu6050_set_accel_lpf_regs(struct inv_mpu6050_state *st,
 		return 0;
 	case INV_ICM20689:
 	case INV_ICM20690:
+	case INV_IAM20680HT:
+	case INV_IAM20680HP:
 		/* set FIFO size to maximum value */
 		val |= INV_ICM20689_BITS_FIFO_SIZE_MAX;
 		break;
@@ -1153,24 +1173,21 @@ static int inv_mpu6050_write_event_config(struct iio_dev *indio_dev,
 					  const struct iio_chan_spec *chan,
 					  enum iio_event_type type,
 					  enum iio_event_direction dir,
-					  int state)
+					  bool state)
 {
 	struct inv_mpu6050_state *st = iio_priv(indio_dev);
-	int enable;
 
 	/* support only WoM (accel roc rising) event */
 	if (chan->type != IIO_ACCEL || type != IIO_EV_TYPE_ROC ||
 	    dir != IIO_EV_DIR_RISING)
 		return -EINVAL;
 
-	enable = !!state;
-
 	guard(mutex)(&st->lock);
 
-	if (st->chip_config.wom_en == enable)
+	if (st->chip_config.wom_en == state)
 		return 0;
 
-	return inv_mpu6050_enable_wom(st, enable);
+	return inv_mpu6050_enable_wom(st, state);
 }
 
 static int inv_mpu6050_read_event_value(struct iio_dev *indio_dev,
@@ -1859,7 +1876,6 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 	struct inv_mpu6050_platform_data *pdata;
 	struct device *dev = regmap_get_device(regmap);
 	int result;
-	struct irq_data *desc;
 	int irq_type;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
@@ -1893,13 +1909,7 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 	}
 
 	if (irq > 0) {
-		desc = irq_get_irq_data(irq);
-		if (!desc) {
-			dev_err(dev, "Could not find IRQ %d\n", irq);
-			return -EINVAL;
-		}
-
-		irq_type = irqd_get_trigger_type(desc);
+		irq_type = irq_get_trigger_type(irq);
 		if (!irq_type)
 			irq_type = IRQF_TRIGGER_RISING;
 	} else {
@@ -2082,7 +2092,7 @@ error_power_off:
 	inv_mpu6050_set_power_itg(st, false);
 	return result;
 }
-EXPORT_SYMBOL_NS_GPL(inv_mpu_core_probe, IIO_MPU6050);
+EXPORT_SYMBOL_NS_GPL(inv_mpu_core_probe, "IIO_MPU6050");
 
 static int inv_mpu_resume(struct device *dev)
 {
@@ -2233,4 +2243,4 @@ EXPORT_NS_GPL_DEV_PM_OPS(inv_mpu_pmops, IIO_MPU6050) = {
 MODULE_AUTHOR("Invensense Corporation");
 MODULE_DESCRIPTION("Invensense device MPU6050 driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(IIO_INV_SENSORS_TIMESTAMP);
+MODULE_IMPORT_NS("IIO_INV_SENSORS_TIMESTAMP");

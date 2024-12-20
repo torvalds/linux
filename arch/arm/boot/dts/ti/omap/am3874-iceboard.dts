@@ -249,8 +249,8 @@
 			tmp100@4c { compatible = "ti,tmp100"; reg = <0x4c>; };
 
 			/* EEPROM bank and serial number are treated as separate devices */
-			at24c01@57 { compatible = "atmel,24c01"; reg = <0x57>; };
-			at24cs01@5f { compatible = "atmel,24cs01"; reg = <0x5f>; };
+			eeprom@57 { compatible = "atmel,24c01"; reg = <0x57>; };
+			eeprom@5f { compatible = "atmel,24cs01"; reg = <0x5f>; };
 		};
 	};
 };
@@ -270,8 +270,8 @@
 			multi-master;
 
 			/* All backplanes should have this -- it's how we know they're there. */
-			at24c08@54 { compatible="atmel,24c08"; reg=<0x54>; };
-			at24cs08@5c { compatible="atmel,24cs08"; reg=<0x5c>; };
+			eeprom@54 { compatible="atmel,24c08"; reg=<0x54>; };
+			eeprom@5c { compatible="atmel,24cs08"; reg=<0x5c>; };
 
 			/* 16 slot backplane */
 			tmp421@4d { compatible="ti,tmp421"; reg=<0x4d>; };

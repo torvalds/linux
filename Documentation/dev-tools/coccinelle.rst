@@ -250,25 +250,17 @@ variables for .cocciconfig is as follows:
 - Your directory from which spatch is called is processed next
 - The directory provided with the ``--dir`` option is processed last, if used
 
-Since coccicheck runs through make, it naturally runs from the kernel
-proper dir; as such the second rule above would be implied for picking up a
-.cocciconfig when using ``make coccicheck``.
-
 ``make coccicheck`` also supports using M= targets. If you do not supply
 any M= target, it is assumed you want to target the entire kernel.
 The kernel coccicheck script has::
 
-    if [ "$KBUILD_EXTMOD" = "" ] ; then
-        OPTIONS="--dir $srctree $COCCIINCLUDE"
-    else
-        OPTIONS="--dir $KBUILD_EXTMOD $COCCIINCLUDE"
-    fi
+    OPTIONS="--dir $srcroot $COCCIINCLUDE"
 
-KBUILD_EXTMOD is set when an explicit target with M= is used. For both cases
-the spatch ``--dir`` argument is used, as such third rule applies when whether
-M= is used or not, and when M= is used the target directory can have its own
-.cocciconfig file. When M= is not passed as an argument to coccicheck the
-target directory is the same as the directory from where spatch was called.
+Here, $srcroot refers to the source directory of the target: it points to the
+external module's source directory when M= used, and otherwise, to the kernel
+source directory. The third rule ensures the spatch reads the .cocciconfig from
+the target directory, allowing external modules to have their own .cocciconfig
+file.
 
 If not using the kernel's coccicheck target, keep the above precedence
 order logic of .cocciconfig reading. If using the kernel's coccicheck target,

@@ -2,6 +2,7 @@
 bind_bhash
 bind_timewait
 bind_wildcard
+busy_poller
 cmsg_sender
 diag_uid
 epoll_busy_poll
@@ -18,7 +19,7 @@ ipv6_flowlabel_mgr
 log.txt
 msg_oob
 msg_zerocopy
-ncdevmem
+netlink-dumps
 nettest
 psock_fanout
 psock_snd

@@ -1,0 +1,20 @@
+# Suspend to RAM seems to be broken on this machine
+.*suspend.*
+
+# Skip driver specific tests
+^amdgpu.*
+^msm.*
+nouveau_.*
+^panfrost.*
+^v3d.*
+^vc4.*
+^vmwgfx*
+
+# GEM tests takes ~1000 hours, so skip it
+gem_.*
+
+# trap_err
+i915_pm_rc6_residency.*
+
+# Hangs the machine and timeout occurs
+i915_pm_rpm@system-hibernate*

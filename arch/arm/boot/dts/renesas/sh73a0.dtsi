@@ -273,7 +273,6 @@
 			     <GIC_SPI 141 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp3_clks SH73A0_CLK_MMCIF0>;
 		power-domains = <&pd_a3sp>;
-		reg-io-width = <4>;
 		status = "disabled";
 	};
 

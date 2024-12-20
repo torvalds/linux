@@ -852,7 +852,8 @@ static int cp2112_set_usb_config(struct hid_device *hdev,
 {
 	int ret;
 
-	BUG_ON(cfg->report != CP2112_USB_CONFIG);
+	if (WARN_ON(cfg->report != CP2112_USB_CONFIG))
+		return -EINVAL;
 
 	ret = cp2112_hid_output(hdev, (u8 *)cfg, sizeof(*cfg),
 				HID_FEATURE_REPORT);

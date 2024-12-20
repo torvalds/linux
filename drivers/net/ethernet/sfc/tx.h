@@ -15,9 +15,6 @@
 unsigned int efx_tx_limit_len(struct efx_tx_queue *tx_queue,
 			      dma_addr_t dma_addr, unsigned int len);
 
-u8 *efx_tx_get_copy_buffer_limited(struct efx_tx_queue *tx_queue,
-				   struct efx_tx_buffer *buffer, size_t len);
-
 /* What TXQ type will satisfy the checksum offloads required for this skb? */
 static inline unsigned int efx_tx_csum_type_skb(struct sk_buff *skb)
 {

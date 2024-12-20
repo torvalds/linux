@@ -409,7 +409,7 @@ static SIMPLE_DEV_PM_OPS(pxa_rtc_pm_ops, pxa_rtc_suspend, pxa_rtc_resume);
  * triggering a section mismatch warning.
  */
 static struct platform_driver pxa_rtc_driver __refdata = {
-	.remove_new	= __exit_p(pxa_rtc_remove),
+	.remove		= __exit_p(pxa_rtc_remove),
 	.driver		= {
 		.name	= "pxa-rtc",
 		.of_match_table = of_match_ptr(pxa_rtc_dt_ids),

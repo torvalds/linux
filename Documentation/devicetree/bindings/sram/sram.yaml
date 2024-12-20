@@ -101,6 +101,12 @@ patternProperties:
           IO mem address range, relative to the SRAM range.
         maxItems: 1
 
+      reg-io-width:
+        description:
+          The size (in bytes) of the IO accesses that should be performed on the
+          SRAM.
+        enum: [1, 2, 4, 8]
+
       pool:
         description:
           Indicates that the particular reserved SRAM area is addressable

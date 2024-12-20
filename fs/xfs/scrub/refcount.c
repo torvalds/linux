@@ -453,7 +453,8 @@ xchk_refcountbt_rec(
 	struct xchk_refcbt_records *rrc = bs->private;
 
 	xfs_refcount_btrec_to_irec(rec, &irec);
-	if (xfs_refcount_check_irec(bs->cur->bc_ag.pag, &irec) != NULL) {
+	if (xfs_refcount_check_irec(to_perag(bs->cur->bc_group), &irec) !=
+			NULL) {
 		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 		return 0;
 	}
@@ -490,7 +491,7 @@ xchk_refcount_xref_rmap(
 	struct xfs_scrub	*sc,
 	xfs_filblks_t		cow_blocks)
 {
-	xfs_extlen_t		refcbt_blocks = 0;
+	xfs_filblks_t		refcbt_blocks = 0;
 	xfs_filblks_t		blocks;
 	int			error;
 

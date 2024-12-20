@@ -16,7 +16,7 @@ OUTPUT_ARCH(powerpc:common64)
 
 SECTIONS
 {
-	PROVIDE(_vdso_datapage = . - 2 * PAGE_SIZE);
+	PROVIDE(_vdso_datapage = . - 3 * PAGE_SIZE);
 	. = SIZEOF_HEADERS;
 
 	.hash		: { *(.hash) }			:text

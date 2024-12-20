@@ -674,12 +674,8 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job,
 	pasid_mapping_needed &= adev->gmc.gmc_funcs->emit_pasid_mapping &&
 		ring->funcs->emit_wreg;
 
-	if (adev->gfx.enable_cleaner_shader &&
-	    ring->funcs->emit_cleaner_shader &&
-	    job->enforce_isolation)
-		ring->funcs->emit_cleaner_shader(ring);
-
-	if (!vm_flush_needed && !gds_switch_needed && !need_pipe_sync)
+	if (!vm_flush_needed && !gds_switch_needed && !need_pipe_sync &&
+	    !(job->enforce_isolation && !job->vmid))
 		return 0;
 
 	amdgpu_ring_ib_begin(ring);
@@ -689,6 +685,11 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job,
 
 	if (need_pipe_sync)
 		amdgpu_ring_emit_pipeline_sync(ring);
+
+	if (adev->gfx.enable_cleaner_shader &&
+	    ring->funcs->emit_cleaner_shader &&
+	    job->enforce_isolation)
+		ring->funcs->emit_cleaner_shader(ring);
 
 	if (vm_flush_needed) {
 		trace_amdgpu_vm_flush(ring, job->vmid, job->vm_pd_addr);
@@ -1083,7 +1084,8 @@ error_free:
 }
 
 static void amdgpu_vm_bo_get_memory(struct amdgpu_bo_va *bo_va,
-				    struct amdgpu_mem_stats *stats)
+				    struct amdgpu_mem_stats *stats,
+				    unsigned int size)
 {
 	struct amdgpu_vm *vm = bo_va->base.vm;
 	struct amdgpu_bo *bo = bo_va->base.bo;
@@ -1099,34 +1101,35 @@ static void amdgpu_vm_bo_get_memory(struct amdgpu_bo_va *bo_va,
 	    !dma_resv_trylock(bo->tbo.base.resv))
 		return;
 
-	amdgpu_bo_get_memory(bo, stats);
+	amdgpu_bo_get_memory(bo, stats, size);
 	if (!amdgpu_vm_is_bo_always_valid(vm, bo))
 		dma_resv_unlock(bo->tbo.base.resv);
 }
 
 void amdgpu_vm_get_memory(struct amdgpu_vm *vm,
-			  struct amdgpu_mem_stats *stats)
+			  struct amdgpu_mem_stats *stats,
+			  unsigned int size)
 {
 	struct amdgpu_bo_va *bo_va, *tmp;
 
 	spin_lock(&vm->status_lock);
 	list_for_each_entry_safe(bo_va, tmp, &vm->idle, base.vm_status)
-		amdgpu_vm_bo_get_memory(bo_va, stats);
+		amdgpu_vm_bo_get_memory(bo_va, stats, size);
 
 	list_for_each_entry_safe(bo_va, tmp, &vm->evicted, base.vm_status)
-		amdgpu_vm_bo_get_memory(bo_va, stats);
+		amdgpu_vm_bo_get_memory(bo_va, stats, size);
 
 	list_for_each_entry_safe(bo_va, tmp, &vm->relocated, base.vm_status)
-		amdgpu_vm_bo_get_memory(bo_va, stats);
+		amdgpu_vm_bo_get_memory(bo_va, stats, size);
 
 	list_for_each_entry_safe(bo_va, tmp, &vm->moved, base.vm_status)
-		amdgpu_vm_bo_get_memory(bo_va, stats);
+		amdgpu_vm_bo_get_memory(bo_va, stats, size);
 
 	list_for_each_entry_safe(bo_va, tmp, &vm->invalidated, base.vm_status)
-		amdgpu_vm_bo_get_memory(bo_va, stats);
+		amdgpu_vm_bo_get_memory(bo_va, stats, size);
 
 	list_for_each_entry_safe(bo_va, tmp, &vm->done, base.vm_status)
-		amdgpu_vm_bo_get_memory(bo_va, stats);
+		amdgpu_vm_bo_get_memory(bo_va, stats, size);
 	spin_unlock(&vm->status_lock);
 }
 
@@ -1159,7 +1162,7 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 	int r;
 
 	amdgpu_sync_create(&sync);
-	if (clear || !bo) {
+	if (clear) {
 		mem = NULL;
 
 		/* Implicitly sync to command submissions in the same VM before
@@ -1174,6 +1177,10 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 			if (r)
 				goto error_free;
 		}
+	} else if (!bo) {
+		mem = NULL;
+
+		/* PRT map operations don't need to sync to anything. */
 
 	} else {
 		struct drm_gem_object *obj = &bo->tbo.base;

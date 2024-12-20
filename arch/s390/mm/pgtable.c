@@ -525,7 +525,7 @@ static inline void pudp_idte_global(struct mm_struct *mm,
 	else
 		/*
 		 * Invalid bit position is the same for pmd and pud, so we can
-		 * re-use _pmd_csp() here
+		 * reuse _pmd_csp() here
 		 */
 		__pmdp_csp((pmd_t *) pudp);
 }

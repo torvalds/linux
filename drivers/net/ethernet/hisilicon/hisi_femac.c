@@ -959,7 +959,7 @@ static struct platform_driver hisi_femac_driver = {
 		.of_match_table = hisi_femac_match,
 	},
 	.probe = hisi_femac_drv_probe,
-	.remove_new = hisi_femac_drv_remove,
+	.remove = hisi_femac_drv_remove,
 #ifdef CONFIG_PM
 	.suspend = hisi_femac_drv_suspend,
 	.resume = hisi_femac_drv_resume,

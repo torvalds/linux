@@ -27,7 +27,7 @@ properties:
     maxItems: 1
 
   "#pwm-cells":
-    const: 2
+    const: 3
 
   clocks:
     maxItems: 1
@@ -44,5 +44,5 @@ examples:
        compatible = "adi,axi-pwmgen-2.00.a";
        reg = <0x44b00000 0x1000>;
        clocks = <&spi_clk>;
-       #pwm-cells = <2>;
+       #pwm-cells = <3>;
     };

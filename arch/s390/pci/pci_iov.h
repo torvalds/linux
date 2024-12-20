@@ -10,6 +10,8 @@
 #ifndef __S390_PCI_IOV_H
 #define __S390_PCI_IOV_H
 
+#include <linux/pci.h>
+
 #ifdef CONFIG_PCI_IOV
 void zpci_iov_remove_virtfn(struct pci_dev *pdev, int vfn);
 

@@ -1272,7 +1272,7 @@ static struct platform_driver bigmac_sbus_driver = {
 		.of_match_table = bigmac_sbus_match,
 	},
 	.probe		= bigmac_sbus_probe,
-	.remove_new	= bigmac_sbus_remove,
+	.remove		= bigmac_sbus_remove,
 };
 
 module_platform_driver(bigmac_sbus_driver);

@@ -80,7 +80,7 @@ MODULE_DEVICE_TABLE(of, ns_thermal_of_match);
 
 static struct platform_driver ns_thermal_driver = {
 	.probe		= ns_thermal_probe,
-	.remove_new	= ns_thermal_remove,
+	.remove		= ns_thermal_remove,
 	.driver = {
 		.name = "ns-thermal",
 		.of_match_table = ns_thermal_of_match,

@@ -708,6 +708,9 @@ static void journal_entry_dev_usage_to_text(struct printbuf *out, struct bch_fs 
 		container_of(entry, struct jset_entry_dev_usage, entry);
 	unsigned i, nr_types = jset_entry_dev_usage_nr_types(u);
 
+	if (vstruct_bytes(entry) < sizeof(*u))
+		return;
+
 	prt_printf(out, "dev=%u", le32_to_cpu(u->dev));
 
 	printbuf_indent_add(out, 2);

@@ -33,7 +33,7 @@ struct btrfs_path;
  */
 #define BTRFS_TRANS_DIO_WRITE_STUB	((void *) 1)
 
-/* Radix-tree tag for roots that are part of the trasaction. */
+/* Radix-tree tag for roots that are part of the transaction. */
 #define BTRFS_ROOT_TRANS_TAG			0
 
 enum btrfs_trans_state {

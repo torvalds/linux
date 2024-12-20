@@ -46,6 +46,7 @@ static inline char *test_snprintf(const char *fmt, va_list vargs)
 
 	va_copy(tmp, vargs);
 	n = vsnprintf(ret, size, fmt, tmp);
+	va_end(tmp);
 	if (n < 0)
 		return NULL;
 

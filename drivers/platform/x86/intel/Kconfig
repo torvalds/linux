@@ -62,7 +62,7 @@ config INTEL_INT0002_VGPIO
 
 config INTEL_OAKTRAIL
 	tristate "Intel Oaktrail Platform Extras"
-	depends on ACPI
+	depends on ACPI_EC
 	depends on ACPI_VIDEO || ACPI_VIDEO=n
 	depends on RFKILL && BACKLIGHT_CLASS_DEVICE && ACPI
 	help

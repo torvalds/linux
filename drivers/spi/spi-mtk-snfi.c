@@ -776,7 +776,7 @@ static int mtk_snand_ecc_finish_io_req(struct nand_device *nand,
 	return snf->ecc_stats.failed ? -EBADMSG : snf->ecc_stats.bitflips;
 }
 
-static struct nand_ecc_engine_ops mtk_snfi_ecc_engine_ops = {
+static const struct nand_ecc_engine_ops mtk_snfi_ecc_engine_ops = {
 	.init_ctx = mtk_snand_ecc_init_ctx,
 	.cleanup_ctx = mtk_snand_ecc_cleanup_ctx,
 	.prepare_io_req = mtk_snand_ecc_prepare_io_req,
@@ -1477,7 +1477,7 @@ static void mtk_snand_remove(struct platform_device *pdev)
 
 static struct platform_driver mtk_snand_driver = {
 	.probe = mtk_snand_probe,
-	.remove_new = mtk_snand_remove,
+	.remove = mtk_snand_remove,
 	.driver = {
 		.name = "mtk-snand",
 		.of_match_table = mtk_snand_ids,

@@ -13,9 +13,6 @@
  * Derived from drivers/drm/gpu/panel/panel-ilitek-ili9322.c
  * the reuse of DBI abstraction part referred from Linus's patch
  * "drm/panel: s6e63m0: Switch to DBI abstraction for SPI"
- *
- * For only-dbi part, copy from David's code (drm/tiny/ili9341.c)
- * Copyright 2018 David Lechner <david@lechnology.com>
  */
 
 #include <linux/backlight.h>
@@ -486,176 +483,6 @@ static const struct drm_panel_funcs ili9341_dpi_funcs = {
 	.get_modes = ili9341_dpi_get_modes,
 };
 
-static void ili9341_dbi_enable(struct drm_simple_display_pipe *pipe,
-			       struct drm_crtc_state *crtc_state,
-			       struct drm_plane_state *plane_state)
-{
-	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(pipe->crtc.dev);
-	struct mipi_dbi *dbi = &dbidev->dbi;
-	u8 addr_mode;
-	int ret, idx;
-
-	if (!drm_dev_enter(pipe->crtc.dev, &idx))
-		return;
-
-	ret = mipi_dbi_poweron_conditional_reset(dbidev);
-	if (ret < 0)
-		goto out_exit;
-	if (ret == 1)
-		goto out_enable;
-
-	mipi_dbi_command(dbi, MIPI_DCS_SET_DISPLAY_OFF);
-
-	mipi_dbi_command(dbi, ILI9341_POWERB, 0x00, 0xc1, 0x30);
-	mipi_dbi_command(dbi, ILI9341_POWER_SEQ, 0x64, 0x03, 0x12, 0x81);
-	mipi_dbi_command(dbi, ILI9341_DTCA, 0x85, 0x00, 0x78);
-	mipi_dbi_command(dbi, ILI9341_POWERA, 0x39, 0x2c, 0x00, 0x34, 0x02);
-	mipi_dbi_command(dbi, ILI9341_PRC, ILI9341_DBI_PRC_NORMAL);
-	mipi_dbi_command(dbi, ILI9341_DTCB, 0x00, 0x00);
-
-	/* Power Control */
-	mipi_dbi_command(dbi, ILI9341_POWER1, ILI9341_DBI_VCOMH_4P6V);
-	mipi_dbi_command(dbi, ILI9341_POWER2, ILI9341_DBI_PWR_2_DEFAULT);
-	/* VCOM */
-	mipi_dbi_command(dbi, ILI9341_VCOM1, ILI9341_DBI_VCOM_1_VMH_4P25V,
-			 ILI9341_DBI_VCOM_1_VML_1P5V);
-	mipi_dbi_command(dbi, ILI9341_VCOM2, ILI9341_DBI_VCOM_2_DEC_58);
-
-	/* Memory Access Control */
-	mipi_dbi_command(dbi, MIPI_DCS_SET_PIXEL_FORMAT,
-			 MIPI_DCS_PIXEL_FMT_16BIT);
-
-	/* Frame Rate */
-	mipi_dbi_command(dbi, ILI9341_FRC, ILI9341_DBI_FRC_DIVA & 0x03,
-			 ILI9341_DBI_FRC_RTNA & 0x1f);
-
-	/* Gamma */
-	mipi_dbi_command(dbi, ILI9341_3GAMMA_EN, 0x00);
-	mipi_dbi_command(dbi, MIPI_DCS_SET_GAMMA_CURVE, ILI9341_GAMMA_CURVE_1);
-	mipi_dbi_command(dbi, ILI9341_PGAMMA,
-			 0x0f, 0x31, 0x2b, 0x0c, 0x0e, 0x08, 0x4e, 0xf1,
-			 0x37, 0x07, 0x10, 0x03, 0x0e, 0x09, 0x00);
-	mipi_dbi_command(dbi, ILI9341_NGAMMA,
-			 0x00, 0x0e, 0x14, 0x03, 0x11, 0x07, 0x31, 0xc1,
-			 0x48, 0x08, 0x0f, 0x0c, 0x31, 0x36, 0x0f);
-
-	/* DDRAM */
-	mipi_dbi_command(dbi, ILI9341_ETMOD, ILI9341_DBI_EMS_GAS |
-			 ILI9341_DBI_EMS_DTS |
-			 ILI9341_DBI_EMS_GON);
-
-	/* Display */
-	mipi_dbi_command(dbi, ILI9341_DFC, 0x08, 0x82, 0x27, 0x00);
-	mipi_dbi_command(dbi, MIPI_DCS_EXIT_SLEEP_MODE);
-	msleep(100);
-
-	mipi_dbi_command(dbi, MIPI_DCS_SET_DISPLAY_ON);
-	msleep(100);
-
-out_enable:
-	switch (dbidev->rotation) {
-	default:
-		addr_mode = ILI9341_MADCTL_MX;
-		break;
-	case 90:
-		addr_mode = ILI9341_MADCTL_MV;
-		break;
-	case 180:
-		addr_mode = ILI9341_MADCTL_MY;
-		break;
-	case 270:
-		addr_mode = ILI9341_MADCTL_MV | ILI9341_MADCTL_MY |
-			    ILI9341_MADCTL_MX;
-		break;
-	}
-
-	addr_mode |= ILI9341_MADCTL_BGR;
-	mipi_dbi_command(dbi, MIPI_DCS_SET_ADDRESS_MODE, addr_mode);
-	mipi_dbi_enable_flush(dbidev, crtc_state, plane_state);
-	drm_info(&dbidev->drm, "Initialized display serial interface\n");
-out_exit:
-	drm_dev_exit(idx);
-}
-
-static const struct drm_simple_display_pipe_funcs ili9341_dbi_funcs = {
-	DRM_MIPI_DBI_SIMPLE_DISPLAY_PIPE_FUNCS(ili9341_dbi_enable),
-};
-
-static const struct drm_display_mode ili9341_dbi_mode = {
-	DRM_SIMPLE_MODE(240, 320, 37, 49),
-};
-
-DEFINE_DRM_GEM_DMA_FOPS(ili9341_dbi_fops);
-
-static struct drm_driver ili9341_dbi_driver = {
-	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
-	.fops			= &ili9341_dbi_fops,
-	DRM_GEM_DMA_DRIVER_OPS_VMAP,
-	.debugfs_init		= mipi_dbi_debugfs_init,
-	.name			= "ili9341",
-	.desc			= "Ilitek ILI9341",
-	.date			= "20210716",
-	.major			= 1,
-	.minor			= 0,
-};
-
-static int ili9341_dbi_probe(struct spi_device *spi, struct gpio_desc *dc,
-			     struct gpio_desc *reset)
-{
-	struct device *dev = &spi->dev;
-	struct mipi_dbi_dev *dbidev;
-	struct mipi_dbi *dbi;
-	struct drm_device *drm;
-	struct regulator *vcc;
-	u32 rotation = 0;
-	int ret;
-
-	vcc = devm_regulator_get_optional(dev, "vcc");
-	if (IS_ERR(vcc)) {
-		dev_err(dev, "get optional vcc failed\n");
-		vcc = NULL;
-	}
-
-	dbidev = devm_drm_dev_alloc(dev, &ili9341_dbi_driver,
-				    struct mipi_dbi_dev, drm);
-	if (IS_ERR(dbidev))
-		return PTR_ERR(dbidev);
-
-	dbi = &dbidev->dbi;
-	drm = &dbidev->drm;
-	dbi->reset = reset;
-	dbidev->regulator = vcc;
-
-	drm_mode_config_init(drm);
-
-	dbidev->backlight = devm_of_find_backlight(dev);
-	if (IS_ERR(dbidev->backlight))
-		return PTR_ERR(dbidev->backlight);
-
-	device_property_read_u32(dev, "rotation", &rotation);
-
-	ret = mipi_dbi_spi_init(spi, dbi, dc);
-	if (ret)
-		return ret;
-
-	ret = mipi_dbi_dev_init(dbidev, &ili9341_dbi_funcs,
-				&ili9341_dbi_mode, rotation);
-	if (ret)
-		return ret;
-
-	drm_mode_config_reset(drm);
-
-	ret = drm_dev_register(drm, 0);
-	if (ret)
-		return ret;
-
-	spi_set_drvdata(spi, drm);
-
-	drm_fbdev_dma_setup(drm, 0);
-
-	return 0;
-}
-
 static int ili9341_dpi_probe(struct spi_device *spi, struct gpio_desc *dc,
 			     struct gpio_desc *reset)
 {
@@ -711,7 +538,6 @@ static int ili9341_probe(struct spi_device *spi)
 	struct device *dev = &spi->dev;
 	struct gpio_desc *dc;
 	struct gpio_desc *reset;
-	const struct spi_device_id *id = spi_get_device_id(spi);
 
 	reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(reset))
@@ -721,36 +547,15 @@ static int ili9341_probe(struct spi_device *spi)
 	if (IS_ERR(dc))
 		return dev_err_probe(dev, PTR_ERR(dc), "Failed to get gpio 'dc'\n");
 
-	if (!strcmp(id->name, "sf-tc240t-9370-t"))
-		return ili9341_dpi_probe(spi, dc, reset);
-
-	if (!strcmp(id->name, "yx240qv29"))
-		return ili9341_dbi_probe(spi, dc, reset);
-
-	return -ENODEV;
+	return ili9341_dpi_probe(spi, dc, reset);
 }
 
 static void ili9341_remove(struct spi_device *spi)
 {
-	const struct spi_device_id *id = spi_get_device_id(spi);
 	struct ili9341 *ili = spi_get_drvdata(spi);
-	struct drm_device *drm = spi_get_drvdata(spi);
 
-	if (!strcmp(id->name, "sf-tc240t-9370-t")) {
-		ili9341_dpi_power_off(ili);
-		drm_panel_remove(&ili->panel);
-	} else if (!strcmp(id->name, "yx240qv29")) {
-		drm_dev_unplug(drm);
-		drm_atomic_helper_shutdown(drm);
-	}
-}
-
-static void ili9341_shutdown(struct spi_device *spi)
-{
-	const struct spi_device_id *id = spi_get_device_id(spi);
-
-	if (!strcmp(id->name, "yx240qv29"))
-		drm_atomic_helper_shutdown(spi_get_drvdata(spi));
+	ili9341_dpi_power_off(ili);
+	drm_panel_remove(&ili->panel);
 }
 
 static const struct of_device_id ili9341_of_match[] = {
@@ -758,19 +563,11 @@ static const struct of_device_id ili9341_of_match[] = {
 		.compatible = "st,sf-tc240t-9370-t",
 		.data = &ili9341_stm32f429_disco_data,
 	},
-	{
-		/* porting from tiny/ili9341.c
-		 * for original mipi dbi compitable
-		 */
-		.compatible = "adafruit,yx240qv29",
-		.data = NULL,
-	},
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ili9341_of_match);
 
 static const struct spi_device_id ili9341_id[] = {
-	{ "yx240qv29", 0 },
 	{ "sf-tc240t-9370-t", 0 },
 	{ }
 };
@@ -779,7 +576,6 @@ MODULE_DEVICE_TABLE(spi, ili9341_id);
 static struct spi_driver ili9341_driver = {
 	.probe = ili9341_probe,
 	.remove = ili9341_remove,
-	.shutdown = ili9341_shutdown,
 	.id_table = ili9341_id,
 	.driver = {
 		.name = "panel-ilitek-ili9341",

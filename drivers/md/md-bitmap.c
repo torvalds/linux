@@ -1285,6 +1285,7 @@ static void bitmap_unplug_async(struct bitmap *bitmap)
 
 	queue_work(md_bitmap_wq, &unplug_work.work);
 	wait_for_completion(&done);
+	destroy_work_on_stack(&unplug_work.work);
 }
 
 static void bitmap_unplug(struct mddev *mddev, bool sync)

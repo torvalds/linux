@@ -1575,44 +1575,16 @@ void dsa_port_set_tag_protocol(struct dsa_port *cpu_dp,
 	cpu_dp->tag_ops = tag_ops;
 }
 
-static struct phylink_pcs *
-dsa_port_phylink_mac_select_pcs(struct phylink_config *config,
-				phy_interface_t interface)
-{
-	struct dsa_port *dp = dsa_phylink_to_port(config);
-	struct phylink_pcs *pcs = ERR_PTR(-EOPNOTSUPP);
-	struct dsa_switch *ds = dp->ds;
-
-	if (ds->ops->phylink_mac_select_pcs)
-		pcs = ds->ops->phylink_mac_select_pcs(ds, dp->index, interface);
-
-	return pcs;
-}
-
 static void dsa_port_phylink_mac_config(struct phylink_config *config,
 					unsigned int mode,
 					const struct phylink_link_state *state)
 {
-	struct dsa_port *dp = dsa_phylink_to_port(config);
-	struct dsa_switch *ds = dp->ds;
-
-	if (!ds->ops->phylink_mac_config)
-		return;
-
-	ds->ops->phylink_mac_config(ds, dp->index, mode, state);
 }
 
 static void dsa_port_phylink_mac_link_down(struct phylink_config *config,
 					   unsigned int mode,
 					   phy_interface_t interface)
 {
-	struct dsa_port *dp = dsa_phylink_to_port(config);
-	struct dsa_switch *ds = dp->ds;
-
-	if (!ds->ops->phylink_mac_link_down)
-		return;
-
-	ds->ops->phylink_mac_link_down(ds, dp->index, mode, interface);
 }
 
 static void dsa_port_phylink_mac_link_up(struct phylink_config *config,
@@ -1622,18 +1594,9 @@ static void dsa_port_phylink_mac_link_up(struct phylink_config *config,
 					 int speed, int duplex,
 					 bool tx_pause, bool rx_pause)
 {
-	struct dsa_port *dp = dsa_phylink_to_port(config);
-	struct dsa_switch *ds = dp->ds;
-
-	if (!ds->ops->phylink_mac_link_up)
-		return;
-
-	ds->ops->phylink_mac_link_up(ds, dp->index, mode, interface, phydev,
-				     speed, duplex, tx_pause, rx_pause);
 }
 
 static const struct phylink_mac_ops dsa_port_phylink_mac_ops = {
-	.mac_select_pcs = dsa_port_phylink_mac_select_pcs,
 	.mac_config = dsa_port_phylink_mac_config,
 	.mac_link_down = dsa_port_phylink_mac_link_down,
 	.mac_link_up = dsa_port_phylink_mac_link_up,
@@ -1871,9 +1834,6 @@ static void dsa_shared_port_link_down(struct dsa_port *dp)
 	if (ds->phylink_mac_ops && ds->phylink_mac_ops->mac_link_down)
 		ds->phylink_mac_ops->mac_link_down(&dp->pl_config, MLO_AN_FIXED,
 						   PHY_INTERFACE_MODE_NA);
-	else if (ds->ops->phylink_mac_link_down)
-		ds->ops->phylink_mac_link_down(ds, dp->index, MLO_AN_FIXED,
-					       PHY_INTERFACE_MODE_NA);
 }
 
 int dsa_shared_port_link_register_of(struct dsa_port *dp)

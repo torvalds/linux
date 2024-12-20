@@ -305,7 +305,7 @@ static struct platform_driver sdhci_ma35_driver = {
 		.of_match_table = sdhci_ma35_dt_ids,
 	},
 	.probe	= ma35_probe,
-	.remove_new = ma35_remove,
+	.remove = ma35_remove,
 };
 module_platform_driver(sdhci_ma35_driver);
 

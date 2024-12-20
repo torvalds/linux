@@ -1676,7 +1676,7 @@ static struct platform_driver pmc_core_driver = {
 		.dev_groups = pmc_dev_groups,
 	},
 	.probe = pmc_core_probe,
-	.remove_new = pmc_core_remove,
+	.remove = pmc_core_remove,
 };
 
 module_platform_driver(pmc_core_driver);

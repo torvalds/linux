@@ -97,7 +97,7 @@ static struct platform_driver mrfld_pwrbtn_driver = {
 		.name	= "mrfld_bcove_pwrbtn",
 	},
 	.probe		= mrfld_pwrbtn_probe,
-	.remove_new	= mrfld_pwrbtn_remove,
+	.remove		= mrfld_pwrbtn_remove,
 	.id_table	= mrfld_pwrbtn_id_table,
 };
 module_platform_driver(mrfld_pwrbtn_driver);

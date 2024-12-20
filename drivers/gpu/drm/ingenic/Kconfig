@@ -6,6 +6,7 @@ config DRM_INGENIC
 	depends on OF
 	depends on COMMON_CLK
 	select DRM_BRIDGE
+	select DRM_CLIENT_SELECTION
 	select DRM_PANEL_BRIDGE
 	select DRM_KMS_HELPER
 	select DRM_DISPLAY_HELPER

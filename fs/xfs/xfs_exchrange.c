@@ -217,7 +217,7 @@ xfs_exchrange_mappings(
 	 * length in @fxr are safe to round up.
 	 */
 	if (xfs_inode_has_bigrtalloc(ip2))
-		req.blockcount = xfs_rtb_roundup_rtx(mp, req.blockcount);
+		req.blockcount = xfs_blen_roundup_rtx(mp, req.blockcount);
 
 	error = xfs_exchrange_estimate(&req);
 	if (error)
@@ -813,8 +813,6 @@ xfs_ioc_exchange_range(
 		.file2			= file,
 	};
 	struct xfs_exchange_range	args;
-	struct fd			file1;
-	int				error;
 
 	if (copy_from_user(&args, argp, sizeof(args)))
 		return -EFAULT;
@@ -828,14 +826,12 @@ xfs_ioc_exchange_range(
 	fxr.length		= args.length;
 	fxr.flags		= args.flags;
 
-	file1 = fdget(args.file1_fd);
-	if (!fd_file(file1))
+	CLASS(fd, file1)(args.file1_fd);
+	if (fd_empty(file1))
 		return -EBADF;
 	fxr.file1 = fd_file(file1);
 
-	error = xfs_exchange_range(&fxr);
-	fdput(file1);
-	return error;
+	return xfs_exchange_range(&fxr);
 }
 
 /* Opaque freshness blob for XFS_IOC_COMMIT_RANGE */
@@ -858,7 +854,7 @@ xfs_ioc_start_commit(
 	struct xfs_commit_range __user	*argp)
 {
 	struct xfs_commit_range		args = { };
-	struct timespec64		ts;
+	struct kstat			kstat = { };
 	struct xfs_commit_range_fresh	*kern_f;
 	struct xfs_commit_range_fresh	__user *user_f;
 	struct inode			*inode2 = file_inode(file);
@@ -875,12 +871,12 @@ xfs_ioc_start_commit(
 	memcpy(&kern_f->fsid, ip2->i_mount->m_fixedfsid, sizeof(xfs_fsid_t));
 
 	xfs_ilock(ip2, lockflags);
-	ts = inode_get_ctime(inode2);
-	kern_f->file2_ctime		= ts.tv_sec;
-	kern_f->file2_ctime_nsec	= ts.tv_nsec;
-	ts = inode_get_mtime(inode2);
-	kern_f->file2_mtime		= ts.tv_sec;
-	kern_f->file2_mtime_nsec	= ts.tv_nsec;
+	/* Force writing of a distinct ctime if any writes happen. */
+	fill_mg_cmtime(&kstat, STATX_CTIME | STATX_MTIME, inode2);
+	kern_f->file2_ctime		= kstat.ctime.tv_sec;
+	kern_f->file2_ctime_nsec	= kstat.ctime.tv_nsec;
+	kern_f->file2_mtime		= kstat.mtime.tv_sec;
+	kern_f->file2_mtime_nsec	= kstat.mtime.tv_nsec;
 	kern_f->file2_ino		= ip2->i_ino;
 	kern_f->file2_gen		= inode2->i_generation;
 	kern_f->magic			= XCR_FRESH_MAGIC;
@@ -909,8 +905,6 @@ xfs_ioc_commit_range(
 	struct xfs_commit_range_fresh	*kern_f;
 	struct xfs_inode		*ip2 = XFS_I(file_inode(file));
 	struct xfs_mount		*mp = ip2->i_mount;
-	struct fd			file1;
-	int				error;
 
 	kern_f = (struct xfs_commit_range_fresh *)&args.file2_freshness;
 
@@ -934,12 +928,10 @@ xfs_ioc_commit_range(
 	fxr.file2_ctime.tv_sec	= kern_f->file2_ctime;
 	fxr.file2_ctime.tv_nsec	= kern_f->file2_ctime_nsec;
 
-	file1 = fdget(args.file1_fd);
+	CLASS(fd, file1)(args.file1_fd);
 	if (fd_empty(file1))
 		return -EBADF;
 	fxr.file1 = fd_file(file1);
 
-	error = xfs_exchange_range(&fxr);
-	fdput(file1);
-	return error;
+	return xfs_exchange_range(&fxr);
 }

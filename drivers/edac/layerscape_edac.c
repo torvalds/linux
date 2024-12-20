@@ -21,13 +21,14 @@
 
 static const struct of_device_id fsl_ddr_mc_err_of_match[] = {
 	{ .compatible = "fsl,qoriq-memory-controller", },
+	{ .compatible = "nxp,imx9-memory-controller", .data = (void *)TYPE_IMX9, },
 	{},
 };
 MODULE_DEVICE_TABLE(of, fsl_ddr_mc_err_of_match);
 
 static struct platform_driver fsl_ddr_mc_err_driver = {
 	.probe = fsl_mc_err_probe,
-	.remove_new = fsl_mc_err_remove,
+	.remove = fsl_mc_err_remove,
 	.driver = {
 		.name = "fsl_ddr_mc_err",
 		.of_match_table = fsl_ddr_mc_err_of_match,

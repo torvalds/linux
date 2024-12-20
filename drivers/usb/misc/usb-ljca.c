@@ -332,14 +332,11 @@ static int ljca_send(struct ljca_adapter *adap, u8 type, u8 cmd,
 
 	ret = usb_bulk_msg(adap->usb_dev, adap->tx_pipe, header,
 			   msg_len, &transferred, LJCA_WRITE_TIMEOUT_MS);
-
-	usb_autopm_put_interface(adap->intf);
-
 	if (ret < 0)
-		goto out;
+		goto out_put;
 	if (transferred != msg_len) {
 		ret = -EIO;
-		goto out;
+		goto out_put;
 	}
 
 	if (ack) {
@@ -347,10 +344,13 @@ static int ljca_send(struct ljca_adapter *adap, u8 type, u8 cmd,
 						  timeout);
 		if (!ret) {
 			ret = -ETIMEDOUT;
-			goto out;
+			goto out_put;
 		}
 	}
 	ret = adap->actual_length;
+
+out_put:
+	usb_autopm_put_interface(adap->intf);
 
 out:
 	spin_lock_irqsave(&adap->lock, flags);
@@ -372,7 +372,7 @@ int ljca_transfer(struct ljca_client *client, u8 cmd, const u8 *obuf,
 			 obuf, obuf_len, ibuf, ibuf_len, true,
 			 LJCA_WRITE_ACK_TIMEOUT_MS);
 }
-EXPORT_SYMBOL_NS_GPL(ljca_transfer, LJCA);
+EXPORT_SYMBOL_NS_GPL(ljca_transfer, "LJCA");
 
 int ljca_transfer_noack(struct ljca_client *client, u8 cmd, const u8 *obuf,
 			u8 obuf_len)
@@ -380,7 +380,7 @@ int ljca_transfer_noack(struct ljca_client *client, u8 cmd, const u8 *obuf,
 	return ljca_send(client->adapter, client->type, cmd, obuf,
 			 obuf_len, NULL, 0, false, LJCA_WRITE_ACK_TIMEOUT_MS);
 }
-EXPORT_SYMBOL_NS_GPL(ljca_transfer_noack, LJCA);
+EXPORT_SYMBOL_NS_GPL(ljca_transfer_noack, "LJCA");
 
 int ljca_register_event_cb(struct ljca_client *client, ljca_event_cb_t event_cb,
 			   void *context)
@@ -404,7 +404,7 @@ int ljca_register_event_cb(struct ljca_client *client, ljca_event_cb_t event_cb,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(ljca_register_event_cb, LJCA);
+EXPORT_SYMBOL_NS_GPL(ljca_register_event_cb, "LJCA");
 
 void ljca_unregister_event_cb(struct ljca_client *client)
 {
@@ -417,7 +417,7 @@ void ljca_unregister_event_cb(struct ljca_client *client)
 
 	spin_unlock_irqrestore(&client->event_cb_lock, flags);
 }
-EXPORT_SYMBOL_NS_GPL(ljca_unregister_event_cb, LJCA);
+EXPORT_SYMBOL_NS_GPL(ljca_unregister_event_cb, "LJCA");
 
 static int ljca_match_device_ids(struct acpi_device *adev, void *data)
 {
@@ -810,6 +810,14 @@ static int ljca_probe(struct usb_interface *interface,
 	ret = ljca_enumerate_clients(adap);
 	if (ret)
 		goto err_free;
+
+	/*
+	 * This works around problems with ov2740 initialization on some
+	 * Lenovo platforms. The autosuspend delay, has to be smaller than
+	 * the delay after setting the reset_gpio line in ov2740_resume().
+	 * Otherwise the sensor randomly fails to initialize.
+	 */
+	pm_runtime_set_autosuspend_delay(&usb_dev->dev, 10);
 
 	usb_enable_autosuspend(usb_dev);
 

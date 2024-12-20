@@ -506,7 +506,7 @@ static int dp83822_config_init(struct phy_device *phydev)
 	return dp83822_config_wol(phydev, &dp83822->wol);
 }
 
-static int dp83826_config_rmii_mode(struct phy_device *phydev)
+static int dp8382x_config_rmii_mode(struct phy_device *phydev)
 {
 	struct device *dev = &phydev->mdio.dev;
 	const char *of_val;
@@ -544,7 +544,7 @@ static int dp83826_config_init(struct phy_device *phydev)
 		if (ret)
 			return ret;
 
-		ret = dp83826_config_rmii_mode(phydev);
+		ret = dp8382x_config_rmii_mode(phydev);
 		if (ret)
 			return ret;
 	} else {
@@ -585,9 +585,14 @@ static int dp83826_config_init(struct phy_device *phydev)
 	return dp83822_config_wol(phydev, &dp83822->wol);
 }
 
-static int dp8382x_config_init(struct phy_device *phydev)
+static int dp83825_config_init(struct phy_device *phydev)
 {
 	struct dp83822_private *dp83822 = phydev->priv;
+	int ret;
+
+	ret = dp8382x_config_rmii_mode(phydev);
+	if (ret)
+		return ret;
 
 	return dp83822_config_wol(phydev, &dp83822->wol);
 }
@@ -782,6 +787,22 @@ static int dp83822_resume(struct phy_device *phydev)
 		.resume = dp83822_resume,			\
 	}
 
+#define DP83825_PHY_DRIVER(_id, _name)				\
+	{							\
+		PHY_ID_MATCH_MODEL(_id),			\
+		.name		= (_name),			\
+		/* PHY_BASIC_FEATURES */			\
+		.probe          = dp8382x_probe,		\
+		.soft_reset	= dp83822_phy_reset,		\
+		.config_init	= dp83825_config_init,		\
+		.get_wol = dp83822_get_wol,			\
+		.set_wol = dp83822_set_wol,			\
+		.config_intr = dp83822_config_intr,		\
+		.handle_interrupt = dp83822_handle_interrupt,	\
+		.suspend = dp83822_suspend,			\
+		.resume = dp83822_resume,			\
+	}
+
 #define DP83826_PHY_DRIVER(_id, _name)				\
 	{							\
 		PHY_ID_MATCH_MODEL(_id),			\
@@ -798,30 +819,14 @@ static int dp83822_resume(struct phy_device *phydev)
 		.resume = dp83822_resume,			\
 	}
 
-#define DP8382X_PHY_DRIVER(_id, _name)				\
-	{							\
-		PHY_ID_MATCH_MODEL(_id),			\
-		.name		= (_name),			\
-		/* PHY_BASIC_FEATURES */			\
-		.probe          = dp8382x_probe,		\
-		.soft_reset	= dp83822_phy_reset,		\
-		.config_init	= dp8382x_config_init,		\
-		.get_wol = dp83822_get_wol,			\
-		.set_wol = dp83822_set_wol,			\
-		.config_intr = dp83822_config_intr,		\
-		.handle_interrupt = dp83822_handle_interrupt,	\
-		.suspend = dp83822_suspend,			\
-		.resume = dp83822_resume,			\
-	}
-
 static struct phy_driver dp83822_driver[] = {
 	DP83822_PHY_DRIVER(DP83822_PHY_ID, "TI DP83822"),
-	DP8382X_PHY_DRIVER(DP83825I_PHY_ID, "TI DP83825I"),
+	DP83825_PHY_DRIVER(DP83825I_PHY_ID, "TI DP83825I"),
+	DP83825_PHY_DRIVER(DP83825S_PHY_ID, "TI DP83825S"),
+	DP83825_PHY_DRIVER(DP83825CM_PHY_ID, "TI DP83825M"),
+	DP83825_PHY_DRIVER(DP83825CS_PHY_ID, "TI DP83825CS"),
 	DP83826_PHY_DRIVER(DP83826C_PHY_ID, "TI DP83826C"),
 	DP83826_PHY_DRIVER(DP83826NC_PHY_ID, "TI DP83826NC"),
-	DP8382X_PHY_DRIVER(DP83825S_PHY_ID, "TI DP83825S"),
-	DP8382X_PHY_DRIVER(DP83825CM_PHY_ID, "TI DP83825M"),
-	DP8382X_PHY_DRIVER(DP83825CS_PHY_ID, "TI DP83825CS"),
 };
 module_phy_driver(dp83822_driver);
 

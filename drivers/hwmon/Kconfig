@@ -855,6 +855,17 @@ config SENSORS_CORETEMP
 	  sensor inside your CPU. Most of the family 6 CPUs
 	  are supported. Check Documentation/hwmon/coretemp.rst for details.
 
+config SENSORS_ISL28022
+	tristate "Renesas ISL28022"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for ISL28022 power monitor.
+	  Check Documentation/hwmon/isl28022.rst for details.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called isl28022.
+
 config SENSORS_IT87
 	tristate "ITE IT87xx and compatibles"
 	depends on HAS_IOPORT
@@ -1670,6 +1681,17 @@ config SENSORS_NCT6775_I2C
 	  This driver can also be built as a module. If so, the module
 	  will be called nct6775-i2c.
 
+config SENSORS_NCT7363
+	tristate "Nuvoton NCT7363Y"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for the Nuvoton NCT7363Y
+	  hardware monitoring chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nct7363.
+
 config SENSORS_NCT7802
 	tristate "Nuvoton NCT7802Y"
 	depends on I2C
@@ -1752,7 +1774,7 @@ source "drivers/hwmon/occ/Kconfig"
 
 config SENSORS_OXP
 	tristate "OneXPlayer EC fan control"
-	depends on ACPI
+	depends on ACPI_EC
 	depends on X86
 	help
 		If you say yes here you get support for fan readings and control over
@@ -2167,11 +2189,12 @@ config SENSORS_INA2XX
 	select REGMAP_I2C
 	help
 	  If you say yes here you get support for INA219, INA220, INA226,
-	  INA230, and INA231 power monitor chips.
+	  INA230, INA231, INA260, and SY24655 power monitor chips.
 
 	  The INA2xx driver is configured for the default configuration of
 	  the part as described in the datasheet.
-	  Default value for Rshunt is 10 mOhms.
+	  Default value for Rshunt is 10 mOhms except for INA260 which has an
+	  internal 2 mOhm shunt resistor.
 	  This driver can also be built as a module. If so, the module
 	  will be called ina2xx.
 
@@ -2274,10 +2297,12 @@ config SENSORS_TMP103
 config SENSORS_TMP108
 	tristate "Texas Instruments TMP108"
 	depends on I2C
+	depends on I3C || !I3C
 	select REGMAP_I2C
+	select REGMAP_I3C if I3C
 	help
 	  If you say yes here you get support for Texas Instruments TMP108
-	  sensor chips.
+	  sensor chips and NXP P3T1085.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called tmp108.
@@ -2592,6 +2617,7 @@ config SENSORS_ASUS_WMI
 config SENSORS_ASUS_EC
 	tristate "ASUS EC Sensors"
 	depends on X86
+	depends on ACPI_EC
 	help
 	  If you say yes here you get support for the ACPI embedded controller
 	  hardware monitoring interface found in ASUS motherboards. The driver

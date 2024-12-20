@@ -58,8 +58,8 @@ void uverbs_uobject_put(struct ib_uobject *uobject)
 }
 EXPORT_SYMBOL(uverbs_uobject_put);
 
-static int uverbs_try_lock_object(struct ib_uobject *uobj,
-				  enum rdma_lookup_mode mode)
+int uverbs_try_lock_object(struct ib_uobject *uobj,
+			   enum rdma_lookup_mode mode)
 {
 	/*
 	 * When a shared access is required, we use a positive counter. Each
@@ -84,6 +84,7 @@ static int uverbs_try_lock_object(struct ib_uobject *uobj,
 	}
 	return 0;
 }
+EXPORT_SYMBOL(uverbs_try_lock_object);
 
 static void assert_uverbs_usecnt(struct ib_uobject *uobj,
 				 enum rdma_lookup_mode mode)
@@ -880,9 +881,14 @@ static void ufile_destroy_ucontext(struct ib_uverbs_file *ufile,
 static int __uverbs_cleanup_ufile(struct ib_uverbs_file *ufile,
 				  enum rdma_remove_reason reason)
 {
+	struct uverbs_attr_bundle attrs = { .ufile = ufile };
+	struct ib_ucontext *ucontext = ufile->ucontext;
+	struct ib_device *ib_dev = ucontext->device;
 	struct ib_uobject *obj, *next_obj;
 	int ret = -EINVAL;
-	struct uverbs_attr_bundle attrs = { .ufile = ufile };
+
+	if (ib_dev->ops.ufile_hw_cleanup)
+		ib_dev->ops.ufile_hw_cleanup(ufile);
 
 	/*
 	 * This shouldn't run while executing other commands on this

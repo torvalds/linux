@@ -723,21 +723,21 @@ static int mxic_ecc_finish_io_req_pipelined(struct nand_device *nand,
 	return ret;
 }
 
-static struct nand_ecc_engine_ops mxic_ecc_engine_external_ops = {
+static const struct nand_ecc_engine_ops mxic_ecc_engine_external_ops = {
 	.init_ctx = mxic_ecc_init_ctx_external,
 	.cleanup_ctx = mxic_ecc_cleanup_ctx,
 	.prepare_io_req = mxic_ecc_prepare_io_req_external,
 	.finish_io_req = mxic_ecc_finish_io_req_external,
 };
 
-static struct nand_ecc_engine_ops mxic_ecc_engine_pipelined_ops = {
+static const struct nand_ecc_engine_ops mxic_ecc_engine_pipelined_ops = {
 	.init_ctx = mxic_ecc_init_ctx_pipelined,
 	.cleanup_ctx = mxic_ecc_cleanup_ctx,
 	.prepare_io_req = mxic_ecc_prepare_io_req_pipelined,
 	.finish_io_req = mxic_ecc_finish_io_req_pipelined,
 };
 
-struct nand_ecc_engine_ops *mxic_ecc_get_pipelined_ops(void)
+const struct nand_ecc_engine_ops *mxic_ecc_get_pipelined_ops(void)
 {
 	return &mxic_ecc_engine_pipelined_ops;
 }
@@ -869,7 +869,7 @@ static struct platform_driver mxic_ecc_driver = {
 		.of_match_table = mxic_ecc_of_ids,
 	},
 	.probe = mxic_ecc_probe,
-	.remove_new = mxic_ecc_remove,
+	.remove = mxic_ecc_remove,
 };
 module_platform_driver(mxic_ecc_driver);
 

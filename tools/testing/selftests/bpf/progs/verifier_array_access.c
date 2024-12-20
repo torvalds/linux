@@ -368,8 +368,7 @@ __naked void a_read_only_array_2_1(void)
 	r4 = 0;						\
 	r5 = 0;						\
 	call %[bpf_csum_diff];				\
-l0_%=:	r0 &= 0xffff;					\
-	exit;						\
+l0_%=:	exit;						\
 "	:
 	: __imm(bpf_csum_diff),
 	  __imm(bpf_map_lookup_elem),

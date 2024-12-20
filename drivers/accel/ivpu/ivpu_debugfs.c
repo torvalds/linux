@@ -45,6 +45,14 @@ static int fw_name_show(struct seq_file *s, void *v)
 	return 0;
 }
 
+static int fw_version_show(struct seq_file *s, void *v)
+{
+	struct ivpu_device *vdev = seq_to_ivpu(s);
+
+	seq_printf(s, "%s\n", vdev->fw->version);
+	return 0;
+}
+
 static int fw_trace_capability_show(struct seq_file *s, void *v)
 {
 	struct ivpu_device *vdev = seq_to_ivpu(s);
@@ -119,6 +127,7 @@ static int firewall_irq_counter_show(struct seq_file *s, void *v)
 static const struct drm_debugfs_info vdev_debugfs_list[] = {
 	{"bo_list", bo_list_show, 0},
 	{"fw_name", fw_name_show, 0},
+	{"fw_version", fw_version_show, 0},
 	{"fw_trace_capability", fw_trace_capability_show, 0},
 	{"fw_trace_config", fw_trace_config_show, 0},
 	{"last_bootmode", last_bootmode_show, 0},
@@ -127,32 +136,23 @@ static const struct drm_debugfs_info vdev_debugfs_list[] = {
 	{"firewall_irq_counter", firewall_irq_counter_show, 0},
 };
 
-static ssize_t
-dvfs_mode_fops_write(struct file *file, const char __user *user_buf, size_t size, loff_t *pos)
+static int dvfs_mode_get(void *data, u64 *dvfs_mode)
 {
-	struct ivpu_device *vdev = file->private_data;
-	struct ivpu_fw_info *fw = vdev->fw;
-	u32 dvfs_mode;
-	int ret;
+	struct ivpu_device *vdev = (struct ivpu_device *)data;
 
-	ret = kstrtou32_from_user(user_buf, size, 0, &dvfs_mode);
-	if (ret < 0)
-		return ret;
-
-	fw->dvfs_mode = dvfs_mode;
-
-	ret = pci_try_reset_function(to_pci_dev(vdev->drm.dev));
-	if (ret)
-		return ret;
-
-	return size;
+	*dvfs_mode = vdev->fw->dvfs_mode;
+	return 0;
 }
 
-static const struct file_operations dvfs_mode_fops = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.write = dvfs_mode_fops_write,
-};
+static int dvfs_mode_set(void *data, u64 dvfs_mode)
+{
+	struct ivpu_device *vdev = (struct ivpu_device *)data;
+
+	vdev->fw->dvfs_mode = (u32)dvfs_mode;
+	return pci_try_reset_function(to_pci_dev(vdev->drm.dev));
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(dvfs_mode_fops, dvfs_mode_get, dvfs_mode_set, "%llu\n");
 
 static ssize_t
 fw_dyndbg_fops_write(struct file *file, const char __user *user_buf, size_t size, loff_t *pos)
@@ -201,7 +201,7 @@ fw_log_fops_write(struct file *file, const char __user *user_buf, size_t size, l
 	if (!size)
 		return -EINVAL;
 
-	ivpu_fw_log_clear(vdev);
+	ivpu_fw_log_mark_read(vdev);
 	return size;
 }
 
@@ -346,49 +346,23 @@ static const struct file_operations ivpu_force_recovery_fops = {
 	.write = ivpu_force_recovery_fn,
 };
 
-static ssize_t
-ivpu_reset_engine_fn(struct file *file, const char __user *user_buf, size_t size, loff_t *pos)
+static int ivpu_reset_engine_fn(void *data, u64 val)
 {
-	struct ivpu_device *vdev = file->private_data;
+	struct ivpu_device *vdev = (struct ivpu_device *)data;
 
-	if (!size)
-		return -EINVAL;
-
-	if (ivpu_jsm_reset_engine(vdev, DRM_IVPU_ENGINE_COMPUTE))
-		return -ENODEV;
-	if (ivpu_jsm_reset_engine(vdev, DRM_IVPU_ENGINE_COPY))
-		return -ENODEV;
-
-	return size;
+	return ivpu_jsm_reset_engine(vdev, (u32)val);
 }
 
-static const struct file_operations ivpu_reset_engine_fops = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.write = ivpu_reset_engine_fn,
-};
+DEFINE_DEBUGFS_ATTRIBUTE(ivpu_reset_engine_fops, NULL, ivpu_reset_engine_fn, "0x%02llx\n");
 
-static ssize_t
-ivpu_resume_engine_fn(struct file *file, const char __user *user_buf, size_t size, loff_t *pos)
+static int ivpu_resume_engine_fn(void *data, u64 val)
 {
-	struct ivpu_device *vdev = file->private_data;
+	struct ivpu_device *vdev = (struct ivpu_device *)data;
 
-	if (!size)
-		return -EINVAL;
-
-	if (ivpu_jsm_hws_resume_engine(vdev, DRM_IVPU_ENGINE_COMPUTE))
-		return -ENODEV;
-	if (ivpu_jsm_hws_resume_engine(vdev, DRM_IVPU_ENGINE_COPY))
-		return -ENODEV;
-
-	return size;
+	return ivpu_jsm_hws_resume_engine(vdev, (u32)val);
 }
 
-static const struct file_operations ivpu_resume_engine_fops = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.write = ivpu_resume_engine_fn,
-};
+DEFINE_DEBUGFS_ATTRIBUTE(ivpu_resume_engine_fops, NULL, ivpu_resume_engine_fn, "0x%02llx\n");
 
 static int dct_active_get(void *data, u64 *active_percent)
 {
@@ -432,7 +406,7 @@ void ivpu_debugfs_init(struct ivpu_device *vdev)
 	debugfs_create_file("force_recovery", 0200, debugfs_root, vdev,
 			    &ivpu_force_recovery_fops);
 
-	debugfs_create_file("dvfs_mode", 0200, debugfs_root, vdev,
+	debugfs_create_file("dvfs_mode", 0644, debugfs_root, vdev,
 			    &dvfs_mode_fops);
 
 	debugfs_create_file("fw_dyndbg", 0200, debugfs_root, vdev,

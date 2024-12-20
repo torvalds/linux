@@ -89,7 +89,7 @@ depth_show(struct device *dev, struct device_attribute *attr, char *buf)
 	struct histb_rng_priv *priv = dev_get_drvdata(dev);
 	void __iomem *base = priv->base;
 
-	return sprintf(buf, "%d\n", histb_rng_get_depth(base));
+	return sprintf(buf, "%u\n", histb_rng_get_depth(base));
 }
 
 static ssize_t

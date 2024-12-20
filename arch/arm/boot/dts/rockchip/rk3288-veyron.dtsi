@@ -75,7 +75,7 @@
 		reset-gpios = <&gpio4 RK_PD4 GPIO_ACTIVE_LOW>;
 	};
 
-	vcc_5v: vcc-5v {
+	vcc_5v: regulator-vcc-5v {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_5v";
 		regulator-always-on;
@@ -84,7 +84,7 @@
 		regulator-max-microvolt = <5000000>;
 	};
 
-	vcc33_sys: vcc33-sys {
+	vcc33_sys: regulator-vcc33-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc33_sys";
 		regulator-always-on;
@@ -93,7 +93,7 @@
 		regulator-max-microvolt = <3300000>;
 	};
 
-	vcc50_hdmi: vcc50-hdmi {
+	vcc50_hdmi: regulator-vcc50-hdmi {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc50_hdmi";
 		regulator-always-on;
@@ -101,7 +101,7 @@
 		vin-supply = <&vcc_5v>;
 	};
 
-	vdd_logic: vdd-logic {
+	vdd_logic: regulator-vdd-logic {
 		compatible = "pwm-regulator";
 		regulator-name = "vdd_logic";
 

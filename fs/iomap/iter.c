@@ -22,26 +22,25 @@
 static inline int iomap_iter_advance(struct iomap_iter *iter)
 {
 	bool stale = iter->iomap.flags & IOMAP_F_STALE;
+	int ret = 1;
 
 	/* handle the previous iteration (if any) */
 	if (iter->iomap.length) {
 		if (iter->processed < 0)
 			return iter->processed;
-		if (!iter->processed && !stale)
-			return 0;
 		if (WARN_ON_ONCE(iter->processed > iomap_length(iter)))
 			return -EIO;
 		iter->pos += iter->processed;
 		iter->len -= iter->processed;
-		if (!iter->len)
-			return 0;
+		if (!iter->len || (!iter->processed && !stale))
+			ret = 0;
 	}
 
-	/* clear the state for the next iteration */
+	/* clear the per iteration state */
 	iter->processed = 0;
 	memset(&iter->iomap, 0, sizeof(iter->iomap));
 	memset(&iter->srcmap, 0, sizeof(iter->srcmap));
-	return 1;
+	return ret;
 }
 
 static inline void iomap_iter_done(struct iomap_iter *iter)

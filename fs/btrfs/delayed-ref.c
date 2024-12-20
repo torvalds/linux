@@ -9,6 +9,7 @@
 #include "messages.h"
 #include "ctree.h"
 #include "delayed-ref.h"
+#include "extent-tree.h"
 #include "transaction.h"
 #include "qgroup.h"
 #include "space-info.h"
@@ -298,7 +299,7 @@ static int comp_refs(struct btrfs_delayed_ref_node *ref1,
 		if (ref1->ref_root < ref2->ref_root)
 			return -1;
 		if (ref1->ref_root > ref2->ref_root)
-			return -1;
+			return 1;
 		if (ref1->type == BTRFS_EXTENT_DATA_REF_KEY)
 			ret = comp_data_refs(ref1, ref2);
 	}
@@ -311,39 +312,6 @@ static int comp_refs(struct btrfs_delayed_ref_node *ref1,
 			return 1;
 	}
 	return 0;
-}
-
-/* insert a new ref to head ref rbtree */
-static struct btrfs_delayed_ref_head *htree_insert(struct rb_root_cached *root,
-						   struct rb_node *node)
-{
-	struct rb_node **p = &root->rb_root.rb_node;
-	struct rb_node *parent_node = NULL;
-	struct btrfs_delayed_ref_head *entry;
-	struct btrfs_delayed_ref_head *ins;
-	u64 bytenr;
-	bool leftmost = true;
-
-	ins = rb_entry(node, struct btrfs_delayed_ref_head, href_node);
-	bytenr = ins->bytenr;
-	while (*p) {
-		parent_node = *p;
-		entry = rb_entry(parent_node, struct btrfs_delayed_ref_head,
-				 href_node);
-
-		if (bytenr < entry->bytenr) {
-			p = &(*p)->rb_left;
-		} else if (bytenr > entry->bytenr) {
-			p = &(*p)->rb_right;
-			leftmost = false;
-		} else {
-			return entry;
-		}
-	}
-
-	rb_link_node(node, parent_node, p);
-	rb_insert_color_cached(node, root, leftmost);
-	return NULL;
 }
 
 static struct btrfs_delayed_ref_node* tree_insert(struct rb_root_cached *root,
@@ -380,75 +348,32 @@ static struct btrfs_delayed_ref_node* tree_insert(struct rb_root_cached *root,
 static struct btrfs_delayed_ref_head *find_first_ref_head(
 		struct btrfs_delayed_ref_root *dr)
 {
-	struct rb_node *n;
-	struct btrfs_delayed_ref_head *entry;
+	unsigned long from = 0;
 
-	n = rb_first_cached(&dr->href_root);
-	if (!n)
-		return NULL;
+	lockdep_assert_held(&dr->lock);
 
-	entry = rb_entry(n, struct btrfs_delayed_ref_head, href_node);
-
-	return entry;
+	return xa_find(&dr->head_refs, &from, ULONG_MAX, XA_PRESENT);
 }
 
-/*
- * Find a head entry based on bytenr. This returns the delayed ref head if it
- * was able to find one, or NULL if nothing was in that spot.  If return_bigger
- * is given, the next bigger entry is returned if no exact match is found.
- */
-static struct btrfs_delayed_ref_head *find_ref_head(
-		struct btrfs_delayed_ref_root *dr, u64 bytenr,
-		bool return_bigger)
-{
-	struct rb_root *root = &dr->href_root.rb_root;
-	struct rb_node *n;
-	struct btrfs_delayed_ref_head *entry;
-
-	n = root->rb_node;
-	entry = NULL;
-	while (n) {
-		entry = rb_entry(n, struct btrfs_delayed_ref_head, href_node);
-
-		if (bytenr < entry->bytenr)
-			n = n->rb_left;
-		else if (bytenr > entry->bytenr)
-			n = n->rb_right;
-		else
-			return entry;
-	}
-	if (entry && return_bigger) {
-		if (bytenr > entry->bytenr) {
-			n = rb_next(&entry->href_node);
-			if (!n)
-				return NULL;
-			entry = rb_entry(n, struct btrfs_delayed_ref_head,
-					 href_node);
-		}
-		return entry;
-	}
-	return NULL;
-}
-
-int btrfs_delayed_ref_lock(struct btrfs_delayed_ref_root *delayed_refs,
-			   struct btrfs_delayed_ref_head *head)
+static bool btrfs_delayed_ref_lock(struct btrfs_delayed_ref_root *delayed_refs,
+				   struct btrfs_delayed_ref_head *head)
 {
 	lockdep_assert_held(&delayed_refs->lock);
 	if (mutex_trylock(&head->mutex))
-		return 0;
+		return true;
 
 	refcount_inc(&head->refs);
 	spin_unlock(&delayed_refs->lock);
 
 	mutex_lock(&head->mutex);
 	spin_lock(&delayed_refs->lock);
-	if (RB_EMPTY_NODE(&head->href_node)) {
+	if (!head->tracked) {
 		mutex_unlock(&head->mutex);
 		btrfs_put_delayed_ref_head(head);
-		return -EAGAIN;
+		return false;
 	}
 	btrfs_put_delayed_ref_head(head);
-	return 0;
+	return true;
 }
 
 static inline void drop_delayed_ref(struct btrfs_fs_info *fs_info,
@@ -462,7 +387,6 @@ static inline void drop_delayed_ref(struct btrfs_fs_info *fs_info,
 	if (!list_empty(&ref->add_list))
 		list_del(&ref->add_list);
 	btrfs_put_delayed_ref(ref);
-	atomic_dec(&delayed_refs->num_entries);
 	btrfs_delayed_refs_rsv_release(fs_info, 1, 0);
 }
 
@@ -558,33 +482,31 @@ int btrfs_check_delayed_seq(struct btrfs_fs_info *fs_info, u64 seq)
 }
 
 struct btrfs_delayed_ref_head *btrfs_select_ref_head(
+		const struct btrfs_fs_info *fs_info,
 		struct btrfs_delayed_ref_root *delayed_refs)
 {
 	struct btrfs_delayed_ref_head *head;
+	unsigned long start_index;
+	unsigned long found_index;
+	bool found_head = false;
+	bool locked;
 
-	lockdep_assert_held(&delayed_refs->lock);
+	spin_lock(&delayed_refs->lock);
 again:
-	head = find_ref_head(delayed_refs, delayed_refs->run_delayed_start,
-			     true);
-	if (!head && delayed_refs->run_delayed_start != 0) {
-		delayed_refs->run_delayed_start = 0;
-		head = find_first_ref_head(delayed_refs);
-	}
-	if (!head)
-		return NULL;
-
-	while (head->processing) {
-		struct rb_node *node;
-
-		node = rb_next(&head->href_node);
-		if (!node) {
-			if (delayed_refs->run_delayed_start == 0)
-				return NULL;
-			delayed_refs->run_delayed_start = 0;
-			goto again;
+	start_index = (delayed_refs->run_delayed_start >> fs_info->sectorsize_bits);
+	xa_for_each_start(&delayed_refs->head_refs, found_index, head, start_index) {
+		if (!head->processing) {
+			found_head = true;
+			break;
 		}
-		head = rb_entry(node, struct btrfs_delayed_ref_head,
-				href_node);
+	}
+	if (!found_head) {
+		if (delayed_refs->run_delayed_start == 0) {
+			spin_unlock(&delayed_refs->lock);
+			return NULL;
+		}
+		delayed_refs->run_delayed_start = 0;
+		goto again;
 	}
 
 	head->processing = true;
@@ -592,18 +514,42 @@ again:
 	delayed_refs->num_heads_ready--;
 	delayed_refs->run_delayed_start = head->bytenr +
 		head->num_bytes;
+
+	locked = btrfs_delayed_ref_lock(delayed_refs, head);
+	spin_unlock(&delayed_refs->lock);
+
+	/*
+	 * We may have dropped the spin lock to get the head mutex lock, and
+	 * that might have given someone else time to free the head.  If that's
+	 * true, it has been removed from our list and we can move on.
+	 */
+	if (!locked)
+		return ERR_PTR(-EAGAIN);
+
 	return head;
 }
 
-void btrfs_delete_ref_head(struct btrfs_delayed_ref_root *delayed_refs,
+void btrfs_unselect_ref_head(struct btrfs_delayed_ref_root *delayed_refs,
+			     struct btrfs_delayed_ref_head *head)
+{
+	spin_lock(&delayed_refs->lock);
+	head->processing = false;
+	delayed_refs->num_heads_ready++;
+	spin_unlock(&delayed_refs->lock);
+	btrfs_delayed_ref_unlock(head);
+}
+
+void btrfs_delete_ref_head(const struct btrfs_fs_info *fs_info,
+			   struct btrfs_delayed_ref_root *delayed_refs,
 			   struct btrfs_delayed_ref_head *head)
 {
+	const unsigned long index = (head->bytenr >> fs_info->sectorsize_bits);
+
 	lockdep_assert_held(&delayed_refs->lock);
 	lockdep_assert_held(&head->lock);
 
-	rb_erase_cached(&head->href_node, &delayed_refs->href_root);
-	RB_CLEAR_NODE(&head->href_node);
-	atomic_dec(&delayed_refs->num_entries);
+	xa_erase(&delayed_refs->head_refs, index);
+	head->tracked = false;
 	delayed_refs->num_heads--;
 	if (!head->processing)
 		delayed_refs->num_heads_ready--;
@@ -629,7 +575,6 @@ static bool insert_delayed_ref(struct btrfs_trans_handle *trans,
 	if (!exist) {
 		if (ref->action == BTRFS_ADD_DELAYED_REF)
 			list_add_tail(&ref->add_list, &href->ref_add_list);
-		atomic_inc(&root->num_entries);
 		spin_unlock(&href->lock);
 		trans->delayed_ref_updates++;
 		return false;
@@ -813,7 +758,7 @@ static void init_delayed_ref_head(struct btrfs_delayed_ref_head *head_ref,
 	head_ref->is_system = (generic_ref->ref_root == BTRFS_CHUNK_TREE_OBJECTID);
 	head_ref->ref_tree = RB_ROOT_CACHED;
 	INIT_LIST_HEAD(&head_ref->ref_add_list);
-	RB_CLEAR_NODE(&head_ref->href_node);
+	head_ref->tracked = false;
 	head_ref->processing = false;
 	head_ref->total_ref_mod = count_mod;
 	spin_lock_init(&head_ref->lock);
@@ -830,7 +775,6 @@ static void init_delayed_ref_head(struct btrfs_delayed_ref_head *head_ref,
 			qrecord->data_rsv = reserved;
 			qrecord->data_rsv_refroot = generic_ref->ref_root;
 		}
-		qrecord->bytenr = generic_ref->bytenr;
 		qrecord->num_bytes = generic_ref->num_bytes;
 		qrecord->old_roots = NULL;
 	}
@@ -852,19 +796,33 @@ add_delayed_ref_head(struct btrfs_trans_handle *trans,
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_delayed_ref_head *existing;
 	struct btrfs_delayed_ref_root *delayed_refs;
+	const unsigned long index = (head_ref->bytenr >> fs_info->sectorsize_bits);
 	bool qrecord_inserted = false;
 
 	delayed_refs = &trans->transaction->delayed_refs;
+	lockdep_assert_held(&delayed_refs->lock);
+
+#if BITS_PER_LONG == 32
+	if (head_ref->bytenr >= MAX_LFS_FILESIZE) {
+		if (qrecord)
+			xa_release(&delayed_refs->dirty_extents, index);
+		btrfs_err_rl(fs_info,
+"delayed ref head %llu is beyond 32bit page cache and xarray index limit",
+			     head_ref->bytenr);
+		btrfs_err_32bit_limit(fs_info);
+		return ERR_PTR(-EOVERFLOW);
+	}
+#endif
 
 	/* Record qgroup extent info if provided */
 	if (qrecord) {
 		int ret;
 
-		ret = btrfs_qgroup_trace_extent_nolock(fs_info, delayed_refs, qrecord);
+		ret = btrfs_qgroup_trace_extent_nolock(fs_info, delayed_refs, qrecord,
+						       head_ref->bytenr);
 		if (ret) {
 			/* Clean up if insertion fails or item exists. */
-			xa_release(&delayed_refs->dirty_extents,
-				   qrecord->bytenr >> fs_info->sectorsize_bits);
+			xa_release(&delayed_refs->dirty_extents, index);
 			/* Caller responsible for freeing qrecord on error. */
 			if (ret < 0)
 				return ERR_PTR(ret);
@@ -876,8 +834,7 @@ add_delayed_ref_head(struct btrfs_trans_handle *trans,
 
 	trace_add_delayed_ref_head(fs_info, head_ref, action);
 
-	existing = htree_insert(&delayed_refs->href_root,
-				&head_ref->href_node);
+	existing = xa_load(&delayed_refs->head_refs, index);
 	if (existing) {
 		update_existing_head_ref(trans, existing, head_ref);
 		/*
@@ -887,6 +844,19 @@ add_delayed_ref_head(struct btrfs_trans_handle *trans,
 		kmem_cache_free(btrfs_delayed_ref_head_cachep, head_ref);
 		head_ref = existing;
 	} else {
+		existing = xa_store(&delayed_refs->head_refs, index, head_ref, GFP_ATOMIC);
+		if (xa_is_err(existing)) {
+			/* Memory was preallocated by the caller. */
+			ASSERT(xa_err(existing) != -ENOMEM);
+			return ERR_PTR(xa_err(existing));
+		} else if (WARN_ON(existing)) {
+			/*
+			 * Shouldn't happen we just did a lookup before under
+			 * delayed_refs->lock.
+			 */
+			return ERR_PTR(-EEXIST);
+		}
+		head_ref->tracked = true;
 		/*
 		 * We reserve the amount of bytes needed to delete csums when
 		 * adding the ref head and not when adding individual drop refs
@@ -900,7 +870,6 @@ add_delayed_ref_head(struct btrfs_trans_handle *trans,
 		}
 		delayed_refs->num_heads++;
 		delayed_refs->num_heads_ready++;
-		atomic_inc(&delayed_refs->num_entries);
 	}
 	if (qrecord_inserted_ret)
 		*qrecord_inserted_ret = qrecord_inserted;
@@ -1008,6 +977,8 @@ static int add_delayed_ref(struct btrfs_trans_handle *trans,
 	struct btrfs_delayed_ref_head *new_head_ref;
 	struct btrfs_delayed_ref_root *delayed_refs;
 	struct btrfs_qgroup_extent_record *record = NULL;
+	const unsigned long index = (generic_ref->bytenr >> fs_info->sectorsize_bits);
+	bool qrecord_reserved = false;
 	bool qrecord_inserted;
 	int action = generic_ref->action;
 	bool merged;
@@ -1023,25 +994,32 @@ static int add_delayed_ref(struct btrfs_trans_handle *trans,
 		goto free_node;
 	}
 
+	delayed_refs = &trans->transaction->delayed_refs;
+
 	if (btrfs_qgroup_full_accounting(fs_info) && !generic_ref->skip_qgroup) {
 		record = kzalloc(sizeof(*record), GFP_NOFS);
 		if (!record) {
 			ret = -ENOMEM;
 			goto free_head_ref;
 		}
-		if (xa_reserve(&trans->transaction->delayed_refs.dirty_extents,
-			       generic_ref->bytenr >> fs_info->sectorsize_bits,
-			       GFP_NOFS)) {
+		if (xa_reserve(&delayed_refs->dirty_extents, index, GFP_NOFS)) {
 			ret = -ENOMEM;
 			goto free_record;
 		}
+		qrecord_reserved = true;
+	}
+
+	ret = xa_reserve(&delayed_refs->head_refs, index, GFP_NOFS);
+	if (ret) {
+		if (qrecord_reserved)
+			xa_release(&delayed_refs->dirty_extents, index);
+		goto free_record;
 	}
 
 	init_delayed_ref_common(fs_info, node, generic_ref);
 	init_delayed_ref_head(head_ref, generic_ref, record, reserved);
 	head_ref->extent_op = extent_op;
 
-	delayed_refs = &trans->transaction->delayed_refs;
 	spin_lock(&delayed_refs->lock);
 
 	/*
@@ -1051,6 +1029,7 @@ static int add_delayed_ref(struct btrfs_trans_handle *trans,
 	new_head_ref = add_delayed_ref_head(trans, head_ref, record,
 					    action, &qrecord_inserted);
 	if (IS_ERR(new_head_ref)) {
+		xa_release(&delayed_refs->head_refs, index);
 		spin_unlock(&delayed_refs->lock);
 		ret = PTR_ERR(new_head_ref);
 		goto free_record;
@@ -1074,7 +1053,7 @@ static int add_delayed_ref(struct btrfs_trans_handle *trans,
 		kmem_cache_free(btrfs_delayed_ref_node_cachep, node);
 
 	if (qrecord_inserted)
-		return btrfs_qgroup_trace_extent_post(trans, record);
+		return btrfs_qgroup_trace_extent_post(trans, record, generic_ref->bytenr);
 	return 0;
 
 free_record:
@@ -1113,6 +1092,7 @@ int btrfs_add_delayed_extent_op(struct btrfs_trans_handle *trans,
 				u64 bytenr, u64 num_bytes, u8 level,
 				struct btrfs_delayed_extent_op *extent_op)
 {
+	const unsigned long index = (bytenr >> trans->fs_info->sectorsize_bits);
 	struct btrfs_delayed_ref_head *head_ref;
 	struct btrfs_delayed_ref_head *head_ref_ret;
 	struct btrfs_delayed_ref_root *delayed_refs;
@@ -1123,6 +1103,7 @@ int btrfs_add_delayed_extent_op(struct btrfs_trans_handle *trans,
 		.num_bytes = num_bytes,
 		.tree_ref.level = level,
 	};
+	int ret;
 
 	head_ref = kmem_cache_alloc(btrfs_delayed_ref_head_cachep, GFP_NOFS);
 	if (!head_ref)
@@ -1132,16 +1113,23 @@ int btrfs_add_delayed_extent_op(struct btrfs_trans_handle *trans,
 	head_ref->extent_op = extent_op;
 
 	delayed_refs = &trans->transaction->delayed_refs;
-	spin_lock(&delayed_refs->lock);
 
+	ret = xa_reserve(&delayed_refs->head_refs, index, GFP_NOFS);
+	if (ret) {
+		kmem_cache_free(btrfs_delayed_ref_head_cachep, head_ref);
+		return ret;
+	}
+
+	spin_lock(&delayed_refs->lock);
 	head_ref_ret = add_delayed_ref_head(trans, head_ref, NULL,
 					    BTRFS_UPDATE_DELAYED_HEAD, NULL);
-	spin_unlock(&delayed_refs->lock);
-
 	if (IS_ERR(head_ref_ret)) {
+		xa_release(&delayed_refs->head_refs, index);
+		spin_unlock(&delayed_refs->lock);
 		kmem_cache_free(btrfs_delayed_ref_head_cachep, head_ref);
 		return PTR_ERR(head_ref_ret);
 	}
+	spin_unlock(&delayed_refs->lock);
 
 	/*
 	 * Need to update the delayed_refs_rsv with any changes we may have
@@ -1164,11 +1152,15 @@ void btrfs_put_delayed_ref(struct btrfs_delayed_ref_node *ref)
  * head node if found, or NULL if not.
  */
 struct btrfs_delayed_ref_head *
-btrfs_find_delayed_ref_head(struct btrfs_delayed_ref_root *delayed_refs, u64 bytenr)
+btrfs_find_delayed_ref_head(const struct btrfs_fs_info *fs_info,
+			    struct btrfs_delayed_ref_root *delayed_refs,
+			    u64 bytenr)
 {
+	const unsigned long index = (bytenr >> fs_info->sectorsize_bits);
+
 	lockdep_assert_held(&delayed_refs->lock);
 
-	return find_ref_head(delayed_refs, bytenr, false);
+	return xa_load(&delayed_refs->head_refs, index);
 }
 
 static int find_comp(struct btrfs_delayed_ref_node *entry, u64 root, u64 parent)
@@ -1236,6 +1228,81 @@ bool btrfs_find_delayed_tree_ref(struct btrfs_delayed_ref_head *head,
 	}
 	spin_unlock(&head->lock);
 	return found;
+}
+
+void btrfs_destroy_delayed_refs(struct btrfs_transaction *trans)
+{
+	struct btrfs_delayed_ref_root *delayed_refs = &trans->delayed_refs;
+	struct btrfs_fs_info *fs_info = trans->fs_info;
+
+	spin_lock(&delayed_refs->lock);
+	while (true) {
+		struct btrfs_delayed_ref_head *head;
+		struct rb_node *n;
+		bool pin_bytes = false;
+
+		head = find_first_ref_head(delayed_refs);
+		if (!head)
+			break;
+
+		if (!btrfs_delayed_ref_lock(delayed_refs, head))
+			continue;
+
+		spin_lock(&head->lock);
+		while ((n = rb_first_cached(&head->ref_tree)) != NULL) {
+			struct btrfs_delayed_ref_node *ref;
+
+			ref = rb_entry(n, struct btrfs_delayed_ref_node, ref_node);
+			drop_delayed_ref(fs_info, delayed_refs, head, ref);
+		}
+		if (head->must_insert_reserved)
+			pin_bytes = true;
+		btrfs_free_delayed_extent_op(head->extent_op);
+		btrfs_delete_ref_head(fs_info, delayed_refs, head);
+		spin_unlock(&head->lock);
+		spin_unlock(&delayed_refs->lock);
+		mutex_unlock(&head->mutex);
+
+		if (pin_bytes) {
+			struct btrfs_block_group *bg;
+
+			bg = btrfs_lookup_block_group(fs_info, head->bytenr);
+			if (WARN_ON_ONCE(bg == NULL)) {
+				/*
+				 * Unexpected and there's nothing we can do here
+				 * because we are in a transaction abort path,
+				 * so any errors can only be ignored or reported
+				 * while attempting to cleanup all resources.
+				 */
+				btrfs_err(fs_info,
+"block group for delayed ref at %llu was not found while destroying ref head",
+					  head->bytenr);
+			} else {
+				spin_lock(&bg->space_info->lock);
+				spin_lock(&bg->lock);
+				bg->pinned += head->num_bytes;
+				btrfs_space_info_update_bytes_pinned(fs_info,
+								     bg->space_info,
+								     head->num_bytes);
+				bg->reserved -= head->num_bytes;
+				bg->space_info->bytes_reserved -= head->num_bytes;
+				spin_unlock(&bg->lock);
+				spin_unlock(&bg->space_info->lock);
+
+				btrfs_put_block_group(bg);
+			}
+
+			btrfs_error_unpin_extent_range(fs_info, head->bytenr,
+				head->bytenr + head->num_bytes - 1);
+		}
+		btrfs_cleanup_ref_head_accounting(fs_info, delayed_refs, head);
+		btrfs_put_delayed_ref_head(head);
+		cond_resched();
+		spin_lock(&delayed_refs->lock);
+	}
+	btrfs_qgroup_destroy_extent_records(trans);
+
+	spin_unlock(&delayed_refs->lock);
 }
 
 void __cold btrfs_delayed_ref_exit(void)

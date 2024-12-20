@@ -289,7 +289,7 @@
 		reg = <0x2d>;
 	};
 
-	m2_eeprom: m2_eeprom@50 {
+	m2_eeprom: eeprom@50 {
 		compatible = "atmel,24c256";
 		reg = <0x50>;
 		status = "okay";
@@ -303,12 +303,12 @@
 	status = "okay";
 	clock-frequency = <100000>;
 
-	board_24aa025e48: board_24aa025e48@50 {
+	board_24aa025e48: eeprom@50 {
 		compatible = "atmel,24c02";
 		reg = <0x50>;
 	};
 
-	backplane_24aa025e48: backplane_24aa025e48@53 {
+	backplane_24aa025e48: eeprom@53 {
 		compatible = "atmel,24c02";
 		reg = <0x53>;
 	};

@@ -1131,6 +1131,10 @@ void ksz9477_config_cpu_port(struct dsa_switch *ds)
 		if (i == dev->cpu_port)
 			continue;
 		ksz_port_stp_state_set(ds, i, BR_STATE_DISABLED);
+
+		/* Power down the internal PHY if port is unused. */
+		if (dsa_is_unused_port(ds, i) && dev->info->internal_phy[i])
+			ksz_pwrite16(dev, i, 0x100, BMCR_PDOWN);
 	}
 }
 

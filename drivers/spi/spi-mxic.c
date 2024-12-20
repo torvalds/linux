@@ -294,7 +294,8 @@ static void mxic_spi_hw_init(struct mxic_spi *mxic)
 	       mxic->regs + HC_CFG);
 }
 
-static u32 mxic_spi_prep_hc_cfg(struct spi_device *spi, u32 flags)
+static u32 mxic_spi_prep_hc_cfg(struct spi_device *spi, u32 flags,
+				bool swap16)
 {
 	int nio = 1;
 
@@ -304,6 +305,11 @@ static u32 mxic_spi_prep_hc_cfg(struct spi_device *spi, u32 flags)
 		nio = 4;
 	else if (spi->mode & (SPI_TX_DUAL | SPI_RX_DUAL))
 		nio = 2;
+
+	if (swap16)
+		flags &= ~HC_CFG_DATA_PASS;
+	else
+		flags |= HC_CFG_DATA_PASS;
 
 	return flags | HC_CFG_NIO(nio) |
 	       HC_CFG_TYPE(spi_get_chipselect(spi, 0), HC_CFG_TYPE_SPI_NOR) |
@@ -397,7 +403,8 @@ static ssize_t mxic_spi_mem_dirmap_read(struct spi_mem_dirmap_desc *desc,
 	if (WARN_ON(offs + desc->info.offset + len > U32_MAX))
 		return -EINVAL;
 
-	writel(mxic_spi_prep_hc_cfg(desc->mem->spi, 0), mxic->regs + HC_CFG);
+	writel(mxic_spi_prep_hc_cfg(desc->mem->spi, 0, desc->info.op_tmpl.data.swap16),
+	       mxic->regs + HC_CFG);
 
 	writel(mxic_spi_mem_prep_op_cfg(&desc->info.op_tmpl, len),
 	       mxic->regs + LRD_CFG);
@@ -441,7 +448,8 @@ static ssize_t mxic_spi_mem_dirmap_write(struct spi_mem_dirmap_desc *desc,
 	if (WARN_ON(offs + desc->info.offset + len > U32_MAX))
 		return -EINVAL;
 
-	writel(mxic_spi_prep_hc_cfg(desc->mem->spi, 0), mxic->regs + HC_CFG);
+	writel(mxic_spi_prep_hc_cfg(desc->mem->spi, 0, desc->info.op_tmpl.data.swap16),
+	       mxic->regs + HC_CFG);
 
 	writel(mxic_spi_mem_prep_op_cfg(&desc->info.op_tmpl, len),
 	       mxic->regs + LWR_CFG);
@@ -518,7 +526,7 @@ static int mxic_spi_mem_exec_op(struct spi_mem *mem,
 	if (ret)
 		return ret;
 
-	writel(mxic_spi_prep_hc_cfg(mem->spi, HC_CFG_MAN_CS_EN),
+	writel(mxic_spi_prep_hc_cfg(mem->spi, HC_CFG_MAN_CS_EN, op->data.swap16),
 	       mxic->regs + HC_CFG);
 
 	writel(HC_EN_BIT, mxic->regs + HC_EN);
@@ -573,6 +581,7 @@ static const struct spi_controller_mem_ops mxic_spi_mem_ops = {
 static const struct spi_controller_mem_caps mxic_spi_mem_caps = {
 	.dtr = true,
 	.ecc = true,
+	.swap16 = true,
 };
 
 static void mxic_spi_set_cs(struct spi_device *spi, bool lvl)
@@ -640,7 +649,7 @@ static int mxic_spi_transfer_one(struct spi_controller *host,
 /* ECC wrapper */
 static int mxic_spi_mem_ecc_init_ctx(struct nand_device *nand)
 {
-	struct nand_ecc_engine_ops *ops = mxic_ecc_get_pipelined_ops();
+	const struct nand_ecc_engine_ops *ops = mxic_ecc_get_pipelined_ops();
 	struct mxic_spi *mxic = nand->ecc.engine->priv;
 
 	mxic->ecc.use_pipelined_conf = true;
@@ -650,7 +659,7 @@ static int mxic_spi_mem_ecc_init_ctx(struct nand_device *nand)
 
 static void mxic_spi_mem_ecc_cleanup_ctx(struct nand_device *nand)
 {
-	struct nand_ecc_engine_ops *ops = mxic_ecc_get_pipelined_ops();
+	const struct nand_ecc_engine_ops *ops = mxic_ecc_get_pipelined_ops();
 	struct mxic_spi *mxic = nand->ecc.engine->priv;
 
 	mxic->ecc.use_pipelined_conf = false;
@@ -661,7 +670,7 @@ static void mxic_spi_mem_ecc_cleanup_ctx(struct nand_device *nand)
 static int mxic_spi_mem_ecc_prepare_io_req(struct nand_device *nand,
 					   struct nand_page_io_req *req)
 {
-	struct nand_ecc_engine_ops *ops = mxic_ecc_get_pipelined_ops();
+	const struct nand_ecc_engine_ops *ops = mxic_ecc_get_pipelined_ops();
 
 	return ops->prepare_io_req(nand, req);
 }
@@ -669,12 +678,12 @@ static int mxic_spi_mem_ecc_prepare_io_req(struct nand_device *nand,
 static int mxic_spi_mem_ecc_finish_io_req(struct nand_device *nand,
 					  struct nand_page_io_req *req)
 {
-	struct nand_ecc_engine_ops *ops = mxic_ecc_get_pipelined_ops();
+	const struct nand_ecc_engine_ops *ops = mxic_ecc_get_pipelined_ops();
 
 	return ops->finish_io_req(nand, req);
 }
 
-static struct nand_ecc_engine_ops mxic_spi_mem_ecc_engine_pipelined_ops = {
+static const struct nand_ecc_engine_ops mxic_spi_mem_ecc_engine_pipelined_ops = {
 	.init_ctx = mxic_spi_mem_ecc_init_ctx,
 	.cleanup_ctx = mxic_spi_mem_ecc_cleanup_ctx,
 	.prepare_io_req = mxic_spi_mem_ecc_prepare_io_req,
@@ -836,7 +845,7 @@ MODULE_DEVICE_TABLE(of, mxic_spi_of_ids);
 
 static struct platform_driver mxic_spi_driver = {
 	.probe = mxic_spi_probe,
-	.remove_new = mxic_spi_remove,
+	.remove = mxic_spi_remove,
 	.driver = {
 		.name = "mxic-spi",
 		.of_match_table = mxic_spi_of_ids,

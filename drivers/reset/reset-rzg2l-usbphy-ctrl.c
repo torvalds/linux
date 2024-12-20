@@ -208,7 +208,7 @@ static struct platform_driver rzg2l_usbphy_ctrl_driver = {
 		.of_match_table	= rzg2l_usbphy_ctrl_match_table,
 	},
 	.probe	= rzg2l_usbphy_ctrl_probe,
-	.remove_new = rzg2l_usbphy_ctrl_remove,
+	.remove = rzg2l_usbphy_ctrl_remove,
 };
 module_platform_driver(rzg2l_usbphy_ctrl_driver);
 

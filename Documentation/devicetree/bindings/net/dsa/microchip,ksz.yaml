@@ -34,6 +34,7 @@ properties:
       - microchip,ksz9563
       - microchip,ksz8563
       - microchip,ksz8567
+      - microchip,lan9646
 
   reset-gpios:
     description:
@@ -80,6 +81,26 @@ properties:
 
   interrupts:
     maxItems: 1
+
+  mdio:
+    $ref: /schemas/net/mdio.yaml#
+    unevaluatedProperties: false
+    properties:
+      mdio-parent-bus:
+        $ref: /schemas/types.yaml#/definitions/phandle
+        description:
+          Phandle pointing to the MDIO bus controller connected to the
+          secondary MDIO interface. This property should be used when
+          the internal MDIO bus is accessed via a secondary MDIO
+          interface rather than the primary management interface.
+
+    patternProperties:
+      "^ethernet-phy@[0-9a-f]$":
+        type: object
+        $ref: /schemas/net/ethernet-phy.yaml#
+        unevaluatedProperties: false
+        description:
+          Integrated PHY node
 
 required:
   - compatible
@@ -138,7 +159,6 @@ examples:
 
         pinctrl-0 = <&pinctrl_spi_ksz>;
         cs-gpios = <&pioC 25 0>;
-        id = <1>;
 
         ksz9477: switch@0 {
             compatible = "microchip,ksz9477";

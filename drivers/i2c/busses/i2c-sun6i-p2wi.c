@@ -319,7 +319,7 @@ static void p2wi_remove(struct platform_device *dev)
 
 static struct platform_driver p2wi_driver = {
 	.probe	= p2wi_probe,
-	.remove_new = p2wi_remove,
+	.remove = p2wi_remove,
 	.driver	= {
 		.name = "i2c-sunxi-p2wi",
 		.of_match_table = p2wi_of_match_table,

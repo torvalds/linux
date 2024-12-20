@@ -175,7 +175,7 @@ static void mesh_sync_offset_adjust_tsf(struct ieee80211_sub_if_data *sdata,
 	spin_lock_bh(&ifmsh->sync_offset_lock);
 
 	if (ifmsh->sync_offset_clockdrift_max > TOFFSET_MINIMUM_ADJUSTMENT) {
-		/* Since ajusting the tsf here would
+		/* Since adjusting the tsf here would
 		 * require a possibly blocking call
 		 * to the driver tsf setter, we punt
 		 * the tsf adjustment to the mesh tasklet

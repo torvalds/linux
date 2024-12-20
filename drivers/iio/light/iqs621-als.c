@@ -271,7 +271,7 @@ static int iqs621_als_write_event_config(struct iio_dev *indio_dev,
 					 const struct iio_chan_spec *chan,
 					 enum iio_event_type type,
 					 enum iio_event_direction dir,
-					 int state)
+					 bool state)
 {
 	struct iqs621_als_private *iqs621_als = iio_priv(indio_dev);
 	struct iqs62x_core *iqs62x = iqs621_als->iqs62x;

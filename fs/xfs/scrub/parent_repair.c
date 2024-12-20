@@ -1334,7 +1334,7 @@ xrep_parent_rebuild_pptrs(
 	 * so that we can decide if we're moving this file to the orphanage.
 	 * For this purpose, root directories are their own parents.
 	 */
-	if (sc->ip == sc->mp->m_rootip) {
+	if (xchk_inode_is_dirtree_root(sc->ip)) {
 		xrep_findparent_scan_found(&rp->pscan, sc->ip->i_ino);
 	} else {
 		error = xrep_parent_lookup_pptrs(sc, &parent_ino);
@@ -1354,21 +1354,40 @@ STATIC int
 xrep_parent_rebuild_tree(
 	struct xrep_parent	*rp)
 {
+	struct xfs_scrub	*sc = rp->sc;
+	bool			try_adoption;
 	int			error;
 
-	if (xfs_has_parent(rp->sc->mp)) {
+	if (xfs_has_parent(sc->mp)) {
 		error = xrep_parent_rebuild_pptrs(rp);
 		if (error)
 			return error;
 	}
 
-	if (rp->pscan.parent_ino == NULLFSINO) {
-		if (xrep_orphanage_can_adopt(rp->sc))
+	/*
+	 * Any file with no parent could be adopted.  This check happens after
+	 * rebuilding the parent pointer structure because we might have cycled
+	 * the ILOCK during that process.
+	 */
+	try_adoption = rp->pscan.parent_ino == NULLFSINO;
+
+	/*
+	 * Starting with metadir, we allow checking of parent pointers
+	 * of non-directory files that are children of the superblock.
+	 * Lack of parent is ok here.
+	 */
+	if (try_adoption && xfs_has_metadir(sc->mp) &&
+	    xchk_inode_is_sb_rooted(sc->ip))
+		try_adoption = false;
+
+	if (try_adoption) {
+		if (xrep_orphanage_can_adopt(sc))
 			return xrep_parent_move_to_orphanage(rp);
 		return -EFSCORRUPTED;
+
 	}
 
-	if (S_ISDIR(VFS_I(rp->sc->ip)->i_mode))
+	if (S_ISDIR(VFS_I(sc->ip)->i_mode))
 		return xrep_parent_reset_dotdot(rp);
 
 	return 0;
@@ -1421,6 +1440,14 @@ xrep_parent_set_nondir_nlink(
 	error = xchk_xattr_walk(sc, ip, xrep_parent_count_pptr, NULL, rp);
 	if (error)
 		return error;
+
+	/*
+	 * Starting with metadir, we allow checking of parent pointers of
+	 * non-directory files that are children of the superblock.  Pretend
+	 * that we found a parent pointer attr.
+	 */
+	if (xfs_has_metadir(sc->mp) && xchk_inode_is_sb_rooted(sc->ip))
+		rp->parents++;
 
 	if (rp->parents > 0 && xfs_inode_on_unlinked_list(ip)) {
 		xfs_trans_ijoin(sc->tp, sc->ip, 0);

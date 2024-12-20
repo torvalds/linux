@@ -5,6 +5,7 @@
 
 #include "xe_pm.h"
 
+#include <linux/fault-inject.h>
 #include <linux/pm_runtime.h>
 
 #include <drm/drm_managed.h>
@@ -263,6 +264,7 @@ int xe_pm_init_early(struct xe_device *xe)
 
 	return 0;
 }
+ALLOW_ERROR_INJECTION(xe_pm_init_early, ERRNO); /* See xe_pci_probe() */
 
 /**
  * xe_pm_init - Initialize Xe Power Management

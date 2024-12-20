@@ -213,6 +213,14 @@ config IPQ_GCC_5332
 	  Say Y if you want to use peripheral devices such as UART, SPI,
 	  i2c, USB, SD/eMMC, etc.
 
+config IPQ_GCC_5424
+	tristate "IPQ5424 Global Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	help
+	  Support for the global clock controller on ipq5424 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  i2c, USB, SD/eMMC, etc.
+
 config IPQ_GCC_6018
 	tristate "IPQ6018 Global Clock Controller"
 	help
@@ -467,6 +475,26 @@ config QCS_GCC_404
 	  Say Y if you want to use multimedia devices or peripheral
 	  devices such as UART, SPI, I2C, USB, SD/eMMC, PCIe etc.
 
+config SA_CAMCC_8775P
+	tristate "SA8775P Camera Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select SA_GCC_8775P
+	help
+	  Support for the camera clock controller on Qualcomm Technologies, Inc
+	  SA8775P devices.
+	  Say Y if you want to support camera devices and functionality such as
+	  capturing pictures.
+
+config QCS_GCC_8300
+	tristate "QCS8300 Global Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select QCOM_GDSC
+	help
+	  Support for the global clock controller on Qualcomm Technologies, Inc
+	  QCS8300 devices.
+	  Say Y if you want to use peripheral devices such as UART,
+	  SPI, I2C, USB, SD/UFS, PCIe etc.
+
 config SC_CAMCC_7180
 	tristate "SC7180 Camera Clock Controller"
 	depends on ARM64 || COMPILE_TEST
@@ -496,6 +524,16 @@ config SC_CAMCC_8280XP
 	  SC8280XP devices.
 	  Say Y if you want to support camera devices and functionality such as
 	  capturing pictures.
+
+config SA_DISPCC_8775P
+	tristate "SA8775P Display Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select SA_GCC_8775P
+	help
+	  Support for the two display clock controllers on Qualcomm
+	  Technologies, Inc. SA8775P devices.
+	  Say Y if you want to support display devices and functionality such as
+	  splash screen.
 
 config SC_DISPCC_7180
 	tristate "SC7180 Display Clock Controller"
@@ -542,6 +580,24 @@ config SA_GPUCC_8775P
 	select SA_GCC_8775P
 	help
 	  Support for the graphics clock controller on SA8775P devices.
+	  Say Y if you want to support graphics controller devices and
+	  functionality such as 3D graphics.
+
+config SAR_GCC_2130P
+	tristate "SAR2130P Global Clock Controller"
+	select QCOM_GDSC
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on SAR2130P devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  I2C, USB, SDCC, etc.
+
+config SAR_GPUCC_2130P
+	tristate "SAR2130P Graphics clock controller"
+	select QCOM_GDSC
+	select SAR_GCC_2130P
+	help
+	  Support for the graphics clock controller on SAR2130P devices.
 	  Say Y if you want to support graphics controller devices and
 	  functionality such as 3D graphics.
 
@@ -857,7 +913,7 @@ config SM_CAMCC_8450
 	depends on ARM64 || COMPILE_TEST
 	select SM_GCC_8450
 	help
-	  Support for the camera clock controller on SM8450 devices.
+	  Support for the camera clock controller on SM8450 or SM8475 devices.
 	  Say Y if you want to support camera devices and camera functionality.
 
 config SM_CAMCC_8550
@@ -952,17 +1008,17 @@ config SM_DISPCC_8450
 	depends on SM_GCC_8450
 	help
 	  Support for the display clock controller on Qualcomm Technologies, Inc
-	  SM8450 devices.
+	  SM8450 or SM8475 devices.
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen.
 
 config SM_DISPCC_8550
 	tristate "SM8550 Display Clock Controller"
 	depends on ARM64 || COMPILE_TEST
-	depends on SM_GCC_8550 || SM_GCC_8650
+	depends on SM_GCC_8550 || SM_GCC_8650 || SAR_GCC_2130P
 	help
 	  Support for the display clock controller on Qualcomm Technologies, Inc
-	  SM8550 or SM8650 devices.
+	  SAR2130P, SM8550 or SM8650 devices.
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen.
 
@@ -987,6 +1043,7 @@ config SM_GCC_6115
 config SM_GCC_6125
 	tristate "SM6125 Global Clock Controller"
 	depends on ARM64 || COMPILE_TEST
+	select QCOM_GDSC
 	help
 	  Support for the global clock controller on SM6125 devices.
 	  Say Y if you want to use peripheral devices such as UART,
@@ -1050,7 +1107,8 @@ config SM_GCC_8450
 	depends on ARM64 || COMPILE_TEST
 	select QCOM_GDSC
 	help
-	  Support for the global clock controller on SM8450 devices.
+	  Support for the global clock controller on SM8450 or SM8475
+	  devices.
 	  Say Y if you want to use peripheral devices such as UART,
 	  SPI, I2C, USB, SD/UFS, PCIe etc.
 
@@ -1149,7 +1207,8 @@ config SM_GPUCC_8450
 	depends on ARM64 || COMPILE_TEST
 	select SM_GCC_8450
 	help
-	  Support for the graphics clock controller on SM8450 devices.
+	  Support for the graphics clock controller on SM8450 or SM8475
+	  devices.
 	  Say Y if you want to support graphics controller devices and
 	  functionality such as 3D graphics.
 
@@ -1186,6 +1245,17 @@ config SM_TCSRCC_8650
 	help
 	  Support for the TCSR clock controller on SM8650 devices.
 	  Say Y if you want to use peripheral devices such as SD/UFS.
+
+config SA_VIDEOCC_8775P
+	tristate "SA8775P Video Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select SA_GCC_8775P
+	select QCOM_GDSC
+	help
+	  Support for the video clock controller on Qualcomm Technologies, Inc.
+	  SA8775P devices.
+	  Say Y if you want to support video devices and functionality such as
+	  video encode/decode.
 
 config SM_VIDEOCC_7150
 	tristate "SM7150 Video Clock Controller"
@@ -1230,11 +1300,11 @@ config SM_VIDEOCC_8350
 config SM_VIDEOCC_8550
 	tristate "SM8550 Video Clock Controller"
 	depends on ARM64 || COMPILE_TEST
-	select SM_GCC_8550
+	depends on SM_GCC_8550 || SM_GCC_8650
 	select QCOM_GDSC
 	help
 	  Support for the video clock controller on Qualcomm Technologies, Inc.
-	  SM8550 devices.
+	  SM8550 or SM8650 devices.
 	  Say Y if you want to support video devices and functionality such as
 	  video encode/decode.
 
@@ -1283,7 +1353,7 @@ config SM_VIDEOCC_8450
 	select QCOM_GDSC
 	help
 	  Support for the video clock controller on Qualcomm Technologies, Inc.
-	  SM8450 devices.
+	  SM8450 or SM8475 devices.
 	  Say Y if you want to support video devices and functionality such as
 	  video encode/decode.
 endif

@@ -3183,7 +3183,7 @@ static struct platform_driver marvell_nfc_driver = {
 	},
 	.id_table = marvell_nfc_platform_ids,
 	.probe = marvell_nfc_probe,
-	.remove_new = marvell_nfc_remove,
+	.remove = marvell_nfc_remove,
 };
 module_platform_driver(marvell_nfc_driver);
 

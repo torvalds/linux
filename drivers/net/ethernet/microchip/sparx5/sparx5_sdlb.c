@@ -20,17 +20,18 @@ struct sparx5_sdlb_group sdlb_groups[SPX5_SDLB_GROUP_CNT] = {
 	{     5000000ULL,              8192 / 8, 64 }  /*   5 M */
 };
 
-int sparx5_sdlb_clk_hz_get(struct sparx5 *sparx5)
+struct sparx5_sdlb_group *sparx5_get_sdlb_group(int idx)
 {
-	u32 clk_per_100ps;
+	return &sdlb_groups[idx];
+}
+
+u64 sparx5_sdlb_clk_hz_get(struct sparx5 *sparx5)
+{
 	u64 clk_hz;
 
-	clk_per_100ps = HSCH_SYS_CLK_PER_100PS_GET(spx5_rd(sparx5,
-							   HSCH_SYS_CLK_PER));
-	if (!clk_per_100ps)
-		clk_per_100ps = SPX5_CLK_PER_100PS_DEFAULT;
+	clk_hz = (10 * 1000 * 1000) /
+		 (sparx5_clk_period(sparx5->coreclock) / 100);
 
-	clk_hz = (10 * 1000 * 1000) / clk_per_100ps;
 	return clk_hz *= 1000;
 }
 
@@ -178,14 +179,15 @@ static int sparx5_sdlb_group_get_count(struct sparx5 *sparx5, u32 group)
 
 int sparx5_sdlb_group_get_by_rate(struct sparx5 *sparx5, u32 rate, u32 burst)
 {
+	const struct sparx5_ops *ops = sparx5->data->ops;
 	const struct sparx5_sdlb_group *group;
 	u64 rate_bps;
 	int i, count;
 
 	rate_bps = rate * 1000;
 
-	for (i = SPX5_SDLB_GROUP_CNT - 1; i >= 0; i--) {
-		group = &sdlb_groups[i];
+	for (i = sparx5->data->consts->n_lb_groups - 1; i >= 0; i--) {
+		group = ops->get_sdlb_group(i);
 
 		count = sparx5_sdlb_group_get_count(sparx5, i);
 
@@ -208,7 +210,7 @@ int sparx5_sdlb_group_get_by_index(struct sparx5 *sparx5, u32 idx, u32 *group)
 	u32 itr, next;
 	int i;
 
-	for (i = 0; i < SPX5_SDLB_GROUP_CNT; i++) {
+	for (i = 0; i < sparx5->data->consts->n_lb_groups; i++) {
 		if (sparx5_sdlb_group_is_empty(sparx5, i))
 			continue;
 
@@ -303,11 +305,12 @@ int sparx5_sdlb_group_del(struct sparx5 *sparx5, u32 group, u32 idx)
 void sparx5_sdlb_group_init(struct sparx5 *sparx5, u64 max_rate, u32 min_burst,
 			    u32 frame_size, u32 idx)
 {
+	const struct sparx5_ops *ops = sparx5->data->ops;
 	u32 thres_shift, mask = 0x01, power = 0;
 	struct sparx5_sdlb_group *group;
 	u64 max_token;
 
-	group = &sdlb_groups[idx];
+	group = ops->get_sdlb_group(idx);
 
 	/* Number of positions to right-shift LB's threshold value. */
 	while ((min_burst & mask) == 0) {

@@ -355,7 +355,7 @@ static struct platform_driver unimac_mdio_driver = {
 		.pm = &unimac_mdio_pm_ops,
 	},
 	.probe	= unimac_mdio_probe,
-	.remove_new = unimac_mdio_remove,
+	.remove = unimac_mdio_remove,
 };
 module_platform_driver(unimac_mdio_driver);
 

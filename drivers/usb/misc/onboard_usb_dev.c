@@ -407,8 +407,10 @@ static int onboard_dev_probe(struct platform_device *pdev)
 		}
 
 		if (of_device_is_compatible(pdev->dev.of_node, "usb424,2744") ||
-		    of_device_is_compatible(pdev->dev.of_node, "usb424,5744"))
+		    of_device_is_compatible(pdev->dev.of_node, "usb424,5744")) {
 			err = onboard_dev_5744_i2c_init(client);
+			onboard_dev->always_powered_in_suspend = true;
+		}
 
 		put_device(&client->dev);
 		if (err < 0)
@@ -473,7 +475,7 @@ static const struct dev_pm_ops __maybe_unused onboard_dev_pm_ops = {
 
 static struct platform_driver onboard_dev_driver = {
 	.probe = onboard_dev_probe,
-	.remove_new = onboard_dev_remove,
+	.remove = onboard_dev_remove,
 
 	.driver = {
 		.name = "onboard-usb-dev",

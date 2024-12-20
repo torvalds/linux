@@ -8,25 +8,28 @@ from lib.py import cmd
 import glob
 
 
-def sys_get_queues(ifname) -> int:
-    folders = glob.glob(f'/sys/class/net/{ifname}/queues/rx-*')
+def sys_get_queues(ifname, qtype='rx') -> int:
+    folders = glob.glob(f'/sys/class/net/{ifname}/queues/{qtype}-*')
     return len(folders)
 
 
-def nl_get_queues(cfg, nl):
+def nl_get_queues(cfg, nl, qtype='rx'):
     queues = nl.queue_get({'ifindex': cfg.ifindex}, dump=True)
     if queues:
-        return len([q for q in queues if q['type'] == 'rx'])
+        return len([q for q in queues if q['type'] == qtype])
     return None
 
 
 def get_queues(cfg, nl) -> None:
-    queues = nl_get_queues(cfg, nl)
-    if not queues:
-        raise KsftSkipEx('queue-get not supported by device')
+    snl = NetdevFamily(recv_size=4096)
 
-    expected = sys_get_queues(cfg.dev['ifname'])
-    ksft_eq(queues, expected)
+    for qtype in ['rx', 'tx']:
+        queues = nl_get_queues(cfg, snl, qtype)
+        if not queues:
+            raise KsftSkipEx('queue-get not supported by device')
+
+        expected = sys_get_queues(cfg.dev['ifname'], qtype)
+        ksft_eq(queues, expected)
 
 
 def addremove_queues(cfg, nl) -> None:
@@ -57,7 +60,7 @@ def addremove_queues(cfg, nl) -> None:
 
 
 def main() -> None:
-    with NetDrvEnv(__file__, queue_count=3) as cfg:
+    with NetDrvEnv(__file__, queue_count=100) as cfg:
         ksft_run([get_queues, addremove_queues], args=(cfg, NetdevFamily()))
     ksft_exit()
 

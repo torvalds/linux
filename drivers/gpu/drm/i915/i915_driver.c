@@ -27,6 +27,7 @@
  *
  */
 
+#include <linux/aperture.h>
 #include <linux/acpi.h>
 #include <linux/device.h>
 #include <linux/module.h>
@@ -39,7 +40,6 @@
 #include <linux/vga_switcheroo.h>
 #include <linux/vt.h>
 
-#include <drm/drm_aperture.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_managed.h>
@@ -48,8 +48,8 @@
 #include "display/intel_acpi.h"
 #include "display/intel_bw.h"
 #include "display/intel_cdclk.h"
+#include "display/intel_crtc.h"
 #include "display/intel_display_driver.h"
-#include "display/intel_display.h"
 #include "display/intel_dmc.h"
 #include "display/intel_dp.h"
 #include "display/intel_dpt.h"
@@ -59,7 +59,7 @@
 #include "display/intel_overlay.h"
 #include "display/intel_pch_refclk.h"
 #include "display/intel_pps.h"
-#include "display/intel_sprite.h"
+#include "display/intel_sprite_uapi.h"
 #include "display/skl_watermark.h"
 
 #include "gem/i915_gem_context.h"
@@ -485,7 +485,7 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto err_perf;
 
-	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, dev_priv->drm.driver);
+	ret = aperture_remove_conflicting_pci_devices(pdev, dev_priv->drm.driver->name);
 	if (ret)
 		goto err_ggtt;
 
@@ -950,7 +950,7 @@ void i915_driver_shutdown(struct drm_i915_private *i915)
 
 	intel_dp_mst_suspend(i915);
 
-	intel_runtime_pm_disable_interrupts(i915);
+	intel_irq_suspend(i915);
 	intel_hpd_cancel_work(i915);
 
 	if (HAS_DISPLAY(i915))
@@ -959,7 +959,7 @@ void i915_driver_shutdown(struct drm_i915_private *i915)
 	intel_encoder_suspend_all(&i915->display);
 	intel_encoder_shutdown_all(&i915->display);
 
-	intel_dmc_suspend(i915);
+	intel_dmc_suspend(&i915->display);
 
 	i915_gem_suspend(i915);
 
@@ -1035,7 +1035,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	intel_dp_mst_suspend(dev_priv);
 
-	intel_runtime_pm_disable_interrupts(dev_priv);
+	intel_irq_suspend(dev_priv);
 	intel_hpd_cancel_work(dev_priv);
 
 	if (HAS_DISPLAY(dev_priv))
@@ -1054,7 +1054,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	dev_priv->suspend_count++;
 
-	intel_dmc_suspend(dev_priv);
+	intel_dmc_suspend(display);
 
 	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
@@ -1164,7 +1164,7 @@ static int i915_drm_resume(struct drm_device *dev)
 	/* Must be called after GGTT is resumed. */
 	intel_dpt_resume(dev_priv);
 
-	intel_dmc_resume(dev_priv);
+	intel_dmc_resume(display);
 
 	i915_restore_display(dev_priv);
 	intel_pps_unlock_regs_wa(display);
@@ -1181,7 +1181,7 @@ static int i915_drm_resume(struct drm_device *dev)
 	 * Modeset enabling in intel_display_driver_init_hw() also needs working
 	 * interrupts.
 	 */
-	intel_runtime_pm_enable_interrupts(dev_priv);
+	intel_irq_resume(dev_priv);
 
 	if (HAS_DISPLAY(dev_priv))
 		drm_mode_config_reset(dev);
@@ -1481,7 +1481,7 @@ static int intel_runtime_suspend(struct device *kdev)
 	for_each_gt(gt, dev_priv, i)
 		intel_gt_runtime_suspend(gt);
 
-	intel_runtime_pm_disable_interrupts(dev_priv);
+	intel_irq_suspend(dev_priv);
 
 	for_each_gt(gt, dev_priv, i)
 		intel_uncore_suspend(gt->uncore);
@@ -1494,7 +1494,7 @@ static int intel_runtime_suspend(struct device *kdev)
 			"Runtime suspend failed, disabling it (%d)\n", ret);
 		intel_uncore_runtime_resume(&dev_priv->uncore);
 
-		intel_runtime_pm_enable_interrupts(dev_priv);
+		intel_irq_resume(dev_priv);
 
 		for_each_gt(gt, dev_priv, i)
 			intel_gt_runtime_resume(gt);
@@ -1587,7 +1587,7 @@ static int intel_runtime_resume(struct device *kdev)
 	for_each_gt(gt, dev_priv, i)
 		intel_uncore_runtime_resume(gt->uncore);
 
-	intel_runtime_pm_enable_interrupts(dev_priv);
+	intel_irq_resume(dev_priv);
 
 	/*
 	 * No point of rolling back things in case of an error, as the best
@@ -1725,7 +1725,7 @@ static const struct drm_ioctl_desc i915_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(I915_GEM_SET_TILING, i915_gem_set_tiling_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(I915_GEM_GET_TILING, i915_gem_get_tiling_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(I915_GEM_GET_APERTURE, i915_gem_get_aperture_ioctl, DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(I915_GET_PIPE_FROM_CRTC_ID, intel_get_pipe_from_crtc_id_ioctl, 0),
+	DRM_IOCTL_DEF_DRV(I915_GET_PIPE_FROM_CRTC_ID, intel_crtc_get_pipe_from_crtc_id_ioctl, 0),
 	DRM_IOCTL_DEF_DRV(I915_GEM_MADVISE, i915_gem_madvise_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(I915_OVERLAY_PUT_IMAGE, intel_overlay_put_image_ioctl, DRM_MASTER),
 	DRM_IOCTL_DEF_DRV(I915_OVERLAY_ATTRS, intel_overlay_attrs_ioctl, DRM_MASTER),

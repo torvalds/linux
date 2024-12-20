@@ -940,7 +940,7 @@ static int adxl372_read_event_config(struct iio_dev *indio_dev, const struct iio
 
 static int adxl372_write_event_config(struct iio_dev *indio_dev, const struct iio_chan_spec *chan,
 				      enum iio_event_type type, enum iio_event_direction dir,
-				      int state)
+				      bool state)
 {
 	struct adxl372_state *st = iio_priv(indio_dev);
 
@@ -1176,7 +1176,7 @@ bool adxl372_readable_noinc_reg(struct device *dev, unsigned int reg)
 {
 	return (reg == ADXL372_FIFO_DATA);
 }
-EXPORT_SYMBOL_NS_GPL(adxl372_readable_noinc_reg, IIO_ADXL372);
+EXPORT_SYMBOL_NS_GPL(adxl372_readable_noinc_reg, "IIO_ADXL372");
 
 int adxl372_probe(struct device *dev, struct regmap *regmap,
 		  int irq, const char *name)
@@ -1260,7 +1260,7 @@ int adxl372_probe(struct device *dev, struct regmap *regmap,
 
 	return devm_iio_device_register(dev, indio_dev);
 }
-EXPORT_SYMBOL_NS_GPL(adxl372_probe, IIO_ADXL372);
+EXPORT_SYMBOL_NS_GPL(adxl372_probe, "IIO_ADXL372");
 
 MODULE_AUTHOR("Stefan Popa <stefan.popa@analog.com>");
 MODULE_DESCRIPTION("Analog Devices ADXL372 3-axis accelerometer driver");

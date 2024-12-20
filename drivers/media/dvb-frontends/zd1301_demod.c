@@ -531,7 +531,7 @@ static struct platform_driver zd1301_demod_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe          = zd1301_demod_probe,
-	.remove_new     = zd1301_demod_remove,
+	.remove         = zd1301_demod_remove,
 };
 module_platform_driver(zd1301_demod_driver);
 

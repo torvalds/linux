@@ -346,7 +346,7 @@ MODULE_DEVICE_TABLE(of, of_palmas_rtc_match);
 
 static struct platform_driver palmas_rtc_driver = {
 	.probe		= palmas_rtc_probe,
-	.remove_new	= palmas_rtc_remove,
+	.remove		= palmas_rtc_remove,
 	.driver		= {
 		.name	= "palmas-rtc",
 		.pm	= &palmas_rtc_pm_ops,

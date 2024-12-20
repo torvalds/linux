@@ -24,7 +24,6 @@
 
 #include <media/v4l2-cci.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-event.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
@@ -1001,13 +1000,7 @@ static const struct v4l2_subdev_pad_ops gc08a3_subdev_pad_ops = {
 	.get_selection = gc08a3_get_selection,
 };
 
-static const struct v4l2_subdev_core_ops gc08a3_core_ops = {
-	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
-	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
-};
-
 static const struct v4l2_subdev_ops gc08a3_subdev_ops = {
-	.core = &gc08a3_core_ops,
 	.video = &gc08a3_video_ops,
 	.pad = &gc08a3_subdev_pad_ops,
 };
@@ -1247,8 +1240,7 @@ static int gc08a3_probe(struct i2c_client *client)
 		goto err_power_off;
 	}
 
-	gc08a3->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
-			    V4L2_SUBDEV_FL_HAS_EVENTS;
+	gc08a3->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	gc08a3->pad.flags = MEDIA_PAD_FL_SOURCE;
 	gc08a3->sd.dev = &client->dev;
 	gc08a3->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;

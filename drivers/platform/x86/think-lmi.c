@@ -12,6 +12,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/acpi.h>
+#include <linux/array_size.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/mutex.h>
@@ -169,11 +170,12 @@ MODULE_PARM_DESC(debug_support, "Enable debug command support");
  */
 #define LENOVO_CERT_THUMBPRINT_GUID "C59119ED-1C0D-4806-A8E9-59AA318176C4"
 
-#define TLMI_POP_PWD BIT(0) /* Supervisor */
-#define TLMI_PAP_PWD BIT(1) /* Power-on */
-#define TLMI_HDD_PWD BIT(2) /* HDD/NVME */
-#define TLMI_SMP_PWD BIT(6) /* System Management */
-#define TLMI_CERT    BIT(7) /* Certificate Based */
+#define TLMI_POP_PWD  BIT(0) /* Supervisor */
+#define TLMI_PAP_PWD  BIT(1) /* Power-on */
+#define TLMI_HDD_PWD  BIT(2) /* HDD/NVME */
+#define TLMI_SMP_PWD  BIT(6) /* System Management */
+#define TLMI_CERT_SVC BIT(7) /* Admin Certificate Based */
+#define TLMI_CERT_SMC BIT(8) /* System Certificate Based */
 
 static const struct tlmi_err_codes tlmi_errs[] = {
 	{"Success", 0},
@@ -391,7 +393,7 @@ static ssize_t is_enabled_show(struct kobject *kobj, struct kobj_attribute *attr
 {
 	struct tlmi_pwd_setting *setting = to_tlmi_pwd_setting(kobj);
 
-	return sysfs_emit(buf, "%d\n", setting->valid);
+	return sysfs_emit(buf, "%d\n", setting->pwd_enabled || setting->cert_installed);
 }
 
 static struct kobj_attribute auth_is_pass_set = __ATTR_RO(is_enabled);
@@ -469,7 +471,12 @@ static ssize_t new_password_store(struct kobject *kobj,
 		if (ret)
 			goto out;
 
-		if (tlmi_priv.pwd_admin->valid) {
+		/*
+		 * Note admin password is not always required if SMPControl enabled in BIOS,
+		 * So only set if it's configured.
+		 * Let BIOS figure it out - we'll get an error if operation is not permitted
+		 */
+		if (tlmi_priv.pwd_admin->pwd_enabled && strlen(tlmi_priv.pwd_admin->password)) {
 			ret = tlmi_opcode_setting("WmiOpcodePasswordAdmin",
 					tlmi_priv.pwd_admin->password);
 			if (ret)
@@ -524,6 +531,10 @@ static struct kobj_attribute auth_max_pass_length = __ATTR_RO(max_password_lengt
 static ssize_t mechanism_show(struct kobject *kobj, struct kobj_attribute *attr,
 			 char *buf)
 {
+	struct tlmi_pwd_setting *setting = to_tlmi_pwd_setting(kobj);
+
+	if (setting->cert_installed)
+		return sysfs_emit(buf, "certificate\n");
 	return sysfs_emit(buf, "password\n");
 }
 static struct kobj_attribute auth_mechanism = __ATTR_RO(mechanism);
@@ -644,6 +655,17 @@ static ssize_t level_store(struct kobject *kobj,
 
 static struct kobj_attribute auth_level = __ATTR_RW(level);
 
+static char *cert_command(struct tlmi_pwd_setting *setting, const char *arg1, const char *arg2)
+{
+	/* Prepend with SVC or SMC if multicert supported */
+	if (tlmi_priv.pwdcfg.core.password_mode >= TLMI_PWDCFG_MODE_MULTICERT)
+		return kasprintf(GFP_KERNEL, "%s,%s,%s",
+				 setting == tlmi_priv.pwd_admin ? "SVC" : "SMC",
+				 arg1, arg2);
+	else
+		return kasprintf(GFP_KERNEL, "%s,%s", arg1, arg2);
+}
+
 static ssize_t cert_thumbprint(char *buf, const char *arg, int count)
 {
 	const struct acpi_buffer input = { strlen(arg), (char *)arg };
@@ -669,18 +691,35 @@ static ssize_t cert_thumbprint(char *buf, const char *arg, int count)
 	return count;
 }
 
+static char *thumbtypes[] = {"Md5", "Sha1", "Sha256"};
+
 static ssize_t certificate_thumbprint_show(struct kobject *kobj, struct kobj_attribute *attr,
 			 char *buf)
 {
 	struct tlmi_pwd_setting *setting = to_tlmi_pwd_setting(kobj);
+	unsigned int i;
 	int count = 0;
+	char *wmistr;
 
 	if (!tlmi_priv.certificate_support || !setting->cert_installed)
 		return -EOPNOTSUPP;
 
-	count += cert_thumbprint(buf, "Md5", count);
-	count += cert_thumbprint(buf, "Sha1", count);
-	count += cert_thumbprint(buf, "Sha256", count);
+	for (i = 0; i < ARRAY_SIZE(thumbtypes); i++) {
+		if (tlmi_priv.pwdcfg.core.password_mode >= TLMI_PWDCFG_MODE_MULTICERT) {
+			/* Format: 'SVC | SMC, Thumbtype' */
+			wmistr = kasprintf(GFP_KERNEL, "%s,%s",
+					   setting == tlmi_priv.pwd_admin ? "SVC" : "SMC",
+					   thumbtypes[i]);
+		} else {
+			/* Format: 'Thumbtype' */
+			wmistr = kasprintf(GFP_KERNEL, "%s", thumbtypes[i]);
+		}
+		if (!wmistr)
+			return -ENOMEM;
+		count += cert_thumbprint(buf, wmistr, count);
+		kfree(wmistr);
+	}
+
 	return count;
 }
 
@@ -712,7 +751,7 @@ static ssize_t cert_to_password_store(struct kobject *kobj,
 		return -ENOMEM;
 
 	/* Format: 'Password,Signature' */
-	auth_str = kasprintf(GFP_KERNEL, "%s,%s", passwd, setting->signature);
+	auth_str = cert_command(setting, passwd, setting->signature);
 	if (!auth_str) {
 		kfree_sensitive(passwd);
 		return -ENOMEM;
@@ -726,12 +765,19 @@ static ssize_t cert_to_password_store(struct kobject *kobj,
 
 static struct kobj_attribute auth_cert_to_password = __ATTR_WO(cert_to_password);
 
+enum cert_install_mode {
+	TLMI_CERT_INSTALL,
+	TLMI_CERT_UPDATE,
+};
+
 static ssize_t certificate_store(struct kobject *kobj,
 				  struct kobj_attribute *attr,
 				  const char *buf, size_t count)
 {
 	struct tlmi_pwd_setting *setting = to_tlmi_pwd_setting(kobj);
+	enum cert_install_mode install_mode = TLMI_CERT_INSTALL;
 	char *auth_str, *new_cert;
+	char *signature;
 	char *guid;
 	int ret;
 
@@ -748,9 +794,9 @@ static ssize_t certificate_store(struct kobject *kobj,
 			return -EACCES;
 
 		/* Format: 'serial#, signature' */
-		auth_str = kasprintf(GFP_KERNEL, "%s,%s",
-				dmi_get_system_info(DMI_PRODUCT_SERIAL),
-				setting->signature);
+		auth_str = cert_command(setting,
+					dmi_get_system_info(DMI_PRODUCT_SERIAL),
+					setting->signature);
 		if (!auth_str)
 			return -ENOMEM;
 
@@ -767,24 +813,44 @@ static ssize_t certificate_store(struct kobject *kobj,
 
 	if (setting->cert_installed) {
 		/* Certificate is installed so this is an update */
-		if (!setting->signature || !setting->signature[0]) {
+		install_mode = TLMI_CERT_UPDATE;
+		/* If admin account enabled - need to use its signature */
+		if (tlmi_priv.pwd_admin->pwd_enabled)
+			signature = tlmi_priv.pwd_admin->signature;
+		else
+			signature = setting->signature;
+	} else { /* Cert install */
+		/* Check if SMC and SVC already installed */
+		if ((setting == tlmi_priv.pwd_system) && tlmi_priv.pwd_admin->cert_installed) {
+			/* This gets treated as a cert update */
+			install_mode = TLMI_CERT_UPDATE;
+			signature = tlmi_priv.pwd_admin->signature;
+		} else { /* Regular cert install */
+			install_mode = TLMI_CERT_INSTALL;
+			signature = setting->signature;
+		}
+	}
+
+	if (install_mode == TLMI_CERT_UPDATE) {
+		/* This is a certificate update */
+		if (!signature || !signature[0]) {
 			kfree(new_cert);
 			return -EACCES;
 		}
 		guid = LENOVO_UPDATE_BIOS_CERT_GUID;
 		/* Format: 'Certificate,Signature' */
-		auth_str = kasprintf(GFP_KERNEL, "%s,%s",
-				new_cert, setting->signature);
+		auth_str = cert_command(setting, new_cert, signature);
 	} else {
 		/* This is a fresh install */
-		if (!setting->valid || !setting->password[0]) {
+		/* To set admin cert, a password must be enabled */
+		if ((setting == tlmi_priv.pwd_admin) &&
+		    (!setting->pwd_enabled || !setting->password[0])) {
 			kfree(new_cert);
 			return -EACCES;
 		}
 		guid = LENOVO_SET_BIOS_CERT_GUID;
-		/* Format: 'Certificate,Admin-password' */
-		auth_str = kasprintf(GFP_KERNEL, "%s,%s",
-				new_cert, setting->password);
+		/* Format: 'Certificate, password' */
+		auth_str = cert_command(setting, new_cert, setting->password);
 	}
 	kfree(new_cert);
 	if (!auth_str)
@@ -864,14 +930,19 @@ static umode_t auth_attr_is_visible(struct kobject *kobj,
 		return 0;
 	}
 
-	/* We only display certificates on Admin account, if supported */
+	/* We only display certificates, if supported */
 	if (attr == &auth_certificate.attr ||
 	    attr == &auth_signature.attr ||
 	    attr == &auth_save_signature.attr ||
 	    attr == &auth_cert_thumb.attr ||
 	    attr == &auth_cert_to_password.attr) {
-		if ((setting == tlmi_priv.pwd_admin) && tlmi_priv.certificate_support)
-			return attr->mode;
+		if (tlmi_priv.certificate_support) {
+			if (setting == tlmi_priv.pwd_admin)
+				return attr->mode;
+			if ((tlmi_priv.pwdcfg.core.password_mode >= TLMI_PWDCFG_MODE_MULTICERT) &&
+			    (setting == tlmi_priv.pwd_system))
+				return attr->mode;
+		}
 		return 0;
 	}
 
@@ -1019,7 +1090,7 @@ static ssize_t current_value_store(struct kobject *kobj,
 		 * Workstation's require the opcode to be set before changing the
 		 * attribute.
 		 */
-		if (tlmi_priv.pwd_admin->valid && tlmi_priv.pwd_admin->password[0]) {
+		if (tlmi_priv.pwd_admin->pwd_enabled && tlmi_priv.pwd_admin->password[0]) {
 			ret = tlmi_opcode_setting("WmiOpcodePasswordAdmin",
 						  tlmi_priv.pwd_admin->password);
 			if (ret)
@@ -1042,7 +1113,7 @@ static ssize_t current_value_store(struct kobject *kobj,
 		else
 			ret = tlmi_save_bios_settings("");
 	} else { /* old non-opcode based authentication method (deprecated) */
-		if (tlmi_priv.pwd_admin->valid && tlmi_priv.pwd_admin->password[0]) {
+		if (tlmi_priv.pwd_admin->pwd_enabled && tlmi_priv.pwd_admin->password[0]) {
 			auth_str = kasprintf(GFP_KERNEL, "%s,%s,%s;",
 					tlmi_priv.pwd_admin->password,
 					encoding_options[tlmi_priv.pwd_admin->encoding],
@@ -1215,7 +1286,7 @@ static ssize_t save_settings_store(struct kobject *kobj, struct kobj_attribute *
 			if (ret)
 				goto out;
 		} else if (tlmi_priv.opcode_support) {
-			if (tlmi_priv.pwd_admin->valid && tlmi_priv.pwd_admin->password[0]) {
+			if (tlmi_priv.pwd_admin->pwd_enabled && tlmi_priv.pwd_admin->password[0]) {
 				ret = tlmi_opcode_setting("WmiOpcodePasswordAdmin",
 							  tlmi_priv.pwd_admin->password);
 				if (ret)
@@ -1223,7 +1294,7 @@ static ssize_t save_settings_store(struct kobject *kobj, struct kobj_attribute *
 			}
 			ret = tlmi_save_bios_settings("");
 		} else { /* old non-opcode based authentication method (deprecated) */
-			if (tlmi_priv.pwd_admin->valid && tlmi_priv.pwd_admin->password[0]) {
+			if (tlmi_priv.pwd_admin->pwd_enabled && tlmi_priv.pwd_admin->password[0]) {
 				auth_str = kasprintf(GFP_KERNEL, "%s,%s,%s;",
 						     tlmi_priv.pwd_admin->password,
 						     encoding_options[tlmi_priv.pwd_admin->encoding],
@@ -1273,7 +1344,7 @@ static ssize_t debug_cmd_store(struct kobject *kobj, struct kobj_attribute *attr
 	if (!new_setting)
 		return -ENOMEM;
 
-	if (tlmi_priv.pwd_admin->valid && tlmi_priv.pwd_admin->password[0]) {
+	if (tlmi_priv.pwd_admin->pwd_enabled && tlmi_priv.pwd_admin->password[0]) {
 		auth_str = kasprintf(GFP_KERNEL, "%s,%s,%s;",
 				tlmi_priv.pwd_admin->password,
 				encoding_options[tlmi_priv.pwd_admin->encoding],
@@ -1637,14 +1708,14 @@ static int tlmi_analyze(void)
 		goto fail_clear_attr;
 
 	if (tlmi_priv.pwdcfg.core.password_state & TLMI_PAP_PWD)
-		tlmi_priv.pwd_admin->valid = true;
+		tlmi_priv.pwd_admin->pwd_enabled = true;
 
 	tlmi_priv.pwd_power = tlmi_create_auth("pop", "power-on");
 	if (!tlmi_priv.pwd_power)
 		goto fail_clear_attr;
 
 	if (tlmi_priv.pwdcfg.core.password_state & TLMI_POP_PWD)
-		tlmi_priv.pwd_power->valid = true;
+		tlmi_priv.pwd_power->pwd_enabled = true;
 
 	if (tlmi_priv.opcode_support) {
 		tlmi_priv.pwd_system = tlmi_create_auth("smp", "system");
@@ -1652,7 +1723,7 @@ static int tlmi_analyze(void)
 			goto fail_clear_attr;
 
 		if (tlmi_priv.pwdcfg.core.password_state & TLMI_SMP_PWD)
-			tlmi_priv.pwd_system->valid = true;
+			tlmi_priv.pwd_system->pwd_enabled = true;
 
 		tlmi_priv.pwd_hdd = tlmi_create_auth("hdd", "hdd");
 		if (!tlmi_priv.pwd_hdd)
@@ -1670,7 +1741,7 @@ static int tlmi_analyze(void)
 			/* Check if PWD is configured and set index to first drive found */
 			if (tlmi_priv.pwdcfg.ext.hdd_user_password ||
 					tlmi_priv.pwdcfg.ext.hdd_master_password) {
-				tlmi_priv.pwd_hdd->valid = true;
+				tlmi_priv.pwd_hdd->pwd_enabled = true;
 				if (tlmi_priv.pwdcfg.ext.hdd_master_password)
 					tlmi_priv.pwd_hdd->index =
 						ffs(tlmi_priv.pwdcfg.ext.hdd_master_password) - 1;
@@ -1680,7 +1751,7 @@ static int tlmi_analyze(void)
 			}
 			if (tlmi_priv.pwdcfg.ext.nvme_user_password ||
 					tlmi_priv.pwdcfg.ext.nvme_master_password) {
-				tlmi_priv.pwd_nvme->valid = true;
+				tlmi_priv.pwd_nvme->pwd_enabled = true;
 				if (tlmi_priv.pwdcfg.ext.nvme_master_password)
 					tlmi_priv.pwd_nvme->index =
 						ffs(tlmi_priv.pwdcfg.ext.nvme_master_password) - 1;
@@ -1691,10 +1762,12 @@ static int tlmi_analyze(void)
 		}
 	}
 
-	if (tlmi_priv.certificate_support &&
-		(tlmi_priv.pwdcfg.core.password_state & TLMI_CERT))
-		tlmi_priv.pwd_admin->cert_installed = true;
-
+	if (tlmi_priv.certificate_support) {
+		tlmi_priv.pwd_admin->cert_installed =
+			tlmi_priv.pwdcfg.core.password_state & TLMI_CERT_SVC;
+		tlmi_priv.pwd_system->cert_installed =
+			tlmi_priv.pwdcfg.core.password_state & TLMI_CERT_SMC;
+	}
 	return 0;
 
 fail_clear_attr:

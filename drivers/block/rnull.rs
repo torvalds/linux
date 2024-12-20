@@ -28,11 +28,12 @@ module! {
     type: NullBlkModule,
     name: "rnull_mod",
     author: "Andreas Hindborg",
+    description: "Rust implementation of the C null block driver",
     license: "GPL v2",
 }
 
 struct NullBlkModule {
-    _disk: Pin<Box<Mutex<GenDisk<NullBlkDevice>>>>,
+    _disk: Pin<KBox<Mutex<GenDisk<NullBlkDevice>>>>,
 }
 
 impl kernel::Module for NullBlkModule {
@@ -47,7 +48,7 @@ impl kernel::Module for NullBlkModule {
             .rotational(false)
             .build(format_args!("rnullb{}", 0), tagset)?;
 
-        let disk = Box::pin_init(new_mutex!(disk, "nullb:disk"), flags::GFP_KERNEL)?;
+        let disk = KBox::pin_init(new_mutex!(disk, "nullb:disk"), flags::GFP_KERNEL)?;
 
         Ok(Self { _disk: disk })
     }

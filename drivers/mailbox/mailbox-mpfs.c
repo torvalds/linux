@@ -13,12 +13,15 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/regmap.h>
 #include <linux/interrupt.h>
+#include <linux/mfd/syscon.h>
 #include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/mailbox_controller.h>
 #include <soc/microchip/mpfs.h>
 
+#define MESSAGE_INT_OFFSET		0x18cu
 #define SERVICES_CR_OFFSET		0x50u
 #define SERVICES_SR_OFFSET		0x54u
 #define MAILBOX_REG_OFFSET		0x800u
@@ -68,6 +71,7 @@ struct mpfs_mbox {
 	void __iomem *int_reg;
 	struct mbox_chan chans[1];
 	struct mpfs_mss_response *response;
+	struct regmap *sysreg_scb, *control_scb;
 	u16 resp_offset;
 };
 
@@ -75,7 +79,10 @@ static bool mpfs_mbox_busy(struct mpfs_mbox *mbox)
 {
 	u32 status;
 
-	status = readl_relaxed(mbox->ctrl_base + SERVICES_SR_OFFSET);
+	if (mbox->control_scb)
+		regmap_read(mbox->control_scb, SERVICES_SR_OFFSET, &status);
+	else
+		status = readl_relaxed(mbox->ctrl_base + SERVICES_SR_OFFSET);
 
 	return status & SCB_STATUS_BUSY_MASK;
 }
@@ -95,7 +102,11 @@ static bool mpfs_mbox_last_tx_done(struct mbox_chan *chan)
 	 * Failed services are intended to generated interrupts, but in reality
 	 * this does not happen, so the status must be checked here.
 	 */
-	val = readl_relaxed(mbox->ctrl_base + SERVICES_SR_OFFSET);
+	if (mbox->control_scb)
+		regmap_read(mbox->control_scb, SERVICES_SR_OFFSET, &val);
+	else
+		val = readl_relaxed(mbox->ctrl_base + SERVICES_SR_OFFSET);
+
 	response->resp_status = (val & SCB_STATUS_MASK) >> SCB_STATUS_POS;
 
 	return true;
@@ -143,7 +154,12 @@ static int mpfs_mbox_send_data(struct mbox_chan *chan, void *data)
 
 	tx_trigger = (opt_sel << SCB_CTRL_POS) & SCB_CTRL_MASK;
 	tx_trigger |= SCB_CTRL_REQ_MASK | SCB_STATUS_NOTIFY_MASK;
-	writel_relaxed(tx_trigger, mbox->ctrl_base + SERVICES_CR_OFFSET);
+
+	if (mbox->control_scb)
+		regmap_write(mbox->control_scb, SERVICES_CR_OFFSET, tx_trigger);
+	else
+		writel_relaxed(tx_trigger, mbox->ctrl_base + SERVICES_CR_OFFSET);
+
 
 	return 0;
 }
@@ -185,7 +201,10 @@ static irqreturn_t mpfs_mbox_inbox_isr(int irq, void *data)
 	struct mbox_chan *chan = data;
 	struct mpfs_mbox *mbox = (struct mpfs_mbox *)chan->con_priv;
 
-	writel_relaxed(0, mbox->int_reg);
+	if (mbox->control_scb)
+		regmap_write(mbox->sysreg_scb, MESSAGE_INT_OFFSET, 0);
+	else
+		writel_relaxed(0, mbox->int_reg);
 
 	mpfs_mbox_rx_data(chan);
 
@@ -221,28 +240,62 @@ static const struct mbox_chan_ops mpfs_mbox_ops = {
 	.last_tx_done = mpfs_mbox_last_tx_done,
 };
 
+static inline int mpfs_mbox_syscon_probe(struct mpfs_mbox *mbox, struct platform_device *pdev)
+{
+	mbox->control_scb = syscon_regmap_lookup_by_compatible("microchip,mpfs-control-scb");
+	if (IS_ERR(mbox->control_scb))
+		return PTR_ERR(mbox->control_scb);
+
+	mbox->sysreg_scb = syscon_regmap_lookup_by_compatible("microchip,mpfs-sysreg-scb");
+	if (IS_ERR(mbox->sysreg_scb))
+		return PTR_ERR(mbox->sysreg_scb);
+
+	mbox->mbox_base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(mbox->ctrl_base))
+		return PTR_ERR(mbox->mbox_base);
+
+	return 0;
+}
+
+static inline int mpfs_mbox_old_format_probe(struct mpfs_mbox *mbox, struct platform_device *pdev)
+{
+	dev_warn(&pdev->dev, "falling back to old devicetree format");
+
+	mbox->ctrl_base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(mbox->ctrl_base))
+		return PTR_ERR(mbox->ctrl_base);
+
+	mbox->int_reg = devm_platform_ioremap_resource(pdev, 1);
+	if (IS_ERR(mbox->int_reg))
+		return PTR_ERR(mbox->int_reg);
+
+	mbox->mbox_base = devm_platform_ioremap_resource(pdev, 2);
+	if (IS_ERR(mbox->mbox_base)) // account for the old dt-binding w/ 2 regs
+		mbox->mbox_base = mbox->ctrl_base + MAILBOX_REG_OFFSET;
+
+	return 0;
+}
+
 static int mpfs_mbox_probe(struct platform_device *pdev)
 {
 	struct mpfs_mbox *mbox;
-	struct resource *regs;
 	int ret;
 
 	mbox = devm_kzalloc(&pdev->dev, sizeof(*mbox), GFP_KERNEL);
 	if (!mbox)
 		return -ENOMEM;
 
-	mbox->ctrl_base = devm_platform_get_and_ioremap_resource(pdev, 0, &regs);
-	if (IS_ERR(mbox->ctrl_base))
-		return PTR_ERR(mbox->ctrl_base);
-
-	mbox->int_reg = devm_platform_get_and_ioremap_resource(pdev, 1, &regs);
-	if (IS_ERR(mbox->int_reg))
-		return PTR_ERR(mbox->int_reg);
-
-	mbox->mbox_base = devm_platform_get_and_ioremap_resource(pdev, 2, &regs);
-	if (IS_ERR(mbox->mbox_base)) // account for the old dt-binding w/ 2 regs
-		mbox->mbox_base = mbox->ctrl_base + MAILBOX_REG_OFFSET;
-
+	ret = mpfs_mbox_syscon_probe(mbox, pdev);
+	if (ret) {
+		/*
+		 * set this to null, so it can be used as the decision for to
+		 * regmap or not to regmap
+		 */
+		mbox->control_scb = NULL;
+		ret = mpfs_mbox_old_format_probe(mbox, pdev);
+		if (ret)
+			return ret;
+	}
 	mbox->irq = platform_get_irq(pdev, 0);
 	if (mbox->irq < 0)
 		return mbox->irq;

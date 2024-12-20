@@ -245,6 +245,7 @@ static bool dcn30_set_mpc_shaper_3dlut(struct pipe_ctx *pipe_ctx,
 {
 	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
 	int mpcc_id = pipe_ctx->plane_res.hubp->inst;
+	struct dc *dc = pipe_ctx->stream->ctx->dc;
 	struct mpc *mpc = pipe_ctx->stream_res.opp->ctx->dc->res_pool->mpc;
 	bool result = false;
 	int acquired_rmu = 0;
@@ -283,8 +284,14 @@ static bool dcn30_set_mpc_shaper_3dlut(struct pipe_ctx *pipe_ctx,
 
 		result = mpc->funcs->program_3dlut(mpc, &stream->lut3d_func->lut_3d,
 						   stream->lut3d_func->state.bits.rmu_mux_num);
+		if (!result)
+			DC_LOG_ERROR("%s: program_3dlut failed\n", __func__);
+
 		result = mpc->funcs->program_shaper(mpc, shaper_lut,
 						    stream->lut3d_func->state.bits.rmu_mux_num);
+		if (!result)
+			DC_LOG_ERROR("%s: program_shaper failed\n", __func__);
+
 	} else {
 		// loop through the available mux and release the requested mpcc_id
 		mpc->funcs->release_rmu(mpc, mpcc_id);
@@ -486,7 +493,6 @@ bool dcn30_mmhubbub_warmup(
 	}
 	/*following is the original: warmup each DWB's mcif buffer*/
 	for (i = 0; i < num_dwb; i++) {
-		dwb = dc->res_pool->dwbc[wb_info[i].dwb_pipe_inst];
 		mcif_wb = dc->res_pool->mcif_wb[wb_info[i].dwb_pipe_inst];
 		/*warmup is for VM mode only*/
 		if (wb_info[i].mcif_buf_params.p_vmid == 0)
@@ -1184,4 +1190,31 @@ void dcn30_prepare_bandwidth(struct dc *dc,
 
 	if (!dc->clk_mgr->clks.fw_based_mclk_switching)
 		dc_dmub_srv_p_state_delegate(dc, false, context);
+}
+
+void dcn30_wait_for_all_pending_updates(const struct pipe_ctx *pipe_ctx)
+{
+	struct timing_generator *tg = pipe_ctx->stream_res.tg;
+	bool pending_updates = false;
+	unsigned int i;
+
+	if (tg && tg->funcs->is_tg_enabled(tg)) {
+		// Poll for 100ms maximum
+		for (i = 0; i < 100000; i++) {
+			pending_updates = false;
+			if (tg->funcs->get_optc_double_buffer_pending)
+				pending_updates |= tg->funcs->get_optc_double_buffer_pending(tg);
+
+			if (tg->funcs->get_otg_double_buffer_pending)
+				pending_updates |= tg->funcs->get_otg_double_buffer_pending(tg);
+
+			if (tg->funcs->get_pipe_update_pending && pipe_ctx->plane_state)
+				pending_updates |= tg->funcs->get_pipe_update_pending(tg);
+
+			if (!pending_updates)
+				break;
+
+			udelay(1);
+		}
+	}
 }

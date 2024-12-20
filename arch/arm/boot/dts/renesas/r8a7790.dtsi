@@ -1686,7 +1686,6 @@
 			dma-names = "tx", "rx", "tx", "rx";
 			power-domains = <&sysc R8A7790_PD_ALWAYS_ON>;
 			resets = <&cpg 315>;
-			reg-io-width = <4>;
 			status = "disabled";
 			max-frequency = <97500000>;
 		};
@@ -1702,7 +1701,6 @@
 			dma-names = "tx", "rx", "tx", "rx";
 			power-domains = <&sysc R8A7790_PD_ALWAYS_ON>;
 			resets = <&cpg 305>;
-			reg-io-width = <4>;
 			status = "disabled";
 			max-frequency = <97500000>;
 		};

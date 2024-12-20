@@ -754,7 +754,7 @@ static int acx565akm_probe(struct spi_device *spi)
 	}
 
 	memset(&props, 0, sizeof(props));
-	props.power = FB_BLANK_UNBLANK;
+	props.power = BACKLIGHT_POWER_ON;
 	props.type = BACKLIGHT_RAW;
 
 	bldev = backlight_device_register("acx565akm", &ddata->spi->dev,

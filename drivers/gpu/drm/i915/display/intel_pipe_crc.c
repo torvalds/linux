@@ -32,6 +32,7 @@
 #include "i915_reg.h"
 #include "intel_atomic.h"
 #include "intel_de.h"
+#include "intel_display_irq.h"
 #include "intel_display_types.h"
 #include "intel_pipe_crc.h"
 #include "intel_pipe_crc_regs.h"
@@ -284,6 +285,9 @@ intel_crtc_crc_setup_workarounds(struct intel_crtc *crtc, bool enable)
 	struct drm_atomic_state *state;
 	struct drm_modeset_acquire_ctx ctx;
 	int ret;
+
+	if (IS_I945GM(dev_priv) || IS_I915GM(dev_priv))
+		i915gm_irq_cstate_wa(dev_priv, enable);
 
 	drm_modeset_acquire_init(&ctx, 0);
 

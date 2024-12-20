@@ -11,6 +11,7 @@
 #include <linux/pm_clock.h>
 #include <linux/acpi.h>
 #include <linux/pm_domain.h>
+#include <linux/pm_opp.h>
 
 #include "power.h"
 
@@ -222,13 +223,15 @@ int dev_pm_domain_attach_list(struct device *dev,
 	if (!pds)
 		return -ENOMEM;
 
-	size = sizeof(*pds->pd_devs) + sizeof(*pds->pd_links);
+	size = sizeof(*pds->pd_devs) + sizeof(*pds->pd_links) +
+	       sizeof(*pds->opp_tokens);
 	pds->pd_devs = kcalloc(num_pds, size, GFP_KERNEL);
 	if (!pds->pd_devs) {
 		ret = -ENOMEM;
 		goto free_pds;
 	}
 	pds->pd_links = (void *)(pds->pd_devs + num_pds);
+	pds->opp_tokens = (void *)(pds->pd_links + num_pds);
 
 	if (link_flags && pd_flags & PD_FLAG_DEV_LINK_ON)
 		link_flags |= DL_FLAG_RPM_ACTIVE;
@@ -242,6 +245,19 @@ int dev_pm_domain_attach_list(struct device *dev,
 		if (IS_ERR_OR_NULL(pd_dev)) {
 			ret = pd_dev ? PTR_ERR(pd_dev) : -ENODEV;
 			goto err_attach;
+		}
+
+		if (pd_flags & PD_FLAG_REQUIRED_OPP) {
+			struct dev_pm_opp_config config = {
+				.required_dev = pd_dev,
+				.required_dev_index = i,
+			};
+
+			ret = dev_pm_opp_set_config(dev, &config);
+			if (ret < 0)
+				goto err_link;
+
+			pds->opp_tokens[i] = ret;
 		}
 
 		if (link_flags) {
@@ -264,9 +280,11 @@ int dev_pm_domain_attach_list(struct device *dev,
 	return num_pds;
 
 err_link:
+	dev_pm_opp_clear_config(pds->opp_tokens[i]);
 	dev_pm_domain_detach(pd_dev, true);
 err_attach:
 	while (--i >= 0) {
+		dev_pm_opp_clear_config(pds->opp_tokens[i]);
 		if (pds->pd_links[i])
 			device_link_del(pds->pd_links[i]);
 		dev_pm_domain_detach(pds->pd_devs[i], true);
@@ -361,6 +379,7 @@ void dev_pm_domain_detach_list(struct dev_pm_domain_list *list)
 		return;
 
 	for (i = 0; i < list->num_pds; i++) {
+		dev_pm_opp_clear_config(list->opp_tokens[i]);
 		if (list->pd_links[i])
 			device_link_del(list->pd_links[i]);
 		dev_pm_domain_detach(list->pd_devs[i], true);

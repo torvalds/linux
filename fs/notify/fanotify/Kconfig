@@ -15,7 +15,6 @@ config FANOTIFY
 config FANOTIFY_ACCESS_PERMISSIONS
 	bool "fanotify permissions checking"
 	depends on FANOTIFY
-	depends on SECURITY
 	default n
 	help
 	   Say Y here is you want fanotify listeners to be able to make permissions

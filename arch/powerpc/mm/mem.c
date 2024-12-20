@@ -26,7 +26,7 @@
 #include <asm/svm.h>
 #include <asm/mmzone.h>
 #include <asm/ftrace.h>
-#include <asm/code-patching.h>
+#include <asm/text-patching.h>
 #include <asm/setup.h>
 #include <asm/fixmap.h>
 

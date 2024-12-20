@@ -89,12 +89,14 @@ static void timeouts_init(struct ivpu_device *vdev)
 		vdev->timeout.tdr = 2000000;
 		vdev->timeout.autosuspend = -1;
 		vdev->timeout.d0i3_entry_msg = 500;
+		vdev->timeout.state_dump_msg = 10;
 	} else if (ivpu_is_simics(vdev)) {
 		vdev->timeout.boot = 50;
 		vdev->timeout.jsm = 500;
 		vdev->timeout.tdr = 10000;
-		vdev->timeout.autosuspend = -1;
+		vdev->timeout.autosuspend = 100;
 		vdev->timeout.d0i3_entry_msg = 100;
+		vdev->timeout.state_dump_msg = 10;
 	} else {
 		vdev->timeout.boot = 1000;
 		vdev->timeout.jsm = 500;
@@ -104,6 +106,7 @@ static void timeouts_init(struct ivpu_device *vdev)
 		else
 			vdev->timeout.autosuspend = 100;
 		vdev->timeout.d0i3_entry_msg = 5;
+		vdev->timeout.state_dump_msg = 10;
 	}
 }
 
@@ -111,14 +114,14 @@ static void memory_ranges_init(struct ivpu_device *vdev)
 {
 	if (ivpu_hw_ip_gen(vdev) == IVPU_HW_IP_37XX) {
 		ivpu_hw_range_init(&vdev->hw->ranges.global, 0x80000000, SZ_512M);
-		ivpu_hw_range_init(&vdev->hw->ranges.user,   0xc0000000, 255 * SZ_1M);
+		ivpu_hw_range_init(&vdev->hw->ranges.user,   0x88000000, 511 * SZ_1M);
 		ivpu_hw_range_init(&vdev->hw->ranges.shave, 0x180000000, SZ_2G);
-		ivpu_hw_range_init(&vdev->hw->ranges.dma,   0x200000000, SZ_8G);
+		ivpu_hw_range_init(&vdev->hw->ranges.dma,   0x200000000, SZ_128G);
 	} else {
 		ivpu_hw_range_init(&vdev->hw->ranges.global, 0x80000000, SZ_512M);
-		ivpu_hw_range_init(&vdev->hw->ranges.user,   0x80000000, SZ_256M);
-		ivpu_hw_range_init(&vdev->hw->ranges.shave,  0x80000000 + SZ_256M, SZ_2G - SZ_256M);
-		ivpu_hw_range_init(&vdev->hw->ranges.dma,   0x200000000, SZ_8G);
+		ivpu_hw_range_init(&vdev->hw->ranges.shave,  0x80000000, SZ_2G);
+		ivpu_hw_range_init(&vdev->hw->ranges.user,  0x100000000, SZ_256G);
+		vdev->hw->ranges.dma = vdev->hw->ranges.user;
 	}
 }
 

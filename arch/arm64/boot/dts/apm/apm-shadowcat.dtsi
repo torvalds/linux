@@ -809,7 +809,6 @@
 			interrupts = <0 0x45 0x4>;
 			#clock-cells = <1>;
 			clocks = <&sbapbclk 0>;
-			bus_num = <1>;
 		};
 
 		i2c4: i2c@10640000 {
@@ -819,7 +818,6 @@
 			reg = <0x0 0x10640000 0x0 0x1000>;
 			interrupts = <0 0x3a 0x4>;
 			clocks = <&i2c4clk 0>;
-			bus_num = <4>;
 		};
 	};
 };

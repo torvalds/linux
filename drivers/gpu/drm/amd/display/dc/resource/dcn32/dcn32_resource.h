@@ -1054,7 +1054,8 @@ unsigned int dcn32_calculate_mall_ways_from_bytes(const struct dc *dc, unsigned 
       SRI_ARR(OPTC_BYTES_PER_PIXEL, ODM, inst),                                \
       SRI_ARR(OPTC_WIDTH_CONTROL, ODM, inst),                                  \
       SRI_ARR(OPTC_MEMORY_CONFIG, ODM, inst),                                  \
-      SRI_ARR(OTG_DRR_CONTROL, OTG, inst)
+      SRI_ARR(OTG_DRR_CONTROL, OTG, inst),                                     \
+	  SRI_ARR(OTG_PIPE_UPDATE_STATUS, OTG, inst)
 
 /* HUBP */
 

@@ -799,7 +799,7 @@ static struct platform_driver qmc_hdlc_driver = {
 		.of_match_table = qmc_hdlc_id_table,
 	},
 	.probe = qmc_hdlc_probe,
-	.remove_new = qmc_hdlc_remove,
+	.remove = qmc_hdlc_remove,
 };
 module_platform_driver(qmc_hdlc_driver);
 

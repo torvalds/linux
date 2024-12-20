@@ -161,10 +161,8 @@ static int vlan_newlink(struct net *src_net, struct net_device *dev,
 		return -ENODEV;
 	}
 
-	if (data[IFLA_VLAN_PROTOCOL])
-		proto = nla_get_be16(data[IFLA_VLAN_PROTOCOL]);
-	else
-		proto = htons(ETH_P_8021Q);
+	proto = nla_get_be16_default(data[IFLA_VLAN_PROTOCOL],
+				     htons(ETH_P_8021Q));
 
 	vlan->vlan_proto = proto;
 	vlan->vlan_id	 = nla_get_u16(data[IFLA_VLAN_ID]);

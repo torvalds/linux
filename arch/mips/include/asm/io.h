@@ -125,11 +125,6 @@ static inline unsigned long isa_virt_to_bus(volatile void *address)
 	return virt_to_phys(address);
 }
 
-/*
- * Change "struct page" to physical address.
- */
-#define page_to_phys(page)	((dma_addr_t)page_to_pfn(page) << PAGE_SHIFT)
-
 void __iomem *ioremap_prot(phys_addr_t offset, unsigned long size,
 		unsigned long prot_val);
 void iounmap(const volatile void __iomem *addr);

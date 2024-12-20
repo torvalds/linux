@@ -73,52 +73,49 @@ static const struct drm_connector_funcs ast_sil164_connector_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
-static int ast_sil164_connector_init(struct drm_device *dev, struct drm_connector *connector)
-{
-	struct ast_device *ast = to_ast_device(dev);
-	struct i2c_adapter *ddc;
-	int ret;
-
-	ddc = ast_ddc_create(ast);
-	if (IS_ERR(ddc)) {
-		ret = PTR_ERR(ddc);
-		drm_err(dev, "failed to add DDC bus for connector; ret=%d\n", ret);
-		return ret;
-	}
-
-	ret = drm_connector_init_with_ddc(dev, connector, &ast_sil164_connector_funcs,
-					  DRM_MODE_CONNECTOR_DVII, ddc);
-	if (ret)
-		return ret;
-
-	drm_connector_helper_add(connector, &ast_sil164_connector_helper_funcs);
-
-	connector->interlace_allowed = 0;
-	connector->doublescan_allowed = 0;
-
-	connector->polled = DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
-
-	return 0;
-}
+/*
+ * Output
+ */
 
 int ast_sil164_output_init(struct ast_device *ast)
 {
 	struct drm_device *dev = &ast->base;
 	struct drm_crtc *crtc = &ast->crtc;
-	struct drm_encoder *encoder = &ast->output.sil164.encoder;
-	struct ast_connector *ast_connector = &ast->output.sil164.connector;
-	struct drm_connector *connector = &ast_connector->base;
+	struct i2c_adapter *ddc;
+	struct drm_encoder *encoder;
+	struct ast_connector *ast_connector;
+	struct drm_connector *connector;
 	int ret;
 
+	/* DDC */
+
+	ddc = ast_ddc_create(ast);
+	if (IS_ERR(ddc))
+		return PTR_ERR(ddc);
+
+	/* encoder */
+
+	encoder = &ast->output.sil164.encoder;
 	ret = drm_encoder_init(dev, encoder, &ast_sil164_encoder_funcs,
 			       DRM_MODE_ENCODER_TMDS, NULL);
 	if (ret)
 		return ret;
 	encoder->possible_crtcs = drm_crtc_mask(crtc);
 
-	ret = ast_sil164_connector_init(dev, connector);
+	/* connector */
+
+	ast_connector = &ast->output.sil164.connector;
+	connector = &ast_connector->base;
+	ret = drm_connector_init_with_ddc(dev, connector, &ast_sil164_connector_funcs,
+					  DRM_MODE_CONNECTOR_DVII, ddc);
 	if (ret)
 		return ret;
+	drm_connector_helper_add(connector, &ast_sil164_connector_helper_funcs);
+
+	connector->interlace_allowed = 0;
+	connector->doublescan_allowed = 0;
+	connector->polled = DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
+
 	ast_connector->physical_status = connector->status;
 
 	ret = drm_connector_attach_encoder(connector, encoder);

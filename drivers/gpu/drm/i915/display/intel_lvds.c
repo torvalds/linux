@@ -37,6 +37,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_probe_helper.h>
 
 #include "i915_drv.h"
 #include "i915_reg.h"
@@ -51,6 +52,7 @@
 #include "intel_lvds.h"
 #include "intel_lvds_regs.h"
 #include "intel_panel.h"
+#include "intel_pfit.h"
 #include "intel_pps_regs.h"
 
 /* Private structure for the integrated LVDS support */
@@ -263,7 +265,7 @@ static void intel_pre_enable_lvds(struct intel_atomic_state *state,
 		temp |= LVDS_PIPE_SEL(pipe);
 	}
 
-	/* set the corresponsding LVDS_BORDER bit */
+	/* set the corresponding LVDS_BORDER bit */
 	temp &= ~LVDS_BORDER_ENABLE;
 	temp |= crtc_state->gmch_pfit.lvds_border_bits;
 
@@ -899,7 +901,7 @@ void intel_lvds_init(struct drm_i915_private *i915)
 	drm_connector_init_with_ddc(&i915->drm, &connector->base,
 				    &intel_lvds_connector_funcs,
 				    DRM_MODE_CONNECTOR_LVDS,
-				    intel_gmbus_get_adapter(i915, ddc_pin));
+				    intel_gmbus_get_adapter(display, ddc_pin));
 
 	drm_encoder_init(&i915->drm, &encoder->base, &intel_lvds_enc_funcs,
 			 DRM_MODE_ENCODER_LVDS, "LVDS");

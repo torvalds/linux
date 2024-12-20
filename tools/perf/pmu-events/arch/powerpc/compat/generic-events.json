@@ -1,0 +1,117 @@
+[
+  {
+    "EventCode": "0x600F4",
+    "EventName": "PM_CYC",
+    "BriefDescription": "Processor cycles."
+  },
+  {
+    "EventCode": "0x100F2",
+    "EventName": "PM_CYC_INST_CMPL",
+    "BriefDescription": "1 or more ppc insts finished"
+  },
+  {
+    "EventCode": "0x100f4",
+    "EventName": "PM_FLOP_CMPL",
+    "BriefDescription": "Floating Point Operations Finished."
+  },
+  {
+    "EventCode": "0x100F6",
+    "EventName": "PM_L1_ITLB_MISS",
+    "BriefDescription": "Number of I-ERAT reloads."
+  },
+  {
+    "EventCode": "0x100F8",
+    "EventName": "PM_NO_INST_AVAIL",
+    "BriefDescription": "Number of cycles the ICT has no itags assigned to this thread."
+  },
+  {
+    "EventCode": "0x100fc",
+    "EventName": "PM_LD_CMPL",
+    "BriefDescription": "Load instruction completed."
+  },
+  {
+    "EventCode": "0x200F0",
+    "EventName": "PM_ST_CMPL",
+    "BriefDescription": "Stores completed from S2Q (2nd-level store queue)."
+  },
+  {
+    "EventCode": "0x200F2",
+    "EventName": "PM_INST_DISP",
+    "BriefDescription": "PowerPC instruction dispatched."
+  },
+  {
+    "EventCode": "0x200F4",
+    "EventName": "PM_RUN_CYC",
+    "BriefDescription": "Processor cycles gated by the run latch."
+  },
+  {
+    "EventCode": "0x200F6",
+    "EventName": "PM_L1_DTLB_RELOAD",
+    "BriefDescription": "DERAT Reloaded due to a DERAT miss."
+  },
+  {
+    "EventCode": "0x200FA",
+    "EventName": "PM_BR_TAKEN_CMPL",
+    "BriefDescription": "Branch Taken instruction completed."
+  },
+  {
+    "EventCode": "0x200FC",
+    "EventName": "PM_L1_ICACHE_MISS",
+    "BriefDescription": "Demand instruction cache miss."
+  },
+  {
+    "EventCode": "0x200FE",
+    "EventName": "PM_L1_RELOAD_FROM_MEM",
+    "BriefDescription": "L1 Dcache reload from memory"
+  },
+  {
+    "EventCode": "0x300F0",
+    "EventName": "PM_ST_MISS_L1",
+    "BriefDescription": "Store Missed L1"
+  },
+  {
+    "EventCode": "0x300FC",
+    "EventName": "PM_DTLB_MISS",
+    "BriefDescription": "Data PTEG reload"
+  },
+  {
+    "EventCode": "0x300FE",
+    "EventName": "PM_DATA_FROM_L3MISS",
+    "BriefDescription": "Demand LD - L3 Miss (not L2 hit and not L3 hit)"
+  },
+  {
+    "EventCode": "0x400F0",
+    "EventName": "PM_LD_MISS_L1",
+    "BriefDescription": "L1 Dcache load miss"
+  },
+  {
+    "EventCode": "0x400F2",
+    "EventName": "PM_CYC_INST_DISP",
+    "BriefDescription": "Cycle when instruction(s) dispatched."
+  },
+  {
+    "EventCode": "0x400F6",
+    "EventName": "PM_BR_MPRED_CMPL",
+    "BriefDescription": "A mispredicted branch completed. Includes direction and target."
+  },
+  {
+    "EventCode": "0x400FA",
+    "EventName": "PM_RUN_INST_CMPL",
+    "BriefDescription": "PowerPC instruction completed while the run latch is set."
+  },
+  {
+    "EventCode": "0x400FC",
+    "EventName": "PM_ITLB_MISS",
+    "BriefDescription": "Instruction TLB reload (after a miss), all page sizes. Includes only demand misses."
+  },
+  {
+    "EventCode": "0x400fe",
+    "EventName": "PM_LD_NOT_CACHED",
+    "BriefDescription": "Load data not cached."
+  },
+  {
+    "EventCode": "0x500fa",
+    "EventName": "PM_INST_CMPL",
+    "BriefDescription": "Instructions."
+  }
+]

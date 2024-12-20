@@ -57,6 +57,49 @@ u32 hw_atl_ts_data_get(struct aq_hw_s *aq_hw)
 				  HW_ATL_TS_DATA_OUT_SHIFT);
 }
 
+u32 hw_atl_smb0_bus_busy_get(struct aq_hw_s *aq_hw)
+{
+	return aq_hw_read_reg_bit(aq_hw, HW_ATL_SMB0_BUS_BUSY_ADR,
+				HW_ATL_SMB0_BUS_BUSY_MSK,
+				HW_ATL_SMB0_BUS_BUSY_SHIFT);
+}
+
+u32 hw_atl_smb0_byte_transfer_complete_get(struct aq_hw_s *aq_hw)
+{
+	return aq_hw_read_reg_bit(aq_hw, HW_ATL_SMB0_BYTE_TRANSFER_COMPLETE_ADR,
+				HW_ATL_SMB0_BYTE_TRANSFER_COMPLETE_MSK,
+				HW_ATL_SMB0_BYTE_TRANSFER_COMPLETE_SHIFT);
+}
+
+u32 hw_atl_smb0_receive_acknowledged_get(struct aq_hw_s *aq_hw)
+{
+	return aq_hw_read_reg_bit(aq_hw, HW_ATL_SMB0_RX_ACKNOWLEDGED_ADR,
+				HW_ATL_SMB0_RX_ACKNOWLEDGED_MSK,
+				HW_ATL_SMB0_RX_ACKNOWLEDGED_SHIFT);
+}
+
+u32 hw_atl_smb0_repeated_start_detect_get(struct aq_hw_s *aq_hw)
+{
+	return aq_hw_read_reg_bit(aq_hw, HW_ATL_SMB0_REPEATED_START_DETECT_ADR,
+				HW_ATL_SMB0_REPEATED_START_DETECT_MSK,
+				HW_ATL_SMB0_REPEATED_START_DETECT_SHIFT);
+}
+
+u32 hw_atl_smb0_rx_data_get(struct aq_hw_s *aq_hw)
+{
+	return aq_hw_read_reg(aq_hw, HW_ATL_SMB0_RECEIVED_DATA_ADR);
+}
+
+void hw_atl_smb0_tx_data_set(struct aq_hw_s *aq_hw, u32 data)
+{
+	return aq_hw_write_reg(aq_hw, HW_ATL_SMB0_TRANSMITTED_DATA_ADR, data);
+}
+
+void hw_atl_smb0_provisioning2_set(struct aq_hw_s *aq_hw, u32 data)
+{
+	return aq_hw_write_reg(aq_hw, HW_ATL_SMB0_PROVISIONING2_ADR, data);
+}
+
 /* global */
 void hw_atl_reg_glb_cpu_sem_set(struct aq_hw_s *aq_hw, u32 glb_cpu_sem,
 				u32 semaphore)
