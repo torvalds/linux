@@ -195,11 +195,6 @@ void hns_rcb_ring_enable_hw(struct hnae_queue *q, u32 val)
 	dsaf_write_dev(q, RCB_RING_PREFETCH_EN_REG, !!val);
 }
 
-void hns_rcb_start(struct hnae_queue *q, u32 val)
-{
-	hns_rcb_ring_enable_hw(q, val);
-}
-
 /**
  *hns_rcb_common_init_commit_hw - make rcb common init completed
  *@rcb_common: rcb common device
