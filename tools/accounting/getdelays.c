@@ -192,7 +192,7 @@ static int get_family_id(int sd)
 }
 
 #define average_ms(t, c) (t / 1000000ULL / (c ? c : 1))
-#define delay_max_ms(t) (t / 1000000ULL)
+#define delay_ms(t) (t / 1000000ULL)
 
 static void print_delayacct(struct taskstats *t)
 {
@@ -213,48 +213,56 @@ static void print_delayacct(struct taskstats *t)
 	       "IRQ   %15s%15s%15s%15s\n"
 	       "      %15llu%15llu%15.3fms%13.6fms\n",
 	       "count", "real total", "virtual total",
-	       "delay total", "delay average", "delay max",
+	       "delay total", "delay average", "delay max", "delay min",
 	       (unsigned long long)t->cpu_count,
 	       (unsigned long long)t->cpu_run_real_total,
 	       (unsigned long long)t->cpu_run_virtual_total,
 	       (unsigned long long)t->cpu_delay_total,
 	       average_ms((double)t->cpu_delay_total, t->cpu_count),
-		   delay_max_ms((double)t->cpu_delay_max),
-	       "count", "delay total", "delay average", "delay max",
+	       delay_ms((double)t->cpu_delay_max),
+	       delay_ms((double)t->cpu_delay_min),
+	       "count", "delay total", "delay average", "delay max", "delay min",
 	       (unsigned long long)t->blkio_count,
 	       (unsigned long long)t->blkio_delay_total,
 	       average_ms((double)t->blkio_delay_total, t->blkio_count),
-		   delay_max_ms((double)t->blkio_delay_max),
-	       "count", "delay total", "delay average", "delay max",
+	       delay_ms((double)t->blkio_delay_max),
+	       delay_ms((double)t->blkio_delay_min),
+	       "count", "delay total", "delay average", "delay max", "delay min",
 	       (unsigned long long)t->swapin_count,
 	       (unsigned long long)t->swapin_delay_total,
 	       average_ms((double)t->swapin_delay_total, t->swapin_count),
-		   delay_max_ms((double)t->swapin_delay_max),
-	       "count", "delay total", "delay average", "delay max",
+	       delay_ms((double)t->swapin_delay_max),
+	       delay_ms((double)t->swapin_delay_min),
+	       "count", "delay total", "delay average", "delay max", "delay min",
 	       (unsigned long long)t->freepages_count,
 	       (unsigned long long)t->freepages_delay_total,
 	       average_ms((double)t->freepages_delay_total, t->freepages_count),
-		   delay_max_ms((double)t->freepages_delay_max),
-	       "count", "delay total", "delay average", "delay max",
+	       delay_ms((double)t->freepages_delay_max),
+	       delay_ms((double)t->freepages_delay_min),
+	       "count", "delay total", "delay average", "delay max", "delay min",
 	       (unsigned long long)t->thrashing_count,
 	       (unsigned long long)t->thrashing_delay_total,
 	       average_ms((double)t->thrashing_delay_total, t->thrashing_count),
-		   delay_max_ms((double)t->thrashing_delay_max),
-	       "count", "delay total", "delay average", "delay max",
+	       delay_ms((double)t->thrashing_delay_max),
+	       delay_ms((double)t->thrashing_delay_min),
+	       "count", "delay total", "delay average", "delay max", "delay min",
 	       (unsigned long long)t->compact_count,
 	       (unsigned long long)t->compact_delay_total,
 	       average_ms((double)t->compact_delay_total, t->compact_count),
-		   delay_max_ms((double)t->compact_delay_max),
-	       "count", "delay total", "delay average", "delay max",
+	       delay_ms((double)t->compact_delay_max),
+	       delay_ms((double)t->compact_delay_min),
+	       "count", "delay total", "delay average", "delay max", "delay min",
 	       (unsigned long long)t->wpcopy_count,
 	       (unsigned long long)t->wpcopy_delay_total,
 	       average_ms((double)t->wpcopy_delay_total, t->wpcopy_count),
-		   delay_max_ms((double)t->wpcopy_delay_max),
-	       "count", "delay total", "delay average", "delay max",
+	       delay_ms((double)t->wpcopy_delay_max),
+	       delay_ms((double)t->wpcopy_delay_min),
+	       "count", "delay total", "delay average", "delay max", "delay min",
 	       (unsigned long long)t->irq_count,
 	       (unsigned long long)t->irq_delay_total,
 	       average_ms((double)t->irq_delay_total, t->irq_count),
-		   delay_max_ms((double)t->irq_delay_max));
+	       delay_ms((double)t->irq_delay_max),
+	       delay_ms((double)t->irq_delay_min));
 }
 
 static void task_context_switch_counts(struct taskstats *t)

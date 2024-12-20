@@ -30,9 +30,11 @@ struct task_delay_info {
 	 */
 	u64 blkio_start;
 	u64 blkio_delay_max;
+	u64 blkio_delay_min;
 	u64 blkio_delay;	/* wait for sync block io completion */
 	u64 swapin_start;
 	u64 swapin_delay_max;
+	u64 swapin_delay_min;
 	u64 swapin_delay;	/* wait for swapin */
 	u32 blkio_count;	/* total count of the number of sync block */
 				/* io operations performed */
@@ -40,21 +42,26 @@ struct task_delay_info {
 
 	u64 freepages_start;
 	u64 freepages_delay_max;
+	u64 freepages_delay_min;
 	u64 freepages_delay;	/* wait for memory reclaim */
 
 	u64 thrashing_start;
 	u64 thrashing_delay_max;
+	u64 thrashing_delay_min;
 	u64 thrashing_delay;	/* wait for thrashing page */
 
 	u64 compact_start;
 	u64 compact_delay_max;
+	u64 compact_delay_min;
 	u64 compact_delay;	/* wait for memory compact */
 
 	u64 wpcopy_start;
 	u64 wpcopy_delay_max;
+	u64 wpcopy_delay_min;
 	u64 wpcopy_delay;	/* wait for write-protect copy */
 
 	u64 irq_delay_max;
+	u64 irq_delay_min;
 	u64 irq_delay;	/* wait for IRQ/SOFTIRQ */
 
 	u32 freepages_count;	/* total count of memory reclaim */
