@@ -201,6 +201,60 @@ fbnic_get_rxfh(struct net_device *netdev, struct ethtool_rxfh_param *rxfh)
 	return 0;
 }
 
+static unsigned int
+fbnic_set_indir(struct fbnic_net *fbn, unsigned int idx, const u32 *indir)
+{
+	unsigned int i, changes = 0;
+
+	for (i = 0; i < FBNIC_RPC_RSS_TBL_SIZE; i++) {
+		if (fbn->indir_tbl[idx][i] == indir[i])
+			continue;
+
+		fbn->indir_tbl[idx][i] = indir[i];
+		changes++;
+	}
+
+	return changes;
+}
+
+static int
+fbnic_set_rxfh(struct net_device *netdev, struct ethtool_rxfh_param *rxfh,
+	       struct netlink_ext_ack *extack)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+	unsigned int i, changes = 0;
+
+	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	    rxfh->hfunc != ETH_RSS_HASH_TOP)
+		return -EINVAL;
+
+	if (rxfh->key) {
+		u32 rss_key = 0;
+
+		for (i = FBNIC_RPC_RSS_KEY_BYTE_LEN; i--;) {
+			rss_key >>= 8;
+			rss_key |= (u32)(rxfh->key[i]) << 24;
+
+			if (i % 4)
+				continue;
+
+			if (fbn->rss_key[i / 4] == rss_key)
+				continue;
+
+			fbn->rss_key[i / 4] = rss_key;
+			changes++;
+		}
+	}
+
+	if (rxfh->indir)
+		changes += fbnic_set_indir(fbn, 0, rxfh->indir);
+
+	if (changes && netif_running(netdev))
+		fbnic_rss_reinit_hw(fbn->fbd, fbn);
+
+	return 0;
+}
+
 static int
 fbnic_get_ts_info(struct net_device *netdev,
 		  struct kernel_ethtool_ts_info *tsinfo)
@@ -312,6 +366,7 @@ static const struct ethtool_ops fbnic_ethtool_ops = {
 	.get_rxfh_key_size	= fbnic_get_rxfh_key_size,
 	.get_rxfh_indir_size	= fbnic_get_rxfh_indir_size,
 	.get_rxfh		= fbnic_get_rxfh,
+	.set_rxfh		= fbnic_set_rxfh,
 	.get_ts_info		= fbnic_get_ts_info,
 	.get_ts_stats		= fbnic_get_ts_stats,
 	.get_eth_mac_stats	= fbnic_get_eth_mac_stats,
