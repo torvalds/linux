@@ -209,7 +209,7 @@ const struct ssd130x_deviceinfo ssd130x_variants[] = {
 		.family_id = SSD133X_FAMILY,
 	}
 };
-EXPORT_SYMBOL_NS_GPL(ssd130x_variants, DRM_SSD130X);
+EXPORT_SYMBOL_NS_GPL(ssd130x_variants, "DRM_SSD130X");
 
 struct ssd130x_crtc_state {
 	struct drm_crtc_state base;

@@ -45,7 +45,7 @@ int einj_cxl_available_error_type_show(struct seq_file *m, void *v)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(einj_cxl_available_error_type_show, CXL);
+EXPORT_SYMBOL_NS_GPL(einj_cxl_available_error_type_show, "CXL");
 
 static int cxl_dport_get_sbdf(struct pci_dev *dport_dev, u64 *sbdf)
 {
@@ -83,7 +83,7 @@ int einj_cxl_inject_rch_error(u64 rcrb, u64 type)
 	return einj_cxl_rch_error_inject(type, 0x2, rcrb, GENMASK_ULL(63, 0),
 					 0, 0);
 }
-EXPORT_SYMBOL_NS_GPL(einj_cxl_inject_rch_error, CXL);
+EXPORT_SYMBOL_NS_GPL(einj_cxl_inject_rch_error, "CXL");
 
 int einj_cxl_inject_error(struct pci_dev *dport, u64 type)
 {
@@ -104,10 +104,10 @@ int einj_cxl_inject_error(struct pci_dev *dport, u64 type)
 
 	return einj_error_inject(type, 0x4, 0, 0, 0, param4);
 }
-EXPORT_SYMBOL_NS_GPL(einj_cxl_inject_error, CXL);
+EXPORT_SYMBOL_NS_GPL(einj_cxl_inject_error, "CXL");
 
 bool einj_cxl_is_initialized(void)
 {
 	return einj_initialized;
 }
-EXPORT_SYMBOL_NS_GPL(einj_cxl_is_initialized, CXL);
+EXPORT_SYMBOL_NS_GPL(einj_cxl_is_initialized, "CXL");

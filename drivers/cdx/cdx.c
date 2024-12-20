@@ -868,7 +868,7 @@ fail:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(cdx_device_add, CDX_BUS_CONTROLLER);
+EXPORT_SYMBOL_NS_GPL(cdx_device_add, "CDX_BUS_CONTROLLER");
 
 struct device *cdx_bus_add(struct cdx_controller *cdx, u8 bus_num)
 {
@@ -915,7 +915,7 @@ device_add_fail:
 
 	return NULL;
 }
-EXPORT_SYMBOL_NS_GPL(cdx_bus_add, CDX_BUS_CONTROLLER);
+EXPORT_SYMBOL_NS_GPL(cdx_bus_add, "CDX_BUS_CONTROLLER");
 
 int cdx_register_controller(struct cdx_controller *cdx)
 {
@@ -940,7 +940,7 @@ int cdx_register_controller(struct cdx_controller *cdx)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(cdx_register_controller, CDX_BUS_CONTROLLER);
+EXPORT_SYMBOL_NS_GPL(cdx_register_controller, "CDX_BUS_CONTROLLER");
 
 void cdx_unregister_controller(struct cdx_controller *cdx)
 {
@@ -955,7 +955,7 @@ void cdx_unregister_controller(struct cdx_controller *cdx)
 
 	mutex_unlock(&cdx_controller_lock);
 }
-EXPORT_SYMBOL_NS_GPL(cdx_unregister_controller, CDX_BUS_CONTROLLER);
+EXPORT_SYMBOL_NS_GPL(cdx_unregister_controller, "CDX_BUS_CONTROLLER");
 
 static int __init cdx_bus_init(void)
 {

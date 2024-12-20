@@ -43,7 +43,7 @@ void ad_sd_set_comm(struct ad_sigma_delta *sigma_delta, uint8_t comm)
 	 * to select the channel */
 	sigma_delta->comm = comm & AD_SD_COMM_CHAN_MASK;
 }
-EXPORT_SYMBOL_NS_GPL(ad_sd_set_comm, IIO_AD_SIGMA_DELTA);
+EXPORT_SYMBOL_NS_GPL(ad_sd_set_comm, "IIO_AD_SIGMA_DELTA");
 
 /**
  * ad_sd_write_reg() - Write a register
@@ -95,7 +95,7 @@ int ad_sd_write_reg(struct ad_sigma_delta *sigma_delta, unsigned int reg,
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(ad_sd_write_reg, IIO_AD_SIGMA_DELTA);
+EXPORT_SYMBOL_NS_GPL(ad_sd_write_reg, "IIO_AD_SIGMA_DELTA");
 
 static int ad_sd_read_reg_raw(struct ad_sigma_delta *sigma_delta,
 	unsigned int reg, unsigned int size, uint8_t *val)
@@ -172,7 +172,7 @@ int ad_sd_read_reg(struct ad_sigma_delta *sigma_delta,
 out:
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(ad_sd_read_reg, IIO_AD_SIGMA_DELTA);
+EXPORT_SYMBOL_NS_GPL(ad_sd_read_reg, "IIO_AD_SIGMA_DELTA");
 
 /**
  * ad_sd_reset() - Reset the serial interface
@@ -200,7 +200,7 @@ int ad_sd_reset(struct ad_sigma_delta *sigma_delta,
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(ad_sd_reset, IIO_AD_SIGMA_DELTA);
+EXPORT_SYMBOL_NS_GPL(ad_sd_reset, "IIO_AD_SIGMA_DELTA");
 
 int ad_sd_calibrate(struct ad_sigma_delta *sigma_delta,
 	unsigned int mode, unsigned int channel)
@@ -239,7 +239,7 @@ out:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(ad_sd_calibrate, IIO_AD_SIGMA_DELTA);
+EXPORT_SYMBOL_NS_GPL(ad_sd_calibrate, "IIO_AD_SIGMA_DELTA");
 
 /**
  * ad_sd_calibrate_all() - Performs channel calibration
@@ -263,7 +263,7 @@ int ad_sd_calibrate_all(struct ad_sigma_delta *sigma_delta,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(ad_sd_calibrate_all, IIO_AD_SIGMA_DELTA);
+EXPORT_SYMBOL_NS_GPL(ad_sd_calibrate_all, "IIO_AD_SIGMA_DELTA");
 
 /**
  * ad_sigma_delta_single_conversion() - Performs a single data conversion
@@ -339,7 +339,7 @@ out:
 
 	return IIO_VAL_INT;
 }
-EXPORT_SYMBOL_NS_GPL(ad_sigma_delta_single_conversion, IIO_AD_SIGMA_DELTA);
+EXPORT_SYMBOL_NS_GPL(ad_sigma_delta_single_conversion, "IIO_AD_SIGMA_DELTA");
 
 static int ad_sd_buffer_postenable(struct iio_dev *indio_dev)
 {
@@ -564,7 +564,7 @@ int ad_sd_validate_trigger(struct iio_dev *indio_dev, struct iio_trigger *trig)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(ad_sd_validate_trigger, IIO_AD_SIGMA_DELTA);
+EXPORT_SYMBOL_NS_GPL(ad_sd_validate_trigger, "IIO_AD_SIGMA_DELTA");
 
 static int devm_ad_sd_probe_trigger(struct device *dev, struct iio_dev *indio_dev)
 {
@@ -638,7 +638,7 @@ int devm_ad_sd_setup_buffer_and_trigger(struct device *dev, struct iio_dev *indi
 
 	return devm_ad_sd_probe_trigger(dev, indio_dev);
 }
-EXPORT_SYMBOL_NS_GPL(devm_ad_sd_setup_buffer_and_trigger, IIO_AD_SIGMA_DELTA);
+EXPORT_SYMBOL_NS_GPL(devm_ad_sd_setup_buffer_and_trigger, "IIO_AD_SIGMA_DELTA");
 
 /**
  * ad_sd_init() - Initializes a ad_sigma_delta struct
@@ -683,7 +683,7 @@ int ad_sd_init(struct ad_sigma_delta *sigma_delta, struct iio_dev *indio_dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(ad_sd_init, IIO_AD_SIGMA_DELTA);
+EXPORT_SYMBOL_NS_GPL(ad_sd_init, "IIO_AD_SIGMA_DELTA");
 
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
 MODULE_DESCRIPTION("Analog Devices Sigma-Delta ADCs");

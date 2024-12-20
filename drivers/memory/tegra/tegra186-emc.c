@@ -406,7 +406,7 @@ static struct platform_driver tegra186_emc_driver = {
 		.sync_state = icc_sync_state,
 	},
 	.probe = tegra186_emc_probe,
-	.remove_new = tegra186_emc_remove,
+	.remove = tegra186_emc_remove,
 };
 module_platform_driver(tegra186_emc_driver);
 

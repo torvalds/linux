@@ -129,6 +129,16 @@ enum btrfs_lockdep_trans_states {
 	rwsem_release(&owner->lock##_map, _THIS_IP_)
 
 /*
+ * Used to account for the fact that when doing io_uring encoded I/O, we can
+ * return to userspace with the inode lock still held.
+ */
+#define btrfs_lockdep_inode_acquire(owner, lock)				\
+	rwsem_acquire_read(&owner->vfs_inode.lock.dep_map, 0, 0, _THIS_IP_)
+
+#define btrfs_lockdep_inode_release(owner, lock)				\
+	rwsem_release(&owner->vfs_inode.lock.dep_map, _THIS_IP_)
+
+/*
  * Macros for the transaction states wait events, similar to the generic wait
  * event macros.
  */

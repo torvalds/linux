@@ -186,7 +186,7 @@ err_buf:
 
 	return -ENOMEM;
 }
-EXPORT_SYMBOL_NS_GPL(libeth_rx_fq_create, LIBETH);
+EXPORT_SYMBOL_NS_GPL(libeth_rx_fq_create, "LIBETH");
 
 /**
  * libeth_rx_fq_destroy - destroy a &page_pool created by libeth
@@ -197,7 +197,7 @@ void libeth_rx_fq_destroy(struct libeth_fq *fq)
 	kvfree(fq->fqes);
 	page_pool_destroy(fq->pp);
 }
-EXPORT_SYMBOL_NS_GPL(libeth_rx_fq_destroy, LIBETH);
+EXPORT_SYMBOL_NS_GPL(libeth_rx_fq_destroy, "LIBETH");
 
 /**
  * libeth_rx_recycle_slow - recycle a libeth page from the NAPI context
@@ -209,7 +209,7 @@ void libeth_rx_recycle_slow(struct page *page)
 {
 	page_pool_recycle_direct(page->pp, page);
 }
-EXPORT_SYMBOL_NS_GPL(libeth_rx_recycle_slow, LIBETH);
+EXPORT_SYMBOL_NS_GPL(libeth_rx_recycle_slow, "LIBETH");
 
 /* Converting abstract packet type numbers into a software structure with
  * the packet parameters to do O(1) lookup on Rx.
@@ -251,7 +251,7 @@ void libeth_rx_pt_gen_hash_type(struct libeth_rx_pt *pt)
 	pt->hash_type |= libeth_rx_pt_xdp_iprot[pt->inner_prot];
 	pt->hash_type |= libeth_rx_pt_xdp_pl[pt->payload_layer];
 }
-EXPORT_SYMBOL_NS_GPL(libeth_rx_pt_gen_hash_type, LIBETH);
+EXPORT_SYMBOL_NS_GPL(libeth_rx_pt_gen_hash_type, "LIBETH");
 
 /* Module */
 

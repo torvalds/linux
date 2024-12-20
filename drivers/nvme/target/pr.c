@@ -828,12 +828,11 @@ static void nvmet_execute_pr_report(struct nvmet_req *req)
 		goto out;
 	}
 
-	data = kmalloc(num_bytes, GFP_KERNEL);
+	data = kzalloc(num_bytes, GFP_KERNEL);
 	if (!data) {
 		status = NVME_SC_INTERNAL;
 		goto out;
 	}
-	memset(data, 0, num_bytes);
 	data->gen = cpu_to_le32(atomic_read(&pr->generation));
 	data->ptpls = 0;
 	ctrl_eds = data->regctl_eds;

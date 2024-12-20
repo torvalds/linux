@@ -24,7 +24,6 @@ arch/m68k/kernel/head.o
 arch/m68k/kernel/sun3-head.o
 arch/microblaze/kernel/head.o
 arch/nios2/kernel/head.o
-arch/openrisc/kernel/head.o
 arch/parisc/kernel/head.o
 arch/powerpc/kernel/head_44x.o
 arch/powerpc/kernel/head_64.o

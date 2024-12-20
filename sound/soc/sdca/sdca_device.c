@@ -22,7 +22,7 @@ void sdca_lookup_interface_revision(struct sdw_slave *slave)
 	fwnode_property_read_u32(fwnode, "mipi-sdw-sdca-interface-revision",
 				 &slave->sdca_data.interface_revision);
 }
-EXPORT_SYMBOL_NS(sdca_lookup_interface_revision, SND_SOC_SDCA);
+EXPORT_SYMBOL_NS(sdca_lookup_interface_revision, "SND_SOC_SDCA");
 
 static bool sdca_device_quirk_rt712_vb(struct sdw_slave *slave)
 {
@@ -64,4 +64,4 @@ bool sdca_device_quirk_match(struct sdw_slave *slave, enum sdca_quirk quirk)
 	}
 	return false;
 }
-EXPORT_SYMBOL_NS(sdca_device_quirk_match, SND_SOC_SDCA);
+EXPORT_SYMBOL_NS(sdca_device_quirk_match, "SND_SOC_SDCA");

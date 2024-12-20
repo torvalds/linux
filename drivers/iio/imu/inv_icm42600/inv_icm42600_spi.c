@@ -124,4 +124,4 @@ module_spi_driver(inv_icm42600_driver);
 MODULE_AUTHOR("InvenSense, Inc.");
 MODULE_DESCRIPTION("InvenSense ICM-426xx SPI driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(IIO_ICM42600);
+MODULE_IMPORT_NS("IIO_ICM42600");

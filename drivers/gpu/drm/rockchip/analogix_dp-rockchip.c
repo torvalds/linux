@@ -470,7 +470,7 @@ MODULE_DEVICE_TABLE(of, rockchip_dp_dt_ids);
 
 struct platform_driver rockchip_dp_driver = {
 	.probe = rockchip_dp_probe,
-	.remove_new = rockchip_dp_remove,
+	.remove = rockchip_dp_remove,
 	.driver = {
 		   .name = "rockchip-dp",
 		   .pm = pm_ptr(&rockchip_dp_pm_ops),

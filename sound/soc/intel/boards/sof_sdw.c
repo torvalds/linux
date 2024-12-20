@@ -1067,8 +1067,12 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 		return ret;
 	}
 
-	/* One per DAI link, worst case is a DAI link for every endpoint */
-	sof_dais = kcalloc(num_ends, sizeof(*sof_dais), GFP_KERNEL);
+	/*
+	 * One per DAI link, worst case is a DAI link for every endpoint, also
+	 * add one additional to act as a terminator such that code can iterate
+	 * until it hits an uninitialised DAI.
+	 */
+	sof_dais = kcalloc(num_ends + 1, sizeof(*sof_dais), GFP_KERNEL);
 	if (!sof_dais)
 		return -ENOMEM;
 
@@ -1325,5 +1329,5 @@ MODULE_AUTHOR("Bard Liao <yung-chuan.liao@linux.intel.com>");
 MODULE_AUTHOR("Rander Wang <rander.wang@linux.intel.com>");
 MODULE_AUTHOR("Pierre-Louis Bossart <pierre-louis.bossart@linux.intel.com>");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(SND_SOC_INTEL_HDA_DSP_COMMON);
-MODULE_IMPORT_NS(SND_SOC_SDW_UTILS);
+MODULE_IMPORT_NS("SND_SOC_INTEL_HDA_DSP_COMMON");
+MODULE_IMPORT_NS("SND_SOC_SDW_UTILS");

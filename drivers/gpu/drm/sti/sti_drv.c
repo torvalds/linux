@@ -270,7 +270,7 @@ MODULE_DEVICE_TABLE(of, sti_dt_ids);
 
 static struct platform_driver sti_platform_driver = {
 	.probe = sti_platform_probe,
-	.remove_new = sti_platform_remove,
+	.remove = sti_platform_remove,
 	.shutdown = sti_platform_shutdown,
 	.driver = {
 		.name = DRIVER_NAME,
