@@ -253,3 +253,72 @@ int rxe_odp_mr_copy(struct rxe_mr *mr, u64 iova, void *addr, int length,
 
 	return err;
 }
+
+static int rxe_odp_do_atomic_op(struct rxe_mr *mr, u64 iova, int opcode,
+				u64 compare, u64 swap_add, u64 *orig_val)
+{
+	struct ib_umem_odp *umem_odp = to_ib_umem_odp(mr->umem);
+	unsigned int page_offset;
+	struct page *page;
+	unsigned int idx;
+	u64 value;
+	u64 *va;
+	int err;
+
+	if (unlikely(mr->state != RXE_MR_STATE_VALID)) {
+		rxe_dbg_mr(mr, "mr not in valid state\n");
+		return RESPST_ERR_RKEY_VIOLATION;
+	}
+
+	err = mr_check_range(mr, iova, sizeof(value));
+	if (err) {
+		rxe_dbg_mr(mr, "iova out of range\n");
+		return RESPST_ERR_RKEY_VIOLATION;
+	}
+
+	idx = (iova - ib_umem_start(umem_odp)) >> umem_odp->page_shift;
+	page_offset = iova & (BIT(umem_odp->page_shift) - 1);
+	page = hmm_pfn_to_page(umem_odp->pfn_list[idx]);
+	if (!page)
+		return RESPST_ERR_RKEY_VIOLATION;
+
+	if (unlikely(page_offset & 0x7)) {
+		rxe_dbg_mr(mr, "iova not aligned\n");
+		return RESPST_ERR_MISALIGNED_ATOMIC;
+	}
+
+	va = kmap_local_page(page);
+
+	spin_lock_bh(&atomic_ops_lock);
+	value = *orig_val = va[page_offset >> 3];
+
+	if (opcode == IB_OPCODE_RC_COMPARE_SWAP) {
+		if (value == compare)
+			va[page_offset >> 3] = swap_add;
+	} else {
+		value += swap_add;
+		va[page_offset >> 3] = value;
+	}
+	spin_unlock_bh(&atomic_ops_lock);
+
+	kunmap_local(va);
+
+	return 0;
+}
+
+int rxe_odp_atomic_op(struct rxe_mr *mr, u64 iova, int opcode,
+			 u64 compare, u64 swap_add, u64 *orig_val)
+{
+	struct ib_umem_odp *umem_odp = to_ib_umem_odp(mr->umem);
+	int err;
+
+	err = rxe_odp_map_range_and_lock(mr, iova, sizeof(char), 0);
+	if (err < 0)
+		return err;
+
+	err = rxe_odp_do_atomic_op(mr, iova, opcode, compare, swap_add,
+				   orig_val);
+	mutex_unlock(&umem_odp->umem_mutex);
+
+	return err;
+}

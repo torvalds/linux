@@ -707,7 +707,10 @@ static enum resp_states atomic_reply(struct rxe_qp *qp,
 		u64 iova = qp->resp.va + qp->resp.offset;
 
 		if (mr->umem->is_odp)
-			err = RESPST_ERR_UNSUPPORTED_OPCODE;
+			err = rxe_odp_atomic_op(mr, iova, pkt->opcode,
+						atmeth_comp(pkt),
+						atmeth_swap_add(pkt),
+						&res->atomic.orig_val);
 		else
 			err = rxe_mr_do_atomic_op(mr, iova, pkt->opcode,
 						  atmeth_comp(pkt),
