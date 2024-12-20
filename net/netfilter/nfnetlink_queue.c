@@ -470,9 +470,9 @@ static int nfqnl_put_sk_classid(struct sk_buff *skb, struct sock *sk)
 	return 0;
 }
 
-static u32 nfqnl_get_sk_secctx(struct sk_buff *skb, struct lsm_context *ctx)
+static int nfqnl_get_sk_secctx(struct sk_buff *skb, struct lsm_context *ctx)
 {
-	u32 seclen = 0;
+	int seclen = 0;
 #if IS_ENABLED(CONFIG_NETWORK_SECMARK)
 
 	if (!skb || !sk_fullsock(skb->sk))
@@ -568,7 +568,7 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 	const struct nfnl_ct_hook *nfnl_ct;
 	bool csum_verify;
 	struct lsm_context ctx;
-	u32 seclen = 0;
+	int seclen = 0;
 	ktime_t tstamp;
 
 	size = nlmsg_total_size(sizeof(struct nfgenmsg))
@@ -643,7 +643,9 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 
 	if ((queue->flags & NFQA_CFG_F_SECCTX) && entskb->sk) {
 		seclen = nfqnl_get_sk_secctx(entskb, &ctx);
-		if (seclen >= 0)
+		if (seclen < 0)
+			return NULL;
+		if (seclen)
 			size += nla_total_size(seclen);
 	}
 
@@ -782,7 +784,7 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 	if (nfqnl_put_sk_classid(skb, entskb->sk) < 0)
 		goto nla_put_failure;
 
-	if (seclen && nla_put(skb, NFQA_SECCTX, ctx.len, ctx.context))
+	if (seclen > 0 && nla_put(skb, NFQA_SECCTX, ctx.len, ctx.context))
 		goto nla_put_failure;
 
 	if (ct && nfnl_ct->build(skb, ct, ctinfo, NFQA_CT, NFQA_CT_INFO) < 0)
