@@ -167,6 +167,55 @@ static int fbnic_get_rxnfc(struct net_device *netdev,
 	return ret;
 }
 
+#define FBNIC_L2_HASH_OPTIONS \
+	(RXH_L2DA | RXH_DISCARD)
+#define FBNIC_L3_HASH_OPTIONS \
+	(FBNIC_L2_HASH_OPTIONS | RXH_IP_SRC | RXH_IP_DST)
+#define FBNIC_L4_HASH_OPTIONS \
+	(FBNIC_L3_HASH_OPTIONS | RXH_L4_B_0_1 | RXH_L4_B_2_3)
+
+static int
+fbnic_set_rss_hash_opts(struct fbnic_net *fbn, const struct ethtool_rxnfc *cmd)
+{
+	int hash_opt_idx;
+
+	/* Verify the type requested is correct */
+	hash_opt_idx = fbnic_get_rss_hash_idx(cmd->flow_type);
+	if (hash_opt_idx < 0)
+		return -EINVAL;
+
+	/* Verify the fields asked for can actually be assigned based on type */
+	if (cmd->data & ~FBNIC_L4_HASH_OPTIONS ||
+	    (hash_opt_idx > FBNIC_L4_HASH_OPT &&
+	     cmd->data & ~FBNIC_L3_HASH_OPTIONS) ||
+	    (hash_opt_idx > FBNIC_IP_HASH_OPT &&
+	     cmd->data & ~FBNIC_L2_HASH_OPTIONS))
+		return -EINVAL;
+
+	fbn->rss_flow_hash[hash_opt_idx] = cmd->data;
+
+	if (netif_running(fbn->netdev)) {
+		fbnic_rss_reinit(fbn->fbd, fbn);
+		fbnic_write_rules(fbn->fbd);
+	}
+
+	return 0;
+}
+
+static int fbnic_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+	int ret = -EOPNOTSUPP;
+
+	switch (cmd->cmd) {
+	case ETHTOOL_SRXFH:
+		ret = fbnic_set_rss_hash_opts(fbn, cmd);
+		break;
+	}
+
+	return ret;
+}
+
 static u32 fbnic_get_rxfh_key_size(struct net_device *netdev)
 {
 	return FBNIC_RPC_RSS_KEY_BYTE_LEN;
@@ -363,6 +412,7 @@ static const struct ethtool_ops fbnic_ethtool_ops = {
 	.get_ethtool_stats	= fbnic_get_ethtool_stats,
 	.get_sset_count		= fbnic_get_sset_count,
 	.get_rxnfc		= fbnic_get_rxnfc,
+	.set_rxnfc		= fbnic_set_rxnfc,
 	.get_rxfh_key_size	= fbnic_get_rxfh_key_size,
 	.get_rxfh_indir_size	= fbnic_get_rxfh_indir_size,
 	.get_rxfh		= fbnic_get_rxfh,
