@@ -1394,7 +1394,7 @@ static int ov08x40_read_reg(struct ov08x40 *ov08x,
 
 	ret = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
 	if (ret != ARRAY_SIZE(msgs))
-		return -EIO;
+		return ret < 0 ? ret : -EIO;
 
 	*val = be32_to_cpu(data_be);
 
@@ -1463,7 +1463,7 @@ static int ov08x40_write_reg(struct ov08x40 *ov08x,
 			     u16 reg, u32 len, u32 __val)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&ov08x->sd);
-	int buf_i, val_i;
+	int buf_i, val_i, ret;
 	u8 buf[6], *val_p;
 	__be32 val;
 
@@ -1481,8 +1481,9 @@ static int ov08x40_write_reg(struct ov08x40 *ov08x,
 	while (val_i < 4)
 		buf[buf_i++] = val_p[val_i++];
 
-	if (i2c_master_send(client, buf, len + 2) != len + 2)
-		return -EIO;
+	ret = i2c_master_send(client, buf, len + 2);
+	if (ret != len + 2)
+		return ret < 0 ? ret : -EIO;
 
 	return 0;
 }
