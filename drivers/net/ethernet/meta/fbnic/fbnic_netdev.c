@@ -23,13 +23,7 @@ int __fbnic_open(struct fbnic_net *fbn)
 	if (err)
 		goto free_napi_vectors;
 
-	err = netif_set_real_num_tx_queues(fbn->netdev,
-					   fbn->num_tx_queues);
-	if (err)
-		goto free_resources;
-
-	err = netif_set_real_num_rx_queues(fbn->netdev,
-					   fbn->num_rx_queues);
+	err = fbnic_set_netif_queues(fbn);
 	if (err)
 		goto free_resources;
 
@@ -93,6 +87,7 @@ static int fbnic_stop(struct net_device *netdev)
 	fbnic_time_stop(fbn);
 	fbnic_fw_xmit_ownership_msg(fbn->fbd, false);
 
+	fbnic_reset_netif_queues(fbn);
 	fbnic_free_resources(fbn);
 	fbnic_free_napi_vectors(fbn);
 

@@ -1621,6 +1621,71 @@ free_resources:
 	return err;
 }
 
+static void fbnic_set_netif_napi(struct fbnic_napi_vector *nv)
+{
+	int i, j;
+
+	/* Associate Tx queue with NAPI */
+	for (i = 0; i < nv->txt_count; i++) {
+		struct fbnic_q_triad *qt = &nv->qt[i];
+
+		netif_queue_set_napi(nv->napi.dev, qt->sub0.q_idx,
+				     NETDEV_QUEUE_TYPE_TX, &nv->napi);
+	}
+
+	/* Associate Rx queue with NAPI */
+	for (j = 0; j < nv->rxt_count; j++, i++) {
+		struct fbnic_q_triad *qt = &nv->qt[i];
+
+		netif_queue_set_napi(nv->napi.dev, qt->cmpl.q_idx,
+				     NETDEV_QUEUE_TYPE_RX, &nv->napi);
+	}
+}
+
+static void fbnic_reset_netif_napi(struct fbnic_napi_vector *nv)
+{
+	int i, j;
+
+	/* Disassociate Tx queue from NAPI */
+	for (i = 0; i < nv->txt_count; i++) {
+		struct fbnic_q_triad *qt = &nv->qt[i];
+
+		netif_queue_set_napi(nv->napi.dev, qt->sub0.q_idx,
+				     NETDEV_QUEUE_TYPE_TX, NULL);
+	}
+
+	/* Disassociate Rx queue from NAPI */
+	for (j = 0; j < nv->rxt_count; j++, i++) {
+		struct fbnic_q_triad *qt = &nv->qt[i];
+
+		netif_queue_set_napi(nv->napi.dev, qt->cmpl.q_idx,
+				     NETDEV_QUEUE_TYPE_RX, NULL);
+	}
+}
+
+int fbnic_set_netif_queues(struct fbnic_net *fbn)
+{
+	int i, err;
+
+	err = netif_set_real_num_queues(fbn->netdev, fbn->num_tx_queues,
+					fbn->num_rx_queues);
+	if (err)
+		return err;
+
+	for (i = 0; i < fbn->num_napi; i++)
+		fbnic_set_netif_napi(fbn->napi[i]);
+
+	return 0;
+}
+
+void fbnic_reset_netif_queues(struct fbnic_net *fbn)
+{
+	int i;
+
+	for (i = 0; i < fbn->num_napi; i++)
+		fbnic_reset_netif_napi(fbn->napi[i]);
+}
+
 static void fbnic_disable_twq0(struct fbnic_ring *txr)
 {
 	u32 twq_ctl = fbnic_ring_rd32(txr, FBNIC_QUEUE_TWQ0_CTL);
@@ -1801,10 +1866,6 @@ void fbnic_flush(struct fbnic_net *fbn)
 			tx_queue = netdev_get_tx_queue(nv->napi.dev,
 						       qt->sub0.q_idx);
 			netdev_tx_reset_queue(tx_queue);
-
-			/* Disassociate Tx queue from NAPI */
-			netif_queue_set_napi(nv->napi.dev, qt->sub0.q_idx,
-					     NETDEV_QUEUE_TYPE_TX, NULL);
 		}
 
 		/* Flush any processed Rx Queue Triads and drop the rest */
@@ -1820,10 +1881,6 @@ void fbnic_flush(struct fbnic_net *fbn)
 
 			fbnic_put_pkt_buff(nv, qt->cmpl.pkt, 0);
 			qt->cmpl.pkt->buff.data_hard_start = NULL;
-
-			/* Disassociate Rx queue from NAPI */
-			netif_queue_set_napi(nv->napi.dev, qt->cmpl.q_idx,
-					     NETDEV_QUEUE_TYPE_RX, NULL);
 		}
 	}
 }
@@ -1836,28 +1893,11 @@ void fbnic_fill(struct fbnic_net *fbn)
 		struct fbnic_napi_vector *nv = fbn->napi[i];
 		int j, t;
 
-		/* Configure NAPI mapping for Tx */
-		for (t = 0; t < nv->txt_count; t++) {
-			struct fbnic_q_triad *qt = &nv->qt[t];
-
-			/* Nothing to do if Tx queue is disabled */
-			if (qt->sub0.flags & FBNIC_RING_F_DISABLED)
-				continue;
-
-			/* Associate Tx queue with NAPI */
-			netif_queue_set_napi(nv->napi.dev, qt->sub0.q_idx,
-					     NETDEV_QUEUE_TYPE_TX, &nv->napi);
-		}
-
 		/* Configure NAPI mapping and populate pages
 		 * in the BDQ rings to use for Rx
 		 */
-		for (j = 0; j < nv->rxt_count; j++, t++) {
+		for (j = 0, t = nv->txt_count; j < nv->rxt_count; j++, t++) {
 			struct fbnic_q_triad *qt = &nv->qt[t];
-
-			/* Associate Rx queue with NAPI */
-			netif_queue_set_napi(nv->napi.dev, qt->cmpl.q_idx,
-					     NETDEV_QUEUE_TYPE_RX, &nv->napi);
 
 			/* Populate the header and payload BDQs */
 			fbnic_fill_bdq(nv, &qt->sub0);
