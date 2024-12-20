@@ -676,7 +676,7 @@ static int parse_reparse_wsl_symlink(struct reparse_wsl_symlink_data_buffer *buf
 		return -ENOMEM;
 	symname_utf16_len = utf8s_to_utf16s(buf->PathBuffer, symname_utf8_len,
 					    UTF16_LITTLE_ENDIAN,
-					    symname_utf16, symname_utf8_len * 2);
+					    (wchar_t *) symname_utf16, symname_utf8_len * 2);
 	if (symname_utf16_len < 0) {
 		kfree(symname_utf16);
 		return symname_utf16_len;

@@ -901,7 +901,7 @@ static int usb_gpib_read(gpib_board_t *board,
 
 		} else {
 			/* we are in the closing <DLE><ETX> sequence */
-
+			c = nc;
 			if (c == ETX) {
 				c = one_char(board, &b);
 				if (c == ACK) {
