@@ -360,17 +360,19 @@ properties:
               - renesas,white-hawk-cpu # White Hawk CPU board (RTP8A779G0ASKB0FC0SA000)
           - const: renesas,r8a779g0
 
-      - description: R-Car V4H (R8A779G2)
-        items:
-          - enum:
-              - renesas,white-hawk-single # White Hawk Single board (RTP8A779G2ASKB0F10SA001)
-          - const: renesas,r8a779g2
-          - const: renesas,r8a779g0
-
       - items:
           - enum:
               - renesas,white-hawk-breakout # White Hawk BreakOut board (RTP8A779G0ASKB0SB0SA000)
           - const: renesas,white-hawk-cpu
+          - const: renesas,r8a779g0
+
+      - description: R-Car V4H (R8A779G[23])
+        items:
+          - enum:
+              - renesas,white-hawk-single # White Hawk Single board (RTP8A779G[23]ASKB0F10SA001)
+          - enum:
+              - renesas,r8a779g2 # ES2.x
+              - renesas,r8a779g3 # ES3.x
           - const: renesas,r8a779g0
 
       - description: R-Car V4M (R8A779H0)
@@ -524,6 +526,23 @@ properties:
           - enum:
               - renesas,rzv2mevk2   # RZ/V2M Eval Board v2.0
           - const: renesas,r9a09g011
+
+      - description: RZ/G3E (R9A09G047)
+        items:
+          - enum:
+              - renesas,smarc2-evk # RZ SMARC Carrier-II EVK
+          - enum:
+              - renesas,rzg3e-smarcm # RZ/G3E SMARC Module (SoM)
+          - enum:
+              - renesas,r9a09g047e27 # Dual Cortex-A55 + Cortex-M33 (15mm BGA)
+              - renesas,r9a09g047e28 # Dual Cortex-A55 + Cortex-M33 (21mm BGA)
+              - renesas,r9a09g047e37 # Dual Cortex-A55 + Cortex-M33 + Ethos-U55 (15mm BGA)
+              - renesas,r9a09g047e38 # Dual Cortex-A55 + Cortex-M33 + Ethos-U55 (21mm BGA)
+              - renesas,r9a09g047e47 # Quad Cortex-A55 + Cortex-M33 (15mm BGA)
+              - renesas,r9a09g047e48 # Quad Cortex-A55 + Cortex-M33 (21mm BGA)
+              - renesas,r9a09g047e57 # Quad Cortex-A55 + Cortex-M33 + Ethos-U55 (15mm BGA)
+              - renesas,r9a09g047e58 # Quad Cortex-A55 + Cortex-M33 + Ethos-U55 (21mm BGA)
+          - const: renesas,r9a09g047
 
       - description: RZ/V2H(P) (R9A09G057)
         items:
