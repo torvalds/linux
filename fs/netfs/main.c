@@ -37,9 +37,11 @@ static const char *netfs_origins[nr__netfs_io_origin] = {
 	[NETFS_READAHEAD]		= "RA",
 	[NETFS_READPAGE]		= "RP",
 	[NETFS_READ_GAPS]		= "RG",
+	[NETFS_READ_SINGLE]		= "R1",
 	[NETFS_READ_FOR_WRITE]		= "RW",
 	[NETFS_DIO_READ]		= "DR",
 	[NETFS_WRITEBACK]		= "WB",
+	[NETFS_WRITEBACK_SINGLE]	= "W1",
 	[NETFS_WRITETHROUGH]		= "WT",
 	[NETFS_UNBUFFERED_WRITE]	= "UW",
 	[NETFS_DIO_WRITE]		= "DW",
@@ -69,7 +71,7 @@ static int netfs_requests_seq_show(struct seq_file *m, void *v)
 		   refcount_read(&rreq->ref),
 		   rreq->flags,
 		   rreq->error,
-		   atomic_read(&rreq->nr_outstanding),
+		   0,
 		   rreq->start, rreq->submitted, rreq->len);
 	seq_putc(m, '\n');
 	return 0;
@@ -116,7 +118,7 @@ static int __init netfs_init(void)
 		goto error_reqpool;
 
 	netfs_subrequest_slab = kmem_cache_create("netfs_subrequest",
-						  sizeof(struct netfs_io_subrequest), 0,
+						  sizeof(struct netfs_io_subrequest) + 16, 0,
 						  SLAB_HWCACHE_ALIGN | SLAB_ACCOUNT,
 						  NULL);
 	if (!netfs_subrequest_slab)

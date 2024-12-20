@@ -8,113 +8,101 @@
 #include <linux/swap.h>
 #include "internal.h"
 
-/*
- * Make sure there's space in the rolling queue.
+/**
+ * netfs_alloc_folioq_buffer - Allocate buffer space into a folio queue
+ * @mapping: Address space to set on the folio (or NULL).
+ * @_buffer: Pointer to the folio queue to add to (may point to a NULL; updated).
+ * @_cur_size: Current size of the buffer (updated).
+ * @size: Target size of the buffer.
+ * @gfp: The allocation constraints.
  */
-struct folio_queue *netfs_buffer_make_space(struct netfs_io_request *rreq)
+int netfs_alloc_folioq_buffer(struct address_space *mapping,
+			      struct folio_queue **_buffer,
+			      size_t *_cur_size, ssize_t size, gfp_t gfp)
 {
-	struct folio_queue *tail = rreq->buffer_tail, *prev;
-	unsigned int prev_nr_slots = 0;
+	struct folio_queue *tail = *_buffer, *p;
 
-	if (WARN_ON_ONCE(!rreq->buffer && tail) ||
-	    WARN_ON_ONCE(rreq->buffer && !tail))
-		return ERR_PTR(-EIO);
+	size = round_up(size, PAGE_SIZE);
+	if (*_cur_size >= size)
+		return 0;
 
-	prev = tail;
-	if (prev) {
-		if (!folioq_full(tail))
-			return tail;
-		prev_nr_slots = folioq_nr_slots(tail);
-	}
+	if (tail)
+		while (tail->next)
+			tail = tail->next;
 
-	tail = kmalloc(sizeof(*tail), GFP_NOFS);
-	if (!tail)
-		return ERR_PTR(-ENOMEM);
-	netfs_stat(&netfs_n_folioq);
-	folioq_init(tail);
-	tail->prev = prev;
-	if (prev)
-		/* [!] NOTE: After we set prev->next, the consumer is entirely
-		 * at liberty to delete prev.
-		 */
-		WRITE_ONCE(prev->next, tail);
+	do {
+		struct folio *folio;
+		int order = 0, slot;
 
-	rreq->buffer_tail = tail;
-	if (!rreq->buffer) {
-		rreq->buffer = tail;
-		iov_iter_folio_queue(&rreq->io_iter, ITER_SOURCE, tail, 0, 0, 0);
-	} else {
-		/* Make sure we don't leave the master iterator pointing to a
-		 * block that might get immediately consumed.
-		 */
-		if (rreq->io_iter.folioq == prev &&
-		    rreq->io_iter.folioq_slot == prev_nr_slots) {
-			rreq->io_iter.folioq = tail;
-			rreq->io_iter.folioq_slot = 0;
+		if (!tail || folioq_full(tail)) {
+			p = netfs_folioq_alloc(0, GFP_NOFS, netfs_trace_folioq_alloc_buffer);
+			if (!p)
+				return -ENOMEM;
+			if (tail) {
+				tail->next = p;
+				p->prev = tail;
+			} else {
+				*_buffer = p;
+			}
+			tail = p;
 		}
-	}
-	rreq->buffer_tail_slot = 0;
-	return tail;
-}
 
-/*
- * Append a folio to the rolling queue.
- */
-int netfs_buffer_append_folio(struct netfs_io_request *rreq, struct folio *folio,
-			      bool needs_put)
-{
-	struct folio_queue *tail;
-	unsigned int slot, order = folio_order(folio);
+		if (size - *_cur_size > PAGE_SIZE)
+			order = umin(ilog2(size - *_cur_size) - PAGE_SHIFT,
+				     MAX_PAGECACHE_ORDER);
 
-	tail = netfs_buffer_make_space(rreq);
-	if (IS_ERR(tail))
-		return PTR_ERR(tail);
+		folio = folio_alloc(gfp, order);
+		if (!folio && order > 0)
+			folio = folio_alloc(gfp, 0);
+		if (!folio)
+			return -ENOMEM;
 
-	rreq->io_iter.count += PAGE_SIZE << order;
+		folio->mapping = mapping;
+		folio->index = *_cur_size / PAGE_SIZE;
+		trace_netfs_folio(folio, netfs_folio_trace_alloc_buffer);
+		slot = folioq_append_mark(tail, folio);
+		*_cur_size += folioq_folio_size(tail, slot);
+	} while (*_cur_size < size);
 
-	slot = folioq_append(tail, folio);
-	/* Store the counter after setting the slot. */
-	smp_store_release(&rreq->buffer_tail_slot, slot);
 	return 0;
 }
+EXPORT_SYMBOL(netfs_alloc_folioq_buffer);
 
-/*
- * Delete the head of a rolling queue.
+/**
+ * netfs_free_folioq_buffer - Free a folio queue.
+ * @fq: The start of the folio queue to free
+ *
+ * Free up a chain of folio_queues and, if marked, the marked folios they point
+ * to.
  */
-struct folio_queue *netfs_delete_buffer_head(struct netfs_io_request *wreq)
+void netfs_free_folioq_buffer(struct folio_queue *fq)
 {
-	struct folio_queue *head = wreq->buffer, *next = head->next;
+	struct folio_queue *next;
+	struct folio_batch fbatch;
 
-	if (next)
-		next->prev = NULL;
-	netfs_stat_d(&netfs_n_folioq);
-	kfree(head);
-	wreq->buffer = next;
-	return next;
-}
+	folio_batch_init(&fbatch);
 
-/*
- * Clear out a rolling queue.
- */
-void netfs_clear_buffer(struct netfs_io_request *rreq)
-{
-	struct folio_queue *p;
+	for (; fq; fq = next) {
+		for (int slot = 0; slot < folioq_count(fq); slot++) {
+			struct folio *folio = folioq_folio(fq, slot);
 
-	while ((p = rreq->buffer)) {
-		rreq->buffer = p->next;
-		for (int slot = 0; slot < folioq_count(p); slot++) {
-			struct folio *folio = folioq_folio(p, slot);
-			if (!folio)
+			if (!folio ||
+			    !folioq_is_marked(fq, slot))
 				continue;
-			if (folioq_is_marked(p, slot)) {
-				trace_netfs_folio(folio, netfs_folio_trace_put);
-				folio_put(folio);
-			}
+
+			trace_netfs_folio(folio, netfs_folio_trace_put);
+			if (folio_batch_add(&fbatch, folio))
+				folio_batch_release(&fbatch);
 		}
+
 		netfs_stat_d(&netfs_n_folioq);
-		kfree(p);
+		next = fq->next;
+		kfree(fq);
 	}
+
+	folio_batch_release(&fbatch);
 }
+EXPORT_SYMBOL(netfs_free_folioq_buffer);
 
 /*
  * Reset the subrequest iterator to refer just to the region remaining to be
