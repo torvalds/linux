@@ -18,7 +18,7 @@ struct xapic_vcpu {
 
 static void xapic_guest_code(void)
 {
-	asm volatile("cli");
+	cli();
 
 	xapic_enable();
 
@@ -38,7 +38,7 @@ static void xapic_guest_code(void)
 
 static void x2apic_guest_code(void)
 {
-	asm volatile("cli");
+	cli();
 
 	x2apic_enable();
 
