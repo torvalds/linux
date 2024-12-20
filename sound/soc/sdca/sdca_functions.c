@@ -6,6 +6,8 @@
  * https://www.mipi.org/mipi-sdca-v1-0-download
  */
 
+#define dev_fmt(fmt) "%s: " fmt, __func__
+
 #include <linux/acpi.h>
 #include <linux/device.h>
 #include <linux/module.h>
@@ -49,8 +51,8 @@ static int patch_sdca_function_type(struct device *dev,
 		function_type_patch = SDCA_FUNCTION_TYPE_HID;
 		break;
 	default:
-		dev_warn(dev, "%s: SDCA version %#x unsupported function type %d, skipped\n",
-			 __func__, interface_revision, *function_type);
+		dev_warn(dev, "SDCA version %#x invalid function type %d\n",
+			 interface_revision, *function_type);
 		return -EINVAL;
 	}
 
@@ -77,17 +79,14 @@ skip_early_draft_order:
 	case SDCA_FUNCTION_TYPE_SPEAKER_MIC:
 	case SDCA_FUNCTION_TYPE_RJ:
 	case SDCA_FUNCTION_TYPE_IMP_DEF:
-		dev_warn(dev, "%s: found unsupported SDCA function type %d, skipped\n",
-			 __func__, *function_type);
+		dev_warn(dev, "unsupported SDCA function type %d\n", *function_type);
 		return -EINVAL;
 	default:
-		dev_err(dev, "%s: found invalid SDCA function type %d, skipped\n",
-			__func__, *function_type);
+		dev_err(dev, "invalid SDCA function type %d\n", *function_type);
 		return -EINVAL;
 	}
 
-	dev_info(dev, "%s: found SDCA function %s (type %d)\n",
-		 __func__, *function_name, *function_type);
+	dev_info(dev, "SDCA function %s (type %d)\n", *function_name, *function_type);
 
 	return 0;
 }
@@ -105,7 +104,7 @@ static int find_sdca_function(struct acpi_device *adev, void *data)
 	int ret;
 
 	if (sdca_data->num_functions >= SDCA_MAX_FUNCTION_COUNT) {
-		dev_err(dev, "%s: maximum number of functions exceeded\n", __func__);
+		dev_err(dev, "maximum number of functions exceeded\n");
 		return -EINVAL;
 	}
 
@@ -119,7 +118,7 @@ static int find_sdca_function(struct acpi_device *adev, void *data)
 		return ret;
 
 	if (!addr) {
-		dev_err(dev, "%s: no addr\n", __func__);
+		dev_err(dev, "no addr\n");
 		return -ENODEV;
 	}
 
@@ -144,8 +143,7 @@ static int find_sdca_function(struct acpi_device *adev, void *data)
 	fwnode_handle_put(control5);
 
 	if (ret < 0) {
-		dev_err(dev, "%s: the function type can only be determined from ACPI information\n",
-			__func__);
+		dev_err(dev, "function type only supported as DisCo constant\n");
 		return ret;
 	}
 
