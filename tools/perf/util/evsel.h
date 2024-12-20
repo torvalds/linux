@@ -121,6 +121,7 @@ struct evsel {
 	bool			default_metricgroup; /* A member of the Default metricgroup */
 	struct hashmap		*per_pkg_mask;
 	int			err;
+	int			script_output_type;
 	struct {
 		evsel__sb_cb_t	*cb;
 		void		*data;

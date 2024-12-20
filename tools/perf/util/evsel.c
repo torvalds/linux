@@ -395,6 +395,7 @@ void evsel__init(struct evsel *evsel,
 	evsel->group_pmu_name = NULL;
 	evsel->skippable     = false;
 	evsel->alternate_hw_config = PERF_COUNT_HW_MAX;
+	evsel->script_output_type = -1; // FIXME: OUTPUT_TYPE_UNSET, see builtin-script.c
 }
 
 struct evsel *evsel__new_idx(struct perf_event_attr *attr, int idx)
