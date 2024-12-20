@@ -42,6 +42,7 @@ enum sdca_function_type {
 #define	SDCA_FUNCTION_TYPE_RJ_NAME		"RJ"
 #define	SDCA_FUNCTION_TYPE_SIMPLE_NAME		"SimpleJack"
 #define	SDCA_FUNCTION_TYPE_HID_NAME		"HID"
+#define	SDCA_FUNCTION_TYPE_IMP_DEF_NAME		"ImplementationDefined"
 
 enum sdca_entity0_controls {
 	SDCA_CONTROL_ENTITY_0_COMMIT_GROUP_MASK		= 0x01,

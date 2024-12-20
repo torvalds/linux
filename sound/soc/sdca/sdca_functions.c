@@ -75,12 +75,20 @@ skip_early_draft_order:
 		*function_name = SDCA_FUNCTION_TYPE_HID_NAME;
 		break;
 	case SDCA_FUNCTION_TYPE_SIMPLE_AMP:
+		*function_name = SDCA_FUNCTION_TYPE_SIMPLE_AMP_NAME;
+		break;
 	case SDCA_FUNCTION_TYPE_SIMPLE_MIC:
+		*function_name = SDCA_FUNCTION_TYPE_SIMPLE_MIC_NAME;
+		break;
 	case SDCA_FUNCTION_TYPE_SPEAKER_MIC:
+		*function_name = SDCA_FUNCTION_TYPE_SPEAKER_MIC_NAME;
+		break;
 	case SDCA_FUNCTION_TYPE_RJ:
+		*function_name = SDCA_FUNCTION_TYPE_RJ_NAME;
+		break;
 	case SDCA_FUNCTION_TYPE_IMP_DEF:
-		dev_warn(dev, "unsupported SDCA function type %d\n", *function_type);
-		return -EINVAL;
+		*function_name = SDCA_FUNCTION_TYPE_IMP_DEF_NAME;
+		break;
 	default:
 		dev_err(dev, "invalid SDCA function type %d\n", *function_type);
 		return -EINVAL;
