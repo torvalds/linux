@@ -553,27 +553,19 @@ vc4_move_job_to_render(struct drm_device *dev, struct vc4_exec_info *exec)
 }
 
 static void
-vc4_update_bo_seqnos(struct vc4_exec_info *exec, uint64_t seqno)
+vc4_attach_fences(struct vc4_exec_info *exec)
 {
 	struct vc4_bo *bo;
 	unsigned i;
 
 	for (i = 0; i < exec->bo_count; i++) {
 		bo = to_vc4_bo(exec->bo[i]);
-		bo->seqno = seqno;
-
 		dma_resv_add_fence(bo->base.base.resv, exec->fence,
 				   DMA_RESV_USAGE_READ);
 	}
 
-	list_for_each_entry(bo, &exec->unref_list, unref_head) {
-		bo->seqno = seqno;
-	}
-
 	for (i = 0; i < exec->rcl_write_bo_count; i++) {
 		bo = to_vc4_bo(&exec->rcl_write_bo[i]->base);
-		bo->write_seqno = seqno;
-
 		dma_resv_add_fence(bo->base.base.resv, exec->fence,
 				   DMA_RESV_USAGE_WRITE);
 	}
@@ -647,7 +639,7 @@ vc4_queue_submit(struct drm_device *dev, struct vc4_exec_info *exec,
 	if (out_sync)
 		drm_syncobj_replace_fence(out_sync, exec->fence);
 
-	vc4_update_bo_seqnos(exec, seqno);
+	vc4_attach_fences(exec);
 
 	drm_exec_fini(exec_ctx);
 
@@ -845,12 +837,6 @@ vc4_get_bcl(struct drm_device *dev, struct vc4_exec_info *exec)
 			goto fail;
 	}
 
-	/* Block waiting on any previous rendering into the CS's VBO,
-	 * IB, or textures, so that pixels are actually written by the
-	 * time we try to read them.
-	 */
-	ret = vc4_wait_for_seqno(dev, exec->bin_dep_seqno, ~0ull, true);
-
 fail:
 	kvfree(temp);
 	return ret;
@@ -909,7 +895,6 @@ void
 vc4_job_handle_completed(struct vc4_dev *vc4)
 {
 	unsigned long irqflags;
-	struct vc4_seqno_cb *cb, *cb_temp;
 
 	if (WARN_ON_ONCE(vc4->gen > VC4_GEN_4))
 		return;
@@ -926,46 +911,7 @@ vc4_job_handle_completed(struct vc4_dev *vc4)
 		spin_lock_irqsave(&vc4->job_lock, irqflags);
 	}
 
-	list_for_each_entry_safe(cb, cb_temp, &vc4->seqno_cb_list, work.entry) {
-		if (cb->seqno <= vc4->finished_seqno) {
-			list_del_init(&cb->work.entry);
-			schedule_work(&cb->work);
-		}
-	}
-
 	spin_unlock_irqrestore(&vc4->job_lock, irqflags);
-}
-
-static void vc4_seqno_cb_work(struct work_struct *work)
-{
-	struct vc4_seqno_cb *cb = container_of(work, struct vc4_seqno_cb, work);
-
-	cb->func(cb);
-}
-
-int vc4_queue_seqno_cb(struct drm_device *dev,
-		       struct vc4_seqno_cb *cb, uint64_t seqno,
-		       void (*func)(struct vc4_seqno_cb *cb))
-{
-	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	unsigned long irqflags;
-
-	if (WARN_ON_ONCE(vc4->gen > VC4_GEN_4))
-		return -ENODEV;
-
-	cb->func = func;
-	INIT_WORK(&cb->work, vc4_seqno_cb_work);
-
-	spin_lock_irqsave(&vc4->job_lock, irqflags);
-	if (seqno > vc4->finished_seqno) {
-		cb->seqno = seqno;
-		list_add_tail(&cb->work.entry, &vc4->seqno_cb_list);
-	} else {
-		schedule_work(&cb->work);
-	}
-	spin_unlock_irqrestore(&vc4->job_lock, irqflags);
-
-	return 0;
 }
 
 /* Scheduled when any job has been completed, this walks the list of
@@ -1221,7 +1167,6 @@ int vc4_gem_init(struct drm_device *dev)
 	INIT_LIST_HEAD(&vc4->bin_job_list);
 	INIT_LIST_HEAD(&vc4->render_job_list);
 	INIT_LIST_HEAD(&vc4->job_done_list);
-	INIT_LIST_HEAD(&vc4->seqno_cb_list);
 	spin_lock_init(&vc4->job_lock);
 
 	INIT_WORK(&vc4->hangcheck.reset_work, vc4_reset_work);
