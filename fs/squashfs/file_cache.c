@@ -29,7 +29,7 @@ int squashfs_readpage_block(struct folio *folio, u64 block, int bsize, int expec
 		ERROR("Unable to read page, block %llx, size %x\n", block,
 			bsize);
 	else
-		squashfs_copy_cache(&folio->page, buffer, expected, 0);
+		squashfs_copy_cache(folio, buffer, expected, 0);
 
 	squashfs_cache_put(buffer);
 	return res;
