@@ -1490,7 +1490,7 @@ static const struct {
 
 static const char *get_type_str(unsigned int flags)
 {
-	flags &= LCB_F_MAX_FLAGS - 1;
+	flags &= LCB_F_TYPE_MASK;
 
 	for (unsigned int i = 0; i < ARRAY_SIZE(lock_type_table); i++) {
 		if (lock_type_table[i].flags == flags)
@@ -1501,7 +1501,7 @@ static const char *get_type_str(unsigned int flags)
 
 static const char *get_type_name(unsigned int flags)
 {
-	flags &= LCB_F_MAX_FLAGS - 1;
+	flags &= LCB_F_TYPE_MASK;
 
 	for (unsigned int i = 0; i < ARRAY_SIZE(lock_type_table); i++) {
 		if (lock_type_table[i].flags == flags)

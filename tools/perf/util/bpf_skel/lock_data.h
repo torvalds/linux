@@ -32,7 +32,8 @@ struct contention_task_data {
 #define LCD_F_MMAP_LOCK		(1U << 31)
 #define LCD_F_SIGHAND_LOCK	(1U << 30)
 
-#define LCB_F_MAX_FLAGS		(1U << 7)
+#define LCB_F_TYPE_MAX		(1U << 7)
+#define LCB_F_TYPE_MASK		0x0000007FU
 
 struct contention_data {
 	u64 total_time;
