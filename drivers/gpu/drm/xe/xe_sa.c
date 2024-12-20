@@ -74,8 +74,17 @@ struct xe_sa_manager *xe_sa_bo_manager_init(struct xe_tile *tile, u32 size, u32 
 	return sa_manager;
 }
 
-struct drm_suballoc *xe_sa_bo_new(struct xe_sa_manager *sa_manager,
-				  unsigned int size)
+/**
+ * __xe_sa_bo_new() - Make a suballocation but use custom gfp flags.
+ * @sa_manager: the &xe_sa_manager
+ * @size: number of bytes we want to suballocate
+ * @gfp: gfp flags used for memory allocation. Typically GFP_KERNEL.
+ *
+ * Try to make a suballocation of size @size.
+ *
+ * Return: a &drm_suballoc, or an ERR_PTR.
+ */
+struct drm_suballoc *__xe_sa_bo_new(struct xe_sa_manager *sa_manager, u32 size, gfp_t gfp)
 {
 	/*
 	 * BB to large, return -ENOBUFS indicating user should split
@@ -84,7 +93,7 @@ struct drm_suballoc *xe_sa_bo_new(struct xe_sa_manager *sa_manager,
 	if (size > sa_manager->base.size)
 		return ERR_PTR(-ENOBUFS);
 
-	return drm_suballoc_new(&sa_manager->base, size, GFP_KERNEL, true, 0);
+	return drm_suballoc_new(&sa_manager->base, size, gfp, true, 0);
 }
 
 void xe_sa_bo_flush_write(struct drm_suballoc *sa_bo)
