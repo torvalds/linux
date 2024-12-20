@@ -409,26 +409,56 @@ static int bch2_subvolumes_reparent(struct btree_trans *trans, u32 subvolid_to_d
  */
 static int __bch2_subvolume_delete(struct btree_trans *trans, u32 subvolid)
 {
-	struct btree_iter iter;
-	struct bkey_s_c_subvolume subvol;
-	u32 snapid;
-	int ret = 0;
+	struct btree_iter subvol_iter = {}, snapshot_iter = {}, snapshot_tree_iter = {};
 
-	subvol = bch2_bkey_get_iter_typed(trans, &iter,
+	struct bkey_s_c_subvolume subvol =
+		bch2_bkey_get_iter_typed(trans, &subvol_iter,
 				BTREE_ID_subvolumes, POS(0, subvolid),
 				BTREE_ITER_cached|BTREE_ITER_intent,
 				subvolume);
-	ret = bkey_err(subvol);
+	int ret = bkey_err(subvol);
 	bch2_fs_inconsistent_on(bch2_err_matches(ret, ENOENT), trans->c,
 				"missing subvolume %u", subvolid);
 	if (ret)
-		return ret;
+		goto err;
 
-	snapid = le32_to_cpu(subvol.v->snapshot);
+	u32 snapid = le32_to_cpu(subvol.v->snapshot);
 
-	ret =   bch2_btree_delete_at(trans, &iter, 0) ?:
+	struct bkey_s_c_snapshot snapshot =
+		bch2_bkey_get_iter_typed(trans, &snapshot_iter,
+				BTREE_ID_snapshots, POS(0, snapid),
+				0, snapshot);
+	ret = bkey_err(subvol);
+	bch2_fs_inconsistent_on(bch2_err_matches(ret, ENOENT), trans->c,
+				"missing snapshot %u", snapid);
+	if (ret)
+		goto err;
+
+	u32 treeid = le32_to_cpu(snapshot.v->tree);
+
+	struct bkey_s_c_snapshot_tree snapshot_tree =
+		bch2_bkey_get_iter_typed(trans, &snapshot_tree_iter,
+				BTREE_ID_snapshot_trees, POS(0, treeid),
+				0, snapshot_tree);
+
+	if (le32_to_cpu(snapshot_tree.v->master_subvol) == subvolid) {
+		struct bkey_i_snapshot_tree *snapshot_tree_mut =
+			bch2_bkey_make_mut_typed(trans, &snapshot_tree_iter,
+						 &snapshot_tree.s_c,
+						 0, snapshot_tree);
+		ret = PTR_ERR_OR_ZERO(snapshot_tree_mut);
+		if (ret)
+			goto err;
+
+		snapshot_tree_mut->v.master_subvol = 0;
+	}
+
+	ret =   bch2_btree_delete_at(trans, &subvol_iter, 0) ?:
 		bch2_snapshot_node_set_deleted(trans, snapid);
-	bch2_trans_iter_exit(trans, &iter);
+err:
+	bch2_trans_iter_exit(trans, &snapshot_tree_iter);
+	bch2_trans_iter_exit(trans, &snapshot_iter);
+	bch2_trans_iter_exit(trans, &subvol_iter);
 	return ret;
 }
 

@@ -495,6 +495,9 @@ static int check_snapshot_tree(struct btree_trans *trans,
 		goto err;
 	}
 
+	if (!st.v->master_subvol)
+		goto out;
+
 	ret = bch2_subvolume_get(trans, le32_to_cpu(st.v->master_subvol), false, &subvol);
 	if (ret && !bch2_err_matches(ret, ENOENT))
 		goto err;
@@ -538,6 +541,7 @@ static int check_snapshot_tree(struct btree_trans *trans,
 		u->v.master_subvol = cpu_to_le32(subvol_id);
 		st = snapshot_tree_i_to_s_c(u);
 	}
+out:
 err:
 fsck_err:
 	bch2_trans_iter_exit(trans, &snapshot_iter);
@@ -1037,13 +1041,11 @@ fsck_err:
 int bch2_snapshot_node_set_deleted(struct btree_trans *trans, u32 id)
 {
 	struct btree_iter iter;
-	struct bkey_i_snapshot *s;
-	int ret = 0;
-
-	s = bch2_bkey_get_mut_typed(trans, &iter,
+	struct bkey_i_snapshot *s =
+		bch2_bkey_get_mut_typed(trans, &iter,
 				    BTREE_ID_snapshots, POS(0, id),
 				    0, snapshot);
-	ret = PTR_ERR_OR_ZERO(s);
+	int ret = PTR_ERR_OR_ZERO(s);
 	if (unlikely(ret)) {
 		bch2_fs_inconsistent_on(bch2_err_matches(ret, ENOENT),
 					trans->c, "missing snapshot %u", id);
