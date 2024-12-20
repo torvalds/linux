@@ -2194,27 +2194,27 @@ static int ov08x40_check_hwcfg(struct ov08x40 *ov08x, struct device *dev)
 		ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
 					       &xvclk_rate);
 		if (ret) {
-			dev_err(dev, "can't get clock frequency");
+			dev_err(dev, "can't get clock frequency\n");
 			goto out_err;
 		}
 	}
 
 	if (xvclk_rate != OV08X40_XVCLK) {
-		dev_err(dev, "external clock %d is not supported",
+		dev_err(dev, "external clock %d is not supported\n",
 			xvclk_rate);
 		ret = -EINVAL;
 		goto out_err;
 	}
 
 	if (bus_cfg.bus.mipi_csi2.num_data_lanes != OV08X40_DATA_LANES) {
-		dev_err(dev, "number of CSI2 data lanes %d is not supported",
+		dev_err(dev, "number of CSI2 data lanes %d is not supported\n",
 			bus_cfg.bus.mipi_csi2.num_data_lanes);
 		ret = -EINVAL;
 		goto out_err;
 	}
 
 	if (!bus_cfg.nr_of_link_frequencies) {
-		dev_err(dev, "no link frequencies defined");
+		dev_err(dev, "no link frequencies defined\n");
 		ret = -EINVAL;
 		goto out_err;
 	}
@@ -2227,7 +2227,7 @@ static int ov08x40_check_hwcfg(struct ov08x40 *ov08x, struct device *dev)
 		}
 
 		if (j == bus_cfg.nr_of_link_frequencies) {
-			dev_err(dev, "no link frequency %lld supported",
+			dev_err(dev, "no link frequency %lld supported\n",
 				link_freq_menu_items[i]);
 			ret = -EINVAL;
 			goto out_err;
@@ -2252,7 +2252,7 @@ static int ov08x40_probe(struct i2c_client *client)
 	/* Check HW config */
 	ret = ov08x40_check_hwcfg(ov08x, &client->dev);
 	if (ret) {
-		dev_err(&client->dev, "failed to check hwcfg: %d", ret);
+		dev_err(&client->dev, "failed to check hwcfg: %d\n", ret);
 		return ret;
 	}
 
