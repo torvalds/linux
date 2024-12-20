@@ -122,3 +122,134 @@ int rxe_odp_mr_init_user(struct rxe_dev *rxe, u64 start, u64 length,
 
 	return err;
 }
+
+static inline bool rxe_check_pagefault(struct ib_umem_odp *umem_odp,
+				       u64 iova, int length, u32 perm)
+{
+	bool need_fault = false;
+	u64 addr;
+	int idx;
+
+	addr = iova & (~(BIT(umem_odp->page_shift) - 1));
+
+	/* Skim through all pages that are to be accessed. */
+	while (addr < iova + length) {
+		idx = (addr - ib_umem_start(umem_odp)) >> umem_odp->page_shift;
+
+		if (!(umem_odp->dma_list[idx] & perm)) {
+			need_fault = true;
+			break;
+		}
+
+		addr += BIT(umem_odp->page_shift);
+	}
+	return need_fault;
+}
+
+static int rxe_odp_map_range_and_lock(struct rxe_mr *mr, u64 iova, int length, u32 flags)
+{
+	struct ib_umem_odp *umem_odp = to_ib_umem_odp(mr->umem);
+	bool need_fault;
+	u64 perm;
+	int err;
+
+	if (unlikely(length < 1))
+		return -EINVAL;
+
+	perm = ODP_READ_ALLOWED_BIT;
+	if (!(flags & RXE_PAGEFAULT_RDONLY))
+		perm |= ODP_WRITE_ALLOWED_BIT;
+
+	mutex_lock(&umem_odp->umem_mutex);
+
+	need_fault = rxe_check_pagefault(umem_odp, iova, length, perm);
+	if (need_fault) {
+		mutex_unlock(&umem_odp->umem_mutex);
+
+		/* umem_mutex is locked on success. */
+		err = rxe_odp_do_pagefault_and_lock(mr, iova, length,
+						    flags);
+		if (err < 0)
+			return err;
+
+		need_fault = rxe_check_pagefault(umem_odp, iova, length, perm);
+		if (need_fault)
+			return -EFAULT;
+	}
+
+	return 0;
+}
+
+static int __rxe_odp_mr_copy(struct rxe_mr *mr, u64 iova, void *addr,
+			     int length, enum rxe_mr_copy_dir dir)
+{
+	struct ib_umem_odp *umem_odp = to_ib_umem_odp(mr->umem);
+	struct page *page;
+	int idx, bytes;
+	size_t offset;
+	u8 *user_va;
+
+	idx = (iova - ib_umem_start(umem_odp)) >> umem_odp->page_shift;
+	offset = iova & (BIT(umem_odp->page_shift) - 1);
+
+	while (length > 0) {
+		u8 *src, *dest;
+
+		page = hmm_pfn_to_page(umem_odp->pfn_list[idx]);
+		user_va = kmap_local_page(page);
+		if (!user_va)
+			return -EFAULT;
+
+		src = (dir == RXE_TO_MR_OBJ) ? addr : user_va;
+		dest = (dir == RXE_TO_MR_OBJ) ? user_va : addr;
+
+		bytes = BIT(umem_odp->page_shift) - offset;
+		if (bytes > length)
+			bytes = length;
+
+		memcpy(dest, src, bytes);
+		kunmap_local(user_va);
+
+		length  -= bytes;
+		idx++;
+		offset = 0;
+	}
+
+	return 0;
+}
+
+int rxe_odp_mr_copy(struct rxe_mr *mr, u64 iova, void *addr, int length,
+		    enum rxe_mr_copy_dir dir)
+{
+	struct ib_umem_odp *umem_odp = to_ib_umem_odp(mr->umem);
+	u32 flags = 0;
+	int err;
+
+	if (length == 0)
+		return 0;
+
+	if (unlikely(!mr->umem->is_odp))
+		return -EOPNOTSUPP;
+
+	switch (dir) {
+	case RXE_TO_MR_OBJ:
+		break;
+
+	case RXE_FROM_MR_OBJ:
+		flags = RXE_PAGEFAULT_RDONLY;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	err = rxe_odp_map_range_and_lock(mr, iova, length, flags);
+	if (err)
+		return err;
+
+	err =  __rxe_odp_mr_copy(mr, iova, addr, length, dir);
+
+	mutex_unlock(&umem_odp->umem_mutex);
+
+	return err;
+}
