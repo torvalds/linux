@@ -2,17 +2,17 @@
 /*
  * Copyright (C) 2020 STMicroelectronics - All Rights Reserved
  * Copyright (C) 2021 Rouven Czerwinski, Pengutronix
- * Copyright (C) 2023 Leonard Göhrs, Pengutronix
+ * Copyright (C) 2023, 2024 Leonard Göhrs, Pengutronix
  */
 
 /dts-v1/;
 
-#include "stm32mp157.dtsi"
+#include "stm32mp153.dtsi"
 #include "stm32mp15xc-lxa-tac.dtsi"
 
 / {
-	model = "Linux Automation Test Automation Controller (TAC) Gen 2";
-	compatible = "lxa,stm32mp157c-tac-gen2", "oct,stm32mp15xx-osd32", "st,stm32mp157";
+	model = "Linux Automation Test Automation Controller (TAC) Gen 3";
+	compatible = "lxa,stm32mp153c-tac-gen3", "oct,stm32mp153x-osd32", "st,stm32mp153";
 
 	backlight: backlight {
 		compatible = "pwm-backlight";
@@ -123,28 +123,18 @@
 
 &adc {
 	pinctrl-names = "default";
-	pinctrl-0 = <&adc1_ain_pins_a>;
+	pinctrl-0 = <&board_adc1_ain_pins>;
 	vdd-supply = <&vdd>;
 	vdda-supply = <&vdda>;
 	vref-supply = <&vrefbuf>;
 	status = "okay";
 
 	adc1: adc@0 {
-		st,adc-channels = <0 1 2 5 9 10 13 15>;
+		st,adc-channels = <2 5 9 10 13 14 15 18>;
 		st,min-sample-time-nsecs = <5000>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		status = "okay";
-
-		channel@0 {
-			reg = <0>;
-			label = "HOST_2_CURR_FB";
-		};
-
-		channel@1 {
-			reg = <1>;
-			label = "HOST_3_CURR_FB";
-		};
 
 		channel@2 {
 			reg = <2>;
@@ -171,9 +161,19 @@
 			label = "HOST_CURR_FB";
 		};
 
+		channel@14 {
+			reg = <14>;
+			label = "HOST_3_CURR_FB";
+		};
+
 		channel@15 {
 			reg = <15>;
 			label = "HOST_1_CURR_FB";
+		};
+
+		channel@18 {
+			reg = <18>;
+			label = "HOST_2_CURR_FB";
 		};
 	};
 
@@ -192,10 +192,10 @@
 };
 
 &gpioa {
-	gpio-line-names = "", "", "DUT_PWR_EN", "", "STACK_CS3", /*  0 */
-	"ETH_GPIO1", "ETH_INT", "", "", "",                      /*  5 */
-	"", "", "", "BOOTROM_LED", "ETH_LAB_LEDRP",              /* 10 */
-	"";                                                      /* 15 */
+	gpio-line-names = "", "", "", "", "",              /*  0 */
+	"ETH_GPIO1", "ETH_INT", "", "", "",                /*  5 */
+	"", "", "", "BOOTROM_LED", "ETH_LAB_LEDRP",        /* 10 */
+	"";                                                /* 15 */
 };
 
 &gpioc {
@@ -206,7 +206,7 @@
 
 &gpioe {
 	gpio-line-names = "TP35", "", "", "", "CAN_1_120R", /*  0 */
-	"", "", "USER_BTN2", "TP48", "UART_TX_EN",          /*  5 */
+	"", "", "USER_BTN2", "DUT_PWR_EN", "UART_TX_EN",    /*  5 */
 	"UART_RX_EN", "TP24", "", "TP25", "TP26",           /* 10 */
 	"TP27";                                             /* 15 */
 };
@@ -214,12 +214,8 @@
 &gpiog {
 	gpio-line-names = "ETH_RESET", "", "", "", "",               /*  0 */
 	"IOBUS_FLT_FB", "", "USER_LED2", "ETH1_PPS_A", "CAN_0_120R", /*  5 */
-	"TP49", "", "", "", "",                                      /* 10 */
+	"POWER_ADC_RESET", "", "", "", "",                           /* 10 */
 	"";                                                          /* 15 */
-};
-
-&gpu {
-	status = "disabled";
 };
 
 &m_can2 {
@@ -227,12 +223,27 @@
 	termination-ohms = <120>;
 };
 
+&pinctrl {
+	board_adc1_ain_pins: board-adc1-ain-0 {
+		pins {
+			pinmux = <STM32_PINMUX('F', 11, ANALOG)>, /* ADC1_INP2 */
+				 <STM32_PINMUX('B', 1, ANALOG)>, /* ADC1_INP5 */
+				 <STM32_PINMUX('B', 0, ANALOG)>, /* ADC1_INP9 */
+				 <STM32_PINMUX('C', 0, ANALOG)>, /* ADC1_INP10 */
+				 <STM32_PINMUX('C', 3, ANALOG)>, /* ADC1_INP13 */
+				 <STM32_PINMUX('A', 2, ANALOG)>, /* ADC1_INP14 */
+				 <STM32_PINMUX('A', 3, ANALOG)>, /* ADC1_INP15 */
+				 <STM32_PINMUX('A', 4, ANALOG)>; /* ADC1_INP18 */
+		};
+	};
+};
+
 &spi2 {
 	adc@0 {
 		compatible = "ti,lmp92064";
 		reg = <0>;
 
-		reset-gpios = <&gpioa 4 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		reset-gpios = <&gpiog 10 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 		shunt-resistor-micro-ohms = <15000>;
 		spi-max-frequency = <5000000>;
 		vdd-supply = <&reg_pb_3v3>;
