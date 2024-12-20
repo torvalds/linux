@@ -17,86 +17,64 @@
 #include <sound/sdca.h>
 #include <sound/sdca_function.h>
 
-static int patch_sdca_function_type(struct device *dev,
-				    u32 interface_revision,
-				    u32 *function_type,
-				    const char **function_name)
+static int patch_sdca_function_type(u32 interface_revision, u32 *function_type)
 {
-	unsigned long function_type_patch = 0;
-
 	/*
 	 * Unfortunately early SDCA specifications used different indices for Functions,
 	 * for backwards compatibility we have to reorder the values found
 	 */
-	if (interface_revision >= 0x0801)
-		goto skip_early_draft_order;
-
-	switch (*function_type) {
-	case 1:
-		function_type_patch = SDCA_FUNCTION_TYPE_SMART_AMP;
-		break;
-	case 2:
-		function_type_patch = SDCA_FUNCTION_TYPE_SMART_MIC;
-		break;
-	case 3:
-		function_type_patch = SDCA_FUNCTION_TYPE_SPEAKER_MIC;
-		break;
-	case 4:
-		function_type_patch = SDCA_FUNCTION_TYPE_UAJ;
-		break;
-	case 5:
-		function_type_patch = SDCA_FUNCTION_TYPE_RJ;
-		break;
-	case 6:
-		function_type_patch = SDCA_FUNCTION_TYPE_HID;
-		break;
-	default:
-		dev_warn(dev, "SDCA version %#x invalid function type %d\n",
-			 interface_revision, *function_type);
-		return -EINVAL;
+	if (interface_revision < 0x0801) {
+		switch (*function_type) {
+		case 1:
+			*function_type = SDCA_FUNCTION_TYPE_SMART_AMP;
+			break;
+		case 2:
+			*function_type = SDCA_FUNCTION_TYPE_SMART_MIC;
+			break;
+		case 3:
+			*function_type = SDCA_FUNCTION_TYPE_SPEAKER_MIC;
+			break;
+		case 4:
+			*function_type = SDCA_FUNCTION_TYPE_UAJ;
+			break;
+		case 5:
+			*function_type = SDCA_FUNCTION_TYPE_RJ;
+			break;
+		case 6:
+			*function_type = SDCA_FUNCTION_TYPE_HID;
+			break;
+		default:
+			return -EINVAL;
+		}
 	}
-
-skip_early_draft_order:
-	if (function_type_patch)
-		*function_type = function_type_patch;
-
-	/* now double-check the values */
-	switch (*function_type) {
-	case SDCA_FUNCTION_TYPE_SMART_AMP:
-		*function_name = SDCA_FUNCTION_TYPE_SMART_AMP_NAME;
-		break;
-	case SDCA_FUNCTION_TYPE_SMART_MIC:
-		*function_name = SDCA_FUNCTION_TYPE_SMART_MIC_NAME;
-		break;
-	case SDCA_FUNCTION_TYPE_UAJ:
-		*function_name = SDCA_FUNCTION_TYPE_UAJ_NAME;
-		break;
-	case SDCA_FUNCTION_TYPE_HID:
-		*function_name = SDCA_FUNCTION_TYPE_HID_NAME;
-		break;
-	case SDCA_FUNCTION_TYPE_SIMPLE_AMP:
-		*function_name = SDCA_FUNCTION_TYPE_SIMPLE_AMP_NAME;
-		break;
-	case SDCA_FUNCTION_TYPE_SIMPLE_MIC:
-		*function_name = SDCA_FUNCTION_TYPE_SIMPLE_MIC_NAME;
-		break;
-	case SDCA_FUNCTION_TYPE_SPEAKER_MIC:
-		*function_name = SDCA_FUNCTION_TYPE_SPEAKER_MIC_NAME;
-		break;
-	case SDCA_FUNCTION_TYPE_RJ:
-		*function_name = SDCA_FUNCTION_TYPE_RJ_NAME;
-		break;
-	case SDCA_FUNCTION_TYPE_IMP_DEF:
-		*function_name = SDCA_FUNCTION_TYPE_IMP_DEF_NAME;
-		break;
-	default:
-		dev_err(dev, "invalid SDCA function type %d\n", *function_type);
-		return -EINVAL;
-	}
-
-	dev_info(dev, "SDCA function %s (type %d)\n", *function_name, *function_type);
 
 	return 0;
+}
+
+static const char *get_sdca_function_name(u32 function_type)
+{
+	switch (function_type) {
+	case SDCA_FUNCTION_TYPE_SMART_AMP:
+		return SDCA_FUNCTION_TYPE_SMART_AMP_NAME;
+	case SDCA_FUNCTION_TYPE_SMART_MIC:
+		return SDCA_FUNCTION_TYPE_SMART_MIC_NAME;
+	case SDCA_FUNCTION_TYPE_UAJ:
+		return SDCA_FUNCTION_TYPE_UAJ_NAME;
+	case SDCA_FUNCTION_TYPE_HID:
+		return SDCA_FUNCTION_TYPE_HID_NAME;
+	case SDCA_FUNCTION_TYPE_SIMPLE_AMP:
+		return SDCA_FUNCTION_TYPE_SIMPLE_AMP_NAME;
+	case SDCA_FUNCTION_TYPE_SIMPLE_MIC:
+		return SDCA_FUNCTION_TYPE_SIMPLE_MIC_NAME;
+	case SDCA_FUNCTION_TYPE_SPEAKER_MIC:
+		return SDCA_FUNCTION_TYPE_SPEAKER_MIC_NAME;
+	case SDCA_FUNCTION_TYPE_RJ:
+		return SDCA_FUNCTION_TYPE_RJ_NAME;
+	case SDCA_FUNCTION_TYPE_IMP_DEF:
+		return SDCA_FUNCTION_TYPE_IMP_DEF_NAME;
+	default:
+		return NULL;
+	}
 }
 
 static int find_sdca_function(struct acpi_device *adev, void *data)
@@ -150,10 +128,21 @@ static int find_sdca_function(struct acpi_device *adev, void *data)
 		return ret;
 	}
 
-	ret = patch_sdca_function_type(dev, sdca_data->interface_revision,
-				       &function_type, &function_name);
-	if (ret < 0)
+	ret = patch_sdca_function_type(sdca_data->interface_revision, &function_type);
+	if (ret < 0) {
+		dev_err(dev, "SDCA version %#x invalid function type %d\n",
+			sdca_data->interface_revision, function_type);
 		return ret;
+	}
+
+	function_name = get_sdca_function_name(function_type);
+	if (!function_name) {
+		dev_err(dev, "invalid SDCA function type %d\n", function_type);
+		return -EINVAL;
+	}
+
+	dev_info(dev, "SDCA function %s (type %d) at 0x%llx\n",
+		 function_name, function_type, addr);
 
 	/* store results */
 	func_index = sdca_data->num_functions;
