@@ -193,7 +193,7 @@ static int kvm_handle_guest_debug(struct kvm_vcpu *vcpu)
 		run->debug.arch.far = vcpu->arch.fault.far_el2;
 		break;
 	case ESR_ELx_EC_SOFTSTP_LOW:
-		vcpu_clear_flag(vcpu, DBG_SS_ACTIVE_PENDING);
+		*vcpu_cpsr(vcpu) |= DBG_SPSR_SS;
 		break;
 	}
 
