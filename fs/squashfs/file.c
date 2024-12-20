@@ -362,19 +362,21 @@ static int read_blocklist(struct inode *inode, int index, u64 *block)
 	return squashfs_block_size(size);
 }
 
-void squashfs_fill_page(struct page *page, struct squashfs_cache_entry *buffer, int offset, int avail)
+static bool squashfs_fill_page(struct folio *folio,
+		struct squashfs_cache_entry *buffer, size_t offset,
+		size_t avail)
 {
-	int copied;
+	size_t copied;
 	void *pageaddr;
 
-	pageaddr = kmap_atomic(page);
+	pageaddr = kmap_local_folio(folio, 0);
 	copied = squashfs_copy_data(pageaddr, buffer, offset, avail);
 	memset(pageaddr + copied, 0, PAGE_SIZE - copied);
-	kunmap_atomic(pageaddr);
+	kunmap_local(pageaddr);
 
-	flush_dcache_page(page);
-	if (copied == avail)
-		SetPageUptodate(page);
+	flush_dcache_folio(folio);
+
+	return copied == avail;
 }
 
 /* Copy data into page cache  */
@@ -398,6 +400,7 @@ void squashfs_copy_cache(struct folio *folio,
 			bytes -= PAGE_SIZE, offset += PAGE_SIZE) {
 		struct folio *push_folio;
 		size_t avail = buffer ? min(bytes, PAGE_SIZE) : 0;
+		bool updated = false;
 
 		TRACE("bytes %zu, i %d, available_bytes %zu\n", bytes, i, avail);
 
@@ -412,9 +415,9 @@ void squashfs_copy_cache(struct folio *folio,
 		if (folio_test_uptodate(push_folio))
 			goto skip_folio;
 
-		squashfs_fill_page(&push_folio->page, buffer, offset, avail);
+		updated = squashfs_fill_page(push_folio, buffer, offset, avail);
 skip_folio:
-		folio_unlock(push_folio);
+		folio_end_read(push_folio, updated);
 		if (i != folio->index)
 			folio_put(push_folio);
 	}
