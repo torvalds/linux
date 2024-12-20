@@ -2175,15 +2175,13 @@ static int ov08x40_check_hwcfg(struct ov08x40 *ov08x, struct device *dev)
 	if (ret)
 		goto out_err;
 
-	if (!is_acpi_node(fwnode)) {
-		ov08x->xvclk = devm_clk_get(dev, NULL);
-		if (IS_ERR(ov08x->xvclk)) {
-			dev_err(dev, "could not get xvclk clock (%pe)\n",
-				ov08x->xvclk);
-			ret = PTR_ERR(ov08x->xvclk);
-			goto out_err;
-		}
-
+	ov08x->xvclk = devm_clk_get_optional(dev, NULL);
+	if (IS_ERR(ov08x->xvclk)) {
+		ret = dev_err_probe(dev, PTR_ERR(ov08x->xvclk),
+				    "getting xvclk\n");
+		goto out_err;
+	}
+	if (ov08x->xvclk) {
 		xvclk_rate = clk_get_rate(ov08x->xvclk);
 	} else {
 		ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
