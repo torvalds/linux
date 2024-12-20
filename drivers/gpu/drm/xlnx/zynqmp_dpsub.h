@@ -60,6 +60,7 @@ struct zynqmp_dpsub_audio;
  * @layers: Video and graphics layers
  * @dp: The DisplayPort controller
  * @dma_align: DMA alignment constraint (must be a power of 2)
+ * @audio: DP audio data
  */
 struct zynqmp_dpsub {
 	struct device *dev;
