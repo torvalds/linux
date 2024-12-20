@@ -63,8 +63,6 @@ void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx);
 
 bool dcn401_apply_idle_power_optimizations(struct dc *dc, bool enable);
 
-struct ips_ono_region_state dcn401_read_ono_state(struct dc *dc,
-						  uint8_t region);
 void dcn401_wait_for_dcc_meta_propagation(const struct dc *dc,
 		const struct pipe_ctx *top_pipe_to_program);
 
