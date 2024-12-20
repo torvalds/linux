@@ -1452,23 +1452,21 @@ process_flow:
 	 * hence modify pcifunc accordingly.
 	 */
 
-	/* AF installing for a PF/VF */
-	if (!req->hdr.pcifunc)
+	if (!req->hdr.pcifunc) {
+		/* AF installing for a PF/VF */
 		target = req->vf;
-
-	/* PF installing for its VF */
-	if (!from_vf && req->vf && !from_rep_dev) {
+	} else if (!from_vf && req->vf && !from_rep_dev) {
+		/* PF installing for its VF */
 		target = (req->hdr.pcifunc & ~RVU_PFVF_FUNC_MASK) | req->vf;
 		pf_set_vfs_mac = req->default_rule &&
 				(req->features & BIT_ULL(NPC_DMAC));
-	}
-
-	/* Representor device installing for a representee */
-	if (from_rep_dev && req->vf)
+	} else if (from_rep_dev && req->vf) {
+		/* Representor device installing for a representee */
 		target = req->vf;
-	else
+	} else {
 		/* msg received from PF/VF */
 		target = req->hdr.pcifunc;
+	}
 
 	/* ignore chan_mask in case pf func is not AF, revisit later */
 	if (!is_pffunc_af(req->hdr.pcifunc))

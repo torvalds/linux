@@ -3893,7 +3893,7 @@ W:	http://www.baycom.org/~tom/ham/ham.html
 F:	drivers/net/hamradio/baycom*
 
 BCACHE (BLOCK LAYER CACHE)
-M:	Coly Li <colyli@suse.de>
+M:	Coly Li <colyli@kernel.org>
 M:	Kent Overstreet <kent.overstreet@linux.dev>
 L:	linux-bcache@vger.kernel.org
 S:	Maintained
@@ -15345,7 +15345,7 @@ M:	Daniel Machon <daniel.machon@microchip.com>
 M:	UNGLinuxDriver@microchip.com
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	drivers/net/ethernet/microchip/lan969x/*
+F:	drivers/net/ethernet/microchip/sparx5/lan969x/*
 
 MICROCHIP LCDFB DRIVER
 M:	Nicolas Ferre <nicolas.ferre@microchip.com>
@@ -16337,6 +16337,7 @@ F:	Documentation/networking/
 F:	Documentation/networking/net_cachelines/
 F:	Documentation/process/maintainer-netdev.rst
 F:	Documentation/userspace-api/netlink/
+F:	include/linux/ethtool.h
 F:	include/linux/framer/framer-provider.h
 F:	include/linux/framer/framer.h
 F:	include/linux/in.h
@@ -16351,6 +16352,7 @@ F:	include/linux/rtnetlink.h
 F:	include/linux/seq_file_net.h
 F:	include/linux/skbuff*
 F:	include/net/
+F:	include/uapi/linux/ethtool.h
 F:	include/uapi/linux/genetlink.h
 F:	include/uapi/linux/hsr_netlink.h
 F:	include/uapi/linux/in.h
