@@ -854,6 +854,7 @@ properties:
 
       - items:
           - enum:
+              - huawei,gaokun3
               - lenovo,thinkpad-x13s
               - microsoft,arcata
               - microsoft,blackrock
