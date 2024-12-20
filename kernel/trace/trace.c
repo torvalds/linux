@@ -4206,6 +4206,15 @@ static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
 	if (event) {
 		if (tr->trace_flags & TRACE_ITER_FIELDS)
 			return print_event_fields(iter, event);
+		/*
+		 * For TRACE_EVENT() events, the print_fmt is not
+		 * safe to use if the array has delta offsets
+		 * Force printing via the fields.
+		 */
+		if ((tr->text_delta || tr->data_delta) &&
+		    event->type > __TRACE_LAST_TYPE)
+			return print_event_fields(iter, event);
+
 		return event->funcs->trace(iter, sym_flags, event);
 	}
 
