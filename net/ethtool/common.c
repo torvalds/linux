@@ -870,7 +870,8 @@ int __ethtool_get_ts_info(struct net_device *dev,
 {
 	struct hwtstamp_provider *hwprov;
 
-	hwprov = rtnl_dereference(dev->hwprov);
+	rcu_read_lock();
+	hwprov = rcu_dereference(dev->hwprov);
 	/* No provider specified, use default behavior */
 	if (!hwprov) {
 		const struct ethtool_ops *ops = dev->ethtool_ops;
@@ -887,9 +888,11 @@ int __ethtool_get_ts_info(struct net_device *dev,
 		info->so_timestamping |= SOF_TIMESTAMPING_RX_SOFTWARE |
 					 SOF_TIMESTAMPING_SOFTWARE;
 
+		rcu_read_unlock();
 		return err;
 	}
 
+	rcu_read_unlock();
 	return ethtool_get_ts_info_by_phc(dev, info, &hwprov->desc);
 }
 
