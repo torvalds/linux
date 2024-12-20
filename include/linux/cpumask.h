@@ -1043,7 +1043,6 @@ extern const DECLARE_BITMAP(cpu_all_bits, NR_CPUS);
 /* Wrappers for arch boot code to manipulate normally-constant masks */
 void init_cpu_present(const struct cpumask *src);
 void init_cpu_possible(const struct cpumask *src);
-void init_cpu_online(const struct cpumask *src);
 
 #define assign_cpu(cpu, mask, val)	\
 	assign_bit(cpumask_check(cpu), cpumask_bits(mask), (val))
