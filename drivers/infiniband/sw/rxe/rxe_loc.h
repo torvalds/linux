@@ -181,4 +181,7 @@ static inline unsigned int wr_opcode_mask(int opcode, struct rxe_qp *qp)
 	return rxe_wr_opcode_info[opcode].mask[qp->ibqp.qp_type];
 }
 
+/* rxe_odp.c */
+extern const struct mmu_interval_notifier_ops rxe_mn_ops;
+
 #endif /* RXE_LOC_H */
