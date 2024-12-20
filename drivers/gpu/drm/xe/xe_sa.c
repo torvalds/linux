@@ -31,13 +31,27 @@ static void xe_sa_bo_manager_fini(struct drm_device *drm, void *arg)
 	sa_manager->bo = NULL;
 }
 
-struct xe_sa_manager *xe_sa_bo_manager_init(struct xe_tile *tile, u32 size, u32 align)
+/**
+ * __xe_sa_bo_manager_init() - Create and initialize the suballocator
+ * @tile: the &xe_tile where allocate
+ * @size: number of bytes to allocate
+ * @guard: number of bytes to exclude from suballocations
+ * @align: alignment for each suballocated chunk
+ *
+ * Prepares the suballocation manager for suballocations.
+ *
+ * Return: a pointer to the &xe_sa_manager or an ERR_PTR on failure.
+ */
+struct xe_sa_manager *__xe_sa_bo_manager_init(struct xe_tile *tile, u32 size, u32 guard, u32 align)
 {
 	struct xe_device *xe = tile_to_xe(tile);
 	struct xe_sa_manager *sa_manager;
-	u32 managed_size = size - SZ_4K;
+	u32 managed_size;
 	struct xe_bo *bo;
 	int ret;
+
+	xe_tile_assert(tile, size > guard);
+	managed_size = size - guard;
 
 	sa_manager = drmm_kzalloc(&xe->drm, sizeof(*sa_manager), GFP_KERNEL);
 	if (!sa_manager)

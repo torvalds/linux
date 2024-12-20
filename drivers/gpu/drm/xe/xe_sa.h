@@ -5,6 +5,7 @@
 #ifndef _XE_SA_H_
 #define _XE_SA_H_
 
+#include <linux/sizes.h>
 #include <linux/types.h>
 #include "xe_sa_types.h"
 
@@ -12,9 +13,13 @@ struct dma_fence;
 struct xe_bo;
 struct xe_tile;
 
-struct xe_sa_manager *xe_sa_bo_manager_init(struct xe_tile *tile, u32 size, u32 align);
-
+struct xe_sa_manager *__xe_sa_bo_manager_init(struct xe_tile *tile, u32 size, u32 guard, u32 align);
 struct drm_suballoc *__xe_sa_bo_new(struct xe_sa_manager *sa_manager, u32 size, gfp_t gfp);
+
+static inline struct xe_sa_manager *xe_sa_bo_manager_init(struct xe_tile *tile, u32 size, u32 align)
+{
+	return __xe_sa_bo_manager_init(tile, size, SZ_4K, align);
+}
 
 /**
  * xe_sa_bo_new() - Make a suballocation.
