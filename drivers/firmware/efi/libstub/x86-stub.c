@@ -42,7 +42,7 @@ union sev_memory_acceptance_protocol {
 static efi_status_t
 preserve_pci_rom_image(efi_pci_io_protocol_t *pci, struct pci_setup_rom **__rom)
 {
-	struct pci_setup_rom *rom = NULL;
+	struct pci_setup_rom *rom __free(efi_pool) = NULL;
 	efi_status_t status;
 	unsigned long size;
 	uint64_t romsize;
@@ -75,14 +75,13 @@ preserve_pci_rom_image(efi_pci_io_protocol_t *pci, struct pci_setup_rom **__rom)
 	rom->data.len	= size - sizeof(struct setup_data);
 	rom->data.next	= 0;
 	rom->pcilen	= romsize;
-	*__rom = rom;
 
 	status = efi_call_proto(pci, pci.read, EfiPciIoWidthUint16,
 				PCI_VENDOR_ID, 1, &rom->vendor);
 
 	if (status != EFI_SUCCESS) {
 		efi_err("Failed to read rom->vendor\n");
-		goto free_struct;
+		return status;
 	}
 
 	status = efi_call_proto(pci, pci.read, EfiPciIoWidthUint16,
@@ -90,21 +89,18 @@ preserve_pci_rom_image(efi_pci_io_protocol_t *pci, struct pci_setup_rom **__rom)
 
 	if (status != EFI_SUCCESS) {
 		efi_err("Failed to read rom->devid\n");
-		goto free_struct;
+		return status;
 	}
 
 	status = efi_call_proto(pci, get_location, &rom->segment, &rom->bus,
 				&rom->device, &rom->function);
 
 	if (status != EFI_SUCCESS)
-		goto free_struct;
+		return status;
 
 	memcpy(rom->romdata, romimage, romsize);
-	return status;
-
-free_struct:
-	efi_bs_call(free_pool, rom);
-	return status;
+	*__rom = no_free_ptr(rom);
+	return EFI_SUCCESS;
 }
 
 /*
