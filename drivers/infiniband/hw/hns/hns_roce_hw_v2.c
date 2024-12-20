@@ -5619,6 +5619,9 @@ static void put_dip_ctx_idx(struct hns_roce_dev *hr_dev,
 {
 	struct hns_roce_dip *hr_dip = hr_qp->dip;
 
+	if (!hr_dip)
+		return;
+
 	xa_lock(&hr_dev->qp_table.dip_xa);
 
 	hr_dip->qp_cnt--;
