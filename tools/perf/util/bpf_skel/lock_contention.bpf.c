@@ -123,6 +123,8 @@ struct mm_struct___new {
 	struct rw_semaphore mmap_lock;
 } __attribute__((preserve_access_index));
 
+extern struct kmem_cache *bpf_get_kmem_cache(u64 addr) __ksym __weak;
+
 /* control flags */
 const volatile int has_cpu;
 const volatile int has_task;
@@ -496,8 +498,28 @@ int contention_end(u64 *ctx)
 		};
 		int err;
 
-		if (aggr_mode == LOCK_AGGR_ADDR)
-			first.flags |= check_lock_type(pelem->lock, pelem->flags);
+		if (aggr_mode == LOCK_AGGR_ADDR) {
+			first.flags |= check_lock_type(pelem->lock,
+						       pelem->flags & LCB_F_TYPE_MASK);
+
+			/* Check if it's from a slab object */
+			if (bpf_get_kmem_cache) {
+				struct kmem_cache *s;
+				struct slab_cache_data *d;
+
+				s = bpf_get_kmem_cache(pelem->lock);
+				if (s != NULL) {
+					/*
+					 * Save the ID of the slab cache in the flags
+					 * (instead of full address) to reduce the
+					 * space in the contention_data.
+					 */
+					d = bpf_map_lookup_elem(&slab_caches, &s);
+					if (d != NULL)
+						first.flags |= d->id;
+				}
+			}
+		}
 
 		err = bpf_map_update_elem(&lock_stat, &key, &first, BPF_NOEXIST);
 		if (err < 0) {

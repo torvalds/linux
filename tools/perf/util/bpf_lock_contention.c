@@ -2,6 +2,7 @@
 #include "util/cgroup.h"
 #include "util/debug.h"
 #include "util/evlist.h"
+#include "util/hashmap.h"
 #include "util/machine.h"
 #include "util/map.h"
 #include "util/symbol.h"
@@ -20,11 +21,24 @@
 
 static struct lock_contention_bpf *skel;
 static bool has_slab_iter;
+static struct hashmap slab_hash;
+
+static size_t slab_cache_hash(long key, void *ctx __maybe_unused)
+{
+	return key;
+}
+
+static bool slab_cache_equal(long key1, long key2, void *ctx __maybe_unused)
+{
+	return key1 == key2;
+}
 
 static void check_slab_cache_iter(struct lock_contention *con)
 {
 	struct btf *btf = btf__load_vmlinux_btf();
 	s32 ret;
+
+	hashmap__init(&slab_hash, slab_cache_hash, slab_cache_equal, /*ctx=*/NULL);
 
 	if (btf == NULL) {
 		pr_debug("BTF loading failed: %s\n", strerror(errno));
@@ -49,6 +63,7 @@ static void run_slab_cache_iter(void)
 {
 	int fd;
 	char buf[256];
+	long key, *prev_key;
 
 	if (!has_slab_iter)
 		return;
@@ -64,6 +79,34 @@ static void run_slab_cache_iter(void)
 		continue;
 
 	close(fd);
+
+	/* Read the slab cache map and build a hash with IDs */
+	fd = bpf_map__fd(skel->maps.slab_caches);
+	prev_key = NULL;
+	while (!bpf_map_get_next_key(fd, prev_key, &key)) {
+		struct slab_cache_data *data;
+
+		data = malloc(sizeof(*data));
+		if (data == NULL)
+			break;
+
+		if (bpf_map_lookup_elem(fd, &key, data) < 0)
+			break;
+
+		hashmap__add(&slab_hash, data->id, data);
+		prev_key = &key;
+	}
+}
+
+static void exit_slab_cache_iter(void)
+{
+	struct hashmap_entry *cur;
+	unsigned bkt;
+
+	hashmap__for_each_entry(&slab_hash, cur, bkt)
+		free(cur->pvalue);
+
+	hashmap__clear(&slab_hash);
 }
 
 int lock_contention_prepare(struct lock_contention *con)
@@ -397,6 +440,7 @@ static const char *lock_contention_get_name(struct lock_contention *con,
 
 	if (con->aggr_mode == LOCK_AGGR_ADDR) {
 		int lock_fd = bpf_map__fd(skel->maps.lock_syms);
+		struct slab_cache_data *slab_data;
 
 		/* per-process locks set upper bits of the flags */
 		if (flags & LCD_F_MMAP_LOCK)
@@ -413,6 +457,12 @@ static const char *lock_contention_get_name(struct lock_contention *con,
 		if (!bpf_map_lookup_elem(lock_fd, &key->lock_addr_or_cgroup, &flags)) {
 			if (flags == LOCK_CLASS_RQLOCK)
 				return "rq_lock";
+		}
+
+		/* look slab_hash for dynamic locks in a slab object */
+		if (hashmap__find(&slab_hash, flags & LCB_F_SLAB_ID_MASK, &slab_data)) {
+			snprintf(name_buf, sizeof(name_buf), "&%s", slab_data->name);
+			return name_buf;
 		}
 
 		return "";
@@ -588,6 +638,8 @@ int lock_contention_finish(struct lock_contention *con)
 		rb_erase(node, &con->cgroups);
 		cgroup__put(cgrp);
 	}
+
+	exit_slab_cache_iter();
 
 	return 0;
 }
