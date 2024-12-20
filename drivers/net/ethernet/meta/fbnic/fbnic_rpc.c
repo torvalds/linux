@@ -13,6 +13,9 @@ void fbnic_reset_indir_tbl(struct fbnic_net *fbn)
 	unsigned int num_rx = fbn->num_rx_queues;
 	unsigned int i;
 
+	if (netif_is_rxfh_configured(fbn->netdev))
+		return;
+
 	for (i = 0; i < FBNIC_RPC_RSS_TBL_SIZE; i++)
 		fbn->indir_tbl[0][i] = ethtool_rxfh_indir_default(i, num_rx);
 }

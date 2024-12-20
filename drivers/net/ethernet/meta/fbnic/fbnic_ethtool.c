@@ -304,6 +304,68 @@ fbnic_set_rxfh(struct net_device *netdev, struct ethtool_rxfh_param *rxfh,
 	return 0;
 }
 
+static void fbnic_get_channels(struct net_device *netdev,
+			       struct ethtool_channels *ch)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+	struct fbnic_dev *fbd = fbn->fbd;
+
+	ch->max_rx = fbd->max_num_queues;
+	ch->max_tx = fbd->max_num_queues;
+	ch->max_combined = min(ch->max_rx, ch->max_tx);
+	ch->max_other =	FBNIC_NON_NAPI_VECTORS;
+
+	if (fbn->num_rx_queues > fbn->num_napi ||
+	    fbn->num_tx_queues > fbn->num_napi)
+		ch->combined_count = min(fbn->num_rx_queues,
+					 fbn->num_tx_queues);
+	else
+		ch->combined_count =
+			fbn->num_rx_queues + fbn->num_tx_queues - fbn->num_napi;
+	ch->rx_count = fbn->num_rx_queues - ch->combined_count;
+	ch->tx_count = fbn->num_tx_queues - ch->combined_count;
+	ch->other_count = FBNIC_NON_NAPI_VECTORS;
+}
+
+static void fbnic_set_queues(struct fbnic_net *fbn, struct ethtool_channels *ch,
+			     unsigned int max_napis)
+{
+	fbn->num_rx_queues = ch->rx_count + ch->combined_count;
+	fbn->num_tx_queues = ch->tx_count + ch->combined_count;
+	fbn->num_napi = min(ch->rx_count + ch->tx_count + ch->combined_count,
+			    max_napis);
+}
+
+static int fbnic_set_channels(struct net_device *netdev,
+			      struct ethtool_channels *ch)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+	unsigned int max_napis, standalone;
+	struct fbnic_dev *fbd = fbn->fbd;
+
+	max_napis = fbd->num_irqs - FBNIC_NON_NAPI_VECTORS;
+	standalone = ch->rx_count + ch->tx_count;
+
+	/* Limits for standalone queues:
+	 *  - each queue has it's own NAPI (num_napi >= rx + tx + combined)
+	 *  - combining queues (combined not 0, rx or tx must be 0)
+	 */
+	if ((ch->rx_count && ch->tx_count && ch->combined_count) ||
+	    (standalone && standalone + ch->combined_count > max_napis) ||
+	    ch->rx_count + ch->combined_count > fbd->max_num_queues ||
+	    ch->tx_count + ch->combined_count > fbd->max_num_queues ||
+	    ch->other_count != FBNIC_NON_NAPI_VECTORS)
+		return -EINVAL;
+
+	if (!netif_running(netdev)) {
+		fbnic_set_queues(fbn, ch, max_napis);
+		fbnic_reset_indir_tbl(fbn);
+		return 0;
+	}
+
+	return -EBUSY;
+}
+
 static int
 fbnic_get_ts_info(struct net_device *netdev,
 		  struct kernel_ethtool_ts_info *tsinfo)
@@ -417,6 +479,8 @@ static const struct ethtool_ops fbnic_ethtool_ops = {
 	.get_rxfh_indir_size	= fbnic_get_rxfh_indir_size,
 	.get_rxfh		= fbnic_get_rxfh,
 	.set_rxfh		= fbnic_set_rxfh,
+	.get_channels		= fbnic_get_channels,
+	.set_channels		= fbnic_set_channels,
 	.get_ts_info		= fbnic_get_ts_info,
 	.get_ts_stats		= fbnic_get_ts_stats,
 	.get_eth_mac_stats	= fbnic_get_eth_mac_stats,
