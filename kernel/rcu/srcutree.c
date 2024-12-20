@@ -246,7 +246,6 @@ static int init_srcu_struct_fields(struct srcu_struct *ssp, bool is_static)
 	ssp->srcu_sup->node = NULL;
 	mutex_init(&ssp->srcu_sup->srcu_cb_mutex);
 	mutex_init(&ssp->srcu_sup->srcu_gp_mutex);
-	ssp->srcu_idx = 0;
 	ssp->srcu_sup->srcu_gp_seq = SRCU_GP_SEQ_INITIAL_VAL;
 	ssp->srcu_sup->srcu_barrier_seq = 0;
 	mutex_init(&ssp->srcu_sup->srcu_barrier_mutex);
@@ -510,38 +509,39 @@ static bool srcu_readers_active_idx_check(struct srcu_struct *ssp, int idx)
 	 * If the locks are the same as the unlocks, then there must have
 	 * been no readers on this index at some point in this function.
 	 * But there might be more readers, as a task might have read
-	 * the current ->srcu_idx but not yet have incremented its CPU's
+	 * the current ->srcu_ctrp but not yet have incremented its CPU's
 	 * ->srcu_ctrs[idx].srcu_locks counter.  In fact, it is possible
 	 * that most of the tasks have been preempted between fetching
-	 * ->srcu_idx and incrementing ->srcu_ctrs[idx].srcu_locks.  And there
-	 * could be almost (ULONG_MAX / sizeof(struct task_struct)) tasks
-	 * in a system whose address space was fully populated with memory.
-	 * Call this quantity Nt.
+	 * ->srcu_ctrp and incrementing ->srcu_ctrs[idx].srcu_locks.  And
+	 * there could be almost (ULONG_MAX / sizeof(struct task_struct))
+	 * tasks in a system whose address space was fully populated
+	 * with memory.  Call this quantity Nt.
 	 *
-	 * So suppose that the updater is preempted at this point in the
-	 * code for a long time.  That now-preempted updater has already
-	 * flipped ->srcu_idx (possibly during the preceding grace period),
-	 * done an smp_mb() (again, possibly during the preceding grace
-	 * period), and summed up the ->srcu_ctrs[idx].srcu_unlocks counters.
-	 * How many times can a given one of the aforementioned Nt tasks
-	 * increment the old ->srcu_idx value's ->srcu_ctrs[idx].srcu_locks
-	 * counter, in the absence of nesting?
+	 * So suppose that the updater is preempted at this
+	 * point in the code for a long time.  That now-preempted
+	 * updater has already flipped ->srcu_ctrp (possibly during
+	 * the preceding grace period), done an smp_mb() (again,
+	 * possibly during the preceding grace period), and summed up
+	 * the ->srcu_ctrs[idx].srcu_unlocks counters.  How many times
+	 * can a given one of the aforementioned Nt tasks increment the
+	 * old ->srcu_ctrp value's ->srcu_ctrs[idx].srcu_locks counter,
+	 * in the absence of nesting?
 	 *
 	 * It can clearly do so once, given that it has already fetched
-	 * the old value of ->srcu_idx and is just about to use that
+	 * the old value of ->srcu_ctrp and is just about to use that
 	 * value to index its increment of ->srcu_ctrs[idx].srcu_locks.
 	 * But as soon as it leaves that SRCU read-side critical section,
 	 * it will increment ->srcu_ctrs[idx].srcu_unlocks, which must
-	 * follow the updater's above read from that same value.	Thus,
-	 * as soon the reading task does an smp_mb() and a later fetch from
-	 * ->srcu_idx, that task will be guaranteed to get the new index.
+	 * follow the updater's above read from that same value.  Thus,
+	   as soon the reading task does an smp_mb() and a later fetch from
+	 * ->srcu_ctrp, that task will be guaranteed to get the new index.
 	 * Except that the increment of ->srcu_ctrs[idx].srcu_unlocks
 	 * in __srcu_read_unlock() is after the smp_mb(), and the fetch
-	 * from ->srcu_idx in __srcu_read_lock() is before the smp_mb().
-	 * Thus, that task might not see the new value of ->srcu_idx until
+	 * from ->srcu_ctrp in __srcu_read_lock() is before the smp_mb().
+	 * Thus, that task might not see the new value of ->srcu_ctrp until
 	 * the -second- __srcu_read_lock(), which in turn means that this
 	 * task might well increment ->srcu_ctrs[idx].srcu_locks for the
-	 * old value of ->srcu_idx twice, not just once.
+	 * old value of ->srcu_ctrp twice, not just once.
 	 *
 	 * However, it is important to note that a given smp_mb() takes
 	 * effect not just for the task executing it, but also for any
@@ -1095,7 +1095,7 @@ static void srcu_funnel_gp_start(struct srcu_struct *ssp, struct srcu_data *sdp,
 /*
  * Wait until all readers counted by array index idx complete, but
  * loop an additional time if there is an expedited grace period pending.
- * The caller must ensure that ->srcu_idx is not changed while checking.
+ * The caller must ensure that ->srcu_ctrp is not changed while checking.
  */
 static bool try_check_zero(struct srcu_struct *ssp, int idx, int trycount)
 {
@@ -1113,14 +1113,14 @@ static bool try_check_zero(struct srcu_struct *ssp, int idx, int trycount)
 }
 
 /*
- * Increment the ->srcu_idx counter so that future SRCU readers will
+ * Increment the ->srcu_ctrp counter so that future SRCU readers will
  * use the other rank of the ->srcu_(un)lock_count[] arrays.  This allows
  * us to wait for pre-existing readers in a starvation-free manner.
  */
 static void srcu_flip(struct srcu_struct *ssp)
 {
 	/*
-	 * Because the flip of ->srcu_idx is executed only if the
+	 * Because the flip of ->srcu_ctrp is executed only if the
 	 * preceding call to srcu_readers_active_idx_check() found that
 	 * the ->srcu_ctrs[].srcu_unlocks and ->srcu_ctrs[].srcu_locks sums
 	 * matched and because that summing uses atomic_long_read(),
@@ -1128,15 +1128,15 @@ static void srcu_flip(struct srcu_struct *ssp)
 	 * summing and the WRITE_ONCE() in this call to srcu_flip().
 	 * This ordering ensures that if this updater saw a given reader's
 	 * increment from __srcu_read_lock(), that reader was using a value
-	 * of ->srcu_idx from before the previous call to srcu_flip(),
+	 * of ->srcu_ctrp from before the previous call to srcu_flip(),
 	 * which should be quite rare.  This ordering thus helps forward
 	 * progress because the grace period could otherwise be delayed
 	 * by additional calls to __srcu_read_lock() using that old (soon
-	 * to be new) value of ->srcu_idx.
+	 * to be new) value of ->srcu_ctrp.
 	 *
 	 * This sum-equality check and ordering also ensures that if
 	 * a given call to __srcu_read_lock() uses the new value of
-	 * ->srcu_idx, this updater's earlier scans cannot have seen
+	 * ->srcu_ctrp, this updater's earlier scans cannot have seen
 	 * that reader's increments, which is all to the good, because
 	 * this grace period need not wait on that reader.  After all,
 	 * if those earlier scans had seen that reader, there would have
@@ -1151,7 +1151,6 @@ static void srcu_flip(struct srcu_struct *ssp)
 	 */
 	smp_mb(); /* E */  /* Pairs with B and C. */
 
-	WRITE_ONCE(ssp->srcu_idx, ssp->srcu_idx + 1); // Flip the counter.
 	WRITE_ONCE(ssp->srcu_ctrp,
 		   &ssp->sda->srcu_ctrs[!(ssp->srcu_ctrp - &ssp->sda->srcu_ctrs[0])]);
 
@@ -1466,8 +1465,9 @@ EXPORT_SYMBOL_GPL(synchronize_srcu_expedited);
  *
  * Wait for the count to drain to zero of both indexes. To avoid the
  * possible starvation of synchronize_srcu(), it waits for the count of
- * the index=((->srcu_idx & 1) ^ 1) to drain to zero at first,
- * and then flip the srcu_idx and wait for the count of the other index.
+ * the index=!(ssp->srcu_ctrp - &ssp->sda->srcu_ctrs[0]) to drain to zero
+ * at first, and then flip the ->srcu_ctrp and wait for the count of the
+ * other index.
  *
  * Can block; must be called from process context.
  *
@@ -1693,7 +1693,7 @@ static void srcu_advance_state(struct srcu_struct *ssp)
 
 	/*
 	 * Because readers might be delayed for an extended period after
-	 * fetching ->srcu_idx for their index, at any point in time there
+	 * fetching ->srcu_ctrp for their index, at any point in time there
 	 * might well be readers using both idx=0 and idx=1.  We therefore
 	 * need to wait for readers to clear from both index values before
 	 * invoking a callback.
@@ -1721,7 +1721,7 @@ static void srcu_advance_state(struct srcu_struct *ssp)
 	}
 
 	if (rcu_seq_state(READ_ONCE(ssp->srcu_sup->srcu_gp_seq)) == SRCU_STATE_SCAN1) {
-		idx = 1 ^ (ssp->srcu_idx & 1);
+		idx = !(ssp->srcu_ctrp - &ssp->sda->srcu_ctrs[0]);
 		if (!try_check_zero(ssp, idx, 1)) {
 			mutex_unlock(&ssp->srcu_sup->srcu_gp_mutex);
 			return; /* readers present, retry later. */
@@ -1739,7 +1739,7 @@ static void srcu_advance_state(struct srcu_struct *ssp)
 		 * SRCU read-side critical sections are normally short,
 		 * so check at least twice in quick succession after a flip.
 		 */
-		idx = 1 ^ (ssp->srcu_idx & 1);
+		idx = !(ssp->srcu_ctrp - &ssp->sda->srcu_ctrs[0]);
 		if (!try_check_zero(ssp, idx, 2)) {
 			mutex_unlock(&ssp->srcu_sup->srcu_gp_mutex);
 			return; /* readers present, retry later. */
@@ -1897,7 +1897,7 @@ void srcu_torture_stats_print(struct srcu_struct *ssp, char *tt, char *tf)
 	int ss_state = READ_ONCE(ssp->srcu_sup->srcu_size_state);
 	int ss_state_idx = ss_state;
 
-	idx = ssp->srcu_idx & 0x1;
+	idx = ssp->srcu_ctrp - &ssp->sda->srcu_ctrs[0];
 	if (ss_state < 0 || ss_state >= ARRAY_SIZE(srcu_size_state_name))
 		ss_state_idx = ARRAY_SIZE(srcu_size_state_name) - 1;
 	pr_alert("%s%s Tree SRCU g%ld state %d (%s)",
