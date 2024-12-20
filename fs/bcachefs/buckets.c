@@ -1258,7 +1258,7 @@ int bch2_buckets_nouse_alloc(struct bch_fs *c)
 	for_each_member_device(c, ca) {
 		BUG_ON(ca->buckets_nouse);
 
-		ca->buckets_nouse = kvmalloc(BITS_TO_LONGS(ca->mi.nbuckets) *
+		ca->buckets_nouse = bch2_kvmalloc(BITS_TO_LONGS(ca->mi.nbuckets) *
 					    sizeof(unsigned long),
 					    GFP_KERNEL|__GFP_ZERO);
 		if (!ca->buckets_nouse) {
@@ -1290,8 +1290,8 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	if (resize && ca->buckets_nouse)
 		return -BCH_ERR_no_resize_with_buckets_nouse;
 
-	bucket_gens = kvmalloc(struct_size(bucket_gens, b, nbuckets),
-			       GFP_KERNEL|__GFP_ZERO);
+	bucket_gens = bch2_kvmalloc(struct_size(bucket_gens, b, nbuckets),
+				    GFP_KERNEL|__GFP_ZERO);
 	if (!bucket_gens) {
 		ret = -BCH_ERR_ENOMEM_bucket_gens;
 		goto err;

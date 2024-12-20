@@ -55,6 +55,16 @@ static inline size_t buf_pages(void *p, size_t len)
 			    PAGE_SIZE);
 }
 
+static inline void *bch2_kvmalloc(size_t n, gfp_t flags)
+{
+	void *p = unlikely(n >= INT_MAX)
+		? vmalloc(n)
+		: kvmalloc(n, flags & ~__GFP_ZERO);
+	if (p && (flags & __GFP_ZERO))
+		memset(p, 0, n);
+	return p;
+}
+
 #define init_heap(heap, _size, gfp)					\
 ({									\
 	(heap)->nr = 0;						\
