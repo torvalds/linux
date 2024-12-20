@@ -610,6 +610,9 @@ that, if you have your patches stored in a ``git`` repository, proper patch
 formatting can be had with ``git format-patch``.  The tools cannot create
 the necessary text, though, so read the instructions below anyway.
 
+Subject Line
+^^^^^^^^^^^^
+
 The canonical patch subject line is::
 
     Subject: [PATCH 001/123] subsystem: summary phrase
@@ -683,6 +686,9 @@ Here are some good example Subjects::
     Subject: [PATCH v2] sub/sys: Condensed patch summary
     Subject: [PATCH v2 M/N] sub/sys: Condensed patch summary
 
+From Line
+^^^^^^^^^
+
 The ``from`` line must be the very first line in the message body,
 and has the form:
 
@@ -692,6 +698,9 @@ The ``from`` line specifies who will be credited as the author of the
 patch in the permanent changelog.  If the ``from`` line is missing,
 then the ``From:`` line from the email header will be used to determine
 the patch author in the changelog.
+
+Explanation Body
+^^^^^^^^^^^^^^^^
 
 The explanation body will be committed to the permanent source
 changelog, so should make sense to a competent reader who has long since
@@ -707,6 +716,31 @@ If a patch fixes a compile failure, it may not be necessary to include
 _all_ of the compile failures; just enough that it is likely that
 someone searching for the patch can find it. As in the ``summary
 phrase``, it is important to be both succinct as well as descriptive.
+
+.. _backtraces:
+
+Backtraces in commit messages
+"""""""""""""""""""""""""""""
+
+Backtraces help document the call chain leading to a problem. However,
+not all backtraces are helpful. For example, early boot call chains are
+unique and obvious. Copying the full dmesg output verbatim, however,
+adds distracting information like timestamps, module lists, register and
+stack dumps.
+
+Therefore, the most useful backtraces should distill the relevant
+information from the dump, which makes it easier to focus on the real
+issue. Here is an example of a well-trimmed backtrace::
+
+  unchecked MSR access error: WRMSR to 0xd51 (tried to write 0x0000000000000064)
+  at rIP: 0xffffffffae059994 (native_write_msr+0x4/0x20)
+  Call Trace:
+  mba_wrmsr
+  update_domains
+  rdtgroup_mkdir
+
+Commentary
+^^^^^^^^^^
 
 The ``---`` marker line serves the essential purpose of marking for
 patch handling tools where the changelog message ends.
@@ -745,28 +779,6 @@ patch::
 
 See more details on the proper patch format in the following
 references.
-
-.. _backtraces:
-
-Backtraces in commit messages
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Backtraces help document the call chain leading to a problem. However,
-not all backtraces are helpful. For example, early boot call chains are
-unique and obvious. Copying the full dmesg output verbatim, however,
-adds distracting information like timestamps, module lists, register and
-stack dumps.
-
-Therefore, the most useful backtraces should distill the relevant
-information from the dump, which makes it easier to focus on the real
-issue. Here is an example of a well-trimmed backtrace::
-
-  unchecked MSR access error: WRMSR to 0xd51 (tried to write 0x0000000000000064)
-  at rIP: 0xffffffffae059994 (native_write_msr+0x4/0x20)
-  Call Trace:
-  mba_wrmsr
-  update_domains
-  rdtgroup_mkdir
 
 .. _explicit_in_reply_to:
 
