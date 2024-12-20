@@ -3012,10 +3012,11 @@ EXPORT_SYMBOL(phy_support_eee);
  */
 void phy_disable_eee(struct phy_device *phydev)
 {
-	linkmode_zero(phydev->supported_eee);
 	linkmode_zero(phydev->advertising_eee);
 	phydev->eee_cfg.tx_lpi_enabled = false;
 	phydev->eee_cfg.eee_enabled = false;
+	/* don't let userspace re-enable EEE advertisement */
+	linkmode_fill(phydev->eee_broken_modes);
 }
 EXPORT_SYMBOL_GPL(phy_disable_eee);
 
