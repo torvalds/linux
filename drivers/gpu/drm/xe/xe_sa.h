@@ -10,7 +10,6 @@
 #include "xe_sa_types.h"
 
 struct dma_fence;
-struct xe_bo;
 struct xe_tile;
 
 struct xe_sa_manager *__xe_sa_bo_manager_init(struct xe_tile *tile, u32 size, u32 guard, u32 align);
@@ -36,8 +35,7 @@ static inline struct drm_suballoc *xe_sa_bo_new(struct xe_sa_manager *sa_manager
 }
 
 void xe_sa_bo_flush_write(struct drm_suballoc *sa_bo);
-void xe_sa_bo_free(struct drm_suballoc *sa_bo,
-		   struct dma_fence *fence);
+void xe_sa_bo_free(struct drm_suballoc *sa_bo, struct dma_fence *fence);
 
 static inline struct xe_sa_manager *
 to_xe_sa_manager(struct drm_suballoc_manager *mng)
