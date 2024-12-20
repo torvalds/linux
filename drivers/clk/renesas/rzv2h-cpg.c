@@ -98,6 +98,7 @@ struct pll_clk {
  *
  * @priv: CPG private data
  * @hw: handle between common and hardware-specific interfaces
+ * @no_pm: flag to indicate PM is not supported
  * @on_index: register offset
  * @on_bit: ON/MON bit
  * @mon_index: monitor register offset
@@ -106,6 +107,7 @@ struct pll_clk {
 struct mod_clock {
 	struct rzv2h_cpg_priv *priv;
 	struct clk_hw hw;
+	bool no_pm;
 	u8 on_index;
 	u8 on_bit;
 	s8 mon_index;
@@ -541,6 +543,7 @@ rzv2h_cpg_register_mod_clk(const struct rzv2h_mod_clk *mod,
 	clock->on_bit = mod->on_bit;
 	clock->mon_index = mod->mon_index;
 	clock->mon_bit = mod->mon_bit;
+	clock->no_pm = mod->no_pm;
 	clock->priv = priv;
 	clock->hw.init = &init;
 
@@ -668,17 +671,51 @@ struct rzv2h_cpg_pd {
 	struct generic_pm_domain genpd;
 };
 
+static bool rzv2h_cpg_is_pm_clk(struct rzv2h_cpg_pd *pd,
+				const struct of_phandle_args *clkspec)
+{
+	if (clkspec->np != pd->genpd.dev.of_node || clkspec->args_count != 2)
+		return false;
+
+	switch (clkspec->args[0]) {
+	case CPG_MOD: {
+		struct rzv2h_cpg_priv *priv = pd->priv;
+		unsigned int id = clkspec->args[1];
+		struct mod_clock *clock;
+
+		if (id >= priv->num_mod_clks)
+			return false;
+
+		if (priv->clks[priv->num_core_clks + id] == ERR_PTR(-ENOENT))
+			return false;
+
+		clock = to_mod_clock(__clk_get_hw(priv->clks[priv->num_core_clks + id]));
+
+		return !clock->no_pm;
+	}
+
+	case CPG_CORE:
+	default:
+		return false;
+	}
+}
+
 static int rzv2h_cpg_attach_dev(struct generic_pm_domain *domain, struct device *dev)
 {
+	struct rzv2h_cpg_pd *pd = container_of(domain, struct rzv2h_cpg_pd, genpd);
 	struct device_node *np = dev->of_node;
 	struct of_phandle_args clkspec;
 	bool once = true;
 	struct clk *clk;
+	unsigned int i;
 	int error;
-	int i = 0;
 
-	while (!of_parse_phandle_with_args(np, "clocks", "#clock-cells", i,
-					   &clkspec)) {
+	for (i = 0; !of_parse_phandle_with_args(np, "clocks", "#clock-cells", i, &clkspec); i++) {
+		if (!rzv2h_cpg_is_pm_clk(pd, &clkspec)) {
+			of_node_put(clkspec.np);
+			continue;
+		}
+
 		if (once) {
 			once = false;
 			error = pm_clk_create(dev);
@@ -700,7 +737,6 @@ static int rzv2h_cpg_attach_dev(struct generic_pm_domain *domain, struct device 
 				error);
 			goto fail_put;
 		}
-		i++;
 	}
 
 	return 0;
