@@ -2151,23 +2151,37 @@ static int ov08x40_check_hwcfg(struct ov08x40 *ov08x, struct device *dev)
 	int ret;
 	u32 xvclk_rate;
 
-	if (!fwnode)
-		return -ENXIO;
+	/*
+	 * Sometimes the fwnode graph is initialized by the bridge driver.
+	 * Bridge drivers doing this also add sensor properties, wait for this.
+	 */
+	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	if (!ep)
+		return dev_err_probe(dev, -EPROBE_DEFER,
+				     "waiting for fwnode graph endpoint\n");
+
+	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
+	fwnode_handle_put(ep);
+	if (ret)
+		return ret;
 
 	if (!is_acpi_node(fwnode)) {
 		ov08x->xvclk = devm_clk_get(dev, NULL);
 		if (IS_ERR(ov08x->xvclk)) {
 			dev_err(dev, "could not get xvclk clock (%pe)\n",
 				ov08x->xvclk);
-			return PTR_ERR(ov08x->xvclk);
+			ret = PTR_ERR(ov08x->xvclk);
+			goto out_err;
 		}
 
 		xvclk_rate = clk_get_rate(ov08x->xvclk);
 
 		ov08x->reset_gpio = devm_gpiod_get_optional(dev, "reset",
 							    GPIOD_OUT_LOW);
-		if (IS_ERR(ov08x->reset_gpio))
-			return PTR_ERR(ov08x->reset_gpio);
+		if (IS_ERR(ov08x->reset_gpio)) {
+			ret = PTR_ERR(ov08x->reset_gpio);
+			goto out_err;
+		}
 
 		for (i = 0; i < ARRAY_SIZE(ov08x40_supply_names); i++)
 			ov08x->supplies[i].supply = ov08x40_supply_names[i];
@@ -2176,30 +2190,22 @@ static int ov08x40_check_hwcfg(struct ov08x40 *ov08x, struct device *dev)
 					      ARRAY_SIZE(ov08x40_supply_names),
 					      ov08x->supplies);
 		if (ret)
-			return ret;
+			goto out_err;
 	} else {
 		ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
 					       &xvclk_rate);
 		if (ret) {
 			dev_err(dev, "can't get clock frequency");
-			return ret;
+			goto out_err;
 		}
 	}
 
 	if (xvclk_rate != OV08X40_XVCLK) {
 		dev_err(dev, "external clock %d is not supported",
 			xvclk_rate);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_err;
 	}
-
-	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
-	if (!ep)
-		return -ENXIO;
-
-	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
-	fwnode_handle_put(ep);
-	if (ret)
-		return ret;
 
 	if (bus_cfg.bus.mipi_csi2.num_data_lanes != OV08X40_DATA_LANES) {
 		dev_err(dev, "number of CSI2 data lanes %d is not supported",
