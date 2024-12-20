@@ -108,17 +108,12 @@ static int find_sdca_function(struct acpi_device *adev, void *data)
 		return -EINVAL;
 	}
 
-	/*
-	 * The number of functions cannot exceed 8, we could use
-	 * acpi_get_local_address() but the value is stored as u64 so
-	 * we might as well avoid casts and intermediate levels
-	 */
 	ret = acpi_get_local_u64_address(adev->handle, &addr);
 	if (ret < 0)
 		return ret;
 
-	if (!addr) {
-		dev_err(dev, "no addr\n");
+	if (!addr || addr > 0x7) {
+		dev_err(dev, "invalid addr: 0x%llx\n", addr);
 		return -ENODEV;
 	}
 

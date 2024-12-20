@@ -23,9 +23,9 @@ struct sdw_slave;
  * @name: human-readable string
  */
 struct sdca_function_desc {
-	u64 adr;
-	u32 type;
 	const char *name;
+	u32 type;
+	u8 adr;
 };
 
 /**
