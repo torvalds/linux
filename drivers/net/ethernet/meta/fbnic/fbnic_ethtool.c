@@ -102,6 +102,105 @@ static int fbnic_get_sset_count(struct net_device *dev, int sset)
 	}
 }
 
+static int fbnic_get_rss_hash_idx(u32 flow_type)
+{
+	switch (flow_type & ~(FLOW_EXT | FLOW_MAC_EXT | FLOW_RSS)) {
+	case TCP_V4_FLOW:
+		return FBNIC_TCP4_HASH_OPT;
+	case TCP_V6_FLOW:
+		return FBNIC_TCP6_HASH_OPT;
+	case UDP_V4_FLOW:
+		return FBNIC_UDP4_HASH_OPT;
+	case UDP_V6_FLOW:
+		return FBNIC_UDP6_HASH_OPT;
+	case AH_V4_FLOW:
+	case ESP_V4_FLOW:
+	case AH_ESP_V4_FLOW:
+	case SCTP_V4_FLOW:
+	case IPV4_FLOW:
+	case IPV4_USER_FLOW:
+		return FBNIC_IPV4_HASH_OPT;
+	case AH_V6_FLOW:
+	case ESP_V6_FLOW:
+	case AH_ESP_V6_FLOW:
+	case SCTP_V6_FLOW:
+	case IPV6_FLOW:
+	case IPV6_USER_FLOW:
+		return FBNIC_IPV6_HASH_OPT;
+	case ETHER_FLOW:
+		return FBNIC_ETHER_HASH_OPT;
+	}
+
+	return -1;
+}
+
+static int
+fbnic_get_rss_hash_opts(struct fbnic_net *fbn, struct ethtool_rxnfc *cmd)
+{
+	int hash_opt_idx = fbnic_get_rss_hash_idx(cmd->flow_type);
+
+	if (hash_opt_idx < 0)
+		return -EINVAL;
+
+	/* Report options from rss_en table in fbn */
+	cmd->data = fbn->rss_flow_hash[hash_opt_idx];
+
+	return 0;
+}
+
+static int fbnic_get_rxnfc(struct net_device *netdev,
+			   struct ethtool_rxnfc *cmd, u32 *rule_locs)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+	int ret = -EOPNOTSUPP;
+
+	switch (cmd->cmd) {
+	case ETHTOOL_GRXRINGS:
+		cmd->data = fbn->num_rx_queues;
+		ret = 0;
+		break;
+	case ETHTOOL_GRXFH:
+		ret = fbnic_get_rss_hash_opts(fbn, cmd);
+		break;
+	}
+
+	return ret;
+}
+
+static u32 fbnic_get_rxfh_key_size(struct net_device *netdev)
+{
+	return FBNIC_RPC_RSS_KEY_BYTE_LEN;
+}
+
+static u32 fbnic_get_rxfh_indir_size(struct net_device *netdev)
+{
+	return FBNIC_RPC_RSS_TBL_SIZE;
+}
+
+static int
+fbnic_get_rxfh(struct net_device *netdev, struct ethtool_rxfh_param *rxfh)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+	unsigned int i;
+
+	rxfh->hfunc = ETH_RSS_HASH_TOP;
+
+	if (rxfh->key) {
+		for (i = 0; i < FBNIC_RPC_RSS_KEY_BYTE_LEN; i++) {
+			u32 rss_key = fbn->rss_key[i / 4] << ((i % 4) * 8);
+
+			rxfh->key[i] = rss_key >> 24;
+		}
+	}
+
+	if (rxfh->indir) {
+		for (i = 0; i < FBNIC_RPC_RSS_TBL_SIZE; i++)
+			rxfh->indir[i] = fbn->indir_tbl[0][i];
+	}
+
+	return 0;
+}
+
 static int
 fbnic_get_ts_info(struct net_device *netdev,
 		  struct kernel_ethtool_ts_info *tsinfo)
@@ -209,6 +308,10 @@ static const struct ethtool_ops fbnic_ethtool_ops = {
 	.get_strings		= fbnic_get_strings,
 	.get_ethtool_stats	= fbnic_get_ethtool_stats,
 	.get_sset_count		= fbnic_get_sset_count,
+	.get_rxnfc		= fbnic_get_rxnfc,
+	.get_rxfh_key_size	= fbnic_get_rxfh_key_size,
+	.get_rxfh_indir_size	= fbnic_get_rxfh_indir_size,
+	.get_rxfh		= fbnic_get_rxfh,
 	.get_ts_info		= fbnic_get_ts_info,
 	.get_ts_stats		= fbnic_get_ts_stats,
 	.get_eth_mac_stats	= fbnic_get_eth_mac_stats,
