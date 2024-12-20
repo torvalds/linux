@@ -5,7 +5,7 @@ import time
 from pathlib import Path
 from lib.py import KsftSkipEx, KsftXfailEx
 from lib.py import ksft_setup
-from lib.py import cmd, ethtool, ip
+from lib.py import cmd, ethtool, ip, CmdExitFailure
 from lib.py import NetNS, NetdevSimDev
 from .remote import Remote
 
@@ -234,7 +234,12 @@ class NetDrvEpEnv:
         Good drivers will tell us via ethtool what their sync period is.
         """
         if self._stats_settle_time is None:
-            data = ethtool("-c " + self.ifname, json=True)[0]
+            data = {}
+            try:
+                data = ethtool("-c " + self.ifname, json=True)[0]
+            except CmdExitFailure as e:
+                if "Operation not supported" not in e.cmd.stderr:
+                    raise
 
             self._stats_settle_time = 0.025 + \
                 data.get('stats-block-usecs', 0) / 1000 / 1000
