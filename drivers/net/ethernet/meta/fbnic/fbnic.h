@@ -162,6 +162,7 @@ int fbnic_napi_request_irq(struct fbnic_dev *fbd,
 			   struct fbnic_napi_vector *nv);
 void fbnic_napi_free_irq(struct fbnic_dev *fbd,
 			 struct fbnic_napi_vector *nv);
+void fbnic_synchronize_irq(struct fbnic_dev *fbd, int nr);
 int fbnic_request_irq(struct fbnic_dev *dev, int nr, irq_handler_t handler,
 		      unsigned long flags, const char *name, void *data);
 void fbnic_free_irq(struct fbnic_dev *dev, int nr, void *data);

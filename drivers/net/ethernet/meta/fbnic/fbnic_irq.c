@@ -146,6 +146,17 @@ void fbnic_pcs_irq_disable(struct fbnic_dev *fbd)
 	free_irq(fbd->pcs_msix_vector, fbd);
 }
 
+void fbnic_synchronize_irq(struct fbnic_dev *fbd, int nr)
+{
+	struct pci_dev *pdev = to_pci_dev(fbd->dev);
+	int irq = pci_irq_vector(pdev, nr);
+
+	if (irq < 0)
+		return;
+
+	synchronize_irq(irq);
+}
+
 int fbnic_request_irq(struct fbnic_dev *fbd, int nr, irq_handler_t handler,
 		      unsigned long flags, const char *name, void *data)
 {

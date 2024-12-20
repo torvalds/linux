@@ -65,6 +65,7 @@ struct fbnic_net {
 int __fbnic_open(struct fbnic_net *fbn);
 void fbnic_up(struct fbnic_net *fbn);
 void fbnic_down(struct fbnic_net *fbn);
+void fbnic_down_noidle(struct fbnic_net *fbn);
 
 struct net_device *fbnic_netdev_alloc(struct fbnic_dev *fbd);
 void fbnic_netdev_free(struct fbnic_dev *fbd);

@@ -1045,8 +1045,8 @@ irqreturn_t fbnic_msix_clean_rings(int __always_unused irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void fbnic_aggregate_ring_rx_counters(struct fbnic_net *fbn,
-					     struct fbnic_ring *rxr)
+void fbnic_aggregate_ring_rx_counters(struct fbnic_net *fbn,
+				      struct fbnic_ring *rxr)
 {
 	struct fbnic_queue_stats *stats = &rxr->stats;
 
@@ -1056,8 +1056,8 @@ static void fbnic_aggregate_ring_rx_counters(struct fbnic_net *fbn,
 	fbn->rx_stats.dropped += stats->dropped;
 }
 
-static void fbnic_aggregate_ring_tx_counters(struct fbnic_net *fbn,
-					     struct fbnic_ring *txr)
+void fbnic_aggregate_ring_tx_counters(struct fbnic_net *fbn,
+				      struct fbnic_ring *txr)
 {
 	struct fbnic_queue_stats *stats = &txr->stats;
 

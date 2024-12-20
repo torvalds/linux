@@ -120,6 +120,11 @@ netdev_features_t
 fbnic_features_check(struct sk_buff *skb, struct net_device *dev,
 		     netdev_features_t features);
 
+void fbnic_aggregate_ring_rx_counters(struct fbnic_net *fbn,
+				      struct fbnic_ring *rxr);
+void fbnic_aggregate_ring_tx_counters(struct fbnic_net *fbn,
+				      struct fbnic_ring *txr);
+
 int fbnic_alloc_napi_vectors(struct fbnic_net *fbn);
 void fbnic_free_napi_vectors(struct fbnic_net *fbn);
 int fbnic_alloc_resources(struct fbnic_net *fbn);
