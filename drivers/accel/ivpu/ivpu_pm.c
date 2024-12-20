@@ -378,6 +378,7 @@ void ivpu_pm_init(struct ivpu_device *vdev)
 
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_set_autosuspend_delay(dev, delay);
+	pm_runtime_set_active(dev);
 
 	ivpu_dbg(vdev, PM, "Autosuspend delay = %d\n", delay);
 }
@@ -392,7 +393,6 @@ void ivpu_pm_enable(struct ivpu_device *vdev)
 {
 	struct device *dev = vdev->drm.dev;
 
-	pm_runtime_set_active(dev);
 	pm_runtime_allow(dev);
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);

@@ -7347,7 +7347,7 @@ F:	drivers/gpu/drm/panel/panel-novatek-nt36672a.c
 DRM DRIVER FOR NVIDIA GEFORCE/QUADRO GPUS
 M:	Karol Herbst <kherbst@redhat.com>
 M:	Lyude Paul <lyude@redhat.com>
-M:	Danilo Krummrich <dakr@redhat.com>
+M:	Danilo Krummrich <dakr@kernel.org>
 L:	dri-devel@lists.freedesktop.org
 L:	nouveau@lists.freedesktop.org
 S:	Supported
@@ -8924,7 +8924,7 @@ F:	include/linux/arm_ffa.h
 FIRMWARE LOADER (request_firmware)
 M:	Luis Chamberlain <mcgrof@kernel.org>
 M:	Russ Weight <russ.weight@linux.dev>
-M:	Danilo Krummrich <dakr@redhat.com>
+M:	Danilo Krummrich <dakr@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	Documentation/firmware_class/
