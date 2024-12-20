@@ -637,7 +637,7 @@ static u32 ar9003_mci_wait_for_gpm(struct ath_hw *ah, u8 gpm_type,
 		 * same time. Since BT's calibration doesn't happen
 		 * that often, we'll let BT completes calibration then
 		 * we continue to wait for cal_grant from BT.
-		 * Orginal: Wait BT_CAL_GRANT.
+		 * Original: Wait BT_CAL_GRANT.
 		 * New: Receive BT_CAL_REQ -> send WLAN_CAL_GRANT->wait
 		 * BT_CAL_DONE -> Wait BT_CAL_GRANT.
 		 */
@@ -747,7 +747,7 @@ int ar9003_mci_end_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	 * BT is sleeping. Check if BT wakes up during
 	 * WLAN calibration. If BT wakes up during
 	 * WLAN calibration, need to go through all
-	 * message exchanges again and recal.
+	 * message exchanges again and recalibrate.
 	 */
 	REG_WRITE(ah, AR_MCI_INTERRUPT_RX_MSG_RAW,
 		  (AR_MCI_INTERRUPT_RX_MSG_REMOTE_RESET |

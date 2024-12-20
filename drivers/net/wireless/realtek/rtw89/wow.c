@@ -620,7 +620,10 @@ static struct ieee80211_key_conf *rtw89_wow_gtk_rekey(struct rtw89_dev *rtwdev,
 	 * need to unlock mutex
 	 */
 	mutex_unlock(&rtwdev->mutex);
-	key = ieee80211_gtk_rekey_add(wow_vif, rekey_conf, -1);
+	if (ieee80211_vif_is_mld(wow_vif))
+		key = ieee80211_gtk_rekey_add(wow_vif, rekey_conf, rtwvif_link->link_id);
+	else
+		key = ieee80211_gtk_rekey_add(wow_vif, rekey_conf, -1);
 	mutex_lock(&rtwdev->mutex);
 
 	kfree(rekey_conf);
@@ -691,9 +694,7 @@ static void rtw89_wow_leave_deep_ps(struct rtw89_dev *rtwdev)
 
 static void rtw89_wow_enter_deep_ps(struct rtw89_dev *rtwdev)
 {
-	struct rtw89_vif_link *rtwvif_link = rtwdev->wow.rtwvif_link;
-
-	__rtw89_enter_ps_mode(rtwdev, rtwvif_link);
+	__rtw89_enter_ps_mode(rtwdev);
 }
 
 static void rtw89_wow_enter_ps(struct rtw89_dev *rtwdev)
@@ -701,7 +702,7 @@ static void rtw89_wow_enter_ps(struct rtw89_dev *rtwdev)
 	struct rtw89_vif_link *rtwvif_link = rtwdev->wow.rtwvif_link;
 
 	if (rtw89_wow_mgd_linked(rtwdev))
-		rtw89_enter_lps(rtwdev, rtwvif_link, false);
+		rtw89_enter_lps(rtwdev, rtwvif_link->rtwvif, false);
 	else if (rtw89_wow_no_link(rtwdev))
 		rtw89_fw_h2c_fwips(rtwdev, rtwvif_link, true);
 }

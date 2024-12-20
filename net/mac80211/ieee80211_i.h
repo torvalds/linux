@@ -1204,7 +1204,7 @@ struct ieee80211_sub_if_data *vif_to_sdata(struct ieee80211_vif *p)
 	for (int ___link_id = 0;					\
 	     ___link_id < ARRAY_SIZE(___sdata->link);			\
 	     ___link_id++)						\
-	if ((_link = wiphy_dereference((local)->hw.wiphy,		\
+	if ((_link = wiphy_dereference((_local)->hw.wiphy,		\
 				       ___sdata->link[___link_id])))
 
 static inline int

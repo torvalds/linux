@@ -3626,7 +3626,7 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 	} else
 		wdev = netdev->ieee80211_ptr;
 
-	wiphy_lock(&rdev->wiphy);
+	guard(wiphy)(&rdev->wiphy);
 
 	/*
 	 * end workaround code, by now the rdev is available
@@ -3639,32 +3639,24 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 	rtnl_unlock();
 
 	if (result)
-		goto out;
+		return result;
 
 	if (info->attrs[NL80211_ATTR_WIPHY_TXQ_PARAMS]) {
 		struct ieee80211_txq_params txq_params;
 		struct nlattr *tb[NL80211_TXQ_ATTR_MAX + 1];
 
-		if (!rdev->ops->set_txq_params) {
-			result = -EOPNOTSUPP;
-			goto out;
-		}
+		if (!rdev->ops->set_txq_params)
+			return -EOPNOTSUPP;
 
-		if (!netdev) {
-			result = -EINVAL;
-			goto out;
-		}
+		if (!netdev)
+			return -EINVAL;
 
 		if (netdev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
-		    netdev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_GO) {
-			result = -EINVAL;
-			goto out;
-		}
+		    netdev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_GO)
+			return -EINVAL;
 
-		if (!netif_running(netdev)) {
-			result = -ENETDOWN;
-			goto out;
-		}
+		if (!netif_running(netdev))
+			return -ENETDOWN;
 
 		nla_for_each_nested(nl_txq_params,
 				    info->attrs[NL80211_ATTR_WIPHY_TXQ_PARAMS],
@@ -3675,10 +3667,11 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 							     txq_params_policy,
 							     info->extack);
 			if (result)
-				goto out;
+				return result;
+
 			result = parse_txq_params(tb, &txq_params);
 			if (result)
-				goto out;
+				return result;
 
 			txq_params.link_id =
 				nl80211_link_id_or_invalid(info->attrs);
@@ -3694,7 +3687,7 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 				result = rdev_set_txq_params(rdev, netdev,
 							     &txq_params);
 			if (result)
-				goto out;
+				return result;
 		}
 	}
 
@@ -3711,7 +3704,7 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 		}
 
 		if (result)
-			goto out;
+			return result;
 	}
 
 	if (info->attrs[NL80211_ATTR_WIPHY_TX_POWER_SETTING]) {
@@ -3722,19 +3715,15 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 		if (!(rdev->wiphy.features & NL80211_FEATURE_VIF_TXPOWER))
 			txp_wdev = NULL;
 
-		if (!rdev->ops->set_tx_power) {
-			result = -EOPNOTSUPP;
-			goto out;
-		}
+		if (!rdev->ops->set_tx_power)
+			return -EOPNOTSUPP;
 
 		idx = NL80211_ATTR_WIPHY_TX_POWER_SETTING;
 		type = nla_get_u32(info->attrs[idx]);
 
 		if (!info->attrs[NL80211_ATTR_WIPHY_TX_POWER_LEVEL] &&
-		    (type != NL80211_TX_POWER_AUTOMATIC)) {
-			result = -EINVAL;
-			goto out;
-		}
+		    (type != NL80211_TX_POWER_AUTOMATIC))
+			return -EINVAL;
 
 		if (type != NL80211_TX_POWER_AUTOMATIC) {
 			idx = NL80211_ATTR_WIPHY_TX_POWER_LEVEL;
@@ -3743,7 +3732,7 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 
 		result = rdev_set_tx_power(rdev, txp_wdev, type, mbm);
 		if (result)
-			goto out;
+			return result;
 	}
 
 	if (info->attrs[NL80211_ATTR_WIPHY_ANTENNA_TX] &&
@@ -3752,10 +3741,8 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 
 		if ((!rdev->wiphy.available_antennas_tx &&
 		     !rdev->wiphy.available_antennas_rx) ||
-		    !rdev->ops->set_antenna) {
-			result = -EOPNOTSUPP;
-			goto out;
-		}
+		    !rdev->ops->set_antenna)
+			return -EOPNOTSUPP;
 
 		tx_ant = nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_ANTENNA_TX]);
 		rx_ant = nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_ANTENNA_RX]);
@@ -3763,17 +3750,15 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 		/* reject antenna configurations which don't match the
 		 * available antenna masks, except for the "all" mask */
 		if ((~tx_ant && (tx_ant & ~rdev->wiphy.available_antennas_tx)) ||
-		    (~rx_ant && (rx_ant & ~rdev->wiphy.available_antennas_rx))) {
-			result = -EINVAL;
-			goto out;
-		}
+		    (~rx_ant && (rx_ant & ~rdev->wiphy.available_antennas_rx)))
+			return -EINVAL;
 
 		tx_ant = tx_ant & rdev->wiphy.available_antennas_tx;
 		rx_ant = rx_ant & rdev->wiphy.available_antennas_rx;
 
 		result = rdev_set_antenna(rdev, tx_ant, rx_ant);
 		if (result)
-			goto out;
+			return result;
 	}
 
 	changed = 0;
@@ -3795,10 +3780,8 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 	if (info->attrs[NL80211_ATTR_WIPHY_FRAG_THRESHOLD]) {
 		frag_threshold = nla_get_u32(
 			info->attrs[NL80211_ATTR_WIPHY_FRAG_THRESHOLD]);
-		if (frag_threshold < 256) {
-			result = -EINVAL;
-			goto out;
-		}
+		if (frag_threshold < 256)
+			return -EINVAL;
 
 		if (frag_threshold != (u32) -1) {
 			/*
@@ -3819,10 +3802,8 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if (info->attrs[NL80211_ATTR_WIPHY_COVERAGE_CLASS]) {
-		if (info->attrs[NL80211_ATTR_WIPHY_DYN_ACK]) {
-			result = -EINVAL;
-			goto out;
-		}
+		if (info->attrs[NL80211_ATTR_WIPHY_DYN_ACK])
+			return -EINVAL;
 
 		coverage_class = nla_get_u8(
 			info->attrs[NL80211_ATTR_WIPHY_COVERAGE_CLASS]);
@@ -3830,20 +3811,17 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if (info->attrs[NL80211_ATTR_WIPHY_DYN_ACK]) {
-		if (!(rdev->wiphy.features & NL80211_FEATURE_ACKTO_ESTIMATION)) {
-			result = -EOPNOTSUPP;
-			goto out;
-		}
+		if (!(rdev->wiphy.features & NL80211_FEATURE_ACKTO_ESTIMATION))
+			return -EOPNOTSUPP;
 
 		changed |= WIPHY_PARAM_DYN_ACK;
 	}
 
 	if (info->attrs[NL80211_ATTR_TXQ_LIMIT]) {
 		if (!wiphy_ext_feature_isset(&rdev->wiphy,
-					     NL80211_EXT_FEATURE_TXQS)) {
-			result = -EOPNOTSUPP;
-			goto out;
-		}
+					     NL80211_EXT_FEATURE_TXQS))
+			return -EOPNOTSUPP;
+
 		txq_limit = nla_get_u32(
 			info->attrs[NL80211_ATTR_TXQ_LIMIT]);
 		changed |= WIPHY_PARAM_TXQ_LIMIT;
@@ -3851,10 +3829,9 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 
 	if (info->attrs[NL80211_ATTR_TXQ_MEMORY_LIMIT]) {
 		if (!wiphy_ext_feature_isset(&rdev->wiphy,
-					     NL80211_EXT_FEATURE_TXQS)) {
-			result = -EOPNOTSUPP;
-			goto out;
-		}
+					     NL80211_EXT_FEATURE_TXQS))
+			return -EOPNOTSUPP;
+
 		txq_memory_limit = nla_get_u32(
 			info->attrs[NL80211_ATTR_TXQ_MEMORY_LIMIT]);
 		changed |= WIPHY_PARAM_TXQ_MEMORY_LIMIT;
@@ -3862,10 +3839,9 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 
 	if (info->attrs[NL80211_ATTR_TXQ_QUANTUM]) {
 		if (!wiphy_ext_feature_isset(&rdev->wiphy,
-					     NL80211_EXT_FEATURE_TXQS)) {
-			result = -EOPNOTSUPP;
-			goto out;
-		}
+					     NL80211_EXT_FEATURE_TXQS))
+			return -EOPNOTSUPP;
+
 		txq_quantum = nla_get_u32(
 			info->attrs[NL80211_ATTR_TXQ_QUANTUM]);
 		changed |= WIPHY_PARAM_TXQ_QUANTUM;
@@ -3877,10 +3853,8 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 		u8 old_coverage_class;
 		u32 old_txq_limit, old_txq_memory_limit, old_txq_quantum;
 
-		if (!rdev->ops->set_wiphy_params) {
-			result = -EOPNOTSUPP;
-			goto out;
-		}
+		if (!rdev->ops->set_wiphy_params)
+			return -EOPNOTSUPP;
 
 		old_retry_short = rdev->wiphy.retry_short;
 		old_retry_long = rdev->wiphy.retry_long;
@@ -3918,15 +3892,11 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 			rdev->wiphy.txq_limit = old_txq_limit;
 			rdev->wiphy.txq_memory_limit = old_txq_memory_limit;
 			rdev->wiphy.txq_quantum = old_txq_quantum;
-			goto out;
+			return result;
 		}
 	}
 
-	result = 0;
-
-out:
-	wiphy_unlock(&rdev->wiphy);
-	return result;
+	return 0;
 }
 
 int nl80211_send_chandef(struct sk_buff *msg, const struct cfg80211_chan_def *chandef)
@@ -4010,10 +3980,10 @@ static int nl80211_send_iface(struct sk_buff *msg, u32 portid, u32 seq, int flag
 			goto nla_put_failure;
 	}
 
-	if (rdev->ops->get_tx_power) {
+	if (rdev->ops->get_tx_power && !wdev->valid_links) {
 		int dbm, ret;
 
-		ret = rdev_get_tx_power(rdev, wdev, &dbm);
+		ret = rdev_get_tx_power(rdev, wdev, 0, &dbm);
 		if (ret == 0 &&
 		    nla_put_u32(msg, NL80211_ATTR_WIPHY_TX_POWER_LEVEL,
 				DBM_TO_MBM(dbm)))
@@ -4082,6 +4052,15 @@ static int nl80211_send_iface(struct sk_buff *msg, u32 portid, u32 seq, int flag
 			if (ret == 0 && nl80211_send_chandef(msg, &chandef))
 				goto nla_put_failure;
 
+			if (rdev->ops->get_tx_power) {
+				int dbm, ret;
+
+				ret = rdev_get_tx_power(rdev, wdev, link_id, &dbm);
+				if (ret == 0 &&
+				    nla_put_u32(msg, NL80211_ATTR_WIPHY_TX_POWER_LEVEL,
+						DBM_TO_MBM(dbm)))
+					goto nla_put_failure;
+			}
 			nla_nest_end(msg, link);
 		}
 
@@ -4144,22 +4123,22 @@ static int nl80211_dump_interface(struct sk_buff *skb, struct netlink_callback *
 
 		if_idx = 0;
 
-		wiphy_lock(&rdev->wiphy);
+		guard(wiphy)(&rdev->wiphy);
+
 		list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
 			if (if_idx < if_start) {
 				if_idx++;
 				continue;
 			}
+
 			if (nl80211_send_iface(skb, NETLINK_CB(cb->skb).portid,
 					       cb->nlh->nlmsg_seq, NLM_F_MULTI,
 					       rdev, wdev,
-					       NL80211_CMD_NEW_INTERFACE) < 0) {
-				wiphy_unlock(&rdev->wiphy);
+					       NL80211_CMD_NEW_INTERFACE) < 0)
 				goto out;
-			}
+
 			if_idx++;
 		}
-		wiphy_unlock(&rdev->wiphy);
 
 		if_start = 0;
 		wp_idx++;
@@ -4517,16 +4496,13 @@ static int _nl80211_new_interface(struct sk_buff *skb, struct genl_info *info)
 static int nl80211_new_interface(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
-	int ret;
 
 	/* to avoid failing a new interface creation due to pending removal */
 	cfg80211_destroy_ifaces(rdev);
 
-	wiphy_lock(&rdev->wiphy);
-	ret = _nl80211_new_interface(skb, info);
-	wiphy_unlock(&rdev->wiphy);
+	guard(wiphy)(&rdev->wiphy);
 
-	return ret;
+	return _nl80211_new_interface(skb, info);
 }
 
 static int nl80211_del_interface(struct sk_buff *skb, struct genl_info *info)
@@ -10098,7 +10074,7 @@ static int nl80211_start_radar_detection(struct sk_buff *skb,
 	struct cfg80211_chan_def chandef;
 	enum nl80211_dfs_regions dfs_region;
 	unsigned int cac_time_ms;
-	int err = -EINVAL;
+	int err;
 
 	flush_delayed_work(&rdev->dfs_update_channels_wk);
 
@@ -10113,35 +10089,29 @@ static int nl80211_start_radar_detection(struct sk_buff *skb,
 		return -EINVAL;
 	}
 
-	wiphy_lock(wiphy);
+	guard(wiphy)(wiphy);
 
 	dfs_region = reg_get_dfs_region(wiphy);
 	if (dfs_region == NL80211_DFS_UNSET)
-		goto unlock;
+		return -EINVAL;
 
 	err = nl80211_parse_chandef(rdev, info, &chandef);
 	if (err)
-		goto unlock;
+		return err;
 
 	err = cfg80211_chandef_dfs_required(wiphy, &chandef, wdev->iftype);
 	if (err < 0)
-		goto unlock;
+		return err;
 
-	if (err == 0) {
-		err = -EINVAL;
-		goto unlock;
-	}
+	if (err == 0)
+		return -EINVAL;
 
-	if (!cfg80211_chandef_dfs_usable(wiphy, &chandef)) {
-		err = -EINVAL;
-		goto unlock;
-	}
+	if (!cfg80211_chandef_dfs_usable(wiphy, &chandef))
+		return -EINVAL;
 
-	if (nla_get_flag(info->attrs[NL80211_ATTR_RADAR_BACKGROUND])) {
-		err = cfg80211_start_background_radar_detection(rdev, wdev,
-								&chandef);
-		goto unlock;
-	}
+	if (nla_get_flag(info->attrs[NL80211_ATTR_RADAR_BACKGROUND]))
+		return cfg80211_start_background_radar_detection(rdev, wdev,
+								 &chandef);
 
 	if (cfg80211_beaconing_iface_active(wdev)) {
 		/* During MLO other link(s) can beacon, only the current link
@@ -10151,26 +10121,19 @@ static int nl80211_start_radar_detection(struct sk_buff *skb,
 		    !wdev->links[link_id].ap.beacon_interval) {
 			/* nothing */
 		} else {
-			err = -EBUSY;
-			goto unlock;
+			return -EBUSY;
 		}
 	}
 
-	if (wdev->links[link_id].cac_started) {
-		err = -EBUSY;
-		goto unlock;
-	}
+	if (wdev->links[link_id].cac_started)
+		return -EBUSY;
 
 	/* CAC start is offloaded to HW and can't be started manually */
-	if (wiphy_ext_feature_isset(wiphy, NL80211_EXT_FEATURE_DFS_OFFLOAD)) {
-		err = -EOPNOTSUPP;
-		goto unlock;
-	}
+	if (wiphy_ext_feature_isset(wiphy, NL80211_EXT_FEATURE_DFS_OFFLOAD))
+		return -EOPNOTSUPP;
 
-	if (!rdev->ops->start_radar_detection) {
-		err = -EOPNOTSUPP;
-		goto unlock;
-	}
+	if (!rdev->ops->start_radar_detection)
+		return -EOPNOTSUPP;
 
 	cac_time_ms = cfg80211_chandef_dfs_cac_time(&rdev->wiphy, &chandef);
 	if (WARN_ON(!cac_time_ms))
@@ -10197,10 +10160,8 @@ static int nl80211_start_radar_detection(struct sk_buff *skb,
 		wdev->links[link_id].cac_start_time = jiffies;
 		wdev->links[link_id].cac_time_ms = cac_time_ms;
 	}
-unlock:
-	wiphy_unlock(wiphy);
 
-	return err;
+	return 0;
 }
 
 static int nl80211_notify_radar_detection(struct sk_buff *skb,

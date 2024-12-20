@@ -295,7 +295,6 @@ static int ieee80211_change_mac(struct net_device *dev, void *addr)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = sdata->local;
-	int ret;
 
 	/*
 	 * This happens during unregistration if there's a bond device
@@ -305,11 +304,9 @@ static int ieee80211_change_mac(struct net_device *dev, void *addr)
 	if (!dev->ieee80211_ptr->registered)
 		return 0;
 
-	wiphy_lock(local->hw.wiphy);
-	ret = _ieee80211_change_mac(sdata, addr);
-	wiphy_unlock(local->hw.wiphy);
+	guard(wiphy)(local->hw.wiphy);
 
-	return ret;
+	return _ieee80211_change_mac(sdata, addr);
 }
 
 static inline int identical_mac_addr_allowed(int type1, int type2)
@@ -445,16 +442,13 @@ static int ieee80211_open(struct net_device *dev)
 	if (!is_valid_ether_addr(dev->dev_addr))
 		return -EADDRNOTAVAIL;
 
-	wiphy_lock(sdata->local->hw.wiphy);
+	guard(wiphy)(sdata->local->hw.wiphy);
+
 	err = ieee80211_check_concurrent_iface(sdata, sdata->vif.type);
 	if (err)
-		goto out;
+		return err;
 
-	err = ieee80211_do_open(&sdata->wdev, true);
-out:
-	wiphy_unlock(sdata->local->hw.wiphy);
-
-	return err;
+	return ieee80211_do_open(&sdata->wdev, true);
 }
 
 static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_down)
@@ -775,11 +769,11 @@ static int ieee80211_stop(struct net_device *dev)
 		ieee80211_stop_mbssid(sdata);
 	}
 
-	wiphy_lock(sdata->local->hw.wiphy);
+	guard(wiphy)(sdata->local->hw.wiphy);
+
 	wiphy_work_cancel(sdata->local->hw.wiphy, &sdata->activate_links_work);
 
 	ieee80211_do_stop(sdata, true);
-	wiphy_unlock(sdata->local->hw.wiphy);
 
 	return 0;
 }
@@ -2279,7 +2273,7 @@ void ieee80211_remove_interfaces(struct ieee80211_local *local)
 	 */
 	cfg80211_shutdown_all_interfaces(local->hw.wiphy);
 
-	wiphy_lock(local->hw.wiphy);
+	guard(wiphy)(local->hw.wiphy);
 
 	WARN(local->open_count, "%s: open count remains %d\n",
 	     wiphy_name(local->hw.wiphy), local->open_count);
@@ -2309,7 +2303,6 @@ void ieee80211_remove_interfaces(struct ieee80211_local *local)
 		if (!netdev)
 			kfree(sdata);
 	}
-	wiphy_unlock(local->hw.wiphy);
 }
 
 static int netdev_notify(struct notifier_block *nb,

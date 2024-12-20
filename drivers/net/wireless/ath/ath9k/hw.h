@@ -282,7 +282,7 @@ enum ath9k_hw_caps {
  * an exact user defined pattern or de-authentication/disassoc pattern.
  * @ATH9K_HW_WOW_PATTERN_MATCH_DWORD: device requires the first four
  * bytes of the pattern for user defined pattern, de-authentication and
- * disassociation patterns for all types of possible frames recieved
+ * disassociation patterns for all types of possible frames received
  * of those types.
  */
 

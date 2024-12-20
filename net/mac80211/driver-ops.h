@@ -1273,7 +1273,8 @@ static inline u32 drv_get_expected_throughput(struct ieee80211_local *local,
 }
 
 static inline int drv_get_txpower(struct ieee80211_local *local,
-				  struct ieee80211_sub_if_data *sdata, int *dbm)
+				  struct ieee80211_sub_if_data *sdata,
+				  unsigned int link_id, int *dbm)
 {
 	int ret;
 
@@ -1283,8 +1284,8 @@ static inline int drv_get_txpower(struct ieee80211_local *local,
 	if (!local->ops->get_txpower)
 		return -EOPNOTSUPP;
 
-	ret = local->ops->get_txpower(&local->hw, &sdata->vif, dbm);
-	trace_drv_get_txpower(local, sdata, *dbm, ret);
+	ret = local->ops->get_txpower(&local->hw, &sdata->vif, link_id, dbm);
+	trace_drv_get_txpower(local, sdata, link_id, *dbm, ret);
 
 	return ret;
 }

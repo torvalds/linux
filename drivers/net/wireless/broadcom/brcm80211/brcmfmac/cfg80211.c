@@ -2676,7 +2676,7 @@ done:
 
 static s32
 brcmf_cfg80211_get_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev,
-			    s32 *dbm)
+			    unsigned int link_id, s32 *dbm)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct brcmf_cfg80211_vif *vif = wdev_to_vif(wdev);
@@ -4999,11 +4999,15 @@ exit:
 s32 brcmf_vif_clear_mgmt_ies(struct brcmf_cfg80211_vif *vif)
 {
 	static const s32 pktflags[] = {
-		BRCMF_VNDR_IE_PRBREQ_FLAG,
 		BRCMF_VNDR_IE_PRBRSP_FLAG,
 		BRCMF_VNDR_IE_BEACON_FLAG
 	};
 	int i;
+
+	if (vif->wdev.iftype == NL80211_IFTYPE_AP)
+		brcmf_vif_set_mgmt_ie(vif, BRCMF_VNDR_IE_ASSOCRSP_FLAG, NULL, 0);
+	else
+		brcmf_vif_set_mgmt_ie(vif, BRCMF_VNDR_IE_PRBREQ_FLAG, NULL, 0);
 
 	for (i = 0; i < ARRAY_SIZE(pktflags); i++)
 		brcmf_vif_set_mgmt_ie(vif, pktflags[i], NULL, 0);

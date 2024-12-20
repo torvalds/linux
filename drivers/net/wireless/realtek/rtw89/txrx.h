@@ -560,6 +560,9 @@ struct rtw89_phy_sts_iehdr {
 #define BE_RXD_HDR_OFFSET_MASK GENMASK(20, 16)
 #define BE_RXD_WL_HD_IV_LEN_MASK GENMASK(26, 21)
 
+/* BE RXD - PHY RPT dword0 */
+#define BE_RXD_PHY_RSSI GENMASK(11, 0)
+
 struct rtw89_phy_sts_ie00 {
 	__le32 w0;
 	__le32 w1;

@@ -1596,7 +1596,7 @@ void mt76_wcid_cleanup(struct mt76_dev *dev, struct mt76_wcid *wcid)
 EXPORT_SYMBOL_GPL(mt76_wcid_cleanup);
 
 int mt76_get_txpower(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		     int *dbm)
+		     unsigned int link_id, int *dbm)
 {
 	struct mt76_phy *phy = hw->priv;
 	int n_chains = hweight16(phy->chainmask);

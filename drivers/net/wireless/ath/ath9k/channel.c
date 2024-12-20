@@ -17,7 +17,7 @@
 #include "ath9k.h"
 
 /* Set/change channels.  If the channel is really being changed, it's done
- * by reseting the chip.  To accomplish this we must first cleanup any pending
+ * by resetting the chip.  To accomplish this we must first cleanup any pending
  * DMA, then restart stuff.
  */
 static int ath_set_channel(struct ath_softc *sc)

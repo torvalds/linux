@@ -3190,19 +3190,27 @@ static int ieee80211_set_tx_power(struct wiphy *wiphy,
 
 static int ieee80211_get_tx_power(struct wiphy *wiphy,
 				  struct wireless_dev *wdev,
+				  unsigned int link_id,
 				  int *dbm)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
+	struct ieee80211_link_data *link_data;
 
 	if (local->ops->get_txpower &&
 	    (sdata->flags & IEEE80211_SDATA_IN_DRIVER))
-		return drv_get_txpower(local, sdata, dbm);
+		return drv_get_txpower(local, sdata, link_id, dbm);
 
-	if (local->emulate_chanctx)
+	if (local->emulate_chanctx) {
 		*dbm = local->hw.conf.power_level;
-	else
-		*dbm = sdata->vif.bss_conf.txpower;
+	} else {
+		link_data = wiphy_dereference(wiphy, sdata->link[link_id]);
+
+		if (link_data)
+			*dbm = link_data->conf->txpower;
+		else
+			return -ENOLINK;
+	}
 
 	/* INT_MIN indicates no power level was set yet */
 	if (*dbm == INT_MIN)

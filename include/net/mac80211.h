@@ -4762,7 +4762,7 @@ struct ieee80211_ops {
 	u32 (*get_expected_throughput)(struct ieee80211_hw *hw,
 				       struct ieee80211_sta *sta);
 	int (*get_txpower)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			   int *dbm);
+			   unsigned int link_id, int *dbm);
 
 	int (*tdls_channel_switch)(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif,

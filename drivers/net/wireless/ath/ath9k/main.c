@@ -453,6 +453,7 @@ void ath9k_tasklet(struct tasklet_struct *t)
 			ath_rx_tasklet(sc, 0, true);
 
 		ath_rx_tasklet(sc, 0, false);
+		sc->rx_active_count++;
 	}
 
 	if (status & ATH9K_INT_TX) {
@@ -1001,7 +1002,7 @@ static bool ath9k_uses_beacons(int type)
 static void ath9k_vif_iter_set_beacon(struct ath9k_vif_iter_data *iter_data,
 				      struct ieee80211_vif *vif)
 {
-	/* Use the first (configured) interface, but prefering AP interfaces. */
+	/* Use the first (configured) interface, but preferring AP interfaces. */
 	if (!iter_data->primary_beacon_vif) {
 		iter_data->primary_beacon_vif = vif;
 	} else {
@@ -2767,7 +2768,7 @@ void ath9k_fill_chanctx_ops(void)
 #endif
 
 static int ath9k_get_txpower(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			     int *dbm)
+			     unsigned int link_id, int *dbm)
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_vif *avp = (void *)vif->drv_priv;

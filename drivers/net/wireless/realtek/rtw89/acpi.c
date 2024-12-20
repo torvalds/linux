@@ -148,3 +148,50 @@ int rtw89_acpi_evaluate_dsm(struct rtw89_dev *rtwdev,
 	ACPI_FREE(obj);
 	return ret;
 }
+
+int rtw89_acpi_evaluate_rtag(struct rtw89_dev *rtwdev,
+			     struct rtw89_acpi_rtag_result *res)
+{
+	struct acpi_buffer buf = {ACPI_ALLOCATE_BUFFER, NULL};
+	acpi_handle root, handle;
+	union acpi_object *obj;
+	acpi_status status;
+	u32 buf_len;
+	int ret = 0;
+
+	root = ACPI_HANDLE(rtwdev->dev);
+	if (!root)
+		return -EOPNOTSUPP;
+
+	status = acpi_get_handle(root, (acpi_string)"RTAG", &handle);
+	if (ACPI_FAILURE(status))
+		return -EIO;
+
+	status = acpi_evaluate_object(handle, NULL, NULL, &buf);
+	if (ACPI_FAILURE(status))
+		return -EIO;
+
+	obj = buf.pointer;
+	if (obj->type != ACPI_TYPE_BUFFER) {
+		rtw89_debug(rtwdev, RTW89_DBG_ACPI,
+			    "acpi: expect buffer but type: %d\n", obj->type);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	buf_len = obj->buffer.length;
+	if (buf_len != sizeof(*res)) {
+		rtw89_debug(rtwdev, RTW89_DBG_ACPI, "%s: invalid buffer length: %u\n",
+			    __func__, buf_len);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	*res = *(struct rtw89_acpi_rtag_result *)obj->buffer.pointer;
+
+	rtw89_hex_dump(rtwdev, RTW89_DBG_ACPI, "antenna_gain: ", res, sizeof(*res));
+
+out:
+	ACPI_FREE(obj);
+	return ret;
+}
