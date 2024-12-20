@@ -1672,7 +1672,10 @@ static int parse_stat_value(const char *str, enum stat_id id, struct verif_stats
 	case TOTAL_STATES:
 	case PEAK_STATES:
 	case MAX_STATES_PER_INSN:
-	case MARK_READ_MAX_LEN: {
+	case MARK_READ_MAX_LEN:
+	case SIZE:
+	case JITED_SIZE:
+	case STACK: {
 		long val;
 		int err, n;
 
@@ -1685,6 +1688,9 @@ static int parse_stat_value(const char *str, enum stat_id id, struct verif_stats
 		st->stats[id] = val;
 		break;
 	}
+	case PROG_TYPE:
+	case ATTACH_TYPE:
+		break;
 	default:
 		fprintf(stderr, "Unrecognized stat #%d\n", id);
 		return -EINVAL;
