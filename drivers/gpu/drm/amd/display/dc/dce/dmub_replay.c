@@ -280,7 +280,9 @@ static void dmub_replay_set_power_opt_and_coasting_vtotal(struct dmub_replay *dm
 	memset(&cmd, 0, sizeof(cmd));
 	pCmd->header.type = DMUB_CMD__REPLAY;
 	pCmd->header.sub_type = DMUB_CMD__REPLAY_SET_POWER_OPT_AND_COASTING_VTOTAL;
-	pCmd->header.payload_bytes = sizeof(struct dmub_rb_cmd_replay_set_power_opt_and_coasting_vtotal);
+	pCmd->header.payload_bytes =
+			sizeof(struct dmub_rb_cmd_replay_set_power_opt_and_coasting_vtotal) -
+			sizeof(struct dmub_cmd_header);
 	pCmd->replay_set_power_opt_data.power_opt = power_opt;
 	pCmd->replay_set_power_opt_data.panel_inst = panel_inst;
 	pCmd->replay_set_coasting_vtotal_data.coasting_vtotal = (coasting_vtotal & 0xFFFF);
@@ -319,7 +321,8 @@ static void dmub_replay_send_cmd(struct dmub_replay *dmub,
 		cmd.replay_set_timing_sync.header.sub_type =
 			DMUB_CMD__REPLAY_SET_TIMING_SYNC_SUPPORTED;
 		cmd.replay_set_timing_sync.header.payload_bytes =
-			sizeof(struct dmub_rb_cmd_replay_set_timing_sync);
+			sizeof(struct dmub_rb_cmd_replay_set_timing_sync) -
+			sizeof(struct dmub_cmd_header);
 		//Cmd Body
 		cmd.replay_set_timing_sync.replay_set_timing_sync_data.panel_inst =
 						cmd_element->sync_data.panel_inst;
@@ -331,7 +334,8 @@ static void dmub_replay_send_cmd(struct dmub_replay *dmub,
 		cmd.replay_set_frameupdate_timer.header.sub_type =
 			DMUB_CMD__REPLAY_SET_RESIDENCY_FRAMEUPDATE_TIMER;
 		cmd.replay_set_frameupdate_timer.header.payload_bytes =
-			sizeof(struct dmub_rb_cmd_replay_set_frameupdate_timer);
+			sizeof(struct dmub_rb_cmd_replay_set_frameupdate_timer) -
+			sizeof(struct dmub_cmd_header);
 		//Cmd Body
 		cmd.replay_set_frameupdate_timer.data.panel_inst =
 						cmd_element->panel_inst;
@@ -345,7 +349,8 @@ static void dmub_replay_send_cmd(struct dmub_replay *dmub,
 		cmd.replay_set_pseudo_vtotal.header.sub_type =
 			DMUB_CMD__REPLAY_SET_PSEUDO_VTOTAL;
 		cmd.replay_set_pseudo_vtotal.header.payload_bytes =
-			sizeof(struct dmub_rb_cmd_replay_set_pseudo_vtotal);
+			sizeof(struct dmub_rb_cmd_replay_set_pseudo_vtotal) -
+			sizeof(struct dmub_cmd_header);
 		//Cmd Body
 		cmd.replay_set_pseudo_vtotal.data.panel_inst =
 			cmd_element->pseudo_vtotal_data.panel_inst;
@@ -357,7 +362,8 @@ static void dmub_replay_send_cmd(struct dmub_replay *dmub,
 		cmd.replay_disabled_adaptive_sync_sdp.header.sub_type =
 			DMUB_CMD__REPLAY_DISABLED_ADAPTIVE_SYNC_SDP;
 		cmd.replay_disabled_adaptive_sync_sdp.header.payload_bytes =
-			sizeof(struct dmub_rb_cmd_replay_disabled_adaptive_sync_sdp);
+			sizeof(struct dmub_rb_cmd_replay_disabled_adaptive_sync_sdp) -
+			sizeof(struct dmub_cmd_header);
 		//Cmd Body
 		cmd.replay_disabled_adaptive_sync_sdp.data.panel_inst =
 			cmd_element->disabled_adaptive_sync_sdp_data.panel_inst;
@@ -369,7 +375,8 @@ static void dmub_replay_send_cmd(struct dmub_replay *dmub,
 		cmd.replay_set_general_cmd.header.sub_type =
 			DMUB_CMD__REPLAY_SET_GENERAL_CMD;
 		cmd.replay_set_general_cmd.header.payload_bytes =
-			sizeof(struct dmub_rb_cmd_replay_set_general_cmd);
+			sizeof(struct dmub_rb_cmd_replay_set_general_cmd) -
+			sizeof(struct dmub_cmd_header);
 		//Cmd Body
 		cmd.replay_set_general_cmd.data.panel_inst =
 			cmd_element->set_general_cmd_data.panel_inst;

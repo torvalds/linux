@@ -1332,6 +1332,16 @@ enum dmub_inbox0_command {
 #define DMUB_RB_SIZE (DMUB_RB_CMD_SIZE * DMUB_RB_MAX_ENTRY)
 
 /**
+ * Maximum number of items in the DMUB REG INBOX0 internal ringbuffer.
+ */
+#define DMUB_REG_INBOX0_RB_MAX_ENTRY 16
+
+/**
+ * Ringbuffer size in bytes.
+ */
+#define DMUB_REG_INBOX0_RB_SIZE (DMUB_RB_CMD_SIZE * DMUB_REG_INBOX0_RB_MAX_ENTRY)
+
+/**
  * REG_SET mask for reg offload.
  */
 #define REG_SET_MASK 0xFFFF
@@ -1533,7 +1543,8 @@ struct dmub_cmd_header {
 	unsigned int sub_type : 8; /**< command sub type */
 	unsigned int ret_status : 1; /**< 1 if returned data, 0 otherwise */
 	unsigned int multi_cmd_pending : 1; /**< 1 if multiple commands chained together */
-	unsigned int reserved0 : 6; /**< reserved bits */
+	unsigned int is_reg_based : 1; /**< 1 if register based mailbox cmd, 0 if FB based cmd */
+	unsigned int reserved0 : 5; /**< reserved bits */
 	unsigned int payload_bytes : 6;  /* payload excluding header - up to 60 bytes */
 	unsigned int reserved1 : 2; /**< reserved bits */
 };
@@ -5888,6 +5899,42 @@ struct dmub_rb {
 static inline bool dmub_rb_empty(struct dmub_rb *rb)
 {
 	return (rb->wrpt == rb->rptr);
+}
+
+/**
+ * @brief gets number of outstanding requests in the RB
+ *
+ * @param rb DMUB Ringbuffer
+ * @return true if full
+ */
+static inline uint32_t dmub_rb_num_outstanding(struct dmub_rb *rb)
+{
+	uint32_t data_count;
+
+	if (rb->wrpt >= rb->rptr)
+		data_count = rb->wrpt - rb->rptr;
+	else
+		data_count = rb->capacity - (rb->rptr - rb->wrpt);
+
+	return data_count / DMUB_RB_CMD_SIZE;
+}
+
+/**
+ * @brief gets number of free buffers in the RB
+ *
+ * @param rb DMUB Ringbuffer
+ * @return true if full
+ */
+static inline uint32_t dmub_rb_num_free(struct dmub_rb *rb)
+{
+	uint32_t data_count;
+
+	if (rb->wrpt >= rb->rptr)
+		data_count = rb->wrpt - rb->rptr;
+	else
+		data_count = rb->capacity - (rb->rptr - rb->wrpt);
+
+	return (rb->capacity - data_count) / DMUB_RB_CMD_SIZE;
 }
 
 /**
