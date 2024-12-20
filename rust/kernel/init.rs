@@ -290,9 +290,17 @@ macro_rules! stack_pin_init {
 ///
 /// ```rust,ignore
 /// # #![expect(clippy::disallowed_names)]
-/// # use kernel::{init, pin_init, stack_try_pin_init, init::*, sync::Mutex, new_mutex};
+/// # use kernel::{
+/// #     init,
+/// #     pin_init,
+/// #     stack_try_pin_init,
+/// #     init::*,
+/// #     sync::Mutex,
+/// #     new_mutex,
+/// #     alloc::AllocError,
+/// # };
 /// # use macros::pin_data;
-/// # use core::{alloc::AllocError, pin::Pin};
+/// # use core::pin::Pin;
 /// #[pin_data]
 /// struct Foo {
 ///     #[pin]
@@ -316,9 +324,17 @@ macro_rules! stack_pin_init {
 ///
 /// ```rust,ignore
 /// # #![expect(clippy::disallowed_names)]
-/// # use kernel::{init, pin_init, stack_try_pin_init, init::*, sync::Mutex, new_mutex};
+/// # use kernel::{
+/// #     init,
+/// #     pin_init,
+/// #     stack_try_pin_init,
+/// #     init::*,
+/// #     sync::Mutex,
+/// #     new_mutex,
+/// #     alloc::AllocError,
+/// # };
 /// # use macros::pin_data;
-/// # use core::{alloc::AllocError, pin::Pin};
+/// # use core::pin::Pin;
 /// #[pin_data]
 /// struct Foo {
 ///     #[pin]
