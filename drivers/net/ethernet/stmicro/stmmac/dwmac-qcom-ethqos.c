@@ -462,6 +462,14 @@ u16 dwmac_qcom_select_queue(struct net_device *dev,
 {
 	u16 txqueue_select = ALL_OTHER_TRAFFIC_TX_CHANNEL;
 	unsigned int eth_type, priority;
+	int gso = skb_shinfo(skb)->gso_type;
+
+	if (skb && skb->priority) {
+		if (gso & (SKB_GSO_TCPV4 | SKB_GSO_TCPV6 | SKB_GSO_UDP_L4))
+			return 0;
+		else
+			return netdev_pick_tx(dev, skb, NULL) % dev->real_num_tx_queues;
+	}
 
 	/* Retrieve ETH type */
 	eth_type = dwmac_qcom_get_eth_type(skb->data);
