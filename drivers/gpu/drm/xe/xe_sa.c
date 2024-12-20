@@ -44,8 +44,6 @@ struct xe_sa_manager *xe_sa_bo_manager_init(struct xe_tile *tile, u32 size, u32 
 	if (!sa_manager)
 		return ERR_PTR(-ENOMEM);
 
-	sa_manager->bo = NULL;
-
 	bo = xe_managed_bo_create_pin_map(xe, tile, size,
 					  XE_BO_FLAG_VRAM_IF_DGFX(tile) |
 					  XE_BO_FLAG_GGTT |
@@ -61,10 +59,8 @@ struct xe_sa_manager *xe_sa_bo_manager_init(struct xe_tile *tile, u32 size, u32 
 
 	if (bo->vmap.is_iomem) {
 		sa_manager->cpu_ptr = kvzalloc(managed_size, GFP_KERNEL);
-		if (!sa_manager->cpu_ptr) {
-			sa_manager->bo = NULL;
+		if (!sa_manager->cpu_ptr)
 			return ERR_PTR(-ENOMEM);
-		}
 	} else {
 		sa_manager->cpu_ptr = bo->vmap.vaddr;
 		memset(sa_manager->cpu_ptr, 0, bo->ttm.base.size);
