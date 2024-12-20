@@ -357,8 +357,6 @@ struct dml2_pmo_pstate_strategy {
 	enum dml2_pstate_method per_stream_pstate_method[DML2_MAX_PLANES];
 	bool allow_state_increase;
 };
-
-
 struct dml2_core_mode_support_in_out {
 	/*
 	* Inputs

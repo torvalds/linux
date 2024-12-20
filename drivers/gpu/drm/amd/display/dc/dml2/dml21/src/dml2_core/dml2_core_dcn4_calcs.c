@@ -3528,10 +3528,9 @@ static void CalculateUrgentBurstFactor(
 	dml2_printf("DML::%s: UrgentBurstFactorChroma = %f\n", __func__, *UrgentBurstFactorChroma);
 	dml2_printf("DML::%s: NotEnoughUrgentLatencyHiding = %d\n", __func__, *NotEnoughUrgentLatencyHiding);
 #endif
-
 }
 
-static void CalculateDCFCLKDeepSleep(
+static void CalculateDCFCLKDeepSleepTdlut(
 	const struct dml2_display_cfg *display_cfg,
 	unsigned int NumberOfActiveSurfaces,
 	unsigned int BytePerPixelY[],
@@ -3545,6 +3544,10 @@ static void CalculateDCFCLKDeepSleep(
 	double ReadBandwidthLuma[],
 	double ReadBandwidthChroma[],
 	unsigned int ReturnBusWidth,
+
+	double dispclk,
+	unsigned int tdlut_bytes_to_deliver[],
+	double prefetch_swath_time_us[],
 
 	// Output
 	double *DCFClkDeepSleep)
@@ -3580,6 +3583,22 @@ static void CalculateDCFCLKDeepSleep(
 		}
 		DCFClkDeepSleepPerSurface[k] = math_max2(DCFClkDeepSleepPerSurface[k], pixel_rate_mhz / 16);
 
+		// adjust for 3dlut delivery time
+		if (display_cfg->plane_descriptors[k].tdlut.setup_for_tdlut && tdlut_bytes_to_deliver[k] > 0) {
+			double tdlut_required_deepsleep_dcfclk = (double) tdlut_bytes_to_deliver[k] / 64.0 / prefetch_swath_time_us[k];
+
+			dml2_printf("DML::%s: k=%d, DCFClkDeepSleepPerSurface = %f\n", __func__, k, DCFClkDeepSleepPerSurface[k]);
+			dml2_printf("DML::%s: k=%d, tdlut_bytes_to_deliver = %d\n", __func__, k, tdlut_bytes_to_deliver[k]);
+			dml2_printf("DML::%s: k=%d, prefetch_swath_time_us = %f\n", __func__, k, prefetch_swath_time_us[k]);
+			dml2_printf("DML::%s: k=%d, tdlut_required_deepsleep_dcfclk = %f\n", __func__, k, tdlut_required_deepsleep_dcfclk);
+
+			// increase the deepsleep dcfclk to match the original dispclk throughput rate
+			if (tdlut_required_deepsleep_dcfclk > DCFClkDeepSleepPerSurface[k]) {
+				DCFClkDeepSleepPerSurface[k] = math_max2(DCFClkDeepSleepPerSurface[k], tdlut_required_deepsleep_dcfclk);
+				DCFClkDeepSleepPerSurface[k] = math_max2(DCFClkDeepSleepPerSurface[k], dispclk / 4.0);
+			}
+		}
+
 #ifdef __DML_VBA_DEBUG__
 		dml2_printf("DML::%s: k=%u, PixelClock = %f\n", __func__, k, pixel_rate_mhz);
 		dml2_printf("DML::%s: k=%u, DCFClkDeepSleepPerSurface = %f\n", __func__, k, DCFClkDeepSleepPerSurface[k]);
@@ -3602,7 +3621,54 @@ static void CalculateDCFCLKDeepSleep(
 	for (unsigned int k = 0; k < NumberOfActiveSurfaces; ++k) {
 		*DCFClkDeepSleep = math_max2(*DCFClkDeepSleep, DCFClkDeepSleepPerSurface[k]);
 	}
+
 	dml2_printf("DML::%s: DCFClkDeepSleep = %f (final)\n", __func__, *DCFClkDeepSleep);
+}
+
+static void CalculateDCFCLKDeepSleep(
+	const struct dml2_display_cfg *display_cfg,
+	unsigned int NumberOfActiveSurfaces,
+	unsigned int BytePerPixelY[],
+	unsigned int BytePerPixelC[],
+	unsigned int SwathWidthY[],
+	unsigned int SwathWidthC[],
+	unsigned int DPPPerSurface[],
+	double PSCL_THROUGHPUT[],
+	double PSCL_THROUGHPUT_CHROMA[],
+	double Dppclk[],
+	double ReadBandwidthLuma[],
+	double ReadBandwidthChroma[],
+	unsigned int ReturnBusWidth,
+
+	// Output
+	double *DCFClkDeepSleep)
+{
+	double zero_double[DML2_MAX_PLANES];
+	unsigned int zero_integer[DML2_MAX_PLANES];
+
+	memset(zero_double, 0, DML2_MAX_PLANES * sizeof(double));
+	memset(zero_integer, 0, DML2_MAX_PLANES * sizeof(unsigned int));
+
+	CalculateDCFCLKDeepSleepTdlut(
+		display_cfg,
+		NumberOfActiveSurfaces,
+		BytePerPixelY,
+		BytePerPixelC,
+		SwathWidthY,
+		SwathWidthC,
+		DPPPerSurface,
+		PSCL_THROUGHPUT,
+		PSCL_THROUGHPUT_CHROMA,
+		Dppclk,
+		ReadBandwidthLuma,
+		ReadBandwidthChroma,
+		ReturnBusWidth,
+		0,
+		zero_integer, //tdlut_bytes_to_deliver,
+		zero_double, //prefetch_swath_time_us,
+
+		// Output
+		DCFClkDeepSleep);
 }
 
 static double CalculateWriteBackDelay(
@@ -4604,6 +4670,7 @@ static void calculate_tdlut_setting(
 		*p->tdlut_groups_per_2row_ub = 0;
 		*p->tdlut_opt_time = 0;
 		*p->tdlut_drain_time = 0;
+		*p->tdlut_bytes_to_deliver = 0;
 		*p->tdlut_bytes_per_group = 0;
 		*p->tdlut_pte_bytes_per_frame = 0;
 		*p->tdlut_bytes_per_frame = 0;
@@ -4672,6 +4739,7 @@ static void calculate_tdlut_setting(
 		*p->tdlut_groups_per_2row_ub = (unsigned int)math_ceil2((double) *p->tdlut_bytes_per_frame / *p->tdlut_bytes_per_group, 1);
 		*p->tdlut_opt_time = (*p->tdlut_bytes_per_frame - p->cursor_buffer_size * 1024) / tdlut_drain_rate;
 		*p->tdlut_drain_time = p->cursor_buffer_size * 1024 / tdlut_drain_rate;
+		*p->tdlut_bytes_to_deliver = (unsigned int) (p->cursor_buffer_size * 1024.0);
 	}
 
 #ifdef __DML_VBA_DEBUG__
@@ -4692,6 +4760,7 @@ static void calculate_tdlut_setting(
 	dml2_printf("DML::%s: tdlut_delivery_cycles = %u\n", __func__, tdlut_delivery_cycles);
 	dml2_printf("DML::%s: tdlut_opt_time = %f\n", __func__, *p->tdlut_opt_time);
 	dml2_printf("DML::%s: tdlut_drain_time = %f\n", __func__, *p->tdlut_drain_time);
+	dml2_printf("DML::%s: tdlut_bytes_to_deliver = %d\n", __func__, *p->tdlut_bytes_to_deliver);
 	dml2_printf("DML::%s: tdlut_groups_per_2row_ub = %d\n", __func__, *p->tdlut_groups_per_2row_ub);
 #endif
 }
@@ -5700,6 +5769,7 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 
 		s->cursor_prefetch_bytes = (unsigned int)math_max2(p->cursor_bytes_per_chunk, 4 * p->cursor_bytes_per_line);
 		*p->prefetch_cursor_bw = p->num_cursors * s->cursor_prefetch_bytes / (s->LinesToRequestPrefetchPixelData * s->LineTime);
+		*p->prefetch_swath_time_us = (s->LinesToRequestPrefetchPixelData * s->LineTime);
 
 #ifdef __DML_VBA_DEBUG__
 		dml2_printf("DML::%s: TimeForFetchingVM = %f\n", __func__, s->TimeForFetchingVM);
@@ -5710,6 +5780,7 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 		dml2_printf("DML::%s: dst_y_per_row_vblank = %f\n", __func__, *p->dst_y_per_row_vblank);
 		dml2_printf("DML::%s: LinesToRequestPrefetchPixelData = %f\n", __func__, s->LinesToRequestPrefetchPixelData);
 		dml2_printf("DML::%s: PrefetchSourceLinesY = %f\n", __func__, p->PrefetchSourceLinesY);
+		dml2_printf("DML::%s: prefetch_swath_time_us = %f\n", __func__, *p->prefetch_swath_time_us);
 
 		dml2_printf("DML::%s: cursor_bytes_per_chunk = %d\n", __func__, p->cursor_bytes_per_chunk);
 		dml2_printf("DML::%s: cursor_bytes_per_line = %d\n", __func__, p->cursor_bytes_per_line);
@@ -8817,6 +8888,7 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 			calculate_tdlut_setting_params->tdlut_groups_per_2row_ub = &s->tdlut_groups_per_2row_ub[k];
 			calculate_tdlut_setting_params->tdlut_opt_time = &s->tdlut_opt_time[k];
 			calculate_tdlut_setting_params->tdlut_drain_time = &s->tdlut_drain_time[k];
+			calculate_tdlut_setting_params->tdlut_bytes_to_deliver = &s->tdlut_bytes_to_deliver[k];
 			calculate_tdlut_setting_params->tdlut_bytes_per_group = &s->tdlut_bytes_per_group[k];
 
 			calculate_tdlut_setting(&mode_lib->scratch, calculate_tdlut_setting_params);
@@ -9009,6 +9081,7 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 				CalculatePrefetchSchedule_params->prefetch_sw_bytes = &s->prefetch_sw_bytes[k];
 				CalculatePrefetchSchedule_params->Tpre_rounded = &s->Tpre_rounded[k];
 				CalculatePrefetchSchedule_params->Tpre_oto = &s->Tpre_oto[k];
+				CalculatePrefetchSchedule_params->prefetch_swath_time_us = &s->prefetch_swath_time_us[k];
 
 				mode_lib->ms.NoTimeForPrefetch[k] = CalculatePrefetchSchedule(&mode_lib->scratch, CalculatePrefetchSchedule_params);
 
@@ -9016,6 +9089,27 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 				dml2_printf("DML::%s: k=%d, dst_y_per_vm_vblank = %f\n", __func__, k, *CalculatePrefetchSchedule_params->dst_y_per_vm_vblank);
 				dml2_printf("DML::%s: k=%d, dst_y_per_row_vblank = %f\n", __func__, k, *CalculatePrefetchSchedule_params->dst_y_per_row_vblank);
 			} // for k num_planes
+
+			CalculateDCFCLKDeepSleepTdlut(
+				display_cfg,
+				mode_lib->ms.num_active_planes,
+				mode_lib->ms.BytePerPixelY,
+				mode_lib->ms.BytePerPixelC,
+				mode_lib->ms.SwathWidthY,
+				mode_lib->ms.SwathWidthC,
+				mode_lib->ms.NoOfDPP,
+				mode_lib->ms.PSCL_FACTOR,
+				mode_lib->ms.PSCL_FACTOR_CHROMA,
+				mode_lib->ms.RequiredDPPCLK,
+				mode_lib->ms.vactive_sw_bw_l,
+				mode_lib->ms.vactive_sw_bw_c,
+				mode_lib->soc.return_bus_width_bytes,
+				mode_lib->ms.RequiredDISPCLK,
+				s->tdlut_bytes_to_deliver,
+				s->prefetch_swath_time_us,
+
+				/* Output */
+				&mode_lib->ms.dcfclk_deepsleep);
 
 			for (k = 0; k < mode_lib->ms.num_active_planes; k++) {
 				if (mode_lib->ms.dst_y_prefetch[k] < 2.0
@@ -10368,12 +10462,6 @@ static bool dml_core_mode_programming(struct dml2_core_calcs_mode_programming_ex
 	dml2_assert(s->SOCCLK > 0);
 
 #ifdef __DML_VBA_DEBUG__
-	// dml2_printf_dml_display_cfg_timing(&display_cfg->timing, s->num_active_planes);
-	// dml2_printf_dml_display_cfg_plane(&display_cfg->plane, s->num_active_planes);
-	// dml2_printf_dml_display_cfg_surface(&display_cfg->surface, s->num_active_planes);
-	// dml2_printf_dml_display_cfg_output(&display_cfg->output, s->num_active_planes);
-	// dml2_printf_dml_display_cfg_hw_resource(&display_cfg->hw, s->num_active_planes);
-
 	dml2_printf("DML::%s: num_active_planes = %u\n", __func__, s->num_active_planes);
 	dml2_printf("DML::%s: num_active_pipes = %u\n", __func__, mode_lib->mp.num_active_pipes);
 	dml2_printf("DML::%s: Dcfclk = %f\n", __func__, mode_lib->mp.Dcfclk);
@@ -10832,8 +10920,8 @@ static bool dml_core_mode_programming(struct dml2_core_calcs_mode_programming_ex
 		calculate_tdlut_setting_params->tdlut_groups_per_2row_ub = &s->tdlut_groups_per_2row_ub[k];
 		calculate_tdlut_setting_params->tdlut_opt_time = &s->tdlut_opt_time[k];
 		calculate_tdlut_setting_params->tdlut_drain_time = &s->tdlut_drain_time[k];
+		calculate_tdlut_setting_params->tdlut_bytes_to_deliver = &s->tdlut_bytes_to_deliver[k];
 		calculate_tdlut_setting_params->tdlut_bytes_per_group = &s->tdlut_bytes_per_group[k];
-
 		calculate_tdlut_setting(&mode_lib->scratch, calculate_tdlut_setting_params);
 	}
 
@@ -11219,6 +11307,7 @@ static bool dml_core_mode_programming(struct dml2_core_calcs_mode_programming_ex
 			CalculatePrefetchSchedule_params->prefetch_sw_bytes = &s->prefetch_sw_bytes[k];
 			CalculatePrefetchSchedule_params->Tpre_rounded = &s->Tpre_rounded[k];
 			CalculatePrefetchSchedule_params->Tpre_oto = &s->Tpre_oto[k];
+			CalculatePrefetchSchedule_params->prefetch_swath_time_us = &s->dummy_single[0];
 
 			mode_lib->mp.NoTimeToPrefetch[k] = CalculatePrefetchSchedule(&mode_lib->scratch, CalculatePrefetchSchedule_params);
 

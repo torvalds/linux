@@ -958,6 +958,7 @@ struct dml2_core_calcs_mode_support_locals {
 	unsigned int tdlut_groups_per_2row_ub[DML2_MAX_PLANES];
 	double tdlut_opt_time[DML2_MAX_PLANES];
 	double tdlut_drain_time[DML2_MAX_PLANES];
+	unsigned int tdlut_bytes_to_deliver[DML2_MAX_PLANES];
 	unsigned int tdlut_bytes_per_group[DML2_MAX_PLANES];
 
 	unsigned int cursor_bytes_per_chunk[DML2_MAX_PLANES];
@@ -979,6 +980,7 @@ struct dml2_core_calcs_mode_support_locals {
 	enum dml2_source_format_class pixel_format[DML2_MAX_PLANES];
 	unsigned int lb_source_lines_l[DML2_MAX_PLANES];
 	unsigned int lb_source_lines_c[DML2_MAX_PLANES];
+	double prefetch_swath_time_us[DML2_MAX_PLANES];
 };
 
 struct dml2_core_calcs_mode_programming_locals {
@@ -1042,6 +1044,7 @@ struct dml2_core_calcs_mode_programming_locals {
 	unsigned int tdlut_groups_per_2row_ub[DML2_MAX_PLANES];
 	double tdlut_opt_time[DML2_MAX_PLANES];
 	double tdlut_drain_time[DML2_MAX_PLANES];
+	unsigned int tdlut_bytes_to_deliver[DML2_MAX_PLANES];
 	unsigned int tdlut_bytes_per_group[DML2_MAX_PLANES];
 
 	unsigned int cursor_bytes_per_chunk[DML2_MAX_PLANES];
@@ -1809,6 +1812,7 @@ struct dml2_core_calcs_CalculatePrefetchSchedule_params {
 	unsigned int *VReadyOffsetPix;
 	double *prefetch_cursor_bw;
 	double *prefetch_sw_bytes;
+	double *prefetch_swath_time_us;
 };
 
 struct dml2_core_calcs_CheckGlobalPrefetchAdmissibility_params {
@@ -1993,6 +1997,7 @@ struct dml2_core_calcs_calculate_tdlut_setting_params {
 	unsigned int *tdlut_groups_per_2row_ub;
 	double *tdlut_opt_time;
 	double *tdlut_drain_time;
+	unsigned int *tdlut_bytes_to_deliver;
 	unsigned int *tdlut_bytes_per_group;
 };
 
@@ -2137,7 +2142,6 @@ struct dml2_core_calcs_mode_programming_ex {
 	const struct core_display_cfg_support_info *cfg_support_info;
 	int min_clk_index;
 	struct dml2_display_cfg_programming *programming;
-
 };
 
 #endif
