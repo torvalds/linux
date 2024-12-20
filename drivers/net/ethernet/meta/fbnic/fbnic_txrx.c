@@ -1036,9 +1036,9 @@ static int fbnic_poll(struct napi_struct *napi, int budget)
 	return 0;
 }
 
-static irqreturn_t fbnic_msix_clean_rings(int __always_unused irq, void *data)
+irqreturn_t fbnic_msix_clean_rings(int __always_unused irq, void *data)
 {
-	struct fbnic_napi_vector *nv = data;
+	struct fbnic_napi_vector *nv = *(void **)data;
 
 	napi_schedule_irqoff(&nv->napi);
 
@@ -1099,7 +1099,6 @@ static void fbnic_free_napi_vector(struct fbnic_net *fbn,
 				   struct fbnic_napi_vector *nv)
 {
 	struct fbnic_dev *fbd = nv->fbd;
-	u32 v_idx = nv->v_idx;
 	int i, j;
 
 	for (i = 0; i < nv->txt_count; i++) {
@@ -1113,7 +1112,7 @@ static void fbnic_free_napi_vector(struct fbnic_net *fbn,
 		fbnic_remove_rx_ring(fbn, &nv->qt[i].cmpl);
 	}
 
-	fbnic_free_irq(fbd, v_idx, nv);
+	fbnic_napi_free_irq(fbd, nv);
 	page_pool_destroy(nv->page_pool);
 	netif_napi_del(&nv->napi);
 	fbn->napi[fbnic_napi_idx(nv)] = NULL;
@@ -1127,18 +1126,6 @@ void fbnic_free_napi_vectors(struct fbnic_net *fbn)
 	for (i = 0; i < fbn->num_napi; i++)
 		if (fbn->napi[i])
 			fbnic_free_napi_vector(fbn, fbn->napi[i]);
-}
-
-static void fbnic_name_napi_vector(struct fbnic_napi_vector *nv)
-{
-	unsigned char *dev_name = nv->napi.dev->name;
-
-	if (!nv->rxt_count)
-		snprintf(nv->name, sizeof(nv->name), "%s-Tx-%u", dev_name,
-			 nv->v_idx - FBNIC_NON_NAPI_VECTORS);
-	else
-		snprintf(nv->name, sizeof(nv->name), "%s-TxRx-%u", dev_name,
-			 nv->v_idx - FBNIC_NON_NAPI_VECTORS);
 }
 
 #define FBNIC_PAGE_POOL_FLAGS \
@@ -1240,12 +1227,8 @@ static int fbnic_alloc_napi_vector(struct fbnic_dev *fbd, struct fbnic_net *fbn,
 			goto napi_del;
 	}
 
-	/* Initialize vector name */
-	fbnic_name_napi_vector(nv);
-
 	/* Request the IRQ for napi vector */
-	err = fbnic_request_irq(fbd, v_idx, &fbnic_msix_clean_rings,
-				IRQF_SHARED, nv->name, nv);
+	err = fbnic_napi_request_irq(fbd, nv);
 	if (err)
 		goto pp_destroy;
 

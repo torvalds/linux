@@ -74,6 +74,8 @@ static int fbnic_open(struct net_device *netdev)
 	struct fbnic_net *fbn = netdev_priv(netdev);
 	int err;
 
+	fbnic_napi_name_irqs(fbn->fbd);
+
 	err = __fbnic_open(fbn);
 	if (!err)
 		fbnic_up(fbn);
