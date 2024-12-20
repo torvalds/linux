@@ -40,6 +40,68 @@ static const struct fbnic_stat fbnic_gstrings_hw_stats[] = {
 #define FBNIC_HW_FIXED_STATS_LEN ARRAY_SIZE(fbnic_gstrings_hw_stats)
 #define FBNIC_HW_STATS_LEN	FBNIC_HW_FIXED_STATS_LEN
 
+static void
+fbnic_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+	struct fbnic_dev *fbd = fbn->fbd;
+
+	fbnic_get_fw_ver_commit_str(fbd, drvinfo->fw_version,
+				    sizeof(drvinfo->fw_version));
+}
+
+static int fbnic_get_regs_len(struct net_device *netdev)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+
+	return fbnic_csr_regs_len(fbn->fbd) * sizeof(u32);
+}
+
+static void fbnic_get_regs(struct net_device *netdev,
+			   struct ethtool_regs *regs, void *data)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+
+	fbnic_csr_get_regs(fbn->fbd, data, &regs->version);
+}
+
+static void fbnic_get_strings(struct net_device *dev, u32 sset, u8 *data)
+{
+	int i;
+
+	switch (sset) {
+	case ETH_SS_STATS:
+		for (i = 0; i < FBNIC_HW_STATS_LEN; i++)
+			ethtool_puts(&data, fbnic_gstrings_hw_stats[i].string);
+		break;
+	}
+}
+
+static void fbnic_get_ethtool_stats(struct net_device *dev,
+				    struct ethtool_stats *stats, u64 *data)
+{
+	struct fbnic_net *fbn = netdev_priv(dev);
+	const struct fbnic_stat *stat;
+	int i;
+
+	fbnic_get_hw_stats(fbn->fbd);
+
+	for (i = 0; i < FBNIC_HW_STATS_LEN; i++) {
+		stat = &fbnic_gstrings_hw_stats[i];
+		data[i] = *(u64 *)((u8 *)&fbn->fbd->hw_stats + stat->offset);
+	}
+}
+
+static int fbnic_get_sset_count(struct net_device *dev, int sset)
+{
+	switch (sset) {
+	case ETH_SS_STATS:
+		return FBNIC_HW_STATS_LEN;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static int
 fbnic_get_ts_info(struct net_device *netdev,
 		  struct kernel_ethtool_ts_info *tsinfo)
@@ -69,57 +131,33 @@ fbnic_get_ts_info(struct net_device *netdev,
 	return 0;
 }
 
-static void
-fbnic_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
+static void fbnic_get_ts_stats(struct net_device *netdev,
+			       struct ethtool_ts_stats *ts_stats)
 {
 	struct fbnic_net *fbn = netdev_priv(netdev);
-	struct fbnic_dev *fbd = fbn->fbd;
+	u64 ts_packets, ts_lost;
+	struct fbnic_ring *ring;
+	unsigned int start;
+	int i;
 
-	fbnic_get_fw_ver_commit_str(fbd, drvinfo->fw_version,
-				    sizeof(drvinfo->fw_version));
+	ts_stats->pkts = fbn->tx_stats.ts_packets;
+	ts_stats->lost = fbn->tx_stats.ts_lost;
+	for (i = 0; i < fbn->num_tx_queues; i++) {
+		ring = fbn->tx[i];
+		do {
+			start = u64_stats_fetch_begin(&ring->stats.syncp);
+			ts_packets = ring->stats.ts_packets;
+			ts_lost = ring->stats.ts_lost;
+		} while (u64_stats_fetch_retry(&ring->stats.syncp, start));
+		ts_stats->pkts += ts_packets;
+		ts_stats->lost += ts_lost;
+	}
 }
 
 static void fbnic_set_counter(u64 *stat, struct fbnic_stat_counter *counter)
 {
 	if (counter->reported)
 		*stat = counter->value;
-}
-
-static void fbnic_get_strings(struct net_device *dev, u32 sset, u8 *data)
-{
-	int i;
-
-	switch (sset) {
-	case ETH_SS_STATS:
-		for (i = 0; i < FBNIC_HW_STATS_LEN; i++)
-			ethtool_puts(&data, fbnic_gstrings_hw_stats[i].string);
-		break;
-	}
-}
-
-static int fbnic_get_sset_count(struct net_device *dev, int sset)
-{
-	switch (sset) {
-	case ETH_SS_STATS:
-		return FBNIC_HW_STATS_LEN;
-	default:
-		return -EOPNOTSUPP;
-	}
-}
-
-static void fbnic_get_ethtool_stats(struct net_device *dev,
-				    struct ethtool_stats *stats, u64 *data)
-{
-	struct fbnic_net *fbn = netdev_priv(dev);
-	const struct fbnic_stat *stat;
-	int i;
-
-	fbnic_get_hw_stats(fbn->fbd);
-
-	for (i = 0; i < FBNIC_HW_STATS_LEN; i++) {
-		stat = &fbnic_gstrings_hw_stats[i];
-		data[i] = *(u64 *)((u8 *)&fbn->fbd->hw_stats + stat->offset);
-	}
 }
 
 static void
@@ -162,44 +200,6 @@ fbnic_get_eth_mac_stats(struct net_device *netdev,
 			  &mac_stats->eth_mac.BroadcastFramesReceivedOK);
 	fbnic_set_counter(&eth_mac_stats->FrameTooLongErrors,
 			  &mac_stats->eth_mac.FrameTooLongErrors);
-}
-
-static void fbnic_get_ts_stats(struct net_device *netdev,
-			       struct ethtool_ts_stats *ts_stats)
-{
-	struct fbnic_net *fbn = netdev_priv(netdev);
-	u64 ts_packets, ts_lost;
-	struct fbnic_ring *ring;
-	unsigned int start;
-	int i;
-
-	ts_stats->pkts = fbn->tx_stats.ts_packets;
-	ts_stats->lost = fbn->tx_stats.ts_lost;
-	for (i = 0; i < fbn->num_tx_queues; i++) {
-		ring = fbn->tx[i];
-		do {
-			start = u64_stats_fetch_begin(&ring->stats.syncp);
-			ts_packets = ring->stats.ts_packets;
-			ts_lost = ring->stats.ts_lost;
-		} while (u64_stats_fetch_retry(&ring->stats.syncp, start));
-		ts_stats->pkts += ts_packets;
-		ts_stats->lost += ts_lost;
-	}
-}
-
-static void fbnic_get_regs(struct net_device *netdev,
-			   struct ethtool_regs *regs, void *data)
-{
-	struct fbnic_net *fbn = netdev_priv(netdev);
-
-	fbnic_csr_get_regs(fbn->fbd, data, &regs->version);
-}
-
-static int fbnic_get_regs_len(struct net_device *netdev)
-{
-	struct fbnic_net *fbn = netdev_priv(netdev);
-
-	return fbnic_csr_regs_len(fbn->fbd) * sizeof(u32);
 }
 
 static const struct ethtool_ops fbnic_ethtool_ops = {
