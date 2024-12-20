@@ -9,6 +9,8 @@
 #ifndef __SDCA_FUNCTION_H__
 #define __SDCA_FUNCTION_H__
 
+#include <linux/bits.h>
+
 /*
  * SDCA Function Types from SDCA specification v1.0a Section 5.1.2
  * all Function types not described are reserved

@@ -9,6 +9,9 @@
 #ifndef __SDCA_H__
 #define __SDCA_H__
 
+#include <linux/types.h>
+#include <linux/kconfig.h>
+
 struct sdw_slave;
 
 #define SDCA_MAX_FUNCTION_COUNT 8
