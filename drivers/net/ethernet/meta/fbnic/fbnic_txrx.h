@@ -110,8 +110,6 @@ struct fbnic_napi_vector {
 	u8 txt_count;
 	u8 rxt_count;
 
-	struct list_head napis;
-
 	struct fbnic_q_triad qt[];
 };
 
@@ -136,5 +134,10 @@ void fbnic_fill(struct fbnic_net *fbn);
 
 void fbnic_napi_depletion_check(struct net_device *netdev);
 int fbnic_wait_all_queues_idle(struct fbnic_dev *fbd, bool may_fail);
+
+static inline int fbnic_napi_idx(const struct fbnic_napi_vector *nv)
+{
+	return nv->v_idx - FBNIC_NON_NAPI_VECTORS;
+}
 
 #endif /* _FBNIC_TXRX_H_ */

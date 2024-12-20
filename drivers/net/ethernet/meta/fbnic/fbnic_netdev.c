@@ -615,7 +615,6 @@ struct net_device *fbnic_netdev_alloc(struct fbnic_dev *fbd)
 
 	fbn->netdev = netdev;
 	fbn->fbd = fbd;
-	INIT_LIST_HEAD(&fbn->napis);
 
 	fbn->txq_size = FBNIC_TXQ_SIZE_DEFAULT;
 	fbn->hpq_size = FBNIC_HPQ_SIZE_DEFAULT;

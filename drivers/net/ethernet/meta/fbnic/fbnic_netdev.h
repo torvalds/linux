@@ -11,9 +11,13 @@
 #include "fbnic_rpc.h"
 #include "fbnic_txrx.h"
 
+#define FBNIC_MAX_NAPI_VECTORS		128u
+
 struct fbnic_net {
 	struct fbnic_ring *tx[FBNIC_MAX_TXQS];
 	struct fbnic_ring *rx[FBNIC_MAX_RXQS];
+
+	struct fbnic_napi_vector *napi[FBNIC_MAX_NAPI_VECTORS];
 
 	struct net_device *netdev;
 	struct fbnic_dev *fbd;
@@ -56,8 +60,6 @@ struct fbnic_net {
 
 	/* Time stampinn filter config */
 	struct kernel_hwtstamp_config hwtstamp_config;
-
-	struct list_head napis;
 };
 
 int __fbnic_open(struct fbnic_net *fbn);
