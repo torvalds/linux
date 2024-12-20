@@ -49,8 +49,8 @@ struct xe_sa_manager *xe_sa_bo_manager_init(struct xe_tile *tile, u32 size, u32 
 					  XE_BO_FLAG_GGTT |
 					  XE_BO_FLAG_GGTT_INVALIDATE);
 	if (IS_ERR(bo)) {
-		drm_err(&xe->drm, "failed to allocate bo for sa manager: %ld\n",
-			PTR_ERR(bo));
+		drm_err(&xe->drm, "Failed to prepare %uKiB BO for SA manager (%pe)\n",
+			size / SZ_1K, bo);
 		return ERR_CAST(bo);
 	}
 	sa_manager->bo = bo;
