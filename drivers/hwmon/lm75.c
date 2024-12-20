@@ -11,6 +11,7 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
+#include <linux/i3c/device.h>
 #include <linux/hwmon.h>
 #include <linux/err.h>
 #include <linux/of.h>
@@ -112,6 +113,8 @@ struct lm75_data {
 	unsigned int			sample_time;	/* In ms */
 	enum lm75_type			kind;
 	const struct lm75_params	*params;
+	u8				reg_buf[1];
+	u8				val_buf[3];
 };
 
 /*-----------------------------------------------------------------------*/
@@ -606,6 +609,77 @@ static const struct regmap_bus lm75_i2c_regmap_bus = {
 	.reg_write = lm75_i2c_reg_write,
 };
 
+static int lm75_i3c_reg_read(void *context, unsigned int reg, unsigned int *val)
+{
+	struct i3c_device *i3cdev = context;
+	struct lm75_data *data = i3cdev_get_drvdata(i3cdev);
+	struct i3c_priv_xfer xfers[] = {
+		{
+			.rnw = false,
+			.len = 1,
+			.data.out = data->reg_buf,
+		},
+		{
+			.rnw = true,
+			.len = 2,
+			.data.out = data->val_buf,
+		},
+	};
+	int ret;
+
+	data->reg_buf[0] = reg;
+
+	if (reg == LM75_REG_CONF && !data->params->config_reg_16bits)
+		xfers[1].len--;
+
+	ret = i3c_device_do_priv_xfers(i3cdev, xfers, 2);
+	if (ret < 0)
+		return ret;
+
+	if (reg == LM75_REG_CONF && !data->params->config_reg_16bits)
+		*val = data->val_buf[0];
+	else if (reg == LM75_REG_CONF)
+		*val = data->val_buf[0] | (data->val_buf[1] << 8);
+	else
+		*val = data->val_buf[1] | (data->val_buf[0] << 8);
+
+	return 0;
+}
+
+static int lm75_i3c_reg_write(void *context, unsigned int reg, unsigned int val)
+{
+	struct i3c_device *i3cdev = context;
+	struct lm75_data *data = i3cdev_get_drvdata(i3cdev);
+	struct i3c_priv_xfer xfers[] = {
+		{
+			.rnw = false,
+			.len = 3,
+			.data.out = data->val_buf,
+		},
+	};
+
+	data->val_buf[0] = reg;
+
+	if (reg == PCT2075_REG_IDLE ||
+	    (reg == LM75_REG_CONF && !data->params->config_reg_16bits)) {
+		xfers[0].len--;
+		data->val_buf[1] = val & 0xff;
+	} else if (reg == LM75_REG_CONF) {
+		data->val_buf[1] = val & 0xff;
+		data->val_buf[2] = (val >> 8) & 0xff;
+	} else {
+		data->val_buf[1] = (val >> 8) & 0xff;
+		data->val_buf[2] = val & 0xff;
+	}
+
+	return i3c_device_do_priv_xfers(i3cdev, xfers, 1);
+}
+
+static const struct regmap_bus lm75_i3c_regmap_bus = {
+	.reg_read = lm75_i3c_reg_read,
+	.reg_write = lm75_i3c_reg_write,
+};
+
 static const struct regmap_config lm75_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 16,
@@ -626,7 +700,7 @@ static void lm75_remove(void *data)
 }
 
 static int lm75_generic_probe(struct device *dev, const char *name,
-			      const void *kind_ptr, int irq, struct regmap *regmap)
+			      enum lm75_type kind, int irq, struct regmap *regmap)
 {
 	struct device *hwmon_dev;
 	struct lm75_data *data;
@@ -639,7 +713,7 @@ static int lm75_generic_probe(struct device *dev, const char *name,
 	/* needed by custom regmap callbacks */
 	dev_set_drvdata(dev, data);
 
-	data->kind = (uintptr_t)kind_ptr;
+	data->kind = kind;
 	data->regmap = regmap;
 
 	err = devm_regulator_get_enable(dev, "vs");
@@ -711,7 +785,7 @@ static int lm75_i2c_probe(struct i2c_client *client)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	return lm75_generic_probe(dev, client->name, i2c_get_match_data(client),
+	return lm75_generic_probe(dev, client->name, (uintptr_t)i2c_get_match_data(client),
 				  client->irq, regmap);
 }
 
@@ -749,6 +823,37 @@ static const struct i2c_device_id lm75_i2c_ids[] = {
 	{ /* LIST END */ }
 };
 MODULE_DEVICE_TABLE(i2c, lm75_i2c_ids);
+
+struct lm75_i3c_device {
+	enum lm75_type type;
+	const char *name;
+};
+
+static const struct lm75_i3c_device lm75_i3c_p3t1755 = {
+	.name = "p3t1755",
+	.type = p3t1755,
+};
+
+static const struct i3c_device_id lm75_i3c_ids[] = {
+	I3C_DEVICE(0x011b, 0x152a, &lm75_i3c_p3t1755),
+	{ /* LIST END */ }
+};
+MODULE_DEVICE_TABLE(i3c, lm75_i3c_ids);
+
+static int lm75_i3c_probe(struct i3c_device *i3cdev)
+{
+	struct device *dev = i3cdev_to_dev(i3cdev);
+	const struct lm75_i3c_device *id_data;
+	struct regmap *regmap;
+
+	regmap = devm_regmap_init(dev, &lm75_i3c_regmap_bus, i3cdev, &lm75_regmap_config);
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
+
+	id_data = i3c_device_match_id(i3cdev, lm75_i3c_ids)->data;
+
+	return lm75_generic_probe(dev, id_data->name, id_data->type, 0, regmap);
+}
 
 static const struct of_device_id __maybe_unused lm75_of_match[] = {
 	{
@@ -1008,7 +1113,15 @@ static struct i2c_driver lm75_i2c_driver = {
 	.address_list	= normal_i2c,
 };
 
-module_i2c_driver(lm75_i2c_driver);
+static struct i3c_driver lm75_i3c_driver = {
+	.driver = {
+		.name = "lm75_i3c",
+	},
+	.probe = lm75_i3c_probe,
+	.id_table = lm75_i3c_ids,
+};
+
+module_i3c_i2c_driver(lm75_i3c_driver, &lm75_i2c_driver)
 
 MODULE_AUTHOR("Frodo Looijaard <frodol@dds.nl>");
 MODULE_DESCRIPTION("LM75 driver");
