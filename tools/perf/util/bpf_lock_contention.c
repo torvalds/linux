@@ -12,12 +12,59 @@
 #include <linux/zalloc.h>
 #include <linux/string.h>
 #include <bpf/bpf.h>
+#include <bpf/btf.h>
 #include <inttypes.h>
 
 #include "bpf_skel/lock_contention.skel.h"
 #include "bpf_skel/lock_data.h"
 
 static struct lock_contention_bpf *skel;
+static bool has_slab_iter;
+
+static void check_slab_cache_iter(struct lock_contention *con)
+{
+	struct btf *btf = btf__load_vmlinux_btf();
+	s32 ret;
+
+	if (btf == NULL) {
+		pr_debug("BTF loading failed: %s\n", strerror(errno));
+		return;
+	}
+
+	ret = btf__find_by_name_kind(btf, "bpf_iter__kmem_cache", BTF_KIND_STRUCT);
+	if (ret < 0) {
+		bpf_program__set_autoload(skel->progs.slab_cache_iter, false);
+		pr_debug("slab cache iterator is not available: %d\n", ret);
+		goto out;
+	}
+
+	has_slab_iter = true;
+
+	bpf_map__set_max_entries(skel->maps.slab_caches, con->map_nr_entries);
+out:
+	btf__free(btf);
+}
+
+static void run_slab_cache_iter(void)
+{
+	int fd;
+	char buf[256];
+
+	if (!has_slab_iter)
+		return;
+
+	fd = bpf_iter_create(bpf_link__fd(skel->links.slab_cache_iter));
+	if (fd < 0) {
+		pr_debug("cannot create slab cache iter: %d\n", fd);
+		return;
+	}
+
+	/* This will run the bpf program */
+	while (read(fd, buf, sizeof(buf)) > 0)
+		continue;
+
+	close(fd);
+}
 
 int lock_contention_prepare(struct lock_contention *con)
 {
@@ -108,6 +155,8 @@ int lock_contention_prepare(struct lock_contention *con)
 		if (cgroup_is_v2("perf_event"))
 			skel->rodata->use_cgroup_v2 = 1;
 	}
+
+	check_slab_cache_iter(con);
 
 	if (lock_contention_bpf__load(skel) < 0) {
 		pr_err("Failed to load lock-contention BPF skeleton\n");
@@ -304,6 +353,7 @@ next:
 
 int lock_contention_start(void)
 {
+	run_slab_cache_iter();
 	skel->bss->enabled = 1;
 	return 0;
 }
