@@ -2164,7 +2164,7 @@ static int ov08x40_check_hwcfg(struct ov08x40 *ov08x, struct device *dev)
 	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
 	fwnode_handle_put(ep);
 	if (ret)
-		return ret;
+		return dev_err_probe(dev, ret, "parsing endpoint failed\n");
 
 	ov08x->reset_gpio = devm_gpiod_get_optional(dev, "reset",
 						    GPIOD_OUT_LOW);
@@ -2251,10 +2251,8 @@ static int ov08x40_probe(struct i2c_client *client)
 
 	/* Check HW config */
 	ret = ov08x40_check_hwcfg(ov08x, &client->dev);
-	if (ret) {
-		dev_err(&client->dev, "failed to check hwcfg: %d\n", ret);
+	if (ret)
 		return ret;
-	}
 
 	/* Initialize subdev */
 	v4l2_i2c_subdev_init(&ov08x->sd, client, &ov08x40_subdev_ops);
