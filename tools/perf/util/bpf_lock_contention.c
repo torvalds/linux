@@ -112,7 +112,7 @@ static void exit_slab_cache_iter(void)
 int lock_contention_prepare(struct lock_contention *con)
 {
 	int i, fd;
-	int ncpus = 1, ntasks = 1, ntypes = 1, naddrs = 1, ncgrps = 1;
+	int ncpus = 1, ntasks = 1, ntypes = 1, naddrs = 1, ncgrps = 1, nslabs = 1;
 	struct evlist *evlist = con->evlist;
 	struct target *target = con->target;
 
@@ -201,6 +201,13 @@ int lock_contention_prepare(struct lock_contention *con)
 
 	check_slab_cache_iter(con);
 
+	if (con->filters->nr_slabs && has_slab_iter) {
+		skel->rodata->has_slab = 1;
+		nslabs = con->filters->nr_slabs;
+	}
+
+	bpf_map__set_max_entries(skel->maps.slab_filter, nslabs);
+
 	if (lock_contention_bpf__load(skel) < 0) {
 		pr_err("Failed to load lock-contention BPF skeleton\n");
 		return -1;
@@ -271,6 +278,36 @@ int lock_contention_prepare(struct lock_contention *con)
 	bpf_program__set_autoload(skel->progs.collect_lock_syms, false);
 
 	lock_contention_bpf__attach(skel);
+
+	/* run the slab iterator after attaching */
+	run_slab_cache_iter();
+
+	if (con->filters->nr_slabs) {
+		u8 val = 1;
+		int cache_fd;
+		long key, *prev_key;
+
+		fd = bpf_map__fd(skel->maps.slab_filter);
+
+		/* Read the slab cache map and build a hash with its address */
+		cache_fd = bpf_map__fd(skel->maps.slab_caches);
+		prev_key = NULL;
+		while (!bpf_map_get_next_key(cache_fd, prev_key, &key)) {
+			struct slab_cache_data data;
+
+			if (bpf_map_lookup_elem(cache_fd, &key, &data) < 0)
+				break;
+
+			for (i = 0; i < con->filters->nr_slabs; i++) {
+				if (!strcmp(con->filters->slabs[i], data.name)) {
+					bpf_map_update_elem(fd, &key, &val, BPF_ANY);
+					break;
+				}
+			}
+			prev_key = &key;
+		}
+	}
+
 	return 0;
 }
 
@@ -396,7 +433,6 @@ next:
 
 int lock_contention_start(void)
 {
-	run_slab_cache_iter();
 	skel->bss->enabled = 1;
 	return 0;
 }

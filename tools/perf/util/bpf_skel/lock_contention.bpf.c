@@ -103,6 +103,13 @@ struct {
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
 	__uint(key_size, sizeof(long));
+	__uint(value_size, sizeof(__u8));
+	__uint(max_entries, 1);
+} slab_filter SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(key_size, sizeof(long));
 	__uint(value_size, sizeof(struct slab_cache_data));
 	__uint(max_entries, 1);
 } slab_caches SEC(".maps");
@@ -131,6 +138,7 @@ const volatile int has_task;
 const volatile int has_type;
 const volatile int has_addr;
 const volatile int has_cgroup;
+const volatile int has_slab;
 const volatile int needs_callstack;
 const volatile int stack_skip;
 const volatile int lock_owner;
@@ -213,7 +221,7 @@ static inline int can_record(u64 *ctx)
 		__u64 addr = ctx[0];
 
 		ok = bpf_map_lookup_elem(&addr_filter, &addr);
-		if (!ok)
+		if (!ok && !has_slab)
 			return 0;
 	}
 
@@ -222,6 +230,17 @@ static inline int can_record(u64 *ctx)
 		__u64 cgrp = get_current_cgroup_id();
 
 		ok = bpf_map_lookup_elem(&cgroup_filter, &cgrp);
+		if (!ok)
+			return 0;
+	}
+
+	if (has_slab && bpf_get_kmem_cache) {
+		__u8 *ok;
+		__u64 addr = ctx[0];
+		long kmem_cache_addr;
+
+		kmem_cache_addr = (long)bpf_get_kmem_cache(addr);
+		ok = bpf_map_lookup_elem(&slab_filter, &kmem_cache_addr);
 		if (!ok)
 			return 0;
 	}
