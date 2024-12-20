@@ -175,7 +175,7 @@ static int of_get_regulation_constraints(struct device *dev,
 	if (!ret)
 		constraints->enable_time = pval;
 
-	ret = of_property_read_u32(np, "regulator-uv-survival-time-ms", &pval);
+	ret = of_property_read_u32(np, "regulator-uv-less-critical-window-ms", &pval);
 	if (!ret)
 		constraints->uv_less_critical_window_ms = pval;
 	else
