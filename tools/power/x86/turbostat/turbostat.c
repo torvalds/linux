@@ -95,6 +95,8 @@
 #define INTEL_ECORE_TYPE	0x20
 #define INTEL_PCORE_TYPE	0x40
 
+#define ROUND_UP_TO_PAGE_SIZE(n) (((n) + 0x1000UL-1UL) & ~(0x1000UL-1UL))
+
 enum counter_scope { SCOPE_CPU, SCOPE_CORE, SCOPE_PACKAGE };
 enum counter_type { COUNTER_ITEMS, COUNTER_CYCLES, COUNTER_SECONDS, COUNTER_USEC, COUNTER_K2M };
 enum counter_format { FORMAT_RAW, FORMAT_DELTA, FORMAT_PERCENT, FORMAT_AVERAGE };
@@ -8996,7 +8998,7 @@ struct pmt_mmio *pmt_mmio_open(unsigned int target_guid)
 		if (fd_pmt == -1)
 			goto loop_cleanup_and_break;
 
-		mmap_size = (size + 0x1000UL) & (~0x1000UL);
+		mmap_size = ROUND_UP_TO_PAGE_SIZE(size);
 		mmio = mmap(0, mmap_size, PROT_READ, MAP_SHARED, fd_pmt, 0);
 		if (mmio != MAP_FAILED) {
 
