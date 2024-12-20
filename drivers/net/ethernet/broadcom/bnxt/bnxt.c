@@ -8279,16 +8279,20 @@ static int bnxt_hwrm_func_qcfg(struct bnxt *bp)
 	if (rc)
 		goto func_qcfg_exit;
 
+	flags = le16_to_cpu(resp->flags);
 #ifdef CONFIG_BNXT_SRIOV
 	if (BNXT_VF(bp)) {
 		struct bnxt_vf_info *vf = &bp->vf;
 
 		vf->vlan = le16_to_cpu(resp->vlan) & VLAN_VID_MASK;
+		if (flags & FUNC_QCFG_RESP_FLAGS_TRUSTED_VF)
+			vf->flags |= BNXT_VF_TRUST;
+		else
+			vf->flags &= ~BNXT_VF_TRUST;
 	} else {
 		bp->pf.registered_vfs = le16_to_cpu(resp->registered_vfs);
 	}
 #endif
-	flags = le16_to_cpu(resp->flags);
 	if (flags & (FUNC_QCFG_RESP_FLAGS_FW_DCBX_AGENT_ENABLED |
 		     FUNC_QCFG_RESP_FLAGS_FW_LLDP_AGENT_ENABLED)) {
 		bp->fw_cap |= BNXT_FW_CAP_LLDP_AGENT;
@@ -9117,10 +9121,18 @@ static int bnxt_alloc_ctx_mem(struct bnxt *bp)
 	ena = 0;
 	if ((bp->flags & BNXT_FLAG_ROCE_CAP) && !is_kdump_kernel()) {
 		pg_lvl = 2;
-		extra_qps = min_t(u32, 65536, max_qps - l2_qps - qp1_qps);
-		/* allocate extra qps if fw supports RoCE fast qp destroy feature */
-		extra_qps += fast_qpmd_qps;
-		extra_srqs = min_t(u32, 8192, max_srqs - srqs);
+		if (BNXT_SW_RES_LMT(bp)) {
+			extra_qps = max_qps - l2_qps - qp1_qps;
+			extra_srqs = max_srqs - srqs;
+		} else {
+			extra_qps = min_t(u32, 65536,
+					  max_qps - l2_qps - qp1_qps);
+			/* allocate extra qps if fw supports RoCE fast qp
+			 * destroy feature
+			 */
+			extra_qps += fast_qpmd_qps;
+			extra_srqs = min_t(u32, 8192, max_srqs - srqs);
+		}
 		if (fast_qpmd_qps)
 			ena |= FUNC_BACKING_STORE_CFG_REQ_ENABLES_QP_FAST_QPMD;
 	}
@@ -9156,14 +9168,20 @@ static int bnxt_alloc_ctx_mem(struct bnxt *bp)
 		goto skip_rdma;
 
 	ctxm = &ctx->ctx_arr[BNXT_CTX_MRAV];
-	/* 128K extra is needed to accommodate static AH context
-	 * allocation by f/w.
-	 */
-	num_mr = min_t(u32, ctxm->max_entries / 2, 1024 * 256);
-	num_ah = min_t(u32, num_mr, 1024 * 128);
-	ctxm->split_entry_cnt = BNXT_CTX_MRAV_AV_SPLIT_ENTRY + 1;
-	if (!ctxm->mrav_av_entries || ctxm->mrav_av_entries > num_ah)
-		ctxm->mrav_av_entries = num_ah;
+	if (BNXT_SW_RES_LMT(bp) &&
+	    ctxm->split_entry_cnt == BNXT_CTX_MRAV_AV_SPLIT_ENTRY + 1) {
+		num_ah = ctxm->mrav_av_entries;
+		num_mr = ctxm->max_entries - num_ah;
+	} else {
+		/* 128K extra is needed to accommodate static AH context
+		 * allocation by f/w.
+		 */
+		num_mr = min_t(u32, ctxm->max_entries / 2, 1024 * 256);
+		num_ah = min_t(u32, num_mr, 1024 * 128);
+		ctxm->split_entry_cnt = BNXT_CTX_MRAV_AV_SPLIT_ENTRY + 1;
+		if (!ctxm->mrav_av_entries || ctxm->mrav_av_entries > num_ah)
+			ctxm->mrav_av_entries = num_ah;
+	}
 
 	rc = bnxt_setup_ctxm_pg_tbls(bp, ctxm, num_mr + num_ah, 2);
 	if (rc)
@@ -9470,6 +9488,9 @@ static int __bnxt_hwrm_func_qcaps(struct bnxt *bp)
 		bp->flags |= BNXT_FLAG_UDP_GSO_CAP;
 	if (flags_ext2 & FUNC_QCAPS_RESP_FLAGS_EXT2_TX_PKT_TS_CMPL_SUPPORTED)
 		bp->fw_cap |= BNXT_FW_CAP_TX_TS_CMP;
+	if (flags_ext2 &
+	    FUNC_QCAPS_RESP_FLAGS_EXT2_SW_MAX_RESOURCE_LIMITS_SUPPORTED)
+		bp->fw_cap |= BNXT_FW_CAP_SW_MAX_RESOURCE_LIMITS;
 	if (BNXT_PF(bp) &&
 	    (flags_ext2 & FUNC_QCAPS_RESP_FLAGS_EXT2_ROCE_VF_RESOURCE_MGMT_SUPPORTED))
 		bp->fw_cap |= BNXT_FW_CAP_ROCE_VF_RESC_MGMT_SUPPORTED;
@@ -11528,6 +11549,26 @@ static int bnxt_hwrm_phy_qcaps(struct bnxt *bp)
 hwrm_phy_qcaps_exit:
 	hwrm_req_drop(bp, req);
 	return rc;
+}
+
+static void bnxt_hwrm_mac_qcaps(struct bnxt *bp)
+{
+	struct hwrm_port_mac_qcaps_output *resp;
+	struct hwrm_port_mac_qcaps_input *req;
+	int rc;
+
+	if (bp->hwrm_spec_code < 0x10a03)
+		return;
+
+	rc = hwrm_req_init(bp, req, HWRM_PORT_MAC_QCAPS);
+	if (rc)
+		return;
+
+	resp = hwrm_req_hold(bp, req);
+	rc = hwrm_req_send_silent(bp, req);
+	if (!rc)
+		bp->mac_flags = resp->flags;
+	hwrm_req_drop(bp, req);
 }
 
 static bool bnxt_support_dropped(u16 advertising, u16 supported)
@@ -15658,6 +15699,10 @@ static int bnxt_probe_phy(struct bnxt *bp, bool fw_dflt)
 		bp->dev->priv_flags |= IFF_SUPP_NOFCS;
 	else
 		bp->dev->priv_flags &= ~IFF_SUPP_NOFCS;
+
+	bp->mac_flags = 0;
+	bnxt_hwrm_mac_qcaps(bp);
+
 	if (!fw_dflt)
 		return 0;
 

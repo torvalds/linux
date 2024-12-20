@@ -2270,6 +2270,11 @@ struct bnxt {
 
 #define BNXT_PF(bp)		(!((bp)->flags & BNXT_FLAG_VF))
 #define BNXT_VF(bp)		((bp)->flags & BNXT_FLAG_VF)
+#ifdef CONFIG_BNXT_SRIOV
+#define	BNXT_VF_IS_TRUSTED(bp)	((bp)->vf.flags & BNXT_VF_TRUST)
+#else
+#define	BNXT_VF_IS_TRUSTED(bp)	0
+#endif
 #define BNXT_NPAR(bp)		((bp)->port_partition_type)
 #define BNXT_MH(bp)		((bp)->flags & BNXT_FLAG_MULTI_HOST)
 #define BNXT_SINGLE_PF(bp)	(BNXT_PF(bp) && !BNXT_NPAR(bp) && !BNXT_MH(bp))
@@ -2482,6 +2487,7 @@ struct bnxt {
 	#define BNXT_FW_CAP_CFA_NTUPLE_RX_EXT_IP_PROTO	BIT_ULL(38)
 	#define BNXT_FW_CAP_CFA_RFS_RING_TBL_IDX_V3	BIT_ULL(39)
 	#define BNXT_FW_CAP_VNIC_RE_FLUSH		BIT_ULL(40)
+	#define BNXT_FW_CAP_SW_MAX_RESOURCE_LIMITS	BIT_ULL(41)
 
 	u32			fw_dbg_cap;
 
@@ -2501,6 +2507,8 @@ struct bnxt {
 	((bp)->fw_cap & BNXT_FW_CAP_ENABLE_RDMA_SRIOV)
 #define BNXT_ROCE_VF_RESC_CAP(bp)	\
 	((bp)->fw_cap & BNXT_FW_CAP_ROCE_VF_RESC_MGMT_SUPPORTED)
+#define BNXT_SW_RES_LMT(bp)		\
+	((bp)->fw_cap & BNXT_FW_CAP_SW_MAX_RESOURCE_LIMITS)
 
 	u32			hwrm_spec_code;
 	u16			hwrm_cmd_seq;
@@ -2659,6 +2667,11 @@ struct bnxt {
 #define BNXT_PHY_FL_NO_PFC		(PORT_PHY_QCAPS_RESP_FLAGS2_PFC_UNSUPPORTED << 8)
 #define BNXT_PHY_FL_BANK_SEL		(PORT_PHY_QCAPS_RESP_FLAGS2_BANK_ADDR_SUPPORTED << 8)
 #define BNXT_PHY_FL_SPEEDS2		(PORT_PHY_QCAPS_RESP_FLAGS2_SPEEDS2_SUPPORTED << 8)
+
+	/* copied from flags in hwrm_port_mac_qcaps_output */
+	u8			mac_flags;
+#define BNXT_MAC_FL_NO_MAC_LPBK		\
+	PORT_MAC_QCAPS_RESP_FLAGS_LOCAL_LPBK_NOT_SUPPORTED
 
 	u8			num_tests;
 	struct bnxt_test_info	*test_info;

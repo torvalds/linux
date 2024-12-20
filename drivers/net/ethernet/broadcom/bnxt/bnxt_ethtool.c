@@ -2050,7 +2050,8 @@ static void bnxt_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 	int rc;
 
 	regs->version = 0;
-	bnxt_dbg_hwrm_rd_reg(bp, 0, BNXT_PXP_REG_LEN / 4, _p);
+	if (!(bp->fw_dbg_cap & DBG_QCAPS_RESP_FLAGS_REG_ACCESS_RESTRICTED))
+		bnxt_dbg_hwrm_rd_reg(bp, 0, BNXT_PXP_REG_LEN / 4, _p);
 
 	if (!(bp->fw_cap & BNXT_FW_CAP_PCIE_STATS_SUPPORTED))
 		return;
@@ -4375,6 +4376,9 @@ static int bnxt_get_module_info(struct net_device *dev,
 	struct bnxt *bp = netdev_priv(dev);
 	int rc;
 
+	if (BNXT_VF(bp) && !BNXT_VF_IS_TRUSTED(bp))
+		return -EPERM;
+
 	/* No point in going further if phy status indicates
 	 * module is not inserted or if it is powered down or
 	 * if it is of type 10GBase-T
@@ -4425,6 +4429,9 @@ static int bnxt_get_module_eeprom(struct net_device *dev,
 	struct bnxt *bp = netdev_priv(dev);
 	u16  start = eeprom->offset, length = eeprom->len;
 	int rc = 0;
+
+	if (BNXT_VF(bp) && !BNXT_VF_IS_TRUSTED(bp))
+		return -EPERM;
 
 	memset(data, 0, eeprom->len);
 
@@ -4479,6 +4486,12 @@ static int bnxt_get_module_eeprom_by_page(struct net_device *dev,
 {
 	struct bnxt *bp = netdev_priv(dev);
 	int rc;
+
+	if (BNXT_VF(bp) && !BNXT_VF_IS_TRUSTED(bp)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Module read not permitted on untrusted VF");
+		return -EPERM;
+	}
 
 	rc = bnxt_get_module_status(bp, extack);
 	if (rc)
@@ -4887,35 +4900,44 @@ static void bnxt_self_test(struct net_device *dev, struct ethtool_test *etest,
 		bnxt_close_nic(bp, true, false);
 		bnxt_run_fw_tests(bp, test_mask, &test_results);
 
-		buf[BNXT_MACLPBK_TEST_IDX] = 1;
-		bnxt_hwrm_mac_loopback(bp, true);
-		msleep(250);
 		rc = bnxt_half_open_nic(bp);
 		if (rc) {
-			bnxt_hwrm_mac_loopback(bp, false);
 			etest->flags |= ETH_TEST_FL_FAILED;
 			return;
 		}
+		buf[BNXT_MACLPBK_TEST_IDX] = 1;
+		if (bp->mac_flags & BNXT_MAC_FL_NO_MAC_LPBK)
+			goto skip_mac_loopback;
+
+		bnxt_hwrm_mac_loopback(bp, true);
+		msleep(250);
 		if (bnxt_run_loopback(bp))
 			etest->flags |= ETH_TEST_FL_FAILED;
 		else
 			buf[BNXT_MACLPBK_TEST_IDX] = 0;
 
 		bnxt_hwrm_mac_loopback(bp, false);
+skip_mac_loopback:
+		buf[BNXT_PHYLPBK_TEST_IDX] = 1;
+		if (bp->phy_flags & BNXT_PHY_FL_NO_PHY_LPBK)
+			goto skip_phy_loopback;
+
 		bnxt_hwrm_phy_loopback(bp, true, false);
 		msleep(1000);
-		if (bnxt_run_loopback(bp)) {
-			buf[BNXT_PHYLPBK_TEST_IDX] = 1;
+		if (bnxt_run_loopback(bp))
 			etest->flags |= ETH_TEST_FL_FAILED;
-		}
+		else
+			buf[BNXT_PHYLPBK_TEST_IDX] = 0;
+skip_phy_loopback:
+		buf[BNXT_EXTLPBK_TEST_IDX] = 1;
 		if (do_ext_lpbk) {
 			etest->flags |= ETH_TEST_FL_EXTERNAL_LB_DONE;
 			bnxt_hwrm_phy_loopback(bp, true, true);
 			msleep(1000);
-			if (bnxt_run_loopback(bp)) {
-				buf[BNXT_EXTLPBK_TEST_IDX] = 1;
+			if (bnxt_run_loopback(bp))
 				etest->flags |= ETH_TEST_FL_FAILED;
-			}
+			else
+				buf[BNXT_EXTLPBK_TEST_IDX] = 0;
 		}
 		bnxt_hwrm_phy_loopback(bp, false, false);
 		bnxt_half_close_nic(bp);
