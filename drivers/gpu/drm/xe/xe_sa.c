@@ -34,13 +34,12 @@ static void xe_sa_bo_manager_fini(struct drm_device *drm, void *arg)
 struct xe_sa_manager *xe_sa_bo_manager_init(struct xe_tile *tile, u32 size, u32 align)
 {
 	struct xe_device *xe = tile_to_xe(tile);
+	struct xe_sa_manager *sa_manager;
 	u32 managed_size = size - SZ_4K;
 	struct xe_bo *bo;
 	int ret;
 
-	struct xe_sa_manager *sa_manager = drmm_kzalloc(&tile_to_xe(tile)->drm,
-							sizeof(*sa_manager),
-							GFP_KERNEL);
+	sa_manager = drmm_kzalloc(&xe->drm, sizeof(*sa_manager), GFP_KERNEL);
 	if (!sa_manager)
 		return ERR_PTR(-ENOMEM);
 
