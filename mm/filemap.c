@@ -441,6 +441,24 @@ int filemap_fdatawrite_range(struct address_space *mapping, loff_t start,
 EXPORT_SYMBOL(filemap_fdatawrite_range);
 
 /**
+ * filemap_fdatawrite_range_kick - start writeback on a range
+ * @mapping:	target address_space
+ * @start:	index to start writeback on
+ * @end:	last (non-inclusive) index for writeback
+ *
+ * This is a non-integrity writeback helper, to start writing back folios
+ * for the indicated range.
+ *
+ * Return: %0 on success, negative error code otherwise.
+ */
+int filemap_fdatawrite_range_kick(struct address_space *mapping, loff_t start,
+				  loff_t end)
+{
+	return __filemap_fdatawrite_range(mapping, start, end, WB_SYNC_NONE);
+}
+EXPORT_SYMBOL_GPL(filemap_fdatawrite_range_kick);
+
+/**
  * filemap_flush - mostly a non-blocking flush
  * @mapping:	target address_space
  *
