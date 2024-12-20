@@ -144,6 +144,4 @@ Internals
 
 .. kernel-doc:: drivers/gpu/drm/xlnx/zynqmp_dp.c
 
-.. kernel-doc:: drivers/gpu/drm/xlnx/zynqmp_dpsub.c
-
 .. kernel-doc:: drivers/gpu/drm/xlnx/zynqmp_kms.c
