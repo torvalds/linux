@@ -167,6 +167,93 @@ out:
 	return len;
 }
 
+void xdp_return_frag(netmem_ref netmem, const struct xdp_buff *xdp);
+
+/**
+ * __xdp_buff_add_frag - attach frag to &xdp_buff
+ * @xdp: XDP buffer to attach the frag to
+ * @netmem: network memory containing the frag
+ * @offset: offset at which the frag starts
+ * @size: size of the frag
+ * @truesize: total memory size occupied by the frag
+ * @try_coalesce: whether to try coalescing the frags (not valid for XSk)
+ *
+ * Attach frag to the XDP buffer. If it currently has no frags attached,
+ * initialize the related fields, otherwise check that the frag number
+ * didn't reach the limit of ``MAX_SKB_FRAGS``. If possible, try coalescing
+ * the frag with the previous one.
+ * The function doesn't check/update the pfmemalloc bit. Please use the
+ * non-underscored wrapper in drivers.
+ *
+ * Return: true on success, false if there's no space for the frag in
+ * the shared info struct.
+ */
+static inline bool __xdp_buff_add_frag(struct xdp_buff *xdp, netmem_ref netmem,
+				       u32 offset, u32 size, u32 truesize,
+				       bool try_coalesce)
+{
+	struct skb_shared_info *sinfo = xdp_get_shared_info_from_buff(xdp);
+	skb_frag_t *prev;
+	u32 nr_frags;
+
+	if (!xdp_buff_has_frags(xdp)) {
+		xdp_buff_set_frags_flag(xdp);
+
+		nr_frags = 0;
+		sinfo->xdp_frags_size = 0;
+		sinfo->xdp_frags_truesize = 0;
+
+		goto fill;
+	}
+
+	nr_frags = sinfo->nr_frags;
+	prev = &sinfo->frags[nr_frags - 1];
+
+	if (try_coalesce && netmem == skb_frag_netmem(prev) &&
+	    offset == skb_frag_off(prev) + skb_frag_size(prev)) {
+		skb_frag_size_add(prev, size);
+		/* Guaranteed to only decrement the refcount */
+		xdp_return_frag(netmem, xdp);
+	} else if (unlikely(nr_frags == MAX_SKB_FRAGS)) {
+		return false;
+	} else {
+fill:
+		__skb_fill_netmem_desc_noacc(sinfo, nr_frags++, netmem,
+					     offset, size);
+	}
+
+	sinfo->nr_frags = nr_frags;
+	sinfo->xdp_frags_size += size;
+	sinfo->xdp_frags_truesize += truesize;
+
+	return true;
+}
+
+/**
+ * xdp_buff_add_frag - attach frag to &xdp_buff
+ * @xdp: XDP buffer to attach the frag to
+ * @netmem: network memory containing the frag
+ * @offset: offset at which the frag starts
+ * @size: size of the frag
+ * @truesize: total memory size occupied by the frag
+ *
+ * Version of __xdp_buff_add_frag() which takes care of the pfmemalloc bit.
+ *
+ * Return: true on success, false if there's no space for the frag in
+ * the shared info struct.
+ */
+static inline bool xdp_buff_add_frag(struct xdp_buff *xdp, netmem_ref netmem,
+				     u32 offset, u32 size, u32 truesize)
+{
+	if (!__xdp_buff_add_frag(xdp, netmem, offset, size, truesize, true))
+		return false;
+
+	if (unlikely(netmem_is_pfmemalloc(netmem)))
+		xdp_buff_set_frag_pfmemalloc(xdp);
+
+	return true;
+}
+
 struct xdp_frame {
 	void *data;
 	u32 len;
@@ -230,7 +317,14 @@ xdp_update_skb_shared_info(struct sk_buff *skb, u8 nr_frags,
 			   unsigned int size, unsigned int truesize,
 			   bool pfmemalloc)
 {
-	skb_shinfo(skb)->nr_frags = nr_frags;
+	struct skb_shared_info *sinfo = skb_shinfo(skb);
+
+	sinfo->nr_frags = nr_frags;
+	/*
+	 * ``destructor_arg`` is unionized with ``xdp_frags_{,true}size``,
+	 * reset it after that these fields aren't used anymore.
+	 */
+	sinfo->destructor_arg = NULL;
 
 	skb->len += size;
 	skb->data_len += size;
@@ -242,6 +336,8 @@ xdp_update_skb_shared_info(struct sk_buff *skb, u8 nr_frags,
 void xdp_warn(const char *msg, const char *func, const int line);
 #define XDP_WARN(msg) xdp_warn(msg, __func__, __LINE__)
 
+struct sk_buff *xdp_build_skb_from_buff(const struct xdp_buff *xdp);
+struct sk_buff *xdp_build_skb_from_zc(struct xdp_buff *xdp);
 struct xdp_frame *xdp_convert_zc_to_xdp_frame(struct xdp_buff *xdp);
 struct sk_buff *__xdp_build_skb_from_frame(struct xdp_frame *xdpf,
 					   struct sk_buff *skb,
