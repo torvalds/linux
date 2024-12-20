@@ -37,6 +37,7 @@ description: |
         msm8226
         msm8660
         msm8916
+        msm8917
         msm8926
         msm8929
         msm8939
@@ -264,6 +265,11 @@ properties:
               - wingtech,wt88047
               - yiming,uz801-v3
           - const: qcom,msm8916
+
+      - items:
+          - enum:
+              - xiaomi,riva
+          - const: qcom,msm8917
 
       - items:
           - enum:
@@ -1207,6 +1213,7 @@ allOf:
               - qcom,apq8026
               - qcom,apq8094
               - qcom,apq8096
+              - qcom,msm8917
               - qcom,msm8939
               - qcom,msm8953
               - qcom,msm8956
