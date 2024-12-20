@@ -1943,8 +1943,10 @@ static int ov08x40_identify_module(struct ov08x40 *ov08x)
 
 	ret = ov08x40_read_reg(ov08x, OV08X40_REG_CHIP_ID,
 			       OV08X40_REG_VALUE_24BIT, &val);
-	if (ret)
+	if (ret) {
+		dev_err(&client->dev, "error reading chip-id register: %d\n", ret);
 		return ret;
+	}
 
 	if (val != OV08X40_CHIP_ID) {
 		dev_err(&client->dev, "chip id mismatch: %x!=%x\n",
@@ -2262,10 +2264,8 @@ static int ov08x40_probe(struct i2c_client *client)
 
 		/* Check module identity */
 		ret = ov08x40_identify_module(ov08x);
-		if (ret) {
-			dev_err(&client->dev, "failed to find sensor: %d\n", ret);
+		if (ret)
 			goto probe_power_off;
-		}
 	}
 
 	/* Set default mode to max resolution */
