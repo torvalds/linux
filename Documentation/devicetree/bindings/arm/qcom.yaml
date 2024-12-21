@@ -99,6 +99,7 @@ description: |
         sm8650
         x1e78100
         x1e80100
+        x1p42100
 
   There are many devices in the list below that run the standard ChromeOS
   bootloader setup and use the open source depthcharge bootloader to boot the
@@ -1121,6 +1122,11 @@ properties:
               - qcom,x1e80100-crd
               - qcom,x1e80100-qcp
           - const: qcom,x1e80100
+
+      - items:
+          - enum:
+              - qcom,x1p42100-crd
+          - const: qcom,x1p42100
 
   # Board compatibles go above
 
