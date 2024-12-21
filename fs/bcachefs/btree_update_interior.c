@@ -803,7 +803,7 @@ err:
 		mark_btree_node_locked_noreset(path, b->c.level, BTREE_NODE_INTENT_LOCKED);
 		six_unlock_write(&b->c.lock);
 
-		btree_node_write_if_need(c, b, SIX_LOCK_intent);
+		btree_node_write_if_need(trans, b, SIX_LOCK_intent);
 		btree_node_unlock(trans, path, b->c.level);
 		bch2_path_put(trans, path_idx, true);
 	}
@@ -824,7 +824,7 @@ err:
 		b = as->new_nodes[i];
 
 		btree_node_lock_nopath_nofail(trans, &b->c, SIX_LOCK_read);
-		btree_node_write_if_need(c, b, SIX_LOCK_read);
+		btree_node_write_if_need(trans, b, SIX_LOCK_read);
 		six_unlock_read(&b->c.lock);
 	}
 
@@ -1709,14 +1709,14 @@ static int btree_split(struct btree_update *as, struct btree_trans *trans,
 
 	if (n3) {
 		bch2_btree_update_get_open_buckets(as, n3);
-		bch2_btree_node_write(c, n3, SIX_LOCK_intent, 0);
+		bch2_btree_node_write_trans(trans, n3, SIX_LOCK_intent, 0);
 	}
 	if (n2) {
 		bch2_btree_update_get_open_buckets(as, n2);
-		bch2_btree_node_write(c, n2, SIX_LOCK_intent, 0);
+		bch2_btree_node_write_trans(trans, n2, SIX_LOCK_intent, 0);
 	}
 	bch2_btree_update_get_open_buckets(as, n1);
-	bch2_btree_node_write(c, n1, SIX_LOCK_intent, 0);
+	bch2_btree_node_write_trans(trans, n1, SIX_LOCK_intent, 0);
 
 	/*
 	 * The old node must be freed (in memory) _before_ unlocking the new
@@ -1911,7 +1911,7 @@ static void __btree_increase_depth(struct btree_update *as, struct btree_trans *
 	BUG_ON(ret);
 
 	bch2_btree_update_get_open_buckets(as, n);
-	bch2_btree_node_write(c, n, SIX_LOCK_intent, 0);
+	bch2_btree_node_write_trans(trans, n, SIX_LOCK_intent, 0);
 	bch2_trans_node_add(trans, path, n);
 	six_unlock_intent(&n->c.lock);
 
@@ -2104,7 +2104,7 @@ int __bch2_foreground_maybe_merge(struct btree_trans *trans,
 	bch2_trans_verify_paths(trans);
 
 	bch2_btree_update_get_open_buckets(as, n);
-	bch2_btree_node_write(c, n, SIX_LOCK_intent, 0);
+	bch2_btree_node_write_trans(trans, n, SIX_LOCK_intent, 0);
 
 	bch2_btree_node_free_inmem(trans, trans->paths + path, b);
 	bch2_btree_node_free_inmem(trans, trans->paths + sib_path, m);
@@ -2181,7 +2181,7 @@ int bch2_btree_node_rewrite(struct btree_trans *trans,
 	bch2_btree_interior_update_will_free_node(as, b);
 
 	bch2_btree_update_get_open_buckets(as, n);
-	bch2_btree_node_write(c, n, SIX_LOCK_intent, 0);
+	bch2_btree_node_write_trans(trans, n, SIX_LOCK_intent, 0);
 
 	bch2_btree_node_free_inmem(trans, btree_iter_path(trans, iter), b);
 

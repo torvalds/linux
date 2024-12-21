@@ -489,8 +489,8 @@ void bch2_btree_init_next(struct btree_trans *trans, struct btree *b)
 	if (b->nsets == MAX_BSETS &&
 	    !btree_node_write_in_flight(b) &&
 	    should_compact_all(c, b)) {
-		bch2_btree_node_write(c, b, SIX_LOCK_write,
-				      BTREE_WRITE_init_next_bset);
+		bch2_btree_node_write_trans(trans, b, SIX_LOCK_write,
+					    BTREE_WRITE_init_next_bset);
 		reinit_iter = true;
 	}
 
@@ -2333,6 +2333,34 @@ void bch2_btree_node_write(struct bch_fs *c, struct btree *b,
 		    six_trylock_write(&b->c.lock)) {
 			bch2_btree_post_write_cleanup(c, b);
 			six_unlock_write(&b->c.lock);
+		}
+
+		if (lock_type_held == SIX_LOCK_read)
+			six_lock_downgrade(&b->c.lock);
+	} else {
+		__bch2_btree_node_write(c, b, flags);
+		if (lock_type_held == SIX_LOCK_write &&
+		    btree_node_just_written(b))
+			bch2_btree_post_write_cleanup(c, b);
+	}
+}
+
+void bch2_btree_node_write_trans(struct btree_trans *trans, struct btree *b,
+				 enum six_lock_type lock_type_held,
+				 unsigned flags)
+{
+	struct bch_fs *c = trans->c;
+
+	if (lock_type_held == SIX_LOCK_intent ||
+	    (lock_type_held == SIX_LOCK_read &&
+	     six_lock_tryupgrade(&b->c.lock))) {
+		__bch2_btree_node_write(c, b, flags);
+
+		/* don't cycle lock unnecessarily: */
+		if (btree_node_just_written(b) &&
+		    six_trylock_write(&b->c.lock)) {
+			bch2_btree_post_write_cleanup(c, b);
+			__bch2_btree_node_unlock_write(trans, b);
 		}
 
 		if (lock_type_held == SIX_LOCK_read)

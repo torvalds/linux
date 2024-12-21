@@ -249,7 +249,7 @@ static int __btree_node_flush(struct journal *j, struct journal_entry_pin *pin,
 		new |= 1 << BTREE_NODE_need_write;
 	} while (!try_cmpxchg(&b->flags, &old, new));
 
-	btree_node_write_if_need(c, b, SIX_LOCK_read);
+	btree_node_write_if_need(trans, b, SIX_LOCK_read);
 	six_unlock_read(&b->c.lock);
 
 	bch2_trans_put(trans);
