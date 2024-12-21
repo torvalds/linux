@@ -98,6 +98,15 @@ struct xfs_groups {
 	uint8_t			blklog;
 
 	/*
+	 * Zoned devices can have gaps beyond the usable capacity of a zone and
+	 * the end in the LBA/daddr address space.  In other words, the hardware
+	 * equivalent to the RT groups already takes care of the power of 2
+	 * alignment for us.  In this case the sparse FSB/RTB address space maps
+	 * 1:1 to the device address space.
+	 */
+	bool			has_daddr_gaps;
+
+	/*
 	 * Mask to extract the group-relative block number from a FSB.
 	 * For a pre-rtgroups filesystem we pretend to have one very large
 	 * rtgroup, so this mask must be 64-bit.
