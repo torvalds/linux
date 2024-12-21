@@ -1323,7 +1323,8 @@ static int run_protection(int min __attribute__((unused)),
 			  int max __attribute__((unused)))
 {
 	pid_t pid;
-	int llen = 0, status;
+	int llen = 0, ret;
+	siginfo_t siginfo = {};
 	struct rlimit rlimit = { 0, 0 };
 
 	llen += printf("0 -fstackprotector ");
@@ -1361,10 +1362,11 @@ static int run_protection(int min __attribute__((unused)),
 		return 1;
 
 	default:
-		pid = waitpid(pid, &status, 0);
+		ret = waitid(P_PID, pid, &siginfo, WEXITED);
 
-		if (pid == -1 || !WIFSIGNALED(status) || WTERMSIG(status) != SIGABRT) {
-			llen += printf("waitpid()");
+		if (ret != 0 || siginfo.si_signo != SIGCHLD ||
+		    siginfo.si_code != CLD_KILLED || siginfo.si_status != SIGABRT) {
+			llen += printf("waitid()");
 			result(llen, FAIL);
 			return 1;
 		}
