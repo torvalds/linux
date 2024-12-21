@@ -714,7 +714,7 @@ static ssize_t __c2port_read_flash_data(struct c2port_device *dev,
 }
 
 static ssize_t c2port_read_flash_data(struct file *filp, struct kobject *kobj,
-				struct bin_attribute *attr,
+				const struct bin_attribute *attr,
 				char *buffer, loff_t offset, size_t count)
 {
 	struct c2port_device *c2dev = dev_get_drvdata(kobj_to_dev(kobj));
@@ -829,7 +829,7 @@ static ssize_t __c2port_write_flash_data(struct c2port_device *dev,
 }
 
 static ssize_t c2port_write_flash_data(struct file *filp, struct kobject *kobj,
-				struct bin_attribute *attr,
+				const struct bin_attribute *attr,
 				char *buffer, loff_t offset, size_t count)
 {
 	struct c2port_device *c2dev = dev_get_drvdata(kobj_to_dev(kobj));
@@ -849,8 +849,8 @@ static ssize_t c2port_write_flash_data(struct file *filp, struct kobject *kobj,
 	return ret;
 }
 /* size is computed at run-time */
-static BIN_ATTR(flash_data, 0644, c2port_read_flash_data,
-		c2port_write_flash_data, 0);
+static const BIN_ATTR(flash_data, 0644, c2port_read_flash_data,
+		      c2port_write_flash_data, 0);
 
 /*
  * Class attributes
@@ -869,7 +869,7 @@ static struct attribute *c2port_attrs[] = {
 	NULL,
 };
 
-static struct bin_attribute *c2port_bin_attrs[] = {
+static const struct bin_attribute *const c2port_bin_attrs[] = {
 	&bin_attr_flash_data,
 	NULL,
 };
@@ -888,7 +888,7 @@ static size_t c2port_bin_attr_size(struct kobject *kobj,
 
 static const struct attribute_group c2port_group = {
 	.attrs = c2port_attrs,
-	.bin_attrs = c2port_bin_attrs,
+	.bin_attrs_new = c2port_bin_attrs,
 	.bin_size = c2port_bin_attr_size,
 };
 
