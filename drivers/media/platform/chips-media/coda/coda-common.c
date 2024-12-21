@@ -3340,6 +3340,7 @@ static int coda_runtime_resume(struct device *dev)
 
 static const struct dev_pm_ops coda_pm_ops = {
 	SET_RUNTIME_PM_OPS(NULL, coda_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
 };
 
 static struct platform_driver coda_driver = {
