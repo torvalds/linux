@@ -683,11 +683,7 @@ Details::
     *
     *      Calling context: kernel thread
     *
-    *      Notes: If 'no_async_abort' is defined this callback
-    *  	will be invoked from scsi_eh thread. No other commands
-    *	will then be queued on current host during eh.
-    *	Otherwise it will be called whenever scsi_timeout()
-    *      is called due to a command timeout.
+    *      Notes: This is called only for a command that has timed out.
     *
     *      Optionally defined in: LLD
     **/
@@ -990,7 +986,7 @@ struct scsi_host_template
 There is one "struct scsi_host_template" instance per LLD [#]_. It is
 typically initialized as a file scope static in a driver's header file. That
 way members that are not explicitly initialized will be set to 0 or NULL.
-Member of interest:
+Members of interest:
 
     name
 		 - name of driver (may contain spaces, please limit to
@@ -1005,6 +1001,13 @@ Member of interest:
    ``(*queuecommand)()``
 		 - primary callback that the mid level uses to inject
                    SCSI commands into an LLD.
+
+    vendor_id
+		 - a unique value that identifies the vendor supplying
+                   the LLD for the Scsi_Host.  Used most often in validating
+                   vendor-specific message requests.  Value consists of an
+                   identifier type and a vendor-specific value.
+                   See scsi_netlink.h for a description of valid formats.
 
 The structure is defined and commented in include/scsi/scsi_host.h
 
@@ -1046,9 +1049,6 @@ of interest:
 		 - maximum number of commands that can be queued on devices
                    controlled by the host. Overridden by LLD calls to
                    scsi_change_queue_depth().
-    no_async_abort
-		 - 1=>Asynchronous aborts are not supported
-		 - 0=>Timed-out commands will be aborted asynchronously
     hostt
 		 - pointer to driver's struct scsi_host_template from which
                    this struct Scsi_Host instance was spawned
@@ -1057,22 +1057,10 @@ of interest:
     transportt
 		 - pointer to driver's struct scsi_transport_template instance
                    (if any). FC and SPI transports currently supported.
-    sh_list
-		 - a double linked list of pointers to all struct Scsi_Host
-                   instances (currently ordered by ascending host_no)
-    my_devices
-		 - a double linked list of pointers to struct scsi_device
-                   instances that belong to this host.
     hostdata[0]
 		 - area reserved for LLD at end of struct Scsi_Host. Size
-                   is set by the second argument (named 'xtr_bytes') to
+                   is set by the second argument (named 'privsize') to
                    scsi_host_alloc().
-    vendor_id
-		 - a unique value that identifies the vendor supplying
-                   the LLD for the Scsi_Host.  Used most often in validating
-                   vendor-specific message requests.  Value consists of an
-                   identifier type and a vendor-specific value.
-                   See scsi_netlink.h for a description of valid formats.
 
 The scsi_host structure is defined in include/scsi/scsi_host.h
 
@@ -1094,30 +1082,11 @@ Members of interest:
 
     cmnd
 		 - array containing SCSI command
-    cmnd_len
+    cmd_len
 		 - length (in bytes) of SCSI command
     sc_data_direction
 		 - direction of data transfer in data phase. See
                    "enum dma_data_direction" in include/linux/dma-mapping.h
-    request_bufflen
-		 - number of data bytes to transfer (0 if no data phase)
-    use_sg
-		 - ==0 -> no scatter gather list, hence transfer data
-                          to/from request_buffer
-                 - >0 ->  scatter gather list (actually an array) in
-                          request_buffer with use_sg elements
-    request_buffer
-		   - either contains data buffer or scatter gather list
-                     depending on the setting of use_sg. Scatter gather
-                     elements are defined by 'struct scatterlist' found
-                     in include/linux/scatterlist.h .
-    done
-		 - function pointer that should be invoked by LLD when the
-                   SCSI command is completed (successfully or otherwise).
-                   Should only be called by an LLD if the LLD has accepted
-                   the command (i.e. queuecommand() returned or will return
-                   0). The LLD may invoke 'done'  prior to queuecommand()
-                   finishing.
     result
 		 - should be set by LLD prior to calling 'done'. A value
                    of 0 implies a successfully completed command (and all
@@ -1140,13 +1109,13 @@ Members of interest:
     device
 		 - pointer to scsi_device object that this command is
                    associated with.
-    resid
+    resid_len   (access by calling scsi_set_resid() / scsi_get_resid())
 		 - an LLD should set this unsigned integer to the requested
                    transfer length (i.e. 'request_bufflen') less the number
-                   of bytes that are actually transferred. 'resid' is
+                   of bytes that are actually transferred. 'resid_len' is
                    preset to 0 so an LLD can ignore it if it cannot detect
                    underruns (overruns should not be reported). An LLD
-                   should set 'resid' prior to invoking 'done'. The most
+                   should set 'resid_len' prior to invoking 'done'. The most
                    interesting case is data transfers from a SCSI target
                    device (e.g. READs) that underrun.
     underflow
@@ -1155,10 +1124,10 @@ Members of interest:
                    figure. Not many LLDs implement this check and some that
                    do just output an error message to the log rather than
                    report a DID_ERROR. Better for an LLD to implement
-                   'resid'.
+                   'resid_len'.
 
-It is recommended that a LLD set 'resid' on data transfers from a SCSI
-target device (e.g. READs). It is especially important that 'resid' is set
+It is recommended that a LLD set 'resid_len' on data transfers from a SCSI
+target device (e.g. READs). It is especially important that 'resid_len' is set
 when such data transfers have sense keys of MEDIUM ERROR and HARDWARE ERROR
 (and possibly RECOVERED ERROR). In these cases if a LLD is in doubt how much
 data has been received then the safest approach is to indicate no bytes have
@@ -1168,7 +1137,7 @@ a LLD might use these helpers::
     scsi_set_resid(SCpnt, scsi_bufflen(SCpnt));
 
 where 'SCpnt' is a pointer to a scsi_cmnd object. To indicate only three 512
-bytes blocks has been received 'resid' could be set like this::
+bytes blocks have been received 'resid_len' could be set like this::
 
     scsi_set_resid(SCpnt, scsi_bufflen(SCpnt) - (3 * 512));
 
