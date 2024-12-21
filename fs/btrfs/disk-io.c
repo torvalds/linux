@@ -2327,6 +2327,71 @@ out:
 	return ret;
 }
 
+static int validate_sys_chunk_array(const struct btrfs_fs_info *fs_info,
+				    const struct btrfs_super_block *sb)
+{
+	unsigned int cur = 0; /* Offset inside the sys chunk array */
+	/*
+	 * At sb read time, fs_info is not fully initialized. Thus we have
+	 * to use super block sectorsize, which should have been validated.
+	 */
+	const u32 sectorsize = btrfs_super_sectorsize(sb);
+	u32 sys_array_size = btrfs_super_sys_array_size(sb);
+
+	if (sys_array_size > BTRFS_SYSTEM_CHUNK_ARRAY_SIZE) {
+		btrfs_err(fs_info, "system chunk array too big %u > %u",
+			  sys_array_size, BTRFS_SYSTEM_CHUNK_ARRAY_SIZE);
+		return -EUCLEAN;
+	}
+
+	while (cur < sys_array_size) {
+		struct btrfs_disk_key *disk_key;
+		struct btrfs_chunk *chunk;
+		struct btrfs_key key;
+		u64 type;
+		u16 num_stripes;
+		u32 len;
+		int ret;
+
+		disk_key = (struct btrfs_disk_key *)(sb->sys_chunk_array + cur);
+		len = sizeof(*disk_key);
+
+		if (cur + len > sys_array_size)
+			goto short_read;
+		cur += len;
+
+		btrfs_disk_key_to_cpu(&key, disk_key);
+		if (key.type != BTRFS_CHUNK_ITEM_KEY) {
+			btrfs_err(fs_info,
+			    "unexpected item type %u in sys_array at offset %u",
+				  key.type, cur);
+			return -EUCLEAN;
+		}
+		chunk = (struct btrfs_chunk *)(sb->sys_chunk_array + cur);
+		num_stripes = btrfs_stack_chunk_num_stripes(chunk);
+		if (cur + btrfs_chunk_item_size(num_stripes) > sys_array_size)
+			goto short_read;
+		type = btrfs_stack_chunk_type(chunk);
+		if (!(type & BTRFS_BLOCK_GROUP_SYSTEM)) {
+			btrfs_err(fs_info,
+			"invalid chunk type %llu in sys_array at offset %u",
+				  type, cur);
+			return -EUCLEAN;
+		}
+		ret = btrfs_check_chunk_valid(fs_info, NULL, chunk, key.offset,
+					      sectorsize);
+		if (ret < 0)
+			return ret;
+		cur += btrfs_chunk_item_size(num_stripes);
+	}
+	return 0;
+short_read:
+	btrfs_err(fs_info,
+	"super block sys chunk array short read, cur=%u sys_array_size=%u",
+		  cur, sys_array_size);
+	return -EUCLEAN;
+}
+
 /*
  * Real super block validation
  * NOTE: super csum type and incompat features will not be checked here.
@@ -2494,6 +2559,8 @@ int btrfs_validate_super(const struct btrfs_fs_info *fs_info,
 			  btrfs_super_bytenr(sb), BTRFS_SUPER_INFO_OFFSET);
 		ret = -EINVAL;
 	}
+
+	ret = validate_sys_chunk_array(fs_info, sb);
 
 	/*
 	 * Obvious sys_chunk_array corruptions, it must hold at least one key

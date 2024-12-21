@@ -10,6 +10,7 @@
 #include <uapi/linux/btrfs_tree.h>
 
 struct extent_buffer;
+struct btrfs_fs_info;
 struct btrfs_chunk;
 struct btrfs_key;
 
@@ -66,8 +67,10 @@ enum btrfs_tree_block_status __btrfs_check_node(struct extent_buffer *node);
 int btrfs_check_leaf(struct extent_buffer *leaf);
 int btrfs_check_node(struct extent_buffer *node);
 
-int btrfs_check_chunk_valid(struct extent_buffer *leaf,
-			    struct btrfs_chunk *chunk, u64 logical);
+int btrfs_check_chunk_valid(const struct btrfs_fs_info *fs_info,
+			    const struct extent_buffer *leaf,
+			    const struct btrfs_chunk *chunk, u64 logical,
+			    u32 sectorsize);
 int btrfs_check_eb_owner(const struct extent_buffer *eb, u64 root_owner);
 int btrfs_verify_level_key(struct extent_buffer *eb,
 			   const struct btrfs_tree_parent_check *check);
