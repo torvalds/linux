@@ -874,9 +874,22 @@ static struct bin_attribute *c2port_bin_attrs[] = {
 	NULL,
 };
 
+static size_t c2port_bin_attr_size(struct kobject *kobj,
+				   const struct bin_attribute *attr,
+				   int i)
+{
+	struct c2port_device *c2dev = dev_get_drvdata(kobj_to_dev(kobj));
+
+	if (attr == &bin_attr_flash_data)
+		return c2dev->ops->blocks_num * c2dev->ops->block_size;
+
+	return attr->size;
+}
+
 static const struct attribute_group c2port_group = {
 	.attrs = c2port_attrs,
 	.bin_attrs = c2port_bin_attrs,
+	.bin_size = c2port_bin_attr_size,
 };
 
 static const struct attribute_group *c2port_groups[] = {
@@ -912,8 +925,7 @@ struct c2port_device *c2port_device_register(char *name,
 	if (ret < 0)
 		goto error_idr_alloc;
 	c2dev->id = ret;
-
-	bin_attr_flash_data.size = ops->blocks_num * ops->block_size;
+	c2dev->ops = ops;
 
 	c2dev->dev = device_create(c2port_class, NULL, 0, c2dev,
 				   "c2port%d", c2dev->id);
@@ -924,7 +936,6 @@ struct c2port_device *c2port_device_register(char *name,
 	dev_set_drvdata(c2dev->dev, c2dev);
 
 	strscpy(c2dev->name, name, sizeof(c2dev->name));
-	c2dev->ops = ops;
 	mutex_init(&c2dev->mutex);
 
 	/* By default C2 port access is off */
