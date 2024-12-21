@@ -308,8 +308,8 @@ operations:
          attributes:
            - addr
     -
-      name:  flush-addrs
-      doc: flush addresses
+      name: flush-addrs
+      doc: Flush addresses
       attribute-set: endpoint
       dont-validate: [ strict ]
       flags: [ uns-admin-perm ]
@@ -353,7 +353,7 @@ operations:
             - addr-remote
     -
       name: announce
-      doc: announce new sf
+      doc: Announce new address
       attribute-set: attr
       dont-validate: [ strict ]
       flags: [ uns-admin-perm ]
@@ -364,7 +364,7 @@ operations:
             - token
     -
       name: remove
-      doc: announce removal
+      doc: Announce removal
       attribute-set: attr
       dont-validate: [ strict ]
       flags: [ uns-admin-perm ]
@@ -375,7 +375,7 @@ operations:
            - loc-id
     -
       name: subflow-create
-      doc: todo
+      doc: Create subflow
       attribute-set: attr
       dont-validate: [ strict ]
       flags: [ uns-admin-perm ]
@@ -387,7 +387,7 @@ operations:
             - addr-remote
     -
       name: subflow-destroy
-      doc: todo
+      doc: Destroy subflow
       attribute-set: attr
       dont-validate: [ strict ]
       flags: [ uns-admin-perm ]
