@@ -118,6 +118,7 @@
 	x(ENOENT,			ENOENT_dev_not_found)			\
 	x(ENOENT,			ENOENT_dev_idx_not_found)		\
 	x(ENOENT,			ENOENT_inode_no_backpointer)		\
+	x(ENOENT,			ENOENT_no_snapshot_tree_subvol)		\
 	x(ENOTEMPTY,			ENOTEMPTY_dir_not_empty)		\
 	x(ENOTEMPTY,			ENOTEMPTY_subvol_not_empty)		\
 	x(EEXIST,			EEXIST_str_hash_set)			\

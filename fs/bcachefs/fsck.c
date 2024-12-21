@@ -205,6 +205,36 @@ err:
 	return ret;
 }
 
+/*
+ * Find any subvolume associated with a tree of snapshots
+ * We can't rely on master_subvol - it might have been deleted.
+ */
+static int find_snapshot_tree_subvol(struct btree_trans *trans,
+				     u32 tree_id, u32 *subvol)
+{
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	int ret;
+
+	for_each_btree_key_norestart(trans, iter, BTREE_ID_snapshots, POS_MIN, 0, k, ret) {
+		if (k.k->type != KEY_TYPE_snapshot)
+			continue;
+
+		struct bkey_s_c_snapshot s = bkey_s_c_to_snapshot(k);
+		if (le32_to_cpu(s.v->tree) != tree_id)
+			continue;
+
+		if (s.v->subvol) {
+			*subvol = le32_to_cpu(s.v->subvol);
+			goto found;
+		}
+	}
+	ret = -BCH_ERR_ENOENT_no_snapshot_tree_subvol;
+found:
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
 /* Get lost+found, create if it doesn't exist: */
 static int lookup_lostfound(struct btree_trans *trans, u32 snapshot,
 			    struct bch_inode_unpacked *lostfound,
@@ -223,19 +253,24 @@ static int lookup_lostfound(struct btree_trans *trans, u32 snapshot,
 	if (ret)
 		return ret;
 
-	subvol_inum root_inum = { .subvol = le32_to_cpu(st.master_subvol) };
+	u32 subvolid;
+	ret = find_snapshot_tree_subvol(trans,
+				bch2_snapshot_tree(c, snapshot), &subvolid);
+	bch_err_msg(c, ret, "finding subvol associated with snapshot tree %u",
+		    bch2_snapshot_tree(c, snapshot));
+	if (ret)
+		return ret;
 
 	struct bch_subvolume subvol;
-	ret = bch2_subvolume_get(trans, le32_to_cpu(st.master_subvol), false, &subvol);
-	bch_err_msg(c, ret, "looking up root subvol %u for snapshot %u",
-		    le32_to_cpu(st.master_subvol), snapshot);
+	ret = bch2_subvolume_get(trans, subvolid, false, &subvol);
+	bch_err_msg(c, ret, "looking up subvol %u for snapshot %u", subvolid, snapshot);
 	if (ret)
 		return ret;
 
 	if (!subvol.inode) {
 		struct btree_iter iter;
 		struct bkey_i_subvolume *subvol = bch2_bkey_get_mut_typed(trans, &iter,
-				BTREE_ID_subvolumes, POS(0, le32_to_cpu(st.master_subvol)),
+				BTREE_ID_subvolumes, POS(0, subvolid),
 				0, subvolume);
 		ret = PTR_ERR_OR_ZERO(subvol);
 		if (ret)
@@ -245,13 +280,16 @@ static int lookup_lostfound(struct btree_trans *trans, u32 snapshot,
 		bch2_trans_iter_exit(trans, &iter);
 	}
 
-	root_inum.inum = le64_to_cpu(subvol.inode);
+	subvol_inum root_inum = {
+		.subvol = subvolid,
+		.inum = le64_to_cpu(subvol.inode)
+	};
 
 	struct bch_inode_unpacked root_inode;
 	struct bch_hash_info root_hash_info;
 	ret = lookup_inode(trans, root_inum.inum, snapshot, &root_inode);
 	bch_err_msg(c, ret, "looking up root inode %llu for subvol %u",
-		    root_inum.inum, le32_to_cpu(st.master_subvol));
+		    root_inum.inum, subvolid);
 	if (ret)
 		return ret;
 
