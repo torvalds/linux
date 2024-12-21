@@ -842,7 +842,7 @@ static int bq2415x_notifier_call(struct notifier_block *nb,
 	if (bq->automode < 1)
 		return NOTIFY_OK;
 
-	schedule_delayed_work(&bq->work, 0);
+	mod_delayed_work(system_wq, &bq->work, 0);
 
 	return NOTIFY_OK;
 }
