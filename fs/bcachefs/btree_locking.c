@@ -856,6 +856,9 @@ void bch2_btree_path_verify_locks(struct btree_path *path)
 		       (want == BTREE_NODE_UNLOCKED ||
 			have != BTREE_NODE_WRITE_LOCKED) &&
 		       want != have);
+
+		BUG_ON(btree_node_locked(path, l) &&
+		       path->l[l].lock_seq != six_lock_seq(&path->l[l].b->c.lock));
 	}
 }
 
