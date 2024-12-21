@@ -2413,6 +2413,8 @@ void tb_switch_debugfs_init(struct tb_switch *sw)
 	sw->debugfs_dir = debugfs_dir;
 	debugfs_create_file("regs", DEBUGFS_MODE, debugfs_dir, sw,
 			    &switch_regs_fops);
+	if (sw->drom)
+		debugfs_create_blob("drom", 0400, debugfs_dir, &sw->drom_blob);
 
 	tb_switch_for_each_port(sw, port) {
 		struct dentry *debugfs_dir;
