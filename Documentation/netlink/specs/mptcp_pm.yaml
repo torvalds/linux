@@ -23,7 +23,8 @@ definitions:
      -
       name: created
       doc:
-        token, family, saddr4 | saddr6, daddr4 | daddr6, sport, dport
+        token, family, saddr4 | saddr6, daddr4 | daddr6, sport, dport,
+        server-side
         A new MPTCP connection has been created. It is the good time to
         allocate memory and send ADD_ADDR if needed. Depending on the
         traffic-patterns it can take a long time until the
@@ -31,7 +32,8 @@ definitions:
      -
       name: established
       doc:
-        token, family, saddr4 | saddr6, daddr4 | daddr6, sport, dport
+        token, family, saddr4 | saddr6, daddr4 | daddr6, sport, dport,
+        server-side
         A MPTCP connection is established (can start new subflows).
      -
       name: closed
