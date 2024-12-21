@@ -725,8 +725,6 @@ static inline void idxd_desc_complete(struct idxd_desc *desc,
 				   &desc->txd, &status);
 }
 
-int idxd_register_bus_type(void);
-void idxd_unregister_bus_type(void);
 int idxd_register_devices(struct idxd_device *idxd);
 void idxd_unregister_devices(struct idxd_device *idxd);
 void idxd_wqs_quiesce(struct idxd_device *idxd);
