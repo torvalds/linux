@@ -1229,19 +1229,20 @@ int run_stdlib(int min, int max)
 
 static int expect_vfprintf(int llen, int c, const char *expected, const char *fmt, ...)
 {
-	int ret, fd;
+	int ret, pipefd[2];
 	ssize_t w, r;
 	char buf[100];
 	FILE *memfile;
 	va_list args;
 
-	fd = open("/tmp", O_TMPFILE | O_EXCL | O_RDWR, 0600);
-	if (fd == -1) {
-		result(llen, SKIPPED);
-		return 0;
+	ret = pipe(pipefd);
+	if (ret == -1) {
+		llen += printf(" pipe() != %s", strerror(errno));
+		result(llen, FAIL);
+		return 1;
 	}
 
-	memfile = fdopen(fd, "w+");
+	memfile = fdopen(pipefd[1], "w");
 	if (!memfile) {
 		result(llen, FAIL);
 		return 1;
@@ -1257,12 +1258,9 @@ static int expect_vfprintf(int llen, int c, const char *expected, const char *fm
 		return 1;
 	}
 
-	fflush(memfile);
-	lseek(fd, 0, SEEK_SET);
-
-	r = read(fd, buf, sizeof(buf) - 1);
-
 	fclose(memfile);
+
+	r = read(pipefd[0], buf, sizeof(buf) - 1);
 
 	if (r != w) {
 		llen += printf(" written(%d) != read(%d)", (int)w, (int)r);
