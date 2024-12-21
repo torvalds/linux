@@ -59,9 +59,6 @@ extern struct workqueue_struct *ib_comp_unbound_wq;
 
 struct ib_ucq_object;
 
-__printf(3, 4) __cold
-void ibdev_printk(const char *level, const struct ib_device *ibdev,
-		  const char *format, ...);
 __printf(2, 3) __cold
 void ibdev_emerg(const struct ib_device *ibdev, const char *format, ...);
 __printf(2, 3) __cold

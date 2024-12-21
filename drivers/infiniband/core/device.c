@@ -209,23 +209,6 @@ static void __ibdev_printk(const char *level, const struct ib_device *ibdev,
 		printk("%s(NULL ib_device): %pV", level, vaf);
 }
 
-void ibdev_printk(const char *level, const struct ib_device *ibdev,
-		  const char *format, ...)
-{
-	struct va_format vaf;
-	va_list args;
-
-	va_start(args, format);
-
-	vaf.fmt = format;
-	vaf.va = &args;
-
-	__ibdev_printk(level, ibdev, &vaf);
-
-	va_end(args);
-}
-EXPORT_SYMBOL(ibdev_printk);
-
 #define define_ibdev_printk_level(func, level)                  \
 void func(const struct ib_device *ibdev, const char *fmt, ...)  \
 {                                                               \
