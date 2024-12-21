@@ -22,67 +22,67 @@ definitions:
       doc: unused event
      -
       name: created
-      doc:
-        token, family, saddr4 | saddr6, daddr4 | daddr6, sport, dport,
-        server-side
+      doc: >-
         A new MPTCP connection has been created. It is the good time to
         allocate memory and send ADD_ADDR if needed. Depending on the
         traffic-patterns it can take a long time until the
         MPTCP_EVENT_ESTABLISHED is sent.
+        Attributes: token, family, saddr4 | saddr6, daddr4 | daddr6, sport,
+        dport, server-side.
      -
       name: established
-      doc:
-        token, family, saddr4 | saddr6, daddr4 | daddr6, sport, dport,
-        server-side
+      doc: >-
         A MPTCP connection is established (can start new subflows).
+        Attributes: token, family, saddr4 | saddr6, daddr4 | daddr6, sport,
+        dport, server-side.
      -
       name: closed
-      doc:
-        token
+      doc: >-
         A MPTCP connection has stopped.
+        Attribute: token.
      -
       name: announced
       value: 6
-      doc:
-        token, rem_id, family, daddr4 | daddr6 [, dport]
+      doc: >-
         A new address has been announced by the peer.
+        Attributes: token, rem_id, family, daddr4 | daddr6 [, dport].
      -
       name: removed
-      doc:
-        token, rem_id
+      doc: >-
         An address has been lost by the peer.
+        Attributes: token, rem_id.
      -
       name: sub-established
       value: 10
-      doc:
-        token, family, loc_id, rem_id, saddr4 | saddr6, daddr4 | daddr6, sport,
-        dport, backup, if_idx [, error]
+      doc: >-
         A new subflow has been established. 'error' should not be set.
+        Attributes: token, family, loc_id, rem_id, saddr4 | saddr6, daddr4 |
+        daddr6, sport, dport, backup, if_idx [, error].
      -
       name: sub-closed
-      doc:
-        token, family, loc_id, rem_id, saddr4 | saddr6, daddr4 | daddr6, sport,
-        dport, backup, if_idx [, error]
+      doc: >-
         A subflow has been closed. An error (copy of sk_err) could be set if an
         error has been detected for this subflow.
+        Attributes: token, family, loc_id, rem_id, saddr4 | saddr6, daddr4 |
+        daddr6, sport, dport, backup, if_idx [, error].
      -
       name: sub-priority
       value: 13
-      doc:
-        token, family, loc_id, rem_id, saddr4 | saddr6, daddr4 | daddr6, sport,
-        dport, backup, if_idx [, error]
+      doc: >-
         The priority of a subflow has changed. 'error' should not be set.
+        Attributes: token, family, loc_id, rem_id, saddr4 | saddr6, daddr4 |
+        daddr6, sport, dport, backup, if_idx [, error].
      -
       name: listener-created
       value: 15
-      doc:
-        family, sport, saddr4 | saddr6
+      doc: >-
         A new PM listener is created.
+        Attributes: family, sport, saddr4 | saddr6.
      -
       name: listener-closed
-      doc:
-        family, sport, saddr4 | saddr6
+      doc: >-
         A PM listener is closed.
+        Attributes: family, sport, saddr4 | saddr6.
 
 attribute-sets:
   -
