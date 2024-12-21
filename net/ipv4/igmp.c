@@ -1473,7 +1473,9 @@ static void inet_ifmcaddr_notify(struct net_device *dev,
 	int err = -ENOMEM;
 
 	skb = nlmsg_new(NLMSG_ALIGN(sizeof(struct ifaddrmsg)) +
-			nla_total_size(sizeof(__be32)), GFP_ATOMIC);
+			nla_total_size(sizeof(__be32)) +
+			nla_total_size(sizeof(struct ifa_cacheinfo)),
+			GFP_KERNEL);
 	if (!skb)
 		goto error;
 
@@ -1484,7 +1486,7 @@ static void inet_ifmcaddr_notify(struct net_device *dev,
 		goto error;
 	}
 
-	rtnl_notify(skb, net, 0, RTNLGRP_IPV4_MCADDR, NULL, GFP_ATOMIC);
+	rtnl_notify(skb, net, 0, RTNLGRP_IPV4_MCADDR, NULL, GFP_KERNEL);
 	return;
 error:
 	rtnl_set_sk_err(net, RTNLGRP_IPV4_MCADDR, err);

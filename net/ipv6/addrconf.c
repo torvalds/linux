@@ -5239,7 +5239,6 @@ int inet6_fill_ifmcaddr(struct sk_buff *skb,
 	nlmsg_end(skb, nlh);
 	return 0;
 }
-EXPORT_SYMBOL(inet6_fill_ifmcaddr);
 
 static int inet6_fill_ifacaddr(struct sk_buff *skb,
 			       const struct ifacaddr6 *ifaca,
