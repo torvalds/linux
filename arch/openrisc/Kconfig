@@ -10,6 +10,7 @@ config OPENRISC
 	select ARCH_HAS_DMA_SET_UNCACHED
 	select ARCH_HAS_DMA_CLEAR_UNCACHED
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
+	select GENERIC_BUILTIN_DTB
 	select COMMON_CLK
 	select OF
 	select OF_EARLY_FLATTREE
@@ -92,7 +93,7 @@ config DCACHE_WRITETHROUGH
 
 	  If unsure say N here
 
-config OPENRISC_BUILTIN_DTB
+config BUILTIN_DTB_NAME
 	string "Builtin DTB"
 	default ""
 
