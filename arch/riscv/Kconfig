@@ -1272,13 +1272,14 @@ config RISCV_ISA_FALLBACK
 config BUILTIN_DTB
 	bool "Built-in device tree"
 	depends on OF && NONPORTABLE
+	select GENERIC_BUILTIN_DTB
 	help
 	  Build a device tree into the Linux image.
 	  This option should be selected if no bootloader is being used.
 	  If unsure, say N.
 
 
-config BUILTIN_DTB_SOURCE
+config BUILTIN_DTB_NAME
 	string "Built-in device tree source"
 	depends on BUILTIN_DTB
 	help
