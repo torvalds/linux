@@ -67,7 +67,7 @@ out:
  * Exposes device descriptor from the gadget driver.
  */
 static ssize_t dev_desc_read(struct file *file, struct kobject *kobj,
-			     struct bin_attribute *attr, char *out,
+			     const struct bin_attribute *attr, char *out,
 			     loff_t off, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -88,7 +88,7 @@ unlock:
 	spin_unlock_irqrestore(&udc->lock, flags);
 	return ret;
 }
-static BIN_ATTR_RO(dev_desc, sizeof(struct usb_device_descriptor));
+static const BIN_ATTR_RO(dev_desc, sizeof(struct usb_device_descriptor));
 
 static ssize_t usbip_sockfd_store(struct device *dev,
 				  struct device_attribute *attr,
@@ -252,14 +252,14 @@ static struct attribute *dev_attrs[] = {
 	NULL,
 };
 
-static struct bin_attribute *dev_bin_attrs[] = {
+static const struct bin_attribute *const dev_bin_attrs[] = {
 	&bin_attr_dev_desc,
 	NULL,
 };
 
 static const struct attribute_group vudc_attr_group = {
 	.attrs = dev_attrs,
-	.bin_attrs = dev_bin_attrs,
+	.bin_attrs_new = dev_bin_attrs,
 };
 
 const struct attribute_group *vudc_groups[] = {
