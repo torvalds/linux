@@ -3119,23 +3119,6 @@ int intel_vgpu_mask_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 }
 
 /**
- * intel_gvt_in_force_nonpriv_whitelist - if a mmio is in whitelist to be
- * force-nopriv register
- *
- * @gvt: a GVT device
- * @offset: register offset
- *
- * Returns:
- * True if the register is in force-nonpriv whitelist;
- * False if outside;
- */
-bool intel_gvt_in_force_nonpriv_whitelist(struct intel_gvt *gvt,
-					  unsigned int offset)
-{
-	return in_whitelist(offset);
-}
-
-/**
  * intel_vgpu_mmio_reg_rw - emulate tracked mmio registers
  * @vgpu: a vGPU
  * @offset: register offset
