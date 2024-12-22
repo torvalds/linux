@@ -32,9 +32,6 @@ struct iscsi_sess_ops;
 
 extern int iscsi_login_rx_data(struct iscsit_conn *, char *, int);
 extern int iscsi_login_tx_data(struct iscsit_conn *, char *, char *, int);
-extern void iscsi_dump_conn_ops(struct iscsi_conn_ops *);
-extern void iscsi_dump_sess_ops(struct iscsi_sess_ops *);
-extern void iscsi_print_params(struct iscsi_param_list *);
 extern int iscsi_create_default_params(struct iscsi_param_list **);
 extern int iscsi_set_keys_to_negotiate(struct iscsi_param_list *, bool);
 extern int iscsi_set_keys_irrelevant_for_discovery(struct iscsi_param_list *);

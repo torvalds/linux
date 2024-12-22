@@ -4727,21 +4727,6 @@ int iscsit_logout_post_handler(
 }
 EXPORT_SYMBOL(iscsit_logout_post_handler);
 
-void iscsit_fail_session(struct iscsit_session *sess)
-{
-	struct iscsit_conn *conn;
-
-	spin_lock_bh(&sess->conn_lock);
-	list_for_each_entry(conn, &sess->sess_conn_list, conn_list) {
-		pr_debug("Moving to TARG_CONN_STATE_CLEANUP_WAIT.\n");
-		conn->conn_state = TARG_CONN_STATE_CLEANUP_WAIT;
-	}
-	spin_unlock_bh(&sess->conn_lock);
-
-	pr_debug("Moving to TARG_SESS_STATE_FAILED.\n");
-	sess->session_state = TARG_SESS_STATE_FAILED;
-}
-
 void iscsit_stop_session(
 	struct iscsit_session *sess,
 	int session_sleep,
