@@ -1087,6 +1087,15 @@ EXPORT_SYMBOL(drm_atomic_helper_check_planes);
  * For example enable/disable of a cursor plane which have fixed zpos value
  * would trigger all other enabled planes to be forced to the state change.
  *
+ * IMPORTANT:
+ *
+ * As this function calls drm_atomic_helper_check_modeset() internally, its
+ * restrictions also apply:
+ * Drivers which set &drm_crtc_state.mode_changed (e.g. in their
+ * &drm_plane_helper_funcs.atomic_check hooks if a plane update can't be done
+ * without a full modeset) _must_ call drm_atomic_helper_check_modeset()
+ * function again after that change.
+ *
  * RETURNS:
  * Zero for success or -errno
  */
