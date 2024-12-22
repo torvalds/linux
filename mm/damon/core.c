@@ -868,6 +868,11 @@ static int damon_commit_schemes(struct damon_ctx *dst, struct damon_ctx *src)
 				NUMA_NO_NODE);
 		if (!new_scheme)
 			return -ENOMEM;
+		err = damos_commit(new_scheme, src_scheme);
+		if (err) {
+			damon_destroy_scheme(new_scheme);
+			return err;
+		}
 		damon_add_scheme(dst, new_scheme);
 	}
 	return 0;
