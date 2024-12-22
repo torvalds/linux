@@ -158,7 +158,16 @@ int smb2_open_file(const unsigned int xid, struct cifs_open_parms *oparms, __u32
 	if (smb2_path == NULL)
 		return -ENOMEM;
 
+	/*
+	 * GENERIC_READ, GENERIC_EXECUTE, GENERIC_ALL and MAXIMUM_ALLOWED
+	 * contains also FILE_READ_ATTRIBUTES access right. So do not append
+	 * FILE_READ_ATTRIBUTES when not needed and prevent calling code path
+	 * for retry_without_read_attributes.
+	 */
 	if (!(oparms->desired_access & FILE_READ_ATTRIBUTES) &&
+	    !(oparms->desired_access & GENERIC_READ) &&
+	    !(oparms->desired_access & GENERIC_EXECUTE) &&
+	    !(oparms->desired_access & GENERIC_ALL) &&
 	    !(oparms->desired_access & MAXIMUM_ALLOWED)) {
 		oparms->desired_access |= FILE_READ_ATTRIBUTES;
 		retry_without_read_attributes = true;
