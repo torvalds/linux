@@ -531,12 +531,6 @@ int intel_gvt_set_edid(struct intel_vgpu *vgpu, int port_num);
 	    gvt_gmadr_is_hidden(gvt, gmadr))
 
 bool intel_gvt_ggtt_validate_range(struct intel_vgpu *vgpu, u64 addr, u32 size);
-int intel_gvt_ggtt_gmadr_g2h(struct intel_vgpu *vgpu, u64 g_addr, u64 *h_addr);
-int intel_gvt_ggtt_gmadr_h2g(struct intel_vgpu *vgpu, u64 h_addr, u64 *g_addr);
-int intel_gvt_ggtt_index_g2h(struct intel_vgpu *vgpu, unsigned long g_index,
-			     unsigned long *h_index);
-int intel_gvt_ggtt_h2g_index(struct intel_vgpu *vgpu, unsigned long h_index,
-			     unsigned long *g_index);
 
 void intel_vgpu_init_cfg_space(struct intel_vgpu *vgpu,
 		bool primary);
