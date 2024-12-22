@@ -966,8 +966,11 @@ static int damon_commit_targets(
 			return -ENOMEM;
 		err = damon_commit_target(new_target, false,
 				src_target, damon_target_has_pid(src));
-		if (err)
+		if (err) {
+			damon_destroy_target(new_target);
 			return err;
+		}
+		damon_add_target(dst, new_target);
 	}
 	return 0;
 }
