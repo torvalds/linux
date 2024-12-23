@@ -87,8 +87,8 @@ int z_erofs_gbuf_growsize(unsigned int nrpages)
 			tmp_pages[j] = gbuf->pages[j];
 		do {
 			last = j;
-			j = alloc_pages_bulk_array(GFP_KERNEL, nrpages,
-						   tmp_pages);
+			j = alloc_pages_bulk(GFP_KERNEL, nrpages,
+					     tmp_pages);
 			if (last == j)
 				goto out;
 		} while (j != nrpages);

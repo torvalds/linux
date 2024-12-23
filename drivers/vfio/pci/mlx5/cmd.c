@@ -408,7 +408,7 @@ void mlx5vf_free_data_buffer(struct mlx5_vhca_data_buffer *buf)
 				  buf->dma_dir, 0);
 	}
 
-	/* Undo alloc_pages_bulk_array() */
+	/* Undo alloc_pages_bulk() */
 	for_each_sgtable_page(&buf->table.sgt, &sg_iter, 0)
 		__free_page(sg_page_iter_page(&sg_iter));
 	sg_free_append_table(&buf->table);
@@ -431,8 +431,8 @@ static int mlx5vf_add_migration_pages(struct mlx5_vhca_data_buffer *buf,
 		return -ENOMEM;
 
 	do {
-		filled = alloc_pages_bulk_array(GFP_KERNEL_ACCOUNT, to_fill,
-						page_list);
+		filled = alloc_pages_bulk(GFP_KERNEL_ACCOUNT, to_fill,
+					  page_list);
 		if (!filled) {
 			ret = -ENOMEM;
 			goto err;
@@ -1342,7 +1342,7 @@ static void free_recv_pages(struct mlx5_vhca_recv_buf *recv_buf)
 {
 	int i;
 
-	/* Undo alloc_pages_bulk_array() */
+	/* Undo alloc_pages_bulk() */
 	for (i = 0; i < recv_buf->npages; i++)
 		__free_page(recv_buf->page_list[i]);
 
@@ -1361,9 +1361,9 @@ static int alloc_recv_pages(struct mlx5_vhca_recv_buf *recv_buf,
 		return -ENOMEM;
 
 	for (;;) {
-		filled = alloc_pages_bulk_array(GFP_KERNEL_ACCOUNT,
-						npages - done,
-						recv_buf->page_list + done);
+		filled = alloc_pages_bulk(GFP_KERNEL_ACCOUNT,
+					  npages - done,
+					  recv_buf->page_list + done);
 		if (!filled)
 			goto err;
 

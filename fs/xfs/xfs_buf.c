@@ -395,8 +395,8 @@ xfs_buf_alloc_pages(
 	for (;;) {
 		long	last = filled;
 
-		filled = alloc_pages_bulk_array(gfp_mask, bp->b_page_count,
-						bp->b_pages);
+		filled = alloc_pages_bulk(gfp_mask, bp->b_page_count,
+					  bp->b_pages);
 		if (filled == bp->b_page_count) {
 			XFS_STATS_INC(bp->b_mount, xb_page_found);
 			break;
