@@ -789,27 +789,24 @@ function_profile_call(unsigned long ip, unsigned long parent_ip,
 {
 	struct ftrace_profile_stat *stat;
 	struct ftrace_profile *rec;
-	unsigned long flags;
 
 	if (!ftrace_profile_enabled)
 		return;
 
-	local_irq_save(flags);
+	guard(preempt_notrace)();
 
 	stat = this_cpu_ptr(&ftrace_profile_stats);
 	if (!stat->hash || !ftrace_profile_enabled)
-		goto out;
+		return;
 
 	rec = ftrace_find_profiled_func(stat, ip);
 	if (!rec) {
 		rec = ftrace_profile_alloc(stat, ip);
 		if (!rec)
-			goto out;
+			return;
 	}
 
 	rec->counter++;
- out:
-	local_irq_restore(flags);
 }
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
@@ -856,19 +853,19 @@ static void profile_graph_return(struct ftrace_graph_ret *trace,
 	unsigned long long calltime;
 	unsigned long long rettime = trace_clock_local();
 	struct ftrace_profile *rec;
-	unsigned long flags;
 	int size;
 
-	local_irq_save(flags);
+	guard(preempt_notrace)();
+
 	stat = this_cpu_ptr(&ftrace_profile_stats);
 	if (!stat->hash || !ftrace_profile_enabled)
-		goto out;
+		return;
 
 	profile_data = fgraph_retrieve_data(gops->idx, &size);
 
 	/* If the calltime was zero'd ignore it */
 	if (!profile_data || !profile_data->calltime)
-		goto out;
+		return;
 
 	calltime = rettime - profile_data->calltime;
 
@@ -896,9 +893,6 @@ static void profile_graph_return(struct ftrace_graph_ret *trace,
 		rec->time += calltime;
 		rec->time_squared += calltime * calltime;
 	}
-
- out:
-	local_irq_restore(flags);
 }
 
 static struct fgraph_ops fprofiler_ops = {
