@@ -62,6 +62,8 @@ void run_tests(const struct test_case *test_cases,
 void list_tests(const struct test_case *test_cases);
 void skip_test(struct test_case *test_cases, size_t test_cases_len,
 	       const char *test_id_str);
+void pick_test(struct test_case *test_cases, size_t test_cases_len,
+	       const char *test_id_str);
 unsigned long hash_djb2(const void *data, size_t len);
 size_t iovec_bytes(const struct iovec *iov, size_t iovnum);
 unsigned long iovec_hash_djb2(const struct iovec *iov, size_t iovnum);
