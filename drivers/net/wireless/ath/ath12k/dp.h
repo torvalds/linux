@@ -125,7 +125,6 @@ struct ath12k_mon_data {
 	struct sk_buff_head rx_status_q;
 	struct dp_mon_mpdu *mon_mpdu;
 	struct list_head dp_rx_mon_mpdu_list;
-	struct sk_buff *dest_skb_q[DP_MON_MAX_STATUS_BUF];
 	struct dp_mon_tx_ppdu_info *tx_prot_ppdu_info;
 	struct dp_mon_tx_ppdu_info *tx_data_ppdu_info;
 };

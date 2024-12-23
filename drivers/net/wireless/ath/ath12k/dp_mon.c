@@ -1188,13 +1188,10 @@ static enum hal_rx_mon_status
 ath12k_dp_mon_parse_rx_dest(struct ath12k *ar, struct ath12k_mon_data *pmon,
 			    struct sk_buff *skb)
 {
-	struct hal_rx_mon_ppdu_info *ppdu_info = &pmon->mon_ppdu_info;
 	struct hal_tlv_64_hdr *tlv;
 	enum hal_rx_mon_status hal_status;
 	u16 tlv_tag, tlv_len;
 	u8 *ptr = skb->data;
-
-	memset(ppdu_info, 0, sizeof(struct hal_rx_mon_ppdu_info));
 
 	do {
 		tlv = (struct hal_tlv_64_hdr *)ptr;
@@ -2305,6 +2302,13 @@ ath12k_dp_mon_rx_update_peer_mu_stats(struct ath12k *ar,
 		ath12k_dp_mon_rx_update_user_stats(ar, ppdu_info, i);
 }
 
+static void
+ath12k_dp_mon_rx_memset_ppdu_info(struct hal_rx_mon_ppdu_info *ppdu_info)
+{
+	memset(ppdu_info, 0, sizeof(*ppdu_info));
+	ppdu_info->peer_id = HAL_INVALID_PEERID;
+}
+
 int ath12k_dp_mon_srng_process(struct ath12k *ar, int *budget,
 			       struct napi_struct *napi)
 {
@@ -2322,13 +2326,13 @@ int ath12k_dp_mon_srng_process(struct ath12k *ar, int *budget,
 	struct ath12k_sta *ahsta = NULL;
 	struct ath12k_link_sta *arsta;
 	struct ath12k_peer *peer;
+	struct sk_buff_head skb_list;
 	u64 cookie;
 	int num_buffs_reaped = 0, srng_id, buf_id;
-	u8 dest_idx = 0, i;
-	bool end_of_ppdu;
-	u32 hal_status;
+	u32 hal_status, end_offset, info0;
 	u8 pdev_idx = ath12k_hw_mac_id_to_pdev_id(ab->hw_params, ar->pdev_idx);
 
+	__skb_queue_head_init(&skb_list);
 	srng_id = ath12k_hw_mac_id_to_srng_id(ab->hw_params, pdev_idx);
 	mon_dst_ring = &pdev_dp->rxdma_mon_dst_ring[srng_id];
 	buf_ring = &dp->rxdma_mon_buf_ring;
@@ -2342,6 +2346,7 @@ int ath12k_dp_mon_srng_process(struct ath12k *ar, int *budget,
 		mon_dst_desc = ath12k_hal_srng_dst_peek(ab, srng);
 		if (unlikely(!mon_dst_desc))
 			break;
+
 		cookie = le32_to_cpu(mon_dst_desc->cookie);
 		buf_id = u32_get_bits(cookie, DP_RXDMA_BUF_COOKIE_BUF_ID);
 
@@ -2359,55 +2364,19 @@ int ath12k_dp_mon_srng_process(struct ath12k *ar, int *budget,
 		dma_unmap_single(ab->dev, rxcb->paddr,
 				 skb->len + skb_tailroom(skb),
 				 DMA_FROM_DEVICE);
-		pmon->dest_skb_q[dest_idx] = skb;
-		dest_idx++;
-		end_of_ppdu = le32_get_bits(mon_dst_desc->info0,
-					    HAL_MON_DEST_INFO0_END_OF_PPDU);
-		if (!end_of_ppdu)
-			continue;
 
-		for (i = 0; i < dest_idx; i++) {
-			skb = pmon->dest_skb_q[i];
-			hal_status = ath12k_dp_mon_parse_rx_dest(ar, pmon, skb);
-
-			if (ppdu_info->peer_id == HAL_INVALID_PEERID ||
-			    hal_status != HAL_RX_MON_STATUS_PPDU_DONE) {
-				dev_kfree_skb_any(skb);
-				continue;
-			}
-
-			rcu_read_lock();
-			spin_lock_bh(&ab->base_lock);
-			peer = ath12k_peer_find_by_id(ab, ppdu_info->peer_id);
-			if (!peer || !peer->sta) {
-				ath12k_dbg(ab, ATH12K_DBG_DATA,
-					   "failed to find the peer with peer_id %d\n",
-					   ppdu_info->peer_id);
-				spin_unlock_bh(&ab->base_lock);
-				rcu_read_unlock();
-				dev_kfree_skb_any(skb);
-				continue;
-			}
-
-			if (ppdu_info->reception_type == HAL_RX_RECEPTION_TYPE_SU) {
-				ahsta = ath12k_sta_to_ahsta(peer->sta);
-				arsta = &ahsta->deflink;
-				ath12k_dp_mon_rx_update_peer_su_stats(ar, arsta,
-								      ppdu_info);
-			} else if ((ppdu_info->fc_valid) &&
-				   (ppdu_info->ast_index != HAL_AST_IDX_INVALID)) {
-				ath12k_dp_mon_rx_process_ulofdma(ppdu_info);
-				ath12k_dp_mon_rx_update_peer_mu_stats(ar, ppdu_info);
-			}
-
-			spin_unlock_bh(&ab->base_lock);
-			rcu_read_unlock();
-			dev_kfree_skb_any(skb);
-			memset(ppdu_info, 0, sizeof(*ppdu_info));
-			ppdu_info->peer_id = HAL_INVALID_PEERID;
+		end_offset = u32_get_bits(info0, HAL_MON_DEST_INFO0_END_OFFSET);
+		if (likely(end_offset <= DP_RX_BUFFER_SIZE)) {
+			skb_put(skb, end_offset);
+		} else {
+			ath12k_warn(ab,
+				    "invalid offset on mon stats destination %u\n",
+				    end_offset);
+			skb_put(skb, DP_RX_BUFFER_SIZE);
 		}
 
-		dest_idx = 0;
+		__skb_queue_tail(&skb_list, skb);
+
 move_next:
 		ath12k_dp_mon_buf_replenish(ab, buf_ring, 1);
 		ath12k_hal_srng_src_get_next_entry(ab, srng);
@@ -2416,6 +2385,49 @@ move_next:
 
 	ath12k_hal_srng_access_end(ab, srng);
 	spin_unlock_bh(&srng->lock);
+
+	if (!num_buffs_reaped)
+		return 0;
+
+	while ((skb = __skb_dequeue(&skb_list))) {
+		hal_status = ath12k_dp_mon_parse_rx_dest(ar, pmon, skb);
+		if (hal_status != HAL_RX_MON_STATUS_PPDU_DONE) {
+			dev_kfree_skb_any(skb);
+			continue;
+		}
+
+		if (ppdu_info->peer_id == HAL_INVALID_PEERID)
+			goto free_skb;
+
+		rcu_read_lock();
+		spin_lock_bh(&ab->base_lock);
+		peer = ath12k_peer_find_by_id(ab, ppdu_info->peer_id);
+		if (!peer || !peer->sta) {
+			ath12k_dbg(ab, ATH12K_DBG_DATA,
+				   "failed to find the peer with monitor peer_id %d\n",
+				   ppdu_info->peer_id);
+			goto next_skb;
+		}
+
+		if (ppdu_info->reception_type == HAL_RX_RECEPTION_TYPE_SU) {
+			ahsta = ath12k_sta_to_ahsta(peer->sta);
+			arsta = &ahsta->deflink;
+			ath12k_dp_mon_rx_update_peer_su_stats(ar, arsta,
+							      ppdu_info);
+		} else if ((ppdu_info->fc_valid) &&
+			   (ppdu_info->ast_index != HAL_AST_IDX_INVALID)) {
+			ath12k_dp_mon_rx_process_ulofdma(ppdu_info);
+			ath12k_dp_mon_rx_update_peer_mu_stats(ar, ppdu_info);
+		}
+
+next_skb:
+		spin_unlock_bh(&ab->base_lock);
+		rcu_read_unlock();
+free_skb:
+		dev_kfree_skb_any(skb);
+		ath12k_dp_mon_rx_memset_ppdu_info(ppdu_info);
+	}
+
 	return num_buffs_reaped;
 }
 
