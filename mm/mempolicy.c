@@ -2391,13 +2391,13 @@ static unsigned long alloc_pages_bulk_array_interleave(gfp_t gfp,
 		if (delta) {
 			nr_allocated = alloc_pages_bulk_noprof(gfp,
 					interleave_nodes(pol), NULL,
-					nr_pages_per_node + 1, NULL,
+					nr_pages_per_node + 1,
 					page_array);
 			delta--;
 		} else {
 			nr_allocated = alloc_pages_bulk_noprof(gfp,
 					interleave_nodes(pol), NULL,
-					nr_pages_per_node, NULL, page_array);
+					nr_pages_per_node, page_array);
 		}
 
 		page_array += nr_allocated;
@@ -2446,7 +2446,7 @@ static unsigned long alloc_pages_bulk_array_weighted_interleave(gfp_t gfp,
 	if (weight && node_isset(node, nodes)) {
 		node_pages = min(rem_pages, weight);
 		nr_allocated = __alloc_pages_bulk(gfp, node, NULL, node_pages,
-						  NULL, page_array);
+						  page_array);
 		page_array += nr_allocated;
 		total_allocated += nr_allocated;
 		/* if that's all the pages, no need to interleave */
@@ -2509,7 +2509,7 @@ static unsigned long alloc_pages_bulk_array_weighted_interleave(gfp_t gfp,
 		if (!node_pages)
 			break;
 		nr_allocated = __alloc_pages_bulk(gfp, node, NULL, node_pages,
-						  NULL, page_array);
+						  page_array);
 		page_array += nr_allocated;
 		total_allocated += nr_allocated;
 		if (total_allocated == nr_pages)
@@ -2533,11 +2533,11 @@ static unsigned long alloc_pages_bulk_array_preferred_many(gfp_t gfp, int nid,
 	preferred_gfp &= ~(__GFP_DIRECT_RECLAIM | __GFP_NOFAIL);
 
 	nr_allocated  = alloc_pages_bulk_noprof(preferred_gfp, nid, &pol->nodes,
-					   nr_pages, NULL, page_array);
+					   nr_pages, page_array);
 
 	if (nr_allocated < nr_pages)
 		nr_allocated += alloc_pages_bulk_noprof(gfp, numa_node_id(), NULL,
-				nr_pages - nr_allocated, NULL,
+				nr_pages - nr_allocated,
 				page_array + nr_allocated);
 	return nr_allocated;
 }
@@ -2573,7 +2573,7 @@ unsigned long alloc_pages_bulk_array_mempolicy_noprof(gfp_t gfp,
 	nid = numa_node_id();
 	nodemask = policy_nodemask(gfp, pol, NO_INTERLEAVE_INDEX, &nid);
 	return alloc_pages_bulk_noprof(gfp, nid, nodemask,
-				       nr_pages, NULL, page_array);
+				       nr_pages, page_array);
 }
 
 int vma_dup_policy(struct vm_area_struct *src, struct vm_area_struct *dst)

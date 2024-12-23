@@ -212,7 +212,6 @@ struct folio *__folio_alloc_noprof(gfp_t gfp, unsigned int order, int preferred_
 
 unsigned long alloc_pages_bulk_noprof(gfp_t gfp, int preferred_nid,
 				nodemask_t *nodemask, int nr_pages,
-				struct list_head *page_list,
 				struct page **page_array);
 #define __alloc_pages_bulk(...)			alloc_hooks(alloc_pages_bulk_noprof(__VA_ARGS__))
 
@@ -223,11 +222,8 @@ unsigned long alloc_pages_bulk_array_mempolicy_noprof(gfp_t gfp,
 	alloc_hooks(alloc_pages_bulk_array_mempolicy_noprof(__VA_ARGS__))
 
 /* Bulk allocate order-0 pages */
-#define alloc_pages_bulk_list(_gfp, _nr_pages, _list)			\
-	__alloc_pages_bulk(_gfp, numa_mem_id(), NULL, _nr_pages, _list, NULL)
-
 #define alloc_pages_bulk_array(_gfp, _nr_pages, _page_array)		\
-	__alloc_pages_bulk(_gfp, numa_mem_id(), NULL, _nr_pages, NULL, _page_array)
+	__alloc_pages_bulk(_gfp, numa_mem_id(), NULL, _nr_pages, _page_array)
 
 static inline unsigned long
 alloc_pages_bulk_array_node_noprof(gfp_t gfp, int nid, unsigned long nr_pages,
@@ -236,7 +232,7 @@ alloc_pages_bulk_array_node_noprof(gfp_t gfp, int nid, unsigned long nr_pages,
 	if (nid == NUMA_NO_NODE)
 		nid = numa_mem_id();
 
-	return alloc_pages_bulk_noprof(gfp, nid, NULL, nr_pages, NULL, page_array);
+	return alloc_pages_bulk_noprof(gfp, nid, NULL, nr_pages, page_array);
 }
 
 #define alloc_pages_bulk_array_node(...)				\
