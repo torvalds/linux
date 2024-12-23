@@ -189,12 +189,6 @@ void mlx5hws_send_abort_new_dep_wqe(struct mlx5hws_send_engine *queue);
 
 void mlx5hws_send_all_dep_wqe(struct mlx5hws_send_engine *queue);
 
-void mlx5hws_send_queue_close(struct mlx5hws_send_engine *queue);
-
-int mlx5hws_send_queue_open(struct mlx5hws_context *ctx,
-			    struct mlx5hws_send_engine *queue,
-			    u16 queue_size);
-
 void mlx5hws_send_queues_close(struct mlx5hws_context *ctx);
 
 int mlx5hws_send_queues_open(struct mlx5hws_context *ctx,

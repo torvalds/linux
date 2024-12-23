@@ -135,7 +135,7 @@ int esw_acl_egress_lgcy_setup(struct mlx5_eswitch *esw,
 	if (drop_counter) {
 		flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_COUNT;
 		drop_ctr_dst.type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
-		drop_ctr_dst.counter_id = mlx5_fc_id(drop_counter);
+		drop_ctr_dst.counter = drop_counter;
 		dst = &drop_ctr_dst;
 		dest_num++;
 	}

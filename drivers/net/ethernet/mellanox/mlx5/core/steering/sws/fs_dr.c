@@ -521,7 +521,7 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 				goto free_actions;
 			}
 
-			id = dst->dest_attr.counter_id;
+			id = mlx5_fc_id(dst->dest_attr.counter);
 			tmp_action =
 				mlx5dr_action_create_flow_counter(id);
 			if (!tmp_action) {
