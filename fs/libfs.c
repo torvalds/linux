@@ -1789,7 +1789,7 @@ int generic_ci_d_compare(const struct dentry *dentry, unsigned int len,
 {
 	const struct dentry *parent;
 	const struct inode *dir;
-	char strbuf[DNAME_INLINE_LEN];
+	union shortname_store strbuf;
 	struct qstr qstr;
 
 	/*
@@ -1809,22 +1809,23 @@ int generic_ci_d_compare(const struct dentry *dentry, unsigned int len,
 	if (!dir || !IS_CASEFOLDED(dir))
 		return 1;
 
+	qstr.len = len;
+	qstr.name = str;
 	/*
 	 * If the dentry name is stored in-line, then it may be concurrently
 	 * modified by a rename.  If this happens, the VFS will eventually retry
 	 * the lookup, so it doesn't matter what ->d_compare() returns.
 	 * However, it's unsafe to call utf8_strncasecmp() with an unstable
 	 * string.  Therefore, we have to copy the name into a temporary buffer.
+	 * As above, len is guaranteed to match str, so the shortname case
+	 * is exactly when str points to ->d_shortname.
 	 */
-	if (len <= DNAME_INLINE_LEN - 1) {
-		memcpy(strbuf, str, len);
-		strbuf[len] = 0;
-		str = strbuf;
+	if (qstr.name == dentry->d_shortname.string) {
+		strbuf = dentry->d_shortname; // NUL is guaranteed to be in there
+		qstr.name = strbuf.string;
 		/* prevent compiler from optimizing out the temporary buffer */
 		barrier();
 	}
-	qstr.len = len;
-	qstr.name = str;
 
 	return utf8_strncasecmp(dentry->d_sb->s_encoding, name, &qstr);
 }
