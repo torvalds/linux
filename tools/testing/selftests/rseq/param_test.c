@@ -226,8 +226,32 @@ unsigned int yield_mod_cnt, nr_abort;
 	"addi  " INJECT_ASM_REG "," INJECT_ASM_REG ", -1\n\t"	\
 	"bnez " INJECT_ASM_REG ", 222b\n\t"			\
 	"333:\n\t"
+#elif defined(__or1k__)
 
+#define RSEQ_INJECT_INPUT \
+	, [loop_cnt_1]"m"(loop_cnt[1]) \
+	, [loop_cnt_2]"m"(loop_cnt[2]) \
+	, [loop_cnt_3]"m"(loop_cnt[3]) \
+	, [loop_cnt_4]"m"(loop_cnt[4]) \
+	, [loop_cnt_5]"m"(loop_cnt[5]) \
+	, [loop_cnt_6]"m"(loop_cnt[6])
 
+#define INJECT_ASM_REG	"r31"
+
+#define RSEQ_INJECT_CLOBBER \
+	, INJECT_ASM_REG
+
+#define RSEQ_INJECT_ASM(n)					\
+	"l.lwz   " INJECT_ASM_REG ", %[loop_cnt_" #n "]\n\t"	\
+	"l.sfeqi " INJECT_ASM_REG ", 0\n\t"			\
+	"l.bf 333f\n\t"						\
+	" l.nop\n\t"						\
+	"222:\n\t"						\
+	"l.addi  " INJECT_ASM_REG "," INJECT_ASM_REG ", -1\n\t"	\
+	"l.sfeqi " INJECT_ASM_REG ", 0\n\t"			\
+	"l.bf 222f\n\t"						\
+	" l.nop\n\t"						\
+	"333:\n\t"
 #else
 #error unsupported target
 #endif
