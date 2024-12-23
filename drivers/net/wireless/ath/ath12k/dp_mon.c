@@ -2419,9 +2419,17 @@ move_next:
 	if (!num_buffs_reaped)
 		return 0;
 
+	/* In some cases, one PPDU worth of data can be spread across multiple NAPI
+	 * schedules, To avoid losing existing parsed ppdu_info information, skip
+	 * the memset of the ppdu_info structure and continue processing it.
+	 */
+	if (!ppdu_info->ppdu_continuation)
+		ath12k_dp_mon_rx_memset_ppdu_info(ppdu_info);
+
 	while ((skb = __skb_dequeue(&skb_list))) {
 		hal_status = ath12k_dp_mon_parse_rx_dest(ar, pmon, skb);
 		if (hal_status != HAL_RX_MON_STATUS_PPDU_DONE) {
+			ppdu_info->ppdu_continuation = true;
 			dev_kfree_skb_any(skb);
 			continue;
 		}
