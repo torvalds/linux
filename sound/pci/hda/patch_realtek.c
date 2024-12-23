@@ -890,9 +890,7 @@ static void alc_ssid_check(struct hda_codec *codec, const hda_nid_t *ports)
 	}
 }
 
-/*
- */
-
+/* inverted digital-mic */
 static void alc_fixup_inv_dmic(struct hda_codec *codec,
 			       const struct hda_fixup *fix, int action)
 {
