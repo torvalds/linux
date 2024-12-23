@@ -2740,6 +2740,8 @@ static int dwc3_gadget_soft_disconnect(struct dwc3 *dwc)
 	__dwc3_gadget_stop(dwc);
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
+	usb_gadget_set_state(dwc->gadget, USB_STATE_NOTATTACHED);
+
 	return ret;
 }
 
