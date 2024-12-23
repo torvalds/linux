@@ -2325,7 +2325,7 @@ enum dc_status dc_commit_streams(struct dc *dc, struct dc_commit_streams_params 
 	/*
 	 * Only update link encoder to stream assignment after bandwidth validation passed.
 	 */
-	if (res == DC_OK && dc->res_pool->funcs->link_encs_assign)
+	if (res == DC_OK && dc->res_pool->funcs->link_encs_assign && !dc->config.unify_link_enc_assignment)
 		dc->res_pool->funcs->link_encs_assign(
 			dc, context, context->streams, context->stream_count);
 

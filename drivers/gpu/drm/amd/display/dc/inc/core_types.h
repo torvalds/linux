@@ -376,6 +376,7 @@ struct plane_resource {
 
 /* all mappable hardware resources used to enable a link */
 struct link_resource {
+	struct link_encoder *dio_link_enc;
 	struct hpo_dp_link_encoder *hpo_dp_link_enc;
 };
 
@@ -500,6 +501,8 @@ struct resource_context {
 	uint8_t dp_clock_source_ref_count;
 	bool is_dsc_acquired[MAX_PIPES];
 	struct link_enc_cfg_context link_enc_cfg_ctx;
+	unsigned int dio_link_enc_to_link_idx[MAX_DIG_LINK_ENCODERS];
+	int dio_link_enc_ref_cnts[MAX_DIG_LINK_ENCODERS];
 	bool is_hpo_dp_stream_enc_acquired[MAX_HPO_DP2_ENCODERS];
 	unsigned int hpo_dp_link_enc_to_link_idx[MAX_HPO_DP2_LINK_ENCODERS];
 	int hpo_dp_link_enc_ref_cnts[MAX_HPO_DP2_LINK_ENCODERS];
