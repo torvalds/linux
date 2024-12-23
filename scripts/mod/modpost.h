@@ -95,14 +95,15 @@ struct module_alias {
 /**
  * struct module - represent a module (vmlinux or *.ko)
  *
+ * @dump_file: path to the .symvers file if loaded from a file
  * @aliases: list head for module_aliases
  */
 struct module {
 	struct list_head list;
 	struct list_head exported_symbols;
 	struct list_head unresolved_symbols;
+	const char *dump_file;
 	bool is_gpl_compatible;
-	bool from_dump;		/* true if module was loaded from *.symvers */
 	bool is_vmlinux;
 	bool seen;
 	bool has_init;

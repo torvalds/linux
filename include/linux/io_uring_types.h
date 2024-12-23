@@ -345,7 +345,7 @@ struct io_ring_ctx {
 
 	/* timeouts */
 	struct {
-		spinlock_t		timeout_lock;
+		raw_spinlock_t		timeout_lock;
 		struct list_head	timeout_list;
 		struct list_head	ltimeout_list;
 		unsigned		cq_last_tm_flush;
