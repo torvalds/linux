@@ -1035,7 +1035,7 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 
 		.hal_params = &ath12k_hw_hal_params_qcn9274,
 
-		.rxdma1_enable = false,
+		.rxdma1_enable = true,
 		.num_rxdma_per_pdev = 1,
 		.num_rxdma_dst_ring = 0,
 		.rx_mac_buf_ring = false,
