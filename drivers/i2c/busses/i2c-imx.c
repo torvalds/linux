@@ -1870,14 +1870,17 @@ static int i2c_imx_runtime_suspend(struct device *dev)
 	struct imx_i2c_struct *i2c_imx = dev_get_drvdata(dev);
 
 	clk_disable(i2c_imx->clk);
-
-	return 0;
+	return pinctrl_pm_select_sleep_state(dev);
 }
 
 static int i2c_imx_runtime_resume(struct device *dev)
 {
 	struct imx_i2c_struct *i2c_imx = dev_get_drvdata(dev);
 	int ret;
+
+	ret = pinctrl_pm_select_default_state(dev);
+	if (ret)
+		return ret;
 
 	ret = clk_enable(i2c_imx->clk);
 	if (ret)
