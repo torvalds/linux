@@ -2324,14 +2324,13 @@ struct perf_event_attr;
 struct perf_event;
 
 #ifdef CONFIG_SECURITY
-extern int security_perf_event_open(struct perf_event_attr *attr, int type);
+extern int security_perf_event_open(int type);
 extern int security_perf_event_alloc(struct perf_event *event);
 extern void security_perf_event_free(struct perf_event *event);
 extern int security_perf_event_read(struct perf_event *event);
 extern int security_perf_event_write(struct perf_event *event);
 #else
-static inline int security_perf_event_open(struct perf_event_attr *attr,
-					   int type)
+static inline int security_perf_event_open(int type)
 {
 	return 0;
 }

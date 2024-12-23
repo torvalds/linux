@@ -5883,16 +5883,15 @@ EXPORT_SYMBOL(security_bdev_setintegrity);
 #ifdef CONFIG_PERF_EVENTS
 /**
  * security_perf_event_open() - Check if a perf event open is allowed
- * @attr: perf event attribute
  * @type: type of event
  *
  * Check whether the @type of perf_event_open syscall is allowed.
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_perf_event_open(struct perf_event_attr *attr, int type)
+int security_perf_event_open(int type)
 {
-	return call_int_hook(perf_event_open, attr, type);
+	return call_int_hook(perf_event_open, type);
 }
 
 /**
