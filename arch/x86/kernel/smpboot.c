@@ -482,12 +482,6 @@ static int x86_core_flags(void)
 	return cpu_core_flags() | x86_sched_itmt_flags();
 }
 #endif
-#ifdef CONFIG_SCHED_SMT
-static int x86_smt_flags(void)
-{
-	return cpu_smt_flags();
-}
-#endif
 #ifdef CONFIG_SCHED_CLUSTER
 static int x86_cluster_flags(void)
 {
@@ -519,7 +513,7 @@ static void __init build_sched_topology(void)
 
 #ifdef CONFIG_SCHED_SMT
 	x86_topology[i++] = (struct sched_domain_topology_level){
-		cpu_smt_mask, x86_smt_flags, SD_INIT_NAME(SMT)
+		cpu_smt_mask, cpu_smt_flags, SD_INIT_NAME(SMT)
 	};
 #endif
 #ifdef CONFIG_SCHED_CLUSTER
