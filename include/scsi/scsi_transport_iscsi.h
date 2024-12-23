@@ -447,10 +447,6 @@ extern int iscsi_add_session(struct iscsi_cls_session *session,
 			     unsigned int target_id);
 extern int iscsi_session_event(struct iscsi_cls_session *session,
 			       enum iscsi_uevent_e event);
-extern struct iscsi_cls_session *iscsi_create_session(struct Scsi_Host *shost,
-						struct iscsi_transport *t,
-						int dd_size,
-						unsigned int target_id);
 extern void iscsi_force_destroy_session(struct iscsi_cls_session *session);
 extern void iscsi_remove_session(struct iscsi_cls_session *session);
 extern void iscsi_free_session(struct iscsi_cls_session *session);

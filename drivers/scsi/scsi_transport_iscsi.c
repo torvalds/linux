@@ -2122,33 +2122,6 @@ destroy_wq:
 }
 EXPORT_SYMBOL_GPL(iscsi_add_session);
 
-/**
- * iscsi_create_session - create iscsi class session
- * @shost: scsi host
- * @transport: iscsi transport
- * @dd_size: private driver data size
- * @target_id: which target
- *
- * This can be called from a LLD or iscsi_transport.
- */
-struct iscsi_cls_session *
-iscsi_create_session(struct Scsi_Host *shost, struct iscsi_transport *transport,
-		     int dd_size, unsigned int target_id)
-{
-	struct iscsi_cls_session *session;
-
-	session = iscsi_alloc_session(shost, transport, dd_size);
-	if (!session)
-		return NULL;
-
-	if (iscsi_add_session(session, target_id)) {
-		iscsi_free_session(session);
-		return NULL;
-	}
-	return session;
-}
-EXPORT_SYMBOL_GPL(iscsi_create_session);
-
 static void iscsi_conn_release(struct device *dev)
 {
 	struct iscsi_cls_conn *conn = iscsi_dev_to_conn(dev);
