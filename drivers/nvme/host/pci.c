@@ -1147,13 +1147,13 @@ static inline void nvme_update_cq_head(struct nvme_queue *nvmeq)
 	}
 }
 
-static inline int nvme_poll_cq(struct nvme_queue *nvmeq,
-			       struct io_comp_batch *iob)
+static inline bool nvme_poll_cq(struct nvme_queue *nvmeq,
+			        struct io_comp_batch *iob)
 {
-	int found = 0;
+	bool found = false;
 
 	while (nvme_cqe_pending(nvmeq)) {
-		found++;
+		found = true;
 		/*
 		 * load-load control dependency between phase and the rest of
 		 * the cqe requires a full read memory barrier
