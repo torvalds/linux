@@ -1209,14 +1209,45 @@ int ath12k_dp_tx_htt_rx_filter_setup(struct ath12k_base *ab, u32 ring_id,
 	cmd->info0 |= le32_encode_bits(!!(params.flags & HAL_SRNG_FLAGS_DATA_TLV_SWAP),
 				       HTT_RX_RING_SELECTION_CFG_CMD_INFO0_PS);
 	cmd->info0 |= le32_encode_bits(tlv_filter->offset_valid,
-				       HTT_RX_RING_SELECTION_CFG_CMD_OFFSET_VALID);
+				       HTT_RX_RING_SELECTION_CFG_CMD_INFO0_OFFSET_VALID);
+	cmd->info0 |=
+		le32_encode_bits(tlv_filter->drop_threshold_valid,
+				 HTT_RX_RING_SELECTION_CFG_CMD_INFO0_DROP_THRES_VAL);
+	cmd->info0 |= le32_encode_bits(!tlv_filter->rxmon_disable,
+				       HTT_RX_RING_SELECTION_CFG_CMD_INFO0_EN_RXMON);
+
 	cmd->info1 = le32_encode_bits(rx_buf_size,
 				      HTT_RX_RING_SELECTION_CFG_CMD_INFO1_BUF_SIZE);
+	cmd->info1 |= le32_encode_bits(tlv_filter->conf_len_mgmt,
+				       HTT_RX_RING_SELECTION_CFG_CMD_INFO1_CONF_LEN_MGMT);
+	cmd->info1 |= le32_encode_bits(tlv_filter->conf_len_ctrl,
+				       HTT_RX_RING_SELECTION_CFG_CMD_INFO1_CONF_LEN_CTRL);
+	cmd->info1 |= le32_encode_bits(tlv_filter->conf_len_data,
+				       HTT_RX_RING_SELECTION_CFG_CMD_INFO1_CONF_LEN_DATA);
 	cmd->pkt_type_en_flags0 = cpu_to_le32(tlv_filter->pkt_filter_flags0);
 	cmd->pkt_type_en_flags1 = cpu_to_le32(tlv_filter->pkt_filter_flags1);
 	cmd->pkt_type_en_flags2 = cpu_to_le32(tlv_filter->pkt_filter_flags2);
 	cmd->pkt_type_en_flags3 = cpu_to_le32(tlv_filter->pkt_filter_flags3);
 	cmd->rx_filter_tlv = cpu_to_le32(tlv_filter->rx_filter);
+
+	cmd->info2 = le32_encode_bits(tlv_filter->rx_drop_threshold,
+				      HTT_RX_RING_SELECTION_CFG_CMD_INFO2_DROP_THRESHOLD);
+	cmd->info2 |=
+		le32_encode_bits(tlv_filter->enable_log_mgmt_type,
+				 HTT_RX_RING_SELECTION_CFG_CMD_INFO2_EN_LOG_MGMT_TYPE);
+	cmd->info2 |=
+		le32_encode_bits(tlv_filter->enable_log_ctrl_type,
+				 HTT_RX_RING_SELECTION_CFG_CMD_INFO2_EN_CTRL_TYPE);
+	cmd->info2 |=
+		le32_encode_bits(tlv_filter->enable_log_data_type,
+				 HTT_RX_RING_SELECTION_CFG_CMD_INFO2_EN_LOG_DATA_TYPE);
+
+	cmd->info3 =
+		le32_encode_bits(tlv_filter->enable_rx_tlv_offset,
+				 HTT_RX_RING_SELECTION_CFG_CMD_INFO3_EN_TLV_PKT_OFFSET);
+	cmd->info3 |=
+		le32_encode_bits(tlv_filter->rx_tlv_offset,
+				 HTT_RX_RING_SELECTION_CFG_CMD_INFO3_PKT_TLV_OFFSET);
 
 	if (tlv_filter->offset_valid) {
 		cmd->rx_packet_offset =
@@ -1342,15 +1373,28 @@ int ath12k_dp_tx_htt_monitor_mode_ring_config(struct ath12k *ar, bool reset)
 int ath12k_dp_tx_htt_rx_monitor_mode_ring_config(struct ath12k *ar, bool reset)
 {
 	struct ath12k_base *ab = ar->ab;
-	struct ath12k_dp *dp = &ab->dp;
 	struct htt_rx_ring_tlv_filter tlv_filter = {0};
-	int ret, ring_id;
+	int ret, ring_id, i;
 
-	ring_id = dp->rxdma_mon_buf_ring.refill_buf_ring.ring_id;
 	tlv_filter.offset_valid = false;
 
 	if (!reset) {
-		tlv_filter.rx_filter = HTT_RX_MON_FILTER_TLV_FLAGS_MON_BUF_RING;
+		tlv_filter.rx_filter = HTT_RX_MON_FILTER_TLV_FLAGS_MON_DEST_RING;
+
+		tlv_filter.drop_threshold_valid = true;
+		tlv_filter.rx_drop_threshold = HTT_RX_RING_TLV_DROP_THRESHOLD_VALUE;
+
+		tlv_filter.enable_log_mgmt_type = true;
+		tlv_filter.enable_log_ctrl_type = true;
+		tlv_filter.enable_log_data_type = true;
+
+		tlv_filter.conf_len_ctrl = HTT_RX_RING_DEFAULT_DMA_LENGTH;
+		tlv_filter.conf_len_mgmt = HTT_RX_RING_DEFAULT_DMA_LENGTH;
+		tlv_filter.conf_len_data = HTT_RX_RING_DEFAULT_DMA_LENGTH;
+
+		tlv_filter.enable_rx_tlv_offset = true;
+		tlv_filter.rx_tlv_offset = HTT_RX_RING_PKT_TLV_OFFSET;
+
 		tlv_filter.pkt_filter_flags0 =
 					HTT_RX_MON_FP_MGMT_FILTER_FLAGS0 |
 					HTT_RX_MON_MO_MGMT_FILTER_FLAGS0;
@@ -1368,14 +1412,19 @@ int ath12k_dp_tx_htt_rx_monitor_mode_ring_config(struct ath12k *ar, bool reset)
 	}
 
 	if (ab->hw_params->rxdma1_enable) {
-		ret = ath12k_dp_tx_htt_rx_filter_setup(ar->ab, ring_id, 0,
-						       HAL_RXDMA_MONITOR_BUF,
-						       DP_RXDMA_REFILL_RING_SIZE,
-						       &tlv_filter);
-		if (ret) {
-			ath12k_err(ab,
-				   "failed to setup filter for monitor buf %d\n", ret);
-			return ret;
+		for (i = 0; i < ab->hw_params->num_rxdma_per_pdev; i++) {
+			ring_id = ar->dp.rxdma_mon_dst_ring[i].ring_id;
+			ret = ath12k_dp_tx_htt_rx_filter_setup(ar->ab, ring_id,
+							       ar->dp.mac_id + i,
+							       HAL_RXDMA_MONITOR_DST,
+							       DP_RXDMA_REFILL_RING_SIZE,
+							       &tlv_filter);
+			if (ret) {
+				ath12k_err(ab,
+					   "failed to setup filter for monitor buf %d\n",
+					   ret);
+				return ret;
+			}
 		}
 	}
 
