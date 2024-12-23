@@ -23,13 +23,7 @@ int __fbnic_open(struct fbnic_net *fbn)
 	if (err)
 		goto free_napi_vectors;
 
-	err = netif_set_real_num_tx_queues(fbn->netdev,
-					   fbn->num_tx_queues);
-	if (err)
-		goto free_resources;
-
-	err = netif_set_real_num_rx_queues(fbn->netdev,
-					   fbn->num_rx_queues);
+	err = fbnic_set_netif_queues(fbn);
 	if (err)
 		goto free_resources;
 
@@ -74,6 +68,8 @@ static int fbnic_open(struct net_device *netdev)
 	struct fbnic_net *fbn = netdev_priv(netdev);
 	int err;
 
+	fbnic_napi_name_irqs(fbn->fbd);
+
 	err = __fbnic_open(fbn);
 	if (!err)
 		fbnic_up(fbn);
@@ -91,6 +87,7 @@ static int fbnic_stop(struct net_device *netdev)
 	fbnic_time_stop(fbn);
 	fbnic_fw_xmit_ownership_msg(fbn->fbd, false);
 
+	fbnic_reset_netif_queues(fbn);
 	fbnic_free_resources(fbn);
 	fbnic_free_napi_vectors(fbn);
 
@@ -615,7 +612,6 @@ struct net_device *fbnic_netdev_alloc(struct fbnic_dev *fbd)
 
 	fbn->netdev = netdev;
 	fbn->fbd = fbd;
-	INIT_LIST_HEAD(&fbn->napis);
 
 	fbn->txq_size = FBNIC_TXQ_SIZE_DEFAULT;
 	fbn->hpq_size = FBNIC_HPQ_SIZE_DEFAULT;

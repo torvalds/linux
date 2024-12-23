@@ -145,7 +145,7 @@ void fbnic_up(struct fbnic_net *fbn)
 	fbnic_service_task_start(fbn);
 }
 
-static void fbnic_down_noidle(struct fbnic_net *fbn)
+void fbnic_down_noidle(struct fbnic_net *fbn)
 {
 	fbnic_service_task_stop(fbn);
 

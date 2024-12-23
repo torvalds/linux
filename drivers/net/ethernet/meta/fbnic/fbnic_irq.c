@@ -146,6 +146,17 @@ void fbnic_pcs_irq_disable(struct fbnic_dev *fbd)
 	free_irq(fbd->pcs_msix_vector, fbd);
 }
 
+void fbnic_synchronize_irq(struct fbnic_dev *fbd, int nr)
+{
+	struct pci_dev *pdev = to_pci_dev(fbd->dev);
+	int irq = pci_irq_vector(pdev, nr);
+
+	if (irq < 0)
+		return;
+
+	synchronize_irq(irq);
+}
+
 int fbnic_request_irq(struct fbnic_dev *fbd, int nr, irq_handler_t handler,
 		      unsigned long flags, const char *name, void *data)
 {
@@ -167,6 +178,48 @@ void fbnic_free_irq(struct fbnic_dev *fbd, int nr, void *data)
 		return;
 
 	free_irq(irq, data);
+}
+
+void fbnic_napi_name_irqs(struct fbnic_dev *fbd)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(fbd->napi_irq); i++)
+		snprintf(fbd->napi_irq[i].name,
+			 sizeof(fbd->napi_irq[i].name),
+			 "%s-TxRx-%u", fbd->netdev->name, i);
+}
+
+int fbnic_napi_request_irq(struct fbnic_dev *fbd,
+			   struct fbnic_napi_vector *nv)
+{
+	struct fbnic_net *fbn = netdev_priv(fbd->netdev);
+	int i = fbnic_napi_idx(nv);
+	int err;
+
+	if (!fbd->napi_irq[i].users) {
+		err = fbnic_request_irq(fbd, nv->v_idx,
+					fbnic_msix_clean_rings,	0,
+					fbd->napi_irq[i].name,
+					&fbn->napi[i]);
+		if (err)
+			return err;
+	}
+
+	fbd->napi_irq[i].users++;
+	return 0;
+}
+
+void fbnic_napi_free_irq(struct fbnic_dev *fbd,
+			 struct fbnic_napi_vector *nv)
+{
+	struct fbnic_net *fbn = netdev_priv(fbd->netdev);
+	int i = fbnic_napi_idx(nv);
+
+	if (--fbd->napi_irq[i].users)
+		return;
+
+	fbnic_free_irq(fbd, nv->v_idx, &fbn->napi[i]);
 }
 
 void fbnic_free_irqs(struct fbnic_dev *fbd)
