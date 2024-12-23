@@ -3613,6 +3613,12 @@ struct dma_async_tx_descriptor *gpi_prep_slave_sg(struct dma_chan *chan,
 	for_each_sg(sgl, sg, sg_len, i) {
 		tre = sg_virt(sg);
 
+		if (!tre) {
+			kfree(gpi_desc);
+			GPII_ERR(gpii, gpii_chan->chid, "TRE address is null\n");
+			return NULL;
+		}
+
 		if (sg_len == 1) {
 			tre_type =
 			MSM_GPI_TRE_TYPE(((struct msm_gpi_tre *)tre));
