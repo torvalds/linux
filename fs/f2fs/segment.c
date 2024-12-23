@@ -2426,15 +2426,102 @@ static void update_segment_mtime(struct f2fs_sb_info *sbi, block_t blkaddr,
 		SIT_I(sbi)->max_mtime = ctime;
 }
 
+static int update_sit_entry_for_release(struct f2fs_sb_info *sbi, struct seg_entry *se,
+				block_t blkaddr, unsigned int offset, int del)
+{
+	bool exist;
+#ifdef CONFIG_F2FS_CHECK_FS
+	bool mir_exist;
+#endif
+
+	exist = f2fs_test_and_clear_bit(offset, se->cur_valid_map);
+#ifdef CONFIG_F2FS_CHECK_FS
+	mir_exist = f2fs_test_and_clear_bit(offset,
+					se->cur_valid_map_mir);
+	if (unlikely(exist != mir_exist)) {
+		f2fs_err(sbi, "Inconsistent error when clearing bitmap, blk:%u, old bit:%d",
+			blkaddr, exist);
+		f2fs_bug_on(sbi, 1);
+	}
+#endif
+	if (unlikely(!exist)) {
+		f2fs_err(sbi, "Bitmap was wrongly cleared, blk:%u", blkaddr);
+		f2fs_bug_on(sbi, 1);
+		se->valid_blocks++;
+		del = 0;
+	} else if (unlikely(is_sbi_flag_set(sbi, SBI_CP_DISABLED))) {
+		/*
+		 * If checkpoints are off, we must not reuse data that
+		 * was used in the previous checkpoint. If it was used
+		 * before, we must track that to know how much space we
+		 * really have.
+		 */
+		if (f2fs_test_bit(offset, se->ckpt_valid_map)) {
+			spin_lock(&sbi->stat_lock);
+			sbi->unusable_block_count++;
+			spin_unlock(&sbi->stat_lock);
+		}
+	}
+
+	if (f2fs_block_unit_discard(sbi) &&
+			f2fs_test_and_clear_bit(offset, se->discard_map))
+		sbi->discard_blks++;
+
+	if (!f2fs_test_bit(offset, se->ckpt_valid_map))
+		se->ckpt_valid_blocks += del;
+
+	return del;
+}
+
+static int update_sit_entry_for_alloc(struct f2fs_sb_info *sbi, struct seg_entry *se,
+				block_t blkaddr, unsigned int offset, int del)
+{
+	bool exist;
+#ifdef CONFIG_F2FS_CHECK_FS
+	bool mir_exist;
+#endif
+
+	exist = f2fs_test_and_set_bit(offset, se->cur_valid_map);
+#ifdef CONFIG_F2FS_CHECK_FS
+	mir_exist = f2fs_test_and_set_bit(offset,
+					se->cur_valid_map_mir);
+	if (unlikely(exist != mir_exist)) {
+		f2fs_err(sbi, "Inconsistent error when setting bitmap, blk:%u, old bit:%d",
+			blkaddr, exist);
+		f2fs_bug_on(sbi, 1);
+	}
+#endif
+	if (unlikely(exist)) {
+		f2fs_err(sbi, "Bitmap was wrongly set, blk:%u", blkaddr);
+		f2fs_bug_on(sbi, 1);
+		se->valid_blocks--;
+		del = 0;
+	}
+
+	if (f2fs_block_unit_discard(sbi) &&
+			!f2fs_test_and_set_bit(offset, se->discard_map))
+		sbi->discard_blks--;
+
+	/*
+	 * SSR should never reuse block which is checkpointed
+	 * or newly invalidated.
+	 */
+	if (!is_sbi_flag_set(sbi, SBI_CP_DISABLED)) {
+		if (!f2fs_test_and_set_bit(offset, se->ckpt_valid_map))
+			se->ckpt_valid_blocks++;
+	}
+
+	if (!f2fs_test_bit(offset, se->ckpt_valid_map))
+		se->ckpt_valid_blocks += del;
+
+	return del;
+}
+
 static void update_sit_entry(struct f2fs_sb_info *sbi, block_t blkaddr, int del)
 {
 	struct seg_entry *se;
 	unsigned int segno, offset;
 	long int new_vblocks;
-	bool exist;
-#ifdef CONFIG_F2FS_CHECK_FS
-	bool mir_exist;
-#endif
 
 	segno = GET_SEGNO(sbi, blkaddr);
 	if (segno == NULL_SEGNO)
@@ -2451,73 +2538,10 @@ static void update_sit_entry(struct f2fs_sb_info *sbi, block_t blkaddr, int del)
 
 	/* Update valid block bitmap */
 	if (del > 0) {
-		exist = f2fs_test_and_set_bit(offset, se->cur_valid_map);
-#ifdef CONFIG_F2FS_CHECK_FS
-		mir_exist = f2fs_test_and_set_bit(offset,
-						se->cur_valid_map_mir);
-		if (unlikely(exist != mir_exist)) {
-			f2fs_err(sbi, "Inconsistent error when setting bitmap, blk:%u, old bit:%d",
-				 blkaddr, exist);
-			f2fs_bug_on(sbi, 1);
-		}
-#endif
-		if (unlikely(exist)) {
-			f2fs_err(sbi, "Bitmap was wrongly set, blk:%u",
-				 blkaddr);
-			f2fs_bug_on(sbi, 1);
-			se->valid_blocks--;
-			del = 0;
-		}
-
-		if (f2fs_block_unit_discard(sbi) &&
-				!f2fs_test_and_set_bit(offset, se->discard_map))
-			sbi->discard_blks--;
-
-		/*
-		 * SSR should never reuse block which is checkpointed
-		 * or newly invalidated.
-		 */
-		if (!is_sbi_flag_set(sbi, SBI_CP_DISABLED)) {
-			if (!f2fs_test_and_set_bit(offset, se->ckpt_valid_map))
-				se->ckpt_valid_blocks++;
-		}
+		del = update_sit_entry_for_alloc(sbi, se, blkaddr, offset, del);
 	} else {
-		exist = f2fs_test_and_clear_bit(offset, se->cur_valid_map);
-#ifdef CONFIG_F2FS_CHECK_FS
-		mir_exist = f2fs_test_and_clear_bit(offset,
-						se->cur_valid_map_mir);
-		if (unlikely(exist != mir_exist)) {
-			f2fs_err(sbi, "Inconsistent error when clearing bitmap, blk:%u, old bit:%d",
-				 blkaddr, exist);
-			f2fs_bug_on(sbi, 1);
-		}
-#endif
-		if (unlikely(!exist)) {
-			f2fs_err(sbi, "Bitmap was wrongly cleared, blk:%u",
-				 blkaddr);
-			f2fs_bug_on(sbi, 1);
-			se->valid_blocks++;
-			del = 0;
-		} else if (unlikely(is_sbi_flag_set(sbi, SBI_CP_DISABLED))) {
-			/*
-			 * If checkpoints are off, we must not reuse data that
-			 * was used in the previous checkpoint. If it was used
-			 * before, we must track that to know how much space we
-			 * really have.
-			 */
-			if (f2fs_test_bit(offset, se->ckpt_valid_map)) {
-				spin_lock(&sbi->stat_lock);
-				sbi->unusable_block_count++;
-				spin_unlock(&sbi->stat_lock);
-			}
-		}
-
-		if (f2fs_block_unit_discard(sbi) &&
-			f2fs_test_and_clear_bit(offset, se->discard_map))
-			sbi->discard_blks++;
+		del = update_sit_entry_for_release(sbi, se, blkaddr, offset, del);
 	}
-	if (!f2fs_test_bit(offset, se->ckpt_valid_map))
-		se->ckpt_valid_blocks += del;
 
 	__mark_sit_entry_dirty(sbi, segno);
 
