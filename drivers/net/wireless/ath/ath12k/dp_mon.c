@@ -1139,6 +1139,7 @@ ath12k_dp_mon_parse_rx_dest(struct ath12k *ar, struct ath12k_mon_data *pmon,
 			    struct sk_buff *skb)
 {
 	struct hal_tlv_64_hdr *tlv;
+	struct ath12k_skb_rxcb *rxcb;
 	enum hal_rx_mon_status hal_status;
 	u16 tlv_tag, tlv_len;
 	u8 *ptr = skb->data;
@@ -1169,6 +1170,10 @@ ath12k_dp_mon_parse_rx_dest(struct ath12k *ar, struct ath12k_mon_data *pmon,
 		 (hal_status == HAL_RX_MON_STATUS_BUF_ADDR) ||
 		 (hal_status == HAL_RX_MON_STATUS_MPDU_END) ||
 		 (hal_status == HAL_RX_MON_STATUS_MSDU_END));
+
+	rxcb = ATH12K_SKB_RXCB(skb);
+	if (rxcb->is_end_of_ppdu)
+		hal_status = HAL_RX_MON_STATUS_PPDU_DONE;
 
 	return hal_status;
 }
@@ -2345,8 +2350,10 @@ int ath12k_dp_mon_srng_process(struct ath12k *ar, int *budget,
 		 * HAL_MON_END_OF_PPDU to ensure that one PPDU worth of data is always
 		 * reaped. This helps to efficiently utilize the NAPI budget.
 		 */
-		if (end_reason == HAL_MON_END_OF_PPDU)
+		if (end_reason == HAL_MON_END_OF_PPDU) {
 			*budget -= 1;
+			rxcb->is_end_of_ppdu = true;
+		}
 
 		end_offset = u32_get_bits(info0, HAL_MON_DEST_INFO0_END_OFFSET);
 		if (likely(end_offset <= DP_RX_BUFFER_SIZE)) {
