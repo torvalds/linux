@@ -257,8 +257,6 @@ static void arena_vm_close(struct vm_area_struct *vma)
 	kfree(vml);
 }
 
-#define MT_ENTRY ((void *)&arena_map_ops) /* unused. has to be valid pointer */
-
 static vm_fault_t arena_vm_fault(struct vm_fault *vmf)
 {
 	struct bpf_map *map = vmf->vma->vm_file->private_data;
