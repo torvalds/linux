@@ -181,10 +181,9 @@ int trace_graph_entry(struct ftrace_graph_ent *trace,
 	struct trace_array *tr = gops->private;
 	struct trace_array_cpu *data;
 	struct fgraph_times *ftimes;
-	unsigned long flags;
 	unsigned int trace_ctx;
 	long disabled;
-	int ret;
+	int ret = 0;
 	int cpu;
 
 	if (*task_var & TRACE_GRAPH_NOTRACE)
@@ -235,25 +234,21 @@ int trace_graph_entry(struct ftrace_graph_ent *trace,
 	if (tracing_thresh)
 		return 1;
 
-	local_irq_save(flags);
+	preempt_disable_notrace();
 	cpu = raw_smp_processor_id();
 	data = per_cpu_ptr(tr->array_buffer.data, cpu);
-	disabled = atomic_inc_return(&data->disabled);
-	if (likely(disabled == 1)) {
-		trace_ctx = tracing_gen_ctx_flags(flags);
-		if (unlikely(IS_ENABLED(CONFIG_FUNCTION_GRAPH_RETADDR) &&
-			tracer_flags_is_set(TRACE_GRAPH_PRINT_RETADDR))) {
+	disabled = atomic_read(&data->disabled);
+	if (likely(!disabled)) {
+		trace_ctx = tracing_gen_ctx();
+		if (IS_ENABLED(CONFIG_FUNCTION_GRAPH_RETADDR) &&
+		    tracer_flags_is_set(TRACE_GRAPH_PRINT_RETADDR)) {
 			unsigned long retaddr = ftrace_graph_top_ret_addr(current);
-
 			ret = __trace_graph_retaddr_entry(tr, trace, trace_ctx, retaddr);
-		} else
+		} else {
 			ret = __trace_graph_entry(tr, trace, trace_ctx);
-	} else {
-		ret = 0;
+		}
 	}
-
-	atomic_dec(&data->disabled);
-	local_irq_restore(flags);
+	preempt_enable_notrace();
 
 	return ret;
 }
@@ -320,7 +315,6 @@ void trace_graph_return(struct ftrace_graph_ret *trace,
 	struct trace_array *tr = gops->private;
 	struct trace_array_cpu *data;
 	struct fgraph_times *ftimes;
-	unsigned long flags;
 	unsigned int trace_ctx;
 	long disabled;
 	int size;
@@ -341,16 +335,15 @@ void trace_graph_return(struct ftrace_graph_ret *trace,
 
 	trace->calltime = ftimes->calltime;
 
-	local_irq_save(flags);
+	preempt_disable_notrace();
 	cpu = raw_smp_processor_id();
 	data = per_cpu_ptr(tr->array_buffer.data, cpu);
-	disabled = atomic_inc_return(&data->disabled);
-	if (likely(disabled == 1)) {
-		trace_ctx = tracing_gen_ctx_flags(flags);
+	disabled = atomic_read(&data->disabled);
+	if (likely(!disabled)) {
+		trace_ctx = tracing_gen_ctx();
 		__trace_graph_return(tr, trace, trace_ctx);
 	}
-	atomic_dec(&data->disabled);
-	local_irq_restore(flags);
+	preempt_enable_notrace();
 }
 
 static void trace_graph_thresh_return(struct ftrace_graph_ret *trace,
