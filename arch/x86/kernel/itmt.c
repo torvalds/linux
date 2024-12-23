@@ -36,7 +36,7 @@ static bool __read_mostly sched_itmt_capable;
  *
  * It can be set via /proc/sys/kernel/sched_itmt_enabled
  */
-unsigned int __read_mostly sysctl_sched_itmt_enabled;
+bool __read_mostly sysctl_sched_itmt_enabled;
 
 static int sched_itmt_update_handler(const struct ctl_table *table, int write,
 				     void *buffer, size_t *lenp, loff_t *ppos)
