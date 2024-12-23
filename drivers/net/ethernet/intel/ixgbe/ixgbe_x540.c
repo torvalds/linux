@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright(c) 1999 - 2018 Intel Corporation. */
+/* Copyright(c) 1999 - 2024 Intel Corporation. */
 
 #include <linux/pci.h>
 #include <linux/delay.h>
@@ -66,7 +66,9 @@ int ixgbe_setup_mac_link_X540(struct ixgbe_hw *hw, ixgbe_link_speed speed,
  *  Resets the hardware by resetting the transmit and receive units, masks
  *  and clears all interrupts, perform a PHY reset, and perform a link (MAC)
  *  reset.
- **/
+ *
+ *  Return: 0 on success or negative value on failure
+ */
 int ixgbe_reset_hw_X540(struct ixgbe_hw *hw)
 {
 	u32 swfw_mask = hw->phy.phy_semaphore_mask;
@@ -133,10 +135,14 @@ mac_reset_top:
 	hw->mac.num_rar_entries = IXGBE_X540_MAX_TX_QUEUES;
 	hw->mac.ops.init_rx_addrs(hw);
 
+	/* The following is not supported by E610. */
+	if (hw->mac.type == ixgbe_mac_e610)
+		return status;
+
 	/* Store the permanent SAN mac address */
 	hw->mac.ops.get_san_mac_addr(hw, hw->mac.san_addr);
 
-	/* Add the SAN MAC address to the RAR only if it's a valid address */
+	/* Add the SAN MAC address to RAR if it's a valid address */
 	if (is_valid_ether_addr(hw->mac.san_addr)) {
 		/* Save the SAN MAC RAR index */
 		hw->mac.san_mac_rar_index = hw->mac.num_rar_entries - 1;
