@@ -553,7 +553,6 @@ extern const char iwl_ax211_name[];
 extern const char iwl_ax221_name[];
 extern const char iwl_ax231_name[];
 extern const char iwl_ax411_name[];
-extern const char iwl_bz_name[];
 extern const char iwl_fm_name[];
 extern const char iwl_wh_name[];
 extern const char iwl_gl_name[];
