@@ -103,6 +103,7 @@ select:
           - rockchip,rk3288-qos
           - rockchip,rk3368-qos
           - rockchip,rk3399-qos
+          - rockchip,rk3562-qos
           - rockchip,rk3568-qos
           - rockchip,rk3576-qos
           - rockchip,rk3588-qos
@@ -201,6 +202,7 @@ properties:
           - rockchip,rk3288-qos
           - rockchip,rk3368-qos
           - rockchip,rk3399-qos
+          - rockchip,rk3562-qos
           - rockchip,rk3568-qos
           - rockchip,rk3576-qos
           - rockchip,rk3588-qos
