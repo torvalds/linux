@@ -35,7 +35,7 @@ struct devlink_port_phys_attrs {
 /**
  * struct devlink_port_pci_pf_attrs - devlink port's PCI PF attributes
  * @controller: Associated controller number
- * @pf: Associated PCI PF number for this port.
+ * @pf: associated PCI function number for the devlink port instance
  * @external: when set, indicates if a port is for an external controller
  */
 struct devlink_port_pci_pf_attrs {
@@ -47,8 +47,9 @@ struct devlink_port_pci_pf_attrs {
 /**
  * struct devlink_port_pci_vf_attrs - devlink port's PCI VF attributes
  * @controller: Associated controller number
- * @pf: Associated PCI PF number for this port.
- * @vf: Associated PCI VF for of the PCI PF for this port.
+ * @pf: associated PCI function number for the devlink port instance
+ * @vf: associated PCI VF number of a PF for the devlink port instance;
+ *	VF number starts from 0 for the first PCI virtual function
  * @external: when set, indicates if a port is for an external controller
  */
 struct devlink_port_pci_vf_attrs {
@@ -61,8 +62,8 @@ struct devlink_port_pci_vf_attrs {
 /**
  * struct devlink_port_pci_sf_attrs - devlink port's PCI SF attributes
  * @controller: Associated controller number
- * @sf: Associated PCI SF for of the PCI PF for this port.
- * @pf: Associated PCI PF number for this port.
+ * @sf: associated SF number of a PF for the devlink port instance
+ * @pf: associated PCI function number for the devlink port instance
  * @external: when set, indicates if a port is for an external controller
  */
 struct devlink_port_pci_sf_attrs {
