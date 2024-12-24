@@ -413,7 +413,7 @@ static int gpio_sim_setup_sysfs(struct gpio_sim_chip *chip)
 	return devm_add_action_or_reset(dev, gpio_sim_sysfs_remove, chip);
 }
 
-static int gpio_sim_dev_match_fwnode(struct device *dev, void *data)
+static int gpio_sim_dev_match_fwnode(struct device *dev, const void *data)
 {
 	return device_match_fwnode(dev, data);
 }

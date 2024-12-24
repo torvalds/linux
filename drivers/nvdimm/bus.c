@@ -1212,7 +1212,7 @@ enum nd_ioctl_mode {
 	DIMM_IOCTL,
 };
 
-static int match_dimm(struct device *dev, void *data)
+static int match_dimm(struct device *dev, const void *data)
 {
 	long id = (long) data;
 

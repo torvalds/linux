@@ -725,7 +725,7 @@ static void default_mock_decoder(struct cxl_decoder *cxld)
 	cxld->reset = mock_decoder_reset;
 }
 
-static int first_decoder(struct device *dev, void *data)
+static int first_decoder(struct device *dev, const void *data)
 {
 	struct cxl_decoder *cxld;
 

@@ -1081,8 +1081,8 @@ int device_for_each_child_reverse(struct device *dev, void *data,
 int device_for_each_child_reverse_from(struct device *parent,
 				       struct device *from, const void *data,
 				       int (*fn)(struct device *, const void *));
-struct device *device_find_child(struct device *dev, void *data,
-				 int (*match)(struct device *dev, void *data));
+struct device *device_find_child(struct device *dev, const void *data,
+				 device_match_t match);
 struct device *device_find_child_by_name(struct device *parent,
 					 const char *name);
 struct device *device_find_any_child(struct device *parent);

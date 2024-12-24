@@ -337,9 +337,9 @@ static bool slim_eaddr_equal(const struct slim_eaddr *a,
 		a->instance == b->instance);
 }
 
-static int slim_match_dev(struct device *dev, void *data)
+static int slim_match_dev(struct device *dev, const void *data)
 {
-	struct slim_eaddr *e_addr = data;
+	const struct slim_eaddr *e_addr = data;
 	struct slim_device *sbdev = to_slim_device(dev);
 
 	return slim_eaddr_equal(&sbdev->e_addr, e_addr);
@@ -385,9 +385,9 @@ struct slim_device *slim_get_device(struct slim_controller *ctrl,
 }
 EXPORT_SYMBOL_GPL(slim_get_device);
 
-static int of_slim_match_dev(struct device *dev, void *data)
+static int of_slim_match_dev(struct device *dev, const void *data)
 {
-	struct device_node *np = data;
+	const struct device_node *np = data;
 	struct slim_device *sbdev = to_slim_device(dev);
 
 	return (sbdev->dev.of_node == np);

@@ -2365,9 +2365,9 @@ struct uart_match {
 	struct uart_driver *driver;
 };
 
-static int serial_match_port(struct device *dev, void *data)
+static int serial_match_port(struct device *dev, const void *data)
 {
-	struct uart_match *match = data;
+	const struct uart_match *match = data;
 	struct tty_driver *tty_drv = match->driver->tty_driver;
 	dev_t devt = MKDEV(tty_drv->major, tty_drv->minor_start) +
 		match->port->line;

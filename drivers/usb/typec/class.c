@@ -229,10 +229,10 @@ static const char * const usb_modes[] = {
 /* ------------------------------------------------------------------------- */
 /* Alternate Modes */
 
-static int altmode_match(struct device *dev, void *data)
+static int altmode_match(struct device *dev, const void *data)
 {
 	struct typec_altmode *adev = to_typec_altmode(dev);
-	struct typec_device_id *id = data;
+	const struct typec_device_id *id = data;
 
 	if (!is_typec_altmode(dev))
 		return 0;
@@ -1282,7 +1282,7 @@ const struct device_type typec_cable_dev_type = {
 	.release = typec_cable_release,
 };
 
-static int cable_match(struct device *dev, void *data)
+static int cable_match(struct device *dev, const void *data)
 {
 	return is_typec_cable(dev);
 }
@@ -2028,7 +2028,7 @@ const struct device_type typec_port_dev_type = {
 /* --------------------------------------- */
 /* Driver callbacks to report role updates */
 
-static int partner_match(struct device *dev, void *data)
+static int partner_match(struct device *dev, const void *data)
 {
 	return is_typec_partner(dev);
 }

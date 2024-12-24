@@ -4079,8 +4079,8 @@ EXPORT_SYMBOL_GPL(device_for_each_child_reverse_from);
  *
  * NOTE: you will need to drop the reference with put_device() after use.
  */
-struct device *device_find_child(struct device *parent, void *data,
-				 int (*match)(struct device *dev, void *data))
+struct device *device_find_child(struct device *parent, const void *data,
+				 device_match_t match)
 {
 	struct klist_iter i;
 	struct device *child;
@@ -4125,7 +4125,7 @@ struct device *device_find_child_by_name(struct device *parent,
 }
 EXPORT_SYMBOL_GPL(device_find_child_by_name);
 
-static int match_any(struct device *dev, void *unused)
+static int match_any(struct device *dev, const void *unused)
 {
 	return 1;
 }

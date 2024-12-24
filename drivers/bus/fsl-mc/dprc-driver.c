@@ -112,9 +112,9 @@ void dprc_remove_devices(struct fsl_mc_device *mc_bus_dev,
 }
 EXPORT_SYMBOL_GPL(dprc_remove_devices);
 
-static int __fsl_mc_device_match(struct device *dev, void *data)
+static int __fsl_mc_device_match(struct device *dev, const void *data)
 {
-	struct fsl_mc_obj_desc *obj_desc = data;
+	const struct fsl_mc_obj_desc *obj_desc = data;
 	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
 
 	return fsl_mc_device_match(mc_dev, obj_desc);

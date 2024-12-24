@@ -7189,7 +7189,8 @@ exit_new_nt_list:
  *	1: if flashnode entry is non-persistent
  *	0: if flashnode entry is persistent
  **/
-static int qla4xxx_sysfs_ddb_is_non_persistent(struct device *dev, void *data)
+static int qla4xxx_sysfs_ddb_is_non_persistent(struct device *dev,
+					       const void *data)
 {
 	struct iscsi_bus_flash_session *fnode_sess;
 

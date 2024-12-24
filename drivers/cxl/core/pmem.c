@@ -57,7 +57,7 @@ bool is_cxl_nvdimm_bridge(struct device *dev)
 }
 EXPORT_SYMBOL_NS_GPL(is_cxl_nvdimm_bridge, "CXL");
 
-static int match_nvdimm_bridge(struct device *dev, void *data)
+static int match_nvdimm_bridge(struct device *dev, const void *data)
 {
 	return is_cxl_nvdimm_bridge(dev);
 }

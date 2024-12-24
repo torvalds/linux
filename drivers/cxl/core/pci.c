@@ -252,9 +252,9 @@ static int devm_cxl_enable_mem(struct device *host, struct cxl_dev_state *cxlds)
 }
 
 /* require dvsec ranges to be covered by a locked platform window */
-static int dvsec_range_allowed(struct device *dev, void *arg)
+static int dvsec_range_allowed(struct device *dev, const void *arg)
 {
-	struct range *dev_range = arg;
+	const struct range *dev_range = arg;
 	struct cxl_decoder *cxld;
 
 	if (!is_root_decoder(dev))

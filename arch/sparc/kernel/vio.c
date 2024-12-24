@@ -419,13 +419,13 @@ struct vio_remove_node_data {
 	u64 node;
 };
 
-static int vio_md_node_match(struct device *dev, void *arg)
+static int vio_md_node_match(struct device *dev, const void *arg)
 {
 	struct vio_dev *vdev = to_vio_dev(dev);
-	struct vio_remove_node_data *node_data;
+	const struct vio_remove_node_data *node_data;
 	u64 node;
 
-	node_data = (struct vio_remove_node_data *)arg;
+	node_data = (const struct vio_remove_node_data *)arg;
 
 	node = vio_vdev_node(node_data->hp, vdev);
 

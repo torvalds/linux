@@ -792,7 +792,7 @@ static int check_commit_order(struct device *dev, const void *data)
 	return 0;
 }
 
-static int match_free_decoder(struct device *dev, void *data)
+static int match_free_decoder(struct device *dev, const void *data)
 {
 	struct cxl_port *port = to_cxl_port(dev->parent);
 	struct cxl_decoder *cxld;
@@ -824,9 +824,9 @@ static int match_free_decoder(struct device *dev, void *data)
 	return 1;
 }
 
-static int match_auto_decoder(struct device *dev, void *data)
+static int match_auto_decoder(struct device *dev, const void *data)
 {
-	struct cxl_region_params *p = data;
+	const struct cxl_region_params *p = data;
 	struct cxl_decoder *cxld;
 	struct range *r;
 
@@ -1722,10 +1722,12 @@ static struct cxl_port *next_port(struct cxl_port *port)
 	return port->parent_dport->port;
 }
 
-static int match_switch_decoder_by_range(struct device *dev, void *data)
+static int match_switch_decoder_by_range(struct device *dev,
+					 const void *data)
 {
 	struct cxl_switch_decoder *cxlsd;
-	struct range *r1, *r2 = data;
+	const struct range *r1, *r2 = data;
+
 
 	if (!is_switch_decoder(dev))
 		return 0;
@@ -3176,9 +3178,10 @@ err:
 	return rc;
 }
 
-static int match_root_decoder_by_range(struct device *dev, void *data)
+static int match_root_decoder_by_range(struct device *dev,
+				       const void *data)
 {
-	struct range *r1, *r2 = data;
+	const struct range *r1, *r2 = data;
 	struct cxl_root_decoder *cxlrd;
 
 	if (!is_root_decoder(dev))
@@ -3189,11 +3192,11 @@ static int match_root_decoder_by_range(struct device *dev, void *data)
 	return range_contains(r1, r2);
 }
 
-static int match_region_by_range(struct device *dev, void *data)
+static int match_region_by_range(struct device *dev, const void *data)
 {
 	struct cxl_region_params *p;
 	struct cxl_region *cxlr;
-	struct range *r = data;
+	const struct range *r = data;
 	int rc = 0;
 
 	if (!is_cxl_region(dev))
