@@ -1567,7 +1567,7 @@ void sta_info_stop(struct ieee80211_local *local)
 
 
 int __sta_info_flush(struct ieee80211_sub_if_data *sdata, bool vlans,
-		     int link_id)
+		     int link_id, struct sta_info *do_not_flush_sta)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta, *tmp;
@@ -1583,6 +1583,9 @@ int __sta_info_flush(struct ieee80211_sub_if_data *sdata, bool vlans,
 	list_for_each_entry_safe(sta, tmp, &local->sta_list, list) {
 		if (sdata != sta->sdata &&
 		    (!vlans || sdata->bss != sta->sdata->bss))
+			continue;
+
+		if (sta == do_not_flush_sta)
 			continue;
 
 		if (link_id >= 0 && sta->sta.valid_links &&

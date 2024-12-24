@@ -899,9 +899,10 @@ void sta_info_stop(struct ieee80211_local *local);
  * @link_id: if given (>=0), all those STA entries using @link_id only
  *	     will be removed. If -1 is passed, all STA entries will be
  *	     removed.
+ * @do_not_flush_sta: a station that shouldn't be flushed.
  */
 int __sta_info_flush(struct ieee80211_sub_if_data *sdata, bool vlans,
-		     int link_id);
+		     int link_id, struct sta_info *do_not_flush_sta);
 
 /**
  * sta_info_flush - flush matching STA entries from the STA table
@@ -916,7 +917,7 @@ int __sta_info_flush(struct ieee80211_sub_if_data *sdata, bool vlans,
 static inline int sta_info_flush(struct ieee80211_sub_if_data *sdata,
 				 int link_id)
 {
-	return __sta_info_flush(sdata, false, link_id);
+	return __sta_info_flush(sdata, false, link_id, NULL);
 }
 
 void sta_set_rate_info_tx(struct sta_info *sta,
