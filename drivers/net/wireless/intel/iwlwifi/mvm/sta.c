@@ -2045,9 +2045,9 @@ int iwl_mvm_wait_sta_queues_empty(struct iwl_mvm *mvm,
  * Returns if we're done with removing the station, either
  * with error or success
  */
-bool iwl_mvm_sta_del(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+void iwl_mvm_sta_del(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		     struct ieee80211_sta *sta,
-		     struct ieee80211_link_sta *link_sta, int *ret)
+		     struct ieee80211_link_sta *link_sta)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_vif_link_info *mvm_link =
@@ -2080,8 +2080,6 @@ bool iwl_mvm_sta_del(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		mvm->tdls_cs.peer.sta_id = IWL_INVALID_STA;
 		cancel_delayed_work(&mvm->tdls_cs.dwork);
 	}
-
-	return false;
 }
 
 int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
@@ -2137,8 +2135,7 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 		*status = IWL_MVM_QUEUE_FREE;
 	}
 
-	if (iwl_mvm_sta_del(mvm, vif, sta, &sta->deflink, &ret))
-		return ret;
+	iwl_mvm_sta_del(mvm, vif, sta, &sta->deflink);
 
 	ret = iwl_mvm_rm_sta_common(mvm, mvm_sta->deflink.sta_id);
 	RCU_INIT_POINTER(mvm->fw_id_to_mac_id[mvm_sta->deflink.sta_id], NULL);

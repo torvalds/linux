@@ -1153,7 +1153,7 @@ static void iwl_mvm_cleanup_sta_iterator(void *data, struct ieee80211_sta *sta)
 			 * Delete the stale data to avoid issues later on.
 			 */
 			iwl_mvm_mld_free_sta_link(mvm, mvm_sta, mvm_link_sta,
-						  link_id, false);
+						  link_id);
 		}
 	}
 }
