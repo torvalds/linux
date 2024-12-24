@@ -2065,15 +2065,10 @@ bool iwl_mvm_sta_del(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	if (vif->type == NL80211_IFTYPE_STATION &&
 	    mvm_link->ap_sta_id == sta_id) {
-		/* if associated - we can't remove the AP STA now */
-		if (vif->cfg.assoc)
-			return true;
-
 		/* first remove remaining keys */
 		iwl_mvm_sec_key_remove_ap(mvm, vif, mvm_link,
 					  link_sta->link_id);
 
-		/* unassoc - go ahead - remove the AP STA now */
 		mvm_link->ap_sta_id = IWL_INVALID_STA;
 	}
 
