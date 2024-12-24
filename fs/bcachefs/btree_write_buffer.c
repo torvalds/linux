@@ -312,6 +312,8 @@ static int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 	darray_for_each(wb->sorted, i) {
 		struct btree_write_buffered_key *k = &wb->flushing.keys.data[i->idx];
 
+		BUG_ON(!btree_type_uses_write_buffer(k->btree));
+
 		for (struct wb_key_ref *n = i + 1; n < min(i + 4, &darray_top(wb->sorted)); n++)
 			prefetch(&wb->flushing.keys.data[n->idx]);
 

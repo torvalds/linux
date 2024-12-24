@@ -1288,14 +1288,18 @@ LE32_BITMASK(JSET_NO_FLUSH,	struct jset, flags, 5, 6);
 /* Btree: */
 
 enum btree_id_flags {
-	BTREE_ID_EXTENTS	= BIT(0),
-	BTREE_ID_SNAPSHOTS	= BIT(1),
-	BTREE_ID_SNAPSHOT_FIELD	= BIT(2),
-	BTREE_ID_DATA		= BIT(3),
+	BTREE_IS_extents	= BIT(0),
+	BTREE_IS_snapshots	= BIT(1),
+	BTREE_IS_snapshot_field	= BIT(2),
+	BTREE_IS_data		= BIT(3),
+	BTREE_IS_write_buffer	= BIT(4),
 };
 
 #define BCH_BTREE_IDS()								\
-	x(extents,		0,	BTREE_ID_EXTENTS|BTREE_ID_SNAPSHOTS|BTREE_ID_DATA,\
+	x(extents,		0,						\
+	  BTREE_IS_extents|							\
+	  BTREE_IS_snapshots|							\
+	  BTREE_IS_data,							\
 	  BIT_ULL(KEY_TYPE_whiteout)|						\
 	  BIT_ULL(KEY_TYPE_error)|						\
 	  BIT_ULL(KEY_TYPE_cookie)|						\
@@ -1303,17 +1307,20 @@ enum btree_id_flags {
 	  BIT_ULL(KEY_TYPE_reservation)|					\
 	  BIT_ULL(KEY_TYPE_reflink_p)|						\
 	  BIT_ULL(KEY_TYPE_inline_data))					\
-	x(inodes,		1,	BTREE_ID_SNAPSHOTS,			\
+	x(inodes,		1,						\
+	  BTREE_IS_snapshots,							\
 	  BIT_ULL(KEY_TYPE_whiteout)|						\
 	  BIT_ULL(KEY_TYPE_inode)|						\
 	  BIT_ULL(KEY_TYPE_inode_v2)|						\
 	  BIT_ULL(KEY_TYPE_inode_v3)|						\
 	  BIT_ULL(KEY_TYPE_inode_generation))					\
-	x(dirents,		2,	BTREE_ID_SNAPSHOTS,			\
+	x(dirents,		2,						\
+	  BTREE_IS_snapshots,							\
 	  BIT_ULL(KEY_TYPE_whiteout)|						\
 	  BIT_ULL(KEY_TYPE_hash_whiteout)|					\
 	  BIT_ULL(KEY_TYPE_dirent))						\
-	x(xattrs,		3,	BTREE_ID_SNAPSHOTS,			\
+	x(xattrs,		3,						\
+	  BTREE_IS_snapshots,							\
 	  BIT_ULL(KEY_TYPE_whiteout)|						\
 	  BIT_ULL(KEY_TYPE_cookie)|						\
 	  BIT_ULL(KEY_TYPE_hash_whiteout)|					\
@@ -1327,7 +1334,9 @@ enum btree_id_flags {
 	  BIT_ULL(KEY_TYPE_quota))						\
 	x(stripes,		6,	0,					\
 	  BIT_ULL(KEY_TYPE_stripe))						\
-	x(reflink,		7,	BTREE_ID_EXTENTS|BTREE_ID_DATA,		\
+	x(reflink,		7,						\
+	  BTREE_IS_extents|							\
+	  BTREE_IS_data,							\
 	  BIT_ULL(KEY_TYPE_reflink_v)|						\
 	  BIT_ULL(KEY_TYPE_indirect_inline_data)|				\
 	  BIT_ULL(KEY_TYPE_error))						\
@@ -1335,29 +1344,38 @@ enum btree_id_flags {
 	  BIT_ULL(KEY_TYPE_subvolume))						\
 	x(snapshots,		9,	0,					\
 	  BIT_ULL(KEY_TYPE_snapshot))						\
-	x(lru,			10,	0,					\
+	x(lru,			10,						\
+	  BTREE_IS_write_buffer,						\
 	  BIT_ULL(KEY_TYPE_set))						\
-	x(freespace,		11,	BTREE_ID_EXTENTS,			\
+	x(freespace,		11,						\
+	  BTREE_IS_extents,							\
 	  BIT_ULL(KEY_TYPE_set))						\
 	x(need_discard,		12,	0,					\
 	  BIT_ULL(KEY_TYPE_set))						\
-	x(backpointers,		13,	0,					\
+	x(backpointers,		13,						\
+	  BTREE_IS_write_buffer,						\
 	  BIT_ULL(KEY_TYPE_backpointer))					\
 	x(bucket_gens,		14,	0,					\
 	  BIT_ULL(KEY_TYPE_bucket_gens))					\
 	x(snapshot_trees,	15,	0,					\
 	  BIT_ULL(KEY_TYPE_snapshot_tree))					\
-	x(deleted_inodes,	16,	BTREE_ID_SNAPSHOT_FIELD,		\
+	x(deleted_inodes,	16,						\
+	  BTREE_IS_snapshot_field|						\
+	  BTREE_IS_write_buffer,						\
 	  BIT_ULL(KEY_TYPE_set))						\
 	x(logged_ops,		17,	0,					\
 	  BIT_ULL(KEY_TYPE_logged_op_truncate)|					\
 	  BIT_ULL(KEY_TYPE_logged_op_finsert)|					\
 	  BIT_ULL(KEY_TYPE_inode_alloc_cursor))					\
-	x(rebalance_work,	18,	BTREE_ID_SNAPSHOT_FIELD,		\
+	x(rebalance_work,	18,						\
+	  BTREE_IS_snapshot_field|						\
+	  BTREE_IS_write_buffer,						\
 	  BIT_ULL(KEY_TYPE_set)|BIT_ULL(KEY_TYPE_cookie))			\
 	x(subvolume_children,	19,	0,					\
 	  BIT_ULL(KEY_TYPE_set))						\
-	x(accounting,		20,	BTREE_ID_SNAPSHOT_FIELD,		\
+	x(accounting,		20,						\
+	  BTREE_IS_snapshot_field|						\
+	  BTREE_IS_write_buffer,						\
 	  BIT_ULL(KEY_TYPE_accounting))						\
 
 enum btree_id {
