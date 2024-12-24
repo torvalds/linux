@@ -608,6 +608,9 @@ int bch2_inum_to_path(struct btree_trans *trans, subvol_inum inum, struct printb
 			goto disconnected;
 		}
 
+		inum.subvol	= inode.bi_parent_subvol ?: inum.subvol;
+		inum.inum	= inode.bi_dir;
+
 		u32 snapshot;
 		ret = bch2_subvolume_get_snapshot(trans, inum.subvol, &snapshot);
 		if (ret)
@@ -625,10 +628,6 @@ int bch2_inum_to_path(struct btree_trans *trans, subvol_inum inum, struct printb
 		prt_bytes_reversed(path, dirent_name.name, dirent_name.len);
 
 		prt_char(path, '/');
-
-		if (d.v->d_type == DT_SUBVOL)
-			inum.subvol = le32_to_cpu(d.v->d_parent_subvol);
-		inum.inum = d.k->p.inode;
 
 		bch2_trans_iter_exit(trans, &d_iter);
 	}
