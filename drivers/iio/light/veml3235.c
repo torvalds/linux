@@ -321,7 +321,7 @@ static void veml3235_read_id(struct veml3235_data *data)
 {
 	int ret, reg;
 
-	ret = regmap_field_read(data->rf.id,  &reg);
+	ret = regmap_field_read(data->rf.id, &reg);
 	if (ret) {
 		dev_info(data->dev, "failed to read ID\n");
 		return;
@@ -389,8 +389,8 @@ static int veml3235_hw_init(struct iio_dev *indio_dev)
 }
 
 static const struct iio_info veml3235_info = {
-	.read_raw  = veml3235_read_raw,
-	.read_avail  = veml3235_read_avail,
+	.read_raw = veml3235_read_raw,
+	.read_avail = veml3235_read_avail,
 	.write_raw = veml3235_write_raw,
 };
 
