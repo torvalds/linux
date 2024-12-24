@@ -402,25 +402,6 @@ void ieee80211_debugfs_key_update_default(struct ieee80211_sub_if_data *sdata)
 	}
 }
 
-void ieee80211_debugfs_key_add_mgmt_default(struct ieee80211_sub_if_data *sdata)
-{
-	char buf[50];
-	struct ieee80211_key *key;
-
-	if (!sdata->vif.debugfs_dir)
-		return;
-
-	key = wiphy_dereference(sdata->local->hw.wiphy,
-				sdata->deflink.default_mgmt_key);
-	if (key) {
-		sprintf(buf, "../keys/%d", key->debugfs.cnt);
-		sdata->debugfs.default_mgmt_key =
-			debugfs_create_symlink("default_mgmt_key",
-					       sdata->vif.debugfs_dir, buf);
-	} else
-		ieee80211_debugfs_key_remove_mgmt_default(sdata);
-}
-
 void ieee80211_debugfs_key_remove_mgmt_default(struct ieee80211_sub_if_data *sdata)
 {
 	if (!sdata)
@@ -431,27 +412,6 @@ void ieee80211_debugfs_key_remove_mgmt_default(struct ieee80211_sub_if_data *sda
 }
 
 void
-ieee80211_debugfs_key_add_beacon_default(struct ieee80211_sub_if_data *sdata)
-{
-	char buf[50];
-	struct ieee80211_key *key;
-
-	if (!sdata->vif.debugfs_dir)
-		return;
-
-	key = wiphy_dereference(sdata->local->hw.wiphy,
-				sdata->deflink.default_beacon_key);
-	if (key) {
-		sprintf(buf, "../keys/%d", key->debugfs.cnt);
-		sdata->debugfs.default_beacon_key =
-			debugfs_create_symlink("default_beacon_key",
-					       sdata->vif.debugfs_dir, buf);
-	} else {
-		ieee80211_debugfs_key_remove_beacon_default(sdata);
-	}
-}
-
-void
 ieee80211_debugfs_key_remove_beacon_default(struct ieee80211_sub_if_data *sdata)
 {
 	if (!sdata)
@@ -459,11 +419,4 @@ ieee80211_debugfs_key_remove_beacon_default(struct ieee80211_sub_if_data *sdata)
 
 	debugfs_remove(sdata->debugfs.default_beacon_key);
 	sdata->debugfs.default_beacon_key = NULL;
-}
-
-void ieee80211_debugfs_key_sta_del(struct ieee80211_key *key,
-				   struct sta_info *sta)
-{
-	debugfs_remove(key->debugfs.stalink);
-	key->debugfs.stalink = NULL;
 }
