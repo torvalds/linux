@@ -574,6 +574,11 @@ static inline void prt_bytes_reversed(struct printbuf *out, const void *b, unsig
 	printbuf_nul_terminate(out);
 }
 
+static inline void prt_str_reversed(struct printbuf *out, const char *s)
+{
+	prt_bytes_reversed(out, s, strlen(s));
+}
+
 static inline void reverse_bytes(void *b, size_t n)
 {
 	char *e = b + n, *s = b;
@@ -596,17 +601,17 @@ int bch2_inum_to_path(struct btree_trans *trans, subvol_inum inum, struct printb
 		struct bch_inode_unpacked inode;
 		ret = bch2_inode_find_by_inum_trans(trans, inum, &inode);
 		if (ret)
-			goto err;
+			goto disconnected;
 
 		if (!inode.bi_dir && !inode.bi_dir_offset) {
 			ret = -BCH_ERR_ENOENT_inode_no_backpointer;
-			goto err;
+			goto disconnected;
 		}
 
 		u32 snapshot;
 		ret = bch2_subvolume_get_snapshot(trans, inum.subvol, &snapshot);
 		if (ret)
-			goto err;
+			goto disconnected;
 
 		struct btree_iter d_iter;
 		struct bkey_s_c_dirent d = bch2_bkey_get_iter_typed(trans, &d_iter,
@@ -614,7 +619,7 @@ int bch2_inum_to_path(struct btree_trans *trans, subvol_inum inum, struct printb
 				0, dirent);
 		ret = bkey_err(d.s_c);
 		if (ret)
-			goto err;
+			goto disconnected;
 
 		struct qstr dirent_name = bch2_dirent_get_name(d);
 		prt_bytes_reversed(path, dirent_name.name, dirent_name.len);
@@ -630,7 +635,7 @@ int bch2_inum_to_path(struct btree_trans *trans, subvol_inum inum, struct printb
 
 	if (orig_pos == path->pos)
 		prt_char(path, '/');
-
+out:
 	ret = path->allocation_failure ? -ENOMEM : 0;
 	if (ret)
 		goto err;
@@ -639,4 +644,10 @@ int bch2_inum_to_path(struct btree_trans *trans, subvol_inum inum, struct printb
 	return 0;
 err:
 	return ret;
+disconnected:
+	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+		goto err;
+
+	prt_str_reversed(path, "(disconnected)");
+	goto out;
 }
