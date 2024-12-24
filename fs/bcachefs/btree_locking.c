@@ -818,6 +818,17 @@ void bch2_trans_unlock_long(struct btree_trans *trans)
 	bch2_trans_srcu_unlock(trans);
 }
 
+void bch2_trans_unlock_write(struct btree_trans *trans)
+{
+	struct btree_path *path;
+	unsigned i;
+
+	trans_for_each_path(trans, path, i)
+		for (unsigned l = 0; l < BTREE_MAX_DEPTH; l++)
+			if (btree_node_write_locked(path, l))
+				bch2_btree_node_unlock_write(trans, path, path->l[l].b);
+}
+
 int __bch2_trans_mutex_lock(struct btree_trans *trans,
 			    struct mutex *lock)
 {

@@ -133,7 +133,7 @@ static inline int bch2_trans_lock_write(struct btree_trans *trans)
 	return 0;
 }
 
-static inline void bch2_trans_unlock_write(struct btree_trans *trans)
+static inline void bch2_trans_unlock_updates_write(struct btree_trans *trans)
 {
 	if (likely(trans->write_locked)) {
 		trans_for_each_update(trans, i)
@@ -384,7 +384,7 @@ btree_key_can_insert_cached_slowpath(struct btree_trans *trans, unsigned flags,
 	struct bkey_i *new_k;
 	int ret;
 
-	bch2_trans_unlock_write(trans);
+	bch2_trans_unlock_updates_write(trans);
 	bch2_trans_unlock(trans);
 
 	new_k = kmalloc(new_u64s * sizeof(u64), GFP_KERNEL);
@@ -868,7 +868,7 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans, unsigned flags
 	if (!ret && unlikely(trans->journal_replay_not_finished))
 		bch2_drop_overwrites_from_journal(trans);
 
-	bch2_trans_unlock_write(trans);
+	bch2_trans_unlock_updates_write(trans);
 
 	if (!ret && trans->journal_pin)
 		bch2_journal_pin_add(&c->journal, trans->journal_res.seq,
