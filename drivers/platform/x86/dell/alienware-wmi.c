@@ -1159,13 +1159,7 @@ static int create_thermal_profile(struct platform_device *platform_device)
 	pp_handler.name = "alienware-wmi";
 	pp_handler.dev = &platform_device->dev;
 
-	return platform_profile_register(&pp_handler);
-}
-
-static void remove_thermal_profile(void)
-{
-	if (quirks->thermal)
-		platform_profile_remove(&pp_handler);
+	return devm_platform_profile_register(&pp_handler);
 }
 
 static int __init alienware_wmi_init(void)
@@ -1239,7 +1233,6 @@ static int __init alienware_wmi_init(void)
 
 fail_prep_zones:
 	alienware_zone_exit(platform_device);
-	remove_thermal_profile();
 fail_prep_thermal_profile:
 fail_prep_deepsleep:
 fail_prep_amplifier:
@@ -1260,7 +1253,6 @@ static void __exit alienware_wmi_exit(void)
 	if (platform_device) {
 		alienware_zone_exit(platform_device);
 		remove_hdmi(platform_device);
-		remove_thermal_profile();
 		platform_device_unregister(platform_device);
 		platform_driver_unregister(&platform_driver);
 	}
