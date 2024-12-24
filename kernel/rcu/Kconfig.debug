@@ -54,7 +54,7 @@ config RCU_TORTURE_TEST
 	  Say N if you are unsure.
 
 config RCU_TORTURE_TEST_CHK_RDR_STATE
-	tristate "Check rcutorture reader state"
+	bool "Check rcutorture reader state"
 	depends on RCU_TORTURE_TEST
 	default n
 	help
@@ -70,7 +70,7 @@ config RCU_TORTURE_TEST_CHK_RDR_STATE
 	  Say N if you are unsure.
 
 config RCU_TORTURE_TEST_LOG_CPU
-	tristate "Log CPU for rcutorture failures"
+	bool "Log CPU for rcutorture failures"
 	depends on RCU_TORTURE_TEST
 	default n
 	help
