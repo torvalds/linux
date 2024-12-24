@@ -134,6 +134,9 @@ void cpufreq_put_stats(struct cpufreq_stats *stats);
 
 unsigned long cpufreq_get_transitions(unsigned int cpu);
 
+char *cpufreq_get_energy_performance_preference(unsigned int cpu);
+void cpufreq_put_energy_performance_preference(char *ptr);
+
 int cpufreq_set_policy(unsigned int cpu, struct cpufreq_policy *policy);
 
 int cpufreq_modify_policy_min(unsigned int cpu, unsigned long min_freq);
