@@ -75,13 +75,6 @@ static inline void mark_btree_node_locked_noreset(struct btree_path *path,
 	path->nodes_locked |= (type + 1) << (level << 1);
 }
 
-static inline void mark_btree_node_unlocked(struct btree_path *path,
-					    unsigned level)
-{
-	EBUG_ON(btree_node_write_locked(path, level));
-	mark_btree_node_locked_noreset(path, level, BTREE_NODE_UNLOCKED);
-}
-
 static inline void mark_btree_node_locked(struct btree_trans *trans,
 					  struct btree_path *path,
 					  unsigned level,
@@ -124,19 +117,25 @@ static void btree_trans_lock_hold_time_update(struct btree_trans *trans,
 
 /* unlock: */
 
+void bch2_btree_node_unlock_write(struct btree_trans *,
+			struct btree_path *, struct btree *);
+
 static inline void btree_node_unlock(struct btree_trans *trans,
 				     struct btree_path *path, unsigned level)
 {
 	int lock_type = btree_node_locked_type(path, level);
 
 	EBUG_ON(level >= BTREE_MAX_DEPTH);
-	EBUG_ON(lock_type == BTREE_NODE_WRITE_LOCKED);
 
 	if (lock_type != BTREE_NODE_UNLOCKED) {
+		if (unlikely(lock_type == BTREE_NODE_WRITE_LOCKED)) {
+			bch2_btree_node_unlock_write(trans, path, path->l[level].b);
+			lock_type = BTREE_NODE_INTENT_LOCKED;
+		}
 		six_unlock_type(&path->l[level].b->c.lock, lock_type);
 		btree_trans_lock_hold_time_update(trans, path, level);
+		mark_btree_node_locked_noreset(path, level, BTREE_NODE_UNLOCKED);
 	}
-	mark_btree_node_unlocked(path, level);
 }
 
 static inline int btree_path_lowest_level_locked(struct btree_path *path)
@@ -165,11 +164,13 @@ static inline void __bch2_btree_path_unlock(struct btree_trans *trans,
 static inline void
 __bch2_btree_node_unlock_write(struct btree_trans *trans, struct btree *b)
 {
-	struct btree_path *linked;
-	unsigned i;
+	if (!b->c.lock.write_lock_recurse) {
+		struct btree_path *linked;
+		unsigned i;
 
-	trans_for_each_path_with_node(trans, b, linked, i)
-		linked->l[b->c.level].lock_seq++;
+		trans_for_each_path_with_node(trans, b, linked, i)
+			linked->l[b->c.level].lock_seq++;
+	}
 
 	six_unlock_write(&b->c.lock);
 }
@@ -185,9 +186,6 @@ bch2_btree_node_unlock_write_inlined(struct btree_trans *trans, struct btree_pat
 	mark_btree_node_locked_noreset(path, b->c.level, BTREE_NODE_INTENT_LOCKED);
 	__bch2_btree_node_unlock_write(trans, b);
 }
-
-void bch2_btree_node_unlock_write(struct btree_trans *,
-			struct btree_path *, struct btree *);
 
 int bch2_six_check_for_deadlock(struct six_lock *lock, void *p);
 
