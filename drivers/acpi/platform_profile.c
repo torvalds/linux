@@ -519,6 +519,35 @@ int platform_profile_remove(struct platform_profile_handler *pprof)
 }
 EXPORT_SYMBOL_GPL(platform_profile_remove);
 
+static void devm_platform_profile_release(struct device *dev, void *res)
+{
+	struct platform_profile_handler **pprof = res;
+
+	platform_profile_remove(*pprof);
+}
+
+int devm_platform_profile_register(struct platform_profile_handler *pprof)
+{
+	struct platform_profile_handler **dr;
+	int ret;
+
+	dr = devres_alloc(devm_platform_profile_release, sizeof(*dr), GFP_KERNEL);
+	if (!dr)
+		return -ENOMEM;
+
+	ret = platform_profile_register(pprof);
+	if (ret) {
+		devres_free(dr);
+		return ret;
+	}
+
+	*dr = pprof;
+	devres_add(pprof->dev, dr);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devm_platform_profile_register);
+
 static int __init platform_profile_init(void)
 {
 	int err;
