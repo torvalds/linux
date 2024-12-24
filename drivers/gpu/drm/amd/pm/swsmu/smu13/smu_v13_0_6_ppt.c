@@ -740,10 +740,8 @@ static ssize_t smu_v13_0_6_get_pm_metrics(struct smu_context *smu,
 
 	memset(&pm_metrics->common_header, 0,
 	       sizeof(pm_metrics->common_header));
-	if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 6))
-		pm_metrics->common_header.mp1_ip_discovery_version = IP_VERSION(13, 0, 6);
-	if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 14))
-		pm_metrics->common_header.mp1_ip_discovery_version = IP_VERSION(13, 0, 14);
+	pm_metrics->common_header.mp1_ip_discovery_version =
+		amdgpu_ip_version(smu->adev, MP1_HWIP, 0);
 	pm_metrics->common_header.pmfw_version = pmfw_version;
 	pm_metrics->common_header.pmmetrics_version = table_version;
 	pm_metrics->common_header.structure_size =
