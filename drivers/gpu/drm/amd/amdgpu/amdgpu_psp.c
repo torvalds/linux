@@ -246,6 +246,10 @@ static int psp_early_init(struct amdgpu_ip_block *ip_block)
 	case IP_VERSION(14, 0, 3):
 		psp_v14_0_set_psp_funcs(psp);
 		break;
+	case IP_VERSION(14, 0, 5):
+		psp_v14_0_set_psp_funcs(psp);
+		psp->boot_time_tmr = false;
+		break;
 	default:
 		return -EINVAL;
 	}
