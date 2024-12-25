@@ -1398,13 +1398,11 @@ static void _ipmi_destroy_user(struct ipmi_user *user)
 	module_put(owner);
 }
 
-int ipmi_destroy_user(struct ipmi_user *user)
+void ipmi_destroy_user(struct ipmi_user *user)
 {
 	_ipmi_destroy_user(user);
 
 	kref_put(&user->refcount, free_user);
-
-	return 0;
 }
 EXPORT_SYMBOL(ipmi_destroy_user);
 
