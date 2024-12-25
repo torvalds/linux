@@ -2548,6 +2548,15 @@ void link_set_dpms_on(
 	if (pipe_ctx->stream->dpms_off)
 		return;
 
+	/* For Dp tunneling link, a pending HPD means that we have a race condition between processing
+	 * current link and processing the pending HPD. If we enable the link now, we may end up with a
+	 * link that is not actually connected to a sink. So we skip enabling the link in this case.
+	 */
+	if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA && link->is_hpd_pending) {
+		DC_LOG_DEBUG("%s, Link%d HPD is pending, not enable it.\n", __func__, link->link_index);
+		return;
+	}
+
 	/* Have to setup DSC before DIG FE and BE are connected (which happens before the
 	 * link training). This is to make sure the bandwidth sent to DIG BE won't be
 	 * bigger than what the link and/or DIG BE can handle. VBID[6]/CompressedStream_flag

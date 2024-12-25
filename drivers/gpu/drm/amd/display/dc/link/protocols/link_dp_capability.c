@@ -2312,6 +2312,14 @@ bool dp_verify_link_cap_with_retries(
 		} else {
 			link->verified_link_cap = last_verified_link_cap;
 		}
+
+		/* For Dp tunneling link, a pending HPD means that we have a race condition between processing
+		 * current link and processing the pending HPD. Since the training is failed, we should just brak
+		 * the loop so that we have chance to process the pending HPD.
+		 */
+		if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA && link->is_hpd_pending)
+			break;
+
 		fsleep(10 * 1000);
 	}
 
