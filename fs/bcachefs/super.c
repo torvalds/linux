@@ -563,6 +563,7 @@ static void __bch2_fs_free(struct bch_fs *c)
 	bch2_io_clock_exit(&c->io_clock[WRITE]);
 	bch2_io_clock_exit(&c->io_clock[READ]);
 	bch2_fs_compress_exit(c);
+	bch2_fs_btree_gc_exit(c);
 	bch2_journal_keys_put_initial(c);
 	bch2_find_btree_nodes_exit(&c->found_btree_nodes);
 	BUG_ON(atomic_read(&c->journal_keys.ref));
@@ -770,13 +771,9 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	spin_lock_init(&c->recovery_pass_lock);
 	sema_init(&c->online_fsck_mutex, 1);
 
-	init_rwsem(&c->gc_lock);
-	mutex_init(&c->gc_gens_lock);
-
 	for (i = 0; i < BCH_TIME_STAT_NR; i++)
 		bch2_time_stats_init(&c->times[i]);
 
-	bch2_fs_gc_init(c);
 	bch2_fs_copygc_init(c);
 	bch2_fs_btree_key_cache_init_early(&c->btree_key_cache);
 	bch2_fs_btree_iter_init_early(c);
@@ -911,6 +908,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	    bch2_fs_btree_cache_init(c) ?:
 	    bch2_fs_btree_key_cache_init(&c->btree_key_cache) ?:
 	    bch2_fs_btree_interior_update_init(c) ?:
+	    bch2_fs_btree_gc_init(c) ?:
 	    bch2_fs_buckets_waiting_for_journal_init(c) ?:
 	    bch2_fs_btree_write_buffer_init(c) ?:
 	    bch2_fs_subvolumes_init(c) ?:
