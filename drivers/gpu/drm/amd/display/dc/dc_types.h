@@ -1119,6 +1119,8 @@ struct replay_config {
 	union replay_error_status replay_error_status;
 	/* Replay Low Hz enable Options */
 	union replay_low_refresh_rate_enable_options low_rr_enable_options;
+	/* Replay coasting vtotal is within low refresh rate range. */
+	bool low_rr_activated;
 };
 
 /* Replay feature flags*/
