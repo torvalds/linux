@@ -331,21 +331,9 @@ static int meson_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	return 0;
 }
 
-static u64 meson_pwm_cnt_to_ns(struct pwm_chip *chip, struct pwm_device *pwm,
-			       u32 cnt)
+static u64 meson_pwm_cnt_to_ns(unsigned long fin_freq, u32 cnt)
 {
-	struct meson_pwm *meson = to_meson_pwm(chip);
-	struct meson_pwm_channel *channel;
-	unsigned long fin_freq;
-
-	/* to_meson_pwm() can only be used after .get_state() is called */
-	channel = &meson->channels[pwm->hwpwm];
-
-	fin_freq = clk_get_rate(channel->clk);
-	if (fin_freq == 0)
-		return 0;
-
-	return div64_ul(NSEC_PER_SEC * (u64)cnt, fin_freq);
+	return fin_freq ? div64_ul(NSEC_PER_SEC * (u64)cnt, fin_freq) : 0;
 }
 
 static int meson_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -353,10 +341,12 @@ static int meson_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 {
 	struct meson_pwm *meson = to_meson_pwm(chip);
 	struct meson_pwm_channel_data *channel_data;
+	unsigned long fin_freq;
 	unsigned int hi, lo;
 	u32 value;
 
 	channel_data = &meson_pwm_per_channel_data[pwm->hwpwm];
+	fin_freq = clk_get_rate(meson->channels[pwm->hwpwm].clk);
 
 	value = readl(meson->base + REG_MISC_AB);
 	state->enabled = value & channel_data->pwm_en_mask;
@@ -370,8 +360,8 @@ static int meson_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 	lo = FIELD_GET(PWM_LOW_MASK, value);
 	hi = FIELD_GET(PWM_HIGH_MASK, value);
 
-	state->period = meson_pwm_cnt_to_ns(chip, pwm, lo + hi);
-	state->duty_cycle = meson_pwm_cnt_to_ns(chip, pwm, hi);
+	state->period = meson_pwm_cnt_to_ns(fin_freq, lo + hi);
+	state->duty_cycle = meson_pwm_cnt_to_ns(fin_freq, hi);
 
 	return 0;
 }
