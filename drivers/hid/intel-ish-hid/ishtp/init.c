@@ -15,36 +15,6 @@
 #include "loader.h"
 
 /**
- * ishtp_dev_state_str() -Convert to string format
- * @state: state to convert
- *
- * Convert state to string for prints
- *
- * Return: character pointer to converted string
- */
-const char *ishtp_dev_state_str(int state)
-{
-	switch (state) {
-	case ISHTP_DEV_INITIALIZING:
-		return	"INITIALIZING";
-	case ISHTP_DEV_INIT_CLIENTS:
-		return	"INIT_CLIENTS";
-	case ISHTP_DEV_ENABLED:
-		return	"ENABLED";
-	case ISHTP_DEV_RESETTING:
-		return	"RESETTING";
-	case ISHTP_DEV_DISABLED:
-		return	"DISABLED";
-	case ISHTP_DEV_POWER_DOWN:
-		return	"POWER_DOWN";
-	case ISHTP_DEV_POWER_UP:
-		return	"POWER_UP";
-	default:
-		return "unknown";
-	}
-}
-
-/**
  * ishtp_device_init() - ishtp device init
  * @dev: ISHTP device instance
  *
