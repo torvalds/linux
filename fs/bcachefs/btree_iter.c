@@ -699,6 +699,19 @@ void bch2_trans_node_add(struct btree_trans *trans,
 	bch2_trans_revalidate_updates_in_node(trans, b);
 }
 
+void bch2_trans_node_drop(struct btree_trans *trans,
+			  struct btree *b)
+{
+	struct btree_path *path;
+	unsigned i, level = b->c.level;
+
+	trans_for_each_path(trans, path, i)
+		if (path->l[level].b == b) {
+			btree_node_unlock(trans, path, level);
+			path->l[level].b = ERR_PTR(-BCH_ERR_no_btree_node_init);
+		}
+}
+
 /*
  * A btree node has been modified in such a way as to invalidate iterators - fix
  * them:

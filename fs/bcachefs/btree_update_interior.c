@@ -238,7 +238,6 @@ static void bch2_btree_node_free_inmem(struct btree_trans *trans,
 				       struct btree *b)
 {
 	struct bch_fs *c = trans->c;
-	unsigned i, level = b->c.level;
 
 	bch2_btree_node_lock_write_nofail(trans, path, &b->c);
 
@@ -249,13 +248,9 @@ static void bch2_btree_node_free_inmem(struct btree_trans *trans,
 	mutex_unlock(&c->btree_cache.lock);
 
 	six_unlock_write(&b->c.lock);
-	mark_btree_node_locked_noreset(path, level, BTREE_NODE_INTENT_LOCKED);
+	mark_btree_node_locked_noreset(path, b->c.level, BTREE_NODE_INTENT_LOCKED);
 
-	trans_for_each_path(trans, path, i)
-		if (path->l[level].b == b) {
-			btree_node_unlock(trans, path, level);
-			path->l[level].b = ERR_PTR(-BCH_ERR_no_btree_node_init);
-		}
+	bch2_trans_node_drop(trans, b);
 }
 
 static void bch2_btree_node_free_never_used(struct btree_update *as,
@@ -264,8 +259,6 @@ static void bch2_btree_node_free_never_used(struct btree_update *as,
 {
 	struct bch_fs *c = as->c;
 	struct prealloc_nodes *p = &as->prealloc_nodes[b->c.lock.readers != NULL];
-	struct btree_path *path;
-	unsigned i, level = b->c.level;
 
 	BUG_ON(!list_empty(&b->write_blocked));
 	BUG_ON(b->will_make_reachable != (1UL|(unsigned long) as));
@@ -287,11 +280,7 @@ static void bch2_btree_node_free_never_used(struct btree_update *as,
 
 	six_unlock_intent(&b->c.lock);
 
-	trans_for_each_path(trans, path, i)
-		if (path->l[level].b == b) {
-			btree_node_unlock(trans, path, level);
-			path->l[level].b = ERR_PTR(-BCH_ERR_no_btree_node_init);
-		}
+	bch2_trans_node_drop(trans, b);
 }
 
 static struct btree *__bch2_btree_node_alloc(struct btree_trans *trans,
