@@ -474,9 +474,6 @@ extern int cifs_query_reparse_point(const unsigned int xid,
 				    const char *full_path,
 				    u32 *tag, struct kvec *rsp,
 				    int *rsp_buftype);
-extern int CIFSSMBQuerySymLink(const unsigned int xid, struct cifs_tcon *tcon,
-			       __u16 fid, char **symlinkinfo,
-			       const struct nls_table *nls_codepage);
 extern int CIFSSMB_set_compression(const unsigned int xid,
 				   struct cifs_tcon *tcon, __u16 fid);
 extern int CIFS_open(const unsigned int xid, struct cifs_open_parms *oparms,
