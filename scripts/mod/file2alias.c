@@ -812,15 +812,13 @@ static void do_virtio_entry(struct module *mod, void *symval)
  * Each byte of the guid will be represented by two hex characters
  * in the name.
  */
-
 static void do_vmbus_entry(struct module *mod, void *symval)
 {
-	int i;
 	DEF_FIELD_ADDR(symval, hv_vmbus_device_id, guid);
-	char guid_name[(sizeof(*guid) + 1) * 2];
+	char guid_name[sizeof(*guid) * 2 + 1];
 
-	for (i = 0; i < (sizeof(*guid) * 2); i += 2)
-		sprintf(&guid_name[i], "%02x", TO_NATIVE((guid->b)[i/2]));
+	for (int i = 0; i < sizeof(*guid); i++)
+		sprintf(&guid_name[i * 2], "%02x", guid->b[i]);
 
 	module_alias_printf(mod, false, "vmbus:%s", guid_name);
 }
