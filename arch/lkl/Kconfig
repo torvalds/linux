@@ -104,6 +104,14 @@ config LKL_TASK_UNMAPPED_BASE
          Starting virtual address for LKL user-space mmap. It is assumed that
          the host mmap is able to map requested amount of memory starting from
          this address.
+
+config LKL_MMU_KUNIT_TEST
+       bool "Kunit tests for LKL MMU"
+       default n
+       depends on KUNIT
+       help
+         Kunit tests to test correctness of MMU-related kernel interfaces (such
+         as vmalloc, for example) which are difficult to test in user-space.
 endif
 
 config COREDUMP

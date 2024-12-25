@@ -603,7 +603,36 @@ static int lkl_test_private_mmap(void)
 }
 #endif // LKL_HOST_CONFIG_MMU
 
-#define CMD_LINE "mem=32M loglevel=8 " KASAN_CMD_LINE
+#ifdef LKL_HOST_CONFIG_LKL_MMU_TEST
+static int lkl_test_kunit_mmu(void)
+{
+	char *log = strdup(boot_log);
+	char *line = NULL;
+	int n;
+	char c, d;
+
+	line = strtok(log, "\n");
+	while (line) {
+		if (sscanf(line, "[ %*f] ok %d lkl_m%c%c", &n, &c, &d) == 3 &&
+			c == 'm' && d == 'u') {
+			lkl_test_logf("%s", line);
+			return TEST_SUCCESS;
+		}
+
+		line = strtok(NULL, "\n");
+	}
+
+	free(log);
+
+	return TEST_FAILURE;
+}
+
+#define LKL_MMU_TEST_CMD_LINE "kunit.filter_glob=lkl_mmu "
+#else
+#define LKL_MMU_TEST_CMD_LINE
+#endif // LKL_HOST_CONFIG_LKL_MMU_TEST
+
+#define CMD_LINE "mem=32M loglevel=8 " KASAN_CMD_LINE LKL_MMU_TEST_CMD_LINE
 
 static int lkl_test_start_kernel(void)
 {
@@ -669,6 +698,9 @@ struct lkl_test tests[] = {
 #ifdef LKL_HOST_CONFIG_MMU
 	LKL_TEST(shared_mmap),
 	LKL_TEST(private_mmap),
+#endif
+#ifdef LKL_HOST_CONFIG_LKL_MMU_TEST
+	LKL_TEST(kunit_mmu),
 #endif
 	LKL_TEST(stop_kernel),
 };

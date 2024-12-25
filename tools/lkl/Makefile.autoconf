@@ -187,6 +187,12 @@ define do_autoconf_fuzzing
   $(if $(LKL_LINE_COV),$(call set_kernel_config,LKL_LINE_COV,y))
 endef
 
+define mmu_test_enable
+  $(call set_autoconf_var,LKL_MMU_TEST,y)
+  $(call set_kernel_config,KUNIT,y)
+  $(call set_kernel_config,LKL_MMU_KUNIT_TEST,y)
+endef
+
 define do_autoconf_mmu
   $(call set_autoconf_var,MMU,y)
   $(call set_kernel_config,MMU,y)
@@ -199,6 +205,7 @@ define do_autoconf_mmu
   # when build with gcc, however, works fine with clang. The issues is in macro
   # HPAGE_PMD_SIZE which should be optimized out but is not in case of gcc.
   $(call set_kernel_config,SHMEM,n)
+  $(if $(MMU_KUNIT), $(call mmu_test_enable))
 endef
 
 define do_autoconf
