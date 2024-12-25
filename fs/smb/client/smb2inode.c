@@ -1321,7 +1321,7 @@ smb2_set_file_info(struct inode *inode, const char *full_path,
 	return rc;
 }
 
-struct inode *smb2_get_reparse_inode(struct cifs_open_info_data *data,
+struct inode *smb2_create_reparse_inode(struct cifs_open_info_data *data,
 				     struct super_block *sb,
 				     const unsigned int xid,
 				     struct cifs_tcon *tcon,
