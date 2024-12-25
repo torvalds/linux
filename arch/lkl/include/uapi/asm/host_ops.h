@@ -188,6 +188,10 @@ struct lkl_host_operations {
 	void* (*mmap)(void *addr, unsigned long size, enum lkl_prot prot);
 	int (*munmap)(void *addr, unsigned long size);
 
+	void (*shmem_init)(unsigned long size);
+	void *(*shmem_mmap)(void *addr, unsigned long pg_off, unsigned long size,
+				enum lkl_prot prot);
+
 	struct lkl_dev_pci_ops *pci_ops;
 };
 

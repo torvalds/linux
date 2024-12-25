@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #define _GNU_SOURCE
 #include <pthread.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
 #include <time.h>
 #include <signal.h>
 #include <assert.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
@@ -490,6 +492,35 @@ static int lkl_munmap(void *addr, unsigned long size)
 extern struct lkl_dev_pci_ops vfio_pci_ops;
 #endif
 
+#ifdef LKL_HOST_CONFIG_MMU
+static int shared_mem_fd = -1;
+static unsigned long shared_mem_size;
+
+static void shmem_init(unsigned long size)
+{
+	int rwx = 00700;
+	char lkl_shmem_id[NAME_MAX];
+
+	snprintf(lkl_shmem_id, sizeof(lkl_shmem_id), "/lkl_phys_mem_%d", getpid());
+	shared_mem_fd = shm_open(lkl_shmem_id, O_RDWR | O_CREAT, rwx);
+	assert(shared_mem_fd >= 0);
+	shared_mem_size = size;
+	assert(ftruncate(shared_mem_fd, shared_mem_size) == 0);
+}
+
+static void *lkl_shmem_mmap(void *addr, unsigned long pg_off,
+		unsigned long size, enum lkl_prot mem_prot_flags)
+{
+	int prot = get_prot(mem_prot_flags);
+	int flags = MAP_SHARED | MAP_FIXED_NOREPLACE;
+	void *ret = mmap(addr, size, prot, flags, shared_mem_fd, pg_off);
+
+	if (ret == MAP_FAILED)
+		return NULL;
+	return ret;
+}
+#endif // LKL_HOST_CONFIG_MMU
+
 struct lkl_host_operations lkl_host_ops = {
 	.panic = panic,
 	.thread_create = thread_create,
@@ -530,6 +561,10 @@ struct lkl_host_operations lkl_host_ops = {
 	.memset = memset,
 	.mmap = lkl_mmap,
 	.munmap = lkl_munmap,
+#ifdef LKL_HOST_CONFIG_MMU
+	.shmem_init = shmem_init,
+	.shmem_mmap = lkl_shmem_mmap,
+#endif
 #ifdef LKL_HOST_CONFIG_VFIO_PCI
 	.pci_ops = &vfio_pci_ops,
 #endif

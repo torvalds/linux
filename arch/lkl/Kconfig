@@ -1,6 +1,6 @@
 config LKL
        def_bool y
-       depends on !SMP && !MMU && !COREDUMP && !SECCOMP && !UPROBES && !COMPAT && !USER_RETURN_NOTIFIER
+       depends on !SMP && !COREDUMP && !SECCOMP && !UPROBES && !COMPAT && !USER_RETURN_NOTIFIER
        select ARCH_THREAD_STACK_ALLOCATOR
        select RWSEM_GENERIC_SPINLOCK
        select GENERIC_ATOMIC64
@@ -76,6 +76,35 @@ config PHYS_ADDR_T_64BIT
 config 64BIT
        bool "64bit kernel"
        default n
+
+config MMU
+       bool "LKL MMU implementation"
+       depends on 64BIT
+       default n
+
+if MMU
+config PGTABLE_LEVELS
+       int
+       default 3
+
+config LKL_MEMORY_START
+       hex
+       default 0x50000000
+       help
+         Base address of kernel virtual address space for LKL. No particular
+         reason for picking this specific value. It is assumed that the host
+         mmap is able to map requested amount of memory at this address.
+         STACK_TOP and VMALLOC_START values depend on it.
+
+
+config LKL_TASK_UNMAPPED_BASE
+       hex
+       default 0x100000
+       help
+         Starting virtual address for LKL user-space mmap. It is assumed that
+         the host mmap is able to map requested amount of memory starting from
+         this address.
+endif
 
 config COREDUMP
        def_bool n

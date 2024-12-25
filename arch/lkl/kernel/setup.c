@@ -10,6 +10,7 @@
 #include <asm/host_ops.h>
 #include <asm/irq.h>
 #include <asm/unistd.h>
+#include <asm/setup.h>
 #include <asm/syscalls.h>
 #include <asm/cpu.h>
 #include <linux/screen_info.h>
