@@ -484,12 +484,6 @@ int ipu_idmac_enable_channel(struct ipuv3_channel *channel)
 }
 EXPORT_SYMBOL_GPL(ipu_idmac_enable_channel);
 
-bool ipu_idmac_channel_busy(struct ipu_soc *ipu, unsigned int chno)
-{
-	return (ipu_idmac_read(ipu, IDMAC_CHA_BUSY(chno)) & idma_mask(chno));
-}
-EXPORT_SYMBOL_GPL(ipu_idmac_channel_busy);
-
 int ipu_idmac_wait_busy(struct ipuv3_channel *channel, int ms)
 {
 	struct ipu_soc *ipu = channel->ipu;
