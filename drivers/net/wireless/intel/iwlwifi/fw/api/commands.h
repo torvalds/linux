@@ -447,7 +447,7 @@ enum iwl_legacy_cmds {
 
 	/**
 	 * @BA_NOTIF:
-	 * BlockAck notification, uses &struct iwl_mvm_compressed_ba_notif
+	 * BlockAck notification, uses &struct iwl_compressed_ba_notif
 	 * or &struct iwl_mvm_ba_notif depending on the HW
 	 */
 	BA_NOTIF = 0xc5,

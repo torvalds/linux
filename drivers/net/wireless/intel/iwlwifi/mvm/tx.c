@@ -2193,7 +2193,7 @@ void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 	ba_info.flags = IEEE80211_TX_STAT_AMPDU;
 
 	if (iwl_mvm_has_new_tx_api(mvm)) {
-		struct iwl_mvm_compressed_ba_notif *ba_res =
+		struct iwl_compressed_ba_notif *ba_res =
 			(void *)pkt->data;
 		u8 lq_color = TX_RES_RATE_TABLE_COL_GET(ba_res->tlc_rate_info);
 		u16 tfd_cnt;
@@ -2241,8 +2241,7 @@ void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 
 		/* Free per TID */
 		for (i = 0; i < tfd_cnt; i++) {
-			struct iwl_mvm_compressed_ba_tfd *ba_tfd =
-				&ba_res->tfd[i];
+			struct iwl_compressed_ba_tfd *ba_tfd = &ba_res->tfd[i];
 
 			tid = ba_tfd->tid;
 			if (tid == IWL_MGMT_TID)

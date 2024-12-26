@@ -638,14 +638,14 @@ struct iwl_mvm_ba_notif {
 } __packed;
 
 /**
- * struct iwl_mvm_compressed_ba_tfd - progress of a TFD queue
+ * struct iwl_compressed_ba_tfd - progress of a TFD queue
  * @q_num: TFD queue number
  * @tfd_index: Index of first un-acked frame in the  TFD queue
  * @scd_queue: For debug only - the physical queue the TFD queue is bound to
  * @tid: TID of the queue (0-7)
  * @reserved: reserved for alignment
  */
-struct iwl_mvm_compressed_ba_tfd {
+struct iwl_compressed_ba_tfd {
 	__le16 q_num;
 	__le16 tfd_index;
 	u8 scd_queue;
@@ -654,12 +654,12 @@ struct iwl_mvm_compressed_ba_tfd {
 } __packed; /* COMPRESSED_BA_TFD_API_S_VER_1 */
 
 /**
- * struct iwl_mvm_compressed_ba_ratid - progress of a RA TID queue
+ * struct iwl_compressed_ba_ratid - progress of a RA TID queue
  * @q_num: RA TID queue number
  * @tid: TID of the queue
  * @ssn: BA window current SSN
  */
-struct iwl_mvm_compressed_ba_ratid {
+struct iwl_compressed_ba_ratid {
 	u8 q_num;
 	u8 tid;
 	__le16 ssn;
@@ -685,7 +685,7 @@ enum iwl_mvm_ba_resp_flags {
 };
 
 /**
- * struct iwl_mvm_compressed_ba_notif - notifies about reception of BA
+ * struct iwl_compressed_ba_notif - notifies about reception of BA
  * ( BA_NOTIF = 0xc5 )
  * @flags: status flag, see the &iwl_mvm_ba_resp_flags
  * @sta_id: Index of recipient (BA-sending) station in fw's station table
@@ -704,12 +704,12 @@ enum iwl_mvm_ba_resp_flags {
  * @tx_rate: the rate the aggregation was sent at
  * @tfd_cnt: number of TFD-Q elements
  * @ra_tid_cnt: number of RATID-Q elements
- * @tfd: array of TFD queue status updates. See &iwl_mvm_compressed_ba_tfd
+ * @tfd: array of TFD queue status updates. See &iwl_compressed_ba_tfd
  *	for details. Length in @tfd_cnt.
  * @ra_tid: array of RA-TID queue status updates. For debug purposes only. See
- *	&iwl_mvm_compressed_ba_ratid for more details. Length in @ra_tid_cnt.
+ *	&iwl_compressed_ba_ratid for more details. Length in @ra_tid_cnt.
  */
-struct iwl_mvm_compressed_ba_notif {
+struct iwl_compressed_ba_notif {
 	__le32 flags;
 	u8 sta_id;
 	u8 reduced_txp;
@@ -726,8 +726,8 @@ struct iwl_mvm_compressed_ba_notif {
 	__le16 tfd_cnt;
 	__le16 ra_tid_cnt;
 	union {
-		DECLARE_FLEX_ARRAY(struct iwl_mvm_compressed_ba_ratid, ra_tid);
-		DECLARE_FLEX_ARRAY(struct iwl_mvm_compressed_ba_tfd, tfd);
+		DECLARE_FLEX_ARRAY(struct iwl_compressed_ba_ratid, ra_tid);
+		DECLARE_FLEX_ARRAY(struct iwl_compressed_ba_tfd, tfd);
 	};
 } __packed; /* COMPRESSED_BA_RES_API_S_VER_4,
 	       COMPRESSED_BA_RES_API_S_VER_5 */
