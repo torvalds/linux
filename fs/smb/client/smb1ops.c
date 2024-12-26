@@ -569,32 +569,8 @@ static int cifs_query_path_info(const unsigned int xid,
 	}
 
 	if (!rc) {
-		int tmprc;
-		int oplock = 0;
-		struct cifs_fid fid;
-		struct cifs_open_parms oparms;
-
 		move_cifs_info_to_smb2(&data->fi, &fi);
-
-		if (!(le32_to_cpu(fi.Attributes) & ATTR_REPARSE))
-			return 0;
-
-		oparms = (struct cifs_open_parms) {
-			.tcon = tcon,
-			.cifs_sb = cifs_sb,
-			.desired_access = FILE_READ_ATTRIBUTES,
-			.create_options = cifs_create_options(cifs_sb, 0),
-			.disposition = FILE_OPEN,
-			.path = full_path,
-			.fid = &fid,
-		};
-
-		/* Need to check if this is a symbolic link or not */
-		tmprc = CIFS_open(xid, &oparms, &oplock, NULL);
-		if (tmprc == -EOPNOTSUPP)
-			data->reparse_point = true;
-		else if (tmprc == 0)
-			CIFSSMBClose(xid, tcon, fid.netfid);
+		data->reparse_point = le32_to_cpu(fi.Attributes) & ATTR_REPARSE;
 	}
 
 	return rc;
