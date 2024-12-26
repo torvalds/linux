@@ -38,6 +38,7 @@ enum iwl_device_family {
 	IWL_DEVICE_FAMILY_AX210,
 	IWL_DEVICE_FAMILY_BZ,
 	IWL_DEVICE_FAMILY_SC,
+	IWL_DEVICE_FAMILY_DR,
 };
 
 /*
@@ -424,6 +425,8 @@ struct iwl_cfg {
 #define IWL_CFG_MAC_TYPE_SC2		0x49
 #define IWL_CFG_MAC_TYPE_SC2F		0x4A
 #define IWL_CFG_MAC_TYPE_BZ_W		0x4B
+#define IWL_CFG_MAC_TYPE_BR		0x4C
+#define IWL_CFG_MAC_TYPE_DR		0x4D
 
 #define IWL_CFG_RF_TYPE_TH		0x105
 #define IWL_CFG_RF_TYPE_TH1		0x108
@@ -434,6 +437,7 @@ struct iwl_cfg {
 #define IWL_CFG_RF_TYPE_GF		0x10D
 #define IWL_CFG_RF_TYPE_FM		0x112
 #define IWL_CFG_RF_TYPE_WH		0x113
+#define IWL_CFG_RF_TYPE_PE		0x114
 
 #define IWL_CFG_RF_ID_TH		0x1
 #define IWL_CFG_RF_ID_TH1		0x1
@@ -506,6 +510,8 @@ extern const struct iwl_cfg_trans_params iwl_ma_trans_cfg;
 extern const struct iwl_cfg_trans_params iwl_bz_trans_cfg;
 extern const struct iwl_cfg_trans_params iwl_gl_trans_cfg;
 extern const struct iwl_cfg_trans_params iwl_sc_trans_cfg;
+extern const struct iwl_cfg_trans_params iwl_dr_trans_cfg;
+extern const struct iwl_cfg_trans_params iwl_br_trans_cfg;
 extern const char iwl9162_name[];
 extern const char iwl9260_name[];
 extern const char iwl9260_1_name[];
@@ -551,6 +557,8 @@ extern const char iwl_mtp_name[];
 extern const char iwl_sc_name[];
 extern const char iwl_sc2_name[];
 extern const char iwl_sc2f_name[];
+extern const char iwl_dr_name[];
+extern const char iwl_br_name[];
 #if IS_ENABLED(CONFIG_IWLDVM)
 extern const struct iwl_cfg iwl5300_agn_cfg;
 extern const struct iwl_cfg iwl5100_agn_cfg;
@@ -658,6 +666,8 @@ extern const struct iwl_cfg iwl_cfg_gl;
 extern const struct iwl_cfg iwl_cfg_sc;
 extern const struct iwl_cfg iwl_cfg_sc2;
 extern const struct iwl_cfg iwl_cfg_sc2f;
+extern const struct iwl_cfg iwl_cfg_dr;
+extern const struct iwl_cfg iwl_cfg_br;
 #endif /* CONFIG_IWLMVM */
 
 #endif /* __IWL_CONFIG_H__ */
