@@ -564,7 +564,13 @@ int iwl_fill_lari_config(struct iwl_fw_runtime *fwrt,
 	if (!ret) {
 		if (cmd_ver < 8)
 			value &= ~ACTIVATE_5G2_IN_WW_MASK;
-		if (cmd_ver < 12)
+
+		/* Since version 12, bits 5 and 6 are supported
+		 * regardless of this capability.
+		 */
+		if (cmd_ver < 12 &&
+		    !fw_has_capa(&fwrt->fw->ucode_capa,
+				 IWL_UCODE_TLV_CAPA_BIOS_OVERRIDE_UNII4_US_CA))
 			value &= CHAN_STATE_ACTIVE_BITMAP_CMD_V11;
 
 		cmd->chan_state_active_bitmap = cpu_to_le32(value);
