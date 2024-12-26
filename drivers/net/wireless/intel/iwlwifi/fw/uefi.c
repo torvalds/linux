@@ -561,7 +561,8 @@ int iwl_uefi_get_tas_table(struct iwl_fw_runtime *fwrt,
 	if (IS_ERR(uefi_tas))
 		return -EINVAL;
 
-	if (uefi_tas->revision != IWL_UEFI_WTAS_REVISION) {
+	if (uefi_tas->revision < IWL_UEFI_MIN_WTAS_REVISION ||
+	    uefi_tas->revision > IWL_UEFI_MAX_WTAS_REVISION) {
 		ret = -EINVAL;
 		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI WTAS revision:%d\n",
 				uefi_tas->revision);
@@ -569,7 +570,9 @@ int iwl_uefi_get_tas_table(struct iwl_fw_runtime *fwrt,
 	}
 
 	enabled = iwl_parse_tas_selection(fwrt, tas_data,
-					  uefi_tas->tas_selection);
+					  uefi_tas->tas_selection,
+					  uefi_tas->revision);
+
 	if (!enabled) {
 		IWL_DEBUG_RADIO(fwrt, "TAS not enabled\n");
 		ret = 0;

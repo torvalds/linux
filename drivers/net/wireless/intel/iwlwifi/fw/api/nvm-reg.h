@@ -464,18 +464,27 @@ struct iwl_tas_config_cmd_v3 {
 } __packed; /* TAS_CONFIG_CMD_API_S_VER_3 */
 
 /**
+ * enum iwl_tas_uhb_allowed_flags - per country TAS UHB allowed flags.
+ * @TAS_UHB_ALLOWED_CANADA: TAS UHB is allowed in Canada. This flag is valid
+ *	only when fw has %IWL_UCODE_TLV_CAPA_UHB_CANADA_TAS_SUPPORT capability.
+ */
+enum iwl_tas_uhb_allowed_flags {
+	TAS_UHB_ALLOWED_CANADA	= BIT(0),
+};
+
+/**
  * struct iwl_tas_config_cmd_v4 - configures the TAS
  * @override_tas_iec: indicates whether to override default value of IEC regulatory
  * @enable_tas_iec: in case override_tas_iec is set -
  *	indicates whether IEC regulatory is enabled or disabled
  * @usa_tas_uhb_allowed: if set, allow TAS UHB in the USA
- * @reserved: reserved
-*/
+ * @uhb_allowed_flags: see &enum iwl_tas_uhb_allowed_flags.
+ */
 struct iwl_tas_config_cmd_v4 {
 	u8 override_tas_iec;
 	u8 enable_tas_iec;
 	u8 usa_tas_uhb_allowed;
-	u8 reserved;
+	u8 uhb_allowed_flags;
 } __packed; /* TAS_CONFIG_CMD_API_S_VER_4 */
 
 struct iwl_tas_config_cmd {

@@ -274,13 +274,13 @@ int iwl_acpi_get_tas_table(struct iwl_fw_runtime *fwrt,
 		goto out_free;
 	}
 
-	if (tbl_rev == 1 && wifi_pkg->package.elements[1].type ==
-		ACPI_TYPE_INTEGER) {
+	if ((tbl_rev == 2 || tbl_rev == 1) &&
+	    wifi_pkg->package.elements[1].type == ACPI_TYPE_INTEGER) {
 		u32 tas_selection =
 			(u32)wifi_pkg->package.elements[1].integer.value;
 
 		enabled = iwl_parse_tas_selection(fwrt, tas_data,
-						  tas_selection);
+						  tas_selection, tbl_rev);
 
 	} else if (tbl_rev == 0 &&
 		wifi_pkg->package.elements[1].type == ACPI_TYPE_INTEGER) {

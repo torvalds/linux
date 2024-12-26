@@ -1171,6 +1171,10 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 		cmd.v4.override_tas_iec = data.override_tas_iec;
 		cmd.v4.enable_tas_iec = data.enable_tas_iec;
 		cmd.v4.usa_tas_uhb_allowed = data.usa_tas_uhb_allowed;
+		if (fw_has_capa(&mvm->fw->ucode_capa,
+				IWL_UCODE_TLV_CAPA_UHB_CANADA_TAS_SUPPORT) &&
+		    data.canada_tas_uhb_allowed)
+			cmd.v4.uhb_allowed_flags = TAS_UHB_ALLOWED_CANADA;
 	} else {
 		cmd.v3.override_tas_iec = cpu_to_le16(data.override_tas_iec);
 		cmd.v3.enable_tas_iec = cpu_to_le16(data.enable_tas_iec);
