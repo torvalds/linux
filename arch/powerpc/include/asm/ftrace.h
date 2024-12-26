@@ -57,6 +57,12 @@ ftrace_regs_set_instruction_pointer(struct ftrace_regs *fregs,
 	regs_set_return_ip(&arch_ftrace_regs(fregs)->regs, ip);
 }
 
+static __always_inline unsigned long
+ftrace_regs_get_return_address(struct ftrace_regs *fregs)
+{
+	return arch_ftrace_regs(fregs)->regs.link;
+}
+
 struct ftrace_ops;
 
 #define ftrace_graph_func ftrace_graph_func

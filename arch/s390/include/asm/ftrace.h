@@ -77,6 +77,12 @@ ftrace_regs_get_frame_pointer(struct ftrace_regs *fregs)
 	return ftrace_regs_get_stack_pointer(fregs);
 }
 
+static __always_inline unsigned long
+ftrace_regs_get_return_address(const struct ftrace_regs *fregs)
+{
+	return arch_ftrace_regs(fregs)->regs.gprs[14];
+}
+
 #define arch_ftrace_fill_perf_regs(fregs, _regs)	 do {		\
 		(_regs)->psw.mask = 0;					\
 		(_regs)->psw.addr = arch_ftrace_regs(fregs)->regs.psw.addr;		\
