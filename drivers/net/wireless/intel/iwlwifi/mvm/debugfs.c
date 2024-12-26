@@ -659,6 +659,14 @@ static ssize_t iwl_dbgfs_tas_get_status_read(struct file *file,
 			 rsp->tas_fw_version);
 	pos += scnprintf(pos, endpos - pos, "Is UHB enabled for USA?: %s\n",
 			 rsp->is_uhb_for_usa_enable ? "True" : "False");
+
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_UHB_CANADA_TAS_SUPPORT))
+		pos += scnprintf(pos, endpos - pos,
+				 "Is UHB enabled for CANADA?: %s\n",
+				 rsp->uhb_allowed_flags &
+				 TAS_UHB_ALLOWED_CANADA ? "True" : "False");
+
 	pos += scnprintf(pos, endpos - pos, "Current MCC: 0x%x\n",
 			 le16_to_cpu(rsp->curr_mcc));
 

@@ -477,6 +477,9 @@ struct iwl_mvm_tas_status_per_mac {
  * @tas_status_mac: TAS status per lmac, uses
  *	&struct iwl_mvm_tas_status_per_mac
  * @in_dual_radio: is TAS in dual radio? - TRUE/FALSE
+ * @uhb_allowed_flags: see &enum iwl_tas_uhb_allowed_flags.
+ *	This member is valid only when fw has
+ *	%IWL_UCODE_TLV_CAPA_UHB_CANADA_TAS_SUPPORT capability.
  * @reserved: reserved
  */
 struct iwl_mvm_tas_status_resp {
@@ -486,7 +489,8 @@ struct iwl_mvm_tas_status_resp {
 	__le16 block_list[16];
 	struct iwl_mvm_tas_status_per_mac tas_status_mac[2];
 	u8 in_dual_radio;
-	u8 reserved[3];
+	u8 uhb_allowed_flags;
+	u8 reserved[2];
 } __packed; /*DEBUG_GET_TAS_STATUS_RSP_API_S_VER_3*/
 
 /**
