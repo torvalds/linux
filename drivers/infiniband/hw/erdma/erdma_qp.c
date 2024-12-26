@@ -98,7 +98,8 @@ erdma_modify_qp_state_to_rts(struct erdma_qp *qp,
 		req.send_nxt += MPA_DEFAULT_HDR_LEN + params->pd_len;
 	req.recv_nxt = tp->rcv_nxt;
 
-	ret = erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), NULL, NULL);
+	ret = erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), NULL, NULL,
+				  true);
 	if (ret)
 		return ret;
 
@@ -131,7 +132,8 @@ erdma_modify_qp_state_to_stop(struct erdma_qp *qp,
 	req.cfg = FIELD_PREP(ERDMA_CMD_MODIFY_QP_STATE_MASK, params->state) |
 		  FIELD_PREP(ERDMA_CMD_MODIFY_QP_QPN_MASK, QP_ID(qp));
 
-	ret = erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), NULL, NULL);
+	ret = erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), NULL, NULL,
+				  true);
 	if (ret)
 		return ret;
 
@@ -246,7 +248,7 @@ static int modify_qp_cmd_rocev2(struct erdma_qp *qp,
 	req.attr_mask = attr_mask;
 
 	return erdma_post_cmd_wait(&qp->dev->cmdq, &req, sizeof(req), NULL,
-				   NULL);
+				   NULL, true);
 }
 
 static void erdma_reset_qp(struct erdma_qp *qp)

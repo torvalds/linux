@@ -384,7 +384,7 @@ static int erdma_dev_attrs_init(struct erdma_dev *dev)
 				CMDQ_OPCODE_QUERY_DEVICE);
 
 	err = erdma_post_cmd_wait(&dev->cmdq, &req_hdr, sizeof(req_hdr), &cap0,
-				  &cap1);
+				  &cap1, true);
 	if (err)
 		return err;
 
@@ -417,7 +417,7 @@ static int erdma_dev_attrs_init(struct erdma_dev *dev)
 				CMDQ_OPCODE_QUERY_FW_INFO);
 
 	err = erdma_post_cmd_wait(&dev->cmdq, &req_hdr, sizeof(req_hdr), &cap0,
-				  &cap1);
+				  &cap1, true);
 	if (!err)
 		dev->attrs.fw_version =
 			FIELD_GET(ERDMA_CMD_INFO0_FW_VER_MASK, cap0);
@@ -438,7 +438,8 @@ static int erdma_device_config(struct erdma_dev *dev)
 	req.cfg = FIELD_PREP(ERDMA_CMD_CONFIG_DEVICE_PGSHIFT_MASK, PAGE_SHIFT) |
 		  FIELD_PREP(ERDMA_CMD_CONFIG_DEVICE_PS_EN_MASK, 1);
 
-	return erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), NULL, NULL);
+	return erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), NULL, NULL,
+				   true);
 }
 
 static int erdma_res_cb_init(struct erdma_dev *dev)

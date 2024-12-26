@@ -101,8 +101,6 @@ struct erdma_cmdq {
 	struct erdma_comp_wait *wait_pool;
 	spinlock_t lock;
 
-	bool use_event;
-
 	struct erdma_cmdq_sq sq;
 	struct erdma_cmdq_cq cq;
 	struct erdma_eq eq;
@@ -267,7 +265,7 @@ void erdma_cmdq_destroy(struct erdma_dev *dev);
 
 void erdma_cmdq_build_reqhdr(u64 *hdr, u32 mod, u32 op);
 int erdma_post_cmd_wait(struct erdma_cmdq *cmdq, void *req, u32 req_size,
-			u64 *resp0, u64 *resp1);
+			u64 *resp0, u64 *resp1, bool sleepable);
 void erdma_cmdq_completion_handler(struct erdma_cmdq *cmdq);
 
 int erdma_ceqs_init(struct erdma_dev *dev);
