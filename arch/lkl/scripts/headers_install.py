@@ -63,11 +63,11 @@ def find_ml_symbols(regexp, store):
 def find_enums(block_regexp, symbol_regexp, store):
     for h in headers:
         # remove comments
-        content = re.sub(re.compile("(\/\*(\*(?!\/)|[^*])*\*\/)", re.S|re.M), " ", open(h).read())
+        content = re.sub(re.compile(r"(\/\*(\*(?!\/)|[^*])*\*\/)", re.S|re.M), " ", open(h).read())
         # remove preprocesor lines
         clean_content = ""
         for l in content.split("\n"):
-            if re.match("\s*#", l):
+            if re.match(r"\s*#", l):
                 continue
             clean_content += l + "\n"
         for i in block_regexp.finditer(clean_content):
@@ -103,11 +103,11 @@ def lkl_prefix(w):
 def replace(h):
     content = open(h).read()
     for i in includes:
-        search_str = "(#[ \t]*include[ \t]*[<\"][ \t]*)" + i + "([ \t]*[>\"])"
+        search_str = r"(#[ \t]*include[ \t]*[<\"][ \t]*)" + i + r"([ \t]*[>\"])"
         replace_str = "\\1" + "lkl/" + i + "\\2"
         content = re.sub(search_str, replace_str, content)
     tmp = ""
-    for w in re.split("(\W+)", content):
+    for w in re.split(r"(\W+)", content):
         if w in defines:
             w = lkl_prefix(w)
         tmp += w
@@ -116,11 +116,11 @@ def replace(h):
         # XXX: cleaner way?
         if s == 'TAG':
             continue
-        search_str = "(\W?struct\s+)" + s + "(\W)"
+        search_str = r"(\W?struct\s+)" + s + r"(\W)"
         replace_str = "\\1" + lkl_prefix(s) + "\\2"
         content = re.sub(search_str, replace_str, content, flags = re.MULTILINE)
     for s in unions:
-        search_str = "(\W?union\s+)" + s + "(\W)"
+        search_str = r"(\W?union\s+)" + s + r"(\W)"
         replace_str = "\\1" + lkl_prefix(s) + "\\2"
         content = re.sub(search_str, replace_str, content, flags = re.MULTILINE)
     open(h, 'w').write(content)
@@ -162,25 +162,25 @@ defines = set()
 structs = set()
 unions = set()
 
-p = re.compile("#[ \t]*define[ \t]*(\w+)")
+p = re.compile(r"#[ \t]*define[ \t]*(\w+)")
 find_symbols(p, defines)
-p = re.compile("typedef.*(\(\*(\w+)\)\(.*\)\s*|\W+(\w+)\s*|\s+(\w+)\(.*\)\s*);")
+p = re.compile(r"typedef.*(\(\*(\w+)\)\(.*\)\s*|\W+(\w+)\s*|\s+(\w+)\(.*\)\s*);")
 find_symbols(p, defines)
-p = re.compile("typedef\s+(struct|union)\s+\w*\s*{[^\\{\}]*}\W*(\w+)\s*;", re.M|re.S)
+p = re.compile(r"typedef\s+(struct|union)\s+\w*\s*{[^\\{\}]*}\W*(\w+)\s*;", re.M|re.S)
 find_ml_symbols(p, defines)
 defines.add("siginfo_t")
 defines.add("sigevent_t")
-p = re.compile("struct\s+(\w+)\s*\{")
+p = re.compile(r"struct\s+(\w+)\s*\{")
 find_symbols(p, structs)
 structs.add("iovec")
-p = re.compile("union\s+(\w+)\s*\{")
+p = re.compile(r"union\s+(\w+)\s*\{")
 find_symbols(p, unions)
-p = re.compile("static\s+__inline__(\s+\w+)+\s+(\w+)\([^)]*\)\s")
+p = re.compile(r"static\s+__inline__(\s+\w+)+\s+(\w+)\([^)]*\)\s")
 find_symbols(p, defines)
-p = re.compile("static\s+__always_inline(\s+\w+)+\s+(\w+)\([^)]*\)\s")
+p = re.compile(r"static\s+__always_inline(\s+\w+)+\s+(\w+)\([^)]*\)\s")
 find_symbols(p, defines)
-p = re.compile("enum\s+(\w*)\s*{([^}]*)}", re.M|re.S)
-q = re.compile("(\w+)\s*(,|=[^,]*|$)", re.M|re.S)
+p = re.compile(r"enum\s+(\w*)\s*{([^}]*)}", re.M|re.S)
+q = re.compile(r"(\w+)\s*(,|=[^,]*|$)", re.M|re.S)
 find_enums(p, q, defines)
 
 # needed for i386
