@@ -190,11 +190,13 @@ def process_header(h):
     print("  REPLACE\t%s" % (out_dir + "/" + os.path.basename(h)))
     replace(h)
 
-p = multiprocessing.Pool(args.jobs)
-try:
-    p.map_async(process_header, headers).wait(999999)
-    p.close()
-except:
-    p.terminate()
-finally:
-    p.join()
+if __name__ == '__main__':
+    multiprocessing.freeze_support()
+    p = multiprocessing.Pool(args.jobs)
+    try:
+        p.map_async(process_header, headers).wait(999999)
+        p.close()
+    except:
+        p.terminate()
+    finally:
+        p.join()
