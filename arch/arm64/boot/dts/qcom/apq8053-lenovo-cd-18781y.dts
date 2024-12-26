@@ -1,0 +1,745 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2024, Felix Kaechele <felix@kaechele.ca>
+ */
+/dts-v1/;
+
+#include <dt-bindings/arm/qcom,ids.h>
+#include "msm8953.dtsi"
+#include "pm8953.dtsi"
+#include "pmi8950.dtsi"
+
+/delete-node/ &cont_splash_mem;
+/* Remove modem related nodes as the device doesn't have a modem
+ * This frees up about 116MB of memory
+ */
+/delete-node/ &mpss_mem;
+/delete-node/ &wcnss;
+/delete-node/ &wcnss_fw_mem;
+/delete-node/ &mba_mem;
+
+/ {
+	model = "Lenovo ThinkView Smart";
+	compatible = "lenovo,cd-18781y", "qcom,apq8053", "qcom,msm8953";
+	chassis-type = "tablet";
+	qcom,msm-id = <QCOM_ID_APQ8053 0>;
+	qcom,board-id = <0x1010520 0>;
+
+	/* Define mmc aliases so they stay the same across boots */
+	aliases {
+		mmc0 = &sdhc_1;
+		mmc1 = &sdhc_2;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		camera-lens-cover {
+			label = "Camera Lens Cover";
+			gpios = <&tlmm 87 GPIO_ACTIVE_LOW>;
+			linux,code = <SW_CAMERA_LENS_COVER>;
+			linux,input-type = <EV_SW>;
+		};
+
+		/*
+		 * There currently isn't a good way to model a binary microphone mute
+		 * switch. It is a hardware mute switch though, so mics will be muted
+		 * even though it is not reflected in UI.
+		 */
+		mic-mute-swtich {
+			label = "Mic Mute";
+			gpios = <&tlmm 86 GPIO_ACTIVE_LOW>;
+			linux,input-type = <EV_SW>;
+			linux,code = <SW_MICROPHONE_INSERT>;
+		};
+
+		volume-up-key {
+			label = "Volume Up";
+			gpios = <&tlmm 85 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEUP>;
+			/* The device only has a Volume Up and a Volume Down key.
+			 * We define them as a wakeup-source, so the user can
+			 * use them to wake the device.
+			 */
+			wakeup-source;
+		};
+	};
+
+	/*
+	 * We bitbang on &i2c_2 because BLSP is protected by TZ as sensors are
+	 * normally proxied via ADSP firmware. GPIOs aren't protected.
+	 */
+	 i2c-sensors {
+		compatible = "i2c-gpio";
+		sda-gpios = <&tlmm 6 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&tlmm 7 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+
+		pinctrl-0 = <&sensor_i2c_default>;
+		pinctrl-names = "default";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		accelerometer@18 {
+			compatible = "bosch,bma253";
+			reg = <0x18>;
+
+			interrupt-parent = <&tlmm>;
+			interrupts = <42 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "INT1";
+
+			vdd-supply = <&pm8953_l10>;
+			vddio-supply = <&pm8953_l6>;
+
+			pinctrl-0 = <&accel_int_default>;
+			pinctrl-names = "default";
+		};
+
+		light-sensor@51 {
+			compatible = "vishay,vcnl4200";
+			reg = <0x51>;
+
+			interrupt-parent = <&tlmm>;
+			interrupts = <43 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "INT1";
+
+			pinctrl-0 = <&alsp_int_default>;
+			pinctrl-names = "default";
+
+			/*
+			 * WARNING: Do not enable for now!
+			 * There's a chance that this can burn out the sensor's IR LED.
+			 * The sensor turns on the IR LED at high power (so that it
+			 * gets noticeably warm) and never turns it off.
+			 */
+			status = "disabled";
+		};
+	};
+
+	reserved-memory {
+		/* part of modem node removal */
+		/delete-node/ rmtfs@f2d00000;
+
+		cont_splash_mem: cont-splash@90001000 {
+			reg = <0x0 0x90001000 0x0 (800 * 1280 * 3)>;
+			no-map;
+		};
+	};
+
+	panel_avdd: panel-avdd-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "panel_avdd";
+
+		gpio = <&tlmm 100 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		vin-supply = <&vph_pwr>;
+	};
+
+	/* Speaker amp supplied from 20V DC input */
+	speaker_amp_pvdd: speaker-amp-pvdd-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "speaker_amp_pvdd";
+
+		regulator-min-microvolt = <20000000>;
+		regulator-max-microvolt = <20000000>;
+
+		gpio = <&tlmm 68 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	vph_pwr: vph-pwr-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vph_pwr";
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	wlan_3v3: wlan-3v3-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "wlan_3v3";
+
+		gpio = <&tlmm 77 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		vin-supply = <&vph_pwr>;
+	};
+
+	/*
+	 * This ensures the WLAN SDIO card is reset before probing
+	 * and also has time to settle. Otherwise it will fail to
+	 * probe on reboot and sometimes fail to probe at all.
+	 */
+	wlan_pwrseq: wlan-sdio-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&tlmm 75 GPIO_ACTIVE_LOW>;
+		post-power-on-delay-ms = <100>;
+	};
+};
+
+&uart_5 {
+	status = "okay";
+
+	qca9379_bt: bluetooth {
+		compatible = "qcom-qca9379-bt", "qcom,qca6174-bt";
+		enable-gpios = <&tlmm 76 GPIO_ACTIVE_HIGH>;
+		clocks = <&sleep_clk>;
+	};
+};
+
+&mdss_dsi0 {
+	vdda-supply = <&pm8953_s3>;
+	vddio-supply = <&pm8953_l6>;
+
+	status = "okay";
+
+	panel: panel@0 {
+		compatible = "lenovo,cd-18781y-panel";
+		reg = <0>;
+
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&pmx_mdss_default &mdss_te_default>;
+		pinctrl-1 = <&pmx_mdss_sleep &mdss_te_default>;
+
+		backlight = <&pmi8950_wled>;
+
+		reset-gpios = <&tlmm 61 GPIO_ACTIVE_LOW>;
+		backlight-gpios = <&tlmm 95 GPIO_ACTIVE_HIGH>;
+
+		avdd-supply = <&panel_avdd>;
+		vsp-supply = <&lab>;
+		vsn-supply = <&ibb>;
+
+		status = "okay";
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	data-lanes = <0 1 2 3>;
+	remote-endpoint = <&panel_in>;
+};
+
+&mdss_dsi0_phy {
+	vddio-supply = <&pm8953_l6>;
+	vcca-supply = <&pm8953_l3>;
+
+	status = "okay";
+};
+
+&hsusb_phy {
+	vdd-supply = <&pm8953_l3>;
+	vdda-pll-supply = <&pm8953_l7>;
+	vdda-phy-dpdm-supply = <&pm8953_l13>;
+
+	status = "okay";
+};
+
+&ibb {
+	qcom,discharge-resistor-kohms = <32>;
+};
+
+&i2c_1 {
+	status = "okay";
+
+	speaker_amp: tas5782m@49 {
+		compatible = "ti,tas5782m";
+		reg = <0x49>;
+
+		pdn-gpios = <&tlmm 44 GPIO_ACTIVE_LOW>;
+		/* The next two GPIOs are connected but unused by the driver */
+		mute-gpio = <&tlmm 0 GPIO_ACTIVE_HIGH>;
+		fault-gpio = <&tlmm 45 GPIO_ACTIVE_HIGH>;
+		pvdd-supply = <&speaker_amp_pvdd>;
+
+		sound-name-prefix = "Speaker Amp";
+		ti,dsp-config-name = "lenovo_cd-18781y";
+		#sound-dai-cells = <0>;
+	};
+};
+
+&i2c_3 {
+	status = "okay";
+
+	ft8201_ts: touchscreen@38 {
+		compatible = "focaltech,ft8201";
+		reg = <0x38>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <65 IRQ_TYPE_EDGE_FALLING>;
+
+		pinctrl-0 = <&ts_reset_default &ts_int_default>;
+		pinctrl-1 = <&ts_reset_sleep &ts_int_sleep>;
+		pinctrl-names = "default", "sleep";
+
+		reset-gpios = <&tlmm 64 GPIO_ACTIVE_LOW>;
+
+		iovcc-supply = <&pm8953_l6>;
+		vcc-supply = <&pm8953_l10>;
+
+		touchscreen-size-x = <800>;
+		touchscreen-size-y = <1280>;
+
+		status = "disabled";
+	};
+
+	hx83100a_ts: touchscreen@48 {
+		compatible = "himax,hx83100a";
+		reg = <0x48>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <65 IRQ_TYPE_EDGE_FALLING>;
+
+		pinctrl-0 = <&ts_reset_default &ts_int_default>;
+		pinctrl-1 = <&ts_reset_sleep &ts_int_sleep>;
+		pinctrl-names = "default", "sleep";
+
+		reset-gpios = <&tlmm 64 GPIO_ACTIVE_LOW>;
+
+		avdd-supply = <&pm8953_l5>;
+		vdd-supply = <&pm8953_l10>;
+
+		touchscreen-size-x = <800>;
+		touchscreen-size-y = <1280>;
+
+		status = "disabled";
+	};
+};
+
+&lab {
+	qcom,soft-start-us = <800>;
+};
+
+&mdss {
+	status = "okay";
+};
+
+&mpss {
+	/delete-node/ mba;
+	/delete-node/ mpss;
+};
+
+&pm8953_pon {
+	/* Device doesn't have a power key */
+	pwrkey {
+		status = "disabled";
+	};
+};
+
+&pm8953_resin {
+	linux,code = <KEY_VOLUMEDOWN>;
+	wakeup-source;
+
+	status = "okay";
+};
+
+&pmi8950_fg {
+	/*
+	 * Due to the absence of an actual battery, the device's PMI uses
+	 * an onboard resistor to fake a reading.
+	 * This is of no value to the user, so we just disable it.
+	 */
+	status = "disabled";
+};
+
+&pmi8950_wled {
+	qcom,current-limit-microamp = <20000>;
+	qcom,external-pfet;
+
+	status = "okay";
+};
+
+&sound_card {
+	model = "cd-18781y";
+
+	pinctrl-0 = <&cdc_dmic0_clk_act &cdc_dmic0_data_act
+		     &tlmm_sec_act &tlmm_pri_act &tlmm_pri_ws_act>;
+	pinctrl-1 = <&cdc_dmic0_clk_sus &cdc_dmic0_data_sus
+		     &tlmm_sec_sus &tlmm_pri_sus &tlmm_pri_ws_sus>;
+	pinctrl-names = "default", "sleep";
+
+	/* Device has no headphone jack */
+	widgets = "Speaker", "Speaker";
+
+	audio-routing =
+		"Speaker", "Speaker Amp OUT",
+		"Speaker Amp DAC IN", "HPH_R",
+		"DMIC1", "MIC BIAS Internal1",
+		"DMIC1", "Digital Mic1",
+		"DMIC2", "MIC BIAS Internal1",
+		"DMIC2", "Digital Mic2";
+
+	aux-devices = <&speaker_amp>;
+
+	status = "okay";
+
+	quaternary-mi2s-dai-link {
+		link-name = "Quaternary MI2S";
+		cpu {
+			sound-dai = <&q6afedai QUATERNARY_MI2S_RX>;
+		};
+
+		platform {
+			sound-dai = <&q6routing>;
+		};
+
+		codec {
+			sound-dai = <&speaker_amp>;
+		};
+	};
+};
+
+&q6afedai {
+	dai@22 {
+		reg = <QUATERNARY_MI2S_RX>;
+		qcom,sd-lines = <0>;
+	};
+};
+
+&lpass {
+	status = "okay";
+};
+
+&wcd_codec {
+	vdd-cdc-io-supply = <&pm8953_l5>;
+	vdd-cdc-tx-rx-cx-supply = <&pm8953_s4>;
+	vdd-micbias-supply = <&vph_pwr>;
+
+	qcom,micbias1-ext-cap;
+
+	status = "okay";
+};
+
+&rpm_requests {
+	regulators {
+		compatible = "qcom,rpm-pm8953-regulators";
+		vdd_s1-supply = <&vph_pwr>;
+		vdd_s2-supply = <&vph_pwr>;
+		vdd_s3-supply = <&vph_pwr>;
+		vdd_s4-supply = <&vph_pwr>;
+		vdd_s5-supply = <&vph_pwr>;
+		vdd_s6-supply = <&vph_pwr>;
+		vdd_s7-supply = <&vph_pwr>;
+		vdd_l1-supply = <&pm8953_s3>;
+		vdd_l2_l3-supply = <&pm8953_s3>;
+		vdd_l4_l5_l6_l7_l16_l19-supply = <&pm8953_s4>;
+		vdd_l8_l11_l12_l13_l14_l15-supply = <&vph_pwr>;
+		vdd_l9_l10_l17_l18_l22-supply = <&vph_pwr>;
+		vdd_l23-supply = <&pm8953_s3>;
+
+		pm8953_s1: s1 {
+			regulator-min-microvolt = <870000>;
+			regulator-max-microvolt = <1156000>;
+		};
+
+		pm8953_s3: s3 {
+			regulator-min-microvolt = <1224000>;
+			regulator-max-microvolt = <1224000>;
+		};
+
+		pm8953_s4: s4 {
+			regulator-min-microvolt = <1900000>;
+			regulator-max-microvolt = <2050000>;
+		};
+
+		pm8953_l1: l1 {
+			regulator-min-microvolt = <1000000>;
+			regulator-max-microvolt = <1100000>;
+		};
+
+		pm8953_l2: l2 {
+			regulator-min-microvolt = <975000>;
+			regulator-max-microvolt = <1225000>;
+			regulator-always-on;
+		};
+
+		pm8953_l3: l3 {
+			regulator-min-microvolt = <925000>;
+			regulator-max-microvolt = <925000>;
+		};
+
+		pm8953_l4: l4 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-always-on;
+		};
+
+		pm8953_l5: l5 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+		};
+
+		pm8953_l6: l6 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+		};
+
+		pm8953_l7: l7 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1900000>;
+		};
+
+		pm8953_l8: l8 {
+			regulator-min-microvolt = <2900000>;
+			regulator-max-microvolt = <2900000>;
+		};
+
+		pm8953_l9: l9 {
+			regulator-min-microvolt = <3000000>;
+			regulator-max-microvolt = <3300000>;
+		};
+
+		pm8953_l10: l10 {
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+		};
+
+		pm8953_l11: l11 {
+			regulator-min-microvolt = <2950000>;
+			regulator-max-microvolt = <2950000>;
+		};
+
+		pm8953_l12: l12 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <2950000>;
+		};
+
+		pm8953_l13: l13 {
+			regulator-min-microvolt = <3125000>;
+			regulator-max-microvolt = <3125000>;
+		};
+
+		pm8953_l16: l16 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+		};
+
+		pm8953_l17: l17 {
+			regulator-min-microvolt = <2850000>;
+			regulator-max-microvolt = <2850000>;
+		};
+
+		pm8953_l19: l19 {
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1350000>;
+		};
+
+		pm8953_l22: l22 {
+			regulator-always-on;
+			regulator-min-microvolt = <2800000>;
+			regulator-max-microvolt = <2850000>;
+		};
+
+		pm8953_l23: l23 {
+			regulator-min-microvolt = <975000>;
+			regulator-max-microvolt = <1225000>;
+		};
+	};
+};
+
+/* eMMC */
+&sdhc_1 {
+	vmmc-supply = <&pm8953_l8>;
+	vqmmc-supply = <&pm8953_l5>;
+
+	status = "okay";
+};
+
+&sdhc_2 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	vmmc-supply = <&pm8953_l11>;
+	vqmmc-supply = <&pm8953_l12>;
+
+	mmc-pwrseq = <&wlan_pwrseq>;
+	non-removable;
+	wakeup-source;
+	/* Some devices experience dropouts of the WiFi module at the default of
+	 * 200 MHz. Downstream uses 177 MHz here, so we'll go with that.
+	 * Unfortunately, this comes with a drop of max throughput from ~250 Mbit/s
+	 * to ~180 Mbit/s.
+	 */
+	max-frequency = <177000000>;
+
+	status = "okay";
+
+	wifi@1 {
+		reg = <1>;
+		compatible = "qcom,ath10k";
+
+		qcom,ath10k-calibration-variant = "WCBN3510A";
+	};
+};
+
+&tlmm {
+	accel_int_default: accel-int-default-state {
+		pins = "gpio42";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	alsp_int_default: alps-int-default-state {
+		pins = "gpio43";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	pmx_mdss_default: pmx-mdss-default-state {
+		pins = "gpio61";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-disable;
+		output-high;
+	};
+
+	pmx_mdss_sleep: pmx-mdss-sleep-state {
+		pins = "gpio61";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
+
+	sensor_i2c_default: sensor-i2c-default-state {
+		pins = "gpio14", "gpio15";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	ts_reset_default: ts-reset-default-state {
+		pins = "gpio64";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-pull-up;
+	};
+
+	ts_reset_sleep: ts-reset-sleep-state {
+		pins = "gpio64";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
+
+	ts_int_default: ts-int-default-state {
+		pins = "gpio65";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-pull-up;
+	};
+
+	ts_int_sleep: ts-int-sleep-state {
+		pins = "gpio65";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
+
+	tlmm_pri_act: pri-tlmm-on-pins {
+		pins = "gpio88", "gpio91", "gpio93";
+		function = "pri_mi2s";
+		drive-strength = <8>;
+		bias-disable;
+	};
+
+	tlmm_pri_sus: pri-tlmm-off-pins {
+		pins = "gpio88", "gpio91", "gpio93";
+		function = "pri_mi2s";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
+
+	cdc_dmic0_clk_act: dmic0-clk-on-pins {
+		pins = "gpio89";
+		function = "dmic0_clk";
+		drive-strength = <8>;
+	};
+
+	cdc_dmic0_clk_sus: dmic0-clk-off-pins {
+		pins = "gpio89";
+		function = "dmic0_clk";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	cdc_dmic0_data_act: dmic0-data-on-pins {
+		pins = "gpio90";
+		function = "dmic0_data";
+		drive-strength = <8>;
+	};
+
+	cdc_dmic0_data_sus: dmic0-data-off-pins {
+		pins = "gpio90";
+		function = "dmic0_data";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	tlmm_pri_ws_act: pri-act-tlmm-on-pins {
+		pins = "gpio92";
+		function = "pri_mi2s_ws";
+		drive-strength = <8>;
+	};
+
+	tlmm_pri_ws_sus: pri-ws-tlmm-off-pins {
+		pins = "gpio92";
+		function = "pri_mi2s_ws";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
+
+	panel_bl_default: panel-bl-default-state {
+		pins = "gpio95";
+		function = "gpio";
+		drive-strength = <8>;
+	};
+
+	panel_bl_sleep: panel-bl-sleep-state {
+		pins = "gpio95";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
+
+	tlmm_sec_act: sec-tlmm-on-pins  {
+		pins = "gpio135", "gpio136", "gpio137", "gpio138";
+		function = "sec_mi2s";
+		drive-strength = <8>;
+	};
+
+	tlmm_sec_sus: sec-tlmm-off-pins  {
+		pins = "gpio135", "gpio136", "gpio137", "gpio138";
+		function = "sec_mi2s";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
+};
+
+/*
+ * UART is broken out via the USB-C connector
+ * RX (GPIO4) is pins A5/B5
+ * TX (GPIO5) is pins A8/B8
+ */
+&uart_0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart_console_active>;
+
+	status = "enabled";
+};
+
+&usb3 {
+	status = "okay";
+};
+
+&usb3_dwc3 {
+	dr_mode = "otg";
+};
+
+&zap_shader {
+	firmware-name = "qcom/msm8953/lenovo/cd-18781y/a506_zap.mdt";
+};
