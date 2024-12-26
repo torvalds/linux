@@ -215,10 +215,7 @@ struct cifs_cred {
 
 struct cifs_open_info_data {
 	bool adjust_tz;
-	union {
-		bool reparse_point;
-		bool symlink;
-	};
+	bool reparse_point;
 	struct {
 		/* ioctl response buffer */
 		struct {
