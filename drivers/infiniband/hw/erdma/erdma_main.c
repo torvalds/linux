@@ -478,6 +478,9 @@ static const struct ib_device_ops erdma_device_ops_rocev2 = {
 	.query_pkey = erdma_query_pkey,
 	.create_ah = erdma_create_ah,
 	.destroy_ah = erdma_destroy_ah,
+	.query_ah = erdma_query_ah,
+
+	INIT_RDMA_OBJ_SIZE(ib_ah, erdma_ah, ibah),
 };
 
 static const struct ib_device_ops erdma_device_ops_iwarp = {
