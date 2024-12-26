@@ -361,13 +361,8 @@ int ipu_csi_init_interface(struct ipu_csi *csi,
 			   const struct v4l2_mbus_config *mbus_cfg,
 			   const struct v4l2_mbus_framefmt *infmt,
 			   const struct v4l2_mbus_framefmt *outfmt);
-bool ipu_csi_is_interlaced(struct ipu_csi *csi);
-void ipu_csi_get_window(struct ipu_csi *csi, struct v4l2_rect *w);
 void ipu_csi_set_window(struct ipu_csi *csi, struct v4l2_rect *w);
 void ipu_csi_set_downsize(struct ipu_csi *csi, bool horiz, bool vert);
-void ipu_csi_set_test_generator(struct ipu_csi *csi, bool active,
-				u32 r_value, u32 g_value, u32 b_value,
-				u32 pix_clk);
 int ipu_csi_set_mipi_datatype(struct ipu_csi *csi, u32 vc,
 			      struct v4l2_mbus_framefmt *mbus_fmt);
 int ipu_csi_set_skip_smfc(struct ipu_csi *csi, u32 skip,
