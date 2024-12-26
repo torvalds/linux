@@ -74,7 +74,7 @@ enum iwl_mac_conf_subcmd_ids {
 	 */
 	ROC_NOTIF = 0xF8,
 	/**
-	 * @SESSION_PROTECTION_NOTIF: &struct iwl_mvm_session_prot_notif
+	 * @SESSION_PROTECTION_NOTIF: &struct iwl_session_prot_notif
 	 */
 	SESSION_PROTECTION_NOTIF = 0xFB,
 
