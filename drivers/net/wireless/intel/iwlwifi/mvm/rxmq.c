@@ -2507,9 +2507,12 @@ void iwl_mvm_rx_bar_frame_release(struct iwl_mvm *mvm, struct napi_struct *napi,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_bar_frame_release *release = (void *)pkt->data;
 	struct iwl_mvm_baid_data *baid_data;
+	u32 pkt_len = iwl_rx_packet_payload_len(pkt);
 	unsigned int baid, nssn, sta_id, tid;
 
-	if (unlikely(iwl_rx_packet_payload_len(pkt) < sizeof(*release)))
+	if (IWL_FW_CHECK(mvm, pkt_len < sizeof(*release),
+			 "Unexpected frame release notif size %d (expected %zu)\n",
+			 pkt_len, sizeof(*release)))
 		return;
 
 	baid = le32_get_bits(release->ba_info,
