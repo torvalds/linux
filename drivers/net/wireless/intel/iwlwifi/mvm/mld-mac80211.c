@@ -269,9 +269,6 @@ static int iwl_mvm_esr_mode_active(struct iwl_mvm *mvm,
 	else
 		mvmvif->primary_link = __ffs(vif->active_links);
 
-	/* Needed for tracking RSSI */
-	iwl_mvm_request_periodic_system_statistics(mvm, true);
-
 	/*
 	 * Restart the MPDU counters and the counting window, so when the
 	 * statistics arrive (which is where we look at the counters) we
@@ -325,7 +322,6 @@ __iwl_mvm_mld_assign_vif_chanctx(struct iwl_mvm *mvm,
 		ret = iwl_mvm_esr_mode_active(mvm, vif);
 		if (ret) {
 			IWL_ERR(mvm, "failed to activate ESR mode (%d)\n", ret);
-			iwl_mvm_request_periodic_system_statistics(mvm, false);
 			goto out;
 		}
 	}
@@ -450,8 +446,6 @@ static int iwl_mvm_esr_mode_inactive(struct iwl_mvm *mvm,
 		if (ret)
 			break;
 	}
-
-	iwl_mvm_request_periodic_system_statistics(mvm, false);
 
 	/* Start a new counting window */
 	iwl_mvm_restart_mpdu_count(mvm, mvmvif);
@@ -859,8 +853,13 @@ static void iwl_mvm_mld_vif_cfg_changed_station(struct iwl_mvm *mvm,
 		if (vif->cfg.assoc) {
 			mvmvif->session_prot_connection_loss = false;
 
-			/* clear statistics to get clean beacon counter */
+			/*
+			 * Clear statistics to get clean beacon counter, and ask for
+			 * periodic statistics, as they are needed for link
+			 * selection and RX OMI decisions.
+			 */
 			iwl_mvm_request_statistics(mvm, true);
+			iwl_mvm_request_periodic_system_statistics(mvm, true);
 			iwl_mvm_sf_update(mvm, vif, false);
 			iwl_mvm_power_vif_assoc(mvm, vif);
 
@@ -907,6 +906,8 @@ static void iwl_mvm_mld_vif_cfg_changed_station(struct iwl_mvm *mvm,
 			iwl_mvm_power_vif_assoc(mvm, vif);
 		} else if (iwl_mvm_mld_vif_have_valid_ap_sta(mvmvif)) {
 			iwl_mvm_mei_host_disassociated(mvm);
+
+			iwl_mvm_request_periodic_system_statistics(mvm, false);
 
 			/* If update fails - SF might be running in associated
 			 * mode while disassociated - which is forbidden.

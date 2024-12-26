@@ -4088,10 +4088,6 @@ iwl_mvm_sta_state_authorized_to_assoc(struct iwl_mvm *mvm,
 		wiphy_work_cancel(mvm->hw->wiphy, &mvmvif->unblock_esr_tpt_wk);
 		wiphy_delayed_work_cancel(mvm->hw->wiphy,
 					  &mvmvif->unblock_esr_tmp_non_bss_wk);
-
-		/* No need for the periodic statistics anymore */
-		if (ieee80211_vif_is_mld(vif) && mvmvif->esr_active)
-			iwl_mvm_request_periodic_system_statistics(mvm, false);
 	}
 
 	return 0;
