@@ -165,38 +165,6 @@ int ipu_degrees_to_rot_mode(enum ipu_rotate_mode *mode, int degrees,
 }
 EXPORT_SYMBOL_GPL(ipu_degrees_to_rot_mode);
 
-int ipu_rot_mode_to_degrees(int *degrees, enum ipu_rotate_mode mode,
-			    bool hflip, bool vflip)
-{
-	u32 r90, vf, hf;
-
-	r90 = ((u32)mode >> 2) & 0x1;
-	hf = ((u32)mode >> 1) & 0x1;
-	vf = ((u32)mode >> 0) & 0x1;
-	hf ^= (u32)hflip;
-	vf ^= (u32)vflip;
-
-	switch ((enum ipu_rotate_mode)((r90 << 2) | (hf << 1) | vf)) {
-	case IPU_ROTATE_NONE:
-		*degrees = 0;
-		break;
-	case IPU_ROTATE_90_RIGHT:
-		*degrees = 90;
-		break;
-	case IPU_ROTATE_180:
-		*degrees = 180;
-		break;
-	case IPU_ROTATE_90_LEFT:
-		*degrees = 270;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(ipu_rot_mode_to_degrees);
-
 struct ipuv3_channel *ipu_idmac_get(struct ipu_soc *ipu, unsigned num)
 {
 	struct ipuv3_channel *channel;
