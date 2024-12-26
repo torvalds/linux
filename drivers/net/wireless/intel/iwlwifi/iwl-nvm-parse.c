@@ -141,8 +141,10 @@ static struct ieee80211_rate iwl_cfg80211_rates[] = {
 /**
  * enum iwl_nvm_channel_flags - channel flags in NVM
  * @NVM_CHANNEL_VALID: channel is usable for this SKU/geo
- * @NVM_CHANNEL_IBSS: usable as an IBSS channel
- * @NVM_CHANNEL_ACTIVE: active scanning allowed
+ * @NVM_CHANNEL_IBSS: usable as an IBSS channel and deprecated
+ *	when %IWL_NVM_SBANDS_FLAGS_LAR enabled.
+ * @NVM_CHANNEL_ACTIVE: active scanning allowed and allows IBSS
+ *	when %IWL_NVM_SBANDS_FLAGS_LAR enabled.
  * @NVM_CHANNEL_RADAR: radar detection required
  * @NVM_CHANNEL_INDOOR_ONLY: only indoor use is allowed
  * @NVM_CHANNEL_GO_CONCURRENT: GO operation is allowed when connected to BSS
