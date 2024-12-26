@@ -1795,7 +1795,7 @@ int erdma_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 	struct erdma_cmdq_query_qp_req_rocev2 req;
 	struct erdma_dev *dev;
 	struct erdma_qp *qp;
-	u64 resp;
+	u64 resp0, resp1;
 	int ret;
 
 	if (ibqp && qp_attr && qp_init_attr) {
@@ -1829,20 +1829,20 @@ int erdma_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 					CMDQ_OPCODE_QUERY_QP);
 		req.qpn = QP_ID(qp);
 
-		ret = erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), &resp,
-					  NULL);
+		ret = erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), &resp0,
+					  &resp1);
 		if (ret)
 			return ret;
 
 		qp_attr->sq_psn =
-			FIELD_GET(ERDMA_CMD_QUERY_QP_RESP_SQ_PSN_MASK, resp);
+			FIELD_GET(ERDMA_CMD_QUERY_QP_RESP_SQ_PSN_MASK, resp0);
 		qp_attr->rq_psn =
-			FIELD_GET(ERDMA_CMD_QUERY_QP_RESP_RQ_PSN_MASK, resp);
-		qp_attr->qp_state = rocev2_to_ib_qps(
-			FIELD_GET(ERDMA_CMD_QUERY_QP_RESP_QP_STATE_MASK, resp));
+			FIELD_GET(ERDMA_CMD_QUERY_QP_RESP_RQ_PSN_MASK, resp0);
+		qp_attr->qp_state = rocev2_to_ib_qps(FIELD_GET(
+			ERDMA_CMD_QUERY_QP_RESP_QP_STATE_MASK, resp0));
 		qp_attr->cur_qp_state = qp_attr->qp_state;
 		qp_attr->sq_draining = FIELD_GET(
-			ERDMA_CMD_QUERY_QP_RESP_SQ_DRAINING_MASK, resp);
+			ERDMA_CMD_QUERY_QP_RESP_SQ_DRAINING_MASK, resp0);
 
 		qp_attr->pkey_index = 0;
 		qp_attr->dest_qp_num = qp->attrs.rocev2.dst_qpn;
