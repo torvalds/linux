@@ -552,10 +552,16 @@ int iwl_fill_lari_config(struct iwl_fw_runtime *fwrt,
 
 	ret = iwl_bios_get_dsm(fwrt, DSM_FUNC_ENABLE_UNII4_CHAN, &value);
 	if (!ret) {
-		if (cmd_ver < 9)
-			value &= DSM_UNII4_ALLOW_BITMAP_CMD_V8;
-		else
-			value &= DSM_UNII4_ALLOW_BITMAP;
+		value &= DSM_UNII4_ALLOW_BITMAP;
+
+		/* Since version 9, bits 4 and 5 are supported
+		 * regardless of this capability.
+		 */
+		if (cmd_ver < 9 &&
+		    !fw_has_capa(&fwrt->fw->ucode_capa,
+				 IWL_UCODE_TLV_CAPA_BIOS_OVERRIDE_5G9_FOR_CA))
+			value &= ~(DSM_VALUE_UNII4_CANADA_OVERRIDE_MSK |
+				   DSM_VALUE_UNII4_CANADA_EN_MSK);
 
 		cmd->oem_unii4_allow_bitmap = cpu_to_le32(value);
 	}
