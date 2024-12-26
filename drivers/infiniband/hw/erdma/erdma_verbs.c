@@ -2219,7 +2219,7 @@ int erdma_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
 	erdma_set_av_cfg(&req.av_cfg, &ah->av);
 
 	ret = erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), NULL, NULL,
-				  true);
+				  init_attr->flags & RDMA_CREATE_AH_SLEEPABLE);
 	if (ret) {
 		erdma_free_idx(&dev->res_cb[ERDMA_RES_TYPE_AH], ah->ahn);
 		return ret;
@@ -2243,7 +2243,7 @@ int erdma_destroy_ah(struct ib_ah *ibah, u32 flags)
 	req.ahn = ah->ahn;
 
 	ret = erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), NULL, NULL,
-				  true);
+				  flags & RDMA_DESTROY_AH_SLEEPABLE);
 	if (ret)
 		return ret;
 
