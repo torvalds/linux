@@ -26,7 +26,6 @@ struct module_sect_attr {
 
 struct module_sect_attrs {
 	struct attribute_group grp;
-	unsigned int nsections;
 	struct module_sect_attr attrs[];
 };
 
@@ -62,10 +61,10 @@ static ssize_t module_sect_read(struct file *file, struct kobject *kobj,
 
 static void free_sect_attrs(struct module_sect_attrs *sect_attrs)
 {
-	unsigned int section;
+	struct bin_attribute **bin_attr;
 
-	for (section = 0; section < sect_attrs->nsections; section++)
-		kfree(sect_attrs->attrs[section].battr.attr.name);
+	for (bin_attr = sect_attrs->grp.bin_attrs; *bin_attr; bin_attr++)
+		kfree((*bin_attr)->attr.name);
 	kfree(sect_attrs);
 }
 
@@ -92,7 +91,6 @@ static int add_sect_attrs(struct module *mod, const struct load_info *info)
 	sect_attrs->grp.name = "sections";
 	sect_attrs->grp.bin_attrs = (void *)sect_attrs + size[0];
 
-	sect_attrs->nsections = 0;
 	sattr = &sect_attrs->attrs[0];
 	gattr = &sect_attrs->grp.bin_attrs[0];
 	for (i = 0; i < info->hdr->e_shnum; i++) {
@@ -108,7 +106,6 @@ static int add_sect_attrs(struct module *mod, const struct load_info *info)
 			ret = -ENOMEM;
 			goto out;
 		}
-		sect_attrs->nsections++;
 		sattr->battr.read = module_sect_read;
 		sattr->battr.size = MODULE_SECT_READ_SIZE;
 		sattr->battr.attr.mode = 0400;
