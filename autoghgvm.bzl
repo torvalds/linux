@@ -14,6 +14,8 @@ def define_autoghgvm():
         "drivers/clk/qcom/clk-dummy.ko",
         "drivers/clk/qcom/clk-qcom.ko",
         "drivers/dma-buf/heaps/qcom_dma_heaps.ko",
+        "drivers/firmware/arm_scmi/scmi_perf_domain.ko",
+        "drivers/firmware/arm_scmi/scmi_pm_domain.ko",
         "drivers/firmware/qcom-scm.ko",
         "drivers/i2c/busses/i2c-msm-geni.ko",
         "drivers/i2c/busses/i2c-virtio.ko",
