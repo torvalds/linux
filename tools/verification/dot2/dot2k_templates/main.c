@@ -8,7 +8,7 @@
 #include <rv/instrumentation.h>
 #include <rv/da_monitor.h>
 
-#define MODULE_NAME "MODEL_NAME"
+#define MODULE_NAME "%%MODEL_NAME%%"
 
 /*
  * XXX: include required tracepoint headers, e.g.,
@@ -20,15 +20,15 @@
  * This is the self-generated part of the monitor. Generally, there is no need
  * to touch this section.
  */
-#include "MODEL_NAME.h"
+#include "%%MODEL_NAME%%.h"
 
 /*
  * Declare the deterministic automata monitor.
  *
  * The rv monitor reference is needed for the monitor declaration.
  */
-static struct rv_monitor rv_MODEL_NAME;
-DECLARE_DA_MON_MONITOR_TYPE(MODEL_NAME, MIN_TYPE);
+static struct rv_monitor rv_%%MODEL_NAME%%;
+DECLARE_DA_MON_%%MONITOR_TYPE%%(%%MODEL_NAME%%, %%MIN_TYPE%%);
 
 /*
  * This is the instrumentation part of the monitor.
@@ -37,55 +37,55 @@ DECLARE_DA_MON_MONITOR_TYPE(MODEL_NAME, MIN_TYPE);
  * are translated into model's event.
  *
  */
-TRACEPOINT_HANDLERS_SKEL
-static int enable_MODEL_NAME(void)
+%%TRACEPOINT_HANDLERS_SKEL%%
+static int enable_%%MODEL_NAME%%(void)
 {
 	int retval;
 
-	retval = da_monitor_init_MODEL_NAME();
+	retval = da_monitor_init_%%MODEL_NAME%%();
 	if (retval)
 		return retval;
 
-TRACEPOINT_ATTACH
+%%TRACEPOINT_ATTACH%%
 
 	return 0;
 }
 
-static void disable_MODEL_NAME(void)
+static void disable_%%MODEL_NAME%%(void)
 {
-	rv_MODEL_NAME.enabled = 0;
+	rv_%%MODEL_NAME%%.enabled = 0;
 
-TRACEPOINT_DETACH
+%%TRACEPOINT_DETACH%%
 
-	da_monitor_destroy_MODEL_NAME();
+	da_monitor_destroy_%%MODEL_NAME%%();
 }
 
 /*
  * This is the monitor register section.
  */
-static struct rv_monitor rv_MODEL_NAME = {
-	.name = "MODEL_NAME",
-	.description = "auto-generated MODEL_NAME",
-	.enable = enable_MODEL_NAME,
-	.disable = disable_MODEL_NAME,
-	.reset = da_monitor_reset_all_MODEL_NAME,
+static struct rv_monitor rv_%%MODEL_NAME%% = {
+	.name = "%%MODEL_NAME%%",
+	.description = "auto-generated %%MODEL_NAME%%",
+	.enable = enable_%%MODEL_NAME%%,
+	.disable = disable_%%MODEL_NAME%%,
+	.reset = da_monitor_reset_all_%%MODEL_NAME%%,
 	.enabled = 0,
 };
 
-static int __init register_MODEL_NAME(void)
+static int __init register_%%MODEL_NAME%%(void)
 {
-	rv_register_monitor(&rv_MODEL_NAME);
+	rv_register_monitor(&rv_%%MODEL_NAME%%);
 	return 0;
 }
 
-static void __exit unregister_MODEL_NAME(void)
+static void __exit unregister_%%MODEL_NAME%%(void)
 {
-	rv_unregister_monitor(&rv_MODEL_NAME);
+	rv_unregister_monitor(&rv_%%MODEL_NAME%%);
 }
 
-module_init(register_MODEL_NAME);
-module_exit(unregister_MODEL_NAME);
+module_init(register_%%MODEL_NAME%%);
+module_exit(unregister_%%MODEL_NAME%%);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("dot2k: auto-generated");
-MODULE_DESCRIPTION("MODEL_NAME");
+MODULE_DESCRIPTION("%%MODEL_NAME%%");

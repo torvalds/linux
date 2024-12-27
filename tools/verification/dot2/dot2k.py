@@ -107,13 +107,13 @@ class dot2k(Dot2c):
         tracepoint_attach = self.fill_tracepoint_attach_probe()
         tracepoint_detach = self.fill_tracepoint_detach_helper()
 
-        main_c = main_c.replace("MONITOR_TYPE", monitor_type)
-        main_c = main_c.replace("MIN_TYPE", min_type)
-        main_c = main_c.replace("MODEL_NAME", self.name)
-        main_c = main_c.replace("NR_EVENTS", str(nr_events))
-        main_c = main_c.replace("TRACEPOINT_HANDLERS_SKEL", tracepoint_handlers)
-        main_c = main_c.replace("TRACEPOINT_ATTACH", tracepoint_attach)
-        main_c = main_c.replace("TRACEPOINT_DETACH", tracepoint_detach)
+        main_c = main_c.replace("%%MONITOR_TYPE%%", monitor_type)
+        main_c = main_c.replace("%%MIN_TYPE%%", min_type)
+        main_c = main_c.replace("%%MODEL_NAME%%", self.name)
+        main_c = main_c.replace("%%NR_EVENTS%%", str(nr_events))
+        main_c = main_c.replace("%%TRACEPOINT_HANDLERS_SKEL%%", tracepoint_handlers)
+        main_c = main_c.replace("%%TRACEPOINT_ATTACH%%", tracepoint_attach)
+        main_c = main_c.replace("%%TRACEPOINT_DETACH%%", tracepoint_detach)
 
         return main_c
 
