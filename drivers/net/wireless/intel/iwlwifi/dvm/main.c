@@ -1241,7 +1241,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 		STATISTICS_NOTIFICATION,
 		REPLY_TX,
 	};
-	int i;
+	int i, err;
 
 	/************************
 	 * 1. Allocating HW data
@@ -1249,6 +1249,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	hw = iwl_alloc_all();
 	if (!hw) {
 		pr_err("%s: Cannot allocate network device\n", trans->name);
+		err = -ENOMEM;
 		goto out;
 	}
 
@@ -1299,8 +1300,10 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 		break;
 	}
 
-	if (WARN_ON(!priv->lib))
+	if (WARN_ON(!priv->lib)) {
+		err = -ENODEV;
 		goto out_free_hw;
+	}
 
 	/*
 	 * Populate the state variables that the transport layer needs
@@ -1377,12 +1380,14 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	IWL_INFO(priv, "Detected %s, REV=0x%X\n",
 		priv->trans->name, priv->trans->hw_rev);
 
-	if (iwl_trans_start_hw(priv->trans))
+	err = iwl_trans_start_hw(priv->trans);
+	if (err)
 		goto out_free_hw;
 
 	/* Read the EEPROM */
-	if (iwl_read_eeprom(priv->trans, &priv->eeprom_blob,
-			    &priv->eeprom_blob_size)) {
+	err = iwl_read_eeprom(priv->trans, &priv->eeprom_blob,
+			      &priv->eeprom_blob_size);
+	if (err) {
 		IWL_ERR(priv, "Unable to init EEPROM\n");
 		goto out_free_hw;
 	}
@@ -1393,13 +1398,17 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	priv->nvm_data = iwl_parse_eeprom_data(priv->trans, priv->cfg,
 					       priv->eeprom_blob,
 					       priv->eeprom_blob_size);
-	if (!priv->nvm_data)
+	if (!priv->nvm_data) {
+		err = -ENOMEM;
 		goto out_free_eeprom_blob;
+	}
 
-	if (iwl_nvm_check_version(priv->nvm_data, priv->trans))
+	err = iwl_nvm_check_version(priv->nvm_data, priv->trans);
+	if (err)
 		goto out_free_eeprom;
 
-	if (iwl_eeprom_init_hw_params(priv))
+	err = iwl_eeprom_init_hw_params(priv);
+	if (err)
 		goto out_free_eeprom;
 
 	/* extract MAC Address */
@@ -1446,7 +1455,8 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 		atomic_set(&priv->queue_stop_count[i], 0);
 	}
 
-	if (iwl_init_drv(priv))
+	err = iwl_init_drv(priv);
+	if (err)
 		goto out_free_eeprom;
 
 	/* At this point both hw and priv are initialized. */
@@ -1480,7 +1490,8 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	 *
 	 * 7. Setup and register with mac80211 and debugfs
 	 **************************************************/
-	if (iwlagn_mac_setup_register(priv, &fw->ucode_capa))
+	err = iwlagn_mac_setup_register(priv, &fw->ucode_capa);
+	if (err)
 		goto out_destroy_workqueue;
 
 	iwl_dbgfs_register(priv, dbgfs_dir);
@@ -1500,8 +1511,7 @@ out_free_eeprom:
 out_free_hw:
 	ieee80211_free_hw(priv->hw);
 out:
-	op_mode = NULL;
-	return op_mode;
+	return ERR_PTR(err);
 }
 
 static void iwl_op_mode_dvm_stop(struct iwl_op_mode *op_mode)
