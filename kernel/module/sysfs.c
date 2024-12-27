@@ -19,13 +19,9 @@
  * J. Corbet <corbet@lwn.net>
  */
 #ifdef CONFIG_KALLSYMS
-struct module_sect_attr {
-	struct bin_attribute battr;
-};
-
 struct module_sect_attrs {
 	struct attribute_group grp;
-	struct module_sect_attr attrs[];
+	struct bin_attribute attrs[];
 };
 
 #define MODULE_SECT_READ_SIZE (3 /* "0x", "\n" */ + (BITS_PER_LONG / 4))
@@ -69,8 +65,8 @@ static int add_sect_attrs(struct module *mod, const struct load_info *info)
 {
 	unsigned int nloaded = 0, i, size[2];
 	struct module_sect_attrs *sect_attrs;
-	struct module_sect_attr *sattr;
 	struct bin_attribute **gattr;
+	struct bin_attribute *sattr;
 	int ret;
 
 	/* Count loaded sections and allocate structures */
@@ -95,18 +91,18 @@ static int add_sect_attrs(struct module *mod, const struct load_info *info)
 
 		if (sect_empty(sec))
 			continue;
-		sysfs_bin_attr_init(&sattr->battr);
-		sattr->battr.attr.name =
+		sysfs_bin_attr_init(sattr);
+		sattr->attr.name =
 			kstrdup(info->secstrings + sec->sh_name, GFP_KERNEL);
-		if (!sattr->battr.attr.name) {
+		if (!sattr->attr.name) {
 			ret = -ENOMEM;
 			goto out;
 		}
-		sattr->battr.read = module_sect_read;
-		sattr->battr.private = (void *)sec->sh_addr;
-		sattr->battr.size = MODULE_SECT_READ_SIZE;
-		sattr->battr.attr.mode = 0400;
-		*(gattr++) = &(sattr++)->battr;
+		sattr->read = module_sect_read;
+		sattr->private = (void *)sec->sh_addr;
+		sattr->size = MODULE_SECT_READ_SIZE;
+		sattr->attr.mode = 0400;
+		*(gattr++) = sattr++;
 	}
 	*gattr = NULL;
 
@@ -186,7 +182,7 @@ static int add_notes_attrs(struct module *mod, const struct load_info *info)
 			continue;
 		if (info->sechdrs[i].sh_type == SHT_NOTE) {
 			sysfs_bin_attr_init(nattr);
-			nattr->attr.name = mod->sect_attrs->attrs[loaded].battr.attr.name;
+			nattr->attr.name = mod->sect_attrs->attrs[loaded].attr.name;
 			nattr->attr.mode = 0444;
 			nattr->size = info->sechdrs[i].sh_size;
 			nattr->private = (void *)info->sechdrs[i].sh_addr;
