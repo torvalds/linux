@@ -1432,7 +1432,7 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 		int token;
 		unsigned long lnum;
 
-		if (result < 0)
+		if (result < 0 || *p == '#')  /* ignore suffixed comment */
 			break;
 		if ((*p == '\0') || (*p == ' ') || (*p == '\t'))
 			continue;
