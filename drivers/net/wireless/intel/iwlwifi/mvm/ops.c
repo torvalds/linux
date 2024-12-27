@@ -2043,11 +2043,11 @@ static void iwl_mvm_dump_error(struct iwl_op_mode *op_mode,
 	/* if we come in from opmode we have the mutex held */
 	if (mode->context == IWL_ERR_CONTEXT_FROM_OPMODE) {
 		lockdep_assert_held(&mvm->mutex);
-		iwl_fw_error_collect(&mvm->fwrt, true);
+		iwl_fw_error_collect(&mvm->fwrt);
 	} else {
 		mutex_lock(&mvm->mutex);
 		if (mode->context != IWL_ERR_CONTEXT_ABORT)
-			iwl_fw_error_collect(&mvm->fwrt, true);
+			iwl_fw_error_collect(&mvm->fwrt);
 		mutex_unlock(&mvm->mutex);
 	}
 }
