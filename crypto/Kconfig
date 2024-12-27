@@ -684,14 +684,6 @@ config CRYPTO_HCTR2
 
 	  See https://eprint.iacr.org/2021/1441
 
-config CRYPTO_KEYWRAP
-	tristate "KW (AES Key Wrap)"
-	select CRYPTO_SKCIPHER
-	select CRYPTO_MANAGER
-	help
-	  KW (AES Key Wrap) authenticated encryption mode (NIST SP800-38F
-	  and RFC3394) without padding.
-
 config CRYPTO_LRW
 	tristate "LRW (Liskov Rivest Wagner)"
 	select CRYPTO_LIB_GF128MUL

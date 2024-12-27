@@ -59,8 +59,6 @@ struct hash_testvec {
  * @wk:		Does the test need CRYPTO_TFM_REQ_FORBID_WEAK_KEYS?
  * 		( e.g. test needs to fail due to a weak key )
  * @fips_skip:	Skip the test vector in FIPS mode
- * @generates_iv: Encryption should ignore the given IV, and output @iv_out.
- *		  Decryption takes @iv_out.  Needed for AES Keywrap ("kw(aes)").
  * @setkey_error: Expected error from setkey()
  * @crypt_error: Expected error from encrypt() and decrypt()
  */
@@ -74,7 +72,6 @@ struct cipher_testvec {
 	unsigned short klen;
 	unsigned int len;
 	bool fips_skip;
-	bool generates_iv;
 	int setkey_error;
 	int crypt_error;
 };
@@ -24192,42 +24189,6 @@ static const struct aead_testvec aegis128_tv_template[] = {
 			  "\xf5\x57\x0f\x2f\x49\x0e\x11\x3b"
 			  "\x78\x93\xec\xfc\xf4\xff\xe1\x2d",
 		.clen	= 24,
-	},
-};
-
-/*
- * All key wrapping test vectors taken from
- * http://csrc.nist.gov/groups/STM/cavp/documents/mac/kwtestvectors.zip
- *
- * Note: as documented in keywrap.c, the ivout for encryption is the first
- * semiblock of the ciphertext from the test vector. For decryption, iv is
- * the first semiblock of the ciphertext.
- */
-static const struct cipher_testvec aes_kw_tv_template[] = {
-	{
-		.key	= "\x75\x75\xda\x3a\x93\x60\x7c\xc2"
-			  "\xbf\xd8\xce\xc7\xaa\xdf\xd9\xa6",
-		.klen	= 16,
-		.ptext	= "\x42\x13\x6d\x3c\x38\x4a\x3e\xea"
-			  "\xc9\x5a\x06\x6f\xd2\x8f\xed\x3f",
-		.ctext	= "\xf6\x85\x94\x81\x6f\x64\xca\xa3"
-			  "\xf5\x6f\xab\xea\x25\x48\xf5\xfb",
-		.len	= 16,
-		.iv_out	= "\x03\x1f\x6b\xd7\xe6\x1e\x64\x3d",
-		.generates_iv = true,
-	}, {
-		.key	= "\x80\xaa\x99\x73\x27\xa4\x80\x6b"
-			  "\x6a\x7a\x41\xa5\x2b\x86\xc3\x71"
-			  "\x03\x86\xf9\x32\x78\x6e\xf7\x96"
-			  "\x76\xfa\xfb\x90\xb8\x26\x3c\x5f",
-		.klen	= 32,
-		.ptext	= "\x0a\x25\x6b\xa7\x5c\xfa\x03\xaa"
-			  "\xa0\x2b\xa9\x42\x03\xf1\x5b\xaa",
-		.ctext	= "\xd3\x3d\x3d\x97\x7b\xf0\xa9\x15"
-			  "\x59\xf9\x9c\x8a\xcd\x29\x3d\x43",
-		.len	= 16,
-		.iv_out	= "\x42\x3c\x96\x0d\x8a\x2a\xc4\xc1",
-		.generates_iv = true,
 	},
 };
 
