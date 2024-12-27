@@ -1167,10 +1167,6 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct iwl_mvm *mvm, char *buf,
 
 	mutex_lock(&mvm->mutex);
 
-	/* allow one more restart that we're provoking here */
-	if (mvm->fw_restart >= 0)
-		mvm->fw_restart++;
-
 	if (count == 6 && !strcmp(buf, "nolog\n")) {
 		set_bit(IWL_MVM_STATUS_SUPPRESS_ERROR_LOG_ONCE, &mvm->status);
 		set_bit(STATUS_SUPPRESS_CMD_ERROR_ONCE, &mvm->trans->status);
