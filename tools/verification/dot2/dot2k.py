@@ -15,6 +15,7 @@ import os
 class dot2k(Dot2c):
     monitor_types = { "global" : 1, "per_cpu" : 2, "per_task" : 3 }
     monitor_templates_dir = "dot2/dot2k_templates/"
+    rv_dir = "kernel/trace/rv"
     monitor_type = "per_cpu"
 
     def __init__(self, file_path, MonitorType, extra_params={}):
@@ -27,6 +28,8 @@ class dot2k(Dot2c):
         self.monitor_type = MonitorType
         self.__fill_rv_templates_dir()
         self.main_c = self.__open_file(self.monitor_templates_dir + "main.c")
+        self.trace_h = self.__open_file(self.monitor_templates_dir + "trace.h")
+        self.kconfig = self.__open_file(self.monitor_templates_dir + "Kconfig")
         self.enum_suffix = "_%s" % self.name
         self.description = extra_params.get("description", self.name) or "auto-generated"
 
@@ -144,6 +147,82 @@ class dot2k(Dot2c):
 
         return self.__buff_to_string(buff)
 
+    def fill_monitor_class_type(self):
+        if self.monitor_type == "per_task":
+            return "DA_MON_EVENTS_ID"
+        return "DA_MON_EVENTS_IMPLICIT"
+
+    def fill_monitor_class(self):
+        if self.monitor_type == "per_task":
+            return "da_monitor_id"
+        return "da_monitor"
+
+    def fill_tracepoint_args_skel(self, tp_type):
+        buff = []
+        tp_args_event = [
+                ("char *", "state"),
+                ("char *", "event"),
+                ("char *", "next_state"),
+                ("bool ",  "final_state"),
+                ]
+        tp_args_error = [
+                ("char *", "state"),
+                ("char *", "event"),
+                ]
+        tp_args_id = ("int ", "id")
+        tp_args = tp_args_event if tp_type == "event" else tp_args_error
+        if self.monitor_type == "per_task":
+            tp_args.insert(0, tp_args_id)
+        tp_proto_c = ", ".join([a+b for a,b in tp_args])
+        tp_args_c = ", ".join([b for a,b in tp_args])
+        buff.append("	     TP_PROTO(%s)," % tp_proto_c)
+        buff.append("	     TP_ARGS(%s)" % tp_args_c)
+        return self.__buff_to_string(buff)
+
+    def fill_trace_h(self):
+        trace_h = self.trace_h
+        monitor_class = self.fill_monitor_class()
+        monitor_class_type = self.fill_monitor_class_type()
+        tracepoint_args_skel_event = self.fill_tracepoint_args_skel("event")
+        tracepoint_args_skel_error = self.fill_tracepoint_args_skel("error")
+        trace_h = trace_h.replace("%%MODEL_NAME%%", self.name)
+        trace_h = trace_h.replace("%%MODEL_NAME_UP%%", self.name.upper())
+        trace_h = trace_h.replace("%%MONITOR_CLASS%%", monitor_class)
+        trace_h = trace_h.replace("%%MONITOR_CLASS_TYPE%%", monitor_class_type)
+        trace_h = trace_h.replace("%%TRACEPOINT_ARGS_SKEL_EVENT%%", tracepoint_args_skel_event)
+        trace_h = trace_h.replace("%%TRACEPOINT_ARGS_SKEL_ERROR%%", tracepoint_args_skel_error)
+        return trace_h
+
+    def fill_kconfig(self):
+        kconfig = self.kconfig
+        monitor_class_type = self.fill_monitor_class_type()
+        kconfig = kconfig.replace("%%MODEL_NAME%%", self.name)
+        kconfig = kconfig.replace("%%MODEL_NAME_UP%%", self.name.upper())
+        kconfig = kconfig.replace("%%MONITOR_CLASS_TYPE%%", monitor_class_type)
+        kconfig = kconfig.replace("%%DESCRIPTION%%", self.description)
+        return kconfig
+
+    def fill_tracepoint_tooltip(self):
+        monitor_class_type = self.fill_monitor_class_type()
+        return """  - Edit %s/rv_trace.h:
+Add this line where other tracepoints are included and %s is defined:
+#include <monitors/%s/%s_trace.h>
+""" % (self.rv_dir, monitor_class_type, self.name, self.name)
+
+    def fill_kconfig_tooltip(self):
+        return """  - Edit %s/Kconfig:
+Add this line where other monitors are included:
+source \"kernel/trace/rv/monitors/%s/Kconfig\"
+""" % (self.rv_dir, self.name)
+
+    def fill_makefile_tooltip(self):
+        name = self.name
+        name_up = name.upper()
+        return """  - Edit %s/Makefile:
+Add this line where other monitors are included:
+obj-$(CONFIG_RV_MON_%s) += monitors/%s/%s.o
+""" % (self.rv_dir, name_up, name, name)
+
     def __create_directory(self):
         try:
             os.mkdir(self.name)
@@ -182,3 +261,10 @@ class dot2k(Dot2c):
 
         path = "%s.h" % self.name
         self.__create_file(path, model_h)
+
+        trace_h = self.fill_trace_h()
+        path = "%s_trace.h" % self.name
+        self.__create_file(path, trace_h)
+
+        kconfig = self.fill_kconfig()
+        self.__create_file("Kconfig", kconfig)

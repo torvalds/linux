@@ -14,7 +14,7 @@
  * XXX: include required tracepoint headers, e.g.,
  * #include <trace/events/sched.h>
  */
-#include <trace/events/rv.h>
+#include <rv_trace.h>
 
 /*
  * This is the self-generated part of the monitor. Generally, there is no need
