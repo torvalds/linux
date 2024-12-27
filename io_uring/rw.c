@@ -228,8 +228,8 @@ static int io_rw_alloc_async(struct io_kiocb *req)
 		kasan_mempool_unpoison_object(rw->free_iovec,
 					      rw->free_iov_nr * sizeof(struct iovec));
 		req->flags |= REQ_F_NEED_CLEANUP;
-		rw->bytes_done = 0;
 	}
+	rw->bytes_done = 0;
 	return 0;
 }
 
