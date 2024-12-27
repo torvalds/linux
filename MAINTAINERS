@@ -3867,7 +3867,7 @@ S:	Maintained
 F:	drivers/platform/x86/barco-p50-gpio.c
 
 BATMAN ADVANCED
-M:	Marek Lindner <mareklindner@neomailbox.ch>
+M:	Marek Lindner <marek.lindner@mailbox.org>
 M:	Simon Wunderlich <sw@simonwunderlich.de>
 M:	Antonio Quartulli <a@unstable.cc>
 M:	Sven Eckelmann <sven@narfation.org>
