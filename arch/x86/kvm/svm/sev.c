@@ -3051,11 +3051,11 @@ out:
 			min_sev_asid, max_sev_asid);
 	if (boot_cpu_has(X86_FEATURE_SEV_ES))
 		pr_info("SEV-ES %s (ASIDs %u - %u)\n",
-			sev_es_supported ? "enabled" : "disabled",
+			str_enabled_disabled(sev_es_supported),
 			min_sev_asid > 1 ? 1 : 0, min_sev_asid - 1);
 	if (boot_cpu_has(X86_FEATURE_SEV_SNP))
 		pr_info("SEV-SNP %s (ASIDs %u - %u)\n",
-			sev_snp_supported ? "enabled" : "disabled",
+			str_enabled_disabled(sev_snp_supported),
 			min_sev_asid > 1 ? 1 : 0, min_sev_asid - 1);
 
 	sev_enabled = sev_supported;
