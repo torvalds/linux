@@ -24,12 +24,9 @@
 struct clk_branch {
 	u32	hwcg_reg;
 	u32	halt_reg;
-	u32	mem_enable_reg;
-	u32	mem_ack_reg;
 	u32	sreg_enable_reg;
 	u8	hwcg_bit;
 	u8	halt_bit;
-	u8	mem_enable_ack_bit;
 	u32	sreg_core_ack_bit;
 	u32	sreg_periph_ack_bit;
 	u8	halt_check;
@@ -46,6 +43,27 @@ struct clk_branch {
 	struct clk_regmap clkr;
 };
 
+/**
+ * struct clk_mem_branch - gating clock which are associated with memories
+ *
+ * @mem_enable_reg: branch clock memory gating register
+ * @mem_ack_reg: branch clock memory ack register
+ * @mem_enable_ack_mask: branch clock memory enable and ack field in @mem_ack_reg
+ * @mem_enable_mask: branch clock memory enable mask
+ * @mem_enable_invert: branch clock memory enable and disable has invert logic
+ * @branch: branch clock gating handle
+ *
+ * Clock which can gate its memories.
+ */
+struct clk_mem_branch {
+	u32	mem_enable_reg;
+	u32	mem_ack_reg;
+	u32	mem_enable_ack_mask;
+	u32	mem_enable_mask;
+	bool	mem_enable_invert;
+	struct clk_branch branch;
+};
+
 extern const struct clk_ops clk_branch_ops;
 extern const struct clk_ops clk_branch2_ops;
 extern const struct clk_ops clk_branch2_hw_ctl_ops;
@@ -58,5 +76,8 @@ extern const struct clk_ops clk_branch2_sreg_ops;
 
 #define to_clk_branch(_hw) \
 	container_of(to_clk_regmap(_hw), struct clk_branch, clkr)
+
+#define to_clk_mem_branch(_hw) \
+	container_of(to_clk_branch(_hw), struct clk_mem_branch, branch)
 
 #endif
