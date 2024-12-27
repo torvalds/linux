@@ -1300,14 +1300,8 @@ int iwl_mvm_mac_start(struct ieee80211_hw *hw)
 
 	/* we are starting the mac not in error flow, and restart is enabled */
 	if (!test_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED, &mvm->status) &&
-	    iwlwifi_mod_params.fw_restart) {
+	    iwlwifi_mod_params.fw_restart)
 		max_retry = IWL_MAX_INIT_RETRY;
-		/*
-		 * This will prevent mac80211 recovery flows to trigger during
-		 * init failures
-		 */
-		set_bit(IWL_MVM_STATUS_STARTING, &mvm->status);
-	}
 
 	for (retry = 0; retry <= max_retry; retry++) {
 		ret = __iwl_mvm_mac_start(mvm);
@@ -1316,7 +1310,6 @@ int iwl_mvm_mac_start(struct ieee80211_hw *hw)
 
 		IWL_ERR(mvm, "mac start retry %d\n", retry);
 	}
-	clear_bit(IWL_MVM_STATUS_STARTING, &mvm->status);
 
 	mutex_unlock(&mvm->mutex);
 
