@@ -3721,8 +3721,12 @@ static int amdgpu_device_ip_resume_phase3(struct amdgpu_device *adev)
 			continue;
 		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_DCE) {
 			r = adev->ip_blocks[i].version->funcs->resume(adev);
-			if (r)
+			if (r) {
+				DRM_ERROR("resume of IP block <%s> failed %d\n",
+					  adev->ip_blocks[i].version->funcs->name, r);
 				return r;
+			}
+			adev->ip_blocks[i].status.hw = true;
 		}
 	}
 
