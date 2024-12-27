@@ -26,7 +26,7 @@ class dot2k(Dot2c):
 
         self.monitor_type = MonitorType
         self.__fill_rv_templates_dir()
-        self.main_c = self.__open_file(self.monitor_templates_dir + "main_" + MonitorType + ".c")
+        self.main_c = self.__open_file(self.monitor_templates_dir + "main.c")
         self.enum_suffix = "_%s" % self.name
 
     def __fill_rv_templates_dir(self):
@@ -69,6 +69,9 @@ class dot2k(Dot2c):
         # cut off the last \n
         return string[:-1]
 
+    def fill_monitor_type(self):
+        return self.monitor_type.upper()
+
     def fill_tracepoint_handlers_skel(self):
         buff = []
         for event in self.events:
@@ -97,12 +100,14 @@ class dot2k(Dot2c):
 
     def fill_main_c(self):
         main_c = self.main_c
+        monitor_type = self.fill_monitor_type()
         min_type = self.get_minimun_type()
         nr_events = len(self.events)
         tracepoint_handlers = self.fill_tracepoint_handlers_skel()
         tracepoint_attach = self.fill_tracepoint_attach_probe()
         tracepoint_detach = self.fill_tracepoint_detach_helper()
 
+        main_c = main_c.replace("MONITOR_TYPE", monitor_type)
         main_c = main_c.replace("MIN_TYPE", min_type)
         main_c = main_c.replace("MODEL_NAME", self.name)
         main_c = main_c.replace("NR_EVENTS", str(nr_events))

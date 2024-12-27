@@ -12,7 +12,7 @@
 
 /*
  * XXX: include required tracepoint headers, e.g.,
- * #include <linux/trace/events/sched.h>
+ * #include <trace/events/sched.h>
  */
 #include <trace/events/rv.h>
 
@@ -28,7 +28,7 @@
  * The rv monitor reference is needed for the monitor declaration.
  */
 static struct rv_monitor rv_MODEL_NAME;
-DECLARE_DA_MON_PER_CPU(MODEL_NAME, MIN_TYPE);
+DECLARE_DA_MON_MONITOR_TYPE(MODEL_NAME, MIN_TYPE);
 
 /*
  * This is the instrumentation part of the monitor.
