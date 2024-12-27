@@ -26,7 +26,7 @@ struct module_sect_attrs {
 
 #define MODULE_SECT_READ_SIZE (3 /* "0x", "\n" */ + (BITS_PER_LONG / 4))
 static ssize_t module_sect_read(struct file *file, struct kobject *kobj,
-				struct bin_attribute *battr,
+				const struct bin_attribute *battr,
 				char *buf, loff_t pos, size_t count)
 {
 	char bounce[MODULE_SECT_READ_SIZE + 1];
@@ -54,18 +54,18 @@ static ssize_t module_sect_read(struct file *file, struct kobject *kobj,
 
 static void free_sect_attrs(struct module_sect_attrs *sect_attrs)
 {
-	struct bin_attribute **bin_attr;
+	const struct bin_attribute *const *bin_attr;
 
-	for (bin_attr = sect_attrs->grp.bin_attrs; *bin_attr; bin_attr++)
+	for (bin_attr = sect_attrs->grp.bin_attrs_new; *bin_attr; bin_attr++)
 		kfree((*bin_attr)->attr.name);
-	kfree(sect_attrs->grp.bin_attrs);
+	kfree(sect_attrs->grp.bin_attrs_new);
 	kfree(sect_attrs);
 }
 
 static int add_sect_attrs(struct module *mod, const struct load_info *info)
 {
 	struct module_sect_attrs *sect_attrs;
-	struct bin_attribute **gattr;
+	const struct bin_attribute **gattr;
 	struct bin_attribute *sattr;
 	unsigned int nloaded = 0, i;
 	int ret;
@@ -86,7 +86,7 @@ static int add_sect_attrs(struct module *mod, const struct load_info *info)
 
 	/* Setup section attributes. */
 	sect_attrs->grp.name = "sections";
-	sect_attrs->grp.bin_attrs = gattr;
+	sect_attrs->grp.bin_attrs_new = gattr;
 
 	sattr = &sect_attrs->attrs[0];
 	for (i = 0; i < info->hdr->e_shnum; i++) {
@@ -101,7 +101,7 @@ static int add_sect_attrs(struct module *mod, const struct load_info *info)
 			ret = -ENOMEM;
 			goto out;
 		}
-		sattr->read = module_sect_read;
+		sattr->read_new = module_sect_read;
 		sattr->private = (void *)sec->sh_addr;
 		sattr->size = MODULE_SECT_READ_SIZE;
 		sattr->attr.mode = 0400;
@@ -144,7 +144,7 @@ struct module_notes_attrs {
 
 static void free_notes_attrs(struct module_notes_attrs *notes_attrs)
 {
-	kfree(notes_attrs->grp.bin_attrs);
+	kfree(notes_attrs->grp.bin_attrs_new);
 	kfree(notes_attrs);
 }
 
@@ -152,7 +152,7 @@ static int add_notes_attrs(struct module *mod, const struct load_info *info)
 {
 	unsigned int notes, loaded, i;
 	struct module_notes_attrs *notes_attrs;
-	struct bin_attribute **gattr;
+	const struct bin_attribute **gattr;
 	struct bin_attribute *nattr;
 	int ret;
 
@@ -178,7 +178,7 @@ static int add_notes_attrs(struct module *mod, const struct load_info *info)
 	}
 
 	notes_attrs->grp.name = "notes";
-	notes_attrs->grp.bin_attrs = gattr;
+	notes_attrs->grp.bin_attrs_new = gattr;
 
 	nattr = &notes_attrs->attrs[0];
 	for (loaded = i = 0; i < info->hdr->e_shnum; ++i) {
