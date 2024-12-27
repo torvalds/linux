@@ -21,7 +21,6 @@
 #ifdef CONFIG_KALLSYMS
 struct module_sect_attr {
 	struct bin_attribute battr;
-	unsigned long address;
 };
 
 struct module_sect_attrs {
@@ -34,8 +33,6 @@ static ssize_t module_sect_read(struct file *file, struct kobject *kobj,
 				struct bin_attribute *battr,
 				char *buf, loff_t pos, size_t count)
 {
-	struct module_sect_attr *sattr =
-		container_of(battr, struct module_sect_attr, battr);
 	char bounce[MODULE_SECT_READ_SIZE + 1];
 	size_t wrote;
 
@@ -52,7 +49,7 @@ static ssize_t module_sect_read(struct file *file, struct kobject *kobj,
 	 */
 	wrote = scnprintf(bounce, sizeof(bounce), "0x%px\n",
 			  kallsyms_show_value(file->f_cred)
-				? (void *)sattr->address : NULL);
+				? battr->private : NULL);
 	count = min(count, wrote);
 	memcpy(buf, bounce, count);
 
@@ -99,7 +96,6 @@ static int add_sect_attrs(struct module *mod, const struct load_info *info)
 		if (sect_empty(sec))
 			continue;
 		sysfs_bin_attr_init(&sattr->battr);
-		sattr->address = sec->sh_addr;
 		sattr->battr.attr.name =
 			kstrdup(info->secstrings + sec->sh_name, GFP_KERNEL);
 		if (!sattr->battr.attr.name) {
@@ -107,6 +103,7 @@ static int add_sect_attrs(struct module *mod, const struct load_info *info)
 			goto out;
 		}
 		sattr->battr.read = module_sect_read;
+		sattr->battr.private = (void *)sec->sh_addr;
 		sattr->battr.size = MODULE_SECT_READ_SIZE;
 		sattr->battr.attr.mode = 0400;
 		*(gattr++) = &(sattr++)->battr;
