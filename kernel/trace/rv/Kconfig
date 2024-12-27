@@ -26,8 +26,8 @@ menuconfig RV
 	    Documentation/trace/rv/runtime-verification.rst
 
 source "kernel/trace/rv/monitors/wip/Kconfig"
-
 source "kernel/trace/rv/monitors/wwnr/Kconfig"
+# Add new monitors here
 
 config RV_REACTORS
 	bool "Runtime verification reactors"

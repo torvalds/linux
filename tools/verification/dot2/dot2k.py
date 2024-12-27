@@ -27,11 +27,14 @@ class dot2k(Dot2c):
 
         self.monitor_type = MonitorType
         self.__fill_rv_templates_dir()
-        self.main_c = self.__open_file(self.monitor_templates_dir + "main.c")
-        self.trace_h = self.__open_file(self.monitor_templates_dir + "trace.h")
-        self.kconfig = self.__open_file(self.monitor_templates_dir + "Kconfig")
+        self.main_c = self.__read_file(self.monitor_templates_dir + "main.c")
+        self.trace_h = self.__read_file(self.monitor_templates_dir + "trace.h")
+        self.kconfig = self.__read_file(self.monitor_templates_dir + "Kconfig")
         self.enum_suffix = "_%s" % self.name
         self.description = extra_params.get("description", self.name) or "auto-generated"
+        self.auto_patch = extra_params.get("auto_patch")
+        if self.auto_patch:
+            self.__fill_rv_kernel_dir()
 
     def __fill_rv_templates_dir(self):
 
@@ -39,7 +42,7 @@ class dot2k(Dot2c):
             return
 
         if platform.system() != "Linux":
-            raise Exception("I can only run on Linux.")
+            raise OSError("I can only run on Linux.")
 
         kernel_path = "/lib/modules/%s/build/tools/verification/dot2/dot2k_templates/" % (platform.release())
 
@@ -51,17 +54,43 @@ class dot2k(Dot2c):
             self.monitor_templates_dir = "/usr/share/dot2/dot2k_templates/"
             return
 
-        raise Exception("Could not find the template directory, do you have the kernel source installed?")
+        raise FileNotFoundError("Could not find the template directory, do you have the kernel source installed?")
 
+    def __fill_rv_kernel_dir(self):
 
-    def __open_file(self, path):
+        # first try if we are running in the kernel tree root
+        if os.path.exists(self.rv_dir):
+            return
+
+        # offset if we are running inside the kernel tree from verification/dot2
+        kernel_path = os.path.join("../..", self.rv_dir)
+
+        if os.path.exists(kernel_path):
+            self.rv_dir = kernel_path
+            return
+
+        if platform.system() != "Linux":
+            raise OSError("I can only run on Linux.")
+
+        kernel_path = os.path.join("/lib/modules/%s/build" % platform.release(), self.rv_dir)
+
+        # if the current kernel is from a distro this may not be a full kernel tree
+        # verify that one of the files we are going to modify is available
+        if os.path.exists(os.path.join(kernel_path, "rv_trace.h")):
+            self.rv_dir = kernel_path
+            return
+
+        raise FileNotFoundError("Could not find the rv directory, do you have the kernel source installed?")
+
+    def __read_file(self, path):
         try:
-            fd = open(path)
+            fd = open(path, 'r')
         except OSError:
             raise Exception("Cannot open the file: %s" % path)
 
         content = fd.read()
 
+        fd.close()
         return content
 
     def __buff_to_string(self, buff):
@@ -202,14 +231,32 @@ class dot2k(Dot2c):
         kconfig = kconfig.replace("%%DESCRIPTION%%", self.description)
         return kconfig
 
+    def __patch_file(self, file, marker, line):
+        file_to_patch = os.path.join(self.rv_dir, file)
+        content = self.__read_file(file_to_patch)
+        content = content.replace(marker, line + "\n" + marker)
+        self.__write_file(file_to_patch, content)
+
     def fill_tracepoint_tooltip(self):
         monitor_class_type = self.fill_monitor_class_type()
+        if self.auto_patch:
+            self.__patch_file("rv_trace.h",
+                            "// Add new monitors based on CONFIG_%s here" % monitor_class_type,
+                            "#include <monitors/%s/%s_trace.h>" % (self.name, self.name))
+            return "  - Patching %s/rv_trace.h, double check the result" % self.rv_dir
+
         return """  - Edit %s/rv_trace.h:
 Add this line where other tracepoints are included and %s is defined:
 #include <monitors/%s/%s_trace.h>
 """ % (self.rv_dir, monitor_class_type, self.name, self.name)
 
     def fill_kconfig_tooltip(self):
+        if self.auto_patch:
+            self.__patch_file("Kconfig",
+                            "# Add new monitors here",
+                            "source \"kernel/trace/rv/monitors/%s/Kconfig\"" % (self.name))
+            return "  - Patching %s/Kconfig, double check the result" % self.rv_dir
+
         return """  - Edit %s/Kconfig:
 Add this line where other monitors are included:
 source \"kernel/trace/rv/monitors/%s/Kconfig\"
@@ -218,31 +265,48 @@ source \"kernel/trace/rv/monitors/%s/Kconfig\"
     def fill_makefile_tooltip(self):
         name = self.name
         name_up = name.upper()
+        if self.auto_patch:
+            self.__patch_file("Makefile",
+                            "# Add new monitors here",
+                            "obj-$(CONFIG_RV_MON_%s) += monitors/%s/%s.o" % (name_up, name, name))
+            return "  - Patching %s/Makefile, double check the result" % self.rv_dir
+
         return """  - Edit %s/Makefile:
 Add this line where other monitors are included:
 obj-$(CONFIG_RV_MON_%s) += monitors/%s/%s.o
 """ % (self.rv_dir, name_up, name, name)
 
+    def fill_monitor_tooltip(self):
+        if self.auto_patch:
+            return "  - Monitor created in %s/monitors/%s" % (self.rv_dir, self. name)
+        return "  - Move %s/ to the kernel's monitor directory (%s/monitors)" % (self.name, self.rv_dir)
+
     def __create_directory(self):
+        path = self.name
+        if self.auto_patch:
+            path = os.path.join(self.rv_dir, "monitors", path)
         try:
-            os.mkdir(self.name)
+            os.mkdir(path)
         except FileExistsError:
             return
         except:
             print("Fail creating the output dir: %s" % self.name)
 
-    def __create_file(self, file_name, content):
-        path = "%s/%s" % (self.name, file_name)
+    def __write_file(self, file_name, content):
         try:
-            file = open(path, 'w')
-        except FileExistsError:
-            return
+            file = open(file_name, 'w')
         except:
-            print("Fail creating file: %s" % path)
+            print("Fail writing to file: %s" % file_name)
 
         file.write(content)
 
         file.close()
+
+    def __create_file(self, file_name, content):
+        path = "%s/%s" % (self.name, file_name)
+        if self.auto_patch:
+            path = os.path.join(self.rv_dir, "monitors", path)
+        self.__write_file(path, content)
 
     def __get_main_name(self):
         path = "%s/%s" % (self.name, "main.c")

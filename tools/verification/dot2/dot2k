@@ -21,6 +21,9 @@ if __name__ == '__main__':
     parser.add_argument('-t', "--monitor_type", dest="monitor_type", required=True)
     parser.add_argument('-n', "--model_name", dest="model_name", required=False)
     parser.add_argument("-D", "--description", dest="description", required=False)
+    parser.add_argument("-a", "--auto_patch", dest="auto_patch",
+                        action="store_true", required=False,
+                        help="Patch the kernel in place")
     params = parser.parse_args()
 
     print("Opening and parsing the dot file %s" % params.dot_file)
@@ -38,4 +41,4 @@ if __name__ == '__main__':
     print(monitor.fill_tracepoint_tooltip())
     print(monitor.fill_makefile_tooltip())
     print(monitor.fill_kconfig_tooltip())
-    print("  - Move %s/ to the kernel's monitor directory (%s/monitors)" % (monitor.name, monitor.rv_dir))
+    print(monitor.fill_monitor_tooltip())
