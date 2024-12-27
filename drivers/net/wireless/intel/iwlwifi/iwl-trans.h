@@ -878,6 +878,8 @@ struct iwl_txq {
  * @no_160: device not supporting 160 MHz
  * @step_urm: STEP is in URM, no support for MCS>9 in 320 MHz
  * @trans_specific: data for the specific transport this is allocated for/with
+ * @dsbr_urm_fw_dependent: switch to URM based on fw settings
+ * @dsbr_urm_permanent: switch to URM permanently
  */
 struct iwl_trans {
 	bool csme_own;
@@ -901,6 +903,9 @@ struct iwl_trans {
 	u32 sku_id[3];
 	bool reduced_cap_sku;
 	u8 no_160:1, step_urm:1;
+
+	u8 dsbr_urm_fw_dependent:1,
+	   dsbr_urm_permanent:1;
 
 	u8 rx_mpdu_cmd, rx_mpdu_cmd_hdr_size;
 

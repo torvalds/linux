@@ -1023,3 +1023,37 @@ out_free:
 	kfree(data);
 	return ret;
 }
+
+int iwl_acpi_get_dsbr(struct iwl_fw_runtime *fwrt, u32 *value)
+{
+	union acpi_object *wifi_pkg, *data;
+	int ret = -ENOENT;
+	int tbl_rev;
+
+	data = iwl_acpi_get_object(fwrt->dev, ACPI_DSBR_METHOD);
+	if (IS_ERR(data))
+		return ret;
+
+	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
+					 ACPI_DSBR_WIFI_DATA_SIZE,
+					 &tbl_rev);
+	if (IS_ERR(wifi_pkg))
+		goto out_free;
+
+	if (tbl_rev != ACPI_DSBR_WIFI_DATA_REV) {
+		IWL_DEBUG_RADIO(fwrt, "Unsupported ACPI DSBR revision:%d\n",
+				tbl_rev);
+		goto out_free;
+	}
+
+	if (wifi_pkg->package.elements[1].type != ACPI_TYPE_INTEGER)
+		goto out_free;
+
+	*value = wifi_pkg->package.elements[1].integer.value;
+	IWL_DEBUG_RADIO(fwrt, "Loaded DSBR config from ACPI value: 0x%x\n",
+			*value);
+	ret = 0;
+out_free:
+	kfree(data);
+	return ret;
+}

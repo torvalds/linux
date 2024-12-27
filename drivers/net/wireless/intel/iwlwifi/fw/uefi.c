@@ -777,3 +777,29 @@ int iwl_uefi_get_puncturing(struct iwl_fw_runtime *fwrt)
 	return puncturing;
 }
 IWL_EXPORT_SYMBOL(iwl_uefi_get_puncturing);
+
+int iwl_uefi_get_dsbr(struct iwl_fw_runtime *fwrt, u32 *value)
+{
+	struct uefi_cnv_wlan_dsbr_data *data;
+	int ret = 0;
+
+	data = iwl_uefi_get_verified_variable_guid(fwrt->trans,
+						   &IWL_EFI_WIFI_BT_GUID,
+						   IWL_UEFI_DSBR_NAME, "DSBR",
+						   sizeof(*data), NULL);
+	if (IS_ERR(data))
+		return -EINVAL;
+
+	if (data->revision != IWL_UEFI_DSBR_REVISION) {
+		ret = -EINVAL;
+		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI DSBR revision:%d\n",
+				data->revision);
+		goto out;
+	}
+	*value = data->config;
+	IWL_DEBUG_RADIO(fwrt, "Loaded DSBR config from UEFI value: 0x%x\n",
+			*value);
+out:
+	kfree(data);
+	return ret;
+}

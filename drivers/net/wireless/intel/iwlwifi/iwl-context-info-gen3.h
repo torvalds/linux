@@ -76,6 +76,16 @@ enum iwl_prph_scratch_flags {
 	IWL_PRPH_SCRATCH_SCU_FORCE_ACTIVE	= BIT(29),
 };
 
+/**
+ * enum iwl_prph_scratch_ext_flags - PRPH scratch control ext flags
+ * @IWL_PRPH_SCRATCH_EXT_URM_FW: switch to URM mode based on fw setting
+ * @IWL_PRPH_SCRATCH_EXT_URM_PERM: switch to permanent URM mode
+ */
+enum iwl_prph_scratch_ext_flags {
+	IWL_PRPH_SCRATCH_EXT_URM_FW	= BIT(4),
+	IWL_PRPH_SCRATCH_EXT_URM_PERM	= BIT(5),
+};
+
 /*
  * struct iwl_prph_scratch_version - version structure
  * @mac_id: SKU and revision id
@@ -93,11 +103,12 @@ struct iwl_prph_scratch_version {
 /*
  * struct iwl_prph_scratch_control - control structure
  * @control_flags: context information flags see &enum iwl_prph_scratch_flags
- * @reserved: reserved
+ * @control_flags_ext: context information for extended flags,
+ *	see &enum iwl_prph_scratch_ext_flags
  */
 struct iwl_prph_scratch_control {
 	__le32 control_flags;
-	__le32 reserved;
+	__le32 control_flags_ext;
 } __packed; /* PERIPH_SCRATCH_CONTROL_S */
 
 /*

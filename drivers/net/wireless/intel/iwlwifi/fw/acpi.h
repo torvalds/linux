@@ -28,6 +28,7 @@
 #define ACPI_WPFC_METHOD	"WPFC"
 #define ACPI_GLAI_METHOD	"GLAI"
 #define ACPI_WBEM_METHOD	"WBEM"
+#define ACPI_DSBR_METHOD	"DSBR"
 
 #define ACPI_WIFI_DOMAIN	(0x07)
 
@@ -74,6 +75,13 @@
  * and one for enablement of Wi-Fi 320MHz per MCC
  */
 #define ACPI_WBEM_WIFI_DATA_SIZE	2
+/*
+ * One element for domain type,
+ * and one for DSBR response data
+ */
+#define ACPI_DSBR_WIFI_DATA_SIZE	2
+#define ACPI_DSBR_WIFI_DATA_REV		1
+
 /*
  * One element for domain type,
  * and one for the status
@@ -153,6 +161,9 @@ int iwl_acpi_get_dsm(struct iwl_fw_runtime *fwrt,
 		     enum iwl_dsm_funcs func, u32 *value);
 
 int iwl_acpi_get_wbem(struct iwl_fw_runtime *fwrt, u32 *value);
+
+int iwl_acpi_get_dsbr(struct iwl_fw_runtime *fwrt, u32 *value);
+
 #else /* CONFIG_ACPI */
 
 static inline void *iwl_acpi_get_dsm_object(struct device *dev, int rev,
@@ -218,6 +229,11 @@ static inline int iwl_acpi_get_dsm(struct iwl_fw_runtime *fwrt,
 }
 
 static inline int iwl_acpi_get_wbem(struct iwl_fw_runtime *fwrt, u32 *value)
+{
+	return -ENOENT;
+}
+
+static inline int iwl_acpi_get_dsbr(struct iwl_fw_runtime *fwrt, u32 *value)
 {
 	return -ENOENT;
 }

@@ -222,4 +222,27 @@ static inline u32 iwl_bios_get_ppag_flags(const u32 ppag_modes,
 }
 
 bool iwl_puncturing_is_allowed_in_bios(u32 puncturing, u16 mcc);
+
+#define IWL_DSBR_FW_MODIFIED_URM_MASK	BIT(8)
+#define IWL_DSBR_PERMANENT_URM_MASK	BIT(9)
+
+int iwl_bios_get_dsbr(struct iwl_fw_runtime *fwrt, u32 *value);
+
+static inline void iwl_bios_setup_step(struct iwl_trans *trans,
+				       struct iwl_fw_runtime *fwrt)
+{
+	u32 dsbr;
+
+	if (!trans->trans_cfg->integrated)
+		return;
+
+	if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_BZ)
+		return;
+
+	if (iwl_bios_get_dsbr(fwrt, &dsbr))
+		dsbr = 0;
+
+	trans->dsbr_urm_fw_dependent = !!(dsbr & IWL_DSBR_FW_MODIFIED_URM_MASK);
+	trans->dsbr_urm_permanent = !!(dsbr & IWL_DSBR_PERMANENT_URM_MASK);
+}
 #endif /* __fw_regulatory_h__ */
