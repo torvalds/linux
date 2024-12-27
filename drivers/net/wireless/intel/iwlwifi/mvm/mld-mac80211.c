@@ -210,32 +210,6 @@ static unsigned int iwl_mvm_mld_count_active_links(struct iwl_mvm_vif *mvmvif)
 	return n_active;
 }
 
-static void iwl_mvm_restart_mpdu_count(struct iwl_mvm *mvm,
-				       struct iwl_mvm_vif *mvmvif)
-{
-	struct ieee80211_sta *ap_sta = mvmvif->ap_sta;
-	struct iwl_mvm_sta *mvmsta;
-
-	lockdep_assert_held(&mvm->mutex);
-
-	if (!ap_sta)
-		return;
-
-	mvmsta = iwl_mvm_sta_from_mac80211(ap_sta);
-	if (!mvmsta->mpdu_counters)
-		return;
-
-	for (int q = 0; q < mvm->trans->num_rx_queues; q++) {
-		spin_lock_bh(&mvmsta->mpdu_counters[q].lock);
-		memset(mvmsta->mpdu_counters[q].per_link, 0,
-		       sizeof(mvmsta->mpdu_counters[q].per_link));
-		mvmsta->mpdu_counters[q].window_start = jiffies;
-		spin_unlock_bh(&mvmsta->mpdu_counters[q].lock);
-	}
-
-	IWL_DEBUG_INFO(mvm, "MPDU counters are cleared\n");
-}
-
 static int iwl_mvm_esr_mode_active(struct iwl_mvm *mvm,
 				   struct ieee80211_vif *vif)
 {
@@ -268,13 +242,6 @@ static int iwl_mvm_esr_mode_active(struct iwl_mvm *mvm,
 		mvmvif->primary_link = mvmvif->link_selection_primary;
 	else
 		mvmvif->primary_link = __ffs(vif->active_links);
-
-	/*
-	 * Restart the MPDU counters and the counting window, so when the
-	 * statistics arrive (which is where we look at the counters) we
-	 * will be at the end of the window.
-	 */
-	iwl_mvm_restart_mpdu_count(mvm, mvmvif);
 
 	iwl_dbg_tlv_time_point(&mvm->fwrt, IWL_FW_INI_TIME_ESR_LINK_UP,
 			       NULL);
@@ -446,9 +413,6 @@ static int iwl_mvm_esr_mode_inactive(struct iwl_mvm *mvm,
 		if (ret)
 			break;
 	}
-
-	/* Start a new counting window */
-	iwl_mvm_restart_mpdu_count(mvm, mvmvif);
 
 	iwl_dbg_tlv_time_point(&mvm->fwrt, IWL_FW_INI_TIME_ESR_LINK_DOWN,
 			       NULL);
