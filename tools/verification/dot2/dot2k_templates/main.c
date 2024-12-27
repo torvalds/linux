@@ -65,7 +65,7 @@ static void disable_%%MODEL_NAME%%(void)
  */
 static struct rv_monitor rv_%%MODEL_NAME%% = {
 	.name = "%%MODEL_NAME%%",
-	.description = "auto-generated %%MODEL_NAME%%",
+	.description = "%%DESCRIPTION%%",
 	.enable = enable_%%MODEL_NAME%%,
 	.disable = disable_%%MODEL_NAME%%,
 	.reset = da_monitor_reset_all_%%MODEL_NAME%%,
@@ -88,4 +88,4 @@ module_exit(unregister_%%MODEL_NAME%%);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("dot2k: auto-generated");
-MODULE_DESCRIPTION("%%MODEL_NAME%%");
+MODULE_DESCRIPTION("%%MODEL_NAME%%: %%DESCRIPTION%%");

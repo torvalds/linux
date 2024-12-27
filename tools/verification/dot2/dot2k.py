@@ -17,17 +17,18 @@ class dot2k(Dot2c):
     monitor_templates_dir = "dot2/dot2k_templates/"
     monitor_type = "per_cpu"
 
-    def __init__(self, file_path, MonitorType):
-        super().__init__(file_path)
+    def __init__(self, file_path, MonitorType, extra_params={}):
+        super().__init__(file_path, extra_params.get("model_name"))
 
         self.monitor_type = self.monitor_types.get(MonitorType)
         if self.monitor_type is None:
-            raise Exception("Unknown monitor type: %s" % MonitorType)
+            raise ValueError("Unknown monitor type: %s" % MonitorType)
 
         self.monitor_type = MonitorType
         self.__fill_rv_templates_dir()
         self.main_c = self.__open_file(self.monitor_templates_dir + "main.c")
         self.enum_suffix = "_%s" % self.name
+        self.description = extra_params.get("description", self.name) or "auto-generated"
 
     def __fill_rv_templates_dir(self):
 
@@ -114,6 +115,7 @@ class dot2k(Dot2c):
         main_c = main_c.replace("%%TRACEPOINT_HANDLERS_SKEL%%", tracepoint_handlers)
         main_c = main_c.replace("%%TRACEPOINT_ATTACH%%", tracepoint_attach)
         main_c = main_c.replace("%%TRACEPOINT_DETACH%%", tracepoint_detach)
+        main_c = main_c.replace("%%DESCRIPTION%%", self.description)
 
         return main_c
 

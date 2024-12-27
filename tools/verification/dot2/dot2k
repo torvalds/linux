@@ -25,15 +25,11 @@ if __name__ == '__main__':
 
     print("Opening and parsing the dot file %s" % params.dot_file)
     try:
-        monitor=dot2k(params.dot_file, params.monitor_type)
+        monitor=dot2k(params.dot_file, params.monitor_type, vars(params))
     except Exception as e:
         print('Error: '+ str(e))
         print("Sorry : :-(")
         sys.exit(1)
-
-    # easier than using argparse action.
-    if params.model_name != None:
-        print(params.model_name)
 
     print("Writing the monitor into the directory %s" % monitor.name)
     monitor.print_files()
