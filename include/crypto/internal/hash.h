@@ -12,20 +12,6 @@
 #include <crypto/hash.h>
 
 struct ahash_request;
-struct scatterlist;
-
-struct crypto_hash_walk {
-	char *data;
-
-	unsigned int offset;
-	unsigned int flags;
-
-	struct page *pg;
-	unsigned int entrylen;
-
-	unsigned int total;
-	struct scatterlist *sg;
-};
 
 struct ahash_instance {
 	void (*free)(struct ahash_instance *inst);
@@ -56,15 +42,6 @@ struct crypto_ahash_spawn {
 struct crypto_shash_spawn {
 	struct crypto_spawn base;
 };
-
-int crypto_hash_walk_done(struct crypto_hash_walk *walk, int err);
-int crypto_hash_walk_first(struct ahash_request *req,
-			   struct crypto_hash_walk *walk);
-
-static inline int crypto_hash_walk_last(struct crypto_hash_walk *walk)
-{
-	return !(walk->entrylen | walk->total);
-}
 
 int crypto_register_ahash(struct ahash_alg *alg);
 void crypto_unregister_ahash(struct ahash_alg *alg);
