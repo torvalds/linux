@@ -1957,23 +1957,20 @@ static void iwl_nic_error(struct iwl_op_mode *op_mode,
 {
 	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
 
+	if (type == IWL_ERR_TYPE_CMD_QUEUE_FULL && iwl_check_for_ct_kill(priv))
+		return;
+
 	IWL_ERR(priv, "Loaded firmware version: %s\n",
 		priv->fw->fw_version);
 
-	iwl_dump_nic_error_log(priv);
-	iwl_dump_nic_event_log(priv, false, NULL);
+	if (type == IWL_ERR_TYPE_CMD_QUEUE_FULL) {
+		IWL_ERR(priv, "Command queue full!\n");
+	} else {
+		iwl_dump_nic_error_log(priv);
+		iwl_dump_nic_event_log(priv, false, NULL);
+	}
 
 	iwlagn_fw_error(priv, false);
-}
-
-static void iwl_cmd_queue_full(struct iwl_op_mode *op_mode)
-{
-	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
-
-	if (!iwl_check_for_ct_kill(priv)) {
-		IWL_ERR(priv, "Restarting adapter queue is full\n");
-		iwlagn_fw_error(priv, false);
-	}
 }
 
 #define EEPROM_RF_CONFIG_TYPE_MAX      0x3
@@ -2128,7 +2125,6 @@ static const struct iwl_op_mode_ops iwl_dvm_ops = {
 	.hw_rf_kill = iwl_set_hw_rfkill_state,
 	.free_skb = iwl_free_skb,
 	.nic_error = iwl_nic_error,
-	.cmd_queue_full = iwl_cmd_queue_full,
 	.nic_config = iwl_nic_config,
 	.wimax_active = iwl_wimax_active,
 };

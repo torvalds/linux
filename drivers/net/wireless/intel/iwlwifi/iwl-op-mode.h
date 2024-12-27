@@ -51,11 +51,13 @@ struct iwl_cfg;
  * @IWL_ERR_TYPE_RESET_HS_TIMEOUT: reset handshake timed out,
  *	any debug collection must happen synchronously as
  *	the device will be shut down
+ * @IWL_ERR_TYPE_CMD_QUEUE_FULL: command queue was full
  */
 enum iwl_fw_error_type {
 	IWL_ERR_TYPE_IRQ,
 	IWL_ERR_TYPE_NMI_FORCED,
 	IWL_ERR_TYPE_RESET_HS_TIMEOUT,
+	IWL_ERR_TYPE_CMD_QUEUE_FULL,
 };
 
 /**
@@ -93,8 +95,6 @@ enum iwl_fw_error_type {
  *	Must be atomic
  * @nic_error: error notification. Must be atomic and must be called with BH
  *	disabled, unless the type is IWL_ERR_TYPE_RESET_HS_TIMEOUT
- * @cmd_queue_full: Called when the command queue gets full. Must be atomic and
- *	called with BH disabled.
  * @nic_config: configure NIC, called before firmware is started.
  *	May sleep
  * @wimax_active: invoked when WiMax becomes active. May sleep
@@ -120,7 +120,6 @@ struct iwl_op_mode_ops {
 	void (*free_skb)(struct iwl_op_mode *op_mode, struct sk_buff *skb);
 	void (*nic_error)(struct iwl_op_mode *op_mode,
 			  enum iwl_fw_error_type type);
-	void (*cmd_queue_full)(struct iwl_op_mode *op_mode);
 	void (*nic_config)(struct iwl_op_mode *op_mode);
 	void (*wimax_active)(struct iwl_op_mode *op_mode);
 	void (*time_point)(struct iwl_op_mode *op_mode,
@@ -196,11 +195,6 @@ static inline void iwl_op_mode_nic_error(struct iwl_op_mode *op_mode,
 					 enum iwl_fw_error_type type)
 {
 	op_mode->ops->nic_error(op_mode, type);
-}
-
-static inline void iwl_op_mode_cmd_queue_full(struct iwl_op_mode *op_mode)
-{
-	op_mode->ops->cmd_queue_full(op_mode);
 }
 
 static inline void iwl_op_mode_nic_config(struct iwl_op_mode *op_mode)

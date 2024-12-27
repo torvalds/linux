@@ -2118,9 +2118,11 @@ static void iwl_mvm_nic_error(struct iwl_op_mode *op_mode,
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 
-	if (!test_bit(STATUS_TRANS_DEAD, &mvm->trans->status) &&
-	    !test_and_clear_bit(IWL_MVM_STATUS_SUPPRESS_ERROR_LOG_ONCE,
-				&mvm->status))
+	if (type == IWL_ERR_TYPE_CMD_QUEUE_FULL)
+		IWL_ERR(mvm, "Command queue full!\n");
+	else if (!test_bit(STATUS_TRANS_DEAD, &mvm->trans->status) &&
+		 !test_and_clear_bit(IWL_MVM_STATUS_SUPPRESS_ERROR_LOG_ONCE,
+				     &mvm->status))
 		iwl_mvm_dump_nic_error_log(mvm);
 
 	/* reset HS timeout is during shutdown, so collect right now */
@@ -2137,14 +2139,6 @@ static void iwl_mvm_nic_error(struct iwl_op_mode *op_mode,
 	if (!test_bit(IWL_MVM_STATUS_FIRMWARE_RUNNING, &mvm->status))
 		return;
 
-	iwl_mvm_nic_restart(mvm);
-}
-
-static void iwl_mvm_cmd_queue_full(struct iwl_op_mode *op_mode)
-{
-	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
-
-	WARN_ON(1);
 	iwl_mvm_nic_restart(mvm);
 }
 
@@ -2181,7 +2175,6 @@ static void iwl_op_mode_mvm_device_powered_off(struct iwl_op_mode *op_mode)
 	.hw_rf_kill = iwl_mvm_set_hw_rfkill_state,		\
 	.free_skb = iwl_mvm_free_skb,				\
 	.nic_error = iwl_mvm_nic_error,				\
-	.cmd_queue_full = iwl_mvm_cmd_queue_full,		\
 	.nic_config = iwl_mvm_nic_config,			\
 	/* as we only register one, these MUST be common! */	\
 	.start = iwl_op_mode_mvm_start,				\
