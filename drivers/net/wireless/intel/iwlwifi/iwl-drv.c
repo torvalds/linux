@@ -1435,12 +1435,15 @@ _iwl_op_mode_start(struct iwl_drv *drv, struct iwlwifi_opmode_table *op)
 		if (test_bit(STATUS_TRANS_DEAD, &drv->trans->status))
 			break;
 
-		IWL_ERR(drv, "retry init count %d\n", retry);
-
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 		debugfs_remove_recursive(drv->dbgfs_op_mode);
 		drv->dbgfs_op_mode = NULL;
 #endif
+
+		if (PTR_ERR(op_mode) != -ETIMEDOUT)
+			break;
+
+		IWL_ERR(drv, "retry init count %d\n", retry);
 	}
 
 	return NULL;
