@@ -110,11 +110,18 @@ class dot2k(Dot2c):
         for event in self.events:
             buff.append("static void handle_%s(void *data, /* XXX: fill header */)" % event)
             buff.append("{")
+            handle = "handle_event"
+            if self.is_start_event(event):
+                buff.append("\t/* XXX: validate that this event always leads to the initial state */")
+                handle = "handle_start_event"
+            elif self.is_start_run_event(event):
+                buff.append("\t/* XXX: validate that this event is only valid in the initial state */")
+                handle = "handle_start_run_event"
             if self.monitor_type == "per_task":
                 buff.append("\tstruct task_struct *p = /* XXX: how do I get p? */;");
-                buff.append("\tda_handle_event_%s(p, %s%s);" % (self.name, event, self.enum_suffix));
+                buff.append("\tda_%s_%s(p, %s%s);" % (handle, self.name, event, self.enum_suffix));
             else:
-                buff.append("\tda_handle_event_%s(%s%s);" % (self.name, event, self.enum_suffix));
+                buff.append("\tda_%s_%s(%s%s);" % (handle, self.name, event, self.enum_suffix));
             buff.append("}")
             buff.append("")
         return self.__buff_to_string(buff)
