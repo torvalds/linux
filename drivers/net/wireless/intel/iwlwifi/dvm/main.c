@@ -1942,7 +1942,8 @@ static void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 	}
 }
 
-static void iwl_nic_error(struct iwl_op_mode *op_mode, bool sync)
+static void iwl_nic_error(struct iwl_op_mode *op_mode,
+			  enum iwl_fw_error_type type)
 {
 	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
 

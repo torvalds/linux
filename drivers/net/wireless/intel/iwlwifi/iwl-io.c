@@ -526,5 +526,5 @@ void iwl_trans_sync_nmi_with_addr(struct iwl_trans *trans, u32 inta_addr,
 	if (interrupts_enabled)
 		iwl_trans_interrupts(trans, true);
 
-	iwl_trans_fw_error(trans, false);
+	iwl_trans_fw_error(trans, IWL_ERR_TYPE_NMI_FORCED);
 }

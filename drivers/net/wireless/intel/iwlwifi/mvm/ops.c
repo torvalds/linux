@@ -2108,7 +2108,8 @@ void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
 	}
 }
 
-static void iwl_mvm_nic_error(struct iwl_op_mode *op_mode, bool sync)
+static void iwl_mvm_nic_error(struct iwl_op_mode *op_mode,
+			      enum iwl_fw_error_type type)
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 
@@ -2117,13 +2118,9 @@ static void iwl_mvm_nic_error(struct iwl_op_mode *op_mode, bool sync)
 				&mvm->status))
 		iwl_mvm_dump_nic_error_log(mvm);
 
-	if (sync) {
+	/* reset HS timeout is during shutdown, so collect right now */
+	if (type == IWL_ERR_TYPE_RESET_HS_TIMEOUT) {
 		iwl_fw_error_collect(&mvm->fwrt, true);
-		/*
-		 * Currently, the only case for sync=true is during
-		 * shutdown, so just stop in this case. If/when that
-		 * changes, we need to be a bit smarter here.
-		 */
 		return;
 	}
 

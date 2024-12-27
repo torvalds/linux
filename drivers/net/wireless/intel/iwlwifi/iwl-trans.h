@@ -1120,7 +1120,8 @@ bool _iwl_trans_grab_nic_access(struct iwl_trans *trans);
 void __releases(nic_access)
 iwl_trans_release_nic_access(struct iwl_trans *trans);
 
-static inline void iwl_trans_fw_error(struct iwl_trans *trans, bool sync)
+static inline void iwl_trans_fw_error(struct iwl_trans *trans,
+				      enum iwl_fw_error_type type)
 {
 	if (WARN_ON_ONCE(!trans->op_mode))
 		return;
@@ -1128,7 +1129,7 @@ static inline void iwl_trans_fw_error(struct iwl_trans *trans, bool sync)
 	/* prevent double restarts due to the same erroneous FW */
 	if (!test_and_set_bit(STATUS_FW_ERROR, &trans->status)) {
 		trans->state = IWL_TRANS_NO_FW;
-		iwl_op_mode_nic_error(trans->op_mode, sync);
+		iwl_op_mode_nic_error(trans->op_mode, type);
 	}
 }
 

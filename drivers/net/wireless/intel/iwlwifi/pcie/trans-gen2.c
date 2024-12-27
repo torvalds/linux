@@ -124,7 +124,7 @@ static void iwl_trans_pcie_fw_reset_handshake(struct iwl_trans *trans)
 			inta_hw);
 
 		if (!(inta_hw & MSIX_HW_INT_CAUSES_REG_RESET_DONE))
-			iwl_trans_fw_error(trans, true);
+			iwl_trans_fw_error(trans, IWL_ERR_TYPE_RESET_HS_TIMEOUT);
 	}
 
 	trans_pcie->fw_reset_state = FW_RESET_IDLE;
