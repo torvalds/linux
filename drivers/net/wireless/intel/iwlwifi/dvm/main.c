@@ -1905,16 +1905,8 @@ static void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 	unsigned int reload_msec;
 	unsigned long reload_jiffies;
 
-	if (iwl_have_debug_level(IWL_DL_FW))
-		iwl_print_rx_config_cmd(priv, IWL_RXON_CTX_BSS);
-
 	/* uCode is no longer loaded. */
 	priv->ucode_loaded = false;
-
-	/* Set the FW error flag -- cleared on iwl_down */
-	set_bit(STATUS_FW_ERROR, &priv->status);
-
-	iwl_abort_notification_waits(&priv->notif_wait);
 
 	/* Keep the restart process from trying to send host
 	 * commands by clearing the ready bit */
@@ -1957,6 +1949,11 @@ static void iwl_nic_error(struct iwl_op_mode *op_mode,
 {
 	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
 
+	/* Set the FW error flag -- cleared on iwl_down */
+	set_bit(STATUS_FW_ERROR, &priv->status);
+
+	iwl_abort_notification_waits(&priv->notif_wait);
+
 	if (type == IWL_ERR_TYPE_CMD_QUEUE_FULL && iwl_check_for_ct_kill(priv))
 		return;
 
@@ -1970,7 +1967,20 @@ static void iwl_nic_error(struct iwl_op_mode *op_mode,
 		iwl_dump_nic_event_log(priv, false, NULL);
 	}
 
+	if (iwl_have_debug_level(IWL_DL_FW))
+		iwl_print_rx_config_cmd(priv, IWL_RXON_CTX_BSS);
+}
+
+static bool iwlagn_sw_reset(struct iwl_op_mode *op_mode,
+			    enum iwl_fw_error_type type)
+{
+	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
+
+	if (type == IWL_ERR_TYPE_CMD_QUEUE_FULL && iwl_check_for_ct_kill(priv))
+		return false;
+
 	iwlagn_fw_error(priv, false);
+	return true;
 }
 
 #define EEPROM_RF_CONFIG_TYPE_MAX      0x3
@@ -2125,6 +2135,7 @@ static const struct iwl_op_mode_ops iwl_dvm_ops = {
 	.hw_rf_kill = iwl_set_hw_rfkill_state,
 	.free_skb = iwl_free_skb,
 	.nic_error = iwl_nic_error,
+	.sw_reset = iwlagn_sw_reset,
 	.nic_config = iwl_nic_config,
 	.wimax_active = iwl_wimax_active,
 };

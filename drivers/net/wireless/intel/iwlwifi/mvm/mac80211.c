@@ -1340,6 +1340,7 @@ static void iwl_mvm_restart_complete(struct iwl_mvm *mvm)
 	iwl_mvm_teardown_tdls_peers(mvm);
 
 	IWL_INFO(mvm, "restart completed\n");
+	iwl_trans_finish_sw_reset(mvm->trans);
 }
 
 void iwl_mvm_mac_reconfig_complete(struct ieee80211_hw *hw,

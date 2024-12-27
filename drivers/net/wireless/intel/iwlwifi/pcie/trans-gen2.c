@@ -123,8 +123,15 @@ static void iwl_trans_pcie_fw_reset_handshake(struct iwl_trans *trans)
 			"timeout waiting for FW reset ACK (inta_hw=0x%x)\n",
 			inta_hw);
 
-		if (!(inta_hw & MSIX_HW_INT_CAUSES_REG_RESET_DONE))
-			iwl_trans_fw_error(trans, IWL_ERR_TYPE_RESET_HS_TIMEOUT);
+		if (!(inta_hw & MSIX_HW_INT_CAUSES_REG_RESET_DONE)) {
+			struct iwl_fw_error_dump_mode mode = {
+				.type = IWL_ERR_TYPE_RESET_HS_TIMEOUT,
+				.context = IWL_ERR_CONTEXT_FROM_OPMODE,
+			};
+			iwl_op_mode_nic_error(trans->op_mode,
+					      IWL_ERR_TYPE_RESET_HS_TIMEOUT);
+			iwl_op_mode_dump_error(trans->op_mode, &mode);
+		}
 	}
 
 	trans_pcie->fw_reset_state = FW_RESET_IDLE;

@@ -300,6 +300,10 @@ enum iwl_d3_status {
  * @STATUS_TRANS_DEAD: trans is dead - avoid any read/write operation
  * @STATUS_SUPPRESS_CMD_ERROR_ONCE: suppress "FW error in SYNC CMD" once,
  *	e.g. for testing
+ * @STATUS_IN_SW_RESET: device is undergoing reset, cleared by opmode
+ *	via iwl_trans_finish_sw_reset()
+ * @STATUS_RESET_PENDING: reset worker was scheduled, but didn't dump
+ *	the firmware state yet
  */
 enum iwl_trans_status {
 	STATUS_SYNC_HCMD_ACTIVE,
@@ -311,6 +315,8 @@ enum iwl_trans_status {
 	STATUS_FW_ERROR,
 	STATUS_TRANS_DEAD,
 	STATUS_SUPPRESS_CMD_ERROR_ONCE,
+	STATUS_IN_SW_RESET,
+	STATUS_RESET_PENDING,
 };
 
 static inline int
@@ -322,7 +328,6 @@ iwl_trans_get_rb_size_order(enum iwl_amsdu_size rb_size)
 	case IWL_AMSDU_4K:
 		return get_order(4 * 1024);
 	case IWL_AMSDU_8K:
-		return get_order(8 * 1024);
 	case IWL_AMSDU_12K:
 		return get_order(16 * 1024);
 	default:
@@ -877,6 +882,10 @@ struct iwl_txq {
  * @reduced_cap_sku: reduced capability supported SKU
  * @no_160: device not supporting 160 MHz
  * @step_urm: STEP is in URM, no support for MCS>9 in 320 MHz
+ * @restart: restart worker data
+ * @restart.wk: restart worker
+ * @restart.mode: reset/restart error mode information
+ * @restart.during_reset: error occurred during previous software reset
  * @trans_specific: data for the specific transport this is allocated for/with
  * @dsbr_urm_fw_dependent: switch to URM based on fw settings
  * @dsbr_urm_permanent: switch to URM permanently
@@ -948,6 +957,12 @@ struct iwl_trans {
 	u8 pcie_link_speed;
 
 	struct iwl_dma_ptr invalid_tx_cmd;
+
+	struct {
+		struct work_struct wk;
+		struct iwl_fw_error_dump_mode mode;
+		bool during_reset;
+	} restart;
 
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */
@@ -1125,6 +1140,26 @@ bool _iwl_trans_grab_nic_access(struct iwl_trans *trans);
 void __releases(nic_access)
 iwl_trans_release_nic_access(struct iwl_trans *trans);
 
+static inline void iwl_trans_schedule_reset(struct iwl_trans *trans,
+					    enum iwl_fw_error_type type)
+{
+	if (test_bit(STATUS_TRANS_DEAD, &trans->status))
+		return;
+
+	trans->restart.mode.type = type;
+	trans->restart.mode.context = IWL_ERR_CONTEXT_WORKER;
+
+	set_bit(STATUS_RESET_PENDING, &trans->status);
+
+	/*
+	 * keep track of whether or not this happened while resetting,
+	 * by the timer the worker runs it might have finished
+	 */
+	trans->restart.during_reset = test_bit(STATUS_IN_SW_RESET,
+					       &trans->status);
+	queue_work(system_unbound_wq, &trans->restart.wk);
+}
+
 static inline void iwl_trans_fw_error(struct iwl_trans *trans,
 				      enum iwl_fw_error_type type)
 {
@@ -1135,7 +1170,21 @@ static inline void iwl_trans_fw_error(struct iwl_trans *trans,
 	if (!test_and_set_bit(STATUS_FW_ERROR, &trans->status)) {
 		trans->state = IWL_TRANS_NO_FW;
 		iwl_op_mode_nic_error(trans->op_mode, type);
+		iwl_trans_schedule_reset(trans, type);
 	}
+}
+
+static inline void iwl_trans_opmode_sw_reset(struct iwl_trans *trans,
+					     enum iwl_fw_error_type type)
+{
+	if (WARN_ON_ONCE(!trans->op_mode))
+		return;
+
+	set_bit(STATUS_IN_SW_RESET, &trans->status);
+
+	if (!trans->op_mode->ops->sw_reset ||
+	    !trans->op_mode->ops->sw_reset(trans->op_mode, type))
+		clear_bit(STATUS_IN_SW_RESET, &trans->status);
 }
 
 static inline bool iwl_trans_fw_running(struct iwl_trans *trans)
@@ -1169,6 +1218,11 @@ static inline bool iwl_trans_dbg_ini_valid(struct iwl_trans *trans)
 }
 
 void iwl_trans_interrupts(struct iwl_trans *trans, bool enable);
+
+static inline void iwl_trans_finish_sw_reset(struct iwl_trans *trans)
+{
+	clear_bit(STATUS_IN_SW_RESET, &trans->status);
+}
 
 /*****************************************************
  * transport helper functions

@@ -16,13 +16,87 @@
 #include "pcie/internal.h"
 #include "iwl-context-info-gen3.h"
 
+struct iwl_trans_reprobe {
+	struct device *dev;
+	struct work_struct work;
+};
+
+static void iwl_trans_reprobe_wk(struct work_struct *wk)
+{
+	struct iwl_trans_reprobe *reprobe;
+
+	reprobe = container_of(wk, typeof(*reprobe), work);
+
+	if (device_reprobe(reprobe->dev))
+		dev_err(reprobe->dev, "reprobe failed!\n");
+	put_device(reprobe->dev);
+	kfree(reprobe);
+	module_put(THIS_MODULE);
+}
+
+static void iwl_trans_restart_wk(struct work_struct *wk)
+{
+	struct iwl_trans *trans = container_of(wk, typeof(*trans), restart.wk);
+	struct iwl_trans_reprobe *reprobe;
+
+	if (!trans->op_mode)
+		return;
+
+	/* might have been scheduled before marked as dead, re-check */
+	if (test_bit(STATUS_TRANS_DEAD, &trans->status))
+		return;
+
+	iwl_op_mode_dump_error(trans->op_mode, &trans->restart.mode);
+
+	/*
+	 * If the opmode stopped the device while we were trying to dump and
+	 * reset, then we'll have done the dump already (synchronized by the
+	 * opmode lock that it will acquire in iwl_op_mode_dump_error()) and
+	 * managed that via trans->restart.mode.
+	 * Additionally, make sure that in such a case we won't attempt to do
+	 * any resets now, since it's no longer requested.
+	 */
+	if (!test_and_clear_bit(STATUS_RESET_PENDING, &trans->status))
+		return;
+
+	if (!iwlwifi_mod_params.fw_restart)
+		return;
+
+	if (!trans->restart.during_reset) {
+		iwl_trans_opmode_sw_reset(trans, trans->restart.mode.type);
+		return;
+	}
+
+	IWL_ERR(trans,
+		"Device error during reconfiguration - reprobe!\n");
+
+	/*
+	 * get a module reference to avoid doing this while unloading
+	 * anyway and to avoid scheduling a work with code that's
+	 * being removed.
+	 */
+	if (!try_module_get(THIS_MODULE)) {
+		IWL_ERR(trans, "Module is being unloaded - abort\n");
+		return;
+	}
+
+	reprobe = kzalloc(sizeof(*reprobe), GFP_KERNEL);
+	if (!reprobe) {
+		module_put(THIS_MODULE);
+		return;
+	}
+	reprobe->dev = get_device(trans->dev);
+	INIT_WORK(&reprobe->work, iwl_trans_reprobe_wk);
+	schedule_work(&reprobe->work);
+}
+
 struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 				  struct device *dev,
 				  const struct iwl_cfg_trans_params *cfg_trans)
 {
 	struct iwl_trans *trans;
 #ifdef CONFIG_LOCKDEP
-	static struct lock_class_key __key;
+	static struct lock_class_key __sync_cmd_key;
 #endif
 
 	trans = devm_kzalloc(dev, sizeof(*trans) + priv_size, GFP_KERNEL);
@@ -33,11 +107,13 @@ struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 
 #ifdef CONFIG_LOCKDEP
 	lockdep_init_map(&trans->sync_cmd_lockdep_map, "sync_cmd_lockdep_map",
-			 &__key, 0);
+			 &__sync_cmd_key, 0);
 #endif
 
 	trans->dev = dev;
 	trans->num_rx_queues = 1;
+
+	INIT_WORK(&trans->restart.wk, iwl_trans_restart_wk);
 
 	return trans;
 }
@@ -81,6 +157,7 @@ int iwl_trans_init(struct iwl_trans *trans)
 
 void iwl_trans_free(struct iwl_trans *trans)
 {
+	cancel_work_sync(&trans->restart.wk);
 	kmem_cache_destroy(trans->dev_cmd_pool);
 }
 
@@ -390,6 +467,34 @@ IWL_EXPORT_SYMBOL(iwl_trans_start_fw);
 void iwl_trans_stop_device(struct iwl_trans *trans)
 {
 	might_sleep();
+
+	/*
+	 * See also the comment in iwl_trans_restart_wk().
+	 *
+	 * When the opmode stops the device while a reset is pending, the
+	 * worker (iwl_trans_restart_wk) might not have run yet or, more
+	 * likely, will be blocked on the opmode lock. Due to the locking,
+	 * we can't just flush the worker.
+	 *
+	 * If this is the case, then the test_and_clear_bit() ensures that
+	 * the worker won't attempt to do anything after the stop.
+	 *
+	 * The trans->restart.mode is a handshake with the opmode, we set
+	 * the context there to ABORT so that when the worker can finally
+	 * acquire the lock in the opmode, the code there won't attempt to
+	 * do any dumps. Since we'd really like to have the dump though,
+	 * also do it inline here (with the opmode locks already held),
+	 * but use a separate mode struct to avoid races.
+	 */
+	if (test_and_clear_bit(STATUS_RESET_PENDING, &trans->status)) {
+		struct iwl_fw_error_dump_mode mode;
+
+		mode = trans->restart.mode;
+		mode.context = IWL_ERR_CONTEXT_FROM_OPMODE;
+		trans->restart.mode.context = IWL_ERR_CONTEXT_ABORT;
+
+		iwl_op_mode_dump_error(trans->op_mode, &mode);
+	}
 
 	if (trans->trans_cfg->gen2)
 		iwl_trans_pcie_gen2_stop_device(trans);

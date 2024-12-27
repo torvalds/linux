@@ -2008,27 +2008,62 @@ static void iwl_mvm_free_skb(struct iwl_op_mode *op_mode, struct sk_buff *skb)
 	ieee80211_free_txskb(mvm->hw, skb);
 }
 
-struct iwl_mvm_reprobe {
-	struct device *dev;
-	struct work_struct work;
-};
-
-static void iwl_mvm_reprobe_wk(struct work_struct *wk)
+static void iwl_mvm_nic_error(struct iwl_op_mode *op_mode,
+			      enum iwl_fw_error_type type)
 {
-	struct iwl_mvm_reprobe *reprobe;
+	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 
-	reprobe = container_of(wk, struct iwl_mvm_reprobe, work);
-	if (device_reprobe(reprobe->dev))
-		dev_err(reprobe->dev, "reprobe failed!\n");
-	put_device(reprobe->dev);
-	kfree(reprobe);
-	module_put(THIS_MODULE);
-}
-
-static void iwl_mvm_nic_restart(struct iwl_mvm *mvm)
-{
 	iwl_abort_notification_waits(&mvm->notif_wait);
 	iwl_dbg_tlv_del_timers(mvm->trans);
+
+	if (type == IWL_ERR_TYPE_CMD_QUEUE_FULL)
+		IWL_ERR(mvm, "Command queue full!\n");
+	else if (!test_bit(STATUS_TRANS_DEAD, &mvm->trans->status) &&
+		 !test_and_clear_bit(IWL_MVM_STATUS_SUPPRESS_ERROR_LOG_ONCE,
+				     &mvm->status))
+		iwl_mvm_dump_nic_error_log(mvm);
+
+	/*
+	 * This should be first thing before trying to collect any
+	 * data to avoid endless loops if any HW error happens while
+	 * collecting debug data.
+	 * It might not actually be true that we'll restart, but the
+	 * setting of the bit doesn't matter if we're going to be
+	 * unbound either.
+	 */
+	if (type != IWL_ERR_TYPE_RESET_HS_TIMEOUT)
+		set_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED, &mvm->status);
+}
+
+static void iwl_mvm_dump_error(struct iwl_op_mode *op_mode,
+			       struct iwl_fw_error_dump_mode *mode)
+{
+	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
+
+	/* if we come in from opmode we have the mutex held */
+	if (mode->context == IWL_ERR_CONTEXT_FROM_OPMODE) {
+		lockdep_assert_held(&mvm->mutex);
+		iwl_fw_error_collect(&mvm->fwrt, true);
+	} else {
+		mutex_lock(&mvm->mutex);
+		if (mode->context != IWL_ERR_CONTEXT_ABORT)
+			iwl_fw_error_collect(&mvm->fwrt, true);
+		mutex_unlock(&mvm->mutex);
+	}
+}
+
+static bool iwl_mvm_sw_reset(struct iwl_op_mode *op_mode,
+			     enum iwl_fw_error_type type)
+{
+	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
+
+	/*
+	 * If the firmware crashes while we're already considering it
+	 * to be dead then don't ask for a restart, that cannot do
+	 * anything useful anyway.
+	 */
+	if (!test_bit(IWL_MVM_STATUS_FIRMWARE_RUNNING, &mvm->status))
+		return false;
 
 	/*
 	 * This is a bit racy, but worst case we tell mac80211 about
@@ -2043,47 +2078,11 @@ static void iwl_mvm_nic_restart(struct iwl_mvm *mvm)
 	iwl_mvm_report_scan_aborted(mvm);
 
 	/*
-	 * If we're restarting already, don't cycle restarts.
 	 * If INIT fw asserted, it will likely fail again.
 	 * If WoWLAN fw asserted, don't restart either, mac80211
 	 * can't recover this since we're already half suspended.
 	 */
-	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
-		struct iwl_mvm_reprobe *reprobe;
-
-		IWL_ERR(mvm,
-			"Firmware error during reconfiguration - reprobe!\n");
-
-		/*
-		 * get a module reference to avoid doing this while unloading
-		 * anyway and to avoid scheduling a work with code that's
-		 * being removed.
-		 */
-		if (!try_module_get(THIS_MODULE)) {
-			IWL_ERR(mvm, "Module is being unloaded - abort\n");
-			return;
-		}
-
-		reprobe = kzalloc(sizeof(*reprobe), GFP_ATOMIC);
-		if (!reprobe) {
-			module_put(THIS_MODULE);
-			return;
-		}
-		reprobe->dev = get_device(mvm->trans->dev);
-		INIT_WORK(&reprobe->work, iwl_mvm_reprobe_wk);
-		schedule_work(&reprobe->work);
-	} else if (test_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED,
-			    &mvm->status)) {
-		IWL_ERR(mvm, "HW restart already requested, but not started\n");
-	} else if (mvm->fwrt.cur_fw_img == IWL_UCODE_REGULAR &&
-		   mvm->hw_registered &&
-		   !test_bit(STATUS_TRANS_DEAD, &mvm->trans->status)) {
-		/* This should be first thing before trying to collect any
-		 * data to avoid endless loops if any HW error happens while
-		 * collecting debug data.
-		 */
-		set_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED, &mvm->status);
-
+	if (mvm->fwrt.cur_fw_img == IWL_UCODE_REGULAR && mvm->hw_registered) {
 		if (mvm->fw->ucode_capa.error_log_size) {
 			u32 src_size = mvm->fw->ucode_capa.error_log_size;
 			u32 src_addr = mvm->fw->ucode_capa.error_log_addr;
@@ -2098,48 +2097,18 @@ static void iwl_mvm_nic_restart(struct iwl_mvm *mvm)
 			}
 		}
 
-		iwl_fw_error_collect(&mvm->fwrt, false);
-
-		if (!iwlwifi_mod_params.fw_restart)
-			return;
-
 		if (mvm->fwrt.trans->dbg.restart_required) {
 			IWL_DEBUG_INFO(mvm, "FW restart requested after debug collection\n");
 			mvm->fwrt.trans->dbg.restart_required = false;
 			ieee80211_restart_hw(mvm->hw);
+			return true;
 		} else if (mvm->trans->trans_cfg->device_family <= IWL_DEVICE_FAMILY_8000) {
 			ieee80211_restart_hw(mvm->hw);
+			return true;
 		}
 	}
-}
 
-static void iwl_mvm_nic_error(struct iwl_op_mode *op_mode,
-			      enum iwl_fw_error_type type)
-{
-	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
-
-	if (type == IWL_ERR_TYPE_CMD_QUEUE_FULL)
-		IWL_ERR(mvm, "Command queue full!\n");
-	else if (!test_bit(STATUS_TRANS_DEAD, &mvm->trans->status) &&
-		 !test_and_clear_bit(IWL_MVM_STATUS_SUPPRESS_ERROR_LOG_ONCE,
-				     &mvm->status))
-		iwl_mvm_dump_nic_error_log(mvm);
-
-	/* reset HS timeout is during shutdown, so collect right now */
-	if (type == IWL_ERR_TYPE_RESET_HS_TIMEOUT) {
-		iwl_fw_error_collect(&mvm->fwrt, true);
-		return;
-	}
-
-	/*
-	 * If the firmware crashes while we're already considering it
-	 * to be dead then don't ask for a restart, that cannot do
-	 * anything useful anyway.
-	 */
-	if (!test_bit(IWL_MVM_STATUS_FIRMWARE_RUNNING, &mvm->status))
-		return;
-
-	iwl_mvm_nic_restart(mvm);
+	return false;
 }
 
 static void iwl_op_mode_mvm_time_point(struct iwl_op_mode *op_mode,
@@ -2175,6 +2144,8 @@ static void iwl_op_mode_mvm_device_powered_off(struct iwl_op_mode *op_mode)
 	.hw_rf_kill = iwl_mvm_set_hw_rfkill_state,		\
 	.free_skb = iwl_mvm_free_skb,				\
 	.nic_error = iwl_mvm_nic_error,				\
+	.dump_error = iwl_mvm_dump_error,			\
+	.sw_reset = iwl_mvm_sw_reset,				\
 	.nic_config = iwl_mvm_nic_config,			\
 	/* as we only register one, these MUST be common! */	\
 	.start = iwl_op_mode_mvm_start,				\
