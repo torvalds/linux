@@ -14,14 +14,14 @@ import os
 
 class dot2k(Dot2c):
     monitor_types = { "global" : 1, "per_cpu" : 2, "per_task" : 3 }
-    monitor_templates_dir = "dot2k/rv_templates/"
+    monitor_templates_dir = "dot2/dot2k_templates/"
     monitor_type = "per_cpu"
 
     def __init__(self, file_path, MonitorType):
         super().__init__(file_path)
 
         self.monitor_type = self.monitor_types.get(MonitorType)
-        if self.monitor_type == None:
+        if self.monitor_type is None:
             raise Exception("Unknown monitor type: %s" % MonitorType)
 
         self.monitor_type = MonitorType
@@ -31,7 +31,7 @@ class dot2k(Dot2c):
 
     def __fill_rv_templates_dir(self):
 
-        if os.path.exists(self.monitor_templates_dir) == True:
+        if os.path.exists(self.monitor_templates_dir):
             return
 
         if platform.system() != "Linux":
@@ -39,11 +39,11 @@ class dot2k(Dot2c):
 
         kernel_path = "/lib/modules/%s/build/tools/verification/dot2/dot2k_templates/" % (platform.release())
 
-        if os.path.exists(kernel_path) == True:
+        if os.path.exists(kernel_path):
             self.monitor_templates_dir = kernel_path
             return
 
-        if os.path.exists("/usr/share/dot2/dot2k_templates/") == True:
+        if os.path.exists("/usr/share/dot2/dot2k_templates/"):
             self.monitor_templates_dir = "/usr/share/dot2/dot2k_templates/"
             return
 
@@ -98,7 +98,7 @@ class dot2k(Dot2c):
     def fill_main_c(self):
         main_c = self.main_c
         min_type = self.get_minimun_type()
-        nr_events = self.events.__len__()
+        nr_events = len(self.events)
         tracepoint_handlers = self.fill_tracepoint_handlers_skel()
         tracepoint_attach = self.fill_tracepoint_attach_probe()
         tracepoint_detach = self.fill_tracepoint_detach_helper()
@@ -160,8 +160,8 @@ class dot2k(Dot2c):
 
     def __get_main_name(self):
         path = "%s/%s" % (self.name, "main.c")
-        if os.path.exists(path) == False:
-           return "main.c"
+        if not os.path.exists(path):
+            return "main.c"
         return "__main.c"
 
     def print_files(self):
