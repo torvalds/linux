@@ -57,15 +57,8 @@ DECLARE_EVENT_CLASS(error_da_monitor,
 		__entry->state)
 );
 
-#ifdef CONFIG_RV_MON_WIP
-DEFINE_EVENT(event_da_monitor, event_wip,
-	    TP_PROTO(char *state, char *event, char *next_state, bool final_state),
-	    TP_ARGS(state, event, next_state, final_state));
+#include <monitors/wip/wip_trace.h>
 
-DEFINE_EVENT(error_da_monitor, error_wip,
-	     TP_PROTO(char *state, char *event),
-	     TP_ARGS(state, event));
-#endif /* CONFIG_RV_MON_WIP */
 #endif /* CONFIG_DA_MON_EVENTS_IMPLICIT */
 
 #ifdef CONFIG_DA_MON_EVENTS_ID
@@ -123,20 +116,13 @@ DECLARE_EVENT_CLASS(error_da_monitor_id,
 		__entry->state)
 );
 
-#ifdef CONFIG_RV_MON_WWNR
-/* id is the pid of the task */
-DEFINE_EVENT(event_da_monitor_id, event_wwnr,
-	     TP_PROTO(int id, char *state, char *event, char *next_state, bool final_state),
-	     TP_ARGS(id, state, event, next_state, final_state));
-
-DEFINE_EVENT(error_da_monitor_id, error_wwnr,
-	     TP_PROTO(int id, char *state, char *event),
-	     TP_ARGS(id, state, event));
-#endif /* CONFIG_RV_MON_WWNR */
+#include <monitors/wwnr/wwnr_trace.h>
 
 #endif /* CONFIG_DA_MON_EVENTS_ID */
 #endif /* _TRACE_RV_H */
 
 /* This part ust be outside protection */
 #undef TRACE_INCLUDE_PATH
+#define TRACE_INCLUDE_PATH .
+#define TRACE_INCLUDE_FILE rv_trace
 #include <trace/define_trace.h>
