@@ -427,19 +427,6 @@ void intel_huc_fini(struct intel_huc *huc)
 		intel_uc_fw_fini(&huc->fw);
 }
 
-void intel_huc_suspend(struct intel_huc *huc)
-{
-	if (!intel_uc_fw_is_loadable(&huc->fw))
-		return;
-
-	/*
-	 * in the unlikely case that we're suspending before the GSC has
-	 * completed its loading sequence, just stop waiting. We'll restart
-	 * on resume.
-	 */
-	delayed_huc_load_complete(huc);
-}
-
 static const char *auth_mode_string(struct intel_huc *huc,
 				    enum intel_huc_authentication_type type)
 {
