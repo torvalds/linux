@@ -1485,11 +1485,12 @@ int iwl_mvm_set_tx_power(struct iwl_mvm *mvm,
 			 s16 tx_power)
 {
 	u32 cmd_id = REDUCE_TX_POWER_CMD;
-	u32 mac_id = iwl_mvm_vif_from_mac80211(link_conf->vif)->id;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(link_conf->vif);
+	u32 mac_id = mvmvif->id;
 	int len;
 	struct iwl_dev_tx_power_cmd_v3_v8 cmd = {
-		.common.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_MAC),
-		.common.mac_context_id = cpu_to_le32(mac_id),
+		.common.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_LINK),
+		.common.link_id = cpu_to_le32(mac_id),
 	};
 	struct iwl_dev_tx_power_cmd cmd_v9_v10;
 	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id, 3);
@@ -1500,9 +1501,16 @@ int iwl_mvm_set_tx_power(struct iwl_mvm *mvm,
 	cmd.common.pwr_restriction = cpu_to_le16(u_tx_power);
 
 	if (cmd_ver > 8) {
+		u32 link_id;
+
+		if (WARN_ON(!mvmvif->link[link_conf->link_id]))
+			return -ENODEV;
+
+		link_id = mvmvif->link[link_conf->link_id]->fw_link_id;
+
 		/* Those fields sit on the same place for v9 and v10 */
-		cmd_v9_v10.common.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_MAC);
-		cmd_v9_v10.common.mac_context_id = cpu_to_le32(mac_id);
+		cmd_v9_v10.common.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_LINK);
+		cmd_v9_v10.common.link_id = cpu_to_le32(link_id);
 		cmd_v9_v10.common.pwr_restriction = cpu_to_le16(u_tx_power);
 		cmd_data = &cmd_v9_v10;
 	}
