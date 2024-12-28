@@ -3180,6 +3180,10 @@ static bool test_and_clear_cpu_idle(int cpu)
 		 * scx_pick_idle_cpu() can get caught in an infinite loop as
 		 * @cpu is never cleared from idle_masks.smt. Ensure that @cpu
 		 * is eventually cleared.
+		 *
+		 * NOTE: Use cpumask_intersects() and cpumask_test_cpu() to
+		 * reduce memory writes, which may help alleviate cache
+		 * coherence pressure.
 		 */
 		if (cpumask_intersects(smt, idle_masks.smt))
 			cpumask_andnot(idle_masks.smt, idle_masks.smt, smt);
@@ -3407,6 +3411,8 @@ static void update_selcpu_topology(void)
  *
  * 4. Pick a CPU within the same NUMA node, if enabled:
  *   - choose a CPU from the same NUMA node to reduce memory access latency.
+ *
+ * 5. Pick any idle CPU usable by the task.
  *
  * Step 3 and 4 are performed only if the system has, respectively, multiple
  * LLC domains / multiple NUMA nodes (see scx_selcpu_topo_llc and
