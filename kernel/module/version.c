@@ -13,7 +13,7 @@
 int check_version(const struct load_info *info,
 		  const char *symname,
 			 struct module *mod,
-			 const s32 *crc)
+			 const u32 *crc)
 {
 	Elf_Shdr *sechdrs = info->sechdrs;
 	unsigned int versindex = info->index.vers;

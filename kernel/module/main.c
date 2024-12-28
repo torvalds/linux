@@ -86,7 +86,7 @@ struct mod_tree_root mod_tree __cacheline_aligned = {
 
 struct symsearch {
 	const struct kernel_symbol *start, *stop;
-	const s32 *crcs;
+	const u32 *crcs;
 	enum mod_license license;
 };
 

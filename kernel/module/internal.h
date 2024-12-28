@@ -55,8 +55,8 @@ extern const struct kernel_symbol __start___ksymtab[];
 extern const struct kernel_symbol __stop___ksymtab[];
 extern const struct kernel_symbol __start___ksymtab_gpl[];
 extern const struct kernel_symbol __stop___ksymtab_gpl[];
-extern const s32 __start___kcrctab[];
-extern const s32 __start___kcrctab_gpl[];
+extern const u32 __start___kcrctab[];
+extern const u32 __start___kcrctab_gpl[];
 
 struct load_info {
 	const char *name;
@@ -102,7 +102,7 @@ struct find_symbol_arg {
 
 	/* Output */
 	struct module *owner;
-	const s32 *crc;
+	const u32 *crc;
 	const struct kernel_symbol *sym;
 	enum mod_license license;
 };
@@ -384,7 +384,7 @@ static inline void init_param_lock(struct module *mod) { }
 
 #ifdef CONFIG_MODVERSIONS
 int check_version(const struct load_info *info,
-		  const char *symname, struct module *mod, const s32 *crc);
+		  const char *symname, struct module *mod, const u32 *crc);
 void module_layout(struct module *mod, struct modversion_info *ver, struct kernel_param *kp,
 		   struct kernel_symbol *ks, struct tracepoint * const *tp);
 int check_modstruct_version(const struct load_info *info, struct module *mod);
@@ -393,7 +393,7 @@ int same_magic(const char *amagic, const char *bmagic, bool has_crcs);
 static inline int check_version(const struct load_info *info,
 				const char *symname,
 				struct module *mod,
-				const s32 *crc)
+				const u32 *crc)
 {
 	return 1;
 }
