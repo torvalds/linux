@@ -538,36 +538,6 @@ static ssize_t iwl_dbgfs_disable_power_off_write(struct iwl_mvm *mvm, char *buf,
 	return ret ?: count;
 }
 
-static ssize_t iwl_dbgfs_fw_ver_read(struct file *file, char __user *user_buf,
-				     size_t count, loff_t *ppos)
-{
-	struct iwl_mvm *mvm = file->private_data;
-	char *buff, *pos, *endpos;
-	static const size_t bufsz = 1024;
-	int ret;
-
-	buff = kmalloc(bufsz, GFP_KERNEL);
-	if (!buff)
-		return -ENOMEM;
-
-	pos = buff;
-	endpos = pos + bufsz;
-
-	pos += scnprintf(pos, endpos - pos, "FW id: %s\n",
-			 mvm->fwrt.fw->fw_version);
-	pos += scnprintf(pos, endpos - pos, "FW: %s\n",
-			 mvm->fwrt.fw->human_readable);
-	pos += scnprintf(pos, endpos - pos, "Device: %s\n",
-			 mvm->fwrt.trans->name);
-	pos += scnprintf(pos, endpos - pos, "Bus: %s\n",
-			 mvm->fwrt.dev->bus->name);
-
-	ret = simple_read_from_buffer(user_buf, count, ppos, buff, pos - buff);
-	kfree(buff);
-
-	return ret;
-}
-
 static ssize_t iwl_dbgfs_tas_get_status_read(struct file *file,
 					     char __user *user_buf,
 					     size_t count, loff_t *ppos)
@@ -1969,7 +1939,6 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(disable_power_off, 64);
 MVM_DEBUGFS_READ_FILE_OPS(fw_rx_stats);
 MVM_DEBUGFS_READ_FILE_OPS(drv_rx_stats);
 MVM_DEBUGFS_READ_FILE_OPS(fw_system_stats);
-MVM_DEBUGFS_READ_FILE_OPS(fw_ver);
 MVM_DEBUGFS_READ_FILE_OPS(phy_integration_ver);
 MVM_DEBUGFS_READ_FILE_OPS(tas_get_status);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_restart, 10);
@@ -2169,7 +2138,6 @@ void iwl_mvm_dbgfs_register(struct iwl_mvm *mvm)
 	MVM_DEBUGFS_ADD_FILE(force_ctkill, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(stations, mvm->debugfs_dir, 0400);
 	MVM_DEBUGFS_ADD_FILE(disable_power_off, mvm->debugfs_dir, 0600);
-	MVM_DEBUGFS_ADD_FILE(fw_ver, mvm->debugfs_dir, 0400);
 	MVM_DEBUGFS_ADD_FILE(fw_rx_stats, mvm->debugfs_dir, 0400);
 	MVM_DEBUGFS_ADD_FILE(drv_rx_stats, mvm->debugfs_dir, 0400);
 	MVM_DEBUGFS_ADD_FILE(fw_system_stats, mvm->debugfs_dir, 0400);
