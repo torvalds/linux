@@ -5,6 +5,8 @@
 #ifndef __iwl_utils_h__
 #define __iwl_utils_h__
 
+#include <net/cfg80211.h>
+
 #ifdef CONFIG_INET
 /**
  * iwl_tx_tso_segment - Segments a TSO packet into subframes for A-MSDU.
@@ -32,5 +34,23 @@ int iwl_tx_tso_segment(struct sk_buff *skb, unsigned int num_subframes,
 	return -1;
 }
 #endif /* CONFIG_INET */
+
+static inline
+u32 iwl_find_ie_offset(u8 *beacon, u8 eid, u32 frame_size)
+{
+	struct ieee80211_mgmt *mgmt = (void *)beacon;
+	const u8 *ie;
+
+	if (WARN_ON_ONCE(frame_size <= (mgmt->u.beacon.variable - beacon)))
+		return 0;
+
+	frame_size -= mgmt->u.beacon.variable - beacon;
+
+	ie = cfg80211_find_ie(eid, mgmt->u.beacon.variable, frame_size);
+	if (!ie)
+		return 0;
+
+	return ie - beacon;
+}
 
 #endif /* __iwl_utils_h__ */

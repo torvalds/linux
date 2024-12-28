@@ -16,6 +16,7 @@
 #include "debugfs.h"
 #include "iwl-modparams.h"
 #include "iwl-drv.h"
+#include "iwl-utils.h"
 #include "fw/error-dump.h"
 #include "fw/api/phy-ctxt.h"
 
@@ -1413,9 +1414,9 @@ static int _iwl_dbgfs_inject_beacon_ie(struct iwl_mvm *mvm, char *bin, int len)
 
 		if (iwl_fw_lookup_cmd_ver(mvm->fw,
 					  BEACON_TEMPLATE_CMD, 0) >= 14) {
-			u32 offset = iwl_mvm_find_ie_offset(beacon->data,
-							    WLAN_EID_S1G_TWT,
-							    beacon->len);
+			u32 offset = iwl_find_ie_offset(beacon->data,
+							WLAN_EID_S1G_TWT,
+							beacon->len);
 
 			beacon_cmd.btwt_offset = cpu_to_le32(offset);
 		}
