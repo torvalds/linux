@@ -2224,7 +2224,7 @@ static int gsm_dlci_negotiate(struct gsm_dlci *dlci)
  *
  *	Some control dlci can stay in ADM mode with other dlci working just
  *	fine. In that case we can just keep the control dlci open after the
- *	DLCI_OPENING retries time out.
+ *	DLCI_OPENING receives DM.
  */
 
 static void gsm_dlci_t1(struct timer_list *t)
@@ -2243,7 +2243,12 @@ static void gsm_dlci_t1(struct timer_list *t)
 		}
 		break;
 	case DLCI_OPENING:
-		if (dlci->retries) {
+		if (!dlci->addr && gsm->control == (DM | PF)) {
+			if (debug & DBG_ERRORS)
+				pr_info("DLCI 0 opening in ADM mode.\n");
+			dlci->mode = DLCI_MODE_ADM;
+			gsm_dlci_open(dlci);
+		} else if (dlci->retries) {
 			if (!dlci->addr || !gsm->dlci[0] ||
 			    gsm->dlci[0]->state != DLCI_OPENING) {
 				dlci->retries--;
@@ -2251,11 +2256,6 @@ static void gsm_dlci_t1(struct timer_list *t)
 			}
 
 			mod_timer(&dlci->t1, jiffies + gsm->t1 * HZ / 100);
-		} else if (!dlci->addr && gsm->control == (DM | PF)) {
-			if (debug & DBG_ERRORS)
-				pr_info("DLCI 0 opening in ADM mode.\n");
-			dlci->mode = DLCI_MODE_ADM;
-			gsm_dlci_open(dlci);
 		} else {
 			gsm->open_error++;
 			gsm_dlci_begin_close(dlci); /* prevent half open link */
