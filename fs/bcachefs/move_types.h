@@ -5,9 +5,20 @@
 #include "bbpos_types.h"
 
 struct bch_move_stats {
-	enum bch_data_type	data_type;
-	struct bbpos		pos;
 	char			name[32];
+	bool			phys;
+	bool			done;
+
+	union {
+	struct {
+		enum bch_data_type	data_type;
+		struct bbpos		pos;
+	};
+	struct {
+		unsigned		dev;
+		u64			offset;
+	};
+	};
 
 	atomic64_t		keys_moved;
 	atomic64_t		keys_raced;

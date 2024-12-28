@@ -313,7 +313,7 @@ static int bch2_data_thread(void *arg)
 	struct bch_data_ctx *ctx = container_of(arg, struct bch_data_ctx, thr);
 
 	ctx->thr.ret = bch2_data_job(ctx->c, &ctx->stats, ctx->arg);
-	ctx->stats.data_type = U8_MAX;
+	ctx->stats.done = true;
 	return 0;
 }
 
@@ -333,7 +333,7 @@ static ssize_t bch2_data_job_read(struct file *file, char __user *buf,
 	struct bch_fs *c = ctx->c;
 	struct bch_ioctl_data_event e = {
 		.type			= BCH_DATA_EVENT_PROGRESS,
-		.p.data_type		= ctx->stats.data_type,
+		.p.data_type		= ctx->stats.done ? U8_MAX : ctx->stats.data_type,
 		.p.btree_id		= ctx->stats.pos.btree,
 		.p.pos			= ctx->stats.pos.pos,
 		.p.sectors_done		= atomic64_read(&ctx->stats.sectors_seen),

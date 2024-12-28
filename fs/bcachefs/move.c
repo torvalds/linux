@@ -655,21 +655,21 @@ int bch2_move_data(struct bch_fs *c,
 		   bool wait_on_copygc,
 		   move_pred_fn pred, void *arg)
 {
-
 	struct moving_context ctxt;
-	int ret;
 
 	bch2_moving_ctxt_init(&ctxt, c, rate, stats, wp, wait_on_copygc);
-	ret = __bch2_move_data(&ctxt, start, end, pred, arg);
+	int ret = __bch2_move_data(&ctxt, start, end, pred, arg);
 	bch2_moving_ctxt_exit(&ctxt);
 
 	return ret;
 }
 
-int bch2_evacuate_bucket(struct moving_context *ctxt,
-			   struct move_bucket_in_flight *bucket_in_flight,
-			   struct bpos bucket, int gen,
-			   struct data_update_opts _data_opts)
+static int __bch2_move_data_phys(struct moving_context *ctxt,
+			struct move_bucket_in_flight *bucket_in_flight,
+			unsigned dev,
+			u64 bucket_start,
+			u64 bucket_end,
+			move_pred_fn pred, void *arg)
 {
 	struct btree_trans *trans = ctxt->trans;
 	struct bch_fs *c = trans->c;
@@ -678,16 +678,20 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 	struct btree_iter iter = {}, bp_iter = {};
 	struct bkey_buf sk;
 	struct bkey_s_c k;
-	struct data_update_opts data_opts;
 	unsigned sectors_moved = 0;
 	struct bkey_buf last_flushed;
 	int ret = 0;
 
-	struct bch_dev *ca = bch2_dev_tryget(c, bucket.inode);
+	struct bch_dev *ca = bch2_dev_tryget(c, dev);
 	if (!ca)
 		return 0;
 
-	trace_bucket_evacuate(c, &bucket);
+	bucket_end = min(bucket_end, ca->mi.nbuckets);
+
+	struct bpos bp_start	= bucket_pos_to_bp_start(ca, POS(dev, bucket_start));
+	struct bpos bp_end	= bucket_pos_to_bp_end(ca, POS(dev, bucket_end));
+	bch2_dev_put(ca);
+	ca = NULL;
 
 	bch2_bkey_buf_init(&last_flushed);
 	bkey_init(&last_flushed.k->k);
@@ -698,8 +702,7 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 	 */
 	bch2_trans_begin(trans);
 
-	bch2_trans_iter_init(trans, &bp_iter, BTREE_ID_backpointers,
-			     bucket_pos_to_bp_start(ca, bucket), 0);
+	bch2_trans_iter_init(trans, &bp_iter, BTREE_ID_backpointers, bp_start, 0);
 
 	bch_err_msg(c, ret, "looking up alloc key");
 	if (ret)
@@ -723,13 +726,17 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 		if (ret)
 			goto err;
 
-		if (!k.k || bkey_gt(k.k->p, bucket_pos_to_bp_end(ca, bucket)))
+		if (!k.k || bkey_gt(k.k->p, bp_end))
 			break;
 
 		if (k.k->type != KEY_TYPE_backpointer)
 			goto next;
 
 		struct bkey_s_c_backpointer bp = bkey_s_c_to_backpointer(k);
+
+		if (ctxt->stats)
+			ctxt->stats->offset =
+				bp.k->p.offset >> MAX_EXTENT_COMPRESS_RATIO_SHIFT;
 
 		if (!bp.v->level) {
 			k = bch2_backpointer_get_key(trans, bp, &iter, 0, &last_flushed);
@@ -741,34 +748,22 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 			if (!k.k)
 				goto next;
 
-			bch2_bkey_buf_reassemble(&sk, c, k);
-			k = bkey_i_to_s_c(sk.k);
-
 			ret = bch2_move_get_io_opts_one(trans, &io_opts, &iter, k);
 			if (ret) {
 				bch2_trans_iter_exit(trans, &iter);
 				continue;
 			}
 
-			data_opts = _data_opts;
-			data_opts.target	= io_opts.background_target;
-			data_opts.rewrite_ptrs = 0;
+			struct data_update_opts data_opts = {};
+			if (!pred(c, arg, k, &io_opts, &data_opts)) {
+				bch2_trans_iter_exit(trans, &iter);
+				goto next;
+			}
+
+			bch2_bkey_buf_reassemble(&sk, c, k);
+			k = bkey_i_to_s_c(sk.k);
 
 			unsigned sectors = bp.v->bucket_len; /* move_extent will drop locks */
-			unsigned i = 0;
-			const union bch_extent_entry *entry;
-			struct extent_ptr_decoded p;
-			bkey_for_each_ptr_decode(k.k, bch2_bkey_ptrs_c(k), p, entry) {
-				if (p.ptr.dev == bucket.inode) {
-					if (p.ptr.cached) {
-						bch2_trans_iter_exit(trans, &iter);
-						goto next;
-					}
-					data_opts.rewrite_ptrs |= 1U << i;
-					break;
-				}
-				i++;
-			}
 
 			ret = bch2_move_extent(ctxt, bucket_in_flight,
 					       &iter, k, io_opts, data_opts);
@@ -801,6 +796,12 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 			if (!b)
 				goto next;
 
+			struct data_update_opts data_opts = {};
+			if (!pred(c, arg, bkey_i_to_s_c(&b->key), &io_opts, &data_opts)) {
+				bch2_trans_iter_exit(trans, &iter);
+				goto next;
+			}
+
 			unsigned sectors = btree_ptr_sectors_written(bkey_i_to_s_c(&b->key));
 
 			ret = bch2_btree_node_rewrite(trans, &iter, b, 0);
@@ -817,19 +818,56 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 				atomic64_add(sectors, &ctxt->stats->sectors_seen);
 				atomic64_add(sectors, &ctxt->stats->sectors_moved);
 			}
-			sectors_moved += btree_sectors(c);
+			sectors_moved += sectors;
 		}
 next:
 		bch2_btree_iter_advance(&bp_iter);
 	}
-
-	trace_evacuate_bucket(c, &bucket, sectors_moved, ca->mi.bucket_size, ret);
 err:
 	bch2_trans_iter_exit(trans, &bp_iter);
-	bch2_dev_put(ca);
 	bch2_bkey_buf_exit(&sk, c);
 	bch2_bkey_buf_exit(&last_flushed, c);
 	return ret;
+}
+
+struct evacuate_bucket_arg {
+	struct bpos		bucket;
+	int			gen;
+	struct data_update_opts	data_opts;
+};
+
+static bool evacuate_bucket_pred(struct bch_fs *c, void *_arg, struct bkey_s_c k,
+				 struct bch_io_opts *io_opts,
+				 struct data_update_opts *data_opts)
+{
+	struct evacuate_bucket_arg *arg = _arg;
+
+	*data_opts = arg->data_opts;
+
+	unsigned i = 0;
+	bkey_for_each_ptr(bch2_bkey_ptrs_c(k), ptr) {
+		if (ptr->dev == arg->bucket.inode &&
+		    (arg->gen < 0 || arg->gen == ptr->gen) &&
+		    !ptr->cached)
+			data_opts->rewrite_ptrs |= BIT(i);
+		i++;
+	}
+
+	return data_opts->rewrite_ptrs != 0;
+}
+
+int bch2_evacuate_bucket(struct moving_context *ctxt,
+			   struct move_bucket_in_flight *bucket_in_flight,
+			   struct bpos bucket, int gen,
+			   struct data_update_opts data_opts)
+{
+	struct evacuate_bucket_arg arg = { bucket, gen, data_opts, };
+
+	return __bch2_move_data_phys(ctxt, bucket_in_flight,
+				   bucket.inode,
+				   bucket.offset,
+				   bucket.offset + 1,
+				   evacuate_bucket_pred, &arg);
 }
 
 typedef bool (*move_btree_pred)(struct bch_fs *, void *,
