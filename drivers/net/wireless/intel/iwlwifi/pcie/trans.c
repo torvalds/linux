@@ -311,7 +311,7 @@ static int iwl_pcie_apm_init(struct iwl_trans *trans)
 	 * wake device's PCI Express link L1a -> L0s
 	 */
 	iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
-		    CSR_HW_IF_CONFIG_REG_BIT_HAP_WAKE_L1A);
+		    CSR_HW_IF_CONFIG_REG_HAP_WAKE);
 
 	iwl_pcie_apm_config(trans);
 
@@ -439,7 +439,7 @@ static void iwl_pcie_apm_lp_xtal_enable(struct iwl_trans *trans)
 	 * SHRD_HW_RST is applied in S3.
 	 */
 	iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
-		    CSR_HW_IF_CONFIG_REG_PERSIST_MODE);
+		    CSR_HW_IF_CONFIG_REG_PERSISTENCE);
 
 	/*
 	 * Clear "initialization complete" bit to move adapter from
@@ -508,8 +508,8 @@ static void iwl_pcie_apm_stop(struct iwl_trans *trans, bool op_mode_leave)
 			iwl_set_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
 				    CSR_RESET_LINK_PWR_MGMT_DISABLED);
 			iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
-				    CSR_HW_IF_CONFIG_REG_PREPARE |
-				    CSR_HW_IF_CONFIG_REG_ENABLE_PME);
+				    CSR_HW_IF_CONFIG_REG_WAKE_ME |
+				    CSR_HW_IF_CONFIG_REG_WAKE_ME_PCIE_OWNER_EN);
 			mdelay(1);
 			iwl_clear_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
 				      CSR_RESET_LINK_PWR_MGMT_DISABLED);
@@ -581,12 +581,12 @@ static int iwl_pcie_set_hw_ready(struct iwl_trans *trans)
 	int ret;
 
 	iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
-		    CSR_HW_IF_CONFIG_REG_BIT_NIC_READY);
+		    CSR_HW_IF_CONFIG_REG_PCI_OWN_SET);
 
 	/* See if we got it */
 	ret = iwl_poll_bit(trans, CSR_HW_IF_CONFIG_REG,
-			   CSR_HW_IF_CONFIG_REG_BIT_NIC_READY,
-			   CSR_HW_IF_CONFIG_REG_BIT_NIC_READY,
+			   CSR_HW_IF_CONFIG_REG_PCI_OWN_SET,
+			   CSR_HW_IF_CONFIG_REG_PCI_OWN_SET,
 			   HW_READY_TIMEOUT);
 
 	if (ret >= 0)
@@ -620,7 +620,7 @@ int iwl_pcie_prepare_card_hw(struct iwl_trans *trans)
 
 		/* If HW is not ready, prepare the conditions to check again */
 		iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
-			    CSR_HW_IF_CONFIG_REG_PREPARE);
+			    CSR_HW_IF_CONFIG_REG_WAKE_ME);
 
 		do {
 			ret = iwl_pcie_set_hw_ready(trans);
@@ -1566,7 +1566,7 @@ int iwl_trans_pcie_d3_suspend(struct iwl_trans *trans, bool test, bool reset)
 	if (!reset)
 		/* Enable persistence mode to avoid reset */
 		iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
-			    CSR_HW_IF_CONFIG_REG_PERSIST_MODE);
+			    CSR_HW_IF_CONFIG_REG_PERSISTENCE);
 
 	ret = iwl_pcie_d3_handshake(trans, true);
 	if (ret)

@@ -43,7 +43,7 @@ int iwl_pcie_gen2_apm_init(struct iwl_trans *trans)
 	 * wake device's PCI Express link L1a -> L0s
 	 */
 	iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
-		    CSR_HW_IF_CONFIG_REG_BIT_HAP_WAKE_L1A);
+		    CSR_HW_IF_CONFIG_REG_HAP_WAKE);
 
 	iwl_pcie_apm_config(trans);
 
@@ -68,8 +68,8 @@ static void iwl_pcie_gen2_apm_stop(struct iwl_trans *trans, bool op_mode_leave)
 		iwl_set_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
 			    CSR_RESET_LINK_PWR_MGMT_DISABLED);
 		iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
-			    CSR_HW_IF_CONFIG_REG_PREPARE |
-			    CSR_HW_IF_CONFIG_REG_ENABLE_PME);
+			    CSR_HW_IF_CONFIG_REG_WAKE_ME |
+			    CSR_HW_IF_CONFIG_REG_WAKE_ME_PCIE_OWNER_EN);
 		mdelay(1);
 		iwl_clear_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
 			      CSR_RESET_LINK_PWR_MGMT_DISABLED);
