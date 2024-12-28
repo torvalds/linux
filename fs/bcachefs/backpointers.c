@@ -244,27 +244,31 @@ struct bkey_s_c bch2_backpointer_get_key(struct btree_trans *trans,
 	if (unlikely(bp.v->btree_id >= btree_id_nr_alive(c)))
 		return bkey_s_c_null;
 
-	if (likely(!bp.v->level)) {
-		bch2_trans_node_iter_init(trans, iter,
-					  bp.v->btree_id,
-					  bp.v->pos,
-					  0, 0,
-					  iter_flags);
-		struct bkey_s_c k = bch2_btree_iter_peek_slot(iter);
-		if (bkey_err(k)) {
-			bch2_trans_iter_exit(trans, iter);
-			return k;
-		}
-
-		if (k.k &&
-		    extent_matches_bp(c, bp.v->btree_id, bp.v->level, k, bp))
-			return k;
-
+	bch2_trans_node_iter_init(trans, iter,
+				  bp.v->btree_id,
+				  bp.v->pos,
+				  0,
+				  bp.v->level,
+				  iter_flags);
+	struct bkey_s_c k = bch2_btree_iter_peek_slot(iter);
+	if (bkey_err(k)) {
 		bch2_trans_iter_exit(trans, iter);
+		return k;
+	}
+
+	if (k.k &&
+	    extent_matches_bp(c, bp.v->btree_id, bp.v->level, k, bp))
+		return k;
+
+	bch2_trans_iter_exit(trans, iter);
+
+	if (!bp.v->level) {
 		int ret = backpointer_target_not_found(trans, bp, k, last_flushed);
 		return ret ? bkey_s_c_err(ret) : bkey_s_c_null;
 	} else {
 		struct btree *b = bch2_backpointer_get_node(trans, bp, iter, last_flushed);
+		if (b == ERR_PTR(-BCH_ERR_backpointer_to_overwritten_btree_node))
+			return bkey_s_c_null;
 		if (IS_ERR_OR_NULL(b))
 			return ((struct bkey_s_c) { .k = ERR_CAST(b) });
 
