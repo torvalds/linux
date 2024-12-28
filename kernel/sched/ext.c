@@ -6297,6 +6297,15 @@ void __init init_sched_ext_class(void)
 
 __bpf_kfunc_start_defs();
 
+static bool check_builtin_idle_enabled(void)
+{
+	if (static_branch_likely(&scx_builtin_idle_enabled))
+		return true;
+
+	scx_ops_error("built-in idle tracking is disabled");
+	return false;
+}
+
 /**
  * scx_bpf_select_cpu_dfl - The default implementation of ops.select_cpu()
  * @p: task_struct to select a CPU for
@@ -6314,10 +6323,8 @@ __bpf_kfunc_start_defs();
 __bpf_kfunc s32 scx_bpf_select_cpu_dfl(struct task_struct *p, s32 prev_cpu,
 				       u64 wake_flags, bool *is_idle)
 {
-	if (!static_branch_likely(&scx_builtin_idle_enabled)) {
-		scx_ops_error("built-in idle tracking is disabled");
+	if (!check_builtin_idle_enabled())
 		goto prev_cpu;
-	}
 
 	if (!scx_kf_allowed(SCX_KF_SELECT_CPU))
 		goto prev_cpu;
@@ -7411,10 +7418,8 @@ __bpf_kfunc void scx_bpf_put_cpumask(const struct cpumask *cpumask)
  */
 __bpf_kfunc const struct cpumask *scx_bpf_get_idle_cpumask(void)
 {
-	if (!static_branch_likely(&scx_builtin_idle_enabled)) {
-		scx_ops_error("built-in idle tracking is disabled");
+	if (!check_builtin_idle_enabled())
 		return cpu_none_mask;
-	}
 
 #ifdef CONFIG_SMP
 	return idle_masks.cpu;
@@ -7432,10 +7437,8 @@ __bpf_kfunc const struct cpumask *scx_bpf_get_idle_cpumask(void)
  */
 __bpf_kfunc const struct cpumask *scx_bpf_get_idle_smtmask(void)
 {
-	if (!static_branch_likely(&scx_builtin_idle_enabled)) {
-		scx_ops_error("built-in idle tracking is disabled");
+	if (!check_builtin_idle_enabled())
 		return cpu_none_mask;
-	}
 
 #ifdef CONFIG_SMP
 	if (sched_smt_active())
@@ -7473,10 +7476,8 @@ __bpf_kfunc void scx_bpf_put_idle_cpumask(const struct cpumask *idle_mask)
  */
 __bpf_kfunc bool scx_bpf_test_and_clear_cpu_idle(s32 cpu)
 {
-	if (!static_branch_likely(&scx_builtin_idle_enabled)) {
-		scx_ops_error("built-in idle tracking is disabled");
+	if (!check_builtin_idle_enabled())
 		return false;
-	}
 
 	if (ops_cpu_valid(cpu, NULL))
 		return test_and_clear_cpu_idle(cpu);
@@ -7506,10 +7507,8 @@ __bpf_kfunc bool scx_bpf_test_and_clear_cpu_idle(s32 cpu)
 __bpf_kfunc s32 scx_bpf_pick_idle_cpu(const struct cpumask *cpus_allowed,
 				      u64 flags)
 {
-	if (!static_branch_likely(&scx_builtin_idle_enabled)) {
-		scx_ops_error("built-in idle tracking is disabled");
+	if (!check_builtin_idle_enabled())
 		return -EBUSY;
-	}
 
 	return scx_pick_idle_cpu(cpus_allowed, flags);
 }
