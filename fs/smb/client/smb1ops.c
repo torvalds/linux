@@ -614,7 +614,13 @@ static int cifs_get_srv_inum(const unsigned int xid, struct cifs_tcon *tcon,
 	 * There may be higher info levels that work but are there Windows
 	 * server or network appliances for which IndexNumber field is not
 	 * guaranteed unique?
+	 *
+	 * CIFSGetSrvInodeNumber() uses SMB_QUERY_FILE_INTERNAL_INFO
+	 * which is SMB PASSTHROUGH level therefore check for capability.
+	 * Note that this function can be called with tcon == NULL.
 	 */
+	if (tcon && !(tcon->ses->capabilities & CAP_INFOLEVEL_PASSTHRU))
+		return -EOPNOTSUPP;
 	return CIFSGetSrvInodeNumber(xid, tcon, full_path, uniqueid,
 				     cifs_sb->local_nls,
 				     cifs_remap(cifs_sb));
