@@ -123,6 +123,24 @@ static const struct file_operations iwl_dbgfs_##name##_ops = {		\
 #define FWRT_DEBUGFS_ADD_FILE(name, parent, mode) \
 	FWRT_DEBUGFS_ADD_FILE_ALIAS(#name, name, parent, mode)
 
+static ssize_t iwl_dbgfs_fw_dbg_collect_write(struct iwl_fw_runtime *fwrt,
+					      char *buf, size_t count)
+{
+	if (count == 0)
+		return 0;
+
+	if (!iwl_trans_fw_running(fwrt->trans))
+		return count;
+
+	iwl_dbg_tlv_time_point(fwrt, IWL_FW_INI_TIME_POINT_USER_TRIGGER, NULL);
+
+	iwl_fw_dbg_collect(fwrt, FW_DBG_TRIGGER_USER, buf, (count - 1), NULL);
+
+	return count;
+}
+
+FWRT_DEBUGFS_WRITE_FILE_OPS(fw_dbg_collect, 16);
+
 static int iwl_dbgfs_enabled_severities_write(struct iwl_fw_runtime *fwrt,
 					      char *buf, size_t count)
 {
@@ -423,6 +441,7 @@ void iwl_fwrt_dbgfs_register(struct iwl_fw_runtime *fwrt,
 	FWRT_DEBUGFS_ADD_FILE(fw_info, dbgfs_dir, 0200);
 	FWRT_DEBUGFS_ADD_FILE(send_hcmd, dbgfs_dir, 0200);
 	FWRT_DEBUGFS_ADD_FILE(enabled_severities, dbgfs_dir, 0200);
+	FWRT_DEBUGFS_ADD_FILE(fw_dbg_collect, dbgfs_dir, 0200);
 	FWRT_DEBUGFS_ADD_FILE(fw_dbg_domain, dbgfs_dir, 0400);
 	FWRT_DEBUGFS_ADD_FILE(fw_ver, dbgfs_dir, 0400);
 }

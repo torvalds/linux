@@ -1470,22 +1470,6 @@ static ssize_t iwl_dbgfs_fw_dbg_conf_write(struct iwl_mvm *mvm,
 	return ret ?: count;
 }
 
-static ssize_t iwl_dbgfs_fw_dbg_collect_write(struct iwl_mvm *mvm,
-					      char *buf, size_t count,
-					      loff_t *ppos)
-{
-	if (count == 0)
-		return 0;
-
-	iwl_dbg_tlv_time_point(&mvm->fwrt, IWL_FW_INI_TIME_POINT_USER_TRIGGER,
-			       NULL);
-
-	iwl_fw_dbg_collect(&mvm->fwrt, FW_DBG_TRIGGER_USER, buf,
-			   (count - 1), NULL);
-
-	return count;
-}
-
 static ssize_t iwl_dbgfs_fw_dbg_clear_write(struct iwl_mvm *mvm,
 					    char *buf, size_t count,
 					    loff_t *ppos)
@@ -1945,7 +1929,6 @@ MVM_DEBUGFS_WRITE_FILE_OPS(fw_restart, 10);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_nmi, 10);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(scan_ant_rxchain, 8);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(fw_dbg_conf, 8);
-MVM_DEBUGFS_WRITE_FILE_OPS(fw_dbg_collect, 64);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_dbg_clear, 64);
 MVM_DEBUGFS_WRITE_FILE_OPS(dbg_time_point, 64);
 MVM_DEBUGFS_WRITE_FILE_OPS(indirection_tbl,
@@ -2146,7 +2129,6 @@ void iwl_mvm_dbgfs_register(struct iwl_mvm *mvm)
 	MVM_DEBUGFS_ADD_FILE(scan_ant_rxchain, mvm->debugfs_dir, 0600);
 	MVM_DEBUGFS_ADD_FILE(prph_reg, mvm->debugfs_dir, 0600);
 	MVM_DEBUGFS_ADD_FILE(fw_dbg_conf, mvm->debugfs_dir, 0600);
-	MVM_DEBUGFS_ADD_FILE(fw_dbg_collect, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(fw_dbg_clear, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(dbg_time_point, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(send_echo_cmd, mvm->debugfs_dir, 0200);
