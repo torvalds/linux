@@ -1341,6 +1341,10 @@ static void iwl_mvm_restart_complete(struct iwl_mvm *mvm)
 
 	IWL_INFO(mvm, "restart completed\n");
 	iwl_trans_finish_sw_reset(mvm->trans);
+
+	/* no need to lock, adding in parallel would schedule too */
+	if (!list_empty(&mvm->add_stream_txqs))
+		schedule_work(&mvm->add_stream_wk);
 }
 
 void iwl_mvm_mac_reconfig_complete(struct ieee80211_hw *hw,

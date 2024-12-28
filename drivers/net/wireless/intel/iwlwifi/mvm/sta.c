@@ -1520,7 +1520,12 @@ void iwl_mvm_add_new_dqa_stream_wk(struct work_struct *wk)
 	struct iwl_mvm *mvm = container_of(wk, struct iwl_mvm,
 					   add_stream_wk);
 
-	mutex_lock(&mvm->mutex);
+	guard(mvm)(mvm);
+
+	/* will reschedule to run after restart */
+	if (test_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED, &mvm->status) ||
+	    test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
+		return;
 
 	iwl_mvm_inactivity_check(mvm, IWL_INVALID_STA);
 
@@ -1564,8 +1569,6 @@ void iwl_mvm_add_new_dqa_stream_wk(struct work_struct *wk)
 		iwl_mvm_mac_itxq_xmit(mvm->hw, txq);
 		local_bh_enable();
 	}
-
-	mutex_unlock(&mvm->mutex);
 }
 
 static int iwl_mvm_reserve_sta_stream(struct iwl_mvm *mvm,
