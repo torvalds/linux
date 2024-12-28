@@ -7,6 +7,7 @@
  * Datasheet: https://www.analog.com/media/en/technical-documentation/data-sheets/ADXL345.pdf
  */
 
+#include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
@@ -17,9 +18,15 @@
 
 #include "adxl345.h"
 
+#define ADXL345_INT_NONE		0xff
+#define ADXL345_INT1			0
+#define ADXL345_INT2			1
+
 struct adxl345_state {
 	const struct adxl345_chip_info *info;
 	struct regmap *regmap;
+	int irq;
+	u8 intio;
 };
 
 #define ADXL345_CHANNEL(index, axis) {					\
@@ -261,6 +268,15 @@ int adxl345_core_probe(struct device *dev, struct regmap *regmap,
 	ret = devm_add_action_or_reset(dev, adxl345_powerdown, st);
 	if (ret < 0)
 		return ret;
+
+	st->intio = ADXL345_INT1;
+	st->irq = fwnode_irq_get_byname(dev_fwnode(dev), "INT1");
+	if (st->irq < 0) {
+		st->intio = ADXL345_INT2;
+		st->irq = fwnode_irq_get_byname(dev_fwnode(dev), "INT2");
+		if (st->irq < 0)
+			st->intio = ADXL345_INT_NONE;
+	}
 
 	return devm_iio_device_register(dev, indio_dev);
 }
