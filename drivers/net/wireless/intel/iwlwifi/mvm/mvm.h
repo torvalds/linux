@@ -103,6 +103,7 @@ struct iwl_mvm_phy_ctxt {
 	u32 center_freq1;
 	bool rlc_disabled;
 	u32 channel_load_by_us;
+	u32 channel_load_not_by_us;
 };
 
 struct iwl_mvm_time_event_data {
