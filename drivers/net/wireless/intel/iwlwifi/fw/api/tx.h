@@ -482,8 +482,8 @@ struct agg_tx_status {
 #define TX_RES_RATE_TABLE_COL_GET(_f) (((_f) & TX_RES_RATE_TABLE_COLOR_MSK) >>\
 				       TX_RES_RATE_TABLE_COLOR_POS)
 
-#define IWL_MVM_TX_RES_GET_TID(_ra_tid) ((_ra_tid) & 0x0f)
-#define IWL_MVM_TX_RES_GET_RA(_ra_tid) ((_ra_tid) >> 4)
+#define IWL_TX_RES_GET_TID(_ra_tid) ((_ra_tid) & 0x0f)
+#define IWL_TX_RES_GET_RA(_ra_tid) ((_ra_tid) >> 4)
 
 /**
  * struct iwl_tx_resp_v3 - notifies that fw is TXing a packet

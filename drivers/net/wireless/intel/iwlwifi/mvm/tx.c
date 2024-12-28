@@ -1626,8 +1626,8 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 	int txq_id = SEQ_TO_QUEUE(sequence);
 	/* struct iwl_tx_resp_v3 is almost the same */
 	struct iwl_tx_resp *tx_resp = (void *)pkt->data;
-	int sta_id = IWL_MVM_TX_RES_GET_RA(tx_resp->ra_tid);
-	int tid = IWL_MVM_TX_RES_GET_TID(tx_resp->ra_tid);
+	int sta_id = IWL_TX_RES_GET_RA(tx_resp->ra_tid);
+	int tid = IWL_TX_RES_GET_TID(tx_resp->ra_tid);
 	struct agg_tx_status *agg_status =
 		iwl_mvm_get_agg_status(mvm, tx_resp);
 	u32 status = le16_to_cpu(agg_status->status);
@@ -1917,8 +1917,8 @@ static void iwl_mvm_rx_tx_cmd_agg(struct iwl_mvm *mvm,
 				  struct iwl_rx_packet *pkt)
 {
 	struct iwl_tx_resp *tx_resp = (void *)pkt->data;
-	int sta_id = IWL_MVM_TX_RES_GET_RA(tx_resp->ra_tid);
-	int tid = IWL_MVM_TX_RES_GET_TID(tx_resp->ra_tid);
+	int sta_id = IWL_TX_RES_GET_RA(tx_resp->ra_tid);
+	int tid = IWL_TX_RES_GET_TID(tx_resp->ra_tid);
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
 	struct iwl_mvm_sta *mvmsta;
 	int queue = SEQ_TO_QUEUE(sequence);
