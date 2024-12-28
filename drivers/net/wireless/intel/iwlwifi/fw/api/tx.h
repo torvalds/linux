@@ -298,8 +298,7 @@ struct iwl_tx_cmd_gen3 {
 	__le32 rate_n_flags;
 	u8 reserved[8];
 	struct ieee80211_hdr hdr[];
-} __packed; /* TX_CMD_API_S_VER_8,
-	       TX_CMD_API_S_VER_10 */
+} __packed; /* TX_CMD_API_S_VER_8, TX_CMD_API_S_VER_10 */
 
 /*
  * TX response related data
@@ -601,7 +600,8 @@ struct iwl_tx_resp {
 	__le16 reserved2;
 	struct agg_tx_status status;
 } __packed; /* TX_RSP_API_S_VER_6,
-	       TX_RSP_API_S_VER_7 */
+	       TX_RSP_API_S_VER_7,
+	       TX_RSP_API_S_VER_8 */
 
 /**
  * struct iwl_mvm_ba_notif - notifies about reception of BA
