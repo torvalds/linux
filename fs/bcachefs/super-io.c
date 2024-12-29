@@ -1084,9 +1084,16 @@ int bch2_write_super(struct bch_fs *c)
 				": Superblock write was silently dropped! (seq %llu expected %llu)",
 				le64_to_cpu(ca->sb_read_scratch->seq),
 				ca->disk_sb.seq);
-			bch2_fs_fatal_error(c, "%s", buf.buf);
+
+			if (c->opts.errors != BCH_ON_ERROR_continue &&
+			    c->opts.errors != BCH_ON_ERROR_fix_safe) {
+				ret = -BCH_ERR_erofs_sb_err;
+				bch2_fs_fatal_error(c, "%s", buf.buf);
+			} else {
+				bch_err(c, "%s", buf.buf);
+			}
+
 			printbuf_exit(&buf);
-			ret = -BCH_ERR_erofs_sb_err;
 		}
 
 		if (le64_to_cpu(ca->sb_read_scratch->seq) > ca->disk_sb.seq) {
