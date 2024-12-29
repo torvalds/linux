@@ -3894,7 +3894,7 @@ iwl_mvm_sta_state_notexist_to_none(struct iwl_mvm *mvm,
 
 	if (sta->tdls &&
 	    (vif->p2p ||
-	     iwl_mvm_tdls_sta_count(mvm, NULL) == IWL_MVM_TDLS_STA_COUNT ||
+	     iwl_mvm_tdls_sta_count(mvm, NULL) == IWL_TDLS_STA_COUNT ||
 	     iwl_mvm_phy_ctx_count(mvm) > 1)) {
 		IWL_DEBUG_MAC80211(mvm, "refusing TDLS sta\n");
 		return -EBUSY;
