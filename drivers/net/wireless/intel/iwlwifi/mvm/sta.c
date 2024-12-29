@@ -2906,7 +2906,7 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		/*
 		 * The division below will be OK if either the cache line size
 		 * can be divided by the entry size (ALIGN will round up) or if
-		 * if the entry size can be divided by the cache line size, in
+		 * the entry size can be divided by the cache line size, in
 		 * which case the ALIGN() will do nothing.
 		 */
 		BUILD_BUG_ON(SMP_CACHE_BYTES % sizeof(baid_data->entries[0]) &&
