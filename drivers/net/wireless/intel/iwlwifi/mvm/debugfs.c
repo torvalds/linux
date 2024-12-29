@@ -463,7 +463,6 @@ static ssize_t iwl_dbgfs_amsdu_len_write(struct ieee80211_link_sta *link_sta,
 	if (amsdu_len) {
 		mvm_link_sta->orig_amsdu_len = link_sta->agg.max_amsdu_len;
 		link_sta->agg.max_amsdu_len = amsdu_len;
-		link_sta->agg.max_amsdu_len = amsdu_len;
 		for (i = 0; i < ARRAY_SIZE(link_sta->agg.max_tid_amsdu_len); i++)
 			link_sta->agg.max_tid_amsdu_len[i] = amsdu_len;
 	} else {
