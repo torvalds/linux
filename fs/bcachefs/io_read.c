@@ -243,7 +243,7 @@ static struct bch_read_bio *__promote_alloc(struct btree_trans *trans,
 
 	ret = bch2_data_update_init(trans, NULL, NULL, &op->write,
 			writepoint_hashed((unsigned long) current),
-			orig->opts,
+			&orig->opts,
 			update_opts,
 			btree_id, k);
 	/*
@@ -488,6 +488,7 @@ static void bch2_rbio_error(struct bch_read_bio *rbio, int retry,
 			    blk_status_t error)
 {
 	rbio->retry = retry;
+	rbio->saw_error = true;
 
 	if (rbio->flags & BCH_READ_in_retry)
 		return;
@@ -969,6 +970,7 @@ retry_pick:
 		 */
 		struct data_update *u = container_of(orig, struct data_update, rbio);
 		if (pick.crc.compressed_size > u->op.wbio.bio.bi_iter.bi_size) {
+			BUG();
 			if (ca)
 				percpu_ref_put(&ca->io_ref);
 			goto hole;

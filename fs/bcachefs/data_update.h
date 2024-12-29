@@ -16,6 +16,9 @@ struct data_update_opts {
 	u8		extra_replicas;
 	unsigned	btree_insert_flags;
 	unsigned	write_flags;
+
+	int		read_dev;
+	bool		scrub;
 };
 
 void bch2_data_update_opts_to_text(struct printbuf *, struct bch_fs *,
@@ -48,12 +51,15 @@ int bch2_extent_drop_ptrs(struct btree_trans *,
 			  struct bch_io_opts *,
 			  struct data_update_opts *);
 
+int bch2_data_update_bios_init(struct data_update *, struct bch_fs *,
+			       struct bch_io_opts *);
+
 void bch2_data_update_exit(struct data_update *);
 int bch2_data_update_init(struct btree_trans *, struct btree_iter *,
 			  struct moving_context *,
 			  struct data_update *,
 			  struct write_point_specifier,
-			  struct bch_io_opts, struct data_update_opts,
+			  struct bch_io_opts *, struct data_update_opts,
 			  enum btree_id, struct bkey_s_c);
 void bch2_data_update_opts_normalize(struct bkey_s_c, struct data_update_opts *);
 

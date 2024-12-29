@@ -41,6 +41,7 @@ struct bch_read_bio {
 				have_ioref:1,
 				narrow_crcs:1,
 				hole:1,
+				saw_error:1,
 				retry:2,
 				context:2;
 	};

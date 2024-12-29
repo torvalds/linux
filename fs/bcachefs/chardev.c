@@ -313,7 +313,10 @@ static int bch2_data_thread(void *arg)
 	struct bch_data_ctx *ctx = container_of(arg, struct bch_data_ctx, thr);
 
 	ctx->thr.ret = bch2_data_job(ctx->c, &ctx->stats, ctx->arg);
-	ctx->stats.done = true;
+	if (ctx->thr.ret == -BCH_ERR_device_offline)
+		ctx->stats.ret = BCH_IOCTL_DATA_EVENT_RET_device_offline;
+	else
+		ctx->stats.ret = BCH_IOCTL_DATA_EVENT_RET_done;
 	return 0;
 }
 
@@ -332,13 +335,29 @@ static ssize_t bch2_data_job_read(struct file *file, char __user *buf,
 	struct bch_data_ctx *ctx = container_of(file->private_data, struct bch_data_ctx, thr);
 	struct bch_fs *c = ctx->c;
 	struct bch_ioctl_data_event e = {
-		.type			= BCH_DATA_EVENT_PROGRESS,
-		.p.data_type		= ctx->stats.done ? U8_MAX : ctx->stats.data_type,
-		.p.btree_id		= ctx->stats.pos.btree,
-		.p.pos			= ctx->stats.pos.pos,
-		.p.sectors_done		= atomic64_read(&ctx->stats.sectors_seen),
-		.p.sectors_total	= bch2_fs_usage_read_short(c).used,
+		.type				= BCH_DATA_EVENT_PROGRESS,
+		.ret				= ctx->stats.ret,
+		.p.data_type			= ctx->stats.data_type,
+		.p.btree_id			= ctx->stats.pos.btree,
+		.p.pos				= ctx->stats.pos.pos,
+		.p.sectors_done			= atomic64_read(&ctx->stats.sectors_seen),
+		.p.sectors_error_corrected	= atomic64_read(&ctx->stats.sectors_error_corrected),
+		.p.sectors_error_uncorrected	= atomic64_read(&ctx->stats.sectors_error_uncorrected),
 	};
+
+	if (ctx->arg.op == BCH_DATA_OP_scrub) {
+		struct bch_dev *ca = bch2_dev_tryget(c, ctx->arg.scrub.dev);
+		if (ca) {
+			struct bch_dev_usage u;
+			bch2_dev_usage_read_fast(ca, &u);
+			for (unsigned i = BCH_DATA_btree; i < ARRAY_SIZE(u.d); i++)
+				if (ctx->arg.scrub.data_types & BIT(i))
+					e.p.sectors_total += u.d[i].sectors;
+			bch2_dev_put(ca);
+		}
+	} else {
+		e.p.sectors_total	= bch2_fs_usage_read_short(c).used;
+	}
 
 	if (len < sizeof(e))
 		return -EINVAL;

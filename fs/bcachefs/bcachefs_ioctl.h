@@ -216,6 +216,10 @@ struct bch_ioctl_data {
 	union {
 	struct {
 		__u32		dev;
+		__u32		data_types;
+	}			scrub;
+	struct {
+		__u32		dev;
 		__u32		pad;
 	}			migrate;
 	struct {
@@ -238,11 +242,19 @@ struct bch_ioctl_data_progress {
 
 	__u64			sectors_done;
 	__u64			sectors_total;
+	__u64			sectors_error_corrected;
+	__u64			sectors_error_uncorrected;
 } __packed __aligned(8);
+
+enum bch_ioctl_data_event_ret {
+	BCH_IOCTL_DATA_EVENT_RET_done		= 1,
+	BCH_IOCTL_DATA_EVENT_RET_device_offline	= 2,
+};
 
 struct bch_ioctl_data_event {
 	__u8			type;
-	__u8			pad[7];
+	__u8			ret;
+	__u8			pad[6];
 	union {
 	struct bch_ioctl_data_progress p;
 	__u64			pad2[15];

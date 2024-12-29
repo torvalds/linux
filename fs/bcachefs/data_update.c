@@ -673,12 +673,46 @@ static bool can_allocate_without_blocking(struct bch_fs *c,
 	return nr_replicas >= m->op.nr_replicas;
 }
 
+int bch2_data_update_bios_init(struct data_update *m, struct bch_fs *c,
+			       struct bch_io_opts *io_opts)
+{
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(bkey_i_to_s_c(m->k.k));
+	const union bch_extent_entry *entry;
+	struct extent_ptr_decoded p;
+
+	/* write path might have to decompress data: */
+	unsigned buf_bytes = 0;
+	bkey_for_each_ptr_decode(&m->k.k->k, ptrs, p, entry)
+		buf_bytes = max_t(unsigned, buf_bytes, p.crc.uncompressed_size << 9);
+
+	unsigned nr_vecs = DIV_ROUND_UP(buf_bytes, PAGE_SIZE);
+
+	m->bvecs = kmalloc_array(nr_vecs, sizeof*(m->bvecs), GFP_KERNEL);
+	if (!m->bvecs)
+		return -ENOMEM;
+
+	bio_init(&m->rbio.bio,		NULL, m->bvecs, nr_vecs, REQ_OP_READ);
+	bio_init(&m->op.wbio.bio,	NULL, m->bvecs, nr_vecs, 0);
+
+	if (bch2_bio_alloc_pages(&m->op.wbio.bio, buf_bytes, GFP_KERNEL)) {
+		kfree(m->bvecs);
+		m->bvecs = NULL;
+		return -ENOMEM;
+	}
+
+	rbio_init(&m->rbio.bio, c, *io_opts, NULL);
+	m->rbio.bio.bi_iter.bi_size	= buf_bytes;
+	m->rbio.bio.bi_iter.bi_sector	= bkey_start_offset(&m->k.k->k);
+	m->op.wbio.bio.bi_ioprio	= IOPRIO_PRIO_VALUE(IOPRIO_CLASS_IDLE, 0);
+	return 0;
+}
+
 int bch2_data_update_init(struct btree_trans *trans,
 			  struct btree_iter *iter,
 			  struct moving_context *ctxt,
 			  struct data_update *m,
 			  struct write_point_specifier wp,
-			  struct bch_io_opts io_opts,
+			  struct bch_io_opts *io_opts,
 			  struct data_update_opts data_opts,
 			  enum btree_id btree_id,
 			  struct bkey_s_c k)
@@ -705,7 +739,7 @@ int bch2_data_update_init(struct btree_trans *trans,
 	m->ctxt		= ctxt;
 	m->stats	= ctxt ? ctxt->stats : NULL;
 
-	bch2_write_op_init(&m->op, c, io_opts);
+	bch2_write_op_init(&m->op, c, *io_opts);
 	m->op.pos	= bkey_start_pos(k.k);
 	m->op.version	= k.k->bversion;
 	m->op.target	= data_opts.target;
@@ -716,7 +750,7 @@ int bch2_data_update_init(struct btree_trans *trans,
 		BCH_WRITE_data_encoded|
 		BCH_WRITE_move|
 		m->data_opts.write_flags;
-	m->op.compression_opt	= io_opts.background_compression;
+	m->op.compression_opt	= io_opts->background_compression;
 	m->op.watermark		= m->data_opts.btree_insert_flags & BCH_WATERMARK_MASK;
 
 	unsigned durability_have = 0, durability_removing = 0;
@@ -754,7 +788,7 @@ int bch2_data_update_init(struct btree_trans *trans,
 		ptr_bit <<= 1;
 	}
 
-	unsigned durability_required = max(0, (int) (io_opts.data_replicas - durability_have));
+	unsigned durability_required = max(0, (int) (io_opts->data_replicas - durability_have));
 
 	/*
 	 * If current extent durability is less than io_opts.data_replicas,
@@ -787,7 +821,7 @@ int bch2_data_update_init(struct btree_trans *trans,
 		m->data_opts.rewrite_ptrs = 0;
 		/* if iter == NULL, it's just a promote */
 		if (iter)
-			ret = bch2_extent_drop_ptrs(trans, iter, k, &io_opts, &m->data_opts);
+			ret = bch2_extent_drop_ptrs(trans, iter, k, io_opts, &m->data_opts);
 		if (!ret)
 			ret = -BCH_ERR_data_update_done_no_writes_needed;
 		goto out_bkey_buf_exit;
@@ -825,33 +859,11 @@ int bch2_data_update_init(struct btree_trans *trans,
 		goto out_nocow_unlock;
 	}
 
-	/* write path might have to decompress data: */
-	unsigned buf_bytes = 0;
-	bkey_for_each_ptr_decode(k.k, ptrs, p, entry)
-		buf_bytes = max_t(unsigned, buf_bytes, p.crc.uncompressed_size << 9);
-
-	unsigned nr_vecs = DIV_ROUND_UP(buf_bytes, PAGE_SIZE);
-
-	m->bvecs = kmalloc_array(nr_vecs, sizeof*(m->bvecs), GFP_KERNEL);
-	if (!m->bvecs)
-		goto enomem;
-
-	bio_init(&m->rbio.bio,		NULL, m->bvecs, nr_vecs, REQ_OP_READ);
-	bio_init(&m->op.wbio.bio,	NULL, m->bvecs, nr_vecs, 0);
-
-	if (bch2_bio_alloc_pages(&m->op.wbio.bio, buf_bytes, GFP_KERNEL))
-		goto enomem;
-
-	rbio_init(&m->rbio.bio, c, io_opts, NULL);
-	m->rbio.bio.bi_iter.bi_size	= buf_bytes;
-	m->rbio.bio.bi_iter.bi_sector	= bkey_start_offset(k.k);
-	m->op.wbio.bio.bi_ioprio	= IOPRIO_PRIO_VALUE(IOPRIO_CLASS_IDLE, 0);
+	ret = bch2_data_update_bios_init(m, c, io_opts);
+	if (ret)
+		goto out_nocow_unlock;
 
 	return 0;
-enomem:
-	ret = -ENOMEM;
-	kfree(m->bvecs);
-	m->bvecs = NULL;
 out_nocow_unlock:
 	if (c->opts.nocow_enabled)
 		bkey_nocow_unlock(c, k);

@@ -3,11 +3,12 @@
 #define _BCACHEFS_MOVE_TYPES_H
 
 #include "bbpos_types.h"
+#include "bcachefs_ioctl.h"
 
 struct bch_move_stats {
 	char			name[32];
 	bool			phys;
-	bool			done;
+	enum bch_ioctl_data_event_ret	ret;
 
 	union {
 	struct {
@@ -25,6 +26,8 @@ struct bch_move_stats {
 	atomic64_t		sectors_seen;
 	atomic64_t		sectors_moved;
 	atomic64_t		sectors_raced;
+	atomic64_t		sectors_error_corrected;
+	atomic64_t		sectors_error_uncorrected;
 };
 
 struct move_bucket_key {
