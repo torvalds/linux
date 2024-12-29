@@ -323,7 +323,7 @@ static int squashfs_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	/* Allocate read_page block */
 	msblk->read_page = squashfs_cache_init("data",
-		msblk->max_thread_num, msblk->block_size);
+		SQUASHFS_READ_PAGES, msblk->block_size);
 	if (IS_ERR(msblk->read_page)) {
 		errorf(fc, "Failed to allocate read_page block");
 		err = PTR_ERR(msblk->read_page);

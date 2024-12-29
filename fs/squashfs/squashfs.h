@@ -14,6 +14,12 @@
 
 #define WARNING(s, args...)	pr_warn("SQUASHFS: "s, ## args)
 
+#ifdef CONFIG_SQUASHFS_FILE_CACHE
+#define SQUASHFS_READ_PAGES msblk->max_thread_num
+#else
+#define SQUASHFS_READ_PAGES 0
+#endif
+
 /* block.c */
 extern int squashfs_read_data(struct super_block *, u64, int, u64 *,
 				struct squashfs_page_actor *);
