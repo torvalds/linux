@@ -462,7 +462,7 @@ static int iwl_ssid_exist(u8 *ssid, u8 ssid_len, struct iwl_ssid_ie *ssid_list)
 		if (!ssid_list[i].len)
 			break;
 		if (ssid_list[i].len == ssid_len &&
-		    !memcmp(ssid_list->ssid, ssid, ssid_len))
+		    !memcmp(ssid_list[i].ssid, ssid, ssid_len))
 			return i;
 	}
 	return -1;
