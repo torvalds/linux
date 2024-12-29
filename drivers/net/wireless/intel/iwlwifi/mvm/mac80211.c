@@ -6255,7 +6255,7 @@ void iwl_mvm_mac_sta_statistics(struct ieee80211_hw *hw,
 
 	guard(mvm)(mvm);
 
-	if (mvmvif->deflink.ap_sta_id != mvmsta->deflink.sta_id)
+	if (sta != mvmvif->ap_sta)
 		return;
 
 	if (iwl_mvm_request_statistics(mvm, false))
