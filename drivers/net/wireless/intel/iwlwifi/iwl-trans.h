@@ -633,8 +633,6 @@ struct iwl_pc_data {
  * @n_dest_reg: num of reg_ops in %dbg_dest_tlv
  * @rec_on: true iff there is a fw debug recording currently active
  * @dest_tlv: points to the destination TLV for debug
- * @conf_tlv: array of pointers to configuration TLVs for debug
- * @trigger_tlv: array of pointers to triggers TLVs for debug
  * @lmac_error_event_table: addrs of lmacs error tables
  * @umac_error_event_table: addr of umac error table
  * @tcm_error_event_table: address(es) of TCM error table(s)
@@ -669,8 +667,6 @@ struct iwl_trans_debug {
 	bool rec_on;
 
 	const struct iwl_fw_dbg_dest_tlv_v1 *dest_tlv;
-	const struct iwl_fw_dbg_conf_tlv *conf_tlv[FW_DBG_CONF_MAX];
-	struct iwl_fw_dbg_trigger_tlv * const *trigger_tlv;
 
 	u32 lmac_error_event_table[2];
 	u32 umac_error_event_table;
