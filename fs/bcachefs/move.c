@@ -735,91 +735,58 @@ static int __bch2_move_data_phys(struct moving_context *ctxt,
 		struct bkey_s_c_backpointer bp = bkey_s_c_to_backpointer(k);
 
 		if (ctxt->stats)
-			ctxt->stats->offset =
-				bp.k->p.offset >> MAX_EXTENT_COMPRESS_RATIO_SHIFT;
+			ctxt->stats->offset = bp.k->p.offset >> MAX_EXTENT_COMPRESS_RATIO_SHIFT;
+
+		k = bch2_backpointer_get_key(trans, bp, &iter, 0, &last_flushed);
+		ret = bkey_err(k);
+		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+			continue;
+		if (ret)
+			goto err;
+		if (!k.k)
+			goto next;
 
 		if (!bp.v->level) {
-			k = bch2_backpointer_get_key(trans, bp, &iter, 0, &last_flushed);
-			ret = bkey_err(k);
-			if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
-				continue;
-			if (ret)
-				goto err;
-			if (!k.k)
-				goto next;
-
 			ret = bch2_move_get_io_opts_one(trans, &io_opts, &iter, k);
 			if (ret) {
 				bch2_trans_iter_exit(trans, &iter);
 				continue;
 			}
-
-			struct data_update_opts data_opts = {};
-			if (!pred(c, arg, k, &io_opts, &data_opts)) {
-				bch2_trans_iter_exit(trans, &iter);
-				goto next;
-			}
-
-			bch2_bkey_buf_reassemble(&sk, c, k);
-			k = bkey_i_to_s_c(sk.k);
-
-			unsigned sectors = bp.v->bucket_len; /* move_extent will drop locks */
-
-			ret = bch2_move_extent(ctxt, bucket_in_flight,
-					       &iter, k, io_opts, data_opts);
-			bch2_trans_iter_exit(trans, &iter);
-
-			if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
-				continue;
-			if (ret == -ENOMEM) {
-				/* memory allocation failure, wait for some IO to finish */
-				bch2_move_ctxt_wait_for_io(ctxt);
-				continue;
-			}
-			if (ret)
-				goto err;
-
-			if (ctxt->stats)
-				atomic64_add(sectors, &ctxt->stats->sectors_seen);
-			sectors_moved += sectors;
-		} else {
-			struct btree *b;
-
-			b = bch2_backpointer_get_node(trans, bp, &iter, &last_flushed);
-			ret = PTR_ERR_OR_ZERO(b);
-			if (ret == -BCH_ERR_backpointer_to_overwritten_btree_node)
-				goto next;
-			if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
-				continue;
-			if (ret)
-				goto err;
-			if (!b)
-				goto next;
-
-			struct data_update_opts data_opts = {};
-			if (!pred(c, arg, bkey_i_to_s_c(&b->key), &io_opts, &data_opts)) {
-				bch2_trans_iter_exit(trans, &iter);
-				goto next;
-			}
-
-			unsigned sectors = btree_ptr_sectors_written(bkey_i_to_s_c(&b->key));
-
-			ret = bch2_btree_node_rewrite(trans, &iter, b, 0);
-			bch2_trans_iter_exit(trans, &iter);
-
-			if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
-				continue;
-			if (ret)
-				goto err;
-
-			if (ctxt->rate)
-				bch2_ratelimit_increment(ctxt->rate, sectors);
-			if (ctxt->stats) {
-				atomic64_add(sectors, &ctxt->stats->sectors_seen);
-				atomic64_add(sectors, &ctxt->stats->sectors_moved);
-			}
-			sectors_moved += sectors;
 		}
+
+		struct data_update_opts data_opts = {};
+		if (!pred(c, arg, k, &io_opts, &data_opts)) {
+			bch2_trans_iter_exit(trans, &iter);
+			goto next;
+		}
+
+		bch2_bkey_buf_reassemble(&sk, c, k);
+		k = bkey_i_to_s_c(sk.k);
+
+		/* move_extent will drop locks */
+		unsigned sectors = !bp.v->level
+			? bp.v->bucket_len
+			: btree_ptr_sectors_written(k);
+
+		ret = !bp.v->level
+			? bch2_move_extent(ctxt, bucket_in_flight, &iter, k, io_opts, data_opts)
+			: bch2_btree_node_rewrite_pos(trans, bp.v->btree_id, bp.v->level, k.k->p, 0);
+
+		bch2_trans_iter_exit(trans, &iter);
+
+		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+			continue;
+		if (ret == -ENOMEM) {
+			/* memory allocation failure, wait for some IO to finish */
+			bch2_move_ctxt_wait_for_io(ctxt);
+			continue;
+		}
+		if (ret)
+			goto err;
+
+		if (ctxt->stats)
+			atomic64_add(sectors, &ctxt->stats->sectors_seen);
+		sectors_moved += sectors;
 next:
 		bch2_btree_iter_advance(&bp_iter);
 	}
