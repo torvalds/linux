@@ -2290,13 +2290,7 @@ typedef struct { /* data block encoding of response to level 263 QPathInfo */
 	__u8 DeletePending;
 	__u8 Directory;
 	__u16 Pad2;
-	__le64 IndexNumber;
 	__le32 EASize;
-	__le32 AccessFlags;
-	__u64 IndexNumber1;
-	__le64 CurrentByteOffset;
-	__le32 Mode;
-	__le32 AlignmentRequirement;
 	__le32 FileNameLength;
 	union {
 		char __pad;

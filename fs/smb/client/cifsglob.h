@@ -2203,11 +2203,13 @@ static inline size_t ntlmssp_workstation_name_size(const struct cifs_ses *ses)
 
 static inline void move_cifs_info_to_smb2(struct smb2_file_all_info *dst, const FILE_ALL_INFO *src)
 {
-	memcpy(dst, src, (size_t)((u8 *)&src->AccessFlags - (u8 *)src));
-	dst->AccessFlags = src->AccessFlags;
-	dst->CurrentByteOffset = src->CurrentByteOffset;
-	dst->Mode = src->Mode;
-	dst->AlignmentRequirement = src->AlignmentRequirement;
+	memcpy(dst, src, (size_t)((u8 *)&src->EASize - (u8 *)src));
+	dst->IndexNumber = 0;
+	dst->EASize = src->EASize;
+	dst->AccessFlags = 0;
+	dst->CurrentByteOffset = 0;
+	dst->Mode = 0;
+	dst->AlignmentRequirement = 0;
 	dst->FileNameLength = src->FileNameLength;
 }
 
