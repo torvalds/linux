@@ -1352,7 +1352,7 @@ start:
 
 		can_retry = bch2_bkey_pick_read_device(c,
 				bkey_i_to_s_c(&b->key),
-				&failed, &rb->pick) > 0;
+				&failed, &rb->pick, -1) > 0;
 
 		if (!bio->bi_status &&
 		    !bch2_btree_node_read_done(c, ca, b, can_retry, &saw_error)) {
@@ -1697,7 +1697,7 @@ void bch2_btree_node_read(struct btree_trans *trans, struct btree *b,
 		return;
 
 	ret = bch2_bkey_pick_read_device(c, bkey_i_to_s_c(&b->key),
-					 NULL, &pick);
+					 NULL, &pick, -1);
 
 	if (ret <= 0) {
 		struct printbuf buf = PRINTBUF;

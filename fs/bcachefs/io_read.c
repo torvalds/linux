@@ -436,7 +436,7 @@ retry:
 				 bkey_start_pos(&u->k.k->k),
 				 u->btree_id,
 				 bkey_i_to_s_c(u->k.k),
-				 0, failed, flags);
+				 0, failed, flags, -1);
 err:
 	bch2_trans_iter_exit(trans, &iter);
 
@@ -872,7 +872,7 @@ int __bch2_read_extent(struct btree_trans *trans, struct bch_read_bio *orig,
 		       struct bvec_iter iter, struct bpos read_pos,
 		       enum btree_id data_btree, struct bkey_s_c k,
 		       unsigned offset_into_extent,
-		       struct bch_io_failures *failed, unsigned flags)
+		       struct bch_io_failures *failed, unsigned flags, int dev)
 {
 	struct bch_fs *c = trans->c;
 	struct extent_ptr_decoded pick;
@@ -893,7 +893,7 @@ int __bch2_read_extent(struct btree_trans *trans, struct bch_read_bio *orig,
 		goto out_read_done;
 	}
 retry_pick:
-	pick_ret = bch2_bkey_pick_read_device(c, k, failed, &pick);
+	pick_ret = bch2_bkey_pick_read_device(c, k, failed, &pick, dev);
 
 	/* hole or reservation - just zero fill: */
 	if (!pick_ret)
@@ -1250,7 +1250,7 @@ void __bch2_read(struct bch_fs *c, struct bch_read_bio *rbio,
 
 		ret = __bch2_read_extent(trans, rbio, bvec_iter, iter.pos,
 					 data_btree, k,
-					 offset_into_extent, failed, flags);
+					 offset_into_extent, failed, flags, -1);
 		if (ret)
 			goto err;
 
