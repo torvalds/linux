@@ -1808,7 +1808,9 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 				IWL_DEBUG_TX_REPLY(mvm,
 						   "Next reclaimed packet:%d\n",
 						   next_reclaimed);
-				iwl_mvm_count_mpdu(mvmsta, sta_id, 1, true, 0);
+				if (tid < IWL_MAX_TID_COUNT)
+					iwl_mvm_count_mpdu(mvmsta, sta_id, 1,
+							   true, 0);
 			} else {
 				IWL_DEBUG_TX_REPLY(mvm,
 						   "NDP - don't update next_reclaimed\n");
