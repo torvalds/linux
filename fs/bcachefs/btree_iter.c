@@ -2770,6 +2770,10 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 		goto out_no_locked;
 	}
 
+	struct btree_path *path = btree_iter_path(trans, iter);
+	if (unlikely(!btree_path_node(path, path->level)))
+		return bkey_s_c_null;
+
 	if ((iter->flags & BTREE_ITER_cached) ||
 	    !(iter->flags & (BTREE_ITER_is_extents|BTREE_ITER_filter_snapshots))) {
 		k = bkey_s_c_null;
