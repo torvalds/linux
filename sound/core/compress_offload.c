@@ -1053,13 +1053,13 @@ static int snd_compr_task_new(struct snd_compr_stream *stream, struct snd_compr_
 		put_unused_fd(fd_i);
 		goto cleanup;
 	}
+	/* keep dmabuf reference until freed with task free ioctl */
+	get_dma_buf(task->input);
+	get_dma_buf(task->output);
 	fd_install(fd_i, task->input->file);
 	fd_install(fd_o, task->output->file);
 	utask->input_fd = fd_i;
 	utask->output_fd = fd_o;
-	/* keep dmabuf reference until freed with task free ioctl */
-	dma_buf_get(utask->input_fd);
-	dma_buf_get(utask->output_fd);
 	list_add_tail(&task->list, &stream->runtime->tasks);
 	stream->runtime->total_tasks++;
 	return 0;
