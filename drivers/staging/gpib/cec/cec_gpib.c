@@ -365,11 +365,15 @@ static int __init cec_init_module(void)
 
 	result = pci_register_driver(&cec_pci_driver);
 	if (result) {
-		pr_err("cec_gpib: pci_driver_register failed!\n");
+		pr_err("cec_gpib: pci_register_driver failed: error = %d\n", result);
 		return result;
 	}
 
-	gpib_register_driver(&cec_pci_interface, THIS_MODULE);
+	result = gpib_register_driver(&cec_pci_interface, THIS_MODULE);
+	if (result) {
+		pr_err("cec_gpib: gpib_register_driver failed: error = %d\n", result);
+		return result;
+	}
 
 	return 0;
 }
