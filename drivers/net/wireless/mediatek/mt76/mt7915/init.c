@@ -53,7 +53,9 @@ static ssize_t mt7915_thermal_temp_show(struct device *dev,
 
 	switch (i) {
 	case 0:
+		mutex_lock(&phy->dev->mt76.mutex);
 		temperature = mt7915_mcu_get_temperature(phy);
+		mutex_unlock(&phy->dev->mt76.mutex);
 		if (temperature < 0)
 			return temperature;
 		/* display in millidegree celcius */
@@ -95,9 +97,8 @@ static ssize_t mt7915_thermal_temp_store(struct device *dev,
 	}
 
 	phy->throttle_temp[i - 1] = val;
-	mutex_unlock(&phy->dev->mt76.mutex);
-
 	ret = mt7915_mcu_set_thermal_protect(phy);
+	mutex_unlock(&phy->dev->mt76.mutex);
 	if (ret)
 		return ret;
 
@@ -159,7 +160,9 @@ mt7915_thermal_set_cur_throttle_state(struct thermal_cooling_device *cdev,
 	 * cooling_device convention: 0 = no cooling, more = more cooling
 	 * mcu convention: 1 = max cooling, more = less cooling
 	 */
+	mutex_lock(&phy->dev->mt76.mutex);
 	ret = mt7915_mcu_set_thermal_throttling(phy, throttling);
+	mutex_unlock(&phy->dev->mt76.mutex);
 	if (ret)
 		return ret;
 
