@@ -47,13 +47,10 @@ static int c_show(struct seq_file *m, void *p)
 		   (alg->cra_flags & CRYPTO_ALG_TESTED) ?
 		   "passed" : "unknown");
 	seq_printf(m, "internal     : %s\n",
-		   (alg->cra_flags & CRYPTO_ALG_INTERNAL) ?
-		   "yes" : "no");
-	if (fips_enabled) {
+		   str_yes_no(alg->cra_flags & CRYPTO_ALG_INTERNAL));
+	if (fips_enabled)
 		seq_printf(m, "fips         : %s\n",
-			   (alg->cra_flags & CRYPTO_ALG_FIPS_INTERNAL) ?
-			   "no" : "yes");
-	}
+			str_no_yes(alg->cra_flags & CRYPTO_ALG_FIPS_INTERNAL));
 
 	if (alg->cra_flags & CRYPTO_ALG_LARVAL) {
 		seq_printf(m, "type         : larval\n");
