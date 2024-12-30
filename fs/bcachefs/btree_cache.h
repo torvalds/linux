@@ -147,6 +147,8 @@ const char *bch2_btree_id_str(enum btree_id);	/* avoid */
 void bch2_btree_id_to_text(struct printbuf *, enum btree_id);
 void bch2_btree_id_level_to_text(struct printbuf *, enum btree_id, unsigned);
 
+void __bch2_btree_pos_to_text(struct printbuf *, struct bch_fs *,
+			      enum btree_id, unsigned, struct bkey_s_c);
 void bch2_btree_pos_to_text(struct printbuf *, struct bch_fs *, const struct btree *);
 void bch2_btree_node_to_text(struct printbuf *, struct bch_fs *, const struct btree *);
 void bch2_btree_cache_to_text(struct printbuf *, const struct btree_cache *);

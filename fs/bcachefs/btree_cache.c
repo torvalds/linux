@@ -1402,18 +1402,24 @@ void bch2_btree_id_level_to_text(struct printbuf *out, enum btree_id btree, unsi
 	prt_printf(out, " level=%u", level);
 }
 
-void bch2_btree_pos_to_text(struct printbuf *out, struct bch_fs *c, const struct btree *b)
+void __bch2_btree_pos_to_text(struct printbuf *out, struct bch_fs *c,
+			      enum btree_id btree, unsigned level, struct bkey_s_c k)
 {
-	bch2_btree_id_to_text(out, b->c.btree_id);
-	prt_printf(out, " level %u/", b->c.level);
-	struct btree_root *r = bch2_btree_id_root(c, b->c.btree_id);
+	bch2_btree_id_to_text(out, btree);
+	prt_printf(out, " level %u/", level);
+	struct btree_root *r = bch2_btree_id_root(c, btree);
 	if (r)
 		prt_printf(out, "%u", r->level);
 	else
 		prt_printf(out, "(unknown)");
 	prt_printf(out, "\n  ");
 
-	bch2_bkey_val_to_text(out, c, bkey_i_to_s_c(&b->key));
+	bch2_bkey_val_to_text(out, c, k);
+}
+
+void bch2_btree_pos_to_text(struct printbuf *out, struct bch_fs *c, const struct btree *b)
+{
+	__bch2_btree_pos_to_text(out, c, b->c.btree_id, b->c.level, bkey_i_to_s_c(&b->key));
 }
 
 void bch2_btree_node_to_text(struct printbuf *out, struct bch_fs *c, const struct btree *b)
