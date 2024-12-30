@@ -368,8 +368,12 @@ static int mt7915_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	int idx = key->keyidx;
 	int err = 0;
 
-	if (sta && !wcid->sta)
+	if (sta && !wcid->sta) {
+		if (cmd != SET_KEY)
+			return 0;
+
 		return -EOPNOTSUPP;
+	}
 
 	/* The hardware does not support per-STA RX GTK, fallback
 	 * to software mode for these.
@@ -765,6 +769,57 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	return 0;
 }
 
+struct drop_sta_iter {
+	struct mt7915_dev *dev;
+	struct ieee80211_hw *hw;
+	struct ieee80211_vif *vif;
+	u8 sta_addr[ETH_ALEN];
+};
+
+static void
+__mt7915_drop_sta(void *ptr, u8 *mac, struct ieee80211_vif *vif)
+{
+	struct drop_sta_iter *data = ptr;
+	struct ieee80211_sta *sta;
+	struct mt7915_sta *msta;
+
+	if (vif == data->vif || vif->type != NL80211_IFTYPE_AP)
+		return;
+
+	sta = ieee80211_find_sta_by_ifaddr(data->hw, data->sta_addr, mac);
+	if (!sta)
+		return;
+
+	msta = (struct mt7915_sta *)sta->drv_priv;
+	mt7915_mcu_add_sta(data->dev, vif, sta, CONN_STATE_DISCONNECT, false);
+	msta->wcid.sta_disabled = 1;
+	msta->wcid.sta = 0;
+}
+
+static void
+mt7915_drop_other_sta(struct mt7915_dev *dev, struct ieee80211_vif *vif,
+		      struct ieee80211_sta *sta)
+{
+	struct mt76_phy *ext_phy = dev->mt76.phys[MT_BAND1];
+	struct drop_sta_iter data = {
+		.dev = dev,
+		.hw = dev->mphy.hw,
+		.vif = vif,
+	};
+
+	if (vif->type != NL80211_IFTYPE_AP)
+		return;
+
+	memcpy(data.sta_addr, sta->addr, ETH_ALEN);
+	ieee80211_iterate_active_interfaces(data.hw, 0, __mt7915_drop_sta, &data);
+
+	if (!ext_phy)
+		return;
+
+	data.hw = ext_phy->hw;
+	ieee80211_iterate_active_interfaces(data.hw, 0, __mt7915_drop_sta, &data);
+}
+
 int mt7915_mac_sta_event(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 			 struct ieee80211_sta *sta, enum mt76_sta_event ev)
 {
@@ -793,6 +848,7 @@ int mt7915_mac_sta_event(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 		return 0;
 
 	case MT76_STA_EVENT_AUTHORIZE:
+		mt7915_drop_other_sta(dev, vif, sta);
 		return mt7915_mcu_add_sta(dev, vif, sta, CONN_STATE_PORT_SECURE, false);
 
 	case MT76_STA_EVENT_DISASSOC:
