@@ -1691,23 +1691,54 @@ static int __init fmh_gpib_init_module(void)
 
 	result = platform_driver_register(&fmh_gpib_platform_driver);
 	if (result) {
-		pr_err("fmh_gpib: platform_driver_register failed!\n");
+		pr_err("fmh_gpib: platform_driver_register failed: error = %d\n", result);
 		return result;
 	}
 
 	result = pci_register_driver(&fmh_gpib_pci_driver);
 	if (result) {
-		pr_err("fmh_gpib: pci_driver_register failed!\n");
-		return result;
+		pr_err("fmh_gpib: pci_register_driver failed: error = %d\n", result);
+		goto err_pci_driver;
 	}
 
-	gpib_register_driver(&fmh_gpib_unaccel_interface, THIS_MODULE);
-	gpib_register_driver(&fmh_gpib_interface, THIS_MODULE);
-	gpib_register_driver(&fmh_gpib_pci_unaccel_interface, THIS_MODULE);
-	gpib_register_driver(&fmh_gpib_pci_interface, THIS_MODULE);
+	result = gpib_register_driver(&fmh_gpib_unaccel_interface, THIS_MODULE);
+	if (result) {
+		pr_err("fmh_gpib: gpib_register_driver failed: error = %d\n", result);
+		goto err_unaccel;
+	}
 
-	pr_info("fmh_gpib\n");
+	result = gpib_register_driver(&fmh_gpib_interface, THIS_MODULE);
+	if (result) {
+		pr_err("fmh_gpib: gpib_register_driver failed: error = %d\n", result);
+		goto err_interface;
+	}
+
+	result = gpib_register_driver(&fmh_gpib_pci_unaccel_interface, THIS_MODULE);
+	if (result) {
+		pr_err("fmh_gpib: gpib_register_driver failed: error = %d\n", result);
+		goto err_pci_unaccel;
+	}
+
+	result = gpib_register_driver(&fmh_gpib_pci_interface, THIS_MODULE);
+	if (result) {
+		pr_err("fmh_gpib: gpib_register_driver failed: error = %d\n", result);
+		goto err_pci;
+	}
+
 	return 0;
+
+err_pci:
+	gpib_unregister_driver(&fmh_gpib_pci_unaccel_interface);
+err_pci_unaccel:
+	gpib_unregister_driver(&fmh_gpib_interface);
+err_interface:
+	gpib_unregister_driver(&fmh_gpib_unaccel_interface);
+err_unaccel:
+	pci_unregister_driver(&fmh_gpib_pci_driver);
+err_pci_driver:
+	platform_driver_unregister(&fmh_gpib_platform_driver);
+
+	return result;
 }
 
 static void __exit fmh_gpib_exit_module(void)
