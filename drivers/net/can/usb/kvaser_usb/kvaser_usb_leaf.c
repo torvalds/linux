@@ -1120,8 +1120,8 @@ kvaser_usb_leaf_rx_error_update_can_state(struct kvaser_usb_net_priv *priv,
 static void kvaser_usb_leaf_rx_error(const struct kvaser_usb *dev,
 				     const struct kvaser_usb_err_summary *es)
 {
-	struct can_frame *cf;
-	struct sk_buff *skb;
+	struct can_frame *cf = NULL;
+	struct sk_buff *skb = NULL;
 	struct net_device_stats *stats;
 	struct kvaser_usb_net_priv *priv;
 	struct kvaser_usb_net_leaf_priv *leaf;
@@ -1142,7 +1142,8 @@ static void kvaser_usb_leaf_rx_error(const struct kvaser_usb *dev,
 		return;
 
 	old_state = priv->can.state;
-	skb = alloc_can_err_skb(priv->netdev, &cf);
+	if (priv->can.ctrlmode & CAN_CTRLMODE_BERR_REPORTING)
+		skb = alloc_can_err_skb(priv->netdev, &cf);
 	kvaser_usb_leaf_rx_error_update_can_state(priv, es, cf);
 	new_state = priv->can.state;
 
@@ -1176,8 +1177,10 @@ static void kvaser_usb_leaf_rx_error(const struct kvaser_usb *dev,
 	}
 
 	if (!skb) {
-		stats->rx_dropped++;
-		netdev_warn(priv->netdev, "No memory left for err_skb\n");
+		if (priv->can.ctrlmode & CAN_CTRLMODE_BERR_REPORTING) {
+			stats->rx_dropped++;
+			netdev_warn(priv->netdev, "No memory left for err_skb\n");
+		}
 		return;
 	}
 

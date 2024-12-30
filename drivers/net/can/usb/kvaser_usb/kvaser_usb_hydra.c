@@ -1084,8 +1084,8 @@ kvaser_usb_hydra_error_frame(struct kvaser_usb_net_priv *priv,
 {
 	struct net_device *netdev = priv->netdev;
 	struct net_device_stats *stats = &netdev->stats;
-	struct can_frame *cf;
-	struct sk_buff *skb;
+	struct can_frame *cf = NULL;
+	struct sk_buff *skb = NULL;
 	struct can_berr_counter bec;
 	enum can_state new_state, old_state;
 	u8 bus_status;
@@ -1101,21 +1101,24 @@ kvaser_usb_hydra_error_frame(struct kvaser_usb_net_priv *priv,
 	kvaser_usb_hydra_bus_status_to_can_state(priv, bus_status, &bec,
 						 &new_state);
 
-	skb = alloc_can_err_skb(netdev, &cf);
+	if (priv->can.ctrlmode & CAN_CTRLMODE_BERR_REPORTING)
+		skb = alloc_can_err_skb(netdev, &cf);
 	if (new_state != old_state)
 		kvaser_usb_hydra_change_state(priv, &bec, cf, new_state);
 
-	if (skb) {
-		struct skb_shared_hwtstamps *shhwtstamps = skb_hwtstamps(skb);
+	if (priv->can.ctrlmode & CAN_CTRLMODE_BERR_REPORTING) {
+		if (skb) {
+			struct skb_shared_hwtstamps *shhwtstamps = skb_hwtstamps(skb);
 
-		shhwtstamps->hwtstamp = hwtstamp;
-		cf->can_id |= CAN_ERR_BUSERROR | CAN_ERR_CNT;
-		cf->data[6] = bec.txerr;
-		cf->data[7] = bec.rxerr;
-		netif_rx(skb);
-	} else {
-		stats->rx_dropped++;
-		netdev_warn(netdev, "No memory left for err_skb\n");
+			shhwtstamps->hwtstamp = hwtstamp;
+			cf->can_id |= CAN_ERR_BUSERROR | CAN_ERR_CNT;
+			cf->data[6] = bec.txerr;
+			cf->data[7] = bec.rxerr;
+			netif_rx(skb);
+		} else {
+			stats->rx_dropped++;
+			netdev_warn(netdev, "No memory left for err_skb\n");
+		}
 	}
 
 	priv->bec.txerr = bec.txerr;
