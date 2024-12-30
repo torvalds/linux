@@ -807,8 +807,21 @@ MODULE_DEVICE_TABLE(pnp, hp_82341_pnp_table);
 
 static int __init hp_82341_init_module(void)
 {
-	gpib_register_driver(&hp_82341_unaccel_interface, THIS_MODULE);
-	gpib_register_driver(&hp_82341_interface, THIS_MODULE);
+	int ret;
+
+	ret = gpib_register_driver(&hp_82341_unaccel_interface, THIS_MODULE);
+	if (ret) {
+		pr_err("hp_82341: gpib_register_driver failed: error = %d\n", ret);
+		return ret;
+	}
+
+	ret = gpib_register_driver(&hp_82341_interface, THIS_MODULE);
+	if (ret) {
+		pr_err("hp_82341: gpib_register_driver failed: error = %d\n", ret);
+		gpib_unregister_driver(&hp_82341_unaccel_interface);
+		return ret;
+	}
+
 	return 0;
 }
 
