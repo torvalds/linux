@@ -1155,16 +1155,38 @@ static int __init fluke_init_module(void)
 
 	result = platform_driver_register(&fluke_gpib_platform_driver);
 	if (result) {
-		pr_err("fluke_gpib: platform_driver_register failed!\n");
+		pr_err("fluke_gpib: platform_driver_register failed: error = %d\n", result);
 		return result;
 	}
 
-	gpib_register_driver(&fluke_unaccel_interface, THIS_MODULE);
-	gpib_register_driver(&fluke_hybrid_interface, THIS_MODULE);
-	gpib_register_driver(&fluke_interface, THIS_MODULE);
+	result = gpib_register_driver(&fluke_unaccel_interface, THIS_MODULE);
+	if (result) {
+		pr_err("fluke_gpib: gpib_register_driver failed: error = %d\n", result);
+		goto err_unaccel;
+	}
 
-	pr_info("fluke_gpib\n");
+	result = gpib_register_driver(&fluke_hybrid_interface, THIS_MODULE);
+	if (result) {
+		pr_err("fluke_gpib: gpib_register_driver failed: error = %d\n", result);
+		goto err_hybrid;
+	}
+
+	result = gpib_register_driver(&fluke_interface, THIS_MODULE);
+	if (result) {
+		pr_err("fluke_gpib: gpib_register_driver failed: error = %d\n", result);
+		goto err_interface;
+	}
+
 	return 0;
+
+err_interface:
+	gpib_unregister_driver(&fluke_hybrid_interface);
+err_hybrid:
+	gpib_unregister_driver(&fluke_unaccel_interface);
+err_unaccel:
+	platform_driver_unregister(&fluke_gpib_platform_driver);
+
+	return result;
 }
 
 static void __exit fluke_exit_module(void)
