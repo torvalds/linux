@@ -1691,12 +1691,24 @@ static struct usb_driver agilent_82357a_bus_driver = {
 static int __init agilent_82357a_init_module(void)
 {
 	int i;
+	int ret;
 
 	pr_info("agilent_82357a_gpib driver loading");
 	for (i = 0; i < MAX_NUM_82357A_INTERFACES; ++i)
 		agilent_82357a_driver_interfaces[i] = NULL;
-	usb_register(&agilent_82357a_bus_driver);
-	gpib_register_driver(&agilent_82357a_gpib_interface, THIS_MODULE);
+
+	ret = usb_register(&agilent_82357a_bus_driver);
+	if (ret) {
+		pr_err("agilent_82357a: usb_register failed: error = %d\n", ret);
+		return ret;
+	}
+
+	ret = gpib_register_driver(&agilent_82357a_gpib_interface, THIS_MODULE);
+	if (ret) {
+		pr_err("agilent_82357a: gpib_register_driver failed: error = %d\n", ret);
+		usb_deregister(&agilent_82357a_bus_driver);
+		return ret;
+	}
 
 	return 0;
 }
