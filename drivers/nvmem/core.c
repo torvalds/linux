@@ -213,7 +213,7 @@ static struct attribute *nvmem_attrs[] = {
 };
 
 static ssize_t bin_attr_nvmem_read(struct file *filp, struct kobject *kobj,
-				   struct bin_attribute *attr, char *buf,
+				   const struct bin_attribute *attr, char *buf,
 				   loff_t pos, size_t count)
 {
 	struct device *dev;
@@ -246,7 +246,7 @@ static ssize_t bin_attr_nvmem_read(struct file *filp, struct kobject *kobj,
 }
 
 static ssize_t bin_attr_nvmem_write(struct file *filp, struct kobject *kobj,
-				    struct bin_attribute *attr, char *buf,
+				    const struct bin_attribute *attr, char *buf,
 				    loff_t pos, size_t count)
 {
 	struct device *dev;
@@ -340,7 +340,7 @@ static struct nvmem_cell *nvmem_create_cell(struct nvmem_cell_entry *entry,
 					    const char *id, int index);
 
 static ssize_t nvmem_cell_attr_read(struct file *filp, struct kobject *kobj,
-				    struct bin_attribute *attr, char *buf,
+				    const struct bin_attribute *attr, char *buf,
 				    loff_t pos, size_t count)
 {
 	struct nvmem_cell_entry *entry;
@@ -374,22 +374,22 @@ destroy_cell:
 }
 
 /* default read/write permissions */
-static struct bin_attribute bin_attr_rw_nvmem = {
+static const struct bin_attribute bin_attr_rw_nvmem = {
 	.attr	= {
 		.name	= "nvmem",
 		.mode	= 0644,
 	},
-	.read	= bin_attr_nvmem_read,
-	.write	= bin_attr_nvmem_write,
+	.read_new	= bin_attr_nvmem_read,
+	.write_new	= bin_attr_nvmem_write,
 };
 
-static struct bin_attribute *nvmem_bin_attributes[] = {
+static const struct bin_attribute *const nvmem_bin_attributes[] = {
 	&bin_attr_rw_nvmem,
 	NULL,
 };
 
 static const struct attribute_group nvmem_bin_group = {
-	.bin_attrs	= nvmem_bin_attributes,
+	.bin_attrs_new	= nvmem_bin_attributes,
 	.attrs		= nvmem_attrs,
 	.is_bin_visible = nvmem_bin_attr_is_visible,
 	.bin_size	= nvmem_bin_attr_size,
@@ -401,12 +401,12 @@ static const struct attribute_group *nvmem_dev_groups[] = {
 	NULL,
 };
 
-static struct bin_attribute bin_attr_nvmem_eeprom_compat = {
+static const struct bin_attribute bin_attr_nvmem_eeprom_compat = {
 	.attr	= {
 		.name	= "eeprom",
 	},
-	.read	= bin_attr_nvmem_read,
-	.write	= bin_attr_nvmem_write,
+	.read_new	= bin_attr_nvmem_read,
+	.write_new	= bin_attr_nvmem_write,
 };
 
 /*
@@ -461,6 +461,7 @@ static int nvmem_populate_sysfs_cells(struct nvmem_device *nvmem)
 		.name	= "cells",
 	};
 	struct nvmem_cell_entry *entry;
+	const struct bin_attribute **pattrs;
 	struct bin_attribute *attrs;
 	unsigned int ncells = 0, i = 0;
 	int ret = 0;
@@ -472,9 +473,9 @@ static int nvmem_populate_sysfs_cells(struct nvmem_device *nvmem)
 
 	/* Allocate an array of attributes with a sentinel */
 	ncells = list_count_nodes(&nvmem->cells);
-	group.bin_attrs = devm_kcalloc(&nvmem->dev, ncells + 1,
-				       sizeof(struct bin_attribute *), GFP_KERNEL);
-	if (!group.bin_attrs) {
+	pattrs = devm_kcalloc(&nvmem->dev, ncells + 1,
+			      sizeof(struct bin_attribute *), GFP_KERNEL);
+	if (!pattrs) {
 		ret = -ENOMEM;
 		goto unlock_mutex;
 	}
@@ -494,16 +495,18 @@ static int nvmem_populate_sysfs_cells(struct nvmem_device *nvmem)
 						    entry->bit_offset);
 		attrs[i].attr.mode = 0444 & nvmem_bin_attr_get_umode(nvmem);
 		attrs[i].size = entry->bytes;
-		attrs[i].read = &nvmem_cell_attr_read;
+		attrs[i].read_new = &nvmem_cell_attr_read;
 		attrs[i].private = entry;
 		if (!attrs[i].attr.name) {
 			ret = -ENOMEM;
 			goto unlock_mutex;
 		}
 
-		group.bin_attrs[i] = &attrs[i];
+		pattrs[i] = &attrs[i];
 		i++;
 	}
+
+	group.bin_attrs_new = pattrs;
 
 	ret = device_add_group(&nvmem->dev, &group);
 	if (ret)
