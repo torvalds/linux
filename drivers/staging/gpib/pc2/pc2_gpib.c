@@ -635,12 +635,42 @@ void pc2_2a_detach(gpib_board_t *board)
 
 static int __init pc2_init_module(void)
 {
-	gpib_register_driver(&pc2_interface, THIS_MODULE);
-	gpib_register_driver(&pc2a_interface, THIS_MODULE);
-	gpib_register_driver(&pc2a_cb7210_interface, THIS_MODULE);
-	gpib_register_driver(&pc2_2a_interface, THIS_MODULE);
+	int ret;
+
+	ret = gpib_register_driver(&pc2_interface, THIS_MODULE);
+	if (ret) {
+		pr_err("pc2_gpib: gpib_register_driver failed: error = %d\n", ret);
+		return ret;
+	}
+
+	ret = gpib_register_driver(&pc2a_interface, THIS_MODULE);
+	if (ret) {
+		pr_err("pc2_gpib: gpib_register_driver failed: error = %d\n", ret);
+		goto err_pc2a;
+	}
+
+	ret = gpib_register_driver(&pc2a_cb7210_interface, THIS_MODULE);
+	if (ret) {
+		pr_err("pc2_gpib: gpib_register_driver failed: error = %d\n", ret);
+		goto err_cb7210;
+	}
+
+	ret = gpib_register_driver(&pc2_2a_interface, THIS_MODULE);
+	if (ret) {
+		pr_err("pc2_gpib: gpib_register_driver failed: error = %d\n", ret);
+		goto err_pc2_2a;
+	}
 
 	return 0;
+
+err_pc2_2a:
+	gpib_unregister_driver(&pc2a_cb7210_interface);
+err_cb7210:
+	gpib_unregister_driver(&pc2a_interface);
+err_pc2a:
+	gpib_unregister_driver(&pc2_interface);
+
+	return ret;
 }
 
 static void __exit pc2_exit_module(void)
