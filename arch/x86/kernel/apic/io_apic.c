@@ -1165,7 +1165,7 @@ static void io_apic_print_entries(unsigned int apic, unsigned int nr_entries)
 				 (entry.ir_index_15 << 15) | entry.ir_index_0_14, entry.ir_zero);
 		} else {
 			apic_dbg("%s, %s, D(%02X%02X), M(%1d)\n", buf,
-				 entry.dest_mode_logical ? "logical " : "physic	al",
+				 entry.dest_mode_logical ? "logical " : "physical",
 				 entry.virt_destid_8_14, entry.destid_0_7, entry.delivery_mode);
 		}
 	}
