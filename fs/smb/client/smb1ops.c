@@ -543,24 +543,104 @@ static int cifs_query_path_info(const unsigned int xid,
 				const char *full_path,
 				struct cifs_open_info_data *data)
 {
-	int rc;
+	int rc = -EOPNOTSUPP;
 	FILE_ALL_INFO fi = {};
+	struct cifs_search_info search_info = {};
+	bool non_unicode_wildcard = false;
 
 	data->reparse_point = false;
 	data->adjust_tz = false;
 
-	/* could do find first instead but this returns more info */
-	rc = CIFSSMBQPathInfo(xid, tcon, full_path, &fi, 0 /* not legacy */, cifs_sb->local_nls,
-			      cifs_remap(cifs_sb));
 	/*
-	 * BB optimize code so we do not make the above call when server claims
-	 * no NT SMB support and the above call failed at least once - set flag
-	 * in tcon or mount.
+	 * First try CIFSSMBQPathInfo() function which returns more info
+	 * (NumberOfLinks) than CIFSFindFirst() fallback function.
+	 * Some servers like Win9x do not support SMB_QUERY_FILE_ALL_INFO over
+	 * TRANS2_QUERY_PATH_INFORMATION, but supports it with filehandle over
+	 * TRANS2_QUERY_FILE_INFORMATION (function CIFSSMBQFileInfo(). But SMB
+	 * Open command on non-NT servers works only for files, does not work
+	 * for directories. And moreover Win9x SMB server returns bogus data in
+	 * SMB_QUERY_FILE_ALL_INFO Attributes field. So for non-NT servers,
+	 * do not even use CIFSSMBQPathInfo() or CIFSSMBQFileInfo() function.
 	 */
-	if ((rc == -EOPNOTSUPP) || (rc == -EINVAL)) {
+	if (tcon->ses->capabilities & CAP_NT_SMBS)
+		rc = CIFSSMBQPathInfo(xid, tcon, full_path, &fi, 0 /* not legacy */,
+				      cifs_sb->local_nls, cifs_remap(cifs_sb));
+
+	/*
+	 * Non-UNICODE variant of fallback functions below expands wildcards,
+	 * so they cannot be used for querying paths with wildcard characters.
+	 */
+	if (rc && !(tcon->ses->capabilities & CAP_UNICODE) && strpbrk(full_path, "*?\"><"))
+		non_unicode_wildcard = true;
+
+	/*
+	 * Then fallback to CIFSFindFirst() which works also with non-NT servers
+	 * but does not does not provide NumberOfLinks.
+	 */
+	if ((rc == -EOPNOTSUPP || rc == -EINVAL) &&
+	    !non_unicode_wildcard) {
+		if (!(tcon->ses->capabilities & tcon->ses->server->vals->cap_nt_find))
+			search_info.info_level = SMB_FIND_FILE_INFO_STANDARD;
+		else
+			search_info.info_level = SMB_FIND_FILE_FULL_DIRECTORY_INFO;
+		rc = CIFSFindFirst(xid, tcon, full_path, cifs_sb, NULL,
+				   CIFS_SEARCH_CLOSE_ALWAYS | CIFS_SEARCH_CLOSE_AT_END,
+				   &search_info, false);
+		if (rc == 0) {
+			if (!(tcon->ses->capabilities & tcon->ses->server->vals->cap_nt_find)) {
+				FIND_FILE_STANDARD_INFO *di;
+				int offset = tcon->ses->server->timeAdj;
+
+				di = (FIND_FILE_STANDARD_INFO *)search_info.srch_entries_start;
+				fi.CreationTime = cpu_to_le64(cifs_UnixTimeToNT(cnvrtDosUnixTm(
+						di->CreationDate, di->CreationTime, offset)));
+				fi.LastAccessTime = cpu_to_le64(cifs_UnixTimeToNT(cnvrtDosUnixTm(
+						di->LastAccessDate, di->LastAccessTime, offset)));
+				fi.LastWriteTime = cpu_to_le64(cifs_UnixTimeToNT(cnvrtDosUnixTm(
+						di->LastWriteDate, di->LastWriteTime, offset)));
+				fi.ChangeTime = fi.LastWriteTime;
+				fi.Attributes = cpu_to_le32(le16_to_cpu(di->Attributes));
+				fi.AllocationSize = cpu_to_le64(le32_to_cpu(di->AllocationSize));
+				fi.EndOfFile = cpu_to_le64(le32_to_cpu(di->DataSize));
+			} else {
+				FILE_FULL_DIRECTORY_INFO *di;
+
+				di = (FILE_FULL_DIRECTORY_INFO *)search_info.srch_entries_start;
+				fi.CreationTime = di->CreationTime;
+				fi.LastAccessTime = di->LastAccessTime;
+				fi.LastWriteTime = di->LastWriteTime;
+				fi.ChangeTime = di->ChangeTime;
+				fi.Attributes = di->ExtFileAttributes;
+				fi.AllocationSize = di->AllocationSize;
+				fi.EndOfFile = di->EndOfFile;
+				fi.EASize = di->EaSize;
+			}
+			fi.NumberOfLinks = cpu_to_le32(1);
+			fi.DeletePending = 0;
+			fi.Directory = !!(le32_to_cpu(fi.Attributes) & ATTR_DIRECTORY);
+			cifs_buf_release(search_info.ntwrk_buf_start);
+		} else if (!full_path[0]) {
+			/*
+			 * CIFSFindFirst() does not work on root path if the
+			 * root path was exported on the server from the top
+			 * level path (drive letter).
+			 */
+			rc = -EOPNOTSUPP;
+		}
+	}
+
+	/*
+	 * If everything failed then fallback to the legacy SMB command
+	 * SMB_COM_QUERY_INFORMATION which works with all servers, but
+	 * provide just few information.
+	 */
+	if ((rc == -EOPNOTSUPP || rc == -EINVAL) && !non_unicode_wildcard) {
 		rc = SMBQueryInformation(xid, tcon, full_path, &fi, cifs_sb->local_nls,
 					 cifs_remap(cifs_sb));
 		data->adjust_tz = true;
+	} else if ((rc == -EOPNOTSUPP || rc == -EINVAL) && non_unicode_wildcard) {
+		/* Path with non-UNICODE wildcard character cannot exist. */
+		rc = -ENOENT;
 	}
 
 	if (!rc) {
@@ -638,6 +718,13 @@ static int cifs_query_file_info(const unsigned int xid, struct cifs_tcon *tcon,
 {
 	int rc;
 	FILE_ALL_INFO fi = {};
+
+	/*
+	 * CIFSSMBQFileInfo() for non-NT servers returns bogus data in
+	 * Attributes fields. So do not use this command for non-NT servers.
+	 */
+	if (!(tcon->ses->capabilities & CAP_NT_SMBS))
+		return -EOPNOTSUPP;
 
 	if (cfile->symlink_target) {
 		data->symlink_target = kstrdup(cfile->symlink_target, GFP_KERNEL);
