@@ -910,13 +910,30 @@ static int __init agilent_82350b_init_module(void)
 
 	result = pci_register_driver(&agilent_82350b_pci_driver);
 	if (result) {
-		pr_err("agilent_82350b: pci_driver_register failed!\n");
+		pr_err("agilent_82350b: pci_register_driver failed: error = %d\n", result);
 		return result;
 	}
 
-	gpib_register_driver(&agilent_82350b_unaccel_interface, THIS_MODULE);
-	gpib_register_driver(&agilent_82350b_interface, THIS_MODULE);
+	result = gpib_register_driver(&agilent_82350b_unaccel_interface, THIS_MODULE);
+	if (result) {
+		pr_err("agilent_82350b: gpib_register_driver failed: error = %d\n", result);
+		goto err_unaccel;
+	}
+
+	result = gpib_register_driver(&agilent_82350b_interface, THIS_MODULE);
+	if (result) {
+		pr_err("agilent_82350b: gpib_register_driver failed: error = %d\n", result);
+		goto err_interface;
+	}
+
 	return 0;
+
+err_interface:
+	gpib_unregister_driver(&agilent_82350b_unaccel_interface);
+err_unaccel:
+	pci_unregister_driver(&agilent_82350b_pci_driver);
+
+	return result;
 }
 
 static void __exit agilent_82350b_exit_module(void)
