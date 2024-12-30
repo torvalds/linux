@@ -78,11 +78,10 @@ as this argument has preference over a default symbol namespace.
 A second option to define the default namespace is directly in the compilation
 unit as preprocessor statement. The above example would then read::
 
-	#undef  DEFAULT_SYMBOL_NAMESPACE
 	#define DEFAULT_SYMBOL_NAMESPACE "USB_COMMON"
 
-within the corresponding compilation unit before any EXPORT_SYMBOL macro is
-used.
+within the corresponding compilation unit before the #include for
+<linux/export.h>. Typically it's placed before the first #include statement.
 
 3. How to use Symbols exported in Namespaces
 ============================================
