@@ -999,7 +999,8 @@ static int kvaser_pciefd_setup_can_ctrls(struct kvaser_pciefd *pcie)
 		can->can.ctrlmode_supported = CAN_CTRLMODE_LISTENONLY |
 					      CAN_CTRLMODE_FD |
 					      CAN_CTRLMODE_FD_NON_ISO |
-					      CAN_CTRLMODE_CC_LEN8_DLC;
+					      CAN_CTRLMODE_CC_LEN8_DLC |
+					      CAN_CTRLMODE_BERR_REPORTING;
 
 		status = ioread32(can->reg_base + KVASER_PCIEFD_KCAN_STAT_REG);
 		if (!(status & KVASER_PCIEFD_KCAN_STAT_FD)) {
@@ -1304,7 +1305,7 @@ static int kvaser_pciefd_rx_error_frame(struct kvaser_pciefd_can *can,
 	struct can_berr_counter bec;
 	enum can_state old_state, new_state, tx_state, rx_state;
 	struct net_device *ndev = can->can.dev;
-	struct sk_buff *skb;
+	struct sk_buff *skb = NULL;
 	struct can_frame *cf = NULL;
 
 	old_state = can->can.state;
@@ -1313,7 +1314,8 @@ static int kvaser_pciefd_rx_error_frame(struct kvaser_pciefd_can *can,
 	bec.rxerr = FIELD_GET(KVASER_PCIEFD_SPACK_RXERR_MASK, p->header[0]);
 
 	kvaser_pciefd_packet_to_state(p, &bec, &new_state, &tx_state, &rx_state);
-	skb = alloc_can_err_skb(ndev, &cf);
+	if (can->can.ctrlmode & CAN_CTRLMODE_BERR_REPORTING)
+		skb = alloc_can_err_skb(ndev, &cf);
 	if (new_state != old_state) {
 		kvaser_pciefd_change_state(can, &bec, cf, new_state, tx_state, rx_state);
 	}
@@ -1328,17 +1330,18 @@ static int kvaser_pciefd_rx_error_frame(struct kvaser_pciefd_can *can,
 	can->bec.txerr = bec.txerr;
 	can->bec.rxerr = bec.rxerr;
 
-	if (!skb) {
-		ndev->stats.rx_dropped++;
-		return -ENOMEM;
+	if (can->can.ctrlmode & CAN_CTRLMODE_BERR_REPORTING) {
+		if (!skb) {
+			netdev_warn(ndev, "No memory left for err_skb\n");
+			ndev->stats.rx_dropped++;
+			return -ENOMEM;
+		}
+		kvaser_pciefd_set_skb_timestamp(can->kv_pcie, skb, p->timestamp);
+		cf->can_id |= CAN_ERR_BUSERROR | CAN_ERR_CNT;
+		cf->data[6] = bec.txerr;
+		cf->data[7] = bec.rxerr;
+		netif_rx(skb);
 	}
-
-	kvaser_pciefd_set_skb_timestamp(can->kv_pcie, skb, p->timestamp);
-	cf->can_id |= CAN_ERR_BUSERROR | CAN_ERR_CNT;
-	cf->data[6] = bec.txerr;
-	cf->data[7] = bec.rxerr;
-
-	netif_rx(skb);
 
 	return 0;
 }
