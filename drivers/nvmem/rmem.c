@@ -13,8 +13,6 @@ struct rmem {
 	struct device *dev;
 	struct nvmem_device *nvmem;
 	struct reserved_mem *mem;
-
-	phys_addr_t size;
 };
 
 static int rmem_read(void *context, unsigned int offset,
