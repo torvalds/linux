@@ -4067,7 +4067,7 @@ findFirstRetry:
 	pSMB->SearchAttributes =
 	    cpu_to_le16(ATTR_READONLY | ATTR_HIDDEN | ATTR_SYSTEM |
 			ATTR_DIRECTORY);
-	pSMB->SearchCount = cpu_to_le16(CIFSMaxBufSize/sizeof(FILE_UNIX_INFO));
+	pSMB->SearchCount = cpu_to_le16(msearch ? CIFSMaxBufSize/sizeof(FILE_UNIX_INFO) : 1);
 	pSMB->SearchFlags = cpu_to_le16(search_flags);
 	pSMB->InformationLevel = cpu_to_le16(psrch_inf->info_level);
 
