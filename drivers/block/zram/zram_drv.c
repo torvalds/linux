@@ -36,6 +36,10 @@
 #include <linux/mm_types.h>
 #include <linux/pgtable.h>
 #include <linux/hugetlb.h>
+#include <linux/mmzone.h>
+#include <linux/memcontrol.h>
+#include <linux/mm_inline.h>
+#include <linux/numa.h>
 
 #include "zram_drv.h"
 
@@ -651,6 +655,45 @@ struct zram_wb_store_walk {
 			.zram = zram,				\
 	}
 
+static bool is_eligible_swp_to_disk_entry(swp_entry_t swp_entry)
+{
+	void *shadow = NULL;
+	unsigned long min_seq;
+	struct lruvec *lruvec;
+	struct lru_gen_folio *lrugen;
+	int memcg_id;
+	bool workingset;
+	unsigned long token;
+	struct pglist_data *pgdat;
+
+	if (!lru_gen_enabled())
+		return true;
+
+	shadow = get_shadow_from_swap_cache(swp_entry);
+	unpack_shadow(shadow, &memcg_id, &pgdat, &token, &workingset);
+
+	rcu_read_lock();
+	/*
+	 * TODO: mem_cgroup_from_id can be used to get the 'memcg' from
+	 * its 'id'. Once it is whitelisted, replace the default memcg.
+	 * The below works because we don't enable the multiple memcg.
+	 */
+	if (memcg_id != mem_cgroup_id(root_mem_cgroup)) {
+		rcu_read_unlock();
+		return true;
+	}
+
+	lruvec = mem_cgroup_lruvec(root_mem_cgroup, pgdat);
+	lrugen = &lruvec->lrugen;
+	rcu_read_unlock();
+
+	min_seq = READ_ONCE(lrugen->min_seq[LRU_GEN_ANON]);
+	if ((token >> LRU_REFS_WIDTH) == (min_seq & (EVICTION_MASK >> LRU_REFS_WIDTH)))
+		return false;
+
+	return true;
+}
+
 static ssize_t writeback_store_apply(struct zram *zram, unsigned long index,
 					unsigned long nr_pages, int mode)
 {
@@ -816,6 +859,8 @@ static void walk_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 		if (is_swap_pte(*pte)) {
 			entry = pte_to_swp_entry(*pte);
 			if (is_pfn_swap_entry(entry))
+				continue;
+			if (!is_eligible_swp_to_disk_entry(entry))
 				continue;
 			entries[index++] = entry;
 			--walk->limit;
