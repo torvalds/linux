@@ -21,10 +21,10 @@ static int rmem_read(void *context, unsigned int offset,
 		     void *val, size_t bytes)
 {
 	struct rmem *priv = context;
-	size_t available = priv->mem->size;
-	loff_t off = offset;
 	void *addr;
-	int count;
+
+	if ((phys_addr_t)offset + bytes > priv->mem->size)
+		return -EIO;
 
 	/*
 	 * Only map the reserved memory at this point to avoid potential rogue
@@ -36,20 +36,17 @@ static int rmem_read(void *context, unsigned int offset,
 	 * An alternative would be setting the memory as RO, set_memory_ro(),
 	 * but as of Dec 2020 this isn't possible on arm64.
 	 */
-	addr = memremap(priv->mem->base, available, MEMREMAP_WB);
+	addr = memremap(priv->mem->base, priv->mem->size, MEMREMAP_WB);
 	if (!addr) {
 		dev_err(priv->dev, "Failed to remap memory region\n");
 		return -ENOMEM;
 	}
 
-	count = memory_read_from_buffer(val, bytes, &off, addr, available);
+	memcpy(val, addr + offset, bytes);
 
 	memunmap(addr);
 
-	if (count < 0)
-		return count;
-
-	return count == bytes ? 0 : -EIO;
+	return 0;
 }
 
 static int rmem_probe(struct platform_device *pdev)
