@@ -1524,29 +1524,109 @@ static int __init tnt4882_init_module(void)
 
 	result = pci_register_driver(&tnt4882_pci_driver);
 	if (result) {
-		pr_err("tnt4882: pci_driver_register failed!\n");
+		pr_err("tnt4882_gpib: pci_register_driver failed: error = %d\n", result);
 		return result;
 	}
 
-	gpib_register_driver(&ni_isa_interface, THIS_MODULE);
-	gpib_register_driver(&ni_isa_accel_interface, THIS_MODULE);
-	gpib_register_driver(&ni_nat4882_isa_interface, THIS_MODULE);
-	gpib_register_driver(&ni_nat4882_isa_accel_interface, THIS_MODULE);
-	gpib_register_driver(&ni_nec_isa_interface, THIS_MODULE);
-	gpib_register_driver(&ni_nec_isa_accel_interface, THIS_MODULE);
-	gpib_register_driver(&ni_pci_interface, THIS_MODULE);
-	gpib_register_driver(&ni_pci_accel_interface, THIS_MODULE);
+	result = gpib_register_driver(&ni_isa_interface, THIS_MODULE);
+	if (result) {
+		pr_err("tnt4882_gpib: gpib_register_driver failed: error = %d\n", result);
+		goto err_isa;
+	}
+
+	result = gpib_register_driver(&ni_isa_accel_interface, THIS_MODULE);
+	if (result) {
+		pr_err("tnt4882_gpib: gpib_register_driver failed: error = %d\n", result);
+		goto err_isa_accel;
+	}
+
+	result = gpib_register_driver(&ni_nat4882_isa_interface, THIS_MODULE);
+	if (result) {
+		pr_err("tnt4882_gpib: gpib_register_driver failed: error = %d\n", result);
+		goto err_nat4882_isa;
+	}
+
+	result = gpib_register_driver(&ni_nat4882_isa_accel_interface, THIS_MODULE);
+	if (result) {
+		pr_err("tnt4882_gpib: gpib_register_driver failed: error = %d\n", result);
+		goto err_nat4882_isa_accel;
+	}
+
+	result = gpib_register_driver(&ni_nec_isa_interface, THIS_MODULE);
+	if (result) {
+		pr_err("tnt4882_gpib: gpib_register_driver failed: error = %d\n", result);
+		goto err_nec_isa;
+	}
+
+	result = gpib_register_driver(&ni_nec_isa_accel_interface, THIS_MODULE);
+	if (result) {
+		pr_err("tnt4882_gpib: gpib_register_driver failed: error = %d\n", result);
+		goto err_nec_isa_accel;
+	}
+
+	result = gpib_register_driver(&ni_pci_interface, THIS_MODULE);
+	if (result) {
+		pr_err("tnt4882_gpib: gpib_register_driver failed: error = %d\n", result);
+		goto err_pci;
+	}
+
+	result = gpib_register_driver(&ni_pci_accel_interface, THIS_MODULE);
+	if (result) {
+		pr_err("tnt4882_gpib: gpib_register_driver failed: error = %d\n", result);
+		goto err_pci_accel;
+	}
+
 #ifdef GPIB_PCMCIA
-	gpib_register_driver(&ni_pcmcia_interface, THIS_MODULE);
-	gpib_register_driver(&ni_pcmcia_accel_interface, THIS_MODULE);
-	if (init_ni_gpib_cs() < 0)
-		return -1;
+	result = gpib_register_driver(&ni_pcmcia_interface, THIS_MODULE);
+	if (result) {
+		pr_err("tnt4882_gpib: gpib_register_driver failed: error = %d\n", result);
+		goto err_pcmcia;
+	}
+
+	result = gpib_register_driver(&ni_pcmcia_accel_interface, THIS_MODULE);
+	if (result) {
+		pr_err("tnt4882_gpib: gpib_register_driver failed: error = %d\n", result);
+		goto err_pcmcia_accel;
+	}
+
+	result = init_ni_gpib_cs();
+	if (result) {
+		pr_err("tnt4882_gpib: pcmcia_register_driver failed: error = %d\n", result);
+		goto err_pcmcia_driver;
+	}
 #endif
 
 	mite_init();
 	mite_list_devices();
 
 	return 0;
+
+#ifdef GPIB_PCMCIA
+err_pcmcia_driver:
+	gpib_unregister_driver(&ni_pcmcia_accel_interface);
+err_pcmcia_accel:
+	gpib_unregister_driver(&ni_pcmcia_interface);
+err_pcmcia:
+#endif
+	gpib_unregister_driver(&ni_pci_accel_interface);
+err_pci_accel:
+	gpib_unregister_driver(&ni_pci_interface);
+err_pci:
+	gpib_unregister_driver(&ni_nec_isa_accel_interface);
+err_nec_isa_accel:
+	gpib_unregister_driver(&ni_nec_isa_interface);
+err_nec_isa:
+	gpib_unregister_driver(&ni_nat4882_isa_accel_interface);
+err_nat4882_isa_accel:
+	gpib_unregister_driver(&ni_nat4882_isa_interface);
+err_nat4882_isa:
+	gpib_unregister_driver(&ni_isa_accel_interface);
+err_isa_accel:
+	gpib_unregister_driver(&ni_isa_interface);
+err_isa:
+	pci_unregister_driver(&tnt4882_pci_driver);
+
+	return result;
 }
 
 static void __exit tnt4882_exit_module(void)
