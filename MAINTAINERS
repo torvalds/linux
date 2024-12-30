@@ -21242,6 +21242,7 @@ M:	Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
 L:	linux-sound@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/slimbus/
+F:	Documentation/driver-api/slimbus.rst
 F:	drivers/slimbus/
 F:	include/linux/slimbus.h
 
