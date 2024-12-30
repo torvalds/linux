@@ -1277,12 +1277,7 @@ void mt7603_mac_add_txs(struct mt7603_dev *dev, void *data)
 
 	msta = container_of(wcid, struct mt7603_sta, wcid);
 	sta = wcid_to_sta(wcid);
-
-	if (list_empty(&msta->wcid.poll_list)) {
-		spin_lock_bh(&dev->mt76.sta_poll_lock);
-		list_add_tail(&msta->wcid.poll_list, &dev->mt76.sta_poll_list);
-		spin_unlock_bh(&dev->mt76.sta_poll_lock);
-	}
+	mt76_wcid_add_poll(&dev->mt76, &msta->wcid);
 
 	if (mt7603_mac_add_txs_skb(dev, msta, pid, txs_data))
 		goto out;

@@ -1735,5 +1735,6 @@ mt76_token_put(struct mt76_dev *dev, int token)
 
 void mt76_wcid_init(struct mt76_wcid *wcid);
 void mt76_wcid_cleanup(struct mt76_dev *dev, struct mt76_wcid *wcid);
+void mt76_wcid_add_poll(struct mt76_dev *dev, struct mt76_wcid *wcid);
 
 #endif

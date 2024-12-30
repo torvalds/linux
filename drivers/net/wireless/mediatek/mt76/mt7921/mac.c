@@ -216,11 +216,7 @@ mt7921_mac_fill_rx(struct mt792x_dev *dev, struct sk_buff *skb)
 	if (status->wcid) {
 		mlink = container_of(status->wcid, struct mt792x_link_sta, wcid);
 		msta = container_of(mlink, struct mt792x_sta, deflink);
-		spin_lock_bh(&dev->mt76.sta_poll_lock);
-		if (list_empty(&mlink->wcid.poll_list))
-			list_add_tail(&mlink->wcid.poll_list,
-				      &dev->mt76.sta_poll_list);
-		spin_unlock_bh(&dev->mt76.sta_poll_lock);
+		mt76_wcid_add_poll(&dev->mt76, &mlink->wcid);
 	}
 
 	mt792x_get_status_freq_info(status, chfreq);
@@ -479,10 +475,7 @@ void mt7921_mac_add_txs(struct mt792x_dev *dev, void *data)
 	if (!wcid->sta)
 		goto out;
 
-	spin_lock_bh(&dev->mt76.sta_poll_lock);
-	if (list_empty(&mlink->wcid.poll_list))
-		list_add_tail(&mlink->wcid.poll_list, &dev->mt76.sta_poll_list);
-	spin_unlock_bh(&dev->mt76.sta_poll_lock);
+	mt76_wcid_add_poll(&dev->mt76, &mlink->wcid);
 
 out:
 	rcu_read_unlock();
@@ -529,11 +522,7 @@ static void mt7921_mac_tx_free(struct mt792x_dev *dev, void *data, int len)
 				continue;
 
 			mlink = container_of(wcid, struct mt792x_link_sta, wcid);
-			spin_lock_bh(&mdev->sta_poll_lock);
-			if (list_empty(&mlink->wcid.poll_list))
-				list_add_tail(&mlink->wcid.poll_list,
-					      &mdev->sta_poll_list);
-			spin_unlock_bh(&mdev->sta_poll_lock);
+			mt76_wcid_add_poll(&dev->mt76, &mlink->wcid);
 			continue;
 		}
 
