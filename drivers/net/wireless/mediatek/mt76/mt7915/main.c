@@ -634,7 +634,11 @@ static void mt7915_bss_info_changed(struct ieee80211_hw *hw,
 		mt7915_mac_enable_rtscts(dev, vif, info->use_cts_prot);
 
 	if (changed & BSS_CHANGED_ERP_SLOT) {
-		int slottime = info->use_short_slot ? 9 : 20;
+		int slottime = 9;
+
+		if (phy->mt76->chandef.chan->band == NL80211_BAND_2GHZ &&
+		    !info->use_short_slot)
+			slottime = 20;
 
 		if (slottime != phy->slottime) {
 			phy->slottime = slottime;
