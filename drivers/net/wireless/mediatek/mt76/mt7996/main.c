@@ -188,10 +188,6 @@ static int mt7996_add_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&dev->mt76.mutex);
 
-	if (vif->type == NL80211_IFTYPE_MONITOR &&
-	    is_zero_ether_addr(vif->addr))
-		phy->monitor_vif = vif;
-
 	mvif->mt76.idx = __ffs64(~dev->mt76.vif_mask);
 	if (mvif->mt76.idx >= mt7996_max_interface_num(dev)) {
 		ret = -ENOSPC;
@@ -270,10 +266,6 @@ static void mt7996_remove_interface(struct ieee80211_hw *hw,
 
 	mt7996_mcu_add_sta(dev, vif, NULL, false, false);
 	mt7996_mcu_add_bss_info(phy, vif, false);
-
-	if (vif == phy->monitor_vif)
-		phy->monitor_vif = NULL;
-
 	mt7996_mcu_add_dev_info(phy, vif, false);
 
 	rcu_assign_pointer(dev->mt76.wcid[idx], NULL);

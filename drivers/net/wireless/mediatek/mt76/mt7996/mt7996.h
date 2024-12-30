@@ -246,8 +246,6 @@ struct mt7996_phy {
 
 	struct ieee80211_sband_iftype_data iftype[NUM_NL80211_BANDS][NUM_NL80211_IFTYPES];
 
-	struct ieee80211_vif *monitor_vif;
-
 	struct thermal_cooling_device *cdev;
 	u8 cdev_state;
 	u8 throttle_state;
