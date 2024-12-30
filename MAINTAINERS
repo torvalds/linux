@@ -16794,6 +16794,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/srini/nvmem.git
 F:	Documentation/ABI/stable/sysfs-bus-nvmem
 F:	Documentation/devicetree/bindings/nvmem/
 F:	drivers/nvmem/
+F:	include/dt-bindings/nvmem/
 F:	include/linux/nvmem-consumer.h
 F:	include/linux/nvmem-provider.h
 
