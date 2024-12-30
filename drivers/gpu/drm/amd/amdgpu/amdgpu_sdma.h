@@ -113,6 +113,7 @@ struct amdgpu_sdma {
 	struct amdgpu_sdma_instance instance[AMDGPU_MAX_SDMA_INSTANCES];
 	struct amdgpu_irq_src	trap_irq;
 	struct amdgpu_irq_src	illegal_inst_irq;
+	struct amdgpu_irq_src	fence_irq;
 	struct amdgpu_irq_src	ecc_irq;
 	struct amdgpu_irq_src	vm_hole_irq;
 	struct amdgpu_irq_src	doorbell_invalid_irq;
