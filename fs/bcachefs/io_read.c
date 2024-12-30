@@ -696,32 +696,40 @@ static void __bch2_read_endio(struct work_struct *work)
 	if (unlikely(rbio->narrow_crcs))
 		bch2_rbio_narrow_crcs(rbio);
 
-	if (rbio->flags & BCH_READ_data_update)
-		goto nodecode;
+	if (likely(!(rbio->flags & BCH_READ_data_update))) {
+		/* Adjust crc to point to subset of data we want: */
+		crc.offset     += rbio->offset_into_extent;
+		crc.live_size	= bvec_iter_sectors(rbio->bvec_iter);
 
-	/* Adjust crc to point to subset of data we want: */
-	crc.offset     += rbio->offset_into_extent;
-	crc.live_size	= bvec_iter_sectors(rbio->bvec_iter);
+		if (crc_is_compressed(crc)) {
+			ret = bch2_encrypt_bio(c, crc.csum_type, nonce, src);
+			if (ret)
+				goto decrypt_err;
 
-	if (crc_is_compressed(crc)) {
-		ret = bch2_encrypt_bio(c, crc.csum_type, nonce, src);
-		if (ret)
-			goto decrypt_err;
+			if (bch2_bio_uncompress(c, src, dst, dst_iter, crc) &&
+			    !c->opts.no_data_io)
+				goto decompression_err;
+		} else {
+			/* don't need to decrypt the entire bio: */
+			nonce = nonce_add(nonce, crc.offset << 9);
+			bio_advance(src, crc.offset << 9);
 
-		if (bch2_bio_uncompress(c, src, dst, dst_iter, crc) &&
-		    !c->opts.no_data_io)
-			goto decompression_err;
+			BUG_ON(src->bi_iter.bi_size < dst_iter.bi_size);
+			src->bi_iter.bi_size = dst_iter.bi_size;
+
+			ret = bch2_encrypt_bio(c, crc.csum_type, nonce, src);
+			if (ret)
+				goto decrypt_err;
+
+			if (rbio->bounce) {
+				struct bvec_iter src_iter = src->bi_iter;
+
+				bio_copy_data_iter(dst, &dst_iter, src, &src_iter);
+			}
+		}
 	} else {
-		/* don't need to decrypt the entire bio: */
-		nonce = nonce_add(nonce, crc.offset << 9);
-		bio_advance(src, crc.offset << 9);
-
-		BUG_ON(src->bi_iter.bi_size < dst_iter.bi_size);
-		src->bi_iter.bi_size = dst_iter.bi_size;
-
-		ret = bch2_encrypt_bio(c, crc.csum_type, nonce, src);
-		if (ret)
-			goto decrypt_err;
+		if (rbio->split)
+			rbio->parent->pick = rbio->pick;
 
 		if (rbio->bounce) {
 			struct bvec_iter src_iter = src->bi_iter;
@@ -739,7 +747,7 @@ static void __bch2_read_endio(struct work_struct *work)
 		if (ret)
 			goto decrypt_err;
 	}
-nodecode:
+
 	if (likely(!(rbio->flags & BCH_READ_in_retry))) {
 		rbio = bch2_rbio_free(rbio);
 		bch2_rbio_done(rbio);
@@ -931,13 +939,35 @@ retry_pick:
 		goto retry_pick;
 	}
 
-	if (flags & BCH_READ_data_update) {
-		struct data_update *u = container_of(orig, struct data_update, rbio);
+	if (!(flags & BCH_READ_data_update)) {
+		if (!(flags & BCH_READ_last_fragment) ||
+		    bio_flagged(&orig->bio, BIO_CHAIN))
+			flags |= BCH_READ_must_clone;
 
+		narrow_crcs = !(flags & BCH_READ_in_retry) &&
+			bch2_can_narrow_extent_crcs(k, pick.crc);
+
+		if (narrow_crcs && (flags & BCH_READ_user_mapped))
+			flags |= BCH_READ_must_bounce;
+
+		EBUG_ON(offset_into_extent + bvec_iter_sectors(iter) > k.k->size);
+
+		if (crc_is_compressed(pick.crc) ||
+		    (pick.crc.csum_type != BCH_CSUM_none &&
+		     (bvec_iter_sectors(iter) != pick.crc.uncompressed_size ||
+		      (bch2_csum_type_is_encryption(pick.crc.csum_type) &&
+		       (flags & BCH_READ_user_mapped)) ||
+		      (flags & BCH_READ_must_bounce)))) {
+			read_full = true;
+			bounce = true;
+		}
+	} else {
+		read_full = true;
 		/*
 		 * can happen if we retry, and the extent we were going to read
 		 * has been merged in the meantime:
 		 */
+		struct data_update *u = container_of(orig, struct data_update, rbio);
 		if (pick.crc.compressed_size > u->op.wbio.bio.bi_iter.bi_size) {
 			if (ca)
 				percpu_ref_put(&ca->io_ref);
@@ -945,29 +975,6 @@ retry_pick:
 		}
 
 		iter.bi_size	= pick.crc.compressed_size << 9;
-		goto get_bio;
-	}
-
-	if (!(flags & BCH_READ_last_fragment) ||
-	    bio_flagged(&orig->bio, BIO_CHAIN))
-		flags |= BCH_READ_must_clone;
-
-	narrow_crcs = !(flags & BCH_READ_in_retry) &&
-		bch2_can_narrow_extent_crcs(k, pick.crc);
-
-	if (narrow_crcs && (flags & BCH_READ_user_mapped))
-		flags |= BCH_READ_must_bounce;
-
-	EBUG_ON(offset_into_extent + bvec_iter_sectors(iter) > k.k->size);
-
-	if (crc_is_compressed(pick.crc) ||
-	    (pick.crc.csum_type != BCH_CSUM_none &&
-	     (bvec_iter_sectors(iter) != pick.crc.uncompressed_size ||
-	      (bch2_csum_type_is_encryption(pick.crc.csum_type) &&
-	       (flags & BCH_READ_user_mapped)) ||
-	      (flags & BCH_READ_must_bounce)))) {
-		read_full = true;
-		bounce = true;
 	}
 
 	if (orig->opts.promote_target || have_io_error(failed))
@@ -991,7 +998,7 @@ retry_pick:
 		pick.crc.offset			= 0;
 		pick.crc.live_size		= bvec_iter_sectors(iter);
 	}
-get_bio:
+
 	if (rbio) {
 		/*
 		 * promote already allocated bounce rbio:
@@ -1054,9 +1061,6 @@ get_bio:
 	rbio->data_pos		= data_pos;
 	rbio->version		= k.k->bversion;
 	INIT_WORK(&rbio->work, NULL);
-
-	if (flags & BCH_READ_data_update)
-		orig->pick = pick;
 
 	rbio->bio.bi_opf	= orig->bio.bi_opf;
 	rbio->bio.bi_iter.bi_sector = pick.ptr.offset;
