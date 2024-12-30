@@ -197,10 +197,10 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	ifbdev->fb = NULL;
 
 	if (fb &&
-	    (sizes->fb_width > fb->base.width ||
-	     sizes->fb_height > fb->base.height)) {
+	    (sizes->fb_width != fb->base.width ||
+	     sizes->fb_height != fb->base.height)) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "BIOS fb too small (%dx%d), we require (%dx%d),"
+			    "BIOS fb not valid (%dx%d), we require (%dx%d),"
 			    " releasing it\n",
 			    fb->base.width, fb->base.height,
 			    sizes->fb_width, sizes->fb_height);
