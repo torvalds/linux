@@ -72,12 +72,12 @@ static int imx_ocotp_reg_read(void *context, unsigned int offset, void *val, siz
 	void *p;
 	int i;
 
+	if (offset + bytes > priv->data->size)
+		bytes = priv->data->size - offset;
+
 	index = offset;
 	num_bytes = round_up(bytes, 4);
 	count = num_bytes >> 2;
-
-	if (count > ((priv->data->size >> 2) - index))
-		count = (priv->data->size >> 2) - index;
 
 	p = kzalloc(num_bytes, GFP_KERNEL);
 	if (!p)
