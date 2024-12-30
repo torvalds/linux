@@ -41,9 +41,9 @@ entries.
 In addition to the macros EXPORT_SYMBOL() and EXPORT_SYMBOL_GPL(), that allow
 exporting of kernel symbols to the kernel symbol table, variants of these are
 available to export symbols into a certain namespace: EXPORT_SYMBOL_NS() and
-EXPORT_SYMBOL_NS_GPL(). They take one additional argument: the namespace.
-Please note that due to macro expansion that argument needs to be a
-preprocessor symbol. E.g. to export the symbol ``usb_stor_suspend`` into the
+EXPORT_SYMBOL_NS_GPL(). They take one additional argument: the namespace as a
+string constant. Note that this string must not contain whitespaces.
+E.g. to export the symbol ``usb_stor_suspend`` into the
 namespace ``USB_STORAGE``, use::
 
 	EXPORT_SYMBOL_NS(usb_stor_suspend, "USB_STORAGE");
