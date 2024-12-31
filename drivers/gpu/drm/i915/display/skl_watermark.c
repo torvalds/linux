@@ -3333,13 +3333,14 @@ intel_atomic_get_dbuf_state(struct intel_atomic_state *state)
 
 int intel_dbuf_init(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
 	struct intel_dbuf_state *dbuf_state;
 
 	dbuf_state = kzalloc(sizeof(*dbuf_state), GFP_KERNEL);
 	if (!dbuf_state)
 		return -ENOMEM;
 
-	intel_atomic_global_obj_init(i915, &i915->display.dbuf.obj,
+	intel_atomic_global_obj_init(display, &display->dbuf.obj,
 				     &dbuf_state->base, &intel_dbuf_funcs);
 
 	return 0;

@@ -1447,13 +1447,14 @@ static const struct intel_global_state_funcs intel_bw_funcs = {
 
 int intel_bw_init(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
 	struct intel_bw_state *state;
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state)
 		return -ENOMEM;
 
-	intel_atomic_global_obj_init(i915, &i915->display.bw.obj,
+	intel_atomic_global_obj_init(display, &display->bw.obj,
 				     &state->base, &intel_bw_funcs);
 
 	/*

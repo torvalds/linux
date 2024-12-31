@@ -5,14 +5,15 @@
 
 #include <linux/bitops.h>
 
-#include "i915_drv.h"
 #include "i915_reg.h"
+#include "i915_utils.h"
 #include "intel_atomic.h"
 #include "intel_bw.h"
 #include "intel_cdclk.h"
 #include "intel_de.h"
 #include "intel_display_trace.h"
 #include "intel_pmdemand.h"
+#include "intel_step.h"
 #include "skl_watermark.h"
 
 struct pmdemand_params {
@@ -115,14 +116,13 @@ intel_atomic_get_new_pmdemand_state(struct intel_atomic_state *state)
 
 int intel_pmdemand_init(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct intel_pmdemand_state *pmdemand_state;
 
 	pmdemand_state = kzalloc(sizeof(*pmdemand_state), GFP_KERNEL);
 	if (!pmdemand_state)
 		return -ENOMEM;
 
-	intel_atomic_global_obj_init(i915, &display->pmdemand.obj,
+	intel_atomic_global_obj_init(display, &display->pmdemand.obj,
 				     &pmdemand_state->base,
 				     &intel_pmdemand_funcs);
 

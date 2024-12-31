@@ -163,9 +163,7 @@ static void intel_mode_config_init(struct intel_display *display)
 
 static void intel_mode_config_cleanup(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
-	intel_atomic_global_obj_cleanup(i915);
+	intel_atomic_global_obj_cleanup(display);
 	drm_mode_config_cleanup(display->drm);
 }
 
