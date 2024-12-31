@@ -802,7 +802,7 @@ static unsigned long __ftrace_return_to_handler(struct fgraph_ret_regs *ret_regs
 #endif
 	{
 		for_each_set_bit(i, &bitmap, sizeof(bitmap) * BITS_PER_BYTE) {
-			struct fgraph_ops *gops = fgraph_array[i];
+			struct fgraph_ops *gops = READ_ONCE(fgraph_array[i]);
 
 			if (gops == &fgraph_stub)
 				continue;
