@@ -25,6 +25,7 @@ jobs:
           - displayTargetName: windows-2019
             os: windows
             runs_on: windows-2019
+            pip_option: --break-system-packages
             shell: msys2 {0}
           - displayTargetName: clang-build
             os: unix
@@ -58,7 +59,7 @@ jobs:
           echo "/usr/lib/ccache/bin:/usr/lib/ccache:/mingw64/bin:${{ github.workspace }}/bin" >> $GITHUB_PATH
           echo "export PATH=/usr/lib/ccache/bin:/usr/lib/ccache:/mingw64/bin:${{ github.workspace }}/bin:$PATH" >> $HOME/.bashrc
 
-      - uses: msys2/setup-msys2@v2
+      - uses: msys2/setup-msys2@v2.26.0
         if: runner.os == 'Windows'
         with:
           msystem: MSYS
@@ -77,7 +78,7 @@ jobs:
         if: runner.os == 'Linux'
         uses: actions/checkout@v4
       - name: Install pip dependencies
-        run: pip install yamlish junit-xml
+        run: pip install ${{ matrix.pip_option }} yamlish junit-xml
       - name: Install openvpn
         if: runner.os == 'Windows'
         shell: pwsh
