@@ -16,6 +16,8 @@
 #include <linux/bitops.h>
 #include <linux/module.h>
 #include <linux/string.h>
+#include <linux/backlight.h>
+#include <linux/timer.h>
 #include <linux/input/sparse-keymap.h>
 
 #include "hid-ids.h"
@@ -27,6 +29,7 @@
 #define APPLETB_KBD_MODE_MAX	APPLETB_KBD_MODE_OFF
 
 #define APPLETB_DEVID_KEYBOARD	1
+#define APPLETB_DEVID_TRACKPAD	2
 
 #define HID_USAGE_MODE		0x00ff0004
 
@@ -41,14 +44,29 @@ static bool appletb_tb_fn_toggle = true;
 module_param_named(fntoggle, appletb_tb_fn_toggle, bool, 0644);
 MODULE_PARM_DESC(fntoggle, "Switch between Fn and media controls on pressing Fn key");
 
+static bool appletb_tb_autodim = true;
+module_param_named(autodim, appletb_tb_autodim, bool, 0644);
+MODULE_PARM_DESC(autodim, "Automatically dim and turn off the Touch Bar after some time");
+
+static int appletb_tb_dim_timeout = 60;
+module_param_named(dim_timeout, appletb_tb_dim_timeout, int, 0644);
+MODULE_PARM_DESC(dim_timeout, "Dim timeout in sec");
+
+static int appletb_tb_idle_timeout = 15;
+module_param_named(idle_timeout, appletb_tb_idle_timeout, int, 0644);
+MODULE_PARM_DESC(idle_timeout, "Idle timeout in sec");
+
 struct appletb_kbd {
 	struct hid_field *mode_field;
-
-	u8 saved_mode;
-	u8 current_mode;
 	struct input_handler inp_handler;
 	struct input_handle kbd_handle;
-
+	struct input_handle tpd_handle;
+	struct backlight_device *backlight_dev;
+	struct timer_list inactivity_timer;
+	bool has_dimmed;
+	bool has_turned_off;
+	u8 saved_mode;
+	u8 current_mode;
 };
 
 static const struct key_entry appletb_kbd_keymap[] = {
@@ -146,6 +164,34 @@ static int appletb_tb_key_to_slot(unsigned int code)
 	}
 }
 
+static void appletb_inactivity_timer(struct timer_list *t)
+{
+	struct appletb_kbd *kbd = from_timer(kbd, t, inactivity_timer);
+
+	if (kbd->backlight_dev && appletb_tb_autodim) {
+		if (!kbd->has_dimmed) {
+			backlight_device_set_brightness(kbd->backlight_dev, 1);
+			kbd->has_dimmed = true;
+			mod_timer(&kbd->inactivity_timer, jiffies + msecs_to_jiffies(appletb_tb_idle_timeout * 1000));
+		} else if (!kbd->has_turned_off) {
+			backlight_device_set_brightness(kbd->backlight_dev, 0);
+			kbd->has_turned_off = true;
+		}
+	}
+}
+
+static void reset_inactivity_timer(struct appletb_kbd *kbd)
+{
+	if (kbd->backlight_dev && appletb_tb_autodim) {
+		if (kbd->has_dimmed || kbd->has_turned_off) {
+			backlight_device_set_brightness(kbd->backlight_dev, 2);
+			kbd->has_dimmed = false;
+			kbd->has_turned_off = false;
+		}
+		mod_timer(&kbd->inactivity_timer, jiffies + msecs_to_jiffies(appletb_tb_dim_timeout * 1000));
+	}
+}
+
 static int appletb_kbd_hid_event(struct hid_device *hdev, struct hid_field *field,
 				      struct hid_usage *usage, __s32 value)
 {
@@ -170,6 +216,8 @@ static int appletb_kbd_hid_event(struct hid_device *hdev, struct hid_field *fiel
 	if (slot < 0)
 		return 0;
 
+	reset_inactivity_timer(kbd);
+
 	translation = sparse_keymap_entry_from_scancode(input, usage->code);
 
 	if (translation && kbd->current_mode == APPLETB_KBD_MODE_SPCL) {
@@ -185,6 +233,8 @@ static void appletb_kbd_inp_event(struct input_handle *handle, unsigned int type
 			      unsigned int code, int value)
 {
 	struct appletb_kbd *kbd = handle->private;
+
+	reset_inactivity_timer(kbd);
 
 	if (type == EV_KEY && code == KEY_FN && appletb_tb_fn_toggle) {
 		if (value == 1) {
@@ -211,6 +261,9 @@ static int appletb_kbd_inp_connect(struct input_handler *handler,
 	if (id->driver_info == APPLETB_DEVID_KEYBOARD) {
 		handle = &kbd->kbd_handle;
 		handle->name = "tbkbd";
+	} else if (id->driver_info == APPLETB_DEVID_TRACKPAD) {
+		handle = &kbd->tpd_handle;
+		handle->name = "tbtpd";
 	} else {
 		return -ENOENT;
 	}
@@ -283,6 +336,15 @@ static const struct input_device_id appletb_kbd_input_devices[] = {
 		.keybit = { [BIT_WORD(KEY_FN)] = BIT_MASK(KEY_FN) },
 		.driver_info = APPLETB_DEVID_KEYBOARD,
 	},
+	{
+		.flags = INPUT_DEVICE_ID_MATCH_BUS |
+			INPUT_DEVICE_ID_MATCH_VENDOR |
+			INPUT_DEVICE_ID_MATCH_KEYBIT,
+		.bustype = BUS_USB,
+		.vendor = USB_VENDOR_ID_APPLE,
+		.keybit = { [BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH) },
+		.driver_info = APPLETB_DEVID_TRACKPAD,
+	},
 	{ }
 };
 
@@ -339,6 +401,15 @@ static int appletb_kbd_probe(struct hid_device *hdev, const struct hid_device_id
 		goto stop_hw;
 	}
 
+	kbd->backlight_dev = backlight_device_get_by_name("appletb_backlight");
+		if (!kbd->backlight_dev)
+			dev_err_probe(dev, ret, "Failed to get backlight device\n");
+		else {
+			backlight_device_set_brightness(kbd->backlight_dev, 2);
+			timer_setup(&kbd->inactivity_timer, appletb_inactivity_timer, 0);
+			mod_timer(&kbd->inactivity_timer, jiffies + msecs_to_jiffies(appletb_tb_dim_timeout * 1000));
+		}
+
 	kbd->inp_handler.event = appletb_kbd_inp_event;
 	kbd->inp_handler.connect = appletb_kbd_inp_connect;
 	kbd->inp_handler.disconnect = appletb_kbd_inp_disconnect;
@@ -377,6 +448,7 @@ static void appletb_kbd_remove(struct hid_device *hdev)
 	appletb_kbd_set_mode(kbd, APPLETB_KBD_MODE_OFF);
 
 	input_unregister_handler(&kbd->inp_handler);
+	del_timer_sync(&kbd->inactivity_timer);
 
 	hid_hw_close(hdev);
 	hid_hw_stop(hdev);
@@ -424,6 +496,9 @@ static struct hid_driver appletb_kbd_hid_driver = {
 	.driver.dev_groups = appletb_kbd_groups,
 };
 module_hid_driver(appletb_kbd_hid_driver);
+
+/* The backlight driver should be loaded before the keyboard driver is initialised*/
+MODULE_SOFTDEP("pre: hid_appletb_bl");
 
 MODULE_AUTHOR("Ronald Tschalär");
 MODULE_AUTHOR("Kerem Karabay <kekrby@gmail.com>");
