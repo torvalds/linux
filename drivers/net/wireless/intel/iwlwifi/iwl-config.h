@@ -103,6 +103,10 @@ enum iwl_nvm_type {
 #define ANT_ABC		(ANT_A | ANT_B | ANT_C)
 
 
+#define IWL_FW_AND_PNVM(pfx, api)				\
+	MODULE_FIRMWARE(pfx "-" __stringify(api) ".ucode");	\
+	MODULE_FIRMWARE(pfx ".pnvm")
+
 static inline u8 num_of_ant(u8 mask)
 {
 	return  !!((mask) & ANT_A) +
