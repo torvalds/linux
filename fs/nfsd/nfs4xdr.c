@@ -3507,8 +3507,8 @@ nfsd4_encode_fattr4(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 	struct nfsd4_fattr_args args;
 	struct svc_fh *tempfh = NULL;
 	int starting_len = xdr->buf->len;
-	__be32 *attrlen_p, status;
-	int attrlen_offset;
+	unsigned int attrlen_offset;
+	__be32 attrlen, status;
 	u32 attrmask[3];
 	int err;
 	struct nfsd4_compoundres *resp = rqstp->rq_resp;
@@ -3629,8 +3629,7 @@ nfsd4_encode_fattr4(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 
 	/* attr_vals */
 	attrlen_offset = xdr->buf->len;
-	attrlen_p = xdr_reserve_space(xdr, XDR_UNIT);
-	if (!attrlen_p)
+	if (unlikely(!xdr_reserve_space(xdr, XDR_UNIT)))
 		goto out_resource;
 	bitmap_from_arr32(attr_bitmap, attrmask,
 			  ARRAY_SIZE(nfsd4_enc_fattr4_encode_ops));
@@ -3640,7 +3639,8 @@ nfsd4_encode_fattr4(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 		if (status != nfs_ok)
 			goto out;
 	}
-	*attrlen_p = cpu_to_be32(xdr->buf->len - attrlen_offset - XDR_UNIT);
+	attrlen = cpu_to_be32(xdr->buf->len - attrlen_offset - XDR_UNIT);
+	write_bytes_to_xdr_buf(xdr->buf, attrlen_offset, &attrlen, XDR_UNIT);
 	status = nfs_ok;
 
 out:
