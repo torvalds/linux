@@ -391,11 +391,12 @@ static void rtw89_entity_recalc_mgnt_roles(struct rtw89_dev *rtwdev)
 
 				list_del(&role->mgnt_entry);
 				list_add(&role->mgnt_entry, &mgnt->active_list);
-				break;
+				goto fill;
 			}
 		}
 	}
 
+fill:
 	list_for_each_entry(role, &mgnt->active_list, mgnt_entry) {
 		if (unlikely(pos >= RTW89_MAX_INTERFACE_NUM)) {
 			rtw89_warn(rtwdev,
