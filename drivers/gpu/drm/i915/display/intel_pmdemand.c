@@ -15,6 +15,11 @@
 #include "intel_pmdemand.h"
 #include "skl_watermark.h"
 
+struct intel_pmdemand_state *to_intel_pmdemand_state(struct intel_global_state *obj_state)
+{
+	return container_of(obj_state, struct intel_pmdemand_state, base);
+}
+
 static struct intel_global_state *
 intel_pmdemand_duplicate_state(struct intel_global_obj *obj)
 {

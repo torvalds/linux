@@ -43,8 +43,7 @@ struct intel_pmdemand_state {
 	struct pmdemand_params params;
 };
 
-#define to_intel_pmdemand_state(global_state) \
-	container_of_const((global_state), struct intel_pmdemand_state, base)
+struct intel_pmdemand_state *to_intel_pmdemand_state(struct intel_global_state *obj_state);
 
 void intel_pmdemand_init_early(struct drm_i915_private *i915);
 int intel_pmdemand_init(struct drm_i915_private *i915);
