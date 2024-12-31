@@ -26,6 +26,8 @@
 #define APPLETB_KBD_MODE_OFF	3
 #define APPLETB_KBD_MODE_MAX	APPLETB_KBD_MODE_OFF
 
+#define APPLETB_DEVID_KEYBOARD	1
+
 #define HID_USAGE_MODE		0x00ff0004
 
 static int appletb_tb_def_mode = APPLETB_KBD_MODE_SPCL;
@@ -35,11 +37,18 @@ MODULE_PARM_DESC(mode, "Default touchbar mode:\n"
 			 "    1 - function-keys\n"
 			 "    [2] - special keys");
 
+static bool appletb_tb_fn_toggle = true;
+module_param_named(fntoggle, appletb_tb_fn_toggle, bool, 0644);
+MODULE_PARM_DESC(fntoggle, "Switch between Fn and media controls on pressing Fn key");
+
 struct appletb_kbd {
 	struct hid_field *mode_field;
 
 	u8 saved_mode;
 	u8 current_mode;
+	struct input_handler inp_handler;
+	struct input_handle kbd_handle;
+
 };
 
 static const struct key_entry appletb_kbd_keymap[] = {
@@ -172,6 +181,75 @@ static int appletb_kbd_hid_event(struct hid_device *hdev, struct hid_field *fiel
 	return kbd->current_mode == APPLETB_KBD_MODE_OFF;
 }
 
+static void appletb_kbd_inp_event(struct input_handle *handle, unsigned int type,
+			      unsigned int code, int value)
+{
+	struct appletb_kbd *kbd = handle->private;
+
+	if (type == EV_KEY && code == KEY_FN && appletb_tb_fn_toggle) {
+		if (value == 1) {
+			kbd->saved_mode = kbd->current_mode;
+			if (kbd->current_mode == APPLETB_KBD_MODE_SPCL)
+				appletb_kbd_set_mode(kbd, APPLETB_KBD_MODE_FN);
+			else if (kbd->current_mode == APPLETB_KBD_MODE_FN)
+				appletb_kbd_set_mode(kbd, APPLETB_KBD_MODE_SPCL);
+		} else if (value == 0) {
+			if (kbd->saved_mode != kbd->current_mode)
+				appletb_kbd_set_mode(kbd, kbd->saved_mode);
+		}
+	}
+}
+
+static int appletb_kbd_inp_connect(struct input_handler *handler,
+			       struct input_dev *dev,
+			       const struct input_device_id *id)
+{
+	struct appletb_kbd *kbd = handler->private;
+	struct input_handle *handle;
+	int rc;
+
+	if (id->driver_info == APPLETB_DEVID_KEYBOARD) {
+		handle = &kbd->kbd_handle;
+		handle->name = "tbkbd";
+	} else {
+		return -ENOENT;
+	}
+
+	if (handle->dev)
+		return -EEXIST;
+
+	handle->open = 0;
+	handle->dev = input_get_device(dev);
+	handle->handler = handler;
+	handle->private = kbd;
+
+	rc = input_register_handle(handle);
+	if (rc)
+		goto err_free_dev;
+
+	rc = input_open_device(handle);
+	if (rc)
+		goto err_unregister_handle;
+
+	return 0;
+
+ err_unregister_handle:
+	input_unregister_handle(handle);
+ err_free_dev:
+	input_put_device(handle->dev);
+	handle->dev = NULL;
+	return rc;
+}
+
+static void appletb_kbd_inp_disconnect(struct input_handle *handle)
+{
+	input_close_device(handle);
+	input_unregister_handle(handle);
+
+	input_put_device(handle->dev);
+	handle->dev = NULL;
+}
+
 static int appletb_kbd_input_configured(struct hid_device *hdev, struct hid_input *hidinput)
 {
 	int idx;
@@ -193,6 +271,40 @@ static int appletb_kbd_input_configured(struct hid_device *hdev, struct hid_inpu
 		input_set_capability(input, EV_KEY, appletb_kbd_keymap[idx].code);
 
 	return 0;
+}
+
+static const struct input_device_id appletb_kbd_input_devices[] = {
+	{
+		.flags = INPUT_DEVICE_ID_MATCH_BUS |
+			INPUT_DEVICE_ID_MATCH_VENDOR |
+			INPUT_DEVICE_ID_MATCH_KEYBIT,
+		.bustype = BUS_USB,
+		.vendor = USB_VENDOR_ID_APPLE,
+		.keybit = { [BIT_WORD(KEY_FN)] = BIT_MASK(KEY_FN) },
+		.driver_info = APPLETB_DEVID_KEYBOARD,
+	},
+	{ }
+};
+
+static bool appletb_kbd_match_internal_device(struct input_handler *handler,
+					  struct input_dev *inp_dev)
+{
+	struct device *dev = &inp_dev->dev;
+
+	/* in kernel: dev && !is_usb_device(dev) */
+	while (dev && !(dev->type && dev->type->name &&
+			!strcmp(dev->type->name, "usb_device")))
+		dev = dev->parent;
+
+	/*
+	 * Apple labels all their internal keyboards and trackpads as such,
+	 * instead of maintaining an ever expanding list of product-id's we
+	 * just look at the device's product name.
+	 */
+	if (dev)
+		return !!strstr(to_usb_device(dev)->product, "Internal Keyboard");
+
+	return false;
 }
 
 static int appletb_kbd_probe(struct hid_device *hdev, const struct hid_device_id *id)
@@ -227,6 +339,20 @@ static int appletb_kbd_probe(struct hid_device *hdev, const struct hid_device_id
 		goto stop_hw;
 	}
 
+	kbd->inp_handler.event = appletb_kbd_inp_event;
+	kbd->inp_handler.connect = appletb_kbd_inp_connect;
+	kbd->inp_handler.disconnect = appletb_kbd_inp_disconnect;
+	kbd->inp_handler.name = "appletb";
+	kbd->inp_handler.id_table = appletb_kbd_input_devices;
+	kbd->inp_handler.match = appletb_kbd_match_internal_device;
+	kbd->inp_handler.private = kbd;
+
+	ret = input_register_handler(&kbd->inp_handler);
+	if (ret) {
+		dev_err_probe(dev, ret, "Unable to register keyboard handler\n");
+		goto close_hw;
+	}
+
 	ret = appletb_kbd_set_mode(kbd, appletb_tb_def_mode);
 	if (ret) {
 		dev_err_probe(dev, ret, "Failed to set touchbar mode\n");
@@ -249,6 +375,8 @@ static void appletb_kbd_remove(struct hid_device *hdev)
 	struct appletb_kbd *kbd = hid_get_drvdata(hdev);
 
 	appletb_kbd_set_mode(kbd, APPLETB_KBD_MODE_OFF);
+
+	input_unregister_handler(&kbd->inp_handler);
 
 	hid_hw_close(hdev);
 	hid_hw_stop(hdev);
