@@ -4614,12 +4614,40 @@ nfsd4_encode_rpcsec_gss_info(struct xdr_stream *xdr,
 }
 
 static __be32
+nfsd4_encode_secinfo4(struct xdr_stream *xdr, rpc_authflavor_t pf,
+		      u32 *supported)
+{
+	struct rpcsec_gss_info info;
+	__be32 status;
+
+	if (rpcauth_get_gssinfo(pf, &info) == 0) {
+		(*supported)++;
+
+		/* flavor */
+		status = nfsd4_encode_uint32_t(xdr, RPC_AUTH_GSS);
+		if (status != nfs_ok)
+			return status;
+		/* flavor_info */
+		status = nfsd4_encode_rpcsec_gss_info(xdr, &info);
+		if (status != nfs_ok)
+			return status;
+	} else if (pf < RPC_AUTH_MAXFLAVOR) {
+		(*supported)++;
+
+		/* flavor */
+		status = nfsd4_encode_uint32_t(xdr, pf);
+		if (status != nfs_ok)
+			return status;
+	}
+	return nfs_ok;
+}
+
+static __be32
 nfsd4_do_encode_secinfo(struct xdr_stream *xdr, struct svc_export *exp)
 {
 	u32 i, nflavs, supported;
 	struct exp_flavor_info *flavs;
 	struct exp_flavor_info def_flavs[2];
-	static bool report = true;
 	__be32 *flavorsp;
 	__be32 status;
 
@@ -4643,42 +4671,17 @@ nfsd4_do_encode_secinfo(struct xdr_stream *xdr, struct svc_export *exp)
 		}
 	}
 
-	supported = 0;
 	flavorsp = xdr_reserve_space(xdr, XDR_UNIT);
 	if (!flavorsp)
 		return nfserr_resource;
 
-	for (i = 0; i < nflavs; i++) {
-		rpc_authflavor_t pf = flavs[i].pseudoflavor;
-		struct rpcsec_gss_info info;
-
-		if (rpcauth_get_gssinfo(pf, &info) == 0) {
-			supported++;
-
-			/* flavor */
-			status = nfsd4_encode_uint32_t(xdr, RPC_AUTH_GSS);
-			if (status != nfs_ok)
-				return status;
-			/* flavor_info */
-			status = nfsd4_encode_rpcsec_gss_info(xdr, &info);
-			if (status != nfs_ok)
-				return status;
-		} else if (pf < RPC_AUTH_MAXFLAVOR) {
-			supported++;
-
-			/* flavor */
-			status = nfsd4_encode_uint32_t(xdr, pf);
-			if (status != nfs_ok)
-				return status;
-		} else {
-			if (report)
-				pr_warn("NFS: SECINFO: security flavor %u "
-					"is not supported\n", pf);
-		}
+	for (i = 0, supported = 0; i < nflavs; i++) {
+		status = nfsd4_encode_secinfo4(xdr, flavs[i].pseudoflavor,
+					       &supported);
+		if (status != nfs_ok)
+			return status;
 	}
 
-	if (nflavs != supported)
-		report = false;
 	*flavorsp = cpu_to_be32(supported);
 	return 0;
 }
