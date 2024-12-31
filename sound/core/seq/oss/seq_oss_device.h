@@ -55,7 +55,6 @@ struct seq_oss_chinfo {
 struct seq_oss_synthinfo {
 	struct snd_seq_oss_arg arg;
 	struct seq_oss_chinfo *ch;
-	struct seq_oss_synth_sysex *sysex;
 	int nr_voices;
 	int opened;
 	int is_midi;
