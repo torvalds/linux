@@ -88,13 +88,12 @@ static void move_free(struct moving_io *io)
 	if (io->b)
 		atomic_dec(&io->b->count);
 
-	bch2_data_update_exit(&io->write);
-
 	mutex_lock(&ctxt->lock);
 	list_del(&io->io_list);
 	wake_up(&ctxt->wait);
 	mutex_unlock(&ctxt->lock);
 
+	bch2_data_update_exit(&io->write);
 	kfree(io);
 }
 
@@ -1216,7 +1215,7 @@ static void bch2_moving_ctxt_to_text(struct printbuf *out, struct bch_fs *c, str
 
 	mutex_lock(&ctxt->lock);
 	list_for_each_entry(io, &ctxt->ios, io_list)
-		bch2_write_op_to_text(out, &io->write.op);
+		bch2_data_update_inflight_to_text(out, &io->write);
 	mutex_unlock(&ctxt->lock);
 
 	printbuf_indent_sub(out, 4);
