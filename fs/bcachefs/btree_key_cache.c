@@ -291,10 +291,8 @@ static noinline int btree_key_cache_fill(struct btree_trans *trans,
 					 struct btree_path *ck_path,
 					 unsigned flags)
 {
-	if (flags & BTREE_ITER_cached_nofill) {
-		ck_path->uptodate = BTREE_ITER_UPTODATE;
+	if (flags & BTREE_ITER_cached_nofill)
 		return 0;
-	}
 
 	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
