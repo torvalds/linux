@@ -882,6 +882,9 @@ struct iwl_txq {
  * @restart.wk: restart worker
  * @restart.mode: reset/restart error mode information
  * @restart.during_reset: error occurred during previous software reset
+ * @me_recheck_wk: worker to recheck WiAMT/CSME presence
+ * @me_present: WiAMT/CSME is detected as present (1), not present (0)
+ *	or unknown (-1, so can still use it as a boolean safely)
  * @trans_specific: data for the specific transport this is allocated for/with
  * @dsbr_urm_fw_dependent: switch to URM based on fw settings
  * @dsbr_urm_permanent: switch to URM permanently
@@ -959,6 +962,9 @@ struct iwl_trans {
 		struct iwl_fw_error_dump_mode mode;
 		bool during_reset;
 	} restart;
+
+	struct delayed_work me_recheck_wk;
+	s8 me_present;
 
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */
