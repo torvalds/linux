@@ -21,7 +21,7 @@ description: |
   =================
 
   All available clocks are defined as preprocessor macros in
-  dt-bindings/clock/stm32mp1-clks.h header and can be used in device
+  include/dt-bindings/clock/stm32mp1-clks.h header and can be used in device
   tree sources.
 
   Specifying softreset control of devices
