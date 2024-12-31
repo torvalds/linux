@@ -1489,8 +1489,8 @@ void iwl_trans_pcie_rf_kill(struct iwl_trans *trans, bool state, bool from_irq)
 		_iwl_trans_pcie_stop_device(trans, from_irq);
 }
 
-void iwl_pcie_d3_complete_suspend(struct iwl_trans *trans,
-				  bool test, bool reset)
+static void iwl_pcie_d3_complete_suspend(struct iwl_trans *trans,
+					 bool test, bool reset)
 {
 	iwl_disable_interrupts(trans);
 
