@@ -430,30 +430,31 @@ bool iwl_is_tas_approved(void)
 }
 IWL_EXPORT_SYMBOL(iwl_is_tas_approved);
 
-int iwl_parse_tas_selection(struct iwl_fw_runtime *fwrt,
-			    struct iwl_tas_data *tas_data,
-			    const u32 tas_selection, u8 tbl_rev)
+struct iwl_tas_selection_data
+iwl_parse_tas_selection(const u32 tas_selection_in, const u8 tbl_rev)
 {
-	u8 override_iec = u32_get_bits(tas_selection,
+	struct iwl_tas_selection_data tas_selection_out = {};
+	u8 override_iec = u32_get_bits(tas_selection_in,
 				       IWL_WTAS_OVERRIDE_IEC_MSK);
-	u8 canada_tas_uhb = u32_get_bits(tas_selection,
+	u8 canada_tas_uhb = u32_get_bits(tas_selection_in,
 					 IWL_WTAS_CANADA_UHB_MSK);
-	u8 enabled_iec = u32_get_bits(tas_selection, IWL_WTAS_ENABLE_IEC_MSK);
-	u8 usa_tas_uhb = u32_get_bits(tas_selection, IWL_WTAS_USA_UHB_MSK);
-	int enabled = tas_selection & IWL_WTAS_ENABLED_MSK;
+	u8 enabled_iec = u32_get_bits(tas_selection_in,
+				      IWL_WTAS_ENABLE_IEC_MSK);
+	u8 usa_tas_uhb = u32_get_bits(tas_selection_in,
+				      IWL_WTAS_USA_UHB_MSK);
 
-	IWL_DEBUG_RADIO(fwrt, "TAS selection as read from BIOS: 0x%x\n",
-			tas_selection);
-
-	tas_data->usa_tas_uhb_allowed = usa_tas_uhb;
-	tas_data->override_tas_iec = override_iec;
-	tas_data->enable_tas_iec = enabled_iec;
+	if (tbl_rev > 0) {
+		tas_selection_out.usa_tas_uhb_allowed = usa_tas_uhb;
+		tas_selection_out.override_tas_iec = override_iec;
+		tas_selection_out.enable_tas_iec = enabled_iec;
+	}
 
 	if (tbl_rev > 1)
-		tas_data->canada_tas_uhb_allowed = canada_tas_uhb;
+		tas_selection_out.canada_tas_uhb_allowed = canada_tas_uhb;
 
-	return enabled;
+	return tas_selection_out;
 }
+IWL_EXPORT_SYMBOL(iwl_parse_tas_selection);
 
 static __le32 iwl_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
 {

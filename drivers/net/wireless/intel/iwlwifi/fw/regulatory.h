@@ -40,11 +40,18 @@
 #define IWL_PPAG_ETSI_CHINA_MASK	3
 #define IWL_PPAG_REV3_MASK		0x7FF
 
-#define IWL_WTAS_ENABLED_MSK		0x1
-#define IWL_WTAS_OVERRIDE_IEC_MSK	0x2
-#define IWL_WTAS_ENABLE_IEC_MSK	0x4
+#define IWL_WTAS_ENABLED_MSK		BIT(0)
+#define IWL_WTAS_OVERRIDE_IEC_MSK	BIT(1)
+#define IWL_WTAS_ENABLE_IEC_MSK		BIT(2)
 #define IWL_WTAS_CANADA_UHB_MSK		BIT(15)
 #define IWL_WTAS_USA_UHB_MSK		BIT(16)
+
+struct iwl_tas_selection_data {
+	u8 override_tas_iec:1,
+	   enable_tas_iec:1,
+	   usa_tas_uhb_allowed:1,
+	   canada_tas_uhb_allowed:1;
+};
 
 #define BIOS_MCC_CHINA 0x434e
 
@@ -98,12 +105,11 @@ struct iwl_ppag_chain {
 };
 
 struct iwl_tas_data {
-	__le32 block_list_size;
-	__le32 block_list_array[IWL_WTAS_BLACK_LIST_MAX];
-	u8 override_tas_iec:1,
-	   enable_tas_iec:1,
-	   usa_tas_uhb_allowed:1,
-	   canada_tas_uhb_allowed:1;
+	u8 block_list_size;
+	u16 block_list_array[IWL_WTAS_BLACK_LIST_MAX];
+	u8 table_source;
+	u8 table_revision;
+	u32 tas_selection;
 };
 
 /* For DSM revision 0 and 4 */
@@ -185,9 +191,8 @@ bool iwl_is_ppag_approved(struct iwl_fw_runtime *fwrt);
 
 bool iwl_is_tas_approved(void);
 
-int iwl_parse_tas_selection(struct iwl_fw_runtime *fwrt,
-			    struct iwl_tas_data *tas_data,
-			    const u32 tas_selection, u8 tbl_rev);
+struct iwl_tas_selection_data
+iwl_parse_tas_selection(const u32 tas_selection, const u8 tbl_rev);
 
 int iwl_bios_get_wrds_table(struct iwl_fw_runtime *fwrt);
 

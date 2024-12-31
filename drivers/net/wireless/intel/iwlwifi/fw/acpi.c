@@ -262,13 +262,14 @@ int iwl_acpi_get_tas_table(struct iwl_fw_runtime *fwrt,
 			   struct iwl_tas_data *tas_data)
 {
 	union acpi_object *wifi_pkg, *data;
-	int ret, tbl_rev, i, block_list_size, enabled;
+	int ret, tbl_rev, block_list_size, enabled;
+	u32 tas_selection;
 
 	data = iwl_acpi_get_object(fwrt->dev, ACPI_WTAS_METHOD);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	/* try to read wtas table revision 1 or revision 0*/
+	/* try to read wtas table */
 	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
 					 ACPI_WTAS_WIFI_DATA_SIZE,
 					 &tbl_rev);
@@ -277,27 +278,23 @@ int iwl_acpi_get_tas_table(struct iwl_fw_runtime *fwrt,
 		goto out_free;
 	}
 
-	if ((tbl_rev == 2 || tbl_rev == 1) &&
-	    wifi_pkg->package.elements[1].type == ACPI_TYPE_INTEGER) {
-		u32 tas_selection =
-			(u32)wifi_pkg->package.elements[1].integer.value;
-
-		enabled = iwl_parse_tas_selection(fwrt, tas_data,
-						  tas_selection, tbl_rev);
-
-	} else if (tbl_rev == 0 &&
-		wifi_pkg->package.elements[1].type == ACPI_TYPE_INTEGER) {
-		enabled = !!wifi_pkg->package.elements[1].integer.value;
-	} else {
+	if (tbl_rev < 0 || tbl_rev > 2 ||
+	    wifi_pkg->package.elements[1].type != ACPI_TYPE_INTEGER) {
 		ret = -EINVAL;
 		goto out_free;
 	}
 
-	if (!enabled) {
-		IWL_DEBUG_RADIO(fwrt, "TAS not enabled\n");
-		ret = 0;
-		goto out_free;
-	}
+	tas_selection = (u32)wifi_pkg->package.elements[1].integer.value;
+	enabled = tas_selection & IWL_WTAS_ENABLED_MSK;
+
+	IWL_DEBUG_RADIO(fwrt, "TAS selection as read from BIOS: 0x%x\n",
+			tas_selection);
+	tas_data->table_source = BIOS_SOURCE_ACPI;
+	tas_data->table_revision = tbl_rev;
+	tas_data->tas_selection = tas_selection;
+
+	IWL_DEBUG_RADIO(fwrt, "TAS %s enabled\n",
+			enabled ? "is" : "not");
 
 	IWL_DEBUG_RADIO(fwrt, "Reading TAS table revision %d\n", tbl_rev);
 	if (wifi_pkg->package.elements[2].type != ACPI_TYPE_INTEGER ||
@@ -308,13 +305,14 @@ int iwl_acpi_get_tas_table(struct iwl_fw_runtime *fwrt,
 		ret = -EINVAL;
 		goto out_free;
 	}
+
 	block_list_size = wifi_pkg->package.elements[2].integer.value;
-	tas_data->block_list_size = cpu_to_le32(block_list_size);
+	tas_data->block_list_size = block_list_size;
 
 	IWL_DEBUG_RADIO(fwrt, "TAS array size %u\n", block_list_size);
 
-	for (i = 0; i < block_list_size; i++) {
-		u32 country;
+	for (int i = 0; i < block_list_size; i++) {
+		u16 country;
 
 		if (wifi_pkg->package.elements[3 + i].type !=
 		    ACPI_TYPE_INTEGER) {
@@ -325,11 +323,11 @@ int iwl_acpi_get_tas_table(struct iwl_fw_runtime *fwrt,
 		}
 
 		country = wifi_pkg->package.elements[3 + i].integer.value;
-		tas_data->block_list_array[i] = cpu_to_le32(country);
+		tas_data->block_list_array[i] = country;
 		IWL_DEBUG_RADIO(fwrt, "TAS block list country %d\n", country);
 	}
 
-	ret = 1;
+	ret = enabled;
 out_free:
 	kfree(data);
 	return ret;

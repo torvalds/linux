@@ -570,7 +570,7 @@ int iwl_uefi_get_tas_table(struct iwl_fw_runtime *fwrt,
 			   struct iwl_tas_data *tas_data)
 {
 	struct uefi_cnv_var_wtas *uefi_tas;
-	int ret = 0, enabled, i;
+	int ret, enabled;
 
 	uefi_tas = iwl_uefi_get_verified_variable(fwrt->trans, IWL_UEFI_WTAS_NAME,
 						  "WTAS", sizeof(*uefi_tas), NULL);
@@ -585,15 +585,16 @@ int iwl_uefi_get_tas_table(struct iwl_fw_runtime *fwrt,
 		goto out;
 	}
 
-	enabled = iwl_parse_tas_selection(fwrt, tas_data,
-					  uefi_tas->tas_selection,
-					  uefi_tas->revision);
+	IWL_DEBUG_RADIO(fwrt, "TAS selection as read from BIOS: 0x%x\n",
+			uefi_tas->tas_selection);
 
-	if (!enabled) {
-		IWL_DEBUG_RADIO(fwrt, "TAS not enabled\n");
-		ret = 0;
-		goto out;
-	}
+	enabled = uefi_tas->tas_selection & IWL_WTAS_ENABLED_MSK;
+	tas_data->table_source = BIOS_SOURCE_UEFI;
+	tas_data->table_revision = uefi_tas->revision;
+	tas_data->tas_selection = uefi_tas->tas_selection;
+
+	IWL_DEBUG_RADIO(fwrt, "TAS %s enabled\n",
+			enabled ? "is" : "not");
 
 	IWL_DEBUG_RADIO(fwrt, "Reading TAS table revision %d\n",
 			uefi_tas->revision);
@@ -603,15 +604,16 @@ int iwl_uefi_get_tas_table(struct iwl_fw_runtime *fwrt,
 		ret = -EINVAL;
 		goto out;
 	}
-	tas_data->block_list_size = cpu_to_le32(uefi_tas->black_list_size);
+
+	tas_data->block_list_size = uefi_tas->black_list_size;
 	IWL_DEBUG_RADIO(fwrt, "TAS array size %u\n", uefi_tas->black_list_size);
 
-	for (i = 0; i < uefi_tas->black_list_size; i++) {
-		tas_data->block_list_array[i] =
-			cpu_to_le32(uefi_tas->black_list[i]);
+	for (u8 i = 0; i < uefi_tas->black_list_size; i++) {
+		tas_data->block_list_array[i] = uefi_tas->black_list[i];
 		IWL_DEBUG_RADIO(fwrt, "TAS block list country %d\n",
 				uefi_tas->black_list[i]);
 	}
+	ret = enabled;
 out:
 	kfree(uefi_tas);
 	return ret;
