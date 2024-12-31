@@ -91,13 +91,18 @@ static const struct rhashtable_params bch_promote_params = {
 	.automatic_shrinking	= true,
 };
 
+static inline bool have_io_error(struct bch_io_failures *failed)
+{
+	return failed && failed->nr;
+}
+
 static inline int should_promote(struct bch_fs *c, struct bkey_s_c k,
 				  struct bpos pos,
 				  struct bch_io_opts opts,
 				  unsigned flags,
 				  struct bch_io_failures *failed)
 {
-	if (!failed) {
+	if (!have_io_error(failed)) {
 		BUG_ON(!opts.promote_target);
 
 		if (!(flags & BCH_READ_MAY_PROMOTE))
@@ -224,7 +229,7 @@ static struct promote_op *__promote_alloc(struct btree_trans *trans,
 
 	struct data_update_opts update_opts = {};
 
-	if (!failed) {
+	if (!have_io_error(failed)) {
 		update_opts.target = opts.promote_target;
 		update_opts.extra_replicas = 1;
 		update_opts.write_flags = BCH_WRITE_ALLOC_NOWAIT|BCH_WRITE_CACHED;
@@ -286,7 +291,7 @@ static struct promote_op *promote_alloc(struct btree_trans *trans,
 	 * if failed != NULL we're not actually doing a promote, we're
 	 * recovering from an io/checksum error
 	 */
-	bool promote_full = (failed ||
+	bool promote_full = (have_io_error(failed) ||
 			     *read_full ||
 			     READ_ONCE(c->opts.promote_whole_extents));
 	/* data might have to be decompressed in the write path: */
@@ -989,7 +994,7 @@ retry_pick:
 		bounce = true;
 	}
 
-	if (orig->opts.promote_target)// || failed)
+	if (orig->opts.promote_target || have_io_error(failed))
 		promote = promote_alloc(trans, iter, k, &pick, orig->opts, flags,
 					&rbio, &bounce, &read_full, failed);
 
