@@ -1563,7 +1563,8 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 	 */
 	ret = for_each_btree_key(trans, iter, BTREE_ID_snapshots, POS_MIN, 0, k,
 		check_should_delete_snapshot(trans, k, &delete_leaves, &delete_interior));
-	bch_err_msg(c, ret, "walking snapshots");
+	if (!bch2_err_matches(ret, EROFS))
+		bch_err_msg(c, ret, "walking snapshots");
 	if (ret)
 		goto err;
 
@@ -1602,7 +1603,8 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 
 		bch2_disk_reservation_put(c, &res);
 
-		bch_err_msg(c, ret, "deleting keys from dying snapshots");
+		if (!bch2_err_matches(ret, EROFS))
+			bch_err_msg(c, ret, "deleting keys from dying snapshots");
 		if (ret)
 			goto err;
 	}
@@ -1610,7 +1612,8 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 	darray_for_each(delete_leaves, i) {
 		ret = commit_do(trans, NULL, NULL, 0,
 			bch2_snapshot_node_delete(trans, *i));
-		bch_err_msg(c, ret, "deleting snapshot %u", *i);
+		if (!bch2_err_matches(ret, EROFS))
+			bch_err_msg(c, ret, "deleting snapshot %u", *i);
 		if (ret)
 			goto err;
 	}
@@ -1630,7 +1633,8 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 	darray_for_each(delete_interior, i) {
 		ret = commit_do(trans, NULL, NULL, 0,
 			bch2_snapshot_node_delete(trans, i->id));
-		bch_err_msg(c, ret, "deleting snapshot %u", i->id);
+		if (!bch2_err_matches(ret, EROFS))
+			bch_err_msg(c, ret, "deleting snapshot %u", i->id);
 		if (ret)
 			goto err;
 	}
@@ -1638,7 +1642,8 @@ err:
 	darray_exit(&delete_interior);
 	darray_exit(&delete_leaves);
 	bch2_trans_put(trans);
-	bch_err_fn(c, ret);
+	if (!bch2_err_matches(ret, EROFS))
+		bch_err_fn(c, ret);
 	return ret;
 }
 
