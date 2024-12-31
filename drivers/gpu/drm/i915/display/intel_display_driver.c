@@ -233,7 +233,7 @@ int intel_display_driver_probe_noirq(struct intel_display *display)
 	if (ret < 0)
 		goto cleanup_vga;
 
-	intel_pmdemand_init_early(i915);
+	intel_pmdemand_init_early(display);
 
 	intel_power_domains_init_hw(display, false);
 
@@ -265,7 +265,7 @@ int intel_display_driver_probe_noirq(struct intel_display *display)
 	if (ret)
 		goto cleanup_vga_client_pw_domain_dmc;
 
-	ret = intel_pmdemand_init(i915);
+	ret = intel_pmdemand_init(display);
 	if (ret)
 		goto cleanup_vga_client_pw_domain_dmc;
 
