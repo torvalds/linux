@@ -528,13 +528,12 @@ static bool early_apply_microcode(u32 old_rev, void *ucode, size_t size)
 {
 	struct cont_desc desc = { 0 };
 	struct microcode_amd *mc;
-	bool ret = false;
 
 	scan_containers(ucode, size, &desc);
 
 	mc = desc.mc;
 	if (!mc)
-		return ret;
+		return false;
 
 	/*
 	 * Allow application of the same revision to pick up SMT-specific
@@ -542,7 +541,7 @@ static bool early_apply_microcode(u32 old_rev, void *ucode, size_t size)
 	 * up-to-date.
 	 */
 	if (old_rev > mc->hdr.patch_id)
-		return ret;
+		return false;
 
 	return __apply_microcode_amd(mc, desc.psize);
 }
