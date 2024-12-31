@@ -2591,6 +2591,13 @@ static DEFINE_PER_CPU(struct pt_regs, bpf_kprobe_multi_pt_regs);
 #define bpf_kprobe_multi_pt_regs_ptr()	(NULL)
 #endif
 
+static unsigned long ftrace_get_entry_ip(unsigned long fentry_ip)
+{
+	unsigned long ip = ftrace_get_symaddr(fentry_ip);
+
+	return ip ? : fentry_ip;
+}
+
 static int copy_user_syms(struct user_syms *us, unsigned long __user *usyms, u32 cnt)
 {
 	unsigned long __user usymbol;
@@ -2829,7 +2836,8 @@ kprobe_multi_link_handler(struct fprobe *fp, unsigned long fentry_ip,
 	int err;
 
 	link = container_of(fp, struct bpf_kprobe_multi_link, fp);
-	err = kprobe_multi_link_prog_run(link, get_entry_ip(fentry_ip), fregs, false, data);
+	err = kprobe_multi_link_prog_run(link, ftrace_get_entry_ip(fentry_ip),
+					 fregs, false, data);
 	return is_kprobe_session(link->link.prog) ? err : 0;
 }
 
@@ -2841,7 +2849,8 @@ kprobe_multi_link_exit_handler(struct fprobe *fp, unsigned long fentry_ip,
 	struct bpf_kprobe_multi_link *link;
 
 	link = container_of(fp, struct bpf_kprobe_multi_link, fp);
-	kprobe_multi_link_prog_run(link, get_entry_ip(fentry_ip), fregs, true, data);
+	kprobe_multi_link_prog_run(link, ftrace_get_entry_ip(fentry_ip),
+				   fregs, true, data);
 }
 
 static int symbols_cmp_r(const void *a, const void *b, const void *priv)
