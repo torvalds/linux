@@ -542,8 +542,7 @@ static ssize_t iwl_dbgfs_tas_get_status_read(struct file *file,
 					     size_t count, loff_t *ppos)
 {
 	struct iwl_mvm *mvm = file->private_data;
-	struct iwl_mvm_tas_status_resp tas_rsp;
-	struct iwl_mvm_tas_status_resp *rsp = &tas_rsp;
+	struct iwl_mvm_tas_status_resp *rsp = NULL;
 	static const size_t bufsz = 1024;
 	char *buff, *pos, *endpos;
 	const char * const tas_dis_reason[TAS_DISABLED_REASON_MAX] = {
