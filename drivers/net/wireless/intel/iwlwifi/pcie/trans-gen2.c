@@ -294,9 +294,6 @@ static void iwl_pcie_get_rf_name(struct iwl_trans *trans)
 	case CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_HRCDB):
 		pos = scnprintf(buf, buflen, "HRCDB");
 		break;
-	case CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_MS):
-		pos = scnprintf(buf, buflen, "MS");
-		break;
 	case CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_FM):
 		pos = scnprintf(buf, buflen, "FM");
 		break;
