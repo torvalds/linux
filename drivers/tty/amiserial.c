@@ -1585,7 +1585,7 @@ static void __exit amiga_serial_remove(struct platform_device *pdev)
  * triggering a section mismatch warning.
  */
 static struct platform_driver amiga_serial_driver __refdata = {
-	.remove_new = __exit_p(amiga_serial_remove),
+	.remove = __exit_p(amiga_serial_remove),
 	.driver   = {
 		.name	= "amiga-serial",
 	},

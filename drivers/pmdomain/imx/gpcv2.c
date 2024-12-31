@@ -403,7 +403,7 @@ static int imx_pgc_power_up(struct generic_pm_domain *genpd)
 		 * already reaches target before udelay()
 		 */
 		regmap_read_bypassed(domain->regmap, domain->regs->hsk, &reg_val);
-		udelay(5);
+		udelay(10);
 	}
 
 	/* Disable reset clocks for all devices in the domain */
@@ -1439,7 +1439,7 @@ static struct platform_driver imx_pgc_domain_driver = {
 		.pm = &imx_pgc_domain_pm_ops,
 	},
 	.probe    = imx_pgc_domain_probe,
-	.remove_new = imx_pgc_domain_remove,
+	.remove = imx_pgc_domain_remove,
 	.id_table = imx_pgc_domain_id,
 };
 builtin_platform_driver(imx_pgc_domain_driver)

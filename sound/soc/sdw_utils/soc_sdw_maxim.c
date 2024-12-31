@@ -43,7 +43,7 @@ int asoc_sdw_maxim_spk_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_
 
 	return ret;
 }
-EXPORT_SYMBOL_NS(asoc_sdw_maxim_spk_rtd_init, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_maxim_spk_rtd_init, "SND_SOC_SDW_UTILS");
 
 static int asoc_sdw_mx8373_enable_spk_pin(struct snd_pcm_substream *substream, bool enable)
 {
@@ -145,4 +145,4 @@ int asoc_sdw_maxim_init(struct snd_soc_card *card,
 	}
 	return 0;
 }
-EXPORT_SYMBOL_NS(asoc_sdw_maxim_init, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_maxim_init, "SND_SOC_SDW_UTILS");

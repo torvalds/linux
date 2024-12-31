@@ -269,7 +269,7 @@ static struct platform_driver ssc_driver = {
 	},
 	.id_table	= atmel_ssc_devtypes,
 	.probe		= ssc_probe,
-	.remove_new	= ssc_remove,
+	.remove		= ssc_remove,
 };
 module_platform_driver(ssc_driver);
 

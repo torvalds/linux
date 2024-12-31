@@ -5,6 +5,7 @@
 #include <net/nexthop.h>
 #include <net/ip_tunnels.h>
 #include "tc_tun_encap.h"
+#include "fs_core.h"
 #include "en_tc.h"
 #include "tc_tun.h"
 #include "rep/tc.h"
@@ -24,9 +25,17 @@ static int mlx5e_set_int_port_tunnel(struct mlx5e_priv *priv,
 
 	route_dev = dev_get_by_index(dev_net(e->out_dev), e->route_dev_ifindex);
 
-	if (!route_dev || !netif_is_ovs_master(route_dev) ||
-	    attr->parse_attr->filter_dev == e->out_dev)
+	if (!route_dev || !netif_is_ovs_master(route_dev))
 		goto out;
+
+	if (priv->mdev->priv.steering->mode == MLX5_FLOW_STEERING_MODE_DMFS &&
+	    mlx5e_eswitch_uplink_rep(attr->parse_attr->filter_dev) &&
+	    (attr->esw_attr->dests[out_index].flags & MLX5_ESW_DEST_ENCAP)) {
+		mlx5_core_warn(priv->mdev,
+			       "Matching on external port with encap + fwd to table actions is not allowed for firmware steering\n");
+		err = -EINVAL;
+		goto out;
+	}
 
 	err = mlx5e_set_fwd_to_int_port_actions(priv, attr, e->route_dev_ifindex,
 						MLX5E_TC_INT_PORT_EGRESS,

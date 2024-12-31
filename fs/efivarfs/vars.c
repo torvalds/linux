@@ -22,7 +22,7 @@
 
 #include "internal.h"
 
-MODULE_IMPORT_NS(EFIVAR);
+MODULE_IMPORT_NS("EFIVAR");
 
 static bool
 validate_device_path(efi_char16_t *var_name, int match, u8 *buffer,

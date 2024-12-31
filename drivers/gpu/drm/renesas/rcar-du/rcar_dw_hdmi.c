@@ -108,7 +108,7 @@ MODULE_DEVICE_TABLE(of, rcar_dw_hdmi_of_table);
 
 static struct platform_driver rcar_dw_hdmi_platform_driver = {
 	.probe		= rcar_dw_hdmi_probe,
-	.remove_new	= rcar_dw_hdmi_remove,
+	.remove		= rcar_dw_hdmi_remove,
 	.driver		= {
 		.name	= "rcar-dw-hdmi",
 		.of_match_table = rcar_dw_hdmi_of_table,

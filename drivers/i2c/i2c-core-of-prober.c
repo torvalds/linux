@@ -181,7 +181,7 @@ out_put_i2c_adapter:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(i2c_of_probe_component, I2C_OF_PROBER);
+EXPORT_SYMBOL_NS_GPL(i2c_of_probe_component, "I2C_OF_PROBER");
 
 static int i2c_of_probe_simple_get_supply(struct device *dev, struct device_node *node,
 					  struct i2c_of_probe_simple_ctx *ctx)
@@ -366,7 +366,7 @@ out_put_node:
 	of_node_put(node);
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(i2c_of_probe_simple_enable, I2C_OF_PROBER);
+EXPORT_SYMBOL_NS_GPL(i2c_of_probe_simple_enable, "I2C_OF_PROBER");
 
 /**
  * i2c_of_probe_simple_cleanup_early - \
@@ -383,7 +383,7 @@ void i2c_of_probe_simple_cleanup_early(struct device *dev, void *data)
 
 	i2c_of_probe_simple_put_gpiod(ctx);
 }
-EXPORT_SYMBOL_NS_GPL(i2c_of_probe_simple_cleanup_early, I2C_OF_PROBER);
+EXPORT_SYMBOL_NS_GPL(i2c_of_probe_simple_cleanup_early, "I2C_OF_PROBER");
 
 /**
  * i2c_of_probe_simple_cleanup - Clean up and release resources for I2C OF prober simple helpers
@@ -405,11 +405,11 @@ void i2c_of_probe_simple_cleanup(struct device *dev, void *data)
 	i2c_of_probe_simple_disable_regulator(dev, ctx);
 	i2c_of_probe_simple_put_supply(ctx);
 }
-EXPORT_SYMBOL_NS_GPL(i2c_of_probe_simple_cleanup, I2C_OF_PROBER);
+EXPORT_SYMBOL_NS_GPL(i2c_of_probe_simple_cleanup, "I2C_OF_PROBER");
 
 struct i2c_of_probe_ops i2c_of_probe_simple_ops = {
 	.enable = i2c_of_probe_simple_enable,
 	.cleanup_early = i2c_of_probe_simple_cleanup_early,
 	.cleanup = i2c_of_probe_simple_cleanup,
 };
-EXPORT_SYMBOL_NS_GPL(i2c_of_probe_simple_ops, I2C_OF_PROBER);
+EXPORT_SYMBOL_NS_GPL(i2c_of_probe_simple_ops, "I2C_OF_PROBER");

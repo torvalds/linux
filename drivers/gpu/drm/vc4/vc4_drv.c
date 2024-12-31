@@ -471,7 +471,7 @@ MODULE_DEVICE_TABLE(of, vc4_of_match);
 
 static struct platform_driver vc4_platform_driver = {
 	.probe		= vc4_platform_drm_probe,
-	.remove_new	= vc4_platform_drm_remove,
+	.remove		= vc4_platform_drm_remove,
 	.shutdown	= vc4_platform_drm_shutdown,
 	.driver		= {
 		.name	= "vc4-drm",

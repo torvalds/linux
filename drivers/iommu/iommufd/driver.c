@@ -34,7 +34,7 @@ out_free:
 	kfree(obj);
 	return ERR_PTR(rc);
 }
-EXPORT_SYMBOL_NS_GPL(_iommufd_object_alloc, IOMMUFD);
+EXPORT_SYMBOL_NS_GPL(_iommufd_object_alloc, "IOMMUFD");
 
 /* Caller should xa_lock(&viommu->vdevs) to protect the return value */
 struct device *iommufd_viommu_find_dev(struct iommufd_viommu *viommu,
@@ -47,7 +47,7 @@ struct device *iommufd_viommu_find_dev(struct iommufd_viommu *viommu,
 	vdev = xa_load(&viommu->vdevs, vdev_id);
 	return vdev ? vdev->dev : NULL;
 }
-EXPORT_SYMBOL_NS_GPL(iommufd_viommu_find_dev, IOMMUFD);
+EXPORT_SYMBOL_NS_GPL(iommufd_viommu_find_dev, "IOMMUFD");
 
 MODULE_DESCRIPTION("iommufd code shared with builtin modules");
 MODULE_LICENSE("GPL");

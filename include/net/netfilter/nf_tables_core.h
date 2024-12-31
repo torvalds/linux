@@ -161,6 +161,7 @@ enum {
 };
 
 struct nft_inner_tun_ctx {
+	unsigned long cookie;
 	u16	type;
 	u16	inner_tunoff;
 	u16	inner_lloff;

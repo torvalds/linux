@@ -420,8 +420,6 @@ out_put_fdno:
 	put_unused_fd(fdno);
 out_fput:
 	fput(filep);
-	refcount_dec(&fault->obj.users);
-	iommufd_ctx_put(fault->ictx);
 out_abort:
 	iommufd_object_abort_and_destroy(ucmd->ictx, &fault->obj);
 

@@ -295,4 +295,4 @@ module_platform_driver(npcm_peci_driver);
 MODULE_AUTHOR("Tomer Maimon <tomer.maimon@nuvoton.com>");
 MODULE_DESCRIPTION("NPCM PECI driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(PECI);
+MODULE_IMPORT_NS("PECI");

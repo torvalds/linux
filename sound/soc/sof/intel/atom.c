@@ -94,7 +94,7 @@ void atom_dump(struct snd_sof_dev *sdev, u32 flags)
 		(imrd & SHIM_IMRD_DONE) ? "yes" : "no", imrd);
 
 }
-EXPORT_SYMBOL_NS(atom_dump, SND_SOC_SOF_INTEL_ATOM_HIFI_EP);
+EXPORT_SYMBOL_NS(atom_dump, "SND_SOC_SOF_INTEL_ATOM_HIFI_EP");
 
 /*
  * IPC Doorbell IRQ handler and thread.
@@ -131,7 +131,7 @@ irqreturn_t atom_irq_handler(int irq, void *context)
 
 	return ret;
 }
-EXPORT_SYMBOL_NS(atom_irq_handler, SND_SOC_SOF_INTEL_ATOM_HIFI_EP);
+EXPORT_SYMBOL_NS(atom_irq_handler, "SND_SOC_SOF_INTEL_ATOM_HIFI_EP");
 
 irqreturn_t atom_irq_thread(int irq, void *context)
 {
@@ -176,7 +176,7 @@ irqreturn_t atom_irq_thread(int irq, void *context)
 
 	return IRQ_HANDLED;
 }
-EXPORT_SYMBOL_NS(atom_irq_thread, SND_SOC_SOF_INTEL_ATOM_HIFI_EP);
+EXPORT_SYMBOL_NS(atom_irq_thread, "SND_SOC_SOF_INTEL_ATOM_HIFI_EP");
 
 int atom_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 {
@@ -191,19 +191,19 @@ int atom_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(atom_send_msg, SND_SOC_SOF_INTEL_ATOM_HIFI_EP);
+EXPORT_SYMBOL_NS(atom_send_msg, "SND_SOC_SOF_INTEL_ATOM_HIFI_EP");
 
 int atom_get_mailbox_offset(struct snd_sof_dev *sdev)
 {
 	return MBOX_OFFSET;
 }
-EXPORT_SYMBOL_NS(atom_get_mailbox_offset, SND_SOC_SOF_INTEL_ATOM_HIFI_EP);
+EXPORT_SYMBOL_NS(atom_get_mailbox_offset, "SND_SOC_SOF_INTEL_ATOM_HIFI_EP");
 
 int atom_get_window_offset(struct snd_sof_dev *sdev, u32 id)
 {
 	return MBOX_OFFSET;
 }
-EXPORT_SYMBOL_NS(atom_get_window_offset, SND_SOC_SOF_INTEL_ATOM_HIFI_EP);
+EXPORT_SYMBOL_NS(atom_get_window_offset, "SND_SOC_SOF_INTEL_ATOM_HIFI_EP");
 
 static void atom_host_done(struct snd_sof_dev *sdev)
 {
@@ -248,7 +248,7 @@ int atom_run(struct snd_sof_dev *sdev)
 	/* return init core mask */
 	return 1;
 }
-EXPORT_SYMBOL_NS(atom_run, SND_SOC_SOF_INTEL_ATOM_HIFI_EP);
+EXPORT_SYMBOL_NS(atom_run, "SND_SOC_SOF_INTEL_ATOM_HIFI_EP");
 
 int atom_reset(struct snd_sof_dev *sdev)
 {
@@ -267,7 +267,7 @@ int atom_reset(struct snd_sof_dev *sdev)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(atom_reset, SND_SOC_SOF_INTEL_ATOM_HIFI_EP);
+EXPORT_SYMBOL_NS(atom_reset, "SND_SOC_SOF_INTEL_ATOM_HIFI_EP");
 
 static const char *fixup_tplg_name(struct snd_sof_dev *sdev,
 				   const char *sof_tplg_filename,
@@ -330,7 +330,7 @@ struct snd_soc_acpi_mach *atom_machine_select(struct snd_sof_dev *sdev)
 
 	return mach;
 }
-EXPORT_SYMBOL_NS(atom_machine_select, SND_SOC_SOF_INTEL_ATOM_HIFI_EP);
+EXPORT_SYMBOL_NS(atom_machine_select, "SND_SOC_SOF_INTEL_ATOM_HIFI_EP");
 
 /* Atom DAIs */
 struct snd_soc_dai_driver atom_dai[] = {
@@ -401,7 +401,7 @@ struct snd_soc_dai_driver atom_dai[] = {
 	},
 },
 };
-EXPORT_SYMBOL_NS(atom_dai, SND_SOC_SOF_INTEL_ATOM_HIFI_EP);
+EXPORT_SYMBOL_NS(atom_dai, "SND_SOC_SOF_INTEL_ATOM_HIFI_EP");
 
 void atom_set_mach_params(struct snd_soc_acpi_mach *mach,
 			  struct snd_sof_dev *sdev)
@@ -415,7 +415,7 @@ void atom_set_mach_params(struct snd_soc_acpi_mach *mach,
 	mach_params->num_dai_drivers = desc->ops->num_drv;
 	mach_params->dai_drivers = desc->ops->drv;
 }
-EXPORT_SYMBOL_NS(atom_set_mach_params, SND_SOC_SOF_INTEL_ATOM_HIFI_EP);
+EXPORT_SYMBOL_NS(atom_set_mach_params, "SND_SOC_SOF_INTEL_ATOM_HIFI_EP");
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("SOF support for Atom platforms");

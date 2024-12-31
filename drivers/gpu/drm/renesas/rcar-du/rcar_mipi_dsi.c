@@ -1088,7 +1088,7 @@ MODULE_DEVICE_TABLE(of, rcar_mipi_dsi_of_table);
 
 static struct platform_driver rcar_mipi_dsi_platform_driver = {
 	.probe          = rcar_mipi_dsi_probe,
-	.remove_new     = rcar_mipi_dsi_remove,
+	.remove         = rcar_mipi_dsi_remove,
 	.driver         = {
 		.name   = "rcar-mipi-dsi",
 		.of_match_table = rcar_mipi_dsi_of_table,

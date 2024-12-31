@@ -230,7 +230,7 @@ MODULE_DEVICE_TABLE(of, thc63_match);
 
 static struct platform_driver thc63_driver = {
 	.probe	= thc63_probe,
-	.remove_new = thc63_remove,
+	.remove = thc63_remove,
 	.driver	= {
 		.name		= "thc63lvd1024",
 		.of_match_table	= thc63_match,

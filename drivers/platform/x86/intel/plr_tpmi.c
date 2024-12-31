@@ -348,7 +348,7 @@ static struct auxiliary_driver intel_plr_aux_driver = {
 };
 module_auxiliary_driver(intel_plr_aux_driver);
 
-MODULE_IMPORT_NS(INTEL_TPMI);
-MODULE_IMPORT_NS(INTEL_TPMI_POWER_DOMAIN);
+MODULE_IMPORT_NS("INTEL_TPMI");
+MODULE_IMPORT_NS("INTEL_TPMI_POWER_DOMAIN");
 MODULE_DESCRIPTION("Intel TPMI PLR Driver");
 MODULE_LICENSE("GPL");

@@ -261,7 +261,7 @@ static struct platform_driver bcma_host_soc_driver = {
 		.of_match_table = bcma_host_soc_of_match,
 	},
 	.probe		= bcma_host_soc_probe,
-	.remove_new	= bcma_host_soc_remove,
+	.remove		= bcma_host_soc_remove,
 };
 
 int __init bcma_host_soc_register_driver(void)

@@ -622,4 +622,4 @@ module_sdw_driver(cs42l42_sdw_driver);
 MODULE_DESCRIPTION("ASoC CS42L42 SoundWire driver");
 MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.cirrus.com>");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(SND_SOC_CS42L42_CORE);
+MODULE_IMPORT_NS("SND_SOC_CS42L42_CORE");

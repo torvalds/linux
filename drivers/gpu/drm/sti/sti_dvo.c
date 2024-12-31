@@ -585,7 +585,7 @@ struct platform_driver sti_dvo_driver = {
 		.of_match_table = dvo_of_match,
 	},
 	.probe = sti_dvo_probe,
-	.remove_new = sti_dvo_remove,
+	.remove = sti_dvo_remove,
 };
 
 MODULE_AUTHOR("Benjamin Gaignard <benjamin.gaignard@st.com>");

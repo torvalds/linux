@@ -5120,7 +5120,7 @@ static struct platform_driver panel_simple_platform_driver = {
 		.pm = &panel_simple_pm_ops,
 	},
 	.probe = panel_simple_platform_probe,
-	.remove_new = panel_simple_platform_remove,
+	.remove = panel_simple_platform_remove,
 	.shutdown = panel_simple_platform_shutdown,
 };
 

@@ -848,7 +848,7 @@ static void vc4_vec_dev_remove(struct platform_device *pdev)
 
 struct platform_driver vc4_vec_driver = {
 	.probe = vc4_vec_dev_probe,
-	.remove_new = vc4_vec_dev_remove,
+	.remove = vc4_vec_dev_remove,
 	.driver = {
 		.name = "vc4_vec",
 		.of_match_table = vc4_vec_dt_match,

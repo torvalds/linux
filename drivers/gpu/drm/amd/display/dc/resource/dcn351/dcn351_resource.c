@@ -1757,6 +1757,7 @@ static struct resource_funcs dcn351_res_pool_funcs = {
 	.patch_unknown_plane_state = dcn20_patch_unknown_plane_state,
 	.get_panel_config_defaults = dcn35_get_panel_config_defaults,
 	.get_preferred_eng_id_dpia = dcn351_get_preferred_eng_id_dpia,
+	.get_det_buffer_size = dcn31_get_det_buffer_size,
 };
 
 static bool dcn351_resource_construct(
@@ -1828,6 +1829,7 @@ static bool dcn351_resource_construct(
 	dc->caps.zstate_support = true;
 	dc->caps.ips_support = true;
 	dc->caps.max_v_total = (1 << 15) - 1;
+	dc->caps.vtotal_limited_by_fp2 = true;
 
 	/* Color pipeline capabilities */
 	dc->caps.color.dpp.dcn_arch = 1;

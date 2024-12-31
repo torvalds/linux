@@ -29,6 +29,9 @@ EXPORT_SYMBOL_GPL(enetc_port_mac_wr);
 static void enetc_change_preemptible_tcs(struct enetc_ndev_priv *priv,
 					 u8 preemptible_tcs)
 {
+	if (!(priv->si->hw_features & ENETC_SI_F_QBU))
+		return;
+
 	priv->preemptible_tcs = preemptible_tcs;
 	enetc_mm_commit_preemptible_tcs(priv);
 }
@@ -1756,15 +1759,6 @@ void enetc_get_si_caps(struct enetc_si *si)
 		rss = enetc_rd(hw, ENETC_SIRSSCAPR);
 		si->num_rss = ENETC_SIRSSCAPR_GET_NUM_RSS(rss);
 	}
-
-	if (val & ENETC_SIPCAPR0_QBV)
-		si->hw_features |= ENETC_SI_F_QBV;
-
-	if (val & ENETC_SIPCAPR0_QBU)
-		si->hw_features |= ENETC_SI_F_QBU;
-
-	if (val & ENETC_SIPCAPR0_PSFP)
-		si->hw_features |= ENETC_SI_F_PSFP;
 }
 EXPORT_SYMBOL_GPL(enetc_get_si_caps);
 

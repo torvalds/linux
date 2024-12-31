@@ -246,20 +246,22 @@ static const struct header_ops hsr_header_ops = {
 	.parse	 = eth_header_parse,
 };
 
-static struct sk_buff *hsr_init_skb(struct hsr_port *master)
+static struct sk_buff *hsr_init_skb(struct hsr_port *master, int extra)
 {
 	struct hsr_priv *hsr = master->hsr;
 	struct sk_buff *skb;
 	int hlen, tlen;
+	int len;
 
 	hlen = LL_RESERVED_SPACE(master->dev);
 	tlen = master->dev->needed_tailroom;
+	len = sizeof(struct hsr_sup_tag) + sizeof(struct hsr_sup_payload);
 	/* skb size is same for PRP/HSR frames, only difference
 	 * being, for PRP it is a trailer and for HSR it is a
-	 * header
+	 * header.
+	 * RedBox might use @extra more bytes.
 	 */
-	skb = dev_alloc_skb(sizeof(struct hsr_sup_tag) +
-			    sizeof(struct hsr_sup_payload) + hlen + tlen);
+	skb = dev_alloc_skb(len + extra + hlen + tlen);
 
 	if (!skb)
 		return skb;
@@ -295,6 +297,7 @@ static void send_hsr_supervision_frame(struct hsr_port *port,
 	struct hsr_sup_tlv *hsr_stlv;
 	struct hsr_sup_tag *hsr_stag;
 	struct sk_buff *skb;
+	int extra = 0;
 
 	*interval = msecs_to_jiffies(HSR_LIFE_CHECK_INTERVAL);
 	if (hsr->announce_count < 3 && hsr->prot_version == 0) {
@@ -303,7 +306,11 @@ static void send_hsr_supervision_frame(struct hsr_port *port,
 		hsr->announce_count++;
 	}
 
-	skb = hsr_init_skb(port);
+	if (hsr->redbox)
+		extra = sizeof(struct hsr_sup_tlv) +
+			sizeof(struct hsr_sup_payload);
+
+	skb = hsr_init_skb(port, extra);
 	if (!skb) {
 		netdev_warn_once(port->dev, "HSR: Could not send supervision frame\n");
 		return;
@@ -362,7 +369,7 @@ static void send_prp_supervision_frame(struct hsr_port *master,
 	struct hsr_sup_tag *hsr_stag;
 	struct sk_buff *skb;
 
-	skb = hsr_init_skb(master);
+	skb = hsr_init_skb(master, 0);
 	if (!skb) {
 		netdev_warn_once(master->dev, "PRP: Could not send supervision frame\n");
 		return;

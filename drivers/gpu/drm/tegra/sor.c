@@ -4040,5 +4040,5 @@ struct platform_driver tegra_sor_driver = {
 		.pm = &tegra_sor_pm_ops,
 	},
 	.probe = tegra_sor_probe,
-	.remove_new = tegra_sor_remove,
+	.remove = tegra_sor_remove,
 };

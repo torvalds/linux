@@ -1,7 +1,6 @@
 config ARM_CCA_GUEST
 	tristate "Arm CCA Guest driver"
 	depends on ARM64
-	default m
 	select TSM_REPORTS
 	help
 	  The driver provides userspace interface to request and

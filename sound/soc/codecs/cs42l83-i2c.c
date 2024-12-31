@@ -237,4 +237,4 @@ module_i2c_driver(cs42l83_i2c_driver);
 MODULE_DESCRIPTION("ASoC CS42L83 I2C driver");
 MODULE_AUTHOR("Martin Povišer <povik+lin@cutebit.org>");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(SND_SOC_CS42L42_CORE);
+MODULE_IMPORT_NS("SND_SOC_CS42L42_CORE");

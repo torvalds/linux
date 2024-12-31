@@ -780,5 +780,5 @@ module_i2c_driver(ht16k33_driver);
 
 MODULE_DESCRIPTION("Holtek HT16K33 driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(LINEDISP);
+MODULE_IMPORT_NS("LINEDISP");
 MODULE_AUTHOR("Robin van der Gracht <robin@protonic.nl>");

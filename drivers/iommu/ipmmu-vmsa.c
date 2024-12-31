@@ -1159,6 +1159,6 @@ static struct platform_driver ipmmu_driver = {
 		.pm = pm_sleep_ptr(&ipmmu_pm),
 	},
 	.probe = ipmmu_probe,
-	.remove_new = ipmmu_remove,
+	.remove = ipmmu_remove,
 };
 builtin_platform_driver(ipmmu_driver);

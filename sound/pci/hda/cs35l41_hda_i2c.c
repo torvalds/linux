@@ -64,6 +64,6 @@ static struct i2c_driver cs35l41_i2c_driver = {
 module_i2c_driver(cs35l41_i2c_driver);
 
 MODULE_DESCRIPTION("HDA CS35L41 driver");
-MODULE_IMPORT_NS(SND_HDA_SCODEC_CS35L41);
+MODULE_IMPORT_NS("SND_HDA_SCODEC_CS35L41");
 MODULE_AUTHOR("Lucas Tanure <tanureal@opensource.cirrus.com>");
 MODULE_LICENSE("GPL");

@@ -665,7 +665,7 @@ error_disable_reg:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(ad5592r_probe, IIO_AD5592R);
+EXPORT_SYMBOL_NS_GPL(ad5592r_probe, "IIO_AD5592R");
 
 void ad5592r_remove(struct device *dev)
 {
@@ -679,7 +679,7 @@ void ad5592r_remove(struct device *dev)
 	if (st->reg)
 		regulator_disable(st->reg);
 }
-EXPORT_SYMBOL_NS_GPL(ad5592r_remove, IIO_AD5592R);
+EXPORT_SYMBOL_NS_GPL(ad5592r_remove, "IIO_AD5592R");
 
 MODULE_AUTHOR("Paul Cercueil <paul.cercueil@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD5592R multi-channel converters");

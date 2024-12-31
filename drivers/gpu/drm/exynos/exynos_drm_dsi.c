@@ -181,7 +181,7 @@ MODULE_DEVICE_TABLE(of, exynos_dsi_of_match);
 
 struct platform_driver dsi_driver = {
 	.probe = samsung_dsim_probe,
-	.remove_new = samsung_dsim_remove,
+	.remove = samsung_dsim_remove,
 	.driver = {
 		   .name = "exynos-dsi",
 		   .pm = &samsung_dsim_pm_ops,

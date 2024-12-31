@@ -674,12 +674,8 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job,
 	pasid_mapping_needed &= adev->gmc.gmc_funcs->emit_pasid_mapping &&
 		ring->funcs->emit_wreg;
 
-	if (adev->gfx.enable_cleaner_shader &&
-	    ring->funcs->emit_cleaner_shader &&
-	    job->enforce_isolation)
-		ring->funcs->emit_cleaner_shader(ring);
-
-	if (!vm_flush_needed && !gds_switch_needed && !need_pipe_sync)
+	if (!vm_flush_needed && !gds_switch_needed && !need_pipe_sync &&
+	    !(job->enforce_isolation && !job->vmid))
 		return 0;
 
 	amdgpu_ring_ib_begin(ring);
@@ -689,6 +685,11 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job,
 
 	if (need_pipe_sync)
 		amdgpu_ring_emit_pipeline_sync(ring);
+
+	if (adev->gfx.enable_cleaner_shader &&
+	    ring->funcs->emit_cleaner_shader &&
+	    job->enforce_isolation)
+		ring->funcs->emit_cleaner_shader(ring);
 
 	if (vm_flush_needed) {
 		trace_amdgpu_vm_flush(ring, job->vmid, job->vm_pd_addr);

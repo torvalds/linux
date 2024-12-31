@@ -52,7 +52,7 @@ static int rzn1_wdt_ping(struct watchdog_device *w)
 {
 	struct rzn1_watchdog *wdt = watchdog_get_drvdata(w);
 
-	/* Any value retrigggers the watchdog */
+	/* Any value retriggers the watchdog */
 	writel(0, wdt->base + RZN1_WDT_RETRIGGER);
 
 	return 0;

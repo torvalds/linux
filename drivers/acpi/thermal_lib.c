@@ -53,25 +53,25 @@ int acpi_active_trip_temp(struct acpi_device *adev, int id, int *ret_temp)
 
 	return acpi_trip_temp(adev, obj_name, ret_temp);
 }
-EXPORT_SYMBOL_NS_GPL(acpi_active_trip_temp, ACPI_THERMAL);
+EXPORT_SYMBOL_NS_GPL(acpi_active_trip_temp, "ACPI_THERMAL");
 
 int acpi_passive_trip_temp(struct acpi_device *adev, int *ret_temp)
 {
 	return acpi_trip_temp(adev, "_PSV", ret_temp);
 }
-EXPORT_SYMBOL_NS_GPL(acpi_passive_trip_temp, ACPI_THERMAL);
+EXPORT_SYMBOL_NS_GPL(acpi_passive_trip_temp, "ACPI_THERMAL");
 
 int acpi_hot_trip_temp(struct acpi_device *adev, int *ret_temp)
 {
 	return acpi_trip_temp(adev, "_HOT", ret_temp);
 }
-EXPORT_SYMBOL_NS_GPL(acpi_hot_trip_temp, ACPI_THERMAL);
+EXPORT_SYMBOL_NS_GPL(acpi_hot_trip_temp, "ACPI_THERMAL");
 
 int acpi_critical_trip_temp(struct acpi_device *adev, int *ret_temp)
 {
 	return acpi_trip_temp(adev, "_CRT", ret_temp);
 }
-EXPORT_SYMBOL_NS_GPL(acpi_critical_trip_temp, ACPI_THERMAL);
+EXPORT_SYMBOL_NS_GPL(acpi_critical_trip_temp, "ACPI_THERMAL");
 
 static int thermal_temp(int error, int temp_decik, int *ret_temp)
 {

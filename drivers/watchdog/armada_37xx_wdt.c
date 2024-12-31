@@ -248,7 +248,6 @@ static const struct watchdog_ops armada_37xx_wdt_ops = {
 static int armada_37xx_wdt_probe(struct platform_device *pdev)
 {
 	struct armada_37xx_watchdog *dev;
-	struct resource *res;
 	struct regmap *regmap;
 	int ret;
 
@@ -266,12 +265,9 @@ static int armada_37xx_wdt_probe(struct platform_device *pdev)
 		return PTR_ERR(regmap);
 	dev->cpu_misc = regmap;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-	dev->reg = devm_ioremap(&pdev->dev, res->start, resource_size(res));
-	if (!dev->reg)
-		return -ENOMEM;
+	dev->reg = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(dev->reg))
+		return PTR_ERR(dev->reg);
 
 	/* init clock */
 	dev->clk = devm_clk_get_enabled(&pdev->dev, NULL);

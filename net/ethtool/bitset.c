@@ -425,12 +425,32 @@ static int ethnl_parse_bit(unsigned int *index, bool *val, unsigned int nbits,
 	return 0;
 }
 
+/**
+ * ethnl_bitmap32_equal() - Compare two bitmaps
+ * @map1:  first bitmap
+ * @map2:  second bitmap
+ * @nbits: bit size to compare
+ *
+ * Return: true if first @nbits are equal, false if not
+ */
+static bool ethnl_bitmap32_equal(const u32 *map1, const u32 *map2,
+				 unsigned int nbits)
+{
+	if (memcmp(map1, map2, nbits / 32 * sizeof(u32)))
+		return false;
+	if (nbits % 32 == 0)
+		return true;
+	return !((map1[nbits / 32] ^ map2[nbits / 32]) &
+		 ethnl_lower_bits(nbits % 32));
+}
+
 static int
 ethnl_update_bitset32_verbose(u32 *bitmap, unsigned int nbits,
 			      const struct nlattr *attr, struct nlattr **tb,
 			      ethnl_string_array_t names,
 			      struct netlink_ext_ack *extack, bool *mod)
 {
+	u32 *saved_bitmap = NULL;
 	struct nlattr *bit_attr;
 	bool no_mask;
 	int rem;
@@ -448,8 +468,20 @@ ethnl_update_bitset32_verbose(u32 *bitmap, unsigned int nbits,
 	}
 
 	no_mask = tb[ETHTOOL_A_BITSET_NOMASK];
-	if (no_mask)
-		ethnl_bitmap32_clear(bitmap, 0, nbits, mod);
+	if (no_mask) {
+		unsigned int nwords = DIV_ROUND_UP(nbits, 32);
+		unsigned int nbytes = nwords * sizeof(u32);
+		bool dummy;
+
+		/* The bitmap size is only the size of the map part without
+		 * its mask part.
+		 */
+		saved_bitmap = kcalloc(nwords, sizeof(u32), GFP_KERNEL);
+		if (!saved_bitmap)
+			return -ENOMEM;
+		memcpy(saved_bitmap, bitmap, nbytes);
+		ethnl_bitmap32_clear(bitmap, 0, nbits, &dummy);
+	}
 
 	nla_for_each_nested(bit_attr, tb[ETHTOOL_A_BITSET_BITS], rem) {
 		bool old_val, new_val;
@@ -458,22 +490,30 @@ ethnl_update_bitset32_verbose(u32 *bitmap, unsigned int nbits,
 		if (nla_type(bit_attr) != ETHTOOL_A_BITSET_BITS_BIT) {
 			NL_SET_ERR_MSG_ATTR(extack, bit_attr,
 					    "only ETHTOOL_A_BITSET_BITS_BIT allowed in ETHTOOL_A_BITSET_BITS");
+			kfree(saved_bitmap);
 			return -EINVAL;
 		}
 		ret = ethnl_parse_bit(&idx, &new_val, nbits, bit_attr, no_mask,
 				      names, extack);
-		if (ret < 0)
+		if (ret < 0) {
+			kfree(saved_bitmap);
 			return ret;
+		}
 		old_val = bitmap[idx / 32] & ((u32)1 << (idx % 32));
 		if (new_val != old_val) {
 			if (new_val)
 				bitmap[idx / 32] |= ((u32)1 << (idx % 32));
 			else
 				bitmap[idx / 32] &= ~((u32)1 << (idx % 32));
-			*mod = true;
+			if (!no_mask)
+				*mod = true;
 		}
 	}
 
+	if (no_mask && !ethnl_bitmap32_equal(saved_bitmap, bitmap, nbits))
+		*mod = true;
+
+	kfree(saved_bitmap);
 	return 0;
 }
 

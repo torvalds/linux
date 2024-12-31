@@ -1116,7 +1116,7 @@ static void __exit sev_guest_remove(struct platform_device *pdev)
  * triggering a section mismatch warning.
  */
 static struct platform_driver sev_guest_driver __refdata = {
-	.remove_new	= __exit_p(sev_guest_remove),
+	.remove		= __exit_p(sev_guest_remove),
 	.driver		= {
 		.name = "sev-guest",
 	},

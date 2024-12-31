@@ -110,7 +110,7 @@ static void ipmr_expire_process(struct timer_list *t);
 
 static bool ip6mr_can_free_table(struct net *net)
 {
-	return !check_net(net) || !net->ipv6.mr6_rules_ops;
+	return !check_net(net) || !net_initialized(net);
 }
 
 static struct mr_table *ip6mr_mr_table_iter(struct net *net,

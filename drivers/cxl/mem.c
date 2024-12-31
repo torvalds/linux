@@ -252,7 +252,7 @@ module_cxl_driver(cxl_mem_driver);
 
 MODULE_DESCRIPTION("CXL: Memory Expansion");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(CXL);
+MODULE_IMPORT_NS("CXL");
 MODULE_ALIAS_CXL(CXL_DEVICE_MEMORY_EXPANDER);
 /*
  * create_endpoint() wants to validate port driver attach immediately after

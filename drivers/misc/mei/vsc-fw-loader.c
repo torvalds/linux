@@ -773,4 +773,4 @@ err_release_csi:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(vsc_tp_init, VSC_TP);
+EXPORT_SYMBOL_NS_GPL(vsc_tp_init, "VSC_TP");

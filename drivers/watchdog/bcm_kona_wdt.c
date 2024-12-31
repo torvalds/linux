@@ -328,7 +328,7 @@ static struct platform_driver bcm_kona_wdt_driver = {
 			.of_match_table = bcm_kona_wdt_of_match,
 		  },
 	.probe = bcm_kona_wdt_probe,
-	.remove_new = bcm_kona_wdt_remove,
+	.remove = bcm_kona_wdt_remove,
 };
 
 module_platform_driver(bcm_kona_wdt_driver);

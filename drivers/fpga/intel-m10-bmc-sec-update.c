@@ -771,4 +771,4 @@ module_platform_driver(intel_m10bmc_sec_driver);
 MODULE_AUTHOR("Intel Corporation");
 MODULE_DESCRIPTION("Intel MAX10 BMC Secure Update");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(INTEL_M10_BMC_CORE);
+MODULE_IMPORT_NS("INTEL_M10_BMC_CORE");

@@ -437,5 +437,5 @@ module_platform_driver(adi_axi_adc_driver);
 MODULE_AUTHOR("Michael Hennerich <michael.hennerich@analog.com>");
 MODULE_DESCRIPTION("Analog Devices Generic AXI ADC IP core driver");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(IIO_DMAENGINE_BUFFER);
-MODULE_IMPORT_NS(IIO_BACKEND);
+MODULE_IMPORT_NS("IIO_DMAENGINE_BUFFER");
+MODULE_IMPORT_NS("IIO_BACKEND");

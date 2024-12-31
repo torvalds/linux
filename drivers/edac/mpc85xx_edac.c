@@ -323,7 +323,7 @@ static const struct platform_device_id mpc85xx_pci_err_match[] = {
 
 static struct platform_driver mpc85xx_pci_err_driver = {
 	.probe = mpc85xx_pci_err_probe,
-	.remove_new = mpc85xx_pci_err_remove,
+	.remove = mpc85xx_pci_err_remove,
 	.id_table = mpc85xx_pci_err_match,
 	.driver = {
 		.name = "mpc85xx_pci_err",
@@ -627,7 +627,7 @@ MODULE_DEVICE_TABLE(of, mpc85xx_l2_err_of_match);
 
 static struct platform_driver mpc85xx_l2_err_driver = {
 	.probe = mpc85xx_l2_err_probe,
-	.remove_new = mpc85xx_l2_err_remove,
+	.remove = mpc85xx_l2_err_remove,
 	.driver = {
 		.name = "mpc85xx_l2_err",
 		.of_match_table = mpc85xx_l2_err_of_match,
@@ -656,7 +656,7 @@ MODULE_DEVICE_TABLE(of, mpc85xx_mc_err_of_match);
 
 static struct platform_driver mpc85xx_mc_err_driver = {
 	.probe = fsl_mc_err_probe,
-	.remove_new = fsl_mc_err_remove,
+	.remove = fsl_mc_err_remove,
 	.driver = {
 		.name = "mpc85xx_mc_err",
 		.of_match_table = mpc85xx_mc_err_of_match,

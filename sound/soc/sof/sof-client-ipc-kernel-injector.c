@@ -159,4 +159,4 @@ module_auxiliary_driver(sof_msg_inject_client_drv);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SOF IPC Kernel Injector Client Driver");
-MODULE_IMPORT_NS(SND_SOC_SOF_CLIENT);
+MODULE_IMPORT_NS("SND_SOC_SOF_CLIENT");

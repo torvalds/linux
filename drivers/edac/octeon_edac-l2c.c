@@ -194,7 +194,7 @@ static void octeon_l2c_remove(struct platform_device *pdev)
 
 static struct platform_driver octeon_l2c_driver = {
 	.probe = octeon_l2c_probe,
-	.remove_new = octeon_l2c_remove,
+	.remove = octeon_l2c_remove,
 	.driver = {
 		   .name = "octeon_l2c_edac",
 	}

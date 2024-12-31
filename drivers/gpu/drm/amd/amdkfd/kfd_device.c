@@ -235,6 +235,9 @@ static void kfd_device_info_init(struct kfd_dev *kfd,
 			 */
 			kfd->device_info.needs_pci_atomics = true;
 			kfd->device_info.no_atomic_fw_version = kfd->adev->gfx.rs64_enable ? 509 : 0;
+		} else if (gc_version < IP_VERSION(13, 0, 0)) {
+			kfd->device_info.needs_pci_atomics = true;
+			kfd->device_info.no_atomic_fw_version = 2090;
 		} else {
 			kfd->device_info.needs_pci_atomics = true;
 		}

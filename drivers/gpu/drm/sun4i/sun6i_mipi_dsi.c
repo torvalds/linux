@@ -1244,7 +1244,7 @@ MODULE_DEVICE_TABLE(of, sun6i_dsi_of_table);
 
 static struct platform_driver sun6i_dsi_platform_driver = {
 	.probe		= sun6i_dsi_probe,
-	.remove_new	= sun6i_dsi_remove,
+	.remove		= sun6i_dsi_remove,
 	.driver		= {
 		.name		= "sun6i-mipi-dsi",
 		.of_match_table	= sun6i_dsi_of_table,

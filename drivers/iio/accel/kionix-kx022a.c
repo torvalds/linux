@@ -1176,7 +1176,7 @@ const struct kx022a_chip_info kx022a_chip_info = {
 	.xout_l				= KX022A_REG_XOUT_L,
 	.get_fifo_bytes_available	= kx022a_get_fifo_bytes_available,
 };
-EXPORT_SYMBOL_NS_GPL(kx022a_chip_info, IIO_KX022A);
+EXPORT_SYMBOL_NS_GPL(kx022a_chip_info, "IIO_KX022A");
 
 const struct kx022a_chip_info kx132_chip_info = {
 	.name			  = "kx132-1211",
@@ -1202,7 +1202,7 @@ const struct kx022a_chip_info kx132_chip_info = {
 	.xout_l			  = KX132_REG_XOUT_L,
 	.get_fifo_bytes_available = kx132_get_fifo_bytes_available,
 };
-EXPORT_SYMBOL_NS_GPL(kx132_chip_info, IIO_KX022A);
+EXPORT_SYMBOL_NS_GPL(kx132_chip_info, "IIO_KX022A");
 
 /*
  * Despite the naming, KX132ACR-LBZ is not similar to KX132-1211 but it is
@@ -1234,7 +1234,7 @@ const struct kx022a_chip_info kx132acr_chip_info = {
 	.xout_l				= KX022A_REG_XOUT_L,
 	.get_fifo_bytes_available	= kx022a_get_fifo_bytes_available,
 };
-EXPORT_SYMBOL_NS_GPL(kx132acr_chip_info, IIO_KX022A);
+EXPORT_SYMBOL_NS_GPL(kx132acr_chip_info, "IIO_KX022A");
 
 int kx022a_probe_internal(struct device *dev, const struct kx022a_chip_info *chip_info)
 {
@@ -1372,7 +1372,7 @@ int kx022a_probe_internal(struct device *dev, const struct kx022a_chip_info *chi
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(kx022a_probe_internal, IIO_KX022A);
+EXPORT_SYMBOL_NS_GPL(kx022a_probe_internal, "IIO_KX022A");
 
 MODULE_DESCRIPTION("ROHM/Kionix KX022A accelerometer driver");
 MODULE_AUTHOR("Matti Vaittinen <matti.vaittinen@fi.rohmeurope.com>");

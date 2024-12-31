@@ -13,7 +13,7 @@
 #include "../host/nvme.h"
 #include "nvmet.h"
 
-MODULE_IMPORT_NS(NVME_TARGET_PASSTHRU);
+MODULE_IMPORT_NS("NVME_TARGET_PASSTHRU");
 
 /*
  * xarray to maintain one passthru subsystem per nvme controller.

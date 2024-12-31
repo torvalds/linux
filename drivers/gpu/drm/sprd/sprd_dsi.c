@@ -1060,7 +1060,7 @@ static void sprd_dsi_remove(struct platform_device *pdev)
 
 struct platform_driver sprd_dsi_driver = {
 	.probe = sprd_dsi_probe,
-	.remove_new = sprd_dsi_remove,
+	.remove = sprd_dsi_remove,
 	.driver = {
 		.name = "sprd-dsi-drv",
 		.of_match_table = dsi_match_table,

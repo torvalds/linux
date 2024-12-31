@@ -1589,7 +1589,7 @@ static DEFINE_RUNTIME_DEV_PM_OPS(panthor_pm_ops,
 
 static struct platform_driver panthor_driver = {
 	.probe = panthor_probe,
-	.remove_new = panthor_remove,
+	.remove = panthor_remove,
 	.driver = {
 		.name = "panthor",
 		.pm = pm_ptr(&panthor_pm_ops),

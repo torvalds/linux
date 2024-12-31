@@ -221,4 +221,4 @@ module_i2c_driver(tda38640_driver);
 MODULE_AUTHOR("Patrick Rudolph <patrick.rudolph@9elements.com>");
 MODULE_DESCRIPTION("PMBus driver for Infineon TDA38640");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(PMBUS);
+MODULE_IMPORT_NS("PMBUS");

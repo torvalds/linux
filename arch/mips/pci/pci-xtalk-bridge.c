@@ -749,7 +749,7 @@ static void bridge_remove(struct platform_device *pdev)
 
 static struct platform_driver bridge_driver = {
 	.probe = bridge_probe,
-	.remove_new = bridge_remove,
+	.remove = bridge_remove,
 	.driver = {
 		.name = "xtalk-bridge",
 	}

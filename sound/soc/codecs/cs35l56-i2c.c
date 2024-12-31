@@ -84,8 +84,8 @@ static struct i2c_driver cs35l56_i2c_driver = {
 module_i2c_driver(cs35l56_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC CS35L56 I2C driver");
-MODULE_IMPORT_NS(SND_SOC_CS35L56_CORE);
-MODULE_IMPORT_NS(SND_SOC_CS35L56_SHARED);
+MODULE_IMPORT_NS("SND_SOC_CS35L56_CORE");
+MODULE_IMPORT_NS("SND_SOC_CS35L56_SHARED");
 MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.cirrus.com>");
 MODULE_AUTHOR("Simon Trimmer <simont@opensource.cirrus.com>");
 MODULE_LICENSE("GPL");

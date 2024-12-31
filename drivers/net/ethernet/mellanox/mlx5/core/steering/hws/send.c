@@ -990,6 +990,7 @@ static int hws_bwc_send_queues_init(struct mlx5hws_context *ctx)
 	for (i = 0; i < bwc_queues; i++) {
 		mutex_init(&ctx->bwc_send_queue_locks[i]);
 		lockdep_register_key(ctx->bwc_lock_class_keys + i);
+		lockdep_set_class(ctx->bwc_send_queue_locks + i, ctx->bwc_lock_class_keys + i);
 	}
 
 	return 0;

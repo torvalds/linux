@@ -501,7 +501,7 @@ static void vop2_remove(struct platform_device *pdev)
 
 struct platform_driver vop2_platform_driver = {
 	.probe = vop2_probe,
-	.remove_new = vop2_remove,
+	.remove = vop2_remove,
 	.driver = {
 		.name = "rockchip-vop2",
 		.of_match_table = vop2_dt_match,

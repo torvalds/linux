@@ -128,7 +128,7 @@ static struct snd_soc_dai_driver acp70_sof_dai[] = {
 
 /* Phoenix ops */
 struct snd_sof_dsp_ops sof_acp70_ops;
-EXPORT_SYMBOL_NS(sof_acp70_ops, SND_SOC_SOF_AMD_COMMON);
+EXPORT_SYMBOL_NS(sof_acp70_ops, "SND_SOC_SOF_AMD_COMMON");
 
 int sof_acp70_ops_init(struct snd_sof_dev *sdev)
 {

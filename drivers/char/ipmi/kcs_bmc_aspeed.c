@@ -672,7 +672,7 @@ static struct platform_driver ast_kcs_bmc_driver = {
 		.of_match_table = ast_kcs_bmc_match,
 	},
 	.probe  = aspeed_kcs_probe,
-	.remove_new = aspeed_kcs_remove,
+	.remove = aspeed_kcs_remove,
 };
 module_platform_driver(ast_kcs_bmc_driver);
 

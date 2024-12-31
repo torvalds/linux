@@ -726,7 +726,7 @@ int cxl_cper_register_work(struct work_struct *work)
 	cxl_cper_work = work;
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(cxl_cper_register_work, CXL);
+EXPORT_SYMBOL_NS_GPL(cxl_cper_register_work, "CXL");
 
 int cxl_cper_unregister_work(struct work_struct *work)
 {
@@ -737,13 +737,13 @@ int cxl_cper_unregister_work(struct work_struct *work)
 	cxl_cper_work = NULL;
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(cxl_cper_unregister_work, CXL);
+EXPORT_SYMBOL_NS_GPL(cxl_cper_unregister_work, "CXL");
 
 int cxl_cper_kfifo_get(struct cxl_cper_work_data *wd)
 {
 	return kfifo_get(&cxl_cper_fifo, wd);
 }
-EXPORT_SYMBOL_NS_GPL(cxl_cper_kfifo_get, CXL);
+EXPORT_SYMBOL_NS_GPL(cxl_cper_kfifo_get, "CXL");
 
 static bool ghes_do_proc(struct ghes *ghes,
 			 const struct acpi_hest_generic_status *estatus)

@@ -1221,7 +1221,7 @@ static const struct dev_pm_ops amd_pm = {
 
 static struct platform_driver amd_sdw_driver = {
 	.probe	= &amd_sdw_manager_probe,
-	.remove_new = &amd_sdw_manager_remove,
+	.remove = &amd_sdw_manager_remove,
 	.driver = {
 		.name	= "amd_sdw_manager",
 		.pm = &amd_pm,

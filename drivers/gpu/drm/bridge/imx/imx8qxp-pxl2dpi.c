@@ -467,7 +467,7 @@ MODULE_DEVICE_TABLE(of, imx8qxp_pxl2dpi_dt_ids);
 
 static struct platform_driver imx8qxp_pxl2dpi_bridge_driver = {
 	.probe	= imx8qxp_pxl2dpi_bridge_probe,
-	.remove_new = imx8qxp_pxl2dpi_bridge_remove,
+	.remove = imx8qxp_pxl2dpi_bridge_remove,
 	.driver	= {
 		.of_match_table = imx8qxp_pxl2dpi_dt_ids,
 		.name = DRIVER_NAME,

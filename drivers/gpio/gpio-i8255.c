@@ -134,7 +134,7 @@ int devm_i8255_regmap_register(struct device *const dev,
 
 	return PTR_ERR_OR_ZERO(devm_gpio_regmap_register(dev, &gpio_config));
 }
-EXPORT_SYMBOL_NS_GPL(devm_i8255_regmap_register, I8255);
+EXPORT_SYMBOL_NS_GPL(devm_i8255_regmap_register, "I8255");
 
 MODULE_AUTHOR("William Breathitt Gray");
 MODULE_DESCRIPTION("Intel 8255 Programmable Peripheral Interface");

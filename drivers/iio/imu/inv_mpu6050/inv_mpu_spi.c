@@ -178,4 +178,4 @@ module_spi_driver(inv_mpu_driver);
 MODULE_AUTHOR("Adriana Reus <adriana.reus@intel.com>");
 MODULE_DESCRIPTION("Invensense device MPU6000 driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(IIO_MPU6050);
+MODULE_IMPORT_NS("IIO_MPU6050");

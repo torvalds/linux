@@ -2092,7 +2092,7 @@ error_power_off:
 	inv_mpu6050_set_power_itg(st, false);
 	return result;
 }
-EXPORT_SYMBOL_NS_GPL(inv_mpu_core_probe, IIO_MPU6050);
+EXPORT_SYMBOL_NS_GPL(inv_mpu_core_probe, "IIO_MPU6050");
 
 static int inv_mpu_resume(struct device *dev)
 {
@@ -2243,4 +2243,4 @@ EXPORT_NS_GPL_DEV_PM_OPS(inv_mpu_pmops, IIO_MPU6050) = {
 MODULE_AUTHOR("Invensense Corporation");
 MODULE_DESCRIPTION("Invensense device MPU6050 driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(IIO_INV_SENSORS_TIMESTAMP);
+MODULE_IMPORT_NS("IIO_INV_SENSORS_TIMESTAMP");

@@ -500,7 +500,7 @@ MODULE_DEVICE_TABLE(of, rockchip_drm_dt_ids);
 
 static struct platform_driver rockchip_drm_platform_driver = {
 	.probe = rockchip_drm_platform_probe,
-	.remove_new = rockchip_drm_platform_remove,
+	.remove = rockchip_drm_platform_remove,
 	.shutdown = rockchip_drm_platform_shutdown,
 	.driver = {
 		.name = "rockchip-drm",

@@ -116,8 +116,8 @@ const struct libeth_rx_pt libie_rx_pt_lut[LIBIE_RX_PT_NUM] = {
 	LIBIE_RX_PT_IP(4),
 	LIBIE_RX_PT_IP(6),
 };
-EXPORT_SYMBOL_NS_GPL(libie_rx_pt_lut, LIBIE);
+EXPORT_SYMBOL_NS_GPL(libie_rx_pt_lut, "LIBIE");
 
 MODULE_DESCRIPTION("Intel(R) Ethernet common library");
-MODULE_IMPORT_NS(LIBETH);
+MODULE_IMPORT_NS("LIBETH");
 MODULE_LICENSE("GPL");

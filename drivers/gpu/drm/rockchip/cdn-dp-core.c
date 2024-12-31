@@ -1254,7 +1254,7 @@ static const struct dev_pm_ops cdn_dp_pm_ops = {
 
 struct platform_driver cdn_dp_driver = {
 	.probe = cdn_dp_probe,
-	.remove_new = cdn_dp_remove,
+	.remove = cdn_dp_remove,
 	.shutdown = cdn_dp_shutdown,
 	.driver = {
 		   .name = "cdn-dp",

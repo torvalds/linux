@@ -1723,4 +1723,4 @@ static int __init byt_gpio_init(void)
 }
 subsys_initcall(byt_gpio_init);
 
-MODULE_IMPORT_NS(PINCTRL_INTEL);
+MODULE_IMPORT_NS("PINCTRL_INTEL");

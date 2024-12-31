@@ -64,4 +64,4 @@ module_i2c_driver(mp5023_driver);
 MODULE_AUTHOR("Howard Chiu <howard.chiu@quantatw.com>");
 MODULE_DESCRIPTION("PMBus driver for MPS MP5023 HSC");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(PMBUS);
+MODULE_IMPORT_NS("PMBUS");

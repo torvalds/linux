@@ -556,5 +556,5 @@ module_serdev_device_driver(bno055_ser_driver);
 
 MODULE_AUTHOR("Andrea Merello <andrea.merello@iit.it>");
 MODULE_DESCRIPTION("Bosch BNO055 serdev interface");
-MODULE_IMPORT_NS(IIO_BNO055);
+MODULE_IMPORT_NS("IIO_BNO055");
 MODULE_LICENSE("GPL");

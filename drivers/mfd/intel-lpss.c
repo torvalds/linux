@@ -464,7 +464,7 @@ err_clk_register:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(intel_lpss_probe, INTEL_LPSS);
+EXPORT_SYMBOL_NS_GPL(intel_lpss_probe, "INTEL_LPSS");
 
 void intel_lpss_remove(struct device *dev)
 {
@@ -476,7 +476,7 @@ void intel_lpss_remove(struct device *dev)
 	intel_lpss_unregister_clock(lpss);
 	ida_free(&intel_lpss_devid_ida, lpss->devid);
 }
-EXPORT_SYMBOL_NS_GPL(intel_lpss_remove, INTEL_LPSS);
+EXPORT_SYMBOL_NS_GPL(intel_lpss_remove, "INTEL_LPSS");
 
 static int resume_lpss_device(struct device *dev, void *data)
 {

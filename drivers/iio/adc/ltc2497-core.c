@@ -226,7 +226,7 @@ err_regulator_disable:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS(ltc2497core_probe, LTC2497);
+EXPORT_SYMBOL_NS(ltc2497core_probe, "LTC2497");
 
 void ltc2497core_remove(struct iio_dev *indio_dev)
 {
@@ -238,7 +238,7 @@ void ltc2497core_remove(struct iio_dev *indio_dev)
 
 	regulator_disable(ddata->ref);
 }
-EXPORT_SYMBOL_NS(ltc2497core_remove, LTC2497);
+EXPORT_SYMBOL_NS(ltc2497core_remove, "LTC2497");
 
 MODULE_DESCRIPTION("common code for LTC2496/LTC2497 drivers");
 MODULE_LICENSE("GPL v2");

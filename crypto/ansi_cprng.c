@@ -471,4 +471,4 @@ subsys_initcall(prng_mod_init);
 module_exit(prng_mod_fini);
 MODULE_ALIAS_CRYPTO("stdrng");
 MODULE_ALIAS_CRYPTO("ansi_cprng");
-MODULE_IMPORT_NS(CRYPTO_INTERNAL);
+MODULE_IMPORT_NS("CRYPTO_INTERNAL");

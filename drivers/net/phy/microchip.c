@@ -351,6 +351,22 @@ static int lan88xx_config_aneg(struct phy_device *phydev)
 static void lan88xx_link_change_notify(struct phy_device *phydev)
 {
 	int temp;
+	int ret;
+
+	/* Reset PHY to ensure MII_LPA provides up-to-date information. This
+	 * issue is reproducible only after parallel detection, as described
+	 * in IEEE 802.3-2022, Section 28.2.3.1 ("Parallel detection function"),
+	 * where the link partner does not support auto-negotiation.
+	 */
+	if (phydev->state == PHY_NOLINK) {
+		ret = phy_init_hw(phydev);
+		if (ret < 0)
+			goto link_change_notify_failed;
+
+		ret = _phy_start_aneg(phydev);
+		if (ret < 0)
+			goto link_change_notify_failed;
+	}
 
 	/* At forced 100 F/H mode, chip may fail to set mode correctly
 	 * when cable is switched between long(~50+m) and short one.
@@ -377,6 +393,11 @@ static void lan88xx_link_change_notify(struct phy_device *phydev)
 		temp |= LAN88XX_INT_MASK_MDINTPIN_EN_;
 		phy_write(phydev, LAN88XX_INT_MASK, temp);
 	}
+
+	return;
+
+link_change_notify_failed:
+	phydev_err(phydev, "Link change process failed %pe\n", ERR_PTR(ret));
 }
 
 /**

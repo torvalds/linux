@@ -712,4 +712,4 @@ kunit_test_suite(iio_rescale_test_suite);
 MODULE_AUTHOR("Liam Beguin <liambeguin@gmail.com>");
 MODULE_DESCRIPTION("Test IIO rescale conversion functions");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(IIO_RESCALE);
+MODULE_IMPORT_NS("IIO_RESCALE");

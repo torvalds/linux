@@ -1210,7 +1210,7 @@ static const struct of_device_id dmm_of_match[] = {
 
 struct platform_driver omap_dmm_driver = {
 	.probe = omap_dmm_probe,
-	.remove_new = omap_dmm_remove,
+	.remove = omap_dmm_remove,
 	.driver = {
 		.name = DMM_DRIVER_NAME,
 		.of_match_table = of_match_ptr(dmm_of_match),

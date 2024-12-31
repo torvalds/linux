@@ -212,7 +212,7 @@ int mpfs_reset_controller_register(struct device *clk_dev, void __iomem *base)
 
 	return devm_add_action_or_reset(clk_dev, mpfs_reset_unregister_adev, adev);
 }
-EXPORT_SYMBOL_NS_GPL(mpfs_reset_controller_register, MCHP_CLK_MPFS);
+EXPORT_SYMBOL_NS_GPL(mpfs_reset_controller_register, "MCHP_CLK_MPFS");
 
 static const struct auxiliary_device_id mpfs_reset_ids[] = {
 	{
@@ -231,4 +231,4 @@ module_auxiliary_driver(mpfs_reset_driver);
 
 MODULE_DESCRIPTION("Microchip PolarFire SoC Reset Driver");
 MODULE_AUTHOR("Conor Dooley <conor.dooley@microchip.com>");
-MODULE_IMPORT_NS(MCHP_CLK_MPFS);
+MODULE_IMPORT_NS("MCHP_CLK_MPFS");

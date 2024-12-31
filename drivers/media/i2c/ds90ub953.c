@@ -1425,4 +1425,4 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Texas Instruments FPD-Link III/IV CSI-2 Serializers Driver");
 MODULE_AUTHOR("Luca Ceresoli <luca@lucaceresoli.net>");
 MODULE_AUTHOR("Tomi Valkeinen <tomi.valkeinen@ideasonboard.com>");
-MODULE_IMPORT_NS(I2C_ATR);
+MODULE_IMPORT_NS("I2C_ATR");

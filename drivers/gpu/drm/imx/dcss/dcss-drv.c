@@ -112,7 +112,7 @@ MODULE_DEVICE_TABLE(of, dcss_of_match);
 
 static struct platform_driver dcss_platform_driver = {
 	.probe	= dcss_drv_platform_probe,
-	.remove_new = dcss_drv_platform_remove,
+	.remove = dcss_drv_platform_remove,
 	.shutdown = dcss_drv_platform_shutdown,
 	.driver	= {
 		.name = "imx-dcss",

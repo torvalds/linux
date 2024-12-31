@@ -377,7 +377,7 @@ MODULE_DEVICE_TABLE(acpi, funnel_acpi_ids);
 
 static struct platform_driver funnel_driver = {
 	.probe		= funnel_platform_probe,
-	.remove_new	= funnel_platform_remove,
+	.remove		= funnel_platform_remove,
 	.driver		= {
 		.name   = "coresight-funnel",
 		/* THIS_MODULE is taken care of by platform_driver_register() */

@@ -281,7 +281,7 @@ static struct platform_driver lpc18xx_wdt_driver = {
 		.of_match_table	= lpc18xx_wdt_match,
 	},
 	.probe = lpc18xx_wdt_probe,
-	.remove_new = lpc18xx_wdt_remove,
+	.remove = lpc18xx_wdt_remove,
 };
 module_platform_driver(lpc18xx_wdt_driver);
 

@@ -138,7 +138,7 @@ static struct snd_soc_dai_driver vangogh_sof_dai[] = {
 
 /* Vangogh ops */
 struct snd_sof_dsp_ops sof_vangogh_ops;
-EXPORT_SYMBOL_NS(sof_vangogh_ops, SND_SOC_SOF_AMD_COMMON);
+EXPORT_SYMBOL_NS(sof_vangogh_ops, "SND_SOC_SOF_AMD_COMMON");
 
 int sof_vangogh_ops_init(struct snd_sof_dev *sdev)
 {

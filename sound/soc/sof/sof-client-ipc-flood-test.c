@@ -396,4 +396,4 @@ module_auxiliary_driver(sof_ipc_flood_client_drv);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SOF IPC Flood Test Client Driver");
-MODULE_IMPORT_NS(SND_SOC_SOF_CLIENT);
+MODULE_IMPORT_NS("SND_SOC_SOF_CLIENT");

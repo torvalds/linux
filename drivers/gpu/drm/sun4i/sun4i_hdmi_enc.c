@@ -741,7 +741,7 @@ MODULE_DEVICE_TABLE(of, sun4i_hdmi_of_table);
 
 static struct platform_driver sun4i_hdmi_driver = {
 	.probe		= sun4i_hdmi_probe,
-	.remove_new	= sun4i_hdmi_remove,
+	.remove		= sun4i_hdmi_remove,
 	.driver		= {
 		.name		= "sun4i-hdmi",
 		.of_match_table	= sun4i_hdmi_of_table,

@@ -124,19 +124,22 @@ static void __dump_page(const struct page *page)
 {
 	struct folio *foliop, folio;
 	struct page precise;
+	unsigned long head;
 	unsigned long pfn = page_to_pfn(page);
 	unsigned long idx, nr_pages = 1;
 	int loops = 5;
 
 again:
 	memcpy(&precise, page, sizeof(*page));
-	foliop = page_folio(&precise);
-	if (foliop == (struct folio *)&precise) {
+	head = precise.compound_head;
+	if ((head & 1) == 0) {
+		foliop = (struct folio *)&precise;
 		idx = 0;
 		if (!folio_test_large(foliop))
 			goto dump;
 		foliop = (struct folio *)page;
 	} else {
+		foliop = (struct folio *)(head - 1);
 		idx = folio_page_idx(foliop, page);
 	}
 

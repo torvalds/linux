@@ -534,7 +534,7 @@ int hsc_common_probe(struct device *dev, hsc_recv_fn recv)
 
 	return devm_iio_device_register(dev, indio_dev);
 }
-EXPORT_SYMBOL_NS(hsc_common_probe, IIO_HONEYWELL_HSC030PA);
+EXPORT_SYMBOL_NS(hsc_common_probe, "IIO_HONEYWELL_HSC030PA");
 
 MODULE_AUTHOR("Petre Rodan <petre.rodan@subdimension.ro>");
 MODULE_DESCRIPTION("Honeywell HSC and SSC pressure sensor core driver");

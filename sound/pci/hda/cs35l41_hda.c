@@ -2019,7 +2019,7 @@ err:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(cs35l41_hda_probe, SND_HDA_SCODEC_CS35L41);
+EXPORT_SYMBOL_NS_GPL(cs35l41_hda_probe, "SND_HDA_SCODEC_CS35L41");
 
 void cs35l41_hda_remove(struct device *dev)
 {
@@ -2044,7 +2044,7 @@ void cs35l41_hda_remove(struct device *dev)
 	gpiod_put(cs35l41->cs_gpio);
 	kfree(cs35l41->acpi_subsystem_id);
 }
-EXPORT_SYMBOL_NS_GPL(cs35l41_hda_remove, SND_HDA_SCODEC_CS35L41);
+EXPORT_SYMBOL_NS_GPL(cs35l41_hda_remove, "SND_HDA_SCODEC_CS35L41");
 
 const struct dev_pm_ops cs35l41_hda_pm_ops = {
 	RUNTIME_PM_OPS(cs35l41_runtime_suspend, cs35l41_runtime_resume,
@@ -2052,11 +2052,11 @@ const struct dev_pm_ops cs35l41_hda_pm_ops = {
 	.prepare = cs35l41_system_suspend_prep,
 	SYSTEM_SLEEP_PM_OPS(cs35l41_system_suspend, cs35l41_system_resume)
 };
-EXPORT_SYMBOL_NS_GPL(cs35l41_hda_pm_ops, SND_HDA_SCODEC_CS35L41);
+EXPORT_SYMBOL_NS_GPL(cs35l41_hda_pm_ops, "SND_HDA_SCODEC_CS35L41");
 
 MODULE_DESCRIPTION("CS35L41 HDA Driver");
-MODULE_IMPORT_NS(SND_HDA_CS_DSP_CONTROLS);
-MODULE_IMPORT_NS(SND_SOC_CS_AMP_LIB);
+MODULE_IMPORT_NS("SND_HDA_CS_DSP_CONTROLS");
+MODULE_IMPORT_NS("SND_SOC_CS_AMP_LIB");
 MODULE_AUTHOR("Lucas Tanure, Cirrus Logic Inc, <tanureal@opensource.cirrus.com>");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(FW_CS_DSP);
+MODULE_IMPORT_NS("FW_CS_DSP");

@@ -267,7 +267,7 @@ static struct platform_driver tve200_driver = {
 		.of_match_table = tve200_of_match,
 	},
 	.probe = tve200_probe,
-	.remove_new = tve200_remove,
+	.remove = tve200_remove,
 	.shutdown = tve200_shutdown,
 };
 drm_module_platform_driver(tve200_driver);

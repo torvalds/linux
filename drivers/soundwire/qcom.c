@@ -1779,7 +1779,7 @@ MODULE_DEVICE_TABLE(of, qcom_swrm_of_match);
 
 static struct platform_driver qcom_swrm_driver = {
 	.probe	= &qcom_swrm_probe,
-	.remove_new = qcom_swrm_remove,
+	.remove = qcom_swrm_remove,
 	.driver = {
 		.name	= "qcom-soundwire",
 		.of_match_table = qcom_swrm_of_match,

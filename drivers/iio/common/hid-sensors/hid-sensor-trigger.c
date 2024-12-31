@@ -147,7 +147,7 @@ static int _hid_sensor_power_state(struct hid_sensor_common *st, bool state)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(hid_sensor_power_state, IIO_HID);
+EXPORT_SYMBOL_NS(hid_sensor_power_state, "IIO_HID");
 
 int hid_sensor_power_state(struct hid_sensor_common *st, bool state)
 {
@@ -222,7 +222,7 @@ void hid_sensor_remove_trigger(struct iio_dev *indio_dev,
 	iio_trigger_free(attrb->trigger);
 	iio_triggered_buffer_cleanup(indio_dev);
 }
-EXPORT_SYMBOL_NS(hid_sensor_remove_trigger, IIO_HID);
+EXPORT_SYMBOL_NS(hid_sensor_remove_trigger, "IIO_HID");
 
 static const struct iio_trigger_ops hid_sensor_trigger_ops = {
 	.set_trigger_state = &hid_sensor_data_rdy_trigger_set_state,
@@ -289,7 +289,7 @@ error_triggered_buffer_cleanup:
 	iio_triggered_buffer_cleanup(indio_dev);
 	return ret;
 }
-EXPORT_SYMBOL_NS(hid_sensor_setup_trigger, IIO_HID);
+EXPORT_SYMBOL_NS(hid_sensor_setup_trigger, "IIO_HID");
 
 static int __maybe_unused hid_sensor_suspend(struct device *dev)
 {
@@ -319,9 +319,9 @@ const struct dev_pm_ops hid_sensor_pm_ops = {
 	SET_RUNTIME_PM_OPS(hid_sensor_suspend,
 			   hid_sensor_runtime_resume, NULL)
 };
-EXPORT_SYMBOL_NS(hid_sensor_pm_ops, IIO_HID);
+EXPORT_SYMBOL_NS(hid_sensor_pm_ops, "IIO_HID");
 
 MODULE_AUTHOR("Srinivas Pandruvada <srinivas.pandruvada@intel.com>");
 MODULE_DESCRIPTION("HID Sensor trigger processing");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(IIO_HID_ATTRIBUTES);
+MODULE_IMPORT_NS("IIO_HID_ATTRIBUTES");

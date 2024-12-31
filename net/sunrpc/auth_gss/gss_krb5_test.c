@@ -17,7 +17,7 @@
 
 #include "gss_krb5_internal.h"
 
-MODULE_IMPORT_NS(EXPORTED_FOR_KUNIT_TESTING);
+MODULE_IMPORT_NS("EXPORTED_FOR_KUNIT_TESTING");
 
 struct gss_krb5_test_param {
 	const char			*desc;

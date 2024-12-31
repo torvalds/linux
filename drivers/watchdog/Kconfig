@@ -408,6 +408,14 @@ config SL28CPLD_WATCHDOG
 
 # ARM Architecture
 
+config AIROHA_WATCHDOG
+	tristate "Airoha EN7581 Watchdog"
+	depends on ARCH_AIROHA || COMPILE_TEST
+	select WATCHDOG_CORE
+	help
+	  Watchdog timer embedded into Airoha SoC. This will reboot your
+	  system when the timeout is reached.
+
 config ARM_SP805_WATCHDOG
 	tristate "ARM SP805 Watchdog"
 	depends on (ARM || ARM64 || COMPILE_TEST) && ARM_AMBA
@@ -549,6 +557,7 @@ config S3C2410_WATCHDOG
 	tristate "S3C6410/S5Pv210/Exynos Watchdog"
 	depends on ARCH_S3C64XX || ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
 	select WATCHDOG_CORE
+	select MFD_SYSCON if ARCH_EXYNOS
 	help
 	  Watchdog timer block in the Samsung S3C64xx, S5Pv210 and Exynos
 	  SoCs. This will reboot the system when the timer expires with
@@ -1542,14 +1551,6 @@ config SBC7240_WDT
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called sbc7240_wdt.
-
-config CPU5_WDT
-	tristate "SMA CPU5 Watchdog"
-	depends on (X86 || COMPILE_TEST) && HAS_IOPORT
-	help
-	  TBD.
-	  To compile this driver as a module, choose M here: the
-	  module will be called cpu5wdt.
 
 config SMSC_SCH311X_WDT
 	tristate "SMSC SCH311X Watchdog Timer"

@@ -188,7 +188,7 @@ static void jornada_ssp_remove(struct platform_device *dev)
 
 struct platform_driver jornadassp_driver = {
 	.probe	= jornada_ssp_probe,
-	.remove_new = jornada_ssp_remove,
+	.remove = jornada_ssp_remove,
 	.driver	= {
 		.name	= "jornada_ssp",
 	},

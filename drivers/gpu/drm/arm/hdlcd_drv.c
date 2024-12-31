@@ -405,7 +405,7 @@ static SIMPLE_DEV_PM_OPS(hdlcd_pm_ops, hdlcd_pm_suspend, hdlcd_pm_resume);
 
 static struct platform_driver hdlcd_platform_driver = {
 	.probe		= hdlcd_probe,
-	.remove_new	= hdlcd_remove,
+	.remove		= hdlcd_remove,
 	.shutdown	= hdlcd_shutdown,
 	.driver	= {
 		.name = "hdlcd",

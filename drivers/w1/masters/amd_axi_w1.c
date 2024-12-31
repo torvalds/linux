@@ -383,7 +383,7 @@ MODULE_DEVICE_TABLE(of, amd_axi_w1_of_match);
 
 static struct platform_driver amd_axi_w1_driver = {
 	.probe = amd_axi_w1_probe,
-	.remove_new = amd_axi_w1_remove,
+	.remove = amd_axi_w1_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = amd_axi_w1_of_match,

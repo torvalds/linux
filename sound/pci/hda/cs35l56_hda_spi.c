@@ -77,8 +77,8 @@ static struct spi_driver cs35l56_hda_spi_driver = {
 module_spi_driver(cs35l56_hda_spi_driver);
 
 MODULE_DESCRIPTION("HDA CS35L56 SPI driver");
-MODULE_IMPORT_NS(SND_HDA_SCODEC_CS35L56);
-MODULE_IMPORT_NS(SND_SOC_CS35L56_SHARED);
+MODULE_IMPORT_NS("SND_HDA_SCODEC_CS35L56");
+MODULE_IMPORT_NS("SND_SOC_CS35L56_SHARED");
 MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.cirrus.com>");
 MODULE_AUTHOR("Simon Trimmer <simont@opensource.cirrus.com>");
 MODULE_LICENSE("GPL");

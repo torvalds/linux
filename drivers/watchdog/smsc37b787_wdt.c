@@ -485,7 +485,7 @@ static long wb_smsc_wdt_ioctl(struct file *file,
 	}
 }
 
-/* -- Notifier funtions -----------------------------------------*/
+/* -- Notifier functions -----------------------------------------*/
 
 static int wb_smsc_wdt_notify_sys(struct notifier_block *this,
 					unsigned long code, void *unused)

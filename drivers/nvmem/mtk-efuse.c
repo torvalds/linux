@@ -127,7 +127,7 @@ static void mtk_efuse_remove(struct platform_device *pdev)
 
 static struct platform_driver mtk_efuse_driver = {
 	.probe = mtk_efuse_probe,
-	.remove_new = mtk_efuse_remove,
+	.remove = mtk_efuse_remove,
 	.driver = {
 		.name = "mediatek,efuse",
 		.of_match_table = mtk_efuse_of_match,

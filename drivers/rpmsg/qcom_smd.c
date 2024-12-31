@@ -1596,7 +1596,7 @@ MODULE_DEVICE_TABLE(of, qcom_smd_of_match);
 
 static struct platform_driver qcom_smd_driver = {
 	.probe = qcom_smd_probe,
-	.remove_new = qcom_smd_remove,
+	.remove = qcom_smd_remove,
 	.driver = {
 		.name = "qcom-smd",
 		.of_match_table = qcom_smd_of_match,

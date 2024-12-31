@@ -76,7 +76,7 @@ Description:
 		timeout when the pretimeout interrupt is delivered.  Pretimeout
 		is an optional feature.
 
-What:		/sys/class/watchdog/watchdogn/pretimeout_avaialable_governors
+What:		/sys/class/watchdog/watchdogn/pretimeout_available_governors
 Date:		February 2017
 Contact:	Wim Van Sebroeck <wim@iguana.be>
 Description:

@@ -249,7 +249,7 @@ static struct platform_driver ccf_driver = {
 		.of_match_table = ccf_matches,
 	},
 	.probe = ccf_probe,
-	.remove_new = ccf_remove,
+	.remove = ccf_remove,
 };
 
 module_platform_driver(ccf_driver);

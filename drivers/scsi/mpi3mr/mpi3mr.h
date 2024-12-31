@@ -57,8 +57,8 @@ extern struct list_head mrioc_list;
 extern int prot_mask;
 extern atomic64_t event_counter;
 
-#define MPI3MR_DRIVER_VERSION	"8.12.0.0.50"
-#define MPI3MR_DRIVER_RELDATE	"05-Sept-2024"
+#define MPI3MR_DRIVER_VERSION	"8.12.0.3.50"
+#define MPI3MR_DRIVER_RELDATE	"11-November-2024"
 
 #define MPI3MR_DRIVER_NAME	"mpi3mr"
 #define MPI3MR_DRIVER_LICENSE	"GPL"
@@ -133,8 +133,6 @@ extern atomic64_t event_counter;
 #define MPI3MR_RESET_TIMEOUT			510
 
 #define MPI3MR_WATCHDOG_INTERVAL		1000 /* in milli seconds */
-
-#define MPI3MR_DEFAULT_CFG_PAGE_SZ		1024 /* in bytes */
 
 #define MPI3MR_RESET_TOPOLOGY_SETTLE_TIME	10
 
@@ -1133,9 +1131,6 @@ struct scmd_priv {
  * @io_throttle_low: I/O size to stop throttle in 512b blocks
  * @num_io_throttle_group: Maximum number of throttle groups
  * @throttle_groups: Pointer to throttle group info structures
- * @cfg_page: Default memory for configuration pages
- * @cfg_page_dma: Configuration page DMA address
- * @cfg_page_sz: Default configuration page memory size
  * @sas_transport_enabled: SAS transport enabled or not
  * @scsi_device_channel: Channel ID for SCSI devices
  * @transport_cmds: Command tracker for SAS transport commands
@@ -1331,10 +1326,6 @@ struct mpi3mr_ioc {
 	u32 io_throttle_low;
 	u16 num_io_throttle_group;
 	struct mpi3mr_throttle_group_info *throttle_groups;
-
-	void *cfg_page;
-	dma_addr_t cfg_page_dma;
-	u16 cfg_page_sz;
 
 	u8 sas_transport_enabled;
 	u8 scsi_device_channel;

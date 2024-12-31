@@ -585,7 +585,7 @@ static const struct of_device_id vc4_txp_dt_match[] = {
 
 struct platform_driver vc4_txp_driver = {
 	.probe = vc4_txp_probe,
-	.remove_new = vc4_txp_remove,
+	.remove = vc4_txp_remove,
 	.driver = {
 		.name = "vc4_txp",
 		.of_match_table = vc4_txp_dt_match,

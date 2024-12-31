@@ -233,7 +233,7 @@ static void mtx1_wdt_remove(struct platform_device *pdev)
 
 static struct platform_driver mtx1_wdt_driver = {
 	.probe = mtx1_wdt_probe,
-	.remove_new = mtx1_wdt_remove,
+	.remove = mtx1_wdt_remove,
 	.driver.name = "mtx1-wdt",
 };
 

@@ -325,7 +325,7 @@ MODULE_DEVICE_TABLE(of, imx_drm_dt_ids);
 
 static struct platform_driver imx_drm_pdrv = {
 	.probe		= imx_drm_platform_probe,
-	.remove_new	= imx_drm_platform_remove,
+	.remove		= imx_drm_platform_remove,
 	.shutdown	= imx_drm_platform_shutdown,
 	.driver		= {
 		.name	= "imx-drm",

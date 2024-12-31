@@ -376,4 +376,4 @@ module_platform_driver(hid_hinge_platform_driver);
 MODULE_DESCRIPTION("HID Sensor INTEL Hinge");
 MODULE_AUTHOR("Ye Xiang <xiang.ye@intel.com>");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(IIO_HID);
+MODULE_IMPORT_NS("IIO_HID");

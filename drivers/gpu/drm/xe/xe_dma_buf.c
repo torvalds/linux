@@ -20,7 +20,7 @@
 #include "xe_ttm_vram_mgr.h"
 #include "xe_vm.h"
 
-MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS("DMA_BUF");
 
 static int xe_dma_buf_attach(struct dma_buf *dmabuf,
 			     struct dma_buf_attachment *attach)

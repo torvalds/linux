@@ -847,7 +847,7 @@ static void remove_gdrom(struct platform_device *devptr)
 
 static struct platform_driver gdrom_driver = {
 	.probe = probe_gdrom,
-	.remove_new = remove_gdrom,
+	.remove = remove_gdrom,
 	.driver = {
 			.name = GDROM_DEV_NAME,
 	},

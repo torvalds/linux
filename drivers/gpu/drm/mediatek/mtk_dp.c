@@ -2899,7 +2899,7 @@ MODULE_DEVICE_TABLE(of, mtk_dp_of_match);
 
 static struct platform_driver mtk_dp_driver = {
 	.probe = mtk_dp_probe,
-	.remove_new = mtk_dp_remove,
+	.remove = mtk_dp_remove,
 	.driver = {
 		.name = "mediatek-drm-dp",
 		.of_match_table = mtk_dp_of_match,

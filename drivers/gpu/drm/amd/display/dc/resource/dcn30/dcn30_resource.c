@@ -2353,6 +2353,7 @@ static bool dcn30_resource_construct(
 
 	dc->caps.dp_hdmi21_pcon_support = true;
 	dc->caps.max_v_total = (1 << 15) - 1;
+	dc->caps.vtotal_limited_by_fp2 = true;
 
 	/* read VBIOS LTTPR caps */
 	{

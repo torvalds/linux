@@ -392,7 +392,7 @@ MODULE_DEVICE_TABLE(of, at91_wdt_dt_ids);
 
 static struct platform_driver at91wdt_driver = {
 	.probe		= at91wdt_probe,
-	.remove_new	= at91wdt_remove,
+	.remove		= at91wdt_remove,
 	.driver		= {
 		.name	= "at91_wdt",
 		.of_match_table = of_match_ptr(at91_wdt_dt_ids),

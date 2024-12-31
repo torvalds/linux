@@ -230,4 +230,4 @@ module_i2c_driver(pim4328_driver);
 MODULE_AUTHOR("Erik Rosen <erik.rosen@metormote.com>");
 MODULE_DESCRIPTION("PMBus driver for PIM4006, PIM4328, PIM4820 power interface modules");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(PMBUS);
+MODULE_IMPORT_NS("PMBUS");

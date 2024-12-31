@@ -423,7 +423,7 @@ MODULE_DEVICE_TABLE(of, arcpgu_of_table);
 
 static struct platform_driver arcpgu_platform_driver = {
 	.probe = arcpgu_probe,
-	.remove_new = arcpgu_remove,
+	.remove = arcpgu_remove,
 	.driver = {
 		   .name = "arcpgu",
 		   .of_match_table = arcpgu_of_table,

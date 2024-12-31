@@ -8,7 +8,7 @@
  */
 
 #undef DEFAULT_SYMBOL_NAMESPACE
-#define DEFAULT_SYMBOL_NAMESPACE SERIAL_NXP_SC16IS7XX
+#define DEFAULT_SYMBOL_NAMESPACE "SERIAL_NXP_SC16IS7XX"
 
 #include <linux/bits.h>
 #include <linux/clk.h>

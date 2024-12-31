@@ -70,4 +70,4 @@ module_pci_driver(pwm_lpss_driver_pci);
 
 MODULE_DESCRIPTION("PWM PCI driver for Intel LPSS");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(PWM_LPSS);
+MODULE_IMPORT_NS("PWM_LPSS");

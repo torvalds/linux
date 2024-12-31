@@ -147,7 +147,7 @@ const struct regmap_config bmi088_regmap_conf = {
 	.volatile_table = &bmi088_volatile_table,
 	.cache_type = REGCACHE_RBTREE,
 };
-EXPORT_SYMBOL_NS_GPL(bmi088_regmap_conf, IIO_BMI088);
+EXPORT_SYMBOL_NS_GPL(bmi088_regmap_conf, "IIO_BMI088");
 
 static int bmi088_accel_power_up(struct bmi088_accel_data *data)
 {
@@ -587,7 +587,7 @@ int bmi088_accel_core_probe(struct device *dev, struct regmap *regmap,
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(bmi088_accel_core_probe, IIO_BMI088);
+EXPORT_SYMBOL_NS_GPL(bmi088_accel_core_probe, "IIO_BMI088");
 
 
 void bmi088_accel_core_remove(struct device *dev)
@@ -601,7 +601,7 @@ void bmi088_accel_core_remove(struct device *dev)
 	pm_runtime_set_suspended(dev);
 	bmi088_accel_power_down(data);
 }
-EXPORT_SYMBOL_NS_GPL(bmi088_accel_core_remove, IIO_BMI088);
+EXPORT_SYMBOL_NS_GPL(bmi088_accel_core_remove, "IIO_BMI088");
 
 static int bmi088_accel_runtime_suspend(struct device *dev)
 {

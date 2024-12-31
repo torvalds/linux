@@ -144,7 +144,7 @@ static const struct of_device_id dummy_match[] = {
 
 static struct platform_driver dummy_driver = {
 	.probe	= dummy_probe,
-	.remove_new = dummy_remove,
+	.remove = dummy_remove,
 	.driver	= {
 		.name   = "coresight-dummy",
 		.of_match_table = dummy_match,

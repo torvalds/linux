@@ -1397,7 +1397,7 @@ static const struct dev_pm_ops msm_dp_pm_ops = {
 
 static struct platform_driver msm_dp_display_driver = {
 	.probe  = msm_dp_display_probe,
-	.remove_new = msm_dp_display_remove,
+	.remove = msm_dp_display_remove,
 	.driver = {
 		.name = "msm-dp-display",
 		.of_match_table = msm_dp_dt_match,

@@ -122,6 +122,17 @@ static unsigned int calc_duration_in_us_from_v_total(
 	return duration_in_us;
 }
 
+static unsigned int calc_max_hardware_v_total(const struct dc_stream_state *stream)
+{
+	unsigned int max_hw_v_total = stream->ctx->dc->caps.max_v_total;
+
+	if (stream->ctx->dc->caps.vtotal_limited_by_fp2) {
+		max_hw_v_total -= stream->timing.v_front_porch + 1;
+	}
+
+	return max_hw_v_total;
+}
+
 unsigned int mod_freesync_calc_v_total_from_refresh(
 		const struct dc_stream_state *stream,
 		unsigned int refresh_in_uhz)
@@ -1016,7 +1027,7 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 
 	if (stream->ctx->dc->caps.max_v_total != 0 && stream->timing.h_total != 0) {
 		min_hardware_refresh_in_uhz = div64_u64((stream->timing.pix_clk_100hz * 100000000ULL),
-			(stream->timing.h_total * (long long)stream->ctx->dc->caps.max_v_total));
+			(stream->timing.h_total * (long long)calc_max_hardware_v_total(stream)));
 	}
 	/* Limit minimum refresh rate to what can be supported by hardware */
 	min_refresh_in_uhz = min_hardware_refresh_in_uhz > in_config->min_refresh_in_uhz ?

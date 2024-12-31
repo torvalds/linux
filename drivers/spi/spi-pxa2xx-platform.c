@@ -225,6 +225,6 @@ module_exit(pxa2xx_spi_exit);
 MODULE_AUTHOR("Stephen Street");
 MODULE_DESCRIPTION("PXA2xx SSP SPI Controller platform driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(SPI_PXA2xx);
+MODULE_IMPORT_NS("SPI_PXA2xx");
 MODULE_ALIAS("platform:pxa2xx-spi");
 MODULE_SOFTDEP("pre: dw_dmac");

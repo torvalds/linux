@@ -120,7 +120,7 @@ void translate_SPL_in_params_from_pipe_ctx(struct pipe_ctx *pipe_ctx, struct spl
 	spl_in->odm_slice_index = resource_get_odm_slice_index(pipe_ctx);
 	// Make spl input basic out info output_size width point to stream h active
 	spl_in->basic_out.output_size.width =
-		stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right;
+		stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right + pipe_ctx->hblank_borrow;
 	// Make spl input basic out info output_size height point to v active
 	spl_in->basic_out.output_size.height =
 		stream->timing.v_addressable + stream->timing.v_border_bottom + stream->timing.v_border_top;

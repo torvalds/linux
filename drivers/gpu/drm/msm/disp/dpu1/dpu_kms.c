@@ -1494,7 +1494,7 @@ MODULE_DEVICE_TABLE(of, dpu_dt_match);
 
 static struct platform_driver dpu_driver = {
 	.probe = dpu_dev_probe,
-	.remove_new = dpu_dev_remove,
+	.remove = dpu_dev_remove,
 	.shutdown = msm_kms_shutdown,
 	.driver = {
 		.name = "msm_dpu",

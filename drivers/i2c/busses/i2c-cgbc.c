@@ -395,7 +395,7 @@ static struct platform_driver cgbc_i2c_driver = {
 		.name = "cgbc-i2c",
 	},
 	.probe		= cgbc_i2c_probe,
-	.remove_new	= cgbc_i2c_remove,
+	.remove		= cgbc_i2c_remove,
 };
 
 module_platform_driver(cgbc_i2c_driver);

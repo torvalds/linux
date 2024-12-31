@@ -665,7 +665,7 @@ static void mtk_disp_ovl_adaptor_remove(struct platform_device *pdev)
 
 struct platform_driver mtk_disp_ovl_adaptor_driver = {
 	.probe		= mtk_disp_ovl_adaptor_probe,
-	.remove_new	= mtk_disp_ovl_adaptor_remove,
+	.remove		= mtk_disp_ovl_adaptor_remove,
 	.driver		= {
 		.name	= "mediatek-disp-ovl-adaptor",
 	},

@@ -622,13 +622,13 @@ struct asoc_sdw_codec_info codec_info_list[] = {
 		.dai_num = 1,
 	},
 };
-EXPORT_SYMBOL_NS(codec_info_list, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(codec_info_list, "SND_SOC_SDW_UTILS");
 
 int asoc_sdw_get_codec_info_list_count(void)
 {
 	return ARRAY_SIZE(codec_info_list);
 };
-EXPORT_SYMBOL_NS(asoc_sdw_get_codec_info_list_count, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_get_codec_info_list_count, "SND_SOC_SDW_UTILS");
 
 struct asoc_sdw_codec_info *asoc_sdw_find_codec_info_part(const u64 adr)
 {
@@ -649,7 +649,7 @@ struct asoc_sdw_codec_info *asoc_sdw_find_codec_info_part(const u64 adr)
 
 	return NULL;
 }
-EXPORT_SYMBOL_NS(asoc_sdw_find_codec_info_part, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_find_codec_info_part, "SND_SOC_SDW_UTILS");
 
 struct asoc_sdw_codec_info *asoc_sdw_find_codec_info_acpi(const u8 *acpi_id)
 {
@@ -664,7 +664,7 @@ struct asoc_sdw_codec_info *asoc_sdw_find_codec_info_acpi(const u8 *acpi_id)
 
 	return NULL;
 }
-EXPORT_SYMBOL_NS(asoc_sdw_find_codec_info_acpi, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_find_codec_info_acpi, "SND_SOC_SDW_UTILS");
 
 struct asoc_sdw_codec_info *asoc_sdw_find_codec_info_dai(const char *dai_name, int *dai_index)
 {
@@ -681,7 +681,7 @@ struct asoc_sdw_codec_info *asoc_sdw_find_codec_info_dai(const char *dai_name, i
 
 	return NULL;
 }
-EXPORT_SYMBOL_NS(asoc_sdw_find_codec_info_dai, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_find_codec_info_dai, "SND_SOC_SDW_UTILS");
 
 int asoc_sdw_rtd_init(struct snd_soc_pcm_runtime *rtd)
 {
@@ -745,14 +745,14 @@ skip_add_controls_widgets:
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(asoc_sdw_rtd_init, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_rtd_init, "SND_SOC_SDW_UTILS");
 
 /* these wrappers are only needed to avoid typecast compilation errors */
 int asoc_sdw_startup(struct snd_pcm_substream *substream)
 {
 	return sdw_startup_stream(substream);
 }
-EXPORT_SYMBOL_NS(asoc_sdw_startup, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_startup, "SND_SOC_SDW_UTILS");
 
 int asoc_sdw_prepare(struct snd_pcm_substream *substream)
 {
@@ -771,7 +771,7 @@ int asoc_sdw_prepare(struct snd_pcm_substream *substream)
 
 	return sdw_prepare_stream(sdw_stream);
 }
-EXPORT_SYMBOL_NS(asoc_sdw_prepare, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_prepare, "SND_SOC_SDW_UTILS");
 
 int asoc_sdw_trigger(struct snd_pcm_substream *substream, int cmd)
 {
@@ -811,7 +811,7 @@ int asoc_sdw_trigger(struct snd_pcm_substream *substream, int cmd)
 
 	return ret;
 }
-EXPORT_SYMBOL_NS(asoc_sdw_trigger, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_trigger, "SND_SOC_SDW_UTILS");
 
 int asoc_sdw_hw_params(struct snd_pcm_substream *substream,
 		       struct snd_pcm_hw_params *params)
@@ -854,7 +854,7 @@ int asoc_sdw_hw_params(struct snd_pcm_substream *substream,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(asoc_sdw_hw_params, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_hw_params, "SND_SOC_SDW_UTILS");
 
 int asoc_sdw_hw_free(struct snd_pcm_substream *substream)
 {
@@ -873,13 +873,13 @@ int asoc_sdw_hw_free(struct snd_pcm_substream *substream)
 
 	return sdw_deprepare_stream(sdw_stream);
 }
-EXPORT_SYMBOL_NS(asoc_sdw_hw_free, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_hw_free, "SND_SOC_SDW_UTILS");
 
 void asoc_sdw_shutdown(struct snd_pcm_substream *substream)
 {
 	sdw_shutdown_stream(substream);
 }
-EXPORT_SYMBOL_NS(asoc_sdw_shutdown, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_shutdown, "SND_SOC_SDW_UTILS");
 
 static bool asoc_sdw_is_unique_device(const struct snd_soc_acpi_link_adr *adr_link,
 				      unsigned int sdw_version,
@@ -940,7 +940,7 @@ const char *asoc_sdw_get_codec_name(struct device *dev,
 
 	return NULL;
 }
-EXPORT_SYMBOL_NS(asoc_sdw_get_codec_name, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_get_codec_name, "SND_SOC_SDW_UTILS");
 
 /* helper to get the link that the codec DAI is used */
 struct snd_soc_dai_link *asoc_sdw_mc_find_codec_dai_used(struct snd_soc_card *card,
@@ -959,7 +959,7 @@ struct snd_soc_dai_link *asoc_sdw_mc_find_codec_dai_used(struct snd_soc_card *ca
 	}
 	return NULL;
 }
-EXPORT_SYMBOL_NS(asoc_sdw_mc_find_codec_dai_used, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_mc_find_codec_dai_used, "SND_SOC_SDW_UTILS");
 
 void asoc_sdw_mc_dailink_exit_loop(struct snd_soc_card *card)
 {
@@ -992,7 +992,7 @@ void asoc_sdw_mc_dailink_exit_loop(struct snd_soc_card *card)
 		}
 	}
 }
-EXPORT_SYMBOL_NS(asoc_sdw_mc_dailink_exit_loop, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_mc_dailink_exit_loop, "SND_SOC_SDW_UTILS");
 
 int asoc_sdw_card_late_probe(struct snd_soc_card *card)
 {
@@ -1008,7 +1008,7 @@ int asoc_sdw_card_late_probe(struct snd_soc_card *card)
 	}
 	return ret;
 }
-EXPORT_SYMBOL_NS(asoc_sdw_card_late_probe, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_card_late_probe, "SND_SOC_SDW_UTILS");
 
 void asoc_sdw_init_dai_link(struct device *dev, struct snd_soc_dai_link *dai_links,
 			    int *be_id, char *name, int playback, int capture,
@@ -1035,7 +1035,7 @@ void asoc_sdw_init_dai_link(struct device *dev, struct snd_soc_dai_link *dai_lin
 	dai_links->init = init;
 	dai_links->ops = ops;
 }
-EXPORT_SYMBOL_NS(asoc_sdw_init_dai_link, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_init_dai_link, "SND_SOC_SDW_UTILS");
 
 int asoc_sdw_init_simple_dai_link(struct device *dev, struct snd_soc_dai_link *dai_links,
 				  int *be_id, char *name, int playback, int capture,
@@ -1064,7 +1064,7 @@ int asoc_sdw_init_simple_dai_link(struct device *dev, struct snd_soc_dai_link *d
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(asoc_sdw_init_simple_dai_link, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_init_simple_dai_link, "SND_SOC_SDW_UTILS");
 
 int asoc_sdw_count_sdw_endpoints(struct snd_soc_card *card, int *num_devs, int *num_ends)
 {
@@ -1085,7 +1085,7 @@ int asoc_sdw_count_sdw_endpoints(struct snd_soc_card *card, int *num_devs, int *
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(asoc_sdw_count_sdw_endpoints, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_count_sdw_endpoints, "SND_SOC_SDW_UTILS");
 
 struct asoc_sdw_dailink *asoc_sdw_find_dailink(struct asoc_sdw_dailink *dailinks,
 					       const struct snd_soc_acpi_endpoint *new)
@@ -1103,7 +1103,7 @@ struct asoc_sdw_dailink *asoc_sdw_find_dailink(struct asoc_sdw_dailink *dailinks
 
 	return dailinks;
 }
-EXPORT_SYMBOL_NS(asoc_sdw_find_dailink, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_find_dailink, "SND_SOC_SDW_UTILS");
 
 int asoc_sdw_parse_sdw_endpoints(struct snd_soc_card *card,
 				 struct asoc_sdw_dailink *soc_dais,
@@ -1226,7 +1226,7 @@ int asoc_sdw_parse_sdw_endpoints(struct snd_soc_card *card,
 
 	return num_dais;
 }
-EXPORT_SYMBOL_NS(asoc_sdw_parse_sdw_endpoints, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_parse_sdw_endpoints, "SND_SOC_SDW_UTILS");
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SoundWire ASoC helpers");

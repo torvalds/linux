@@ -525,5 +525,5 @@ MODULE_AUTHOR("Dragos Bogdan <dragos.bogdan@analog.com>");
 MODULE_AUTHOR("Angelo Dureghello <adueghello@baylibre.com>");
 MODULE_DESCRIPTION("AD3552R Driver - High Speed version");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(IIO_BACKEND);
-MODULE_IMPORT_NS(IIO_AD3552R);
+MODULE_IMPORT_NS("IIO_BACKEND");
+MODULE_IMPORT_NS("IIO_AD3552R");

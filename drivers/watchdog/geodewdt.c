@@ -248,7 +248,7 @@ static void geodewdt_shutdown(struct platform_device *dev)
 }
 
 static struct platform_driver geodewdt_driver = {
-	.remove_new	= geodewdt_remove,
+	.remove		= geodewdt_remove,
 	.shutdown	= geodewdt_shutdown,
 	.driver		= {
 		.name	= DRV_NAME,

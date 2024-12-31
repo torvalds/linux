@@ -600,5 +600,5 @@ drm_gem_dma_prime_import_sg_table_vmap(struct drm_device *dev,
 EXPORT_SYMBOL(drm_gem_dma_prime_import_sg_table_vmap);
 
 MODULE_DESCRIPTION("DRM DMA memory-management helpers");
-MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS("DMA_BUF");
 MODULE_LICENSE("GPL");

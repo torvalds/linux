@@ -391,7 +391,7 @@ static void v3d_platform_drm_remove(struct platform_device *pdev)
 
 static struct platform_driver v3d_platform_driver = {
 	.probe		= v3d_platform_drm_probe,
-	.remove_new	= v3d_platform_drm_remove,
+	.remove		= v3d_platform_drm_remove,
 	.driver		= {
 		.name	= "v3d",
 		.of_match_table = v3d_of_match,

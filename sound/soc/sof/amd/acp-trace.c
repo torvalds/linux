@@ -32,7 +32,7 @@ int acp_sof_trace_release(struct snd_sof_dev *sdev)
 	adata->dtrace_stream = NULL;
 	return 0;
 }
-EXPORT_SYMBOL_NS(acp_sof_trace_release, SND_SOC_SOF_AMD_COMMON);
+EXPORT_SYMBOL_NS(acp_sof_trace_release, "SND_SOC_SOF_AMD_COMMON");
 
 int acp_sof_trace_init(struct snd_sof_dev *sdev, struct snd_dma_buffer *dmab,
 		       struct sof_ipc_dma_trace_params_ext *dtrace_params)
@@ -61,4 +61,4 @@ int acp_sof_trace_init(struct snd_sof_dev *sdev, struct snd_dma_buffer *dmab,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(acp_sof_trace_init, SND_SOC_SOF_AMD_COMMON);
+EXPORT_SYMBOL_NS(acp_sof_trace_init, "SND_SOC_SOF_AMD_COMMON");

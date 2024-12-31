@@ -29,7 +29,7 @@ void hda_component_acpi_device_notify(struct hda_component_parent *parent,
 	}
 	mutex_unlock(&parent->mutex);
 }
-EXPORT_SYMBOL_NS_GPL(hda_component_acpi_device_notify, SND_HDA_SCODEC_COMPONENT);
+EXPORT_SYMBOL_NS_GPL(hda_component_acpi_device_notify, "SND_HDA_SCODEC_COMPONENT");
 
 int hda_component_manager_bind_acpi_notifications(struct hda_codec *cdc,
 						  struct hda_component_parent *parent,
@@ -64,7 +64,7 @@ int hda_component_manager_bind_acpi_notifications(struct hda_codec *cdc,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(hda_component_manager_bind_acpi_notifications, SND_HDA_SCODEC_COMPONENT);
+EXPORT_SYMBOL_NS_GPL(hda_component_manager_bind_acpi_notifications, "SND_HDA_SCODEC_COMPONENT");
 
 void hda_component_manager_unbind_acpi_notifications(struct hda_codec *cdc,
 						     struct hda_component_parent *parent,
@@ -81,7 +81,7 @@ void hda_component_manager_unbind_acpi_notifications(struct hda_codec *cdc,
 	if (ret < 0)
 		codec_warn(cdc, "Failed to uninstall notify handler: %d\n", ret);
 }
-EXPORT_SYMBOL_NS_GPL(hda_component_manager_unbind_acpi_notifications, SND_HDA_SCODEC_COMPONENT);
+EXPORT_SYMBOL_NS_GPL(hda_component_manager_unbind_acpi_notifications, "SND_HDA_SCODEC_COMPONENT");
 #endif /* ifdef CONFIG_ACPI */
 
 void hda_component_manager_playback_hook(struct hda_component_parent *parent, int action)
@@ -107,7 +107,7 @@ void hda_component_manager_playback_hook(struct hda_component_parent *parent, in
 	}
 	mutex_unlock(&parent->mutex);
 }
-EXPORT_SYMBOL_NS_GPL(hda_component_manager_playback_hook, SND_HDA_SCODEC_COMPONENT);
+EXPORT_SYMBOL_NS_GPL(hda_component_manager_playback_hook, "SND_HDA_SCODEC_COMPONENT");
 
 struct hda_scodec_match {
 	const char *bus;
@@ -149,7 +149,7 @@ int hda_component_manager_bind(struct hda_codec *cdc,
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(hda_component_manager_bind, SND_HDA_SCODEC_COMPONENT);
+EXPORT_SYMBOL_NS_GPL(hda_component_manager_bind, "SND_HDA_SCODEC_COMPONENT");
 
 int hda_component_manager_init(struct hda_codec *cdc,
 			       struct hda_component_parent *parent, int count,
@@ -189,7 +189,7 @@ int hda_component_manager_init(struct hda_codec *cdc,
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(hda_component_manager_init, SND_HDA_SCODEC_COMPONENT);
+EXPORT_SYMBOL_NS_GPL(hda_component_manager_init, "SND_HDA_SCODEC_COMPONENT");
 
 void hda_component_manager_free(struct hda_component_parent *parent,
 				const struct component_master_ops *ops)
@@ -205,7 +205,7 @@ void hda_component_manager_free(struct hda_component_parent *parent,
 
 	parent->codec = NULL;
 }
-EXPORT_SYMBOL_NS_GPL(hda_component_manager_free, SND_HDA_SCODEC_COMPONENT);
+EXPORT_SYMBOL_NS_GPL(hda_component_manager_free, "SND_HDA_SCODEC_COMPONENT");
 
 MODULE_DESCRIPTION("HD Audio component binding library");
 MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.cirrus.com>");

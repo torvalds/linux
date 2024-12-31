@@ -247,7 +247,7 @@ static struct platform_driver s3_wmi_driver = {
 		.name = "surface3-wmi",
 		.pm = &s3_wmi_pm,
 	},
-	.remove_new = s3_wmi_remove,
+	.remove = s3_wmi_remove,
 };
 
 static int __init s3_wmi_init(void)

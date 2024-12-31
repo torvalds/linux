@@ -1919,5 +1919,5 @@ struct platform_driver tegra_hdmi_driver = {
 		.of_match_table = tegra_hdmi_of_match,
 	},
 	.probe = tegra_hdmi_probe,
-	.remove_new = tegra_hdmi_remove,
+	.remove = tegra_hdmi_remove,
 };

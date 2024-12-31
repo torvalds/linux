@@ -97,14 +97,14 @@ const struct bmi270_chip_info bmi260_chip_info = {
 	.chip_id = BMI260_CHIP_ID_VAL,
 	.fw_name = BMI260_INIT_DATA_FILE,
 };
-EXPORT_SYMBOL_NS_GPL(bmi260_chip_info, IIO_BMI270);
+EXPORT_SYMBOL_NS_GPL(bmi260_chip_info, "IIO_BMI270");
 
 const struct bmi270_chip_info bmi270_chip_info = {
 	.name = "bmi270",
 	.chip_id = BMI270_CHIP_ID_VAL,
 	.fw_name = BMI270_INIT_DATA_FILE,
 };
-EXPORT_SYMBOL_NS_GPL(bmi270_chip_info, IIO_BMI270);
+EXPORT_SYMBOL_NS_GPL(bmi270_chip_info, "IIO_BMI270");
 
 enum bmi270_sensor_type {
 	BMI270_ACCEL	= 0,
@@ -727,7 +727,7 @@ int bmi270_core_probe(struct device *dev, struct regmap *regmap,
 
 	return devm_iio_device_register(dev, indio_dev);
 }
-EXPORT_SYMBOL_NS_GPL(bmi270_core_probe, IIO_BMI270);
+EXPORT_SYMBOL_NS_GPL(bmi270_core_probe, "IIO_BMI270");
 
 MODULE_AUTHOR("Alex Lanzano");
 MODULE_DESCRIPTION("BMI270 driver");

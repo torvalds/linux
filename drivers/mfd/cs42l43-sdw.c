@@ -215,7 +215,7 @@ static struct sdw_driver cs42l43_sdw_driver = {
 };
 module_sdw_driver(cs42l43_sdw_driver);
 
-MODULE_IMPORT_NS(MFD_CS42L43);
+MODULE_IMPORT_NS("MFD_CS42L43");
 
 MODULE_DESCRIPTION("CS42L43 SoundWire Driver");
 MODULE_AUTHOR("Lucas Tanure <tanureal@opensource.cirrus.com>");

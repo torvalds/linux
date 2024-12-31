@@ -4821,7 +4821,7 @@ inet6_rtm_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh,
 			      ifm->ifa_prefixlen, extack);
 }
 
-static int modify_prefix_route(struct inet6_ifaddr *ifp,
+static int modify_prefix_route(struct net *net, struct inet6_ifaddr *ifp,
 			       unsigned long expires, u32 flags,
 			       bool modify_peer)
 {
@@ -4845,7 +4845,9 @@ static int modify_prefix_route(struct inet6_ifaddr *ifp,
 				      ifp->prefix_len,
 				      ifp->rt_priority, ifp->idev->dev,
 				      expires, flags, GFP_KERNEL);
-	} else {
+		return 0;
+	}
+	if (f6i != net->ipv6.fib6_null_entry) {
 		table = f6i->fib6_table;
 		spin_lock_bh(&table->tb6_lock);
 
@@ -4858,9 +4860,8 @@ static int modify_prefix_route(struct inet6_ifaddr *ifp,
 		}
 
 		spin_unlock_bh(&table->tb6_lock);
-
-		fib6_info_release(f6i);
 	}
+	fib6_info_release(f6i);
 
 	return 0;
 }
@@ -4939,7 +4940,7 @@ static int inet6_addr_modify(struct net *net, struct inet6_ifaddr *ifp,
 		int rc = -ENOENT;
 
 		if (had_prefixroute)
-			rc = modify_prefix_route(ifp, expires, flags, false);
+			rc = modify_prefix_route(net, ifp, expires, flags, false);
 
 		/* prefix route could have been deleted; if so restore it */
 		if (rc == -ENOENT) {
@@ -4949,7 +4950,7 @@ static int inet6_addr_modify(struct net *net, struct inet6_ifaddr *ifp,
 		}
 
 		if (had_prefixroute && !ipv6_addr_any(&ifp->peer_addr))
-			rc = modify_prefix_route(ifp, expires, flags, true);
+			rc = modify_prefix_route(net, ifp, expires, flags, true);
 
 		if (rc == -ENOENT && !ipv6_addr_any(&ifp->peer_addr)) {
 			addrconf_prefix_route(&ifp->peer_addr, ifp->prefix_len,

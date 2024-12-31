@@ -176,7 +176,7 @@ static void uml_rtc_remove(struct platform_device *pdev)
 
 static struct platform_driver uml_rtc_driver = {
 	.probe = uml_rtc_probe,
-	.remove_new = uml_rtc_remove,
+	.remove = uml_rtc_remove,
 	.driver = {
 		.name = "uml-rtc",
 	},

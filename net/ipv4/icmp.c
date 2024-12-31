@@ -517,6 +517,9 @@ static struct rtable *icmp_route_lookup(struct net *net, struct flowi4 *fl4,
 	if (!IS_ERR(dst)) {
 		if (rt != rt2)
 			return rt;
+		if (inet_addr_type_dev_table(net, route_lookup_dev,
+					     fl4->daddr) == RTN_LOCAL)
+			return rt;
 	} else if (PTR_ERR(dst) == -EPERM) {
 		rt = NULL;
 	} else {

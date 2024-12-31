@@ -3501,10 +3501,10 @@ static struct folio *next_uptodate_folio(struct xa_state *xas,
 			continue;
 		if (xa_is_value(folio))
 			continue;
-		if (folio_test_locked(folio))
-			continue;
 		if (!folio_try_get(folio))
 			continue;
+		if (folio_test_locked(folio))
+			goto skip;
 		/* Has the page moved or been split? */
 		if (unlikely(folio != xas_reload(xas)))
 			goto skip;

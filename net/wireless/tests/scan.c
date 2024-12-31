@@ -14,7 +14,7 @@
 /* mac80211 helpers for element building */
 #include "../../mac80211/ieee80211_i.h"
 
-MODULE_IMPORT_NS(EXPORTED_FOR_KUNIT_TESTING);
+MODULE_IMPORT_NS("EXPORTED_FOR_KUNIT_TESTING");
 
 struct test_elem {
 	u8 id;

@@ -649,7 +649,7 @@ int hts221_probe(struct device *dev, int irq, const char *name,
 
 	return devm_iio_device_register(hw->dev, iio_dev);
 }
-EXPORT_SYMBOL_NS(hts221_probe, IIO_HTS221);
+EXPORT_SYMBOL_NS(hts221_probe, "IIO_HTS221");
 
 static int hts221_suspend(struct device *dev)
 {

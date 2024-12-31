@@ -173,7 +173,7 @@ error:
 
 static struct platform_driver rzg2l_du_platform_driver = {
 	.probe		= rzg2l_du_probe,
-	.remove_new	= rzg2l_du_remove,
+	.remove		= rzg2l_du_remove,
 	.shutdown	= rzg2l_du_shutdown,
 	.driver		= {
 		.name	= "rzg2l-du",

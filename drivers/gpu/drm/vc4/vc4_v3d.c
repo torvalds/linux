@@ -534,7 +534,7 @@ const struct of_device_id vc4_v3d_dt_match[] = {
 
 struct platform_driver vc4_v3d_driver = {
 	.probe = vc4_v3d_dev_probe,
-	.remove_new = vc4_v3d_dev_remove,
+	.remove = vc4_v3d_dev_remove,
 	.driver = {
 		.name = "vc4_v3d",
 		.of_match_table = vc4_v3d_dt_match,

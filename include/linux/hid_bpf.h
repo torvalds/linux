@@ -78,7 +78,7 @@ struct hid_ops {
 	const struct bus_type *bus_type;
 };
 
-extern struct hid_ops *hid_ops;
+extern const struct hid_ops *hid_ops;
 
 /**
  * struct hid_bpf_ops - A BPF struct_ops of callbacks allowing to attach HID-BPF

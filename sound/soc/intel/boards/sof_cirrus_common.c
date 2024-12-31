@@ -193,14 +193,14 @@ void cs35l41_set_dai_link(struct snd_soc_dai_link *link)
 	link->init = cs35l41_init;
 	link->ops = &cs35l41_ops;
 }
-EXPORT_SYMBOL_NS(cs35l41_set_dai_link, SND_SOC_INTEL_SOF_CIRRUS_COMMON);
+EXPORT_SYMBOL_NS(cs35l41_set_dai_link, "SND_SOC_INTEL_SOF_CIRRUS_COMMON");
 
 void cs35l41_set_codec_conf(struct snd_soc_card *card)
 {
 	card->codec_conf = cs35l41_codec_conf;
 	card->num_configs = ARRAY_SIZE(cs35l41_codec_conf);
 }
-EXPORT_SYMBOL_NS(cs35l41_set_codec_conf, SND_SOC_INTEL_SOF_CIRRUS_COMMON);
+EXPORT_SYMBOL_NS(cs35l41_set_codec_conf, "SND_SOC_INTEL_SOF_CIRRUS_COMMON");
 
 MODULE_DESCRIPTION("ASoC Intel SOF Cirrus Logic helpers");
 MODULE_LICENSE("GPL");

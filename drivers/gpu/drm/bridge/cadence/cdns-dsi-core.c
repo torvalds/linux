@@ -1300,7 +1300,7 @@ MODULE_DEVICE_TABLE(of, cdns_dsi_of_match);
 
 static struct platform_driver cdns_dsi_platform_driver = {
 	.probe  = cdns_dsi_drm_probe,
-	.remove_new = cdns_dsi_drm_remove,
+	.remove = cdns_dsi_drm_remove,
 	.driver = {
 		.name   = "cdns-dsi",
 		.of_match_table = cdns_dsi_of_match,

@@ -219,6 +219,7 @@ struct resource_funcs {
 	 * Get indicator of power from a context that went through full validation
 	 */
 	int (*get_power_profile)(const struct dc_state *context);
+	unsigned int (*get_det_buffer_size)(const struct dc_state *context);
 };
 
 struct audio_support{
@@ -477,6 +478,8 @@ struct pipe_ctx {
 	/* subvp_index: only valid if the pipe is a SUBVP_MAIN*/
 	uint8_t subvp_index;
 	struct pixel_rate_divider pixel_rate_divider;
+	/* pixels borrowed from hblank to hactive */
+	uint8_t hblank_borrow;
 };
 
 /* Data used for dynamic link encoder assignment.

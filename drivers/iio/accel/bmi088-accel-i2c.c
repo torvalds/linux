@@ -67,4 +67,4 @@ module_i2c_driver(bmi088_accel_driver);
 MODULE_AUTHOR("Jun Yan <jerrysteve1101@gmail.com>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("BMI088 accelerometer driver (I2C)");
-MODULE_IMPORT_NS(IIO_BMI088);
+MODULE_IMPORT_NS("IIO_BMI088");

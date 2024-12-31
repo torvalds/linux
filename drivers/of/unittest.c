@@ -1970,7 +1970,7 @@ static const struct of_device_id unittest_match[] = {
 
 static struct platform_driver unittest_driver = {
 	.probe			= unittest_probe,
-	.remove_new		= unittest_remove,
+	.remove			= unittest_remove,
 	.driver = {
 		.name		= "unittest",
 		.of_match_table	= unittest_match,
@@ -2071,7 +2071,7 @@ static const struct of_device_id unittest_gpio_id[] = {
 
 static struct platform_driver unittest_gpio_driver = {
 	.probe	= unittest_gpio_probe,
-	.remove_new = unittest_gpio_remove,
+	.remove = unittest_gpio_remove,
 	.driver	= {
 		.name		= "unittest-gpio",
 		.of_match_table	= unittest_gpio_id,
@@ -2891,7 +2891,7 @@ static const struct of_device_id unittest_i2c_bus_match[] = {
 
 static struct platform_driver unittest_i2c_bus_driver = {
 	.probe			= unittest_i2c_bus_probe,
-	.remove_new		= unittest_i2c_bus_remove,
+	.remove			= unittest_i2c_bus_remove,
 	.driver = {
 		.name		= "unittest-i2c-bus",
 		.of_match_table	= unittest_i2c_bus_match,

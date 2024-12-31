@@ -52,7 +52,7 @@ int acp_pcm_hw_params(struct snd_sof_dev *sdev, struct snd_pcm_substream *substr
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(acp_pcm_hw_params, SND_SOC_SOF_AMD_COMMON);
+EXPORT_SYMBOL_NS(acp_pcm_hw_params, "SND_SOC_SOF_AMD_COMMON");
 
 int acp_pcm_open(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream)
 {
@@ -67,7 +67,7 @@ int acp_pcm_open(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(acp_pcm_open, SND_SOC_SOF_AMD_COMMON);
+EXPORT_SYMBOL_NS(acp_pcm_open, "SND_SOC_SOF_AMD_COMMON");
 
 int acp_pcm_close(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream)
 {
@@ -84,7 +84,7 @@ int acp_pcm_close(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream)
 
 	return acp_dsp_stream_put(sdev, stream);
 }
-EXPORT_SYMBOL_NS(acp_pcm_close, SND_SOC_SOF_AMD_COMMON);
+EXPORT_SYMBOL_NS(acp_pcm_close, "SND_SOC_SOF_AMD_COMMON");
 
 snd_pcm_uframes_t acp_pcm_pointer(struct snd_sof_dev *sdev,
 				  struct snd_pcm_substream *substream)
@@ -117,4 +117,4 @@ snd_pcm_uframes_t acp_pcm_pointer(struct snd_sof_dev *sdev,
 
 	return pos;
 }
-EXPORT_SYMBOL_NS(acp_pcm_pointer, SND_SOC_SOF_AMD_COMMON);
+EXPORT_SYMBOL_NS(acp_pcm_pointer, "SND_SOC_SOF_AMD_COMMON");
