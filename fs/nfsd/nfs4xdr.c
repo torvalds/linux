@@ -4450,25 +4450,21 @@ nfsd4_encode_readlink(struct nfsd4_compoundres *resp, __be32 nfserr,
 		      union nfsd4_op_u *u)
 {
 	struct nfsd4_readlink *readlink = &u->readlink;
-	__be32 *p, *maxcount_p, zero = xdr_zero;
+	__be32 *p, wire_count, zero = xdr_zero;
 	struct xdr_stream *xdr = resp->xdr;
-	int length_offset = xdr->buf->len;
+	unsigned int length_offset;
 	int maxcount, status;
 
-	maxcount_p = xdr_reserve_space(xdr, XDR_UNIT);
-	if (!maxcount_p)
+	/* linktext4.count */
+	length_offset = xdr->buf->len;
+	if (unlikely(!xdr_reserve_space(xdr, XDR_UNIT)))
 		return nfserr_resource;
-	maxcount = PAGE_SIZE;
 
+	/* linktext4.data */
+	maxcount = PAGE_SIZE;
 	p = xdr_reserve_space(xdr, maxcount);
 	if (!p)
 		return nfserr_resource;
-	/*
-	 * XXX: By default, vfs_readlink() will truncate symlinks if they
-	 * would overflow the buffer.  Is this kosher in NFSv4?  If not, one
-	 * easy fix is: if vfs_readlink() precisely fills the buffer, assume
-	 * that truncation occurred, and return NFS4ERR_RESOURCE.
-	 */
 	nfserr = nfsd_readlink(readlink->rl_rqstp, readlink->rl_fhp,
 						(char *)p, &maxcount);
 	if (nfserr == nfserr_isdir)
@@ -4481,7 +4477,9 @@ nfsd4_encode_readlink(struct nfsd4_compoundres *resp, __be32 nfserr,
 		nfserr = nfserrno(status);
 		goto out_err;
 	}
-	*maxcount_p = cpu_to_be32(maxcount);
+
+	wire_count = cpu_to_be32(maxcount);
+	write_bytes_to_xdr_buf(xdr->buf, length_offset, &wire_count, XDR_UNIT);
 	xdr_truncate_encode(xdr, length_offset + 4 + xdr_align_size(maxcount));
 	write_bytes_to_xdr_buf(xdr->buf, length_offset + 4 + maxcount, &zero,
 			       xdr_pad_size(maxcount));
