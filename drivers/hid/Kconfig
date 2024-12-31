@@ -158,6 +158,19 @@ config HID_APPLETB_BL
 	  To compile this driver as a module, choose M here: the
 	  module will be called hid-appletb-bl.
 
+config HID_APPLETB_KBD
+	tristate "Apple Touch Bar Keyboard Mode"
+	depends on USB_HID
+	depends on INPUT
+	select INPUT_SPARSEKMAP
+	help
+	  Say Y here if you want support for the keyboard mode (escape,
+	  function, media and brightness keys) of Touch Bars on x86 MacBook
+	  Pros.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called hid-appletb-kbd.
+
 config HID_ASUS
 	tristate "Asus"
 	depends on USB_HID
