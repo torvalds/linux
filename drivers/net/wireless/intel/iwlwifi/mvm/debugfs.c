@@ -579,6 +579,10 @@ static ssize_t iwl_dbgfs_tas_get_status_read(struct file *file,
 	if (!iwl_mvm_firmware_running(mvm))
 		return -ENODEV;
 
+	if (iwl_fw_lookup_notif_ver(mvm->fw, DEBUG_GROUP, GET_TAS_STATUS,
+				    0) != 3)
+		return -EOPNOTSUPP;
+
 	mutex_lock(&mvm->mutex);
 	ret = iwl_mvm_send_cmd(mvm, &hcmd);
 	mutex_unlock(&mvm->mutex);
