@@ -1075,9 +1075,10 @@ static int iwl_mvm_mac_ctxt_send_beacon_v7(struct iwl_mvm *mvm,
 }
 
 bool iwl_mvm_enable_fils(struct iwl_mvm *mvm,
+			 struct ieee80211_vif *vif,
 			 struct ieee80211_chanctx_conf *ctx)
 {
-	if (IWL_MVM_DISABLE_AP_FILS)
+	if (vif->type != NL80211_IFTYPE_AP || IWL_MVM_DISABLE_AP_FILS)
 		return false;
 
 	if (cfg80211_channel_is_psc(ctx->def.chan))
@@ -1106,7 +1107,7 @@ static int iwl_mvm_mac_ctxt_send_beacon_v9(struct iwl_mvm *mvm,
 	ctx = rcu_dereference(link_conf->chanctx_conf);
 	channel = ieee80211_frequency_to_channel(ctx->def.chan->center_freq);
 	WARN_ON(channel == 0);
-	if (iwl_mvm_enable_fils(mvm, ctx)) {
+	if (iwl_mvm_enable_fils(mvm, vif, ctx)) {
 		flags |= iwl_fw_lookup_cmd_ver(mvm->fw, BEACON_TEMPLATE_CMD,
 					       0) > 10 ?
 			IWL_MAC_BEACON_FILS :

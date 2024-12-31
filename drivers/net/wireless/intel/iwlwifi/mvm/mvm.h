@@ -2990,18 +2990,11 @@ int iwl_mvm_set_hw_timestamp(struct ieee80211_hw *hw,
 			     struct cfg80211_set_hw_timestamp *hwts);
 int iwl_mvm_update_mu_groups(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 bool iwl_mvm_enable_fils(struct iwl_mvm *mvm,
+			 struct ieee80211_vif *vif,
 			 struct ieee80211_chanctx_conf *ctx);
-bool iwl_mvm_is_ftm_responder_chanctx(struct iwl_mvm *mvm,
-				      struct ieee80211_chanctx_conf *ctx);
 
-static inline struct cfg80211_chan_def *
-iwl_mvm_chanctx_def(struct iwl_mvm *mvm, struct ieee80211_chanctx_conf *ctx)
-{
-	bool use_def = iwl_mvm_is_ftm_responder_chanctx(mvm, ctx) ||
-		iwl_mvm_enable_fils(mvm, ctx);
-
-	return use_def ? &ctx->def : &ctx->min_def;
-}
+struct cfg80211_chan_def *
+iwl_mvm_chanctx_def(struct iwl_mvm *mvm, struct ieee80211_chanctx_conf *ctx);
 
 void iwl_mvm_roc_duration_and_delay(struct ieee80211_vif *vif,
 				    u32 duration_ms,

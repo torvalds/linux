@@ -4981,34 +4981,46 @@ int iwl_mvm_cancel_roc(struct ieee80211_hw *hw,
 	return 0;
 }
 
-struct iwl_mvm_ftm_responder_iter_data {
-	bool responder;
+struct iwl_mvm_chanctx_usage_data {
+	struct iwl_mvm *mvm;
 	struct ieee80211_chanctx_conf *ctx;
+	bool use_def;
 };
 
-static void iwl_mvm_ftm_responder_chanctx_iter(void *_data, u8 *mac,
-					       struct ieee80211_vif *vif)
+static void iwl_mvm_chanctx_usage_iter(void *_data, u8 *mac,
+				       struct ieee80211_vif *vif)
 {
-	struct iwl_mvm_ftm_responder_iter_data *data = _data;
+	struct iwl_mvm_chanctx_usage_data *data = _data;
+	struct ieee80211_bss_conf *link_conf;
+	int link_id;
 
-	if (rcu_access_pointer(vif->bss_conf.chanctx_conf) == data->ctx &&
-	    vif->type == NL80211_IFTYPE_AP && vif->bss_conf.ftmr_params)
-		data->responder = true;
+	for_each_vif_active_link(vif, link_conf, link_id) {
+		if (rcu_access_pointer(link_conf->chanctx_conf) != data->ctx)
+			continue;
+
+		if (iwl_mvm_enable_fils(data->mvm, vif, data->ctx))
+			data->use_def = true;
+
+		if (vif->type == NL80211_IFTYPE_AP && link_conf->ftmr_params)
+			data->use_def = true;
+	}
 }
 
-bool iwl_mvm_is_ftm_responder_chanctx(struct iwl_mvm *mvm,
-				      struct ieee80211_chanctx_conf *ctx)
+struct cfg80211_chan_def *
+iwl_mvm_chanctx_def(struct iwl_mvm *mvm, struct ieee80211_chanctx_conf *ctx)
 {
-	struct iwl_mvm_ftm_responder_iter_data data = {
-		.responder = false,
+	struct iwl_mvm_chanctx_usage_data data = {
+		.mvm = mvm,
 		.ctx = ctx,
+		.use_def = false,
 	};
 
 	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
-					IEEE80211_IFACE_ITER_NORMAL,
-					iwl_mvm_ftm_responder_chanctx_iter,
-					&data);
-	return data.responder;
+						   IEEE80211_IFACE_ITER_NORMAL,
+						   iwl_mvm_chanctx_usage_iter,
+						   &data);
+
+	return data.use_def ? &ctx->def : &ctx->min_def;
 }
 
 static int __iwl_mvm_add_chanctx(struct iwl_mvm *mvm,
