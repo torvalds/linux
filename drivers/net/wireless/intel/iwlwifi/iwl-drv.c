@@ -22,6 +22,7 @@
 #include "iwl-modparams.h"
 #include "fw/api/alive.h"
 #include "fw/api/mac.h"
+#include "fw/api/mac-cfg.h"
 
 /******************************************************************************
  *
@@ -1195,6 +1196,19 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				goto tlv_error;
 			}
 			capa->num_stations =
+				le32_to_cpup((const __le32 *)tlv_data);
+			break;
+		case IWL_UCODE_TLV_FW_NUM_LINKS:
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			if (le32_to_cpup((const __le32 *)tlv_data) >
+			    IWL_FW_MAX_LINK_ID + 1) {
+				IWL_ERR(drv,
+					"%d is an invalid number of links\n",
+					le32_to_cpup((const __le32 *)tlv_data));
+				goto tlv_error;
+			}
+			capa->num_links =
 				le32_to_cpup((const __le32 *)tlv_data);
 			break;
 		case IWL_UCODE_TLV_FW_NUM_BEACONS:
