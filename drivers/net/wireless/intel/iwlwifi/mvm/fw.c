@@ -642,7 +642,8 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm)
 		/* if we needed reset then fail here, but notify and remove */
 		if (mvm->fw_product_reset) {
 			iwl_mei_alive_notif(false);
-			iwl_trans_pcie_remove(mvm->trans, true);
+			iwl_trans_pcie_reset(mvm->trans,
+					     IWL_RESET_MODE_RESCAN);
 		}
 
 		goto error;

@@ -79,9 +79,9 @@ static void *iwl_acpi_get_object(struct device *dev, acpi_string method)
  * method (DSM) interface. The returned acpi object must be freed by calling
  * function.
  */
-static void *iwl_acpi_get_dsm_object(struct device *dev, int rev, int func,
-				     union acpi_object *args,
-				     const guid_t *guid)
+union acpi_object *iwl_acpi_get_dsm_object(struct device *dev, int rev,
+					   int func, union acpi_object *args,
+					   const guid_t *guid)
 {
 	union acpi_object *obj;
 

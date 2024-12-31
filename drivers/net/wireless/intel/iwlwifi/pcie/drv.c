@@ -1480,6 +1480,9 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	trans_pcie = IWL_TRANS_GET_PCIE_TRANS(iwl_trans);
 
+	iwl_trans_pcie_check_product_reset_status(pdev);
+	iwl_trans_pcie_check_product_reset_mode(pdev);
+
 	/*
 	 * Let's try to grab NIC access early here. Sometimes, NICs may
 	 * fail to initialize, and if that happens it's better if we see
