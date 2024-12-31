@@ -314,7 +314,7 @@ static bool ip_can_use_hint(const struct sk_buff *skb, const struct iphdr *iph,
 
 int tcp_v4_early_demux(struct sk_buff *skb);
 int udp_v4_early_demux(struct sk_buff *skb);
-static int ip_rcv_finish_core(struct net *net, struct sock *sk,
+static int ip_rcv_finish_core(struct net *net,
 			      struct sk_buff *skb, struct net_device *dev,
 			      const struct sk_buff *hint)
 {
@@ -442,7 +442,7 @@ static int ip_rcv_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 	if (!skb)
 		return NET_RX_SUCCESS;
 
-	ret = ip_rcv_finish_core(net, sk, skb, dev, NULL);
+	ret = ip_rcv_finish_core(net, skb, dev, NULL);
 	if (ret != NET_RX_DROP)
 		ret = dst_input(skb);
 	return ret;
@@ -589,8 +589,7 @@ static struct sk_buff *ip_extract_route_hint(const struct net *net,
 	return skb;
 }
 
-static void ip_list_rcv_finish(struct net *net, struct sock *sk,
-			       struct list_head *head)
+static void ip_list_rcv_finish(struct net *net, struct list_head *head)
 {
 	struct sk_buff *skb, *next, *hint = NULL;
 	struct dst_entry *curr_dst = NULL;
@@ -607,7 +606,7 @@ static void ip_list_rcv_finish(struct net *net, struct sock *sk,
 		skb = l3mdev_ip_rcv(skb);
 		if (!skb)
 			continue;
-		if (ip_rcv_finish_core(net, sk, skb, dev, hint) == NET_RX_DROP)
+		if (ip_rcv_finish_core(net, skb, dev, hint) == NET_RX_DROP)
 			continue;
 
 		dst = skb_dst(skb);
@@ -633,7 +632,7 @@ static void ip_sublist_rcv(struct list_head *head, struct net_device *dev,
 {
 	NF_HOOK_LIST(NFPROTO_IPV4, NF_INET_PRE_ROUTING, net, NULL,
 		     head, dev, NULL, ip_rcv_finish);
-	ip_list_rcv_finish(net, NULL, head);
+	ip_list_rcv_finish(net, head);
 }
 
 /* Receive a list of IP packets */
