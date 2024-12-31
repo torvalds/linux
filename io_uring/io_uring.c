@@ -550,8 +550,9 @@ void io_req_queue_iowq(struct io_kiocb *req)
 	io_req_task_work_add(req);
 }
 
-static __cold void io_queue_deferred(struct io_ring_ctx *ctx)
+static __cold noinline void io_queue_deferred(struct io_ring_ctx *ctx)
 {
+	spin_lock(&ctx->completion_lock);
 	while (!list_empty(&ctx->defer_list)) {
 		struct io_defer_entry *de = list_first_entry(&ctx->defer_list,
 						struct io_defer_entry, list);
@@ -562,6 +563,7 @@ static __cold void io_queue_deferred(struct io_ring_ctx *ctx)
 		io_req_task_queue(de->req);
 		kfree(de);
 	}
+	spin_unlock(&ctx->completion_lock);
 }
 
 void __io_commit_cqring_flush(struct io_ring_ctx *ctx)
@@ -570,11 +572,8 @@ void __io_commit_cqring_flush(struct io_ring_ctx *ctx)
 		io_poll_wq_wake(ctx);
 	if (ctx->off_timeout_used)
 		io_flush_timeouts(ctx);
-	if (ctx->drain_active) {
-		spin_lock(&ctx->completion_lock);
+	if (ctx->drain_active)
 		io_queue_deferred(ctx);
-		spin_unlock(&ctx->completion_lock);
-	}
 	if (ctx->has_evfd)
 		io_eventfd_flush_signal(ctx);
 }
