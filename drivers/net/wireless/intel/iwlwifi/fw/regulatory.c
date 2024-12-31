@@ -101,6 +101,11 @@ static const struct dmi_system_id dmi_ppag_approved_list[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "HONOR"),
 		},
 	},
+	{ .ident = "WIKO",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "WIKO"),
+		},
+	},
 	{}
 };
 
