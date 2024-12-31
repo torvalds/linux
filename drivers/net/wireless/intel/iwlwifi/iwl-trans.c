@@ -6,6 +6,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/bsearch.h>
+#include <linux/list.h>
 
 #include "fw/api/tx.h"
 #include "iwl-trans.h"
@@ -15,6 +16,68 @@
 #include "fw/api/commands.h"
 #include "pcie/internal.h"
 #include "iwl-context-info-gen3.h"
+
+struct iwl_trans_dev_restart_data {
+	struct list_head list;
+	unsigned int restart_count;
+	time64_t last_error;
+	char name[];
+};
+
+static LIST_HEAD(restart_data_list);
+static DEFINE_SPINLOCK(restart_data_lock);
+
+static struct iwl_trans_dev_restart_data *
+iwl_trans_get_restart_data(struct device *dev)
+{
+	struct iwl_trans_dev_restart_data *tmp, *data = NULL;
+	const char *name = dev_name(dev);
+
+	spin_lock(&restart_data_lock);
+	list_for_each_entry(tmp, &restart_data_list, list) {
+		if (strcmp(tmp->name, name))
+			continue;
+		data = tmp;
+		break;
+	}
+	spin_unlock(&restart_data_lock);
+
+	if (data)
+		return data;
+
+	data = kzalloc(struct_size(data, name, strlen(name) + 1), GFP_ATOMIC);
+	if (!data)
+		return NULL;
+
+	strcpy(data->name, name);
+	spin_lock(&restart_data_lock);
+	list_add_tail(&data->list, &restart_data_list);
+	spin_unlock(&restart_data_lock);
+
+	return data;
+}
+
+static void iwl_trans_inc_restart_count(struct device *dev)
+{
+	struct iwl_trans_dev_restart_data *data;
+
+	data = iwl_trans_get_restart_data(dev);
+	if (data) {
+		data->last_error = ktime_get_boottime_seconds();
+		data->restart_count++;
+	}
+}
+
+void iwl_trans_free_restart_list(void)
+{
+	struct iwl_trans_dev_restart_data *tmp;
+
+	while ((tmp = list_first_entry_or_null(&restart_data_list,
+					       typeof(*tmp), list))) {
+		list_del(&tmp->list);
+		kfree(tmp);
+	}
+}
 
 struct iwl_trans_reprobe {
 	struct device *dev;
@@ -34,10 +97,52 @@ static void iwl_trans_reprobe_wk(struct work_struct *wk)
 	module_put(THIS_MODULE);
 }
 
+#define IWL_TRANS_RESET_OK_TIME	180 /* seconds */
+
+static enum iwl_reset_mode
+iwl_trans_determine_restart_mode(struct iwl_trans *trans)
+{
+	struct iwl_trans_dev_restart_data *data;
+	enum iwl_reset_mode at_least = 0;
+	unsigned int index;
+	static const enum iwl_reset_mode escalation_list[] = {
+		IWL_RESET_MODE_SW_RESET,
+		IWL_RESET_MODE_REPROBE,
+		IWL_RESET_MODE_REPROBE,
+		IWL_RESET_MODE_FUNC_RESET,
+		/* FIXME: add TOP reset */
+		IWL_RESET_MODE_PROD_RESET,
+		/* FIXME: add TOP reset */
+		IWL_RESET_MODE_PROD_RESET,
+		/* FIXME: add TOP reset */
+		IWL_RESET_MODE_PROD_RESET,
+	};
+
+	if (trans->restart.during_reset)
+		at_least = IWL_RESET_MODE_REPROBE;
+
+	data = iwl_trans_get_restart_data(trans->dev);
+	if (!data)
+		return at_least;
+
+	if (ktime_get_boottime_seconds() - data->last_error >=
+			IWL_TRANS_RESET_OK_TIME)
+		data->restart_count = 0;
+
+	index = data->restart_count;
+	if (index >= ARRAY_SIZE(escalation_list))
+		index = ARRAY_SIZE(escalation_list) - 1;
+
+	return max(at_least, escalation_list[index]);
+}
+
+#define IWL_TRANS_RESET_DELAY	(HZ * 60)
+
 static void iwl_trans_restart_wk(struct work_struct *wk)
 {
 	struct iwl_trans *trans = container_of(wk, typeof(*trans), restart.wk);
 	struct iwl_trans_reprobe *reprobe;
+	enum iwl_reset_mode mode;
 
 	if (!trans->op_mode)
 		return;
@@ -62,32 +167,41 @@ static void iwl_trans_restart_wk(struct work_struct *wk)
 	if (!iwlwifi_mod_params.fw_restart)
 		return;
 
-	if (!trans->restart.during_reset) {
+	mode = iwl_trans_determine_restart_mode(trans);
+
+	iwl_trans_inc_restart_count(trans->dev);
+
+	switch (mode) {
+	case IWL_RESET_MODE_SW_RESET:
+		IWL_ERR(trans, "Device error - SW reset\n");
 		iwl_trans_opmode_sw_reset(trans, trans->restart.mode.type);
-		return;
-	}
+		break;
+	case IWL_RESET_MODE_REPROBE:
+		IWL_ERR(trans, "Device error - reprobe!\n");
 
-	IWL_ERR(trans,
-		"Device error during reconfiguration - reprobe!\n");
+		/*
+		 * get a module reference to avoid doing this while unloading
+		 * anyway and to avoid scheduling a work with code that's
+		 * being removed.
+		 */
+		if (!try_module_get(THIS_MODULE)) {
+			IWL_ERR(trans, "Module is being unloaded - abort\n");
+			return;
+		}
 
-	/*
-	 * get a module reference to avoid doing this while unloading
-	 * anyway and to avoid scheduling a work with code that's
-	 * being removed.
-	 */
-	if (!try_module_get(THIS_MODULE)) {
-		IWL_ERR(trans, "Module is being unloaded - abort\n");
-		return;
+		reprobe = kzalloc(sizeof(*reprobe), GFP_KERNEL);
+		if (!reprobe) {
+			module_put(THIS_MODULE);
+			return;
+		}
+		reprobe->dev = get_device(trans->dev);
+		INIT_WORK(&reprobe->work, iwl_trans_reprobe_wk);
+		schedule_work(&reprobe->work);
+		break;
+	default:
+		iwl_trans_pcie_reset(trans, mode);
+		break;
 	}
-
-	reprobe = kzalloc(sizeof(*reprobe), GFP_KERNEL);
-	if (!reprobe) {
-		module_put(THIS_MODULE);
-		return;
-	}
-	reprobe->dev = get_device(trans->dev);
-	INIT_WORK(&reprobe->work, iwl_trans_reprobe_wk);
-	schedule_work(&reprobe->work);
 }
 
 struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,

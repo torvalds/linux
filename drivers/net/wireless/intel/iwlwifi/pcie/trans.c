@@ -2351,6 +2351,9 @@ void iwl_trans_pcie_reset(struct iwl_trans *trans, enum iwl_reset_mode mode)
 	struct iwl_trans_pcie_removal *removal;
 	char _msg = 0, *msg = &_msg;
 
+	if (WARN_ON(mode < IWL_RESET_MODE_REMOVE_ONLY))
+		return;
+
 	if (test_bit(STATUS_TRANS_DEAD, &trans->status))
 		return;
 
@@ -3255,6 +3258,8 @@ static ssize_t iwl_dbgfs_reset_write(struct file *file,
 {
 	struct iwl_trans *trans = file->private_data;
 	static const char * const modes[] = {
+		[IWL_RESET_MODE_SW_RESET] = "n/a",
+		[IWL_RESET_MODE_REPROBE] = "n/a",
 		[IWL_RESET_MODE_REMOVE_ONLY] = "remove",
 		[IWL_RESET_MODE_RESCAN] = "rescan",
 		[IWL_RESET_MODE_FUNC_RESET] = "function",
@@ -3272,6 +3277,9 @@ static ssize_t iwl_dbgfs_reset_write(struct file *file,
 	mode = sysfs_match_string(modes, buf);
 	if (mode < 0)
 		return mode;
+
+	if (mode < IWL_RESET_MODE_REMOVE_ONLY)
+		return -EINVAL;
 
 	iwl_trans_pcie_reset(trans, mode);
 

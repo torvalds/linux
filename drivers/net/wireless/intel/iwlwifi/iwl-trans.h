@@ -1240,6 +1240,8 @@ static inline bool iwl_trans_is_hw_error_value(u32 val)
 	return ((val & ~0xf) == 0xa5a5a5a0) || ((val & ~0xf) == 0x5a5a5a50);
 }
 
+void iwl_trans_free_restart_list(void);
+
 /*****************************************************
  * PCIe handling
  *****************************************************/
@@ -1248,6 +1250,10 @@ void iwl_pci_unregister_driver(void);
 
 /* Note: order matters */
 enum iwl_reset_mode {
+	/* upper level modes: */
+	IWL_RESET_MODE_SW_RESET,
+	IWL_RESET_MODE_REPROBE,
+	/* PCIE level modes: */
 	IWL_RESET_MODE_REMOVE_ONLY,
 	IWL_RESET_MODE_RESCAN,
 	IWL_RESET_MODE_FUNC_RESET,
