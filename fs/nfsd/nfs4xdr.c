@@ -4643,13 +4643,13 @@ nfsd4_encode_secinfo4(struct xdr_stream *xdr, rpc_authflavor_t pf,
 }
 
 static __be32
-nfsd4_do_encode_secinfo(struct xdr_stream *xdr, struct svc_export *exp)
+nfsd4_encode_SECINFO4resok(struct xdr_stream *xdr, struct svc_export *exp)
 {
 	u32 i, nflavs, supported;
 	struct exp_flavor_info *flavs;
 	struct exp_flavor_info def_flavs[2];
-	__be32 *flavorsp;
-	__be32 status;
+	unsigned int count_offset;
+	__be32 status, wire_count;
 
 	if (exp->ex_nflavors) {
 		flavs = exp->ex_flavors;
@@ -4671,8 +4671,8 @@ nfsd4_do_encode_secinfo(struct xdr_stream *xdr, struct svc_export *exp)
 		}
 	}
 
-	flavorsp = xdr_reserve_space(xdr, XDR_UNIT);
-	if (!flavorsp)
+	count_offset = xdr->buf->len;
+	if (unlikely(!xdr_reserve_space(xdr, XDR_UNIT)))
 		return nfserr_resource;
 
 	for (i = 0, supported = 0; i < nflavs; i++) {
@@ -4682,7 +4682,9 @@ nfsd4_do_encode_secinfo(struct xdr_stream *xdr, struct svc_export *exp)
 			return status;
 	}
 
-	*flavorsp = cpu_to_be32(supported);
+	wire_count = cpu_to_be32(supported);
+	write_bytes_to_xdr_buf(xdr->buf, count_offset, &wire_count,
+			       XDR_UNIT);
 	return 0;
 }
 
@@ -4693,7 +4695,7 @@ nfsd4_encode_secinfo(struct nfsd4_compoundres *resp, __be32 nfserr,
 	struct nfsd4_secinfo *secinfo = &u->secinfo;
 	struct xdr_stream *xdr = resp->xdr;
 
-	return nfsd4_do_encode_secinfo(xdr, secinfo->si_exp);
+	return nfsd4_encode_SECINFO4resok(xdr, secinfo->si_exp);
 }
 
 static __be32
@@ -4703,7 +4705,7 @@ nfsd4_encode_secinfo_no_name(struct nfsd4_compoundres *resp, __be32 nfserr,
 	struct nfsd4_secinfo_no_name *secinfo = &u->secinfo_no_name;
 	struct xdr_stream *xdr = resp->xdr;
 
-	return nfsd4_do_encode_secinfo(xdr, secinfo->sin_exp);
+	return nfsd4_encode_SECINFO4resok(xdr, secinfo->sin_exp);
 }
 
 static __be32
