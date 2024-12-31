@@ -1137,7 +1137,6 @@ void iwl_trans_pcie_gen2_fw_alive(struct iwl_trans *trans);
 int iwl_trans_pcie_gen2_send_hcmd(struct iwl_trans *trans,
 				  struct iwl_host_cmd *cmd);
 void iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans);
-void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans);
 void iwl_pcie_d3_complete_suspend(struct iwl_trans *trans,
 				  bool test, bool reset);
 int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,

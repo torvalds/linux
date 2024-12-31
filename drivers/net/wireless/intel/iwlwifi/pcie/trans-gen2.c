@@ -137,7 +137,7 @@ static void iwl_trans_pcie_fw_reset_handshake(struct iwl_trans *trans)
 	trans_pcie->fw_reset_state = FW_RESET_IDLE;
 }
 
-void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans)
+static void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
