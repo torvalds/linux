@@ -256,6 +256,7 @@ enum bch_fsck_flags {
 	x(dirent_in_missing_dir_inode,				227,	0)		\
 	x(dirent_in_non_dir_inode,				228,	0)		\
 	x(dirent_to_missing_inode,				229,	0)		\
+	x(dirent_to_overwritten_inode,				302,	0)		\
 	x(dirent_to_missing_subvol,				230,	0)		\
 	x(dirent_to_itself,					231,	0)		\
 	x(quota_type_invalid,					232,	0)		\
@@ -312,7 +313,7 @@ enum bch_fsck_flags {
 	x(logged_op_but_clean,					283,	FSCK_AUTOFIX)	\
 	x(compression_opt_not_marked_in_sb,			295,	FSCK_AUTOFIX)	\
 	x(compression_type_not_marked_in_sb,			296,	FSCK_AUTOFIX)	\
-	x(MAX,							302,	0)
+	x(MAX,							303,	0)
 
 enum bch_sb_error_id {
 #define x(t, n, ...) BCH_FSCK_ERR_##t = n,
