@@ -332,65 +332,87 @@ enum lruvec_flags {
 #endif /* !__GENERATING_BOUNDS_H */
 
 /*
- * Evictable pages are divided into multiple generations. The youngest and the
+ * Evictable folios are divided into multiple generations. The youngest and the
  * oldest generation numbers, max_seq and min_seq, are monotonically increasing.
  * They form a sliding window of a variable size [MIN_NR_GENS, MAX_NR_GENS]. An
  * offset within MAX_NR_GENS, i.e., gen, indexes the LRU list of the
  * corresponding generation. The gen counter in folio->flags stores gen+1 while
- * a page is on one of lrugen->folios[]. Otherwise it stores 0.
+ * a folio is on one of lrugen->folios[]. Otherwise it stores 0.
  *
- * A page is added to the youngest generation on faulting. The aging needs to
- * check the accessed bit at least twice before handing this page over to the
- * eviction. The first check takes care of the accessed bit set on the initial
- * fault; the second check makes sure this page hasn't been used since then.
- * This process, AKA second chance, requires a minimum of two generations,
- * hence MIN_NR_GENS. And to maintain ABI compatibility with the active/inactive
- * LRU, e.g., /proc/vmstat, these two generations are considered active; the
- * rest of generations, if they exist, are considered inactive. See
- * lru_gen_is_active().
+ * After a folio is faulted in, the aging needs to check the accessed bit at
+ * least twice before handing this folio over to the eviction. The first check
+ * clears the accessed bit from the initial fault; the second check makes sure
+ * this folio hasn't been used since then. This process, AKA second chance,
+ * requires a minimum of two generations, hence MIN_NR_GENS. And to maintain ABI
+ * compatibility with the active/inactive LRU, e.g., /proc/vmstat, these two
+ * generations are considered active; the rest of generations, if they exist,
+ * are considered inactive. See lru_gen_is_active().
  *
- * PG_active is always cleared while a page is on one of lrugen->folios[] so
- * that the aging needs not to worry about it. And it's set again when a page
- * considered active is isolated for non-reclaiming purposes, e.g., migration.
- * See lru_gen_add_folio() and lru_gen_del_folio().
+ * PG_active is always cleared while a folio is on one of lrugen->folios[] so
+ * that the sliding window needs not to worry about it. And it's set again when
+ * a folio considered active is isolated for non-reclaiming purposes, e.g.,
+ * migration. See lru_gen_add_folio() and lru_gen_del_folio().
  *
  * MAX_NR_GENS is set to 4 so that the multi-gen LRU can support twice the
  * number of categories of the active/inactive LRU when keeping track of
  * accesses through page tables. This requires order_base_2(MAX_NR_GENS+1) bits
- * in folio->flags.
+ * in folio->flags, masked by LRU_GEN_MASK.
  */
 #define MIN_NR_GENS		2U
 #define MAX_NR_GENS		4U
 
 /*
- * Each generation is divided into multiple tiers. A page accessed N times
- * through file descriptors is in tier order_base_2(N). A page in the first tier
- * (N=0,1) is marked by PG_referenced unless it was faulted in through page
- * tables or read ahead. A page in any other tier (N>1) is marked by
- * PG_referenced and PG_workingset. This implies a minimum of two tiers is
- * supported without using additional bits in folio->flags.
+ * Each generation is divided into multiple tiers. A folio accessed N times
+ * through file descriptors is in tier order_base_2(N). A folio in the first
+ * tier (N=0,1) is marked by PG_referenced unless it was faulted in through page
+ * tables or read ahead. A folio in the last tier (MAX_NR_TIERS-1) is marked by
+ * PG_workingset. A folio in any other tier (1<N<5) between the first and last
+ * is marked by additional bits of LRU_REFS_WIDTH in folio->flags.
  *
  * In contrast to moving across generations which requires the LRU lock, moving
  * across tiers only involves atomic operations on folio->flags and therefore
  * has a negligible cost in the buffered access path. In the eviction path,
- * comparisons of refaulted/(evicted+protected) from the first tier and the
- * rest infer whether pages accessed multiple times through file descriptors
- * are statistically hot and thus worth protecting.
+ * comparisons of refaulted/(evicted+protected) from the first tier and the rest
+ * infer whether folios accessed multiple times through file descriptors are
+ * statistically hot and thus worth protecting.
  *
  * MAX_NR_TIERS is set to 4 so that the multi-gen LRU can support twice the
  * number of categories of the active/inactive LRU when keeping track of
  * accesses through file descriptors. This uses MAX_NR_TIERS-2 spare bits in
- * folio->flags.
+ * folio->flags, masked by LRU_REFS_MASK.
  */
 #define MAX_NR_TIERS		4U
 
 #ifndef __GENERATING_BOUNDS_H
 
-struct lruvec;
-struct page_vma_mapped_walk;
-
 #define LRU_GEN_MASK		((BIT(LRU_GEN_WIDTH) - 1) << LRU_GEN_PGOFF)
 #define LRU_REFS_MASK		((BIT(LRU_REFS_WIDTH) - 1) << LRU_REFS_PGOFF)
+
+/*
+ * For folios accessed multiple times through file descriptors,
+ * lru_gen_inc_refs() sets additional bits of LRU_REFS_WIDTH in folio->flags
+ * after PG_referenced, then PG_workingset after LRU_REFS_WIDTH. After all its
+ * bits are set, i.e., LRU_REFS_FLAGS|BIT(PG_workingset), a folio is lazily
+ * promoted into the second oldest generation in the eviction path. And when
+ * folio_inc_gen() does that, it clears LRU_REFS_FLAGS so that
+ * lru_gen_inc_refs() can start over. Note that for this case, LRU_REFS_MASK is
+ * only valid when PG_referenced is set.
+ *
+ * For folios accessed multiple times through page tables, folio_update_gen()
+ * from a page table walk or lru_gen_set_refs() from a rmap walk sets
+ * PG_referenced after the accessed bit is cleared for the first time.
+ * Thereafter, those two paths set PG_workingset and promote folios to the
+ * youngest generation. Like folio_inc_gen(), folio_update_gen() also clears
+ * PG_referenced. Note that for this case, LRU_REFS_MASK is not used.
+ *
+ * For both cases above, after PG_workingset is set on a folio, it remains until
+ * this folio is either reclaimed, or "deactivated" by lru_gen_clear_refs(). It
+ * can be set again if lru_gen_test_recent() returns true upon a refault.
+ */
+#define LRU_REFS_FLAGS		(LRU_REFS_MASK | BIT(PG_referenced))
+
+struct lruvec;
+struct page_vma_mapped_walk;
 
 #ifdef CONFIG_LRU_GEN
 
@@ -405,8 +427,6 @@ enum {
 	LRU_GEN_NONLEAF_YOUNG,
 	NR_LRU_GEN_CAPS
 };
-
-#define LRU_REFS_FLAGS		(BIT(PG_referenced) | BIT(PG_workingset))
 
 #define MIN_LRU_BATCH		BITS_PER_LONG
 #define MAX_LRU_BATCH		(MIN_LRU_BATCH * 64)
