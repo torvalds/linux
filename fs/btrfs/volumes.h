@@ -309,6 +309,8 @@ enum btrfs_read_policy {
 #ifdef CONFIG_BTRFS_EXPERIMENTAL
 	/* Balancing RAID1 reads across all striped devices (round-robin). */
 	BTRFS_READ_POLICY_RR,
+	/* Read from a specific device. */
+	BTRFS_READ_POLICY_DEVID,
 #endif
 	BTRFS_NR_READ_POLICY,
 };
@@ -445,6 +447,9 @@ struct btrfs_fs_devices {
 	 * is one block/sectorsize.
 	 */
 	u32 rr_min_contig_read;
+
+	/* Device to be used for reading in case of RAID1. */
+	u64 read_devid;
 
 	/* Checksum mode - offload it or do it synchronously. */
 	enum btrfs_offload_csum_mode offload_csum_mode;

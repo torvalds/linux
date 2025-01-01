@@ -1309,6 +1309,7 @@ static const char *btrfs_read_policy_name[] = {
 	"pid",
 #ifdef CONFIG_BTRFS_EXPERIMENTAL
 	"round-robin",
+	"devid",
 #endif
 };
 
@@ -1364,8 +1365,11 @@ static ssize_t btrfs_read_policy_show(struct kobject *kobj,
 		if (i == BTRFS_READ_POLICY_RR)
 			ret += sysfs_emit_at(buf, ret, ":%u",
 					     READ_ONCE(fs_devices->rr_min_contig_read));
-#endif
 
+		if (i == BTRFS_READ_POLICY_DEVID)
+			ret += sysfs_emit_at(buf, ret, ":%llu",
+					     READ_ONCE(fs_devices->read_devid));
+#endif
 		if (i == policy)
 			ret += sysfs_emit_at(buf, ret, "]");
 	}
@@ -1418,6 +1422,31 @@ static ssize_t btrfs_read_policy_store(struct kobject *kobj,
 		}
 
 		fs_devices->collect_fs_stats = true;
+
+		return len;
+	}
+
+	if (index == BTRFS_READ_POLICY_DEVID) {
+		if (value != -1) {
+			BTRFS_DEV_LOOKUP_ARGS(args);
+
+			/* Validate input devid. */
+			args.devid = value;
+			if (btrfs_find_device(fs_devices, &args) == NULL)
+				return -EINVAL;
+		} else {
+			/* Set default devid to the devid of the latest device. */
+			value = fs_devices->latest_dev->devid;
+		}
+
+		if (index != READ_ONCE(fs_devices->read_policy) ||
+		    value != READ_ONCE(fs_devices->read_devid)) {
+			WRITE_ONCE(fs_devices->read_policy, index);
+			WRITE_ONCE(fs_devices->read_devid, value);
+
+			btrfs_info(fs_devices->fs_info, "read policy set to '%s:%llu'",
+				   btrfs_read_policy_name[index], value);
+		}
 
 		return len;
 	}

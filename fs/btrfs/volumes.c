@@ -1331,6 +1331,7 @@ static int open_fs_devices(struct btrfs_fs_devices *fs_devices,
 	fs_devices->read_policy = BTRFS_READ_POLICY_PID;
 #ifdef CONFIG_BTRFS_EXPERIMENTAL
 	fs_devices->rr_min_contig_read = BTRFS_DEFAULT_RR_MIN_CONTIG_READ;
+	fs_devices->read_devid = latest_dev->devid;
 #endif
 
 	return 0;
@@ -5957,6 +5958,19 @@ unsigned long btrfs_full_stripe_len(struct btrfs_fs_info *fs_info,
 }
 
 #ifdef CONFIG_BTRFS_EXPERIMENTAL
+static int btrfs_read_preferred(struct btrfs_chunk_map *map, int first, int num_stripes)
+{
+	for (int index = first; index < first + num_stripes; index++) {
+		const struct btrfs_device *device = map->stripes[index].dev;
+
+		if (device->devid == READ_ONCE(device->fs_devices->read_devid))
+			return index;
+	}
+
+	/* If no read-preferred device is set use the first stripe. */
+	return first;
+}
+
 struct stripe_mirror {
 	u64 devid;
 	int num;
@@ -6045,6 +6059,9 @@ static int find_live_mirror(struct btrfs_fs_info *fs_info,
 #ifdef CONFIG_BTRFS_EXPERIMENTAL
 	case BTRFS_READ_POLICY_RR:
 		preferred_mirror = btrfs_read_rr(map, first, num_stripes);
+		break;
+	case BTRFS_READ_POLICY_DEVID:
+		preferred_mirror = btrfs_read_preferred(map, first, num_stripes);
 		break;
 #endif
 	}
