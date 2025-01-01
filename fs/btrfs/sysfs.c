@@ -1313,7 +1313,22 @@ static const char *btrfs_read_policy_name[] = {
 #endif
 };
 
-static int btrfs_read_policy_to_enum(const char *str, s64 *value_ret)
+#ifdef CONFIG_BTRFS_EXPERIMENTAL
+
+/* Global module configuration parameters. */
+static char *read_policy;
+char *btrfs_get_mod_read_policy(void)
+{
+	return read_policy;
+}
+
+/* Set perms to 0, disable /sys/module/btrfs/parameter/read_policy interface. */
+module_param(read_policy, charp, 0);
+MODULE_PARM_DESC(read_policy,
+"Global read policy: pid (default), round-robin[:<min_contig_read>], devid[:<devid>]");
+#endif
+
+int btrfs_read_policy_to_enum(const char *str, s64 *value_ret)
 {
 	char param[32] = { 0 };
 	char __maybe_unused *value_str;
@@ -1343,6 +1358,20 @@ static int btrfs_read_policy_to_enum(const char *str, s64 *value_ret)
 
 	return sysfs_match_string(btrfs_read_policy_name, param);
 }
+
+#ifdef CONFIG_BTRFS_EXPERIMENTAL
+int __init btrfs_read_policy_init(void)
+{
+	s64 value;
+
+	if (btrfs_read_policy_to_enum(read_policy, &value) == -EINVAL) {
+		btrfs_err(NULL, "invalid read policy or value %s", read_policy);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+#endif
 
 static ssize_t btrfs_read_policy_show(struct kobject *kobj,
 				      struct kobj_attribute *a, char *buf)
