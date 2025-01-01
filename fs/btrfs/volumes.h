@@ -417,6 +417,8 @@ struct btrfs_fs_devices {
 	bool seeding;
 	/* The mount needs to use a randomly generated fsid. */
 	bool temp_fsid;
+	/* Enable/disable the filesystem stats tracking. */
+	bool collect_fs_stats;
 
 	struct btrfs_fs_info *fs_info;
 	/* sysfs kobjects */
