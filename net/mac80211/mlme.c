@@ -419,7 +419,7 @@ ieee80211_verify_peer_he_mcs_support(struct ieee80211_sub_if_data *sdata,
 		    ap_rx_val < ap_op_val || ap_tx_val < ap_op_val) {
 			sdata_info(sdata,
 				   "Invalid rates for %d Nss, rx %d, tx %d oper %d, disable HE\n",
-				   nss, ap_rx_val, ap_rx_val, ap_op_val);
+				   nss, ap_rx_val, ap_tx_val, ap_op_val);
 			return false;
 		}
 	}
