@@ -294,6 +294,21 @@ static int validate_he_capa(const struct nlattr *attr,
 	return 0;
 }
 
+static int validate_supported_selectors(const struct nlattr *attr,
+					struct netlink_ext_ack *extack)
+{
+	const u8 *supported_selectors = nla_data(attr);
+	u8 supported_selectors_len = nla_len(attr);
+
+	/* The top bit must not be set as it is not part of the selector */
+	for (int i = 0; i < supported_selectors_len; i++) {
+		if (supported_selectors[i] & 0x80)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
 /* policy for the attributes */
 static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR];
 
@@ -830,6 +845,9 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[NL80211_ATTR_MLO_TTLM_ULINK] = NLA_POLICY_EXACT_LEN(sizeof(u16) * 8),
 	[NL80211_ATTR_ASSOC_SPP_AMSDU] = { .type = NLA_FLAG },
 	[NL80211_ATTR_VIF_RADIO_MASK] = { .type = NLA_U32 },
+	[NL80211_ATTR_SUPPORTED_SELECTORS] =
+		NLA_POLICY_VALIDATE_FN(NLA_BINARY, validate_supported_selectors,
+				       NL80211_MAX_SUPP_SELECTORS),
 };
 
 /* policy for the key attributes */
@@ -10858,6 +10876,13 @@ static int nl80211_authenticate(struct sk_buff *skb, struct genl_info *info)
 		req.ie_len = nla_len(info->attrs[NL80211_ATTR_IE]);
 	}
 
+	if (info->attrs[NL80211_ATTR_SUPPORTED_SELECTORS]) {
+		req.supported_selectors =
+			nla_data(info->attrs[NL80211_ATTR_SUPPORTED_SELECTORS]);
+		req.supported_selectors_len =
+			nla_len(info->attrs[NL80211_ATTR_SUPPORTED_SELECTORS]);
+	}
+
 	auth_type = nla_get_u32(info->attrs[NL80211_ATTR_AUTH_TYPE]);
 	if (!nl80211_valid_auth_type(rdev, auth_type, NL80211_CMD_AUTHENTICATE))
 		return -EINVAL;
@@ -11139,6 +11164,13 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 
 	if (info->attrs[NL80211_ATTR_PREV_BSSID])
 		req.prev_bssid = nla_data(info->attrs[NL80211_ATTR_PREV_BSSID]);
+
+	if (info->attrs[NL80211_ATTR_SUPPORTED_SELECTORS]) {
+		req.supported_selectors =
+			nla_data(info->attrs[NL80211_ATTR_SUPPORTED_SELECTORS]);
+		req.supported_selectors_len =
+			nla_len(info->attrs[NL80211_ATTR_SUPPORTED_SELECTORS]);
+	}
 
 	if (nla_get_flag(info->attrs[NL80211_ATTR_DISABLE_HT]))
 		req.flags |= ASSOC_REQ_DISABLE_HT;

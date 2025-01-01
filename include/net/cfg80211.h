@@ -3023,6 +3023,10 @@ static inline const u8 *ieee80211_bss_get_ie(struct cfg80211_bss *bss, u8 id)
  *
  * @bss: The BSS to authenticate with, the callee must obtain a reference
  *	to it if it needs to keep it.
+ * @supported_selectors: List of selectors that should be assumed to be
+ *	supported by the station.
+ *	SAE_H2E must be assumed supported if set to %NULL.
+ * @supported_selectors_len: Length of supported_selectors in octets.
  * @auth_type: Authentication type (algorithm)
  * @ie: Extra IEs to add to Authentication frame or %NULL
  * @ie_len: Length of ie buffer in octets
@@ -3045,6 +3049,8 @@ struct cfg80211_auth_request {
 	struct cfg80211_bss *bss;
 	const u8 *ie;
 	size_t ie_len;
+	const u8 *supported_selectors;
+	u8 supported_selectors_len;
 	enum nl80211_auth_type auth_type;
 	const u8 *key;
 	u8 key_len;
@@ -3124,6 +3130,10 @@ enum cfg80211_assoc_req_flags {
  *	included in the Current AP address field of the Reassociation Request
  *	frame.
  * @flags:  See &enum cfg80211_assoc_req_flags
+ * @supported_selectors: supported selectors in IEEE 802.11 format
+ *	(or %NULL for no change).
+ *	If %NULL, then support for SAE_H2E should be assumed.
+ * @supported_selectors_len: Length of supported_selectors in octets.
  * @ht_capa:  HT Capabilities over-rides.  Values set in ht_capa_mask
  *	will be used in ht_capa.  Un-supported values will be ignored.
  * @ht_capa_mask:  The bits of ht_capa which are to be used.
@@ -3150,6 +3160,8 @@ struct cfg80211_assoc_request {
 	struct cfg80211_crypto_settings crypto;
 	bool use_mfp;
 	u32 flags;
+	const u8 *supported_selectors;
+	u8 supported_selectors_len;
 	struct ieee80211_ht_cap ht_capa;
 	struct ieee80211_ht_cap ht_capa_mask;
 	struct ieee80211_vht_cap vht_capa, vht_capa_mask;
