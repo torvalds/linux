@@ -593,6 +593,8 @@ ieee80211_verify_sta_eht_mcs_support(struct ieee80211_sub_if_data *sdata,
 static void ieee80211_get_rates(struct ieee80211_supported_band *sband,
 				const u8 *supp_rates,
 				unsigned int supp_rates_len,
+				const u8 *ext_supp_rates,
+				unsigned int ext_supp_rates_len,
 				u32 *rates, u32 *basic_rates,
 				unsigned long *unknown_rates_selectors,
 				bool *have_higher_than_11mbit,
@@ -600,9 +602,12 @@ static void ieee80211_get_rates(struct ieee80211_supported_band *sband,
 {
 	int i, j;
 
-	for (i = 0; i < supp_rates_len; i++) {
-		int rate = supp_rates[i] & 0x7f;
-		bool is_basic = !!(supp_rates[i] & 0x80);
+	for (i = 0; i < supp_rates_len + ext_supp_rates_len; i++) {
+		u8 supp_rate = i < supp_rates_len ?
+				supp_rates[i] :
+				ext_supp_rates[i - supp_rates_len];
+		int rate = supp_rate & 0x7f;
+		bool is_basic = !!(supp_rate & 0x80);
 
 		if ((rate * 5) > 110 && have_higher_than_11mbit)
 			*have_higher_than_11mbit = true;
@@ -923,6 +928,7 @@ again:
 	sband = sdata->local->hw.wiphy->bands[channel->band];
 
 	ieee80211_get_rates(sband, elems->supp_rates, elems->supp_rates_len,
+			    elems->ext_supp_rates, elems->ext_supp_rates_len,
 			    NULL, NULL, unknown_rates_selectors, NULL, NULL,
 			    NULL);
 
@@ -5183,6 +5189,7 @@ static int ieee80211_mgd_setup_link_sta(struct ieee80211_link_data *link,
 	sband = local->hw.wiphy->bands[cbss->channel->band];
 
 	ieee80211_get_rates(sband, bss->supp_rates, bss->supp_rates_len,
+			    NULL, 0,
 			    &rates, &basic_rates, NULL,
 			    &have_higher_than_11mbit,
 			    &min_rate, &min_rate_index);
