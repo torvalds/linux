@@ -4961,6 +4961,7 @@ struct ieee80211_multi_link_elem {
 #define IEEE80211_MLC_BASIC_PRES_EML_CAPA		0x0080
 #define IEEE80211_MLC_BASIC_PRES_MLD_CAPA_OP		0x0100
 #define IEEE80211_MLC_BASIC_PRES_MLD_ID			0x0200
+#define IEEE80211_MLC_BASIC_PRES_EXT_MLD_CAPA_OP	0x0400
 
 #define IEEE80211_MED_SYNC_DELAY_DURATION		0x00ff
 #define IEEE80211_MED_SYNC_DELAY_SYNC_OFDM_ED_THRESH	0x0f00
@@ -5227,6 +5228,47 @@ static inline u16 ieee80211_mle_get_mld_capa_op(const u8 *data)
 }
 
 /**
+ * ieee80211_mle_get_ext_mld_capa_op - returns the extended MLD capabilities
+ *	and operations.
+ * @data: pointer to the multi-link element
+ * Return: the extended MLD capabilities and operations field value from
+ *	the multi-link element, or 0 if not present
+ *
+ * The element is assumed to be of the correct type (BASIC) and big enough,
+ * this must be checked using ieee80211_mle_type_ok().
+ */
+static inline u16 ieee80211_mle_get_ext_mld_capa_op(const u8 *data)
+{
+	const struct ieee80211_multi_link_elem *mle = (const void *)data;
+	u16 control = le16_to_cpu(mle->control);
+	const u8 *common = mle->variable;
+
+	/*
+	 * common points now at the beginning of
+	 * ieee80211_mle_basic_common_info
+	 */
+	common += sizeof(struct ieee80211_mle_basic_common_info);
+
+	if (!(control & IEEE80211_MLC_BASIC_PRES_EXT_MLD_CAPA_OP))
+		return 0;
+
+	if (control & IEEE80211_MLC_BASIC_PRES_LINK_ID)
+		common += 1;
+	if (control & IEEE80211_MLC_BASIC_PRES_BSS_PARAM_CH_CNT)
+		common += 1;
+	if (control & IEEE80211_MLC_BASIC_PRES_MED_SYNC_DELAY)
+		common += 2;
+	if (control & IEEE80211_MLC_BASIC_PRES_EML_CAPA)
+		common += 2;
+	if (control & IEEE80211_MLC_BASIC_PRES_MLD_CAPA_OP)
+		common += 2;
+	if (control & IEEE80211_MLC_BASIC_PRES_MLD_ID)
+		common += 1;
+
+	return get_unaligned_le16(common);
+}
+
+/**
  * ieee80211_mle_get_mld_id - returns the MLD ID
  * @data: pointer to the multi-link element
  * Return: The MLD ID in the given multi-link element, or 0 if not present
@@ -5298,6 +5340,8 @@ static inline bool ieee80211_mle_size_ok(const u8 *data, size_t len)
 			common += 2;
 		if (control & IEEE80211_MLC_BASIC_PRES_MLD_ID)
 			common += 1;
+		if (control & IEEE80211_MLC_BASIC_PRES_EXT_MLD_CAPA_OP)
+			common += 2;
 		break;
 	case IEEE80211_ML_CONTROL_TYPE_PREQ:
 		common += sizeof(struct ieee80211_mle_preq_common_info);

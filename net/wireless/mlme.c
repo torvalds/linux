@@ -352,6 +352,13 @@ cfg80211_mlme_check_mlo_compat(const struct ieee80211_multi_link_elem *mle_a,
 		return -EINVAL;
 	}
 
+	if (ieee80211_mle_get_ext_mld_capa_op((const u8 *)mle_a) !=
+	    ieee80211_mle_get_ext_mld_capa_op((const u8 *)mle_b)) {
+		NL_SET_ERR_MSG(extack,
+			       "extended link MLD capabilities/ops mismatch");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
