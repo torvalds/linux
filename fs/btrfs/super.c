@@ -2469,7 +2469,17 @@ static int __init btrfs_print_mod_info(void)
 			", fsverity=no"
 #endif
 			;
+
+#ifdef CONFIG_BTRFS_EXPERIMENTAL
+	if (btrfs_get_mod_read_policy() == NULL)
+		pr_info("Btrfs loaded%s\n", options);
+	else
+		pr_info("Btrfs loaded%s, read_policy=%s\n",
+			 options, btrfs_get_mod_read_policy());
+#else
 	pr_info("Btrfs loaded%s\n", options);
+#endif
+
 	return 0;
 }
 
