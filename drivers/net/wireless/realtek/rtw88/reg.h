@@ -871,7 +871,17 @@
 
 #define REG_USB_MOD	0xf008
 #define REG_USB3_RXITV	0xf050
+#define REG_USB2_PHY_ADR	0xfe40
+#define REG_USB2_PHY_DAT	0xfe41
+#define REG_USB2_PHY_CMD	0xfe42
+#define BIT_USB2_PHY_CMD_TRG	0x81
 #define REG_USB_HRPWM	0xfe58
+#define REG_USB3_PHY_ADR	0xff0c
+#define REG_USB3_PHY_DAT_L	0xff0d
+#define REG_USB3_PHY_DAT_H	0xff0e
+#define BIT_USB3_PHY_ADR_WR	BIT(7)
+#define BIT_USB3_PHY_ADR_RD	BIT(6)
+#define BIT_USB3_PHY_ADR_MASK	GENMASK(5, 0)
 
 #define RF_MODE		0x00
 #define RF_MODOPT	0x01

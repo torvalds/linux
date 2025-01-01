@@ -1128,6 +1128,71 @@ static int rtw_usb_switch_mode(struct rtw_dev *rtwdev)
 		return rtw_usb_switch_mode_new(rtwdev);
 }
 
+#define USB_REG_PAGE	0xf4
+#define USB_PHY_PAGE0	0x9b
+#define USB_PHY_PAGE1	0xbb
+
+static void rtw_usb_phy_write(struct rtw_dev *rtwdev, u8 addr, u16 data,
+			      enum usb_device_speed speed)
+{
+	if (speed == USB_SPEED_SUPER) {
+		rtw_write8(rtwdev, REG_USB3_PHY_DAT_L, data & 0xff);
+		rtw_write8(rtwdev, REG_USB3_PHY_DAT_H, data >> 8);
+		rtw_write8(rtwdev, REG_USB3_PHY_ADR, addr | BIT_USB3_PHY_ADR_WR);
+	} else if (speed == USB_SPEED_HIGH) {
+		rtw_write8(rtwdev, REG_USB2_PHY_DAT, data);
+		rtw_write8(rtwdev, REG_USB2_PHY_ADR, addr);
+		rtw_write8(rtwdev, REG_USB2_PHY_CMD, BIT_USB2_PHY_CMD_TRG);
+	}
+}
+
+static void rtw_usb_page_switch(struct rtw_dev *rtwdev,
+				enum usb_device_speed speed, u8 page)
+{
+	if (speed == USB_SPEED_SUPER)
+		return;
+
+	rtw_usb_phy_write(rtwdev, USB_REG_PAGE, page, speed);
+}
+
+static void rtw_usb_phy_cfg(struct rtw_dev *rtwdev,
+			    enum usb_device_speed speed)
+{
+	const struct rtw_intf_phy_para *para = NULL;
+	u16 offset;
+
+	if (!rtwdev->chip->intf_table)
+		return;
+
+	if (speed == USB_SPEED_SUPER)
+		para = rtwdev->chip->intf_table->usb3_para;
+	else if (speed == USB_SPEED_HIGH)
+		para = rtwdev->chip->intf_table->usb2_para;
+
+	if (!para)
+		return;
+
+	for ( ; para->offset != 0xffff; para++) {
+		if (!(para->cut_mask & BIT(rtwdev->hal.cut_version)))
+			continue;
+
+		offset = para->offset;
+
+		if (para->ip_sel == RTW_IP_SEL_MAC) {
+			rtw_write8(rtwdev, offset, para->value);
+		} else {
+			if (offset > 0x100)
+				rtw_usb_page_switch(rtwdev, speed, USB_PHY_PAGE1);
+			else
+				rtw_usb_page_switch(rtwdev, speed, USB_PHY_PAGE0);
+
+			offset &= 0xff;
+
+			rtw_usb_phy_write(rtwdev, offset, para->value, speed);
+		}
+	}
+}
+
 int rtw_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	struct rtw_dev *rtwdev;
@@ -1182,6 +1247,9 @@ int rtw_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		rtw_err(rtwdev, "failed to setup chip information\n");
 		goto err_destroy_rxwq;
 	}
+
+	rtw_usb_phy_cfg(rtwdev, USB_SPEED_HIGH);
+	rtw_usb_phy_cfg(rtwdev, USB_SPEED_SUPER);
 
 	ret = rtw_usb_switch_mode(rtwdev);
 	if (ret) {
