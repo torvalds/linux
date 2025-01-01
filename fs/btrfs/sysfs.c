@@ -1307,14 +1307,33 @@ BTRFS_ATTR(, temp_fsid, btrfs_temp_fsid_show);
 
 static const char * const btrfs_read_policy_name[] = { "pid" };
 
-static int btrfs_read_policy_to_enum(const char *str)
+static int btrfs_read_policy_to_enum(const char *str, s64 *value_ret)
 {
 	char param[32] = { 0 };
+	char __maybe_unused *value_str;
 
 	if (!str || strlen(str) == 0)
 		return 0;
 
 	strncpy(param, str, sizeof(param) - 1);
+
+#ifdef CONFIG_BTRFS_EXPERIMENTAL
+	/* Separate value from input in policy:value format. */
+	value_str = strchr(param, ':');
+	if (value_str) {
+		int ret;
+
+		*value_str = 0;
+		value_str++;
+		if (!value_ret)
+			return -EINVAL;
+		ret = kstrtos64(value_str, 10, value_ret);
+		if (ret)
+			return -EINVAL;
+		if (*value_ret < 0)
+			return -ERANGE;
+	}
+#endif
 
 	return sysfs_match_string(btrfs_read_policy_name, param);
 }
@@ -1351,8 +1370,9 @@ static ssize_t btrfs_read_policy_store(struct kobject *kobj,
 {
 	struct btrfs_fs_devices *fs_devices = to_fs_devs(kobj);
 	int index;
+	s64 value = -1;
 
-	index = btrfs_read_policy_to_enum(buf);
+	index = btrfs_read_policy_to_enum(buf, &value);
 	if (index < 0)
 		return -EINVAL;
 
