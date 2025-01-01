@@ -2220,7 +2220,7 @@ enum ieee80211_key_flags {
  * @tx_pn: PN used for TX keys, may be used by the driver as well if it
  *	needs to do software PN assignment by itself (e.g. due to TSO)
  * @flags: key flags, see &enum ieee80211_key_flags.
- * @keyidx: the key index (0-3)
+ * @keyidx: the key index (0-7)
  * @keylen: key material length
  * @key: key material. For ALG_TKIP the key is encoded as a 256-bit (32 byte)
  * 	data block:
