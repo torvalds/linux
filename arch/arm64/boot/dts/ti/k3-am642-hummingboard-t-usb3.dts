@@ -2,15 +2,18 @@
 /*
  * Copyright (C) 2023 Josua Mayer <josua@solid-run.com>
  *
- * Overlay for SolidRun AM642 HummingBoard-T to enable USB-3.1.
+ * DTS for SolidRun AM642 HummingBoard-T,
+ * running on Cortex A53, with USB-3.1 Gen 1.
+ *
  */
 
-/dts-v1/;
-/plugin/;
-
-#include <dt-bindings/phy/phy.h>
+#include "k3-am642-hummingboard-t.dts"
 
 #include "k3-serdes.h"
+
+/ {
+	model = "SolidRun AM642 HummingBoard-T with USB-3.1 Gen 1";
+};
 
 &serdes0 {
 	#address-cells = <1>;
