@@ -229,23 +229,25 @@ int amdgpu_userq_fence_create(struct amdgpu_usermode_queue *userq,
 		unsigned long index, count = 0;
 		int i = 0;
 
+		xa_lock(&userq->fence_drv_xa);
 		xa_for_each(&userq->fence_drv_xa, index, stored_fence_drv)
 			count++;
 
 		userq_fence->fence_drv_array =
 			kvmalloc_array(count,
 				       sizeof(struct amdgpu_userq_fence_driver *),
-				       GFP_KERNEL);
+				       GFP_ATOMIC);
 
 		if (userq_fence->fence_drv_array) {
 			xa_for_each(&userq->fence_drv_xa, index, stored_fence_drv) {
 				userq_fence->fence_drv_array[i] = stored_fence_drv;
-				xa_erase(&userq->fence_drv_xa, index);
+				__xa_erase(&userq->fence_drv_xa, index);
 				i++;
 			}
 		}
 
 		userq_fence->fence_drv_array_count = i;
+		xa_unlock(&userq->fence_drv_xa);
 	} else {
 		userq_fence->fence_drv_array = NULL;
 		userq_fence->fence_drv_array_count = 0;
