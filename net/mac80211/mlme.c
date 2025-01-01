@@ -4628,6 +4628,7 @@ static void ieee80211_rx_mgmt_disassoc(struct ieee80211_sub_if_data *sdata,
 static void ieee80211_get_rates(struct ieee80211_supported_band *sband,
 				u8 *supp_rates, unsigned int supp_rates_len,
 				u32 *rates, u32 *basic_rates,
+				unsigned long *unknown_rates_selectors,
 				bool *have_higher_than_11mbit,
 				int *min_rate, int *min_rate_index)
 {
@@ -4637,7 +4638,7 @@ static void ieee80211_get_rates(struct ieee80211_supported_band *sband,
 		int rate = supp_rates[i] & 0x7f;
 		bool is_basic = !!(supp_rates[i] & 0x80);
 
-		if ((rate * 5) > 110)
+		if ((rate * 5) > 110 && have_higher_than_11mbit)
 			*have_higher_than_11mbit = true;
 
 		/*
@@ -4647,8 +4648,11 @@ static void ieee80211_get_rates(struct ieee80211_supported_band *sband,
 		 *	 rate flag share the same bit, they are not exactly
 		 *	 the same.
 		 */
-		if (supp_rates[i] >= (0x80 | BSS_MEMBERSHIP_SELECTOR_MIN))
+		if (is_basic && rate >= BSS_MEMBERSHIP_SELECTOR_MIN) {
+			if (unknown_rates_selectors)
+				set_bit(rate, unknown_rates_selectors);
 			continue;
+		}
 
 		for (j = 0; j < sband->n_bitrates; j++) {
 			struct ieee80211_rate *br;
@@ -4658,16 +4662,22 @@ static void ieee80211_get_rates(struct ieee80211_supported_band *sband,
 
 			brate = DIV_ROUND_UP(br->bitrate, 5);
 			if (brate == rate) {
-				*rates |= BIT(j);
-				if (is_basic)
+				if (rates)
+					*rates |= BIT(j);
+				if (is_basic && basic_rates)
 					*basic_rates |= BIT(j);
-				if ((rate * 5) < *min_rate) {
+				if (min_rate && (rate * 5) < *min_rate) {
 					*min_rate = rate * 5;
-					*min_rate_index = j;
+					if (min_rate_index)
+						*min_rate_index = j;
 				}
 				break;
 			}
 		}
+
+		/* Handle an unknown entry as if it is an unknown selector */
+		if (is_basic && unknown_rates_selectors && j == sband->n_bitrates)
+			set_bit(rate, unknown_rates_selectors);
 	}
 }
 
@@ -5142,7 +5152,8 @@ static int ieee80211_mgd_setup_link_sta(struct ieee80211_link_data *link,
 	sband = local->hw.wiphy->bands[cbss->channel->band];
 
 	ieee80211_get_rates(sband, bss->supp_rates, bss->supp_rates_len,
-			    &rates, &basic_rates, &have_higher_than_11mbit,
+			    &rates, &basic_rates, NULL,
+			    &have_higher_than_11mbit,
 			    &min_rate, &min_rate_index);
 
 	/*
