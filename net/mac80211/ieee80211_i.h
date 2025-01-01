@@ -404,6 +404,8 @@ struct ieee80211_mgd_auth_data {
 	int tries;
 	u16 algorithm, expected_transaction;
 
+	unsigned long userspace_selectors[BITS_TO_LONGS(128)];
+
 	u8 key[WLAN_KEY_LEN_WEP104];
 	u8 key_len, key_idx;
 	bool done, waiting;
@@ -443,6 +445,8 @@ struct ieee80211_mgd_assoc_data {
 	/* this is for a workaround, so we use it only for non-MLO */
 	const u8 *supp_rates;
 	u8 supp_rates_len;
+
+	unsigned long userspace_selectors[BITS_TO_LONGS(128)];
 
 	unsigned long timeout;
 	int tries;
