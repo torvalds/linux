@@ -296,6 +296,9 @@ enum btrfs_chunk_allocation_policy {
 	BTRFS_CHUNK_ALLOC_ZONED,
 };
 
+#define BTRFS_DEFAULT_RR_MIN_CONTIG_READ	(SZ_256K)
+/* Keep in sync with raid_attr table, current maximum is RAID1C4. */
+#define BTRFS_RAID1_MAX_MIRRORS			(4)
 /*
  * Read policies for mirrored block group profiles, read picks the stripe based
  * on these policies.
@@ -303,6 +306,10 @@ enum btrfs_chunk_allocation_policy {
 enum btrfs_read_policy {
 	/* Use process PID to choose the stripe */
 	BTRFS_READ_POLICY_PID,
+#ifdef CONFIG_BTRFS_EXPERIMENTAL
+	/* Balancing RAID1 reads across all striped devices (round-robin). */
+	BTRFS_READ_POLICY_RR,
+#endif
 	BTRFS_NR_READ_POLICY,
 };
 
@@ -433,6 +440,12 @@ struct btrfs_fs_devices {
 	enum btrfs_read_policy read_policy;
 
 #ifdef CONFIG_BTRFS_EXPERIMENTAL
+	/*
+	 * Minimum contiguous reads before switching to next device, the unit
+	 * is one block/sectorsize.
+	 */
+	u32 rr_min_contig_read;
+
 	/* Checksum mode - offload it or do it synchronously. */
 	enum btrfs_offload_csum_mode offload_csum_mode;
 #endif

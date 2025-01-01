@@ -1329,6 +1329,9 @@ static int open_fs_devices(struct btrfs_fs_devices *fs_devices,
 	fs_devices->total_rw_bytes = 0;
 	fs_devices->chunk_alloc_policy = BTRFS_CHUNK_ALLOC_REGULAR;
 	fs_devices->read_policy = BTRFS_READ_POLICY_PID;
+#ifdef CONFIG_BTRFS_EXPERIMENTAL
+	fs_devices->rr_min_contig_read = BTRFS_DEFAULT_RR_MIN_CONTIG_READ;
+#endif
 
 	return 0;
 }
@@ -5953,6 +5956,63 @@ unsigned long btrfs_full_stripe_len(struct btrfs_fs_info *fs_info,
 	return len;
 }
 
+#ifdef CONFIG_BTRFS_EXPERIMENTAL
+struct stripe_mirror {
+	u64 devid;
+	int num;
+};
+
+static int btrfs_cmp_devid(const void *a, const void *b)
+{
+	const struct stripe_mirror *s1 = (const struct stripe_mirror *)a;
+	const struct stripe_mirror *s2 = (const struct stripe_mirror *)b;
+
+	if (s1->devid < s2->devid)
+		return -1;
+	if (s1->devid > s2->devid)
+		return 1;
+	return 0;
+}
+
+/*
+ * Select a stripe for reading using the round-robin algorithm.
+ *
+ *  1. Compute the read cycle as the total sectors read divided by the minimum
+ *     sectors per device.
+ *  2. Determine the stripe number for the current read by taking the modulus
+ *     of the read cycle with the total number of stripes:
+ *
+ *      stripe index = (total sectors / min sectors per dev) % num stripes
+ *
+ * The calculated stripe index is then used to select the corresponding device
+ * from the list of devices, which is ordered by devid.
+ */
+static int btrfs_read_rr(const struct btrfs_chunk_map *map, int first, int num_stripes)
+{
+	struct stripe_mirror stripes[BTRFS_RAID1_MAX_MIRRORS] = { 0 };
+	struct btrfs_device *device  = map->stripes[first].dev;
+	struct btrfs_fs_info *fs_info = device->fs_devices->fs_info;
+	unsigned int read_cycle;
+	unsigned int total_reads;
+	unsigned int min_reads_per_dev;
+
+	total_reads = percpu_counter_sum(&fs_info->stats_read_blocks);
+	min_reads_per_dev = READ_ONCE(fs_info->fs_devices->rr_min_contig_read) >>
+						       fs_info->sectorsize_bits;
+
+	for (int index = 0, i = first; i < first + num_stripes; i++) {
+		stripes[index].devid = map->stripes[i].dev->devid;
+		stripes[index].num = i;
+		index++;
+	}
+	sort(stripes, num_stripes, sizeof(struct stripe_mirror),
+	     btrfs_cmp_devid, NULL);
+
+	read_cycle = total_reads / min_reads_per_dev;
+	return stripes[read_cycle % num_stripes].num;
+}
+#endif
+
 static int find_live_mirror(struct btrfs_fs_info *fs_info,
 			    struct btrfs_chunk_map *map, int first,
 			    int dev_replace_is_ongoing)
@@ -5982,6 +6042,11 @@ static int find_live_mirror(struct btrfs_fs_info *fs_info,
 	case BTRFS_READ_POLICY_PID:
 		preferred_mirror = first + (current->pid % num_stripes);
 		break;
+#ifdef CONFIG_BTRFS_EXPERIMENTAL
+	case BTRFS_READ_POLICY_RR:
+		preferred_mirror = btrfs_read_rr(map, first, num_stripes);
+		break;
+#endif
 	}
 
 	if (dev_replace_is_ongoing &&
