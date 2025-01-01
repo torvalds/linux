@@ -13,3 +13,6 @@ KCOV_INSTRUMENT_core.o	:= n
 # With some compiler versions the generated code results in boot hangs, caused
 # by several compilation units. To be safe, disable all instrumentation.
 KCSAN_SANITIZE		:= n
+
+# Clang 14 and older may fail to respect __no_sanitize_undefined when inlining
+UBSAN_SANITIZE		:= n
