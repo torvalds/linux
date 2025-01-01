@@ -2590,6 +2590,45 @@ TRACE_EVENT(drv_change_sta_links,
  * Tracing for API calls that drivers call.
  */
 
+TRACE_EVENT(api_return_bool,
+	TP_PROTO(struct ieee80211_local *local, bool result),
+
+	TP_ARGS(local, result),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		__field(bool, result)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		__entry->result = result;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT " result=%d",
+		LOCAL_PR_ARG, __entry->result
+	)
+);
+
+TRACE_EVENT(api_return_void,
+	TP_PROTO(struct ieee80211_local *local),
+
+	TP_ARGS(local),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT, LOCAL_PR_ARG
+	)
+);
+
 TRACE_EVENT(api_start_tx_ba_session,
 	TP_PROTO(struct ieee80211_sta *sta, u16 tid),
 
@@ -3051,6 +3090,65 @@ TRACE_EVENT(api_request_smps,
 	TP_printk(
 		LOCAL_PR_FMT " " VIF_PR_FMT " link:%d, smps_mode:%d",
 		LOCAL_PR_ARG, VIF_PR_ARG, __entry->link_id, __entry->smps_mode
+	)
+);
+
+TRACE_EVENT(api_prepare_rx_omi_bw,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct link_sta_info *link_sta,
+		 enum ieee80211_sta_rx_bandwidth bw),
+
+	TP_ARGS(local, sdata, link_sta, bw),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		STA_ENTRY
+		__field(int, link_id)
+		__field(u32, bw)
+		__field(bool, result)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		STA_NAMED_ASSIGN(link_sta->sta);
+		__entry->link_id = link_sta->link_id;
+		__entry->bw = bw;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT " " VIF_PR_FMT " " STA_PR_FMT " link:%d, bw:%d",
+		LOCAL_PR_ARG, VIF_PR_ARG, STA_PR_ARG,
+		__entry->link_id, __entry->bw
+	)
+);
+
+TRACE_EVENT(api_finalize_rx_omi_bw,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct link_sta_info *link_sta),
+
+	TP_ARGS(local, sdata, link_sta),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		STA_ENTRY
+		__field(int, link_id)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		STA_NAMED_ASSIGN(link_sta->sta);
+		__entry->link_id = link_sta->link_id;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT " " VIF_PR_FMT " " STA_PR_FMT " link:%d",
+		LOCAL_PR_ARG, VIF_PR_ARG, STA_PR_ARG, __entry->link_id
 	)
 );
 

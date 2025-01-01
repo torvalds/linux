@@ -509,6 +509,24 @@ static int sta_info_alloc_link(struct ieee80211_local *local,
 	for (i = 0; i < ARRAY_SIZE(link_info->rx_stats_avg.chain_signal); i++)
 		ewma_signal_init(&link_info->rx_stats_avg.chain_signal[i]);
 
+	link_info->rx_omi_bw_rx = IEEE80211_STA_RX_BW_MAX;
+	link_info->rx_omi_bw_tx = IEEE80211_STA_RX_BW_MAX;
+	link_info->rx_omi_bw_staging = IEEE80211_STA_RX_BW_MAX;
+
+	/*
+	 * Cause (a) warning(s) if IEEE80211_STA_RX_BW_MAX != 320
+	 * or if new values are added to the enum.
+	 */
+	switch (link_info->cur_max_bandwidth) {
+	case IEEE80211_STA_RX_BW_20:
+	case IEEE80211_STA_RX_BW_40:
+	case IEEE80211_STA_RX_BW_80:
+	case IEEE80211_STA_RX_BW_160:
+	case IEEE80211_STA_RX_BW_MAX:
+		/* intentionally nothing */
+		break;
+	}
+
 	return 0;
 }
 
