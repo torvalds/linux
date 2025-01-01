@@ -757,7 +757,6 @@ struct rtw_sta_info {
 	u8 mac_id;
 	u8 rate_id;
 	enum rtw_bandwidth bw_mode;
-	enum rtw_rf_type rf_type;
 	u8 stbc_en:2;
 	u8 ldpc_en:2;
 	bool sgi_enable;
