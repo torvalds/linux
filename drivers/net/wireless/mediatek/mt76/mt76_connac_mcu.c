@@ -369,10 +369,11 @@ void mt76_connac_mcu_bss_omac_tlv(struct sk_buff *skb,
 EXPORT_SYMBOL_GPL(mt76_connac_mcu_bss_omac_tlv);
 
 void mt76_connac_mcu_sta_basic_tlv(struct mt76_dev *dev, struct sk_buff *skb,
-				   struct ieee80211_vif *vif,
+				   struct ieee80211_bss_conf *link_conf,
 				   struct ieee80211_link_sta *link_sta,
 				   int conn_state, bool newly)
 {
+	struct ieee80211_vif *vif = link_conf->vif;
 	struct sta_rec_basic *basic;
 	struct tlv *tlv;
 	int conn_type;
@@ -390,8 +391,8 @@ void mt76_connac_mcu_sta_basic_tlv(struct mt76_dev *dev, struct sk_buff *skb,
 		basic->conn_type = cpu_to_le32(CONNECTION_INFRA_BC);
 
 		if (vif->type == NL80211_IFTYPE_STATION &&
-		    !is_zero_ether_addr(vif->bss_conf.bssid)) {
-			memcpy(basic->peer_addr, vif->bss_conf.bssid, ETH_ALEN);
+		    !is_zero_ether_addr(link_conf->bssid)) {
+			memcpy(basic->peer_addr, link_conf->bssid, ETH_ALEN);
 			basic->aid = cpu_to_le16(vif->cfg.aid);
 		} else {
 			eth_broadcast_addr(basic->peer_addr);
@@ -1049,6 +1050,9 @@ int mt76_connac_mcu_sta_cmd(struct mt76_phy *phy,
 	struct sk_buff *skb;
 	int conn_state;
 
+	if (!info->link_conf)
+		info->link_conf = &info->vif->bss_conf;
+
 	skb = mt76_connac_mcu_alloc_sta_req(dev, mvif, info->wcid);
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
@@ -1057,7 +1061,7 @@ int mt76_connac_mcu_sta_cmd(struct mt76_phy *phy,
 				    CONN_STATE_DISCONNECT;
 	link_sta = info->sta ? &info->sta->deflink : NULL;
 	if (info->sta || !info->offload_fw)
-		mt76_connac_mcu_sta_basic_tlv(dev, skb, info->vif,
+		mt76_connac_mcu_sta_basic_tlv(dev, skb, info->link_conf,
 					      link_sta, conn_state,
 					      info->newly);
 	if (info->sta && info->enable)

@@ -1820,7 +1820,7 @@ mt7925_mcu_sta_cmd(struct mt76_phy *phy,
 	conn_state = info->enable ? CONN_STATE_PORT_SECURE :
 				    CONN_STATE_DISCONNECT;
 	if (info->link_sta)
-		mt76_connac_mcu_sta_basic_tlv(dev, skb, info->vif,
+		mt76_connac_mcu_sta_basic_tlv(dev, skb, info->link_conf,
 					      info->link_sta,
 					      conn_state, info->newly);
 	if (info->link_sta && info->enable) {
@@ -1874,7 +1874,7 @@ mt7925_mcu_mlo_sta_cmd(struct mt76_phy *phy,
 		return PTR_ERR(skb);
 
 	if (info->enable)
-		mt76_connac_mcu_sta_basic_tlv(dev, skb, info->vif,
+		mt76_connac_mcu_sta_basic_tlv(dev, skb, info->link_conf,
 					      info->link_sta,
 					      info->enable, info->newly);
 
@@ -1920,6 +1920,7 @@ int mt7925_mcu_sta_update(struct mt792x_dev *dev,
 	struct mt76_sta_cmd_info info = {
 		.link_sta = link_sta,
 		.vif = vif,
+		.link_conf = &vif->bss_conf,
 		.enable = enable,
 		.cmd = MCU_UNI_CMD(STA_REC_UPDATE),
 		.state = state,
