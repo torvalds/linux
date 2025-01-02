@@ -439,6 +439,9 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
 
 	wiphy->available_antennas_rx = phy->mt76->antenna_mask;
 	wiphy->available_antennas_tx = phy->mt76->antenna_mask;
+
+	wiphy->max_scan_ssids = 4;
+	wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
 }
 
 static void
