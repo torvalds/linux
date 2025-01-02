@@ -61,7 +61,7 @@ static int amdxdna_drm_open(struct drm_device *ddev, struct drm_file *filp)
 		goto put_rpm;
 	}
 
-	client->pid = pid_nr(filp->pid);
+	client->pid = pid_nr(rcu_access_pointer(filp->pid));
 	client->xdna = xdna;
 
 	client->sva = iommu_sva_bind_device(xdna->ddev.dev, current->mm);
