@@ -18,6 +18,7 @@ static void mt76_scan_complete(struct mt76_dev *dev, bool abort)
 
 	if (dev->scan.chan && phy->main_chandef.chan)
 		mt76_set_channel(phy, &phy->main_chandef, false);
+	mt76_put_vif_phy_link(phy, dev->scan.vif, dev->scan.mlink);
 	memset(&dev->scan, 0, sizeof(dev->scan));
 	ieee80211_scan_completed(phy->hw, &info);
 }
@@ -33,7 +34,7 @@ mt76_scan_send_probe(struct mt76_dev *dev, struct cfg80211_ssid *ssid)
 {
 	struct cfg80211_scan_request *req = dev->scan.req;
 	struct ieee80211_vif *vif = dev->scan.vif;
-	struct mt76_vif_link *mvif = (struct mt76_vif_link *)vif->drv_priv;
+	struct mt76_vif_link *mvif = dev->scan.mlink;
 	enum nl80211_band band = dev->scan.chan->band;
 	struct mt76_phy *phy = dev->scan.phy;
 	struct ieee80211_tx_info *info;
@@ -122,6 +123,7 @@ int mt76_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct mt76_phy *phy = hw->priv;
 	struct mt76_dev *dev = phy->dev;
+	struct mt76_vif_link *mlink;
 	int ret = 0;
 
 	if (hw->wiphy->n_radio > 1) {
@@ -137,10 +139,17 @@ int mt76_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		goto out;
 	}
 
+	mlink = mt76_get_vif_phy_link(phy, vif);
+	if (IS_ERR(mlink)) {
+		ret = PTR_ERR(mlink);
+		goto out;
+	}
+
 	memset(&dev->scan, 0, sizeof(dev->scan));
 	dev->scan.req = &req->req;
 	dev->scan.vif = vif;
 	dev->scan.phy = phy;
+	dev->scan.mlink = mlink;
 	ieee80211_queue_delayed_work(dev->phy.hw, &dev->scan_work, 0);
 
 out:

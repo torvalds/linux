@@ -4,6 +4,20 @@
  */
 #include "mt76.h"
 
+static struct mt76_vif_link *
+mt76_alloc_mlink(struct mt76_dev *dev, struct mt76_vif_data *mvif)
+{
+	struct mt76_vif_link *mlink;
+
+	mlink = kzalloc(dev->drv->link_data_size, GFP_KERNEL);
+	if (!mlink)
+		return NULL;
+
+	mlink->mvif = mvif;
+
+	return mlink;
+}
+
 static int
 mt76_phy_update_channel(struct mt76_phy *phy,
 			struct ieee80211_chanctx_conf *conf)
@@ -108,7 +122,7 @@ int mt76_assign_vif_chanctx(struct ieee80211_hw *hw,
 
 	mlink = mt76_vif_conf_link(dev, vif, link_conf);
 	if (!mlink) {
-		mlink = kzalloc(dev->drv->link_data_size, GFP_KERNEL);
+		mlink = mt76_alloc_mlink(dev, mvif);
 		if (!mlink) {
 			ret = -ENOMEM;
 			goto out;
@@ -248,3 +262,49 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(mt76_switch_vif_chanctx);
+
+struct mt76_vif_link *mt76_get_vif_phy_link(struct mt76_phy *phy,
+					    struct ieee80211_vif *vif)
+{
+	struct mt76_vif_link *mlink = (struct mt76_vif_link *)vif->drv_priv;
+	struct mt76_vif_data *mvif = mlink->mvif;
+	struct mt76_dev *dev = phy->dev;
+	int i, ret;
+
+	for (i = 0; i < ARRAY_SIZE(mvif->link); i++) {
+		mlink = mt76_dereference(mvif->link[i], dev);
+		if (!mlink)
+			continue;
+
+		if (mt76_vif_link_phy(mlink) == phy)
+			return mlink;
+	}
+
+	if (!dev->drv->vif_link_add)
+		return ERR_PTR(-EINVAL);
+
+	mlink = mt76_alloc_mlink(dev, mvif);
+	if (!mlink)
+		return ERR_PTR(-ENOMEM);
+
+	mlink->offchannel = true;
+	ret = dev->drv->vif_link_add(phy, vif, &vif->bss_conf, mlink);
+	if (ret) {
+		kfree(mlink);
+		return ERR_PTR(ret);
+	}
+
+	return mlink;
+}
+
+void mt76_put_vif_phy_link(struct mt76_phy *phy, struct ieee80211_vif *vif,
+			   struct mt76_vif_link *mlink)
+{
+	struct mt76_dev *dev = phy->dev;
+
+	if (IS_ERR_OR_NULL(mlink) || !mlink->offchannel)
+		return;
+
+	dev->drv->vif_link_remove(phy, vif, &vif->bss_conf, mlink);
+	kfree(mlink);
+}

@@ -777,6 +777,7 @@ struct mt76_vif_link {
 	u8 basic_rates_idx;
 	u8 mcast_rates_idx;
 	u8 beacon_rates_idx;
+	bool offchannel;
 	struct ieee80211_chanctx_conf *ctx;
 	struct mt76_wcid *wcid;
 	struct mt76_vif_data *mvif;
@@ -942,6 +943,7 @@ struct mt76_dev {
 		struct cfg80211_scan_request *req;
 		struct ieee80211_channel *chan;
 		struct ieee80211_vif *vif;
+		struct mt76_vif_link *mlink;
 		struct mt76_phy *phy;
 		int chan_idx;
 	} scan;
@@ -1570,6 +1572,10 @@ int mt76_set_channel(struct mt76_phy *phy, struct cfg80211_chan_def *chandef,
 		     bool offchannel);
 void mt76_scan_work(struct work_struct *work);
 void mt76_abort_scan(struct mt76_dev *dev);
+struct mt76_vif_link *mt76_get_vif_phy_link(struct mt76_phy *phy,
+					    struct ieee80211_vif *vif);
+void mt76_put_vif_phy_link(struct mt76_phy *phy, struct ieee80211_vif *vif,
+			   struct mt76_vif_link *mlink);
 
 /* usb */
 static inline bool mt76u_urb_error(struct urb *urb)
