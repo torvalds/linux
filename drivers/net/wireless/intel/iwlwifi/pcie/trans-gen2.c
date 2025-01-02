@@ -146,9 +146,9 @@ static void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans)
 	if (trans_pcie->is_down)
 		return;
 
-	if (trans->state >= IWL_TRANS_FW_STARTED)
-		if (trans_pcie->fw_reset_handshake)
-			iwl_trans_pcie_fw_reset_handshake(trans);
+	if (trans->state >= IWL_TRANS_FW_STARTED &&
+	    trans_pcie->fw_reset_handshake)
+		iwl_trans_pcie_fw_reset_handshake(trans);
 
 	trans_pcie->is_down = true;
 
