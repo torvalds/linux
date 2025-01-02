@@ -13,6 +13,7 @@
 
 #include "iwl-trans.h"
 #include "iwl-nvm-utils.h"
+#include "iwl-utils.h"
 #include "mvm.h"
 #include "sta.h"
 #include "time-sync.h"
@@ -938,78 +939,6 @@ unsigned int iwl_mvm_max_amsdu_size(struct iwl_mvm *mvm,
 
 #ifdef CONFIG_INET
 
-static int
-iwl_mvm_tx_tso_segment(struct sk_buff *skb, unsigned int num_subframes,
-		       netdev_features_t netdev_flags,
-		       struct sk_buff_head *mpdus_skb)
-{
-	struct sk_buff *tmp, *next;
-	struct ieee80211_hdr *hdr = (void *)skb->data;
-	char cb[sizeof(skb->cb)];
-	u16 i = 0;
-	unsigned int tcp_payload_len;
-	unsigned int mss = skb_shinfo(skb)->gso_size;
-	bool ipv4 = (skb->protocol == htons(ETH_P_IP));
-	bool qos = ieee80211_is_data_qos(hdr->frame_control);
-	u16 ip_base_id = ipv4 ? ntohs(ip_hdr(skb)->id) : 0;
-
-	skb_shinfo(skb)->gso_size = num_subframes * mss;
-	memcpy(cb, skb->cb, sizeof(cb));
-
-	next = skb_gso_segment(skb, netdev_flags);
-	skb_shinfo(skb)->gso_size = mss;
-	skb_shinfo(skb)->gso_type = ipv4 ? SKB_GSO_TCPV4 : SKB_GSO_TCPV6;
-
-	if (IS_ERR(next) && PTR_ERR(next) == -ENOMEM)
-		return -ENOMEM;
-
-	if (WARN_ONCE(IS_ERR(next),
-		      "skb_gso_segment error: %d\n", (int)PTR_ERR(next)))
-		return PTR_ERR(next);
-
-	if (next)
-		consume_skb(skb);
-
-	skb_list_walk_safe(next, tmp, next) {
-		memcpy(tmp->cb, cb, sizeof(tmp->cb));
-		/*
-		 * Compute the length of all the data added for the A-MSDU.
-		 * This will be used to compute the length to write in the TX
-		 * command. We have: SNAP + IP + TCP for n -1 subframes and
-		 * ETH header for n subframes.
-		 */
-		tcp_payload_len = skb_tail_pointer(tmp) -
-			skb_transport_header(tmp) -
-			tcp_hdrlen(tmp) + tmp->data_len;
-
-		if (ipv4)
-			ip_hdr(tmp)->id = htons(ip_base_id + i * num_subframes);
-
-		if (tcp_payload_len > mss) {
-			skb_shinfo(tmp)->gso_size = mss;
-			skb_shinfo(tmp)->gso_type = ipv4 ? SKB_GSO_TCPV4 :
-							   SKB_GSO_TCPV6;
-		} else {
-			if (qos) {
-				u8 *qc;
-
-				if (ipv4)
-					ip_send_check(ip_hdr(tmp));
-
-				qc = ieee80211_get_qos_ctl((void *)tmp->data);
-				*qc &= ~IEEE80211_QOS_CTL_A_MSDU_PRESENT;
-			}
-			skb_shinfo(tmp)->gso_size = 0;
-		}
-
-		skb_mark_not_on_list(tmp);
-		__skb_queue_tail(mpdus_skb, tmp);
-		i++;
-	}
-
-	return 0;
-}
-
 static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 			  struct ieee80211_tx_info *info,
 			  struct ieee80211_sta *sta,
@@ -1028,7 +957,7 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 	if (!mvmsta->max_amsdu_len ||
 	    !ieee80211_is_data_qos(hdr->frame_control) ||
 	    !mvmsta->amsdu_enabled)
-		return iwl_mvm_tx_tso_segment(skb, 1, netdev_flags, mpdus_skb);
+		return iwl_tx_tso_segment(skb, 1, netdev_flags, mpdus_skb);
 
 	/*
 	 * Do not build AMSDU for IPv6 with extension headers.
@@ -1038,7 +967,7 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 	    ((struct ipv6hdr *)skb_network_header(skb))->nexthdr !=
 	    IPPROTO_TCP) {
 		netdev_flags &= ~NETIF_F_CSUM_MASK;
-		return iwl_mvm_tx_tso_segment(skb, 1, netdev_flags, mpdus_skb);
+		return iwl_tx_tso_segment(skb, 1, netdev_flags, mpdus_skb);
 	}
 
 	tid = ieee80211_get_tid(hdr);
@@ -1052,7 +981,7 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 	if ((info->flags & IEEE80211_TX_CTL_AMPDU &&
 	     !mvmsta->tid_data[tid].amsdu_in_ampdu_allowed) ||
 	    !(mvmsta->amsdu_enabled & BIT(tid)))
-		return iwl_mvm_tx_tso_segment(skb, 1, netdev_flags, mpdus_skb);
+		return iwl_tx_tso_segment(skb, 1, netdev_flags, mpdus_skb);
 
 	/*
 	 * Take the min of ieee80211 station and mvm station
@@ -1110,8 +1039,7 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 	 * Trick the segmentation function to make it
 	 * create SKBs that can fit into one A-MSDU.
 	 */
-	return iwl_mvm_tx_tso_segment(skb, num_subframes, netdev_flags,
-				      mpdus_skb);
+	return iwl_tx_tso_segment(skb, num_subframes, netdev_flags, mpdus_skb);
 }
 #else /* CONFIG_INET */
 static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
