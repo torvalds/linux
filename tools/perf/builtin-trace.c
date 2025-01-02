@@ -2559,7 +2559,6 @@ static int trace__fprintf_sample(struct trace *trace, struct evsel *evsel,
 
 static void *syscall__augmented_args(struct syscall *sc, struct perf_sample *sample, int *augmented_args_size, int raw_augmented_args_size)
 {
-	void *augmented_args = NULL;
 	/*
 	 * For now with BPF raw_augmented we hook into raw_syscalls:sys_enter
 	 * and there we get all 6 syscall args plus the tracepoint common fields
@@ -2577,10 +2576,24 @@ static void *syscall__augmented_args(struct syscall *sc, struct perf_sample *sam
 	int args_size = raw_augmented_args_size ?: sc->args_size;
 
 	*augmented_args_size = sample->raw_size - args_size;
-	if (*augmented_args_size > 0)
-		augmented_args = sample->raw_data + args_size;
+	if (*augmented_args_size > 0) {
+		static uintptr_t argbuf[1024]; /* assuming single-threaded */
 
-	return augmented_args;
+		if ((size_t)(*augmented_args_size) > sizeof(argbuf))
+			return NULL;
+
+		/*
+		 * The perf ring-buffer is 8-byte aligned but sample->raw_data
+		 * is not because it's preceded by u32 size.  Later, beautifier
+		 * will use the augmented args with stricter alignments like in
+		 * some struct.  To make sure it's aligned, let's copy the args
+		 * into a static buffer as it's single-threaded for now.
+		 */
+		memcpy(argbuf, sample->raw_data + args_size, *augmented_args_size);
+
+		return argbuf;
+	}
+	return NULL;
 }
 
 static void syscall__exit(struct syscall *sc)
