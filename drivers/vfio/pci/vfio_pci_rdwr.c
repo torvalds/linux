@@ -237,6 +237,8 @@ ssize_t vfio_pci_bar_rw(struct vfio_pci_core_device *vdev, char __user *buf,
 
 	if (pci_resource_start(pdev, bar))
 		end = pci_resource_len(pdev, bar);
+	else if (bar == PCI_ROM_RESOURCE && pdev->rom && pdev->romlen)
+		end = roundup_pow_of_two(pdev->romlen);
 	else
 		return -EINVAL;
 
@@ -251,11 +253,14 @@ ssize_t vfio_pci_bar_rw(struct vfio_pci_core_device *vdev, char __user *buf,
 		 * excluded range at the end of the actual ROM.  This makes
 		 * filling large ROM BARs much faster.
 		 */
-		io = pci_map_rom(pdev, &x_start);
-		if (!io) {
-			done = -ENOMEM;
-			goto out;
+		if (pci_resource_start(pdev, bar)) {
+			io = pci_map_rom(pdev, &x_start);
+		} else {
+			io = ioremap(pdev->rom, pdev->romlen);
+			x_start = pdev->romlen;
 		}
+		if (!io)
+			return -ENOMEM;
 		x_end = end;
 	} else {
 		int ret = vfio_pci_core_setup_barmap(vdev, bar);
@@ -278,8 +283,13 @@ ssize_t vfio_pci_bar_rw(struct vfio_pci_core_device *vdev, char __user *buf,
 	if (done >= 0)
 		*ppos += done;
 
-	if (bar == PCI_ROM_RESOURCE)
-		pci_unmap_rom(pdev, io);
+	if (bar == PCI_ROM_RESOURCE) {
+		if (pci_resource_start(pdev, bar))
+			pci_unmap_rom(pdev, io);
+		else
+			iounmap(io);
+	}
+
 out:
 	return done;
 }
