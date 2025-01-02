@@ -41,6 +41,8 @@ extern unsigned long dac_mmap_min_addr;
 #define VM_BUG_ON(_expr) (BUG_ON(_expr))
 #define VM_BUG_ON_VMA(_expr, _vma) (BUG_ON(_expr))
 
+#define MMF_HAS_MDWE	28
+
 #define VM_NONE		0x00000000
 #define VM_READ		0x00000001
 #define VM_WRITE	0x00000002
@@ -226,6 +228,8 @@ struct mm_struct {
 	unsigned long stack_vm;	   /* VM_STACK */
 
 	unsigned long def_flags;
+
+	unsigned long flags; /* Must use atomic bitops to access */
 };
 
 struct vma_lock {
@@ -1183,6 +1187,67 @@ static inline int anon_vma_prepare(struct vm_area_struct *vma)
 static inline void userfaultfd_unmap_complete(struct mm_struct *mm,
 					      struct list_head *uf)
 {
+}
+
+/*
+ * Denies creating a writable executable mapping or gaining executable permissions.
+ *
+ * This denies the following:
+ *
+ *     a)      mmap(PROT_WRITE | PROT_EXEC)
+ *
+ *     b)      mmap(PROT_WRITE)
+ *             mprotect(PROT_EXEC)
+ *
+ *     c)      mmap(PROT_WRITE)
+ *             mprotect(PROT_READ)
+ *             mprotect(PROT_EXEC)
+ *
+ * But allows the following:
+ *
+ *     d)      mmap(PROT_READ | PROT_EXEC)
+ *             mmap(PROT_READ | PROT_EXEC | PROT_BTI)
+ *
+ * This is only applicable if the user has set the Memory-Deny-Write-Execute
+ * (MDWE) protection mask for the current process.
+ *
+ * @old specifies the VMA flags the VMA originally possessed, and @new the ones
+ * we propose to set.
+ *
+ * Return: false if proposed change is OK, true if not ok and should be denied.
+ */
+static inline bool map_deny_write_exec(unsigned long old, unsigned long new)
+{
+	/* If MDWE is disabled, we have nothing to deny. */
+	if (!test_bit(MMF_HAS_MDWE, &current->mm->flags))
+		return false;
+
+	/* If the new VMA is not executable, we have nothing to deny. */
+	if (!(new & VM_EXEC))
+		return false;
+
+	/* Under MDWE we do not accept newly writably executable VMAs... */
+	if (new & VM_WRITE)
+		return true;
+
+	/* ...nor previously non-executable VMAs becoming executable. */
+	if (!(old & VM_EXEC))
+		return true;
+
+	return false;
+}
+
+static inline int mapping_map_writable(struct address_space *mapping)
+{
+	int c = atomic_read(&mapping->i_mmap_writable);
+
+	/* Derived from the raw_atomic_inc_unless_negative() implementation. */
+	do {
+		if (c < 0)
+			return -EPERM;
+	} while (!__sync_bool_compare_and_swap(&mapping->i_mmap_writable, c, c+1));
+
+	return 0;
 }
 
 #endif	/* __MM_VMA_INTERNAL_H */

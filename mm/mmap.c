@@ -1072,65 +1072,6 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
 	return do_vmi_munmap(&vmi, mm, start, len, uf, false);
 }
 
-/**
- * mmap_region() - Actually perform the userland mapping of a VMA into
- * current->mm with known, aligned and overflow-checked @addr and @len, and
- * correctly determined VMA flags @vm_flags and page offset @pgoff.
- *
- * This is an internal memory management function, and should not be used
- * directly.
- *
- * The caller must write-lock current->mm->mmap_lock.
- *
- * @file: If a file-backed mapping, a pointer to the struct file describing the
- * file to be mapped, otherwise NULL.
- * @addr: The page-aligned address at which to perform the mapping.
- * @len: The page-aligned, non-zero, length of the mapping.
- * @vm_flags: The VMA flags which should be applied to the mapping.
- * @pgoff: If @file is specified, the page offset into the file, if not then
- * the virtual page offset in memory of the anonymous mapping.
- * @uf: Optionally, a pointer to a list head used for tracking userfaultfd unmap
- * events.
- *
- * Returns: Either an error, or the address at which the requested mapping has
- * been performed.
- */
-unsigned long mmap_region(struct file *file, unsigned long addr,
-			  unsigned long len, vm_flags_t vm_flags, unsigned long pgoff,
-			  struct list_head *uf)
-{
-	unsigned long ret;
-	bool writable_file_mapping = false;
-
-	mmap_assert_write_locked(current->mm);
-
-	/* Check to see if MDWE is applicable. */
-	if (map_deny_write_exec(vm_flags, vm_flags))
-		return -EACCES;
-
-	/* Allow architectures to sanity-check the vm_flags. */
-	if (!arch_validate_flags(vm_flags))
-		return -EINVAL;
-
-	/* Map writable and ensure this isn't a sealed memfd. */
-	if (file && is_shared_maywrite(vm_flags)) {
-		int error = mapping_map_writable(file->f_mapping);
-
-		if (error)
-			return error;
-		writable_file_mapping = true;
-	}
-
-	ret = __mmap_region(file, addr, len, vm_flags, pgoff, uf);
-
-	/* Clear our write mapping regardless of error. */
-	if (writable_file_mapping)
-		mapping_unmap_writable(file->f_mapping);
-
-	validate_mm(current->mm);
-	return ret;
-}
-
 int vm_munmap(unsigned long start, size_t len)
 {
 	return __vm_munmap(start, len, false);
