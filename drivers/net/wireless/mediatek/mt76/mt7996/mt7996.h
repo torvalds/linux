@@ -200,7 +200,7 @@ struct mt7996_sta {
 };
 
 struct mt7996_vif {
-	struct mt76_vif mt76; /* must be first */
+	struct mt76_vif_link mt76; /* must be first */
 
 	struct mt7996_sta sta;
 	struct mt7996_phy *phy;

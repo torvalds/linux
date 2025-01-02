@@ -166,7 +166,7 @@ struct mt7915_vif_cap {
 };
 
 struct mt7915_vif {
-	struct mt76_vif mt76; /* must be first */
+	struct mt76_vif_link mt76; /* must be first */
 
 	struct mt7915_vif_cap cap;
 	struct mt7915_sta sta;

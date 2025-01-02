@@ -33,7 +33,7 @@ mt76_scan_send_probe(struct mt76_dev *dev, struct cfg80211_ssid *ssid)
 {
 	struct cfg80211_scan_request *req = dev->scan.req;
 	struct ieee80211_vif *vif = dev->scan.vif;
-	struct mt76_vif *mvif = (struct mt76_vif *)vif->drv_priv;
+	struct mt76_vif_link *mvif = (struct mt76_vif_link *)vif->drv_priv;
 	enum nl80211_band band = dev->scan.chan->band;
 	struct mt76_phy *phy = dev->scan.phy;
 	struct ieee80211_tx_info *info;

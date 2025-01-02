@@ -754,7 +754,7 @@ struct mt76_testmode_data {
 	} rx_stats;
 };
 
-struct mt76_vif {
+struct mt76_vif_link {
 	u8 idx;
 	u8 omac_idx;
 	u8 band_idx;
