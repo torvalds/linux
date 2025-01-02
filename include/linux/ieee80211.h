@@ -1532,6 +1532,17 @@ struct ieee80211_mgmt {
 				struct {
 					u8 action_code;
 				} __packed ttlm_tear_down;
+				struct {
+					u8 action_code;
+					u8 dialog_token;
+					u8 variable[];
+				} __packed ml_reconf_req;
+				struct {
+					u8 action_code;
+					u8 dialog_token;
+					u8 count;
+					u8 variable[];
+				} __packed ml_reconf_resp;
 			} u;
 		} __packed action;
 		DECLARE_FLEX_ARRAY(u8, body); /* Generic frame body */

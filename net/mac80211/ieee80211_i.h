@@ -606,6 +606,15 @@ struct ieee80211_if_managed {
 	/* dialog token enumerator for neg TTLM request */
 	u8 dialog_token_alloc;
 	struct wiphy_delayed_work neg_ttlm_timeout_work;
+
+	/* Locally initiated multi-link reconfiguration */
+	struct {
+		struct ieee80211_mgd_assoc_data *add_links_data;
+		struct wiphy_delayed_work wk;
+		u16 removed_links;
+		u16 added_links;
+		u8 dialog_token;
+	} reconf;
 };
 
 struct ieee80211_if_ibss {
@@ -2768,6 +2777,12 @@ void ieee80211_check_wbrf_support(struct ieee80211_local *local);
 void ieee80211_add_wbrf(struct ieee80211_local *local, struct cfg80211_chan_def *chandef);
 void ieee80211_remove_wbrf(struct ieee80211_local *local, struct cfg80211_chan_def *chandef);
 
+int ieee80211_mgd_assoc_ml_reconf(struct ieee80211_sub_if_data *sdata,
+				  struct cfg80211_assoc_link *add_links,
+				  u16 rem_links);
+
+void ieee80211_process_ml_reconf_resp(struct ieee80211_sub_if_data *sdata,
+				      struct ieee80211_mgmt *mgmt, size_t len);
 #if IS_ENABLED(CONFIG_MAC80211_KUNIT_TEST)
 #define EXPORT_SYMBOL_IF_MAC80211_KUNIT(sym) EXPORT_SYMBOL_IF_KUNIT(sym)
 #define VISIBLE_IF_MAC80211_KUNIT

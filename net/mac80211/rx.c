@@ -3819,6 +3819,18 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 					      u.action.u.ttlm_res))
 				goto invalid;
 			goto queue;
+		case WLAN_PROTECTED_EHT_ACTION_LINK_RECONFIG_RESP:
+			if (sdata->vif.type != NL80211_IFTYPE_STATION)
+				break;
+
+			/* The reconfiguration response action frame must
+			 * least one 'Status Duple' entry (3 octets)
+			 */
+			if (len <
+			    offsetofend(typeof(*mgmt),
+					u.action.u.ml_reconf_resp) + 3)
+				goto invalid;
+			goto queue;
 		default:
 			break;
 		}
