@@ -1,0 +1,14 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
+
+CRASH_PROGRAM_ID=$1
+STACKDUMP_FILE=$2
+
+TMP=$(mktemp)
+
+for t in /proc/$CRASH_PROGRAM_ID/task/*; do
+	tid=$(basename $t)
+	cat /proc/$tid/stat | awk '{print $29}' >> $TMP
+done
+
+mv $TMP $STACKDUMP_FILE
