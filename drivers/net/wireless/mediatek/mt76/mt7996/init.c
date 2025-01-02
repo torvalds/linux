@@ -630,10 +630,6 @@ static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
 	if (ret)
 		goto error;
 
-	ret = mt7996_init_debugfs(phy);
-	if (ret)
-		goto error;
-
 	if (wed == &dev->mt76.mmio.wed_hif2 && mtk_wed_device_active(wed)) {
 		u32 irq_mask = dev->mt76.mmio.irqmask | MT_INT_TX_DONE_BAND2;
 
@@ -1458,7 +1454,7 @@ int mt7996_register_device(struct mt7996_dev *dev)
 
 	dev->recovery.hw_init_done = true;
 
-	ret = mt7996_init_debugfs(&dev->phy);
+	ret = mt7996_init_debugfs(dev);
 	if (ret)
 		goto error;
 
