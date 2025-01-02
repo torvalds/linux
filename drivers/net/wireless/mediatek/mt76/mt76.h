@@ -50,6 +50,8 @@ struct mt76_dev;
 struct mt76_phy;
 struct mt76_wcid;
 struct mt76s_intr;
+struct mt76_chanctx;
+struct mt76_vif_link;
 
 struct mt76_reg_pair {
 	u32 reg;
@@ -497,6 +499,8 @@ struct mt76_driver_ops {
 	u16 token_size;
 	u8 mcs_rates;
 
+	unsigned int link_data_size;
+
 	void (*update_survey)(struct mt76_phy *phy);
 	int (*set_channel)(struct mt76_phy *phy);
 
@@ -528,6 +532,15 @@ struct mt76_driver_ops {
 
 	void (*sta_remove)(struct mt76_dev *dev, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta);
+
+	int (*vif_link_add)(struct mt76_phy *phy, struct ieee80211_vif *vif,
+			    struct ieee80211_bss_conf *link_conf,
+			    struct mt76_vif_link *mlink);
+
+	void (*vif_link_remove)(struct mt76_phy *phy,
+				struct ieee80211_vif *vif,
+				struct ieee80211_bss_conf *link_conf,
+				struct mt76_vif_link *mlink);
 };
 
 struct mt76_channel_state {
@@ -793,6 +806,9 @@ struct mt76_phy {
 	struct cfg80211_chan_def chandef;
 	struct cfg80211_chan_def main_chandef;
 	bool offchannel;
+	bool radar_enabled;
+
+	struct mt76_chanctx *chanctx;
 
 	struct mt76_channel_state *chan_state;
 	enum mt76_dfs_state dfs_state;
@@ -837,6 +853,7 @@ struct mt76_phy {
 struct mt76_dev {
 	struct mt76_phy phy; /* must be first */
 	struct mt76_phy *phys[__MT_MAX_BAND];
+	struct mt76_phy *band_phys[NUM_NL80211_BANDS];
 
 	struct ieee80211_hw *hw;
 
@@ -1055,6 +1072,10 @@ struct mt76_ethtool_worker_info {
 	int initial_stat_idx;
 	int worker_stat_count;
 	int sta_count;
+};
+
+struct mt76_chanctx {
+	struct mt76_phy *phy;
 };
 
 #define CCK_RATE(_idx, _rate) {					\
@@ -1480,6 +1501,25 @@ void mt76_sw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 void mt76_sw_scan_complete(struct ieee80211_hw *hw,
 			   struct ieee80211_vif *vif);
 enum mt76_dfs_state mt76_phy_dfs_state(struct mt76_phy *phy);
+int mt76_add_chanctx(struct ieee80211_hw *hw,
+		     struct ieee80211_chanctx_conf *conf);
+void mt76_remove_chanctx(struct ieee80211_hw *hw,
+			 struct ieee80211_chanctx_conf *conf);
+void mt76_change_chanctx(struct ieee80211_hw *hw,
+			 struct ieee80211_chanctx_conf *conf,
+			 u32 changed);
+int mt76_assign_vif_chanctx(struct ieee80211_hw *hw,
+			    struct ieee80211_vif *vif,
+			    struct ieee80211_bss_conf *link_conf,
+			    struct ieee80211_chanctx_conf *conf);
+void mt76_unassign_vif_chanctx(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
+			       struct ieee80211_bss_conf *link_conf,
+			       struct ieee80211_chanctx_conf *conf);
+int mt76_switch_vif_chanctx(struct ieee80211_hw *hw,
+			    struct ieee80211_vif_chanctx_switch *vifs,
+			    int n_vifs,
+			    enum ieee80211_chanctx_switch_mode mode);
 int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		      void *data, int len);
 int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *skb,
@@ -1525,6 +1565,8 @@ void mt76_rx_aggr_reorder(struct sk_buff *skb, struct sk_buff_head *frames);
 void mt76_testmode_tx_pending(struct mt76_phy *phy);
 void mt76_queue_tx_complete(struct mt76_dev *dev, struct mt76_queue *q,
 			    struct mt76_queue_entry *e);
+int __mt76_set_channel(struct mt76_phy *phy, struct cfg80211_chan_def *chandef,
+		       bool offchannel);
 int mt76_set_channel(struct mt76_phy *phy, struct cfg80211_chan_def *chandef,
 		     bool offchannel);
 void mt76_scan_work(struct work_struct *work);
@@ -1777,14 +1819,7 @@ mt76_vif_init(struct ieee80211_vif *vif, struct mt76_vif_data *mvif)
 	rcu_assign_pointer(mvif->link[0], mlink);
 }
 
-static inline void
-mt76_vif_cleanup(struct mt76_dev *dev, struct ieee80211_vif *vif)
-{
-	struct mt76_vif_link *mlink = (struct mt76_vif_link *)vif->drv_priv;
-	struct mt76_vif_data *mvif = mlink->mvif;
-
-	rcu_assign_pointer(mvif->link[0], NULL);
-}
+void mt76_vif_cleanup(struct mt76_dev *dev, struct ieee80211_vif *vif);
 
 static inline struct mt76_vif_link *
 mt76_vif_link(struct mt76_dev *dev, struct ieee80211_vif *vif, int link_id)
@@ -1806,6 +1841,19 @@ mt76_vif_conf_link(struct mt76_dev *dev, struct ieee80211_vif *vif,
 		return mlink;
 
 	return mt76_dereference(mvif->link[link_conf->link_id], dev);
+}
+
+static inline struct mt76_phy *
+mt76_vif_link_phy(struct mt76_vif_link *mlink)
+{
+	struct mt76_chanctx *ctx;
+
+	if (!mlink->ctx)
+		return NULL;
+
+	ctx = (struct mt76_chanctx *)mlink->ctx->drv_priv;
+
+	return ctx->phy;
 }
 
 #endif

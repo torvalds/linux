@@ -124,6 +124,12 @@ int mt76_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct mt76_dev *dev = phy->dev;
 	int ret = 0;
 
+	if (hw->wiphy->n_radio > 1) {
+		phy = dev->band_phys[req->req.channels[0]->band];
+		if (!phy)
+			return -EINVAL;
+	}
+
 	mutex_lock(&dev->mutex);
 
 	if (dev->scan.req) {

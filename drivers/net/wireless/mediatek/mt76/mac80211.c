@@ -414,6 +414,7 @@ mt76_check_sband(struct mt76_phy *phy, struct mt76_sband *msband,
 		cfg80211_chandef_create(&phy->chandef, &sband->channels[0],
 					NL80211_CHAN_HT20);
 		phy->chan_state = &msband->chan[0];
+		phy->dev->band_phys[band] = phy;
 		return;
 	}
 
@@ -959,16 +960,13 @@ void mt76_update_survey(struct mt76_phy *phy)
 }
 EXPORT_SYMBOL_GPL(mt76_update_survey);
 
-int mt76_set_channel(struct mt76_phy *phy, struct cfg80211_chan_def *chandef,
-		     bool offchannel)
+int __mt76_set_channel(struct mt76_phy *phy, struct cfg80211_chan_def *chandef,
+		       bool offchannel)
 {
 	struct mt76_dev *dev = phy->dev;
 	int timeout = HZ / 5;
 	int ret;
 
-	cancel_delayed_work_sync(&phy->mac_work);
-
-	mutex_lock(&dev->mutex);
 	set_bit(MT76_RESET, &phy->state);
 
 	mt76_worker_disable(&dev->tx_worker);
@@ -995,6 +993,19 @@ int mt76_set_channel(struct mt76_phy *phy, struct cfg80211_chan_def *chandef,
 	mt76_worker_enable(&dev->tx_worker);
 	mt76_worker_schedule(&dev->tx_worker);
 
+	return ret;
+}
+
+int mt76_set_channel(struct mt76_phy *phy, struct cfg80211_chan_def *chandef,
+		     bool offchannel)
+{
+	struct mt76_dev *dev = phy->dev;
+	int ret;
+
+	cancel_delayed_work_sync(&phy->mac_work);
+
+	mutex_lock(&dev->mutex);
+	ret = __mt76_set_channel(phy, chandef, offchannel);
 	mutex_unlock(&dev->mutex);
 
 	return ret;
@@ -1005,6 +1016,8 @@ int mt76_update_channel(struct mt76_phy *phy)
 	struct ieee80211_hw *hw = phy->hw;
 	struct cfg80211_chan_def *chandef = &hw->conf.chandef;
 	bool offchannel = hw->conf.flags & IEEE80211_CONF_OFFCHANNEL;
+
+	phy->radar_enabled = hw->conf.radar_enabled;
 
 	return mt76_set_channel(phy, chandef, offchannel);
 }
@@ -1919,7 +1932,7 @@ enum mt76_dfs_state mt76_phy_dfs_state(struct mt76_phy *phy)
 	    test_bit(MT76_SCANNING, &phy->state))
 		return MT_DFS_STATE_DISABLED;
 
-	if (!hw->conf.radar_enabled) {
+	if (!phy->radar_enabled) {
 		if ((hw->conf.flags & IEEE80211_CONF_MONITOR) &&
 		    (phy->chandef.chan->flags & IEEE80211_CHAN_RADAR))
 			return MT_DFS_STATE_ACTIVE;
@@ -1933,3 +1946,13 @@ enum mt76_dfs_state mt76_phy_dfs_state(struct mt76_phy *phy)
 	return MT_DFS_STATE_ACTIVE;
 }
 EXPORT_SYMBOL_GPL(mt76_phy_dfs_state);
+
+void mt76_vif_cleanup(struct mt76_dev *dev, struct ieee80211_vif *vif)
+{
+	struct mt76_vif_link *mlink = (struct mt76_vif_link *)vif->drv_priv;
+	struct mt76_vif_data *mvif = mlink->mvif;
+
+	rcu_assign_pointer(mvif->link[0], NULL);
+	mt76_abort_scan(dev);
+}
+EXPORT_SYMBOL_GPL(mt76_vif_cleanup);
