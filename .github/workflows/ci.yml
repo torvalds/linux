@@ -22,6 +22,11 @@ jobs:
             runs_on: ubuntu-22.04
             shell: bash
             build_options: "kasan=yes kasan_test=yes"
+          - displayTargetName: mmu_kasan
+            os: unix
+            runs_on: ubuntu-22.04
+            shell: bash
+            build_options: "MMU=1 MMU_KUNIT=1 kasan=yes"
           - displayTargetName: windows-2019
             os: windows
             runs_on: windows-2019
