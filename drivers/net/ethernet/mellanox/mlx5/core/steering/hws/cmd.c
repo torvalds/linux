@@ -622,12 +622,12 @@ int mlx5hws_cmd_arg_create(struct mlx5_core_dev *mdev,
 			   u32 pd,
 			   u32 *arg_id)
 {
+	u32 in[MLX5_ST_SZ_DW(create_modify_header_arg_in)] = {0};
 	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)] = {0};
-	u32 in[MLX5_ST_SZ_DW(create_arg_in)] = {0};
 	void *attr;
 	int ret;
 
-	attr = MLX5_ADDR_OF(create_arg_in, in, hdr);
+	attr = MLX5_ADDR_OF(create_modify_header_arg_in, in, hdr);
 	MLX5_SET(general_obj_in_cmd_hdr,
 		 attr, opcode, MLX5_CMD_OP_CREATE_GENERAL_OBJECT);
 	MLX5_SET(general_obj_in_cmd_hdr,
@@ -635,8 +635,8 @@ int mlx5hws_cmd_arg_create(struct mlx5_core_dev *mdev,
 	MLX5_SET(general_obj_in_cmd_hdr,
 		 attr, op_param.create.log_obj_range, log_obj_range);
 
-	attr = MLX5_ADDR_OF(create_arg_in, in, arg);
-	MLX5_SET(arg, attr, access_pd, pd);
+	attr = MLX5_ADDR_OF(create_modify_header_arg_in, in, arg);
+	MLX5_SET(modify_header_arg, attr, access_pd, pd);
 
 	ret = mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
 	if (ret) {
@@ -812,7 +812,7 @@ int mlx5hws_cmd_packet_reformat_create(struct mlx5_core_dev *mdev,
 				       struct mlx5hws_cmd_packet_reformat_create_attr *attr,
 				       u32 *reformat_id)
 {
-	u32 out[MLX5_ST_SZ_DW(alloc_packet_reformat_out)] = {0};
+	u32 out[MLX5_ST_SZ_DW(alloc_packet_reformat_context_out)] = {0};
 	size_t insz, cmd_data_sz, cmd_total_sz;
 	void *prctx;
 	void *pdata;
@@ -845,7 +845,7 @@ int mlx5hws_cmd_packet_reformat_create(struct mlx5_core_dev *mdev,
 		goto out;
 	}
 
-	*reformat_id = MLX5_GET(alloc_packet_reformat_out, out, packet_reformat_id);
+	*reformat_id = MLX5_GET(alloc_packet_reformat_context_out, out, packet_reformat_id);
 out:
 	kfree(in);
 	return ret;
@@ -854,13 +854,13 @@ out:
 int mlx5hws_cmd_packet_reformat_destroy(struct mlx5_core_dev *mdev,
 					u32 reformat_id)
 {
-	u32 out[MLX5_ST_SZ_DW(dealloc_packet_reformat_out)] = {0};
-	u32 in[MLX5_ST_SZ_DW(dealloc_packet_reformat_in)] = {0};
+	u32 out[MLX5_ST_SZ_DW(dealloc_packet_reformat_context_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(dealloc_packet_reformat_context_in)] = {0};
 	int ret;
 
-	MLX5_SET(dealloc_packet_reformat_in, in, opcode,
+	MLX5_SET(dealloc_packet_reformat_context_in, in, opcode,
 		 MLX5_CMD_OP_DEALLOC_PACKET_REFORMAT_CONTEXT);
-	MLX5_SET(dealloc_packet_reformat_in, in,
+	MLX5_SET(dealloc_packet_reformat_context_in, in,
 		 packet_reformat_id, reformat_id);
 
 	ret = mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
