@@ -1827,8 +1827,8 @@ int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 
-	ieee80211_ibss_disconnect(sdata);
 	ifibss->ssid_len = 0;
+	ieee80211_ibss_disconnect(sdata);
 	eth_zero_addr(ifibss->bssid);
 
 	/* remove beacon */
