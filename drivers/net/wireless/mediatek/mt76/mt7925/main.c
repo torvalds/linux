@@ -1188,7 +1188,6 @@ mt7925_mac_sta_remove_links(struct mt792x_dev *dev, struct ieee80211_vif *vif,
 		if (link_sta != mlink->pri_link) {
 			mt76_wcid_cleanup(mdev, wcid);
 			mt76_wcid_mask_clear(mdev->wcid_mask, wcid->idx);
-			mt76_wcid_mask_clear(mdev->wcid_phy_mask, wcid->idx);
 		}
 
 		if (msta->deflink_id == link_id)

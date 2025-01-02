@@ -1505,8 +1505,6 @@ mt76_sta_add(struct mt76_phy *phy, struct ieee80211_vif *vif,
 	}
 
 	ewma_signal_init(&wcid->rssi);
-	if (phy->band_idx == MT_BAND1)
-		mt76_wcid_mask_set(dev->wcid_phy_mask, wcid->idx);
 	rcu_assign_pointer(dev->wcid[wcid->idx], wcid);
 	phy->num_sta++;
 
@@ -1533,7 +1531,6 @@ void __mt76_sta_remove(struct mt76_phy *phy, struct ieee80211_vif *vif,
 	mt76_wcid_cleanup(dev, wcid);
 
 	mt76_wcid_mask_clear(dev->wcid_mask, idx);
-	mt76_wcid_mask_clear(dev->wcid_phy_mask, idx);
 	phy->num_sta--;
 }
 EXPORT_SYMBOL_GPL(__mt76_sta_remove);
