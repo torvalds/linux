@@ -18537,10 +18537,9 @@ void nl80211_send_port_authorized(struct cfg80211_registered_device *rdev,
 	    nla_put(msg, NL80211_ATTR_MAC, ETH_ALEN, peer_addr))
 		goto nla_put_failure;
 
-	if ((td_bitmap_len > 0) && td_bitmap)
-		if (nla_put(msg, NL80211_ATTR_TD_BITMAP,
-			    td_bitmap_len, td_bitmap))
-			goto nla_put_failure;
+	if (td_bitmap_len > 0 && td_bitmap &&
+	    nla_put(msg, NL80211_ATTR_TD_BITMAP, td_bitmap_len, td_bitmap))
+		goto nla_put_failure;
 
 	genlmsg_end(msg, hdr);
 
