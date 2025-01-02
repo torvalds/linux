@@ -63,7 +63,7 @@ struct mlx5hws_cmd_forward_tbl {
 	u8 type;
 	u32 ft_id;
 	u32 fg_id;
-	u32 refcount;
+	u32 refcount; /* protected by context ctrl lock */
 };
 
 struct mlx5hws_cmd_rtc_create_attr {

@@ -37,6 +37,7 @@ static void hws_table_set_cap_attr(struct mlx5hws_table *tbl,
 }
 
 static int hws_table_up_default_fdb_miss_tbl(struct mlx5hws_table *tbl)
+__must_hold(&tbl->ctx->ctrl_lock)
 {
 	struct mlx5hws_cmd_ft_create_attr ft_attr = {0};
 	struct mlx5hws_cmd_set_fte_attr fte_attr = {0};
@@ -70,7 +71,6 @@ static int hws_table_up_default_fdb_miss_tbl(struct mlx5hws_table *tbl)
 		return -EINVAL;
 	}
 
-	/* ctx->ctrl_lock must be held here */
 	ctx->common_res[tbl_type].default_miss = default_miss;
 	ctx->common_res[tbl_type].default_miss->refcount++;
 
@@ -79,6 +79,7 @@ static int hws_table_up_default_fdb_miss_tbl(struct mlx5hws_table *tbl)
 
 /* Called under ctx->ctrl_lock */
 static void hws_table_down_default_fdb_miss_tbl(struct mlx5hws_table *tbl)
+__must_hold(&tbl->ctx->ctrl_lock)
 {
 	struct mlx5hws_cmd_forward_tbl *default_miss;
 	struct mlx5hws_context *ctx = tbl->ctx;

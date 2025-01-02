@@ -70,12 +70,12 @@ struct mlx5hws_action_default_stc {
 	struct mlx5hws_pool_chunk nop_dw6;
 	struct mlx5hws_pool_chunk nop_dw7;
 	struct mlx5hws_pool_chunk default_hit;
-	u32 refcount;
+	u32 refcount; /* protected by context ctrl lock */
 };
 
 struct mlx5hws_action_shared_stc {
 	struct mlx5hws_pool_chunk stc_chunk;
-	u32 refcount;
+	u32 refcount; /* protected by context ctrl lock */
 };
 
 struct mlx5hws_actions_apply_data {
