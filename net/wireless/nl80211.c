@@ -11114,12 +11114,83 @@ static struct cfg80211_bss *nl80211_assoc_bss(struct cfg80211_registered_device 
 	return bss;
 }
 
+static int nl80211_process_links(struct cfg80211_registered_device *rdev,
+				 struct cfg80211_assoc_link *links,
+				 const u8 *ssid, int ssid_len,
+				 struct genl_info *info)
+{
+	unsigned int attrsize = NUM_NL80211_ATTR * sizeof(struct nlattr *);
+	struct nlattr **attrs __free(kfree) = kzalloc(attrsize, GFP_KERNEL);
+	struct nlattr *link;
+	unsigned int link_id;
+	int rem, err;
+
+	if (!attrs)
+		return -ENOMEM;
+
+	nla_for_each_nested(link, info->attrs[NL80211_ATTR_MLO_LINKS], rem) {
+		memset(attrs, 0, attrsize);
+
+		nla_parse_nested(attrs, NL80211_ATTR_MAX, link, NULL, NULL);
+
+		if (!attrs[NL80211_ATTR_MLO_LINK_ID]) {
+			NL_SET_BAD_ATTR(info->extack, link);
+			return -EINVAL;
+		}
+
+		link_id = nla_get_u8(attrs[NL80211_ATTR_MLO_LINK_ID]);
+		/* cannot use the same link ID again */
+		if (links[link_id].bss) {
+			NL_SET_BAD_ATTR(info->extack, link);
+			return -EINVAL;
+		}
+		links[link_id].bss =
+			nl80211_assoc_bss(rdev, ssid, ssid_len, attrs,
+					  link_id, link_id);
+		if (IS_ERR(links[link_id].bss)) {
+			err = PTR_ERR(links[link_id].bss);
+			links[link_id].bss = NULL;
+			NL_SET_ERR_MSG_ATTR(info->extack, link,
+					    "Error fetching BSS for link");
+			return err;
+		}
+
+		if (attrs[NL80211_ATTR_IE]) {
+			links[link_id].elems = nla_data(attrs[NL80211_ATTR_IE]);
+			links[link_id].elems_len =
+				nla_len(attrs[NL80211_ATTR_IE]);
+
+			if (cfg80211_find_elem(WLAN_EID_FRAGMENT,
+					       links[link_id].elems,
+					       links[link_id].elems_len)) {
+				NL_SET_ERR_MSG_ATTR(info->extack,
+						    attrs[NL80211_ATTR_IE],
+						    "cannot deal with fragmentation");
+				return -EINVAL;
+			}
+
+			if (cfg80211_find_ext_elem(WLAN_EID_EXT_NON_INHERITANCE,
+						   links[link_id].elems,
+						   links[link_id].elems_len)) {
+				NL_SET_ERR_MSG_ATTR(info->extack,
+						    attrs[NL80211_ATTR_IE],
+						    "cannot deal with non-inheritance");
+				return -EINVAL;
+			}
+		}
+
+		links[link_id].disabled =
+			nla_get_flag(attrs[NL80211_ATTR_MLO_LINK_DISABLED]);
+	}
+
+	return 0;
+}
+
 static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
 	struct net_device *dev = info->user_ptr[1];
 	struct cfg80211_assoc_request req = {};
-	struct nlattr **attrs = NULL;
 	const u8 *ap_addr, *ssid;
 	unsigned int link_id;
 	int err, ssid_len;
@@ -11258,10 +11329,6 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 	req.link_id = nl80211_link_id_or_invalid(info->attrs);
 
 	if (info->attrs[NL80211_ATTR_MLO_LINKS]) {
-		unsigned int attrsize = NUM_NL80211_ATTR * sizeof(*attrs);
-		struct nlattr *link;
-		int rem = 0;
-
 		if (req.link_id < 0)
 			return -EINVAL;
 
@@ -11276,72 +11343,10 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 		req.ap_mld_addr = nla_data(info->attrs[NL80211_ATTR_MLD_ADDR]);
 		ap_addr = req.ap_mld_addr;
 
-		attrs = kzalloc(attrsize, GFP_KERNEL);
-		if (!attrs)
-			return -ENOMEM;
-
-		nla_for_each_nested(link,
-				    info->attrs[NL80211_ATTR_MLO_LINKS],
-				    rem) {
-			memset(attrs, 0, attrsize);
-
-			nla_parse_nested(attrs, NL80211_ATTR_MAX,
-					 link, NULL, NULL);
-
-			if (!attrs[NL80211_ATTR_MLO_LINK_ID]) {
-				err = -EINVAL;
-				NL_SET_BAD_ATTR(info->extack, link);
-				goto free;
-			}
-
-			link_id = nla_get_u8(attrs[NL80211_ATTR_MLO_LINK_ID]);
-			/* cannot use the same link ID again */
-			if (req.links[link_id].bss) {
-				err = -EINVAL;
-				NL_SET_BAD_ATTR(info->extack, link);
-				goto free;
-			}
-			req.links[link_id].bss =
-				nl80211_assoc_bss(rdev, ssid, ssid_len, attrs,
-						  req.link_id, link_id);
-			if (IS_ERR(req.links[link_id].bss)) {
-				err = PTR_ERR(req.links[link_id].bss);
-				req.links[link_id].bss = NULL;
-				NL_SET_ERR_MSG_ATTR(info->extack,
-						    link, "Error fetching BSS for link");
-				goto free;
-			}
-
-			if (attrs[NL80211_ATTR_IE]) {
-				req.links[link_id].elems =
-					nla_data(attrs[NL80211_ATTR_IE]);
-				req.links[link_id].elems_len =
-					nla_len(attrs[NL80211_ATTR_IE]);
-
-				if (cfg80211_find_elem(WLAN_EID_FRAGMENT,
-						       req.links[link_id].elems,
-						       req.links[link_id].elems_len)) {
-					NL_SET_ERR_MSG_ATTR(info->extack,
-							    attrs[NL80211_ATTR_IE],
-							    "cannot deal with fragmentation");
-					err = -EINVAL;
-					goto free;
-				}
-
-				if (cfg80211_find_ext_elem(WLAN_EID_EXT_NON_INHERITANCE,
-							   req.links[link_id].elems,
-							   req.links[link_id].elems_len)) {
-					NL_SET_ERR_MSG_ATTR(info->extack,
-							    attrs[NL80211_ATTR_IE],
-							    "cannot deal with non-inheritance");
-					err = -EINVAL;
-					goto free;
-				}
-			}
-
-			req.links[link_id].disabled =
-				nla_get_flag(attrs[NL80211_ATTR_MLO_LINK_DISABLED]);
-		}
+		err = nl80211_process_links(rdev, req.links, ssid, ssid_len,
+					    info);
+		if (err)
+			goto free;
 
 		if (!req.links[req.link_id].bss) {
 			err = -EINVAL;
@@ -11361,9 +11366,6 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 			err = -EINVAL;
 			goto free;
 		}
-
-		kfree(attrs);
-		attrs = NULL;
 	} else {
 		if (req.link_id >= 0)
 			return -EINVAL;
@@ -11423,7 +11425,6 @@ free:
 	for (link_id = 0; link_id < ARRAY_SIZE(req.links); link_id++)
 		cfg80211_put_bss(&rdev->wiphy, req.links[link_id].bss);
 	cfg80211_put_bss(&rdev->wiphy, req.bss);
-	kfree(attrs);
 
 	return err;
 }
