@@ -380,9 +380,9 @@ static int aie2_hw_start(struct amdxdna_dev *xdna)
 		goto stop_psp;
 	}
 
-	mbox_res.ringbuf_base = (u64)ndev->sram_base;
+	mbox_res.ringbuf_base = ndev->sram_base;
 	mbox_res.ringbuf_size = pci_resource_len(pdev, xdna->dev_info->sram_bar);
-	mbox_res.mbox_base = (u64)ndev->mbox_base;
+	mbox_res.mbox_base = ndev->mbox_base;
 	mbox_res.mbox_size = MBOX_SIZE(ndev);
 	mbox_res.name = "xdna_mailbox";
 	ndev->mbox = xdnam_mailbox_create(&xdna->ddev, &mbox_res);
