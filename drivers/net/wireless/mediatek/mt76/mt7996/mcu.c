@@ -2411,9 +2411,9 @@ int mt7996_mcu_add_dev_info(struct mt7996_phy *phy, struct ieee80211_vif *vif,
 }
 
 static void
-mt7996_mcu_beacon_cntdwn(struct ieee80211_vif *vif, struct sk_buff *rskb,
-			 struct sk_buff *skb,
-			 struct ieee80211_mutable_offsets *offs)
+mt7996_mcu_beacon_cntdwn(struct sk_buff *rskb, struct sk_buff *skb,
+			 struct ieee80211_mutable_offsets *offs,
+			 bool csa)
 {
 	struct bss_bcn_cntdwn_tlv *info;
 	struct tlv *tlv;
@@ -2422,7 +2422,7 @@ mt7996_mcu_beacon_cntdwn(struct ieee80211_vif *vif, struct sk_buff *rskb,
 	if (!offs->cntdwn_counter_offs[0])
 		return;
 
-	tag = vif->bss_conf.csa_active ? UNI_BSS_INFO_BCN_CSA : UNI_BSS_INFO_BCN_BCC;
+	tag = csa ? UNI_BSS_INFO_BCN_CSA : UNI_BSS_INFO_BCN_BCC;
 
 	tlv = mt7996_mcu_add_uni_tlv(rskb, tag, sizeof(*info));
 
@@ -2432,15 +2432,12 @@ mt7996_mcu_beacon_cntdwn(struct ieee80211_vif *vif, struct sk_buff *rskb,
 
 static void
 mt7996_mcu_beacon_mbss(struct sk_buff *rskb, struct sk_buff *skb,
-		       struct ieee80211_vif *vif, struct bss_bcn_content_tlv *bcn,
+		       struct bss_bcn_content_tlv *bcn,
 		       struct ieee80211_mutable_offsets *offs)
 {
 	struct bss_bcn_mbss_tlv *mbss;
 	const struct element *elem;
 	struct tlv *tlv;
-
-	if (!vif->bss_conf.bssid_indicator)
-		return;
 
 	tlv = mt7996_mcu_add_uni_tlv(rskb, UNI_BSS_INFO_BCN_MBSSID, sizeof(*mbss));
 
@@ -2484,7 +2481,8 @@ mt7996_mcu_beacon_mbss(struct sk_buff *rskb, struct sk_buff *skb,
 }
 
 static void
-mt7996_mcu_beacon_cont(struct mt7996_dev *dev, struct ieee80211_vif *vif,
+mt7996_mcu_beacon_cont(struct mt7996_dev *dev,
+		       struct ieee80211_bss_conf *link_conf,
 		       struct sk_buff *rskb, struct sk_buff *skb,
 		       struct bss_bcn_content_tlv *bcn,
 		       struct ieee80211_mutable_offsets *offs)
@@ -2498,9 +2496,9 @@ mt7996_mcu_beacon_cont(struct mt7996_dev *dev, struct ieee80211_vif *vif,
 	if (offs->cntdwn_counter_offs[0]) {
 		u16 offset = offs->cntdwn_counter_offs[0];
 
-		if (vif->bss_conf.csa_active)
+		if (link_conf->csa_active)
 			bcn->csa_ie_pos = cpu_to_le16(offset - 4);
-		if (vif->bss_conf.color_change_active)
+		if (link_conf->color_change_active)
 			bcn->bcc_ie_pos = cpu_to_le16(offset - 3);
 	}
 
@@ -2511,12 +2509,11 @@ mt7996_mcu_beacon_cont(struct mt7996_dev *dev, struct ieee80211_vif *vif,
 	memcpy(buf + MT_TXD_SIZE, skb->data, skb->len);
 }
 
-int mt7996_mcu_add_beacon(struct ieee80211_hw *hw,
-			  struct ieee80211_vif *vif, int en)
+int mt7996_mcu_add_beacon(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			  struct ieee80211_bss_conf *link_conf)
 {
 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
-	struct mt7996_phy *phy = mt7996_hw_phy(hw);
-	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
+	struct mt76_vif_link *mlink = mt76_vif_conf_link(&dev->mt76, vif, link_conf);
 	struct ieee80211_mutable_offsets offs;
 	struct ieee80211_tx_info *info;
 	struct sk_buff *skb, *rskb;
@@ -2524,15 +2521,18 @@ int mt7996_mcu_add_beacon(struct ieee80211_hw *hw,
 	struct bss_bcn_content_tlv *bcn;
 	int len;
 
-	if (vif->bss_conf.nontransmitted)
+	if (link_conf->nontransmitted)
 		return 0;
 
-	rskb = __mt7996_mcu_alloc_bss_req(&dev->mt76, &mvif->deflink.mt76,
+	if (!mlink)
+		return -EINVAL;
+
+	rskb = __mt7996_mcu_alloc_bss_req(&dev->mt76, mlink,
 					  MT7996_MAX_BSS_OFFLOAD_SIZE);
 	if (IS_ERR(rskb))
 		return PTR_ERR(rskb);
 
-	skb = ieee80211_beacon_get_template(hw, vif, &offs, 0);
+	skb = ieee80211_beacon_get_template(hw, vif, &offs, link_conf->link_id);
 	if (!skb) {
 		dev_kfree_skb(rskb);
 		return -EINVAL;
@@ -2546,21 +2546,22 @@ int mt7996_mcu_add_beacon(struct ieee80211_hw *hw,
 	}
 
 	info = IEEE80211_SKB_CB(skb);
-	info->hw_queue |= FIELD_PREP(MT_TX_HW_QUEUE_PHY, phy->mt76->band_idx);
+	info->hw_queue |= FIELD_PREP(MT_TX_HW_QUEUE_PHY, mlink->band_idx);
 
 	len = ALIGN(sizeof(*bcn) + MT_TXD_SIZE + skb->len, 4);
 	tlv = mt7996_mcu_add_uni_tlv(rskb, UNI_BSS_INFO_BCN_CONTENT, len);
 	bcn = (struct bss_bcn_content_tlv *)tlv;
-	bcn->enable = en;
-	if (!en)
+	bcn->enable = link_conf->enable_beacon;
+	if (!bcn->enable)
 		goto out;
 
-	mt7996_mcu_beacon_cont(dev, vif, rskb, skb, bcn, &offs);
-	mt7996_mcu_beacon_mbss(rskb, skb, vif, bcn, &offs);
-	mt7996_mcu_beacon_cntdwn(vif, rskb, skb, &offs);
+	mt7996_mcu_beacon_cont(dev, link_conf, rskb, skb, bcn, &offs);
+	if (link_conf->bssid_indicator)
+		mt7996_mcu_beacon_mbss(rskb, skb, bcn, &offs);
+	mt7996_mcu_beacon_cntdwn(rskb, skb, &offs, link_conf->csa_active);
 out:
 	dev_kfree_skb(skb);
-	return mt76_mcu_skb_send_msg(&phy->dev->mt76, rskb,
+	return mt76_mcu_skb_send_msg(&dev->mt76, rskb,
 				     MCU_WMWA_UNI_CMD(BSS_INFO_UPDATE), true);
 }
 

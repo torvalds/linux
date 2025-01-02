@@ -1593,7 +1593,7 @@ mt7996_update_vif_beacon(void *priv, u8 *mac, struct ieee80211_vif *vif)
 	case NL80211_IFTYPE_MESH_POINT:
 	case NL80211_IFTYPE_ADHOC:
 	case NL80211_IFTYPE_AP:
-		mt7996_mcu_add_beacon(hw, vif, vif->bss_conf.enable_beacon);
+		mt7996_mcu_add_beacon(hw, vif, &vif->bss_conf);
 		break;
 	default:
 		break;

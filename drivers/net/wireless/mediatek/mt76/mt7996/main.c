@@ -669,7 +669,7 @@ static void mt7996_bss_info_changed(struct ieee80211_hw *hw,
 		mvif->beacon_rates_idx =
 			mt7996_get_rates_table(hw, vif, true, false);
 
-		mt7996_mcu_add_beacon(hw, vif, info->enable_beacon);
+		mt7996_mcu_add_beacon(hw, vif, info);
 	}
 
 	if (changed & (BSS_CHANGED_UNSOL_BCAST_PROBE_RESP |
@@ -690,7 +690,7 @@ mt7996_channel_switch_beacon(struct ieee80211_hw *hw,
 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
 
 	mutex_lock(&dev->mt76.mutex);
-	mt7996_mcu_add_beacon(hw, vif, true);
+	mt7996_mcu_add_beacon(hw, vif, &vif->bss_conf);
 	mutex_unlock(&dev->mt76.mutex);
 }
 
