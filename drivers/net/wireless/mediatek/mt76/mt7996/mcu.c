@@ -2572,17 +2572,23 @@ int mt7996_mcu_beacon_inband_discov(struct mt7996_dev *dev,
 #define OFFLOAD_TX_MODE_SU	BIT(0)
 #define OFFLOAD_TX_MODE_MU	BIT(1)
 	struct ieee80211_hw *hw = mt76_hw(dev);
-	struct mt7996_phy *phy = mt7996_hw_phy(hw);
 	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
-	struct cfg80211_chan_def *chandef = &mvif->deflink.phy->mt76->chandef;
-	enum nl80211_band band = chandef->chan->band;
+	struct mt7996_phy *phy = mt7996_vif_link_phy(&mvif->deflink);
 	struct mt76_wcid *wcid = &dev->mt76.global_wcid;
 	struct bss_inband_discovery_tlv *discov;
 	struct ieee80211_tx_info *info;
 	struct sk_buff *rskb, *skb = NULL;
+	struct cfg80211_chan_def *chandef;
+	enum nl80211_band band;
 	struct tlv *tlv;
 	u8 *buf, interval;
 	int len;
+
+	if (!phy)
+		return -EINVAL;
+
+	chandef = &phy->mt76->chandef;
+	band = chandef->chan->band;
 
 	if (vif->bss_conf.nontransmitted)
 		return 0;
@@ -4495,7 +4501,6 @@ int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy)
 #define TX_POWER_LIMIT_TABLE_RATE	0
 	struct mt7996_dev *dev = phy->dev;
 	struct mt76_phy *mphy = phy->mt76;
-	struct ieee80211_hw *hw = mphy->hw;
 	struct tx_power_limit_table_ctrl {
 		u8 __rsv1[4];
 
@@ -4515,7 +4520,7 @@ int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy)
 	struct sk_buff *skb;
 	int i, tx_power;
 
-	tx_power = mt7996_get_power_bound(phy, hw->conf.power_level);
+	tx_power = mt7996_get_power_bound(phy, phy->txpower);
 	tx_power = mt76_get_rate_power_limits(mphy, mphy->chandef.chan,
 					      &la, tx_power);
 	mphy->txpower_cur = tx_power;

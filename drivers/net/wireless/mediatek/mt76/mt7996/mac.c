@@ -1738,19 +1738,19 @@ mt7996_mac_restart(struct mt7996_dev *dev)
 	ret = mt7996_txbf_init(dev);
 
 	if (test_bit(MT76_STATE_RUNNING, &dev->mphy.state)) {
-		ret = mt7996_run(dev->mphy.hw);
+		ret = mt7996_run(&dev->phy);
 		if (ret)
 			goto out;
 	}
 
 	if (phy2 && test_bit(MT76_STATE_RUNNING, &phy2->mt76->state)) {
-		ret = mt7996_run(phy2->mt76->hw);
+		ret = mt7996_run(phy2);
 		if (ret)
 			goto out;
 	}
 
 	if (phy3 && test_bit(MT76_STATE_RUNNING, &phy3->mt76->state)) {
-		ret = mt7996_run(phy3->mt76->hw);
+		ret = mt7996_run(phy3);
 		if (ret)
 			goto out;
 	}

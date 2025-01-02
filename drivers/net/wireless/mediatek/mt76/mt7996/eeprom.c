@@ -305,6 +305,7 @@ int mt7996_eeprom_parse_hw_cap(struct mt7996_dev *dev, struct mt7996_phy *phy)
 
 	mphy->antenna_mask = BIT(nss) - 1;
 	mphy->chainmask = (BIT(path) - 1) << dev->chainshift[band_idx];
+	phy->orig_chainmask = mphy->chainmask;
 	dev->chainmask |= mphy->chainmask;
 	if (band_idx < MT_BAND2)
 		dev->chainshift[band_idx + 1] = dev->chainshift[band_idx] +

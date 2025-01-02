@@ -11,6 +11,7 @@
 #include "../mt76_connac.h"
 #include "regs.h"
 
+#define MT7996_MAX_RADIOS		3
 #define MT7996_MAX_INTERFACES		19	/* per-band */
 #define MT7996_MAX_WMM_SETS		4
 #define MT7996_WTBL_BMC_SIZE		(is_mt7992(&dev->mt76) ? 32 : 64)
@@ -270,11 +271,15 @@ struct mt7996_phy {
 
 	u32 rx_ampdu_ts;
 	u32 ampdu_ref;
+	int txpower;
 
 	struct mt76_mib_stats mib;
 	struct mt76_channel_state state_ts;
 
+	u16 orig_chainmask;
+
 	bool has_aux_rx;
+	bool counter_reset;
 };
 
 struct mt7996_dev {
@@ -282,6 +287,10 @@ struct mt7996_dev {
 		struct mt76_dev mt76;
 		struct mt76_phy mphy;
 	};
+
+	struct mt7996_phy *radio_phy[MT7996_MAX_RADIOS];
+	struct wiphy_radio radios[MT7996_MAX_RADIOS];
+	struct wiphy_radio_freq_range radio_freqs[MT7996_MAX_RADIOS];
 
 	struct mt7996_hif *hif2;
 	struct mt7996_reg_desc reg;
@@ -402,14 +411,6 @@ enum mt7996_rdd_cmd {
 	RDD_IRQ_OFF,
 };
 
-static inline struct mt7996_phy *
-mt7996_hw_phy(struct ieee80211_hw *hw)
-{
-	struct mt76_phy *phy = hw->priv;
-
-	return phy->priv;
-}
-
 static inline struct mt7996_dev *
 mt7996_hw_dev(struct ieee80211_hw *hw)
 {
@@ -469,10 +470,33 @@ mt7996_has_background_radar(struct mt7996_dev *dev)
 	return true;
 }
 
+static inline struct mt7996_phy *
+mt7996_band_phy(struct mt7996_dev *dev, enum nl80211_band band)
+{
+	struct mt76_phy *mphy;
+
+	mphy = dev->mt76.band_phys[band];
+	if (!mphy)
+		return NULL;
+
+	return mphy->priv;
+}
+
 static inline struct mt7996_vif_link *
 mt7996_vif_link(struct mt7996_dev *dev, struct ieee80211_vif *vif, int link_id)
 {
 	return (struct mt7996_vif_link *)mt76_vif_link(&dev->mt76, vif, link_id);
+}
+
+static inline struct mt7996_phy *
+mt7996_vif_link_phy(struct mt7996_vif_link *link)
+{
+	struct mt76_phy *mphy = mt76_vif_link_phy(&link->mt76);
+
+	if (!mphy)
+		return NULL;
+
+	return mphy->priv;
 }
 
 static inline struct mt7996_vif_link *
@@ -482,6 +506,10 @@ mt7996_vif_conf_link(struct mt7996_dev *dev, struct ieee80211_vif *vif,
 	return (struct mt7996_vif_link *)mt76_vif_conf_link(&dev->mt76, vif,
 							    link_conf);
 }
+
+#define mt7996_for_each_phy(dev, phy)					\
+	for (int __i = 0; __i < ARRAY_SIZE((dev)->radio_phy); __i++)	\
+		if (((phy) = (dev)->radio_phy[__i]) != NULL)
 
 extern const struct ieee80211_ops mt7996_ops;
 extern struct pci_driver mt7996_pci_driver;
@@ -494,6 +522,12 @@ irqreturn_t mt7996_irq_handler(int irq, void *dev_instance);
 u64 __mt7996_get_tsf(struct ieee80211_hw *hw, struct mt7996_vif *mvif);
 int mt7996_register_device(struct mt7996_dev *dev);
 void mt7996_unregister_device(struct mt7996_dev *dev);
+int mt7996_vif_link_add(struct mt76_phy *mphy, struct ieee80211_vif *vif,
+			struct ieee80211_bss_conf *link_conf,
+			struct mt76_vif_link *mlink);
+void mt7996_vif_link_remove(struct mt76_phy *mphy, struct ieee80211_vif *vif,
+			    struct ieee80211_bss_conf *link_conf,
+			    struct mt76_vif_link *mlink);
 int mt7996_eeprom_init(struct mt7996_dev *dev);
 int mt7996_eeprom_parse_hw_cap(struct mt7996_dev *dev, struct mt7996_phy *phy);
 int mt7996_eeprom_get_target_power(struct mt7996_dev *dev,
@@ -509,7 +543,7 @@ int mt7996_init_tx_queues(struct mt7996_phy *phy, int idx,
 void mt7996_init_txpower(struct mt7996_phy *phy);
 int mt7996_txbf_init(struct mt7996_dev *dev);
 void mt7996_reset(struct mt7996_dev *dev);
-int mt7996_run(struct ieee80211_hw *hw);
+int mt7996_run(struct mt7996_phy *phy);
 int mt7996_mcu_init(struct mt7996_dev *dev);
 int mt7996_mcu_init_firmware(struct mt7996_dev *dev);
 int mt7996_mcu_twt_agrt_update(struct mt7996_dev *dev,

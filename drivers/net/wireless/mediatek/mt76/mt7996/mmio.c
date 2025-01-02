@@ -605,6 +605,7 @@ struct mt7996_dev *mt7996_mmio_probe(struct device *pdev,
 	static const struct mt76_driver_ops drv_ops = {
 		/* txwi_size = txd size + txp size */
 		.txwi_size = MT_TXD_SIZE + sizeof(struct mt76_connac_fw_txp),
+		.link_data_size = sizeof(struct mt7996_vif_link),
 		.drv_flags = MT_DRV_TXWI_NO_FREE |
 			     MT_DRV_AMSDU_OFFLOAD |
 			     MT_DRV_HW_MGMT_TXQ,
@@ -622,6 +623,8 @@ struct mt7996_dev *mt7996_mmio_probe(struct device *pdev,
 		.sta_remove = mt7996_mac_sta_remove,
 		.update_survey = mt7996_update_channel,
 		.set_channel = mt7996_set_channel,
+		.vif_link_add = mt7996_vif_link_add,
+		.vif_link_remove = mt7996_vif_link_remove,
 	};
 	struct mt7996_dev *dev;
 	struct mt76_dev *mdev;
