@@ -5976,6 +5976,8 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	if (!assoc_data)
 		return;
 
+	info.link_id = assoc_data->assoc_link_id;
+
 	parse_params.mode =
 		assoc_data->link[assoc_data->assoc_link_id].conn.mode;
 
