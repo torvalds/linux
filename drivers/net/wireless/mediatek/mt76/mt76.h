@@ -787,6 +787,7 @@ struct mt76_vif_link {
 struct mt76_vif_data {
 	struct mt76_vif_link __rcu *link[IEEE80211_MLD_MAX_NUM_LINKS];
 
+	struct mt76_phy *roc_phy;
 	u16 valid_links;
 	u8 deflink_id;
 };
@@ -808,6 +809,10 @@ struct mt76_phy {
 	struct cfg80211_chan_def main_chandef;
 	bool offchannel;
 	bool radar_enabled;
+
+	struct delayed_work roc_work;
+	struct ieee80211_vif *roc_vif;
+	struct mt76_vif_link *roc_link;
 
 	struct mt76_chanctx *chanctx;
 
@@ -1521,6 +1526,11 @@ int mt76_switch_vif_chanctx(struct ieee80211_hw *hw,
 			    struct ieee80211_vif_chanctx_switch *vifs,
 			    int n_vifs,
 			    enum ieee80211_chanctx_switch_mode mode);
+int mt76_remain_on_channel(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			   struct ieee80211_channel *chan, int duration,
+			   enum ieee80211_roc_type type);
+int mt76_cancel_remain_on_channel(struct ieee80211_hw *hw,
+				  struct ieee80211_vif *vif);
 int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		      void *data, int len);
 int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *skb,
@@ -1572,6 +1582,8 @@ int mt76_set_channel(struct mt76_phy *phy, struct cfg80211_chan_def *chandef,
 		     bool offchannel);
 void mt76_scan_work(struct work_struct *work);
 void mt76_abort_scan(struct mt76_dev *dev);
+void mt76_roc_complete_work(struct work_struct *work);
+void mt76_abort_roc(struct mt76_phy *phy);
 struct mt76_vif_link *mt76_get_vif_phy_link(struct mt76_phy *phy,
 					    struct ieee80211_vif *vif);
 void mt76_put_vif_phy_link(struct mt76_phy *phy, struct ieee80211_vif *vif,

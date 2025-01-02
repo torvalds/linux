@@ -431,6 +431,7 @@ mt76_phy_init(struct mt76_phy *phy, struct ieee80211_hw *hw)
 
 	INIT_LIST_HEAD(&phy->tx_list);
 	spin_lock_init(&phy->tx_lock);
+	INIT_DELAYED_WORK(&phy->roc_work, mt76_roc_complete_work);
 
 	if ((void *)phy != hw->priv)
 		return 0;
@@ -1999,5 +2000,7 @@ void mt76_vif_cleanup(struct mt76_dev *dev, struct ieee80211_vif *vif)
 
 	rcu_assign_pointer(mvif->link[0], NULL);
 	mt76_abort_scan(dev);
+	if (mvif->roc_phy)
+		mt76_abort_roc(mvif->roc_phy);
 }
 EXPORT_SYMBOL_GPL(mt76_vif_cleanup);

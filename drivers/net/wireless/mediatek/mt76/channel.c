@@ -308,3 +308,99 @@ void mt76_put_vif_phy_link(struct mt76_phy *phy, struct ieee80211_vif *vif,
 	dev->drv->vif_link_remove(phy, vif, &vif->bss_conf, mlink);
 	kfree(mlink);
 }
+
+static void mt76_roc_complete(struct mt76_phy *phy)
+{
+	struct mt76_vif_link *mlink = phy->roc_link;
+
+	if (!phy->roc_vif)
+		return;
+
+	if (mlink)
+		mlink->mvif->roc_phy = NULL;
+	if (phy->main_chandef.chan)
+		mt76_set_channel(phy, &phy->main_chandef, false);
+	mt76_put_vif_phy_link(phy, phy->roc_vif, phy->roc_link);
+	phy->roc_vif = NULL;
+	phy->roc_link = NULL;
+	ieee80211_remain_on_channel_expired(phy->hw);
+}
+
+void mt76_roc_complete_work(struct work_struct *work)
+{
+	struct mt76_phy *phy = container_of(work, struct mt76_phy, roc_work.work);
+	struct mt76_dev *dev = phy->dev;
+
+	mutex_lock(&dev->mutex);
+	mt76_roc_complete(phy);
+	mutex_unlock(&dev->mutex);
+}
+
+void mt76_abort_roc(struct mt76_phy *phy)
+{
+	struct mt76_dev *dev = phy->dev;
+
+	cancel_delayed_work_sync(&phy->roc_work);
+
+	mutex_lock(&dev->mutex);
+	mt76_roc_complete(phy);
+	mutex_unlock(&dev->mutex);
+}
+
+int mt76_remain_on_channel(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			   struct ieee80211_channel *chan, int duration,
+			   enum ieee80211_roc_type type)
+{
+	struct cfg80211_chan_def chandef = {};
+	struct mt76_phy *phy = hw->priv;
+	struct mt76_dev *dev = phy->dev;
+	struct mt76_vif_link *mlink;
+	int ret = 0;
+
+	phy = dev->band_phys[chan->band];
+	if (!phy)
+		return -EINVAL;
+
+	mutex_lock(&dev->mutex);
+
+	if (phy->roc_vif || dev->scan.phy == phy) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	mlink = mt76_get_vif_phy_link(phy, vif);
+	if (IS_ERR(mlink)) {
+		ret = PTR_ERR(mlink);
+		goto out;
+	}
+
+	mlink->mvif->roc_phy = phy;
+	phy->roc_vif = vif;
+	phy->roc_link = mlink;
+	cfg80211_chandef_create(&chandef, chan, NL80211_CHAN_HT20);
+	mt76_set_channel(phy, &chandef, true);
+	ieee80211_ready_on_channel(hw);
+	ieee80211_queue_delayed_work(phy->hw, &phy->roc_work,
+				     msecs_to_jiffies(duration));
+
+out:
+	mutex_unlock(&dev->mutex);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(mt76_remain_on_channel);
+
+int mt76_cancel_remain_on_channel(struct ieee80211_hw *hw,
+				  struct ieee80211_vif *vif)
+{
+	struct mt76_vif_link *mlink = (struct mt76_vif_link *)vif->drv_priv;
+	struct mt76_vif_data *mvif = mlink->mvif;
+	struct mt76_phy *phy = mvif->roc_phy;
+
+	if (!phy)
+		return 0;
+
+	mt76_abort_roc(phy);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mt76_cancel_remain_on_channel);

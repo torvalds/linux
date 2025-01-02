@@ -134,7 +134,7 @@ int mt76_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	mutex_lock(&dev->mutex);
 
-	if (dev->scan.req) {
+	if (dev->scan.req || phy->roc_vif) {
 		ret = -EBUSY;
 		goto out;
 	}
