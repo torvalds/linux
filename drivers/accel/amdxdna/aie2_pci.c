@@ -25,7 +25,7 @@
 #include "amdxdna_mailbox.h"
 #include "amdxdna_pci_drv.h"
 
-int aie2_max_col = XRS_MAX_COL;
+static int aie2_max_col = XRS_MAX_COL;
 module_param(aie2_max_col, uint, 0600);
 MODULE_PARM_DESC(aie2_max_col, "Maximum column could be used");
 
