@@ -611,6 +611,8 @@
 		pciephy0: phy@10210000 {
 			compatible = "starfive,jh7110-pcie-phy";
 			reg = <0x0 0x10210000 0x0 0x10000>;
+			starfive,sys-syscon = <&sys_syscon 0x18>;
+			starfive,stg-syscon = <&stg_syscon 0x148 0x1f4>;
 			#phy-cells = <0>;
 		};
 
