@@ -152,6 +152,8 @@ mlx5hws_bwc_matcher_create(struct mlx5hws_table *table,
 	if (!bwc_matcher)
 		return NULL;
 
+	atomic_set(&bwc_matcher->num_of_rules, 0);
+
 	/* Check if the required match params can be all matched
 	 * in single STE, otherwise complex matcher is needed.
 	 */
@@ -199,10 +201,12 @@ int mlx5hws_bwc_matcher_destroy_simple(struct mlx5hws_bwc_matcher *bwc_matcher)
 
 int mlx5hws_bwc_matcher_destroy(struct mlx5hws_bwc_matcher *bwc_matcher)
 {
-	if (bwc_matcher->num_of_rules)
+	u32 num_of_rules = atomic_read(&bwc_matcher->num_of_rules);
+
+	if (num_of_rules)
 		mlx5hws_err(bwc_matcher->matcher->tbl->ctx,
 			    "BWC matcher destroy: matcher still has %d rules\n",
-			    bwc_matcher->num_of_rules);
+			    num_of_rules);
 
 	mlx5hws_bwc_matcher_destroy_simple(bwc_matcher);
 
@@ -309,7 +313,7 @@ static void hws_bwc_rule_list_add(struct mlx5hws_bwc_rule *bwc_rule, u16 idx)
 {
 	struct mlx5hws_bwc_matcher *bwc_matcher = bwc_rule->bwc_matcher;
 
-	bwc_matcher->num_of_rules++;
+	atomic_inc(&bwc_matcher->num_of_rules);
 	bwc_rule->bwc_queue_idx = idx;
 	list_add(&bwc_rule->list_node, &bwc_matcher->rules[idx]);
 }
@@ -318,7 +322,7 @@ static void hws_bwc_rule_list_remove(struct mlx5hws_bwc_rule *bwc_rule)
 {
 	struct mlx5hws_bwc_matcher *bwc_matcher = bwc_rule->bwc_matcher;
 
-	bwc_matcher->num_of_rules--;
+	atomic_dec(&bwc_matcher->num_of_rules);
 	list_del_init(&bwc_rule->list_node);
 }
 
@@ -711,7 +715,8 @@ hws_bwc_matcher_rehash_size(struct mlx5hws_bwc_matcher *bwc_matcher)
 	 * Need to check again if we really need rehash.
 	 * If the reason for rehash was size, but not any more - skip rehash.
 	 */
-	if (!hws_bwc_matcher_rehash_size_needed(bwc_matcher, bwc_matcher->num_of_rules))
+	if (!hws_bwc_matcher_rehash_size_needed(bwc_matcher,
+						atomic_read(&bwc_matcher->num_of_rules)))
 		return 0;
 
 	/* Now we're done all the checking - do the rehash:
@@ -804,7 +809,7 @@ int mlx5hws_bwc_rule_create_simple(struct mlx5hws_bwc_rule *bwc_rule,
 	}
 
 	/* check if number of rules require rehash */
-	num_of_rules = bwc_matcher->num_of_rules;
+	num_of_rules = atomic_read(&bwc_matcher->num_of_rules);
 
 	if (unlikely(hws_bwc_matcher_rehash_size_needed(bwc_matcher, num_of_rules))) {
 		mutex_unlock(queue_lock);
