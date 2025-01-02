@@ -4496,6 +4496,27 @@ int mt7996_mcu_wed_rro_reset_sessions(struct mt7996_dev *dev, u16 id)
 				 sizeof(req), true);
 }
 
+int mt7996_mcu_set_sniffer_mode(struct mt7996_phy *phy, bool enabled)
+{
+	struct mt7996_dev *dev = phy->dev;
+	struct {
+		u8 band_idx;
+		u8 _rsv[3];
+		__le16 tag;
+		__le16 len;
+		u8 enable;
+		u8 _pad[3];
+	} __packed req = {
+		.band_idx = phy->mt76->band_idx,
+		.tag = 0,
+		.len = cpu_to_le16(sizeof(req) - 4),
+		.enable = enabled,
+	};
+
+	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(SNIFFER), &req,
+				 sizeof(req), true);
+}
+
 int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy)
 {
 #define TX_POWER_LIMIT_TABLE_RATE	0
