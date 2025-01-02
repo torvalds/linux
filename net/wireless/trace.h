@@ -3049,6 +3049,24 @@ TRACE_EVENT(rdev_set_ttlm,
 		  WIPHY_PR_ARG, NETDEV_PR_ARG)
 );
 
+TRACE_EVENT(rdev_set_epcs,
+	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
+		 bool val),
+	TP_ARGS(wiphy, netdev, val),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		NETDEV_ENTRY
+		__field(bool, val)
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		NETDEV_ASSIGN;
+		__entry->val = val;
+	),
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", config=%u",
+		  WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->val)
+);
+
 /*************************************************************
  *	     cfg80211 exported functions traces		     *
  *************************************************************/
@@ -4148,6 +4166,22 @@ TRACE_EVENT(rdev_assoc_ml_reconf,
 		  WIPHY_PR_ARG, NETDEV_PR_ARG,
 		  __entry->add_links, __entry->rem_links)
 );
+
+TRACE_EVENT(cfg80211_epcs_changed,
+	TP_PROTO(struct wireless_dev *wdev, bool enabled),
+	TP_ARGS(wdev, enabled),
+	TP_STRUCT__entry(
+		WDEV_ENTRY
+		__field(u32, enabled)
+	),
+	TP_fast_assign(
+		WDEV_ASSIGN;
+		__entry->enabled = enabled;
+	),
+	TP_printk(WDEV_PR_FMT ", enabled=%u",
+		  WDEV_PR_ARG, __entry->enabled)
+);
+
 #endif /* !__RDEV_OPS_TRACE || TRACE_HEADER_MULTI_READ */
 
 #undef TRACE_INCLUDE_PATH

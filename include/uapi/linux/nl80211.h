@@ -1332,6 +1332,10 @@
  * @NL80211_CMD_ASSOC_MLO_RECONF: For a non-AP MLD station, request to
  *      add/remove links to/from the association.
  *
+ * @NL80211_CMD_EPCS_CFG: EPCS configuration for a station. Used by userland to
+ *	control EPCS configuration. Used to notify userland on the current state
+ *	of EPCS.
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -1590,6 +1594,7 @@ enum nl80211_commands {
 	NL80211_CMD_SET_TID_TO_LINK_MAPPING,
 
 	NL80211_CMD_ASSOC_MLO_RECONF,
+	NL80211_CMD_EPCS_CFG,
 
 	/* add new commands above here */
 
@@ -2885,6 +2890,9 @@ enum nl80211_commands {
  * @NL80211_ATTR_MLO_RECONF_REM_LINKS: (u16) A bitmask of the links requested
  *      to be removed from the MLO association.
  *
+ * @NL80211_ATTR_EPCS: Flag attribute indicating that EPCS is enabled for a
+ *	station interface.
+ *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -3438,6 +3446,7 @@ enum nl80211_attrs {
 	NL80211_ATTR_SUPPORTED_SELECTORS,
 
 	NL80211_ATTR_MLO_RECONF_REM_LINKS,
+	NL80211_ATTR_EPCS,
 
 	/* add attributes here, update the policy in nl80211.c */
 

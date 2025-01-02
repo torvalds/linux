@@ -4594,6 +4594,7 @@ struct mgmt_frame_regs {
  *
  * @set_hw_timestamp: Enable/disable HW timestamping of TM/FTM frames.
  * @set_ttlm: set the TID to link mapping.
+ * @set_epcs: Enable/Disable EPCS for station mode.
  * @get_radio_mask: get bitmask of radios in use.
  *	(invoked with the wiphy mutex held)
  * @assoc_ml_reconf: Request a non-AP MLO connection to perform ML
@@ -4971,6 +4972,8 @@ struct cfg80211_ops {
 	int     (*assoc_ml_reconf)(struct wiphy *wiphy, struct net_device *dev,
 				   struct cfg80211_assoc_link *add_links,
 				   u16 rem_links);
+	int	(*set_epcs)(struct wiphy *wiphy, struct net_device *dev,
+			    bool val);
 };
 
 /*
@@ -9770,6 +9773,13 @@ void cfg80211_mlo_reconf_add_done(struct net_device *dev,
  * hold anymore.
  */
 void cfg80211_schedule_channels_check(struct wireless_dev *wdev);
+
+/**
+ * cfg80211_epcs_changed - Notify about a change in EPCS state
+ * @netdev: the wireless device whose EPCS state changed
+ * @enabled: set to true if EPCS was enabled, otherwise set to false.
+ */
+void cfg80211_epcs_changed(struct net_device *netdev, bool enabled);
 
 #ifdef CONFIG_CFG80211_DEBUGFS
 /**

@@ -849,6 +849,7 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 		NLA_POLICY_VALIDATE_FN(NLA_BINARY, validate_supported_selectors,
 				       NL80211_MAX_SUPP_SELECTORS),
 	[NL80211_ATTR_MLO_RECONF_REM_LINKS] = { .type = NLA_U16 },
+	[NL80211_ATTR_EPCS] = { .type = NLA_FLAG },
 };
 
 /* policy for the key attributes */
@@ -16537,6 +16538,26 @@ out:
 	return err;
 }
 
+static int
+nl80211_epcs_cfg(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *rdev = info->user_ptr[0];
+	struct net_device *dev = info->user_ptr[1];
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	bool val;
+
+	if (wdev->iftype != NL80211_IFTYPE_STATION &&
+	    wdev->iftype != NL80211_IFTYPE_P2P_CLIENT)
+		return -EOPNOTSUPP;
+
+	if (!wdev->connected)
+		return -ENOLINK;
+
+	val = nla_get_flag(info->attrs[NL80211_ATTR_EPCS]);
+
+	return rdev_set_epcs(rdev, dev, val);
+}
+
 #define NL80211_FLAG_NEED_WIPHY		0x01
 #define NL80211_FLAG_NEED_NETDEV	0x02
 #define NL80211_FLAG_NEED_RTNL		0x04
@@ -17732,6 +17753,12 @@ static const struct genl_small_ops nl80211_small_ops[] = {
 	{
 		.cmd = NL80211_CMD_ASSOC_MLO_RECONF,
 		.doit = nl80211_assoc_ml_reconf,
+		.flags = GENL_UNS_ADMIN_PERM,
+		.internal_flags = IFLAGS(NL80211_FLAG_NEED_NETDEV_UP),
+	},
+	{
+		.cmd = NL80211_CMD_EPCS_CFG,
+		.doit = nl80211_epcs_cfg,
 		.flags = GENL_UNS_ADMIN_PERM,
 		.internal_flags = IFLAGS(NL80211_FLAG_NEED_NETDEV_UP),
 	},
@@ -20479,6 +20506,39 @@ void cfg80211_schedule_channels_check(struct wireless_dev *wdev)
 		reg_check_channels();
 }
 EXPORT_SYMBOL(cfg80211_schedule_channels_check);
+
+void cfg80211_epcs_changed(struct net_device *netdev, bool enabled)
+{
+	struct wireless_dev *wdev = netdev->ieee80211_ptr;
+	struct wiphy *wiphy = wdev->wiphy;
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
+	struct sk_buff *msg;
+	void *hdr;
+
+	trace_cfg80211_epcs_changed(wdev, enabled);
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg)
+		return;
+
+	hdr = nl80211hdr_put(msg, 0, 0, 0, NL80211_CMD_EPCS_CFG);
+	if (!hdr) {
+		nlmsg_free(msg);
+		return;
+	}
+
+	if (enabled && nla_put_flag(msg, NL80211_ATTR_EPCS))
+		goto nla_put_failure;
+
+	genlmsg_end(msg, hdr);
+	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
+				NL80211_MCGRP_MLME, GFP_KERNEL);
+	return;
+
+ nla_put_failure:
+	nlmsg_free(msg);
+}
+EXPORT_SYMBOL(cfg80211_epcs_changed);
 
 /* initialisation/exit functions */
 
