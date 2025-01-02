@@ -9629,19 +9629,6 @@ static void i40e_handle_lan_overflow_event(struct i40e_pf *pf,
 }
 
 /**
- * i40e_get_cur_guaranteed_fd_count - Get the consumed guaranteed FD filters
- * @pf: board private structure
- **/
-u32 i40e_get_cur_guaranteed_fd_count(struct i40e_pf *pf)
-{
-	u32 val, fcnt_prog;
-
-	val = rd32(&pf->hw, I40E_PFQF_FDSTAT);
-	fcnt_prog = (val & I40E_PFQF_FDSTAT_GUARANT_CNT_MASK);
-	return fcnt_prog;
-}
-
-/**
  * i40e_get_current_fd_count - Get total FD filters programmed for this PF
  * @pf: board private structure
  **/
