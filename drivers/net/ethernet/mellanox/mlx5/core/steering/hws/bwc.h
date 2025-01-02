@@ -18,6 +18,8 @@
 
 #define MLX5HWS_BWC_MAX_ACTS 16
 
+#define MLX5HWS_BWC_POLLING_TIMEOUT 60
+
 struct mlx5hws_bwc_matcher {
 	struct mlx5hws_matcher *matcher;
 	struct mlx5hws_match_template *mt;

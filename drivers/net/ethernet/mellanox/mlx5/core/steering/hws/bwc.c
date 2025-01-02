@@ -219,6 +219,8 @@ static int hws_bwc_queue_poll(struct mlx5hws_context *ctx,
 			      u32 *pending_rules,
 			      bool drain)
 {
+	unsigned long timeout = jiffies +
+				msecs_to_jiffies(MLX5HWS_BWC_POLLING_TIMEOUT * MSEC_PER_SEC);
 	struct mlx5hws_flow_op_result comp[MLX5HWS_BWC_MATCHER_REHASH_BURST_TH];
 	u16 burst_th = hws_bwc_get_burst_th(ctx, queue_id);
 	bool got_comp = *pending_rules >= burst_th;
@@ -254,6 +256,11 @@ static int hws_bwc_queue_poll(struct mlx5hws_context *ctx,
 		}
 
 		got_comp = !!ret;
+
+		if (unlikely(!got_comp && time_after(jiffies, timeout))) {
+			mlx5hws_err(ctx, "BWC poll error: polling queue %d - TIMEOUT\n", queue_id);
+			return -ETIMEDOUT;
+		}
 	}
 
 	return err;
@@ -338,22 +345,21 @@ hws_bwc_rule_destroy_hws_sync(struct mlx5hws_bwc_rule *bwc_rule,
 			      struct mlx5hws_rule_attr *rule_attr)
 {
 	struct mlx5hws_context *ctx = bwc_rule->bwc_matcher->matcher->tbl->ctx;
-	struct mlx5hws_flow_op_result completion;
+	u32 expected_completions = 1;
 	int ret;
 
 	ret = hws_bwc_rule_destroy_hws_async(bwc_rule, rule_attr);
 	if (unlikely(ret))
 		return ret;
 
-	do {
-		ret = mlx5hws_send_queue_poll(ctx, rule_attr->queue_id, &completion, 1);
-	} while (ret != 1);
+	ret = hws_bwc_queue_poll(ctx, rule_attr->queue_id, &expected_completions, true);
+	if (unlikely(ret))
+		return ret;
 
-	if (unlikely(completion.status != MLX5HWS_FLOW_OP_SUCCESS ||
-		     (bwc_rule->rule->status != MLX5HWS_RULE_STATUS_DELETED &&
-		      bwc_rule->rule->status != MLX5HWS_RULE_STATUS_DELETING))) {
-		mlx5hws_err(ctx, "Failed destroying BWC rule: completion %d, rule status %d\n",
-			    completion.status, bwc_rule->rule->status);
+	if (unlikely(bwc_rule->rule->status != MLX5HWS_RULE_STATUS_DELETED &&
+		     bwc_rule->rule->status != MLX5HWS_RULE_STATUS_DELETING)) {
+		mlx5hws_err(ctx, "Failed destroying BWC rule: rule status %d\n",
+			    bwc_rule->rule->status);
 		return -EINVAL;
 	}
 
