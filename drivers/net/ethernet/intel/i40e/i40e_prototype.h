@@ -141,9 +141,6 @@ int i40e_aq_set_vsi_uc_promisc_on_vlan(struct i40e_hw *hw,
 int i40e_aq_set_vsi_bc_promisc_on_vlan(struct i40e_hw *hw,
 				       u16 seid, bool enable, u16 vid,
 				       struct i40e_asq_cmd_details *cmd_details);
-int i40e_aq_set_vsi_vlan_promisc(struct i40e_hw *hw,
-				 u16 seid, bool enable,
-				 struct i40e_asq_cmd_details *cmd_details);
 int i40e_aq_get_vsi_params(struct i40e_hw *hw,
 			   struct i40e_vsi_context *vsi_ctx,
 			   struct i40e_asq_cmd_details *cmd_details);
@@ -176,14 +173,6 @@ i40e_aq_remove_macvlan_v2(struct i40e_hw *hw, u16 seid,
 			  struct i40e_aqc_remove_macvlan_element_data *mv_list,
 			  u16 count, struct i40e_asq_cmd_details *cmd_details,
 			  enum i40e_admin_queue_err *aq_status);
-int i40e_aq_add_mirrorrule(struct i40e_hw *hw, u16 sw_seid,
-			   u16 rule_type, u16 dest_vsi, u16 count, __le16 *mr_list,
-			   struct i40e_asq_cmd_details *cmd_details,
-			   u16 *rule_id, u16 *rules_used, u16 *rules_free);
-int i40e_aq_delete_mirrorrule(struct i40e_hw *hw, u16 sw_seid,
-			      u16 rule_type, u16 rule_id, u16 count, __le16 *mr_list,
-			      struct i40e_asq_cmd_details *cmd_details,
-			      u16 *rules_used, u16 *rules_free);
 
 int i40e_aq_send_msg_to_vf(struct i40e_hw *hw, u16 vfid,
 			   u32 v_opcode, u32 v_retval, u8 *msg, u16 msglen,
@@ -220,9 +209,6 @@ int i40e_aq_update_nvm(struct i40e_hw *hw, u8 module_pointer,
 		       u32 offset, u16 length, void *data,
 		       bool last_command, u8 preservation_flags,
 		       struct i40e_asq_cmd_details *cmd_details);
-int i40e_aq_rearrange_nvm(struct i40e_hw *hw,
-			  u8 rearrange_nvm,
-			  struct i40e_asq_cmd_details *cmd_details);
 int i40e_aq_get_lldp_mib(struct i40e_hw *hw, u8 bridge_type,
 			 u8 mib_type, void *buff, u16 buff_size,
 			 u16 *local_len, u16 *remote_len,
@@ -234,9 +220,6 @@ i40e_aq_set_lldp_mib(struct i40e_hw *hw,
 int i40e_aq_cfg_lldp_mib_change_event(struct i40e_hw *hw,
 				      bool enable_update,
 				      struct i40e_asq_cmd_details *cmd_details);
-int
-i40e_aq_restore_lldp(struct i40e_hw *hw, u8 *setting, bool restore,
-		     struct i40e_asq_cmd_details *cmd_details);
 int i40e_aq_stop_lldp(struct i40e_hw *hw, bool shutdown_agent,
 		      bool persist,
 		      struct i40e_asq_cmd_details *cmd_details);
