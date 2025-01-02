@@ -469,7 +469,8 @@ mt7996_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	       unsigned int link_id, u16 queue,
 	       const struct ieee80211_tx_queue_params *params)
 {
-	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
+	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+	struct mt7996_vif_link *mlink = mt7996_vif_link(dev, vif, link_id);
 	static const u8 mq_to_aci[] = {
 		[IEEE80211_AC_VO] = 3,
 		[IEEE80211_AC_VI] = 2,
@@ -478,7 +479,7 @@ mt7996_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	};
 
 	/* firmware uses access class index */
-	mvif->deflink.queue_params[mq_to_aci[queue]] = *params;
+	mlink->queue_params[mq_to_aci[queue]] = *params;
 	/* no need to update right away, we'll get BSS_CHANGED_QOS */
 
 	return 0;
@@ -656,7 +657,7 @@ static void mt7996_bss_info_changed(struct ieee80211_hw *hw,
 
 	/* ensure that enable txcmd_mode after bss_info */
 	if (changed & (BSS_CHANGED_QOS | BSS_CHANGED_BEACON_ENABLED))
-		mt7996_mcu_set_tx(dev, vif);
+		mt7996_mcu_set_tx(dev, vif, info);
 
 	if (changed & BSS_CHANGED_HE_OBSS_PD)
 		mt7996_mcu_add_obss_spr(phy, vif, &info->he_obss_pd);

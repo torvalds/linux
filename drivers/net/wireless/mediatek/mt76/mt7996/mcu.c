@@ -3145,7 +3145,8 @@ int mt7996_mcu_set_hdr_trans(struct mt7996_dev *dev, bool hdr_trans)
 				     MCU_WM_UNI_CMD(RX_HDR_TRANS), true);
 }
 
-int mt7996_mcu_set_tx(struct mt7996_dev *dev, struct ieee80211_vif *vif)
+int mt7996_mcu_set_tx(struct mt7996_dev *dev, struct ieee80211_vif *vif,
+		      struct ieee80211_bss_conf *link_conf)
 {
 #define MCU_EDCA_AC_PARAM	0
 #define WMM_AIFS_SET		BIT(0)
@@ -3154,12 +3155,12 @@ int mt7996_mcu_set_tx(struct mt7996_dev *dev, struct ieee80211_vif *vif)
 #define WMM_TXOP_SET		BIT(3)
 #define WMM_PARAM_SET		(WMM_AIFS_SET | WMM_CW_MIN_SET | \
 				 WMM_CW_MAX_SET | WMM_TXOP_SET)
-	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
+	struct mt7996_vif_link *link = mt7996_vif_conf_link(dev, vif, link_conf);
 	struct {
 		u8 bss_idx;
 		u8 __rsv[3];
 	} __packed hdr = {
-		.bss_idx = mvif->deflink.mt76.idx,
+		.bss_idx = link->mt76.idx,
 	};
 	struct sk_buff *skb;
 	int len = sizeof(hdr) + IEEE80211_NUM_ACS * sizeof(struct edca);
@@ -3172,7 +3173,7 @@ int mt7996_mcu_set_tx(struct mt7996_dev *dev, struct ieee80211_vif *vif)
 	skb_put_data(skb, &hdr, sizeof(hdr));
 
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
-		struct ieee80211_tx_queue_params *q = &mvif->deflink.queue_params[ac];
+		struct ieee80211_tx_queue_params *q = &link->queue_params[ac];
 		struct edca *e;
 		struct tlv *tlv;
 
