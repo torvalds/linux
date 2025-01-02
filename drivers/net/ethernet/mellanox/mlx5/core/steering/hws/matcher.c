@@ -999,9 +999,9 @@ hws_matcher_set_templates(struct mlx5hws_matcher *matcher,
 	if (!matcher->mt)
 		return -ENOMEM;
 
-	matcher->at = kcalloc(num_of_at + matcher->attr.max_num_of_at_attach,
-			      sizeof(*matcher->at),
-			      GFP_KERNEL);
+	matcher->at = kvcalloc(num_of_at + matcher->attr.max_num_of_at_attach,
+			       sizeof(*matcher->at),
+			       GFP_KERNEL);
 	if (!matcher->at) {
 		mlx5hws_err(ctx, "Failed to allocate action template array\n");
 		ret = -ENOMEM;
@@ -1027,7 +1027,7 @@ free_mt:
 static void
 hws_matcher_unset_templates(struct mlx5hws_matcher *matcher)
 {
-	kfree(matcher->at);
+	kvfree(matcher->at);
 	kfree(matcher->mt);
 }
 
