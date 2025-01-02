@@ -1661,13 +1661,14 @@ static vm_fault_t vfio_pci_mmap_huge_fault(struct vm_fault *vmf,
 	unsigned long pfn, pgoff = vmf->pgoff - vma->vm_pgoff;
 	vm_fault_t ret = VM_FAULT_SIGBUS;
 
-	if (order && (vmf->address & ((PAGE_SIZE << order) - 1) ||
+	pfn = vma_to_pfn(vma) + pgoff;
+
+	if (order && (pfn & ((1 << order) - 1) ||
+		      vmf->address & ((PAGE_SIZE << order) - 1) ||
 		      vmf->address + (PAGE_SIZE << order) > vma->vm_end)) {
 		ret = VM_FAULT_FALLBACK;
 		goto out;
 	}
-
-	pfn = vma_to_pfn(vma);
 
 	down_read(&vdev->memory_lock);
 
@@ -1676,18 +1677,18 @@ static vm_fault_t vfio_pci_mmap_huge_fault(struct vm_fault *vmf,
 
 	switch (order) {
 	case 0:
-		ret = vmf_insert_pfn(vma, vmf->address, pfn + pgoff);
+		ret = vmf_insert_pfn(vma, vmf->address, pfn);
 		break;
 #ifdef CONFIG_ARCH_SUPPORTS_PMD_PFNMAP
 	case PMD_ORDER:
-		ret = vmf_insert_pfn_pmd(vmf, __pfn_to_pfn_t(pfn + pgoff,
-							     PFN_DEV), false);
+		ret = vmf_insert_pfn_pmd(vmf,
+					 __pfn_to_pfn_t(pfn, PFN_DEV), false);
 		break;
 #endif
 #ifdef CONFIG_ARCH_SUPPORTS_PUD_PFNMAP
 	case PUD_ORDER:
-		ret = vmf_insert_pfn_pud(vmf, __pfn_to_pfn_t(pfn + pgoff,
-							     PFN_DEV), false);
+		ret = vmf_insert_pfn_pud(vmf,
+					 __pfn_to_pfn_t(pfn, PFN_DEV), false);
 		break;
 #endif
 	default:
