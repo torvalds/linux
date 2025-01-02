@@ -5136,6 +5136,12 @@ lpfc_info(struct Scsi_Host *host)
 				goto buffer_done;
 		}
 
+		/* Support for BSG ioctls */
+		scnprintf(tmp, sizeof(tmp), " BSG");
+		if (strlcat(lpfcinfobuf, tmp, sizeof(lpfcinfobuf)) >=
+		    sizeof(lpfcinfobuf))
+			goto buffer_done;
+
 		/* PCI resettable */
 		if (!lpfc_check_pci_resettable(phba)) {
 			scnprintf(tmp, sizeof(tmp), " PCI resettable");
@@ -6120,31 +6126,28 @@ lpfc_target_reset_handler(struct scsi_cmnd *cmnd)
 
 		/* Issue LOGO, if no LOGO is outstanding */
 		spin_lock_irqsave(&pnode->lock, flags);
-		if (!(pnode->save_flags & NLP_WAIT_FOR_LOGO) &&
+		if (!test_bit(NLP_WAIT_FOR_LOGO, &pnode->save_flags) &&
 		    !pnode->logo_waitq) {
 			pnode->logo_waitq = &waitq;
 			pnode->nlp_fcp_info &= ~NLP_FCP_2_DEVICE;
-			set_bit(NLP_ISSUE_LOGO, &pnode->nlp_flag);
-			pnode->save_flags |= NLP_WAIT_FOR_LOGO;
 			spin_unlock_irqrestore(&pnode->lock, flags);
+			set_bit(NLP_ISSUE_LOGO, &pnode->nlp_flag);
+			set_bit(NLP_WAIT_FOR_LOGO, &pnode->save_flags);
 			lpfc_unreg_rpi(vport, pnode);
 			wait_event_timeout(waitq,
-					   (!(pnode->save_flags &
-					      NLP_WAIT_FOR_LOGO)),
+					   !test_bit(NLP_WAIT_FOR_LOGO,
+						     &pnode->save_flags),
 					   msecs_to_jiffies(dev_loss_tmo *
 							    1000));
 
-			if (pnode->save_flags & NLP_WAIT_FOR_LOGO) {
+			if (test_and_clear_bit(NLP_WAIT_FOR_LOGO,
+					       &pnode->save_flags))
 				lpfc_printf_vlog(vport, KERN_ERR, logit,
 						 "0725 SCSI layer TGTRST "
 						 "failed & LOGO TMO (%d, %llu) "
 						 "return x%x\n",
 						 tgt_id, lun_id, status);
-				spin_lock_irqsave(&pnode->lock, flags);
-				pnode->save_flags &= ~NLP_WAIT_FOR_LOGO;
-			} else {
-				spin_lock_irqsave(&pnode->lock, flags);
-			}
+			spin_lock_irqsave(&pnode->lock, flags);
 			pnode->logo_waitq = NULL;
 			spin_unlock_irqrestore(&pnode->lock, flags);
 			status = SUCCESS;
@@ -6423,7 +6426,7 @@ lpfc_create_device_data(struct lpfc_hba *phba, struct lpfc_name *vport_wwpn,
 {
 
 	struct lpfc_device_data *lun_info;
-	int memory_flags;
+	gfp_t memory_flags;
 
 	if (unlikely(!phba) || !vport_wwpn || !target_wwpn  ||
 	    !(phba->cfg_fof))
