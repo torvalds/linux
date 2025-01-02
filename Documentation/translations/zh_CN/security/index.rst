@@ -18,6 +18,7 @@
    lsm
    siphash
    digsig
+   landlock
 
 TODOLIST:
 * credentials
@@ -29,6 +30,5 @@ TODOLIST:
 * SCTP
 * self-protection
 * tpm/index
-* landlock
 * secrets/index
 * ipe
