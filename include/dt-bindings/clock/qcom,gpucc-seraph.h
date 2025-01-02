@@ -35,6 +35,7 @@
 #define GPU_CC_SLEEP_CLK					25
 #define GPU_CC_XO_CLK_SRC					26
 #define GPU_CC_XO_DIV_CLK_SRC					27
+#define GPU_CC_HLOS1_VOTE_GPU_SMMU_CLK				28
 
 /* GPU_CC resets */
 #define GPU_CC_CB_BCR						0
