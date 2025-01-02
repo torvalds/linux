@@ -503,6 +503,9 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 	if (IS_ERR(link))
 		return PTR_ERR(link);
 
+	if (WARN_ON(pairwise && link_id >= 0))
+		return -EINVAL;
+
 	if (pairwise && params->mode == NL80211_KEY_SET_TX)
 		return ieee80211_set_tx(sdata, mac_addr, key_idx);
 
@@ -525,10 +528,12 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 	if (IS_ERR(key))
 		return PTR_ERR(key);
 
-	key->conf.link_id = link_id;
-
-	if (pairwise)
+	if (pairwise) {
 		key->conf.flags |= IEEE80211_KEY_FLAG_PAIRWISE;
+		key->conf.link_id = -1;
+	} else {
+		key->conf.link_id = link->link_id;
+	}
 
 	if (params->mode == NL80211_KEY_NO_TX)
 		key->conf.flags |= IEEE80211_KEY_FLAG_NO_AUTO_TX;
