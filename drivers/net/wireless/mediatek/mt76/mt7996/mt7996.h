@@ -562,7 +562,8 @@ int mt7996_mcu_set_radar_th(struct mt7996_dev *dev, int index,
 			    const struct mt7996_dfs_pattern *pattern);
 int mt7996_mcu_set_radio_en(struct mt7996_phy *phy, bool enable);
 int mt7996_mcu_set_rts_thresh(struct mt7996_phy *phy, u32 val);
-int mt7996_mcu_set_timing(struct mt7996_phy *phy, struct ieee80211_vif *vif);
+int mt7996_mcu_set_timing(struct mt7996_phy *phy, struct ieee80211_vif *vif,
+			  struct ieee80211_bss_conf *link_conf);
 int mt7996_mcu_get_chan_mib_info(struct mt7996_phy *phy, bool chan_switch);
 int mt7996_mcu_get_temperature(struct mt7996_phy *phy);
 int mt7996_mcu_set_thermal_throttling(struct mt7996_phy *phy, u8 state);

@@ -643,7 +643,7 @@ static void mt7996_bss_info_changed(struct ieee80211_hw *hw,
 
 		if (slottime != phy->slottime) {
 			phy->slottime = slottime;
-			mt7996_mcu_set_timing(phy, vif);
+			mt7996_mcu_set_timing(phy, vif, info);
 		}
 	}
 

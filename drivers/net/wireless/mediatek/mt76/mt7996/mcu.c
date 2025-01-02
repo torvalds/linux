@@ -1108,13 +1108,14 @@ out:
 				     MCU_WMWA_UNI_CMD(BSS_INFO_UPDATE), true);
 }
 
-int mt7996_mcu_set_timing(struct mt7996_phy *phy, struct ieee80211_vif *vif)
+int mt7996_mcu_set_timing(struct mt7996_phy *phy, struct ieee80211_vif *vif,
+			  struct ieee80211_bss_conf *link_conf)
 {
-	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
 	struct mt7996_dev *dev = phy->dev;
+	struct mt76_vif_link *mlink = mt76_vif_conf_link(&dev->mt76, vif, link_conf);
 	struct sk_buff *skb;
 
-	skb = __mt7996_mcu_alloc_bss_req(&dev->mt76, &mvif->deflink.mt76,
+	skb = __mt7996_mcu_alloc_bss_req(&dev->mt76, mlink,
 					 MT7996_BSS_UPDATE_MAX_SIZE);
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
