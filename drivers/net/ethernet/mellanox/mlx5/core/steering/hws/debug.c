@@ -368,9 +368,10 @@ static int hws_debug_dump_context_info(struct seq_file *f, struct mlx5hws_contex
 
 static int hws_debug_dump_context_stc_resource(struct seq_file *f,
 					       struct mlx5hws_context *ctx,
-					       u32 tbl_type,
 					       struct mlx5hws_pool_resource *resource)
 {
+	u32 tbl_type = MLX5HWS_TABLE_TYPE_BASE + MLX5HWS_TABLE_TYPE_FDB;
+
 	seq_printf(f, "%d,0x%llx,%u,%u\n",
 		   MLX5HWS_DEBUG_RES_TYPE_CONTEXT_STC,
 		   HWS_PTR_TO_ID(ctx),
@@ -382,31 +383,22 @@ static int hws_debug_dump_context_stc_resource(struct seq_file *f,
 
 static int hws_debug_dump_context_stc(struct seq_file *f, struct mlx5hws_context *ctx)
 {
-	struct mlx5hws_pool *stc_pool;
-	u32 table_type;
+	struct mlx5hws_pool *stc_pool = ctx->stc_pool;
 	int ret;
-	int i;
 
-	for (i = 0; i < MLX5HWS_TABLE_TYPE_MAX; i++) {
-		stc_pool = ctx->stc_pool[i];
-		table_type = MLX5HWS_TABLE_TYPE_BASE + i;
+	if (!stc_pool)
+		return 0;
 
-		if (!stc_pool)
-			continue;
+	if (stc_pool->resource[0]) {
+		ret = hws_debug_dump_context_stc_resource(f, ctx, stc_pool->resource[0]);
+		if (ret)
+			return ret;
+	}
 
-		if (stc_pool->resource[0]) {
-			ret = hws_debug_dump_context_stc_resource(f, ctx, table_type,
-								  stc_pool->resource[0]);
-			if (ret)
-				return ret;
-		}
-
-		if (i == MLX5HWS_TABLE_TYPE_FDB && stc_pool->mirror_resource[0]) {
-			ret = hws_debug_dump_context_stc_resource(f, ctx, table_type,
-								  stc_pool->mirror_resource[0]);
-			if (ret)
-				return ret;
-		}
+	if (stc_pool->mirror_resource[0]) {
+		ret = hws_debug_dump_context_stc_resource(f, ctx, stc_pool->mirror_resource[0]);
+		if (ret)
+			return ret;
 	}
 
 	return 0;

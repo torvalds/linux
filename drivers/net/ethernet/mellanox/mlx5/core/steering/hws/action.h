@@ -124,7 +124,7 @@ struct mlx5hws_action {
 	struct mlx5hws_context *ctx;
 	union {
 		struct {
-			struct mlx5hws_pool_chunk stc[MLX5HWS_TABLE_TYPE_MAX];
+			struct mlx5hws_pool_chunk stc;
 			union {
 				struct {
 					u32 pat_id;

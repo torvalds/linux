@@ -49,8 +49,8 @@ __must_hold(&tbl->ctx->ctrl_lock)
 	if (tbl->type != MLX5HWS_TABLE_TYPE_FDB)
 		return 0;
 
-	if (ctx->common_res[tbl_type].default_miss) {
-		ctx->common_res[tbl_type].default_miss->refcount++;
+	if (ctx->common_res.default_miss) {
+		ctx->common_res.default_miss->refcount++;
 		return 0;
 	}
 
@@ -71,8 +71,8 @@ __must_hold(&tbl->ctx->ctrl_lock)
 		return -EINVAL;
 	}
 
-	ctx->common_res[tbl_type].default_miss = default_miss;
-	ctx->common_res[tbl_type].default_miss->refcount++;
+	ctx->common_res.default_miss = default_miss;
+	ctx->common_res.default_miss->refcount++;
 
 	return 0;
 }
@@ -83,17 +83,16 @@ __must_hold(&tbl->ctx->ctrl_lock)
 {
 	struct mlx5hws_cmd_forward_tbl *default_miss;
 	struct mlx5hws_context *ctx = tbl->ctx;
-	u8 tbl_type = tbl->type;
 
 	if (tbl->type != MLX5HWS_TABLE_TYPE_FDB)
 		return;
 
-	default_miss = ctx->common_res[tbl_type].default_miss;
+	default_miss = ctx->common_res.default_miss;
 	if (--default_miss->refcount)
 		return;
 
 	mlx5hws_cmd_forward_tbl_destroy(ctx->mdev, default_miss);
-	ctx->common_res[tbl_type].default_miss = NULL;
+	ctx->common_res.default_miss = NULL;
 }
 
 static int hws_table_connect_to_default_miss_tbl(struct mlx5hws_table *tbl, u32 ft_id)

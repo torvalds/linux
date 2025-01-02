@@ -318,8 +318,8 @@ static int hws_matcher_create_rtc(struct mlx5hws_matcher *matcher,
 	hws_matcher_set_rtc_attr_sz(matcher, &rtc_attr, rtc_type, false);
 
 	/* STC is a single resource (obj_id), use any STC for the ID */
-	stc_pool = ctx->stc_pool[tbl->type];
-	default_stc = ctx->common_res[tbl->type].default_stc;
+	stc_pool = ctx->stc_pool;
+	default_stc = ctx->common_res.default_stc;
 	obj_id = mlx5hws_pool_chunk_get_base_id(stc_pool, &default_stc->default_hit);
 	rtc_attr.stc_base = obj_id;
 

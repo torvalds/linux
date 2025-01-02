@@ -359,7 +359,7 @@ void mlx5hws_cmd_set_attr_connect_miss_tbl(struct mlx5hws_context *ctx,
 	ft_attr->type = fw_ft_type;
 	ft_attr->table_miss_action = MLX5_IFC_MODIFY_FLOW_TABLE_MISS_ACTION_GOTO_TBL;
 
-	default_miss_tbl = ctx->common_res[type].default_miss->ft_id;
+	default_miss_tbl = ctx->common_res.default_miss->ft_id;
 	if (!default_miss_tbl) {
 		pr_warn("HWS: no flow table ID for default miss\n");
 		return;

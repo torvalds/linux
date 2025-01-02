@@ -11,31 +11,29 @@
 /* This is the longest supported action sequence for FDB table:
  * DECAP, POP_VLAN, MODIFY, CTR, ASO, PUSH_VLAN, MODIFY, ENCAP, Term.
  */
-static const u32 action_order_arr[MLX5HWS_TABLE_TYPE_MAX][MLX5HWS_ACTION_TYP_MAX] = {
-	[MLX5HWS_TABLE_TYPE_FDB] = {
-		BIT(MLX5HWS_ACTION_TYP_REMOVE_HEADER) |
-		BIT(MLX5HWS_ACTION_TYP_REFORMAT_TNL_L2_TO_L2) |
-		BIT(MLX5HWS_ACTION_TYP_REFORMAT_TNL_L3_TO_L2),
-		BIT(MLX5HWS_ACTION_TYP_POP_VLAN),
-		BIT(MLX5HWS_ACTION_TYP_POP_VLAN),
-		BIT(MLX5HWS_ACTION_TYP_MODIFY_HDR),
-		BIT(MLX5HWS_ACTION_TYP_PUSH_VLAN),
-		BIT(MLX5HWS_ACTION_TYP_PUSH_VLAN),
-		BIT(MLX5HWS_ACTION_TYP_INSERT_HEADER) |
-		BIT(MLX5HWS_ACTION_TYP_REFORMAT_L2_TO_TNL_L2) |
-		BIT(MLX5HWS_ACTION_TYP_REFORMAT_L2_TO_TNL_L3),
-		BIT(MLX5HWS_ACTION_TYP_CTR),
-		BIT(MLX5HWS_ACTION_TYP_TAG),
-		BIT(MLX5HWS_ACTION_TYP_ASO_METER),
-		BIT(MLX5HWS_ACTION_TYP_MODIFY_HDR),
-		BIT(MLX5HWS_ACTION_TYP_TBL) |
-		BIT(MLX5HWS_ACTION_TYP_VPORT) |
-		BIT(MLX5HWS_ACTION_TYP_DROP) |
-		BIT(MLX5HWS_ACTION_TYP_SAMPLER) |
-		BIT(MLX5HWS_ACTION_TYP_RANGE) |
-		BIT(MLX5HWS_ACTION_TYP_DEST_ARRAY),
-		BIT(MLX5HWS_ACTION_TYP_LAST),
-	},
+static const u32 action_order_arr[MLX5HWS_ACTION_TYP_MAX] = {
+	BIT(MLX5HWS_ACTION_TYP_REMOVE_HEADER) |
+	BIT(MLX5HWS_ACTION_TYP_REFORMAT_TNL_L2_TO_L2) |
+	BIT(MLX5HWS_ACTION_TYP_REFORMAT_TNL_L3_TO_L2),
+	BIT(MLX5HWS_ACTION_TYP_POP_VLAN),
+	BIT(MLX5HWS_ACTION_TYP_POP_VLAN),
+	BIT(MLX5HWS_ACTION_TYP_MODIFY_HDR),
+	BIT(MLX5HWS_ACTION_TYP_PUSH_VLAN),
+	BIT(MLX5HWS_ACTION_TYP_PUSH_VLAN),
+	BIT(MLX5HWS_ACTION_TYP_INSERT_HEADER) |
+	BIT(MLX5HWS_ACTION_TYP_REFORMAT_L2_TO_TNL_L2) |
+	BIT(MLX5HWS_ACTION_TYP_REFORMAT_L2_TO_TNL_L3),
+	BIT(MLX5HWS_ACTION_TYP_CTR),
+	BIT(MLX5HWS_ACTION_TYP_TAG),
+	BIT(MLX5HWS_ACTION_TYP_ASO_METER),
+	BIT(MLX5HWS_ACTION_TYP_MODIFY_HDR),
+	BIT(MLX5HWS_ACTION_TYP_TBL) |
+	BIT(MLX5HWS_ACTION_TYP_VPORT) |
+	BIT(MLX5HWS_ACTION_TYP_DROP) |
+	BIT(MLX5HWS_ACTION_TYP_SAMPLER) |
+	BIT(MLX5HWS_ACTION_TYP_RANGE) |
+	BIT(MLX5HWS_ACTION_TYP_DEST_ARRAY),
+	BIT(MLX5HWS_ACTION_TYP_LAST),
 };
 
 static const char * const mlx5hws_action_type_str[] = {
@@ -83,8 +81,8 @@ static int hws_action_get_shared_stc_nic(struct mlx5hws_context *ctx,
 	int ret;
 
 	mutex_lock(&ctx->ctrl_lock);
-	if (ctx->common_res[tbl_type].shared_stc[stc_type]) {
-		ctx->common_res[tbl_type].shared_stc[stc_type]->refcount++;
+	if (ctx->common_res.shared_stc[stc_type]) {
+		ctx->common_res.shared_stc[stc_type]->refcount++;
 		mutex_unlock(&ctx->ctrl_lock);
 		return 0;
 	}
@@ -124,8 +122,8 @@ static int hws_action_get_shared_stc_nic(struct mlx5hws_context *ctx,
 		goto free_shared_stc;
 	}
 
-	ctx->common_res[tbl_type].shared_stc[stc_type] = shared_stc;
-	ctx->common_res[tbl_type].shared_stc[stc_type]->refcount = 1;
+	ctx->common_res.shared_stc[stc_type] = shared_stc;
+	ctx->common_res.shared_stc[stc_type]->refcount = 1;
 
 	mutex_unlock(&ctx->ctrl_lock);
 
@@ -178,16 +176,16 @@ static void hws_action_put_shared_stc(struct mlx5hws_action *action,
 	}
 
 	mutex_lock(&ctx->ctrl_lock);
-	if (--ctx->common_res[tbl_type].shared_stc[stc_type]->refcount) {
+	if (--ctx->common_res.shared_stc[stc_type]->refcount) {
 		mutex_unlock(&ctx->ctrl_lock);
 		return;
 	}
 
-	shared_stc = ctx->common_res[tbl_type].shared_stc[stc_type];
+	shared_stc = ctx->common_res.shared_stc[stc_type];
 
 	mlx5hws_action_free_single_stc(ctx, tbl_type, &shared_stc->stc_chunk);
 	kfree(shared_stc);
-	ctx->common_res[tbl_type].shared_stc[stc_type] = NULL;
+	ctx->common_res.shared_stc[stc_type] = NULL;
 	mutex_unlock(&ctx->ctrl_lock);
 }
 
@@ -206,10 +204,10 @@ bool mlx5hws_action_check_combo(struct mlx5hws_context *ctx,
 				enum mlx5hws_action_type *user_actions,
 				enum mlx5hws_table_type table_type)
 {
-	const u32 *order_arr = action_order_arr[table_type];
+	const u32 *order_arr = action_order_arr;
+	bool valid_combo;
 	u8 order_idx = 0;
 	u8 user_idx = 0;
-	bool valid_combo;
 
 	if (table_type >= MLX5HWS_TABLE_TYPE_MAX) {
 		mlx5hws_err(ctx, "Invalid table_type %d", table_type);
@@ -321,8 +319,8 @@ int mlx5hws_action_alloc_single_stc(struct mlx5hws_context *ctx,
 __must_hold(&ctx->ctrl_lock)
 {
 	struct mlx5hws_cmd_stc_modify_attr cleanup_stc_attr = {0};
-	struct mlx5hws_pool *stc_pool = ctx->stc_pool[table_type];
 	struct mlx5hws_cmd_stc_modify_attr fixup_stc_attr = {0};
+	struct mlx5hws_pool *stc_pool = ctx->stc_pool;
 	bool use_fixup;
 	u32 obj_0_id;
 	int ret;
@@ -387,8 +385,8 @@ void mlx5hws_action_free_single_stc(struct mlx5hws_context *ctx,
 				    struct mlx5hws_pool_chunk *stc)
 __must_hold(&ctx->ctrl_lock)
 {
-	struct mlx5hws_pool *stc_pool = ctx->stc_pool[table_type];
 	struct mlx5hws_cmd_stc_modify_attr stc_attr = {0};
+	struct mlx5hws_pool *stc_pool = ctx->stc_pool;
 	u32 obj_id;
 
 	/* Modify the STC not to point to an object */
@@ -561,7 +559,7 @@ hws_action_create_stcs(struct mlx5hws_action *action, u32 obj_id)
 	if (action->flags & MLX5HWS_ACTION_FLAG_HWS_FDB) {
 		ret = mlx5hws_action_alloc_single_stc(ctx, &stc_attr,
 						      MLX5HWS_TABLE_TYPE_FDB,
-						      &action->stc[MLX5HWS_TABLE_TYPE_FDB]);
+						      &action->stc);
 		if (ret)
 			goto out_err;
 	}
@@ -585,7 +583,7 @@ hws_action_destroy_stcs(struct mlx5hws_action *action)
 
 	if (action->flags & MLX5HWS_ACTION_FLAG_HWS_FDB)
 		mlx5hws_action_free_single_stc(ctx, MLX5HWS_TABLE_TYPE_FDB,
-					       &action->stc[MLX5HWS_TABLE_TYPE_FDB]);
+					       &action->stc);
 
 	mutex_unlock(&ctx->ctrl_lock);
 }
@@ -1639,8 +1637,8 @@ hws_action_create_dest_match_range_table(struct mlx5hws_context *ctx,
 	rtc_attr.table_type = mlx5hws_table_get_res_fw_ft_type(MLX5HWS_TABLE_TYPE_FDB, false);
 
 	/* STC is a single resource (obj_id), use any STC for the ID */
-	stc_pool = ctx->stc_pool[MLX5HWS_TABLE_TYPE_FDB];
-	default_stc = ctx->common_res[MLX5HWS_TABLE_TYPE_FDB].default_stc;
+	stc_pool = ctx->stc_pool;
+	default_stc = ctx->common_res.default_stc;
 	obj_id = mlx5hws_pool_chunk_get_base_id(stc_pool, &default_stc->default_hit);
 	rtc_attr.stc_base = obj_id;
 
@@ -1731,7 +1729,7 @@ hws_action_create_dest_match_range_fill_table(struct mlx5hws_context *ctx,
 	ste_attr.used_id_rtc_0 = &used_rtc_0_id;
 	ste_attr.used_id_rtc_1 = &used_rtc_1_id;
 
-	common_res = &ctx->common_res[MLX5HWS_TABLE_TYPE_FDB];
+	common_res = &ctx->common_res;
 
 	/* init an empty match STE which will always hit */
 	ste_attr.wqe_ctrl = &wqe_ctrl;
@@ -1750,7 +1748,7 @@ hws_action_create_dest_match_range_fill_table(struct mlx5hws_context *ctx,
 	wqe_ctrl.stc_ix[MLX5HWS_ACTION_STC_IDX_CTRL] |=
 		htonl(MLX5HWS_ACTION_STC_IDX_LAST_COMBO2 << 29);
 	wqe_ctrl.stc_ix[MLX5HWS_ACTION_STC_IDX_HIT] =
-		htonl(hit_ft_action->stc[MLX5HWS_TABLE_TYPE_FDB].offset);
+		htonl(hit_ft_action->stc.offset);
 
 	wqe_data_arr = (__force __be32 *)&range_wqe_data;
 
@@ -1843,7 +1841,7 @@ mlx5hws_action_create_dest_match_range(struct mlx5hws_context *ctx,
 	stc_attr.ste_table.match_definer_id = ctx->caps->trivial_match_definer;
 
 	ret = mlx5hws_action_alloc_single_stc(ctx, &stc_attr, MLX5HWS_TABLE_TYPE_FDB,
-					      &action->stc[MLX5HWS_TABLE_TYPE_FDB]);
+					      &action->stc);
 	if (ret)
 		goto error_unlock;
 
@@ -1970,8 +1968,8 @@ __must_hold(&ctx->ctrl_lock)
 	struct mlx5hws_action_default_stc *default_stc;
 	int ret;
 
-	if (ctx->common_res[tbl_type].default_stc) {
-		ctx->common_res[tbl_type].default_stc->refcount++;
+	if (ctx->common_res.default_stc) {
+		ctx->common_res.default_stc->refcount++;
 		return 0;
 	}
 
@@ -2023,8 +2021,8 @@ __must_hold(&ctx->ctrl_lock)
 		goto free_nop_dw7;
 	}
 
-	ctx->common_res[tbl_type].default_stc = default_stc;
-	ctx->common_res[tbl_type].default_stc->refcount++;
+	ctx->common_res.default_stc = default_stc;
+	ctx->common_res.default_stc->refcount++;
 
 	return 0;
 
@@ -2046,9 +2044,7 @@ __must_hold(&ctx->ctrl_lock)
 {
 	struct mlx5hws_action_default_stc *default_stc;
 
-	default_stc = ctx->common_res[tbl_type].default_stc;
-
-	default_stc = ctx->common_res[tbl_type].default_stc;
+	default_stc = ctx->common_res.default_stc;
 	if (--default_stc->refcount)
 		return;
 
@@ -2058,7 +2054,7 @@ __must_hold(&ctx->ctrl_lock)
 	mlx5hws_action_free_single_stc(ctx, tbl_type, &default_stc->nop_dw5);
 	mlx5hws_action_free_single_stc(ctx, tbl_type, &default_stc->nop_ctr);
 	kfree(default_stc);
-	ctx->common_res[tbl_type].default_stc = NULL;
+	ctx->common_res.default_stc = NULL;
 }
 
 static void hws_action_modify_write(struct mlx5hws_send_engine *queue,
@@ -2150,8 +2146,7 @@ hws_action_apply_stc(struct mlx5hws_actions_apply_data *apply,
 {
 	struct mlx5hws_action *action = apply->rule_action[action_idx].action;
 
-	apply->wqe_ctrl->stc_ix[stc_idx] =
-		htonl(action->stc[apply->tbl_type].offset);
+	apply->wqe_ctrl->stc_ix[stc_idx] = htonl(action->stc.offset);
 }
 
 static void
@@ -2181,7 +2176,7 @@ hws_action_setter_modify_header(struct mlx5hws_actions_apply_data *apply,
 	rule_action = &apply->rule_action[setter->idx_double];
 	action = rule_action->action;
 
-	stc_idx = htonl(action->stc[apply->tbl_type].offset);
+	stc_idx = htonl(action->stc.offset);
 	apply->wqe_ctrl->stc_ix[MLX5HWS_ACTION_STC_IDX_DW6] = stc_idx;
 	apply->wqe_ctrl->stc_ix[MLX5HWS_ACTION_STC_IDX_DW7] = 0;
 
@@ -2240,7 +2235,7 @@ hws_action_setter_insert_ptr(struct mlx5hws_actions_apply_data *apply,
 	apply->wqe_data[MLX5HWS_ACTION_OFFSET_DW6] = 0;
 	apply->wqe_data[MLX5HWS_ACTION_OFFSET_DW7] = htonl(arg_idx);
 
-	stc_idx = htonl(action->stc[apply->tbl_type].offset);
+	stc_idx = htonl(action->stc.offset);
 	apply->wqe_ctrl->stc_ix[MLX5HWS_ACTION_STC_IDX_DW6] = stc_idx;
 	apply->wqe_ctrl->stc_ix[MLX5HWS_ACTION_STC_IDX_DW7] = 0;
 
@@ -2272,7 +2267,7 @@ hws_action_setter_tnl_l3_to_l2(struct mlx5hws_actions_apply_data *apply,
 	apply->wqe_data[MLX5HWS_ACTION_OFFSET_DW6] = 0;
 	apply->wqe_data[MLX5HWS_ACTION_OFFSET_DW7] = htonl(arg_idx);
 
-	stc_idx = htonl(action->stc[apply->tbl_type].offset);
+	stc_idx = htonl(action->stc.offset);
 	apply->wqe_ctrl->stc_ix[MLX5HWS_ACTION_STC_IDX_DW6] = stc_idx;
 	apply->wqe_ctrl->stc_ix[MLX5HWS_ACTION_STC_IDX_DW7] = 0;
 
