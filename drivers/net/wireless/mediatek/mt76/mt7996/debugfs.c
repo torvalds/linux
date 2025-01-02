@@ -601,7 +601,7 @@ static void
 mt7996_sta_hw_queue_read(void *data, struct ieee80211_sta *sta)
 {
 	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
-	struct mt7996_dev *dev = msta->vif->phy->dev;
+	struct mt7996_dev *dev = msta->vif->deflink.phy->dev;
 	struct seq_file *s = data;
 	u8 ac;
 
@@ -621,7 +621,7 @@ mt7996_sta_hw_queue_read(void *data, struct ieee80211_sta *sta)
 				      GENMASK(11, 0));
 		seq_printf(s, "\tSTA %pM wcid %d: AC%d%d queued:%d\n",
 			   sta->addr, msta->wcid.idx,
-			   msta->vif->mt76.wmm_idx, ac, qlen);
+			   msta->vif->deflink.mt76.wmm_idx, ac, qlen);
 	}
 }
 
@@ -899,7 +899,7 @@ static ssize_t mt7996_sta_fixed_rate_set(struct file *file,
 #define LONG_PREAMBLE 1
 	struct ieee80211_sta *sta = file->private_data;
 	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
-	struct mt7996_dev *dev = msta->vif->phy->dev;
+	struct mt7996_dev *dev = msta->vif->deflink.phy->dev;
 	struct ra_rate phy = {};
 	char buf[100];
 	int ret;

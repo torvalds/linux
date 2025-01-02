@@ -72,7 +72,7 @@ static struct mt76_wcid *mt7996_rx_get_wcid(struct mt7996_dev *dev,
 	if (!sta->vif)
 		return NULL;
 
-	return &sta->vif->sta.wcid;
+	return &sta->vif->deflink.sta.wcid;
 }
 
 bool mt7996_mac_wtbl_update(struct mt7996_dev *dev, int idx, u32 mask)
@@ -182,7 +182,7 @@ static void mt7996_mac_sta_poll(struct mt7996_dev *dev)
 		rssi[3] = to_rssi(GENMASK(31, 14), val);
 
 		msta->ack_signal =
-			mt76_rx_signal(msta->vif->phy->mt76->antenna_mask, rssi);
+			mt76_rx_signal(msta->vif->deflink.phy->mt76->antenna_mask, rssi);
 
 		ewma_avg_signal_add(&msta->avg_ack_signal, -msta->ack_signal);
 	}
@@ -196,7 +196,7 @@ void mt7996_mac_enable_rtscts(struct mt7996_dev *dev,
 	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
 	u32 addr;
 
-	addr = mt7996_mac_wtbl_lmac_addr(dev, mvif->sta.wcid.idx, 5);
+	addr = mt7996_mac_wtbl_lmac_addr(dev, mvif->deflink.sta.wcid.idx, 5);
 	if (enable)
 		mt76_set(dev, addr, BIT(5));
 	else
@@ -984,7 +984,7 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	if (vif) {
 		struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
 
-		txp->fw.bss_idx = mvif->mt76.idx;
+		txp->fw.bss_idx = mvif->deflink.mt76.idx;
 	}
 
 	txp->fw.token = cpu_to_le16(id);
