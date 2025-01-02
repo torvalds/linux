@@ -615,8 +615,12 @@ static int hws_bwc_matcher_move_all_simple(struct mlx5hws_bwc_matcher *bwc_match
 
 				ret = hws_bwc_queue_poll(ctx, rule_attr.queue_id,
 							 &pending_rules[i], false);
-				if (unlikely(ret))
+				if (unlikely(ret)) {
+					mlx5hws_err(ctx,
+						    "Moving BWC rule failed during rehash (%d)\n",
+						    ret);
 					goto free_bwc_rules;
+				}
 			}
 		}
 	} while (!all_done);
@@ -629,8 +633,11 @@ static int hws_bwc_matcher_move_all_simple(struct mlx5hws_bwc_matcher *bwc_match
 			mlx5hws_send_engine_flush_queue(&ctx->send_queue[queue_id]);
 			ret = hws_bwc_queue_poll(ctx, queue_id,
 						 &pending_rules[i], true);
-			if (unlikely(ret))
+			if (unlikely(ret)) {
+				mlx5hws_err(ctx,
+					    "Moving BWC rule failed during rehash (%d)\n", ret);
 				goto free_bwc_rules;
+			}
 		}
 	}
 
