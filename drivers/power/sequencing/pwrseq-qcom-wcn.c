@@ -396,6 +396,13 @@ static int pwrseq_qcom_wcn_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(ctx->bt_gpio),
 				     "Failed to get the Bluetooth enable GPIO\n");
 
+	/*
+	 * FIXME: This should actually be GPIOD_OUT_LOW, but doing so would
+	 * cause the WLAN power to be toggled, resulting in PCIe link down.
+	 * Since the PCIe controller driver is not handling link down currently,
+	 * the device becomes unusable. So we need to keep this workaround until
+	 * the link down handling is implemented in the controller driver.
+	 */
 	ctx->wlan_gpio = devm_gpiod_get_optional(dev, "wlan-enable",
 						 GPIOD_ASIS);
 	if (IS_ERR(ctx->wlan_gpio))
