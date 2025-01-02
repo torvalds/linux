@@ -638,16 +638,16 @@ static int pwm_fan_probe(struct platform_device *pdev)
 		channels[1] = &ctx->fan_channel;
 	}
 
-	ret = of_property_read_u32(dev->of_node, "fan-stop-to-start-percent",
-				   &pwm_min_from_stopped);
+	ret = device_property_read_u32(dev, "fan-stop-to-start-percent",
+				       &pwm_min_from_stopped);
 	if (!ret && pwm_min_from_stopped) {
 		ctx->pwm_duty_cycle_from_stopped =
 			DIV_ROUND_UP_ULL(pwm_min_from_stopped *
 					 (ctx->pwm_state.period - 1),
 					 100);
 	}
-	ret = of_property_read_u32(dev->of_node, "fan-stop-to-start-us",
-				   &ctx->pwm_usec_from_stopped);
+	ret = device_property_read_u32(dev, "fan-stop-to-start-us",
+				       &ctx->pwm_usec_from_stopped);
 	if (ret)
 		ctx->pwm_usec_from_stopped = 250000;
 
