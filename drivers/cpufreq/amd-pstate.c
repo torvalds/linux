@@ -815,7 +815,7 @@ static void amd_pstate_init_prefcore(struct amd_cpudata *cpudata)
 	 * sched_set_itmt_support(true) has been called and it is valid to
 	 * update them at any time after it has been called.
 	 */
-	sched_set_itmt_core_prio((int)READ_ONCE(cpudata->highest_perf), cpudata->cpu);
+	sched_set_itmt_core_prio((int)READ_ONCE(cpudata->prefcore_ranking), cpudata->cpu);
 
 	schedule_work(&sched_prefcore_work);
 }
