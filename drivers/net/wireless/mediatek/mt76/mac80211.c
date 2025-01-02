@@ -411,13 +411,15 @@ mt76_check_sband(struct mt76_phy *phy, struct mt76_sband *msband,
 	}
 
 	if (found) {
-		phy->chandef.chan = &sband->channels[0];
+		cfg80211_chandef_create(&phy->chandef, &sband->channels[0],
+					NL80211_CHAN_HT20);
 		phy->chan_state = &msband->chan[0];
 		return;
 	}
 
 	sband->n_channels = 0;
-	phy->hw->wiphy->bands[band] = NULL;
+	if (phy->hw->wiphy->bands[band] == sband)
+		phy->hw->wiphy->bands[band] = NULL;
 }
 
 static int
@@ -428,6 +430,9 @@ mt76_phy_init(struct mt76_phy *phy, struct ieee80211_hw *hw)
 
 	INIT_LIST_HEAD(&phy->tx_list);
 	spin_lock_init(&phy->tx_lock);
+
+	if ((void *)phy != hw->priv)
+		return 0;
 
 	SET_IEEE80211_DEV(hw, dev->dev);
 	SET_IEEE80211_PERM_ADDR(hw, phy->macaddr);
@@ -479,6 +484,28 @@ mt76_phy_init(struct mt76_phy *phy, struct ieee80211_hw *hw)
 
 	return 0;
 }
+
+struct mt76_phy *
+mt76_alloc_radio_phy(struct mt76_dev *dev, unsigned int size,
+		     u8 band_idx)
+{
+	struct ieee80211_hw *hw = dev->phy.hw;
+	unsigned int phy_size;
+	struct mt76_phy *phy;
+
+	phy_size = ALIGN(sizeof(*phy), 8);
+	phy = devm_kzalloc(dev->dev, size + phy_size, GFP_KERNEL);
+	if (!phy)
+		return NULL;
+
+	phy->dev = dev;
+	phy->hw = hw;
+	phy->priv = (void *)phy + phy_size;
+	phy->band_idx = band_idx;
+
+	return phy;
+}
+EXPORT_SYMBOL_GPL(mt76_alloc_radio_phy);
 
 struct mt76_phy *
 mt76_alloc_phy(struct mt76_dev *dev, unsigned int size,
@@ -552,9 +579,11 @@ int mt76_register_phy(struct mt76_phy *phy, bool vht,
 	mt76_check_sband(phy, &phy->sband_5g, NL80211_BAND_5GHZ);
 	mt76_check_sband(phy, &phy->sband_6g, NL80211_BAND_6GHZ);
 
-	ret = ieee80211_register_hw(phy->hw);
-	if (ret)
-		return ret;
+	if ((void *)phy == phy->hw->priv) {
+		ret = ieee80211_register_hw(phy->hw);
+		if (ret)
+			return ret;
+	}
 
 	set_bit(MT76_STATE_REGISTERED, &phy->state);
 	phy->dev->phys[phy->band_idx] = phy;
