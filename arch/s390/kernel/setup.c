@@ -384,11 +384,7 @@ static unsigned long __init stack_alloc_early(void)
 {
 	unsigned long stack;
 
-	stack = (unsigned long)memblock_alloc(THREAD_SIZE, THREAD_SIZE);
-	if (!stack) {
-		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
-		      __func__, THREAD_SIZE, THREAD_SIZE);
-	}
+	stack = (unsigned long)memblock_alloc_or_panic(THREAD_SIZE, THREAD_SIZE);
 	return stack;
 }
 
@@ -512,10 +508,7 @@ static void __init setup_resources(void)
 	bss_resource.end = __pa_symbol(__bss_stop) - 1;
 
 	for_each_mem_range(i, &start, &end) {
-		res = memblock_alloc(sizeof(*res), 8);
-		if (!res)
-			panic("%s: Failed to allocate %zu bytes align=0x%x\n",
-			      __func__, sizeof(*res), 8);
+		res = memblock_alloc_or_panic(sizeof(*res), 8);
 		res->flags = IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM;
 
 		res->name = "System RAM";
@@ -534,10 +527,7 @@ static void __init setup_resources(void)
 			    std_res->start > res->end)
 				continue;
 			if (std_res->end > res->end) {
-				sub_res = memblock_alloc(sizeof(*sub_res), 8);
-				if (!sub_res)
-					panic("%s: Failed to allocate %zu bytes align=0x%x\n",
-					      __func__, sizeof(*sub_res), 8);
+				sub_res = memblock_alloc_or_panic(sizeof(*sub_res), 8);
 				*sub_res = *std_res;
 				sub_res->end = res->end;
 				std_res->start = res->end + 1;
@@ -824,9 +814,7 @@ static void __init setup_randomness(void)
 {
 	struct sysinfo_3_2_2 *vmms;
 
-	vmms = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
-	if (!vmms)
-		panic("Failed to allocate memory for sysinfo structure\n");
+	vmms = memblock_alloc_or_panic(PAGE_SIZE, PAGE_SIZE);
 	if (stsi(vmms, 3, 2, 2) == 0 && vmms->count)
 		add_device_randomness(&vmms->vm, sizeof(vmms->vm[0]) * vmms->count);
 	memblock_free(vmms, PAGE_SIZE);

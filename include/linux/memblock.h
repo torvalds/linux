@@ -421,6 +421,12 @@ static __always_inline void *memblock_alloc(phys_addr_t size, phys_addr_t align)
 				      MEMBLOCK_ALLOC_ACCESSIBLE, NUMA_NO_NODE);
 }
 
+void *__memblock_alloc_or_panic(phys_addr_t size, phys_addr_t align,
+				const char *func);
+
+#define memblock_alloc_or_panic(size, align)    \
+	 __memblock_alloc_or_panic(size, align, __func__)
+
 static inline void *memblock_alloc_raw(phys_addr_t size,
 					       phys_addr_t align)
 {
