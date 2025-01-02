@@ -405,12 +405,12 @@ struct request *elv_former_request(struct request_queue *q, struct request *rq)
 	return NULL;
 }
 
-#define to_elv(atr) container_of((atr), struct elv_fs_entry, attr)
+#define to_elv(atr) container_of_const((atr), struct elv_fs_entry, attr)
 
 static ssize_t
 elv_attr_show(struct kobject *kobj, struct attribute *attr, char *page)
 {
-	struct elv_fs_entry *entry = to_elv(attr);
+	const struct elv_fs_entry *entry = to_elv(attr);
 	struct elevator_queue *e;
 	ssize_t error;
 
@@ -428,7 +428,7 @@ static ssize_t
 elv_attr_store(struct kobject *kobj, struct attribute *attr,
 	       const char *page, size_t length)
 {
-	struct elv_fs_entry *entry = to_elv(attr);
+	const struct elv_fs_entry *entry = to_elv(attr);
 	struct elevator_queue *e;
 	ssize_t error;
 
@@ -461,7 +461,7 @@ int elv_register_queue(struct request_queue *q, bool uevent)
 
 	error = kobject_add(&e->kobj, &q->disk->queue_kobj, "iosched");
 	if (!error) {
-		struct elv_fs_entry *attr = e->type->elevator_attrs;
+		const struct elv_fs_entry *attr = e->type->elevator_attrs;
 		if (attr) {
 			while (attr->attr.name) {
 				if (sysfs_create_file(&e->kobj, &attr->attr))
