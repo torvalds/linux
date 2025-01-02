@@ -3032,7 +3032,7 @@ static int geni_i2c_resume_early(struct device *device)
 	geni_se_ssc_clk_enable(&gi2c->rsc, true);
 	I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev, "%s ret=%d\n", __func__, true);
 
-	if (pm_suspend_target_state == PM_SUSPEND_MEM) {
+	if (!gi2c->is_le_vm && pm_suspend_target_state == PM_SUSPEND_MEM) {
 		gi2c->se_mode = UNINITIALIZED;
 		gi2c->is_deep_sleep = true;
 	}
