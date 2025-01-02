@@ -478,15 +478,9 @@ int mlx5hws_table_set_default_miss(struct mlx5hws_table *tbl,
 	if (old_miss_tbl)
 		list_del_init(&tbl->default_miss.next);
 
-	old_miss_tbl = tbl->default_miss.miss_tbl;
-	if (old_miss_tbl)
-		list_del_init(&old_miss_tbl->default_miss.head);
-
 	if (miss_tbl)
 		list_add(&tbl->default_miss.next, &miss_tbl->default_miss.head);
 
-	mutex_unlock(&ctx->ctrl_lock);
-	return 0;
 out:
 	mutex_unlock(&ctx->ctrl_lock);
 	return ret;
