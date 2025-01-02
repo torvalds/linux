@@ -257,6 +257,12 @@ int mlx5hws_cmd_set_fte(struct mlx5_core_dev *mdev,
 						 dest->ext_reformat_id);
 				}
 				break;
+			case MLX5_FLOW_DESTINATION_TYPE_FLOW_SAMPLER:
+				MLX5_SET(dest_format, in_dests,
+					 destination_type, ifc_dest_type);
+				MLX5_SET(dest_format, in_dests, destination_id,
+					 dest->destination_id);
+				break;
 			default:
 				ret = -EOPNOTSUPP;
 				goto out;

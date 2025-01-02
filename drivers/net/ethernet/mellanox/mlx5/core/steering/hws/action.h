@@ -166,6 +166,9 @@ struct mlx5hws_action {
 					struct mlx5hws_cmd_set_fte_dest *dest_list;
 				} dest_array;
 				struct {
+					struct mlx5hws_cmd_forward_tbl *fw_island;
+				} flow_sampler;
+				struct {
 					u8 type;
 					u8 start_anchor;
 					u8 end_anchor;

@@ -471,6 +471,7 @@ static void hws_action_fill_stc_attr(struct mlx5hws_action *action,
 		break;
 	case MLX5HWS_ACTION_TYP_TBL:
 	case MLX5HWS_ACTION_TYP_DEST_ARRAY:
+	case MLX5HWS_ACTION_TYP_SAMPLER:
 		attr->action_type = MLX5_IFC_STC_ACTION_TYPE_JUMP_TO_FT;
 		attr->action_offset = MLX5HWS_ACTION_OFFSET_HIT;
 		attr->dest_table_id = obj_id;
@@ -1873,7 +1874,50 @@ struct mlx5hws_action *
 mlx5hws_action_create_flow_sampler(struct mlx5hws_context *ctx,
 				   u32 sampler_id, u32 flags)
 {
-	mlx5hws_err(ctx, "Flow sampler action - unsupported\n");
+	struct mlx5hws_cmd_ft_create_attr ft_attr = {0};
+	struct mlx5hws_cmd_set_fte_attr fte_attr = {0};
+	struct mlx5hws_cmd_forward_tbl *fw_island;
+	struct mlx5hws_cmd_set_fte_dest dest;
+	struct mlx5hws_action *action;
+	int ret;
+
+	if (flags != (MLX5HWS_ACTION_FLAG_HWS_FDB | MLX5HWS_ACTION_FLAG_SHARED)) {
+		mlx5hws_err(ctx, "Unsupported flags for flow sampler\n");
+		return NULL;
+	}
+
+	ft_attr.type = FS_FT_FDB;
+	ft_attr.level = ctx->caps->fdb_ft.max_level - 1;
+
+	dest.destination_type = MLX5_FLOW_DESTINATION_TYPE_FLOW_SAMPLER;
+	dest.destination_id = sampler_id;
+
+	fte_attr.dests_num = 1;
+	fte_attr.dests = &dest;
+	fte_attr.action_flags = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
+	fte_attr.ignore_flow_level = 1;
+
+	fw_island = mlx5hws_cmd_forward_tbl_create(ctx->mdev, &ft_attr, &fte_attr);
+	if (!fw_island)
+		return NULL;
+
+	action = hws_action_create_generic(ctx, flags,
+					   MLX5HWS_ACTION_TYP_SAMPLER);
+	if (!action)
+		goto destroy_fw_island;
+
+	ret = hws_action_create_stcs(action, fw_island->ft_id);
+	if (ret)
+		goto free_action;
+
+	action->flow_sampler.fw_island = fw_island;
+
+	return action;
+
+free_action:
+	kfree(action);
+destroy_fw_island:
+	mlx5hws_cmd_forward_tbl_destroy(ctx->mdev, fw_island);
 	return NULL;
 }
 
@@ -1911,6 +1955,11 @@ static void hws_action_destroy_hws(struct mlx5hws_action *action)
 								    ext_reformat_id);
 		}
 		kfree(action->dest_array.dest_list);
+		break;
+	case MLX5HWS_ACTION_TYP_SAMPLER:
+		hws_action_destroy_stcs(action);
+		mlx5hws_cmd_forward_tbl_destroy(action->ctx->mdev,
+						action->flow_sampler.fw_island);
 		break;
 	case MLX5HWS_ACTION_TYP_REFORMAT_TNL_L3_TO_L2:
 	case MLX5HWS_ACTION_TYP_MODIFY_HDR:
@@ -2429,6 +2478,7 @@ int mlx5hws_action_template_process(struct mlx5hws_action_template *at)
 		case MLX5HWS_ACTION_TYP_DROP:
 		case MLX5HWS_ACTION_TYP_TBL:
 		case MLX5HWS_ACTION_TYP_DEST_ARRAY:
+		case MLX5HWS_ACTION_TYP_SAMPLER:
 		case MLX5HWS_ACTION_TYP_VPORT:
 		case MLX5HWS_ACTION_TYP_MISS:
 			/* Hit action */
