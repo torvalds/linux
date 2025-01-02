@@ -690,6 +690,7 @@ mt76_alloc_device(struct device *pdev, unsigned int size,
 	INIT_LIST_HEAD(&dev->txwi_cache);
 	INIT_LIST_HEAD(&dev->rxwi_cache);
 	dev->token_size = dev->drv->token_size;
+	INIT_DELAYED_WORK(&dev->scan_work, mt76_scan_work);
 
 	for (i = 0; i < ARRAY_SIZE(dev->q_rx); i++)
 		skb_queue_head_init(&dev->rx_skb[i]);
@@ -954,9 +955,9 @@ int mt76_set_channel(struct mt76_phy *phy, struct cfg80211_chan_def *chandef,
 	phy->offchannel = offchannel;
 
 	if (!offchannel)
-		phy->main_chan = chandef->chan;
+		phy->main_chandef = *chandef;
 
-	if (chandef->chan != phy->main_chan)
+	if (chandef->chan != phy->main_chandef.chan)
 		memset(phy->chan_state, 0, sizeof(*phy->chan_state));
 
 	ret = dev->drv->set_channel(phy);
@@ -1021,7 +1022,7 @@ int mt76_get_survey(struct ieee80211_hw *hw, int idx,
 	if (state->noise)
 		survey->filled |= SURVEY_INFO_NOISE_DBM;
 
-	if (chan == phy->main_chan) {
+	if (chan == phy->main_chandef.chan) {
 		survey->filled |= SURVEY_INFO_IN_USE;
 
 		if (dev->drv->drv_flags & MT_DRV_SW_RX_AIRTIME)
@@ -1466,6 +1467,7 @@ mt76_sta_add(struct mt76_phy *phy, struct ieee80211_vif *vif,
 		mt76_wcid_mask_set(dev->wcid_phy_mask, wcid->idx);
 	wcid->phy_idx = phy->band_idx;
 	rcu_assign_pointer(dev->wcid[wcid->idx], wcid);
+	phy->num_sta++;
 
 	mt76_wcid_init(wcid);
 out:
@@ -1474,9 +1476,10 @@ out:
 	return ret;
 }
 
-void __mt76_sta_remove(struct mt76_dev *dev, struct ieee80211_vif *vif,
+void __mt76_sta_remove(struct mt76_phy *phy, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta)
 {
+	struct mt76_dev *dev = phy->dev;
 	struct mt76_wcid *wcid = (struct mt76_wcid *)sta->drv_priv;
 	int i, idx = wcid->idx;
 
@@ -1490,15 +1493,18 @@ void __mt76_sta_remove(struct mt76_dev *dev, struct ieee80211_vif *vif,
 
 	mt76_wcid_mask_clear(dev->wcid_mask, idx);
 	mt76_wcid_mask_clear(dev->wcid_phy_mask, idx);
+	phy->num_sta--;
 }
 EXPORT_SYMBOL_GPL(__mt76_sta_remove);
 
 static void
-mt76_sta_remove(struct mt76_dev *dev, struct ieee80211_vif *vif,
+mt76_sta_remove(struct mt76_phy *phy, struct ieee80211_vif *vif,
 		struct ieee80211_sta *sta)
 {
+	struct mt76_dev *dev = phy->dev;
+
 	mutex_lock(&dev->mutex);
-	__mt76_sta_remove(dev, vif, sta);
+	__mt76_sta_remove(phy, vif, sta);
 	mutex_unlock(&dev->mutex);
 }
 
@@ -1517,7 +1523,7 @@ int mt76_sta_state(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	if (old_state == IEEE80211_STA_NONE &&
 	    new_state == IEEE80211_STA_NOTEXIST)
-		mt76_sta_remove(dev, vif, sta);
+		mt76_sta_remove(phy, vif, sta);
 
 	if (!dev->drv->sta_event)
 		return 0;

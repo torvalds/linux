@@ -203,6 +203,7 @@ static int mt7996_add_interface(struct ieee80211_hw *hw,
 	mvif->phy = phy;
 	mvif->mt76.band_idx = band_idx;
 	mvif->mt76.wmm_idx = vif->type == NL80211_IFTYPE_AP ? 0 : 3;
+	mvif->mt76.wcid = &mvif->sta.wcid;
 
 	ret = mt7996_mcu_add_dev_info(phy, vif, true);
 	if (ret)

@@ -209,6 +209,7 @@ static int mt7615_add_interface(struct ieee80211_hw *hw,
 
 	mvif->mt76.band_idx = ext_phy;
 	mvif->mt76.wmm_idx = vif->type != NL80211_IFTYPE_AP;
+	mvif->mt76.wcid = &mvif->sta.wcid;
 	if (ext_phy)
 		mvif->mt76.wmm_idx += 2;
 
