@@ -378,12 +378,9 @@ static int mt7925_mac_link_bss_add(struct mt792x_dev *dev,
 
 	idx = MT792x_WTBL_RESERVED - mconf->mt76.idx;
 
-	INIT_LIST_HEAD(&mlink->wcid.poll_list);
 	mlink->wcid.idx = idx;
-	mlink->wcid.phy_idx = 0;
-	mlink->wcid.hw_key_idx = -1;
 	mlink->wcid.tx_info |= MT_WCID_TX_INFO_SET;
-	mt76_wcid_init(&mlink->wcid);
+	mt76_wcid_init(&mlink->wcid, 0);
 
 	mt7925_mac_wtbl_update(dev, idx,
 			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
@@ -850,10 +847,9 @@ static int mt7925_mac_link_sta_add(struct mt76_dev *mdev,
 		return -ENOSPC;
 
 	mconf = mt792x_vif_to_link(mvif, link_id);
-	INIT_LIST_HEAD(&mlink->wcid.poll_list);
+	mt76_wcid_init(&mlink->wcid, 0);
 	mlink->wcid.sta = 1;
 	mlink->wcid.idx = idx;
-	mlink->wcid.phy_idx = 0;
 	mlink->wcid.tx_info |= MT_WCID_TX_INFO_SET;
 	mlink->last_txs = jiffies;
 	mlink->wcid.link_id = link_sta->link_id;
@@ -863,7 +859,7 @@ static int mt7925_mac_link_sta_add(struct mt76_dev *mdev,
 	wcid = &mlink->wcid;
 	ewma_signal_init(&wcid->rssi);
 	rcu_assign_pointer(dev->mt76.wcid[wcid->idx], wcid);
-	mt76_wcid_init(wcid);
+	mt76_wcid_init(wcid, 0);
 	ewma_avg_signal_init(&mlink->avg_ack_signal);
 	memset(mlink->airtime_ac, 0,
 	       sizeof(msta->deflink.airtime_ac));

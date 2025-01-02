@@ -742,7 +742,7 @@ int mt76_register_device(struct mt76_dev *dev, bool vht,
 	int ret;
 
 	dev_set_drvdata(dev->dev, dev);
-	mt76_wcid_init(&dev->global_wcid);
+	mt76_wcid_init(&dev->global_wcid, phy->band_idx);
 	ret = mt76_phy_init(phy, hw);
 	if (ret)
 		return ret;
@@ -1494,11 +1494,10 @@ mt76_sta_add(struct mt76_phy *phy, struct ieee80211_vif *vif,
 	ewma_signal_init(&wcid->rssi);
 	if (phy->band_idx == MT_BAND1)
 		mt76_wcid_mask_set(dev->wcid_phy_mask, wcid->idx);
-	wcid->phy_idx = phy->band_idx;
 	rcu_assign_pointer(dev->wcid[wcid->idx], wcid);
 	phy->num_sta++;
 
-	mt76_wcid_init(wcid);
+	mt76_wcid_init(wcid, phy->band_idx);
 out:
 	mutex_unlock(&dev->mutex);
 
@@ -1588,14 +1587,19 @@ void mt76_sta_pre_rcu_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 }
 EXPORT_SYMBOL_GPL(mt76_sta_pre_rcu_remove);
 
-void mt76_wcid_init(struct mt76_wcid *wcid)
+void mt76_wcid_init(struct mt76_wcid *wcid, u8 band_idx)
 {
+	wcid->hw_key_idx = -1;
+	wcid->phy_idx = band_idx;
+
 	INIT_LIST_HEAD(&wcid->tx_list);
 	skb_queue_head_init(&wcid->tx_pending);
 	skb_queue_head_init(&wcid->tx_offchannel);
 
 	INIT_LIST_HEAD(&wcid->list);
 	idr_init(&wcid->pktid);
+
+	INIT_LIST_HEAD(&wcid->poll_list);
 }
 EXPORT_SYMBOL_GPL(mt76_wcid_init);
 

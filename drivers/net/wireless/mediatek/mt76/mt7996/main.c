@@ -214,12 +214,9 @@ mt7996_vif_link_add(struct mt7996_phy *phy, struct ieee80211_vif *vif,
 	idx = MT7996_WTBL_RESERVED - mlink->mt76.idx;
 
 	INIT_LIST_HEAD(&mlink->sta.rc_list);
-	INIT_LIST_HEAD(&mlink->sta.wcid.poll_list);
 	mlink->sta.wcid.idx = idx;
-	mlink->sta.wcid.phy_idx = band_idx;
-	mlink->sta.wcid.hw_key_idx = -1;
 	mlink->sta.wcid.tx_info |= MT_WCID_TX_INFO_SET;
-	mt76_wcid_init(&mlink->sta.wcid);
+	mt76_wcid_init(&mlink->sta.wcid, band_idx);
 
 	mt7996_mac_wtbl_update(dev, idx,
 			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);

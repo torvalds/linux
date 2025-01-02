@@ -225,9 +225,7 @@ static int mt7615_add_interface(struct ieee80211_hw *hw,
 
 	INIT_LIST_HEAD(&mvif->sta.wcid.poll_list);
 	mvif->sta.wcid.idx = idx;
-	mvif->sta.wcid.phy_idx = mvif->mt76.band_idx;
-	mvif->sta.wcid.hw_key_idx = -1;
-	mt76_wcid_init(&mvif->sta.wcid);
+	mt76_wcid_init(&mvif->sta.wcid, mvif->mt76.band_idx);
 
 	mt7615_mac_wtbl_update(dev, idx,
 			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
