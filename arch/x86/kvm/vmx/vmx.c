@@ -8605,7 +8605,7 @@ static void __vmx_exit(void)
 	vmx_cleanup_l1d_flush();
 }
 
-static void vmx_exit(void)
+static void __exit vmx_exit(void)
 {
 	kvm_exit();
 	__vmx_exit();
