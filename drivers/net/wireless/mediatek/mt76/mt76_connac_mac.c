@@ -291,28 +291,28 @@ EXPORT_SYMBOL_GPL(mt76_connac_init_tx_queues);
 })
 
 u16 mt76_connac2_mac_tx_rate_val(struct mt76_phy *mphy,
-				 struct ieee80211_vif *vif,
+				 struct ieee80211_bss_conf *conf,
 				 bool beacon, bool mcast)
 {
-	struct mt76_vif_link *mvif = (struct mt76_vif_link *)vif->drv_priv;
+	struct mt76_vif_link *mvif = mt76_vif_conf_link(mphy->dev, conf->vif, conf);
 	struct cfg80211_chan_def *chandef = mvif->ctx ?
 					    &mvif->ctx->def : &mphy->chandef;
 	u8 nss = 0, mode = 0, band = chandef->chan->band;
 	int rateidx = 0, mcast_rate;
 	int offset = 0;
 
-	if (!vif)
+	if (!conf)
 		goto legacy;
 
 	if (is_mt7921(mphy->dev)) {
-		rateidx = ffs(vif->bss_conf.basic_rates) - 1;
+		rateidx = ffs(conf->basic_rates) - 1;
 		goto legacy;
 	}
 
 	if (beacon) {
 		struct cfg80211_bitrate_mask *mask;
 
-		mask = &vif->bss_conf.beacon_tx_rate;
+		mask = &conf->beacon_tx_rate;
 
 		__bitrate_mask_check(he_mcs, HE_SU);
 		__bitrate_mask_check(vht_mcs, VHT);
@@ -324,11 +324,11 @@ u16 mt76_connac2_mac_tx_rate_val(struct mt76_phy *mphy,
 		}
 	}
 
-	mcast_rate = vif->bss_conf.mcast_rate[band];
+	mcast_rate = conf->mcast_rate[band];
 	if (mcast && mcast_rate > 0)
 		rateidx = mcast_rate - 1;
 	else
-		rateidx = ffs(vif->bss_conf.basic_rates) - 1;
+		rateidx = ffs(conf->basic_rates) - 1;
 
 legacy:
 	if (band != NL80211_BAND_2GHZ)
@@ -581,7 +581,7 @@ void mt76_connac2_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
 		struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 		bool multicast = ieee80211_is_data(hdr->frame_control) &&
 				 is_multicast_ether_addr(hdr->addr1);
-		u16 rate = mt76_connac2_mac_tx_rate_val(mphy, vif, beacon,
+		u16 rate = mt76_connac2_mac_tx_rate_val(mphy, &vif->bss_conf, beacon,
 							multicast);
 		u32 val = MT_TXD6_FIXED_BW;
 

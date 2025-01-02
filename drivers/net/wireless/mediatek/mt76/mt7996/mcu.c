@@ -1039,7 +1039,7 @@ mt7996_mcu_bss_basic_tlv(struct sk_buff *skb,
 	bss->dtim_period = vif->bss_conf.dtim_period;
 	bss->phymode = mt76_connac_get_phy_mode(phy, vif,
 						chandef->chan->band, NULL);
-	bss->phymode_ext = mt76_connac_get_phy_mode_ext(phy, vif,
+	bss->phymode_ext = mt76_connac_get_phy_mode_ext(phy, &vif->bss_conf,
 							chandef->chan->band);
 
 	return 0;
