@@ -4143,16 +4143,16 @@ int mt7996_mcu_add_obss_spr(struct mt7996_phy *phy, struct ieee80211_vif *vif,
 	return mt7996_mcu_set_obss_spr_bitmap(phy, he_obss_pd);
 }
 
-int mt7996_mcu_update_bss_color(struct mt7996_dev *dev, struct ieee80211_vif *vif,
+int mt7996_mcu_update_bss_color(struct mt7996_dev *dev,
+				struct mt76_vif_link *mlink,
 				struct cfg80211_he_bss_color *he_bss_color)
 {
 	int len = sizeof(struct bss_req_hdr) + sizeof(struct bss_color_tlv);
-	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
 	struct bss_color_tlv *bss_color;
 	struct sk_buff *skb;
 	struct tlv *tlv;
 
-	skb = __mt7996_mcu_alloc_bss_req(&dev->mt76, &mvif->deflink.mt76, len);
+	skb = __mt7996_mcu_alloc_bss_req(&dev->mt76, mlink, len);
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
 

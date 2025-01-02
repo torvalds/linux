@@ -540,29 +540,6 @@ static void mt7996_configure_filter(struct ieee80211_hw *hw,
 	mutex_unlock(&dev->mt76.mutex);
 }
 
-static void
-mt7996_update_bss_color(struct ieee80211_hw *hw,
-			struct ieee80211_vif *vif,
-			struct cfg80211_he_bss_color *bss_color)
-{
-	struct mt7996_dev *dev = mt7996_hw_dev(hw);
-
-	switch (vif->type) {
-	case NL80211_IFTYPE_AP: {
-		struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
-
-		if (mvif->deflink.mt76.omac_idx > HW_BSSID_MAX)
-			return;
-		fallthrough;
-	}
-	case NL80211_IFTYPE_STATION:
-		mt7996_mcu_update_bss_color(dev, vif, bss_color);
-		break;
-	default:
-		break;
-	}
-}
-
 static u8
 mt7996_get_rates_table(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       bool beacon, bool mcast)
@@ -618,9 +595,9 @@ static void mt7996_bss_info_changed(struct ieee80211_hw *hw,
 				    struct ieee80211_bss_conf *info,
 				    u64 changed)
 {
-	struct mt76_vif_link *mvif = (struct mt76_vif_link *)vif->drv_priv;
 	struct mt7996_phy *phy = mt7996_hw_phy(hw);
 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+	struct mt76_vif_link *mvif = mt76_vif_conf_link(&dev->mt76, vif, info);
 
 	mutex_lock(&dev->mt76.mutex);
 
@@ -662,8 +639,13 @@ static void mt7996_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_HE_OBSS_PD)
 		mt7996_mcu_add_obss_spr(phy, vif, &info->he_obss_pd);
 
-	if (changed & BSS_CHANGED_HE_BSS_COLOR)
-		mt7996_update_bss_color(hw, vif, &info->he_bss_color);
+	if (changed & BSS_CHANGED_HE_BSS_COLOR) {
+		if ((vif->type == NL80211_IFTYPE_AP &&
+		    mvif->omac_idx <= HW_BSSID_MAX) ||
+		   vif->type == NL80211_IFTYPE_STATION)
+			mt7996_mcu_update_bss_color(dev, mvif,
+						    &info->he_bss_color);
+	}
 
 	if (changed & (BSS_CHANGED_BEACON |
 		       BSS_CHANGED_BEACON_ENABLED)) {
