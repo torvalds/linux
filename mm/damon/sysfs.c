@@ -1262,7 +1262,7 @@ static int damon_sysfs_clear_schemes_regions(
 	if (!ctx)
 		return -EINVAL;
 	return damon_sysfs_schemes_clear_regions(
-			kdamond->contexts->contexts_arr[0]->schemes, ctx);
+			kdamond->contexts->contexts_arr[0]->schemes);
 }
 
 static inline bool damon_sysfs_kdamond_running(

@@ -2208,20 +2208,14 @@ void damos_sysfs_mark_finished_regions_updates(struct damon_ctx *ctx)
 
 /* Called from damon_sysfs_cmd_request_callback under damon_sysfs_lock */
 int damon_sysfs_schemes_clear_regions(
-		struct damon_sysfs_schemes *sysfs_schemes,
-		struct damon_ctx *ctx)
+		struct damon_sysfs_schemes *sysfs_schemes)
 {
-	struct damos *scheme;
-	int schemes_idx = 0;
+	int i;
 
-	damon_for_each_scheme(scheme, ctx) {
+	for (i = 0; i < sysfs_schemes->nr; i++) {
 		struct damon_sysfs_scheme *sysfs_scheme;
 
-		/* user could have removed the scheme sysfs dir */
-		if (schemes_idx >= sysfs_schemes->nr)
-			break;
-
-		sysfs_scheme = sysfs_schemes->schemes_arr[schemes_idx++];
+		sysfs_scheme = sysfs_schemes->schemes_arr[i];
 		damon_sysfs_scheme_regions_rm_dirs(
 				sysfs_scheme->tried_regions);
 		sysfs_scheme->tried_regions->total_bytes = 0;
@@ -2271,7 +2265,7 @@ int damon_sysfs_schemes_update_regions_start(
 		struct damon_sysfs_schemes *sysfs_schemes,
 		struct damon_ctx *ctx, bool total_bytes_only)
 {
-	damon_sysfs_schemes_clear_regions(sysfs_schemes, ctx);
+	damon_sysfs_schemes_clear_regions(sysfs_schemes);
 	damon_sysfs_schemes_for_damos_callback = sysfs_schemes;
 	damos_tried_regions_init_upd_status(sysfs_schemes, ctx);
 	damos_regions_upd_total_bytes_only = total_bytes_only;
