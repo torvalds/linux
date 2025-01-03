@@ -17,23 +17,35 @@ use macros::{pin_data, pinned_drop};
 /// For instance, the PCI subsystem would set `RegType` to `bindings::pci_driver` and call
 /// `bindings::__pci_register_driver` from `RegistrationOps::register` and
 /// `bindings::pci_unregister_driver` from `RegistrationOps::unregister`.
-pub trait RegistrationOps {
+///
+/// # Safety
+///
+/// A call to [`RegistrationOps::unregister`] for a given instance of `RegType` is only valid if a
+/// preceding call to [`RegistrationOps::register`] has been successful.
+pub unsafe trait RegistrationOps {
     /// The type that holds information about the registration. This is typically a struct defined
     /// by the C portion of the kernel.
     type RegType: Default;
 
     /// Registers a driver.
     ///
+    /// # Safety
+    ///
     /// On success, `reg` must remain pinned and valid until the matching call to
     /// [`RegistrationOps::unregister`].
-    fn register(
+    unsafe fn register(
         reg: &Opaque<Self::RegType>,
         name: &'static CStr,
         module: &'static ThisModule,
     ) -> Result;
 
     /// Unregisters a driver previously registered with [`RegistrationOps::register`].
-    fn unregister(reg: &Opaque<Self::RegType>);
+    ///
+    /// # Safety
+    ///
+    /// Must only be called after a preceding successful call to [`RegistrationOps::register`] for
+    /// the same `reg`.
+    unsafe fn unregister(reg: &Opaque<Self::RegType>);
 }
 
 /// A [`Registration`] is a generic type that represents the registration of some driver type (e.g.
@@ -68,7 +80,8 @@ impl<T: RegistrationOps> Registration<T> {
                 // just been initialised above, so it's also valid for read.
                 let drv = unsafe { &*(ptr as *const Opaque<T::RegType>) };
 
-                T::register(drv, name, module)
+                // SAFETY: `drv` is guaranteed to be pinned until `T::unregister`.
+                unsafe { T::register(drv, name, module) }
             }),
         })
     }
@@ -77,7 +90,9 @@ impl<T: RegistrationOps> Registration<T> {
 #[pinned_drop]
 impl<T: RegistrationOps> PinnedDrop for Registration<T> {
     fn drop(self: Pin<&mut Self>) {
-        T::unregister(&self.reg);
+        // SAFETY: The existence of `self` guarantees that `self.reg` has previously been
+        // successfully registered with `T::register`
+        unsafe { T::unregister(&self.reg) };
     }
 }
 

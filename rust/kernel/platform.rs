@@ -19,10 +19,12 @@ use core::ptr::addr_of_mut;
 /// An adapter for the registration of platform drivers.
 pub struct Adapter<T: Driver>(T);
 
-impl<T: Driver + 'static> driver::RegistrationOps for Adapter<T> {
+// SAFETY: A call to `unregister` for a given instance of `RegType` is guaranteed to be valid if
+// a preceding call to `register` has been successful.
+unsafe impl<T: Driver + 'static> driver::RegistrationOps for Adapter<T> {
     type RegType = bindings::platform_driver;
 
-    fn register(
+    unsafe fn register(
         pdrv: &Opaque<Self::RegType>,
         name: &'static CStr,
         module: &'static ThisModule,
@@ -44,7 +46,7 @@ impl<T: Driver + 'static> driver::RegistrationOps for Adapter<T> {
         to_result(unsafe { bindings::__platform_driver_register(pdrv.get(), module.0) })
     }
 
-    fn unregister(pdrv: &Opaque<Self::RegType>) {
+    unsafe fn unregister(pdrv: &Opaque<Self::RegType>) {
         // SAFETY: `pdrv` is guaranteed to be a valid `RegType`.
         unsafe { bindings::platform_driver_unregister(pdrv.get()) };
     }
