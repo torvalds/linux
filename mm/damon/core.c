@@ -504,6 +504,7 @@ struct damon_ctx *damon_new_ctx(void)
 	ctx->next_ops_update_sis = 0;
 
 	mutex_init(&ctx->kdamond_lock);
+	mutex_init(&ctx->call_control_lock);
 
 	ctx->attrs.min_nr_regions = 10;
 	ctx->attrs.max_nr_regions = 1000;
@@ -1160,6 +1161,54 @@ int damon_stop(struct damon_ctx **ctxs, int nr_ctxs)
 			break;
 	}
 	return err;
+}
+
+static bool damon_is_running(struct damon_ctx *ctx)
+{
+	bool running;
+
+	mutex_lock(&ctx->kdamond_lock);
+	running = ctx->kdamond != NULL;
+	mutex_unlock(&ctx->kdamond_lock);
+	return running;
+}
+
+/**
+ * damon_call() - Invoke a given function on DAMON worker thread (kdamond).
+ * @ctx:	DAMON context to call the function for.
+ * @control:	Control variable of the call request.
+ *
+ * Ask DAMON worker thread (kdamond) of @ctx to call a function with an
+ * argument data that respectively passed via &damon_call_control->fn and
+ * &damon_call_control->data of @control, and wait until the kdamond finishes
+ * handling of the request.
+ *
+ * The kdamond executes the function with the argument in the main loop, just
+ * after a sampling of the iteration is finished.  The function can hence
+ * safely access the internal data of the &struct damon_ctx without additional
+ * synchronization.  The return value of the function will be saved in
+ * &damon_call_control->return_code.
+ *
+ * Return: 0 on success, negative error code otherwise.
+ */
+int damon_call(struct damon_ctx *ctx, struct damon_call_control *control)
+{
+	init_completion(&control->completion);
+	control->canceled = false;
+
+	mutex_lock(&ctx->call_control_lock);
+	if (ctx->call_control) {
+		mutex_unlock(&ctx->call_control_lock);
+		return -EBUSY;
+	}
+	ctx->call_control = control;
+	mutex_unlock(&ctx->call_control_lock);
+	if (!damon_is_running(ctx))
+		return -EINVAL;
+	wait_for_completion(&control->completion);
+	if (control->canceled)
+		return -ECANCELED;
+	return 0;
 }
 
 /*
@@ -1917,6 +1966,39 @@ static void kdamond_usleep(unsigned long usecs)
 		usleep_range_idle(usecs, usecs + 1);
 }
 
+/*
+ * kdamond_call() - handle damon_call_control.
+ * @ctx:	The &struct damon_ctx of the kdamond.
+ * @cancel:	Whether to cancel the invocation of the function.
+ *
+ * If there is a &struct damon_call_control request that registered via
+ * &damon_call() on @ctx, do or cancel the invocation of the function depending
+ * on @cancel.  @cancel is set when the kdamond is deactivated by DAMOS
+ * watermarks, or the kdamond is already out of the main loop and therefore
+ * will be terminated.
+ */
+static void kdamond_call(struct damon_ctx *ctx, bool cancel)
+{
+	struct damon_call_control *control;
+	int ret = 0;
+
+	mutex_lock(&ctx->call_control_lock);
+	control = ctx->call_control;
+	mutex_unlock(&ctx->call_control_lock);
+	if (!control)
+		return;
+	if (cancel) {
+		control->canceled = true;
+	} else {
+		ret = control->fn(control->data);
+		control->return_code = ret;
+	}
+	complete(&control->completion);
+	mutex_lock(&ctx->call_control_lock);
+	ctx->call_control = NULL;
+	mutex_unlock(&ctx->call_control_lock);
+}
+
 /* Returns negative error code if it's not activated but should return */
 static int kdamond_wait_activation(struct damon_ctx *ctx)
 {
@@ -1941,6 +2023,7 @@ static int kdamond_wait_activation(struct damon_ctx *ctx)
 		if (ctx->callback.after_wmarks_check &&
 				ctx->callback.after_wmarks_check(ctx))
 			break;
+		kdamond_call(ctx, true);
 	}
 	return -EBUSY;
 }
@@ -2011,6 +2094,7 @@ static int kdamond_fn(void *data)
 		if (ctx->callback.after_sampling &&
 				ctx->callback.after_sampling(ctx))
 			break;
+		kdamond_call(ctx, false);
 
 		kdamond_usleep(sample_interval);
 		ctx->passed_sample_intervals++;
@@ -2071,6 +2155,8 @@ done:
 	mutex_lock(&ctx->kdamond_lock);
 	ctx->kdamond = NULL;
 	mutex_unlock(&ctx->kdamond_lock);
+
+	kdamond_call(ctx, true);
 
 	mutex_lock(&damon_lock);
 	nr_running_ctxs--;
