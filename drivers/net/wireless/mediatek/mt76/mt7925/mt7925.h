@@ -27,6 +27,26 @@
 
 #define MCU_UNI_EVENT_ROC  0x27
 
+#define HIF_TRAFFIC_IDLE 0x2
+
+enum {
+	UNI_EVENT_HIF_CTRL_BASIC = 0,
+	UNI_EVENT_HIF_CTRL_TAG_NUM
+};
+
+struct mt7925_mcu_hif_ctrl_basic_tlv {
+	__le16 tag;
+	__le16 len;
+	u8 cid;
+	u8 pad[3];
+	u32 status;
+	u8 hif_type;
+	u8 hif_tx_traffic_status;
+	u8 hif_rx_traffic_status;
+	u8 hifsuspend;
+	u8 rsv[4];
+} __packed;
+
 enum {
 	UNI_ROC_ACQUIRE,
 	UNI_ROC_ABORT,
