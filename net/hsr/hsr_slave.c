@@ -235,7 +235,5 @@ void hsr_del_port(struct hsr_port *port)
 		netdev_upper_dev_unlink(port->dev, master->dev);
 	}
 
-	synchronize_rcu();
-
-	kfree(port);
+	kfree_rcu(port, rcu);
 }

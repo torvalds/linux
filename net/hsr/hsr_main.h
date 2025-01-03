@@ -163,6 +163,7 @@ struct hsr_port {
 	struct net_device	*dev;
 	struct hsr_priv		*hsr;
 	enum hsr_port_type	type;
+	struct rcu_head		rcu;
 };
 
 struct hsr_frame_info;
