@@ -2519,8 +2519,8 @@ intel_dp_compute_config_limits(struct intel_dp *intel_dp,
 	limits->min_rate = intel_dp_min_link_rate(intel_dp);
 	limits->max_rate = intel_dp_max_link_rate(intel_dp);
 
-	/* FIXME 128b/132b SST support missing */
-	if (!is_mst)
+	/* FIXME 128b/132b SST+DSC support missing */
+	if (!is_mst && dsc)
 		limits->max_rate = min(limits->max_rate, 810000);
 	limits->min_rate = min(limits->min_rate, limits->max_rate);
 
@@ -2638,6 +2638,13 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 		 */
 		ret = intel_dp_compute_link_config_wide(intel_dp, pipe_config,
 							conn_state, &limits);
+		if (!ret && intel_dp_is_uhbr(pipe_config))
+			ret = intel_dp_mtp_tu_compute_config(intel_dp,
+							     pipe_config,
+							     pipe_config->pipe_bpp,
+							     pipe_config->pipe_bpp,
+							     conn_state,
+							     0, false);
 		if (ret)
 			dsc_needed = true;
 	}
@@ -3151,8 +3158,13 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	pipe_config->limited_color_range =
 		intel_dp_limited_color_range(pipe_config, conn_state);
 
-	pipe_config->enhanced_framing =
-		drm_dp_enhanced_frame_cap(intel_dp->dpcd);
+	if (intel_dp_is_uhbr(pipe_config)) {
+		/* 128b/132b SST also needs this */
+		pipe_config->mst_master_transcoder = pipe_config->cpu_transcoder;
+	} else {
+		pipe_config->enhanced_framing =
+			drm_dp_enhanced_frame_cap(intel_dp->dpcd);
+	}
 
 	if (pipe_config->dsc.compression_enable)
 		link_bpp_x16 = pipe_config->dsc.compressed_bpp_x16;
@@ -3183,12 +3195,14 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 
 	intel_dp_audio_compute_config(encoder, pipe_config, conn_state);
 
-	intel_link_compute_m_n(link_bpp_x16,
-			       pipe_config->lane_count,
-			       adjusted_mode->crtc_clock,
-			       pipe_config->port_clock,
-			       intel_dp_bw_fec_overhead(pipe_config->fec_enable),
-			       &pipe_config->dp_m_n);
+	if (!intel_dp_is_uhbr(pipe_config)) {
+		intel_link_compute_m_n(link_bpp_x16,
+				       pipe_config->lane_count,
+				       adjusted_mode->crtc_clock,
+				       pipe_config->port_clock,
+				       intel_dp_bw_fec_overhead(pipe_config->fec_enable),
+				       &pipe_config->dp_m_n);
+	}
 
 	/* FIXME: abstract this better */
 	if (pipe_config->splitter.enable)
