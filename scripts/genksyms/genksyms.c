@@ -231,7 +231,7 @@ static struct symbol *__add_symbol(const char *name, enum symbol_type type,
 			continue;
 
 		if (is_reference) {
-			/* fall through */ ;
+			break;
 		} else if (sym->type == type && equal_list(sym->defn, defn)) {
 			if (!sym->is_declared && sym->is_override) {
 				print_location();
@@ -239,25 +239,21 @@ static struct symbol *__add_symbol(const char *name, enum symbol_type type,
 				fprintf(stderr, " modversion is unchanged\n");
 			}
 			sym->is_declared = 1;
-			free_list(defn, NULL);
-			return sym;
 		} else if (sym->is_declared) {
 			error_with_pos("redefinition of %s", name);
-			free_list(defn, NULL);
-			return sym;
 		} else if (sym->is_override && flag_preserve) {
 			print_location();
 			fprintf(stderr, "ignoring ");
 			print_type_name(type, name);
 			fprintf(stderr, " modversion change\n");
 			sym->is_declared = 1;
-			free_list(defn, NULL);
-			return sym;
 		} else {
 			status = is_unknown_symbol(sym) ?
 					STATUS_DEFINED : STATUS_MODIFIED;
+			break;
 		}
-		break;
+		free_list(defn, NULL);
+		return sym;
 	}
 
 	if (sym) {
