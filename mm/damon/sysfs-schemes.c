@@ -2183,6 +2183,54 @@ static int damon_sysfs_before_damos_apply(struct damon_ctx *ctx,
 	return 0;
 }
 
+/**
+ * damos_sysfs_populate_region_dir() - Populate a schemes tried region dir.
+ * @sysfs_schemes:	Schemes directory to populate regions directory.
+ * @ctx:		Corresponding DAMON context.
+ * @t:			DAMON target of @r.
+ * @r:			DAMON region to populate the directory for.
+ * @s:			Corresponding scheme.
+ * @total_bytes_only:	Whether the request is for bytes update only.
+ *
+ * Called from DAMOS walk callback while holding damon_sysfs_lock.
+ */
+void damos_sysfs_populate_region_dir(struct damon_sysfs_schemes *sysfs_schemes,
+		struct damon_ctx *ctx, struct damon_target *t,
+		struct damon_region *r, struct damos *s, bool total_bytes_only)
+{
+	struct damos *scheme;
+	struct damon_sysfs_scheme_regions *sysfs_regions;
+	struct damon_sysfs_scheme_region *region;
+	int schemes_idx = 0;
+
+	damon_for_each_scheme(scheme, ctx) {
+		if (scheme == s)
+			break;
+		schemes_idx++;
+	}
+
+	/* user could have removed the scheme sysfs dir */
+	if (schemes_idx >= sysfs_schemes->nr)
+		return;
+
+	sysfs_regions = sysfs_schemes->schemes_arr[schemes_idx]->tried_regions;
+	sysfs_regions->total_bytes += r->ar.end - r->ar.start;
+	if (total_bytes_only)
+		return;
+
+	region = damon_sysfs_scheme_region_alloc(r);
+	if (!region)
+		return;
+	list_add_tail(&region->list, &sysfs_regions->regions_list);
+	sysfs_regions->nr_regions++;
+	if (kobject_init_and_add(&region->kobj,
+				&damon_sysfs_scheme_region_ktype,
+				&sysfs_regions->kobj, "%d",
+				sysfs_regions->nr_regions++)) {
+		kobject_put(&region->kobj);
+	}
+}
+
 /*
  * DAMON callback that called after each accesses sampling.  While this
  * callback is registered, damon_sysfs_lock should be held to ensure the
