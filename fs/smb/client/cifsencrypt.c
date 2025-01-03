@@ -348,31 +348,37 @@ static struct ntlmssp2_name *find_next_av(struct cifs_ses *ses,
 	return av;
 }
 
-/* Server has provided av pairs/target info in the type 2 challenge
- * packet and we have plucked it and stored within smb session.
- * We parse that blob here to find netbios domain name to be used
- * as part of ntlmv2 authentication (in Target String), if not already
- * specified on the command line.
- * If this function returns without any error but without fetching
- * domain name, authentication may fail against some server but
- * may not fail against other (those who are not very particular
- * about target string i.e. for some, just user name might suffice.
+/*
+ * Check if server has provided av pair of @type in the NTLMSSP
+ * CHALLENGE_MESSAGE blob.
  */
-static int find_domain_name(struct cifs_ses *ses)
+static int find_av_name(struct cifs_ses *ses, u16 type, char **name, u16 maxlen)
 {
 	const struct nls_table *nlsc = ses->local_nls;
 	struct ntlmssp2_name *av;
-	u16 len;
+	u16 len, nlen;
+
+	if (*name)
+		return 0;
 
 	av_for_each_entry(ses, av) {
 		len = AV_LEN(av);
-		if (AV_TYPE(av) == NTLMSSP_AV_NB_DOMAIN_NAME &&
-		    len < CIFS_MAX_DOMAINNAME_LEN && !ses->domainName) {
-			ses->domainName = kmalloc(len + 1, GFP_KERNEL);
-			if (!ses->domainName)
+		if (AV_TYPE(av) != type)
+			continue;
+		if (!IS_ALIGNED(len, sizeof(__le16))) {
+			cifs_dbg(VFS | ONCE, "%s: bad length(%u) for type %u\n",
+				 __func__, len, type);
+			continue;
+		}
+		nlen = len / sizeof(__le16);
+		if (nlen <= maxlen) {
+			++nlen;
+			*name = kmalloc(nlen, GFP_KERNEL);
+			if (!*name)
 				return -ENOMEM;
-			cifs_from_utf16(ses->domainName, AV_DATA_PTR(av),
-					len, len, nlsc, NO_MAP_UNI_RSVD);
+			cifs_from_utf16(*name, AV_DATA_PTR(av), nlen,
+					len, nlsc, NO_MAP_UNI_RSVD);
+			break;
 		}
 	}
 	return 0;
@@ -546,16 +552,29 @@ setup_ntlmv2_rsp(struct cifs_ses *ses, const struct nls_table *nls_cp)
 	if (ses->server->negflavor == CIFS_NEGFLAVOR_EXTENDED) {
 		if (!ses->domainName) {
 			if (ses->domainAuto) {
-				rc = find_domain_name(ses);
-				if (rc) {
-					cifs_dbg(VFS, "error %d finding domain name\n",
-						 rc);
+				/*
+				 * Domain (workgroup) hasn't been specified in
+				 * mount options, so try to find it in
+				 * CHALLENGE_MESSAGE message and then use it as
+				 * part of NTLMv2 authentication.
+				 */
+				rc = find_av_name(ses, NTLMSSP_AV_NB_DOMAIN_NAME,
+						  &ses->domainName,
+						  CIFS_MAX_DOMAINNAME_LEN);
+				if (rc)
 					goto setup_ntlmv2_rsp_ret;
-				}
 			} else {
 				ses->domainName = kstrdup("", GFP_KERNEL);
+				if (!ses->domainName) {
+					rc = -ENOMEM;
+					goto setup_ntlmv2_rsp_ret;
+				}
 			}
 		}
+		rc = find_av_name(ses, NTLMSSP_AV_DNS_DOMAIN_NAME,
+				  &ses->dns_dom, CIFS_MAX_DOMAINNAME_LEN);
+		if (rc)
+			goto setup_ntlmv2_rsp_ret;
 	} else {
 		rc = build_avpair_blob(ses, nls_cp);
 		if (rc) {
