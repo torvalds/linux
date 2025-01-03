@@ -24,3 +24,6 @@ virtio_input.ko
 minidump.ko
 debug_symbol.ko
 secure_buffer.ko
+iommu-logger.ko
+qcom_iommu_util.ko
+arm_smmu.ko
