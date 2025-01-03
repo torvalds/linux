@@ -3199,7 +3199,9 @@ static void intel_ddi_post_disable_hdmi_or_sst(struct intel_atomic_state *state,
 {
 	struct intel_display *display = to_intel_display(encoder);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct intel_crtc *pipe_crtc;
+	bool is_hdmi = intel_crtc_has_type(old_crtc_state, INTEL_OUTPUT_HDMI);
 	int i;
 
 	for_each_pipe_crtc_modeset_disable(display, pipe_crtc, old_crtc_state, i) {
@@ -3210,6 +3212,20 @@ static void intel_ddi_post_disable_hdmi_or_sst(struct intel_atomic_state *state,
 	}
 
 	intel_disable_transcoder(old_crtc_state);
+
+	/* 128b/132b SST */
+	if (!is_hdmi && intel_dp_is_uhbr(old_crtc_state)) {
+		/* VCPID 1, start slot 0 for 128b/132b, clear */
+		drm_dp_dpcd_write_payload(&intel_dp->aux, 1, 0, 0);
+
+		intel_ddi_clear_act_sent(encoder, old_crtc_state);
+
+		intel_de_rmw(display, TRANS_DDI_FUNC_CTL(display, old_crtc_state->cpu_transcoder),
+			     TRANS_DDI_DP_VC_PAYLOAD_ALLOC, 0);
+
+		intel_ddi_wait_for_act_sent(encoder, old_crtc_state);
+		drm_dp_dpcd_poll_act_handled(&intel_dp->aux, 0);
+	}
 
 	intel_ddi_disable_transcoder_func(old_crtc_state);
 
@@ -3492,6 +3508,19 @@ static void intel_ddi_enable(struct intel_atomic_state *state,
 
 	/* Enable/Disable DP2.0 SDP split config before transcoder */
 	intel_audio_sdp_split_update(crtc_state);
+
+	/* 128b/132b SST */
+	if (!is_hdmi && intel_dp_is_uhbr(crtc_state)) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
+		intel_ddi_clear_act_sent(encoder, crtc_state);
+
+		intel_de_rmw(display, TRANS_DDI_FUNC_CTL(display, cpu_transcoder), 0,
+			     TRANS_DDI_DP_VC_PAYLOAD_ALLOC);
+
+		intel_ddi_wait_for_act_sent(encoder, crtc_state);
+		drm_dp_dpcd_poll_act_handled(&intel_dp->aux, 0);
+	}
 
 	intel_enable_transcoder(crtc_state);
 
