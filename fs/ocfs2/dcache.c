@@ -45,8 +45,7 @@ static int ocfs2_dentry_revalidate(struct inode *dir, const struct qstr *name,
 	inode = d_inode(dentry);
 	osb = OCFS2_SB(dentry->d_sb);
 
-	trace_ocfs2_dentry_revalidate(dentry, dentry->d_name.len,
-				      dentry->d_name.name);
+	trace_ocfs2_dentry_revalidate(dentry, name->len, name->name);
 
 	/* For a negative dentry -
 	 * check the generation number of the parent and compare with the
@@ -54,12 +53,8 @@ static int ocfs2_dentry_revalidate(struct inode *dir, const struct qstr *name,
 	 */
 	if (inode == NULL) {
 		unsigned long gen = (unsigned long) dentry->d_fsdata;
-		unsigned long pgen;
-		spin_lock(&dentry->d_lock);
-		pgen = OCFS2_I(d_inode(dentry->d_parent))->ip_dir_lock_gen;
-		spin_unlock(&dentry->d_lock);
-		trace_ocfs2_dentry_revalidate_negative(dentry->d_name.len,
-						       dentry->d_name.name,
+		unsigned long pgen = OCFS2_I(dir)->ip_dir_lock_gen;
+		trace_ocfs2_dentry_revalidate_negative(name->len, name->name,
 						       pgen, gen);
 		if (gen != pgen)
 			goto bail;
