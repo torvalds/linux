@@ -3159,6 +3159,11 @@ static inline void pagetable_p4d_ctor(struct ptdesc *ptdesc)
 	__pagetable_ctor(ptdesc);
 }
 
+static inline void pagetable_pgd_ctor(struct ptdesc *ptdesc)
+{
+	__pagetable_ctor(ptdesc);
+}
+
 extern void __init pagecache_init(void);
 extern void free_initmem(void);
 
