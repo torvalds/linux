@@ -173,8 +173,7 @@ netdev_nl_napi_fill_one(struct sk_buff *rsp, struct napi_struct *napi,
 	if (!hdr)
 		return -EMSGSIZE;
 
-	if (napi->napi_id >= MIN_NAPI_ID &&
-	    nla_put_u32(rsp, NETDEV_A_NAPI_ID, napi->napi_id))
+	if (nla_put_u32(rsp, NETDEV_A_NAPI_ID, napi->napi_id))
 		goto nla_put_failure;
 
 	if (nla_put_u32(rsp, NETDEV_A_NAPI_IFINDEX, napi->dev->ifindex))
@@ -254,6 +253,8 @@ netdev_nl_napi_dump_one(struct net_device *netdev, struct sk_buff *rsp,
 		return err;
 
 	list_for_each_entry(napi, &netdev->napi_list, dev_list) {
+		if (napi->napi_id < MIN_NAPI_ID)
+			continue;
 		if (ctx->napi_id && napi->napi_id >= ctx->napi_id)
 			continue;
 
