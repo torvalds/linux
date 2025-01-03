@@ -2260,7 +2260,7 @@ static void damos_tried_regions_init_upd_status(
 	}
 }
 
-/* Called from damon_sysfs_cmd_request_callback under damon_sysfs_lock */
+/* Called while damon_sysfs_lock is hold */
 int damon_sysfs_schemes_update_regions_start(
 		struct damon_sysfs_schemes *sysfs_schemes,
 		struct damon_ctx *ctx, bool total_bytes_only)
