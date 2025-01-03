@@ -2,47 +2,35 @@
 
 /* Firmware attributes class helper module */
 
-#include <linux/mutex.h>
 #include <linux/module.h>
 #include "firmware_attributes_class.h"
 
-static DEFINE_MUTEX(fw_attr_lock);
-static int fw_attr_inuse;
-
-static const struct class firmware_attributes_class = {
+const struct class firmware_attributes_class = {
 	.name = "firmware-attributes",
 };
+EXPORT_SYMBOL_GPL(firmware_attributes_class);
+
+static __init int fw_attributes_class_init(void)
+{
+	return class_register(&firmware_attributes_class);
+}
+module_init(fw_attributes_class_init);
+
+static __exit void fw_attributes_class_exit(void)
+{
+	class_unregister(&firmware_attributes_class);
+}
+module_exit(fw_attributes_class_exit);
 
 int fw_attributes_class_get(const struct class **fw_attr_class)
 {
-	int err;
-
-	mutex_lock(&fw_attr_lock);
-	if (!fw_attr_inuse) { /*first time class is being used*/
-		err = class_register(&firmware_attributes_class);
-		if (err) {
-			mutex_unlock(&fw_attr_lock);
-			return err;
-		}
-	}
-	fw_attr_inuse++;
 	*fw_attr_class = &firmware_attributes_class;
-	mutex_unlock(&fw_attr_lock);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(fw_attributes_class_get);
 
 int fw_attributes_class_put(void)
 {
-	mutex_lock(&fw_attr_lock);
-	if (!fw_attr_inuse) {
-		mutex_unlock(&fw_attr_lock);
-		return -EINVAL;
-	}
-	fw_attr_inuse--;
-	if (!fw_attr_inuse) /* No more consumers */
-		class_unregister(&firmware_attributes_class);
-	mutex_unlock(&fw_attr_lock);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(fw_attributes_class_put);
