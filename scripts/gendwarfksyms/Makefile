@@ -8,4 +8,4 @@ gendwarfksyms-objs += dwarf.o
 gendwarfksyms-objs += symbols.o
 gendwarfksyms-objs += types.o
 
-HOSTLDLIBS_gendwarfksyms := -ldw -lelf
+HOSTLDLIBS_gendwarfksyms := -ldw -lelf -lz
