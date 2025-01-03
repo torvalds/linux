@@ -729,19 +729,20 @@ static __must_check struct vm_area_struct *vma_merge_existing_range(
 	bool expanded;
 
 	mmap_assert_write_locked(vmg->mm);
-	VM_WARN_ON(!vma); /* We are modifying a VMA, so caller must specify. */
-	VM_WARN_ON(vmg->next); /* We set this. */
-	VM_WARN_ON(prev && start <= prev->vm_start);
-	VM_WARN_ON(start >= end);
+	VM_WARN_ON_VMG(!vma, vmg); /* We are modifying a VMA, so caller must specify. */
+	VM_WARN_ON_VMG(vmg->next, vmg); /* We set this. */
+	VM_WARN_ON_VMG(prev && start <= prev->vm_start, vmg);
+	VM_WARN_ON_VMG(start >= end, vmg);
+
 	/*
 	 * If vma == prev, then we are offset into a VMA. Otherwise, if we are
 	 * not, we must span a portion of the VMA.
 	 */
-	VM_WARN_ON(vma && ((vma != prev && vmg->start != vma->vm_start) ||
-			   vmg->end > vma->vm_end));
+	VM_WARN_ON_VMG(vma && ((vma != prev && vmg->start != vma->vm_start) ||
+			       vmg->end > vma->vm_end), vmg);
 	/* The vmi must be positioned within vmg->vma. */
-	VM_WARN_ON(vma && !(vma_iter_addr(vmg->vmi) >= vma->vm_start &&
-			    vma_iter_addr(vmg->vmi) < vma->vm_end));
+	VM_WARN_ON_VMG(vma && !(vma_iter_addr(vmg->vmi) >= vma->vm_start &&
+				vma_iter_addr(vmg->vmi) < vma->vm_end), vmg);
 
 	vmg->state = VMA_MERGE_NOMERGE;
 
@@ -858,9 +859,9 @@ static __must_check struct vm_area_struct *vma_merge_existing_range(
 
 		pgoff_t pglen = PHYS_PFN(vmg->end - vmg->start);
 
-		VM_WARN_ON(!merge_right);
+		VM_WARN_ON_VMG(!merge_right, vmg);
 		/* If we are offset into a VMA, then prev must be vma. */
-		VM_WARN_ON(vmg->start > vma->vm_start && prev && vma != prev);
+		VM_WARN_ON_VMG(vmg->start > vma->vm_start && prev && vma != prev, vmg);
 
 		if (merge_will_delete_vma) {
 			vmg->vma = next;
@@ -972,9 +973,9 @@ struct vm_area_struct *vma_merge_new_range(struct vma_merge_struct *vmg)
 	bool just_expand = vmg->merge_flags & VMG_FLAG_JUST_EXPAND;
 
 	mmap_assert_write_locked(vmg->mm);
-	VM_WARN_ON(vmg->vma);
+	VM_WARN_ON_VMG(vmg->vma, vmg);
 	/* vmi must point at or before the gap. */
-	VM_WARN_ON(vma_iter_addr(vmg->vmi) > end);
+	VM_WARN_ON_VMG(vma_iter_addr(vmg->vmi) > end, vmg);
 
 	vmg->state = VMA_MERGE_NOMERGE;
 
@@ -1056,7 +1057,7 @@ int vma_expand(struct vma_merge_struct *vmg)
 
 		remove_next = true;
 		/* This should already have been checked by this point. */
-		VM_WARN_ON(!can_merge_remove_vma(next));
+		VM_WARN_ON_VMG(!can_merge_remove_vma(next), vmg);
 		vma_start_write(next);
 		ret = dup_anon_vma(vma, next, &anon_dup);
 		if (ret)
@@ -1064,10 +1065,10 @@ int vma_expand(struct vma_merge_struct *vmg)
 	}
 
 	/* Not merging but overwriting any part of next is not handled. */
-	VM_WARN_ON(next && !remove_next &&
-		  next != vma && vmg->end > next->vm_start);
+	VM_WARN_ON_VMG(next && !remove_next &&
+		       next != vma && vmg->end > next->vm_start, vmg);
 	/* Only handles expanding */
-	VM_WARN_ON(vma->vm_start < vmg->start || vma->vm_end > vmg->end);
+	VM_WARN_ON_VMG(vma->vm_start < vmg->start || vma->vm_end > vmg->end, vmg);
 
 	if (commit_merge(vmg, NULL, remove_next ? next : NULL, NULL, 0, true))
 		goto nomem;
