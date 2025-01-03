@@ -27,7 +27,7 @@ select:
     compatible:
       contains:
         enum:
-          - al,alpine-sysfabric-servic
+          - al,alpine-sysfabric-service
           - allwinner,sun8i-a83t-system-controller
           - allwinner,sun8i-h3-system-controller
           - allwinner,sun8i-v3s-system-controller
