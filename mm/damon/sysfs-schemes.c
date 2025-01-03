@@ -114,55 +114,11 @@ static const struct kobj_type damon_sysfs_scheme_region_ktype = {
  * scheme regions directory
  */
 
-/*
- * enum damos_sysfs_regions_upd_status - Represent DAMOS tried regions update
- *					 status
- * @DAMOS_TRIED_REGIONS_UPD_IDLE:		Waiting for next request.
- * @DAMOS_TRIED_REGIONS_UPD_STARTED:		Update started.
- * @DAMOS_TRIED_REGIONS_UPD_FINISHED:	Update finished.
- *
- * Each DAMON-based operation scheme (&struct damos) has its own apply
- * interval, and we need to expose the scheme tried regions based on only
- * single snapshot.  For this, we keep the tried regions update status for each
- * scheme.  The status becomes 'idle' at the beginning.
- *
- * Once the tried regions update request is received, the request handling
- * start function (damon_sysfs_scheme_update_regions_start()) sets the status
- * of all schemes as 'idle' again, and register ->before_damos_apply()
- * callback.
- *
- * Then, the first followup ->before_damos_apply() callback
- * (damon_sysfs_before_damos_apply()) sets the status 'started'.  The first
- * ->after_sampling() or ->after_aggregation() callback
- *  (damon_sysfs_cmd_request_callback()) after the call is called only after
- *  the scheme is completely applied to the given snapshot.  Hence the callback
- *  knows the situation by showing 'started' status, and sets the status as
- *  'finished'.  Then, damon_sysfs_before_damos_apply() understands the
- *  situation by showing the 'finished' status and do nothing.
- *
- * If DAMOS is not applied to any region due to any reasons including the
- * access pattern, the watermarks, the quotas, and the filters,
- * ->before_damos_apply() will not be called back.  Until the situation is
- * changed, the update will not be finished.  To avoid this,
- * damon_sysfs_after_sampling() set the status as 'finished' if more than two
- * apply intervals of the scheme is passed while the state is 'idle'.
- *
- *  Finally, the tried regions request handling finisher function
- *  (damon_sysfs_schemes_update_regions_stop()) unregisters the callbacks.
- */
-enum damos_sysfs_regions_upd_status {
-	DAMOS_TRIED_REGIONS_UPD_IDLE,
-	DAMOS_TRIED_REGIONS_UPD_STARTED,
-	DAMOS_TRIED_REGIONS_UPD_FINISHED,
-};
-
 struct damon_sysfs_scheme_regions {
 	struct kobject kobj;
 	struct list_head regions_list;
 	int nr_regions;
 	unsigned long total_bytes;
-	enum damos_sysfs_regions_upd_status upd_status;
-	unsigned long upd_timeout_jiffies;
 };
 
 static struct damon_sysfs_scheme_regions *
@@ -178,7 +134,6 @@ damon_sysfs_scheme_regions_alloc(void)
 	INIT_LIST_HEAD(&regions->regions_list);
 	regions->nr_regions = 0;
 	regions->total_bytes = 0;
-	regions->upd_status = DAMOS_TRIED_REGIONS_UPD_IDLE;
 	return regions;
 }
 
@@ -2126,63 +2081,6 @@ void damon_sysfs_schemes_update_stats(
 	}
 }
 
-/*
- * damon_sysfs_schemes that need to update its schemes regions dir.  Protected
- * by damon_sysfs_lock
- */
-static struct damon_sysfs_schemes *damon_sysfs_schemes_for_damos_callback;
-static int damon_sysfs_schemes_region_idx;
-static bool damos_regions_upd_total_bytes_only;
-
-/*
- * DAMON callback that called before damos apply.  While this callback is
- * registered, damon_sysfs_lock should be held to ensure the regions
- * directories exist.
- */
-static int damon_sysfs_before_damos_apply(struct damon_ctx *ctx,
-		struct damon_target *t, struct damon_region *r,
-		struct damos *s)
-{
-	struct damos *scheme;
-	struct damon_sysfs_scheme_regions *sysfs_regions;
-	struct damon_sysfs_scheme_region *region;
-	struct damon_sysfs_schemes *sysfs_schemes =
-		damon_sysfs_schemes_for_damos_callback;
-	int schemes_idx = 0;
-
-	damon_for_each_scheme(scheme, ctx) {
-		if (scheme == s)
-			break;
-		schemes_idx++;
-	}
-
-	/* user could have removed the scheme sysfs dir */
-	if (schemes_idx >= sysfs_schemes->nr)
-		return 0;
-
-	sysfs_regions = sysfs_schemes->schemes_arr[schemes_idx]->tried_regions;
-	if (sysfs_regions->upd_status == DAMOS_TRIED_REGIONS_UPD_FINISHED)
-		return 0;
-	if (sysfs_regions->upd_status == DAMOS_TRIED_REGIONS_UPD_IDLE)
-		sysfs_regions->upd_status = DAMOS_TRIED_REGIONS_UPD_STARTED;
-	sysfs_regions->total_bytes += r->ar.end - r->ar.start;
-	if (damos_regions_upd_total_bytes_only)
-		return 0;
-
-	region = damon_sysfs_scheme_region_alloc(r);
-	if (!region)
-		return 0;
-	list_add_tail(&region->list, &sysfs_regions->regions_list);
-	sysfs_regions->nr_regions++;
-	if (kobject_init_and_add(&region->kobj,
-				&damon_sysfs_scheme_region_ktype,
-				&sysfs_regions->kobj, "%d",
-				damon_sysfs_schemes_region_idx++)) {
-		kobject_put(&region->kobj);
-	}
-	return 0;
-}
-
 /**
  * damos_sysfs_populate_region_dir() - Populate a schemes tried region dir.
  * @sysfs_schemes:	Schemes directory to populate regions directory.
@@ -2231,29 +2129,6 @@ void damos_sysfs_populate_region_dir(struct damon_sysfs_schemes *sysfs_schemes,
 	}
 }
 
-/*
- * DAMON callback that called after each accesses sampling.  While this
- * callback is registered, damon_sysfs_lock should be held to ensure the
- * regions directories exist.
- */
-void damos_sysfs_mark_finished_regions_updates(struct damon_ctx *ctx)
-{
-	struct damon_sysfs_schemes *sysfs_schemes =
-		damon_sysfs_schemes_for_damos_callback;
-	struct damon_sysfs_scheme_regions *sysfs_regions;
-	int i;
-
-	for (i = 0; i < sysfs_schemes->nr; i++) {
-		sysfs_regions = sysfs_schemes->schemes_arr[i]->tried_regions;
-		if (sysfs_regions->upd_status ==
-				DAMOS_TRIED_REGIONS_UPD_STARTED ||
-				time_after(jiffies,
-					sysfs_regions->upd_timeout_jiffies))
-			sysfs_regions->upd_status =
-				DAMOS_TRIED_REGIONS_UPD_FINISHED;
-	}
-}
-
 /* Called from damon_sysfs_cmd_request_callback under damon_sysfs_lock */
 int damon_sysfs_schemes_clear_regions(
 		struct damon_sysfs_schemes *sysfs_schemes)
@@ -2268,84 +2143,5 @@ int damon_sysfs_schemes_clear_regions(
 				sysfs_scheme->tried_regions);
 		sysfs_scheme->tried_regions->total_bytes = 0;
 	}
-	return 0;
-}
-
-static struct damos *damos_sysfs_nth_scheme(int n, struct damon_ctx *ctx)
-{
-	struct damos *scheme;
-	int i = 0;
-
-	damon_for_each_scheme(scheme, ctx) {
-		if (i == n)
-			return scheme;
-		i++;
-	}
-	return NULL;
-}
-
-static void damos_tried_regions_init_upd_status(
-		struct damon_sysfs_schemes *sysfs_schemes,
-		struct damon_ctx *ctx)
-{
-	int i;
-	struct damos *scheme;
-	struct damon_sysfs_scheme_regions *sysfs_regions;
-
-	for (i = 0; i < sysfs_schemes->nr; i++) {
-		sysfs_regions = sysfs_schemes->schemes_arr[i]->tried_regions;
-		scheme = damos_sysfs_nth_scheme(i, ctx);
-		if (!scheme) {
-			sysfs_regions->upd_status =
-				DAMOS_TRIED_REGIONS_UPD_FINISHED;
-			continue;
-		}
-		sysfs_regions->upd_status = DAMOS_TRIED_REGIONS_UPD_IDLE;
-		sysfs_regions->upd_timeout_jiffies = jiffies +
-			2 * usecs_to_jiffies(scheme->apply_interval_us ?
-					scheme->apply_interval_us :
-					ctx->attrs.aggr_interval);
-	}
-}
-
-/* Called while damon_sysfs_lock is hold */
-int damon_sysfs_schemes_update_regions_start(
-		struct damon_sysfs_schemes *sysfs_schemes,
-		struct damon_ctx *ctx, bool total_bytes_only)
-{
-	damon_sysfs_schemes_clear_regions(sysfs_schemes);
-	damon_sysfs_schemes_for_damos_callback = sysfs_schemes;
-	damos_tried_regions_init_upd_status(sysfs_schemes, ctx);
-	damos_regions_upd_total_bytes_only = total_bytes_only;
-	ctx->callback.before_damos_apply = damon_sysfs_before_damos_apply;
-	return 0;
-}
-
-bool damos_sysfs_regions_upd_done(void)
-{
-	struct damon_sysfs_schemes *sysfs_schemes =
-		damon_sysfs_schemes_for_damos_callback;
-	struct damon_sysfs_scheme_regions *sysfs_regions;
-	int i;
-
-	for (i = 0; i < sysfs_schemes->nr; i++) {
-		sysfs_regions = sysfs_schemes->schemes_arr[i]->tried_regions;
-		if (sysfs_regions->upd_status !=
-				DAMOS_TRIED_REGIONS_UPD_FINISHED)
-			return false;
-	}
-	return true;
-}
-
-/*
- * Called from damon_sysfs_cmd_request_callback under damon_sysfs_lock.  Caller
- * should unlock damon_sysfs_lock which held before
- * damon_sysfs_schemes_update_regions_start()
- */
-int damon_sysfs_schemes_update_regions_stop(struct damon_ctx *ctx)
-{
-	damon_sysfs_schemes_for_damos_callback = NULL;
-	ctx->callback.before_damos_apply = NULL;
-	damon_sysfs_schemes_region_idx = 0;
 	return 0;
 }
