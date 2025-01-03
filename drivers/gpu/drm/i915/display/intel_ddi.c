@@ -2534,12 +2534,12 @@ mtl_ddi_enable_d2d(struct intel_encoder *encoder)
 static void mtl_port_buf_ctl_program(struct intel_encoder *encoder,
 				     const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	enum port port = encoder->port;
 	u32 val;
 
-	val = intel_de_read(i915, XELPDP_PORT_BUF_CTL1(i915, port));
+	val = intel_de_read(display, XELPDP_PORT_BUF_CTL1(i915, port));
 	val &= ~XELPDP_PORT_WIDTH_MASK;
 	val |= XELPDP_PORT_WIDTH(mtl_get_port_width(crtc_state->lane_count));
 
@@ -2552,7 +2552,7 @@ static void mtl_port_buf_ctl_program(struct intel_encoder *encoder,
 	if (dig_port->lane_reversal)
 		val |= XELPDP_PORT_REVERSAL;
 
-	intel_de_write(i915, XELPDP_PORT_BUF_CTL1(i915, port), val);
+	intel_de_write(display, XELPDP_PORT_BUF_CTL1(display, port), val);
 }
 
 static void mtl_port_buf_ctl_io_selection(struct intel_encoder *encoder)
@@ -3639,9 +3639,9 @@ static void adlp_tbt_to_dp_alt_switch_wa(struct intel_encoder *encoder)
 static void mtl_ddi_prepare_link_retrain(struct intel_dp *intel_dp,
 					 const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct intel_encoder *encoder = &dig_port->base;
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum port port = encoder->port;
 	u32 dp_tp_ctl;
 
@@ -3649,7 +3649,7 @@ static void mtl_ddi_prepare_link_retrain(struct intel_dp *intel_dp,
 	 * TODO: To train with only a different voltage swing entry is not
 	 * necessary disable and enable port
 	 */
-	dp_tp_ctl = intel_de_read(dev_priv, dp_tp_ctl_reg(encoder, crtc_state));
+	dp_tp_ctl = intel_de_read(display, dp_tp_ctl_reg(encoder, crtc_state));
 	if (dp_tp_ctl & DP_TP_CTL_ENABLE)
 		mtl_disable_ddi_buf(encoder, crtc_state);
 
@@ -3662,8 +3662,8 @@ static void mtl_ddi_prepare_link_retrain(struct intel_dp *intel_dp,
 		if (crtc_state->enhanced_framing)
 			dp_tp_ctl |= DP_TP_CTL_ENHANCED_FRAME_ENABLE;
 	}
-	intel_de_write(dev_priv, dp_tp_ctl_reg(encoder, crtc_state), dp_tp_ctl);
-	intel_de_posting_read(dev_priv, dp_tp_ctl_reg(encoder, crtc_state));
+	intel_de_write(display, dp_tp_ctl_reg(encoder, crtc_state), dp_tp_ctl);
+	intel_de_posting_read(display, dp_tp_ctl_reg(encoder, crtc_state));
 
 	/* 6.f Enable D2D Link */
 	mtl_ddi_enable_d2d(encoder);
@@ -3676,11 +3676,11 @@ static void mtl_ddi_prepare_link_retrain(struct intel_dp *intel_dp,
 
 	/* 6.i Configure and enable DDI_CTL_DE to start sending valid data to port slice */
 	intel_dp->DP |= DDI_BUF_CTL_ENABLE;
-	if (DISPLAY_VER(dev_priv) >= 20)
+	if (DISPLAY_VER(display) >= 20)
 		intel_dp->DP |= XE2LPD_DDI_BUF_D2D_LINK_ENABLE;
 
-	intel_de_write(dev_priv, DDI_BUF_CTL(port), intel_dp->DP);
-	intel_de_posting_read(dev_priv, DDI_BUF_CTL(port));
+	intel_de_write(display, DDI_BUF_CTL(port), intel_dp->DP);
+	intel_de_posting_read(display, DDI_BUF_CTL(port));
 
 	/* 6.j Poll for PORT_BUF_CTL Idle Status == 0, timeout after 100 us */
 	intel_wait_ddi_buf_active(encoder);
