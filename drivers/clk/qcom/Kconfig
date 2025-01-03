@@ -199,6 +199,15 @@ config IPQ_APSS_6018
 	  Say Y if you want to support CPU frequency scaling on
 	  ipq based devices.
 
+config IPQ_CMN_PLL
+	tristate "IPQ CMN PLL Clock Controller"
+	help
+	  Support for CMN PLL clock controller on IPQ platform. The
+	  CMN PLL consumes the AHB/SYS clocks from GCC and supplies
+	  the output clocks to the networking hardware and GCC blocks.
+	  Say Y or M if you want to support CMN PLL clock on the IPQ
+	  based devices.
+
 config IPQ_GCC_4019
 	tristate "IPQ4019 Global Clock Controller"
 	help
