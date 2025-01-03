@@ -1296,7 +1296,6 @@ static int hisi_zip_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 	int ret;
 
 	qm->pdev = pdev;
-	qm->ver = pdev->revision;
 	qm->mode = uacce_mode;
 	qm->sqe_size = HZIP_SQE_SIZE;
 	qm->dev_name = hisi_zip_name;

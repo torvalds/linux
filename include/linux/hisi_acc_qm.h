@@ -124,6 +124,7 @@ enum qm_hw_ver {
 	QM_HW_V1 = 0x20,
 	QM_HW_V2 = 0x21,
 	QM_HW_V3 = 0x30,
+	QM_HW_V4 = 0x50,
 };
 
 enum qm_fun_type {
@@ -396,6 +397,8 @@ struct hisi_qm {
 	struct hisi_qm_poll_data *poll_data;
 
 	struct mutex mailbox_lock;
+
+	struct mutex ifc_lock;
 
 	const struct hisi_qm_hw_ops *ops;
 

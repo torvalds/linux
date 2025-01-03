@@ -1209,7 +1209,6 @@ static int hpre_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 
 	qm->mode = uacce_mode;
 	qm->pdev = pdev;
-	qm->ver = pdev->revision;
 	qm->sqe_size = HPRE_SQE_SIZE;
 	qm->dev_name = hpre_name;
 
