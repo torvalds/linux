@@ -2642,14 +2642,16 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 			dsc_needed = true;
 	}
 
+	if (dsc_needed && !intel_dp_supports_dsc(intel_dp, connector, pipe_config)) {
+		drm_dbg_kms(display->drm, "DSC required but not available\n");
+		return -EINVAL;
+	}
+
 	if (dsc_needed) {
 		drm_dbg_kms(display->drm,
 			    "Try DSC (fallback=%s, joiner=%s, force=%s)\n",
 			    str_yes_no(ret), str_yes_no(joiner_needs_dsc),
 			    str_yes_no(intel_dp->force_dsc_en));
-
-		if (!intel_dp_supports_dsc(intel_dp, connector, pipe_config))
-			return -EINVAL;
 
 		if (!intel_dp_compute_config_limits(intel_dp, pipe_config,
 						    respect_downstream_limits,
