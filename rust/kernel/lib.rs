@@ -58,6 +58,8 @@ pub mod miscdevice;
 pub mod net;
 pub mod of;
 pub mod page;
+#[cfg(CONFIG_PCI)]
+pub mod pci;
 pub mod pid_namespace;
 pub mod platform;
 pub mod prelude;
@@ -84,8 +86,6 @@ pub mod workqueue;
 pub use bindings;
 pub mod io;
 pub use macros;
-#[cfg(all(CONFIG_PCI, CONFIG_PCI_MSI))]
-pub mod pci;
 pub use uapi;
 
 #[doc(hidden)]
