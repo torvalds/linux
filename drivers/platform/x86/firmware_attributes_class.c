@@ -22,19 +22,6 @@ static __exit void fw_attributes_class_exit(void)
 }
 module_exit(fw_attributes_class_exit);
 
-int fw_attributes_class_get(const struct class **fw_attr_class)
-{
-	*fw_attr_class = &firmware_attributes_class;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(fw_attributes_class_get);
-
-int fw_attributes_class_put(void)
-{
-	return 0;
-}
-EXPORT_SYMBOL_GPL(fw_attributes_class_put);
-
 MODULE_AUTHOR("Mark Pearson <markpearson@lenovo.com>");
 MODULE_DESCRIPTION("Firmware attributes class helper module");
 MODULE_LICENSE("GPL");
