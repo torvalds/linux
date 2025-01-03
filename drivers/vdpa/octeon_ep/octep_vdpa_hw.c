@@ -495,8 +495,6 @@ int octep_hw_caps_read(struct octep_hw *oct_hw, struct pci_dev *pdev)
 	if (!oct_hw->vqs)
 		return -ENOMEM;
 
-	oct_hw->irq = -1;
-
 	dev_info(&pdev->dev, "Device features : %llx\n", oct_hw->features);
 	dev_info(&pdev->dev, "Maximum queues : %u\n", oct_hw->nr_vring);
 
