@@ -882,7 +882,7 @@ int io_import_fixed(int ddir, struct iov_iter *iter,
 	 * and advance us to the beginning.
 	 */
 	offset = buf_addr - imu->ubuf;
-	iov_iter_bvec(iter, ddir, imu->bvec, imu->nr_bvecs, offset + len);
+	iov_iter_bvec(iter, ddir, imu->bvec, imu->nr_bvecs, len);
 
 	if (offset) {
 		/*
@@ -904,7 +904,6 @@ int io_import_fixed(int ddir, struct iov_iter *iter,
 		const struct bio_vec *bvec = imu->bvec;
 
 		if (offset < bvec->bv_len) {
-			iter->count -= offset;
 			iter->iov_offset = offset;
 		} else {
 			unsigned long seg_skip;
@@ -915,7 +914,6 @@ int io_import_fixed(int ddir, struct iov_iter *iter,
 
 			iter->bvec += seg_skip;
 			iter->nr_segs -= seg_skip;
-			iter->count -= bvec->bv_len + offset;
 			iter->iov_offset = offset & ((1UL << imu->folio_shift) - 1);
 		}
 	}
