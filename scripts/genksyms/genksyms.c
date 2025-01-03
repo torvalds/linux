@@ -12,6 +12,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <assert.h>
@@ -60,7 +61,7 @@ static void print_type_name(enum symbol_type type, const char *name);
 
 /*----------------------------------------------------------------------*/
 
-static const unsigned int crctab32[] = {
+static const uint32_t crctab32[] = {
 	0x00000000U, 0x77073096U, 0xee0e612cU, 0x990951baU, 0x076dc419U,
 	0x706af48fU, 0xe963a535U, 0x9e6495a3U, 0x0edb8832U, 0x79dcb8a4U,
 	0xe0d5e91eU, 0x97d2d988U, 0x09b64c2bU, 0x7eb17cbdU, 0xe7b82d07U,
@@ -115,19 +116,19 @@ static const unsigned int crctab32[] = {
 	0x2d02ef8dU
 };
 
-static unsigned long partial_crc32_one(unsigned char c, unsigned long crc)
+static uint32_t partial_crc32_one(uint8_t c, uint32_t crc)
 {
 	return crctab32[(crc ^ c) & 0xff] ^ (crc >> 8);
 }
 
-static unsigned long partial_crc32(const char *s, unsigned long crc)
+static uint32_t partial_crc32(const char *s, uint32_t crc)
 {
 	while (*s)
 		crc = partial_crc32_one(*s++, crc);
 	return crc;
 }
 
-static unsigned long crc32(const char *s)
+static uint32_t crc32(const char *s)
 {
 	return partial_crc32(s, 0xffffffff) ^ 0xffffffff;
 }
@@ -517,7 +518,7 @@ static void print_list(FILE * f, struct string_list *list)
 	}
 }
 
-static unsigned long expand_and_crc_sym(struct symbol *sym, unsigned long crc)
+static uint32_t expand_and_crc_sym(struct symbol *sym, uint32_t crc)
 {
 	struct string_list *list = sym->defn;
 	struct string_list **e, **b;
@@ -624,7 +625,7 @@ static unsigned long expand_and_crc_sym(struct symbol *sym, unsigned long crc)
 void export_symbol(const char *name)
 {
 	struct symbol *sym;
-	unsigned long crc;
+	uint32_t crc;
 	int has_changed = 0;
 
 	sym = find_symbol(name, SYM_NORMAL, 0);
@@ -672,7 +673,7 @@ void export_symbol(const char *name)
 	if (flag_dump_defs)
 		fputs(">\n", debugfile);
 
-	printf("#SYMVER %s 0x%08lx\n", name, crc);
+	printf("#SYMVER %s 0x%08lx\n", name, (unsigned long)crc);
 }
 
 /*----------------------------------------------------------------------*/
