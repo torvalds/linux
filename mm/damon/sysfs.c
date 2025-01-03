@@ -1307,9 +1307,9 @@ static int damon_sysfs_commit_input(struct damon_sysfs_kdamond *kdamond)
 	return err;
 }
 
-static int damon_sysfs_commit_schemes_quota_goals(
-		struct damon_sysfs_kdamond *sysfs_kdamond)
+static int damon_sysfs_commit_schemes_quota_goals(void *data)
 {
+	struct damon_sysfs_kdamond *sysfs_kdamond = data;
 	struct damon_ctx *ctx;
 	struct damon_sysfs_context *sysfs_ctx;
 
@@ -1375,9 +1375,6 @@ static int damon_sysfs_cmd_request_callback(struct damon_ctx *c, bool active,
 		if (!after_aggregation)
 			goto out;
 		err = damon_sysfs_commit_input(kdamond);
-		break;
-	case DAMON_SYSFS_CMD_COMMIT_SCHEMES_QUOTA_GOALS:
-		err = damon_sysfs_commit_schemes_quota_goals(kdamond);
 		break;
 	case DAMON_SYSFS_CMD_UPDATE_SCHEMES_TRIED_BYTES:
 		total_bytes_only = true;
@@ -1543,6 +1540,10 @@ static int damon_sysfs_handle_cmd(enum damon_sysfs_cmd cmd,
 		return damon_sysfs_turn_damon_on(kdamond);
 	case DAMON_SYSFS_CMD_OFF:
 		return damon_sysfs_turn_damon_off(kdamond);
+	case DAMON_SYSFS_CMD_COMMIT_SCHEMES_QUOTA_GOALS:
+		return damon_sysfs_damon_call(
+				damon_sysfs_commit_schemes_quota_goals,
+				kdamond);
 	case DAMON_SYSFS_CMD_UPDATE_SCHEMES_STATS:
 		return damon_sysfs_damon_call(
 				damon_sysfs_upd_schemes_stats, kdamond);
