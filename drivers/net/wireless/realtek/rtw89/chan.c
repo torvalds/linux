@@ -802,7 +802,7 @@ fill:
 
 	mcc_role->limit.max_toa = max_toa_us / 1024;
 	mcc_role->limit.max_tob = max_tob_us / 1024;
-	mcc_role->limit.max_dur = max_dur_us / 1024;
+	mcc_role->limit.max_dur = mcc_role->limit.max_toa + mcc_role->limit.max_tob;
 	mcc_role->limit.enable = true;
 
 	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
