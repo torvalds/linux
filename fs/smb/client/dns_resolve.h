@@ -14,7 +14,8 @@
 #include <linux/net.h>
 
 #ifdef __KERNEL__
-int dns_resolve_server_name_to_ip(const char *unc, struct sockaddr *ip_addr, time64_t *expiry);
+int dns_resolve_server_name_to_ip(const char *dom, const char *unc,
+				  struct sockaddr *ip_addr, time64_t *expiry);
 #endif /* KERNEL */
 
 #endif /* _DNS_RESOLVE_H */

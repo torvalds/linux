@@ -1114,7 +1114,8 @@ static bool target_share_equal(struct cifs_tcon *tcon, const char *s1)
 	extract_unc_hostname(s1, &host, &hostlen);
 	scnprintf(unc, sizeof(unc), "\\\\%.*s", (int)hostlen, host);
 
-	rc = dns_resolve_server_name_to_ip(unc, (struct sockaddr *)&ss, NULL);
+	rc = dns_resolve_server_name_to_ip(server->dns_dom, unc,
+					   (struct sockaddr *)&ss, NULL);
 	if (rc < 0) {
 		cifs_dbg(FYI, "%s: could not resolve %.*s. assuming server address matches.\n",
 			 __func__, (int)hostlen, host);

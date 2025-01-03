@@ -1189,7 +1189,8 @@ int match_target_ip(struct TCP_Server_Info *server,
 
 	cifs_dbg(FYI, "%s: target name: %s\n", __func__, target + 2);
 
-	rc = dns_resolve_server_name_to_ip(target, (struct sockaddr *)&ss, NULL);
+	rc = dns_resolve_server_name_to_ip(server->dns_dom, target,
+					   (struct sockaddr *)&ss, NULL);
 	kfree(target);
 
 	if (rc < 0)

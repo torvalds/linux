@@ -9,6 +9,8 @@
 #include "fs_context.h"
 #include "dfs.h"
 
+#define DFS_DOM(ctx) (ctx->dfs_root_ses ? ctx->dfs_root_ses->dns_dom : NULL)
+
 /**
  * dfs_parse_target_referral - set fs context for dfs target referral
  *
@@ -46,8 +48,9 @@ int dfs_parse_target_referral(const char *full_path, const struct dfs_info3_para
 	if (rc)
 		goto out;
 
-	rc = dns_resolve_server_name_to_ip(path, (struct sockaddr *)&ctx->dstaddr, NULL);
-
+	rc = dns_resolve_server_name_to_ip(DFS_DOM(ctx), path,
+					   (struct sockaddr *)&ctx->dstaddr,
+					   NULL);
 out:
 	kfree(path);
 	return rc;
@@ -59,8 +62,9 @@ static int get_session(struct cifs_mount_ctx *mnt_ctx, const char *full_path)
 	int rc;
 
 	ctx->leaf_fullpath = (char *)full_path;
+	ctx->dns_dom = DFS_DOM(ctx);
 	rc = cifs_mount_get_session(mnt_ctx);
-	ctx->leaf_fullpath = NULL;
+	ctx->leaf_fullpath = ctx->dns_dom = NULL;
 
 	return rc;
 }
@@ -264,7 +268,8 @@ static int update_fs_context_dstaddr(struct smb3_fs_context *ctx)
 	int rc = 0;
 
 	if (!ctx->nodfs && ctx->dfs_automount) {
-		rc = dns_resolve_server_name_to_ip(ctx->source, addr, NULL);
+		rc = dns_resolve_server_name_to_ip(NULL, ctx->source,
+						   addr, NULL);
 		if (!rc)
 			cifs_set_port(addr, ctx->port);
 		ctx->dfs_automount = false;

@@ -97,7 +97,8 @@ static int reconn_set_ipaddr_from_hostname(struct TCP_Server_Info *server)
 	ss = server->dstaddr;
 	spin_unlock(&server->srv_lock);
 
-	rc = dns_resolve_server_name_to_ip(unc, (struct sockaddr *)&ss, NULL);
+	rc = dns_resolve_server_name_to_ip(server->dns_dom, unc,
+					   (struct sockaddr *)&ss, NULL);
 	kfree(unc);
 
 	if (rc < 0) {
@@ -1710,6 +1711,8 @@ cifs_get_tcp_session(struct smb3_fs_context *ctx,
 			goto out_err;
 		}
 	}
+	if (ctx->dns_dom)
+		strscpy(tcp_ses->dns_dom, ctx->dns_dom);
 
 	if (ctx->nosharesock)
 		tcp_ses->nosharesock = true;
