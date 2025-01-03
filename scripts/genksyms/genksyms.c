@@ -226,41 +226,38 @@ static struct symbol *__add_symbol(const char *name, enum symbol_type type,
 
 	h = crc32(name) % HASH_BUCKETS;
 	for (sym = symtab[h]; sym; sym = sym->hash_next) {
-		if (map_to_ns(sym->type) == map_to_ns(type) &&
-		    strcmp(name, sym->name) == 0) {
-			if (is_reference)
-				/* fall through */ ;
-			else if (sym->type == type &&
-				 equal_list(sym->defn, defn)) {
-				if (!sym->is_declared && sym->is_override) {
-					print_location();
-					print_type_name(type, name);
-					fprintf(stderr, " modversion is "
-						"unchanged\n");
-				}
-				sym->is_declared = 1;
-				free_list(defn, NULL);
-				return sym;
-			} else if (!sym->is_declared) {
-				if (sym->is_override && flag_preserve) {
-					print_location();
-					fprintf(stderr, "ignoring ");
-					print_type_name(type, name);
-					fprintf(stderr, " modversion change\n");
-					sym->is_declared = 1;
-					free_list(defn, NULL);
-					return sym;
-				} else {
-					status = is_unknown_symbol(sym) ?
-						STATUS_DEFINED : STATUS_MODIFIED;
-				}
-			} else {
-				error_with_pos("redefinition of %s", name);
-				free_list(defn, NULL);
-				return sym;
+		if (map_to_ns(sym->type) != map_to_ns(type) ||
+		    strcmp(name, sym->name))
+			continue;
+
+		if (is_reference) {
+			/* fall through */ ;
+		} else if (sym->type == type && equal_list(sym->defn, defn)) {
+			if (!sym->is_declared && sym->is_override) {
+				print_location();
+				print_type_name(type, name);
+				fprintf(stderr, " modversion is unchanged\n");
 			}
-			break;
+			sym->is_declared = 1;
+			free_list(defn, NULL);
+			return sym;
+		} else if (sym->is_declared) {
+			error_with_pos("redefinition of %s", name);
+			free_list(defn, NULL);
+			return sym;
+		} else if (sym->is_override && flag_preserve) {
+			print_location();
+			fprintf(stderr, "ignoring ");
+			print_type_name(type, name);
+			fprintf(stderr, " modversion change\n");
+			sym->is_declared = 1;
+			free_list(defn, NULL);
+			return sym;
+		} else {
+			status = is_unknown_symbol(sym) ?
+					STATUS_DEFINED : STATUS_MODIFIED;
 		}
+		break;
 	}
 
 	if (sym) {
