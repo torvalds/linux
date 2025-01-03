@@ -35,48 +35,40 @@
 static int gfs2_drevalidate(struct inode *dir, const struct qstr *name,
 			    struct dentry *dentry, unsigned int flags)
 {
-	struct dentry *parent;
-	struct gfs2_sbd *sdp;
-	struct gfs2_inode *dip;
+	struct gfs2_sbd *sdp = GFS2_SB(dir);
+	struct gfs2_inode *dip = GFS2_I(dir);
 	struct inode *inode;
 	struct gfs2_holder d_gh;
 	struct gfs2_inode *ip = NULL;
-	int error, valid = 0;
+	int error, valid;
 	int had_lock = 0;
 
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
 
-	parent = dget_parent(dentry);
-	sdp = GFS2_SB(d_inode(parent));
-	dip = GFS2_I(d_inode(parent));
 	inode = d_inode(dentry);
 
 	if (inode) {
 		if (is_bad_inode(inode))
-			goto out;
+			return 0;
 		ip = GFS2_I(inode);
 	}
 
-	if (sdp->sd_lockstruct.ls_ops->lm_mount == NULL) {
-		valid = 1;
-		goto out;
-	}
+	if (sdp->sd_lockstruct.ls_ops->lm_mount == NULL)
+		return 1;
 
 	had_lock = (gfs2_glock_is_locked_by_me(dip->i_gl) != NULL);
 	if (!had_lock) {
 		error = gfs2_glock_nq_init(dip->i_gl, LM_ST_SHARED, 0, &d_gh);
 		if (error)
-			goto out;
+			return 0;
 	}
 
-	error = gfs2_dir_check(d_inode(parent), &dentry->d_name, ip);
+	error = gfs2_dir_check(dir, name, ip);
 	valid = inode ? !error : (error == -ENOENT);
 
 	if (!had_lock)
 		gfs2_glock_dq_uninit(&d_gh);
-out:
-	dput(parent);
 	return valid;
 }
 
