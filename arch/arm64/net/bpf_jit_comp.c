@@ -267,6 +267,19 @@ static bool is_addsub_imm(u32 imm)
 	return !(imm & ~0xfff) || !(imm & ~0xfff000);
 }
 
+static inline void emit_a64_add_i(const bool is64, const int dst, const int src,
+				  const int tmp, const s32 imm, struct jit_ctx *ctx)
+{
+	if (is_addsub_imm(imm)) {
+		emit(A64_ADD_I(is64, dst, src, imm), ctx);
+	} else if (is_addsub_imm(-imm)) {
+		emit(A64_SUB_I(is64, dst, src, -imm), ctx);
+	} else {
+		emit_a64_mov_i(is64, tmp, imm, ctx);
+		emit(A64_ADD(is64, dst, src, tmp), ctx);
+	}
+}
+
 /*
  * There are 3 types of AArch64 LDR/STR (immediate) instruction:
  * Post-index, Pre-index, Unsigned offset.
@@ -1144,14 +1157,7 @@ emit_bswap_uxt:
 	/* dst = dst OP imm */
 	case BPF_ALU | BPF_ADD | BPF_K:
 	case BPF_ALU64 | BPF_ADD | BPF_K:
-		if (is_addsub_imm(imm)) {
-			emit(A64_ADD_I(is64, dst, dst, imm), ctx);
-		} else if (is_addsub_imm(-imm)) {
-			emit(A64_SUB_I(is64, dst, dst, -imm), ctx);
-		} else {
-			emit_a64_mov_i(is64, tmp, imm, ctx);
-			emit(A64_ADD(is64, dst, dst, tmp), ctx);
-		}
+		emit_a64_add_i(is64, dst, dst, tmp, imm, ctx);
 		break;
 	case BPF_ALU | BPF_SUB | BPF_K:
 	case BPF_ALU64 | BPF_SUB | BPF_K:
