@@ -189,10 +189,10 @@ static int rtw89_ops_add_interface(struct ieee80211_hw *hw,
 
 	rtw89_core_txq_init(rtwdev, vif->txq);
 
-	if (!rtw89_rtwvif_in_list(rtwdev, rtwvif))
+	if (!rtw89_rtwvif_in_list(rtwdev, rtwvif)) {
 		list_add_tail(&rtwvif->list, &rtwdev->rtwvifs_list);
-
-	INIT_LIST_HEAD(&rtwvif->mgnt_entry);
+		INIT_LIST_HEAD(&rtwvif->mgnt_entry);
+	}
 
 	ether_addr_copy(rtwvif->mac_addr, vif->addr);
 
