@@ -3,7 +3,6 @@
 /* Firmware attributes class helper module */
 
 #include <linux/mutex.h>
-#include <linux/device/class.h>
 #include <linux/module.h>
 #include "firmware_attributes_class.h"
 
