@@ -263,7 +263,7 @@ static int goodix_berlin_power_on(struct goodix_berlin_core *cd)
 		goto err_iovdd_disable;
 	}
 
-	/* Vendor waits 15ms for IOVDD to settle */
+	/* Vendor waits 15ms for AVDD to settle */
 	usleep_range(15000, 15100);
 
 	gpiod_set_value_cansleep(cd->reset_gpio, 0);
