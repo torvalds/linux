@@ -3233,6 +3233,12 @@ struct irqtime {
 };
 
 DECLARE_PER_CPU(struct irqtime, cpu_irqtime);
+DECLARE_STATIC_KEY_FALSE(sched_clock_irqtime);
+
+static inline int irqtime_enabled(void)
+{
+	return static_branch_likely(&sched_clock_irqtime);
+}
 
 /*
  * Returns the irqtime minus the softirq time computed by ksoftirqd.
@@ -3251,6 +3257,13 @@ static inline u64 irq_time_read(int cpu)
 	} while (__u64_stats_fetch_retry(&irqtime->sync, seq));
 
 	return total;
+}
+
+#else
+
+static inline int irqtime_enabled(void)
+{
+	return 0;
 }
 
 #endif /* CONFIG_IRQ_TIME_ACCOUNTING */
