@@ -540,6 +540,17 @@ To know how user-space can set the watermarks via :ref:`DAMON sysfs interface
 documentation.
 
 
+Regions Walking
+~~~~~~~~~~~~~~~
+
+DAMOS feature allowing users access each region that a DAMOS action has just
+applied.  Using this feature, DAMON :ref:`API <damon_design_api>` allows users
+access full properties of the regions including the access monitoring results.
+:ref:`DAMON sysfs interface <sysfs_interface>` also allows users read the data
+via special :ref:`files <sysfs_schemes_tried_regions>`.
+
+.. _damon_design_api:
+
 Application Programming Interface
 ---------------------------------
 
