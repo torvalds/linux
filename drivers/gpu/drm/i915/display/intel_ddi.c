@@ -561,7 +561,8 @@ intel_ddi_transcoder_func_reg_val_get(struct intel_encoder *encoder,
 	} else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_ANALOG)) {
 		temp |= TRANS_DDI_MODE_SELECT_FDI_OR_128B132B;
 		temp |= (crtc_state->fdi_lanes - 1) << 1;
-	} else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST)) {
+	} else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST) ||
+		   intel_dp_is_uhbr(crtc_state)) {
 		if (intel_dp_is_uhbr(crtc_state))
 			temp |= TRANS_DDI_MODE_SELECT_FDI_OR_128B132B;
 		else
