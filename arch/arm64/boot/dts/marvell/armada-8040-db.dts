@@ -145,9 +145,12 @@
 
 	sata-port@0 {
 		phys = <&cp0_comphy1 0>;
+		status = "okay";
 	};
+
 	sata-port@1 {
 		phys = <&cp0_comphy3 1>;
+		status = "okay";
 	};
 };
 
