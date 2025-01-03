@@ -29,25 +29,27 @@ static int altr_a10sr_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	int ret, val;
 
 	ret = regmap_read(gpio->regmap, ALTR_A10SR_PBDSW_REG, &val);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_err(&chip->dev, "Failed to read from register: %d\n", ret);
 		return ret;
+	}
 
 	return !!(val & BIT(offset - ALTR_A10SR_LED_VALID_SHIFT));
 }
 
-static void altr_a10sr_gpio_set(struct gpio_chip *chip, unsigned int offset,
-				int value)
+static void altr_a10sr_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct altr_a10sr_gpio *gpio = gpiochip_get_data(chip);
 
-	regmap_update_bits(gpio->regmap, ALTR_A10SR_LED_REG,
-			   BIT(ALTR_A10SR_LED_VALID_SHIFT + offset),
-			   value ? BIT(ALTR_A10SR_LED_VALID_SHIFT + offset)
-			   : 0);
+	int ret = regmap_update_bits(gpio->regmap, ALTR_A10SR_LED_REG,
+				     BIT(ALTR_A10SR_LED_VALID_SHIFT + offset),
+				     value ? BIT(ALTR_A10SR_LED_VALID_SHIFT + offset) : 0);
+	if (ret < 0) {
+		dev_err(&chip->dev, "Failed to update register: %d\n", ret);
+	}
 }
 
-static int altr_a10sr_gpio_direction_input(struct gpio_chip *gc,
-					   unsigned int nr)
+static int altr_a10sr_gpio_direction_input(struct gpio_chip *gc, unsigned int nr)
 {
 	if (nr < (ALTR_A10SR_IN_VALID_RANGE_LO - ALTR_A10SR_LED_VALID_SHIFT))
 		return -EINVAL;
@@ -55,8 +57,7 @@ static int altr_a10sr_gpio_direction_input(struct gpio_chip *gc,
 	return 0;
 }
 
-static int altr_a10sr_gpio_direction_output(struct gpio_chip *gc,
-					    unsigned int nr, int value)
+static int altr_a10sr_gpio_direction_output(struct gpio_chip *gc, unsigned int nr, int value)
 {
 	if (nr > (ALTR_A10SR_OUT_VALID_RANGE_HI - ALTR_A10SR_LED_VALID_SHIFT))
 		return -EINVAL;
@@ -73,7 +74,7 @@ static const struct gpio_chip altr_a10sr_gc = {
 	.direction_input = altr_a10sr_gpio_direction_input,
 	.direction_output = altr_a10sr_gpio_direction_output,
 	.can_sleep = true,
-	.ngpio = 12,
+	.ngpio = 12,  // Consider making this dynamic based on hardware config
 	.base = -1,
 };
 
@@ -91,6 +92,9 @@ static int altr_a10sr_gpio_probe(struct platform_device *pdev)
 	gpio->gp = altr_a10sr_gc;
 	gpio->gp.parent = pdev->dev.parent;
 	gpio->gp.fwnode = dev_fwnode(&pdev->dev);
+
+	// Adding dynamic GPIO range support (optional, depending on hardware)
+	// gpio->gp.ngpio = hardware_gpio_count;
 
 	return devm_gpiochip_add_data(&pdev->dev, &gpio->gp, gpio);
 }
