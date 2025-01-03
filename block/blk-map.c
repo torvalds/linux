@@ -490,17 +490,19 @@ int blk_rq_append_bio(struct request *rq, struct bio *bio)
 		return ret;
 	}
 
-	if (!rq->bio) {
-		blk_rq_bio_prep(rq, bio, nr_segs);
-	} else {
+	if (rq->bio) {
 		if (!ll_back_merge_fn(rq, bio, nr_segs))
 			return -EINVAL;
 		rq->biotail->bi_next = bio;
 		rq->biotail = bio;
-		rq->__data_len += (bio)->bi_iter.bi_size;
+		rq->__data_len += bio->bi_iter.bi_size;
 		bio_crypt_free_ctx(bio);
+		return 0;
 	}
 
+	rq->nr_phys_segments = nr_segs;
+	rq->bio = rq->biotail = bio;
+	rq->__data_len = bio->bi_iter.bi_size;
 	return 0;
 }
 EXPORT_SYMBOL(blk_rq_append_bio);
