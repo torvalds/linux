@@ -140,6 +140,11 @@ static void riscv_iommu_platform_remove(struct platform_device *pdev)
 		platform_device_msi_free_irqs_all(&pdev->dev);
 };
 
+static void riscv_iommu_platform_shutdown(struct platform_device *pdev)
+{
+	riscv_iommu_disable(dev_get_drvdata(&pdev->dev));
+};
+
 static const struct of_device_id riscv_iommu_of_match[] = {
 	{.compatible = "riscv,iommu",},
 	{},
@@ -148,6 +153,7 @@ static const struct of_device_id riscv_iommu_of_match[] = {
 static struct platform_driver riscv_iommu_platform_driver = {
 	.probe = riscv_iommu_platform_probe,
 	.remove = riscv_iommu_platform_remove,
+	.shutdown = riscv_iommu_platform_shutdown,
 	.driver = {
 		.name = "riscv,iommu",
 		.of_match_table = riscv_iommu_of_match,

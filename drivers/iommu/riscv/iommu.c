@@ -651,9 +651,11 @@ static struct riscv_iommu_dc *riscv_iommu_get_dc(struct riscv_iommu_device *iomm
  * This is best effort IOMMU translation shutdown flow.
  * Disable IOMMU without waiting for hardware response.
  */
-static void riscv_iommu_disable(struct riscv_iommu_device *iommu)
+void riscv_iommu_disable(struct riscv_iommu_device *iommu)
 {
-	riscv_iommu_writeq(iommu, RISCV_IOMMU_REG_DDTP, 0);
+	riscv_iommu_writeq(iommu, RISCV_IOMMU_REG_DDTP,
+			   FIELD_PREP(RISCV_IOMMU_DDTP_IOMMU_MODE,
+				      RISCV_IOMMU_DDTP_IOMMU_MODE_BARE));
 	riscv_iommu_writel(iommu, RISCV_IOMMU_REG_CQCSR, 0);
 	riscv_iommu_writel(iommu, RISCV_IOMMU_REG_FQCSR, 0);
 	riscv_iommu_writel(iommu, RISCV_IOMMU_REG_PQCSR, 0);
