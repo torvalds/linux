@@ -736,7 +736,7 @@ static int davinci_nand_exec_instr(struct davinci_nand_info *info,
 	case NAND_OP_WAITRDY_INSTR:
 		timeout_us = instr->ctx.waitrdy.timeout_ms * 1000;
 		ret = readl_relaxed_poll_timeout(info->base + NANDFSR_OFFSET,
-						 status, status & BIT(0), 100,
+						 status, status & BIT(0), 5,
 						 timeout_us);
 		if (ret)
 			return ret;
