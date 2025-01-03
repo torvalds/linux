@@ -224,6 +224,8 @@ struct mt792x_dev {
 	bool aspm_supported:1;
 	bool hif_idle:1;
 	bool hif_resumed:1;
+	bool sar_inited:1;
+	bool regd_change:1;
 	wait_queue_head_t wait;
 
 	struct work_struct init_work;

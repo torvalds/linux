@@ -63,9 +63,13 @@ void mt7925_regd_update(struct mt792x_dev *dev)
 	struct mt76_dev *mdev = &dev->mt76;
 	struct ieee80211_hw *hw = mdev->hw;
 
+	if (!dev->regd_change)
+		return;
+
 	mt7925_mcu_set_clc(dev, mdev->alpha2, dev->country_ie_env);
 	mt7925_mcu_set_channel_domain(hw->priv);
 	mt7925_set_tx_sar_pwr(hw, NULL);
+	dev->regd_change = false;
 }
 EXPORT_SYMBOL_GPL(mt7925_regd_update);
 
@@ -91,6 +95,7 @@ mt7925_regd_notifier(struct wiphy *wiphy,
 	memcpy(mdev->alpha2, req->alpha2, 2);
 	mdev->region = req->dfs_region;
 	dev->country_ie_env = req->country_ie_env;
+	dev->regd_change = true;
 
 	if (pm->suspended)
 		return;

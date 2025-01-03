@@ -310,6 +310,7 @@ void mt7925_set_stream_he_eht_caps(struct mt792x_phy *phy)
 int __mt7925_start(struct mt792x_phy *phy)
 {
 	struct mt76_phy *mphy = phy->mt76;
+	struct mt792x_dev *dev = phy->dev;
 	int err;
 
 	err = mt7925_mcu_set_channel_domain(mphy);
@@ -320,9 +321,12 @@ int __mt7925_start(struct mt792x_phy *phy)
 	if (err)
 		return err;
 
-	err = mt7925_set_tx_sar_pwr(mphy->hw, NULL);
-	if (err)
-		return err;
+	if (!dev->sar_inited) {
+		err = mt7925_set_tx_sar_pwr(mphy->hw, NULL);
+		if (err)
+			return err;
+		dev->sar_inited = true;
+	}
 
 	mt792x_mac_reset_counters(phy);
 	set_bit(MT76_STATE_RUNNING, &mphy->state);
