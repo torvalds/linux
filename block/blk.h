@@ -556,14 +556,6 @@ void bdev_set_nr_sectors(struct block_device *bdev, sector_t sectors);
 struct gendisk *__alloc_disk_node(struct request_queue *q, int node_id,
 		struct lock_class_key *lkclass);
 
-int bio_add_hw_page(struct request_queue *q, struct bio *bio,
-		struct page *page, unsigned int len, unsigned int offset,
-		unsigned int max_sectors, bool *same_page);
-
-int bio_add_hw_folio(struct request_queue *q, struct bio *bio,
-		struct folio *folio, size_t len, size_t offset,
-		unsigned int max_sectors, bool *same_page);
-
 /*
  * Clean up a page appropriately, where the page may be pinned, may have a
  * ref taken on it or neither.

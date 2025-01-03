@@ -261,6 +261,7 @@ static int nvmet_passthru_map_sg(struct nvmet_req *req, struct request *rq)
 {
 	struct scatterlist *sg;
 	struct bio *bio;
+	int ret = -EINVAL;
 	int i;
 
 	if (req->sg_cnt > BIO_MAX_VECS)
@@ -277,16 +278,19 @@ static int nvmet_passthru_map_sg(struct nvmet_req *req, struct request *rq)
 	}
 
 	for_each_sg(req->sg, sg, req->sg_cnt, i) {
-		if (bio_add_pc_page(rq->q, bio, sg_page(sg), sg->length,
-				    sg->offset) < sg->length) {
-			nvmet_req_bio_put(req, bio);
-			return -EINVAL;
-		}
+		if (bio_add_page(bio, sg_page(sg), sg->length, sg->offset) <
+				sg->length)
+			goto out_bio_put;
 	}
 
-	blk_rq_bio_prep(rq, bio, req->sg_cnt);
-
+	ret = blk_rq_append_bio(rq, bio);
+	if (ret)
+		goto out_bio_put;
 	return 0;
+
+out_bio_put:
+	nvmet_req_bio_put(req, bio);
+	return ret;
 }
 
 static void nvmet_passthru_execute_cmd(struct nvmet_req *req)
