@@ -462,7 +462,7 @@ MODULE_DEVICE_TABLE(acpi, pad_device_ids);
 
 static struct platform_driver acpi_pad_driver = {
 	.probe = acpi_pad_probe,
-	.remove_new = acpi_pad_remove,
+	.remove = acpi_pad_remove,
 	.driver = {
 		.dev_groups = acpi_pad_groups,
 		.name = "processor_aggregator",

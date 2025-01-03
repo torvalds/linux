@@ -1703,19 +1703,11 @@ static int msg_reply_type(int mstype)
 /* add/remove lkb from global waiters list of lkb's waiting for
    a reply from a remote node */
 
-static int add_to_waiters(struct dlm_lkb *lkb, int mstype, int to_nodeid)
+static void add_to_waiters(struct dlm_lkb *lkb, int mstype, int to_nodeid)
 {
 	struct dlm_ls *ls = lkb->lkb_resource->res_ls;
-	int error = 0;
 
 	spin_lock_bh(&ls->ls_waiters_lock);
-
-	if (is_overlap_unlock(lkb) ||
-	    (is_overlap_cancel(lkb) && (mstype == DLM_MSG_CANCEL))) {
-		error = -EINVAL;
-		goto out;
-	}
-
 	if (lkb->lkb_wait_type || is_overlap_cancel(lkb)) {
 		switch (mstype) {
 		case DLM_MSG_UNLOCK:
@@ -1725,7 +1717,11 @@ static int add_to_waiters(struct dlm_lkb *lkb, int mstype, int to_nodeid)
 			set_bit(DLM_IFL_OVERLAP_CANCEL_BIT, &lkb->lkb_iflags);
 			break;
 		default:
-			error = -EBUSY;
+			/* should never happen as validate_lock_args() checks
+			 * on lkb_wait_type and validate_unlock_args() only
+			 * creates UNLOCK or CANCEL messages.
+			 */
+			WARN_ON_ONCE(1);
 			goto out;
 		}
 		lkb->lkb_wait_count++;
@@ -1747,12 +1743,7 @@ static int add_to_waiters(struct dlm_lkb *lkb, int mstype, int to_nodeid)
 	hold_lkb(lkb);
 	list_add(&lkb->lkb_wait_reply, &ls->ls_waiters);
  out:
-	if (error)
-		log_error(ls, "addwait error %x %d flags %x %d %d %s",
-			  lkb->lkb_id, error, dlm_iflags_val(lkb), mstype,
-			  lkb->lkb_wait_type, lkb->lkb_resource->res_name);
 	spin_unlock_bh(&ls->ls_waiters_lock);
-	return error;
 }
 
 /* We clear the RESEND flag because we might be taking an lkb off the waiters
@@ -2861,16 +2852,14 @@ static int validate_lock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 	case -EINVAL:
 		/* annoy the user because dlm usage is wrong */
 		WARN_ON(1);
-		log_error(ls, "%s %d %x %x %x %d %d %s", __func__,
+		log_error(ls, "%s %d %x %x %x %d %d", __func__,
 			  rv, lkb->lkb_id, dlm_iflags_val(lkb), args->flags,
-			  lkb->lkb_status, lkb->lkb_wait_type,
-			  lkb->lkb_resource->res_name);
+			  lkb->lkb_status, lkb->lkb_wait_type);
 		break;
 	default:
-		log_debug(ls, "%s %d %x %x %x %d %d %s", __func__,
+		log_debug(ls, "%s %d %x %x %x %d %d", __func__,
 			  rv, lkb->lkb_id, dlm_iflags_val(lkb), args->flags,
-			  lkb->lkb_status, lkb->lkb_wait_type,
-			  lkb->lkb_resource->res_name);
+			  lkb->lkb_status, lkb->lkb_wait_type);
 		break;
 	}
 
@@ -2928,13 +2917,16 @@ static int validate_unlock_args(struct dlm_lkb *lkb, struct dlm_args *args)
 		goto out;
 	}
 
+	if (is_overlap_unlock(lkb))
+		goto out;
+
 	/* cancel not allowed with another cancel/unlock in progress */
 
 	if (args->flags & DLM_LKF_CANCEL) {
 		if (lkb->lkb_exflags & DLM_LKF_CANCEL)
 			goto out;
 
-		if (is_overlap(lkb))
+		if (is_overlap_cancel(lkb))
 			goto out;
 
 		if (test_bit(DLM_IFL_RESEND_BIT, &lkb->lkb_iflags)) {
@@ -2970,9 +2962,6 @@ static int validate_unlock_args(struct dlm_lkb *lkb, struct dlm_args *args)
 
 	if (args->flags & DLM_LKF_FORCEUNLOCK) {
 		if (lkb->lkb_exflags & DLM_LKF_FORCEUNLOCK)
-			goto out;
-
-		if (is_overlap_unlock(lkb))
 			goto out;
 
 		if (test_bit(DLM_IFL_RESEND_BIT, &lkb->lkb_iflags)) {
@@ -3610,10 +3599,7 @@ static int send_common(struct dlm_rsb *r, struct dlm_lkb *lkb, int mstype)
 
 	to_nodeid = r->res_nodeid;
 
-	error = add_to_waiters(lkb, mstype, to_nodeid);
-	if (error)
-		return error;
-
+	add_to_waiters(lkb, mstype, to_nodeid);
 	error = create_message(r, lkb, to_nodeid, mstype, &ms, &mh);
 	if (error)
 		goto fail;
@@ -3716,10 +3702,7 @@ static int send_lookup(struct dlm_rsb *r, struct dlm_lkb *lkb)
 
 	to_nodeid = dlm_dir_nodeid(r);
 
-	error = add_to_waiters(lkb, DLM_MSG_LOOKUP, to_nodeid);
-	if (error)
-		return error;
-
+	add_to_waiters(lkb, DLM_MSG_LOOKUP, to_nodeid);
 	error = create_message(r, NULL, to_nodeid, DLM_MSG_LOOKUP, &ms, &mh);
 	if (error)
 		goto fail;
@@ -5016,16 +4999,19 @@ static void recover_convert_waiter(struct dlm_ls *ls, struct dlm_lkb *lkb,
 				   struct dlm_message *ms_local)
 {
 	if (middle_conversion(lkb)) {
+		log_rinfo(ls, "%s %x middle convert in progress", __func__,
+			 lkb->lkb_id);
+
+		/* We sent this lock to the new master. The new master will
+		 * tell us when it's granted.  We no longer need a reply, so
+		 * use a fake reply to put the lkb into the right state.
+		 */
 		hold_lkb(lkb);
 		memset(ms_local, 0, sizeof(struct dlm_message));
 		ms_local->m_type = cpu_to_le32(DLM_MSG_CONVERT_REPLY);
 		ms_local->m_result = cpu_to_le32(to_dlm_errno(-EINPROGRESS));
 		ms_local->m_header.h_nodeid = cpu_to_le32(lkb->lkb_nodeid);
 		_receive_convert_reply(lkb, ms_local, true);
-
-		/* Same special case as in receive_rcom_lock_args() */
-		lkb->lkb_grmode = DLM_LOCK_IV;
-		rsb_set_flag(lkb->lkb_resource, RSB_RECOVER_CONVERT);
 		unhold_lkb(lkb);
 
 	} else if (lkb->lkb_rqmode >= lkb->lkb_grmode) {
@@ -5572,10 +5558,11 @@ static int receive_rcom_lock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 	   The real granted mode of these converting locks cannot be determined
 	   until all locks have been rebuilt on the rsb (recover_conversion) */
 
-	if (rl->rl_wait_type == cpu_to_le16(DLM_MSG_CONVERT) &&
-	    middle_conversion(lkb)) {
-		rl->rl_status = DLM_LKSTS_CONVERT;
-		lkb->lkb_grmode = DLM_LOCK_IV;
+	if (rl->rl_status == DLM_LKSTS_CONVERT && middle_conversion(lkb)) {
+		/* We may need to adjust grmode depending on other granted locks. */
+		log_limit(ls, "%s %x middle convert gr %d rq %d remote %d %x",
+			  __func__, lkb->lkb_id, lkb->lkb_grmode,
+			  lkb->lkb_rqmode, lkb->lkb_nodeid, lkb->lkb_remid);
 		rsb_set_flag(r, RSB_RECOVER_CONVERT);
 	}
 
@@ -6344,8 +6331,8 @@ int dlm_debug_add_lkb_to_waiters(struct dlm_ls *ls, uint32_t lkb_id,
 	if (error)
 		return error;
 
-	error = add_to_waiters(lkb, mstype, to_nodeid);
+	add_to_waiters(lkb, mstype, to_nodeid);
 	dlm_put_lkb(lkb);
-	return error;
+	return 0;
 }
 

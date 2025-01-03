@@ -1828,7 +1828,7 @@ static struct platform_driver w83781d_isa_driver = {
 		.name = "w83781d",
 	},
 	.probe = w83781d_isa_probe,
-	.remove_new = w83781d_isa_remove,
+	.remove = w83781d_isa_remove,
 };
 
 /* return 1 if a supported chip is found, 0 otherwise */

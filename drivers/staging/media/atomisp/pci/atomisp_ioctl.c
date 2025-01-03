@@ -5,17 +5,6 @@
  * Copyright (c) 2010 Intel Corporation. All Rights Reserved.
  *
  * Copyright (c) 2010 Silicon Hive www.siliconhive.com.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- *
  */
 
 #include <linux/delay.h>
@@ -43,7 +32,7 @@ static const char *CARD = "ATOM ISP";	/* max size 31 */
 
 /*
  * FIXME: ISP should not know beforehand all CIDs supported by sensor.
- * Instead, it needs to propagate to sensor unkonwn CIDs.
+ * Instead, it needs to propagate to sensor unknown CIDs.
  */
 static struct v4l2_queryctrl ci_v4l2_controls[] = {
 	{
@@ -112,7 +101,7 @@ static struct v4l2_queryctrl ci_v4l2_controls[] = {
 	{
 		.id = V4L2_CID_ATOMISP_VIDEO_STABLIZATION,
 		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "Video Stablization",
+		.name = "Video Stabilization",
 		.minimum = 0,
 		.maximum = 1,
 		.step = 1,
@@ -678,7 +667,7 @@ static int atomisp_g_fmt_cap(struct file *file, void *fh,
 
 	f->fmt.pix = pipe->pix;
 
-	/* If s_fmt was issued, just return whatever is was previouly set */
+	/* If s_fmt was issued, just return whatever is was previously set */
 	if (f->fmt.pix.sizeimage)
 		return 0;
 
@@ -881,8 +870,10 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
 	mutex_lock(&isp->mutex);
 
 	ret = atomisp_pipe_check(pipe, false);
-	if (ret)
+	if (ret) {
+		atomisp_flush_video_pipe(pipe, VB2_BUF_STATE_QUEUED, true);
 		goto out_unlock;
+	}
 
 	/*
 	 * When running a classic v4l2 app after a media-controller aware
@@ -895,6 +886,7 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
 	mutex_unlock(&isp->media_dev.graph_mutex);
 	if (ret) {
 		dev_err(isp->dev, "Error starting mc pipeline: %d\n", ret);
+		atomisp_flush_video_pipe(pipe, VB2_BUF_STATE_QUEUED, true);
 		goto out_unlock;
 	}
 
@@ -1028,7 +1020,7 @@ void atomisp_stop_streaming(struct vb2_queue *vq)
 	/*
 	 * ISP work around, need to reset ISP to allow next stream on to work.
 	 * Streams have already been destroyed by atomisp_css_stop().
-	 * Disable PUNIT/ISP acknowlede/handshake - SRSE=3 and then reset.
+	 * Disable PUNIT/ISP acknowledge/handshake - SRSE=3 and then reset.
 	 */
 	pci_write_config_dword(pdev, PCI_I_CONTROL,
 			       isp->saved_regs.i_control | MRFLD_PCI_I_CONTROL_SRSE_RESET_MASK);

@@ -40,10 +40,6 @@
 #include "rds.h"
 
 struct workqueue_struct *rds_ib_mr_wq;
-struct rds_ib_dereg_odp_mr {
-	struct work_struct work;
-	struct ib_mr *mr;
-};
 
 static void rds_ib_odp_mr_worker(struct work_struct *work);
 

@@ -26,6 +26,7 @@
 #include <linux/irqbypass.h>
 #include <linux/hyperv.h>
 #include <linux/kfifo.h>
+#include <linux/sched/vhost_task.h>
 
 #include <asm/apic.h>
 #include <asm/pvclock-abi.h>
@@ -1306,7 +1307,6 @@ struct kvm_arch {
 	bool pre_fault_allowed;
 	struct hlist_head mmu_page_hash[KVM_NUM_MMU_PAGES];
 	struct list_head active_mmu_pages;
-	struct list_head zapped_obsolete_pages;
 	/*
 	 * A list of kvm_mmu_page structs that, if zapped, could possibly be
 	 * replaced by an NX huge page.  A shadow page is on this list if its
@@ -1443,7 +1443,8 @@ struct kvm_arch {
 	bool sgx_provisioning_allowed;
 
 	struct kvm_x86_pmu_event_filter __rcu *pmu_event_filter;
-	struct task_struct *nx_huge_page_recovery_thread;
+	struct vhost_task *nx_huge_page_recovery_thread;
+	u64 nx_huge_page_last;
 
 #ifdef CONFIG_X86_64
 	/* The number of TDP MMU pages across all roots. */
@@ -1656,6 +1657,7 @@ struct kvm_x86_ops {
 	void (*get_segment)(struct kvm_vcpu *vcpu,
 			    struct kvm_segment *var, int seg);
 	int (*get_cpl)(struct kvm_vcpu *vcpu);
+	int (*get_cpl_no_cache)(struct kvm_vcpu *vcpu);
 	void (*set_segment)(struct kvm_vcpu *vcpu,
 			    struct kvm_segment *var, int seg);
 	void (*get_cs_db_l_bits)(struct kvm_vcpu *vcpu, int *db, int *l);
@@ -1955,8 +1957,8 @@ void kvm_mmu_try_split_huge_pages(struct kvm *kvm,
 				  const struct kvm_memory_slot *memslot,
 				  u64 start, u64 end,
 				  int target_level);
-void kvm_mmu_zap_collapsible_sptes(struct kvm *kvm,
-				   const struct kvm_memory_slot *memslot);
+void kvm_mmu_recover_huge_pages(struct kvm *kvm,
+				const struct kvm_memory_slot *memslot);
 void kvm_mmu_slot_leaf_clear_dirty(struct kvm *kvm,
 				   const struct kvm_memory_slot *memslot);
 void kvm_mmu_invalidate_mmio_sptes(struct kvm *kvm, u64 gen);
@@ -2359,7 +2361,8 @@ int memslot_rmap_alloc(struct kvm_memory_slot *slot, unsigned long npages);
 	 KVM_X86_QUIRK_MISC_ENABLE_NO_MWAIT |	\
 	 KVM_X86_QUIRK_FIX_HYPERCALL_INSN |	\
 	 KVM_X86_QUIRK_MWAIT_NEVER_UD_FAULTS |	\
-	 KVM_X86_QUIRK_SLOT_ZAP_ALL)
+	 KVM_X86_QUIRK_SLOT_ZAP_ALL |		\
+	 KVM_X86_QUIRK_STUFF_FEATURE_MSRS)
 
 /*
  * KVM previously used a u32 field in kvm_run to indicate the hypercall was

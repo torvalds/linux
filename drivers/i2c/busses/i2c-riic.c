@@ -632,7 +632,7 @@ static const struct of_device_id riic_i2c_dt_ids[] = {
 
 static struct platform_driver riic_i2c_driver = {
 	.probe		= riic_i2c_probe,
-	.remove_new	= riic_i2c_remove,
+	.remove		= riic_i2c_remove,
 	.driver		= {
 		.name	= "i2c-riic",
 		.of_match_table = riic_i2c_dt_ids,

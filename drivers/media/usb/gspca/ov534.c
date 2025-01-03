@@ -847,7 +847,7 @@ static void set_frame_rate(struct gspca_dev *gspca_dev)
 		r = rate_1;
 		i = ARRAY_SIZE(rate_1);
 	}
-	while (--i > 0) {
+	while (--i >= 0) {
 		if (sd->frame_rate >= r->fps)
 			break;
 		r++;

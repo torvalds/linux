@@ -453,7 +453,7 @@ static void ap_tasklet_fn(unsigned long dummy)
 	 * important that no requests on any AP get lost.
 	 */
 	if (ap_irq_flag)
-		xchg(ap_airq.lsi_ptr, 0);
+		WRITE_ONCE(*ap_airq.lsi_ptr, 0);
 
 	spin_lock_bh(&ap_queues_lock);
 	hash_for_each(ap_queues, bkt, aq, hnode) {
@@ -1864,13 +1864,12 @@ static inline void ap_scan_domains(struct ap_card *ac)
 		}
 		/* if no queue device exists, create a new one */
 		if (!aq) {
-			aq = ap_queue_create(qid, ac->ap_dev.device_type);
+			aq = ap_queue_create(qid, ac);
 			if (!aq) {
 				AP_DBF_WARN("%s(%d,%d) ap_queue_create() failed\n",
 					    __func__, ac->id, dom);
 				continue;
 			}
-			aq->card = ac;
 			aq->config = !decfg;
 			aq->chkstop = chkstop;
 			aq->se_bstate = hwinfo.bs;

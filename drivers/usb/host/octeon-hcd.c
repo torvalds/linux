@@ -3346,7 +3346,7 @@ static int octeon_usb_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			break;
 		case USB_PORT_FEAT_INDICATOR:
 			dev_dbg(dev, " INDICATOR\n");
-			/* Port inidicator not supported */
+			/* Port indicator not supported */
 			break;
 		case USB_PORT_FEAT_C_CONNECTION:
 			dev_dbg(dev, " C_CONNECTION\n");
@@ -3711,8 +3711,8 @@ static struct platform_driver octeon_usb_driver = {
 		.name		= "octeon-hcd",
 		.of_match_table = octeon_usb_match,
 	},
-	.probe      = octeon_usb_probe,
-	.remove_new = octeon_usb_remove,
+	.probe = octeon_usb_probe,
+	.remove = octeon_usb_remove,
 };
 
 static int __init octeon_usb_driver_init(void)

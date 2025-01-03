@@ -5,6 +5,7 @@
 #include <asm/current.h>
 #include <linux/thread_info.h>
 #include <asm/atomic_ops.h>
+#include <asm/cmpxchg.h>
 #include <asm/march.h>
 
 #ifdef MARCH_HAS_Z196_FEATURES
@@ -22,12 +23,10 @@ static __always_inline void preempt_count_set(int pc)
 {
 	int old, new;
 
+	old = READ_ONCE(get_lowcore()->preempt_count);
 	do {
-		old = READ_ONCE(get_lowcore()->preempt_count);
-		new = (old & PREEMPT_NEED_RESCHED) |
-			(pc & ~PREEMPT_NEED_RESCHED);
-	} while (__atomic_cmpxchg(&get_lowcore()->preempt_count,
-				  old, new) != old);
+		new = (old & PREEMPT_NEED_RESCHED) | (pc & ~PREEMPT_NEED_RESCHED);
+	} while (!arch_try_cmpxchg(&get_lowcore()->preempt_count, &old, new));
 }
 
 static __always_inline void set_preempt_need_resched(void)
@@ -131,10 +130,24 @@ static __always_inline bool should_resched(int preempt_offset)
 #define init_idle_preempt_count(p, cpu)	do { } while (0)
 
 #ifdef CONFIG_PREEMPTION
-extern void preempt_schedule(void);
-#define __preempt_schedule() preempt_schedule()
-extern void preempt_schedule_notrace(void);
-#define __preempt_schedule_notrace() preempt_schedule_notrace()
+
+void preempt_schedule(void);
+void preempt_schedule_notrace(void);
+
+#ifdef CONFIG_PREEMPT_DYNAMIC
+
+void dynamic_preempt_schedule(void);
+void dynamic_preempt_schedule_notrace(void);
+#define __preempt_schedule()		dynamic_preempt_schedule()
+#define __preempt_schedule_notrace()	dynamic_preempt_schedule_notrace()
+
+#else /* CONFIG_PREEMPT_DYNAMIC */
+
+#define __preempt_schedule()		preempt_schedule()
+#define __preempt_schedule_notrace()	preempt_schedule_notrace()
+
+#endif /* CONFIG_PREEMPT_DYNAMIC */
+
 #endif /* CONFIG_PREEMPTION */
 
 #endif /* __ASM_PREEMPT_H */

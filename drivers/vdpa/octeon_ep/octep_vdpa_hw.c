@@ -475,11 +475,11 @@ int octep_hw_caps_read(struct octep_hw *oct_hw, struct pci_dev *pdev)
 		dev_err(dev, "Incomplete PCI capabilities");
 		return -EIO;
 	}
-	dev_info(dev, "common cfg mapped at: 0x%016llx\n", (u64)(uintptr_t)oct_hw->common_cfg);
-	dev_info(dev, "device cfg mapped at: 0x%016llx\n", (u64)(uintptr_t)oct_hw->dev_cfg);
-	dev_info(dev, "isr cfg mapped at: 0x%016llx\n", (u64)(uintptr_t)oct_hw->isr);
-	dev_info(dev, "notify base: 0x%016llx, notify off multiplier: %u\n",
-		 (u64)(uintptr_t)oct_hw->notify_base, oct_hw->notify_off_multiplier);
+	dev_info(dev, "common cfg mapped at: %p\n", oct_hw->common_cfg);
+	dev_info(dev, "device cfg mapped at: %p\n", oct_hw->dev_cfg);
+	dev_info(dev, "isr cfg mapped at: %p\n", oct_hw->isr);
+	dev_info(dev, "notify base: %p, notify off multiplier: %u\n",
+		 oct_hw->notify_base, oct_hw->notify_off_multiplier);
 
 	oct_hw->config_size = octep_get_config_size(oct_hw);
 	oct_hw->features = octep_hw_get_dev_features(oct_hw);
@@ -511,7 +511,7 @@ int octep_hw_caps_read(struct octep_hw *oct_hw, struct pci_dev *pdev)
 	}
 	mbox = octep_get_mbox(oct_hw);
 	octep_mbox_init(mbox);
-	dev_info(dev, "mbox mapped at: 0x%016llx\n", (u64)(uintptr_t)mbox);
+	dev_info(dev, "mbox mapped at: %p\n", mbox);
 
 	return 0;
 }

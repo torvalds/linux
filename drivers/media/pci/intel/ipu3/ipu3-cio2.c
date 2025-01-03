@@ -1045,8 +1045,6 @@ static const struct vb2_ops cio2_vb2_ops = {
 	.queue_setup = cio2_vb2_queue_setup,
 	.start_streaming = cio2_vb2_start_streaming,
 	.stop_streaming = cio2_vb2_stop_streaming,
-	.wait_prepare = vb2_ops_wait_prepare,
-	.wait_finish = vb2_ops_wait_finish,
 };
 
 /**************** V4L2 interface ****************/

@@ -1338,7 +1338,7 @@ static int takedown_cpu(unsigned int cpu)
 
 	cpuhp_bp_sync_dead(cpu);
 
-	tick_cleanup_dead_cpu(cpu);
+	lockdep_cleanup_dead_cpu(cpu, idle_thread_get(cpu));
 
 	/*
 	 * Callbacks must be re-integrated right away to the RCU state machine.
@@ -2866,7 +2866,6 @@ static struct attribute *cpuhp_cpu_attrs[] = {
 static const struct attribute_group cpuhp_cpu_attr_group = {
 	.attrs = cpuhp_cpu_attrs,
 	.name = "hotplug",
-	NULL
 };
 
 static ssize_t states_show(struct device *dev,
@@ -2898,7 +2897,6 @@ static struct attribute *cpuhp_cpu_root_attrs[] = {
 static const struct attribute_group cpuhp_cpu_root_attr_group = {
 	.attrs = cpuhp_cpu_root_attrs,
 	.name = "hotplug",
-	NULL
 };
 
 #ifdef CONFIG_HOTPLUG_SMT
@@ -3020,7 +3018,6 @@ static struct attribute *cpuhp_smt_attrs[] = {
 static const struct attribute_group cpuhp_smt_attr_group = {
 	.attrs = cpuhp_smt_attrs,
 	.name = "smt",
-	NULL
 };
 
 static int __init cpu_smt_sysfs_init(void)

@@ -418,7 +418,7 @@ static struct platform_driver ls_scfg_msi_driver = {
 		.of_match_table	= ls_scfg_msi_id,
 	},
 	.probe		= ls_scfg_msi_probe,
-	.remove_new	= ls_scfg_msi_remove,
+	.remove		= ls_scfg_msi_remove,
 };
 
 module_platform_driver(ls_scfg_msi_driver);

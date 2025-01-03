@@ -420,8 +420,14 @@ static int ljca_gpio_probe(struct auxiliary_device *auxdev,
 	if (!ljca_gpio->connect_mode)
 		return -ENOMEM;
 
-	mutex_init(&ljca_gpio->irq_lock);
-	mutex_init(&ljca_gpio->trans_lock);
+	ret = devm_mutex_init(&auxdev->dev, &ljca_gpio->irq_lock);
+	if (ret)
+		return ret;
+
+	ret = devm_mutex_init(&auxdev->dev, &ljca_gpio->trans_lock);
+	if (ret)
+		return ret;
+
 	ljca_gpio->gc.direction_input = ljca_gpio_direction_input;
 	ljca_gpio->gc.direction_output = ljca_gpio_direction_output;
 	ljca_gpio->gc.get_direction = ljca_gpio_get_direction;
@@ -453,11 +459,8 @@ static int ljca_gpio_probe(struct auxiliary_device *auxdev,
 
 	INIT_WORK(&ljca_gpio->work, ljca_gpio_async);
 	ret = gpiochip_add_data(&ljca_gpio->gc, ljca_gpio);
-	if (ret) {
+	if (ret)
 		ljca_unregister_event_cb(ljca);
-		mutex_destroy(&ljca_gpio->irq_lock);
-		mutex_destroy(&ljca_gpio->trans_lock);
-	}
 
 	return ret;
 }
@@ -469,8 +472,6 @@ static void ljca_gpio_remove(struct auxiliary_device *auxdev)
 	gpiochip_remove(&ljca_gpio->gc);
 	ljca_unregister_event_cb(ljca_gpio->ljca);
 	cancel_work_sync(&ljca_gpio->work);
-	mutex_destroy(&ljca_gpio->irq_lock);
-	mutex_destroy(&ljca_gpio->trans_lock);
 }
 
 static const struct auxiliary_device_id ljca_gpio_id_table[] = {

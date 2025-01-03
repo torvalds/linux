@@ -12,9 +12,6 @@ int vdso_getcpu_init(void);
 
 #endif /* __ASSEMBLY__ */
 
-/* Default link address for the vDSO */
-#define VDSO_LBASE	0
-
 #define __VVAR_PAGES	2
 
 #define VDSO_VERSION_STRING	LINUX_2.6.29

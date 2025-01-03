@@ -441,7 +441,7 @@ static void at91_shdwc_remove(struct platform_device *pdev)
 
 static struct platform_driver at91_shdwc_driver = {
 	.probe = at91_shdwc_probe,
-	.remove_new = at91_shdwc_remove,
+	.remove = at91_shdwc_remove,
 	.driver = {
 		.name = "at91-shdwc",
 		.of_match_table = at91_shdwc_of_match,

@@ -346,7 +346,7 @@ static const struct dev_pm_ops qcom_ipcc_dev_pm_ops = {
 
 static struct platform_driver qcom_ipcc_driver = {
 	.probe = qcom_ipcc_probe,
-	.remove_new = qcom_ipcc_remove,
+	.remove = qcom_ipcc_remove,
 	.driver = {
 		.name = "qcom-ipcc",
 		.of_match_table = qcom_ipcc_of_match,

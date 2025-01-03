@@ -246,7 +246,7 @@ struct amdgpu_ring {
 	struct drm_gpu_scheduler	sched;
 
 	struct amdgpu_bo	*ring_obj;
-	volatile uint32_t	*ring;
+	uint32_t		*ring;
 	unsigned		rptr_offs;
 	u64			rptr_gpu_addr;
 	volatile u32		*rptr_cpu_addr;
@@ -288,7 +288,7 @@ struct amdgpu_ring {
 	u64			cond_exe_gpu_addr;
 	volatile u32		*cond_exe_cpu_addr;
 	unsigned int		set_q_mode_offs;
-	volatile u32		*set_q_mode_ptr;
+	u32			*set_q_mode_ptr;
 	u64			set_q_mode_token;
 	unsigned		vm_hub;
 	unsigned		vm_inv_eng;
@@ -377,8 +377,6 @@ static inline void amdgpu_ring_clear_ring(struct amdgpu_ring *ring)
 
 static inline void amdgpu_ring_write(struct amdgpu_ring *ring, uint32_t v)
 {
-	if (ring->count_dw <= 0)
-		DRM_ERROR("amdgpu: writing more dwords to the ring than expected!\n");
 	ring->ring[ring->wptr++ & ring->buf_mask] = v;
 	ring->wptr &= ring->ptr_mask;
 	ring->count_dw--;
@@ -388,13 +386,8 @@ static inline void amdgpu_ring_write_multiple(struct amdgpu_ring *ring,
 					      void *src, int count_dw)
 {
 	unsigned occupied, chunk1, chunk2;
-	void *dst;
-
-	if (unlikely(ring->count_dw < count_dw))
-		DRM_ERROR("amdgpu: writing more dwords to the ring than expected!\n");
 
 	occupied = ring->wptr & ring->buf_mask;
-	dst = (void *)&ring->ring[occupied];
 	chunk1 = ring->buf_mask + 1 - occupied;
 	chunk1 = (chunk1 >= count_dw) ? count_dw : chunk1;
 	chunk2 = count_dw - chunk1;
@@ -402,12 +395,11 @@ static inline void amdgpu_ring_write_multiple(struct amdgpu_ring *ring,
 	chunk2 <<= 2;
 
 	if (chunk1)
-		memcpy(dst, src, chunk1);
+		memcpy(&ring->ring[occupied], src, chunk1);
 
 	if (chunk2) {
 		src += chunk1;
-		dst = (void *)ring->ring;
-		memcpy(dst, src, chunk2);
+		memcpy(ring->ring, src, chunk2);
 	}
 
 	ring->wptr += count_dw;

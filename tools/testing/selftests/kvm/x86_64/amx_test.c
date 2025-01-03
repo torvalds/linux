@@ -86,6 +86,8 @@ static inline void __xsavec(struct xstate *xstate, uint64_t rfbm)
 
 static void check_xtile_info(void)
 {
+	GUEST_ASSERT((xgetbv(0) & XFEATURE_MASK_XTILE) == XFEATURE_MASK_XTILE);
+
 	GUEST_ASSERT(this_cpu_has_p(X86_PROPERTY_XSTATE_MAX_SIZE_XCR0));
 	GUEST_ASSERT(this_cpu_property(X86_PROPERTY_XSTATE_MAX_SIZE_XCR0) <= XSAVE_SIZE);
 
@@ -122,29 +124,12 @@ static void set_tilecfg(struct tile_config *cfg)
 	}
 }
 
-static void init_regs(void)
-{
-	uint64_t cr4, xcr0;
-
-	GUEST_ASSERT(this_cpu_has(X86_FEATURE_XSAVE));
-
-	/* turn on CR4.OSXSAVE */
-	cr4 = get_cr4();
-	cr4 |= X86_CR4_OSXSAVE;
-	set_cr4(cr4);
-	GUEST_ASSERT(this_cpu_has(X86_FEATURE_OSXSAVE));
-
-	xcr0 = xgetbv(0);
-	xcr0 |= XFEATURE_MASK_XTILE;
-	xsetbv(0x0, xcr0);
-	GUEST_ASSERT((xgetbv(0) & XFEATURE_MASK_XTILE) == XFEATURE_MASK_XTILE);
-}
-
 static void __attribute__((__flatten__)) guest_code(struct tile_config *amx_cfg,
 						    struct tile_data *tiledata,
 						    struct xstate *xstate)
 {
-	init_regs();
+	GUEST_ASSERT(this_cpu_has(X86_FEATURE_XSAVE) &&
+		     this_cpu_has(X86_FEATURE_OSXSAVE));
 	check_xtile_info();
 	GUEST_SYNC(1);
 

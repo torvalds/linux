@@ -1042,7 +1042,7 @@ MODULE_DEVICE_TABLE(of, max77693_led_dt_match);
 
 static struct platform_driver max77693_led_driver = {
 	.probe		= max77693_led_probe,
-	.remove_new	= max77693_led_remove,
+	.remove		= max77693_led_remove,
 	.driver		= {
 		.name	= "max77693-led",
 		.of_match_table = max77693_led_dt_match,

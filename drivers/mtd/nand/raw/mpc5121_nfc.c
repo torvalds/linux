@@ -835,7 +835,7 @@ MODULE_DEVICE_TABLE(of, mpc5121_nfc_match);
 
 static struct platform_driver mpc5121_nfc_driver = {
 	.probe		= mpc5121_nfc_probe,
-	.remove_new	= mpc5121_nfc_remove,
+	.remove		= mpc5121_nfc_remove,
 	.driver		= {
 		.name = DRV_NAME,
 		.of_match_table = mpc5121_nfc_match,

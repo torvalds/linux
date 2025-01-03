@@ -334,7 +334,7 @@ struct ice_eth56g_mac_reg_cfg eth56g_mac_cfg[NUM_ICE_ETH56G_LNK_SPD] = {
  * reference. See the struct ice_time_ref_info_e82x for information about the
  * meaning of each constant.
  */
-const struct ice_time_ref_info_e82x e822_time_ref[NUM_ICE_TIME_REF_FREQ] = {
+const struct ice_time_ref_info_e82x e82x_time_ref[NUM_ICE_TIME_REF_FREQ] = {
 	/* ICE_TIME_REF_FREQ_25_000 -> 25 MHz */
 	{
 		/* pll_freq */

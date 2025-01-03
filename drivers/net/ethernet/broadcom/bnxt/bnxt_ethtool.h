@@ -44,6 +44,7 @@ struct bnxt_led_cfg {
 #define BNXT_PXP_REG_LEN	0x3110
 
 #define BNXT_IP_PROTO_FULL_MASK	0xFF
+#define BNXT_IP_PROTO_WILDCARD	0x0
 
 extern const struct ethtool_ops bnxt_ethtool_ops;
 

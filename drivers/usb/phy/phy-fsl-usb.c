@@ -1002,7 +1002,7 @@ static void fsl_otg_remove(struct platform_device *pdev)
 
 struct platform_driver fsl_otg_driver = {
 	.probe = fsl_otg_probe,
-	.remove_new = fsl_otg_remove,
+	.remove = fsl_otg_remove,
 	.driver = {
 		.name = driver_name,
 	},

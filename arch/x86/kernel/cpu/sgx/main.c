@@ -630,7 +630,7 @@ static bool __init sgx_setup_epc_section(u64 phys_addr, u64 size,
 	if (!section->virt_addr)
 		return false;
 
-	section->pages = vmalloc(nr_pages * sizeof(struct sgx_epc_page));
+	section->pages = vmalloc_array(nr_pages, sizeof(struct sgx_epc_page));
 	if (!section->pages) {
 		memunmap(section->virt_addr);
 		return false;
@@ -901,19 +901,15 @@ static struct miscdevice sgx_dev_provision = {
 int sgx_set_attribute(unsigned long *allowed_attributes,
 		      unsigned int attribute_fd)
 {
-	struct fd f = fdget(attribute_fd);
+	CLASS(fd, f)(attribute_fd);
 
-	if (!fd_file(f))
+	if (fd_empty(f))
 		return -EINVAL;
 
-	if (fd_file(f)->f_op != &sgx_provision_fops) {
-		fdput(f);
+	if (fd_file(f)->f_op != &sgx_provision_fops)
 		return -EINVAL;
-	}
 
 	*allowed_attributes |= SGX_ATTR_PROVISIONKEY;
-
-	fdput(f);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(sgx_set_attribute);

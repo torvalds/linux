@@ -38,13 +38,13 @@
 
 typedef struct file_private_info {
 	loff_t offset;			/* offset of last read in file */
-	int    act_area;		/* number of last formated area */
+	int    act_area;		/* number of last formatted area */
 	int    act_page;		/* act page in given area */
-	int    act_entry;		/* last formated entry (offset */
+	int    act_entry;		/* last formatted entry (offset */
 					/* relative to beginning of last */
-					/* formated page) */
+					/* formatted page) */
 	size_t act_entry_offset;	/* up to this offset we copied */
-					/* in last read the last formated */
+					/* in last read the last formatted */
 					/* entry to userland */
 	char   temp_buf[2048];		/* buffer for output */
 	debug_info_t *debug_info_org;	/* original debug information */
@@ -63,7 +63,7 @@ typedef struct {
 	long args[];
 } debug_sprintf_entry_t;
 
-/* internal function prototyes */
+/* internal function prototypes */
 
 static int debug_init(void);
 static ssize_t debug_output(struct file *file, char __user *user_buf,
@@ -77,12 +77,14 @@ static debug_info_t *debug_info_create(const char *name, int pages_per_area,
 static void debug_info_get(debug_info_t *);
 static void debug_info_put(debug_info_t *);
 static int debug_prolog_level_fn(debug_info_t *id,
-				 struct debug_view *view, char *out_buf);
+				 struct debug_view *view, char *out_buf,
+				 size_t out_buf_size);
 static int debug_input_level_fn(debug_info_t *id, struct debug_view *view,
 				struct file *file, const char __user *user_buf,
 				size_t user_buf_size, loff_t *offset);
 static int debug_prolog_pages_fn(debug_info_t *id,
-				 struct debug_view *view, char *out_buf);
+				 struct debug_view *view, char *out_buf,
+				 size_t out_buf_size);
 static int debug_input_pages_fn(debug_info_t *id, struct debug_view *view,
 				struct file *file, const char __user *user_buf,
 				size_t user_buf_size, loff_t *offset);
@@ -90,9 +92,11 @@ static int debug_input_flush_fn(debug_info_t *id, struct debug_view *view,
 				struct file *file, const char __user *user_buf,
 				size_t user_buf_size, loff_t *offset);
 static int debug_hex_ascii_format_fn(debug_info_t *id, struct debug_view *view,
-				     char *out_buf, const char *in_buf);
+				     char *out_buf, size_t out_buf_size,
+				     const char *in_buf);
 static int debug_sprintf_format_fn(debug_info_t *id, struct debug_view *view,
-				   char *out_buf, const char *inbuf);
+				   char *out_buf, size_t out_buf_size,
+				   const char *inbuf);
 static void debug_areas_swap(debug_info_t *a, debug_info_t *b);
 static void debug_events_append(debug_info_t *dest, debug_info_t *src);
 
@@ -380,7 +384,7 @@ static void debug_info_put(debug_info_t *db_info)
 
 /*
  * debug_format_entry:
- * - format one debug entry and return size of formated data
+ * - format one debug entry and return size of formatted data
  */
 static int debug_format_entry(file_private_info_t *p_info)
 {
@@ -391,8 +395,10 @@ static int debug_format_entry(file_private_info_t *p_info)
 
 	if (p_info->act_entry == DEBUG_PROLOG_ENTRY) {
 		/* print prolog */
-		if (view->prolog_proc)
-			len += view->prolog_proc(id_snap, view, p_info->temp_buf);
+		if (view->prolog_proc) {
+			len += view->prolog_proc(id_snap, view, p_info->temp_buf,
+						 sizeof(p_info->temp_buf));
+		}
 		goto out;
 	}
 	if (!id_snap->areas) /* this is true, if we have a prolog only view */
@@ -402,12 +408,16 @@ static int debug_format_entry(file_private_info_t *p_info)
 
 	if (act_entry->clock == 0LL)
 		goto out; /* empty entry */
-	if (view->header_proc)
+	if (view->header_proc) {
 		len += view->header_proc(id_snap, view, p_info->act_area,
-					 act_entry, p_info->temp_buf + len);
-	if (view->format_proc)
+					 act_entry, p_info->temp_buf + len,
+					 sizeof(p_info->temp_buf) - len);
+	}
+	if (view->format_proc) {
 		len += view->format_proc(id_snap, view, p_info->temp_buf + len,
+					 sizeof(p_info->temp_buf) - len,
 					 DEBUG_DATA(act_entry));
+	}
 out:
 	return len;
 }
@@ -449,7 +459,7 @@ out:
 /*
  * debug_output:
  * - called for user read()
- * - copies formated debug entries to the user buffer
+ * - copies formatted debug entries to the user buffer
  */
 static ssize_t debug_output(struct file *file,		/* file descriptor */
 			    char __user *user_buf,	/* user buffer */
@@ -523,7 +533,7 @@ static ssize_t debug_input(struct file *file, const char __user *user_buf,
 /*
  * debug_open:
  * - called for user open()
- * - copies formated output to private_data area of the file
+ * - copies formatted output to private_data area of the file
  *   handle
  */
 static int debug_open(struct inode *inode, struct file *file)
@@ -1292,9 +1302,9 @@ static inline int debug_get_uint(char *buf)
  */
 
 static int debug_prolog_pages_fn(debug_info_t *id, struct debug_view *view,
-				 char *out_buf)
+				 char *out_buf, size_t out_buf_size)
 {
-	return sprintf(out_buf, "%i\n", id->pages_per_area);
+	return scnprintf(out_buf, out_buf_size, "%i\n", id->pages_per_area);
 }
 
 /*
@@ -1341,14 +1351,14 @@ out:
  * prints out actual debug level
  */
 static int debug_prolog_level_fn(debug_info_t *id, struct debug_view *view,
-				 char *out_buf)
+				 char *out_buf, size_t out_buf_size)
 {
 	int rc = 0;
 
 	if (id->level == DEBUG_OFF_LEVEL)
-		rc = sprintf(out_buf, "-\n");
+		rc = scnprintf(out_buf, out_buf_size, "-\n");
 	else
-		rc = sprintf(out_buf, "%i\n", id->level);
+		rc = scnprintf(out_buf, out_buf_size, "%i\n", id->level);
 	return rc;
 }
 
@@ -1465,22 +1475,24 @@ out:
  * prints debug data in hex/ascii format
  */
 static int debug_hex_ascii_format_fn(debug_info_t *id, struct debug_view *view,
-				     char *out_buf, const char *in_buf)
+				     char *out_buf, size_t out_buf_size, const char *in_buf)
 {
 	int i, rc = 0;
 
-	for (i = 0; i < id->buf_size; i++)
-		rc += sprintf(out_buf + rc, "%02x ", ((unsigned char *) in_buf)[i]);
-	rc += sprintf(out_buf + rc, "| ");
+	for (i = 0; i < id->buf_size; i++) {
+		rc += scnprintf(out_buf + rc, out_buf_size - rc,
+				"%02x ", ((unsigned char *)in_buf)[i]);
+	}
+	rc += scnprintf(out_buf + rc, out_buf_size - rc, "| ");
 	for (i = 0; i < id->buf_size; i++) {
 		unsigned char c = in_buf[i];
 
 		if (isascii(c) && isprint(c))
-			rc += sprintf(out_buf + rc, "%c", c);
+			rc += scnprintf(out_buf + rc, out_buf_size - rc, "%c", c);
 		else
-			rc += sprintf(out_buf + rc, ".");
+			rc += scnprintf(out_buf + rc, out_buf_size - rc, ".");
 	}
-	rc += sprintf(out_buf + rc, "\n");
+	rc += scnprintf(out_buf + rc, out_buf_size - rc, "\n");
 	return rc;
 }
 
@@ -1488,7 +1500,8 @@ static int debug_hex_ascii_format_fn(debug_info_t *id, struct debug_view *view,
  * prints header for debug entry
  */
 int debug_dflt_header_fn(debug_info_t *id, struct debug_view *view,
-			 int area, debug_entry_t *entry, char *out_buf)
+			 int area, debug_entry_t *entry, char *out_buf,
+			 size_t out_buf_size)
 {
 	unsigned long sec, usec;
 	unsigned long caller;
@@ -1505,22 +1518,22 @@ int debug_dflt_header_fn(debug_info_t *id, struct debug_view *view,
 	else
 		except_str = "-";
 	caller = (unsigned long) entry->caller;
-	rc += sprintf(out_buf, "%02i %011ld:%06lu %1u %1s %04u %px  ",
-		      area, sec, usec, level, except_str,
-		      entry->cpu, (void *)caller);
+	rc += scnprintf(out_buf, out_buf_size, "%02i %011ld:%06lu %1u %1s %04u %px  ",
+			area, sec, usec, level, except_str,
+			entry->cpu, (void *)caller);
 	return rc;
 }
 EXPORT_SYMBOL(debug_dflt_header_fn);
 
 /*
- * prints debug data sprintf-formated:
+ * prints debug data sprintf-formatted:
  * debug_sprinf_event/exception calls must be used together with this view
  */
 
 #define DEBUG_SPRINTF_MAX_ARGS 10
 
 static int debug_sprintf_format_fn(debug_info_t *id, struct debug_view *view,
-				   char *out_buf, const char *inbuf)
+				   char *out_buf, size_t out_buf_size, const char *inbuf)
 {
 	debug_sprintf_entry_t *curr_event = (debug_sprintf_entry_t *)inbuf;
 	int num_longs, num_used_args = 0, i, rc = 0;
@@ -1533,8 +1546,9 @@ static int debug_sprintf_format_fn(debug_info_t *id, struct debug_view *view,
 		goto out; /* bufsize of entry too small */
 	if (num_longs == 1) {
 		/* no args, we use only the string */
-		strcpy(out_buf, curr_event->string);
-		rc = strlen(curr_event->string);
+		rc = strscpy(out_buf, curr_event->string, out_buf_size);
+		if (rc == -E2BIG)
+			rc = out_buf_size;
 		goto out;
 	}
 
@@ -1546,12 +1560,13 @@ static int debug_sprintf_format_fn(debug_info_t *id, struct debug_view *view,
 	for (i = 0; i < num_used_args; i++)
 		index[i] = i;
 
-	rc = sprintf(out_buf, curr_event->string, curr_event->args[index[0]],
-		     curr_event->args[index[1]], curr_event->args[index[2]],
-		     curr_event->args[index[3]], curr_event->args[index[4]],
-		     curr_event->args[index[5]], curr_event->args[index[6]],
-		     curr_event->args[index[7]], curr_event->args[index[8]],
-		     curr_event->args[index[9]]);
+	rc = scnprintf(out_buf, out_buf_size,
+		       curr_event->string, curr_event->args[index[0]],
+		       curr_event->args[index[1]], curr_event->args[index[2]],
+		       curr_event->args[index[3]], curr_event->args[index[4]],
+		       curr_event->args[index[5]], curr_event->args[index[6]],
+		       curr_event->args[index[7]], curr_event->args[index[8]],
+		       curr_event->args[index[9]]);
 out:
 	return rc;
 }

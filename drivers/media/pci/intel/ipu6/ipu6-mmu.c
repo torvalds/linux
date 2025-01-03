@@ -97,13 +97,15 @@ static void page_table_dump(struct ipu6_mmu_info *mmu_info)
 	for (l1_idx = 0; l1_idx < ISP_L1PT_PTES; l1_idx++) {
 		u32 l2_idx;
 		u32 iova = (phys_addr_t)l1_idx << ISP_L1PT_SHIFT;
+		phys_addr_t l2_phys;
 
 		if (mmu_info->l1_pt[l1_idx] == mmu_info->dummy_l2_pteval)
 			continue;
+
+		l2_phys = TBL_PHYS_ADDR(mmu_info->l1_pt[l1_idx];)
 		dev_dbg(mmu_info->dev,
-			"l1 entry %u; iovas 0x%8.8x-0x%8.8x, at %pa\n",
-			l1_idx, iova, iova + ISP_PAGE_SIZE,
-			TBL_PHYS_ADDR(mmu_info->l1_pt[l1_idx]));
+			"l1 entry %u; iovas 0x%8.8x-0x%8.8x, at %pap\n",
+			l1_idx, iova, iova + ISP_PAGE_SIZE, &l2_phys);
 
 		for (l2_idx = 0; l2_idx < ISP_L2PT_PTES; l2_idx++) {
 			u32 *l2_pt = mmu_info->l2_pts[l1_idx];
@@ -227,7 +229,7 @@ static u32 *alloc_l1_pt(struct ipu6_mmu_info *mmu_info)
 	}
 
 	mmu_info->l1_pt_dma = dma >> ISP_PADDR_SHIFT;
-	dev_dbg(mmu_info->dev, "l1 pt %p mapped at %llx\n", pt, dma);
+	dev_dbg(mmu_info->dev, "l1 pt %p mapped at %pad\n", pt, &dma);
 
 	return pt;
 
@@ -252,75 +254,142 @@ static u32 *alloc_l2_pt(struct ipu6_mmu_info *mmu_info)
 	return pt;
 }
 
+static void l2_unmap(struct ipu6_mmu_info *mmu_info, unsigned long iova,
+		     phys_addr_t dummy, size_t size)
+{
+	unsigned int l2_entries;
+	unsigned int l2_idx;
+	unsigned long flags;
+	u32 l1_idx;
+	u32 *l2_pt;
+
+	spin_lock_irqsave(&mmu_info->lock, flags);
+	for (l1_idx = iova >> ISP_L1PT_SHIFT;
+	     size > 0 && l1_idx < ISP_L1PT_PTES; l1_idx++) {
+		dev_dbg(mmu_info->dev,
+			"unmapping l2 pgtable (l1 index %u (iova 0x%8.8lx))\n",
+			l1_idx, iova);
+
+		if (mmu_info->l1_pt[l1_idx] == mmu_info->dummy_l2_pteval) {
+			dev_err(mmu_info->dev,
+				"unmap not mapped iova 0x%8.8lx l1 index %u\n",
+				iova, l1_idx);
+			continue;
+		}
+		l2_pt = mmu_info->l2_pts[l1_idx];
+
+		l2_entries = 0;
+		for (l2_idx = (iova & ISP_L2PT_MASK) >> ISP_L2PT_SHIFT;
+		     size > 0 && l2_idx < ISP_L2PT_PTES; l2_idx++) {
+			phys_addr_t pteval = TBL_PHYS_ADDR(l2_pt[l2_idx]);
+
+			dev_dbg(mmu_info->dev,
+				"unmap l2 index %u with pteval 0x%p\n",
+				l2_idx, &pteval);
+			l2_pt[l2_idx] = mmu_info->dummy_page_pteval;
+
+			iova += ISP_PAGE_SIZE;
+			size -= ISP_PAGE_SIZE;
+
+			l2_entries++;
+		}
+
+		WARN_ON_ONCE(!l2_entries);
+		clflush_cache_range(&l2_pt[l2_idx - l2_entries],
+				    sizeof(l2_pt[0]) * l2_entries);
+	}
+
+	WARN_ON_ONCE(size);
+	spin_unlock_irqrestore(&mmu_info->lock, flags);
+}
+
 static int l2_map(struct ipu6_mmu_info *mmu_info, unsigned long iova,
 		  phys_addr_t paddr, size_t size)
 {
-	u32 l1_idx = iova >> ISP_L1PT_SHIFT;
-	u32 iova_start = iova;
+	struct device *dev = mmu_info->dev;
+	unsigned int l2_entries;
 	u32 *l2_pt, *l2_virt;
 	unsigned int l2_idx;
 	unsigned long flags;
+	size_t mapped = 0;
 	dma_addr_t dma;
 	u32 l1_entry;
-
-	dev_dbg(mmu_info->dev,
-		"mapping l2 page table for l1 index %u (iova %8.8x)\n",
-		l1_idx, (u32)iova);
+	u32 l1_idx;
+	int err = 0;
 
 	spin_lock_irqsave(&mmu_info->lock, flags);
-	l1_entry = mmu_info->l1_pt[l1_idx];
-	if (l1_entry == mmu_info->dummy_l2_pteval) {
-		l2_virt = mmu_info->l2_pts[l1_idx];
-		if (likely(!l2_virt)) {
-			l2_virt = alloc_l2_pt(mmu_info);
-			if (!l2_virt) {
-				spin_unlock_irqrestore(&mmu_info->lock, flags);
-				return -ENOMEM;
-			}
-		}
-
-		dma = map_single(mmu_info, l2_virt);
-		if (!dma) {
-			dev_err(mmu_info->dev, "Failed to map l2pt page\n");
-			free_page((unsigned long)l2_virt);
-			spin_unlock_irqrestore(&mmu_info->lock, flags);
-			return -EINVAL;
-		}
-
-		l1_entry = dma >> ISP_PADDR_SHIFT;
-
-		dev_dbg(mmu_info->dev, "page for l1_idx %u %p allocated\n",
-			l1_idx, l2_virt);
-		mmu_info->l1_pt[l1_idx] = l1_entry;
-		mmu_info->l2_pts[l1_idx] = l2_virt;
-		clflush_cache_range((void *)&mmu_info->l1_pt[l1_idx],
-				    sizeof(mmu_info->l1_pt[l1_idx]));
-	}
-
-	l2_pt = mmu_info->l2_pts[l1_idx];
-
-	dev_dbg(mmu_info->dev, "l2_pt at %p with dma 0x%x\n", l2_pt, l1_entry);
 
 	paddr = ALIGN(paddr, ISP_PAGE_SIZE);
+	for (l1_idx = iova >> ISP_L1PT_SHIFT;
+	     size > 0 && l1_idx < ISP_L1PT_PTES; l1_idx++) {
+		dev_dbg(dev,
+			"mapping l2 page table for l1 index %u (iova %8.8x)\n",
+			l1_idx, (u32)iova);
 
-	l2_idx = (iova_start & ISP_L2PT_MASK) >> ISP_L2PT_SHIFT;
+		l1_entry = mmu_info->l1_pt[l1_idx];
+		if (l1_entry == mmu_info->dummy_l2_pteval) {
+			l2_virt = mmu_info->l2_pts[l1_idx];
+			if (likely(!l2_virt)) {
+				l2_virt = alloc_l2_pt(mmu_info);
+				if (!l2_virt) {
+					err = -ENOMEM;
+					goto error;
+				}
+			}
 
-	dev_dbg(mmu_info->dev, "l2_idx %u, phys 0x%8.8x\n", l2_idx,
-		l2_pt[l2_idx]);
-	if (l2_pt[l2_idx] != mmu_info->dummy_page_pteval) {
-		spin_unlock_irqrestore(&mmu_info->lock, flags);
-		return -EINVAL;
+			dma = map_single(mmu_info, l2_virt);
+			if (!dma) {
+				dev_err(dev, "Failed to map l2pt page\n");
+				free_page((unsigned long)l2_virt);
+				err = -EINVAL;
+				goto error;
+			}
+
+			l1_entry = dma >> ISP_PADDR_SHIFT;
+
+			dev_dbg(dev, "page for l1_idx %u %p allocated\n",
+				l1_idx, l2_virt);
+			mmu_info->l1_pt[l1_idx] = l1_entry;
+			mmu_info->l2_pts[l1_idx] = l2_virt;
+
+			clflush_cache_range(&mmu_info->l1_pt[l1_idx],
+					    sizeof(mmu_info->l1_pt[l1_idx]));
+		}
+
+		l2_pt = mmu_info->l2_pts[l1_idx];
+		l2_entries = 0;
+
+		for (l2_idx = (iova & ISP_L2PT_MASK) >> ISP_L2PT_SHIFT;
+		     size > 0 && l2_idx < ISP_L2PT_PTES; l2_idx++) {
+			l2_pt[l2_idx] = paddr >> ISP_PADDR_SHIFT;
+
+			dev_dbg(dev, "l2 index %u mapped as 0x%8.8x\n", l2_idx,
+				l2_pt[l2_idx]);
+
+			iova += ISP_PAGE_SIZE;
+			paddr += ISP_PAGE_SIZE;
+			mapped += ISP_PAGE_SIZE;
+			size -= ISP_PAGE_SIZE;
+
+			l2_entries++;
+		}
+
+		WARN_ON_ONCE(!l2_entries);
+		clflush_cache_range(&l2_pt[l2_idx - l2_entries],
+				    sizeof(l2_pt[0]) * l2_entries);
 	}
 
-	l2_pt[l2_idx] = paddr >> ISP_PADDR_SHIFT;
-
-	clflush_cache_range((void *)&l2_pt[l2_idx], sizeof(l2_pt[l2_idx]));
 	spin_unlock_irqrestore(&mmu_info->lock, flags);
 
-	dev_dbg(mmu_info->dev, "l2 index %u mapped as 0x%8.8x\n", l2_idx,
-		l2_pt[l2_idx]);
-
 	return 0;
+
+error:
+	spin_unlock_irqrestore(&mmu_info->lock, flags);
+	/* unroll mapping in case something went wrong */
+	if (mapped)
+		l2_unmap(mmu_info, iova - mapped, paddr - mapped, mapped);
+
+	return err;
 }
 
 static int __ipu6_mmu_map(struct ipu6_mmu_info *mmu_info, unsigned long iova,
@@ -330,61 +399,21 @@ static int __ipu6_mmu_map(struct ipu6_mmu_info *mmu_info, unsigned long iova,
 	u32 iova_end = ALIGN(iova + size, ISP_PAGE_SIZE);
 
 	dev_dbg(mmu_info->dev,
-		"mapping iova 0x%8.8x--0x%8.8x, size %zu at paddr 0x%10.10llx\n",
-		iova_start, iova_end, size, paddr);
+		"mapping iova 0x%8.8x--0x%8.8x, size %zu at paddr %pap\n",
+		iova_start, iova_end, size, &paddr);
 
 	return l2_map(mmu_info, iova_start, paddr, size);
 }
 
-static size_t l2_unmap(struct ipu6_mmu_info *mmu_info, unsigned long iova,
-		       phys_addr_t dummy, size_t size)
+static void __ipu6_mmu_unmap(struct ipu6_mmu_info *mmu_info,
+			     unsigned long iova, size_t size)
 {
-	u32 l1_idx = iova >> ISP_L1PT_SHIFT;
-	u32 iova_start = iova;
-	unsigned int l2_idx;
-	size_t unmapped = 0;
-	unsigned long flags;
-	u32 *l2_pt;
-
-	dev_dbg(mmu_info->dev, "unmapping l2 page table for l1 index %u (iova 0x%8.8lx)\n",
-		l1_idx, iova);
-
-	spin_lock_irqsave(&mmu_info->lock, flags);
-	if (mmu_info->l1_pt[l1_idx] == mmu_info->dummy_l2_pteval) {
-		spin_unlock_irqrestore(&mmu_info->lock, flags);
-		dev_err(mmu_info->dev,
-			"unmap iova 0x%8.8lx l1 idx %u which was not mapped\n",
-			iova, l1_idx);
-		return 0;
-	}
-
-	for (l2_idx = (iova_start & ISP_L2PT_MASK) >> ISP_L2PT_SHIFT;
-	     (iova_start & ISP_L1PT_MASK) + (l2_idx << ISP_PAGE_SHIFT)
-		     < iova_start + size && l2_idx < ISP_L2PT_PTES; l2_idx++) {
-		l2_pt = mmu_info->l2_pts[l1_idx];
-		dev_dbg(mmu_info->dev,
-			"unmap l2 index %u with pteval 0x%10.10llx\n",
-			l2_idx, TBL_PHYS_ADDR(l2_pt[l2_idx]));
-		l2_pt[l2_idx] = mmu_info->dummy_page_pteval;
-
-		clflush_cache_range((void *)&l2_pt[l2_idx],
-				    sizeof(l2_pt[l2_idx]));
-		unmapped++;
-	}
-	spin_unlock_irqrestore(&mmu_info->lock, flags);
-
-	return unmapped << ISP_PAGE_SHIFT;
-}
-
-static size_t __ipu6_mmu_unmap(struct ipu6_mmu_info *mmu_info,
-			       unsigned long iova, size_t size)
-{
-	return l2_unmap(mmu_info, iova, 0, size);
+	l2_unmap(mmu_info, iova, 0, size);
 }
 
 static int allocate_trash_buffer(struct ipu6_mmu *mmu)
 {
-	unsigned int n_pages = PHYS_PFN(PAGE_ALIGN(IPU6_MMUV2_TRASH_RANGE));
+	unsigned int n_pages = PFN_UP(IPU6_MMUV2_TRASH_RANGE);
 	struct iova *iova;
 	unsigned int i;
 	dma_addr_t dma;
@@ -525,9 +554,10 @@ static struct ipu6_mmu_info *ipu6_mmu_alloc(struct ipu6_device *isp)
 		return NULL;
 
 	mmu_info->aperture_start = 0;
-	mmu_info->aperture_end = DMA_BIT_MASK(isp->secure_mode ?
-					      IPU6_MMU_ADDR_BITS :
-					      IPU6_MMU_ADDR_BITS_NON_SECURE);
+	mmu_info->aperture_end =
+		(dma_addr_t)DMA_BIT_MASK(isp->secure_mode ?
+					 IPU6_MMU_ADDR_BITS :
+					 IPU6_MMU_ADDR_BITS_NON_SECURE);
 	mmu_info->pgsize_bitmap = SZ_4K;
 	mmu_info->dev = &isp->pdev->dev;
 
@@ -619,39 +649,12 @@ phys_addr_t ipu6_mmu_iova_to_phys(struct ipu6_mmu_info *mmu_info,
 	return phy_addr;
 }
 
-static size_t ipu6_mmu_pgsize(unsigned long pgsize_bitmap,
-			      unsigned long addr_merge, size_t size)
+void ipu6_mmu_unmap(struct ipu6_mmu_info *mmu_info, unsigned long iova,
+		    size_t size)
 {
-	unsigned int pgsize_idx;
-	size_t pgsize;
-
-	/* Max page size that still fits into 'size' */
-	pgsize_idx = __fls(size);
-
-	if (likely(addr_merge)) {
-		/* Max page size allowed by address */
-		unsigned int align_pgsize_idx = __ffs(addr_merge);
-
-		pgsize_idx = min(pgsize_idx, align_pgsize_idx);
-	}
-
-	pgsize = (1UL << (pgsize_idx + 1)) - 1;
-	pgsize &= pgsize_bitmap;
-
-	WARN_ON(!pgsize);
-
-	/* pick the biggest page */
-	pgsize_idx = __fls(pgsize);
-	pgsize = 1UL << pgsize_idx;
-
-	return pgsize;
-}
-
-size_t ipu6_mmu_unmap(struct ipu6_mmu_info *mmu_info, unsigned long iova,
-		      size_t size)
-{
-	size_t unmapped_page, unmapped = 0;
 	unsigned int min_pagesz;
+
+	dev_dbg(mmu_info->dev, "unmapping iova 0x%lx size 0x%zx\n", iova, size);
 
 	/* find out the minimum page size supported */
 	min_pagesz = 1 << __ffs(mmu_info->pgsize_bitmap);
@@ -664,38 +667,16 @@ size_t ipu6_mmu_unmap(struct ipu6_mmu_info *mmu_info, unsigned long iova,
 	if (!IS_ALIGNED(iova | size, min_pagesz)) {
 		dev_err(NULL, "unaligned: iova 0x%lx size 0x%zx min_pagesz 0x%x\n",
 			iova, size, min_pagesz);
-		return -EINVAL;
+		return;
 	}
 
-	/*
-	 * Keep iterating until we either unmap 'size' bytes (or more)
-	 * or we hit an area that isn't mapped.
-	 */
-	while (unmapped < size) {
-		size_t pgsize = ipu6_mmu_pgsize(mmu_info->pgsize_bitmap,
-						iova, size - unmapped);
-
-		unmapped_page = __ipu6_mmu_unmap(mmu_info, iova, pgsize);
-		if (!unmapped_page)
-			break;
-
-		dev_dbg(mmu_info->dev, "unmapped: iova 0x%lx size 0x%zx\n",
-			iova, unmapped_page);
-
-		iova += unmapped_page;
-		unmapped += unmapped_page;
-	}
-
-	return unmapped;
+	__ipu6_mmu_unmap(mmu_info, iova, size);
 }
 
 int ipu6_mmu_map(struct ipu6_mmu_info *mmu_info, unsigned long iova,
 		 phys_addr_t paddr, size_t size)
 {
-	unsigned long orig_iova = iova;
 	unsigned int min_pagesz;
-	size_t orig_size = size;
-	int ret = 0;
 
 	if (mmu_info->pgsize_bitmap == 0UL)
 		return -ENODEV;
@@ -718,28 +699,7 @@ int ipu6_mmu_map(struct ipu6_mmu_info *mmu_info, unsigned long iova,
 	dev_dbg(mmu_info->dev, "map: iova 0x%lx pa %pa size 0x%zx\n",
 		iova, &paddr, size);
 
-	while (size) {
-		size_t pgsize = ipu6_mmu_pgsize(mmu_info->pgsize_bitmap,
-						iova | paddr, size);
-
-		dev_dbg(mmu_info->dev,
-			"mapping: iova 0x%lx pa %pa pgsize 0x%zx\n",
-			iova, &paddr, pgsize);
-
-		ret = __ipu6_mmu_map(mmu_info, iova, paddr, pgsize);
-		if (ret)
-			break;
-
-		iova += pgsize;
-		paddr += pgsize;
-		size -= pgsize;
-	}
-
-	/* unroll mapping in case something went wrong */
-	if (ret)
-		ipu6_mmu_unmap(mmu_info, orig_iova, orig_size - size);
-
-	return ret;
+	return __ipu6_mmu_map(mmu_info, iova, paddr, size);
 }
 
 static void ipu6_mmu_destroy(struct ipu6_mmu *mmu)

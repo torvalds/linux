@@ -62,7 +62,7 @@ config LLD_VERSION
 
 config RUSTC_VERSION
 	int
-	default $(shell,$(srctree)/scripts/rustc-version.sh $(RUSTC))
+	default $(rustc-version)
 	help
 	  It does not depend on `RUST` since that one may need to use the version
 	  in a `depends on`.
@@ -77,6 +77,10 @@ config RUST_IS_AVAILABLE
 
 	  In particular, the Makefile target 'rustavailable' is useful to check
 	  why the Rust toolchain is not being detected.
+
+config RUSTC_LLVM_VERSION
+	int
+	default $(rustc-llvm-version)
 
 config CC_CAN_LINK
 	bool
@@ -115,6 +119,15 @@ config CC_HAS_ASM_INLINE
 
 config CC_HAS_NO_PROFILE_FN_ATTR
 	def_bool $(success,echo '__attribute__((no_profile_instrument_function)) int x();' | $(CC) -x c - -c -o /dev/null -Werror)
+
+config CC_HAS_COUNTED_BY
+	# TODO: when gcc 15 is released remove the build test and add
+	# a gcc version check
+	def_bool $(success,echo 'struct flex { int count; int array[] __attribute__((__counted_by__(count))); };' | $(CC) $(CLANG_FLAGS) -x c - -c -o /dev/null -Werror)
+	# clang needs to be at least 19.1.3 to avoid __bdos miscalculations
+	# https://github.com/llvm/llvm-project/pull/110497
+	# https://github.com/llvm/llvm-project/pull/112636
+	depends on !(CC_IS_CLANG && CLANG_VERSION < 190103)
 
 config PAHOLE_VERSION
 	int
@@ -1153,6 +1166,7 @@ config CGROUP_HUGETLB
 config CPUSETS
 	bool "Cpuset controller"
 	depends on SMP
+	select UNION_FIND
 	help
 	  This option will let you create and manage CPUSETs which
 	  allow dynamically partitioning a system into sets of CPUs and
@@ -1946,7 +1960,7 @@ config RUST
 	depends on !GCC_PLUGIN_RANDSTRUCT
 	depends on !RANDSTRUCT
 	depends on !DEBUG_INFO_BTF || PAHOLE_HAS_LANG_EXCLUDE
-	depends on !CFI_CLANG || RUSTC_VERSION >= 107900 && HAVE_CFI_ICALL_NORMALIZE_INTEGERS
+	depends on !CFI_CLANG || HAVE_CFI_ICALL_NORMALIZE_INTEGERS_RUSTC
 	select CFI_ICALL_NORMALIZE_INTEGERS if CFI_CLANG
 	depends on !CALL_PADDING || RUSTC_VERSION >= 108100
 	depends on !KASAN_SW_TAGS
@@ -1985,6 +1999,7 @@ config BINDGEN_VERSION_TEXT
 #
 config TRACEPOINTS
 	bool
+	select TASKS_TRACE_RCU
 
 source "kernel/Kconfig.kexec"
 

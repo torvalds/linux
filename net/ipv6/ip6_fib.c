@@ -198,16 +198,9 @@ static void node_free_immediate(struct net *net, struct fib6_node *fn)
 	net->ipv6.rt6_stats->fib_nodes--;
 }
 
-static void node_free_rcu(struct rcu_head *head)
-{
-	struct fib6_node *fn = container_of(head, struct fib6_node, rcu);
-
-	kmem_cache_free(fib6_node_kmem, fn);
-}
-
 static void node_free(struct net *net, struct fib6_node *fn)
 {
-	call_rcu(&fn->rcu, node_free_rcu);
+	kfree_rcu(fn, rcu);
 	net->ipv6.rt6_stats->fib_nodes--;
 }
 
@@ -345,17 +338,17 @@ static void __net_init fib6_tables_init(struct net *net)
 
 #endif
 
-unsigned int fib6_tables_seq_read(struct net *net)
+unsigned int fib6_tables_seq_read(const struct net *net)
 {
 	unsigned int h, fib_seq = 0;
 
 	rcu_read_lock();
 	for (h = 0; h < FIB6_TABLE_HASHSZ; h++) {
-		struct hlist_head *head = &net->ipv6.fib_table_hash[h];
-		struct fib6_table *tb;
+		const struct hlist_head *head = &net->ipv6.fib_table_hash[h];
+		const struct fib6_table *tb;
 
 		hlist_for_each_entry_rcu(tb, head, tb6_hlist)
-			fib_seq += tb->fib_seq;
+			fib_seq += READ_ONCE(tb->fib_seq);
 	}
 	rcu_read_unlock();
 
@@ -400,7 +393,7 @@ int call_fib6_entry_notifiers(struct net *net,
 		.rt = rt,
 	};
 
-	rt->fib6_table->fib_seq++;
+	WRITE_ONCE(rt->fib6_table->fib_seq, rt->fib6_table->fib_seq + 1);
 	return call_fib6_notifiers(net, event_type, &info.info);
 }
 
@@ -416,7 +409,7 @@ int call_fib6_multipath_entry_notifiers(struct net *net,
 		.nsiblings = nsiblings,
 	};
 
-	rt->fib6_table->fib_seq++;
+	WRITE_ONCE(rt->fib6_table->fib_seq, rt->fib6_table->fib_seq + 1);
 	return call_fib6_notifiers(net, event_type, &info.info);
 }
 
@@ -427,7 +420,7 @@ int call_fib6_entry_notifiers_replace(struct net *net, struct fib6_info *rt)
 		.nsiblings = rt->fib6_nsiblings,
 	};
 
-	rt->fib6_table->fib_seq++;
+	WRITE_ONCE(rt->fib6_table->fib_seq, rt->fib6_table->fib_seq + 1);
 	return call_fib6_notifiers(net, FIB_EVENT_ENTRY_REPLACE, &info.info);
 }
 
@@ -1190,8 +1183,8 @@ next_iter:
 		while (sibling) {
 			if (sibling->fib6_metric == rt->fib6_metric &&
 			    rt6_qualify_for_ecmp(sibling)) {
-				list_add_tail(&rt->fib6_siblings,
-					      &sibling->fib6_siblings);
+				list_add_tail_rcu(&rt->fib6_siblings,
+						  &sibling->fib6_siblings);
 				break;
 			}
 			sibling = rcu_dereference_protected(sibling->fib6_next,
@@ -1252,7 +1245,7 @@ add:
 							 fib6_siblings)
 					sibling->fib6_nsiblings--;
 				rt->fib6_nsiblings = 0;
-				list_del_init(&rt->fib6_siblings);
+				list_del_rcu(&rt->fib6_siblings);
 				rt6_multipath_rebalance(next_sibling);
 				return err;
 			}
@@ -1970,7 +1963,7 @@ static void fib6_del_route(struct fib6_table *table, struct fib6_node *fn,
 					 &rt->fib6_siblings, fib6_siblings)
 			sibling->fib6_nsiblings--;
 		rt->fib6_nsiblings = 0;
-		list_del_init(&rt->fib6_siblings);
+		list_del_rcu(&rt->fib6_siblings);
 		rt6_multipath_rebalance(next_sibling);
 	}
 
@@ -2500,6 +2493,12 @@ static struct pernet_operations fib6_net_ops = {
 	.exit = fib6_net_exit,
 };
 
+static const struct rtnl_msg_handler fib6_rtnl_msg_handlers[] __initconst_or_module = {
+	{.owner = THIS_MODULE, .protocol = PF_INET6, .msgtype = RTM_GETROUTE,
+	 .dumpit = inet6_dump_fib,
+	 .flags = RTNL_FLAG_DUMP_UNLOCKED | RTNL_FLAG_DUMP_SPLIT_NLM_DONE},
+};
+
 int __init fib6_init(void)
 {
 	int ret = -ENOMEM;
@@ -2513,9 +2512,7 @@ int __init fib6_init(void)
 	if (ret)
 		goto out_kmem_cache_create;
 
-	ret = rtnl_register_module(THIS_MODULE, PF_INET6, RTM_GETROUTE, NULL,
-				   inet6_dump_fib, RTNL_FLAG_DUMP_UNLOCKED |
-				   RTNL_FLAG_DUMP_SPLIT_NLM_DONE);
+	ret = rtnl_register_many(fib6_rtnl_msg_handlers);
 	if (ret)
 		goto out_unregister_subsys;
 

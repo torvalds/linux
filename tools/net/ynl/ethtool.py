@@ -3,11 +3,13 @@
 
 import argparse
 import json
+import pathlib
 import pprint
 import sys
 import re
 import os
 
+sys.path.append(pathlib.Path(__file__).resolve().parent.as_posix())
 from lib import YnlFamily
 
 def args_to_req(ynl, op_name, args, req):

@@ -322,7 +322,7 @@
 		>;
 	};
 
-	pinctrl_stmpe: stmpegrp  {
+	pinctrl_stmpe: stmpegrp {
 		fsl,pins = <
 			MX6UL_PAD_UART1_CTS_B__GPIO1_IO18 0x1b0b0
 		>;

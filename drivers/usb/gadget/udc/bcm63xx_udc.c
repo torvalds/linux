@@ -2367,7 +2367,7 @@ static void bcm63xx_udc_remove(struct platform_device *pdev)
 
 static struct platform_driver bcm63xx_udc_driver = {
 	.probe		= bcm63xx_udc_probe,
-	.remove_new	= bcm63xx_udc_remove,
+	.remove		= bcm63xx_udc_remove,
 	.driver		= {
 		.name	= DRV_MODULE_NAME,
 	},

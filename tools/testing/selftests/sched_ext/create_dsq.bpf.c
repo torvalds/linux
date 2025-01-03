@@ -51,8 +51,8 @@ s32 BPF_STRUCT_OPS_SLEEPABLE(create_dsq_init)
 
 SEC(".struct_ops.link")
 struct sched_ext_ops create_dsq_ops = {
-	.init_task		= create_dsq_init_task,
-	.exit_task		= create_dsq_exit_task,
-	.init			= create_dsq_init,
+	.init_task		= (void *) create_dsq_init_task,
+	.exit_task		= (void *) create_dsq_exit_task,
+	.init			= (void *) create_dsq_init,
 	.name			= "create_dsq",
 };

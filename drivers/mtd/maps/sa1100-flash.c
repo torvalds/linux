@@ -293,7 +293,7 @@ static void sa1100_mtd_remove(struct platform_device *pdev)
 
 static struct platform_driver sa1100_mtd_driver = {
 	.probe		= sa1100_mtd_probe,
-	.remove_new	= sa1100_mtd_remove,
+	.remove		= sa1100_mtd_remove,
 	.driver		= {
 		.name	= "sa1100-mtd",
 	},

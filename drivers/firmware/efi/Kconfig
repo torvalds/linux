@@ -84,12 +84,10 @@ config EFI_ZBOOT
 	help
 	  Create the bootable image as an EFI application that carries the
 	  actual kernel image in compressed form, and decompresses it into
-	  memory before executing it via LoadImage/StartImage EFI boot service
-	  calls. For compatibility with non-EFI loaders, the payload can be
-	  decompressed and executed by the loader as well, provided that the
-	  loader implements the decompression algorithm and that non-EFI boot
-	  is supported by the encapsulated image. (The compression algorithm
-	  used is described in the zboot image header)
+	  memory before executing it. For compatibility with non-EFI loaders,
+	  the payload can be decompressed and executed by the loader as well,
+	  provided that the loader implements the decompression algorithm.
+	  (The compression algorithm used is described in the zboot header)
 
 config EFI_ARMSTUB_DTB_LOADER
 	bool "Enable the DTB loader"

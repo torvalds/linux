@@ -2,7 +2,7 @@
 #define __LINUX_RWLOCK_H
 
 #ifndef __LINUX_INSIDE_SPINLOCK_H
-# error "please don't include this file directly"
+# error "Please do not include this file directly."
 #endif
 
 /*

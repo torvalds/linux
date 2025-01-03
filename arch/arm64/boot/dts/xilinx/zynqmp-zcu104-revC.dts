@@ -523,10 +523,6 @@
 	status = "okay";
 };
 
-&xilinx_ams {
-	status = "okay";
-};
-
 &ams_ps {
 	status = "okay";
 };

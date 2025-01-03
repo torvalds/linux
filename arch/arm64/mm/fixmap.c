@@ -47,7 +47,8 @@ static void __init early_fixmap_init_pte(pmd_t *pmdp, unsigned long addr)
 
 	if (pmd_none(pmd)) {
 		ptep = bm_pte[BM_PTE_TABLE_IDX(addr)];
-		__pmd_populate(pmdp, __pa_symbol(ptep), PMD_TYPE_TABLE);
+		__pmd_populate(pmdp, __pa_symbol(ptep),
+			       PMD_TYPE_TABLE | PMD_TABLE_AF);
 	}
 }
 
@@ -59,7 +60,8 @@ static void __init early_fixmap_init_pmd(pud_t *pudp, unsigned long addr,
 	pmd_t *pmdp;
 
 	if (pud_none(pud))
-		__pud_populate(pudp, __pa_symbol(bm_pmd), PUD_TYPE_TABLE);
+		__pud_populate(pudp, __pa_symbol(bm_pmd),
+			       PUD_TYPE_TABLE | PUD_TABLE_AF);
 
 	pmdp = pmd_offset_kimg(pudp, addr);
 	do {
@@ -86,7 +88,8 @@ static void __init early_fixmap_init_pud(p4d_t *p4dp, unsigned long addr,
 	}
 
 	if (p4d_none(p4d))
-		__p4d_populate(p4dp, __pa_symbol(bm_pud), P4D_TYPE_TABLE);
+		__p4d_populate(p4dp, __pa_symbol(bm_pud),
+			       P4D_TYPE_TABLE | P4D_TABLE_AF);
 
 	pudp = pud_offset_kimg(p4dp, addr);
 	early_fixmap_init_pmd(pudp, addr, end);

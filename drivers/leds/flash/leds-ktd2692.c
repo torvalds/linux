@@ -292,6 +292,7 @@ static int ktd2692_probe(struct platform_device *pdev)
 
 	fled_cdev = &led->fled_cdev;
 	led_cdev = &fled_cdev->led_cdev;
+	led->props.timing = ktd2692_timing;
 
 	ret = ktd2692_parse_dt(led, &pdev->dev, &led_cfg);
 	if (ret)
@@ -343,7 +344,7 @@ static struct platform_driver ktd2692_driver = {
 		.of_match_table = ktd2692_match,
 	},
 	.probe  = ktd2692_probe,
-	.remove_new = ktd2692_remove,
+	.remove = ktd2692_remove,
 };
 
 module_platform_driver(ktd2692_driver);

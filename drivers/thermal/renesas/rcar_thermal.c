@@ -579,7 +579,7 @@ static struct platform_driver rcar_thermal_driver = {
 		.of_match_table = rcar_thermal_dt_ids,
 	},
 	.probe		= rcar_thermal_probe,
-	.remove_new	= rcar_thermal_remove,
+	.remove		= rcar_thermal_remove,
 };
 module_platform_driver(rcar_thermal_driver);
 

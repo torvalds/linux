@@ -290,13 +290,15 @@ Control IDs
     This is a read-only control that can be read by the application and
     used as a hint to determine the number of CAPTURE buffers to pass to
     REQBUFS. The value is the minimum number of CAPTURE buffers that is
-    necessary for hardware to work.
+    necessary for hardware to work. This control is required for stateful
+    decoders.
 
 ``V4L2_CID_MIN_BUFFERS_FOR_OUTPUT`` ``(integer)``
     This is a read-only control that can be read by the application and
     used as a hint to determine the number of OUTPUT buffers to pass to
     REQBUFS. The value is the minimum number of OUTPUT buffers that is
-    necessary for hardware to work.
+    necessary for hardware to work. This control is required for stateful
+    encoders.
 
 .. _v4l2-alpha-component:
 

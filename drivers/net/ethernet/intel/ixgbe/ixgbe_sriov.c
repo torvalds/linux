@@ -18,6 +18,7 @@
 
 #include "ixgbe.h"
 #include "ixgbe_type.h"
+#include "ixgbe_mbx.h"
 #include "ixgbe_sriov.h"
 
 #ifdef CONFIG_PCI_IOV

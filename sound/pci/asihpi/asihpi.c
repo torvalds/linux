@@ -464,7 +464,7 @@ static int snd_card_asihpi_pcm_hw_params(struct snd_pcm_substream *substream,
 			return -ENOMEM;
 		}
 
-		err = hpi_stream_get_info_ex(dpcm->h_stream, NULL,
+		hpi_stream_get_info_ex(dpcm->h_stream, NULL,
 				&dpcm->hpi_buffer_attached, NULL, NULL, NULL);
 	}
 	bytes_per_sec = params_rate(params) * params_channels(params);

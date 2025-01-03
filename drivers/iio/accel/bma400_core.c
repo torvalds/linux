@@ -115,7 +115,7 @@ struct bma400_data {
 	struct {
 		__le16 buff[3];
 		u8 temperature;
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} buffer __aligned(IIO_DMA_MINALIGN);
 	__le16 status;
 	__be16 duration;
@@ -1218,7 +1218,8 @@ static int bma400_activity_event_en(struct bma400_data *data,
 static int bma400_tap_event_en(struct bma400_data *data,
 			       enum iio_event_direction dir, int state)
 {
-	unsigned int mask, field_value;
+	unsigned int mask;
+	unsigned int field_value = 0;
 	int ret;
 
 	/*
@@ -1292,7 +1293,7 @@ static int bma400_disable_adv_interrupt(struct bma400_data *data)
 static int bma400_write_event_config(struct iio_dev *indio_dev,
 				     const struct iio_chan_spec *chan,
 				     enum iio_event_type type,
-				     enum iio_event_direction dir, int state)
+				     enum iio_event_direction dir, bool state)
 {
 	struct bma400_data *data = iio_priv(indio_dev);
 	int ret;

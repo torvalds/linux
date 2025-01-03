@@ -2520,8 +2520,8 @@ int sec_register_to_crypto(struct hisi_qm *qm)
 	u64 alg_mask;
 	int ret = 0;
 
-	alg_mask = sec_get_alg_bitmap(qm, SEC_DRV_ALG_BITMAP_HIGH_IDX,
-				      SEC_DRV_ALG_BITMAP_LOW_IDX);
+	alg_mask = sec_get_alg_bitmap(qm, SEC_DRV_ALG_BITMAP_HIGH_TB,
+				      SEC_DRV_ALG_BITMAP_LOW_TB);
 
 	mutex_lock(&sec_algs_lock);
 	if (sec_available_devs) {
@@ -2553,8 +2553,8 @@ void sec_unregister_from_crypto(struct hisi_qm *qm)
 {
 	u64 alg_mask;
 
-	alg_mask = sec_get_alg_bitmap(qm, SEC_DRV_ALG_BITMAP_HIGH_IDX,
-				      SEC_DRV_ALG_BITMAP_LOW_IDX);
+	alg_mask = sec_get_alg_bitmap(qm, SEC_DRV_ALG_BITMAP_HIGH_TB,
+				      SEC_DRV_ALG_BITMAP_LOW_TB);
 
 	mutex_lock(&sec_algs_lock);
 	if (--sec_available_devs)

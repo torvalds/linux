@@ -828,8 +828,12 @@ static int userns_obj_priv_btf_success(int mnt_fd, struct token_lsm *lsm_skel)
 	return validate_struct_ops_load(mnt_fd, true /* should succeed */);
 }
 
+static const char *token_bpffs_custom_dir()
+{
+	return getenv("BPF_SELFTESTS_BPF_TOKEN_DIR") ?: "/tmp/bpf-token-fs";
+}
+
 #define TOKEN_ENVVAR "LIBBPF_BPF_TOKEN_PATH"
-#define TOKEN_BPFFS_CUSTOM "/bpf-token-fs"
 
 static int userns_obj_priv_implicit_token(int mnt_fd, struct token_lsm *lsm_skel)
 {
@@ -892,6 +896,7 @@ static int userns_obj_priv_implicit_token(int mnt_fd, struct token_lsm *lsm_skel
 
 static int userns_obj_priv_implicit_token_envvar(int mnt_fd, struct token_lsm *lsm_skel)
 {
+	const char *custom_dir = token_bpffs_custom_dir();
 	LIBBPF_OPTS(bpf_object_open_opts, opts);
 	struct dummy_st_ops_success *skel;
 	int err;
@@ -909,10 +914,10 @@ static int userns_obj_priv_implicit_token_envvar(int mnt_fd, struct token_lsm *l
 	 * BPF token implicitly, unless pointed to it through
 	 * LIBBPF_BPF_TOKEN_PATH envvar
 	 */
-	rmdir(TOKEN_BPFFS_CUSTOM);
-	if (!ASSERT_OK(mkdir(TOKEN_BPFFS_CUSTOM, 0777), "mkdir_bpffs_custom"))
+	rmdir(custom_dir);
+	if (!ASSERT_OK(mkdir(custom_dir, 0777), "mkdir_bpffs_custom"))
 		goto err_out;
-	err = sys_move_mount(mnt_fd, "", AT_FDCWD, TOKEN_BPFFS_CUSTOM, MOVE_MOUNT_F_EMPTY_PATH);
+	err = sys_move_mount(mnt_fd, "", AT_FDCWD, custom_dir, MOVE_MOUNT_F_EMPTY_PATH);
 	if (!ASSERT_OK(err, "move_mount_bpffs"))
 		goto err_out;
 
@@ -925,7 +930,7 @@ static int userns_obj_priv_implicit_token_envvar(int mnt_fd, struct token_lsm *l
 		goto err_out;
 	}
 
-	err = setenv(TOKEN_ENVVAR, TOKEN_BPFFS_CUSTOM, 1 /*overwrite*/);
+	err = setenv(TOKEN_ENVVAR, custom_dir, 1 /*overwrite*/);
 	if (!ASSERT_OK(err, "setenv_token_path"))
 		goto err_out;
 
@@ -951,11 +956,11 @@ static int userns_obj_priv_implicit_token_envvar(int mnt_fd, struct token_lsm *l
 	if (!ASSERT_ERR(err, "obj_empty_token_path_load"))
 		goto err_out;
 
-	rmdir(TOKEN_BPFFS_CUSTOM);
+	rmdir(custom_dir);
 	unsetenv(TOKEN_ENVVAR);
 	return 0;
 err_out:
-	rmdir(TOKEN_BPFFS_CUSTOM);
+	rmdir(custom_dir);
 	unsetenv(TOKEN_ENVVAR);
 	return -EINVAL;
 }

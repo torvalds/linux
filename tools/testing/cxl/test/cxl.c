@@ -693,26 +693,22 @@ static int mock_decoder_commit(struct cxl_decoder *cxld)
 	return 0;
 }
 
-static int mock_decoder_reset(struct cxl_decoder *cxld)
+static void mock_decoder_reset(struct cxl_decoder *cxld)
 {
 	struct cxl_port *port = to_cxl_port(cxld->dev.parent);
 	int id = cxld->id;
 
 	if ((cxld->flags & CXL_DECODER_F_ENABLE) == 0)
-		return 0;
+		return;
 
 	dev_dbg(&port->dev, "%s reset\n", dev_name(&cxld->dev));
-	if (port->commit_end != id) {
+	if (port->commit_end == id)
+		cxl_port_commit_reap(cxld);
+	else
 		dev_dbg(&port->dev,
 			"%s: out of order reset, expected decoder%d.%d\n",
 			dev_name(&cxld->dev), port->id, port->commit_end);
-		return -EBUSY;
-	}
-
-	port->commit_end--;
 	cxld->flags &= ~CXL_DECODER_F_ENABLE;
-
-	return 0;
 }
 
 static void default_mock_decoder(struct cxl_decoder *cxld)
@@ -1062,7 +1058,7 @@ static void mock_companion(struct acpi_device *adev, struct device *dev)
 #define SZ_64G (SZ_32G * 2)
 #endif
 
-static __init int cxl_rch_init(void)
+static __init int cxl_rch_topo_init(void)
 {
 	int rc, i;
 
@@ -1090,30 +1086,8 @@ static __init int cxl_rch_init(void)
 			goto err_bridge;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(cxl_rcd); i++) {
-		int idx = NR_MEM_MULTI + NR_MEM_SINGLE + i;
-		struct platform_device *rch = cxl_rch[i];
-		struct platform_device *pdev;
-
-		pdev = platform_device_alloc("cxl_rcd", idx);
-		if (!pdev)
-			goto err_mem;
-		pdev->dev.parent = &rch->dev;
-		set_dev_node(&pdev->dev, i % 2);
-
-		rc = platform_device_add(pdev);
-		if (rc) {
-			platform_device_put(pdev);
-			goto err_mem;
-		}
-		cxl_rcd[i] = pdev;
-	}
-
 	return 0;
 
-err_mem:
-	for (i = ARRAY_SIZE(cxl_rcd) - 1; i >= 0; i--)
-		platform_device_unregister(cxl_rcd[i]);
 err_bridge:
 	for (i = ARRAY_SIZE(cxl_rch) - 1; i >= 0; i--) {
 		struct platform_device *pdev = cxl_rch[i];
@@ -1127,12 +1101,10 @@ err_bridge:
 	return rc;
 }
 
-static void cxl_rch_exit(void)
+static void cxl_rch_topo_exit(void)
 {
 	int i;
 
-	for (i = ARRAY_SIZE(cxl_rcd) - 1; i >= 0; i--)
-		platform_device_unregister(cxl_rcd[i]);
 	for (i = ARRAY_SIZE(cxl_rch) - 1; i >= 0; i--) {
 		struct platform_device *pdev = cxl_rch[i];
 
@@ -1143,7 +1115,7 @@ static void cxl_rch_exit(void)
 	}
 }
 
-static __init int cxl_single_init(void)
+static __init int cxl_single_topo_init(void)
 {
 	int i, rc;
 
@@ -1228,29 +1200,8 @@ static __init int cxl_single_init(void)
 		cxl_swd_single[i] = pdev;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(cxl_mem_single); i++) {
-		struct platform_device *dport = cxl_swd_single[i];
-		struct platform_device *pdev;
-
-		pdev = platform_device_alloc("cxl_mem", NR_MEM_MULTI + i);
-		if (!pdev)
-			goto err_mem;
-		pdev->dev.parent = &dport->dev;
-		set_dev_node(&pdev->dev, i % 2);
-
-		rc = platform_device_add(pdev);
-		if (rc) {
-			platform_device_put(pdev);
-			goto err_mem;
-		}
-		cxl_mem_single[i] = pdev;
-	}
-
 	return 0;
 
-err_mem:
-	for (i = ARRAY_SIZE(cxl_mem_single) - 1; i >= 0; i--)
-		platform_device_unregister(cxl_mem_single[i]);
 err_dport:
 	for (i = ARRAY_SIZE(cxl_swd_single) - 1; i >= 0; i--)
 		platform_device_unregister(cxl_swd_single[i]);
@@ -1273,12 +1224,10 @@ err_bridge:
 	return rc;
 }
 
-static void cxl_single_exit(void)
+static void cxl_single_topo_exit(void)
 {
 	int i;
 
-	for (i = ARRAY_SIZE(cxl_mem_single) - 1; i >= 0; i--)
-		platform_device_unregister(cxl_mem_single[i]);
 	for (i = ARRAY_SIZE(cxl_swd_single) - 1; i >= 0; i--)
 		platform_device_unregister(cxl_swd_single[i]);
 	for (i = ARRAY_SIZE(cxl_swu_single) - 1; i >= 0; i--)
@@ -1293,6 +1242,91 @@ static void cxl_single_exit(void)
 		sysfs_remove_link(&pdev->dev.kobj, "physical_node");
 		platform_device_unregister(cxl_hb_single[i]);
 	}
+}
+
+static void cxl_mem_exit(void)
+{
+	int i;
+
+	for (i = ARRAY_SIZE(cxl_rcd) - 1; i >= 0; i--)
+		platform_device_unregister(cxl_rcd[i]);
+	for (i = ARRAY_SIZE(cxl_mem_single) - 1; i >= 0; i--)
+		platform_device_unregister(cxl_mem_single[i]);
+	for (i = ARRAY_SIZE(cxl_mem) - 1; i >= 0; i--)
+		platform_device_unregister(cxl_mem[i]);
+}
+
+static int cxl_mem_init(void)
+{
+	int i, rc;
+
+	for (i = 0; i < ARRAY_SIZE(cxl_mem); i++) {
+		struct platform_device *dport = cxl_switch_dport[i];
+		struct platform_device *pdev;
+
+		pdev = platform_device_alloc("cxl_mem", i);
+		if (!pdev)
+			goto err_mem;
+		pdev->dev.parent = &dport->dev;
+		set_dev_node(&pdev->dev, i % 2);
+
+		rc = platform_device_add(pdev);
+		if (rc) {
+			platform_device_put(pdev);
+			goto err_mem;
+		}
+		cxl_mem[i] = pdev;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(cxl_mem_single); i++) {
+		struct platform_device *dport = cxl_swd_single[i];
+		struct platform_device *pdev;
+
+		pdev = platform_device_alloc("cxl_mem", NR_MEM_MULTI + i);
+		if (!pdev)
+			goto err_single;
+		pdev->dev.parent = &dport->dev;
+		set_dev_node(&pdev->dev, i % 2);
+
+		rc = platform_device_add(pdev);
+		if (rc) {
+			platform_device_put(pdev);
+			goto err_single;
+		}
+		cxl_mem_single[i] = pdev;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(cxl_rcd); i++) {
+		int idx = NR_MEM_MULTI + NR_MEM_SINGLE + i;
+		struct platform_device *rch = cxl_rch[i];
+		struct platform_device *pdev;
+
+		pdev = platform_device_alloc("cxl_rcd", idx);
+		if (!pdev)
+			goto err_rcd;
+		pdev->dev.parent = &rch->dev;
+		set_dev_node(&pdev->dev, i % 2);
+
+		rc = platform_device_add(pdev);
+		if (rc) {
+			platform_device_put(pdev);
+			goto err_rcd;
+		}
+		cxl_rcd[i] = pdev;
+	}
+
+	return 0;
+
+err_rcd:
+	for (i = ARRAY_SIZE(cxl_rcd) - 1; i >= 0; i--)
+		platform_device_unregister(cxl_rcd[i]);
+err_single:
+	for (i = ARRAY_SIZE(cxl_mem_single) - 1; i >= 0; i--)
+		platform_device_unregister(cxl_mem_single[i]);
+err_mem:
+	for (i = ARRAY_SIZE(cxl_mem) - 1; i >= 0; i--)
+		platform_device_unregister(cxl_mem[i]);
+	return rc;
 }
 
 static __init int cxl_test_init(void)
@@ -1407,29 +1441,11 @@ static __init int cxl_test_init(void)
 		cxl_switch_dport[i] = pdev;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(cxl_mem); i++) {
-		struct platform_device *dport = cxl_switch_dport[i];
-		struct platform_device *pdev;
-
-		pdev = platform_device_alloc("cxl_mem", i);
-		if (!pdev)
-			goto err_mem;
-		pdev->dev.parent = &dport->dev;
-		set_dev_node(&pdev->dev, i % 2);
-
-		rc = platform_device_add(pdev);
-		if (rc) {
-			platform_device_put(pdev);
-			goto err_mem;
-		}
-		cxl_mem[i] = pdev;
-	}
-
-	rc = cxl_single_init();
+	rc = cxl_single_topo_init();
 	if (rc)
-		goto err_mem;
+		goto err_dport;
 
-	rc = cxl_rch_init();
+	rc = cxl_rch_topo_init();
 	if (rc)
 		goto err_single;
 
@@ -1442,19 +1458,20 @@ static __init int cxl_test_init(void)
 
 	rc = platform_device_add(cxl_acpi);
 	if (rc)
-		goto err_add;
+		goto err_root;
+
+	rc = cxl_mem_init();
+	if (rc)
+		goto err_root;
 
 	return 0;
 
-err_add:
+err_root:
 	platform_device_put(cxl_acpi);
 err_rch:
-	cxl_rch_exit();
+	cxl_rch_topo_exit();
 err_single:
-	cxl_single_exit();
-err_mem:
-	for (i = ARRAY_SIZE(cxl_mem) - 1; i >= 0; i--)
-		platform_device_unregister(cxl_mem[i]);
+	cxl_single_topo_exit();
 err_dport:
 	for (i = ARRAY_SIZE(cxl_switch_dport) - 1; i >= 0; i--)
 		platform_device_unregister(cxl_switch_dport[i]);
@@ -1486,11 +1503,10 @@ static __exit void cxl_test_exit(void)
 {
 	int i;
 
+	cxl_mem_exit();
 	platform_device_unregister(cxl_acpi);
-	cxl_rch_exit();
-	cxl_single_exit();
-	for (i = ARRAY_SIZE(cxl_mem) - 1; i >= 0; i--)
-		platform_device_unregister(cxl_mem[i]);
+	cxl_rch_topo_exit();
+	cxl_single_topo_exit();
 	for (i = ARRAY_SIZE(cxl_switch_dport) - 1; i >= 0; i--)
 		platform_device_unregister(cxl_switch_dport[i]);
 	for (i = ARRAY_SIZE(cxl_switch_uport) - 1; i >= 0; i--)

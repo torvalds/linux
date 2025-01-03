@@ -56,7 +56,6 @@ static void free_list_evsel(struct list_head* list_evsel)
 
 %token PE_START_EVENTS PE_START_TERMS
 %token PE_VALUE PE_VALUE_SYM_HW PE_VALUE_SYM_SW PE_TERM
-%token PE_VALUE_SYM_TOOL
 %token PE_EVENT_NAME
 %token PE_RAW PE_NAME
 %token PE_MODIFIER_EVENT PE_MODIFIER_BP PE_BP_COLON PE_BP_SLASH
@@ -68,7 +67,6 @@ static void free_list_evsel(struct list_head* list_evsel)
 %type <num> PE_VALUE
 %type <num> PE_VALUE_SYM_HW
 %type <num> PE_VALUE_SYM_SW
-%type <num> PE_VALUE_SYM_TOOL
 %type <mod> PE_MODIFIER_EVENT
 %type <term_type> PE_TERM
 %type <num> value_sym
@@ -292,7 +290,7 @@ PE_NAME sep_dc
 	struct list_head *list;
 	int err;
 
-	err = parse_events_multi_pmu_add(_parse_state, $1, NULL, &list, &@1);
+	err = parse_events_multi_pmu_add(_parse_state, $1, PERF_COUNT_HW_MAX, NULL, &list, &@1);
 	if (err < 0) {
 		struct parse_events_state *parse_state = _parse_state;
 		struct parse_events_error *error = parse_state->error;
@@ -348,20 +346,6 @@ value_sym sep_slash_slash_dc
 	err = parse_events_add_numeric(_parse_state, list, type, config, /*head_config=*/NULL, wildcard);
 	if (err)
 		PE_ABORT(err);
-	$$ = list;
-}
-|
-PE_VALUE_SYM_TOOL sep_slash_slash_dc
-{
-	struct list_head *list;
-	int err;
-
-	list = alloc_list();
-	if (!list)
-		YYNOMEM;
-	err = parse_events_add_tool(_parse_state, list, $1);
-	if (err)
-		YYNOMEM;
 	$$ = list;
 }
 

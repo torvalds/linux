@@ -39,7 +39,7 @@
 		};
 	};
 
-	hdmi_tx_5v: hdmi-tx-5v-regulator {
+	hdmi_tx_5v: regulator-hdmi-tx-5v {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio4 RK_PC5 GPIO_ACTIVE_HIGH>;
@@ -70,7 +70,7 @@
 		};
 	};
 
-	vcc12v_cam: vcc12v-cam-regulator {
+	vcc12v_cam: regulator-vcc12v-cam {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio2 RK_PD1 GPIO_ACTIVE_HIGH>;
@@ -82,7 +82,7 @@
 		vin-supply = <&vcc12v_in>;
 	};
 
-	vcc12v_in: vcc12v-in-regulator {
+	vcc12v_in: regulator-vcc12v-in {
 		compatible = "regulator-fixed";
 		regulator-name = "12v_in";
 		regulator-always-on;
@@ -91,7 +91,7 @@
 		regulator-max-microvolt = <12000000>;
 	};
 
-	vcc3v8_cam: vcc3v8-cam-regulator {
+	vcc3v8_cam: regulator-vcc3v8-cam {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio0 RK_PC3 GPIO_ACTIVE_HIGH>;
@@ -103,7 +103,7 @@
 		vin-supply = <&vcc5v_in>;
 	};
 
-	vcc3v3_sys: vcc3v3-sys-regulator {
+	vcc3v3_sys: regulator-vcc3v3-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "3v3_sys";
 		regulator-always-on;
@@ -113,7 +113,7 @@
 		vin-supply = <&vcc5v_in>;
 	};
 
-	vcc5v_in: vcc5v-in-regulator {
+	vcc5v_in: regulator-vcc5v-in {
 		compatible = "regulator-fixed";
 		regulator-name = "5v_in";
 		regulator-always-on;
@@ -178,7 +178,7 @@
 		#clock-cells = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int_l>;
-		rockchip,system-power-controller;
+		system-power-controller;
 		vcc1-supply = <&vcc5v_in>;
 		vcc2-supply = <&vcc5v_in>;
 		vcc3-supply = <&vcc5v_in>;

@@ -39,16 +39,13 @@ struct q40kbd {
 static irqreturn_t q40kbd_interrupt(int irq, void *dev_id)
 {
 	struct q40kbd *q40kbd = dev_id;
-	unsigned long flags;
 
-	spin_lock_irqsave(&q40kbd->lock, flags);
+	guard(spinlock_irqsave)(&q40kbd->lock);
 
 	if (Q40_IRQ_KEYB_MASK & master_inb(INTERRUPT_REG))
 		serio_interrupt(q40kbd->port, master_inb(KEYCODE_REG), 0);
 
 	master_outb(-1, KEYBOARD_UNLOCK_REG);
-
-	spin_unlock_irqrestore(&q40kbd->lock, flags);
 
 	return IRQ_HANDLED;
 }
@@ -60,14 +57,11 @@ static irqreturn_t q40kbd_interrupt(int irq, void *dev_id)
 static void q40kbd_flush(struct q40kbd *q40kbd)
 {
 	int maxread = 100;
-	unsigned long flags;
 
-	spin_lock_irqsave(&q40kbd->lock, flags);
+	guard(spinlock_irqsave)(&q40kbd->lock);
 
 	while (maxread-- && (Q40_IRQ_KEYB_MASK & master_inb(INTERRUPT_REG)))
 		master_inb(KEYCODE_REG);
-
-	spin_unlock_irqrestore(&q40kbd->lock, flags);
 }
 
 static void q40kbd_stop(void)
@@ -166,7 +160,7 @@ static struct platform_driver q40kbd_driver = {
 	.driver		= {
 		.name	= "q40kbd",
 	},
-	.remove_new	= q40kbd_remove,
+	.remove		= q40kbd_remove,
 };
 
 module_platform_driver_probe(q40kbd_driver, q40kbd_probe);

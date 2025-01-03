@@ -184,7 +184,7 @@ static int clone_range_of_sgt_for_slice(struct qaic_device *qdev, struct sg_tabl
 	nents = 0;
 
 	size = size ? size : PAGE_SIZE;
-	for (sg = sgt_in->sgl; sg; sg = sg_next(sg)) {
+	for_each_sgtable_dma_sg(sgt_in, sg, j) {
 		len = sg_dma_len(sg);
 
 		if (!len)
@@ -221,7 +221,7 @@ static int clone_range_of_sgt_for_slice(struct qaic_device *qdev, struct sg_tabl
 
 	/* copy relevant sg node and fix page and length */
 	sgn = sgf;
-	for_each_sgtable_sg(sgt, sg, j) {
+	for_each_sgtable_dma_sg(sgt, sg, j) {
 		memcpy(sg, sgn, sizeof(*sg));
 		if (sgn == sgf) {
 			sg_dma_address(sg) += offf;
@@ -301,7 +301,7 @@ static int encode_reqs(struct qaic_device *qdev, struct bo_slice *slice,
 	 * fence.
 	 */
 	dev_addr = req->dev_addr;
-	for_each_sgtable_sg(slice->sgt, sg, i) {
+	for_each_sgtable_dma_sg(slice->sgt, sg, i) {
 		slice->reqs[i].cmd = cmd;
 		slice->reqs[i].src_addr = cpu_to_le64(slice->dir == DMA_TO_DEVICE ?
 						      sg_dma_address(sg) : dev_addr);

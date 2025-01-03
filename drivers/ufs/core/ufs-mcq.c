@@ -417,13 +417,6 @@ void ufshcd_mcq_make_queues_operational(struct ufs_hba *hba)
 }
 EXPORT_SYMBOL_GPL(ufshcd_mcq_make_queues_operational);
 
-void ufshcd_mcq_enable_esi(struct ufs_hba *hba)
-{
-	ufshcd_writel(hba, ufshcd_readl(hba, REG_UFS_MEM_CFG) | 0x2,
-		      REG_UFS_MEM_CFG);
-}
-EXPORT_SYMBOL_GPL(ufshcd_mcq_enable_esi);
-
 void ufshcd_mcq_enable(struct ufs_hba *hba)
 {
 	ufshcd_rmwl(hba, MCQ_MODE_SELECT, MCQ_MODE_SELECT, REG_UFS_MEM_CFG);
@@ -436,6 +429,13 @@ void ufshcd_mcq_disable(struct ufs_hba *hba)
 	ufshcd_rmwl(hba, MCQ_MODE_SELECT, 0, REG_UFS_MEM_CFG);
 	hba->mcq_enabled = false;
 }
+
+void ufshcd_mcq_enable_esi(struct ufs_hba *hba)
+{
+	ufshcd_writel(hba, ufshcd_readl(hba, REG_UFS_MEM_CFG) | 0x2,
+		      REG_UFS_MEM_CFG);
+}
+EXPORT_SYMBOL_GPL(ufshcd_mcq_enable_esi);
 
 void ufshcd_mcq_config_esi(struct ufs_hba *hba, struct msi_msg *msg)
 {
@@ -569,17 +569,22 @@ int ufshcd_mcq_sq_cleanup(struct ufs_hba *hba, int task_tag)
 	opr_sqd_base = mcq_opr_base(hba, OPR_SQD, id);
 	writel(nexus, opr_sqd_base + REG_SQCTI);
 
-	/* SQRTCy.ICU = 1 */
-	writel(SQ_ICU, opr_sqd_base + REG_SQRTC);
+	/* Initiate Cleanup */
+	writel(readl(opr_sqd_base + REG_SQRTC) | SQ_ICU,
+		opr_sqd_base + REG_SQRTC);
 
-	/* Poll SQRTSy.CUS = 1. Return result from SQRTSy.RTC */
+	/* Wait until SQRTSy.CUS = 1. Report SQRTSy.RTC. */
 	reg = opr_sqd_base + REG_SQRTS;
 	err = read_poll_timeout(readl, val, val & SQ_CUS, 20,
 				MCQ_POLL_US, false, reg);
 	if (err)
-		dev_err(hba->dev, "%s: failed. hwq=%d, tag=%d err=%ld\n",
-			__func__, id, task_tag,
-			FIELD_GET(SQ_ICU_ERR_CODE_MASK, readl(reg)));
+		dev_err(hba->dev, "%s: failed. hwq=%d, tag=%d err=%d\n",
+			__func__, id, task_tag, err);
+	else
+		dev_info(hba->dev,
+			 "%s, hwq %d: cleanup return code (RTC) %ld\n",
+			 __func__, id,
+			 FIELD_GET(SQ_ICU_ERR_CODE_MASK, readl(reg)));
 
 	if (ufshcd_mcq_sq_start(hba, hwq))
 		err = -ETIMEDOUT;

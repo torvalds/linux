@@ -521,13 +521,6 @@ void __init padata_do_multithreaded(struct padata_mt_job *job)
 	ps.chunk_size = max(ps.chunk_size, 1ul);
 	ps.chunk_size = roundup(ps.chunk_size, job->align);
 
-	/*
-	 * chunk_size can be 0 if the caller sets min_chunk to 0. So force it
-	 * to at least 1 to prevent divide-by-0 panic in padata_mt_helper().`
-	 */
-	if (!ps.chunk_size)
-		ps.chunk_size = 1U;
-
 	list_for_each_entry(pw, &works, pw_list)
 		if (job->numa_aware) {
 			int old_node = atomic_read(&last_used_nid);

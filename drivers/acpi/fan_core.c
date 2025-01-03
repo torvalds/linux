@@ -448,7 +448,7 @@ static const struct dev_pm_ops acpi_fan_pm = {
 
 static struct platform_driver acpi_fan_driver = {
 	.probe = acpi_fan_probe,
-	.remove_new = acpi_fan_remove,
+	.remove = acpi_fan_remove,
 	.driver = {
 		.name = "acpi-fan",
 		.acpi_match_table = fan_device_ids,

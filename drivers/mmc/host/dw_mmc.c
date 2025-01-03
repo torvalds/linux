@@ -1182,7 +1182,7 @@ static void dw_mci_submit_data(struct dw_mci *host, struct mmc_data *data)
 		/*
 		 * Use the initial fifoth_val for PIO mode. If wm_algined
 		 * is set, we set watermark same as data size.
-		 * If next issued data may be transfered by DMA mode,
+		 * If next issued data may be transferred by DMA mode,
 		 * prev_blksz should be invalidated.
 		 */
 		if (host->wm_aligned)
@@ -2957,8 +2957,8 @@ static int dw_mci_init_slot(struct dw_mci *host)
 	if (host->use_dma == TRANS_MODE_IDMAC) {
 		mmc->max_segs = host->ring_size;
 		mmc->max_blk_size = 65535;
-		mmc->max_req_size = DW_MCI_DESC_DATA_LENGTH * host->ring_size;
-		mmc->max_seg_size = mmc->max_req_size;
+		mmc->max_seg_size = 0x1000;
+		mmc->max_req_size = mmc->max_seg_size * host->ring_size;
 		mmc->max_blk_count = mmc->max_req_size / 512;
 	} else if (host->use_dma == TRANS_MODE_EDMAC) {
 		mmc->max_segs = 64;

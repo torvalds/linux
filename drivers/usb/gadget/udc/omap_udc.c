@@ -576,13 +576,13 @@ static void finish_in_dma(struct omap_ep *ep, struct omap_req *req, int status)
 
 static void next_out_dma(struct omap_ep *ep, struct omap_req *req)
 {
-	unsigned packets = req->req.length - req->req.actual;
+	unsigned int packets = req->req.length - req->req.actual;
 	int dma_trigger = 0;
 	u16 w;
 
 	/* set up this DMA transfer, enable the fifo, start */
 	packets /= ep->ep.maxpacket;
-	packets = min(packets, (unsigned)UDC_RXN_TC + 1);
+	packets = min_t(unsigned int, packets, UDC_RXN_TC + 1);
 	req->dma_bytes = packets * ep->ep.maxpacket;
 	omap_set_dma_transfer_params(ep->lch, OMAP_DMA_DATA_TYPE_S16,
 			ep->ep.maxpacket >> 1, packets,
@@ -2980,7 +2980,7 @@ static int omap_udc_resume(struct platform_device *dev)
 
 static struct platform_driver udc_driver = {
 	.probe		= omap_udc_probe,
-	.remove_new	= omap_udc_remove,
+	.remove		= omap_udc_remove,
 	.suspend	= omap_udc_suspend,
 	.resume		= omap_udc_resume,
 	.driver		= {

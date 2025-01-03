@@ -46,9 +46,6 @@ int gpio_request_one(unsigned gpio, unsigned long flags, const char *label)
 	if (err)
 		return err;
 
-	if (flags & GPIOF_ACTIVE_LOW)
-		set_bit(FLAG_ACTIVE_LOW, &desc->flags);
-
 	if (flags & GPIOF_IN)
 		err = gpiod_direction_input(desc);
 	else

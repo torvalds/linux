@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2023 Boundary Devices
+ * Copyright 2024 Silicon Signals Pvt. Ltd.
+ *
+ * Author : Bhavin Sharma <bhavin.sharma@siliconsignals.io>
+ */
+
+/dts-v1/;
+
+#include "imx8mp-nitrogen-smarc-som.dtsi"
+
+/ {
+	model = "Boundary Device Nitrogen8MP Universal SMARC Carrier Board";
+	compatible = "boundary,imx8mp-nitrogen-smarc-universal-board",
+			"boundary,imx8mp-nitrogen-smarc-som", "fsl,imx8mp";
+};

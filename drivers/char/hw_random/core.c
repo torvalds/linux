@@ -181,8 +181,15 @@ static inline int rng_get_data(struct hwrng *rng, u8 *buffer, size_t size,
 	int present;
 
 	BUG_ON(!mutex_is_locked(&reading_mutex));
-	if (rng->read)
-		return rng->read(rng, (void *)buffer, size, wait);
+	if (rng->read) {
+		int err;
+
+		err = rng->read(rng, buffer, size, wait);
+		if (WARN_ON_ONCE(err > 0 && err > size))
+			err = size;
+
+		return err;
+	}
 
 	if (rng->data_present)
 		present = rng->data_present(rng, wait);

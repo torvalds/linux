@@ -82,7 +82,6 @@ struct dwc_pcie_pmu {
 	u16			ras_des_offset;
 	u32			nr_lanes;
 
-	struct list_head	pmu_node;
 	struct hlist_node	cpuhp_node;
 	struct perf_event	*event[DWC_PCIE_EVENT_TYPE_MAX];
 	int			on_cpu;
@@ -107,6 +106,7 @@ struct dwc_pcie_vendor_id {
 
 static const struct dwc_pcie_vendor_id dwc_pcie_vendor_ids[] = {
 	{.vendor_id = PCI_VENDOR_ID_ALIBABA },
+	{.vendor_id = PCI_VENDOR_ID_AMPERE },
 	{.vendor_id = PCI_VENDOR_ID_QCOM },
 	{} /* terminator */
 };
@@ -203,10 +203,10 @@ static struct attribute *dwc_pcie_pmu_time_event_attrs[] = {
 	DWC_PCIE_PMU_TIME_BASE_EVENT_ATTR(L1_AUX, 0x09),
 
 	/* Group #1 */
-	DWC_PCIE_PMU_TIME_BASE_EVENT_ATTR(Tx_PCIe_TLP_Data_Payload, 0x20),
-	DWC_PCIE_PMU_TIME_BASE_EVENT_ATTR(Rx_PCIe_TLP_Data_Payload, 0x21),
-	DWC_PCIE_PMU_TIME_BASE_EVENT_ATTR(Tx_CCIX_TLP_Data_Payload, 0x22),
-	DWC_PCIE_PMU_TIME_BASE_EVENT_ATTR(Rx_CCIX_TLP_Data_Payload, 0x23),
+	DWC_PCIE_PMU_TIME_BASE_EVENT_ATTR(tx_pcie_tlp_data_payload, 0x20),
+	DWC_PCIE_PMU_TIME_BASE_EVENT_ATTR(rx_pcie_tlp_data_payload, 0x21),
+	DWC_PCIE_PMU_TIME_BASE_EVENT_ATTR(tx_ccix_tlp_data_payload, 0x22),
+	DWC_PCIE_PMU_TIME_BASE_EVENT_ATTR(rx_ccix_tlp_data_payload, 0x23),
 
 	/*
 	 * Leave it to the user to specify the lane ID to avoid generating
@@ -216,9 +216,9 @@ static struct attribute *dwc_pcie_pmu_time_event_attrs[] = {
 	DWC_PCIE_PMU_LANE_EVENT_ATTR(tx_update_fc_dllp, 0x601),
 	DWC_PCIE_PMU_LANE_EVENT_ATTR(rx_ack_dllp, 0x602),
 	DWC_PCIE_PMU_LANE_EVENT_ATTR(rx_update_fc_dllp, 0x603),
-	DWC_PCIE_PMU_LANE_EVENT_ATTR(rx_nulified_tlp, 0x604),
-	DWC_PCIE_PMU_LANE_EVENT_ATTR(tx_nulified_tlp, 0x605),
-	DWC_PCIE_PMU_LANE_EVENT_ATTR(rx_duplicate_tl, 0x606),
+	DWC_PCIE_PMU_LANE_EVENT_ATTR(rx_nullified_tlp, 0x604),
+	DWC_PCIE_PMU_LANE_EVENT_ATTR(tx_nullified_tlp, 0x605),
+	DWC_PCIE_PMU_LANE_EVENT_ATTR(rx_duplicate_tlp, 0x606),
 	DWC_PCIE_PMU_LANE_EVENT_ATTR(tx_memory_write, 0x700),
 	DWC_PCIE_PMU_LANE_EVENT_ATTR(tx_memory_read, 0x701),
 	DWC_PCIE_PMU_LANE_EVENT_ATTR(tx_configuration_write, 0x702),

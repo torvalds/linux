@@ -25,13 +25,11 @@ static void __iforce_usb_xmit(struct iforce *iforce)
 	struct iforce_usb *iforce_usb = container_of(iforce, struct iforce_usb,
 						     iforce);
 	int n, c;
-	unsigned long flags;
 
-	spin_lock_irqsave(&iforce->xmit_lock, flags);
+	guard(spinlock_irqsave)(&iforce->xmit_lock);
 
 	if (iforce->xmit.head == iforce->xmit.tail) {
 		iforce_clear_xmit_and_wake(iforce);
-		spin_unlock_irqrestore(&iforce->xmit_lock, flags);
 		return;
 	}
 
@@ -45,7 +43,8 @@ static void __iforce_usb_xmit(struct iforce *iforce)
 
 	/* Copy rest of data then */
 	c = CIRC_CNT_TO_END(iforce->xmit.head, iforce->xmit.tail, XMIT_SIZE);
-	if (n < c) c=n;
+	if (n < c)
+		c = n;
 
 	memcpy(iforce_usb->out->transfer_buffer + 1,
 	       &iforce->xmit.buf[iforce->xmit.tail],
@@ -53,11 +52,12 @@ static void __iforce_usb_xmit(struct iforce *iforce)
 	if (n != c) {
 		memcpy(iforce_usb->out->transfer_buffer + 1 + c,
 		       &iforce->xmit.buf[0],
-		       n-c);
+		       n - c);
 	}
 	XMIT_INC(iforce->xmit.tail, n);
 
-	if ( (n=usb_submit_urb(iforce_usb->out, GFP_ATOMIC)) ) {
+	n=usb_submit_urb(iforce_usb->out, GFP_ATOMIC);
+	if (n) {
 		dev_warn(&iforce_usb->intf->dev,
 			 "usb_submit_urb failed %d\n", n);
 		iforce_clear_xmit_and_wake(iforce);
@@ -66,7 +66,6 @@ static void __iforce_usb_xmit(struct iforce *iforce)
 	/* The IFORCE_XMIT_RUNNING bit is not cleared here. That's intended.
 	 * As long as the urb completion handler is not called, the transmiting
 	 * is considered to be running */
-	spin_unlock_irqrestore(&iforce->xmit_lock, flags);
 }
 
 static void iforce_usb_xmit(struct iforce *iforce)

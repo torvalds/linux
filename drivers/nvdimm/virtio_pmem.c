@@ -143,6 +143,28 @@ static void virtio_pmem_remove(struct virtio_device *vdev)
 	virtio_reset_device(vdev);
 }
 
+static int virtio_pmem_freeze(struct virtio_device *vdev)
+{
+	vdev->config->del_vqs(vdev);
+	virtio_reset_device(vdev);
+
+	return 0;
+}
+
+static int virtio_pmem_restore(struct virtio_device *vdev)
+{
+	int ret;
+
+	ret = init_vq(vdev->priv);
+	if (ret) {
+		dev_err(&vdev->dev, "failed to initialize virtio pmem's vq\n");
+		return ret;
+	}
+	virtio_device_ready(vdev);
+
+	return 0;
+}
+
 static unsigned int features[] = {
 	VIRTIO_PMEM_F_SHMEM_REGION,
 };
@@ -155,6 +177,8 @@ static struct virtio_driver virtio_pmem_driver = {
 	.validate		= virtio_pmem_validate,
 	.probe			= virtio_pmem_probe,
 	.remove			= virtio_pmem_remove,
+	.freeze			= virtio_pmem_freeze,
+	.restore		= virtio_pmem_restore,
 };
 
 module_virtio_driver(virtio_pmem_driver);

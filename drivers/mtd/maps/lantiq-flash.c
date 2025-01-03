@@ -184,7 +184,7 @@ MODULE_DEVICE_TABLE(of, ltq_mtd_match);
 
 static struct platform_driver ltq_mtd_driver = {
 	.probe = ltq_mtd_probe,
-	.remove_new = ltq_mtd_remove,
+	.remove = ltq_mtd_remove,
 	.driver = {
 		.name = "ltq-nor",
 		.of_match_table = ltq_mtd_match,

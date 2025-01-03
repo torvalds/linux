@@ -451,6 +451,7 @@ static const u32 msr_based_features_all_except_vmx[] = {
 	MSR_IA32_UCODE_REV,
 	MSR_IA32_ARCH_CAPABILITIES,
 	MSR_IA32_PERF_CAPABILITIES,
+	MSR_PLATFORM_INFO,
 };
 
 static u32 msr_based_features[ARRAY_SIZE(msr_based_features_all_except_vmx) +
@@ -665,38 +666,6 @@ static void drop_user_return_notifiers(void)
 
 	if (msrs->registered)
 		kvm_on_user_return(&msrs->urn);
-}
-
-u64 kvm_get_apic_base(struct kvm_vcpu *vcpu)
-{
-	return vcpu->arch.apic_base;
-}
-
-enum lapic_mode kvm_get_apic_mode(struct kvm_vcpu *vcpu)
-{
-	return kvm_apic_mode(kvm_get_apic_base(vcpu));
-}
-EXPORT_SYMBOL_GPL(kvm_get_apic_mode);
-
-int kvm_set_apic_base(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
-{
-	enum lapic_mode old_mode = kvm_get_apic_mode(vcpu);
-	enum lapic_mode new_mode = kvm_apic_mode(msr_info->data);
-	u64 reserved_bits = kvm_vcpu_reserved_gpa_bits_raw(vcpu) | 0x2ff |
-		(guest_cpuid_has(vcpu, X86_FEATURE_X2APIC) ? 0 : X2APIC_ENABLE);
-
-	if ((msr_info->data & reserved_bits) != 0 || new_mode == LAPIC_MODE_INVALID)
-		return 1;
-	if (!msr_info->host_initiated) {
-		if (old_mode == LAPIC_MODE_X2APIC && new_mode == LAPIC_MODE_XAPIC)
-			return 1;
-		if (old_mode == LAPIC_MODE_DISABLED && new_mode == LAPIC_MODE_X2APIC)
-			return 1;
-	}
-
-	kvm_lapic_set_base(vcpu, msr_info->data);
-	kvm_recalculate_apic_map(vcpu->kvm);
-	return 0;
 }
 
 /*
@@ -1706,6 +1675,9 @@ static int kvm_get_feature_msr(struct kvm_vcpu *vcpu, u32 index, u64 *data,
 	case MSR_IA32_PERF_CAPABILITIES:
 		*data = kvm_caps.supported_perf_cap;
 		break;
+	case MSR_PLATFORM_INFO:
+		*data = MSR_PLATFORM_INFO_CPUID_FAULT;
+		break;
 	case MSR_IA32_UCODE_REV:
 		rdmsrl_safe(index, data);
 		break;
@@ -1854,7 +1826,7 @@ static int __kvm_set_msr(struct kvm_vcpu *vcpu, u32 index, u64 data,
 	case MSR_KERNEL_GS_BASE:
 	case MSR_CSTAR:
 	case MSR_LSTAR:
-		if (is_noncanonical_address(data, vcpu))
+		if (is_noncanonical_msr_address(data, vcpu))
 			return 1;
 		break;
 	case MSR_IA32_SYSENTER_EIP:
@@ -1871,7 +1843,7 @@ static int __kvm_set_msr(struct kvm_vcpu *vcpu, u32 index, u64 data,
 		 * value, and that something deterministic happens if the guest
 		 * invokes 64-bit SYSENTER.
 		 */
-		data = __canonical_address(data, vcpu_virt_addr_bits(vcpu));
+		data = __canonical_address(data, max_host_virt_addr_bits());
 		break;
 	case MSR_TSC_AUX:
 		if (!kvm_is_supported_user_return_msr(MSR_TSC_AUX))
@@ -2144,8 +2116,9 @@ EXPORT_SYMBOL_GPL(kvm_emulate_monitor);
 static inline bool kvm_vcpu_exit_request(struct kvm_vcpu *vcpu)
 {
 	xfer_to_guest_mode_prepare();
-	return vcpu->mode == EXITING_GUEST_MODE || kvm_request_pending(vcpu) ||
-		xfer_to_guest_mode_work_pending();
+
+	return READ_ONCE(vcpu->mode) == EXITING_GUEST_MODE ||
+	       kvm_request_pending(vcpu) || xfer_to_guest_mode_work_pending();
 }
 
 /*
@@ -3793,13 +3766,16 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 			vcpu->arch.microcode_version = data;
 		break;
 	case MSR_IA32_ARCH_CAPABILITIES:
-		if (!msr_info->host_initiated)
-			return 1;
+		if (!msr_info->host_initiated ||
+		    !guest_cpuid_has(vcpu, X86_FEATURE_ARCH_CAPABILITIES))
+			return KVM_MSR_RET_UNSUPPORTED;
 		vcpu->arch.arch_capabilities = data;
 		break;
 	case MSR_IA32_PERF_CAPABILITIES:
-		if (!msr_info->host_initiated)
-			return 1;
+		if (!msr_info->host_initiated ||
+		    !guest_cpuid_has(vcpu, X86_FEATURE_PDCM))
+			return KVM_MSR_RET_UNSUPPORTED;
+
 		if (data & ~kvm_caps.supported_perf_cap)
 			return 1;
 
@@ -3890,7 +3866,7 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	case MSR_MTRRdefType:
 		return kvm_mtrr_set_msr(vcpu, msr, data);
 	case MSR_IA32_APICBASE:
-		return kvm_set_apic_base(vcpu, msr_info);
+		return kvm_apic_set_base(vcpu, data, msr_info->host_initiated);
 	case APIC_BASE_MSR ... APIC_BASE_MSR + 0xff:
 		return kvm_x2apic_msr_write(vcpu, msr, data);
 	case MSR_IA32_TSC_DEADLINE:
@@ -4111,9 +4087,7 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		vcpu->arch.osvw.status = data;
 		break;
 	case MSR_PLATFORM_INFO:
-		if (!msr_info->host_initiated ||
-		    (!(data & MSR_PLATFORM_INFO_CPUID_FAULT) &&
-		     cpuid_fault_enabled(vcpu)))
+		if (!msr_info->host_initiated)
 			return 1;
 		vcpu->arch.msr_platform_info = data;
 		break;
@@ -4252,15 +4226,13 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		msr_info->data = vcpu->arch.microcode_version;
 		break;
 	case MSR_IA32_ARCH_CAPABILITIES:
-		if (!msr_info->host_initiated &&
-		    !guest_cpuid_has(vcpu, X86_FEATURE_ARCH_CAPABILITIES))
-			return 1;
+		if (!guest_cpuid_has(vcpu, X86_FEATURE_ARCH_CAPABILITIES))
+			return KVM_MSR_RET_UNSUPPORTED;
 		msr_info->data = vcpu->arch.arch_capabilities;
 		break;
 	case MSR_IA32_PERF_CAPABILITIES:
-		if (!msr_info->host_initiated &&
-		    !guest_cpuid_has(vcpu, X86_FEATURE_PDCM))
-			return 1;
+		if (!guest_cpuid_has(vcpu, X86_FEATURE_PDCM))
+			return KVM_MSR_RET_UNSUPPORTED;
 		msr_info->data = vcpu->arch.perf_capabilities;
 		break;
 	case MSR_IA32_POWER_CTL:
@@ -4314,7 +4286,7 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		msr_info->data = 1 << 24;
 		break;
 	case MSR_IA32_APICBASE:
-		msr_info->data = kvm_get_apic_base(vcpu);
+		msr_info->data = vcpu->arch.apic_base;
 		break;
 	case APIC_BASE_MSR ... APIC_BASE_MSR + 0xff:
 		return kvm_x2apic_msr_read(vcpu, msr_info->index, &msr_info->data);
@@ -5094,7 +5066,13 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 	int idx;
 
 	if (vcpu->preempted) {
-		vcpu->arch.preempted_in_kernel = kvm_arch_vcpu_in_kernel(vcpu);
+		/*
+		 * Assume protected guests are in-kernel.  Inefficient yielding
+		 * due to false positives is preferable to never yielding due
+		 * to false negatives.
+		 */
+		vcpu->arch.preempted_in_kernel = vcpu->arch.guest_state_protected ||
+						 !kvm_x86_call(get_cpl_no_cache)(vcpu);
 
 		/*
 		 * Take the srcu lock as memslots will be accessed to check the gfn
@@ -8612,6 +8590,12 @@ static gva_t emulator_get_untagged_addr(struct x86_emulate_ctxt *ctxt,
 					       addr, flags);
 }
 
+static bool emulator_is_canonical_addr(struct x86_emulate_ctxt *ctxt,
+				       gva_t addr, unsigned int flags)
+{
+	return !is_noncanonical_address(addr, emul_to_vcpu(ctxt), flags);
+}
+
 static const struct x86_emulate_ops emulate_ops = {
 	.vm_bugged           = emulator_vm_bugged,
 	.read_gpr            = emulator_read_gpr,
@@ -8658,6 +8642,7 @@ static const struct x86_emulate_ops emulate_ops = {
 	.triple_fault        = emulator_triple_fault,
 	.set_xcr             = emulator_set_xcr,
 	.get_untagged_addr   = emulator_get_untagged_addr,
+	.is_canonical_addr   = emulator_is_canonical_addr,
 };
 
 static void toggle_interruptibility(struct kvm_vcpu *vcpu, u32 mask)
@@ -10159,7 +10144,7 @@ static void post_kvm_run_save(struct kvm_vcpu *vcpu)
 
 	kvm_run->if_flag = kvm_x86_call(get_if_flag)(vcpu);
 	kvm_run->cr8 = kvm_get_cr8(vcpu);
-	kvm_run->apic_base = kvm_get_apic_base(vcpu);
+	kvm_run->apic_base = vcpu->arch.apic_base;
 
 	kvm_run->ready_for_interrupt_injection =
 		pic_in_kernel(vcpu->kvm) ||
@@ -10576,8 +10561,8 @@ static void kvm_vcpu_update_apicv(struct kvm_vcpu *vcpu)
 	 * deleted if any vCPU has xAPIC virtualization and x2APIC enabled, but
 	 * and hardware doesn't support x2APIC virtualization.  E.g. some AMD
 	 * CPUs support AVIC but not x2APIC.  KVM still allows enabling AVIC in
-	 * this case so that KVM can the AVIC doorbell to inject interrupts to
-	 * running vCPUs, but KVM must not create SPTEs for the APIC base as
+	 * this case so that KVM can use the AVIC doorbell to inject interrupts
+	 * to running vCPUs, but KVM must not create SPTEs for the APIC base as
 	 * the vCPU would incorrectly be able to access the vAPIC page via MMIO
 	 * despite being in x2APIC mode.  For simplicity, inhibiting the APIC
 	 * access page is sticky.
@@ -10606,11 +10591,11 @@ void __kvm_set_or_clear_apicv_inhibit(struct kvm *kvm,
 	if (!!old != !!new) {
 		/*
 		 * Kick all vCPUs before setting apicv_inhibit_reasons to avoid
-		 * false positives in the sanity check WARN in svm_vcpu_run().
+		 * false positives in the sanity check WARN in vcpu_enter_guest().
 		 * This task will wait for all vCPUs to ack the kick IRQ before
 		 * updating apicv_inhibit_reasons, and all other vCPUs will
 		 * block on acquiring apicv_update_lock so that vCPUs can't
-		 * redo svm_vcpu_run() without seeing the new inhibit state.
+		 * redo vcpu_enter_guest() without seeing the new inhibit state.
 		 *
 		 * Note, holding apicv_update_lock and taking it in the read
 		 * side (handling the request) also prevents other vCPUs from
@@ -11711,7 +11696,7 @@ skip_protected_regs:
 	sregs->cr4 = kvm_read_cr4(vcpu);
 	sregs->cr8 = kvm_get_cr8(vcpu);
 	sregs->efer = vcpu->arch.efer;
-	sregs->apic_base = kvm_get_apic_base(vcpu);
+	sregs->apic_base = vcpu->arch.apic_base;
 }
 
 static void __get_sregs(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs)
@@ -11888,16 +11873,13 @@ static bool kvm_is_valid_sregs(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs)
 static int __set_sregs_common(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs,
 		int *mmu_reset_needed, bool update_pdptrs)
 {
-	struct msr_data apic_base_msr;
 	int idx;
 	struct desc_ptr dt;
 
 	if (!kvm_is_valid_sregs(vcpu, sregs))
 		return -EINVAL;
 
-	apic_base_msr.data = sregs->apic_base;
-	apic_base_msr.host_initiated = true;
-	if (kvm_set_apic_base(vcpu, &apic_base_msr))
+	if (kvm_apic_set_base(vcpu, sregs->apic_base, true))
 		return -EINVAL;
 
 	if (vcpu->arch.guest_state_protected)
@@ -12299,7 +12281,11 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 
 	kvm_async_pf_hash_reset(vcpu);
 
-	vcpu->arch.perf_capabilities = kvm_caps.supported_perf_cap;
+	if (kvm_check_has_quirk(vcpu->kvm, KVM_X86_QUIRK_STUFF_FEATURE_MSRS)) {
+		vcpu->arch.arch_capabilities = kvm_get_arch_capabilities();
+		vcpu->arch.msr_platform_info = MSR_PLATFORM_INFO_CPUID_FAULT;
+		vcpu->arch.perf_capabilities = kvm_caps.supported_perf_cap;
+	}
 	kvm_pmu_init(vcpu);
 
 	vcpu->arch.pending_external_vector = -1;
@@ -12313,8 +12299,6 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 	if (r)
 		goto free_guest_fpu;
 
-	vcpu->arch.arch_capabilities = kvm_get_arch_capabilities();
-	vcpu->arch.msr_platform_info = MSR_PLATFORM_INFO_CPUID_FAULT;
 	kvm_xen_init_vcpu(vcpu);
 	vcpu_load(vcpu);
 	kvm_set_tsc_khz(vcpu, vcpu->kvm->arch.default_tsc_khz);
@@ -13104,19 +13088,15 @@ static void kvm_mmu_slot_apply_flags(struct kvm *kvm,
 
 	if (!log_dirty_pages) {
 		/*
-		 * Dirty logging tracks sptes in 4k granularity, meaning that
-		 * large sptes have to be split.  If live migration succeeds,
-		 * the guest in the source machine will be destroyed and large
-		 * sptes will be created in the destination.  However, if the
-		 * guest continues to run in the source machine (for example if
-		 * live migration fails), small sptes will remain around and
-		 * cause bad performance.
+		 * Recover huge page mappings in the slot now that dirty logging
+		 * is disabled, i.e. now that KVM does not have to track guest
+		 * writes at 4KiB granularity.
 		 *
-		 * Scan sptes if dirty logging has been stopped, dropping those
-		 * which can be collapsed into a single large-page spte.  Later
-		 * page faults will create the large-page sptes.
+		 * Dirty logging might be disabled by userspace if an ongoing VM
+		 * live migration is cancelled and the VM must continue running
+		 * on the source.
 		 */
-		kvm_mmu_zap_collapsible_sptes(kvm, new);
+		kvm_mmu_recover_huge_pages(kvm, new);
 	} else {
 		/*
 		 * Initially-all-set does not require write protecting any page,
@@ -13207,6 +13187,8 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 
 bool kvm_arch_vcpu_in_kernel(struct kvm_vcpu *vcpu)
 {
+	WARN_ON_ONCE(!kvm_arch_pmi_in_guest(vcpu));
+
 	if (vcpu->arch.guest_state_protected)
 		return true;
 
@@ -13215,6 +13197,11 @@ bool kvm_arch_vcpu_in_kernel(struct kvm_vcpu *vcpu)
 
 unsigned long kvm_arch_vcpu_get_ip(struct kvm_vcpu *vcpu)
 {
+	WARN_ON_ONCE(!kvm_arch_pmi_in_guest(vcpu));
+
+	if (vcpu->arch.guest_state_protected)
+		return 0;
+
 	return kvm_rip_read(vcpu);
 }
 
@@ -13730,7 +13717,7 @@ int kvm_handle_invpcid(struct kvm_vcpu *vcpu, unsigned long type, gva_t gva)
 		 * invalidation.
 		 */
 		if ((!pcid_enabled && (operand.pcid != 0)) ||
-		    is_noncanonical_address(operand.gla, vcpu)) {
+		    is_noncanonical_invlpg_address(operand.gla, vcpu)) {
 			kvm_inject_gp(vcpu, 0);
 			return 1;
 		}

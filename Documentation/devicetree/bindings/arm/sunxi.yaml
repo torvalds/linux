@@ -846,6 +846,12 @@ properties:
           - const: allwinner,sun50i-h64
           - const: allwinner,sun50i-a64
 
+      - description: RerVision A33-Vstar (with A33-Core1 SoM)
+        items:
+          - const: rervision,a33-vstar
+          - const: rervision,a33-core1
+          - const: allwinner,sun8i-a33
+
       - description: RerVision H3-DVK
         items:
           - const: rervision,h3-dvk

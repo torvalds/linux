@@ -1,0 +1,97 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/phy/rockchip,rk3228-hdmi-phy.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Rockchip HDMI PHY with Innosilicon IP block
+
+maintainers:
+  - Heiko Stuebner <heiko@sntech.de>
+
+properties:
+  compatible:
+    enum:
+      - rockchip,rk3228-hdmi-phy
+      - rockchip,rk3328-hdmi-phy
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 3
+
+  clock-names:
+    items:
+      - const: sysclk
+      - const: refoclk
+      - const: refpclk
+
+  clock-output-names:
+    description:
+      The hdmiphy output clock name, that gets fed back to the CRU.
+
+  "#clock-cells":
+    const: 0
+
+  interrupts:
+    maxItems: 1
+
+  nvmem-cells:
+    maxItems: 1
+    description: A phandle + nvmem specifier for the cpu-version efuse
+      for adjustment to some frequency settings, depending on cpu-version
+
+  nvmem-cell-names:
+    items:
+      - const: cpu-version
+
+  '#phy-cells':
+    const: 0
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - clock-output-names
+  - '#clock-cells'
+  - '#phy-cells'
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: rockchip,rk3228-hdmi-phy
+
+    then:
+      properties:
+        interrupts: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: rockchip,rk3328-hdmi-phy
+
+    then:
+      required:
+        - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+
+    #include <dt-bindings/clock/rk3228-cru.h>
+    hdmi_phy: phy@12030000 {
+      compatible = "rockchip,rk3228-hdmi-phy";
+      reg = <0x12030000 0x10000>;
+      #phy-cells = <0>;
+      clocks = <&cru PCLK_HDMI_PHY>, <&xin24m>, <&cru DCLK_HDMI_PHY>;
+      clock-names = "sysclk", "refoclk", "refpclk";
+      #clock-cells = <0>;
+
+      clock-output-names = "hdmi_phy";
+    };

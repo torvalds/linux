@@ -6,7 +6,7 @@
  *
  * This file includes utility functions to register clocks to common
  * clock framework for Samsung platforms.
-*/
+ */
 
 #include <linux/slab.h>
 #include <linux/clkdev.h>

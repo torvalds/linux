@@ -482,43 +482,6 @@ free_funq:
 	return NULL;
 }
 
-/* Create a funq's CQ on the device. */
-static int fun_create_cq(struct fun_queue *funq)
-{
-	struct fun_dev *fdev = funq->fdev;
-	unsigned int rqid;
-	int rc;
-
-	rqid = funq->cq_flags & FUN_ADMIN_EPCQ_CREATE_FLAG_RQ ?
-		funq->rqid : FUN_HCI_ID_INVALID;
-	rc = fun_cq_create(fdev, funq->cq_flags, funq->cqid, rqid,
-			   funq->cqe_size_log2, funq->cq_depth,
-			   funq->cq_dma_addr, 0, 0, funq->cq_intcoal_nentries,
-			   funq->cq_intcoal_usec, funq->cq_vector, 0, 0,
-			   &funq->cqid, &funq->cq_db);
-	if (!rc)
-		dev_dbg(fdev->dev, "created CQ %u\n", funq->cqid);
-
-	return rc;
-}
-
-/* Create a funq's SQ on the device. */
-static int fun_create_sq(struct fun_queue *funq)
-{
-	struct fun_dev *fdev = funq->fdev;
-	int rc;
-
-	rc = fun_sq_create(fdev, funq->sq_flags, funq->sqid, funq->cqid,
-			   funq->sqe_size_log2, funq->sq_depth,
-			   funq->sq_dma_addr, funq->sq_intcoal_nentries,
-			   funq->sq_intcoal_usec, funq->cq_vector, 0, 0,
-			   0, &funq->sqid, &funq->sq_db);
-	if (!rc)
-		dev_dbg(fdev->dev, "created SQ %u\n", funq->sqid);
-
-	return rc;
-}
-
 /* Create a funq's RQ on the device. */
 int fun_create_rq(struct fun_queue *funq)
 {
@@ -558,34 +521,6 @@ int fun_request_irq(struct fun_queue *funq, const char *devname,
 	if (rc)
 		funq->irq_handler = NULL;
 
-	return rc;
-}
-
-/* Create all component queues of a funq  on the device. */
-int fun_create_queue(struct fun_queue *funq)
-{
-	int rc;
-
-	rc = fun_create_cq(funq);
-	if (rc)
-		return rc;
-
-	if (funq->rq_depth) {
-		rc = fun_create_rq(funq);
-		if (rc)
-			goto release_cq;
-	}
-
-	rc = fun_create_sq(funq);
-	if (rc)
-		goto release_rq;
-
-	return 0;
-
-release_rq:
-	fun_destroy_sq(funq->fdev, funq->rqid);
-release_cq:
-	fun_destroy_cq(funq->fdev, funq->cqid);
 	return rc;
 }
 

@@ -81,10 +81,8 @@ struct intel_display_funcs {
 struct intel_wm_funcs {
 	/* update_wm is for legacy wm management */
 	void (*update_wm)(struct drm_i915_private *dev_priv);
-	int (*compute_pipe_wm)(struct intel_atomic_state *state,
-			       struct intel_crtc *crtc);
-	int (*compute_intermediate_wm)(struct intel_atomic_state *state,
-				       struct intel_crtc *crtc);
+	int (*compute_watermarks)(struct intel_atomic_state *state,
+				  struct intel_crtc *crtc);
 	void (*initial_watermarks)(struct intel_atomic_state *state,
 				   struct intel_crtc *crtc);
 	void (*atomic_update_watermarks)(struct intel_atomic_state *state,
@@ -286,6 +284,9 @@ struct intel_display {
 	/* drm device backpointer */
 	struct drm_device *drm;
 
+	/* Platform (and subplatform, if any) identification */
+	struct intel_display_platforms platform;
+
 	/* Display functions */
 	struct {
 		/* Top level crtc-ish functions */
@@ -456,6 +457,10 @@ struct intel_display {
 
 		/* For i915gm/i945gm vblank irq workaround */
 		u8 vblank_enabled;
+
+		int vblank_wa_num_pipes;
+
+		struct work_struct vblank_dc_work;
 
 		u32 de_irq_mask[I915_MAX_PIPES];
 		u32 pipestat_irq_mask[I915_MAX_PIPES];

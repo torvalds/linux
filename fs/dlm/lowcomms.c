@@ -660,18 +660,18 @@ static void add_sock(struct socket *sock, struct connection *con)
 
 /* Add the port number to an IPv6 or 4 sockaddr and return the address
    length */
-static void make_sockaddr(struct sockaddr_storage *saddr, uint16_t port,
+static void make_sockaddr(struct sockaddr_storage *saddr, __be16 port,
 			  int *addr_len)
 {
 	saddr->ss_family =  dlm_local_addr[0].ss_family;
 	if (saddr->ss_family == AF_INET) {
 		struct sockaddr_in *in4_addr = (struct sockaddr_in *)saddr;
-		in4_addr->sin_port = cpu_to_be16(port);
+		in4_addr->sin_port = port;
 		*addr_len = sizeof(struct sockaddr_in);
 		memset(&in4_addr->sin_zero, 0, sizeof(in4_addr->sin_zero));
 	} else {
 		struct sockaddr_in6 *in6_addr = (struct sockaddr_in6 *)saddr;
-		in6_addr->sin6_port = cpu_to_be16(port);
+		in6_addr->sin6_port = port;
 		*addr_len = sizeof(struct sockaddr_in6);
 	}
 	memset((char *)saddr + *addr_len, 0, sizeof(struct sockaddr_storage) - *addr_len);
@@ -1121,7 +1121,7 @@ static void writequeue_entry_complete(struct writequeue_entry *e, int completed)
 /*
  * sctp_bind_addrs - bind a SCTP socket to all our addresses
  */
-static int sctp_bind_addrs(struct socket *sock, uint16_t port)
+static int sctp_bind_addrs(struct socket *sock, __be16 port)
 {
 	struct sockaddr_storage localaddr;
 	struct sockaddr *addr = (struct sockaddr *)&localaddr;

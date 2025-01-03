@@ -257,6 +257,8 @@ static int select_gc_type(struct f2fs_sb_info *sbi, int gc_type)
 
 	switch (sbi->gc_mode) {
 	case GC_IDLE_CB:
+	case GC_URGENT_LOW:
+	case GC_URGENT_MID:
 		gc_mode = GC_CB;
 		break;
 	case GC_IDLE_GREEDY:
@@ -361,20 +363,15 @@ static unsigned int check_bg_victims(struct f2fs_sb_info *sbi)
 static unsigned int get_cb_cost(struct f2fs_sb_info *sbi, unsigned int segno)
 {
 	struct sit_info *sit_i = SIT_I(sbi);
-	unsigned int secno = GET_SEC_FROM_SEG(sbi, segno);
-	unsigned int start = GET_SEG_FROM_SEC(sbi, secno);
 	unsigned long long mtime = 0;
 	unsigned int vblocks;
 	unsigned char age = 0;
 	unsigned char u;
-	unsigned int i;
 	unsigned int usable_segs_per_sec = f2fs_usable_segs_in_sec(sbi);
 
-	for (i = 0; i < usable_segs_per_sec; i++)
-		mtime += get_seg_entry(sbi, start + i)->mtime;
+	mtime = f2fs_get_section_mtime(sbi, segno);
+	f2fs_bug_on(sbi, mtime == INVALID_MTIME);
 	vblocks = get_valid_blocks(sbi, segno, true);
-
-	mtime = div_u64(mtime, usable_segs_per_sec);
 	vblocks = div_u64(vblocks, usable_segs_per_sec);
 
 	u = BLKS_TO_SEGS(sbi, vblocks * 100);
@@ -519,10 +516,7 @@ static void add_victim_entry(struct f2fs_sb_info *sbi,
 				struct victim_sel_policy *p, unsigned int segno)
 {
 	struct sit_info *sit_i = SIT_I(sbi);
-	unsigned int secno = GET_SEC_FROM_SEG(sbi, segno);
-	unsigned int start = GET_SEG_FROM_SEC(sbi, secno);
 	unsigned long long mtime = 0;
-	unsigned int i;
 
 	if (unlikely(is_sbi_flag_set(sbi, SBI_CP_DISABLED))) {
 		if (p->gc_mode == GC_AT &&
@@ -530,9 +524,8 @@ static void add_victim_entry(struct f2fs_sb_info *sbi,
 			return;
 	}
 
-	for (i = 0; i < SEGS_PER_SEC(sbi); i++)
-		mtime += get_seg_entry(sbi, start + i)->mtime;
-	mtime = div_u64(mtime, SEGS_PER_SEC(sbi));
+	mtime = f2fs_get_section_mtime(sbi, segno);
+	f2fs_bug_on(sbi, mtime == INVALID_MTIME);
 
 	/* Handle if the system time has changed by the user */
 	if (mtime < sit_i->min_mtime)

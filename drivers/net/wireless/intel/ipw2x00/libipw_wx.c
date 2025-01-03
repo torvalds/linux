@@ -21,10 +21,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/jiffies.h>
-
-#include <net/lib80211.h>
 #include <linux/wireless.h>
-
 #include "libipw.h"
 
 static const char *libipw_modes[] = {
@@ -303,7 +300,7 @@ int libipw_wx_set_encode(struct libipw_device *ieee,
 		.flags = 0
 	};
 	int i, key, key_provided, len;
-	struct lib80211_crypt_data **crypt;
+	struct libipw_crypt_data **crypt;
 	int host_crypto = ieee->host_encrypt || ieee->host_decrypt;
 
 	LIBIPW_DEBUG_WX("SET_ENCODE\n");
@@ -328,7 +325,7 @@ int libipw_wx_set_encode(struct libipw_device *ieee,
 		if (key_provided && *crypt) {
 			LIBIPW_DEBUG_WX("Disabling encryption on key %d.\n",
 					   key);
-			lib80211_crypt_delayed_deinit(&ieee->crypt_info, crypt);
+			libipw_crypt_delayed_deinit(&ieee->crypt_info, crypt);
 		} else
 			LIBIPW_DEBUG_WX("Disabling encryption.\n");
 
@@ -338,7 +335,7 @@ int libipw_wx_set_encode(struct libipw_device *ieee,
 			if (ieee->crypt_info.crypt[i] != NULL) {
 				if (key_provided)
 					break;
-				lib80211_crypt_delayed_deinit(&ieee->crypt_info,
+				libipw_crypt_delayed_deinit(&ieee->crypt_info,
 							       &ieee->crypt_info.crypt[i]);
 			}
 		}
@@ -361,21 +358,21 @@ int libipw_wx_set_encode(struct libipw_device *ieee,
 	    strcmp((*crypt)->ops->name, "WEP") != 0) {
 		/* changing to use WEP; deinit previously used algorithm
 		 * on this key */
-		lib80211_crypt_delayed_deinit(&ieee->crypt_info, crypt);
+		libipw_crypt_delayed_deinit(&ieee->crypt_info, crypt);
 	}
 
 	if (*crypt == NULL && host_crypto) {
-		struct lib80211_crypt_data *new_crypt;
+		struct libipw_crypt_data *new_crypt;
 
 		/* take WEP into use */
-		new_crypt = kzalloc(sizeof(struct lib80211_crypt_data),
+		new_crypt = kzalloc(sizeof(struct libipw_crypt_data),
 				    GFP_KERNEL);
 		if (new_crypt == NULL)
 			return -ENOMEM;
-		new_crypt->ops = lib80211_get_crypto_ops("WEP");
+		new_crypt->ops = libipw_get_crypto_ops("WEP");
 		if (!new_crypt->ops) {
-			request_module("lib80211_crypt_wep");
-			new_crypt->ops = lib80211_get_crypto_ops("WEP");
+			request_module("libipw_crypt_wep");
+			new_crypt->ops = libipw_get_crypto_ops("WEP");
 		}
 
 		if (new_crypt->ops && try_module_get(new_crypt->ops->owner))
@@ -386,7 +383,7 @@ int libipw_wx_set_encode(struct libipw_device *ieee,
 			new_crypt = NULL;
 
 			printk(KERN_WARNING "%s: could not initialize WEP: "
-			       "load module lib80211_crypt_wep\n", dev->name);
+			       "load module libipw_crypt_wep\n", dev->name);
 			return -EOPNOTSUPP;
 		}
 		*crypt = new_crypt;
@@ -509,8 +506,8 @@ int libipw_wx_set_encodeext(struct libipw_device *ieee,
 	int i, idx, ret = 0;
 	int group_key = 0;
 	const char *alg, *module;
-	const struct lib80211_crypto_ops *ops;
-	struct lib80211_crypt_data **crypt;
+	const struct libipw_crypto_ops *ops;
+	struct libipw_crypt_data **crypt;
 
 	struct libipw_security sec = {
 		.flags = 0,
@@ -541,7 +538,7 @@ int libipw_wx_set_encodeext(struct libipw_device *ieee,
 	if ((encoding->flags & IW_ENCODE_DISABLED) ||
 	    ext->alg == IW_ENCODE_ALG_NONE) {
 		if (*crypt)
-			lib80211_crypt_delayed_deinit(&ieee->crypt_info, crypt);
+			libipw_crypt_delayed_deinit(&ieee->crypt_info, crypt);
 
 		for (i = 0; i < WEP_KEYS; i++)
 			if (ieee->crypt_info.crypt[i] != NULL)
@@ -567,15 +564,15 @@ int libipw_wx_set_encodeext(struct libipw_device *ieee,
 	switch (ext->alg) {
 	case IW_ENCODE_ALG_WEP:
 		alg = "WEP";
-		module = "lib80211_crypt_wep";
+		module = "libipw_crypt_wep";
 		break;
 	case IW_ENCODE_ALG_TKIP:
 		alg = "TKIP";
-		module = "lib80211_crypt_tkip";
+		module = "libipw_crypt_tkip";
 		break;
 	case IW_ENCODE_ALG_CCMP:
 		alg = "CCMP";
-		module = "lib80211_crypt_ccmp";
+		module = "libipw_crypt_ccmp";
 		break;
 	default:
 		LIBIPW_DEBUG_WX("%s: unknown crypto alg %d\n",
@@ -584,10 +581,10 @@ int libipw_wx_set_encodeext(struct libipw_device *ieee,
 		goto done;
 	}
 
-	ops = lib80211_get_crypto_ops(alg);
+	ops = libipw_get_crypto_ops(alg);
 	if (ops == NULL) {
 		request_module(module);
-		ops = lib80211_get_crypto_ops(alg);
+		ops = libipw_get_crypto_ops(alg);
 	}
 	if (ops == NULL) {
 		LIBIPW_DEBUG_WX("%s: unknown crypto alg %d\n",
@@ -597,9 +594,9 @@ int libipw_wx_set_encodeext(struct libipw_device *ieee,
 	}
 
 	if (*crypt == NULL || (*crypt)->ops != ops) {
-		struct lib80211_crypt_data *new_crypt;
+		struct libipw_crypt_data *new_crypt;
 
-		lib80211_crypt_delayed_deinit(&ieee->crypt_info, crypt);
+		libipw_crypt_delayed_deinit(&ieee->crypt_info, crypt);
 
 		new_crypt = kzalloc(sizeof(*new_crypt), GFP_KERNEL);
 		if (new_crypt == NULL) {

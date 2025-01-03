@@ -603,6 +603,19 @@ int bch2_journal_res_get_slowpath(struct journal *j, struct journal_res *res,
 {
 	int ret;
 
+	if (closure_wait_event_timeout(&j->async_wait,
+		   (ret = __journal_res_get(j, res, flags)) != -BCH_ERR_journal_res_get_blocked ||
+		   (flags & JOURNAL_RES_GET_NONBLOCK),
+		   HZ * 10))
+		return ret;
+
+	struct bch_fs *c = container_of(j, struct bch_fs, journal);
+	struct printbuf buf = PRINTBUF;
+	bch2_journal_debug_to_text(&buf, j);
+	bch_err(c, "Journal stuck? Waited for 10 seconds...\n%s",
+		buf.buf);
+	printbuf_exit(&buf);
+
 	closure_wait_event(&j->async_wait,
 		   (ret = __journal_res_get(j, res, flags)) != -BCH_ERR_journal_res_get_blocked ||
 		   (flags & JOURNAL_RES_GET_NONBLOCK));
@@ -745,7 +758,7 @@ out:
 	return ret;
 }
 
-int bch2_journal_flush_seq(struct journal *j, u64 seq)
+int bch2_journal_flush_seq(struct journal *j, u64 seq, unsigned task_state)
 {
 	u64 start_time = local_clock();
 	int ret, ret2;
@@ -756,7 +769,9 @@ int bch2_journal_flush_seq(struct journal *j, u64 seq)
 	if (seq <= j->flushed_seq_ondisk)
 		return 0;
 
-	ret = wait_event_interruptible(j->wait, (ret2 = bch2_journal_flush_seq_async(j, seq, NULL)));
+	ret = wait_event_state(j->wait,
+			       (ret2 = bch2_journal_flush_seq_async(j, seq, NULL)),
+			       task_state);
 
 	if (!ret)
 		bch2_time_stats_update(j->flush_seq_time, start_time);
@@ -775,7 +790,7 @@ void bch2_journal_flush_async(struct journal *j, struct closure *parent)
 
 int bch2_journal_flush(struct journal *j)
 {
-	return bch2_journal_flush_seq(j, atomic64_read(&j->seq));
+	return bch2_journal_flush_seq(j, atomic64_read(&j->seq), TASK_UNINTERRUPTIBLE);
 }
 
 /*
@@ -838,7 +853,7 @@ int bch2_journal_meta(struct journal *j)
 
 	bch2_journal_res_put(j, &res);
 
-	return bch2_journal_flush_seq(j, res.seq);
+	return bch2_journal_flush_seq(j, res.seq, TASK_UNINTERRUPTIBLE);
 }
 
 /* block/unlock the journal: */

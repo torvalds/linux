@@ -45,7 +45,7 @@ static void radisys_set_piomode (struct ata_port *ap, struct ata_device *adev)
 	int control = 0;
 
 	/*
-	 *	See Intel Document 298600-004 for the timing programing rules
+	 *	See Intel Document 298600-004 for the timing programming rules
 	 *	for PIIX/ICH. Note that the early PIIX does not have the slave
 	 *	timing port at 0x44. The Radisys is a relative of the PIIX
 	 *	but not the same so be careful.

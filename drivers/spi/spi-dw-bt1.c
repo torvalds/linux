@@ -317,7 +317,7 @@ MODULE_DEVICE_TABLE(of, dw_spi_bt1_of_match);
 
 static struct platform_driver dw_spi_bt1_driver = {
 	.probe	= dw_spi_bt1_probe,
-	.remove_new = dw_spi_bt1_remove,
+	.remove = dw_spi_bt1_remove,
 	.driver	= {
 		.name		= "bt1-sys-ssi",
 		.of_match_table	= dw_spi_bt1_of_match,

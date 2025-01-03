@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/cirrus,cs42l84.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Cirrus Logic CS42L84 audio CODEC
+
+maintainers:
+  - Martin Povišer <povik+lin@cutebit.org>
+
+description: |
+  The CS42L84 is a headphone jack codec made by Cirrus Logic and embedded
+  in personal computers sold by Apple. It was first seen in 2021 Macbook
+  Pro models. It has stereo DAC for playback, mono ADC for capture, and
+  is somewhat similar to CS42L42 but with a different regmap.
+
+properties:
+  compatible:
+    enum:
+      - cirrus,cs42l84
+
+  reg:
+    maxItems: 1
+
+  reset-gpios:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  '#sound-dai-cells':
+    const: 0
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      jack_codec: codec@4b {
+          compatible = "cirrus,cs42l84";
+          reg = <0x4b>;
+          reset-gpios = <&pinctrl_nub 4 GPIO_ACTIVE_LOW>;
+          interrupts-extended = <&pinctrl_ap 180 IRQ_TYPE_LEVEL_LOW>;
+          #sound-dai-cells = <0>;
+      };
+    };

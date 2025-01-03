@@ -708,7 +708,7 @@ static ssize_t sel_write_checkreqprot(struct file *file, const char __user *buf,
 	if (new_value) {
 		char comm[sizeof(current->comm)];
 
-		memcpy(comm, current->comm, sizeof(comm));
+		strscpy(comm, current->comm);
 		pr_err("SELinux: %s (%d) set checkreqprot to 1. This is no longer supported.\n",
 		       comm, current->pid);
 	}
@@ -1068,6 +1068,10 @@ static ssize_t sel_write_user(struct file *file, char *buf, size_t size)
 	char *newcon;
 	int rc;
 	u32 i, len, nsids;
+
+	pr_warn_ratelimited("SELinux: %s (%d) wrote to /sys/fs/selinux/user!"
+		" This will not be supported in the future; please update your"
+		" userspace.\n", current->comm, current->pid);
 
 	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
 			      SECCLASS_SECURITY, SECURITY__COMPUTE_USER,

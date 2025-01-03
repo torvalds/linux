@@ -139,7 +139,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_hog>;
 
-	pinctrl_hog: hog {
+	pinctrl_hog: hoggrp {
 		fsl,pins = <
 			MX6QDL_PAD_NANDF_D0__GPIO2_IO00		0x00000018 /* buzzer */
 			MX6QDL_PAD_KEY_COL1__GPIO4_IO08		0x00000018 /* OUT_1 */

@@ -625,12 +625,6 @@ static const struct vb2_ops dcmipp_bytecap_qops = {
 	.buf_prepare		= dcmipp_bytecap_buf_prepare,
 	.buf_queue		= dcmipp_bytecap_buf_queue,
 	.queue_setup		= dcmipp_bytecap_queue_setup,
-	/*
-	 * Since q->lock is set we can use the standard
-	 * vb2_ops_wait_prepare/finish helper functions.
-	 */
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 };
 
 static void dcmipp_bytecap_release(struct video_device *vdev)

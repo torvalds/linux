@@ -197,8 +197,7 @@
 				ic99: ethernet-phy@1 {
 					reg = <1>;
 					compatible = "ethernet-phy-ieee802.3-c45";
-					interrupt-parent = <&gpio3>;
-					interrupts = <10 IRQ_TYPE_LEVEL_LOW>;
+					interrupts-extended = <&gpio3 10 IRQ_TYPE_LEVEL_LOW>;
 				};
 			};
 		};
@@ -216,8 +215,7 @@
 				ic102: ethernet-phy@2 {
 					reg = <2>;
 					compatible = "ethernet-phy-ieee802.3-c45";
-					interrupt-parent = <&gpio3>;
-					interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
+					interrupts-extended = <&gpio3 11 IRQ_TYPE_LEVEL_LOW>;
 				};
 			};
 		};

@@ -1312,7 +1312,7 @@ static struct platform_driver hix5hd2_dev_driver = {
 		.of_match_table = hix5hd2_of_match,
 	},
 	.probe = hix5hd2_dev_probe,
-	.remove_new = hix5hd2_dev_remove,
+	.remove = hix5hd2_dev_remove,
 };
 
 module_platform_driver(hix5hd2_dev_driver);

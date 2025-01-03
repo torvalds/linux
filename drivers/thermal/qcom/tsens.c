@@ -1120,6 +1120,9 @@ static const struct of_device_id tsens_table[] = {
 		.compatible = "qcom,msm8916-tsens",
 		.data = &data_8916,
 	}, {
+		.compatible = "qcom,msm8937-tsens",
+		.data = &data_8937,
+	}, {
 		.compatible = "qcom,msm8939-tsens",
 		.data = &data_8939,
 	}, {
@@ -1360,7 +1363,7 @@ static void tsens_remove(struct platform_device *pdev)
 
 static struct platform_driver tsens_driver = {
 	.probe = tsens_probe,
-	.remove_new = tsens_remove,
+	.remove = tsens_remove,
 	.driver = {
 		.name = "qcom-tsens",
 		.pm	= &tsens_pm_ops,

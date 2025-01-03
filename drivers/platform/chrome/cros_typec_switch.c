@@ -318,7 +318,7 @@ static struct platform_driver cros_typec_switch_driver = {
 		.acpi_match_table = ACPI_PTR(cros_typec_switch_acpi_id),
 	},
 	.probe = cros_typec_switch_probe,
-	.remove_new = cros_typec_switch_remove,
+	.remove = cros_typec_switch_remove,
 };
 
 module_platform_driver(cros_typec_switch_driver);

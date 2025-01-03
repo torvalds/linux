@@ -18,7 +18,7 @@
 		     "google,veyron-fievel-rev0", "google,veyron-fievel",
 		     "google,veyron", "rockchip,rk3288";
 
-	vccsys: vccsys {
+	vccsys: regulator-vccsys {
 		compatible = "regulator-fixed";
 		regulator-name = "vccsys";
 		regulator-boot-on;
@@ -29,14 +29,14 @@
 	 * vcc33_pmuio and vcc33_io is sourced directly from vcc33_sys,
 	 * enabled by vcc_18
 	 */
-	vcc33_io: vcc33-io {
+	vcc33_io: regulator-vcc33-io {
 		compatible = "regulator-fixed";
 		regulator-always-on;
 		regulator-boot-on;
 		regulator-name = "vcc33_io";
 	};
 
-	vcc5_host1: vcc5-host1-regulator {
+	vcc5_host1: regulator-vcc5-host1 {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio5 RK_PC2 GPIO_ACTIVE_HIGH>;
@@ -47,7 +47,7 @@
 		regulator-boot-on;
 	};
 
-	vcc5_host2: vcc5-host2-regulator {
+	vcc5_host2: regulator-vcc5-host2 {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio5 RK_PB6 GPIO_ACTIVE_HIGH>;
@@ -58,7 +58,7 @@
 		regulator-boot-on;
 	};
 
-	vcc5v_otg: vcc5v-otg-regulator {
+	vcc5v_otg: regulator-vcc5v-otg {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;

@@ -210,7 +210,7 @@ static uint8_t *get_last_jit_image(char *haystack, size_t hlen,
 		return NULL;
 	}
 	if (proglen > 1000000) {
-		printf("proglen of %d too big, stopping\n", proglen);
+		printf("proglen of %u too big, stopping\n", proglen);
 		return NULL;
 	}
 

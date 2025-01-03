@@ -69,7 +69,6 @@ void adf_devmgr_rm_dev(struct adf_accel_dev *accel_dev,
 		       struct adf_accel_dev *pf);
 struct list_head *adf_devmgr_get_head(void);
 struct adf_accel_dev *adf_devmgr_get_dev_by_id(u32 id);
-struct adf_accel_dev *adf_devmgr_get_first(void);
 struct adf_accel_dev *adf_devmgr_pci_to_accel_dev(struct pci_dev *pci_dev);
 int adf_devmgr_verify_id(u32 id);
 void adf_devmgr_get_num_dev(u32 *num);

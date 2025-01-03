@@ -1857,7 +1857,6 @@ static enum lru_status
 xfs_buftarg_drain_rele(
 	struct list_head	*item,
 	struct list_lru_one	*lru,
-	spinlock_t		*lru_lock,
 	void			*arg)
 
 {
@@ -1956,7 +1955,6 @@ static enum lru_status
 xfs_buftarg_isolate(
 	struct list_head	*item,
 	struct list_lru_one	*lru,
-	spinlock_t		*lru_lock,
 	void			*arg)
 {
 	struct xfs_buf		*bp = container_of(item, struct xfs_buf, b_lru);
@@ -2114,6 +2112,13 @@ xfs_alloc_buftarg(
 	btp->bt_dev = btp->bt_bdev->bd_dev;
 	btp->bt_daxdev = fs_dax_get_by_bdev(btp->bt_bdev, &btp->bt_dax_part_off,
 					    mp, ops);
+
+	if (bdev_can_atomic_write(btp->bt_bdev)) {
+		btp->bt_bdev_awu_min = bdev_atomic_write_unit_min_bytes(
+						btp->bt_bdev);
+		btp->bt_bdev_awu_max = bdev_atomic_write_unit_max_bytes(
+						btp->bt_bdev);
+	}
 
 	/*
 	 * When allocating the buftargs we have not yet read the super block and

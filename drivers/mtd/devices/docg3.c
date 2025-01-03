@@ -2075,7 +2075,7 @@ static struct platform_driver g3_driver = {
 	},
 	.suspend	= docg3_suspend,
 	.resume		= docg3_resume,
-	.remove_new	= docg3_release,
+	.remove		= docg3_release,
 };
 
 module_platform_driver_probe(g3_driver, docg3_probe);

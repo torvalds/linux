@@ -65,6 +65,9 @@ cc-option-bit = $(if-success,$(CC) -Werror $(1) -E -x c /dev/null -o /dev/null,$
 m32-flag := $(cc-option-bit,-m32)
 m64-flag := $(cc-option-bit,-m64)
 
+rustc-version := $(shell,$(srctree)/scripts/rustc-version.sh $(RUSTC))
+rustc-llvm-version := $(shell,$(srctree)/scripts/rustc-llvm-version.sh $(RUSTC))
+
 # $(rustc-option,<flag>)
 # Return y if the Rust compiler supports <flag>, n otherwise
 # Calls to this should be guarded so that they are not evaluated if

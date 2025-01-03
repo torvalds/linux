@@ -993,6 +993,7 @@ config CODE_TAGGING
 config MEM_ALLOC_PROFILING
 	bool "Enable memory allocation profiling"
 	default n
+	depends on MMU
 	depends on PROC_FS
 	depends on !DEBUG_FORCE_WEAK_PER_CPU
 	select CODE_TAGGING
@@ -1328,19 +1329,6 @@ config SCHEDSTATS
 
 endmenu
 
-config DEBUG_TIMEKEEPING
-	bool "Enable extra timekeeping sanity checking"
-	help
-	  This option will enable additional timekeeping sanity checks
-	  which may be helpful when diagnosing issues where timekeeping
-	  problems are suspected.
-
-	  This may include checks in the timekeeping hotpaths, so this
-	  option may have a (very small) performance impact to some
-	  workloads.
-
-	  If unsure, say N.
-
 config DEBUG_PREEMPT
 	bool "Debug preemptible kernel"
 	depends on DEBUG_KERNEL && PREEMPTION && TRACE_IRQFLAGS_SUPPORT
@@ -1409,21 +1397,13 @@ config PROVE_LOCKING
 	 For more details, see Documentation/locking/lockdep-design.rst.
 
 config PROVE_RAW_LOCK_NESTING
-	bool "Enable raw_spinlock - spinlock nesting checks"
+	bool
 	depends on PROVE_LOCKING
-	default n
+	default y
 	help
 	 Enable the raw_spinlock vs. spinlock nesting checks which ensure
 	 that the lock nesting rules for PREEMPT_RT enabled kernels are
 	 not violated.
-
-	 NOTE: There are known nesting problems. So if you enable this
-	 option expect lockdep splats until these problems have been fully
-	 addressed which is work in progress. This config switch allows to
-	 identify and analyze these problems. It will be removed and the
-	 check permanently enabled once the main issues have been fixed.
-
-	 If unsure, select N.
 
 config LOCK_STAT
 	bool "Lock usage statistics"
@@ -1905,7 +1885,7 @@ config STRICT_DEVMEM
 	bool "Filter access to /dev/mem"
 	depends on MMU && DEVMEM
 	depends on ARCH_HAS_DEVMEM_IS_ALLOWED || GENERIC_LIB_DEVMEM_IS_ALLOWED
-	default y if PPC || X86 || ARM64
+	default y if PPC || X86 || ARM64 || S390
 	help
 	  If this option is disabled, you allow userspace (root) access to all
 	  of memory, including kernel and userspace memory. Accidental
@@ -2115,6 +2095,16 @@ config FAIL_SUNRPC
 	  Provide fault-injection capability for SunRPC and
 	  its consumers.
 
+config FAIL_SKB_REALLOC
+	bool "Fault-injection capability forcing skb to reallocate"
+	depends on FAULT_INJECTION_DEBUG_FS
+	help
+	  Provide fault-injection capability that forces the skb to be
+	  reallocated, catching possible invalid pointers to the skb.
+
+	  For more information, check
+	  Documentation/dev-tools/fault-injection/fault-injection.rst
+
 config FAULT_INJECTION_CONFIGFS
 	bool "Configfs interface for fault-injection capabilities"
 	depends on FAULT_INJECTION
@@ -2279,6 +2269,7 @@ config TEST_LIST_SORT
 config TEST_MIN_HEAP
 	tristate "Min heap test"
 	depends on DEBUG_KERNEL || m
+	select MIN_HEAP
 	help
 	  Enable this to turn on min heap function tests. This test is
 	  executed only once during system boot (so affects only boot time),
@@ -2629,6 +2620,23 @@ config CHECKSUM_KUNIT
 
 	  If unsure, say N.
 
+config UTIL_MACROS_KUNIT
+	tristate "KUnit test util_macros.h functions at runtime" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  Enable this option to test the util_macros.h function at boot.
+
+	  KUnit tests run during boot and output the results to the debug log
+	  in TAP format (http://testanything.org/). Only useful for kernel devs
+	  running the KUnit test harness, and not intended for inclusion into a
+	  production build.
+
+	  For more information on KUnit and unit tests in general please refer
+	  to the KUnit documentation in Documentation/dev-tools/kunit/.
+
+	  If unsure, say N.
+
 config HASH_KUNIT_TEST
 	tristate "KUnit Test for integer hash functions" if !KUNIT_ALL_TESTS
 	depends on KUNIT
@@ -2850,6 +2858,15 @@ config USERCOPY_KUNIT_TEST
 	  on the copy_to/from_user infrastructure, making sure basic
 	  user/kernel boundary testing is working.
 
+config CRC16_KUNIT_TEST
+	tristate "KUnit tests for CRC16"
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	select CRC16
+	help
+	  Enable this option to run unit tests for the kernel's CRC16
+	  implementation (<linux/crc16.h>).
+
 config TEST_UDELAY
 	tristate "udelay test driver"
 	help
@@ -2902,6 +2919,141 @@ config TEST_KMOD
 	  tools/testing/selftests/kmod/kmod.sh --help
 
 	  If unsure, say N.
+
+config TEST_RUNTIME
+	bool
+
+config TEST_RUNTIME_MODULE
+	bool
+
+config TEST_KALLSYMS
+	tristate "module kallsyms find_symbol() test"
+	depends on m
+	select TEST_RUNTIME
+	select TEST_RUNTIME_MODULE
+	select TEST_KALLSYMS_A
+	select TEST_KALLSYMS_B
+	select TEST_KALLSYMS_C
+	select TEST_KALLSYMS_D
+	help
+	  This allows us to stress test find_symbol() through the kallsyms
+	  used to place symbols on the kernel ELF kallsyms and modules kallsyms
+	  where we place kernel symbols such as exported symbols.
+
+	  We have four test modules:
+
+	  A: has KALLSYSMS_NUMSYMS exported symbols
+	  B: uses one of A's symbols
+	  C: adds KALLSYMS_SCALE_FACTOR * KALLSYSMS_NUMSYMS exported
+	  D: adds 2 * the symbols than C
+
+	  We stress test find_symbol() through two means:
+
+	  1) Upon load of B it will trigger simplify_symbols() to look for the
+	  one symbol it uses from the module A with tons of symbols. This is an
+	  indirect way for us to have B call resolve_symbol_wait() upon module
+	  load. This will eventually call find_symbol() which will eventually
+	  try to find the symbols used with find_exported_symbol_in_section().
+	  find_exported_symbol_in_section() uses bsearch() so a binary search
+	  for each symbol. Binary search will at worst be O(log(n)) so the
+	  larger TEST_MODULE_KALLSYSMS the worse the search.
+
+	  2) The selftests should load C first, before B. Upon B's load towards
+	  the end right before we call module B's init routine we get
+	  complete_formation() called on the module. That will first check
+	  for duplicate symbols with the call to verify_exported_symbols().
+	  That is when we'll force iteration on module C's insane symbol list.
+	  Since it has 10 * KALLSYMS_NUMSYMS it means we can first test
+	  just loading B without C. The amount of time it takes to load C Vs
+	  B can give us an idea of the impact growth of the symbol space and
+	  give us projection. Module A only uses one symbol from B so to allow
+	  this scaling in module C to be proportional, if it used more symbols
+	  then the first test would be doing more and increasing just the
+	  search space would be slightly different. The last module, module D
+	  will just increase the search space by twice the number of symbols in
+	  C so to allow for full projects.
+
+	  tools/testing/selftests/module/find_symbol.sh
+
+	  The current defaults will incur a build delay of about 7 minutes
+	  on an x86_64 with only 8 cores. Enable this only if you want to
+	  stress test find_symbol() with thousands of symbols. At the same
+	  time this is also useful to test building modules with thousands of
+	  symbols, and if BTF is enabled this also stress tests adding BTF
+	  information for each module. Currently enabling many more symbols
+	  will segfault the build system.
+
+	  If unsure, say N.
+
+if TEST_KALLSYMS
+
+config TEST_KALLSYMS_A
+	tristate
+	depends on m
+
+config TEST_KALLSYMS_B
+	tristate
+	depends on m
+
+config TEST_KALLSYMS_C
+	tristate
+	depends on m
+
+config TEST_KALLSYMS_D
+	tristate
+	depends on m
+
+choice
+	prompt "Kallsym test range"
+	default TEST_KALLSYMS_LARGE
+	help
+	  Selecting something other than "Fast" will enable tests which slow
+	  down the build and may crash your build.
+
+config TEST_KALLSYMS_FAST
+	bool "Fast builds"
+	help
+	  You won't really be testing kallsysms, so this just helps fast builds
+	  when allmodconfig is used..
+
+config TEST_KALLSYMS_LARGE
+	bool "Enable testing kallsyms with large exports"
+	help
+	  This will enable larger number of symbols. This will slow down
+	  your build considerably.
+
+config TEST_KALLSYMS_MAX
+	bool "Known kallsysms limits"
+	help
+	  This will enable exports to the point we know we'll start crashing
+	  builds.
+
+endchoice
+
+config TEST_KALLSYMS_NUMSYMS
+	int "test kallsyms number of symbols"
+	range 2 10000
+	default 2 if TEST_KALLSYMS_FAST
+	default 100 if TEST_KALLSYMS_LARGE
+	default 10000 if TEST_KALLSYMS_MAX
+	help
+	  The number of symbols to create on TEST_KALLSYMS_A, only one of which
+	  module TEST_KALLSYMS_B will use. This also will be used
+	  for how many symbols TEST_KALLSYMS_C will have, scaled up by
+	  TEST_KALLSYMS_SCALE_FACTOR. Note that setting this to 10,000 will
+	  trigger a segfault today, don't use anything close to it unless
+	  you are aware that this should not be used for automated build tests.
+
+config TEST_KALLSYMS_SCALE_FACTOR
+	int "test kallsyms scale factor"
+	default 8
+	help
+	  How many more unusued symbols will TEST_KALLSYSMS_C have than
+	  TEST_KALLSYMS_A. If 8, then module C will have 8 * syms
+	  than module A. Then TEST_KALLSYMS_D will have double the amount
+	  of symbols than C so to allow projections.
+
+endif # TEST_KALLSYMS
 
 config TEST_DEBUG_VIRTUAL
 	tristate "Test CONFIG_DEBUG_VIRTUAL feature"
@@ -2993,6 +3145,22 @@ config TEST_OBJPOOL
 
 	  If unsure, say N.
 
+config INT_POW_TEST
+	tristate "Integer exponentiation (int_pow) test" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This option enables the KUnit test suite for the int_pow function,
+	  which performs integer exponentiation. The test suite is designed to
+	  verify that the implementation of int_pow correctly computes the power
+	  of a given base raised to a given exponent.
+
+	  Enabling this option will include tests that check various scenarios
+	  and edge cases to ensure the accuracy and reliability of the exponentiation
+	  function.
+
+	  If unsure, say N
+
 endif # RUNTIME_TESTING_MENU
 
 config ARCH_USE_MEMTEST
@@ -3060,7 +3228,7 @@ config RUST_BUILD_ASSERT_ALLOW
 	bool "Allow unoptimized build-time assertions"
 	depends on RUST
 	help
-	  Controls how are `build_error!` and `build_assert!` handled during build.
+	  Controls how `build_error!` and `build_assert!` are handled during the build.
 
 	  If calls to them exist in the binary, it may indicate a violated invariant
 	  or that the optimizer failed to verify the invariant during compilation.
@@ -3088,19 +3256,3 @@ config RUST_KERNEL_DOCTESTS
 endmenu # "Rust"
 
 endmenu # Kernel hacking
-
-config INT_POW_TEST
-	tristate "Integer exponentiation (int_pow) test" if !KUNIT_ALL_TESTS
-	depends on KUNIT
-	default KUNIT_ALL_TESTS
-	help
-	  This option enables the KUnit test suite for the int_pow function,
-	  which performs integer exponentiation. The test suite is designed to
-	  verify that the implementation of int_pow correctly computes the power
-	  of a given base raised to a given exponent.
-
-	  Enabling this option will include tests that check various scenarios
-	  and edge cases to ensure the accuracy and reliability of the exponentiation
-	  function.
-
-	  If unsure, say N

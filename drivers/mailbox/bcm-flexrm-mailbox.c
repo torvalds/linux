@@ -1675,7 +1675,7 @@ static struct platform_driver flexrm_mbox_driver = {
 		.of_match_table = flexrm_mbox_of_match,
 	},
 	.probe		= flexrm_mbox_probe,
-	.remove_new	= flexrm_mbox_remove,
+	.remove		= flexrm_mbox_remove,
 };
 module_platform_driver(flexrm_mbox_driver);
 

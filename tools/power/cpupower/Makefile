@@ -57,7 +57,7 @@ LIB_MIN=			1
 
 PACKAGE =			cpupower
 PACKAGE_BUGREPORT =		linux-pm@vger.kernel.org
-LANGUAGES = 			de fr it cs pt ka
+LANGUAGES = 			de fr it cs pt ka zh_CN
 
 
 # Directory definitions. These are default and most probably
@@ -86,12 +86,12 @@ INSTALL_SCRIPT = ${INSTALL} -m 644
 # If you are running a cross compiler, you may want to set this
 # to something more interesting, like "arm-linux-".  If you want
 # to compile vs uClibc, that can be done here as well.
-CROSS = #/usr/i386-linux-uclibc/usr/bin/i386-uclibc-
-CC = $(CROSS)gcc
-LD = $(CROSS)gcc
-AR = $(CROSS)ar
-STRIP = $(CROSS)strip
-RANLIB = $(CROSS)ranlib
+CROSS ?= #/usr/i386-linux-uclibc/usr/bin/i386-uclibc-
+CC ?= $(CROSS)gcc
+LD ?= $(CROSS)gcc
+AR ?= $(CROSS)ar
+STRIP ?= $(CROSS)strip
+RANLIB ?= $(CROSS)ranlib
 HOSTCC = gcc
 MKDIR = mkdir
 
@@ -218,17 +218,28 @@ else
 endif
 	$(QUIET) $(STRIPCMD) $@
 
+ifeq (, $(shell which xgettext))
+$(warning "Install xgettext to extract translatable strings.")
+else
 $(OUTPUT)po/$(PACKAGE).pot: $(UTIL_SRC)
 	$(ECHO) "  GETTEXT " $@
 	$(QUIET) xgettext --default-domain=$(PACKAGE) --add-comments \
 		--keyword=_ --keyword=N_ $(UTIL_SRC) -p $(@D) -o $(@F)
+endif
 
+ifeq (, $(shell which msgfmt))
+$(warning "Install msgfmt to generate binary message catalogs.")
+else
 $(OUTPUT)po/%.gmo: po/%.po
 	$(ECHO) "  MSGFMT  " $@
 	$(QUIET) msgfmt -o $@ po/$*.po
+endif
 
 create-gmo: ${GMO_FILES}
 
+ifeq (, $(shell which msgmerge))
+$(warning "Install msgmerge to merge translations.")
+else
 update-po: $(OUTPUT)po/$(PACKAGE).pot
 	$(ECHO) "  MSGMRG  " $@
 	$(QUIET) @for HLANG in $(LANGUAGES); do \
@@ -241,6 +252,7 @@ update-po: $(OUTPUT)po/$(PACKAGE).pot
 			rm -f $(OUTPUT)po/$$HLANG.new.po; \
 		fi; \
 	done;
+endif
 
 compile-bench: $(OUTPUT)libcpupower.so.$(LIB_MAJ)
 	@V=$(V) confdir=$(confdir) $(MAKE) -C bench O=$(OUTPUT)

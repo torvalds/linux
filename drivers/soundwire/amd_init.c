@@ -121,6 +121,7 @@ static struct sdw_amd_ctx *sdw_amd_probe_controller(struct sdw_amd_res *res)
 
 		sdw_pdata[index].instance = index;
 		sdw_pdata[index].acp_sdw_lock = res->acp_lock;
+		sdw_pdata[index].acp_rev = res->acp_rev;
 		pdevinfo[index].name = "amd_sdw_manager";
 		pdevinfo[index].id = index;
 		pdevinfo[index].parent = res->parent;
@@ -177,7 +178,7 @@ EXPORT_SYMBOL_NS(sdw_amd_probe, SOUNDWIRE_AMD_INIT);
 void sdw_amd_exit(struct sdw_amd_ctx *ctx)
 {
 	sdw_amd_cleanup(ctx);
-	kfree(ctx->ids);
+	kfree(ctx->peripherals);
 	kfree(ctx);
 }
 EXPORT_SYMBOL_NS(sdw_amd_exit, SOUNDWIRE_AMD_INIT);
@@ -204,10 +205,11 @@ int sdw_amd_get_slave_info(struct sdw_amd_ctx *ctx)
 			num_slaves++;
 	}
 
-	ctx->ids = kcalloc(num_slaves, sizeof(*ctx->ids), GFP_KERNEL);
-	if (!ctx->ids)
+	ctx->peripherals = kmalloc(struct_size(ctx->peripherals, array, num_slaves),
+				   GFP_KERNEL);
+	if (!ctx->peripherals)
 		return -ENOMEM;
-	ctx->num_slaves = num_slaves;
+	ctx->peripherals->num_peripherals = num_slaves;
 	for (index = 0; index < ctx->count; index++) {
 		if (!(ctx->link_mask & BIT(index)))
 			continue;
@@ -215,8 +217,7 @@ int sdw_amd_get_slave_info(struct sdw_amd_ctx *ctx)
 		if (amd_manager) {
 			bus = &amd_manager->bus;
 			list_for_each_entry(slave, &bus->slaves, node) {
-				ctx->ids[i].id = slave->id;
-				ctx->ids[i].link_id = bus->link_id;
+				ctx->peripherals->array[i] = slave;
 				i++;
 			}
 		}

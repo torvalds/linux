@@ -3413,15 +3413,6 @@ bfa_tskim_iocdisable_ios(struct bfa_tskim_s *tskim)
 }
 
 /*
- * Notification on completions from related ioim.
- */
-void
-bfa_tskim_iodone(struct bfa_tskim_s *tskim)
-{
-	bfa_wc_down(&tskim->wc);
-}
-
-/*
  * Handle IOC h/w failure notification from itnim.
  */
 void

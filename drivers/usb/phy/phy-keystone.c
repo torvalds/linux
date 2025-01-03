@@ -103,7 +103,7 @@ MODULE_DEVICE_TABLE(of, keystone_usbphy_ids);
 
 static struct platform_driver keystone_usbphy_driver = {
 	.probe          = keystone_usbphy_probe,
-	.remove_new     = keystone_usbphy_remove,
+	.remove         = keystone_usbphy_remove,
 	.driver         = {
 		.name   = "keystone-usbphy",
 		.of_match_table = keystone_usbphy_ids,

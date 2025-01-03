@@ -41,7 +41,7 @@
 #include <asm/extable.h>
 #include <asm/insn.h>
 #include <asm/kprobes.h>
-#include <asm/patching.h>
+#include <asm/text-patching.h>
 #include <asm/traps.h>
 #include <asm/smp.h>
 #include <asm/stack_pointer.h>
@@ -506,6 +506,16 @@ void do_el1_bti(struct pt_regs *regs, unsigned long esr)
 	die("Oops - BTI", regs, esr);
 }
 
+void do_el0_gcs(struct pt_regs *regs, unsigned long esr)
+{
+	force_signal_inject(SIGSEGV, SEGV_CPERR, regs->pc, 0);
+}
+
+void do_el1_gcs(struct pt_regs *regs, unsigned long esr)
+{
+	die("Oops - GCS", regs, esr);
+}
+
 void do_el0_fpac(struct pt_regs *regs, unsigned long esr)
 {
 	force_signal_inject(SIGILL, ILL_ILLOPN, regs->pc, esr);
@@ -529,6 +539,13 @@ void do_el0_mops(struct pt_regs *regs, unsigned long esr)
 	 * prologue instruction.
 	 */
 	user_fastforward_single_step(current);
+}
+
+void do_el1_mops(struct pt_regs *regs, unsigned long esr)
+{
+	arm64_mops_reset_regs(&regs->user_regs, esr);
+
+	kernel_fastforward_single_step(regs);
 }
 
 #define __user_cache_maint(insn, address, res)			\
@@ -852,6 +869,7 @@ static const char *esr_class_str[] = {
 	[ESR_ELx_EC_MOPS]		= "MOPS",
 	[ESR_ELx_EC_FP_EXC32]		= "FP (AArch32)",
 	[ESR_ELx_EC_FP_EXC64]		= "FP (AArch64)",
+	[ESR_ELx_EC_GCS]		= "Guarded Control Stack",
 	[ESR_ELx_EC_SERROR]		= "SError",
 	[ESR_ELx_EC_BREAKPT_LOW]	= "Breakpoint (lower EL)",
 	[ESR_ELx_EC_BREAKPT_CUR]	= "Breakpoint (current EL)",

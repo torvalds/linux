@@ -13,7 +13,7 @@
 	};
 
 	/* labeled +12v in schematic */
-	vcc12v_dcin: vcc12v-dcin-regulator {
+	vcc12v_dcin: regulator-vcc12v-dcin {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc12v_dcin";
 		regulator-always-on;
@@ -23,7 +23,7 @@
 	};
 
 	/* labeled +5v in schematic */
-	vcc_5v: vcc-5v-regulator {
+	vcc_5v: regulator-vcc-5v {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_5v";
 		regulator-always-on;
@@ -33,7 +33,7 @@
 		vin-supply = <&vcc12v_dcin>;
 	};
 
-	vcc_sd_pwr: vcc-sd-pwr-regulator {
+	vcc_sd_pwr: regulator-vcc-sd-pwr {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_sd_pwr";
 		regulator-always-on;

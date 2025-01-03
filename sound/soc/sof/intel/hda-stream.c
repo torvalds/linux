@@ -119,13 +119,39 @@ int hda_dsp_stream_setup_bdl(struct snd_sof_dev *sdev,
 	int remain, ioc;
 
 	period_bytes = hstream->period_bytes;
-	dev_dbg(sdev->dev, "period_bytes:0x%x\n", period_bytes);
-	if (!period_bytes)
+	dev_dbg(sdev->dev, "period_bytes: %#x, bufsize: %#x\n", period_bytes,
+		hstream->bufsize);
+
+	if (!period_bytes) {
+		unsigned int chunk_size;
+
+		chunk_size = snd_sgbuf_get_chunk_size(dmab, 0, hstream->bufsize);
+
 		period_bytes = hstream->bufsize;
+
+		/*
+		 * HDA spec demands that the LVI value must be at least one
+		 * before the DMA operation can begin. This means that there
+		 * must be at least two BDLE present for the transfer.
+		 *
+		 * If the buffer is not a single continuous area then the
+		 * hda_setup_bdle() will create multiple BDLEs for each segment.
+		 * If the memory is a single continuous area, force it to be
+		 * split into two 'periods', otherwise the transfer will be
+		 * split to multiple BDLE for each chunk in hda_setup_bdle()
+		 *
+		 * Note: period_bytes == 0 can only happen for firmware or
+		 * library loading. The data size is 4K aligned, which ensures
+		 * that the second chunk's start address will be 128-byte
+		 * aligned.
+		 */
+		if (chunk_size == hstream->bufsize)
+			period_bytes /= 2;
+	}
 
 	periods = hstream->bufsize / period_bytes;
 
-	dev_dbg(sdev->dev, "periods:%d\n", periods);
+	dev_dbg(sdev->dev, "periods: %d\n", periods);
 
 	remain = hstream->bufsize % period_bytes;
 	if (remain)

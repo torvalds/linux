@@ -22,6 +22,7 @@
 #include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/of_platform.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 
@@ -893,7 +894,6 @@ static bool amc6821_volatile_reg(struct device *dev, unsigned int reg)
 static const struct regmap_config amc6821_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.max_register = AMC6821_REG_CONF3,
 	.volatile_reg = amc6821_volatile_reg,
 	.cache_type = REGCACHE_MAPLE,
 };
@@ -920,6 +920,13 @@ static int amc6821_probe(struct i2c_client *client)
 	if (err)
 		return err;
 
+	if (of_device_is_compatible(dev->of_node, "tsd,mule")) {
+		err = devm_of_platform_populate(dev);
+		if (err)
+			return dev_err_probe(dev, err,
+				     "Failed to create sub-devices\n");
+	}
+
 	hwmon_dev = devm_hwmon_device_register_with_info(dev, client->name,
 							 data, &amc6821_chip_info,
 							 amc6821_groups);
@@ -927,7 +934,7 @@ static int amc6821_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id amc6821_id[] = {
-	{ "amc6821", 0 },
+	{ "amc6821" },
 	{ }
 };
 
@@ -936,6 +943,9 @@ MODULE_DEVICE_TABLE(i2c, amc6821_id);
 static const struct of_device_id __maybe_unused amc6821_of_match[] = {
 	{
 		.compatible = "ti,amc6821",
+	},
+	{
+		.compatible = "tsd,mule",
 	},
 	{ }
 };

@@ -104,15 +104,14 @@ static int vfio_group_ioctl_set_container(struct vfio_group *group,
 {
 	struct vfio_container *container;
 	struct iommufd_ctx *iommufd;
-	struct fd f;
 	int ret;
 	int fd;
 
 	if (get_user(fd, arg))
 		return -EFAULT;
 
-	f = fdget(fd);
-	if (!fd_file(f))
+	CLASS(fd, f)(fd);
+	if (fd_empty(f))
 		return -EBADF;
 
 	mutex_lock(&group->group_lock);
@@ -153,7 +152,6 @@ static int vfio_group_ioctl_set_container(struct vfio_group *group,
 
 out_unlock:
 	mutex_unlock(&group->group_lock);
-	fdput(f);
 	return ret;
 }
 

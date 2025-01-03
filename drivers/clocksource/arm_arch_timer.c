@@ -1179,8 +1179,6 @@ static void arch_timer_stop(struct clock_event_device *clk)
 	disable_percpu_irq(arch_timer_ppi[arch_timer_uses_ppi]);
 	if (arch_timer_has_nonsecure_ppi())
 		disable_percpu_irq(arch_timer_ppi[ARCH_TIMER_PHYS_NONSECURE_PPI]);
-
-	clk->set_state_shutdown(clk);
 }
 
 static int arch_timer_dying_cpu(unsigned int cpu)
@@ -1430,7 +1428,7 @@ static int __init arch_timer_of_init(struct device_node *np)
 
 	arch_timers_present |= ARCH_TIMER_TYPE_CP15;
 
-	has_names = of_property_read_bool(np, "interrupt-names");
+	has_names = of_property_present(np, "interrupt-names");
 
 	for (i = ARCH_TIMER_PHYS_SECURE_PPI; i < ARCH_TIMER_MAX_TIMER_PPI; i++) {
 		if (has_names)

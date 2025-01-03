@@ -53,6 +53,7 @@ properties:
           - pci14e4,4488  # BCM4377
           - pci14e4,4425  # BCM4378
           - pci14e4,4433  # BCM4387
+          - pci14e4,449d  # BCM43752
 
   reg:
     description: SDIO function number for the device (for most cases
@@ -120,6 +121,14 @@ properties:
       platforms with different antenna configs to have different firmware and/or
       NVRAM. This would normally be filled in by the bootloader from platform
       configuration data.
+
+  clocks:
+    items:
+      - description: External Low Power Clock input (32.768KHz)
+
+  clock-names:
+    items:
+      - const: lpo
 
 required:
   - compatible

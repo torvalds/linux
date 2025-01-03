@@ -32,8 +32,8 @@
 
 #define VIRTIO_MAX_RX_TIMEOUT_MS	60000
 #define VIRTIO_SCMI_MAX_MSG_SIZE 128 /* Value may be increased. */
-#define VIRTIO_SCMI_MAX_PDU_SIZE \
-	(VIRTIO_SCMI_MAX_MSG_SIZE + SCMI_MSG_MAX_PROT_OVERHEAD)
+#define VIRTIO_SCMI_MAX_PDU_SIZE(ci) \
+	((ci)->max_msg_size + SCMI_MSG_MAX_PROT_OVERHEAD)
 #define DESCRIPTORS_PER_TX_MSG 2
 
 /**
@@ -90,6 +90,7 @@ enum poll_states {
  * @input: SDU used for (delayed) responses and notifications
  * @list: List which scmi_vio_msg may be part of
  * @rx_len: Input SDU size in bytes, once input has been received
+ * @max_len: Maximumm allowed SDU size in bytes
  * @poll_idx: Last used index registered for polling purposes if this message
  *	      transaction reply was configured for polling.
  * @poll_status: Polling state for this message.
@@ -102,6 +103,7 @@ struct scmi_vio_msg {
 	struct scmi_msg_payld *input;
 	struct list_head list;
 	unsigned int rx_len;
+	unsigned int max_len;
 	unsigned int poll_idx;
 	enum poll_states poll_status;
 	/* Lock to protect access to poll_status */
@@ -234,7 +236,7 @@ static int scmi_vio_feed_vq_rx(struct scmi_vio_channel *vioch,
 	unsigned long flags;
 	struct device *dev = &vioch->vqueue->vdev->dev;
 
-	sg_init_one(&sg_in, msg->input, VIRTIO_SCMI_MAX_PDU_SIZE);
+	sg_init_one(&sg_in, msg->input, msg->max_len);
 
 	spin_lock_irqsave(&vioch->lock, flags);
 
@@ -439,9 +441,9 @@ static int virtio_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 		if (!msg)
 			return -ENOMEM;
 
+		msg->max_len = VIRTIO_SCMI_MAX_PDU_SIZE(cinfo);
 		if (tx) {
-			msg->request = devm_kzalloc(dev,
-						    VIRTIO_SCMI_MAX_PDU_SIZE,
+			msg->request = devm_kzalloc(dev, msg->max_len,
 						    GFP_KERNEL);
 			if (!msg->request)
 				return -ENOMEM;
@@ -449,8 +451,7 @@ static int virtio_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 			refcount_set(&msg->users, 1);
 		}
 
-		msg->input = devm_kzalloc(dev, VIRTIO_SCMI_MAX_PDU_SIZE,
-					  GFP_KERNEL);
+		msg->input = devm_kzalloc(dev, msg->max_len, GFP_KERNEL);
 		if (!msg->input)
 			return -ENOMEM;
 

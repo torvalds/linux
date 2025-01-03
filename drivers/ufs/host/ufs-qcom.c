@@ -828,10 +828,26 @@ static int ufs_qcom_apply_dev_quirks(struct ufs_hba *hba)
 	if (hba->dev_quirks & UFS_DEVICE_QUIRK_HOST_PA_SAVECONFIGTIME)
 		err = ufs_qcom_quirk_host_pa_saveconfigtime(hba);
 
-	if (hba->dev_info.wmanufacturerid == UFS_VENDOR_WDC)
-		hba->dev_quirks |= UFS_DEVICE_QUIRK_HOST_PA_TACTIVATE;
-
 	return err;
+}
+
+/* UFS device-specific quirks */
+static struct ufs_dev_quirk ufs_qcom_dev_fixups[] = {
+	{ .wmanufacturerid = UFS_VENDOR_SKHYNIX,
+	  .model = UFS_ANY_MODEL,
+	  .quirk = UFS_DEVICE_QUIRK_DELAY_BEFORE_LPM },
+	{ .wmanufacturerid = UFS_VENDOR_TOSHIBA,
+	  .model = UFS_ANY_MODEL,
+	  .quirk = UFS_DEVICE_QUIRK_DELAY_AFTER_LPM },
+	{ .wmanufacturerid = UFS_VENDOR_WDC,
+	  .model = UFS_ANY_MODEL,
+	  .quirk = UFS_DEVICE_QUIRK_HOST_PA_TACTIVATE },
+	{}
+};
+
+static void ufs_qcom_fixup_dev_quirks(struct ufs_hba *hba)
+{
+	ufshcd_fixup_dev_quirks(hba, ufs_qcom_dev_fixups);
 }
 
 static u32 ufs_qcom_get_ufs_hci_version(struct ufs_hba *hba)
@@ -858,7 +874,8 @@ static void ufs_qcom_advertise_quirks(struct ufs_hba *hba)
 	if (host->hw_ver.major > 0x3)
 		hba->quirks |= UFSHCD_QUIRK_REINIT_AFTER_MAX_GEAR_SWITCH;
 
-	if (of_device_is_compatible(hba->dev->of_node, "qcom,sm8550-ufshc"))
+	if (of_device_is_compatible(hba->dev->of_node, "qcom,sm8550-ufshc") ||
+	    of_device_is_compatible(hba->dev->of_node, "qcom,sm8650-ufshc"))
 		hba->quirks |= UFSHCD_QUIRK_BROKEN_LSDBS_CAP;
 }
 
@@ -1801,6 +1818,7 @@ static const struct ufs_hba_variant_ops ufs_hba_qcom_vops = {
 	.link_startup_notify    = ufs_qcom_link_startup_notify,
 	.pwr_change_notify	= ufs_qcom_pwr_change_notify,
 	.apply_dev_quirks	= ufs_qcom_apply_dev_quirks,
+	.fixup_dev_quirks       = ufs_qcom_fixup_dev_quirks,
 	.suspend		= ufs_qcom_suspend,
 	.resume			= ufs_qcom_resume,
 	.dbg_register_dump	= ufs_qcom_dump_dbg_regs,

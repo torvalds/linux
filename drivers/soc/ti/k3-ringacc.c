@@ -1562,7 +1562,7 @@ static void k3_ringacc_remove(struct platform_device *pdev)
 
 static struct platform_driver k3_ringacc_driver = {
 	.probe		= k3_ringacc_probe,
-	.remove_new	= k3_ringacc_remove,
+	.remove		= k3_ringacc_remove,
 	.driver		= {
 		.name	= "k3-ringacc",
 		.of_match_table = k3_ringacc_of_match,

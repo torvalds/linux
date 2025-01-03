@@ -164,7 +164,7 @@ static struct platform_driver timbradio_platform_driver = {
 		.name	= DRIVER_NAME,
 	},
 	.probe		= timbradio_probe,
-	.remove_new	= timbradio_remove,
+	.remove		= timbradio_remove,
 };
 
 module_platform_driver(timbradio_platform_driver);

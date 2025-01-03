@@ -779,7 +779,7 @@ static int ubd_open_dev(struct ubd *ubd_dev)
 
 static void ubd_device_release(struct device *dev)
 {
-	struct ubd *ubd_dev = dev_get_drvdata(dev);
+	struct ubd *ubd_dev = container_of(dev, struct ubd, pdev.dev);
 
 	blk_mq_free_tag_set(&ubd_dev->tag_set);
 	*ubd_dev = ((struct ubd) DEFAULT_UBD);
@@ -897,6 +897,8 @@ static int ubd_add(int n, char **error_out)
 	err = device_add_disk(&ubd_dev->pdev.dev, disk, ubd_attr_groups);
 	if (err)
 		goto out_cleanup_disk;
+
+	ubd_dev->disk = disk;
 
 	return 0;
 
@@ -1499,6 +1501,7 @@ int io_thread(void *arg)
 {
 	int n, count, written, res;
 
+	os_set_pdeathsig();
 	os_fix_helper_signals();
 
 	while(1){

@@ -257,20 +257,20 @@ static int acp_power_on(struct acp_chip_info *chip)
 
 	base = chip->base;
 	switch (chip->acp_rev) {
-	case ACP3X_DEV:
+	case ACP_RN_PCI_ID:
 		acp_pgfsm_stat_reg = ACP_PGFSM_STATUS;
 		acp_pgfsm_ctrl_reg = ACP_PGFSM_CONTROL;
 		break;
-	case ACP6X_DEV:
+	case ACP_RMB_PCI_ID:
 		acp_pgfsm_stat_reg = ACP6X_PGFSM_STATUS;
 		acp_pgfsm_ctrl_reg = ACP6X_PGFSM_CONTROL;
 		break;
-	case ACP63_DEV:
+	case ACP63_PCI_ID:
 		acp_pgfsm_stat_reg = ACP63_PGFSM_STATUS;
 		acp_pgfsm_ctrl_reg = ACP63_PGFSM_CONTROL;
 		break;
-	case ACP70_DEV:
-	case ACP71_DEV:
+	case ACP70_PCI_ID:
+	case ACP71_PCI_ID:
 		acp_pgfsm_stat_reg = ACP70_PGFSM_STATUS;
 		acp_pgfsm_ctrl_reg = ACP70_PGFSM_CONTROL;
 		break;
@@ -322,7 +322,7 @@ int acp_init(struct acp_chip_info *chip)
 		pr_err("ACP reset failed\n");
 		return ret;
 	}
-	if (chip->acp_rev >= ACP70_DEV)
+	if (chip->acp_rev >= ACP70_PCI_ID)
 		writel(0, chip->base + ACP_ZSC_DSP_CTRL);
 	return 0;
 }
@@ -337,7 +337,7 @@ int acp_deinit(struct acp_chip_info *chip)
 	if (ret)
 		return ret;
 
-	if (chip->acp_rev < ACP70_DEV)
+	if (chip->acp_rev < ACP70_PCI_ID)
 		writel(0, chip->base + ACP_CONTROL);
 	else
 		writel(0x01, chip->base + ACP_ZSC_DSP_CTRL);
@@ -448,20 +448,20 @@ void check_acp_config(struct pci_dev *pci, struct acp_chip_info *chip)
 	u32 pdm_addr;
 
 	switch (chip->acp_rev) {
-	case ACP3X_DEV:
+	case ACP_RN_PCI_ID:
 		pdm_addr = ACP_RENOIR_PDM_ADDR;
 		check_acp3x_config(chip);
 		break;
-	case ACP6X_DEV:
+	case ACP_RMB_PCI_ID:
 		pdm_addr = ACP_REMBRANDT_PDM_ADDR;
 		check_acp6x_config(chip);
 		break;
-	case ACP63_DEV:
+	case ACP63_PCI_ID:
 		pdm_addr = ACP63_PDM_ADDR;
 		check_acp6x_config(chip);
 		break;
-	case ACP70_DEV:
-	case ACP71_DEV:
+	case ACP70_PCI_ID:
+	case ACP71_PCI_ID:
 		pdm_addr = ACP70_PDM_ADDR;
 		check_acp70_config(chip);
 		break;

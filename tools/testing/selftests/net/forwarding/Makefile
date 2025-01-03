@@ -126,6 +126,7 @@ TEST_FILES := devlink_lib.sh \
 	tc_common.sh
 
 TEST_INCLUDES := \
-	../lib.sh
+	../lib.sh \
+	$(wildcard ../lib/sh/*.sh)
 
 include ../../lib.mk

@@ -269,8 +269,4 @@ void auxiliary_driver_unregister(struct auxiliary_driver *auxdrv);
 #define module_auxiliary_driver(__auxiliary_driver) \
 	module_driver(__auxiliary_driver, auxiliary_driver_register, auxiliary_driver_unregister)
 
-struct auxiliary_device *auxiliary_find_device(struct device *start,
-					       const void *data,
-					       device_match_t match);
-
 #endif /* _AUXILIARY_BUS_H_ */

@@ -95,6 +95,7 @@ static const char * const iio_chan_type_name_spec[] = {
 	[IIO_DELTA_VELOCITY] = "deltavelocity",
 	[IIO_COLORTEMP] = "colortemp",
 	[IIO_CHROMATICITY] = "chromaticity",
+	[IIO_ATTENTION] = "attention",
 };
 
 static const char * const iio_modifier_names[] = {
@@ -1665,7 +1666,7 @@ struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv)
 	indio_dev = &iio_dev_opaque->indio_dev;
 
 	if (sizeof_priv)
-		indio_dev->priv = (char *)iio_dev_opaque +
+		ACCESS_PRIVATE(indio_dev, priv) = (char *)iio_dev_opaque +
 			ALIGN(sizeof(*iio_dev_opaque), IIO_DMA_MINALIGN);
 
 	indio_dev->dev.parent = parent;

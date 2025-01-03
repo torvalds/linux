@@ -546,16 +546,10 @@ static inline struct hstate *hstate_inode(struct inode *i)
 }
 #endif /* !CONFIG_HUGETLBFS */
 
-#ifdef HAVE_ARCH_HUGETLB_UNMAPPED_AREA
-unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
-					unsigned long len, unsigned long pgoff,
-					unsigned long flags);
-#endif /* HAVE_ARCH_HUGETLB_UNMAPPED_AREA */
-
 unsigned long
-generic_hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
-				  unsigned long len, unsigned long pgoff,
-				  unsigned long flags);
+hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
+				    unsigned long len, unsigned long pgoff,
+				    unsigned long flags);
 
 /*
  * huegtlb page specific state flags.  These flags are located in page.private
@@ -1035,8 +1029,18 @@ void hugetlb_unregister_node(struct node *node);
  */
 bool is_raw_hwpoison_page_in_hugepage(struct page *page);
 
+static inline unsigned long huge_page_mask_align(struct file *file)
+{
+	return PAGE_MASK & ~huge_page_mask(hstate_file(file));
+}
+
 #else	/* CONFIG_HUGETLB_PAGE */
 struct hstate {};
+
+static inline unsigned long huge_page_mask_align(struct file *file)
+{
+	return 0;
+}
 
 static inline struct hugepage_subpool *hugetlb_folio_subpool(struct folio *folio)
 {

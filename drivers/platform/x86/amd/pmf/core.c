@@ -261,6 +261,7 @@ int amd_pmf_set_dram_addr(struct amd_pmf_dev *dev, bool alloc_buffer)
 			dev->mtable_size = sizeof(dev->m_table);
 			break;
 		case PCI_DEVICE_ID_AMD_1AH_M20H_ROOT:
+		case PCI_DEVICE_ID_AMD_1AH_M60H_ROOT:
 			dev->mtable_size = sizeof(dev->m_table_v2);
 			break;
 		default:
@@ -429,18 +430,18 @@ static int amd_pmf_probe(struct platform_device *pdev)
 
 	err = amd_smn_read(0, AMD_PMF_BASE_ADDR_LO, &val);
 	if (err) {
-		dev_err(dev->dev, "error in reading from 0x%x\n", AMD_PMF_BASE_ADDR_LO);
 		pci_dev_put(rdev);
-		return pcibios_err_to_errno(err);
+		return dev_err_probe(dev->dev, pcibios_err_to_errno(err),
+				     "error in reading from 0x%x\n", AMD_PMF_BASE_ADDR_LO);
 	}
 
 	base_addr_lo = val & AMD_PMF_BASE_ADDR_HI_MASK;
 
 	err = amd_smn_read(0, AMD_PMF_BASE_ADDR_HI, &val);
 	if (err) {
-		dev_err(dev->dev, "error in reading from 0x%x\n", AMD_PMF_BASE_ADDR_HI);
 		pci_dev_put(rdev);
-		return pcibios_err_to_errno(err);
+		return dev_err_probe(dev->dev, pcibios_err_to_errno(err),
+				     "error in reading from 0x%x\n", AMD_PMF_BASE_ADDR_HI);
 	}
 
 	base_addr_hi = val & AMD_PMF_BASE_ADDR_LO_MASK;
@@ -496,7 +497,7 @@ static struct platform_driver amd_pmf_driver = {
 		.pm = pm_sleep_ptr(&amd_pmf_pm),
 	},
 	.probe = amd_pmf_probe,
-	.remove_new = amd_pmf_remove,
+	.remove = amd_pmf_remove,
 };
 module_platform_driver(amd_pmf_driver);
 

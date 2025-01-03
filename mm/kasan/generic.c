@@ -392,9 +392,12 @@ void kasan_cache_create(struct kmem_cache *cache, unsigned int *size,
 	 * 1. Object is SLAB_TYPESAFE_BY_RCU, which means that it can
 	 *    be touched after it was freed, or
 	 * 2. Object has a constructor, which means it's expected to
-	 *    retain its content until the next allocation.
+	 *    retain its content until the next allocation, or
+	 * 3. It is from a kmalloc cache which enables the debug option
+	 *    to store original size.
 	 */
-	if ((cache->flags & SLAB_TYPESAFE_BY_RCU) || cache->ctor) {
+	if ((cache->flags & SLAB_TYPESAFE_BY_RCU) || cache->ctor ||
+	     slub_debug_orig_size(cache)) {
 		cache->kasan_info.free_meta_offset = *size;
 		*size += sizeof(struct kasan_free_meta);
 		goto free_meta_added;

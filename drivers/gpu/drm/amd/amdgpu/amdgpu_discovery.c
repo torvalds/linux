@@ -1723,45 +1723,85 @@ union nps_info {
 	struct nps_info_v1_0 v1;
 };
 
+static int amdgpu_discovery_refresh_nps_info(struct amdgpu_device *adev,
+					     union nps_info *nps_data)
+{
+	uint64_t vram_size, pos, offset;
+	struct nps_info_header *nhdr;
+	struct binary_header bhdr;
+	uint16_t checksum;
+
+	vram_size = (uint64_t)RREG32(mmRCC_CONFIG_MEMSIZE) << 20;
+	pos = vram_size - DISCOVERY_TMR_OFFSET;
+	amdgpu_device_vram_access(adev, pos, &bhdr, sizeof(bhdr), false);
+
+	offset = le16_to_cpu(bhdr.table_list[NPS_INFO].offset);
+	checksum = le16_to_cpu(bhdr.table_list[NPS_INFO].checksum);
+
+	amdgpu_device_vram_access(adev, (pos + offset), nps_data,
+				  sizeof(*nps_data), false);
+
+	nhdr = (struct nps_info_header *)(nps_data);
+	if (!amdgpu_discovery_verify_checksum((uint8_t *)nps_data,
+					      le32_to_cpu(nhdr->size_bytes),
+					      checksum)) {
+		dev_err(adev->dev, "nps data refresh, checksum mismatch\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 int amdgpu_discovery_get_nps_info(struct amdgpu_device *adev,
 				  uint32_t *nps_type,
 				  struct amdgpu_gmc_memrange **ranges,
-				  int *range_cnt)
+				  int *range_cnt, bool refresh)
 {
 	struct amdgpu_gmc_memrange *mem_ranges;
 	struct binary_header *bhdr;
 	union nps_info *nps_info;
+	union nps_info nps_data;
 	u16 offset;
-	int i;
+	int i, r;
 
 	if (!nps_type || !range_cnt || !ranges)
 		return -EINVAL;
 
-	if (!adev->mman.discovery_bin) {
-		dev_err(adev->dev,
-			"fetch mem range failed, ip discovery uninitialized\n");
-		return -EINVAL;
+	if (refresh) {
+		r = amdgpu_discovery_refresh_nps_info(adev, &nps_data);
+		if (r)
+			return r;
+		nps_info = &nps_data;
+	} else {
+		if (!adev->mman.discovery_bin) {
+			dev_err(adev->dev,
+				"fetch mem range failed, ip discovery uninitialized\n");
+			return -EINVAL;
+		}
+
+		bhdr = (struct binary_header *)adev->mman.discovery_bin;
+		offset = le16_to_cpu(bhdr->table_list[NPS_INFO].offset);
+
+		if (!offset)
+			return -ENOENT;
+
+		/* If verification fails, return as if NPS table doesn't exist */
+		if (amdgpu_discovery_verify_npsinfo(adev, bhdr))
+			return -ENOENT;
+
+		nps_info =
+			(union nps_info *)(adev->mman.discovery_bin + offset);
 	}
-
-	bhdr = (struct binary_header *)adev->mman.discovery_bin;
-	offset = le16_to_cpu(bhdr->table_list[NPS_INFO].offset);
-
-	if (!offset)
-		return -ENOENT;
-
-	/* If verification fails, return as if NPS table doesn't exist */
-	if (amdgpu_discovery_verify_npsinfo(adev, bhdr))
-		return -ENOENT;
-
-	nps_info = (union nps_info *)(adev->mman.discovery_bin + offset);
 
 	switch (le16_to_cpu(nps_info->v1.header.version_major)) {
 	case 1:
+		mem_ranges = kvcalloc(nps_info->v1.count,
+				      sizeof(*mem_ranges),
+				      GFP_KERNEL);
+		if (!mem_ranges)
+			return -ENOMEM;
 		*nps_type = nps_info->v1.nps_type;
 		*range_cnt = nps_info->v1.count;
-		mem_ranges = kvzalloc(
-			*range_cnt * sizeof(struct amdgpu_gmc_memrange),
-			GFP_KERNEL);
 		for (i = 0; i < *range_cnt; i++) {
 			mem_ranges[i].base_address =
 				nps_info->v1.instance_info[i].base_address;
@@ -2492,6 +2532,7 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 			adev->ip_versions[GC_HWIP][0] = IP_VERSION(9, 2, 2);
 			adev->ip_versions[UVD_HWIP][0] = IP_VERSION(1, 0, 1);
 			adev->ip_versions[DCE_HWIP][0] = IP_VERSION(1, 0, 1);
+			adev->ip_versions[ISP_HWIP][0] = IP_VERSION(2, 0, 0);
 		} else {
 			adev->ip_versions[MMHUB_HWIP][0] = IP_VERSION(9, 1, 0);
 			adev->ip_versions[ATHUB_HWIP][0] = IP_VERSION(9, 1, 0);
@@ -2508,6 +2549,7 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 			adev->ip_versions[GC_HWIP][0] = IP_VERSION(9, 1, 0);
 			adev->ip_versions[UVD_HWIP][0] = IP_VERSION(1, 0, 0);
 			adev->ip_versions[DCE_HWIP][0] = IP_VERSION(1, 0, 0);
+			adev->ip_versions[ISP_HWIP][0] = IP_VERSION(2, 0, 0);
 		}
 		break;
 	case CHIP_VEGA20:

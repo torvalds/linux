@@ -470,7 +470,7 @@ static const struct dev_pm_ops dw_mci_k3_dev_pm_ops = {
 
 static struct platform_driver dw_mci_k3_pltfm_driver = {
 	.probe		= dw_mci_k3_probe,
-	.remove_new	= dw_mci_pltfm_remove,
+	.remove		= dw_mci_pltfm_remove,
 	.driver		= {
 		.name		= "dwmmc_k3",
 		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,

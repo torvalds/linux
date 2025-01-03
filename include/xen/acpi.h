@@ -35,6 +35,8 @@
 
 #include <linux/types.h>
 
+typedef int (*get_gsi_from_sbdf_t)(u32 sbdf);
+
 #ifdef CONFIG_XEN_DOM0
 #include <asm/xen/hypervisor.h>
 #include <xen/xen.h>
@@ -72,6 +74,8 @@ int xen_acpi_get_gsi_info(struct pci_dev *dev,
 						  int *gsi_out,
 						  int *trigger_out,
 						  int *polarity_out);
+void xen_acpi_register_get_gsi_func(get_gsi_from_sbdf_t func);
+int xen_acpi_get_gsi_from_sbdf(u32 sbdf);
 #else
 static inline void xen_acpi_sleep_register(void)
 {
@@ -89,12 +93,12 @@ static inline int xen_acpi_get_gsi_info(struct pci_dev *dev,
 {
 	return -1;
 }
-#endif
 
-#ifdef CONFIG_XEN_PCI_STUB
-int pcistub_get_gsi_from_sbdf(unsigned int sbdf);
-#else
-static inline int pcistub_get_gsi_from_sbdf(unsigned int sbdf)
+static inline void xen_acpi_register_get_gsi_func(get_gsi_from_sbdf_t func)
+{
+}
+
+static inline int xen_acpi_get_gsi_from_sbdf(u32 sbdf)
 {
 	return -1;
 }

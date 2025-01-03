@@ -175,7 +175,7 @@ int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb);
 int lzo_decompress(struct list_head *ws, const u8 *data_in,
 		struct folio *dest_folio, unsigned long dest_pgoff, size_t srclen,
 		size_t destlen);
-struct list_head *lzo_alloc_workspace(unsigned int level);
+struct list_head *lzo_alloc_workspace(void);
 void lzo_free_workspace(struct list_head *ws);
 
 int zstd_compress_folios(struct list_head *ws, struct address_space *mapping,

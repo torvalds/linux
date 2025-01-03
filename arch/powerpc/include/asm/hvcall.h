@@ -495,6 +495,7 @@
 #define H_GUEST_CAP_COPY_MEM	(1UL<<(63-0))
 #define H_GUEST_CAP_POWER9	(1UL<<(63-1))
 #define H_GUEST_CAP_POWER10	(1UL<<(63-2))
+#define H_GUEST_CAP_POWER11	(1UL<<(63-3))
 #define H_GUEST_CAP_BITMAP2	(1UL<<(63-63))
 
 #ifndef __ASSEMBLY__

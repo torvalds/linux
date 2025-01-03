@@ -628,12 +628,11 @@ static int elan_i2c_write_fw_block(struct i2c_client *client, u16 fw_page_size,
 				   const u8 *page, u16 checksum, int idx)
 {
 	struct device *dev = &client->dev;
-	u8 *page_store;
 	u8 val[3];
 	u16 result;
 	int ret, error;
 
-	page_store = kmalloc(fw_page_size + 4, GFP_KERNEL);
+	u8 *page_store __free(kfree) = kmalloc(fw_page_size + 4, GFP_KERNEL);
 	if (!page_store)
 		return -ENOMEM;
 
@@ -647,7 +646,7 @@ static int elan_i2c_write_fw_block(struct i2c_client *client, u16 fw_page_size,
 	if (ret != fw_page_size + 4) {
 		error = ret < 0 ? ret : -EIO;
 		dev_err(dev, "Failed to write page %d: %d\n", idx, error);
-		goto exit;
+		return error;
 	}
 
 	/* Wait for F/W to update one page ROM data. */
@@ -656,20 +655,17 @@ static int elan_i2c_write_fw_block(struct i2c_client *client, u16 fw_page_size,
 	error = elan_i2c_read_cmd(client, ETP_I2C_IAP_CTRL_CMD, val);
 	if (error) {
 		dev_err(dev, "Failed to read IAP write result: %d\n", error);
-		goto exit;
+		return error;
 	}
 
 	result = le16_to_cpup((__le16 *)val);
 	if (result & (ETP_FW_IAP_PAGE_ERR | ETP_FW_IAP_INTF_ERR)) {
 		dev_err(dev, "IAP reports failed write: %04hx\n",
 			result);
-		error = -EIO;
-		goto exit;
+		return -EIO;
 	}
 
-exit:
-	kfree(page_store);
-	return error;
+	return 0;
 }
 
 static int elan_i2c_finish_fw_update(struct i2c_client *client,

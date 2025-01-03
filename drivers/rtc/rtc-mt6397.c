@@ -75,6 +75,7 @@ static int __mtk_rtc_read_time(struct mt6397_rtc *rtc,
 	tm->tm_min = data[RTC_OFFSET_MIN];
 	tm->tm_hour = data[RTC_OFFSET_HOUR];
 	tm->tm_mday = data[RTC_OFFSET_DOM];
+	tm->tm_wday = data[RTC_OFFSET_DOW];
 	tm->tm_mon = data[RTC_OFFSET_MTH] & RTC_TC_MTH_MASK;
 	tm->tm_year = data[RTC_OFFSET_YEAR];
 
@@ -86,9 +87,8 @@ exit:
 
 static int mtk_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
-	time64_t time;
 	struct mt6397_rtc *rtc = dev_get_drvdata(dev);
-	int days, sec, ret;
+	int sec, ret;
 
 	do {
 		ret = __mtk_rtc_read_time(rtc, tm, &sec);
@@ -96,21 +96,9 @@ static int mtk_rtc_read_time(struct device *dev, struct rtc_time *tm)
 			goto exit;
 	} while (sec < tm->tm_sec);
 
-	/* HW register use 7 bits to store year data, minus
-	 * RTC_MIN_YEAR_OFFSET before write year data to register, and plus
-	 * RTC_MIN_YEAR_OFFSET back after read year from register
-	 */
-	tm->tm_year += RTC_MIN_YEAR_OFFSET;
-
-	/* HW register start mon from one, but tm_mon start from zero. */
+	/* HW register start mon/wday from one, but tm_mon/tm_wday start from zero. */
 	tm->tm_mon--;
-	time = rtc_tm_to_time64(tm);
-
-	/* rtc_tm_to_time64 covert Gregorian date to seconds since
-	 * 01-01-1970 00:00:00, and this date is Thursday.
-	 */
-	days = div_s64(time, 86400);
-	tm->tm_wday = (days + 4) % 7;
+	tm->tm_wday--;
 
 exit:
 	return ret;
@@ -122,13 +110,14 @@ static int mtk_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	int ret;
 	u16 data[RTC_OFFSET_COUNT];
 
-	tm->tm_year -= RTC_MIN_YEAR_OFFSET;
 	tm->tm_mon++;
+	tm->tm_wday++;
 
 	data[RTC_OFFSET_SEC] = tm->tm_sec;
 	data[RTC_OFFSET_MIN] = tm->tm_min;
 	data[RTC_OFFSET_HOUR] = tm->tm_hour;
 	data[RTC_OFFSET_DOM] = tm->tm_mday;
+	data[RTC_OFFSET_DOW] = tm->tm_wday;
 	data[RTC_OFFSET_MTH] = tm->tm_mon;
 	data[RTC_OFFSET_YEAR] = tm->tm_year;
 
@@ -178,7 +167,6 @@ static int mtk_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	tm->tm_mon = data[RTC_OFFSET_MTH] & RTC_AL_MTH_MASK;
 	tm->tm_year = data[RTC_OFFSET_YEAR] & RTC_AL_YEA_MASK;
 
-	tm->tm_year += RTC_MIN_YEAR_OFFSET;
 	tm->tm_mon--;
 
 	return 0;
@@ -194,7 +182,6 @@ static int mtk_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	int ret;
 	u16 data[RTC_OFFSET_COUNT];
 
-	tm->tm_year -= RTC_MIN_YEAR_OFFSET;
 	tm->tm_mon++;
 
 	mutex_lock(&rtc->lock);
@@ -302,6 +289,10 @@ static int mtk_rtc_probe(struct platform_device *pdev)
 	device_init_wakeup(&pdev->dev, 1);
 
 	rtc->rtc_dev->ops = &mtk_rtc_ops;
+	rtc->rtc_dev->range_min = RTC_TIMESTAMP_BEGIN_1900;
+	rtc->rtc_dev->range_max = mktime64(2027, 12, 31, 23, 59, 59);
+	rtc->rtc_dev->start_secs = mktime64(1968, 1, 2, 0, 0, 0);
+	rtc->rtc_dev->set_start_time = true;
 
 	return devm_rtc_register_device(rtc->rtc_dev);
 }

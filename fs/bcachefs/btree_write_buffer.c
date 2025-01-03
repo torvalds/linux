@@ -277,6 +277,10 @@ static int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 	bool accounting_replay_done = test_bit(BCH_FS_accounting_replay_done, &c->flags);
 	int ret = 0;
 
+	ret = bch2_journal_error(&c->journal);
+	if (ret)
+		return ret;
+
 	bch2_trans_unlock(trans);
 	bch2_trans_begin(trans);
 
@@ -491,7 +495,8 @@ static int fetch_wb_keys_from_journal(struct bch_fs *c, u64 seq)
 	return ret;
 }
 
-static int btree_write_buffer_flush_seq(struct btree_trans *trans, u64 seq)
+static int btree_write_buffer_flush_seq(struct btree_trans *trans, u64 seq,
+					bool *did_work)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_write_buffer *wb = &c->btree_write_buffer;
@@ -501,6 +506,8 @@ static int btree_write_buffer_flush_seq(struct btree_trans *trans, u64 seq)
 		bch2_trans_unlock(trans);
 
 		fetch_from_journal_err = fetch_wb_keys_from_journal(c, seq);
+
+		*did_work |= wb->inc.keys.nr || wb->flushing.keys.nr;
 
 		/*
 		 * On memory allocation failure, bch2_btree_write_buffer_flush_locked()
@@ -521,17 +528,34 @@ static int bch2_btree_write_buffer_journal_flush(struct journal *j,
 				struct journal_entry_pin *_pin, u64 seq)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
+	bool did_work = false;
 
-	return bch2_trans_run(c, btree_write_buffer_flush_seq(trans, seq));
+	return bch2_trans_run(c, btree_write_buffer_flush_seq(trans, seq, &did_work));
 }
 
 int bch2_btree_write_buffer_flush_sync(struct btree_trans *trans)
 {
 	struct bch_fs *c = trans->c;
+	bool did_work = false;
 
 	trace_and_count(c, write_buffer_flush_sync, trans, _RET_IP_);
 
-	return btree_write_buffer_flush_seq(trans, journal_cur_seq(&c->journal));
+	return btree_write_buffer_flush_seq(trans, journal_cur_seq(&c->journal), &did_work);
+}
+
+/*
+ * The write buffer requires flushing when going RO: keys in the journal for the
+ * write buffer don't have a journal pin yet
+ */
+bool bch2_btree_write_buffer_flush_going_ro(struct bch_fs *c)
+{
+	if (bch2_journal_error(&c->journal))
+		return false;
+
+	bool did_work = false;
+	bch2_trans_run(c, btree_write_buffer_flush_seq(trans,
+				journal_cur_seq(&c->journal), &did_work));
+	return did_work;
 }
 
 int bch2_btree_write_buffer_flush_nocheck_rw(struct btree_trans *trans)

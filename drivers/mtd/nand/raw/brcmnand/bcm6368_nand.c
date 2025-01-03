@@ -117,7 +117,7 @@ MODULE_DEVICE_TABLE(of, bcm6368_nand_of_match);
 
 static struct platform_driver bcm6368_nand_driver = {
 	.probe			= bcm6368_nand_probe,
-	.remove_new		= brcmnand_remove,
+	.remove			= brcmnand_remove,
 	.driver = {
 		.name		= "bcm6368_nand",
 		.pm		= &brcmnand_pm_ops,

@@ -263,10 +263,10 @@ enum {
 	 BTRFS_FEATURE_INCOMPAT_ZONED		|	\
 	 BTRFS_FEATURE_INCOMPAT_SIMPLE_QUOTA)
 
-#ifdef CONFIG_BTRFS_DEBUG
+#ifdef CONFIG_BTRFS_EXPERIMENTAL
 	/*
 	 * Features under developmen like Extent tree v2 support is enabled
-	 * only under CONFIG_BTRFS_DEBUG.
+	 * only under CONFIG_BTRFS_EXPERIMENTAL
 	 */
 #define BTRFS_FEATURE_INCOMPAT_SUPP		\
 	(BTRFS_FEATURE_INCOMPAT_SUPP_STABLE |	\
@@ -317,6 +317,8 @@ struct btrfs_dev_replace {
 
 	struct percpu_counter bio_counter;
 	wait_queue_head_t replace_wait;
+
+	struct task_struct *replace_task;
 };
 
 /*
@@ -633,9 +635,10 @@ struct btrfs_fs_info {
 	s32 delalloc_batch;
 
 	struct percpu_counter evictable_extent_maps;
-	spinlock_t extent_map_shrinker_lock;
-	u64 extent_map_shrinker_last_root;
-	u64 extent_map_shrinker_last_ino;
+	u64 em_shrinker_last_root;
+	u64 em_shrinker_last_ino;
+	atomic64_t em_shrinker_nr_to_scan;
+	struct work_struct em_shrinker_work;
 
 	/* Protected by 'trans_lock'. */
 	struct list_head dirty_cowonly_roots;
@@ -876,12 +879,9 @@ struct btrfs_fs_info {
 #endif
 };
 
-#define page_to_inode(_page)	(BTRFS_I(_Generic((_page),			\
-					  struct page *: (_page))->mapping->host))
 #define folio_to_inode(_folio)	(BTRFS_I(_Generic((_folio),			\
 					  struct folio *: (_folio))->mapping->host))
 
-#define page_to_fs_info(_page)	 (page_to_inode(_page)->root->fs_info)
 #define folio_to_fs_info(_folio) (folio_to_inode(_folio)->root->fs_info)
 
 #define inode_to_fs_info(_inode) (BTRFS_I(_Generic((_inode),			\

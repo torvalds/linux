@@ -293,7 +293,7 @@ static struct platform_driver tegra_tcu_driver = {
 		.of_match_table = tegra_tcu_match,
 	},
 	.probe = tegra_tcu_probe,
-	.remove_new = tegra_tcu_remove,
+	.remove = tegra_tcu_remove,
 };
 module_platform_driver(tegra_tcu_driver);
 

@@ -261,7 +261,7 @@ int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq)
 		.data = { lq, },
 	};
 
-	if (WARN_ON(lq->sta_id == IWL_MVM_INVALID_STA ||
+	if (WARN_ON(lq->sta_id == IWL_INVALID_STA ||
 		    iwl_mvm_has_tlc_offload(mvm)))
 		return -EINVAL;
 
@@ -679,10 +679,8 @@ struct ieee80211_vif *iwl_mvm_get_bss_vif(struct iwl_mvm *mvm)
 		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
 		iwl_mvm_bss_iface_iterator, &bss_iter_data);
 
-	if (bss_iter_data.error) {
-		IWL_ERR(mvm, "More than one managed interface active!\n");
+	if (bss_iter_data.error)
 		return ERR_PTR(-EINVAL);
-	}
 
 	return bss_iter_data.vif;
 }

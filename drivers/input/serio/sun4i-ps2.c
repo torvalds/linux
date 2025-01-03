@@ -101,7 +101,7 @@ static irqreturn_t sun4i_ps2_interrupt(int irq, void *dev_id)
 	unsigned int rxflags = 0;
 	u32 rval;
 
-	spin_lock(&drvdata->lock);
+	guard(spinlock)(&drvdata->lock);
 
 	/* Get the PS/2 interrupts and clear them */
 	intr_status  = readl(drvdata->reg_base + PS2_REG_LSTS);
@@ -134,8 +134,6 @@ static irqreturn_t sun4i_ps2_interrupt(int irq, void *dev_id)
 	writel(intr_status, drvdata->reg_base + PS2_REG_LSTS);
 	writel(fifo_status, drvdata->reg_base + PS2_REG_FSTS);
 
-	spin_unlock(&drvdata->lock);
-
 	return IRQ_HANDLED;
 }
 
@@ -146,7 +144,6 @@ static int sun4i_ps2_open(struct serio *serio)
 	u32 clk_scdf;
 	u32 clk_pcdf;
 	u32 rval;
-	unsigned long flags;
 
 	/* Set line control and enable interrupt */
 	rval = PS2_LCTL_STOPERREN | PS2_LCTL_ACKERREN
@@ -171,9 +168,8 @@ static int sun4i_ps2_open(struct serio *serio)
 	rval = PS2_GCTL_RESET | PS2_GCTL_INTEN | PS2_GCTL_MASTER
 		| PS2_GCTL_BUSEN;
 
-	spin_lock_irqsave(&drvdata->lock, flags);
+	guard(spinlock_irqsave)(&drvdata->lock);
 	writel(rval, drvdata->reg_base + PS2_REG_GCTL);
-	spin_unlock_irqrestore(&drvdata->lock, flags);
 
 	return 0;
 }
@@ -322,7 +318,7 @@ MODULE_DEVICE_TABLE(of, sun4i_ps2_match);
 
 static struct platform_driver sun4i_ps2_driver = {
 	.probe		= sun4i_ps2_probe,
-	.remove_new	= sun4i_ps2_remove,
+	.remove		= sun4i_ps2_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = sun4i_ps2_match,

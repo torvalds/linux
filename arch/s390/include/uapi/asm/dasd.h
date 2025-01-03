@@ -294,7 +294,7 @@ struct dasd_snid_ioctl_data {
 /********************************************************************************
  * SECTION: Definition of IOCTLs
  *
- * Here ist how the ioctl-nr should be used:
+ * Here is how the ioctl-nr should be used:
  *    0 -   31   DASD driver itself
  *   32 -  239   still open
  *  240 -  255	 reserved for EMC

@@ -512,7 +512,7 @@ static void dln2_gpio_remove(struct platform_device *pdev)
 static struct platform_driver dln2_gpio_driver = {
 	.driver.name	= "dln2-gpio",
 	.probe		= dln2_gpio_probe,
-	.remove_new	= dln2_gpio_remove,
+	.remove		= dln2_gpio_remove,
 };
 
 module_platform_driver(dln2_gpio_driver);

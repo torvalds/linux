@@ -22,6 +22,8 @@ properties:
       - enum:
           - renesas,r8a779a0-isp # V3U
           - renesas,r8a779g0-isp # V4H
+          - renesas,r8a779h0-isp # V4M
+      - const: renesas,rcar-gen4-isp # Generic R-Car Gen4
   reg:
     maxItems: 1
 
@@ -116,7 +118,7 @@ examples:
     #include <dt-bindings/power/r8a779a0-sysc.h>
 
     isp1: isp@fed20000 {
-            compatible = "renesas,r8a779a0-isp";
+            compatible = "renesas,r8a779a0-isp", "renesas,rcar-gen4-isp";
             reg = <0xfed20000 0x10000>;
             interrupts = <GIC_SPI 155 IRQ_TYPE_LEVEL_HIGH>;
             clocks = <&cpg CPG_MOD 613>;

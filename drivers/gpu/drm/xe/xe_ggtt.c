@@ -246,7 +246,7 @@ int xe_ggtt_init_early(struct xe_ggtt *ggtt)
 	else
 		ggtt->pt_ops = &xelp_pt_ops;
 
-	ggtt->wq = alloc_workqueue("xe-ggtt-wq", 0, 0);
+	ggtt->wq = alloc_workqueue("xe-ggtt-wq", 0, WQ_MEM_RECLAIM);
 
 	drm_mm_init(&ggtt->mm, xe_wopcm_size(xe),
 		    ggtt->size - xe_wopcm_size(xe));
@@ -401,6 +401,16 @@ static void ggtt_invalidate_gt_tlb(struct xe_gt *gt)
 
 static void xe_ggtt_invalidate(struct xe_ggtt *ggtt)
 {
+	struct xe_device *xe = tile_to_xe(ggtt->tile);
+
+	/*
+	 * XXX: Barrier for GGTT pages. Unsure exactly why this required but
+	 * without this LNL is having issues with the GuC reading scratch page
+	 * vs. correct GGTT page. Not particularly a hot code path so blindly
+	 * do a mmio read here which results in GuC reading correct GGTT page.
+	 */
+	xe_mmio_read32(xe_root_tile_mmio(xe), VF_CAP_REG);
+
 	/* Each GT in a tile has its own TLB to cache GGTT lookups */
 	ggtt_invalidate_gt_tlb(ggtt->tile->primary_gt);
 	ggtt_invalidate_gt_tlb(ggtt->tile->media_gt);
@@ -603,7 +613,7 @@ static int __xe_ggtt_insert_bo_at(struct xe_ggtt *ggtt, struct xe_bo *bo,
 				  u64 start, u64 end)
 {
 	int err;
-	u64 alignment = XE_PAGE_SIZE;
+	u64 alignment = bo->min_align > 0 ? bo->min_align : XE_PAGE_SIZE;
 
 	if (xe_bo_is_vram(bo) && ggtt->flags & XE_GGTT_FLAGS_64K)
 		alignment = SZ_64K;

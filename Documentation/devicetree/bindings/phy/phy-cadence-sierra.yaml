@@ -96,7 +96,7 @@ patternProperties:
           Specifies the type of PHY for which the group of PHY lanes is used.
           Refer include/dt-bindings/phy/phy.h. Constants from the header should be used.
         $ref: /schemas/types.yaml#/definitions/uint32
-        enum: [2, 4]
+        enum: [2, 4, 8, 9]
 
       cdns,num-lanes:
         description:

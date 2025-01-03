@@ -21,6 +21,7 @@
 #include <linux/mutex.h>
 #include <linux/buffer_head.h>
 #include <linux/blkdev.h>
+#include <linux/fs_context.h>
 #include "hfsplus_raw.h"
 
 #define DBG_BNODE_REFS	0x00000001
@@ -156,6 +157,7 @@ struct hfsplus_sb_info {
 
 	/* Runtime variables */
 	u32 blockoffset;
+	u32 min_io_size;
 	sector_t part_start;
 	sector_t sect_count;
 	int fs_shift;
@@ -307,7 +309,7 @@ struct hfsplus_readdir_data {
  */
 static inline unsigned short hfsplus_min_io_size(struct super_block *sb)
 {
-	return max_t(unsigned short, bdev_logical_block_size(sb->s_bdev),
+	return max_t(unsigned short, HFSPLUS_SB(sb)->min_io_size,
 		     HFSPLUS_SECTOR_SIZE);
 }
 
@@ -496,8 +498,7 @@ long hfsplus_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 
 /* options.c */
 void hfsplus_fill_defaults(struct hfsplus_sb_info *opts);
-int hfsplus_parse_options_remount(char *input, int *force);
-int hfsplus_parse_options(char *input, struct hfsplus_sb_info *sbi);
+int hfsplus_parse_param(struct fs_context *fc, struct fs_parameter *param);
 int hfsplus_show_options(struct seq_file *seq, struct dentry *root);
 
 /* part_tbl.c */

@@ -37,7 +37,8 @@ properties:
     description:
       A list of registers in the controller. The width of each register is
       determined by its size. All registers must have the same width. The number
-      of GPIOs is set by the width, with bit 0 corresponding to GPIO 0.
+      of GPIOs is set by the width, with bit 0 corresponding to GPIO 0, unless
+      the ngpios property further restricts the number of used lines.
     items:
       - description:
           Register to READ the value of the GPIO lines. If GPIO line is high,
@@ -73,6 +74,15 @@ properties:
         - dirin
 
   native-endian: true
+
+  ngpios:
+    minimum: 1
+    maximum: 63
+    description:
+      If this property is present the number of usable GPIO lines are restricted
+      to the first 0 .. ngpios lines. This is useful when the GPIO MMIO register
+      has 32 bits for GPIO but only the first 12 are actually connected to
+      real electronics, and then we set ngpios to 12.
 
   no-output:
     $ref: /schemas/types.yaml#/definitions/flag
@@ -111,6 +121,7 @@ examples:
       compatible = "brcm,bcm6345-gpio";
       reg-names = "dirout", "dat";
       reg = <0xfffe0406 2>, <0xfffe040a 2>;
+      ngpios = <15>;
       native-endian;
       gpio-controller;
       #gpio-cells = <2>;

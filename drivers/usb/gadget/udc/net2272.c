@@ -2097,7 +2097,7 @@ static irqreturn_t net2272_irq(int irq, void *_dev)
 	}
 	/* check dma interrupts */
 #endif
-	/* Platform/devcice interrupt handler */
+	/* Platform/device interrupt handler */
 #if !defined(PLX_PCI_RDK)
 	net2272_handle_stat1_irqs(dev, net2272_read(dev, IRQSTAT1));
 	net2272_handle_stat0_irqs(dev, net2272_read(dev, IRQSTAT0));
@@ -2685,7 +2685,7 @@ net2272_plat_remove(struct platform_device *pdev)
 
 static struct platform_driver net2272_plat_driver = {
 	.probe   = net2272_plat_probe,
-	.remove_new = net2272_plat_remove,
+	.remove = net2272_plat_remove,
 	.driver  = {
 		.name  = driver_name,
 	},

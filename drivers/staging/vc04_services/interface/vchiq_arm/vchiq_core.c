@@ -5,6 +5,8 @@
 #include <linux/completion.h>
 #include <linux/mutex.h>
 #include <linux/bitops.h>
+#include <linux/io.h>
+#include <linux/highmem.h>
 #include <linux/kthread.h>
 #include <linux/wait.h>
 #include <linux/delay.h>
@@ -61,12 +63,16 @@
 #define MAKE_REMOTE_USE			(VCHIQ_MSG_REMOTE_USE << TYPE_SHIFT)
 #define MAKE_REMOTE_USE_ACTIVE		(VCHIQ_MSG_REMOTE_USE_ACTIVE << TYPE_SHIFT)
 
+#define PAGELIST_WRITE			0
+#define PAGELIST_READ			1
+#define PAGELIST_READ_WITH_FRAGMENTS	2
+
+#define BELL2	0x08
+
 /* Ensure the fields are wide enough */
-static_assert(VCHIQ_MSG_SRCPORT(VCHIQ_MAKE_MSG(0, 0, VCHIQ_PORT_MAX))
-	== 0);
+static_assert(VCHIQ_MSG_SRCPORT(VCHIQ_MAKE_MSG(0, 0, VCHIQ_PORT_MAX)) == 0);
 static_assert(VCHIQ_MSG_TYPE(VCHIQ_MAKE_MSG(0, VCHIQ_PORT_MAX, 0)) == 0);
-static_assert((unsigned int)VCHIQ_PORT_MAX <
-	(unsigned int)VCHIQ_PORT_FREE);
+static_assert((unsigned int)VCHIQ_PORT_MAX < (unsigned int)VCHIQ_PORT_FREE);
 
 #define VCHIQ_MSGID_PADDING            VCHIQ_MAKE_MSG(VCHIQ_MSG_PADDING, 0, 0)
 #define VCHIQ_MSGID_CLAIMED            0x40000000
@@ -449,15 +455,26 @@ mark_service_closing(struct vchiq_service *service)
 
 static inline int
 make_service_callback(struct vchiq_service *service, enum vchiq_reason reason,
-		      struct vchiq_header *header, void *bulk_userdata)
+		      struct vchiq_header *header, struct vchiq_bulk *bulk)
 {
+	void *cb_data = NULL;
+	void __user *cb_userdata = NULL;
 	int status;
 
-	dev_dbg(service->state->dev, "core: %d: callback:%d (%s, %pK, %pK)\n",
+	/*
+	 * If a bulk transfer is in progress, pass bulk->cb_*data to the
+	 * callback function.
+	 */
+	if (bulk) {
+		cb_data = bulk->cb_data;
+		cb_userdata = bulk->cb_userdata;
+	}
+
+	dev_dbg(service->state->dev, "core: %d: callback:%d (%s, %pK, %pK %pK)\n",
 		service->state->id, service->localport, reason_names[reason],
-		header, bulk_userdata);
+		header, cb_data, cb_userdata);
 	status = service->base.callback(service->instance, reason, header, service->handle,
-					bulk_userdata);
+					cb_data, cb_userdata);
 	if (status && (status != -EAGAIN)) {
 		dev_warn(service->state->dev,
 			 "core: %d: ignoring ERROR from callback to service %x\n",
@@ -524,6 +541,25 @@ remote_event_wait(wait_queue_head_t *wq, struct remote_event *event)
 
 	event->fired = 0;
 	return ret;
+}
+
+static void
+remote_event_signal(struct vchiq_state *state, struct remote_event *event)
+{
+	struct vchiq_drv_mgmt *mgmt = dev_get_drvdata(state->dev);
+
+	/*
+	 * Ensure that all writes to shared data structures have completed
+	 * before signalling the peer.
+	 */
+	wmb();
+
+	event->fired = 1;
+
+	dsb(sy);         /* data barrier operation */
+
+	if (event->armed)
+		writel(0, mgmt->regs + BELL2); /* trigger vc interrupt */
 }
 
 /*
@@ -911,6 +947,7 @@ queue_message(struct vchiq_state *state, struct vchiq_service *service,
 	struct vchiq_service_quota *quota = NULL;
 	struct vchiq_header *header;
 	int type = VCHIQ_MSG_TYPE(msgid);
+	int svc_fourcc;
 
 	size_t stride;
 
@@ -922,7 +959,7 @@ queue_message(struct vchiq_state *state, struct vchiq_service *service,
 
 	if (!(flags & QMFLAGS_NO_MUTEX_LOCK) &&
 	    mutex_lock_killable(&state->slot_mutex))
-		return -EAGAIN;
+		return -EINTR;
 
 	if (type == VCHIQ_MSG_DATA) {
 		int tx_end_index;
@@ -962,8 +999,8 @@ queue_message(struct vchiq_state *state, struct vchiq_service *service,
 			spin_unlock(&state->quota_spinlock);
 			mutex_unlock(&state->slot_mutex);
 
-			if (wait_for_completion_interruptible(&state->data_quota_event))
-				return -EAGAIN;
+			if (wait_for_completion_killable(&state->data_quota_event))
+				return -EINTR;
 
 			mutex_lock(&state->slot_mutex);
 			spin_lock(&state->quota_spinlock);
@@ -986,12 +1023,12 @@ queue_message(struct vchiq_state *state, struct vchiq_service *service,
 				quota->message_use_count, quota->slot_use_count);
 			VCHIQ_SERVICE_STATS_INC(service, quota_stalls);
 			mutex_unlock(&state->slot_mutex);
-			if (wait_for_completion_interruptible(&quota->quota_event))
-				return -EAGAIN;
+			if (wait_for_completion_killable(&quota->quota_event))
+				return -EINTR;
 			if (service->closing)
 				return -EHOSTDOWN;
 			if (mutex_lock_killable(&state->slot_mutex))
-				return -EAGAIN;
+				return -EINTR;
 			if (service->srvstate != VCHIQ_SRVSTATE_OPEN) {
 				/* The service has been closed */
 				mutex_unlock(&state->slot_mutex);
@@ -1103,17 +1140,13 @@ queue_message(struct vchiq_state *state, struct vchiq_service *service,
 	header->msgid = msgid;
 	header->size = size;
 
-	{
-		int svc_fourcc;
+	svc_fourcc = service ? service->base.fourcc
+			     : VCHIQ_MAKE_FOURCC('?', '?', '?', '?');
 
-		svc_fourcc = service
-			? service->base.fourcc
-			: VCHIQ_MAKE_FOURCC('?', '?', '?', '?');
-
-		dev_dbg(state->dev, "core_msg: Sent Msg %s(%u) to %p4cc s:%u d:%d len:%zu\n",
-			msg_type_str(VCHIQ_MSG_TYPE(msgid)), VCHIQ_MSG_TYPE(msgid),
-			&svc_fourcc, VCHIQ_MSG_SRCPORT(msgid), VCHIQ_MSG_DSTPORT(msgid), size);
-	}
+	dev_dbg(state->dev, "core_msg: Sent Msg %s(%u) to %p4cc s:%u d:%d len:%zu\n",
+		msg_type_str(VCHIQ_MSG_TYPE(msgid)),
+		VCHIQ_MSG_TYPE(msgid), &svc_fourcc,
+		VCHIQ_MSG_SRCPORT(msgid), VCHIQ_MSG_DSTPORT(msgid), size);
 
 	/* Make sure the new header is visible to the peer. */
 	wmb();
@@ -1175,9 +1208,8 @@ queue_message_sync(struct vchiq_state *state, struct vchiq_service *service,
 		state->id, msg_type_str(VCHIQ_MSG_TYPE(msgid)), header, size,
 		VCHIQ_MSG_SRCPORT(msgid), VCHIQ_MSG_DSTPORT(msgid));
 
-	callback_result =
-		copy_message_data(copy_callback, context,
-				  header->data, size);
+	callback_result = copy_message_data(copy_callback, context,
+					    header->data, size);
 
 	if (callback_result < 0) {
 		mutex_unlock(&state->slot_mutex);
@@ -1288,6 +1320,42 @@ get_bulk_reason(struct vchiq_bulk *bulk)
 	return VCHIQ_BULK_RECEIVE_DONE;
 }
 
+static int service_notify_bulk(struct vchiq_service *service,
+			       struct vchiq_bulk *bulk)
+{
+	if (bulk->actual != VCHIQ_BULK_ACTUAL_ABORTED) {
+		if (bulk->dir == VCHIQ_BULK_TRANSMIT) {
+			VCHIQ_SERVICE_STATS_INC(service, bulk_tx_count);
+			VCHIQ_SERVICE_STATS_ADD(service, bulk_tx_bytes,
+						bulk->actual);
+		} else {
+			VCHIQ_SERVICE_STATS_INC(service, bulk_rx_count);
+			VCHIQ_SERVICE_STATS_ADD(service, bulk_rx_bytes,
+						bulk->actual);
+		}
+	} else {
+		VCHIQ_SERVICE_STATS_INC(service, bulk_aborted_count);
+	}
+
+	if (bulk->mode == VCHIQ_BULK_MODE_BLOCKING) {
+		struct bulk_waiter *waiter;
+
+		spin_lock(&service->state->bulk_waiter_spinlock);
+		waiter = bulk->waiter;
+		if (waiter) {
+			waiter->actual = bulk->actual;
+			complete(&waiter->event);
+		}
+		spin_unlock(&service->state->bulk_waiter_spinlock);
+	} else if (bulk->mode == VCHIQ_BULK_MODE_CALLBACK) {
+		enum vchiq_reason reason = get_bulk_reason(bulk);
+
+		return make_service_callback(service, reason, NULL, bulk);
+	}
+
+	return 0;
+}
+
 /* Called by the slot handler - don't hold the bulk mutex */
 static int
 notify_bulks(struct vchiq_service *service, struct vchiq_bulk_queue *queue,
@@ -1311,38 +1379,10 @@ notify_bulks(struct vchiq_service *service, struct vchiq_bulk_queue *queue,
 		 * Only generate callbacks for non-dummy bulk
 		 * requests, and non-terminated services
 		 */
-		if (bulk->data && service->instance) {
-			if (bulk->actual != VCHIQ_BULK_ACTUAL_ABORTED) {
-				if (bulk->dir == VCHIQ_BULK_TRANSMIT) {
-					VCHIQ_SERVICE_STATS_INC(service, bulk_tx_count);
-					VCHIQ_SERVICE_STATS_ADD(service, bulk_tx_bytes,
-								bulk->actual);
-				} else {
-					VCHIQ_SERVICE_STATS_INC(service, bulk_rx_count);
-					VCHIQ_SERVICE_STATS_ADD(service, bulk_rx_bytes,
-								bulk->actual);
-				}
-			} else {
-				VCHIQ_SERVICE_STATS_INC(service, bulk_aborted_count);
-			}
-			if (bulk->mode == VCHIQ_BULK_MODE_BLOCKING) {
-				struct bulk_waiter *waiter;
-
-				spin_lock(&service->state->bulk_waiter_spinlock);
-				waiter = bulk->userdata;
-				if (waiter) {
-					waiter->actual = bulk->actual;
-					complete(&waiter->event);
-				}
-				spin_unlock(&service->state->bulk_waiter_spinlock);
-			} else if (bulk->mode == VCHIQ_BULK_MODE_CALLBACK) {
-				enum vchiq_reason reason =
-						get_bulk_reason(bulk);
-				status = make_service_callback(service, reason,	NULL,
-							       bulk->userdata);
-				if (status == -EAGAIN)
-					break;
-			}
+		if (bulk->dma_addr && service->instance) {
+			status = service_notify_bulk(service, bulk);
+			if (status == -EAGAIN)
+				break;
 		}
 
 		queue->remove++;
@@ -1415,6 +1455,331 @@ poll_services(struct vchiq_state *state)
 		poll_services_of_group(state, group);
 }
 
+static void
+cleanup_pagelistinfo(struct vchiq_instance *instance, struct vchiq_pagelist_info *pagelistinfo)
+{
+	if (pagelistinfo->scatterlist_mapped) {
+		dma_unmap_sg(instance->state->dev, pagelistinfo->scatterlist,
+			     pagelistinfo->num_pages, pagelistinfo->dma_dir);
+	}
+
+	if (pagelistinfo->pages_need_release)
+		unpin_user_pages(pagelistinfo->pages, pagelistinfo->num_pages);
+
+	dma_free_coherent(instance->state->dev, pagelistinfo->pagelist_buffer_size,
+			  pagelistinfo->pagelist, pagelistinfo->dma_addr);
+}
+
+static inline bool
+is_adjacent_block(u32 *addrs, dma_addr_t addr, unsigned int k)
+{
+	u32 tmp;
+
+	if (!k)
+		return false;
+
+	tmp = (addrs[k - 1] & PAGE_MASK) +
+	      (((addrs[k - 1] & ~PAGE_MASK) + 1) << PAGE_SHIFT);
+
+	return tmp == (addr & PAGE_MASK);
+}
+
+/* There is a potential problem with partial cache lines (pages?)
+ * at the ends of the block when reading. If the CPU accessed anything in
+ * the same line (page?) then it may have pulled old data into the cache,
+ * obscuring the new data underneath. We can solve this by transferring the
+ * partial cache lines separately, and allowing the ARM to copy into the
+ * cached area.
+ */
+static struct vchiq_pagelist_info *
+create_pagelist(struct vchiq_instance *instance, struct vchiq_bulk *bulk)
+{
+	struct vchiq_drv_mgmt *drv_mgmt;
+	struct pagelist *pagelist;
+	struct vchiq_pagelist_info *pagelistinfo;
+	struct page **pages;
+	u32 *addrs;
+	unsigned int num_pages, offset, i, k;
+	int actual_pages;
+	size_t pagelist_size;
+	struct scatterlist *scatterlist, *sg;
+	int dma_buffers;
+	unsigned int cache_line_size;
+	dma_addr_t dma_addr;
+	size_t count = bulk->size;
+	unsigned short type = (bulk->dir == VCHIQ_BULK_RECEIVE)
+			      ? PAGELIST_READ : PAGELIST_WRITE;
+
+	if (count >= INT_MAX - PAGE_SIZE)
+		return NULL;
+
+	drv_mgmt = dev_get_drvdata(instance->state->dev);
+
+	if (bulk->offset)
+		offset = (uintptr_t)bulk->offset & (PAGE_SIZE - 1);
+	else
+		offset = (uintptr_t)bulk->uoffset & (PAGE_SIZE - 1);
+	num_pages = DIV_ROUND_UP(count + offset, PAGE_SIZE);
+
+	if ((size_t)num_pages > (SIZE_MAX - sizeof(struct pagelist) -
+			 sizeof(struct vchiq_pagelist_info)) /
+			(sizeof(u32) + sizeof(pages[0]) +
+			 sizeof(struct scatterlist)))
+		return NULL;
+
+	pagelist_size = sizeof(struct pagelist) +
+			(num_pages * sizeof(u32)) +
+			(num_pages * sizeof(pages[0]) +
+			(num_pages * sizeof(struct scatterlist))) +
+			sizeof(struct vchiq_pagelist_info);
+
+	/* Allocate enough storage to hold the page pointers and the page
+	 * list
+	 */
+	pagelist = dma_alloc_coherent(instance->state->dev, pagelist_size, &dma_addr,
+				      GFP_KERNEL);
+
+	dev_dbg(instance->state->dev, "arm: %pK\n", pagelist);
+
+	if (!pagelist)
+		return NULL;
+
+	addrs		= pagelist->addrs;
+	pages		= (struct page **)(addrs + num_pages);
+	scatterlist	= (struct scatterlist *)(pages + num_pages);
+	pagelistinfo	= (struct vchiq_pagelist_info *)
+			  (scatterlist + num_pages);
+
+	pagelist->length = count;
+	pagelist->type = type;
+	pagelist->offset = offset;
+
+	/* Populate the fields of the pagelistinfo structure */
+	pagelistinfo->pagelist = pagelist;
+	pagelistinfo->pagelist_buffer_size = pagelist_size;
+	pagelistinfo->dma_addr = dma_addr;
+	pagelistinfo->dma_dir =  (type == PAGELIST_WRITE) ?
+				  DMA_TO_DEVICE : DMA_FROM_DEVICE;
+	pagelistinfo->num_pages = num_pages;
+	pagelistinfo->pages_need_release = 0;
+	pagelistinfo->pages = pages;
+	pagelistinfo->scatterlist = scatterlist;
+	pagelistinfo->scatterlist_mapped = 0;
+
+	if (bulk->offset) {
+		unsigned long length = count;
+		unsigned int off = offset;
+
+		for (actual_pages = 0; actual_pages < num_pages;
+		     actual_pages++) {
+			struct page *pg =
+				vmalloc_to_page(((unsigned int *)bulk->offset +
+						 (actual_pages * PAGE_SIZE)));
+			size_t bytes = PAGE_SIZE - off;
+
+			if (!pg) {
+				cleanup_pagelistinfo(instance, pagelistinfo);
+				return NULL;
+			}
+
+			if (bytes > length)
+				bytes = length;
+			pages[actual_pages] = pg;
+			length -= bytes;
+			off = 0;
+		}
+		/* do not try and release vmalloc pages */
+	} else {
+		actual_pages =
+			pin_user_pages_fast((unsigned long)bulk->uoffset & PAGE_MASK, num_pages,
+					    type == PAGELIST_READ, pages);
+
+		if (actual_pages != num_pages) {
+			dev_dbg(instance->state->dev, "arm: Only %d/%d pages locked\n",
+				actual_pages, num_pages);
+
+			/* This is probably due to the process being killed */
+			if (actual_pages > 0)
+				unpin_user_pages(pages, actual_pages);
+			cleanup_pagelistinfo(instance, pagelistinfo);
+			return NULL;
+		}
+		 /* release user pages */
+		pagelistinfo->pages_need_release = 1;
+	}
+
+	/*
+	 * Initialize the scatterlist so that the magic cookie
+	 *  is filled if debugging is enabled
+	 */
+	sg_init_table(scatterlist, num_pages);
+	/* Now set the pages for each scatterlist */
+	for (i = 0; i < num_pages; i++)	{
+		unsigned int len = PAGE_SIZE - offset;
+
+		if (len > count)
+			len = count;
+		sg_set_page(scatterlist + i, pages[i], len, offset);
+		offset = 0;
+		count -= len;
+	}
+
+	dma_buffers = dma_map_sg(instance->state->dev,
+				 scatterlist,
+				 num_pages,
+				 pagelistinfo->dma_dir);
+
+	if (dma_buffers == 0) {
+		cleanup_pagelistinfo(instance, pagelistinfo);
+		return NULL;
+	}
+
+	pagelistinfo->scatterlist_mapped = 1;
+
+	/* Combine adjacent blocks for performance */
+	k = 0;
+	for_each_sg(scatterlist, sg, dma_buffers, i) {
+		unsigned int len = sg_dma_len(sg);
+		dma_addr_t addr = sg_dma_address(sg);
+
+		/* Note: addrs is the address + page_count - 1
+		 * The firmware expects blocks after the first to be page-
+		 * aligned and a multiple of the page size
+		 */
+		WARN_ON(len == 0);
+		WARN_ON(i && (i != (dma_buffers - 1)) && (len & ~PAGE_MASK));
+		WARN_ON(i && (addr & ~PAGE_MASK));
+		if (is_adjacent_block(addrs, addr, k))
+			addrs[k - 1] += ((len + PAGE_SIZE - 1) >> PAGE_SHIFT);
+		else
+			addrs[k++] = (addr & PAGE_MASK) |
+				(((len + PAGE_SIZE - 1) >> PAGE_SHIFT) - 1);
+	}
+
+	/* Partial cache lines (fragments) require special measures */
+	cache_line_size = drv_mgmt->info->cache_line_size;
+	if ((type == PAGELIST_READ) &&
+	    ((pagelist->offset & (cache_line_size - 1)) ||
+	    ((pagelist->offset + pagelist->length) & (cache_line_size - 1)))) {
+		char *fragments;
+
+		if (down_interruptible(&drv_mgmt->free_fragments_sema)) {
+			cleanup_pagelistinfo(instance, pagelistinfo);
+			return NULL;
+		}
+
+		WARN_ON(!drv_mgmt->free_fragments);
+
+		down(&drv_mgmt->free_fragments_mutex);
+		fragments = drv_mgmt->free_fragments;
+		WARN_ON(!fragments);
+		drv_mgmt->free_fragments = *(char **)drv_mgmt->free_fragments;
+		up(&drv_mgmt->free_fragments_mutex);
+		pagelist->type = PAGELIST_READ_WITH_FRAGMENTS +
+			(fragments - drv_mgmt->fragments_base) / drv_mgmt->fragments_size;
+	}
+
+	return pagelistinfo;
+}
+
+static void
+free_pagelist(struct vchiq_instance *instance, struct vchiq_pagelist_info *pagelistinfo,
+	      int actual)
+{
+	struct vchiq_drv_mgmt *drv_mgmt;
+	struct pagelist *pagelist = pagelistinfo->pagelist;
+	struct page **pages = pagelistinfo->pages;
+	unsigned int num_pages = pagelistinfo->num_pages;
+	unsigned int cache_line_size;
+
+	dev_dbg(instance->state->dev, "arm: %pK, %d\n", pagelistinfo->pagelist, actual);
+
+	drv_mgmt = dev_get_drvdata(instance->state->dev);
+
+	/*
+	 * NOTE: dma_unmap_sg must be called before the
+	 * cpu can touch any of the data/pages.
+	 */
+	dma_unmap_sg(instance->state->dev, pagelistinfo->scatterlist,
+		     pagelistinfo->num_pages, pagelistinfo->dma_dir);
+	pagelistinfo->scatterlist_mapped = 0;
+
+	/* Deal with any partial cache lines (fragments) */
+	cache_line_size = drv_mgmt->info->cache_line_size;
+	if (pagelist->type >= PAGELIST_READ_WITH_FRAGMENTS && drv_mgmt->fragments_base) {
+		char *fragments = drv_mgmt->fragments_base +
+			(pagelist->type - PAGELIST_READ_WITH_FRAGMENTS) *
+			drv_mgmt->fragments_size;
+		int head_bytes, tail_bytes;
+
+		head_bytes = (cache_line_size - pagelist->offset) &
+			     (cache_line_size - 1);
+		tail_bytes = (pagelist->offset + actual) &
+			     (cache_line_size - 1);
+
+		if ((actual >= 0) && (head_bytes != 0)) {
+			if (head_bytes > actual)
+				head_bytes = actual;
+
+			memcpy_to_page(pages[0], pagelist->offset,
+				       fragments, head_bytes);
+		}
+		if ((actual >= 0) && (head_bytes < actual) &&
+		    (tail_bytes != 0))
+			memcpy_to_page(pages[num_pages - 1],
+				       (pagelist->offset + actual) &
+				       (PAGE_SIZE - 1) & ~(cache_line_size - 1),
+				       fragments + cache_line_size,
+				       tail_bytes);
+
+		down(&drv_mgmt->free_fragments_mutex);
+		*(char **)fragments = drv_mgmt->free_fragments;
+		drv_mgmt->free_fragments = fragments;
+		up(&drv_mgmt->free_fragments_mutex);
+		up(&drv_mgmt->free_fragments_sema);
+	}
+
+	/* Need to mark all the pages dirty. */
+	if (pagelist->type != PAGELIST_WRITE &&
+	    pagelistinfo->pages_need_release) {
+		unsigned int i;
+
+		for (i = 0; i < num_pages; i++)
+			set_page_dirty(pages[i]);
+	}
+
+	cleanup_pagelistinfo(instance, pagelistinfo);
+}
+
+static int
+vchiq_prepare_bulk_data(struct vchiq_instance *instance, struct vchiq_bulk *bulk)
+{
+	struct vchiq_pagelist_info *pagelistinfo;
+
+	pagelistinfo = create_pagelist(instance, bulk);
+
+	if (!pagelistinfo)
+		return -ENOMEM;
+
+	bulk->dma_addr = pagelistinfo->dma_addr;
+
+	/*
+	 * Store the pagelistinfo address in remote_data,
+	 * which isn't used by the slave.
+	 */
+	bulk->remote_data = pagelistinfo;
+
+	return 0;
+}
+
+static void
+vchiq_complete_bulk(struct vchiq_instance *instance, struct vchiq_bulk *bulk)
+{
+	if (bulk && bulk->remote_data && bulk->actual)
+		free_pagelist(instance, (struct vchiq_pagelist_info *)bulk->remote_data,
+			      bulk->actual);
+}
+
 /* Called with the bulk_mutex held */
 static void
 abort_outstanding_bulks(struct vchiq_service *service,
@@ -1452,7 +1817,7 @@ abort_outstanding_bulks(struct vchiq_service *service,
 				service->remoteport, bulk->size, bulk->remote_size);
 		} else {
 			/* fabricate a matching dummy bulk */
-			bulk->data = 0;
+			bulk->dma_addr = 0;
 			bulk->size = 0;
 			bulk->actual = VCHIQ_BULK_ACTUAL_ABORTED;
 			bulk->dir = is_tx ? VCHIQ_BULK_TRANSMIT :
@@ -1468,8 +1833,10 @@ static int
 parse_open(struct vchiq_state *state, struct vchiq_header *header)
 {
 	const struct vchiq_open_payload *payload;
+	struct vchiq_openack_payload ack_payload;
 	struct vchiq_service *service = NULL;
 	int msgid, size;
+	int openack_id;
 	unsigned int localport, remoteport, fourcc;
 	short version, version_min;
 
@@ -1504,34 +1871,36 @@ parse_open(struct vchiq_state *state, struct vchiq_header *header)
 	}
 	service->peer_version = version;
 
-	if (service->srvstate == VCHIQ_SRVSTATE_LISTENING) {
-		struct vchiq_openack_payload ack_payload = {
-			service->version
-		};
-		int openack_id = MAKE_OPENACK(service->localport, remoteport);
+	if (service->srvstate != VCHIQ_SRVSTATE_LISTENING)
+		goto done;
 
-		if (state->version_common <
-		    VCHIQ_VERSION_SYNCHRONOUS_MODE)
-			service->sync = 0;
+	ack_payload.version = service->version;
+	openack_id = MAKE_OPENACK(service->localport, remoteport);
 
-		/* Acknowledge the OPEN */
-		if (service->sync) {
-			if (queue_message_sync(state, NULL, openack_id, memcpy_copy_callback,
-					       &ack_payload, sizeof(ack_payload)) == -EAGAIN)
-				goto bail_not_ready;
+	if (state->version_common < VCHIQ_VERSION_SYNCHRONOUS_MODE)
+		service->sync = 0;
 
-			/* The service is now open */
-			set_service_state(service, VCHIQ_SRVSTATE_OPENSYNC);
-		} else {
-			if (queue_message(state, NULL, openack_id, memcpy_copy_callback,
-					  &ack_payload, sizeof(ack_payload), 0) == -EAGAIN)
-				goto bail_not_ready;
+	/* Acknowledge the OPEN */
+	if (service->sync) {
+		if (queue_message_sync(state, NULL, openack_id,
+				       memcpy_copy_callback,
+				       &ack_payload,
+				       sizeof(ack_payload)) == -EAGAIN)
+			goto bail_not_ready;
 
-			/* The service is now open */
-			set_service_state(service, VCHIQ_SRVSTATE_OPEN);
-		}
+		/* The service is now open */
+		set_service_state(service, VCHIQ_SRVSTATE_OPENSYNC);
+	} else {
+		if (queue_message(state, NULL, openack_id,
+				  memcpy_copy_callback, &ack_payload,
+				  sizeof(ack_payload), 0) == -EINTR)
+			goto bail_not_ready;
+
+		/* The service is now open */
+		set_service_state(service, VCHIQ_SRVSTATE_OPEN);
 	}
 
+done:
 	/* Success - the message has been dealt with */
 	vchiq_service_put(service);
 	return 1;
@@ -1539,7 +1908,7 @@ parse_open(struct vchiq_state *state, struct vchiq_header *header)
 fail_open:
 	/* No available service, or an invalid request - send a CLOSE */
 	if (queue_message(state, NULL, MAKE_CLOSE(0, VCHIQ_MSG_SRCPORT(msgid)),
-			  NULL, NULL, 0, 0) == -EAGAIN)
+			  NULL, NULL, 0, 0) == -EINTR)
 		goto bail_not_ready;
 
 	return 1;
@@ -1753,7 +2122,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 
 			dev_dbg(state->dev, "core: %d: prs %s@%pK (%d->%d) %x@%pad\n",
 				state->id, msg_type_str(type), header, remoteport,
-				localport, bulk->actual, &bulk->data);
+				localport, bulk->actual, &bulk->dma_addr);
 
 			dev_dbg(state->dev, "core: %d: prs:%d %cx li=%x ri=%x p=%x\n",
 				state->id, localport,
@@ -1786,7 +2155,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 		if (state->conn_state != VCHIQ_CONNSTATE_PAUSE_SENT) {
 			/* Send a PAUSE in response */
 			if (queue_message(state, NULL, MAKE_PAUSE, NULL, NULL, 0,
-					  QMFLAGS_NO_MUTEX_UNLOCK) == -EAGAIN)
+					  QMFLAGS_NO_MUTEX_UNLOCK) == -EINTR)
 				goto bail_not_ready;
 		}
 		/* At this point slot_mutex is held */
@@ -1903,7 +2272,7 @@ handle_poll(struct vchiq_state *state)
 
 	case VCHIQ_CONNSTATE_PAUSING:
 		if (queue_message(state, NULL, MAKE_PAUSE, NULL, NULL, 0,
-				  QMFLAGS_NO_MUTEX_UNLOCK) != -EAGAIN) {
+				  QMFLAGS_NO_MUTEX_UNLOCK) != -EINTR) {
 			vchiq_set_conn_state(state, VCHIQ_CONNSTATE_PAUSE_SENT);
 		} else {
 			/* Retry later */
@@ -1913,7 +2282,7 @@ handle_poll(struct vchiq_state *state)
 
 	case VCHIQ_CONNSTATE_RESUMING:
 		if (queue_message(state, NULL, MAKE_RESUME, NULL, NULL, 0,
-				  QMFLAGS_NO_MUTEX_LOCK) != -EAGAIN) {
+				  QMFLAGS_NO_MUTEX_LOCK) != -EINTR) {
 			vchiq_set_conn_state(state, VCHIQ_CONNSTATE_CONNECTED);
 		} else {
 			/*
@@ -2662,56 +3031,58 @@ close_service_complete(struct vchiq_service *service, int failstate)
  * returned to user context.
  */
 static int
-vchiq_bulk_xfer_queue_msg_interruptible(struct vchiq_service *service,
-					void *offset, void __user *uoffset,
-					int size, void *userdata,
-					enum vchiq_bulk_mode mode,
-					enum vchiq_bulk_dir dir)
+vchiq_bulk_xfer_queue_msg_killable(struct vchiq_service *service,
+				   struct vchiq_bulk *bulk_params)
 {
 	struct vchiq_bulk_queue *queue;
 	struct bulk_waiter *bulk_waiter = NULL;
 	struct vchiq_bulk *bulk;
 	struct vchiq_state *state = service->state;
-	const char dir_char = (dir == VCHIQ_BULK_TRANSMIT) ? 't' : 'r';
-	const int dir_msgtype = (dir == VCHIQ_BULK_TRANSMIT) ?
+	const char dir_char = (bulk_params->dir == VCHIQ_BULK_TRANSMIT) ? 't' : 'r';
+	const int dir_msgtype = (bulk_params->dir == VCHIQ_BULK_TRANSMIT) ?
 		VCHIQ_MSG_BULK_TX : VCHIQ_MSG_BULK_RX;
 	int status = -EINVAL;
 	int payload[2];
 
-	if (mode == VCHIQ_BULK_MODE_BLOCKING) {
-		bulk_waiter = userdata;
+	if (bulk_params->mode == VCHIQ_BULK_MODE_BLOCKING) {
+		bulk_waiter = bulk_params->waiter;
 		init_completion(&bulk_waiter->event);
 		bulk_waiter->actual = 0;
 		bulk_waiter->bulk = NULL;
 	}
 
-	queue = (dir == VCHIQ_BULK_TRANSMIT) ?
+	queue = (bulk_params->dir == VCHIQ_BULK_TRANSMIT) ?
 		&service->bulk_tx : &service->bulk_rx;
 
 	if (mutex_lock_killable(&service->bulk_mutex))
-		return -EAGAIN;
+		return -EINTR;
 
 	if (queue->local_insert == queue->remove + VCHIQ_NUM_SERVICE_BULKS) {
 		VCHIQ_SERVICE_STATS_INC(service, bulk_stalls);
 		do {
 			mutex_unlock(&service->bulk_mutex);
-			if (wait_for_completion_interruptible(&service->bulk_remove_event))
-				return -EAGAIN;
+			if (wait_for_completion_killable(&service->bulk_remove_event))
+				return -EINTR;
 			if (mutex_lock_killable(&service->bulk_mutex))
-				return -EAGAIN;
+				return -EINTR;
 		} while (queue->local_insert == queue->remove +
 				VCHIQ_NUM_SERVICE_BULKS);
 	}
 
 	bulk = &queue->bulks[BULK_INDEX(queue->local_insert)];
 
-	bulk->mode = mode;
-	bulk->dir = dir;
-	bulk->userdata = userdata;
-	bulk->size = size;
+	/* Initiliaze the 'bulk' slot with bulk parameters passed in. */
+	bulk->mode = bulk_params->mode;
+	bulk->dir = bulk_params->dir;
+	bulk->waiter = bulk_params->waiter;
+	bulk->cb_data = bulk_params->cb_data;
+	bulk->cb_userdata = bulk_params->cb_userdata;
+	bulk->size = bulk_params->size;
+	bulk->offset = bulk_params->offset;
+	bulk->uoffset = bulk_params->uoffset;
 	bulk->actual = VCHIQ_BULK_ACTUAL_ABORTED;
 
-	if (vchiq_prepare_bulk_data(service->instance, bulk, offset, uoffset, size, dir))
+	if (vchiq_prepare_bulk_data(service->instance, bulk))
 		goto unlock_error_exit;
 
 	/*
@@ -2722,21 +3093,21 @@ vchiq_bulk_xfer_queue_msg_interruptible(struct vchiq_service *service,
 
 	dev_dbg(state->dev, "core: %d: bt (%d->%d) %cx %x@%pad %pK\n",
 		state->id, service->localport, service->remoteport,
-		dir_char, size, &bulk->data, userdata);
+		dir_char, bulk->size, &bulk->dma_addr, bulk->cb_data);
 
 	/*
 	 * The slot mutex must be held when the service is being closed, so
 	 * claim it here to ensure that isn't happening
 	 */
 	if (mutex_lock_killable(&state->slot_mutex)) {
-		status = -EAGAIN;
+		status = -EINTR;
 		goto cancel_bulk_error_exit;
 	}
 
 	if (service->srvstate != VCHIQ_SRVSTATE_OPEN)
 		goto unlock_both_error_exit;
 
-	payload[0] = lower_32_bits(bulk->data);
+	payload[0] = lower_32_bits(bulk->dma_addr);
 	payload[1] = bulk->size;
 	status = queue_message(state,
 			       NULL,
@@ -2761,13 +3132,13 @@ vchiq_bulk_xfer_queue_msg_interruptible(struct vchiq_service *service,
 		state->id, service->localport, dir_char, queue->local_insert,
 		queue->remote_insert, queue->process);
 
-        if (bulk_waiter) {
-                bulk_waiter->bulk = bulk;
-                if (wait_for_completion_interruptible(&bulk_waiter->event))
-                        status = -EAGAIN;
-                else if (bulk_waiter->actual == VCHIQ_BULK_ACTUAL_ABORTED)
-                        status = -EINVAL;
-        }
+	if (bulk_waiter) {
+		bulk_waiter->bulk = bulk;
+		if (wait_for_completion_killable(&bulk_waiter->event))
+			status = -EINTR;
+		else if (bulk_waiter->actual == VCHIQ_BULK_ACTUAL_ABORTED)
+			status = -EINVAL;
+	}
 
 	return status;
 
@@ -2803,19 +3174,21 @@ vchiq_close_service_internal(struct vchiq_service *service, int close_recvd)
 		if (close_recvd) {
 			dev_err(state->dev, "core: (1) called in state %s\n",
 				srvstate_names[service->srvstate]);
-		} else if (is_server) {
-			if (service->srvstate == VCHIQ_SRVSTATE_LISTENING) {
-				status = -EINVAL;
-			} else {
-				service->client_id = 0;
-				service->remoteport = VCHIQ_PORT_FREE;
-				if (service->srvstate == VCHIQ_SRVSTATE_CLOSEWAIT)
-					set_service_state(service, VCHIQ_SRVSTATE_LISTENING);
-			}
-			complete(&service->remove_event);
-		} else {
+			break;
+		} else if (!is_server) {
 			vchiq_free_service_internal(service);
+			break;
 		}
+
+		if (service->srvstate == VCHIQ_SRVSTATE_LISTENING) {
+			status = -EINVAL;
+		} else {
+			service->client_id = 0;
+			service->remoteport = VCHIQ_PORT_FREE;
+			if (service->srvstate == VCHIQ_SRVSTATE_CLOSEWAIT)
+				set_service_state(service, VCHIQ_SRVSTATE_LISTENING);
+		}
+		complete(&service->remove_event);
 		break;
 	case VCHIQ_SRVSTATE_OPENING:
 		if (close_recvd) {
@@ -2945,6 +3318,7 @@ int
 vchiq_connect_internal(struct vchiq_state *state, struct vchiq_instance *instance)
 {
 	struct vchiq_service *service;
+	int status = 0;
 	int i;
 
 	/* Find all services registered to this client and enable them. */
@@ -2956,9 +3330,10 @@ vchiq_connect_internal(struct vchiq_state *state, struct vchiq_instance *instanc
 	}
 
 	if (state->conn_state == VCHIQ_CONNSTATE_DISCONNECTED) {
-		if (queue_message(state, NULL, MAKE_CONNECT, NULL, NULL, 0,
-				  QMFLAGS_IS_BLOCKING) == -EAGAIN)
-			return -EAGAIN;
+		status = queue_message(state, NULL, MAKE_CONNECT, NULL, NULL, 0,
+				       QMFLAGS_IS_BLOCKING);
+		if (status)
+			return status;
 
 		vchiq_set_conn_state(state, VCHIQ_CONNSTATE_CONNECTING);
 	}
@@ -2971,7 +3346,7 @@ vchiq_connect_internal(struct vchiq_state *state, struct vchiq_instance *instanc
 		complete(&state->connect);
 	}
 
-	return 0;
+	return status;
 }
 
 void
@@ -3105,12 +3480,10 @@ vchiq_remove_service(struct vchiq_instance *instance, unsigned int handle)
 }
 
 int
-vchiq_bulk_xfer_blocking_interruptible(struct vchiq_instance *instance, unsigned int handle,
-				       void *offset, void __user *uoffset, int size,
-				       void __user *userdata, enum vchiq_bulk_dir dir)
+vchiq_bulk_xfer_blocking(struct vchiq_instance *instance, unsigned int handle,
+			 struct vchiq_bulk *bulk_params)
 {
 	struct vchiq_service *service = find_service_by_handle(instance, handle);
-	enum vchiq_bulk_mode mode = VCHIQ_BULK_MODE_BLOCKING;
 	int status = -EINVAL;
 
 	if (!service)
@@ -3119,15 +3492,13 @@ vchiq_bulk_xfer_blocking_interruptible(struct vchiq_instance *instance, unsigned
 	if (service->srvstate != VCHIQ_SRVSTATE_OPEN)
 		goto error_exit;
 
-	if (!offset && !uoffset)
+	if (!bulk_params->offset && !bulk_params->uoffset)
 		goto error_exit;
 
 	if (vchiq_check_service(service))
 		goto error_exit;
 
-
-	status = vchiq_bulk_xfer_queue_msg_interruptible(service, offset, uoffset, size,
-							 userdata, mode, dir);
+	status = vchiq_bulk_xfer_queue_msg_killable(service, bulk_params);
 
 error_exit:
 	vchiq_service_put(service);
@@ -3136,10 +3507,8 @@ error_exit:
 }
 
 int
-vchiq_bulk_xfer_callback_interruptible(struct vchiq_instance *instance, unsigned int handle,
-				       void *offset, void __user *uoffset, int size,
-				       enum vchiq_bulk_mode mode, void *userdata,
-				       enum vchiq_bulk_dir dir)
+vchiq_bulk_xfer_callback(struct vchiq_instance *instance, unsigned int handle,
+			 struct vchiq_bulk *bulk_params)
 {
 	struct vchiq_service *service = find_service_by_handle(instance, handle);
 	int status = -EINVAL;
@@ -3147,21 +3516,20 @@ vchiq_bulk_xfer_callback_interruptible(struct vchiq_instance *instance, unsigned
 	if (!service)
 		return -EINVAL;
 
-	if (mode != VCHIQ_BULK_MODE_CALLBACK &&
-	    mode != VCHIQ_BULK_MODE_NOCALLBACK)
+	if (bulk_params->mode != VCHIQ_BULK_MODE_CALLBACK &&
+	    bulk_params->mode != VCHIQ_BULK_MODE_NOCALLBACK)
 		goto error_exit;
 
 	if (service->srvstate != VCHIQ_SRVSTATE_OPEN)
 		goto error_exit;
 
-	if (!offset && !uoffset)
+	if (!bulk_params->offset && !bulk_params->uoffset)
 		goto error_exit;
 
 	if (vchiq_check_service(service))
 		goto error_exit;
 
-	status = vchiq_bulk_xfer_queue_msg_interruptible(service, offset, uoffset,
-							 size, userdata, mode, dir);
+	status = vchiq_bulk_xfer_queue_msg_killable(service, bulk_params);
 
 error_exit:
 	vchiq_service_put(service);
@@ -3175,8 +3543,8 @@ error_exit:
  * and the call should be retried after being returned to user context.
  */
 int
-vchiq_bulk_xfer_waiting_interruptible(struct vchiq_instance *instance,
-				      unsigned int handle, struct bulk_waiter *userdata)
+vchiq_bulk_xfer_waiting(struct vchiq_instance *instance,
+			unsigned int handle, struct bulk_waiter *waiter)
 {
 	struct vchiq_service *service = find_service_by_handle(instance, handle);
 	struct bulk_waiter *bulk_waiter;
@@ -3185,7 +3553,7 @@ vchiq_bulk_xfer_waiting_interruptible(struct vchiq_instance *instance,
 	if (!service)
 		return -EINVAL;
 
-	if (!userdata)
+	if (!waiter)
 		goto error_exit;
 
 	if (service->srvstate != VCHIQ_SRVSTATE_OPEN)
@@ -3194,14 +3562,14 @@ vchiq_bulk_xfer_waiting_interruptible(struct vchiq_instance *instance,
 	if (vchiq_check_service(service))
 		goto error_exit;
 
-	bulk_waiter = userdata;
+	bulk_waiter = waiter;
 
 	vchiq_service_put(service);
 
 	status = 0;
 
-	if (wait_for_completion_interruptible(&bulk_waiter->event))
-		return -EAGAIN;
+	if (wait_for_completion_killable(&bulk_waiter->event))
+		return -EINTR;
 	else if (bulk_waiter->actual == VCHIQ_BULK_ACTUAL_ABORTED)
 		return -EINVAL;
 
@@ -3267,24 +3635,8 @@ error_exit:
 int vchiq_queue_kernel_message(struct vchiq_instance *instance, unsigned int handle, void *data,
 			       unsigned int size)
 {
-	int status;
-
-	while (1) {
-		status = vchiq_queue_message(instance, handle, memcpy_copy_callback,
-					     data, size);
-
-		/*
-		 * vchiq_queue_message() may return -EAGAIN, so we need to
-		 * implement a retry mechanism since this function is supposed
-		 * to block until queued
-		 */
-		if (status != -EAGAIN)
-			break;
-
-		msleep(1);
-	}
-
-	return status;
+	return vchiq_queue_message(instance, handle, memcpy_copy_callback,
+				   data, size);
 }
 EXPORT_SYMBOL(vchiq_queue_kernel_message);
 

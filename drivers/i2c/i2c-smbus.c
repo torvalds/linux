@@ -8,6 +8,7 @@
 
 #include <linux/device.h>
 #include <linux/dmi.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/i2c-smbus.h>
 #include <linux/interrupt.h>
@@ -167,6 +168,8 @@ static int smbalert_probe(struct i2c_client *ara)
 	struct i2c_smbus_alert_setup *setup = dev_get_platdata(&ara->dev);
 	struct i2c_smbus_alert *alert;
 	struct i2c_adapter *adapter = ara->adapter;
+	unsigned long irqflags = IRQF_SHARED | IRQF_ONESHOT;
+	struct gpio_desc *gpiod;
 	int res, irq;
 
 	alert = devm_kzalloc(&ara->dev, sizeof(struct i2c_smbus_alert),
@@ -179,18 +182,25 @@ static int smbalert_probe(struct i2c_client *ara)
 	} else {
 		irq = fwnode_irq_get_byname(dev_fwnode(adapter->dev.parent),
 					    "smbus_alert");
-		if (irq <= 0)
-			return irq;
+		if (irq <= 0) {
+			gpiod = devm_gpiod_get(adapter->dev.parent, "smbalert", GPIOD_IN);
+			if (IS_ERR(gpiod))
+				return PTR_ERR(gpiod);
+
+			irq = gpiod_to_irq(gpiod);
+			if (irq <= 0)
+				return irq;
+
+			irqflags |= IRQF_TRIGGER_FALLING;
+		}
 	}
 
 	INIT_WORK(&alert->alert, smbalert_work);
 	alert->ara = ara;
 
 	if (irq > 0) {
-		res = devm_request_threaded_irq(&ara->dev, irq,
-						NULL, smbus_alert,
-						IRQF_SHARED | IRQF_ONESHOT,
-						"smbus_alert", alert);
+		res = devm_request_threaded_irq(&ara->dev, irq, NULL, smbus_alert,
+						irqflags, "smbus_alert", alert);
 		if (res)
 			return res;
 	}

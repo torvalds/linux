@@ -555,6 +555,7 @@ struct bch_dev {
 	u64			alloc_cursor[3];
 
 	unsigned		nr_open_buckets;
+	unsigned		nr_partial_buckets;
 	unsigned		nr_btree_reserve;
 
 	size_t			inc_gen_needs_gc;

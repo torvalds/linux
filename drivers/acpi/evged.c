@@ -185,7 +185,7 @@ static const struct acpi_device_id ged_acpi_ids[] = {
 
 static struct platform_driver ged_driver = {
 	.probe = ged_probe,
-	.remove_new = ged_remove,
+	.remove = ged_remove,
 	.shutdown = ged_shutdown,
 	.driver = {
 		.name = MODULE_NAME,

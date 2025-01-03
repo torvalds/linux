@@ -82,6 +82,11 @@ static const struct drm_info_list pf_info[] = {
 		.data = xe_gt_sriov_pf_config_print_dbs,
 	},
 	{
+		"lmem_provisioned",
+		.show = xe_gt_debugfs_simple_show,
+		.data = xe_gt_sriov_pf_config_print_lmem,
+	},
+	{
 		"runtime_registers",
 		.show = xe_gt_debugfs_simple_show,
 		.data = xe_gt_sriov_pf_service_print_runtime,

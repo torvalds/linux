@@ -411,7 +411,7 @@ static evtchn_port_t evtchn_from_irq(unsigned int irq)
 {
 	const struct irq_info *info = NULL;
 
-	if (likely(irq < nr_irqs))
+	if (likely(irq < irq_get_nr_irqs()))
 		info = info_for_irq(irq);
 	if (!info)
 		return 0;

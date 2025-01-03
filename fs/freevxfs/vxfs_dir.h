@@ -25,7 +25,7 @@
 struct vxfs_dirblk {
 	__fs16		d_free;		/* free space in dirblock */
 	__fs16		d_nhash;	/* no of hash chains */
-	__fs16		d_hash[1];	/* hash chain */
+	__fs16		d_hash[];	/* hash chain */
 };
 
 /*

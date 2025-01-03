@@ -383,8 +383,7 @@
 		hdmi@39 {
 			compatible = "adi,adv7511w";
 			reg = <0x39>;
-			interrupt-parent = <&gpio3>;
-			interrupts = <29 IRQ_TYPE_LEVEL_LOW>;
+			interrupts-extended = <&gpio3 29 IRQ_TYPE_LEVEL_LOW>;
 
 			avdd-supply = <&reg_1p8v>;
 			dvdd-supply = <&reg_1p8v>;
@@ -419,8 +418,7 @@
 		hdmi-in@4c {
 			compatible = "adi,adv7612";
 			reg = <0x4c>;
-			interrupt-parent = <&gpio4>;
-			interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
+			interrupts-extended = <&gpio4 2 IRQ_TYPE_LEVEL_LOW>;
 			default-input = <0>;
 
 			ports {
@@ -622,8 +620,7 @@
 		compatible = "ethernet-phy-id0022.1537",
 			     "ethernet-phy-ieee802.3-c22";
 		reg = <1>;
-		interrupt-parent = <&irqc0>;
-		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&irqc0 0 IRQ_TYPE_LEVEL_LOW>;
 		micrel,led-mode = <1>;
 		reset-gpios = <&gpio5 22 GPIO_ACTIVE_LOW>;
 	};
@@ -756,8 +753,7 @@
 	pmic@58 {
 		compatible = "dlg,da9063";
 		reg = <0x58>;
-		interrupt-parent = <&irqc0>;
-		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&irqc0 2 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
 
@@ -773,8 +769,7 @@
 	vdd_dvfs: regulator@68 {
 		compatible = "dlg,da9210";
 		reg = <0x68>;
-		interrupt-parent = <&irqc0>;
-		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&irqc0 2 IRQ_TYPE_LEVEL_LOW>;
 
 		regulator-min-microvolt = <1000000>;
 		regulator-max-microvolt = <1000000>;

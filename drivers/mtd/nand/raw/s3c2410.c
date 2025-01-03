@@ -1213,7 +1213,7 @@ MODULE_DEVICE_TABLE(platform, s3c24xx_driver_ids);
 
 static struct platform_driver s3c24xx_nand_driver = {
 	.probe		= s3c24xx_nand_probe,
-	.remove_new	= s3c24xx_nand_remove,
+	.remove		= s3c24xx_nand_remove,
 	.suspend	= s3c24xx_nand_suspend,
 	.resume		= s3c24xx_nand_resume,
 	.id_table	= s3c24xx_driver_ids,

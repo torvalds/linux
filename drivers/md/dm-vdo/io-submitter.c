@@ -367,7 +367,7 @@ void __submit_metadata_vio(struct vio *vio, physical_block_number_t physical,
  *                     completions.
  * @max_requests_active: Number of bios for merge tracking.
  * @vdo: The vdo which will use this submitter.
- * @io_submitter: pointer to the new data structure.
+ * @io_submitter_ptr: pointer to the new data structure.
  *
  * Return: VDO_SUCCESS or an error.
  */

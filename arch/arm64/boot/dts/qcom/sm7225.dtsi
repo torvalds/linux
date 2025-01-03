@@ -6,14 +6,14 @@
 #include "sm6350.dtsi"
 
 /* SM7225 uses Kryo 570 instead of Kryo 560 */
-&CPU0 { compatible = "qcom,kryo570"; };
-&CPU1 { compatible = "qcom,kryo570"; };
-&CPU2 { compatible = "qcom,kryo570"; };
-&CPU3 { compatible = "qcom,kryo570"; };
-&CPU4 { compatible = "qcom,kryo570"; };
-&CPU5 { compatible = "qcom,kryo570"; };
-&CPU6 { compatible = "qcom,kryo570"; };
-&CPU7 { compatible = "qcom,kryo570"; };
+&cpu0 { compatible = "qcom,kryo570"; };
+&cpu1 { compatible = "qcom,kryo570"; };
+&cpu2 { compatible = "qcom,kryo570"; };
+&cpu3 { compatible = "qcom,kryo570"; };
+&cpu4 { compatible = "qcom,kryo570"; };
+&cpu5 { compatible = "qcom,kryo570"; };
+&cpu6 { compatible = "qcom,kryo570"; };
+&cpu7 { compatible = "qcom,kryo570"; };
 
 &cpu0_opp_table {
 	opp-1804800000 {

@@ -861,7 +861,7 @@ MODULE_DEVICE_TABLE(of, of_sso_led_match);
 
 static struct platform_driver intel_sso_led_driver = {
 	.probe		= intel_sso_led_probe,
-	.remove_new	= intel_sso_led_remove,
+	.remove		= intel_sso_led_remove,
 	.driver		= {
 			.name = "lgm-ssoled",
 			.of_match_table = of_sso_led_match,

@@ -1443,9 +1443,11 @@ static void get_serial_info(struct tty_struct *tty, struct serial_struct *ss)
 	struct usb_serial_port *port = tty->driver_data;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 
+	mutex_lock(&priv->cfg_lock);
 	ss->flags = priv->flags;
 	ss->baud_base = priv->baud_base;
 	ss->custom_divisor = priv->custom_divisor;
+	mutex_unlock(&priv->cfg_lock);
 }
 
 static int set_serial_info(struct tty_struct *tty, struct serial_struct *ss)

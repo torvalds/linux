@@ -40,7 +40,7 @@
 	};
 
 	reserved-memory {
-		other_ext_region@0 {
+		other-ext-region@0 {
 			no-map;
 			reg = <0x00 0x84500000 0x00 0x2300000>;
 		};

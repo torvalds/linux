@@ -618,7 +618,7 @@ static int rk808_power_off(struct sys_off_data *data)
 		bit = DEV_OFF;
 		break;
 	case RK808_ID:
-		reg = RK808_DEVCTRL_REG,
+		reg = RK808_DEVCTRL_REG;
 		bit = DEV_OFF_RST;
 		break;
 	case RK809_ID:
@@ -785,8 +785,8 @@ int rk8xx_probe(struct device *dev, int variant, unsigned int irq, struct regmap
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to add MFD devices\n");
 
-	if (device_property_read_bool(dev, "rockchip,system-power-controller") ||
-	    device_property_read_bool(dev, "system-power-controller")) {
+	if (device_property_read_bool(dev, "system-power-controller") ||
+	    device_property_read_bool(dev, "rockchip,system-power-controller")) {
 		ret = devm_register_sys_off_handler(dev,
 				    SYS_OFF_MODE_POWER_OFF_PREPARE, SYS_OFF_PRIO_HIGH,
 				    &rk808_power_off, rk808);

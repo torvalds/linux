@@ -1943,6 +1943,7 @@ lpfc_sli4_port_sta_fn_reset(struct lpfc_hba *phba, int mbx_action,
 
 	lpfc_offline_prep(phba, mbx_action);
 	lpfc_sli_flush_io_rings(phba);
+	lpfc_nvmels_flush_cmd(phba);
 	lpfc_offline(phba);
 	/* release interrupt for possible resource change */
 	lpfc_sli4_disable_intr(phba);
@@ -3092,7 +3093,8 @@ lpfc_cleanup(struct lpfc_vport *vport)
 				lpfc_printf_vlog(ndlp->vport, KERN_ERR,
 						 LOG_DISCOVERY,
 						 "0282 did:x%x ndlp:x%px "
-						 "refcnt:%d xflags x%x nflag x%x\n",
+						 "refcnt:%d xflags x%x "
+						 "nflag x%lx\n",
 						 ndlp->nlp_DID, (void *)ndlp,
 						 kref_read(&ndlp->kref),
 						 ndlp->fc4_xpt_flags,
@@ -3379,7 +3381,7 @@ lpfc_block_mgmt_io(struct lpfc_hba *phba, int mbx_action)
 }
 
 /**
- * lpfc_sli4_node_prep - Assign RPIs for active nodes.
+ * lpfc_sli4_node_rpi_restore - Recover assigned RPIs for active nodes.
  * @phba: pointer to lpfc hba data structure.
  *
  * Allocate RPIs for all active remote nodes. This is needed whenever
@@ -3387,7 +3389,7 @@ lpfc_block_mgmt_io(struct lpfc_hba *phba, int mbx_action)
  * is to fixup the temporary rpi assignments.
  **/
 void
-lpfc_sli4_node_prep(struct lpfc_hba *phba)
+lpfc_sli4_node_rpi_restore(struct lpfc_hba *phba)
 {
 	struct lpfc_nodelist  *ndlp, *next_ndlp;
 	struct lpfc_vport **vports;
@@ -3397,10 +3399,10 @@ lpfc_sli4_node_prep(struct lpfc_hba *phba)
 		return;
 
 	vports = lpfc_create_vport_work_array(phba);
-	if (vports == NULL)
+	if (!vports)
 		return;
 
-	for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
+	for (i = 0; i <= phba->max_vports && vports[i]; i++) {
 		if (test_bit(FC_UNLOADING, &vports[i]->load_flag))
 			continue;
 
@@ -3409,14 +3411,20 @@ lpfc_sli4_node_prep(struct lpfc_hba *phba)
 					 nlp_listp) {
 			rpi = lpfc_sli4_alloc_rpi(phba);
 			if (rpi == LPFC_RPI_ALLOC_ERROR) {
-				/* TODO print log? */
+				lpfc_printf_vlog(ndlp->vport, KERN_INFO,
+						 LOG_NODE | LOG_DISCOVERY,
+						 "0099 RPI alloc error for "
+						 "ndlp x%px DID:x%06x "
+						 "flg:x%lx\n",
+						 ndlp, ndlp->nlp_DID,
+						 ndlp->nlp_flag);
 				continue;
 			}
 			ndlp->nlp_rpi = rpi;
 			lpfc_printf_vlog(ndlp->vport, KERN_INFO,
 					 LOG_NODE | LOG_DISCOVERY,
 					 "0009 Assign RPI x%x to ndlp x%px "
-					 "DID:x%06x flg:x%x\n",
+					 "DID:x%06x flg:x%lx\n",
 					 ndlp->nlp_rpi, ndlp, ndlp->nlp_DID,
 					 ndlp->nlp_flag);
 		}
@@ -3820,35 +3828,12 @@ lpfc_offline_prep(struct lpfc_hba *phba, int mbx_action)
 						 &vports[i]->fc_nodes,
 						 nlp_listp) {
 
-				spin_lock_irq(&ndlp->lock);
-				ndlp->nlp_flag &= ~NLP_NPR_ADISC;
-				spin_unlock_irq(&ndlp->lock);
-
+				clear_bit(NLP_NPR_ADISC, &ndlp->nlp_flag);
 				if (offline || hba_pci_err) {
-					spin_lock_irq(&ndlp->lock);
-					ndlp->nlp_flag &= ~(NLP_UNREG_INP |
-							    NLP_RPI_REGISTERED);
-					spin_unlock_irq(&ndlp->lock);
-					if (phba->sli_rev == LPFC_SLI_REV4)
-						lpfc_sli_rpi_release(vports[i],
-								     ndlp);
-				} else {
-					lpfc_unreg_rpi(vports[i], ndlp);
-				}
-				/*
-				 * Whenever an SLI4 port goes offline, free the
-				 * RPI. Get a new RPI when the adapter port
-				 * comes back online.
-				 */
-				if (phba->sli_rev == LPFC_SLI_REV4) {
-					lpfc_printf_vlog(vports[i], KERN_INFO,
-						 LOG_NODE | LOG_DISCOVERY,
-						 "0011 Free RPI x%x on "
-						 "ndlp: x%px did x%x\n",
-						 ndlp->nlp_rpi, ndlp,
-						 ndlp->nlp_DID);
-					lpfc_sli4_free_rpi(phba, ndlp->nlp_rpi);
-					ndlp->nlp_rpi = LPFC_RPI_ALLOC_ERROR;
+					clear_bit(NLP_UNREG_INP,
+						  &ndlp->nlp_flag);
+					clear_bit(NLP_RPI_REGISTERED,
+						  &ndlp->nlp_flag);
 				}
 
 				if (ndlp->nlp_type & NLP_FABRIC) {
@@ -6925,9 +6910,7 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 			 */
 			mod_timer(&ndlp->nlp_delayfunc,
 				  jiffies + msecs_to_jiffies(1000));
-			spin_lock_irq(&ndlp->lock);
-			ndlp->nlp_flag |= NLP_DELAY_TMO;
-			spin_unlock_irq(&ndlp->lock);
+			set_bit(NLP_DELAY_TMO, &ndlp->nlp_flag);
 			ndlp->nlp_last_elscmd = ELS_CMD_FDISC;
 			vport->port_state = LPFC_FDISC;
 		} else {
@@ -13517,6 +13500,8 @@ lpfc_sli4_hba_unset(struct lpfc_hba *phba)
 
 	/* Disable FW logging to host memory */
 	lpfc_ras_stop_fwlog(phba);
+
+	lpfc_sli4_queue_unset(phba);
 
 	/* Reset SLI4 HBA FCoE function */
 	lpfc_pci_function_reset(phba);

@@ -1380,8 +1380,6 @@ static const struct vb2_ops gspca_qops = {
 	.buf_queue		= gspca_buffer_queue,
 	.start_streaming	= gspca_start_streaming,
 	.stop_streaming		= gspca_stop_streaming,
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 };
 
 static const struct v4l2_file_operations dev_fops = {

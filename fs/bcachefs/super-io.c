@@ -287,6 +287,11 @@ static int validate_sb_layout(struct bch_sb_layout *layout, struct printbuf *out
 		return -BCH_ERR_invalid_sb_layout_nr_superblocks;
 	}
 
+	if (layout->sb_max_size_bits > BCH_SB_LAYOUT_SIZE_BITS_MAX) {
+		prt_printf(out, "Invalid superblock layout: max_size_bits too high");
+		return -BCH_ERR_invalid_sb_layout_sb_max_size_bits;
+	}
+
 	max_sectors = 1 << layout->sb_max_size_bits;
 
 	prev_offset = le64_to_cpu(layout->sb_offset[0]);

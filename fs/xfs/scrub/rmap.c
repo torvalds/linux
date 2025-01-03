@@ -358,7 +358,7 @@ xchk_rmapbt_rec(
 	struct xfs_rmap_irec	irec;
 
 	if (xfs_rmap_btrec_to_irec(rec, &irec) != NULL ||
-	    xfs_rmap_check_irec(bs->cur->bc_ag.pag, &irec) != NULL) {
+	    xfs_rmap_check_irec(to_perag(bs->cur->bc_group), &irec) != NULL) {
 		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 		return 0;
 	}
@@ -410,7 +410,7 @@ xchk_rmapbt_walk_ag_metadata(
 		goto out;
 
 	/* OWN_LOG: Internal log */
-	if (xfs_ag_contains_log(mp, sc->sa.pag->pag_agno)) {
+	if (xfs_ag_contains_log(mp, pag_agno(sc->sa.pag))) {
 		error = xagb_bitmap_set(&cr->log_owned,
 				XFS_FSB_TO_AGBNO(mp, mp->m_sb.sb_logstart),
 				mp->m_sb.sb_logblocks);

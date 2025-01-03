@@ -1349,7 +1349,7 @@ out_unlock:
 
 #endif /* CONFIG_PM */
 
-static struct memstick_device_id mspro_block_id_tbl[] = {
+static const struct memstick_device_id mspro_block_id_tbl[] = {
 	{MEMSTICK_MATCH_ALL, MEMSTICK_TYPE_PRO, MEMSTICK_CATEGORY_STORAGE_DUO,
 	 MEMSTICK_CLASS_DUO},
 	{}

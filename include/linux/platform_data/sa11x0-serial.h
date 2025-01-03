@@ -10,7 +10,6 @@
 #define SA11X0_SERIAL_H
 
 struct uart_port;
-struct uart_info;
 
 /*
  * This is a temporary structure for registering these

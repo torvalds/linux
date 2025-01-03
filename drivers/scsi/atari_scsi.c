@@ -885,7 +885,7 @@ static void __exit atari_scsi_remove(struct platform_device *pdev)
  * triggering a section mismatch warning.
  */
 static struct platform_driver atari_scsi_driver __refdata = {
-	.remove_new = __exit_p(atari_scsi_remove),
+	.remove = __exit_p(atari_scsi_remove),
 	.driver = {
 		.name	= DRV_MODULE_NAME,
 	},

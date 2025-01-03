@@ -15,6 +15,7 @@
 #include <linux/zalloc.h>
 #include "iostat.h"
 #include "util/hashmap.h"
+#include "tool_pmu.h"
 
 struct stats walltime_nsecs_stats;
 struct rusage_stats ru_stats;
@@ -76,7 +77,7 @@ void perf_stat__reset_shadow_stats(void)
 	memset(&ru_stats, 0, sizeof(ru_stats));
 }
 
-static enum stat_type evsel__stat_type(const struct evsel *evsel)
+static enum stat_type evsel__stat_type(struct evsel *evsel)
 {
 	/* Fake perf_hw_cache_op_id values for use with evsel__match. */
 	u64 PERF_COUNT_hw_cache_l1d_miss = PERF_COUNT_HW_CACHE_L1D |
@@ -136,23 +137,19 @@ static enum stat_type evsel__stat_type(const struct evsel *evsel)
 	return STAT_NONE;
 }
 
-static const char *get_ratio_color(const double ratios[3], double val)
+static enum metric_threshold_classify get_ratio_thresh(const double ratios[3], double val)
 {
-	const char *color = PERF_COLOR_NORMAL;
+	assert(ratios[0] > ratios[1]);
+	assert(ratios[1] > ratios[2]);
 
-	if (val > ratios[0])
-		color = PERF_COLOR_RED;
-	else if (val > ratios[1])
-		color = PERF_COLOR_MAGENTA;
-	else if (val > ratios[2])
-		color = PERF_COLOR_YELLOW;
-
-	return color;
+	return val > ratios[1]
+		? (val > ratios[0] ? METRIC_THRESHOLD_BAD : METRIC_THRESHOLD_NEARLY_BAD)
+		: (val > ratios[2] ? METRIC_THRESHOLD_LESS_GOOD : METRIC_THRESHOLD_GOOD);
 }
 
 static double find_stat(const struct evsel *evsel, int aggr_idx, enum stat_type type)
 {
-	const struct evsel *cur;
+	struct evsel *cur;
 	int evsel_ctx = evsel_context(evsel);
 
 	evlist__for_each_entry(evsel->evlist, cur) {
@@ -195,17 +192,21 @@ static void print_ratio(struct perf_stat_config *config,
 			const struct evsel *evsel, int aggr_idx,
 			double numerator, struct perf_stat_output_ctx *out,
 			enum stat_type denominator_type,
-			const double color_ratios[3], const char *unit)
+			const double thresh_ratios[3], const char *_unit)
 {
 	double denominator = find_stat(evsel, aggr_idx, denominator_type);
+	double ratio = 0;
+	enum metric_threshold_classify thresh = METRIC_THRESHOLD_UNKNOWN;
+	const char *fmt = NULL;
+	const char *unit = NULL;
 
 	if (numerator && denominator) {
-		double ratio = numerator / denominator * 100.0;
-		const char *color = get_ratio_color(color_ratios, ratio);
-
-		out->print_metric(config, out->ctx, color, "%7.2f%%", unit, ratio);
-	} else
-		out->print_metric(config, out->ctx, NULL, NULL, unit, 0);
+		ratio = numerator / denominator * 100.0;
+		thresh = get_ratio_thresh(thresh_ratios, ratio);
+		fmt = "%7.2f%%";
+		unit = _unit;
+	}
+	out->print_metric(config, out->ctx, thresh, fmt, unit, ratio);
 }
 
 static void print_stalled_cycles_front(struct perf_stat_config *config,
@@ -213,9 +214,9 @@ static void print_stalled_cycles_front(struct perf_stat_config *config,
 				int aggr_idx, double stalled,
 				struct perf_stat_output_ctx *out)
 {
-	static const double color_ratios[3] = {50.0, 30.0, 10.0};
+	const double thresh_ratios[3] = {50.0, 30.0, 10.0};
 
-	print_ratio(config, evsel, aggr_idx, stalled, out, STAT_CYCLES, color_ratios,
+	print_ratio(config, evsel, aggr_idx, stalled, out, STAT_CYCLES, thresh_ratios,
 		    "frontend cycles idle");
 }
 
@@ -224,9 +225,9 @@ static void print_stalled_cycles_back(struct perf_stat_config *config,
 				int aggr_idx, double stalled,
 				struct perf_stat_output_ctx *out)
 {
-	static const double color_ratios[3] = {75.0, 50.0, 20.0};
+	const double thresh_ratios[3] = {75.0, 50.0, 20.0};
 
-	print_ratio(config, evsel, aggr_idx, stalled, out, STAT_CYCLES, color_ratios,
+	print_ratio(config, evsel, aggr_idx, stalled, out, STAT_CYCLES, thresh_ratios,
 		    "backend cycles idle");
 }
 
@@ -235,9 +236,9 @@ static void print_branch_miss(struct perf_stat_config *config,
 			int aggr_idx, double misses,
 			struct perf_stat_output_ctx *out)
 {
-	static const double color_ratios[3] = {20.0, 10.0, 5.0};
+	const double thresh_ratios[3] = {20.0, 10.0, 5.0};
 
-	print_ratio(config, evsel, aggr_idx, misses, out, STAT_BRANCHES, color_ratios,
+	print_ratio(config, evsel, aggr_idx, misses, out, STAT_BRANCHES, thresh_ratios,
 		    "of all branches");
 }
 
@@ -246,9 +247,9 @@ static void print_l1d_miss(struct perf_stat_config *config,
 			int aggr_idx, double misses,
 			struct perf_stat_output_ctx *out)
 {
-	static const double color_ratios[3] = {20.0, 10.0, 5.0};
+	const double thresh_ratios[3] = {20.0, 10.0, 5.0};
 
-	print_ratio(config, evsel, aggr_idx, misses, out, STAT_L1_DCACHE, color_ratios,
+	print_ratio(config, evsel, aggr_idx, misses, out, STAT_L1_DCACHE, thresh_ratios,
 		    "of all L1-dcache accesses");
 }
 
@@ -257,9 +258,9 @@ static void print_l1i_miss(struct perf_stat_config *config,
 			int aggr_idx, double misses,
 			struct perf_stat_output_ctx *out)
 {
-	static const double color_ratios[3] = {20.0, 10.0, 5.0};
+	const double thresh_ratios[3] = {20.0, 10.0, 5.0};
 
-	print_ratio(config, evsel, aggr_idx, misses, out, STAT_L1_ICACHE, color_ratios,
+	print_ratio(config, evsel, aggr_idx, misses, out, STAT_L1_ICACHE, thresh_ratios,
 		    "of all L1-icache accesses");
 }
 
@@ -268,9 +269,9 @@ static void print_ll_miss(struct perf_stat_config *config,
 			int aggr_idx, double misses,
 			struct perf_stat_output_ctx *out)
 {
-	static const double color_ratios[3] = {20.0, 10.0, 5.0};
+	const double thresh_ratios[3] = {20.0, 10.0, 5.0};
 
-	print_ratio(config, evsel, aggr_idx, misses, out, STAT_LL_CACHE, color_ratios,
+	print_ratio(config, evsel, aggr_idx, misses, out, STAT_LL_CACHE, thresh_ratios,
 		    "of all LL-cache accesses");
 }
 
@@ -279,9 +280,9 @@ static void print_dtlb_miss(struct perf_stat_config *config,
 			int aggr_idx, double misses,
 			struct perf_stat_output_ctx *out)
 {
-	static const double color_ratios[3] = {20.0, 10.0, 5.0};
+	const double thresh_ratios[3] = {20.0, 10.0, 5.0};
 
-	print_ratio(config, evsel, aggr_idx, misses, out, STAT_DTLB_CACHE, color_ratios,
+	print_ratio(config, evsel, aggr_idx, misses, out, STAT_DTLB_CACHE, thresh_ratios,
 		    "of all dTLB cache accesses");
 }
 
@@ -290,9 +291,9 @@ static void print_itlb_miss(struct perf_stat_config *config,
 			int aggr_idx, double misses,
 			struct perf_stat_output_ctx *out)
 {
-	static const double color_ratios[3] = {20.0, 10.0, 5.0};
+	const double thresh_ratios[3] = {20.0, 10.0, 5.0};
 
-	print_ratio(config, evsel, aggr_idx, misses, out, STAT_ITLB_CACHE, color_ratios,
+	print_ratio(config, evsel, aggr_idx, misses, out, STAT_ITLB_CACHE, thresh_ratios,
 		    "of all iTLB cache accesses");
 }
 
@@ -301,9 +302,9 @@ static void print_cache_miss(struct perf_stat_config *config,
 			int aggr_idx, double misses,
 			struct perf_stat_output_ctx *out)
 {
-	static const double color_ratios[3] = {20.0, 10.0, 5.0};
+	const double thresh_ratios[3] = {20.0, 10.0, 5.0};
 
-	print_ratio(config, evsel, aggr_idx, misses, out, STAT_CACHE_REFS, color_ratios,
+	print_ratio(config, evsel, aggr_idx, misses, out, STAT_CACHE_REFS, thresh_ratios,
 		    "of all cache refs");
 }
 
@@ -319,15 +320,16 @@ static void print_instructions(struct perf_stat_config *config,
 				find_stat(evsel, aggr_idx, STAT_STALLED_CYCLES_BACK));
 
 	if (cycles) {
-		print_metric(config, ctxp, NULL, "%7.2f ", "insn per cycle",
-			instructions / cycles);
-	} else
-		print_metric(config, ctxp, NULL, NULL, "insn per cycle", 0);
-
+		print_metric(config, ctxp, METRIC_THRESHOLD_UNKNOWN, "%7.2f ",
+			     "insn per cycle", instructions / cycles);
+	} else {
+		print_metric(config, ctxp, METRIC_THRESHOLD_UNKNOWN, /*fmt=*/NULL,
+			     "insn per cycle", 0);
+	}
 	if (max_stalled && instructions) {
 		out->new_line(config, ctxp);
-		print_metric(config, ctxp, NULL, "%7.2f ", "stalled cycles per insn",
-			max_stalled / instructions);
+		print_metric(config, ctxp, METRIC_THRESHOLD_UNKNOWN, "%7.2f ",
+			     "stalled cycles per insn", max_stalled / instructions);
 	}
 }
 
@@ -341,9 +343,12 @@ static void print_cycles(struct perf_stat_config *config,
 	if (cycles && nsecs) {
 		double ratio = cycles / nsecs;
 
-		out->print_metric(config, out->ctx, NULL, "%8.3f", "GHz", ratio);
-	} else
-		out->print_metric(config, out->ctx, NULL, NULL, "GHz", 0);
+		out->print_metric(config, out->ctx, METRIC_THRESHOLD_UNKNOWN, "%8.3f",
+				  "GHz", ratio);
+	} else {
+		out->print_metric(config, out->ctx, METRIC_THRESHOLD_UNKNOWN, /*fmt=*/NULL,
+				  "GHz", 0);
+	}
 }
 
 static void print_nsecs(struct perf_stat_config *config,
@@ -356,10 +361,12 @@ static void print_nsecs(struct perf_stat_config *config,
 	double wall_time = avg_stats(&walltime_nsecs_stats);
 
 	if (wall_time) {
-		print_metric(config, ctxp, NULL, "%8.3f", "CPUs utilized",
+		print_metric(config, ctxp, METRIC_THRESHOLD_UNKNOWN, "%8.3f", "CPUs utilized",
 			nsecs / (wall_time * evsel->scale));
-	} else
-		print_metric(config, ctxp, NULL, NULL, "CPUs utilized", 0);
+	} else {
+		print_metric(config, ctxp, METRIC_THRESHOLD_UNKNOWN, /*fmt=*/NULL,
+			     "CPUs utilized", 0);
+	}
 }
 
 static int prepare_metric(const struct metric_expr *mexp,
@@ -381,26 +388,35 @@ static int prepare_metric(const struct metric_expr *mexp,
 			double scale;
 
 			switch (evsel__tool_event(metric_events[i])) {
-			case PERF_TOOL_DURATION_TIME:
+			case TOOL_PMU__EVENT_DURATION_TIME:
 				stats = &walltime_nsecs_stats;
 				scale = 1e-9;
 				break;
-			case PERF_TOOL_USER_TIME:
+			case TOOL_PMU__EVENT_USER_TIME:
 				stats = &ru_stats.ru_utime_usec_stat;
 				scale = 1e-6;
 				break;
-			case PERF_TOOL_SYSTEM_TIME:
+			case TOOL_PMU__EVENT_SYSTEM_TIME:
 				stats = &ru_stats.ru_stime_usec_stat;
 				scale = 1e-6;
 				break;
-			case PERF_TOOL_NONE:
+			case TOOL_PMU__EVENT_NONE:
 				pr_err("Invalid tool event 'none'");
 				abort();
-			case PERF_TOOL_MAX:
+			case TOOL_PMU__EVENT_MAX:
 				pr_err("Invalid tool event 'max'");
 				abort();
+			case TOOL_PMU__EVENT_HAS_PMEM:
+			case TOOL_PMU__EVENT_NUM_CORES:
+			case TOOL_PMU__EVENT_NUM_CPUS:
+			case TOOL_PMU__EVENT_NUM_CPUS_ONLINE:
+			case TOOL_PMU__EVENT_NUM_DIES:
+			case TOOL_PMU__EVENT_NUM_PACKAGES:
+			case TOOL_PMU__EVENT_SLOTS:
+			case TOOL_PMU__EVENT_SMT_ON:
+			case TOOL_PMU__EVENT_SYSTEM_TSC_FREQ:
 			default:
-				pr_err("Unknown tool event '%s'", evsel__name(metric_events[i]));
+				pr_err("Unexpected tool event '%s'", evsel__name(metric_events[i]));
 				abort();
 			}
 			val = avg_stats(stats) * scale;
@@ -483,7 +499,7 @@ static void generic_metric(struct perf_stat_config *config,
 	double ratio, scale, threshold;
 	int i;
 	void *ctxp = out->ctx;
-	const char *color = NULL;
+	enum metric_threshold_classify thresh = METRIC_THRESHOLD_UNKNOWN;
 
 	pctx = expr__ctx_new();
 	if (!pctx)
@@ -501,13 +517,13 @@ static void generic_metric(struct perf_stat_config *config,
 	if (!metric_events[i]) {
 		if (expr__parse(&ratio, pctx, metric_expr) == 0) {
 			char *unit;
-			char metric_bf[64];
+			char metric_bf[128];
 
 			if (metric_threshold &&
 			    expr__parse(&threshold, pctx, metric_threshold) == 0 &&
 			    !isnan(threshold)) {
-				color = fpclassify(threshold) == FP_ZERO
-					? PERF_COLOR_GREEN : PERF_COLOR_RED;
+				thresh = fpclassify(threshold) == FP_ZERO
+					? METRIC_THRESHOLD_GOOD : METRIC_THRESHOLD_BAD;
 			}
 
 			if (metric_unit && metric_name) {
@@ -522,22 +538,22 @@ static void generic_metric(struct perf_stat_config *config,
 					scnprintf(metric_bf, sizeof(metric_bf),
 					  "%s  %s", unit, metric_name);
 
-				print_metric(config, ctxp, color, "%8.1f",
+				print_metric(config, ctxp, thresh, "%8.1f",
 					     metric_bf, ratio);
 			} else {
-				print_metric(config, ctxp, color, "%8.2f",
+				print_metric(config, ctxp, thresh, "%8.2f",
 					metric_name ?
 					metric_name :
 					out->force_header ?  evsel->name : "",
 					ratio);
 			}
 		} else {
-			print_metric(config, ctxp, color, /*unit=*/NULL,
+			print_metric(config, ctxp, thresh, /*fmt=*/NULL,
 				     out->force_header ?
 				     (metric_name ?: evsel->name) : "", 0);
 		}
 	} else {
-		print_metric(config, ctxp, color, /*unit=*/NULL,
+		print_metric(config, ctxp, thresh, /*fmt=*/NULL,
 			     out->force_header ?
 			     (metric_name ?: evsel->name) : "", 0);
 	}
@@ -573,7 +589,7 @@ static void perf_stat__print_metricgroup_header(struct perf_stat_config *config,
 {
 	bool need_full_name = perf_pmus__num_core_pmus() > 1;
 	static const char *last_name;
-	static const char *last_pmu;
+	static const struct perf_pmu *last_pmu;
 	char full_name[64];
 
 	/*
@@ -584,21 +600,21 @@ static void perf_stat__print_metricgroup_header(struct perf_stat_config *config,
 	 * different metric events.
 	 */
 	if (last_name && !strcmp(last_name, name)) {
-		if (!need_full_name || !strcmp(last_pmu, evsel->pmu_name)) {
+		if (!need_full_name || last_pmu != evsel->pmu) {
 			out->print_metricgroup_header(config, ctxp, NULL);
 			return;
 		}
 	}
 
-	if (need_full_name)
-		scnprintf(full_name, sizeof(full_name), "%s (%s)", name, evsel->pmu_name);
+	if (need_full_name && evsel->pmu)
+		scnprintf(full_name, sizeof(full_name), "%s (%s)", name, evsel->pmu->name);
 	else
 		scnprintf(full_name, sizeof(full_name), "%s", name);
 
 	out->print_metricgroup_header(config, ctxp, full_name);
 
 	last_name = name;
-	last_pmu = evsel->pmu_name;
+	last_pmu = evsel->pmu;
 }
 
 /**
@@ -708,17 +724,21 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 
 				if (unit != ' ')
 					snprintf(unit_buf, sizeof(unit_buf), "%c/sec", unit);
-				print_metric(config, ctxp, NULL, "%8.3f", unit_buf, ratio);
-			} else
+				print_metric(config, ctxp, METRIC_THRESHOLD_UNKNOWN, "%8.3f",
+					     unit_buf, ratio);
+			} else {
 				num = 0;
+			}
 		}
 	}
 
 	perf_stat__print_shadow_stats_metricgroup(config, evsel, aggr_idx,
 						  &num, NULL, out, metric_events);
 
-	if (num == 0)
-		print_metric(config, ctxp, NULL, NULL, NULL, 0);
+	if (num == 0) {
+		print_metric(config, ctxp, METRIC_THRESHOLD_UNKNOWN,
+			     /*fmt=*/NULL, /*unit=*/NULL, 0);
+	}
 }
 
 /**

@@ -277,6 +277,25 @@ xfs_qm_init_dquot_blk(
 		xfs_trans_log_buf(tp, bp, 0, BBTOB(q->qi_dqchunklen) - 1);
 }
 
+static void
+xfs_dquot_set_prealloc(
+	struct xfs_dquot_pre		*pre,
+	const struct xfs_dquot_res	*res)
+{
+	xfs_qcnt_t			space;
+
+	pre->q_prealloc_hi_wmark = res->hardlimit;
+	pre->q_prealloc_lo_wmark = res->softlimit;
+
+	space = div_u64(pre->q_prealloc_hi_wmark, 100);
+	if (!pre->q_prealloc_lo_wmark)
+		pre->q_prealloc_lo_wmark = space * 95;
+
+	pre->q_low_space[XFS_QLOWSP_1_PCNT] = space;
+	pre->q_low_space[XFS_QLOWSP_3_PCNT] = space * 3;
+	pre->q_low_space[XFS_QLOWSP_5_PCNT] = space * 5;
+}
+
 /*
  * Initialize the dynamic speculative preallocation thresholds. The lo/hi
  * watermarks correspond to the soft and hard limits by default. If a soft limit
@@ -285,22 +304,8 @@ xfs_qm_init_dquot_blk(
 void
 xfs_dquot_set_prealloc_limits(struct xfs_dquot *dqp)
 {
-	uint64_t space;
-
-	dqp->q_prealloc_hi_wmark = dqp->q_blk.hardlimit;
-	dqp->q_prealloc_lo_wmark = dqp->q_blk.softlimit;
-	if (!dqp->q_prealloc_lo_wmark) {
-		dqp->q_prealloc_lo_wmark = dqp->q_prealloc_hi_wmark;
-		do_div(dqp->q_prealloc_lo_wmark, 100);
-		dqp->q_prealloc_lo_wmark *= 95;
-	}
-
-	space = dqp->q_prealloc_hi_wmark;
-
-	do_div(space, 100);
-	dqp->q_low_space[XFS_QLOWSP_1_PCNT] = space;
-	dqp->q_low_space[XFS_QLOWSP_3_PCNT] = space * 3;
-	dqp->q_low_space[XFS_QLOWSP_5_PCNT] = space * 5;
+	xfs_dquot_set_prealloc(&dqp->q_blk_prealloc, &dqp->q_blk);
+	xfs_dquot_set_prealloc(&dqp->q_rtb_prealloc, &dqp->q_rtb);
 }
 
 /*
@@ -983,6 +988,7 @@ xfs_qm_dqget_inode(
 
 	xfs_assert_ilocked(ip, XFS_ILOCK_EXCL);
 	ASSERT(xfs_inode_dquot(ip, type) == NULL);
+	ASSERT(!xfs_is_metadir_inode(ip));
 
 	id = xfs_qm_id_for_quotatype(ip, type);
 

@@ -1825,7 +1825,7 @@ static int omapfb_resume(struct platform_device *pdev)
 
 static struct platform_driver omapfb_driver = {
 	.probe		= omapfb_probe,
-	.remove_new	= omapfb_remove,
+	.remove		= omapfb_remove,
 	.suspend	= omapfb_suspend,
 	.resume		= omapfb_resume,
 	.driver		= {

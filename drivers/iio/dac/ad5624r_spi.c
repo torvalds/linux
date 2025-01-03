@@ -223,49 +223,25 @@ static int ad5624r_probe(struct spi_device *spi)
 {
 	struct ad5624r_state *st;
 	struct iio_dev *indio_dev;
-	int ret, voltage_uv = 0;
+	bool external_vref;
+	int ret;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
 		return -ENOMEM;
 	st = iio_priv(indio_dev);
-	st->reg = devm_regulator_get_optional(&spi->dev, "vref");
-	if (!IS_ERR(st->reg)) {
-		ret = regulator_enable(st->reg);
-		if (ret)
-			return ret;
-
-		ret = regulator_get_voltage(st->reg);
-		if (ret < 0)
-			goto error_disable_reg;
-
-		voltage_uv = ret;
-	} else {
-		if (PTR_ERR(st->reg) != -ENODEV)
-			return PTR_ERR(st->reg);
+	ret = devm_regulator_get_enable_read_voltage(&spi->dev, "vref");
+	if (ret == -ENODEV)
 		/* Backwards compatibility. This naming is not correct */
-		st->reg = devm_regulator_get_optional(&spi->dev, "vcc");
-		if (!IS_ERR(st->reg)) {
-			ret = regulator_enable(st->reg);
-			if (ret)
-				return ret;
+		ret = devm_regulator_get_enable_read_voltage(&spi->dev, "vcc");
+	if (ret < 0 && ret != -ENODEV)
+		return ret;
 
-			ret = regulator_get_voltage(st->reg);
-			if (ret < 0)
-				goto error_disable_reg;
+	external_vref = ret != -ENODEV;
+	st->vref_mv = external_vref ? ret / 1000 : st->chip_info->int_vref_mv;
 
-			voltage_uv = ret;
-		}
-	}
-
-	spi_set_drvdata(spi, indio_dev);
 	st->chip_info =
 		&ad5624r_chip_info_tbl[spi_get_device_id(spi)->driver_data];
-
-	if (voltage_uv)
-		st->vref_mv = voltage_uv / 1000;
-	else
-		st->vref_mv = st->chip_info->int_vref_mv;
 
 	st->us = spi;
 
@@ -276,31 +252,11 @@ static int ad5624r_probe(struct spi_device *spi)
 	indio_dev->num_channels = AD5624R_DAC_CHANNELS;
 
 	ret = ad5624r_spi_write(spi, AD5624R_CMD_INTERNAL_REFER_SETUP, 0,
-				!!voltage_uv, 16);
+				external_vref, 16);
 	if (ret)
-		goto error_disable_reg;
+		return ret;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_disable_reg;
-
-	return 0;
-
-error_disable_reg:
-	if (!IS_ERR(st->reg))
-		regulator_disable(st->reg);
-
-	return ret;
-}
-
-static void ad5624r_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-	struct ad5624r_state *st = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	if (!IS_ERR(st->reg))
-		regulator_disable(st->reg);
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct spi_device_id ad5624r_id[] = {
@@ -319,7 +275,6 @@ static struct spi_driver ad5624r_driver = {
 		   .name = "ad5624r",
 		   },
 	.probe = ad5624r_probe,
-	.remove = ad5624r_remove,
 	.id_table = ad5624r_id,
 };
 module_spi_driver(ad5624r_driver);

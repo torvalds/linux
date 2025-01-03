@@ -431,7 +431,9 @@ static int risp_probe_resources(struct rcar_isp *isp,
 static const struct of_device_id risp_of_id_table[] = {
 	{ .compatible = "renesas,r8a779a0-isp" },
 	{ .compatible = "renesas,r8a779g0-isp" },
-	{ /* sentinel */ },
+	/* Keep above for compatibility with old DTB files. */
+	{ .compatible = "renesas,rcar-gen4-isp" },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, risp_of_id_table);
 
@@ -522,7 +524,7 @@ static struct platform_driver rcar_isp_driver = {
 		.of_match_table = risp_of_id_table,
 	},
 	.probe = risp_probe,
-	.remove_new = risp_remove,
+	.remove = risp_remove,
 };
 
 module_platform_driver(rcar_isp_driver);

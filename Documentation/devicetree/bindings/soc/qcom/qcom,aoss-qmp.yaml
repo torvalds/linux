@@ -25,8 +25,11 @@ properties:
   compatible:
     items:
       - enum:
+          - qcom,qcs8300-aoss-qmp
           - qcom,qdu1000-aoss-qmp
+          - qcom,sa8255p-aoss-qmp
           - qcom,sa8775p-aoss-qmp
+          - qcom,sar2130p-aoss-qmp
           - qcom,sc7180-aoss-qmp
           - qcom,sc7280-aoss-qmp
           - qcom,sc8180x-aoss-qmp
@@ -40,6 +43,7 @@ properties:
           - qcom,sm8450-aoss-qmp
           - qcom,sm8550-aoss-qmp
           - qcom,sm8650-aoss-qmp
+          - qcom,sm8750-aoss-qmp
           - qcom,x1e80100-aoss-qmp
       - const: qcom,aoss-qmp
 

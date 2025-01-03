@@ -194,7 +194,7 @@ int zlib_compress_folios(struct list_head *ws, struct address_space *mapping,
 				pg_off = offset_in_page(start);
 				cur_len = btrfs_calc_input_length(orig_end, start);
 				data_in = kmap_local_folio(in_folio, pg_off);
-				start += PAGE_SIZE;
+				start += cur_len;
 				workspace->strm.next_in = data_in;
 				workspace->strm.avail_in = cur_len;
 			}

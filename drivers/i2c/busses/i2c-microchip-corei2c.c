@@ -462,7 +462,7 @@ MODULE_DEVICE_TABLE(of, mchp_corei2c_of_match);
 
 static struct platform_driver mchp_corei2c_driver = {
 	.probe = mchp_corei2c_probe,
-	.remove_new = mchp_corei2c_remove,
+	.remove = mchp_corei2c_remove,
 	.driver = {
 		.name = "microchip-corei2c",
 		.of_match_table = mchp_corei2c_of_match,

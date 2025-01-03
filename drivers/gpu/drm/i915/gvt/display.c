@@ -32,6 +32,8 @@
  *
  */
 
+#include <drm/display/drm_dp.h>
+
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "gvt.h"
@@ -568,7 +570,7 @@ static int setup_virtual_dp_monitor(struct intel_vgpu *vgpu, int port_num,
 
 	memcpy(port->dpcd->data, dpcd_fix_data, DPCD_HEADER_SIZE);
 	port->dpcd->data_valid = true;
-	port->dpcd->data[DPCD_SINK_COUNT] = 0x1;
+	port->dpcd->data[DP_SINK_COUNT] = 0x1;
 	port->type = type;
 	port->id = resolution;
 	port->vrefresh_k = GVT_DEFAULT_REFRESH_RATE * MSEC_PER_SEC;

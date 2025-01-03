@@ -118,14 +118,14 @@ void BPF_STRUCT_OPS(central_enqueue, struct task_struct *p, u64 enq_flags)
 	 */
 	if ((p->flags & PF_KTHREAD) && p->nr_cpus_allowed == 1) {
 		__sync_fetch_and_add(&nr_locals, 1);
-		scx_bpf_dispatch(p, SCX_DSQ_LOCAL, SCX_SLICE_INF,
-				 enq_flags | SCX_ENQ_PREEMPT);
+		scx_bpf_dsq_insert(p, SCX_DSQ_LOCAL, SCX_SLICE_INF,
+				   enq_flags | SCX_ENQ_PREEMPT);
 		return;
 	}
 
 	if (bpf_map_push_elem(&central_q, &pid, 0)) {
 		__sync_fetch_and_add(&nr_overflows, 1);
-		scx_bpf_dispatch(p, FALLBACK_DSQ_ID, SCX_SLICE_INF, enq_flags);
+		scx_bpf_dsq_insert(p, FALLBACK_DSQ_ID, SCX_SLICE_INF, enq_flags);
 		return;
 	}
 
@@ -158,7 +158,7 @@ static bool dispatch_to_cpu(s32 cpu)
 		 */
 		if (!bpf_cpumask_test_cpu(cpu, p->cpus_ptr)) {
 			__sync_fetch_and_add(&nr_mismatches, 1);
-			scx_bpf_dispatch(p, FALLBACK_DSQ_ID, SCX_SLICE_INF, 0);
+			scx_bpf_dsq_insert(p, FALLBACK_DSQ_ID, SCX_SLICE_INF, 0);
 			bpf_task_release(p);
 			/*
 			 * We might run out of dispatch buffer slots if we continue dispatching
@@ -172,7 +172,7 @@ static bool dispatch_to_cpu(s32 cpu)
 		}
 
 		/* dispatch to local and mark that @cpu doesn't need more */
-		scx_bpf_dispatch(p, SCX_DSQ_LOCAL_ON | cpu, SCX_SLICE_INF, 0);
+		scx_bpf_dsq_insert(p, SCX_DSQ_LOCAL_ON | cpu, SCX_SLICE_INF, 0);
 
 		if (cpu != central_cpu)
 			scx_bpf_kick_cpu(cpu, SCX_KICK_IDLE);
@@ -219,13 +219,13 @@ void BPF_STRUCT_OPS(central_dispatch, s32 cpu, struct task_struct *prev)
 		}
 
 		/* look for a task to run on the central CPU */
-		if (scx_bpf_consume(FALLBACK_DSQ_ID))
+		if (scx_bpf_dsq_move_to_local(FALLBACK_DSQ_ID))
 			return;
 		dispatch_to_cpu(central_cpu);
 	} else {
 		bool *gimme;
 
-		if (scx_bpf_consume(FALLBACK_DSQ_ID))
+		if (scx_bpf_dsq_move_to_local(FALLBACK_DSQ_ID))
 			return;
 
 		gimme = ARRAY_ELEM_PTR(cpu_gimme_task, cpu, nr_cpu_ids);

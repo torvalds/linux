@@ -95,7 +95,6 @@ static int recreate_hyp_mappings(phys_addr_t phys, unsigned long size,
 {
 	void *start, *end, *virt = hyp_phys_to_virt(phys);
 	unsigned long pgt_size = hyp_s1_pgtable_pages() << PAGE_SHIFT;
-	enum kvm_pgtable_prot prot;
 	int ret, i;
 
 	/* Recreate the hyp page-table using the early page allocator */
@@ -147,24 +146,7 @@ static int recreate_hyp_mappings(phys_addr_t phys, unsigned long size,
 			return ret;
 	}
 
-	pkvm_create_host_sve_mappings();
-
-	/*
-	 * Map the host sections RO in the hypervisor, but transfer the
-	 * ownership from the host to the hypervisor itself to make sure they
-	 * can't be donated or shared with another entity.
-	 *
-	 * The ownership transition requires matching changes in the host
-	 * stage-2. This will be done later (see finalize_host_mappings()) once
-	 * the hyp_vmemmap is addressable.
-	 */
-	prot = pkvm_mkstate(PAGE_HYP_RO, PKVM_PAGE_SHARED_OWNED);
-	ret = pkvm_create_mappings(&kvm_vgic_global_state,
-				   &kvm_vgic_global_state + 1, prot);
-	if (ret)
-		return ret;
-
-	return 0;
+	return pkvm_create_host_sve_mappings();
 }
 
 static void update_nvhe_init_params(void)

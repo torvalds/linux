@@ -24,7 +24,7 @@
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 #include <asm/tlb.h>
-#include <asm/code-patching.h>
+#include <asm/text-patching.h>
 #include <asm/cputhreads.h>
 
 #include <mm/mmu_decl.h>

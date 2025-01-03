@@ -27,7 +27,6 @@
 
 &ccp0 {
 	status = "okay";
-	amd,zlib-support = <1>;
 };
 
 /**

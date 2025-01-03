@@ -12,11 +12,10 @@
 #include <linux/device.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/tdo24m.h>
-#include <linux/fb.h>
 #include <linux/lcd.h>
 #include <linux/slab.h>
 
-#define POWER_IS_ON(pwr)	((pwr) <= FB_BLANK_NORMAL)
+#define POWER_IS_ON(pwr)	((pwr) <= LCD_POWER_REDUCED)
 
 #define TDO24M_SPI_BUFF_SIZE	(4)
 #define MODE_QVGA	0
@@ -308,12 +307,12 @@ static int tdo24m_get_power(struct lcd_device *ld)
 	return lcd->power;
 }
 
-static int tdo24m_set_mode(struct lcd_device *ld, struct fb_videomode *m)
+static int tdo24m_set_mode(struct lcd_device *ld, u32 xres, u32 yres)
 {
 	struct tdo24m *lcd = lcd_get_data(ld);
 	int mode = MODE_QVGA;
 
-	if (m->xres == 640 || m->xres == 480)
+	if (xres == 640 || xres == 480)
 		mode = MODE_VGA;
 
 	if (lcd->mode == mode)
@@ -354,7 +353,7 @@ static int tdo24m_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	lcd->spi_dev = spi;
-	lcd->power = FB_BLANK_POWERDOWN;
+	lcd->power = LCD_POWER_OFF;
 	lcd->mode = MODE_VGA;	/* default to VGA */
 
 	lcd->buf = devm_kzalloc(&spi->dev, TDO24M_SPI_BUFF_SIZE, GFP_KERNEL);
@@ -390,7 +389,7 @@ static int tdo24m_probe(struct spi_device *spi)
 		return PTR_ERR(lcd->lcd_dev);
 
 	spi_set_drvdata(spi, lcd);
-	err = tdo24m_power(lcd, FB_BLANK_UNBLANK);
+	err = tdo24m_power(lcd, LCD_POWER_ON);
 	if (err)
 		return err;
 
@@ -401,7 +400,7 @@ static void tdo24m_remove(struct spi_device *spi)
 {
 	struct tdo24m *lcd = spi_get_drvdata(spi);
 
-	tdo24m_power(lcd, FB_BLANK_POWERDOWN);
+	tdo24m_power(lcd, LCD_POWER_OFF);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -409,14 +408,14 @@ static int tdo24m_suspend(struct device *dev)
 {
 	struct tdo24m *lcd = dev_get_drvdata(dev);
 
-	return tdo24m_power(lcd, FB_BLANK_POWERDOWN);
+	return tdo24m_power(lcd, LCD_POWER_OFF);
 }
 
 static int tdo24m_resume(struct device *dev)
 {
 	struct tdo24m *lcd = dev_get_drvdata(dev);
 
-	return tdo24m_power(lcd, FB_BLANK_UNBLANK);
+	return tdo24m_power(lcd, LCD_POWER_ON);
 }
 #endif
 
@@ -427,7 +426,7 @@ static void tdo24m_shutdown(struct spi_device *spi)
 {
 	struct tdo24m *lcd = spi_get_drvdata(spi);
 
-	tdo24m_power(lcd, FB_BLANK_POWERDOWN);
+	tdo24m_power(lcd, LCD_POWER_OFF);
 }
 
 static struct spi_driver tdo24m_driver = {

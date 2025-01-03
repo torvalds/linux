@@ -1181,7 +1181,7 @@ static int adxl380_read_raw(struct iio_dev *indio_dev,
 
 		ret = adxl380_read_chn(st, chan->address);
 		iio_device_release_direct_mode(indio_dev);
-		if (ret)
+		if (ret < 0)
 			return ret;
 
 		*val = sign_extend32(ret >> chan->scan_type.shift,
@@ -1386,7 +1386,7 @@ static int adxl380_write_event_config(struct iio_dev *indio_dev,
 				      const struct iio_chan_spec *chan,
 				      enum iio_event_type type,
 				      enum iio_event_direction dir,
-				      int state)
+				      bool state)
 {
 	struct adxl380_state *st = iio_priv(indio_dev);
 	enum adxl380_axis axis;
@@ -1719,7 +1719,6 @@ static int adxl380_config_irq(struct iio_dev *indio_dev)
 {
 	struct adxl380_state *st = iio_priv(indio_dev);
 	unsigned long irq_flag;
-	struct irq_data *desc;
 	u32 irq_type;
 	u8 polarity;
 	int ret;
@@ -1737,11 +1736,7 @@ static int adxl380_config_irq(struct iio_dev *indio_dev)
 		st->int_map[1] = ADXL380_INT1_MAP1_REG;
 	}
 
-	desc = irq_get_irq_data(st->irq);
-	if (!desc)
-		return dev_err_probe(st->dev, -EINVAL, "Could not find IRQ %d\n", st->irq);
-
-	irq_type = irqd_get_trigger_type(desc);
+	irq_type = irq_get_trigger_type(st->irq);
 	if (irq_type == IRQ_TYPE_LEVEL_HIGH) {
 		polarity = 0;
 		irq_flag = IRQF_TRIGGER_HIGH | IRQF_ONESHOT;

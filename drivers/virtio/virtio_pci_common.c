@@ -24,6 +24,16 @@ MODULE_PARM_DESC(force_legacy,
 		 "Force legacy mode for transitional virtio 1 devices");
 #endif
 
+bool vp_is_avq(struct virtio_device *vdev, unsigned int index)
+{
+	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
+
+	if (!virtio_has_feature(vdev, VIRTIO_F_ADMIN_VQ))
+		return false;
+
+	return index == vp_dev->admin_vq.vq_index;
+}
+
 /* wait for pending irq handlers */
 void vp_synchronize_vectors(struct virtio_device *vdev)
 {
@@ -234,10 +244,9 @@ out_info:
 	return vq;
 }
 
-static void vp_del_vq(struct virtqueue *vq)
+static void vp_del_vq(struct virtqueue *vq, struct virtio_pci_vq_info *info)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vq->vdev);
-	struct virtio_pci_vq_info *info = vp_dev->vqs[vq->index];
 	unsigned long flags;
 
 	/*
@@ -258,13 +267,16 @@ static void vp_del_vq(struct virtqueue *vq)
 void vp_del_vqs(struct virtio_device *vdev)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
+	struct virtio_pci_vq_info *info;
 	struct virtqueue *vq, *n;
 	int i;
 
 	list_for_each_entry_safe(vq, n, &vdev->vqs, list) {
-		if (vp_dev->per_vq_vectors) {
-			int v = vp_dev->vqs[vq->index]->msix_vector;
+		info = vp_is_avq(vdev, vq->index) ? vp_dev->admin_vq.info :
+						    vp_dev->vqs[vq->index];
 
+		if (vp_dev->per_vq_vectors) {
+			int v = info->msix_vector;
 			if (v != VIRTIO_MSI_NO_VECTOR &&
 			    !vp_is_slow_path_vector(v)) {
 				int irq = pci_irq_vector(vp_dev->pci_dev, v);
@@ -273,7 +285,7 @@ void vp_del_vqs(struct virtio_device *vdev)
 				free_irq(irq, vq);
 			}
 		}
-		vp_del_vq(vq);
+		vp_del_vq(vq, info);
 	}
 	vp_dev->per_vq_vectors = false;
 
@@ -354,7 +366,7 @@ vp_find_one_vq_msix(struct virtio_device *vdev, int queue_idx,
 			  vring_interrupt, 0,
 			  vp_dev->msix_names[msix_vec], vq);
 	if (err) {
-		vp_del_vq(vq);
+		vp_del_vq(vq, *p_info);
 		return ERR_PTR(err);
 	}
 

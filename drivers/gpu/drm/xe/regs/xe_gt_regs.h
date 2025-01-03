@@ -410,12 +410,6 @@
 
 #define XE2LPM_SCRATCH3_LBCF			XE_REG_MCR(0xb654)
 
-#define XE2LPM_L3SQCREG2			XE_REG_MCR(0xb604)
-
-#define XE2LPM_L3SQCREG3			XE_REG_MCR(0xb608)
-
-#define XE2LPM_SCRATCH3_LBCF			XE_REG_MCR(0xb654)
-
 #define XE2LPM_L3SQCREG5			XE_REG_MCR(0xb658)
 
 #define XE2_TDF_CTRL				XE_REG(0xb418)
@@ -534,7 +528,7 @@
  *   [4-6]     RSVD
  *   [7]       Disabled
  */
-#define CCS_MODE				XE_REG(0x14804)
+#define CCS_MODE				XE_REG(0x14804, XE_REG_OPTION_MASKED)
 #define   CCS_MODE_CSLICE_0_3_MASK		REG_GENMASK(11, 0) /* 3 bits per cslice */
 #define   CCS_MODE_CSLICE_MASK			0x7 /* CCS0-3 + rsvd */
 #define   CCS_MODE_CSLICE_WIDTH			ilog2(CCS_MODE_CSLICE_MASK + 1)

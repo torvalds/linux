@@ -145,7 +145,7 @@ static struct platform_driver cros_ec_vbc_driver = {
 		.name = DRV_NAME,
 	},
 	.probe = cros_ec_vbc_probe,
-	.remove_new = cros_ec_vbc_remove,
+	.remove = cros_ec_vbc_remove,
 	.id_table = cros_ec_vbc_id,
 };
 

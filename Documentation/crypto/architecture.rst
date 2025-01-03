@@ -214,6 +214,8 @@ the aforementioned cipher types:
 
 -  CRYPTO_ALG_TYPE_AKCIPHER Asymmetric cipher
 
+-  CRYPTO_ALG_TYPE_SIG Asymmetric signature
+
 -  CRYPTO_ALG_TYPE_PCOMPRESS Enhanced version of
    CRYPTO_ALG_TYPE_COMPRESS allowing for segmented compression /
    decompression instead of performing the operation on one segment

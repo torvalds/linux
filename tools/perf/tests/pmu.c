@@ -176,7 +176,8 @@ static int test__pmu_format(struct test_suite *test __maybe_unused, int subtest 
 	}
 
 	memset(&attr, 0, sizeof(attr));
-	ret = perf_pmu__config_terms(pmu, &attr, &terms, /*zero=*/false, /*err=*/NULL);
+	ret = perf_pmu__config_terms(pmu, &attr, &terms, /*zero=*/false,
+				     /*apply_hardcoded=*/false, /*err=*/NULL);
 	if (ret) {
 		pr_err("perf_pmu__config_terms failed");
 		goto err_out;

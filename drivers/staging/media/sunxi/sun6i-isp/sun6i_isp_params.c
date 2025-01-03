@@ -379,8 +379,6 @@ static const struct vb2_ops sun6i_isp_params_queue_ops = {
 	.buf_queue		= sun6i_isp_params_buffer_queue,
 	.start_streaming	= sun6i_isp_params_start_streaming,
 	.stop_streaming		= sun6i_isp_params_stop_streaming,
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 };
 
 /* Video Device */

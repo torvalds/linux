@@ -16,16 +16,15 @@
 #include <linux/hte.h>
 #include <linux/interrupt.h>
 #include <linux/irqreturn.h>
-#include <linux/kernel.h>
 #include <linux/kfifo.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/overflow.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/poll.h>
-#include <linux/rbtree.h>
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
+#include <linux/string.h>
 #include <linux/timekeeping.h>
 #include <linux/uaccess.h>
 #include <linux/workqueue.h>
@@ -143,18 +142,22 @@ static int linehandle_validate_flags(u32 flags)
 
 static void linehandle_flags_to_desc_flags(u32 lflags, unsigned long *flagsp)
 {
-	assign_bit(FLAG_ACTIVE_LOW, flagsp,
+	unsigned long flags = READ_ONCE(*flagsp);
+
+	assign_bit(FLAG_ACTIVE_LOW, &flags,
 		   lflags & GPIOHANDLE_REQUEST_ACTIVE_LOW);
-	assign_bit(FLAG_OPEN_DRAIN, flagsp,
+	assign_bit(FLAG_OPEN_DRAIN, &flags,
 		   lflags & GPIOHANDLE_REQUEST_OPEN_DRAIN);
-	assign_bit(FLAG_OPEN_SOURCE, flagsp,
+	assign_bit(FLAG_OPEN_SOURCE, &flags,
 		   lflags & GPIOHANDLE_REQUEST_OPEN_SOURCE);
-	assign_bit(FLAG_PULL_UP, flagsp,
+	assign_bit(FLAG_PULL_UP, &flags,
 		   lflags & GPIOHANDLE_REQUEST_BIAS_PULL_UP);
-	assign_bit(FLAG_PULL_DOWN, flagsp,
+	assign_bit(FLAG_PULL_DOWN, &flags,
 		   lflags & GPIOHANDLE_REQUEST_BIAS_PULL_DOWN);
-	assign_bit(FLAG_BIAS_DISABLE, flagsp,
+	assign_bit(FLAG_BIAS_DISABLE, &flags,
 		   lflags & GPIOHANDLE_REQUEST_BIAS_DISABLE);
+
+	WRITE_ONCE(*flagsp, flags);
 }
 
 static long linehandle_set_config(struct linehandle_state *lh,
@@ -184,11 +187,11 @@ static long linehandle_set_config(struct linehandle_state *lh,
 		if (lflags & GPIOHANDLE_REQUEST_OUTPUT) {
 			int val = !!gcnf.default_values[i];
 
-			ret = gpiod_direction_output(desc, val);
+			ret = gpiod_direction_output_nonotify(desc, val);
 			if (ret)
 				return ret;
 		} else {
-			ret = gpiod_direction_input(desc);
+			ret = gpiod_direction_input_nonotify(desc);
 			if (ret)
 				return ret;
 		}
@@ -359,11 +362,11 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
 		if (lflags & GPIOHANDLE_REQUEST_OUTPUT) {
 			int val = !!handlereq.default_values[i];
 
-			ret = gpiod_direction_output(desc, val);
+			ret = gpiod_direction_output_nonotify(desc, val);
 			if (ret)
 				goto out_free_lh;
 		} else if (lflags & GPIOHANDLE_REQUEST_INPUT) {
-			ret = gpiod_direction_input(desc);
+			ret = gpiod_direction_input_nonotify(desc);
 			if (ret)
 				goto out_free_lh;
 		}
@@ -417,7 +420,6 @@ out_free_lh:
 
 /**
  * struct line - contains the state of a requested line
- * @node: to store the object in supinfo_tree if supplemental
  * @desc: the GPIO descriptor for this line.
  * @req: the corresponding line request
  * @irq: the interrupt triggered in response to events on this GPIO
@@ -430,7 +432,6 @@ out_free_lh:
  * @line_seqno: the seqno for the current edge event in the sequence of
  * events for this line.
  * @work: the worker that implements software debouncing
- * @debounce_period_us: the debounce period in microseconds
  * @sw_debounced: flag indicating if the software debouncer is active
  * @level: the current debounced physical level of the line
  * @hdesc: the Hardware Timestamp Engine (HTE) descriptor
@@ -439,7 +440,6 @@ out_free_lh:
  * @last_seqno: the last sequence number before debounce period expires
  */
 struct line {
-	struct rb_node node;
 	struct gpio_desc *desc;
 	/*
 	 * -- edge detector specific fields --
@@ -450,7 +450,7 @@ struct line {
 	 * The flags for the active edge detector configuration.
 	 *
 	 * edflags is set by linereq_create(), linereq_free(), and
-	 * linereq_set_config_unlocked(), which are themselves mutually
+	 * linereq_set_config(), which are themselves mutually
 	 * exclusive, and is accessed by edge_irq_thread(),
 	 * process_hw_ts_thread() and debounce_work_func(),
 	 * which can all live with a slightly stale value.
@@ -473,15 +473,6 @@ struct line {
 	 * -- debouncer specific fields --
 	 */
 	struct delayed_work work;
-	/*
-	 * debounce_period_us is accessed by debounce_irq_handler() and
-	 * process_hw_ts() which are disabled when modified by
-	 * debounce_setup(), edge_detector_setup() or edge_detector_stop()
-	 * or can live with a stale version when updated by
-	 * edge_detector_update().
-	 * The modifying functions are themselves mutually exclusive.
-	 */
-	unsigned int debounce_period_us;
 	/*
 	 * sw_debounce is accessed by linereq_set_config(), which is the
 	 * only setter, and linereq_get_values(), which can live with a
@@ -514,17 +505,6 @@ struct line {
 #endif /* CONFIG_HTE */
 };
 
-/*
- * a rbtree of the struct lines containing supplemental info.
- * Used to populate gpio_v2_line_info with cdev specific fields not contained
- * in the struct gpio_desc.
- * A line is determined to contain supplemental information by
- * line_has_supinfo().
- */
-static struct rb_root supinfo_tree = RB_ROOT;
-/* covers supinfo_tree */
-static DEFINE_SPINLOCK(supinfo_lock);
-
 /**
  * struct linereq - contains the state of a userspace line request
  * @gdev: the GPIO device the line request pertains to
@@ -538,8 +518,7 @@ static DEFINE_SPINLOCK(supinfo_lock);
  * this line request.  Note that this is not used when @num_lines is 1, as
  * the line_seqno is then the same and is cheaper to calculate.
  * @config_mutex: mutex for serializing ioctl() calls to ensure consistency
- * of configuration, particularly multi-step accesses to desc flags and
- * changes to supinfo status.
+ * of configuration, particularly multi-step accesses to desc flags.
  * @lines: the lines held by this line request, with @num_lines elements.
  */
 struct linereq {
@@ -554,103 +533,6 @@ struct linereq {
 	struct mutex config_mutex;
 	struct line lines[] __counted_by(num_lines);
 };
-
-static void supinfo_insert(struct line *line)
-{
-	struct rb_node **new = &(supinfo_tree.rb_node), *parent = NULL;
-	struct line *entry;
-
-	guard(spinlock)(&supinfo_lock);
-
-	while (*new) {
-		entry = container_of(*new, struct line, node);
-
-		parent = *new;
-		if (line->desc < entry->desc) {
-			new = &((*new)->rb_left);
-		} else if (line->desc > entry->desc) {
-			new = &((*new)->rb_right);
-		} else {
-			/* this should never happen */
-			WARN(1, "duplicate line inserted");
-			return;
-		}
-	}
-
-	rb_link_node(&line->node, parent, new);
-	rb_insert_color(&line->node, &supinfo_tree);
-}
-
-static void supinfo_erase(struct line *line)
-{
-	guard(spinlock)(&supinfo_lock);
-
-	rb_erase(&line->node, &supinfo_tree);
-}
-
-static struct line *supinfo_find(struct gpio_desc *desc)
-{
-	struct rb_node *node = supinfo_tree.rb_node;
-	struct line *line;
-
-	while (node) {
-		line = container_of(node, struct line, node);
-		if (desc < line->desc)
-			node = node->rb_left;
-		else if (desc > line->desc)
-			node = node->rb_right;
-		else
-			return line;
-	}
-	return NULL;
-}
-
-static void supinfo_to_lineinfo(struct gpio_desc *desc,
-				struct gpio_v2_line_info *info)
-{
-	struct gpio_v2_line_attribute *attr;
-	struct line *line;
-
-	guard(spinlock)(&supinfo_lock);
-
-	line = supinfo_find(desc);
-	if (!line)
-		return;
-
-	attr = &info->attrs[info->num_attrs];
-	attr->id = GPIO_V2_LINE_ATTR_ID_DEBOUNCE;
-	attr->debounce_period_us = READ_ONCE(line->debounce_period_us);
-	info->num_attrs++;
-}
-
-static inline bool line_has_supinfo(struct line *line)
-{
-	return READ_ONCE(line->debounce_period_us);
-}
-
-/*
- * Checks line_has_supinfo() before and after the change to avoid unnecessary
- * supinfo_tree access.
- * Called indirectly by linereq_create() or linereq_set_config() so line
- * is already protected from concurrent changes.
- */
-static void line_set_debounce_period(struct line *line,
-				     unsigned int debounce_period_us)
-{
-	bool was_suppl = line_has_supinfo(line);
-
-	WRITE_ONCE(line->debounce_period_us, debounce_period_us);
-
-	/* if supinfo status is unchanged then we're done */
-	if (line_has_supinfo(line) == was_suppl)
-		return;
-
-	/* supinfo status has changed, so update the tree */
-	if (was_suppl)
-		supinfo_erase(line);
-	else
-		supinfo_insert(line);
-}
 
 #define GPIO_V2_LINE_BIAS_FLAGS \
 	(GPIO_V2_LINE_FLAG_BIAS_PULL_UP | \
@@ -819,7 +701,7 @@ static enum hte_return process_hw_ts(struct hte_ts_data *ts, void *p)
 		line->total_discard_seq++;
 		line->last_seqno = ts->seq;
 		mod_delayed_work(system_wq, &line->work,
-		  usecs_to_jiffies(READ_ONCE(line->debounce_period_us)));
+		  usecs_to_jiffies(READ_ONCE(line->desc->debounce_period_us)));
 	} else {
 		if (unlikely(ts->seq < line->line_seqno))
 			return HTE_CB_HANDLED;
@@ -960,7 +842,7 @@ static irqreturn_t debounce_irq_handler(int irq, void *p)
 	struct line *line = p;
 
 	mod_delayed_work(system_wq, &line->work,
-		usecs_to_jiffies(READ_ONCE(line->debounce_period_us)));
+		usecs_to_jiffies(READ_ONCE(line->desc->debounce_period_us)));
 
 	return IRQ_HANDLED;
 }
@@ -1040,12 +922,13 @@ static int debounce_setup(struct line *line, unsigned int debounce_period_us)
 	int ret, level, irq;
 	char *label;
 
-	/* try hardware */
-	ret = gpiod_set_debounce(line->desc, debounce_period_us);
-	if (!ret) {
-		line_set_debounce_period(line, debounce_period_us);
-		return ret;
-	}
+	/*
+	 * Try hardware. Skip gpiod_set_config() to avoid emitting two
+	 * CHANGED_CONFIG line state events.
+	 */
+	ret = gpio_do_set_config(line->desc,
+			pinconf_to_config_packed(PIN_CONFIG_INPUT_DEBOUNCE,
+						 debounce_period_us));
 	if (ret != -ENOTSUPP)
 		return ret;
 
@@ -1128,7 +1011,8 @@ static void edge_detector_stop(struct line *line)
 	cancel_delayed_work_sync(&line->work);
 	WRITE_ONCE(line->sw_debounced, 0);
 	WRITE_ONCE(line->edflags, 0);
-	line_set_debounce_period(line, 0);
+	if (line->desc)
+		WRITE_ONCE(line->desc->debounce_period_us, 0);
 	/* do not change line->level - see comment in debounced_value() */
 }
 
@@ -1161,7 +1045,7 @@ static int edge_detector_setup(struct line *line,
 		ret = debounce_setup(line, debounce_period_us);
 		if (ret)
 			return ret;
-		line_set_debounce_period(line, debounce_period_us);
+		WRITE_ONCE(line->desc->debounce_period_us, debounce_period_us);
 	}
 
 	/* detection disabled or sw debouncer will provide edge detection */
@@ -1209,12 +1093,12 @@ static int edge_detector_update(struct line *line,
 			gpio_v2_line_config_debounce_period(lc, line_idx);
 
 	if ((active_edflags == edflags) &&
-	    (READ_ONCE(line->debounce_period_us) == debounce_period_us))
+	    (READ_ONCE(line->desc->debounce_period_us) == debounce_period_us))
 		return 0;
 
 	/* sw debounced and still will be...*/
 	if (debounce_period_us && READ_ONCE(line->sw_debounced)) {
-		line_set_debounce_period(line, debounce_period_us);
+		WRITE_ONCE(line->desc->debounce_period_us, debounce_period_us);
 		/*
 		 * ensure event fifo is initialised if edge detection
 		 * is now enabled.
@@ -1331,7 +1215,7 @@ static int gpio_v2_line_config_validate(struct gpio_v2_line_config *lc,
 	if (lc->num_attrs > GPIO_V2_LINE_NUM_ATTRS_MAX)
 		return -EINVAL;
 
-	if (memchr_inv(lc->padding, 0, sizeof(lc->padding)))
+	if (!mem_is_zero(lc->padding, sizeof(lc->padding)))
 		return -EINVAL;
 
 	for (i = 0; i < num_lines; i++) {
@@ -1348,38 +1232,42 @@ static int gpio_v2_line_config_validate(struct gpio_v2_line_config *lc,
 	return 0;
 }
 
-static void gpio_v2_line_config_flags_to_desc_flags(u64 flags,
+static void gpio_v2_line_config_flags_to_desc_flags(u64 lflags,
 						    unsigned long *flagsp)
 {
-	assign_bit(FLAG_ACTIVE_LOW, flagsp,
-		   flags & GPIO_V2_LINE_FLAG_ACTIVE_LOW);
+	unsigned long flags = READ_ONCE(*flagsp);
 
-	if (flags & GPIO_V2_LINE_FLAG_OUTPUT)
-		set_bit(FLAG_IS_OUT, flagsp);
-	else if (flags & GPIO_V2_LINE_FLAG_INPUT)
-		clear_bit(FLAG_IS_OUT, flagsp);
+	assign_bit(FLAG_ACTIVE_LOW, &flags,
+		   lflags & GPIO_V2_LINE_FLAG_ACTIVE_LOW);
 
-	assign_bit(FLAG_EDGE_RISING, flagsp,
-		   flags & GPIO_V2_LINE_FLAG_EDGE_RISING);
-	assign_bit(FLAG_EDGE_FALLING, flagsp,
-		   flags & GPIO_V2_LINE_FLAG_EDGE_FALLING);
+	if (lflags & GPIO_V2_LINE_FLAG_OUTPUT)
+		set_bit(FLAG_IS_OUT, &flags);
+	else if (lflags & GPIO_V2_LINE_FLAG_INPUT)
+		clear_bit(FLAG_IS_OUT, &flags);
 
-	assign_bit(FLAG_OPEN_DRAIN, flagsp,
-		   flags & GPIO_V2_LINE_FLAG_OPEN_DRAIN);
-	assign_bit(FLAG_OPEN_SOURCE, flagsp,
-		   flags & GPIO_V2_LINE_FLAG_OPEN_SOURCE);
+	assign_bit(FLAG_EDGE_RISING, &flags,
+		   lflags & GPIO_V2_LINE_FLAG_EDGE_RISING);
+	assign_bit(FLAG_EDGE_FALLING, &flags,
+		   lflags & GPIO_V2_LINE_FLAG_EDGE_FALLING);
 
-	assign_bit(FLAG_PULL_UP, flagsp,
-		   flags & GPIO_V2_LINE_FLAG_BIAS_PULL_UP);
-	assign_bit(FLAG_PULL_DOWN, flagsp,
-		   flags & GPIO_V2_LINE_FLAG_BIAS_PULL_DOWN);
-	assign_bit(FLAG_BIAS_DISABLE, flagsp,
-		   flags & GPIO_V2_LINE_FLAG_BIAS_DISABLED);
+	assign_bit(FLAG_OPEN_DRAIN, &flags,
+		   lflags & GPIO_V2_LINE_FLAG_OPEN_DRAIN);
+	assign_bit(FLAG_OPEN_SOURCE, &flags,
+		   lflags & GPIO_V2_LINE_FLAG_OPEN_SOURCE);
 
-	assign_bit(FLAG_EVENT_CLOCK_REALTIME, flagsp,
-		   flags & GPIO_V2_LINE_FLAG_EVENT_CLOCK_REALTIME);
-	assign_bit(FLAG_EVENT_CLOCK_HTE, flagsp,
-		   flags & GPIO_V2_LINE_FLAG_EVENT_CLOCK_HTE);
+	assign_bit(FLAG_PULL_UP, &flags,
+		   lflags & GPIO_V2_LINE_FLAG_BIAS_PULL_UP);
+	assign_bit(FLAG_PULL_DOWN, &flags,
+		   lflags & GPIO_V2_LINE_FLAG_BIAS_PULL_DOWN);
+	assign_bit(FLAG_BIAS_DISABLE, &flags,
+		   lflags & GPIO_V2_LINE_FLAG_BIAS_DISABLED);
+
+	assign_bit(FLAG_EVENT_CLOCK_REALTIME, &flags,
+		   lflags & GPIO_V2_LINE_FLAG_EVENT_CLOCK_REALTIME);
+	assign_bit(FLAG_EVENT_CLOCK_HTE, &flags,
+		   lflags & GPIO_V2_LINE_FLAG_EVENT_CLOCK_HTE);
+
+	WRITE_ONCE(*flagsp, flags);
 }
 
 static long linereq_get_values(struct linereq *lr, void __user *ip)
@@ -1546,11 +1434,11 @@ static long linereq_set_config(struct linereq *lr, void __user *ip)
 			int val = gpio_v2_line_config_output_value(&lc, i);
 
 			edge_detector_stop(line);
-			ret = gpiod_direction_output(desc, val);
+			ret = gpiod_direction_output_nonotify(desc, val);
 			if (ret)
 				return ret;
 		} else {
-			ret = gpiod_direction_input(desc);
+			ret = gpiod_direction_input_nonotify(desc);
 			if (ret)
 				return ret;
 
@@ -1669,7 +1557,6 @@ static ssize_t linereq_read(struct file *file, char __user *buf,
 
 static void linereq_free(struct linereq *lr)
 {
-	struct line *line;
 	unsigned int i;
 
 	if (lr->device_unregistered_nb.notifier_call)
@@ -1677,14 +1564,10 @@ static void linereq_free(struct linereq *lr)
 						   &lr->device_unregistered_nb);
 
 	for (i = 0; i < lr->num_lines; i++) {
-		line = &lr->lines[i];
-		if (!line->desc)
-			continue;
-
-		edge_detector_stop(line);
-		if (line_has_supinfo(line))
-			supinfo_erase(line);
-		gpiod_free(line->desc);
+		if (lr->lines[i].desc) {
+			edge_detector_stop(&lr->lines[i]);
+			gpiod_free(lr->lines[i].desc);
+		}
 	}
 	kfifo_free(&lr->events);
 	kfree(lr->label);
@@ -1746,7 +1629,7 @@ static int linereq_create(struct gpio_device *gdev, void __user *ip)
 	if ((ulr.num_lines == 0) || (ulr.num_lines > GPIO_V2_LINES_MAX))
 		return -EINVAL;
 
-	if (memchr_inv(ulr.padding, 0, sizeof(ulr.padding)))
+	if (!mem_is_zero(ulr.padding, sizeof(ulr.padding)))
 		return -EINVAL;
 
 	lc = &ulr.config;
@@ -1818,11 +1701,11 @@ static int linereq_create(struct gpio_device *gdev, void __user *ip)
 		if (flags & GPIO_V2_LINE_FLAG_OUTPUT) {
 			int val = gpio_v2_line_config_output_value(lc, i);
 
-			ret = gpiod_direction_output(desc, val);
+			ret = gpiod_direction_output_nonotify(desc, val);
 			if (ret)
 				goto out_free_linereq;
 		} else if (flags & GPIO_V2_LINE_FLAG_INPUT) {
-			ret = gpiod_direction_input(desc);
+			ret = gpiod_direction_input_nonotify(desc);
 			if (ret)
 				goto out_free_linereq;
 
@@ -2353,8 +2236,9 @@ static void gpio_v2_line_info_changed_to_v1(
 #endif /* CONFIG_GPIO_CDEV_V1 */
 
 static void gpio_desc_to_lineinfo(struct gpio_desc *desc,
-				  struct gpio_v2_line_info *info)
+				  struct gpio_v2_line_info *info, bool atomic)
 {
+	u32 debounce_period_us;
 	unsigned long dflags;
 	const char *label;
 
@@ -2391,12 +2275,14 @@ static void gpio_desc_to_lineinfo(struct gpio_desc *desc,
 	 */
 	if (test_bit(FLAG_REQUESTED, &dflags) ||
 	    test_bit(FLAG_IS_HOGGED, &dflags) ||
-	    test_bit(FLAG_USED_AS_IRQ, &dflags) ||
 	    test_bit(FLAG_EXPORT, &dflags) ||
 	    test_bit(FLAG_SYSFS, &dflags) ||
-	    !gpiochip_line_is_valid(guard.gc, info->offset) ||
-	    !pinctrl_gpio_can_use_line(guard.gc, info->offset))
+	    !gpiochip_line_is_valid(guard.gc, info->offset)) {
 		info->flags |= GPIO_V2_LINE_FLAG_USED;
+	} else if (!atomic) {
+		if (!pinctrl_gpio_can_use_line(guard.gc, info->offset))
+			info->flags |= GPIO_V2_LINE_FLAG_USED;
+	}
 
 	if (test_bit(FLAG_IS_OUT, &dflags))
 		info->flags |= GPIO_V2_LINE_FLAG_OUTPUT;
@@ -2427,6 +2313,14 @@ static void gpio_desc_to_lineinfo(struct gpio_desc *desc,
 		info->flags |= GPIO_V2_LINE_FLAG_EVENT_CLOCK_REALTIME;
 	else if (test_bit(FLAG_EVENT_CLOCK_HTE, &dflags))
 		info->flags |= GPIO_V2_LINE_FLAG_EVENT_CLOCK_HTE;
+
+	debounce_period_us = READ_ONCE(desc->debounce_period_us);
+	if (debounce_period_us) {
+		info->attrs[info->num_attrs].id = GPIO_V2_LINE_ATTR_ID_DEBOUNCE;
+		info->attrs[info->num_attrs].debounce_period_us =
+							debounce_period_us;
+		info->num_attrs++;
+	}
 }
 
 struct gpio_chardev_data {
@@ -2439,6 +2333,7 @@ struct gpio_chardev_data {
 #ifdef CONFIG_GPIO_CDEV_V1
 	atomic_t watch_abi_version;
 #endif
+	struct file *fp;
 };
 
 static int chipinfo_get(struct gpio_chardev_data *cdev, void __user *ip)
@@ -2494,7 +2389,7 @@ static int lineinfo_get_v1(struct gpio_chardev_data *cdev, void __user *ip,
 			return -EBUSY;
 	}
 
-	gpio_desc_to_lineinfo(desc, &lineinfo_v2);
+	gpio_desc_to_lineinfo(desc, &lineinfo_v2, false);
 	gpio_v2_line_info_to_v1(&lineinfo_v2, &lineinfo);
 
 	if (copy_to_user(ip, &lineinfo, sizeof(lineinfo))) {
@@ -2516,7 +2411,7 @@ static int lineinfo_get(struct gpio_chardev_data *cdev, void __user *ip,
 	if (copy_from_user(&lineinfo, ip, sizeof(lineinfo)))
 		return -EFAULT;
 
-	if (memchr_inv(lineinfo.padding, 0, sizeof(lineinfo.padding)))
+	if (!mem_is_zero(lineinfo.padding, sizeof(lineinfo.padding)))
 		return -EINVAL;
 
 	desc = gpio_device_get_desc(cdev->gdev, lineinfo.offset);
@@ -2531,8 +2426,7 @@ static int lineinfo_get(struct gpio_chardev_data *cdev, void __user *ip,
 		if (test_and_set_bit(lineinfo.offset, cdev->watched_lines))
 			return -EBUSY;
 	}
-	gpio_desc_to_lineinfo(desc, &lineinfo);
-	supinfo_to_lineinfo(desc, &lineinfo);
+	gpio_desc_to_lineinfo(desc, &lineinfo, false);
 
 	if (copy_to_user(ip, &lineinfo, sizeof(lineinfo))) {
 		if (watch)
@@ -2609,29 +2503,86 @@ static long gpio_ioctl_compat(struct file *file, unsigned int cmd,
 }
 #endif
 
+struct lineinfo_changed_ctx {
+	struct work_struct work;
+	struct gpio_v2_line_info_changed chg;
+	struct gpio_device *gdev;
+	struct gpio_chardev_data *cdev;
+};
+
+static void lineinfo_changed_func(struct work_struct *work)
+{
+	struct lineinfo_changed_ctx *ctx =
+			container_of(work, struct lineinfo_changed_ctx, work);
+	struct gpio_chip *gc;
+	int ret;
+
+	if (!(ctx->chg.info.flags & GPIO_V2_LINE_FLAG_USED)) {
+		/*
+		 * If nobody set the USED flag earlier, let's see with pinctrl
+		 * now. We're doing this late because it's a sleeping function.
+		 * Pin functions are in general much more static and while it's
+		 * not 100% bullet-proof, it's good enough for most cases.
+		 */
+		scoped_guard(srcu, &ctx->gdev->srcu) {
+			gc = srcu_dereference(ctx->gdev->chip, &ctx->gdev->srcu);
+			if (gc &&
+			    !pinctrl_gpio_can_use_line(gc, ctx->chg.info.offset))
+				ctx->chg.info.flags |= GPIO_V2_LINE_FLAG_USED;
+		}
+	}
+
+	ret = kfifo_in_spinlocked(&ctx->cdev->events, &ctx->chg, 1,
+				  &ctx->cdev->wait.lock);
+	if (ret)
+		wake_up_poll(&ctx->cdev->wait, EPOLLIN);
+	else
+		pr_debug_ratelimited("lineinfo event FIFO is full - event dropped\n");
+
+	gpio_device_put(ctx->gdev);
+	fput(ctx->cdev->fp);
+	kfree(ctx);
+}
+
 static int lineinfo_changed_notify(struct notifier_block *nb,
 				   unsigned long action, void *data)
 {
 	struct gpio_chardev_data *cdev =
 		container_of(nb, struct gpio_chardev_data, lineinfo_changed_nb);
-	struct gpio_v2_line_info_changed chg;
+	struct lineinfo_changed_ctx *ctx;
 	struct gpio_desc *desc = data;
-	int ret;
 
 	if (!test_bit(gpio_chip_hwgpio(desc), cdev->watched_lines))
 		return NOTIFY_DONE;
 
-	memset(&chg, 0, sizeof(chg));
-	chg.event_type = action;
-	chg.timestamp_ns = ktime_get_ns();
-	gpio_desc_to_lineinfo(desc, &chg.info);
-	supinfo_to_lineinfo(desc, &chg.info);
+	/*
+	 * If this is called from atomic context (for instance: with a spinlock
+	 * taken by the atomic notifier chain), any sleeping calls must be done
+	 * outside of this function in process context of the dedicated
+	 * workqueue.
+	 *
+	 * Let's gather as much info as possible from the descriptor and
+	 * postpone just the call to pinctrl_gpio_can_use_line() until the work
+	 * is executed.
+	 */
 
-	ret = kfifo_in_spinlocked(&cdev->events, &chg, 1, &cdev->wait.lock);
-	if (ret)
-		wake_up_poll(&cdev->wait, EPOLLIN);
-	else
-		pr_debug_ratelimited("lineinfo event FIFO is full - event dropped\n");
+	ctx = kzalloc(sizeof(*ctx), GFP_ATOMIC);
+	if (!ctx) {
+		pr_err("Failed to allocate memory for line info notification\n");
+		return NOTIFY_DONE;
+	}
+
+	ctx->chg.event_type = action;
+	ctx->chg.timestamp_ns = ktime_get_ns();
+	gpio_desc_to_lineinfo(desc, &ctx->chg.info, true);
+	/* Keep the GPIO device alive until we emit the event. */
+	ctx->gdev = gpio_device_get(desc->gdev);
+	ctx->cdev = cdev;
+	/* Keep the file descriptor alive too. */
+	get_file(ctx->cdev->fp);
+
+	INIT_WORK(&ctx->work, lineinfo_changed_func);
+	queue_work(ctx->gdev->line_state_wq, &ctx->work);
 
 	return NOTIFY_OK;
 }
@@ -2778,8 +2729,8 @@ static int gpio_chrdev_open(struct inode *inode, struct file *file)
 	cdev->gdev = gpio_device_get(gdev);
 
 	cdev->lineinfo_changed_nb.notifier_call = lineinfo_changed_notify;
-	ret = blocking_notifier_chain_register(&gdev->line_state_notifier,
-					       &cdev->lineinfo_changed_nb);
+	ret = atomic_notifier_chain_register(&gdev->line_state_notifier,
+					     &cdev->lineinfo_changed_nb);
 	if (ret)
 		goto out_free_bitmap;
 
@@ -2791,6 +2742,7 @@ static int gpio_chrdev_open(struct inode *inode, struct file *file)
 		goto out_unregister_line_notifier;
 
 	file->private_data = cdev;
+	cdev->fp = file;
 
 	ret = nonseekable_open(inode, file);
 	if (ret)
@@ -2802,8 +2754,8 @@ out_unregister_device_notifier:
 	blocking_notifier_chain_unregister(&gdev->device_notifier,
 					   &cdev->device_unregistered_nb);
 out_unregister_line_notifier:
-	blocking_notifier_chain_unregister(&gdev->line_state_notifier,
-					   &cdev->lineinfo_changed_nb);
+	atomic_notifier_chain_unregister(&gdev->line_state_notifier,
+					 &cdev->lineinfo_changed_nb);
 out_free_bitmap:
 	gpio_device_put(gdev);
 	bitmap_free(cdev->watched_lines);
@@ -2827,8 +2779,8 @@ static int gpio_chrdev_release(struct inode *inode, struct file *file)
 
 	blocking_notifier_chain_unregister(&gdev->device_notifier,
 					   &cdev->device_unregistered_nb);
-	blocking_notifier_chain_unregister(&gdev->line_state_notifier,
-					   &cdev->lineinfo_changed_nb);
+	atomic_notifier_chain_unregister(&gdev->line_state_notifier,
+					 &cdev->lineinfo_changed_nb);
 	bitmap_free(cdev->watched_lines);
 	gpio_device_put(gdev);
 	kfree(cdev);
@@ -2857,6 +2809,11 @@ int gpiolib_cdev_register(struct gpio_device *gdev, dev_t devt)
 	gdev->chrdev.owner = THIS_MODULE;
 	gdev->dev.devt = MKDEV(MAJOR(devt), gdev->id);
 
+	gdev->line_state_wq = alloc_ordered_workqueue("%s", WQ_HIGHPRI,
+						      dev_name(&gdev->dev));
+	if (!gdev->line_state_wq)
+		return -ENOMEM;
+
 	ret = cdev_device_add(&gdev->chrdev, &gdev->dev);
 	if (ret)
 		return ret;
@@ -2873,6 +2830,7 @@ int gpiolib_cdev_register(struct gpio_device *gdev, dev_t devt)
 
 void gpiolib_cdev_unregister(struct gpio_device *gdev)
 {
+	destroy_workqueue(gdev->line_state_wq);
 	cdev_device_del(&gdev->chrdev, &gdev->dev);
 	blocking_notifier_call_chain(&gdev->device_notifier, 0, NULL);
 }

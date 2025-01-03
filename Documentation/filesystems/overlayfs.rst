@@ -440,6 +440,23 @@ For example::
   fsconfig(fs_fd, FSCONFIG_SET_STRING, "datadir+", "/do2", 0);
 
 
+Specifying layers via file descriptors
+--------------------------------------
+
+Since kernel v6.13, overlayfs supports specifying layers via file descriptors in
+addition to specifying them as paths. This feature is available for the
+"datadir+", "lowerdir+", "upperdir", and "workdir+" mount options with the
+fsconfig syscall from the new mount api::
+
+  fsconfig(fs_fd, FSCONFIG_SET_FD, "lowerdir+", NULL, fd_lower1);
+  fsconfig(fs_fd, FSCONFIG_SET_FD, "lowerdir+", NULL, fd_lower2);
+  fsconfig(fs_fd, FSCONFIG_SET_FD, "lowerdir+", NULL, fd_lower3);
+  fsconfig(fs_fd, FSCONFIG_SET_FD, "datadir+", NULL, fd_data1);
+  fsconfig(fs_fd, FSCONFIG_SET_FD, "datadir+", NULL, fd_data2);
+  fsconfig(fs_fd, FSCONFIG_SET_FD, "workdir", NULL, fd_work);
+  fsconfig(fs_fd, FSCONFIG_SET_FD, "upperdir", NULL, fd_upper);
+
+
 fs-verity support
 -----------------
 

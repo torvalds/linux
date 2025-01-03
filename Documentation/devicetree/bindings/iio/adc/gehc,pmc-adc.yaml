@@ -1,0 +1,86 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/adc/gehc,pmc-adc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: GE HealthCare PMC Analog to Digital Converter (ADC)
+
+maintainers:
+  - Herve Codina <herve.codina@bootlin.com>
+
+description:
+  The GE HealthCare PMC ADC is a 16-Channel (voltage and current), 16-Bit ADC
+  with an I2C Interface.
+
+properties:
+  compatible:
+    const: gehc,pmc-adc
+
+  reg:
+    maxItems: 1
+
+  vdd-supply:
+    description:
+      Regulator for the VDD power supply.
+
+  vdda-supply:
+    description:
+      Regulator for the VDD analog (VDDA) power supply.
+
+  vddio-supply:
+    description:
+      Regulator for the VDD IO (VDDIO) power supply.
+
+  vref-supply:
+    description:
+      Regulator for the voltage reference power supply.
+
+  clocks:
+    maxItems: 1
+    description:
+      The component uses an external oscillator (osc) if an external oscillator
+      is connected to its clock pins. Otherwise, it uses an internal reference
+      clock.
+
+  clock-names:
+    items:
+      - const: osc
+
+  "#io-channel-cells":
+    const: 2
+    description: |
+      The first cell is the channel type (dt-bindings/iio/adc/gehc,pmc-adc.h
+      defines these values):
+       - 0: voltage
+       - 1: current
+      The second cell is the channel number from 0 to 15.
+
+required:
+  - compatible
+  - reg
+  - vdd-supply
+  - vdda-supply
+  - vddio-supply
+  - vref-supply
+  - '#io-channel-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        adc@14 {
+            compatible = "gehc,pmc-adc";
+            reg = <0x14>;
+            vdd-supply = <&reg_vdd>;
+            vdda-supply = <&reg_vdda>;
+            vddio-supply = <&reg_vddio>;
+            vref-supply = <&reg_vref>;
+            #io-channel-cells = <2>;
+        };
+    };
+...

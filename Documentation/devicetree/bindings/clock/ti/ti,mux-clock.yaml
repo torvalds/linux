@@ -1,0 +1,125 @@
+# SPDX-License-Identifier: GPL-2.0-only
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/ti/ti,mux-clock.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments mux clock
+
+maintainers:
+  - Tero Kristo <kristo@kernel.org>
+
+description: |
+  This clock assumes a register-mapped multiplexer with multiple inpt clock
+  signals or parents, one of which can be selected as output. This clock does
+  not gate or adjust the parent rate via a divider or multiplier.
+
+  By default the "clocks" property lists the parents in the same order
+  as they are programmed into the register.  E.g:
+
+    clocks = <&foo_clock>, <&bar_clock>, <&baz_clock>;
+
+  Results in programming the register as follows:
+
+  register value   selected parent clock
+  0                foo_clock
+  1                bar_clock
+  2                baz_clock
+
+  Some clock controller IPs do not allow a value of zero to be programmed
+  into the register, instead indexing begins at 1.  The optional property
+  "index-starts-at-one" modified the scheme as follows:
+
+  register value   selected clock parent
+  1                foo_clock
+  2                bar_clock
+  3                baz_clock
+
+  The binding must provide the register to control the mux. Optionally
+  the number of bits to shift the control field in the register can be
+  supplied. If the shift value is missing it is the same as supplying
+  a zero shift.
+
+properties:
+  compatible:
+    enum:
+      - ti,mux-clock
+      - ti,composite-mux-clock
+
+  "#clock-cells":
+    const: 0
+
+  clocks: true
+
+  clock-output-names:
+    maxItems: 1
+
+  reg:
+    maxItems: 1
+
+  ti,bit-shift:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Number of bits to shift the bit-mask
+    maximum: 31
+    default: 0
+
+  ti,index-starts-at-one:
+    type: boolean
+    description:
+      Valid input select programming starts at 1, not zero
+
+  ti,set-rate-parent:
+    type: boolean
+    description:
+      clk_set_rate is propagated to parent clock,
+      not supported by the composite-mux-clock subtype.
+
+  ti,latch-bit:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Latch the mux value to HW, only needed if the register
+      access requires this. As an example, dra7x DPLL_GMAC H14 muxing
+      implements such behavior.
+    maximum: 31
+
+if:
+  properties:
+    compatible:
+      contains:
+        const: ti,composite-mux-clock
+then:
+  properties:
+    ti,set-rate-parent: false
+
+required:
+  - compatible
+  - "#clock-cells"
+  - clocks
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    bus {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      clock-controller@110 {
+        compatible = "ti,mux-clock";
+        reg = <0x0110>;
+        #clock-cells = <0>;
+        clocks = <&virt_12000000_ck>, <&virt_13000000_ck>, <&virt_16800000_ck>;
+        ti,index-starts-at-one;
+        ti,set-rate-parent;
+      };
+
+      clock-controller@120 {
+        compatible = "ti,composite-mux-clock";
+        reg = <0x0120>;
+        #clock-cells = <0>;
+        clocks = <&core_96m_fck>, <&mcbsp_clks>;
+        ti,bit-shift = <4>;
+      };
+    };

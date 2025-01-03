@@ -1182,6 +1182,14 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 				MLX5_IB_QUERY_DEV_RESP_PACKET_BASED_CREDIT_MODE;
 
 		resp.flags |= MLX5_IB_QUERY_DEV_RESP_FLAGS_SCAT2CQE_DCT;
+
+		if (MLX5_CAP_GEN_2(mdev, dp_ordering_force) &&
+		    (MLX5_CAP_GEN(mdev, dp_ordering_ooo_all_xrc) ||
+		    MLX5_CAP_GEN(mdev, dp_ordering_ooo_all_dc) ||
+		    MLX5_CAP_GEN(mdev, dp_ordering_ooo_all_rc) ||
+		    MLX5_CAP_GEN(mdev, dp_ordering_ooo_all_ud) ||
+		    MLX5_CAP_GEN(mdev, dp_ordering_ooo_all_uc)))
+			resp.flags |= MLX5_IB_QUERY_DEV_RESP_FLAGS_OOO_DP;
 	}
 
 	if (offsetofend(typeof(resp), sw_parsing_caps) <= uhw_outlen) {
@@ -2997,7 +3005,6 @@ unlock:
 static int mlx5_ib_dev_res_init(struct mlx5_ib_dev *dev)
 {
 	struct mlx5_ib_resources *devr = &dev->devr;
-	int port;
 	int ret;
 
 	if (!MLX5_CAP_GEN(dev->mdev, xrc))
@@ -3013,10 +3020,6 @@ static int mlx5_ib_dev_res_init(struct mlx5_ib_dev *dev)
 		return ret;
 	}
 
-	for (port = 0; port < ARRAY_SIZE(devr->ports); ++port)
-		INIT_WORK(&devr->ports[port].pkey_change_work,
-			  pkey_change_handler);
-
 	mutex_init(&devr->cq_lock);
 	mutex_init(&devr->srq_lock);
 
@@ -3026,16 +3029,6 @@ static int mlx5_ib_dev_res_init(struct mlx5_ib_dev *dev)
 static void mlx5_ib_dev_res_cleanup(struct mlx5_ib_dev *dev)
 {
 	struct mlx5_ib_resources *devr = &dev->devr;
-	int port;
-
-	/*
-	 * Make sure no change P_Key work items are still executing.
-	 *
-	 * At this stage, the mlx5_ib_event should be unregistered
-	 * and it ensures that no new works are added.
-	 */
-	for (port = 0; port < ARRAY_SIZE(devr->ports); ++port)
-		cancel_work_sync(&devr->ports[port].pkey_change_work);
 
 	/* After s0/s1 init, they are not unset during the device lifetime. */
 	if (devr->s1) {
@@ -3211,12 +3204,14 @@ static int lag_event(struct notifier_block *nb, unsigned long event, void *data)
 	struct mlx5_ib_dev *dev = container_of(nb, struct mlx5_ib_dev,
 					       lag_events);
 	struct mlx5_core_dev *mdev = dev->mdev;
+	struct ib_device *ibdev = &dev->ib_dev;
+	struct net_device *old_ndev = NULL;
 	struct mlx5_ib_port *port;
 	struct net_device *ndev;
-	int  i, err;
-	int portnum;
+	u32 portnum = 0;
+	int ret = 0;
+	int i;
 
-	portnum = 0;
 	switch (event) {
 	case MLX5_DRIVER_EVENT_ACTIVE_BACKUP_LAG_CHANGE_LOWERSTATE:
 		ndev = data;
@@ -3232,19 +3227,24 @@ static int lag_event(struct notifier_block *nb, unsigned long event, void *data)
 					}
 				}
 			}
-			err = ib_device_set_netdev(&dev->ib_dev, ndev,
-						   portnum + 1);
-			dev_put(ndev);
-			if (err)
-				return err;
-			/* Rescan gids after new netdev assignment */
-			rdma_roce_rescan_device(&dev->ib_dev);
+			old_ndev = ib_device_get_netdev(ibdev, portnum + 1);
+			ret = ib_device_set_netdev(ibdev, ndev, portnum + 1);
+			if (ret)
+				goto out;
+
+			if (old_ndev)
+				roce_del_all_netdev_gids(ibdev, portnum + 1,
+							 old_ndev);
+			rdma_roce_rescan_port(ibdev, portnum + 1);
 		}
 		break;
 	default:
 		return NOTIFY_DONE;
 	}
-	return NOTIFY_OK;
+
+out:
+	dev_put(old_ndev);
+	return notifier_from_errno(ret);
 }
 
 static void mlx5e_lag_event_register(struct mlx5_ib_dev *dev)
@@ -4134,6 +4134,7 @@ static const struct ib_device_ops mlx5_ib_dev_ops = {
 	.req_notify_cq = mlx5_ib_arm_cq,
 	.rereg_user_mr = mlx5_ib_rereg_user_mr,
 	.resize_cq = mlx5_ib_resize_cq,
+	.ufile_hw_cleanup = mlx5_ib_ufile_hw_cleanup,
 
 	INIT_RDMA_OBJ_SIZE(ib_ah, mlx5_ib_ah, ibah),
 	INIT_RDMA_OBJ_SIZE(ib_counters, mlx5_ib_mcounters, ibcntrs),
@@ -4464,6 +4465,13 @@ static void mlx5_ib_stage_delay_drop_cleanup(struct mlx5_ib_dev *dev)
 
 static int mlx5_ib_stage_dev_notifier_init(struct mlx5_ib_dev *dev)
 {
+	struct mlx5_ib_resources *devr = &dev->devr;
+	int port;
+
+	for (port = 0; port < ARRAY_SIZE(devr->ports); ++port)
+		INIT_WORK(&devr->ports[port].pkey_change_work,
+			  pkey_change_handler);
+
 	dev->mdev_events.notifier_call = mlx5_ib_event;
 	mlx5_notifier_register(dev->mdev, &dev->mdev_events);
 
@@ -4474,8 +4482,14 @@ static int mlx5_ib_stage_dev_notifier_init(struct mlx5_ib_dev *dev)
 
 static void mlx5_ib_stage_dev_notifier_cleanup(struct mlx5_ib_dev *dev)
 {
+	struct mlx5_ib_resources *devr = &dev->devr;
+	int port;
+
 	mlx5r_macsec_event_unregister(dev);
 	mlx5_notifier_unregister(dev->mdev, &dev->mdev_events);
+
+	for (port = 0; port < ARRAY_SIZE(devr->ports); ++port)
+		cancel_work_sync(&devr->ports[port].pkey_change_work);
 }
 
 void mlx5_ib_data_direct_bind(struct mlx5_ib_dev *ibdev,
@@ -4565,9 +4579,6 @@ static const struct mlx5_ib_profile pf_profile = {
 	STAGE_CREATE(MLX5_IB_STAGE_DEVICE_RESOURCES,
 		     mlx5_ib_dev_res_init,
 		     mlx5_ib_dev_res_cleanup),
-	STAGE_CREATE(MLX5_IB_STAGE_DEVICE_NOTIFIER,
-		     mlx5_ib_stage_dev_notifier_init,
-		     mlx5_ib_stage_dev_notifier_cleanup),
 	STAGE_CREATE(MLX5_IB_STAGE_ODP,
 		     mlx5_ib_odp_init_one,
 		     mlx5_ib_odp_cleanup_one),
@@ -4592,6 +4603,9 @@ static const struct mlx5_ib_profile pf_profile = {
 	STAGE_CREATE(MLX5_IB_STAGE_IB_REG,
 		     mlx5_ib_stage_ib_reg_init,
 		     mlx5_ib_stage_ib_reg_cleanup),
+	STAGE_CREATE(MLX5_IB_STAGE_DEVICE_NOTIFIER,
+		     mlx5_ib_stage_dev_notifier_init,
+		     mlx5_ib_stage_dev_notifier_cleanup),
 	STAGE_CREATE(MLX5_IB_STAGE_POST_IB_REG_UMR,
 		     mlx5_ib_stage_post_ib_reg_umr_init,
 		     NULL),
@@ -4628,9 +4642,6 @@ const struct mlx5_ib_profile raw_eth_profile = {
 	STAGE_CREATE(MLX5_IB_STAGE_DEVICE_RESOURCES,
 		     mlx5_ib_dev_res_init,
 		     mlx5_ib_dev_res_cleanup),
-	STAGE_CREATE(MLX5_IB_STAGE_DEVICE_NOTIFIER,
-		     mlx5_ib_stage_dev_notifier_init,
-		     mlx5_ib_stage_dev_notifier_cleanup),
 	STAGE_CREATE(MLX5_IB_STAGE_COUNTERS,
 		     mlx5_ib_counters_init,
 		     mlx5_ib_counters_cleanup),
@@ -4652,6 +4663,9 @@ const struct mlx5_ib_profile raw_eth_profile = {
 	STAGE_CREATE(MLX5_IB_STAGE_IB_REG,
 		     mlx5_ib_stage_ib_reg_init,
 		     mlx5_ib_stage_ib_reg_cleanup),
+	STAGE_CREATE(MLX5_IB_STAGE_DEVICE_NOTIFIER,
+		     mlx5_ib_stage_dev_notifier_init,
+		     mlx5_ib_stage_dev_notifier_cleanup),
 	STAGE_CREATE(MLX5_IB_STAGE_POST_IB_REG_UMR,
 		     mlx5_ib_stage_post_ib_reg_umr_init,
 		     NULL),

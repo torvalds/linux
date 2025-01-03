@@ -255,12 +255,6 @@ void os_close_file(int fd)
 {
 	close(fd);
 }
-int os_fsync_file(int fd)
-{
-	if (fsync(fd) < 0)
-	    return -errno;
-	return 0;
-}
 
 int os_seek_file(int fd, unsigned long long offset)
 {

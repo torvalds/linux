@@ -317,28 +317,34 @@ static int vsc_identify_silicon(struct vsc_fw_loader *fw_loader)
 	cmd->data.dump_mem.addr = cpu_to_le32(VSC_EFUSE_ADDR);
 	cmd->data.dump_mem.len = cpu_to_le16(sizeof(__le32));
 	ret = vsc_tp_rom_xfer(fw_loader->tp, cmd, ack, VSC_ROM_PKG_SIZE);
-	if (ret)
-		return ret;
-	if (ack->token == VSC_TOKEN_ERROR)
-		return -EINVAL;
+	if (ret || ack->token == VSC_TOKEN_ERROR) {
+		dev_err(fw_loader->dev, "CMD_DUMP_MEM error %d token %d\n", ret, ack->token);
+		return ret ?: -EINVAL;
+	}
 
 	cmd->magic = cpu_to_le32(VSC_MAGIC_NUM);
 	cmd->cmd_id = VSC_CMD_GET_CONT;
 	ret = vsc_tp_rom_xfer(fw_loader->tp, cmd, ack, VSC_ROM_PKG_SIZE);
-	if (ret)
-		return ret;
-	if (ack->token != VSC_TOKEN_DUMP_RESP)
-		return -EINVAL;
+	if (ret || ack->token != VSC_TOKEN_DUMP_RESP) {
+		dev_err(fw_loader->dev, "CMD_GETCONT error %d token %d\n", ret, ack->token);
+		return ret ?: -EINVAL;
+	}
 
 	version = FIELD_GET(VSC_MAINSTEPPING_VERSION_MASK, ack->payload[0]);
 	sub_version = FIELD_GET(VSC_SUBSTEPPING_VERSION_MASK, ack->payload[0]);
 
-	if (version != VSC_MAINSTEPPING_VERSION_A)
+	if (version != VSC_MAINSTEPPING_VERSION_A) {
+		dev_err(fw_loader->dev, "mainstepping mismatch expected %d got %d\n",
+			VSC_MAINSTEPPING_VERSION_A, version);
 		return -EINVAL;
+	}
 
 	if (sub_version != VSC_SUBSTEPPING_VERSION_0 &&
-	    sub_version != VSC_SUBSTEPPING_VERSION_1)
+	    sub_version != VSC_SUBSTEPPING_VERSION_1) {
+		dev_err(fw_loader->dev, "substepping %d is out of supported range %d - %d\n",
+			sub_version, VSC_SUBSTEPPING_VERSION_0, VSC_SUBSTEPPING_VERSION_1);
 		return -EINVAL;
+	}
 
 	dev_info(fw_loader->dev, "silicon stepping version is %u:%u\n",
 		 version, sub_version);

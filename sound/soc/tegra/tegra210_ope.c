@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
+// SPDX-FileCopyrightText: Copyright (c) 2022-2024 NVIDIA CORPORATION & AFFILIATES.
+// All rights reserved.
 //
 // tegra210_ope.c - Tegra210 OPE driver
-//
-// Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
 
 #include <linux/clk.h>
 #include <linux/device.h>
@@ -47,6 +47,7 @@ static int tegra210_ope_set_audio_cif(struct tegra210_ope *ope,
 	case SNDRV_PCM_FORMAT_S16_LE:
 		audio_bits = TEGRA_ACIF_BITS_16;
 		break;
+	case SNDRV_PCM_FORMAT_S24_LE:
 	case SNDRV_PCM_FORMAT_S32_LE:
 		audio_bits = TEGRA_ACIF_BITS_32;
 		break;
@@ -129,6 +130,7 @@ static struct snd_soc_dai_driver tegra210_ope_dais[] = {
 			.rates = SNDRV_PCM_RATE_8000_192000,
 			.formats = SNDRV_PCM_FMTBIT_S8 |
 				SNDRV_PCM_FMTBIT_S16_LE |
+				SNDRV_PCM_FMTBIT_S24_LE |
 				SNDRV_PCM_FMTBIT_S32_LE,
 		},
 		.capture = {
@@ -138,6 +140,7 @@ static struct snd_soc_dai_driver tegra210_ope_dais[] = {
 			.rates = SNDRV_PCM_RATE_8000_192000,
 			.formats = SNDRV_PCM_FMTBIT_S8 |
 				SNDRV_PCM_FMTBIT_S16_LE |
+				SNDRV_PCM_FMTBIT_S24_LE |
 				SNDRV_PCM_FMTBIT_S32_LE,
 		},
 	},
@@ -150,6 +153,7 @@ static struct snd_soc_dai_driver tegra210_ope_dais[] = {
 			.rates = SNDRV_PCM_RATE_8000_192000,
 			.formats = SNDRV_PCM_FMTBIT_S8 |
 				SNDRV_PCM_FMTBIT_S16_LE |
+				SNDRV_PCM_FMTBIT_S24_LE |
 				SNDRV_PCM_FMTBIT_S32_LE,
 		},
 		.capture = {
@@ -159,6 +163,7 @@ static struct snd_soc_dai_driver tegra210_ope_dais[] = {
 			.rates = SNDRV_PCM_RATE_8000_192000,
 			.formats = SNDRV_PCM_FMTBIT_S8 |
 				SNDRV_PCM_FMTBIT_S16_LE |
+				SNDRV_PCM_FMTBIT_S24_LE |
 				SNDRV_PCM_FMTBIT_S32_LE,
 		},
 		.ops = &tegra210_ope_dai_ops,

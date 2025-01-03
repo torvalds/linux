@@ -60,13 +60,27 @@ static inline void unwind_init_common(struct unwind_state *state)
 	state->stack = stackinfo_get_unknown();
 }
 
-static struct stack_info *unwind_find_next_stack(const struct unwind_state *state,
-						 unsigned long sp,
-						 unsigned long size)
+/**
+ * unwind_find_stack() - Find the accessible stack which entirely contains an
+ * object.
+ *
+ * @state: the current unwind state.
+ * @sp:    the base address of the object.
+ * @size:  the size of the object.
+ *
+ * Return: a pointer to the relevant stack_info if found; NULL otherwise.
+ */
+static struct stack_info *unwind_find_stack(struct unwind_state *state,
+					    unsigned long sp,
+					    unsigned long size)
 {
-	for (int i = 0; i < state->nr_stacks; i++) {
-		struct stack_info *info = &state->stacks[i];
+	struct stack_info *info = &state->stack;
 
+	if (stackinfo_on_stack(info, sp, size))
+		return info;
+
+	for (int i = 0; i < state->nr_stacks; i++) {
+		info = &state->stacks[i];
 		if (stackinfo_on_stack(info, sp, size))
 			return info;
 	}
@@ -75,36 +89,31 @@ static struct stack_info *unwind_find_next_stack(const struct unwind_state *stat
 }
 
 /**
- * unwind_consume_stack() - Check if an object is on an accessible stack,
- * updating stack boundaries so that future unwind steps cannot consume this
- * object again.
+ * unwind_consume_stack() - Update stack boundaries so that future unwind steps
+ * cannot consume this object again.
  *
  * @state: the current unwind state.
+ * @info:  the stack_info of the stack containing the object.
  * @sp:    the base address of the object.
  * @size:  the size of the object.
  *
  * Return: 0 upon success, an error code otherwise.
  */
-static inline int unwind_consume_stack(struct unwind_state *state,
-				       unsigned long sp,
-				       unsigned long size)
+static inline void unwind_consume_stack(struct unwind_state *state,
+					struct stack_info *info,
+					unsigned long sp,
+					unsigned long size)
 {
-	struct stack_info *next;
-
-	if (stackinfo_on_stack(&state->stack, sp, size))
-		goto found;
-
-	next = unwind_find_next_stack(state, sp, size);
-	if (!next)
-		return -EINVAL;
+	struct stack_info tmp;
 
 	/*
 	 * Stack transitions are strictly one-way, and once we've
 	 * transitioned from one stack to another, it's never valid to
 	 * unwind back to the old stack.
 	 *
-	 * Remove the current stack from the list of stacks so that it cannot
-	 * be found on a subsequent transition.
+	 * Destroy the old stack info so that it cannot be found upon a
+	 * subsequent transition. If the stack has not changed, we'll
+	 * immediately restore the current stack info.
 	 *
 	 * Note that stacks can nest in several valid orders, e.g.
 	 *
@@ -115,16 +124,15 @@ static inline int unwind_consume_stack(struct unwind_state *state,
 	 * ... so we do not check the specific order of stack
 	 * transitions.
 	 */
-	state->stack = *next;
-	*next = stackinfo_get_unknown();
+	tmp = *info;
+	*info = stackinfo_get_unknown();
+	state->stack = tmp;
 
-found:
 	/*
 	 * Future unwind steps can only consume stack above this frame record.
 	 * Update the current stack to start immediately above it.
 	 */
 	state->stack.low = sp + size;
-	return 0;
 }
 
 /**
@@ -137,21 +145,25 @@ found:
 static inline int
 unwind_next_frame_record(struct unwind_state *state)
 {
+	struct stack_info *info;
+	struct frame_record *record;
 	unsigned long fp = state->fp;
-	int err;
 
 	if (fp & 0x7)
 		return -EINVAL;
 
-	err = unwind_consume_stack(state, fp, 16);
-	if (err)
-		return err;
+	info = unwind_find_stack(state, fp, sizeof(*record));
+	if (!info)
+		return -EINVAL;
+
+	unwind_consume_stack(state, info, fp, sizeof(*record));
 
 	/*
 	 * Record this frame record's values.
 	 */
-	state->fp = READ_ONCE(*(unsigned long *)(fp));
-	state->pc = READ_ONCE(*(unsigned long *)(fp + 8));
+	record = (struct frame_record *)fp;
+	state->fp = READ_ONCE(record->fp);
+	state->pc = READ_ONCE(record->lr);
 
 	return 0;
 }

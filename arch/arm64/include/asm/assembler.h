@@ -249,13 +249,6 @@ alternative_endif
 	.endm
 
 /*
- * vma_vm_mm - get mm pointer from vma pointer (vma->vm_mm)
- */
-	.macro	vma_vm_mm, rd, rn
-	ldr	\rd, [\rn, #VMA_VM_MM]
-	.endm
-
-/*
  * read_ctr - read CTR_EL0. If the system has mismatched register fields,
  * provide the system wide safe value from arm64_ftr_reg_ctrel0.sys_val
  */

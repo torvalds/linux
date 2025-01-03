@@ -600,7 +600,7 @@ static struct platform_driver tegra_sflash_driver = {
 		.of_match_table	= tegra_sflash_of_match,
 	},
 	.probe =	tegra_sflash_probe,
-	.remove_new =	tegra_sflash_remove,
+	.remove =	tegra_sflash_remove,
 };
 module_platform_driver(tegra_sflash_driver);
 

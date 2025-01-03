@@ -2211,7 +2211,7 @@ MODULE_DEVICE_TABLE(acpi, netsec_acpi_ids);
 
 static struct platform_driver netsec_driver = {
 	.probe	= netsec_probe,
-	.remove_new = netsec_remove,
+	.remove = netsec_remove,
 	.driver = {
 		.name = "netsec",
 		.pm = &netsec_pm_ops,

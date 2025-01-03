@@ -366,7 +366,7 @@ static void zynqmp_dma_init(struct zynqmp_dma_chan *chan)
 	}
 	writel(val, chan->regs + ZYNQMP_DMA_DATA_ATTR);
 
-	/* Clearing the interrupt account rgisters */
+	/* Clearing the interrupt account registers */
 	val = readl(chan->regs + ZYNQMP_DMA_IRQ_SRC_ACCT);
 	val = readl(chan->regs + ZYNQMP_DMA_IRQ_DST_ACCT);
 
@@ -1192,7 +1192,7 @@ static struct platform_driver zynqmp_dma_driver = {
 		.pm = &zynqmp_dma_dev_pm_ops,
 	},
 	.probe = zynqmp_dma_probe,
-	.remove_new = zynqmp_dma_remove,
+	.remove = zynqmp_dma_remove,
 };
 
 module_platform_driver(zynqmp_dma_driver);

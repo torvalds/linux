@@ -463,6 +463,22 @@ static int dpaa_set_mac_address(struct net_device *net_dev, void *addr)
 	return 0;
 }
 
+static int dpaa_addr_sync(struct net_device *net_dev, const u8 *addr)
+{
+	const struct dpaa_priv *priv = netdev_priv(net_dev);
+
+	return priv->mac_dev->add_hash_mac_addr(priv->mac_dev->fman_mac,
+						(enet_addr_t *)addr);
+}
+
+static int dpaa_addr_unsync(struct net_device *net_dev, const u8 *addr)
+{
+	const struct dpaa_priv *priv = netdev_priv(net_dev);
+
+	return priv->mac_dev->remove_hash_mac_addr(priv->mac_dev->fman_mac,
+						   (enet_addr_t *)addr);
+}
+
 static void dpaa_set_rx_mode(struct net_device *net_dev)
 {
 	const struct dpaa_priv	*priv;
@@ -490,9 +506,9 @@ static void dpaa_set_rx_mode(struct net_device *net_dev)
 				  err);
 	}
 
-	err = priv->mac_dev->set_multi(net_dev, priv->mac_dev);
+	err = __dev_mc_sync(net_dev, dpaa_addr_sync, dpaa_addr_unsync);
 	if (err < 0)
-		netif_err(priv, drv, net_dev, "mac_dev->set_multi() = %d\n",
+		netif_err(priv, drv, net_dev, "dpaa_addr_sync() = %d\n",
 			  err);
 }
 
@@ -1804,7 +1820,6 @@ static struct sk_buff *sg_fd_to_skb(const struct dpaa_priv *priv,
 	struct page *page, *head_page;
 	struct dpaa_bp *dpaa_bp;
 	void *vaddr, *sg_vaddr;
-	int frag_off, frag_len;
 	struct sk_buff *skb;
 	dma_addr_t sg_addr;
 	int page_offset;
@@ -1847,6 +1862,11 @@ static struct sk_buff *sg_fd_to_skb(const struct dpaa_priv *priv,
 			 * on Tx, if extra headers are added.
 			 */
 			WARN_ON(fd_off != priv->rx_headroom);
+			/* The offset to data start within the buffer holding
+			 * the SGT should always be equal to the offset to data
+			 * start within the first buffer holding the frame.
+			 */
+			WARN_ON_ONCE(fd_off != qm_sg_entry_get_off(&sgt[i]));
 			skb_reserve(skb, fd_off);
 			skb_put(skb, qm_sg_entry_get_len(&sgt[i]));
 		} else {
@@ -1860,21 +1880,23 @@ static struct sk_buff *sg_fd_to_skb(const struct dpaa_priv *priv,
 			page = virt_to_page(sg_vaddr);
 			head_page = virt_to_head_page(sg_vaddr);
 
-			/* Compute offset in (possibly tail) page */
+			/* Compute offset of sg_vaddr in (possibly tail) page */
 			page_offset = ((unsigned long)sg_vaddr &
 					(PAGE_SIZE - 1)) +
 				(page_address(page) - page_address(head_page));
-			/* page_offset only refers to the beginning of sgt[i];
-			 * but the buffer itself may have an internal offset.
+
+			/* Non-initial SGT entries should not have a buffer
+			 * offset.
 			 */
-			frag_off = qm_sg_entry_get_off(&sgt[i]) + page_offset;
-			frag_len = qm_sg_entry_get_len(&sgt[i]);
+			WARN_ON_ONCE(qm_sg_entry_get_off(&sgt[i]));
+
 			/* skb_add_rx_frag() does no checking on the page; if
 			 * we pass it a tail page, we'll end up with
-			 * bad page accounting and eventually with segafults.
+			 * bad page accounting and eventually with segfaults.
 			 */
-			skb_add_rx_frag(skb, i - 1, head_page, frag_off,
-					frag_len, dpaa_bp->size);
+			skb_add_rx_frag(skb, i - 1, head_page, page_offset,
+					qm_sg_entry_get_len(&sgt[i]),
+					dpaa_bp->size);
 		}
 
 		/* Update the pool count for the current {cpu x bpool} */
@@ -2750,7 +2772,7 @@ static enum qman_cb_dqrr_result rx_default_dqrr(struct qman_portal *portal,
 	if (net_dev->features & NETIF_F_RXHASH && priv->keygen_in_use &&
 	    !fman_port_get_hash_result_offset(priv->mac_dev->port[RX],
 					      &hash_offset)) {
-		hash = be32_to_cpu(*(u32 *)(vaddr + hash_offset));
+		hash = be32_to_cpu(*(__be32 *)(vaddr + hash_offset));
 		hash_valid = true;
 	}
 
@@ -3571,7 +3593,7 @@ static struct platform_driver dpaa_driver = {
 	},
 	.id_table = dpaa_devtype,
 	.probe = dpaa_eth_probe,
-	.remove_new = dpaa_remove
+	.remove = dpaa_remove
 };
 
 static int __init dpaa_load(void)

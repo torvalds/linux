@@ -16,8 +16,10 @@ static int sparx5_vlant_set_mask(struct sparx5 *sparx5, u16 vid)
 
 	/* Output mask to respective registers */
 	spx5_wr(mask[0], sparx5, ANA_L3_VLAN_MASK_CFG(vid));
-	spx5_wr(mask[1], sparx5, ANA_L3_VLAN_MASK_CFG1(vid));
-	spx5_wr(mask[2], sparx5, ANA_L3_VLAN_MASK_CFG2(vid));
+	if (is_sparx5(sparx5)) {
+		spx5_wr(mask[1], sparx5, ANA_L3_VLAN_MASK_CFG1(vid));
+		spx5_wr(mask[2], sparx5, ANA_L3_VLAN_MASK_CFG2(vid));
+	}
 
 	return 0;
 }
@@ -141,15 +143,19 @@ void sparx5_pgid_update_mask(struct sparx5_port *port, int pgid, bool enable)
 void sparx5_pgid_clear(struct sparx5 *spx5, int pgid)
 {
 	spx5_wr(0, spx5, ANA_AC_PGID_CFG(pgid));
-	spx5_wr(0, spx5, ANA_AC_PGID_CFG1(pgid));
-	spx5_wr(0, spx5, ANA_AC_PGID_CFG2(pgid));
+	if (is_sparx5(spx5)) {
+		spx5_wr(0, spx5, ANA_AC_PGID_CFG1(pgid));
+		spx5_wr(0, spx5, ANA_AC_PGID_CFG2(pgid));
+	}
 }
 
 void sparx5_pgid_read_mask(struct sparx5 *spx5, int pgid, u32 portmask[3])
 {
 	portmask[0] = spx5_rd(spx5, ANA_AC_PGID_CFG(pgid));
-	portmask[1] = spx5_rd(spx5, ANA_AC_PGID_CFG1(pgid));
-	portmask[2] = spx5_rd(spx5, ANA_AC_PGID_CFG2(pgid));
+	if (is_sparx5(spx5)) {
+		portmask[1] = spx5_rd(spx5, ANA_AC_PGID_CFG1(pgid));
+		portmask[2] = spx5_rd(spx5, ANA_AC_PGID_CFG2(pgid));
+	}
 }
 
 void sparx5_update_fwd(struct sparx5 *sparx5)
@@ -162,26 +168,33 @@ void sparx5_update_fwd(struct sparx5 *sparx5)
 	bitmap_to_arr32(mask, sparx5->bridge_fwd_mask, SPX5_PORTS);
 
 	/* Update flood masks */
-	for (port = PGID_UC_FLOOD; port <= PGID_BCAST; port++) {
+	for (port = sparx5_get_pgid(sparx5, PGID_UC_FLOOD);
+	     port <= sparx5_get_pgid(sparx5, PGID_BCAST); port++) {
 		spx5_wr(mask[0], sparx5, ANA_AC_PGID_CFG(port));
-		spx5_wr(mask[1], sparx5, ANA_AC_PGID_CFG1(port));
-		spx5_wr(mask[2], sparx5, ANA_AC_PGID_CFG2(port));
+		if (is_sparx5(sparx5)) {
+			spx5_wr(mask[1], sparx5, ANA_AC_PGID_CFG1(port));
+			spx5_wr(mask[2], sparx5, ANA_AC_PGID_CFG2(port));
+		}
 	}
 
 	/* Update SRC masks */
-	for (port = 0; port < SPX5_PORTS; port++) {
+	for (port = 0; port < sparx5->data->consts->n_ports; port++) {
 		if (test_bit(port, sparx5->bridge_fwd_mask)) {
 			/* Allow to send to all bridged but self */
 			bitmap_copy(workmask, sparx5->bridge_fwd_mask, SPX5_PORTS);
 			clear_bit(port, workmask);
 			bitmap_to_arr32(mask, workmask, SPX5_PORTS);
 			spx5_wr(mask[0], sparx5, ANA_AC_SRC_CFG(port));
-			spx5_wr(mask[1], sparx5, ANA_AC_SRC_CFG1(port));
-			spx5_wr(mask[2], sparx5, ANA_AC_SRC_CFG2(port));
+			if (is_sparx5(sparx5)) {
+				spx5_wr(mask[1], sparx5, ANA_AC_SRC_CFG1(port));
+				spx5_wr(mask[2], sparx5, ANA_AC_SRC_CFG2(port));
+			}
 		} else {
 			spx5_wr(0, sparx5, ANA_AC_SRC_CFG(port));
-			spx5_wr(0, sparx5, ANA_AC_SRC_CFG1(port));
-			spx5_wr(0, sparx5, ANA_AC_SRC_CFG2(port));
+			if (is_sparx5(sparx5)) {
+				spx5_wr(0, sparx5, ANA_AC_SRC_CFG1(port));
+				spx5_wr(0, sparx5, ANA_AC_SRC_CFG2(port));
+			}
 		}
 	}
 
@@ -192,8 +205,10 @@ void sparx5_update_fwd(struct sparx5 *sparx5)
 
 	/* Apply learning mask */
 	spx5_wr(mask[0], sparx5, ANA_L2_AUTO_LRN_CFG);
-	spx5_wr(mask[1], sparx5, ANA_L2_AUTO_LRN_CFG1);
-	spx5_wr(mask[2], sparx5, ANA_L2_AUTO_LRN_CFG2);
+	if (is_sparx5(sparx5)) {
+		spx5_wr(mask[1], sparx5, ANA_L2_AUTO_LRN_CFG1);
+		spx5_wr(mask[2], sparx5, ANA_L2_AUTO_LRN_CFG2);
+	}
 }
 
 void sparx5_vlan_port_apply(struct sparx5 *sparx5,

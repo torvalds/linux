@@ -417,7 +417,7 @@ MODULE_DEVICE_TABLE(platform, telem_id);
 
 static struct platform_driver telem_driver = {
 	.probe = telem_device_probe,
-	.remove_new = telem_device_remove,
+	.remove = telem_device_remove,
 	.driver = {
 		.name = DRV_NAME,
 	},

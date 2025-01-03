@@ -187,7 +187,7 @@ static void mtk_socinfo_remove(struct platform_device *pdev)
 
 static struct platform_driver mtk_socinfo = {
 	.probe = mtk_socinfo_probe,
-	.remove_new = mtk_socinfo_remove,
+	.remove = mtk_socinfo_remove,
 	.driver = {
 		.name = "mtk-socinfo",
 	},

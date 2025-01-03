@@ -214,7 +214,8 @@ static const __u8 fixed_rdesc_pad[] = {
 	CollectionApplication(
 		// -- Byte 0 in report
 		ReportId(PAD_REPORT_ID)
-		LogicalRange_i8(0, 1)
+		LogicalMaximum_i8(0)
+		LogicalMaximum_i8(1)
 		UsagePage_Digitizers
 		Usage_Dig_TabletFunctionKeys
 		CollectionPhysical(
@@ -234,14 +235,17 @@ static const __u8 fixed_rdesc_pad[] = {
 			Input(Var|Abs)
 			// Byte 4 in report is the dial
 			Usage_GD_Wheel
-			LogicalRange_i8(-1, 1)
+			LogicalMinimum_i8(-1)
+			LogicalMaximum_i8(1)
 			ReportCount(1)
 			ReportSize(8)
 			Input(Var|Rel)
 			// Byte 5 is the button state
 			UsagePage_Button
-			UsageRange_i8(0x01, 0x8)
-			LogicalRange_i8(0x0, 0x1)
+			UsageMinimum_i8(0x01)
+			UsageMaximum_i8(0x08)
+			LogicalMinimum_i8(0x0)
+			LogicalMaximum_i8(0x1)
 			ReportCount(7)
 			ReportSize(1)
 			Input(Var|Abs)
@@ -265,7 +269,8 @@ static const __u8 fixed_rdesc_pen[] = {
 			Usage_Dig_TipSwitch
 			Usage_Dig_BarrelSwitch
 			Usage_Dig_SecondaryBarrelSwitch // maps eraser to BTN_STYLUS2
-			LogicalRange_i8(0, 1)
+			LogicalMinimum_i8(0)
+			LogicalMaximum_i8(1)
 			ReportSize(1)
 			ReportCount(3)
 			Input(Var|Abs)
@@ -280,22 +285,28 @@ static const __u8 fixed_rdesc_pen[] = {
 				UsagePage_GenericDesktop
 				Unit(cm)
 				UnitExponent(-1)
-				PhysicalRange_i16(0, 266)
-				LogicalRange_i16(0, 32767)
+				PhysicalMinimum_i16(0)
+				PhysicalMaximum_i16(266)
+				LogicalMinimum_i16(0)
+				LogicalMaximum_i16(32767)
 				Usage_GD_X
 				Input(Var|Abs) // Bytes 2+3
-				PhysicalRange_i16(0, 166)
-				LogicalRange_i16(0, 32767)
+				PhysicalMinimum_i16(0)
+				PhysicalMaximum_i16(166)
+				LogicalMinimum_i16(0)
+				LogicalMaximum_i16(32767)
 				Usage_GD_Y
 				Input(Var|Abs) // Bytes 4+5
 			)
 			UsagePage_Digitizers
 			Usage_Dig_TipPressure
-			LogicalRange_i16(0, 8191)
+			LogicalMinimum_i16(0)
+			LogicalMaximum_i16(8191)
 			Input(Var|Abs) // Byte 6+7
 			ReportSize(8)
 			ReportCount(2)
-			LogicalRange_i8(-60, 60)
+			LogicalMinimum_i8(-60)
+			LogicalMaximum_i8(60)
 			Usage_Dig_XTilt
 			Usage_Dig_YTilt
 			Input(Var|Abs) // Byte 8+9
@@ -313,7 +324,8 @@ static const __u8 fixed_rdesc_vendor[] = {
 		Usage_Dig_Pen
 		CollectionPhysical(
 			// Byte 1 are the buttons
-			LogicalRange_i8(0, 1)
+			LogicalMinimum_i8(0)
+			LogicalMaximum_i8(1)
 			ReportSize(1)
 			Usage_Dig_TipSwitch
 			Usage_Dig_BarrelSwitch
@@ -333,25 +345,31 @@ static const __u8 fixed_rdesc_vendor[] = {
 				UnitExponent(-1)
 				// Note: reported logical range differs
 				// from the pen report ID for x and y
-				LogicalRange_i16(0, 53340)
-				PhysicalRange_i16(0, 266)
+				LogicalMinimum_i16(0)
+				LogicalMaximum_i16(53340)
+				PhysicalMinimum_i16(0)
+				PhysicalMaximum_i16(266)
 				// Bytes 2/3 in report
 				Usage_GD_X
 				Input(Var|Abs)
-				LogicalRange_i16(0, 33340)
-				PhysicalRange_i16(0, 166)
+				LogicalMinimum_i16(0)
+				LogicalMaximum_i16(33340)
+				PhysicalMinimum_i16(0)
+				PhysicalMaximum_i16(166)
 				// Bytes 4/5 in report
 				Usage_GD_Y
 				Input(Var|Abs)
 			)
 			// Bytes 6/7 in report
-			LogicalRange_i16(0, 8191)
+			LogicalMinimum_i16(0)
+			LogicalMaximum_i16(8191)
 			Usage_Dig_TipPressure
 			Input(Var|Abs)
 			// Bytes 8/9 in report
 			ReportCount(1) // Padding
 			Input(Const)
-			LogicalRange_i8(-60, 60)
+			LogicalMinimum_i8(-60)
+			LogicalMaximum_i8(60)
 			// Byte 10 in report
 			Usage_Dig_XTilt
 			// Byte 11 in report
@@ -366,7 +384,8 @@ static const __u8 fixed_rdesc_vendor[] = {
 	CollectionApplication(
 		// Byte 0
 		ReportId(PAD_REPORT_ID)
-		LogicalRange_i8(0, 1)
+		LogicalMinimum_i8(0)
+		LogicalMaximum_i8(1)
 		UsagePage_Digitizers
 		Usage_Dig_TabletFunctionKeys
 		CollectionPhysical(
@@ -386,15 +405,18 @@ static const __u8 fixed_rdesc_vendor[] = {
 			Input(Var|Abs)
 			// Byte 4 is the button state
 			UsagePage_Button
-			UsageRange_i8(0x01, 0x8)
-			LogicalRange_i8(0x0, 0x1)
+			UsageMinimum_i8(0x1)
+			UsageMaximum_i8(0x8)
+			LogicalMinimum_i8(0x0)
+			LogicalMaximum_i8(0x1)
 			ReportCount(8)
 			ReportSize(1)
 			Input(Var|Abs)
 			// Byte 5 is the top dial
 			UsagePage_GenericDesktop
 			Usage_GD_Wheel
-			LogicalRange_i8(-1, 1)
+			LogicalMinimum_i8(-1)
+			LogicalMaximum_i8(1)
 			ReportCount(1)
 			ReportSize(8)
 			Input(Var|Rel)

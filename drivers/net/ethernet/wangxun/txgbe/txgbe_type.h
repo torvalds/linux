@@ -75,8 +75,7 @@
 #define TXGBE_PX_MISC_IEN_MASK                            \
 	(TXGBE_PX_MISC_ETH_LKDN | TXGBE_PX_MISC_DEV_RST | \
 	 TXGBE_PX_MISC_ETH_EVENT | TXGBE_PX_MISC_ETH_LK | \
-	 TXGBE_PX_MISC_ETH_AN | TXGBE_PX_MISC_INT_ERR |   \
-	 TXGBE_PX_MISC_GPIO)
+	 TXGBE_PX_MISC_ETH_AN | TXGBE_PX_MISC_INT_ERR)
 
 /* Port cfg registers */
 #define TXGBE_CFG_PORT_ST                       0x14404
@@ -313,8 +312,7 @@ struct txgbe_nodes {
 };
 
 enum txgbe_misc_irqs {
-	TXGBE_IRQ_GPIO = 0,
-	TXGBE_IRQ_LINK,
+	TXGBE_IRQ_LINK = 0,
 	TXGBE_IRQ_MAX
 };
 
@@ -329,13 +327,12 @@ struct txgbe {
 	struct wx *wx;
 	struct txgbe_nodes nodes;
 	struct txgbe_irq misc;
-	struct dw_xpcs *xpcs;
+	struct phylink_pcs *pcs;
 	struct platform_device *sfp_dev;
 	struct platform_device *i2c_dev;
 	struct clk_lookup *clock;
 	struct clk *clk;
 	struct gpio_chip *gpio;
-	unsigned int gpio_irq;
 	unsigned int link_irq;
 
 	/* flow director */

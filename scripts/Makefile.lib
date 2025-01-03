@@ -191,14 +191,32 @@ _c_flags += $(if $(patsubst n%,, \
 	-D__KCSAN_INSTRUMENT_BARRIERS__)
 endif
 
+#
+# Enable AutoFDO build flags except some files or directories we don't want to
+# enable (depends on variables AUTOFDO_PROFILE_obj.o and AUTOFDO_PROFILE).
+#
+ifeq ($(CONFIG_AUTOFDO_CLANG),y)
+_c_flags += $(if $(patsubst n%,, \
+	$(AUTOFDO_PROFILE_$(target-stem).o)$(AUTOFDO_PROFILE)$(is-kernel-object)), \
+	$(CFLAGS_AUTOFDO_CLANG))
+endif
+
+#
+# Enable Propeller build flags except some files or directories we don't want to
+# enable (depends on variables AUTOFDO_PROPELLER_obj.o and PROPELLER_PROFILE).
+#
+ifdef CONFIG_PROPELLER_CLANG
+_c_flags += $(if $(patsubst n%,, \
+	$(AUTOFDO_PROFILE_$(target-stem).o)$(AUTOFDO_PROFILE)$(PROPELLER_PROFILE))$(is-kernel-object), \
+	$(CFLAGS_PROPELLER_CLANG))
+endif
+
 # $(src) for including checkin headers from generated source files
 # $(obj) for including generated headers from checkin source files
-ifeq ($(KBUILD_EXTMOD),)
 ifdef building_out_of_srctree
 _c_flags   += $(addprefix -I, $(src) $(obj))
 _a_flags   += $(addprefix -I, $(src) $(obj))
 _cpp_flags += $(addprefix -I, $(src) $(obj))
-endif
 endif
 
 # If $(is-kernel-object) is 'y', this object will be linked to vmlinux or modules
@@ -278,6 +296,42 @@ define multi_depend
 $(foreach m, $1, \
 	$(eval $m: \
 	$(addprefix $(obj)/, $(call suffix-search, $(patsubst $(obj)/%,%,$m), $2, $3))))
+endef
+
+# Build commands
+# ===========================================================================
+# These are shared by some Makefile.* files.
+
+objtool-enabled := y
+
+ifdef CONFIG_LTO_CLANG
+# objtool cannot process LLVM IR. Make $(LD) covert LLVM IR to ELF here.
+cmd_ld_single = $(if $(objtool-enabled), ; $(LD) $(ld_flags) -r -o $(tmp-target) $@; mv $(tmp-target) $@)
+endif
+
+quiet_cmd_cc_o_c = CC $(quiet_modtag)  $@
+      cmd_cc_o_c = $(CC) $(c_flags) -c -o $@ $< \
+		$(cmd_ld_single) \
+		$(cmd_objtool)
+
+define rule_cc_o_c
+	$(call cmd_and_fixdep,cc_o_c)
+	$(call cmd,checksrc)
+	$(call cmd,checkdoc)
+	$(call cmd,gen_objtooldep)
+	$(call cmd,gen_symversions_c)
+	$(call cmd,record_mcount)
+	$(call cmd,warn_shared_object)
+endef
+
+quiet_cmd_as_o_S = AS $(quiet_modtag)  $@
+      cmd_as_o_S = $(CC) $(a_flags) -c -o $@ $< $(cmd_objtool)
+
+define rule_as_o_S
+	$(call cmd_and_fixdep,as_o_S)
+	$(call cmd,gen_objtooldep)
+	$(call cmd,gen_symversions_S)
+	$(call cmd,warn_shared_object)
 endef
 
 # Copy a file
@@ -371,10 +425,10 @@ quiet_cmd_lzo_with_size = LZO     $@
       cmd_lzo_with_size = { cat $(real-prereqs) | $(KLZOP) -9; $(size_append); } > $@
 
 quiet_cmd_lz4 = LZ4     $@
-      cmd_lz4 = cat $(real-prereqs) | $(LZ4) -l -c1 stdin stdout > $@
+      cmd_lz4 = cat $(real-prereqs) | $(LZ4) -l -9 - - > $@
 
 quiet_cmd_lz4_with_size = LZ4     $@
-      cmd_lz4_with_size = { cat $(real-prereqs) | $(LZ4) -l -c1 stdin stdout; \
+      cmd_lz4_with_size = { cat $(real-prereqs) | $(LZ4) -l -9 - -; \
                   $(size_append); } > $@
 
 # U-Boot mkimage

@@ -14,8 +14,8 @@
 	compatible = "google,veyron-pinky-rev2", "google,veyron-pinky",
 		     "google,veyron", "rockchip,rk3288";
 
-	/delete-node/backlight-regulator;
-	/delete-node/panel-regulator;
+	/delete-node/regulator-backlight;
+	/delete-node/regulator-panel;
 	/delete-node/emmc-pwrseq;
 	/delete-node/vcc18-lcd;
 };

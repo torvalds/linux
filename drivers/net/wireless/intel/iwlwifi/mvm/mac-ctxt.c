@@ -216,7 +216,7 @@ int iwl_mvm_mac_ctxt_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		.preferred_tsf = NUM_TSF_IDS,
 		.found_vif = false,
 	};
-	int ret, i;
+	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -298,9 +298,7 @@ int iwl_mvm_mac_ctxt_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	mvmvif->time_event_data.id = TE_MAX;
 	mvmvif->roc_activity = ROC_NUM_ACTIVITIES;
 
-	mvmvif->deflink.bcast_sta.sta_id = IWL_MVM_INVALID_STA;
-	mvmvif->deflink.mcast_sta.sta_id = IWL_MVM_INVALID_STA;
-	mvmvif->deflink.ap_sta_id = IWL_MVM_INVALID_STA;
+	iwl_mvm_init_link(&mvmvif->deflink);
 
 	/* No need to allocate data queues to P2P Device MAC and NAN.*/
 	if (vif->type == NL80211_IFTYPE_P2P_DEVICE)
@@ -315,9 +313,6 @@ int iwl_mvm_mac_ctxt_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		 */
 		mvmvif->deflink.cab_queue = IWL_MVM_DQA_GCAST_QUEUE;
 	}
-
-	for (i = 0; i < NUM_IWL_MVM_SMPS_REQ; i++)
-		mvmvif->deflink.smps_requests[i] = IEEE80211_SMPS_AUTOMATIC;
 
 	return 0;
 
@@ -1605,6 +1600,7 @@ iwl_mvm_handle_missed_beacons_notif(struct iwl_mvm *mvm,
 					       0);
 	u8 new_notif_ver = iwl_fw_lookup_notif_ver(mvm->fw, MAC_CONF_GROUP,
 						   MISSED_BEACONS_NOTIF, 0);
+	struct ieee80211_bss_conf *bss_conf;
 
 	/* If the firmware uses the new notification (from MAC_CONF_GROUP),
 	 * refer to that notification's version.
@@ -1617,9 +1613,9 @@ iwl_mvm_handle_missed_beacons_notif(struct iwl_mvm *mvm,
 	/* before version four the ID in the notification refers to mac ID */
 	if (notif_ver < 4) {
 		vif = iwl_mvm_rcu_dereference_vif_id(mvm, id, false);
+		bss_conf = &vif->bss_conf;
 	} else {
-		struct ieee80211_bss_conf *bss_conf =
-			iwl_mvm_rcu_fw_link_id_to_link_conf(mvm, id, false);
+		bss_conf = iwl_mvm_rcu_fw_link_id_to_link_conf(mvm, id, false);
 
 		if (!bss_conf)
 			return;
@@ -1664,6 +1660,8 @@ iwl_mvm_handle_missed_beacons_notif(struct iwl_mvm *mvm,
 				 rx_missed_bcon, rx_missed_bcon_since_rx);
 		}
 	} else if (link_id >= 0 && hweight16(vif->active_links) > 1) {
+		u32 bss_param_ch_cnt_link_id =
+			bss_conf->bss_param_ch_cnt_link_id;
 		u32 scnd_lnk_bcn_lost = 0;
 
 		if (notif_ver >= 5 &&
@@ -1677,10 +1675,14 @@ iwl_mvm_handle_missed_beacons_notif(struct iwl_mvm *mvm,
 		/* Exit EMLSR if we lost more than
 		 * IWL_MVM_MISSED_BEACONS_EXIT_ESR_THRESH beacons on boths links
 		 * OR more than IWL_MVM_BCN_LOSS_EXIT_ESR_THRESH on any link.
+		 * OR more than IWL_MVM_BCN_LOSS_EXIT_ESR_THRESH_BSS_PARAM_CHANGED
+		 * and the link's bss_param_ch_count has changed.
 		 */
 		if ((rx_missed_bcon >= IWL_MVM_BCN_LOSS_EXIT_ESR_THRESH_2_LINKS &&
 		     scnd_lnk_bcn_lost >= IWL_MVM_BCN_LOSS_EXIT_ESR_THRESH_2_LINKS) ||
-		    rx_missed_bcon >= IWL_MVM_BCN_LOSS_EXIT_ESR_THRESH)
+		    rx_missed_bcon >= IWL_MVM_BCN_LOSS_EXIT_ESR_THRESH ||
+		    (bss_param_ch_cnt_link_id != link_id &&
+		     rx_missed_bcon >= IWL_MVM_BCN_LOSS_EXIT_ESR_THRESH_BSS_PARAM_CHANGED))
 			iwl_mvm_exit_esr(mvm, vif,
 					 IWL_MVM_ESR_EXIT_MISSED_BEACON,
 					 iwl_mvm_get_primary_link(vif));
@@ -1689,6 +1691,9 @@ iwl_mvm_handle_missed_beacons_notif(struct iwl_mvm *mvm,
 			ieee80211_beacon_loss(vif);
 		else
 			ieee80211_cqm_beacon_loss_notify(vif, GFP_ATOMIC);
+
+		/* try to switch links, no-op if we don't have MLO */
+		iwl_mvm_int_mlo_scan(mvm, vif);
 	}
 
 	iwl_dbg_tlv_time_point(&mvm->fwrt,

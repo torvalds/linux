@@ -247,7 +247,7 @@ extern void cleanup_module(void);
 #ifdef MODULE
 /* Creates an alias so file2alias.c can find device table. */
 #define MODULE_DEVICE_TABLE(type, name)					\
-extern typeof(name) __mod_##type##__##name##_device_table		\
+extern typeof(name) __mod_device_table__##type##__##name		\
   __attribute__ ((unused, alias(__stringify(name))))
 #else  /* !MODULE */
 #define MODULE_DEVICE_TABLE(type, name)
@@ -367,6 +367,8 @@ enum mod_mem_type {
 
 struct module_memory {
 	void *base;
+	void *rw_copy;
+	bool is_rox;
 	unsigned int size;
 
 #ifdef CONFIG_MODULES_TREE_LOOKUP
@@ -767,6 +769,15 @@ static inline bool is_livepatch_module(struct module *mod)
 
 void set_module_sig_enforced(void);
 
+void *__module_writable_address(struct module *mod, void *loc);
+
+static inline void *module_writable_address(struct module *mod, void *loc)
+{
+	if (!IS_ENABLED(CONFIG_ARCH_HAS_EXECMEM_ROX) || !mod)
+		return loc;
+	return __module_writable_address(mod, loc);
+}
+
 #else /* !CONFIG_MODULES... */
 
 static inline struct module *__module_address(unsigned long addr)
@@ -873,6 +884,11 @@ void *dereference_module_function_descriptor(struct module *mod, void *ptr)
 static inline bool module_is_coming(struct module *mod)
 {
 	return false;
+}
+
+static inline void *module_writable_address(struct module *mod, void *loc)
+{
+	return loc;
 }
 #endif /* CONFIG_MODULES */
 

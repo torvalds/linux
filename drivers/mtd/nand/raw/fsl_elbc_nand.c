@@ -999,7 +999,7 @@ static struct platform_driver fsl_elbc_nand_driver = {
 		.of_match_table = fsl_elbc_nand_match,
 	},
 	.probe = fsl_elbc_nand_probe,
-	.remove_new = fsl_elbc_nand_remove,
+	.remove = fsl_elbc_nand_remove,
 };
 
 module_platform_driver(fsl_elbc_nand_driver);

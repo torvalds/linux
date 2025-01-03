@@ -2975,7 +2975,7 @@ static void artpec6_crypto_remove(struct platform_device *pdev)
 
 static struct platform_driver artpec6_crypto_driver = {
 	.probe   = artpec6_crypto_probe,
-	.remove_new = artpec6_crypto_remove,
+	.remove = artpec6_crypto_remove,
 	.driver  = {
 		.name  = "artpec6-crypto",
 		.of_match_table = artpec6_crypto_of_match,

@@ -94,55 +94,39 @@ static inline int xfs_defer_drain_wait(struct xfs_defer_drain *dr)
 }
 
 /*
- * Get a passive reference to the AG that contains a fsbno and declare an intent
- * to update its metadata.
+ * Get a passive reference to the group that contains a fsbno and declare an
+ * intent to update its metadata.
+ *
+ * Other threads that need exclusive access can decide to back off if they see
+ * declared intentions.
  */
-struct xfs_perag *
-xfs_perag_intent_get(
+struct xfs_group *
+xfs_group_intent_get(
 	struct xfs_mount	*mp,
-	xfs_fsblock_t		fsbno)
+	xfs_fsblock_t		fsbno,
+	enum xfs_group_type	type)
 {
-	struct xfs_perag	*pag;
+	struct xfs_group	*xg;
 
-	pag = xfs_perag_get(mp, XFS_FSB_TO_AGNO(mp, fsbno));
-	if (!pag)
+	xg = xfs_group_get_by_fsb(mp, fsbno, type);
+	if (!xg)
 		return NULL;
-
-	xfs_perag_intent_hold(pag);
-	return pag;
+	trace_xfs_group_intent_hold(xg, __return_address);
+	xfs_defer_drain_grab(&xg->xg_intents_drain);
+	return xg;
 }
 
 /*
- * Release our intent to update this AG's metadata, and then release our
- * passive ref to the AG.
+ * Release our intent to update this groups metadata, and then release our
+ * passive ref to it.
  */
 void
-xfs_perag_intent_put(
-	struct xfs_perag	*pag)
+xfs_group_intent_put(
+	struct xfs_group	*xg)
 {
-	xfs_perag_intent_rele(pag);
-	xfs_perag_put(pag);
-}
-
-/*
- * Declare an intent to update AG metadata.  Other threads that need exclusive
- * access can decide to back off if they see declared intentions.
- */
-void
-xfs_perag_intent_hold(
-	struct xfs_perag	*pag)
-{
-	trace_xfs_perag_intent_hold(pag, __return_address);
-	xfs_defer_drain_grab(&pag->pag_intents_drain);
-}
-
-/* Release our intent to update this AG's metadata. */
-void
-xfs_perag_intent_rele(
-	struct xfs_perag	*pag)
-{
-	trace_xfs_perag_intent_rele(pag, __return_address);
-	xfs_defer_drain_rele(&pag->pag_intents_drain);
+	trace_xfs_group_intent_rele(xg, __return_address);
+	xfs_defer_drain_rele(&xg->xg_intents_drain);
+	xfs_group_put(xg);
 }
 
 /*
@@ -150,17 +134,19 @@ xfs_perag_intent_rele(
  * Callers must not hold any AG header buffers.
  */
 int
-xfs_perag_intent_drain(
-	struct xfs_perag	*pag)
+xfs_group_intent_drain(
+	struct xfs_group	*xg)
 {
-	trace_xfs_perag_wait_intents(pag, __return_address);
-	return xfs_defer_drain_wait(&pag->pag_intents_drain);
+	trace_xfs_group_wait_intents(xg, __return_address);
+	return xfs_defer_drain_wait(&xg->xg_intents_drain);
 }
 
-/* Has anyone declared an intent to update this AG? */
+/*
+ * Has anyone declared an intent to update this group?
+ */
 bool
-xfs_perag_intent_busy(
-	struct xfs_perag	*pag)
+xfs_group_intent_busy(
+	struct xfs_group	*xg)
 {
-	return xfs_defer_drain_busy(&pag->pag_intents_drain);
+	return xfs_defer_drain_busy(&xg->xg_intents_drain);
 }

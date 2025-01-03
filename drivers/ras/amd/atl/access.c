@@ -70,12 +70,16 @@ static int __df_indirect_read(u16 node, u8 func, u16 reg, u8 instance_id, u32 *l
 	u32 ficaa = 0;
 
 	node = get_accessible_node(node);
-	if (node >= amd_nb_num())
+	if (node >= amd_nb_num()) {
+		pr_debug("Node %u is out of bounds\n", node);
 		goto out;
+	}
 
 	F4 = node_to_amd_nb(node)->link;
-	if (!F4)
+	if (!F4) {
+		pr_debug("DF function 4 not found\n");
 		goto out;
+	}
 
 	/* Enable instance-specific access. */
 	if (instance_id != DF_BROADCAST) {

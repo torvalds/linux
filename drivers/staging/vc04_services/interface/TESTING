@@ -52,10 +52,10 @@ Here are the most common kernel configurations:
 
  * Ping test
 
-   Command: vchiq_test -p 1
+   Command: vchiq_test -p
 
    Expected output:
-   Ping test - service:echo, iters:1, version 3
+   Ping test - service:echo, iters:1000, version 3
    vchi ping (size 0) -> 57.000000us
    vchi ping (size 0, 0 async, 0 oneway) -> 122.000000us
    vchi bulk (size 0, 0 async, 0 oneway) -> 546.000000us

@@ -188,7 +188,7 @@ static struct platform_driver omap_cpufreq_platdrv = {
 		.name	= "omap-cpufreq",
 	},
 	.probe		= omap_cpufreq_probe,
-	.remove_new	= omap_cpufreq_remove,
+	.remove		= omap_cpufreq_remove,
 };
 module_platform_driver(omap_cpufreq_platdrv);
 

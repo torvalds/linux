@@ -1229,8 +1229,6 @@ static const struct vb2_ops em28xx_video_qops = {
 	.buf_queue      = buffer_queue,
 	.start_streaming = em28xx_start_analog_streaming,
 	.stop_streaming = em28xx_stop_streaming,
-	.wait_prepare   = vb2_ops_wait_prepare,
-	.wait_finish    = vb2_ops_wait_finish,
 };
 
 static int em28xx_vb2_setup(struct em28xx *dev)

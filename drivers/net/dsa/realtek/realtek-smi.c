@@ -367,7 +367,7 @@ EXPORT_SYMBOL_NS_GPL(realtek_smi_probe, REALTEK_DSA);
  * realtek_smi_remove() - Remove the driver of a SMI-connected switch
  * @pdev: platform_device to be removed.
  *
- * This function should be used as the .remove_new in a platform_driver. First
+ * This function should be used as the .remove in a platform_driver. First
  * it unregisters the DSA switch and then it calls the common remove function.
  *
  * Context: Can sleep.

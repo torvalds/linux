@@ -233,7 +233,7 @@ MODULE_DEVICE_TABLE(of, cdns_ti_of_match);
 
 static struct platform_driver cdns_ti_driver = {
 	.probe		= cdns_ti_probe,
-	.remove_new	= cdns_ti_remove,
+	.remove		= cdns_ti_remove,
 	.driver		= {
 		.name	= "cdns3-ti",
 		.of_match_table	= cdns_ti_of_match,

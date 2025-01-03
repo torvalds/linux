@@ -2196,7 +2196,7 @@ static struct platform_driver sunxi_nfc_driver = {
 		.of_match_table = sunxi_nfc_ids,
 	},
 	.probe = sunxi_nfc_probe,
-	.remove_new = sunxi_nfc_remove,
+	.remove = sunxi_nfc_remove,
 };
 module_platform_driver(sunxi_nfc_driver);
 

@@ -259,7 +259,7 @@ static void dm816x_usb_phy_remove(struct platform_device *pdev)
 
 static struct platform_driver dm816x_usb_phy_driver = {
 	.probe		= dm816x_usb_phy_probe,
-	.remove_new	= dm816x_usb_phy_remove,
+	.remove		= dm816x_usb_phy_remove,
 	.driver		= {
 		.name	= "dm816x-usb-phy",
 		.pm	= &dm816x_usb_phy_pm_ops,

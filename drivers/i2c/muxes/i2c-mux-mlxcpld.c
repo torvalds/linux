@@ -182,7 +182,7 @@ static struct platform_driver mlxcpld_mux_driver = {
 		.name = "i2c-mux-mlxcpld",
 	},
 	.probe = mlxcpld_mux_probe,
-	.remove_new = mlxcpld_mux_remove,
+	.remove = mlxcpld_mux_remove,
 };
 
 module_platform_driver(mlxcpld_mux_driver);

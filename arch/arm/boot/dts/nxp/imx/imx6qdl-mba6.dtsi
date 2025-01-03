@@ -106,6 +106,20 @@
 		vin-supply = <&reg_mba6_3p3v>;
 	};
 
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x14000000>;
+			alloc-ranges = <0x10000000 0x20000000>;
+			linux,cma-default;
+		};
+	};
+
 	sound {
 		compatible = "fsl,imx-audio-tlv320aic32x4";
 		pinctrl-names = "default";

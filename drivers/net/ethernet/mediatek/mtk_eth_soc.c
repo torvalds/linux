@@ -1171,7 +1171,7 @@ static int mtk_init_fq_dma(struct mtk_eth *eth)
 		if (unlikely(dma_mapping_error(eth->dma_dev, dma_addr)))
 			return -ENOMEM;
 
-		for (i = 0; i < cnt; i++) {
+		for (i = 0; i < len; i++) {
 			struct mtk_tx_dma_v2 *txd;
 
 			txd = eth->scratch_ring + (j * MTK_FQ_DMA_LENGTH + i) * soc->tx.desc_size;
@@ -2227,7 +2227,7 @@ rx_done:
 	eth->rx_bytes += bytes;
 	dim_update_sample(eth->rx_events, eth->rx_packets, eth->rx_bytes,
 			  &dim_sample);
-	net_dim(&eth->rx_dim, dim_sample);
+	net_dim(&eth->rx_dim, &dim_sample);
 
 	if (xdp_flush)
 		xdp_do_flush();
@@ -2377,7 +2377,7 @@ static int mtk_poll_tx(struct mtk_eth *eth, int budget)
 
 	dim_update_sample(eth->tx_events, eth->tx_packets, eth->tx_bytes,
 			  &dim_sample);
-	net_dim(&eth->tx_dim, dim_sample);
+	net_dim(&eth->tx_dim, &dim_sample);
 
 	if (mtk_queue_stopped(eth) &&
 	    (atomic_read(&ring->free_count) > ring->thresh))
@@ -4329,10 +4329,8 @@ static void mtk_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 	case ETH_SS_STATS: {
 		struct mtk_mac *mac = netdev_priv(dev);
 
-		for (i = 0; i < ARRAY_SIZE(mtk_ethtool_stats); i++) {
-			memcpy(data, mtk_ethtool_stats[i].str, ETH_GSTRING_LEN);
-			data += ETH_GSTRING_LEN;
-		}
+		for (i = 0; i < ARRAY_SIZE(mtk_ethtool_stats); i++)
+			ethtool_puts(&data, mtk_ethtool_stats[i].str);
 		if (mtk_page_pool_enabled(mac->hw))
 			page_pool_ethtool_stats_get_strings(data);
 		break;
@@ -5358,7 +5356,7 @@ MODULE_DEVICE_TABLE(of, of_mtk_match);
 
 static struct platform_driver mtk_driver = {
 	.probe = mtk_probe,
-	.remove_new = mtk_remove,
+	.remove = mtk_remove,
 	.driver = {
 		.name = "mtk_soc_eth",
 		.of_match_table = of_mtk_match,

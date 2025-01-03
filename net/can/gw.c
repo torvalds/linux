@@ -1265,6 +1265,15 @@ static struct pernet_operations cangw_pernet_ops = {
 	.exit_batch = cangw_pernet_exit_batch,
 };
 
+static const struct rtnl_msg_handler cgw_rtnl_msg_handlers[] __initconst_or_module = {
+	{.owner = THIS_MODULE, .protocol = PF_CAN, .msgtype = RTM_NEWROUTE,
+	 .doit = cgw_create_job},
+	{.owner = THIS_MODULE, .protocol = PF_CAN, .msgtype = RTM_DELROUTE,
+	 .doit = cgw_remove_job},
+	{.owner = THIS_MODULE, .protocol = PF_CAN, .msgtype = RTM_GETROUTE,
+	 .dumpit = cgw_dump_jobs},
+};
+
 static __init int cgw_module_init(void)
 {
 	int ret;
@@ -1290,27 +1299,13 @@ static __init int cgw_module_init(void)
 	if (ret)
 		goto out_register_notifier;
 
-	ret = rtnl_register_module(THIS_MODULE, PF_CAN, RTM_GETROUTE,
-				   NULL, cgw_dump_jobs, 0);
+	ret = rtnl_register_many(cgw_rtnl_msg_handlers);
 	if (ret)
-		goto out_rtnl_register1;
-
-	ret = rtnl_register_module(THIS_MODULE, PF_CAN, RTM_NEWROUTE,
-				   cgw_create_job, NULL, 0);
-	if (ret)
-		goto out_rtnl_register2;
-	ret = rtnl_register_module(THIS_MODULE, PF_CAN, RTM_DELROUTE,
-				   cgw_remove_job, NULL, 0);
-	if (ret)
-		goto out_rtnl_register3;
+		goto out_rtnl_register;
 
 	return 0;
 
-out_rtnl_register3:
-	rtnl_unregister(PF_CAN, RTM_NEWROUTE);
-out_rtnl_register2:
-	rtnl_unregister(PF_CAN, RTM_GETROUTE);
-out_rtnl_register1:
+out_rtnl_register:
 	unregister_netdevice_notifier(&notifier);
 out_register_notifier:
 	kmem_cache_destroy(cgw_cache);

@@ -1676,7 +1676,7 @@ static void tsi108_ether_remove(struct platform_device *pdev)
 
 static struct platform_driver tsi_eth_driver = {
 	.probe = tsi108_init_one,
-	.remove_new = tsi108_ether_remove,
+	.remove = tsi108_ether_remove,
 	.driver	= {
 		.name = "tsi-ethernet",
 	},

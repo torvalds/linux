@@ -132,17 +132,16 @@ int
 xrep_setup_ag_allocbt(
 	struct xfs_scrub	*sc)
 {
+	struct xfs_group	*xg = pag_group(sc->sa.pag);
 	unsigned int		busy_gen;
 
 	/*
 	 * Make sure the busy extent list is clear because we can't put extents
 	 * on there twice.
 	 */
-	busy_gen = READ_ONCE(sc->sa.pag->pagb_gen);
-	if (xfs_extent_busy_list_empty(sc->sa.pag))
+	if (xfs_extent_busy_list_empty(xg, &busy_gen))
 		return 0;
-
-	return xfs_extent_busy_flush(sc->tp, sc->sa.pag, busy_gen, 0);
+	return xfs_extent_busy_flush(sc->tp, xg, busy_gen, 0);
 }
 
 /* Check for any obvious conflicts in the free extent. */
@@ -210,7 +209,7 @@ xrep_abt_stash(
 	if (error)
 		return error;
 
-	trace_xrep_abt_found(sc->mp, sc->sa.pag->pag_agno, &arec);
+	trace_xrep_abt_found(sc->sa.pag, &arec);
 
 	error = xfarray_append(ra->free_records, &arec);
 	if (error)
@@ -484,8 +483,8 @@ xrep_abt_reserve_space(
 		ASSERT(arec.ar_blockcount <= UINT_MAX);
 		len = min_t(unsigned int, arec.ar_blockcount, desired);
 
-		trace_xrep_newbt_alloc_ag_blocks(sc->mp, sc->sa.pag->pag_agno,
-				arec.ar_startblock, len, XFS_RMAP_OWN_AG);
+		trace_xrep_newbt_alloc_ag_blocks(sc->sa.pag, arec.ar_startblock,
+				len, XFS_RMAP_OWN_AG);
 
 		error = xrep_newbt_add_extent(&ra->new_bnobt, sc->sa.pag,
 				arec.ar_startblock, len);
@@ -543,7 +542,7 @@ xrep_abt_dispose_one(
 
 	/* Add a deferred rmap for each extent we used. */
 	if (resv->used > 0)
-		xfs_rmap_alloc_extent(sc->tp, pag->pag_agno, resv->agbno,
+		xfs_rmap_alloc_extent(sc->tp, pag_agno(pag), resv->agbno,
 				resv->used, XFS_RMAP_OWN_AG);
 
 	/*
@@ -554,8 +553,8 @@ xrep_abt_dispose_one(
 	if (free_aglen == 0)
 		return 0;
 
-	trace_xrep_newbt_free_blocks(sc->mp, resv->pag->pag_agno, free_agbno,
-			free_aglen, ra->new_bnobt.oinfo.oi_owner);
+	trace_xrep_newbt_free_blocks(resv->pag, free_agbno, free_aglen,
+			ra->new_bnobt.oinfo.oi_owner);
 
 	error = __xfs_free_extent(sc->tp, resv->pag, free_agbno, free_aglen,
 			&ra->new_bnobt.oinfo, XFS_AG_RESV_IGNORE, true);
@@ -849,6 +848,7 @@ xrep_allocbt(
 {
 	struct xrep_abt		*ra;
 	struct xfs_mount	*mp = sc->mp;
+	unsigned int		busy_gen;
 	char			*descr;
 	int			error;
 
@@ -869,7 +869,7 @@ xrep_allocbt(
 	 * on there twice.  In theory we cleared this before we started, but
 	 * let's not risk the filesystem.
 	 */
-	if (!xfs_extent_busy_list_empty(sc->sa.pag)) {
+	if (!xfs_extent_busy_list_empty(pag_group(sc->sa.pag), &busy_gen)) {
 		error = -EDEADLOCK;
 		goto out_ra;
 	}

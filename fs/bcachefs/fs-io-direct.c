@@ -369,6 +369,7 @@ static noinline void bch2_dio_write_flush(struct dio_write *dio)
 
 static __always_inline long bch2_dio_write_done(struct dio_write *dio)
 {
+	struct bch_fs *c = dio->op.c;
 	struct kiocb *req = dio->req;
 	struct bch_inode_info *inode = dio->inode;
 	bool sync = dio->sync;
@@ -387,7 +388,7 @@ static __always_inline long bch2_dio_write_done(struct dio_write *dio)
 	ret = dio->op.error ?: ((long) dio->written << 9);
 	bio_put(&dio->op.wbio.bio);
 
-	bch2_write_ref_put(dio->op.c, BCH_WRITE_REF_dio_write);
+	bch2_write_ref_put(c, BCH_WRITE_REF_dio_write);
 
 	/* inode->i_dio_count is our ref on inode and thus bch_fs */
 	inode_dio_end(&inode->v);

@@ -1505,8 +1505,8 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	mvm->scan_cmd_size = scan_size;
 
 	/* invalidate ids to prevent accidental removal of sta_id 0 */
-	mvm->aux_sta.sta_id = IWL_MVM_INVALID_STA;
-	mvm->snif_sta.sta_id = IWL_MVM_INVALID_STA;
+	mvm->aux_sta.sta_id = IWL_INVALID_STA;
+	mvm->snif_sta.sta_id = IWL_INVALID_STA;
 
 	/* Set EBS as successful as long as not stated otherwise by the FW. */
 	mvm->last_ebs_successful = true;

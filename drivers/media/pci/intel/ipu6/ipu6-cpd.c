@@ -15,6 +15,7 @@
 #include "ipu6.h"
 #include "ipu6-bus.h"
 #include "ipu6-cpd.h"
+#include "ipu6-dma.h"
 
 /* 15 entries + header*/
 #define MAX_PKG_DIR_ENT_CNT		16
@@ -43,9 +44,9 @@
  * 63:56        55      54:48   47:32   31:24   23:0
  * Rsvd         Rsvd    Type    Version Rsvd    Size
  */
-#define PKG_DIR_SIZE_MASK	GENMASK(23, 0)
-#define PKG_DIR_VERSION_MASK	GENMASK(47, 32)
-#define PKG_DIR_TYPE_MASK	GENMASK(54, 48)
+#define PKG_DIR_SIZE_MASK	GENMASK_ULL(23, 0)
+#define PKG_DIR_VERSION_MASK	GENMASK_ULL(47, 32)
+#define PKG_DIR_TYPE_MASK	GENMASK_ULL(54, 48)
 
 static inline const struct ipu6_cpd_ent *ipu6_cpd_get_entry(const void *cpd,
 							    u8 idx)
@@ -162,7 +163,6 @@ int ipu6_cpd_create_pkg_dir(struct ipu6_bus_device *adev, const void *src)
 {
 	dma_addr_t dma_addr_src = sg_dma_address(adev->fw_sgt.sgl);
 	const struct ipu6_cpd_ent *ent, *man_ent, *met_ent;
-	struct device *dev = &adev->auxdev.dev;
 	struct ipu6_device *isp = adev->isp;
 	unsigned int man_sz, met_sz;
 	void *pkg_dir_pos;
@@ -175,8 +175,8 @@ int ipu6_cpd_create_pkg_dir(struct ipu6_bus_device *adev, const void *src)
 	met_sz = met_ent->len;
 
 	adev->pkg_dir_size = PKG_DIR_SIZE + man_sz + met_sz;
-	adev->pkg_dir = dma_alloc_attrs(dev, adev->pkg_dir_size,
-					&adev->pkg_dir_dma_addr, GFP_KERNEL, 0);
+	adev->pkg_dir = ipu6_dma_alloc(adev, adev->pkg_dir_size,
+				       &adev->pkg_dir_dma_addr, GFP_KERNEL, 0);
 	if (!adev->pkg_dir)
 		return -ENOMEM;
 
@@ -198,8 +198,8 @@ int ipu6_cpd_create_pkg_dir(struct ipu6_bus_device *adev, const void *src)
 					 met_ent->len);
 	if (ret) {
 		dev_err(&isp->pdev->dev, "Failed to parse module data\n");
-		dma_free_attrs(dev, adev->pkg_dir_size,
-			       adev->pkg_dir, adev->pkg_dir_dma_addr, 0);
+		ipu6_dma_free(adev, adev->pkg_dir_size,
+			      adev->pkg_dir, adev->pkg_dir_dma_addr, 0);
 		return ret;
 	}
 
@@ -211,8 +211,8 @@ int ipu6_cpd_create_pkg_dir(struct ipu6_bus_device *adev, const void *src)
 	pkg_dir_pos += man_sz;
 	memcpy(pkg_dir_pos, src + met_ent->offset, met_sz);
 
-	dma_sync_single_range_for_device(dev, adev->pkg_dir_dma_addr,
-					 0, adev->pkg_dir_size, DMA_TO_DEVICE);
+	ipu6_dma_sync_single(adev, adev->pkg_dir_dma_addr,
+			     adev->pkg_dir_size);
 
 	return 0;
 }
@@ -220,8 +220,8 @@ EXPORT_SYMBOL_NS_GPL(ipu6_cpd_create_pkg_dir, INTEL_IPU6);
 
 void ipu6_cpd_free_pkg_dir(struct ipu6_bus_device *adev)
 {
-	dma_free_attrs(&adev->auxdev.dev, adev->pkg_dir_size, adev->pkg_dir,
-		       adev->pkg_dir_dma_addr, 0);
+	ipu6_dma_free(adev, adev->pkg_dir_size, adev->pkg_dir,
+		      adev->pkg_dir_dma_addr, 0);
 }
 EXPORT_SYMBOL_NS_GPL(ipu6_cpd_free_pkg_dir, INTEL_IPU6);
 

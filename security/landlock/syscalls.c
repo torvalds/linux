@@ -241,31 +241,21 @@ SYSCALL_DEFINE3(landlock_create_ruleset,
 static struct landlock_ruleset *get_ruleset_from_fd(const int fd,
 						    const fmode_t mode)
 {
-	struct fd ruleset_f;
+	CLASS(fd, ruleset_f)(fd);
 	struct landlock_ruleset *ruleset;
 
-	ruleset_f = fdget(fd);
-	if (!fd_file(ruleset_f))
+	if (fd_empty(ruleset_f))
 		return ERR_PTR(-EBADF);
 
 	/* Checks FD type and access right. */
-	if (fd_file(ruleset_f)->f_op != &ruleset_fops) {
-		ruleset = ERR_PTR(-EBADFD);
-		goto out_fdput;
-	}
-	if (!(fd_file(ruleset_f)->f_mode & mode)) {
-		ruleset = ERR_PTR(-EPERM);
-		goto out_fdput;
-	}
+	if (fd_file(ruleset_f)->f_op != &ruleset_fops)
+		return ERR_PTR(-EBADFD);
+	if (!(fd_file(ruleset_f)->f_mode & mode))
+		return ERR_PTR(-EPERM);
 	ruleset = fd_file(ruleset_f)->private_data;
-	if (WARN_ON_ONCE(ruleset->num_layers != 1)) {
-		ruleset = ERR_PTR(-EINVAL);
-		goto out_fdput;
-	}
+	if (WARN_ON_ONCE(ruleset->num_layers != 1))
+		return ERR_PTR(-EINVAL);
 	landlock_get_ruleset(ruleset);
-
-out_fdput:
-	fdput(ruleset_f);
 	return ruleset;
 }
 
@@ -276,15 +266,12 @@ out_fdput:
  */
 static int get_path_from_fd(const s32 fd, struct path *const path)
 {
-	struct fd f;
-	int err = 0;
+	CLASS(fd_raw, f)(fd);
 
 	BUILD_BUG_ON(!__same_type(
 		fd, ((struct landlock_path_beneath_attr *)NULL)->parent_fd));
 
-	/* Handles O_PATH. */
-	f = fdget_raw(fd);
-	if (!fd_file(f))
+	if (fd_empty(f))
 		return -EBADF;
 	/*
 	 * Forbids ruleset FDs, internal filesystems (e.g. nsfs), including
@@ -295,16 +282,12 @@ static int get_path_from_fd(const s32 fd, struct path *const path)
 	    (fd_file(f)->f_path.mnt->mnt_flags & MNT_INTERNAL) ||
 	    (fd_file(f)->f_path.dentry->d_sb->s_flags & SB_NOUSER) ||
 	    d_is_negative(fd_file(f)->f_path.dentry) ||
-	    IS_PRIVATE(d_backing_inode(fd_file(f)->f_path.dentry))) {
-		err = -EBADFD;
-		goto out_fdput;
-	}
+	    IS_PRIVATE(d_backing_inode(fd_file(f)->f_path.dentry)))
+		return -EBADFD;
+
 	*path = fd_file(f)->f_path;
 	path_get(path);
-
-out_fdput:
-	fdput(f);
-	return err;
+	return 0;
 }
 
 static int add_rule_path_beneath(struct landlock_ruleset *const ruleset,
@@ -329,7 +312,7 @@ static int add_rule_path_beneath(struct landlock_ruleset *const ruleset,
 		return -ENOMSG;
 
 	/* Checks that allowed_access matches the @ruleset constraints. */
-	mask = landlock_get_raw_fs_access_mask(ruleset, 0);
+	mask = ruleset->access_masks[0].fs;
 	if ((path_beneath_attr.allowed_access | mask) != mask)
 		return -EINVAL;
 

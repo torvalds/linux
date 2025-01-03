@@ -853,6 +853,7 @@ static int sysfs_add_battery(struct acpi_battery *battery)
 	struct power_supply_config psy_cfg = {
 		.drv_data = battery,
 		.attr_grp = acpi_battery_groups,
+		.no_wakeup_source = true,
 	};
 	bool full_cap_broken = false;
 
@@ -888,7 +889,7 @@ static int sysfs_add_battery(struct acpi_battery *battery)
 	battery->bat_desc.type = POWER_SUPPLY_TYPE_BATTERY;
 	battery->bat_desc.get_property = acpi_battery_get_property;
 
-	battery->bat = power_supply_register_no_ws(&battery->device->dev,
+	battery->bat = power_supply_register(&battery->device->dev,
 				&battery->bat_desc, &psy_cfg);
 
 	if (IS_ERR(battery->bat)) {
@@ -1218,15 +1219,21 @@ static int acpi_battery_add(struct acpi_device *device)
 	if (device->dep_unmet)
 		return -EPROBE_DEFER;
 
-	battery = kzalloc(sizeof(struct acpi_battery), GFP_KERNEL);
+	battery = devm_kzalloc(&device->dev, sizeof(*battery), GFP_KERNEL);
 	if (!battery)
 		return -ENOMEM;
 	battery->device = device;
 	strscpy(acpi_device_name(device), ACPI_BATTERY_DEVICE_NAME);
 	strscpy(acpi_device_class(device), ACPI_BATTERY_CLASS);
 	device->driver_data = battery;
-	mutex_init(&battery->lock);
-	mutex_init(&battery->sysfs_lock);
+	result = devm_mutex_init(&device->dev, &battery->lock);
+	if (result)
+		return result;
+
+	result = devm_mutex_init(&device->dev, &battery->sysfs_lock);
+	if (result)
+		return result;
+
 	if (acpi_has_method(battery->device->handle, "_BIX"))
 		set_bit(ACPI_BATTERY_XINFO_PRESENT, &battery->flags);
 
@@ -1238,7 +1245,9 @@ static int acpi_battery_add(struct acpi_device *device)
 		device->status.battery_present ? "present" : "absent");
 
 	battery->pm_nb.notifier_call = battery_notify;
-	register_pm_notifier(&battery->pm_nb);
+	result = register_pm_notifier(&battery->pm_nb);
+	if (result)
+		goto fail;
 
 	device_init_wakeup(&device->dev, 1);
 
@@ -1254,9 +1263,6 @@ fail_pm:
 	unregister_pm_notifier(&battery->pm_nb);
 fail:
 	sysfs_remove_battery(battery);
-	mutex_destroy(&battery->lock);
-	mutex_destroy(&battery->sysfs_lock);
-	kfree(battery);
 
 	return result;
 }
@@ -1276,13 +1282,8 @@ static void acpi_battery_remove(struct acpi_device *device)
 	device_init_wakeup(&device->dev, 0);
 	unregister_pm_notifier(&battery->pm_nb);
 	sysfs_remove_battery(battery);
-
-	mutex_destroy(&battery->lock);
-	mutex_destroy(&battery->sysfs_lock);
-	kfree(battery);
 }
 
-#ifdef CONFIG_PM_SLEEP
 /* this is needed to learn about changes made in suspended state */
 static int acpi_battery_resume(struct device *dev)
 {
@@ -1299,11 +1300,8 @@ static int acpi_battery_resume(struct device *dev)
 	acpi_battery_update(battery, true);
 	return 0;
 }
-#else
-#define acpi_battery_resume NULL
-#endif
 
-static SIMPLE_DEV_PM_OPS(acpi_battery_pm, NULL, acpi_battery_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(acpi_battery_pm, NULL, acpi_battery_resume);
 
 static struct acpi_driver acpi_battery_driver = {
 	.name = "battery",
@@ -1313,7 +1311,7 @@ static struct acpi_driver acpi_battery_driver = {
 		.add = acpi_battery_add,
 		.remove = acpi_battery_remove,
 		},
-	.drv.pm = &acpi_battery_pm,
+	.drv.pm = pm_sleep_ptr(&acpi_battery_pm),
 	.drv.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 };
 

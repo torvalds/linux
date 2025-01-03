@@ -877,7 +877,7 @@ static struct platform_driver bcm_kona_i2c_driver = {
 		   .of_match_table = bcm_kona_i2c_of_match,
 		   },
 	.probe = bcm_kona_i2c_probe,
-	.remove_new = bcm_kona_i2c_remove,
+	.remove = bcm_kona_i2c_remove,
 };
 module_platform_driver(bcm_kona_i2c_driver);
 

@@ -340,7 +340,7 @@ static const struct dev_pm_ops sun4i_csi_pm_ops = {
 
 static struct platform_driver sun4i_csi_driver = {
 	.probe	= sun4i_csi_probe,
-	.remove_new = sun4i_csi_remove,
+	.remove = sun4i_csi_remove,
 	.driver	= {
 		.name		= "sun4i-csi",
 		.of_match_table	= sun4i_csi_of_match,

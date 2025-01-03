@@ -56,10 +56,10 @@ void BPF_STRUCT_OPS(dsp_local_on_exit, struct scx_exit_info *ei)
 
 SEC(".struct_ops.link")
 struct sched_ext_ops dsp_local_on_ops = {
-	.select_cpu		= dsp_local_on_select_cpu,
-	.enqueue		= dsp_local_on_enqueue,
-	.dispatch		= dsp_local_on_dispatch,
-	.exit			= dsp_local_on_exit,
+	.select_cpu		= (void *) dsp_local_on_select_cpu,
+	.enqueue		= (void *) dsp_local_on_enqueue,
+	.dispatch		= (void *) dsp_local_on_dispatch,
+	.exit			= (void *) dsp_local_on_exit,
 	.name			= "dsp_local_on",
 	.timeout_ms		= 1000U,
 };

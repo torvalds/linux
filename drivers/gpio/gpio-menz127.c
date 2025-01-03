@@ -127,6 +127,13 @@ static int men_z127_set_config(struct gpio_chip *gc, unsigned offset,
 	return -ENOTSUPP;
 }
 
+static void men_z127_release_mem(void *data)
+{
+	struct resource *res = data;
+
+	mcb_release_mem(res);
+}
+
 static int men_z127_probe(struct mcb_device *mdev,
 			  const struct mcb_device_id *id)
 {
@@ -140,17 +147,19 @@ static int men_z127_probe(struct mcb_device *mdev,
 		return -ENOMEM;
 
 	men_z127_gpio->mem = mcb_request_mem(mdev, dev_name(dev));
-	if (IS_ERR(men_z127_gpio->mem)) {
-		dev_err(dev, "failed to request device memory");
-		return PTR_ERR(men_z127_gpio->mem);
-	}
+	if (IS_ERR(men_z127_gpio->mem))
+		return dev_err_probe(dev, PTR_ERR(men_z127_gpio->mem),
+				     "failed to request device memory");
 
-	men_z127_gpio->reg_base = ioremap(men_z127_gpio->mem->start,
-					  resource_size(men_z127_gpio->mem));
-	if (men_z127_gpio->reg_base == NULL) {
-		ret = -ENXIO;
-		goto err_release;
-	}
+	ret = devm_add_action_or_reset(dev, men_z127_release_mem,
+				       men_z127_gpio->mem);
+	if (ret)
+		return ret;
+
+	men_z127_gpio->reg_base = devm_ioremap(dev, men_z127_gpio->mem->start,
+					resource_size(men_z127_gpio->mem));
+	if (men_z127_gpio->reg_base == NULL)
+		return -ENXIO;
 
 	mcb_set_drvdata(mdev, men_z127_gpio);
 
@@ -161,34 +170,16 @@ static int men_z127_probe(struct mcb_device *mdev,
 			 men_z127_gpio->reg_base + MEN_Z127_GPIODR,
 			 NULL, 0);
 	if (ret)
-		goto err_unmap;
+		return ret;
 
 	men_z127_gpio->gc.set_config = men_z127_set_config;
 
-	ret = gpiochip_add_data(&men_z127_gpio->gc, men_z127_gpio);
-	if (ret) {
-		dev_err(dev, "failed to register MEN 16Z127 GPIO controller");
-		goto err_unmap;
-	}
-
-	dev_info(dev, "MEN 16Z127 GPIO driver registered");
+	ret = devm_gpiochip_add_data(dev, &men_z127_gpio->gc, men_z127_gpio);
+	if (ret)
+		return dev_err_probe(dev, ret,
+			"failed to register MEN 16Z127 GPIO controller");
 
 	return 0;
-
-err_unmap:
-	iounmap(men_z127_gpio->reg_base);
-err_release:
-	mcb_release_mem(men_z127_gpio->mem);
-	return ret;
-}
-
-static void men_z127_remove(struct mcb_device *mdev)
-{
-	struct men_z127_gpio *men_z127_gpio = mcb_get_drvdata(mdev);
-
-	gpiochip_remove(&men_z127_gpio->gc);
-	iounmap(men_z127_gpio->reg_base);
-	mcb_release_mem(men_z127_gpio->mem);
 }
 
 static const struct mcb_device_id men_z127_ids[] = {
@@ -202,7 +193,6 @@ static struct mcb_driver men_z127_driver = {
 		.name = "z127-gpio",
 	},
 	.probe = men_z127_probe,
-	.remove = men_z127_remove,
 	.id_table = men_z127_ids,
 };
 module_mcb_driver(men_z127_driver);

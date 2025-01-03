@@ -729,7 +729,7 @@ static struct platform_driver ep93xx_spi_driver = {
 		.of_match_table = ep93xx_spi_of_ids,
 	},
 	.probe		= ep93xx_spi_probe,
-	.remove_new	= ep93xx_spi_remove,
+	.remove		= ep93xx_spi_remove,
 };
 module_platform_driver(ep93xx_spi_driver);
 

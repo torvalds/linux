@@ -8,7 +8,7 @@
 #include <linux/jump_label.h>
 #include <linux/bug.h>
 #include <asm/alternative.h>
-#include <asm/patch.h>
+#include <asm/text-patching.h>
 
 static inline int reassemble_17(int as17)
 {

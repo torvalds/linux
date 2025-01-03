@@ -1734,6 +1734,23 @@ static struct attribute *host_v1_hw_attrs[] = {
 
 ATTRIBUTE_GROUPS(host_v1_hw);
 
+static int check_fw_info_v1_hw(struct hisi_hba *hisi_hba)
+{
+	struct device *dev = hisi_hba->dev;
+
+	if (hisi_hba->n_phy < 0 || hisi_hba->n_phy > 9) {
+		dev_err(dev, "invalid phy number from FW\n");
+		return -EINVAL;
+	}
+
+	if (hisi_hba->queue_count < 0 || hisi_hba->queue_count > 32) {
+		dev_err(dev, "invalid queue count from FW\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static const struct scsi_host_template sht_v1_hw = {
 	LIBSAS_SHT_BASE_NO_SLAVE_INIT
 	.device_configure	= hisi_sas_device_configure,
@@ -1747,6 +1764,7 @@ static const struct scsi_host_template sht_v1_hw = {
 
 static const struct hisi_sas_hw hisi_sas_v1_hw = {
 	.hw_init = hisi_sas_v1_init,
+	.fw_info_check = check_fw_info_v1_hw,
 	.setup_itct = setup_itct_v1_hw,
 	.sl_notify_ssp = sl_notify_ssp_v1_hw,
 	.clear_itct = clear_itct_v1_hw,
@@ -1784,7 +1802,7 @@ MODULE_DEVICE_TABLE(acpi, sas_v1_acpi_match);
 
 static struct platform_driver hisi_sas_v1_driver = {
 	.probe = hisi_sas_v1_probe,
-	.remove_new = hisi_sas_remove,
+	.remove = hisi_sas_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = sas_v1_of_match,

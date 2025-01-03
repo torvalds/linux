@@ -556,9 +556,9 @@ EXPORT_SYMBOL(ns_to_timespec64);
  * - all other values are converted to jiffies by either multiplying
  *   the input value by a factor or dividing it with a factor and
  *   handling any 32-bit overflows.
- *   for the details see __msecs_to_jiffies()
+ *   for the details see _msecs_to_jiffies()
  *
- * __msecs_to_jiffies() checks for the passed in value being a constant
+ * msecs_to_jiffies() checks for the passed in value being a constant
  * via __builtin_constant_p() allowing gcc to eliminate most of the
  * code, __msecs_to_jiffies() is called if the value passed does not
  * allow constant folding and the actual conversion must be done at
@@ -866,7 +866,7 @@ struct timespec64 timespec64_add_safe(const struct timespec64 lhs,
  *
  * Handles compat or 32-bit modes.
  *
- * Return: %0 on success or negative errno on error
+ * Return: 0 on success or negative errno on error
  */
 int get_timespec64(struct timespec64 *ts,
 		   const struct __kernel_timespec __user *uts)
@@ -897,7 +897,7 @@ EXPORT_SYMBOL_GPL(get_timespec64);
  * @ts: input &struct timespec64
  * @uts: user's &struct __kernel_timespec
  *
- * Return: %0 on success or negative errno on error
+ * Return: 0 on success or negative errno on error
  */
 int put_timespec64(const struct timespec64 *ts,
 		   struct __kernel_timespec __user *uts)
@@ -944,7 +944,7 @@ static int __put_old_timespec32(const struct timespec64 *ts64,
  *
  * Handles X86_X32_ABI compatibility conversion.
  *
- * Return: %0 on success or negative errno on error
+ * Return: 0 on success or negative errno on error
  */
 int get_old_timespec32(struct timespec64 *ts, const void __user *uts)
 {
@@ -963,7 +963,7 @@ EXPORT_SYMBOL_GPL(get_old_timespec32);
  *
  * Handles X86_X32_ABI compatibility conversion.
  *
- * Return: %0 on success or negative errno on error
+ * Return: 0 on success or negative errno on error
  */
 int put_old_timespec32(const struct timespec64 *ts, void __user *uts)
 {
@@ -979,7 +979,7 @@ EXPORT_SYMBOL_GPL(put_old_timespec32);
  * @it: destination &struct itimerspec64
  * @uit: user's &struct __kernel_itimerspec
  *
- * Return: %0 on success or negative errno on error
+ * Return: 0 on success or negative errno on error
  */
 int get_itimerspec64(struct itimerspec64 *it,
 			const struct __kernel_itimerspec __user *uit)
@@ -1002,7 +1002,7 @@ EXPORT_SYMBOL_GPL(get_itimerspec64);
  * @it: input &struct itimerspec64
  * @uit: user's &struct __kernel_itimerspec
  *
- * Return: %0 on success or negative errno on error
+ * Return: 0 on success or negative errno on error
  */
 int put_itimerspec64(const struct itimerspec64 *it,
 			struct __kernel_itimerspec __user *uit)
@@ -1024,7 +1024,7 @@ EXPORT_SYMBOL_GPL(put_itimerspec64);
  * @its: destination &struct itimerspec64
  * @uits: user's &struct old_itimerspec32
  *
- * Return: %0 on success or negative errno on error
+ * Return: 0 on success or negative errno on error
  */
 int get_old_itimerspec32(struct itimerspec64 *its,
 			const struct old_itimerspec32 __user *uits)
@@ -1043,7 +1043,7 @@ EXPORT_SYMBOL_GPL(get_old_itimerspec32);
  * @its: input &struct itimerspec64
  * @uits: user's &struct old_itimerspec32
  *
- * Return: %0 on success or negative errno on error
+ * Return: 0 on success or negative errno on error
  */
 int put_old_itimerspec32(const struct itimerspec64 *its,
 			struct old_itimerspec32 __user *uits)

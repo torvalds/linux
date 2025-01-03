@@ -11,14 +11,15 @@
  * https://www.nxp.com/docs/en/data-sheet/PCF8563.pdf
  */
 
-#include <linux/clk-provider.h>
-#include <linux/i2c.h>
 #include <linux/bcd.h>
-#include <linux/rtc.h>
-#include <linux/slab.h>
+#include <linux/clk-provider.h>
+#include <linux/err.h>
+#include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/err.h>
+#include <linux/regmap.h>
+#include <linux/rtc.h>
+#include <linux/slab.h>
 
 #define PCF8563_REG_ST1		0x00 /* status */
 #define PCF8563_REG_ST2		0x01
@@ -77,64 +78,18 @@ struct pcf8563 {
 	 */
 	int c_polarity;	/* 0: MO_C=1 means 19xx, otherwise MO_C=1 means 20xx */
 
-	struct i2c_client *client;
+	struct regmap *regmap;
 #ifdef CONFIG_COMMON_CLK
 	struct clk_hw		clkout_hw;
 #endif
 };
 
-static int pcf8563_read_block_data(struct i2c_client *client, unsigned char reg,
-				   unsigned char length, unsigned char *buf)
+static int pcf8563_set_alarm_mode(struct pcf8563 *pcf8563, bool on)
 {
-	struct i2c_msg msgs[] = {
-		{/* setup read ptr */
-			.addr = client->addr,
-			.len = 1,
-			.buf = &reg,
-		},
-		{
-			.addr = client->addr,
-			.flags = I2C_M_RD,
-			.len = length,
-			.buf = buf
-		},
-	};
-
-	if ((i2c_transfer(client->adapter, msgs, 2)) != 2) {
-		dev_err(&client->dev, "%s: read error\n", __func__);
-		return -EIO;
-	}
-
-	return 0;
-}
-
-static int pcf8563_write_block_data(struct i2c_client *client,
-				   unsigned char reg, unsigned char length,
-				   unsigned char *buf)
-{
-	int i, err;
-
-	for (i = 0; i < length; i++) {
-		unsigned char data[2] = { reg + i, buf[i] };
-
-		err = i2c_master_send(client, data, sizeof(data));
-		if (err != sizeof(data)) {
-			dev_err(&client->dev,
-				"%s: err=%d addr=%02x, data=%02x\n",
-				__func__, err, data[0], data[1]);
-			return -EIO;
-		}
-	}
-
-	return 0;
-}
-
-static int pcf8563_set_alarm_mode(struct i2c_client *client, bool on)
-{
-	unsigned char buf;
+	u32 buf;
 	int err;
 
-	err = pcf8563_read_block_data(client, PCF8563_REG_ST2, 1, &buf);
+	err = regmap_read(pcf8563->regmap, PCF8563_REG_ST2, &buf);
 	if (err < 0)
 		return err;
 
@@ -145,23 +100,17 @@ static int pcf8563_set_alarm_mode(struct i2c_client *client, bool on)
 
 	buf &= ~(PCF8563_BIT_AF | PCF8563_BITS_ST2_N);
 
-	err = pcf8563_write_block_data(client, PCF8563_REG_ST2, 1, &buf);
-	if (err < 0) {
-		dev_err(&client->dev, "%s: write error\n", __func__);
-		return -EIO;
-	}
-
-	return 0;
+	return regmap_write(pcf8563->regmap, PCF8563_REG_ST2, buf);
 }
 
-static int pcf8563_get_alarm_mode(struct i2c_client *client, unsigned char *en,
+static int pcf8563_get_alarm_mode(struct pcf8563 *pcf8563, unsigned char *en,
 				  unsigned char *pen)
 {
-	unsigned char buf;
+	u32 buf;
 	int err;
 
-	err = pcf8563_read_block_data(client, PCF8563_REG_ST2, 1, &buf);
-	if (err)
+	err = regmap_read(pcf8563->regmap, PCF8563_REG_ST2, &buf);
+	if (err < 0)
 		return err;
 
 	if (en)
@@ -174,17 +123,17 @@ static int pcf8563_get_alarm_mode(struct i2c_client *client, unsigned char *en,
 
 static irqreturn_t pcf8563_irq(int irq, void *dev_id)
 {
-	struct pcf8563 *pcf8563 = i2c_get_clientdata(dev_id);
-	int err;
+	struct pcf8563 *pcf8563 = dev_id;
 	char pending;
+	int err;
 
-	err = pcf8563_get_alarm_mode(pcf8563->client, NULL, &pending);
+	err = pcf8563_get_alarm_mode(pcf8563, NULL, &pending);
 	if (err)
 		return IRQ_NONE;
 
 	if (pending) {
 		rtc_update_irq(pcf8563->rtc, 1, RTC_IRQF | RTC_AF);
-		pcf8563_set_alarm_mode(pcf8563->client, 1);
+		pcf8563_set_alarm_mode(pcf8563, 1);
 		return IRQ_HANDLED;
 	}
 
@@ -197,29 +146,28 @@ static irqreturn_t pcf8563_irq(int irq, void *dev_id)
  */
 static int pcf8563_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct pcf8563 *pcf8563 = i2c_get_clientdata(client);
+	struct pcf8563 *pcf8563 = dev_get_drvdata(dev);
 	unsigned char buf[9];
 	int err;
 
-	err = pcf8563_read_block_data(client, PCF8563_REG_ST1, 9, buf);
-	if (err)
+	err = regmap_bulk_read(pcf8563->regmap, PCF8563_REG_ST1, buf,
+			       sizeof(buf));
+	if (err < 0)
 		return err;
 
 	if (buf[PCF8563_REG_SC] & PCF8563_SC_LV) {
-		dev_err(&client->dev,
+		dev_err(dev,
 			"low voltage detected, date/time is not reliable.\n");
 		return -EINVAL;
 	}
 
-	dev_dbg(&client->dev,
+	dev_dbg(dev,
 		"%s: raw data is st1=%02x, st2=%02x, sec=%02x, min=%02x, hr=%02x, "
 		"mday=%02x, wday=%02x, mon=%02x, year=%02x\n",
 		__func__,
 		buf[0], buf[1], buf[2], buf[3],
 		buf[4], buf[5], buf[6], buf[7],
 		buf[8]);
-
 
 	tm->tm_sec = bcd2bin(buf[PCF8563_REG_SC] & 0x7F);
 	tm->tm_min = bcd2bin(buf[PCF8563_REG_MN] & 0x7F);
@@ -232,7 +180,7 @@ static int pcf8563_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	pcf8563->c_polarity = (buf[PCF8563_REG_MO] & PCF8563_MO_C) ?
 		(tm->tm_year >= 100) : (tm->tm_year < 100);
 
-	dev_dbg(&client->dev, "%s: tm is secs=%d, mins=%d, hours=%d, "
+	dev_dbg(dev, "%s: tm is secs=%d, mins=%d, hours=%d, "
 		"mday=%d, mon=%d, year=%d, wday=%d\n",
 		__func__,
 		tm->tm_sec, tm->tm_min, tm->tm_hour,
@@ -243,11 +191,10 @@ static int pcf8563_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 static int pcf8563_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct pcf8563 *pcf8563 = i2c_get_clientdata(client);
+	struct pcf8563 *pcf8563 = dev_get_drvdata(dev);
 	unsigned char buf[9];
 
-	dev_dbg(&client->dev, "%s: secs=%d, mins=%d, hours=%d, "
+	dev_dbg(dev, "%s: secs=%d, mins=%d, hours=%d, "
 		"mday=%d, mon=%d, year=%d, wday=%d\n",
 		__func__,
 		tm->tm_sec, tm->tm_min, tm->tm_hour,
@@ -270,22 +217,24 @@ static int pcf8563_rtc_set_time(struct device *dev, struct rtc_time *tm)
 
 	buf[PCF8563_REG_DW] = tm->tm_wday & 0x07;
 
-	return pcf8563_write_block_data(client, PCF8563_REG_SC,
-				9 - PCF8563_REG_SC, buf + PCF8563_REG_SC);
+	return regmap_bulk_write(pcf8563->regmap, PCF8563_REG_SC,
+				buf + PCF8563_REG_SC,
+				sizeof(buf) - PCF8563_REG_SC);
 }
 
 static int pcf8563_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 {
-	struct i2c_client *client = to_i2c_client(dev);
+	struct pcf8563 *pcf8563 = dev_get_drvdata(dev);
 	int ret;
 
 	switch (cmd) {
 	case RTC_VL_READ:
-		ret = i2c_smbus_read_byte_data(client, PCF8563_REG_SC);
+		ret = regmap_test_bits(pcf8563->regmap, PCF8563_REG_SC,
+				       PCF8563_SC_LV);
 		if (ret < 0)
 			return ret;
 
-		return put_user(ret & PCF8563_SC_LV ? RTC_VL_DATA_INVALID : 0,
+		return put_user(ret ? RTC_VL_DATA_INVALID : 0,
 				(unsigned int __user *)arg);
 	default:
 		return -ENOIOCTLCMD;
@@ -294,15 +243,16 @@ static int pcf8563_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long
 
 static int pcf8563_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *tm)
 {
-	struct i2c_client *client = to_i2c_client(dev);
+	struct pcf8563 *pcf8563 = dev_get_drvdata(dev);
 	unsigned char buf[4];
 	int err;
 
-	err = pcf8563_read_block_data(client, PCF8563_REG_AMN, 4, buf);
-	if (err)
+	err = regmap_bulk_read(pcf8563->regmap, PCF8563_REG_AMN, buf,
+			       sizeof(buf));
+	if (err < 0)
 		return err;
 
-	dev_dbg(&client->dev,
+	dev_dbg(dev,
 		"%s: raw data is min=%02x, hr=%02x, mday=%02x, wday=%02x\n",
 		__func__, buf[0], buf[1], buf[2], buf[3]);
 
@@ -312,11 +262,11 @@ static int pcf8563_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *tm)
 	tm->time.tm_mday = bcd2bin(buf[2] & 0x3F);
 	tm->time.tm_wday = bcd2bin(buf[3] & 0x7);
 
-	err = pcf8563_get_alarm_mode(client, &tm->enabled, &tm->pending);
+	err = pcf8563_get_alarm_mode(pcf8563, &tm->enabled, &tm->pending);
 	if (err < 0)
 		return err;
 
-	dev_dbg(&client->dev, "%s: tm is mins=%d, hours=%d, mday=%d, wday=%d,"
+	dev_dbg(dev, "%s: tm is mins=%d, hours=%d, mday=%d, wday=%d,"
 		" enabled=%d, pending=%d\n", __func__, tm->time.tm_min,
 		tm->time.tm_hour, tm->time.tm_mday, tm->time.tm_wday,
 		tm->enabled, tm->pending);
@@ -326,7 +276,7 @@ static int pcf8563_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *tm)
 
 static int pcf8563_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *tm)
 {
-	struct i2c_client *client = to_i2c_client(dev);
+	struct pcf8563 *pcf8563 = dev_get_drvdata(dev);
 	unsigned char buf[4];
 	int err;
 
@@ -335,17 +285,20 @@ static int pcf8563_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *tm)
 	buf[2] = bin2bcd(tm->time.tm_mday);
 	buf[3] = tm->time.tm_wday & 0x07;
 
-	err = pcf8563_write_block_data(client, PCF8563_REG_AMN, 4, buf);
+	err = regmap_bulk_write(pcf8563->regmap, PCF8563_REG_SC, buf,
+				sizeof(buf));
 	if (err)
 		return err;
 
-	return pcf8563_set_alarm_mode(client, !!tm->enabled);
+	return pcf8563_set_alarm_mode(pcf8563, !!tm->enabled);
 }
 
 static int pcf8563_irq_enable(struct device *dev, unsigned int enabled)
 {
+	struct pcf8563 *pcf8563 = dev_get_drvdata(dev);
+
 	dev_dbg(dev, "%s: en=%d\n", __func__, enabled);
-	return pcf8563_set_alarm_mode(to_i2c_client(dev), !!enabled);
+	return pcf8563_set_alarm_mode(pcf8563, !!enabled);
 }
 
 #ifdef CONFIG_COMMON_CLK
@@ -366,10 +319,10 @@ static unsigned long pcf8563_clkout_recalc_rate(struct clk_hw *hw,
 						unsigned long parent_rate)
 {
 	struct pcf8563 *pcf8563 = clkout_hw_to_pcf8563(hw);
-	struct i2c_client *client = pcf8563->client;
-	unsigned char buf;
-	int ret = pcf8563_read_block_data(client, PCF8563_REG_CLKO, 1, &buf);
+	u32 buf;
+	int ret;
 
+	ret = regmap_read(pcf8563->regmap, PCF8563_REG_CLKO, &buf);
 	if (ret < 0)
 		return 0;
 
@@ -393,11 +346,10 @@ static int pcf8563_clkout_set_rate(struct clk_hw *hw, unsigned long rate,
 				   unsigned long parent_rate)
 {
 	struct pcf8563 *pcf8563 = clkout_hw_to_pcf8563(hw);
-	struct i2c_client *client = pcf8563->client;
-	unsigned char buf;
-	int ret = pcf8563_read_block_data(client, PCF8563_REG_CLKO, 1, &buf);
-	int i;
+	int i, ret;
+	u32 buf;
 
+	ret = regmap_read(pcf8563->regmap, PCF8563_REG_CLKO, &buf);
 	if (ret < 0)
 		return ret;
 
@@ -405,10 +357,10 @@ static int pcf8563_clkout_set_rate(struct clk_hw *hw, unsigned long rate,
 		if (clkout_rates[i] == rate) {
 			buf &= ~PCF8563_REG_CLKO_F_MASK;
 			buf |= i;
-			ret = pcf8563_write_block_data(client,
-						       PCF8563_REG_CLKO, 1,
-						       &buf);
-			return ret;
+			return regmap_update_bits(pcf8563->regmap,
+					    PCF8563_REG_CLKO,
+					    PCF8563_REG_CLKO_F_MASK,
+					    buf);
 		}
 
 	return -EINVAL;
@@ -417,10 +369,10 @@ static int pcf8563_clkout_set_rate(struct clk_hw *hw, unsigned long rate,
 static int pcf8563_clkout_control(struct clk_hw *hw, bool enable)
 {
 	struct pcf8563 *pcf8563 = clkout_hw_to_pcf8563(hw);
-	struct i2c_client *client = pcf8563->client;
-	unsigned char buf;
-	int ret = pcf8563_read_block_data(client, PCF8563_REG_CLKO, 1, &buf);
+	u32 buf;
+	int ret;
 
+	ret = regmap_read(pcf8563->regmap, PCF8563_REG_CLKO, &buf);
 	if (ret < 0)
 		return ret;
 
@@ -429,8 +381,8 @@ static int pcf8563_clkout_control(struct clk_hw *hw, bool enable)
 	else
 		buf &= ~PCF8563_REG_CLKO_FE;
 
-	ret = pcf8563_write_block_data(client, PCF8563_REG_CLKO, 1, &buf);
-	return ret;
+	return regmap_update_bits(pcf8563->regmap, PCF8563_REG_CLKO,
+				  PCF8563_REG_CLKO_FE, buf);
 }
 
 static int pcf8563_clkout_prepare(struct clk_hw *hw)
@@ -446,10 +398,10 @@ static void pcf8563_clkout_unprepare(struct clk_hw *hw)
 static int pcf8563_clkout_is_prepared(struct clk_hw *hw)
 {
 	struct pcf8563 *pcf8563 = clkout_hw_to_pcf8563(hw);
-	struct i2c_client *client = pcf8563->client;
-	unsigned char buf;
-	int ret = pcf8563_read_block_data(client, PCF8563_REG_CLKO, 1, &buf);
+	u32 buf;
+	int ret;
 
+	ret = regmap_read(pcf8563->regmap, PCF8563_REG_CLKO, &buf);
 	if (ret < 0)
 		return ret;
 
@@ -467,16 +419,14 @@ static const struct clk_ops pcf8563_clkout_ops = {
 
 static struct clk *pcf8563_clkout_register_clk(struct pcf8563 *pcf8563)
 {
-	struct i2c_client *client = pcf8563->client;
-	struct device_node *node = client->dev.of_node;
-	struct clk *clk;
+	struct device_node *node = pcf8563->rtc->dev.of_node;
 	struct clk_init_data init;
+	struct clk *clk;
 	int ret;
-	unsigned char buf;
 
 	/* disable the clkout output */
-	buf = 0;
-	ret = pcf8563_write_block_data(client, PCF8563_REG_CLKO, 1, &buf);
+	ret = regmap_clear_bits(pcf8563->regmap, PCF8563_REG_CLKO,
+				PCF8563_REG_CLKO_FE);
 	if (ret < 0)
 		return ERR_PTR(ret);
 
@@ -491,7 +441,7 @@ static struct clk *pcf8563_clkout_register_clk(struct pcf8563 *pcf8563)
 	of_property_read_string(node, "clock-output-names", &init.name);
 
 	/* register the clock */
-	clk = devm_clk_register(&client->dev, &pcf8563->clkout_hw);
+	clk = devm_clk_register(&pcf8563->rtc->dev, &pcf8563->clkout_hw);
 
 	if (!IS_ERR(clk))
 		of_clk_add_provider(node, of_clk_src_simple_get, clk);
@@ -509,11 +459,16 @@ static const struct rtc_class_ops pcf8563_rtc_ops = {
 	.alarm_irq_enable = pcf8563_irq_enable,
 };
 
+static const struct regmap_config regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.max_register = 0xF,
+};
+
 static int pcf8563_probe(struct i2c_client *client)
 {
 	struct pcf8563 *pcf8563;
 	int err;
-	unsigned char buf;
 
 	dev_dbg(&client->dev, "%s\n", __func__);
 
@@ -525,20 +480,23 @@ static int pcf8563_probe(struct i2c_client *client)
 	if (!pcf8563)
 		return -ENOMEM;
 
+	pcf8563->regmap = devm_regmap_init_i2c(client, &regmap_config);
+	if (IS_ERR(pcf8563->regmap))
+		return PTR_ERR(pcf8563->regmap);
+
 	i2c_set_clientdata(client, pcf8563);
-	pcf8563->client = client;
+	device_set_wakeup_capable(&client->dev, 1);
 
 	/* Set timer to lowest frequency to save power (ref Haoyu datasheet) */
-	buf = PCF8563_TMRC_1_60;
-	err = pcf8563_write_block_data(client, PCF8563_REG_TMRC, 1, &buf);
+	err = regmap_set_bits(pcf8563->regmap, PCF8563_REG_TMRC,
+			      PCF8563_TMRC_1_60);
 	if (err < 0) {
 		dev_err(&client->dev, "%s: write error\n", __func__);
 		return err;
 	}
 
 	/* Clear flags and disable interrupts */
-	buf = 0;
-	err = pcf8563_write_block_data(client, PCF8563_REG_ST2, 1, &buf);
+	err = regmap_write(pcf8563->regmap, PCF8563_REG_ST2, 0);
 	if (err < 0) {
 		dev_err(&client->dev, "%s: write error\n", __func__);
 		return err;

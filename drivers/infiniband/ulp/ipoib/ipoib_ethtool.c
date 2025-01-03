@@ -128,16 +128,13 @@ static void ipoib_get_ethtool_stats(struct net_device *dev,
 static void ipoib_get_strings(struct net_device __always_unused *dev,
 			      u32 stringset, u8 *data)
 {
-	u8 *p = data;
 	int i;
 
 	switch (stringset) {
 	case ETH_SS_STATS:
-		for (i = 0; i < IPOIB_GLOBAL_STATS_LEN; i++) {
-			memcpy(p, ipoib_gstrings_stats[i].stat_string,
-				ETH_GSTRING_LEN);
-			p += ETH_GSTRING_LEN;
-		}
+		for (i = 0; i < IPOIB_GLOBAL_STATS_LEN; i++)
+			ethtool_puts(&data,
+				     ipoib_gstrings_stats[i].stat_string);
 		break;
 	default:
 		break;

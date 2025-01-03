@@ -680,7 +680,7 @@ static struct platform_driver f_ospi_driver = {
 		.of_match_table = f_ospi_dt_ids,
 	},
 	.probe = f_ospi_probe,
-	.remove_new = f_ospi_remove,
+	.remove = f_ospi_remove,
 };
 module_platform_driver(f_ospi_driver);
 

@@ -26,6 +26,7 @@
 #include <linux/node.h>
 #include <asm/hiperdispatch.h>
 #include <asm/sysinfo.h>
+#include <asm/asm.h>
 
 #define PTF_HORIZONTAL	(0UL)
 #define PTF_VERTICAL	(1UL)
@@ -224,15 +225,15 @@ static void topology_update_polarization_simple(void)
 
 static int ptf(unsigned long fc)
 {
-	int rc;
+	int cc;
 
 	asm volatile(
-		"	.insn	rre,0xb9a20000,%1,%1\n"
-		"	ipm	%0\n"
-		"	srl	%0,28\n"
-		: "=d" (rc)
-		: "d" (fc)  : "cc");
-	return rc;
+		"	.insn	rre,0xb9a20000,%[fc],%[fc]\n"
+		CC_IPM(cc)
+		: CC_OUT(cc, cc)
+		: [fc] "d" (fc)
+		: CC_CLOBBER);
+	return CC_TRANSFORM(cc);
 }
 
 int topology_set_cpu_management(int fc)
@@ -412,7 +413,7 @@ static ssize_t dispatching_show(struct device *dev,
 	ssize_t count;
 
 	mutex_lock(&smp_cpu_state_mutex);
-	count = sprintf(buf, "%d\n", cpu_management);
+	count = sysfs_emit(buf, "%d\n", cpu_management);
 	mutex_unlock(&smp_cpu_state_mutex);
 	return count;
 }
@@ -443,19 +444,19 @@ static ssize_t cpu_polarization_show(struct device *dev,
 	mutex_lock(&smp_cpu_state_mutex);
 	switch (smp_cpu_get_polarization(cpu)) {
 	case POLARIZATION_HRZ:
-		count = sprintf(buf, "horizontal\n");
+		count = sysfs_emit(buf, "horizontal\n");
 		break;
 	case POLARIZATION_VL:
-		count = sprintf(buf, "vertical:low\n");
+		count = sysfs_emit(buf, "vertical:low\n");
 		break;
 	case POLARIZATION_VM:
-		count = sprintf(buf, "vertical:medium\n");
+		count = sysfs_emit(buf, "vertical:medium\n");
 		break;
 	case POLARIZATION_VH:
-		count = sprintf(buf, "vertical:high\n");
+		count = sysfs_emit(buf, "vertical:high\n");
 		break;
 	default:
-		count = sprintf(buf, "unknown\n");
+		count = sysfs_emit(buf, "unknown\n");
 		break;
 	}
 	mutex_unlock(&smp_cpu_state_mutex);
@@ -479,7 +480,7 @@ static ssize_t cpu_dedicated_show(struct device *dev,
 	ssize_t count;
 
 	mutex_lock(&smp_cpu_state_mutex);
-	count = sprintf(buf, "%d\n", topology_cpu_dedicated(cpu));
+	count = sysfs_emit(buf, "%d\n", topology_cpu_dedicated(cpu));
 	mutex_unlock(&smp_cpu_state_mutex);
 	return count;
 }

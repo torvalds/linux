@@ -428,7 +428,7 @@ MODULE_DEVICE_TABLE(of, ast_vhub_dt_ids);
 
 static struct platform_driver ast_vhub_driver = {
 	.probe		= ast_vhub_probe,
-	.remove_new	= ast_vhub_remove,
+	.remove		= ast_vhub_remove,
 	.driver		= {
 		.name	= KBUILD_MODNAME,
 		.of_match_table	= ast_vhub_dt_ids,

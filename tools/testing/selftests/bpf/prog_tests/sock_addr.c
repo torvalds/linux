@@ -23,10 +23,6 @@
 #include "getpeername_unix_prog.skel.h"
 #include "network_helpers.h"
 
-#ifndef ENOTSUPP
-# define ENOTSUPP 524
-#endif
-
 #define TEST_NS                 "sock_addr"
 #define TEST_IF_PREFIX          "test_sock_addr"
 #define TEST_IPV4               "127.0.0.4"

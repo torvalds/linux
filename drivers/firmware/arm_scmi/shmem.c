@@ -16,6 +16,8 @@
 
 #include "common.h"
 
+#define SCMI_SHMEM_LAYOUT_OVERHEAD	24
+
 /*
  * SCMI specification requires all parameters, message headers, return
  * arguments or any protocol data to be expressed in little endian
@@ -34,9 +36,59 @@ struct scmi_shared_mem {
 	u8 msg_payload[];
 };
 
+static inline void shmem_memcpy_fromio32(void *to,
+					 const void __iomem *from,
+					 size_t count)
+{
+	WARN_ON(!IS_ALIGNED((unsigned long)from, 4) ||
+		!IS_ALIGNED((unsigned long)to, 4) ||
+		count % 4);
+
+	__ioread32_copy(to, from, count / 4);
+}
+
+static inline void shmem_memcpy_toio32(void __iomem *to,
+				       const void *from,
+				       size_t count)
+{
+	WARN_ON(!IS_ALIGNED((unsigned long)to, 4) ||
+		!IS_ALIGNED((unsigned long)from, 4) ||
+		count % 4);
+
+	__iowrite32_copy(to, from, count / 4);
+}
+
+static struct scmi_shmem_io_ops shmem_io_ops32 = {
+	.fromio	= shmem_memcpy_fromio32,
+	.toio	= shmem_memcpy_toio32,
+};
+
+/* Wrappers are needed for proper memcpy_{from,to}_io expansion by the
+ * pre-processor.
+ */
+static inline void shmem_memcpy_fromio(void *to,
+				       const void __iomem *from,
+				       size_t count)
+{
+	memcpy_fromio(to, from, count);
+}
+
+static inline void shmem_memcpy_toio(void __iomem *to,
+				     const void *from,
+				     size_t count)
+{
+	memcpy_toio(to, from, count);
+}
+
+static struct scmi_shmem_io_ops shmem_io_ops_default = {
+	.fromio = shmem_memcpy_fromio,
+	.toio	= shmem_memcpy_toio,
+};
+
 static void shmem_tx_prepare(struct scmi_shared_mem __iomem *shmem,
 			     struct scmi_xfer *xfer,
-			     struct scmi_chan_info *cinfo)
+			     struct scmi_chan_info *cinfo,
+			     shmem_copy_toio_t copy_toio)
 {
 	ktime_t stop;
 
@@ -73,7 +125,7 @@ static void shmem_tx_prepare(struct scmi_shared_mem __iomem *shmem,
 	iowrite32(sizeof(shmem->msg_header) + xfer->tx.len, &shmem->length);
 	iowrite32(pack_scmi_header(&xfer->hdr), &shmem->msg_header);
 	if (xfer->tx.buf)
-		memcpy_toio(shmem->msg_payload, xfer->tx.buf, xfer->tx.len);
+		copy_toio(shmem->msg_payload, xfer->tx.buf, xfer->tx.len);
 }
 
 static u32 shmem_read_header(struct scmi_shared_mem __iomem *shmem)
@@ -82,7 +134,8 @@ static u32 shmem_read_header(struct scmi_shared_mem __iomem *shmem)
 }
 
 static void shmem_fetch_response(struct scmi_shared_mem __iomem *shmem,
-				 struct scmi_xfer *xfer)
+				 struct scmi_xfer *xfer,
+				 shmem_copy_fromio_t copy_fromio)
 {
 	size_t len = ioread32(&shmem->length);
 
@@ -91,11 +144,12 @@ static void shmem_fetch_response(struct scmi_shared_mem __iomem *shmem,
 	xfer->rx.len = min_t(size_t, xfer->rx.len, len > 8 ? len - 8 : 0);
 
 	/* Take a copy to the rx buffer.. */
-	memcpy_fromio(xfer->rx.buf, shmem->msg_payload + 4, xfer->rx.len);
+	copy_fromio(xfer->rx.buf, shmem->msg_payload + 4, xfer->rx.len);
 }
 
 static void shmem_fetch_notification(struct scmi_shared_mem __iomem *shmem,
-				     size_t max_len, struct scmi_xfer *xfer)
+				     size_t max_len, struct scmi_xfer *xfer,
+				     shmem_copy_fromio_t copy_fromio)
 {
 	size_t len = ioread32(&shmem->length);
 
@@ -103,7 +157,7 @@ static void shmem_fetch_notification(struct scmi_shared_mem __iomem *shmem,
 	xfer->rx.len = min_t(size_t, max_len, len > 4 ? len - 4 : 0);
 
 	/* Take a copy to the rx buffer.. */
-	memcpy_fromio(xfer->rx.buf, shmem->msg_payload, xfer->rx.len);
+	copy_fromio(xfer->rx.buf, shmem->msg_payload, xfer->rx.len);
 }
 
 static void shmem_clear_channel(struct scmi_shared_mem __iomem *shmem)
@@ -139,7 +193,8 @@ static bool shmem_channel_intr_enabled(struct scmi_shared_mem __iomem *shmem)
 
 static void __iomem *shmem_setup_iomap(struct scmi_chan_info *cinfo,
 				       struct device *dev, bool tx,
-				       struct resource *res)
+				       struct resource *res,
+				       struct scmi_shmem_io_ops **ops)
 {
 	struct device_node *shmem __free(device_node);
 	const char *desc = tx ? "Tx" : "Rx";
@@ -148,6 +203,7 @@ static void __iomem *shmem_setup_iomap(struct scmi_chan_info *cinfo,
 	struct resource lres = {};
 	resource_size_t size;
 	void __iomem *addr;
+	u32 reg_io_width;
 
 	shmem = of_parse_phandle(cdev->of_node, "shmem", idx);
 	if (!shmem)
@@ -167,10 +223,25 @@ static void __iomem *shmem_setup_iomap(struct scmi_chan_info *cinfo,
 	}
 
 	size = resource_size(res);
+	if (cinfo->max_msg_size + SCMI_SHMEM_LAYOUT_OVERHEAD > size) {
+		dev_err(dev, "misconfigured SCMI shared memory\n");
+		return IOMEM_ERR_PTR(-ENOSPC);
+	}
+
 	addr = devm_ioremap(dev, res->start, size);
 	if (!addr) {
 		dev_err(dev, "failed to ioremap SCMI %s shared memory\n", desc);
 		return IOMEM_ERR_PTR(-EADDRNOTAVAIL);
+	}
+
+	of_property_read_u32(shmem, "reg-io-width", &reg_io_width);
+	switch (reg_io_width) {
+	case 4:
+		*ops = &shmem_io_ops32;
+		break;
+	default:
+		*ops = &shmem_io_ops_default;
+		break;
 	}
 
 	return addr;

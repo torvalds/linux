@@ -182,7 +182,7 @@ static int set_node_max(struct bch_fs *c, struct btree *b, struct bpos new_max)
 	bch2_btree_node_drop_keys_outside_node(b);
 
 	mutex_lock(&c->btree_cache.lock);
-	bch2_btree_node_hash_remove(&c->btree_cache, b);
+	__bch2_btree_node_hash_remove(&c->btree_cache, b);
 
 	bkey_copy(&b->key, &new->k_i);
 	ret = __bch2_btree_node_hash_insert(&c->btree_cache, b);
@@ -820,12 +820,22 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 	 * fix that here:
 	 */
 	alloc_data_type_set(&gc, gc.data_type);
-
 	if (gc.data_type != old_gc.data_type ||
 	    gc.dirty_sectors != old_gc.dirty_sectors) {
 		ret = bch2_alloc_key_to_dev_counters(trans, ca, &old_gc, &gc, BTREE_TRIGGER_gc);
 		if (ret)
 			return ret;
+
+		/*
+		 * Ugly: alloc_key_to_dev_counters(..., BTREE_TRIGGER_gc) is not
+		 * safe w.r.t. transaction restarts, so fixup the gc_bucket so
+		 * we don't run it twice:
+		 */
+		percpu_down_read(&c->mark_lock);
+		struct bucket *gc_m = gc_bucket(ca, iter->pos.offset);
+		gc_m->data_type = gc.data_type;
+		gc_m->dirty_sectors = gc.dirty_sectors;
+		percpu_up_read(&c->mark_lock);
 	}
 
 	if (fsck_err_on(new.data_type != gc.data_type,
@@ -1224,17 +1234,20 @@ int bch2_gc_gens(struct bch_fs *c)
 	u64 b, start_time = local_clock();
 	int ret;
 
-	/*
-	 * Ideally we would be using state_lock and not gc_gens_lock here, but that
-	 * introduces a deadlock in the RO path - we currently take the state
-	 * lock at the start of going RO, thus the gc thread may get stuck:
-	 */
 	if (!mutex_trylock(&c->gc_gens_lock))
 		return 0;
 
 	trace_and_count(c, gc_gens_start, c);
 
-	down_read(&c->state_lock);
+	/*
+	 * We have to use trylock here. Otherwise, we would
+	 * introduce a deadlock in the RO path - we take the
+	 * state lock at the start of going RO.
+	 */
+	if (!down_read_trylock(&c->state_lock)) {
+		mutex_unlock(&c->gc_gens_lock);
+		return 0;
+	}
 
 	for_each_member_device(c, ca) {
 		struct bucket_gens *gens = bucket_gens(ca);

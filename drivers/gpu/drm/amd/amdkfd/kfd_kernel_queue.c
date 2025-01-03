@@ -125,7 +125,7 @@ static bool kq_initialize(struct kernel_queue *kq, struct kfd_node *dev,
 
 	memset(kq->pq_kernel_addr, 0, queue_size);
 	memset(kq->rptr_kernel, 0, sizeof(*kq->rptr_kernel));
-	memset(kq->wptr_kernel, 0, sizeof(*kq->wptr_kernel));
+	memset(kq->wptr_kernel, 0, dev->kfd->device_info.doorbell_size);
 
 	prop.queue_size = queue_size;
 	prop.is_interop = false;
@@ -306,12 +306,17 @@ int kq_submit_packet(struct kernel_queue *kq)
 	if (amdgpu_amdkfd_is_fed(kq->dev->adev))
 		return -EIO;
 
+	/* Make sure ring buffer is updated before wptr updated */
+	mb();
+
 	if (kq->dev->kfd->device_info.doorbell_size == 8) {
 		*kq->wptr64_kernel = kq->pending_wptr64;
+		mb(); /* Make sure wptr updated before ring doorbell */
 		write_kernel_doorbell64(kq->queue->properties.doorbell_ptr,
 					kq->pending_wptr64);
 	} else {
 		*kq->wptr_kernel = kq->pending_wptr;
+		mb(); /* Make sure wptr updated before ring doorbell */
 		write_kernel_doorbell(kq->queue->properties.doorbell_ptr,
 					kq->pending_wptr);
 	}

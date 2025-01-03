@@ -256,7 +256,6 @@
 				regulator-max-microvolt = <1527272>;
 				regulator-min-microvolt = <787500>;
 				regulator-ramp-delay = <7000>;
-				regulator-suspend-mem-microvolt = <1040000>;
 			};
 
 			sw2_reg: sw2 {
@@ -275,7 +274,6 @@
 				regulator-max-microvolt = <1527272>;
 				regulator-min-microvolt = <787500>;
 				regulator-ramp-delay = <7000>;
-				regulator-suspend-mem-microvolt = <980000>;
 			};
 
 			sw4_reg: sw4 {

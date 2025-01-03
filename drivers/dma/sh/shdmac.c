@@ -906,7 +906,7 @@ static struct platform_driver sh_dmae_driver = {
 		.pm	= &sh_dmae_pm,
 		.name	= SH_DMAE_DRV_NAME,
 	},
-	.remove_new	= sh_dmae_remove,
+	.remove		= sh_dmae_remove,
 };
 
 static int __init sh_dmae_init(void)

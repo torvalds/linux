@@ -584,8 +584,6 @@ static const struct vb2_ops mtk_mdp_m2m_qops = {
 	.buf_queue	 = mtk_mdp_m2m_buf_queue,
 	.stop_streaming	 = mtk_mdp_m2m_stop_streaming,
 	.start_streaming = mtk_mdp_m2m_start_streaming,
-	.wait_prepare	 = vb2_ops_wait_prepare,
-	.wait_finish	 = vb2_ops_wait_finish,
 };
 
 static int mtk_mdp_m2m_querycap(struct file *file, void *fh,

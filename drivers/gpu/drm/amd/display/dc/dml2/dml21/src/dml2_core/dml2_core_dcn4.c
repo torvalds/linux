@@ -159,6 +159,7 @@ static void create_phantom_stream_from_main_stream(struct dml2_stream_parameters
 	phantom->timing.v_total = meta->v_total;
 	phantom->timing.v_active = meta->v_active;
 	phantom->timing.v_front_porch = meta->v_front_porch;
+	phantom->timing.v_blank_end = phantom->timing.v_total - phantom->timing.v_front_porch - phantom->timing.v_active;
 	phantom->timing.vblank_nom = phantom->timing.v_total - phantom->timing.v_active;
 	phantom->timing.drr_config.enabled = false;
 }

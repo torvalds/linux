@@ -98,7 +98,7 @@ MODULE_DEVICE_TABLE(of, npcm_udc_dt_match);
 
 static struct platform_driver npcm_udc_driver = {
 	.probe = npcm_udc_probe,
-	.remove_new = npcm_udc_remove,
+	.remove = npcm_udc_remove,
 	.driver = {
 		.name = "npcm_udc",
 		.of_match_table = npcm_udc_dt_match,

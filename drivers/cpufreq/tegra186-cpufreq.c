@@ -276,7 +276,7 @@ static struct platform_driver tegra186_cpufreq_platform_driver = {
 		.of_match_table = tegra186_cpufreq_of_match,
 	},
 	.probe = tegra186_cpufreq_probe,
-	.remove_new = tegra186_cpufreq_remove,
+	.remove = tegra186_cpufreq_remove,
 };
 module_platform_driver(tegra186_cpufreq_platform_driver);
 

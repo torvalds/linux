@@ -12,6 +12,7 @@
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 
+#include "bpf_util.h"
 #include "test_maps.h"
 #include "task_local_storage_helpers.h"
 #include "read_bpf_task_storage_busy.skel.h"
@@ -115,7 +116,7 @@ void test_task_storage_map_stress_lookup(void)
 	CHECK(err, "attach", "error %d\n", err);
 
 	/* Trigger program */
-	syscall(SYS_gettid);
+	sys_gettid();
 	skel->bss->pid = 0;
 
 	CHECK(skel->bss->busy != 0, "bad bpf_task_storage_busy", "got %d\n", skel->bss->busy);

@@ -69,14 +69,14 @@ int monitor_device(const char *device_name,
 	}
 
 	if (num_lines == 1) {
-		fprintf(stdout, "Monitoring line %d on %s\n", lines[0], device_name);
+		fprintf(stdout, "Monitoring line %u on %s\n", lines[0], device_name);
 		fprintf(stdout, "Initial line value: %d\n",
 			gpiotools_test_bit(values.bits, 0));
 	} else {
-		fprintf(stdout, "Monitoring lines %d", lines[0]);
+		fprintf(stdout, "Monitoring lines %u", lines[0]);
 		for (i = 1; i < num_lines - 1; i++)
-			fprintf(stdout, ", %d", lines[i]);
-		fprintf(stdout, " and %d on %s\n", lines[i], device_name);
+			fprintf(stdout, ", %u", lines[i]);
+		fprintf(stdout, " and %u on %s\n", lines[i], device_name);
 		fprintf(stdout, "Initial line values: %d",
 			gpiotools_test_bit(values.bits, 0));
 		for (i = 1; i < num_lines - 1; i++)

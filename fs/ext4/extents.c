@@ -568,7 +568,7 @@ __read_extent_tree_block(const char *function, unsigned int line,
 
 	if (!bh_uptodate_or_lock(bh)) {
 		trace_ext4_ext_load_extent(inode, pblk, _RET_IP_);
-		err = ext4_read_bh(bh, 0, NULL);
+		err = ext4_read_bh(bh, 0, NULL, false);
 		if (err < 0)
 			goto errout;
 	}
@@ -3138,7 +3138,7 @@ static void ext4_zeroout_es(struct inode *inode, struct ext4_extent *ex)
 		return;
 
 	ext4_es_insert_extent(inode, ee_block, ee_len, ee_pblock,
-			      EXTENT_STATUS_WRITTEN, 0);
+			      EXTENT_STATUS_WRITTEN, false);
 }
 
 /* FIXME!! we need to try to merge to left or right after zero-out  */
@@ -4158,7 +4158,7 @@ insert_hole:
 	/* Put just found gap into cache to speed up subsequent requests */
 	ext_debug(inode, " -> %u:%u\n", hole_start, len);
 	ext4_es_insert_extent(inode, hole_start, len, ~0,
-			      EXTENT_STATUS_HOLE, 0);
+			      EXTENT_STATUS_HOLE, false);
 
 	/* Update hole_len to reflect hole size after lblk */
 	if (hole_start != lblk)
@@ -4482,7 +4482,7 @@ static int ext4_alloc_file_blocks(struct file *file, ext4_lblk_t offset,
 	int depth = 0;
 	struct ext4_map_blocks map;
 	unsigned int credits;
-	loff_t epos;
+	loff_t epos, old_size = i_size_read(inode);
 
 	BUG_ON(!ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS));
 	map.m_lblk = offset;
@@ -4541,6 +4541,11 @@ retry:
 			if (ext4_update_inode_size(inode, epos) & 0x1)
 				inode_set_mtime_to_ts(inode,
 						      inode_get_ctime(inode));
+			if (epos > old_size) {
+				pagecache_isize_extended(inode, old_size, epos);
+				ext4_zero_partial_blocks(handle, inode,
+						     old_size, epos - old_size);
+			}
 		}
 		ret2 = ext4_mark_inode_dirty(handle, inode);
 		ext4_update_inode_fsync_trans(handle, inode, 1);

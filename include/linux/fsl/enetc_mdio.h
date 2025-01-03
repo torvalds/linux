@@ -59,7 +59,8 @@ static inline int enetc_mdio_read_c45(struct mii_bus *bus, int phy_id,
 static inline int enetc_mdio_write_c45(struct mii_bus *bus, int phy_id,
 				       int devad, int regnum, u16 value)
 { return -EINVAL; }
-struct enetc_hw *enetc_hw_alloc(struct device *dev, void __iomem *port_regs)
+static inline struct enetc_hw *enetc_hw_alloc(struct device *dev,
+					      void __iomem *port_regs)
 { return ERR_PTR(-EINVAL); }
 
 #endif

@@ -11,7 +11,7 @@
 #include <linux/regulator/of_regulator.h>
 #include <linux/soc/qcom/smd-rpm.h>
 
-struct qcom_smd_rpm *smd_vreg_rpm;
+static struct qcom_smd_rpm *smd_vreg_rpm;
 
 struct qcom_rpm_reg {
 	struct device *dev;

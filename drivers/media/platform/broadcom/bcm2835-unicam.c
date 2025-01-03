@@ -1801,8 +1801,6 @@ static void unicam_buffer_queue(struct vb2_buffer *vb)
 
 static const struct vb2_ops unicam_video_qops = {
 	.queue_setup		= unicam_queue_setup,
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 	.buf_prepare		= unicam_buffer_prepare,
 	.start_streaming	= unicam_start_streaming,
 	.stop_streaming		= unicam_stop_streaming,
@@ -2724,7 +2722,7 @@ MODULE_DEVICE_TABLE(of, unicam_of_match);
 
 static struct platform_driver unicam_driver = {
 	.probe		= unicam_probe,
-	.remove_new	= unicam_remove,
+	.remove		= unicam_remove,
 	.driver = {
 		.name	= UNICAM_MODULE_NAME,
 		.pm	= pm_ptr(&unicam_pm_ops),

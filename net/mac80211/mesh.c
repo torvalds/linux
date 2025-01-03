@@ -1482,7 +1482,7 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 	if (!elems)
 		return;
 
-	/* ignore non-mesh or secure / unsecure mismatch */
+	/* ignore non-mesh or secure / insecure mismatch */
 	if ((!elems->mesh_id || !elems->mesh_config) ||
 	    (elems->rsn && sdata->u.mesh.security == IEEE80211_MESH_SEC_NONE) ||
 	    (!elems->rsn && sdata->u.mesh.security != IEEE80211_MESH_SEC_NONE))

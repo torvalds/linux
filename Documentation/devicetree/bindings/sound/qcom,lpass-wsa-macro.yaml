@@ -21,6 +21,7 @@ properties:
       - items:
           - enum:
               - qcom,sm8650-lpass-wsa-macro
+              - qcom,sm8750-lpass-wsa-macro
               - qcom,x1e80100-lpass-wsa-macro
           - const: qcom,sm8550-lpass-wsa-macro
 

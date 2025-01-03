@@ -1230,11 +1230,12 @@ static int omap_iommu_probe(struct platform_device *pdev)
 		if (err)
 			return err;
 
-		err = iommu_device_register(&obj->iommu, &omap_iommu_ops, &pdev->dev);
-		if (err)
-			goto out_sysfs;
 		obj->has_iommu_driver = true;
 	}
+
+	err = iommu_device_register(&obj->iommu, &omap_iommu_ops, &pdev->dev);
+	if (err)
+		goto out_sysfs;
 
 	pm_runtime_enable(obj->dev);
 
@@ -1242,13 +1243,11 @@ static int omap_iommu_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "%s registered\n", obj->name);
 
-	/* Re-probe bus to probe device attached to this IOMMU */
-	bus_iommu_probe(&platform_bus_type);
-
 	return 0;
 
 out_sysfs:
-	iommu_device_sysfs_remove(&obj->iommu);
+	if (obj->has_iommu_driver)
+		iommu_device_sysfs_remove(&obj->iommu);
 	return err;
 }
 
@@ -1256,10 +1255,10 @@ static void omap_iommu_remove(struct platform_device *pdev)
 {
 	struct omap_iommu *obj = platform_get_drvdata(pdev);
 
-	if (obj->has_iommu_driver) {
+	if (obj->has_iommu_driver)
 		iommu_device_sysfs_remove(&obj->iommu);
-		iommu_device_unregister(&obj->iommu);
-	}
+
+	iommu_device_unregister(&obj->iommu);
 
 	omap_iommu_debugfs_remove(obj);
 
@@ -1723,12 +1722,19 @@ static void omap_iommu_release_device(struct device *dev)
 
 }
 
+static int omap_iommu_of_xlate(struct device *dev, const struct of_phandle_args *args)
+{
+	/* TODO: collect args->np to save re-parsing in probe above */
+	return 0;
+}
+
 static const struct iommu_ops omap_iommu_ops = {
 	.identity_domain = &omap_iommu_identity_domain,
 	.domain_alloc_paging = omap_iommu_domain_alloc_paging,
 	.probe_device	= omap_iommu_probe_device,
 	.release_device	= omap_iommu_release_device,
 	.device_group	= generic_single_device_group,
+	.of_xlate	= omap_iommu_of_xlate,
 	.pgsize_bitmap	= OMAP_IOMMU_PGSIZES,
 	.default_domain_ops = &(const struct iommu_domain_ops) {
 		.attach_dev	= omap_iommu_attach_dev,

@@ -358,21 +358,21 @@
 		>;
 	};
 
-	pinctrl_pwm1: pwm1grp-1 {
+	pinctrl_pwm1: pwm1-1grp {
 		fsl,pins = <
 			/* blue LED */
 			MX6SX_PAD_RGMII2_RD3__PWM1_OUT		0x1b0b1
 		>;
 	};
 
-	pinctrl_pwm2: pwm2grp-1 {
+	pinctrl_pwm2: pwm2-1grp {
 		fsl,pins = <
 			/* green LED */
 			MX6SX_PAD_RGMII2_RD2__PWM2_OUT		0x1b0b1
 		>;
 	};
 
-	pinctrl_pwm6: pwm6grp-1 {
+	pinctrl_pwm6: pwm6-1grp {
 		fsl,pins = <
 			/* red LED */
 			MX6SX_PAD_RGMII2_TD2__PWM6_OUT		0x1b0b1
@@ -414,7 +414,7 @@
 		>;
 	};
 
-	pinctrl_usdhc2_50mhz: usdhc2grp-50mhz {
+	pinctrl_usdhc2_50mhz: usdhc2-50mhzgrp {
 		fsl,pins = <
 			MX6SX_PAD_SD2_CLK__USDHC2_CLK		0x10059
 			MX6SX_PAD_SD2_CMD__USDHC2_CMD		0x17059
@@ -427,7 +427,7 @@
 		>;
 	};
 
-	pinctrl_usdhc2_100mhz: usdhc2grp-100mhz {
+	pinctrl_usdhc2_100mhz: usdhc2-100mhzgrp {
 		fsl,pins = <
 			MX6SX_PAD_SD2_CLK__USDHC2_CLK		0x100b9
 			MX6SX_PAD_SD2_CMD__USDHC2_CMD		0x170b9
@@ -438,7 +438,7 @@
 		>;
 	};
 
-	pinctrl_usdhc2_200mhz: usdhc2grp-200mhz {
+	pinctrl_usdhc2_200mhz: usdhc2-200mhzgrp {
 		fsl,pins = <
 			MX6SX_PAD_SD2_CLK__USDHC2_CLK		0x100f9
 			MX6SX_PAD_SD2_CMD__USDHC2_CMD		0x170f9
@@ -449,7 +449,7 @@
 		>;
 	};
 
-	pinctrl_usdhc4_50mhz: usdhc4grp-50mhz {
+	pinctrl_usdhc4_50mhz: usdhc4-50mhzgrp {
 		fsl,pins = <
 			MX6SX_PAD_SD4_CLK__USDHC4_CLK		0x10059
 			MX6SX_PAD_SD4_CMD__USDHC4_CMD		0x17059
@@ -465,7 +465,7 @@
 		>;
 	};
 
-	pinctrl_usdhc4_100mhz: usdhc4-100mhz {
+	pinctrl_usdhc4_100mhz: usdhc4-100mhzgrp {
 		fsl,pins = <
 			MX6SX_PAD_SD4_CLK__USDHC4_CLK		0x100b9
 			MX6SX_PAD_SD4_CMD__USDHC4_CMD		0x170b9
@@ -480,7 +480,7 @@
 		>;
 	};
 
-	pinctrl_usdhc4_200mhz: usdhc4-200mhz {
+	pinctrl_usdhc4_200mhz: usdhc4-200mhzgrp {
 		fsl,pins = <
 			MX6SX_PAD_SD4_CLK__USDHC4_CLK		0x100f9
 			MX6SX_PAD_SD4_CMD__USDHC4_CMD		0x170f9

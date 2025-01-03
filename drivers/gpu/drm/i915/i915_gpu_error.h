@@ -14,8 +14,6 @@
 
 #include <drm/drm_mm.h>
 
-#include "display/intel_display_device.h"
-#include "display/intel_display_params.h"
 #include "gt/intel_engine.h"
 #include "gt/intel_engine_types.h"
 #include "gt/intel_gt_types.h"
@@ -31,7 +29,7 @@
 struct drm_i915_private;
 struct i915_vma_compress;
 struct intel_engine_capture_vma;
-struct intel_overlay_error_state;
+struct intel_display_snapshot;
 
 struct i915_vma_coredump {
 	struct i915_vma_coredump *next;
@@ -212,15 +210,12 @@ struct i915_gpu_coredump {
 
 	struct intel_device_info device_info;
 	struct intel_runtime_info runtime_info;
-	struct intel_display_device_info display_device_info;
-	struct intel_display_runtime_info display_runtime_info;
 	struct intel_driver_caps driver_caps;
 	struct i915_params params;
-	struct intel_display_params display_params;
-
-	struct intel_overlay_error_state *overlay;
 
 	struct scatterlist *sgl, *fit;
+
+	struct intel_display_snapshot *display_snapshot;
 };
 
 struct i915_gpu_error {

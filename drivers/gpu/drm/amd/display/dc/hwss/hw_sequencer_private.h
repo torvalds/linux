@@ -182,6 +182,7 @@ struct hwseq_private_funcs {
 			struct pipe_ctx *pipe_ctx,
 			struct dc_cm2_func_luts mcm_luts,
 			bool lut_bank_a);
+	void (*perform_3dlut_wa_unlock)(struct pipe_ctx *pipe_ctx);
 };
 
 struct dce_hwseq {

@@ -989,5 +989,11 @@ ice_devlink_port_new(struct devlink *devlink,
 	if (err)
 		return err;
 
+	if (!ice_is_eswitch_mode_switchdev(pf)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "SF ports are only supported in eswitch switchdev mode");
+		return -EOPNOTSUPP;
+	}
+
 	return ice_alloc_dynamic_port(pf, new_attr, extack, devlink_port);
 }

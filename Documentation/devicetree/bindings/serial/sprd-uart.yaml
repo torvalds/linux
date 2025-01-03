@@ -17,6 +17,7 @@ properties:
     oneOf:
       - items:
           - enum:
+              - sprd,sc9632-uart
               - sprd,sc9860-uart
               - sprd,sc9863a-uart
               - sprd,ums512-uart

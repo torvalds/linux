@@ -24,11 +24,11 @@
 
 static char *fw_path;
 module_param(fw_path, charp, 0444);
-MODULE_PARM_DESC(fw_path, "alternate path for SOF firmware.");
+MODULE_PARM_DESC(fw_path, "deprecated - moved to snd-sof module.");
 
 static char *tplg_path;
 module_param(tplg_path, charp, 0444);
-MODULE_PARM_DESC(tplg_path, "alternate path for SOF topology.");
+MODULE_PARM_DESC(tplg_path, "deprecated - moved to snd-sof module.");
 
 static int sof_acpi_debug;
 module_param_named(sof_acpi_debug, sof_acpi_debug, int, 0444);

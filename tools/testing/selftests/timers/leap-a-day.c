@@ -48,9 +48,9 @@
 #include <string.h>
 #include <signal.h>
 #include <unistd.h>
+#include <include/vdso/time64.h>
 #include "../kselftest.h"
 
-#define NSEC_PER_SEC 1000000000ULL
 #define CLOCK_TAI 11
 
 time_t next_leap;

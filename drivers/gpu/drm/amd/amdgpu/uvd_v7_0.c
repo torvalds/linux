@@ -361,9 +361,9 @@ error:
 	return r;
 }
 
-static int uvd_v7_0_early_init(void *handle)
+static int uvd_v7_0_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (adev->asic_type == CHIP_VEGA20) {
 		u32 harvest;
@@ -395,12 +395,12 @@ static int uvd_v7_0_early_init(void *handle)
 	return 0;
 }
 
-static int uvd_v7_0_sw_init(void *handle)
+static int uvd_v7_0_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_ring *ring;
 
 	int i, j, r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	for (j = 0; j < adev->uvd.num_uvd_inst; j++) {
 		if (adev->uvd.harvest_config & (1 << j))
@@ -487,10 +487,10 @@ static int uvd_v7_0_sw_init(void *handle)
 	return r;
 }
 
-static int uvd_v7_0_sw_fini(void *handle)
+static int uvd_v7_0_sw_fini(struct amdgpu_ip_block *ip_block)
 {
 	int i, j, r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	amdgpu_virt_free_mm_table(adev);
 
@@ -510,13 +510,13 @@ static int uvd_v7_0_sw_fini(void *handle)
 /**
  * uvd_v7_0_hw_init - start and test UVD block
  *
- * @handle: handle used to pass amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  * Initialize the hardware, boot up the VCPU and do some testing
  */
-static int uvd_v7_0_hw_init(void *handle)
+static int uvd_v7_0_hw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_ring *ring;
 	uint32_t tmp;
 	int i, j, r;
@@ -588,13 +588,13 @@ done:
 /**
  * uvd_v7_0_hw_fini - stop the hardware block
  *
- * @handle: handle used to pass amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  * Stop the UVD block, mark ring as not ready any more
  */
-static int uvd_v7_0_hw_fini(void *handle)
+static int uvd_v7_0_hw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	cancel_delayed_work_sync(&adev->uvd.idle_work);
 
@@ -608,17 +608,17 @@ static int uvd_v7_0_hw_fini(void *handle)
 	return 0;
 }
 
-static int uvd_v7_0_prepare_suspend(void *handle)
+static int uvd_v7_0_prepare_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	return amdgpu_uvd_prepare_suspend(adev);
 }
 
-static int uvd_v7_0_suspend(void *handle)
+static int uvd_v7_0_suspend(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	/*
 	 * Proper cleanups before halting the HW engine:
@@ -644,23 +644,22 @@ static int uvd_v7_0_suspend(void *handle)
 						       AMD_CG_STATE_GATE);
 	}
 
-	r = uvd_v7_0_hw_fini(adev);
+	r = uvd_v7_0_hw_fini(ip_block);
 	if (r)
 		return r;
 
 	return amdgpu_uvd_suspend(adev);
 }
 
-static int uvd_v7_0_resume(void *handle)
+static int uvd_v7_0_resume(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	r = amdgpu_uvd_resume(adev);
+	r = amdgpu_uvd_resume(ip_block->adev);
 	if (r)
 		return r;
 
-	return uvd_v7_0_hw_init(adev);
+	return uvd_v7_0_hw_init(ip_block);
 }
 
 /**
@@ -1463,104 +1462,6 @@ static void uvd_v7_0_enc_ring_emit_wreg(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, val);
 }
 
-#if 0
-static bool uvd_v7_0_is_idle(void *handle)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	return !(RREG32(mmSRBM_STATUS) & SRBM_STATUS__UVD_BUSY_MASK);
-}
-
-static int uvd_v7_0_wait_for_idle(void *handle)
-{
-	unsigned i;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	for (i = 0; i < adev->usec_timeout; i++) {
-		if (uvd_v7_0_is_idle(handle))
-			return 0;
-	}
-	return -ETIMEDOUT;
-}
-
-#define AMDGPU_UVD_STATUS_BUSY_MASK    0xfd
-static bool uvd_v7_0_check_soft_reset(void *handle)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	u32 srbm_soft_reset = 0;
-	u32 tmp = RREG32(mmSRBM_STATUS);
-
-	if (REG_GET_FIELD(tmp, SRBM_STATUS, UVD_RQ_PENDING) ||
-	    REG_GET_FIELD(tmp, SRBM_STATUS, UVD_BUSY) ||
-	    (RREG32_SOC15(UVD, ring->me, mmUVD_STATUS) &
-		    AMDGPU_UVD_STATUS_BUSY_MASK))
-		srbm_soft_reset = REG_SET_FIELD(srbm_soft_reset,
-				SRBM_SOFT_RESET, SOFT_RESET_UVD, 1);
-
-	if (srbm_soft_reset) {
-		adev->uvd.inst[ring->me].srbm_soft_reset = srbm_soft_reset;
-		return true;
-	} else {
-		adev->uvd.inst[ring->me].srbm_soft_reset = 0;
-		return false;
-	}
-}
-
-static int uvd_v7_0_pre_soft_reset(void *handle)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	if (!adev->uvd.inst[ring->me].srbm_soft_reset)
-		return 0;
-
-	uvd_v7_0_stop(adev);
-	return 0;
-}
-
-static int uvd_v7_0_soft_reset(void *handle)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	u32 srbm_soft_reset;
-
-	if (!adev->uvd.inst[ring->me].srbm_soft_reset)
-		return 0;
-	srbm_soft_reset = adev->uvd.inst[ring->me].srbm_soft_reset;
-
-	if (srbm_soft_reset) {
-		u32 tmp;
-
-		tmp = RREG32(mmSRBM_SOFT_RESET);
-		tmp |= srbm_soft_reset;
-		dev_info(adev->dev, "SRBM_SOFT_RESET=0x%08X\n", tmp);
-		WREG32(mmSRBM_SOFT_RESET, tmp);
-		tmp = RREG32(mmSRBM_SOFT_RESET);
-
-		udelay(50);
-
-		tmp &= ~srbm_soft_reset;
-		WREG32(mmSRBM_SOFT_RESET, tmp);
-		tmp = RREG32(mmSRBM_SOFT_RESET);
-
-		/* Wait a little for things to settle down */
-		udelay(50);
-	}
-
-	return 0;
-}
-
-static int uvd_v7_0_post_soft_reset(void *handle)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	if (!adev->uvd.inst[ring->me].srbm_soft_reset)
-		return 0;
-
-	mdelay(5);
-
-	return uvd_v7_0_start(adev);
-}
-#endif
-
 static int uvd_v7_0_set_interrupt_state(struct amdgpu_device *adev,
 					struct amdgpu_irq_src *source,
 					unsigned type,
@@ -1610,171 +1511,6 @@ static int uvd_v7_0_process_interrupt(struct amdgpu_device *adev,
 	return 0;
 }
 
-#if 0
-static void uvd_v7_0_set_sw_clock_gating(struct amdgpu_device *adev)
-{
-	uint32_t data, data1, data2, suvd_flags;
-
-	data = RREG32_SOC15(UVD, ring->me, mmUVD_CGC_CTRL);
-	data1 = RREG32_SOC15(UVD, ring->me, mmUVD_SUVD_CGC_GATE);
-	data2 = RREG32_SOC15(UVD, ring->me, mmUVD_SUVD_CGC_CTRL);
-
-	data &= ~(UVD_CGC_CTRL__CLK_OFF_DELAY_MASK |
-		  UVD_CGC_CTRL__CLK_GATE_DLY_TIMER_MASK);
-
-	suvd_flags = UVD_SUVD_CGC_GATE__SRE_MASK |
-		     UVD_SUVD_CGC_GATE__SIT_MASK |
-		     UVD_SUVD_CGC_GATE__SMP_MASK |
-		     UVD_SUVD_CGC_GATE__SCM_MASK |
-		     UVD_SUVD_CGC_GATE__SDB_MASK;
-
-	data |= UVD_CGC_CTRL__DYN_CLOCK_MODE_MASK |
-		(1 << REG_FIELD_SHIFT(UVD_CGC_CTRL, CLK_GATE_DLY_TIMER)) |
-		(4 << REG_FIELD_SHIFT(UVD_CGC_CTRL, CLK_OFF_DELAY));
-
-	data &= ~(UVD_CGC_CTRL__UDEC_RE_MODE_MASK |
-			UVD_CGC_CTRL__UDEC_CM_MODE_MASK |
-			UVD_CGC_CTRL__UDEC_IT_MODE_MASK |
-			UVD_CGC_CTRL__UDEC_DB_MODE_MASK |
-			UVD_CGC_CTRL__UDEC_MP_MODE_MASK |
-			UVD_CGC_CTRL__SYS_MODE_MASK |
-			UVD_CGC_CTRL__UDEC_MODE_MASK |
-			UVD_CGC_CTRL__MPEG2_MODE_MASK |
-			UVD_CGC_CTRL__REGS_MODE_MASK |
-			UVD_CGC_CTRL__RBC_MODE_MASK |
-			UVD_CGC_CTRL__LMI_MC_MODE_MASK |
-			UVD_CGC_CTRL__LMI_UMC_MODE_MASK |
-			UVD_CGC_CTRL__IDCT_MODE_MASK |
-			UVD_CGC_CTRL__MPRD_MODE_MASK |
-			UVD_CGC_CTRL__MPC_MODE_MASK |
-			UVD_CGC_CTRL__LBSI_MODE_MASK |
-			UVD_CGC_CTRL__LRBBM_MODE_MASK |
-			UVD_CGC_CTRL__WCB_MODE_MASK |
-			UVD_CGC_CTRL__VCPU_MODE_MASK |
-			UVD_CGC_CTRL__JPEG_MODE_MASK |
-			UVD_CGC_CTRL__JPEG2_MODE_MASK |
-			UVD_CGC_CTRL__SCPU_MODE_MASK);
-	data2 &= ~(UVD_SUVD_CGC_CTRL__SRE_MODE_MASK |
-			UVD_SUVD_CGC_CTRL__SIT_MODE_MASK |
-			UVD_SUVD_CGC_CTRL__SMP_MODE_MASK |
-			UVD_SUVD_CGC_CTRL__SCM_MODE_MASK |
-			UVD_SUVD_CGC_CTRL__SDB_MODE_MASK);
-	data1 |= suvd_flags;
-
-	WREG32_SOC15(UVD, ring->me, mmUVD_CGC_CTRL, data);
-	WREG32_SOC15(UVD, ring->me, mmUVD_CGC_GATE, 0);
-	WREG32_SOC15(UVD, ring->me, mmUVD_SUVD_CGC_GATE, data1);
-	WREG32_SOC15(UVD, ring->me, mmUVD_SUVD_CGC_CTRL, data2);
-}
-
-static void uvd_v7_0_set_hw_clock_gating(struct amdgpu_device *adev)
-{
-	uint32_t data, data1, cgc_flags, suvd_flags;
-
-	data = RREG32_SOC15(UVD, ring->me, mmUVD_CGC_GATE);
-	data1 = RREG32_SOC15(UVD, ring->me, mmUVD_SUVD_CGC_GATE);
-
-	cgc_flags = UVD_CGC_GATE__SYS_MASK |
-		UVD_CGC_GATE__UDEC_MASK |
-		UVD_CGC_GATE__MPEG2_MASK |
-		UVD_CGC_GATE__RBC_MASK |
-		UVD_CGC_GATE__LMI_MC_MASK |
-		UVD_CGC_GATE__IDCT_MASK |
-		UVD_CGC_GATE__MPRD_MASK |
-		UVD_CGC_GATE__MPC_MASK |
-		UVD_CGC_GATE__LBSI_MASK |
-		UVD_CGC_GATE__LRBBM_MASK |
-		UVD_CGC_GATE__UDEC_RE_MASK |
-		UVD_CGC_GATE__UDEC_CM_MASK |
-		UVD_CGC_GATE__UDEC_IT_MASK |
-		UVD_CGC_GATE__UDEC_DB_MASK |
-		UVD_CGC_GATE__UDEC_MP_MASK |
-		UVD_CGC_GATE__WCB_MASK |
-		UVD_CGC_GATE__VCPU_MASK |
-		UVD_CGC_GATE__SCPU_MASK |
-		UVD_CGC_GATE__JPEG_MASK |
-		UVD_CGC_GATE__JPEG2_MASK;
-
-	suvd_flags = UVD_SUVD_CGC_GATE__SRE_MASK |
-				UVD_SUVD_CGC_GATE__SIT_MASK |
-				UVD_SUVD_CGC_GATE__SMP_MASK |
-				UVD_SUVD_CGC_GATE__SCM_MASK |
-				UVD_SUVD_CGC_GATE__SDB_MASK;
-
-	data |= cgc_flags;
-	data1 |= suvd_flags;
-
-	WREG32_SOC15(UVD, ring->me, mmUVD_CGC_GATE, data);
-	WREG32_SOC15(UVD, ring->me, mmUVD_SUVD_CGC_GATE, data1);
-}
-
-static void uvd_v7_0_set_bypass_mode(struct amdgpu_device *adev, bool enable)
-{
-	u32 tmp = RREG32_SMC(ixGCK_DFS_BYPASS_CNTL);
-
-	if (enable)
-		tmp |= (GCK_DFS_BYPASS_CNTL__BYPASSDCLK_MASK |
-			GCK_DFS_BYPASS_CNTL__BYPASSVCLK_MASK);
-	else
-		tmp &= ~(GCK_DFS_BYPASS_CNTL__BYPASSDCLK_MASK |
-			 GCK_DFS_BYPASS_CNTL__BYPASSVCLK_MASK);
-
-	WREG32_SMC(ixGCK_DFS_BYPASS_CNTL, tmp);
-}
-
-
-static int uvd_v7_0_set_clockgating_state(void *handle,
-					  enum amd_clockgating_state state)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	bool enable = (state == AMD_CG_STATE_GATE);
-
-	uvd_v7_0_set_bypass_mode(adev, enable);
-
-	if (!(adev->cg_flags & AMD_CG_SUPPORT_UVD_MGCG))
-		return 0;
-
-	if (enable) {
-		/* disable HW gating and enable Sw gating */
-		uvd_v7_0_set_sw_clock_gating(adev);
-	} else {
-		/* wait for STATUS to clear */
-		if (uvd_v7_0_wait_for_idle(handle))
-			return -EBUSY;
-
-		/* enable HW gates because UVD is idle */
-		/* uvd_v7_0_set_hw_clock_gating(adev); */
-	}
-
-	return 0;
-}
-
-static int uvd_v7_0_set_powergating_state(void *handle,
-					  enum amd_powergating_state state)
-{
-	/* This doesn't actually powergate the UVD block.
-	 * That's done in the dpm code via the SMC.  This
-	 * just re-inits the block as necessary.  The actual
-	 * gating still happens in the dpm code.  We should
-	 * revisit this when there is a cleaner line between
-	 * the smc and the hw blocks
-	 */
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	if (!(adev->pg_flags & AMD_PG_SUPPORT_UVD))
-		return 0;
-
-	WREG32_SOC15(UVD, ring->me, mmUVD_POWER_STATUS, UVD_POWER_STATUS__UVD_PG_EN_MASK);
-
-	if (state == AMD_PG_STATE_GATE) {
-		uvd_v7_0_stop(adev);
-		return 0;
-	} else {
-		return uvd_v7_0_start(adev);
-	}
-}
-#endif
-
 static int uvd_v7_0_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
@@ -1785,7 +1521,6 @@ static int uvd_v7_0_set_clockgating_state(void *handle,
 const struct amd_ip_funcs uvd_v7_0_ip_funcs = {
 	.name = "uvd_v7_0",
 	.early_init = uvd_v7_0_early_init,
-	.late_init = NULL,
 	.sw_init = uvd_v7_0_sw_init,
 	.sw_fini = uvd_v7_0_sw_fini,
 	.hw_init = uvd_v7_0_hw_init,
@@ -1793,12 +1528,6 @@ const struct amd_ip_funcs uvd_v7_0_ip_funcs = {
 	.prepare_suspend = uvd_v7_0_prepare_suspend,
 	.suspend = uvd_v7_0_suspend,
 	.resume = uvd_v7_0_resume,
-	.is_idle = NULL /* uvd_v7_0_is_idle */,
-	.wait_for_idle = NULL /* uvd_v7_0_wait_for_idle */,
-	.check_soft_reset = NULL /* uvd_v7_0_check_soft_reset */,
-	.pre_soft_reset = NULL /* uvd_v7_0_pre_soft_reset */,
-	.soft_reset = NULL /* uvd_v7_0_soft_reset */,
-	.post_soft_reset = NULL /* uvd_v7_0_post_soft_reset */,
 	.set_clockgating_state = uvd_v7_0_set_clockgating_state,
 	.set_powergating_state = NULL /* uvd_v7_0_set_powergating_state */,
 };

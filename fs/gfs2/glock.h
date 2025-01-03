@@ -245,6 +245,7 @@ static inline int gfs2_glock_nq_init(struct gfs2_glock *gl,
 void gfs2_glock_cb(struct gfs2_glock *gl, unsigned int state);
 void gfs2_glock_complete(struct gfs2_glock *gl, int ret);
 bool gfs2_queue_try_to_evict(struct gfs2_glock *gl);
+bool gfs2_queue_verify_delete(struct gfs2_glock *gl, bool later);
 void gfs2_cancel_delete_work(struct gfs2_glock *gl);
 void gfs2_flush_delete_work(struct gfs2_sbd *sdp);
 void gfs2_gl_hash_clear(struct gfs2_sbd *sdp);
@@ -283,5 +284,11 @@ static inline bool gfs2_holder_queued(struct gfs2_holder *gh)
 
 void gfs2_inode_remember_delete(struct gfs2_glock *gl, u64 generation);
 bool gfs2_inode_already_deleted(struct gfs2_glock *gl, u64 generation);
+
+static inline bool glock_needs_demote(struct gfs2_glock *gl)
+{
+	return (test_bit(GLF_DEMOTE, &gl->gl_flags) ||
+		test_bit(GLF_PENDING_DEMOTE, &gl->gl_flags));
+}
 
 #endif /* __GLOCK_DOT_H__ */

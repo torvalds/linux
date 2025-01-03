@@ -1249,7 +1249,7 @@ struct wmi_rssi_threshold_params_cmd {
 	/* highest of upper */
 	a_sle16 thresh_above6_val;
 
-	/* lowest of bellow */
+	/* lowest of below */
 	a_sle16 thresh_below1_val;
 
 	a_sle16 thresh_below2_val;
@@ -1257,7 +1257,7 @@ struct wmi_rssi_threshold_params_cmd {
 	a_sle16 thresh_below4_val;
 	a_sle16 thresh_below5_val;
 
-	/* highest of bellow */
+	/* highest of below */
 	a_sle16 thresh_below6_val;
 
 	/* "alpha" */
@@ -1287,13 +1287,13 @@ struct wmi_snr_threshold_params_cmd {
 	/* highest of upper */
 	u8 thresh_above4_val;
 
-	/* lowest of bellow */
+	/* lowest of below */
 	u8 thresh_below1_val;
 
 	u8 thresh_below2_val;
 	u8 thresh_below3_val;
 
-	/* highest of bellow */
+	/* highest of below */
 	u8 thresh_below4_val;
 
 	u8 reserved[3];

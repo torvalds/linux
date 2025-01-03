@@ -202,6 +202,21 @@ static void rtw_vif_watch_dog_iter(void *data, struct ieee80211_vif *vif)
 	rtwvif->stats.rx_cnt = 0;
 }
 
+static void rtw_sw_beacon_loss_check(struct rtw_dev *rtwdev,
+				     struct rtw_vif *rtwvif, int received_beacons)
+{
+	int watchdog_delay = 2000000 / 1024; /* TU */
+	int beacon_int, expected_beacons;
+
+	if (rtw_fw_feature_check(&rtwdev->fw, FW_FEATURE_BCN_FILTER) || !rtwvif)
+		return;
+
+	beacon_int = rtwvif_to_vif(rtwvif)->bss_conf.beacon_int;
+	expected_beacons = DIV_ROUND_UP(watchdog_delay, beacon_int);
+
+	rtwdev->beacon_loss = received_beacons < expected_beacons / 2;
+}
+
 /* process TX/RX statistics periodically for hardware,
  * the information helps hardware to enhance performance
  */
@@ -212,6 +227,7 @@ static void rtw_watch_dog_work(struct work_struct *work)
 	struct rtw_traffic_stats *stats = &rtwdev->stats;
 	struct rtw_watch_dog_iter_data data = {};
 	bool busy_traffic = test_bit(RTW_FLAG_BUSY_TRAFFIC, rtwdev->flags);
+	int received_beacons = rtwdev->dm_info.cur_pkt_count.num_bcn_pkt;
 	u32 tx_unicast_mbps, rx_unicast_mbps;
 	bool ps_active;
 
@@ -258,6 +274,7 @@ static void rtw_watch_dog_work(struct work_struct *work)
 	rtw_leave_lps(rtwdev);
 	rtw_coex_wl_status_check(rtwdev);
 	rtw_coex_query_bt_hid_list(rtwdev);
+	rtw_coex_active_query_bt_info(rtwdev);
 
 	rtw_phy_dynamic_mechanism(rtwdev);
 
@@ -269,6 +286,8 @@ static void rtw_watch_dog_work(struct work_struct *work)
 	 * to avoid taking local->iflist_mtx mutex
 	 */
 	rtw_iterate_vifs(rtwdev, rtw_vif_watch_dog_iter, &data);
+
+	rtw_sw_beacon_loss_check(rtwdev, data.rtwvif, received_beacons);
 
 	/* fw supports only one station associated to enter lps, if there are
 	 * more than two stations associated to the AP, then we can not enter
@@ -1309,7 +1328,7 @@ void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si,
 	rtw_fw_send_ra_info(rtwdev, si, reset_ra_mask);
 }
 
-static int rtw_wait_firmware_completion(struct rtw_dev *rtwdev)
+int rtw_wait_firmware_completion(struct rtw_dev *rtwdev)
 {
 	const struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_fw_state *fw;
@@ -1329,6 +1348,7 @@ static int rtw_wait_firmware_completion(struct rtw_dev *rtwdev)
 
 	return ret;
 }
+EXPORT_SYMBOL(rtw_wait_firmware_completion);
 
 static enum rtw_lps_deep_mode rtw_update_lps_deep_mode(struct rtw_dev *rtwdev,
 						       struct rtw_fw_state *fw)
@@ -1350,7 +1370,7 @@ static enum rtw_lps_deep_mode rtw_update_lps_deep_mode(struct rtw_dev *rtwdev,
 	return LPS_DEEP_MODE_NONE;
 }
 
-static int rtw_power_on(struct rtw_dev *rtwdev)
+int rtw_power_on(struct rtw_dev *rtwdev)
 {
 	const struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_fw_state *fw = &rtwdev->fw;
@@ -1413,6 +1433,7 @@ err_off:
 err:
 	return ret;
 }
+EXPORT_SYMBOL(rtw_power_on);
 
 void rtw_core_fw_scan_notify(struct rtw_dev *rtwdev, bool start)
 {
@@ -1485,7 +1506,7 @@ int rtw_core_start(struct rtw_dev *rtwdev)
 {
 	int ret;
 
-	ret = rtw_power_on(rtwdev);
+	ret = rtwdev->chip->ops->power_on(rtwdev);
 	if (ret)
 		return ret;
 
@@ -1505,12 +1526,13 @@ int rtw_core_start(struct rtw_dev *rtwdev)
 	return 0;
 }
 
-static void rtw_power_off(struct rtw_dev *rtwdev)
+void rtw_power_off(struct rtw_dev *rtwdev)
 {
 	rtw_hci_stop(rtwdev);
 	rtw_coex_power_off_setting(rtwdev);
 	rtw_mac_power_off(rtwdev);
 }
+EXPORT_SYMBOL(rtw_power_off);
 
 void rtw_core_stop(struct rtw_dev *rtwdev)
 {
@@ -1535,7 +1557,7 @@ void rtw_core_stop(struct rtw_dev *rtwdev)
 
 	mutex_lock(&rtwdev->mutex);
 
-	rtw_power_off(rtwdev);
+	rtwdev->chip->ops->power_off(rtwdev);
 }
 
 static void rtw_init_ht_cap(struct rtw_dev *rtwdev,
@@ -1916,6 +1938,9 @@ static int rtw_dump_hw_feature(struct rtw_dev *rtwdev)
 	u8 id;
 	u8 bw;
 	int i;
+
+	if (!rtwdev->chip->hw_feature_report)
+		return 0;
 
 	id = rtw_read8(rtwdev, REG_C2HEVT);
 	if (id != C2H_HW_FEATURE_REPORT) {

@@ -3,7 +3,7 @@
 cpupower\-set \- Set processor power related kernel or hardware configurations
 .SH SYNOPSIS
 .ft B
-.B cpupower set [ \-b VAL ]
+.B cpupower set [ \-b VAL | \-e POLICY | \-m MODE | \-t BOOL ]
 
 
 .SH DESCRIPTION
@@ -19,7 +19,7 @@ described in the Options sections.
 Use \fBcpupower info \fP to read out current settings and whether they are
 supported on the system at all.
 
-.SH Options
+.SH OPTIONS
 .PP
 \-\-perf-bias, \-b
 .RS 4
@@ -54,6 +54,40 @@ hardware restrictions.
 Use \fBcpupower -c all info -b\fP to verify.
 
 This options needs the msr kernel driver (CONFIG_X86_MSR) loaded.
+.RE
+
+.PP
+\-\-epp, \-e
+.RS 4
+Sets the energy performance policy preference on supported Intel or AMD
+processors which use the Intel or AMD P-State cpufreq driver respectively.
+
+Available policies can be found with
+\fBcat /sys/devices/system/cpu/cpufreq/policy0/energy_performance_available_preferences\fP :
+.RS 4
+default performance balance_performance balance_power power
+.RE
+
+.RE
+
+.PP
+\-\-amd\-pstate\-mode, \-m
+.RS 4
+Sets the AMD P-State mode for supported AMD processors.
+Available modes are "active", "guided" or "passive".
+
+Refer to the AMD P-State kernel documentation for further information.
+
+.RE
+
+.PP
+\-\-turbo\-boost, \-t
+.RS 4
+This option is used to enable or disable the turbo boost feature on
+supported Intel and AMD processors.
+
+This option takes as parameter either \fB1\fP to enable, or \fB0\fP to disable the feature.
+
 .RE
 
 .SH "SEE ALSO"

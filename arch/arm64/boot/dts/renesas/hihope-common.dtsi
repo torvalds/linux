@@ -198,6 +198,8 @@
 		#clock-cells = <1>;
 		clocks = <&x304_clk>;
 		clock-names = "xin";
+		idt,shutdown = <0>;
+		idt,output-enable-active = <1>;
 	};
 };
 
@@ -325,8 +327,7 @@
 	wlcore: wlcore@2 {
 		compatible = "ti,wl1837";
 		reg = <2>;
-		interrupt-parent = <&gpio2>;
-		interrupts = <5 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts-extended = <&gpio2 5 IRQ_TYPE_LEVEL_HIGH>;
 	};
 };
 

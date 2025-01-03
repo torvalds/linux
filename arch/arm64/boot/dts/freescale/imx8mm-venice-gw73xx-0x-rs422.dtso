@@ -18,10 +18,6 @@
 /dts-v1/;
 /plugin/;
 
-&{/} {
-	compatible = "gw,imx8mm-gw73xx-0x";
-};
-
 &gpio4 {
 	rs485-en-hog {
 		gpio-hog;

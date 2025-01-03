@@ -363,7 +363,7 @@ MODULE_DEVICE_TABLE(of, dc_i2c_match);
 
 static struct platform_driver dc_i2c_driver = {
 	.probe   = dc_i2c_probe,
-	.remove_new = dc_i2c_remove,
+	.remove = dc_i2c_remove,
 	.driver  = {
 		.name  = "digicolor-i2c",
 		.of_match_table = dc_i2c_match,

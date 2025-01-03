@@ -18,7 +18,7 @@ struct hid_humidity_state {
 	struct hid_sensor_hub_attribute_info humidity_attr;
 	struct {
 		s32 humidity_data;
-		u64 timestamp __aligned(8);
+		aligned_s64 timestamp;
 	} scan;
 	int scale_pre_decml;
 	int scale_post_decml;
@@ -287,7 +287,7 @@ static struct platform_driver hid_humidity_platform_driver = {
 		.pm	= &hid_sensor_pm_ops,
 	},
 	.probe		= hid_humidity_probe,
-	.remove_new	= hid_humidity_remove,
+	.remove		= hid_humidity_remove,
 };
 module_platform_driver(hid_humidity_platform_driver);
 

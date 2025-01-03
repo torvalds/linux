@@ -707,11 +707,14 @@ int btrfs_check_zoned_mode(struct btrfs_fs_info *fs_info)
 		 * zoned mode. In this case, we don't have a valid max zone
 		 * append size.
 		 */
-		if (bdev_is_zoned(device->bdev)) {
-			blk_stack_limits(lim,
-					 &bdev_get_queue(device->bdev)->limits,
-					 0);
-		}
+		if (bdev_is_zoned(device->bdev))
+			blk_stack_limits(lim, bdev_limits(device->bdev), 0);
+	}
+
+	ret = blk_validate_limits(lim);
+	if (ret) {
+		btrfs_err(fs_info, "zoned: failed to validate queue limits");
+		return ret;
 	}
 
 	/*
@@ -1340,7 +1343,7 @@ static int btrfs_load_zone_info(struct btrfs_fs_info *fs_info, int zone_idx,
 	switch (zone.cond) {
 	case BLK_ZONE_COND_OFFLINE:
 	case BLK_ZONE_COND_READONLY:
-		btrfs_err(fs_info,
+		btrfs_err_in_rcu(fs_info,
 		"zoned: offline/readonly zone %llu on device %s (devid %llu)",
 			  (info->physical >> device->zone_info->zone_size_shift),
 			  rcu_str_deref(device->name), device->devid);
@@ -1739,7 +1742,7 @@ bool btrfs_use_zone_append(struct btrfs_bio *bbio)
 		return false;
 
 	/*
-	 * Using REQ_OP_ZONE_APPNED for relocation can break assumptions on the
+	 * Using REQ_OP_ZONE_APPEND for relocation can break assumptions on the
 	 * extent layout the relocation code has.
 	 * Furthermore we have set aside own block-group from which only the
 	 * relocation "process" can allocate and make sure only one process at a
@@ -1973,7 +1976,7 @@ int btrfs_check_meta_write_pointer(struct btrfs_fs_info *fs_info,
 	if (block_group->meta_write_pointer > eb->start)
 		return -EBUSY;
 
-	/* If for_sync, this hole will be filled with trasnsaction commit. */
+	/* If for_sync, this hole will be filled with transaction commit. */
 	if (wbc->sync_mode == WB_SYNC_ALL && !wbc->for_sync)
 		return -EAGAIN;
 	return -EBUSY;

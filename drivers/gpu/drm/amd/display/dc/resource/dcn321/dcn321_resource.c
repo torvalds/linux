@@ -686,7 +686,6 @@ static const struct dc_plane_cap plane_cap = {
 static const struct dc_debug_options debug_defaults_drv = {
 	.disable_dmcu = true,
 	.force_abm_enable = false,
-	.timing_trace = false,
 	.clock_trace = true,
 	.disable_pplib_clock_request = false,
 	.pipe_split_policy = MPC_SPLIT_AVOID,
@@ -1035,7 +1034,7 @@ static struct link_encoder *dcn321_link_encoder_create(
 	struct dcn20_link_encoder *enc20 =
 		kzalloc(sizeof(struct dcn20_link_encoder), GFP_KERNEL);
 
-	if (!enc20)
+	if (!enc20 || enc_init_data->hpd_source >= ARRAY_SIZE(link_enc_hpd_regs))
 		return NULL;
 
 #undef REG_STRUCT

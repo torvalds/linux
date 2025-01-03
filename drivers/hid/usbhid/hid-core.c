@@ -1100,7 +1100,7 @@ static int usbhid_start(struct hid_device *hid)
 
 		interval = endpoint->bInterval;
 
-		/* Some vendors give fullspeed interval on highspeed devides */
+		/* Some vendors give fullspeed interval on highspeed devices */
 		if (hid->quirks & HID_QUIRK_FULLSPEED_INTERVAL &&
 		    dev->speed == USB_SPEED_HIGH) {
 			interval = fls(endpoint->bInterval*8);

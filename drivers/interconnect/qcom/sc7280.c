@@ -1691,7 +1691,7 @@ static const struct qcom_icc_desc sc7280_aggre1_noc = {
 	.num_nodes = ARRAY_SIZE(aggre1_noc_nodes),
 	.bcms = aggre1_noc_bcms,
 	.num_bcms = ARRAY_SIZE(aggre1_noc_bcms),
-	.qos_clks_required = true,
+	.qos_requires_clocks = true,
 };
 
 static struct qcom_icc_bcm * const aggre2_noc_bcms[] = {
@@ -1723,7 +1723,7 @@ static const struct qcom_icc_desc sc7280_aggre2_noc = {
 	.num_nodes = ARRAY_SIZE(aggre2_noc_nodes),
 	.bcms = aggre2_noc_bcms,
 	.num_bcms = ARRAY_SIZE(aggre2_noc_bcms),
-	.qos_clks_required = true,
+	.qos_requires_clocks = true,
 };
 
 static struct qcom_icc_bcm * const clk_virt_bcms[] = {
@@ -2111,7 +2111,7 @@ MODULE_DEVICE_TABLE(of, qnoc_of_match);
 
 static struct platform_driver qnoc_driver = {
 	.probe = qcom_icc_rpmh_probe,
-	.remove_new = qcom_icc_rpmh_remove,
+	.remove = qcom_icc_rpmh_remove,
 	.driver = {
 		.name = "qnoc-sc7280",
 		.of_match_table = qnoc_of_match,

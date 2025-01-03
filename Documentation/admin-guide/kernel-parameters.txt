@@ -446,6 +446,9 @@
 	arm64.nobti	[ARM64] Unconditionally disable Branch Target
 			Identification support
 
+	arm64.nogcs	[ARM64] Unconditionally disable Guarded Control Stack
+			support
+
 	arm64.nomops	[ARM64] Unconditionally disable Memory Copy and Memory
 			Set instructions support
 
@@ -918,12 +921,16 @@
 			the parameter has no effect.
 
 	crash_kexec_post_notifiers
-			Run kdump after running panic-notifiers and dumping
-			kmsg. This only for the users who doubt kdump always
-			succeeds in any situation.
-			Note that this also increases risks of kdump failure,
-			because some panic notifiers can make the crashed
-			kernel more unstable.
+			Only jump to kdump kernel after running the panic
+			notifiers and dumping kmsg. This option increases
+			the risks of a kdump failure, since some panic
+			notifiers can make the crashed kernel more unstable.
+			In configurations where kdump may not be reliable,
+			running the panic notifiers could allow collecting
+			more data on dmesg, like stack traces from other CPUS
+			or extra data dumped by panic_print. Note that some
+			configurations enable this option unconditionally,
+			like Hyper-V, PowerPC (fadump) and AMD SEV-SNP.
 
 	crashkernel=size[KMG][@offset[KMG]]
 			[KNL,EARLY] Using kexec, Linux can switch to a 'crash kernel'
@@ -1546,6 +1553,7 @@
 	failslab=
 	fail_usercopy=
 	fail_page_alloc=
+	fail_skb_realloc=
 	fail_make_request=[KNL]
 			General fault injection mechanism.
 			Format: <interval>,<probability>,<space>,<times>
@@ -4678,6 +4686,10 @@
 		nomio		[S390] Do not use MIO instructions.
 		norid		[S390] ignore the RID field and force use of
 				one PCI domain per PCI function
+		notph		[PCIE] If the PCIE_TPH kernel config parameter
+				is enabled, this kernel boot option can be used
+				to disable PCIe TLP Processing Hints support
+				system-wide.
 
 	pcie_aspm=	[PCIE] Forcibly enable or ignore PCIe Active State Power
 			Management.
@@ -5412,11 +5424,6 @@
 			Set time (jiffies) between CPU-hotplug operations,
 			or zero to disable CPU-hotplug testing.
 
-	rcutorture.read_exit= [KNL]
-			Set the number of read-then-exit kthreads used
-			to test the interaction of RCU updaters and
-			task-exit processing.
-
 	rcutorture.read_exit_burst= [KNL]
 			The number of times in a given read-then-exit
 			episode that a set of read-then-exit kthreads
@@ -5425,6 +5432,14 @@
 	rcutorture.read_exit_delay= [KNL]
 			The delay, in seconds, between successive
 			read-then-exit testing episodes.
+
+	rcutorture.reader_flavor= [KNL]
+			A bit mask indicating which readers to use.
+			If there is more than one bit set, the readers
+			are entered from low-order bit up, and are
+			exited in the opposite order.  For SRCU, the
+			0x1 bit is normal readers, 0x2 NMI-safe readers,
+			and 0x4 light-weight readers.
 
 	rcutorture.shuffle_interval= [KNL]
 			Set task-shuffle interval (s).  Shuffling tasks
@@ -6060,6 +6075,10 @@
 			non-zero "wait" parameter.  See weight_single
 			and weight_many.
 
+	sdw_mclk_divider=[SDW]
+			Specify the MCLK divider for Intel SoundWire buses in
+			case the BIOS does not provide the clock rate properly.
+
 	skew_tick=	[KNL,EARLY] Offset the periodic timer tick per cpu to mitigate
 			xtime_lock contention on larger systems, and/or RCU lock
 			contention on all systems with CONFIG_MAXSMP set.
@@ -6146,6 +6165,16 @@
 			own.
 			For more information see Documentation/mm/slub.rst.
 			(slub_nomerge legacy name also accepted for now)
+
+	slab_strict_numa	[MM]
+			Support memory policies on a per object level
+			in the slab allocator. The default is for memory
+			policies to be applied at the folio level when
+			a new folio is needed or a partial folio is
+			retrieved from the lists. Increases overhead
+			in the slab fastpaths but gains more accurate
+			NUMA kernel object placement which helps with slow
+			interconnects in NUMA systems.
 
 	slram=		[HW,MTD]
 
@@ -6688,7 +6717,7 @@
 			0: no polling (default)
 
 	thp_anon=	[KNL]
-			Format: <size>,<size>[KMG]:<state>;<size>-<size>[KMG]:<state>
+			Format: <size>[KMG],<size>[KMG]:<state>;<size>[KMG]-<size>[KMG]:<state>
 			state is one of "always", "madvise", "never" or "inherit".
 			Control the default behavior of the system with respect
 			to anonymous transparent hugepages.
@@ -6699,6 +6728,16 @@
 	threadirqs	[KNL,EARLY]
 			Force threading of all interrupt handlers except those
 			marked explicitly IRQF_NO_THREAD.
+
+	thp_shmem=	[KNL]
+			Format: <size>[KMG],<size>[KMG]:<policy>;<size>[KMG]-<size>[KMG]:<policy>
+			Control the default policy of each hugepage size for the
+			internal shmem mount. <policy> is one of policies available
+			for the shmem mount ("always", "inherit", "never", "within_size",
+			and "advise").
+			It can be used multiple times for multiple shmem THP sizes.
+			See Documentation/admin-guide/mm/transhuge.rst for more
+			details.
 
 	topology=	[S390,EARLY]
 			Format: {off | on}
@@ -6726,6 +6765,15 @@
 
 	torture.verbose_sleep_duration= [KNL]
 			Duration of each verbose-printk() sleep in jiffies.
+
+	tpm.disable_pcr_integrity= [HW,TPM]
+			Do not protect PCR registers from unintended physical
+			access, or interposers in the bus by the means of
+			having an integrity protected session wrapped around
+			TPM2_PCR_Extend command. Consider this in a situation
+			where TPM is heavily utilized by IMA, thus protection
+			causing a major performance hit, and the space where
+			machines are deployed is by other means guarded.
 
 	tpm_suspend_pcr=[HW,TPM]
 			Format: integer pcr id
@@ -6867,6 +6915,12 @@
 
 				reserve_mem=12M:4096:trace trace_instance=boot_map^traceoff^traceprintk@trace,sched,irq
 
+			Note, saving the trace buffer across reboots does require that the system
+			is set up to not wipe memory. For instance, CONFIG_RESET_ATTACK_MITIGATION
+			can force a memory reset on boot which will clear any trace that was stored.
+			This is just one of many ways that can clear memory. Make sure your system
+			keeps the content of memory across reboots before relying on this option.
+
 			See also Documentation/trace/debugging.rst
 
 
@@ -6923,6 +6977,13 @@
 			Format: [always|madvise|never]
 			Can be used to control the default behavior of the system
 			with respect to transparent hugepages.
+			See Documentation/admin-guide/mm/transhuge.rst
+			for more details.
+
+	transparent_hugepage_shmem= [KNL]
+			Format: [always|within_size|advise|never|deny|force]
+			Can be used to control the hugepage allocation policy for
+			the internal shmem mount.
 			See Documentation/admin-guide/mm/transhuge.rst
 			for more details.
 

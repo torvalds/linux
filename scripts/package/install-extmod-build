@@ -44,14 +44,19 @@ mkdir -p "${destdir}"
 	fi
 } | tar -c -f - -T - | tar -xf - -C "${destdir}"
 
-# When ${CC} and ${HOSTCC} differ, we are likely cross-compiling. Rebuild host
-# programs using ${CC}. This assumes CC=${CROSS_COMPILE}gcc, which is usually
-# the case for package building. It does not cross-compile when CC=clang.
+# When ${CC} and ${HOSTCC} differ, rebuild host programs using ${CC}.
 #
 # This caters to host programs that participate in Kbuild. objtool and
 # resolve_btfids are out of scope.
-if [ "${CC}" != "${HOSTCC}" ] && is_enabled CONFIG_CC_CAN_LINK; then
+if [ "${CC}" != "${HOSTCC}" ]; then
 	echo "Rebuilding host programs with ${CC}..."
+
+	# This leverages external module building.
+	# - Clear sub_make_done to allow the top-level Makefile to redo sub-make.
+	# - Filter out --no-print-directory to print "Entering directory" logs
+	#   when Make changes the working directory.
+	unset sub_make_done
+	MAKEFLAGS=$(echo "${MAKEFLAGS}" | sed s/--no-print-directory//)
 
 	cat <<-'EOF' >  "${destdir}/Kbuild"
 	subdir-y := scripts

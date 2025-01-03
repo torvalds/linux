@@ -642,6 +642,15 @@ acpi_status acpi_os_read_port(acpi_io_address port, u32 *value, u32 width)
 {
 	u32 dummy;
 
+	if (!IS_ENABLED(CONFIG_HAS_IOPORT)) {
+		/*
+		 * set all-1 result as if reading from non-existing
+		 * I/O port
+		 */
+		*value = GENMASK(width, 0);
+		return AE_NOT_IMPLEMENTED;
+	}
+
 	if (value)
 		*value = 0;
 	else
@@ -665,6 +674,9 @@ EXPORT_SYMBOL(acpi_os_read_port);
 
 acpi_status acpi_os_write_port(acpi_io_address port, u32 value, u32 width)
 {
+	if (!IS_ENABLED(CONFIG_HAS_IOPORT))
+		return AE_NOT_IMPLEMENTED;
+
 	if (width <= 8) {
 		outb(value, port);
 	} else if (width <= 16) {

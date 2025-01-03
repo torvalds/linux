@@ -35,13 +35,6 @@ struct kraken2_priv_data {
 	unsigned long updated; /* jiffies */
 };
 
-static umode_t kraken2_is_visible(const void *data,
-				  enum hwmon_sensor_types type,
-				  u32 attr, int channel)
-{
-	return 0444;
-}
-
 static int kraken2_read(struct device *dev, enum hwmon_sensor_types type,
 			u32 attr, int channel, long *val)
 {
@@ -81,7 +74,7 @@ static int kraken2_read_string(struct device *dev, enum hwmon_sensor_types type,
 }
 
 static const struct hwmon_ops kraken2_hwmon_ops = {
-	.is_visible = kraken2_is_visible,
+	.visible = 0444,
 	.read = kraken2_read,
 	.read_string = kraken2_read_string,
 };

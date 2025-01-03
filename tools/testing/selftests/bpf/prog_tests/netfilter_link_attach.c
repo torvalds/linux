@@ -26,9 +26,42 @@ static const struct nf_link_test nf_hook_link_tests[] = {
 
 	{ .pf = NFPROTO_INET, .priority = 1, .name = "invalid-inet-not-supported", },
 
-	{ .pf = NFPROTO_IPV4, .priority = -10000, .expect_success = true, .name = "attach ipv4", },
-	{ .pf = NFPROTO_IPV6, .priority =  10001, .expect_success = true, .name = "attach ipv6", },
+	{
+		.pf = NFPROTO_IPV4,
+		.hooknum = NF_INET_POST_ROUTING,
+		.priority = -10000,
+		.flags = 0,
+		.expect_success = true,
+		.name = "attach ipv4",
+	},
+	{
+		.pf = NFPROTO_IPV6,
+		.hooknum = NF_INET_FORWARD,
+		.priority =  10001,
+		.flags = BPF_F_NETFILTER_IP_DEFRAG,
+		.expect_success = true,
+		.name = "attach ipv6",
+	},
 };
+
+static void verify_netfilter_link_info(struct bpf_link *link, const struct nf_link_test nf_expected)
+{
+	struct bpf_link_info info;
+	__u32 len = sizeof(info);
+	int err, fd;
+
+	memset(&info, 0, len);
+
+	fd = bpf_link__fd(link);
+	err = bpf_link_get_info_by_fd(fd, &info, &len);
+	ASSERT_OK(err, "get_link_info");
+
+	ASSERT_EQ(info.type, BPF_LINK_TYPE_NETFILTER, "info link type");
+	ASSERT_EQ(info.netfilter.pf, nf_expected.pf, "info nf protocol family");
+	ASSERT_EQ(info.netfilter.hooknum, nf_expected.hooknum, "info nf hooknum");
+	ASSERT_EQ(info.netfilter.priority, nf_expected.priority, "info nf priority");
+	ASSERT_EQ(info.netfilter.flags, nf_expected.flags, "info nf flags");
+}
 
 void test_netfilter_link_attach(void)
 {
@@ -64,6 +97,8 @@ void test_netfilter_link_attach(void)
 			if (!ASSERT_OK_PTR(link, "program attach successful"))
 				continue;
 
+			verify_netfilter_link_info(link, nf_hook_link_tests[i]);
+
 			link2 = bpf_program__attach_netfilter(prog, &opts);
 			ASSERT_ERR_PTR(link2, "attach program with same pf/hook/priority");
 
@@ -73,6 +108,9 @@ void test_netfilter_link_attach(void)
 			link2 = bpf_program__attach_netfilter(prog, &opts);
 			if (!ASSERT_OK_PTR(link2, "program reattach successful"))
 				continue;
+
+			verify_netfilter_link_info(link2, nf_hook_link_tests[i]);
+
 			if (!ASSERT_OK(bpf_link__destroy(link2), "link destroy"))
 				break;
 		} else {

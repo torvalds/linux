@@ -98,15 +98,14 @@ static int dw_spi_pci_probe(struct pci_dev *pdev, const struct pci_device_id *en
 	dws->paddr = pci_resource_start(pdev, pci_bar);
 	pci_set_master(pdev);
 
-	ret = pcim_iomap_regions(pdev, 1 << pci_bar, pci_name(pdev));
-	if (ret)
-		return ret;
-
 	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
 	if (ret < 0)
 		return ret;
 
-	dws->regs = pcim_iomap_table(pdev)[pci_bar];
+	dws->regs = pcim_iomap_region(pdev, pci_bar, pci_name(pdev));
+	if (IS_ERR(dws->regs))
+		return PTR_ERR(dws->regs);
+
 	dws->irq = pci_irq_vector(pdev, 0);
 
 	/*

@@ -563,7 +563,7 @@ MODULE_DEVICE_TABLE(of, sp7021_spi_controller_ids);
 
 static struct platform_driver sp7021_spi_controller_driver = {
 	.probe = sp7021_spi_controller_probe,
-	.remove_new = sp7021_spi_controller_remove,
+	.remove = sp7021_spi_controller_remove,
 	.driver = {
 		.name = "sunplus,sp7021-spi-controller",
 		.of_match_table = sp7021_spi_controller_ids,

@@ -98,21 +98,6 @@ The IPU6 driver exports its own DMA operations. The IPU6 driver will update the
 page table entries for each DMA operation and invalidate the MMU TLB after each
 unmap and free.
 
-.. code-block:: none
-
-    const struct dma_map_ops ipu6_dma_ops = {
-	   .alloc = ipu6_dma_alloc,
-	   .free = ipu6_dma_free,
-	   .mmap = ipu6_dma_mmap,
-	   .map_sg = ipu6_dma_map_sg,
-	   .unmap_sg = ipu6_dma_unmap_sg,
-	   ...
-    };
-
-.. Note:: IPU6 MMU works behind IOMMU so for each IPU6 DMA ops, driver will call
-	  generic PCI DMA ops to ask IOMMU to do the additional mapping if VT-d
-	  enabled.
-
 Firmware file format
 ====================
 

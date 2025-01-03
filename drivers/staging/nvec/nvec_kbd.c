@@ -175,7 +175,7 @@ static void nvec_kbd_remove(struct platform_device *pdev)
 
 static struct platform_driver nvec_kbd_driver = {
 	.probe  = nvec_kbd_probe,
-	.remove_new = nvec_kbd_remove,
+	.remove = nvec_kbd_remove,
 	.driver = {
 		.name = "nvec-kbd",
 	},

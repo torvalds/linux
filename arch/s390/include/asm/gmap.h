@@ -17,8 +17,8 @@
 #define GMAP_NOTIFY_MPROT	0x1
 
 /* Status bits only for huge segment entries */
-#define _SEGMENT_ENTRY_GMAP_IN		0x8000	/* invalidation notify bit */
-#define _SEGMENT_ENTRY_GMAP_UC		0x4000	/* dirty (migration) */
+#define _SEGMENT_ENTRY_GMAP_IN		0x0800	/* invalidation notify bit */
+#define _SEGMENT_ENTRY_GMAP_UC		0x0002	/* dirty (migration) */
 
 /**
  * struct gmap_struct - guest address space
@@ -107,9 +107,6 @@ void gmap_remove(struct gmap *gmap);
 struct gmap *gmap_get(struct gmap *gmap);
 void gmap_put(struct gmap *gmap);
 
-void gmap_enable(struct gmap *gmap);
-void gmap_disable(struct gmap *gmap);
-struct gmap *gmap_get_enabled(void);
 int gmap_map_segment(struct gmap *gmap, unsigned long from,
 		     unsigned long to, unsigned long len);
 int gmap_unmap_segment(struct gmap *gmap, unsigned long to, unsigned long len);

@@ -15,6 +15,7 @@
 #include <linux/percpu.h>
 #include <linux/io.h>
 #include <asm/alternative.h>
+#include <asm/asm.h>
 
 int spin_retry = -1;
 
@@ -76,23 +77,42 @@ static inline int arch_load_niai4(int *lock)
 
 	asm_inline volatile(
 		ALTERNATIVE("nop", ".insn rre,0xb2fa0000,4,0", ALT_FACILITY(49)) /* NIAI 4 */
-		"	l	%0,%1\n"
-		: "=d" (owner) : "Q" (*lock) : "memory");
+		"	l	%[owner],%[lock]\n"
+		: [owner] "=d" (owner) : [lock] "R" (*lock) : "memory");
 	return owner;
 }
 
-static inline int arch_cmpxchg_niai8(int *lock, int old, int new)
+#ifdef __HAVE_ASM_FLAG_OUTPUTS__
+
+static inline int arch_try_cmpxchg_niai8(int *lock, int old, int new)
+{
+	int cc;
+
+	asm_inline volatile(
+		ALTERNATIVE("nop", ".insn rre,0xb2fa0000,8,0", ALT_FACILITY(49)) /* NIAI 8 */
+		"	cs	%[old],%[new],%[lock]\n"
+		: [old] "+d" (old), [lock] "+Q" (*lock), "=@cc" (cc)
+		: [new] "d" (new)
+		: "memory");
+	return cc == 0;
+}
+
+#else /* __HAVE_ASM_FLAG_OUTPUTS__ */
+
+static inline int arch_try_cmpxchg_niai8(int *lock, int old, int new)
 {
 	int expected = old;
 
 	asm_inline volatile(
 		ALTERNATIVE("nop", ".insn rre,0xb2fa0000,8,0", ALT_FACILITY(49)) /* NIAI 8 */
-		"	cs	%0,%3,%1\n"
-		: "=d" (old), "=Q" (*lock)
-		: "0" (old), "d" (new), "Q" (*lock)
+		"	cs	%[old],%[new],%[lock]\n"
+		: [old] "+d" (old), [lock] "+Q" (*lock)
+		: [new] "d" (new)
 		: "cc", "memory");
 	return expected == old;
 }
+
+#endif /* __HAVE_ASM_FLAG_OUTPUTS__ */
 
 static inline struct spin_wait *arch_spin_decode_tail(int lock)
 {
@@ -127,8 +147,8 @@ static inline void arch_spin_lock_queued(arch_spinlock_t *lp)
 	node_id = node->node_id;
 
 	/* Enqueue the node for this CPU in the spinlock wait queue */
+	old = READ_ONCE(lp->lock);
 	while (1) {
-		old = READ_ONCE(lp->lock);
 		if ((old & _Q_LOCK_CPU_MASK) == 0 &&
 		    (old & _Q_LOCK_STEAL_MASK) != _Q_LOCK_STEAL_MASK) {
 			/*
@@ -139,7 +159,7 @@ static inline void arch_spin_lock_queued(arch_spinlock_t *lp)
 			 * waiter will get the lock.
 			 */
 			new = (old ? (old + _Q_LOCK_STEAL_ADD) : 0) | lockval;
-			if (__atomic_cmpxchg_bool(&lp->lock, old, new))
+			if (arch_try_cmpxchg(&lp->lock, &old, new))
 				/* Got the lock */
 				goto out;
 			/* lock passing in progress */
@@ -147,7 +167,7 @@ static inline void arch_spin_lock_queued(arch_spinlock_t *lp)
 		}
 		/* Make the node of this CPU the new tail. */
 		new = node_id | (old & _Q_LOCK_MASK);
-		if (__atomic_cmpxchg_bool(&lp->lock, old, new))
+		if (arch_try_cmpxchg(&lp->lock, &old, new))
 			break;
 	}
 	/* Set the 'next' pointer of the tail node in the queue */
@@ -184,7 +204,7 @@ static inline void arch_spin_lock_queued(arch_spinlock_t *lp)
 		if (!owner) {
 			tail_id = old & _Q_TAIL_MASK;
 			new = ((tail_id != node_id) ? tail_id : 0) | lockval;
-			if (__atomic_cmpxchg_bool(&lp->lock, old, new))
+			if (arch_try_cmpxchg(&lp->lock, &old, new))
 				/* Got the lock */
 				break;
 			continue;
@@ -226,7 +246,7 @@ static inline void arch_spin_lock_classic(arch_spinlock_t *lp)
 		/* Try to get the lock if it is free. */
 		if (!owner) {
 			new = (old & _Q_TAIL_MASK) | lockval;
-			if (arch_cmpxchg_niai8(&lp->lock, old, new)) {
+			if (arch_try_cmpxchg_niai8(&lp->lock, old, new)) {
 				/* Got the lock */
 				return;
 			}
@@ -258,7 +278,7 @@ int arch_spin_trylock_retry(arch_spinlock_t *lp)
 		owner = READ_ONCE(lp->lock);
 		/* Try to get the lock if it is free. */
 		if (!owner) {
-			if (__atomic_cmpxchg_bool(&lp->lock, 0, cpu))
+			if (arch_try_cmpxchg(&lp->lock, &owner, cpu))
 				return 1;
 		}
 	}
@@ -300,7 +320,7 @@ void arch_write_lock_wait(arch_rwlock_t *rw)
 	while (1) {
 		old = READ_ONCE(rw->cnts);
 		if ((old & 0x1ffff) == 0 &&
-		    __atomic_cmpxchg_bool(&rw->cnts, old, old | 0x10000))
+		    arch_try_cmpxchg(&rw->cnts, &old, old | 0x10000))
 			/* Got the lock */
 			break;
 		barrier();

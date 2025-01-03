@@ -866,7 +866,7 @@ mlx5_tc_ct_entry_add_rule(struct mlx5_tc_ct_priv *ct_priv,
 	return 0;
 
 err_rule:
-	mlx5_tc_ct_entry_destroy_mod_hdr(ct_priv, zone_rule->attr, zone_rule->mh);
+	mlx5_tc_ct_entry_destroy_mod_hdr(ct_priv, attr, zone_rule->mh);
 	mlx5_put_label_mapping(ct_priv, attr->ct_attr.ct_labels_id);
 err_mod_hdr:
 	kfree(attr);
@@ -1026,7 +1026,7 @@ mlx5_tc_ct_counter_create(struct mlx5_tc_ct_priv *ct_priv)
 		return ERR_PTR(-ENOMEM);
 
 	counter->is_shared = false;
-	counter->counter = mlx5_fc_create_ex(ct_priv->dev, true);
+	counter->counter = mlx5_fc_create(ct_priv->dev, true);
 	if (IS_ERR(counter->counter)) {
 		ct_dbg("Failed to create counter for ct entry");
 		ret = PTR_ERR(counter->counter);

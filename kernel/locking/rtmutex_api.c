@@ -175,10 +175,10 @@ bool __sched __rt_mutex_futex_unlock(struct rt_mutex_base *lock,
 	}
 
 	/*
-	 * We've already deboosted, mark_wakeup_next_waiter() will
-	 * retain preempt_disabled when we drop the wait_lock, to
-	 * avoid inversion prior to the wakeup.  preempt_disable()
-	 * therein pairs with rt_mutex_postunlock().
+	 * mark_wakeup_next_waiter() deboosts and retains preemption
+	 * disabled when dropping the wait_lock, to avoid inversion prior
+	 * to the wakeup.  preempt_disable() therein pairs with the
+	 * preempt_enable() in rt_mutex_postunlock().
 	 */
 	mark_wakeup_next_waiter(wqh, lock);
 
@@ -275,6 +275,7 @@ void __sched rt_mutex_proxy_unlock(struct rt_mutex_base *lock)
  * @lock:		the rt_mutex to take
  * @waiter:		the pre-initialized rt_mutex_waiter
  * @task:		the task to prepare
+ * @wake_q:		the wake_q to wake tasks after we release the wait_lock
  *
  * Starts the rt_mutex acquire; it enqueues the @waiter and does deadlock
  * detection. It does not wait, see rt_mutex_wait_proxy_lock() for that.
@@ -291,7 +292,8 @@ void __sched rt_mutex_proxy_unlock(struct rt_mutex_base *lock)
  */
 int __sched __rt_mutex_start_proxy_lock(struct rt_mutex_base *lock,
 					struct rt_mutex_waiter *waiter,
-					struct task_struct *task)
+					struct task_struct *task,
+					struct wake_q_head *wake_q)
 {
 	int ret;
 
@@ -302,7 +304,7 @@ int __sched __rt_mutex_start_proxy_lock(struct rt_mutex_base *lock,
 
 	/* We enforce deadlock detection for futexes */
 	ret = task_blocks_on_rt_mutex(lock, waiter, task, NULL,
-				      RT_MUTEX_FULL_CHAINWALK);
+				      RT_MUTEX_FULL_CHAINWALK, wake_q);
 
 	if (ret && !rt_mutex_owner(lock)) {
 		/*
@@ -341,12 +343,16 @@ int __sched rt_mutex_start_proxy_lock(struct rt_mutex_base *lock,
 				      struct task_struct *task)
 {
 	int ret;
+	DEFINE_WAKE_Q(wake_q);
 
 	raw_spin_lock_irq(&lock->wait_lock);
-	ret = __rt_mutex_start_proxy_lock(lock, waiter, task);
+	ret = __rt_mutex_start_proxy_lock(lock, waiter, task, &wake_q);
 	if (unlikely(ret))
 		remove_waiter(lock, waiter);
+	preempt_disable();
 	raw_spin_unlock_irq(&lock->wait_lock);
+	wake_up_q(&wake_q);
+	preempt_enable();
 
 	return ret;
 }

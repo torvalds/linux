@@ -181,7 +181,7 @@ static int iqs624_pos_write_event_config(struct iio_dev *indio_dev,
 					 const struct iio_chan_spec *chan,
 					 enum iio_event_type type,
 					 enum iio_event_direction dir,
-					 int state)
+					 bool state)
 {
 	struct iqs624_pos_private *iqs624_pos = iio_priv(indio_dev);
 	struct iqs62x_core *iqs62x = iqs624_pos->iqs62x;

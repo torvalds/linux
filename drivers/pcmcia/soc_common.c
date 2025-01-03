@@ -204,14 +204,8 @@ static int soc_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 
 	for (i = 0; i < ARRAY_SIZE(skt->stat); i++) {
 		if (gpio_is_valid(skt->stat[i].gpio)) {
-			unsigned long flags = GPIOF_IN;
-
-			/* CD is active low by default */
-			if (i == SOC_STAT_CD)
-				flags |= GPIOF_ACTIVE_LOW;
-
 			ret = devm_gpio_request_one(skt->socket.dev.parent,
-						    skt->stat[i].gpio, flags,
+						    skt->stat[i].gpio, GPIOF_IN,
 						    skt->stat[i].name);
 			if (ret) {
 				__soc_pcmcia_hw_shutdown(skt, i);
@@ -219,6 +213,10 @@ static int soc_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 			}
 
 			skt->stat[i].desc = gpio_to_desc(skt->stat[i].gpio);
+
+			/* CD is active low by default */
+			if ((i == SOC_STAT_CD) ^ gpiod_is_active_low(skt->stat[i].desc))
+				gpiod_toggle_active_low(skt->stat[i].desc);
 		}
 
 		if (i < SOC_STAT_VS1 && skt->stat[i].desc) {

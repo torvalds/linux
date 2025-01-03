@@ -294,12 +294,8 @@ static void hellcreek_get_strings(struct dsa_switch *ds, int port,
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(hellcreek_counter); ++i) {
-		const struct hellcreek_counter *counter = &hellcreek_counter[i];
-
-		strscpy(data + i * ETH_GSTRING_LEN,
-			counter->name, ETH_GSTRING_LEN);
-	}
+	for (i = 0; i < ARRAY_SIZE(hellcreek_counter); ++i)
+		ethtool_puts(&data, hellcreek_counter[i].name);
 }
 
 static int hellcreek_get_sset_count(struct dsa_switch *ds, int port, int sset)
@@ -2105,7 +2101,7 @@ MODULE_DEVICE_TABLE(of, hellcreek_of_match);
 
 static struct platform_driver hellcreek_driver = {
 	.probe	= hellcreek_probe,
-	.remove_new = hellcreek_remove,
+	.remove = hellcreek_remove,
 	.shutdown = hellcreek_shutdown,
 	.driver = {
 		.name = "hellcreek",

@@ -1011,22 +1011,25 @@ static inline struct folio *read_mapping_folio(struct address_space *mapping,
 	return read_cache_folio(mapping, index, NULL, file);
 }
 
-/*
- * Get the offset in PAGE_SIZE (even for hugetlb pages).
+/**
+ * page_pgoff - Calculate the logical page offset of this page.
+ * @folio: The folio containing this page.
+ * @page: The page which we need the offset of.
+ *
+ * For file pages, this is the offset from the beginning of the file
+ * in units of PAGE_SIZE.  For anonymous pages, this is the offset from
+ * the beginning of the anon_vma in units of PAGE_SIZE.  This will
+ * return nonsense for KSM pages.
+ *
+ * Context: Caller must have a reference on the folio or otherwise
+ * prevent it from being split or freed.
+ *
+ * Return: The offset in units of PAGE_SIZE.
  */
-static inline pgoff_t page_to_pgoff(struct page *page)
+static inline pgoff_t page_pgoff(const struct folio *folio,
+		const struct page *page)
 {
-	struct page *head;
-
-	if (likely(!PageTransTail(page)))
-		return page->index;
-
-	head = compound_head(page);
-	/*
-	 *  We don't initialize ->index for tail pages: calculate based on
-	 *  head page
-	 */
-	return head->index + page - head;
+	return folio->index + folio_page_idx(folio, page);
 }
 
 /*

@@ -649,7 +649,7 @@ static bool apple_nvme_handle_cq(struct apple_nvme_queue *q, bool force)
 
 	found = apple_nvme_poll_cq(q, &iob);
 
-	if (!rq_list_empty(iob.req_list))
+	if (!rq_list_empty(&iob.req_list))
 		apple_nvme_complete_batch(&iob);
 
 	return found;

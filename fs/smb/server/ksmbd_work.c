@@ -18,7 +18,7 @@ static struct workqueue_struct *ksmbd_wq;
 
 struct ksmbd_work *ksmbd_alloc_work_struct(void)
 {
-	struct ksmbd_work *work = kmem_cache_zalloc(work_cache, GFP_KERNEL);
+	struct ksmbd_work *work = kmem_cache_zalloc(work_cache, KSMBD_DEFAULT_GFP);
 
 	if (work) {
 		work->compound_fid = KSMBD_NO_FID;
@@ -30,7 +30,7 @@ struct ksmbd_work *ksmbd_alloc_work_struct(void)
 		INIT_LIST_HEAD(&work->aux_read_list);
 		work->iov_alloc_cnt = 4;
 		work->iov = kcalloc(work->iov_alloc_cnt, sizeof(struct kvec),
-				    GFP_KERNEL);
+				    KSMBD_DEFAULT_GFP);
 		if (!work->iov) {
 			kmem_cache_free(work_cache, work);
 			work = NULL;
@@ -114,7 +114,7 @@ static int __ksmbd_iov_pin_rsp(struct ksmbd_work *work, void *ib, int len,
 
 	if (aux_size) {
 		need_iov_cnt++;
-		ar = kmalloc(sizeof(struct aux_read), GFP_KERNEL);
+		ar = kmalloc(sizeof(struct aux_read), KSMBD_DEFAULT_GFP);
 		if (!ar)
 			return -ENOMEM;
 	}
@@ -125,7 +125,7 @@ static int __ksmbd_iov_pin_rsp(struct ksmbd_work *work, void *ib, int len,
 		work->iov_alloc_cnt += 4;
 		new = krealloc(work->iov,
 			       sizeof(struct kvec) * work->iov_alloc_cnt,
-			       GFP_KERNEL | __GFP_ZERO);
+			       KSMBD_DEFAULT_GFP | __GFP_ZERO);
 		if (!new) {
 			kfree(ar);
 			work->iov_alloc_cnt -= 4;
@@ -169,7 +169,7 @@ int ksmbd_iov_pin_rsp_read(struct ksmbd_work *work, void *ib, int len,
 
 int allocate_interim_rsp_buf(struct ksmbd_work *work)
 {
-	work->response_buf = kzalloc(MAX_CIFS_SMALL_BUFFER_SIZE, GFP_KERNEL);
+	work->response_buf = kzalloc(MAX_CIFS_SMALL_BUFFER_SIZE, KSMBD_DEFAULT_GFP);
 	if (!work->response_buf)
 		return -ENOMEM;
 	work->response_sz = MAX_CIFS_SMALL_BUFFER_SIZE;

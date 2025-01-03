@@ -89,15 +89,15 @@ int nilfs_dat_prepare_alloc(struct inode *dat, struct nilfs_palloc_req *req)
 void nilfs_dat_commit_alloc(struct inode *dat, struct nilfs_palloc_req *req)
 {
 	struct nilfs_dat_entry *entry;
-	void *kaddr;
+	size_t offset;
 
-	kaddr = kmap_local_page(req->pr_entry_bh->b_page);
-	entry = nilfs_palloc_block_get_entry(dat, req->pr_entry_nr,
-					     req->pr_entry_bh, kaddr);
+	offset = nilfs_palloc_entry_offset(dat, req->pr_entry_nr,
+					   req->pr_entry_bh);
+	entry = kmap_local_folio(req->pr_entry_bh->b_folio, offset);
 	entry->de_start = cpu_to_le64(NILFS_CNO_MIN);
 	entry->de_end = cpu_to_le64(NILFS_CNO_MAX);
 	entry->de_blocknr = cpu_to_le64(0);
-	kunmap_local(kaddr);
+	kunmap_local(entry);
 
 	nilfs_palloc_commit_alloc_entry(dat, req);
 	nilfs_dat_commit_entry(dat, req);
@@ -113,15 +113,15 @@ static void nilfs_dat_commit_free(struct inode *dat,
 				  struct nilfs_palloc_req *req)
 {
 	struct nilfs_dat_entry *entry;
-	void *kaddr;
+	size_t offset;
 
-	kaddr = kmap_local_page(req->pr_entry_bh->b_page);
-	entry = nilfs_palloc_block_get_entry(dat, req->pr_entry_nr,
-					     req->pr_entry_bh, kaddr);
+	offset = nilfs_palloc_entry_offset(dat, req->pr_entry_nr,
+					   req->pr_entry_bh);
+	entry = kmap_local_folio(req->pr_entry_bh->b_folio, offset);
 	entry->de_start = cpu_to_le64(NILFS_CNO_MIN);
 	entry->de_end = cpu_to_le64(NILFS_CNO_MIN);
 	entry->de_blocknr = cpu_to_le64(0);
-	kunmap_local(kaddr);
+	kunmap_local(entry);
 
 	nilfs_dat_commit_entry(dat, req);
 
@@ -143,14 +143,14 @@ void nilfs_dat_commit_start(struct inode *dat, struct nilfs_palloc_req *req,
 			    sector_t blocknr)
 {
 	struct nilfs_dat_entry *entry;
-	void *kaddr;
+	size_t offset;
 
-	kaddr = kmap_local_page(req->pr_entry_bh->b_page);
-	entry = nilfs_palloc_block_get_entry(dat, req->pr_entry_nr,
-					     req->pr_entry_bh, kaddr);
+	offset = nilfs_palloc_entry_offset(dat, req->pr_entry_nr,
+					   req->pr_entry_bh);
+	entry = kmap_local_folio(req->pr_entry_bh->b_folio, offset);
 	entry->de_start = cpu_to_le64(nilfs_mdt_cno(dat));
 	entry->de_blocknr = cpu_to_le64(blocknr);
-	kunmap_local(kaddr);
+	kunmap_local(entry);
 
 	nilfs_dat_commit_entry(dat, req);
 }
@@ -160,19 +160,19 @@ int nilfs_dat_prepare_end(struct inode *dat, struct nilfs_palloc_req *req)
 	struct nilfs_dat_entry *entry;
 	__u64 start;
 	sector_t blocknr;
-	void *kaddr;
+	size_t offset;
 	int ret;
 
 	ret = nilfs_dat_prepare_entry(dat, req, 0);
 	if (ret < 0)
 		return ret;
 
-	kaddr = kmap_local_page(req->pr_entry_bh->b_page);
-	entry = nilfs_palloc_block_get_entry(dat, req->pr_entry_nr,
-					     req->pr_entry_bh, kaddr);
+	offset = nilfs_palloc_entry_offset(dat, req->pr_entry_nr,
+					   req->pr_entry_bh);
+	entry = kmap_local_folio(req->pr_entry_bh->b_folio, offset);
 	start = le64_to_cpu(entry->de_start);
 	blocknr = le64_to_cpu(entry->de_blocknr);
-	kunmap_local(kaddr);
+	kunmap_local(entry);
 
 	if (blocknr == 0) {
 		ret = nilfs_palloc_prepare_free_entry(dat, req);
@@ -200,11 +200,11 @@ void nilfs_dat_commit_end(struct inode *dat, struct nilfs_palloc_req *req,
 	struct nilfs_dat_entry *entry;
 	__u64 start, end;
 	sector_t blocknr;
-	void *kaddr;
+	size_t offset;
 
-	kaddr = kmap_local_page(req->pr_entry_bh->b_page);
-	entry = nilfs_palloc_block_get_entry(dat, req->pr_entry_nr,
-					     req->pr_entry_bh, kaddr);
+	offset = nilfs_palloc_entry_offset(dat, req->pr_entry_nr,
+					   req->pr_entry_bh);
+	entry = kmap_local_folio(req->pr_entry_bh->b_folio, offset);
 	end = start = le64_to_cpu(entry->de_start);
 	if (!dead) {
 		end = nilfs_mdt_cno(dat);
@@ -212,7 +212,7 @@ void nilfs_dat_commit_end(struct inode *dat, struct nilfs_palloc_req *req,
 	}
 	entry->de_end = cpu_to_le64(end);
 	blocknr = le64_to_cpu(entry->de_blocknr);
-	kunmap_local(kaddr);
+	kunmap_local(entry);
 
 	if (blocknr == 0)
 		nilfs_dat_commit_free(dat, req);
@@ -225,14 +225,14 @@ void nilfs_dat_abort_end(struct inode *dat, struct nilfs_palloc_req *req)
 	struct nilfs_dat_entry *entry;
 	__u64 start;
 	sector_t blocknr;
-	void *kaddr;
+	size_t offset;
 
-	kaddr = kmap_local_page(req->pr_entry_bh->b_page);
-	entry = nilfs_palloc_block_get_entry(dat, req->pr_entry_nr,
-					     req->pr_entry_bh, kaddr);
+	offset = nilfs_palloc_entry_offset(dat, req->pr_entry_nr,
+					   req->pr_entry_bh);
+	entry = kmap_local_folio(req->pr_entry_bh->b_folio, offset);
 	start = le64_to_cpu(entry->de_start);
 	blocknr = le64_to_cpu(entry->de_blocknr);
-	kunmap_local(kaddr);
+	kunmap_local(entry);
 
 	if (start == nilfs_mdt_cno(dat) && blocknr == 0)
 		nilfs_palloc_abort_free_entry(dat, req);
@@ -336,7 +336,7 @@ int nilfs_dat_move(struct inode *dat, __u64 vblocknr, sector_t blocknr)
 {
 	struct buffer_head *entry_bh;
 	struct nilfs_dat_entry *entry;
-	void *kaddr;
+	size_t offset;
 	int ret;
 
 	ret = nilfs_palloc_get_entry_block(dat, vblocknr, 0, &entry_bh);
@@ -359,21 +359,21 @@ int nilfs_dat_move(struct inode *dat, __u64 vblocknr, sector_t blocknr)
 		}
 	}
 
-	kaddr = kmap_local_page(entry_bh->b_page);
-	entry = nilfs_palloc_block_get_entry(dat, vblocknr, entry_bh, kaddr);
+	offset = nilfs_palloc_entry_offset(dat, vblocknr, entry_bh);
+	entry = kmap_local_folio(entry_bh->b_folio, offset);
 	if (unlikely(entry->de_blocknr == cpu_to_le64(0))) {
 		nilfs_crit(dat->i_sb,
 			   "%s: invalid vblocknr = %llu, [%llu, %llu)",
 			   __func__, (unsigned long long)vblocknr,
 			   (unsigned long long)le64_to_cpu(entry->de_start),
 			   (unsigned long long)le64_to_cpu(entry->de_end));
-		kunmap_local(kaddr);
+		kunmap_local(entry);
 		brelse(entry_bh);
 		return -EINVAL;
 	}
 	WARN_ON(blocknr == 0);
 	entry->de_blocknr = cpu_to_le64(blocknr);
-	kunmap_local(kaddr);
+	kunmap_local(entry);
 
 	mark_buffer_dirty(entry_bh);
 	nilfs_mdt_mark_dirty(dat);
@@ -407,7 +407,7 @@ int nilfs_dat_translate(struct inode *dat, __u64 vblocknr, sector_t *blocknrp)
 	struct buffer_head *entry_bh, *bh;
 	struct nilfs_dat_entry *entry;
 	sector_t blocknr;
-	void *kaddr;
+	size_t offset;
 	int ret;
 
 	ret = nilfs_palloc_get_entry_block(dat, vblocknr, 0, &entry_bh);
@@ -423,8 +423,8 @@ int nilfs_dat_translate(struct inode *dat, __u64 vblocknr, sector_t *blocknrp)
 		}
 	}
 
-	kaddr = kmap_local_page(entry_bh->b_page);
-	entry = nilfs_palloc_block_get_entry(dat, vblocknr, entry_bh, kaddr);
+	offset = nilfs_palloc_entry_offset(dat, vblocknr, entry_bh);
+	entry = kmap_local_folio(entry_bh->b_folio, offset);
 	blocknr = le64_to_cpu(entry->de_blocknr);
 	if (blocknr == 0) {
 		ret = -ENOENT;
@@ -433,7 +433,7 @@ int nilfs_dat_translate(struct inode *dat, __u64 vblocknr, sector_t *blocknrp)
 	*blocknrp = blocknr;
 
  out:
-	kunmap_local(kaddr);
+	kunmap_local(entry);
 	brelse(entry_bh);
 	return ret;
 }
@@ -442,11 +442,12 @@ ssize_t nilfs_dat_get_vinfo(struct inode *dat, void *buf, unsigned int visz,
 			    size_t nvi)
 {
 	struct buffer_head *entry_bh;
-	struct nilfs_dat_entry *entry;
+	struct nilfs_dat_entry *entry, *first_entry;
 	struct nilfs_vinfo *vinfo = buf;
 	__u64 first, last;
-	void *kaddr;
+	size_t offset;
 	unsigned long entries_per_block = NILFS_MDT(dat)->mi_entries_per_block;
+	unsigned int entry_size = NILFS_MDT(dat)->mi_entry_size;
 	int i, j, n, ret;
 
 	for (i = 0; i < nvi; i += n) {
@@ -454,23 +455,28 @@ ssize_t nilfs_dat_get_vinfo(struct inode *dat, void *buf, unsigned int visz,
 						   0, &entry_bh);
 		if (ret < 0)
 			return ret;
-		kaddr = kmap_local_page(entry_bh->b_page);
-		/* last virtual block number in this block */
+
 		first = vinfo->vi_vblocknr;
 		first = div64_ul(first, entries_per_block);
 		first *= entries_per_block;
+		/* first virtual block number in this block */
+
 		last = first + entries_per_block - 1;
+		/* last virtual block number in this block */
+
+		offset = nilfs_palloc_entry_offset(dat, first, entry_bh);
+		first_entry = kmap_local_folio(entry_bh->b_folio, offset);
 		for (j = i, n = 0;
 		     j < nvi && vinfo->vi_vblocknr >= first &&
 			     vinfo->vi_vblocknr <= last;
 		     j++, n++, vinfo = (void *)vinfo + visz) {
-			entry = nilfs_palloc_block_get_entry(
-				dat, vinfo->vi_vblocknr, entry_bh, kaddr);
+			entry = (void *)first_entry +
+				(vinfo->vi_vblocknr - first) * entry_size;
 			vinfo->vi_start = le64_to_cpu(entry->de_start);
 			vinfo->vi_end = le64_to_cpu(entry->de_end);
 			vinfo->vi_blocknr = le64_to_cpu(entry->de_blocknr);
 		}
-		kunmap_local(kaddr);
+		kunmap_local(first_entry);
 		brelse(entry_bh);
 	}
 

@@ -371,7 +371,7 @@ MODULE_DEVICE_TABLE(of, uniphier_tm_dt_ids);
 
 static struct platform_driver uniphier_tm_driver = {
 	.probe = uniphier_tm_probe,
-	.remove_new = uniphier_tm_remove,
+	.remove = uniphier_tm_remove,
 	.driver = {
 		.name = "uniphier-thermal",
 		.of_match_table = uniphier_tm_dt_ids,

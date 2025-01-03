@@ -28,7 +28,7 @@ static inline bool queue_limits_stack_integrity_bdev(struct queue_limits *t,
 int blk_rq_map_integrity_sg(struct request *, struct scatterlist *);
 int blk_rq_count_integrity_sg(struct request_queue *, struct bio *);
 int blk_rq_integrity_map_user(struct request *rq, void __user *ubuf,
-			      ssize_t bytes, u32 seed);
+			      ssize_t bytes);
 
 static inline bool
 blk_integrity_queue_supports_integrity(struct request_queue *q)
@@ -104,8 +104,7 @@ static inline int blk_rq_map_integrity_sg(struct request *q,
 }
 static inline int blk_rq_integrity_map_user(struct request *rq,
 					    void __user *ubuf,
-					    ssize_t bytes,
-					    u32 seed)
+					    ssize_t bytes)
 {
 	return -EINVAL;
 }

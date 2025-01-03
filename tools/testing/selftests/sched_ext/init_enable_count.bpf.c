@@ -45,9 +45,9 @@ void BPF_STRUCT_OPS(cnt_disable, struct task_struct *p)
 
 SEC(".struct_ops.link")
 struct sched_ext_ops init_enable_count_ops = {
-	.init_task	= cnt_init_task,
-	.exit_task	= cnt_exit_task,
-	.enable		= cnt_enable,
-	.disable	= cnt_disable,
+	.init_task	= (void *) cnt_init_task,
+	.exit_task	= (void *) cnt_exit_task,
+	.enable		= (void *) cnt_enable,
+	.disable	= (void *) cnt_disable,
 	.name		= "init_enable_count",
 };

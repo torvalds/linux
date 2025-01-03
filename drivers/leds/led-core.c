@@ -273,7 +273,7 @@ void led_blink_set_nosleep(struct led_classdev *led_cdev, unsigned long delay_on
 		led_cdev->delayed_delay_on = delay_on;
 		led_cdev->delayed_delay_off = delay_off;
 		set_bit(LED_SET_BLINK, &led_cdev->work_flags);
-		schedule_work(&led_cdev->set_brightness_work);
+		queue_work(led_cdev->wq, &led_cdev->set_brightness_work);
 		return;
 	}
 
@@ -304,7 +304,7 @@ void led_set_brightness(struct led_classdev *led_cdev, unsigned int brightness)
 		 */
 		if (!brightness) {
 			set_bit(LED_BLINK_DISABLE, &led_cdev->work_flags);
-			schedule_work(&led_cdev->set_brightness_work);
+			queue_work(led_cdev->wq, &led_cdev->set_brightness_work);
 		} else {
 			set_bit(LED_BLINK_BRIGHTNESS_CHANGE,
 				&led_cdev->work_flags);
@@ -340,7 +340,7 @@ void led_set_brightness_nopm(struct led_classdev *led_cdev, unsigned int value)
 		set_bit(LED_SET_BRIGHTNESS_OFF, &led_cdev->work_flags);
 	}
 
-	schedule_work(&led_cdev->set_brightness_work);
+	queue_work(led_cdev->wq, &led_cdev->set_brightness_work);
 }
 EXPORT_SYMBOL_GPL(led_set_brightness_nopm);
 

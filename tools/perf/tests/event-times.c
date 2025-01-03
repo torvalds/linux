@@ -126,6 +126,7 @@ static int attach__cpu_disabled(struct evlist *evlist)
 	evsel->core.attr.disabled = 1;
 
 	err = evsel__open_per_cpu(evsel, cpus, -1);
+	perf_cpu_map__put(cpus);
 	if (err) {
 		if (err == -EACCES)
 			return TEST_SKIP;
@@ -134,7 +135,6 @@ static int attach__cpu_disabled(struct evlist *evlist)
 		return err;
 	}
 
-	perf_cpu_map__put(cpus);
 	return evsel__enable(evsel);
 }
 
@@ -153,10 +153,10 @@ static int attach__cpu_enabled(struct evlist *evlist)
 	}
 
 	err = evsel__open_per_cpu(evsel, cpus, -1);
+	perf_cpu_map__put(cpus);
 	if (err == -EACCES)
 		return TEST_SKIP;
 
-	perf_cpu_map__put(cpus);
 	return err ? TEST_FAIL : TEST_OK;
 }
 
@@ -188,6 +188,7 @@ static int test_times(int (attach)(struct evlist *),
 	err = attach(evlist);
 	if (err == TEST_SKIP) {
 		pr_debug("  SKIP  : not enough rights\n");
+		evlist__delete(evlist);
 		return err;
 	}
 

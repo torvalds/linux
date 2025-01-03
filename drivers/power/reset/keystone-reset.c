@@ -16,7 +16,6 @@
 #include <linux/mfd/syscon.h>
 #include <linux/of.h>
 
-#define RSTYPE_RG			0x0
 #define RSCTRL_RG			0x4
 #define RSCFG_RG			0x8
 #define RSISO_RG			0xc
@@ -28,7 +27,6 @@
 #define RSMUX_OMODE_MASK		0xe
 #define RSMUX_OMODE_RESET_ON		0xa
 #define RSMUX_OMODE_RESET_OFF		0x0
-#define RSMUX_LOCK_MASK			0x1
 #define RSMUX_LOCK_SET			0x1
 
 #define RSCFG_RSTYPE_SOFT		0x300f

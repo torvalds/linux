@@ -93,49 +93,47 @@
 &iomuxc {
 	pinctrl-0 = <&pinctrl_hog>, <&pinctrl_solidsense_hog>;
 
-	solidsense {
-		pinctrl_solidsense_hog: solidsense-hog {
-			fsl,pins = <
-				/* Nordic RESET_N */
-				MX6QDL_PAD_GPIO_9__GPIO1_IO09 0x400130b1
-				/* Nordic Chip 1 SWDIO - GPIO 125 */
-				MX6QDL_PAD_DISP0_DAT8__GPIO4_IO29 0x400130b1
-				/* Nordic Chip 1 SWDCLK - GPIO 59 */
-				/* already claimed in the HB2 hogs */
-				/* MX6QDL_PAD_EIM_LBA__GPIO2_IO27 0x400130b1 */
-				/* Nordic Chip 2 SWDIO - GPIO 81 */
-				MX6QDL_PAD_EIM_D17__GPIO3_IO17 0x400130b1
-				/* Nordic Chip 2 SWCLK - GPIO 82 */
-				MX6QDL_PAD_EIM_D18__GPIO3_IO18 0x400130b1
-			>;
-		};
+	pinctrl_solidsense_hog: solidsense-hoggrp {
+		fsl,pins = <
+			/* Nordic RESET_N */
+			MX6QDL_PAD_GPIO_9__GPIO1_IO09 0x400130b1
+			/* Nordic Chip 1 SWDIO - GPIO 125 */
+			MX6QDL_PAD_DISP0_DAT8__GPIO4_IO29 0x400130b1
+			/* Nordic Chip 1 SWDCLK - GPIO 59 */
+			/* already claimed in the HB2 hogs */
+			/* MX6QDL_PAD_EIM_LBA__GPIO2_IO27 0x400130b1 */
+			/* Nordic Chip 2 SWDIO - GPIO 81 */
+			MX6QDL_PAD_EIM_D17__GPIO3_IO17 0x400130b1
+			/* Nordic Chip 2 SWCLK - GPIO 82 */
+			MX6QDL_PAD_EIM_D18__GPIO3_IO18 0x400130b1
+		>;
+	};
 
-		pinctrl_solidsense_leds: solidsense-leds {
-			fsl,pins = <
-				/* Red LED 1 - GPIO 58 */
-				MX6QDL_PAD_EIM_RW__GPIO2_IO26 0x400130b1
-				/* Green LED 1 - GPIO 55 */
-				MX6QDL_PAD_EIM_CS0__GPIO2_IO23 0x400130b1
-				/* Red LED 2 - GPIO 57 */
-				MX6QDL_PAD_EIM_OE__GPIO2_IO25 0x400130b1
-				/* Green LED 2 - GPIO 56 */
-				MX6QDL_PAD_EIM_CS1__GPIO2_IO24 0x400130b1
-			>;
-		};
+	pinctrl_solidsense_leds: solidsense-ledsgrp {
+		fsl,pins = <
+			/* Red LED 1 - GPIO 58 */
+			MX6QDL_PAD_EIM_RW__GPIO2_IO26 0x400130b1
+			/* Green LED 1 - GPIO 55 */
+			MX6QDL_PAD_EIM_CS0__GPIO2_IO23 0x400130b1
+			/* Red LED 2 - GPIO 57 */
+			MX6QDL_PAD_EIM_OE__GPIO2_IO25 0x400130b1
+			/* Green LED 2 - GPIO 56 */
+			MX6QDL_PAD_EIM_CS1__GPIO2_IO24 0x400130b1
+		>;
+	};
 
-		pinctrl_solidsense_uart2: solidsense-uart2 {
-			fsl,pins = <
-				MX6QDL_PAD_SD4_DAT7__UART2_TX_DATA	0x1b0b1
-				MX6QDL_PAD_SD4_DAT4__UART2_RX_DATA	0x1b0b1
-			>;
-		};
+	pinctrl_solidsense_uart2: solidsense-uart2grp {
+		fsl,pins = <
+			MX6QDL_PAD_SD4_DAT7__UART2_TX_DATA	0x1b0b1
+			MX6QDL_PAD_SD4_DAT4__UART2_RX_DATA	0x1b0b1
+		>;
+	};
 
-		pinctrl_solidsense_uart3: solidsense-uart3 {
-			fsl,pins = <
-				MX6QDL_PAD_EIM_D24__UART3_TX_DATA	0x1b0b1
-				MX6QDL_PAD_EIM_D25__UART3_RX_DATA	0x1b0b1
-			>;
-		};
+	pinctrl_solidsense_uart3: solidsense-uart3grp {
+		fsl,pins = <
+			MX6QDL_PAD_EIM_D24__UART3_TX_DATA	0x1b0b1
+			MX6QDL_PAD_EIM_D25__UART3_RX_DATA	0x1b0b1
+		>;
 	};
 };
 

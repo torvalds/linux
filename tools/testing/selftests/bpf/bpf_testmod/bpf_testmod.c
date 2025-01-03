@@ -245,6 +245,39 @@ __bpf_kfunc void bpf_testmod_ctx_release(struct bpf_testmod_ctx *ctx)
 		call_rcu(&ctx->rcu, testmod_free_cb);
 }
 
+static struct bpf_testmod_ops3 *st_ops3;
+
+static int bpf_testmod_test_3(void)
+{
+	return 0;
+}
+
+static int bpf_testmod_test_4(void)
+{
+	return 0;
+}
+
+static struct bpf_testmod_ops3 __bpf_testmod_ops3 = {
+	.test_1 = bpf_testmod_test_3,
+	.test_2 = bpf_testmod_test_4,
+};
+
+static void bpf_testmod_test_struct_ops3(void)
+{
+	if (st_ops3)
+		st_ops3->test_1();
+}
+
+__bpf_kfunc void bpf_testmod_ops3_call_test_1(void)
+{
+	st_ops3->test_1();
+}
+
+__bpf_kfunc void bpf_testmod_ops3_call_test_2(void)
+{
+	st_ops3->test_2();
+}
+
 struct bpf_testmod_btf_type_tag_1 {
 	int a;
 };
@@ -380,6 +413,10 @@ bpf_testmod_test_read(struct file *file, struct kobject *kobj,
 
 	(void)bpf_testmod_test_arg_ptr_to_struct(&struct_arg1_2);
 
+	(void)trace_bpf_testmod_test_raw_tp_null(NULL);
+
+	bpf_testmod_test_struct_ops3();
+
 	struct_arg3 = kmalloc((sizeof(struct bpf_testmod_struct_arg_3) +
 				sizeof(int)), GFP_KERNEL);
 	if (struct_arg3 != NULL) {
@@ -461,7 +498,7 @@ static struct bin_attribute bin_attr_bpf_testmod_file __ro_after_init = {
 
 static int
 uprobe_ret_handler(struct uprobe_consumer *self, unsigned long func,
-		   struct pt_regs *regs)
+		   struct pt_regs *regs, __u64 *data)
 
 {
 	regs->ax  = 0x12345678deadbeef;
@@ -584,6 +621,8 @@ BTF_ID_FLAGS(func, bpf_kfunc_trusted_num_test, KF_TRUSTED_ARGS)
 BTF_ID_FLAGS(func, bpf_kfunc_rcu_task_test, KF_RCU)
 BTF_ID_FLAGS(func, bpf_testmod_ctx_create, KF_ACQUIRE | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_testmod_ctx_release, KF_RELEASE)
+BTF_ID_FLAGS(func, bpf_testmod_ops3_call_test_1)
+BTF_ID_FLAGS(func, bpf_testmod_ops3_call_test_2)
 BTF_KFUNCS_END(bpf_testmod_common_kfunc_ids)
 
 BTF_ID_LIST(bpf_testmod_dtor_ids)
@@ -1094,6 +1133,10 @@ static const struct bpf_verifier_ops bpf_testmod_verifier_ops = {
 	.is_valid_access = bpf_testmod_ops_is_valid_access,
 };
 
+static const struct bpf_verifier_ops bpf_testmod_verifier_ops3 = {
+	.is_valid_access = bpf_testmod_ops_is_valid_access,
+};
+
 static int bpf_dummy_reg(void *kdata, struct bpf_link *link)
 {
 	struct bpf_testmod_ops *ops = kdata;
@@ -1170,6 +1213,68 @@ struct bpf_struct_ops bpf_testmod_ops2 = {
 	.unreg = bpf_dummy_unreg,
 	.cfi_stubs = &__bpf_testmod_ops2,
 	.name = "bpf_testmod_ops2",
+	.owner = THIS_MODULE,
+};
+
+static int st_ops3_reg(void *kdata, struct bpf_link *link)
+{
+	int err = 0;
+
+	mutex_lock(&st_ops_mutex);
+	if (st_ops3) {
+		pr_err("st_ops has already been registered\n");
+		err = -EEXIST;
+		goto unlock;
+	}
+	st_ops3 = kdata;
+
+unlock:
+	mutex_unlock(&st_ops_mutex);
+	return err;
+}
+
+static void st_ops3_unreg(void *kdata, struct bpf_link *link)
+{
+	mutex_lock(&st_ops_mutex);
+	st_ops3 = NULL;
+	mutex_unlock(&st_ops_mutex);
+}
+
+static void test_1_recursion_detected(struct bpf_prog *prog)
+{
+	struct bpf_prog_stats *stats;
+
+	stats = this_cpu_ptr(prog->stats);
+	printk("bpf_testmod: oh no, recursing into test_1, recursion_misses %llu",
+	       u64_stats_read(&stats->misses));
+}
+
+static int st_ops3_check_member(const struct btf_type *t,
+				const struct btf_member *member,
+				const struct bpf_prog *prog)
+{
+	u32 moff = __btf_member_bit_offset(t, member) / 8;
+
+	switch (moff) {
+	case offsetof(struct bpf_testmod_ops3, test_1):
+		prog->aux->priv_stack_requested = true;
+		prog->aux->recursion_detected = test_1_recursion_detected;
+		fallthrough;
+	default:
+		break;
+	}
+	return 0;
+}
+
+struct bpf_struct_ops bpf_testmod_ops3 = {
+	.verifier_ops = &bpf_testmod_verifier_ops3,
+	.init = bpf_testmod_ops_init,
+	.init_member = bpf_testmod_ops_init_member,
+	.reg = st_ops3_reg,
+	.unreg = st_ops3_unreg,
+	.check_member = st_ops3_check_member,
+	.cfi_stubs = &__bpf_testmod_ops3,
+	.name = "bpf_testmod_ops3",
 	.owner = THIS_MODULE,
 };
 
@@ -1331,6 +1436,7 @@ static int bpf_testmod_init(void)
 	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_STRUCT_OPS, &bpf_testmod_kfunc_set);
 	ret = ret ?: register_bpf_struct_ops(&bpf_bpf_testmod_ops, bpf_testmod_ops);
 	ret = ret ?: register_bpf_struct_ops(&bpf_testmod_ops2, bpf_testmod_ops2);
+	ret = ret ?: register_bpf_struct_ops(&bpf_testmod_ops3, bpf_testmod_ops3);
 	ret = ret ?: register_bpf_struct_ops(&testmod_st_ops, bpf_testmod_st_ops);
 	ret = ret ?: register_btf_id_dtor_kfuncs(bpf_testmod_dtors,
 						 ARRAY_SIZE(bpf_testmod_dtors),

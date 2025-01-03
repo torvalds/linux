@@ -160,7 +160,7 @@
 		regulator-max-microvolt = <3300000>;
 		regulator-min-microvolt = <3300000>;
 		regulator-name = "+V3.3_SD";
-		startup-delay-us = <2000>;
+		startup-delay-us = <20000>;
 	};
 
 	reg_sdhc1_vqmmc: regulator-sdhci1-vqmmc {
@@ -1131,6 +1131,11 @@
 		};
 	};
 
+	tpm@2e {
+		compatible = "st,st33ktpm2xi2c", "tcg,tpm-tis-i2c";
+		reg = <0x2e>;
+	};
+
 	pmic@30 {
 		compatible = "ti,tps65219";
 		reg = <0x30>;
@@ -1219,11 +1224,12 @@
 		reg = <0x48>;
 	};
 
-	adc@49 {
-		compatible = "ti,ads1015";
+	verdin_som_adc: adc@49 {
+		compatible = "ti,tla2024";
 		reg = <0x49>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		#io-channel-cells = <1>;
 
 		/* Verdin PMIC_I2C (ADC_4 - ADC_3) */
 		channel@0 {

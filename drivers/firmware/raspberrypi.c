@@ -406,7 +406,7 @@ static struct platform_driver rpi_firmware_driver = {
 	},
 	.probe		= rpi_firmware_probe,
 	.shutdown	= rpi_firmware_shutdown,
-	.remove_new	= rpi_firmware_remove,
+	.remove		= rpi_firmware_remove,
 };
 module_platform_driver(rpi_firmware_driver);
 

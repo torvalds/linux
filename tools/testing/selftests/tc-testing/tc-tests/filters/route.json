@@ -111,7 +111,7 @@
     },
     {
         "id": "7994",
-        "name": "Add route filter with miltiple actions",
+        "name": "Add route filter with multiple actions",
         "category": [
             "filter",
             "route"

@@ -378,9 +378,9 @@ int ps3_send_event_locally(unsigned int virq)
 
 /**
  * ps3_sb_event_receive_port_setup - Setup a system bus event receive port.
+ * @dev: The system bus device instance.
  * @cpu: enum ps3_cpu_binding indicating the cpu the interrupt should be
  * serviced on.
- * @dev: The system bus device instance.
  * @virq: The assigned Linux virq.
  *
  * An event irq represents a virtual device interrupt.  The interrupt_id

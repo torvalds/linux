@@ -9,6 +9,7 @@
 #include <drm/drm_blend.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_vblank.h>
 
 #include "i915_reg.h"
 #include "intel_atomic.h"
@@ -25,8 +26,6 @@
 #include "intel_psr_regs.h"
 #include "intel_vblank.h"
 #include "skl_watermark.h"
-
-#include "gem/i915_gem_object.h"
 
 /* Cursor formats */
 static const u32 intel_cursor_formats[] = {
@@ -275,7 +274,8 @@ static int i845_check_cursor(struct intel_crtc_state *crtc_state,
 }
 
 /* TODO: split into noarm+arm pair */
-static void i845_cursor_update_arm(struct intel_plane *plane,
+static void i845_cursor_update_arm(struct intel_dsb *dsb,
+				   struct intel_plane *plane,
 				   const struct intel_crtc_state *crtc_state,
 				   const struct intel_plane_state *plane_state)
 {
@@ -315,10 +315,11 @@ static void i845_cursor_update_arm(struct intel_plane *plane,
 	}
 }
 
-static void i845_cursor_disable_arm(struct intel_plane *plane,
+static void i845_cursor_disable_arm(struct intel_dsb *dsb,
+				    struct intel_plane *plane,
 				    const struct intel_crtc_state *crtc_state)
 {
-	i845_cursor_update_arm(plane, crtc_state, NULL);
+	i845_cursor_update_arm(dsb, plane, crtc_state, NULL);
 }
 
 static bool i845_cursor_get_hw_state(struct intel_plane *plane,
@@ -527,22 +528,25 @@ static int i9xx_check_cursor(struct intel_crtc_state *crtc_state,
 	return 0;
 }
 
-static void i9xx_cursor_disable_sel_fetch_arm(struct intel_plane *plane,
+static void i9xx_cursor_disable_sel_fetch_arm(struct intel_dsb *dsb,
+					      struct intel_plane *plane,
 					      const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	struct intel_display *display = to_intel_display(plane->base.dev);
 	enum pipe pipe = plane->pipe;
 
 	if (!crtc_state->enable_psr2_sel_fetch)
 		return;
 
-	intel_de_write_fw(dev_priv, SEL_FETCH_CUR_CTL(pipe), 0);
+	intel_de_write_dsb(display, dsb, SEL_FETCH_CUR_CTL(pipe), 0);
 }
 
-static void wa_16021440873(struct intel_plane *plane,
+static void wa_16021440873(struct intel_dsb *dsb,
+			   struct intel_plane *plane,
 			   const struct intel_crtc_state *crtc_state,
 			   const struct intel_plane_state *plane_state)
 {
+	struct intel_display *display = to_intel_display(plane->base.dev);
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	u32 ctl = plane_state->ctl;
 	int et_y_position = drm_rect_height(&crtc_state->pipe_src) + 1;
@@ -551,16 +555,18 @@ static void wa_16021440873(struct intel_plane *plane,
 	ctl &= ~MCURSOR_MODE_MASK;
 	ctl |= MCURSOR_MODE_64_2B;
 
-	intel_de_write_fw(dev_priv, SEL_FETCH_CUR_CTL(pipe), ctl);
+	intel_de_write_dsb(display, dsb, SEL_FETCH_CUR_CTL(pipe), ctl);
 
-	intel_de_write(dev_priv, CURPOS_ERLY_TPT(dev_priv, pipe),
-		       CURSOR_POS_Y(et_y_position));
+	intel_de_write_dsb(display, dsb, CURPOS_ERLY_TPT(dev_priv, pipe),
+			   CURSOR_POS_Y(et_y_position));
 }
 
-static void i9xx_cursor_update_sel_fetch_arm(struct intel_plane *plane,
+static void i9xx_cursor_update_sel_fetch_arm(struct intel_dsb *dsb,
+					     struct intel_plane *plane,
 					     const struct intel_crtc_state *crtc_state,
 					     const struct intel_plane_state *plane_state)
 {
+	struct intel_display *display = to_intel_display(plane->base.dev);
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum pipe pipe = plane->pipe;
 
@@ -571,19 +577,17 @@ static void i9xx_cursor_update_sel_fetch_arm(struct intel_plane *plane,
 		if (crtc_state->enable_psr2_su_region_et) {
 			u32 val = intel_cursor_position(crtc_state, plane_state,
 				true);
-			intel_de_write_fw(dev_priv,
-					  CURPOS_ERLY_TPT(dev_priv, pipe),
-					  val);
+
+			intel_de_write_dsb(display, dsb, CURPOS_ERLY_TPT(dev_priv, pipe), val);
 		}
 
-		intel_de_write_fw(dev_priv, SEL_FETCH_CUR_CTL(pipe),
-				  plane_state->ctl);
+		intel_de_write_dsb(display, dsb, SEL_FETCH_CUR_CTL(pipe), plane_state->ctl);
 	} else {
 		/* Wa_16021440873 */
 		if (crtc_state->enable_psr2_su_region_et)
-			wa_16021440873(plane, crtc_state, plane_state);
+			wa_16021440873(dsb, plane, crtc_state, plane_state);
 		else
-			i9xx_cursor_disable_sel_fetch_arm(plane, crtc_state);
+			i9xx_cursor_disable_sel_fetch_arm(dsb, plane, crtc_state);
 	}
 }
 
@@ -610,9 +614,11 @@ static u32 skl_cursor_wm_reg_val(const struct skl_wm_level *level)
 	return val;
 }
 
-static void skl_write_cursor_wm(struct intel_plane *plane,
+static void skl_write_cursor_wm(struct intel_dsb *dsb,
+				struct intel_plane *plane,
 				const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(plane->base.dev);
 	struct drm_i915_private *i915 = to_i915(plane->base.dev);
 	enum plane_id plane_id = plane->id;
 	enum pipe pipe = plane->pipe;
@@ -622,30 +628,32 @@ static void skl_write_cursor_wm(struct intel_plane *plane,
 	int level;
 
 	for (level = 0; level < i915->display.wm.num_levels; level++)
-		intel_de_write_fw(i915, CUR_WM(pipe, level),
-				  skl_cursor_wm_reg_val(skl_plane_wm_level(pipe_wm, plane_id, level)));
+		intel_de_write_dsb(display, dsb, CUR_WM(pipe, level),
+				   skl_cursor_wm_reg_val(skl_plane_wm_level(pipe_wm, plane_id, level)));
 
-	intel_de_write_fw(i915, CUR_WM_TRANS(pipe),
-			  skl_cursor_wm_reg_val(skl_plane_trans_wm(pipe_wm, plane_id)));
+	intel_de_write_dsb(display, dsb, CUR_WM_TRANS(pipe),
+			   skl_cursor_wm_reg_val(skl_plane_trans_wm(pipe_wm, plane_id)));
 
 	if (HAS_HW_SAGV_WM(i915)) {
 		const struct skl_plane_wm *wm = &pipe_wm->planes[plane_id];
 
-		intel_de_write_fw(i915, CUR_WM_SAGV(pipe),
-				  skl_cursor_wm_reg_val(&wm->sagv.wm0));
-		intel_de_write_fw(i915, CUR_WM_SAGV_TRANS(pipe),
-				  skl_cursor_wm_reg_val(&wm->sagv.trans_wm));
+		intel_de_write_dsb(display, dsb, CUR_WM_SAGV(pipe),
+				   skl_cursor_wm_reg_val(&wm->sagv.wm0));
+		intel_de_write_dsb(display, dsb, CUR_WM_SAGV_TRANS(pipe),
+				   skl_cursor_wm_reg_val(&wm->sagv.trans_wm));
 	}
 
-	intel_de_write_fw(i915, CUR_BUF_CFG(pipe),
-			  skl_cursor_ddb_reg_val(ddb));
+	intel_de_write_dsb(display, dsb, CUR_BUF_CFG(pipe),
+			   skl_cursor_ddb_reg_val(ddb));
 }
 
 /* TODO: split into noarm+arm pair */
-static void i9xx_cursor_update_arm(struct intel_plane *plane,
+static void i9xx_cursor_update_arm(struct intel_dsb *dsb,
+				   struct intel_plane *plane,
 				   const struct intel_crtc_state *crtc_state,
 				   const struct intel_plane_state *plane_state)
 {
+	struct intel_display *display = to_intel_display(plane->base.dev);
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum pipe pipe = plane->pipe;
 	u32 cntl = 0, base = 0, pos = 0, fbc_ctl = 0;
@@ -685,38 +693,36 @@ static void i9xx_cursor_update_arm(struct intel_plane *plane,
 	 */
 
 	if (DISPLAY_VER(dev_priv) >= 9)
-		skl_write_cursor_wm(plane, crtc_state);
+		skl_write_cursor_wm(dsb, plane, crtc_state);
 
 	if (plane_state)
-		i9xx_cursor_update_sel_fetch_arm(plane, crtc_state,
-						 plane_state);
+		i9xx_cursor_update_sel_fetch_arm(dsb, plane, crtc_state, plane_state);
 	else
-		i9xx_cursor_disable_sel_fetch_arm(plane, crtc_state);
+		i9xx_cursor_disable_sel_fetch_arm(dsb, plane, crtc_state);
 
 	if (plane->cursor.base != base ||
 	    plane->cursor.size != fbc_ctl ||
 	    plane->cursor.cntl != cntl) {
 		if (HAS_CUR_FBC(dev_priv))
-			intel_de_write_fw(dev_priv,
-					  CUR_FBC_CTL(dev_priv, pipe),
-					  fbc_ctl);
-		intel_de_write_fw(dev_priv, CURCNTR(dev_priv, pipe), cntl);
-		intel_de_write_fw(dev_priv, CURPOS(dev_priv, pipe), pos);
-		intel_de_write_fw(dev_priv, CURBASE(dev_priv, pipe), base);
+			intel_de_write_dsb(display, dsb, CUR_FBC_CTL(dev_priv, pipe), fbc_ctl);
+		intel_de_write_dsb(display, dsb, CURCNTR(dev_priv, pipe), cntl);
+		intel_de_write_dsb(display, dsb, CURPOS(dev_priv, pipe), pos);
+		intel_de_write_dsb(display, dsb, CURBASE(dev_priv, pipe), base);
 
 		plane->cursor.base = base;
 		plane->cursor.size = fbc_ctl;
 		plane->cursor.cntl = cntl;
 	} else {
-		intel_de_write_fw(dev_priv, CURPOS(dev_priv, pipe), pos);
-		intel_de_write_fw(dev_priv, CURBASE(dev_priv, pipe), base);
+		intel_de_write_dsb(display, dsb, CURPOS(dev_priv, pipe), pos);
+		intel_de_write_dsb(display, dsb, CURBASE(dev_priv, pipe), base);
 	}
 }
 
-static void i9xx_cursor_disable_arm(struct intel_plane *plane,
+static void i9xx_cursor_disable_arm(struct intel_dsb *dsb,
+				    struct intel_plane *plane,
 				    const struct intel_crtc_state *crtc_state)
 {
-	i9xx_cursor_update_arm(plane, crtc_state, NULL);
+	i9xx_cursor_update_arm(dsb, plane, crtc_state, NULL);
 }
 
 static bool i9xx_cursor_get_hw_state(struct intel_plane *plane,
@@ -905,10 +911,10 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
 	}
 
 	if (new_plane_state->uapi.visible) {
-		intel_plane_update_noarm(plane, crtc_state, new_plane_state);
-		intel_plane_update_arm(plane, crtc_state, new_plane_state);
+		intel_plane_update_noarm(NULL, plane, crtc_state, new_plane_state);
+		intel_plane_update_arm(NULL, plane, crtc_state, new_plane_state);
 	} else {
-		intel_plane_disable_arm(plane, crtc_state);
+		intel_plane_disable_arm(NULL, plane, crtc_state);
 	}
 
 	local_irq_enable();

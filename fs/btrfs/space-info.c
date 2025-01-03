@@ -1279,7 +1279,7 @@ static void btrfs_preempt_reclaim_metadata_space(struct work_struct *work)
  *   If we are freeing inodes, we want to make sure all delayed iputs have
  *   completed, because they could have been on an inode with i_nlink == 0, and
  *   thus have been truncated and freed up space.  But again this space is not
- *   immediately re-usable, it comes in the form of a delayed ref, which must be
+ *   immediately reusable, it comes in the form of a delayed ref, which must be
  *   run and then the transaction must be committed.
  *
  * COMMIT_TRANS
@@ -1488,8 +1488,7 @@ static void priority_reclaim_data_space(struct btrfs_fs_info *fs_info,
 	spin_unlock(&space_info->lock);
 }
 
-static void wait_reserve_ticket(struct btrfs_fs_info *fs_info,
-				struct btrfs_space_info *space_info,
+static void wait_reserve_ticket(struct btrfs_space_info *space_info,
 				struct reserve_ticket *ticket)
 
 {
@@ -1547,7 +1546,7 @@ static int handle_reserve_ticket(struct btrfs_fs_info *fs_info,
 	case BTRFS_RESERVE_FLUSH_DATA:
 	case BTRFS_RESERVE_FLUSH_ALL:
 	case BTRFS_RESERVE_FLUSH_ALL_STEAL:
-		wait_reserve_ticket(fs_info, space_info, ticket);
+		wait_reserve_ticket(space_info, ticket);
 		break;
 	case BTRFS_RESERVE_FLUSH_LIMIT:
 		priority_reclaim_metadata_space(fs_info, space_info, ticket,
@@ -1984,8 +1983,7 @@ static bool is_reclaim_urgent(struct btrfs_space_info *space_info)
 	return unalloc < data_chunk_size;
 }
 
-static void do_reclaim_sweep(const struct btrfs_fs_info *fs_info,
-			     struct btrfs_space_info *space_info, int raid)
+static void do_reclaim_sweep(struct btrfs_space_info *space_info, int raid)
 {
 	struct btrfs_block_group *bg;
 	int thresh_pct;
@@ -2081,6 +2079,6 @@ void btrfs_reclaim_sweep(const struct btrfs_fs_info *fs_info)
 		if (!btrfs_should_periodic_reclaim(space_info))
 			continue;
 		for (raid = 0; raid < BTRFS_NR_RAID_TYPES; raid++)
-			do_reclaim_sweep(fs_info, space_info, raid);
+			do_reclaim_sweep(space_info, raid);
 	}
 }

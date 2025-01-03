@@ -202,9 +202,9 @@ static void pata_gayle_remove_one(struct platform_device *pdev)
 
 static struct platform_driver pata_gayle_driver = {
 	.probe = pata_gayle_init_one,
-	.remove_new = pata_gayle_remove_one,
-	.driver   = {
-		.name	= "amiga-gayle-ide",
+	.remove = pata_gayle_remove_one,
+	.driver = {
+		.name = "amiga-gayle-ide",
 	},
 };
 

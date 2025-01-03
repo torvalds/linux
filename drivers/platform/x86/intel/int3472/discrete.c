@@ -392,7 +392,7 @@ static struct platform_driver int3472_discrete = {
 		.acpi_match_table = int3472_device_id,
 	},
 	.probe = skl_int3472_discrete_probe,
-	.remove_new = skl_int3472_discrete_remove,
+	.remove = skl_int3472_discrete_remove,
 };
 module_platform_driver(int3472_discrete);
 

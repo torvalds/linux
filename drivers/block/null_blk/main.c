@@ -1638,10 +1638,9 @@ static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
 	return BLK_STS_OK;
 }
 
-static void null_queue_rqs(struct request **rqlist)
+static void null_queue_rqs(struct rq_list *rqlist)
 {
-	struct request *requeue_list = NULL;
-	struct request **requeue_lastp = &requeue_list;
+	struct rq_list requeue_list = {};
 	struct blk_mq_queue_data bd = { };
 	blk_status_t ret;
 
@@ -1651,8 +1650,8 @@ static void null_queue_rqs(struct request **rqlist)
 		bd.rq = rq;
 		ret = null_queue_rq(rq->mq_hctx, &bd);
 		if (ret != BLK_STS_OK)
-			rq_list_add_tail(&requeue_lastp, rq);
-	} while (!rq_list_empty(*rqlist));
+			rq_list_add_tail(&requeue_list, rq);
+	} while (!rq_list_empty(rqlist));
 
 	*rqlist = requeue_list;
 }

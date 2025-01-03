@@ -214,7 +214,7 @@ MODULE_DEVICE_TABLE(of, rcar_rproc_of_match);
 
 static struct platform_driver rcar_rproc_driver = {
 	.probe = rcar_rproc_probe,
-	.remove_new = rcar_rproc_remove,
+	.remove = rcar_rproc_remove,
 	.driver = {
 		.name = "rcar-rproc",
 		.of_match_table = rcar_rproc_of_match,

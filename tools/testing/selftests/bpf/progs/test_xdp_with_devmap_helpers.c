@@ -12,7 +12,7 @@ struct {
 SEC("xdp")
 int xdp_redir_prog(struct xdp_md *ctx)
 {
-	return bpf_redirect_map(&dm_ports, 1, 0);
+	return bpf_redirect_map(&dm_ports, 0, 0);
 }
 
 /* invalid program on DEVMAP entry;

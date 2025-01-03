@@ -36,7 +36,7 @@
 		stdout-path = "serial2:1500000n8";
 	};
 
-	avdd0v85_pcie20: avdd0v85-pcie20-regulator {
+	avdd0v85_pcie20: regulator-avdd0v85-pcie20 {
 		compatible = "regulator-fixed";
 		regulator-name = "avdd0v85_pcie20";
 		regulator-boot-on;
@@ -46,7 +46,7 @@
 		vin-supply = <&vdd_0v85_s0>;
 	};
 
-	avdd1v8_pcie20: avdd1v8-pcie20-regulator {
+	avdd1v8_pcie20: regulator-avdd1v8-pcie20 {
 		compatible = "regulator-fixed";
 		regulator-name = "avdd1v8_pcie20";
 		regulator-boot-on;
@@ -56,7 +56,7 @@
 		vin-supply = <&avcc_1v8_s0>;
 	};
 
-	avdd0v75_pcie30: avdd0v75-pcie30-regulator {
+	avdd0v75_pcie30: regulator-avdd0v75-pcie30 {
 		compatible = "regulator-fixed";
 		regulator-name = "avdd0v75_pcie30";
 		regulator-boot-on;
@@ -66,7 +66,7 @@
 		vin-supply = <&avdd_0v75_s0>;
 	};
 
-	pcie30_avdd1v8: avdd1v8-pcie30-regulator {
+	pcie30_avdd1v8: regulator-avdd1v8-pcie30 {
 		compatible = "regulator-fixed";
 		regulator-name = "pcie30_avdd1v8";
 		regulator-boot-on;

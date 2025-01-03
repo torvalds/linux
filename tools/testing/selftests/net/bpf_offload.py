@@ -594,8 +594,9 @@ def check_extack_nsim(output, reference, args):
     check_extack(output, "netdevsim: " + reference, args)
 
 def check_no_extack(res, needle):
-    fail((res[1] + res[2]).count(needle) or (res[1] + res[2]).count("Warning:"),
-         "Found '%s' in command output, leaky extack?" % (needle))
+    haystack = (res[1] + res[2]).strip()
+    fail(haystack.count(needle) or haystack.count("Warning:"),
+         "Unexpected command output, leaky extack? ('%s', '%s')" % (needle, haystack))
 
 def check_verifier_log(output, reference):
     lines = output.split("\n")

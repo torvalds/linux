@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/slab.h>
+#include <linux/sysfs.h>
 #include <linux/usb.h>
 #include <linux/usb/of.h>
 
@@ -87,7 +88,7 @@ static ssize_t usbport_trig_port_show(struct device *dev,
 						      struct usbport_trig_port,
 						      attr);
 
-	return sprintf(buf, "%d\n", port->observed) + 1;
+	return sysfs_emit(buf, "%d\n", port->observed) + 1;
 }
 
 static ssize_t usbport_trig_port_store(struct device *dev,

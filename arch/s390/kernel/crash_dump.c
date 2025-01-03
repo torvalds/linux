@@ -237,6 +237,17 @@ int remap_oldmem_pfn_range(struct vm_area_struct *vma, unsigned long from,
 						       prot);
 }
 
+/*
+ * Return true only when in a kdump or stand-alone kdump environment.
+ * Note that /proc/vmcore might also be available in "standard zfcp/nvme dump"
+ * environments, where this function returns false; see dump_available().
+ */
+bool is_kdump_kernel(void)
+{
+	return oldmem_data.start;
+}
+EXPORT_SYMBOL_GPL(is_kdump_kernel);
+
 static const char *nt_name(Elf64_Word type)
 {
 	const char *name = "LINUX";

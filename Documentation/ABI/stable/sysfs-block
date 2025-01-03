@@ -424,6 +424,13 @@ Description:
 		[RW] This file is used to control (on/off) the iostats
 		accounting of the disk.
 
+What:		/sys/block/<disk>/queue/iostats_passthrough
+Date:		October 2024
+Contact:	linux-block@vger.kernel.org
+Description:
+		[RW] This file is used to control (on/off) the iostats
+		accounting of the disk for passthrough commands.
+
 
 What:		/sys/block/<disk>/queue/logical_block_size
 Date:		May 2009
@@ -593,6 +600,9 @@ Contact:	linux-block@vger.kernel.org
 Description:
 		[RW] Maximum number of kilobytes to read-ahead for filesystems
 		on this block device.
+
+		For MADV_HUGEPAGE, the readahead size may exceed this setting
+		since its granularity is based on the hugepage size.
 
 
 What:		/sys/block/<disk>/queue/rotational

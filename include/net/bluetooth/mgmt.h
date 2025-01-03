@@ -878,6 +878,16 @@ struct mgmt_cp_mesh_send_cancel {
 } __packed;
 #define MGMT_MESH_SEND_CANCEL_SIZE	1
 
+#define MGMT_OP_HCI_CMD_SYNC		0x005B
+struct mgmt_cp_hci_cmd_sync {
+	__le16 opcode;
+	__u8   event;
+	__u8   timeout;
+	__le16 params_len;
+	__u8   params[];
+} __packed;
+#define MGMT_HCI_CMD_SYNC_SIZE		6
+
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {
 	__le16	opcode;

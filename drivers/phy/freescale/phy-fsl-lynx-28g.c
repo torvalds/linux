@@ -631,9 +631,9 @@ static const struct of_device_id lynx_28g_of_match_table[] = {
 MODULE_DEVICE_TABLE(of, lynx_28g_of_match_table);
 
 static struct platform_driver lynx_28g_driver = {
-	.probe	= lynx_28g_probe,
-	.remove_new = lynx_28g_remove,
-	.driver	= {
+	.probe = lynx_28g_probe,
+	.remove = lynx_28g_remove,
+	.driver = {
 		.name = "lynx-28g",
 		.of_match_table = lynx_28g_of_match_table,
 	},

@@ -1065,18 +1065,6 @@ uint64_t amdgpu_gmc_vram_pa(struct amdgpu_device *adev, struct amdgpu_bo *bo)
 	return amdgpu_gmc_vram_mc2pa(adev, amdgpu_bo_gpu_offset(bo));
 }
 
-/**
- * amdgpu_gmc_vram_cpu_pa - calculate vram buffer object's physical address
- * from CPU's view
- *
- * @adev: amdgpu_device pointer
- * @bo: amdgpu buffer object
- */
-uint64_t amdgpu_gmc_vram_cpu_pa(struct amdgpu_device *adev, struct amdgpu_bo *bo)
-{
-	return amdgpu_bo_gpu_offset(bo) - adev->gmc.vram_start + adev->gmc.aper_base;
-}
-
 int amdgpu_gmc_vram_checking(struct amdgpu_device *adev)
 {
 	struct amdgpu_bo *vram_bo = NULL;
@@ -1130,6 +1118,79 @@ release_buffer:
 	return ret;
 }
 
+static const char *nps_desc[] = {
+	[AMDGPU_NPS1_PARTITION_MODE] = "NPS1",
+	[AMDGPU_NPS2_PARTITION_MODE] = "NPS2",
+	[AMDGPU_NPS3_PARTITION_MODE] = "NPS3",
+	[AMDGPU_NPS4_PARTITION_MODE] = "NPS4",
+	[AMDGPU_NPS6_PARTITION_MODE] = "NPS6",
+	[AMDGPU_NPS8_PARTITION_MODE] = "NPS8",
+};
+
+static ssize_t available_memory_partition_show(struct device *dev,
+					       struct device_attribute *addr,
+					       char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	int size = 0, mode;
+	char *sep = "";
+
+	for_each_inst(mode, adev->gmc.supported_nps_modes) {
+		size += sysfs_emit_at(buf, size, "%s%s", sep, nps_desc[mode]);
+		sep = ", ";
+	}
+	size += sysfs_emit_at(buf, size, "\n");
+
+	return size;
+}
+
+static ssize_t current_memory_partition_store(struct device *dev,
+					      struct device_attribute *attr,
+					      const char *buf, size_t count)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	enum amdgpu_memory_partition mode;
+	struct amdgpu_hive_info *hive;
+	int i;
+
+	mode = UNKNOWN_MEMORY_PARTITION_MODE;
+	for_each_inst(i, adev->gmc.supported_nps_modes) {
+		if (!strncasecmp(nps_desc[i], buf, strlen(nps_desc[i]))) {
+			mode = i;
+			break;
+		}
+	}
+
+	if (mode == UNKNOWN_MEMORY_PARTITION_MODE)
+		return -EINVAL;
+
+	if (mode == adev->gmc.gmc_funcs->query_mem_partition_mode(adev)) {
+		dev_info(
+			adev->dev,
+			"requested NPS mode is same as current NPS mode, skipping\n");
+		return count;
+	}
+
+	/* If device is part of hive, all devices in the hive should request the
+	 * same mode. Hence store the requested mode in hive.
+	 */
+	hive = amdgpu_get_xgmi_hive(adev);
+	if (hive) {
+		atomic_set(&hive->requested_nps_mode, mode);
+		amdgpu_put_xgmi_hive(hive);
+	} else {
+		adev->gmc.requested_nps_mode = mode;
+	}
+
+	dev_info(
+		adev->dev,
+		"NPS mode change requested, please remove and reload the driver\n");
+
+	return count;
+}
+
 static ssize_t current_memory_partition_show(
 	struct device *dev, struct device_attribute *addr, char *buf)
 {
@@ -1138,30 +1199,35 @@ static ssize_t current_memory_partition_show(
 	enum amdgpu_memory_partition mode;
 
 	mode = adev->gmc.gmc_funcs->query_mem_partition_mode(adev);
-	switch (mode) {
-	case AMDGPU_NPS1_PARTITION_MODE:
-		return sysfs_emit(buf, "NPS1\n");
-	case AMDGPU_NPS2_PARTITION_MODE:
-		return sysfs_emit(buf, "NPS2\n");
-	case AMDGPU_NPS3_PARTITION_MODE:
-		return sysfs_emit(buf, "NPS3\n");
-	case AMDGPU_NPS4_PARTITION_MODE:
-		return sysfs_emit(buf, "NPS4\n");
-	case AMDGPU_NPS6_PARTITION_MODE:
-		return sysfs_emit(buf, "NPS6\n");
-	case AMDGPU_NPS8_PARTITION_MODE:
-		return sysfs_emit(buf, "NPS8\n");
-	default:
+	if ((mode >= ARRAY_SIZE(nps_desc)) ||
+	    (BIT(mode) & AMDGPU_ALL_NPS_MASK) != BIT(mode))
 		return sysfs_emit(buf, "UNKNOWN\n");
-	}
+
+	return sysfs_emit(buf, "%s\n", nps_desc[mode]);
 }
 
-static DEVICE_ATTR_RO(current_memory_partition);
+static DEVICE_ATTR_RW(current_memory_partition);
+static DEVICE_ATTR_RO(available_memory_partition);
 
 int amdgpu_gmc_sysfs_init(struct amdgpu_device *adev)
 {
+	bool nps_switch_support;
+	int r = 0;
+
 	if (!adev->gmc.gmc_funcs->query_mem_partition_mode)
 		return 0;
+
+	nps_switch_support = (hweight32(adev->gmc.supported_nps_modes &
+					AMDGPU_ALL_NPS_MASK) > 1);
+	if (!nps_switch_support)
+		dev_attr_current_memory_partition.attr.mode &=
+			~(S_IWUSR | S_IWGRP | S_IWOTH);
+	else
+		r = device_create_file(adev->dev,
+				       &dev_attr_available_memory_partition);
+
+	if (r)
+		return r;
 
 	return device_create_file(adev->dev,
 				  &dev_attr_current_memory_partition);
@@ -1169,22 +1235,29 @@ int amdgpu_gmc_sysfs_init(struct amdgpu_device *adev)
 
 void amdgpu_gmc_sysfs_fini(struct amdgpu_device *adev)
 {
+	if (!adev->gmc.gmc_funcs->query_mem_partition_mode)
+		return;
+
 	device_remove_file(adev->dev, &dev_attr_current_memory_partition);
+	device_remove_file(adev->dev, &dev_attr_available_memory_partition);
 }
 
 int amdgpu_gmc_get_nps_memranges(struct amdgpu_device *adev,
 				 struct amdgpu_mem_partition_info *mem_ranges,
-				 int exp_ranges)
+				 uint8_t *exp_ranges)
 {
 	struct amdgpu_gmc_memrange *ranges;
 	int range_cnt, ret, i, j;
 	uint32_t nps_type;
+	bool refresh;
 
-	if (!mem_ranges)
+	if (!mem_ranges || !exp_ranges)
 		return -EINVAL;
 
+	refresh = (adev->init_lvl->level != AMDGPU_INIT_LEVEL_MINIMAL_XGMI) &&
+		  (adev->gmc.reset_flags & AMDGPU_GMC_INIT_RESET_NPS);
 	ret = amdgpu_discovery_get_nps_info(adev, &nps_type, &ranges,
-					    &range_cnt);
+					    &range_cnt, refresh);
 
 	if (ret)
 		return ret;
@@ -1192,16 +1265,16 @@ int amdgpu_gmc_get_nps_memranges(struct amdgpu_device *adev,
 	/* TODO: For now, expect ranges and partition count to be the same.
 	 * Adjust if there are holes expected in any NPS domain.
 	 */
-	if (range_cnt != exp_ranges) {
+	if (*exp_ranges && (range_cnt != *exp_ranges)) {
 		dev_warn(
 			adev->dev,
 			"NPS config mismatch - expected ranges: %d discovery - nps mode: %d, nps ranges: %d",
-			exp_ranges, nps_type, range_cnt);
+			*exp_ranges, nps_type, range_cnt);
 		ret = -EINVAL;
 		goto err;
 	}
 
-	for (i = 0; i < exp_ranges; ++i) {
+	for (i = 0; i < range_cnt; ++i) {
 		if (ranges[i].base_address >= ranges[i].limit_address) {
 			dev_warn(
 				adev->dev,
@@ -1242,8 +1315,81 @@ int amdgpu_gmc_get_nps_memranges(struct amdgpu_device *adev,
 			ranges[i].limit_address - ranges[i].base_address + 1;
 	}
 
+	if (!*exp_ranges)
+		*exp_ranges = range_cnt;
 err:
 	kfree(ranges);
 
 	return ret;
+}
+
+int amdgpu_gmc_request_memory_partition(struct amdgpu_device *adev,
+					int nps_mode)
+{
+	/* Not supported on VF devices and APUs */
+	if (amdgpu_sriov_vf(adev) || (adev->flags & AMD_IS_APU))
+		return -EOPNOTSUPP;
+
+	if (!adev->psp.funcs) {
+		dev_err(adev->dev,
+			"PSP interface not available for nps mode change request");
+		return -EINVAL;
+	}
+
+	return psp_memory_partition(&adev->psp, nps_mode);
+}
+
+static inline bool amdgpu_gmc_need_nps_switch_req(struct amdgpu_device *adev,
+						  int req_nps_mode,
+						  int cur_nps_mode)
+{
+	return (((BIT(req_nps_mode) & adev->gmc.supported_nps_modes) ==
+			BIT(req_nps_mode)) &&
+		req_nps_mode != cur_nps_mode);
+}
+
+void amdgpu_gmc_prepare_nps_mode_change(struct amdgpu_device *adev)
+{
+	int req_nps_mode, cur_nps_mode, r;
+	struct amdgpu_hive_info *hive;
+
+	if (amdgpu_sriov_vf(adev) || !adev->gmc.supported_nps_modes ||
+	    !adev->gmc.gmc_funcs->request_mem_partition_mode)
+		return;
+
+	cur_nps_mode = adev->gmc.gmc_funcs->query_mem_partition_mode(adev);
+	hive = amdgpu_get_xgmi_hive(adev);
+	if (hive) {
+		req_nps_mode = atomic_read(&hive->requested_nps_mode);
+		if (!amdgpu_gmc_need_nps_switch_req(adev, req_nps_mode,
+						    cur_nps_mode)) {
+			amdgpu_put_xgmi_hive(hive);
+			return;
+		}
+		r = amdgpu_xgmi_request_nps_change(adev, hive, req_nps_mode);
+		amdgpu_put_xgmi_hive(hive);
+		goto out;
+	}
+
+	req_nps_mode = adev->gmc.requested_nps_mode;
+	if (!amdgpu_gmc_need_nps_switch_req(adev, req_nps_mode, cur_nps_mode))
+		return;
+
+	/* even if this fails, we should let driver unload w/o blocking */
+	r = adev->gmc.gmc_funcs->request_mem_partition_mode(adev, req_nps_mode);
+out:
+	if (r)
+		dev_err(adev->dev, "NPS mode change request failed\n");
+	else
+		dev_info(
+			adev->dev,
+			"NPS mode change request done, reload driver to complete the change\n");
+}
+
+bool amdgpu_gmc_need_reset_on_init(struct amdgpu_device *adev)
+{
+	if (adev->gmc.gmc_funcs->need_reset_on_init)
+		return adev->gmc.gmc_funcs->need_reset_on_init(adev);
+
+	return false;
 }

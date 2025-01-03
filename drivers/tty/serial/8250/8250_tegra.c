@@ -182,7 +182,7 @@ static struct platform_driver tegra_uart_driver = {
 		.acpi_match_table = ACPI_PTR(tegra_uart_acpi_match),
 	},
 	.probe = tegra_uart_probe,
-	.remove_new = tegra_uart_remove,
+	.remove = tegra_uart_remove,
 };
 
 module_platform_driver(tegra_uart_driver);

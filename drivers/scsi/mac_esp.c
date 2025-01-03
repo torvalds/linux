@@ -432,7 +432,7 @@ static void esp_mac_remove(struct platform_device *dev)
 
 static struct platform_driver esp_mac_driver = {
 	.probe    = esp_mac_probe,
-	.remove_new = esp_mac_remove,
+	.remove   = esp_mac_remove,
 	.driver   = {
 		.name	= DRV_MODULE_NAME,
 	},

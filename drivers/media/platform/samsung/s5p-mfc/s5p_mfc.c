@@ -1721,7 +1721,7 @@ MODULE_DEVICE_TABLE(of, exynos_mfc_match);
 
 static struct platform_driver s5p_mfc_driver = {
 	.probe		= s5p_mfc_probe,
-	.remove_new	= s5p_mfc_remove,
+	.remove		= s5p_mfc_remove,
 	.driver	= {
 		.name	= S5P_MFC_NAME,
 		.pm	= &s5p_mfc_pm_ops,

@@ -175,6 +175,9 @@ static int intel_link_power_up(struct sdw_intel *sdw)
 				__func__, ret);
 			goto out;
 		}
+
+		hdac_bus_eml_enable_interrupt_unlocked(sdw->link_res->hbus, true,
+						       AZX_REG_ML_LEPTR_ID_SDW, true);
 	}
 
 	*shim_mask |= BIT(link_id);
@@ -200,6 +203,10 @@ static int intel_link_power_down(struct sdw_intel *sdw)
 	sdw->cdns.link_up = false;
 
 	*shim_mask &= ~BIT(link_id);
+
+	if (!*shim_mask)
+		hdac_bus_eml_enable_interrupt_unlocked(sdw->link_res->hbus, true,
+						       AZX_REG_ML_LEPTR_ID_SDW, false);
 
 	ret = hdac_bus_eml_sdw_power_down_unlocked(sdw->link_res->hbus, link_id);
 	if (ret < 0) {
@@ -376,11 +383,12 @@ static int intel_hw_params(struct snd_pcm_substream *substream,
 static int intel_prepare(struct snd_pcm_substream *substream,
 			 struct snd_soc_dai *dai)
 {
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct sdw_cdns *cdns = snd_soc_dai_get_drvdata(dai);
 	struct sdw_intel *sdw = cdns_to_intel(cdns);
 	struct sdw_cdns_dai_runtime *dai_runtime;
+	struct snd_pcm_hw_params *hw_params;
 	int ch, dir;
-	int ret = 0;
 
 	dai_runtime = cdns->dai_runtime_array[dai->id];
 	if (!dai_runtime) {
@@ -389,12 +397,8 @@ static int intel_prepare(struct snd_pcm_substream *substream,
 		return -EIO;
 	}
 
+	hw_params = &rtd->dpcm[substream->stream].hw_params;
 	if (dai_runtime->suspended) {
-		struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
-		struct snd_pcm_hw_params *hw_params;
-
-		hw_params = &rtd->dpcm[substream->stream].hw_params;
-
 		dai_runtime->suspended = false;
 
 		/*
@@ -415,15 +419,11 @@ static int intel_prepare(struct snd_pcm_substream *substream,
 		/* the SHIM will be configured in the callback functions */
 
 		sdw_cdns_config_stream(cdns, ch, dir, dai_runtime->pdi);
-
-		/* Inform DSP about PDI stream number */
-		ret = intel_params_stream(sdw, substream, dai,
-					  hw_params,
-					  sdw->instance,
-					  dai_runtime->pdi->intel_alh_id);
 	}
 
-	return ret;
+	/* Inform DSP about PDI stream number */
+	return intel_params_stream(sdw, substream, dai, hw_params, sdw->instance,
+				   dai_runtime->pdi->intel_alh_id);
 }
 
 static int

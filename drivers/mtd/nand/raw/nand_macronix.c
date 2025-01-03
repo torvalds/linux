@@ -113,7 +113,7 @@ static void macronix_nand_onfi_init(struct nand_chip *chip)
 	rand_otp = of_property_read_bool(dn, "mxic,enable-randomizer-otp");
 
 	mxic = (struct nand_onfi_vendor_macronix *)p->onfi->vendor;
-	/* Subpage write is prohibited in randomizer operatoin */
+	/* Subpage write is prohibited in randomizer operation */
 	if (rand_otp && chip->options & NAND_NO_SUBPAGE_WRITE &&
 	    mxic->reliability_func & MACRONIX_RANDOMIZER_BIT) {
 		if (p->supports_set_get_features) {

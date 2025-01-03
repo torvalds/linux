@@ -873,8 +873,6 @@ static const struct vb2_ops vsp1_video_queue_qops = {
 	.queue_setup = vsp1_video_queue_setup,
 	.buf_prepare = vsp1_video_buffer_prepare,
 	.buf_queue = vsp1_video_buffer_queue,
-	.wait_prepare = vb2_ops_wait_prepare,
-	.wait_finish = vb2_ops_wait_finish,
 	.start_streaming = vsp1_video_start_streaming,
 	.stop_streaming = vsp1_video_stop_streaming,
 };

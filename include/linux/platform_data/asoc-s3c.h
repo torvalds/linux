@@ -13,8 +13,6 @@
 
 #include <linux/dmaengine.h>
 
-extern void s3c64xx_ac97_setup_gpio(int);
-
 struct samsung_i2s_type {
 /* If the Primary DAI has 5.1 Channels */
 #define QUIRK_PRI_6CHAN		(1 << 0)

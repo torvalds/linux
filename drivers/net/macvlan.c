@@ -1024,7 +1024,7 @@ static int macvlan_vlan_rx_kill_vid(struct net_device *dev,
 static int macvlan_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 			   struct net_device *dev,
 			   const unsigned char *addr, u16 vid,
-			   u16 flags,
+			   u16 flags, bool *notified,
 			   struct netlink_ext_ack *extack)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
@@ -1049,7 +1049,7 @@ static int macvlan_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 
 static int macvlan_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 			   struct net_device *dev,
-			   const unsigned char *addr, u16 vid,
+			   const unsigned char *addr, u16 vid, bool *notified,
 			   struct netlink_ext_ack *extack)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
@@ -1117,7 +1117,7 @@ static void macvlan_dev_poll_controller(struct net_device *dev)
 	return;
 }
 
-static int macvlan_dev_netpoll_setup(struct net_device *dev, struct netpoll_info *npinfo)
+static int macvlan_dev_netpoll_setup(struct net_device *dev)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
 	struct net_device *real_dev = vlan->lowerdev;

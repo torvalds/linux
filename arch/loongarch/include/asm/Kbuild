@@ -11,3 +11,4 @@ generic-y += ioctl.h
 generic-y += mmzone.h
 generic-y += statfs.h
 generic-y += param.h
+generic-y += text-patching.h

@@ -39,7 +39,7 @@ struct hinge_state {
 	const char *labels[CHANNEL_SCAN_INDEX_MAX];
 	struct {
 		u32 hinge_val[3];
-		u64 timestamp __aligned(8);
+		aligned_s64 timestamp;
 	} scan;
 
 	int scale_pre_decml;
@@ -263,9 +263,9 @@ static int hinge_parse_report(struct platform_device *pdev,
 /* Function to initialize the processing for usage id */
 static int hid_hinge_probe(struct platform_device *pdev)
 {
+	struct hid_sensor_hub_device *hsdev = dev_get_platdata(&pdev->dev);
 	struct hinge_state *st;
 	struct iio_dev *indio_dev;
-	struct hid_sensor_hub_device *hsdev = pdev->dev.platform_data;
 	int ret;
 	int i;
 
@@ -344,7 +344,7 @@ error_remove_trigger:
 /* Function to deinitialize the processing for usage id */
 static void hid_hinge_remove(struct platform_device *pdev)
 {
-	struct hid_sensor_hub_device *hsdev = pdev->dev.platform_data;
+	struct hid_sensor_hub_device *hsdev = dev_get_platdata(&pdev->dev);
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 	struct hinge_state *st = iio_priv(indio_dev);
 
@@ -369,7 +369,7 @@ static struct platform_driver hid_hinge_platform_driver = {
 		.pm	= &hid_sensor_pm_ops,
 	},
 	.probe		= hid_hinge_probe,
-	.remove_new	= hid_hinge_remove,
+	.remove		= hid_hinge_remove,
 };
 module_platform_driver(hid_hinge_platform_driver);
 

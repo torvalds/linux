@@ -32,7 +32,7 @@ struct hclge_comm_tqp {
 
 u64 *hclge_comm_tqps_get_stats(struct hnae3_handle *handle, u64 *data);
 int hclge_comm_tqps_get_sset_count(struct hnae3_handle *handle);
-u8 *hclge_comm_tqps_get_strings(struct hnae3_handle *handle, u8 *data);
+void hclge_comm_tqps_get_strings(struct hnae3_handle *handle, u8 **data);
 void hclge_comm_reset_tqp_stats(struct hnae3_handle *handle);
 int hclge_comm_tqps_update_stats(struct hnae3_handle *handle,
 				 struct hclge_comm_hw *hw);

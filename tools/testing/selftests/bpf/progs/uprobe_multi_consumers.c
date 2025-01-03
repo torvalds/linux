@@ -24,16 +24,16 @@ int uprobe_1(struct pt_regs *ctx)
 	return 0;
 }
 
-SEC("uprobe.multi")
+SEC("uprobe.session")
 int uprobe_2(struct pt_regs *ctx)
 {
 	uprobe_result[2]++;
 	return 0;
 }
 
-SEC("uprobe.multi")
+SEC("uprobe.session")
 int uprobe_3(struct pt_regs *ctx)
 {
 	uprobe_result[3]++;
-	return 0;
+	return 1;
 }

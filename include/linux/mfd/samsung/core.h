@@ -37,6 +37,7 @@ struct gpio_desc;
 
 enum sec_device_type {
 	S5M8767X,
+	S2DOS05,
 	S2MPA01,
 	S2MPS11X,
 	S2MPS13X,

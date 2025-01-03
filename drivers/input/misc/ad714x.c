@@ -941,7 +941,7 @@ static irqreturn_t ad714x_interrupt_thread(int irq, void *data)
 	struct ad714x_chip *ad714x = data;
 	int i;
 
-	mutex_lock(&ad714x->mutex);
+	guard(mutex)(&ad714x->mutex);
 
 	ad714x->read(ad714x, STG_LOW_INT_STA_REG, &ad714x->l_state, 3);
 
@@ -953,8 +953,6 @@ static irqreturn_t ad714x_interrupt_thread(int irq, void *data)
 		ad714x_wheel_state_machine(ad714x, i);
 	for (i = 0; i < ad714x->hw->touchpad_num; i++)
 		ad714x_touchpad_state_machine(ad714x, i);
-
-	mutex_unlock(&ad714x->mutex);
 
 	return IRQ_HANDLED;
 }
@@ -1169,12 +1167,10 @@ static int ad714x_suspend(struct device *dev)
 
 	dev_dbg(ad714x->dev, "%s enter\n", __func__);
 
-	mutex_lock(&ad714x->mutex);
+	guard(mutex)(&ad714x->mutex);
 
 	data = ad714x->hw->sys_cfg_reg[AD714X_PWR_CTRL] | 0x3;
 	ad714x->write(ad714x, AD714X_PWR_CTRL, data);
-
-	mutex_unlock(&ad714x->mutex);
 
 	return 0;
 }
@@ -1184,7 +1180,7 @@ static int ad714x_resume(struct device *dev)
 	struct ad714x_chip *ad714x = dev_get_drvdata(dev);
 	dev_dbg(ad714x->dev, "%s enter\n", __func__);
 
-	mutex_lock(&ad714x->mutex);
+	guard(mutex)(&ad714x->mutex);
 
 	/* resume to non-shutdown mode */
 
@@ -1196,8 +1192,6 @@ static int ad714x_resume(struct device *dev)
 	 */
 
 	ad714x->read(ad714x, STG_LOW_INT_STA_REG, &ad714x->l_state, 3);
-
-	mutex_unlock(&ad714x->mutex);
 
 	return 0;
 }

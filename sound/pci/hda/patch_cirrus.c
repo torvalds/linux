@@ -385,7 +385,7 @@ static const struct hda_model_fixup cs420x_models[] = {
 	{}
 };
 
-static const struct snd_pci_quirk cs420x_fixup_tbl[] = {
+static const struct hda_quirk cs420x_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x10de, 0x0ac0, "MacBookPro 5,3", CS420X_MBP53),
 	SND_PCI_QUIRK(0x10de, 0x0d94, "MacBookAir 3,1(2)", CS420X_MBP55),
 	SND_PCI_QUIRK(0x10de, 0xcb79, "MacBookPro 5,5", CS420X_MBP55),
@@ -634,13 +634,13 @@ static const struct hda_model_fixup cs4208_models[] = {
 	{}
 };
 
-static const struct snd_pci_quirk cs4208_fixup_tbl[] = {
+static const struct hda_quirk cs4208_fixup_tbl[] = {
 	SND_PCI_QUIRK_VENDOR(0x106b, "Apple", CS4208_MAC_AUTO),
 	{} /* terminator */
 };
 
 /* codec SSID matching */
-static const struct snd_pci_quirk cs4208_mac_fixup_tbl[] = {
+static const struct hda_quirk cs4208_mac_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x106b, 0x5e00, "MacBookPro 11,2", CS4208_MBP11),
 	SND_PCI_QUIRK(0x106b, 0x6c00, "MacMini 7,1", CS4208_MACMINI),
 	SND_PCI_QUIRK(0x106b, 0x7100, "MacBookAir 6,1", CS4208_MBA6),
@@ -818,7 +818,7 @@ static const struct hda_model_fixup cs421x_models[] = {
 	{}
 };
 
-static const struct snd_pci_quirk cs421x_fixup_tbl[] = {
+static const struct hda_quirk cs421x_fixup_tbl[] = {
 	/* Test Intel board + CDB2410  */
 	SND_PCI_QUIRK(0x8086, 0x5001, "DP45SG/CDB4210", CS421X_CDB4210),
 	{} /* terminator */

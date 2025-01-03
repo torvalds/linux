@@ -2,7 +2,7 @@
 /*
  * Ultravisor Interfaces
  *
- * Copyright IBM Corp. 2019, 2022
+ * Copyright IBM Corp. 2019, 2024
  *
  * Author(s):
  *	Vasily Gorbik <gor@linux.ibm.com>
@@ -17,6 +17,7 @@
 #include <linux/sched.h>
 #include <asm/page.h>
 #include <asm/gmap.h>
+#include <asm/asm.h>
 
 #define UVC_CC_OK	0
 #define UVC_CC_ERROR	1
@@ -28,9 +29,11 @@
 #define UVC_RC_INV_STATE	0x0003
 #define UVC_RC_INV_LEN		0x0005
 #define UVC_RC_NO_RESUME	0x0007
+#define UVC_RC_MORE_DATA	0x0100
 #define UVC_RC_NEED_DESTROY	0x8000
 
 #define UVC_CMD_QUI			0x0001
+#define UVC_CMD_QUERY_KEYS		0x0002
 #define UVC_CMD_INIT_UV			0x000f
 #define UVC_CMD_CREATE_SEC_CONF		0x0100
 #define UVC_CMD_DESTROY_SEC_CONF	0x0101
@@ -61,6 +64,7 @@
 #define UVC_CMD_ADD_SECRET		0x1031
 #define UVC_CMD_LIST_SECRETS		0x1033
 #define UVC_CMD_LOCK_SECRETS		0x1034
+#define UVC_CMD_RETR_SECRET		0x1035
 
 /* Bits in installed uv calls */
 enum uv_cmds_inst {
@@ -94,6 +98,8 @@ enum uv_cmds_inst {
 	BIT_UVC_CMD_ADD_SECRET = 29,
 	BIT_UVC_CMD_LIST_SECRETS = 30,
 	BIT_UVC_CMD_LOCK_SECRETS = 31,
+	BIT_UVC_CMD_RETR_SECRET = 33,
+	BIT_UVC_CMD_QUERY_KEYS = 34,
 };
 
 enum uv_feat_ind {
@@ -140,10 +146,26 @@ struct uv_cb_qui {
 	u64 reservedf0;				/* 0x00f0 */
 	u64 supp_add_secret_req_ver;		/* 0x00f8 */
 	u64 supp_add_secret_pcf;		/* 0x0100 */
-	u64 supp_secret_types;			/* 0x0180 */
-	u16 max_secrets;			/* 0x0110 */
-	u8 reserved112[0x120 - 0x112];		/* 0x0112 */
+	u64 supp_secret_types;			/* 0x0108 */
+	u16 max_assoc_secrets;			/* 0x0110 */
+	u16 max_retr_secrets;			/* 0x0112 */
+	u8 reserved114[0x120 - 0x114];		/* 0x0114 */
 } __packed __aligned(8);
+
+struct uv_key_hash {
+	u64 dword[4];
+} __packed __aligned(8);
+
+#define UVC_QUERY_KEYS_IDX_HK		0
+#define UVC_QUERY_KEYS_IDX_BACK_HK	1
+
+/* Query Ultravisor Keys */
+struct uv_cb_query_keys {
+	struct uv_cb_header header;		/* 0x0000 */
+	u64 reserved08[3];			/* 0x0008 */
+	struct uv_key_hash key_hashes[15];	/* 0x0020 */
+} __packed __aligned(8);
+static_assert(sizeof(struct uv_cb_query_keys) == 0x200);
 
 /* Initialize Ultravisor */
 struct uv_cb_init {
@@ -317,7 +339,6 @@ struct uv_cb_dump_complete {
  * A common UV call struct for pv guests that contains a single address
  * Examples:
  * Add Secret
- * List Secrets
  */
 struct uv_cb_guest_addr {
 	struct uv_cb_header header;
@@ -326,18 +347,102 @@ struct uv_cb_guest_addr {
 	u64 reserved28[4];
 } __packed __aligned(8);
 
+#define UVC_RC_RETR_SECR_BUF_SMALL	0x0109
+#define UVC_RC_RETR_SECR_STORE_EMPTY	0x010f
+#define UVC_RC_RETR_SECR_INV_IDX	0x0110
+#define UVC_RC_RETR_SECR_INV_SECRET	0x0111
+
+struct uv_cb_retr_secr {
+	struct uv_cb_header header;
+	u64 reserved08[2];
+	u16 secret_idx;
+	u16 reserved1a;
+	u32 buf_size;
+	u64 buf_addr;
+	u64 reserved28[4];
+}  __packed __aligned(8);
+
+struct uv_cb_list_secrets {
+	struct uv_cb_header header;
+	u64 reserved08[2];
+	u8  reserved18[6];
+	u16 start_idx;
+	u64 list_addr;
+	u64 reserved28[4];
+} __packed __aligned(8);
+
+enum uv_secret_types {
+	UV_SECRET_INVAL = 0x0,
+	UV_SECRET_NULL = 0x1,
+	UV_SECRET_ASSOCIATION = 0x2,
+	UV_SECRET_PLAIN = 0x3,
+	UV_SECRET_AES_128 = 0x4,
+	UV_SECRET_AES_192 = 0x5,
+	UV_SECRET_AES_256 = 0x6,
+	UV_SECRET_AES_XTS_128 = 0x7,
+	UV_SECRET_AES_XTS_256 = 0x8,
+	UV_SECRET_HMAC_SHA_256 = 0x9,
+	UV_SECRET_HMAC_SHA_512 = 0xa,
+	/* 0x0b - 0x10 reserved */
+	UV_SECRET_ECDSA_P256 = 0x11,
+	UV_SECRET_ECDSA_P384 = 0x12,
+	UV_SECRET_ECDSA_P521 = 0x13,
+	UV_SECRET_ECDSA_ED25519 = 0x14,
+	UV_SECRET_ECDSA_ED448 = 0x15,
+};
+
+/**
+ * uv_secret_list_item_hdr - UV secret metadata.
+ * @index: Index of the secret in the secret list.
+ * @type: Type of the secret. See `enum uv_secret_types`.
+ * @length: Length of the stored secret.
+ */
+struct uv_secret_list_item_hdr {
+	u16 index;
+	u16 type;
+	u32 length;
+} __packed __aligned(8);
+
+#define UV_SECRET_ID_LEN 32
+/**
+ * uv_secret_list_item - UV secret entry.
+ * @hdr: The metadata of this secret.
+ * @id: The ID of this secret, not the secret itself.
+ */
+struct uv_secret_list_item {
+	struct uv_secret_list_item_hdr hdr;
+	u64 reserverd08;
+	u8 id[UV_SECRET_ID_LEN];
+} __packed __aligned(8);
+
+/**
+ * uv_secret_list - UV secret-metadata list.
+ * @num_secr_stored: Number of secrets stored in this list.
+ * @total_num_secrets: Number of secrets stored in the UV for this guest.
+ * @next_secret_idx: positive number if there are more secrets available or zero.
+ * @secrets: Up to 85 UV-secret metadata entries.
+ */
+struct uv_secret_list {
+	u16 num_secr_stored;
+	u16 total_num_secrets;
+	u16 next_secret_idx;
+	u16 reserved_06;
+	u64 reserved_08;
+	struct uv_secret_list_item secrets[85];
+} __packed __aligned(8);
+static_assert(sizeof(struct uv_secret_list) == PAGE_SIZE);
+
 static inline int __uv_call(unsigned long r1, unsigned long r2)
 {
 	int cc;
 
 	asm volatile(
-		"	.insn rrf,0xB9A40000,%[r1],%[r2],0,0\n"
-		"	ipm	%[cc]\n"
-		"	srl	%[cc],28\n"
-		: [cc] "=d" (cc)
+		"	.insn	 rrf,0xb9a40000,%[r1],%[r2],0,0\n"
+		CC_IPM(cc)
+		: CC_OUT(cc, cc)
 		: [r1] "a" (r1), [r2] "a" (r2)
-		: "memory", "cc");
-	return cc;
+		: CC_CLOBBER_LIST("memory"));
+	return CC_TRANSFORM(cc);
 }
 
 static inline int uv_call(unsigned long r1, unsigned long r2)
@@ -382,6 +487,48 @@ static inline int uv_cmd_nodata(u64 handle, u16 cmd, u16 *rc, u16 *rrc)
 	return cc ? -EINVAL : 0;
 }
 
+/**
+ * uv_list_secrets() - Do a List Secrets UVC.
+ *
+ * @buf: Buffer to write list into; size of one page.
+ * @start_idx: The smallest index that should be included in the list.
+ *		For the fist invocation use 0.
+ * @rc: Pointer to store the return code or NULL.
+ * @rrc: Pointer to store the return reason code or NULL.
+ *
+ * This function calls the List Secrets UVC. The result is written into `buf`,
+ * that needs to be at least one page of writable memory.
+ * `buf` consists of:
+ * * %struct uv_secret_list_hdr
+ * * %struct uv_secret_list_item (multiple)
+ *
+ * For `start_idx` use _0_ for the first call. If there are more secrets available
+ * but could not fit into the page then `rc` is `UVC_RC_MORE_DATA`.
+ * In this case use `uv_secret_list_hdr.next_secret_idx` for `start_idx`.
+ *
+ * Context: might sleep.
+ *
+ * Return: The UVC condition code.
+ */
+static inline int uv_list_secrets(struct uv_secret_list *buf, u16 start_idx,
+				  u16 *rc, u16 *rrc)
+{
+	struct uv_cb_list_secrets uvcb = {
+		.header.len = sizeof(uvcb),
+		.header.cmd = UVC_CMD_LIST_SECRETS,
+		.start_idx = start_idx,
+		.list_addr = (u64)buf,
+	};
+	int cc = uv_call_sched(0, (u64)&uvcb);
+
+	if (rc)
+		*rc = uvcb.header.rc;
+	if (rrc)
+		*rrc = uvcb.header.rrc;
+
+	return cc;
+}
+
 struct uv_info {
 	unsigned long inst_calls_list[4];
 	unsigned long uv_base_stor_len;
@@ -402,7 +549,8 @@ struct uv_info {
 	unsigned long supp_add_secret_req_ver;
 	unsigned long supp_add_secret_pcf;
 	unsigned long supp_secret_types;
-	unsigned short max_secrets;
+	unsigned short max_assoc_secrets;
+	unsigned short max_retr_secrets;
 };
 
 extern struct uv_info uv_info;
@@ -467,6 +615,10 @@ static inline int uv_remove_shared(unsigned long addr)
 {
 	return share(addr, UVC_CMD_REMOVE_SHARED_ACCESS);
 }
+
+int uv_get_secret_metadata(const u8 secret_id[UV_SECRET_ID_LEN],
+			   struct uv_secret_list_item_hdr *secret);
+int uv_retrieve_secret(u16 secret_idx, u8 *buf, size_t buf_size);
 
 extern int prot_virt_host;
 

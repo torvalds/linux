@@ -706,7 +706,6 @@ static const struct resource_caps res_cap_nv14 = {
 static const struct dc_debug_options debug_defaults_drv = {
 		.disable_dmcu = false,
 		.force_abm_enable = false,
-		.timing_trace = false,
 		.clock_trace = true,
 		.disable_pplib_clock_request = true,
 		.pipe_split_policy = MPC_SPLIT_AVOID_MULT_DISP,
@@ -920,7 +919,7 @@ struct link_encoder *dcn20_link_encoder_create(
 		kzalloc(sizeof(struct dcn20_link_encoder), GFP_KERNEL);
 	int link_regs_id;
 
-	if (!enc20)
+	if (!enc20 || enc_init_data->hpd_source >= ARRAY_SIZE(link_enc_hpd_regs))
 		return NULL;
 
 	link_regs_id =

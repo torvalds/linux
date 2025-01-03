@@ -12,7 +12,8 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/parser.h>
+#include <linux/fs_context.h>
+#include <linux/fs_parser.h>
 #include <linux/nls.h>
 #include <linux/mount.h>
 #include <linux/seq_file.h>
@@ -23,26 +24,23 @@ enum {
 	opt_creator, opt_type,
 	opt_umask, opt_uid, opt_gid,
 	opt_part, opt_session, opt_nls,
-	opt_nodecompose, opt_decompose,
-	opt_barrier, opt_nobarrier,
-	opt_force, opt_err
+	opt_decompose, opt_barrier,
+	opt_force,
 };
 
-static const match_table_t tokens = {
-	{ opt_creator, "creator=%s" },
-	{ opt_type, "type=%s" },
-	{ opt_umask, "umask=%o" },
-	{ opt_uid, "uid=%u" },
-	{ opt_gid, "gid=%u" },
-	{ opt_part, "part=%u" },
-	{ opt_session, "session=%u" },
-	{ opt_nls, "nls=%s" },
-	{ opt_decompose, "decompose" },
-	{ opt_nodecompose, "nodecompose" },
-	{ opt_barrier, "barrier" },
-	{ opt_nobarrier, "nobarrier" },
-	{ opt_force, "force" },
-	{ opt_err, NULL }
+static const struct fs_parameter_spec hfs_param_spec[] = {
+	fsparam_string	("creator",	opt_creator),
+	fsparam_string	("type",	opt_type),
+	fsparam_u32oct	("umask",	opt_umask),
+	fsparam_u32	("uid",		opt_uid),
+	fsparam_u32	("gid",		opt_gid),
+	fsparam_u32	("part",	opt_part),
+	fsparam_u32	("session",	opt_session),
+	fsparam_string	("nls",		opt_nls),
+	fsparam_flag_no	("decompose",	opt_decompose),
+	fsparam_flag_no	("barrier",	opt_barrier),
+	fsparam_flag	("force",	opt_force),
+	{}
 };
 
 /* Initialize an options object to reasonable defaults */
@@ -60,162 +58,89 @@ void hfsplus_fill_defaults(struct hfsplus_sb_info *opts)
 	opts->session = -1;
 }
 
-/* convert a "four byte character" to a 32 bit int with error checks */
-static inline int match_fourchar(substring_t *arg, u32 *result)
+/* Parse options from mount. Returns nonzero errno on failure */
+int hfsplus_parse_param(struct fs_context *fc, struct fs_parameter *param)
 {
-	if (arg->to - arg->from != 4)
-		return -EINVAL;
-	memcpy(result, arg->from, 4);
-	return 0;
-}
+	struct hfsplus_sb_info *sbi = fc->s_fs_info;
+	struct fs_parse_result result;
+	int opt;
 
-int hfsplus_parse_options_remount(char *input, int *force)
-{
-	char *p;
-	substring_t args[MAX_OPT_ARGS];
-	int token;
+	/*
+	 * Only the force option is examined during remount, all others
+	 * are ignored.
+	 */
+	if (fc->purpose == FS_CONTEXT_FOR_RECONFIGURE &&
+	    strncmp(param->key, "force", 5))
+		return 0;
 
-	if (!input)
-		return 1;
+	opt = fs_parse(fc, hfs_param_spec, param, &result);
+	if (opt < 0)
+		return opt;
 
-	while ((p = strsep(&input, ",")) != NULL) {
-		if (!*p)
-			continue;
-
-		token = match_token(p, tokens, args);
-		switch (token) {
-		case opt_force:
-			*force = 1;
-			break;
-		default:
-			break;
+	switch (opt) {
+	case opt_creator:
+		if (strlen(param->string) != 4) {
+			pr_err("creator requires a 4 character value\n");
+			return -EINVAL;
 		}
-	}
-
-	return 1;
-}
-
-/* Parse options from mount. Returns 0 on failure */
-/* input is the options passed to mount() as a string */
-int hfsplus_parse_options(char *input, struct hfsplus_sb_info *sbi)
-{
-	char *p;
-	substring_t args[MAX_OPT_ARGS];
-	int tmp, token;
-
-	if (!input)
-		goto done;
-
-	while ((p = strsep(&input, ",")) != NULL) {
-		if (!*p)
-			continue;
-
-		token = match_token(p, tokens, args);
-		switch (token) {
-		case opt_creator:
-			if (match_fourchar(&args[0], &sbi->creator)) {
-				pr_err("creator requires a 4 character value\n");
-				return 0;
-			}
-			break;
-		case opt_type:
-			if (match_fourchar(&args[0], &sbi->type)) {
-				pr_err("type requires a 4 character value\n");
-				return 0;
-			}
-			break;
-		case opt_umask:
-			if (match_octal(&args[0], &tmp)) {
-				pr_err("umask requires a value\n");
-				return 0;
-			}
-			sbi->umask = (umode_t)tmp;
-			break;
-		case opt_uid:
-			if (match_int(&args[0], &tmp)) {
-				pr_err("uid requires an argument\n");
-				return 0;
-			}
-			sbi->uid = make_kuid(current_user_ns(), (uid_t)tmp);
-			if (!uid_valid(sbi->uid)) {
-				pr_err("invalid uid specified\n");
-				return 0;
-			} else {
-				set_bit(HFSPLUS_SB_UID, &sbi->flags);
-			}
-			break;
-		case opt_gid:
-			if (match_int(&args[0], &tmp)) {
-				pr_err("gid requires an argument\n");
-				return 0;
-			}
-			sbi->gid = make_kgid(current_user_ns(), (gid_t)tmp);
-			if (!gid_valid(sbi->gid)) {
-				pr_err("invalid gid specified\n");
-				return 0;
-			} else {
-				set_bit(HFSPLUS_SB_GID, &sbi->flags);
-			}
-			break;
-		case opt_part:
-			if (match_int(&args[0], &sbi->part)) {
-				pr_err("part requires an argument\n");
-				return 0;
-			}
-			break;
-		case opt_session:
-			if (match_int(&args[0], &sbi->session)) {
-				pr_err("session requires an argument\n");
-				return 0;
-			}
-			break;
-		case opt_nls:
-			if (sbi->nls) {
-				pr_err("unable to change nls mapping\n");
-				return 0;
-			}
-			p = match_strdup(&args[0]);
-			if (p)
-				sbi->nls = load_nls(p);
-			if (!sbi->nls) {
-				pr_err("unable to load nls mapping \"%s\"\n",
-				       p);
-				kfree(p);
-				return 0;
-			}
-			kfree(p);
-			break;
-		case opt_decompose:
-			clear_bit(HFSPLUS_SB_NODECOMPOSE, &sbi->flags);
-			break;
-		case opt_nodecompose:
+		memcpy(&sbi->creator, param->string, 4);
+		break;
+	case opt_type:
+		if (strlen(param->string) != 4) {
+			pr_err("type requires a 4 character value\n");
+			return -EINVAL;
+		}
+		memcpy(&sbi->type, param->string, 4);
+		break;
+	case opt_umask:
+		sbi->umask = (umode_t)result.uint_32;
+		break;
+	case opt_uid:
+		sbi->uid = result.uid;
+		set_bit(HFSPLUS_SB_UID, &sbi->flags);
+		break;
+	case opt_gid:
+		sbi->gid = result.gid;
+		set_bit(HFSPLUS_SB_GID, &sbi->flags);
+		break;
+	case opt_part:
+		sbi->part = result.uint_32;
+		break;
+	case opt_session:
+		sbi->session = result.uint_32;
+		break;
+	case opt_nls:
+		if (sbi->nls) {
+			pr_err("unable to change nls mapping\n");
+			return -EINVAL;
+		}
+		sbi->nls = load_nls(param->string);
+		if (!sbi->nls) {
+			pr_err("unable to load nls mapping \"%s\"\n",
+			       param->string);
+			return -EINVAL;
+		}
+		break;
+	case opt_decompose:
+		if (result.negated)
 			set_bit(HFSPLUS_SB_NODECOMPOSE, &sbi->flags);
-			break;
-		case opt_barrier:
-			clear_bit(HFSPLUS_SB_NOBARRIER, &sbi->flags);
-			break;
-		case opt_nobarrier:
+		else
+			clear_bit(HFSPLUS_SB_NODECOMPOSE, &sbi->flags);
+		break;
+	case opt_barrier:
+		if (result.negated)
 			set_bit(HFSPLUS_SB_NOBARRIER, &sbi->flags);
-			break;
-		case opt_force:
-			set_bit(HFSPLUS_SB_FORCE, &sbi->flags);
-			break;
-		default:
-			return 0;
-		}
+		else
+			clear_bit(HFSPLUS_SB_NOBARRIER, &sbi->flags);
+		break;
+	case opt_force:
+		set_bit(HFSPLUS_SB_FORCE, &sbi->flags);
+		break;
+	default:
+		return -EINVAL;
 	}
 
-done:
-	if (!sbi->nls) {
-		/* try utf8 first, as this is the old default behaviour */
-		sbi->nls = load_nls("utf8");
-		if (!sbi->nls)
-			sbi->nls = load_nls_default();
-		if (!sbi->nls)
-			return 0;
-	}
-
-	return 1;
+	return 0;
 }
 
 int hfsplus_show_options(struct seq_file *seq, struct dentry *root)

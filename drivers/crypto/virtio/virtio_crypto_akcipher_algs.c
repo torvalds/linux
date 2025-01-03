@@ -83,23 +83,16 @@ static void virtio_crypto_dataq_akcipher_callback(struct virtio_crypto_request *
 	case VIRTIO_CRYPTO_BADMSG:
 		error = -EBADMSG;
 		break;
-
-	case VIRTIO_CRYPTO_KEY_REJECTED:
-		error = -EKEYREJECTED;
-		break;
-
 	default:
 		error = -EIO;
 		break;
 	}
 
 	akcipher_req = vc_akcipher_req->akcipher_req;
-	if (vc_akcipher_req->opcode != VIRTIO_CRYPTO_AKCIPHER_VERIFY) {
-		/* actuall length maybe less than dst buffer */
-		akcipher_req->dst_len = len - sizeof(vc_req->status);
-		sg_copy_from_buffer(akcipher_req->dst, sg_nents(akcipher_req->dst),
-				    vc_akcipher_req->dst_buf, akcipher_req->dst_len);
-	}
+	/* actual length maybe less than dst buffer */
+	akcipher_req->dst_len = len - sizeof(vc_req->status);
+	sg_copy_from_buffer(akcipher_req->dst, sg_nents(akcipher_req->dst),
+			    vc_akcipher_req->dst_buf, akcipher_req->dst_len);
 	virtio_crypto_akcipher_finalize_req(vc_akcipher_req, akcipher_req, error);
 }
 
@@ -230,36 +223,27 @@ static int __virtio_crypto_akcipher_do_req(struct virtio_crypto_akcipher_request
 	int node = dev_to_node(&vcrypto->vdev->dev);
 	unsigned long flags;
 	int ret;
-	bool verify = vc_akcipher_req->opcode == VIRTIO_CRYPTO_AKCIPHER_VERIFY;
-	unsigned int src_len = verify ? req->src_len + req->dst_len : req->src_len;
 
 	/* out header */
 	sg_init_one(&outhdr_sg, req_data, sizeof(*req_data));
 	sgs[num_out++] = &outhdr_sg;
 
 	/* src data */
-	src_buf = kcalloc_node(src_len, 1, GFP_KERNEL, node);
+	src_buf = kcalloc_node(req->src_len, 1, GFP_KERNEL, node);
 	if (!src_buf)
 		return -ENOMEM;
 
-	if (verify) {
-		/* for verify operation, both src and dst data work as OUT direction */
-		sg_copy_to_buffer(req->src, sg_nents(req->src), src_buf, src_len);
-		sg_init_one(&srcdata_sg, src_buf, src_len);
-		sgs[num_out++] = &srcdata_sg;
-	} else {
-		sg_copy_to_buffer(req->src, sg_nents(req->src), src_buf, src_len);
-		sg_init_one(&srcdata_sg, src_buf, src_len);
-		sgs[num_out++] = &srcdata_sg;
+	sg_copy_to_buffer(req->src, sg_nents(req->src), src_buf, req->src_len);
+	sg_init_one(&srcdata_sg, src_buf, req->src_len);
+	sgs[num_out++] = &srcdata_sg;
 
-		/* dst data */
-		dst_buf = kcalloc_node(req->dst_len, 1, GFP_KERNEL, node);
-		if (!dst_buf)
-			goto free_src;
+	/* dst data */
+	dst_buf = kcalloc_node(req->dst_len, 1, GFP_KERNEL, node);
+	if (!dst_buf)
+		goto free_src;
 
-		sg_init_one(&dstdata_sg, dst_buf, req->dst_len);
-		sgs[num_out + num_in++] = &dstdata_sg;
-	}
+	sg_init_one(&dstdata_sg, dst_buf, req->dst_len);
+	sgs[num_out + num_in++] = &dstdata_sg;
 
 	vc_akcipher_req->src_buf = src_buf;
 	vc_akcipher_req->dst_buf = dst_buf;
@@ -350,16 +334,6 @@ static int virtio_crypto_rsa_encrypt(struct akcipher_request *req)
 static int virtio_crypto_rsa_decrypt(struct akcipher_request *req)
 {
 	return virtio_crypto_rsa_req(req, VIRTIO_CRYPTO_AKCIPHER_DECRYPT);
-}
-
-static int virtio_crypto_rsa_sign(struct akcipher_request *req)
-{
-	return virtio_crypto_rsa_req(req, VIRTIO_CRYPTO_AKCIPHER_SIGN);
-}
-
-static int virtio_crypto_rsa_verify(struct akcipher_request *req)
-{
-	return virtio_crypto_rsa_req(req, VIRTIO_CRYPTO_AKCIPHER_VERIFY);
 }
 
 static int virtio_crypto_rsa_set_key(struct crypto_akcipher *tfm,
@@ -524,16 +498,19 @@ static struct virtio_crypto_akcipher_algo virtio_crypto_akcipher_algs[] = {
 		.algo.base = {
 			.encrypt = virtio_crypto_rsa_encrypt,
 			.decrypt = virtio_crypto_rsa_decrypt,
-			.sign = virtio_crypto_rsa_sign,
-			.verify = virtio_crypto_rsa_verify,
+			/*
+			 * Must specify an arbitrary hash algorithm upon
+			 * set_{pub,priv}_key (even though it's not used
+			 * by encrypt/decrypt) because qemu checks for it.
+			 */
 			.set_pub_key = virtio_crypto_p1pad_rsa_sha1_set_pub_key,
 			.set_priv_key = virtio_crypto_p1pad_rsa_sha1_set_priv_key,
 			.max_size = virtio_crypto_rsa_max_size,
 			.init = virtio_crypto_rsa_init_tfm,
 			.exit = virtio_crypto_rsa_exit_tfm,
 			.base = {
-				.cra_name = "pkcs1pad(rsa,sha1)",
-				.cra_driver_name = "virtio-pkcs1-rsa-with-sha1",
+				.cra_name = "pkcs1pad(rsa)",
+				.cra_driver_name = "virtio-pkcs1-rsa",
 				.cra_priority = 150,
 				.cra_module = THIS_MODULE,
 				.cra_ctxsize = sizeof(struct virtio_crypto_akcipher_ctx),

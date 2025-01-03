@@ -520,7 +520,7 @@ MODULE_DEVICE_TABLE(of, bcm2835_i2c_of_match);
 
 static struct platform_driver bcm2835_i2c_driver = {
 	.probe		= bcm2835_i2c_probe,
-	.remove_new	= bcm2835_i2c_remove,
+	.remove		= bcm2835_i2c_remove,
 	.driver		= {
 		.name	= "i2c-bcm2835",
 		.of_match_table = bcm2835_i2c_of_match,

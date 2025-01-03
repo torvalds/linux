@@ -179,7 +179,7 @@ static struct clk_hw_onecell_data sun50i_h616_r_hw_clks = {
 	.num	= CLK_NUMBER,
 };
 
-static struct ccu_reset_map sun50i_h6_r_ccu_resets[] = {
+static const struct ccu_reset_map sun50i_h6_r_ccu_resets[] = {
 	[RST_R_APB1_TIMER]	=  { 0x11c, BIT(16) },
 	[RST_R_APB1_TWD]	=  { 0x12c, BIT(16) },
 	[RST_R_APB1_PWM]	=  { 0x13c, BIT(16) },
@@ -190,7 +190,7 @@ static struct ccu_reset_map sun50i_h6_r_ccu_resets[] = {
 	[RST_R_APB1_W1]		=  { 0x1ec, BIT(16) },
 };
 
-static struct ccu_reset_map sun50i_h616_r_ccu_resets[] = {
+static const struct ccu_reset_map sun50i_h616_r_ccu_resets[] = {
 	[RST_R_APB1_TWD]	=  { 0x12c, BIT(16) },
 	[RST_R_APB2_I2C]	=  { 0x19c, BIT(16) },
 	[RST_R_APB2_RSB]	=  { 0x1bc, BIT(16) },

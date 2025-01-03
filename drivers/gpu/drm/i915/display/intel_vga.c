@@ -14,24 +14,24 @@
 #include "intel_de.h"
 #include "intel_vga.h"
 
-static i915_reg_t intel_vga_cntrl_reg(struct drm_i915_private *i915)
+static i915_reg_t intel_vga_cntrl_reg(struct intel_display *display)
 {
-	if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915))
+	if (display->platform.valleyview || display->platform.cherryview)
 		return VLV_VGACNTRL;
-	else if (DISPLAY_VER(i915) >= 5)
+	else if (DISPLAY_VER(display) >= 5)
 		return CPU_VGACNTRL;
 	else
 		return VGACNTRL;
 }
 
 /* Disable the VGA plane that we never use */
-void intel_vga_disable(struct drm_i915_private *dev_priv)
+void intel_vga_disable(struct intel_display *display)
 {
-	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
-	i915_reg_t vga_reg = intel_vga_cntrl_reg(dev_priv);
+	struct pci_dev *pdev = to_pci_dev(display->drm->dev);
+	i915_reg_t vga_reg = intel_vga_cntrl_reg(display);
 	u8 sr1;
 
-	if (intel_de_read(dev_priv, vga_reg) & VGA_DISP_DISABLE)
+	if (intel_de_read(display, vga_reg) & VGA_DISP_DISABLE)
 		return;
 
 	/* WaEnableVGAAccessThroughIOPort:ctg,elk,ilk,snb,ivb,vlv,hsw */
@@ -42,23 +42,24 @@ void intel_vga_disable(struct drm_i915_private *dev_priv)
 	vga_put(pdev, VGA_RSRC_LEGACY_IO);
 	udelay(300);
 
-	intel_de_write(dev_priv, vga_reg, VGA_DISP_DISABLE);
-	intel_de_posting_read(dev_priv, vga_reg);
+	intel_de_write(display, vga_reg, VGA_DISP_DISABLE);
+	intel_de_posting_read(display, vga_reg);
 }
 
-void intel_vga_redisable_power_on(struct drm_i915_private *dev_priv)
+void intel_vga_redisable_power_on(struct intel_display *display)
 {
-	i915_reg_t vga_reg = intel_vga_cntrl_reg(dev_priv);
+	i915_reg_t vga_reg = intel_vga_cntrl_reg(display);
 
-	if (!(intel_de_read(dev_priv, vga_reg) & VGA_DISP_DISABLE)) {
-		drm_dbg_kms(&dev_priv->drm,
+	if (!(intel_de_read(display, vga_reg) & VGA_DISP_DISABLE)) {
+		drm_dbg_kms(display->drm,
 			    "Something enabled VGA plane, disabling it\n");
-		intel_vga_disable(dev_priv);
+		intel_vga_disable(display);
 	}
 }
 
-void intel_vga_redisable(struct drm_i915_private *i915)
+void intel_vga_redisable(struct intel_display *display)
 {
+	struct drm_i915_private *i915 = to_i915(display->drm);
 	intel_wakeref_t wakeref;
 
 	/*
@@ -74,14 +75,14 @@ void intel_vga_redisable(struct drm_i915_private *i915)
 	if (!wakeref)
 		return;
 
-	intel_vga_redisable_power_on(i915);
+	intel_vga_redisable_power_on(display);
 
 	intel_display_power_put(i915, POWER_DOMAIN_VGA, wakeref);
 }
 
-void intel_vga_reset_io_mem(struct drm_i915_private *i915)
+void intel_vga_reset_io_mem(struct intel_display *display)
 {
-	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
+	struct pci_dev *pdev = to_pci_dev(display->drm->dev);
 
 	/*
 	 * After we re-enable the power well, if we touch VGA register 0x3d5
@@ -98,10 +99,10 @@ void intel_vga_reset_io_mem(struct drm_i915_private *i915)
 	vga_put(pdev, VGA_RSRC_LEGACY_IO);
 }
 
-int intel_vga_register(struct drm_i915_private *i915)
+int intel_vga_register(struct intel_display *display)
 {
 
-	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
+	struct pci_dev *pdev = to_pci_dev(display->drm->dev);
 	int ret;
 
 	/*
@@ -119,9 +120,9 @@ int intel_vga_register(struct drm_i915_private *i915)
 	return 0;
 }
 
-void intel_vga_unregister(struct drm_i915_private *i915)
+void intel_vga_unregister(struct intel_display *display)
 {
-	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
+	struct pci_dev *pdev = to_pci_dev(display->drm->dev);
 
 	vga_client_unregister(pdev);
 }

@@ -12,24 +12,19 @@
 #include <linux/crypto.h>
 
 /**
- * struct akcipher_request - public key request
+ * struct akcipher_request - public key cipher request
  *
  * @base:	Common attributes for async crypto requests
  * @src:	Source data
- *		For verify op this is signature + digest, in that case
- *		total size of @src is @src_len + @dst_len.
- * @dst:	Destination data (Should be NULL for verify op)
+ * @dst:	Destination data
  * @src_len:	Size of the input buffer
- *		For verify op it's size of signature part of @src, this part
- *		is supposed to be operated by cipher.
- * @dst_len:	Size of @dst buffer (for all ops except verify).
+ * @dst_len:	Size of @dst buffer
  *		It needs to be at least	as big as the expected result
  *		depending on the operation.
  *		After operation it will be updated with the actual size of the
  *		result.
  *		In case of error where the dst sgl size was insufficient,
  *		it will be updated to the size required for the operation.
- *		For verify op this is size of digest part in @src.
  * @__ctx:	Start of private context data
  */
 struct akcipher_request {
@@ -55,15 +50,8 @@ struct crypto_akcipher {
 };
 
 /**
- * struct akcipher_alg - generic public key algorithm
+ * struct akcipher_alg - generic public key cipher algorithm
  *
- * @sign:	Function performs a sign operation as defined by public key
- *		algorithm. In case of error, where the dst_len was insufficient,
- *		the req->dst_len will be updated to the size required for the
- *		operation
- * @verify:	Function performs a complete verify operation as defined by
- *		public key algorithm, returning verification status. Requires
- *		digest value as input parameter.
  * @encrypt:	Function performs an encrypt operation as defined by public key
  *		algorithm. In case of error, where the dst_len was insufficient,
  *		the req->dst_len will be updated to the size required for the
@@ -94,8 +82,6 @@ struct crypto_akcipher {
  * @base:	Common crypto API algorithm data structure
  */
 struct akcipher_alg {
-	int (*sign)(struct akcipher_request *req);
-	int (*verify)(struct akcipher_request *req);
 	int (*encrypt)(struct akcipher_request *req);
 	int (*decrypt)(struct akcipher_request *req);
 	int (*set_pub_key)(struct crypto_akcipher *tfm, const void *key,
@@ -110,9 +96,9 @@ struct akcipher_alg {
 };
 
 /**
- * DOC: Generic Public Key API
+ * DOC: Generic Public Key Cipher API
  *
- * The Public Key API is used with the algorithms of type
+ * The Public Key Cipher API is used with the algorithms of type
  * CRYPTO_ALG_TYPE_AKCIPHER (listed as type "akcipher" in /proc/crypto)
  */
 
@@ -243,10 +229,9 @@ static inline void akcipher_request_set_callback(struct akcipher_request *req,
  *
  * @req:	public key request
  * @src:	ptr to input scatter list
- * @dst:	ptr to output scatter list or NULL for verify op
+ * @dst:	ptr to output scatter list
  * @src_len:	size of the src input scatter list to be processed
- * @dst_len:	size of the dst output scatter list or size of signature
- *		portion in @src for verify op
+ * @dst_len:	size of the dst output scatter list
  */
 static inline void akcipher_request_set_crypt(struct akcipher_request *req,
 					      struct scatterlist *src,
@@ -346,44 +331,6 @@ int crypto_akcipher_sync_encrypt(struct crypto_akcipher *tfm,
 int crypto_akcipher_sync_decrypt(struct crypto_akcipher *tfm,
 				 const void *src, unsigned int slen,
 				 void *dst, unsigned int dlen);
-
-/**
- * crypto_akcipher_sign() - Invoke public key sign operation
- *
- * Function invokes the specific public key sign operation for a given
- * public key algorithm
- *
- * @req:	asymmetric key request
- *
- * Return: zero on success; error code in case of error
- */
-static inline int crypto_akcipher_sign(struct akcipher_request *req)
-{
-	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
-
-	return crypto_akcipher_alg(tfm)->sign(req);
-}
-
-/**
- * crypto_akcipher_verify() - Invoke public key signature verification
- *
- * Function invokes the specific public key signature verification operation
- * for a given public key algorithm.
- *
- * @req:	asymmetric key request
- *
- * Note: req->dst should be NULL, req->src should point to SG of size
- * (req->src_size + req->dst_size), containing signature (of req->src_size
- * length) with appended digest (of req->dst_size length).
- *
- * Return: zero on verification success; error code in case of error.
- */
-static inline int crypto_akcipher_verify(struct akcipher_request *req)
-{
-	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
-
-	return crypto_akcipher_alg(tfm)->verify(req);
-}
 
 /**
  * crypto_akcipher_set_pub_key() - Invoke set public key operation

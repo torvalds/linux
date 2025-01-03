@@ -22,6 +22,7 @@ struct pwrseq_qcom_wcn_pdata {
 	size_t num_vregs;
 	unsigned int pwup_delay_ms;
 	unsigned int gpio_enable_delay_ms;
+	const struct pwrseq_target_data **targets;
 };
 
 struct pwrseq_qcom_wcn_ctx {
@@ -31,6 +32,7 @@ struct pwrseq_qcom_wcn_ctx {
 	struct regulator_bulk_data *regs;
 	struct gpio_desc *bt_gpio;
 	struct gpio_desc *wlan_gpio;
+	struct gpio_desc *xo_clk_gpio;
 	struct clk *clk;
 	unsigned long last_gpio_enable_jf;
 };
@@ -98,6 +100,33 @@ static const struct pwrseq_unit_data *pwrseq_qcom_wcn_unit_deps[] = {
 	NULL
 };
 
+static int pwrseq_qcom_wcn6855_clk_assert(struct pwrseq_device *pwrseq)
+{
+	struct pwrseq_qcom_wcn_ctx *ctx = pwrseq_device_get_drvdata(pwrseq);
+
+	if (!ctx->xo_clk_gpio)
+		return 0;
+
+	msleep(1);
+
+	gpiod_set_value_cansleep(ctx->xo_clk_gpio, 1);
+	usleep_range(100, 200);
+
+	return 0;
+}
+
+static const struct pwrseq_unit_data pwrseq_qcom_wcn6855_xo_clk_assert = {
+	.name = "xo-clk-assert",
+	.enable = pwrseq_qcom_wcn6855_clk_assert,
+};
+
+static const struct pwrseq_unit_data *pwrseq_qcom_wcn6855_unit_deps[] = {
+	&pwrseq_qcom_wcn_vregs_unit_data,
+	&pwrseq_qcom_wcn_clk_unit_data,
+	&pwrseq_qcom_wcn6855_xo_clk_assert,
+	NULL
+};
+
 static int pwrseq_qcom_wcn_bt_enable(struct pwrseq_device *pwrseq)
 {
 	struct pwrseq_qcom_wcn_ctx *ctx = pwrseq_device_get_drvdata(pwrseq);
@@ -121,6 +150,13 @@ static int pwrseq_qcom_wcn_bt_disable(struct pwrseq_device *pwrseq)
 static const struct pwrseq_unit_data pwrseq_qcom_wcn_bt_unit_data = {
 	.name = "bluetooth-enable",
 	.deps = pwrseq_qcom_wcn_unit_deps,
+	.enable = pwrseq_qcom_wcn_bt_enable,
+	.disable = pwrseq_qcom_wcn_bt_disable,
+};
+
+static const struct pwrseq_unit_data pwrseq_qcom_wcn6855_bt_unit_data = {
+	.name = "wlan-enable",
+	.deps = pwrseq_qcom_wcn6855_unit_deps,
 	.enable = pwrseq_qcom_wcn_bt_enable,
 	.disable = pwrseq_qcom_wcn_bt_disable,
 };
@@ -152,6 +188,13 @@ static const struct pwrseq_unit_data pwrseq_qcom_wcn_wlan_unit_data = {
 	.disable = pwrseq_qcom_wcn_wlan_disable,
 };
 
+static const struct pwrseq_unit_data pwrseq_qcom_wcn6855_wlan_unit_data = {
+	.name = "wlan-enable",
+	.deps = pwrseq_qcom_wcn6855_unit_deps,
+	.enable = pwrseq_qcom_wcn_wlan_enable,
+	.disable = pwrseq_qcom_wcn_wlan_disable,
+};
+
 static int pwrseq_qcom_wcn_pwup_delay(struct pwrseq_device *pwrseq)
 {
 	struct pwrseq_qcom_wcn_ctx *ctx = pwrseq_device_get_drvdata(pwrseq);
@@ -160,6 +203,18 @@ static int pwrseq_qcom_wcn_pwup_delay(struct pwrseq_device *pwrseq)
 		msleep(ctx->pdata->pwup_delay_ms);
 
 	return 0;
+}
+
+static int pwrseq_qcom_wcn6855_xo_clk_deassert(struct pwrseq_device *pwrseq)
+{
+	struct pwrseq_qcom_wcn_ctx *ctx = pwrseq_device_get_drvdata(pwrseq);
+
+	if (ctx->xo_clk_gpio) {
+		usleep_range(2000, 5000);
+		gpiod_set_value_cansleep(ctx->xo_clk_gpio, 0);
+	}
+
+	return pwrseq_qcom_wcn_pwup_delay(pwrseq);
 }
 
 static const struct pwrseq_target_data pwrseq_qcom_wcn_bt_target_data = {
@@ -174,9 +229,27 @@ static const struct pwrseq_target_data pwrseq_qcom_wcn_wlan_target_data = {
 	.post_enable = pwrseq_qcom_wcn_pwup_delay,
 };
 
+static const struct pwrseq_target_data pwrseq_qcom_wcn6855_bt_target_data = {
+	.name = "bluetooth",
+	.unit = &pwrseq_qcom_wcn6855_bt_unit_data,
+	.post_enable = pwrseq_qcom_wcn6855_xo_clk_deassert,
+};
+
+static const struct pwrseq_target_data pwrseq_qcom_wcn6855_wlan_target_data = {
+	.name = "wlan",
+	.unit = &pwrseq_qcom_wcn6855_wlan_unit_data,
+	.post_enable = pwrseq_qcom_wcn6855_xo_clk_deassert,
+};
+
 static const struct pwrseq_target_data *pwrseq_qcom_wcn_targets[] = {
 	&pwrseq_qcom_wcn_bt_target_data,
 	&pwrseq_qcom_wcn_wlan_target_data,
+	NULL
+};
+
+static const struct pwrseq_target_data *pwrseq_qcom_wcn6855_targets[] = {
+	&pwrseq_qcom_wcn6855_bt_target_data,
+	&pwrseq_qcom_wcn6855_wlan_target_data,
 	NULL
 };
 
@@ -196,13 +269,28 @@ static const struct pwrseq_qcom_wcn_pdata pwrseq_qca6390_of_data = {
 	.num_vregs = ARRAY_SIZE(pwrseq_qca6390_vregs),
 	.pwup_delay_ms = 60,
 	.gpio_enable_delay_ms = 100,
+	.targets = pwrseq_qcom_wcn_targets,
+};
+
+static const char *const pwrseq_wcn6855_vregs[] = {
+	"vddio",
+	"vddaon",
+	"vddpmu",
+	"vddpmumx",
+	"vddpmucx",
+	"vddrfa0p95",
+	"vddrfa1p3",
+	"vddrfa1p9",
+	"vddpcie1p3",
+	"vddpcie1p9",
 };
 
 static const struct pwrseq_qcom_wcn_pdata pwrseq_wcn6855_of_data = {
-	.vregs = pwrseq_qca6390_vregs,
-	.num_vregs = ARRAY_SIZE(pwrseq_qca6390_vregs),
+	.vregs = pwrseq_wcn6855_vregs,
+	.num_vregs = ARRAY_SIZE(pwrseq_wcn6855_vregs),
 	.pwup_delay_ms = 50,
 	.gpio_enable_delay_ms = 5,
+	.targets = pwrseq_qcom_wcn6855_targets,
 };
 
 static const char *const pwrseq_wcn7850_vregs[] = {
@@ -219,6 +307,7 @@ static const struct pwrseq_qcom_wcn_pdata pwrseq_wcn7850_of_data = {
 	.vregs = pwrseq_wcn7850_vregs,
 	.num_vregs = ARRAY_SIZE(pwrseq_wcn7850_vregs),
 	.pwup_delay_ms = 50,
+	.targets = pwrseq_qcom_wcn_targets,
 };
 
 static int pwrseq_qcom_wcn_match(struct pwrseq_device *pwrseq,
@@ -295,6 +384,12 @@ static int pwrseq_qcom_wcn_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(ctx->wlan_gpio),
 				     "Failed to get the WLAN enable GPIO\n");
 
+	ctx->xo_clk_gpio = devm_gpiod_get_optional(dev, "xo-clk",
+						   GPIOD_OUT_LOW);
+	if (IS_ERR(ctx->xo_clk_gpio))
+		return dev_err_probe(dev, PTR_ERR(ctx->xo_clk_gpio),
+				     "Failed to get the XO_CLK GPIO\n");
+
 	/*
 	 * Set direction to output but keep the current value in order to not
 	 * disable the WLAN module accidentally if it's already powered on.
@@ -313,7 +408,7 @@ static int pwrseq_qcom_wcn_probe(struct platform_device *pdev)
 	config.owner = THIS_MODULE;
 	config.drvdata = ctx;
 	config.match = pwrseq_qcom_wcn_match;
-	config.targets = pwrseq_qcom_wcn_targets;
+	config.targets = ctx->pdata->targets;
 
 	ctx->pwrseq = devm_pwrseq_device_register(dev, &config);
 	if (IS_ERR(ctx->pwrseq))

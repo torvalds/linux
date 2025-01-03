@@ -34,6 +34,64 @@
 #include <linux/mlx5/driver.h>
 #include "mlx5_core.h"
 
+bool mlx5_qos_tsar_type_supported(struct mlx5_core_dev *dev, int type, u8 hierarchy)
+{
+	int cap;
+
+	switch (hierarchy) {
+	case SCHEDULING_HIERARCHY_E_SWITCH:
+		cap =  MLX5_CAP_QOS(dev, esw_tsar_type);
+		break;
+	case SCHEDULING_HIERARCHY_NIC:
+		cap = MLX5_CAP_QOS(dev, nic_tsar_type);
+		break;
+	default:
+		return false;
+	}
+
+	switch (type) {
+	case TSAR_ELEMENT_TSAR_TYPE_DWRR:
+		return cap & TSAR_TYPE_CAP_MASK_DWRR;
+	case TSAR_ELEMENT_TSAR_TYPE_ROUND_ROBIN:
+		return cap & TSAR_TYPE_CAP_MASK_ROUND_ROBIN;
+	case TSAR_ELEMENT_TSAR_TYPE_ETS:
+		return cap & TSAR_TYPE_CAP_MASK_ETS;
+	}
+
+	return false;
+}
+
+bool mlx5_qos_element_type_supported(struct mlx5_core_dev *dev, int type, u8 hierarchy)
+{
+	int cap;
+
+	switch (hierarchy) {
+	case SCHEDULING_HIERARCHY_E_SWITCH:
+		cap = MLX5_CAP_QOS(dev, esw_element_type);
+		break;
+	case SCHEDULING_HIERARCHY_NIC:
+		cap = MLX5_CAP_QOS(dev, nic_element_type);
+		break;
+	default:
+		return false;
+	}
+
+	switch (type) {
+	case SCHEDULING_CONTEXT_ELEMENT_TYPE_TSAR:
+		return cap & ELEMENT_TYPE_CAP_MASK_TSAR;
+	case SCHEDULING_CONTEXT_ELEMENT_TYPE_VPORT:
+		return cap & ELEMENT_TYPE_CAP_MASK_VPORT;
+	case SCHEDULING_CONTEXT_ELEMENT_TYPE_VPORT_TC:
+		return cap & ELEMENT_TYPE_CAP_MASK_VPORT_TC;
+	case SCHEDULING_CONTEXT_ELEMENT_TYPE_PARA_VPORT_TC:
+		return cap & ELEMENT_TYPE_CAP_MASK_PARA_VPORT_TC;
+	case SCHEDULING_CONTEXT_ELEMENT_TYPE_QUEUE_GROUP:
+		return cap & ELEMENT_TYPE_CAP_MASK_QUEUE_GROUP;
+	}
+
+	return false;
+}
+
 /* Scheduling element fw management */
 int mlx5_create_scheduling_element_cmd(struct mlx5_core_dev *dev, u8 hierarchy,
 				       void *ctx, u32 *element_id)

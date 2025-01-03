@@ -593,8 +593,8 @@ static struct platform_driver pruss_driver = {
 		.name = "pruss",
 		.of_match_table = pruss_of_match,
 	},
-	.probe  = pruss_probe,
-	.remove_new = pruss_remove,
+	.probe = pruss_probe,
+	.remove = pruss_remove,
 };
 module_platform_driver(pruss_driver);
 

@@ -17,7 +17,7 @@ struct ccu_reset_map {
 
 struct ccu_reset {
 	void __iomem			*base;
-	struct ccu_reset_map		*reset_map;
+	const struct ccu_reset_map	*reset_map;
 	spinlock_t			*lock;
 
 	struct reset_controller_dev	rcdev;

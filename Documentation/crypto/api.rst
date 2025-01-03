@@ -10,4 +10,5 @@ Programming Interface
    api-digest
    api-rng
    api-akcipher
+   api-sig
    api-kpp

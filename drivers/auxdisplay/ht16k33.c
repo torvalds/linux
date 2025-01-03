@@ -657,7 +657,6 @@ static int ht16k33_seg_probe(struct device *dev, struct ht16k33_priv *priv,
 static int ht16k33_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
-	const struct of_device_id *id;
 	struct ht16k33_priv *priv;
 	uint32_t dft_brightness;
 	int err;
@@ -672,9 +671,8 @@ static int ht16k33_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	priv->client = client;
-	id = i2c_of_match_device(dev->driver->of_match_table, client);
-	if (id)
-		priv->type = (uintptr_t)id->data;
+	priv->type = (uintptr_t)i2c_get_match_data(client);
+
 	i2c_set_clientdata(client, priv);
 
 	err = ht16k33_initialize(priv);
@@ -747,7 +745,9 @@ static void ht16k33_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ht16k33_i2c_match[] = {
-	{ "ht16k33", 0 },
+	{ "3108", DISP_QUAD_7SEG },
+	{ "3130", DISP_QUAD_14SEG },
+	{ "ht16k33", DISP_MATRIX },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ht16k33_i2c_match);

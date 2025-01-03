@@ -507,3 +507,4 @@ module_sdw_driver(rt712_sdca_sdw_driver);
 MODULE_DESCRIPTION("ASoC RT712 SDCA SDW driver");
 MODULE_AUTHOR("Shuming Fan <shumingf@realtek.com>");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(SND_SOC_SDCA);

@@ -114,6 +114,12 @@ enum x86_topology_domains {
 	TOPO_MAX_DOMAIN,
 };
 
+enum x86_topology_cpu_type {
+	TOPO_CPU_TYPE_PERFORMANCE,
+	TOPO_CPU_TYPE_EFFICIENCY,
+	TOPO_CPU_TYPE_UNKNOWN,
+};
+
 struct x86_topology_system {
 	unsigned int	dom_shifts[TOPO_MAX_DOMAIN];
 	unsigned int	dom_size[TOPO_MAX_DOMAIN];
@@ -148,6 +154,9 @@ extern unsigned int __max_logical_packages;
 extern unsigned int __max_threads_per_core;
 extern unsigned int __num_threads_per_package;
 extern unsigned int __num_cores_per_package;
+
+const char *get_topology_cpu_type_name(struct cpuinfo_x86 *c);
+enum x86_topology_cpu_type get_topology_cpu_type(struct cpuinfo_x86 *c);
 
 static inline unsigned int topology_max_packages(void)
 {
@@ -304,10 +313,5 @@ static inline void freq_invariance_set_perf_ratio(u64 ratio, bool turbo_disabled
 
 extern void arch_scale_freq_tick(void);
 #define arch_scale_freq_tick arch_scale_freq_tick
-
-#ifdef CONFIG_ACPI_CPPC_LIB
-void init_freq_invariance_cppc(void);
-#define arch_init_invariance_cppc init_freq_invariance_cppc
-#endif
 
 #endif /* _ASM_X86_TOPOLOGY_H */

@@ -133,7 +133,7 @@ KMSAN shadow memory
 -------------------
 
 KMSAN associates a metadata byte (also called shadow byte) with every byte of
-kernel memory. A bit in the shadow byte is set iff the corresponding bit of the
+kernel memory. A bit in the shadow byte is set if the corresponding bit of the
 kernel memory byte is uninitialized. Marking the memory uninitialized (i.e.
 setting its shadow bytes to ``0xff``) is called poisoning, marking it
 initialized (setting the shadow bytes to ``0x00``) is called unpoisoning.

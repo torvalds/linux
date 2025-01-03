@@ -508,7 +508,7 @@ static SIMPLE_DEV_PM_OPS(ehci_platform_pm_ops, ehci_platform_suspend,
 static struct platform_driver ehci_platform_driver = {
 	.id_table	= ehci_platform_table,
 	.probe		= ehci_platform_probe,
-	.remove_new	= ehci_platform_remove,
+	.remove		= ehci_platform_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 	.driver		= {
 		.name	= "ehci-platform",

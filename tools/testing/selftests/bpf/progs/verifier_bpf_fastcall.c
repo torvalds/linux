@@ -790,61 +790,6 @@ __naked static void cumulative_stack_depth_subprog(void)
 	:: __imm(bpf_get_smp_processor_id) : __clobber_all);
 }
 
-SEC("raw_tp")
-__arch_x86_64
-__log_level(4)
-__msg("stack depth 512")
-__xlated("0: r1 = 42")
-__xlated("1: *(u64 *)(r10 -512) = r1")
-__xlated("2: w0 = ")
-__xlated("3: r0 = &(void __percpu *)(r0)")
-__xlated("4: r0 = *(u32 *)(r0 +0)")
-__xlated("5: exit")
-__success
-__naked int bpf_fastcall_max_stack_ok(void)
-{
-	asm volatile(
-	"r1 = 42;"
-	"*(u64 *)(r10 - %[max_bpf_stack]) = r1;"
-	"*(u64 *)(r10 - %[max_bpf_stack_8]) = r1;"
-	"call %[bpf_get_smp_processor_id];"
-	"r1 = *(u64 *)(r10 - %[max_bpf_stack_8]);"
-	"exit;"
-	:
-	: __imm_const(max_bpf_stack, MAX_BPF_STACK),
-	  __imm_const(max_bpf_stack_8, MAX_BPF_STACK + 8),
-	  __imm(bpf_get_smp_processor_id)
-	: __clobber_all
-	);
-}
-
-SEC("raw_tp")
-__arch_x86_64
-__log_level(4)
-__msg("stack depth 520")
-__failure
-__naked int bpf_fastcall_max_stack_fail(void)
-{
-	asm volatile(
-	"r1 = 42;"
-	"*(u64 *)(r10 - %[max_bpf_stack]) = r1;"
-	"*(u64 *)(r10 - %[max_bpf_stack_8]) = r1;"
-	"call %[bpf_get_smp_processor_id];"
-	"r1 = *(u64 *)(r10 - %[max_bpf_stack_8]);"
-	/* call to prandom blocks bpf_fastcall rewrite */
-	"*(u64 *)(r10 - %[max_bpf_stack_8]) = r1;"
-	"call %[bpf_get_prandom_u32];"
-	"r1 = *(u64 *)(r10 - %[max_bpf_stack_8]);"
-	"exit;"
-	:
-	: __imm_const(max_bpf_stack, MAX_BPF_STACK),
-	  __imm_const(max_bpf_stack_8, MAX_BPF_STACK + 8),
-	  __imm(bpf_get_smp_processor_id),
-	  __imm(bpf_get_prandom_u32)
-	: __clobber_all
-	);
-}
-
 SEC("cgroup/getsockname_unix")
 __xlated("0: r2 = 1")
 /* bpf_cast_to_kern_ctx is replaced by a single assignment */

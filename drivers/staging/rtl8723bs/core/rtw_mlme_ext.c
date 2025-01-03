@@ -1870,10 +1870,10 @@ unsigned int OnAction_sa_query(struct adapter *padapter, union recv_frame *precv
 	if (0) {
 		int pp;
 
-		printk("pattrib->pktlen = %d =>", pattrib->pkt_len);
+		netdev_dbg(padapter->pnetdev, "pattrib->pktlen = %d =>", pattrib->pkt_len);
 		for (pp = 0; pp < pattrib->pkt_len; pp++)
-			printk(" %02x ", pframe[pp]);
-		printk("\n");
+			pr_cont(" %02x ", pframe[pp]);
+		pr_cont("\n");
 	}
 
 	return _SUCCESS;
@@ -4872,8 +4872,7 @@ void mlmeext_joinbss_event_callback(struct adapter *padapter, int join_res)
 		/* set_link_timer(pmlmeext, DISCONNECT_TO); */
 	}
 
-	if (get_iface_type(padapter) == IFACE_PORT0)
-		rtw_lps_ctrl_wk_cmd(padapter, LPS_CTRL_CONNECT, 0);
+	rtw_lps_ctrl_wk_cmd(padapter, LPS_CTRL_CONNECT, 0);
 }
 
 /* currently only adhoc mode will go here */
@@ -5638,7 +5637,7 @@ u8 setkey_hdl(struct adapter *padapter, u8 *pbuf)
 		rtw_hal_set_hwreg(padapter, HW_VAR_SEC_DK_CFG, (u8 *)true);
 
 	/* allow multicast packets to driver */
-	padapter->HalFunc.SetHwRegHandler(padapter, HW_VAR_ON_RCR_AM, null_addr);
+	SetHwReg8723BS(padapter, HW_VAR_ON_RCR_AM, null_addr);
 
 	return H2C_SUCCESS;
 }

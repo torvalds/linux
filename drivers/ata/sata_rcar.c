@@ -1009,7 +1009,7 @@ static const struct dev_pm_ops sata_rcar_pm_ops = {
 
 static struct platform_driver sata_rcar_driver = {
 	.probe		= sata_rcar_probe,
-	.remove_new	= sata_rcar_remove,
+	.remove		= sata_rcar_remove,
 	.driver = {
 		.name		= DRV_NAME,
 		.of_match_table	= sata_rcar_match,

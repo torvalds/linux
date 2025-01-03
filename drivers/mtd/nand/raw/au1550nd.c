@@ -357,7 +357,7 @@ static struct platform_driver au1550nd_driver = {
 		.name	= "au1550-nand",
 	},
 	.probe		= au1550nd_probe,
-	.remove_new	= au1550nd_remove,
+	.remove		= au1550nd_remove,
 };
 
 module_platform_driver(au1550nd_driver);

@@ -68,7 +68,7 @@ EXPORT_SYMBOL(of_graph_is_present);
 int of_property_count_elems_of_size(const struct device_node *np,
 				const char *propname, int elem_size)
 {
-	struct property *prop = of_find_property(np, propname, NULL);
+	const struct property *prop = of_find_property(np, propname, NULL);
 
 	if (!prop)
 		return -EINVAL;
@@ -104,7 +104,7 @@ EXPORT_SYMBOL_GPL(of_property_count_elems_of_size);
 static void *of_find_property_value_of_size(const struct device_node *np,
 			const char *propname, u32 min, u32 max, size_t *len)
 {
-	struct property *prop = of_find_property(np, propname, NULL);
+	const struct property *prop = of_find_property(np, propname, NULL);
 
 	if (!prop)
 		return ERR_PTR(-EINVAL);
@@ -530,7 +530,7 @@ int of_property_read_string_helper(const struct device_node *np,
 }
 EXPORT_SYMBOL_GPL(of_property_read_string_helper);
 
-const __be32 *of_prop_next_u32(struct property *prop, const __be32 *cur,
+const __be32 *of_prop_next_u32(const struct property *prop, const __be32 *cur,
 			       u32 *pu)
 {
 	const void *curv = cur;
@@ -553,7 +553,7 @@ out_val:
 }
 EXPORT_SYMBOL_GPL(of_prop_next_u32);
 
-const char *of_prop_next_string(struct property *prop, const char *cur)
+const char *of_prop_next_string(const struct property *prop, const char *cur)
 {
 	const void *curv = cur;
 
@@ -631,6 +631,70 @@ struct device_node *of_graph_get_port_by_id(struct device_node *parent, u32 id)
 EXPORT_SYMBOL(of_graph_get_port_by_id);
 
 /**
+ * of_graph_get_next_port() - get next port node.
+ * @parent: pointer to the parent device node, or parent ports node
+ * @prev: previous port node, or NULL to get first
+ *
+ * Parent device node can be used as @parent whether device node has ports node
+ * or not. It will work same as ports@0 node.
+ *
+ * Return: A 'port' node pointer with refcount incremented. Refcount
+ * of the passed @prev node is decremented.
+ */
+struct device_node *of_graph_get_next_port(const struct device_node *parent,
+					   struct device_node *prev)
+{
+	if (!parent)
+		return NULL;
+
+	if (!prev) {
+		struct device_node *node __free(device_node) =
+			of_get_child_by_name(parent, "ports");
+
+		if (node)
+			parent = node;
+
+		return of_get_child_by_name(parent, "port");
+	}
+
+	do {
+		prev = of_get_next_child(parent, prev);
+		if (!prev)
+			break;
+	} while (!of_node_name_eq(prev, "port"));
+
+	return prev;
+}
+EXPORT_SYMBOL(of_graph_get_next_port);
+
+/**
+ * of_graph_get_next_port_endpoint() - get next endpoint node in port.
+ * If it reached to end of the port, it will return NULL.
+ * @port: pointer to the target port node
+ * @prev: previous endpoint node, or NULL to get first
+ *
+ * Return: An 'endpoint' node pointer with refcount incremented. Refcount
+ * of the passed @prev node is decremented.
+ */
+struct device_node *of_graph_get_next_port_endpoint(const struct device_node *port,
+						    struct device_node *prev)
+{
+	while (1) {
+		prev = of_get_next_child(port, prev);
+		if (!prev)
+			break;
+		if (WARN(!of_node_name_eq(prev, "endpoint"),
+			 "non endpoint node is used (%pOF)", prev))
+			continue;
+
+		break;
+	}
+
+	return prev;
+}
+EXPORT_SYMBOL(of_graph_get_next_port_endpoint);
+
+/**
  * of_graph_get_next_endpoint() - get next endpoint node
  * @parent: pointer to the parent device node
  * @prev: previous endpoint node, or NULL to get first
@@ -653,13 +717,7 @@ struct device_node *of_graph_get_next_endpoint(const struct device_node *parent,
 	 * parent port node.
 	 */
 	if (!prev) {
-		struct device_node *node __free(device_node) =
-			of_get_child_by_name(parent, "ports");
-
-		if (node)
-			parent = node;
-
-		port = of_get_child_by_name(parent, "port");
+		port = of_graph_get_next_port(parent, NULL);
 		if (!port) {
 			pr_debug("graph: no port node found in %pOF\n", parent);
 			return NULL;
@@ -677,7 +735,7 @@ struct device_node *of_graph_get_next_endpoint(const struct device_node *parent,
 		 * getting the next child. If the previous endpoint is NULL this
 		 * will return the first child.
 		 */
-		endpoint = of_get_next_child(port, prev);
+		endpoint = of_graph_get_next_port_endpoint(port, prev);
 		if (endpoint) {
 			of_node_put(port);
 			return endpoint;
@@ -686,11 +744,9 @@ struct device_node *of_graph_get_next_endpoint(const struct device_node *parent,
 		/* No more endpoints under this port, try the next one. */
 		prev = NULL;
 
-		do {
-			port = of_get_next_child(parent, port);
-			if (!port)
-				return NULL;
-		} while (!of_node_name_eq(port, "port"));
+		port = of_graph_get_next_port(parent, port);
+		if (!port)
+			return NULL;
 	}
 }
 EXPORT_SYMBOL(of_graph_get_next_endpoint);
@@ -822,6 +878,23 @@ unsigned int of_graph_get_endpoint_count(const struct device_node *np)
 	return num;
 }
 EXPORT_SYMBOL(of_graph_get_endpoint_count);
+
+/**
+ * of_graph_get_port_count() - get the number of port in a device or ports node
+ * @np: pointer to the device or ports node
+ *
+ * Return: count of port of this device or ports node
+ */
+unsigned int of_graph_get_port_count(struct device_node *np)
+{
+	unsigned int num = 0;
+
+	for_each_of_graph_port(np, port)
+		num++;
+
+	return num;
+}
+EXPORT_SYMBOL(of_graph_get_port_count);
 
 /**
  * of_graph_get_remote_node() - get remote parent device_node for given port/endpoint
@@ -1466,7 +1539,7 @@ static int of_fwnode_irq_get(const struct fwnode_handle *fwnode,
 
 static int of_fwnode_add_links(struct fwnode_handle *fwnode)
 {
-	struct property *p;
+	const struct property *p;
 	struct device_node *con_np = to_of_node(fwnode);
 
 	if (IS_ENABLED(CONFIG_X86))

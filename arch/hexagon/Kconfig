@@ -30,8 +30,6 @@ config HEXAGON
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_TRACEHOOK
 	select NEED_SG_DMA_LENGTH
-	select NO_IOPORT_MAP
-	select GENERIC_IOMAP
 	select GENERIC_IOREMAP
 	select GENERIC_SMP_IDLE_THREAD
 	select STACKTRACE_SUPPORT
@@ -57,6 +55,9 @@ config EARLY_PRINTK
 	def_bool y
 
 config MMU
+	def_bool y
+
+config NO_IOPORT_MAP
 	def_bool y
 
 config GENERIC_CSUM

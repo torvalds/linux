@@ -34,3 +34,4 @@
 * semaphores: 信号量。
 * spinlock: 自旋锁。
 * watermark: 水位，一般指页表的消耗水平。
+* PTE: 页表项。（Page Table Entry）

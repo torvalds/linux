@@ -866,8 +866,6 @@ skip_dsp_setup:
 			dev_err(sdev->dev, "could not startup SoundWire links\n");
 			goto disable_pp_cap;
 		}
-
-		hda_sdw_int_enable(sdev, true);
 	}
 
 	init_waitqueue_head(&hdev->waitq);
@@ -937,6 +935,12 @@ void hda_dsp_remove(struct snd_sof_dev *sdev)
 
 	/* disable DSP */
 	hda_dsp_ctrl_ppcap_enable(sdev, false);
+
+	/* Free the persistent DMA buffers used for base firmware download */
+	if (hda->cl_dmab.area)
+		snd_dma_free_pages(&hda->cl_dmab);
+	if (hda->iccmax_dmab.area)
+		snd_dma_free_pages(&hda->iccmax_dmab);
 
 skip_disable_dsp:
 	free_irq(sdev->ipc_irq, sdev);
@@ -1066,7 +1070,7 @@ static struct snd_soc_acpi_mach *hda_sdw_machine_select(struct snd_sof_dev *sdev
 {
 	struct snd_sof_pdata *pdata = sdev->pdata;
 	const struct snd_soc_acpi_link_adr *link;
-	struct sdw_extended_slave_id *ids;
+	struct sdw_peripherals *peripherals;
 	struct snd_soc_acpi_mach *mach;
 	struct sof_intel_hda_dev *hdev;
 	u32 link_mask;
@@ -1085,7 +1089,7 @@ static struct snd_soc_acpi_mach *hda_sdw_machine_select(struct snd_sof_dev *sdev
 		return NULL;
 	}
 
-	if (!hdev->sdw->num_slaves) {
+	if (!hdev->sdw->peripherals || !hdev->sdw->peripherals->num_peripherals) {
 		dev_warn(sdev->dev, "No SoundWire peripheral detected in ACPI tables\n");
 		return NULL;
 	}
@@ -1121,13 +1125,13 @@ static struct snd_soc_acpi_mach *hda_sdw_machine_select(struct snd_sof_dev *sdev
 			 * are not found on this link.
 			 */
 			if (!snd_soc_acpi_sdw_link_slaves_found(sdev->dev, link,
-								hdev->sdw->ids,
-								hdev->sdw->num_slaves))
+								hdev->sdw->peripherals))
 				break;
 		}
 		/* Found if all Slaves are checked */
 		if (i == hdev->info.count || !link->num_adr)
-			break;
+			if (!mach->machine_check || mach->machine_check(hdev->sdw))
+				break;
 	}
 	if (mach && mach->link_mask) {
 		mach->mach_params.links = mach->links;
@@ -1138,10 +1142,13 @@ static struct snd_soc_acpi_mach *hda_sdw_machine_select(struct snd_sof_dev *sdev
 	}
 
 	dev_info(sdev->dev, "No SoundWire machine driver found for the ACPI-reported configuration:\n");
-	ids = hdev->sdw->ids;
-	for (i = 0; i < hdev->sdw->num_slaves; i++)
+	peripherals = hdev->sdw->peripherals;
+	for (i = 0; i < peripherals->num_peripherals; i++)
 		dev_info(sdev->dev, "link %d mfg_id 0x%04x part_id 0x%04x version %#x\n",
-			 ids[i].link_id, ids[i].id.mfg_id, ids[i].id.part_id, ids[i].id.sdw_version);
+			 peripherals->array[i]->bus->link_id,
+			 peripherals->array[i]->id.mfg_id,
+			 peripherals->array[i]->id.part_id,
+			 peripherals->array[i]->id.sdw_version);
 
 	return NULL;
 }

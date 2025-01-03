@@ -179,6 +179,9 @@ struct dc_panel_patch {
 	unsigned int mst_start_top_delay;
 	unsigned int remove_sink_ext_caps;
 	unsigned int disable_colorimetry;
+	uint8_t blankstream_before_otg_off;
+	bool oled_optimize_display_on;
+	unsigned int force_mst_blocked_discovery;
 };
 
 struct dc_edid_caps {
@@ -922,6 +925,12 @@ struct display_endpoint_id {
 	enum display_endpoint_type ep_type;
 };
 
+enum backlight_control_type {
+	BACKLIGHT_CONTROL_PWM = 0,
+	BACKLIGHT_CONTROL_VESA_AUX = 1,
+	BACKLIGHT_CONTROL_AMD_AUX = 2,
+};
+
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
 struct otg_phy_mux {
 	uint8_t phy_output_num;
@@ -1293,6 +1302,33 @@ struct dc_commit_streams_params {
 	struct dc_stream_state **streams;
 	uint8_t stream_count;
 	enum dc_power_source_type power_source;
+};
+
+struct set_backlight_level_params {
+	/* backlight in pwm */
+	uint32_t backlight_pwm_u16_16;
+	/* brightness ramping */
+	uint32_t frame_ramp;
+	/* backlight control type
+	 * 0: PWM backlight control
+	 * 1: VESA AUX backlight control
+	 * 2: AMD AUX backlight control
+	 */
+	enum backlight_control_type control_type;
+	/* backlight in millinits */
+	uint32_t backlight_millinits;
+	/* transition time in ms */
+	uint32_t transition_time_in_ms;
+	/* minimum luminance in nits */
+	uint32_t min_luminance;
+	/* maximum luminance in nits */
+	uint32_t max_luminance;
+	/* minimum backlight in pwm */
+	uint32_t min_backlight_pwm;
+	/* maximum backlight in pwm */
+	uint32_t max_backlight_pwm;
+	/* AUX HW instance */
+	uint8_t aux_inst;
 };
 
 #endif /* DC_TYPES_H_ */

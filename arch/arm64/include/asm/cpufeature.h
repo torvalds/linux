@@ -12,7 +12,7 @@
 #include <asm/hwcap.h>
 #include <asm/sysreg.h>
 
-#define MAX_CPU_FEATURES	128
+#define MAX_CPU_FEATURES	192
 #define cpu_feature(x)		KERNEL_HWCAP_ ## x
 
 #define ARM64_SW_FEATURE_OVERRIDE_NOKASLR	0
@@ -438,6 +438,7 @@ void cpu_set_feature(unsigned int num);
 bool cpu_have_feature(unsigned int num);
 unsigned long cpu_get_elf_hwcap(void);
 unsigned long cpu_get_elf_hwcap2(void);
+unsigned long cpu_get_elf_hwcap3(void);
 
 #define cpu_set_named_feature(name) cpu_set_feature(cpu_feature(name))
 #define cpu_have_named_feature(name) cpu_have_feature(cpu_feature(name))
@@ -608,6 +609,13 @@ static inline bool id_aa64pfr0_sve(u64 pfr0)
 static inline bool id_aa64pfr1_sme(u64 pfr1)
 {
 	u32 val = cpuid_feature_extract_unsigned_field(pfr1, ID_AA64PFR1_EL1_SME_SHIFT);
+
+	return val > 0;
+}
+
+static inline bool id_aa64pfr0_mpam(u64 pfr0)
+{
+	u32 val = cpuid_feature_extract_unsigned_field(pfr0, ID_AA64PFR0_EL1_MPAM_SHIFT);
 
 	return val > 0;
 }
@@ -834,8 +842,29 @@ static inline bool system_supports_lpa2(void)
 
 static inline bool system_supports_poe(void)
 {
-	return IS_ENABLED(CONFIG_ARM64_POE) &&
-		alternative_has_cap_unlikely(ARM64_HAS_S1POE);
+	return alternative_has_cap_unlikely(ARM64_HAS_S1POE);
+}
+
+static inline bool system_supports_gcs(void)
+{
+	return IS_ENABLED(CONFIG_ARM64_GCS) &&
+		alternative_has_cap_unlikely(ARM64_HAS_GCS);
+}
+
+static inline bool system_supports_haft(void)
+{
+	return IS_ENABLED(CONFIG_ARM64_HAFT) &&
+		cpus_have_final_cap(ARM64_HAFT);
+}
+
+static __always_inline bool system_supports_mpam(void)
+{
+	return alternative_has_cap_unlikely(ARM64_MPAM);
+}
+
+static __always_inline bool system_supports_mpam_hcr(void)
+{
+	return alternative_has_cap_unlikely(ARM64_MPAM_HCR);
 }
 
 int do_emulate_mrs(struct pt_regs *regs, u32 sys_reg, u32 rt);

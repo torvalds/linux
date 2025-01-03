@@ -1076,7 +1076,7 @@ static struct platform_driver mdc_dma_driver = {
 		.of_match_table = of_match_ptr(mdc_dma_of_match),
 	},
 	.probe = mdc_dma_probe,
-	.remove_new = mdc_dma_remove,
+	.remove = mdc_dma_remove,
 };
 module_platform_driver(mdc_dma_driver);
 

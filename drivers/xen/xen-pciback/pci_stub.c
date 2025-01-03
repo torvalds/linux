@@ -227,7 +227,7 @@ static struct pci_dev *pcistub_device_get_pci_dev(struct xen_pcibk_device *pdev,
 }
 
 #ifdef CONFIG_XEN_ACPI
-int pcistub_get_gsi_from_sbdf(unsigned int sbdf)
+static int pcistub_get_gsi_from_sbdf(unsigned int sbdf)
 {
 	struct pcistub_device *psdev;
 	int domain = (sbdf >> 16) & 0xffff;
@@ -242,7 +242,6 @@ int pcistub_get_gsi_from_sbdf(unsigned int sbdf)
 
 	return psdev->gsi;
 }
-EXPORT_SYMBOL_GPL(pcistub_get_gsi_from_sbdf);
 #endif
 
 struct pci_dev *pcistub_get_pci_dev_by_slot(struct xen_pcibk_device *pdev,
@@ -1757,11 +1756,19 @@ static int __init xen_pcibk_init(void)
 		bus_register_notifier(&pci_bus_type, &pci_stub_nb);
 #endif
 
+#ifdef CONFIG_XEN_ACPI
+	xen_acpi_register_get_gsi_func(pcistub_get_gsi_from_sbdf);
+#endif
+
 	return err;
 }
 
 static void __exit xen_pcibk_cleanup(void)
 {
+#ifdef CONFIG_XEN_ACPI
+	xen_acpi_register_get_gsi_func(NULL);
+#endif
+
 #ifdef CONFIG_PCI_IOV
 	bus_unregister_notifier(&pci_bus_type, &pci_stub_nb);
 #endif

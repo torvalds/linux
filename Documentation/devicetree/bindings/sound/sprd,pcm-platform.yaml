@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/sprd,pcm-platform.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Spreadtrum DMA platform
+
+maintainers:
+  - Orson Zhai <orsonzhai@gmail.com>
+  - Baolin Wang <baolin.wang7@gmail.com>
+  - Chunyan Zhang <zhang.lyra@gmail.com>
+
+properties:
+  compatible:
+    const: sprd,pcm-platform
+
+  dmas:
+    maxItems: 10
+
+  dma-names:
+    items:
+      - const: normal_p_l
+      - const: normal_p_r
+      - const: normal_c_l
+      - const: normal_c_r
+      - const: voice_c
+      - const: fast_p
+      - const: loop_c
+      - const: loop_p
+      - const: voip_c
+      - const: voip_p
+
+required:
+  - compatible
+  - dmas
+  - dma-names
+
+additionalProperties: false
+
+examples:
+  - |
+    platform {
+      compatible = "sprd,pcm-platform";
+      dmas = <&agcp_dma 1 1>, <&agcp_dma 2 2>,
+             <&agcp_dma 3 3>, <&agcp_dma 4 4>,
+             <&agcp_dma 5 5>, <&agcp_dma 6 6>,
+             <&agcp_dma 7 7>, <&agcp_dma 8 8>,
+             <&agcp_dma 9 9>, <&agcp_dma 10 10>;
+      dma-names = "normal_p_l", "normal_p_r",
+                  "normal_c_l", "normal_c_r",
+                  "voice_c", "fast_p",
+                  "loop_c", "loop_p",
+                  "voip_c", "voip_p";
+    };
+...

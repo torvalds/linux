@@ -2127,7 +2127,7 @@ static struct platform_driver cpsw_driver = {
 		.of_match_table = cpsw_of_mtable,
 	},
 	.probe = cpsw_probe,
-	.remove_new = cpsw_remove,
+	.remove = cpsw_remove,
 };
 
 module_platform_driver(cpsw_driver);

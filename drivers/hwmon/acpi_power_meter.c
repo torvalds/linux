@@ -680,8 +680,9 @@ static int setup_attrs(struct acpi_power_meter_resource *resource)
 {
 	int res = 0;
 
+	/* _PMD method is optional. */
 	res = read_domain_devices(resource);
-	if (res)
+	if (res != -ENODEV)
 		return res;
 
 	if (resource->caps.flags & POWER_METER_CAN_MEASURE) {

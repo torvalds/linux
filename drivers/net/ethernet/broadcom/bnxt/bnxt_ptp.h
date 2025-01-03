@@ -21,6 +21,7 @@
 #define BNXT_DEVCLK_FREQ	1000000
 #define BNXT_LO_TIMER_MASK	0x0000ffffffffUL
 #define BNXT_HI_TIMER_MASK	0xffff00000000UL
+#define BNXT_HI_TIMER_SHIFT	24
 
 #define BNXT_PTP_DFLT_TX_TMO	1000 /* ms */
 #define BNXT_PTP_QTS_TIMEOUT	1000
@@ -102,14 +103,15 @@ struct bnxt_ptp_cfg {
 	struct timecounter	tc;
 	struct bnxt_pps		pps_info;
 	/* serialize timecounter access */
-	spinlock_t		ptp_lock;
+	seqlock_t		ptp_lock;
 	/* serialize ts tx request queuing */
 	spinlock_t		ptp_tx_lock;
 	u64			current_time;
-	u64			old_time;
 	unsigned long		next_period;
 	unsigned long		next_overflow_check;
 	u32			cmult;
+	/* cache of upper 24 bits of cyclecoutner. 8 bits are used to check for roll-over */
+	u32			old_time;
 	/* a 23b shift cyclecounter will overflow in ~36 mins.  Check overflow every 18 mins. */
 	#define BNXT_PHC_OVERFLOW_PERIOD	(18 * 60 * HZ)
 
@@ -133,6 +135,7 @@ struct bnxt_ptp_cfg {
 					 BNXT_PTP_MSG_PDELAY_REQ |	\
 					 BNXT_PTP_MSG_PDELAY_RESP)
 	u8			tx_tstamp_en:1;
+	u8			rtc_configured:1;
 	int			rx_filter;
 	u32			tstamp_filters;
 
@@ -144,18 +147,6 @@ struct bnxt_ptp_cfg {
 
 	struct bnxt_ptp_stats	stats;
 };
-
-#if BITS_PER_LONG == 32
-#define BNXT_READ_TIME64(ptp, dst, src)		\
-do {						\
-	spin_lock_bh(&(ptp)->ptp_lock);		\
-	(dst) = (src);				\
-	spin_unlock_bh(&(ptp)->ptp_lock);	\
-} while (0)
-#else
-#define BNXT_READ_TIME64(ptp, dst, src)		\
-	((dst) = READ_ONCE(src))
-#endif
 
 #define BNXT_PTP_INC_TX_AVAIL(ptp)		\
 do {						\
@@ -178,6 +169,29 @@ void bnxt_tx_ts_cmp(struct bnxt *bp, struct bnxt_napi *bnapi,
 		    struct tx_ts_cmp *tscmp);
 void bnxt_ptp_rtc_timecounter_init(struct bnxt_ptp_cfg *ptp, u64 ns);
 int bnxt_ptp_init_rtc(struct bnxt *bp, bool phc_cfg);
-int bnxt_ptp_init(struct bnxt *bp, bool phc_cfg);
+int bnxt_ptp_init(struct bnxt *bp);
 void bnxt_ptp_clear(struct bnxt *bp);
+static inline u64 bnxt_timecounter_cyc2time(struct bnxt_ptp_cfg *ptp, u64 ts)
+{
+	unsigned int seq;
+	u64 ns;
+
+	do {
+		seq = read_seqbegin(&ptp->ptp_lock);
+		ns = timecounter_cyc2time(&ptp->tc, ts);
+	} while (read_seqretry(&ptp->ptp_lock, seq));
+
+	return ns;
+}
+
+static inline u64 bnxt_extend_cycles_32b_to_48b(struct bnxt_ptp_cfg *ptp, u32 ts)
+{
+	u64 time, cycles;
+
+	time = (u64)READ_ONCE(ptp->old_time) << BNXT_HI_TIMER_SHIFT;
+	cycles = (time & BNXT_HI_TIMER_MASK) | ts;
+	if (ts < (time & BNXT_LO_TIMER_MASK))
+		cycles += BNXT_LO_TIMER_MASK + 1;
+	return cycles;
+}
 #endif

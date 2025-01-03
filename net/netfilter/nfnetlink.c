@@ -517,7 +517,7 @@ replay_abort:
 			err = nla_parse_deprecated(cda,
 						   ss->cb[cb_id].attr_count,
 						   attr, attrlen,
-						   ss->cb[cb_id].policy, NULL);
+						   ss->cb[cb_id].policy, &extack);
 			if (err < 0)
 				goto ack;
 

@@ -16,19 +16,26 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
-#define MAX96712_ID 0x20
-
-#define MAX96712_DPLL_FREQ 1000
+#define DEBUG_EXTRA_REG			0x09
+#define DEBUG_EXTRA_PCLK_25MHZ		0x00
+#define DEBUG_EXTRA_PCLK_75MHZ		0x01
 
 enum max96712_pattern {
 	MAX96712_PATTERN_CHECKERBOARD = 0,
 	MAX96712_PATTERN_GRADIENT,
 };
 
+struct max96712_info {
+	unsigned int dpllfreq;
+	bool have_debug_extra;
+};
+
 struct max96712_priv {
 	struct i2c_client *client;
 	struct regmap *regmap;
 	struct gpio_desc *gpiod_pwdn;
+
+	const struct max96712_info *info;
 
 	bool cphy;
 	struct v4l2_mbus_config_mipi_csi2 mipi;
@@ -39,19 +46,6 @@ struct max96712_priv {
 
 	enum max96712_pattern pattern;
 };
-
-static int max96712_read(struct max96712_priv *priv, int reg)
-{
-	int ret, val;
-
-	ret = regmap_read(priv->regmap, reg, &val);
-	if (ret) {
-		dev_err(&priv->client->dev, "read 0x%04x failed\n", reg);
-		return ret;
-	}
-
-	return val;
-}
 
 static int max96712_write(struct max96712_priv *priv, unsigned int reg, u8 val)
 {
@@ -153,9 +147,9 @@ static void max96712_mipi_configure(struct max96712_priv *priv)
 
 	/* Set link frequency for PHY0 and PHY1. */
 	max96712_update_bits(priv, 0x415, 0x3f,
-			     ((MAX96712_DPLL_FREQ / 100) & 0x1f) | BIT(5));
+			     ((priv->info->dpllfreq / 100) & 0x1f) | BIT(5));
 	max96712_update_bits(priv, 0x418, 0x3f,
-			     ((MAX96712_DPLL_FREQ / 100) & 0x1f) | BIT(5));
+			     ((priv->info->dpllfreq / 100) & 0x1f) | BIT(5));
 
 	/* Enable PHY0 and PHY1 */
 	max96712_update_bits(priv, 0x8a2, 0xf0, 0x30);
@@ -180,8 +174,9 @@ static void max96712_pattern_enable(struct max96712_priv *priv, bool enable)
 		return;
 	}
 
-	/* PCLK 75MHz. */
-	max96712_write(priv, 0x0009, 0x01);
+	/* Set PCLK to 75MHz if device have DEBUG_EXTRA register. */
+	if (priv->info->have_debug_extra)
+		max96712_write(priv, DEBUG_EXTRA_REG, DEBUG_EXTRA_PCLK_75MHZ);
 
 	/* Configure Video Timing Generator for 1920x1080 @ 30 fps. */
 	max96712_write_bulk_value(priv, 0x1052, 0, 3);
@@ -317,7 +312,7 @@ static int max96712_v4l2_register(struct max96712_priv *priv)
 	 * TODO: Once V4L2_CID_LINK_FREQ is changed from a menu control to an
 	 * INT64 control it should be used here instead of V4L2_CID_PIXEL_RATE.
 	 */
-	pixel_rate = MAX96712_DPLL_FREQ / priv->mipi.num_data_lanes * 1000000;
+	pixel_rate = priv->info->dpllfreq / priv->mipi.num_data_lanes * 1000000;
 	v4l2_ctrl_new_std(&priv->ctrl_handler, NULL, V4L2_CID_PIXEL_RATE,
 			  pixel_rate, pixel_rate, 1, pixel_rate);
 
@@ -420,6 +415,8 @@ static int max96712_probe(struct i2c_client *client)
 	if (!priv)
 		return -ENOMEM;
 
+	priv->info = of_device_get_match_data(&client->dev);
+
 	priv->client = client;
 	i2c_set_clientdata(client, priv);
 
@@ -437,9 +434,6 @@ static int max96712_probe(struct i2c_client *client)
 
 	if (priv->gpiod_pwdn)
 		usleep_range(4000, 5000);
-
-	if (max96712_read(priv, 0x4a) != MAX96712_ID)
-		return -ENODEV;
 
 	max96712_reset(priv);
 
@@ -461,9 +455,19 @@ static void max96712_remove(struct i2c_client *client)
 	gpiod_set_value_cansleep(priv->gpiod_pwdn, 0);
 }
 
+static const struct max96712_info max96712_info_max96712 = {
+	.dpllfreq = 1000,
+	.have_debug_extra = true,
+};
+
+static const struct max96712_info max96712_info_max96724 = {
+	.dpllfreq = 1200,
+};
+
 static const struct of_device_id max96712_of_table[] = {
-	{ .compatible = "maxim,max96712" },
-	{ /* sentinel */ },
+	{ .compatible = "maxim,max96712", .data = &max96712_info_max96712 },
+	{ .compatible = "maxim,max96724", .data = &max96712_info_max96724 },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, max96712_of_table);
 

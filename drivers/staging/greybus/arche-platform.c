@@ -623,7 +623,7 @@ MODULE_DEVICE_TABLE(of, arche_platform_of_match);
 
 static struct platform_driver arche_platform_device_driver = {
 	.probe		= arche_platform_probe,
-	.remove_new	= arche_platform_remove,
+	.remove		= arche_platform_remove,
 	.shutdown	= arche_platform_shutdown,
 	.driver		= {
 		.name	= "arche-platform-ctrl",

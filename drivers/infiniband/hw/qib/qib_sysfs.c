@@ -283,7 +283,7 @@ static struct bin_attribute *port_ccmgta_attributes[] = {
 };
 
 static umode_t qib_ccmgta_is_bin_visible(struct kobject *kobj,
-				 struct bin_attribute *attr, int n)
+				 const struct bin_attribute *attr, int n)
 {
 	struct qib_pportdata *ppd = qib_get_pportdata_kobj(kobj);
 

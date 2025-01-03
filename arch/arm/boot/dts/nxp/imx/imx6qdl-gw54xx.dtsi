@@ -770,14 +770,14 @@
 		>;
 	};
 
-	pinctrl_pwm4_backlight: pwm4grpbacklight {
+	pinctrl_pwm4_backlight: pwm4backlightgrp {
 		fsl,pins = <
 			/* LVDS_PWM J6.5 */
 			MX6QDL_PAD_SD1_CMD__PWM4_OUT		0x1b0b1
 		>;
 	};
 
-	pinctrl_pwm4_dio: pwm4grpdio {
+	pinctrl_pwm4_dio: pwm4diogrp {
 		fsl,pins = <
 			/* DIO3 J16.4 */
 			MX6QDL_PAD_SD4_DAT2__PWM4_OUT		0x1b0b1

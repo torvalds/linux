@@ -7,12 +7,20 @@
 #include <pthread.h>
 #include <sys/syscall.h>   /* For SYS_xxx definitions */
 #include <sys/types.h>
+#include <sys/eventfd.h>
+#include <sys/mman.h>
 #include <test_progs.h>
+#include <bpf/btf.h>
 #include "task_local_storage_helpers.h"
 #include "task_local_storage.skel.h"
 #include "task_local_storage_exit_creds.skel.h"
 #include "task_ls_recursion.skel.h"
 #include "task_storage_nodeadlock.skel.h"
+#include "uptr_test_common.h"
+#include "task_ls_uptr.skel.h"
+#include "uptr_update_failure.skel.h"
+#include "uptr_failure.skel.h"
+#include "uptr_map_failure.skel.h"
 
 static void test_sys_enter_exit(void)
 {
@@ -23,14 +31,14 @@ static void test_sys_enter_exit(void)
 	if (!ASSERT_OK_PTR(skel, "skel_open_and_load"))
 		return;
 
-	skel->bss->target_pid = syscall(SYS_gettid);
+	skel->bss->target_pid = sys_gettid();
 
 	err = task_local_storage__attach(skel);
 	if (!ASSERT_OK(err, "skel_attach"))
 		goto out;
 
-	syscall(SYS_gettid);
-	syscall(SYS_gettid);
+	sys_gettid();
+	sys_gettid();
 
 	/* 3x syscalls: 1x attach and 2x gettid */
 	ASSERT_EQ(skel->bss->enter_cnt, 3, "enter_cnt");
@@ -99,7 +107,7 @@ static void test_recursion(void)
 
 	/* trigger sys_enter, make sure it does not cause deadlock */
 	skel->bss->test_pid = getpid();
-	syscall(SYS_gettid);
+	sys_gettid();
 	skel->bss->test_pid = 0;
 	task_ls_recursion__detach(skel);
 
@@ -227,6 +235,259 @@ done:
 	sched_setaffinity(getpid(), sizeof(old), &old);
 }
 
+static struct user_data udata __attribute__((aligned(16))) = {
+	.a = 1,
+	.b = 2,
+};
+
+static struct user_data udata2 __attribute__((aligned(16))) = {
+	.a = 3,
+	.b = 4,
+};
+
+static void check_udata2(int expected)
+{
+	udata2.result = udata2.nested_result = 0;
+	usleep(1);
+	ASSERT_EQ(udata2.result, expected, "udata2.result");
+	ASSERT_EQ(udata2.nested_result, expected, "udata2.nested_result");
+}
+
+static void test_uptr_basic(void)
+{
+	int map_fd, parent_task_fd, ev_fd;
+	struct value_type value = {};
+	struct task_ls_uptr *skel;
+	pid_t child_pid, my_tid;
+	__u64 ev_dummy_data = 1;
+	int err;
+
+	my_tid = sys_gettid();
+	parent_task_fd = sys_pidfd_open(my_tid, 0);
+	if (!ASSERT_OK_FD(parent_task_fd, "parent_task_fd"))
+		return;
+
+	ev_fd = eventfd(0, 0);
+	if (!ASSERT_OK_FD(ev_fd, "ev_fd")) {
+		close(parent_task_fd);
+		return;
+	}
+
+	skel = task_ls_uptr__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "skel_open_and_load"))
+		goto out;
+
+	map_fd = bpf_map__fd(skel->maps.datamap);
+	value.udata = &udata;
+	value.nested.udata = &udata;
+	err = bpf_map_update_elem(map_fd, &parent_task_fd, &value, BPF_NOEXIST);
+	if (!ASSERT_OK(err, "update_elem(udata)"))
+		goto out;
+
+	err = task_ls_uptr__attach(skel);
+	if (!ASSERT_OK(err, "skel_attach"))
+		goto out;
+
+	child_pid = fork();
+	if (!ASSERT_NEQ(child_pid, -1, "fork"))
+		goto out;
+
+	/* Call syscall in the child process, but access the map value of
+	 * the parent process in the BPF program to check if the user kptr
+	 * is translated/mapped correctly.
+	 */
+	if (child_pid == 0) {
+		/* child */
+
+		/* Overwrite the user_data in the child process to check if
+		 * the BPF program accesses the user_data of the parent.
+		 */
+		udata.a = 0;
+		udata.b = 0;
+
+		/* Wait for the parent to set child_pid */
+		read(ev_fd, &ev_dummy_data, sizeof(ev_dummy_data));
+		exit(0);
+	}
+
+	skel->bss->parent_pid = my_tid;
+	skel->bss->target_pid = child_pid;
+
+	write(ev_fd, &ev_dummy_data, sizeof(ev_dummy_data));
+
+	err = waitpid(child_pid, NULL, 0);
+	ASSERT_EQ(err, child_pid, "waitpid");
+	ASSERT_EQ(udata.result, MAGIC_VALUE + udata.a + udata.b, "udata.result");
+	ASSERT_EQ(udata.nested_result, MAGIC_VALUE + udata.a + udata.b, "udata.nested_result");
+
+	skel->bss->target_pid = my_tid;
+
+	/* update_elem: uptr changes from udata1 to udata2 */
+	value.udata = &udata2;
+	value.nested.udata = &udata2;
+	err = bpf_map_update_elem(map_fd, &parent_task_fd, &value, BPF_EXIST);
+	if (!ASSERT_OK(err, "update_elem(udata2)"))
+		goto out;
+	check_udata2(MAGIC_VALUE + udata2.a + udata2.b);
+
+	/* update_elem: uptr changes from udata2 uptr to NULL */
+	memset(&value, 0, sizeof(value));
+	err = bpf_map_update_elem(map_fd, &parent_task_fd, &value, BPF_EXIST);
+	if (!ASSERT_OK(err, "update_elem(udata2)"))
+		goto out;
+	check_udata2(0);
+
+	/* update_elem: uptr changes from NULL to udata2 */
+	value.udata = &udata2;
+	value.nested.udata = &udata2;
+	err = bpf_map_update_elem(map_fd, &parent_task_fd, &value, BPF_EXIST);
+	if (!ASSERT_OK(err, "update_elem(udata2)"))
+		goto out;
+	check_udata2(MAGIC_VALUE + udata2.a + udata2.b);
+
+	/* Check if user programs can access the value of user kptrs
+	 * through bpf_map_lookup_elem(). Make sure the kernel value is not
+	 * leaked.
+	 */
+	err = bpf_map_lookup_elem(map_fd, &parent_task_fd, &value);
+	if (!ASSERT_OK(err, "bpf_map_lookup_elem"))
+		goto out;
+	ASSERT_EQ(value.udata, NULL, "value.udata");
+	ASSERT_EQ(value.nested.udata, NULL, "value.nested.udata");
+
+	/* delete_elem */
+	err = bpf_map_delete_elem(map_fd, &parent_task_fd);
+	ASSERT_OK(err, "delete_elem(udata2)");
+	check_udata2(0);
+
+	/* update_elem: add uptr back to test map_free */
+	value.udata = &udata2;
+	value.nested.udata = &udata2;
+	err = bpf_map_update_elem(map_fd, &parent_task_fd, &value, BPF_NOEXIST);
+	ASSERT_OK(err, "update_elem(udata2)");
+
+out:
+	task_ls_uptr__destroy(skel);
+	close(ev_fd);
+	close(parent_task_fd);
+}
+
+static void test_uptr_across_pages(void)
+{
+	int page_size = getpagesize();
+	struct value_type value = {};
+	struct task_ls_uptr *skel;
+	int err, task_fd, map_fd;
+	void *mem;
+
+	task_fd = sys_pidfd_open(getpid(), 0);
+	if (!ASSERT_OK_FD(task_fd, "task_fd"))
+		return;
+
+	mem = mmap(NULL, page_size * 2, PROT_READ | PROT_WRITE,
+		   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	if (!ASSERT_OK_PTR(mem, "mmap(page_size * 2)")) {
+		close(task_fd);
+		return;
+	}
+
+	skel = task_ls_uptr__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "skel_open_and_load"))
+		goto out;
+
+	map_fd = bpf_map__fd(skel->maps.datamap);
+	value.udata = mem + page_size - offsetof(struct user_data, b);
+	err = bpf_map_update_elem(map_fd, &task_fd, &value, 0);
+	if (!ASSERT_ERR(err, "update_elem(udata)"))
+		goto out;
+	ASSERT_EQ(errno, EOPNOTSUPP, "errno");
+
+	value.udata = mem + page_size - sizeof(struct user_data);
+	err = bpf_map_update_elem(map_fd, &task_fd, &value, 0);
+	ASSERT_OK(err, "update_elem(udata)");
+
+out:
+	task_ls_uptr__destroy(skel);
+	close(task_fd);
+	munmap(mem, page_size * 2);
+}
+
+static void test_uptr_update_failure(void)
+{
+	struct value_lock_type value = {};
+	struct uptr_update_failure *skel;
+	int err, task_fd, map_fd;
+
+	task_fd = sys_pidfd_open(getpid(), 0);
+	if (!ASSERT_OK_FD(task_fd, "task_fd"))
+		return;
+
+	skel = uptr_update_failure__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "skel_open_and_load"))
+		goto out;
+
+	map_fd = bpf_map__fd(skel->maps.datamap);
+
+	value.udata = &udata;
+	err = bpf_map_update_elem(map_fd, &task_fd, &value, BPF_F_LOCK);
+	if (!ASSERT_ERR(err, "update_elem(udata, BPF_F_LOCK)"))
+		goto out;
+	ASSERT_EQ(errno, EOPNOTSUPP, "errno");
+
+	err = bpf_map_update_elem(map_fd, &task_fd, &value, BPF_EXIST);
+	if (!ASSERT_ERR(err, "update_elem(udata, BPF_EXIST)"))
+		goto out;
+	ASSERT_EQ(errno, ENOENT, "errno");
+
+	err = bpf_map_update_elem(map_fd, &task_fd, &value, BPF_NOEXIST);
+	if (!ASSERT_OK(err, "update_elem(udata, BPF_NOEXIST)"))
+		goto out;
+
+	value.udata = &udata2;
+	err = bpf_map_update_elem(map_fd, &task_fd, &value, BPF_NOEXIST);
+	if (!ASSERT_ERR(err, "update_elem(udata2, BPF_NOEXIST)"))
+		goto out;
+	ASSERT_EQ(errno, EEXIST, "errno");
+
+out:
+	uptr_update_failure__destroy(skel);
+	close(task_fd);
+}
+
+static void test_uptr_map_failure(const char *map_name, int expected_errno)
+{
+	LIBBPF_OPTS(bpf_map_create_opts, create_attr);
+	struct uptr_map_failure *skel;
+	struct bpf_map *map;
+	struct btf *btf;
+	int map_fd, err;
+
+	skel = uptr_map_failure__open();
+	if (!ASSERT_OK_PTR(skel, "uptr_map_failure__open"))
+		return;
+
+	map = bpf_object__find_map_by_name(skel->obj, map_name);
+	btf = bpf_object__btf(skel->obj);
+	err = btf__load_into_kernel(btf);
+	if (!ASSERT_OK(err, "btf__load_into_kernel"))
+		goto done;
+
+	create_attr.map_flags = bpf_map__map_flags(map);
+	create_attr.btf_fd = btf__fd(btf);
+	create_attr.btf_key_type_id = bpf_map__btf_key_type_id(map);
+	create_attr.btf_value_type_id = bpf_map__btf_value_type_id(map);
+	map_fd = bpf_map_create(bpf_map__type(map), map_name,
+				bpf_map__key_size(map), bpf_map__value_size(map),
+				0, &create_attr);
+	if (ASSERT_ERR_FD(map_fd, "map_create"))
+		ASSERT_EQ(errno, expected_errno, "errno");
+	else
+		close(map_fd);
+
+done:
+	uptr_map_failure__destroy(skel);
+}
+
 void test_task_local_storage(void)
 {
 	if (test__start_subtest("sys_enter_exit"))
@@ -237,4 +498,21 @@ void test_task_local_storage(void)
 		test_recursion();
 	if (test__start_subtest("nodeadlock"))
 		test_nodeadlock();
+	if (test__start_subtest("uptr_basic"))
+		test_uptr_basic();
+	if (test__start_subtest("uptr_across_pages"))
+		test_uptr_across_pages();
+	if (test__start_subtest("uptr_update_failure"))
+		test_uptr_update_failure();
+	if (test__start_subtest("uptr_map_failure_e2big")) {
+		if (getpagesize() == PAGE_SIZE)
+			test_uptr_map_failure("large_uptr_map", E2BIG);
+		else
+			test__skip();
+	}
+	if (test__start_subtest("uptr_map_failure_size0"))
+		test_uptr_map_failure("empty_uptr_map", EINVAL);
+	if (test__start_subtest("uptr_map_failure_kstruct"))
+		test_uptr_map_failure("kstruct_uptr_map", EINVAL);
+	RUN_TESTS(uptr_failure);
 }

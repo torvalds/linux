@@ -235,7 +235,7 @@ MODULE_DEVICE_TABLE(acpi, sel3350_device_ids);
 
 static struct platform_driver sel3350_platform_driver = {
 	.probe = sel3350_probe,
-	.remove_new = sel3350_remove,
+	.remove = sel3350_remove,
 	.driver = {
 		.name = "sel3350-platform",
 		.acpi_match_table = sel3350_device_ids,

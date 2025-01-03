@@ -409,6 +409,7 @@ static int cros_typec_init_ports(struct cros_typec_data *typec)
 	return 0;
 
 unregister_ports:
+	fwnode_handle_put(fwnode);
 	cros_unregister_ports(typec);
 	return ret;
 }
@@ -1325,7 +1326,7 @@ static struct platform_driver cros_typec_driver = {
 		.pm = &cros_typec_pm_ops,
 	},
 	.probe = cros_typec_probe,
-	.remove_new = cros_typec_remove,
+	.remove = cros_typec_remove,
 };
 
 module_platform_driver(cros_typec_driver);

@@ -285,8 +285,7 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
 #endif
 			K(node_page_state(pgdat, NR_PAGETABLE)),
 			K(node_page_state(pgdat, NR_SECONDARY_PAGETABLE)),
-			pgdat->kswapd_failures >= MAX_RECLAIM_RETRIES ?
-				"yes" : "no");
+			str_yes_no(pgdat->kswapd_failures >= MAX_RECLAIM_RETRIES));
 	}
 
 	for_each_populated_zone(zone) {

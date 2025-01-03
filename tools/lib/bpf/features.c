@@ -47,7 +47,6 @@ static int probe_kern_prog_name(int token_fd)
 
 static int probe_kern_global_data(int token_fd)
 {
-	char *cp, errmsg[STRERR_BUFSIZE];
 	struct bpf_insn insns[] = {
 		BPF_LD_MAP_VALUE(BPF_REG_1, 0, 16),
 		BPF_ST_MEM(BPF_DW, BPF_REG_1, 0, 42),
@@ -67,9 +66,8 @@ static int probe_kern_global_data(int token_fd)
 	map = bpf_map_create(BPF_MAP_TYPE_ARRAY, "libbpf_global", sizeof(int), 32, 1, &map_opts);
 	if (map < 0) {
 		ret = -errno;
-		cp = libbpf_strerror_r(ret, errmsg, sizeof(errmsg));
-		pr_warn("Error in %s():%s(%d). Couldn't create simple array map.\n",
-			__func__, cp, -ret);
+		pr_warn("Error in %s(): %s. Couldn't create simple array map.\n",
+			__func__, errstr(ret));
 		return ret;
 	}
 
@@ -267,7 +265,6 @@ static int probe_kern_probe_read_kernel(int token_fd)
 
 static int probe_prog_bind_map(int token_fd)
 {
-	char *cp, errmsg[STRERR_BUFSIZE];
 	struct bpf_insn insns[] = {
 		BPF_MOV64_IMM(BPF_REG_0, 0),
 		BPF_EXIT_INSN(),
@@ -285,9 +282,8 @@ static int probe_prog_bind_map(int token_fd)
 	map = bpf_map_create(BPF_MAP_TYPE_ARRAY, "libbpf_det_bind", sizeof(int), 32, 1, &map_opts);
 	if (map < 0) {
 		ret = -errno;
-		cp = libbpf_strerror_r(ret, errmsg, sizeof(errmsg));
-		pr_warn("Error in %s():%s(%d). Couldn't create simple array map.\n",
-			__func__, cp, -ret);
+		pr_warn("Error in %s(): %s. Couldn't create simple array map.\n",
+			__func__, errstr(ret));
 		return ret;
 	}
 
@@ -604,7 +600,8 @@ bool feat_supported(struct kern_feature_cache *cache, enum kern_feature_id feat_
 		} else if (ret == 0) {
 			WRITE_ONCE(cache->res[feat_id], FEAT_MISSING);
 		} else {
-			pr_warn("Detection of kernel %s support failed: %d\n", feat->desc, ret);
+			pr_warn("Detection of kernel %s support failed: %s\n",
+				feat->desc, errstr(ret));
 			WRITE_ONCE(cache->res[feat_id], FEAT_MISSING);
 		}
 	}

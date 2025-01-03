@@ -13,10 +13,7 @@ struct eee_config {
 static inline bool eeecfg_mac_can_tx_lpi(const struct eee_config *eeecfg)
 {
 	/* eee_enabled is the master on/off */
-	if (!eeecfg->eee_enabled || !eeecfg->tx_lpi_enabled)
-		return false;
-
-	return true;
+	return eeecfg->eee_enabled && eeecfg->tx_lpi_enabled;
 }
 
 static inline void eeecfg_to_eee(struct ethtool_keee *eee,

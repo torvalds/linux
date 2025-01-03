@@ -247,6 +247,20 @@ int BPF_PROG(task_kfunc_from_pid_no_null_check, struct task_struct *task, u64 cl
 	return 0;
 }
 
+SEC("tp_btf/task_newtask")
+__failure __msg("Possibly NULL pointer passed to trusted arg0")
+int BPF_PROG(task_kfunc_from_vpid_no_null_check, struct task_struct *task, u64 clone_flags)
+{
+	struct task_struct *acquired;
+
+	acquired = bpf_task_from_vpid(task->pid);
+
+	/* Releasing bpf_task_from_vpid() lookup without a NULL check. */
+	bpf_task_release(acquired);
+
+	return 0;
+}
+
 SEC("lsm/task_free")
 __failure __msg("R1 must be a rcu pointer")
 int BPF_PROG(task_kfunc_from_lsm_task_free, struct task_struct *task)

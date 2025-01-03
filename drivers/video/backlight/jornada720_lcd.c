@@ -6,7 +6,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/fb.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/lcd.h>
 #include <linux/module.h>
@@ -23,14 +23,14 @@
 
 static int jornada_lcd_get_power(struct lcd_device *ld)
 {
-	return PPSR & PPC_LDD2 ? FB_BLANK_UNBLANK : FB_BLANK_POWERDOWN;
+	return PPSR & PPC_LDD2 ? LCD_POWER_ON : LCD_POWER_OFF;
 }
 
 static int jornada_lcd_get_contrast(struct lcd_device *ld)
 {
 	int ret;
 
-	if (jornada_lcd_get_power(ld) != FB_BLANK_UNBLANK)
+	if (jornada_lcd_get_power(ld) != LCD_POWER_ON)
 		return 0;
 
 	jornada_ssp_start();
@@ -71,7 +71,7 @@ success:
 
 static int jornada_lcd_set_power(struct lcd_device *ld, int power)
 {
-	if (power != FB_BLANK_UNBLANK) {
+	if (power != LCD_POWER_ON) {
 		PPSR &= ~PPC_LDD2;
 		PPDR |= PPC_LDD2;
 	} else {
@@ -106,7 +106,7 @@ static int jornada_lcd_probe(struct platform_device *pdev)
 
 	/* lets set our default values */
 	jornada_lcd_set_contrast(lcd_device, LCD_DEF_CONTRAST);
-	jornada_lcd_set_power(lcd_device, FB_BLANK_UNBLANK);
+	jornada_lcd_set_power(lcd_device, LCD_POWER_ON);
 	/* give it some time to startup */
 	msleep(100);
 

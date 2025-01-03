@@ -77,7 +77,7 @@ static int imx8mn_icc_probe(struct platform_device *pdev)
 
 static struct platform_driver imx8mn_icc_driver = {
 	.probe = imx8mn_icc_probe,
-	.remove_new = imx_icc_unregister,
+	.remove = imx_icc_unregister,
 	.driver = {
 		.name = "imx8mn-interconnect",
 	},

@@ -198,6 +198,7 @@ int t7xx_reset_device(struct t7xx_pci_dev *t7xx_dev, enum reset_type type)
 	pci_save_state(t7xx_dev->pdev);
 	t7xx_pci_reprobe_early(t7xx_dev);
 	t7xx_mode_update(t7xx_dev, T7XX_RESET);
+	WRITE_ONCE(t7xx_dev->debug_ports_show, false);
 
 	if (type == FLDR) {
 		ret = t7xx_acpi_reset(t7xx_dev, "_RST");

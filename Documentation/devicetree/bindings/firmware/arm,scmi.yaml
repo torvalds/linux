@@ -124,11 +124,26 @@ properties:
       atomic mode of operation, even if requested.
     default: 0
 
-  max-rx-timeout-ms:
+  arm,max-rx-timeout-ms:
     description:
       An optional time value, expressed in milliseconds, representing the
       transport maximum timeout value for the receive channel. The value should
       be a non-zero value if set.
+    minimum: 1
+
+  arm,max-msg-size:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      An optional value, expressed in bytes, representing the maximum size
+      allowed for the payload of messages transmitted on this transport.
+
+  arm,max-msg:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      An optional value representing the maximum number of concurrent in-flight
+      messages allowed by this transport; this number represents the maximum
+      number of concurrently outstanding messages that the server can handle on
+      this platform. If set, the value should be non-zero.
     minimum: 1
 
   arm,smc-id:

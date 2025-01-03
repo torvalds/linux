@@ -241,7 +241,7 @@ static inline void pac1921_calc_scale(int dividend, int divisor, int *val,
 	s64 tmp;
 
 	tmp = div_s64(dividend * (s64)NANO, divisor);
-	*val = (int)div_s64_rem(tmp, NANO, val2);
+	*val = div_s64_rem(tmp, NANO, val2);
 }
 
 /*
@@ -260,7 +260,7 @@ static void pac1921_calc_current_scales(struct pac1921_priv *priv)
 		int max = (PAC1921_MAX_VSENSE_MV * MICRO) >> i;
 		int vsense_lsb = DIV_ROUND_CLOSEST(max, PAC1921_RES_RESOLUTION);
 
-		pac1921_calc_scale(vsense_lsb, (int)priv->rshunt_uohm,
+		pac1921_calc_scale(vsense_lsb, priv->rshunt_uohm,
 				   &priv->current_scales[i][0],
 				   &priv->current_scales[i][1]);
 	}
@@ -314,7 +314,7 @@ static int pac1921_check_push_overflow(struct iio_dev *indio_dev, s64 timestamp)
 			       timestamp);
 	}
 
-	priv->prev_ovf_flags = (u8)flags;
+	priv->prev_ovf_flags = flags;
 
 	return 0;
 }
@@ -329,8 +329,7 @@ static int pac1921_check_push_overflow(struct iio_dev *indio_dev, s64 timestamp)
 static int pac1921_read_res(struct pac1921_priv *priv, unsigned long reg,
 			    u16 *val)
 {
-	int ret = regmap_bulk_read(priv->regmap, (unsigned int)reg, val,
-				   sizeof(*val));
+	int ret = regmap_bulk_read(priv->regmap, reg, val, sizeof(*val));
 	if (ret)
 		return ret;
 
@@ -366,7 +365,7 @@ static int pac1921_read_raw(struct iio_dev *indio_dev,
 		if (ret)
 			return ret;
 
-		*val = (int)res_val;
+		*val = res_val;
 
 		return IIO_VAL_INT;
 	}
@@ -400,10 +399,10 @@ static int pac1921_read_raw(struct iio_dev *indio_dev,
 			s64 tmp = curr_scale[0] * (s64)NANO + curr_scale[1];
 
 			/* Multiply by max_vbus (V) / dv_gain */
-			tmp *= PAC1921_MAX_VBUS_V >> (int)priv->dv_gain;
+			tmp *= PAC1921_MAX_VBUS_V >> priv->dv_gain;
 
 			/* Convert back to INT_PLUS_NANO */
-			*val = (int)div_s64_rem(tmp, NANO, val2);
+			*val = div_s64_rem(tmp, NANO, val2);
 
 			return IIO_VAL_INT_PLUS_NANO;
 		}
@@ -426,7 +425,7 @@ static int pac1921_read_raw(struct iio_dev *indio_dev,
 		 * 1/(integr_period_usecs/MICRO) = MICRO/integr_period_usecs
 		 */
 		*val = MICRO;
-		*val2 = (int)priv->integr_period_usecs;
+		*val2 = priv->integr_period_usecs;
 		return IIO_VAL_FRACTIONAL;
 
 	default:
@@ -503,7 +502,7 @@ static int pac1921_lookup_scale(const int (*const scales_tbl)[2], size_t size,
 	for (unsigned int i = 0; i < size; i++)
 		if (scales_tbl[i][0] == scale_val &&
 		    scales_tbl[i][1] == scale_val2)
-			return (int)i;
+			return i;
 
 	return -EINVAL;
 }
@@ -553,7 +552,7 @@ static int pac1921_update_gain_from_scale(struct pac1921_priv *priv,
 		if (ret < 0)
 			return ret;
 
-		return pac1921_update_gain(priv, &priv->dv_gain, (u8)ret,
+		return pac1921_update_gain(priv, &priv->dv_gain, ret,
 					   PAC1921_GAIN_DV_GAIN_MASK);
 	case PAC1921_CHAN_VSENSE:
 		ret = pac1921_lookup_scale(pac1921_vsense_scales,
@@ -562,7 +561,7 @@ static int pac1921_update_gain_from_scale(struct pac1921_priv *priv,
 		if (ret < 0)
 			return ret;
 
-		return pac1921_update_gain(priv, &priv->di_gain, (u8)ret,
+		return pac1921_update_gain(priv, &priv->di_gain, ret,
 					   PAC1921_GAIN_DI_GAIN_MASK);
 	case PAC1921_CHAN_CURRENT:
 		ret = pac1921_lookup_scale(priv->current_scales,
@@ -571,7 +570,7 @@ static int pac1921_update_gain_from_scale(struct pac1921_priv *priv,
 		if (ret < 0)
 			return ret;
 
-		return pac1921_update_gain(priv, &priv->di_gain, (u8)ret,
+		return pac1921_update_gain(priv, &priv->di_gain, ret,
 					   PAC1921_GAIN_DI_GAIN_MASK);
 	default:
 		return -EINVAL;
@@ -586,7 +585,7 @@ static int pac1921_lookup_int_num_samples(int num_samples)
 {
 	for (unsigned int i = 0; i < ARRAY_SIZE(pac1921_int_num_samples); i++)
 		if (pac1921_int_num_samples[i] == num_samples)
-			return (int)i;
+			return i;
 
 	return -EINVAL;
 }
@@ -607,7 +606,7 @@ static int pac1921_update_int_num_samples(struct pac1921_priv *priv,
 	if (ret < 0)
 		return ret;
 
-	n_samples = (u8)ret;
+	n_samples = ret;
 
 	if (priv->n_samples == n_samples)
 		return 0;
@@ -700,7 +699,8 @@ static int pac1921_read_event_config(struct iio_dev *indio_dev,
 static int pac1921_write_event_config(struct iio_dev *indio_dev,
 				      const struct iio_chan_spec *chan,
 				      enum iio_event_type type,
-				      enum iio_event_direction dir, int state)
+				      enum iio_event_direction dir,
+				      bool state)
 {
 	struct pac1921_priv *priv = iio_priv(indio_dev);
 	u8 ovf_bit;
@@ -770,7 +770,7 @@ static ssize_t pac1921_read_shunt_resistor(struct iio_dev *indio_dev,
 
 	guard(mutex)(&priv->lock);
 
-	vals[0] = (int)priv->rshunt_uohm;
+	vals[0] = priv->rshunt_uohm;
 	vals[1] = MICRO;
 
 	return iio_format_value(buf, IIO_VAL_FRACTIONAL, 1, vals);
@@ -793,13 +793,13 @@ static ssize_t pac1921_write_shunt_resistor(struct iio_dev *indio_dev,
 	if (ret)
 		return ret;
 
-	rshunt_uohm = (u32)val * MICRO + (u32)val_fract;
+	rshunt_uohm = val * MICRO + val_fract;
 	if (rshunt_uohm == 0 || rshunt_uohm > INT_MAX)
 		return -EINVAL;
 
 	guard(mutex)(&priv->lock);
 
-	priv->rshunt_uohm = (u32)rshunt_uohm;
+	priv->rshunt_uohm = rshunt_uohm;
 
 	pac1921_calc_current_scales(priv);
 
@@ -1077,7 +1077,7 @@ static int pac1921_init(struct pac1921_priv *priv)
 	/*
 	 * Init control register:
 	 * - VPower free run integration mode
-	 * - OUT pin full scale range: 3V (HW detault)
+	 * - OUT pin full scale range: 3V (HW default)
 	 * - no timeout, no sleep, no sleep override, no recalc (HW defaults)
 	 */
 	val = FIELD_PREP(PAC1921_CONTROL_MXSL_MASK,
@@ -1168,10 +1168,12 @@ static int pac1921_probe(struct i2c_client *client)
 
 	priv->regmap = devm_regmap_init_i2c(client, &pac1921_regmap_config);
 	if (IS_ERR(priv->regmap))
-		return dev_err_probe(dev, (int)PTR_ERR(priv->regmap),
+		return dev_err_probe(dev, PTR_ERR(priv->regmap),
 				     "Cannot initialize register map\n");
 
-	devm_mutex_init(dev, &priv->lock);
+	ret = devm_mutex_init(dev, &priv->lock);
+	if (ret)
+		return ret;
 
 	priv->dv_gain = PAC1921_DEFAULT_DV_GAIN;
 	priv->di_gain = PAC1921_DEFAULT_DI_GAIN;
@@ -1191,7 +1193,7 @@ static int pac1921_probe(struct i2c_client *client)
 
 	priv->vdd = devm_regulator_get(dev, "vdd");
 	if (IS_ERR(priv->vdd))
-		return dev_err_probe(dev, (int)PTR_ERR(priv->vdd),
+		return dev_err_probe(dev, PTR_ERR(priv->vdd),
 				     "Cannot get vdd regulator\n");
 
 	ret = regulator_enable(priv->vdd);

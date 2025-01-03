@@ -479,7 +479,7 @@ static struct platform_driver pdc_intc_driver = {
 		.of_match_table	= pdc_intc_match,
 	},
 	.probe		= pdc_intc_probe,
-	.remove_new	= pdc_intc_remove,
+	.remove		= pdc_intc_remove,
 };
 
 static int __init pdc_intc_init(void)

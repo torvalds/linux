@@ -23,6 +23,7 @@ properties:
       - atmel,sama5d3-aic
       - atmel,sama5d4-aic
       - microchip,sam9x60-aic
+      - microchip,sam9x7-aic
 
   reg:
     maxItems: 1

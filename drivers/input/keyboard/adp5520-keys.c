@@ -181,7 +181,7 @@ static struct platform_driver adp5520_keys_driver = {
 		.name	= "adp5520-keys",
 	},
 	.probe		= adp5520_keys_probe,
-	.remove_new	= adp5520_keys_remove,
+	.remove		= adp5520_keys_remove,
 };
 module_platform_driver(adp5520_keys_driver);
 

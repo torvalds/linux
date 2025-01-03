@@ -132,8 +132,8 @@ int mv88e6352_serdes_get_sset_count(struct mv88e6xxx_chip *chip, int port)
 	return ARRAY_SIZE(mv88e6352_serdes_hw_stats);
 }
 
-int mv88e6352_serdes_get_strings(struct mv88e6xxx_chip *chip,
-				 int port, uint8_t *data)
+int mv88e6352_serdes_get_strings(struct mv88e6xxx_chip *chip, int port,
+				 uint8_t **data)
 {
 	struct mv88e6352_serdes_hw_stat *stat;
 	int err, i;
@@ -144,8 +144,7 @@ int mv88e6352_serdes_get_strings(struct mv88e6xxx_chip *chip,
 
 	for (i = 0; i < ARRAY_SIZE(mv88e6352_serdes_hw_stats); i++) {
 		stat = &mv88e6352_serdes_hw_stats[i];
-		memcpy(data + i * ETH_GSTRING_LEN, stat->string,
-		       ETH_GSTRING_LEN);
+		ethtool_puts(data, stat->string);
 	}
 	return ARRAY_SIZE(mv88e6352_serdes_hw_stats);
 }
@@ -394,8 +393,8 @@ int mv88e6390_serdes_get_sset_count(struct mv88e6xxx_chip *chip, int port)
 	return ARRAY_SIZE(mv88e6390_serdes_hw_stats);
 }
 
-int mv88e6390_serdes_get_strings(struct mv88e6xxx_chip *chip,
-				 int port, uint8_t *data)
+int mv88e6390_serdes_get_strings(struct mv88e6xxx_chip *chip, int port,
+				 uint8_t **data)
 {
 	struct mv88e6390_serdes_hw_stat *stat;
 	int i;
@@ -405,8 +404,7 @@ int mv88e6390_serdes_get_strings(struct mv88e6xxx_chip *chip,
 
 	for (i = 0; i < ARRAY_SIZE(mv88e6390_serdes_hw_stats); i++) {
 		stat = &mv88e6390_serdes_hw_stats[i];
-		memcpy(data + i * ETH_GSTRING_LEN, stat->string,
-		       ETH_GSTRING_LEN);
+		ethtool_puts(data, stat->string);
 	}
 	return ARRAY_SIZE(mv88e6390_serdes_hw_stats);
 }

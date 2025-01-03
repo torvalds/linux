@@ -379,7 +379,7 @@ MODULE_DEVICE_TABLE(of, meson_ddr_pmu_dt_match);
 
 static struct platform_driver g12_ddr_pmu_driver = {
 	.probe = g12_ddr_pmu_probe,
-	.remove_new = g12_ddr_pmu_remove,
+	.remove = g12_ddr_pmu_remove,
 
 	.driver = {
 		.name = "meson-g12-ddr-pmu",

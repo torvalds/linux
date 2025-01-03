@@ -31,7 +31,10 @@ struct fgraph_data {
 	struct fgraph_cpu_data __percpu *cpu_data;
 
 	/* Place to preserve last processed entry. */
-	struct ftrace_graph_ent_entry	ent;
+	union {
+		struct ftrace_graph_ent_entry	ent;
+		struct fgraph_retaddr_ent_entry	rent;
+	} ent;
 	struct ftrace_graph_ret_entry	ret;
 	int				failed;
 	int				cpu;
@@ -64,6 +67,10 @@ static struct tracer_opt trace_opts[] = {
 	/* Display function return value in hexadecimal format ? */
 	{ TRACER_OPT(funcgraph-retval-hex, TRACE_GRAPH_PRINT_RETVAL_HEX) },
 #endif
+#ifdef CONFIG_FUNCTION_GRAPH_RETADDR
+	/* Display function return address ? */
+	{ TRACER_OPT(funcgraph-retaddr, TRACE_GRAPH_PRINT_RETADDR) },
+#endif
 	/* Include sleep time (scheduled out) between entry and return */
 	{ TRACER_OPT(sleep-time, TRACE_GRAPH_SLEEP_TIME) },
 
@@ -82,6 +89,11 @@ static struct tracer_flags tracer_flags = {
 	       TRACE_GRAPH_SLEEP_TIME | TRACE_GRAPH_GRAPH_TIME,
 	.opts = trace_opts
 };
+
+static bool tracer_flags_is_set(u32 flags)
+{
+	return (tracer_flags.val & flags) == flags;
+}
 
 /*
  * DURATION column is being also used to display IRQ signs,
@@ -102,7 +114,6 @@ int __trace_graph_entry(struct trace_array *tr,
 				struct ftrace_graph_ent *trace,
 				unsigned int trace_ctx)
 {
-	struct trace_event_call *call = &event_funcgraph_entry;
 	struct ring_buffer_event *event;
 	struct trace_buffer *buffer = tr->array_buffer.buffer;
 	struct ftrace_graph_ent_entry *entry;
@@ -113,11 +124,42 @@ int __trace_graph_entry(struct trace_array *tr,
 		return 0;
 	entry	= ring_buffer_event_data(event);
 	entry->graph_ent			= *trace;
-	if (!call_filter_check_discard(call, entry, buffer, event))
-		trace_buffer_unlock_commit_nostack(buffer, event);
+	trace_buffer_unlock_commit_nostack(buffer, event);
 
 	return 1;
 }
+
+#ifdef CONFIG_FUNCTION_GRAPH_RETADDR
+int __trace_graph_retaddr_entry(struct trace_array *tr,
+				struct ftrace_graph_ent *trace,
+				unsigned int trace_ctx,
+				unsigned long retaddr)
+{
+	struct ring_buffer_event *event;
+	struct trace_buffer *buffer = tr->array_buffer.buffer;
+	struct fgraph_retaddr_ent_entry *entry;
+
+	event = trace_buffer_lock_reserve(buffer, TRACE_GRAPH_RETADDR_ENT,
+					  sizeof(*entry), trace_ctx);
+	if (!event)
+		return 0;
+	entry	= ring_buffer_event_data(event);
+	entry->graph_ent.func = trace->func;
+	entry->graph_ent.depth = trace->depth;
+	entry->graph_ent.retaddr = retaddr;
+	trace_buffer_unlock_commit_nostack(buffer, event);
+
+	return 1;
+}
+#else
+int __trace_graph_retaddr_entry(struct trace_array *tr,
+				struct ftrace_graph_ent *trace,
+				unsigned int trace_ctx,
+				unsigned long retaddr)
+{
+	return 1;
+}
+#endif
 
 static inline int ftrace_graph_ignore_irqs(void)
 {
@@ -127,12 +169,18 @@ static inline int ftrace_graph_ignore_irqs(void)
 	return in_hardirq();
 }
 
+struct fgraph_times {
+	unsigned long long		calltime;
+	unsigned long long		sleeptime; /* may be optional! */
+};
+
 int trace_graph_entry(struct ftrace_graph_ent *trace,
 		      struct fgraph_ops *gops)
 {
 	unsigned long *task_var = fgraph_get_task_var(gops);
 	struct trace_array *tr = gops->private;
 	struct trace_array_cpu *data;
+	struct fgraph_times *ftimes;
 	unsigned long flags;
 	unsigned int trace_ctx;
 	long disabled;
@@ -167,6 +215,19 @@ int trace_graph_entry(struct ftrace_graph_ent *trace,
 	if (ftrace_graph_ignore_irqs())
 		return 0;
 
+	if (fgraph_sleep_time) {
+		/* Only need to record the calltime */
+		ftimes = fgraph_reserve_data(gops->idx, sizeof(ftimes->calltime));
+	} else {
+		ftimes = fgraph_reserve_data(gops->idx, sizeof(*ftimes));
+		if (ftimes)
+			ftimes->sleeptime = current->ftrace_sleeptime;
+	}
+	if (!ftimes)
+		return 0;
+
+	ftimes->calltime = trace_clock_local();
+
 	/*
 	 * Stop here if tracing_threshold is set. We only write function return
 	 * events to the ring buffer.
@@ -180,7 +241,13 @@ int trace_graph_entry(struct ftrace_graph_ent *trace,
 	disabled = atomic_inc_return(&data->disabled);
 	if (likely(disabled == 1)) {
 		trace_ctx = tracing_gen_ctx_flags(flags);
-		ret = __trace_graph_entry(tr, trace, trace_ctx);
+		if (unlikely(IS_ENABLED(CONFIG_FUNCTION_GRAPH_RETADDR) &&
+			tracer_flags_is_set(TRACE_GRAPH_PRINT_RETADDR))) {
+			unsigned long retaddr = ftrace_graph_top_ret_addr(current);
+
+			ret = __trace_graph_retaddr_entry(tr, trace, trace_ctx, retaddr);
+		} else
+			ret = __trace_graph_entry(tr, trace, trace_ctx);
 	} else {
 		ret = 0;
 	}
@@ -223,7 +290,6 @@ void __trace_graph_return(struct trace_array *tr,
 				struct ftrace_graph_ret *trace,
 				unsigned int trace_ctx)
 {
-	struct trace_event_call *call = &event_funcgraph_exit;
 	struct ring_buffer_event *event;
 	struct trace_buffer *buffer = tr->array_buffer.buffer;
 	struct ftrace_graph_ret_entry *entry;
@@ -234,8 +300,17 @@ void __trace_graph_return(struct trace_array *tr,
 		return;
 	entry	= ring_buffer_event_data(event);
 	entry->ret				= *trace;
-	if (!call_filter_check_discard(call, entry, buffer, event))
-		trace_buffer_unlock_commit_nostack(buffer, event);
+	trace_buffer_unlock_commit_nostack(buffer, event);
+}
+
+static void handle_nosleeptime(struct ftrace_graph_ret *trace,
+			       struct fgraph_times *ftimes,
+			       int size)
+{
+	if (fgraph_sleep_time || size < sizeof(*ftimes))
+		return;
+
+	ftimes->calltime += current->ftrace_sleeptime - ftimes->sleeptime;
 }
 
 void trace_graph_return(struct ftrace_graph_ret *trace,
@@ -244,9 +319,11 @@ void trace_graph_return(struct ftrace_graph_ret *trace,
 	unsigned long *task_var = fgraph_get_task_var(gops);
 	struct trace_array *tr = gops->private;
 	struct trace_array_cpu *data;
+	struct fgraph_times *ftimes;
 	unsigned long flags;
 	unsigned int trace_ctx;
 	long disabled;
+	int size;
 	int cpu;
 
 	ftrace_graph_addr_finish(gops, trace);
@@ -255,6 +332,14 @@ void trace_graph_return(struct ftrace_graph_ret *trace,
 		*task_var &= ~TRACE_GRAPH_NOTRACE;
 		return;
 	}
+
+	ftimes = fgraph_retrieve_data(gops->idx, &size);
+	if (!ftimes)
+		return;
+
+	handle_nosleeptime(trace, ftimes, size);
+
+	trace->calltime = ftimes->calltime;
 
 	local_irq_save(flags);
 	cpu = raw_smp_processor_id();
@@ -271,6 +356,9 @@ void trace_graph_return(struct ftrace_graph_ret *trace,
 static void trace_graph_thresh_return(struct ftrace_graph_ret *trace,
 				      struct fgraph_ops *gops)
 {
+	struct fgraph_times *ftimes;
+	int size;
+
 	ftrace_graph_addr_finish(gops, trace);
 
 	if (trace_recursion_test(TRACE_GRAPH_NOTRACE_BIT)) {
@@ -278,8 +366,16 @@ static void trace_graph_thresh_return(struct ftrace_graph_ret *trace,
 		return;
 	}
 
+	ftimes = fgraph_retrieve_data(gops->idx, &size);
+	if (!ftimes)
+		return;
+
+	handle_nosleeptime(trace, ftimes, size);
+
+	trace->calltime = ftimes->calltime;
+
 	if (tracing_thresh &&
-	    (trace->rettime - trace->calltime < tracing_thresh))
+	    (trace->rettime - ftimes->calltime < tracing_thresh))
 		return;
 	else
 		trace_graph_return(trace, gops);
@@ -457,7 +553,7 @@ get_return_for_leaf(struct trace_iterator *iter,
 	 * then we just reuse the data from before.
 	 */
 	if (data && data->failed) {
-		curr = &data->ent;
+		curr = &data->ent.ent;
 		next = &data->ret;
 	} else {
 
@@ -487,7 +583,10 @@ get_return_for_leaf(struct trace_iterator *iter,
 			 * Save current and next entries for later reference
 			 * if the output fails.
 			 */
-			data->ent = *curr;
+			if (unlikely(curr->ent.type == TRACE_GRAPH_RETADDR_ENT))
+				data->ent.rent = *(struct fgraph_retaddr_ent_entry *)curr;
+			else
+				data->ent.ent = *curr;
 			/*
 			 * If the next event is not a return type, then
 			 * we only care about what type it is. Otherwise we can
@@ -651,52 +750,96 @@ print_graph_duration(struct trace_array *tr, unsigned long long duration,
 }
 
 #ifdef CONFIG_FUNCTION_GRAPH_RETVAL
-
 #define __TRACE_GRAPH_PRINT_RETVAL TRACE_GRAPH_PRINT_RETVAL
+#else
+#define __TRACE_GRAPH_PRINT_RETVAL 0
+#endif
 
-static void print_graph_retval(struct trace_seq *s, unsigned long retval,
-				bool leaf, void *func, bool hex_format)
+#ifdef CONFIG_FUNCTION_GRAPH_RETADDR
+#define __TRACE_GRAPH_PRINT_RETADDR TRACE_GRAPH_PRINT_RETADDR
+static void print_graph_retaddr(struct trace_seq *s, struct fgraph_retaddr_ent_entry *entry,
+				u32 trace_flags, bool comment)
+{
+	if (comment)
+		trace_seq_puts(s, " /*");
+
+	trace_seq_puts(s, " <-");
+	seq_print_ip_sym(s, entry->graph_ent.retaddr, trace_flags | TRACE_ITER_SYM_OFFSET);
+
+	if (comment)
+		trace_seq_puts(s, " */");
+}
+#else
+#define __TRACE_GRAPH_PRINT_RETADDR 0
+#define print_graph_retaddr(_seq, _entry, _tflags, _comment)		do { } while (0)
+#endif
+
+#if defined(CONFIG_FUNCTION_GRAPH_RETVAL) || defined(CONFIG_FUNCTION_GRAPH_RETADDR)
+
+static void print_graph_retval(struct trace_seq *s, struct ftrace_graph_ent_entry *entry,
+				struct ftrace_graph_ret *graph_ret, void *func,
+				u32 opt_flags, u32 trace_flags)
 {
 	unsigned long err_code = 0;
+	unsigned long retval = 0;
+	bool print_retaddr = false;
+	bool print_retval = false;
+	bool hex_format = !!(opt_flags & TRACE_GRAPH_PRINT_RETVAL_HEX);
 
-	if (retval == 0 || hex_format)
-		goto done;
+#ifdef CONFIG_FUNCTION_GRAPH_RETVAL
+	retval = graph_ret->retval;
+	print_retval = !!(opt_flags & TRACE_GRAPH_PRINT_RETVAL);
+#endif
 
-	/* Check if the return value matches the negative format */
-	if (IS_ENABLED(CONFIG_64BIT) && (retval & BIT(31)) &&
-		(((u64)retval) >> 32) == 0) {
-		/* sign extension */
-		err_code = (unsigned long)(s32)retval;
-	} else {
-		err_code = retval;
+#ifdef CONFIG_FUNCTION_GRAPH_RETADDR
+	print_retaddr = !!(opt_flags & TRACE_GRAPH_PRINT_RETADDR);
+#endif
+
+	if (print_retval && retval && !hex_format) {
+		/* Check if the return value matches the negative format */
+		if (IS_ENABLED(CONFIG_64BIT) && (retval & BIT(31)) &&
+			(((u64)retval) >> 32) == 0) {
+			err_code = sign_extend64(retval, 31);
+		} else {
+			err_code = retval;
+		}
+
+		if (!IS_ERR_VALUE(err_code))
+			err_code = 0;
 	}
 
-	if (!IS_ERR_VALUE(err_code))
-		err_code = 0;
+	if (entry) {
+		if (entry->ent.type != TRACE_GRAPH_RETADDR_ENT)
+			print_retaddr = false;
 
-done:
-	if (leaf) {
-		if (hex_format || (err_code == 0))
-			trace_seq_printf(s, "%ps(); /* = 0x%lx */\n",
-					func, retval);
+		trace_seq_printf(s, "%ps();", func);
+		if (print_retval || print_retaddr)
+			trace_seq_puts(s, " /*");
 		else
-			trace_seq_printf(s, "%ps(); /* = %ld */\n",
-					func, err_code);
+			trace_seq_putc(s, '\n');
 	} else {
-		if (hex_format || (err_code == 0))
-			trace_seq_printf(s, "} /* %ps = 0x%lx */\n",
-					func, retval);
-		else
-			trace_seq_printf(s, "} /* %ps = %ld */\n",
-					func, err_code);
+		print_retaddr = false;
+		trace_seq_printf(s, "} /* %ps", func);
 	}
+
+	if (print_retaddr)
+		print_graph_retaddr(s, (struct fgraph_retaddr_ent_entry *)entry,
+				    trace_flags, false);
+
+	if (print_retval) {
+		if (hex_format || (err_code == 0))
+			trace_seq_printf(s, " ret=0x%lx", retval);
+		else
+			trace_seq_printf(s, " ret=%ld", err_code);
+	}
+
+	if (!entry || print_retval || print_retaddr)
+		trace_seq_puts(s, " */\n");
 }
 
 #else
 
-#define __TRACE_GRAPH_PRINT_RETVAL 0
-
-#define print_graph_retval(_seq, _retval, _leaf, _func, _format) do {} while (0)
+#define print_graph_retval(_seq, _ent, _ret, _func, _opt_flags, _trace_flags) do {} while (0)
 
 #endif
 
@@ -748,14 +891,15 @@ print_graph_entry_leaf(struct trace_iterator *iter,
 		trace_seq_putc(s, ' ');
 
 	/*
-	 * Write out the function return value if the option function-retval is
-	 * enabled.
+	 * Write out the function return value or return address
 	 */
-	if (flags & __TRACE_GRAPH_PRINT_RETVAL)
-		print_graph_retval(s, graph_ret->retval, true, (void *)func,
-				!!(flags & TRACE_GRAPH_PRINT_RETVAL_HEX));
-	else
+	if (flags & (__TRACE_GRAPH_PRINT_RETVAL | __TRACE_GRAPH_PRINT_RETADDR)) {
+		print_graph_retval(s, entry, graph_ret,
+				   (void *)graph_ret->func + iter->tr->text_delta,
+				   flags, tr->trace_flags);
+	} else {
 		trace_seq_printf(s, "%ps();\n", (void *)func);
+	}
 
 	print_graph_irq(iter, graph_ret->func, TRACE_GRAPH_RET,
 			cpu, iter->ent->pid, flags);
@@ -796,7 +940,12 @@ print_graph_entry_nested(struct trace_iterator *iter,
 
 	func = call->func + iter->tr->text_delta;
 
-	trace_seq_printf(s, "%ps() {\n", (void *)func);
+	trace_seq_printf(s, "%ps() {", (void *)func);
+	if (flags & __TRACE_GRAPH_PRINT_RETADDR  &&
+		entry->ent.type == TRACE_GRAPH_RETADDR_ENT)
+		print_graph_retaddr(s, (struct fgraph_retaddr_ent_entry *)entry,
+			tr->trace_flags, true);
+	trace_seq_putc(s, '\n');
 
 	if (trace_seq_has_overflowed(s))
 		return TRACE_TYPE_PARTIAL_LINE;
@@ -1043,11 +1192,10 @@ print_graph_return(struct ftrace_graph_ret *trace, struct trace_seq *s,
 
 	/*
 	 * Always write out the function name and its return value if the
-	 * function-retval option is enabled.
+	 * funcgraph-retval option is enabled.
 	 */
 	if (flags & __TRACE_GRAPH_PRINT_RETVAL) {
-		print_graph_retval(s, trace->retval, false, (void *)func,
-			!!(flags & TRACE_GRAPH_PRINT_RETVAL_HEX));
+		print_graph_retval(s, NULL, trace, (void *)func, flags, tr->trace_flags);
 	} else {
 		/*
 		 * If the return function does not have a matching entry,
@@ -1162,7 +1310,7 @@ print_graph_function_flags(struct trace_iterator *iter, u32 flags)
 	 * to print out the missing entry which would never go out.
 	 */
 	if (data && data->failed) {
-		field = &data->ent;
+		field = &data->ent.ent;
 		iter->cpu = data->cpu;
 		ret = print_graph_entry(field, s, iter, flags);
 		if (ret == TRACE_TYPE_HANDLED && iter->cpu != cpu) {
@@ -1186,6 +1334,16 @@ print_graph_function_flags(struct trace_iterator *iter, u32 flags)
 		saved = *field;
 		return print_graph_entry(&saved, s, iter, flags);
 	}
+#ifdef CONFIG_FUNCTION_GRAPH_RETADDR
+	case TRACE_GRAPH_RETADDR_ENT: {
+		struct fgraph_retaddr_ent_entry saved;
+		struct fgraph_retaddr_ent_entry *rfield;
+
+		trace_assign_type(rfield, entry);
+		saved = *rfield;
+		return print_graph_entry((struct ftrace_graph_ent_entry *)&saved, s, iter, flags);
+	}
+#endif
 	case TRACE_GRAPH_RET: {
 		struct ftrace_graph_ret_entry *field;
 		trace_assign_type(field, entry);
@@ -1380,6 +1538,13 @@ static struct trace_event graph_trace_entry_event = {
 	.funcs		= &graph_functions,
 };
 
+#ifdef CONFIG_FUNCTION_GRAPH_RETADDR
+static struct trace_event graph_trace_retaddr_entry_event = {
+	.type		= TRACE_GRAPH_RETADDR_ENT,
+	.funcs		= &graph_functions,
+};
+#endif
+
 static struct trace_event graph_trace_ret_event = {
 	.type		= TRACE_GRAPH_RET,
 	.funcs		= &graph_functions
@@ -1465,6 +1630,13 @@ static __init int init_graph_trace(void)
 		pr_warn("Warning: could not register graph trace events\n");
 		return 1;
 	}
+
+#ifdef CONFIG_FUNCTION_GRAPH_RETADDR
+	if (!register_trace_event(&graph_trace_retaddr_entry_event)) {
+		pr_warn("Warning: could not register graph trace retaddr events\n");
+		return 1;
+	}
+#endif
 
 	if (!register_trace_event(&graph_trace_ret_event)) {
 		pr_warn("Warning: could not register graph trace events\n");

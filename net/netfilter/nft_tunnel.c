@@ -497,10 +497,7 @@ static int nft_tunnel_obj_init(const struct nft_ctx *ctx,
 	}
 	if (tb[NFTA_TUNNEL_KEY_TOS])
 		info.key.tos = nla_get_u8(tb[NFTA_TUNNEL_KEY_TOS]);
-	if (tb[NFTA_TUNNEL_KEY_TTL])
-		info.key.ttl = nla_get_u8(tb[NFTA_TUNNEL_KEY_TTL]);
-	else
-		info.key.ttl = U8_MAX;
+	info.key.ttl = nla_get_u8_default(tb[NFTA_TUNNEL_KEY_TTL], U8_MAX);
 
 	if (tb[NFTA_TUNNEL_KEY_OPTS]) {
 		err = nft_tunnel_obj_opts_init(ctx, tb[NFTA_TUNNEL_KEY_OPTS],

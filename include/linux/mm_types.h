@@ -521,9 +521,6 @@ static_assert(sizeof(struct ptdesc) <= sizeof(struct page));
  */
 #define STRUCT_PAGE_MAX_SHIFT	(order_base_2(sizeof(struct page)))
 
-#define PAGE_FRAG_CACHE_MAX_SIZE	__ALIGN_MASK(32768, ~PAGE_MASK)
-#define PAGE_FRAG_CACHE_MAX_ORDER	get_order(PAGE_FRAG_CACHE_MAX_SIZE)
-
 /*
  * page_private can be used on tail pages.  However, PagePrivate is only
  * checked by the VM on the head page.  So page_private on the tail pages
@@ -541,21 +538,6 @@ static inline void *folio_get_private(struct folio *folio)
 {
 	return folio->private;
 }
-
-struct page_frag_cache {
-	void * va;
-#if (PAGE_SIZE < PAGE_FRAG_CACHE_MAX_SIZE)
-	__u16 offset;
-	__u16 size;
-#else
-	__u32 offset;
-#endif
-	/* we maintain a pagecount bias, so that we dont dirty cache line
-	 * containing page->_refcount every time we allocate a fragment.
-	 */
-	unsigned int		pagecnt_bias;
-	bool pfmemalloc;
-};
 
 typedef unsigned long vm_flags_t;
 
@@ -782,6 +764,7 @@ struct vm_area_struct {
 struct mm_cid {
 	u64 time;
 	int cid;
+	int recent_cid;
 };
 #endif
 
@@ -852,6 +835,27 @@ struct mm_struct {
 		 * When the next mm_cid scan is due (in jiffies).
 		 */
 		unsigned long mm_cid_next_scan;
+		/**
+		 * @nr_cpus_allowed: Number of CPUs allowed for mm.
+		 *
+		 * Number of CPUs allowed in the union of all mm's
+		 * threads allowed CPUs.
+		 */
+		unsigned int nr_cpus_allowed;
+		/**
+		 * @max_nr_cid: Maximum number of concurrency IDs allocated.
+		 *
+		 * Track the highest number of concurrency IDs allocated for the
+		 * mm.
+		 */
+		atomic_t max_nr_cid;
+		/**
+		 * @cpus_allowed_lock: Lock protecting mm cpus_allowed.
+		 *
+		 * Provide mutual exclusion for mm cpus_allowed and
+		 * mm nr_cpus_allowed updates.
+		 */
+		raw_spinlock_t cpus_allowed_lock;
 #endif
 #ifdef CONFIG_MMU
 		atomic_long_t pgtables_bytes;	/* size of all page tables */
@@ -1170,18 +1174,30 @@ static inline int mm_cid_clear_lazy_put(int cid)
 	return cid & ~MM_CID_LAZY_PUT;
 }
 
+/*
+ * mm_cpus_allowed: Union of all mm's threads allowed CPUs.
+ */
+static inline cpumask_t *mm_cpus_allowed(struct mm_struct *mm)
+{
+	unsigned long bitmap = (unsigned long)mm;
+
+	bitmap += offsetof(struct mm_struct, cpu_bitmap);
+	/* Skip cpu_bitmap */
+	bitmap += cpumask_size();
+	return (struct cpumask *)bitmap;
+}
+
 /* Accessor for struct mm_struct's cidmask. */
 static inline cpumask_t *mm_cidmask(struct mm_struct *mm)
 {
-	unsigned long cid_bitmap = (unsigned long)mm;
+	unsigned long cid_bitmap = (unsigned long)mm_cpus_allowed(mm);
 
-	cid_bitmap += offsetof(struct mm_struct, cpu_bitmap);
-	/* Skip cpu_bitmap */
+	/* Skip mm_cpus_allowed */
 	cid_bitmap += cpumask_size();
 	return (struct cpumask *)cid_bitmap;
 }
 
-static inline void mm_init_cid(struct mm_struct *mm)
+static inline void mm_init_cid(struct mm_struct *mm, struct task_struct *p)
 {
 	int i;
 
@@ -1189,17 +1205,22 @@ static inline void mm_init_cid(struct mm_struct *mm)
 		struct mm_cid *pcpu_cid = per_cpu_ptr(mm->pcpu_cid, i);
 
 		pcpu_cid->cid = MM_CID_UNSET;
+		pcpu_cid->recent_cid = MM_CID_UNSET;
 		pcpu_cid->time = 0;
 	}
+	mm->nr_cpus_allowed = p->nr_cpus_allowed;
+	atomic_set(&mm->max_nr_cid, 0);
+	raw_spin_lock_init(&mm->cpus_allowed_lock);
+	cpumask_copy(mm_cpus_allowed(mm), &p->cpus_mask);
 	cpumask_clear(mm_cidmask(mm));
 }
 
-static inline int mm_alloc_cid_noprof(struct mm_struct *mm)
+static inline int mm_alloc_cid_noprof(struct mm_struct *mm, struct task_struct *p)
 {
 	mm->pcpu_cid = alloc_percpu_noprof(struct mm_cid);
 	if (!mm->pcpu_cid)
 		return -ENOMEM;
-	mm_init_cid(mm);
+	mm_init_cid(mm, p);
 	return 0;
 }
 #define mm_alloc_cid(...)	alloc_hooks(mm_alloc_cid_noprof(__VA_ARGS__))
@@ -1212,16 +1233,31 @@ static inline void mm_destroy_cid(struct mm_struct *mm)
 
 static inline unsigned int mm_cid_size(void)
 {
-	return cpumask_size();
+	return 2 * cpumask_size();	/* mm_cpus_allowed(), mm_cidmask(). */
+}
+
+static inline void mm_set_cpus_allowed(struct mm_struct *mm, const struct cpumask *cpumask)
+{
+	struct cpumask *mm_allowed = mm_cpus_allowed(mm);
+
+	if (!mm)
+		return;
+	/* The mm_cpus_allowed is the union of each thread allowed CPUs masks. */
+	raw_spin_lock(&mm->cpus_allowed_lock);
+	cpumask_or(mm_allowed, mm_allowed, cpumask);
+	WRITE_ONCE(mm->nr_cpus_allowed, cpumask_weight(mm_allowed));
+	raw_spin_unlock(&mm->cpus_allowed_lock);
 }
 #else /* CONFIG_SCHED_MM_CID */
-static inline void mm_init_cid(struct mm_struct *mm) { }
-static inline int mm_alloc_cid(struct mm_struct *mm) { return 0; }
+static inline void mm_init_cid(struct mm_struct *mm, struct task_struct *p) { }
+static inline int mm_alloc_cid(struct mm_struct *mm, struct task_struct *p) { return 0; }
 static inline void mm_destroy_cid(struct mm_struct *mm) { }
+
 static inline unsigned int mm_cid_size(void)
 {
 	return 0;
 }
+static inline void mm_set_cpus_allowed(struct mm_struct *mm, const struct cpumask *cpumask) { }
 #endif /* CONFIG_SCHED_MM_CID */
 
 struct mmu_gather;
@@ -1498,5 +1534,89 @@ enum {
 
 	/* See also internal only FOLL flags in mm/internal.h */
 };
+
+/* mm flags */
+
+/*
+ * The first two bits represent core dump modes for set-user-ID,
+ * the modes are SUID_DUMP_* defined in linux/sched/coredump.h
+ */
+#define MMF_DUMPABLE_BITS 2
+#define MMF_DUMPABLE_MASK ((1 << MMF_DUMPABLE_BITS) - 1)
+/* coredump filter bits */
+#define MMF_DUMP_ANON_PRIVATE	2
+#define MMF_DUMP_ANON_SHARED	3
+#define MMF_DUMP_MAPPED_PRIVATE	4
+#define MMF_DUMP_MAPPED_SHARED	5
+#define MMF_DUMP_ELF_HEADERS	6
+#define MMF_DUMP_HUGETLB_PRIVATE 7
+#define MMF_DUMP_HUGETLB_SHARED  8
+#define MMF_DUMP_DAX_PRIVATE	9
+#define MMF_DUMP_DAX_SHARED	10
+
+#define MMF_DUMP_FILTER_SHIFT	MMF_DUMPABLE_BITS
+#define MMF_DUMP_FILTER_BITS	9
+#define MMF_DUMP_FILTER_MASK \
+	(((1 << MMF_DUMP_FILTER_BITS) - 1) << MMF_DUMP_FILTER_SHIFT)
+#define MMF_DUMP_FILTER_DEFAULT \
+	((1 << MMF_DUMP_ANON_PRIVATE) |	(1 << MMF_DUMP_ANON_SHARED) |\
+	 (1 << MMF_DUMP_HUGETLB_PRIVATE) | MMF_DUMP_MASK_DEFAULT_ELF)
+
+#ifdef CONFIG_CORE_DUMP_DEFAULT_ELF_HEADERS
+# define MMF_DUMP_MASK_DEFAULT_ELF	(1 << MMF_DUMP_ELF_HEADERS)
+#else
+# define MMF_DUMP_MASK_DEFAULT_ELF	0
+#endif
+					/* leave room for more dump flags */
+#define MMF_VM_MERGEABLE	16	/* KSM may merge identical pages */
+#define MMF_VM_HUGEPAGE		17	/* set when mm is available for khugepaged */
+
+/*
+ * This one-shot flag is dropped due to necessity of changing exe once again
+ * on NFS restore
+ */
+//#define MMF_EXE_FILE_CHANGED	18	/* see prctl_set_mm_exe_file() */
+
+#define MMF_HAS_UPROBES		19	/* has uprobes */
+#define MMF_RECALC_UPROBES	20	/* MMF_HAS_UPROBES can be wrong */
+#define MMF_OOM_SKIP		21	/* mm is of no interest for the OOM killer */
+#define MMF_UNSTABLE		22	/* mm is unstable for copy_from_user */
+#define MMF_HUGE_ZERO_PAGE	23      /* mm has ever used the global huge zero page */
+#define MMF_DISABLE_THP		24	/* disable THP for all VMAs */
+#define MMF_DISABLE_THP_MASK	(1 << MMF_DISABLE_THP)
+#define MMF_OOM_REAP_QUEUED	25	/* mm was queued for oom_reaper */
+#define MMF_MULTIPROCESS	26	/* mm is shared between processes */
+/*
+ * MMF_HAS_PINNED: Whether this mm has pinned any pages.  This can be either
+ * replaced in the future by mm.pinned_vm when it becomes stable, or grow into
+ * a counter on its own. We're aggresive on this bit for now: even if the
+ * pinned pages were unpinned later on, we'll still keep this bit set for the
+ * lifecycle of this mm, just for simplicity.
+ */
+#define MMF_HAS_PINNED		27	/* FOLL_PIN has run, never cleared */
+
+#define MMF_HAS_MDWE		28
+#define MMF_HAS_MDWE_MASK	(1 << MMF_HAS_MDWE)
+
+
+#define MMF_HAS_MDWE_NO_INHERIT	29
+
+#define MMF_VM_MERGE_ANY	30
+#define MMF_VM_MERGE_ANY_MASK	(1 << MMF_VM_MERGE_ANY)
+
+#define MMF_TOPDOWN		31	/* mm searches top down by default */
+#define MMF_TOPDOWN_MASK	(1 << MMF_TOPDOWN)
+
+#define MMF_INIT_MASK		(MMF_DUMPABLE_MASK | MMF_DUMP_FILTER_MASK |\
+				 MMF_DISABLE_THP_MASK | MMF_HAS_MDWE_MASK |\
+				 MMF_VM_MERGE_ANY_MASK | MMF_TOPDOWN_MASK)
+
+static inline unsigned long mmf_init_flags(unsigned long flags)
+{
+	if (flags & (1UL << MMF_HAS_MDWE_NO_INHERIT))
+		flags &= ~((1UL << MMF_HAS_MDWE) |
+			   (1UL << MMF_HAS_MDWE_NO_INHERIT));
+	return flags & MMF_INIT_MASK;
+}
 
 #endif /* _LINUX_MM_TYPES_H */

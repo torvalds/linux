@@ -15,7 +15,7 @@
 #include <asm/debug-monitors.h>
 #include <asm/ftrace.h>
 #include <asm/insn.h>
-#include <asm/patching.h>
+#include <asm/text-patching.h>
 
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_ARGS
 struct fregs_offset {
@@ -23,10 +23,10 @@ struct fregs_offset {
 	int offset;
 };
 
-#define FREGS_OFFSET(n, field)				\
-{							\
-	.name = n,					\
-	.offset = offsetof(struct ftrace_regs, field),	\
+#define FREGS_OFFSET(n, field)					\
+{								\
+	.name = n,						\
+	.offset = offsetof(struct __arch_ftrace_regs, field),	\
 }
 
 static const struct fregs_offset fregs_offsets[] = {
@@ -481,7 +481,7 @@ void prepare_ftrace_return(unsigned long self_addr, unsigned long *parent,
 void ftrace_graph_func(unsigned long ip, unsigned long parent_ip,
 		       struct ftrace_ops *op, struct ftrace_regs *fregs)
 {
-	prepare_ftrace_return(ip, &fregs->lr, fregs->fp);
+	prepare_ftrace_return(ip, &arch_ftrace_regs(fregs)->lr, arch_ftrace_regs(fregs)->fp);
 }
 #else
 /*

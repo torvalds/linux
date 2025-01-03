@@ -293,7 +293,7 @@ enum nand_ecc_engine_integration {
 struct nand_ecc_engine {
 	struct device *dev;
 	struct list_head node;
-	struct nand_ecc_engine_ops *ops;
+	const struct nand_ecc_engine_ops *ops;
 	enum nand_ecc_engine_integration integration;
 	void *priv;
 };

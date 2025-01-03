@@ -182,6 +182,16 @@ config RTC_DRV_88PM80X
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-88pm80x.
 
+config RTC_DRV_88PM886
+	tristate "Marvell 88PM886 RTC driver"
+	depends on MFD_88PM886_PMIC
+	help
+	  If you say yes here you will get support for the RTC function in the
+	  Marvell 88PM886 chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-88pm886.
+
 config RTC_DRV_ABB5ZES3
 	select REGMAP_I2C
 	tristate "Abracon AB-RTCMC-32.768kHz-B5ZE-S3"
@@ -496,6 +506,7 @@ config RTC_DRV_PCF85363
 
 config RTC_DRV_PCF8563
 	tristate "Philips PCF8563/Epson RTC8564"
+	select REGMAP_I2C
 	help
 	  If you say yes here you get support for the
 	  Philips PCF8563 RTC chip. The Epson RTC8564
@@ -2005,6 +2016,16 @@ config RTC_DRV_MA35D1
 	   This driver can also be built as a module, if so, the module
 	   will be called "rtc-ma35d1".
 
+config RTC_DRV_RENESAS_RTCA3
+	tristate "Renesas RTCA-3 RTC"
+	depends on ARCH_RENESAS
+	help
+	  If you say yes here you get support for the Renesas RTCA-3 RTC
+	  available on the Renesas RZ/G3S SoC.
+
+	  This driver can also be built as a module, if so, the module
+	  will be called "rtc-rtca3".
+
 comment "HID Sensor RTC drivers"
 
 config RTC_DRV_HID_SENSOR_TIME
@@ -2069,5 +2090,17 @@ config RTC_DRV_SSD202D
 
 	  This driver can also be built as a module, if so, the module
 	  will be called "rtc-ssd20xd".
+
+config RTC_DRV_AMLOGIC_A4
+	tristate "Amlogic RTC"
+	depends on ARCH_MESON || COMPILE_TEST
+	select REGMAP_MMIO
+	default y
+	help
+	  If you say yes here you get support for the RTC block on the
+	  Amlogic A113L2(A4) and A113X2(A5) SoCs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called "rtc-amlogic-a4".
 
 endif # RTC_CLASS

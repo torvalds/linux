@@ -7571,6 +7571,8 @@
 // base address: 0x10100000
 #define regRCC_STRAP0_RCC_DEV0_EPF0_STRAP0                                                              0xd000
 #define regRCC_STRAP0_RCC_DEV0_EPF0_STRAP0_BASE_IDX                                                     5
+#define regRCC_DEV0_EPF5_STRAP4                                                                         0xd284
+#define regRCC_DEV0_EPF5_STRAP4_BASE_IDX                                                                5
 
 
 // addressBlock: nbio_nbif0_bif_rst_bif_rst_regblk

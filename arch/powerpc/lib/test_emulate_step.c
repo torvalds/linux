@@ -11,7 +11,7 @@
 #include <asm/cpu_has_feature.h>
 #include <asm/sstep.h>
 #include <asm/ppc-opcode.h>
-#include <asm/code-patching.h>
+#include <asm/text-patching.h>
 #include <asm/inst.h>
 
 #define MAX_SUBTESTS	16

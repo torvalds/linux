@@ -148,12 +148,6 @@ extern unsigned long vectors_base;
 #endif
 
 /*
- * Convert a page to/from a physical address
- */
-#define page_to_phys(page)	(__pfn_to_phys(page_to_pfn(page)))
-#define phys_to_page(phys)	(pfn_to_page(__phys_to_pfn(phys)))
-
-/*
  * PLAT_PHYS_OFFSET is the offset (from zero) of the start of physical
  * memory.  This is used for XIP and NoMMU kernels, and on platforms that don't
  * have CONFIG_ARM_PATCH_PHYS_VIRT. Assembly code must always use

@@ -439,7 +439,7 @@ unsigned long rockchip_clk_find_max_clk_id(struct rockchip_clk_branch *list,
 		if (list->id > max)
 			max = list->id;
 		if (list->child && list->child->id > max)
-			max = list->id;
+			max = list->child->id;
 	}
 
 	return max;

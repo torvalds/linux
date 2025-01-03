@@ -206,7 +206,7 @@ MODULE_DEVICE_TABLE(platform, rpc_if_spi_id_table);
 
 static struct platform_driver rpcif_spi_driver = {
 	.probe	= rpcif_spi_probe,
-	.remove_new = rpcif_spi_remove,
+	.remove = rpcif_spi_remove,
 	.id_table = rpc_if_spi_id_table,
 	.driver = {
 		.name	= "rpc-if-spi",

@@ -729,7 +729,7 @@ int dp_altmode_probe(struct typec_altmode *alt)
 
 	/* FIXME: Port can only be DFP_U. */
 
-	/* Make sure we have compatiple pin configurations */
+	/* Make sure we have compatible pin configurations */
 	if (!(DP_CAP_PIN_ASSIGN_DFP_D(port->vdo) &
 	      DP_CAP_PIN_ASSIGN_UFP_D(alt->vdo)) &&
 	    !(DP_CAP_PIN_ASSIGN_UFP_D(port->vdo) &

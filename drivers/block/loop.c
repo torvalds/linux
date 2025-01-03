@@ -173,7 +173,7 @@ static loff_t get_loop_size(struct loop_device *lo, struct file *file)
 static bool lo_bdev_can_use_dio(struct loop_device *lo,
 		struct block_device *backing_bdev)
 {
-	unsigned short sb_bsize = bdev_logical_block_size(backing_bdev);
+	unsigned int sb_bsize = bdev_logical_block_size(backing_bdev);
 
 	if (queue_logical_block_size(lo->lo_queue) < sb_bsize)
 		return false;
@@ -770,12 +770,11 @@ static void loop_sysfs_exit(struct loop_device *lo)
 				   &loop_attribute_group);
 }
 
-static void loop_config_discard(struct loop_device *lo,
-		struct queue_limits *lim)
+static void loop_get_discard_config(struct loop_device *lo,
+				    u32 *granularity, u32 *max_discard_sectors)
 {
 	struct file *file = lo->lo_backing_file;
 	struct inode *inode = file->f_mapping->host;
-	u32 granularity = 0, max_discard_sectors = 0;
 	struct kstatfs sbuf;
 
 	/*
@@ -786,27 +785,19 @@ static void loop_config_discard(struct loop_device *lo,
 	 * file-backed loop devices: discarded regions read back as zero.
 	 */
 	if (S_ISBLK(inode->i_mode)) {
-		struct request_queue *backingq = bdev_get_queue(I_BDEV(inode));
+		struct block_device *bdev = I_BDEV(inode);
 
-		max_discard_sectors = backingq->limits.max_write_zeroes_sectors;
-		granularity = bdev_discard_granularity(I_BDEV(inode)) ?:
-			queue_physical_block_size(backingq);
+		*max_discard_sectors = bdev_write_zeroes_sectors(bdev);
+		*granularity = bdev_discard_granularity(bdev);
 
 	/*
 	 * We use punch hole to reclaim the free space used by the
 	 * image a.k.a. discard.
 	 */
 	} else if (file->f_op->fallocate && !vfs_statfs(&file->f_path, &sbuf)) {
-		max_discard_sectors = UINT_MAX >> 9;
-		granularity = sbuf.f_bsize;
+		*max_discard_sectors = UINT_MAX >> 9;
+		*granularity = sbuf.f_bsize;
 	}
-
-	lim->max_hw_discard_sectors = max_discard_sectors;
-	lim->max_write_zeroes_sectors = max_discard_sectors;
-	if (max_discard_sectors)
-		lim->discard_granularity = granularity;
-	else
-		lim->discard_granularity = 0;
 }
 
 struct loop_worker {
@@ -977,7 +968,7 @@ loop_set_status_from_info(struct loop_device *lo,
 	return 0;
 }
 
-static unsigned short loop_default_blocksize(struct loop_device *lo,
+static unsigned int loop_default_blocksize(struct loop_device *lo,
 		struct block_device *backing_bdev)
 {
 	/* In case of direct I/O, match underlying block size */
@@ -986,12 +977,13 @@ static unsigned short loop_default_blocksize(struct loop_device *lo,
 	return SECTOR_SIZE;
 }
 
-static int loop_reconfigure_limits(struct loop_device *lo, unsigned short bsize)
+static int loop_reconfigure_limits(struct loop_device *lo, unsigned int bsize)
 {
 	struct file *file = lo->lo_backing_file;
 	struct inode *inode = file->f_mapping->host;
 	struct block_device *backing_bdev = NULL;
 	struct queue_limits lim;
+	u32 granularity = 0, max_discard_sectors = 0;
 
 	if (S_ISBLK(inode->i_mode))
 		backing_bdev = I_BDEV(inode);
@@ -1000,6 +992,8 @@ static int loop_reconfigure_limits(struct loop_device *lo, unsigned short bsize)
 
 	if (!bsize)
 		bsize = loop_default_blocksize(lo, backing_bdev);
+
+	loop_get_discard_config(lo, &granularity, &max_discard_sectors);
 
 	lim = queue_limits_start_update(lo->lo_queue);
 	lim.logical_block_size = bsize;
@@ -1010,7 +1004,12 @@ static int loop_reconfigure_limits(struct loop_device *lo, unsigned short bsize)
 		lim.features |= BLK_FEAT_WRITE_CACHE;
 	if (backing_bdev && !bdev_nonrot(backing_bdev))
 		lim.features |= BLK_FEAT_ROTATIONAL;
-	loop_config_discard(lo, &lim);
+	lim.max_hw_discard_sectors = max_discard_sectors;
+	lim.max_write_zeroes_sectors = max_discard_sectors;
+	if (max_discard_sectors)
+		lim.discard_granularity = granularity;
+	else
+		lim.discard_granularity = 0;
 	return queue_limits_commit_update(lo->lo_queue, &lim);
 }
 

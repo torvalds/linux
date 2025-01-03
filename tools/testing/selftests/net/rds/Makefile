@@ -3,11 +3,10 @@
 all:
 	@echo mk_build_dir="$(shell pwd)" > include.sh
 
-TEST_PROGS := run.sh \
-	test.py
+TEST_PROGS := run.sh
 
-TEST_FILES := include.sh
+TEST_FILES := include.sh test.py
 
-EXTRA_CLEAN := /tmp/rds_logs
+EXTRA_CLEAN := /tmp/rds_logs include.sh
 
 include ../../lib.mk

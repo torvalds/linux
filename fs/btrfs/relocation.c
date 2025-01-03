@@ -1244,7 +1244,7 @@ again:
 		 * The real subtree rescan is delayed until we have new
 		 * CoW on the subtree root node before transaction commit.
 		 */
-		ret = btrfs_qgroup_add_swapped_blocks(trans, dest,
+		ret = btrfs_qgroup_add_swapped_blocks(dest,
 				rc->block_group, parent, slot,
 				path->nodes[level], path->slots[level],
 				last_snapshot);

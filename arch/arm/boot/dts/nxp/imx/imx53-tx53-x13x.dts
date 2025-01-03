@@ -139,42 +139,40 @@
 };
 
 &iomuxc {
-	imx53-tx53-x13x {
-		pinctrl_lvds0: lvds0grp {
-			fsl,pins = <
-				MX53_PAD_LVDS0_TX3_P__LDB_LVDS0_TX3 0x80000000
-				MX53_PAD_LVDS0_CLK_P__LDB_LVDS0_CLK 0x80000000
-				MX53_PAD_LVDS0_TX2_P__LDB_LVDS0_TX2 0x80000000
-				MX53_PAD_LVDS0_TX1_P__LDB_LVDS0_TX1 0x80000000
-				MX53_PAD_LVDS0_TX0_P__LDB_LVDS0_TX0 0x80000000
-			>;
-		};
+	pinctrl_lvds0: lvds0grp {
+		fsl,pins = <
+			MX53_PAD_LVDS0_TX3_P__LDB_LVDS0_TX3 0x80000000
+			MX53_PAD_LVDS0_CLK_P__LDB_LVDS0_CLK 0x80000000
+			MX53_PAD_LVDS0_TX2_P__LDB_LVDS0_TX2 0x80000000
+			MX53_PAD_LVDS0_TX1_P__LDB_LVDS0_TX1 0x80000000
+			MX53_PAD_LVDS0_TX0_P__LDB_LVDS0_TX0 0x80000000
+		>;
+	};
 
-		pinctrl_lvds1: lvds1grp {
-			fsl,pins = <
-				MX53_PAD_LVDS1_TX3_P__LDB_LVDS1_TX3 0x80000000
-				MX53_PAD_LVDS1_TX2_P__LDB_LVDS1_TX2 0x80000000
-				MX53_PAD_LVDS1_CLK_P__LDB_LVDS1_CLK 0x80000000
-				MX53_PAD_LVDS1_TX1_P__LDB_LVDS1_TX1 0x80000000
-				MX53_PAD_LVDS1_TX0_P__LDB_LVDS1_TX0 0x80000000
-			>;
-		};
+	pinctrl_lvds1: lvds1grp {
+		fsl,pins = <
+			MX53_PAD_LVDS1_TX3_P__LDB_LVDS1_TX3 0x80000000
+			MX53_PAD_LVDS1_TX2_P__LDB_LVDS1_TX2 0x80000000
+			MX53_PAD_LVDS1_CLK_P__LDB_LVDS1_CLK 0x80000000
+			MX53_PAD_LVDS1_TX1_P__LDB_LVDS1_TX1 0x80000000
+			MX53_PAD_LVDS1_TX0_P__LDB_LVDS1_TX0 0x80000000
+		>;
+	};
 
-		pinctrl_pwm1: pwm1grp {
-			fsl,pins = <MX53_PAD_GPIO_9__PWM1_PWMO 0x04>;
-		};
+	pinctrl_pwm1: pwm1grp {
+		fsl,pins = <MX53_PAD_GPIO_9__PWM1_PWMO 0x04>;
+	};
 
-		pinctrl_eeti1: eeti1grp {
-			fsl,pins = <
-				MX53_PAD_EIM_D22__GPIO3_22 0x1f0 /* Interrupt */
-			>;
-		};
+	pinctrl_eeti1: eeti1grp {
+		fsl,pins = <
+			MX53_PAD_EIM_D22__GPIO3_22 0x1f0 /* Interrupt */
+		>;
+	};
 
-		pinctrl_eeti2: eeti2grp {
-			fsl,pins = <
-				MX53_PAD_EIM_D23__GPIO3_23 0x1f0 /* Interrupt */
-			>;
-		};
+	pinctrl_eeti2: eeti2grp {
+		fsl,pins = <
+			MX53_PAD_EIM_D23__GPIO3_23 0x1f0 /* Interrupt */
+		>;
 	};
 };
 

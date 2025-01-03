@@ -97,6 +97,12 @@
     "UMask": "0x02"
   },
   {
+    "EventName": "ls_dmnd_fills_from_sys.local_all",
+    "EventCode": "0x43",
+    "BriefDescription": "Demand data cache fills from local L2 cache, L3 cache or different L2 cache in the same CCX.",
+    "UMask": "0x03"
+  },
+  {
     "EventName": "ls_dmnd_fills_from_sys.near_cache",
     "EventCode": "0x43",
     "BriefDescription": "Demand data cache fills from cache of another CCX when the address was in the same NUMA node.",
@@ -115,10 +121,28 @@
     "UMask": "0x10"
   },
   {
+    "EventName": "ls_dmnd_fills_from_sys.remote_cache",
+    "EventCode": "0x43",
+    "BriefDescription": "Demand data cache fills from cache of another CCX when the address was in the same or a different NUMA node.",
+    "UMask": "0x14"
+  },
+  {
     "EventName": "ls_dmnd_fills_from_sys.dram_io_far",
     "EventCode": "0x43",
     "BriefDescription": "Demand data cache fills from either DRAM or MMIO in a different NUMA node (same or different socket).",
     "UMask": "0x40"
+  },
+  {
+    "EventName": "ls_dmnd_fills_from_sys.dram_io_all",
+    "EventCode": "0x43",
+    "BriefDescription": "Demand data cache fills from either DRAM or MMIO in the same or a different NUMA node (same or different socket).",
+    "UMask": "0x48"
+  },
+  {
+    "EventName": "ls_dmnd_fills_from_sys.far_all",
+    "EventCode": "0x43",
+    "BriefDescription": "Demand data cache fills from either cache of another CCX, DRAM or MMIO when the address was in a different NUMA node (same or different socket).",
+    "UMask": "0x50"
   },
   {
     "EventName": "ls_dmnd_fills_from_sys.alternate_memories",
@@ -191,12 +215,6 @@
     "EventCode": "0x44",
     "BriefDescription": "Any data cache fills from either cache of another CCX, DRAM or MMIO when the address was in a different NUMA node (same or different socket).",
     "UMask": "0x50"
-  },
-  {
-    "EventName": "ls_any_fills_from_sys.all_dram_io",
-    "EventCode": "0x44",
-    "BriefDescription": "Any data cache fills from either DRAM or MMIO in any NUMA node (same or different socket).",
-    "UMask": "0x48"
   },
   {
     "EventName": "ls_any_fills_from_sys.alternate_memories",
@@ -343,6 +361,12 @@
     "UMask": "0x02"
   },
   {
+    "EventName": "ls_sw_pf_dc_fills.local_all",
+    "EventCode": "0x59",
+    "BriefDescription": "Software prefetch data cache fills from local L2 cache, L3 cache or different L2 cache in the same CCX.",
+    "UMask": "0x03"
+  },
+  {
     "EventName": "ls_sw_pf_dc_fills.near_cache",
     "EventCode": "0x59",
     "BriefDescription": "Software prefetch data cache fills from cache of another CCX in the same NUMA node.",
@@ -361,10 +385,28 @@
     "UMask": "0x10"
   },
   {
+    "EventName": "ls_sw_pf_dc_fills.remote_cache",
+    "EventCode": "0x59",
+    "BriefDescription": "Software prefetch data cache fills from cache of another CCX when the address was in the same or a different NUMA node.",
+    "UMask": "0x14"
+  },
+  {
     "EventName": "ls_sw_pf_dc_fills.dram_io_far",
     "EventCode": "0x59",
     "BriefDescription": "Software prefetch data cache fills from either DRAM or MMIO in a different NUMA node (same or different socket).",
     "UMask": "0x40"
+  },
+  {
+    "EventName": "ls_sw_pf_dc_fills.dram_io_all",
+    "EventCode": "0x59",
+    "BriefDescription": "Software prefetch data cache fills from either DRAM or MMIO in the same or a different NUMA node (same or different socket).",
+    "UMask": "0x48"
+  },
+  {
+    "EventName": "ls_sw_pf_dc_fills.far_all",
+    "EventCode": "0x59",
+    "BriefDescription": "Software prefetch data cache fills from either cache of another CCX, DRAM or MMIO when the address was in a different NUMA node (same or different socket).",
+    "UMask": "0x50"
   },
   {
     "EventName": "ls_sw_pf_dc_fills.alternate_memories",
@@ -391,6 +433,12 @@
     "UMask": "0x02"
   },
   {
+    "EventName": "ls_hw_pf_dc_fills.local_all",
+    "EventCode": "0x5a",
+    "BriefDescription": "Hardware prefetch data cache fills from local L2 cache, L3 cache or different L2 cache in the same CCX.",
+    "UMask": "0x03"
+  },
+  {
     "EventName": "ls_hw_pf_dc_fills.near_cache",
     "EventCode": "0x5a",
     "BriefDescription": "Hardware prefetch data cache fills from cache of another CCX when the address was in the same NUMA node.",
@@ -409,10 +457,28 @@
     "UMask": "0x10"
   },
   {
+    "EventName": "ls_hw_pf_dc_fills.remote_cache",
+    "EventCode": "0x5a",
+    "BriefDescription": "Hardware prefetch data cache fills from cache of another CCX when the address was in the same or a different NUMA node.",
+    "UMask": "0x14"
+  },
+  {
     "EventName": "ls_hw_pf_dc_fills.dram_io_far",
     "EventCode": "0x5a",
     "BriefDescription": "Hardware prefetch data cache fills from either DRAM or MMIO in a different NUMA node (same or different socket).",
     "UMask": "0x40"
+  },
+  {
+    "EventName": "ls_hw_pf_dc_fills.dram_io_all",
+    "EventCode": "0x5a",
+    "BriefDescription": "Hardware prefetch data cache fills from either DRAM or MMIO in the same or a different NUMA node (same or different socket).",
+    "UMask": "0x48"
+  },
+  {
+    "EventName": "ls_hw_pf_dc_fills.far_all",
+    "EventCode": "0x5a",
+    "BriefDescription": "Hardware prefetch data cache fills from either cache of another CCX, DRAM or MMIO when the address was in a different NUMA node (same or different socket).",
+    "UMask": "0x50"
   },
   {
     "EventName": "ls_hw_pf_dc_fills.alternate_memories",

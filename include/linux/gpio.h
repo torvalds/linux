@@ -21,9 +21,6 @@ struct device;
 #define GPIOF_OUT_INIT_LOW	((0 << 0) | (0 << 1))
 #define GPIOF_OUT_INIT_HIGH	((0 << 0) | (1 << 1))
 
-/* Gpio pin is active-low */
-#define GPIOF_ACTIVE_LOW        (1 << 2)
-
 /**
  * struct gpio - a structure describing a GPIO with configuration
  * @gpio:	the GPIO number

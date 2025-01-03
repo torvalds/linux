@@ -353,7 +353,7 @@ MODULE_DEVICE_TABLE(of, liteuart_of_match);
 
 static struct platform_driver liteuart_platform_driver = {
 	.probe = liteuart_probe,
-	.remove_new = liteuart_remove,
+	.remove = liteuart_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
 		.of_match_table = liteuart_of_match,

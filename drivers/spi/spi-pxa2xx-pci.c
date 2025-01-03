@@ -273,10 +273,6 @@ static int pxa2xx_spi_pci_probe(struct pci_dev *dev,
 	if (ret)
 		return ret;
 
-	ret = pcim_iomap_regions(dev, 1 << 0, "PXA2xx SPI");
-	if (ret)
-		return ret;
-
 	pdata = devm_kzalloc(&dev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
@@ -284,7 +280,9 @@ static int pxa2xx_spi_pci_probe(struct pci_dev *dev,
 	ssp = &pdata->ssp;
 	ssp->dev = &dev->dev;
 	ssp->phys_base = pci_resource_start(dev, 0);
-	ssp->mmio_base = pcim_iomap_table(dev)[0];
+	ssp->mmio_base = pcim_iomap_region(dev, 0, "PXA2xx SPI");
+	if (IS_ERR(ssp->mmio_base))
+		return PTR_ERR(ssp->mmio_base);
 
 	info = (struct pxa_spi_info *)ent->driver_data;
 	ret = info->setup(dev, pdata);

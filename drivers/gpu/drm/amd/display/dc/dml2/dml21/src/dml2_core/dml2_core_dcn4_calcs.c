@@ -11,6 +11,7 @@
 
 #define DML2_MAX_FMT_420_BUFFER_WIDTH 4096
 #define DML_MAX_NUM_OF_SLICES_PER_DSC 4
+#define ALLOW_SDPIF_RATE_LIMIT_PRE_CSTATE
 
 const char *dml2_core_internal_bw_type_str(enum dml2_core_internal_bw_type bw_type)
 {
@@ -3886,6 +3887,10 @@ static void CalculateSwathAndDETConfiguration(struct dml2_core_internal_scratch 
 #endif
 
 	*p->hw_debug5 = false;
+#ifdef ALLOW_SDPIF_RATE_LIMIT_PRE_CSTATE
+	if (p->NumberOfActiveSurfaces > 1)
+		*p->hw_debug5 = true;
+#else
 	for (unsigned int k = 0; k < p->NumberOfActiveSurfaces; ++k) {
 		if (!(p->mrq_present) && (!(*p->UnboundedRequestEnabled)) && (TotalActiveDPP == 1)
 			&& p->display_cfg->plane_descriptors[k].surface.dcc.enable
@@ -3901,6 +3906,7 @@ static void CalculateSwathAndDETConfiguration(struct dml2_core_internal_scratch 
 		dml2_printf("DML::%s: k=%u hw_debug5 = %u\n", __func__, k, *p->hw_debug5);
 #endif
 	}
+#endif
 }
 
 static enum dml2_odm_mode DecideODMMode(unsigned int HActive,
@@ -12236,6 +12242,8 @@ static void rq_dlg_get_dlg_reg(
 
 static void rq_dlg_get_arb_params(const struct dml2_display_cfg *display_cfg, const struct dml2_core_internal_display_mode_lib *mode_lib, struct dml2_display_arb_regs *arb_param)
 {
+	double refclk_freq_in_mhz = (display_cfg->overrides.hw.dlg_ref_clk_mhz > 0) ? (double)display_cfg->overrides.hw.dlg_ref_clk_mhz : mode_lib->soc.dchub_refclk_mhz;
+
 	arb_param->max_req_outstanding = mode_lib->soc.max_outstanding_reqs;
 	arb_param->min_req_outstanding = mode_lib->soc.max_outstanding_reqs; // turn off the sat level feature if this set to max
 	arb_param->sdpif_request_rate_limit = (3 * mode_lib->ip.words_per_channel * mode_lib->soc.clk_table.dram_config.channel_count) / 4;
@@ -12247,6 +12255,7 @@ static void rq_dlg_get_arb_params(const struct dml2_display_cfg *display_cfg, co
 	arb_param->compbuf_size = mode_lib->mp.CompressedBufferSizeInkByte / mode_lib->ip.compressed_buffer_segment_size_in_kbytes;
 	arb_param->allow_sdpif_rate_limit_when_cstate_req = dml_get_hw_debug5(mode_lib);
 	arb_param->dcfclk_deep_sleep_hysteresis = dml_get_dcfclk_deep_sleep_hysteresis(mode_lib);
+	arb_param->pstate_stall_threshold = (unsigned int)(mode_lib->ip_caps.fams2.max_allow_delay_us * refclk_freq_in_mhz);
 
 #ifdef __DML_VBA_DEBUG__
 	dml2_printf("DML::%s: max_req_outstanding = %d\n", __func__, arb_param->max_req_outstanding);

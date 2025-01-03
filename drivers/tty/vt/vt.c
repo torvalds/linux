@@ -4726,7 +4726,7 @@ static int con_font_get(struct vc_data *vc, struct console_font_op *op)
 		return -EINVAL;
 
 	if (op->data) {
-		font.data = kvmalloc(max_font_size, GFP_KERNEL);
+		font.data = kvzalloc(max_font_size, GFP_KERNEL);
 		if (!font.data)
 			return -ENOMEM;
 	} else

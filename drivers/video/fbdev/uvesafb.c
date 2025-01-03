@@ -1794,7 +1794,7 @@ static void uvesafb_remove(struct platform_device *dev)
 
 static struct platform_driver uvesafb_driver = {
 	.probe  = uvesafb_probe,
-	.remove_new = uvesafb_remove,
+	.remove = uvesafb_remove,
 	.driver = {
 		.name = "uvesafb",
 	},

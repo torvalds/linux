@@ -180,6 +180,11 @@ static inline void locks_wake_up(struct file_lock *fl)
 	wake_up(&fl->c.flc_wait);
 }
 
+static inline bool locks_can_async_lock(const struct file_operations *fops)
+{
+	return !fops->lock || fops->fop_flags & FOP_ASYNC_LOCK;
+}
+
 /* fs/locks.c */
 void locks_free_lock_context(struct inode *inode);
 void locks_free_lock(struct file_lock *fl);

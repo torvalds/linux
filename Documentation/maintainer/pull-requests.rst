@@ -50,7 +50,7 @@ so outline what is contained here, why it should be merged, and what, if
 any, testing has been done.  All of this information will end up in the tag
 itself, and then in the merge commit that the maintainer makes if/when they
 merge the pull request. So write it up well, as it will be in the kernel
-tree for forever.
+tree forever.
 
 As said by Linus::
 

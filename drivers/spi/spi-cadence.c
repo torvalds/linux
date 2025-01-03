@@ -806,7 +806,7 @@ MODULE_DEVICE_TABLE(of, cdns_spi_of_match);
 /* cdns_spi_driver - This structure defines the SPI subsystem platform driver */
 static struct platform_driver cdns_spi_driver = {
 	.probe	= cdns_spi_probe,
-	.remove_new = cdns_spi_remove,
+	.remove = cdns_spi_remove,
 	.driver = {
 		.name = CDNS_SPI_NAME,
 		.of_match_table = cdns_spi_of_match,

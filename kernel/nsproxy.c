@@ -545,12 +545,12 @@ static void commit_nsset(struct nsset *nsset)
 
 SYSCALL_DEFINE2(setns, int, fd, int, flags)
 {
-	struct fd f = fdget(fd);
+	CLASS(fd, f)(fd);
 	struct ns_common *ns = NULL;
 	struct nsset nsset = {};
 	int err = 0;
 
-	if (!fd_file(f))
+	if (fd_empty(f))
 		return -EBADF;
 
 	if (proc_ns_file(fd_file(f))) {
@@ -580,7 +580,6 @@ SYSCALL_DEFINE2(setns, int, fd, int, flags)
 	}
 	put_nsset(&nsset);
 out:
-	fdput(f);
 	return err;
 }
 

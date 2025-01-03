@@ -22,12 +22,27 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		idle-states {
+			entry-method = "psci";
+
+			cpu_pd_wait: cpu-pd-wait {
+				compatible = "arm,idle-state";
+				arm,psci-suspend-param = <0x0010033>;
+				local-timer-stop;
+				entry-latency-us = <10000>;
+				exit-latency-us = <7000>;
+				min-residency-us = <27000>;
+				wakeup-latency-us = <15000>;
+			};
+		};
+
 		A55_0: cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a55";
 			reg = <0x0>;
 			enable-method = "psci";
 			#cooling-cells = <2>;
+			cpu-idle-states = <&cpu_pd_wait>;
 			power-domains = <&scmi_perf IMX95_PERF_A55>;
 			power-domain-names = "perf";
 			i-cache-size = <32768>;
@@ -45,6 +60,7 @@
 			reg = <0x100>;
 			enable-method = "psci";
 			#cooling-cells = <2>;
+			cpu-idle-states = <&cpu_pd_wait>;
 			power-domains = <&scmi_perf IMX95_PERF_A55>;
 			power-domain-names = "perf";
 			i-cache-size = <32768>;
@@ -62,6 +78,7 @@
 			reg = <0x200>;
 			enable-method = "psci";
 			#cooling-cells = <2>;
+			cpu-idle-states = <&cpu_pd_wait>;
 			power-domains = <&scmi_perf IMX95_PERF_A55>;
 			power-domain-names = "perf";
 			i-cache-size = <32768>;
@@ -79,6 +96,7 @@
 			reg = <0x300>;
 			enable-method = "psci";
 			#cooling-cells = <2>;
+			cpu-idle-states = <&cpu_pd_wait>;
 			power-domains = <&scmi_perf IMX95_PERF_A55>;
 			power-domain-names = "perf";
 			i-cache-size = <32768>;
@@ -98,6 +116,7 @@
 			power-domain-names = "perf";
 			enable-method = "psci";
 			#cooling-cells = <2>;
+			cpu-idle-states = <&cpu_pd_wait>;
 			i-cache-size = <32768>;
 			i-cache-line-size = <64>;
 			i-cache-sets = <128>;
@@ -115,6 +134,7 @@
 			power-domain-names = "perf";
 			enable-method = "psci";
 			#cooling-cells = <2>;
+			cpu-idle-states = <&cpu_pd_wait>;
 			i-cache-size = <32768>;
 			i-cache-line-size = <64>;
 			i-cache-sets = <128>;
@@ -293,10 +313,15 @@
 			shmem = <&scmi_buf0>, <&scmi_buf1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			arm,max-rx-timeout-ms = <5000>;
 
 			scmi_devpd: protocol@11 {
 				reg = <0x11>;
 				#power-domain-cells = <1>;
+			};
+
+			scmi_sys_power: protocol@12 {
+				reg = <0x12>;
 			};
 
 			scmi_perf: protocol@13 {
@@ -318,6 +343,13 @@
 				reg = <0x19>;
 			};
 
+			scmi_bbm: protocol@81 {
+				reg = <0x81>;
+			};
+
+			scmi_misc: protocol@84 {
+				reg = <0x84>;
+			};
 		};
 	};
 
@@ -334,13 +366,13 @@
 
 			trips {
 				cpu_alert0: trip0 {
-					temperature = <85000>;
+					temperature = <105000>;
 					hysteresis = <2000>;
 					type = "passive";
 				};
 
 				cpu_crit0: trip1 {
-					temperature = <95000>;
+					temperature = <125000>;
 					hysteresis = <2000>;
 					type = "critical";
 				};
@@ -349,6 +381,38 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu_alert0>;
+					cooling-device =
+						<&A55_0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						<&A55_1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						<&A55_2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						<&A55_3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						<&A55_4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						<&A55_5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
+		};
+
+		ana-thermal {
+			polling-delay-passive = <250>;
+			polling-delay = <2000>;
+			thermal-sensors = <&scmi_sensor 0>;
+			trips {
+				ana_alert: trip0 {
+					temperature = <105000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				ana_crit0: trip1 {
+					temperature = <125000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&ana_alert>;
 					cooling-device =
 						<&A55_0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
 						<&A55_1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,

@@ -416,22 +416,6 @@ bool snd_soc_runtime_ignore_pmdown_time(struct snd_soc_pcm_runtime *rtd)
 	return true;
 }
 
-/**
- * snd_soc_set_runtime_hwparams - set the runtime hardware parameters
- * @substream: the pcm substream
- * @hw: the hardware parameters
- *
- * Sets the substream runtime hardware parameters.
- */
-int snd_soc_set_runtime_hwparams(struct snd_pcm_substream *substream,
-	const struct snd_pcm_hardware *hw)
-{
-	substream->runtime->hw = *hw;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(snd_soc_set_runtime_hwparams);
-
 /* DPCM stream event, send event to FE and all active BEs. */
 int dpcm_dapm_stream_event(struct snd_soc_pcm_runtime *fe, int dir,
 	int event)
@@ -463,13 +447,13 @@ static void soc_pcm_set_dai_params(struct snd_soc_dai *dai,
 				   struct snd_pcm_hw_params *params)
 {
 	if (params) {
-		dai->rate	 = params_rate(params);
-		dai->channels	 = params_channels(params);
-		dai->sample_bits = snd_pcm_format_physical_width(params_format(params));
+		dai->symmetric_rate	   = params_rate(params);
+		dai->symmetric_channels	   = params_channels(params);
+		dai->symmetric_sample_bits = snd_pcm_format_physical_width(params_format(params));
 	} else {
-		dai->rate	 = 0;
-		dai->channels	 = 0;
-		dai->sample_bits = 0;
+		dai->symmetric_rate	   = 0;
+		dai->symmetric_channels	   = 0;
+		dai->symmetric_sample_bits = 0;
 	}
 }
 
@@ -483,14 +467,14 @@ static int soc_pcm_apply_symmetry(struct snd_pcm_substream *substream,
 		return 0;
 
 #define __soc_pcm_apply_symmetry(name, NAME)				\
-	if (soc_dai->name && (soc_dai->driver->symmetric_##name ||	\
-			      rtd->dai_link->symmetric_##name)) {	\
+	if (soc_dai->symmetric_##name &&				\
+	    (soc_dai->driver->symmetric_##name || rtd->dai_link->symmetric_##name)) { \
 		dev_dbg(soc_dai->dev, "ASoC: Symmetry forces %s to %d\n",\
-			#name, soc_dai->name);				\
+			#name, soc_dai->symmetric_##name);		\
 									\
 		ret = snd_pcm_hw_constraint_single(substream->runtime,	\
 						   SNDRV_PCM_HW_PARAM_##NAME,\
-						   soc_dai->name);	\
+						   soc_dai->symmetric_##name);	\
 		if (ret < 0) {						\
 			dev_err(soc_dai->dev,				\
 				"ASoC: Unable to apply %s constraint: %d\n",\
@@ -526,9 +510,11 @@ static int soc_pcm_params_symmetry(struct snd_pcm_substream *substream,
 	if (symmetry)							\
 		for_each_rtd_cpu_dais(rtd, i, cpu_dai)			\
 			if (!snd_soc_dai_is_dummy(cpu_dai) &&		\
-			    cpu_dai->xxx && cpu_dai->xxx != d.xxx) {	\
+			    cpu_dai->symmetric_##xxx &&			\
+			    cpu_dai->symmetric_##xxx != d.symmetric_##xxx) { \
 				dev_err(rtd->dev, "ASoC: unmatched %s symmetry: %s:%d - %s:%d\n", \
-					#xxx, cpu_dai->name, cpu_dai->xxx, d.name, d.xxx); \
+					#xxx, cpu_dai->name, cpu_dai->symmetric_##xxx, \
+					d.name, d.symmetric_##xxx);	\
 				return -EINVAL;				\
 			}
 
@@ -799,8 +785,7 @@ static int soc_pcm_clean(struct snd_soc_pcm_runtime *rtd,
 
 		/* Make sure DAI parameters cleared if the DAI becomes inactive */
 		for_each_rtd_dais(rtd, i, dai) {
-			if (snd_soc_dai_active(dai) == 0 &&
-			    (dai->rate || dai->channels || dai->sample_bits))
+			if (snd_soc_dai_active(dai) == 0)
 				soc_pcm_set_dai_params(dai, NULL);
 		}
 	}
@@ -2838,7 +2823,11 @@ static int soc_get_playback_capture(struct snd_soc_pcm_runtime *rtd,
 {
 	struct snd_soc_dai_link *dai_link = rtd->dai_link;
 	struct snd_soc_dai *cpu_dai;
+	struct snd_soc_dai *codec_dai;
 	struct snd_soc_dai_link_ch_map *ch_maps;
+	struct snd_soc_dai *dummy_dai = snd_soc_find_dai(&snd_soc_dummy_dlc);
+	int cpu_capture;
+	int cpu_playback;
 	int has_playback = 0;
 	int has_capture  = 0;
 	int i;
@@ -2848,73 +2837,38 @@ static int soc_get_playback_capture(struct snd_soc_pcm_runtime *rtd,
 		return -EINVAL;
 	}
 
-	if (dai_link->dynamic || dai_link->no_pcm) {
+	/* Adapt stream for codec2codec links */
+	cpu_capture  = snd_soc_get_stream_cpu(dai_link, SNDRV_PCM_STREAM_CAPTURE);
+	cpu_playback = snd_soc_get_stream_cpu(dai_link, SNDRV_PCM_STREAM_PLAYBACK);
 
-		for_each_rtd_ch_maps(rtd, i, ch_maps) {
-			cpu_dai	  = snd_soc_rtd_to_cpu(rtd,   ch_maps->cpu);
-
-			if (snd_soc_dai_stream_valid(cpu_dai, SNDRV_PCM_STREAM_PLAYBACK))
-				has_playback = 1;
-
-			if (snd_soc_dai_stream_valid(cpu_dai, SNDRV_PCM_STREAM_CAPTURE))
-				has_capture = 1;
-		}
+	/*
+	 * see
+	 *	soc.h :: [dai_link->ch_maps Image sample]
+	 */
+	for_each_rtd_ch_maps(rtd, i, ch_maps) {
+		cpu_dai	  = snd_soc_rtd_to_cpu(rtd,   ch_maps->cpu);
+		codec_dai = snd_soc_rtd_to_codec(rtd, ch_maps->codec);
 
 		/*
-		 * REMOVE ME
+		 * FIXME
 		 *
-		 * dpcm_xxx flag will be removed soon, Indicates warning if dpcm_xxx flag was used
-		 * as availability limitation
+		 * DPCM Codec has been no checked before.
+		 * It should be checked, but it breaks compatibility.
+		 *
+		 * For example there is a case that CPU have loopback capabilities which is used
+		 * for tests on boards where the Codec has no capture capabilities. In this case,
+		 * Codec capture validation check will be fail, but system should allow capture
+		 * capabilities. We have no solution for it today.
 		 */
-		if (has_playback && has_capture) {
-			if ( dai_link->dpcm_playback &&
-			    !dai_link->dpcm_capture  &&
-			    !dai_link->playback_only) {
-				dev_warn(rtd->card->dev,
-					 "both playback/capture are available,"
-					 " but not using playback_only flag (%s)\n",
-					 dai_link->stream_name);
-				dev_warn(rtd->card->dev,
-					 "dpcm_playback/capture are no longer needed,"
-					 " please use playback/capture_only instead\n");
-				has_capture = 0;
-			}
+		if (dai_link->dynamic || dai_link->no_pcm)
+			codec_dai = dummy_dai;
 
-			if (!dai_link->dpcm_playback &&
-			     dai_link->dpcm_capture  &&
-			    !dai_link->capture_only) {
-				dev_warn(rtd->card->dev,
-					 "both playback/capture are available,"
-					 " but not using capture_only flag (%s)\n",
-					 dai_link->stream_name);
-				dev_warn(rtd->card->dev,
-					 "dpcm_playback/capture are no longer needed,"
-					 " please use playback/capture_only instead\n");
-				has_playback = 0;
-			}
-		}
-	} else {
-		struct snd_soc_dai *codec_dai;
-
-		/* Adapt stream for codec2codec links */
-		int cpu_capture  = snd_soc_get_stream_cpu(dai_link, SNDRV_PCM_STREAM_CAPTURE);
-		int cpu_playback = snd_soc_get_stream_cpu(dai_link, SNDRV_PCM_STREAM_PLAYBACK);
-
-		/*
-		 * see
-		 *	soc.h :: [dai_link->ch_maps Image sample]
-		 */
-		for_each_rtd_ch_maps(rtd, i, ch_maps) {
-			cpu_dai	  = snd_soc_rtd_to_cpu(rtd,   ch_maps->cpu);
-			codec_dai = snd_soc_rtd_to_codec(rtd, ch_maps->codec);
-
-			if (snd_soc_dai_stream_valid(codec_dai, SNDRV_PCM_STREAM_PLAYBACK) &&
-			    snd_soc_dai_stream_valid(cpu_dai,   cpu_playback))
-				has_playback = 1;
-			if (snd_soc_dai_stream_valid(codec_dai, SNDRV_PCM_STREAM_CAPTURE) &&
-			    snd_soc_dai_stream_valid(cpu_dai,   cpu_capture))
-				has_capture = 1;
-		}
+		if (snd_soc_dai_stream_valid(codec_dai, SNDRV_PCM_STREAM_PLAYBACK) &&
+		    snd_soc_dai_stream_valid(cpu_dai,   cpu_playback))
+			has_playback = 1;
+		if (snd_soc_dai_stream_valid(codec_dai, SNDRV_PCM_STREAM_CAPTURE) &&
+		    snd_soc_dai_stream_valid(cpu_dai,   cpu_capture))
+			has_capture = 1;
 	}
 
 	if (dai_link->playback_only)
@@ -2938,7 +2892,7 @@ static int soc_get_playback_capture(struct snd_soc_pcm_runtime *rtd,
 
 static int soc_create_pcm(struct snd_pcm **pcm,
 			  struct snd_soc_pcm_runtime *rtd,
-			  int playback, int capture, int num)
+			  int playback, int capture)
 {
 	char new_name[64];
 	int ret;
@@ -2948,13 +2902,13 @@ static int soc_create_pcm(struct snd_pcm **pcm,
 		snprintf(new_name, sizeof(new_name), "codec2codec(%s)",
 			 rtd->dai_link->stream_name);
 
-		ret = snd_pcm_new_internal(rtd->card->snd_card, new_name, num,
+		ret = snd_pcm_new_internal(rtd->card->snd_card, new_name, rtd->id,
 					   playback, capture, pcm);
 	} else if (rtd->dai_link->no_pcm) {
 		snprintf(new_name, sizeof(new_name), "(%s)",
 			rtd->dai_link->stream_name);
 
-		ret = snd_pcm_new_internal(rtd->card->snd_card, new_name, num,
+		ret = snd_pcm_new_internal(rtd->card->snd_card, new_name, rtd->id,
 				playback, capture, pcm);
 	} else {
 		if (rtd->dai_link->dynamic)
@@ -2963,9 +2917,9 @@ static int soc_create_pcm(struct snd_pcm **pcm,
 		else
 			snprintf(new_name, sizeof(new_name), "%s %s-%d",
 				rtd->dai_link->stream_name,
-				soc_codec_dai_name(rtd), num);
+				soc_codec_dai_name(rtd), rtd->id);
 
-		ret = snd_pcm_new(rtd->card->snd_card, new_name, num, playback,
+		ret = snd_pcm_new(rtd->card->snd_card, new_name, rtd->id, playback,
 			capture, pcm);
 	}
 	if (ret < 0) {
@@ -2973,13 +2927,13 @@ static int soc_create_pcm(struct snd_pcm **pcm,
 			new_name, rtd->dai_link->name, ret);
 		return ret;
 	}
-	dev_dbg(rtd->card->dev, "ASoC: registered pcm #%d %s\n",num, new_name);
+	dev_dbg(rtd->card->dev, "ASoC: registered pcm #%d %s\n", rtd->id, new_name);
 
 	return 0;
 }
 
 /* create a new pcm */
-int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
+int soc_new_pcm(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_component *component;
 	struct snd_pcm *pcm;
@@ -2990,7 +2944,7 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 	if (ret < 0)
 		return ret;
 
-	ret = soc_create_pcm(&pcm, rtd, playback, capture, num);
+	ret = soc_create_pcm(&pcm, rtd, playback, capture);
 	if (ret < 0)
 		return ret;
 

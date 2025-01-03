@@ -476,7 +476,7 @@ int update_irq_load_avg(struct rq *rq, u64 running)
 bool update_other_load_avgs(struct rq *rq)
 {
 	u64 now = rq_clock_pelt(rq);
-	const struct sched_class *curr_class = rq->curr->sched_class;
+	const struct sched_class *curr_class = rq->donor->sched_class;
 	unsigned long hw_pressure = arch_scale_hw_pressure(cpu_of(rq));
 
 	lockdep_assert_rq_held(rq);

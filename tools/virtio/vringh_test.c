@@ -519,7 +519,7 @@ int main(int argc, char *argv[])
 		errx(1, "virtqueue_add_sgs: %i", err);
 	__kmalloc_fake = NULL;
 
-	/* Host retreives it. */
+	/* Host retrieves it. */
 	vringh_iov_init(&riov, host_riov, ARRAY_SIZE(host_riov));
 	vringh_iov_init(&wiov, host_wiov, ARRAY_SIZE(host_wiov));
 

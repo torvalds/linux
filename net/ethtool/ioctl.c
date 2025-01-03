@@ -992,6 +992,11 @@ static noinline_for_stack int ethtool_set_rxnfc(struct net_device *dev,
 	if (rc)
 		return rc;
 
+	/* Nonzero ring with RSS only makes sense if NIC adds them together */
+	if (info.flow_type & FLOW_RSS && !ops->cap_rss_rxnfc_adds &&
+	    ethtool_get_flow_spec_ring(info.fs.ring_cookie))
+		return -EINVAL;
+
 	if (ops->get_rxfh) {
 		struct ethtool_rxfh_param rxfh = {};
 
@@ -1462,6 +1467,13 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 		mutex_lock(&dev->ethtool->rss_lock);
 		locked = true;
 	}
+
+	if (rxfh.rss_context && rxfh_dev.rss_delete) {
+		ret = ethtool_check_rss_ctx_busy(dev, rxfh.rss_context);
+		if (ret)
+			goto out;
+	}
+
 	if (create) {
 		if (rxfh_dev.rss_delete) {
 			ret = -EINVAL;
@@ -1505,6 +1517,7 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 						       extack);
 			/* Make sure driver populates defaults */
 			WARN_ON_ONCE(!ret && !rxfh_dev.key &&
+				     ops->rxfh_per_ctx_key &&
 				     !memchr_inv(ethtool_rxfh_context_key(ctx),
 						 0, ctx->key_size));
 		} else if (rxfh_dev.rss_delete) {

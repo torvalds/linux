@@ -3,7 +3,7 @@
  * Copyright (c) 2013 Tomasz Figa <tomasz.figa at gmail.com>
  *
  * Common Clock Framework support for all S3C64xx SoCs.
-*/
+ */
 
 #include <linux/slab.h>
 #include <linux/clk-provider.h>

@@ -673,7 +673,6 @@ int inv_icm42600_core_probe(struct regmap *regmap, int chip, int irq,
 {
 	struct device *dev = regmap_get_device(regmap);
 	struct inv_icm42600_state *st;
-	struct irq_data *irq_desc;
 	int irq_type;
 	bool open_drain;
 	int ret;
@@ -683,14 +682,7 @@ int inv_icm42600_core_probe(struct regmap *regmap, int chip, int irq,
 		return -ENODEV;
 	}
 
-	/* get irq properties, set trigger falling by default */
-	irq_desc = irq_get_irq_data(irq);
-	if (!irq_desc) {
-		dev_err(dev, "could not find IRQ %d\n", irq);
-		return -EINVAL;
-	}
-
-	irq_type = irqd_get_trigger_type(irq_desc);
+	irq_type = irq_get_trigger_type(irq);
 	if (!irq_type)
 		irq_type = IRQF_TRIGGER_FALLING;
 

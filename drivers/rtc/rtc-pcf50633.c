@@ -273,7 +273,7 @@ static struct platform_driver pcf50633_rtc_driver = {
 		.name = "pcf50633-rtc",
 	},
 	.probe = pcf50633_rtc_probe,
-	.remove_new = pcf50633_rtc_remove,
+	.remove = pcf50633_rtc_remove,
 };
 
 module_platform_driver(pcf50633_rtc_driver);

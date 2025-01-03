@@ -261,7 +261,7 @@ static struct usb_composite_driver hidg_driver = {
 };
 
 static struct platform_driver hidg_plat_driver = {
-	.remove_new	= hidg_plat_driver_remove,
+	.remove		= hidg_plat_driver_remove,
 	.driver		= {
 		.name	= "hidg",
 	},

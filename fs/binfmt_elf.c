@@ -258,6 +258,12 @@ create_elf_tables(struct linux_binprm *bprm, const struct elfhdr *exec,
 #ifdef ELF_HWCAP2
 	NEW_AUX_ENT(AT_HWCAP2, ELF_HWCAP2);
 #endif
+#ifdef ELF_HWCAP3
+	NEW_AUX_ENT(AT_HWCAP3, ELF_HWCAP3);
+#endif
+#ifdef ELF_HWCAP4
+	NEW_AUX_ENT(AT_HWCAP4, ELF_HWCAP4);
+#endif
 	NEW_AUX_ENT(AT_EXECFN, bprm->exec);
 	if (k_platform) {
 		NEW_AUX_ENT(AT_PLATFORM,
@@ -1251,6 +1257,7 @@ out_free_interp:
 		}
 		reloc_func_desc = interp_load_addr;
 
+		allow_write_access(interpreter);
 		fput(interpreter);
 
 		kfree(interp_elf_ex);
@@ -1347,6 +1354,7 @@ out_free_dentry:
 	kfree(interp_elf_ex);
 	kfree(interp_elf_phdata);
 out_free_file:
+	allow_write_access(interpreter);
 	if (interpreter)
 		fput(interpreter);
 out_free_ph:

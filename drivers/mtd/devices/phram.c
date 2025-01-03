@@ -399,7 +399,7 @@ static void phram_remove(struct platform_device *pdev)
 
 static struct platform_driver phram_driver = {
 	.probe		= phram_probe,
-	.remove_new	= phram_remove,
+	.remove		= phram_remove,
 	.driver		= {
 		.name		= "phram",
 		.of_match_table	= of_match_ptr(phram_of_match),

@@ -2402,49 +2402,7 @@ static int cs42l43_codec_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static int cs42l43_codec_suspend(struct device *dev)
-{
-	struct cs42l43_codec *priv = dev_get_drvdata(dev);
-	struct cs42l43 *cs42l43 = priv->core;
-
-	disable_irq(cs42l43->irq);
-
-	return 0;
-}
-
-static int cs42l43_codec_suspend_noirq(struct device *dev)
-{
-	struct cs42l43_codec *priv = dev_get_drvdata(dev);
-	struct cs42l43 *cs42l43 = priv->core;
-
-	enable_irq(cs42l43->irq);
-
-	return 0;
-}
-
-static int cs42l43_codec_resume(struct device *dev)
-{
-	struct cs42l43_codec *priv = dev_get_drvdata(dev);
-	struct cs42l43 *cs42l43 = priv->core;
-
-	enable_irq(cs42l43->irq);
-
-	return 0;
-}
-
-static int cs42l43_codec_resume_noirq(struct device *dev)
-{
-	struct cs42l43_codec *priv = dev_get_drvdata(dev);
-	struct cs42l43 *cs42l43 = priv->core;
-
-	disable_irq(cs42l43->irq);
-
-	return 0;
-}
-
 static const struct dev_pm_ops cs42l43_codec_pm_ops = {
-	SYSTEM_SLEEP_PM_OPS(cs42l43_codec_suspend, cs42l43_codec_resume)
-	NOIRQ_SYSTEM_SLEEP_PM_OPS(cs42l43_codec_suspend_noirq, cs42l43_codec_resume_noirq)
 	RUNTIME_PM_OPS(NULL, cs42l43_codec_runtime_resume, NULL)
 };
 

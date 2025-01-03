@@ -34,7 +34,7 @@ static void release_device(struct device *dev)
 	kfree(dev);
 }
 
-static struct class iommu_class = {
+static const struct class iommu_class = {
 	.name = "iommu",
 	.dev_release = release_device,
 	.dev_groups = dev_groups,

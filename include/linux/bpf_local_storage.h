@@ -77,7 +77,13 @@ struct bpf_local_storage_elem {
 	struct hlist_node map_node;	/* Linked to bpf_local_storage_map */
 	struct hlist_node snode;	/* Linked to bpf_local_storage */
 	struct bpf_local_storage __rcu *local_storage;
-	struct rcu_head rcu;
+	union {
+		struct rcu_head rcu;
+		struct hlist_node free_node;	/* used to postpone
+						 * bpf_selem_free
+						 * after raw_spin_unlock
+						 */
+	};
 	/* 8 bytes hole */
 	/* The data is stored in another cacheline to minimize
 	 * the number of cachelines access during a cache hit.
@@ -181,7 +187,7 @@ void bpf_selem_link_map(struct bpf_local_storage_map *smap,
 
 struct bpf_local_storage_elem *
 bpf_selem_alloc(struct bpf_local_storage_map *smap, void *owner, void *value,
-		bool charge_mem, gfp_t gfp_flags);
+		bool charge_mem, bool swap_uptrs, gfp_t gfp_flags);
 
 void bpf_selem_free(struct bpf_local_storage_elem *selem,
 		    struct bpf_local_storage_map *smap,
@@ -195,7 +201,7 @@ bpf_local_storage_alloc(void *owner,
 
 struct bpf_local_storage_data *
 bpf_local_storage_update(void *owner, struct bpf_local_storage_map *smap,
-			 void *value, u64 map_flags, gfp_t gfp_flags);
+			 void *value, u64 map_flags, bool swap_uptrs, gfp_t gfp_flags);
 
 u64 bpf_local_storage_map_mem_usage(const struct bpf_map *map);
 

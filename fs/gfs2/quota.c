@@ -149,7 +149,7 @@ static void gfs2_qd_list_dispose(struct list_head *list)
 
 
 static enum lru_status gfs2_qd_isolate(struct list_head *item,
-		struct list_lru_one *lru, spinlock_t *lru_lock, void *arg)
+		struct list_lru_one *lru, void *arg)
 {
 	struct list_head *dispose = arg;
 	struct gfs2_quota_data *qd =

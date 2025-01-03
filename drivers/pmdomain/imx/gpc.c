@@ -411,7 +411,7 @@ static int imx_gpc_probe(struct platform_device *pdev)
 	pgc_node = of_get_child_by_name(pdev->dev.of_node, "pgc");
 
 	/* bail out if DT too old and doesn't provide the necessary info */
-	if (!of_property_read_bool(pdev->dev.of_node, "#power-domain-cells") &&
+	if (!of_property_present(pdev->dev.of_node, "#power-domain-cells") &&
 	    !pgc_node)
 		return 0;
 
@@ -511,7 +511,7 @@ static void imx_gpc_remove(struct platform_device *pdev)
 	pgc_node = of_get_child_by_name(pdev->dev.of_node, "pgc");
 
 	/* bail out if DT too old and doesn't provide the necessary info */
-	if (!of_property_read_bool(pdev->dev.of_node, "#power-domain-cells") &&
+	if (!of_property_present(pdev->dev.of_node, "#power-domain-cells") &&
 	    !pgc_node)
 		return;
 

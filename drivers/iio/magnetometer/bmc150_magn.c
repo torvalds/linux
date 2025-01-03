@@ -14,7 +14,6 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/acpi.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/iio/iio.h>
@@ -855,17 +854,6 @@ static const struct iio_buffer_setup_ops bmc150_magn_buffer_setup_ops = {
 	.postdisable = bmc150_magn_buffer_postdisable,
 };
 
-static const char *bmc150_magn_match_acpi_device(struct device *dev)
-{
-	const struct acpi_device_id *id;
-
-	id = acpi_match_device(dev->driver->acpi_match_table, dev);
-	if (!id)
-		return NULL;
-
-	return dev_name(dev);
-}
-
 int bmc150_magn_probe(struct device *dev, struct regmap *regmap,
 		      int irq, const char *name)
 {
@@ -893,9 +881,6 @@ int bmc150_magn_probe(struct device *dev, struct regmap *regmap,
 	ret = iio_read_mount_matrix(dev, &data->orientation);
 	if (ret)
 		return ret;
-
-	if (!name && ACPI_HANDLE(dev))
-		name = bmc150_magn_match_acpi_device(dev);
 
 	mutex_init(&data->mutex);
 

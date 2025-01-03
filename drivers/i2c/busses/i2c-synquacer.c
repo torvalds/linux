@@ -629,7 +629,7 @@ MODULE_DEVICE_TABLE(acpi, synquacer_i2c_acpi_ids);
 
 static struct platform_driver synquacer_i2c_driver = {
 	.probe	= synquacer_i2c_probe,
-	.remove_new = synquacer_i2c_remove,
+	.remove = synquacer_i2c_remove,
 	.driver	= {
 		.name = "synquacer_i2c",
 		.of_match_table = of_match_ptr(synquacer_i2c_dt_ids),

@@ -200,11 +200,11 @@ EXPORT_SYMBOL(posix_acl_init);
  * Allocate a new ACL with the specified number of entries.
  */
 struct posix_acl *
-posix_acl_alloc(int count, gfp_t flags)
+posix_acl_alloc(unsigned int count, gfp_t flags)
 {
-	const size_t size = sizeof(struct posix_acl) +
-	                    count * sizeof(struct posix_acl_entry);
-	struct posix_acl *acl = kmalloc(size, flags);
+	struct posix_acl *acl;
+
+	acl = kmalloc(struct_size(acl, a_entries, count), flags);
 	if (acl)
 		posix_acl_init(acl, count);
 	return acl;
@@ -220,9 +220,8 @@ posix_acl_clone(const struct posix_acl *acl, gfp_t flags)
 	struct posix_acl *clone = NULL;
 
 	if (acl) {
-		int size = sizeof(struct posix_acl) + acl->a_count *
-		           sizeof(struct posix_acl_entry);
-		clone = kmemdup(acl, size, flags);
+		clone = kmemdup(acl, struct_size(acl, a_entries, acl->a_count),
+				flags);
 		if (clone)
 			refcount_set(&clone->a_refcount, 1);
 	}

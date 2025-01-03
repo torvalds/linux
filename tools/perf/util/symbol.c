@@ -257,7 +257,7 @@ void symbols__fixup_end(struct rb_root_cached *symbols, bool is_kallsyms)
 		 * like in:
 		 *   ffffffffc1937000 T hdmi_driver_init  [snd_hda_codec_hdmi]
 		 */
-		if (prev->end == prev->start) {
+		if (prev->end == prev->start && prev->type != STT_NOTYPE) {
 			const char *prev_mod;
 			const char *curr_mod;
 
@@ -1930,6 +1930,9 @@ int dso__load(struct dso *dso, struct map *map)
 
 		if (next_slot) {
 			ss_pos++;
+
+			if (dso__binary_type(dso) == DSO_BINARY_TYPE__NOT_FOUND)
+				dso__set_binary_type(dso, symtab_type);
 
 			if (syms_ss && runtime_ss)
 				break;

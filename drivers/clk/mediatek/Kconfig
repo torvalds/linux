@@ -124,6 +124,43 @@ config COMMON_CLK_MT2712_VENCSYS
 	help
 	  This driver supports MediaTek MT2712 vencsys clocks.
 
+config COMMON_CLK_MT6735
+	tristate "Main clock drivers for MediaTek MT6735"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	select COMMON_CLK_MEDIATEK
+	help
+	  This enables drivers for clocks and resets provided
+	  by apmixedsys, topckgen, infracfg and pericfg on the
+	  MediaTek MT6735 SoC.
+
+config COMMON_CLK_MT6735_IMGSYS
+	tristate "Clock driver for MediaTek MT6735 imgsys"
+	depends on COMMON_CLK_MT6735
+	help
+	  This enables a driver for clocks provided by imgsys
+	  on the MediaTek MT6735 SoC.
+
+config COMMON_CLK_MT6735_MFGCFG
+	tristate "Clock driver for MediaTek MT6735 mfgcfg"
+	depends on COMMON_CLK_MT6735
+	help
+	  This enables a driver for clocks and resets provided
+	  by mfgcfg on the MediaTek MT6735 SoC.
+
+config COMMON_CLK_MT6735_VDECSYS
+	tristate "Clock driver for MediaTek MT6735 vdecsys"
+	depends on COMMON_CLK_MT6735
+	help
+	  This enables a driver for clocks and resets provided
+	  by vdecsys on the MediaTek MT6735 SoC.
+
+config COMMON_CLK_MT6735_VENCSYS
+	tristate "Clock driver for MediaTek MT6735 vencsys"
+	depends on COMMON_CLK_MT6735
+	help
+	  This enables a driver for clocks provided by vencsys
+	  on the MediaTek MT6735 SoC.
+
 config COMMON_CLK_MT6765
        bool "Clock driver for MediaTek MT6765"
        depends on (ARCH_MEDIATEK && ARM64) || COMPILE_TEST
@@ -887,13 +924,6 @@ config COMMON_CLK_MT8195_APUSYS
 	help
 	  This driver supports MediaTek MT8195 AI Processor Unit System clocks.
 
-config COMMON_CLK_MT8195_AUDSYS
-	tristate "Clock driver for MediaTek MT8195 audsys"
-	depends on COMMON_CLK_MT8195
-	default COMMON_CLK_MT8195
-	help
-	  This driver supports MediaTek MT8195 audsys clocks.
-
 config COMMON_CLK_MT8195_IMP_IIC_WRAP
 	tristate "Clock driver for MediaTek MT8195 imp_iic_wrap"
 	depends on COMMON_CLK_MT8195
@@ -907,14 +937,6 @@ config COMMON_CLK_MT8195_MFGCFG
 	default COMMON_CLK_MT8195
 	help
 	  This driver supports MediaTek MT8195 mfgcfg clocks.
-
-config COMMON_CLK_MT8195_MSDC
-	tristate "Clock driver for MediaTek MT8195 msdc"
-	depends on COMMON_CLK_MT8195
-	default COMMON_CLK_MT8195
-	help
-	  This driver supports MediaTek MT8195 MMC and SD Controller's
-	  msdc and msdc_top clocks.
 
 config COMMON_CLK_MT8195_SCP_ADSP
 	tristate "Clock driver for MediaTek MT8195 scp_adsp"

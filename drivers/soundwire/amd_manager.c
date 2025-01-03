@@ -433,12 +433,18 @@ static int amd_sdw_port_params(struct sdw_bus *bus, struct sdw_port_params *p_pa
 	u32 frame_fmt_reg, dpn_frame_fmt;
 
 	dev_dbg(amd_manager->dev, "p_params->num:0x%x\n", p_params->num);
-	switch (amd_manager->instance) {
-	case ACP_SDW0:
-		frame_fmt_reg = sdw0_manager_dp_reg[p_params->num].frame_fmt_reg;
-		break;
-	case ACP_SDW1:
-		frame_fmt_reg = sdw1_manager_dp_reg[p_params->num].frame_fmt_reg;
+	switch (amd_manager->acp_rev) {
+	case ACP63_PCI_REV_ID:
+		switch (amd_manager->instance) {
+		case ACP_SDW0:
+			frame_fmt_reg = acp63_sdw0_dp_reg[p_params->num].frame_fmt_reg;
+			break;
+		case ACP_SDW1:
+			frame_fmt_reg = acp63_sdw1_dp_reg[p_params->num].frame_fmt_reg;
+			break;
+		default:
+			return -EINVAL;
+		}
 		break;
 	default:
 		return -EINVAL;
@@ -465,20 +471,28 @@ static int amd_sdw_transport_params(struct sdw_bus *bus,
 	u32 frame_fmt_reg, sample_int_reg, hctrl_dp0_reg;
 	u32 offset_reg, lane_ctrl_ch_en_reg;
 
-	switch (amd_manager->instance) {
-	case ACP_SDW0:
-		frame_fmt_reg = sdw0_manager_dp_reg[params->port_num].frame_fmt_reg;
-		sample_int_reg = sdw0_manager_dp_reg[params->port_num].sample_int_reg;
-		hctrl_dp0_reg = sdw0_manager_dp_reg[params->port_num].hctrl_dp0_reg;
-		offset_reg = sdw0_manager_dp_reg[params->port_num].offset_reg;
-		lane_ctrl_ch_en_reg = sdw0_manager_dp_reg[params->port_num].lane_ctrl_ch_en_reg;
-		break;
-	case ACP_SDW1:
-		frame_fmt_reg = sdw1_manager_dp_reg[params->port_num].frame_fmt_reg;
-		sample_int_reg = sdw1_manager_dp_reg[params->port_num].sample_int_reg;
-		hctrl_dp0_reg = sdw1_manager_dp_reg[params->port_num].hctrl_dp0_reg;
-		offset_reg = sdw1_manager_dp_reg[params->port_num].offset_reg;
-		lane_ctrl_ch_en_reg = sdw1_manager_dp_reg[params->port_num].lane_ctrl_ch_en_reg;
+	switch (amd_manager->acp_rev) {
+	case ACP63_PCI_REV_ID:
+		switch (amd_manager->instance) {
+		case ACP_SDW0:
+			frame_fmt_reg = acp63_sdw0_dp_reg[params->port_num].frame_fmt_reg;
+			sample_int_reg = acp63_sdw0_dp_reg[params->port_num].sample_int_reg;
+			hctrl_dp0_reg = acp63_sdw0_dp_reg[params->port_num].hctrl_dp0_reg;
+			offset_reg = acp63_sdw0_dp_reg[params->port_num].offset_reg;
+			lane_ctrl_ch_en_reg =
+					acp63_sdw0_dp_reg[params->port_num].lane_ctrl_ch_en_reg;
+			break;
+		case ACP_SDW1:
+			frame_fmt_reg = acp63_sdw1_dp_reg[params->port_num].frame_fmt_reg;
+			sample_int_reg = acp63_sdw1_dp_reg[params->port_num].sample_int_reg;
+			hctrl_dp0_reg = acp63_sdw1_dp_reg[params->port_num].hctrl_dp0_reg;
+			offset_reg = acp63_sdw1_dp_reg[params->port_num].offset_reg;
+			lane_ctrl_ch_en_reg =
+					acp63_sdw1_dp_reg[params->port_num].lane_ctrl_ch_en_reg;
+			break;
+		default:
+			return -EINVAL;
+		}
 		break;
 	default:
 		return -EINVAL;
@@ -520,12 +534,20 @@ static int amd_sdw_port_enable(struct sdw_bus *bus,
 	u32 dpn_ch_enable;
 	u32 lane_ctrl_ch_en_reg;
 
-	switch (amd_manager->instance) {
-	case ACP_SDW0:
-		lane_ctrl_ch_en_reg = sdw0_manager_dp_reg[enable_ch->port_num].lane_ctrl_ch_en_reg;
-		break;
-	case ACP_SDW1:
-		lane_ctrl_ch_en_reg = sdw1_manager_dp_reg[enable_ch->port_num].lane_ctrl_ch_en_reg;
+	switch (amd_manager->acp_rev) {
+	case ACP63_PCI_REV_ID:
+		switch (amd_manager->instance) {
+		case ACP_SDW0:
+			lane_ctrl_ch_en_reg =
+					acp63_sdw0_dp_reg[enable_ch->port_num].lane_ctrl_ch_en_reg;
+			break;
+		case ACP_SDW1:
+			lane_ctrl_ch_en_reg =
+					acp63_sdw1_dp_reg[enable_ch->port_num].lane_ctrl_ch_en_reg;
+			break;
+		default:
+			return -EINVAL;
+		}
 		break;
 	default:
 		return -EINVAL;
@@ -910,6 +932,7 @@ static int amd_sdw_manager_probe(struct platform_device *pdev)
 	amd_manager->mmio = amd_manager->acp_mmio +
 			    (amd_manager->instance * SDW_MANAGER_REG_OFFSET);
 	amd_manager->acp_sdw_lock = pdata->acp_sdw_lock;
+	amd_manager->acp_rev = pdata->acp_rev;
 	amd_manager->cols_index = sdw_find_col_index(AMD_SDW_DEFAULT_COLUMNS);
 	amd_manager->rows_index = sdw_find_row_index(AMD_SDW_DEFAULT_ROWS);
 	amd_manager->dev = dev;
@@ -926,15 +949,21 @@ static int amd_sdw_manager_probe(struct platform_device *pdev)
 	 * information.
 	 */
 	amd_manager->bus.controller_id = 0;
-
-	switch (amd_manager->instance) {
-	case ACP_SDW0:
-		amd_manager->num_dout_ports = AMD_SDW0_MAX_TX_PORTS;
-		amd_manager->num_din_ports = AMD_SDW0_MAX_RX_PORTS;
-		break;
-	case ACP_SDW1:
-		amd_manager->num_dout_ports = AMD_SDW1_MAX_TX_PORTS;
-		amd_manager->num_din_ports = AMD_SDW1_MAX_RX_PORTS;
+	dev_dbg(dev, "acp_rev:0x%x\n", amd_manager->acp_rev);
+	switch (amd_manager->acp_rev) {
+	case ACP63_PCI_REV_ID:
+		switch (amd_manager->instance) {
+		case ACP_SDW0:
+			amd_manager->num_dout_ports = AMD_ACP63_SDW0_MAX_TX_PORTS;
+			amd_manager->num_din_ports = AMD_ACP63_SDW0_MAX_RX_PORTS;
+			break;
+		case ACP_SDW1:
+			amd_manager->num_dout_ports = AMD_ACP63_SDW1_MAX_TX_PORTS;
+			amd_manager->num_din_ports = AMD_ACP63_SDW1_MAX_RX_PORTS;
+			break;
+		default:
+			return -EINVAL;
+		}
 		break;
 	default:
 		return -EINVAL;

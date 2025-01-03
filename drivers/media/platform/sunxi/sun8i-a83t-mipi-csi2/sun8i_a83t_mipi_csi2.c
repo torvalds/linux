@@ -824,7 +824,7 @@ MODULE_DEVICE_TABLE(of, sun8i_a83t_mipi_csi2_of_match);
 
 static struct platform_driver sun8i_a83t_mipi_csi2_platform_driver = {
 	.probe	= sun8i_a83t_mipi_csi2_probe,
-	.remove_new = sun8i_a83t_mipi_csi2_remove,
+	.remove = sun8i_a83t_mipi_csi2_remove,
 	.driver	= {
 		.name		= SUN8I_A83T_MIPI_CSI2_NAME,
 		.of_match_table	= sun8i_a83t_mipi_csi2_of_match,

@@ -1041,7 +1041,7 @@ static const struct dev_pm_ops mtk_vpu_pm = {
 
 static struct platform_driver mtk_vpu_driver = {
 	.probe	= mtk_vpu_probe,
-	.remove_new = mtk_vpu_remove,
+	.remove = mtk_vpu_remove,
 	.driver	= {
 		.name	= "mtk_vpu",
 		.pm = &mtk_vpu_pm,

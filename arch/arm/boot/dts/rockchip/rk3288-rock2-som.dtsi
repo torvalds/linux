@@ -23,7 +23,7 @@
 		clock-output-names = "ext_gmac";
 	};
 
-	vcc_flash: flash-regulator {
+	vcc_flash: regulator-flash {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_flash";
 		regulator-min-microvolt = <1800000>;
@@ -32,7 +32,7 @@
 		vin-supply = <&vcc_io>;
 	};
 
-	vcc_sys: vsys-regulator {
+	vcc_sys: regulator-vsys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_sys";
 		regulator-min-microvolt = <5000000>;

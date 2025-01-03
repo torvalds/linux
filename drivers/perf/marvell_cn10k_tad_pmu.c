@@ -383,7 +383,7 @@ static struct platform_driver tad_pmu_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe          = tad_pmu_probe,
-	.remove_new     = tad_pmu_remove,
+	.remove         = tad_pmu_remove,
 };
 
 static int tad_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)

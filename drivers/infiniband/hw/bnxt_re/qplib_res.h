@@ -39,6 +39,8 @@
 #ifndef __BNXT_QPLIB_RES_H__
 #define __BNXT_QPLIB_RES_H__
 
+#include "bnxt_ulp.h"
+
 extern const struct bnxt_qplib_gid bnxt_qplib_gid_zero;
 
 #define CHIP_NUM_57508		0x1750
@@ -302,6 +304,7 @@ struct bnxt_qplib_res {
 	struct bnxt_qplib_chip_ctx	*cctx;
 	struct bnxt_qplib_dev_attr      *dattr;
 	struct net_device		*netdev;
+	struct bnxt_en_dev		*en_dev;
 	struct bnxt_qplib_rcfw		*rcfw;
 	struct bnxt_qplib_pd_tbl	pd_tbl;
 	/* To protect the pd table bit map */
@@ -574,6 +577,16 @@ static inline bool _is_alloc_mr_unified(u16 dev_cap_flags)
 static inline bool _is_relaxed_ordering_supported(u16 dev_cap_ext_flags2)
 {
 	return dev_cap_ext_flags2 & CREQ_QUERY_FUNC_RESP_SB_MEMORY_REGION_RO_SUPPORTED;
+}
+
+static inline bool _is_optimize_modify_qp_supported(u16 dev_cap_ext_flags2)
+{
+	return dev_cap_ext_flags2 & CREQ_QUERY_FUNC_RESP_SB_OPTIMIZE_MODIFY_QP_SUPPORTED;
+}
+
+static inline bool _is_cq_coalescing_supported(u16 dev_cap_ext_flags2)
+{
+	return dev_cap_ext_flags2 & CREQ_QUERY_FUNC_RESP_SB_CQ_COALESCING_SUPPORTED;
 }
 
 #endif /* __BNXT_QPLIB_RES_H__ */

@@ -1612,23 +1612,43 @@
 
 	pcie20x1 {
 		/omit-if-no-ref/
-		pcie20x1m0_pins: pcie20x1m0-pins {
+		pcie20x1m0_clkreqn: pcie20x1m0-clkreqn {
 			rockchip,pins =
 				/* pcie20x1_2_clkreqn_m0 */
-				<3 RK_PC7 4 &pcfg_pull_none>,
+				<3 RK_PC7 4 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie20x1m0_perstn: pcie20x1m0-perstn {
+			rockchip,pins =
 				/* pcie20x1_2_perstn_m0 */
-				<3 RK_PD1 4 &pcfg_pull_none>,
+				<3 RK_PD1 4 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie20x1m0_waken: pcie20x1m0-waken {
+			rockchip,pins =
 				/* pcie20x1_2_waken_m0 */
 				<3 RK_PD0 4 &pcfg_pull_none>;
 		};
 
 		/omit-if-no-ref/
-		pcie20x1m1_pins: pcie20x1m1-pins {
+		pcie20x1m1_clkreqn: pcie20x1m1-clkreqn {
 			rockchip,pins =
 				/* pcie20x1_2_clkreqn_m1 */
-				<4 RK_PB7 4 &pcfg_pull_none>,
+				<4 RK_PB7 4 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie20x1m1_perstn: pcie20x1m1-perstn {
+			rockchip,pins =
 				/* pcie20x1_2_perstn_m1 */
-				<4 RK_PC1 4 &pcfg_pull_none>,
+				<4 RK_PC1 4 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie20x1m1_waken: pcie20x1m1-waken {
+			rockchip,pins =
 				/* pcie20x1_2_waken_m1 */
 				<4 RK_PC0 4 &pcfg_pull_none>;
 		};
@@ -1654,52 +1674,127 @@
 
 	pcie30x1 {
 		/omit-if-no-ref/
-		pcie30x1m0_pins: pcie30x1m0-pins {
+		pcie30x1m0_0_clkreqn: pcie30x1m0-0-clkreqn {
 			rockchip,pins =
 				/* pcie30x1_0_clkreqn_m0 */
-				<0 RK_PC0 12 &pcfg_pull_none>,
+				<0 RK_PC0 12 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie30x1m0_0_perstn: pcie30x1m0-0-perstn {
+			rockchip,pins =
 				/* pcie30x1_0_perstn_m0 */
-				<0 RK_PC5 12 &pcfg_pull_none>,
+				<0 RK_PC5 12 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie30x1m0_0_waken: pcie30x1m0-0-waken {
+			rockchip,pins =
 				/* pcie30x1_0_waken_m0 */
-				<0 RK_PC4 12 &pcfg_pull_none>,
+				<0 RK_PC4 12 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie30x1m0_1_clkreqn: pcie30x1m0-1-clkreqn {
+			rockchip,pins =
 				/* pcie30x1_1_clkreqn_m0 */
-				<0 RK_PB5 12 &pcfg_pull_none>,
+				<0 RK_PB5 12 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie30x1m0_1_perstn: pcie30x1m0-1-perstn {
+			rockchip,pins =
 				/* pcie30x1_1_perstn_m0 */
-				<0 RK_PB7 12 &pcfg_pull_none>,
+				<0 RK_PB7 12 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie30x1m0_1_waken: pcie30x1m0-1-waken {
+			rockchip,pins =
 				/* pcie30x1_1_waken_m0 */
 				<0 RK_PB6 12 &pcfg_pull_none>;
 		};
 
 		/omit-if-no-ref/
-		pcie30x1m1_pins: pcie30x1m1-pins {
+		pcie30x1m1_0_clkreqn: pcie30x1m1-0-clkreqn {
 			rockchip,pins =
 				/* pcie30x1_0_clkreqn_m1 */
-				<4 RK_PA3 4 &pcfg_pull_none>,
+				<4 RK_PA3 4 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie30x1m1_0_perstn: pcie30x1m1-0-perstn {
+			rockchip,pins =
 				/* pcie30x1_0_perstn_m1 */
-				<4 RK_PA5 4 &pcfg_pull_none>,
+				<4 RK_PA5 4 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie30x1m1_0_waken: pcie30x1m1-0-waken {
+			rockchip,pins =
 				/* pcie30x1_0_waken_m1 */
-				<4 RK_PA4 4 &pcfg_pull_none>,
+				<4 RK_PA4 4 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie30x1m1_1_clkreqn: pcie30x1m1-1-clkreqn {
+			rockchip,pins =
 				/* pcie30x1_1_clkreqn_m1 */
-				<4 RK_PA0 4 &pcfg_pull_none>,
+				<4 RK_PA0 4 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie30x1m1_1_perstn: pcie30x1m1-1-perstn {
+			rockchip,pins =
 				/* pcie30x1_1_perstn_m1 */
-				<4 RK_PA2 4 &pcfg_pull_none>,
+				<4 RK_PA2 4 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie30x1m1_1_waken: pcie30x1m1-1-waken {
+			rockchip,pins =
 				/* pcie30x1_1_waken_m1 */
 				<4 RK_PA1 4 &pcfg_pull_none>;
 		};
 
 		/omit-if-no-ref/
-		pcie30x1m2_pins: pcie30x1m2-pins {
+		pcie30x1m2_0_clkreqn: pcie30x1m2-0-clkreqn {
 			rockchip,pins =
 				/* pcie30x1_0_clkreqn_m2 */
-				<1 RK_PB5 4 &pcfg_pull_none>,
+				<1 RK_PB5 4 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie30x1m2_0_perstn: pcie30x1m2-0-perstn {
+			rockchip,pins =
 				/* pcie30x1_0_perstn_m2 */
-				<1 RK_PB4 4 &pcfg_pull_none>,
+				<1 RK_PB4 4 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie30x1m2_0_waken: pcie30x1m2-0-waken {
+			rockchip,pins =
 				/* pcie30x1_0_waken_m2 */
-				<1 RK_PB3 4 &pcfg_pull_none>,
+				<1 RK_PB3 4 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie30x1m2_1_clkreqn: pcie30x1m2-1-clkreqn {
+			rockchip,pins =
 				/* pcie30x1_1_clkreqn_m2 */
-				<1 RK_PA0 4 &pcfg_pull_none>,
+				<1 RK_PA0 4 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie30x1m2_1_perstn: pcie30x1m2-1-perstn {
+			rockchip,pins =
 				/* pcie30x1_1_perstn_m2 */
-				<1 RK_PA7 4 &pcfg_pull_none>,
+				<1 RK_PA7 4 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie30x1m2_1_waken: pcie30x1m2-1-waken {
+			rockchip,pins =
 				/* pcie30x1_1_waken_m2 */
 				<1 RK_PA1 4 &pcfg_pull_none>;
 		};
@@ -1721,45 +1816,85 @@
 
 	pcie30x2 {
 		/omit-if-no-ref/
-		pcie30x2m0_pins: pcie30x2m0-pins {
+		pcie30x2m0_clkreqn: pcie30x2m0-clkreqn {
 			rockchip,pins =
 				/* pcie30x2_clkreqn_m0 */
-				<0 RK_PD1 12 &pcfg_pull_none>,
+				<0 RK_PD1 12 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie30x2m0_perstn: pcie30x2m0-perstn {
+			rockchip,pins =
 				/* pcie30x2_perstn_m0 */
-				<0 RK_PD4 12 &pcfg_pull_none>,
+				<0 RK_PD4 12 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie30x2m0_waken: pcie30x2m0-waken {
+			rockchip,pins =
 				/* pcie30x2_waken_m0 */
 				<0 RK_PD2 12 &pcfg_pull_none>;
 		};
 
 		/omit-if-no-ref/
-		pcie30x2m1_pins: pcie30x2m1-pins {
+		pcie30x2m1_clkreqn: pcie30x2m1-clkreqn {
 			rockchip,pins =
 				/* pcie30x2_clkreqn_m1 */
-				<4 RK_PA6 4 &pcfg_pull_none>,
+				<4 RK_PA6 4 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie30x2m1_perstn: pcie30x2m1-perstn {
+			rockchip,pins =
 				/* pcie30x2_perstn_m1 */
-				<4 RK_PB0 4 &pcfg_pull_none>,
+				<4 RK_PB0 4 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie30x2m1_waken: pcie30x2m1-waken {
+			rockchip,pins =
 				/* pcie30x2_waken_m1 */
 				<4 RK_PA7 4 &pcfg_pull_none>;
 		};
 
 		/omit-if-no-ref/
-		pcie30x2m2_pins: pcie30x2m2-pins {
+		pcie30x2m2_clkreqn: pcie30x2m2-clkreqn {
 			rockchip,pins =
 				/* pcie30x2_clkreqn_m2 */
-				<3 RK_PD2 4 &pcfg_pull_none>,
+				<3 RK_PD2 4 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie30x2m2_perstn: pcie30x2m2-perstn {
+			rockchip,pins =
 				/* pcie30x2_perstn_m2 */
-				<3 RK_PD4 4 &pcfg_pull_none>,
+				<3 RK_PD4 4 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie30x2m2_waken: pcie30x2m2-waken {
+			rockchip,pins =
 				/* pcie30x2_waken_m2 */
 				<3 RK_PD3 4 &pcfg_pull_none>;
 		};
 
 		/omit-if-no-ref/
-		pcie30x2m3_pins: pcie30x2m3-pins {
+		pcie30x2m3_clkreqn: pcie30x2m3-clkreqn {
 			rockchip,pins =
 				/* pcie30x2_clkreqn_m3 */
-				<1 RK_PD7 4 &pcfg_pull_none>,
+				<1 RK_PD7 4 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie30x2m3_perstn: pcie30x2m3-perstn {
+			rockchip,pins =
 				/* pcie30x2_perstn_m3 */
-				<1 RK_PB7 4 &pcfg_pull_none>,
+				<1 RK_PB7 4 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie30x2m3_waken: pcie30x2m3-waken {
+			rockchip,pins =
 				/* pcie30x2_waken_m3 */
 				<1 RK_PB6 4 &pcfg_pull_none>;
 		};
@@ -1774,45 +1909,85 @@
 
 	pcie30x4 {
 		/omit-if-no-ref/
-		pcie30x4m0_pins: pcie30x4m0-pins {
+		pcie30x4m0_clkreqn: pcie30x4m0-clkreqn {
 			rockchip,pins =
 				/* pcie30x4_clkreqn_m0 */
-				<0 RK_PC6 12 &pcfg_pull_none>,
+				<0 RK_PC6 12 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie30x4m0_perstn: pcie30x4m0-perstn {
+			rockchip,pins =
 				/* pcie30x4_perstn_m0 */
-				<0 RK_PD0 12 &pcfg_pull_none>,
+				<0 RK_PD0 12 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie30x4m0_waken: pcie30x4m0-waken {
+			rockchip,pins =
 				/* pcie30x4_waken_m0 */
 				<0 RK_PC7 12 &pcfg_pull_none>;
 		};
 
 		/omit-if-no-ref/
-		pcie30x4m1_pins: pcie30x4m1-pins {
+		pcie30x4m1_clkreqn: pcie30x4m1-clkreqn {
 			rockchip,pins =
 				/* pcie30x4_clkreqn_m1 */
-				<4 RK_PB4 4 &pcfg_pull_none>,
+				<4 RK_PB4 4 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie30x4m1_perstn: pcie30x4m1-perstn {
+			rockchip,pins =
 				/* pcie30x4_perstn_m1 */
-				<4 RK_PB6 4 &pcfg_pull_none>,
+				<4 RK_PB6 4 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie30x4m1_waken: pcie30x4m1-waken {
+			rockchip,pins =
 				/* pcie30x4_waken_m1 */
 				<4 RK_PB5 4 &pcfg_pull_none>;
 		};
 
 		/omit-if-no-ref/
-		pcie30x4m2_pins: pcie30x4m2-pins {
+		pcie30x4m2_clkreqn: pcie30x4m2-clkreqn {
 			rockchip,pins =
 				/* pcie30x4_clkreqn_m2 */
-				<3 RK_PC4 4 &pcfg_pull_none>,
+				<3 RK_PC4 4 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie30x4m2_perstn: pcie30x4m2-perstn {
+			rockchip,pins =
 				/* pcie30x4_perstn_m2 */
-				<3 RK_PC6 4 &pcfg_pull_none>,
+				<3 RK_PC6 4 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie30x4m2_waken: pcie30x4m2-waken {
+			rockchip,pins =
 				/* pcie30x4_waken_m2 */
 				<3 RK_PC5 4 &pcfg_pull_none>;
 		};
 
 		/omit-if-no-ref/
-		pcie30x4m3_pins: pcie30x4m3-pins {
+		pcie30x4m3_clkreqn: pcie30x4m3-clkreqn {
 			rockchip,pins =
 				/* pcie30x4_clkreqn_m3 */
-				<1 RK_PB0 4 &pcfg_pull_none>,
+				<1 RK_PB0 4 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie30x4m3_perstn: pcie30x4m3-perstn {
+			rockchip,pins =
 				/* pcie30x4_perstn_m3 */
-				<1 RK_PB2 4 &pcfg_pull_none>,
+				<1 RK_PB2 4 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie30x4m3_waken: pcie30x4m3-waken {
+			rockchip,pins =
 				/* pcie30x4_waken_m3 */
 				<1 RK_PB1 4 &pcfg_pull_none>;
 		};

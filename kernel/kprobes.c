@@ -95,10 +95,6 @@ struct kprobe_insn_page {
 	char slot_used[];
 };
 
-#define KPROBE_INSN_PAGE_SIZE(slots)			\
-	(offsetof(struct kprobe_insn_page, slot_used) +	\
-	 (sizeof(char) * (slots)))
-
 static int slots_per_page(struct kprobe_insn_cache *c)
 {
 	return PAGE_SIZE/(c->insn_size * sizeof(kprobe_opcode_t));
@@ -175,7 +171,7 @@ kprobe_opcode_t *__get_insn_slot(struct kprobe_insn_cache *c)
 		goto retry;
 
 	/* All out of space.  Need to allocate a new page. */
-	kip = kmalloc(KPROBE_INSN_PAGE_SIZE(slots_per_page(c)), GFP_KERNEL);
+	kip = kmalloc(struct_size(kip, slot_used, slots_per_page(c)), GFP_KERNEL);
 	if (!kip)
 		goto out;
 
@@ -206,29 +202,29 @@ static bool collect_one_slot(struct kprobe_insn_page *kip, int idx)
 {
 	kip->slot_used[idx] = SLOT_CLEAN;
 	kip->nused--;
-	if (kip->nused == 0) {
+	if (kip->nused != 0)
+		return false;
+
+	/*
+	 * Page is no longer in use.  Free it unless
+	 * it's the last one.  We keep the last one
+	 * so as not to have to set it up again the
+	 * next time somebody inserts a probe.
+	 */
+	if (!list_is_singular(&kip->list)) {
 		/*
-		 * Page is no longer in use.  Free it unless
-		 * it's the last one.  We keep the last one
-		 * so as not to have to set it up again the
-		 * next time somebody inserts a probe.
+		 * Record perf ksymbol unregister event before removing
+		 * the page.
 		 */
-		if (!list_is_singular(&kip->list)) {
-			/*
-			 * Record perf ksymbol unregister event before removing
-			 * the page.
-			 */
-			perf_event_ksymbol(PERF_RECORD_KSYMBOL_TYPE_OOL,
-					   (unsigned long)kip->insns, PAGE_SIZE, true,
-					   kip->cache->sym);
-			list_del_rcu(&kip->list);
-			synchronize_rcu();
-			kip->cache->free(kip->insns);
-			kfree(kip);
-		}
-		return true;
+		perf_event_ksymbol(PERF_RECORD_KSYMBOL_TYPE_OOL,
+				   (unsigned long)kip->insns, PAGE_SIZE, true,
+				   kip->cache->sym);
+		list_del_rcu(&kip->list);
+		synchronize_rcu();
+		kip->cache->free(kip->insns);
+		kfree(kip);
 	}
-	return false;
+	return true;
 }
 
 static int collect_garbage_slots(struct kprobe_insn_cache *c)
@@ -353,8 +349,8 @@ struct kprobe_insn_cache kprobe_optinsn_slots = {
 	/* .insn_size is initialized later */
 	.nr_garbage = 0,
 };
-#endif
-#endif
+#endif /* CONFIG_OPTPROBES */
+#endif /* __ARCH_WANT_KPROBES_INSN_SLOT */
 
 /* We have preemption disabled.. so it is safe to use __ versions */
 static inline void set_kprobe_instance(struct kprobe *kp)
@@ -1543,7 +1539,7 @@ static int check_ftrace_location(struct kprobe *p)
 	if (ftrace_location(addr) == addr) {
 #ifdef CONFIG_KPROBES_ON_FTRACE
 		p->flags |= KPROBE_FLAG_FTRACE;
-#else	/* !CONFIG_KPROBES_ON_FTRACE */
+#else
 		return -EINVAL;
 #endif
 	}
@@ -1725,28 +1721,29 @@ static struct kprobe *__disable_kprobe(struct kprobe *p)
 	if (unlikely(orig_p == NULL))
 		return ERR_PTR(-EINVAL);
 
-	if (!kprobe_disabled(p)) {
-		/* Disable probe if it is a child probe */
-		if (p != orig_p)
-			p->flags |= KPROBE_FLAG_DISABLED;
+	if (kprobe_disabled(p))
+		return orig_p;
 
-		/* Try to disarm and disable this/parent probe */
-		if (p == orig_p || aggr_kprobe_disabled(orig_p)) {
-			/*
-			 * Don't be lazy here.  Even if 'kprobes_all_disarmed'
-			 * is false, 'orig_p' might not have been armed yet.
-			 * Note arm_all_kprobes() __tries__ to arm all kprobes
-			 * on the best effort basis.
-			 */
-			if (!kprobes_all_disarmed && !kprobe_disabled(orig_p)) {
-				ret = disarm_kprobe(orig_p, true);
-				if (ret) {
-					p->flags &= ~KPROBE_FLAG_DISABLED;
-					return ERR_PTR(ret);
-				}
+	/* Disable probe if it is a child probe */
+	if (p != orig_p)
+		p->flags |= KPROBE_FLAG_DISABLED;
+
+	/* Try to disarm and disable this/parent probe */
+	if (p == orig_p || aggr_kprobe_disabled(orig_p)) {
+		/*
+		 * Don't be lazy here.  Even if 'kprobes_all_disarmed'
+		 * is false, 'orig_p' might not have been armed yet.
+		 * Note arm_all_kprobes() __tries__ to arm all kprobes
+		 * on the best effort basis.
+		 */
+		if (!kprobes_all_disarmed && !kprobe_disabled(orig_p)) {
+			ret = disarm_kprobe(orig_p, true);
+			if (ret) {
+				p->flags &= ~KPROBE_FLAG_DISABLED;
+				return ERR_PTR(ret);
 			}
-			orig_p->flags |= KPROBE_FLAG_DISABLED;
 		}
+		orig_p->flags |= KPROBE_FLAG_DISABLED;
 	}
 
 	return orig_p;

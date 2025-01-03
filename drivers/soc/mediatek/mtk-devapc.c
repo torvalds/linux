@@ -301,7 +301,7 @@ static void mtk_devapc_remove(struct platform_device *pdev)
 
 static struct platform_driver mtk_devapc_driver = {
 	.probe = mtk_devapc_probe,
-	.remove_new = mtk_devapc_remove,
+	.remove = mtk_devapc_remove,
 	.driver = {
 		.name = "mtk-devapc",
 		.of_match_table = mtk_devapc_dt_match,

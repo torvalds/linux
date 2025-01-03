@@ -72,7 +72,7 @@ static inline void eq_update_ci(struct mlx5_eq *eq, int arm)
 
 	__raw_writel((__force u32)cpu_to_be32(val), addr);
 	/* We still want ordering, just not swabbing, so add a barrier */
-	mb();
+	wmb();
 }
 
 int mlx5_eq_table_init(struct mlx5_core_dev *dev);

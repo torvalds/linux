@@ -1057,6 +1057,7 @@ static netdev_tx_t rtsn_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	if (skb->len >= TX_DS) {
 		priv->stats.tx_dropped++;
 		priv->stats.tx_errors++;
+		dev_kfree_skb_any(skb);
 		goto out;
 	}
 

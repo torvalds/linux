@@ -426,22 +426,21 @@ static int __init ifb_init_module(void)
 {
 	int i, err;
 
-	down_write(&pernet_ops_rwsem);
-	rtnl_lock();
-	err = __rtnl_link_register(&ifb_link_ops);
+	err = rtnl_link_register(&ifb_link_ops);
 	if (err < 0)
-		goto out;
+		return err;
+
+	rtnl_net_lock(&init_net);
 
 	for (i = 0; i < numifbs && !err; i++) {
 		err = ifb_init_one(i);
 		cond_resched();
 	}
-	if (err)
-		__rtnl_link_unregister(&ifb_link_ops);
 
-out:
-	rtnl_unlock();
-	up_write(&pernet_ops_rwsem);
+	rtnl_net_unlock(&init_net);
+
+	if (err)
+		rtnl_link_unregister(&ifb_link_ops);
 
 	return err;
 }

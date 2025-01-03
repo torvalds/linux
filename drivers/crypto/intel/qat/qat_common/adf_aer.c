@@ -281,8 +281,11 @@ int adf_init_aer(void)
 		return -EFAULT;
 
 	device_sriov_wq = alloc_workqueue("qat_device_sriov_wq", 0, 0);
-	if (!device_sriov_wq)
+	if (!device_sriov_wq) {
+		destroy_workqueue(device_reset_wq);
+		device_reset_wq = NULL;
 		return -EFAULT;
+	}
 
 	return 0;
 }

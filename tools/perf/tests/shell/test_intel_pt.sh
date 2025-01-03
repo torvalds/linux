@@ -1,11 +1,11 @@
 #!/bin/sh
-# Miscellaneous Intel PT testing
+# Miscellaneous Intel PT testing (exclusive)
 # SPDX-License-Identifier: GPL-2.0
 
 set -e
 
 # Skip if no Intel PT
-perf list | grep -q 'intel_pt//' || exit 2
+perf list pmu | grep -q 'intel_pt//' || exit 2
 
 shelldir=$(dirname "$0")
 # shellcheck source=lib/waiting.sh

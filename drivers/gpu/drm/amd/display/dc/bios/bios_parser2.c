@@ -3122,7 +3122,7 @@ static enum bp_result bios_parser_get_vram_info(
 		struct dc_vram_info *info)
 {
 	struct bios_parser *bp = BP_FROM_DCB(dcb);
-	static enum bp_result result = BP_RESULT_BADBIOSTABLE;
+	enum bp_result result = BP_RESULT_BADBIOSTABLE;
 	struct atom_common_table_header *header;
 	struct atom_data_revision revision;
 

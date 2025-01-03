@@ -12,92 +12,16 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/ptrace.h>
+#include <sys/prctl.h>
 #include <sys/wait.h>
 #include <asm/unistd.h>
 #include <init.h>
 #include <longjmp.h>
 #include <os.h>
 
-#define ARBITRARY_ADDR -1
-#define FAILURE_PID    -1
-
-#define STAT_PATH_LEN sizeof("/proc/#######/stat\0")
-#define COMM_SCANF "%*[^)])"
-
-unsigned long os_process_pc(int pid)
-{
-	char proc_stat[STAT_PATH_LEN], buf[256];
-	unsigned long pc = ARBITRARY_ADDR;
-	int fd, err;
-
-	sprintf(proc_stat, "/proc/%d/stat", pid);
-	fd = open(proc_stat, O_RDONLY, 0);
-	if (fd < 0) {
-		printk(UM_KERN_ERR "os_process_pc - couldn't open '%s', "
-		       "errno = %d\n", proc_stat, errno);
-		goto out;
-	}
-	CATCH_EINTR(err = read(fd, buf, sizeof(buf)));
-	if (err < 0) {
-		printk(UM_KERN_ERR "os_process_pc - couldn't read '%s', "
-		       "err = %d\n", proc_stat, errno);
-		goto out_close;
-	}
-	os_close_file(fd);
-	pc = ARBITRARY_ADDR;
-	if (sscanf(buf, "%*d " COMM_SCANF " %*c %*d %*d %*d %*d %*d %*d %*d "
-		   "%*d %*d %*d %*d %*d %*d %*d %*d %*d %*d %*d %*d %*d %*d "
-		   "%*d %*d %*d %*d %*d %lu", &pc) != 1)
-		printk(UM_KERN_ERR "os_process_pc - couldn't find pc in '%s'\n",
-		       buf);
- out_close:
-	close(fd);
- out:
-	return pc;
-}
-
-int os_process_parent(int pid)
-{
-	char stat[STAT_PATH_LEN];
-	char data[256];
-	int parent = FAILURE_PID, n, fd;
-
-	if (pid == -1)
-		return parent;
-
-	snprintf(stat, sizeof(stat), "/proc/%d/stat", pid);
-	fd = open(stat, O_RDONLY, 0);
-	if (fd < 0) {
-		printk(UM_KERN_ERR "Couldn't open '%s', errno = %d\n", stat,
-		       errno);
-		return parent;
-	}
-
-	CATCH_EINTR(n = read(fd, data, sizeof(data)));
-	close(fd);
-
-	if (n < 0) {
-		printk(UM_KERN_ERR "Couldn't read '%s', errno = %d\n", stat,
-		       errno);
-		return parent;
-	}
-
-	parent = FAILURE_PID;
-	n = sscanf(data, "%*d " COMM_SCANF " %*c %d", &parent);
-	if (n != 1)
-		printk(UM_KERN_ERR "Failed to scan '%s'\n", data);
-
-	return parent;
-}
-
 void os_alarm_process(int pid)
 {
 	kill(pid, SIGALRM);
-}
-
-void os_stop_process(int pid)
-{
-	kill(pid, SIGSTOP);
 }
 
 void os_kill_process(int pid, int reap_child)
@@ -128,11 +52,6 @@ void os_kill_ptraced_process(int pid, int reap_child)
 int os_getpid(void)
 {
 	return syscall(__NR_getpid);
-}
-
-int os_getpgrp(void)
-{
-	return getpgrp();
 }
 
 int os_map_memory(void *virt, int fd, unsigned long long off, unsigned long len,
@@ -284,4 +203,9 @@ void init_new_thread_signals(void)
 	signal(SIGHUP, SIG_IGN);
 	set_handler(SIGIO);
 	signal(SIGWINCH, SIG_IGN);
+}
+
+void os_set_pdeathsig(void)
+{
+	prctl(PR_SET_PDEATHSIG, SIGKILL);
 }

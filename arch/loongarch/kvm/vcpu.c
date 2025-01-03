@@ -1457,7 +1457,7 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 	vcpu->arch.vpid = 0;
 	vcpu->arch.flush_gpa = INVALID_GPA;
 
-	hrtimer_init(&vcpu->arch.swtimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_PINNED);
+	hrtimer_init(&vcpu->arch.swtimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_PINNED_HARD);
 	vcpu->arch.swtimer.function = kvm_swtimer_wakeup;
 
 	vcpu->arch.handle_exit = kvm_handle_exit;
@@ -1474,6 +1474,9 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 
 	/* Init */
 	vcpu->arch.last_sched_cpu = -1;
+
+	/* Init ipi_state lock */
+	spin_lock_init(&vcpu->arch.ipi_state.lock);
 
 	/*
 	 * Initialize guest register state to valid architectural reset state.

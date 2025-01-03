@@ -633,7 +633,7 @@ struct r5conf {
 	 * two caches.
 	 */
 	int			active_name;
-	char			cache_name[2][32];
+	char			cache_name[2][48];
 	struct kmem_cache	*slab_cache; /* for allocating stripes */
 	struct mutex		cache_size_mutex; /* Protect changes to cache size */
 

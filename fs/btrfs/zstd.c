@@ -111,6 +111,8 @@ static void zstd_reclaim_timer_fn(struct timer_list *timer)
 	unsigned long reclaim_threshold = jiffies - ZSTD_BTRFS_RECLAIM_JIFFIES;
 	struct list_head *pos, *next;
 
+	ASSERT(timer == &wsm.timer);
+
 	spin_lock(&wsm.lock);
 
 	if (list_empty(&wsm.lru_list)) {
@@ -495,7 +497,7 @@ int zstd_compress_folios(struct list_head *ws, struct address_space *mapping,
 
 		/* Check if we need more input */
 		if (workspace->in_buf.pos == workspace->in_buf.size) {
-			tot_in += PAGE_SIZE;
+			tot_in += workspace->in_buf.size;
 			kunmap_local(workspace->in_buf.src);
 			workspace->in_buf.src = NULL;
 			folio_put(in_folio);

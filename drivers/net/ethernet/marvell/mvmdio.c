@@ -348,13 +348,12 @@ static int orion_mdio_probe(struct platform_device *pdev)
 		if (type == BUS_TYPE_XSMI)
 			orion_mdio_xsmi_set_mdc_freq(bus);
 	} else {
-		dev->clk[0] = clk_get(&pdev->dev, NULL);
-		if (PTR_ERR(dev->clk[0]) == -EPROBE_DEFER) {
-			ret = -EPROBE_DEFER;
+		dev->clk[0] = clk_get_optional(&pdev->dev, NULL);
+		if (IS_ERR(dev->clk[0])) {
+			ret = PTR_ERR(dev->clk[0]);
 			goto out_clk;
 		}
-		if (!IS_ERR(dev->clk[0]))
-			clk_prepare_enable(dev->clk[0]);
+		clk_prepare_enable(dev->clk[0]);
 	}
 
 
@@ -422,8 +421,6 @@ static void orion_mdio_remove(struct platform_device *pdev)
 	mdiobus_unregister(bus);
 
 	for (i = 0; i < ARRAY_SIZE(dev->clk); i++) {
-		if (IS_ERR(dev->clk[i]))
-			break;
 		clk_disable_unprepare(dev->clk[i]);
 		clk_put(dev->clk[i]);
 	}
@@ -447,7 +444,7 @@ MODULE_DEVICE_TABLE(acpi, orion_mdio_acpi_match);
 
 static struct platform_driver orion_mdio_driver = {
 	.probe = orion_mdio_probe,
-	.remove_new = orion_mdio_remove,
+	.remove = orion_mdio_remove,
 	.driver = {
 		.name = "orion-mdio",
 		.of_match_table = orion_mdio_match,

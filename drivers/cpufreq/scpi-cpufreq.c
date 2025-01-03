@@ -217,7 +217,7 @@ static struct platform_driver scpi_cpufreq_platdrv = {
 		.name	= "scpi-cpufreq",
 	},
 	.probe		= scpi_cpufreq_probe,
-	.remove_new	= scpi_cpufreq_remove,
+	.remove		= scpi_cpufreq_remove,
 };
 module_platform_driver(scpi_cpufreq_platdrv);
 

@@ -1843,7 +1843,7 @@ MODULE_DEVICE_TABLE(of, mpc52xx_uart_of_match);
 
 static struct platform_driver mpc52xx_uart_of_driver = {
 	.probe		= mpc52xx_uart_of_probe,
-	.remove_new	= mpc52xx_uart_of_remove,
+	.remove		= mpc52xx_uart_of_remove,
 #ifdef CONFIG_PM
 	.suspend	= mpc52xx_uart_of_suspend,
 	.resume		= mpc52xx_uart_of_resume,

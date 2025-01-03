@@ -102,7 +102,7 @@ queue_init(void *priv, struct vb2_queue *src_vq, struct vb2_queue *dst_vq)
 	src_vq->drv_priv = ctx;
 	src_vq->ops = &rga_qops;
 	src_vq->mem_ops = &vb2_dma_sg_memops;
-	dst_vq->gfp_flags = __GFP_DMA32;
+	src_vq->gfp_flags = __GFP_DMA32;
 	src_vq->buf_struct_size = sizeof(struct rga_vb_buffer);
 	src_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	src_vq->lock = &ctx->rga->mutex;
@@ -972,7 +972,7 @@ MODULE_DEVICE_TABLE(of, rockchip_rga_match);
 
 static struct platform_driver rga_pdrv = {
 	.probe = rga_probe,
-	.remove_new = rga_remove,
+	.remove = rga_remove,
 	.driver = {
 		.name = RGA_NAME,
 		.pm = &rga_pm,

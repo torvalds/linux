@@ -546,7 +546,7 @@
 		>;
 	};
 
-	pinctrl_wifi_npd: wifinpd {
+	pinctrl_wifi_npd: wifinpdgrp {
 		fsl,pins = <
 			MX6QDL_PAD_ENET_RXD1__GPIO1_IO26	0x1b8b0
 		>;

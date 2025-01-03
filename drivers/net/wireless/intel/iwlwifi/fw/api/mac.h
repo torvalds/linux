@@ -17,7 +17,7 @@
 #define NUM_MAC_INDEX_CDB	(NUM_MAC_INDEX_DRIVER + 2)
 
 #define IWL_STATION_COUNT_MAX	16
-#define IWL_MVM_INVALID_STA		0xFF
+#define IWL_INVALID_STA		0xFF
 
 enum iwl_ac {
 	AC_BK,

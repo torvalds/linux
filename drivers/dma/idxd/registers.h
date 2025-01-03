@@ -6,6 +6,10 @@
 #include <uapi/linux/idxd.h>
 
 /* PCI Config */
+#define PCI_DEVICE_ID_INTEL_DSA_GNRD	0x11fb
+#define PCI_DEVICE_ID_INTEL_DSA_DMR	0x1212
+#define PCI_DEVICE_ID_INTEL_IAA_DMR	0x1216
+
 #define DEVICE_VERSION_1		0x100
 #define DEVICE_VERSION_2		0x200
 

@@ -1164,8 +1164,6 @@ int acpi_subsys_suspend_noirq(struct device *dev);
 int acpi_subsys_suspend(struct device *dev);
 int acpi_subsys_freeze(struct device *dev);
 int acpi_subsys_poweroff(struct device *dev);
-void acpi_ec_mark_gpe_for_wake(void);
-void acpi_ec_set_gpe_wake_mask(u8 action);
 int acpi_subsys_restore_early(struct device *dev);
 #else
 static inline int acpi_subsys_prepare(struct device *dev) { return 0; }
@@ -1176,6 +1174,12 @@ static inline int acpi_subsys_suspend(struct device *dev) { return 0; }
 static inline int acpi_subsys_freeze(struct device *dev) { return 0; }
 static inline int acpi_subsys_poweroff(struct device *dev) { return 0; }
 static inline int acpi_subsys_restore_early(struct device *dev) { return 0; }
+#endif
+
+#if defined(CONFIG_ACPI_EC) && defined(CONFIG_PM_SLEEP)
+void acpi_ec_mark_gpe_for_wake(void);
+void acpi_ec_set_gpe_wake_mask(u8 action);
+#else
 static inline void acpi_ec_mark_gpe_for_wake(void) {}
 static inline void acpi_ec_set_gpe_wake_mask(u8 action) {}
 #endif
@@ -1526,17 +1530,7 @@ static inline int find_acpi_cpu_topology_hetero_id(unsigned int cpu)
 }
 #endif
 
-#ifdef CONFIG_ARM64
-void acpi_arm_init(void);
-#else
-static inline void acpi_arm_init(void) { }
-#endif
-
-#ifdef CONFIG_RISCV
-void acpi_riscv_init(void);
-#else
-static inline void acpi_riscv_init(void) { }
-#endif
+void acpi_arch_init(void);
 
 #ifdef CONFIG_ACPI_PCC
 void acpi_init_pcc(void);

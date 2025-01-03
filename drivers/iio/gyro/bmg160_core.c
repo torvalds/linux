@@ -8,7 +8,6 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/acpi.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/iio/iio.h>
@@ -444,7 +443,7 @@ static int bmg160_setup_new_data_interrupt(struct bmg160_data *data,
 
 static int bmg160_get_bw(struct bmg160_data *data, int *val)
 {
-	struct device *dev = regmap_get_device(data->regmap);	
+	struct device *dev = regmap_get_device(data->regmap);
 	int i;
 	unsigned int bw_bits;
 	int ret;
@@ -749,7 +748,7 @@ static int bmg160_write_event_config(struct iio_dev *indio_dev,
 				     const struct iio_chan_spec *chan,
 				     enum iio_event_type type,
 				     enum iio_event_direction dir,
-				     int state)
+				     bool state)
 {
 	struct bmg160_data *data = iio_priv(indio_dev);
 	int ret;
@@ -1055,17 +1054,6 @@ static const struct iio_buffer_setup_ops bmg160_buffer_setup_ops = {
 	.postdisable = bmg160_buffer_postdisable,
 };
 
-static const char *bmg160_match_acpi_device(struct device *dev)
-{
-	const struct acpi_device_id *id;
-
-	id = acpi_match_device(dev->driver->acpi_match_table, dev);
-	if (!id)
-		return NULL;
-
-	return dev_name(dev);
-}
-
 int bmg160_core_probe(struct device *dev, struct regmap *regmap, int irq,
 		      const char *name)
 {
@@ -1097,9 +1085,6 @@ int bmg160_core_probe(struct device *dev, struct regmap *regmap, int irq,
 		return ret;
 
 	mutex_init(&data->mutex);
-
-	if (ACPI_HANDLE(dev))
-		name = bmg160_match_acpi_device(dev);
 
 	indio_dev->channels = bmg160_channels;
 	indio_dev->num_channels = ARRAY_SIZE(bmg160_channels);

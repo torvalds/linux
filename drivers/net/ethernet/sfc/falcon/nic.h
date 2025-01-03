@@ -477,7 +477,6 @@ void ef4_farch_finish_flr(struct ef4_nic *efx);
 void falcon_start_nic_stats(struct ef4_nic *efx);
 void falcon_stop_nic_stats(struct ef4_nic *efx);
 int falcon_reset_xaui(struct ef4_nic *efx);
-void ef4_farch_dimension_resources(struct ef4_nic *efx, unsigned sram_lim_qw);
 void ef4_farch_init_common(struct ef4_nic *efx);
 void ef4_farch_rx_push_indir_table(struct ef4_nic *efx);
 
@@ -498,14 +497,10 @@ size_t ef4_nic_get_regs_len(struct ef4_nic *efx);
 void ef4_nic_get_regs(struct ef4_nic *efx, void *buf);
 
 size_t ef4_nic_describe_stats(const struct ef4_hw_stat_desc *desc, size_t count,
-			      const unsigned long *mask, u8 *names);
+			      const unsigned long *mask, u8 **names);
 void ef4_nic_update_stats(const struct ef4_hw_stat_desc *desc, size_t count,
 			  const unsigned long *mask, u64 *stats,
 			  const void *dma_buf, bool accumulate);
-void ef4_nic_fix_nodesc_drop_stat(struct ef4_nic *efx, u64 *stat);
-
-#define EF4_MAX_FLUSH_TIME 5000
-
 void ef4_farch_generate_event(struct ef4_nic *efx, unsigned int evq,
 			      ef4_qword_t *event);
 

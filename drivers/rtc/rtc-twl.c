@@ -673,7 +673,7 @@ MODULE_DEVICE_TABLE(of, twl_rtc_of_match);
 
 static struct platform_driver twl4030rtc_driver = {
 	.probe		= twl_rtc_probe,
-	.remove_new	= twl_rtc_remove,
+	.remove		= twl_rtc_remove,
 	.shutdown	= twl_rtc_shutdown,
 	.driver		= {
 		.name		= "twl_rtc",

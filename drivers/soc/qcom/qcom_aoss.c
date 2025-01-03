@@ -664,7 +664,7 @@ static struct platform_driver qmp_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe = qmp_probe,
-	.remove_new = qmp_remove,
+	.remove = qmp_remove,
 };
 module_platform_driver(qmp_driver);
 

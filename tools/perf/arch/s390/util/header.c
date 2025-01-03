@@ -27,7 +27,7 @@
 #define SYSINFO		"/proc/sysinfo"
 #define SRVLVL		"/proc/service_levels"
 
-int get_cpuid(char *buffer, size_t sz)
+int get_cpuid(char *buffer, size_t sz, struct perf_cpu cpu __maybe_unused)
 {
 	char *cp, *line = NULL, *line2;
 	char type[8], model[33], version[8], manufacturer[32], authorization[8];
@@ -137,11 +137,11 @@ skip_sysinfo:
 	return (nbytes >= sz) ? ENOBUFS : 0;
 }
 
-char *get_cpuid_str(struct perf_pmu *pmu __maybe_unused)
+char *get_cpuid_str(struct perf_cpu cpu)
 {
 	char *buf = malloc(128);
 
-	if (buf && get_cpuid(buf, 128))
+	if (buf && get_cpuid(buf, 128, cpu))
 		zfree(&buf);
 	return buf;
 }

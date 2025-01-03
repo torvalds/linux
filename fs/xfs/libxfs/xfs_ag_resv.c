@@ -70,6 +70,7 @@ xfs_ag_resv_critical(
 	struct xfs_perag		*pag,
 	enum xfs_ag_resv_type		type)
 {
+	struct xfs_mount		*mp = pag_mount(pag);
 	xfs_extlen_t			avail;
 	xfs_extlen_t			orig;
 
@@ -92,8 +93,8 @@ xfs_ag_resv_critical(
 
 	/* Critically low if less than 10% or max btree height remains. */
 	return XFS_TEST_ERROR(avail < orig / 10 ||
-			      avail < pag->pag_mount->m_agbtree_maxlevels,
-			pag->pag_mount, XFS_ERRTAG_AG_RESV_CRITICAL);
+			      avail < mp->m_agbtree_maxlevels,
+			mp, XFS_ERRTAG_AG_RESV_CRITICAL);
 }
 
 /*
@@ -137,8 +138,8 @@ __xfs_ag_resv_free(
 	trace_xfs_ag_resv_free(pag, type, 0);
 
 	resv = xfs_perag_resv(pag, type);
-	if (pag->pag_agno == 0)
-		pag->pag_mount->m_ag_max_usable += resv->ar_asked;
+	if (pag_agno(pag) == 0)
+		pag_mount(pag)->m_ag_max_usable += resv->ar_asked;
 	/*
 	 * RMAPBT blocks come from the AGFL and AGFL blocks are always
 	 * considered "free", so whatever was reserved at mount time must be
@@ -148,7 +149,7 @@ __xfs_ag_resv_free(
 		oldresv = resv->ar_orig_reserved;
 	else
 		oldresv = resv->ar_reserved;
-	xfs_add_fdblocks(pag->pag_mount, oldresv);
+	xfs_add_fdblocks(pag_mount(pag), oldresv);
 	resv->ar_reserved = 0;
 	resv->ar_asked = 0;
 	resv->ar_orig_reserved = 0;
@@ -170,7 +171,7 @@ __xfs_ag_resv_init(
 	xfs_extlen_t			ask,
 	xfs_extlen_t			used)
 {
-	struct xfs_mount		*mp = pag->pag_mount;
+	struct xfs_mount		*mp = pag_mount(pag);
 	struct xfs_ag_resv		*resv;
 	int				error;
 	xfs_extlen_t			hidden_space;
@@ -206,11 +207,10 @@ __xfs_ag_resv_init(
 	else
 		error = xfs_dec_fdblocks(mp, hidden_space, true);
 	if (error) {
-		trace_xfs_ag_resv_init_error(pag->pag_mount, pag->pag_agno,
-				error, _RET_IP_);
+		trace_xfs_ag_resv_init_error(pag, error, _RET_IP_);
 		xfs_warn(mp,
 "Per-AG reservation for AG %u failed.  Filesystem may run out of space.",
-				pag->pag_agno);
+				pag_agno(pag));
 		return error;
 	}
 
@@ -220,7 +220,7 @@ __xfs_ag_resv_init(
 	 * counter, we only make the adjustment for AG 0.  This assumes that
 	 * there aren't any AGs hungrier for per-AG reservation than AG 0.
 	 */
-	if (pag->pag_agno == 0)
+	if (pag_agno(pag) == 0)
 		mp->m_ag_max_usable -= ask;
 
 	resv = xfs_perag_resv(pag, type);
@@ -238,7 +238,7 @@ xfs_ag_resv_init(
 	struct xfs_perag		*pag,
 	struct xfs_trans		*tp)
 {
-	struct xfs_mount		*mp = pag->pag_mount;
+	struct xfs_mount		*mp = pag_mount(pag);
 	xfs_extlen_t			ask;
 	xfs_extlen_t			used;
 	int				error = 0, error2;

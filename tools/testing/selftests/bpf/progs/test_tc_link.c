@@ -18,12 +18,15 @@ bool seen_tc4;
 bool seen_tc5;
 bool seen_tc6;
 bool seen_tc7;
+bool seen_tc8;
 
 bool set_type;
 
 bool seen_eth;
 bool seen_host;
 bool seen_mcast;
+
+int mark, prio;
 
 SEC("tc/ingress")
 int tc1(struct __sk_buff *skb)
@@ -98,5 +101,14 @@ int tc7(struct __sk_buff *skb)
 	}
 out:
 	seen_tc7 = true;
+	return TCX_PASS;
+}
+
+SEC("tc/egress")
+int tc8(struct __sk_buff *skb)
+{
+	seen_tc8 = true;
+	mark = skb->mark;
+	prio = skb->priority;
 	return TCX_PASS;
 }

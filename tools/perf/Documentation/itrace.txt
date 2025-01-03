@@ -1,6 +1,6 @@
 		i	synthesize instructions events
 		y	synthesize cycles events
-		b	synthesize branches events (branch misses for Arm SPE)
+		b	synthesize branches events
 		c	synthesize branches events (calls only)
 		r	synthesize branches events (returns only)
 		x	synthesize transactions events

@@ -2207,8 +2207,9 @@ static void gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 
 		if (unlikely(do_tstamp)) {
 			struct skb_shared_hwtstamps shhwtstamps;
-			u64 *ns = (u64 *)(((uintptr_t)skb->data + 0x10) &
-					  ~0x7UL);
+			__be64 *ns;
+
+			ns = (__be64 *)(((uintptr_t)skb->data + 0x10) & ~0x7UL);
 
 			memset(&shhwtstamps, 0, sizeof(shhwtstamps));
 			shhwtstamps.hwtstamp = ns_to_ktime(be64_to_cpu(*ns));
@@ -2471,7 +2472,7 @@ static void gfar_process_frame(struct net_device *ndev, struct sk_buff *skb)
 	/* Get receive timestamp from the skb */
 	if (priv->hwts_rx_en) {
 		struct skb_shared_hwtstamps *shhwtstamps = skb_hwtstamps(skb);
-		u64 *ns = (u64 *) skb->data;
+		__be64 *ns = (__be64 *)skb->data;
 
 		memset(shhwtstamps, 0, sizeof(*shhwtstamps));
 		shhwtstamps->hwtstamp = ns_to_ktime(be64_to_cpu(*ns));
@@ -3642,7 +3643,7 @@ static struct platform_driver gfar_driver = {
 		.of_match_table = gfar_match,
 	},
 	.probe = gfar_probe,
-	.remove_new = gfar_remove,
+	.remove = gfar_remove,
 };
 
 module_platform_driver(gfar_driver);

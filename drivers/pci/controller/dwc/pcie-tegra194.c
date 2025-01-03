@@ -1704,9 +1704,6 @@ static void pex_ep_event_pex_rst_assert(struct tegra_pcie_dw *pcie)
 	if (ret)
 		dev_err(pcie->dev, "Failed to go Detect state: %d\n", ret);
 
-	pci_epc_deinit_notify(pcie->pci.ep.epc);
-	dw_pcie_ep_cleanup(&pcie->pci.ep);
-
 	reset_control_assert(pcie->core_rst);
 
 	tegra_pcie_disable_phy(pcie);
@@ -1784,6 +1781,10 @@ static void pex_ep_event_pex_rst_deassert(struct tegra_pcie_dw *pcie)
 		dev_err(dev, "Failed to enable PHY: %d\n", ret);
 		goto fail_phy;
 	}
+
+	/* Perform cleanup that requires refclk */
+	pci_epc_deinit_notify(pcie->pci.ep.epc);
+	dw_pcie_ep_cleanup(&pcie->pci.ep);
 
 	/* Clear any stale interrupt statuses */
 	appl_writel(pcie, 0xFFFFFFFF, APPL_INTR_STATUS_L0);
@@ -2493,7 +2494,7 @@ static const struct dev_pm_ops tegra_pcie_dw_pm_ops = {
 
 static struct platform_driver tegra_pcie_dw_driver = {
 	.probe = tegra_pcie_dw_probe,
-	.remove_new = tegra_pcie_dw_remove,
+	.remove = tegra_pcie_dw_remove,
 	.shutdown = tegra_pcie_dw_shutdown,
 	.driver = {
 		.name	= "tegra194-pcie",

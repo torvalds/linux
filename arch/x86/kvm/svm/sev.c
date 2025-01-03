@@ -450,8 +450,11 @@ static int __sev_guest_init(struct kvm *kvm, struct kvm_sev_cmd *argp,
 		goto e_free;
 
 	/* This needs to happen after SEV/SNP firmware initialization. */
-	if (vm_type == KVM_X86_SNP_VM && snp_guest_req_init(kvm))
-		goto e_free;
+	if (vm_type == KVM_X86_SNP_VM) {
+		ret = snp_guest_req_init(kvm);
+		if (ret)
+			goto e_free;
+	}
 
 	INIT_LIST_HEAD(&sev->regions_list);
 	INIT_LIST_HEAD(&sev->mirror_vms);
@@ -530,17 +533,12 @@ static int sev_bind_asid(struct kvm *kvm, unsigned int handle, int *error)
 
 static int __sev_issue_cmd(int fd, int id, void *data, int *error)
 {
-	struct fd f;
-	int ret;
+	CLASS(fd, f)(fd);
 
-	f = fdget(fd);
-	if (!fd_file(f))
+	if (fd_empty(f))
 		return -EBADF;
 
-	ret = sev_issue_cmd_external_user(fd_file(f), id, data, error);
-
-	fdput(f);
-	return ret;
+	return sev_issue_cmd_external_user(fd_file(f), id, data, error);
 }
 
 static int sev_issue_cmd(struct kvm *kvm, int id, void *data, int *error)
@@ -2073,23 +2071,21 @@ int sev_vm_move_enc_context_from(struct kvm *kvm, unsigned int source_fd)
 {
 	struct kvm_sev_info *dst_sev = &to_kvm_svm(kvm)->sev_info;
 	struct kvm_sev_info *src_sev, *cg_cleanup_sev;
-	struct fd f = fdget(source_fd);
+	CLASS(fd, f)(source_fd);
 	struct kvm *source_kvm;
 	bool charged = false;
 	int ret;
 
-	if (!fd_file(f))
+	if (fd_empty(f))
 		return -EBADF;
 
-	if (!file_is_kvm(fd_file(f))) {
-		ret = -EBADF;
-		goto out_fput;
-	}
+	if (!file_is_kvm(fd_file(f)))
+		return -EBADF;
 
 	source_kvm = fd_file(f)->private_data;
 	ret = sev_lock_two_vms(kvm, source_kvm);
 	if (ret)
-		goto out_fput;
+		return ret;
 
 	if (kvm->arch.vm_type != source_kvm->arch.vm_type ||
 	    sev_guest(kvm) || !sev_guest(source_kvm)) {
@@ -2136,8 +2132,6 @@ out_dst_cgroup:
 	cg_cleanup_sev->misc_cg = NULL;
 out_unlock:
 	sev_unlock_two_vms(kvm, source_kvm);
-out_fput:
-	fdput(f);
 	return ret;
 }
 
@@ -2212,10 +2206,6 @@ static int snp_launch_start(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	if (sev->snp_context)
 		return -EINVAL;
 
-	sev->snp_context = snp_context_create(kvm, argp);
-	if (!sev->snp_context)
-		return -ENOTTY;
-
 	if (params.flags)
 		return -EINVAL;
 
@@ -2229,6 +2219,10 @@ static int snp_launch_start(struct kvm *kvm, struct kvm_sev_cmd *argp)
 
 	if (params.policy & SNP_POLICY_MASK_SINGLE_SOCKET)
 		return -EINVAL;
+
+	sev->snp_context = snp_context_create(kvm, argp);
+	if (!sev->snp_context)
+		return -ENOTTY;
 
 	start.gctx_paddr = __psp_pa(sev->snp_context);
 	start.policy = params.policy;
@@ -2798,23 +2792,21 @@ failed:
 
 int sev_vm_copy_enc_context_from(struct kvm *kvm, unsigned int source_fd)
 {
-	struct fd f = fdget(source_fd);
+	CLASS(fd, f)(source_fd);
 	struct kvm *source_kvm;
 	struct kvm_sev_info *source_sev, *mirror_sev;
 	int ret;
 
-	if (!fd_file(f))
+	if (fd_empty(f))
 		return -EBADF;
 
-	if (!file_is_kvm(fd_file(f))) {
-		ret = -EBADF;
-		goto e_source_fput;
-	}
+	if (!file_is_kvm(fd_file(f)))
+		return -EBADF;
 
 	source_kvm = fd_file(f)->private_data;
 	ret = sev_lock_two_vms(kvm, source_kvm);
 	if (ret)
-		goto e_source_fput;
+		return ret;
 
 	/*
 	 * Mirrors of mirrors should work, but let's not get silly.  Also
@@ -2857,8 +2849,6 @@ int sev_vm_copy_enc_context_from(struct kvm *kvm, unsigned int source_fd)
 
 e_unlock:
 	sev_unlock_two_vms(kvm, source_kvm);
-e_source_fput:
-	fdput(f);
 	return ret;
 }
 
@@ -3468,7 +3458,7 @@ void sev_es_unmap_ghcb(struct vcpu_svm *svm)
 
 	sev_es_sync_to_ghcb(svm);
 
-	kvm_vcpu_unmap(&svm->vcpu, &svm->sev_es.ghcb_map, true);
+	kvm_vcpu_unmap(&svm->vcpu, &svm->sev_es.ghcb_map);
 	svm->sev_es.ghcb = NULL;
 }
 
@@ -3849,6 +3839,7 @@ static int __sev_snp_update_protected_guest_state(struct kvm_vcpu *vcpu)
 	if (VALID_PAGE(svm->sev_es.snp_vmsa_gpa)) {
 		gfn_t gfn = gpa_to_gfn(svm->sev_es.snp_vmsa_gpa);
 		struct kvm_memory_slot *slot;
+		struct page *page;
 		kvm_pfn_t pfn;
 
 		slot = gfn_to_memslot(vcpu->kvm, gfn);
@@ -3859,7 +3850,7 @@ static int __sev_snp_update_protected_guest_state(struct kvm_vcpu *vcpu)
 		 * The new VMSA will be private memory guest memory, so
 		 * retrieve the PFN from the gmem backend.
 		 */
-		if (kvm_gmem_get_pfn(vcpu->kvm, slot, gfn, &pfn, NULL))
+		if (kvm_gmem_get_pfn(vcpu->kvm, slot, gfn, &pfn, &page, NULL))
 			return -EINVAL;
 
 		/*
@@ -3888,7 +3879,7 @@ static int __sev_snp_update_protected_guest_state(struct kvm_vcpu *vcpu)
 		 * changes then care should be taken to ensure
 		 * svm->sev_es.vmsa is pinned through some other means.
 		 */
-		kvm_release_pfn_clean(pfn);
+		kvm_release_page_clean(page);
 	}
 
 	/*
@@ -4688,6 +4679,7 @@ void sev_handle_rmp_fault(struct kvm_vcpu *vcpu, gpa_t gpa, u64 error_code)
 	struct kvm_memory_slot *slot;
 	struct kvm *kvm = vcpu->kvm;
 	int order, rmp_level, ret;
+	struct page *page;
 	bool assigned;
 	kvm_pfn_t pfn;
 	gfn_t gfn;
@@ -4714,7 +4706,7 @@ void sev_handle_rmp_fault(struct kvm_vcpu *vcpu, gpa_t gpa, u64 error_code)
 		return;
 	}
 
-	ret = kvm_gmem_get_pfn(kvm, slot, gfn, &pfn, &order);
+	ret = kvm_gmem_get_pfn(kvm, slot, gfn, &pfn, &page, &order);
 	if (ret) {
 		pr_warn_ratelimited("SEV: Unexpected RMP fault, no backing page for private GPA 0x%llx\n",
 				    gpa);
@@ -4772,7 +4764,7 @@ void sev_handle_rmp_fault(struct kvm_vcpu *vcpu, gpa_t gpa, u64 error_code)
 out:
 	trace_kvm_rmp_fault(vcpu, gpa, pfn, error_code, rmp_level, ret);
 out_no_trace:
-	put_page(pfn_to_page(pfn));
+	kvm_release_page_unused(page);
 }
 
 static bool is_pfn_range_shared(kvm_pfn_t start, kvm_pfn_t end)

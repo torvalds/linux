@@ -1424,8 +1424,8 @@ static const struct of_device_id inno_hdmi_phy_of_match[] = {
 MODULE_DEVICE_TABLE(of, inno_hdmi_phy_of_match);
 
 static struct platform_driver inno_hdmi_phy_driver = {
-	.probe  = inno_hdmi_phy_probe,
-	.remove_new = inno_hdmi_phy_remove,
+	.probe = inno_hdmi_phy_probe,
+	.remove = inno_hdmi_phy_remove,
 	.driver = {
 		.name = "inno-hdmi-phy",
 		.of_match_table = inno_hdmi_phy_of_match,

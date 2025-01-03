@@ -58,23 +58,24 @@
  * complete.
  */
 
-static void ieee80211_send_addba_request(struct ieee80211_sub_if_data *sdata,
-					 const u8 *da, u16 tid,
+static void ieee80211_send_addba_request(struct sta_info *sta, u16 tid,
 					 u8 dialog_token, u16 start_seq_num,
 					 u16 agg_size, u16 timeout)
 {
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
 	u16 capab;
 
-	skb = dev_alloc_skb(sizeof(*mgmt) + local->hw.extra_tx_headroom);
-
+	skb = dev_alloc_skb(sizeof(*mgmt) +
+			    2 + sizeof(struct ieee80211_addba_ext_ie) +
+			    local->hw.extra_tx_headroom);
 	if (!skb)
 		return;
 
 	skb_reserve(skb, local->hw.extra_tx_headroom);
-	mgmt = ieee80211_mgmt_ba(skb, da, sdata);
+	mgmt = ieee80211_mgmt_ba(skb, sta->sta.addr, sdata);
 
 	skb_put(skb, 1 + sizeof(mgmt->u.action.u.addba_req));
 
@@ -92,6 +93,9 @@ static void ieee80211_send_addba_request(struct ieee80211_sub_if_data *sdata,
 	mgmt->u.action.u.addba_req.timeout = cpu_to_le16(timeout);
 	mgmt->u.action.u.addba_req.start_seq_num =
 					cpu_to_le16(start_seq_num << 4);
+
+	if (sta->sta.deflink.he_cap.has_he)
+		ieee80211_add_addbaext(skb, 0, agg_size);
 
 	ieee80211_tx_skb_tid(sdata, skb, tid, -1);
 }
@@ -460,8 +464,11 @@ static void ieee80211_send_addba_with_timeout(struct sta_info *sta,
 	sta->ampdu_mlme.addba_req_num[tid]++;
 	spin_unlock_bh(&sta->lock);
 
-	if (sta->sta.deflink.he_cap.has_he) {
+	if (sta->sta.deflink.eht_cap.has_eht) {
 		buf_size = local->hw.max_tx_aggregation_subframes;
+	} else if (sta->sta.deflink.he_cap.has_he) {
+		buf_size = min_t(u16, local->hw.max_tx_aggregation_subframes,
+				 IEEE80211_MAX_AMPDU_BUF_HE);
 	} else {
 		/*
 		 * We really should use what the driver told us it will
@@ -473,9 +480,8 @@ static void ieee80211_send_addba_with_timeout(struct sta_info *sta,
 	}
 
 	/* send AddBA request */
-	ieee80211_send_addba_request(sdata, sta->sta.addr, tid,
-				     tid_tx->dialog_token, tid_tx->ssn,
-				     buf_size, tid_tx->timeout);
+	ieee80211_send_addba_request(sta, tid, tid_tx->dialog_token,
+				     tid_tx->ssn, buf_size, tid_tx->timeout);
 
 	WARN_ON(test_and_set_bit(HT_AGG_STATE_SENT_ADDBA, &tid_tx->state));
 }
@@ -797,7 +803,7 @@ void ieee80211_start_tx_ba_cb(struct sta_info *sta, int tid,
 
 	if (!test_bit(HT_AGG_STATE_SENT_ADDBA, &tid_tx->state)) {
 		ieee80211_send_addba_with_timeout(sta, tid_tx);
-		/* RESPONSE_RECEIVED state whould trigger the flow again */
+		/* RESPONSE_RECEIVED state would trigger the flow again */
 		return;
 	}
 
@@ -970,6 +976,13 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 	amsdu = capab & IEEE80211_ADDBA_PARAM_AMSDU_MASK;
 	tid = u16_get_bits(capab, IEEE80211_ADDBA_PARAM_TID_MASK);
 	buf_size = u16_get_bits(capab, IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK);
+
+	ieee80211_retrieve_addba_ext_data(sta,
+					  mgmt->u.action.u.addba_resp.variable,
+					  len - offsetof(typeof(*mgmt),
+							 u.action.u.addba_resp.variable),
+					  &buf_size);
+
 	buf_size = min(buf_size, local->hw.max_tx_aggregation_subframes);
 
 	txq = sta->sta.txq[tid];

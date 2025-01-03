@@ -711,6 +711,10 @@ static struct of_dev_auxdata twl_auxdata_lookup[] = {
 	{ /* sentinel */ },
 };
 
+static const struct mfd_cell twl6030_cells[] = {
+	{ .name = "twl6030-clk" },
+};
+
 static const struct mfd_cell twl6032_cells[] = {
 	{ .name = "twl6032-clk" },
 };
@@ -861,17 +865,23 @@ twl_probe(struct i2c_client *client)
 				 TWL4030_DCDC_GLOBAL_CFG);
 	}
 
-	if (id->driver_data == (TWL6030_CLASS | TWL6032_SUBCLASS)) {
-		status = devm_mfd_add_devices(&client->dev,
-					      PLATFORM_DEVID_NONE,
-					      twl6032_cells,
-					      ARRAY_SIZE(twl6032_cells),
-					      NULL, 0, NULL);
+	if (twl_class_is_6030()) {
+		const struct mfd_cell *cells;
+		int num_cells;
+
+		if (id->driver_data & TWL6032_SUBCLASS) {
+			cells = twl6032_cells;
+			num_cells = ARRAY_SIZE(twl6032_cells);
+		} else {
+			cells = twl6030_cells;
+			num_cells = ARRAY_SIZE(twl6030_cells);
+		}
+
+		status = devm_mfd_add_devices(&client->dev, PLATFORM_DEVID_NONE,
+					      cells, num_cells, NULL, 0, NULL);
 		if (status < 0)
 			goto free;
-	}
 
-	if (twl_class_is_6030()) {
 		if (of_device_is_system_power_controller(node)) {
 			if (!pm_power_off)
 				pm_power_off = twl6030_power_off;

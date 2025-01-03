@@ -35,7 +35,7 @@
 #include <linux/string.h>
 
 #ifdef HAVE_LIBTRACEEVENT
-#include <traceevent/event-parse.h>
+#include <event-parse.h>
 #endif
 
 regex_t		parent_regex;
@@ -675,6 +675,102 @@ struct sort_entry sort_sym_ipc_null = {
 	.se_cmp		= sort__sym_cmp,
 	.se_snprintf	= hist_entry__sym_ipc_null_snprintf,
 	.se_width_idx	= HISTC_SYMBOL_IPC,
+};
+
+/* --sort callchain_branch_predicted */
+
+static int64_t
+sort__callchain_branch_predicted_cmp(struct hist_entry *left __maybe_unused,
+				     struct hist_entry *right __maybe_unused)
+{
+	return 0;
+}
+
+static int hist_entry__callchain_branch_predicted_snprintf(
+	struct hist_entry *he, char *bf, size_t size, unsigned int width)
+{
+	u64 branch_count, predicted_count;
+	double percent = 0.0;
+	char str[32];
+
+	callchain_branch_counts(he->callchain, &branch_count,
+				&predicted_count, NULL, NULL);
+
+	if (branch_count)
+		percent = predicted_count * 100.0 / branch_count;
+
+	snprintf(str, sizeof(str), "%.1f%%", percent);
+	return repsep_snprintf(bf, size, "%-*.*s", width, width, str);
+}
+
+struct sort_entry sort_callchain_branch_predicted = {
+	.se_header	= "Predicted",
+	.se_cmp		= sort__callchain_branch_predicted_cmp,
+	.se_snprintf	= hist_entry__callchain_branch_predicted_snprintf,
+	.se_width_idx	= HISTC_CALLCHAIN_BRANCH_PREDICTED,
+};
+
+/* --sort callchain_branch_abort */
+
+static int64_t
+sort__callchain_branch_abort_cmp(struct hist_entry *left __maybe_unused,
+				 struct hist_entry *right __maybe_unused)
+{
+	return 0;
+}
+
+static int hist_entry__callchain_branch_abort_snprintf(struct hist_entry *he,
+						       char *bf, size_t size,
+						       unsigned int width)
+{
+	u64 branch_count, abort_count;
+	char str[32];
+
+	callchain_branch_counts(he->callchain, &branch_count,
+				NULL, &abort_count, NULL);
+
+	snprintf(str, sizeof(str), "%" PRId64, abort_count);
+	return repsep_snprintf(bf, size, "%-*.*s", width, width, str);
+}
+
+struct sort_entry sort_callchain_branch_abort = {
+	.se_header	= "Abort",
+	.se_cmp		= sort__callchain_branch_abort_cmp,
+	.se_snprintf	= hist_entry__callchain_branch_abort_snprintf,
+	.se_width_idx	= HISTC_CALLCHAIN_BRANCH_ABORT,
+};
+
+/* --sort callchain_branch_cycles */
+
+static int64_t
+sort__callchain_branch_cycles_cmp(struct hist_entry *left __maybe_unused,
+				  struct hist_entry *right __maybe_unused)
+{
+	return 0;
+}
+
+static int hist_entry__callchain_branch_cycles_snprintf(struct hist_entry *he,
+							char *bf, size_t size,
+							unsigned int width)
+{
+	u64 branch_count, cycles_count, cycles = 0;
+	char str[32];
+
+	callchain_branch_counts(he->callchain, &branch_count,
+				NULL, NULL, &cycles_count);
+
+	if (branch_count)
+		cycles = cycles_count / branch_count;
+
+	snprintf(str, sizeof(str), "%" PRId64 "", cycles);
+	return repsep_snprintf(bf, size, "%-*.*s", width, width, str);
+}
+
+struct sort_entry sort_callchain_branch_cycles = {
+	.se_header	= "Cycles",
+	.se_cmp		= sort__callchain_branch_cycles_cmp,
+	.se_snprintf	= hist_entry__callchain_branch_cycles_snprintf,
+	.se_width_idx	= HISTC_CALLCHAIN_BRANCH_CYCLES,
 };
 
 /* --sort srcfile */
@@ -2456,6 +2552,15 @@ static struct sort_dimension bstack_sort_dimensions[] = {
 	DIM(SORT_SYM_IPC, "ipc_lbr", sort_sym_ipc),
 	DIM(SORT_ADDR_FROM, "addr_from", sort_addr_from),
 	DIM(SORT_ADDR_TO, "addr_to", sort_addr_to),
+	DIM(SORT_CALLCHAIN_BRANCH_PREDICTED,
+		"callchain_branch_predicted",
+		sort_callchain_branch_predicted),
+	DIM(SORT_CALLCHAIN_BRANCH_ABORT,
+		"callchain_branch_abort",
+		sort_callchain_branch_abort),
+	DIM(SORT_CALLCHAIN_BRANCH_CYCLES,
+		"callchain_branch_cycles",
+		sort_callchain_branch_cycles)
 };
 
 #undef DIM
@@ -3484,7 +3589,13 @@ int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 		if (!sd->name || strncasecmp(tok, sd->name, strlen(tok)))
 			continue;
 
-		if (sort__mode != SORT_MODE__BRANCH)
+		if ((sort__mode != SORT_MODE__BRANCH) &&
+			strncasecmp(tok, "callchain_branch_predicted",
+				    strlen(tok)) &&
+			strncasecmp(tok, "callchain_branch_abort",
+				    strlen(tok)) &&
+			strncasecmp(tok, "callchain_branch_cycles",
+				    strlen(tok)))
 			return -EINVAL;
 
 		if (sd->entry == &sort_sym_from || sd->entry == &sort_sym_to)

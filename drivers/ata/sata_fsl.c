@@ -1589,7 +1589,7 @@ static struct platform_driver fsl_sata_driver = {
 		.of_match_table = fsl_sata_match,
 	},
 	.probe		= sata_fsl_probe,
-	.remove_new	= sata_fsl_remove,
+	.remove		= sata_fsl_remove,
 #ifdef CONFIG_PM_SLEEP
 	.suspend	= sata_fsl_suspend,
 	.resume		= sata_fsl_resume,

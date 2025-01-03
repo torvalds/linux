@@ -30,7 +30,6 @@ int cfg80211_wext_giwname(struct net_device *dev,
 	strcpy(wrqu->name, "IEEE 802.11");
 	return 0;
 }
-EXPORT_WEXT_HANDLER(cfg80211_wext_giwname);
 
 int cfg80211_wext_siwmode(struct net_device *dev, struct iw_request_info *info,
 			  union iwreq_data *wrqu, char *extra)
@@ -69,7 +68,6 @@ int cfg80211_wext_siwmode(struct net_device *dev, struct iw_request_info *info,
 
 	return ret;
 }
-EXPORT_WEXT_HANDLER(cfg80211_wext_siwmode);
 
 int cfg80211_wext_giwmode(struct net_device *dev, struct iw_request_info *info,
 			  union iwreq_data *wrqu, char *extra)
@@ -105,7 +103,6 @@ int cfg80211_wext_giwmode(struct net_device *dev, struct iw_request_info *info,
 	}
 	return 0;
 }
-EXPORT_WEXT_HANDLER(cfg80211_wext_giwmode);
 
 
 int cfg80211_wext_giwrange(struct net_device *dev,
@@ -220,7 +217,6 @@ int cfg80211_wext_giwrange(struct net_device *dev,
 
 	return 0;
 }
-EXPORT_WEXT_HANDLER(cfg80211_wext_giwrange);
 
 
 /**
@@ -281,7 +277,6 @@ out:
 	wiphy_unlock(&rdev->wiphy);
 	return err;
 }
-EXPORT_WEXT_HANDLER(cfg80211_wext_siwrts);
 
 int cfg80211_wext_giwrts(struct net_device *dev,
 			 struct iw_request_info *info,
@@ -296,7 +291,6 @@ int cfg80211_wext_giwrts(struct net_device *dev,
 
 	return 0;
 }
-EXPORT_WEXT_HANDLER(cfg80211_wext_giwrts);
 
 int cfg80211_wext_siwfrag(struct net_device *dev,
 			  struct iw_request_info *info,
@@ -327,7 +321,6 @@ out:
 
 	return err;
 }
-EXPORT_WEXT_HANDLER(cfg80211_wext_siwfrag);
 
 int cfg80211_wext_giwfrag(struct net_device *dev,
 			  struct iw_request_info *info,
@@ -342,7 +335,6 @@ int cfg80211_wext_giwfrag(struct net_device *dev,
 
 	return 0;
 }
-EXPORT_WEXT_HANDLER(cfg80211_wext_giwfrag);
 
 static int cfg80211_wext_siwretry(struct net_device *dev,
 				  struct iw_request_info *info,
@@ -413,7 +405,6 @@ int cfg80211_wext_giwretry(struct net_device *dev,
 
 	return 0;
 }
-EXPORT_WEXT_HANDLER(cfg80211_wext_giwretry);
 
 static int cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 				   struct net_device *dev, bool pairwise,
@@ -830,7 +821,7 @@ static int cfg80211_wext_siwfreq(struct net_device *dev,
 			ret = -EINVAL;
 			break;
 		}
-		ret = cfg80211_set_monitor_channel(rdev, &chandef);
+		ret = cfg80211_set_monitor_channel(rdev, dev, &chandef);
 		break;
 	case NL80211_IFTYPE_MESH_POINT:
 		freq = cfg80211_wext_freq(wextfreq);
@@ -1204,7 +1195,7 @@ static int cfg80211_wext_siwpower(struct net_device *dev,
 		switch (wrq->flags & IW_POWER_MODE) {
 		case IW_POWER_ON:       /* If not specified */
 		case IW_POWER_MODE:     /* If set all mask */
-		case IW_POWER_ALL_R:    /* If explicitely state all */
+		case IW_POWER_ALL_R:    /* If explicitly state all */
 			ps = true;
 			break;
 		default:                /* Otherwise we ignore */

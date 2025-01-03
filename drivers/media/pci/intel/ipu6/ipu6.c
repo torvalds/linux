@@ -247,7 +247,8 @@ ipu6_pkg_dir_configure_spc(struct ipu6_device *isp,
 		dma_addr = sg_dma_address(isp->psys->fw_sgt.sgl);
 
 	pg_offset = server_fw_addr - dma_addr;
-	prog = (struct ipu6_cell_program *)((u64)isp->cpd_fw->data + pg_offset);
+	prog = (struct ipu6_cell_program *)((uintptr_t)isp->cpd_fw->data +
+					    pg_offset);
 	spc_base = base + prog->regs_addr;
 	if (spc_base != (base + hw_variant->spc_offset))
 		dev_warn(&isp->pdev->dev,
@@ -752,6 +753,9 @@ static void ipu6_pci_reset_done(struct pci_dev *pdev)
  */
 static int ipu6_suspend(struct device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev(dev);
+
+	synchronize_irq(pdev->irq);
 	return 0;
 }
 

@@ -734,7 +734,7 @@ static struct platform_driver sdhci_xenon_driver = {
 		.pm = &sdhci_xenon_dev_pm_ops,
 	},
 	.probe	= xenon_probe,
-	.remove_new = xenon_remove,
+	.remove = xenon_remove,
 };
 
 module_platform_driver(sdhci_xenon_driver);

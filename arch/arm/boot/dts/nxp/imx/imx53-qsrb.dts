@@ -13,12 +13,10 @@
 };
 
 &iomuxc {
-	imx53-qsrb {
-		pinctrl_pmic: pmicgrp {
-			fsl,pins = <
-				MX53_PAD_CSI0_DAT5__GPIO5_23	0x1c4 /* IRQ */
-			>;
-		};
+	pinctrl_pmic: pmicgrp {
+		fsl,pins = <
+			MX53_PAD_CSI0_DAT5__GPIO5_23	0x1c4 /* IRQ */
+		>;
 	};
 };
 

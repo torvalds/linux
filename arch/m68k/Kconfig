@@ -84,24 +84,23 @@ config MMU
 	  support by paged memory management. If unsure, say 'Y'.
 
 config MMU_MOTOROLA
-	bool
+	def_bool MMU && M68KCLASSIC
 	select HAVE_PAGE_SIZE_4KB
 
 config MMU_COLDFIRE
+	def_bool MMU && COLDFIRE
 	select HAVE_PAGE_SIZE_8KB
-	bool
 
 config MMU_SUN3
-	bool
+	def_bool MMU && SUN3
 	select HAVE_PAGE_SIZE_8KB
-	depends on MMU && !MMU_MOTOROLA && !MMU_COLDFIRE
 
 config ARCH_SUPPORTS_KEXEC
-	def_bool M68KCLASSIC && MMU
+	def_bool (M68KCLASSIC || SUN3) && MMU
 
 config BOOTINFO_PROC
 	bool "Export bootinfo in procfs"
-	depends on KEXEC && M68KCLASSIC
+	depends on KEXEC && (M68KCLASSIC || SUN3)
 	help
 	  Say Y to export the bootinfo used to boot the kernel in a
 	  "bootinfo" file in procfs.  This is useful with kexec.

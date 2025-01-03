@@ -271,10 +271,8 @@ static int kfd_get_cu_occupancy(struct attribute *attr, char *buffer)
 	struct kfd_process *proc = NULL;
 	struct kfd_process_device *pdd = NULL;
 	int i;
-	struct kfd_cu_occupancy cu_occupancy[AMDGPU_MAX_QUEUES];
+	struct kfd_cu_occupancy *cu_occupancy;
 	u32 queue_format;
-
-	memset(cu_occupancy, 0x0, sizeof(cu_occupancy));
 
 	pdd = container_of(attr, struct kfd_process_device, attr_cu_occupancy);
 	dev = pdd->dev;
@@ -292,6 +290,10 @@ static int kfd_get_cu_occupancy(struct attribute *attr, char *buffer)
 	/* Collect wave count from device if it supports */
 	wave_cnt = 0;
 	max_waves_per_cu = 0;
+
+	cu_occupancy = kcalloc(AMDGPU_MAX_QUEUES, sizeof(*cu_occupancy), GFP_KERNEL);
+	if (!cu_occupancy)
+		return -ENOMEM;
 
 	/*
 	 * For GFX 9.4.3, fetch the CU occupancy from the first XCC in the partition.
@@ -318,6 +320,7 @@ static int kfd_get_cu_occupancy(struct attribute *attr, char *buffer)
 
 	/* Translate wave count to number of compute units */
 	cu_cnt = (wave_cnt + (max_waves_per_cu - 1)) / max_waves_per_cu;
+	kfree(cu_occupancy);
 	return snprintf(buffer, PAGE_SIZE, "%d\n", cu_cnt);
 }
 
@@ -332,14 +335,14 @@ static ssize_t kfd_procfs_show(struct kobject *kobj, struct attribute *attr,
 	} else if (strncmp(attr->name, "vram_", 5) == 0) {
 		struct kfd_process_device *pdd = container_of(attr, struct kfd_process_device,
 							      attr_vram);
-		return snprintf(buffer, PAGE_SIZE, "%llu\n", READ_ONCE(pdd->vram_usage));
+		return snprintf(buffer, PAGE_SIZE, "%llu\n", atomic64_read(&pdd->vram_usage));
 	} else if (strncmp(attr->name, "sdma_", 5) == 0) {
 		struct kfd_process_device *pdd = container_of(attr, struct kfd_process_device,
 							      attr_sdma);
 		struct kfd_sdma_activity_handler_workarea sdma_activity_work_handler;
 
-		INIT_WORK(&sdma_activity_work_handler.sdma_activity_work,
-					kfd_sdma_activity_worker);
+		INIT_WORK_ONSTACK(&sdma_activity_work_handler.sdma_activity_work,
+				  kfd_sdma_activity_worker);
 
 		sdma_activity_work_handler.pdd = pdd;
 		sdma_activity_work_handler.sdma_activity_counter = 0;
@@ -347,6 +350,7 @@ static ssize_t kfd_procfs_show(struct kobject *kobj, struct attribute *attr,
 		schedule_work(&sdma_activity_work_handler.sdma_activity_work);
 
 		flush_work(&sdma_activity_work_handler.sdma_activity_work);
+		destroy_work_on_stack(&sdma_activity_work_handler.sdma_activity_work);
 
 		return snprintf(buffer, PAGE_SIZE, "%llu\n",
 				(sdma_activity_work_handler.sdma_activity_counter)/
@@ -850,8 +854,10 @@ struct kfd_process *kfd_create_process(struct task_struct *thread)
 		goto out;
 	}
 
-	/* A prior open of /dev/kfd could have already created the process. */
-	process = find_process(thread, false);
+	/* A prior open of /dev/kfd could have already created the process.
+	 * find_process will increase process kref in this case
+	 */
+	process = find_process(thread, true);
 	if (process) {
 		pr_debug("Process already found\n");
 	} else {
@@ -899,8 +905,6 @@ struct kfd_process *kfd_create_process(struct task_struct *thread)
 		init_waitqueue_head(&process->wait_irq_drain);
 	}
 out:
-	if (!IS_ERR(process))
-		kref_get(&process->ref);
 	mutex_unlock(&kfd_processes_mutex);
 	mmput(thread->mm);
 
@@ -1186,10 +1190,8 @@ static void kfd_process_ref_release(struct kref *ref)
 
 static struct mmu_notifier *kfd_process_alloc_notifier(struct mm_struct *mm)
 {
-	int idx = srcu_read_lock(&kfd_processes_srcu);
-	struct kfd_process *p = find_process_by_mm(mm);
-
-	srcu_read_unlock(&kfd_processes_srcu, idx);
+	/* This increments p->ref counter if kfd process p exists */
+	struct kfd_process *p = kfd_lookup_process_by_mm(mm);
 
 	return p ? &p->mmu_notifier : ERR_PTR(-ESRCH);
 }
@@ -1625,7 +1627,7 @@ struct kfd_process_device *kfd_create_process_device_data(struct kfd_node *dev,
 	pdd->bound = PDD_UNBOUND;
 	pdd->already_dequeued = false;
 	pdd->runtime_inuse = false;
-	pdd->vram_usage = 0;
+	atomic64_set(&pdd->vram_usage, 0);
 	pdd->sdma_past_activity_counter = 0;
 	pdd->user_gpu_id = dev->id;
 	atomic64_set(&pdd->evict_duration_counter, 0);
@@ -1702,12 +1704,15 @@ int kfd_process_device_init_vm(struct kfd_process_device *pdd,
 
 	ret = amdgpu_amdkfd_gpuvm_acquire_process_vm(dev->adev, avm,
 						     &p->kgd_process_info,
-						     &ef);
+						     p->ef ? NULL : &ef);
 	if (ret) {
 		dev_err(dev->adev->dev, "Failed to create process VM object\n");
 		return ret;
 	}
-	RCU_INIT_POINTER(p->ef, ef);
+
+	if (!p->ef)
+		RCU_INIT_POINTER(p->ef, ef);
+
 	pdd->drm_priv = drm_file->private_data;
 
 	ret = kfd_process_device_reserve_ib_mem(pdd);

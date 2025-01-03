@@ -997,7 +997,7 @@ static struct platform_driver fsl_qspi_driver = {
 		.pm =   &fsl_qspi_pm_ops,
 	},
 	.probe          = fsl_qspi_probe,
-	.remove_new	= fsl_qspi_remove,
+	.remove		= fsl_qspi_remove,
 };
 module_platform_driver(fsl_qspi_driver);
 

@@ -20,6 +20,9 @@
 /* size of tplg ABI in bytes */
 #define SOF_IPC3_TPLG_ABI_SIZE 3
 
+/* Base of SOF_DAI_INTEL_ALH, this should be aligned with SOC_SDW_INTEL_BIDIR_PDI_BASE */
+#define INTEL_ALH_DAI_INDEX_BASE 2
+
 struct sof_widget_data {
 	int ctrl_type;
 	int ipc_cmd;
@@ -1594,6 +1597,17 @@ static int sof_ipc3_widget_setup_comp_dai(struct snd_sof_widget *swidget)
 	if (ret < 0)
 		goto free;
 
+	/* Subtract the base to match the FW dai index. */
+	if (comp_dai->type == SOF_DAI_INTEL_ALH) {
+		if (comp_dai->dai_index < INTEL_ALH_DAI_INDEX_BASE) {
+			dev_err(sdev->dev,
+				"Invalid ALH dai index %d, only Pin numbers >= %d can be used\n",
+				comp_dai->dai_index, INTEL_ALH_DAI_INDEX_BASE);
+			return -EINVAL;
+		}
+		comp_dai->dai_index -= INTEL_ALH_DAI_INDEX_BASE;
+	}
+
 	dev_dbg(scomp->dev, "dai %s: type %d index %d\n",
 		swidget->widget->name, comp_dai->type, comp_dai->dai_index);
 	sof_dbg_comp_config(scomp, &comp_dai->config);
@@ -2167,8 +2181,16 @@ static int sof_ipc3_dai_config(struct snd_sof_dev *sdev, struct snd_sof_widget *
 	case SOF_DAI_INTEL_ALH:
 		if (data) {
 			/* save the dai_index during hw_params and reuse it for hw_free */
-			if (flags & SOF_DAI_CONFIG_FLAGS_HW_PARAMS)
-				config->dai_index = data->dai_index;
+			if (flags & SOF_DAI_CONFIG_FLAGS_HW_PARAMS) {
+				/* Subtract the base to match the FW dai index. */
+				if (data->dai_index < INTEL_ALH_DAI_INDEX_BASE) {
+					dev_err(sdev->dev,
+						"Invalid ALH dai index %d, only Pin numbers >= %d can be used\n",
+						config->dai_index, INTEL_ALH_DAI_INDEX_BASE);
+					return -EINVAL;
+				}
+				config->dai_index = data->dai_index - INTEL_ALH_DAI_INDEX_BASE;
+			}
 			config->alh.stream_id = data->dai_data;
 		}
 		break;

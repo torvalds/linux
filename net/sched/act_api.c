@@ -504,6 +504,50 @@ nla_put_failure:
 	return -1;
 }
 
+static int
+tcf_action_dump_1(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
+{
+	unsigned char *b = skb_tail_pointer(skb);
+	struct nlattr *nest;
+	int err = -EINVAL;
+	u32 flags;
+
+	if (tcf_action_dump_terse(skb, a, false))
+		goto nla_put_failure;
+
+	if (a->hw_stats != TCA_ACT_HW_STATS_ANY &&
+	    nla_put_bitfield32(skb, TCA_ACT_HW_STATS,
+			       a->hw_stats, TCA_ACT_HW_STATS_ANY))
+		goto nla_put_failure;
+
+	if (a->used_hw_stats_valid &&
+	    nla_put_bitfield32(skb, TCA_ACT_USED_HW_STATS,
+			       a->used_hw_stats, TCA_ACT_HW_STATS_ANY))
+		goto nla_put_failure;
+
+	flags = a->tcfa_flags & TCA_ACT_FLAGS_USER_MASK;
+	if (flags &&
+	    nla_put_bitfield32(skb, TCA_ACT_FLAGS,
+			       flags, flags))
+		goto nla_put_failure;
+
+	if (nla_put_u32(skb, TCA_ACT_IN_HW_COUNT, a->in_hw_count))
+		goto nla_put_failure;
+
+	nest = nla_nest_start_noflag(skb, TCA_ACT_OPTIONS);
+	if (nest == NULL)
+		goto nla_put_failure;
+	err = tcf_action_dump_old(skb, a, bind, ref);
+	if (err > 0) {
+		nla_nest_end(skb, nest);
+		return err;
+	}
+
+nla_put_failure:
+	nlmsg_trim(skb, b);
+	return -1;
+}
+
 static int tcf_dump_walker(struct tcf_idrinfo *idrinfo, struct sk_buff *skb,
 			   struct netlink_callback *cb)
 {
@@ -1190,51 +1234,6 @@ tcf_action_dump_old(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 	return a->ops->dump(skb, a, bind, ref);
 }
 
-int
-tcf_action_dump_1(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
-{
-	int err = -EINVAL;
-	unsigned char *b = skb_tail_pointer(skb);
-	struct nlattr *nest;
-	u32 flags;
-
-	if (tcf_action_dump_terse(skb, a, false))
-		goto nla_put_failure;
-
-	if (a->hw_stats != TCA_ACT_HW_STATS_ANY &&
-	    nla_put_bitfield32(skb, TCA_ACT_HW_STATS,
-			       a->hw_stats, TCA_ACT_HW_STATS_ANY))
-		goto nla_put_failure;
-
-	if (a->used_hw_stats_valid &&
-	    nla_put_bitfield32(skb, TCA_ACT_USED_HW_STATS,
-			       a->used_hw_stats, TCA_ACT_HW_STATS_ANY))
-		goto nla_put_failure;
-
-	flags = a->tcfa_flags & TCA_ACT_FLAGS_USER_MASK;
-	if (flags &&
-	    nla_put_bitfield32(skb, TCA_ACT_FLAGS,
-			       flags, flags))
-		goto nla_put_failure;
-
-	if (nla_put_u32(skb, TCA_ACT_IN_HW_COUNT, a->in_hw_count))
-		goto nla_put_failure;
-
-	nest = nla_nest_start_noflag(skb, TCA_ACT_OPTIONS);
-	if (nest == NULL)
-		goto nla_put_failure;
-	err = tcf_action_dump_old(skb, a, bind, ref);
-	if (err > 0) {
-		nla_nest_end(skb, nest);
-		return err;
-	}
-
-nla_put_failure:
-	nlmsg_trim(skb, b);
-	return -1;
-}
-EXPORT_SYMBOL(tcf_action_dump_1);
-
 int tcf_action_dump(struct sk_buff *skb, struct tc_action *actions[],
 		    int bind, int ref, bool terse)
 {
@@ -1498,8 +1497,29 @@ int tcf_action_init(struct net *net, struct tcf_proto *tp, struct nlattr *nla,
 			bool skip_sw = tc_skip_sw(fl_flags);
 			bool skip_hw = tc_skip_hw(fl_flags);
 
-			if (tc_act_bind(act->tcfa_flags))
+			if (tc_act_bind(act->tcfa_flags)) {
+				/* Action is created by classifier and is not
+				 * standalone. Check that the user did not set
+				 * any action flags different than the
+				 * classifier flags, and inherit the flags from
+				 * the classifier for the compatibility case
+				 * where no flags were specified at all.
+				 */
+				if ((tc_act_skip_sw(act->tcfa_flags) && !skip_sw) ||
+				    (tc_act_skip_hw(act->tcfa_flags) && !skip_hw)) {
+					NL_SET_ERR_MSG(extack,
+						       "Mismatch between action and filter offload flags");
+					err = -EINVAL;
+					goto err;
+				}
+				if (skip_sw)
+					act->tcfa_flags |= TCA_ACT_FLAGS_SKIP_SW;
+				if (skip_hw)
+					act->tcfa_flags |= TCA_ACT_FLAGS_SKIP_HW;
 				continue;
+			}
+
+			/* Action is standalone */
 			if (skip_sw != tc_act_skip_sw(act->tcfa_flags) ||
 			    skip_hw != tc_act_skip_hw(act->tcfa_flags)) {
 				NL_SET_ERR_MSG(extack,
@@ -2243,13 +2263,16 @@ out_module_put:
 	return skb->len;
 }
 
+static const struct rtnl_msg_handler tc_action_rtnl_msg_handlers[] __initconst = {
+	{.msgtype = RTM_NEWACTION, .doit = tc_ctl_action},
+	{.msgtype = RTM_DELACTION, .doit = tc_ctl_action},
+	{.msgtype = RTM_GETACTION, .doit = tc_ctl_action,
+	 .dumpit = tc_dump_action},
+};
+
 static int __init tc_action_init(void)
 {
-	rtnl_register(PF_UNSPEC, RTM_NEWACTION, tc_ctl_action, NULL, 0);
-	rtnl_register(PF_UNSPEC, RTM_DELACTION, tc_ctl_action, NULL, 0);
-	rtnl_register(PF_UNSPEC, RTM_GETACTION, tc_ctl_action, tc_dump_action,
-		      0);
-
+	rtnl_register_many(tc_action_rtnl_msg_handlers);
 	return 0;
 }
 

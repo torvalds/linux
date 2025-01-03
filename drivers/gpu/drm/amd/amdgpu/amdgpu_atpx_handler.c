@@ -89,18 +89,6 @@ bool amdgpu_is_atpx_hybrid(void)
 	return amdgpu_atpx_priv.atpx.is_hybrid;
 }
 
-bool amdgpu_atpx_dgpu_req_power_for_displays(void)
-{
-	return amdgpu_atpx_priv.atpx.dgpu_req_power_for_displays;
-}
-
-#if defined(CONFIG_ACPI)
-void *amdgpu_atpx_get_dhandle(void)
-{
-	return amdgpu_atpx_priv.dhandle;
-}
-#endif
-
 /**
  * amdgpu_atpx_call - call an ATPX method
  *

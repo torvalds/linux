@@ -713,7 +713,7 @@ MODULE_DEVICE_TABLE(of, mt6323_led_dt_match);
 
 static struct platform_driver mt6323_led_driver = {
 	.probe		= mt6323_led_probe,
-	.remove_new	= mt6323_led_remove,
+	.remove		= mt6323_led_remove,
 	.driver		= {
 		.name	= "mt6323-led",
 		.of_match_table = mt6323_led_dt_match,

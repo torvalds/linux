@@ -193,7 +193,7 @@ static struct platform_driver timeriomem_rng_driver = {
 		.of_match_table	= timeriomem_rng_match,
 	},
 	.probe		= timeriomem_rng_probe,
-	.remove_new	= timeriomem_rng_remove,
+	.remove		= timeriomem_rng_remove,
 };
 
 module_platform_driver(timeriomem_rng_driver);

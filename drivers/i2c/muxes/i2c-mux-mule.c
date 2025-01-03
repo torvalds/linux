@@ -66,8 +66,8 @@ static int mule_i2c_mux_probe(struct platform_device *pdev)
 	priv = i2c_mux_priv(muxc);
 
 	priv->regmap = dev_get_regmap(mux_dev->parent, NULL);
-	if (IS_ERR(priv->regmap))
-		return dev_err_probe(mux_dev, PTR_ERR(priv->regmap),
+	if (!priv->regmap)
+		return dev_err_probe(mux_dev, -ENODEV,
 				     "No parent i2c register map\n");
 
 	platform_set_drvdata(pdev, muxc);

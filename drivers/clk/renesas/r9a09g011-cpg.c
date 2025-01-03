@@ -98,7 +98,6 @@ static const struct clk_div_table dtable_divd[] = {
 	{0, 0},
 };
 
-
 static const struct clk_div_table dtable_divw[] = {
 	{0, 6},
 	{1, 7},

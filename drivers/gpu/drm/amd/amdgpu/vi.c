@@ -136,15 +136,15 @@ static const struct amdgpu_video_codec_info polaris_video_codecs_encode_array[] 
 	{
 		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC,
 		.max_width = 4096,
-		.max_height = 2304,
-		.max_pixels_per_frame = 4096 * 2304,
+		.max_height = 4096,
+		.max_pixels_per_frame = 4096 * 4096,
 		.max_level = 0,
 	},
 	{
 		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_HEVC,
 		.max_width = 4096,
-		.max_height = 2304,
-		.max_pixels_per_frame = 4096 * 2304,
+		.max_height = 4096,
+		.max_pixels_per_frame = 4096 * 4096,
 		.max_level = 0,
 	},
 };
@@ -1455,9 +1455,9 @@ static const struct amdgpu_asic_funcs vi_asic_funcs =
 #define CZ_REV_BRISTOL(rev)	 \
 	((rev >= 0xC8 && rev <= 0xCE) || (rev >= 0xE1 && rev <= 0xE6))
 
-static int vi_common_early_init(void *handle)
+static int vi_common_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (adev->flags & AMD_IS_APU) {
 		adev->smc_rreg = &cz_smc_rreg;
@@ -1679,9 +1679,9 @@ static int vi_common_early_init(void *handle)
 	return 0;
 }
 
-static int vi_common_late_init(void *handle)
+static int vi_common_late_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (amdgpu_sriov_vf(adev))
 		xgpu_vi_mailbox_get_irq(adev);
@@ -1689,9 +1689,9 @@ static int vi_common_late_init(void *handle)
 	return 0;
 }
 
-static int vi_common_sw_init(void *handle)
+static int vi_common_sw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (amdgpu_sriov_vf(adev))
 		xgpu_vi_mailbox_add_irq_id(adev);
@@ -1699,14 +1699,9 @@ static int vi_common_sw_init(void *handle)
 	return 0;
 }
 
-static int vi_common_sw_fini(void *handle)
+static int vi_common_hw_init(struct amdgpu_ip_block *ip_block)
 {
-	return 0;
-}
-
-static int vi_common_hw_init(void *handle)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	/* move the golden regs per IP block */
 	vi_init_golden_registers(adev);
@@ -1718,9 +1713,9 @@ static int vi_common_hw_init(void *handle)
 	return 0;
 }
 
-static int vi_common_hw_fini(void *handle)
+static int vi_common_hw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	/* enable the doorbell aperture */
 	vi_enable_doorbell_aperture(adev, false);
@@ -1731,33 +1726,19 @@ static int vi_common_hw_fini(void *handle)
 	return 0;
 }
 
-static int vi_common_suspend(void *handle)
+static int vi_common_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	return vi_common_hw_fini(adev);
+	return vi_common_hw_fini(ip_block);
 }
 
-static int vi_common_resume(void *handle)
+static int vi_common_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	return vi_common_hw_init(adev);
+	return vi_common_hw_init(ip_block);
 }
 
 static bool vi_common_is_idle(void *handle)
 {
 	return true;
-}
-
-static int vi_common_wait_for_idle(void *handle)
-{
-	return 0;
-}
-
-static int vi_common_soft_reset(void *handle)
-{
-	return 0;
 }
 
 static void vi_update_bif_medium_grain_light_sleep(struct amdgpu_device *adev,
@@ -2047,19 +2028,14 @@ static const struct amd_ip_funcs vi_common_ip_funcs = {
 	.early_init = vi_common_early_init,
 	.late_init = vi_common_late_init,
 	.sw_init = vi_common_sw_init,
-	.sw_fini = vi_common_sw_fini,
 	.hw_init = vi_common_hw_init,
 	.hw_fini = vi_common_hw_fini,
 	.suspend = vi_common_suspend,
 	.resume = vi_common_resume,
 	.is_idle = vi_common_is_idle,
-	.wait_for_idle = vi_common_wait_for_idle,
-	.soft_reset = vi_common_soft_reset,
 	.set_clockgating_state = vi_common_set_clockgating_state,
 	.set_powergating_state = vi_common_set_powergating_state,
 	.get_clockgating_state = vi_common_get_clockgating_state,
-	.dump_ip_state = NULL,
-	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_ip_block_version vi_common_ip_block =

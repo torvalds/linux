@@ -182,7 +182,7 @@ static struct platform_driver sdhci_driver = {
 		.of_match_table = sdhci_spear_id_table,
 	},
 	.probe		= sdhci_probe,
-	.remove_new	= sdhci_remove,
+	.remove		= sdhci_remove,
 };
 
 module_platform_driver(sdhci_driver);

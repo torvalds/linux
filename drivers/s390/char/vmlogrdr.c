@@ -531,7 +531,7 @@ static ssize_t vmlogrdr_autopurge_show(struct device *dev,
 				       char *buf)
 {
 	struct vmlogrdr_priv_t *priv = dev_get_drvdata(dev);
-	return sprintf(buf, "%u\n", priv->autopurge);
+	return sysfs_emit(buf, "%u\n", priv->autopurge);
 }
 
 
@@ -605,7 +605,7 @@ static ssize_t vmlogrdr_autorecording_show(struct device *dev,
 					   char *buf)
 {
 	struct vmlogrdr_priv_t *priv = dev_get_drvdata(dev);
-	return sprintf(buf, "%u\n", priv->autorecording);
+	return sysfs_emit(buf, "%u\n", priv->autorecording);
 }
 
 

@@ -156,19 +156,19 @@ static void si_ih_set_rptr(struct amdgpu_device *adev,
 	WREG32(IH_RB_RPTR, ih->rptr);
 }
 
-static int si_ih_early_init(void *handle)
+static int si_ih_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	si_ih_set_interrupt_funcs(adev);
 
 	return 0;
 }
 
-static int si_ih_sw_init(void *handle)
+static int si_ih_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	r = amdgpu_ih_ring_init(adev, &adev->irq.ih, 64 * 1024, false);
 	if (r)
@@ -177,43 +177,37 @@ static int si_ih_sw_init(void *handle)
 	return amdgpu_irq_init(adev);
 }
 
-static int si_ih_sw_fini(void *handle)
+static int si_ih_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	amdgpu_irq_fini_sw(adev);
 
 	return 0;
 }
 
-static int si_ih_hw_init(void *handle)
+static int si_ih_hw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	return si_ih_irq_init(adev);
 }
 
-static int si_ih_hw_fini(void *handle)
+static int si_ih_hw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	si_ih_irq_disable(adev);
+	si_ih_irq_disable(ip_block->adev);
 
 	return 0;
 }
 
-static int si_ih_suspend(void *handle)
+static int si_ih_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	return si_ih_hw_fini(adev);
+	return si_ih_hw_fini(ip_block);
 }
 
-static int si_ih_resume(void *handle)
+static int si_ih_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	return si_ih_hw_init(adev);
+	return si_ih_hw_init(ip_block);
 }
 
 static bool si_ih_is_idle(void *handle)
@@ -227,22 +221,22 @@ static bool si_ih_is_idle(void *handle)
 	return true;
 }
 
-static int si_ih_wait_for_idle(void *handle)
+static int si_ih_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
 	unsigned i;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
-		if (si_ih_is_idle(handle))
+		if (si_ih_is_idle(adev))
 			return 0;
 		udelay(1);
 	}
 	return -ETIMEDOUT;
 }
 
-static int si_ih_soft_reset(void *handle)
+static int si_ih_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	u32 srbm_soft_reset = 0;
 	u32 tmp = RREG32(SRBM_STATUS);
@@ -284,7 +278,6 @@ static int si_ih_set_powergating_state(void *handle,
 static const struct amd_ip_funcs si_ih_ip_funcs = {
 	.name = "si_ih",
 	.early_init = si_ih_early_init,
-	.late_init = NULL,
 	.sw_init = si_ih_sw_init,
 	.sw_fini = si_ih_sw_fini,
 	.hw_init = si_ih_hw_init,
@@ -296,8 +289,6 @@ static const struct amd_ip_funcs si_ih_ip_funcs = {
 	.soft_reset = si_ih_soft_reset,
 	.set_clockgating_state = si_ih_set_clockgating_state,
 	.set_powergating_state = si_ih_set_powergating_state,
-	.dump_ip_state = NULL,
-	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_ih_funcs si_ih_funcs = {

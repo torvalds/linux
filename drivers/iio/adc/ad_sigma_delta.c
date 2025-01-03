@@ -469,7 +469,7 @@ static irqreturn_t ad_sd_trigger_handler(int irq, void *p)
 		/*
 		 * Data array after transfer will look like (if status is appended):
 		 * data[] = { [0][sample][sample][sample][status] }
-		 * Keeping the first byte 0 shifts the status postion by 1 byte to the right.
+		 * Keeping the first byte 0 shifts the status position by 1 byte to the right.
 		 */
 		status_pos = reg_size + 1;
 
@@ -656,7 +656,7 @@ int ad_sd_init(struct ad_sigma_delta *sigma_delta, struct iio_dev *indio_dev,
 	sigma_delta->spi = spi;
 	sigma_delta->info = info;
 
-	/* If the field is unset in ad_sigma_delta_info, asume there can only be 1 slot. */
+	/* If the field is unset in ad_sigma_delta_info, assume there can only be 1 slot. */
 	if (!info->num_slots)
 		sigma_delta->num_slots = 1;
 	else

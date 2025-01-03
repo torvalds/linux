@@ -224,8 +224,7 @@
 	touchscreen@55 {
 		compatible = "sitronix,st1232";
 		reg = <0x55>;
-		interrupt-parent = <&irqpin1>;
-		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&irqpin1 2 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-0 = <&st1232_pins>;
 		pinctrl-names = "default";
 		gpios = <&pfc 166 GPIO_ACTIVE_LOW>;

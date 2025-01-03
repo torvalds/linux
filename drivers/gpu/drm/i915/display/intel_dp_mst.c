@@ -41,9 +41,10 @@
 #include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_dp_hdcp.h"
-#include "intel_dp_mst.h"
-#include "intel_dp_tunnel.h"
 #include "intel_dp_link_training.h"
+#include "intel_dp_mst.h"
+#include "intel_dp_test.h"
+#include "intel_dp_tunnel.h"
 #include "intel_dpio_phy.h"
 #include "intel_hdcp.h"
 #include "intel_hotplug.h"
@@ -89,25 +90,19 @@ static int intel_dp_mst_max_dpt_bpp(const struct intel_crtc_state *crtc_state,
 
 static int intel_dp_mst_bw_overhead(const struct intel_crtc_state *crtc_state,
 				    const struct intel_connector *connector,
-				    bool ssc, bool dsc, int bpp_x16)
+				    bool ssc, int dsc_slice_count, int bpp_x16)
 {
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
 	unsigned long flags = DRM_DP_BW_OVERHEAD_MST;
-	int dsc_slice_count = 0;
 	int overhead;
 
 	flags |= intel_dp_is_uhbr(crtc_state) ? DRM_DP_BW_OVERHEAD_UHBR : 0;
 	flags |= ssc ? DRM_DP_BW_OVERHEAD_SSC_REF_CLK : 0;
 	flags |= crtc_state->fec_enable ? DRM_DP_BW_OVERHEAD_FEC : 0;
 
-	if (dsc) {
+	if (dsc_slice_count)
 		flags |= DRM_DP_BW_OVERHEAD_DSC;
-		dsc_slice_count = intel_dp_dsc_get_slice_count(connector,
-							       adjusted_mode->clock,
-							       adjusted_mode->hdisplay,
-							       crtc_state->joiner_pipes);
-	}
 
 	overhead = drm_dp_bw_overhead(crtc_state->lane_count,
 				      adjusted_mode->hdisplay,
@@ -153,6 +148,19 @@ static int intel_dp_mst_calc_pbn(int pixel_clock, int bpp_x16, int bw_overhead)
 	return DIV_ROUND_UP(effective_data_rate * 64, 54 * 1000);
 }
 
+static int intel_dp_mst_dsc_get_slice_count(const struct intel_connector *connector,
+					    const struct intel_crtc_state *crtc_state)
+{
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->hw.adjusted_mode;
+	int num_joined_pipes = intel_crtc_num_joined_pipes(crtc_state);
+
+	return intel_dp_dsc_get_slice_count(connector,
+					    adjusted_mode->clock,
+					    adjusted_mode->hdisplay,
+					    num_joined_pipes);
+}
+
 static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 						struct intel_crtc_state *crtc_state,
 						int max_bpp,
@@ -172,6 +180,7 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
 	int bpp, slots = -EINVAL;
+	int dsc_slice_count = 0;
 	int max_dpt_bpp;
 	int ret = 0;
 
@@ -203,6 +212,15 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 	drm_dbg_kms(&i915->drm, "Looking for slots in range min bpp %d max bpp %d\n",
 		    min_bpp, max_bpp);
 
+	if (dsc) {
+		dsc_slice_count = intel_dp_mst_dsc_get_slice_count(connector, crtc_state);
+		if (!dsc_slice_count) {
+			drm_dbg_kms(&i915->drm, "Can't get valid DSC slice count\n");
+
+			return -ENOSPC;
+		}
+	}
+
 	for (bpp = max_bpp; bpp >= min_bpp; bpp -= step) {
 		int local_bw_overhead;
 		int remote_bw_overhead;
@@ -216,9 +234,9 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 					       intel_dp_output_bpp(crtc_state->output_format, bpp));
 
 		local_bw_overhead = intel_dp_mst_bw_overhead(crtc_state, connector,
-							     false, dsc, link_bpp_x16);
+							     false, dsc_slice_count, link_bpp_x16);
 		remote_bw_overhead = intel_dp_mst_bw_overhead(crtc_state, connector,
-							      true, dsc, link_bpp_x16);
+							      true, dsc_slice_count, link_bpp_x16);
 
 		intel_dp_mst_compute_m_n(crtc_state, connector,
 					 local_bw_overhead,
@@ -449,6 +467,9 @@ hblank_expansion_quirk_needs_dsc(const struct intel_connector *connector,
 	if (mode_hblank_period_ns(adjusted_mode) > hblank_limit)
 		return false;
 
+	if (!intel_dp_mst_dsc_get_slice_count(connector, crtc_state))
+		return false;
+
 	return true;
 }
 
@@ -539,7 +560,7 @@ intel_dp_mst_compute_config_limits(struct intel_dp *intel_dp,
 	 */
 	limits->pipe.max_bpp = min(crtc_state->pipe_bpp, 24);
 
-	intel_dp_adjust_compliance_config(intel_dp, crtc_state, limits);
+	intel_dp_test_compute_config(intel_dp, crtc_state, limits);
 
 	if (!intel_dp_compute_config_link_bpp_limits(intel_dp,
 						     crtc_state,
@@ -568,6 +589,7 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 		&pipe_config->hw.adjusted_mode;
 	struct link_config_limits limits;
 	bool dsc_needed, joiner_needs_dsc;
+	int num_joined_pipes;
 	int ret = 0;
 
 	if (pipe_config->fec_enable &&
@@ -577,16 +599,17 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return -EINVAL;
 
-	if (intel_dp_need_joiner(intel_dp, connector,
-				 adjusted_mode->crtc_hdisplay,
-				 adjusted_mode->crtc_clock))
-		pipe_config->joiner_pipes = GENMASK(crtc->pipe + 1, crtc->pipe);
+	num_joined_pipes = intel_dp_num_joined_pipes(intel_dp, connector,
+						     adjusted_mode->crtc_hdisplay,
+						     adjusted_mode->crtc_clock);
+	if (num_joined_pipes > 1)
+		pipe_config->joiner_pipes = GENMASK(crtc->pipe + num_joined_pipes - 1, crtc->pipe);
 
 	pipe_config->sink_format = INTEL_OUTPUT_FORMAT_RGB;
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 	pipe_config->has_pch_encoder = false;
 
-	joiner_needs_dsc = intel_dp_joiner_needs_dsc(dev_priv, pipe_config->joiner_pipes);
+	joiner_needs_dsc = intel_dp_joiner_needs_dsc(dev_priv, num_joined_pipes);
 
 	dsc_needed = joiner_needs_dsc || intel_dp->force_dsc_en ||
 		     !intel_dp_mst_compute_config_limits(intel_dp,
@@ -985,6 +1008,7 @@ static void intel_mst_post_disable_dp(struct intel_atomic_state *state,
 				      const struct intel_crtc_state *old_crtc_state,
 				      const struct drm_connector_state *old_conn_state)
 {
+	struct intel_display *display = to_intel_display(encoder);
 	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(encoder);
 	struct intel_digital_port *dig_port = intel_mst->primary;
 	struct intel_dp *intel_dp = &dig_port->dp;
@@ -1001,6 +1025,7 @@ static void intel_mst_post_disable_dp(struct intel_atomic_state *state,
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct intel_crtc *pipe_crtc;
 	bool last_mst_stream;
+	int i;
 
 	intel_dp->active_mst_links--;
 	last_mst_stream = intel_dp->active_mst_links == 0;
@@ -1008,8 +1033,7 @@ static void intel_mst_post_disable_dp(struct intel_atomic_state *state,
 		    DISPLAY_VER(dev_priv) >= 12 && last_mst_stream &&
 		    !intel_dp_mst_is_master_trans(old_crtc_state));
 
-	for_each_intel_crtc_in_pipe_mask(&dev_priv->drm, pipe_crtc,
-					 intel_crtc_joined_pipe_mask(old_crtc_state)) {
+	for_each_pipe_crtc_modeset_disable(display, pipe_crtc, old_crtc_state, i) {
 		const struct intel_crtc_state *old_pipe_crtc_state =
 			intel_atomic_get_old_crtc_state(state, pipe_crtc);
 
@@ -1033,8 +1057,7 @@ static void intel_mst_post_disable_dp(struct intel_atomic_state *state,
 
 	intel_ddi_disable_transcoder_func(old_crtc_state);
 
-	for_each_intel_crtc_in_pipe_mask(&dev_priv->drm, pipe_crtc,
-					 intel_crtc_joined_pipe_mask(old_crtc_state)) {
+	for_each_pipe_crtc_modeset_disable(display, pipe_crtc, old_crtc_state, i) {
 		const struct intel_crtc_state *old_pipe_crtc_state =
 			intel_atomic_get_old_crtc_state(state, pipe_crtc);
 
@@ -1243,6 +1266,7 @@ static void intel_mst_enable_dp(struct intel_atomic_state *state,
 				const struct intel_crtc_state *pipe_config,
 				const struct drm_connector_state *conn_state)
 {
+	struct intel_display *display = to_intel_display(encoder);
 	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(encoder);
 	struct intel_digital_port *dig_port = intel_mst->primary;
 	struct intel_dp *intel_dp = &dig_port->dp;
@@ -1253,7 +1277,7 @@ static void intel_mst_enable_dp(struct intel_atomic_state *state,
 	enum transcoder trans = pipe_config->cpu_transcoder;
 	bool first_mst_stream = intel_dp->active_mst_links == 1;
 	struct intel_crtc *pipe_crtc;
-	int ret;
+	int ret, i;
 
 	drm_WARN_ON(&dev_priv->drm, pipe_config->has_pch_encoder);
 
@@ -1300,8 +1324,7 @@ static void intel_mst_enable_dp(struct intel_atomic_state *state,
 
 	intel_enable_transcoder(pipe_config);
 
-	for_each_intel_crtc_in_pipe_mask_reverse(&dev_priv->drm, pipe_crtc,
-						 intel_crtc_joined_pipe_mask(pipe_config)) {
+	for_each_pipe_crtc_modeset_enable(display, pipe_crtc, pipe_config, i) {
 		const struct intel_crtc_state *pipe_crtc_state =
 			intel_atomic_get_new_crtc_state(state, pipe_crtc);
 
@@ -1422,10 +1445,11 @@ intel_dp_mst_mode_valid_ctx(struct drm_connector *connector,
 	int max_dotclk = to_i915(connector->dev)->display.cdclk.max_dotclk_freq;
 	int max_rate, mode_rate, max_lanes, max_link_clock;
 	int ret;
-	bool dsc = false, joiner = false;
+	bool dsc = false;
 	u16 dsc_max_compressed_bpp = 0;
 	u8 dsc_slice_count = 0;
 	int target_clock = mode->clock;
+	int num_joined_pipes;
 
 	if (drm_connector_is_unregistered(connector)) {
 		*status = MODE_ERROR;
@@ -1465,11 +1489,9 @@ intel_dp_mst_mode_valid_ctx(struct drm_connector *connector,
 	 *   corresponding link capabilities of the sink) in case the
 	 *   stream is uncompressed for it by the last branch device.
 	 */
-	if (intel_dp_need_joiner(intel_dp, intel_connector,
-				 mode->hdisplay, target_clock)) {
-		joiner = true;
-		max_dotclk *= 2;
-	}
+	num_joined_pipes = intel_dp_num_joined_pipes(intel_dp, intel_connector,
+						     mode->hdisplay, target_clock);
+	max_dotclk *= num_joined_pipes;
 
 	ret = drm_modeset_lock(&mgr->base.lock, ctx);
 	if (ret)
@@ -1495,20 +1517,20 @@ intel_dp_mst_mode_valid_ctx(struct drm_connector *connector,
 								    max_lanes,
 								    target_clock,
 								    mode->hdisplay,
-								    joiner,
+								    num_joined_pipes,
 								    INTEL_OUTPUT_FORMAT_RGB,
 								    pipe_bpp, 64);
 			dsc_slice_count =
 				intel_dp_dsc_get_slice_count(intel_connector,
 							     target_clock,
 							     mode->hdisplay,
-							     joiner);
+							     num_joined_pipes);
 		}
 
 		dsc = dsc_max_compressed_bpp && dsc_slice_count;
 	}
 
-	if (intel_dp_joiner_needs_dsc(dev_priv, joiner) && !dsc) {
+	if (intel_dp_joiner_needs_dsc(dev_priv, num_joined_pipes) && !dsc) {
 		*status = MODE_CLOCK_HIGH;
 		return 0;
 	}
@@ -1518,7 +1540,7 @@ intel_dp_mst_mode_valid_ctx(struct drm_connector *connector,
 		return 0;
 	}
 
-	*status = intel_mode_valid_max_plane_size(dev_priv, mode, joiner);
+	*status = intel_mode_valid_max_plane_size(dev_priv, mode, num_joined_pipes);
 	return 0;
 }
 
@@ -1550,6 +1572,8 @@ intel_dp_mst_detect(struct drm_connector *connector,
 
 	if (!intel_display_driver_check_access(i915))
 		return connector->status;
+
+	intel_dp_flush_connector_commits(intel_connector);
 
 	return drm_dp_mst_detect_port(connector, ctx, &intel_dp->mst_mgr,
 				      intel_connector->port);

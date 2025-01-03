@@ -198,8 +198,6 @@ summarize_posix_acl(struct posix_acl *acl, struct posix_acl_summary *pas)
 	memset(pas, 0, sizeof(*pas));
 	pas->mask = 07;
 
-	pe = acl->a_entries + acl->a_count;
-
 	FOREACH_ACL_ENTRY(pa, acl, pe) {
 		switch (pa->e_tag) {
 			case ACL_USER_OBJ:

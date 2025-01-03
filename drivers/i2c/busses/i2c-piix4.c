@@ -35,20 +35,7 @@
 #include <linux/acpi.h>
 #include <linux/io.h>
 
-
-/* PIIX4 SMBus address offsets */
-#define SMBHSTSTS	(0 + piix4_smba)
-#define SMBHSLVSTS	(1 + piix4_smba)
-#define SMBHSTCNT	(2 + piix4_smba)
-#define SMBHSTCMD	(3 + piix4_smba)
-#define SMBHSTADD	(4 + piix4_smba)
-#define SMBHSTDAT0	(5 + piix4_smba)
-#define SMBHSTDAT1	(6 + piix4_smba)
-#define SMBBLKDAT	(7 + piix4_smba)
-#define SMBSLVCNT	(8 + piix4_smba)
-#define SMBSHDWCMD	(9 + piix4_smba)
-#define SMBSLVEVT	(0xA + piix4_smba)
-#define SMBSLVDAT	(0xC + piix4_smba)
+#include "i2c-piix4.h"
 
 /* count for request_region */
 #define SMBIOSIZE	9
@@ -70,7 +57,6 @@
 #define PIIX4_BYTE		0x04
 #define PIIX4_BYTE_DATA		0x08
 #define PIIX4_WORD_DATA		0x0C
-#define PIIX4_BLOCK_DATA	0x14
 
 /* Multi-port constants */
 #define PIIX4_MAX_ADAPTERS	4
@@ -101,6 +87,7 @@
 
 #define SB800_PIIX4_FCH_PM_ADDR			0xFED80300
 #define SB800_PIIX4_FCH_PM_SIZE			8
+#define SB800_ASF_ACPI_PATH			"\\_SB.ASFC"
 
 /* insmod parameters */
 
@@ -160,11 +147,6 @@ static const char *piix4_main_port_names_sb800[PIIX4_MAX_ADAPTERS] = {
 };
 static const char *piix4_aux_port_name_sb800 = " port 1";
 
-struct sb800_mmio_cfg {
-	void __iomem *addr;
-	bool use_mmio;
-};
-
 struct i2c_piix4_adapdata {
 	unsigned short smba;
 
@@ -175,8 +157,7 @@ struct i2c_piix4_adapdata {
 	struct sb800_mmio_cfg mmio_cfg;
 };
 
-static int piix4_sb800_region_request(struct device *dev,
-				      struct sb800_mmio_cfg *mmio_cfg)
+int piix4_sb800_region_request(struct device *dev, struct sb800_mmio_cfg *mmio_cfg)
 {
 	if (mmio_cfg->use_mmio) {
 		void __iomem *addr;
@@ -214,9 +195,9 @@ static int piix4_sb800_region_request(struct device *dev,
 
 	return 0;
 }
+EXPORT_SYMBOL_NS_GPL(piix4_sb800_region_request, PIIX4_SMBUS);
 
-static void piix4_sb800_region_release(struct device *dev,
-				       struct sb800_mmio_cfg *mmio_cfg)
+void piix4_sb800_region_release(struct device *dev, struct sb800_mmio_cfg *mmio_cfg)
 {
 	if (mmio_cfg->use_mmio) {
 		iounmap(mmio_cfg->addr);
@@ -227,6 +208,7 @@ static void piix4_sb800_region_release(struct device *dev,
 
 	release_region(SB800_PIIX4_SMB_IDX, SB800_PIIX4_SMB_MAP_SIZE);
 }
+EXPORT_SYMBOL_NS_GPL(piix4_sb800_region_release, PIIX4_SMBUS);
 
 static bool piix4_sb800_use_mmio(struct pci_dev *PIIX4_dev)
 {
@@ -536,10 +518,8 @@ static int piix4_setup_aux(struct pci_dev *PIIX4_dev,
 	return piix4_smba;
 }
 
-static int piix4_transaction(struct i2c_adapter *piix4_adapter)
+int piix4_transaction(struct i2c_adapter *piix4_adapter, unsigned short piix4_smba)
 {
-	struct i2c_piix4_adapdata *adapdata = i2c_get_adapdata(piix4_adapter);
-	unsigned short piix4_smba = adapdata->smba;
 	int temp;
 	int result = 0;
 	int timeout = 0;
@@ -611,6 +591,7 @@ static int piix4_transaction(struct i2c_adapter *piix4_adapter)
 		inb_p(SMBHSTDAT1));
 	return result;
 }
+EXPORT_SYMBOL_NS_GPL(piix4_transaction, PIIX4_SMBUS);
 
 /* Return negative errno on error. */
 static s32 piix4_access(struct i2c_adapter * adap, u16 addr,
@@ -675,7 +656,7 @@ static s32 piix4_access(struct i2c_adapter * adap, u16 addr,
 
 	outb_p((size & 0x1C) + (ENABLE_INT9 & 1), SMBHSTCNT);
 
-	status = piix4_transaction(adap);
+	status = piix4_transaction(adap, piix4_smba);
 	if (status)
 		return status;
 
@@ -764,7 +745,7 @@ static void piix4_imc_wakeup(void)
 	release_region(KERNCZ_IMC_IDX, 2);
 }
 
-static int piix4_sb800_port_sel(u8 port, struct sb800_mmio_cfg *mmio_cfg)
+int piix4_sb800_port_sel(u8 port, struct sb800_mmio_cfg *mmio_cfg)
 {
 	u8 smba_en_lo, val;
 
@@ -786,6 +767,7 @@ static int piix4_sb800_port_sel(u8 port, struct sb800_mmio_cfg *mmio_cfg)
 
 	return (smba_en_lo & piix4_port_mask_sb800);
 }
+EXPORT_SYMBOL_NS_GPL(piix4_sb800_port_sel, PIIX4_SMBUS);
 
 /*
  * Handles access to multiple SMBus ports on the SB800.
@@ -1043,6 +1025,9 @@ static int piix4_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	int retval;
 	bool is_sb800 = false;
+	bool is_asf = false;
+	acpi_status status;
+	acpi_handle handle;
 
 	if ((dev->vendor == PCI_VENDOR_ID_ATI &&
 	     dev->device == PCI_DEVICE_ID_ATI_SBX00_SMBUS &&
@@ -1105,10 +1090,16 @@ static int piix4_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		}
 	}
 
+	status = acpi_get_handle(NULL, (acpi_string)SB800_ASF_ACPI_PATH, &handle);
+	if (ACPI_SUCCESS(status))
+		is_asf = true;
+
 	if (dev->vendor == PCI_VENDOR_ID_AMD &&
 	    (dev->device == PCI_DEVICE_ID_AMD_HUDSON2_SMBUS ||
 	     dev->device == PCI_DEVICE_ID_AMD_KERNCZ_SMBUS)) {
-		retval = piix4_setup_sb800(dev, id, 1);
+		/* Do not setup AUX port if ASF is enabled */
+		if (!is_asf)
+			retval = piix4_setup_sb800(dev, id, 1);
 	}
 
 	if (retval > 0) {

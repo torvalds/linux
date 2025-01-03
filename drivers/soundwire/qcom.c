@@ -1173,7 +1173,7 @@ static int qcom_swrm_stream_alloc_ports(struct qcom_swrm_ctrl *ctrl,
 	else
 		sconfig.direction = SDW_DATA_DIR_RX;
 
-	/* hw parameters wil be ignored as we only support PDM */
+	/* hw parameters will be ignored as we only support PDM */
 	sconfig.ch_count = 1;
 	sconfig.frame_rate = params_rate(params);
 	sconfig.type = stream->type;

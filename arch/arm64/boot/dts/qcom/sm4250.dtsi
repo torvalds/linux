@@ -5,34 +5,34 @@
 
 #include "sm6115.dtsi"
 
-&CPU0 {
+&cpu0 {
 	compatible = "qcom,kryo240";
 };
 
-&CPU1 {
+&cpu1 {
 	compatible = "qcom,kryo240";
 };
 
-&CPU2 {
+&cpu2 {
 	compatible = "qcom,kryo240";
 };
 
-&CPU3 {
+&cpu3 {
 	compatible = "qcom,kryo240";
 };
 
-&CPU4 {
+&cpu4 {
 	compatible = "qcom,kryo240";
 };
 
-&CPU5 {
+&cpu5 {
 	compatible = "qcom,kryo240";
 };
 
-&CPU6 {
+&cpu6 {
 	compatible = "qcom,kryo240";
 };
 
-&CPU7 {
+&cpu7 {
 	compatible = "qcom,kryo240";
 };

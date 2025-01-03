@@ -1,5 +1,5 @@
 #!/bin/sh
-# Use vfs_getname probe to get syscall args filenames
+# Use vfs_getname probe to get syscall args filenames (exclusive)
 
 # Uses the 'perf test shell' library to add probe:vfs_getname to the system
 # then use it with 'perf record' using 'touch' to write to a temp file, then

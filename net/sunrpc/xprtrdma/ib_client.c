@@ -153,6 +153,7 @@ static void rpcrdma_remove_one(struct ib_device *device,
 	}
 
 	trace_rpcrdma_client_remove_one_done(device);
+	xa_destroy(&rd->rd_xa);
 	kfree(rd);
 }
 

@@ -2119,7 +2119,7 @@ static struct platform_driver n2_crypto_driver = {
 		.of_match_table	=	n2_crypto_match,
 	},
 	.probe		=	n2_crypto_probe,
-	.remove_new	=	n2_crypto_remove,
+	.remove		=	n2_crypto_remove,
 };
 
 static const struct of_device_id n2_mau_match[] = {
@@ -2146,7 +2146,7 @@ static struct platform_driver n2_mau_driver = {
 		.of_match_table	=	n2_mau_match,
 	},
 	.probe		=	n2_mau_probe,
-	.remove_new	=	n2_mau_remove,
+	.remove		=	n2_mau_remove,
 };
 
 static struct platform_driver * const drivers[] = {

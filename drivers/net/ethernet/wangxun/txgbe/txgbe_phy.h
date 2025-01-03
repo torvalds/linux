@@ -4,8 +4,6 @@
 #ifndef _TXGBE_PHY_H_
 #define _TXGBE_PHY_H_
 
-irqreturn_t txgbe_gpio_irq_handler(int irq, void *data);
-void txgbe_reinit_gpio_intr(struct wx *wx);
 irqreturn_t txgbe_link_irq_handler(int irq, void *data);
 int txgbe_init_phy(struct txgbe *txgbe);
 void txgbe_remove_phy(struct txgbe *txgbe);

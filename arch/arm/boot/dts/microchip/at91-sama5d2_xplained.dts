@@ -411,7 +411,7 @@
 				scl-gpios = <&pioA PIN_PD5 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 				status = "okay";
 
-				at24@54 {
+				eeprom@54 {
 					compatible = "atmel,24c02";
 					reg = <0x54>;
 					pagesize = <16>;

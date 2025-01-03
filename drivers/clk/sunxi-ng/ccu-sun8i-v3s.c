@@ -644,7 +644,7 @@ static struct clk_hw_onecell_data sun8i_v3_hw_clks = {
 	.num	= CLK_I2S0 + 1,
 };
 
-static struct ccu_reset_map sun8i_v3s_ccu_resets[] = {
+static const struct ccu_reset_map sun8i_v3s_ccu_resets[] = {
 	[RST_USB_PHY0]		=  { 0x0cc, BIT(0) },
 
 	[RST_MBUS]		=  { 0x0fc, BIT(31) },
@@ -679,7 +679,7 @@ static struct ccu_reset_map sun8i_v3s_ccu_resets[] = {
 	[RST_BUS_UART2]		=  { 0x2d8, BIT(18) },
 };
 
-static struct ccu_reset_map sun8i_v3_ccu_resets[] = {
+static const struct ccu_reset_map sun8i_v3_ccu_resets[] = {
 	[RST_USB_PHY0]		=  { 0x0cc, BIT(0) },
 
 	[RST_MBUS]		=  { 0x0fc, BIT(31) },

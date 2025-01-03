@@ -543,7 +543,7 @@ static void au1xmmc_cmd_complete(struct au1xmmc_host *host, u32 status)
 					cmd->resp[i] |= (r[i + 1] & 0xFF000000) >> 24;
 			}
 		} else {
-			/* Techincally, we should be getting all 48 bits of
+			/* Technically, we should be getting all 48 bits of
 			 * the response (SD_RESP1 + SD_RESP2), but because
 			 * our response omits the CRC, our data ends up
 			 * being shifted 8 bits to the right.  In this case,
@@ -1185,7 +1185,7 @@ static int au1xmmc_resume(struct platform_device *pdev)
 
 static struct platform_driver au1xmmc_driver = {
 	.probe         = au1xmmc_probe,
-	.remove_new    = au1xmmc_remove,
+	.remove        = au1xmmc_remove,
 	.suspend       = au1xmmc_suspend,
 	.resume        = au1xmmc_resume,
 	.driver        = {

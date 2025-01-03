@@ -190,8 +190,8 @@ static void rt722_sdca_jack_detect_handler(struct work_struct *work)
 	if (!rt722->component->card || !rt722->component->card->instantiated)
 		return;
 
-	/* SDW_SCP_SDCA_INT_SDCA_6 is used for jack detection */
-	if (rt722->scp_sdca_stat1 & SDW_SCP_SDCA_INT_SDCA_6) {
+	/* SDW_SCP_SDCA_INT_SDCA_0 is used for jack detection */
+	if (rt722->scp_sdca_stat1 & SDW_SCP_SDCA_INT_SDCA_0) {
 		ret = rt722_sdca_headset_detect(rt722);
 		if (ret < 0)
 			return;
@@ -294,7 +294,7 @@ static void rt722_sdca_jack_init(struct rt722_sdca_priv *rt722)
 	if (rt722->hs_jack) {
 		/* set SCP_SDCA_IntMask1[0]=1 */
 		sdw_write_no_pm(rt722->slave, SDW_SCP_SDCA_INTMASK1,
-			SDW_SCP_SDCA_INTMASK_SDCA_0 | SDW_SCP_SDCA_INTMASK_SDCA_6);
+			SDW_SCP_SDCA_INTMASK_SDCA_0);
 		/* set SCP_SDCA_IntMask2[0]=1 */
 		sdw_write_no_pm(rt722->slave, SDW_SCP_SDCA_INTMASK2,
 			SDW_SCP_SDCA_INTMASK_SDCA_8);
@@ -308,6 +308,7 @@ static void rt722_sdca_jack_init(struct rt722_sdca_priv *rt722)
 		regmap_write(rt722->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT722_SDCA_ENT_XU0D,
 				RT722_SDCA_CTL_SELECTED_MODE, 0), 0);
+		rt722_sdca_index_write(rt722, RT722_VENDOR_HDA_CTL, RT722_GE_RELATED_CTL1, 0x0000);
 		/* trigger GE interrupt */
 		rt722_sdca_index_update_bits(rt722, RT722_VENDOR_HDA_CTL,
 			RT722_GE_RELATED_CTL2, 0x4000, 0x4000);
@@ -607,12 +608,8 @@ static int rt722_sdca_dmic_set_gain_get(struct snd_kcontrol *kcontrol,
 
 		if (!adc_vol_flag) /* boost gain */
 			ctl = regvalue / boost_step;
-		else { /* ADC gain */
-			if (adc_vol_flag)
-				ctl = p->max - (((vol_max - regvalue) & 0xffff) / interval_offset);
-			else
-				ctl = p->max - (((0 - regvalue) & 0xffff) / interval_offset);
-		}
+		else /* ADC gain */
+			ctl = p->max - (((vol_max - regvalue) & 0xffff) / interval_offset);
 
 		ucontrol->value.integer.value[i] = ctl;
 	}

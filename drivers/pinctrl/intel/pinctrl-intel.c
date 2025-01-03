@@ -85,6 +85,18 @@
 #define PADCFG1_TERM_UP			BIT(13)
 #define PADCFG1_TERM_SHIFT		10
 #define PADCFG1_TERM_MASK		GENMASK(12, 10)
+/*
+ * Bit 0  Bit 1  Bit 2			Value, Ohms
+ *
+ *   0      0      0			-
+ *   0      0      1			20000
+ *   0      1      0			5000
+ *   0      1      1			~4000
+ *   1      0      0			1000 (if supported)
+ *   1      0      1			~952 (if supported)
+ *   1      1      0			~833 (if supported)
+ *   1      1      1			~800 (if supported)
+ */
 #define PADCFG1_TERM_20K		BIT(2)
 #define PADCFG1_TERM_5K			BIT(1)
 #define PADCFG1_TERM_4K			(BIT(2) | BIT(1))

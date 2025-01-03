@@ -671,7 +671,7 @@ static int spd5118_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(spd5118_pm_ops, spd5118_suspend, spd5118_resume);
 
 static const struct i2c_device_id spd5118_id[] = {
-	{ "spd5118", 0 },
+	{ "spd5118" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, spd5118_id);

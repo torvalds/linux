@@ -1215,7 +1215,7 @@ MODULE_DEVICE_TABLE(of, prueth_dt_match);
 
 static struct platform_driver prueth_driver = {
 	.probe = prueth_probe,
-	.remove_new = prueth_remove,
+	.remove = prueth_remove,
 	.driver = {
 		.name = "icssg-prueth-sr1",
 		.of_match_table = prueth_dt_match,

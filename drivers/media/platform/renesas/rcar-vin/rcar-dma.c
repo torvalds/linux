@@ -123,7 +123,9 @@
 /* Video n Data Mode Register bits */
 #define VNDMR_A8BIT(n)		(((n) & 0xff) << 24)
 #define VNDMR_A8BIT_MASK	(0xff << 24)
+#define VNDMR_RMODE_RAW10	(2 << 19)
 #define VNDMR_YMODE_Y8		(1 << 12)
+#define VNDMR_YC_THR		(1 << 11)
 #define VNDMR_EXRGB		(1 << 8)
 #define VNDMR_BPSM		(1 << 4)
 #define VNDMR_ABIT		(1 << 2)
@@ -790,6 +792,12 @@ static int rvin_setup(struct rvin_dev *vin)
 	case MEDIA_BUS_FMT_Y8_1X8:
 		vnmc |= VNMC_INF_RAW8;
 		break;
+	case MEDIA_BUS_FMT_SBGGR10_1X10:
+	case MEDIA_BUS_FMT_SGBRG10_1X10:
+	case MEDIA_BUS_FMT_SGRBG10_1X10:
+	case MEDIA_BUS_FMT_SRGGB10_1X10:
+		vnmc |= VNMC_INF_RGB666;
+		break;
 	default:
 		break;
 	}
@@ -897,6 +905,12 @@ static int rvin_setup(struct rvin_dev *vin)
 		} else {
 			dmr = 0;
 		}
+		break;
+	case V4L2_PIX_FMT_SBGGR10:
+	case V4L2_PIX_FMT_SGBRG10:
+	case V4L2_PIX_FMT_SGRBG10:
+	case V4L2_PIX_FMT_SRGGB10:
+		dmr = VNDMR_RMODE_RAW10 | VNDMR_YC_THR;
 		break;
 	default:
 		vin_err(vin, "Invalid pixelformat (0x%x)\n",
@@ -1280,6 +1294,22 @@ static int rvin_mc_validate_format(struct rvin_dev *vin, struct v4l2_subdev *sd,
 		if (vin->format.pixelformat != V4L2_PIX_FMT_GREY)
 			return -EPIPE;
 		break;
+	case MEDIA_BUS_FMT_SBGGR10_1X10:
+		if (vin->format.pixelformat != V4L2_PIX_FMT_SBGGR10)
+			return -EPIPE;
+		break;
+	case MEDIA_BUS_FMT_SGBRG10_1X10:
+		if (vin->format.pixelformat != V4L2_PIX_FMT_SGBRG10)
+			return -EPIPE;
+		break;
+	case MEDIA_BUS_FMT_SGRBG10_1X10:
+		if (vin->format.pixelformat != V4L2_PIX_FMT_SGRBG10)
+			return -EPIPE;
+		break;
+	case MEDIA_BUS_FMT_SRGGB10_1X10:
+		if (vin->format.pixelformat != V4L2_PIX_FMT_SRGGB10)
+			return -EPIPE;
+		break;
 	default:
 		return -EPIPE;
 	}
@@ -1529,8 +1559,6 @@ static const struct vb2_ops rvin_qops = {
 	.buf_queue		= rvin_buffer_queue,
 	.start_streaming	= rvin_start_streaming_vq,
 	.stop_streaming		= rvin_stop_streaming_vq,
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 };
 
 void rvin_dma_unregister(struct rvin_dev *vin)

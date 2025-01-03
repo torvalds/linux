@@ -1232,6 +1232,29 @@
 #define mmMC_VM_MX_L1_PERFCOUNTER_HI                                                                   0x059d
 #define mmMC_VM_MX_L1_PERFCOUNTER_HI_BASE_IDX                                                          0
 
+// Stand Alone Walker Registers
+#define VMC_TAP_PDE_REQUEST_SNOOP_OFFSET								8
+#define VMC_TAP_PTE_REQUEST_SNOOP_OFFSET								11
+#define mmVM_L2_SAW_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32                                                 0x0606
+#define mmVM_L2_SAW_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32_BASE_IDX                                        0
+#define mmVM_L2_SAW_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32                                                 0x0607
+#define mmVM_L2_SAW_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32_BASE_IDX                                        0
+#define mmVM_L2_SAW_CONTEXT0_PAGE_TABLE_START_ADDR_LO32                                                0x0608
+#define mmVM_L2_SAW_CONTEXT0_PAGE_TABLE_START_ADDR_LO32_BASE_IDX                                       0
+#define mmVM_L2_SAW_CONTEXT0_PAGE_TABLE_START_ADDR_HI32                                                0x0609
+#define mmVM_L2_SAW_CONTEXT0_PAGE_TABLE_START_ADDR_HI32_BASE_IDX                                       0
+#define mmVM_L2_SAW_CONTEXT0_PAGE_TABLE_END_ADDR_LO32                                                  0x060a
+#define mmVM_L2_SAW_CONTEXT0_PAGE_TABLE_END_ADDR_LO32_BASE_IDX                                         0
+#define mmVM_L2_SAW_CONTEXT0_PAGE_TABLE_END_ADDR_HI32                                                  0x060b
+#define mmVM_L2_SAW_CONTEXT0_PAGE_TABLE_END_ADDR_HI32_BASE_IDX                                         0
+#define mmVM_L2_SAW_CONTEXT0_CNTL                                                                      0x0604
+#define mmVM_L2_SAW_CONTEXT0_CNTL_BASE_IDX                                                             0
+#define CONTEXT0_CNTL_ENABLE_OFFSET									0
+#define CONTEXT0_CNTL_PAGE_TABLE_DEPTH_OFFSET								1
+#define mmVM_L2_SAW_CONTEXTS_DISABLE                                                                   0x060c
+#define mmVM_L2_SAW_CONTEXTS_DISABLE_BASE_IDX                                                          0
+#define mmVM_L2_SAW_CNTL4                                                                              0x0603
+#define mmVM_L2_SAW_CNTL4_BASE_IDX                                                                     0
 
 // addressBlock: mmhub_utcl2_atcl2dec
 // base address: 0x69900

@@ -112,7 +112,7 @@ int sdw_bus_master_add(struct sdw_bus *bus, struct device *parent,
 	/* Set higher order bits */
 	*bus->assigned = ~GENMASK(SDW_BROADCAST_DEV_NUM, SDW_ENUM_DEV_NUM);
 
-	/* Set enumuration device number and broadcast device number */
+	/* Set enumeration device number and broadcast device number */
 	set_bit(SDW_ENUM_DEV_NUM, bus->assigned);
 	set_bit(SDW_BROADCAST_DEV_NUM, bus->assigned);
 

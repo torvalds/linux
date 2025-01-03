@@ -19,6 +19,7 @@
 #include <linux/iio/triggered_buffer.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
+#include <linux/types.h>
 
 #include "mma7455.h"
 
@@ -58,7 +59,7 @@ struct mma7455_data {
 	 */
 	struct {
 		__le16 channels[3];
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} scan;
 };
 

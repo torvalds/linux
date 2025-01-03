@@ -247,6 +247,19 @@ annotate.*::
 	These are in control of addresses, jump function, source code
 	in lines of assembly code from a specific program.
 
+	annotate.disassemblers::
+		Choose the disassembler to use: "objdump", "llvm",  "capstone",
+		if not specified it will first try, if available, the "llvm" one,
+		then, if it fails, "capstone", and finally the original "objdump"
+		based one.
+
+		Choosing a different one is useful when handling some feature that
+		is known to be best support at some point by one of the options,
+		to compare the output when in doubt about some bug, etc.
+
+		This can be a list, in order of preference, the first one that works
+		finishes the process.
+
 	annotate.addr2line::
 		addr2line binary to use for file names and line numbers.
 

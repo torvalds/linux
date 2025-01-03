@@ -355,7 +355,7 @@ int cs42l42_volume_put(struct snd_kcontrol *kctrl, struct snd_ctl_elem_value *uc
 
 extern const struct hda_pcm_stream cs42l42_48k_pcm_analog_playback;
 extern const struct hda_pcm_stream cs42l42_48k_pcm_analog_capture;
-extern const struct snd_pci_quirk cs8409_fixup_tbl[];
+extern const struct hda_quirk cs8409_fixup_tbl[];
 extern const struct hda_model_fixup cs8409_models[];
 extern const struct hda_fixup cs8409_fixups[];
 extern const struct hda_verb cs8409_cs42l42_init_verbs[];

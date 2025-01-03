@@ -34,6 +34,12 @@ patternProperties:
           Maximum brightness possible for the LED
         $ref: /schemas/types.yaml#/definitions/uint32
 
+      default-brightness:
+        description:
+          Brightness to be set if LED's default state is on. Used only during
+          initialization. If the option is not set then max brightness is used.
+        $ref: /schemas/types.yaml#/definitions/uint32
+
     required:
       - pwms
       - max-brightness

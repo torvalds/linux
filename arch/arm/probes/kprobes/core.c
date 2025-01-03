@@ -25,7 +25,7 @@
 #include <asm/cacheflush.h>
 #include <linux/percpu.h>
 #include <linux/bug.h>
-#include <asm/patch.h>
+#include <asm/text-patching.h>
 #include <asm/sections.h>
 
 #include "../decode-arm.h"

@@ -73,122 +73,114 @@ source qos_lib.sh
 h1_create()
 {
 	simple_if_init $h1 192.0.2.65/28
-	mtu_set $h1 10000
-}
+	defer simple_if_fini $h1 192.0.2.65/28
 
-h1_destroy()
-{
-	mtu_restore $h1
-	simple_if_fini $h1 192.0.2.65/28
+	mtu_set $h1 10000
+	defer mtu_restore $h1
 }
 
 h2_create()
 {
 	simple_if_init $h2
+	defer simple_if_fini $h2
+
 	mtu_set $h2 10000
+	defer mtu_restore $h2
 
 	vlan_create $h2 111 v$h2 192.0.2.129/28
+	defer vlan_destroy $h2 111
 	ip link set dev $h2.111 type vlan egress-qos-map 0:1
-}
-
-h2_destroy()
-{
-	vlan_destroy $h2 111
-
-	mtu_restore $h2
-	simple_if_fini $h2
 }
 
 h3_create()
 {
 	simple_if_init $h3 192.0.2.66/28
+	defer simple_if_fini $h3 192.0.2.66/28
+
 	mtu_set $h3 10000
+	defer mtu_restore $h3
 
 	vlan_create $h3 111 v$h3 192.0.2.130/28
-}
-
-h3_destroy()
-{
-	vlan_destroy $h3 111
-
-	mtu_restore $h3
-	simple_if_fini $h3 192.0.2.66/28
+	defer vlan_destroy $h3 111
 }
 
 switch_create()
 {
 	ip link set dev $swp1 up
+	defer ip link set dev $swp1 down
+
 	mtu_set $swp1 10000
+	defer mtu_restore $swp1
 
 	ip link set dev $swp2 up
+	defer ip link set dev $swp2 down
+
 	mtu_set $swp2 10000
+	defer mtu_restore $swp2
 
 	ip link set dev $swp3 up
+	defer ip link set dev $swp3 down
+
 	mtu_set $swp3 10000
+	defer mtu_restore $swp3
 
 	vlan_create $swp2 111
+	defer vlan_destroy $swp2 111
+
 	vlan_create $swp3 111
+	defer vlan_destroy $swp3 111
 
 	tc qdisc replace dev $swp3 root handle 3: tbf rate 1gbit \
 		burst 128K limit 1G
+	defer tc qdisc del dev $swp3 root handle 3:
+
 	tc qdisc replace dev $swp3 parent 3:3 handle 33: \
 		prio bands 8 priomap 7 7 7 7 7 7 7 7
+	defer tc qdisc del dev $swp3 parent 3:3 handle 33:
 
 	ip link add name br1 type bridge vlan_filtering 0
+	defer ip link del dev br1
 	ip link set dev br1 addrgenmode none
 	ip link set dev br1 up
+
 	ip link set dev $swp1 master br1
+	defer ip link set dev $swp1 nomaster
+
 	ip link set dev $swp3 master br1
+	defer ip link set dev $swp3 nomaster
 
 	ip link add name br111 type bridge vlan_filtering 0
+	defer ip link del dev br111
 	ip link set dev br111 addrgenmode none
 	ip link set dev br111 up
+
 	ip link set dev $swp2.111 master br111
+	defer ip link set dev $swp2.111 nomaster
+
 	ip link set dev $swp3.111 master br111
+	defer ip link set dev $swp3.111 nomaster
 
 	# Make sure that ingress quotas are smaller than egress so that there is
 	# room for both streams of traffic to be admitted to shared buffer.
 	devlink_port_pool_th_save $swp1 0
 	devlink_port_pool_th_set $swp1 0 5
+	defer devlink_port_pool_th_restore $swp1 0
+
 	devlink_tc_bind_pool_th_save $swp1 0 ingress
 	devlink_tc_bind_pool_th_set $swp1 0 ingress 0 5
+	defer devlink_tc_bind_pool_th_restore $swp1 0 ingress
 
 	devlink_port_pool_th_save $swp2 0
 	devlink_port_pool_th_set $swp2 0 5
+	defer devlink_port_pool_th_restore $swp2 0
+
 	devlink_tc_bind_pool_th_save $swp2 1 ingress
 	devlink_tc_bind_pool_th_set $swp2 1 ingress 0 5
+	defer devlink_tc_bind_pool_th_restore $swp2 1 ingress
 
 	devlink_port_pool_th_save $swp3 4
 	devlink_port_pool_th_set $swp3 4 12
-}
-
-switch_destroy()
-{
-	devlink_port_pool_th_restore $swp3 4
-
-	devlink_tc_bind_pool_th_restore $swp2 1 ingress
-	devlink_port_pool_th_restore $swp2 0
-
-	devlink_tc_bind_pool_th_restore $swp1 0 ingress
-	devlink_port_pool_th_restore $swp1 0
-
-	ip link del dev br111
-	ip link del dev br1
-
-	tc qdisc del dev $swp3 parent 3:3 handle 33:
-	tc qdisc del dev $swp3 root handle 3:
-
-	vlan_destroy $swp3 111
-	vlan_destroy $swp2 111
-
-	mtu_restore $swp3
-	ip link set dev $swp3 down
-
-	mtu_restore $swp2
-	ip link set dev $swp2 down
-
-	mtu_restore $swp1
-	ip link set dev $swp1 down
+	defer devlink_port_pool_th_restore $swp3 4
 }
 
 setup_prepare()
@@ -205,6 +197,7 @@ setup_prepare()
 	h3mac=$(mac_get $h3)
 
 	vrf_prepare
+	defer vrf_cleanup
 
 	h1_create
 	h2_create
@@ -212,45 +205,45 @@ setup_prepare()
 	switch_create
 }
 
-cleanup()
-{
-	pre_cleanup
-
-	switch_destroy
-	h3_destroy
-	h2_destroy
-	h1_destroy
-
-	vrf_cleanup
-}
-
 ping_ipv4()
 {
 	ping_test $h2 192.0.2.130
+}
+
+__run_uc_measure_rate()
+{
+	local what=$1; shift
+	local -a uc_rate
+
+	start_traffic $h2.111 192.0.2.129 192.0.2.130 $h3mac
+	defer stop_traffic $!
+
+	uc_rate=($(measure_rate $swp2 $h3 rx_octets_prio_1 "$what"))
+	check_err $? "Could not get high enough $what ingress rate"
+
+	echo ${uc_rate[@]}
+}
+
+run_uc_measure_rate()
+{
+	in_defer_scope __run_uc_measure_rate "$@"
 }
 
 test_mc_aware()
 {
 	RET=0
 
-	local -a uc_rate
-	start_traffic $h2.111 192.0.2.129 192.0.2.130 $h3mac
-	uc_rate=($(measure_rate $swp2 $h3 rx_octets_prio_1 "UC-only"))
-	check_err $? "Could not get high enough UC-only ingress rate"
-	stop_traffic
+	local -a uc_rate=($(run_uc_measure_rate "UC-only"))
 	local ucth1=${uc_rate[1]}
 
 	start_traffic $h1 192.0.2.65 bc bc
+	defer stop_traffic $!
 
 	local d0=$(date +%s)
 	local t0=$(ethtool_stats_get $h3 rx_octets_prio_0)
 	local u0=$(ethtool_stats_get $swp1 rx_octets_prio_0)
 
-	local -a uc_rate_2
-	start_traffic $h2.111 192.0.2.129 192.0.2.130 $h3mac
-	uc_rate_2=($(measure_rate $swp2 $h3 rx_octets_prio_1 "UC+MC"))
-	check_err $? "Could not get high enough UC+MC ingress rate"
-	stop_traffic
+	local -a uc_rate_2=($(run_uc_measure_rate "UC+MC"))
 	local ucth2=${uc_rate_2[1]}
 
 	local d1=$(date +%s)
@@ -271,8 +264,6 @@ test_mc_aware()
 	local interval=$((d1 - d0))
 	local mc_ir=$(rate $u0 $u1 $interval)
 	local mc_er=$(rate $t0 $t1 $interval)
-
-	stop_traffic
 
 	log_test "UC performance under MC overload"
 
@@ -297,6 +288,7 @@ test_uc_aware()
 	RET=0
 
 	start_traffic $h2.111 192.0.2.129 192.0.2.130 $h3mac
+	defer stop_traffic $!
 
 	local d0=$(date +%s)
 	local t0=$(ethtool_stats_get $h3 rx_octets_prio_1)
@@ -325,8 +317,6 @@ test_uc_aware()
 
 	((attempts == passes))
 	check_err $?
-
-	stop_traffic
 
 	log_test "MC performance under UC overload"
 	echo "    ingress UC throughput $(humanize ${uc_ir})"

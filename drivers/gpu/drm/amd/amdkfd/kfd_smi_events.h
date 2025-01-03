@@ -44,7 +44,8 @@ void kfd_smi_event_migration_start(struct kfd_node *node, pid_t pid,
 			     uint32_t trigger);
 void kfd_smi_event_migration_end(struct kfd_node *node, pid_t pid,
 			     unsigned long start, unsigned long end,
-			     uint32_t from, uint32_t to, uint32_t trigger);
+			     uint32_t from, uint32_t to, uint32_t trigger,
+			     int error_code);
 void kfd_smi_event_queue_eviction(struct kfd_node *node, pid_t pid,
 				  uint32_t trigger);
 void kfd_smi_event_queue_restore(struct kfd_node *node, pid_t pid);

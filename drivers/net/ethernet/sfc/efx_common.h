@@ -40,7 +40,6 @@ void efx_destroy_reset_workqueue(void);
 void efx_start_monitor(struct efx_nic *efx);
 
 int __efx_reconfigure_port(struct efx_nic *efx);
-int efx_reconfigure_port(struct efx_nic *efx);
 
 #define EFX_ASSERT_RESET_SERIALISED(efx)				\
 	do {								\

@@ -125,7 +125,7 @@ static const struct vm_operations_struct global_mmio_vmops = {
 };
 
 static int global_mmio_mmap(struct file *filp, struct kobject *kobj,
-			struct bin_attribute *bin_attr,
+			const struct bin_attribute *bin_attr,
 			struct vm_area_struct *vma)
 {
 	struct ocxl_afu *afu = to_afu(kobj_to_dev(kobj));

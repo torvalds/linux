@@ -6,7 +6,7 @@ import random
 from lib.py import ksft_run, ksft_pr, ksft_exit, ksft_eq, ksft_ne, ksft_ge, ksft_lt
 from lib.py import NetDrvEpEnv
 from lib.py import EthtoolFamily, NetdevFamily
-from lib.py import KsftSkipEx
+from lib.py import KsftSkipEx, KsftFailEx
 from lib.py import rand_port
 from lib.py import ethtool, ip, defer, GenerateTraffic, CmdExitFailure
 
@@ -215,7 +215,7 @@ def test_rss_queue_reconfigure(cfg, main_ctx=True):
         defer(ethtool, f"-X {cfg.ifname} default")
     else:
         other_key = 'noise'
-        flow = f"flow-type tcp{cfg.addr_ipver} dst-port {port} context {ctx_id}"
+        flow = f"flow-type tcp{cfg.addr_ipver} dst-ip {cfg.addr} dst-port {port} context {ctx_id}"
         ntuple = ethtool_create(cfg, "-N", flow)
         defer(ethtool, f"-N {cfg.ifname} delete {ntuple}")
 
@@ -237,6 +237,32 @@ def test_rss_queue_reconfigure(cfg, main_ctx=True):
         pass
     else:
         raise Exception(f"Driver didn't prevent us from deactivating a used queue (context {ctx_id})")
+
+    if not main_ctx:
+        ethtool(f"-L {cfg.ifname} combined 4")
+        flow = f"flow-type tcp{cfg.addr_ipver} dst-ip {cfg.addr} dst-port {port} context {ctx_id} action 1"
+        try:
+            # this targets queue 4, which doesn't exist
+            ntuple2 = ethtool_create(cfg, "-N", flow)
+        except CmdExitFailure:
+            pass
+        else:
+            raise Exception(f"Driver didn't prevent us from targeting a nonexistent queue (context {ctx_id})")
+        # change the table to target queues 0 and 2
+        ethtool(f"-X {cfg.ifname} {ctx_ref} weight 1 0 1 0")
+        # ntuple rule therefore targets queues 1 and 3
+        ntuple2 = ethtool_create(cfg, "-N", flow)
+        # should replace existing filter
+        ksft_eq(ntuple, ntuple2)
+        _send_traffic_check(cfg, port, ctx_ref, { 'target': (1, 3),
+                                                  'noise' : (0, 2) })
+        # Setting queue count to 3 should fail, queue 3 is used
+        try:
+            ethtool(f"-L {cfg.ifname} combined 3")
+        except CmdExitFailure:
+            pass
+        else:
+            raise Exception(f"Driver didn't prevent us from deactivating a used queue (context {ctx_id})")
 
 
 def test_rss_resize(cfg):
@@ -429,7 +455,7 @@ def test_rss_context(cfg, ctx_cnt=1, create_with_cfg=None):
         ksft_eq(max(data['rss-indirection-table']), 2 + i * 2 + 1, "Unexpected context cfg: " + str(data))
 
         ports.append(rand_port())
-        flow = f"flow-type tcp{cfg.addr_ipver} dst-port {ports[i]} context {ctx_id}"
+        flow = f"flow-type tcp{cfg.addr_ipver} dst-ip {cfg.addr} dst-port {ports[i]} context {ctx_id}"
         ntuple = ethtool_create(cfg, "-N", flow)
         defer(ethtool, f"-N {cfg.ifname} delete {ntuple}")
 
@@ -516,7 +542,7 @@ def test_rss_context_out_of_order(cfg, ctx_cnt=4):
         ctx.append(defer(ethtool, f"-X {cfg.ifname} context {ctx_id} delete"))
 
         ports.append(rand_port())
-        flow = f"flow-type tcp{cfg.addr_ipver} dst-port {ports[i]} context {ctx_id}"
+        flow = f"flow-type tcp{cfg.addr_ipver} dst-ip {cfg.addr} dst-port {ports[i]} context {ctx_id}"
         ntuple_id = ethtool_create(cfg, "-N", flow)
         ntuple.append(defer(ethtool, f"-N {cfg.ifname} delete {ntuple_id}"))
 
@@ -569,7 +595,7 @@ def test_rss_context_overlap(cfg, other_ctx=0):
 
     port = rand_port()
     if other_ctx:
-        flow = f"flow-type tcp{cfg.addr_ipver} dst-port {port} context {other_ctx}"
+        flow = f"flow-type tcp{cfg.addr_ipver} dst-ip {cfg.addr} dst-port {port} context {other_ctx}"
         ntuple_id = ethtool_create(cfg, "-N", flow)
         ntuple = defer(ethtool, f"-N {cfg.ifname} delete {ntuple_id}")
 
@@ -587,7 +613,7 @@ def test_rss_context_overlap(cfg, other_ctx=0):
     # Now create a rule for context 1 and make sure traffic goes to a subset
     if other_ctx:
         ntuple.exec()
-    flow = f"flow-type tcp{cfg.addr_ipver} dst-port {port} context {ctx_id}"
+    flow = f"flow-type tcp{cfg.addr_ipver} dst-ip {cfg.addr} dst-port {port} context {ctx_id}"
     ntuple_id = ethtool_create(cfg, "-N", flow)
     defer(ethtool, f"-N {cfg.ifname} delete {ntuple_id}")
 
@@ -606,6 +632,72 @@ def test_rss_context_overlap2(cfg):
     test_rss_context_overlap(cfg, True)
 
 
+def test_delete_rss_context_busy(cfg):
+    """
+    Test that deletion returns -EBUSY when an rss context is being used
+    by an ntuple filter.
+    """
+
+    require_ntuple(cfg)
+
+    # create additional rss context
+    ctx_id = ethtool_create(cfg, "-X", "context new")
+    ctx_deleter = defer(ethtool, f"-X {cfg.ifname} context {ctx_id} delete")
+
+    # utilize context from ntuple filter
+    port = rand_port()
+    flow = f"flow-type tcp{cfg.addr_ipver} dst-ip {cfg.addr} dst-port {port} context {ctx_id}"
+    ntuple_id = ethtool_create(cfg, "-N", flow)
+    defer(ethtool, f"-N {cfg.ifname} delete {ntuple_id}")
+
+    # attempt to delete in-use context
+    try:
+        ctx_deleter.exec_only()
+        ctx_deleter.cancel()
+        raise KsftFailEx(f"deleted context {ctx_id} used by rule {ntuple_id}")
+    except CmdExitFailure:
+        pass
+
+
+def test_rss_ntuple_addition(cfg):
+    """
+    Test that the queue offset (ring_cookie) of an ntuple rule is added
+    to the queue number read from the indirection table.
+    """
+
+    require_ntuple(cfg)
+
+    queue_cnt = len(_get_rx_cnts(cfg))
+    if queue_cnt < 4:
+        try:
+            ksft_pr(f"Increasing queue count {queue_cnt} -> 4")
+            ethtool(f"-L {cfg.ifname} combined 4")
+            defer(ethtool, f"-L {cfg.ifname} combined {queue_cnt}")
+        except:
+            raise KsftSkipEx("Not enough queues for the test")
+
+    # Use queue 0 for normal traffic
+    ethtool(f"-X {cfg.ifname} equal 1")
+    defer(ethtool, f"-X {cfg.ifname} default")
+
+    # create additional rss context
+    ctx_id = ethtool_create(cfg, "-X", "context new equal 2")
+    defer(ethtool, f"-X {cfg.ifname} context {ctx_id} delete")
+
+    # utilize context from ntuple filter
+    port = rand_port()
+    flow = f"flow-type tcp{cfg.addr_ipver} dst-ip {cfg.addr} dst-port {port} context {ctx_id} action 2"
+    try:
+        ntuple_id = ethtool_create(cfg, "-N", flow)
+    except CmdExitFailure:
+        raise KsftSkipEx("Ntuple filter with RSS and nonzero action not supported")
+    defer(ethtool, f"-N {cfg.ifname} delete {ntuple_id}")
+
+    _send_traffic_check(cfg, port, f"context {ctx_id}", { 'target': (2, 3),
+                                                          'empty' : (1,),
+                                                          'noise' : (0,) })
+
+
 def main() -> None:
     with NetDrvEpEnv(__file__, nsim_test=False) as cfg:
         cfg.ethnl = EthtoolFamily()
@@ -616,7 +708,8 @@ def main() -> None:
                   test_rss_context, test_rss_context4, test_rss_context32,
                   test_rss_context_dump, test_rss_context_queue_reconfigure,
                   test_rss_context_overlap, test_rss_context_overlap2,
-                  test_rss_context_out_of_order, test_rss_context4_create_with_cfg],
+                  test_rss_context_out_of_order, test_rss_context4_create_with_cfg,
+                  test_delete_rss_context_busy, test_rss_ntuple_addition],
                  args=(cfg, ))
     ksft_exit()
 

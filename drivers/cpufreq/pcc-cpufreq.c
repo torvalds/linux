@@ -615,7 +615,7 @@ static struct platform_driver pcc_cpufreq_platdrv = {
 	.driver = {
 		.name	= "pcc-cpufreq",
 	},
-	.remove_new	= pcc_cpufreq_remove,
+	.remove		= pcc_cpufreq_remove,
 };
 
 static int __init pcc_cpufreq_init(void)

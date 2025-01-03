@@ -53,9 +53,6 @@
 
 
 #include "logger_types.h"
-#undef DC_LOGGER
-#define DC_LOGGER \
-	clk_mgr->base.base.ctx->logger
 
 
 #define MAX_INSTANCE                                        7
@@ -77,6 +74,9 @@ static const struct IP_BASE CLK_BASE = { { { { 0x00016C00, 0x02401800, 0, 0, 0, 
 					{ { 0x0001B200, 0x0242DC00, 0, 0, 0, 0, 0, 0 } },
 					{ { 0x0001B400, 0x0242E000, 0, 0, 0, 0, 0, 0 } } } };
 
+#undef DC_LOGGER
+#define DC_LOGGER \
+	clk_mgr->base.base.ctx->logger
 #define regCLK1_CLK_PLL_REQ			0x0237
 #define regCLK1_CLK_PLL_REQ_BASE_IDX		0
 

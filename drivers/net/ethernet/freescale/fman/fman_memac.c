@@ -1087,7 +1087,6 @@ int memac_initialization(struct mac_device *mac_dev,
 	mac_dev->set_exception		= memac_set_exception;
 	mac_dev->set_allmulti		= memac_set_allmulti;
 	mac_dev->set_tstamp		= memac_set_tstamp;
-	mac_dev->set_multi		= fman_set_multi;
 	mac_dev->enable			= memac_enable;
 	mac_dev->disable		= memac_disable;
 

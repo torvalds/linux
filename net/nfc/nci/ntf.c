@@ -402,7 +402,7 @@ static int nci_extract_activation_params_iso_dep(struct nci_dev *ndev,
 	switch (ntf->activation_rf_tech_and_mode) {
 	case NCI_NFC_A_PASSIVE_POLL_MODE:
 		nfca_poll = &ntf->activation_params.nfca_poll_iso_dep;
-		nfca_poll->rats_res_len = min_t(__u8, *data++, 20);
+		nfca_poll->rats_res_len = min_t(__u8, *data++, NFC_ATS_MAXSIZE);
 		pr_debug("rats_res_len %d\n", nfca_poll->rats_res_len);
 		if (nfca_poll->rats_res_len > 0) {
 			memcpy(nfca_poll->rats_res,
@@ -526,6 +526,28 @@ static int nci_store_general_bytes_nfc_dep(struct nci_dev *ndev,
 		pr_err("unsupported activation_rf_tech_and_mode 0x%x\n",
 		       ntf->activation_rf_tech_and_mode);
 		return NCI_STATUS_RF_PROTOCOL_ERROR;
+	}
+
+	return NCI_STATUS_OK;
+}
+
+static int nci_store_ats_nfc_iso_dep(struct nci_dev *ndev,
+				     const struct nci_rf_intf_activated_ntf *ntf)
+{
+	ndev->target_ats_len = 0;
+
+	if (ntf->activation_params_len <= 0)
+		return NCI_STATUS_OK;
+
+	if (ntf->activation_params.nfca_poll_iso_dep.rats_res_len > NFC_ATS_MAXSIZE) {
+		pr_debug("ATS too long\n");
+		return NCI_STATUS_RF_PROTOCOL_ERROR;
+	}
+
+	if (ntf->activation_params.nfca_poll_iso_dep.rats_res_len > 0) {
+		ndev->target_ats_len = ntf->activation_params.nfca_poll_iso_dep.rats_res_len;
+		memcpy(ndev->target_ats, ntf->activation_params.nfca_poll_iso_dep.rats_res,
+		       ndev->target_ats_len);
 	}
 
 	return NCI_STATUS_OK;
@@ -659,6 +681,14 @@ exit:
 			err = nci_store_general_bytes_nfc_dep(ndev, &ntf);
 			if (err != NCI_STATUS_OK)
 				pr_err("unable to store general bytes\n");
+		}
+
+		/* store ATS to be reported later in nci_activate_target */
+		if (ntf.rf_interface == NCI_RF_INTERFACE_ISO_DEP &&
+		    ntf.activation_rf_tech_and_mode == NCI_NFC_A_PASSIVE_POLL_MODE) {
+			err = nci_store_ats_nfc_iso_dep(ndev, &ntf);
+			if (err != NCI_STATUS_OK)
+				pr_err("unable to store ATS\n");
 		}
 	}
 

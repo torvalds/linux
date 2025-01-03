@@ -1,0 +1,87 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+//
+// Copyright 2024 Comvetia AG
+
+/dts-v1/;
+#include "imx6q-phytec-pfla02.dtsi"
+
+/ {
+	model = "COMVETIA QSoIP LXR-2";
+	compatible = "comvetia,imx6q-lxr", "phytec,imx6q-pfla02", "fsl,imx6q";
+
+	chosen {
+		stdout-path = &uart4;
+	};
+
+	spi {
+		compatible = "spi-gpio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_spi_gpio>;
+		sck-gpios = <&gpio5 8 GPIO_ACTIVE_HIGH>;
+		mosi-gpios = <&gpio5 7 GPIO_ACTIVE_HIGH>;
+		num-chipselects = <0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		fpga@0 {
+			compatible = "altr,fpga-passive-serial";
+			reg = <0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_fpga>;
+			nconfig-gpios = <&gpio4 18 GPIO_ACTIVE_LOW>;
+			nstat-gpios = <&gpio4 19 GPIO_ACTIVE_LOW>;
+			confd-gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;
+		};
+	};
+};
+
+&ecspi3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi3>;
+	cs-gpios = <&gpio4 24 GPIO_ACTIVE_LOW>;
+	status = "okay";
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <20000000>;
+	};
+};
+
+&fec {
+	status = "okay";
+};
+
+&i2c3 {
+	status = "okay";
+};
+
+&uart3 {
+	status = "okay";
+};
+
+&uart4 {
+	status = "okay";
+};
+
+&usdhc3 {
+	no-1-8-v;
+	status = "okay";
+};
+
+&iomuxc {
+	pinctrl_fpga: fpgagrp {
+		fsl,pins = <
+			MX6QDL_PAD_GPIO_6__GPIO1_IO06       0x1b0b0
+			MX6QDL_PAD_DI0_PIN2__GPIO4_IO18     0x1b0b0
+			MX6QDL_PAD_DI0_PIN3__GPIO4_IO19     0x1b0b0
+		>;
+	};
+
+	pinctrl_spi_gpio: spigpiogrp {
+		fsl,pins = <
+			MX6QDL_PAD_DISP0_DAT14__GPIO5_IO08  0x1b0b0
+			MX6QDL_PAD_DISP0_DAT13__GPIO5_IO07  0x1b0b0
+		>;
+	};
+};

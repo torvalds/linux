@@ -46,13 +46,15 @@ extern int amd_iommu_gpt_level;
 extern unsigned long amd_iommu_pgsize_bitmap;
 
 /* Protection domain ops */
+void amd_iommu_init_identity_domain(void);
 struct protection_domain *protection_domain_alloc(unsigned int type, int nid);
 void protection_domain_free(struct protection_domain *domain);
 struct iommu_domain *amd_iommu_domain_alloc_sva(struct device *dev,
 						struct mm_struct *mm);
 void amd_iommu_domain_free(struct iommu_domain *dom);
 int iommu_sva_set_dev_pasid(struct iommu_domain *domain,
-			    struct device *dev, ioasid_t pasid);
+			    struct device *dev, ioasid_t pasid,
+			    struct iommu_domain *old);
 void amd_iommu_remove_dev_pasid(struct device *dev, ioasid_t pasid,
 				struct iommu_domain *domain);
 
@@ -118,9 +120,14 @@ static inline bool check_feature2(u64 mask)
 	return (amd_iommu_efr2 & mask);
 }
 
+static inline bool amd_iommu_v2_pgtbl_supported(void)
+{
+	return (check_feature(FEATURE_GIOSUP) && check_feature(FEATURE_GT));
+}
+
 static inline bool amd_iommu_gt_ppr_supported(void)
 {
-	return (check_feature(FEATURE_GT) &&
+	return (amd_iommu_v2_pgtbl_supported() &&
 		check_feature(FEATURE_PPR) &&
 		check_feature(FEATURE_EPHSUP));
 }

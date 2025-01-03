@@ -742,12 +742,12 @@ static const struct attribute_group *fme_dev_groups[] = {
 };
 
 static struct platform_driver fme_driver = {
-	.driver	= {
-		.name       = DFL_FPGA_FEATURE_DEV_FME,
+	.driver = {
+		.name = DFL_FPGA_FEATURE_DEV_FME,
 		.dev_groups = fme_dev_groups,
 	},
-	.probe   = fme_probe,
-	.remove_new = fme_remove,
+	.probe = fme_probe,
+	.remove = fme_remove,
 };
 
 module_platform_driver(fme_driver);

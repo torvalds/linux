@@ -270,7 +270,7 @@ int main(int argc, char **argv)
 
 	/* Write out the stripped VDSO data. */
 	fprintf(out_file,
-		"static unsigned char vdso_data[PAGE_ALIGN(%zu)] __page_aligned_data = {\n\t",
+		"static unsigned char vdso_image_data[PAGE_ALIGN(%zu)] __page_aligned_data = {\n\t",
 		vdso_size);
 	for (i = 0; i < vdso_size; i++) {
 		if (!(i % 10))
@@ -286,7 +286,7 @@ int main(int argc, char **argv)
 
 	fprintf(out_file, "struct mips_vdso_image vdso_image%s%s = {\n",
 		(vdso_name[0]) ? "_" : "", vdso_name);
-	fprintf(out_file, "\t.data = vdso_data,\n");
+	fprintf(out_file, "\t.data = vdso_image_data,\n");
 	fprintf(out_file, "\t.size = PAGE_ALIGN(%zu),\n", vdso_size);
 	fprintf(out_file, "\t.mapping = {\n");
 	fprintf(out_file, "\t\t.name = \"[vdso]\",\n");

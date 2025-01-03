@@ -25,7 +25,7 @@
 
 #include <asm/mmu.h>
 #include <asm/machdep.h>
-#include <asm/code-patching.h>
+#include <asm/text-patching.h>
 #include <asm/sections.h>
 
 #include <mm/mmu_decl.h>

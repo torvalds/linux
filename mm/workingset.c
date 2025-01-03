@@ -591,22 +591,12 @@ void workingset_refault(struct folio *folio, void *shadow)
  */
 void workingset_activation(struct folio *folio)
 {
-	struct mem_cgroup *memcg;
-
-	rcu_read_lock();
 	/*
 	 * Filter non-memcg pages here, e.g. unmap can call
 	 * mark_page_accessed() on VDSO pages.
-	 *
-	 * XXX: See workingset_refault() - this should return
-	 * root_mem_cgroup even for !CONFIG_MEMCG.
 	 */
-	memcg = folio_memcg_rcu(folio);
-	if (!mem_cgroup_disabled() && !memcg)
-		goto out;
-	workingset_age_nonresident(folio_lruvec(folio), folio_nr_pages(folio));
-out:
-	rcu_read_unlock();
+	if (mem_cgroup_disabled() || folio_memcg_charged(folio))
+		workingset_age_nonresident(folio_lruvec(folio), folio_nr_pages(folio));
 }
 
 /*
@@ -712,8 +702,7 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
 
 static enum lru_status shadow_lru_isolate(struct list_head *item,
 					  struct list_lru_one *lru,
-					  spinlock_t *lru_lock,
-					  void *arg) __must_hold(lru_lock)
+					  void *arg) __must_hold(lru->lock)
 {
 	struct xa_node *node = container_of(item, struct xa_node, private_list);
 	struct address_space *mapping;
@@ -722,20 +711,20 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
 	/*
 	 * Page cache insertions and deletions synchronously maintain
 	 * the shadow node LRU under the i_pages lock and the
-	 * lru_lock.  Because the page cache tree is emptied before
-	 * the inode can be destroyed, holding the lru_lock pins any
+	 * &lru->lock. Because the page cache tree is emptied before
+	 * the inode can be destroyed, holding the &lru->lock pins any
 	 * address_space that has nodes on the LRU.
 	 *
 	 * We can then safely transition to the i_pages lock to
 	 * pin only the address_space of the particular node we want
-	 * to reclaim, take the node off-LRU, and drop the lru_lock.
+	 * to reclaim, take the node off-LRU, and drop the &lru->lock.
 	 */
 
 	mapping = container_of(node->array, struct address_space, i_pages);
 
 	/* Coming from the list, invert the lock order */
 	if (!xa_trylock(&mapping->i_pages)) {
-		spin_unlock_irq(lru_lock);
+		spin_unlock_irq(&lru->lock);
 		ret = LRU_RETRY;
 		goto out;
 	}
@@ -744,7 +733,7 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
 	if (mapping->host != NULL) {
 		if (!spin_trylock(&mapping->host->i_lock)) {
 			xa_unlock(&mapping->i_pages);
-			spin_unlock_irq(lru_lock);
+			spin_unlock_irq(&lru->lock);
 			ret = LRU_RETRY;
 			goto out;
 		}
@@ -753,7 +742,7 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
 	list_lru_isolate(lru, item);
 	__dec_node_page_state(virt_to_page(node), WORKINGSET_NODES);
 
-	spin_unlock(lru_lock);
+	spin_unlock(&lru->lock);
 
 	/*
 	 * The nodes should only contain one or more shadow entries,
@@ -777,7 +766,6 @@ out_invalid:
 	ret = LRU_REMOVED_RETRY;
 out:
 	cond_resched();
-	spin_lock_irq(lru_lock);
 	return ret;
 }
 
@@ -823,8 +811,8 @@ static int __init workingset_init(void)
 	if (!workingset_shadow_shrinker)
 		goto err;
 
-	ret = __list_lru_init(&shadow_nodes, true, &shadow_nodes_key,
-			      workingset_shadow_shrinker);
+	ret = list_lru_init_memcg_key(&shadow_nodes, workingset_shadow_shrinker,
+				      &shadow_nodes_key);
 	if (ret)
 		goto err_list_lru;
 

@@ -80,7 +80,6 @@
 #include <linux/quotaops.h>
 #include <linux/blkdev.h>
 #include <linux/sched/mm.h>
-#include "../internal.h" /* ugh */
 
 #include <linux/uaccess.h>
 

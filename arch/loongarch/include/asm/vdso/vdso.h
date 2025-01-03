@@ -48,23 +48,7 @@ enum vvar_pages {
 
 #define VVAR_SIZE (VVAR_NR_PAGES << PAGE_SHIFT)
 
-static inline unsigned long get_vdso_base(void)
-{
-	unsigned long addr;
-
-	__asm__(
-	" la.pcrel %0, _start\n"
-	: "=r" (addr)
-	:
-	:);
-
-	return addr;
-}
-
-static inline unsigned long get_vdso_data(void)
-{
-	return get_vdso_base() - VVAR_SIZE;
-}
+extern struct loongarch_vdso_data _loongarch_data __attribute__((visibility("hidden")));
 
 #endif /* __ASSEMBLY__ */
 

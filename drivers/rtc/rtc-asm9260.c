@@ -325,7 +325,7 @@ MODULE_DEVICE_TABLE(of, asm9260_dt_ids);
 
 static struct platform_driver asm9260_rtc_driver = {
 	.probe		= asm9260_rtc_probe,
-	.remove_new	= asm9260_rtc_remove,
+	.remove		= asm9260_rtc_remove,
 	.driver		= {
 		.name	= "asm9260-rtc",
 		.of_match_table = asm9260_dt_ids,

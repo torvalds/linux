@@ -6,6 +6,7 @@
 #include <drm/drm_fb_helper.h>
 
 #include "intel_display_types.h"
+#include "intel_fb.h"
 #include "intel_fbdev_fb.h"
 #include "xe_bo.h"
 #include "xe_ttm_stolen_mgr.h"
@@ -20,7 +21,7 @@ struct intel_framebuffer *intel_fbdev_fb_alloc(struct drm_fb_helper *helper,
 	struct drm_device *dev = helper->dev;
 	struct xe_device *xe = to_xe_device(dev);
 	struct drm_mode_fb_cmd2 mode_cmd = {};
-	struct drm_i915_gem_object *obj;
+	struct xe_bo *obj;
 	int size;
 
 	/* we don't do packed 24bpp */
@@ -64,13 +65,13 @@ struct intel_framebuffer *intel_fbdev_fb_alloc(struct drm_fb_helper *helper,
 		goto err;
 	}
 
-	fb = intel_framebuffer_create(obj, &mode_cmd);
+	fb = intel_framebuffer_create(&obj->ttm.base, &mode_cmd);
 	if (IS_ERR(fb)) {
 		xe_bo_unpin_map_no_vm(obj);
 		goto err;
 	}
 
-	drm_gem_object_put(intel_bo_to_drm_bo(obj));
+	drm_gem_object_put(&obj->ttm.base);
 
 	return to_intel_framebuffer(fb);
 
@@ -79,8 +80,9 @@ err:
 }
 
 int intel_fbdev_fb_fill_info(struct drm_i915_private *i915, struct fb_info *info,
-			      struct drm_i915_gem_object *obj, struct i915_vma *vma)
+			      struct drm_gem_object *_obj, struct i915_vma *vma)
 {
+	struct xe_bo *obj = gem_to_xe_bo(_obj);
 	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 
 	if (!(obj->flags & XE_BO_FLAG_SYSTEM)) {
@@ -100,7 +102,7 @@ int intel_fbdev_fb_fill_info(struct drm_i915_private *i915, struct fb_info *info
 	XE_WARN_ON(iosys_map_is_null(&obj->vmap));
 
 	info->screen_base = obj->vmap.vaddr_iomem;
-	info->screen_size = intel_bo_to_drm_bo(obj)->size;
+	info->screen_size = obj->ttm.base.size;
 
 	return 0;
 }

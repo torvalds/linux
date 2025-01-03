@@ -412,14 +412,6 @@ static inline bool ovl_open_flags_need_copy_up(int flags)
 	return ((OPEN_FMODE(flags) & FMODE_WRITE) || (flags & O_TRUNC));
 }
 
-static inline int ovl_do_getattr(const struct path *path, struct kstat *stat,
-				 u32 request_mask, unsigned int flags)
-{
-	if (flags & AT_GETATTR_NOSEC)
-		return vfs_getattr_nosec(path, stat, request_mask, flags);
-	return vfs_getattr(path, stat, request_mask, flags);
-}
-
 /* util.c */
 int ovl_get_write_access(struct dentry *dentry);
 void ovl_put_write_access(struct dentry *dentry);
@@ -429,6 +421,7 @@ int ovl_want_write(struct dentry *dentry);
 void ovl_drop_write(struct dentry *dentry);
 struct dentry *ovl_workdir(struct dentry *dentry);
 const struct cred *ovl_override_creds(struct super_block *sb);
+void ovl_revert_creds(const struct cred *old_cred);
 
 static inline const struct cred *ovl_creds(struct super_block *sb)
 {
@@ -862,6 +855,9 @@ int ovl_real_fileattr_set(const struct path *realpath, struct fileattr *fa);
 int ovl_fileattr_get(struct dentry *dentry, struct fileattr *fa);
 int ovl_fileattr_set(struct mnt_idmap *idmap,
 		     struct dentry *dentry, struct fileattr *fa);
+struct ovl_file;
+struct ovl_file *ovl_file_alloc(struct file *realfile);
+void ovl_file_free(struct ovl_file *of);
 
 /* copy_up.c */
 int ovl_copy_up(struct dentry *dentry);

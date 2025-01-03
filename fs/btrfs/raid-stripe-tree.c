@@ -13,6 +13,39 @@
 #include "volumes.h"
 #include "print-tree.h"
 
+static void btrfs_partially_delete_raid_extent(struct btrfs_trans_handle *trans,
+					       struct btrfs_path *path,
+					       const struct btrfs_key *oldkey,
+					       u64 newlen, u64 frontpad)
+{
+	struct btrfs_stripe_extent *extent;
+	struct extent_buffer *leaf;
+	int slot;
+	size_t item_size;
+	struct btrfs_key newkey = {
+		.objectid = oldkey->objectid + frontpad,
+		.type = BTRFS_RAID_STRIPE_KEY,
+		.offset = newlen,
+	};
+
+	ASSERT(oldkey->type == BTRFS_RAID_STRIPE_KEY);
+
+	leaf = path->nodes[0];
+	slot = path->slots[0];
+	item_size = btrfs_item_size(leaf, slot);
+	extent = btrfs_item_ptr(leaf, slot, struct btrfs_stripe_extent);
+
+	for (int i = 0; i < btrfs_num_raid_stripes(item_size); i++) {
+		struct btrfs_raid_stride *stride = &extent->strides[i];
+		u64 phys;
+
+		phys = btrfs_raid_stride_physical(leaf, stride);
+		btrfs_set_raid_stride_physical(leaf, stride, phys + frontpad);
+	}
+
+	btrfs_set_item_key_safe(trans, path, &newkey);
+}
+
 int btrfs_delete_raid_extent(struct btrfs_trans_handle *trans, u64 start, u64 length)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
@@ -36,23 +69,24 @@ int btrfs_delete_raid_extent(struct btrfs_trans_handle *trans, u64 start, u64 le
 	while (1) {
 		key.objectid = start;
 		key.type = BTRFS_RAID_STRIPE_KEY;
-		key.offset = length;
+		key.offset = 0;
 
 		ret = btrfs_search_slot(trans, stripe_root, &key, path, -1, 1);
 		if (ret < 0)
 			break;
-		if (ret > 0) {
-			ret = 0;
-			if (path->slots[0] == 0)
-				break;
+
+		if (path->slots[0] == btrfs_header_nritems(path->nodes[0]))
 			path->slots[0]--;
-		}
 
 		leaf = path->nodes[0];
 		slot = path->slots[0];
 		btrfs_item_key_to_cpu(leaf, &key, slot);
 		found_start = key.objectid;
 		found_end = found_start + key.offset;
+		ret = 0;
+
+		if (key.type != BTRFS_RAID_STRIPE_KEY)
+			break;
 
 		/* That stripe ends before we start, we're done. */
 		if (found_end <= start)
@@ -61,7 +95,40 @@ int btrfs_delete_raid_extent(struct btrfs_trans_handle *trans, u64 start, u64 le
 		trace_btrfs_raid_extent_delete(fs_info, start, end,
 					       found_start, found_end);
 
-		ASSERT(found_start >= start && found_end <= end);
+		/*
+		 * The stripe extent starts before the range we want to delete:
+		 *
+		 * |--- RAID Stripe Extent ---|
+		 * |--- keep  ---|--- drop ---|
+		 *
+		 * This means we have to duplicate the tree item, truncate the
+		 * length to the new size and then re-insert the item.
+		 */
+		if (found_start < start) {
+			u64 diff = start - found_start;
+
+			btrfs_partially_delete_raid_extent(trans, path, &key,
+							   diff, 0);
+			break;
+		}
+
+		/*
+		 * The stripe extent ends after the range we want to delete:
+		 *
+		 * |--- RAID Stripe Extent ---|
+		 * |--- drop  ---|--- keep ---|
+		 *
+		 * This means we have to duplicate the tree item, truncate the
+		 * length to the new size and then re-insert the item.
+		 */
+		if (found_end > end) {
+			u64 diff = found_end - end;
+
+			btrfs_partially_delete_raid_extent(trans, path, &key,
+							   diff, diff);
+			break;
+		}
+
 		ret = btrfs_del_item(trans, stripe_root, path);
 		if (ret)
 			break;
@@ -108,8 +175,9 @@ static int update_raid_extent_item(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-static int btrfs_insert_one_raid_extent(struct btrfs_trans_handle *trans,
-					struct btrfs_io_context *bioc)
+EXPORT_FOR_TESTS
+int btrfs_insert_one_raid_extent(struct btrfs_trans_handle *trans,
+				 struct btrfs_io_context *bioc)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_key stripe_key;
@@ -233,7 +301,7 @@ int btrfs_get_raid_extent_offset(struct btrfs_fs_info *fs_info,
 		found_end = found_logical + found_length;
 
 		if (found_logical > end) {
-			ret = -ENOENT;
+			ret = -ENODATA;
 			goto out;
 		}
 
@@ -279,10 +347,10 @@ int btrfs_get_raid_extent_offset(struct btrfs_fs_info *fs_info,
 	}
 
 	/* If we're here, we haven't found the requested devid in the stripe. */
-	ret = -ENOENT;
+	ret = -ENODATA;
 out:
 	if (ret > 0)
-		ret = -ENOENT;
+		ret = -ENODATA;
 	if (ret && ret != -EIO && !stripe->rst_search_commit_root) {
 		btrfs_debug(fs_info,
 		"cannot find raid-stripe for logical [%llu, %llu] devid %llu, profile %s",

@@ -798,10 +798,9 @@ static void musb_ep_program(struct musb *musb, u8 epnum,
 		}
 
 		if (can_bulk_split(musb, qh->type))
-			load_count = min((u32) hw_ep->max_packet_sz_tx,
-						len);
+			load_count = min_t(u32, hw_ep->max_packet_sz_tx, len);
 		else
-			load_count = min((u32) packet_sz, len);
+			load_count = min_t(u32, packet_sz, len);
 
 		if (dma_channel && musb_tx_dma_program(dma_controller,
 					hw_ep, qh, urb, offset, len))

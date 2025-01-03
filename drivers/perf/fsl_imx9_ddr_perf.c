@@ -81,6 +81,10 @@ struct ddr_pmu {
 	int id;
 };
 
+static const struct imx_ddr_devtype_data imx91_devtype_data = {
+	.identifier = "imx91",
+};
+
 static const struct imx_ddr_devtype_data imx93_devtype_data = {
 	.identifier = "imx93",
 };
@@ -100,6 +104,7 @@ static inline bool is_imx95(struct ddr_pmu *pmu)
 }
 
 static const struct of_device_id imx_ddr_pmu_dt_ids[] = {
+	{ .compatible = "fsl,imx91-ddr-pmu", .data = &imx91_devtype_data },
 	{ .compatible = "fsl,imx93-ddr-pmu", .data = &imx93_devtype_data },
 	{ .compatible = "fsl,imx95-ddr-pmu", .data = &imx95_devtype_data },
 	{ /* sentinel */ }
@@ -848,7 +853,7 @@ static struct platform_driver imx_ddr_pmu_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe          = ddr_perf_probe,
-	.remove_new     = ddr_perf_remove,
+	.remove         = ddr_perf_remove,
 };
 module_platform_driver(imx_ddr_pmu_driver);
 

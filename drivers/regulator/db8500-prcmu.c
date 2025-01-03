@@ -480,7 +480,7 @@ static struct platform_driver db8500_regulator_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = db8500_regulator_probe,
-	.remove_new = db8500_regulator_remove,
+	.remove = db8500_regulator_remove,
 };
 
 static int __init db8500_regulator_init(void)

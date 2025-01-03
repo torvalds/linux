@@ -41,7 +41,7 @@
  */
 #define CRC32C_PCL_BREAKEVEN	512
 
-asmlinkage unsigned int crc_pcl(const u8 *buffer, int len,
+asmlinkage unsigned int crc_pcl(const u8 *buffer, unsigned int len,
 				unsigned int crc_init);
 #endif /* CONFIG_X86_64 */
 

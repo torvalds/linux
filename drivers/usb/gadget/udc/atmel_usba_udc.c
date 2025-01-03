@@ -2444,7 +2444,7 @@ static SIMPLE_DEV_PM_OPS(usba_udc_pm_ops, usba_udc_suspend, usba_udc_resume);
 
 static struct platform_driver udc_driver = {
 	.probe		= usba_udc_probe,
-	.remove_new	= usba_udc_remove,
+	.remove		= usba_udc_remove,
 	.driver		= {
 		.name		= "atmel_usba_udc",
 		.pm		= &usba_udc_pm_ops,

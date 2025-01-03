@@ -27,12 +27,6 @@ struct dax_operations {
 	 */
 	long (*direct_access)(struct dax_device *, pgoff_t, long,
 			enum dax_access_mode, void **, pfn_t *);
-	/*
-	 * Validate whether this device is usable as an fsdax backing
-	 * device.
-	 */
-	bool (*dax_supported)(struct dax_device *, struct block_device *, int,
-			sector_t, sector_t);
 	/* zero_page_range: required operation. Zero page range   */
 	int (*zero_page_range)(struct dax_device *, pgoff_t, size_t);
 	/*

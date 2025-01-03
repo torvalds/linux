@@ -4,16 +4,12 @@
 
 #ifndef __ASSEMBLY__
 
-#include <linux/timekeeper_internal.h>
 #include <vdso/datapage.h>
 #include <asm/cacheflush.h>
 
 extern struct vdso_data *vdso_data;
 extern bool cntvct_ok;
 
-/*
- * Update the vDSO data page to keep in sync with kernel timekeeping.
- */
 static __always_inline
 struct vdso_data *__arm_get_k_vdso_data(void)
 {

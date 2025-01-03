@@ -1765,42 +1765,41 @@ static ssize_t o2hb_region_dev_store(struct config_item *item,
 	long fd;
 	int sectsize;
 	char *p = (char *)page;
-	struct fd f;
 	ssize_t ret = -EINVAL;
 	int live_threshold;
 
 	if (reg->hr_bdev_file)
-		goto out;
+		return -EINVAL;
 
 	/* We can't heartbeat without having had our node number
 	 * configured yet. */
 	if (o2nm_this_node() == O2NM_MAX_NODES)
-		goto out;
+		return -EINVAL;
 
 	fd = simple_strtol(p, &p, 0);
 	if (!p || (*p && (*p != '\n')))
-		goto out;
+		return -EINVAL;
 
 	if (fd < 0 || fd >= INT_MAX)
-		goto out;
+		return -EINVAL;
 
-	f = fdget(fd);
-	if (fd_file(f) == NULL)
-		goto out;
+	CLASS(fd, f)(fd);
+	if (fd_empty(f))
+		return -EINVAL;
 
 	if (reg->hr_blocks == 0 || reg->hr_start_block == 0 ||
 	    reg->hr_block_bytes == 0)
-		goto out2;
+		return -EINVAL;
 
 	if (!S_ISBLK(fd_file(f)->f_mapping->host->i_mode))
-		goto out2;
+		return -EINVAL;
 
 	reg->hr_bdev_file = bdev_file_open_by_dev(fd_file(f)->f_mapping->host->i_rdev,
 			BLK_OPEN_WRITE | BLK_OPEN_READ, NULL, NULL);
 	if (IS_ERR(reg->hr_bdev_file)) {
 		ret = PTR_ERR(reg->hr_bdev_file);
 		reg->hr_bdev_file = NULL;
-		goto out2;
+		return ret;
 	}
 
 	sectsize = bdev_logical_block_size(reg_bdev(reg));
@@ -1906,9 +1905,6 @@ out3:
 		fput(reg->hr_bdev_file);
 		reg->hr_bdev_file = NULL;
 	}
-out2:
-	fdput(f);
-out:
 	return ret;
 }
 

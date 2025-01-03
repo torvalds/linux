@@ -20,12 +20,6 @@ properties:
     items:
       - description: XVCLK Clock
 
-  assigned-clocks:
-    maxItems: 1
-
-  assigned-clock-rates:
-    maxItems: 1
-
   dvdd-supply:
     description: Digital Domain Power Supply
 
@@ -68,8 +62,6 @@ required:
   - compatible
   - reg
   - clocks
-  - assigned-clocks
-  - assigned-clock-rates
   - dvdd-supply
   - dovdd-supply
   - port
@@ -93,9 +85,6 @@ examples:
             avdd-supply = <&ov5648_avdd>;
             dovdd-supply = <&ov5648_dovdd>;
             clocks = <&ov5648_xvclk 0>;
-            assigned-clocks = <&ov5648_xvclk 0>;
-            assigned-clock-rates = <24000000>;
-
 
             ov5648_out: port {
                 ov5648_out_mipi_csi2: endpoint {

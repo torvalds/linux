@@ -1279,6 +1279,7 @@ static const struct rvin_info rcar_info_gen4 = {
 	.use_mc = true,
 	.use_isp = true,
 	.nv12 = true,
+	.raw10 = true,
 	.max_width = 4096,
 	.max_height = 4096,
 };
@@ -1443,7 +1444,7 @@ static struct platform_driver rcar_vin_driver = {
 		.of_match_table = rvin_of_id_table,
 	},
 	.probe = rcar_vin_probe,
-	.remove_new = rcar_vin_remove,
+	.remove = rcar_vin_remove,
 };
 
 module_platform_driver(rcar_vin_driver);

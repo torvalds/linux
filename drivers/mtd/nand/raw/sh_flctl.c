@@ -1216,7 +1216,7 @@ static void flctl_remove(struct platform_device *pdev)
 
 static struct platform_driver flctl_driver = {
 	.probe		= flctl_probe,
-	.remove_new	= flctl_remove,
+	.remove		= flctl_remove,
 	.driver = {
 		.name	= "sh_flctl",
 		.of_match_table = of_flctl_match,

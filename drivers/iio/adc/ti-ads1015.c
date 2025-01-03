@@ -806,7 +806,7 @@ static int ads1015_disable_event_config(struct ads1015_data *data,
 
 static int ads1015_write_event_config(struct iio_dev *indio_dev,
 	const struct iio_chan_spec *chan, enum iio_event_type type,
-	enum iio_event_direction dir, int state)
+	enum iio_event_direction dir, bool state)
 {
 	struct ads1015_data *data = iio_priv(indio_dev);
 	int ret;
@@ -1032,8 +1032,7 @@ static int ads1015_probe(struct i2c_client *client)
 	}
 
 	if (client->irq && chip->has_comparator) {
-		unsigned long irq_trig =
-			irqd_get_trigger_type(irq_get_irq_data(client->irq));
+		unsigned long irq_trig = irq_get_trigger_type(client->irq);
 		unsigned int cfg_comp_mask = ADS1015_CFG_COMP_QUE_MASK |
 			ADS1015_CFG_COMP_LAT_MASK | ADS1015_CFG_COMP_POL_MASK;
 		unsigned int cfg_comp =

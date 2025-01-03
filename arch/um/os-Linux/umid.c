@@ -358,6 +358,8 @@ char *get_umid(void)
 
 static int __init set_uml_dir(char *name, int *add)
 {
+	*add = 0;
+
 	if (*name == '\0') {
 		os_warn("uml_dir can't be an empty string\n");
 		return 0;

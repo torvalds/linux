@@ -551,6 +551,14 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	},
 	{
 	 .callback = video_detect_force_native,
+	 /* Apple MacBook Air 7,2 */
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "MacBookAir7,2"),
+		},
+	},
+	{
+	 .callback = video_detect_force_native,
 	 /* Apple MacBook Air 9,1 */
 	 .matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
@@ -563,6 +571,14 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	 .matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
 		DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro9,2"),
+		},
+	},
+	{
+	 .callback = video_detect_force_native,
+	 /* Apple MacBook Pro 11,2 */
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro11,2"),
 		},
 	},
 	{

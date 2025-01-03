@@ -1911,12 +1911,11 @@ SYSCALL_DEFINE1(umask, int, mask)
 
 static int prctl_set_mm_exe_file(struct mm_struct *mm, unsigned int fd)
 {
-	struct fd exe;
+	CLASS(fd, exe)(fd);
 	struct inode *inode;
 	int err;
 
-	exe = fdget(fd);
-	if (!fd_file(exe))
+	if (fd_empty(exe))
 		return -EBADF;
 
 	inode = file_inode(fd_file(exe));
@@ -1926,18 +1925,14 @@ static int prctl_set_mm_exe_file(struct mm_struct *mm, unsigned int fd)
 	 * sure that this one is executable as well, to avoid breaking an
 	 * overall picture.
 	 */
-	err = -EACCES;
 	if (!S_ISREG(inode->i_mode) || path_noexec(&fd_file(exe)->f_path))
-		goto exit;
+		return -EACCES;
 
 	err = file_permission(fd_file(exe), MAY_EXEC);
 	if (err)
-		goto exit;
+		return err;
 
-	err = replace_mm_exe_file(mm, fd_file(exe));
-exit:
-	fdput(exe);
-	return err;
+	return replace_mm_exe_file(mm, fd_file(exe));
 }
 
 /*
@@ -2320,6 +2315,21 @@ int __weak arch_prctl_spec_ctrl_get(struct task_struct *t, unsigned long which)
 
 int __weak arch_prctl_spec_ctrl_set(struct task_struct *t, unsigned long which,
 				    unsigned long ctrl)
+{
+	return -EINVAL;
+}
+
+int __weak arch_get_shadow_stack_status(struct task_struct *t, unsigned long __user *status)
+{
+	return -EINVAL;
+}
+
+int __weak arch_set_shadow_stack_status(struct task_struct *t, unsigned long status)
+{
+	return -EINVAL;
+}
+
+int __weak arch_lock_shadow_stack_status(struct task_struct *t, unsigned long status)
 {
 	return -EINVAL;
 }
@@ -2783,6 +2793,21 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 		break;
 	case PR_RISCV_SET_ICACHE_FLUSH_CTX:
 		error = RISCV_SET_ICACHE_FLUSH_CTX(arg2, arg3);
+		break;
+	case PR_GET_SHADOW_STACK_STATUS:
+		if (arg3 || arg4 || arg5)
+			return -EINVAL;
+		error = arch_get_shadow_stack_status(me, (unsigned long __user *) arg2);
+		break;
+	case PR_SET_SHADOW_STACK_STATUS:
+		if (arg3 || arg4 || arg5)
+			return -EINVAL;
+		error = arch_set_shadow_stack_status(me, arg2);
+		break;
+	case PR_LOCK_SHADOW_STACK_STATUS:
+		if (arg3 || arg4 || arg5)
+			return -EINVAL;
+		error = arch_lock_shadow_stack_status(me, arg2);
 		break;
 	default:
 		error = -EINVAL;

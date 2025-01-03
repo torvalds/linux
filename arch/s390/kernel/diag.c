@@ -16,6 +16,7 @@
 #include <asm/diag.h>
 #include <asm/trace/diag.h>
 #include <asm/sections.h>
+#include <asm/asm.h>
 #include "entry.h"
 
 struct diag_stat {
@@ -307,16 +308,15 @@ EXPORT_SYMBOL(diag26c);
 
 int diag49c(unsigned long subcode)
 {
-	int rc;
+	int cc;
 
 	diag_stat_inc(DIAG_STAT_X49C);
 	asm volatile(
 		"	diag	%[subcode],0,0x49c\n"
-		"	ipm	%[rc]\n"
-		"	srl	%[rc],28\n"
-		: [rc] "=d" (rc)
+		CC_IPM(cc)
+		: CC_OUT(cc, cc)
 		: [subcode] "d" (subcode)
-		: "cc");
-	return rc;
+		: CC_CLOBBER);
+	return CC_TRANSFORM(cc);
 }
 EXPORT_SYMBOL(diag49c);

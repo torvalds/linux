@@ -1457,7 +1457,7 @@ static int msm_gpio_init(struct msm_pinctrl *pctrl)
 	 * files which don't set the "gpio-ranges" property or systems that
 	 * utilize ACPI the driver has to call gpiochip_add_pin_range().
 	 */
-	if (!of_property_read_bool(pctrl->dev->of_node, "gpio-ranges")) {
+	if (!of_property_present(pctrl->dev->of_node, "gpio-ranges")) {
 		ret = gpiochip_add_pin_range(&pctrl->chip,
 			dev_name(pctrl->dev), 0, 0, chip->ngpio);
 		if (ret) {

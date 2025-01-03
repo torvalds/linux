@@ -403,7 +403,7 @@ static struct resource_table *k3_dsp_get_loaded_rsc_table(struct rproc *rproc,
 	 * the hard-coded value suffices to support the IPC-only mode.
 	 */
 	*rsc_table_sz = 256;
-	return (struct resource_table *)kproc->rmem[0].cpu_addr;
+	return (__force struct resource_table *)kproc->rmem[0].cpu_addr;
 }
 
 /*
@@ -576,11 +576,9 @@ static int k3_dsp_reserved_mem_init(struct k3_dsp_rproc *kproc)
 			return -EINVAL;
 
 		rmem = of_reserved_mem_lookup(rmem_np);
-		if (!rmem) {
-			of_node_put(rmem_np);
-			return -EINVAL;
-		}
 		of_node_put(rmem_np);
+		if (!rmem)
+			return -EINVAL;
 
 		kproc->rmem[i].bus_addr = rmem->base;
 		/* 64-bit address regions currently not supported */
@@ -793,7 +791,7 @@ MODULE_DEVICE_TABLE(of, k3_dsp_of_match);
 
 static struct platform_driver k3_dsp_rproc_driver = {
 	.probe	= k3_dsp_rproc_probe,
-	.remove_new = k3_dsp_rproc_remove,
+	.remove = k3_dsp_rproc_remove,
 	.driver	= {
 		.name = "k3-dsp-rproc",
 		.of_match_table = k3_dsp_of_match,

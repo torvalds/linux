@@ -61,7 +61,8 @@ ifndef VERBOSE
 endif
 
 INCLUDES = -I$(or $(OUTPUT),.) \
-	   -I$(srctree)/tools/include -I$(srctree)/tools/include/uapi
+	   -I$(srctree)/tools/include -I$(srctree)/tools/include/uapi \
+	   -I$(srctree)/tools/arch/$(SRCARCH)/include
 
 export prefix libdir src obj
 

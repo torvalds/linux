@@ -245,7 +245,7 @@ static void dln2_i2c_remove(struct platform_device *pdev)
 static struct platform_driver dln2_i2c_driver = {
 	.driver.name	= "dln2-i2c",
 	.probe		= dln2_i2c_probe,
-	.remove_new	= dln2_i2c_remove,
+	.remove		= dln2_i2c_remove,
 };
 
 module_platform_driver(dln2_i2c_driver);

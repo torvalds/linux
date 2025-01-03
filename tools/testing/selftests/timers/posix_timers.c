@@ -15,13 +15,12 @@
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
+#include <include/vdso/time64.h>
 #include <pthread.h>
 
 #include "../kselftest.h"
 
 #define DELAY 2
-#define USECS_PER_SEC 1000000
-#define NSECS_PER_SEC 1000000000
 
 static void __fatal_error(const char *test, const char *name, const char *what)
 {
@@ -86,9 +85,9 @@ static int check_diff(struct timeval start, struct timeval end)
 	long long diff;
 
 	diff = end.tv_usec - start.tv_usec;
-	diff += (end.tv_sec - start.tv_sec) * USECS_PER_SEC;
+	diff += (end.tv_sec - start.tv_sec) * USEC_PER_SEC;
 
-	if (llabs(diff - DELAY * USECS_PER_SEC) > USECS_PER_SEC / 2) {
+	if (llabs(diff - DELAY * USEC_PER_SEC) > USEC_PER_SEC / 2) {
 		printf("Diff too high: %lld..", diff);
 		return -1;
 	}
@@ -448,7 +447,7 @@ static inline int64_t calcdiff_ns(struct timespec t1, struct timespec t2)
 {
 	int64_t diff;
 
-	diff = NSECS_PER_SEC * (int64_t)((int) t1.tv_sec - (int) t2.tv_sec);
+	diff = NSEC_PER_SEC * (int64_t)((int) t1.tv_sec - (int) t2.tv_sec);
 	diff += ((int) t1.tv_nsec - (int) t2.tv_nsec);
 	return diff;
 }
@@ -479,7 +478,7 @@ static void check_sigev_none(int which, const char *name)
 	do {
 		if (clock_gettime(which, &now))
 			fatal_error(name, "clock_gettime()");
-	} while (calcdiff_ns(now, start) < NSECS_PER_SEC);
+	} while (calcdiff_ns(now, start) < NSEC_PER_SEC);
 
 	if (timer_gettime(timerid, &its))
 		fatal_error(name, "timer_gettime()");
@@ -536,7 +535,7 @@ static void check_gettime(int which, const char *name)
 			wraps++;
 		prev = its;
 
-	} while (calcdiff_ns(now, start) < NSECS_PER_SEC);
+	} while (calcdiff_ns(now, start) < NSEC_PER_SEC);
 
 	if (timer_delete(timerid))
 		fatal_error(name, "timer_delete()");
@@ -587,7 +586,7 @@ static void check_overrun(int which, const char *name)
 	do {
 		if (clock_gettime(which, &now))
 			fatal_error(name, "clock_gettime()");
-	} while (calcdiff_ns(now, start) < NSECS_PER_SEC);
+	} while (calcdiff_ns(now, start) < NSEC_PER_SEC);
 
 	/* Unblock it, which should deliver a signal */
 	if (sigprocmask(SIG_UNBLOCK, &set, NULL))

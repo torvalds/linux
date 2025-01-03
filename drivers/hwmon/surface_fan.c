@@ -18,14 +18,6 @@ SSAM_DEFINE_SYNC_REQUEST_CL_R(__ssam_fan_rpm_get, __le16, {
 	.command_id      = 0x01,
 });
 
-// hwmon
-static umode_t surface_fan_hwmon_is_visible(const void *drvdata,
-					    enum hwmon_sensor_types type, u32 attr,
-					    int channel)
-{
-	return 0444;
-}
-
 static int surface_fan_hwmon_read(struct device *dev,
 				  enum hwmon_sensor_types type, u32 attr,
 				  int channel, long *val)
@@ -49,7 +41,7 @@ static const struct hwmon_channel_info *const surface_fan_info[] = {
 };
 
 static const struct hwmon_ops surface_fan_hwmon_ops = {
-	.is_visible = surface_fan_hwmon_is_visible,
+	.visible = 0444,
 	.read = surface_fan_hwmon_read,
 };
 

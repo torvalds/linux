@@ -224,7 +224,7 @@ static const struct snd_soc_dai_ops test_verbose_ops = {
 	.num_auto_selectable_formats	= 1,
 };
 
-#define STUB_RATES	SNDRV_PCM_RATE_8000_384000
+#define STUB_RATES	SNDRV_PCM_RATE_CONTINUOUS
 #define STUB_FORMATS	(SNDRV_PCM_FMTBIT_S8		| \
 			 SNDRV_PCM_FMTBIT_U8		| \
 			 SNDRV_PCM_FMTBIT_S16_LE	| \
@@ -521,7 +521,6 @@ static int test_driver_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node;
-	struct device_node *ep;
 	const struct test_adata *adata = of_device_get_match_data(&pdev->dev);
 	struct snd_soc_component_driver *cdriv;
 	struct snd_soc_dai_driver *ddriv;
@@ -591,7 +590,7 @@ static int test_driver_probe(struct platform_device *pdev)
 	}
 
 	i = 0;
-	for_each_endpoint_of_node(node, ep) {
+	for_each_of_graph_port(node, port) {
 		snprintf(dname[i].name, TEST_NAME_LEN, "%s.%d", node->name, i);
 		ddriv[i].name = dname[i].name;
 

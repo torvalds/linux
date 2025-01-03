@@ -366,7 +366,7 @@ int fuse_lookup_name(struct super_block *sb, u64 nodeid, const struct qstr *name
 	struct fuse_mount *fm = get_fuse_mount_super(sb);
 	FUSE_ARGS(args);
 	struct fuse_forget_link *forget;
-	u64 attr_version;
+	u64 attr_version, evict_ctr;
 	int err;
 
 	*inode = NULL;
@@ -381,6 +381,7 @@ int fuse_lookup_name(struct super_block *sb, u64 nodeid, const struct qstr *name
 		goto out;
 
 	attr_version = fuse_get_attr_version(fm->fc);
+	evict_ctr = fuse_get_evict_ctr(fm->fc);
 
 	fuse_lookup_init(fm->fc, &args, nodeid, name, outarg);
 	err = fuse_simple_request(fm, &args);
@@ -398,7 +399,7 @@ int fuse_lookup_name(struct super_block *sb, u64 nodeid, const struct qstr *name
 
 	*inode = fuse_iget(sb, outarg->nodeid, outarg->generation,
 			   &outarg->attr, ATTR_TIMEOUT(outarg),
-			   attr_version);
+			   attr_version, evict_ctr);
 	err = -ENOMEM;
 	if (!*inode) {
 		fuse_queue_forget(fm->fc, forget, outarg->nodeid, 1);
@@ -691,7 +692,7 @@ static int fuse_create_open(struct mnt_idmap *idmap, struct inode *dir,
 	ff->nodeid = outentry.nodeid;
 	ff->open_flags = outopenp->open_flags;
 	inode = fuse_iget(dir->i_sb, outentry.nodeid, outentry.generation,
-			  &outentry.attr, ATTR_TIMEOUT(&outentry), 0);
+			  &outentry.attr, ATTR_TIMEOUT(&outentry), 0, 0);
 	if (!inode) {
 		flags &= ~(O_CREAT | O_EXCL | O_TRUNC);
 		fuse_sync_release(NULL, ff, flags);
@@ -822,7 +823,7 @@ static int create_new_entry(struct mnt_idmap *idmap, struct fuse_mount *fm,
 		goto out_put_forget_req;
 
 	inode = fuse_iget(dir->i_sb, outarg.nodeid, outarg.generation,
-			  &outarg.attr, ATTR_TIMEOUT(&outarg), 0);
+			  &outarg.attr, ATTR_TIMEOUT(&outarg), 0, 0);
 	if (!inode) {
 		fuse_queue_forget(fm->fc, forget, outarg.nodeid, 1);
 		return -ENOMEM;
@@ -1585,13 +1586,13 @@ static int fuse_permission(struct mnt_idmap *idmap,
 	return err;
 }
 
-static int fuse_readlink_page(struct inode *inode, struct page *page)
+static int fuse_readlink_page(struct inode *inode, struct folio *folio)
 {
 	struct fuse_mount *fm = get_fuse_mount(inode);
-	struct fuse_page_desc desc = { .length = PAGE_SIZE - 1 };
+	struct fuse_folio_desc desc = { .length = PAGE_SIZE - 1 };
 	struct fuse_args_pages ap = {
-		.num_pages = 1,
-		.pages = &page,
+		.num_folios = 1,
+		.folios = &folio,
 		.descs = &desc,
 	};
 	char *link;
@@ -1614,7 +1615,7 @@ static int fuse_readlink_page(struct inode *inode, struct page *page)
 	if (WARN_ON(res >= PAGE_SIZE))
 		return -EIO;
 
-	link = page_address(page);
+	link = folio_address(folio);
 	link[res] = '\0';
 
 	return 0;
@@ -1624,7 +1625,7 @@ static const char *fuse_get_link(struct dentry *dentry, struct inode *inode,
 				 struct delayed_call *callback)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct page *page;
+	struct folio *folio;
 	int err;
 
 	err = -EIO;
@@ -1638,20 +1639,20 @@ static const char *fuse_get_link(struct dentry *dentry, struct inode *inode,
 	if (!dentry)
 		goto out_err;
 
-	page = alloc_page(GFP_KERNEL);
+	folio = folio_alloc(GFP_KERNEL, 0);
 	err = -ENOMEM;
-	if (!page)
+	if (!folio)
 		goto out_err;
 
-	err = fuse_readlink_page(inode, page);
+	err = fuse_readlink_page(inode, folio);
 	if (err) {
-		__free_page(page);
+		folio_put(folio);
 		goto out_err;
 	}
 
-	set_delayed_call(callback, page_put_link, page);
+	set_delayed_call(callback, page_put_link, &folio->page);
 
-	return page_address(page);
+	return folio_address(folio);
 
 out_err:
 	return ERR_PTR(err);
@@ -2028,7 +2029,7 @@ int fuse_do_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 
 	fuse_change_attributes_common(inode, &outarg.attr, NULL,
 				      ATTR_TIMEOUT(&outarg),
-				      fuse_get_cache_mask(inode));
+				      fuse_get_cache_mask(inode), 0);
 	oldsize = inode->i_size;
 	/* see the comment in fuse_change_attributes() */
 	if (!is_wb || is_truncate)
@@ -2231,7 +2232,7 @@ void fuse_init_dir(struct inode *inode)
 
 static int fuse_symlink_read_folio(struct file *null, struct folio *folio)
 {
-	int err = fuse_readlink_page(folio->mapping->host, &folio->page);
+	int err = fuse_readlink_page(folio->mapping->host, folio);
 
 	if (!err)
 		folio_mark_uptodate(folio);

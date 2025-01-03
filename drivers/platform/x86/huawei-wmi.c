@@ -842,7 +842,7 @@ static struct platform_driver huawei_wmi_driver = {
 		.name = "huawei-wmi",
 	},
 	.probe = huawei_wmi_probe,
-	.remove_new = huawei_wmi_remove,
+	.remove = huawei_wmi_remove,
 };
 
 static __init int huawei_wmi_init(void)

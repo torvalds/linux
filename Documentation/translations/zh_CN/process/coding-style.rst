@@ -560,17 +560,6 @@ Documentation/translations/zh_CN/doc-guide/index.rst 和 scripts/kernel-doc 。
 	 * with beginning and ending almost-blank lines.
 	 */
 
-对于在 net/ 和 drivers/net/ 的文件，首选的长 (多行) 注释风格有些不同。
-
-.. code-block:: c
-
-	/* The preferred comment style for files in net/ and drivers/net
-	 * looks like this.
-	 *
-	 * It is nearly the same as the generally preferred comment style,
-	 * but there is no initial almost-blank line.
-	 */
-
 注释数据也是很重要的，不管是基本类型还是衍生类型。为了方便实现这一点，每一行
 应只声明一个数据 (不要使用逗号来一次声明多个数据)。这样你就有空间来为每个数据
 写一段小注释来解释它们的用途了。

@@ -21,7 +21,10 @@
  * IN THE SOFTWARE.
  */
 
+#include <linux/debugfs.h>
 #include <linux/kernel.h>
+
+#include <drm/drm_probe_helper.h>
 
 #include "i915_drv.h"
 #include "i915_irq.h"

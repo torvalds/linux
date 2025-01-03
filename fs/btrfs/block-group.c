@@ -2797,7 +2797,7 @@ next:
 		 * uncompressed data size, because the compression is only done
 		 * when writeback triggered and we don't know how much space we
 		 * are actually going to need, so we reserve the uncompressed
-		 * size because the data may be uncompressible in the worst case.
+		 * size because the data may be incompressible in the worst case.
 		 */
 		if (ret == 0) {
 			bool used;
@@ -3819,6 +3819,8 @@ void btrfs_free_reserved_bytes(struct btrfs_block_group *cache,
 	spin_lock(&cache->lock);
 	if (cache->ro)
 		space_info->bytes_readonly += num_bytes;
+	else if (btrfs_is_zoned(cache->fs_info))
+		space_info->bytes_zone_unusable += num_bytes;
 	cache->reserved -= num_bytes;
 	space_info->bytes_reserved -= num_bytes;
 	space_info->max_extent_size = 0;

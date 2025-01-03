@@ -594,25 +594,21 @@ static u64 *hclge_comm_get_stats(struct hclge_dev *hdev,
 	return buf;
 }
 
-static u8 *hclge_comm_get_strings(struct hclge_dev *hdev, u32 stringset,
-				  const struct hclge_comm_stats_str strs[],
-				  int size, u8 *data)
+static void hclge_comm_get_strings(struct hclge_dev *hdev, u32 stringset,
+				   const struct hclge_comm_stats_str strs[],
+				   int size, u8 **data)
 {
-	char *buff = (char *)data;
 	u32 i;
 
 	if (stringset != ETH_SS_STATS)
-		return buff;
+		return;
 
 	for (i = 0; i < size; i++) {
 		if (strs[i].stats_num > hdev->ae_dev->dev_specs.mac_stats_num)
 			continue;
 
-		snprintf(buff, ETH_GSTRING_LEN, "%s", strs[i].desc);
-		buff = buff + ETH_GSTRING_LEN;
+		ethtool_puts(data, strs[i].desc);
 	}
-
-	return (u8 *)buff;
 }
 
 static void hclge_update_stats_for_all(struct hclge_dev *hdev)
@@ -717,44 +713,38 @@ static int hclge_get_sset_count(struct hnae3_handle *handle, int stringset)
 }
 
 static void hclge_get_strings(struct hnae3_handle *handle, u32 stringset,
-			      u8 *data)
+			      u8 **data)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
-	u8 *p = (char *)data;
+	const char *str;
 	int size;
 
 	if (stringset == ETH_SS_STATS) {
 		size = ARRAY_SIZE(g_mac_stats_string);
-		p = hclge_comm_get_strings(hdev, stringset, g_mac_stats_string,
-					   size, p);
-		p = hclge_comm_tqps_get_strings(handle, p);
+		hclge_comm_get_strings(hdev, stringset, g_mac_stats_string,
+				       size, data);
+		hclge_comm_tqps_get_strings(handle, data);
 	} else if (stringset == ETH_SS_TEST) {
 		if (handle->flags & HNAE3_SUPPORT_EXTERNAL_LOOPBACK) {
-			memcpy(p, hns3_nic_test_strs[HNAE3_LOOP_EXTERNAL],
-			       ETH_GSTRING_LEN);
-			p += ETH_GSTRING_LEN;
+			str = hns3_nic_test_strs[HNAE3_LOOP_EXTERNAL];
+			ethtool_puts(data, str);
 		}
 		if (handle->flags & HNAE3_SUPPORT_APP_LOOPBACK) {
-			memcpy(p, hns3_nic_test_strs[HNAE3_LOOP_APP],
-			       ETH_GSTRING_LEN);
-			p += ETH_GSTRING_LEN;
+			str = hns3_nic_test_strs[HNAE3_LOOP_APP];
+			ethtool_puts(data, str);
 		}
 		if (handle->flags & HNAE3_SUPPORT_SERDES_SERIAL_LOOPBACK) {
-			memcpy(p, hns3_nic_test_strs[HNAE3_LOOP_SERIAL_SERDES],
-			       ETH_GSTRING_LEN);
-			p += ETH_GSTRING_LEN;
+			str = hns3_nic_test_strs[HNAE3_LOOP_SERIAL_SERDES];
+			ethtool_puts(data, str);
 		}
 		if (handle->flags & HNAE3_SUPPORT_SERDES_PARALLEL_LOOPBACK) {
-			memcpy(p,
-			       hns3_nic_test_strs[HNAE3_LOOP_PARALLEL_SERDES],
-			       ETH_GSTRING_LEN);
-			p += ETH_GSTRING_LEN;
+			str = hns3_nic_test_strs[HNAE3_LOOP_PARALLEL_SERDES];
+			ethtool_puts(data, str);
 		}
 		if (handle->flags & HNAE3_SUPPORT_PHY_LOOPBACK) {
-			memcpy(p, hns3_nic_test_strs[HNAE3_LOOP_PHY],
-			       ETH_GSTRING_LEN);
-			p += ETH_GSTRING_LEN;
+			str = hns3_nic_test_strs[HNAE3_LOOP_PHY];
+			ethtool_puts(data, str);
 		}
 	}
 }

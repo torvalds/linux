@@ -152,7 +152,7 @@ static int ohci_omap_reset(struct usb_hcd *hcd)
 
 			rh &= ~RH_A_NOCP;
 
-			/* gpio9 for overcurrent detction */
+			/* gpio9 for overcurrent detection */
 			omap_cfg_reg(W8_1610_GPIO9);
 
 			/* for paranoia's sake:  disable USB.PUEN */
@@ -390,7 +390,7 @@ static int ohci_omap_resume(struct platform_device *dev)
  */
 static struct platform_driver ohci_hcd_omap_driver = {
 	.probe		= ohci_hcd_omap_probe,
-	.remove_new	= ohci_hcd_omap_remove,
+	.remove		= ohci_hcd_omap_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 #ifdef	CONFIG_PM
 	.suspend	= ohci_omap_suspend,

@@ -1513,7 +1513,6 @@
 			dma-names = "tx", "rx", "tx", "rx";
 			power-domains = <&sysc R8A7745_PD_ALWAYS_ON>;
 			resets = <&cpg 315>;
-			reg-io-width = <4>;
 			max-frequency = <97500000>;
 			status = "disabled";
 		};

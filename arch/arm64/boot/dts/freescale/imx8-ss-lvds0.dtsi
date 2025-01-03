@@ -14,7 +14,7 @@ lvds0_subsys: bus@56240000 {
 		compatible = "fsl,imx8qxp-lpcg";
 		reg = <0x56243000 0x4>;
 		#clock-cells = <1>;
-		clock-output-names = "mipi1_lis_lpcg_ipg_clk";
+		clock-output-names = "lvds0_lis_lpcg_ipg_clk";
 		power-domains = <&pd IMX_SC_R_MIPI_1>;
 	};
 
@@ -22,9 +22,9 @@ lvds0_subsys: bus@56240000 {
 		compatible = "fsl,imx8qxp-lpcg";
 		reg = <0x5624300c 0x4>;
 		#clock-cells = <1>;
-		clock-output-names = "mipi1_pwm_lpcg_clk",
-				     "mipi1_pwm_lpcg_ipg_clk",
-				     "mipi1_pwm_lpcg_32k_clk";
+		clock-output-names = "lvds0_pwm_lpcg_clk",
+				     "lvds0_pwm_lpcg_ipg_clk",
+				     "lvds0_pwm_lpcg_32k_clk";
 		power-domains = <&pd IMX_SC_R_MIPI_1_PWM_0>;
 	};
 
@@ -32,8 +32,8 @@ lvds0_subsys: bus@56240000 {
 		compatible = "fsl,imx8qxp-lpcg";
 		reg = <0x56243010 0x4>;
 		#clock-cells = <1>;
-		clock-output-names = "mipi1_i2c0_lpcg_clk",
-				     "mipi1_i2c0_lpcg_ipg_clk";
+		clock-output-names = "lvds0_i2c0_lpcg_clk",
+				     "lvds0_i2c0_lpcg_ipg_clk";
 		power-domains = <&pd IMX_SC_R_MIPI_1_I2C_0>;
 	};
 

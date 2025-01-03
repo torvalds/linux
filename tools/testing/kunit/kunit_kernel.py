@@ -105,7 +105,9 @@ class LinuxSourceTreeOperationsQemu(LinuxSourceTreeOperations):
 		self._kconfig = qemu_arch_params.kconfig
 		self._qemu_arch = qemu_arch_params.qemu_arch
 		self._kernel_path = qemu_arch_params.kernel_path
-		self._kernel_command_line = qemu_arch_params.kernel_command_line + ' kunit_shutdown=reboot'
+		self._kernel_command_line = qemu_arch_params.kernel_command_line
+		if 'kunit_shutdown=' not in self._kernel_command_line:
+			self._kernel_command_line += ' kunit_shutdown=reboot'
 		self._extra_qemu_params = qemu_arch_params.extra_qemu_params
 		self._serial = qemu_arch_params.serial
 

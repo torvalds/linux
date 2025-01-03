@@ -313,15 +313,15 @@ static inline void end_verification_log(unsigned int tid, unsigned nr_anamolies)
 
 	fclose(f);
 
-	if (nr_anamolies == 0) {
-		remove(path);
-		return;
-	}
-
 	sprintf(logfile, logfilename, tid);
 	strcpy(path, logdir);
 	strcat(path, separator);
 	strcat(path, logfile);
+
+	if (nr_anamolies == 0) {
+		remove(path);
+		return;
+	}
 
 	printf("Thread %02d chunk has %d corrupted words. For details check %s\n",
 		tid, nr_anamolies, path);

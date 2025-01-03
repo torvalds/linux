@@ -1033,11 +1033,6 @@ struct dm_target *dm_table_get_wildcard_target(struct dm_table *t)
 	return NULL;
 }
 
-bool dm_table_bio_based(struct dm_table *t)
-{
-	return __table_type_bio_based(dm_table_get_type(t));
-}
-
 bool dm_table_request_based(struct dm_table *t)
 {
 	return __table_type_request_based(dm_table_get_type(t));

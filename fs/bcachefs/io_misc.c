@@ -377,7 +377,7 @@ static int __bch2_resume_logged_op_finsert(struct btree_trans *trans,
 	 * check for missing subvolume before fpunch, as in resume we don't want
 	 * it to be a fatal error
 	 */
-	ret = __bch2_subvolume_get_snapshot(trans, inum.subvol, &snapshot, warn_errors);
+	ret = lockrestart_do(trans, __bch2_subvolume_get_snapshot(trans, inum.subvol, &snapshot, warn_errors));
 	if (ret)
 		return ret;
 

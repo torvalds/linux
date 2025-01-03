@@ -188,14 +188,10 @@ static int vxcan_newlink(struct net *net, struct net_device *dev,
 
 	/* register peer device */
 	if (data && data[VXCAN_INFO_PEER]) {
-		struct nlattr *nla_peer;
+		struct nlattr *nla_peer = data[VXCAN_INFO_PEER];
 
-		nla_peer = data[VXCAN_INFO_PEER];
 		ifmp = nla_data(nla_peer);
-		err = rtnl_nla_parse_ifinfomsg(peer_tb, nla_peer, extack);
-		if (err < 0)
-			return err;
-
+		rtnl_nla_parse_ifinfomsg(peer_tb, nla_peer, extack);
 		tbp = peer_tb;
 	}
 
@@ -208,9 +204,6 @@ static int vxcan_newlink(struct net *net, struct net_device *dev,
 	}
 
 	peer_net = rtnl_link_get_net(net, tbp);
-	if (IS_ERR(peer_net))
-		return PTR_ERR(peer_net);
-
 	peer = rtnl_create_link(peer_net, ifname, name_assign_type,
 				&vxcan_link_ops, tbp, extack);
 	if (IS_ERR(peer)) {
@@ -302,6 +295,7 @@ static struct rtnl_link_ops vxcan_link_ops = {
 	.newlink	= vxcan_newlink,
 	.dellink	= vxcan_dellink,
 	.policy		= vxcan_policy,
+	.peer_type	= VXCAN_INFO_PEER,
 	.maxtype	= VXCAN_INFO_MAX,
 	.get_link_net	= vxcan_get_link_net,
 };

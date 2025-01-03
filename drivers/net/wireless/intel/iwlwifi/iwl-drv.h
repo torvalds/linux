@@ -98,6 +98,9 @@ void iwl_drv_stop(struct iwl_drv *drv);
 #define VISIBLE_IF_IWLWIFI_KUNIT static
 #endif
 
+/* max retry for init flow */
+#define IWL_MAX_INIT_RETRY 2
+
 #define FW_NAME_PRE_BUFSIZE	64
 struct iwl_trans;
 const char *iwl_drv_get_fwname_pre(struct iwl_trans *trans, char *buf);

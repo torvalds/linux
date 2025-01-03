@@ -260,7 +260,7 @@ u32 xskq_cons_read_desc_batch(struct xsk_queue *q, struct xsk_buff_pool *pool,
 			nr_frags = 0;
 		} else {
 			nr_frags++;
-			if (nr_frags == pool->netdev->xdp_zc_max_segs) {
+			if (nr_frags == pool->xdp_zc_max_segs) {
 				nr_frags = 0;
 				break;
 			}

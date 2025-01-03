@@ -16,6 +16,7 @@
 #include <sys/stat.h>
 #include <bpf/libbpf.h>
 #include <bpf/btf.h>
+#include <bpf/bpf.h>
 #include <libelf.h>
 #include <gelf.h>
 #include <float.h>
@@ -179,6 +180,7 @@ static struct env {
 	int files_skipped;
 	int progs_processed;
 	int progs_skipped;
+	int top_src_lines;
 } env;
 
 static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va_list args)
@@ -228,6 +230,7 @@ static const struct argp_option opts[] = {
 	  "Force frequent BPF verifier state checkpointing (set BPF_F_TEST_STATE_FREQ program flag)" },
 	{ "test-reg-invariants", 'r', NULL, 0,
 	  "Force BPF verifier failure on register invariant violation (BPF_F_TEST_REG_INVARIANTS program flag)" },
+	{ "top-src-lines", 'S', "N", 0, "Emit N most frequent source code lines" },
 	{},
 };
 
@@ -325,6 +328,14 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		if (err) {
 			fprintf(stderr, "Failed to collect program filter expressions: %d\n", err);
 			return err;
+		}
+		break;
+	case 'S':
+		errno = 0;
+		env.top_src_lines = strtol(arg, NULL, 10);
+		if (errno) {
+			fprintf(stderr, "invalid top lines N specifier: %s\n", arg);
+			argp_usage(state);
 		}
 		break;
 	case ARGP_KEY_ARG:
@@ -854,6 +865,118 @@ static int parse_verif_log(char * const buf, size_t buf_sz, struct verif_stats *
 	return 0;
 }
 
+struct line_cnt {
+	char *line;
+	int cnt;
+};
+
+static int str_cmp(const void *a, const void *b)
+{
+	const char **str1 = (const char **)a;
+	const char **str2 = (const char **)b;
+
+	return strcmp(*str1, *str2);
+}
+
+static int line_cnt_cmp(const void *a, const void *b)
+{
+	const struct line_cnt *a_cnt = (const struct line_cnt *)a;
+	const struct line_cnt *b_cnt = (const struct line_cnt *)b;
+
+	if (a_cnt->cnt != b_cnt->cnt)
+		return a_cnt->cnt < b_cnt->cnt ? -1 : 1;
+	return strcmp(a_cnt->line, b_cnt->line);
+}
+
+static int print_top_src_lines(char * const buf, size_t buf_sz, const char *prog_name)
+{
+	int lines_cap = 0;
+	int lines_size = 0;
+	char **lines = NULL;
+	char *line = NULL;
+	char *state;
+	struct line_cnt *freq = NULL;
+	struct line_cnt *cur;
+	int unique_lines;
+	int err = 0;
+	int i;
+
+	while ((line = strtok_r(line ? NULL : buf, "\n", &state))) {
+		if (strncmp(line, "; ", 2) != 0)
+			continue;
+		line += 2;
+
+		if (lines_size == lines_cap) {
+			char **tmp;
+
+			lines_cap = max(16, lines_cap * 2);
+			tmp = realloc(lines, lines_cap * sizeof(*tmp));
+			if (!tmp) {
+				err = -ENOMEM;
+				goto cleanup;
+			}
+			lines = tmp;
+		}
+		lines[lines_size] = line;
+		lines_size++;
+	}
+
+	if (lines_size == 0)
+		goto cleanup;
+
+	qsort(lines, lines_size, sizeof(*lines), str_cmp);
+
+	freq = calloc(lines_size, sizeof(*freq));
+	if (!freq) {
+		err = -ENOMEM;
+		goto cleanup;
+	}
+
+	cur = freq;
+	cur->line = lines[0];
+	cur->cnt = 1;
+	for (i = 1; i < lines_size; ++i) {
+		if (strcmp(lines[i], cur->line) != 0) {
+			cur++;
+			cur->line = lines[i];
+			cur->cnt = 0;
+		}
+		cur->cnt++;
+	}
+	unique_lines = cur - freq + 1;
+
+	qsort(freq, unique_lines, sizeof(struct line_cnt), line_cnt_cmp);
+
+	printf("Top source lines (%s):\n", prog_name);
+	for (i = 0; i < min(unique_lines, env.top_src_lines); ++i) {
+		const char *src_code = freq[i].line;
+		const char *src_line = NULL;
+		char *split = strrchr(freq[i].line, '@');
+
+		if (split) {
+			src_line = split + 1;
+
+			while (*src_line && isspace(*src_line))
+				src_line++;
+
+			while (split > src_code && isspace(*split))
+				split--;
+			*split = '\0';
+		}
+
+		if (src_line)
+			printf("%5d: (%s)\t%s\n", freq[i].cnt, src_line, src_code);
+		else
+			printf("%5d: %s\n", freq[i].cnt, src_code);
+	}
+	printf("\n");
+
+cleanup:
+	free(freq);
+	free(lines);
+	return err;
+}
+
 static int guess_prog_type_by_ctx_name(const char *ctx_name,
 				       enum bpf_prog_type *prog_type,
 				       enum bpf_attach_type *attach_type)
@@ -987,6 +1110,35 @@ skip_freplace_fixup:
 	return;
 }
 
+static int max_verifier_log_size(void)
+{
+	const int SMALL_LOG_SIZE = UINT_MAX >> 8;
+	const int BIG_LOG_SIZE = UINT_MAX >> 2;
+	struct bpf_insn insns[] = {
+		{ .code = BPF_ALU | BPF_MOV | BPF_X, .dst_reg = BPF_REG_0, },
+		{ .code  = BPF_JMP | BPF_EXIT, },
+	};
+	LIBBPF_OPTS(bpf_prog_load_opts, opts,
+		    .log_size = BIG_LOG_SIZE,
+		    .log_buf = (void *)-1,
+		    .log_level = 4
+	);
+	int ret, insn_cnt = ARRAY_SIZE(insns);
+	static int log_size;
+
+	if (log_size != 0)
+		return log_size;
+
+	ret = bpf_prog_load(BPF_PROG_TYPE_TRACEPOINT, NULL, "GPL", insns, insn_cnt, &opts);
+
+	if (ret == -EFAULT)
+		log_size = BIG_LOG_SIZE;
+	else /* ret == -EINVAL, big log size is not supported by the verifier */
+		log_size = SMALL_LOG_SIZE;
+
+	return log_size;
+}
+
 static int process_prog(const char *filename, struct bpf_object *obj, struct bpf_program *prog)
 {
 	const char *base_filename = basename(strdupa(filename));
@@ -1009,13 +1161,16 @@ static int process_prog(const char *filename, struct bpf_object *obj, struct bpf
 	stats = &env.prog_stats[env.prog_stat_cnt++];
 	memset(stats, 0, sizeof(*stats));
 
-	if (env.verbose) {
-		buf_sz = env.log_size ? env.log_size : 16 * 1024 * 1024;
+	if (env.verbose || env.top_src_lines > 0) {
+		buf_sz = env.log_size ? env.log_size : max_verifier_log_size();
 		buf = malloc(buf_sz);
 		if (!buf)
 			return -ENOMEM;
 		/* ensure we always request stats */
 		log_level = env.log_level | 4 | (env.log_fixed ? 8 : 0);
+		/* --top-src-lines needs verifier log */
+		if (env.top_src_lines > 0 && env.log_level == 0)
+			log_level |= 2;
 	} else {
 		buf = verif_log_buf;
 		buf_sz = sizeof(verif_log_buf);
@@ -1048,6 +1203,8 @@ static int process_prog(const char *filename, struct bpf_object *obj, struct bpf
 		       filename, prog_name, stats->stats[DURATION],
 		       err ? "failure" : "success", buf);
 	}
+	if (env.top_src_lines > 0)
+		print_top_src_lines(buf, buf_sz, stats->prog_name);
 
 	if (verif_log_buf != buf)
 		free(buf);

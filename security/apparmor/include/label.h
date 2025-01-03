@@ -160,31 +160,7 @@ int aa_label_next_confined(struct aa_label *l, int i);
 #define label_for_each_cont(I, L, P)					\
 	for (++((I).i); ((P) = (L)->vec[(I).i]); ++((I).i))
 
-#define next_comb(I, L1, L2)						\
-do {									\
-	(I).j++;							\
-	if ((I).j >= (L2)->size) {					\
-		(I).i++;						\
-		(I).j = 0;						\
-	}								\
-} while (0)
 
-
-/* for each combination of P1 in L1, and P2 in L2 */
-#define label_for_each_comb(I, L1, L2, P1, P2)				\
-for ((I).i = (I).j = 0;							\
-	((P1) = (L1)->vec[(I).i]) && ((P2) = (L2)->vec[(I).j]);		\
-	(I) = next_comb(I, L1, L2))
-
-#define fn_for_each_comb(L1, L2, P1, P2, FN)				\
-({									\
-	struct label_it i;						\
-	int __E = 0;							\
-	label_for_each_comb(i, (L1), (L2), (P1), (P2)) {		\
-		last_error(__E, (FN));					\
-	}								\
-	__E;								\
-})
 
 /* for each profile that is enforcing confinement in a label */
 #define label_for_each_confined(I, L, P)				\
@@ -291,8 +267,6 @@ bool aa_label_replace(struct aa_label *old, struct aa_label *new);
 bool aa_label_make_newest(struct aa_labelset *ls, struct aa_label *old,
 			  struct aa_label *new);
 
-struct aa_label *aa_label_find(struct aa_label *l);
-
 struct aa_profile *aa_label_next_in_merge(struct label_it *I,
 					  struct aa_label *a,
 					  struct aa_label *b);
@@ -320,8 +294,6 @@ void aa_label_seq_xprint(struct seq_file *f, struct aa_ns *ns,
 			 struct aa_label *label, int flags, gfp_t gfp);
 void aa_label_xprintk(struct aa_ns *ns, struct aa_label *label, int flags,
 		      gfp_t gfp);
-void aa_label_audit(struct audit_buffer *ab, struct aa_label *label, gfp_t gfp);
-void aa_label_seq_print(struct seq_file *f, struct aa_label *label, gfp_t gfp);
 void aa_label_printk(struct aa_label *label, gfp_t gfp);
 
 struct aa_label *aa_label_strn_parse(struct aa_label *base, const char *str,

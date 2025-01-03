@@ -2636,7 +2636,7 @@ static const struct dev_pm_ops edma_pm_ops = {
 
 static struct platform_driver edma_driver = {
 	.probe		= edma_probe,
-	.remove_new	= edma_remove,
+	.remove		= edma_remove,
 	.driver = {
 		.name	= "edma",
 		.pm	= &edma_pm_ops,

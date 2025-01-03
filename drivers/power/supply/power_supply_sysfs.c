@@ -142,7 +142,7 @@ static const char * const POWER_SUPPLY_CHARGE_BEHAVIOUR_TEXT[] = {
 	[POWER_SUPPLY_CHARGE_BEHAVIOUR_FORCE_DISCHARGE]	= "force-discharge",
 };
 
-static struct power_supply_attr power_supply_attrs[] = {
+static struct power_supply_attr power_supply_attrs[] __ro_after_init = {
 	/* Properties of type `int' */
 	POWER_SUPPLY_ENUM_ATTR(STATUS),
 	POWER_SUPPLY_ENUM_ATTR(CHARGE_TYPE),
@@ -225,9 +225,9 @@ static struct power_supply_attr power_supply_attrs[] = {
 #define POWER_SUPPLY_ATTR_CNT ARRAY_SIZE(power_supply_attrs)
 
 static struct attribute *
-__power_supply_attrs[POWER_SUPPLY_ATTR_CNT + 1];
+__power_supply_attrs[POWER_SUPPLY_ATTR_CNT + 1] __ro_after_init;
 
-static struct power_supply_attr *to_ps_attr(struct device_attribute *attr)
+static const struct power_supply_attr *to_ps_attr(struct device_attribute *attr)
 {
 	return container_of(attr, struct power_supply_attr, dev_attr);
 }
@@ -273,7 +273,7 @@ static ssize_t power_supply_show_property(struct device *dev,
 					  char *buf) {
 	ssize_t ret;
 	struct power_supply *psy = dev_get_drvdata(dev);
-	struct power_supply_attr *ps_attr = to_ps_attr(attr);
+	const struct power_supply_attr *ps_attr = to_ps_attr(attr);
 	enum power_supply_property psp = dev_attr_psp(attr);
 	union power_supply_propval value;
 
@@ -326,7 +326,7 @@ static ssize_t power_supply_store_property(struct device *dev,
 					   const char *buf, size_t count) {
 	ssize_t ret;
 	struct power_supply *psy = dev_get_drvdata(dev);
-	struct power_supply_attr *ps_attr = to_ps_attr(attr);
+	const struct power_supply_attr *ps_attr = to_ps_attr(attr);
 	enum power_supply_property psp = dev_attr_psp(attr);
 	union power_supply_propval value;
 
@@ -401,7 +401,7 @@ const struct attribute_group *power_supply_attr_groups[] = {
 	NULL
 };
 
-void power_supply_init_attrs(void)
+void __init power_supply_init_attrs(void)
 {
 	int i;
 

@@ -282,7 +282,7 @@ static int rtw8851b_pwr_on_func(struct rtw89_dev *rtwdev)
 {
 	u32 val32;
 	u8 val8;
-	u32 ret;
+	int ret;
 
 	rtw89_write32_clr(rtwdev, R_AX_SYS_PW_CTRL, B_AX_AFSM_WLSUS_EN |
 						    B_AX_AFSM_PCIE_SUS_EN);
@@ -401,7 +401,7 @@ static void rtw8851b_patch_swr_pfm2pwm(struct rtw89_dev *rtwdev)
 static int rtw8851b_pwr_off_func(struct rtw89_dev *rtwdev)
 {
 	u32 val32;
-	u32 ret;
+	int ret;
 
 	ret = rtw89_mac_write_xtal_si(rtwdev, XTAL_SI_ANAPAR_WL, XTAL_SI_RFC2RF,
 				      XTAL_SI_RFC2RF);
@@ -1590,10 +1590,11 @@ static void rtw8851b_rfk_init(struct rtw89_dev *rtwdev)
 	rtw8851b_rx_dck(rtwdev, RTW89_PHY_0, RTW89_CHANCTX_0);
 }
 
-static void rtw8851b_rfk_channel(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
+static void rtw8851b_rfk_channel(struct rtw89_dev *rtwdev,
+				 struct rtw89_vif_link *rtwvif_link)
 {
-	enum rtw89_chanctx_idx chanctx_idx = rtwvif->chanctx_idx;
-	enum rtw89_phy_idx phy_idx = rtwvif->phy_idx;
+	enum rtw89_chanctx_idx chanctx_idx = rtwvif_link->chanctx_idx;
+	enum rtw89_phy_idx phy_idx = rtwvif_link->phy_idx;
 
 	rtw8851b_rx_dck(rtwdev, phy_idx, chanctx_idx);
 	rtw8851b_iqk(rtwdev, phy_idx, chanctx_idx);
@@ -1608,10 +1609,12 @@ static void rtw8851b_rfk_band_changed(struct rtw89_dev *rtwdev,
 	rtw8851b_tssi_scan(rtwdev, phy_idx, chan);
 }
 
-static void rtw8851b_rfk_scan(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+static void rtw8851b_rfk_scan(struct rtw89_dev *rtwdev,
+			      struct rtw89_vif_link *rtwvif_link,
 			      bool start)
 {
-	rtw8851b_wifi_scan_notify(rtwdev, start, rtwvif->phy_idx, rtwvif->chanctx_idx);
+	rtw8851b_wifi_scan_notify(rtwdev, start, rtwvif_link->phy_idx,
+				  rtwvif_link->chanctx_idx);
 }
 
 static void rtw8851b_rfk_track(struct rtw89_dev *rtwdev)
@@ -2451,6 +2454,7 @@ const struct rtw89_chip_info rtw8851b_chip_info = {
 	.wde_qempty_acq_grpnum	= 4,
 	.wde_qempty_mgq_grpsel	= 4,
 	.rf_base_addr		= {0xe000},
+	.thermal_th		= {0x32, 0x35},
 	.pwr_on_seq		= NULL,
 	.pwr_off_seq		= NULL,
 	.bb_table		= &rtw89_8851b_phy_bb_table,

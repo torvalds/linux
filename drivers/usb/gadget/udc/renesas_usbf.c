@@ -2482,7 +2482,7 @@ static int usbf_handle_ep0_setup(struct usbf_ep *ep0)
 	ep0->delayed_status = 0;
 
 	if ((crq.ctrlreq.bRequestType & USB_TYPE_MASK) != USB_TYPE_STANDARD) {
-		/* This is not a USB standard request -> delelate */
+		/* This is not a USB standard request -> delegate */
 		goto delegate;
 	}
 
@@ -3381,7 +3381,7 @@ static struct platform_driver udc_driver = {
 		.of_match_table = usbf_match,
 	},
 	.probe          = usbf_probe,
-	.remove_new     = usbf_remove,
+	.remove         = usbf_remove,
 };
 
 module_platform_driver(udc_driver);

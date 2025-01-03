@@ -268,7 +268,7 @@ MODULE_DEVICE_TABLE(of, visconti_eth_dwmac_match);
 
 static struct platform_driver visconti_eth_dwmac_driver = {
 	.probe  = visconti_eth_dwmac_probe,
-	.remove_new = visconti_eth_dwmac_remove,
+	.remove = visconti_eth_dwmac_remove,
 	.driver = {
 		.name           = "visconti-eth-dwmac",
 		.of_match_table = visconti_eth_dwmac_match,

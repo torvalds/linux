@@ -334,6 +334,11 @@ static int call_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
 	unsigned int i;
 	int ret;
 
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	if (!(sd->entity.pads[pad].flags & MEDIA_PAD_FL_SOURCE))
+		return -EOPNOTSUPP;
+#endif
+
 	memset(fd, 0, sizeof(*fd));
 
 	ret = sd->ops->pad->get_frame_desc(sd, pad, fd);
@@ -691,10 +696,25 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg,
 		return v4l2_event_dequeue(vfh, arg, file->f_flags & O_NONBLOCK);
 
 	case VIDIOC_SUBSCRIBE_EVENT:
-		return v4l2_subdev_call(sd, core, subscribe_event, vfh, arg);
+		if (v4l2_subdev_has_op(sd, core, subscribe_event))
+			return v4l2_subdev_call(sd, core, subscribe_event,
+						vfh, arg);
+
+		if ((sd->flags & V4L2_SUBDEV_FL_HAS_EVENTS) &&
+		    vfh->ctrl_handler)
+			return v4l2_ctrl_subdev_subscribe_event(sd, vfh, arg);
+
+		return -ENOIOCTLCMD;
 
 	case VIDIOC_UNSUBSCRIBE_EVENT:
-		return v4l2_subdev_call(sd, core, unsubscribe_event, vfh, arg);
+		if (v4l2_subdev_has_op(sd, core, unsubscribe_event))
+			return v4l2_subdev_call(sd, core, unsubscribe_event,
+						vfh, arg);
+
+		if (sd->flags & V4L2_SUBDEV_FL_HAS_EVENTS)
+			return v4l2_event_subdev_unsubscribe(sd, vfh, arg);
+
+		return -ENOIOCTLCMD;
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	case VIDIOC_DBG_G_REGISTER:
@@ -1640,6 +1660,9 @@ int __v4l2_subdev_init_finalize(struct v4l2_subdev *sd, const char *name,
 			return -EINVAL;
 		}
 	}
+
+	if (sd->ctrl_handler)
+		sd->flags |= V4L2_SUBDEV_FL_HAS_EVENTS;
 
 	state = __v4l2_subdev_state_alloc(sd, name, key);
 	if (IS_ERR(state))

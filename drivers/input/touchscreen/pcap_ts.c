@@ -238,7 +238,7 @@ static const struct dev_pm_ops pcap_ts_pm_ops = {
 
 static struct platform_driver pcap_ts_driver = {
 	.probe		= pcap_ts_probe,
-	.remove_new	= pcap_ts_remove,
+	.remove		= pcap_ts_remove,
 	.driver		= {
 		.name	= "pcap-ts",
 		.pm	= PCAP_TS_PM_OPS,

@@ -348,6 +348,24 @@ static bool amdgpu_mca_bank_should_update(struct amdgpu_device *adev, enum amdgp
 	return ret;
 }
 
+static bool amdgpu_mca_bank_should_dump(struct amdgpu_device *adev, enum amdgpu_mca_error_type type,
+					struct mca_bank_entry *entry)
+{
+	bool ret;
+
+	switch (type) {
+	case AMDGPU_MCA_ERROR_TYPE_CE:
+		ret = amdgpu_mca_is_deferred_error(adev, entry->regs[MCA_REG_IDX_STATUS]);
+		break;
+	case AMDGPU_MCA_ERROR_TYPE_UE:
+	default:
+		ret = true;
+		break;
+	}
+
+	return ret;
+}
+
 static int amdgpu_mca_smu_get_mca_set(struct amdgpu_device *adev, enum amdgpu_mca_error_type type, struct mca_bank_set *mca_set,
 				      struct ras_query_context *qctx)
 {
@@ -373,7 +391,8 @@ static int amdgpu_mca_smu_get_mca_set(struct amdgpu_device *adev, enum amdgpu_mc
 
 		amdgpu_mca_bank_set_add_entry(mca_set, &entry);
 
-		amdgpu_mca_smu_mca_bank_dump(adev, i, &entry, qctx);
+		if (amdgpu_mca_bank_should_dump(adev, type, &entry))
+			amdgpu_mca_smu_mca_bank_dump(adev, i, &entry, qctx);
 	}
 
 	return 0;

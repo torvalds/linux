@@ -5,10 +5,10 @@
  * Copyright 2011 Analog Devices Inc.
  */
 
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/spi/spi.h>
 #include <linux/types.h>
-#include <linux/err.h>
 
 #include <linux/iio/iio.h>
 #include "ad7606.h"
@@ -67,14 +67,26 @@ static const struct iio_chan_spec ad7616_sw_channels[] = {
 
 static const struct iio_chan_spec ad7606b_sw_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(8),
-	AD7616_CHANNEL(0),
-	AD7616_CHANNEL(1),
-	AD7616_CHANNEL(2),
-	AD7616_CHANNEL(3),
-	AD7616_CHANNEL(4),
-	AD7616_CHANNEL(5),
-	AD7616_CHANNEL(6),
-	AD7616_CHANNEL(7),
+	AD7606_SW_CHANNEL(0, 16),
+	AD7606_SW_CHANNEL(1, 16),
+	AD7606_SW_CHANNEL(2, 16),
+	AD7606_SW_CHANNEL(3, 16),
+	AD7606_SW_CHANNEL(4, 16),
+	AD7606_SW_CHANNEL(5, 16),
+	AD7606_SW_CHANNEL(6, 16),
+	AD7606_SW_CHANNEL(7, 16),
+};
+
+static const struct iio_chan_spec ad7606c_18_sw_channels[] = {
+	IIO_CHAN_SOFT_TIMESTAMP(8),
+	AD7606_SW_CHANNEL(0, 18),
+	AD7606_SW_CHANNEL(1, 18),
+	AD7606_SW_CHANNEL(2, 18),
+	AD7606_SW_CHANNEL(3, 18),
+	AD7606_SW_CHANNEL(4, 18),
+	AD7606_SW_CHANNEL(5, 18),
+	AD7606_SW_CHANNEL(6, 18),
+	AD7606_SW_CHANNEL(7, 18),
 };
 
 static const unsigned int ad7606B_oversampling_avail[9] = {
@@ -118,6 +130,32 @@ static int ad7606_spi_read_block(struct device *dev,
 		data[i] = be16_to_cpu(bdata[i]);
 
 	return 0;
+}
+
+static int ad7606_spi_read_block14to16(struct device *dev,
+				       int count, void *buf)
+{
+	struct spi_device *spi = to_spi_device(dev);
+	struct spi_transfer xfer = {
+		.bits_per_word = 14,
+		.len = count * sizeof(u16),
+		.rx_buf = buf,
+	};
+
+	return spi_sync_transfer(spi, &xfer, 1);
+}
+
+static int ad7606_spi_read_block18to32(struct device *dev,
+				       int count, void *buf)
+{
+	struct spi_device *spi = to_spi_device(dev);
+	struct spi_transfer xfer = {
+		.bits_per_word = 18,
+		.len = count * sizeof(u32),
+		.rx_buf = buf,
+	};
+
+	return spi_sync_transfer(spi, &xfer, 1);
 }
 
 static int ad7606_spi_reg_read(struct ad7606_state *st, unsigned int addr)
@@ -283,8 +321,29 @@ static int ad7606B_sw_mode_config(struct iio_dev *indio_dev)
 	return 0;
 }
 
+static int ad7606c_18_sw_mode_config(struct iio_dev *indio_dev)
+{
+	int ret;
+
+	ret = ad7606B_sw_mode_config(indio_dev);
+	if (ret)
+		return ret;
+
+	indio_dev->channels = ad7606c_18_sw_channels;
+
+	return 0;
+}
+
 static const struct ad7606_bus_ops ad7606_spi_bops = {
 	.read_block = ad7606_spi_read_block,
+};
+
+static const struct ad7606_bus_ops ad7607_spi_bops = {
+	.read_block = ad7606_spi_read_block14to16,
+};
+
+static const struct ad7606_bus_ops ad7608_spi_bops = {
+	.read_block = ad7606_spi_read_block18to32,
 };
 
 static const struct ad7606_bus_ops ad7616_spi_bops = {
@@ -296,7 +355,7 @@ static const struct ad7606_bus_ops ad7616_spi_bops = {
 	.sw_mode_config = ad7616_sw_mode_config,
 };
 
-static const struct ad7606_bus_ops ad7606B_spi_bops = {
+static const struct ad7606_bus_ops ad7606b_spi_bops = {
 	.read_block = ad7606_spi_read_block,
 	.reg_read = ad7606_spi_reg_read,
 	.reg_write = ad7606_spi_reg_write,
@@ -305,46 +364,106 @@ static const struct ad7606_bus_ops ad7606B_spi_bops = {
 	.sw_mode_config = ad7606B_sw_mode_config,
 };
 
+static const struct ad7606_bus_ops ad7606c_18_spi_bops = {
+	.read_block = ad7606_spi_read_block18to32,
+	.reg_read = ad7606_spi_reg_read,
+	.reg_write = ad7606_spi_reg_write,
+	.write_mask = ad7606_spi_write_mask,
+	.rd_wr_cmd = ad7606B_spi_rd_wr_cmd,
+	.sw_mode_config = ad7606c_18_sw_mode_config,
+};
+
+static const struct ad7606_bus_info ad7605_4_bus_info = {
+	.chip_info = &ad7605_4_info,
+	.bops = &ad7606_spi_bops,
+};
+
+static const struct ad7606_bus_info ad7606_8_bus_info = {
+	.chip_info = &ad7606_8_info,
+	.bops = &ad7606_spi_bops,
+};
+
+static const struct ad7606_bus_info ad7606_6_bus_info = {
+	.chip_info = &ad7606_6_info,
+	.bops = &ad7606_spi_bops,
+};
+
+static const struct ad7606_bus_info ad7606_4_bus_info = {
+	.chip_info = &ad7606_4_info,
+	.bops = &ad7606_spi_bops,
+};
+
+static const struct ad7606_bus_info ad7606b_bus_info = {
+	.chip_info = &ad7606b_info,
+	.bops = &ad7606b_spi_bops,
+};
+
+static const struct ad7606_bus_info ad7606c_16_bus_info = {
+	.chip_info = &ad7606c_16_info,
+	.bops = &ad7606b_spi_bops,
+};
+
+static const struct ad7606_bus_info ad7606c_18_bus_info = {
+	.chip_info = &ad7606c_18_info,
+	.bops = &ad7606c_18_spi_bops,
+};
+
+static const struct ad7606_bus_info ad7607_bus_info = {
+	.chip_info = &ad7607_info,
+	.bops = &ad7607_spi_bops,
+};
+
+static const struct ad7606_bus_info ad7608_bus_info = {
+	.chip_info = &ad7608_info,
+	.bops = &ad7608_spi_bops,
+};
+
+static const struct ad7606_bus_info ad7609_bus_info = {
+	.chip_info = &ad7609_info,
+	.bops = &ad7608_spi_bops,
+};
+
+static const struct ad7606_bus_info ad7616_bus_info = {
+	.chip_info = &ad7616_info,
+	.bops = &ad7616_spi_bops,
+};
+
 static int ad7606_spi_probe(struct spi_device *spi)
 {
-	const struct spi_device_id *id = spi_get_device_id(spi);
-	const struct ad7606_bus_ops *bops;
-
-	switch (id->driver_data) {
-	case ID_AD7616:
-		bops = &ad7616_spi_bops;
-		break;
-	case ID_AD7606B:
-		bops = &ad7606B_spi_bops;
-		break;
-	default:
-		bops = &ad7606_spi_bops;
-		break;
-	}
+	const struct ad7606_bus_info *bus_info = spi_get_device_match_data(spi);
 
 	return ad7606_probe(&spi->dev, spi->irq, NULL,
-			    id->name, id->driver_data,
-			    bops);
+			    bus_info->chip_info, bus_info->bops);
 }
 
 static const struct spi_device_id ad7606_id_table[] = {
-	{ "ad7605-4", ID_AD7605_4 },
-	{ "ad7606-4", ID_AD7606_4 },
-	{ "ad7606-6", ID_AD7606_6 },
-	{ "ad7606-8", ID_AD7606_8 },
-	{ "ad7606b",  ID_AD7606B },
-	{ "ad7616",   ID_AD7616 },
+	{ "ad7605-4", (kernel_ulong_t)&ad7605_4_bus_info },
+	{ "ad7606-4", (kernel_ulong_t)&ad7606_4_bus_info },
+	{ "ad7606-6", (kernel_ulong_t)&ad7606_6_bus_info },
+	{ "ad7606-8", (kernel_ulong_t)&ad7606_8_bus_info },
+	{ "ad7606b",  (kernel_ulong_t)&ad7606b_bus_info },
+	{ "ad7606c-16", (kernel_ulong_t)&ad7606c_16_bus_info },
+	{ "ad7606c-18", (kernel_ulong_t)&ad7606c_18_bus_info },
+	{ "ad7607",   (kernel_ulong_t)&ad7607_bus_info },
+	{ "ad7608",   (kernel_ulong_t)&ad7608_bus_info },
+	{ "ad7609",   (kernel_ulong_t)&ad7609_bus_info },
+	{ "ad7616",   (kernel_ulong_t)&ad7616_bus_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad7606_id_table);
 
 static const struct of_device_id ad7606_of_match[] = {
-	{ .compatible = "adi,ad7605-4" },
-	{ .compatible = "adi,ad7606-4" },
-	{ .compatible = "adi,ad7606-6" },
-	{ .compatible = "adi,ad7606-8" },
-	{ .compatible = "adi,ad7606b" },
-	{ .compatible = "adi,ad7616" },
+	{ .compatible = "adi,ad7605-4", .data = &ad7605_4_bus_info },
+	{ .compatible = "adi,ad7606-4", .data = &ad7606_4_bus_info },
+	{ .compatible = "adi,ad7606-6", .data = &ad7606_6_bus_info },
+	{ .compatible = "adi,ad7606-8", .data = &ad7606_8_bus_info },
+	{ .compatible = "adi,ad7606b", .data = &ad7606b_bus_info },
+	{ .compatible = "adi,ad7606c-16", .data = &ad7606c_16_bus_info },
+	{ .compatible = "adi,ad7606c-18", .data = &ad7606c_18_bus_info },
+	{ .compatible = "adi,ad7607", .data = &ad7607_bus_info },
+	{ .compatible = "adi,ad7608", .data = &ad7608_bus_info },
+	{ .compatible = "adi,ad7609", .data = &ad7609_bus_info },
+	{ .compatible = "adi,ad7616", .data = &ad7616_bus_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ad7606_of_match);

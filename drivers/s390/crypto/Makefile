@@ -29,6 +29,10 @@ obj-$(CONFIG_PKEY_EP11) += pkey-ep11.o
 pkey-pckmo-objs := pkey_pckmo.o
 obj-$(CONFIG_PKEY_PCKMO) += pkey-pckmo.o
 
+# pkey uv handler module
+pkey-uv-objs := pkey_uv.o
+obj-$(CONFIG_PKEY_UV) += pkey-uv.o
+
 # adjunct processor matrix
 vfio_ap-objs := vfio_ap_drv.o vfio_ap_ops.o
 obj-$(CONFIG_VFIO_AP) += vfio_ap.o

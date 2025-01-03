@@ -96,6 +96,8 @@ extern struct list_head hba_list;
 extern const struct pm8001_dispatch pm8001_8001_dispatch;
 extern const struct pm8001_dispatch pm8001_80xx_dispatch;
 
+extern uint pcs_event_log_severity;
+
 struct pm8001_hba_info;
 struct pm8001_ccb_info;
 struct pm8001_device;

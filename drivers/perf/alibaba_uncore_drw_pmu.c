@@ -782,7 +782,7 @@ static struct platform_driver ali_drw_pmu_driver = {
 		   .acpi_match_table = ali_drw_acpi_match,
 		   },
 	.probe = ali_drw_pmu_probe,
-	.remove_new = ali_drw_pmu_remove,
+	.remove = ali_drw_pmu_remove,
 };
 
 static int __init ali_drw_pmu_init(void)

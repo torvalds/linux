@@ -458,8 +458,6 @@ static const struct vb2_ops xvip_dma_queue_qops = {
 	.queue_setup = xvip_dma_queue_setup,
 	.buf_prepare = xvip_dma_buffer_prepare,
 	.buf_queue = xvip_dma_buffer_queue,
-	.wait_prepare = vb2_ops_wait_prepare,
-	.wait_finish = vb2_ops_wait_finish,
 	.start_streaming = xvip_dma_start_streaming,
 	.stop_streaming = xvip_dma_stop_streaming,
 };

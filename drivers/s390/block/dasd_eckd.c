@@ -2405,7 +2405,7 @@ static int dasd_eckd_end_analysis(struct dasd_block *block)
 	}
 
 	if (count_area != NULL && count_area->kl == 0) {
-		/* we found notthing violating our disk layout */
+		/* we found nothing violating our disk layout */
 		if (dasd_check_blocksize(count_area->dl) == 0)
 			block->bp_block = count_area->dl;
 	}

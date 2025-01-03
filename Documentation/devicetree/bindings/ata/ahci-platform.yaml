@@ -84,6 +84,9 @@ properties:
     minItems: 1
     maxItems: 3
 
+  iommus:
+    maxItems: 1
+
 patternProperties:
   "^sata-port@[0-9a-f]+$":
     $ref: /schemas/ata/ahci-common.yaml#/$defs/ahci-port

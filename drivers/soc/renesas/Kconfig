@@ -347,6 +347,7 @@ config ARCH_R9A09G011
 
 config ARCH_R9A09G057
 	bool "ARM64 Platform support for RZ/V2H(P)"
+	select RENESAS_RZV2H_ICU
 	help
 	  This enables support for the Renesas RZ/V2H(P) SoC variants.
 

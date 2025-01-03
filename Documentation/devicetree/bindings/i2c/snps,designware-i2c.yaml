@@ -97,6 +97,22 @@ properties:
       - const: tx
       - const: rx
 
+  snps,bus-capacitance-pf:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      This property indicates the bus capacitance in picofarads (pF).
+      This value is used to compute the tHIGH and tLOW periods for high speed
+      mode.
+    enum: [100, 400]
+    default: 100
+
+  snps,clk-freq-optimized:
+    description:
+      This property indicates whether the hardware reduce its clock frequency
+      by reducing the internal latency required to generate the high period and
+      low period of SCL line.
+    type: boolean
+
 unevaluatedProperties: false
 
 required:
@@ -121,6 +137,8 @@ examples:
       i2c-sda-hold-time-ns = <300>;
       i2c-sda-falling-time-ns = <300>;
       i2c-scl-falling-time-ns = <300>;
+      snps,bus-capacitance-pf = <400>;
+      snps,clk-freq-optimized;
     };
   - |
     i2c@2000 {

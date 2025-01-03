@@ -238,7 +238,7 @@ static inline int k3_bgp_read_temp(struct k3_thermal_data *devdata,
 		K3_VTM_TS_STAT_DTEMP_MASK;
 	dtemp = vtm_get_best_value(s0, s1, s2);
 
-	if (dtemp < 0 || dtemp >= TABLE_SIZE)
+	if (dtemp >= TABLE_SIZE)
 		return -EINVAL;
 
 	*temp = derived_table[dtemp];
@@ -594,7 +594,7 @@ MODULE_DEVICE_TABLE(of, of_k3_j72xx_bandgap_match);
 
 static struct platform_driver k3_j72xx_bandgap_sensor_driver = {
 	.probe = k3_j72xx_bandgap_probe,
-	.remove_new = k3_j72xx_bandgap_remove,
+	.remove = k3_j72xx_bandgap_remove,
 	.driver = {
 		.name = "k3-j72xx-soc-thermal",
 		.of_match_table	= of_k3_j72xx_bandgap_match,

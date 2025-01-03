@@ -108,6 +108,27 @@ a fully reliable and straight-forward way to reproduce the regression, too.*
 With that the process is complete. Now report the regression as described by
 Documentation/admin-guide/reporting-issues.rst.
 
+Bisecting linux-next
+--------------------
+
+If you face a problem only happening in linux-next, bisect between the
+linux-next branches 'stable' and 'master'. The following commands will start
+the process for a linux-next tree you added as a remote called 'next'::
+
+  git bisect start
+  git bisect good next/stable
+  git bisect bad next/master
+
+The 'stable' branch refers to the state of linux-mainline that the current
+linux-next release (found in the 'master' branch) is based on -- the former
+thus should be free of any problems that show up in -next, but not in Linus'
+tree.
+
+This will bisect across a wide range of changes, some of which you might have
+used in earlier linux-next releases without problems. Sadly there is no simple
+way to avoid checking them: bisecting from one linux-next release to a later
+one (say between 'next-20241020' and 'next-20241021') is impossible, as they
+share no common history.
 
 Additional reading material
 ---------------------------

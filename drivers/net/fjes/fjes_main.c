@@ -1466,7 +1466,7 @@ static struct platform_driver fjes_driver = {
 		.name = DRV_NAME,
 	},
 	.probe = fjes_probe,
-	.remove_new = fjes_remove,
+	.remove = fjes_remove,
 };
 
 static acpi_status

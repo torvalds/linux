@@ -305,7 +305,6 @@ void initregs(struct biosregs *regs);
 int strcmp(const char *str1, const char *str2);
 int strncmp(const char *cs, const char *ct, size_t count);
 size_t strnlen(const char *s, size_t maxlen);
-unsigned int atou(const char *s);
 unsigned long long simple_strtoull(const char *cp, char **endp, unsigned int base);
 size_t strlen(const char *s);
 char *strchr(const char *s, int c);

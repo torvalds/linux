@@ -494,6 +494,7 @@ FixupDAR:/* Entry point for dcbx workaround. */
 	bctr				/* jump into table */
 152:
 	mfdar	r11
+	mtdar	r10
 	mtctr	r11			/* restore ctr reg from DAR */
 	mfspr	r11, SPRN_SPRG_THREAD
 	stw	r10, DAR(r11)

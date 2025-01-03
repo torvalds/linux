@@ -16,6 +16,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/soc/qcom/geni-se.h>
 #include <linux/spinlock.h>
+#include <linux/units.h>
 
 #define SE_I2C_TX_TRANS_LEN		0x26c
 #define SE_I2C_RX_TRANS_LEN		0x270
@@ -146,22 +147,36 @@ struct geni_i2c_clk_fld {
  * clk_freq_out = t / t_cycle
  * source_clock = 19.2 MHz
  */
-static const struct geni_i2c_clk_fld geni_i2c_clk_map[] = {
+static const struct geni_i2c_clk_fld geni_i2c_clk_map_19p2mhz[] = {
 	{KHZ(100), 7, 10, 11, 26},
 	{KHZ(400), 2,  5, 12, 24},
 	{KHZ(1000), 1, 3,  9, 18},
+	{},
+};
+
+/* source_clock = 32 MHz */
+static const struct geni_i2c_clk_fld geni_i2c_clk_map_32mhz[] = {
+	{KHZ(100), 8, 14, 18, 40},
+	{KHZ(400), 4,  3, 11, 20},
+	{KHZ(1000), 2, 3,  6, 15},
+	{},
 };
 
 static int geni_i2c_clk_map_idx(struct geni_i2c_dev *gi2c)
 {
-	int i;
-	const struct geni_i2c_clk_fld *itr = geni_i2c_clk_map;
+	const struct geni_i2c_clk_fld *itr;
 
-	for (i = 0; i < ARRAY_SIZE(geni_i2c_clk_map); i++, itr++) {
+	if (clk_get_rate(gi2c->se.clk) == 32 * HZ_PER_MHZ)
+		itr = geni_i2c_clk_map_32mhz;
+	else
+		itr = geni_i2c_clk_map_19p2mhz;
+
+	while (itr->clk_freq_out != 0) {
 		if (itr->clk_freq_out == gi2c->clk_freq_out) {
 			gi2c->clk_fld = itr;
 			return 0;
 		}
+		itr++;
 	}
 	return -EINVAL;
 }
@@ -818,6 +833,8 @@ static int geni_i2c_probe(struct platform_device *pdev)
 	init_completion(&gi2c->done);
 	spin_lock_init(&gi2c->lock);
 	platform_set_drvdata(pdev, gi2c);
+
+	/* Keep interrupts disabled initially to allow for low-power modes */
 	ret = devm_request_irq(dev, gi2c->irq, geni_i2c_irq, IRQF_NO_AUTOEN,
 			       dev_name(dev), gi2c);
 	if (ret) {
@@ -1049,7 +1066,7 @@ MODULE_DEVICE_TABLE(of, geni_i2c_dt_match);
 
 static struct platform_driver geni_i2c_driver = {
 	.probe  = geni_i2c_probe,
-	.remove_new = geni_i2c_remove,
+	.remove = geni_i2c_remove,
 	.shutdown = geni_i2c_shutdown,
 	.driver = {
 		.name = "geni_i2c",

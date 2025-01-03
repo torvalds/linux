@@ -138,7 +138,7 @@ MODULE_DEVICE_TABLE(of, bcm_iproc_of_match);
 
 static struct platform_driver bcm_iproc_driver = {
 	.probe			= bcm_iproc_probe,
-	.remove_new		= bcm_iproc_remove,
+	.remove			= bcm_iproc_remove,
 	.driver = {
 		.name		= "bcm_iproc",
 		.pm		= &bcm_qspi_pm_ops,

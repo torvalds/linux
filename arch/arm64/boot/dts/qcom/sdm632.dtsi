@@ -14,10 +14,10 @@
 
 			cooling-maps {
 				map0 {
-					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 		};
@@ -42,40 +42,40 @@
 
 /*
  * SDM632 uses Kryo 250 instead of Cortex A53
- * CPU0-3 are efficiency cores, CPU4-7 are performance cores
+ * cpu0-3 are efficiency cores, cpu4-7 are performance cores
  */
-&CPU0 {
+&cpu0 {
 	compatible = "qcom,kryo250";
 };
 
-&CPU1 {
+&cpu1 {
 	compatible = "qcom,kryo250";
 };
 
-&CPU2 {
+&cpu2 {
 	compatible = "qcom,kryo250";
 };
 
-&CPU3 {
+&cpu3 {
 	compatible = "qcom,kryo250";
 };
 
-&CPU4 {
-	compatible = "qcom,kryo250";
-	capacity-dmips-mhz = <1980>;
-};
-
-&CPU5 {
+&cpu4 {
 	compatible = "qcom,kryo250";
 	capacity-dmips-mhz = <1980>;
 };
 
-&CPU6 {
+&cpu5 {
 	compatible = "qcom,kryo250";
 	capacity-dmips-mhz = <1980>;
 };
 
-&CPU7 {
+&cpu6 {
+	compatible = "qcom,kryo250";
+	capacity-dmips-mhz = <1980>;
+};
+
+&cpu7 {
 	compatible = "qcom,kryo250";
 	capacity-dmips-mhz = <1980>;
 };

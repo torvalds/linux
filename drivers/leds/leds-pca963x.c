@@ -306,7 +306,6 @@ static int pca963x_register_leds(struct i2c_client *client,
 	struct pca963x_chipdef *chipdef = chip->chipdef;
 	struct pca963x_led *led = chip->leds;
 	struct device *dev = &client->dev;
-	struct fwnode_handle *child;
 	bool hw_blink;
 	s32 mode2;
 	u32 reg;
@@ -338,7 +337,7 @@ static int pca963x_register_leds(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
-	device_for_each_child_node(dev, child) {
+	device_for_each_child_node_scoped(dev, child) {
 		struct led_init_data init_data = {};
 		char default_label[32];
 
@@ -346,8 +345,7 @@ static int pca963x_register_leds(struct i2c_client *client,
 		if (ret || reg >= chipdef->n_leds) {
 			dev_err(dev, "Invalid 'reg' property for node %pfw\n",
 				child);
-			ret = -EINVAL;
-			goto err;
+			return -EINVAL;
 		}
 
 		led->led_num = reg;
@@ -369,16 +367,13 @@ static int pca963x_register_leds(struct i2c_client *client,
 		if (ret) {
 			dev_err(dev, "Failed to register LED for node %pfw\n",
 				child);
-			goto err;
+			return ret;
 		}
 
 		++led;
 	}
 
 	return 0;
-err:
-	fwnode_handle_put(child);
-	return ret;
 }
 
 static int pca963x_suspend(struct device *dev)

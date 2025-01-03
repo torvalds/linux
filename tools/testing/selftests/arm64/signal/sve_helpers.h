@@ -18,4 +18,17 @@ extern unsigned int nvls;
 
 int sve_fill_vls(bool use_sme, int min_vls);
 
+static inline uint64_t get_svcr(void)
+{
+	uint64_t val;
+
+	asm volatile (
+		"mrs	%0, S3_3_C4_C2_2\n"
+		: "=r"(val)
+		:
+		: "cc");
+
+	return val;
+}
+
 #endif

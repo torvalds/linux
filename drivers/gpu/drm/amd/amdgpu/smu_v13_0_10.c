@@ -80,15 +80,9 @@ static int smu_v13_0_10_mode2_suspend_ip(struct amdgpu_device *adev)
 			      AMD_IP_BLOCK_TYPE_MES))
 			continue;
 
-		r = adev->ip_blocks[i].version->funcs->suspend(adev);
-
-		if (r) {
-			dev_err(adev->dev,
-				"suspend of IP block <%s> failed %d\n",
-				adev->ip_blocks[i].version->funcs->name, r);
+		r = amdgpu_ip_block_suspend(&adev->ip_blocks[i]);
+		if (r)
 			return r;
-		}
-		adev->ip_blocks[i].status.hw = false;
 	}
 
 	return 0;
@@ -186,15 +180,9 @@ static int smu_v13_0_10_mode2_restore_ip(struct amdgpu_device *adev)
 		      adev->ip_blocks[i].version->type ==
 			      AMD_IP_BLOCK_TYPE_SDMA))
 			continue;
-		r = adev->ip_blocks[i].version->funcs->resume(adev);
-		if (r) {
-			dev_err(adev->dev,
-				"resume of IP block <%s> failed %d\n",
-				adev->ip_blocks[i].version->funcs->name, r);
+		r = amdgpu_ip_block_resume(&adev->ip_blocks[i]);
+		if (r)
 			return r;
-		}
-
-		adev->ip_blocks[i].status.hw = true;
 	}
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
@@ -208,7 +196,7 @@ static int smu_v13_0_10_mode2_restore_ip(struct amdgpu_device *adev)
 
 		if (adev->ip_blocks[i].version->funcs->late_init) {
 			r = adev->ip_blocks[i].version->funcs->late_init(
-				(void *)adev);
+				&adev->ip_blocks[i]);
 			if (r) {
 				dev_err(adev->dev,
 					"late_init of IP block <%s> failed %d after reset\n",
@@ -233,6 +221,7 @@ smu_v13_0_10_mode2_restore_hwcontext(struct amdgpu_reset_control *reset_ctl,
 	int r;
 	struct amdgpu_device *tmp_adev = (struct amdgpu_device *)reset_ctl->handle;
 
+	amdgpu_set_init_level(tmp_adev, AMDGPU_INIT_LEVEL_RESET_RECOVERY);
 	dev_info(tmp_adev->dev,
 			"GPU reset succeeded, trying to resume\n");
 	r = smu_v13_0_10_mode2_restore_ip(tmp_adev);
@@ -246,6 +235,7 @@ smu_v13_0_10_mode2_restore_hwcontext(struct amdgpu_reset_control *reset_ctl,
 
 	amdgpu_irq_gpu_reset_resume_helper(tmp_adev);
 
+	amdgpu_set_init_level(tmp_adev, AMDGPU_INIT_LEVEL_DEFAULT);
 	r = amdgpu_ib_ring_tests(tmp_adev);
 	if (r) {
 		dev_err(tmp_adev->dev,

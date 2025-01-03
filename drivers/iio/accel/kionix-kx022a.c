@@ -16,6 +16,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/string_choices.h>
+#include <linux/types.h>
 #include <linux/units.h>
 
 #include <linux/iio/iio.h>
@@ -292,7 +293,7 @@ struct kx022a_data {
 	__le16 buffer[8] __aligned(IIO_DMA_MINALIGN);
 	struct {
 		__le16 channels[3];
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} scan;
 };
 
@@ -594,7 +595,7 @@ static int kx022a_get_axis(struct kx022a_data *data,
 	if (ret)
 		return ret;
 
-	*val = le16_to_cpu(data->buffer[0]);
+	*val = (s16)le16_to_cpu(data->buffer[0]);
 
 	return IIO_VAL_INT;
 }

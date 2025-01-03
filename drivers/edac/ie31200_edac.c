@@ -19,7 +19,8 @@
  * 0c04: Xeon E3-1200 v3/4th Gen Core Processor DRAM Controller
  * 0c08: Xeon E3-1200 v3 Processor DRAM Controller
  * 1918: Xeon E3-1200 v5 Skylake Host Bridge/DRAM Registers
- * 5918: Xeon E3-1200 Xeon E3-1200 v6/7th Gen Core Processor Host Bridge/DRAM Registers
+ * 590f: Xeon E3-1200 v6/7th Gen Core Processor Host Bridge/DRAM Registers
+ * 5918: Xeon E3-1200 v6/7th Gen Core Processor Host Bridge/DRAM Registers
  * 190f: 6th Gen Core Dual-Core Processor Host Bridge/DRAM Registers
  * 191f: 6th Gen Core Quad-Core Processor Host Bridge/DRAM Registers
  * 3e..: 8th/9th Gen Core Processor Host Bridge/DRAM Registers
@@ -67,7 +68,8 @@
 #define PCI_DEVICE_ID_INTEL_IE31200_HB_8  0x190F
 #define PCI_DEVICE_ID_INTEL_IE31200_HB_9  0x1918
 #define PCI_DEVICE_ID_INTEL_IE31200_HB_10 0x191F
-#define PCI_DEVICE_ID_INTEL_IE31200_HB_11 0x5918
+#define PCI_DEVICE_ID_INTEL_IE31200_HB_11 0x590f
+#define PCI_DEVICE_ID_INTEL_IE31200_HB_12 0x5918
 
 /* Coffee Lake-S */
 #define PCI_DEVICE_ID_INTEL_IE31200_HB_CFL_MASK 0x3e00
@@ -88,6 +90,7 @@
 	 ((did) == PCI_DEVICE_ID_INTEL_IE31200_HB_9) ||                        \
 	 ((did) == PCI_DEVICE_ID_INTEL_IE31200_HB_10) ||                       \
 	 ((did) == PCI_DEVICE_ID_INTEL_IE31200_HB_11) ||                       \
+	 ((did) == PCI_DEVICE_ID_INTEL_IE31200_HB_12) ||                       \
 	 (((did) & PCI_DEVICE_ID_INTEL_IE31200_HB_CFL_MASK) ==                 \
 	  PCI_DEVICE_ID_INTEL_IE31200_HB_CFL_MASK))
 
@@ -587,6 +590,7 @@ static const struct pci_device_id ie31200_pci_tbl[] = {
 	{ PCI_VEND_DEV(INTEL, IE31200_HB_9),      PCI_ANY_ID, PCI_ANY_ID, 0, 0, IE31200 },
 	{ PCI_VEND_DEV(INTEL, IE31200_HB_10),     PCI_ANY_ID, PCI_ANY_ID, 0, 0, IE31200 },
 	{ PCI_VEND_DEV(INTEL, IE31200_HB_11),     PCI_ANY_ID, PCI_ANY_ID, 0, 0, IE31200 },
+	{ PCI_VEND_DEV(INTEL, IE31200_HB_12),     PCI_ANY_ID, PCI_ANY_ID, 0, 0, IE31200 },
 	{ PCI_VEND_DEV(INTEL, IE31200_HB_CFL_1),  PCI_ANY_ID, PCI_ANY_ID, 0, 0, IE31200 },
 	{ PCI_VEND_DEV(INTEL, IE31200_HB_CFL_2),  PCI_ANY_ID, PCI_ANY_ID, 0, 0, IE31200 },
 	{ PCI_VEND_DEV(INTEL, IE31200_HB_CFL_3),  PCI_ANY_ID, PCI_ANY_ID, 0, 0, IE31200 },

@@ -28,9 +28,7 @@ struct xdp_buff_xsk {
 	dma_addr_t dma;
 	dma_addr_t frame_dma;
 	struct xsk_buff_pool *pool;
-	u64 orig_addr;
-	struct list_head free_list_node;
-	struct list_head xskb_list_node;
+	struct list_head list_node;
 };
 
 #define XSK_CHECK_PRIV_TYPE(t) BUILD_BUG_ON(sizeof(t) > offsetofend(struct xdp_buff_xsk, cb))
@@ -78,6 +76,7 @@ struct xsk_buff_pool {
 	u32 chunk_size;
 	u32 chunk_shift;
 	u32 frame_len;
+	u32 xdp_zc_max_segs;
 	u8 tx_metadata_len; /* inherited from umem */
 	u8 cached_need_wakeup;
 	bool uses_need_wakeup;
@@ -120,7 +119,6 @@ void xp_free(struct xdp_buff_xsk *xskb);
 static inline void xp_init_xskb_addr(struct xdp_buff_xsk *xskb, struct xsk_buff_pool *pool,
 				     u64 addr)
 {
-	xskb->orig_addr = addr;
 	xskb->xdp.data_hard_start = pool->addrs + addr + pool->headroom;
 }
 
@@ -222,14 +220,19 @@ static inline void xp_release(struct xdp_buff_xsk *xskb)
 		xskb->pool->free_heads[xskb->pool->free_heads_cnt++] = xskb;
 }
 
-static inline u64 xp_get_handle(struct xdp_buff_xsk *xskb)
+static inline u64 xp_get_handle(struct xdp_buff_xsk *xskb,
+				struct xsk_buff_pool *pool)
 {
-	u64 offset = xskb->xdp.data - xskb->xdp.data_hard_start;
+	u64 orig_addr = xskb->xdp.data - pool->addrs;
+	u64 offset;
 
-	offset += xskb->pool->headroom;
-	if (!xskb->pool->unaligned)
-		return xskb->orig_addr + offset;
-	return xskb->orig_addr + (offset << XSK_UNALIGNED_BUF_OFFSET_SHIFT);
+	if (!pool->unaligned)
+		return orig_addr;
+
+	offset = xskb->xdp.data - xskb->xdp.data_hard_start;
+	orig_addr -= offset;
+	offset += pool->headroom;
+	return orig_addr + (offset << XSK_UNALIGNED_BUF_OFFSET_SHIFT);
 }
 
 static inline bool xp_tx_metadata_enabled(const struct xsk_buff_pool *pool)

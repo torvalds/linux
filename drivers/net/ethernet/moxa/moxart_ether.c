@@ -576,7 +576,7 @@ MODULE_DEVICE_TABLE(of, moxart_mac_match);
 
 static struct platform_driver moxart_mac_driver = {
 	.probe	= moxart_mac_probe,
-	.remove_new = moxart_remove,
+	.remove = moxart_remove,
 	.driver	= {
 		.name		= "moxart-ethernet",
 		.of_match_table	= moxart_mac_match,

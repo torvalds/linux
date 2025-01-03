@@ -114,7 +114,7 @@ int acp_machine_select(struct acp_dev_data *adata)
 	int size, platform;
 
 	if (adata->flag == FLAG_AMD_LEGACY_ONLY_DMIC) {
-		platform = adata->platform;
+		platform = adata->acp_rev;
 		adata->mach_dev = platform_device_register_data(adata->dev, "acp-pdm-mach",
 								PLATFORM_DEVID_NONE, &platform,
 								sizeof(platform));
@@ -125,6 +125,7 @@ int acp_machine_select(struct acp_dev_data *adata)
 			dev_err(adata->dev, "warning: No matching ASoC machine driver found\n");
 			return -EINVAL;
 		}
+		mach->mach_params.subsystem_rev = adata->acp_rev;
 		adata->mach_dev = platform_device_register_data(adata->dev, mach->drv_name,
 								PLATFORM_DEVID_NONE, mach, size);
 	}
@@ -141,9 +142,6 @@ static irqreturn_t i2s_irq_handler(int irq, void *data)
 	struct acp_stream *stream;
 	u16 i2s_flag = 0;
 	u32 ext_intr_stat, ext_intr_stat1;
-
-	if (!adata)
-		return IRQ_NONE;
 
 	if (adata->rsrc->no_of_ctrls == 2)
 		ext_intr_stat1 = readl(ACP_EXTERNAL_INTR_STAT(adata, (rsrc->irqp_used - 1)));
@@ -204,9 +202,9 @@ void config_acp_dma(struct acp_dev_data *adata, struct acp_stream *stream, int s
 	u32 low, high, val;
 	u16 page_idx;
 
-	switch (adata->platform) {
-	case ACP70:
-	case ACP71:
+	switch (adata->acp_rev) {
+	case ACP70_PCI_ID:
+	case ACP71_PCI_ID:
 		switch (stream->dai_id) {
 		case I2S_SP_INSTANCE:
 			if (stream->dir == SNDRV_PCM_STREAM_PLAYBACK)
@@ -270,9 +268,9 @@ static int acp_dma_open(struct snd_soc_component *component, struct snd_pcm_subs
 	stream->substream = substream;
 	chip = dev_get_platdata(dev);
 	switch (chip->acp_rev) {
-	case ACP63_DEV:
-	case ACP70_DEV:
-	case ACP71_DEV:
+	case ACP63_PCI_ID:
+	case ACP70_PCI_ID:
+	case ACP71_PCI_ID:
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 			runtime->hw = acp6x_pcm_hardware_playback;
 		else

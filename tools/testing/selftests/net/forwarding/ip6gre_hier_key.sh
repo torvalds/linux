@@ -8,6 +8,7 @@
 ALL_TESTS="
 	gre_hier
 	gre_mtu_change
+	gre_hier_remote_change
 "
 
 NUM_NETIFS=6
@@ -42,6 +43,19 @@ gre_hier()
 gre_mtu_change()
 {
 	test_mtu_change gre
+}
+
+gre_hier_remote_change()
+{
+	hier_remote_change
+
+	test_traffic_ip4ip6 "GRE hierarchical IPv4-in-IPv6 with key (new remote)"
+	test_traffic_ip6ip6 "GRE hierarchical IPv6-in-IPv6 with key (new remote)"
+
+	hier_remote_restore
+
+	test_traffic_ip4ip6 "GRE hierarchical IPv4-in-IPv6 with key (old remote)"
+	test_traffic_ip6ip6 "GRE hierarchical IPv6-in-IPv6 with key (old remote)"
 }
 
 cleanup()

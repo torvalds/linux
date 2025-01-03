@@ -423,7 +423,7 @@ static struct platform_driver usb3503_platform_driver = {
 		.pm = pm_ptr(&usb3503_platform_pm_ops),
 	},
 	.probe		= usb3503_platform_probe,
-	.remove_new	= usb3503_platform_remove,
+	.remove		= usb3503_platform_remove,
 };
 
 static int __init usb3503_init(void)

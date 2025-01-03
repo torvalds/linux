@@ -6633,7 +6633,7 @@ static struct platform_driver mlxplat_driver = {
 		.probe_type = PROBE_FORCE_SYNCHRONOUS,
 	},
 	.probe		= mlxplat_probe,
-	.remove_new	= mlxplat_remove,
+	.remove		= mlxplat_remove,
 };
 
 static int __init mlxplat_init(void)

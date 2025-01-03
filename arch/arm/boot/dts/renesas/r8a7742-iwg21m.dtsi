@@ -55,8 +55,7 @@
 	rtc@68 {
 		compatible = "ti,bq32000";
 		reg = <0x68>;
-		interrupt-parent = <&gpio1>;
-		interrupts = <1 IRQ_TYPE_EDGE_FALLING>;
+		interrupts-extended = <&gpio1 1 IRQ_TYPE_EDGE_FALLING>;
 	};
 };
 

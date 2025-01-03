@@ -209,7 +209,7 @@ static int cg3_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static struct sbus_mmap_map cg3_mmap_map[] = {
+static const struct sbus_mmap_map cg3_mmap_map[] = {
 	{
 		.voff	= CG3_MMAP_OFFSET,
 		.poff	= CG3_RAM_OFFSET,
@@ -458,7 +458,7 @@ static struct platform_driver cg3_driver = {
 		.of_match_table = cg3_match,
 	},
 	.probe		= cg3_probe,
-	.remove_new	= cg3_remove,
+	.remove		= cg3_remove,
 };
 
 static int __init cg3_init(void)

@@ -3359,8 +3359,10 @@ static int __smc_create(struct net *net, struct socket *sock, int protocol,
 	else
 		rc = smc_create_clcsk(net, sk, family);
 
-	if (rc)
+	if (rc) {
 		sk_common_release(sk);
+		sock->sk = NULL;
+	}
 out:
 	return rc;
 }

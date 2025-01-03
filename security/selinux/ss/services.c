@@ -582,8 +582,7 @@ static void type_attribute_bounds_av(struct policydb *policydb,
 }
 
 /*
- * flag which drivers have permissions
- * only looking for ioctl based extended permissions
+ * Flag which drivers have permissions.
  */
 void services_compute_xperms_drivers(
 		struct extended_perms *xperms,
@@ -591,14 +590,18 @@ void services_compute_xperms_drivers(
 {
 	unsigned int i;
 
-	if (node->datum.u.xperms->specified == AVTAB_XPERMS_IOCTLDRIVER) {
+	switch (node->datum.u.xperms->specified) {
+	case AVTAB_XPERMS_IOCTLDRIVER:
 		/* if one or more driver has all permissions allowed */
 		for (i = 0; i < ARRAY_SIZE(xperms->drivers.p); i++)
 			xperms->drivers.p[i] |= node->datum.u.xperms->perms.p[i];
-	} else if (node->datum.u.xperms->specified == AVTAB_XPERMS_IOCTLFUNCTION) {
+		break;
+	case AVTAB_XPERMS_IOCTLFUNCTION:
+	case AVTAB_XPERMS_NLMSG:
 		/* if allowing permissions within a driver */
 		security_xperm_set(xperms->drivers.p,
 					node->datum.u.xperms->driver);
+		break;
 	}
 
 	xperms->len = 1;
@@ -942,55 +945,58 @@ static void avd_init(struct selinux_policy *policy, struct av_decision *avd)
 	avd->flags = 0;
 }
 
-void services_compute_xperms_decision(struct extended_perms_decision *xpermd,
-					struct avtab_node *node)
+static void update_xperms_extended_data(u8 specified,
+					struct extended_perms_data *from,
+					struct extended_perms_data *xp_data)
 {
 	unsigned int i;
 
-	if (node->datum.u.xperms->specified == AVTAB_XPERMS_IOCTLFUNCTION) {
+	switch (specified) {
+	case AVTAB_XPERMS_IOCTLDRIVER:
+		memset(xp_data->p, 0xff, sizeof(xp_data->p));
+		break;
+	case AVTAB_XPERMS_IOCTLFUNCTION:
+	case AVTAB_XPERMS_NLMSG:
+		for (i = 0; i < ARRAY_SIZE(xp_data->p); i++)
+			xp_data->p[i] |= from->p[i];
+		break;
+	}
+
+}
+
+void services_compute_xperms_decision(struct extended_perms_decision *xpermd,
+					struct avtab_node *node)
+{
+	switch (node->datum.u.xperms->specified) {
+	case AVTAB_XPERMS_IOCTLFUNCTION:
+	case AVTAB_XPERMS_NLMSG:
 		if (xpermd->driver != node->datum.u.xperms->driver)
 			return;
-	} else if (node->datum.u.xperms->specified == AVTAB_XPERMS_IOCTLDRIVER) {
+		break;
+	case AVTAB_XPERMS_IOCTLDRIVER:
 		if (!security_xperm_test(node->datum.u.xperms->perms.p,
 					xpermd->driver))
 			return;
-	} else {
+		break;
+	default:
 		BUG();
 	}
 
 	if (node->key.specified == AVTAB_XPERMS_ALLOWED) {
 		xpermd->used |= XPERMS_ALLOWED;
-		if (node->datum.u.xperms->specified == AVTAB_XPERMS_IOCTLDRIVER) {
-			memset(xpermd->allowed->p, 0xff,
-					sizeof(xpermd->allowed->p));
-		}
-		if (node->datum.u.xperms->specified == AVTAB_XPERMS_IOCTLFUNCTION) {
-			for (i = 0; i < ARRAY_SIZE(xpermd->allowed->p); i++)
-				xpermd->allowed->p[i] |=
-					node->datum.u.xperms->perms.p[i];
-		}
+		update_xperms_extended_data(node->datum.u.xperms->specified,
+					    &node->datum.u.xperms->perms,
+					    xpermd->allowed);
 	} else if (node->key.specified == AVTAB_XPERMS_AUDITALLOW) {
 		xpermd->used |= XPERMS_AUDITALLOW;
-		if (node->datum.u.xperms->specified == AVTAB_XPERMS_IOCTLDRIVER) {
-			memset(xpermd->auditallow->p, 0xff,
-					sizeof(xpermd->auditallow->p));
-		}
-		if (node->datum.u.xperms->specified == AVTAB_XPERMS_IOCTLFUNCTION) {
-			for (i = 0; i < ARRAY_SIZE(xpermd->auditallow->p); i++)
-				xpermd->auditallow->p[i] |=
-					node->datum.u.xperms->perms.p[i];
-		}
+		update_xperms_extended_data(node->datum.u.xperms->specified,
+					    &node->datum.u.xperms->perms,
+					    xpermd->auditallow);
 	} else if (node->key.specified == AVTAB_XPERMS_DONTAUDIT) {
 		xpermd->used |= XPERMS_DONTAUDIT;
-		if (node->datum.u.xperms->specified == AVTAB_XPERMS_IOCTLDRIVER) {
-			memset(xpermd->dontaudit->p, 0xff,
-					sizeof(xpermd->dontaudit->p));
-		}
-		if (node->datum.u.xperms->specified == AVTAB_XPERMS_IOCTLFUNCTION) {
-			for (i = 0; i < ARRAY_SIZE(xpermd->dontaudit->p); i++)
-				xpermd->dontaudit->p[i] |=
-					node->datum.u.xperms->perms.p[i];
-		}
+		update_xperms_extended_data(node->datum.u.xperms->specified,
+					    &node->datum.u.xperms->perms,
+					    xpermd->dontaudit);
 	} else {
 		BUG();
 	}
@@ -3635,7 +3641,7 @@ int selinux_audit_rule_known(struct audit_krule *rule)
 	return 0;
 }
 
-int selinux_audit_rule_match(u32 sid, u32 field, u32 op, void *vrule)
+int selinux_audit_rule_match(struct lsm_prop *prop, u32 field, u32 op, void *vrule)
 {
 	struct selinux_state *state = &selinux_state;
 	struct selinux_policy *policy;
@@ -3661,10 +3667,10 @@ int selinux_audit_rule_match(u32 sid, u32 field, u32 op, void *vrule)
 		goto out;
 	}
 
-	ctxt = sidtab_search(policy->sidtab, sid);
+	ctxt = sidtab_search(policy->sidtab, prop->selinux.secid);
 	if (unlikely(!ctxt)) {
 		WARN_ONCE(1, "selinux_audit_rule_match: unrecognized SID %d\n",
-			  sid);
+			  prop->selinux.secid);
 		match = -ENOENT;
 		goto out;
 	}

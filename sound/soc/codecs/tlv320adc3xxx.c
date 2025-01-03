@@ -961,7 +961,7 @@ static int adc3xxx_gpio_request(struct gpio_chip *chip, unsigned int offset)
 	if (offset >= ADC3XXX_GPIOS_MAX)
 		return -EINVAL;
 
-	if (offset >= 0 && offset < ADC3XXX_GPIO_PINS) {
+	if (offset < ADC3XXX_GPIO_PINS) {
 		/* GPIO1 is offset 0, GPIO2 is offset 1 */
 		/* We check here that the GPIO pins are either not configured
 		 * in the DT, or that they purposely are set as outputs.

@@ -154,7 +154,7 @@ static void serial_pxa_remove(struct platform_device *pdev)
 
 static struct platform_driver serial_pxa_driver = {
 	.probe          = serial_pxa_probe,
-	.remove_new     = serial_pxa_remove,
+	.remove         = serial_pxa_remove,
 
 	.driver		= {
 		.name	= "pxa2xx-uart",

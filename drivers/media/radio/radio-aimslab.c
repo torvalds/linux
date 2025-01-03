@@ -4,7 +4,7 @@
  *
  * Copyright 1997 M. Kirkwood
  *
- * Converted to the radio-isa framework by Hans Verkuil <hans.verkuil@cisco.com>
+ * Converted to the radio-isa framework by Hans Verkuil <hansverk@cisco.com>
  * Converted to V4L2 API by Mauro Carvalho Chehab <mchehab@kernel.org>
  * Converted to new API by Alan Cox <alan@lxorguk.ukuu.org.uk>
  * Various bugfixes and enhancements by Russell Kroll <rkroll@exploits.org>

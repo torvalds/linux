@@ -47,14 +47,32 @@ properties:
     maxItems: 1
 
   interrupts:
-    description:
-      interrupt mapping for IRQ (BMP085 only)
     maxItems: 1
+
+  drive-open-drain:
+    description:
+      set if the interrupt pin should be configured as open drain.
+      If not set, defaults to push-pull configuration.
+    type: boolean
 
 required:
   - compatible
   - vddd-supply
   - vdda-supply
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          not:
+            contains:
+              enum:
+                - bosch,bmp085
+                - bosch,bmp380
+                - bosch,bmp580
+    then:
+      properties:
+        interrupts: false
 
 additionalProperties: false
 

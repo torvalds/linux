@@ -144,6 +144,7 @@ my %selects;
 my %prompts;
 my %objects;
 my %config2kfile;
+my %defaults;
 my $var;
 my $iflevel = 0;
 my @ifdeps;
@@ -220,8 +221,9 @@ sub read_kconfig {
 	    $depends{$config} = $1;
 	} elsif ($state eq "DEP" && /^\s*depends\s+on\s+(.*)$/) {
 	    $depends{$config} .= " " . $1;
-	} elsif ($state eq "DEP" && /^\s*def(_(bool|tristate)|ault)\s+(\S.*)$/) {
+	} elsif ($state ne "NONE" && /^\s*def(_(bool|tristate)|ault)\s+(\S.*)$/) {
 	    my $dep = $3;
+            $defaults{$config} = 1;
 	    if ($dep !~ /^\s*(y|m|n)\s*$/) {
 		$dep =~ s/.*\sif\s+//;
 		$depends{$config} .= " " . $dep;
@@ -503,7 +505,7 @@ sub parse_config_selects
 
 	    # Check if something other than a module selects this config
 	    if (defined($orig_configs{$conf}) && $orig_configs{$conf} ne "m") {
-		dprint "$conf (non module) selects config, we are good\n";
+		dprint "$conf (non module) selects $config, we are good\n";
 		# we are good with this
 		return;
 	    }
@@ -523,8 +525,16 @@ sub parse_config_selects
 
     # If no possible config selected this, then something happened.
     if (!defined($next_config)) {
-	print STDERR "WARNING: $config is required, but nothing in the\n";
-	print STDERR "  current config selects it.\n";
+
+	# Some config options have no prompt, and nothing selects them, but
+	# they stay turned on once the final checks for the configs
+	# are done. These configs have a default option, so turn off the
+	# warnings for configs with default options.
+	if (!defined($defaults{$config})) {
+	    print STDERR "WARNING: $config is required, but nothing in the\n";
+	    print STDERR "  current config selects it.\n";
+	}
+
 	return;
     }
 

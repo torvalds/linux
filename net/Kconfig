@@ -72,6 +72,9 @@ config NET_DEVMEM
 	depends on GENERIC_ALLOCATOR
 	depends on PAGE_POOL
 
+config NET_SHAPER
+	bool
+
 menu "Networking options"
 
 source "net/packet/Kconfig"

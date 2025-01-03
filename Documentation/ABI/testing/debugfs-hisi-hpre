@@ -184,3 +184,10 @@ Date:		Apr 2020
 Contact:	linux-crypto@vger.kernel.org
 Description:	Dump the total number of time out requests.
 		Available for both PF and VF, and take no other effect on HPRE.
+
+What:           /sys/kernel/debug/hisi_hpre/<bdf>/cap_regs
+Date:           Oct 2024
+Contact:        linux-crypto@vger.kernel.org
+Description:    Dump the values of the qm and hpre capability bit registers and
+                support the query of device specifications to facilitate fault locating.
+                Available for both PF and VF, and take no other effect on HPRE.

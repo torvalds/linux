@@ -28,7 +28,7 @@
 
 	/* Power tree */
 
-	p3_3v_dig: p3-3v-dig {
+	p3_3v_dig: regulator-p3-3v-dig {
 		compatible = "regulator-fixed";
 		regulator-name = "p3.3v_dig";
 		pinctrl-names = "default";
@@ -314,7 +314,7 @@ ap_i2c_dig: &i2c2 {
 		};
 	};
 
-	discrete-regulators {
+	discretes {
 		cpu3_pen_pwr_en: cpu3-pen-pwr-en {
 			rockchip,pins = <4 RK_PD6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};

@@ -72,7 +72,7 @@ static int check_node_data(struct jffs2_sb_info *c, struct jffs2_tmp_dnode_info 
 		if (err != -EOPNOTSUPP)
 			JFFS2_WARNING("MTD point failed: error code %d.\n", err);
 	} else
-		pointed = 1; /* succefully pointed to device */
+		pointed = 1; /* successfully pointed to device */
 #endif
 
 	if (!pointed) {

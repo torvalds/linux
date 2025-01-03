@@ -454,6 +454,31 @@
 			};
 		};
 
+		/* MC2 without feedback clock on A8 */
+		mc2_a_2_default: mc2_a_2_default {
+			default_mux {
+				function = "mc2";
+				groups = "mc2_a_2";
+			};
+			default_cfg1 {
+				pins = "GPIO128_A5"; /* CLK */
+				ste,config = <&out_lo>;
+			};
+			default_cfg2 {
+				pins =
+				"GPIO129_B4", /* CMD */
+				"GPIO131_A12", /* DAT0 */
+				"GPIO132_C10", /* DAT1 */
+				"GPIO133_B10", /* DAT2 */
+				"GPIO134_B9", /* DAT3 */
+				"GPIO135_A9", /* DAT4 */
+				"GPIO136_C7", /* DAT5 */
+				"GPIO137_A7", /* DAT6 */
+				"GPIO138_C5"; /* DAT7 */
+				ste,config = <&in_pu>;
+			};
+		};
+
 		mc2_a_1_sleep: mc2_a_1_sleep {
 			sleep_cfg1 {
 				pins = "GPIO128_A5"; /* CLK */
@@ -462,6 +487,30 @@
 			sleep_cfg2 {
 				pins =
 				"GPIO130_C8", /* FBCLK */
+				"GPIO129_B4"; /* CMD */
+				ste,config = <&in_wkup_pdis_en>;
+			};
+			sleep_cfg3 {
+				pins =
+				"GPIO131_A12", /* DAT0 */
+				"GPIO132_C10", /* DAT1 */
+				"GPIO133_B10", /* DAT2 */
+				"GPIO134_B9", /* DAT3 */
+				"GPIO135_A9", /* DAT4 */
+				"GPIO136_C7", /* DAT5 */
+				"GPIO137_A7", /* DAT6 */
+				"GPIO138_C5"; /* DAT7 */
+				ste,config = <&in_wkup_pdis>;
+			};
+		};
+
+		mc2_a_2_sleep: mc2_a_2_sleep {
+			sleep_cfg1 {
+				pins = "GPIO128_A5"; /* CLK */
+				ste,config = <&out_lo_wkup_pdis>;
+			};
+			sleep_cfg2 {
+				pins =
 				"GPIO129_B4"; /* CMD */
 				ste,config = <&in_wkup_pdis_en>;
 			};

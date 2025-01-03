@@ -200,7 +200,7 @@ static int mcp9600_write_event_config(struct iio_dev *indio_dev,
 				      const struct iio_chan_spec *chan,
 				      enum iio_event_type type,
 				      enum iio_event_direction dir,
-				      int state)
+				      bool state)
 {
 	struct mcp9600_data *data = iio_priv(indio_dev);
 	struct i2c_client *client = data->client;

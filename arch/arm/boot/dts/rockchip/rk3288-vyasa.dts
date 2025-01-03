@@ -19,7 +19,7 @@
 		device_type = "memory";
 	};
 
-	dc12_vbat: dc12-vbat {
+	dc12_vbat: regulator-dc12-vbat {
 		compatible = "regulator-fixed";
 		regulator-name = "dc12_vbat";
 		regulator-min-microvolt = <12000000>;
@@ -28,7 +28,7 @@
 		regulator-boot-on;
 	};
 
-	vboot_3v3: vboot-3v3 {
+	vboot_3v3: regulator-vboot-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vboot_3v3";
 		regulator-min-microvolt = <3300000>;
@@ -38,7 +38,7 @@
 		vin-supply = <&dc12_vbat>;
 	};
 
-	vcc_sys: vsys-regulator {
+	vcc_sys: regulator-vsys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_sys";
 		regulator-min-microvolt = <3700000>;
@@ -48,7 +48,7 @@
 		vin-supply = <&dc12_vbat>;
 	};
 
-	vboot_5v: vboot-5v {
+	vboot_5v: regulator-vboot-5v {
 		compatible = "regulator-fixed";
 		regulator-name = "vboot_sv";
 		regulator-min-microvolt = <5000000>;
@@ -58,7 +58,7 @@
 		vin-supply = <&dc12_vbat>;
 	};
 
-	v3g_3v3: v3g-3v3 {
+	v3g_3v3: regulator-v3g-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "v3g_3v3";
 		regulator-min-microvolt = <3300000>;
@@ -68,7 +68,7 @@
 		vin-supply = <&dc12_vbat>;
 	};
 
-	vsus_5v: vsus-5v {
+	vsus_5v: regulator-vsus-5v {
 		compatible = "regulator-fixed";
 		regulator-name = "vsus_5v";
 		regulator-min-microvolt = <5000000>;
@@ -78,7 +78,7 @@
 		vin-supply = <&vcc_io>;
 	};
 
-	vcc50_hdmi: vcc50-hdmi {
+	vcc50_hdmi: regulator-vcc50-hdmi {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc50_hdmi";
 		enable-active-high;
@@ -90,7 +90,7 @@
 		vin-supply = <&vsus_5v>;
 	};
 
-	vusb1_5v: vusb1-5v {
+	vusb1_5v: regulator-vusb1-5v {
 		compatible = "regulator-fixed";
 		regulator-name = "vusb1_5v";
 		enable-active-high;
@@ -102,7 +102,7 @@
 		vin-supply = <&vsus_5v>;
 	};
 
-	vusb2_5v: vusb2-5v {
+	vusb2_5v: regulator-vusb2-5v {
 		compatible = "regulator-fixed";
 		regulator-name = "vusb2_5v";
 		enable-active-high;

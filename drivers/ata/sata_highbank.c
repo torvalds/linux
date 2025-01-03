@@ -614,12 +614,12 @@ static SIMPLE_DEV_PM_OPS(ahci_highbank_pm_ops,
 		  ahci_highbank_suspend, ahci_highbank_resume);
 
 static struct platform_driver ahci_highbank_driver = {
-	.remove_new = ata_platform_remove_one,
-        .driver = {
-                .name = "highbank-ahci",
-                .of_match_table = ahci_of_match,
-                .pm = &ahci_highbank_pm_ops,
-        },
+	.remove = ata_platform_remove_one,
+	.driver = {
+		.name = "highbank-ahci",
+		.of_match_table = ahci_of_match,
+		.pm = &ahci_highbank_pm_ops,
+	},
 	.probe = ahci_highbank_probe,
 };
 

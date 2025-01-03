@@ -802,7 +802,7 @@ static struct shrinker *nfs4_xattr_large_entry_shrinker;
 
 static enum lru_status
 cache_lru_isolate(struct list_head *item,
-	struct list_lru_one *lru, spinlock_t *lru_lock, void *arg)
+	struct list_lru_one *lru, void *arg)
 {
 	struct list_head *dispose = arg;
 	struct inode *inode;
@@ -867,7 +867,7 @@ nfs4_xattr_cache_count(struct shrinker *shrink, struct shrink_control *sc)
 
 static enum lru_status
 entry_lru_isolate(struct list_head *item,
-	struct list_lru_one *lru, spinlock_t *lru_lock, void *arg)
+	struct list_lru_one *lru, void *arg)
 {
 	struct list_head *dispose = arg;
 	struct nfs4_xattr_bucket *bucket;

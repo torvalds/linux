@@ -141,12 +141,12 @@ devlink_resource_size_params_put(struct devlink_resource *resource,
 	struct devlink_resource_size_params *size_params;
 
 	size_params = &resource->size_params;
-	if (nla_put_u64_64bit(skb, DEVLINK_ATTR_RESOURCE_SIZE_GRAN,
-			      size_params->size_granularity, DEVLINK_ATTR_PAD) ||
-	    nla_put_u64_64bit(skb, DEVLINK_ATTR_RESOURCE_SIZE_MAX,
-			      size_params->size_max, DEVLINK_ATTR_PAD) ||
-	    nla_put_u64_64bit(skb, DEVLINK_ATTR_RESOURCE_SIZE_MIN,
-			      size_params->size_min, DEVLINK_ATTR_PAD) ||
+	if (devlink_nl_put_u64(skb, DEVLINK_ATTR_RESOURCE_SIZE_GRAN,
+			       size_params->size_granularity) ||
+	    devlink_nl_put_u64(skb, DEVLINK_ATTR_RESOURCE_SIZE_MAX,
+			       size_params->size_max) ||
+	    devlink_nl_put_u64(skb, DEVLINK_ATTR_RESOURCE_SIZE_MIN,
+			       size_params->size_min) ||
 	    nla_put_u8(skb, DEVLINK_ATTR_RESOURCE_UNIT, size_params->unit))
 		return -EMSGSIZE;
 	return 0;
@@ -157,9 +157,8 @@ static int devlink_resource_occ_put(struct devlink_resource *resource,
 {
 	if (!resource->occ_get)
 		return 0;
-	return nla_put_u64_64bit(skb, DEVLINK_ATTR_RESOURCE_OCC,
-				 resource->occ_get(resource->occ_get_priv),
-				 DEVLINK_ATTR_PAD);
+	return devlink_nl_put_u64(skb, DEVLINK_ATTR_RESOURCE_OCC,
+				  resource->occ_get(resource->occ_get_priv));
 }
 
 static int devlink_resource_put(struct devlink *devlink, struct sk_buff *skb,
@@ -174,14 +173,12 @@ static int devlink_resource_put(struct devlink *devlink, struct sk_buff *skb,
 		return -EMSGSIZE;
 
 	if (nla_put_string(skb, DEVLINK_ATTR_RESOURCE_NAME, resource->name) ||
-	    nla_put_u64_64bit(skb, DEVLINK_ATTR_RESOURCE_SIZE, resource->size,
-			      DEVLINK_ATTR_PAD) ||
-	    nla_put_u64_64bit(skb, DEVLINK_ATTR_RESOURCE_ID, resource->id,
-			      DEVLINK_ATTR_PAD))
+	    devlink_nl_put_u64(skb, DEVLINK_ATTR_RESOURCE_SIZE, resource->size) ||
+	    devlink_nl_put_u64(skb, DEVLINK_ATTR_RESOURCE_ID, resource->id))
 		goto nla_put_failure;
 	if (resource->size != resource->size_new &&
-	    nla_put_u64_64bit(skb, DEVLINK_ATTR_RESOURCE_SIZE_NEW,
-			      resource->size_new, DEVLINK_ATTR_PAD))
+	    devlink_nl_put_u64(skb, DEVLINK_ATTR_RESOURCE_SIZE_NEW,
+			       resource->size_new))
 		goto nla_put_failure;
 	if (devlink_resource_occ_put(resource, skb))
 		goto nla_put_failure;
@@ -348,7 +345,7 @@ int devl_resource_register(struct devlink *devlink,
 
 	resource = devlink_resource_find(devlink, NULL, resource_id);
 	if (resource)
-		return -EINVAL;
+		return -EEXIST;
 
 	resource = kzalloc(sizeof(*resource), GFP_KERNEL);
 	if (!resource)
@@ -383,39 +380,6 @@ int devl_resource_register(struct devlink *devlink,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(devl_resource_register);
-
-/**
- *	devlink_resource_register - devlink resource register
- *
- *	@devlink: devlink
- *	@resource_name: resource's name
- *	@resource_size: resource's size
- *	@resource_id: resource's id
- *	@parent_resource_id: resource's parent id
- *	@size_params: size parameters
- *
- *	Generic resources should reuse the same names across drivers.
- *	Please see the generic resources list at:
- *	Documentation/networking/devlink/devlink-resource.rst
- *
- *	Context: Takes and release devlink->lock <mutex>.
- */
-int devlink_resource_register(struct devlink *devlink,
-			      const char *resource_name,
-			      u64 resource_size,
-			      u64 resource_id,
-			      u64 parent_resource_id,
-			      const struct devlink_resource_size_params *size_params)
-{
-	int err;
-
-	devl_lock(devlink);
-	err = devl_resource_register(devlink, resource_name, resource_size,
-				     resource_id, parent_resource_id, size_params);
-	devl_unlock(devlink);
-	return err;
-}
-EXPORT_SYMBOL_GPL(devlink_resource_register);
 
 static void devlink_resource_unregister(struct devlink *devlink,
 					struct devlink_resource *resource)
@@ -517,28 +481,6 @@ void devl_resource_occ_get_register(struct devlink *devlink,
 EXPORT_SYMBOL_GPL(devl_resource_occ_get_register);
 
 /**
- *	devlink_resource_occ_get_register - register occupancy getter
- *
- *	@devlink: devlink
- *	@resource_id: resource id
- *	@occ_get: occupancy getter callback
- *	@occ_get_priv: occupancy getter callback priv
- *
- *	Context: Takes and release devlink->lock <mutex>.
- */
-void devlink_resource_occ_get_register(struct devlink *devlink,
-				       u64 resource_id,
-				       devlink_resource_occ_get_t *occ_get,
-				       void *occ_get_priv)
-{
-	devl_lock(devlink);
-	devl_resource_occ_get_register(devlink, resource_id,
-				       occ_get, occ_get_priv);
-	devl_unlock(devlink);
-}
-EXPORT_SYMBOL_GPL(devlink_resource_occ_get_register);
-
-/**
  * devl_resource_occ_get_unregister - unregister occupancy getter
  *
  * @devlink: devlink
@@ -560,20 +502,3 @@ void devl_resource_occ_get_unregister(struct devlink *devlink,
 	resource->occ_get_priv = NULL;
 }
 EXPORT_SYMBOL_GPL(devl_resource_occ_get_unregister);
-
-/**
- *	devlink_resource_occ_get_unregister - unregister occupancy getter
- *
- *	@devlink: devlink
- *	@resource_id: resource id
- *
- *	Context: Takes and release devlink->lock <mutex>.
- */
-void devlink_resource_occ_get_unregister(struct devlink *devlink,
-					 u64 resource_id)
-{
-	devl_lock(devlink);
-	devl_resource_occ_get_unregister(devlink, resource_id);
-	devl_unlock(devlink);
-}
-EXPORT_SYMBOL_GPL(devlink_resource_occ_get_unregister);

@@ -744,16 +744,11 @@ const char *btrfs_super_csum_driver(u16 csum_type);
 size_t __attribute_const__ btrfs_get_num_csums(void);
 
 /*
- * We use page status Private2 to indicate there is an ordered extent with
+ * We use folio flag owner_2 to indicate there is an ordered extent with
  * unfinished IO.
- *
- * Rename the Private2 accessors to Ordered, to improve readability.
  */
-#define PageOrdered(page)		PagePrivate2(page)
-#define SetPageOrdered(page)		SetPagePrivate2(page)
-#define ClearPageOrdered(page)		ClearPagePrivate2(page)
-#define folio_test_ordered(folio)	folio_test_private_2(folio)
-#define folio_set_ordered(folio)	folio_set_private_2(folio)
-#define folio_clear_ordered(folio)	folio_clear_private_2(folio)
+#define folio_test_ordered(folio)	folio_test_owner_2(folio)
+#define folio_set_ordered(folio)	folio_set_owner_2(folio)
+#define folio_clear_ordered(folio)	folio_clear_owner_2(folio)
 
 #endif

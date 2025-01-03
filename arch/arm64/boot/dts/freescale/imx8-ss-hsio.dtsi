@@ -1,0 +1,123 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Copyright 2024 NXP
+ *
+ * Richard Zhu <hongxing.zhu@nxp.com>
+ */
+#include <dt-bindings/phy/phy.h>
+
+hsio_axi_clk: clock-hsio-axi {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <400000000>;
+	clock-output-names = "hsio_axi_clk";
+};
+
+hsio_per_clk: clock-hsio-per {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <133333333>;
+	clock-output-names = "hsio_per_clk";
+};
+
+hsio_refa_clk: clock-hsio-refa {
+	compatible = "gpio-gate-clock";
+	clocks = <&xtal100m>;
+	#clock-cells = <0>;
+	enable-gpios = <&lsio_gpio4 27 GPIO_ACTIVE_LOW>;
+};
+
+hsio_refb_clk: clock-hsio-refb {
+	compatible = "gpio-gate-clock";
+	clocks = <&xtal100m>;
+	#clock-cells = <0>;
+	enable-gpios = <&lsio_gpio4 1 GPIO_ACTIVE_LOW>;
+};
+
+xtal100m: clock-xtal100m {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <100000000>;
+	clock-output-names = "xtal_100MHz";
+};
+
+hsio_subsys: bus@5f000000 {
+	compatible = "simple-bus";
+	ranges = <0x5f000000 0x0 0x5f000000 0x01000000>,
+		 <0x80000000 0x0 0x70000000 0x10000000>;
+	#address-cells = <1>;
+	#size-cells = <1>;
+	dma-ranges = <0x80000000 0 0x80000000 0x80000000>;
+
+	pcieb: pcie@5f010000 {
+		compatible = "fsl,imx8q-pcie";
+		reg = <0x5f010000 0x10000>,
+		      <0x8ff00000 0x80000>;
+		reg-names = "dbi", "config";
+		ranges = <0x81000000 0 0x00000000 0x8ff80000 0 0x00010000>,
+			 <0x82000000 0 0x80000000 0x80000000 0 0x0ff00000>;
+		#interrupt-cells = <1>;
+		interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "msi";
+		#address-cells = <3>;
+		#size-cells = <2>;
+		clocks = <&pcieb_lpcg IMX_LPCG_CLK_6>,
+			 <&pcieb_lpcg IMX_LPCG_CLK_4>,
+			 <&pcieb_lpcg IMX_LPCG_CLK_5>;
+		clock-names = "dbi", "mstr", "slv";
+		bus-range = <0x00 0xff>;
+		device_type = "pci";
+		interrupt-map = <0 0 0 1 &gic 0 105 4>,
+				 <0 0 0 2 &gic 0 106 4>,
+				 <0 0 0 3 &gic 0 107 4>,
+				 <0 0 0 4 &gic 0 108 4>;
+		interrupt-map-mask = <0 0 0 0x7>;
+		num-lanes = <1>;
+		num-viewport = <4>;
+		power-domains = <&pd IMX_SC_R_PCIE_B>;
+		fsl,max-link-speed = <3>;
+		status = "disabled";
+	};
+
+	pcieb_lpcg: clock-controller@5f060000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x5f060000 0x10000>;
+		clocks = <&hsio_axi_clk>, <&hsio_axi_clk>, <&hsio_axi_clk>;
+		#clock-cells = <1>;
+		clock-indices = <IMX_LPCG_CLK_4>, <IMX_LPCG_CLK_5>, <IMX_LPCG_CLK_6>;
+		clock-output-names = "hsio_pcieb_mstr_axi_clk",
+				     "hsio_pcieb_slv_axi_clk",
+				     "hsio_pcieb_dbi_axi_clk";
+		power-domains = <&pd IMX_SC_R_PCIE_B>;
+	};
+
+	phyx1_crr1_lpcg: clock-controller@5f0b0000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x5f0b0000 0x10000>;
+		clocks = <&hsio_per_clk>;
+		#clock-cells = <1>;
+		clock-indices = <IMX_LPCG_CLK_4>;
+		clock-output-names = "hsio_phyx1_per_clk";
+		power-domains = <&pd IMX_SC_R_SERDES_1>;
+	};
+
+	pcieb_crr3_lpcg: clock-controller@5f0d0000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x5f0d0000 0x10000>;
+		clocks = <&hsio_per_clk>;
+		#clock-cells = <1>;
+		clock-indices = <IMX_LPCG_CLK_4>;
+		clock-output-names = "hsio_pcieb_per_clk";
+		power-domains = <&pd IMX_SC_R_PCIE_B>;
+	};
+
+	misc_crr5_lpcg: clock-controller@5f0f0000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x5f0f0000 0x10000>;
+		clocks = <&hsio_per_clk>;
+		#clock-cells = <1>;
+		clock-indices = <IMX_LPCG_CLK_4>;
+		clock-output-names = "hsio_misc_per_clk";
+		power-domains = <&pd IMX_SC_R_HSIO_GPIO>;
+	};
+};

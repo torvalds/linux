@@ -558,7 +558,7 @@ static struct platform_driver omap_rng_driver = {
 		.of_match_table = of_match_ptr(omap_rng_of_match),
 	},
 	.probe		= omap_rng_probe,
-	.remove_new	= omap_rng_remove,
+	.remove		= omap_rng_remove,
 };
 
 module_platform_driver(omap_rng_driver);

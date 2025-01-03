@@ -9,6 +9,8 @@
 #include <asm/cacheflush.h>
 #include <asm/cpufeature.h>
 #include <asm/kvm_csr.h>
+#include <asm/kvm_eiointc.h>
+#include <asm/kvm_pch_pic.h>
 #include "trace.h"
 
 unsigned long vpid_mask;
@@ -313,7 +315,7 @@ void kvm_arch_disable_virtualization_cpu(void)
 
 static int kvm_loongarch_env_init(void)
 {
-	int cpu, order;
+	int cpu, order, ret;
 	void *addr;
 	struct kvm_context *context;
 
@@ -368,7 +370,20 @@ static int kvm_loongarch_env_init(void)
 
 	kvm_init_gcsr_flag();
 
-	return 0;
+	/* Register LoongArch IPI interrupt controller interface. */
+	ret = kvm_loongarch_register_ipi_device();
+	if (ret)
+		return ret;
+
+	/* Register LoongArch EIOINTC interrupt controller interface. */
+	ret = kvm_loongarch_register_eiointc_device();
+	if (ret)
+		return ret;
+
+	/* Register LoongArch PCH-PIC interrupt controller interface. */
+	ret = kvm_loongarch_register_pch_pic_device();
+
+	return ret;
 }
 
 static void kvm_loongarch_env_exit(void)

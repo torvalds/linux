@@ -3013,7 +3013,7 @@ static SIMPLE_DEV_PM_OPS(renesas_usb3_pm_ops, renesas_usb3_suspend,
 
 static struct platform_driver renesas_usb3_driver = {
 	.probe		= renesas_usb3_probe,
-	.remove_new	= renesas_usb3_remove,
+	.remove		= renesas_usb3_remove,
 	.driver		= {
 		.name =	udc_name,
 		.pm		= &renesas_usb3_pm_ops,

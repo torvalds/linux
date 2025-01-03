@@ -643,7 +643,7 @@ MODULE_DEVICE_TABLE(of, sprd_i2c_of_match);
 
 static struct platform_driver sprd_i2c_driver = {
 	.probe = sprd_i2c_probe,
-	.remove_new = sprd_i2c_remove,
+	.remove = sprd_i2c_remove,
 	.driver = {
 		   .name = "sprd-i2c",
 		   .of_match_table = sprd_i2c_of_match,

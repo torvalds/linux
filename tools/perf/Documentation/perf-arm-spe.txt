@@ -187,7 +187,7 @@ groups:
   7 llc-access
   2 tlb-miss
   1K tlb-access
-  36 branch-miss
+  36 branch
   0 remote-access
   900 memory
 

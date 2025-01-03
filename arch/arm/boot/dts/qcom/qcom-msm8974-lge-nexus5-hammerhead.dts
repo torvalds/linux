@@ -167,7 +167,7 @@
 	status = "okay";
 	clock-frequency = <100000>;
 
-	avago_apds993@39 {
+	sensor@39 {
 		compatible = "avago,apds9930";
 		reg = <0x39>;
 		interrupts-extended = <&tlmm 61 IRQ_TYPE_EDGE_FALLING>;

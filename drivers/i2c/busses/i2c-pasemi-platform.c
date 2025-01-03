@@ -104,7 +104,7 @@ static struct platform_driver pasemi_platform_i2c_driver = {
 		.of_match_table		= pasemi_platform_i2c_of_match,
 	},
 	.probe	= pasemi_platform_i2c_probe,
-	.remove_new = pasemi_platform_i2c_remove,
+	.remove = pasemi_platform_i2c_remove,
 };
 module_platform_driver(pasemi_platform_i2c_driver);
 

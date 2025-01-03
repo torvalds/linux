@@ -28,6 +28,7 @@
 #include <asm/extmem.h>
 #include <asm/cpcmd.h>
 #include <asm/setup.h>
+#include <asm/asm.h>
 
 #define DCSS_PURGESEG   0x08
 #define DCSS_LOADSHRX	0x20
@@ -134,20 +135,21 @@ dcss_diag(int *func, void *parameter,
            unsigned long *ret1, unsigned long *ret2)
 {
 	unsigned long rx, ry;
-	int rc;
+	int cc;
 
 	rx = virt_to_phys(parameter);
 	ry = (unsigned long) *func;
 
 	diag_stat_inc(DIAG_STAT_X064);
 	asm volatile(
-		"	diag	%0,%1,0x64\n"
-		"	ipm	%2\n"
-		"	srl	%2,28\n"
-		: "+d" (rx), "+d" (ry), "=d" (rc) : : "cc");
+		"	diag	%[rx],%[ry],0x64\n"
+		CC_IPM(cc)
+		: CC_OUT(cc, cc), [rx] "+d" (rx), [ry] "+d" (ry)
+		:
+		: CC_CLOBBER);
 	*ret1 = rx;
 	*ret2 = ry;
-	return rc;
+	return CC_TRANSFORM(cc);
 }
 
 static inline int

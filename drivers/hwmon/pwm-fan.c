@@ -7,6 +7,7 @@
  * Author: Kamil Debski <k.debski@samsung.com>
  */
 
+#include <linux/delay.h>
 #include <linux/hwmon.h>
 #include <linux/interrupt.h>
 #include <linux/mod_devicetable.h>
@@ -60,6 +61,9 @@ struct pwm_fan_ctx {
 
 	struct hwmon_chip_info info;
 	struct hwmon_channel_info fan_channel;
+
+	u64 pwm_duty_cycle_from_stopped;
+	u32 pwm_usec_from_stopped;
 };
 
 /* This handler assumes self resetting edge triggered interrupt. */
@@ -199,7 +203,9 @@ static int pwm_fan_power_off(struct pwm_fan_ctx *ctx, bool force_disable)
 static int  __set_pwm(struct pwm_fan_ctx *ctx, unsigned long pwm)
 {
 	struct pwm_state *state = &ctx->pwm_state;
+	unsigned long final_pwm = pwm;
 	unsigned long period;
+	bool update = false;
 	int ret = 0;
 
 	if (pwm > 0) {
@@ -208,11 +214,22 @@ static int  __set_pwm(struct pwm_fan_ctx *ctx, unsigned long pwm)
 			return 0;
 
 		period = state->period;
-		state->duty_cycle = DIV_ROUND_UP(pwm * (period - 1), MAX_PWM);
+		update = state->duty_cycle < ctx->pwm_duty_cycle_from_stopped;
+		if (update)
+			state->duty_cycle = ctx->pwm_duty_cycle_from_stopped;
+		else
+			state->duty_cycle = DIV_ROUND_UP(pwm * (period - 1), MAX_PWM);
 		ret = pwm_apply_might_sleep(ctx->pwm, state);
 		if (ret)
 			return ret;
 		ret = pwm_fan_power_on(ctx);
+		if (!ret && update) {
+			pwm = final_pwm;
+			state->duty_cycle = DIV_ROUND_UP(pwm * (period - 1), MAX_PWM);
+			usleep_range(ctx->pwm_usec_from_stopped,
+				     ctx->pwm_usec_from_stopped * 2);
+			ret = pwm_apply_might_sleep(ctx->pwm, state);
+		}
 	} else {
 		ret = pwm_fan_power_off(ctx, false);
 	}
@@ -480,6 +497,7 @@ static int pwm_fan_probe(struct platform_device *pdev)
 	struct device *hwmon;
 	int ret;
 	const struct hwmon_channel_info **channels;
+	u32 pwm_min_from_stopped = 0;
 	u32 *fan_channel_config;
 	int channel_count = 1;	/* We always have a PWM channel. */
 	int i;
@@ -619,6 +637,19 @@ static int pwm_fan_probe(struct platform_device *pdev)
 
 		channels[1] = &ctx->fan_channel;
 	}
+
+	ret = of_property_read_u32(dev->of_node, "fan-stop-to-start-percent",
+				   &pwm_min_from_stopped);
+	if (!ret && pwm_min_from_stopped) {
+		ctx->pwm_duty_cycle_from_stopped =
+			DIV_ROUND_UP_ULL(pwm_min_from_stopped *
+					 (ctx->pwm_state.period - 1),
+					 100);
+	}
+	ret = of_property_read_u32(dev->of_node, "fan-stop-to-start-us",
+				   &ctx->pwm_usec_from_stopped);
+	if (ret)
+		ctx->pwm_usec_from_stopped = 250000;
 
 	ctx->info.ops = &pwm_fan_hwmon_ops;
 	ctx->info.info = channels;

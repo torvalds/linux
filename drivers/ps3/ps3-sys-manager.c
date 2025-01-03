@@ -362,7 +362,7 @@ static int ps3_sys_manager_send_request_shutdown(
  * ps3_sys_manager_send_response - Send a 'response' to the system manager.
  * @status: zero = success, others fail.
  *
- * The guest sends this message to the system manager to acnowledge success or
+ * The guest sends this message to the system manager to acknowledge success or
  * failure of a command sent by the system manager.
  */
 

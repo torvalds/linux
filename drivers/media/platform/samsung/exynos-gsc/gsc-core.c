@@ -1309,7 +1309,7 @@ static const struct dev_pm_ops gsc_pm_ops = {
 
 static struct platform_driver gsc_driver = {
 	.probe		= gsc_probe,
-	.remove_new	= gsc_remove,
+	.remove		= gsc_remove,
 	.driver = {
 		.name	= GSC_MODULE_NAME,
 		.pm	= &gsc_pm_ops,

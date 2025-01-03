@@ -30,6 +30,10 @@
 		gpio6 = &lsio_gpio6;
 		gpio7 = &lsio_gpio7;
 		mu1 = &lsio_mu1;
+		spi0 = &lpspi0;
+		spi1 = &lpspi1;
+		spi2 = &lpspi2;
+		spi3 = &lpspi3;
 	};
 
 	cpus: cpus {
@@ -237,12 +241,14 @@
 	#include "imx8-ss-conn.dtsi"
 	#include "imx8-ss-ddr.dtsi"
 	#include "imx8-ss-lsio.dtsi"
+	#include "imx8-ss-hsio.dtsi"
 };
 
 #include "imx8dxl-ss-adma.dtsi"
 #include "imx8dxl-ss-conn.dtsi"
 #include "imx8dxl-ss-lsio.dtsi"
 #include "imx8dxl-ss-ddr.dtsi"
+#include "imx8dxl-ss-hsio.dtsi"
 
 &cm40_intmux {
 	interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,

@@ -493,7 +493,7 @@ static void vfb_remove(struct platform_device *dev)
 
 static struct platform_driver vfb_driver = {
 	.probe	= vfb_probe,
-	.remove_new = vfb_remove,
+	.remove = vfb_remove,
 	.driver = {
 		.name	= "vfb",
 	},

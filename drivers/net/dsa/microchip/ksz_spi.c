@@ -54,6 +54,8 @@ static int ksz_spi_probe(struct spi_device *spi)
 	if (!chip)
 		return -EINVAL;
 
+	/* Save chip id to do special initialization when probing. */
+	dev->chip_id = chip->chip_id;
 	if (chip->chip_id == KSZ88X3_CHIP_ID)
 		regmap_config = ksz8863_regmap_config;
 	else if (chip->chip_id == KSZ8795_CHIP_ID ||
@@ -203,6 +205,10 @@ static const struct of_device_id ksz_dt_ids[] = {
 		.compatible = "microchip,lan9374",
 		.data = &ksz_switch_chips[LAN9374]
 	},
+	{
+		.compatible = "microchip,lan9646",
+		.data = &ksz_switch_chips[LAN9646]
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, ksz_dt_ids);
@@ -228,6 +234,7 @@ static const struct spi_device_id ksz_spi_ids[] = {
 	{ "lan9372" },
 	{ "lan9373" },
 	{ "lan9374" },
+	{ "lan9646" },
 	{ },
 };
 MODULE_DEVICE_TABLE(spi, ksz_spi_ids);

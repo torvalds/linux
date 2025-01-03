@@ -388,8 +388,8 @@ static struct hotplug_slot *get_slot_from_name(const char *name)
 
 /**
  * __pci_hp_register - register a hotplug_slot with the PCI hotplug subsystem
- * @bus: bus this slot is on
  * @slot: pointer to the &struct hotplug_slot to register
+ * @bus: bus this slot is on
  * @devnr: device number
  * @name: name registered with kobject core
  * @owner: caller module owner
@@ -498,8 +498,6 @@ EXPORT_SYMBOL_GPL(pci_hp_add);
  *
  * The @slot must have been registered with the pci hotplug subsystem
  * previously with a call to pci_hp_register().
- *
- * Returns 0 if successful, anything else for an error.
  */
 void pci_hp_deregister(struct hotplug_slot *slot)
 {
@@ -513,8 +511,6 @@ EXPORT_SYMBOL_GPL(pci_hp_deregister);
  * @slot: pointer to the &struct hotplug_slot to unpublish
  *
  * Remove a hotplug slot's sysfs interface.
- *
- * Returns 0 on success or a negative int on error.
  */
 void pci_hp_del(struct hotplug_slot *slot)
 {
@@ -545,8 +541,6 @@ EXPORT_SYMBOL_GPL(pci_hp_del);
  * the driver may no longer invoke hotplug_slot_name() to get the slot's
  * unique name.  The driver no longer needs to handle a ->reset_slot callback
  * from this point on.
- *
- * Returns 0 on success or a negative int on error.
  */
 void pci_hp_destroy(struct hotplug_slot *slot)
 {

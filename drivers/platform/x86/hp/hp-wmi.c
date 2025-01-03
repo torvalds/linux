@@ -1748,7 +1748,7 @@ static struct platform_driver hp_wmi_driver __refdata = {
 		.pm = &hp_wmi_pm_ops,
 		.dev_groups = hp_wmi_groups,
 	},
-	.remove_new = __exit_p(hp_wmi_bios_remove),
+	.remove = __exit_p(hp_wmi_bios_remove),
 };
 
 static umode_t hp_wmi_hwmon_is_visible(const void *data,

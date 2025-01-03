@@ -93,6 +93,8 @@ struct ti_cpufreq_soc_data {
 	bool multi_regulator;
 /* Backward compatibility hack: Might have missing syscon */
 #define TI_QUIRK_SYSCON_MAY_BE_MISSING	0x1
+/* Backward compatibility hack: new syscon size is 1 register wide */
+#define TI_QUIRK_SYSCON_IS_SINGLE_REG	0x2
 	u8 quirks;
 };
 
@@ -316,8 +318,8 @@ static struct ti_cpufreq_soc_data am625_soc_data = {
 	.efuse_offset = 0x0018,
 	.efuse_mask = 0x07c0,
 	.efuse_shift = 0x6,
-	.rev_offset = 0x0014,
 	.multi_regulator = false,
+	.quirks = TI_QUIRK_SYSCON_IS_SINGLE_REG,
 };
 
 static struct ti_cpufreq_soc_data am62a7_soc_data = {
@@ -325,7 +327,6 @@ static struct ti_cpufreq_soc_data am62a7_soc_data = {
 	.efuse_offset = 0x0,
 	.efuse_mask = 0x07c0,
 	.efuse_shift = 0x6,
-	.rev_offset = 0x0014,
 	.multi_regulator = false,
 };
 
@@ -334,7 +335,6 @@ static struct ti_cpufreq_soc_data am62p5_soc_data = {
 	.efuse_offset = 0x0,
 	.efuse_mask = 0x07c0,
 	.efuse_shift = 0x6,
-	.rev_offset = 0x0014,
 	.multi_regulator = false,
 };
 
@@ -354,6 +354,10 @@ static int ti_cpufreq_get_efuse(struct ti_cpufreq_data *opp_data,
 
 	ret = regmap_read(opp_data->syscon, opp_data->soc_data->efuse_offset,
 			  &efuse);
+
+	if (opp_data->soc_data->quirks & TI_QUIRK_SYSCON_IS_SINGLE_REG && ret == -EIO)
+		ret = regmap_read(opp_data->syscon, 0x0, &efuse);
+
 	if (opp_data->soc_data->quirks & TI_QUIRK_SYSCON_MAY_BE_MISSING && ret == -EIO) {
 		/* not a syscon register! */
 		void __iomem *regs = ioremap(OMAP3_SYSCON_BASE +

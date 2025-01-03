@@ -48,6 +48,7 @@
 #define VSYNCS_BETWEEN_FLIP_THRESHOLD 2
 #define FREESYNC_CONSEC_FLIP_AFTER_VSYNC 5
 #define FREESYNC_VSYNC_TO_FLIP_DELTA_IN_US 500
+#define MICRO_HZ_TO_HZ(x) (x / 1000000)
 
 struct core_freesync {
 	struct mod_freesync public;
@@ -128,13 +129,26 @@ unsigned int mod_freesync_calc_v_total_from_refresh(
 	unsigned int v_total;
 	unsigned int frame_duration_in_ns;
 
+	if (refresh_in_uhz == 0)
+		return stream->timing.v_total;
+
 	frame_duration_in_ns =
 			((unsigned int)(div64_u64((1000000000ULL * 1000000),
 					refresh_in_uhz)));
 
-	v_total = div64_u64(div64_u64(((unsigned long long)(
-			frame_duration_in_ns) * (stream->timing.pix_clk_100hz / 10)),
-			stream->timing.h_total) + 500000, 1000000);
+	if (MICRO_HZ_TO_HZ(refresh_in_uhz) <= stream->timing.min_refresh_in_uhz) {
+		/* When the target refresh rate is the minimum panel refresh rate,
+		 * round down the vtotal value to avoid stretching vblank over
+		 * panel's vtotal boundary.
+		 */
+		v_total = div64_u64(div64_u64(((unsigned long long)(
+				frame_duration_in_ns) * (stream->timing.pix_clk_100hz / 10)),
+				stream->timing.h_total), 1000000);
+	} else {
+		v_total = div64_u64(div64_u64(((unsigned long long)(
+				frame_duration_in_ns) * (stream->timing.pix_clk_100hz / 10)),
+				stream->timing.h_total) + 500000, 1000000);
+	}
 
 	/* v_total cannot be less than nominal */
 	if (v_total < stream->timing.v_total) {

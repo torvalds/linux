@@ -480,11 +480,17 @@ static const struct snd_kcontrol_new max98088_snd_controls[] = {
        SOC_SINGLE("INA Volume", M98088_REG_37_LVL_INA, 0, 7, 1),
        SOC_SINGLE("INB Volume", M98088_REG_38_LVL_INB, 0, 7, 1),
 
+       SOC_SINGLE("DACL Volume", M98088_REG_2F_LVL_DAI1_PLAY, 0, 15, 1),
+       SOC_SINGLE("DACR Volume", M98088_REG_31_LVL_DAI2_PLAY, 0, 15, 1),
+
        SOC_SINGLE("ADCL Volume", M98088_REG_33_LVL_ADC_L, 0, 15, 0),
        SOC_SINGLE("ADCR Volume", M98088_REG_34_LVL_ADC_R, 0, 15, 0),
 
        SOC_SINGLE("ADCL Boost Volume", M98088_REG_33_LVL_ADC_L, 4, 3, 0),
        SOC_SINGLE("ADCR Boost Volume", M98088_REG_34_LVL_ADC_R, 4, 3, 0),
+
+       SOC_SINGLE("Left HP Output Mixer Switch", M98088_REG_27_MIX_HP_CNTL, 4, 1, 0),
+       SOC_SINGLE("Right HP Output Mixer Switch", M98088_REG_27_MIX_HP_CNTL, 5, 1, 0),
 
        SOC_SINGLE("EQ1 Switch", M98088_REG_49_CFG_LEVEL, 0, 1, 0),
        SOC_SINGLE("EQ2 Switch", M98088_REG_49_CFG_LEVEL, 1, 1, 0),
@@ -515,10 +521,8 @@ static const struct snd_kcontrol_new max98088_snd_controls[] = {
 
 /* Left speaker mixer switch */
 static const struct snd_kcontrol_new max98088_left_speaker_mixer_controls[] = {
-       SOC_DAPM_SINGLE("Left DAC1 Switch", M98088_REG_2B_MIX_SPK_LEFT, 0, 1, 0),
-       SOC_DAPM_SINGLE("Right DAC1 Switch", M98088_REG_2B_MIX_SPK_LEFT, 7, 1, 0),
-       SOC_DAPM_SINGLE("Left DAC2 Switch", M98088_REG_2B_MIX_SPK_LEFT, 0, 1, 0),
-       SOC_DAPM_SINGLE("Right DAC2 Switch", M98088_REG_2B_MIX_SPK_LEFT, 7, 1, 0),
+       SOC_DAPM_SINGLE("Left DAC Switch", M98088_REG_2B_MIX_SPK_LEFT, 0, 1, 0),
+       SOC_DAPM_SINGLE("Right DAC Switch", M98088_REG_2B_MIX_SPK_LEFT, 7, 1, 0),
        SOC_DAPM_SINGLE("MIC1 Switch", M98088_REG_2B_MIX_SPK_LEFT, 5, 1, 0),
        SOC_DAPM_SINGLE("MIC2 Switch", M98088_REG_2B_MIX_SPK_LEFT, 6, 1, 0),
        SOC_DAPM_SINGLE("INA1 Switch", M98088_REG_2B_MIX_SPK_LEFT, 1, 1, 0),
@@ -529,10 +533,8 @@ static const struct snd_kcontrol_new max98088_left_speaker_mixer_controls[] = {
 
 /* Right speaker mixer switch */
 static const struct snd_kcontrol_new max98088_right_speaker_mixer_controls[] = {
-       SOC_DAPM_SINGLE("Left DAC1 Switch", M98088_REG_2C_MIX_SPK_RIGHT, 7, 1, 0),
-       SOC_DAPM_SINGLE("Right DAC1 Switch", M98088_REG_2C_MIX_SPK_RIGHT, 0, 1, 0),
-       SOC_DAPM_SINGLE("Left DAC2 Switch", M98088_REG_2C_MIX_SPK_RIGHT, 7, 1, 0),
-       SOC_DAPM_SINGLE("Right DAC2 Switch", M98088_REG_2C_MIX_SPK_RIGHT, 0, 1, 0),
+       SOC_DAPM_SINGLE("Left DAC Switch", M98088_REG_2C_MIX_SPK_RIGHT, 7, 1, 0),
+       SOC_DAPM_SINGLE("Right DAC Switch", M98088_REG_2C_MIX_SPK_RIGHT, 0, 1, 0),
        SOC_DAPM_SINGLE("MIC1 Switch", M98088_REG_2C_MIX_SPK_RIGHT, 5, 1, 0),
        SOC_DAPM_SINGLE("MIC2 Switch", M98088_REG_2C_MIX_SPK_RIGHT, 6, 1, 0),
        SOC_DAPM_SINGLE("INA1 Switch", M98088_REG_2C_MIX_SPK_RIGHT, 1, 1, 0),
@@ -543,10 +545,8 @@ static const struct snd_kcontrol_new max98088_right_speaker_mixer_controls[] = {
 
 /* Left headphone mixer switch */
 static const struct snd_kcontrol_new max98088_left_hp_mixer_controls[] = {
-       SOC_DAPM_SINGLE("Left DAC1 Switch", M98088_REG_25_MIX_HP_LEFT, 0, 1, 0),
-       SOC_DAPM_SINGLE("Right DAC1 Switch", M98088_REG_25_MIX_HP_LEFT, 7, 1, 0),
-       SOC_DAPM_SINGLE("Left DAC2 Switch", M98088_REG_25_MIX_HP_LEFT, 0, 1, 0),
-       SOC_DAPM_SINGLE("Right DAC2 Switch", M98088_REG_25_MIX_HP_LEFT, 7, 1, 0),
+       SOC_DAPM_SINGLE("Left DAC Switch", M98088_REG_25_MIX_HP_LEFT, 0, 1, 0),
+       SOC_DAPM_SINGLE("Right DAC Switch", M98088_REG_25_MIX_HP_LEFT, 7, 1, 0),
        SOC_DAPM_SINGLE("MIC1 Switch", M98088_REG_25_MIX_HP_LEFT, 5, 1, 0),
        SOC_DAPM_SINGLE("MIC2 Switch", M98088_REG_25_MIX_HP_LEFT, 6, 1, 0),
        SOC_DAPM_SINGLE("INA1 Switch", M98088_REG_25_MIX_HP_LEFT, 1, 1, 0),
@@ -557,10 +557,8 @@ static const struct snd_kcontrol_new max98088_left_hp_mixer_controls[] = {
 
 /* Right headphone mixer switch */
 static const struct snd_kcontrol_new max98088_right_hp_mixer_controls[] = {
-       SOC_DAPM_SINGLE("Left DAC1 Switch", M98088_REG_26_MIX_HP_RIGHT, 7, 1, 0),
-       SOC_DAPM_SINGLE("Right DAC1 Switch", M98088_REG_26_MIX_HP_RIGHT, 0, 1, 0),
-       SOC_DAPM_SINGLE("Left DAC2 Switch", M98088_REG_26_MIX_HP_RIGHT, 7, 1, 0),
-       SOC_DAPM_SINGLE("Right DAC2 Switch", M98088_REG_26_MIX_HP_RIGHT, 0, 1, 0),
+       SOC_DAPM_SINGLE("Left DAC Switch", M98088_REG_26_MIX_HP_RIGHT, 7, 1, 0),
+       SOC_DAPM_SINGLE("Right DAC Switch", M98088_REG_26_MIX_HP_RIGHT, 0, 1, 0),
        SOC_DAPM_SINGLE("MIC1 Switch", M98088_REG_26_MIX_HP_RIGHT, 5, 1, 0),
        SOC_DAPM_SINGLE("MIC2 Switch", M98088_REG_26_MIX_HP_RIGHT, 6, 1, 0),
        SOC_DAPM_SINGLE("INA1 Switch", M98088_REG_26_MIX_HP_RIGHT, 1, 1, 0),
@@ -571,10 +569,8 @@ static const struct snd_kcontrol_new max98088_right_hp_mixer_controls[] = {
 
 /* Left earpiece/receiver mixer switch */
 static const struct snd_kcontrol_new max98088_left_rec_mixer_controls[] = {
-       SOC_DAPM_SINGLE("Left DAC1 Switch", M98088_REG_28_MIX_REC_LEFT, 0, 1, 0),
-       SOC_DAPM_SINGLE("Right DAC1 Switch", M98088_REG_28_MIX_REC_LEFT, 7, 1, 0),
-       SOC_DAPM_SINGLE("Left DAC2 Switch", M98088_REG_28_MIX_REC_LEFT, 0, 1, 0),
-       SOC_DAPM_SINGLE("Right DAC2 Switch", M98088_REG_28_MIX_REC_LEFT, 7, 1, 0),
+       SOC_DAPM_SINGLE("Left DAC Switch", M98088_REG_28_MIX_REC_LEFT, 0, 1, 0),
+       SOC_DAPM_SINGLE("Right DAC Switch", M98088_REG_28_MIX_REC_LEFT, 7, 1, 0),
        SOC_DAPM_SINGLE("MIC1 Switch", M98088_REG_28_MIX_REC_LEFT, 5, 1, 0),
        SOC_DAPM_SINGLE("MIC2 Switch", M98088_REG_28_MIX_REC_LEFT, 6, 1, 0),
        SOC_DAPM_SINGLE("INA1 Switch", M98088_REG_28_MIX_REC_LEFT, 1, 1, 0),
@@ -585,10 +581,8 @@ static const struct snd_kcontrol_new max98088_left_rec_mixer_controls[] = {
 
 /* Right earpiece/receiver mixer switch */
 static const struct snd_kcontrol_new max98088_right_rec_mixer_controls[] = {
-       SOC_DAPM_SINGLE("Left DAC1 Switch", M98088_REG_29_MIX_REC_RIGHT, 7, 1, 0),
-       SOC_DAPM_SINGLE("Right DAC1 Switch", M98088_REG_29_MIX_REC_RIGHT, 0, 1, 0),
-       SOC_DAPM_SINGLE("Left DAC2 Switch", M98088_REG_29_MIX_REC_RIGHT, 7, 1, 0),
-       SOC_DAPM_SINGLE("Right DAC2 Switch", M98088_REG_29_MIX_REC_RIGHT, 0, 1, 0),
+       SOC_DAPM_SINGLE("Left DAC Switch", M98088_REG_29_MIX_REC_RIGHT, 7, 1, 0),
+       SOC_DAPM_SINGLE("Right DAC Switch", M98088_REG_29_MIX_REC_RIGHT, 0, 1, 0),
        SOC_DAPM_SINGLE("MIC1 Switch", M98088_REG_29_MIX_REC_RIGHT, 5, 1, 0),
        SOC_DAPM_SINGLE("MIC2 Switch", M98088_REG_29_MIX_REC_RIGHT, 6, 1, 0),
        SOC_DAPM_SINGLE("INA1 Switch", M98088_REG_29_MIX_REC_RIGHT, 1, 1, 0),
@@ -717,13 +711,9 @@ static const struct snd_soc_dapm_widget max98088_dapm_widgets[] = {
        SND_SOC_DAPM_ADC("ADCL", "HiFi Capture", M98088_REG_4C_PWR_EN_IN, 1, 0),
        SND_SOC_DAPM_ADC("ADCR", "HiFi Capture", M98088_REG_4C_PWR_EN_IN, 0, 0),
 
-       SND_SOC_DAPM_DAC("DACL1", "HiFi Playback",
+       SND_SOC_DAPM_DAC("DACL", "HiFi Playback",
                M98088_REG_4D_PWR_EN_OUT, 1, 0),
-       SND_SOC_DAPM_DAC("DACR1", "HiFi Playback",
-               M98088_REG_4D_PWR_EN_OUT, 0, 0),
-       SND_SOC_DAPM_DAC("DACL2", "Aux Playback",
-               M98088_REG_4D_PWR_EN_OUT, 1, 0),
-       SND_SOC_DAPM_DAC("DACR2", "Aux Playback",
+       SND_SOC_DAPM_DAC("DACR", "HiFi Playback",
                M98088_REG_4D_PWR_EN_OUT, 0, 0),
 
        SND_SOC_DAPM_PGA("HP Left Out", M98088_REG_4D_PWR_EN_OUT,
@@ -819,10 +809,8 @@ static const struct snd_soc_dapm_widget max98088_dapm_widgets[] = {
 
 static const struct snd_soc_dapm_route max98088_audio_map[] = {
        /* Left headphone output mixer */
-       {"Left HP Mixer", "Left DAC1 Switch", "DACL1"},
-       {"Left HP Mixer", "Left DAC2 Switch", "DACL2"},
-       {"Left HP Mixer", "Right DAC1 Switch", "DACR1"},
-       {"Left HP Mixer", "Right DAC2 Switch", "DACR2"},
+       {"Left HP Mixer", "Left DAC Switch", "DACL"},
+       {"Left HP Mixer", "Right DAC Switch", "DACR"},
        {"Left HP Mixer", "MIC1 Switch", "MIC1 Input"},
        {"Left HP Mixer", "MIC2 Switch", "MIC2 Input"},
        {"Left HP Mixer", "INA1 Switch", "INA1 Input"},
@@ -831,10 +819,8 @@ static const struct snd_soc_dapm_route max98088_audio_map[] = {
        {"Left HP Mixer", "INB2 Switch", "INB2 Input"},
 
        /* Right headphone output mixer */
-       {"Right HP Mixer", "Left DAC1 Switch", "DACL1"},
-       {"Right HP Mixer", "Left DAC2 Switch", "DACL2"  },
-       {"Right HP Mixer", "Right DAC1 Switch", "DACR1"},
-       {"Right HP Mixer", "Right DAC2 Switch", "DACR2"},
+       {"Right HP Mixer", "Left DAC Switch", "DACL"},
+       {"Right HP Mixer", "Right DAC Switch", "DACR"},
        {"Right HP Mixer", "MIC1 Switch", "MIC1 Input"},
        {"Right HP Mixer", "MIC2 Switch", "MIC2 Input"},
        {"Right HP Mixer", "INA1 Switch", "INA1 Input"},
@@ -843,10 +829,8 @@ static const struct snd_soc_dapm_route max98088_audio_map[] = {
        {"Right HP Mixer", "INB2 Switch", "INB2 Input"},
 
        /* Left speaker output mixer */
-       {"Left SPK Mixer", "Left DAC1 Switch", "DACL1"},
-       {"Left SPK Mixer", "Left DAC2 Switch", "DACL2"},
-       {"Left SPK Mixer", "Right DAC1 Switch", "DACR1"},
-       {"Left SPK Mixer", "Right DAC2 Switch", "DACR2"},
+       {"Left SPK Mixer", "Left DAC Switch", "DACL"},
+       {"Left SPK Mixer", "Right DAC Switch", "DACR"},
        {"Left SPK Mixer", "MIC1 Switch", "MIC1 Input"},
        {"Left SPK Mixer", "MIC2 Switch", "MIC2 Input"},
        {"Left SPK Mixer", "INA1 Switch", "INA1 Input"},
@@ -855,10 +839,8 @@ static const struct snd_soc_dapm_route max98088_audio_map[] = {
        {"Left SPK Mixer", "INB2 Switch", "INB2 Input"},
 
        /* Right speaker output mixer */
-       {"Right SPK Mixer", "Left DAC1 Switch", "DACL1"},
-       {"Right SPK Mixer", "Left DAC2 Switch", "DACL2"},
-       {"Right SPK Mixer", "Right DAC1 Switch", "DACR1"},
-       {"Right SPK Mixer", "Right DAC2 Switch", "DACR2"},
+       {"Right SPK Mixer", "Left DAC Switch", "DACL"},
+       {"Right SPK Mixer", "Right DAC Switch", "DACR"},
        {"Right SPK Mixer", "MIC1 Switch", "MIC1 Input"},
        {"Right SPK Mixer", "MIC2 Switch", "MIC2 Input"},
        {"Right SPK Mixer", "INA1 Switch", "INA1 Input"},
@@ -867,10 +849,8 @@ static const struct snd_soc_dapm_route max98088_audio_map[] = {
        {"Right SPK Mixer", "INB2 Switch", "INB2 Input"},
 
        /* Earpiece/Receiver output mixer */
-       {"Left REC Mixer", "Left DAC1 Switch", "DACL1"},
-       {"Left REC Mixer", "Left DAC2 Switch", "DACL2"},
-       {"Left REC Mixer", "Right DAC1 Switch", "DACR1"},
-       {"Left REC Mixer", "Right DAC2 Switch", "DACR2"},
+       {"Left REC Mixer", "Left DAC Switch", "DACL"},
+       {"Left REC Mixer", "Right DAC Switch", "DACR"},
        {"Left REC Mixer", "MIC1 Switch", "MIC1 Input"},
        {"Left REC Mixer", "MIC2 Switch", "MIC2 Input"},
        {"Left REC Mixer", "INA1 Switch", "INA1 Input"},
@@ -879,10 +859,8 @@ static const struct snd_soc_dapm_route max98088_audio_map[] = {
        {"Left REC Mixer", "INB2 Switch", "INB2 Input"},
 
        /* Earpiece/Receiver output mixer */
-       {"Right REC Mixer", "Left DAC1 Switch", "DACL1"},
-       {"Right REC Mixer", "Left DAC2 Switch", "DACL2"},
-       {"Right REC Mixer", "Right DAC1 Switch", "DACR1"},
-       {"Right REC Mixer", "Right DAC2 Switch", "DACR2"},
+       {"Right REC Mixer", "Left DAC Switch", "DACL"},
+       {"Right REC Mixer", "Right DAC Switch", "DACR"},
        {"Right REC Mixer", "MIC1 Switch", "MIC1 Input"},
        {"Right REC Mixer", "MIC2 Switch", "MIC2 Input"},
        {"Right REC Mixer", "INA1 Switch", "INA1 Input"},

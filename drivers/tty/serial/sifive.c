@@ -1040,7 +1040,7 @@ MODULE_DEVICE_TABLE(of, sifive_serial_of_match);
 
 static struct platform_driver sifive_serial_platform_driver = {
 	.probe		= sifive_serial_probe,
-	.remove_new	= sifive_serial_remove,
+	.remove		= sifive_serial_remove,
 	.driver		= {
 		.name	= SIFIVE_SERIAL_NAME,
 		.pm = pm_sleep_ptr(&sifive_uart_pm_ops),

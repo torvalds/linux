@@ -179,7 +179,7 @@ static void __build_epilogue(struct jit_ctx *ctx, bool is_tail_call)
 
 	if (!is_tail_call) {
 		/* Set return value */
-		move_reg(ctx, LOONGARCH_GPR_A0, regmap[BPF_REG_0]);
+		emit_insn(ctx, addiw, LOONGARCH_GPR_A0, regmap[BPF_REG_0], 0);
 		/* Return to the caller */
 		emit_insn(ctx, jirl, LOONGARCH_GPR_RA, LOONGARCH_GPR_ZERO, 0);
 	} else {

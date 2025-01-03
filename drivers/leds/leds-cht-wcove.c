@@ -461,7 +461,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(cht_wc_leds_pm, cht_wc_leds_suspend, cht_wc_leds
 
 static struct platform_driver cht_wc_leds_driver = {
 	.probe = cht_wc_leds_probe,
-	.remove_new = cht_wc_leds_remove,
+	.remove = cht_wc_leds_remove,
 	.shutdown = cht_wc_leds_disable,
 	.driver = {
 		.name = "cht_wcove_leds",

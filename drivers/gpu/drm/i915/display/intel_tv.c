@@ -33,6 +33,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_probe_helper.h>
 
 #include "i915_drv.h"
 #include "i915_reg.h"
@@ -928,7 +929,7 @@ intel_enable_tv(struct intel_atomic_state *state,
 		const struct intel_crtc_state *pipe_config,
 		const struct drm_connector_state *conn_state)
 {
-	struct intel_display *display = to_intel_display(state);
+	struct intel_display *display = to_intel_display(encoder);
 
 	/* Prevents vblank waits from timing out in intel_tv_detect_type() */
 	intel_crtc_wait_for_next_vblank(to_intel_crtc(pipe_config->uapi.crtc));
@@ -942,7 +943,7 @@ intel_disable_tv(struct intel_atomic_state *state,
 		 const struct intel_crtc_state *old_crtc_state,
 		 const struct drm_connector_state *old_conn_state)
 {
-	struct intel_display *display = to_intel_display(state);
+	struct intel_display *display = to_intel_display(encoder);
 
 	intel_de_rmw(display, TV_CTL, TV_ENC_ENABLE, 0);
 }
@@ -1092,7 +1093,6 @@ intel_tv_get_config(struct intel_encoder *encoder,
 		    struct intel_crtc_state *pipe_config)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct drm_display_mode *adjusted_mode =
 		&pipe_config->hw.adjusted_mode;
 	struct drm_display_mode mode = {};
@@ -1166,7 +1166,7 @@ intel_tv_get_config(struct intel_encoder *encoder,
 		adjusted_mode->crtc_clock /= 2;
 
 	/* pixel counter doesn't work on i965gm TV output */
-	if (IS_I965GM(dev_priv))
+	if (display->platform.i965gm)
 		pipe_config->mode_flags |=
 			I915_MODE_FLAG_USE_SCANLINE_COUNTER;
 }
@@ -1196,7 +1196,6 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 	struct intel_atomic_state *state =
 		to_intel_atomic_state(pipe_config->uapi.state);
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_tv_connector_state *tv_conn_state =
 		to_intel_tv_connector_state(conn_state);
 	const struct tv_mode *tv_mode = intel_tv_mode_find(conn_state);
@@ -1348,7 +1347,7 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 	adjusted_mode->name[0] = '\0';
 
 	/* pixel counter doesn't work on i965gm TV output */
-	if (IS_I965GM(dev_priv))
+	if (display->platform.i965gm)
 		pipe_config->mode_flags |=
 			I915_MODE_FLAG_USE_SCANLINE_COUNTER;
 
@@ -1524,7 +1523,7 @@ static void intel_tv_pre_enable(struct intel_atomic_state *state,
 		tv_mode->dda3_inc << TV_SCDDA3_INC_SHIFT;
 
 	/* Enable two fixes for the chips that need them. */
-	if (IS_I915GM(dev_priv))
+	if (display->platform.i915gm)
 		tv_ctl |= TV_ENC_C0_FIX | TV_ENC_SDP_FIX;
 
 	set_tv_mode_timings(display, tv_mode, burst_ena);
@@ -1626,7 +1625,7 @@ intel_tv_detect_type(struct intel_tv *intel_tv,
 	 * The TV sense state should be cleared to zero on cantiga platform. Otherwise
 	 * the TV is misdetected. This is hardware requirement.
 	 */
-	if (IS_GM45(dev_priv))
+	if (display->platform.gm45)
 		tv_dac &= ~(TVDAC_STATE_CHG_EN | TVDAC_A_SENSE_CTL |
 			    TVDAC_B_SENSE_CTL | TVDAC_C_SENSE_CTL);
 

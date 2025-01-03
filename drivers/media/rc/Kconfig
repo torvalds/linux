@@ -184,6 +184,7 @@ config IR_GPIO_TX
 	tristate "GPIO IR Bit Banging Transmitter"
 	depends on LIRC
 	depends on (OF && GPIOLIB) || COMPILE_TEST
+	depends on !PREEMPT_RT
 	help
 	   Say Y if you want to a GPIO based IR transmitter. This is a
 	   bit banging driver.

@@ -205,7 +205,7 @@ MODULE_ALIAS("platform:mtd-ram");
 
 static struct platform_driver platram_driver = {
 	.probe		= platram_probe,
-	.remove_new	= platram_remove,
+	.remove		= platram_remove,
 	.driver		= {
 		.name	= "mtd-ram",
 	},

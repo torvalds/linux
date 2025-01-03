@@ -475,9 +475,9 @@ static bool is_cxl_restricted(struct pci_dev *pdev)
 }
 
 static int cxl_rcrb_get_comp_regs(struct pci_dev *pdev,
-				  struct cxl_register_map *map)
+				  struct cxl_register_map *map,
+				  struct cxl_dport *dport)
 {
-	struct cxl_dport *dport;
 	resource_size_t component_reg_phys;
 
 	*map = (struct cxl_register_map) {
@@ -513,11 +513,24 @@ static int cxl_pci_setup_regs(struct pci_dev *pdev, enum cxl_regloc_type type,
 	 * is an RCH and try to extract the Component Registers from
 	 * an RCRB.
 	 */
-	if (rc && type == CXL_REGLOC_RBI_COMPONENT && is_cxl_restricted(pdev))
-		rc = cxl_rcrb_get_comp_regs(pdev, map);
+	if (rc && type == CXL_REGLOC_RBI_COMPONENT && is_cxl_restricted(pdev)) {
+		struct cxl_dport *dport;
+		struct cxl_port *port __free(put_cxl_port) =
+			cxl_pci_find_port(pdev, &dport);
+		if (!port)
+			return -EPROBE_DEFER;
 
-	if (rc)
+		rc = cxl_rcrb_get_comp_regs(pdev, map, dport);
+		if (rc)
+			return rc;
+
+		rc = cxl_dport_map_rcd_linkcap(pdev, dport);
+		if (rc)
+			return rc;
+
+	} else if (rc) {
 		return rc;
+	}
 
 	return cxl_setup_regs(map);
 }
@@ -764,10 +777,6 @@ static int cxl_event_config(struct pci_host_bridge *host_bridge,
 		return 0;
 	}
 
-	rc = cxl_mem_alloc_event_buf(mds);
-	if (rc)
-		return rc;
-
 	rc = cxl_event_get_int_policy(mds, &policy);
 	if (rc)
 		return rc;
@@ -780,6 +789,10 @@ static int cxl_event_config(struct pci_host_bridge *host_bridge,
 			"FW still in control of Event Logs despite _OSC settings\n");
 		return -EBUSY;
 	}
+
+	rc = cxl_mem_alloc_event_buf(mds);
+	if (rc)
+		return rc;
 
 	rc = cxl_event_irqsetup(mds);
 	if (rc)
@@ -806,6 +819,83 @@ static int cxl_pci_type3_init_mailbox(struct cxl_dev_state *cxlds)
 
 	return 0;
 }
+
+static ssize_t rcd_pcie_cap_emit(struct device *dev, u16 offset, char *buf, size_t width)
+{
+	struct cxl_dev_state *cxlds = dev_get_drvdata(dev);
+	struct cxl_memdev *cxlmd = cxlds->cxlmd;
+	struct device *root_dev;
+	struct cxl_dport *dport;
+	struct cxl_port *root __free(put_cxl_port) =
+		cxl_mem_find_port(cxlmd, &dport);
+
+	if (!root)
+		return -ENXIO;
+
+	root_dev = root->uport_dev;
+	if (!root_dev)
+		return -ENXIO;
+
+	guard(device)(root_dev);
+	if (!root_dev->driver)
+		return -ENXIO;
+
+	switch (width) {
+	case 2:
+		return sysfs_emit(buf, "%#x\n",
+				  readw(dport->regs.rcd_pcie_cap + offset));
+	case 4:
+		return sysfs_emit(buf, "%#x\n",
+				  readl(dport->regs.rcd_pcie_cap + offset));
+	default:
+		return -EINVAL;
+	}
+}
+
+static ssize_t rcd_link_cap_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	return rcd_pcie_cap_emit(dev, PCI_EXP_LNKCAP, buf, sizeof(u32));
+}
+static DEVICE_ATTR_RO(rcd_link_cap);
+
+static ssize_t rcd_link_ctrl_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	return rcd_pcie_cap_emit(dev, PCI_EXP_LNKCTL, buf, sizeof(u16));
+}
+static DEVICE_ATTR_RO(rcd_link_ctrl);
+
+static ssize_t rcd_link_status_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
+{
+	return rcd_pcie_cap_emit(dev, PCI_EXP_LNKSTA, buf, sizeof(u16));
+}
+static DEVICE_ATTR_RO(rcd_link_status);
+
+static struct attribute *cxl_rcd_attrs[] = {
+	&dev_attr_rcd_link_cap.attr,
+	&dev_attr_rcd_link_ctrl.attr,
+	&dev_attr_rcd_link_status.attr,
+	NULL
+};
+
+static umode_t cxl_rcd_visible(struct kobject *kobj, struct attribute *a, int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct pci_dev *pdev = to_pci_dev(dev);
+
+	if (is_cxl_restricted(pdev))
+		return a->mode;
+
+	return 0;
+}
+
+static struct attribute_group cxl_rcd_group = {
+	.attrs = cxl_rcd_attrs,
+	.is_visible = cxl_rcd_visible,
+};
+__ATTRIBUTE_GROUPS(cxl_rcd);
 
 static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
@@ -1016,6 +1106,7 @@ static struct pci_driver cxl_pci_driver = {
 	.id_table		= cxl_mem_pci_tbl,
 	.probe			= cxl_pci_probe,
 	.err_handler		= &cxl_error_handlers,
+	.dev_groups		= cxl_rcd_groups,
 	.driver	= {
 		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
 	},

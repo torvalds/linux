@@ -12,6 +12,7 @@
 #include <linux/cleanup.h>
 #include <linux/device.h>
 #include <linux/errno.h>
+#include <linux/gpio/consumer.h>
 #include <linux/gpio/machine.h>
 #include <linux/gpio/property.h>
 #include <linux/mfd/cs42l43.h>
@@ -229,6 +230,33 @@ static size_t cs42l43_spi_max_length(struct spi_device *spi)
 	return CS42L43_SPI_MAX_LENGTH;
 }
 
+static int cs42l43_get_speaker_id_gpios(struct cs42l43_spi *priv, int *result)
+{
+	struct gpio_descs *descs;
+	u32 spkid;
+	int i, ret;
+
+	descs = gpiod_get_array_optional(priv->dev, "spk-id", GPIOD_IN);
+	if (IS_ERR_OR_NULL(descs))
+		return PTR_ERR(descs);
+
+	spkid = 0;
+	for (i = 0; i < descs->ndescs; i++) {
+		ret = gpiod_get_value_cansleep(descs->desc[i]);
+		if (ret < 0)
+			goto err;
+
+		spkid |= (ret << i);
+	}
+
+	dev_dbg(priv->dev, "spk-id-gpios = %d\n", spkid);
+	*result = spkid;
+err:
+	gpiod_put_array(descs);
+
+	return ret;
+}
+
 static struct fwnode_handle *cs42l43_find_xu_node(struct fwnode_handle *fwnode)
 {
 	static const u32 func_smart_amp = 0x1;
@@ -306,6 +334,7 @@ static int cs42l43_spi_probe(struct platform_device *pdev)
 	struct fwnode_handle *fwnode = dev_fwnode(cs42l43->dev);
 	struct fwnode_handle *xu_fwnode __free(fwnode_handle) = cs42l43_find_xu_node(fwnode);
 	int nsidecars = 0;
+	int spkid = -EINVAL;
 	int ret;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
@@ -360,6 +389,18 @@ static int cs42l43_spi_probe(struct platform_device *pdev)
 	fwnode_property_read_u32(xu_fwnode, "01fa-sidecar-instances", &nsidecars);
 
 	if (nsidecars) {
+		ret = fwnode_property_read_u32(xu_fwnode, "01fa-spk-id-val", &spkid);
+		if (!ret) {
+			dev_dbg(priv->dev, "01fa-spk-id-val = %d\n", spkid);
+		} else if (ret != -EINVAL) {
+			return dev_err_probe(priv->dev, ret, "Failed to get spk-id-val\n");
+		} else {
+			ret = cs42l43_get_speaker_id_gpios(priv, &spkid);
+			if (ret < 0)
+				return dev_err_probe(priv->dev, ret,
+						     "Failed to get spk-id-gpios\n");
+		}
+
 		ret = software_node_register(&cs42l43_gpiochip_swnode);
 		if (ret)
 			return dev_err_probe(priv->dev, ret,
@@ -385,11 +426,6 @@ static int cs42l43_spi_probe(struct platform_device *pdev)
 	if (nsidecars) {
 		struct spi_board_info *ampl_info;
 		struct spi_board_info *ampr_info;
-		int spkid = -EINVAL;
-
-		fwnode_property_read_u32(xu_fwnode, "01fa-spk-id-val", &spkid);
-
-		dev_dbg(priv->dev, "Found speaker ID %d\n", spkid);
 
 		ampl_info = cs42l43_create_bridge_amp(priv, "cs35l56-left", 0, spkid);
 		if (!ampl_info)

@@ -142,9 +142,9 @@ static int acp70_i2s_master_clock_generate(struct acp_dev_data *adata)
 	struct pci_dev *smn_dev;
 	u32 device_id;
 
-	if (adata->platform == ACP70)
+	if (adata->acp_rev == ACP70_PCI_ID)
 		device_id = 0x1507;
-	else if (adata->platform == ACP71)
+	else if (adata->acp_rev == ACP71_PCI_ID)
 		device_id = 0x1122;
 	else
 		return -ENODEV;
@@ -175,8 +175,8 @@ static int acp_acp70_audio_probe(struct platform_device *pdev)
 	}
 
 	switch (chip->acp_rev) {
-	case ACP70_DEV:
-	case ACP71_DEV:
+	case ACP70_PCI_ID:
+	case ACP71_PCI_ID:
 		break;
 	default:
 		dev_err(&pdev->dev, "Un-supported ACP Revision %d\n", chip->acp_rev);
@@ -209,11 +209,7 @@ static int acp_acp70_audio_probe(struct platform_device *pdev)
 	adata->num_dai = ARRAY_SIZE(acp70_dai);
 	adata->rsrc = &rsrc;
 	adata->machines = snd_soc_acpi_amd_acp70_acp_machines;
-	if (chip->acp_rev == ACP70_DEV)
-		adata->platform = ACP70;
-	else
-		adata->platform = ACP71;
-
+	adata->acp_rev = chip->acp_rev;
 	adata->flag = chip->flag;
 	acp_machine_select(adata);
 

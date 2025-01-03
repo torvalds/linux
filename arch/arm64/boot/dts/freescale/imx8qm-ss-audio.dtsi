@@ -304,7 +304,7 @@
 };
 
 /* edma2 called in imx8qm RM with the same address in edma0 of imx8qxp */
-&edma0{
+&edma0 {
 	reg = <0x591f0000 0x150000>;
 	dma-channels = <20>;
 	dma-channel-mask = <0>;
@@ -351,7 +351,7 @@
 };
 
 /* edma3 called in imx8qm RM with the same address in edma1 of imx8qxp */
-&edma1{
+&edma1 {
 	reg = <0x599f0000 0xc0000>;
 	dma-channels = <11>;
 	dma-channel-mask = <0xc0>;

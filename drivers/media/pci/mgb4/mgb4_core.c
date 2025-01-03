@@ -582,9 +582,7 @@ static int mgb4_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 							    NULL);
 #endif
 
-#ifdef CONFIG_DEBUG_FS
 	mgbdev->debugfs = debugfs_create_dir(dev_name(&pdev->dev), NULL);
-#endif
 
 	/* Get card serial number. On systems without MTD flash support we may
 	 * get an error thus ignore the return value. An invalid serial number
@@ -646,6 +644,8 @@ static void mgb4_remove(struct pci_dev *pdev)
 	hwmon_device_unregister(mgbdev->hwmon_dev);
 #endif
 
+	debugfs_remove_recursive(mgbdev->debugfs);
+
 	if (mgbdev->indio_dev)
 		mgb4_trigger_free(mgbdev->indio_dev);
 
@@ -655,10 +655,6 @@ static void mgb4_remove(struct pci_dev *pdev)
 	for (i = 0; i < MGB4_VIN_DEVICES; i++)
 		if (mgbdev->vin[i])
 			mgb4_vin_free(mgbdev->vin[i]);
-
-#ifdef CONFIG_DEBUG_FS
-	debugfs_remove_recursive(mgbdev->debugfs);
-#endif
 
 	device_remove_groups(&mgbdev->pdev->dev, mgb4_pci_groups);
 	free_spi(mgbdev);

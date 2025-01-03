@@ -1605,7 +1605,7 @@ static struct platform_driver ghes_platform_driver = {
 		.name	= "GHES",
 	},
 	.probe		= ghes_probe,
-	.remove_new	= ghes_remove,
+	.remove		= ghes_remove,
 };
 
 void __init acpi_ghes_init(void)

@@ -30,6 +30,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_mipi_dsi.h>
+#include <drm/drm_probe_helper.h>
 
 #include "i915_drv.h"
 #include "i915_reg.h"
@@ -43,6 +44,7 @@
 #include "intel_dsi_vbt.h"
 #include "intel_fifo_underrun.h"
 #include "intel_panel.h"
+#include "intel_pfit.h"
 #include "skl_scaler.h"
 #include "vlv_dsi.h"
 #include "vlv_dsi_pll.h"
@@ -1071,7 +1073,7 @@ static void bxt_dsi_get_pipe_config(struct intel_encoder *encoder,
 	hsync = intel_de_read(display, MIPI_HSYNC_PADDING_COUNT(display, port));
 	hbp = intel_de_read(display, MIPI_HBP_COUNT(display, port));
 
-	/* harizontal values are in terms of high speed byte clock */
+	/* horizontal values are in terms of high speed byte clock */
 	hfp = pixels_from_txbyteclkhs(hfp, bpp, lane_count,
 						intel_dsi->burst_mode_ratio);
 	hsync = pixels_from_txbyteclkhs(hsync, bpp, lane_count,

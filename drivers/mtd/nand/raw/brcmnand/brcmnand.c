@@ -1561,7 +1561,7 @@ static int write_oob_to_regs(struct brcmnand_controller *ctrl, int i,
 				(oob[j + 2] <<  8) |
 				(oob[j + 3] <<  0));
 
-	/* handle the remaing bytes */
+	/* handle the remaining bytes */
 	while (j < tbytes)
 		plast[k++] = oob[j++];
 

@@ -1171,18 +1171,24 @@ static int deliver_sample_value(struct evlist *evlist,
 				union perf_event *event,
 				struct perf_sample *sample,
 				struct sample_read_value *v,
-				struct machine *machine)
+				struct machine *machine,
+				bool per_thread)
 {
 	struct perf_sample_id *sid = evlist__id2sid(evlist, v->id);
 	struct evsel *evsel;
+	u64 *storage = NULL;
 
 	if (sid) {
-		sample->id     = v->id;
-		sample->period = v->value - sid->period;
-		sid->period    = v->value;
+		storage = perf_sample_id__get_period_storage(sid, sample->tid, per_thread);
 	}
 
-	if (!sid || sid->evsel == NULL) {
+	if (storage) {
+		sample->id     = v->id;
+		sample->period = v->value - *storage;
+		*storage       = v->value;
+	}
+
+	if (!storage || sid->evsel == NULL) {
 		++evlist->stats.nr_unknown_id;
 		return 0;
 	}
@@ -1203,17 +1209,19 @@ static int deliver_sample_group(struct evlist *evlist,
 				union  perf_event *event,
 				struct perf_sample *sample,
 				struct machine *machine,
-				u64 read_format)
+				u64 read_format,
+				bool per_thread)
 {
 	int ret = -EINVAL;
 	struct sample_read_value *v = sample->read.group.values;
 
 	if (tool->dont_split_sample_group)
-		return deliver_sample_value(evlist, tool, event, sample, v, machine);
+		return deliver_sample_value(evlist, tool, event, sample, v, machine,
+					    per_thread);
 
 	sample_read_group__for_each(v, sample->read.group.nr, read_format) {
 		ret = deliver_sample_value(evlist, tool, event, sample, v,
-					   machine);
+					   machine, per_thread);
 		if (ret)
 			break;
 	}
@@ -1228,6 +1236,7 @@ static int evlist__deliver_sample(struct evlist *evlist, const struct perf_tool 
 	/* We know evsel != NULL. */
 	u64 sample_type = evsel->core.attr.sample_type;
 	u64 read_format = evsel->core.attr.read_format;
+	bool per_thread = perf_evsel__attr_has_per_thread_sample_period(&evsel->core);
 
 	/* Standard sample delivery. */
 	if (!(sample_type & PERF_SAMPLE_READ))
@@ -1236,10 +1245,11 @@ static int evlist__deliver_sample(struct evlist *evlist, const struct perf_tool 
 	/* For PERF_SAMPLE_READ we have either single or group mode. */
 	if (read_format & PERF_FORMAT_GROUP)
 		return deliver_sample_group(evlist, tool, event, sample,
-					    machine, read_format);
+					    machine, read_format, per_thread);
 	else
 		return deliver_sample_value(evlist, tool, event, sample,
-					    &sample->read.one, machine);
+					    &sample->read.one, machine,
+					    per_thread);
 }
 
 static int machines__deliver_event(struct machines *machines,

@@ -39,6 +39,7 @@ properties:
       - description: v1 of TSENS
         items:
           - enum:
+              - qcom,msm8937-tsens
               - qcom,msm8956-tsens
               - qcom,msm8976-tsens
               - qcom,qcs404-tsens
@@ -53,6 +54,7 @@ properties:
               - qcom,qcm2290-tsens
               - qcom,sa8255p-tsens
               - qcom,sa8775p-tsens
+              - qcom,sar2130p-tsens
               - qcom,sc7180-tsens
               - qcom,sc7280-tsens
               - qcom,sc8180x-tsens

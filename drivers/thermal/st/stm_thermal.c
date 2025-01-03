@@ -582,7 +582,7 @@ static struct platform_driver stm_thermal_driver = {
 		.of_match_table = stm_thermal_of_match,
 	},
 	.probe		= stm_thermal_probe,
-	.remove_new	= stm_thermal_remove,
+	.remove		= stm_thermal_remove,
 };
 module_platform_driver(stm_thermal_driver);
 

@@ -29,6 +29,9 @@ properties:
   interrupts:
     maxItems: 1
 
+  clocks:
+    maxItems: 1
+
   phy-handle: true
 
   local-mac-address: true
@@ -45,6 +48,7 @@ required:
   - compatible
   - reg
   - interrupts
+  - clocks
   - phy-handle
 
 additionalProperties: false
@@ -56,6 +60,7 @@ examples:
         reg = <0x40e00000 0x10000>;
         interrupt-parent = <&axi_intc_1>;
         interrupts = <1>;
+        clocks = <&dummy>;
         local-mac-address = [00 00 00 00 00 00];
         phy-handle = <&phy0>;
         xlnx,rx-ping-pong;

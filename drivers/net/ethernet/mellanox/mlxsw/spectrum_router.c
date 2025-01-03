@@ -3197,7 +3197,6 @@ mlxsw_sp_nexthop_sh_counter_get(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_nexthop_group *nh_grp = nh->nhgi->nh_grp;
 	struct mlxsw_sp_nexthop_counter *nhct;
-	void *ptr;
 	int err;
 
 	nhct = xa_load(&nh_grp->nhgi->nexthop_counters, nh->id);
@@ -3210,12 +3209,10 @@ mlxsw_sp_nexthop_sh_counter_get(struct mlxsw_sp *mlxsw_sp,
 	if (IS_ERR(nhct))
 		return nhct;
 
-	ptr = xa_store(&nh_grp->nhgi->nexthop_counters, nh->id, nhct,
-		       GFP_KERNEL);
-	if (IS_ERR(ptr)) {
-		err = PTR_ERR(ptr);
+	err = xa_err(xa_store(&nh_grp->nhgi->nexthop_counters, nh->id, nhct,
+			      GFP_KERNEL));
+	if (err)
 		goto err_store;
-	}
 
 	return nhct;
 

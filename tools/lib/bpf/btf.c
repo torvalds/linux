@@ -22,6 +22,7 @@
 #include "libbpf_internal.h"
 #include "hashmap.h"
 #include "strset.h"
+#include "str_error.h"
 
 #define BTF_MAX_NR_TYPES 0x7fffffffU
 #define BTF_MAX_STR_OFFSET 0x7fffffffU
@@ -1179,7 +1180,7 @@ static struct btf *btf_parse_elf(const char *path, struct btf *base_btf,
 	fd = open(path, O_RDONLY | O_CLOEXEC);
 	if (fd < 0) {
 		err = -errno;
-		pr_warn("failed to open %s: %s\n", path, strerror(errno));
+		pr_warn("failed to open %s: %s\n", path, errstr(err));
 		return ERR_PTR(err);
 	}
 
@@ -1445,7 +1446,7 @@ retry_load:
 			goto retry_load;
 
 		err = -errno;
-		pr_warn("BTF loading error: %d\n", err);
+		pr_warn("BTF loading error: %s\n", errstr(err));
 		/* don't print out contents of custom log_buf */
 		if (!log_buf && buf[0])
 			pr_warn("-- BEGIN BTF LOAD LOG ---\n%s\n-- END BTF LOAD LOG --\n", buf);
@@ -2885,7 +2886,7 @@ int btf__add_decl_tag(struct btf *btf, const char *value, int ref_type_id,
 	return btf_commit_type(btf, sz);
 }
 
-struct btf_ext_sec_setup_param {
+struct btf_ext_sec_info_param {
 	__u32 off;
 	__u32 len;
 	__u32 min_rec_size;
@@ -2893,14 +2894,20 @@ struct btf_ext_sec_setup_param {
 	const char *desc;
 };
 
-static int btf_ext_setup_info(struct btf_ext *btf_ext,
-			      struct btf_ext_sec_setup_param *ext_sec)
+/*
+ * Parse a single info subsection of the BTF.ext info data:
+ *  - validate subsection structure and elements
+ *  - save info subsection start and sizing details in struct btf_ext
+ *  - endian-independent operation, for calling before byte-swapping
+ */
+static int btf_ext_parse_sec_info(struct btf_ext *btf_ext,
+				  struct btf_ext_sec_info_param *ext_sec,
+				  bool is_native)
 {
 	const struct btf_ext_info_sec *sinfo;
 	struct btf_ext_info *ext_info;
 	__u32 info_left, record_size;
 	size_t sec_cnt = 0;
-	/* The start of the info sec (including the __u32 record_size). */
 	void *info;
 
 	if (ext_sec->len == 0)
@@ -2912,6 +2919,7 @@ static int btf_ext_setup_info(struct btf_ext *btf_ext,
 		return -EINVAL;
 	}
 
+	/* The start of the info sec (including the __u32 record_size). */
 	info = btf_ext->data + btf_ext->hdr->hdr_len + ext_sec->off;
 	info_left = ext_sec->len;
 
@@ -2927,9 +2935,13 @@ static int btf_ext_setup_info(struct btf_ext *btf_ext,
 		return -EINVAL;
 	}
 
-	/* The record size needs to meet the minimum standard */
-	record_size = *(__u32 *)info;
+	/* The record size needs to meet either the minimum standard or, when
+	 * handling non-native endianness data, the exact standard so as
+	 * to allow safe byte-swapping.
+	 */
+	record_size = is_native ? *(__u32 *)info : bswap_32(*(__u32 *)info);
 	if (record_size < ext_sec->min_rec_size ||
+	    (!is_native && record_size != ext_sec->min_rec_size) ||
 	    record_size & 0x03) {
 		pr_debug("%s section in .BTF.ext has invalid record size %u\n",
 			 ext_sec->desc, record_size);
@@ -2941,7 +2953,7 @@ static int btf_ext_setup_info(struct btf_ext *btf_ext,
 
 	/* If no records, return failure now so .BTF.ext won't be used. */
 	if (!info_left) {
-		pr_debug("%s section in .BTF.ext has no records", ext_sec->desc);
+		pr_debug("%s section in .BTF.ext has no records\n", ext_sec->desc);
 		return -EINVAL;
 	}
 
@@ -2956,7 +2968,7 @@ static int btf_ext_setup_info(struct btf_ext *btf_ext,
 			return -EINVAL;
 		}
 
-		num_records = sinfo->num_info;
+		num_records = is_native ? sinfo->num_info : bswap_32(sinfo->num_info);
 		if (num_records == 0) {
 			pr_debug("%s section has incorrect num_records in .BTF.ext\n",
 			     ext_sec->desc);
@@ -2984,64 +2996,157 @@ static int btf_ext_setup_info(struct btf_ext *btf_ext,
 	return 0;
 }
 
-static int btf_ext_setup_func_info(struct btf_ext *btf_ext)
+/* Parse all info secs in the BTF.ext info data */
+static int btf_ext_parse_info(struct btf_ext *btf_ext, bool is_native)
 {
-	struct btf_ext_sec_setup_param param = {
+	struct btf_ext_sec_info_param func_info = {
 		.off = btf_ext->hdr->func_info_off,
 		.len = btf_ext->hdr->func_info_len,
 		.min_rec_size = sizeof(struct bpf_func_info_min),
 		.ext_info = &btf_ext->func_info,
 		.desc = "func_info"
 	};
-
-	return btf_ext_setup_info(btf_ext, &param);
-}
-
-static int btf_ext_setup_line_info(struct btf_ext *btf_ext)
-{
-	struct btf_ext_sec_setup_param param = {
+	struct btf_ext_sec_info_param line_info = {
 		.off = btf_ext->hdr->line_info_off,
 		.len = btf_ext->hdr->line_info_len,
 		.min_rec_size = sizeof(struct bpf_line_info_min),
 		.ext_info = &btf_ext->line_info,
 		.desc = "line_info",
 	};
-
-	return btf_ext_setup_info(btf_ext, &param);
-}
-
-static int btf_ext_setup_core_relos(struct btf_ext *btf_ext)
-{
-	struct btf_ext_sec_setup_param param = {
+	struct btf_ext_sec_info_param core_relo = {
 		.off = btf_ext->hdr->core_relo_off,
 		.len = btf_ext->hdr->core_relo_len,
 		.min_rec_size = sizeof(struct bpf_core_relo),
 		.ext_info = &btf_ext->core_relo_info,
 		.desc = "core_relo",
 	};
+	int err;
 
-	return btf_ext_setup_info(btf_ext, &param);
+	err = btf_ext_parse_sec_info(btf_ext, &func_info, is_native);
+	if (err)
+		return err;
+
+	err = btf_ext_parse_sec_info(btf_ext, &line_info, is_native);
+	if (err)
+		return err;
+
+	if (btf_ext->hdr->hdr_len < offsetofend(struct btf_ext_header, core_relo_len))
+		return 0; /* skip core relos parsing */
+
+	err = btf_ext_parse_sec_info(btf_ext, &core_relo, is_native);
+	if (err)
+		return err;
+
+	return 0;
 }
 
-static int btf_ext_parse_hdr(__u8 *data, __u32 data_size)
+/* Swap byte-order of BTF.ext header with any endianness */
+static void btf_ext_bswap_hdr(struct btf_ext_header *h)
 {
-	const struct btf_ext_header *hdr = (struct btf_ext_header *)data;
+	bool is_native = h->magic == BTF_MAGIC;
+	__u32 hdr_len;
 
-	if (data_size < offsetofend(struct btf_ext_header, hdr_len) ||
-	    data_size < hdr->hdr_len) {
-		pr_debug("BTF.ext header not found");
+	hdr_len = is_native ? h->hdr_len : bswap_32(h->hdr_len);
+
+	h->magic = bswap_16(h->magic);
+	h->hdr_len = bswap_32(h->hdr_len);
+	h->func_info_off = bswap_32(h->func_info_off);
+	h->func_info_len = bswap_32(h->func_info_len);
+	h->line_info_off = bswap_32(h->line_info_off);
+	h->line_info_len = bswap_32(h->line_info_len);
+
+	if (hdr_len < offsetofend(struct btf_ext_header, core_relo_len))
+		return;
+
+	h->core_relo_off = bswap_32(h->core_relo_off);
+	h->core_relo_len = bswap_32(h->core_relo_len);
+}
+
+/* Swap byte-order of generic info subsection */
+static void btf_ext_bswap_info_sec(void *info, __u32 len, bool is_native,
+				   info_rec_bswap_fn bswap_fn)
+{
+	struct btf_ext_info_sec *sec;
+	__u32 info_left, rec_size, *rs;
+
+	if (len == 0)
+		return;
+
+	rs = info;				/* info record size */
+	rec_size = is_native ? *rs : bswap_32(*rs);
+	*rs = bswap_32(*rs);
+
+	sec = info + sizeof(__u32);		/* info sec #1 */
+	info_left = len - sizeof(__u32);
+	while (info_left) {
+		unsigned int sec_hdrlen = sizeof(struct btf_ext_info_sec);
+		__u32 i, num_recs;
+		void *p;
+
+		num_recs = is_native ? sec->num_info : bswap_32(sec->num_info);
+		sec->sec_name_off = bswap_32(sec->sec_name_off);
+		sec->num_info = bswap_32(sec->num_info);
+		p = sec->data;			/* info rec #1 */
+		for (i = 0; i < num_recs; i++, p += rec_size)
+			bswap_fn(p);
+		sec = p;
+		info_left -= sec_hdrlen + (__u64)rec_size * num_recs;
+	}
+}
+
+/*
+ * Swap byte-order of all info data in a BTF.ext section
+ *  - requires BTF.ext hdr in native endianness
+ */
+static void btf_ext_bswap_info(struct btf_ext *btf_ext, void *data)
+{
+	const bool is_native = btf_ext->swapped_endian;
+	const struct btf_ext_header *h = data;
+	void *info;
+
+	/* Swap func_info subsection byte-order */
+	info = data + h->hdr_len + h->func_info_off;
+	btf_ext_bswap_info_sec(info, h->func_info_len, is_native,
+			       (info_rec_bswap_fn)bpf_func_info_bswap);
+
+	/* Swap line_info subsection byte-order */
+	info = data + h->hdr_len + h->line_info_off;
+	btf_ext_bswap_info_sec(info, h->line_info_len, is_native,
+			       (info_rec_bswap_fn)bpf_line_info_bswap);
+
+	/* Swap core_relo subsection byte-order (if present) */
+	if (h->hdr_len < offsetofend(struct btf_ext_header, core_relo_len))
+		return;
+
+	info = data + h->hdr_len + h->core_relo_off;
+	btf_ext_bswap_info_sec(info, h->core_relo_len, is_native,
+			       (info_rec_bswap_fn)bpf_core_relo_bswap);
+}
+
+/* Parse hdr data and info sections: check and convert to native endianness */
+static int btf_ext_parse(struct btf_ext *btf_ext)
+{
+	__u32 hdr_len, data_size = btf_ext->data_size;
+	struct btf_ext_header *hdr = btf_ext->hdr;
+	bool swapped_endian = false;
+	int err;
+
+	if (data_size < offsetofend(struct btf_ext_header, hdr_len)) {
+		pr_debug("BTF.ext header too short\n");
 		return -EINVAL;
 	}
 
+	hdr_len = hdr->hdr_len;
 	if (hdr->magic == bswap_16(BTF_MAGIC)) {
-		pr_warn("BTF.ext in non-native endianness is not supported\n");
-		return -ENOTSUP;
+		swapped_endian = true;
+		hdr_len = bswap_32(hdr_len);
 	} else if (hdr->magic != BTF_MAGIC) {
 		pr_debug("Invalid BTF.ext magic:%x\n", hdr->magic);
 		return -EINVAL;
 	}
 
-	if (hdr->version != BTF_VERSION) {
+	/* Ensure known version of structs, current BTF_VERSION == 1 */
+	if (hdr->version != 1) {
 		pr_debug("Unsupported BTF.ext version:%u\n", hdr->version);
 		return -ENOTSUP;
 	}
@@ -3051,11 +3156,39 @@ static int btf_ext_parse_hdr(__u8 *data, __u32 data_size)
 		return -ENOTSUP;
 	}
 
-	if (data_size == hdr->hdr_len) {
+	if (data_size < hdr_len) {
+		pr_debug("BTF.ext header not found\n");
+		return -EINVAL;
+	} else if (data_size == hdr_len) {
 		pr_debug("BTF.ext has no data\n");
 		return -EINVAL;
 	}
 
+	/* Verify mandatory hdr info details present */
+	if (hdr_len < offsetofend(struct btf_ext_header, line_info_len)) {
+		pr_warn("BTF.ext header missing func_info, line_info\n");
+		return -EINVAL;
+	}
+
+	/* Keep hdr native byte-order in memory for introspection */
+	if (swapped_endian)
+		btf_ext_bswap_hdr(btf_ext->hdr);
+
+	/* Validate info subsections and cache key metadata */
+	err = btf_ext_parse_info(btf_ext, !swapped_endian);
+	if (err)
+		return err;
+
+	/* Keep infos native byte-order in memory for introspection */
+	if (swapped_endian)
+		btf_ext_bswap_info(btf_ext, btf_ext->data);
+
+	/*
+	 * Set btf_ext->swapped_endian only after all header and info data has
+	 * been swapped, helping bswap functions determine if their data are
+	 * in native byte-order when called.
+	 */
+	btf_ext->swapped_endian = swapped_endian;
 	return 0;
 }
 
@@ -3067,6 +3200,7 @@ void btf_ext__free(struct btf_ext *btf_ext)
 	free(btf_ext->line_info.sec_idxs);
 	free(btf_ext->core_relo_info.sec_idxs);
 	free(btf_ext->data);
+	free(btf_ext->data_swapped);
 	free(btf_ext);
 }
 
@@ -3087,29 +3221,7 @@ struct btf_ext *btf_ext__new(const __u8 *data, __u32 size)
 	}
 	memcpy(btf_ext->data, data, size);
 
-	err = btf_ext_parse_hdr(btf_ext->data, size);
-	if (err)
-		goto done;
-
-	if (btf_ext->hdr->hdr_len < offsetofend(struct btf_ext_header, line_info_len)) {
-		err = -EINVAL;
-		goto done;
-	}
-
-	err = btf_ext_setup_func_info(btf_ext);
-	if (err)
-		goto done;
-
-	err = btf_ext_setup_line_info(btf_ext);
-	if (err)
-		goto done;
-
-	if (btf_ext->hdr->hdr_len < offsetofend(struct btf_ext_header, core_relo_len))
-		goto done; /* skip core relos parsing */
-
-	err = btf_ext_setup_core_relos(btf_ext);
-	if (err)
-		goto done;
+	err = btf_ext_parse(btf_ext);
 
 done:
 	if (err) {
@@ -3120,15 +3232,66 @@ done:
 	return btf_ext;
 }
 
+static void *btf_ext_raw_data(const struct btf_ext *btf_ext_ro, bool swap_endian)
+{
+	struct btf_ext *btf_ext = (struct btf_ext *)btf_ext_ro;
+	const __u32 data_sz = btf_ext->data_size;
+	void *data;
+
+	/* Return native data (always present) or swapped data if present */
+	if (!swap_endian)
+		return btf_ext->data;
+	else if (btf_ext->data_swapped)
+		return btf_ext->data_swapped;
+
+	/* Recreate missing swapped data, then cache and return */
+	data = calloc(1, data_sz);
+	if (!data)
+		return NULL;
+	memcpy(data, btf_ext->data, data_sz);
+
+	btf_ext_bswap_info(btf_ext, data);
+	btf_ext_bswap_hdr(data);
+	btf_ext->data_swapped = data;
+	return data;
+}
+
 const void *btf_ext__raw_data(const struct btf_ext *btf_ext, __u32 *size)
 {
+	void *data;
+
+	data = btf_ext_raw_data(btf_ext, btf_ext->swapped_endian);
+	if (!data)
+		return errno = ENOMEM, NULL;
+
 	*size = btf_ext->data_size;
-	return btf_ext->data;
+	return data;
 }
 
 __attribute__((alias("btf_ext__raw_data")))
 const void *btf_ext__get_raw_data(const struct btf_ext *btf_ext, __u32 *size);
 
+enum btf_endianness btf_ext__endianness(const struct btf_ext *btf_ext)
+{
+	if (is_host_big_endian())
+		return btf_ext->swapped_endian ? BTF_LITTLE_ENDIAN : BTF_BIG_ENDIAN;
+	else
+		return btf_ext->swapped_endian ? BTF_BIG_ENDIAN : BTF_LITTLE_ENDIAN;
+}
+
+int btf_ext__set_endianness(struct btf_ext *btf_ext, enum btf_endianness endian)
+{
+	if (endian != BTF_LITTLE_ENDIAN && endian != BTF_BIG_ENDIAN)
+		return libbpf_err(-EINVAL);
+
+	btf_ext->swapped_endian = is_host_big_endian() != (endian == BTF_BIG_ENDIAN);
+
+	if (!btf_ext->swapped_endian) {
+		free(btf_ext->data_swapped);
+		btf_ext->data_swapped = NULL;
+	}
+	return 0;
+}
 
 struct btf_dedup;
 
@@ -3291,7 +3454,7 @@ int btf__dedup(struct btf *btf, const struct btf_dedup_opts *opts)
 
 	d = btf_dedup_new(btf, opts);
 	if (IS_ERR(d)) {
-		pr_debug("btf_dedup_new failed: %ld", PTR_ERR(d));
+		pr_debug("btf_dedup_new failed: %ld\n", PTR_ERR(d));
 		return libbpf_err(-EINVAL);
 	}
 
@@ -3302,42 +3465,42 @@ int btf__dedup(struct btf *btf, const struct btf_dedup_opts *opts)
 
 	err = btf_dedup_prep(d);
 	if (err) {
-		pr_debug("btf_dedup_prep failed:%d\n", err);
+		pr_debug("btf_dedup_prep failed: %s\n", errstr(err));
 		goto done;
 	}
 	err = btf_dedup_strings(d);
 	if (err < 0) {
-		pr_debug("btf_dedup_strings failed:%d\n", err);
+		pr_debug("btf_dedup_strings failed: %s\n", errstr(err));
 		goto done;
 	}
 	err = btf_dedup_prim_types(d);
 	if (err < 0) {
-		pr_debug("btf_dedup_prim_types failed:%d\n", err);
+		pr_debug("btf_dedup_prim_types failed: %s\n", errstr(err));
 		goto done;
 	}
 	err = btf_dedup_struct_types(d);
 	if (err < 0) {
-		pr_debug("btf_dedup_struct_types failed:%d\n", err);
+		pr_debug("btf_dedup_struct_types failed: %s\n", errstr(err));
 		goto done;
 	}
 	err = btf_dedup_resolve_fwds(d);
 	if (err < 0) {
-		pr_debug("btf_dedup_resolve_fwds failed:%d\n", err);
+		pr_debug("btf_dedup_resolve_fwds failed: %s\n", errstr(err));
 		goto done;
 	}
 	err = btf_dedup_ref_types(d);
 	if (err < 0) {
-		pr_debug("btf_dedup_ref_types failed:%d\n", err);
+		pr_debug("btf_dedup_ref_types failed: %s\n", errstr(err));
 		goto done;
 	}
 	err = btf_dedup_compact_types(d);
 	if (err < 0) {
-		pr_debug("btf_dedup_compact_types failed:%d\n", err);
+		pr_debug("btf_dedup_compact_types failed: %s\n", errstr(err));
 		goto done;
 	}
 	err = btf_dedup_remap_types(d);
 	if (err < 0) {
-		pr_debug("btf_dedup_remap_types failed:%d\n", err);
+		pr_debug("btf_dedup_remap_types failed: %s\n", errstr(err));
 		goto done;
 	}
 
@@ -3385,7 +3548,7 @@ struct btf_dedup {
 	struct strset *strs_set;
 };
 
-static long hash_combine(long h, long value)
+static unsigned long hash_combine(unsigned long h, unsigned long value)
 {
 	return h * 31 + value;
 }
@@ -5056,7 +5219,8 @@ struct btf *btf__load_vmlinux_btf(void)
 		btf = btf__parse(sysfs_btf_path, NULL);
 		if (!btf) {
 			err = -errno;
-			pr_warn("failed to read kernel BTF from '%s': %d\n", sysfs_btf_path, err);
+			pr_warn("failed to read kernel BTF from '%s': %s\n",
+				sysfs_btf_path, errstr(err));
 			return libbpf_err_ptr(err);
 		}
 		pr_debug("loaded kernel BTF from '%s'\n", sysfs_btf_path);
@@ -5073,7 +5237,7 @@ struct btf *btf__load_vmlinux_btf(void)
 
 		btf = btf__parse(path, NULL);
 		err = libbpf_get_error(btf);
-		pr_debug("loading kernel BTF '%s': %d\n", path, err);
+		pr_debug("loading kernel BTF '%s': %s\n", path, errstr(err));
 		if (err)
 			continue;
 

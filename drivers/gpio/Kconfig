@@ -70,8 +70,7 @@ config GPIO_SYSFS
 	  ioctl() operations instead.
 
 config GPIO_CDEV
-	bool
-	prompt "Character device (/dev/gpiochipN) support" if EXPERT
+	bool "Character device (/dev/gpiochipN) support" if EXPERT
 	default y
 	help
 	  Say Y here to add the character device /dev/gpiochipN interface
@@ -149,9 +148,7 @@ config GPIO_74XX_MMIO
 
 config GPIO_ALTERA
 	tristate "Altera GPIO"
-	depends on OF_GPIO
 	select GPIOLIB_IRQCHIP
-	select OF_GPIO_MM_GPIOCHIP
 	help
 	  Say Y or M here to build support for the Altera PIO device.
 
@@ -243,7 +240,7 @@ config GPIO_CLPS711X
 config GPIO_DAVINCI
 	tristate "TI Davinci/Keystone GPIO support"
 	default y if ARCH_DAVINCI
-	depends on (ARM || ARM64) && (ARCH_DAVINCI || ARCH_KEYSTONE || ARCH_K3)
+	depends on ((ARM || ARM64) && (ARCH_DAVINCI || ARCH_KEYSTONE || ARCH_K3)) || COMPILE_TEST
 	help
 	  Say yes here to enable GPIO support for TI Davinci/Keystone SoCs.
 
@@ -341,7 +338,6 @@ config GPIO_GRANITERAPIDS
 
 config GPIO_GRGPIO
 	tristate "Aeroflex Gaisler GRGPIO support"
-	depends on OF_GPIO
 	select GPIO_GENERIC
 	select IRQ_DOMAIN
 	help
@@ -487,8 +483,7 @@ config GPIO_MT7621
 
 config GPIO_MVEBU
 	def_bool y
-	depends on PLAT_ORION || ARCH_MVEBU
-	depends on OF_GPIO
+	depends on PLAT_ORION || ARCH_MVEBU || COMPILE_TEST
 	select GENERIC_IRQ_CHIP
 	select REGMAP_MMIO
 
@@ -548,6 +543,12 @@ config GPIO_PL061
 	select GPIOLIB_IRQCHIP
 	help
 	  Say yes here to support the PrimeCell PL061 GPIO device.
+
+config GPIO_POLARFIRE_SOC
+	bool "Microchip FPGA GPIO support"
+	select REGMAP_MMIO
+	help
+	  Say yes here to support the GPIO controllers on Microchip FPGAs.
 
 config GPIO_PXA
 	bool "PXA GPIO support"
@@ -714,13 +715,13 @@ config GPIO_TEGRA
 
 config GPIO_TEGRA186
 	tristate "NVIDIA Tegra186 GPIO support"
-	default ARCH_TEGRA_186_SOC || ARCH_TEGRA_194_SOC
-	depends on ARCH_TEGRA_186_SOC || ARCH_TEGRA_194_SOC || COMPILE_TEST
+	default ARCH_TEGRA_186_SOC || ARCH_TEGRA_194_SOC || ARCH_TEGRA_234_SOC
+	depends on ARCH_TEGRA_186_SOC || ARCH_TEGRA_194_SOC || ARCH_TEGRA_234_SOC || COMPILE_TEST
 	depends on OF_GPIO
 	select GPIOLIB_IRQCHIP
 	select IRQ_DOMAIN_HIERARCHY
 	help
-	  Say yes here to support GPIO pins on NVIDIA Tegra186 SoCs.
+	  Say yes here to support GPIO pins on NVIDIA Tegra186, 194 and 234 SoCs.
 
 config GPIO_TS4800
 	tristate "TS-4800 DIO blocks and compatibles"
@@ -796,7 +797,6 @@ config GPIO_XGENE_SB
 config GPIO_XILINX
 	tristate "Xilinx GPIO support"
 	select GPIOLIB_IRQCHIP
-	depends on OF_GPIO
 	help
 	  Say yes here to support the Xilinx FPGA GPIO device.
 
@@ -1286,6 +1286,16 @@ config GPIO_BD9571MWV
 
 	  This driver can also be built as a module. If so, the module
 	  will be called gpio-bd9571mwv.
+
+config GPIO_CGBC
+	tristate "Congatec Board Controller GPIO support"
+	depends on MFD_CGBC
+	help
+	  Select this option to enable GPIO support for the Congatec Board
+	  Controller.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called gpio-cgbc.
 
 config GPIO_CROS_EC
 	tristate "ChromeOS EC GPIO support"
@@ -1843,6 +1853,13 @@ config GPIO_VIPERBOARD
 	  See viperboard API specification and Nano
 	  River Tech's viperboard.h for detailed meaning
 	  of the module parameters.
+
+config GPIO_MPSSE
+	tristate "FTDI MPSSE GPIO support"
+	select GPIOLIB_IRQCHIP
+	help
+	  GPIO driver for FTDI's MPSSE interface. These can do input and
+	  output. Each MPSSE provides 16 IO pins.
 
 endmenu
 

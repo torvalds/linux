@@ -211,7 +211,7 @@ static struct platform_driver mx25_tsadc_driver = {
 		.of_match_table = mx25_tsadc_ids,
 	},
 	.probe = mx25_tsadc_probe,
-	.remove_new = mx25_tsadc_remove,
+	.remove = mx25_tsadc_remove,
 };
 module_platform_driver(mx25_tsadc_driver);
 

@@ -49,9 +49,10 @@ static DEFINE_SPINLOCK(acaddr_hash_lock);
 
 static int ipv6_dev_ac_dec(struct net_device *dev, const struct in6_addr *addr);
 
-static u32 inet6_acaddr_hash(struct net *net, const struct in6_addr *addr)
+static u32 inet6_acaddr_hash(const struct net *net,
+			     const struct in6_addr *addr)
 {
-	u32 val = ipv6_addr_hash(addr) ^ net_hash_mix(net);
+	u32 val = __ipv6_addr_jhash(addr, net_hash_mix(net));
 
 	return hash_32(val, IN6_ADDR_HSIZE_SHIFT);
 }

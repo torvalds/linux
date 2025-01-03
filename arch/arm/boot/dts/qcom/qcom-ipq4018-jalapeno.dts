@@ -25,7 +25,7 @@
 		};
 	};
 
-	serial_pins: serial-state{
+	serial_pins: serial-state {
 		pins = "gpio60", "gpio61";
 		function = "blsp_uart0";
 		bias-disable;

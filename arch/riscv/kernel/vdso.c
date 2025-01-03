@@ -23,11 +23,6 @@ enum vvar_pages {
 	VVAR_NR_PAGES,
 };
 
-enum rv_vdso_map {
-	RV_VDSO_MAP_VVAR,
-	RV_VDSO_MAP_VDSO,
-};
-
 #define VVAR_SIZE  (VVAR_NR_PAGES << PAGE_SHIFT)
 
 static union vdso_data_store vdso_data_store __page_aligned_data;
@@ -38,8 +33,6 @@ struct __vdso_info {
 	const char *vdso_code_start;
 	const char *vdso_code_end;
 	unsigned long vdso_pages;
-	/* Data Mapping */
-	struct vm_special_mapping *dm;
 	/* Code Mapping */
 	struct vm_special_mapping *cm;
 };
@@ -92,6 +85,8 @@ struct vdso_data *arch_get_vdso_data(void *vvar_page)
 	return (struct vdso_data *)(vvar_page);
 }
 
+static const struct vm_special_mapping rv_vvar_map;
+
 /*
  * The vvar mapping contains data for a specific time namespace, so when a task
  * changes namespace we must unmap its vvar data for the old namespace.
@@ -108,12 +103,8 @@ int vdso_join_timens(struct task_struct *task, struct time_namespace *ns)
 	mmap_read_lock(mm);
 
 	for_each_vma(vmi, vma) {
-		if (vma_is_special_mapping(vma, vdso_info.dm))
+		if (vma_is_special_mapping(vma, &rv_vvar_map))
 			zap_vma_pages(vma);
-#ifdef CONFIG_COMPAT
-		if (vma_is_special_mapping(vma, compat_vdso_info.dm))
-			zap_vma_pages(vma);
-#endif
 	}
 
 	mmap_read_unlock(mm);
@@ -155,43 +146,34 @@ static vm_fault_t vvar_fault(const struct vm_special_mapping *sm,
 	return vmf_insert_pfn(vma, vmf->address, pfn);
 }
 
-static struct vm_special_mapping rv_vdso_maps[] __ro_after_init = {
-	[RV_VDSO_MAP_VVAR] = {
-		.name   = "[vvar]",
-		.fault = vvar_fault,
-	},
-	[RV_VDSO_MAP_VDSO] = {
-		.name   = "[vdso]",
-		.mremap = vdso_mremap,
-	},
+static const struct vm_special_mapping rv_vvar_map = {
+	.name   = "[vvar]",
+	.fault = vvar_fault,
+};
+
+static struct vm_special_mapping rv_vdso_map __ro_after_init = {
+	.name   = "[vdso]",
+	.mremap = vdso_mremap,
 };
 
 static struct __vdso_info vdso_info __ro_after_init = {
 	.name = "vdso",
 	.vdso_code_start = vdso_start,
 	.vdso_code_end = vdso_end,
-	.dm = &rv_vdso_maps[RV_VDSO_MAP_VVAR],
-	.cm = &rv_vdso_maps[RV_VDSO_MAP_VDSO],
+	.cm = &rv_vdso_map,
 };
 
 #ifdef CONFIG_COMPAT
-static struct vm_special_mapping rv_compat_vdso_maps[] __ro_after_init = {
-	[RV_VDSO_MAP_VVAR] = {
-		.name   = "[vvar]",
-		.fault = vvar_fault,
-	},
-	[RV_VDSO_MAP_VDSO] = {
-		.name   = "[vdso]",
-		.mremap = vdso_mremap,
-	},
+static struct vm_special_mapping rv_compat_vdso_map __ro_after_init = {
+	.name   = "[vdso]",
+	.mremap = vdso_mremap,
 };
 
 static struct __vdso_info compat_vdso_info __ro_after_init = {
 	.name = "compat_vdso",
 	.vdso_code_start = compat_vdso_start,
 	.vdso_code_end = compat_vdso_end,
-	.dm = &rv_compat_vdso_maps[RV_VDSO_MAP_VVAR],
-	.cm = &rv_compat_vdso_maps[RV_VDSO_MAP_VDSO],
+	.cm = &rv_compat_vdso_map,
 };
 #endif
 
@@ -227,7 +209,7 @@ static int __setup_additional_pages(struct mm_struct *mm,
 	}
 
 	ret = _install_special_mapping(mm, vdso_base, VVAR_SIZE,
-		(VM_READ | VM_MAYREAD | VM_PFNMAP), vdso_info->dm);
+		(VM_READ | VM_MAYREAD | VM_PFNMAP), &rv_vvar_map);
 	if (IS_ERR(ret))
 		goto up_fail;
 

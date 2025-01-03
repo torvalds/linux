@@ -1928,7 +1928,7 @@ static const struct dev_pm_ops brcm_pcie_pm_ops = {
 
 static struct platform_driver brcm_pcie_driver = {
 	.probe = brcm_pcie_probe,
-	.remove_new = brcm_pcie_remove,
+	.remove = brcm_pcie_remove,
 	.driver = {
 		.name = "brcm-pcie",
 		.of_match_table = brcm_pcie_match,

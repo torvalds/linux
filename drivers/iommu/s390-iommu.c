@@ -33,6 +33,8 @@ struct s390_domain {
 	struct rcu_head		rcu;
 };
 
+static struct iommu_domain blocking_domain;
+
 static inline unsigned int calc_rtx(dma_addr_t ptr)
 {
 	return ((unsigned long)ptr >> ZPCI_RT_SHIFT) & ZPCI_INDEX_MASK;
@@ -369,20 +371,36 @@ static void s390_domain_free(struct iommu_domain *domain)
 	call_rcu(&s390_domain->rcu, s390_iommu_rcu_free_domain);
 }
 
-static void s390_iommu_detach_device(struct iommu_domain *domain,
-				     struct device *dev)
+static void zdev_s390_domain_update(struct zpci_dev *zdev,
+				    struct iommu_domain *domain)
 {
-	struct s390_domain *s390_domain = to_s390_domain(domain);
-	struct zpci_dev *zdev = to_zpci_dev(dev);
 	unsigned long flags;
 
+	spin_lock_irqsave(&zdev->dom_lock, flags);
+	zdev->s390_domain = domain;
+	spin_unlock_irqrestore(&zdev->dom_lock, flags);
+}
+
+static int blocking_domain_attach_device(struct iommu_domain *domain,
+					 struct device *dev)
+{
+	struct zpci_dev *zdev = to_zpci_dev(dev);
+	struct s390_domain *s390_domain;
+	unsigned long flags;
+
+	if (zdev->s390_domain->type == IOMMU_DOMAIN_BLOCKED)
+		return 0;
+
+	s390_domain = to_s390_domain(zdev->s390_domain);
 	spin_lock_irqsave(&s390_domain->list_lock, flags);
 	list_del_rcu(&zdev->iommu_list);
 	spin_unlock_irqrestore(&s390_domain->list_lock, flags);
 
 	zpci_unregister_ioat(zdev, 0);
-	zdev->s390_domain = NULL;
 	zdev->dma_table = NULL;
+	zdev_s390_domain_update(zdev, domain);
+
+	return 0;
 }
 
 static int s390_iommu_attach_device(struct iommu_domain *domain,
@@ -401,20 +419,15 @@ static int s390_iommu_attach_device(struct iommu_domain *domain,
 		domain->geometry.aperture_end < zdev->start_dma))
 		return -EINVAL;
 
-	if (zdev->s390_domain)
-		s390_iommu_detach_device(&zdev->s390_domain->domain, dev);
+	blocking_domain_attach_device(&blocking_domain, dev);
 
+	/* If we fail now DMA remains blocked via blocking domain */
 	cc = zpci_register_ioat(zdev, 0, zdev->start_dma, zdev->end_dma,
 				virt_to_phys(s390_domain->dma_table), &status);
-	/*
-	 * If the device is undergoing error recovery the reset code
-	 * will re-establish the new domain.
-	 */
 	if (cc && status != ZPCI_PCI_ST_FUNC_NOT_AVAIL)
 		return -EIO;
-
 	zdev->dma_table = s390_domain->dma_table;
-	zdev->s390_domain = s390_domain;
+	zdev_s390_domain_update(zdev, domain);
 
 	spin_lock_irqsave(&s390_domain->list_lock, flags);
 	list_add_rcu(&zdev->iommu_list, &s390_domain->devices);
@@ -466,19 +479,11 @@ static struct iommu_device *s390_iommu_probe_device(struct device *dev)
 	if (zdev->tlb_refresh)
 		dev->iommu->shadow_on_flush = 1;
 
+	/* Start with DMA blocked */
+	spin_lock_init(&zdev->dom_lock);
+	zdev_s390_domain_update(zdev, &blocking_domain);
+
 	return &zdev->iommu_dev;
-}
-
-static void s390_iommu_release_device(struct device *dev)
-{
-	struct zpci_dev *zdev = to_zpci_dev(dev);
-
-	/*
-	 * release_device is expected to detach any domain currently attached
-	 * to the device, but keep it attached to other devices in the group.
-	 */
-	if (zdev)
-		s390_iommu_detach_device(&zdev->s390_domain->domain, dev);
 }
 
 static int zpci_refresh_all(struct zpci_dev *zdev)
@@ -697,9 +702,15 @@ static size_t s390_iommu_unmap_pages(struct iommu_domain *domain,
 
 struct zpci_iommu_ctrs *zpci_get_iommu_ctrs(struct zpci_dev *zdev)
 {
-	if (!zdev || !zdev->s390_domain)
+	struct s390_domain *s390_domain;
+
+	lockdep_assert_held(&zdev->dom_lock);
+
+	if (zdev->s390_domain->type == IOMMU_DOMAIN_BLOCKED)
 		return NULL;
-	return &zdev->s390_domain->ctrs;
+
+	s390_domain = to_s390_domain(zdev->s390_domain);
+	return &s390_domain->ctrs;
 }
 
 int zpci_init_iommu(struct zpci_dev *zdev)
@@ -776,11 +787,19 @@ static int __init s390_iommu_init(void)
 }
 subsys_initcall(s390_iommu_init);
 
+static struct iommu_domain blocking_domain = {
+	.type = IOMMU_DOMAIN_BLOCKED,
+	.ops = &(const struct iommu_domain_ops) {
+		.attach_dev	= blocking_domain_attach_device,
+	}
+};
+
 static const struct iommu_ops s390_iommu_ops = {
+	.blocked_domain		= &blocking_domain,
+	.release_domain		= &blocking_domain,
 	.capable = s390_iommu_capable,
 	.domain_alloc_paging = s390_domain_alloc_paging,
 	.probe_device = s390_iommu_probe_device,
-	.release_device = s390_iommu_release_device,
 	.device_group = generic_device_group,
 	.pgsize_bitmap = SZ_4K,
 	.get_resv_regions = s390_iommu_get_resv_regions,

@@ -44,14 +44,11 @@ void murmurhash3_128(const void *key, const int len, const u32 seed, void *out)
 	u64 *hash_out = out;
 
 	/* body */
-
-	const u64 *blocks = (const u64 *)(data);
-
 	int i;
 
 	for (i = 0; i < nblocks; i++) {
-		u64 k1 = get_unaligned_le64(&blocks[i * 2]);
-		u64 k2 = get_unaligned_le64(&blocks[i * 2 + 1]);
+		u64 k1 = get_unaligned_le64(&data[i * 16]);
+		u64 k2 = get_unaligned_le64(&data[i * 16 + 8]);
 
 		k1 *= c1;
 		k1 = ROTL64(k1, 31);

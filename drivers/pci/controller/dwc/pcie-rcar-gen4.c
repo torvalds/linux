@@ -775,7 +775,7 @@ static struct platform_driver rcar_gen4_pcie_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = rcar_gen4_pcie_probe,
-	.remove_new = rcar_gen4_pcie_remove,
+	.remove = rcar_gen4_pcie_remove,
 };
 module_platform_driver(rcar_gen4_pcie_driver);
 

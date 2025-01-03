@@ -79,6 +79,25 @@ void sysfb_disable(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(sysfb_disable);
 
+/**
+ * sysfb_handles_screen_info() - reports if sysfb handles the global screen_info
+ *
+ * Callers can use sysfb_handles_screen_info() to determine whether the Generic
+ * System Framebuffers (sysfb) can handle the global screen_info data structure
+ * or not. Drivers might need this information to know if they have to setup the
+ * system framebuffer, or if they have to delegate this action to sysfb instead.
+ *
+ * Returns:
+ * True if sysfb handles the global screen_info data structure.
+ */
+bool sysfb_handles_screen_info(void)
+{
+	const struct screen_info *si = &screen_info;
+
+	return !!screen_info_video_type(si);
+}
+EXPORT_SYMBOL_GPL(sysfb_handles_screen_info);
+
 #if defined(CONFIG_PCI)
 static bool sysfb_pci_dev_is_enabled(struct pci_dev *pdev)
 {

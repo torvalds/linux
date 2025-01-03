@@ -1559,8 +1559,6 @@ static const struct vb2_ops delta_vb2_au_ops = {
 	.queue_setup = delta_vb2_au_queue_setup,
 	.buf_prepare = delta_vb2_au_prepare,
 	.buf_queue = delta_vb2_au_queue,
-	.wait_prepare = vb2_ops_wait_prepare,
-	.wait_finish = vb2_ops_wait_finish,
 	.start_streaming = delta_vb2_au_start_streaming,
 	.stop_streaming = delta_vb2_au_stop_streaming,
 };
@@ -1570,8 +1568,6 @@ static const struct vb2_ops delta_vb2_frame_ops = {
 	.buf_prepare = delta_vb2_frame_prepare,
 	.buf_finish = delta_vb2_frame_finish,
 	.buf_queue = delta_vb2_frame_queue,
-	.wait_prepare = vb2_ops_wait_prepare,
-	.wait_finish = vb2_ops_wait_finish,
 	.stop_streaming = delta_vb2_frame_stop_streaming,
 };
 
@@ -1954,7 +1950,7 @@ MODULE_DEVICE_TABLE(of, delta_match_types);
 
 static struct platform_driver delta_driver = {
 	.probe = delta_probe,
-	.remove_new = delta_remove,
+	.remove = delta_remove,
 	.driver = {
 		   .name = DELTA_NAME,
 		   .of_match_table = delta_match_types,

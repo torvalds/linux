@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/i2c/realtek,rtl9301-i2c.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Realtek RTL I2C Controller
+
+maintainers:
+  - Chris Packham <chris.packham@alliedtelesis.co.nz>
+
+description:
+  The RTL9300 SoC has two I2C controllers. Each of these has an SCL line (which
+  if not-used for SCL can be a GPIO). There are 8 common SDA lines that can be
+  assigned to either I2C controller.
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - realtek,rtl9302b-i2c
+              - realtek,rtl9302c-i2c
+              - realtek,rtl9303-i2c
+          - const: realtek,rtl9301-i2c
+      - const: realtek,rtl9301-i2c
+
+  reg:
+    description: Register offset and size this I2C controller.
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 0
+
+patternProperties:
+  '^i2c@[0-7]$':
+    $ref: /schemas/i2c/i2c-controller.yaml
+    unevaluatedProperties: false
+
+    properties:
+      reg:
+        description: The SDA pin associated with the I2C bus.
+        maxItems: 1
+
+    required:
+      - reg
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c@36c {
+      compatible = "realtek,rtl9301-i2c";
+      reg = <0x36c 0x14>;
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      i2c@2 {
+        reg = <2>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+      };
+    };

@@ -508,7 +508,7 @@ MODULE_DEVICE_TABLE(of, hix5hd2_i2c_match);
 
 static struct platform_driver hix5hd2_i2c_driver = {
 	.probe		= hix5hd2_i2c_probe,
-	.remove_new	= hix5hd2_i2c_remove,
+	.remove		= hix5hd2_i2c_remove,
 	.driver		= {
 		.name	= "hix5hd2-i2c",
 		.pm	= pm_ptr(&hix5hd2_i2c_pm_ops),

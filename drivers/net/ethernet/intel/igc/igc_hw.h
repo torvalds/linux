@@ -92,7 +92,6 @@ struct igc_mac_info {
 	bool asf_firmware_present;
 	bool arc_subsystem_valid;
 
-	bool autoneg;
 	bool autoneg_failed;
 	bool get_link_status;
 };

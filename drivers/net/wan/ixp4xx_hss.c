@@ -1534,7 +1534,7 @@ static void ixp4xx_hss_remove(struct platform_device *pdev)
 static struct platform_driver ixp4xx_hss_driver = {
 	.driver.name	= DRV_NAME,
 	.probe		= ixp4xx_hss_probe,
-	.remove_new	= ixp4xx_hss_remove,
+	.remove		= ixp4xx_hss_remove,
 };
 module_platform_driver(ixp4xx_hss_driver);
 

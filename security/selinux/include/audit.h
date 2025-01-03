@@ -41,7 +41,7 @@ void selinux_audit_rule_free(void *rule);
 
 /**
  * selinux_audit_rule_match - determine if a context ID matches a rule.
- * @sid: the context ID to check
+ * @prop: includes the context ID to check
  * @field: the field this rule refers to
  * @op: the operator the rule uses
  * @rule: pointer to the audit rule to check against
@@ -49,7 +49,8 @@ void selinux_audit_rule_free(void *rule);
  * Returns 1 if the context id matches the rule, 0 if it does not, and
  * -errno on failure.
  */
-int selinux_audit_rule_match(u32 sid, u32 field, u32 op, void *rule);
+int selinux_audit_rule_match(struct lsm_prop *prop, u32 field, u32 op,
+			     void *rule);
 
 /**
  * selinux_audit_rule_known - check to see if rule contains selinux fields.

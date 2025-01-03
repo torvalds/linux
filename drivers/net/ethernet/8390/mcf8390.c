@@ -457,7 +457,7 @@ static struct platform_driver mcf8390_drv = {
 		.name	= "mcf8390",
 	},
 	.probe		= mcf8390_probe,
-	.remove_new	= mcf8390_remove,
+	.remove		= mcf8390_remove,
 };
 
 module_platform_driver(mcf8390_drv);

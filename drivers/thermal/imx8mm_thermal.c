@@ -399,7 +399,7 @@ static struct platform_driver imx8mm_tmu = {
 		.of_match_table = imx8mm_tmu_table,
 	},
 	.probe = imx8mm_tmu_probe,
-	.remove_new = imx8mm_tmu_remove,
+	.remove = imx8mm_tmu_remove,
 };
 module_platform_driver(imx8mm_tmu);
 

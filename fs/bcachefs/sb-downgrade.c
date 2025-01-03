@@ -78,7 +78,10 @@
 	  BCH_FSCK_ERR_accounting_mismatch)			\
 	x(rebalance_work_acct_fix,				\
 	  BIT_ULL(BCH_RECOVERY_PASS_check_allocations),		\
-	  BCH_FSCK_ERR_accounting_mismatch)
+	  BCH_FSCK_ERR_accounting_mismatch)			\
+	x(inode_has_child_snapshots,				\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_inodes),		\
+	  BCH_FSCK_ERR_inode_has_child_snapshots_wrong)
 
 #define DOWNGRADE_TABLE()					\
 	x(bucket_stripe_sectors,				\
@@ -140,6 +143,9 @@ UPGRADE_TABLE()
 
 static int have_stripes(struct bch_fs *c)
 {
+	if (IS_ERR_OR_NULL(c->btree_roots_known[BTREE_ID_stripes].b))
+		return 0;
+
 	return !btree_node_fake(c->btree_roots_known[BTREE_ID_stripes].b);
 }
 

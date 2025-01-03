@@ -848,7 +848,7 @@ out:
  */
 void ext4_es_insert_extent(struct inode *inode, ext4_lblk_t lblk,
 			   ext4_lblk_t len, ext4_fsblk_t pblk,
-			   unsigned int status, int flags)
+			   unsigned int status, bool delalloc_reserve_used)
 {
 	struct extent_status newes;
 	ext4_lblk_t end = lblk + len - 1;
@@ -863,8 +863,8 @@ void ext4_es_insert_extent(struct inode *inode, ext4_lblk_t lblk,
 	if (EXT4_SB(inode->i_sb)->s_mount_state & EXT4_FC_REPLAY)
 		return;
 
-	es_debug("add [%u/%u) %llu %x %x to extent status tree of inode %lu\n",
-		 lblk, len, pblk, status, flags, inode->i_ino);
+	es_debug("add [%u/%u) %llu %x %d to extent status tree of inode %lu\n",
+		 lblk, len, pblk, status, delalloc_reserve_used, inode->i_ino);
 
 	if (!len)
 		return;
@@ -945,7 +945,7 @@ error:
 	resv_used += pending;
 	if (resv_used)
 		ext4_da_update_reserve_space(inode, resv_used,
-				flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE);
+					     delalloc_reserve_used);
 
 	if (err1 || err2 || err3 < 0)
 		goto retry;

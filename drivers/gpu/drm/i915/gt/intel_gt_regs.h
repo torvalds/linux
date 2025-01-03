@@ -432,6 +432,7 @@
 #define XEHPG_INSTDONE_GEOM_SVG			MCR_REG(0x666c)
 
 #define CACHE_MODE_0_GEN7			_MMIO(0x7000) /* IVB+ */
+#define   DISABLE_REPACKING_FOR_COMPRESSION	REG_BIT(15) /* jsl+ */
 #define   RC_OP_FLUSH_ENABLE			(1 << 0)
 #define   HIZ_RAW_STALL_OPT_DISABLE		(1 << 2)
 #define CACHE_MODE_1				_MMIO(0x7004) /* IVB+ */
@@ -1471,6 +1472,10 @@
 						 GEN6_PM_RP_DOWN_EI_EXPIRED | \
 						 GEN6_PM_RP_DOWN_THRESHOLD  | \
 						 GEN6_PM_RP_DOWN_TIMEOUT)
+
+#define GEN6_PM_IRQ_REGS			I915_IRQ_REGS(GEN6_PMIMR, \
+							      GEN6_PMIER, \
+							      GEN6_PMIIR)
 
 #define GEN7_GT_SCRATCH(i)			_MMIO(0x4f100 + (i) * 4)
 #define   GEN7_GT_SCRATCH_REG_NUM		8

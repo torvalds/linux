@@ -1067,6 +1067,7 @@ found_clock:
 					UAC3_BADD_PD_ID10 : UAC3_BADD_PD_ID11;
 		pd->pd_d1d0_rec = UAC3_BADD_PD_RECOVER_D1D0;
 		pd->pd_d2d0_rec = UAC3_BADD_PD_RECOVER_D2D0;
+		pd->ctrl_iface = ctrl_intf;
 
 	} else {
 		fp->attributes = parse_uac_endpoint_attributes(chip, alts,
