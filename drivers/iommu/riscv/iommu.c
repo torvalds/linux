@@ -240,6 +240,12 @@ static int riscv_iommu_queue_enable(struct riscv_iommu_device *iommu,
 		return rc;
 	}
 
+	/* Empty queue before enabling it */
+	if (queue->qid == RISCV_IOMMU_INTR_CQ)
+		riscv_iommu_writel(queue->iommu, Q_TAIL(queue), 0);
+	else
+		riscv_iommu_writel(queue->iommu, Q_HEAD(queue), 0);
+
 	/*
 	 * Enable queue with interrupts, clear any memory fault if any.
 	 * Wait for the hardware to acknowledge request and activate queue
