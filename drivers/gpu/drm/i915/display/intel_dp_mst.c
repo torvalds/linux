@@ -321,14 +321,13 @@ static int mst_stream_find_vcpi_slots_for_bpp(struct intel_dp *intel_dp,
 		 * first branch device's link also applies here.
 		 */
 		pbn.full = remote_tu * mst_state->pbn_div.full;
-		crtc_state->pbn = dfixed_trunc(pbn);
 
 		drm_WARN_ON(display->drm, remote_tu < crtc_state->dp_m_n.tu);
 		crtc_state->dp_m_n.tu = remote_tu;
 
 		slots = drm_dp_atomic_find_time_slots(state, &intel_dp->mst_mgr,
 						      connector->port,
-						      crtc_state->pbn);
+						      dfixed_trunc(pbn));
 		if (slots == -EDEADLK)
 			return slots;
 
