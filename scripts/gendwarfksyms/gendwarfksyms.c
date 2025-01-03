@@ -21,6 +21,11 @@ int debug;
 int dump_dies;
 /* Print debugging information about die_map changes */
 int dump_die_map;
+/* Print out type strings (i.e. type_map) */
+int dump_types;
+/* Write a symtypes file */
+int symtypes;
+static const char *symtypes_file;
 
 static void usage(void)
 {
@@ -29,6 +34,8 @@ static void usage(void)
 	      "  -d, --debug          Print debugging information\n"
 	      "      --dump-dies      Dump DWARF DIE contents\n"
 	      "      --dump-die-map   Print debugging information about die_map changes\n"
+	      "      --dump-types     Dump type strings\n"
+	      "  -T, --symtypes file  Write a symtypes file\n"
 	      "  -h, --help           Print this message\n"
 	      "\n",
 	      stderr);
@@ -41,6 +48,7 @@ static int process_module(Dwfl_Module *mod, void **userdata, const char *name,
 	Dwarf_Die cudie;
 	Dwarf_CU *cu = NULL;
 	Dwarf *dbg;
+	FILE *symfile = arg;
 	int res;
 
 	debug("%s", name);
@@ -60,6 +68,10 @@ static int process_module(Dwfl_Module *mod, void **userdata, const char *name,
 		process_cu(&cudie);
 	} while (cu);
 
+	/*
+	 * Use die_map to expand type strings and write them to `symfile`.
+	 */
+	generate_symtypes(symfile);
 	die_map_free();
 
 	return DWARF_CB_OK;
@@ -72,6 +84,7 @@ static const Dwfl_Callbacks callbacks = {
 
 int main(int argc, char **argv)
 {
+	FILE *symfile = NULL;
 	unsigned int n;
 	int opt;
 
@@ -79,16 +92,22 @@ int main(int argc, char **argv)
 		{ "debug", 0, NULL, 'd' },
 		{ "dump-dies", 0, &dump_dies, 1 },
 		{ "dump-die-map", 0, &dump_die_map, 1 },
+		{ "dump-types", 0, &dump_types, 1 },
+		{ "symtypes", 1, NULL, 'T' },
 		{ "help", 0, NULL, 'h' },
 		{ 0, 0, NULL, 0 }
 	};
 
-	while ((opt = getopt_long(argc, argv, "dh", opts, NULL)) != EOF) {
+	while ((opt = getopt_long(argc, argv, "dT:h", opts, NULL)) != EOF) {
 		switch (opt) {
 		case 0:
 			break;
 		case 'd':
 			debug = 1;
+			break;
+		case 'T':
+			symtypes = 1;
+			symtypes_file = optarg;
 			break;
 		case 'h':
 			usage();
@@ -108,6 +127,13 @@ int main(int argc, char **argv)
 	}
 
 	symbol_read_exports(stdin);
+
+	if (symtypes_file) {
+		symfile = fopen(symtypes_file, "w");
+		if (!symfile)
+			error("fopen failed for '%s': %s", symtypes_file,
+			      strerror(errno));
+	}
 
 	for (n = optind; n < argc; n++) {
 		Dwfl *dwfl;
@@ -131,11 +157,14 @@ int main(int argc, char **argv)
 
 		dwfl_report_end(dwfl, NULL, NULL);
 
-		if (dwfl_getmodules(dwfl, &process_module, NULL, 0))
+		if (dwfl_getmodules(dwfl, &process_module, symfile, 0))
 			error("dwfl_getmodules failed for '%s'", argv[n]);
 
 		dwfl_end(dwfl);
 	}
+
+	if (symfile)
+		check(fclose(symfile));
 
 	symbol_free();
 
