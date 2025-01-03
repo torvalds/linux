@@ -1608,6 +1608,15 @@ config SXR_CAMCC_SERAPH
 	  Say Y if you want to support camera devices and functionality such as
 	  capturing pictures.
 
+config SXR_GPUCC_SERAPH
+	tristate "SERAPH Graphics Clock Controller"
+	depends on SXR_GCC_SERAPH
+	help
+	  Support for the graphics clock controller on Qualcomm Technologies, Inc
+	  SERAPH devices.
+	  Say Y if you want to support graphics controller devices and
+	  functionality such as 3D graphics.
+
 endif
 
 config VIRTIO_CLK

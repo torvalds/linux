@@ -190,6 +190,7 @@ obj-$(CONFIG_SM_GPUCC_VOLCANO) += gpucc-volcano.o
 obj-$(CONFIG_SXR_GPUCC_ANORAK) += gpucc-anorak.o
 obj-$(CONFIG_SXR_GPUCC_NEO) += gpucc-neo.o
 obj-$(CONFIG_SXR_GPUCC_NIOBE) += gpucc-niobe.o
+obj-$(CONFIG_SXR_GPUCC_SERAPH) += gpucc-seraph.o
 obj-$(CONFIG_SXR_LSRCC_SERAPH) += lsrcc-seraph.o
 obj-$(CONFIG_SM_VIDEOCC_6150) += videocc-sm6150.o
 obj-$(CONFIG_SM_VIDEOCC_8150) += videocc-sm8150.o
