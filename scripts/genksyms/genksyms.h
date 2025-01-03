@@ -14,6 +14,8 @@
 
 #include <stdio.h>
 
+#include <list_types.h>
+
 enum symbol_type {
 	SYM_NORMAL, SYM_TYPEDEF, SYM_ENUM, SYM_STRUCT, SYM_UNION,
 	SYM_ENUM_CONST
@@ -31,7 +33,7 @@ struct string_list {
 };
 
 struct symbol {
-	struct symbol *hash_next;
+	struct hlist_node hnode;
 	char *name;
 	enum symbol_type type;
 	struct string_list *defn;

@@ -18,12 +18,12 @@
 #include <stdarg.h>
 #include <getopt.h>
 
+#include <hashtable.h>
+
 #include "genksyms.h"
 /*----------------------------------------------------------------------*/
 
-#define HASH_BUCKETS  4096
-
-static struct symbol *symtab[HASH_BUCKETS];
+static HASHTABLE_DEFINE(symbol_hashtable, 1U << 12);
 static FILE *debugfile;
 
 int cur_line = 1;
@@ -151,14 +151,14 @@ static enum symbol_type map_to_ns(enum symbol_type t)
 
 struct symbol *find_symbol(const char *name, enum symbol_type ns, int exact)
 {
-	unsigned long h = crc32(name) % HASH_BUCKETS;
 	struct symbol *sym;
 
-	for (sym = symtab[h]; sym; sym = sym->hash_next)
+	hash_for_each_possible(symbol_hashtable, sym, hnode, crc32(name)) {
 		if (map_to_ns(sym->type) == map_to_ns(ns) &&
 		    strcmp(name, sym->name) == 0 &&
 		    sym->is_declared)
 			break;
+	}
 
 	if (exact && sym && sym->type != ns)
 		return NULL;
@@ -224,8 +224,8 @@ static struct symbol *__add_symbol(const char *name, enum symbol_type type,
 			return NULL;
 	}
 
-	h = crc32(name) % HASH_BUCKETS;
-	for (sym = symtab[h]; sym; sym = sym->hash_next) {
+	h = crc32(name);
+	hash_for_each_possible(symbol_hashtable, sym, hnode, h) {
 		if (map_to_ns(sym->type) != map_to_ns(type) ||
 		    strcmp(name, sym->name))
 			continue;
@@ -257,14 +257,7 @@ static struct symbol *__add_symbol(const char *name, enum symbol_type type,
 	}
 
 	if (sym) {
-		struct symbol **psym;
-
-		for (psym = &symtab[h]; *psym; psym = &(*psym)->hash_next) {
-			if (*psym == sym) {
-				*psym = sym->hash_next;
-				break;
-			}
-		}
+		hash_del(&sym->hnode);
 
 		free_list(sym->defn, NULL);
 		free(sym->name);
@@ -280,8 +273,7 @@ static struct symbol *__add_symbol(const char *name, enum symbol_type type,
 	sym->visited = NULL;
 	sym->is_extern = is_extern;
 
-	sym->hash_next = symtab[h];
-	symtab[h] = sym;
+	hash_add(symbol_hashtable, &sym->hnode, h);
 
 	sym->is_declared = !is_reference;
 	sym->status = status;
@@ -832,9 +824,9 @@ int main(int argc, char **argv)
 	}
 
 	if (flag_debug) {
-		fprintf(debugfile, "Hash table occupancy %d/%d = %g\n",
-			nsyms, HASH_BUCKETS,
-			(double)nsyms / (double)HASH_BUCKETS);
+		fprintf(debugfile, "Hash table occupancy %d/%zd = %g\n",
+			nsyms, HASH_SIZE(symbol_hashtable),
+			(double)nsyms / HASH_SIZE(symbol_hashtable));
 	}
 
 	if (dumpfile)
