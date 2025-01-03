@@ -2279,12 +2279,13 @@ cifs_set_cifscreds(struct smb3_fs_context *ctx __attribute__((unused)),
 struct cifs_ses *
 cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb3_fs_context *ctx)
 {
-	int rc = 0;
-	int retries = 0;
-	unsigned int xid;
-	struct cifs_ses *ses;
-	struct sockaddr_in *addr = (struct sockaddr_in *)&server->dstaddr;
 	struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)&server->dstaddr;
+	struct sockaddr_in *addr = (struct sockaddr_in *)&server->dstaddr;
+	struct cifs_ses *ses;
+	unsigned int xid;
+	int retries = 0;
+	size_t len;
+	int rc = 0;
 
 	xid = get_xid();
 
@@ -2374,6 +2375,14 @@ retry_old_session:
 		ses->domainName = kstrdup(ctx->domainname, GFP_KERNEL);
 		if (!ses->domainName)
 			goto get_ses_fail;
+
+		len = strnlen(ctx->domainname, CIFS_MAX_DOMAINNAME_LEN);
+		if (!cifs_netbios_name(ctx->domainname, len)) {
+			ses->dns_dom = kstrndup(ctx->domainname,
+						len, GFP_KERNEL);
+			if (!ses->dns_dom)
+				goto get_ses_fail;
+		}
 	}
 
 	strscpy(ses->workstation_name, ctx->workstation_name, sizeof(ses->workstation_name));
