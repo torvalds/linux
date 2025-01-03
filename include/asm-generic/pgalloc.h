@@ -258,10 +258,35 @@ static inline void p4d_free(struct mm_struct *mm, p4d_t *p4d)
 
 #endif /* CONFIG_PGTABLE_LEVELS > 4 */
 
+static inline pgd_t *__pgd_alloc_noprof(struct mm_struct *mm, unsigned int order)
+{
+	gfp_t gfp = GFP_PGTABLE_USER;
+	struct ptdesc *ptdesc;
+
+	if (mm == &init_mm)
+		gfp = GFP_PGTABLE_KERNEL;
+	gfp &= ~__GFP_HIGHMEM;
+
+	ptdesc = pagetable_alloc_noprof(gfp, order);
+	if (!ptdesc)
+		return NULL;
+
+	return ptdesc_address(ptdesc);
+}
+#define __pgd_alloc(...)	alloc_hooks(__pgd_alloc_noprof(__VA_ARGS__))
+
+static inline void __pgd_free(struct mm_struct *mm, pgd_t *pgd)
+{
+	struct ptdesc *ptdesc = virt_to_ptdesc(pgd);
+
+	BUG_ON((unsigned long)pgd & (PAGE_SIZE-1));
+	pagetable_free(ptdesc);
+}
+
 #ifndef __HAVE_ARCH_PGD_FREE
 static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
-	pagetable_free(virt_to_ptdesc(pgd));
+	__pgd_free(mm, pgd);
 }
 #endif
 

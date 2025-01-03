@@ -17,11 +17,11 @@
 #include "mm.h"
 
 #ifdef CONFIG_ARM_LPAE
-#define _pgd_alloc(mm)		kmalloc_array(PTRS_PER_PGD, sizeof(pgd_t), GFP_KERNEL)
+#define _pgd_alloc(mm)		kmalloc_array(PTRS_PER_PGD, sizeof(pgd_t), GFP_KERNEL | __GFP_ZERO)
 #define _pgd_free(mm, pgd)	kfree(pgd)
 #else
-#define _pgd_alloc(mm)		(pgd_t *)__get_free_pages(GFP_KERNEL, 2)
-#define _pgd_free(mm, pgd)	free_pages((unsigned long)pgd, 2)
+#define _pgd_alloc(mm)		__pgd_alloc(mm, 2)
+#define _pgd_free(mm, pgd)	__pgd_free(mm, pgd)
 #endif
 
 /*
@@ -38,8 +38,6 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 	new_pgd = _pgd_alloc(mm);
 	if (!new_pgd)
 		goto no_pgd;
-
-	memset(new_pgd, 0, USER_PTRS_PER_PGD * sizeof(pgd_t));
 
 	/*
 	 * Copy over the kernel and IO PGD entries

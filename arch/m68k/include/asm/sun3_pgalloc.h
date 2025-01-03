@@ -43,7 +43,7 @@ static inline pgd_t * pgd_alloc(struct mm_struct *mm)
 {
 	pgd_t *new_pgd;
 
-	new_pgd = (pgd_t *)get_zeroed_page(GFP_KERNEL);
+	new_pgd = __pgd_alloc(mm, 0);
 	memcpy(new_pgd, swapper_pg_dir, PAGE_SIZE);
 	memset(new_pgd, 0, (PAGE_OFFSET >> PGDIR_SHIFT));
 	return new_pgd;
