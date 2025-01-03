@@ -27,6 +27,7 @@ static void process_linebreak(struct die *cache, int n)
 		       !dwarf_form##attr(&da, value);                  \
 	}
 
+DEFINE_GET_ATTR(flag, bool)
 DEFINE_GET_ATTR(udata, Dwarf_Word)
 
 static bool get_ref_die_attr(Dwarf_Die *die, unsigned int id, Dwarf_Die *value)
@@ -78,6 +79,55 @@ static bool match_export_symbol(struct state *state, Dwarf_Die *die)
 
 	state->die = *source;
 	return !!state->sym;
+}
+
+/* DW_AT_decl_file -> struct srcfile */
+static struct cache srcfile_cache;
+
+static bool is_definition_private(Dwarf_Die *die)
+{
+	Dwarf_Word filenum;
+	Dwarf_Files *files;
+	Dwarf_Die cudie;
+	const char *s;
+	int res;
+
+	/*
+	 * Definitions in .c files cannot change the public ABI,
+	 * so consider them private.
+	 */
+	if (!get_udata_attr(die, DW_AT_decl_file, &filenum))
+		return false;
+
+	res = cache_get(&srcfile_cache, filenum);
+	if (res >= 0)
+		return !!res;
+
+	if (!dwarf_cu_die(die->cu, &cudie, NULL, NULL, NULL, NULL, NULL, NULL))
+		error("dwarf_cu_die failed: '%s'", dwarf_errmsg(-1));
+
+	if (dwarf_getsrcfiles(&cudie, &files, NULL))
+		error("dwarf_getsrcfiles failed: '%s'", dwarf_errmsg(-1));
+
+	s = dwarf_filesrc(files, filenum, NULL, NULL);
+	if (!s)
+		error("dwarf_filesrc failed: '%s'", dwarf_errmsg(-1));
+
+	s = strrchr(s, '.');
+	res = s && !strcmp(s, ".c");
+	cache_set(&srcfile_cache, filenum, res);
+
+	return !!res;
+}
+
+static bool is_kabi_definition(Dwarf_Die *die)
+{
+	bool value;
+
+	if (get_flag_attr(die, DW_AT_declaration, &value) && value)
+		return false;
+
+	return !is_definition_private(die);
 }
 
 /*
@@ -456,19 +506,27 @@ static void __process_structure_type(struct state *state, struct die *cache,
 				     die_callback_t process_func,
 				     die_match_callback_t match_func)
 {
+	bool expand;
+
 	process(cache, type);
 	process_fqn(cache, die);
 	process(cache, " {");
 	process_linebreak(cache, 1);
 
-	check(process_die_container(state, cache, die, process_func,
-				    match_func));
+	expand = state->expand.expand && is_kabi_definition(die);
+
+	if (expand) {
+		check(process_die_container(state, cache, die, process_func,
+					    match_func));
+	}
 
 	process_linebreak(cache, -1);
 	process(cache, "}");
 
-	process_byte_size_attr(cache, die);
-	process_alignment_attr(cache, die);
+	if (expand) {
+		process_byte_size_attr(cache, die);
+		process_alignment_attr(cache, die);
+	}
 }
 
 #define DEFINE_PROCESS_STRUCTURE_TYPE(structure)                        \
@@ -553,6 +611,30 @@ static void process_cached(struct state *state, struct die *cache,
 	}
 }
 
+static void state_init(struct state *state)
+{
+	state->expand.expand = true;
+	cache_init(&state->expansion_cache);
+}
+
+static void expansion_state_restore(struct expansion_state *state,
+				    struct expansion_state *saved)
+{
+	state->expand = saved->expand;
+}
+
+static void expansion_state_save(struct expansion_state *state,
+				 struct expansion_state *saved)
+{
+	expansion_state_restore(saved, state);
+}
+
+static bool is_expanded_type(int tag)
+{
+	return tag == DW_TAG_class_type || tag == DW_TAG_structure_type ||
+	       tag == DW_TAG_union_type || tag == DW_TAG_enumeration_type;
+}
+
 #define PROCESS_TYPE(type)                                \
 	case DW_TAG_##type##_type:                        \
 		process_##type##_type(state, cache, die); \
@@ -560,18 +642,39 @@ static void process_cached(struct state *state, struct die *cache,
 
 static int process_type(struct state *state, struct die *parent, Dwarf_Die *die)
 {
+	enum die_state want_state = DIE_COMPLETE;
 	struct die *cache;
+	struct expansion_state saved;
 	int tag = dwarf_tag(die);
 
+	expansion_state_save(&state->expand, &saved);
+
 	/*
-	 * If we have the DIE already cached, use it instead of walking
+	 * Structures and enumeration types are expanded only once per
+	 * exported symbol. This is sufficient for detecting ABI changes
+	 * within the structure.
+	 */
+	if (is_expanded_type(tag)) {
+		if (cache_was_expanded(&state->expansion_cache, die->addr))
+			state->expand.expand = false;
+
+		if (state->expand.expand)
+			cache_mark_expanded(&state->expansion_cache, die->addr);
+		else
+			want_state = DIE_UNEXPANDED;
+	}
+
+	/*
+	 * If we have want_state already cached, use it instead of walking
 	 * through DWARF.
 	 */
-	cache = die_map_get(die, DIE_COMPLETE);
+	cache = die_map_get(die, want_state);
 
-	if (cache->state == DIE_COMPLETE) {
+	if (cache->state == want_state) {
 		process_cached(state, cache, die);
 		die_map_add_die(parent, cache);
+
+		expansion_state_restore(&state->expand, &saved);
 		return 0;
 	}
 
@@ -612,9 +715,10 @@ static int process_type(struct state *state, struct die *parent, Dwarf_Die *die)
 
 	/* Update cache state and append to the parent (if any) */
 	cache->tag = tag;
-	cache->state = DIE_COMPLETE;
+	cache->state = want_state;
 	die_map_add_die(parent, cache);
 
+	expansion_state_restore(&state->expand, &saved);
 	return 0;
 }
 
@@ -676,11 +780,14 @@ static int process_exported_symbols(struct state *unused, struct die *cache,
 		if (!match_export_symbol(&state, die))
 			return 0;
 
+		state_init(&state);
+
 		if (tag == DW_TAG_subprogram)
 			process_subprogram(&state, &state.die);
 		else
 			process_variable(&state, &state.die);
 
+		cache_free(&state.expansion_cache);
 		return 0;
 	}
 	default:
@@ -692,4 +799,6 @@ void process_cu(Dwarf_Die *cudie)
 {
 	check(process_die_container(NULL, NULL, cudie, process_exported_symbols,
 				    match_all));
+
+	cache_free(&srcfile_cache);
 }

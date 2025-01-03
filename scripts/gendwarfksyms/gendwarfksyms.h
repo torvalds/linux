@@ -102,6 +102,7 @@ void symbol_free(void);
 
 enum die_state {
 	DIE_INCOMPLETE,
+	DIE_UNEXPANDED,
 	DIE_COMPLETE,
 	DIE_LAST = DIE_COMPLETE
 };
@@ -131,6 +132,7 @@ static inline const char *die_state_name(enum die_state state)
 {
 	switch (state) {
 	CASE_CONST_TO_STR(DIE_INCOMPLETE)
+	CASE_CONST_TO_STR(DIE_UNEXPANDED)
 	CASE_CONST_TO_STR(DIE_COMPLETE)
 	}
 
@@ -154,8 +156,48 @@ void die_map_add_die(struct die *pd, struct die *child);
 void die_map_free(void);
 
 /*
+ * cache.c
+ */
+
+#define CACHE_HASH_BITS 10
+
+/* A cache for addresses we've already seen. */
+struct cache {
+	HASHTABLE_DECLARE(cache, 1 << CACHE_HASH_BITS);
+};
+
+void cache_set(struct cache *cache, unsigned long key, int value);
+int cache_get(struct cache *cache, unsigned long key);
+void cache_init(struct cache *cache);
+void cache_free(struct cache *cache);
+
+static inline void __cache_mark_expanded(struct cache *cache, uintptr_t addr)
+{
+	cache_set(cache, addr, 1);
+}
+
+static inline bool __cache_was_expanded(struct cache *cache, uintptr_t addr)
+{
+	return cache_get(cache, addr) == 1;
+}
+
+static inline void cache_mark_expanded(struct cache *cache, void *addr)
+{
+	__cache_mark_expanded(cache, (uintptr_t)addr);
+}
+
+static inline bool cache_was_expanded(struct cache *cache, void *addr)
+{
+	return __cache_was_expanded(cache, (uintptr_t)addr);
+}
+
+/*
  * dwarf.c
  */
+
+struct expansion_state {
+	bool expand;
+};
 
 struct state {
 	struct symbol *sym;
@@ -163,6 +205,10 @@ struct state {
 
 	/* List expansion */
 	bool first_list_item;
+
+	/* Structure expansion */
+	struct expansion_state expand;
+	struct cache expansion_cache;
 };
 
 typedef int (*die_callback_t)(struct state *state, struct die *cache,
