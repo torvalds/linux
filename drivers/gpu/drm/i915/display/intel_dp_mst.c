@@ -257,10 +257,7 @@ int intel_dp_mtp_tu_compute_config(struct intel_dp *intel_dp,
 
 	for (bpp = max_bpp; bpp >= min_bpp; bpp -= step) {
 		int local_bw_overhead;
-		int remote_bw_overhead;
 		int link_bpp_x16;
-		int remote_tu;
-		fixed20_12 pbn;
 
 		drm_dbg_kms(display->drm, "Trying bpp %d\n", bpp);
 
@@ -269,57 +266,73 @@ int intel_dp_mtp_tu_compute_config(struct intel_dp *intel_dp,
 
 		local_bw_overhead = intel_dp_mst_bw_overhead(crtc_state,
 							     false, dsc_slice_count, link_bpp_x16);
-		remote_bw_overhead = intel_dp_mst_bw_overhead(crtc_state,
-							      true, dsc_slice_count, link_bpp_x16);
-
 		intel_dp_mst_compute_m_n(crtc_state,
 					 local_bw_overhead,
 					 link_bpp_x16,
 					 &crtc_state->dp_m_n);
 
-		/*
-		 * The TU size programmed to the HW determines which slots in
-		 * an MTP frame are used for this stream, which needs to match
-		 * the payload size programmed to the first downstream branch
-		 * device's payload table.
-		 *
-		 * Note that atm the payload's PBN value DRM core sends via
-		 * the ALLOCATE_PAYLOAD side-band message matches the payload
-		 * size (which it calculates from the PBN value) it programs
-		 * to the first branch device's payload table. The allocation
-		 * in the payload table could be reduced though (to
-		 * crtc_state->dp_m_n.tu), provided that the driver doesn't
-		 * enable SSC on the corresponding link.
-		 */
-		pbn.full = dfixed_const(intel_dp_mst_calc_pbn(adjusted_mode->crtc_clock,
-							      link_bpp_x16,
-							      remote_bw_overhead));
-		remote_tu = DIV_ROUND_UP(pbn.full, pbn_div.full);
+		if (intel_dp->is_mst) {
+			int remote_bw_overhead;
+			int remote_tu;
+			fixed20_12 pbn;
 
-		/*
-		 * Aligning the TUs ensures that symbols consisting of multiple
-		 * (4) symbol cycles don't get split between two consecutive
-		 * MTPs, as required by Bspec.
-		 * TODO: remove the alignment restriction for 128b/132b links
-		 * on some platforms, where Bspec allows this.
-		 */
-		remote_tu = ALIGN(remote_tu, 4 / crtc_state->lane_count);
+			remote_bw_overhead = intel_dp_mst_bw_overhead(crtc_state,
+								      true, dsc_slice_count, link_bpp_x16);
 
-		/*
-		 * Also align PBNs accordingly, since MST core will derive its
-		 * own copy of TU from the PBN in drm_dp_atomic_find_time_slots().
-		 * The above comment about the difference between the PBN
-		 * allocated for the whole path and the TUs allocated for the
-		 * first branch device's link also applies here.
-		 */
-		pbn.full = remote_tu * pbn_div.full;
+			/*
+			 * The TU size programmed to the HW determines which slots in
+			 * an MTP frame are used for this stream, which needs to match
+			 * the payload size programmed to the first downstream branch
+			 * device's payload table.
+			 *
+			 * Note that atm the payload's PBN value DRM core sends via
+			 * the ALLOCATE_PAYLOAD side-band message matches the payload
+			 * size (which it calculates from the PBN value) it programs
+			 * to the first branch device's payload table. The allocation
+			 * in the payload table could be reduced though (to
+			 * crtc_state->dp_m_n.tu), provided that the driver doesn't
+			 * enable SSC on the corresponding link.
+			 */
+			pbn.full = dfixed_const(intel_dp_mst_calc_pbn(adjusted_mode->crtc_clock,
+								      link_bpp_x16,
+								      remote_bw_overhead));
+			remote_tu = DIV_ROUND_UP(pbn.full, pbn_div.full);
 
-		drm_WARN_ON(display->drm, remote_tu < crtc_state->dp_m_n.tu);
-		crtc_state->dp_m_n.tu = remote_tu;
+			/*
+			 * Aligning the TUs ensures that symbols consisting of multiple
+			 * (4) symbol cycles don't get split between two consecutive
+			 * MTPs, as required by Bspec.
+			 * TODO: remove the alignment restriction for 128b/132b links
+			 * on some platforms, where Bspec allows this.
+			 */
+			remote_tu = ALIGN(remote_tu, 4 / crtc_state->lane_count);
 
-		slots = drm_dp_atomic_find_time_slots(state, &intel_dp->mst_mgr,
-						      connector->port,
-						      dfixed_trunc(pbn));
+			/*
+			 * Also align PBNs accordingly, since MST core will derive its
+			 * own copy of TU from the PBN in drm_dp_atomic_find_time_slots().
+			 * The above comment about the difference between the PBN
+			 * allocated for the whole path and the TUs allocated for the
+			 * first branch device's link also applies here.
+			 */
+			pbn.full = remote_tu * pbn_div.full;
+
+			drm_WARN_ON(display->drm, remote_tu < crtc_state->dp_m_n.tu);
+			crtc_state->dp_m_n.tu = remote_tu;
+
+			slots = drm_dp_atomic_find_time_slots(state, &intel_dp->mst_mgr,
+							      connector->port,
+							      dfixed_trunc(pbn));
+		} else {
+			/* Same as above for remote_tu */
+			crtc_state->dp_m_n.tu = ALIGN(crtc_state->dp_m_n.tu,
+						      4 / crtc_state->lane_count);
+
+			if (crtc_state->dp_m_n.tu <= 64)
+				slots = crtc_state->dp_m_n.tu;
+			else
+				slots = -EINVAL;
+		}
+
 		if (slots == -EDEADLK)
 			return slots;
 
