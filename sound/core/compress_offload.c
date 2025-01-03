@@ -1053,13 +1053,13 @@ static int snd_compr_task_new(struct snd_compr_stream *stream, struct snd_compr_
 		put_unused_fd(fd_i);
 		goto cleanup;
 	}
+	/* keep dmabuf reference until freed with task free ioctl */
+	get_dma_buf(task->input);
+	get_dma_buf(task->output);
 	fd_install(fd_i, task->input->file);
 	fd_install(fd_o, task->output->file);
 	utask->input_fd = fd_i;
 	utask->output_fd = fd_o;
-	/* keep dmabuf reference until freed with task free ioctl */
-	dma_buf_get(utask->input_fd);
-	dma_buf_get(utask->output_fd);
 	list_add_tail(&task->list, &stream->runtime->tasks);
 	stream->runtime->total_tasks++;
 	return 0;
@@ -1077,7 +1077,7 @@ static int snd_compr_task_create(struct snd_compr_stream *stream, unsigned long 
 		return -EPERM;
 	task = memdup_user((void __user *)arg, sizeof(*task));
 	if (IS_ERR(task))
-		return PTR_ERR(no_free_ptr(task));
+		return PTR_ERR(task);
 	retval = snd_compr_task_new(stream, task);
 	if (retval >= 0)
 		if (copy_to_user((void __user *)arg, task, sizeof(*task)))
@@ -1138,7 +1138,7 @@ static int snd_compr_task_start_ioctl(struct snd_compr_stream *stream, unsigned 
 		return -EPERM;
 	task = memdup_user((void __user *)arg, sizeof(*task));
 	if (IS_ERR(task))
-		return PTR_ERR(no_free_ptr(task));
+		return PTR_ERR(task);
 	retval = snd_compr_task_start(stream, task);
 	if (retval >= 0)
 		if (copy_to_user((void __user *)arg, task, sizeof(*task)))
@@ -1229,7 +1229,7 @@ static int snd_compr_task_status_ioctl(struct snd_compr_stream *stream, unsigned
 		return -EPERM;
 	status = memdup_user((void __user *)arg, sizeof(*status));
 	if (IS_ERR(status))
-		return PTR_ERR(no_free_ptr(status));
+		return PTR_ERR(status);
 	retval = snd_compr_task_status(stream, status);
 	if (retval >= 0)
 		if (copy_to_user((void __user *)arg, status, sizeof(*status)))
