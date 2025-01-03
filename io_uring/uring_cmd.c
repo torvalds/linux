@@ -23,12 +23,16 @@ static struct io_uring_cmd_data *io_uring_async_get(struct io_kiocb *req)
 
 	cache = io_alloc_cache_get(&ctx->uring_cache);
 	if (cache) {
+		cache->op_data = NULL;
 		req->flags |= REQ_F_ASYNC_DATA;
 		req->async_data = cache;
 		return cache;
 	}
-	if (!io_alloc_async_data(req))
-		return req->async_data;
+	if (!io_alloc_async_data(req)) {
+		cache = req->async_data;
+		cache->op_data = NULL;
+		return cache;
+	}
 	return NULL;
 }
 
@@ -36,6 +40,11 @@ static void io_req_uring_cleanup(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req, struct io_uring_cmd);
 	struct io_uring_cmd_data *cache = req->async_data;
+
+	if (cache->op_data) {
+		kfree(cache->op_data);
+		cache->op_data = NULL;
+	}
 
 	if (issue_flags & IO_URING_F_UNLOCKED)
 		return;

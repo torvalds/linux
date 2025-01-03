@@ -20,6 +20,7 @@ struct io_uring_cmd {
 
 struct io_uring_cmd_data {
 	struct io_uring_sqe	sqes[2];
+	void			*op_data;
 };
 
 static inline const void *io_uring_sqe_cmd(const struct io_uring_sqe *sqe)
