@@ -6542,8 +6542,23 @@ static void _mlx5e_remove(struct auxiliary_device *adev)
 
 	mlx5_core_uplink_netdev_set(mdev, NULL);
 	mlx5e_dcbnl_delete_app(priv);
-	unregister_netdev(priv->netdev);
-	_mlx5e_suspend(adev, false);
+	/* When unload driver, the netdev is in registered state
+	 * if it's from legacy mode. If from switchdev mode, it
+	 * is already unregistered before changing to NIC profile.
+	 */
+	if (priv->netdev->reg_state == NETREG_REGISTERED) {
+		unregister_netdev(priv->netdev);
+		_mlx5e_suspend(adev, false);
+	} else {
+		struct mlx5_core_dev *pos;
+		int i;
+
+		if (test_bit(MLX5E_STATE_DESTROYING, &priv->state))
+			mlx5_sd_for_each_dev(i, mdev, pos)
+				mlx5e_destroy_mdev_resources(pos);
+		else
+			_mlx5e_suspend(adev, true);
+	}
 	/* Avoid cleanup if profile rollback failed. */
 	if (priv->profile)
 		priv->profile->cleanup(priv);
