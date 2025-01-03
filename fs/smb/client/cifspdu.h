@@ -649,7 +649,7 @@ typedef union smb_com_session_setup_andx {
 struct ntlmssp2_name {
 	__le16 type;
 	__le16 length;
-/*	char   name[length]; */
+	__u8 data[];
 } __attribute__((packed));
 
 struct ntlmv2_resp {
