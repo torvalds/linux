@@ -1,0 +1,27 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* Copyright (c) 2024 Hisilicon Limited. */
+
+#ifndef DP_REG_H
+#define DP_REG_H
+
+#define HIBMC_DP_AUX_CMD_ADDR			0x50
+#define HIBMC_DP_AUX_WR_DATA0			0x54
+#define HIBMC_DP_AUX_WR_DATA1			0x58
+#define HIBMC_DP_AUX_WR_DATA2			0x5c
+#define HIBMC_DP_AUX_WR_DATA3			0x60
+#define HIBMC_DP_AUX_RD_DATA0			0x64
+#define HIBMC_DP_AUX_REQ			0x74
+#define HIBMC_DP_AUX_STATUS			0x78
+#define HIBMC_DP_DPTX_RST_CTRL			0x700
+
+#define HIBMC_DP_CFG_AUX_SYNC_LEN_SEL		BIT(1)
+#define HIBMC_DP_CFG_AUX_TIMER_TIMEOUT		BIT(2)
+#define HIBMC_DP_CFG_AUX_MIN_PULSE_NUM		GENMASK(13, 9)
+#define HIBMC_DP_CFG_AUX_REQ			BIT(0)
+#define HIBMC_DP_CFG_AUX_RST_N			BIT(4)
+#define HIBMC_DP_CFG_AUX_TIMEOUT		BIT(0)
+#define HIBMC_DP_CFG_AUX_READY_DATA_BYTE	GENMASK(16, 12)
+#define HIBMC_DP_CFG_AUX			GENMASK(24, 17)
+#define HIBMC_DP_CFG_AUX_STATUS			GENMASK(11, 4)
+
+#endif
