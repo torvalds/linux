@@ -18,6 +18,10 @@ struct io_uring_cmd {
 	u8		pdu[32]; /* available inline for free use */
 };
 
+struct io_uring_cmd_data {
+	struct io_uring_sqe	sqes[2];
+};
+
 static inline const void *io_uring_sqe_cmd(const struct io_uring_sqe *sqe)
 {
 	return sqe->cmd;

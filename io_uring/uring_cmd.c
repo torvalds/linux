@@ -16,10 +16,10 @@
 #include "rsrc.h"
 #include "uring_cmd.h"
 
-static struct uring_cache *io_uring_async_get(struct io_kiocb *req)
+static struct io_uring_cmd_data *io_uring_async_get(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
-	struct uring_cache *cache;
+	struct io_uring_cmd_data *cache;
 
 	cache = io_alloc_cache_get(&ctx->uring_cache);
 	if (cache) {
@@ -35,7 +35,7 @@ static struct uring_cache *io_uring_async_get(struct io_kiocb *req)
 static void io_req_uring_cleanup(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req, struct io_uring_cmd);
-	struct uring_cache *cache = req->async_data;
+	struct io_uring_cmd_data *cache = req->async_data;
 
 	if (issue_flags & IO_URING_F_UNLOCKED)
 		return;
@@ -183,7 +183,7 @@ static int io_uring_cmd_prep_setup(struct io_kiocb *req,
 				   const struct io_uring_sqe *sqe)
 {
 	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req, struct io_uring_cmd);
-	struct uring_cache *cache;
+	struct io_uring_cmd_data *cache;
 
 	cache = io_uring_async_get(req);
 	if (unlikely(!cache))
@@ -256,7 +256,7 @@ int io_uring_cmd(struct io_kiocb *req, unsigned int issue_flags)
 
 	ret = file->f_op->uring_cmd(ioucmd, issue_flags);
 	if (ret == -EAGAIN) {
-		struct uring_cache *cache = req->async_data;
+		struct io_uring_cmd_data *cache = req->async_data;
 
 		if (ioucmd->sqe != (void *) cache)
 			memcpy(cache, ioucmd->sqe, uring_sqe_size(req->ctx));
