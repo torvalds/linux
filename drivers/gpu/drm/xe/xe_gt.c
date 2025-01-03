@@ -386,6 +386,10 @@ int xe_gt_init_early(struct xe_gt *gt)
 	xe_force_wake_init_gt(gt, gt_to_fw(gt));
 	spin_lock_init(&gt->global_invl_lock);
 
+	err = xe_gt_tlb_invalidation_init_early(gt);
+	if (err)
+		return err;
+
 	return 0;
 }
 
@@ -584,10 +588,6 @@ int xe_gt_init(struct xe_gt *gt)
 		gt->ring_ops[i] = xe_ring_ops_get(gt, i);
 		xe_hw_fence_irq_init(&gt->fence_irq[i]);
 	}
-
-	err = xe_gt_tlb_invalidation_init(gt);
-	if (err)
-		return err;
 
 	err = xe_gt_pagefault_init(gt);
 	if (err)
