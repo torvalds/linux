@@ -1327,20 +1327,18 @@ static int damon_sysfs_commit_schemes_quota_goals(void *data)
 /*
  * damon_sysfs_upd_schemes_effective_quotas() - Update schemes effective quotas
  * sysfs files.
- * @kdamond:	The kobject wrapper that associated to the kdamond thread.
+ * @data:	The kobject wrapper that associated to the kdamond thread.
  *
  * This function reads the schemes' effective quotas of specific kdamond and
  * update the related values for sysfs files.  This function should be called
  * from DAMON callbacks while holding ``damon_syfs_lock``, to safely access the
  * DAMON contexts-internal data and DAMON sysfs variables.
  */
-static int damon_sysfs_upd_schemes_effective_quotas(
-		struct damon_sysfs_kdamond *kdamond)
+static int damon_sysfs_upd_schemes_effective_quotas(void *data)
 {
+	struct damon_sysfs_kdamond *kdamond = data;
 	struct damon_ctx *ctx = kdamond->damon_ctx;
 
-	if (!ctx)
-		return -EINVAL;
 	damos_sysfs_update_effective_quotas(
 			kdamond->contexts->contexts_arr[0]->schemes, ctx);
 	return 0;
@@ -1399,9 +1397,6 @@ static int damon_sysfs_cmd_request_callback(struct damon_ctx *c, bool active,
 			err = damon_sysfs_upd_schemes_regions_stop(kdamond);
 			damon_sysfs_schemes_regions_updating = false;
 		}
-		break;
-	case DAMON_SYSFS_CMD_UPDATE_SCHEMES_EFFECTIVE_QUOTAS:
-		err = damon_sysfs_upd_schemes_effective_quotas(kdamond);
 		break;
 	default:
 		break;
@@ -1550,6 +1545,10 @@ static int damon_sysfs_handle_cmd(enum damon_sysfs_cmd cmd,
 	case DAMON_SYSFS_CMD_CLEAR_SCHEMES_TRIED_REGIONS:
 		return damon_sysfs_schemes_clear_regions(
 			kdamond->contexts->contexts_arr[0]->schemes);
+	case DAMON_SYSFS_CMD_UPDATE_SCHEMES_EFFECTIVE_QUOTAS:
+		return damon_sysfs_damon_call(
+				damon_sysfs_upd_schemes_effective_quotas,
+				kdamond);
 	default:
 		break;
 	}
