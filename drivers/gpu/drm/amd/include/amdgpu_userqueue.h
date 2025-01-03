@@ -78,6 +78,13 @@ struct amdgpu_userq_mgr {
 	struct delayed_work		resume_work;
 };
 
+struct amdgpu_db_info {
+	uint64_t doorbell_handle;
+	uint32_t queue_type;
+	uint32_t doorbell_offset;
+	struct amdgpu_userq_obj	*db_obj;
+};
+
 int amdgpu_userq_ioctl(struct drm_device *dev, void *data, struct drm_file *filp);
 
 int amdgpu_userq_mgr_init(struct amdgpu_userq_mgr *userq_mgr, struct amdgpu_device *adev);
@@ -98,4 +105,9 @@ int amdgpu_userqueue_active(struct amdgpu_userq_mgr *uq_mgr);
 
 void amdgpu_userqueue_ensure_ev_fence(struct amdgpu_userq_mgr *userq_mgr,
 				      struct amdgpu_eviction_fence_mgr *evf_mgr);
+
+uint64_t amdgpu_userqueue_get_doorbell_index(struct amdgpu_userq_mgr *uq_mgr,
+					     struct amdgpu_db_info *db_info,
+					     struct drm_file *filp);
+
 #endif
