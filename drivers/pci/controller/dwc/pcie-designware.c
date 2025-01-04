@@ -970,7 +970,7 @@ static int dw_pcie_edma_irq_verify(struct dw_pcie *pci)
 {
 	struct platform_device *pdev = to_platform_device(pci->dev);
 	u16 ch_cnt = pci->edma.ll_wr_cnt + pci->edma.ll_rd_cnt;
-	char name[6];
+	char name[15];
 	int ret;
 
 	if (pci->edma.nr_irqs == 1)
