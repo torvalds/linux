@@ -1,6 +1,7 @@
 #include <uapi/asm/unistd.h>
 
 __SYSCALL(__NR_virtio_mmio_device_add, sys_virtio_mmio_device_add)
+__SYSCALL(__NR_new_thread_group_leader, sys_new_thread_group_leader)
 
 #define __SC_ASCII(t, a) #t "," #a
 

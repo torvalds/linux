@@ -19,6 +19,8 @@
 static asmlinkage long sys_virtio_mmio_device_add(long base, long size,
 						  unsigned int irq);
 
+static asmlinkage long sys_new_thread_group_leader(void);
+
 typedef long (*syscall_handler_t)(long arg1, ...);
 
 #undef __SYSCALL
@@ -55,13 +57,17 @@ static long run_syscall(long no, long *params)
 static int host_task_id;
 static struct task_struct *host0;
 
-static int new_host_task(struct task_struct **task)
+static int new_host_task(struct task_struct **task, int new_tg_leader)
 {
 	pid_t pid;
+	unsigned long flags = CLONE_FLAGS;
 
 	switch_to_host_task(host0);
 
-	pid = kernel_thread(host_task_stub, NULL, NULL, CLONE_FLAGS);
+	if (new_tg_leader)
+		flags &= ~CLONE_THREAD;
+
+	pid = kernel_thread(host_task_stub, NULL, NULL, flags);
 	if (pid < 0)
 		return pid;
 
@@ -108,7 +114,7 @@ long lkl_syscall(long no, long *params)
 	if (lkl_ops->tls_get) {
 		task = lkl_ops->tls_get(task_key);
 		if (!task) {
-			ret = new_host_task(&task);
+			ret = new_host_task(&task, no == __NR_new_thread_group_leader);
 			if (ret)
 				goto out;
 			lkl_ops->tls_set(task_key, task);
@@ -163,6 +169,15 @@ int syscalls_init(void)
 	snprintf(current->comm, sizeof(current->comm), "host0");
 	set_thread_flag(TIF_HOST_THREAD);
 	host0 = current;
+
+	// Reap zombie host tasks spawned as new thread group leaders via
+	// new_thread_group_leader syscall (otherwise the dead task resources
+	// such as `struct task_struct` won't be reclaimed by kernel).
+	// TODO: currently LKL doesn't support thread signal handling in
+	// user-space, thus, it's safe to ignore this signal here. However,
+	// if user-space signal handling is implemented in future we might want
+	// to remove the line of code below to let user-space handle SIGCHLD.
+	kernel_sigaction(SIGCHLD, SIG_IGN);
 
 	if (lkl_ops->tls_alloc) {
 		task_key = lkl_ops->tls_alloc(del_host_task);
@@ -238,4 +253,14 @@ exit_device_put:
 	platform_device_put(pdev);
 
 	return ret;
+}
+
+
+SYSCALL_DEFINE0(new_thread_group_leader)
+{
+	// No-op here -- actual handling is done in lkl_syscall routine.
+	if (current->tgid == current->pid)
+		return 0;
+	else
+		return -1;
 }
