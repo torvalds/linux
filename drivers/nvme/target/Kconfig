@@ -115,3 +115,14 @@ config NVME_TARGET_AUTH
 	  target side.
 
 	  If unsure, say N.
+
+config NVME_TARGET_PCI_EPF
+	tristate "NVMe PCI Endpoint Function target support"
+	depends on NVME_TARGET && PCI_ENDPOINT
+	depends on NVME_CORE=y || NVME_CORE=NVME_TARGET
+	help
+	  This enables the NVMe PCI Endpoint Function target driver support,
+	  which allows creating a NVMe PCI controller using an endpoint mode
+	  capable PCI controller.
+
+	  If unsure, say N.
