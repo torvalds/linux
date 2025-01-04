@@ -116,18 +116,16 @@ static void st21nfca_tx_work(struct work_struct *work)
 	struct nfc_dev *dev;
 	struct sk_buff *skb;
 
-	if (info) {
-		dev = info->hdev->ndev;
-		skb = info->dep_info.tx_pending;
+	dev = info->hdev->ndev;
+	skb = info->dep_info.tx_pending;
 
-		device_lock(&dev->dev);
+	device_lock(&dev->dev);
 
-		nfc_hci_send_cmd_async(info->hdev, ST21NFCA_RF_READER_F_GATE,
-				ST21NFCA_WR_XCHG_DATA, skb->data, skb->len,
-				info->async_cb, info);
-		device_unlock(&dev->dev);
-		kfree_skb(skb);
-	}
+	nfc_hci_send_cmd_async(info->hdev, ST21NFCA_RF_READER_F_GATE,
+			ST21NFCA_WR_XCHG_DATA, skb->data, skb->len,
+			info->async_cb, info);
+	device_unlock(&dev->dev);
+	kfree_skb(skb);
 }
 
 static void st21nfca_im_send_pdu(struct st21nfca_hci_info *info,
