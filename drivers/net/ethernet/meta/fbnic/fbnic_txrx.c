@@ -1033,7 +1033,7 @@ static int fbnic_poll(struct napi_struct *napi, int budget)
 	if (likely(napi_complete_done(napi, work_done)))
 		fbnic_nv_irq_rearm(nv);
 
-	return 0;
+	return work_done;
 }
 
 irqreturn_t fbnic_msix_clean_rings(int __always_unused irq, void *data)
