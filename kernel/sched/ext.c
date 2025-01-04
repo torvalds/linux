@@ -3671,10 +3671,8 @@ void __scx_update_idle(struct rq *rq, bool idle)
 			 * idle_masks.smt handling is racy but that's fine as
 			 * it's only for optimization and self-correcting.
 			 */
-			for_each_cpu(cpu, smt) {
-				if (!cpumask_test_cpu(cpu, idle_masks.cpu))
-					return;
-			}
+			if (!cpumask_subset(smt, idle_masks.cpu))
+				return;
 			cpumask_or(idle_masks.smt, idle_masks.smt, smt);
 		} else {
 			cpumask_andnot(idle_masks.smt, idle_masks.smt, smt);
