@@ -1350,15 +1350,15 @@ bool nvmet_host_allowed(struct nvmet_subsys *subsys, const char *hostnqn)
  * Note: ctrl->subsys->lock should be held when calling this function
  */
 static void nvmet_setup_p2p_ns_map(struct nvmet_ctrl *ctrl,
-		struct nvmet_req *req)
+		struct device *p2p_client)
 {
 	struct nvmet_ns *ns;
 	unsigned long idx;
 
-	if (!req->p2p_client)
+	if (!p2p_client)
 		return;
 
-	ctrl->p2p_client = get_device(req->p2p_client);
+	ctrl->p2p_client = get_device(p2p_client);
 
 	xa_for_each(&ctrl->subsys->namespaces, idx, ns)
 		nvmet_p2pmem_ns_add_p2p(ctrl, ns);
@@ -1387,45 +1387,44 @@ static void nvmet_fatal_error_handler(struct work_struct *work)
 	ctrl->ops->delete_ctrl(ctrl);
 }
 
-u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
-		struct nvmet_req *req, u32 kato, struct nvmet_ctrl **ctrlp,
-		uuid_t *hostid)
+struct nvmet_ctrl *nvmet_alloc_ctrl(struct nvmet_alloc_ctrl_args *args)
 {
 	struct nvmet_subsys *subsys;
 	struct nvmet_ctrl *ctrl;
+	u32 kato = args->kato;
+	u8 dhchap_status;
 	int ret;
-	u16 status;
 
-	status = NVME_SC_CONNECT_INVALID_PARAM | NVME_STATUS_DNR;
-	subsys = nvmet_find_get_subsys(req->port, subsysnqn);
+	args->status = NVME_SC_CONNECT_INVALID_PARAM | NVME_STATUS_DNR;
+	subsys = nvmet_find_get_subsys(args->port, args->subsysnqn);
 	if (!subsys) {
 		pr_warn("connect request for invalid subsystem %s!\n",
-			subsysnqn);
-		req->cqe->result.u32 = IPO_IATTR_CONNECT_DATA(subsysnqn);
-		req->error_loc = offsetof(struct nvme_common_command, dptr);
-		goto out;
+			args->subsysnqn);
+		args->result = IPO_IATTR_CONNECT_DATA(subsysnqn);
+		args->error_loc = offsetof(struct nvme_common_command, dptr);
+		return NULL;
 	}
 
 	down_read(&nvmet_config_sem);
-	if (!nvmet_host_allowed(subsys, hostnqn)) {
+	if (!nvmet_host_allowed(subsys, args->hostnqn)) {
 		pr_info("connect by host %s for subsystem %s not allowed\n",
-			hostnqn, subsysnqn);
-		req->cqe->result.u32 = IPO_IATTR_CONNECT_DATA(hostnqn);
+			args->hostnqn, args->subsysnqn);
+		args->result = IPO_IATTR_CONNECT_DATA(hostnqn);
 		up_read(&nvmet_config_sem);
-		status = NVME_SC_CONNECT_INVALID_HOST | NVME_STATUS_DNR;
-		req->error_loc = offsetof(struct nvme_common_command, dptr);
+		args->status = NVME_SC_CONNECT_INVALID_HOST | NVME_STATUS_DNR;
+		args->error_loc = offsetof(struct nvme_common_command, dptr);
 		goto out_put_subsystem;
 	}
 	up_read(&nvmet_config_sem);
 
-	status = NVME_SC_INTERNAL;
+	args->status = NVME_SC_INTERNAL;
 	ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
 		goto out_put_subsystem;
 	mutex_init(&ctrl->lock);
 
-	ctrl->port = req->port;
-	ctrl->ops = req->ops;
+	ctrl->port = args->port;
+	ctrl->ops = args->ops;
 
 #ifdef CONFIG_NVME_TARGET_PASSTHRU
 	/* By default, set loop targets to clear IDS by default */
@@ -1439,8 +1438,8 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 	INIT_WORK(&ctrl->fatal_err_work, nvmet_fatal_error_handler);
 	INIT_DELAYED_WORK(&ctrl->ka_work, nvmet_keep_alive_timer);
 
-	memcpy(ctrl->subsysnqn, subsysnqn, NVMF_NQN_SIZE);
-	memcpy(ctrl->hostnqn, hostnqn, NVMF_NQN_SIZE);
+	memcpy(ctrl->subsysnqn, args->subsysnqn, NVMF_NQN_SIZE);
+	memcpy(ctrl->hostnqn, args->hostnqn, NVMF_NQN_SIZE);
 
 	kref_init(&ctrl->ref);
 	ctrl->subsys = subsys;
@@ -1463,12 +1462,12 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 			     subsys->cntlid_min, subsys->cntlid_max,
 			     GFP_KERNEL);
 	if (ret < 0) {
-		status = NVME_SC_CONNECT_CTRL_BUSY | NVME_STATUS_DNR;
+		args->status = NVME_SC_CONNECT_CTRL_BUSY | NVME_STATUS_DNR;
 		goto out_free_sqs;
 	}
 	ctrl->cntlid = ret;
 
-	uuid_copy(&ctrl->hostid, hostid);
+	uuid_copy(&ctrl->hostid, args->hostid);
 
 	/*
 	 * Discovery controllers may use some arbitrary high value
@@ -1490,12 +1489,35 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 	if (ret)
 		goto init_pr_fail;
 	list_add_tail(&ctrl->subsys_entry, &subsys->ctrls);
-	nvmet_setup_p2p_ns_map(ctrl, req);
+	nvmet_setup_p2p_ns_map(ctrl, args->p2p_client);
 	nvmet_debugfs_ctrl_setup(ctrl);
 	mutex_unlock(&subsys->lock);
 
-	*ctrlp = ctrl;
-	return 0;
+	if (args->hostid)
+		uuid_copy(&ctrl->hostid, args->hostid);
+
+	dhchap_status = nvmet_setup_auth(ctrl);
+	if (dhchap_status) {
+		pr_err("Failed to setup authentication, dhchap status %u\n",
+		       dhchap_status);
+		nvmet_ctrl_put(ctrl);
+		if (dhchap_status == NVME_AUTH_DHCHAP_FAILURE_FAILED)
+			args->status =
+				NVME_SC_CONNECT_INVALID_HOST | NVME_STATUS_DNR;
+		else
+			args->status = NVME_SC_INTERNAL;
+		return NULL;
+	}
+
+	args->status = NVME_SC_SUCCESS;
+
+	pr_info("Created %s controller %d for subsystem %s for NQN %s%s%s.\n",
+		nvmet_is_disc_subsys(ctrl->subsys) ? "discovery" : "nvm",
+		ctrl->cntlid, ctrl->subsys->subsysnqn, ctrl->hostnqn,
+		ctrl->pi_support ? " T10-PI is enabled" : "",
+		nvmet_has_auth(ctrl) ? " with DH-HMAC-CHAP" : "");
+
+	return ctrl;
 
 init_pr_fail:
 	mutex_unlock(&subsys->lock);
@@ -1509,9 +1531,9 @@ out_free_ctrl:
 	kfree(ctrl);
 out_put_subsystem:
 	nvmet_subsys_put(subsys);
-out:
-	return status;
+	return NULL;
 }
+EXPORT_SYMBOL_GPL(nvmet_alloc_ctrl);
 
 static void nvmet_ctrl_free(struct kref *ref)
 {
@@ -1547,6 +1569,7 @@ void nvmet_ctrl_put(struct nvmet_ctrl *ctrl)
 {
 	kref_put(&ctrl->ref, nvmet_ctrl_free);
 }
+EXPORT_SYMBOL_GPL(nvmet_ctrl_put);
 
 void nvmet_ctrl_fatal_error(struct nvmet_ctrl *ctrl)
 {

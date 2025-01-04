@@ -549,9 +549,21 @@ int nvmet_sq_init(struct nvmet_sq *sq);
 void nvmet_ctrl_fatal_error(struct nvmet_ctrl *ctrl);
 
 void nvmet_update_cc(struct nvmet_ctrl *ctrl, u32 new);
-u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
-		struct nvmet_req *req, u32 kato, struct nvmet_ctrl **ctrlp,
-		uuid_t *hostid);
+
+struct nvmet_alloc_ctrl_args {
+	struct nvmet_port	*port;
+	char			*subsysnqn;
+	char			*hostnqn;
+	uuid_t			*hostid;
+	const struct nvmet_fabrics_ops *ops;
+	struct device		*p2p_client;
+	u32			kato;
+	u32			result;
+	u16			error_loc;
+	u16			status;
+};
+
+struct nvmet_ctrl *nvmet_alloc_ctrl(struct nvmet_alloc_ctrl_args *args);
 struct nvmet_ctrl *nvmet_ctrl_find_get(const char *subsysnqn,
 				       const char *hostnqn, u16 cntlid,
 				       struct nvmet_req *req);
