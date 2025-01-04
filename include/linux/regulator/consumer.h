@@ -175,6 +175,8 @@ struct regulator *__must_check of_regulator_get_optional(struct device *dev,
 struct regulator *__must_check devm_of_regulator_get_optional(struct device *dev,
 							      struct device_node *node,
 							      const char *id);
+int __must_check of_regulator_bulk_get_all(struct device *dev, struct device_node *np,
+					   struct regulator_bulk_data **consumers);
 #else
 static inline struct regulator *__must_check of_regulator_get_optional(struct device *dev,
 								       struct device_node *node,
@@ -189,6 +191,13 @@ static inline struct regulator *__must_check devm_of_regulator_get_optional(stru
 {
 	return ERR_PTR(-ENODEV);
 }
+
+static inline int of_regulator_bulk_get_all(struct device *dev, struct device_node *np,
+					    struct regulator_bulk_data **consumers)
+{
+	return 0;
+}
+
 #endif
 
 int regulator_register_supply_alias(struct device *dev, const char *id,
@@ -223,8 +232,6 @@ int regulator_disable_deferred(struct regulator *regulator, int ms);
 
 int __must_check regulator_bulk_get(struct device *dev, int num_consumers,
 				    struct regulator_bulk_data *consumers);
-int __must_check of_regulator_bulk_get_all(struct device *dev, struct device_node *np,
-					   struct regulator_bulk_data **consumers);
 int __must_check devm_regulator_bulk_get(struct device *dev, int num_consumers,
 					 struct regulator_bulk_data *consumers);
 void devm_regulator_bulk_put(struct regulator_bulk_data *consumers);
@@ -479,12 +486,6 @@ static inline int regulator_bulk_get(struct device *dev,
 
 static inline int devm_regulator_bulk_get(struct device *dev, int num_consumers,
 					  struct regulator_bulk_data *consumers)
-{
-	return 0;
-}
-
-static inline int of_regulator_bulk_get_all(struct device *dev, struct device_node *np,
-					    struct regulator_bulk_data **consumers)
 {
 	return 0;
 }
