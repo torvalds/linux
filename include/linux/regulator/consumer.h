@@ -168,38 +168,6 @@ int devm_regulator_get_enable_read_voltage(struct device *dev, const char *id);
 void regulator_put(struct regulator *regulator);
 void devm_regulator_put(struct regulator *regulator);
 
-#if IS_ENABLED(CONFIG_OF)
-struct regulator *__must_check of_regulator_get_optional(struct device *dev,
-							 struct device_node *node,
-							 const char *id);
-struct regulator *__must_check devm_of_regulator_get_optional(struct device *dev,
-							      struct device_node *node,
-							      const char *id);
-int __must_check of_regulator_bulk_get_all(struct device *dev, struct device_node *np,
-					   struct regulator_bulk_data **consumers);
-#else
-static inline struct regulator *__must_check of_regulator_get_optional(struct device *dev,
-								       struct device_node *node,
-								       const char *id)
-{
-	return ERR_PTR(-ENODEV);
-}
-
-static inline struct regulator *__must_check devm_of_regulator_get_optional(struct device *dev,
-									    struct device_node *node,
-									    const char *id)
-{
-	return ERR_PTR(-ENODEV);
-}
-
-static inline int of_regulator_bulk_get_all(struct device *dev, struct device_node *np,
-					    struct regulator_bulk_data **consumers)
-{
-	return 0;
-}
-
-#endif
-
 int regulator_register_supply_alias(struct device *dev, const char *id,
 				    struct device *alias_dev,
 				    const char *alias_id);
@@ -376,20 +344,6 @@ regulator_get_optional(struct device *dev, const char *id)
 
 static inline struct regulator *__must_check
 devm_regulator_get_optional(struct device *dev, const char *id)
-{
-	return ERR_PTR(-ENODEV);
-}
-
-static inline struct regulator *__must_check of_regulator_get_optional(struct device *dev,
-								       struct device_node *node,
-								       const char *id)
-{
-	return ERR_PTR(-ENODEV);
-}
-
-static inline struct regulator *__must_check devm_of_regulator_get_optional(struct device *dev,
-									    struct device_node *node,
-									    const char *id)
 {
 	return ERR_PTR(-ENODEV);
 }
@@ -699,6 +653,38 @@ regulator_is_equal(struct regulator *reg1, struct regulator *reg2)
 {
 	return false;
 }
+#endif
+
+#if IS_ENABLED(CONFIG_OF) && IS_ENABLED(CONFIG_REGULATOR)
+struct regulator *__must_check of_regulator_get_optional(struct device *dev,
+							 struct device_node *node,
+							 const char *id);
+struct regulator *__must_check devm_of_regulator_get_optional(struct device *dev,
+							      struct device_node *node,
+							      const char *id);
+int __must_check of_regulator_bulk_get_all(struct device *dev, struct device_node *np,
+					   struct regulator_bulk_data **consumers);
+#else
+static inline struct regulator *__must_check of_regulator_get_optional(struct device *dev,
+								       struct device_node *node,
+								       const char *id)
+{
+	return ERR_PTR(-ENODEV);
+}
+
+static inline struct regulator *__must_check devm_of_regulator_get_optional(struct device *dev,
+									    struct device_node *node,
+									    const char *id)
+{
+	return ERR_PTR(-ENODEV);
+}
+
+static inline int of_regulator_bulk_get_all(struct device *dev, struct device_node *np,
+					    struct regulator_bulk_data **consumers)
+{
+	return 0;
+}
+
 #endif
 
 static inline int regulator_set_voltage_triplet(struct regulator *regulator,
