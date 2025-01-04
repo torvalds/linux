@@ -1402,7 +1402,8 @@ int bch2_check_discard_freespace_key(struct btree_trans *trans, struct btree_ite
 
 	struct btree_iter alloc_iter;
 	struct bkey_s_c alloc_k = bch2_bkey_get_iter(trans, &alloc_iter,
-						     BTREE_ID_alloc, bucket, BTREE_ITER_cached);
+						     BTREE_ID_alloc, bucket,
+						     async_repair ? BTREE_ITER_cached : 0);
 	int ret = bkey_err(alloc_k);
 	if (ret)
 		return ret;
