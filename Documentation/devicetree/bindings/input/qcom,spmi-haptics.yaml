@@ -71,6 +71,25 @@ properties:
     enum: [ 0, 1, 2, 3 ]
     default: 2
 
+  qcom,vmax-millivolt:
+    description: |
+      Maximum output voltage in millivolts
+    $ref: /schemas/types.yaml#/definitions/uint32
+    default: 3596
+
+  qcom,auto-res-mode:
+    description: |
+      Selects the auto resonance technique for LRA type.
+      Allowed values are,
+        0 - HAP_AUTO_RES_NONE
+        1 - HAP_AUTO_RES_ZXD
+        2 - HAP_AUTO_RES_QWD
+        3 - HAP_AUTO_RES_MAX_QWD
+        4 - HAP_AUTO_RES_ZXD_EOP
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [ 0, 1, 2, 3, 4 ]
+    default: 4
+
   qcom,wave-play-rate-us:
     description: |
       Wave play rate in microseconds, 1/f where f
@@ -124,6 +143,7 @@ examples:
         qcom,wave-shape = <HAP_WAVE_SINE>;
         qcom,wave-play-rate-us = <4255>;
         qcom,play-mode = <HAP_PLAY_BUFFER>;
+        qcom,auto-res-mode = <HAP_AUTO_RES_ZXD_EOP>;
         qcom,brake-pattern = <0x3 0x3 0x2 0x1>;
       };
     };
