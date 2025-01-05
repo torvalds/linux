@@ -778,7 +778,7 @@ out:
 	return rc;
 }
 
-static int check_commit_order(struct device *dev, const void *data)
+static int check_commit_order(struct device *dev, void *data)
 {
 	struct cxl_decoder *cxld = to_cxl_decoder(dev);
 
