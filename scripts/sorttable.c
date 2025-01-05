@@ -69,6 +69,11 @@ typedef union {
 	Elf64_Ehdr	e64;
 } Elf_Ehdr;
 
+typedef union {
+	Elf32_Shdr	e32;
+	Elf64_Shdr	e64;
+} Elf_Shdr;
+
 static uint32_t (*r)(const uint32_t *);
 static uint16_t (*r2)(const uint16_t *);
 static uint64_t (*r8)(const uint64_t *);
@@ -196,6 +201,11 @@ static int compare_extable_64(const void *a, const void *b)
 	if (av < bv)
 		return -1;
 	return av > bv;
+}
+
+static inline void *get_index(void *start, int entsize, int index)
+{
+	return start + (entsize * index);
 }
 
 /* 32 bit and 64 bit are very similar */
