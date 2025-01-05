@@ -434,7 +434,7 @@ static u8 global_brightness;
 /*
  * Helpers used for zone control
  */
-static int parse_rgb(const char *buf, struct platform_zone *zone)
+static int parse_rgb(const char *buf, struct color_platform *colors)
 {
 	long unsigned int rgb;
 	int ret;
@@ -454,7 +454,7 @@ static int parse_rgb(const char *buf, struct platform_zone *zone)
 	repackager.package = rgb & 0x0f0f0f0f;
 	pr_debug("alienware-wmi: r: %d g:%d b: %d\n",
 		 repackager.cp.red, repackager.cp.green, repackager.cp.blue);
-	zone->colors = repackager.cp;
+	*colors = repackager.cp;
 	return 0;
 }
 
@@ -538,7 +538,7 @@ static ssize_t zone_set(struct device *dev, struct device_attribute *attr,
 		pr_err("alienware-wmi: invalid target zone\n");
 		return 1;
 	}
-	ret = parse_rgb(buf, target_zone);
+	ret = parse_rgb(buf, &target_zone->colors);
 	if (ret)
 		return ret;
 	ret = alienware_update_led(target_zone);
