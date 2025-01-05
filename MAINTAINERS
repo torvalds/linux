@@ -14756,7 +14756,7 @@ F:	drivers/memory/mtk-smi.c
 F:	include/soc/mediatek/smi.h
 
 MEDIATEK SWITCH DRIVER
-M:	Arınç ÜNAL <arinc.unal@arinc9.com>
+M:	Chester A. Unal <chester.a.unal@arinc9.com>
 M:	Daniel Golle <daniel@makrotopia.org>
 M:	DENG Qingfang <dqfext@gmail.com>
 M:	Sean Wang <sean.wang@mediatek.com>
@@ -18460,7 +18460,7 @@ F:	Documentation/devicetree/bindings/pinctrl/mediatek,mt8183-pinctrl.yaml
 F:	drivers/pinctrl/mediatek/
 
 PIN CONTROLLER - MEDIATEK MIPS
-M:	Arınç ÜNAL <arinc.unal@arinc9.com>
+M:	Chester A. Unal <chester.a.unal@arinc9.com>
 M:	Sergio Paracuellos <sergio.paracuellos@gmail.com>
 L:	linux-mediatek@lists.infradead.org (moderated for non-subscribers)
 L:	linux-mips@vger.kernel.org
@@ -19504,7 +19504,7 @@ S:	Maintained
 F:	arch/mips/ralink
 
 RALINK MT7621 MIPS ARCHITECTURE
-M:	Arınç ÜNAL <arinc.unal@arinc9.com>
+M:	Chester A. Unal <chester.a.unal@arinc9.com>
 M:	Sergio Paracuellos <sergio.paracuellos@gmail.com>
 L:	linux-mips@vger.kernel.org
 S:	Maintained
