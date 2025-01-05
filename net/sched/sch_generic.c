@@ -551,25 +551,20 @@ static void dev_watchdog(struct timer_list *t)
 		netdev_put(dev, &dev->watchdog_dev_tracker);
 }
 
-void __netdev_watchdog_up(struct net_device *dev)
+void netdev_watchdog_up(struct net_device *dev)
 {
-	if (dev->netdev_ops->ndo_tx_timeout) {
-		if (dev->watchdog_timeo <= 0)
-			dev->watchdog_timeo = 5*HZ;
-		if (!mod_timer(&dev->watchdog_timer,
-			       round_jiffies(jiffies + dev->watchdog_timeo)))
-			netdev_hold(dev, &dev->watchdog_dev_tracker,
-				    GFP_ATOMIC);
-	}
+	if (!dev->netdev_ops->ndo_tx_timeout)
+		return;
+	if (dev->watchdog_timeo <= 0)
+		dev->watchdog_timeo = 5*HZ;
+	if (!mod_timer(&dev->watchdog_timer,
+		       round_jiffies(jiffies + dev->watchdog_timeo)))
+		netdev_hold(dev, &dev->watchdog_dev_tracker,
+			    GFP_ATOMIC);
 }
-EXPORT_SYMBOL_GPL(__netdev_watchdog_up);
+EXPORT_SYMBOL_GPL(netdev_watchdog_up);
 
-static void dev_watchdog_up(struct net_device *dev)
-{
-	__netdev_watchdog_up(dev);
-}
-
-static void dev_watchdog_down(struct net_device *dev)
+static void netdev_watchdog_down(struct net_device *dev)
 {
 	netif_tx_lock_bh(dev);
 	if (del_timer(&dev->watchdog_timer))
@@ -591,7 +586,7 @@ void netif_carrier_on(struct net_device *dev)
 		atomic_inc(&dev->carrier_up_count);
 		linkwatch_fire_event(dev);
 		if (netif_running(dev))
-			__netdev_watchdog_up(dev);
+			netdev_watchdog_up(dev);
 	}
 }
 EXPORT_SYMBOL(netif_carrier_on);
@@ -1267,7 +1262,7 @@ void dev_activate(struct net_device *dev)
 
 	if (need_watchdog) {
 		netif_trans_update(dev);
-		dev_watchdog_up(dev);
+		netdev_watchdog_up(dev);
 	}
 }
 EXPORT_SYMBOL(dev_activate);
@@ -1366,7 +1361,7 @@ void dev_deactivate_many(struct list_head *head)
 			dev_deactivate_queue(dev, dev_ingress_queue(dev),
 					     &noop_qdisc);
 
-		dev_watchdog_down(dev);
+		netdev_watchdog_down(dev);
 	}
 
 	/* Wait for outstanding qdisc-less dev_queue_xmit calls or

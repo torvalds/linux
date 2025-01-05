@@ -4295,7 +4295,7 @@ static inline bool netif_carrier_ok(const struct net_device *dev)
 
 unsigned long dev_trans_start(struct net_device *dev);
 
-void __netdev_watchdog_up(struct net_device *dev);
+void netdev_watchdog_up(struct net_device *dev);
 
 void netif_carrier_on(struct net_device *dev);
 void netif_carrier_off(struct net_device *dev);

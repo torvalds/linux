@@ -1434,7 +1434,7 @@ static void ugeth_activate(struct ucc_geth_private *ugeth)
 
 	/* allow to xmit again  */
 	netif_tx_wake_all_queues(ugeth->ndev);
-	__netdev_watchdog_up(ugeth->ndev);
+	netdev_watchdog_up(ugeth->ndev);
 }
 
 /* Initialize TBI PHY interface for communicating with the
