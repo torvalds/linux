@@ -945,7 +945,7 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
 	}
 
 	/* stream on the sensor */
-	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].sensor,
+	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].csi_remote_source,
 			       video, s_stream, 1);
 	if (ret) {
 		dev_err(isp->dev, "Starting sensor stream failed: %d\n", ret);
@@ -1002,7 +1002,7 @@ void atomisp_stop_streaming(struct vb2_queue *vq)
 
 	atomisp_subdev_cleanup_pending_events(asd);
 
-	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].sensor,
+	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].csi_remote_source,
 			       video, s_stream, 0);
 	if (ret)
 		dev_warn(isp->dev, "Stopping sensor stream failed: %d\n", ret);
@@ -1332,7 +1332,7 @@ static int atomisp_s_parm(struct file *file, void *fh,
 
 		fi.interval = parm->parm.capture.timeperframe;
 
-		rval = v4l2_subdev_call_state_active(isp->inputs[asd->input_curr].sensor,
+		rval = v4l2_subdev_call_state_active(isp->inputs[asd->input_curr].csi_remote_source,
 						     pad, set_frame_interval, &fi);
 		if (!rval)
 			parm->parm.capture.timeperframe = fi.interval;

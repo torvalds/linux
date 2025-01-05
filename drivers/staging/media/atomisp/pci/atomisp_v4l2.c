@@ -999,8 +999,9 @@ unlock_act_sd_state:
 
 int atomisp_register_device_nodes(struct atomisp_device *isp)
 {
+	struct media_pad *sensor_isp_sink, *sensor_src;
 	struct atomisp_input_subdev *input;
-	int i, err;
+	int i, err, source_pad;
 
 	for (i = 0; i < ATOMISP_CAMERA_NR_PORTS; i++) {
 		err = media_create_pad_link(&isp->csi2_port[i].subdev.entity,
@@ -1015,12 +1016,33 @@ int atomisp_register_device_nodes(struct atomisp_device *isp)
 		input = &isp->inputs[isp->input_cnt];
 
 		input->port = i;
-		input->sensor = isp->sensor_subdevs[i];
 		input->csi_port = &isp->csi2_port[i].subdev;
+		input->csi_remote_source = isp->sensor_subdevs[i];
+
+		/*
+		 * Special case for sensors with a ISP in the sensor modelled
+		 * as a separate v4l2-subdev, like the mt9m114.
+		 */
+		if (isp->sensor_subdevs[i]->entity.function == MEDIA_ENT_F_PROC_VIDEO_ISP) {
+			input->sensor_isp = isp->sensor_subdevs[i];
+			source_pad = SENSOR_ISP_PAD_SOURCE;
+
+			sensor_isp_sink = &input->sensor_isp->entity.pads[SENSOR_ISP_PAD_SINK];
+			sensor_src = media_pad_remote_pad_first(sensor_isp_sink);
+			if (!sensor_src) {
+				dev_err(isp->dev, "Error could not find remote pad for sensor ISP sink\n");
+				return -ENOENT;
+			}
+
+			input->sensor = media_entity_to_v4l2_subdev(sensor_src->entity);
+		} else {
+			input->sensor = isp->sensor_subdevs[i];
+			source_pad = 0;
+		}
 
 		atomisp_init_sensor(input);
 
-		err = media_create_pad_link(&input->sensor->entity, 0,
+		err = media_create_pad_link(&isp->sensor_subdevs[i]->entity, source_pad,
 					    &isp->csi2_port[i].subdev.entity,
 					    CSI2_PAD_SINK,
 					    MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE);

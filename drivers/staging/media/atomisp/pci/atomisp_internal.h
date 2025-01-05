@@ -109,6 +109,10 @@
 #define DIV_NEAREST_STEP(n, d, step) \
 	round_down((2 * (n) + (d) * (step)) / (2 * (d)), (step))
 
+#define SENSOR_ISP_PAD_SINK		0
+#define SENSOR_ISP_PAD_SOURCE		1
+#define SENSOR_ISP_PADS_NUM		2
+
 struct atomisp_input_subdev {
 	enum atomisp_camera_port port;
 	u32 code; /* MEDIA_BUS_FMT_* */
@@ -116,7 +120,9 @@ struct atomisp_input_subdev {
 	bool crop_support;
 	bool sensor_on;
 	struct v4l2_subdev *sensor;
+	struct v4l2_subdev *sensor_isp;
 	struct v4l2_subdev *csi_port;
+	struct v4l2_subdev *csi_remote_source;
 	/* Sensor rects for sensors which support crop */
 	struct v4l2_rect native_rect;
 	struct v4l2_rect active_rect;
