@@ -23,7 +23,6 @@
 #undef sort_mcount_loc
 #undef elf_mcount_loc
 #undef do_sort
-#undef uint_t
 #undef ehdr_shoff
 #undef ehdr_shentsize
 #undef ehdr_shstrndx
@@ -39,6 +38,7 @@
 #undef sym_name
 #undef sym_value
 #undef sym_shndx
+#undef long_size
 
 #ifdef SORTTABLE_64
 # define extable_ent_size	16
@@ -47,7 +47,6 @@
 # define sort_mcount_loc	sort_mcount_loc_64
 # define elf_mcount_loc		elf_mcount_loc_64
 # define do_sort		do_sort_64
-# define uint_t			uint64_t
 # define ehdr_shoff		ehdr64_shoff
 # define ehdr_shentsize		ehdr64_shentsize
 # define ehdr_shstrndx		ehdr64_shstrndx
@@ -63,6 +62,7 @@
 # define sym_name		sym64_name
 # define sym_value		sym64_value
 # define sym_shndx		sym64_shndx
+# define long_size		8
 #else
 # define extable_ent_size	8
 # define compare_extable	compare_extable_32
@@ -70,7 +70,6 @@
 # define sort_mcount_loc	sort_mcount_loc_32
 # define elf_mcount_loc		elf_mcount_loc_32
 # define do_sort		do_sort_32
-# define uint_t			uint32_t
 # define ehdr_shoff		ehdr32_shoff
 # define ehdr_shentsize		ehdr32_shentsize
 # define ehdr_shstrndx		ehdr32_shstrndx
@@ -86,6 +85,7 @@
 # define sym_name		sym32_name
 # define sym_value		sym32_value
 # define sym_shndx		sym32_shndx
+# define long_size		4
 #endif
 
 #if defined(SORTTABLE_64) && defined(UNWINDER_ORC_ENABLED)
@@ -193,25 +193,25 @@ pthread_t mcount_sort_thread;
 struct elf_mcount_loc {
 	Elf_Ehdr *ehdr;
 	Elf_Shdr *init_data_sec;
-	uint_t start_mcount_loc;
-	uint_t stop_mcount_loc;
+	uint64_t start_mcount_loc;
+	uint64_t stop_mcount_loc;
 };
 
 /* Sort the addresses stored between __start_mcount_loc to __stop_mcount_loc in vmlinux */
 static void *sort_mcount_loc(void *arg)
 {
 	struct elf_mcount_loc *emloc = (struct elf_mcount_loc *)arg;
-	uint_t offset = emloc->start_mcount_loc - shdr_addr(emloc->init_data_sec)
+	uint64_t offset = emloc->start_mcount_loc - shdr_addr(emloc->init_data_sec)
 					+ shdr_offset(emloc->init_data_sec);
-	uint_t count = emloc->stop_mcount_loc - emloc->start_mcount_loc;
+	uint64_t count = emloc->stop_mcount_loc - emloc->start_mcount_loc;
 	unsigned char *start_loc = (void *)emloc->ehdr + offset;
 
-	qsort(start_loc, count/sizeof(uint_t), sizeof(uint_t), compare_extable);
+	qsort(start_loc, count/long_size, long_size, compare_extable);
 	return NULL;
 }
 
 /* Get the address of __start_mcount_loc and __stop_mcount_loc in System.map */
-static void get_mcount_loc(uint_t *_start, uint_t *_stop)
+static void get_mcount_loc(uint64_t *_start, uint64_t *_stop)
 {
 	FILE *file_start, *file_stop;
 	char start_buff[20];
@@ -277,8 +277,8 @@ static int do_sort(Elf_Ehdr *ehdr,
 	unsigned int shstrndx;
 #ifdef MCOUNT_SORT_ENABLED
 	struct elf_mcount_loc mstruct = {0};
-	uint_t _start_mcount_loc = 0;
-	uint_t _stop_mcount_loc = 0;
+	uint64_t _start_mcount_loc = 0;
+	uint64_t _stop_mcount_loc = 0;
 #endif
 #if defined(SORTTABLE_64) && defined(UNWINDER_ORC_ENABLED)
 	unsigned int orc_ip_size = 0;
