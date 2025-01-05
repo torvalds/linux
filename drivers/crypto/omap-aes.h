@@ -14,8 +14,6 @@
 #define DST_MAXBURST			4
 #define DMA_MIN				(DST_MAXBURST * sizeof(u32))
 
-#define _calc_walked(inout) (dd->inout##_walk.offset - dd->inout##_sg->offset)
-
 /*
  * OMAP TRM gives bitfields as start:end, where start is the higher bit
  * number. For example 7:0
@@ -186,8 +184,8 @@ struct omap_aes_dev {
 	struct scatterlist		out_sgl;
 	struct scatterlist		*orig_out;
 
-	struct scatter_walk		in_walk;
-	struct scatter_walk		out_walk;
+	unsigned int		in_sg_offset;
+	unsigned int		out_sg_offset;
 	struct dma_chan		*dma_lch_in;
 	struct dma_chan		*dma_lch_out;
 	int			in_sg_len;
