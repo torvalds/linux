@@ -1836,7 +1836,7 @@ enum dw2102_table_entry {
 	TEVII_S662
 };
 
-static struct usb_device_id dw2102_table[] = {
+static const struct usb_device_id dw2102_table[] = {
 	DVB_USB_DEV(CYPRESS, CYPRESS_DW2102),
 	DVB_USB_DEV(CYPRESS, CYPRESS_DW2101),
 	DVB_USB_DEV(CYPRESS, CYPRESS_DW2104),

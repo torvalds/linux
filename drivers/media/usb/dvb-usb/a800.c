@@ -77,7 +77,7 @@ enum {
 	AVERMEDIA_DVBT_USB2_WARM,
 };
 
-static struct usb_device_id a800_table[] = {
+static const struct usb_device_id a800_table[] = {
 	DVB_USB_DEV(AVERMEDIA, AVERMEDIA_DVBT_USB2_COLD),
 	DVB_USB_DEV(AVERMEDIA, AVERMEDIA_DVBT_USB2_WARM),
 	{ }

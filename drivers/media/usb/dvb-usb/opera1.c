@@ -425,7 +425,7 @@ enum {
 	OPERA1_WARM,
 };
 
-static struct usb_device_id opera1_table[] = {
+static const struct usb_device_id opera1_table[] = {
 	DVB_USB_DEV(CYPRESS, CYPRESS_OPERA1_COLD),
 	DVB_USB_DEV(OPERA1, OPERA1_WARM),
 	{ }

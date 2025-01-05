@@ -1107,7 +1107,7 @@ enum {
 	ELGATO_EYETV_SAT_V3,
 };
 
-static struct usb_device_id az6027_usb_table[] = {
+static const struct usb_device_id az6027_usb_table[] = {
 	DVB_USB_DEV(AZUREWAVE, AZUREWAVE_AZ6027),
 	DVB_USB_DEV(TERRATEC, TERRATEC_DVBS2CI_V1),
 	DVB_USB_DEV(TERRATEC, TERRATEC_DVBS2CI_V2),

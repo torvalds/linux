@@ -693,7 +693,7 @@ enum {
 	TECHNISAT_USB2_DVB_S2,
 };
 
-static struct usb_device_id technisat_usb2_id_table[] = {
+static const struct usb_device_id technisat_usb2_id_table[] = {
 	DVB_USB_DEV(TECHNISAT, TECHNISAT_USB2_DVB_S2),
 	{ }
 };

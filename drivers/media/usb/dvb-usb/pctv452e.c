@@ -913,7 +913,7 @@ static struct i2c_algorithm pctv452e_i2c_algo = {
 
 static int pctv452e_frontend_attach(struct dvb_usb_adapter *a)
 {
-	struct usb_device_id *id;
+	const struct usb_device_id *id;
 
 	a->fe_adap[0].fe = dvb_attach(stb0899_attach, &stb0899_config,
 						&a->dev->i2c_adap);
@@ -959,7 +959,7 @@ enum {
 	TECHNOTREND_CONNECT_S2_3650_CI,
 };
 
-static struct usb_device_id pctv452e_usb_table[] = {
+static const struct usb_device_id pctv452e_usb_table[] = {
 	DVB_USB_DEV(PINNACLE, PINNACLE_PCTV_452E),
 	DVB_USB_DEV(TECHNOTREND, TECHNOTREND_CONNECT_S2_3600),
 	DVB_USB_DEV(TECHNOTREND, TECHNOTREND_CONNECT_S2_3650_CI),

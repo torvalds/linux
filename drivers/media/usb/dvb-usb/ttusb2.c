@@ -638,7 +638,7 @@ enum {
 	TECHNOTREND_CONNECT_S2400_8KEEPROM,
 };
 
-static struct usb_device_id ttusb2_table[] = {
+static const struct usb_device_id ttusb2_table[] = {
 	DVB_USB_DEV(PINNACLE, PINNACLE_PCTV_400E),
 	DVB_USB_DEV(PINNACLE, PINNACLE_PCTV_450E),
 	DVB_USB_DEV(TECHNOTREND, TECHNOTREND_CONNECT_S2400),

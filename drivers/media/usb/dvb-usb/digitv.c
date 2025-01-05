@@ -299,7 +299,7 @@ enum {
 	ANCHOR_NEBULA_DIGITV,
 };
 
-static struct usb_device_id digitv_table[] = {
+static const struct usb_device_id digitv_table[] = {
 	DVB_USB_DEV(ANCHOR, ANCHOR_NEBULA_DIGITV),
 	{ }
 };

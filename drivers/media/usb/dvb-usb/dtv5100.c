@@ -166,7 +166,7 @@ enum {
 	AME_DTV5100,
 };
 
-static struct usb_device_id dtv5100_table[] = {
+static const struct usb_device_id dtv5100_table[] = {
 	DVB_USB_DEV(AME, AME_DTV5100),
 	{ }
 };
