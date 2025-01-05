@@ -89,17 +89,35 @@ static int skcipher_done_slow(struct skcipher_walk *walk, unsigned int bsize)
 	return 0;
 }
 
-int skcipher_walk_done(struct skcipher_walk *walk, int err)
+/**
+ * skcipher_walk_done() - finish one step of a skcipher_walk
+ * @walk: the skcipher_walk
+ * @res: number of bytes *not* processed (>= 0) from walk->nbytes,
+ *	 or a -errno value to terminate the walk due to an error
+ *
+ * This function cleans up after one step of walking through the source and
+ * destination scatterlists, and advances to the next step if applicable.
+ * walk->nbytes is set to the number of bytes available in the next step,
+ * walk->total is set to the new total number of bytes remaining, and
+ * walk->{src,dst}.virt.addr is set to the next pair of data pointers.  If there
+ * is no more data, or if an error occurred (i.e. -errno return), then
+ * walk->nbytes and walk->total are set to 0 and all resources owned by the
+ * skcipher_walk are freed.
+ *
+ * Return: 0 or a -errno value.  If @res was a -errno value then it will be
+ *	   returned, but other errors may occur too.
+ */
+int skcipher_walk_done(struct skcipher_walk *walk, int res)
 {
-	unsigned int n = walk->nbytes;
-	unsigned int nbytes = 0;
+	unsigned int n = walk->nbytes; /* num bytes processed this step */
+	unsigned int total = 0; /* new total remaining */
 
 	if (!n)
 		goto finish;
 
-	if (likely(err >= 0)) {
-		n -= err;
-		nbytes = walk->total - n;
+	if (likely(res >= 0)) {
+		n -= res; /* subtract num bytes *not* processed */
+		total = walk->total - n;
 	}
 
 	if (likely(!(walk->flags & (SKCIPHER_WALK_SLOW |
@@ -115,31 +133,31 @@ unmap_src:
 		memcpy(walk->dst.virt.addr, walk->page, n);
 		skcipher_unmap_dst(walk);
 	} else if (unlikely(walk->flags & SKCIPHER_WALK_SLOW)) {
-		if (err > 0) {
+		if (res > 0) {
 			/*
 			 * Didn't process all bytes.  Either the algorithm is
 			 * broken, or this was the last step and it turned out
 			 * the message wasn't evenly divisible into blocks but
 			 * the algorithm requires it.
 			 */
-			err = -EINVAL;
-			nbytes = 0;
+			res = -EINVAL;
+			total = 0;
 		} else
 			n = skcipher_done_slow(walk, n);
 	}
 
-	if (err > 0)
-		err = 0;
+	if (res > 0)
+		res = 0;
 
-	walk->total = nbytes;
+	walk->total = total;
 	walk->nbytes = 0;
 
 	scatterwalk_advance(&walk->in, n);
 	scatterwalk_advance(&walk->out, n);
-	scatterwalk_done(&walk->in, 0, nbytes);
-	scatterwalk_done(&walk->out, 1, nbytes);
+	scatterwalk_done(&walk->in, 0, total);
+	scatterwalk_done(&walk->out, 1, total);
 
-	if (nbytes) {
+	if (total) {
 		crypto_yield(walk->flags & SKCIPHER_WALK_SLEEP ?
 			     CRYPTO_TFM_REQ_MAY_SLEEP : 0);
 		return skcipher_walk_next(walk);
@@ -158,7 +176,7 @@ finish:
 		free_page((unsigned long)walk->page);
 
 out:
-	return err;
+	return res;
 }
 EXPORT_SYMBOL_GPL(skcipher_walk_done);
 
