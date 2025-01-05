@@ -1138,9 +1138,9 @@ static Elf_Addr addend_386_rel(uint32_t *location, unsigned int r_type)
 {
 	switch (r_type) {
 	case R_386_32:
-		return TO_NATIVE(*location);
+		return get_unaligned_native(location);
 	case R_386_PC32:
-		return TO_NATIVE(*location) + 4;
+		return get_unaligned_native(location) + 4;
 	}
 
 	return (Elf_Addr)(-1);
@@ -1161,24 +1161,24 @@ static Elf_Addr addend_arm_rel(void *loc, Elf_Sym *sym, unsigned int r_type)
 	switch (r_type) {
 	case R_ARM_ABS32:
 	case R_ARM_REL32:
-		inst = TO_NATIVE(*(uint32_t *)loc);
+		inst = get_unaligned_native((uint32_t *)loc);
 		return inst + sym->st_value;
 	case R_ARM_MOVW_ABS_NC:
 	case R_ARM_MOVT_ABS:
-		inst = TO_NATIVE(*(uint32_t *)loc);
+		inst = get_unaligned_native((uint32_t *)loc);
 		offset = sign_extend32(((inst & 0xf0000) >> 4) | (inst & 0xfff),
 				       15);
 		return offset + sym->st_value;
 	case R_ARM_PC24:
 	case R_ARM_CALL:
 	case R_ARM_JUMP24:
-		inst = TO_NATIVE(*(uint32_t *)loc);
+		inst = get_unaligned_native((uint32_t *)loc);
 		offset = sign_extend32((inst & 0x00ffffff) << 2, 25);
 		return offset + sym->st_value + 8;
 	case R_ARM_THM_MOVW_ABS_NC:
 	case R_ARM_THM_MOVT_ABS:
-		upper = TO_NATIVE(*(uint16_t *)loc);
-		lower = TO_NATIVE(*((uint16_t *)loc + 1));
+		upper = get_unaligned_native((uint16_t *)loc);
+		lower = get_unaligned_native((uint16_t *)loc + 1);
 		offset = sign_extend32(((upper & 0x000f) << 12) |
 				       ((upper & 0x0400) << 1) |
 				       ((lower & 0x7000) >> 4) |
@@ -1195,8 +1195,8 @@ static Elf_Addr addend_arm_rel(void *loc, Elf_Sym *sym, unsigned int r_type)
 		 * imm11 = lower[10:0]
 		 * imm32 = SignExtend(S:J2:J1:imm6:imm11:'0')
 		 */
-		upper = TO_NATIVE(*(uint16_t *)loc);
-		lower = TO_NATIVE(*((uint16_t *)loc + 1));
+		upper = get_unaligned_native((uint16_t *)loc);
+		lower = get_unaligned_native((uint16_t *)loc + 1);
 
 		sign = (upper >> 10) & 1;
 		j1 = (lower >> 13) & 1;
@@ -1219,8 +1219,8 @@ static Elf_Addr addend_arm_rel(void *loc, Elf_Sym *sym, unsigned int r_type)
 		 * I2    = NOT(J2 XOR S)
 		 * imm32 = SignExtend(S:I1:I2:imm10:imm11:'0')
 		 */
-		upper = TO_NATIVE(*(uint16_t *)loc);
-		lower = TO_NATIVE(*((uint16_t *)loc + 1));
+		upper = get_unaligned_native((uint16_t *)loc);
+		lower = get_unaligned_native((uint16_t *)loc + 1);
 
 		sign = (upper >> 10) & 1;
 		j1 = (lower >> 13) & 1;
@@ -1241,7 +1241,7 @@ static Elf_Addr addend_mips_rel(uint32_t *location, unsigned int r_type)
 {
 	uint32_t inst;
 
-	inst = TO_NATIVE(*location);
+	inst = get_unaligned_native(location);
 	switch (r_type) {
 	case R_MIPS_LO16:
 		return inst & 0xffff;
