@@ -308,8 +308,8 @@ static int skcipher_walk_first(struct skcipher_walk *walk)
 int skcipher_walk_virt(struct skcipher_walk *walk,
 		       struct skcipher_request *req, bool atomic)
 {
-	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
-	struct skcipher_alg *alg = crypto_skcipher_alg(tfm);
+	const struct skcipher_alg *alg =
+		crypto_skcipher_alg(crypto_skcipher_reqtfm(req));
 
 	might_sleep_if(req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP);
 
@@ -328,9 +328,14 @@ int skcipher_walk_virt(struct skcipher_walk *walk,
 	scatterwalk_start(&walk->in, req->src);
 	scatterwalk_start(&walk->out, req->dst);
 
-	walk->blocksize = crypto_skcipher_blocksize(tfm);
-	walk->ivsize = crypto_skcipher_ivsize(tfm);
-	walk->alignmask = crypto_skcipher_alignmask(tfm);
+	/*
+	 * Accessing 'alg' directly generates better code than using the
+	 * crypto_skcipher_blocksize() and similar helper functions here, as it
+	 * prevents the algorithm pointer from being repeatedly reloaded.
+	 */
+	walk->blocksize = alg->base.cra_blocksize;
+	walk->ivsize = alg->co.ivsize;
+	walk->alignmask = alg->base.cra_alignmask;
 
 	if (alg->co.base.cra_type != &crypto_skcipher_type)
 		walk->stride = alg->co.chunksize;
@@ -344,7 +349,7 @@ EXPORT_SYMBOL_GPL(skcipher_walk_virt);
 static int skcipher_walk_aead_common(struct skcipher_walk *walk,
 				     struct aead_request *req, bool atomic)
 {
-	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
+	const struct aead_alg *alg = crypto_aead_alg(crypto_aead_reqtfm(req));
 
 	walk->nbytes = 0;
 	walk->iv = req->iv;
@@ -366,10 +371,15 @@ static int skcipher_walk_aead_common(struct skcipher_walk *walk,
 	scatterwalk_done(&walk->in, 0, walk->total);
 	scatterwalk_done(&walk->out, 0, walk->total);
 
-	walk->blocksize = crypto_aead_blocksize(tfm);
-	walk->stride = crypto_aead_chunksize(tfm);
-	walk->ivsize = crypto_aead_ivsize(tfm);
-	walk->alignmask = crypto_aead_alignmask(tfm);
+	/*
+	 * Accessing 'alg' directly generates better code than using the
+	 * crypto_aead_blocksize() and similar helper functions here, as it
+	 * prevents the algorithm pointer from being repeatedly reloaded.
+	 */
+	walk->blocksize = alg->base.cra_blocksize;
+	walk->stride = alg->chunksize;
+	walk->ivsize = alg->ivsize;
+	walk->alignmask = alg->base.cra_alignmask;
 
 	return skcipher_walk_first(walk);
 }
