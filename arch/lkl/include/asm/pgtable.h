@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LKL_PGTABLE_H
 #define _LKL_PGTABLE_H
 
@@ -5,6 +6,7 @@
  * (C) Copyright 2000-2002, Greg Ungerer <gerg@snapgear.com>
  */
 
+#ifndef CONFIG_MMU
 #include <asm/page.h>
 #include <asm-generic/pgtable-nopud.h>
 #include <asm/processor.h>
@@ -51,5 +53,9 @@ extern void *empty_zero_page;
 
 #define PTRS_PER_PTE 0
 #define PTRS_PER_PMD 0
+
+#else
+#include <asm/pgtable-mmu-3level.h>
+#endif /* CONFIG_MMU */
 
 #endif

@@ -81,7 +81,7 @@ $(ASM_CONFIG): $(OUTPUT)include/kernel_config.h
 # rule to build lkl.o
 $(OUTPUT)lib/lkl.o: bin/stat $(ASM_CONFIG) $(DOT_CONFIG)
 # this workaround is for arm32 linker (ld.gold)
-	$(Q)export PATH=$(srctree)/tools/lkl/bin/:${PATH} ;\
+	$(Q)export PATH="$(srctree)/tools/lkl/bin/:${PATH}" ;\
 	$(MAKE) -C ../.. ARCH=lkl $(KOPT)
 	$(MAKE) -C ../.. ARCH=lkl $(KOPT) install INSTALL_PATH=$(OUTPUT)
 
@@ -115,7 +115,10 @@ clean:
 	$(call QUIET_CLEAN, liblkl.a)$(RM) $(OUTPUT)/liblkl.a
 	$(call QUIET_CLEAN, targets)$(RM) $(TARGETS) bin/stat
 
-clean-conf: clean
+mrproper: clean
+	$(call QUIET_CLEAN, vmlinux)$(MAKE) -C ../.. ARCH=lkl $(KOPT) mrproper
+
+clean-conf: mrproper
 	$(call QUIET_CLEAN, Makefile.conf)$(RM) $(OUTPUT)/Makefile.conf
 	$(call QUIET_CLEAN, kernel_config.h)$(RM) $(OUTPUT)/include/kernel_config.h
 	$(call QUIET_CLEAN, kernel.config)$(RM) $(OUTPUT)/kernel.config
@@ -150,7 +153,7 @@ FUZZ_TARGETS := $(fuzzers-y:%=$(OUTPUT)%$(EXESUF))
 fuzzers: $(FUZZ_TARGETS)
 
 FORCE: ;
-.PHONY: all clean FORCE run-tests
+.PHONY: all clean clean-conf mrproper FORCE run-tests
 .PHONY: headers_install libraries_install programs_install install
 .NOTPARALLEL : lib/lkl.o
 .SECONDARY:

@@ -75,3 +75,4 @@ generic-y += vga.h
 generic-y += word-at-a-time.h
 generic-y += kprobes.h
 generic-y += uaccess.h
+generic-y += mman.h

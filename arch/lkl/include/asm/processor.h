@@ -42,7 +42,16 @@ struct thread_struct { };
 
 /* We don't have strict user/kernel spaces */
 #define TASK_SIZE ((unsigned long)-1)
+#ifndef CONFIG_MMU
 #define TASK_UNMAPPED_BASE	0
+#else
+#define TASK_UNMAPPED_BASE	CONFIG_LKL_TASK_UNMAPPED_BASE
+#define STACK_TOP			(CONFIG_LKL_MEMORY_START - 16 * PAGE_SIZE)
+#define STACK_TOP_MAX		STACK_TOP
+
+static inline void start_thread(struct pt_regs *regs, unsigned long entry,
+			 unsigned long stack) {}
+#endif // CONFIG_MMU
 
 #define KSTK_EIP(tsk)	(0)
 #define KSTK_ESP(tsk)	(0)

@@ -2,6 +2,7 @@
 #include <linux/memblock.h>
 #include <linux/mm.h>
 #include <linux/swap.h>
+#include <asm/host_ops.h>
 
 unsigned long memory_start, memory_end;
 static void *_memory_start;
@@ -15,13 +16,21 @@ void __init bootmem_init(unsigned long mem_sz)
 
 	mem_size = mem_sz;
 
+#ifdef CONFIG_MMU
+	mem_size = PAGE_ALIGN(mem_size);
+	lkl_ops->shmem_init(mem_size);
+	void *lkl_va_base = (void *)CONFIG_LKL_MEMORY_START;
+	enum lkl_prot shmem_prot = LKL_PROT_READ | LKL_PROT_WRITE;
+
+	_memory_start = lkl_ops->shmem_mmap(lkl_va_base, 0, mem_size, shmem_prot);
+#else
 	if (lkl_ops->page_alloc) {
 		mem_size = PAGE_ALIGN(mem_size);
 		_memory_start = lkl_ops->page_alloc(mem_size);
 	} else {
 		_memory_start = lkl_ops->mem_alloc(mem_size);
 	}
-
+#endif
 	memory_start = (unsigned long)_memory_start;
 	BUG_ON(!memory_start);
 	memory_end = memory_start + mem_size;
@@ -39,7 +48,7 @@ void __init bootmem_init(unsigned long mem_sz)
 	 */
 	max_low_pfn = virt_to_pfn((void *)memory_end);
 	min_low_pfn = virt_to_pfn((void *)memory_start);
-	memblock_add(memory_start, mem_size);
+	memblock_add(__pa(memory_start), mem_size);
 
 	empty_zero_page = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
 	memset(empty_zero_page, 0, PAGE_SIZE);
@@ -51,9 +60,9 @@ void __init bootmem_init(unsigned long mem_sz)
 void __init mem_init(void)
 {
 	memblock_free_all();
-	max_low_pfn = totalram_pages();
-	max_pfn = max_low_pfn;
-	max_mapnr = max_pfn;
+	max_mapnr = totalram_pages();
+	max_low_pfn = max_mapnr + ARCH_PFN_OFFSET;
+	max_pfn = max_mapnr + ARCH_PFN_OFFSET;
 }
 
 /*

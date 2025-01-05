@@ -19,6 +19,8 @@
 #include <windows.h>
 #endif
 
+#include <lkl/linux/mman.h>
+
 #include "test.h"
 
 #ifndef __MINGW32__
@@ -528,7 +530,109 @@ static int lkl_test_kasan(void)
 #define KASAN_CMD_LINE
 #endif
 
-#define CMD_LINE "mem=32M loglevel=8 " KASAN_CMD_LINE
+#ifdef LKL_HOST_CONFIG_MMU
+
+// TODO: for some reason <lkl/linux/mman.h> doesn't contain definition of
+// LKL_MAP_FAILED macro. Thus, temporarily define it here.
+#ifndef LKL_MAP_FAILED
+#define LKL_MAP_FAILED ((void *)-1)
+#endif
+
+static int lkl_test_shared_mmap(void)
+{
+	int fd = lkl_sys_open("/tmp_file_", LKL_O_RDWR | LKL_O_CREAT, LKL_S_IRWXU);
+
+	if (fd < 0)
+		return TEST_FAILURE;
+
+	unsigned long mem_size = 15 * 4096;
+
+	if (lkl_sys_ftruncate(fd, mem_size) < 0)
+		return TEST_FAILURE;
+
+	int mem_prot = LKL_PROT_WRITE | LKL_PROT_READ;
+	// Super important to use LKL_MAP_POPULATE to force populating pages in the
+	// mapping as in the LKL context we don't have a way to fault in the pages.
+	int mem_flags =  LKL_MAP_SHARED | LKL_MAP_POPULATE;
+	void *mem1 = lkl_sys_mmap(0, mem_size, mem_prot, mem_flags, fd, 0);
+
+	if (mem1 == LKL_MAP_FAILED)
+		return TEST_FAILURE;
+
+	memset(mem1, 0x17, mem_size);
+
+	void *mem2 = lkl_sys_mmap(0, mem_size, mem_prot, mem_flags, fd, 0);
+
+	if (mem2 == LKL_MAP_FAILED)
+		return TEST_FAILURE;
+
+	// This should not happen
+	if (mem1 == mem2)
+		return TEST_FAILURE;
+
+	if (memcmp(mem1, mem2, mem_size) != 0)
+		return TEST_FAILURE;
+
+	if (lkl_sys_munmap((unsigned long)mem1, mem_size) != 0)
+		return TEST_FAILURE;
+
+	if (lkl_sys_munmap((unsigned long)mem2, mem_size) != 0)
+		return TEST_FAILURE;
+
+	return TEST_SUCCESS;
+}
+
+static int lkl_test_private_mmap(void)
+{
+	unsigned long mem_size = 3 * 4096;
+	int mem_prot = LKL_PROT_WRITE | LKL_PROT_READ;
+	// Super important to use LKL_MAP_POPULATE to force populating pages in the
+	// mapping as in the LKL context we don't have a way to fault in the pages.
+	int mem_flags =  LKL_MAP_ANONYMOUS | LKL_MAP_PRIVATE | LKL_MAP_POPULATE;
+	void *mem = lkl_sys_mmap(0, mem_size, mem_prot, mem_flags, -1, 0);
+
+	if (mem == LKL_MAP_FAILED)
+		return TEST_FAILURE;
+
+	*(unsigned int *)mem = 13;
+
+	if (lkl_sys_munmap((unsigned long)mem, mem_size) < 0)
+		return TEST_FAILURE;
+
+	return TEST_SUCCESS;
+}
+#endif // LKL_HOST_CONFIG_MMU
+
+#ifdef LKL_HOST_CONFIG_LKL_MMU_TEST
+static int lkl_test_kunit_mmu(void)
+{
+	char *log = strdup(boot_log);
+	char *line = NULL;
+	int n;
+	char c, d;
+
+	line = strtok(log, "\n");
+	while (line) {
+		if (sscanf(line, "[ %*f] ok %d lkl_m%c%c", &n, &c, &d) == 3 &&
+			c == 'm' && d == 'u') {
+			lkl_test_logf("%s", line);
+			return TEST_SUCCESS;
+		}
+
+		line = strtok(NULL, "\n");
+	}
+
+	free(log);
+
+	return TEST_FAILURE;
+}
+
+#define LKL_MMU_TEST_CMD_LINE "kunit.filter_glob=lkl_mmu "
+#else
+#define LKL_MMU_TEST_CMD_LINE
+#endif // LKL_HOST_CONFIG_LKL_MMU_TEST
+
+#define CMD_LINE "mem=32M loglevel=8 " KASAN_CMD_LINE LKL_MMU_TEST_CMD_LINE
 
 static int lkl_test_start_kernel(void)
 {
@@ -590,6 +694,13 @@ struct lkl_test tests[] = {
 	 */
 #ifndef __MINGW32__
 	LKL_TEST(many_syscall_threads),
+#endif
+#ifdef LKL_HOST_CONFIG_MMU
+	LKL_TEST(shared_mmap),
+	LKL_TEST(private_mmap),
+#endif
+#ifdef LKL_HOST_CONFIG_LKL_MMU_TEST
+	LKL_TEST(kunit_mmu),
 #endif
 	LKL_TEST(stop_kernel),
 };
