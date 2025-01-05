@@ -114,8 +114,8 @@ struct atomisp_input_subdev {
 	u32 code; /* MEDIA_BUS_FMT_* */
 	bool binning_support;
 	bool crop_support;
-	bool camera_on;
-	struct v4l2_subdev *camera;
+	bool sensor_on;
+	struct v4l2_subdev *sensor;
 	struct v4l2_subdev *csi_port;
 	/* Sensor rects for sensors which support crop */
 	struct v4l2_rect native_rect;
