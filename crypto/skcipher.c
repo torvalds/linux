@@ -148,6 +148,8 @@ unmap_src:
 	if (total) {
 		crypto_yield(walk->flags & SKCIPHER_WALK_SLEEP ?
 			     CRYPTO_TFM_REQ_MAY_SLEEP : 0);
+		walk->flags &= ~(SKCIPHER_WALK_SLOW | SKCIPHER_WALK_COPY |
+				 SKCIPHER_WALK_DIFF);
 		return skcipher_walk_next(walk);
 	}
 
@@ -235,9 +237,6 @@ static int skcipher_walk_next(struct skcipher_walk *walk)
 	unsigned int bsize;
 	unsigned int n;
 
-	walk->flags &= ~(SKCIPHER_WALK_SLOW | SKCIPHER_WALK_COPY |
-			 SKCIPHER_WALK_DIFF);
-
 	n = walk->total;
 	bsize = min(walk->stride, max(n, walk->blocksize));
 	n = scatterwalk_clamp(&walk->in, n);
@@ -311,7 +310,6 @@ int skcipher_walk_virt(struct skcipher_walk *walk,
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct skcipher_alg *alg = crypto_skcipher_alg(tfm);
-	int err = 0;
 
 	might_sleep_if(req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP);
 
@@ -319,16 +317,16 @@ int skcipher_walk_virt(struct skcipher_walk *walk,
 	walk->nbytes = 0;
 	walk->iv = req->iv;
 	walk->oiv = req->iv;
+	if ((req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP) && !atomic)
+		walk->flags = SKCIPHER_WALK_SLEEP;
+	else
+		walk->flags = 0;
 
 	if (unlikely(!walk->total))
-		goto out;
+		return 0;
 
 	scatterwalk_start(&walk->in, req->src);
 	scatterwalk_start(&walk->out, req->dst);
-
-	walk->flags &= ~SKCIPHER_WALK_SLEEP;
-	walk->flags |= req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP ?
-		       SKCIPHER_WALK_SLEEP : 0;
 
 	walk->blocksize = crypto_skcipher_blocksize(tfm);
 	walk->ivsize = crypto_skcipher_ivsize(tfm);
@@ -339,11 +337,7 @@ int skcipher_walk_virt(struct skcipher_walk *walk,
 	else
 		walk->stride = alg->walksize;
 
-	err = skcipher_walk_first(walk);
-out:
-	walk->flags &= atomic ? ~SKCIPHER_WALK_SLEEP : ~0;
-
-	return err;
+	return skcipher_walk_first(walk);
 }
 EXPORT_SYMBOL_GPL(skcipher_walk_virt);
 
@@ -351,11 +345,14 @@ static int skcipher_walk_aead_common(struct skcipher_walk *walk,
 				     struct aead_request *req, bool atomic)
 {
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
-	int err;
 
 	walk->nbytes = 0;
 	walk->iv = req->iv;
 	walk->oiv = req->iv;
+	if ((req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP) && !atomic)
+		walk->flags = SKCIPHER_WALK_SLEEP;
+	else
+		walk->flags = 0;
 
 	if (unlikely(!walk->total))
 		return 0;
@@ -369,22 +366,12 @@ static int skcipher_walk_aead_common(struct skcipher_walk *walk,
 	scatterwalk_done(&walk->in, 0, walk->total);
 	scatterwalk_done(&walk->out, 0, walk->total);
 
-	if (req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP)
-		walk->flags |= SKCIPHER_WALK_SLEEP;
-	else
-		walk->flags &= ~SKCIPHER_WALK_SLEEP;
-
 	walk->blocksize = crypto_aead_blocksize(tfm);
 	walk->stride = crypto_aead_chunksize(tfm);
 	walk->ivsize = crypto_aead_ivsize(tfm);
 	walk->alignmask = crypto_aead_alignmask(tfm);
 
-	err = skcipher_walk_first(walk);
-
-	if (atomic)
-		walk->flags &= ~SKCIPHER_WALK_SLEEP;
-
-	return err;
+	return skcipher_walk_first(walk);
 }
 
 int skcipher_walk_aead_encrypt(struct skcipher_walk *walk,
