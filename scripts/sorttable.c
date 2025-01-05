@@ -110,6 +110,48 @@ EHDR_HALF(shentsize)
 EHDR_HALF(shstrndx)
 EHDR_HALF(shnum)
 
+#define SHDR_WORD(fn_name)				\
+static uint32_t shdr64_##fn_name(Elf_Shdr *shdr)	\
+{							\
+	return r(&shdr->e64.sh_##fn_name);		\
+}							\
+							\
+static uint32_t shdr32_##fn_name(Elf_Shdr *shdr)	\
+{							\
+	return r(&shdr->e32.sh_##fn_name);		\
+}
+
+#define SHDR_ADDR(fn_name)				\
+static uint64_t shdr64_##fn_name(Elf_Shdr *shdr)	\
+{							\
+	return r8(&shdr->e64.sh_##fn_name);		\
+}							\
+							\
+static uint64_t shdr32_##fn_name(Elf_Shdr *shdr)	\
+{							\
+	return r(&shdr->e32.sh_##fn_name);		\
+}
+
+#define SHDR_WORD(fn_name)				\
+static uint32_t shdr64_##fn_name(Elf_Shdr *shdr)	\
+{							\
+	return r(&shdr->e64.sh_##fn_name);		\
+}							\
+							\
+static uint32_t shdr32_##fn_name(Elf_Shdr *shdr)	\
+{							\
+	return r(&shdr->e32.sh_##fn_name);		\
+}
+
+SHDR_ADDR(addr)
+SHDR_ADDR(offset)
+SHDR_ADDR(size)
+SHDR_ADDR(entsize)
+
+SHDR_WORD(link)
+SHDR_WORD(name)
+SHDR_WORD(type)
+
 /*
  * Get the whole file as a programming convenience in order to avoid
  * malloc+lseek+read+free of many pieces.  If successful, then mmap

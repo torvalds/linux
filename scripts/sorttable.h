@@ -31,6 +31,13 @@
 #undef ehdr_shentsize
 #undef ehdr_shstrndx
 #undef ehdr_shnum
+#undef shdr_addr
+#undef shdr_offset
+#undef shdr_link
+#undef shdr_size
+#undef shdr_name
+#undef shdr_type
+#undef shdr_entsize
 
 #ifdef SORTTABLE_64
 # define extable_ent_size	16
@@ -47,6 +54,13 @@
 # define ehdr_shentsize		ehdr64_shentsize
 # define ehdr_shstrndx		ehdr64_shstrndx
 # define ehdr_shnum		ehdr64_shnum
+# define shdr_addr		shdr64_addr
+# define shdr_offset		shdr64_offset
+# define shdr_link		shdr64_link
+# define shdr_size		shdr64_size
+# define shdr_name		shdr64_name
+# define shdr_type		shdr64_type
+# define shdr_entsize		shdr64_entsize
 #else
 # define extable_ent_size	8
 # define compare_extable	compare_extable_32
@@ -62,6 +76,13 @@
 # define ehdr_shentsize		ehdr32_shentsize
 # define ehdr_shstrndx		ehdr32_shstrndx
 # define ehdr_shnum		ehdr32_shnum
+# define shdr_addr		shdr32_addr
+# define shdr_offset		shdr32_offset
+# define shdr_link		shdr32_link
+# define shdr_size		shdr32_size
+# define shdr_name		shdr32_name
+# define shdr_type		shdr32_type
+# define shdr_entsize		shdr32_entsize
 #endif
 
 #if defined(SORTTABLE_64) && defined(UNWINDER_ORC_ENABLED)
@@ -177,8 +198,8 @@ struct elf_mcount_loc {
 static void *sort_mcount_loc(void *arg)
 {
 	struct elf_mcount_loc *emloc = (struct elf_mcount_loc *)arg;
-	uint_t offset = emloc->start_mcount_loc - _r(&(emloc->init_data_sec)->etype.sh_addr)
-					+ _r(&(emloc->init_data_sec)->etype.sh_offset);
+	uint_t offset = emloc->start_mcount_loc - shdr_addr(emloc->init_data_sec)
+					+ shdr_offset(emloc->init_data_sec);
 	uint_t count = emloc->stop_mcount_loc - emloc->start_mcount_loc;
 	unsigned char *start_loc = (void *)emloc->ehdr + offset;
 
@@ -267,18 +288,18 @@ static int do_sort(Elf_Ehdr *ehdr,
 
 	shstrndx = ehdr_shstrndx(ehdr);
 	if (shstrndx == SHN_XINDEX)
-		shstrndx = r(&shdr_start->etype.sh_link);
+		shstrndx = shdr_link(shdr_start);
 	string_sec = get_index(shdr_start, shentsize, shstrndx);
-	secstrings = (const char *)ehdr + _r(&string_sec->etype.sh_offset);
+	secstrings = (const char *)ehdr + shdr_offset(string_sec);
 
 	shnum = ehdr_shnum(ehdr);
 	if (shnum == SHN_UNDEF)
-		shnum = _r(&shdr_start->etype.sh_size);
+		shnum = shdr_size(shdr_start);
 
 	for (i = 0; i < shnum; i++) {
 		Elf_Shdr *shdr = get_index(shdr_start, shentsize, i);
 
-		idx = r(&shdr->etype.sh_name);
+		idx = shdr_name(shdr);
 		if (!strcmp(secstrings + idx, "__ex_table"))
 			extab_sec = shdr;
 		if (!strcmp(secstrings + idx, ".symtab"))
@@ -286,9 +307,9 @@ static int do_sort(Elf_Ehdr *ehdr,
 		if (!strcmp(secstrings + idx, ".strtab"))
 			strtab_sec = shdr;
 
-		if (r(&shdr->etype.sh_type) == SHT_SYMTAB_SHNDX)
+		if (shdr_type(shdr) == SHT_SYMTAB_SHNDX)
 			symtab_shndx = (Elf32_Word *)((const char *)ehdr +
-						      _r(&shdr->etype.sh_offset));
+						      shdr_offset(shdr));
 
 #ifdef MCOUNT_SORT_ENABLED
 		/* locate the .init.data section in vmlinux */
@@ -304,14 +325,14 @@ static int do_sort(Elf_Ehdr *ehdr,
 #if defined(SORTTABLE_64) && defined(UNWINDER_ORC_ENABLED)
 		/* locate the ORC unwind tables */
 		if (!strcmp(secstrings + idx, ".orc_unwind_ip")) {
-			orc_ip_size = _r(&shdr->etype.sh_size);
+			orc_ip_size = shdr_size(shdr);
 			g_orc_ip_table = (int *)((void *)ehdr +
-						   _r(&shdr->etype.sh_offset));
+						   shdr_offset(shdr));
 		}
 		if (!strcmp(secstrings + idx, ".orc_unwind")) {
-			orc_size = _r(&shdr->etype.sh_size);
+			orc_size = shdr_size(shdr);
 			g_orc_table = (struct orc_entry *)((void *)ehdr +
-							     _r(&shdr->etype.sh_offset));
+							     shdr_offset(shdr));
 		}
 #endif
 	} /* for loop */
@@ -374,23 +395,22 @@ static int do_sort(Elf_Ehdr *ehdr,
 		goto out;
 	}
 
-	extab_image = (void *)ehdr + _r(&extab_sec->etype.sh_offset);
-	strtab = (const char *)ehdr + _r(&strtab_sec->etype.sh_offset);
-	symtab = (const Elf_Sym *)((const char *)ehdr +
-						  _r(&symtab_sec->etype.sh_offset));
+	extab_image = (void *)ehdr + shdr_offset(extab_sec);
+	strtab = (const char *)ehdr + shdr_offset(strtab_sec);
+	symtab = (const Elf_Sym *)((const char *)ehdr + shdr_offset(symtab_sec));
 
 	if (custom_sort) {
-		custom_sort(extab_image, _r(&extab_sec->etype.sh_size));
+		custom_sort(extab_image, shdr_size(extab_sec));
 	} else {
-		int num_entries = _r(&extab_sec->etype.sh_size) / extable_ent_size;
+		int num_entries = shdr_size(extab_sec) / extable_ent_size;
 		qsort(extab_image, num_entries,
 		      extable_ent_size, compare_extable);
 	}
 
 	/* find the flag main_extable_sort_needed */
-	sym_start = (void *)ehdr + _r(&symtab_sec->etype.sh_offset);
-	sym_end = sym_start + _r(&symtab_sec->etype.sh_size);
-	symentsize = _r(&symtab_sec->etype.sh_entsize);
+	sym_start = (void *)ehdr + shdr_offset(symtab_sec);
+	sym_end = sym_start + shdr_size(symtab_sec);
+	symentsize = shdr_entsize(symtab_sec);
 
 	for (sym = sym_start; (void *)sym + symentsize < sym_end;
 	     sym = (void *)sym + symentsize) {
@@ -415,9 +435,9 @@ static int do_sort(Elf_Ehdr *ehdr,
 				       symtab_shndx);
 	sort_needed_sec = get_index(shdr_start, shentsize, sort_need_index);
 	sort_needed_loc = (void *)ehdr +
-		_r(&sort_needed_sec->etype.sh_offset) +
+		shdr_offset(sort_needed_sec) +
 		_r(&sort_needed_sym->etype.st_value) -
-		_r(&sort_needed_sec->etype.sh_addr);
+		shdr_addr(sort_needed_sec);
 
 	/* extable has been sorted, clear the flag */
 	w(0, sort_needed_loc);
