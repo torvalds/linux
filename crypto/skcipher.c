@@ -146,8 +146,8 @@ unmap_src:
 	scatterwalk_done(&walk->out, 1, total);
 
 	if (total) {
-		crypto_yield(walk->flags & SKCIPHER_WALK_SLEEP ?
-			     CRYPTO_TFM_REQ_MAY_SLEEP : 0);
+		if (walk->flags & SKCIPHER_WALK_SLEEP)
+			cond_resched();
 		walk->flags &= ~(SKCIPHER_WALK_SLOW | SKCIPHER_WALK_COPY |
 				 SKCIPHER_WALK_DIFF);
 		return skcipher_walk_next(walk);
