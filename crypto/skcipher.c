@@ -63,16 +63,6 @@ static inline gfp_t skcipher_walk_gfp(struct skcipher_walk *walk)
 	return walk->flags & SKCIPHER_WALK_SLEEP ? GFP_KERNEL : GFP_ATOMIC;
 }
 
-/* Get a spot of the specified length that does not straddle a page.
- * The caller needs to ensure that there is enough space for this operation.
- */
-static inline u8 *skcipher_get_spot(u8 *start, unsigned int len)
-{
-	u8 *end_page = (u8 *)(((unsigned long)(start + len - 1)) & PAGE_MASK);
-
-	return max(start, end_page);
-}
-
 static inline struct skcipher_alg *__crypto_skcipher_alg(
 	struct crypto_alg *alg)
 {
@@ -81,10 +71,8 @@ static inline struct skcipher_alg *__crypto_skcipher_alg(
 
 static int skcipher_done_slow(struct skcipher_walk *walk, unsigned int bsize)
 {
-	u8 *addr;
+	u8 *addr = PTR_ALIGN(walk->buffer, walk->alignmask + 1);
 
-	addr = (u8 *)ALIGN((unsigned long)walk->buffer, walk->alignmask + 1);
-	addr = skcipher_get_spot(addr, bsize);
 	scatterwalk_copychunks(addr, &walk->out, bsize, 1);
 	return 0;
 }
@@ -183,33 +171,22 @@ EXPORT_SYMBOL_GPL(skcipher_walk_done);
 static int skcipher_next_slow(struct skcipher_walk *walk, unsigned int bsize)
 {
 	unsigned alignmask = walk->alignmask;
-	unsigned a;
 	unsigned n;
 	u8 *buffer;
 
 	if (!walk->buffer)
 		walk->buffer = walk->page;
 	buffer = walk->buffer;
-	if (buffer)
-		goto ok;
+	if (!buffer) {
+		/* Min size for a buffer of bsize bytes aligned to alignmask */
+		n = bsize + (alignmask & ~(crypto_tfm_ctx_alignment() - 1));
 
-	/* Start with the minimum alignment of kmalloc. */
-	a = crypto_tfm_ctx_alignment() - 1;
-	n = bsize;
-
-	/* Minimum size to align buffer by alignmask. */
-	n += alignmask & ~a;
-
-	/* Minimum size to ensure buffer does not straddle a page. */
-	n += (bsize - 1) & ~(alignmask | a);
-
-	buffer = kzalloc(n, skcipher_walk_gfp(walk));
-	if (!buffer)
-		return skcipher_walk_done(walk, -ENOMEM);
-	walk->buffer = buffer;
-ok:
+		buffer = kzalloc(n, skcipher_walk_gfp(walk));
+		if (!buffer)
+			return skcipher_walk_done(walk, -ENOMEM);
+		walk->buffer = buffer;
+	}
 	walk->dst.virt.addr = PTR_ALIGN(buffer, alignmask + 1);
-	walk->dst.virt.addr = skcipher_get_spot(walk->dst.virt.addr, bsize);
 	walk->src.virt.addr = walk->dst.virt.addr;
 
 	scatterwalk_copychunks(walk->src.virt.addr, &walk->in, bsize, 0);
@@ -296,30 +273,21 @@ slow_path:
 
 static int skcipher_copy_iv(struct skcipher_walk *walk)
 {
-	unsigned a = crypto_tfm_ctx_alignment() - 1;
 	unsigned alignmask = walk->alignmask;
 	unsigned ivsize = walk->ivsize;
-	unsigned bs = walk->stride;
-	unsigned aligned_bs;
+	unsigned aligned_stride = ALIGN(walk->stride, alignmask + 1);
 	unsigned size;
 	u8 *iv;
 
-	aligned_bs = ALIGN(bs, alignmask + 1);
-
-	/* Minimum size to align buffer by alignmask. */
-	size = alignmask & ~a;
-
-	size += aligned_bs + ivsize;
-
-	/* Minimum size to ensure buffer does not straddle a page. */
-	size += (bs - 1) & ~(alignmask | a);
+	/* Min size for a buffer of stride + ivsize, aligned to alignmask */
+	size = aligned_stride + ivsize +
+	       (alignmask & ~(crypto_tfm_ctx_alignment() - 1));
 
 	walk->buffer = kmalloc(size, skcipher_walk_gfp(walk));
 	if (!walk->buffer)
 		return -ENOMEM;
 
-	iv = PTR_ALIGN(walk->buffer, alignmask + 1);
-	iv = skcipher_get_spot(iv, bs) + aligned_bs;
+	iv = PTR_ALIGN(walk->buffer, alignmask + 1) + aligned_stride;
 
 	walk->iv = memcpy(iv, walk->iv, walk->ivsize);
 	return 0;
