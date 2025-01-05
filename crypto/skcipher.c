@@ -120,7 +120,7 @@ unmap_src:
 		skcipher_map_dst(walk);
 		memcpy(walk->dst.virt.addr, walk->page, n);
 		skcipher_unmap_dst(walk);
-	} else if (unlikely(walk->flags & SKCIPHER_WALK_SLOW)) {
+	} else { /* SKCIPHER_WALK_SLOW */
 		if (res > 0) {
 			/*
 			 * Didn't process all bytes.  Either the algorithm is
