@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2018-2024 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2025 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef _EFA_H_
@@ -57,15 +57,15 @@ struct efa_dev {
 	u64 db_bar_addr;
 	u64 db_bar_len;
 
-	unsigned int num_irq_vectors;
-	int admin_msix_vector_idx;
+	u32 num_irq_vectors;
+	u32 admin_msix_vector_idx;
 	struct efa_irq admin_irq;
 
 	struct efa_stats stats;
 
 	/* Array of completion EQs */
 	struct efa_eq *eqs;
-	unsigned int neqs;
+	u32 neqs;
 
 	/* Only stores CQs with interrupts enabled */
 	struct xarray cqs_xa;

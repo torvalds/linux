@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2018-2021 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2025 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef _EFA_COM_H_
@@ -65,7 +65,7 @@ struct efa_com_admin_queue {
 	u16 depth;
 	struct efa_com_admin_cq cq;
 	struct efa_com_admin_sq sq;
-	u16 msix_vector_idx;
+	u32 msix_vector_idx;
 
 	unsigned long state;
 
@@ -89,7 +89,7 @@ struct efa_com_aenq {
 	struct efa_aenq_handlers *aenq_handlers;
 	dma_addr_t dma_addr;
 	u32 cc; /* consumer counter */
-	u16 msix_vector_idx;
+	u32 msix_vector_idx;
 	u16 depth;
 	u8 phase;
 };

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 /*
- * Copyright 2018-2024 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2025 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -141,8 +141,7 @@ static int efa_request_irq(struct efa_dev *dev, struct efa_irq *irq)
 	return 0;
 }
 
-static void efa_setup_comp_irq(struct efa_dev *dev, struct efa_eq *eq,
-			       int vector)
+static void efa_setup_comp_irq(struct efa_dev *dev, struct efa_eq *eq, u32 vector)
 {
 	u32 cpu;
 
@@ -305,7 +304,7 @@ static void efa_destroy_eq(struct efa_dev *dev, struct efa_eq *eq)
 	efa_free_irq(dev, &eq->irq);
 }
 
-static int efa_create_eq(struct efa_dev *dev, struct efa_eq *eq, u8 msix_vec)
+static int efa_create_eq(struct efa_dev *dev, struct efa_eq *eq, u32 msix_vec)
 {
 	int err;
 
@@ -328,21 +327,17 @@ err_free_comp_irq:
 
 static int efa_create_eqs(struct efa_dev *dev)
 {
-	unsigned int neqs = dev->dev_attr.max_eq;
-	int err;
-	int i;
+	u32 neqs = dev->dev_attr.max_eq;
+	int err, i;
 
-	neqs = min_t(unsigned int, neqs,
-		     dev->num_irq_vectors - EFA_COMP_EQS_VEC_BASE);
-
+	neqs = min_t(u32, neqs, dev->num_irq_vectors - EFA_COMP_EQS_VEC_BASE);
 	dev->neqs = neqs;
 	dev->eqs = kcalloc(neqs, sizeof(*dev->eqs), GFP_KERNEL);
 	if (!dev->eqs)
 		return -ENOMEM;
 
 	for (i = 0; i < neqs; i++) {
-		err = efa_create_eq(dev, &dev->eqs[i],
-				    i + EFA_COMP_EQS_VEC_BASE);
+		err = efa_create_eq(dev, &dev->eqs[i], i + EFA_COMP_EQS_VEC_BASE);
 		if (err)
 			goto err_destroy_eqs;
 	}
