@@ -30,7 +30,8 @@
 #include <drm/drm_encoder_slave.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/i2c/sil164.h>
+
+#include <dispnv04/i2c/sil164.h>
 
 struct sil164_priv {
 	struct sil164_encoder_params config;

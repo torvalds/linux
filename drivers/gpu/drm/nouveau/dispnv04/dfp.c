@@ -35,7 +35,7 @@
 #include "hw.h"
 #include "nvreg.h"
 
-#include <drm/i2c/sil164.h>
+#include <dispnv04/i2c/sil164.h>
 
 #include <subdev/i2c.h>
 
