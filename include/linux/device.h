@@ -1075,12 +1075,12 @@ void device_del(struct device *dev);
 DEFINE_FREE(device_del, struct device *, if (_T) device_del(_T))
 
 int device_for_each_child(struct device *parent, void *data,
-			  int (*fn)(struct device *dev, void *data));
+			  device_iter_t fn);
 int device_for_each_child_reverse(struct device *parent, void *data,
-				  int (*fn)(struct device *dev, void *data));
+				  device_iter_t fn);
 int device_for_each_child_reverse_from(struct device *parent,
 				       struct device *from, void *data,
-				       int (*fn)(struct device *, void *));
+				       device_iter_t fn);
 struct device *device_find_child(struct device *parent, const void *data,
 				 device_match_t match);
 struct device *device_find_child_by_name(struct device *parent,
