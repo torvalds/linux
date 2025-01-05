@@ -250,6 +250,7 @@ static int skcipher_walk_next(struct skcipher_walk *walk)
 slow_path:
 		return skcipher_next_slow(walk, bsize);
 	}
+	walk->nbytes = n;
 
 	if (unlikely((walk->in.offset | walk->out.offset) & walk->alignmask)) {
 		if (!walk->page) {
@@ -259,14 +260,9 @@ slow_path:
 			if (!walk->page)
 				goto slow_path;
 		}
-
-		walk->nbytes = min_t(unsigned, n,
-				     PAGE_SIZE - offset_in_page(walk->page));
 		walk->flags |= SKCIPHER_WALK_COPY;
 		return skcipher_next_copy(walk);
 	}
-
-	walk->nbytes = n;
 
 	return skcipher_next_fast(walk);
 }
