@@ -4,6 +4,8 @@
 #ifndef _QUICKI2C_DEV_H_
 #define _QUICKI2C_DEV_H_
 
+#include <linux/hid-over-i2c.h>
+
 #define THC_LNL_DEVICE_ID_I2C_PORT1	0xA848
 #define THC_LNL_DEVICE_ID_I2C_PORT2	0xA84A
 #define THC_PTL_H_DEVICE_ID_I2C_PORT1	0xE348
@@ -26,23 +28,32 @@ enum quicki2c_dev_state {
 struct device;
 struct pci_dev;
 struct thc_device;
+struct hid_device;
 
 /**
  * struct quicki2c_device -  THC QuickI2C device struct
  * @dev: point to kernel device
  * @pdev: point to PCI device
  * @thc_hw: point to THC device
+ * @hid_dev: point to hid device
  * @driver_data: point to quicki2c specific driver data
  * @state: THC I2C device state
  * @mem_addr: MMIO memory address
+ * @dev_desc: device descriptor for HIDI2C protocol
+ * @report_descriptor: store a copy of device report descriptor
  */
 struct quicki2c_device {
 	struct device *dev;
 	struct pci_dev *pdev;
 	struct thc_device *thc_hw;
+	struct hid_device *hid_dev;
 	enum quicki2c_dev_state state;
 
 	void __iomem *mem_addr;
+
+	struct hidi2c_dev_descriptor dev_desc;
+
+	u8 *report_descriptor;
 };
 
 #endif /* _QUICKI2C_DEV_H_ */
