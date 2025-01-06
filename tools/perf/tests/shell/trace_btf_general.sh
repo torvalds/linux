@@ -5,6 +5,7 @@
 err=0
 set -e
 
+# shellcheck source=lib/probe.sh
 . "$(dirname $0)"/lib/probe.sh
 
 file1=$(mktemp /tmp/file1_XXXX)
