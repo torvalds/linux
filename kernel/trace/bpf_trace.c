@@ -2802,7 +2802,7 @@ kprobe_multi_link_prog_run(struct bpf_kprobe_multi_link *link,
 
 	if (unlikely(__this_cpu_inc_return(bpf_prog_active) != 1)) {
 		bpf_prog_inc_misses_counter(link->link.prog);
-		err = 0;
+		err = 1;
 		goto out;
 	}
 
