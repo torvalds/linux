@@ -116,6 +116,11 @@
 		regulator-name = "24V";
 		regulator-min-microvolt = <24000000>;
 		regulator-max-microvolt = <24000000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_reg24v>;
+		interrupts-extended = <&gpio4 23 IRQ_TYPE_EDGE_FALLING>;
+		system-critical-regulator;
+		regulator-uv-less-critical-window-ms = <50>;
 	};
 
 	reg_can2rs: regulator-can2rs {
@@ -588,6 +593,12 @@
 	pinctrl_pwm4: pwm4grp {
 		fsl,pins = <
 			MX8MP_IOMUXC_SAI3_MCLK__PWM4_OUT			0x116
+		>;
+	};
+
+	pinctrl_reg24v: reg24vgrp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SAI2_RXD0__GPIO4_IO23			0x154
 		>;
 	};
 
