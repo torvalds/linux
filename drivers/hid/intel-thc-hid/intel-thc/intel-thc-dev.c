@@ -1,9 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright (c) 2024 Intel Corporation */
 
+#include <linux/bitfield.h>
 #include <linux/regmap.h>
 
 #include "intel-thc-dev.h"
+#include "intel-thc-hw.h"
 
 static int thc_regmap_read(void *context, unsigned int reg,
 			   unsigned int *val)
@@ -208,9 +210,252 @@ struct thc_device *thc_dev_init(struct device *device, void __iomem *mem_addr)
 
 	thc_clear_state(thc_dev);
 
+	mutex_init(&thc_dev->thc_bus_lock);
+
 	return thc_dev;
 }
 EXPORT_SYMBOL_NS_GPL(thc_dev_init, "INTEL_THC");
+
+static int prepare_pio(const struct thc_device *dev, const u8 pio_op,
+		       const u32 address, const u32 size)
+{
+	u32 sts, ctrl, addr, mask;
+
+	regmap_read(dev->thc_regmap, THC_M_PRT_SW_SEQ_STS_OFFSET, &sts);
+
+	/* Check if THC previous PIO still in progress */
+	if (sts & THC_M_PRT_SW_SEQ_STS_THC_SS_CIP) {
+		dev_err_once(dev->dev, "THC PIO is still busy!\n");
+		return -EBUSY;
+	}
+
+	/* Clear error bit and complete bit in state register */
+	sts |= THC_M_PRT_SW_SEQ_STS_THC_SS_ERR |
+	       THC_M_PRT_SW_SEQ_STS_TSSDONE;
+	regmap_write(dev->thc_regmap, THC_M_PRT_SW_SEQ_STS_OFFSET, sts);
+
+	/* Set PIO data size, opcode and interrupt capability */
+	ctrl = FIELD_PREP(THC_M_PRT_SW_SEQ_CNTRL_THC_SS_BC, size) |
+	       FIELD_PREP(THC_M_PRT_SW_SEQ_CNTRL_THC_SS_CMD, pio_op);
+	if (dev->pio_int_supported)
+		ctrl |= THC_M_PRT_SW_SEQ_CNTRL_THC_SS_CD_IE;
+
+	mask = THC_M_PRT_SW_SEQ_CNTRL_THC_SS_BC |
+	       THC_M_PRT_SW_SEQ_CNTRL_THC_SS_CMD |
+	       THC_M_PRT_SW_SEQ_CNTRL_THC_SS_CD_IE;
+	regmap_write_bits(dev->thc_regmap,
+			  THC_M_PRT_SW_SEQ_CNTRL_OFFSET, mask, ctrl);
+
+	/* Set PIO target address */
+	addr = FIELD_PREP(THC_M_PRT_SW_SEQ_DATA0_ADDR_THC_SW_SEQ_DATA0_ADDR, address);
+	mask = THC_M_PRT_SW_SEQ_DATA0_ADDR_THC_SW_SEQ_DATA0_ADDR;
+	regmap_write_bits(dev->thc_regmap,
+			  THC_M_PRT_SW_SEQ_DATA0_ADDR_OFFSET, mask, addr);
+	return 0;
+}
+
+static void pio_start(const struct thc_device *dev,
+		      u32 size_in_bytes, const u32 *buffer)
+{
+	if (size_in_bytes && buffer)
+		regmap_bulk_write(dev->thc_regmap, THC_M_PRT_SW_SEQ_DATA1_OFFSET,
+				  buffer, size_in_bytes / sizeof(u32));
+
+	/* Enable Start bit */
+	regmap_write_bits(dev->thc_regmap,
+			  THC_M_PRT_SW_SEQ_CNTRL_OFFSET,
+			  THC_M_PRT_SW_SEQ_CNTRL_TSSGO,
+			  THC_M_PRT_SW_SEQ_CNTRL_TSSGO);
+}
+
+static int pio_complete(const struct thc_device *dev,
+			u32 *buffer, u32 *size)
+{
+	u32 sts, ctrl;
+
+	regmap_read(dev->thc_regmap, THC_M_PRT_SW_SEQ_STS_OFFSET, &sts);
+	if (sts & THC_M_PRT_SW_SEQ_STS_THC_SS_ERR) {
+		dev_err_once(dev->dev, "PIO operation error\n");
+		return -EBUSY;
+	}
+
+	if (buffer && size) {
+		regmap_read(dev->thc_regmap, THC_M_PRT_SW_SEQ_CNTRL_OFFSET, &ctrl);
+		*size = FIELD_GET(THC_M_PRT_SW_SEQ_CNTRL_THC_SS_BC, ctrl);
+
+		regmap_bulk_read(dev->thc_regmap, THC_M_PRT_SW_SEQ_DATA1_OFFSET,
+				 buffer, *size / sizeof(u32));
+	}
+
+	sts |= THC_M_PRT_SW_SEQ_STS_THC_SS_ERR | THC_M_PRT_SW_SEQ_STS_TSSDONE;
+	regmap_write(dev->thc_regmap, THC_M_PRT_SW_SEQ_STS_OFFSET, sts);
+	return 0;
+}
+
+static int pio_wait(const struct thc_device *dev)
+{
+	u32 sts = 0;
+	int ret;
+
+	ret = regmap_read_poll_timeout(dev->thc_regmap, THC_M_PRT_SW_SEQ_STS_OFFSET, sts,
+				       !(sts & THC_M_PRT_SW_SEQ_STS_THC_SS_CIP ||
+				       !(sts & THC_M_PRT_SW_SEQ_STS_TSSDONE)),
+				       THC_REGMAP_POLLING_INTERVAL_US, THC_PIO_DONE_TIMEOUT_US);
+	if (ret)
+		dev_err_once(dev->dev, "Timeout while polling PIO operation done\n");
+
+	return ret;
+}
+
+/**
+ * thc_tic_pio_read - Read data from touch device by PIO
+ *
+ * @dev: The pointer of THC private device context
+ * @address: Slave address for the PIO operation
+ * @size: Expected read data size
+ * @actual_size: The pointer of the actual data size read from touch device
+ * @buffer: The pointer of data buffer to store the data read from touch device
+ *
+ * Return: 0 on success, other error codes on failed.
+ */
+int thc_tic_pio_read(struct thc_device *dev, const u32 address,
+		     const u32 size, u32 *actual_size, u32 *buffer)
+{
+	u8 opcode;
+	int ret;
+
+	if (size <= 0 || !actual_size || !buffer) {
+		dev_err(dev->dev, "Invalid input parameters, size %u, actual_size %p, buffer %p\n",
+			size, actual_size, buffer);
+		return -EINVAL;
+	}
+
+	if (mutex_lock_interruptible(&dev->thc_bus_lock))
+		return -EINTR;
+
+	opcode = (dev->port_type == THC_PORT_TYPE_SPI) ?
+		 THC_PIO_OP_SPI_TIC_READ : THC_PIO_OP_I2C_TIC_READ;
+
+	ret = prepare_pio(dev, opcode, address, size);
+	if (ret < 0)
+		goto end;
+
+	pio_start(dev, 0, NULL);
+
+	ret = pio_wait(dev);
+	if (ret < 0)
+		goto end;
+
+	ret = pio_complete(dev, buffer, actual_size);
+
+end:
+	mutex_unlock(&dev->thc_bus_lock);
+	return ret;
+}
+EXPORT_SYMBOL_NS_GPL(thc_tic_pio_read, "INTEL_THC");
+
+/**
+ * thc_tic_pio_write - Write data to touch device by PIO
+ *
+ * @dev: The pointer of THC private device context
+ * @address: Slave address for the PIO operation
+ * @size: PIO write data size
+ * @buffer: The pointer of the write data buffer
+ *
+ * Return: 0 on success, other error codes on failed.
+ */
+int thc_tic_pio_write(struct thc_device *dev, const u32 address,
+		      const u32 size, const u32 *buffer)
+{
+	u8 opcode;
+	int ret;
+
+	if (size <= 0 || !buffer) {
+		dev_err(dev->dev, "Invalid input parameters, size %u, buffer %p\n",
+			size, buffer);
+		return -EINVAL;
+	}
+
+	if (mutex_lock_interruptible(&dev->thc_bus_lock))
+		return -EINTR;
+
+	opcode = (dev->port_type == THC_PORT_TYPE_SPI) ?
+		 THC_PIO_OP_SPI_TIC_WRITE : THC_PIO_OP_I2C_TIC_WRITE;
+
+	ret = prepare_pio(dev, opcode, address, size);
+	if (ret < 0)
+		goto end;
+
+	pio_start(dev, size, buffer);
+
+	ret = pio_wait(dev);
+	if (ret < 0)
+		goto end;
+
+	ret = pio_complete(dev, NULL, NULL);
+
+end:
+	mutex_unlock(&dev->thc_bus_lock);
+	return ret;
+}
+EXPORT_SYMBOL_NS_GPL(thc_tic_pio_write, "INTEL_THC");
+
+/**
+ * thc_tic_pio_write_and_read - Write data followed by read data by PIO
+ *
+ * @dev: The pointer of THC private device context
+ * @address: Slave address for the PIO operation
+ * @write_size: PIO write data size
+ * @write_buffer: The pointer of the write data buffer
+ * @read_size: Expected PIO read data size
+ * @actual_size: The pointer of the actual read data size
+ * @read_buffer: The pointer of PIO read data buffer
+ *
+ * Return: 0 on success, other error codes on failed.
+ */
+int thc_tic_pio_write_and_read(struct thc_device *dev, const u32 address,
+			       const u32 write_size, const u32 *write_buffer,
+			       const u32 read_size, u32 *actual_size, u32 *read_buffer)
+{
+	u32 i2c_ctrl, mask;
+	int ret;
+
+	if (dev->port_type == THC_PORT_TYPE_SPI) {
+		dev_err(dev->dev, "SPI port type doesn't support pio write and read!");
+		return -EINVAL;
+	}
+
+	if (mutex_lock_interruptible(&dev->thc_bus_lock))
+		return -EINTR;
+
+	/* Config i2c PIO write and read sequence */
+	i2c_ctrl = FIELD_PREP(THC_M_PRT_SW_SEQ_I2C_WR_CNTRL_THC_PIO_I2C_WBC, write_size);
+	mask = THC_M_PRT_SW_SEQ_I2C_WR_CNTRL_THC_PIO_I2C_WBC;
+
+	regmap_write_bits(dev->thc_regmap, THC_M_PRT_SW_SEQ_I2C_WR_CNTRL_OFFSET,
+			  mask, i2c_ctrl);
+
+	regmap_write_bits(dev->thc_regmap, THC_M_PRT_SW_SEQ_I2C_WR_CNTRL_OFFSET,
+			  THC_M_PRT_SW_SEQ_I2C_WR_CNTRL_THC_I2C_RW_PIO_EN,
+			  THC_M_PRT_SW_SEQ_I2C_WR_CNTRL_THC_I2C_RW_PIO_EN);
+
+	ret = prepare_pio(dev, THC_PIO_OP_I2C_TIC_WRITE_AND_READ, address, read_size);
+	if (ret < 0)
+		goto end;
+
+	pio_start(dev, write_size, write_buffer);
+
+	ret = pio_wait(dev);
+	if (ret < 0)
+		goto end;
+
+	ret = pio_complete(dev, read_buffer, actual_size);
+
+end:
+	mutex_unlock(&dev->thc_bus_lock);
+	return ret;
+}
+EXPORT_SYMBOL_NS_GPL(thc_tic_pio_write_and_read, "INTEL_THC");
 
 MODULE_AUTHOR("Xinpeng Sun <xinpeng.sun@intel.com>");
 MODULE_AUTHOR("Even Xu <even.xu@intel.com>");

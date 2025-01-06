@@ -636,4 +636,27 @@
 
 #define THC_M_PRT_SW_DMA_PRD_TABLE_LEN_THC_M_PRT_SW_DMA_PRD_TABLE_LEN	GENMASK(23, 0)
 
+#define THC_REGMAP_POLLING_INTERVAL_US		10 /* 10us */
+#define THC_PIO_DONE_TIMEOUT_US			USEC_PER_SEC /* 1s */
+
+/*
+ * THC PIO opcode default value
+ * @THC_PIO_OP_SPI_TIC_READ: THC opcode for SPI PIO read
+ * @THC_PIO_OP_SPI_TIC_WRITE: THC opcode for SPI PIO write
+ * @THC_PIO_OP_I2C_SUBSYSTEM_READ: THC opcode for read I2C subsystem registers
+ * @THC_PIO_OP_I2C_SUBSYSTEM_WRITE: THC opcode for write I2C subsystem registers
+ * @THC_PIO_OP_I2C_TIC_READ: THC opcode for read I2C device
+ * @THC_PIO_OP_I2C_TIC_WRITE: THC opcode for write I2C device
+ * @THC_PIO_OP_I2C_TIC_WRITE_AND_READ: THC opcode for write followed by read I2C device
+ */
+enum thc_pio_opcode {
+	THC_PIO_OP_SPI_TIC_READ = 0x4,
+	THC_PIO_OP_SPI_TIC_WRITE = 0x6,
+	THC_PIO_OP_I2C_SUBSYSTEM_READ = 0x12,
+	THC_PIO_OP_I2C_SUBSYSTEM_WRITE = 0x13,
+	THC_PIO_OP_I2C_TIC_READ = 0x14,
+	THC_PIO_OP_I2C_TIC_WRITE = 0x18,
+	THC_PIO_OP_I2C_TIC_WRITE_AND_READ = 0x1C,
+};
+
 #endif /* _INTEL_THC_HW_H_  */
