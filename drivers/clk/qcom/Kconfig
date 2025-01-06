@@ -1040,6 +1040,17 @@ config SM_DISPCC_8550
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen.
 
+config SM_DISPCC_8750
+	tristate "SM8750 Display Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	depends on SM_GCC_8750
+	select QCOM_GDSC
+	help
+	  Support for the display clock controller on Qualcomm Technologies, Inc
+	  SM8750 devices.
+	  Say Y if you want to support display devices and functionality such as
+	  splash screen.
+
 config SM_GCC_4450
 	tristate "SM4450 Global Clock Controller"
 	depends on ARM64 || COMPILE_TEST
