@@ -276,7 +276,7 @@ struct xe_pt_stage_bind_walk {
 	/* Also input, but is updated during the walk*/
 	/** @curs: The DMA address cursor. */
 	struct xe_res_cursor *curs;
-	/** @va_curs_start: The Virtual address coresponding to @curs->start */
+	/** @va_curs_start: The Virtual address corresponding to @curs->start */
 	u64 va_curs_start;
 
 	/* Output */

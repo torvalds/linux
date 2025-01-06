@@ -786,7 +786,7 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 		 * / resume, some of the pinned memory is required for the
 		 * device to resume / use the GPU to move other evicted memory
 		 * (user memory) around. This likely could be optimized a bit
-		 * futher where we find the minimum set of pinned memory
+		 * further where we find the minimum set of pinned memory
 		 * required for resume but for simplity doing a memcpy for all
 		 * pinned memory.
 		 */
@@ -875,7 +875,7 @@ out:
  * xe_bo_evict_pinned() - Evict a pinned VRAM object to system memory
  * @bo: The buffer object to move.
  *
- * On successful completion, the object memory will be moved to sytem memory.
+ * On successful completion, the object memory will be moved to system memory.
  *
  * This is needed to for special handling of pinned VRAM object during
  * suspend-resume.
@@ -1370,7 +1370,7 @@ static const struct drm_gem_object_funcs xe_gem_object_funcs = {
 /**
  * xe_bo_alloc - Allocate storage for a struct xe_bo
  *
- * This funcition is intended to allocate storage to be used for input
+ * This function is intended to allocate storage to be used for input
  * to __xe_bo_create_locked(), in the case a pointer to the bo to be
  * created is needed before the call to __xe_bo_create_locked().
  * If __xe_bo_create_locked ends up never to be called, then the
@@ -2412,7 +2412,7 @@ int xe_bo_migrate(struct xe_bo *bo, u32 mem_type)
  * @force_alloc: Set force_alloc in ttm_operation_ctx
  *
  * On successful completion, the object memory will be moved to evict
- * placement. Ths function blocks until the object has been fully moved.
+ * placement. This function blocks until the object has been fully moved.
  *
  * Return: 0 on success. Negative error code on failure.
  */

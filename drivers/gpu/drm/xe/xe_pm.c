@@ -391,7 +391,7 @@ int xe_pm_runtime_suspend(struct xe_device *xe)
 
 	/*
 	 * Applying lock for entire list op as xe_ttm_bo_destroy and xe_bo_move_notify
-	 * also checks and delets bo entry from user fault list.
+	 * also checks and deletes bo entry from user fault list.
 	 */
 	mutex_lock(&xe->mem_access.vram_userfault.lock);
 	list_for_each_entry_safe(bo, on,

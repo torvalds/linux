@@ -2161,7 +2161,7 @@ bool xe_gt_sriov_pf_config_is_empty(struct xe_gt *gt, unsigned int vfid)
  *
  * This function can only be called on PF.
  *
- * Return: mininum size of the buffer or the number of bytes saved,
+ * Return: minimum size of the buffer or the number of bytes saved,
  *         or a negative error code on failure.
  */
 ssize_t xe_gt_sriov_pf_config_save(struct xe_gt *gt, unsigned int vfid, void *buf, size_t size)

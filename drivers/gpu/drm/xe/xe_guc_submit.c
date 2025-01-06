@@ -1226,7 +1226,7 @@ sched_enable:
 	enable_scheduling(q);
 rearm:
 	/*
-	 * XXX: Ideally want to adjust timeout based on current exection time
+	 * XXX: Ideally want to adjust timeout based on current execution time
 	 * but there is not currently an easy way to do in DRM scheduler. With
 	 * some thought, do this in a follow up.
 	 */

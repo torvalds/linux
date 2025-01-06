@@ -131,7 +131,7 @@ struct xe_reg_sr;
  * @ver_end__: Last graphics IP version to match
  *
  * Note that the range matching this rule is [ @ver_start__, @ver_end__ ], i.e.
- * inclusive on boths sides
+ * inclusive on both sides
  *
  * Refer to XE_RTP_RULES() for expected usage.
  */
@@ -169,7 +169,7 @@ struct xe_reg_sr;
  * @ver_end__: Last media IP version to match
  *
  * Note that the range matching this rule is [ @ver_start__, @ver_end__ ], i.e.
- * inclusive on boths sides
+ * inclusive on both sides
  *
  * Refer to XE_RTP_RULES() for expected usage.
  */

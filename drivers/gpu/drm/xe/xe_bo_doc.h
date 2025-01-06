@@ -41,7 +41,7 @@
  * created the BO can be mmap'd (via DRM_IOCTL_XE_GEM_MMAP_OFFSET) for user
  * access and it can be bound for GPU access (via DRM_IOCTL_XE_VM_BIND). All
  * user BOs are evictable and user BOs are never pinned by XE. The allocation of
- * the backing store can be defered from creation time until first use which is
+ * the backing store can be deferred from creation time until first use which is
  * either mmap, bind, or pagefault.
  *
  * Private BOs
