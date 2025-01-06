@@ -2232,12 +2232,6 @@ bool b53_support_eee(struct dsa_switch *ds, int port)
 }
 EXPORT_SYMBOL(b53_support_eee);
 
-int b53_get_mac_eee(struct dsa_switch *ds, int port, struct ethtool_keee *e)
-{
-	return 0;
-}
-EXPORT_SYMBOL(b53_get_mac_eee);
-
 int b53_set_mac_eee(struct dsa_switch *ds, int port, struct ethtool_keee *e)
 {
 	struct b53_device *dev = ds->priv;
@@ -2299,7 +2293,6 @@ static const struct dsa_switch_ops b53_switch_ops = {
 	.port_enable		= b53_enable_port,
 	.port_disable		= b53_disable_port,
 	.support_eee		= b53_support_eee,
-	.get_mac_eee		= b53_get_mac_eee,
 	.set_mac_eee		= b53_set_mac_eee,
 	.port_bridge_join	= b53_br_join,
 	.port_bridge_leave	= b53_br_leave,
