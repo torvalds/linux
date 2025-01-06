@@ -103,6 +103,7 @@ static u64 secrets_pa __ro_after_init;
  */
 static u64 snp_tsc_scale __ro_after_init;
 static u64 snp_tsc_offset __ro_after_init;
+static u64 snp_tsc_freq_khz __ro_after_init;
 
 /* #VC handler runtime per-CPU data */
 struct sev_es_runtime_data {
@@ -3277,4 +3278,24 @@ void __init snp_secure_tsc_prepare(void)
 	}
 
 	pr_debug("SecureTSC enabled");
+}
+
+static unsigned long securetsc_get_tsc_khz(void)
+{
+	return snp_tsc_freq_khz;
+}
+
+void __init snp_secure_tsc_init(void)
+{
+	unsigned long long tsc_freq_mhz;
+
+	if (!cc_platform_has(CC_ATTR_GUEST_SNP_SECURE_TSC))
+		return;
+
+	setup_force_cpu_cap(X86_FEATURE_TSC_KNOWN_FREQ);
+	rdmsrl(MSR_AMD64_GUEST_TSC_FREQ, tsc_freq_mhz);
+	snp_tsc_freq_khz = (unsigned long)(tsc_freq_mhz * 1000);
+
+	x86_platform.calibrate_cpu = securetsc_get_tsc_khz;
+	x86_platform.calibrate_tsc = securetsc_get_tsc_khz;
 }
