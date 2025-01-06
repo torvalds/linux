@@ -24,6 +24,31 @@ enum thc_port_type {
 };
 
 /**
+ * THC interrupt flag
+ * @THC_NONDMA_INT: THC non-DMA interrupt
+ * @THC_RXDMA1_INT: THC RxDMA1 interrupt
+ * @THC_RXDMA2_INT: THC RxDMA2 interrupt
+ * @THC_SWDMA_INT: THC SWDMA interrupt
+ * @THC_TXDMA_INT: THC TXDMA interrupt
+ * @THC_PIO_DONE_INT: THC PIO complete interrupt
+ * @THC_I2CSUBIP_INT: THC I2C subsystem interrupt
+ * @THC_TXN_ERR_INT: THC transfer error interrupt
+ * @THC_FATAL_ERR_INT: THC fatal error interrupt
+ */
+enum thc_int_type {
+	THC_NONDMA_INT = 0,
+	THC_RXDMA1_INT = 1,
+	THC_RXDMA2_INT = 2,
+	THC_SWDMA_INT = 3,
+	THC_TXDMA_INT = 4,
+	THC_PIO_DONE_INT = 5,
+	THC_I2CSUBIP_INT = 6,
+	THC_TXN_ERR_INT = 7,
+	THC_FATAL_ERR_INT = 8,
+	THC_UNKNOWN_INT
+};
+
+/**
  * struct thc_device - THC private device struct
  * @thc_regmap: MMIO regmap structure for accessing THC registers
  * @mmio_addr: MMIO registers address
@@ -71,5 +96,7 @@ int thc_interrupt_quiesce(const struct thc_device *dev, bool int_quiesce);
 void thc_ltr_config(struct thc_device *dev, u32 active_ltr_us, u32 lp_ltr_us);
 void thc_change_ltr_mode(struct thc_device *dev, u32 ltr_mode);
 void thc_ltr_unconfig(struct thc_device *dev);
+u32 thc_int_cause_read(struct thc_device *dev);
+int thc_interrupt_handler(struct thc_device *dev);
 
 #endif /* _INTEL_THC_DEV_H_ */

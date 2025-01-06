@@ -802,6 +802,265 @@ void thc_ltr_unconfig(struct thc_device *dev)
 }
 EXPORT_SYMBOL_NS_GPL(thc_ltr_unconfig, "INTEL_THC");
 
+/**
+ * thc_int_cause_read - Read interrupt cause register value
+ *
+ * @dev: The pointer of THC private device context
+ *
+ * Return: The interrupt cause register value
+ */
+u32 thc_int_cause_read(struct thc_device *dev)
+{
+	u32 int_cause;
+
+	regmap_read(dev->thc_regmap,
+		    THC_M_PRT_DEV_INT_CAUSE_REG_VAL_OFFSET, &int_cause);
+
+	return int_cause;
+}
+EXPORT_SYMBOL_NS_GPL(thc_int_cause_read, "INTEL_THC");
+
+static void thc_print_txn_error_cause(const struct thc_device *dev)
+{
+	bool known_error = false;
+	u32 cause = 0;
+
+	regmap_read(dev->thc_regmap, THC_M_PRT_ERR_CAUSE_OFFSET, &cause);
+
+	if (cause & THC_M_PRT_ERR_CAUSE_PRD_ENTRY_ERR) {
+		dev_err(dev->dev, "TXN Error: Invalid PRD Entry\n");
+		known_error = true;
+	}
+	if (cause & THC_M_PRT_ERR_CAUSE_BUF_OVRRUN_ERR) {
+		dev_err(dev->dev, "TXN Error: THC Buffer Overrun\n");
+		known_error = true;
+	}
+	if (cause & THC_M_PRT_ERR_CAUSE_FRAME_BABBLE_ERR) {
+		dev_err(dev->dev, "TXN Error: Frame Babble\n");
+		known_error = true;
+	}
+	if (cause & THC_M_PRT_ERR_CAUSE_INVLD_DEV_ENTRY) {
+		dev_err(dev->dev, "TXN Error: Invalid Device Register Setting\n");
+		known_error = true;
+	}
+
+	/* Clear interrupt status bits */
+	regmap_write(dev->thc_regmap, THC_M_PRT_ERR_CAUSE_OFFSET, cause);
+
+	if (!known_error)
+		dev_err(dev->dev, "TXN Error does not match any known value: 0x%X\n",
+			cause);
+}
+
+/**
+ * thc_interrupt_handler - Handle THC interrupts
+ *
+ * THC interrupts include several types: external touch device (TIC) non-DMA
+ * interrupts, PIO completion interrupts, DMA interrtups, I2C subIP raw
+ * interrupts and error interrupts.
+ *
+ * This is a help function for interrupt processing, it detects interrupt
+ * type, clear the interrupt status bit and return the interrupt type to caller
+ * for future processing.
+ *
+ * @dev: The pointer of THC private device context
+ *
+ * Return: The combined flag for interrupt type
+ */
+int thc_interrupt_handler(struct thc_device *dev)
+{
+	u32 read_sts_1, read_sts_2, read_sts_sw, write_sts;
+	u32 int_sts, err_cause, seq_cntrl, seq_sts;
+	int interrupt_type = 0;
+
+	regmap_read(dev->thc_regmap,
+		    THC_M_PRT_READ_DMA_INT_STS_1_OFFSET, &read_sts_1);
+
+	if (read_sts_1 & THC_M_PRT_READ_DMA_INT_STS_NONDMA_INT_STS) {
+		dev_dbg(dev->dev, "THC non-DMA device interrupt\n");
+
+		regmap_write(dev->thc_regmap, THC_M_PRT_READ_DMA_INT_STS_1_OFFSET,
+			     NONDMA_INT_STS_BIT);
+
+		interrupt_type |= BIT(THC_NONDMA_INT);
+
+		return interrupt_type;
+	}
+
+	regmap_read(dev->thc_regmap, THC_M_PRT_INT_STATUS_OFFSET, &int_sts);
+
+	if (int_sts & THC_M_PRT_INT_STATUS_TXN_ERR_INT_STS) {
+		dev_err(dev->dev, "THC transaction error, int_sts: 0x%08X\n", int_sts);
+		thc_print_txn_error_cause(dev);
+
+		regmap_write(dev->thc_regmap, THC_M_PRT_INT_STATUS_OFFSET,
+			     TXN_ERR_INT_STS_BIT);
+
+		interrupt_type |= BIT(THC_TXN_ERR_INT);
+
+		return interrupt_type;
+	}
+
+	regmap_read(dev->thc_regmap, THC_M_PRT_ERR_CAUSE_OFFSET, &err_cause);
+	regmap_read(dev->thc_regmap,
+		    THC_M_PRT_READ_DMA_INT_STS_2_OFFSET, &read_sts_2);
+
+	if (err_cause & THC_M_PRT_ERR_CAUSE_BUF_OVRRUN_ERR ||
+	    read_sts_1 & THC_M_PRT_READ_DMA_INT_STS_STALL_STS ||
+	    read_sts_2 & THC_M_PRT_READ_DMA_INT_STS_STALL_STS) {
+		dev_err(dev->dev, "Buffer overrun or RxDMA engine stalled!\n");
+		thc_print_txn_error_cause(dev);
+
+		regmap_write(dev->thc_regmap, THC_M_PRT_READ_DMA_INT_STS_2_OFFSET,
+			     THC_M_PRT_READ_DMA_INT_STS_STALL_STS);
+		regmap_write(dev->thc_regmap, THC_M_PRT_READ_DMA_INT_STS_1_OFFSET,
+			     THC_M_PRT_READ_DMA_INT_STS_STALL_STS);
+		regmap_write(dev->thc_regmap, THC_M_PRT_ERR_CAUSE_OFFSET,
+			     THC_M_PRT_ERR_CAUSE_BUF_OVRRUN_ERR);
+
+		interrupt_type |= BIT(THC_TXN_ERR_INT);
+
+		return interrupt_type;
+	}
+
+	if (int_sts & THC_M_PRT_INT_STATUS_FATAL_ERR_INT_STS) {
+		dev_err_once(dev->dev, "THC FATAL error, int_sts: 0x%08X\n", int_sts);
+
+		regmap_write(dev->thc_regmap, THC_M_PRT_INT_STATUS_OFFSET,
+			     TXN_FATAL_INT_STS_BIT);
+
+		interrupt_type |= BIT(THC_FATAL_ERR_INT);
+
+		return interrupt_type;
+	}
+
+	regmap_read(dev->thc_regmap,
+		    THC_M_PRT_SW_SEQ_CNTRL_OFFSET, &seq_cntrl);
+	regmap_read(dev->thc_regmap,
+		    THC_M_PRT_SW_SEQ_STS_OFFSET, &seq_sts);
+
+	if (seq_cntrl & THC_M_PRT_SW_SEQ_CNTRL_THC_SS_CD_IE &&
+	    seq_sts & THC_M_PRT_SW_SEQ_STS_TSSDONE) {
+		dev_dbg(dev->dev, "THC_SS_CD_IE and TSSDONE are set\n");
+		interrupt_type |= BIT(THC_PIO_DONE_INT);
+	}
+
+	if (read_sts_1 & THC_M_PRT_READ_DMA_INT_STS_EOF_INT_STS) {
+		dev_dbg(dev->dev, "Got RxDMA1 Read Interrupt\n");
+
+		regmap_write(dev->thc_regmap,
+			     THC_M_PRT_READ_DMA_INT_STS_1_OFFSET, read_sts_1);
+
+		interrupt_type |= BIT(THC_RXDMA1_INT);
+	}
+
+	if (read_sts_2 & THC_M_PRT_READ_DMA_INT_STS_EOF_INT_STS) {
+		dev_dbg(dev->dev, "Got RxDMA2 Read Interrupt\n");
+
+		regmap_write(dev->thc_regmap,
+			     THC_M_PRT_READ_DMA_INT_STS_2_OFFSET, read_sts_2);
+
+		interrupt_type |= BIT(THC_RXDMA2_INT);
+	}
+
+	regmap_read(dev->thc_regmap,
+		    THC_M_PRT_READ_DMA_INT_STS_SW_OFFSET, &read_sts_sw);
+
+	if (read_sts_sw & THC_M_PRT_READ_DMA_INT_STS_DMACPL_STS) {
+		dev_dbg(dev->dev, "Got SwDMA Read Interrupt\n");
+
+		regmap_write(dev->thc_regmap,
+			     THC_M_PRT_READ_DMA_INT_STS_SW_OFFSET, read_sts_sw);
+
+		dev->swdma_done = true;
+		wake_up_interruptible(&dev->swdma_complete_wait);
+
+		interrupt_type |= BIT(THC_SWDMA_INT);
+	}
+
+	regmap_read(dev->thc_regmap,
+		    THC_M_PRT_WRITE_INT_STS_OFFSET, &write_sts);
+
+	if (write_sts & THC_M_PRT_WRITE_INT_STS_THC_WRDMA_CMPL_STATUS) {
+		dev_dbg(dev->dev, "Got TxDMA Write complete Interrupt\n");
+
+		regmap_write(dev->thc_regmap,
+			     THC_M_PRT_WRITE_INT_STS_OFFSET, write_sts);
+
+		dev->write_done = true;
+		wake_up_interruptible(&dev->write_complete_wait);
+
+		interrupt_type |= BIT(THC_TXDMA_INT);
+	}
+
+	if (int_sts & THC_M_PRT_INT_STATUS_DEV_RAW_INT_STS) {
+		regmap_write(dev->thc_regmap, THC_M_PRT_INT_STATUS_OFFSET,
+			     THC_M_PRT_INT_STATUS_DEV_RAW_INT_STS);
+		interrupt_type |= BIT(THC_I2CSUBIP_INT);
+	}
+	if (int_sts & THC_M_PRT_INT_STATUS_THC_I2C_IC_RX_UNDER_INT_STS) {
+		regmap_write(dev->thc_regmap, THC_M_PRT_INT_STATUS_OFFSET,
+			     THC_M_PRT_INT_STATUS_THC_I2C_IC_RX_UNDER_INT_STS);
+		interrupt_type |= BIT(THC_I2CSUBIP_INT);
+	}
+	if (int_sts & THC_M_PRT_INT_STATUS_THC_I2C_IC_RX_OVER_INT_STS) {
+		regmap_write(dev->thc_regmap, THC_M_PRT_INT_STATUS_OFFSET,
+			     THC_M_PRT_INT_STATUS_THC_I2C_IC_RX_OVER_INT_STS);
+		interrupt_type |= BIT(THC_I2CSUBIP_INT);
+	}
+	if (int_sts & THC_M_PRT_INT_STATUS_THC_I2C_IC_RX_FULL_INT_STS) {
+		regmap_write(dev->thc_regmap, THC_M_PRT_INT_STATUS_OFFSET,
+			     THC_M_PRT_INT_STATUS_THC_I2C_IC_RX_FULL_INT_STS);
+		interrupt_type |= BIT(THC_I2CSUBIP_INT);
+	}
+	if (int_sts & THC_M_PRT_INT_STATUS_THC_I2C_IC_TX_OVER_INT_STS) {
+		regmap_write(dev->thc_regmap, THC_M_PRT_INT_STATUS_OFFSET,
+			     THC_M_PRT_INT_STATUS_THC_I2C_IC_TX_OVER_INT_STS);
+		interrupt_type |= BIT(THC_I2CSUBIP_INT);
+	}
+	if (int_sts & THC_M_PRT_INT_STATUS_THC_I2C_IC_TX_EMPTY_INT_STS) {
+		regmap_write(dev->thc_regmap, THC_M_PRT_INT_STATUS_OFFSET,
+			     THC_M_PRT_INT_STATUS_THC_I2C_IC_TX_EMPTY_INT_STS);
+		interrupt_type |= BIT(THC_I2CSUBIP_INT);
+	}
+	if (int_sts & THC_M_PRT_INT_STATUS_THC_I2C_IC_TX_ABRT_INT_STS) {
+		regmap_write(dev->thc_regmap, THC_M_PRT_INT_STATUS_OFFSET,
+			     THC_M_PRT_INT_STATUS_THC_I2C_IC_TX_ABRT_INT_STS);
+		interrupt_type |= BIT(THC_I2CSUBIP_INT);
+	}
+	if (int_sts & THC_M_PRT_INT_STATUS_THC_I2C_IC_ACTIVITY_INT_STS) {
+		regmap_write(dev->thc_regmap, THC_M_PRT_INT_STATUS_OFFSET,
+			     THC_M_PRT_INT_STATUS_THC_I2C_IC_ACTIVITY_INT_STS);
+		interrupt_type |= BIT(THC_I2CSUBIP_INT);
+	}
+	if (int_sts & THC_M_PRT_INT_STATUS_THC_I2C_IC_SCL_STUCK_AT_LOW_INT_STS) {
+		regmap_write(dev->thc_regmap, THC_M_PRT_INT_STATUS_OFFSET,
+			     THC_M_PRT_INT_STATUS_THC_I2C_IC_SCL_STUCK_AT_LOW_INT_STS);
+		interrupt_type |= BIT(THC_I2CSUBIP_INT);
+	}
+	if (int_sts & THC_M_PRT_INT_STATUS_THC_I2C_IC_STOP_DET_INT_STS) {
+		regmap_write(dev->thc_regmap, THC_M_PRT_INT_STATUS_OFFSET,
+			     THC_M_PRT_INT_STATUS_THC_I2C_IC_STOP_DET_INT_STS);
+		interrupt_type |= BIT(THC_I2CSUBIP_INT);
+	}
+	if (int_sts & THC_M_PRT_INT_STATUS_THC_I2C_IC_START_DET_INT_STS) {
+		regmap_write(dev->thc_regmap, THC_M_PRT_INT_STATUS_OFFSET,
+			     THC_M_PRT_INT_STATUS_THC_I2C_IC_START_DET_INT_STS);
+		interrupt_type |= BIT(THC_I2CSUBIP_INT);
+	}
+	if (int_sts & THC_M_PRT_INT_STATUS_THC_I2C_IC_MST_ON_HOLD_INT_STS) {
+		regmap_write(dev->thc_regmap, THC_M_PRT_INT_STATUS_OFFSET,
+			     THC_M_PRT_INT_STATUS_THC_I2C_IC_MST_ON_HOLD_INT_STS);
+		interrupt_type |= BIT(THC_I2CSUBIP_INT);
+	}
+
+	if (!interrupt_type)
+		interrupt_type |= BIT(THC_UNKNOWN_INT);
+
+	return interrupt_type;
+}
+EXPORT_SYMBOL_NS_GPL(thc_interrupt_handler, "INTEL_THC");
+
 MODULE_AUTHOR("Xinpeng Sun <xinpeng.sun@intel.com>");
 MODULE_AUTHOR("Even Xu <even.xu@intel.com>");
 
