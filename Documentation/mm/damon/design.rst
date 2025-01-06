@@ -552,6 +552,8 @@ scheme's execution.
 
 - ``nr_tried``: Total number of regions that the scheme is tried to be applied.
 - ``sz_trtied``: Total size of regions that the scheme is tried to be applied.
+- ``sz_ops_filter_passed``: Total bytes that passed operations set
+  layer-handled DAMOS filters.
 - ``nr_applied``: Total number of regions that the scheme is applied.
 - ``sz_applied``: Total size of regions that the scheme is applied.
 - ``qt_exceeds``: Total number of times the quota of the scheme has exceeded.
