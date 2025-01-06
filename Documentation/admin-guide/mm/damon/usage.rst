@@ -457,7 +457,8 @@ schemes/<N>/stats/
 DAMON counts the total number and bytes of regions that each scheme is tried to
 be applied, the two numbers for the regions that each scheme is successfully
 applied, and the total number of the quota limit exceeds.  This statistics can
-be used for online analysis or tuning of the schemes.
+be used for online analysis or tuning of the schemes.  Refer to :ref:`design
+doc <damon_design_damos_stat>` for more details about the stats.
 
 The statistics can be retrieved by reading the files under ``stats`` directory
 (``nr_tried``, ``sz_tried``, ``nr_applied``, ``sz_applied``, and
