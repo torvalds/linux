@@ -99,8 +99,6 @@ extern const struct fm10k_tlv_attr fm10k_err_msg_attr[];
 
 s32 fm10k_iov_select_vid(struct fm10k_vf_info *vf_info, u16 vid);
 s32 fm10k_iov_msg_msix_pf(struct fm10k_hw *, u32 **, struct fm10k_mbx_info *);
-s32 fm10k_iov_msg_mac_vlan_pf(struct fm10k_hw *, u32 **,
-			      struct fm10k_mbx_info *);
 s32 fm10k_iov_msg_lport_state_pf(struct fm10k_hw *, u32 **,
 				 struct fm10k_mbx_info *);
 
