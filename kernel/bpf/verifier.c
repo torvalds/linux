@@ -11690,6 +11690,9 @@ enum special_kfunc_type {
 	KF_bpf_get_kmem_cache,
 	KF_bpf_local_irq_save,
 	KF_bpf_local_irq_restore,
+	KF_bpf_iter_num_new,
+	KF_bpf_iter_num_next,
+	KF_bpf_iter_num_destroy,
 };
 
 BTF_SET_START(special_kfunc_set)
@@ -11765,6 +11768,9 @@ BTF_ID_UNUSED
 BTF_ID(func, bpf_get_kmem_cache)
 BTF_ID(func, bpf_local_irq_save)
 BTF_ID(func, bpf_local_irq_restore)
+BTF_ID(func, bpf_iter_num_new)
+BTF_ID(func, bpf_iter_num_next)
+BTF_ID(func, bpf_iter_num_destroy)
 
 static bool is_kfunc_ret_null(struct bpf_kfunc_call_arg_meta *meta)
 {
@@ -12151,10 +12157,22 @@ static bool is_bpf_rbtree_api_kfunc(u32 btf_id)
 	       btf_id == special_kfunc_list[KF_bpf_rbtree_first];
 }
 
+static bool is_bpf_iter_num_api_kfunc(u32 btf_id)
+{
+	return btf_id == special_kfunc_list[KF_bpf_iter_num_new] ||
+	       btf_id == special_kfunc_list[KF_bpf_iter_num_next] ||
+	       btf_id == special_kfunc_list[KF_bpf_iter_num_destroy];
+}
+
 static bool is_bpf_graph_api_kfunc(u32 btf_id)
 {
 	return is_bpf_list_api_kfunc(btf_id) || is_bpf_rbtree_api_kfunc(btf_id) ||
 	       btf_id == special_kfunc_list[KF_bpf_refcount_acquire_impl];
+}
+
+static bool kfunc_spin_allowed(u32 btf_id)
+{
+	return is_bpf_graph_api_kfunc(btf_id) || is_bpf_iter_num_api_kfunc(btf_id);
 }
 
 static bool is_sync_callback_calling_kfunc(u32 btf_id)
@@ -19048,7 +19066,7 @@ static int do_check(struct bpf_verifier_env *env)
 				if (env->cur_state->active_locks) {
 					if ((insn->src_reg == BPF_REG_0 && insn->imm != BPF_FUNC_spin_unlock) ||
 					    (insn->src_reg == BPF_PSEUDO_KFUNC_CALL &&
-					     (insn->off != 0 || !is_bpf_graph_api_kfunc(insn->imm)))) {
+					     (insn->off != 0 || !kfunc_spin_allowed(insn->imm)))) {
 						verbose(env, "function calls are not allowed while holding a lock\n");
 						return -EINVAL;
 					}
