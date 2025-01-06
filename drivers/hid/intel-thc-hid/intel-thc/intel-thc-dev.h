@@ -45,5 +45,10 @@ int thc_tic_pio_write(struct thc_device *dev, const u32 address,
 int thc_tic_pio_write_and_read(struct thc_device *dev, const u32 address,
 			       const u32 write_size, const u32 *write_buffer,
 			       const u32 read_size, u32 *actual_size, u32 *read_buffer);
+void thc_interrupt_config(struct thc_device *dev);
+void thc_int_trigger_type_select(struct thc_device *dev, bool edge_trigger);
+void thc_interrupt_enable(struct thc_device *dev, bool int_enable);
+void thc_set_pio_interrupt_support(struct thc_device *dev, bool supported);
+int thc_interrupt_quiesce(const struct thc_device *dev, bool int_quiesce);
 
 #endif /* _INTEL_THC_DEV_H_ */

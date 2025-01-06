@@ -639,6 +639,23 @@
 #define THC_REGMAP_POLLING_INTERVAL_US		10 /* 10us */
 #define THC_PIO_DONE_TIMEOUT_US			USEC_PER_SEC /* 1s */
 
+/* Default configures for HIDSPI */
+#define THC_BIT_OFFSET_INTERRUPT_TYPE		4
+/* input_report_type is 4 bits for HIDSPI */
+#define THC_BIT_LENGTH_INTERRUPT_TYPE		4
+/* Last fragment indicator is bit 15 for HIDSPI */
+#define THC_BIT_OFFSET_LAST_FRAGMENT_FLAG	22
+#define THC_BIT_OFFSET_MICROFRAME_SIZE		8
+/* input_report_length is 14 bits for HIDSPI */
+#define THC_BIT_LENGTH_MICROFRAME_SIZE		14
+/* MFS unit in power of 2 */
+#define THC_UNIT_MICROFRAME_SIZE		2
+#define THC_BITMASK_INTERRUPT_TYPE_DATA		1
+#define THC_BITMASK_INVALID_TYPE_DATA		2
+
+/* Interrupt Quiesce default timeout value */
+#define THC_QUIESCE_EN_TIMEOUT_US		USEC_PER_SEC /* 1s */
+
 /*
  * THC PIO opcode default value
  * @THC_PIO_OP_SPI_TIC_READ: THC opcode for SPI PIO read

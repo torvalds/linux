@@ -457,6 +457,229 @@ end:
 }
 EXPORT_SYMBOL_NS_GPL(thc_tic_pio_write_and_read, "INTEL_THC");
 
+/**
+ * thc_interrupt_config - Configure THC interrupts
+ *
+ * @dev: The pointer of THC private device context
+ */
+void thc_interrupt_config(struct thc_device *dev)
+{
+	u32 mbits, mask, r_dma_ctrl_1;
+
+	/* Clear Error reporting interrupt status bits */
+	mbits = THC_M_PRT_INT_STATUS_TXN_ERR_INT_STS |
+		THC_M_PRT_INT_STATUS_FATAL_ERR_INT_STS;
+	regmap_write_bits(dev->thc_regmap,
+			  THC_M_PRT_INT_STATUS_OFFSET,
+			  mbits, mbits);
+
+	/* Enable Error Reporting Interrupts */
+	mbits = THC_M_PRT_INT_EN_TXN_ERR_INT_EN |
+		THC_M_PRT_INT_EN_FATAL_ERR_INT_EN |
+		THC_M_PRT_INT_EN_BUF_OVRRUN_ERR_INT_EN;
+	regmap_write_bits(dev->thc_regmap,
+			  THC_M_PRT_INT_EN_OFFSET,
+			  mbits, mbits);
+
+	/* Clear PIO Interrupt status bits */
+	mbits = THC_M_PRT_SW_SEQ_STS_THC_SS_ERR |
+		THC_M_PRT_SW_SEQ_STS_TSSDONE;
+	regmap_write_bits(dev->thc_regmap,
+			  THC_M_PRT_SW_SEQ_STS_OFFSET,
+			  mbits, mbits);
+
+	/* Read Interrupts */
+	regmap_read(dev->thc_regmap,
+		    THC_M_PRT_READ_DMA_CNTRL_1_OFFSET,
+		    &r_dma_ctrl_1);
+	/* Disable RxDMA1 */
+	r_dma_ctrl_1 &= ~THC_M_PRT_READ_DMA_CNTRL_IE_EOF;
+	regmap_write(dev->thc_regmap,
+		     THC_M_PRT_READ_DMA_CNTRL_1_OFFSET,
+		     r_dma_ctrl_1);
+
+	/* Ack EOF Interrupt RxDMA1 */
+	mbits = THC_M_PRT_READ_DMA_INT_STS_EOF_INT_STS;
+	/* Ack NonDMA Interrupt */
+	mbits |= THC_M_PRT_READ_DMA_INT_STS_NONDMA_INT_STS;
+	regmap_write_bits(dev->thc_regmap,
+			  THC_M_PRT_READ_DMA_INT_STS_1_OFFSET,
+			  mbits, mbits);
+
+	/* Ack EOF Interrupt RxDMA2 */
+	regmap_write_bits(dev->thc_regmap,
+			  THC_M_PRT_READ_DMA_INT_STS_2_OFFSET,
+			  THC_M_PRT_READ_DMA_INT_STS_EOF_INT_STS,
+			  THC_M_PRT_READ_DMA_INT_STS_EOF_INT_STS);
+
+	/* Write Interrupts */
+	/* Disable TxDMA */
+	regmap_write_bits(dev->thc_regmap,
+			  THC_M_PRT_WRITE_DMA_CNTRL_OFFSET,
+			  THC_M_PRT_WRITE_DMA_CNTRL_THC_WRDMA_IE_IOC_DMACPL,
+			  0);
+
+	/* Clear TxDMA interrupt status bits */
+	mbits = THC_M_PRT_WRITE_INT_STS_THC_WRDMA_ERROR_STS;
+	mbits |=  THC_M_PRT_WRITE_INT_STS_THC_WRDMA_IOC_STS;
+	regmap_write_bits(dev->thc_regmap,
+			  THC_M_PRT_WRITE_INT_STS_OFFSET,
+			  mbits, mbits);
+
+	/* Enable Non-DMA device inband interrupt */
+	r_dma_ctrl_1 |= THC_M_PRT_READ_DMA_CNTRL_IE_NDDI;
+	regmap_write(dev->thc_regmap,
+		     THC_M_PRT_READ_DMA_CNTRL_1_OFFSET,
+		     r_dma_ctrl_1);
+
+	if (dev->port_type == THC_PORT_TYPE_SPI) {
+		/* Edge triggered interrupt */
+		regmap_write_bits(dev->thc_regmap, THC_M_PRT_TSEQ_CNTRL_1_OFFSET,
+				  THC_M_PRT_TSEQ_CNTRL_1_INT_EDG_DET_EN,
+				  THC_M_PRT_TSEQ_CNTRL_1_INT_EDG_DET_EN);
+	} else {
+		/* Level triggered interrupt */
+		regmap_write_bits(dev->thc_regmap, THC_M_PRT_TSEQ_CNTRL_1_OFFSET,
+				  THC_M_PRT_TSEQ_CNTRL_1_INT_EDG_DET_EN, 0);
+
+		mbits = THC_M_PRT_INT_EN_THC_I2C_IC_MST_ON_HOLD_INT_EN |
+			THC_M_PRT_INT_EN_THC_I2C_IC_SCL_STUCK_AT_LOW_DET_INT_EN |
+			THC_M_PRT_INT_EN_THC_I2C_IC_TX_ABRT_INT_EN |
+			THC_M_PRT_INT_EN_THC_I2C_IC_TX_OVER_INT_EN |
+			THC_M_PRT_INT_EN_THC_I2C_IC_RX_FULL_INT_EN |
+			THC_M_PRT_INT_EN_THC_I2C_IC_RX_OVER_INT_EN |
+			THC_M_PRT_INT_EN_THC_I2C_IC_RX_UNDER_INT_EN;
+		regmap_write_bits(dev->thc_regmap, THC_M_PRT_INT_EN_OFFSET,
+				  mbits, mbits);
+	}
+
+	thc_set_pio_interrupt_support(dev, false);
+
+	/* HIDSPI specific settings */
+	if (dev->port_type == THC_PORT_TYPE_SPI) {
+		mbits = FIELD_PREP(THC_M_PRT_DEVINT_CFG_1_THC_M_PRT_INTTYP_OFFSET,
+				   THC_BIT_OFFSET_INTERRUPT_TYPE) |
+			FIELD_PREP(THC_M_PRT_DEVINT_CFG_1_THC_M_PRT_INTTYP_LEN,
+				   THC_BIT_LENGTH_INTERRUPT_TYPE) |
+			FIELD_PREP(THC_M_PRT_DEVINT_CFG_1_THC_M_PRT_EOF_OFFSET,
+				   THC_BIT_OFFSET_LAST_FRAGMENT_FLAG) |
+			FIELD_PREP(THC_M_PRT_DEVINT_CFG_1_THC_M_PRT_INTTYP_DATA_VAL,
+				   THC_BITMASK_INVALID_TYPE_DATA);
+		mask = THC_M_PRT_DEVINT_CFG_1_THC_M_PRT_INTTYP_OFFSET |
+		       THC_M_PRT_DEVINT_CFG_1_THC_M_PRT_INTTYP_LEN |
+		       THC_M_PRT_DEVINT_CFG_1_THC_M_PRT_EOF_OFFSET |
+		       THC_M_PRT_DEVINT_CFG_1_THC_M_PRT_INTTYP_DATA_VAL;
+		regmap_write_bits(dev->thc_regmap, THC_M_PRT_DEVINT_CFG_1_OFFSET,
+				  mask, mbits);
+
+		mbits = FIELD_PREP(THC_M_PRT_DEVINT_CFG_2_THC_M_PRT_UFSIZE_OFFSET,
+				   THC_BIT_OFFSET_MICROFRAME_SIZE) |
+			FIELD_PREP(THC_M_PRT_DEVINT_CFG_2_THC_M_PRT_UFSIZE_LEN,
+				   THC_BIT_LENGTH_MICROFRAME_SIZE) |
+			FIELD_PREP(THC_M_PRT_DEVINT_CFG_2_THC_M_PRT_UFSIZE_UNIT,
+				   THC_UNIT_MICROFRAME_SIZE) |
+			THC_M_PRT_DEVINT_CFG_2_THC_M_PRT_FTYPE_IGNORE |
+			THC_M_PRT_DEVINT_CFG_2_THC_M_PRT_FTYPE_VAL;
+		mask = THC_M_PRT_DEVINT_CFG_2_THC_M_PRT_UFSIZE_OFFSET |
+		       THC_M_PRT_DEVINT_CFG_2_THC_M_PRT_UFSIZE_LEN |
+		       THC_M_PRT_DEVINT_CFG_2_THC_M_PRT_UFSIZE_UNIT |
+		       THC_M_PRT_DEVINT_CFG_2_THC_M_PRT_FTYPE_IGNORE |
+		       THC_M_PRT_DEVINT_CFG_2_THC_M_PRT_FTYPE_VAL;
+		regmap_write_bits(dev->thc_regmap, THC_M_PRT_DEVINT_CFG_2_OFFSET,
+				  mask, mbits);
+	}
+}
+EXPORT_SYMBOL_NS_GPL(thc_interrupt_config, "INTEL_THC");
+
+/**
+ * thc_int_trigger_type_select - Select THC interrupt trigger type
+ *
+ * @dev: the pointer of THC private device context
+ * @edge_trigger: determine the interrupt is edge triggered or level triggered
+ */
+void thc_int_trigger_type_select(struct thc_device *dev, bool edge_trigger)
+{
+	regmap_write_bits(dev->thc_regmap, THC_M_PRT_TSEQ_CNTRL_1_OFFSET,
+			  THC_M_PRT_TSEQ_CNTRL_1_INT_EDG_DET_EN,
+			  edge_trigger ? THC_M_PRT_TSEQ_CNTRL_1_INT_EDG_DET_EN : 0);
+}
+EXPORT_SYMBOL_NS_GPL(thc_int_trigger_type_select, "INTEL_THC");
+
+/**
+ * thc_interrupt_enable - Enable or disable THC interrupt
+ *
+ * @dev: the pointer of THC private device context
+ * @int_enable: the flag to control THC interrupt enable or disable
+ */
+void thc_interrupt_enable(struct thc_device *dev, bool int_enable)
+{
+	regmap_write_bits(dev->thc_regmap, THC_M_PRT_INT_EN_OFFSET,
+			  THC_M_PRT_INT_EN_GBL_INT_EN,
+			  int_enable ? THC_M_PRT_INT_EN_GBL_INT_EN : 0);
+}
+EXPORT_SYMBOL_NS_GPL(thc_interrupt_enable, "INTEL_THC");
+
+/**
+ * thc_interrupt_quiesce - Quiesce or unquiesce external touch device interrupt
+ *
+ * @dev: the pointer of THC private device context
+ * @int_quiesce: the flag to determine quiesce or unquiesce device interrupt
+ *
+ * Return: 0 on success, other error codes on failed
+ */
+int thc_interrupt_quiesce(const struct thc_device *dev, bool int_quiesce)
+{
+	u32 ctrl;
+	int ret;
+
+	regmap_read(dev->thc_regmap, THC_M_PRT_CONTROL_OFFSET, &ctrl);
+	if (!(ctrl & THC_M_PRT_CONTROL_THC_DEVINT_QUIESCE_EN) && !int_quiesce) {
+		dev_warn(dev->dev, "THC interrupt already unquiesce\n");
+		return 0;
+	}
+
+	if ((ctrl & THC_M_PRT_CONTROL_THC_DEVINT_QUIESCE_EN) && int_quiesce) {
+		dev_warn(dev->dev, "THC interrupt already quiesce\n");
+		return 0;
+	}
+
+	/* Quiesce device interrupt - Set quiesce bit and waiting for THC HW to ACK */
+	if (int_quiesce)
+		regmap_write_bits(dev->thc_regmap, THC_M_PRT_CONTROL_OFFSET,
+				  THC_M_PRT_CONTROL_THC_DEVINT_QUIESCE_EN,
+				  THC_M_PRT_CONTROL_THC_DEVINT_QUIESCE_EN);
+
+	ret = regmap_read_poll_timeout(dev->thc_regmap, THC_M_PRT_CONTROL_OFFSET, ctrl,
+				       ctrl & THC_M_PRT_CONTROL_THC_DEVINT_QUIESCE_HW_STS,
+				       THC_REGMAP_POLLING_INTERVAL_US, THC_QUIESCE_EN_TIMEOUT_US);
+	if (ret) {
+		dev_err_once(dev->dev,
+			     "Timeout while waiting THC idle, target quiesce state = %s\n",
+			     int_quiesce ? "true" : "false");
+		return ret;
+	}
+
+	/* Unquiesce device interrupt - Clear the quiesce bit */
+	if (!int_quiesce)
+		regmap_write_bits(dev->thc_regmap, THC_M_PRT_CONTROL_OFFSET,
+				  THC_M_PRT_CONTROL_THC_DEVINT_QUIESCE_EN, 0);
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(thc_interrupt_quiesce, "INTEL_THC");
+
+/**
+ * thc_set_pio_interrupt_support - Determine PIO interrupt is supported or not
+ *
+ * @dev: The pointer of THC private device context
+ * @supported: The flag to determine enabling PIO interrupt or not
+ */
+void thc_set_pio_interrupt_support(struct thc_device *dev, bool supported)
+{
+	dev->pio_int_supported = supported;
+}
+EXPORT_SYMBOL_NS_GPL(thc_set_pio_interrupt_support, "INTEL_THC");
+
 MODULE_AUTHOR("Xinpeng Sun <xinpeng.sun@intel.com>");
 MODULE_AUTHOR("Even Xu <even.xu@intel.com>");
 
