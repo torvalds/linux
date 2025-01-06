@@ -154,16 +154,15 @@ void fnic_fcoe_process_vlan_resp(struct fnic *fnic, struct fip_header *fiph)
 			vlan->state = FIP_VLAN_AVAIL;
 			list_add_tail(&vlan->list, &fnic->vlan_list);
 			break;
-		} else {
-			FNIC_FIP_DBG(KERN_INFO, fnic->host,
-				     fnic->fnic_num,
-				     "Invalid descriptor type(%x) in VLan response\n",
-				     vlan_desc->fd_desc.fip_dtype);
-			/*
-			 * Note : received a type=2 descriptor here i.e. FIP
-			 * MAC Address Descriptor
-			 */
 		}
+		FNIC_FIP_DBG(KERN_INFO, fnic->host,
+			     fnic->fnic_num,
+			     "Invalid descriptor type(%x) in VLan response\n",
+			     vlan_desc->fd_desc.fip_dtype);
+		/*
+		 * Note : received a type=2 descriptor here i.e. FIP
+		 * MAC Address Descriptor
+		 */
 		cur_desc += vlan_desc->fd_desc.fip_dlen;
 		desc_len -= vlan_desc->fd_desc.fip_dlen;
 	}
