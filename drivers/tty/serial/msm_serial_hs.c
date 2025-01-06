@@ -2709,7 +2709,7 @@ static int msm_hs_startup(struct uart_port *uport)
 	tx->dma_in_flight = false;
 	MSM_HS_DBG("%s():desc usage flag 0x%lx\n", __func__, rx->queued_flag);
 	timer_setup(&(tx->tx_timeout_timer),
-			tx_timeout_handler, 0);
+			tx_timeout_handler, TIMER_IRQSAFE);
 
 	/* Enable reading the current CTS, no harm even if CTS is ignored */
 	msm_uport->imr_reg |= UARTDM_ISR_CURRENT_CTS_BMSK;
