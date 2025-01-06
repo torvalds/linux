@@ -3,6 +3,7 @@
 
 #include <linux/hid.h>
 #include <linux/input.h>
+#include <linux/pm_runtime.h>
 
 #include "quickspi-dev.h"
 #include "quickspi-hid.h"
@@ -54,6 +55,10 @@ static int quickspi_hid_raw_request(struct hid_device *hid,
 	struct quickspi_device *qsdev = hid->driver_data;
 	int ret = 0;
 
+	ret = pm_runtime_resume_and_get(qsdev->dev);
+	if (ret)
+		return ret;
+
 	switch (reqtype) {
 	case HID_REQ_GET_REPORT:
 		ret = quickspi_get_report(qsdev, rtype, reportnum, buf);
@@ -65,6 +70,9 @@ static int quickspi_hid_raw_request(struct hid_device *hid,
 		dev_err_once(qsdev->dev, "Not supported request type %d\n", reqtype);
 		break;
 	}
+
+	pm_runtime_mark_last_busy(qsdev->dev);
+	pm_runtime_put_autosuspend(qsdev->dev);
 
 	return ret;
 }

@@ -9,6 +9,7 @@
 #include <linux/interrupt.h>
 #include <linux/irqreturn.h>
 #include <linux/pci.h>
+#include <linux/pm_runtime.h>
 
 #include "intel-thc-dev.h"
 #include "intel-thc-hw.h"
@@ -281,6 +282,10 @@ static irqreturn_t quickspi_irq_thread_handler(int irq, void *dev_id)
 	if (qsdev->state == QUICKSPI_DISABLED)
 		return IRQ_HANDLED;
 
+	ret = pm_runtime_resume_and_get(qsdev->dev);
+	if (ret)
+		return IRQ_HANDLED;
+
 	int_mask = thc_interrupt_handler(qsdev->thc_hw);
 
 	if (int_mask & BIT(THC_FATAL_ERR_INT) || int_mask & BIT(THC_TXN_ERR_INT)) {
@@ -317,6 +322,9 @@ end:
 	if (err_recover)
 		if (try_recover(qsdev))
 			qsdev->state = QUICKSPI_DISABLED;
+
+	pm_runtime_mark_last_busy(qsdev->dev);
+	pm_runtime_put_autosuspend(qsdev->dev);
 
 	return IRQ_HANDLED;
 }
@@ -645,6 +653,13 @@ static int quickspi_probe(struct pci_dev *pdev,
 
 	qsdev->state = QUICKSPI_ENABLED;
 
+	/* Enable runtime power management */
+	pm_runtime_use_autosuspend(qsdev->dev);
+	pm_runtime_set_autosuspend_delay(qsdev->dev, DEFAULT_AUTO_SUSPEND_DELAY_MS);
+	pm_runtime_mark_last_busy(qsdev->dev);
+	pm_runtime_put_noidle(qsdev->dev);
+	pm_runtime_put_autosuspend(qsdev->dev);
+
 	dev_dbg(&pdev->dev, "QuickSPI probe success\n");
 
 	return 0;
@@ -680,6 +695,8 @@ static void quickspi_remove(struct pci_dev *pdev)
 	quickspi_hid_remove(qsdev);
 	quickspi_dma_deinit(qsdev);
 
+	pm_runtime_get_noresume(qsdev->dev);
+
 	quickspi_dev_deinit(qsdev);
 
 	pcim_iounmap_regions(pdev, BIT(0));
@@ -709,6 +726,234 @@ static void quickspi_shutdown(struct pci_dev *pdev)
 	quickspi_dev_deinit(qsdev);
 }
 
+static int quickspi_suspend(struct device *device)
+{
+	struct pci_dev *pdev = to_pci_dev(device);
+	struct quickspi_device *qsdev;
+	int ret;
+
+	qsdev = pci_get_drvdata(pdev);
+	if (!qsdev)
+		return -ENODEV;
+
+	ret = quickspi_set_power(qsdev, HIDSPI_SLEEP);
+	if (ret)
+		return ret;
+
+	ret = thc_interrupt_quiesce(qsdev->thc_hw, true);
+	if (ret)
+		return ret;
+
+	thc_interrupt_enable(qsdev->thc_hw, false);
+
+	thc_dma_unconfigure(qsdev->thc_hw);
+
+	return 0;
+}
+
+static int quickspi_resume(struct device *device)
+{
+	struct pci_dev *pdev = to_pci_dev(device);
+	struct quickspi_device *qsdev;
+	int ret;
+
+	qsdev = pci_get_drvdata(pdev);
+	if (!qsdev)
+		return -ENODEV;
+
+	ret = thc_port_select(qsdev->thc_hw, THC_PORT_TYPE_SPI);
+	if (ret)
+		return ret;
+
+	thc_interrupt_config(qsdev->thc_hw);
+
+	thc_interrupt_enable(qsdev->thc_hw, true);
+
+	ret = thc_dma_configure(qsdev->thc_hw);
+	if (ret)
+		return ret;
+
+	ret = thc_interrupt_quiesce(qsdev->thc_hw, false);
+	if (ret)
+		return ret;
+
+	ret = quickspi_set_power(qsdev, HIDSPI_ON);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int quickspi_freeze(struct device *device)
+{
+	struct pci_dev *pdev = to_pci_dev(device);
+	struct quickspi_device *qsdev;
+	int ret;
+
+	qsdev = pci_get_drvdata(pdev);
+	if (!qsdev)
+		return -ENODEV;
+
+	ret = thc_interrupt_quiesce(qsdev->thc_hw, true);
+	if (ret)
+		return ret;
+
+	thc_interrupt_enable(qsdev->thc_hw, false);
+
+	thc_dma_unconfigure(qsdev->thc_hw);
+
+	return 0;
+}
+
+static int quickspi_thaw(struct device *device)
+{
+	struct pci_dev *pdev = to_pci_dev(device);
+	struct quickspi_device *qsdev;
+	int ret;
+
+	qsdev = pci_get_drvdata(pdev);
+	if (!qsdev)
+		return -ENODEV;
+
+	ret = thc_dma_configure(qsdev->thc_hw);
+	if (ret)
+		return ret;
+
+	thc_interrupt_enable(qsdev->thc_hw, true);
+
+	ret = thc_interrupt_quiesce(qsdev->thc_hw, false);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int quickspi_poweroff(struct device *device)
+{
+	struct pci_dev *pdev = to_pci_dev(device);
+	struct quickspi_device *qsdev;
+	int ret;
+
+	qsdev = pci_get_drvdata(pdev);
+	if (!qsdev)
+		return -ENODEV;
+
+	ret = thc_interrupt_quiesce(qsdev->thc_hw, true);
+	if (ret)
+		return ret;
+
+	thc_interrupt_enable(qsdev->thc_hw, false);
+
+	thc_ltr_unconfig(qsdev->thc_hw);
+
+	quickspi_dma_deinit(qsdev);
+
+	return 0;
+}
+
+static int quickspi_restore(struct device *device)
+{
+	struct pci_dev *pdev = to_pci_dev(device);
+	struct quickspi_device *qsdev;
+	int ret;
+
+	qsdev = pci_get_drvdata(pdev);
+	if (!qsdev)
+		return -ENODEV;
+
+	ret = thc_interrupt_quiesce(qsdev->thc_hw, true);
+	if (ret)
+		return ret;
+
+	/* Reconfig THC HW when back from hibernate */
+	ret = thc_port_select(qsdev->thc_hw, THC_PORT_TYPE_SPI);
+	if (ret)
+		return ret;
+
+	thc_spi_input_output_address_config(qsdev->thc_hw,
+					    qsdev->input_report_hdr_addr,
+					    qsdev->input_report_bdy_addr,
+					    qsdev->output_report_addr);
+
+	ret = thc_spi_read_config(qsdev->thc_hw, qsdev->spi_freq_val,
+				  qsdev->spi_read_io_mode,
+				  qsdev->spi_read_opcode,
+				  qsdev->spi_packet_size);
+	if (ret)
+		return ret;
+
+	ret = thc_spi_write_config(qsdev->thc_hw, qsdev->spi_freq_val,
+				   qsdev->spi_write_io_mode,
+				   qsdev->spi_write_opcode,
+				   qsdev->spi_packet_size,
+				   qsdev->performance_limit);
+	if (ret)
+		return ret;
+
+	thc_interrupt_config(qsdev->thc_hw);
+
+	thc_interrupt_enable(qsdev->thc_hw, true);
+
+	/* TIC may lose power, needs go through reset flow */
+	ret = reset_tic(qsdev);
+	if (ret)
+		return ret;
+
+	ret = thc_dma_configure(qsdev->thc_hw);
+	if (ret)
+		return ret;
+
+	thc_ltr_config(qsdev->thc_hw,
+		       qsdev->active_ltr_val,
+		       qsdev->low_power_ltr_val);
+
+	thc_change_ltr_mode(qsdev->thc_hw, THC_LTR_MODE_ACTIVE);
+
+	return 0;
+}
+
+static int quickspi_runtime_suspend(struct device *device)
+{
+	struct pci_dev *pdev = to_pci_dev(device);
+	struct quickspi_device *qsdev;
+
+	qsdev = pci_get_drvdata(pdev);
+	if (!qsdev)
+		return -ENODEV;
+
+	thc_change_ltr_mode(qsdev->thc_hw, THC_LTR_MODE_LP);
+
+	pci_save_state(pdev);
+
+	return 0;
+}
+
+static int quickspi_runtime_resume(struct device *device)
+{
+	struct pci_dev *pdev = to_pci_dev(device);
+	struct quickspi_device *qsdev;
+
+	qsdev = pci_get_drvdata(pdev);
+	if (!qsdev)
+		return -ENODEV;
+
+	thc_change_ltr_mode(qsdev->thc_hw, THC_LTR_MODE_ACTIVE);
+
+	return 0;
+}
+
+static const struct dev_pm_ops quickspi_pm_ops = {
+	.suspend = quickspi_suspend,
+	.resume = quickspi_resume,
+	.freeze = quickspi_freeze,
+	.thaw = quickspi_thaw,
+	.poweroff = quickspi_poweroff,
+	.restore = quickspi_restore,
+	.runtime_suspend = quickspi_runtime_suspend,
+	.runtime_resume = quickspi_runtime_resume,
+	.runtime_idle = NULL,
+};
+
 static const struct pci_device_id quickspi_pci_tbl[] = {
 	{PCI_DEVICE_DATA(INTEL, THC_MTL_DEVICE_ID_SPI_PORT1, &mtl), },
 	{PCI_DEVICE_DATA(INTEL, THC_MTL_DEVICE_ID_SPI_PORT2, &mtl), },
@@ -728,6 +973,7 @@ static struct pci_driver quickspi_driver = {
 	.probe = quickspi_probe,
 	.remove = quickspi_remove,
 	.shutdown = quickspi_shutdown,
+	.driver.pm = &quickspi_pm_ops,
 	.driver.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 };
 
