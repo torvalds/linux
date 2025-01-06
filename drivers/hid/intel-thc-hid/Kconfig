@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (c) 2024, Intel Corporation.
+
+menu "Intel THC HID Support"
+	depends on X86_64 && PCI
+
+config INTEL_THC_HID
+	tristate "Intel Touch Host Controller"
+	select HID
+	help
+	  THC (Touch Host Controller) is the name of the IP block in PCH that
+	  interfaces with Touch Devices (ex: touchscreen, touchpad etc.). It
+	  is comprised of 3 key functional blocks: A natively half-duplex
+	  Quad I/O capable SPI master; a low latency I2C interface to support
+	  HIDI2C compliant devices; a hardware sequencer with Read/Write DMA
+	  capability to system memory.
+
+	  Say Y/M here if you want to support Intel THC. If unsure, say N.
+
+endmenu
