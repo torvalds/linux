@@ -1061,6 +1061,235 @@ int thc_interrupt_handler(struct thc_device *dev)
 }
 EXPORT_SYMBOL_NS_GPL(thc_interrupt_handler, "INTEL_THC");
 
+/**
+ * thc_port_select - Set THC port type
+ *
+ * @dev: The pointer of THC private device context
+ * @port_type: THC port type to use for current device
+ *
+ * Return: 0 on success, other error codes on failed.
+ */
+int thc_port_select(struct thc_device *dev, enum thc_port_type port_type)
+{
+	u32 ctrl, mask;
+
+	if (port_type == THC_PORT_TYPE_SPI) {
+		dev_dbg(dev->dev, "Set THC port type to SPI\n");
+		dev->port_type = THC_PORT_TYPE_SPI;
+
+		/* Enable delay of CS assertion and set to default value */
+		ctrl = THC_M_PRT_SPI_DUTYC_CFG_SPI_CSA_CK_DELAY_EN |
+		       FIELD_PREP(THC_M_PRT_SPI_DUTYC_CFG_SPI_CSA_CK_DELAY_VAL,
+				  THC_CSA_CK_DELAY_VAL_DEFAULT);
+		mask = THC_M_PRT_SPI_DUTYC_CFG_SPI_CSA_CK_DELAY_EN |
+		       THC_M_PRT_SPI_DUTYC_CFG_SPI_CSA_CK_DELAY_VAL;
+		regmap_write_bits(dev->thc_regmap, THC_M_PRT_SPI_DUTYC_CFG_OFFSET,
+				  mask, ctrl);
+	} else if (port_type == THC_PORT_TYPE_I2C) {
+		dev_dbg(dev->dev, "Set THC port type to I2C\n");
+		dev->port_type = THC_PORT_TYPE_I2C;
+
+		/* Set THC transition arbitration policy to frame boundary for I2C */
+		ctrl = FIELD_PREP(THC_M_PRT_CONTROL_THC_ARB_POLICY,
+				  THC_ARB_POLICY_FRAME_BOUNDARY);
+		mask = THC_M_PRT_CONTROL_THC_ARB_POLICY;
+
+		regmap_write_bits(dev->thc_regmap, THC_M_PRT_CONTROL_OFFSET, mask, ctrl);
+	} else {
+		dev_err(dev->dev, "unsupported THC port type: %d\n", port_type);
+		return -EINVAL;
+	}
+
+	ctrl = FIELD_PREP(THC_M_PRT_CONTROL_PORT_TYPE, port_type);
+	mask = THC_M_PRT_CONTROL_PORT_TYPE;
+
+	regmap_write_bits(dev->thc_regmap, THC_M_PRT_CONTROL_OFFSET, mask, ctrl);
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(thc_port_select, "INTEL_THC");
+
+#define THC_SPI_FREQUENCY_7M	7812500
+#define THC_SPI_FREQUENCY_15M	15625000
+#define THC_SPI_FREQUENCY_17M	17857100
+#define THC_SPI_FREQUENCY_20M	20833000
+#define THC_SPI_FREQUENCY_25M	25000000
+#define THC_SPI_FREQUENCY_31M	31250000
+#define THC_SPI_FREQUENCY_41M	41666700
+
+#define THC_SPI_LOW_FREQUENCY	THC_SPI_FREQUENCY_17M
+
+static u8 thc_get_spi_freq_div_val(struct thc_device *dev, u32 spi_freq_val)
+{
+	int frequency[] = {
+		THC_SPI_FREQUENCY_7M,
+		THC_SPI_FREQUENCY_15M,
+		THC_SPI_FREQUENCY_17M,
+		THC_SPI_FREQUENCY_20M,
+		THC_SPI_FREQUENCY_25M,
+		THC_SPI_FREQUENCY_31M,
+		THC_SPI_FREQUENCY_41M,
+	};
+	u8 frequency_div[] = {
+		THC_SPI_FRQ_DIV_2,
+		THC_SPI_FRQ_DIV_1,
+		THC_SPI_FRQ_DIV_7,
+		THC_SPI_FRQ_DIV_6,
+		THC_SPI_FRQ_DIV_5,
+		THC_SPI_FRQ_DIV_4,
+		THC_SPI_FRQ_DIV_3,
+	};
+	int size = ARRAY_SIZE(frequency);
+	u32 closest_freq;
+	u8 freq_div;
+	int i;
+
+	for (i = size - 1; i >= 0; i--)
+		if ((int)spi_freq_val - frequency[i] >= 0)
+			break;
+
+	if (i < 0) {
+		dev_err_once(dev->dev, "Not supported SPI frequency %d\n", spi_freq_val);
+		return THC_SPI_FRQ_RESERVED;
+	}
+
+	closest_freq = frequency[i];
+	freq_div = frequency_div[i];
+
+	dev_dbg(dev->dev,
+		"Setting SPI frequency: spi_freq_val = %u, Closest freq = %u\n",
+		spi_freq_val, closest_freq);
+
+	return freq_div;
+}
+
+/**
+ * thc_spi_read_config - Configure SPI bus read attributes
+ *
+ * @dev: The pointer of THC private device context
+ * @spi_freq_val: SPI read frequecy value
+ * @io_mode: SPI read IO mode
+ * @opcode: Read opcode
+ * @spi_rd_mps: SPI read max packet size
+ *
+ * Return: 0 on success, other error codes on failed.
+ */
+int thc_spi_read_config(struct thc_device *dev, u32 spi_freq_val,
+			u32 io_mode, u32 opcode, u32 spi_rd_mps)
+{
+	bool is_low_freq = false;
+	u32 cfg, mask;
+	u8 freq_div;
+
+	freq_div = thc_get_spi_freq_div_val(dev, spi_freq_val);
+	if (freq_div == THC_SPI_FRQ_RESERVED)
+		return -EINVAL;
+
+	if (spi_freq_val < THC_SPI_LOW_FREQUENCY)
+		is_low_freq = true;
+
+	cfg = FIELD_PREP(THC_M_PRT_SPI_CFG_SPI_TCRF, freq_div) |
+	      FIELD_PREP(THC_M_PRT_SPI_CFG_SPI_TRMODE, io_mode) |
+	      (is_low_freq ? THC_M_PRT_SPI_CFG_SPI_LOW_FREQ_EN : 0) |
+	      FIELD_PREP(THC_M_PRT_SPI_CFG_SPI_RD_MPS, spi_rd_mps);
+	mask = THC_M_PRT_SPI_CFG_SPI_TCRF |
+	       THC_M_PRT_SPI_CFG_SPI_TRMODE |
+	       THC_M_PRT_SPI_CFG_SPI_LOW_FREQ_EN |
+	       THC_M_PRT_SPI_CFG_SPI_RD_MPS;
+
+	regmap_write_bits(dev->thc_regmap,
+			  THC_M_PRT_SPI_CFG_OFFSET, mask, cfg);
+
+	if (io_mode == THC_QUAD_IO)
+		opcode = FIELD_PREP(THC_M_PRT_SPI_ICRRD_OPCODE_SPI_QIO, opcode);
+	else if (io_mode == THC_DUAL_IO)
+		opcode = FIELD_PREP(THC_M_PRT_SPI_ICRRD_OPCODE_SPI_DIO, opcode);
+	else
+		opcode = FIELD_PREP(THC_M_PRT_SPI_ICRRD_OPCODE_SPI_SIO, opcode);
+
+	regmap_write(dev->thc_regmap, THC_M_PRT_SPI_ICRRD_OPCODE_OFFSET, opcode);
+	regmap_write(dev->thc_regmap, THC_M_PRT_SPI_DMARD_OPCODE_OFFSET, opcode);
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(thc_spi_read_config, "INTEL_THC");
+
+/**
+ * thc_spi_write_config - Configure SPI bus write attributes
+ *
+ * @dev: The pointer of THC private device context
+ * @spi_freq_val: SPI write frequecy value
+ * @io_mode: SPI write IO mode
+ * @opcode: Write opcode
+ * @spi_wr_mps: SPI write max packet size
+ * @perf_limit: Performance limitation in unit of 10us
+ *
+ * Return: 0 on success, other error codes on failed.
+ */
+int thc_spi_write_config(struct thc_device *dev, u32 spi_freq_val,
+			 u32 io_mode, u32 opcode, u32 spi_wr_mps,
+			 u32 perf_limit)
+{
+	bool is_low_freq = false;
+	u32 cfg, mask;
+	u8 freq_div;
+
+	freq_div = thc_get_spi_freq_div_val(dev, spi_freq_val);
+	if (freq_div == THC_SPI_FRQ_RESERVED)
+		return -EINVAL;
+
+	if (spi_freq_val < THC_SPI_LOW_FREQUENCY)
+		is_low_freq = true;
+
+	cfg = FIELD_PREP(THC_M_PRT_SPI_CFG_SPI_TCWF, freq_div) |
+	      FIELD_PREP(THC_M_PRT_SPI_CFG_SPI_TWMODE, io_mode) |
+	      (is_low_freq ? THC_M_PRT_SPI_CFG_SPI_LOW_FREQ_EN : 0) |
+	      FIELD_PREP(THC_M_PRT_SPI_CFG_SPI_WR_MPS, spi_wr_mps);
+	mask = THC_M_PRT_SPI_CFG_SPI_TCWF |
+	       THC_M_PRT_SPI_CFG_SPI_TWMODE |
+	       THC_M_PRT_SPI_CFG_SPI_LOW_FREQ_EN |
+	       THC_M_PRT_SPI_CFG_SPI_WR_MPS;
+
+	regmap_write_bits(dev->thc_regmap,
+			  THC_M_PRT_SPI_CFG_OFFSET, mask, cfg);
+
+	if (io_mode == THC_QUAD_IO)
+		opcode = FIELD_PREP(THC_M_PRT_SPI_ICRRD_OPCODE_SPI_QIO, opcode);
+	else if (io_mode == THC_DUAL_IO)
+		opcode = FIELD_PREP(THC_M_PRT_SPI_ICRRD_OPCODE_SPI_DIO, opcode);
+	else
+		opcode = FIELD_PREP(THC_M_PRT_SPI_ICRRD_OPCODE_SPI_SIO, opcode);
+
+	regmap_write(dev->thc_regmap, THC_M_PRT_SPI_WR_OPCODE_OFFSET, opcode);
+
+	dev->perf_limit = perf_limit;
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(thc_spi_write_config, "INTEL_THC");
+
+/**
+ * thc_spi_input_output_address_config - Configure SPI input and output addresses
+ *
+ * @dev: the pointer of THC private device context
+ * @input_hdr_addr: input report header address
+ * @input_bdy_addr: input report body address
+ * @output_addr: output report address
+ */
+void thc_spi_input_output_address_config(struct thc_device *dev, u32 input_hdr_addr,
+					 u32 input_bdy_addr, u32 output_addr)
+{
+	regmap_write(dev->thc_regmap,
+		     THC_M_PRT_DEV_INT_CAUSE_ADDR_OFFSET, input_hdr_addr);
+	regmap_write(dev->thc_regmap,
+		     THC_M_PRT_RD_BULK_ADDR_1_OFFSET, input_bdy_addr);
+	regmap_write(dev->thc_regmap,
+		     THC_M_PRT_RD_BULK_ADDR_2_OFFSET, input_bdy_addr);
+	regmap_write(dev->thc_regmap,
+		     THC_M_PRT_WR_BULK_ADDR_OFFSET, output_addr);
+}
+EXPORT_SYMBOL_NS_GPL(thc_spi_input_output_address_config, "INTEL_THC");
+
 MODULE_AUTHOR("Xinpeng Sun <xinpeng.sun@intel.com>");
 MODULE_AUTHOR("Even Xu <even.xu@intel.com>");
 

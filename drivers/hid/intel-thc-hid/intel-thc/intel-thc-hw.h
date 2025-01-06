@@ -636,6 +636,20 @@
 
 #define THC_M_PRT_SW_DMA_PRD_TABLE_LEN_THC_M_PRT_SW_DMA_PRD_TABLE_LEN	GENMASK(23, 0)
 
+#define THC_M_PRT_SPI_DUTYC_CFG_SPI_CSA_CK_DELAY_VAL		GENMASK(3, 0)
+#define THC_M_PRT_SPI_DUTYC_CFG_SPI_CSA_CK_DELAY_EN		BIT(25)
+
+/* CS Assertion delay default value */
+#define THC_CSA_CK_DELAY_VAL_DEFAULT		4
+
+/* ARB policy definition */
+/* Arbiter switches on packet boundary */
+#define THC_ARB_POLICY_PACKET_BOUNDARY		0
+/* Arbiter switches on Micro Frame boundary */
+#define THC_ARB_POLICY_UFRAME_BOUNDARY		1
+/* Arbiter switches on Frame boundary */
+#define THC_ARB_POLICY_FRAME_BOUNDARY		2
+
 #define THC_REGMAP_POLLING_INTERVAL_US		10 /* 10us */
 #define THC_PIO_DONE_TIMEOUT_US			USEC_PER_SEC /* 1s */
 
@@ -695,6 +709,44 @@ enum thc_pio_opcode {
 	THC_PIO_OP_I2C_TIC_READ = 0x14,
 	THC_PIO_OP_I2C_TIC_WRITE = 0x18,
 	THC_PIO_OP_I2C_TIC_WRITE_AND_READ = 0x1C,
+};
+
+/**
+ * THC SPI IO mode
+ * @THC_SINGLE_IO: single IO mode, 1(opcode) - 1(address) - 1(data)
+ * @THC_DUAL_IO: dual IO mode, 1(opcode) - 2(address) - 2(data)
+ * @THC_QUAD_IO: quad IO mode, 1(opcode) - 4(address) - 4(data)
+ * @THC_QUAD_PARALLEL_IO: parallel quad IO mode, 4(opcode) - 4(address) - 4(data)
+ */
+enum thc_spi_iomode {
+	THC_SINGLE_IO = 0,
+	THC_DUAL_IO = 1,
+	THC_QUAD_IO = 2,
+	THC_QUAD_PARALLEL_IO = 3,
+};
+
+/**
+ * THC SPI frequency divider
+ *
+ * This DIV final value is determined by THC_M_PRT_SPI_CFG_SPI_LOW_FREQ_EN bit.
+ * If THC_M_PRT_SPI_CFG_SPI_LOW_FREQ_EN isn't be set, THC takes the DIV value directly;
+ * If THC_M_PRT_SPI_CFG_SPI_LOW_FREQ_EN is set, THC takes the DIV value multiply by 8.
+ *
+ * For example, if THC input clock is 125MHz:
+ * When THC_M_PRT_SPI_CFG_SPI_LOW_FREQ_EN isn't set, THC_SPI_FRQ_DIV_3 means DIV is 3,
+ * THC final clock is 125 / 3 = 41.667MHz;
+ * When THC_M_PRT_SPI_CFG_SPI_LOW_FREQ_EN is set, THC_SPI_FRQ_DIV_3 means DIV is 3 * 8,
+ * THC final clock is 125 / (3 * 8) = 5.208MHz;
+ */
+enum thc_spi_frq_div {
+	THC_SPI_FRQ_RESERVED = 0,
+	THC_SPI_FRQ_DIV_1 = 1,
+	THC_SPI_FRQ_DIV_2 = 2,
+	THC_SPI_FRQ_DIV_3 = 3,
+	THC_SPI_FRQ_DIV_4 = 4,
+	THC_SPI_FRQ_DIV_5 = 5,
+	THC_SPI_FRQ_DIV_6 = 6,
+	THC_SPI_FRQ_DIV_7 = 7,
 };
 
 #endif /* _INTEL_THC_HW_H_  */
