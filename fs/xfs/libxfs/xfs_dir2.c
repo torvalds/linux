@@ -197,7 +197,7 @@ xfs_da_unmount(
 /*
  * Return 1 if directory contains only "." and "..".
  */
-int
+static bool
 xfs_dir_isempty(
 	xfs_inode_t	*dp)
 {
@@ -205,9 +205,9 @@ xfs_dir_isempty(
 
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
 	if (dp->i_disk_size == 0)	/* might happen during shutdown. */
-		return 1;
+		return true;
 	if (dp->i_disk_size > xfs_inode_data_fork_size(dp))
-		return 0;
+		return false;
 	sfp = dp->i_df.if_data;
 	return !sfp->count;
 }
