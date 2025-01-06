@@ -1449,23 +1449,46 @@ int snd_soc_runtime_set_dai_fmt(struct snd_soc_pcm_runtime *rtd,
 {
 	struct snd_soc_dai *cpu_dai;
 	struct snd_soc_dai *codec_dai;
+	unsigned int ext_fmt;
 	unsigned int i;
 	int ret;
 
 	if (!dai_fmt)
 		return 0;
 
+	/*
+	 * dai_fmt has 4 types
+	 *	1. SND_SOC_DAIFMT_FORMAT_MASK
+	 *	2. SND_SOC_DAIFMT_CLOCK
+	 *	3. SND_SOC_DAIFMT_INV
+	 *	4. SND_SOC_DAIFMT_CLOCK_PROVIDER
+	 *
+	 * 4. CLOCK_PROVIDER is set from Codec perspective in dai_fmt. So it will be flipped
+	 * when this function calls set_fmt() for CPU (CBx_CFx -> Bx_Cx). see below.
+	 * This mean, we can't set CPU/Codec both are clock consumer for example.
+	 * New idea handles 4. in each dai->ext_fmt. It can keep compatibility.
+	 *
+	 * Legacy
+	 *	dai_fmt  includes 1, 2, 3, 4
+	 *
+	 * New idea
+	 *	dai_fmt  includes 1, 2, 3
+	 *	ext_fmt  includes 4
+	 */
 	for_each_rtd_codec_dais(rtd, i, codec_dai) {
-		ret = snd_soc_dai_set_fmt(codec_dai, dai_fmt);
+		ext_fmt = rtd->dai_link->codecs[i].ext_fmt;
+		ret = snd_soc_dai_set_fmt(codec_dai, dai_fmt | ext_fmt);
 		if (ret != 0 && ret != -ENOTSUPP)
 			return ret;
 	}
 
 	/* Flip the polarity for the "CPU" end of link */
+	/* Will effect only for 4. SND_SOC_DAIFMT_CLOCK_PROVIDER */
 	dai_fmt = snd_soc_daifmt_clock_provider_flipped(dai_fmt);
 
 	for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
-		ret = snd_soc_dai_set_fmt(cpu_dai, dai_fmt);
+		ext_fmt = rtd->dai_link->cpus[i].ext_fmt;
+		ret = snd_soc_dai_set_fmt(cpu_dai, dai_fmt | ext_fmt);
 		if (ret != 0 && ret != -ENOTSUPP)
 			return ret;
 	}
