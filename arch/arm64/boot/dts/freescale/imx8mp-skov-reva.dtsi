@@ -215,7 +215,7 @@
 &eqos {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_eqos>;
-	phy-mode = "rgmii-txid";
+	phy-mode = "rgmii-rxid";
 	status = "okay";
 
 	fixed-link {
