@@ -105,14 +105,30 @@ static int v9fs_lookup_revalidate(struct inode *dir, const struct qstr *name,
 	return __v9fs_lookup_revalidate(dentry, flags);
 }
 
+static bool v9fs_dentry_unalias_trylock(const struct dentry *dentry)
+{
+	struct v9fs_session_info *v9ses = v9fs_dentry2v9ses(dentry);
+	return down_write_trylock(&v9ses->rename_sem);
+}
+
+static void v9fs_dentry_unalias_unlock(const struct dentry *dentry)
+{
+	struct v9fs_session_info *v9ses = v9fs_dentry2v9ses(dentry);
+	up_write(&v9ses->rename_sem);
+}
+
 const struct dentry_operations v9fs_cached_dentry_operations = {
 	.d_revalidate = v9fs_lookup_revalidate,
 	.d_weak_revalidate = __v9fs_lookup_revalidate,
 	.d_delete = v9fs_cached_dentry_delete,
 	.d_release = v9fs_dentry_release,
+	.d_unalias_trylock = v9fs_dentry_unalias_trylock,
+	.d_unalias_unlock = v9fs_dentry_unalias_unlock,
 };
 
 const struct dentry_operations v9fs_dentry_operations = {
 	.d_delete = always_delete_dentry,
 	.d_release = v9fs_dentry_release,
+	.d_unalias_trylock = v9fs_dentry_unalias_trylock,
+	.d_unalias_unlock = v9fs_dentry_unalias_unlock,
 };
