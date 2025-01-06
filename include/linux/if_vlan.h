@@ -176,6 +176,7 @@ struct netpoll;
  *	@real_dev_addr: address of underlying netdevice
  *	@dent: proc dir entry
  *	@vlan_pcpu_stats: ptr to percpu rx stats
+ *	@netpoll: netpoll instance "propagated" down to @real_dev
  */
 struct vlan_dev_priv {
 	unsigned int				nr_ingress_mappings;
@@ -414,6 +415,8 @@ static inline int __vlan_insert_tag(struct sk_buff *skb,
  * doesn't have to worry about freeing the original skb.
  *
  * Does not change skb->protocol so this function can be used during receive.
+ *
+ * Return: modified @skb on success, NULL on error (@skb is freed).
  */
 static inline struct sk_buff *vlan_insert_inner_tag(struct sk_buff *skb,
 						    __be16 vlan_proto,
@@ -443,6 +446,8 @@ static inline struct sk_buff *vlan_insert_inner_tag(struct sk_buff *skb,
  * doesn't have to worry about freeing the original skb.
  *
  * Does not change skb->protocol so this function can be used during receive.
+ *
+ * Return: modified @skb on success, NULL on error (@skb is freed).
  */
 static inline struct sk_buff *vlan_insert_tag(struct sk_buff *skb,
 					      __be16 vlan_proto, u16 vlan_tci)
@@ -461,6 +466,8 @@ static inline struct sk_buff *vlan_insert_tag(struct sk_buff *skb,
  *
  * Following the skb_unshare() example, in case of error, the calling function
  * doesn't have to worry about freeing the original skb.
+ *
+ * Return: modified @skb on success, NULL on error (@skb is freed).
  */
 static inline struct sk_buff *vlan_insert_tag_set_proto(struct sk_buff *skb,
 							__be16 vlan_proto,
@@ -582,7 +589,7 @@ static inline int vlan_get_tag(const struct sk_buff *skb, u16 *vlan_tci)
 }
 
 /**
- * vlan_get_protocol - get protocol EtherType.
+ * __vlan_get_protocol_offset() - get protocol EtherType.
  * @skb: skbuff to query
  * @type: first vlan protocol
  * @mac_offset: MAC offset
@@ -808,9 +815,11 @@ static inline netdev_features_t vlan_features_check(struct sk_buff *skb,
  * @h1: Pointer to vlan header
  * @h2: Pointer to vlan header
  *
- * Compare two vlan headers, returns 0 if equal.
+ * Compare two vlan headers.
  *
  * Please note that alignment of h1 & h2 are only guaranteed to be 16 bits.
+ *
+ * Return: 0 if equal, arbitrary non-zero value if not equal.
  */
 static inline unsigned long compare_vlan_header(const struct vlan_hdr *h1,
 						const struct vlan_hdr *h2)
