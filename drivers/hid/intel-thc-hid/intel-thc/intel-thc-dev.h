@@ -6,6 +6,9 @@
 
 #include <linux/cdev.h>
 #include <linux/mutex.h>
+#include <linux/workqueue.h>
+
+#include "intel-thc-dma.h"
 
 #define THC_REGMAP_COMMON_OFFSET  0x10
 #define THC_REGMAP_MMIO_OFFSET    0x1000
@@ -27,6 +30,12 @@ enum thc_port_type {
  * @thc_bus_lock: mutex locker for THC config
  * @port_type: port type of THC port instance
  * @pio_int_supported: PIO interrupt supported flag
+ * @dma_ctx: DMA specific data
+ * @write_complete_wait: signal event for DMA write complete
+ * @swdma_complete_wait: signal event for SWDMA sequence complete
+ * @write_done: bool value that indicates if DMA write is done
+ * @swdma_done: bool value that indicates if SWDMA swquence is done
+ * @perf_limit: the delay between read operation and write operation
  */
 struct thc_device {
 	struct device *dev;
@@ -35,6 +44,15 @@ struct thc_device {
 	struct mutex thc_bus_lock;
 	enum thc_port_type port_type;
 	bool pio_int_supported;
+
+	struct thc_dma_context *dma_ctx;
+
+	wait_queue_head_t write_complete_wait;
+	wait_queue_head_t swdma_complete_wait;
+	bool write_done;
+	bool swdma_done;
+
+	u32 perf_limit;
 };
 
 struct thc_device *thc_dev_init(struct device *device, void __iomem *mem_addr);

@@ -211,6 +211,14 @@ struct thc_device *thc_dev_init(struct device *device, void __iomem *mem_addr)
 	thc_clear_state(thc_dev);
 
 	mutex_init(&thc_dev->thc_bus_lock);
+	init_waitqueue_head(&thc_dev->write_complete_wait);
+	init_waitqueue_head(&thc_dev->swdma_complete_wait);
+
+	thc_dev->dma_ctx = thc_dma_init(thc_dev);
+	if (!thc_dev->dma_ctx) {
+		dev_err_once(device, "DMA context init failed\n");
+		return ERR_PTR(-ENOMEM);
+	}
 
 	return thc_dev;
 }

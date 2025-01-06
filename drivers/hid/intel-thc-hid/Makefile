@@ -7,5 +7,6 @@
 
 obj-$(CONFIG_INTEL_THC_HID) += intel-thc.o
 intel-thc-objs += intel-thc/intel-thc-dev.o
+intel-thc-objs += intel-thc/intel-thc-dma.o
 
 ccflags-y += -I $(src)/intel-thc
