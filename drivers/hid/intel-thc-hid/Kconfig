@@ -28,4 +28,15 @@ config INTEL_QUICKSPI
 
 	  Say Y/M here if you want to support Intel QuickSPI. If unsure, say N.
 
+config INTEL_QUICKI2C
+	tristate "Intel QuickI2C driver based on Intel Touch Host Controller"
+	depends on INTEL_THC_HID
+	help
+	  Intel QuickI2C, uses Touch Host Controller (THC) hardware, implements
+	  HIDI2C (HID over I2C) protocol. It configures THC to work in I2C
+	  mode, and controls THC hardware sequencer to accelerate HIDI2C
+	  transaction flow.
+
+	  Say Y/M here if you want to support Intel QuickI2C. If unsure, say N.
+
 endmenu

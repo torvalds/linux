@@ -14,4 +14,7 @@ intel-quickspi-objs += intel-quickspi/pci-quickspi.o
 intel-quickspi-objs += intel-quickspi/quickspi-hid.o
 intel-quickspi-objs += intel-quickspi/quickspi-protocol.o
 
+obj-$(CONFIG_INTEL_QUICKI2C) += intel-quicki2c.o
+intel-quicki2c-objs += intel-quicki2c/pci-quicki2c.o
+
 ccflags-y += -I $(src)/intel-thc
