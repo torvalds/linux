@@ -1688,9 +1688,42 @@ static int parse_stat_value(const char *str, enum stat_id id, struct verif_stats
 		st->stats[id] = val;
 		break;
 	}
-	case PROG_TYPE:
-	case ATTACH_TYPE:
+	case PROG_TYPE: {
+		enum bpf_prog_type prog_type = 0;
+		const char *type;
+
+		while ((type = libbpf_bpf_prog_type_str(prog_type)))  {
+			if (strcmp(type, str) == 0) {
+				st->stats[id] = prog_type;
+				break;
+			}
+			prog_type++;
+		}
+
+		if (!type) {
+			fprintf(stderr, "Unrecognized prog type %s\n", str);
+			return -EINVAL;
+		}
 		break;
+	}
+	case ATTACH_TYPE: {
+		enum bpf_attach_type attach_type = 0;
+		const char *type;
+
+		while ((type = libbpf_bpf_attach_type_str(attach_type)))  {
+			if (strcmp(type, str) == 0) {
+				st->stats[id] = attach_type;
+				break;
+			}
+			attach_type++;
+		}
+
+		if (!type) {
+			fprintf(stderr, "Unrecognized attach type %s\n", str);
+			return -EINVAL;
+		}
+		break;
+	}
 	default:
 		fprintf(stderr, "Unrecognized stat #%d\n", id);
 		return -EINVAL;
