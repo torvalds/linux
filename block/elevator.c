@@ -547,14 +547,6 @@ void elv_unregister(struct elevator_type *e)
 }
 EXPORT_SYMBOL_GPL(elv_unregister);
 
-static inline bool elv_support_iosched(struct request_queue *q)
-{
-	if (!queue_is_mq(q) ||
-	    (q->tag_set->flags & BLK_MQ_F_NO_SCHED))
-		return false;
-	return true;
-}
-
 /*
  * For single queue devices, default to using mq-deadline. If we have multiple
  * queues or mq-deadline is not available, default to "none".
@@ -579,9 +571,6 @@ void elevator_init_mq(struct request_queue *q)
 {
 	struct elevator_type *e;
 	int err;
-
-	if (!elv_support_iosched(q))
-		return;
 
 	WARN_ON_ONCE(blk_queue_registered(q));
 
@@ -714,9 +703,6 @@ void elv_iosched_load_module(struct gendisk *disk, const char *buf,
 	struct elevator_type *found;
 	const char *name;
 
-	if (!elv_support_iosched(disk->queue))
-		return;
-
 	strscpy(elevator_name, buf, sizeof(elevator_name));
 	name = strstrip(elevator_name);
 
@@ -734,9 +720,6 @@ ssize_t elv_iosched_store(struct gendisk *disk, const char *buf,
 	char elevator_name[ELV_NAME_MAX];
 	int ret;
 
-	if (!elv_support_iosched(disk->queue))
-		return count;
-
 	strscpy(elevator_name, buf, sizeof(elevator_name));
 	ret = elevator_change(disk->queue, strstrip(elevator_name));
 	if (!ret)
@@ -750,9 +733,6 @@ ssize_t elv_iosched_show(struct gendisk *disk, char *name)
 	struct elevator_queue *eq = q->elevator;
 	struct elevator_type *cur = NULL, *e;
 	int len = 0;
-
-	if (!elv_support_iosched(q))
-		return sprintf(name, "none\n");
 
 	if (!q->elevator) {
 		len += sprintf(name+len, "[none] ");

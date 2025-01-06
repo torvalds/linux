@@ -1251,7 +1251,6 @@ static int apple_nvme_alloc_tagsets(struct apple_nvme *anv)
 	anv->admin_tagset.timeout = NVME_ADMIN_TIMEOUT;
 	anv->admin_tagset.numa_node = NUMA_NO_NODE;
 	anv->admin_tagset.cmd_size = sizeof(struct apple_nvme_iod);
-	anv->admin_tagset.flags = BLK_MQ_F_NO_SCHED;
 	anv->admin_tagset.driver_data = &anv->adminq;
 
 	ret = blk_mq_alloc_tag_set(&anv->admin_tagset);

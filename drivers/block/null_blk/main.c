@@ -1792,7 +1792,7 @@ static int null_init_global_tag_set(void)
 	tag_set.queue_depth = g_hw_queue_depth;
 	tag_set.numa_node = g_home_node;
 	if (g_no_sched)
-		tag_set.flags |= BLK_MQ_F_NO_SCHED;
+		tag_set.flags |= BLK_MQ_F_NO_SCHED_BY_DEFAULT;
 	if (g_shared_tag_bitmap)
 		tag_set.flags |= BLK_MQ_F_TAG_HCTX_SHARED;
 	if (g_blocking)
@@ -1817,7 +1817,7 @@ static int null_setup_tagset(struct nullb *nullb)
 	nullb->tag_set->queue_depth = nullb->dev->hw_queue_depth;
 	nullb->tag_set->numa_node = nullb->dev->home_node;
 	if (nullb->dev->no_sched)
-		nullb->tag_set->flags |= BLK_MQ_F_NO_SCHED;
+		nullb->tag_set->flags |= BLK_MQ_F_NO_SCHED_BY_DEFAULT;
 	if (nullb->dev->shared_tag_bitmap)
 		nullb->tag_set->flags |= BLK_MQ_F_TAG_HCTX_SHARED;
 	if (nullb->dev->blocking)

@@ -676,8 +676,6 @@ enum {
 	BLK_MQ_F_STACKING	= 1 << 2,
 	BLK_MQ_F_TAG_HCTX_SHARED = 1 << 3,
 	BLK_MQ_F_BLOCKING	= 1 << 4,
-	/* Do not allow an I/O scheduler to be configured. */
-	BLK_MQ_F_NO_SCHED	= 1 << 5,
 
 	/*
 	 * Select 'none' during queue registration in case of a single hwq
