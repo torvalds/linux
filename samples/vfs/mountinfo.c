@@ -32,9 +32,9 @@ static bool ext_format;
  * There are no bindings in glibc for listmount() and statmount() (yet),
  * make our own here.
  */
-static int statmount(uint64_t mnt_id, uint64_t mnt_ns_id, uint64_t mask,
-			    struct statmount *buf, size_t bufsize,
-			    unsigned int flags)
+static int statmount(__u64 mnt_id, __u64 mnt_ns_id, __u64 mask,
+		     struct statmount *buf, size_t bufsize,
+		     unsigned int flags)
 {
 	struct mnt_id_req req = {
 		.size = MNT_ID_REQ_SIZE_VER0,
@@ -50,9 +50,8 @@ static int statmount(uint64_t mnt_id, uint64_t mnt_ns_id, uint64_t mask,
 	return syscall(__NR_statmount, &req, buf, bufsize, flags);
 }
 
-static ssize_t listmount(uint64_t mnt_id, uint64_t mnt_ns_id,
-			 uint64_t last_mnt_id, uint64_t list[], size_t num,
-			 unsigned int flags)
+static ssize_t listmount(__u64 mnt_id, __u64 mnt_ns_id, __u64 last_mnt_id,
+			 __u64 list[], size_t num, unsigned int flags)
 {
 	struct mnt_id_req req = {
 		.size = MNT_ID_REQ_SIZE_VER0,
@@ -68,7 +67,7 @@ static ssize_t listmount(uint64_t mnt_id, uint64_t mnt_ns_id,
 	return syscall(__NR_listmount, &req, list, num, flags);
 }
 
-static void show_mnt_attrs(uint64_t flags)
+static void show_mnt_attrs(__u64 flags)
 {
 	printf("%s", flags & MOUNT_ATTR_RDONLY ? "ro" : "rw");
 
@@ -112,7 +111,7 @@ static void show_propagation(struct statmount *sm)
 		printf(" unbindable");
 }
 
-static void show_sb_flags(uint64_t flags)
+static void show_sb_flags(__u64 flags)
 {
 	printf("%s", flags & MS_RDONLY ? "ro" : "rw");
 	if (flags & MS_SYNCHRONOUS)
@@ -125,15 +124,15 @@ static void show_sb_flags(uint64_t flags)
 		printf(",lazytime");
 }
 
-static int dump_mountinfo(uint64_t mnt_id, uint64_t mnt_ns_id)
+static int dump_mountinfo(__u64 mnt_id, __u64 mnt_ns_id)
 {
 	int ret;
 	struct statmount *buf = alloca(STATMOUNT_BUFSIZE);
-	const uint64_t mask = STATMOUNT_SB_BASIC | STATMOUNT_MNT_BASIC |
-				STATMOUNT_PROPAGATE_FROM | STATMOUNT_FS_TYPE |
-				STATMOUNT_MNT_ROOT | STATMOUNT_MNT_POINT |
-				STATMOUNT_MNT_OPTS | STATMOUNT_FS_SUBTYPE |
-				STATMOUNT_SB_SOURCE;
+	const __u64 mask = STATMOUNT_SB_BASIC | STATMOUNT_MNT_BASIC |
+			   STATMOUNT_PROPAGATE_FROM | STATMOUNT_FS_TYPE |
+			   STATMOUNT_MNT_ROOT | STATMOUNT_MNT_POINT |
+			   STATMOUNT_MNT_OPTS | STATMOUNT_FS_SUBTYPE |
+			   STATMOUNT_SB_SOURCE;
 
 	ret = statmount(mnt_id, mnt_ns_id, mask, buf, STATMOUNT_BUFSIZE, 0);
 	if (ret < 0) {
@@ -142,7 +141,7 @@ static int dump_mountinfo(uint64_t mnt_id, uint64_t mnt_ns_id)
 	}
 
 	if (ext_format)
-		printf("0x%lx 0x%lx 0x%llx ", mnt_ns_id, mnt_id, buf->mnt_parent_id);
+		printf("0x%llx 0x%llx 0x%llx ", mnt_ns_id, mnt_id, buf->mnt_parent_id);
 
 	printf("%u %u %u:%u %s %s ", buf->mnt_id_old, buf->mnt_parent_id_old,
 				   buf->sb_dev_major, buf->sb_dev_minor,
@@ -166,10 +165,10 @@ static int dump_mountinfo(uint64_t mnt_id, uint64_t mnt_ns_id)
 	return 0;
 }
 
-static int dump_mounts(uint64_t mnt_ns_id)
+static int dump_mounts(__u64 mnt_ns_id)
 {
-	uint64_t mntid[MAXMOUNTS];
-	uint64_t last_mnt_id = 0;
+	__u64 mntid[MAXMOUNTS];
+	__u64 last_mnt_id = 0;
 	ssize_t count;
 	int i;
 
