@@ -138,7 +138,11 @@ static struct bpf_map *arena_map_alloc(union bpf_attr *attr)
 	INIT_LIST_HEAD(&arena->vma_list);
 	bpf_map_init_from_attr(&arena->map, attr);
 	range_tree_init(&arena->rt);
-	range_tree_set(&arena->rt, 0, attr->max_entries);
+	err = range_tree_set(&arena->rt, 0, attr->max_entries);
+	if (err) {
+		bpf_map_area_free(arena);
+		goto err;
+	}
 	mutex_init(&arena->lock);
 
 	return &arena->map;
