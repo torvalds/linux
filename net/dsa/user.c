@@ -1251,7 +1251,6 @@ static int dsa_user_get_eee(struct net_device *dev, struct ethtool_keee *e)
 {
 	struct dsa_port *dp = dsa_user_to_port(dev);
 	struct dsa_switch *ds = dp->ds;
-	int ret;
 
 	/* Check whether the switch supports EEE */
 	if (!ds->ops->support_eee || !ds->ops->support_eee(ds, dp->index))
@@ -1260,13 +1259,6 @@ static int dsa_user_get_eee(struct net_device *dev, struct ethtool_keee *e)
 	/* Port's PHY and MAC both need to be EEE capable */
 	if (!dev->phydev)
 		return -ENODEV;
-
-	if (!ds->ops->get_mac_eee)
-		return -EOPNOTSUPP;
-
-	ret = ds->ops->get_mac_eee(ds, dp->index, e);
-	if (ret)
-		return ret;
 
 	return phylink_ethtool_get_eee(dp->pl, e);
 }
