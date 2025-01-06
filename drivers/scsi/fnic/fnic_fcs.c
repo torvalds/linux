@@ -27,7 +27,6 @@
 
 #define MAX_RESET_WAIT_COUNT    64
 
-extern struct workqueue_struct *fnic_fip_queue;
 struct workqueue_struct *fnic_event_queue;
 
 static uint8_t FCOE_ALL_FCF_MAC[6] = FC_FCOE_FLOGI_MAC;

@@ -131,6 +131,8 @@ void fnic_fcoe_start_flogi(struct fnic *fnic);
 void fnic_fcoe_process_cvl(struct fnic *fnic, struct fip_header *fiph);
 void fnic_vlan_discovery_timeout(struct fnic *fnic);
 
+extern struct workqueue_struct *fnic_fip_queue;
+
 #ifdef FNIC_DEBUG
 static inline void
 fnic_debug_dump_fip_frame(struct fnic *fnic, struct ethhdr *eth,

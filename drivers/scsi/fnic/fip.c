@@ -7,8 +7,6 @@
 #include "fip.h"
 #include <linux/etherdevice.h>
 
-extern struct workqueue_struct *fnic_fip_queue;
-
 #define FIP_FNIC_RESET_WAIT_COUNT 15
 
 /**
