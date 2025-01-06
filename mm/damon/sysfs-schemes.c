@@ -188,6 +188,7 @@ struct damon_sysfs_stats {
 	unsigned long sz_tried;
 	unsigned long nr_applied;
 	unsigned long sz_applied;
+	unsigned long sz_ops_filter_passed;
 	unsigned long qt_exceeds;
 };
 
@@ -232,6 +233,15 @@ static ssize_t sz_applied_show(struct kobject *kobj,
 	return sysfs_emit(buf, "%lu\n", stats->sz_applied);
 }
 
+static ssize_t sz_ops_filter_passed_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	struct damon_sysfs_stats *stats = container_of(kobj,
+			struct damon_sysfs_stats, kobj);
+
+	return sysfs_emit(buf, "%lu\n", stats->sz_ops_filter_passed);
+}
+
 static ssize_t qt_exceeds_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
 {
@@ -258,6 +268,9 @@ static struct kobj_attribute damon_sysfs_stats_nr_applied_attr =
 static struct kobj_attribute damon_sysfs_stats_sz_applied_attr =
 		__ATTR_RO_MODE(sz_applied, 0400);
 
+static struct kobj_attribute damon_sysfs_stats_sz_ops_filter_passed_attr =
+		__ATTR_RO_MODE(sz_ops_filter_passed, 0400);
+
 static struct kobj_attribute damon_sysfs_stats_qt_exceeds_attr =
 		__ATTR_RO_MODE(qt_exceeds, 0400);
 
@@ -266,6 +279,7 @@ static struct attribute *damon_sysfs_stats_attrs[] = {
 	&damon_sysfs_stats_sz_tried_attr.attr,
 	&damon_sysfs_stats_nr_applied_attr.attr,
 	&damon_sysfs_stats_sz_applied_attr.attr,
+	&damon_sysfs_stats_sz_ops_filter_passed_attr.attr,
 	&damon_sysfs_stats_qt_exceeds_attr.attr,
 	NULL,
 };
@@ -2077,6 +2091,8 @@ void damon_sysfs_schemes_update_stats(
 		sysfs_stats->sz_tried = scheme->stat.sz_tried;
 		sysfs_stats->nr_applied = scheme->stat.nr_applied;
 		sysfs_stats->sz_applied = scheme->stat.sz_applied;
+		sysfs_stats->sz_ops_filter_passed =
+			scheme->stat.sz_ops_filter_passed;
 		sysfs_stats->qt_exceeds = scheme->stat.qt_exceeds;
 	}
 }
