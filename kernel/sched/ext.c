@@ -6406,9 +6406,7 @@ __bpf_kfunc_start_defs();
  * ops.select_cpu(), and ops.dispatch().
  *
  * When called from ops.select_cpu() or ops.enqueue(), it's for direct dispatch
- * and @p must match the task being enqueued. Also, %SCX_DSQ_LOCAL_ON can't be
- * used to target the local DSQ of a CPU other than the enqueueing one. Use
- * ops.select_cpu() to be on the target CPU in the first place.
+ * and @p must match the task being enqueued.
  *
  * When called from ops.select_cpu(), @enq_flags and @dsp_id are stored, and @p
  * will be directly inserted into the corresponding dispatch queue after
