@@ -221,7 +221,29 @@ amdgpu_userqueue_get_doorbell_index(struct amdgpu_userq_mgr *uq_mgr,
 		goto unpin_bo;
 	}
 
-	db_size = sizeof(u64);
+	switch (db_info->queue_type) {
+	case AMDGPU_HW_IP_GFX:
+	case AMDGPU_HW_IP_COMPUTE:
+	case AMDGPU_HW_IP_DMA:
+		db_size = sizeof(u64);
+		break;
+
+	case AMDGPU_HW_IP_VCN_ENC:
+		db_size = sizeof(u32);
+		db_info->doorbell_offset += AMDGPU_NAVI10_DOORBELL64_VCN0_1 << 1;
+		break;
+
+	case AMDGPU_HW_IP_VPE:
+		db_size = sizeof(u32);
+		db_info->doorbell_offset += AMDGPU_NAVI10_DOORBELL64_VPE << 1;
+		break;
+
+	default:
+		DRM_ERROR("[Usermode queues] IP %d not support\n", db_info->queue_type);
+		r = -EINVAL;
+		goto unpin_bo;
+	}
+
 	index = amdgpu_doorbell_index_on_bar(uq_mgr->adev, db_obj->obj,
 					     db_info->doorbell_offset, db_size);
 	DRM_DEBUG_DRIVER("[Usermode queues] doorbell index=%lld\n", index);
