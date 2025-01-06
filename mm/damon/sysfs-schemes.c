@@ -19,6 +19,7 @@ struct damon_sysfs_scheme_region {
 	struct damon_addr_range ar;
 	unsigned int nr_accesses;
 	unsigned int age;
+	unsigned long sz_filter_passed;
 	struct list_head list;
 };
 
@@ -74,6 +75,15 @@ static ssize_t age_show(struct kobject *kobj, struct kobj_attribute *attr,
 	return sysfs_emit(buf, "%u\n", region->age);
 }
 
+static ssize_t sz_filter_passed_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	struct damon_sysfs_scheme_region *region = container_of(kobj,
+			struct damon_sysfs_scheme_region, kobj);
+
+	return sysfs_emit(buf, "%lu\n", region->sz_filter_passed);
+}
+
 static void damon_sysfs_scheme_region_release(struct kobject *kobj)
 {
 	struct damon_sysfs_scheme_region *region = container_of(kobj,
@@ -95,11 +105,15 @@ static struct kobj_attribute damon_sysfs_scheme_region_nr_accesses_attr =
 static struct kobj_attribute damon_sysfs_scheme_region_age_attr =
 		__ATTR_RO_MODE(age, 0400);
 
+static struct kobj_attribute damon_sysfs_scheme_region_sz_filter_passed_attr =
+		__ATTR_RO_MODE(sz_filter_passed, 0400);
+
 static struct attribute *damon_sysfs_scheme_region_attrs[] = {
 	&damon_sysfs_scheme_region_start_attr.attr,
 	&damon_sysfs_scheme_region_end_attr.attr,
 	&damon_sysfs_scheme_region_nr_accesses_attr.attr,
 	&damon_sysfs_scheme_region_age_attr.attr,
+	&damon_sysfs_scheme_region_sz_filter_passed_attr.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(damon_sysfs_scheme_region);
@@ -2105,12 +2119,14 @@ void damon_sysfs_schemes_update_stats(
  * @r:			DAMON region to populate the directory for.
  * @s:			Corresponding scheme.
  * @total_bytes_only:	Whether the request is for bytes update only.
+ * @sz_filter_passed:	Bytes of @r that passed filters of @s.
  *
  * Called from DAMOS walk callback while holding damon_sysfs_lock.
  */
 void damos_sysfs_populate_region_dir(struct damon_sysfs_schemes *sysfs_schemes,
 		struct damon_ctx *ctx, struct damon_target *t,
-		struct damon_region *r, struct damos *s, bool total_bytes_only)
+		struct damon_region *r, struct damos *s, bool total_bytes_only,
+		unsigned long sz_filter_passed)
 {
 	struct damos *scheme;
 	struct damon_sysfs_scheme_regions *sysfs_regions;
@@ -2135,6 +2151,7 @@ void damos_sysfs_populate_region_dir(struct damon_sysfs_schemes *sysfs_schemes,
 	region = damon_sysfs_scheme_region_alloc(r);
 	if (!region)
 		return;
+	region->sz_filter_passed = sz_filter_passed;
 	list_add_tail(&region->list, &sysfs_regions->regions_list);
 	sysfs_regions->nr_regions++;
 	if (kobject_init_and_add(&region->kobj,

@@ -1461,7 +1461,8 @@ static void damon_sysfs_schemes_tried_regions_upd_one(void *data, struct damon_c
 
 	damos_sysfs_populate_region_dir(
 			sysfs_kdamond->contexts->contexts_arr[0]->schemes,
-			ctx, t, r, s, walk_data->total_bytes_only);
+			ctx, t, r, s, walk_data->total_bytes_only,
+			sz_filter_passed);
 }
 
 static int damon_sysfs_update_schemes_tried_regions(
