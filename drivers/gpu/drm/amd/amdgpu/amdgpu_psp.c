@@ -3020,10 +3020,7 @@ static int psp_hw_init(struct amdgpu_ip_block *ip_block)
 	struct amdgpu_device *adev = ip_block->adev;
 
 	mutex_lock(&adev->firmware.mutex);
-	/*
-	 * This sequence is just used on hw_init only once, no need on
-	 * resume.
-	 */
+
 	ret = amdgpu_ucode_init_bo(adev);
 	if (ret)
 		goto failed;
@@ -3147,6 +3144,10 @@ static int psp_resume(struct amdgpu_ip_block *ip_block)
 	}
 
 	mutex_lock(&adev->firmware.mutex);
+
+	ret = amdgpu_ucode_init_bo(adev);
+	if (ret)
+		goto failed;
 
 	ret = psp_hw_start(psp);
 	if (ret)
