@@ -6104,8 +6104,7 @@ int tracing_set_tracer(struct trace_array *tr, const char *buf)
 	if (t->use_max_tr) {
 		local_irq_disable();
 		arch_spin_lock(&tr->max_lock);
-		if (tr->cond_snapshot)
-			ret = -EBUSY;
+		ret = tr->cond_snapshot ? -EBUSY : 0;
 		arch_spin_unlock(&tr->max_lock);
 		local_irq_enable();
 		if (ret)
