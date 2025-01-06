@@ -288,7 +288,7 @@ static unsigned int brcm_ahci_read_id(struct ata_device *dev,
 
 	/* Re-initialize and calibrate the PHY */
 	for (i = 0; i < hpriv->nports; i++) {
-		if (!(hpriv->mask_port_map & (1 << i)))
+		if (ahci_ignore_port(hpriv, i))
 			continue;
 
 		rc = phy_init(hpriv->phys[i]);
