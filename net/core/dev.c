@@ -1946,15 +1946,17 @@ int register_netdevice_notifier_dev_net(struct net_device *dev,
 					struct notifier_block *nb,
 					struct netdev_net_notifier *nn)
 {
+	struct net *net = dev_net(dev);
 	int err;
 
-	rtnl_lock();
-	err = __register_netdevice_notifier_net(dev_net(dev), nb, false);
+	rtnl_net_lock(net);
+	err = __register_netdevice_notifier_net(net, nb, false);
 	if (!err) {
 		nn->nb = nb;
 		list_add(&nn->list, &dev->net_notifier_list);
 	}
-	rtnl_unlock();
+	rtnl_net_unlock(net);
+
 	return err;
 }
 EXPORT_SYMBOL(register_netdevice_notifier_dev_net);
@@ -1963,12 +1965,14 @@ int unregister_netdevice_notifier_dev_net(struct net_device *dev,
 					  struct notifier_block *nb,
 					  struct netdev_net_notifier *nn)
 {
+	struct net *net = dev_net(dev);
 	int err;
 
-	rtnl_lock();
+	rtnl_net_lock(net);
 	list_del(&nn->list);
-	err = __unregister_netdevice_notifier_net(dev_net(dev), nb);
-	rtnl_unlock();
+	err = __unregister_netdevice_notifier_net(net, nb);
+	rtnl_net_unlock(net);
+
 	return err;
 }
 EXPORT_SYMBOL(unregister_netdevice_notifier_dev_net);
