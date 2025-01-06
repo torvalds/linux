@@ -103,50 +103,11 @@ static void mmio_multi_tile_setup(struct xe_device *xe, size_t tile_mmio_size)
 	}
 }
 
-/*
- * On top of all the multi-tile MMIO space there can be a platform-dependent
- * extension for each tile, resulting in a layout like below:
- *
- * .----------------------. <- ext_base + tile_count * tile_mmio_ext_size
- * |         ....         |
- * |----------------------| <- ext_base + 2 * tile_mmio_ext_size
- * | tile1->mmio_ext.regs |
- * |----------------------| <- ext_base + 1 * tile_mmio_ext_size
- * | tile0->mmio_ext.regs |
- * |======================| <- ext_base = tile_count * tile_mmio_size
- * |                      |
- * |       mmio.regs      |
- * |                      |
- * '----------------------' <- 0MB
- *
- * Set up the tile[]->mmio_ext pointers/sizes.
- */
-static void mmio_extension_setup(struct xe_device *xe, size_t tile_mmio_size,
-				 size_t tile_mmio_ext_size)
-{
-	struct xe_tile *tile;
-	void __iomem *regs;
-	u8 id;
-
-	if (!xe->info.has_mmio_ext)
-		return;
-
-	regs = xe->mmio.regs + tile_mmio_size * xe->info.tile_count;
-	for_each_tile(tile, xe, id) {
-		tile->mmio_ext.regs_size = tile_mmio_ext_size;
-		tile->mmio_ext.regs = regs;
-		tile->mmio_ext.tile = tile;
-		regs += tile_mmio_ext_size;
-	}
-}
-
 int xe_mmio_probe_tiles(struct xe_device *xe)
 {
 	size_t tile_mmio_size = SZ_16M;
-	size_t tile_mmio_ext_size = xe->info.tile_mmio_ext_size;
 
 	mmio_multi_tile_setup(xe, tile_mmio_size);
-	mmio_extension_setup(xe, tile_mmio_size, tile_mmio_ext_size);
 
 	return devm_add_action_or_reset(xe->drm.dev, tiles_fini, xe);
 }

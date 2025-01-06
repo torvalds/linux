@@ -20,8 +20,6 @@ struct xe_graphics_desc {
 
 	u64 hw_engine_mask;	/* hardware engines provided by graphics IP */
 
-	u32 tile_mmio_ext_size; /* size of MMIO extension space, per-tile */
-
 	u8 max_remote_tiles:2;
 
 	u8 has_asid:1;
