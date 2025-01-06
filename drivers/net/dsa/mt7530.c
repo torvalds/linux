@@ -3085,12 +3085,6 @@ mt753x_setup(struct dsa_switch *ds)
 	return ret;
 }
 
-static int mt753x_get_mac_eee(struct dsa_switch *ds, int port,
-			      struct ethtool_keee *e)
-{
-	return 0;
-}
-
 static int mt753x_set_mac_eee(struct dsa_switch *ds, int port,
 			      struct ethtool_keee *e)
 {
@@ -3233,7 +3227,6 @@ const struct dsa_switch_ops mt7530_switch_ops = {
 	.port_mirror_del	= mt753x_port_mirror_del,
 	.phylink_get_caps	= mt753x_phylink_get_caps,
 	.support_eee		= dsa_supports_eee,
-	.get_mac_eee		= mt753x_get_mac_eee,
 	.set_mac_eee		= mt753x_set_mac_eee,
 	.conduit_state_change	= mt753x_conduit_state_change,
 	.port_setup_tc		= mt753x_setup_tc,
