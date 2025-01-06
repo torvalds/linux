@@ -2732,7 +2732,7 @@ static unsigned long long convert_num_spec(unsigned int val, int size, struct pr
  * vsnprintf - Format a string and place it in a buffer
  * @buf: The buffer to place the result into
  * @size: The size of the buffer, including the trailing null space
- * @fmt: The format string to use
+ * @fmt_str: The format string to use
  * @args: Arguments for the format string
  *
  * This function generally follows C99 vsnprintf, but has some
@@ -3020,7 +3020,7 @@ EXPORT_SYMBOL(sprintf);
  * vbin_printf - Parse a format string and place args' binary value in a buffer
  * @bin_buf: The buffer to place args' binary value
  * @size: The size of the buffer(by words(32bits), not characters)
- * @fmt: The format string to use
+ * @fmt_str: The format string to use
  * @args: Arguments for the format string
  *
  * The format follows C99 vsnprintf, except %n is ignored, and its argument
@@ -3155,7 +3155,7 @@ EXPORT_SYMBOL_GPL(vbin_printf);
  * bstr_printf - Format a string from binary arguments and place it in a buffer
  * @buf: The buffer to place the result into
  * @size: The size of the buffer, including the trailing null space
- * @fmt: The format string to use
+ * @fmt_str: The format string to use
  * @bin_buf: Binary arguments for the format string
  *
  * This function like C99 vsnprintf, but the difference is that vsnprintf gets
