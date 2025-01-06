@@ -165,9 +165,6 @@ struct blk_mq_alloc_data {
 struct blk_mq_tags *blk_mq_init_tags(unsigned int nr_tags,
 		unsigned int reserved_tags, int node, int alloc_policy);
 void blk_mq_free_tags(struct blk_mq_tags *tags);
-int blk_mq_init_bitmaps(struct sbitmap_queue *bitmap_tags,
-		struct sbitmap_queue *breserved_tags, unsigned int queue_depth,
-		unsigned int reserved, int node, int alloc_policy);
 
 unsigned int blk_mq_get_tag(struct blk_mq_alloc_data *data);
 unsigned long blk_mq_get_tags(struct blk_mq_alloc_data *data, int nr_tags,
