@@ -17,4 +17,15 @@ config INTEL_THC_HID
 
 	  Say Y/M here if you want to support Intel THC. If unsure, say N.
 
+config INTEL_QUICKSPI
+	tristate "Intel QuickSPI driver based on Intel Touch Host Controller"
+	depends on INTEL_THC_HID
+	help
+	  Intel QuickSPI, based on Touch Host Controller (THC), implements
+	  HIDSPI (HID over SPI) protocol. It configures THC to work at SPI
+	  mode, and controls THC hardware sequencer to accelerate HIDSPI
+	  transaction flow.
+
+	  Say Y/M here if you want to support Intel QuickSPI. If unsure, say N.
+
 endmenu
