@@ -8021,31 +8021,45 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 	/* src is a subvolume */
 	if (old_ino == BTRFS_FIRST_FREE_OBJECTID) {
 		ret = btrfs_unlink_subvol(trans, BTRFS_I(old_dir), old_dentry);
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
+			goto out_fail;
+		}
 	} else { /* src is an inode */
 		ret = __btrfs_unlink_inode(trans, BTRFS_I(old_dir),
 					   BTRFS_I(old_dentry->d_inode),
 					   old_name, &old_rename_ctx);
-		if (!ret)
-			ret = btrfs_update_inode(trans, BTRFS_I(old_inode));
-	}
-	if (ret) {
-		btrfs_abort_transaction(trans, ret);
-		goto out_fail;
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
+			goto out_fail;
+		}
+		ret = btrfs_update_inode(trans, BTRFS_I(old_inode));
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
+			goto out_fail;
+		}
 	}
 
 	/* dest is a subvolume */
 	if (new_ino == BTRFS_FIRST_FREE_OBJECTID) {
 		ret = btrfs_unlink_subvol(trans, BTRFS_I(new_dir), new_dentry);
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
+			goto out_fail;
+		}
 	} else { /* dest is an inode */
 		ret = __btrfs_unlink_inode(trans, BTRFS_I(new_dir),
 					   BTRFS_I(new_dentry->d_inode),
 					   new_name, &new_rename_ctx);
-		if (!ret)
-			ret = btrfs_update_inode(trans, BTRFS_I(new_inode));
-	}
-	if (ret) {
-		btrfs_abort_transaction(trans, ret);
-		goto out_fail;
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
+			goto out_fail;
+		}
+		ret = btrfs_update_inode(trans, BTRFS_I(new_inode));
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
+			goto out_fail;
+		}
 	}
 
 	ret = btrfs_add_link(trans, BTRFS_I(new_dir), BTRFS_I(old_inode),
@@ -8281,16 +8295,23 @@ static int btrfs_rename(struct mnt_idmap *idmap,
 
 	if (unlikely(old_ino == BTRFS_FIRST_FREE_OBJECTID)) {
 		ret = btrfs_unlink_subvol(trans, BTRFS_I(old_dir), old_dentry);
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
+			goto out_fail;
+		}
 	} else {
 		ret = __btrfs_unlink_inode(trans, BTRFS_I(old_dir),
 					   BTRFS_I(d_inode(old_dentry)),
 					   &old_fname.disk_name, &rename_ctx);
-		if (!ret)
-			ret = btrfs_update_inode(trans, BTRFS_I(old_inode));
-	}
-	if (ret) {
-		btrfs_abort_transaction(trans, ret);
-		goto out_fail;
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
+			goto out_fail;
+		}
+		ret = btrfs_update_inode(trans, BTRFS_I(old_inode));
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
+			goto out_fail;
+		}
 	}
 
 	if (new_inode) {
@@ -8298,18 +8319,27 @@ static int btrfs_rename(struct mnt_idmap *idmap,
 		if (unlikely(btrfs_ino(BTRFS_I(new_inode)) ==
 			     BTRFS_EMPTY_SUBVOL_DIR_OBJECTID)) {
 			ret = btrfs_unlink_subvol(trans, BTRFS_I(new_dir), new_dentry);
+			if (ret) {
+				btrfs_abort_transaction(trans, ret);
+				goto out_fail;
+			}
 			BUG_ON(new_inode->i_nlink == 0);
 		} else {
 			ret = btrfs_unlink_inode(trans, BTRFS_I(new_dir),
 						 BTRFS_I(d_inode(new_dentry)),
 						 &new_fname.disk_name);
+			if (ret) {
+				btrfs_abort_transaction(trans, ret);
+				goto out_fail;
+			}
 		}
-		if (!ret && new_inode->i_nlink == 0)
+		if (new_inode->i_nlink == 0) {
 			ret = btrfs_orphan_add(trans,
 					BTRFS_I(d_inode(new_dentry)));
-		if (ret) {
-			btrfs_abort_transaction(trans, ret);
-			goto out_fail;
+			if (ret) {
+				btrfs_abort_transaction(trans, ret);
+				goto out_fail;
+			}
 		}
 	}
 
