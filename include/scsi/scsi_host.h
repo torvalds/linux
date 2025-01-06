@@ -438,8 +438,10 @@ struct scsi_host_template {
 	 */
 	short cmd_per_lun;
 
-	/* If use block layer to manage tags, this is tag allocation policy */
-	int tag_alloc_policy;
+	/*
+	 * Allocate tags starting from last allocated tag.
+	 */
+	bool tag_alloc_policy_rr : 1;
 
 	/*
 	 * Track QUEUE_FULL events and reduce queue depth on demand.

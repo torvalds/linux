@@ -3476,8 +3476,7 @@ static struct blk_mq_tags *blk_mq_alloc_rq_map(struct blk_mq_tag_set *set,
 	if (node == NUMA_NO_NODE)
 		node = set->numa_node;
 
-	tags = blk_mq_init_tags(nr_tags, reserved_tags, node,
-				BLK_MQ_FLAG_TO_ALLOC_POLICY(set->flags));
+	tags = blk_mq_init_tags(nr_tags, reserved_tags, set->flags, node);
 	if (!tags)
 		return NULL;
 

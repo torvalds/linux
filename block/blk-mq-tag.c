@@ -545,11 +545,10 @@ static int bt_alloc(struct sbitmap_queue *bt, unsigned int depth,
 }
 
 struct blk_mq_tags *blk_mq_init_tags(unsigned int total_tags,
-				     unsigned int reserved_tags,
-				     int node, int alloc_policy)
+		unsigned int reserved_tags, unsigned int flags, int node)
 {
 	unsigned int depth = total_tags - reserved_tags;
-	bool round_robin = alloc_policy == BLK_TAG_ALLOC_RR;
+	bool round_robin = flags & BLK_MQ_F_TAG_RR;
 	struct blk_mq_tags *tags;
 
 	if (total_tags > BLK_MQ_TAG_MAX) {

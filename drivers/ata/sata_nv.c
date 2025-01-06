@@ -385,7 +385,7 @@ static const struct scsi_host_template nv_adma_sht = {
 	.device_configure	= nv_adma_device_configure,
 	.sdev_groups		= ata_ncq_sdev_groups,
 	.change_queue_depth     = ata_scsi_change_queue_depth,
-	.tag_alloc_policy	= BLK_TAG_ALLOC_RR,
+	.tag_alloc_policy_rr	= true,
 };
 
 static const struct scsi_host_template nv_swncq_sht = {
@@ -396,7 +396,7 @@ static const struct scsi_host_template nv_swncq_sht = {
 	.device_configure	= nv_swncq_device_configure,
 	.sdev_groups		= ata_ncq_sdev_groups,
 	.change_queue_depth     = ata_scsi_change_queue_depth,
-	.tag_alloc_policy	= BLK_TAG_ALLOC_RR,
+	.tag_alloc_policy_rr	= true,
 };
 
 /*

@@ -163,7 +163,7 @@ struct blk_mq_alloc_data {
 };
 
 struct blk_mq_tags *blk_mq_init_tags(unsigned int nr_tags,
-		unsigned int reserved_tags, int node, int alloc_policy);
+		unsigned int reserved_tags, unsigned int flags, int node);
 void blk_mq_free_tags(struct blk_mq_tags *tags);
 
 unsigned int blk_mq_get_tag(struct blk_mq_alloc_data *data);

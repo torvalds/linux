@@ -296,13 +296,6 @@ enum blk_eh_timer_return {
 	BLK_EH_RESET_TIMER,
 };
 
-/* Keep alloc_policy_name[] in sync with the definitions below */
-enum {
-	BLK_TAG_ALLOC_FIFO,	/* allocate starting from 0 */
-	BLK_TAG_ALLOC_RR,	/* allocate starting from last allocated tag */
-	BLK_TAG_ALLOC_MAX
-};
-
 /**
  * struct blk_mq_hw_ctx - State for a hardware queue facing the hardware
  * block device
@@ -678,19 +671,18 @@ enum {
 	BLK_MQ_F_BLOCKING	= 1 << 4,
 
 	/*
+	 * Alloc tags on a round-robin base instead of the first available one.
+	 */
+	BLK_MQ_F_TAG_RR		= 1 << 5,
+
+	/*
 	 * Select 'none' during queue registration in case of a single hwq
 	 * or shared hwqs instead of 'mq-deadline'.
 	 */
 	BLK_MQ_F_NO_SCHED_BY_DEFAULT	= 1 << 6,
-	BLK_MQ_F_ALLOC_POLICY_START_BIT = 7,
-	BLK_MQ_F_ALLOC_POLICY_BITS = 1,
+
+	BLK_MQ_F_MAX = 1 << 7,
 };
-#define BLK_MQ_FLAG_TO_ALLOC_POLICY(flags) \
-	((flags >> BLK_MQ_F_ALLOC_POLICY_START_BIT) & \
-		((1 << BLK_MQ_F_ALLOC_POLICY_BITS) - 1))
-#define BLK_ALLOC_POLICY_TO_MQ_FLAG(policy) \
-	((policy & ((1 << BLK_MQ_F_ALLOC_POLICY_BITS) - 1)) \
-		<< BLK_MQ_F_ALLOC_POLICY_START_BIT)
 
 #define BLK_MQ_MAX_DEPTH	(10240)
 #define BLK_MQ_NO_HCTX_IDX	(-1U)

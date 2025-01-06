@@ -172,19 +172,13 @@ static int hctx_state_show(void *data, struct seq_file *m)
 	return 0;
 }
 
-#define BLK_TAG_ALLOC_NAME(name) [BLK_TAG_ALLOC_##name] = #name
-static const char *const alloc_policy_name[] = {
-	BLK_TAG_ALLOC_NAME(FIFO),
-	BLK_TAG_ALLOC_NAME(RR),
-};
-#undef BLK_TAG_ALLOC_NAME
-
 #define HCTX_FLAG_NAME(name) [ilog2(BLK_MQ_F_##name)] = #name
 static const char *const hctx_flag_name[] = {
 	HCTX_FLAG_NAME(TAG_QUEUE_SHARED),
 	HCTX_FLAG_NAME(STACKING),
 	HCTX_FLAG_NAME(TAG_HCTX_SHARED),
 	HCTX_FLAG_NAME(BLOCKING),
+	HCTX_FLAG_NAME(TAG_RR),
 	HCTX_FLAG_NAME(NO_SCHED_BY_DEFAULT),
 };
 #undef HCTX_FLAG_NAME
@@ -192,22 +186,11 @@ static const char *const hctx_flag_name[] = {
 static int hctx_flags_show(void *data, struct seq_file *m)
 {
 	struct blk_mq_hw_ctx *hctx = data;
-	const int alloc_policy = BLK_MQ_FLAG_TO_ALLOC_POLICY(hctx->flags);
 
-	BUILD_BUG_ON(ARRAY_SIZE(hctx_flag_name) !=
-			BLK_MQ_F_ALLOC_POLICY_START_BIT);
-	BUILD_BUG_ON(ARRAY_SIZE(alloc_policy_name) != BLK_TAG_ALLOC_MAX);
+	BUILD_BUG_ON(ARRAY_SIZE(hctx_flag_name) != ilog2(BLK_MQ_F_MAX));
 
-	seq_puts(m, "alloc_policy=");
-	if (alloc_policy < ARRAY_SIZE(alloc_policy_name) &&
-	    alloc_policy_name[alloc_policy])
-		seq_puts(m, alloc_policy_name[alloc_policy]);
-	else
-		seq_printf(m, "%d", alloc_policy);
-	seq_puts(m, " ");
-	blk_flags_show(m,
-		       hctx->flags ^ BLK_ALLOC_POLICY_TO_MQ_FLAG(alloc_policy),
-		       hctx_flag_name, ARRAY_SIZE(hctx_flag_name));
+	blk_flags_show(m, hctx->flags, hctx_flag_name,
+			ARRAY_SIZE(hctx_flag_name));
 	seq_puts(m, "\n");
 	return 0;
 }
