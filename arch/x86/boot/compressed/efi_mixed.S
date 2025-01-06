@@ -22,43 +22,7 @@
 #include <asm/processor-flags.h>
 #include <asm/segment.h>
 
-	.code64
 	.text
-SYM_FUNC_START(__efi64_thunk)
-	push	%rbp
-	push	%rbx
-
-	/* Copy args passed on stack */
-	movq	0x18(%rsp), %rbp
-	movq	0x20(%rsp), %rbx
-	movq	0x28(%rsp), %rax
-
-	/*
-	 * Convert x86-64 ABI params to i386 ABI
-	 */
-	subq	$64, %rsp
-	movl	%esi, 0x0(%rsp)
-	movl	%edx, 0x4(%rsp)
-	movl	%ecx, 0x8(%rsp)
-	movl	%r8d, 0xc(%rsp)
-	movl	%r9d, 0x10(%rsp)
-	movl	%ebp, 0x14(%rsp)
-	movl	%ebx, 0x18(%rsp)
-	movl	%eax, 0x1c(%rsp)
-
-	leaq	1f(%rip), %rbp
-	movl	%cs, %ebx
-
-	ljmpl	*efi32_call(%rip)
-
-1:	addq	$64, %rsp
-	movq	%rdi, %rax
-
-	pop	%rbx
-	pop	%rbp
-	RET
-SYM_FUNC_END(__efi64_thunk)
-
 	.code32
 #ifdef CONFIG_EFI_HANDOVER_PROTOCOL
 SYM_FUNC_START(efi32_stub_entry)
@@ -81,11 +45,26 @@ SYM_FUNC_END(efi32_stub_entry)
 #endif
 
 /*
- * EFI service pointer must be in %edi.
+ * Called using a far call from __efi64_thunk() below, using the x86_64 SysV
+ * ABI (except for R8/R9 which are inaccessible to 32-bit code - EAX/EBX are
+ * used instead).  EBP+16 points to the arguments passed via the stack.
  *
- * The stack should represent the 32-bit calling convention.
+ * The first argument (EDI) is a pointer to the boot service or protocol, to
+ * which the remaining arguments are passed, each truncated to 32 bits.
  */
 SYM_FUNC_START_LOCAL(efi_enter32)
+	/*
+	 * Convert x86-64 SysV ABI params to i386 ABI
+	 */
+	pushl	32(%ebp)	/* Up to 3 args passed via the stack */
+	pushl	24(%ebp)
+	pushl	16(%ebp)
+	pushl	%ebx		/* R9 */
+	pushl	%eax		/* R8 */
+	pushl	%ecx
+	pushl	%edx
+	pushl	%esi
+
 	/* Disable paging */
 	movl	%cr0, %eax
 	btrl	$X86_CR0_PG_BIT, %eax
@@ -104,11 +83,29 @@ SYM_FUNC_START_LOCAL(efi_enter32)
 
 	call	efi32_enable_long_mode
 
-	pushl	%ebx
-	pushl	%ebp
+	addl	$32, %esp
+	movl	%edi, %eax
 	lret
 SYM_FUNC_END(efi_enter32)
 
+	.code64
+SYM_FUNC_START(__efi64_thunk)
+	push	%rbp
+	movl	%esp, %ebp
+	push	%rbx
+
+	/* Move args #5 and #6 into 32-bit accessible registers */
+	movl	%r8d, %eax
+	movl	%r9d, %ebx
+
+	lcalll	*efi32_call(%rip)
+
+	pop	%rbx
+	pop	%rbp
+	RET
+SYM_FUNC_END(__efi64_thunk)
+
+	.code32
 SYM_FUNC_START_LOCAL(efi32_enable_long_mode)
 	movl	%cr4, %eax
 	btsl	$(X86_CR4_PAE_BIT), %eax
