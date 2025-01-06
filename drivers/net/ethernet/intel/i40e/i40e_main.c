@@ -1666,9 +1666,8 @@ struct i40e_mac_filter *i40e_add_filter(struct i40e_vsi *vsi,
  * @vsi: VSI to remove from
  * @f: the filter to remove from the list
  *
- * This function should be called instead of i40e_del_filter only if you know
- * the exact filter you will remove already, such as via i40e_find_filter or
- * i40e_find_mac.
+ * This function requires you've found * the exact filter you will remove
+ * already, such as via i40e_find_filter or i40e_find_mac.
  *
  * NOTE: This function is expected to be called with mac_filter_hash_lock
  * being held.
@@ -1695,29 +1694,6 @@ void __i40e_del_filter(struct i40e_vsi *vsi, struct i40e_mac_filter *f)
 
 	vsi->flags |= I40E_VSI_FLAG_FILTER_CHANGED;
 	set_bit(__I40E_MACVLAN_SYNC_PENDING, vsi->back->state);
-}
-
-/**
- * i40e_del_filter - Remove a MAC/VLAN filter from the VSI
- * @vsi: the VSI to be searched
- * @macaddr: the MAC address
- * @vlan: the VLAN
- *
- * NOTE: This function is expected to be called with mac_filter_hash_lock
- * being held.
- * ANOTHER NOTE: This function MUST be called from within the context of
- * the "safe" variants of any list iterators, e.g. list_for_each_entry_safe()
- * instead of list_for_each_entry().
- **/
-void i40e_del_filter(struct i40e_vsi *vsi, const u8 *macaddr, s16 vlan)
-{
-	struct i40e_mac_filter *f;
-
-	if (!vsi || !macaddr)
-		return;
-
-	f = i40e_find_filter(vsi, macaddr, vlan);
-	__i40e_del_filter(vsi, f);
 }
 
 /**
@@ -9629,19 +9605,6 @@ static void i40e_handle_lan_overflow_event(struct i40e_pf *pf,
 }
 
 /**
- * i40e_get_cur_guaranteed_fd_count - Get the consumed guaranteed FD filters
- * @pf: board private structure
- **/
-u32 i40e_get_cur_guaranteed_fd_count(struct i40e_pf *pf)
-{
-	u32 val, fcnt_prog;
-
-	val = rd32(&pf->hw, I40E_PFQF_FDSTAT);
-	fcnt_prog = (val & I40E_PFQF_FDSTAT_GUARANT_CNT_MASK);
-	return fcnt_prog;
-}
-
-/**
  * i40e_get_current_fd_count - Get total FD filters programmed for this PF
  * @pf: board private structure
  **/
@@ -12611,89 +12574,6 @@ int i40e_set_partition_bw_setting(struct i40e_pf *pf)
 	status = i40e_aq_configure_partition_bw(&pf->hw, &bw_data, NULL);
 
 	return status;
-}
-
-/**
- * i40e_commit_partition_bw_setting - Commit BW settings for this PF partition
- * @pf: board private structure
- **/
-int i40e_commit_partition_bw_setting(struct i40e_pf *pf)
-{
-	/* Commit temporary BW setting to permanent NVM image */
-	enum i40e_admin_queue_err last_aq_status;
-	u16 nvm_word;
-	int ret;
-
-	if (pf->hw.partition_id != 1) {
-		dev_info(&pf->pdev->dev,
-			 "Commit BW only works on partition 1! This is partition %d",
-			 pf->hw.partition_id);
-		ret = -EOPNOTSUPP;
-		goto bw_commit_out;
-	}
-
-	/* Acquire NVM for read access */
-	ret = i40e_acquire_nvm(&pf->hw, I40E_RESOURCE_READ);
-	last_aq_status = pf->hw.aq.asq_last_status;
-	if (ret) {
-		dev_info(&pf->pdev->dev,
-			 "Cannot acquire NVM for read access, err %pe aq_err %s\n",
-			 ERR_PTR(ret),
-			 i40e_aq_str(&pf->hw, last_aq_status));
-		goto bw_commit_out;
-	}
-
-	/* Read word 0x10 of NVM - SW compatibility word 1 */
-	ret = i40e_aq_read_nvm(&pf->hw,
-			       I40E_SR_NVM_CONTROL_WORD,
-			       0x10, sizeof(nvm_word), &nvm_word,
-			       false, NULL);
-	/* Save off last admin queue command status before releasing
-	 * the NVM
-	 */
-	last_aq_status = pf->hw.aq.asq_last_status;
-	i40e_release_nvm(&pf->hw);
-	if (ret) {
-		dev_info(&pf->pdev->dev, "NVM read error, err %pe aq_err %s\n",
-			 ERR_PTR(ret),
-			 i40e_aq_str(&pf->hw, last_aq_status));
-		goto bw_commit_out;
-	}
-
-	/* Wait a bit for NVM release to complete */
-	msleep(50);
-
-	/* Acquire NVM for write access */
-	ret = i40e_acquire_nvm(&pf->hw, I40E_RESOURCE_WRITE);
-	last_aq_status = pf->hw.aq.asq_last_status;
-	if (ret) {
-		dev_info(&pf->pdev->dev,
-			 "Cannot acquire NVM for write access, err %pe aq_err %s\n",
-			 ERR_PTR(ret),
-			 i40e_aq_str(&pf->hw, last_aq_status));
-		goto bw_commit_out;
-	}
-	/* Write it back out unchanged to initiate update NVM,
-	 * which will force a write of the shadow (alt) RAM to
-	 * the NVM - thus storing the bandwidth values permanently.
-	 */
-	ret = i40e_aq_update_nvm(&pf->hw,
-				 I40E_SR_NVM_CONTROL_WORD,
-				 0x10, sizeof(nvm_word),
-				 &nvm_word, true, 0, NULL);
-	/* Save off last admin queue command status before releasing
-	 * the NVM
-	 */
-	last_aq_status = pf->hw.aq.asq_last_status;
-	i40e_release_nvm(&pf->hw);
-	if (ret)
-		dev_info(&pf->pdev->dev,
-			 "BW settings NOT SAVED, err %pe aq_err %s\n",
-			 ERR_PTR(ret),
-			 i40e_aq_str(&pf->hw, last_aq_status));
-bw_commit_out:
-
-	return ret;
 }
 
 /**
