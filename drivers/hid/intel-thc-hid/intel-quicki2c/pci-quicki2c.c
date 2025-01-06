@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright (c) 2024 Intel Corporation */
 
+#include <linux/acpi.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
@@ -9,8 +10,184 @@
 #include <linux/pci.h>
 
 #include "intel-thc-dev.h"
+#include "intel-thc-hw.h"
 
 #include "quicki2c-dev.h"
+
+/* THC QuickI2C ACPI method to get device properties */
+/* HIDI2C device method */
+static guid_t i2c_hid_guid =
+	GUID_INIT(0x3cdff6f7, 0x4267, 0x4555, 0xad, 0x05, 0xb3, 0x0a, 0x3d, 0x89, 0x38, 0xde);
+
+/* platform method */
+static guid_t thc_platform_guid =
+	GUID_INIT(0x84005682, 0x5b71, 0x41a4, 0x8d, 0x66, 0x81, 0x30, 0xf7, 0x87, 0xa1, 0x38);
+
+/**
+ * quicki2c_acpi_get_dsm_property - Query device ACPI DSM parameter
+ *
+ * @adev: point to ACPI device
+ * @guid: ACPI method's guid
+ * @rev: ACPI method's revision
+ * @func: ACPI method's function number
+ * @type: ACPI parameter's data type
+ * @prop_buf: point to return buffer
+ *
+ * This is a helper function for device to query its ACPI DSM parameters.
+ *
+ * Return: 0 if success or ENODEV on failed.
+ */
+static int quicki2c_acpi_get_dsm_property(struct acpi_device *adev, const guid_t *guid,
+					  u64 rev, u64 func, acpi_object_type type, void *prop_buf)
+{
+	acpi_handle handle = acpi_device_handle(adev);
+	union acpi_object *obj;
+
+	obj = acpi_evaluate_dsm_typed(handle, guid, rev, func, NULL, type);
+	if (!obj) {
+		acpi_handle_err(handle,
+				"Error _DSM call failed, rev: %d, func: %d, type: %d\n",
+				(int)rev, (int)func, (int)type);
+		return -ENODEV;
+	}
+
+	if (type == ACPI_TYPE_INTEGER)
+		*(u32 *)prop_buf = (u32)obj->integer.value;
+	else if (type == ACPI_TYPE_BUFFER)
+		memcpy(prop_buf, obj->buffer.pointer, obj->buffer.length);
+
+	ACPI_FREE(obj);
+
+	return 0;
+}
+
+/**
+ * quicki2c_acpi_get_dsd_property - Query device ACPI DSD parameter
+ *
+ * @adev: point to ACPI device
+ * @dsd_method_name: ACPI method's property name
+ * @type: ACPI parameter's data type
+ * @prop_buf: point to return buffer
+ *
+ * This is a helper function for device to query its ACPI DSD parameters.
+ *
+ * Return: 0 if success or ENODEV on failed.
+ */
+static int quicki2c_acpi_get_dsd_property(struct acpi_device *adev, acpi_string dsd_method_name,
+					  acpi_object_type type, void *prop_buf)
+{
+	acpi_handle handle = acpi_device_handle(adev);
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object obj = { .type = type };
+	struct acpi_object_list arg_list = {
+		.count = 1,
+		.pointer = &obj,
+	};
+	union acpi_object *ret_obj;
+	acpi_status status;
+
+	status = acpi_evaluate_object(handle, dsd_method_name, &arg_list, &buffer);
+	if (ACPI_FAILURE(status)) {
+		acpi_handle_err(handle,
+				"Can't evaluate %s method: %d\n", dsd_method_name, status);
+		return -ENODEV;
+	}
+
+	ret_obj = buffer.pointer;
+
+	memcpy(prop_buf, ret_obj->buffer.pointer, ret_obj->buffer.length);
+
+	return 0;
+}
+
+/**
+ * quicki2c_get_acpi_resources - Query all quicki2c devices' ACPI parameters
+ *
+ * @qcdev: point to quicki2c device
+ *
+ * This function gets all quicki2c devices' ACPI resource.
+ *
+ * Return: 0 if success or error code on failed.
+ */
+static int quicki2c_get_acpi_resources(struct quicki2c_device *qcdev)
+{
+	struct acpi_device *adev = ACPI_COMPANION(qcdev->dev);
+	struct quicki2c_subip_acpi_parameter i2c_param;
+	struct quicki2c_subip_acpi_config i2c_config;
+	int ret = -EINVAL;
+
+	if (!adev) {
+		dev_err(qcdev->dev, "Invalid acpi device pointer\n");
+		return ret;
+	}
+
+	qcdev->acpi_dev = adev;
+
+	ret = quicki2c_acpi_get_dsm_property(adev, &i2c_hid_guid,
+					     QUICKI2C_ACPI_REVISION_NUM,
+					     QUICKI2C_ACPI_FUNC_NUM_HID_DESC_ADDR,
+					     ACPI_TYPE_INTEGER,
+					     &qcdev->hid_desc_addr);
+	if (ret)
+		return ret;
+
+	ret = quicki2c_acpi_get_dsm_property(adev, &thc_platform_guid,
+					     QUICKI2C_ACPI_REVISION_NUM,
+					     QUICKI2C_ACPI_FUNC_NUM_ACTIVE_LTR_VAL,
+					     ACPI_TYPE_INTEGER,
+					     &qcdev->active_ltr_val);
+	if (ret)
+		return ret;
+
+	ret = quicki2c_acpi_get_dsm_property(adev, &thc_platform_guid,
+					     QUICKI2C_ACPI_REVISION_NUM,
+					     QUICKI2C_ACPI_FUNC_NUM_LP_LTR_VAL,
+					     ACPI_TYPE_INTEGER,
+					     &qcdev->low_power_ltr_val);
+	if (ret)
+		return ret;
+
+	ret = quicki2c_acpi_get_dsd_property(adev, QUICKI2C_ACPI_METHOD_NAME_ICRS,
+					     ACPI_TYPE_BUFFER, &i2c_param);
+	if (ret)
+		return ret;
+
+	if (i2c_param.addressing_mode != HIDI2C_ADDRESSING_MODE_7BIT)
+		return -EOPNOTSUPP;
+
+	qcdev->i2c_slave_addr = i2c_param.device_address;
+
+	ret = quicki2c_acpi_get_dsd_property(adev, QUICKI2C_ACPI_METHOD_NAME_ISUB,
+					     ACPI_TYPE_BUFFER, &i2c_config);
+	if (ret)
+		return ret;
+
+	if (i2c_param.connection_speed > 0 &&
+	    i2c_param.connection_speed <= QUICKI2C_SUBIP_STANDARD_MODE_MAX_SPEED) {
+		qcdev->i2c_speed_mode = THC_I2C_STANDARD;
+		qcdev->i2c_clock_hcnt = i2c_config.SMHX;
+		qcdev->i2c_clock_lcnt = i2c_config.SMLX;
+	} else if (i2c_param.connection_speed > QUICKI2C_SUBIP_STANDARD_MODE_MAX_SPEED &&
+		   i2c_param.connection_speed <= QUICKI2C_SUBIP_FAST_MODE_MAX_SPEED) {
+		qcdev->i2c_speed_mode = THC_I2C_FAST_AND_PLUS;
+		qcdev->i2c_clock_hcnt = i2c_config.FMHX;
+		qcdev->i2c_clock_lcnt = i2c_config.FMLX;
+	} else if (i2c_param.connection_speed > QUICKI2C_SUBIP_FAST_MODE_MAX_SPEED &&
+		   i2c_param.connection_speed <= QUICKI2C_SUBIP_FASTPLUS_MODE_MAX_SPEED) {
+		qcdev->i2c_speed_mode = THC_I2C_FAST_AND_PLUS;
+		qcdev->i2c_clock_hcnt = i2c_config.FPHX;
+		qcdev->i2c_clock_lcnt = i2c_config.FPLX;
+	} else if (i2c_param.connection_speed > QUICKI2C_SUBIP_FASTPLUS_MODE_MAX_SPEED &&
+		   i2c_param.connection_speed <= QUICKI2C_SUBIP_HIGH_SPEED_MODE_MAX_SPEED) {
+		qcdev->i2c_speed_mode = THC_I2C_HIGH_SPEED;
+		qcdev->i2c_clock_hcnt = i2c_config.HMHX;
+		qcdev->i2c_clock_lcnt = i2c_config.HMLX;
+	} else {
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
 
 /**
  * quicki2c_irq_quick_handler - The ISR of the quicki2c driver
@@ -92,11 +269,24 @@ static struct quicki2c_device *quicki2c_dev_init(struct pci_dev *pdev, void __io
 		return ERR_PTR(ret);
 	}
 
+	ret = quicki2c_get_acpi_resources(qcdev);
+	if (ret) {
+		dev_err_once(dev, "Get ACPI resources failed, ret = %d\n", ret);
+		return ERR_PTR(ret);
+	}
+
 	ret = thc_port_select(qcdev->thc_hw, THC_PORT_TYPE_I2C);
 	if (ret) {
 		dev_err_once(dev, "Failed to select THC port, ret = %d.\n", ret);
 		return ERR_PTR(ret);
 	}
+
+	ret = thc_i2c_subip_init(qcdev->thc_hw, qcdev->i2c_slave_addr,
+				 qcdev->i2c_speed_mode,
+				 qcdev->i2c_clock_hcnt,
+				 qcdev->i2c_clock_lcnt);
+	if (ret)
+		return ERR_PTR(ret);
 
 	thc_interrupt_config(qcdev->thc_hw);
 
