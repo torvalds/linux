@@ -4,7 +4,12 @@
 #ifndef _QUICKSPI_DEV_H_
 #define _QUICKSPI_DEV_H_
 
+#include <linux/bits.h>
 #include <linux/hid-over-spi.h>
+#include <linux/sizes.h>
+#include <linux/wait.h>
+
+#include "quickspi-protocol.h"
 
 #define PCI_DEVICE_ID_INTEL_THC_MTL_DEVICE_ID_SPI_PORT1		0x7E49
 #define PCI_DEVICE_ID_INTEL_THC_MTL_DEVICE_ID_SPI_PORT2		0x7E4B
@@ -92,6 +97,21 @@ struct acpi_device;
  * @active_ltr_val: THC active LTR value
  * @low_power_ltr_val: THC low power LTR value
  * @report_descriptor: store a copy of device report descriptor
+ * @input_buf: store a copy of latest input report data
+ * @report_buf: store a copy of latest input/output report packet from set/get feature
+ * @report_len: the length of input/output report packet
+ * @reset_ack_wq: workqueue for waiting reset response from device
+ * @reset_ack: indicate reset response received or not
+ * @nondma_int_received_wq: workqueue for waiting THC non-DMA interrupt
+ * @nondma_int_received: indicate THC non-DMA interrupt received or not
+ * @report_desc_got_wq: workqueue for waiting device report descriptor
+ * @report_desc_got: indicate device report descritor received or not
+ * @set_power_on_wq: workqueue for waiting set power on response from device
+ * @set_power_on: indicate set power on response received or not
+ * @get_feature_cmpl_wq: workqueue for waiting get feature response from device
+ * @get_feature_cmpl: indicate get feature received or not
+ * @set_feature_cmpl_wq: workqueue for waiting set feature to device
+ * @set_feature_cmpl: indicate set feature send complete or not
  */
 struct quickspi_device {
 	struct device *dev;
@@ -121,6 +141,24 @@ struct quickspi_device {
 	u32 low_power_ltr_val;
 
 	u8 *report_descriptor;
+	u8 *input_buf;
+	u8 *report_buf;
+	u32 report_len;
+
+	wait_queue_head_t reset_ack_wq;
+	bool reset_ack;
+
+	wait_queue_head_t nondma_int_received_wq;
+	bool nondma_int_received;
+
+	wait_queue_head_t report_desc_got_wq;
+	bool report_desc_got;
+
+	wait_queue_head_t get_report_cmpl_wq;
+	bool get_report_cmpl;
+
+	wait_queue_head_t set_report_cmpl_wq;
+	bool set_report_cmpl;
 };
 
 #endif /* _QUICKSPI_DEV_H_ */

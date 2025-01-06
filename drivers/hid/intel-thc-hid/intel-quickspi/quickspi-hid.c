@@ -51,7 +51,22 @@ static int quickspi_hid_raw_request(struct hid_device *hid,
 				    __u8 *buf, size_t len,
 				    unsigned char rtype, int reqtype)
 {
-	return 0;
+	struct quickspi_device *qsdev = hid->driver_data;
+	int ret = 0;
+
+	switch (reqtype) {
+	case HID_REQ_GET_REPORT:
+		ret = quickspi_get_report(qsdev, rtype, reportnum, buf);
+		break;
+	case HID_REQ_SET_REPORT:
+		ret = quickspi_set_report(qsdev, rtype, reportnum, buf, len);
+		break;
+	default:
+		dev_err_once(qsdev->dev, "Not supported request type %d\n", reqtype);
+		break;
+	}
+
+	return ret;
 }
 
 static int quickspi_hid_power(struct hid_device *hid, int lvl)
