@@ -814,6 +814,8 @@ static int brcmf_cfg80211_request_ap_if(struct brcmf_if *ifp)
  * @name: name of the new interface.
  * @params: contains mac address for AP or STA device.
  * @type: interface type.
+ *
+ * Return: pointer to new vif on success, ERR_PTR(-errno) if not
  */
 static
 struct wireless_dev *brcmf_apsta_add_vif(struct wiphy *wiphy, const char *name,
@@ -900,6 +902,8 @@ static bool brcmf_is_ibssmode(struct brcmf_cfg80211_vif *vif)
  *
  * @wiphy: wiphy device of new interface.
  * @name: name of the new interface.
+ *
+ * Return: pointer to new vif on success, ERR_PTR(-errno) if not
  */
 static struct wireless_dev *brcmf_mon_add_vif(struct wiphy *wiphy,
 					      const char *name)
@@ -7412,6 +7416,8 @@ brcmf_txrx_stypes[NUM_NL80211_IFTYPES] = {
  * p2p, rsdb, and no mbss:
  *	#STA <= 1, #P2P-DEV <= 1, #{P2P-CL, P2P-GO} <= 2, AP <= 2,
  *	 channels = 2, 4 total
+ *
+ * Return: 0 on success, negative errno on failure
  */
 static int brcmf_setup_ifmodes(struct wiphy *wiphy, struct brcmf_if *ifp)
 {
