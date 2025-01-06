@@ -3,6 +3,7 @@
 
 #include <linux/hid.h>
 #include <linux/input.h>
+#include <linux/pm_runtime.h>
 
 #include "quicki2c-dev.h"
 #include "quicki2c-hid.h"
@@ -55,6 +56,10 @@ static int quicki2c_hid_raw_request(struct hid_device *hid,
 	struct quicki2c_device *qcdev = hid->driver_data;
 	int ret = 0;
 
+	ret = pm_runtime_resume_and_get(qcdev->dev);
+	if (ret)
+		return ret;
+
 	switch (reqtype) {
 	case HID_REQ_GET_REPORT:
 		ret = quicki2c_get_report(qcdev, rtype, reportnum, buf, len);
@@ -66,6 +71,9 @@ static int quicki2c_hid_raw_request(struct hid_device *hid,
 		dev_err(qcdev->dev, "Not supported request type %d\n", reqtype);
 		break;
 	}
+
+	pm_runtime_mark_last_busy(qcdev->dev);
+	pm_runtime_put_autosuspend(qcdev->dev);
 
 	return ret;
 }

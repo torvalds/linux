@@ -9,6 +9,7 @@
 #include <linux/irqreturn.h>
 #include <linux/pci.h>
 #include <linux/sizes.h>
+#include <linux/pm_runtime.h>
 
 #include "intel-thc-dev.h"
 #include "intel-thc-hw.h"
@@ -289,8 +290,13 @@ static irqreturn_t quicki2c_irq_thread_handler(int irq, void *dev_id)
 	struct quicki2c_device *qcdev = dev_id;
 	int err_recover = 0;
 	int int_mask;
+	int ret;
 
 	if (qcdev->state == QUICKI2C_DISABLED)
+		return IRQ_HANDLED;
+
+	ret = pm_runtime_resume_and_get(qcdev->dev);
+	if (ret)
 		return IRQ_HANDLED;
 
 	int_mask = thc_interrupt_handler(qcdev->thc_hw);
@@ -313,6 +319,9 @@ exit:
 	if (err_recover)
 		if (try_recover(qcdev))
 			qcdev->state = QUICKI2C_DISABLED;
+
+	pm_runtime_mark_last_busy(qcdev->dev);
+	pm_runtime_put_autosuspend(qcdev->dev);
 
 	return IRQ_HANDLED;
 }
@@ -639,6 +648,13 @@ static int quicki2c_probe(struct pci_dev *pdev,
 
 	qcdev->state = QUICKI2C_ENABLED;
 
+	/* Enable runtime power management */
+	pm_runtime_use_autosuspend(qcdev->dev);
+	pm_runtime_set_autosuspend_delay(qcdev->dev, DEFAULT_AUTO_SUSPEND_DELAY_MS);
+	pm_runtime_mark_last_busy(qcdev->dev);
+	pm_runtime_put_noidle(qcdev->dev);
+	pm_runtime_put_autosuspend(qcdev->dev);
+
 	dev_dbg(&pdev->dev, "QuickI2C probe success\n");
 
 	return 0;
@@ -674,6 +690,8 @@ static void quicki2c_remove(struct pci_dev *pdev)
 	quicki2c_hid_remove(qcdev);
 	quicki2c_dma_deinit(qcdev);
 
+	pm_runtime_get_noresume(qcdev->dev);
+
 	quicki2c_dev_deinit(qcdev);
 
 	pcim_iounmap_regions(pdev, BIT(0));
@@ -703,6 +721,220 @@ static void quicki2c_shutdown(struct pci_dev *pdev)
 	quicki2c_dev_deinit(qcdev);
 }
 
+static int quicki2c_suspend(struct device *device)
+{
+	struct pci_dev *pdev = to_pci_dev(device);
+	struct quicki2c_device *qcdev;
+	int ret;
+
+	qcdev = pci_get_drvdata(pdev);
+	if (!qcdev)
+		return -ENODEV;
+
+	/*
+	 * As I2C is THC subsystem, no register auto save/restore support,
+	 * need driver to do that explicitly for every D3 case.
+	 */
+	ret = thc_i2c_subip_regs_save(qcdev->thc_hw);
+	if (ret)
+		return ret;
+
+	ret = thc_interrupt_quiesce(qcdev->thc_hw, true);
+	if (ret)
+		return ret;
+
+	thc_interrupt_enable(qcdev->thc_hw, false);
+
+	thc_dma_unconfigure(qcdev->thc_hw);
+
+	return 0;
+}
+
+static int quicki2c_resume(struct device *device)
+{
+	struct pci_dev *pdev = to_pci_dev(device);
+	struct quicki2c_device *qcdev;
+	int ret;
+
+	qcdev = pci_get_drvdata(pdev);
+	if (!qcdev)
+		return -ENODEV;
+
+	ret = thc_port_select(qcdev->thc_hw, THC_PORT_TYPE_I2C);
+	if (ret)
+		return ret;
+
+	ret = thc_i2c_subip_regs_restore(qcdev->thc_hw);
+	if (ret)
+		return ret;
+
+	thc_interrupt_config(qcdev->thc_hw);
+
+	thc_interrupt_enable(qcdev->thc_hw, true);
+
+	ret = thc_dma_configure(qcdev->thc_hw);
+	if (ret)
+		return ret;
+
+	ret = thc_interrupt_quiesce(qcdev->thc_hw, false);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int quicki2c_freeze(struct device *device)
+{
+	struct pci_dev *pdev = to_pci_dev(device);
+	struct quicki2c_device *qcdev;
+	int ret;
+
+	qcdev = pci_get_drvdata(pdev);
+	if (!qcdev)
+		return -ENODEV;
+
+	ret = thc_interrupt_quiesce(qcdev->thc_hw, true);
+	if (ret)
+		return ret;
+
+	thc_interrupt_enable(qcdev->thc_hw, false);
+
+	thc_dma_unconfigure(qcdev->thc_hw);
+
+	return 0;
+}
+
+static int quicki2c_thaw(struct device *device)
+{
+	struct pci_dev *pdev = to_pci_dev(device);
+	struct quicki2c_device *qcdev;
+	int ret;
+
+	qcdev = pci_get_drvdata(pdev);
+	if (!qcdev)
+		return -ENODEV;
+
+	ret = thc_dma_configure(qcdev->thc_hw);
+	if (ret)
+		return ret;
+
+	thc_interrupt_enable(qcdev->thc_hw, true);
+
+	ret = thc_interrupt_quiesce(qcdev->thc_hw, false);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int quicki2c_poweroff(struct device *device)
+{
+	struct pci_dev *pdev = to_pci_dev(device);
+	struct quicki2c_device *qcdev;
+	int ret;
+
+	qcdev = pci_get_drvdata(pdev);
+	if (!qcdev)
+		return -ENODEV;
+
+	ret = thc_interrupt_quiesce(qcdev->thc_hw, true);
+	if (ret)
+		return ret;
+
+	thc_interrupt_enable(qcdev->thc_hw, false);
+
+	thc_ltr_unconfig(qcdev->thc_hw);
+
+	quicki2c_dma_deinit(qcdev);
+
+	return 0;
+}
+
+static int quicki2c_restore(struct device *device)
+{
+	struct pci_dev *pdev = to_pci_dev(device);
+	struct quicki2c_device *qcdev;
+	int ret;
+
+	qcdev = pci_get_drvdata(pdev);
+	if (!qcdev)
+		return -ENODEV;
+
+	/* Reconfig THC HW when back from hibernate */
+	ret = thc_port_select(qcdev->thc_hw, THC_PORT_TYPE_I2C);
+	if (ret)
+		return ret;
+
+	ret = thc_i2c_subip_init(qcdev->thc_hw, qcdev->i2c_slave_addr,
+				 qcdev->i2c_speed_mode,
+				 qcdev->i2c_clock_hcnt,
+				 qcdev->i2c_clock_lcnt);
+	if (ret)
+		return ret;
+
+	thc_interrupt_config(qcdev->thc_hw);
+
+	thc_interrupt_enable(qcdev->thc_hw, true);
+
+	ret = thc_interrupt_quiesce(qcdev->thc_hw, false);
+	if (ret)
+		return ret;
+
+	ret = thc_dma_configure(qcdev->thc_hw);
+	if (ret)
+		return ret;
+
+	thc_ltr_config(qcdev->thc_hw,
+		       qcdev->active_ltr_val,
+		       qcdev->low_power_ltr_val);
+
+	thc_change_ltr_mode(qcdev->thc_hw, THC_LTR_MODE_ACTIVE);
+
+	return 0;
+}
+
+static int quicki2c_runtime_suspend(struct device *device)
+{
+	struct pci_dev *pdev = to_pci_dev(device);
+	struct quicki2c_device *qcdev;
+
+	qcdev = pci_get_drvdata(pdev);
+	if (!qcdev)
+		return -ENODEV;
+
+	thc_change_ltr_mode(qcdev->thc_hw, THC_LTR_MODE_LP);
+
+	pci_save_state(pdev);
+
+	return 0;
+}
+
+static int quicki2c_runtime_resume(struct device *device)
+{
+	struct pci_dev *pdev = to_pci_dev(device);
+	struct quicki2c_device *qcdev;
+
+	qcdev = pci_get_drvdata(pdev);
+	if (!qcdev)
+		return -ENODEV;
+
+	thc_change_ltr_mode(qcdev->thc_hw, THC_LTR_MODE_ACTIVE);
+
+	return 0;
+}
+
+static const struct dev_pm_ops quicki2c_pm_ops = {
+	.suspend = quicki2c_suspend,
+	.resume = quicki2c_resume,
+	.freeze = quicki2c_freeze,
+	.thaw = quicki2c_thaw,
+	.poweroff = quicki2c_poweroff,
+	.restore = quicki2c_restore,
+	.runtime_suspend = quicki2c_runtime_suspend,
+	.runtime_resume = quicki2c_runtime_resume,
+	.runtime_idle = NULL,
+};
+
 static const struct pci_device_id quicki2c_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, THC_LNL_DEVICE_ID_I2C_PORT1), },
 	{PCI_VDEVICE(INTEL, THC_LNL_DEVICE_ID_I2C_PORT2), },
@@ -720,6 +952,7 @@ static struct pci_driver quicki2c_driver = {
 	.probe = quicki2c_probe,
 	.remove = quicki2c_remove,
 	.shutdown = quicki2c_shutdown,
+	.driver.pm = &quicki2c_pm_ops,
 	.driver.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 };
 
