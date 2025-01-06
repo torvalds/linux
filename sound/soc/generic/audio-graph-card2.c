@@ -331,7 +331,7 @@ static int graph_lnk_is_multi(struct device_node *lnk)
 	return __graph_get_type(lnk) == GRAPH_MULTI;
 }
 
-static struct device_node *graph_get_next_multi_ep(struct device_node **port)
+static struct device_node *graph_get_next_multi_ep(struct device_node **port, int idx)
 {
 	struct device_node *ports __free(device_node) = port_to_ports(*port);
 	struct device_node *rep = NULL;
@@ -351,7 +351,16 @@ static struct device_node *graph_get_next_multi_ep(struct device_node **port)
 	 *	port@1 { rep1 };
 	 * };
 	 */
-	*port = of_graph_get_next_port(ports, *port);
+
+	/*
+	 * Don't use of_graph_get_next_port() here
+	 *
+	 * In overlay case, "port" are not necessarily in order. So we need to use
+	 * of_graph_get_port_by_id() instead
+	 */
+	of_node_put(*port);
+
+	*port = of_graph_get_port_by_id(ports, idx);
 	if (*port) {
 		struct device_node *ep __free(device_node) = of_graph_get_next_port_endpoint(*port, NULL);
 
@@ -614,7 +623,7 @@ static int graph_parse_node_multi(struct simple_util_priv *priv,
 		 *	};
 		 * };
 		 */
-		struct device_node *ep __free(device_node) = graph_get_next_multi_ep(&port);
+		struct device_node *ep __free(device_node) = graph_get_next_multi_ep(&port, idx + 1);
 		if (!ep)
 			break;
 
@@ -729,7 +738,7 @@ static void graph_link_init(struct simple_util_priv *priv,
 
 	of_node_get(port_cpu);
 	if (graph_lnk_is_multi(port_cpu)) {
-		ep_cpu = graph_get_next_multi_ep(&port_cpu);
+		ep_cpu = graph_get_next_multi_ep(&port_cpu, 1);
 		of_node_put(port_cpu);
 		port_cpu = ep_to_port(ep_cpu);
 	} else {
@@ -739,7 +748,7 @@ static void graph_link_init(struct simple_util_priv *priv,
 
 	of_node_get(port_codec);
 	if (graph_lnk_is_multi(port_codec)) {
-		ep_codec = graph_get_next_multi_ep(&port_codec);
+		ep_codec = graph_get_next_multi_ep(&port_codec, 1);
 		of_node_put(port_codec);
 		port_codec = ep_to_port(ep_codec);
 	} else {
