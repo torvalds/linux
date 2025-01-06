@@ -6,6 +6,7 @@
 
 #include "quicki2c-dev.h"
 #include "quicki2c-hid.h"
+#include "quicki2c-protocol.h"
 
 /**
  * quicki2c_hid_parse() - HID core parse() callback
@@ -51,7 +52,22 @@ static int quicki2c_hid_raw_request(struct hid_device *hid,
 				    __u8 *buf, size_t len,
 				    unsigned char rtype, int reqtype)
 {
-	return 0;
+	struct quicki2c_device *qcdev = hid->driver_data;
+	int ret = 0;
+
+	switch (reqtype) {
+	case HID_REQ_GET_REPORT:
+		ret = quicki2c_get_report(qcdev, rtype, reportnum, buf, len);
+		break;
+	case HID_REQ_SET_REPORT:
+		ret = quicki2c_set_report(qcdev, rtype, reportnum, buf, len);
+		break;
+	default:
+		dev_err(qcdev->dev, "Not supported request type %d\n", reqtype);
+		break;
+	}
+
+	return ret;
 }
 
 static int quicki2c_hid_power(struct hid_device *hid, int lvl)

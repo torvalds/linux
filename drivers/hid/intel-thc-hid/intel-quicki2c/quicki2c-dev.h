@@ -138,6 +138,9 @@ struct acpi_device;
  * @i2c_clock_hcnt: I2C CLK high period time (unit in cycle count)
  * @i2c_clock_lcnt: I2C CLK low period time (unit in cycle count)
  * @report_descriptor: store a copy of device report descriptor
+ * @input_buf: store a copy of latest input report data
+ * @report_buf: store a copy of latest input/output report packet from set/get feature
+ * @report_len: the length of input/output report packet
  */
 struct quicki2c_device {
 	struct device *dev;
@@ -161,6 +164,9 @@ struct quicki2c_device {
 	u32 i2c_clock_lcnt;
 
 	u8 *report_descriptor;
+	u8 *input_buf;
+	u8 *report_buf;
+	u32 report_len;
 };
 
 #endif /* _QUICKI2C_DEV_H_ */
