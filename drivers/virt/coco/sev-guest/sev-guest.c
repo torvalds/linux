@@ -141,7 +141,7 @@ static struct aesgcm_ctx *snp_init_crypto(u8 *key, size_t keylen)
 {
 	struct aesgcm_ctx *ctx;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL_ACCOUNT);
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return NULL;
 
