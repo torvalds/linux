@@ -2776,23 +2776,19 @@ fdls_process_tgt_prli_rsp(struct fnic_iport_s *iport,
 			/*Retry Plogi again from the timer routine. */
 			tport->flags |= FNIC_FDLS_RETRY_FRAME;
 			return;
-		} else {
-			FNIC_FCS_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
-						 "PRLI returned ELS_LS_RJT from target: 0x%x",
-						 tgt_fcid);
-
-			fdls_tgt_logout(iport, tport);
-			fdls_delete_tport(iport, tport);
-			return;
 		}
-		break;
+		FNIC_FCS_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+					 "PRLI returned ELS_LS_RJT from target: 0x%x",
+					 tgt_fcid);
 
+		fdls_tgt_logout(iport, tport);
+		fdls_delete_tport(iport, tport);
+		return;
 	default:
 		atomic64_inc(&iport->iport_stats.tport_prli_misc_rejects);
 		FNIC_FCS_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
 					 "PRLI not accepted from target: 0x%x", tgt_fcid);
 		return;
-		break;
 	}
 
 	FNIC_FCS_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
