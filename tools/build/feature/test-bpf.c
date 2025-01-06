@@ -44,5 +44,5 @@ int main(void)
 	 * Test existence of __NR_bpf and BPF_PROG_LOAD.
 	 * This call should fail if we run the testcase.
 	 */
-	return syscall(__NR_bpf, BPF_PROG_LOAD, &attr, sizeof(attr));
+	return syscall(__NR_bpf, BPF_PROG_LOAD, &attr, sizeof(attr)) == 0;
 }
