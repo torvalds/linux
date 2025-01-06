@@ -3088,12 +3088,6 @@ mt753x_setup(struct dsa_switch *ds)
 static int mt753x_get_mac_eee(struct dsa_switch *ds, int port,
 			      struct ethtool_keee *e)
 {
-	struct mt7530_priv *priv = ds->priv;
-	u32 eeecr = mt7530_read(priv, MT753X_PMEEECR_P(port));
-
-	e->tx_lpi_enabled = !(eeecr & LPI_MODE_EN);
-	e->tx_lpi_timer = LPI_THRESH_GET(eeecr);
-
 	return 0;
 }
 
