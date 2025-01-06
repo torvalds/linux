@@ -85,6 +85,7 @@ static void test_missed_kprobe_recursion(void)
 	ASSERT_GE(get_missed_count(bpf_program__fd(skel->progs.test3)), 1, "test3_recursion_misses");
 	ASSERT_GE(get_missed_count(bpf_program__fd(skel->progs.test4)), 1, "test4_recursion_misses");
 	ASSERT_GE(get_missed_count(bpf_program__fd(skel->progs.test5)), 1, "test5_recursion_misses");
+	ASSERT_EQ(get_missed_count(bpf_program__fd(skel->progs.test6)), 1, "test6_recursion_misses");
 
 cleanup:
 	missed_kprobe_recursion__destroy(skel);

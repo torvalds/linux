@@ -46,3 +46,9 @@ int test5(struct pt_regs *ctx)
 {
 	return 0;
 }
+
+SEC("kprobe.session/bpf_kfunc_common_test")
+int test6(struct pt_regs *ctx)
+{
+	return 0;
+}
