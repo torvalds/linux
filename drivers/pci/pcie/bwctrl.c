@@ -303,14 +303,17 @@ static int pcie_bwnotif_probe(struct pcie_device *srv)
 	if (ret)
 		return ret;
 
-	ret = devm_request_irq(&srv->device, srv->irq, pcie_bwnotif_irq,
-			       IRQF_SHARED, "PCIe bwctrl", srv);
-	if (ret)
-		return ret;
-
 	scoped_guard(rwsem_write, &pcie_bwctrl_setspeed_rwsem) {
 		scoped_guard(rwsem_write, &pcie_bwctrl_lbms_rwsem) {
-			port->link_bwctrl = no_free_ptr(data);
+			port->link_bwctrl = data;
+
+			ret = request_irq(srv->irq, pcie_bwnotif_irq,
+					  IRQF_SHARED, "PCIe bwctrl", srv);
+			if (ret) {
+				port->link_bwctrl = NULL;
+				return ret;
+			}
+
 			pcie_bwnotif_enable(srv);
 		}
 	}
@@ -331,11 +334,15 @@ static void pcie_bwnotif_remove(struct pcie_device *srv)
 
 	pcie_cooling_device_unregister(data->cdev);
 
-	pcie_bwnotif_disable(srv->port);
+	scoped_guard(rwsem_write, &pcie_bwctrl_setspeed_rwsem) {
+		scoped_guard(rwsem_write, &pcie_bwctrl_lbms_rwsem) {
+			pcie_bwnotif_disable(srv->port);
 
-	scoped_guard(rwsem_write, &pcie_bwctrl_setspeed_rwsem)
-		scoped_guard(rwsem_write, &pcie_bwctrl_lbms_rwsem)
+			free_irq(srv->irq, srv);
+
 			srv->port->link_bwctrl = NULL;
+		}
+	}
 }
 
 static int pcie_bwnotif_suspend(struct pcie_device *srv)
