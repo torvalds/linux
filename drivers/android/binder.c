@@ -1971,7 +1971,7 @@ static bool binder_validate_fixup(struct binder_proc *proc,
  * struct binder_task_work_cb - for deferred close
  *
  * @twork:                callback_head for task work
- * @fd:                   fd to close
+ * @file:                 file to close
  *
  * Structure to pass task work to be handled after
  * returning from binder_ioctl() via task_work_add().
