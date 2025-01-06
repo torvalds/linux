@@ -1445,7 +1445,8 @@ static bool damos_filter_out(struct damon_ctx *ctx, struct damon_target *t,
  * installed by damos_walk() and not yet uninstalled, invoke it.
  */
 static void damos_walk_call_walk(struct damon_ctx *ctx, struct damon_target *t,
-		struct damon_region *r, struct damos *s)
+		struct damon_region *r, struct damos *s,
+		unsigned long sz_filter_passed)
 {
 	struct damos_walk_control *control;
 
@@ -1454,7 +1455,7 @@ static void damos_walk_call_walk(struct damon_ctx *ctx, struct damon_target *t,
 	mutex_unlock(&ctx->walk_control_lock);
 	if (!control)
 		return;
-	control->walk_fn(control->data, ctx, t, r, s);
+	control->walk_fn(control->data, ctx, t, r, s, sz_filter_passed);
 }
 
 /*
@@ -1574,7 +1575,7 @@ static void damos_apply_scheme(struct damon_ctx *c, struct damon_target *t,
 			sz_applied = c->ops.apply_scheme(c, t, r, s,
 					&sz_ops_filter_passed);
 		}
-		damos_walk_call_walk(c, t, r, s);
+		damos_walk_call_walk(c, t, r, s, sz_ops_filter_passed);
 		ktime_get_coarse_ts64(&end);
 		quota->total_charged_ns += timespec64_to_ns(&end) -
 			timespec64_to_ns(&begin);

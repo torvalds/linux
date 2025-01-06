@@ -1454,7 +1454,7 @@ struct damon_sysfs_schemes_walk_data {
 /* populate the region directory */
 static void damon_sysfs_schemes_tried_regions_upd_one(void *data, struct damon_ctx *ctx,
 		struct damon_target *t, struct damon_region *r,
-		struct damos *s)
+		struct damos *s, unsigned long sz_filter_passed)
 {
 	struct damon_sysfs_schemes_walk_data *walk_data = data;
 	struct damon_sysfs_kdamond *sysfs_kdamond = walk_data->sysfs_kdamond;

@@ -388,7 +388,7 @@ struct damos;
 struct damos_walk_control {
 	void (*walk_fn)(void *data, struct damon_ctx *ctx,
 			struct damon_target *t, struct damon_region *r,
-			struct damos *s);
+			struct damos *s, unsigned long sz_filter_passed);
 	void *data;
 /* private: internal use only */
 	/* informs if the kdamond finished handling of the walk request */
