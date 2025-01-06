@@ -15,5 +15,6 @@ int quicki2c_set_report(struct quicki2c_device *qcdev, u8 report_type,
 			unsigned int reportnum, void *buf, u32 buf_len);
 int quicki2c_get_device_descriptor(struct quicki2c_device *qcdev);
 int quicki2c_get_report_descriptor(struct quicki2c_device *qcdev);
+int quicki2c_reset(struct quicki2c_device *qcdev);
 
 #endif /* _QUICKI2C_PROTOCOL_H_ */

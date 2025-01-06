@@ -5,6 +5,7 @@
 #define _QUICKI2C_DEV_H_
 
 #include <linux/hid-over-i2c.h>
+#include <linux/workqueue.h>
 
 #define THC_LNL_DEVICE_ID_I2C_PORT1	0xA848
 #define THC_LNL_DEVICE_ID_I2C_PORT2	0xA84A
@@ -141,6 +142,8 @@ struct acpi_device;
  * @input_buf: store a copy of latest input report data
  * @report_buf: store a copy of latest input/output report packet from set/get feature
  * @report_len: the length of input/output report packet
+ * @reset_ack_wq: workqueue for waiting reset response from device
+ * @reset_ack: indicate reset response received or not
  */
 struct quicki2c_device {
 	struct device *dev;
@@ -167,6 +170,9 @@ struct quicki2c_device {
 	u8 *input_buf;
 	u8 *report_buf;
 	u32 report_len;
+
+	wait_queue_head_t reset_ack_wq;
+	bool reset_ack;
 };
 
 #endif /* _QUICKI2C_DEV_H_ */

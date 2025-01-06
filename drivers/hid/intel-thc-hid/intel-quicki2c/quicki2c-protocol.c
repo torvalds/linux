@@ -195,3 +195,30 @@ int quicki2c_set_report(struct quicki2c_device *qcdev, u8 report_type,
 
 	return buf_len;
 }
+
+#define HIDI2C_RESET_TIMEOUT		5
+
+int quicki2c_reset(struct quicki2c_device *qcdev)
+{
+	int ret;
+
+	qcdev->reset_ack = false;
+	qcdev->state = QUICKI2C_RESETING;
+
+	ret = write_cmd_to_txdma(qcdev, HIDI2C_RESET, HIDI2C_RESERVED, 0, NULL, 0);
+	if (ret) {
+		dev_err_once(qcdev->dev, "Send reset command failed, ret %d\n", ret);
+		return ret;
+	}
+
+	ret = wait_event_interruptible_timeout(qcdev->reset_ack_wq, qcdev->reset_ack,
+					       HIDI2C_RESET_TIMEOUT * HZ);
+	if (ret <= 0 || !qcdev->reset_ack) {
+		dev_err_once(qcdev->dev,
+			     "Wait reset response timed out ret:%d timeout:%ds\n",
+			     ret, HIDI2C_RESET_TIMEOUT);
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
