@@ -33,14 +33,14 @@ static inline u64 translate_tcr_el2_to_tcr_el1(u64 tcr)
 
 static inline u64 translate_cptr_el2_to_cpacr_el1(u64 cptr_el2)
 {
-	u64 cpacr_el1 = CPACR_ELx_RES1;
+	u64 cpacr_el1 = CPACR_EL1_RES1;
 
 	if (cptr_el2 & CPTR_EL2_TTA)
-		cpacr_el1 |= CPACR_ELx_TTA;
+		cpacr_el1 |= CPACR_EL1_TTA;
 	if (!(cptr_el2 & CPTR_EL2_TFP))
-		cpacr_el1 |= CPACR_ELx_FPEN;
+		cpacr_el1 |= CPACR_EL1_FPEN;
 	if (!(cptr_el2 & CPTR_EL2_TZ))
-		cpacr_el1 |= CPACR_ELx_ZEN;
+		cpacr_el1 |= CPACR_EL1_ZEN;
 
 	cpacr_el1 |= cptr_el2 & (CPTR_EL2_TCPAC | CPTR_EL2_TAM);
 

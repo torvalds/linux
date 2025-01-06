@@ -40,12 +40,12 @@ static void __activate_cptr_traps(struct kvm_vcpu *vcpu)
 	u64 val = CPTR_EL2_TAM;	/* Same bit irrespective of E2H */
 
 	if (has_hvhe()) {
-		val |= CPACR_ELx_TTA;
+		val |= CPACR_EL1_TTA;
 
 		if (guest_owns_fp_regs()) {
-			val |= CPACR_ELx_FPEN;
+			val |= CPACR_EL1_FPEN;
 			if (vcpu_has_sve(vcpu))
-				val |= CPACR_ELx_ZEN;
+				val |= CPACR_EL1_ZEN;
 		}
 	} else {
 		val |= CPTR_EL2_TTA | CPTR_NVHE_EL2_RES1;
@@ -204,7 +204,7 @@ static void kvm_hyp_save_fpsimd_host(struct kvm_vcpu *vcpu)
 
 		/* Re-enable SVE traps if not supported for the guest vcpu. */
 		if (!vcpu_has_sve(vcpu))
-			cpacr_clear_set(CPACR_ELx_ZEN, 0);
+			cpacr_clear_set(CPACR_EL1_ZEN, 0);
 
 	} else {
 		__fpsimd_save_state(*host_data_ptr(fpsimd_state));

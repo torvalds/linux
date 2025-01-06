@@ -169,7 +169,7 @@ void kvm_arch_vcpu_put_fp(struct kvm_vcpu *vcpu)
 	if (has_vhe() && system_supports_sme()) {
 		/* Also restore EL0 state seen on entry */
 		if (vcpu_get_flag(vcpu, HOST_SME_ENABLED))
-			sysreg_clear_set(CPACR_EL1, 0, CPACR_ELx_SMEN);
+			sysreg_clear_set(CPACR_EL1, 0, CPACR_EL1_SMEN);
 		else
 			sysreg_clear_set(CPACR_EL1,
 					 CPACR_EL1_SMEN_EL0EN,
