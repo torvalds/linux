@@ -1624,8 +1624,8 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 	file = anon_inode_getfile_fmode("[fanotify]", &fanotify_fops, group,
 					f_flags, FMODE_NONOTIFY);
 	if (IS_ERR(file)) {
-		fd = PTR_ERR(file);
 		put_unused_fd(fd);
+		fd = PTR_ERR(file);
 		goto out_destroy_group;
 	}
 	fd_install(fd, file);
