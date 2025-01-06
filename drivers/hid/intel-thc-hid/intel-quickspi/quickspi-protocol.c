@@ -225,6 +225,9 @@ void quickspi_handle_input_data(struct quickspi_device *qsdev, u32 buf_len)
 		break;
 
 	case DATA:
+		if (qsdev->state != QUICKSPI_ENABLED)
+			return;
+
 		if (input_len > le16_to_cpu(qsdev->dev_desc.max_input_len)) {
 			dev_err_once(qsdev->dev, "Unexpected too large input report length: %u\n",
 				     input_len);

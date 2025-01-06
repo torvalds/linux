@@ -14,6 +14,8 @@
 #include "intel-thc-hw.h"
 
 #include "quickspi-dev.h"
+#include "quickspi-hid.h"
+#include "quickspi-protocol.h"
 
 struct quickspi_driver_data mtl = {
 	.max_packet_size_value = MAX_PACKET_SIZE_VALUE_MTL,
@@ -229,6 +231,37 @@ static irqreturn_t quickspi_irq_quick_handler(int irq, void *dev_id)
 }
 
 /**
+ * try_recover - Try to recovery THC and Device
+ * @qsdev: pointer to quickspi device
+ *
+ * This function is a error handler, called when fatal error happens.
+ * It try to reset Touch Device and re-configure THC to recovery
+ * transferring between Device and THC.
+ *
+ * Return: 0 if successful or error code on failed.
+ */
+static int try_recover(struct quickspi_device *qsdev)
+{
+	int ret;
+
+	ret = reset_tic(qsdev);
+	if (ret) {
+		dev_err(qsdev->dev, "Reset touch device failed, ret = %d\n", ret);
+		return ret;
+	}
+
+	thc_dma_unconfigure(qsdev->thc_hw);
+
+	ret = thc_dma_configure(qsdev->thc_hw);
+	if (ret) {
+		dev_err(qsdev->dev, "Re-configure THC DMA failed, ret = %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+/**
  * quickspi_irq_thread_handler - IRQ thread handler of quickspi driver
  *
  * @irq: The IRQ number
@@ -239,14 +272,51 @@ static irqreturn_t quickspi_irq_quick_handler(int irq, void *dev_id)
 static irqreturn_t quickspi_irq_thread_handler(int irq, void *dev_id)
 {
 	struct quickspi_device *qsdev = dev_id;
+	size_t input_len;
+	int read_finished = 0;
+	int err_recover = 0;
 	int int_mask;
+	int ret;
 
 	if (qsdev->state == QUICKSPI_DISABLED)
 		return IRQ_HANDLED;
 
 	int_mask = thc_interrupt_handler(qsdev->thc_hw);
 
+	if (int_mask & BIT(THC_FATAL_ERR_INT) || int_mask & BIT(THC_TXN_ERR_INT)) {
+		err_recover = 1;
+		goto end;
+	}
+
+	if (int_mask & BIT(THC_NONDMA_INT)) {
+		if (qsdev->state == QUICKSPI_RESETING) {
+			qsdev->reset_ack = true;
+			wake_up_interruptible(&qsdev->reset_ack_wq);
+		} else {
+			qsdev->nondma_int_received = true;
+			wake_up_interruptible(&qsdev->nondma_int_received_wq);
+		}
+	}
+
+	if (int_mask & BIT(THC_RXDMA2_INT)) {
+		while (!read_finished) {
+			ret = thc_rxdma_read(qsdev->thc_hw, THC_RXDMA2, qsdev->input_buf,
+					     &input_len, &read_finished);
+			if (ret) {
+				err_recover = 1;
+				goto end;
+			}
+
+			quickspi_handle_input_data(qsdev, input_len);
+		}
+	}
+
+end:
 	thc_interrupt_enable(qsdev->thc_hw, true);
+
+	if (err_recover)
+		if (try_recover(qsdev))
+			qsdev->state = QUICKSPI_DISABLED;
 
 	return IRQ_HANDLED;
 }
@@ -280,7 +350,14 @@ static struct quickspi_device *quickspi_dev_init(struct pci_dev *pdev, void __io
 	qsdev->pdev = pdev;
 	qsdev->dev = dev;
 	qsdev->mem_addr = mem_addr;
+	qsdev->state = QUICKSPI_DISABLED;
 	qsdev->driver_data = (struct quickspi_driver_data *)id->driver_data;
+
+	init_waitqueue_head(&qsdev->reset_ack_wq);
+	init_waitqueue_head(&qsdev->nondma_int_received_wq);
+	init_waitqueue_head(&qsdev->report_desc_got_wq);
+	init_waitqueue_head(&qsdev->get_report_cmpl_wq);
+	init_waitqueue_head(&qsdev->set_report_cmpl_wq);
 
 	/* thc hw init */
 	qsdev->thc_hw = thc_dev_init(qsdev->dev, qsdev->mem_addr);
@@ -289,6 +366,10 @@ static struct quickspi_device *quickspi_dev_init(struct pci_dev *pdev, void __io
 		dev_err(dev, "Failed to initialize THC device context, ret = %d.\n", ret);
 		return ERR_PTR(ret);
 	}
+
+	ret = thc_interrupt_quiesce(qsdev->thc_hw, true);
+	if (ret)
+		return ERR_PTR(ret);
 
 	ret = thc_port_select(qsdev->thc_hw, THC_PORT_TYPE_SPI);
 	if (ret) {
@@ -302,9 +383,42 @@ static struct quickspi_device *quickspi_dev_init(struct pci_dev *pdev, void __io
 		return ERR_PTR(ret);
 	}
 
+	/* THC config for input/output address */
+	thc_spi_input_output_address_config(qsdev->thc_hw,
+					    qsdev->input_report_hdr_addr,
+					    qsdev->input_report_bdy_addr,
+					    qsdev->output_report_addr);
+
+	/* THC config for spi read operation */
+	ret = thc_spi_read_config(qsdev->thc_hw, qsdev->spi_freq_val,
+				  qsdev->spi_read_io_mode,
+				  qsdev->spi_read_opcode,
+				  qsdev->spi_packet_size);
+	if (ret) {
+		dev_err(dev, "thc_spi_read_config failed, ret = %d\n", ret);
+		return ERR_PTR(ret);
+	}
+
+	/* THC config for spi write operation */
+	ret = thc_spi_write_config(qsdev->thc_hw, qsdev->spi_freq_val,
+				   qsdev->spi_write_io_mode,
+				   qsdev->spi_write_opcode,
+				   qsdev->spi_packet_size,
+				   qsdev->performance_limit);
+	if (ret) {
+		dev_err(dev, "thc_spi_write_config failed, ret = %d\n", ret);
+		return ERR_PTR(ret);
+	}
+
+	thc_ltr_config(qsdev->thc_hw,
+		       qsdev->active_ltr_val,
+		       qsdev->low_power_ltr_val);
+
 	thc_interrupt_config(qsdev->thc_hw);
 
 	thc_interrupt_enable(qsdev->thc_hw, true);
+
+	qsdev->state = QUICKSPI_INITED;
 
 	return qsdev;
 }
@@ -319,6 +433,103 @@ static struct quickspi_device *quickspi_dev_init(struct pci_dev *pdev, void __io
 static void quickspi_dev_deinit(struct quickspi_device *qsdev)
 {
 	thc_interrupt_enable(qsdev->thc_hw, false);
+	thc_ltr_unconfig(qsdev->thc_hw);
+
+	qsdev->state = QUICKSPI_DISABLED;
+}
+
+/**
+ * quickspi_dma_init - Configure THC DMA for quickspi device
+ * @qsdev: pointer to the quickspi device structure
+ *
+ * This function uses TIC's parameters(such as max input length, max output
+ * length) to allocate THC DMA buffers and configure THC DMA engines.
+ *
+ * Return: 0 if successful or error code on failed.
+ */
+static int quickspi_dma_init(struct quickspi_device *qsdev)
+{
+	int ret;
+
+	ret = thc_dma_set_max_packet_sizes(qsdev->thc_hw, 0,
+					   le16_to_cpu(qsdev->dev_desc.max_input_len),
+					   le16_to_cpu(qsdev->dev_desc.max_output_len),
+					   0);
+	if (ret)
+		return ret;
+
+	ret = thc_dma_allocate(qsdev->thc_hw);
+	if (ret) {
+		dev_err(qsdev->dev, "Allocate THC DMA buffer failed, ret = %d\n", ret);
+		return ret;
+	}
+
+	/* Enable RxDMA */
+	ret = thc_dma_configure(qsdev->thc_hw);
+	if (ret) {
+		dev_err(qsdev->dev, "Configure THC DMA failed, ret = %d\n", ret);
+		thc_dma_unconfigure(qsdev->thc_hw);
+		thc_dma_release(qsdev->thc_hw);
+		return ret;
+	}
+
+	return ret;
+}
+
+/**
+ * quickspi_dma_deinit - Release THC DMA for quickspi device
+ * @qsdev: pointer to the quickspi device structure
+ *
+ * Stop THC DMA engines and release all DMA buffers.
+ *
+ */
+static void quickspi_dma_deinit(struct quickspi_device *qsdev)
+{
+	thc_dma_unconfigure(qsdev->thc_hw);
+	thc_dma_release(qsdev->thc_hw);
+}
+
+/**
+ * quickspi_alloc_report_buf - Alloc report buffers
+ * @qsdev: pointer to the quickspi device structure
+ *
+ * Allocate report descriptor buffer, it will be used for restore TIC HID
+ * report descriptor.
+ *
+ * Allocate input report buffer, it will be used for receive HID input report
+ * data from TIC.
+ *
+ * Allocate output report buffer, it will be used for store HID output report,
+ * such as set feature.
+ *
+ * Return: 0 if successful or error code on failed.
+ */
+static int quickspi_alloc_report_buf(struct quickspi_device *qsdev)
+{
+	size_t max_report_len;
+	size_t max_input_len;
+
+	qsdev->report_descriptor = devm_kzalloc(qsdev->dev,
+						le16_to_cpu(qsdev->dev_desc.rep_desc_len),
+						GFP_KERNEL);
+	if (!qsdev->report_descriptor)
+		return -ENOMEM;
+
+	max_input_len = max(le16_to_cpu(qsdev->dev_desc.rep_desc_len),
+			    le16_to_cpu(qsdev->dev_desc.max_input_len));
+
+	qsdev->input_buf = devm_kzalloc(qsdev->dev, max_input_len, GFP_KERNEL);
+	if (!qsdev->input_buf)
+		return -ENOMEM;
+
+	max_report_len = max(le16_to_cpu(qsdev->dev_desc.max_output_len),
+			     le16_to_cpu(qsdev->dev_desc.max_input_len));
+
+	qsdev->report_buf = devm_kzalloc(qsdev->dev, max_report_len, GFP_KERNEL);
+	if (!qsdev->report_buf)
+		return -ENOMEM;
+
+	return 0;
 }
 
 /*
@@ -326,6 +537,18 @@ static void quickspi_dev_deinit(struct quickspi_device *qsdev)
  *
  * @pdev: point to pci device
  * @id: point to pci_device_id structure
+ *
+ * This function initializes THC and HIDSPI device, the flow is:
+ * - do THC pci device initialization
+ * - query HIDSPI ACPI parameters
+ * - configure THC to HIDSPI mode
+ * - go through HIDSPI enumeration flow
+ *   |- reset HIDSPI device
+ *   |- read device descriptor
+ * - enable THC interrupt and DMA
+ * - read report descriptor
+ * - register HID device
+ * - enable runtime power management
  *
  * Return 0 if success or error code on failure.
  */
@@ -390,8 +613,44 @@ static int quickspi_probe(struct pci_dev *pdev,
 		goto dev_deinit;
 	}
 
+	ret = reset_tic(qsdev);
+	if (ret) {
+		dev_err(&pdev->dev, "Reset Touch Device failed, ret = %d\n", ret);
+		goto dev_deinit;
+	}
+
+	ret = quickspi_alloc_report_buf(qsdev);
+	if (ret) {
+		dev_err(&pdev->dev, "Alloc report buffers failed, ret= %d\n", ret);
+		goto dev_deinit;
+	}
+
+	ret = quickspi_dma_init(qsdev);
+	if (ret) {
+		dev_err(&pdev->dev, "Setup THC DMA failed, ret= %d\n", ret);
+		goto dev_deinit;
+	}
+
+	ret = quickspi_get_report_descriptor(qsdev);
+	if (ret) {
+		dev_err(&pdev->dev, "Get report descriptor failed, ret = %d\n", ret);
+		goto dma_deinit;
+	}
+
+	ret = quickspi_hid_probe(qsdev);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to register HID device, ret = %d\n", ret);
+		goto dma_deinit;
+	}
+
+	qsdev->state = QUICKSPI_ENABLED;
+
+	dev_dbg(&pdev->dev, "QuickSPI probe success\n");
+
 	return 0;
 
+dma_deinit:
+	quickspi_dma_deinit(qsdev);
 dev_deinit:
 	quickspi_dev_deinit(qsdev);
 unmap_io_region:
@@ -418,6 +677,9 @@ static void quickspi_remove(struct pci_dev *pdev)
 	if (!qsdev)
 		return;
 
+	quickspi_hid_remove(qsdev);
+	quickspi_dma_deinit(qsdev);
+
 	quickspi_dev_deinit(qsdev);
 
 	pcim_iounmap_regions(pdev, BIT(0));
@@ -440,6 +702,9 @@ static void quickspi_shutdown(struct pci_dev *pdev)
 	qsdev = pci_get_drvdata(pdev);
 	if (!qsdev)
 		return;
+
+	/* Must stop DMA before reboot to avoid DMA entering into unknown state */
+	quickspi_dma_deinit(qsdev);
 
 	quickspi_dev_deinit(qsdev);
 }
