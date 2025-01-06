@@ -2024,6 +2024,36 @@ static void tomoyo_add_entry(struct tomoyo_domain_info *domain, char *header)
 	if (!buffer)
 		return;
 	snprintf(buffer, len - 1, "%s", cp);
+	if (*cp == 'f' && strchr(buffer, ':')) {
+		/* Automatically replace 2 or more digits with \$ pattern. */
+		char *cp2;
+
+		/* e.g. file read proc:/$PID/stat */
+		cp = strstr(buffer, " proc:/");
+		if (cp && simple_strtoul(cp + 7, &cp2, 10) >= 10 && *cp2 == '/') {
+			*(cp + 7) = '\\';
+			*(cp + 8) = '$';
+			memmove(cp + 9, cp2, strlen(cp2) + 1);
+			goto ok;
+		}
+		/* e.g. file ioctl pipe:[$INO] $CMD */
+		cp = strstr(buffer, " pipe:[");
+		if (cp && simple_strtoul(cp + 7, &cp2, 10) >= 10 && *cp2 == ']') {
+			*(cp + 7) = '\\';
+			*(cp + 8) = '$';
+			memmove(cp + 9, cp2, strlen(cp2) + 1);
+			goto ok;
+		}
+		/* e.g. file ioctl socket:[$INO] $CMD */
+		cp = strstr(buffer, " socket:[");
+		if (cp && simple_strtoul(cp + 9, &cp2, 10) >= 10 && *cp2 == ']') {
+			*(cp + 9) = '\\';
+			*(cp + 10) = '$';
+			memmove(cp + 11, cp2, strlen(cp2) + 1);
+			goto ok;
+		}
+	}
+ok:
 	if (realpath)
 		tomoyo_addprintf(buffer, len, " exec.%s", realpath);
 	if (argv0)
