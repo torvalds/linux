@@ -54,21 +54,6 @@ PCAP_LIBS	:= $(shell $(PKG_CONFIG) --libs libpcap 2>/dev/null)
 LDLIBS += $(PCAP_LIBS)
 CFLAGS += $(PCAP_CFLAGS)
 
-# The following tests perform type punning and they may break strict
-# aliasing rules, which are exploited by both GCC and clang by default
-# while optimizing.  This can lead to broken programs.
-progs/bind4_prog.c-CFLAGS := -fno-strict-aliasing
-progs/bind6_prog.c-CFLAGS := -fno-strict-aliasing
-progs/dynptr_fail.c-CFLAGS := -fno-strict-aliasing
-progs/linked_list_fail.c-CFLAGS := -fno-strict-aliasing
-progs/map_kptr_fail.c-CFLAGS := -fno-strict-aliasing
-progs/syscall.c-CFLAGS := -fno-strict-aliasing
-progs/test_pkt_md_access.c-CFLAGS := -fno-strict-aliasing
-progs/test_sk_lookup.c-CFLAGS := -fno-strict-aliasing
-progs/timer_crash.c-CFLAGS := -fno-strict-aliasing
-progs/test_global_func9.c-CFLAGS := -fno-strict-aliasing
-progs/verifier_nocsr.c-CFLAGS := -fno-strict-aliasing
-
 # Some utility functions use LLVM libraries
 jit_disasm_helpers.c-CFLAGS = $(LLVM_CFLAGS)
 
@@ -103,18 +88,6 @@ progs/btf_dump_test_case_packing.c-bpf_gcc-CFLAGS := -Wno-error
 progs/btf_dump_test_case_padding.c-bpf_gcc-CFLAGS := -Wno-error
 progs/btf_dump_test_case_syntax.c-bpf_gcc-CFLAGS := -Wno-error
 
-# The following tests do type-punning, via the __imm_insn macro, from
-# `struct bpf_insn' to long and then uses the value.  This triggers an
-# "is used uninitialized" warning in GCC due to strict-aliasing
-# rules.
-progs/verifier_ref_tracking.c-bpf_gcc-CFLAGS := -fno-strict-aliasing
-progs/verifier_unpriv.c-bpf_gcc-CFLAGS := -fno-strict-aliasing
-progs/verifier_cgroup_storage.c-bpf_gcc-CFLAGS := -fno-strict-aliasing
-progs/verifier_ld_ind.c-bpf_gcc-CFLAGS := -fno-strict-aliasing
-progs/verifier_map_ret_val.c-bpf_gcc-CFLAGS := -fno-strict-aliasing
-progs/verifier_spill_fill.c-bpf_gcc-CFLAGS := -fno-strict-aliasing
-progs/verifier_subprog_precision.c-bpf_gcc-CFLAGS := -fno-strict-aliasing
-progs/verifier_uninit.c-bpf_gcc-CFLAGS := -fno-strict-aliasing
 endif
 
 ifneq ($(CLANG_CPUV4),)
@@ -474,6 +447,7 @@ CLANG_SYS_INCLUDES = $(call get_sys_includes,$(CLANG),$(CLANG_TARGET_ARCH))
 BPF_CFLAGS = -g -Wall -Werror -D__TARGET_ARCH_$(SRCARCH) $(MENDIAN)	\
 	     -I$(INCLUDE_DIR) -I$(CURDIR) -I$(APIDIR)			\
 	     -I$(abspath $(OUTPUT)/../usr/include)			\
+	     -fno-strict-aliasing 					\
 	     -Wno-compare-distinct-pointer-types
 # TODO: enable me -Wsign-compare
 
