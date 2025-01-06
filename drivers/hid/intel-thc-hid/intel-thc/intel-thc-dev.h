@@ -61,6 +61,7 @@ enum thc_int_type {
  * @write_done: bool value that indicates if DMA write is done
  * @swdma_done: bool value that indicates if SWDMA swquence is done
  * @perf_limit: the delay between read operation and write operation
+ * @i2c_subip_regs: the copy of THC I2C sub-system registers for resuming restore
  */
 struct thc_device {
 	struct device *dev;
@@ -78,6 +79,8 @@ struct thc_device {
 	bool swdma_done;
 
 	u32 perf_limit;
+
+	u32 *i2c_subip_regs;
 };
 
 struct thc_device *thc_dev_init(struct device *device, void __iomem *mem_addr);
@@ -105,5 +108,9 @@ int thc_spi_write_config(struct thc_device *dev, u32 spi_freq_val,
 			 u32 io_mode, u32 opcode, u32 spi_wr_mps, u32 perf_limit);
 void thc_spi_input_output_address_config(struct thc_device *dev, u32 input_hdr_addr,
 					 u32 input_bdy_addr, u32 output_addr);
+int thc_i2c_subip_init(struct thc_device *dev, const u32 target_address,
+		       const u32 speed, const u32 hcnt, const u32 lcnt);
+int thc_i2c_subip_regs_save(struct thc_device *dev);
+int thc_i2c_subip_regs_restore(struct thc_device *dev);
 
 #endif /* _INTEL_THC_DEV_H_ */
