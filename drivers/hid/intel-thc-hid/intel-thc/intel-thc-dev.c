@@ -688,6 +688,120 @@ void thc_set_pio_interrupt_support(struct thc_device *dev, bool supported)
 }
 EXPORT_SYMBOL_NS_GPL(thc_set_pio_interrupt_support, "INTEL_THC");
 
+/**
+ * thc_ltr_config - Configure THC Latency Tolerance Reporting(LTR) settings
+ *
+ * @dev: The pointer of THC private device context
+ * @active_ltr_us: active LTR value, unit is us
+ * @lp_ltr_us: low power LTR value, unit is us
+ */
+void thc_ltr_config(struct thc_device *dev, u32 active_ltr_us, u32 lp_ltr_us)
+{
+	u32 active_ltr_scale, lp_ltr_scale, ltr_ctrl, ltr_mask, orig, tmp;
+
+	if (active_ltr_us >= THC_LTR_MIN_VAL_SCALE_3 &&
+	    active_ltr_us < THC_LTR_MAX_VAL_SCALE_3) {
+		active_ltr_scale = THC_LTR_SCALE_3;
+		active_ltr_us = active_ltr_us >> 5;
+	} else if (active_ltr_us >= THC_LTR_MIN_VAL_SCALE_4 &&
+		   active_ltr_us < THC_LTR_MAX_VAL_SCALE_4) {
+		active_ltr_scale = THC_LTR_SCALE_4;
+		active_ltr_us = active_ltr_us >> 10;
+	} else if (active_ltr_us >= THC_LTR_MIN_VAL_SCALE_5 &&
+		   active_ltr_us < THC_LTR_MAX_VAL_SCALE_5) {
+		active_ltr_scale = THC_LTR_SCALE_5;
+		active_ltr_us = active_ltr_us >> 15;
+	} else {
+		active_ltr_scale = THC_LTR_SCALE_2;
+	}
+
+	if (lp_ltr_us >= THC_LTR_MIN_VAL_SCALE_3 &&
+	    lp_ltr_us < THC_LTR_MAX_VAL_SCALE_3) {
+		lp_ltr_scale = THC_LTR_SCALE_3;
+		lp_ltr_us = lp_ltr_us >> 5;
+	} else if (lp_ltr_us >= THC_LTR_MIN_VAL_SCALE_4 &&
+		   lp_ltr_us < THC_LTR_MAX_VAL_SCALE_4) {
+		lp_ltr_scale = THC_LTR_SCALE_4;
+		lp_ltr_us = lp_ltr_us >> 10;
+	} else if (lp_ltr_us >= THC_LTR_MIN_VAL_SCALE_5 &&
+		   lp_ltr_us < THC_LTR_MAX_VAL_SCALE_5) {
+		lp_ltr_scale = THC_LTR_SCALE_5;
+		lp_ltr_us = lp_ltr_us >> 15;
+	} else {
+		lp_ltr_scale = THC_LTR_SCALE_2;
+	}
+
+	regmap_read(dev->thc_regmap, THC_M_CMN_LTR_CTRL_OFFSET, &orig);
+	ltr_ctrl = FIELD_PREP(THC_M_CMN_LTR_CTRL_ACT_LTR_VAL, active_ltr_us) |
+		   FIELD_PREP(THC_M_CMN_LTR_CTRL_ACT_LTR_SCALE, active_ltr_scale) |
+		   THC_M_CMN_LTR_CTRL_ACTIVE_LTR_REQ |
+		   THC_M_CMN_LTR_CTRL_ACTIVE_LTR_EN |
+		   FIELD_PREP(THC_M_CMN_LTR_CTRL_LP_LTR_VAL, lp_ltr_us) |
+		   FIELD_PREP(THC_M_CMN_LTR_CTRL_LP_LTR_SCALE, lp_ltr_scale) |
+		   THC_M_CMN_LTR_CTRL_LP_LTR_REQ;
+
+	ltr_mask = THC_M_CMN_LTR_CTRL_ACT_LTR_VAL |
+		   THC_M_CMN_LTR_CTRL_ACT_LTR_SCALE |
+		   THC_M_CMN_LTR_CTRL_ACTIVE_LTR_REQ |
+		   THC_M_CMN_LTR_CTRL_ACTIVE_LTR_EN |
+		   THC_M_CMN_LTR_CTRL_LP_LTR_VAL |
+		   THC_M_CMN_LTR_CTRL_LP_LTR_SCALE |
+		   THC_M_CMN_LTR_CTRL_LP_LTR_REQ |
+		   THC_M_CMN_LTR_CTRL_LP_LTR_EN;
+
+	tmp = orig & ~ltr_mask;
+	tmp |= ltr_ctrl & ltr_mask;
+
+	regmap_write(dev->thc_regmap, THC_M_CMN_LTR_CTRL_OFFSET, tmp);
+}
+EXPORT_SYMBOL_NS_GPL(thc_ltr_config, "INTEL_THC");
+
+/**
+ * thc_change_ltr_mode - Change THC LTR mode
+ *
+ * @dev: The pointer of THC private device context
+ * @ltr_mode: LTR mode(active or low power)
+ */
+void thc_change_ltr_mode(struct thc_device *dev, u32 ltr_mode)
+{
+	if (ltr_mode == THC_LTR_MODE_ACTIVE) {
+		regmap_write_bits(dev->thc_regmap, THC_M_CMN_LTR_CTRL_OFFSET,
+				  THC_M_CMN_LTR_CTRL_LP_LTR_EN, 0);
+		regmap_write_bits(dev->thc_regmap, THC_M_CMN_LTR_CTRL_OFFSET,
+				  THC_M_CMN_LTR_CTRL_ACTIVE_LTR_EN,
+				  THC_M_CMN_LTR_CTRL_ACTIVE_LTR_EN);
+		return;
+	}
+
+	regmap_write_bits(dev->thc_regmap, THC_M_CMN_LTR_CTRL_OFFSET,
+			  THC_M_CMN_LTR_CTRL_ACTIVE_LTR_EN, 0);
+	regmap_write_bits(dev->thc_regmap, THC_M_CMN_LTR_CTRL_OFFSET,
+			  THC_M_CMN_LTR_CTRL_LP_LTR_EN,
+			  THC_M_CMN_LTR_CTRL_LP_LTR_EN);
+}
+EXPORT_SYMBOL_NS_GPL(thc_change_ltr_mode, "INTEL_THC");
+
+/**
+ * thc_ltr_unconfig - Unconfigure THC Latency Tolerance Reporting(LTR) settings
+ *
+ * @dev: The pointer of THC private device context
+ */
+void thc_ltr_unconfig(struct thc_device *dev)
+{
+	u32 ltr_ctrl, bits_clear;
+
+	regmap_read(dev->thc_regmap, THC_M_CMN_LTR_CTRL_OFFSET, &ltr_ctrl);
+	bits_clear = THC_M_CMN_LTR_CTRL_LP_LTR_EN |
+			THC_M_CMN_LTR_CTRL_ACTIVE_LTR_EN |
+			THC_M_CMN_LTR_CTRL_LP_LTR_REQ |
+			THC_M_CMN_LTR_CTRL_ACTIVE_LTR_REQ;
+
+	ltr_ctrl &= ~bits_clear;
+
+	regmap_write(dev->thc_regmap, THC_M_CMN_LTR_CTRL_OFFSET, ltr_ctrl);
+}
+EXPORT_SYMBOL_NS_GPL(thc_ltr_unconfig, "INTEL_THC");
+
 MODULE_AUTHOR("Xinpeng Sun <xinpeng.sun@intel.com>");
 MODULE_AUTHOR("Even Xu <even.xu@intel.com>");
 

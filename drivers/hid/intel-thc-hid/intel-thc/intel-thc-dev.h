@@ -68,5 +68,8 @@ void thc_int_trigger_type_select(struct thc_device *dev, bool edge_trigger);
 void thc_interrupt_enable(struct thc_device *dev, bool int_enable);
 void thc_set_pio_interrupt_support(struct thc_device *dev, bool supported);
 int thc_interrupt_quiesce(const struct thc_device *dev, bool int_quiesce);
+void thc_ltr_config(struct thc_device *dev, u32 active_ltr_us, u32 lp_ltr_us);
+void thc_change_ltr_mode(struct thc_device *dev, u32 ltr_mode);
+void thc_ltr_unconfig(struct thc_device *dev);
 
 #endif /* _INTEL_THC_DEV_H_ */

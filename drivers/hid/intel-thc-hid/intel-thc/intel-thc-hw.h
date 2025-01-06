@@ -656,6 +656,27 @@
 /* Interrupt Quiesce default timeout value */
 #define THC_QUIESCE_EN_TIMEOUT_US		USEC_PER_SEC /* 1s */
 
+/* LTR definition */
+/*
+ * THC uses scale to calculate final LTR value.
+ * Scale is geometric progression of 2^5 step, starting from 2^0.
+ * For example, THC_LTR_SCALE_2(2) means 2^(5 * 2) = 1024, unit is ns.
+ */
+#define THC_LTR_SCALE_0				0
+#define THC_LTR_SCALE_1				1
+#define THC_LTR_SCALE_2				2
+#define THC_LTR_SCALE_3				3
+#define THC_LTR_SCALE_4				4
+#define THC_LTR_SCALE_5				5
+#define THC_LTR_MODE_ACTIVE			0
+#define THC_LTR_MODE_LP				1
+#define THC_LTR_MIN_VAL_SCALE_3			BIT(10)
+#define THC_LTR_MAX_VAL_SCALE_3			BIT(15)
+#define THC_LTR_MIN_VAL_SCALE_4			BIT(15)
+#define THC_LTR_MAX_VAL_SCALE_4			BIT(20)
+#define THC_LTR_MIN_VAL_SCALE_5			BIT(20)
+#define THC_LTR_MAX_VAL_SCALE_5			BIT(25)
+
 /*
  * THC PIO opcode default value
  * @THC_PIO_OP_SPI_TIC_READ: THC opcode for SPI PIO read
