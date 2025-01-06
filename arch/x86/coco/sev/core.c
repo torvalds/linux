@@ -2356,8 +2356,8 @@ static __head void svsm_setup(struct cc_blob_sev_info *cc_info)
 	call.rax = SVSM_CORE_CALL(SVSM_CORE_REMAP_CA);
 	call.rcx = pa;
 	ret = svsm_perform_call_protocol(&call);
-	while (ret)
-		cpu_relax(); /* too early to panic */
+	if (ret)
+		sev_es_terminate(SEV_TERM_SET_LINUX, GHCB_TERM_SVSM_CA_REMAP_FAIL);
 
 	RIP_REL_REF(boot_svsm_caa) = (struct svsm_ca *)pa;
 	RIP_REL_REF(boot_svsm_caa_pa) = pa;
