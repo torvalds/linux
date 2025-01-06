@@ -1144,5 +1144,3 @@ out:
 }
 
 module_init(damon_dbgfs_init);
-
-#include "tests/dbgfs-kunit.h"
