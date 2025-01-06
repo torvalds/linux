@@ -254,14 +254,17 @@ struct bam_transaction {
 	struct dma_async_tx_descriptor *last_data_desc;
 	struct dma_async_tx_descriptor *last_cmd_desc;
 	struct completion txn_done;
-	u32 bam_ce_pos;
-	u32 bam_ce_start;
-	u32 cmd_sgl_pos;
-	u32 cmd_sgl_start;
-	u32 tx_sgl_pos;
-	u32 tx_sgl_start;
-	u32 rx_sgl_pos;
-	u32 rx_sgl_start;
+	struct_group(bam_positions,
+		u32 bam_ce_pos;
+		u32 bam_ce_start;
+		u32 cmd_sgl_pos;
+		u32 cmd_sgl_start;
+		u32 tx_sgl_pos;
+		u32 tx_sgl_start;
+		u32 rx_sgl_pos;
+		u32 rx_sgl_start;
+
+	);
 };
 
 /*
