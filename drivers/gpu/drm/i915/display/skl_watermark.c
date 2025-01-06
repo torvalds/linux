@@ -2939,7 +2939,17 @@ intel_program_dpkgc_latency(struct intel_atomic_state *state)
 	}
 
 	if (fixed_refresh_rate) {
+		added_wake_time = DSB_EXE_TIME +
+			display->sagv.block_time_us;
+
 		latency = skl_watermark_max_latency(i915, 1);
+
+		/* Wa_22020432604 */
+		if ((DISPLAY_VER(display) == 20 || DISPLAY_VER(display) == 30) && !latency) {
+			latency += added_wake_time;
+			added_wake_time = 0;
+		}
+
 		/* Wa_22020299601 */
 		if ((latency && max_linetime) &&
 		    (DISPLAY_VER(display) == 20 || DISPLAY_VER(display) == 30)) {
@@ -2947,9 +2957,6 @@ intel_program_dpkgc_latency(struct intel_atomic_state *state)
 		} else if (!latency) {
 			latency = LNL_PKG_C_LATENCY_MASK;
 		}
-
-		added_wake_time = DSB_EXE_TIME +
-			display->sagv.block_time_us;
 	}
 
 	clear = LNL_ADDED_WAKE_TIME_MASK | LNL_PKG_C_LATENCY_MASK;
