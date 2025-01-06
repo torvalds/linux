@@ -1436,11 +1436,18 @@ static enum es_result __vc_handle_msr_caa(struct pt_regs *regs, bool write)
 /*
  * TSC related accesses should not exit to the hypervisor when a guest is
  * executing with Secure TSC enabled, so special handling is required for
- * accesses of MSR_IA32_TSC.
+ * accesses of MSR_IA32_TSC and MSR_AMD64_GUEST_TSC_FREQ.
  */
 static enum es_result __vc_handle_secure_tsc_msrs(struct pt_regs *regs, bool write)
 {
 	u64 tsc;
+
+	/*
+	 * GUEST_TSC_FREQ should not be intercepted when Secure TSC is enabled.
+	 * Terminate the SNP guest when the interception is enabled.
+	 */
+	if (regs->cx == MSR_AMD64_GUEST_TSC_FREQ)
+		return ES_VMM_ERROR;
 
 	/*
 	 * Writes: Writing to MSR_IA32_TSC can cause subsequent reads of the TSC
@@ -1474,6 +1481,7 @@ static enum es_result vc_handle_msr(struct ghcb *ghcb, struct es_em_ctxt *ctxt)
 	case MSR_SVSM_CAA:
 		return __vc_handle_msr_caa(regs, write);
 	case MSR_IA32_TSC:
+	case MSR_AMD64_GUEST_TSC_FREQ:
 		if (sev_status & MSR_AMD64_SNP_SECURE_TSC)
 			return __vc_handle_secure_tsc_msrs(regs, write);
 		else
