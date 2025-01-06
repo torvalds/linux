@@ -11,5 +11,6 @@ intel-thc-objs += intel-thc/intel-thc-dma.o
 
 obj-$(CONFIG_INTEL_QUICKSPI) += intel-quickspi.o
 intel-quickspi-objs += intel-quickspi/pci-quickspi.o
+intel-quickspi-objs += intel-quickspi/quickspi-hid.o
 
 ccflags-y += -I $(src)/intel-thc
