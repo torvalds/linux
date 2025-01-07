@@ -5,7 +5,7 @@
 //! C header: [`include/linux/uaccess.h`](srctree/include/linux/uaccess.h)
 
 use crate::{
-    alloc::Flags,
+    alloc::{Allocator, Flags},
     bindings,
     error::Result,
     ffi::c_void,
@@ -127,7 +127,7 @@ impl UserSlice {
     /// Reads the entirety of the user slice, appending it to the end of the provided buffer.
     ///
     /// Fails with [`EFAULT`] if the read happens on a bad address.
-    pub fn read_all(self, buf: &mut KVec<u8>, flags: Flags) -> Result {
+    pub fn read_all<A: Allocator>(self, buf: &mut Vec<u8, A>, flags: Flags) -> Result {
         self.reader().read_all(buf, flags)
     }
 
@@ -281,7 +281,7 @@ impl UserSliceReader {
     /// Reads the entirety of the user slice, appending it to the end of the provided buffer.
     ///
     /// Fails with [`EFAULT`] if the read happens on a bad address.
-    pub fn read_all(mut self, buf: &mut KVec<u8>, flags: Flags) -> Result {
+    pub fn read_all<A: Allocator>(mut self, buf: &mut Vec<u8, A>, flags: Flags) -> Result {
         let len = self.length;
         buf.reserve(len, flags)?;
 
