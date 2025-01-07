@@ -30,6 +30,9 @@
 #define MII_DP83822_FCSCR	0x14
 #define MII_DP83822_RCSR	0x17
 #define MII_DP83822_RESET_CTRL	0x1f
+#define MII_DP83822_MLEDCR	0x25
+#define MII_DP83822_LEDCFG1	0x460
+#define MII_DP83822_IOCTRL1	0x462
 #define MII_DP83822_IOCTRL2	0x463
 #define MII_DP83822_GENCFG	0x465
 #define MII_DP83822_SOR1	0x467
@@ -105,10 +108,26 @@
 #define DP83822_RX_CLK_SHIFT	BIT(12)
 #define DP83822_TX_CLK_SHIFT	BIT(11)
 
+/* MLEDCR bits */
+#define DP83822_MLEDCR_CFG		GENMASK(6, 3)
+#define DP83822_MLEDCR_ROUTE		GENMASK(1, 0)
+#define DP83822_MLEDCR_ROUTE_LED_0	DP83822_MLEDCR_ROUTE
+
+/* LEDCFG1 bits */
+#define DP83822_LEDCFG1_LED1_CTRL	GENMASK(11, 8)
+#define DP83822_LEDCFG1_LED3_CTRL	GENMASK(7, 4)
+
+/* IOCTRL1 bits */
+#define DP83822_IOCTRL1_GPIO3_CTRL		GENMASK(10, 8)
+#define DP83822_IOCTRL1_GPIO3_CTRL_LED3		BIT(0)
+#define DP83822_IOCTRL1_GPIO1_CTRL		GENMASK(2, 0)
+#define DP83822_IOCTRL1_GPIO1_CTRL_LED_1	BIT(0)
+
 /* IOCTRL2 bits */
 #define DP83822_IOCTRL2_GPIO2_CLK_SRC		GENMASK(6, 4)
 #define DP83822_IOCTRL2_GPIO2_CTRL		GENMASK(2, 0)
 #define DP83822_IOCTRL2_GPIO2_CTRL_CLK_REF	GENMASK(1, 0)
+#define DP83822_IOCTRL2_GPIO2_CTRL_MLED		BIT(0)
 
 #define DP83822_CLK_SRC_MAC_IF			0x0
 #define DP83822_CLK_SRC_XI			0x1
@@ -116,6 +135,22 @@
 #define DP83822_CLK_SRC_RMII_MASTER_MODE_REF	0x4
 #define DP83822_CLK_SRC_FREE_RUNNING		0x6
 #define DP83822_CLK_SRC_RECOVERED		0x7
+
+#define DP83822_LED_FN_LINK		0x0 /* Link established */
+#define DP83822_LED_FN_RX_TX		0x1 /* Receive or Transmit activity */
+#define DP83822_LED_FN_TX		0x2 /* Transmit activity */
+#define DP83822_LED_FN_RX		0x3 /* Receive activity */
+#define DP83822_LED_FN_COLLISION	0x4 /* Collision detected */
+#define DP83822_LED_FN_LINK_100_BTX	0x5 /* 100 BTX link established */
+#define DP83822_LED_FN_LINK_10_BT	0x6 /* 10BT link established */
+#define DP83822_LED_FN_FULL_DUPLEX	0x7 /* Full duplex */
+#define DP83822_LED_FN_LINK_RX_TX	0x8 /* Link established, blink for rx or tx activity */
+#define DP83822_LED_FN_ACTIVE_STRETCH	0x9 /* Active Stretch Signal */
+#define DP83822_LED_FN_MII_LINK		0xa /* MII LINK (100BT+FD) */
+#define DP83822_LED_FN_LPI_MODE		0xb /* LPI Mode (EEE) */
+#define DP83822_LED_FN_RX_TX_ERR	0xc /* TX/RX MII Error */
+#define DP83822_LED_FN_LINK_LOST	0xd /* Link Lost */
+#define DP83822_LED_FN_PRBS_ERR		0xe /* Blink for PRBS error */
 
 /* SOR1 mode */
 #define DP83822_STRAP_MODE1	0
@@ -145,6 +180,13 @@
 					ADVERTISED_FIBRE | \
 					ADVERTISED_Pause | ADVERTISED_Asym_Pause)
 
+#define DP83822_MAX_LED_PINS		4
+
+#define DP83822_LED_INDEX_LED_0		0
+#define DP83822_LED_INDEX_LED_1_GPIO1	1
+#define DP83822_LED_INDEX_COL_GPIO2	2
+#define DP83822_LED_INDEX_RX_D3_GPIO3	3
+
 struct dp83822_private {
 	bool fx_signal_det_low;
 	int fx_enabled;
@@ -154,6 +196,7 @@ struct dp83822_private {
 	struct ethtool_wolinfo wol;
 	bool set_gpio2_clk_out;
 	u32 gpio2_clk_out;
+	bool led_pin_enable[DP83822_MAX_LED_PINS];
 };
 
 static int dp83822_config_wol(struct phy_device *phydev,
@@ -418,6 +461,48 @@ static int dp83822_read_status(struct phy_device *phydev)
 	return 0;
 }
 
+static int dp83822_config_init_leds(struct phy_device *phydev)
+{
+	struct dp83822_private *dp83822 = phydev->priv;
+	int ret;
+
+	if (dp83822->led_pin_enable[DP83822_LED_INDEX_LED_0]) {
+		ret = phy_modify_mmd(phydev, MDIO_MMD_VEND2, MII_DP83822_MLEDCR,
+				     DP83822_MLEDCR_ROUTE,
+				     FIELD_PREP(DP83822_MLEDCR_ROUTE,
+						DP83822_MLEDCR_ROUTE_LED_0));
+		if (ret)
+			return ret;
+	} else if (dp83822->led_pin_enable[DP83822_LED_INDEX_COL_GPIO2]) {
+		ret = phy_modify_mmd(phydev, MDIO_MMD_VEND2, MII_DP83822_IOCTRL2,
+				     DP83822_IOCTRL2_GPIO2_CTRL,
+				     FIELD_PREP(DP83822_IOCTRL2_GPIO2_CTRL,
+						DP83822_IOCTRL2_GPIO2_CTRL_MLED));
+		if (ret)
+			return ret;
+	}
+
+	if (dp83822->led_pin_enable[DP83822_LED_INDEX_LED_1_GPIO1]) {
+		ret = phy_modify_mmd(phydev, MDIO_MMD_VEND2, MII_DP83822_IOCTRL1,
+				     DP83822_IOCTRL1_GPIO1_CTRL,
+				     FIELD_PREP(DP83822_IOCTRL1_GPIO1_CTRL,
+						DP83822_IOCTRL1_GPIO1_CTRL_LED_1));
+		if (ret)
+			return ret;
+	}
+
+	if (dp83822->led_pin_enable[DP83822_LED_INDEX_RX_D3_GPIO3]) {
+		ret = phy_modify_mmd(phydev, MDIO_MMD_VEND2, MII_DP83822_IOCTRL1,
+				     DP83822_IOCTRL1_GPIO3_CTRL,
+				     FIELD_PREP(DP83822_IOCTRL1_GPIO3_CTRL,
+						DP83822_IOCTRL1_GPIO3_CTRL_LED3));
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int dp83822_config_init(struct phy_device *phydev)
 {
 	struct dp83822_private *dp83822 = phydev->priv;
@@ -436,6 +521,10 @@ static int dp83822_config_init(struct phy_device *phydev)
 					  DP83822_IOCTRL2_GPIO2_CTRL_CLK_REF) |
 			       FIELD_PREP(DP83822_IOCTRL2_GPIO2_CLK_SRC,
 					  dp83822->gpio2_clk_out));
+
+	err = dp83822_config_init_leds(phydev);
+	if (err)
+		return err;
 
 	if (phy_interface_is_rgmii(phydev)) {
 		rx_int_delay = phy_get_internal_delay(phydev, dev, NULL, 0,
@@ -631,6 +720,61 @@ static int dp83822_phy_reset(struct phy_device *phydev)
 }
 
 #ifdef CONFIG_OF_MDIO
+static int dp83822_of_init_leds(struct phy_device *phydev)
+{
+	struct device_node *node = phydev->mdio.dev.of_node;
+	struct dp83822_private *dp83822 = phydev->priv;
+	struct device_node *leds;
+	u32 index;
+	int err;
+
+	if (!node)
+		return 0;
+
+	leds = of_get_child_by_name(node, "leds");
+	if (!leds)
+		return 0;
+
+	for_each_available_child_of_node_scoped(leds, led) {
+		err = of_property_read_u32(led, "reg", &index);
+		if (err) {
+			of_node_put(leds);
+			return err;
+		}
+
+		if (index <= DP83822_LED_INDEX_RX_D3_GPIO3) {
+			dp83822->led_pin_enable[index] = true;
+		} else {
+			of_node_put(leds);
+			return -EINVAL;
+		}
+	}
+
+	of_node_put(leds);
+	/* LED_0 and COL(GPIO2) use the MLED function. MLED can be routed to
+	 * only one of these two pins at a time.
+	 */
+	if (dp83822->led_pin_enable[DP83822_LED_INDEX_LED_0] &&
+	    dp83822->led_pin_enable[DP83822_LED_INDEX_COL_GPIO2]) {
+		phydev_err(phydev, "LED_0 and COL(GPIO2) cannot be used as LED output at the same time\n");
+		return -EINVAL;
+	}
+
+	if (dp83822->led_pin_enable[DP83822_LED_INDEX_COL_GPIO2] &&
+	    dp83822->set_gpio2_clk_out) {
+		phydev_err(phydev, "COL(GPIO2) cannot be used as LED outout, already used as clock output\n");
+		return -EINVAL;
+	}
+
+	if (dp83822->led_pin_enable[DP83822_LED_INDEX_RX_D3_GPIO3] &&
+	    phydev->interface != PHY_INTERFACE_MODE_RMII) {
+		phydev_err(phydev, "RX_D3 can only be used as LED output when in RMII mode\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int dp83822_of_init(struct phy_device *phydev)
 {
 	struct dp83822_private *dp83822 = phydev->priv;
@@ -671,7 +815,7 @@ static int dp83822_of_init(struct phy_device *phydev)
 		dp83822->set_gpio2_clk_out = true;
 	}
 
-	return 0;
+	return dp83822_of_init_leds(phydev);
 }
 
 static int dp83826_to_dac_minus_one_regval(int percent)
@@ -769,7 +913,9 @@ static int dp83822_probe(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
-	dp83822_of_init(phydev);
+	ret = dp83822_of_init(phydev);
+	if (ret)
+		return ret;
 
 	if (dp83822->fx_enabled)
 		phydev->port = PORT_FIBRE;
@@ -816,6 +962,130 @@ static int dp83822_resume(struct phy_device *phydev)
 	return 0;
 }
 
+static int dp83822_led_mode(u8 index, unsigned long rules)
+{
+	switch (rules) {
+	case BIT(TRIGGER_NETDEV_LINK):
+		return DP83822_LED_FN_LINK;
+	case BIT(TRIGGER_NETDEV_LINK_10):
+		return DP83822_LED_FN_LINK_10_BT;
+	case BIT(TRIGGER_NETDEV_LINK_100):
+		return DP83822_LED_FN_LINK_100_BTX;
+	case BIT(TRIGGER_NETDEV_FULL_DUPLEX):
+		return DP83822_LED_FN_FULL_DUPLEX;
+	case BIT(TRIGGER_NETDEV_TX):
+		return DP83822_LED_FN_TX;
+	case BIT(TRIGGER_NETDEV_RX):
+		return DP83822_LED_FN_RX;
+	case BIT(TRIGGER_NETDEV_TX) | BIT(TRIGGER_NETDEV_RX):
+		return DP83822_LED_FN_RX_TX;
+	case BIT(TRIGGER_NETDEV_TX_ERR) | BIT(TRIGGER_NETDEV_RX_ERR):
+		return DP83822_LED_FN_RX_TX_ERR;
+	case BIT(TRIGGER_NETDEV_LINK) | BIT(TRIGGER_NETDEV_TX) | BIT(TRIGGER_NETDEV_RX):
+		return DP83822_LED_FN_LINK_RX_TX;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int dp83822_led_hw_is_supported(struct phy_device *phydev, u8 index,
+				       unsigned long rules)
+{
+	int mode;
+
+	mode = dp83822_led_mode(index, rules);
+	if (mode < 0)
+		return mode;
+
+	return 0;
+}
+
+static int dp83822_led_hw_control_set(struct phy_device *phydev, u8 index,
+				      unsigned long rules)
+{
+	int mode;
+
+	mode = dp83822_led_mode(index, rules);
+	if (mode < 0)
+		return mode;
+
+	if (index == DP83822_LED_INDEX_LED_0 || index == DP83822_LED_INDEX_COL_GPIO2)
+		return phy_modify_mmd(phydev, MDIO_MMD_VEND2,
+				      MII_DP83822_MLEDCR, DP83822_MLEDCR_CFG,
+				      FIELD_PREP(DP83822_MLEDCR_CFG, mode));
+	else if (index == DP83822_LED_INDEX_LED_1_GPIO1)
+		return phy_modify_mmd(phydev, MDIO_MMD_VEND2,
+				      MII_DP83822_LEDCFG1,
+				      DP83822_LEDCFG1_LED1_CTRL,
+				      FIELD_PREP(DP83822_LEDCFG1_LED1_CTRL,
+						 mode));
+	else
+		return phy_modify_mmd(phydev, MDIO_MMD_VEND2,
+				      MII_DP83822_LEDCFG1,
+				      DP83822_LEDCFG1_LED3_CTRL,
+				      FIELD_PREP(DP83822_LEDCFG1_LED3_CTRL,
+						 mode));
+}
+
+static int dp83822_led_hw_control_get(struct phy_device *phydev, u8 index,
+				      unsigned long *rules)
+{
+	int val;
+
+	if (index == DP83822_LED_INDEX_LED_0 || index == DP83822_LED_INDEX_COL_GPIO2) {
+		val = phy_read_mmd(phydev, MDIO_MMD_VEND2, MII_DP83822_MLEDCR);
+		if (val < 0)
+			return val;
+
+		val = FIELD_GET(DP83822_MLEDCR_CFG, val);
+	} else {
+		val = phy_read_mmd(phydev, MDIO_MMD_VEND2, MII_DP83822_LEDCFG1);
+		if (val < 0)
+			return val;
+
+		if (index == DP83822_LED_INDEX_LED_1_GPIO1)
+			val = FIELD_GET(DP83822_LEDCFG1_LED1_CTRL, val);
+		else
+			val = FIELD_GET(DP83822_LEDCFG1_LED3_CTRL, val);
+	}
+
+	switch (val) {
+	case DP83822_LED_FN_LINK:
+		*rules = BIT(TRIGGER_NETDEV_LINK);
+		break;
+	case DP83822_LED_FN_LINK_10_BT:
+		*rules = BIT(TRIGGER_NETDEV_LINK_10);
+		break;
+	case DP83822_LED_FN_LINK_100_BTX:
+		*rules = BIT(TRIGGER_NETDEV_LINK_100);
+		break;
+	case DP83822_LED_FN_FULL_DUPLEX:
+		*rules = BIT(TRIGGER_NETDEV_FULL_DUPLEX);
+		break;
+	case DP83822_LED_FN_TX:
+		*rules = BIT(TRIGGER_NETDEV_TX);
+		break;
+	case DP83822_LED_FN_RX:
+		*rules = BIT(TRIGGER_NETDEV_RX);
+		break;
+	case DP83822_LED_FN_RX_TX:
+		*rules = BIT(TRIGGER_NETDEV_TX) | BIT(TRIGGER_NETDEV_RX);
+		break;
+	case DP83822_LED_FN_RX_TX_ERR:
+		*rules = BIT(TRIGGER_NETDEV_TX_ERR) | BIT(TRIGGER_NETDEV_RX_ERR);
+		break;
+	case DP83822_LED_FN_LINK_RX_TX:
+		*rules = BIT(TRIGGER_NETDEV_LINK) | BIT(TRIGGER_NETDEV_TX) |
+			 BIT(TRIGGER_NETDEV_RX);
+		break;
+	default:
+		*rules = 0;
+		break;
+	}
+
+	return 0;
+}
+
 #define DP83822_PHY_DRIVER(_id, _name)				\
 	{							\
 		PHY_ID_MATCH_MODEL(_id),			\
@@ -831,6 +1101,9 @@ static int dp83822_resume(struct phy_device *phydev)
 		.handle_interrupt = dp83822_handle_interrupt,	\
 		.suspend = dp83822_suspend,			\
 		.resume = dp83822_resume,			\
+		.led_hw_is_supported = dp83822_led_hw_is_supported,	\
+		.led_hw_control_set = dp83822_led_hw_control_set,	\
+		.led_hw_control_get = dp83822_led_hw_control_get,	\
 	}
 
 #define DP83825_PHY_DRIVER(_id, _name)				\
