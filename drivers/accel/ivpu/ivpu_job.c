@@ -883,7 +883,7 @@ int ivpu_cmdq_destroy_ioctl(struct drm_device *dev, void *data, struct drm_file 
 	struct drm_ivpu_cmdq_destroy *args = data;
 	struct ivpu_cmdq *cmdq;
 	u32 cmdq_id;
-	int ret = 0;
+	int ret;
 
 	if (!ivpu_is_capable(vdev, DRM_IVPU_CAP_MANAGE_CMDQ))
 		return -ENODEV;
@@ -893,13 +893,16 @@ int ivpu_cmdq_destroy_ioctl(struct drm_device *dev, void *data, struct drm_file 
 	cmdq = xa_load(&file_priv->cmdq_xa, args->cmdq_id);
 	if (!cmdq || cmdq->is_legacy) {
 		ret = -ENOENT;
-		goto unlock;
+		goto err_unlock;
 	}
 
 	cmdq_id = cmdq->id;
 	ivpu_cmdq_destroy(file_priv, cmdq);
+	mutex_unlock(&file_priv->lock);
 	ivpu_cmdq_abort_all_jobs(vdev, file_priv->ctx.id, cmdq_id);
-unlock:
+	return 0;
+
+err_unlock:
 	mutex_unlock(&file_priv->lock);
 	return ret;
 }
