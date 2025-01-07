@@ -725,8 +725,8 @@ static int ivpu_mmu_cdtab_entry_set(struct ivpu_device *vdev, u32 ssid, u64 cd_d
 	cd[2] = 0;
 	cd[3] = 0x0000000000007444;
 
-	/* For global context generate memory fault on VPU */
-	if (ssid == IVPU_GLOBAL_CONTEXT_MMU_SSID)
+	/* For global and reserved contexts generate memory fault on VPU */
+	if (ssid == IVPU_GLOBAL_CONTEXT_MMU_SSID || ssid == IVPU_RESERVED_CONTEXT_MMU_SSID)
 		cd[0] |= IVPU_MMU_CD_0_A;
 
 	if (valid)
@@ -945,7 +945,8 @@ void ivpu_mmu_irq_evtq_handler(struct ivpu_device *vdev)
 
 	while ((event = ivpu_mmu_get_event(vdev))) {
 		ssid = FIELD_GET(IVPU_MMU_EVT_SSID_MASK, *event);
-		if (ssid == IVPU_GLOBAL_CONTEXT_MMU_SSID) {
+		if (ssid == IVPU_GLOBAL_CONTEXT_MMU_SSID ||
+		    ssid == IVPU_RESERVED_CONTEXT_MMU_SSID) {
 			ivpu_mmu_dump_event(vdev, event);
 			ivpu_pm_trigger_recovery(vdev, "MMU event");
 			return;
