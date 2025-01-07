@@ -295,9 +295,96 @@ static void bnxt_re_vf_res_config(struct bnxt_re_dev *rdev)
 				      &rdev->qplib_ctx);
 }
 
+struct bnxt_re_dcb_work {
+	struct work_struct work;
+	struct bnxt_re_dev *rdev;
+	struct hwrm_async_event_cmpl cmpl;
+};
+
+static bool bnxt_re_is_qp1_qp(struct bnxt_re_qp *qp)
+{
+	return qp->ib_qp.qp_type == IB_QPT_GSI;
+}
+
+static struct bnxt_re_qp *bnxt_re_get_qp1_qp(struct bnxt_re_dev *rdev)
+{
+	struct bnxt_re_qp *qp;
+
+	mutex_lock(&rdev->qp_lock);
+	list_for_each_entry(qp, &rdev->qp_list, list) {
+		if (bnxt_re_is_qp1_qp(qp)) {
+			mutex_unlock(&rdev->qp_lock);
+			return qp;
+		}
+	}
+	mutex_unlock(&rdev->qp_lock);
+	return NULL;
+}
+
+static int bnxt_re_update_qp1_tos_dscp(struct bnxt_re_dev *rdev)
+{
+	struct bnxt_re_qp *qp;
+
+	if (!bnxt_qplib_is_chip_gen_p5_p7(rdev->chip_ctx))
+		return 0;
+
+	qp = bnxt_re_get_qp1_qp(rdev);
+	if (!qp)
+		return 0;
+
+	qp->qplib_qp.modify_flags = CMDQ_MODIFY_QP_MODIFY_MASK_TOS_DSCP;
+	qp->qplib_qp.tos_dscp = rdev->cc_param.qp1_tos_dscp;
+
+	return bnxt_qplib_modify_qp(&rdev->qplib_res, &qp->qplib_qp);
+}
+
+static void bnxt_re_init_dcb_wq(struct bnxt_re_dev *rdev)
+{
+	rdev->dcb_wq = create_singlethread_workqueue("bnxt_re_dcb_wq");
+}
+
+static void bnxt_re_uninit_dcb_wq(struct bnxt_re_dev *rdev)
+{
+	if (!rdev->dcb_wq)
+		return;
+	destroy_workqueue(rdev->dcb_wq);
+}
+
+static void bnxt_re_dcb_wq_task(struct work_struct *work)
+{
+	struct bnxt_re_dcb_work *dcb_work =
+		container_of(work, struct bnxt_re_dcb_work, work);
+	struct bnxt_re_dev *rdev = dcb_work->rdev;
+	struct bnxt_qplib_cc_param *cc_param;
+	int rc;
+
+	if (!rdev)
+		goto free_dcb;
+
+	cc_param = &rdev->cc_param;
+	rc = bnxt_qplib_query_cc_param(&rdev->qplib_res, cc_param);
+	if (rc) {
+		ibdev_dbg(&rdev->ibdev, "Failed to query ccparam rc:%d", rc);
+		goto free_dcb;
+	}
+	if (cc_param->qp1_tos_dscp != cc_param->tos_dscp) {
+		cc_param->qp1_tos_dscp = cc_param->tos_dscp;
+		rc = bnxt_re_update_qp1_tos_dscp(rdev);
+		if (rc) {
+			ibdev_dbg(&rdev->ibdev, "%s: Failed to modify QP1 rc:%d",
+				  __func__, rc);
+			goto free_dcb;
+		}
+	}
+
+free_dcb:
+	kfree(dcb_work);
+}
+
 static void bnxt_re_async_notifier(void *handle, struct hwrm_async_event_cmpl *cmpl)
 {
 	struct bnxt_re_dev *rdev = (struct bnxt_re_dev *)handle;
+	struct bnxt_re_dcb_work *dcb_work;
 	u32 data1, data2;
 	u16 event_id;
 
@@ -307,6 +394,21 @@ static void bnxt_re_async_notifier(void *handle, struct hwrm_async_event_cmpl *c
 
 	ibdev_dbg(&rdev->ibdev, "Async event_id = %d data1 = %d data2 = %d",
 		  event_id, data1, data2);
+
+	switch (event_id) {
+	case ASYNC_EVENT_CMPL_EVENT_ID_DCB_CONFIG_CHANGE:
+		dcb_work = kzalloc(sizeof(*dcb_work), GFP_ATOMIC);
+		if (!dcb_work)
+			break;
+
+		dcb_work->rdev = rdev;
+		memcpy(&dcb_work->cmpl, cmpl, sizeof(*cmpl));
+		INIT_WORK(&dcb_work->work, bnxt_re_dcb_wq_task);
+		queue_work(rdev->dcb_wq, &dcb_work->work);
+		break;
+	default:
+		break;
+	}
 }
 
 static void bnxt_re_stop_irq(void *handle)
@@ -1900,6 +2002,7 @@ static void bnxt_re_dev_uninit(struct bnxt_re_dev *rdev, u8 op_type)
 	bnxt_re_debugfs_rem_pdev(rdev);
 
 	bnxt_re_net_unregister_async_event(rdev);
+	bnxt_re_uninit_dcb_wq(rdev);
 
 	if (test_and_clear_bit(BNXT_RE_FLAG_QOS_WORK_REG, &rdev->flags))
 		cancel_delayed_work_sync(&rdev->worker);
@@ -2119,6 +2222,7 @@ static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 op_type)
 
 	bnxt_re_debugfs_add_pdev(rdev);
 
+	bnxt_re_init_dcb_wq(rdev);
 	bnxt_re_net_register_async_event(rdev);
 
 	return 0;

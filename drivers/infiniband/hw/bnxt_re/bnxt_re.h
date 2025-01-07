@@ -231,6 +231,7 @@ struct bnxt_re_dev {
 	struct dentry			*qp_debugfs;
 	unsigned long			event_bitmap;
 	struct bnxt_qplib_cc_param	cc_param;
+	struct workqueue_struct		*dcb_wq;
 };
 
 #define to_bnxt_re_dev(ptr, member)	\
