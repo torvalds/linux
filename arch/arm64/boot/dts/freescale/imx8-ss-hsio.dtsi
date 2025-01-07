@@ -57,8 +57,9 @@ hsio_subsys: bus@5f000000 {
 		ranges = <0x81000000 0 0x00000000 0x8ff80000 0 0x00010000>,
 			 <0x82000000 0 0x80000000 0x80000000 0 0x0ff00000>;
 		#interrupt-cells = <1>;
-		interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "msi";
+		interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "msi", "dma";
 		#address-cells = <3>;
 		#size-cells = <2>;
 		clocks = <&pcieb_lpcg IMX_LPCG_CLK_6>,
