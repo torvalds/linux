@@ -11925,7 +11925,7 @@ F:	include/uapi/linux/io_uring.h
 F:	io_uring/
 
 IPMI SUBSYSTEM
-M:	Corey Minyard <minyard@acm.org>
+M:	Corey Minyard <corey@minyard.net>
 L:	openipmi-developer@lists.sourceforge.net (moderated for non-subscribers)
 S:	Supported
 W:	http://openipmi.sourceforge.net/
