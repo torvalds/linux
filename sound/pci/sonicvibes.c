@@ -1118,7 +1118,7 @@ static void snd_sonicvibes_proc_read(struct snd_info_entry *entry,
 
 	tmp = sonic->srs_space & 0x0f;
 	snd_iprintf(buffer, "SRS 3D           : %s\n",
-		    sonic->srs_space & 0x80 ? "off" : "on");
+		    str_off_on(sonic->srs_space & 0x80));
 	snd_iprintf(buffer, "SRS Space        : %s\n",
 		    tmp == 0x00 ? "100%" :
 		    tmp == 0x01 ? "75%" :

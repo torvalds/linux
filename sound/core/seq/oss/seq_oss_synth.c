@@ -608,8 +608,8 @@ snd_seq_oss_synth_info_read(struct snd_info_buffer *buf)
 			    rec->synth_type, rec->synth_subtype,
 			    rec->nr_voices);
 		snd_iprintf(buf, "  capabilities : ioctl %s / load_patch %s\n",
-			    enabled_str((long)rec->oper.ioctl),
-			    enabled_str((long)rec->oper.load_patch));
+			    str_enabled_disabled((long)rec->oper.ioctl),
+			    str_enabled_disabled((long)rec->oper.load_patch));
 		snd_use_lock_free(&rec->use_lock);
 	}
 }
