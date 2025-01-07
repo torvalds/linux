@@ -103,6 +103,8 @@ struct netdevsim {
 	struct mock_phc *phc;
 	struct nsim_rq **rq;
 
+	int rq_reset_mode;
+
 	u64 tx_packets;
 	u64 tx_bytes;
 	u64 tx_dropped;

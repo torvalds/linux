@@ -359,25 +359,24 @@ static int nsim_poll(struct napi_struct *napi, int budget)
 	return done;
 }
 
-static int nsim_create_page_pool(struct nsim_rq *rq)
+static int nsim_create_page_pool(struct page_pool **p, struct napi_struct *napi)
 {
-	struct page_pool_params p = {
+	struct page_pool_params params = {
 		.order = 0,
 		.pool_size = NSIM_RING_SIZE,
 		.nid = NUMA_NO_NODE,
-		.dev = &rq->napi.dev->dev,
-		.napi = &rq->napi,
+		.dev = &napi->dev->dev,
+		.napi = napi,
 		.dma_dir = DMA_BIDIRECTIONAL,
-		.netdev = rq->napi.dev,
+		.netdev = napi->dev,
 	};
+	struct page_pool *pool;
 
-	rq->page_pool = page_pool_create(&p);
-	if (IS_ERR(rq->page_pool)) {
-		int err = PTR_ERR(rq->page_pool);
+	pool = page_pool_create(&params);
+	if (IS_ERR(pool))
+		return PTR_ERR(pool);
 
-		rq->page_pool = NULL;
-		return err;
-	}
+	*p = pool;
 	return 0;
 }
 
@@ -396,7 +395,7 @@ static int nsim_init_napi(struct netdevsim *ns)
 	for (i = 0; i < dev->num_rx_queues; i++) {
 		rq = ns->rq[i];
 
-		err = nsim_create_page_pool(rq);
+		err = nsim_create_page_pool(&rq->page_pool, &rq->napi);
 		if (err)
 			goto err_pp_destroy;
 	}
@@ -613,6 +612,116 @@ static void nsim_queue_free(struct nsim_rq *rq)
 	kfree(rq);
 }
 
+/* Queue reset mode is controlled by ns->rq_reset_mode.
+ * - normal - new NAPI new pool (old NAPI enabled when new added)
+ * - mode 1 - allocate new pool (NAPI is only disabled / enabled)
+ * - mode 2 - new NAPI new pool (old NAPI removed before new added)
+ * - mode 3 - new NAPI new pool (old NAPI disabled when new added)
+ */
+struct nsim_queue_mem {
+	struct nsim_rq *rq;
+	struct page_pool *pp;
+};
+
+static int
+nsim_queue_mem_alloc(struct net_device *dev, void *per_queue_mem, int idx)
+{
+	struct nsim_queue_mem *qmem = per_queue_mem;
+	struct netdevsim *ns = netdev_priv(dev);
+	int err;
+
+	if (ns->rq_reset_mode > 3)
+		return -EINVAL;
+
+	if (ns->rq_reset_mode == 1)
+		return nsim_create_page_pool(&qmem->pp, &ns->rq[idx]->napi);
+
+	qmem->rq = nsim_queue_alloc();
+	if (!qmem->rq)
+		return -ENOMEM;
+
+	err = nsim_create_page_pool(&qmem->rq->page_pool, &qmem->rq->napi);
+	if (err)
+		goto err_free;
+
+	if (!ns->rq_reset_mode)
+		netif_napi_add_config(dev, &qmem->rq->napi, nsim_poll, idx);
+
+	return 0;
+
+err_free:
+	nsim_queue_free(qmem->rq);
+	return err;
+}
+
+static void nsim_queue_mem_free(struct net_device *dev, void *per_queue_mem)
+{
+	struct nsim_queue_mem *qmem = per_queue_mem;
+	struct netdevsim *ns = netdev_priv(dev);
+
+	page_pool_destroy(qmem->pp);
+	if (qmem->rq) {
+		if (!ns->rq_reset_mode)
+			netif_napi_del(&qmem->rq->napi);
+		page_pool_destroy(qmem->rq->page_pool);
+		nsim_queue_free(qmem->rq);
+	}
+}
+
+static int
+nsim_queue_start(struct net_device *dev, void *per_queue_mem, int idx)
+{
+	struct nsim_queue_mem *qmem = per_queue_mem;
+	struct netdevsim *ns = netdev_priv(dev);
+
+	if (ns->rq_reset_mode == 1) {
+		ns->rq[idx]->page_pool = qmem->pp;
+		napi_enable(&ns->rq[idx]->napi);
+		return 0;
+	}
+
+	/* netif_napi_add()/_del() should normally be called from alloc/free,
+	 * here we want to test various call orders.
+	 */
+	if (ns->rq_reset_mode == 2) {
+		netif_napi_del(&ns->rq[idx]->napi);
+		netif_napi_add_config(dev, &qmem->rq->napi, nsim_poll, idx);
+	} else if (ns->rq_reset_mode == 3) {
+		netif_napi_add_config(dev, &qmem->rq->napi, nsim_poll, idx);
+		netif_napi_del(&ns->rq[idx]->napi);
+	}
+
+	ns->rq[idx] = qmem->rq;
+	napi_enable(&ns->rq[idx]->napi);
+
+	return 0;
+}
+
+static int nsim_queue_stop(struct net_device *dev, void *per_queue_mem, int idx)
+{
+	struct nsim_queue_mem *qmem = per_queue_mem;
+	struct netdevsim *ns = netdev_priv(dev);
+
+	napi_disable(&ns->rq[idx]->napi);
+
+	if (ns->rq_reset_mode == 1) {
+		qmem->pp = ns->rq[idx]->page_pool;
+		page_pool_disable_direct_recycling(qmem->pp);
+	} else {
+		qmem->rq = ns->rq[idx];
+	}
+
+	return 0;
+}
+
+static const struct netdev_queue_mgmt_ops nsim_queue_mgmt_ops = {
+	.ndo_queue_mem_size	= sizeof(struct nsim_queue_mem),
+	.ndo_queue_mem_alloc	= nsim_queue_mem_alloc,
+	.ndo_queue_mem_free	= nsim_queue_mem_free,
+	.ndo_queue_start	= nsim_queue_start,
+	.ndo_queue_stop		= nsim_queue_stop,
+};
+
 static ssize_t
 nsim_pp_hold_read(struct file *file, char __user *data,
 		  size_t count, loff_t *ppos)
@@ -739,6 +848,7 @@ static int nsim_init_netdevsim(struct netdevsim *ns)
 	ns->phc = phc;
 	ns->netdev->netdev_ops = &nsim_netdev_ops;
 	ns->netdev->stat_ops = &nsim_stat_ops;
+	ns->netdev->queue_mgmt_ops = &nsim_queue_mgmt_ops;
 
 	err = nsim_udp_tunnels_info_create(ns->nsim_dev, ns->netdev);
 	if (err)
