@@ -1036,11 +1036,12 @@ static int hx9023s_send_cfg(const struct firmware *fw, struct hx9023s_data *data
 		return -ENOMEM;
 
 	memcpy(bin->data, fw->data, fw->size);
-	release_firmware(fw);
 
 	bin->fw_size = fw->size;
 	bin->fw_ver = bin->data[FW_VER_OFFSET];
 	bin->reg_count = get_unaligned_le16(bin->data + FW_REG_CNT_OFFSET);
+
+	release_firmware(fw);
 
 	return hx9023s_bin_load(data, bin);
 }
