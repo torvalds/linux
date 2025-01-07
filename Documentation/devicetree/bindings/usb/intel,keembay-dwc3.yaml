@@ -58,20 +58,20 @@ examples:
     #define KEEM_BAY_A53_AUX_USB_SUSPEND
 
     usb {
-          compatible = "intel,keembay-dwc3";
-          clocks = <&scmi_clk KEEM_BAY_A53_AUX_USB>,
-                   <&scmi_clk KEEM_BAY_A53_AUX_USB_REF>,
-                   <&scmi_clk KEEM_BAY_A53_AUX_USB_ALT_REF>,
-                   <&scmi_clk KEEM_BAY_A53_AUX_USB_SUSPEND>;
-          clock-names = "async_master", "ref", "alt_ref", "suspend";
-          ranges;
-          #address-cells = <1>;
-          #size-cells = <1>;
+        compatible = "intel,keembay-dwc3";
+        clocks = <&scmi_clk KEEM_BAY_A53_AUX_USB>,
+                 <&scmi_clk KEEM_BAY_A53_AUX_USB_REF>,
+                 <&scmi_clk KEEM_BAY_A53_AUX_USB_ALT_REF>,
+                 <&scmi_clk KEEM_BAY_A53_AUX_USB_SUSPEND>;
+        clock-names = "async_master", "ref", "alt_ref", "suspend";
+        ranges;
+        #address-cells = <1>;
+        #size-cells = <1>;
 
-          usb@34000000 {
-                compatible = "snps,dwc3";
-                reg = <0x34000000 0x10000>;
-                interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
-                dr_mode = "peripheral";
-          };
+        usb@34000000 {
+            compatible = "snps,dwc3";
+            reg = <0x34000000 0x10000>;
+            interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
+            dr_mode = "peripheral";
+        };
     };

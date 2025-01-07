@@ -104,26 +104,26 @@ examples:
         #size-cells = <1>;
 
         usb3host: usb@85060000 {
-           compatible = "renesas,r9a09g011-xhci",
-                        "renesas,rzv2m-xhci";
-           reg = <0x85060000 0x2000>;
-           interrupts = <GIC_SPI 245 IRQ_TYPE_LEVEL_HIGH>;
-           clocks = <&cpg CPG_MOD R9A09G011_USB_ACLK_H>,
-                    <&cpg CPG_MOD R9A09G011_USB_PCLK>;
-           clock-names = "axi", "reg";
-           power-domains = <&cpg>;
-           resets = <&cpg R9A09G011_USB_ARESETN_H>;
+            compatible = "renesas,r9a09g011-xhci",
+                         "renesas,rzv2m-xhci";
+            reg = <0x85060000 0x2000>;
+            interrupts = <GIC_SPI 245 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&cpg CPG_MOD R9A09G011_USB_ACLK_H>,
+                     <&cpg CPG_MOD R9A09G011_USB_PCLK>;
+            clock-names = "axi", "reg";
+            power-domains = <&cpg>;
+            resets = <&cpg R9A09G011_USB_ARESETN_H>;
         };
 
         usb3peri: usb3peri@85070000 {
-           compatible = "renesas,r9a09g011-usb3-peri",
-                        "renesas,rzv2m-usb3-peri";
-           reg = <0x85070000 0x400>;
-           interrupts = <GIC_SPI 246 IRQ_TYPE_LEVEL_HIGH>;
-           clocks = <&cpg CPG_MOD R9A09G011_USB_ACLK_P>,
-                    <&cpg CPG_MOD R9A09G011_USB_PCLK>;
-           clock-names = "axi", "reg";
-           power-domains = <&cpg>;
-           resets = <&cpg R9A09G011_USB_ARESETN_P>;
+            compatible = "renesas,r9a09g011-usb3-peri",
+                         "renesas,rzv2m-usb3-peri";
+            reg = <0x85070000 0x400>;
+            interrupts = <GIC_SPI 246 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&cpg CPG_MOD R9A09G011_USB_ACLK_P>,
+                     <&cpg CPG_MOD R9A09G011_USB_PCLK>;
+            clock-names = "axi", "reg";
+            power-domains = <&cpg>;
+            resets = <&cpg R9A09G011_USB_ARESETN_P>;
         };
     };

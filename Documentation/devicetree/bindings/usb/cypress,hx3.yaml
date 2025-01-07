@@ -56,21 +56,21 @@ examples:
 
         /* 2.0 hub on port 1 */
         hub_2_0: hub@1 {
-          compatible = "usb4b4,6504";
-          reg = <1>;
-          peer-hub = <&hub_3_0>;
-          reset-gpios = <&gpio1 11 GPIO_ACTIVE_LOW>;
-          vdd-supply = <&reg_1v2_usb>;
-          vdd2-supply = <&reg_3v3_usb>;
+            compatible = "usb4b4,6504";
+            reg = <1>;
+            peer-hub = <&hub_3_0>;
+            reset-gpios = <&gpio1 11 GPIO_ACTIVE_LOW>;
+            vdd-supply = <&reg_1v2_usb>;
+            vdd2-supply = <&reg_3v3_usb>;
         };
 
         /* 3.0 hub on port 2 */
         hub_3_0: hub@2 {
-          compatible = "usb4b4,6506";
-          reg = <2>;
-          peer-hub = <&hub_2_0>;
-          reset-gpios = <&gpio1 11 GPIO_ACTIVE_LOW>;
-          vdd-supply = <&reg_1v2_usb>;
-          vdd2-supply = <&reg_3v3_usb>;
+            compatible = "usb4b4,6506";
+            reg = <2>;
+            peer-hub = <&hub_2_0>;
+            reset-gpios = <&gpio1 11 GPIO_ACTIVE_LOW>;
+            vdd-supply = <&reg_1v2_usb>;
+            vdd2-supply = <&reg_3v3_usb>;
         };
     };

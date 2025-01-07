@@ -50,18 +50,18 @@ additionalProperties: false
 
 examples:
   - |
-      #include <dt-bindings/gpio/gpio.h>
-      #include <dt-bindings/interrupt-controller/irq.h>
-      spi {
-            #address-cells = <1>;
-            #size-cells = <0>;
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-            udc@0 {
-                  compatible = "maxim,max3420-udc";
-                  reg = <0>;
-                  interrupt-parent = <&gpio>;
-                  interrupts = <0 IRQ_TYPE_EDGE_FALLING>, <10 IRQ_TYPE_EDGE_BOTH>;
-                  interrupt-names = "udc", "vbus";
-                  spi-max-frequency = <12500000>;
-            };
-      };
+        udc@0 {
+            compatible = "maxim,max3420-udc";
+            reg = <0>;
+            interrupt-parent = <&gpio>;
+            interrupts = <0 IRQ_TYPE_EDGE_FALLING>, <10 IRQ_TYPE_EDGE_BOTH>;
+            interrupt-names = "udc", "vbus";
+            spi-max-frequency = <12500000>;
+        };
+    };
