@@ -145,7 +145,18 @@ ivpu_fw_sched_mode_select(struct ivpu_device *vdev, const struct vpu_firmware_he
 	if (ivpu_sched_mode != IVPU_SCHED_MODE_AUTO)
 		return ivpu_sched_mode;
 
-	return VPU_SCHEDULING_MODE_OS;
+	if (IVPU_FW_CHECK_API_VER_LT(vdev, fw_hdr, JSM, 3, 24))
+		return VPU_SCHEDULING_MODE_OS;
+
+	switch (ivpu_device_id(vdev)) {
+	case PCI_DEVICE_ID_MTL:
+	case PCI_DEVICE_ID_ARL:
+	case PCI_DEVICE_ID_LNL:
+	case PCI_DEVICE_ID_PTL_P:
+		return VPU_SCHEDULING_MODE_HW;
+	default:
+		return VPU_SCHEDULING_MODE_OS;
+	}
 }
 
 static int ivpu_fw_parse(struct ivpu_device *vdev)
