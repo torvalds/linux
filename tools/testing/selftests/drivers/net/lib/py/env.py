@@ -48,6 +48,7 @@ class NetDrvEnv:
         else:
             self._ns = NetdevSimDev(**kwargs)
             self.dev = self._ns.nsims[0].dev
+        self.ifname = self.dev['ifname']
         self.ifindex = self.dev['ifindex']
 
     def __enter__(self):
