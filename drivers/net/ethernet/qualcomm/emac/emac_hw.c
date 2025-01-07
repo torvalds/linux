@@ -152,10 +152,10 @@ void emac_hw_config_rss(struct emac_hw *hw)
 	int i;
 
 	/* Fill out hash function keys */
-	for (i = 0; i < key_len_by_u32; i++) {
+	for (i = 0; i < key_len_by_u32 - 3; i++) {
 		u32 key, idx_base;
 
-		idx_base = (key_len_by_u32 - i) * 4;
+		idx_base = (key_len_by_u32 - i);
 		key = ((hw->rss_key[idx_base - 1])       |
 		       (hw->rss_key[idx_base - 2] << 8)  |
 		       (hw->rss_key[idx_base - 3] << 16) |
