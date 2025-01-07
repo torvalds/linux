@@ -165,14 +165,14 @@ static int hws_matcher_disconnect(struct mlx5hws_matcher *matcher)
 						    next->match_ste.rtc_0_id,
 						    next->match_ste.rtc_1_id);
 		if (ret) {
-			mlx5hws_err(tbl->ctx, "Failed to disconnect matcher\n");
-			goto matcher_reconnect;
+			mlx5hws_err(tbl->ctx, "Fatal error, failed to disconnect matcher\n");
+			return ret;
 		}
 	} else {
 		ret = mlx5hws_table_connect_to_miss_table(tbl, tbl->default_miss.miss_tbl);
 		if (ret) {
-			mlx5hws_err(tbl->ctx, "Failed to disconnect last matcher\n");
-			goto matcher_reconnect;
+			mlx5hws_err(tbl->ctx, "Fatal error, failed to disconnect last matcher\n");
+			return ret;
 		}
 	}
 
@@ -180,27 +180,19 @@ static int hws_matcher_disconnect(struct mlx5hws_matcher *matcher)
 	if (prev_ft_id == tbl->ft_id) {
 		ret = mlx5hws_table_update_connected_miss_tables(tbl);
 		if (ret) {
-			mlx5hws_err(tbl->ctx, "Fatal error, failed to update connected miss table\n");
-			goto matcher_reconnect;
+			mlx5hws_err(tbl->ctx,
+				    "Fatal error, failed to update connected miss table\n");
+			return ret;
 		}
 	}
 
 	ret = mlx5hws_table_ft_set_default_next_ft(tbl, prev_ft_id);
 	if (ret) {
 		mlx5hws_err(tbl->ctx, "Fatal error, failed to restore matcher ft default miss\n");
-		goto matcher_reconnect;
+		return ret;
 	}
 
 	return 0;
-
-matcher_reconnect:
-	if (list_empty(&tbl->matchers_list) || !prev)
-		list_add(&matcher->list_node, &tbl->matchers_list);
-	else
-		/* insert after prev matcher */
-		list_add(&matcher->list_node, &prev->list_node);
-
-	return ret;
 }
 
 static void hws_matcher_set_rtc_attr_sz(struct mlx5hws_matcher *matcher,
@@ -318,8 +310,8 @@ static int hws_matcher_create_rtc(struct mlx5hws_matcher *matcher,
 	hws_matcher_set_rtc_attr_sz(matcher, &rtc_attr, rtc_type, false);
 
 	/* STC is a single resource (obj_id), use any STC for the ID */
-	stc_pool = ctx->stc_pool[tbl->type];
-	default_stc = ctx->common_res[tbl->type].default_stc;
+	stc_pool = ctx->stc_pool;
+	default_stc = ctx->common_res.default_stc;
 	obj_id = mlx5hws_pool_chunk_get_base_id(stc_pool, &default_stc->default_hit);
 	rtc_attr.stc_base = obj_id;
 
@@ -1007,9 +999,9 @@ hws_matcher_set_templates(struct mlx5hws_matcher *matcher,
 	if (!matcher->mt)
 		return -ENOMEM;
 
-	matcher->at = kcalloc(num_of_at + matcher->attr.max_num_of_at_attach,
-			      sizeof(*matcher->at),
-			      GFP_KERNEL);
+	matcher->at = kvcalloc(num_of_at + matcher->attr.max_num_of_at_attach,
+			       sizeof(*matcher->at),
+			       GFP_KERNEL);
 	if (!matcher->at) {
 		mlx5hws_err(ctx, "Failed to allocate action template array\n");
 		ret = -ENOMEM;
@@ -1035,7 +1027,7 @@ free_mt:
 static void
 hws_matcher_unset_templates(struct mlx5hws_matcher *matcher)
 {
-	kfree(matcher->at);
+	kvfree(matcher->at);
 	kfree(matcher->mt);
 }
 

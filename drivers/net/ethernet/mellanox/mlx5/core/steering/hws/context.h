@@ -38,8 +38,8 @@ struct mlx5hws_context {
 	struct mlx5_core_dev *mdev;
 	struct mlx5hws_cmd_query_caps *caps;
 	u32 pd_num;
-	struct mlx5hws_pool *stc_pool[MLX5HWS_TABLE_TYPE_MAX];
-	struct mlx5hws_context_common_res common_res[MLX5HWS_TABLE_TYPE_MAX];
+	struct mlx5hws_pool *stc_pool;
+	struct mlx5hws_context_common_res common_res;
 	struct mlx5hws_pattern_cache *pattern_cache;
 	struct mlx5hws_definer_cache *definer_cache;
 	struct mutex ctrl_lock; /* control lock to protect the whole context */

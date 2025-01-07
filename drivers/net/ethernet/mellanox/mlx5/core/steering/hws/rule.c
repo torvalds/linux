@@ -315,7 +315,7 @@ static void hws_rule_create_init(struct mlx5hws_rule *rule,
 
 	/* Init default action apply */
 	apply->tbl_type = tbl->type;
-	apply->common_res = &ctx->common_res[tbl->type];
+	apply->common_res = &ctx->common_res;
 	apply->jump_to_action_stc = matcher->action_ste[0].stc.offset;
 	apply->require_dep = 0;
 }
