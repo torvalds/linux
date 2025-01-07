@@ -757,81 +757,10 @@ int ext4_try_to_write_inline_data(struct address_space *mapping,
 				  loff_t pos, unsigned len,
 				  struct folio **foliop)
 {
-	int ret;
-	handle_t *handle;
-	struct folio *folio;
-	struct ext4_iloc iloc;
-
 	if (pos + len > ext4_get_max_inline_size(inode))
-		goto convert;
-
-	ret = ext4_get_inode_loc(inode, &iloc);
-	if (ret)
-		return ret;
-
-	/*
-	 * The possible write could happen in the inode,
-	 * so try to reserve the space in inode first.
-	 */
-	handle = ext4_journal_start(inode, EXT4_HT_INODE, 1);
-	if (IS_ERR(handle)) {
-		ret = PTR_ERR(handle);
-		handle = NULL;
-		goto out;
-	}
-
-	ret = ext4_prepare_inline_data(handle, inode, pos + len);
-	if (ret && ret != -ENOSPC)
-		goto out;
-
-	/* We don't have space in inline inode, so convert it to extent. */
-	if (ret == -ENOSPC) {
-		ext4_journal_stop(handle);
-		brelse(iloc.bh);
-		goto convert;
-	}
-
-	ret = ext4_journal_get_write_access(handle, inode->i_sb, iloc.bh,
-					    EXT4_JTR_NONE);
-	if (ret)
-		goto out;
-
-	folio = __filemap_get_folio(mapping, 0, FGP_WRITEBEGIN | FGP_NOFS,
-					mapping_gfp_mask(mapping));
-	if (IS_ERR(folio)) {
-		ret = PTR_ERR(folio);
-		goto out;
-	}
-
-	*foliop = folio;
-	down_read(&EXT4_I(inode)->xattr_sem);
-	if (!ext4_has_inline_data(inode)) {
-		ret = 0;
-		folio_unlock(folio);
-		folio_put(folio);
-		goto out_up_read;
-	}
-
-	if (!folio_test_uptodate(folio)) {
-		ret = ext4_read_inline_folio(inode, folio);
-		if (ret < 0) {
-			folio_unlock(folio);
-			folio_put(folio);
-			goto out_up_read;
-		}
-	}
-
-	ret = 1;
-	handle = NULL;
-out_up_read:
-	up_read(&EXT4_I(inode)->xattr_sem);
-out:
-	if (handle && (ret != 1))
-		ext4_journal_stop(handle);
-	brelse(iloc.bh);
-	return ret;
-convert:
-	return ext4_convert_inline_data_to_extent(mapping, inode);
+		return ext4_convert_inline_data_to_extent(mapping, inode);
+	return ext4_generic_write_inline_data(mapping, inode, pos, len,
+					      foliop, NULL, false);
 }
 
 int ext4_write_inline_data_end(struct inode *inode, loff_t pos, unsigned len,
