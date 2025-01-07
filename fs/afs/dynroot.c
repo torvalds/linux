@@ -186,50 +186,6 @@ out:
 }
 
 /*
- * Look up @cell in a dynroot directory.  This is a substitution for the
- * local cell name for the net namespace.
- */
-static struct dentry *afs_lookup_atcell(struct dentry *dentry)
-{
-	struct afs_cell *cell;
-	struct afs_net *net = afs_d2net(dentry);
-	struct dentry *ret;
-	char *name;
-	int len;
-
-	if (!net->ws_cell)
-		return ERR_PTR(-ENOENT);
-
-	ret = ERR_PTR(-ENOMEM);
-	name = kmalloc(AFS_MAXCELLNAME + 1, GFP_KERNEL);
-	if (!name)
-		goto out_p;
-
-	down_read(&net->cells_lock);
-	cell = net->ws_cell;
-	if (cell) {
-		len = cell->name_len;
-		memcpy(name, cell->name, len + 1);
-	}
-	up_read(&net->cells_lock);
-
-	ret = ERR_PTR(-ENOENT);
-	if (!cell)
-		goto out_n;
-
-	ret = lookup_one_len(name, dentry->d_parent, len);
-
-	/* We don't want to d_add() the @cell dentry here as we don't want to
-	 * the cached dentry to hide changes to the local cell name.
-	 */
-
-out_n:
-	kfree(name);
-out_p:
-	return ret;
-}
-
-/*
  * Look up an entry in a dynroot directory.
  */
 static struct dentry *afs_dynroot_lookup(struct inode *dir, struct dentry *dentry,
@@ -246,10 +202,6 @@ static struct dentry *afs_dynroot_lookup(struct inode *dir, struct dentry *dentr
 		_leave(" = -ENAMETOOLONG");
 		return ERR_PTR(-ENAMETOOLONG);
 	}
-
-	if (dentry->d_name.len == 5 &&
-	    memcmp(dentry->d_name.name, "@cell", 5) == 0)
-		return afs_lookup_atcell(dentry);
 
 	return d_splice_alias(afs_try_auto_mntpt(dentry, dir), dentry);
 }
@@ -343,6 +295,131 @@ void afs_dynroot_rmdir(struct afs_net *net, struct afs_cell *cell)
 	_leave("");
 }
 
+static void afs_atcell_delayed_put_cell(void *arg)
+{
+	struct afs_cell *cell = arg;
+
+	afs_put_cell(cell, afs_cell_trace_put_atcell);
+}
+
+/*
+ * Read @cell or .@cell symlinks.
+ */
+static const char *afs_atcell_get_link(struct dentry *dentry, struct inode *inode,
+				       struct delayed_call *done)
+{
+	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_cell *cell;
+	struct afs_net *net = afs_i2net(inode);
+	const char *name;
+	bool dotted = vnode->fid.vnode == 3;
+
+	if (!net->ws_cell)
+		return ERR_PTR(-ENOENT);
+
+	down_read(&net->cells_lock);
+
+	cell = net->ws_cell;
+	if (dotted)
+		name = cell->name - 1;
+	else
+		name = cell->name;
+	afs_get_cell(cell, afs_cell_trace_get_atcell);
+	set_delayed_call(done, afs_atcell_delayed_put_cell, cell);
+
+	up_read(&net->cells_lock);
+	return name;
+}
+
+static const struct inode_operations afs_atcell_inode_operations = {
+	.get_link	= afs_atcell_get_link,
+};
+
+/*
+ * Look up @cell or .@cell in a dynroot directory.  This is a substitution for
+ * the local cell name for the net namespace.
+ */
+static struct dentry *afs_dynroot_create_symlink(struct dentry *root, const char *name)
+{
+	struct afs_vnode *vnode;
+	struct afs_fid fid = { .vnode = 2, .unique = 1, };
+	struct dentry *dentry;
+	struct inode *inode;
+
+	if (name[0] == '.')
+		fid.vnode = 3;
+
+	dentry = d_alloc_name(root, name);
+	if (!dentry)
+		return ERR_PTR(-ENOMEM);
+
+	inode = iget5_locked(dentry->d_sb, fid.vnode,
+			     afs_iget5_pseudo_test, afs_iget5_pseudo_set, &fid);
+	if (!inode) {
+		dput(dentry);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	vnode = AFS_FS_I(inode);
+
+	/* there shouldn't be an existing inode */
+	if (WARN_ON_ONCE(!(inode->i_state & I_NEW))) {
+		iput(inode);
+		dput(dentry);
+		return ERR_PTR(-EIO);
+	}
+
+	netfs_inode_init(&vnode->netfs, NULL, false);
+	simple_inode_init_ts(inode);
+	set_nlink(inode, 1);
+	inode->i_size		= 0;
+	inode->i_mode		= S_IFLNK | 0555;
+	inode->i_op		= &afs_atcell_inode_operations;
+	inode->i_uid		= GLOBAL_ROOT_UID;
+	inode->i_gid		= GLOBAL_ROOT_GID;
+	inode->i_blocks		= 0;
+	inode->i_generation	= 0;
+	inode->i_flags		|= S_NOATIME;
+
+	unlock_new_inode(inode);
+	d_splice_alias(inode, dentry);
+	return dentry;
+}
+
+/*
+ * Create @cell and .@cell symlinks.
+ */
+static int afs_dynroot_symlink(struct afs_net *net)
+{
+	struct super_block *sb = net->dynroot_sb;
+	struct dentry *root, *symlink, *dsymlink;
+	int ret;
+
+	/* Let the ->lookup op do the creation */
+	root = sb->s_root;
+	inode_lock(root->d_inode);
+	symlink = afs_dynroot_create_symlink(root, "@cell");
+	if (IS_ERR(symlink)) {
+		ret = PTR_ERR(symlink);
+		goto unlock;
+	}
+
+	dsymlink = afs_dynroot_create_symlink(root, ".@cell");
+	if (IS_ERR(dsymlink)) {
+		ret = PTR_ERR(dsymlink);
+		dput(symlink);
+		goto unlock;
+	}
+
+	/* Note that we're retaining extra refs on the dentries. */
+	symlink->d_fsdata = (void *)1UL;
+	dsymlink->d_fsdata = (void *)1UL;
+	ret = 0;
+unlock:
+	inode_unlock(root->d_inode);
+	return ret;
+}
+
 /*
  * Populate a newly created dynamic root with cell names.
  */
@@ -355,6 +432,10 @@ int afs_dynroot_populate(struct super_block *sb)
 	mutex_lock(&net->proc_cells_lock);
 
 	net->dynroot_sb = sb;
+	ret = afs_dynroot_symlink(net);
+	if (ret < 0)
+		goto error;
+
 	hlist_for_each_entry(cell, &net->proc_cells, proc_link) {
 		ret = afs_dynroot_mkdir(net, cell);
 		if (ret < 0)

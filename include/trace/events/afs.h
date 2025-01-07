@@ -168,12 +168,14 @@ enum yfs_cm_operation {
 #define afs_cell_traces \
 	EM(afs_cell_trace_alloc,		"ALLOC     ") \
 	EM(afs_cell_trace_free,			"FREE      ") \
+	EM(afs_cell_trace_get_atcell,		"GET atcell") \
 	EM(afs_cell_trace_get_queue_dns,	"GET q-dns ") \
 	EM(afs_cell_trace_get_queue_manage,	"GET q-mng ") \
 	EM(afs_cell_trace_get_queue_new,	"GET q-new ") \
 	EM(afs_cell_trace_get_vol,		"GET vol   ") \
 	EM(afs_cell_trace_insert,		"INSERT    ") \
 	EM(afs_cell_trace_manage,		"MANAGE    ") \
+	EM(afs_cell_trace_put_atcell,		"PUT atcell") \
 	EM(afs_cell_trace_put_candidate,	"PUT candid") \
 	EM(afs_cell_trace_put_destroy,		"PUT destry") \
 	EM(afs_cell_trace_put_queue_work,	"PUT q-work") \
