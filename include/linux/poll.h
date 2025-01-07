@@ -25,14 +25,14 @@
 
 struct poll_table_struct;
 
-/* 
+/*
  * structures and helpers for f_op->poll implementations
  */
 typedef void (*poll_queue_proc)(struct file *, wait_queue_head_t *, struct poll_table_struct *);
 
 /*
- * Do not touch the structure directly, use the access functions
- * poll_does_not_wait() and poll_requested_events() instead.
+ * Do not touch the structure directly, use the access function
+ * poll_requested_events() instead.
  */
 typedef struct poll_table_struct {
 	poll_queue_proc _qproc;
@@ -51,16 +51,6 @@ static inline void poll_wait(struct file * filp, wait_queue_head_t * wait_addres
 		 */
 		smp_mb();
 	}
-}
-
-/*
- * Return true if it is guaranteed that poll will not wait. This is the case
- * if the poll() of another file descriptor in the set got an event, so there
- * is no need for waiting.
- */
-static inline bool poll_does_not_wait(const poll_table *p)
-{
-	return p == NULL || p->_qproc == NULL;
 }
 
 /*
