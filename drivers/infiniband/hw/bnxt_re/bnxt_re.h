@@ -230,6 +230,7 @@ struct bnxt_re_dev {
 	struct dentry			*dbg_root;
 	struct dentry			*qp_debugfs;
 	unsigned long			event_bitmap;
+	struct bnxt_qplib_cc_param	cc_param;
 };
 
 #define to_bnxt_re_dev(ptr, member)	\
