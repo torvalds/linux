@@ -2081,9 +2081,17 @@ static void serial8250_break_ctl(struct uart_port *port, int break_state)
 /* Returns true if @bits were set, false on timeout */
 static bool wait_for_lsr(struct uart_8250_port *up, int bits)
 {
-	unsigned int status, tmout = 10000;
+	unsigned int status, tmout;
 
-	/* Wait up to 10ms for the character(s) to be sent. */
+	/*
+	 * Wait for a character to be sent. Fallback to a safe default
+	 * timeout value if @frame_time is not available.
+	 */
+	if (up->port.frame_time)
+		tmout = up->port.frame_time * 2 / NSEC_PER_USEC;
+	else
+		tmout = 10000;
+
 	for (;;) {
 		status = serial_lsr_in(up);
 
