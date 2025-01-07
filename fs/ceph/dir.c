@@ -1998,6 +1998,8 @@ static int ceph_d_revalidate(struct inode *dir, const struct qstr *name,
 			req->r_parent = dir;
 			ihold(dir);
 
+			req->r_dname = name;
+
 			mask = CEPH_STAT_CAP_INODE | CEPH_CAP_AUTH_SHARED;
 			if (ceph_security_xattr_wanted(dir))
 				mask |= CEPH_CAP_XATTR_SHARED;

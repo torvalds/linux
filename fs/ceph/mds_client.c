@@ -2621,6 +2621,7 @@ static u8 *get_fscrypt_altname(const struct ceph_mds_request *req, u32 *plen)
 {
 	struct inode *dir = req->r_parent;
 	struct dentry *dentry = req->r_dentry;
+	const struct qstr *name = req->r_dname;
 	u8 *cryptbuf = NULL;
 	u32 len = 0;
 	int ret = 0;
@@ -2641,8 +2642,10 @@ static u8 *get_fscrypt_altname(const struct ceph_mds_request *req, u32 *plen)
 	if (!fscrypt_has_encryption_key(dir))
 		goto success;
 
-	if (!fscrypt_fname_encrypted_size(dir, dentry->d_name.len, NAME_MAX,
-					  &len)) {
+	if (!name)
+		name = &dentry->d_name;
+
+	if (!fscrypt_fname_encrypted_size(dir, name->len, NAME_MAX, &len)) {
 		WARN_ON_ONCE(1);
 		return ERR_PTR(-ENAMETOOLONG);
 	}
@@ -2657,7 +2660,7 @@ static u8 *get_fscrypt_altname(const struct ceph_mds_request *req, u32 *plen)
 	if (!cryptbuf)
 		return ERR_PTR(-ENOMEM);
 
-	ret = fscrypt_fname_encrypt(dir, &dentry->d_name, cryptbuf, len);
+	ret = fscrypt_fname_encrypt(dir, name, cryptbuf, len);
 	if (ret) {
 		kfree(cryptbuf);
 		return ERR_PTR(ret);
