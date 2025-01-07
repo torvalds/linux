@@ -186,7 +186,6 @@ static int amd_cache_northbridges(void)
 	const struct pci_device_id *misc_ids = amd_nb_misc_ids;
 	struct pci_dev *misc;
 	struct amd_northbridge *nb;
-	u16 misc_count = 0;
 	u16 i;
 
 	if (amd_northbridges.num)
@@ -196,25 +195,30 @@ static int amd_cache_northbridges(void)
 		misc_ids = hygon_nb_misc_ids;
 	}
 
-	misc = NULL;
-	while ((misc = next_northbridge(misc, misc_ids)))
-		misc_count++;
+	amd_northbridges.num = amd_num_nodes();
 
-	if (!misc_count)
-		return -ENODEV;
-
-	nb = kcalloc(misc_count, sizeof(struct amd_northbridge), GFP_KERNEL);
+	nb = kcalloc(amd_northbridges.num, sizeof(struct amd_northbridge), GFP_KERNEL);
 	if (!nb)
 		return -ENOMEM;
 
 	amd_northbridges.nb = nb;
-	amd_northbridges.num = misc_count;
 
 	misc = NULL;
 	for (i = 0; i < amd_northbridges.num; i++) {
 		node_to_amd_nb(i)->root = amd_node_get_root(i);
 		node_to_amd_nb(i)->misc = misc =
 			next_northbridge(misc, misc_ids);
+
+		/*
+		 * Each Northbridge must have a 'misc' device.
+		 * If not, then uninitialize everything.
+		 */
+		if (!node_to_amd_nb(i)->misc) {
+			amd_northbridges.num = 0;
+			kfree(nb);
+			return -ENODEV;
+		}
+
 		node_to_amd_nb(i)->link = amd_node_get_func(i, 4);
 	}
 
