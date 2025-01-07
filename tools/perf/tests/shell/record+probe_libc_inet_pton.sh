@@ -1,5 +1,5 @@
 #!/bin/sh
-# probe libc's inet_pton & backtrace it with ping
+# probe libc's inet_pton & backtrace it with ping (exclusive)
 
 # Installs a probe on libc's inet_pton function, that will use uprobes,
 # then use 'perf trace' on a ping to localhost asking for just one packet
