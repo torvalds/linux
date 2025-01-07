@@ -1907,7 +1907,7 @@ static void arm_smmu_dump_event(struct arm_smmu_device *smmu, u64 *raw,
 		dev_err(smmu->dev, "%s %s %s %s \"%s\"%s%s stag: %#x",
 			evt->privileged ? "priv" : "unpriv",
 			evt->instruction ? "inst" : "data",
-			evt->read ? "read" : "write",
+			str_read_write(evt->read),
 			evt->s2 ? "s2" : "s1", event_class_str[evt->class],
 			evt->class_tt ? (evt->ttrnw ? " ttd_read" : " ttd_write") : "",
 			evt->stall ? " stall" : "", evt->stag);
