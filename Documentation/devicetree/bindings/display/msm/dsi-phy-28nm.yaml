@@ -51,25 +51,25 @@ unevaluatedProperties: false
 
 examples:
   - |
-     #include <dt-bindings/clock/qcom,dispcc-sdm845.h>
-     #include <dt-bindings/clock/qcom,rpmh.h>
+    #include <dt-bindings/clock/qcom,dispcc-sdm845.h>
+    #include <dt-bindings/clock/qcom,rpmh.h>
 
-     dsi-phy@fd922a00 {
-         compatible = "qcom,dsi-phy-28nm-lp";
-         reg = <0xfd922a00 0xd4>,
-               <0xfd922b00 0x2b0>,
-               <0xfd922d80 0x7b>;
-         reg-names = "dsi_pll",
-                     "dsi_phy",
-                     "dsi_phy_regulator";
+    dsi-phy@fd922a00 {
+        compatible = "qcom,dsi-phy-28nm-lp";
+        reg = <0xfd922a00 0xd4>,
+              <0xfd922b00 0x2b0>,
+              <0xfd922d80 0x7b>;
+        reg-names = "dsi_pll",
+                    "dsi_phy",
+                    "dsi_phy_regulator";
 
-         #clock-cells = <1>;
-         #phy-cells = <0>;
+        #clock-cells = <1>;
+        #phy-cells = <0>;
 
-         vddio-supply = <&vddio_reg>;
+        vddio-supply = <&vddio_reg>;
 
-         clocks = <&dispcc DISP_CC_MDSS_AHB_CLK>,
-                  <&rpmhcc RPMH_CXO_CLK>;
-         clock-names = "iface", "ref";
-     };
+        clocks = <&dispcc DISP_CC_MDSS_AHB_CLK>,
+                 <&rpmhcc RPMH_CXO_CLK>;
+        clock-names = "iface", "ref";
+    };
 ...
