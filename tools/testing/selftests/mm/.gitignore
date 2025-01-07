@@ -27,6 +27,7 @@ protection_keys_64
 madv_populate
 uffd-stress
 uffd-unit-tests
+uffd-wp-mremap
 mlock-intersect-test
 mlock-random-test
 virtual_address_range
