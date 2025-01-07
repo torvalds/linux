@@ -6736,13 +6736,14 @@ static void napi_restore_config(struct napi_struct *n)
 	n->gro_flush_timeout = n->config->gro_flush_timeout;
 	n->irq_suspend_timeout = n->config->irq_suspend_timeout;
 	/* a NAPI ID might be stored in the config, if so use it. if not, use
-	 * napi_hash_add to generate one for us. It will be saved to the config
-	 * in napi_disable.
+	 * napi_hash_add to generate one for us.
 	 */
-	if (n->config->napi_id)
+	if (n->config->napi_id) {
 		napi_hash_add_with_id(n, n->config->napi_id);
-	else
+	} else {
 		napi_hash_add(n);
+		n->config->napi_id = n->napi_id;
+	}
 }
 
 static void napi_save_config(struct napi_struct *n)
@@ -6750,8 +6751,37 @@ static void napi_save_config(struct napi_struct *n)
 	n->config->defer_hard_irqs = n->defer_hard_irqs;
 	n->config->gro_flush_timeout = n->gro_flush_timeout;
 	n->config->irq_suspend_timeout = n->irq_suspend_timeout;
-	n->config->napi_id = n->napi_id;
 	napi_hash_del(n);
+}
+
+/* Netlink wants the NAPI list to be sorted by ID, if adding a NAPI which will
+ * inherit an existing ID try to insert it at the right position.
+ */
+static void
+netif_napi_dev_list_add(struct net_device *dev, struct napi_struct *napi)
+{
+	unsigned int new_id, pos_id;
+	struct list_head *higher;
+	struct napi_struct *pos;
+
+	new_id = UINT_MAX;
+	if (napi->config && napi->config->napi_id)
+		new_id = napi->config->napi_id;
+
+	higher = &dev->napi_list;
+	list_for_each_entry(pos, &dev->napi_list, dev_list) {
+		if (pos->napi_id >= MIN_NAPI_ID)
+			pos_id = pos->napi_id;
+		else if (pos->config)
+			pos_id = pos->config->napi_id;
+		else
+			pos_id = UINT_MAX;
+
+		if (pos_id <= new_id)
+			break;
+		higher = &pos->dev_list;
+	}
+	list_add_rcu(&napi->dev_list, higher); /* adds after higher */
 }
 
 void netif_napi_add_weight(struct net_device *dev, struct napi_struct *napi,
@@ -6780,7 +6810,7 @@ void netif_napi_add_weight(struct net_device *dev, struct napi_struct *napi,
 	napi->list_owner = -1;
 	set_bit(NAPI_STATE_SCHED, &napi->state);
 	set_bit(NAPI_STATE_NPSVC, &napi->state);
-	list_add_rcu(&napi->dev_list, &dev->napi_list);
+	netif_napi_dev_list_add(dev, napi);
 
 	/* default settings from sysfs are applied to all NAPIs. any per-NAPI
 	 * configuration will be loaded in napi_enable
