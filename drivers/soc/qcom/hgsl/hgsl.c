@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2019-2022, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <asm/unistd.h>
@@ -588,6 +588,13 @@ static int dbcq_send_msg(struct hgsl_priv  *priv,
 	struct doorbell_context_queue *dbcq = ctxt->dbcq;
 	uint32_t wptr;
 	struct ctx_queue_header *queue_header = (struct ctx_queue_header *)dbcq->queue_header;
+	u32 dev_id = hgsl_hnd2id(ctxt->devhandle);
+
+	if (dev_id >= HGSL_DEVICE_NUM) {
+		LOGE("Invalid dev handle %u", ctxt->devhandle);
+		ret = -EINVAL;
+		goto quit;
+	}
 
 	queue_size_dword = queue_header->dwSize;
 	msg_size_align = ALIGN(msg_req->msg_dwords, 4);
@@ -622,7 +629,7 @@ static int dbcq_send_msg(struct hgsl_priv  *priv,
 
 	if (is_gmugos(ctxt->db_signal))
 		hgsl_gmugos_irq_trigger(
-			&hgsl->gmugos[hgsl_hnd2id(ctxt->devhandle)],
+			&hgsl->gmugos[dev_id],
 			dbcq->irq_idx);
 	if (is_global_db(ctxt->tcsr_idx))
 		/* trigger TCSR interrupt for global doorbell */
