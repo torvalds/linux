@@ -20,6 +20,7 @@
 #include <linux/netdevice.h>
 #include <linux/slab.h>
 #include <net/netdev_queues.h>
+#include <net/netdev_rx_queue.h>
 #include <net/page_pool/helpers.h>
 #include <net/netlink.h>
 #include <net/net_shaper.h>
@@ -28,6 +29,8 @@
 #include <net/udp_tunnel.h>
 
 #include "netdevsim.h"
+
+MODULE_IMPORT_NS("NETDEV_INTERNAL");
 
 #define NSIM_RING_SIZE		256
 
@@ -723,6 +726,54 @@ static const struct netdev_queue_mgmt_ops nsim_queue_mgmt_ops = {
 };
 
 static ssize_t
+nsim_qreset_write(struct file *file, const char __user *data,
+		  size_t count, loff_t *ppos)
+{
+	struct netdevsim *ns = file->private_data;
+	unsigned int queue, mode;
+	char buf[32];
+	ssize_t ret;
+
+	if (count >= sizeof(buf))
+		return -EINVAL;
+	if (copy_from_user(buf, data, count))
+		return -EFAULT;
+	buf[count] = '\0';
+
+	ret = sscanf(buf, "%u %u", &queue, &mode);
+	if (ret != 2)
+		return -EINVAL;
+
+	rtnl_lock();
+	if (!netif_running(ns->netdev)) {
+		ret = -ENETDOWN;
+		goto exit_unlock;
+	}
+
+	if (queue >= ns->netdev->real_num_rx_queues) {
+		ret = -EINVAL;
+		goto exit_unlock;
+	}
+
+	ns->rq_reset_mode = mode;
+	ret = netdev_rx_queue_restart(ns->netdev, queue);
+	ns->rq_reset_mode = 0;
+	if (ret)
+		goto exit_unlock;
+
+	ret = count;
+exit_unlock:
+	rtnl_unlock();
+	return ret;
+}
+
+static const struct file_operations nsim_qreset_fops = {
+	.open = simple_open,
+	.write = nsim_qreset_write,
+	.owner = THIS_MODULE,
+};
+
+static ssize_t
 nsim_pp_hold_read(struct file *file, char __user *data,
 		  size_t count, loff_t *ppos)
 {
@@ -934,6 +985,9 @@ nsim_create(struct nsim_dev *nsim_dev, struct nsim_dev_port *nsim_dev_port)
 
 	ns->pp_dfs = debugfs_create_file("pp_hold", 0600, nsim_dev_port->ddir,
 					 ns, &nsim_pp_hold_fops);
+	ns->qr_dfs = debugfs_create_file("queue_reset", 0200,
+					 nsim_dev_port->ddir, ns,
+					 &nsim_qreset_fops);
 
 	return ns;
 
@@ -947,6 +1001,7 @@ void nsim_destroy(struct netdevsim *ns)
 	struct net_device *dev = ns->netdev;
 	struct netdevsim *peer;
 
+	debugfs_remove(ns->qr_dfs);
 	debugfs_remove(ns->pp_dfs);
 
 	rtnl_lock();
