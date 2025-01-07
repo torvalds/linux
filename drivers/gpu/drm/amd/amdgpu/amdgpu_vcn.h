@@ -339,7 +339,6 @@ struct amdgpu_vcn_ras {
 };
 
 struct amdgpu_vcn {
-	unsigned		fw_version;
 	uint8_t	num_vcn_inst;
 	struct amdgpu_vcn_inst	 inst[AMDGPU_MAX_VCN_INSTANCES];
 
@@ -356,6 +355,9 @@ struct amdgpu_vcn {
 
 	uint32_t		supported_reset;
 	uint32_t		caps;
+
+	bool			per_inst_fw;
+	unsigned		fw_version;
 };
 
 struct amdgpu_fw_shared_rb_ptrs_struct {

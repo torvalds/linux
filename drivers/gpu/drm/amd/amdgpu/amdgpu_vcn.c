@@ -102,18 +102,25 @@ int amdgpu_vcn_early_init(struct amdgpu_device *adev, int i)
 	adev->vcn.inst[i].inst = i;
 	amdgpu_ucode_ip_version_decode(adev, UVD_HWIP, ucode_prefix, sizeof(ucode_prefix));
 
-	if (i == 1 && amdgpu_ip_version(adev, UVD_HWIP, 0) ==  IP_VERSION(4, 0, 6))
+	if (i != 0 && adev->vcn.per_inst_fw) {
 		r = amdgpu_ucode_request(adev, &adev->vcn.inst[i].fw,
 					 AMDGPU_UCODE_REQUIRED,
 					 "amdgpu/%s_%d.bin", ucode_prefix, i);
-	else
-		r = amdgpu_ucode_request(adev, &adev->vcn.inst[i].fw,
-					 AMDGPU_UCODE_REQUIRED,
-					 "amdgpu/%s.bin", ucode_prefix);
-	if (r) {
-		amdgpu_ucode_release(&adev->vcn.inst[i].fw);
-		return r;
+		if (r)
+			amdgpu_ucode_release(&adev->vcn.inst[i].fw);
+	} else {
+		if (!adev->vcn.inst[0].fw) {
+			r = amdgpu_ucode_request(adev, &adev->vcn.inst[0].fw,
+						 AMDGPU_UCODE_REQUIRED,
+						 "amdgpu/%s.bin", ucode_prefix);
+			if (r)
+				amdgpu_ucode_release(&adev->vcn.inst[0].fw);
+		} else {
+			r = 0;
+		}
+		adev->vcn.inst[i].fw = adev->vcn.inst[0].fw;
 	}
+
 	return r;
 }
 
@@ -270,7 +277,12 @@ int amdgpu_vcn_sw_fini(struct amdgpu_device *adev, int i)
 	for (j = 0; j < adev->vcn.inst[i].num_enc_rings; ++j)
 		amdgpu_ring_fini(&adev->vcn.inst[i].ring_enc[j]);
 
-	amdgpu_ucode_release(&adev->vcn.inst[i].fw);
+	if (adev->vcn.per_inst_fw) {
+		amdgpu_ucode_release(&adev->vcn.inst[i].fw);
+	} else {
+		amdgpu_ucode_release(&adev->vcn.inst[0].fw);
+		adev->vcn.inst[i].fw = NULL;
+	}
 	mutex_destroy(&adev->vcn.inst[i].vcn_pg_lock);
 	mutex_destroy(&adev->vcn.inst[i].vcn1_jpeg1_workaround);
 
