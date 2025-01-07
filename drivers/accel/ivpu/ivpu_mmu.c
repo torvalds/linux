@@ -870,23 +870,64 @@ static u32 *ivpu_mmu_get_event(struct ivpu_device *vdev)
 	return evt;
 }
 
+static int ivpu_mmu_disable_events(struct ivpu_device *vdev, u32 ssid)
+{
+	struct ivpu_mmu_info *mmu = vdev->mmu;
+	struct ivpu_mmu_cdtab *cdtab = &mmu->cdtab;
+	u64 *entry;
+	u64 val;
+
+	if (ssid > IVPU_MMU_CDTAB_ENT_COUNT)
+		return -EINVAL;
+
+	entry = cdtab->base + (ssid * IVPU_MMU_CDTAB_ENT_SIZE);
+
+	val = READ_ONCE(entry[0]);
+	val &= ~IVPU_MMU_CD_0_R;
+	WRITE_ONCE(entry[0], val);
+
+	if (!ivpu_is_force_snoop_enabled(vdev))
+		clflush_cache_range(entry, IVPU_MMU_CDTAB_ENT_SIZE);
+
+	ivpu_mmu_cmdq_write_cfgi_all(vdev);
+
+	return 0;
+}
+
 void ivpu_mmu_irq_evtq_handler(struct ivpu_device *vdev)
 {
+	struct ivpu_file_priv *file_priv;
+	u32 last_ssid = -1;
 	u32 *event;
 	u32 ssid;
 
 	ivpu_dbg(vdev, IRQ, "MMU event queue\n");
 
-	while ((event = ivpu_mmu_get_event(vdev)) != NULL) {
-		ivpu_mmu_dump_event(vdev, event);
-
+	while ((event = ivpu_mmu_get_event(vdev))) {
 		ssid = FIELD_GET(IVPU_MMU_EVT_SSID_MASK, event[0]);
+
+		if (ssid == last_ssid)
+			continue;
+
+		xa_lock(&vdev->context_xa);
+		file_priv = xa_load(&vdev->context_xa, ssid);
+		if (file_priv) {
+			if (file_priv->has_mmu_faults) {
+				event = NULL;
+			} else {
+				ivpu_mmu_disable_events(vdev, ssid);
+				file_priv->has_mmu_faults = true;
+			}
+		}
+		xa_unlock(&vdev->context_xa);
+
+		if (event)
+			ivpu_mmu_dump_event(vdev, event);
+
 		if (ssid == IVPU_GLOBAL_CONTEXT_MMU_SSID) {
 			ivpu_pm_trigger_recovery(vdev, "MMU event");
 			return;
 		}
-
-		ivpu_mmu_user_context_mark_invalid(vdev, ssid);
 		REGV_WR32(IVPU_MMU_REG_EVTQ_CONS_SEC, vdev->mmu->evtq.cons);
 	}
 
