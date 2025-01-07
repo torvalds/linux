@@ -72,9 +72,9 @@ unevaluatedProperties: false
 examples:
   - |
     davinci_mdio: mdio@4a101000 {
-         compatible = "ti,davinci_mdio";
-         #address-cells = <1>;
-         #size-cells = <0>;
-         reg = <0x4a101000 0x1000>;
-         bus_freq = <1000000>;
+        compatible = "ti,davinci_mdio";
+        #address-cells = <1>;
+        #size-cells = <0>;
+        reg = <0x4a101000 0x1000>;
+        bus_freq = <1000000>;
     };
