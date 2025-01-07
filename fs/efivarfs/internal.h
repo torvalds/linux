@@ -17,6 +17,7 @@ struct efivarfs_fs_info {
 	struct efivarfs_mount_opts mount_opts;
 	struct super_block *sb;
 	struct notifier_block nb;
+	struct notifier_block pm_nb;
 };
 
 struct efi_variable {
@@ -37,7 +38,7 @@ static inline struct efivar_entry *efivar_entry(struct inode *inode)
 }
 
 int efivar_init(int (*func)(efi_char16_t *, efi_guid_t, unsigned long, void *),
-		void *data);
+		void *data, bool duplicate_check);
 
 int efivar_entry_delete(struct efivar_entry *entry);
 

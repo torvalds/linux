@@ -13,6 +13,7 @@
 #include <linux/pagemap.h>
 #include <linux/ucs2_string.h>
 #include <linux/slab.h>
+#include <linux/suspend.h>
 #include <linux/magic.h>
 #include <linux/statfs.h>
 #include <linux/notifier.h>
@@ -366,7 +367,7 @@ static int efivarfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (err)
 		return err;
 
-	return efivar_init(efivarfs_callback, sb);
+	return efivar_init(efivarfs_callback, sb, true);
 }
 
 static int efivarfs_get_tree(struct fs_context *fc)
@@ -390,6 +391,148 @@ static const struct fs_context_operations efivarfs_context_ops = {
 	.reconfigure	= efivarfs_reconfigure,
 };
 
+struct efivarfs_ctx {
+	struct dir_context ctx;
+	struct super_block *sb;
+	struct dentry *dentry;
+};
+
+static bool efivarfs_actor(struct dir_context *ctx, const char *name, int len,
+			   loff_t offset, u64 ino, unsigned mode)
+{
+	unsigned long size;
+	struct efivarfs_ctx *ectx = container_of(ctx, struct efivarfs_ctx, ctx);
+	struct qstr qstr = { .name = name, .len = len };
+	struct dentry *dentry = d_hash_and_lookup(ectx->sb->s_root, &qstr);
+	struct inode *inode;
+	struct efivar_entry *entry;
+	int err;
+
+	if (IS_ERR_OR_NULL(dentry))
+		return true;
+
+	inode = d_inode(dentry);
+	entry = efivar_entry(inode);
+
+	err = efivar_entry_size(entry, &size);
+	size += sizeof(__u32);	/* attributes */
+	if (err)
+		size = 0;
+
+	inode_lock(inode);
+	i_size_write(inode, size);
+	inode_unlock(inode);
+
+	if (!size) {
+		ectx->dentry = dentry;
+		return false;
+	}
+
+	dput(dentry);
+
+	return true;
+}
+
+static int efivarfs_check_missing(efi_char16_t *name16, efi_guid_t vendor,
+				  unsigned long name_size, void *data)
+{
+	char *name;
+	struct super_block *sb = data;
+	struct dentry *dentry;
+	struct qstr qstr;
+	int err;
+
+	if (guid_equal(&vendor, &LINUX_EFI_RANDOM_SEED_TABLE_GUID))
+		return 0;
+
+	name = efivar_get_utf8name(name16, &vendor);
+	if (!name)
+		return -ENOMEM;
+
+	qstr.name = name;
+	qstr.len = strlen(name);
+	dentry = d_hash_and_lookup(sb->s_root, &qstr);
+	if (IS_ERR(dentry)) {
+		err = PTR_ERR(dentry);
+		goto out;
+	}
+
+	if (!dentry) {
+		/* found missing entry */
+		pr_info("efivarfs: creating variable %s\n", name);
+		return efivarfs_create_dentry(sb, name16, name_size, vendor, name);
+	}
+
+	dput(dentry);
+	err = 0;
+
+ out:
+	kfree(name);
+
+	return err;
+}
+
+static int efivarfs_pm_notify(struct notifier_block *nb, unsigned long action,
+			      void *ptr)
+{
+	struct efivarfs_fs_info *sfi = container_of(nb, struct efivarfs_fs_info,
+						    pm_nb);
+	struct path path = { .mnt = NULL, .dentry = sfi->sb->s_root, };
+	struct efivarfs_ctx ectx = {
+		.ctx = {
+			.actor	= efivarfs_actor,
+		},
+		.sb = sfi->sb,
+	};
+	struct file *file;
+	static bool rescan_done = true;
+
+	if (action == PM_HIBERNATION_PREPARE) {
+		rescan_done = false;
+		return NOTIFY_OK;
+	} else if (action != PM_POST_HIBERNATION) {
+		return NOTIFY_DONE;
+	}
+
+	if (rescan_done)
+		return NOTIFY_DONE;
+
+	pr_info("efivarfs: resyncing variable state\n");
+
+	/* O_NOATIME is required to prevent oops on NULL mnt */
+	file = kernel_file_open(&path, O_RDONLY | O_DIRECTORY | O_NOATIME,
+				current_cred());
+	if (IS_ERR(file))
+		return NOTIFY_DONE;
+
+	rescan_done = true;
+
+	/*
+	 * First loop over the directory and verify each entry exists,
+	 * removing it if it doesn't
+	 */
+	file->f_pos = 2;	/* skip . and .. */
+	do {
+		ectx.dentry = NULL;
+		iterate_dir(file, &ectx.ctx);
+		if (ectx.dentry) {
+			pr_info("efivarfs: removing variable %pd\n",
+				ectx.dentry);
+			simple_recursive_removal(ectx.dentry, NULL);
+			dput(ectx.dentry);
+		}
+	} while (ectx.dentry);
+	fput(file);
+
+	/*
+	 * then loop over variables, creating them if there's no matching
+	 * dentry
+	 */
+	efivar_init(efivarfs_check_missing, sfi->sb, false);
+
+	return NOTIFY_OK;
+}
+
 static int efivarfs_init_fs_context(struct fs_context *fc)
 {
 	struct efivarfs_fs_info *sfi;
@@ -406,6 +549,11 @@ static int efivarfs_init_fs_context(struct fs_context *fc)
 
 	fc->s_fs_info = sfi;
 	fc->ops = &efivarfs_context_ops;
+
+	sfi->pm_nb.notifier_call = efivarfs_pm_notify;
+	sfi->pm_nb.priority = 0;
+	register_pm_notifier(&sfi->pm_nb);
+
 	return 0;
 }
 
@@ -415,6 +563,7 @@ static void efivarfs_kill_sb(struct super_block *sb)
 
 	blocking_notifier_chain_unregister(&efivar_ops_nh, &sfi->nb);
 	kill_litter_super(sb);
+	unregister_pm_notifier(&sfi->pm_nb);
 
 	kfree(sfi);
 }
