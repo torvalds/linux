@@ -303,8 +303,6 @@
 				compatible = "arm,pl353-nand-r2p1";
 				reg = <0 0 0x1000000>;
 				status = "disabled";
-				#address-cells = <1>;
-				#size-cells = <0>;
 			};
 			nor0: flash@1,0 {
 				status = "disabled";
