@@ -2006,7 +2006,7 @@ static int ksz9477_config_init(struct phy_device *phydev)
 	 * in this switch shall be regarded as broken.
 	 */
 	if (phydev->dev_flags & MICREL_NO_EEE)
-		linkmode_fill(phydev->eee_broken_modes);
+		phy_disable_eee(phydev);
 
 	return kszphy_config_init(phydev);
 }
