@@ -766,16 +766,18 @@ static void hv_online_page(struct page *pg, unsigned int order)
 	struct hv_hotadd_state *has;
 	unsigned long pfn = page_to_pfn(pg);
 
-	guard(spinlock_irqsave)(&dm_device.ha_lock);
-	list_for_each_entry(has, &dm_device.ha_region_list, list) {
-		/* The page belongs to a different HAS. */
-		if (pfn < has->start_pfn ||
-		    (pfn + (1UL << order) > has->end_pfn))
-			continue;
+	scoped_guard(spinlock_irqsave, &dm_device.ha_lock) {
+		list_for_each_entry(has, &dm_device.ha_region_list, list) {
+			/* The page belongs to a different HAS. */
+			if (pfn < has->start_pfn ||
+				(pfn + (1UL << order) > has->end_pfn))
+				continue;
 
-		hv_bring_pgs_online(has, pfn, 1UL << order);
-		break;
+			hv_bring_pgs_online(has, pfn, 1UL << order);
+			return;
+		}
 	}
+	generic_online_page(pg, order);
 }
 
 static int pfn_covered(unsigned long start_pfn, unsigned long pfn_cnt)
