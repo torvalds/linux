@@ -295,6 +295,20 @@ static void bnxt_re_vf_res_config(struct bnxt_re_dev *rdev)
 				      &rdev->qplib_ctx);
 }
 
+static void bnxt_re_async_notifier(void *handle, struct hwrm_async_event_cmpl *cmpl)
+{
+	struct bnxt_re_dev *rdev = (struct bnxt_re_dev *)handle;
+	u32 data1, data2;
+	u16 event_id;
+
+	event_id = le16_to_cpu(cmpl->event_id);
+	data1 = le32_to_cpu(cmpl->event_data1);
+	data2 = le32_to_cpu(cmpl->event_data2);
+
+	ibdev_dbg(&rdev->ibdev, "Async event_id = %d data1 = %d data2 = %d",
+		  event_id, data1, data2);
+}
+
 static void bnxt_re_stop_irq(void *handle)
 {
 	struct bnxt_re_en_dev_info *en_info = auxiliary_get_drvdata(handle);
@@ -361,6 +375,7 @@ static void bnxt_re_start_irq(void *handle, struct bnxt_msix_entry *ent)
 }
 
 static struct bnxt_ulp_ops bnxt_re_ulp_ops = {
+	.ulp_async_notifier = bnxt_re_async_notifier,
 	.ulp_irq_stop = bnxt_re_stop_irq,
 	.ulp_irq_restart = bnxt_re_start_irq
 };
@@ -1785,6 +1800,26 @@ static int bnxt_re_setup_qos(struct bnxt_re_dev *rdev)
 	return 0;
 }
 
+static void bnxt_re_net_unregister_async_event(struct bnxt_re_dev *rdev)
+{
+	if (rdev->is_virtfn)
+		return;
+
+	memset(&rdev->event_bitmap, 0, sizeof(rdev->event_bitmap));
+	bnxt_register_async_events(rdev->en_dev, &rdev->event_bitmap,
+				   ASYNC_EVENT_CMPL_EVENT_ID_DCB_CONFIG_CHANGE);
+}
+
+static void bnxt_re_net_register_async_event(struct bnxt_re_dev *rdev)
+{
+	if (rdev->is_virtfn)
+		return;
+
+	rdev->event_bitmap |= (1 << ASYNC_EVENT_CMPL_EVENT_ID_DCB_CONFIG_CHANGE);
+	bnxt_register_async_events(rdev->en_dev, &rdev->event_bitmap,
+				   ASYNC_EVENT_CMPL_EVENT_ID_DCB_CONFIG_CHANGE);
+}
+
 static void bnxt_re_query_hwrm_intf_version(struct bnxt_re_dev *rdev)
 {
 	struct bnxt_en_dev *en_dev = rdev->en_dev;
@@ -1863,6 +1898,8 @@ static void bnxt_re_dev_uninit(struct bnxt_re_dev *rdev, u8 op_type)
 	int rc;
 
 	bnxt_re_debugfs_rem_pdev(rdev);
+
+	bnxt_re_net_unregister_async_event(rdev);
 
 	if (test_and_clear_bit(BNXT_RE_FLAG_QOS_WORK_REG, &rdev->flags))
 		cancel_delayed_work_sync(&rdev->worker);
@@ -2076,6 +2113,8 @@ static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 op_type)
 		hash_init(rdev->srq_hash);
 
 	bnxt_re_debugfs_add_pdev(rdev);
+
+	bnxt_re_net_register_async_event(rdev);
 
 	return 0;
 free_sctx:

@@ -126,6 +126,6 @@ int bnxt_register_dev(struct bnxt_en_dev *edev, struct bnxt_ulp_ops *ulp_ops,
 		      void *handle);
 void bnxt_unregister_dev(struct bnxt_en_dev *edev);
 int bnxt_send_msg(struct bnxt_en_dev *edev, struct bnxt_fw_msg *fw_msg);
-int bnxt_register_async_events(struct bnxt_en_dev *edev,
-			       unsigned long *events_bmap, u16 max_id);
+void bnxt_register_async_events(struct bnxt_en_dev *edev,
+				unsigned long *events_bmap, u16 max_id);
 #endif

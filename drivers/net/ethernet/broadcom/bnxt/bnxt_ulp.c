@@ -373,9 +373,8 @@ exit_unlock_rcu:
 	rcu_read_unlock();
 }
 
-int bnxt_register_async_events(struct bnxt_en_dev *edev,
-			       unsigned long *events_bmap,
-			       u16 max_id)
+void bnxt_register_async_events(struct bnxt_en_dev *edev,
+				unsigned long *events_bmap, u16 max_id)
 {
 	struct net_device *dev = edev->net;
 	struct bnxt *bp = netdev_priv(dev);
@@ -387,7 +386,6 @@ int bnxt_register_async_events(struct bnxt_en_dev *edev,
 	smp_wmb();
 	ulp->max_async_event_id = max_id;
 	bnxt_hwrm_func_drv_rgtr(bp, events_bmap, max_id + 1, true);
-	return 0;
 }
 EXPORT_SYMBOL(bnxt_register_async_events);
 
