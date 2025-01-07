@@ -313,28 +313,6 @@ efivar_variable_is_removable(efi_guid_t vendor, const char *var_name,
 	return found;
 }
 
-static bool variable_is_present(efi_char16_t *variable_name, efi_guid_t *vendor,
-				struct list_head *head)
-{
-	struct efivar_entry *entry, *n;
-	unsigned long strsize1, strsize2;
-	bool found = false;
-
-	strsize1 = ucs2_strsize(variable_name, EFI_VAR_NAME_LEN);
-	list_for_each_entry_safe(entry, n, head, list) {
-		strsize2 = ucs2_strsize(entry->var.VariableName, EFI_VAR_NAME_LEN);
-		if (strsize1 == strsize2 &&
-			!memcmp(variable_name, &(entry->var.VariableName),
-				strsize2) &&
-			!efi_guidcmp(entry->var.VendorGuid,
-				*vendor)) {
-			found = true;
-			break;
-		}
-	}
-	return found;
-}
-
 /*
  * Returns the size of variable_name, in bytes, including the
  * terminating NULL character, or variable_name_size if no NULL
@@ -439,8 +417,8 @@ int efivar_init(int (*func)(efi_char16_t *, efi_guid_t, unsigned long, void *,
 			 * we'll ever see a different variable name,
 			 * and may end up looping here forever.
 			 */
-			if (variable_is_present(variable_name, &vendor_guid,
-						head)) {
+			if (efivarfs_variable_is_present(variable_name,
+							 &vendor_guid, data)) {
 				dup_variable_bug(variable_name, &vendor_guid,
 						 variable_name_size);
 				status = EFI_NOT_FOUND;
