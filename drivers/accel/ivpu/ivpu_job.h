@@ -31,7 +31,6 @@ struct ivpu_cmdq {
 	u32 id;
 	u32 db_id;
 	u8 priority;
-	bool is_valid;
 	bool is_legacy;
 };
 

@@ -213,6 +213,7 @@ void ivpu_file_priv_put(struct ivpu_file_priv **link);
 int ivpu_boot(struct ivpu_device *vdev);
 int ivpu_shutdown(struct ivpu_device *vdev);
 void ivpu_prepare_for_reset(struct ivpu_device *vdev);
+bool ivpu_is_capable(struct ivpu_device *vdev, u32 capability);
 
 static inline u8 ivpu_revision(struct ivpu_device *vdev)
 {
