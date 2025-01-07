@@ -30,8 +30,8 @@ struct ivpu_cmdq {
 	u32 entry_count;
 	u32 id;
 	u32 db_id;
-	bool db_registered;
 	u8 priority;
+	bool is_legacy;
 };
 
 /**
@@ -58,6 +58,9 @@ struct ivpu_job {
 };
 
 int ivpu_submit_ioctl(struct drm_device *dev, void *data, struct drm_file *file);
+int ivpu_cmdq_create_ioctl(struct drm_device *dev, void *data, struct drm_file *file);
+int ivpu_cmdq_destroy_ioctl(struct drm_device *dev, void *data, struct drm_file *file);
+int ivpu_cmdq_submit_ioctl(struct drm_device *dev, void *data, struct drm_file *file);
 
 void ivpu_context_abort_locked(struct ivpu_file_priv *file_priv);
 

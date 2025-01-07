@@ -100,13 +100,41 @@ err_free_cmdq:
 
 static void ivpu_cmdq_free(struct ivpu_file_priv *file_priv, struct ivpu_cmdq *cmdq)
 {
-	if (!cmdq)
-		return;
-
 	ivpu_preemption_buffers_free(file_priv->vdev, file_priv, cmdq);
 	ivpu_bo_free(cmdq->mem);
-	xa_erase(&file_priv->vdev->db_xa, cmdq->db_id);
 	kfree(cmdq);
+}
+
+static struct ivpu_cmdq *ivpu_cmdq_create(struct ivpu_file_priv *file_priv, u8 priority,
+					  bool is_legacy)
+{
+	struct ivpu_device *vdev = file_priv->vdev;
+	struct ivpu_cmdq *cmdq = NULL;
+	int ret;
+
+	lockdep_assert_held(&file_priv->lock);
+
+	cmdq = ivpu_cmdq_alloc(file_priv);
+	if (!cmdq) {
+		ivpu_err(vdev, "Failed to allocate command queue\n");
+		return NULL;
+	}
+
+	cmdq->priority = priority;
+	cmdq->is_legacy = is_legacy;
+
+	ret = xa_alloc_cyclic(&file_priv->cmdq_xa, &cmdq->id, cmdq, file_priv->cmdq_limit,
+			      &file_priv->cmdq_id_next, GFP_KERNEL);
+	if (ret < 0) {
+		ivpu_err(vdev, "Failed to allocate command queue ID: %d\n", ret);
+		goto err_free_cmdq;
+	}
+
+	return cmdq;
+
+err_free_cmdq:
+	ivpu_cmdq_free(file_priv, cmdq);
+	return NULL;
 }
 
 static int ivpu_hws_cmdq_init(struct ivpu_file_priv *file_priv, struct ivpu_cmdq *cmdq, u16 engine,
@@ -134,6 +162,13 @@ static int ivpu_register_db(struct ivpu_file_priv *file_priv, struct ivpu_cmdq *
 	struct ivpu_device *vdev = file_priv->vdev;
 	int ret;
 
+	ret = xa_alloc_cyclic(&vdev->db_xa, &cmdq->db_id, NULL, vdev->db_limit, &vdev->db_next,
+			      GFP_KERNEL);
+	if (ret < 0) {
+		ivpu_err(vdev, "Failed to allocate doorbell ID: %d\n", ret);
+		return ret;
+	}
+
 	if (vdev->fw->sched_mode == VPU_SCHEDULING_MODE_HW)
 		ret = ivpu_jsm_hws_register_db(vdev, file_priv->ctx.id, cmdq->id, cmdq->db_id,
 					       cmdq->mem->vpu_addr, ivpu_bo_size(cmdq->mem));
@@ -142,41 +177,52 @@ static int ivpu_register_db(struct ivpu_file_priv *file_priv, struct ivpu_cmdq *
 					   cmdq->mem->vpu_addr, ivpu_bo_size(cmdq->mem));
 
 	if (!ret)
-		ivpu_dbg(vdev, JOB, "DB %d registered to cmdq %d ctx %d\n",
-			 cmdq->db_id, cmdq->id, file_priv->ctx.id);
+		ivpu_dbg(vdev, JOB, "DB %d registered to cmdq %d ctx %d priority %d\n",
+			 cmdq->db_id, cmdq->id, file_priv->ctx.id, cmdq->priority);
+	else
+		xa_erase(&vdev->db_xa, cmdq->db_id);
 
 	return ret;
 }
 
-static int
-ivpu_cmdq_init(struct ivpu_file_priv *file_priv, struct ivpu_cmdq *cmdq, u8 priority)
+static void ivpu_cmdq_jobq_init(struct ivpu_device *vdev, struct vpu_job_queue *jobq)
+{
+	jobq->header.engine_idx = VPU_ENGINE_COMPUTE;
+	jobq->header.head = 0;
+	jobq->header.tail = 0;
+
+	if (ivpu_test_mode & IVPU_TEST_MODE_TURBO) {
+		ivpu_dbg(vdev, JOB, "Turbo mode enabled");
+		jobq->header.flags = VPU_JOB_QUEUE_FLAGS_TURBO_MODE;
+	}
+
+	wmb(); /* Flush WC buffer for jobq->header */
+}
+
+static inline u32 ivpu_cmdq_get_entry_count(struct ivpu_cmdq *cmdq)
+{
+	size_t size = ivpu_bo_size(cmdq->mem) - sizeof(struct vpu_job_queue_header);
+
+	return size / sizeof(struct vpu_job_queue_entry);
+}
+
+static int ivpu_cmdq_register(struct ivpu_file_priv *file_priv, struct ivpu_cmdq *cmdq)
 {
 	struct ivpu_device *vdev = file_priv->vdev;
-	struct vpu_job_queue_header *jobq_header;
 	int ret;
 
 	lockdep_assert_held(&file_priv->lock);
 
-	if (cmdq->db_registered)
+	if (cmdq->db_id)
 		return 0;
 
-	cmdq->entry_count = (u32)((ivpu_bo_size(cmdq->mem) - sizeof(struct vpu_job_queue_header)) /
-				  sizeof(struct vpu_job_queue_entry));
-
+	cmdq->entry_count = ivpu_cmdq_get_entry_count(cmdq);
 	cmdq->jobq = (struct vpu_job_queue *)ivpu_bo_vaddr(cmdq->mem);
-	jobq_header = &cmdq->jobq->header;
-	jobq_header->engine_idx = VPU_ENGINE_COMPUTE;
-	jobq_header->head = 0;
-	jobq_header->tail = 0;
-	if (ivpu_test_mode & IVPU_TEST_MODE_TURBO) {
-		ivpu_dbg(vdev, JOB, "Turbo mode enabled");
-		jobq_header->flags = VPU_JOB_QUEUE_FLAGS_TURBO_MODE;
-	}
 
-	wmb(); /* Flush WC buffer for jobq->header */
+	ivpu_cmdq_jobq_init(vdev, cmdq->jobq);
 
 	if (vdev->fw->sched_mode == VPU_SCHEDULING_MODE_HW) {
-		ret = ivpu_hws_cmdq_init(file_priv, cmdq, VPU_ENGINE_COMPUTE, priority);
+		ret = ivpu_hws_cmdq_init(file_priv, cmdq, VPU_ENGINE_COMPUTE, cmdq->priority);
 		if (ret)
 			return ret;
 	}
@@ -185,22 +231,18 @@ ivpu_cmdq_init(struct ivpu_file_priv *file_priv, struct ivpu_cmdq *cmdq, u8 prio
 	if (ret)
 		return ret;
 
-	cmdq->db_registered = true;
-
 	return 0;
 }
 
-static int ivpu_cmdq_fini(struct ivpu_file_priv *file_priv, struct ivpu_cmdq *cmdq)
+static int ivpu_cmdq_unregister(struct ivpu_file_priv *file_priv, struct ivpu_cmdq *cmdq)
 {
 	struct ivpu_device *vdev = file_priv->vdev;
 	int ret;
 
 	lockdep_assert_held(&file_priv->lock);
 
-	if (!cmdq->db_registered)
+	if (!cmdq->db_id)
 		return 0;
-
-	cmdq->db_registered = false;
 
 	if (vdev->fw->sched_mode == VPU_SCHEDULING_MODE_HW) {
 		ret = ivpu_jsm_hws_destroy_cmdq(vdev, file_priv->ctx.id, cmdq->id);
@@ -212,91 +254,61 @@ static int ivpu_cmdq_fini(struct ivpu_file_priv *file_priv, struct ivpu_cmdq *cm
 	if (!ret)
 		ivpu_dbg(vdev, JOB, "DB %d unregistered\n", cmdq->db_id);
 
+	xa_erase(&file_priv->vdev->db_xa, cmdq->db_id);
+	cmdq->db_id = 0;
+
 	return 0;
 }
 
-static int ivpu_db_id_alloc(struct ivpu_device *vdev, u32 *db_id)
+static inline u8 ivpu_job_to_jsm_priority(u8 priority)
 {
-	int ret;
-	u32 id;
+	if (priority == DRM_IVPU_JOB_PRIORITY_DEFAULT)
+		return VPU_JOB_SCHEDULING_PRIORITY_BAND_NORMAL;
 
-	ret = xa_alloc_cyclic(&vdev->db_xa, &id, NULL, vdev->db_limit, &vdev->db_next, GFP_KERNEL);
-	if (ret < 0)
-		return ret;
-
-	*db_id = id;
-	return 0;
+	return priority - 1;
 }
 
-static int ivpu_cmdq_id_alloc(struct ivpu_file_priv *file_priv, u32 *cmdq_id)
+static void ivpu_cmdq_destroy(struct ivpu_file_priv *file_priv, struct ivpu_cmdq *cmdq)
 {
-	int ret;
-	u32 id;
-
-	ret = xa_alloc_cyclic(&file_priv->cmdq_xa, &id, NULL, file_priv->cmdq_limit,
-			      &file_priv->cmdq_id_next, GFP_KERNEL);
-	if (ret < 0)
-		return ret;
-
-	*cmdq_id = id;
-	return 0;
+	ivpu_cmdq_unregister(file_priv, cmdq);
+	xa_erase(&file_priv->cmdq_xa, cmdq->id);
+	ivpu_cmdq_free(file_priv, cmdq);
 }
 
-static struct ivpu_cmdq *ivpu_cmdq_acquire(struct ivpu_file_priv *file_priv, u8 priority)
+static struct ivpu_cmdq *ivpu_cmdq_acquire_legacy(struct ivpu_file_priv *file_priv, u8 priority)
 {
-	struct ivpu_device *vdev = file_priv->vdev;
 	struct ivpu_cmdq *cmdq;
 	unsigned long id;
-	int ret;
 
 	lockdep_assert_held(&file_priv->lock);
 
 	xa_for_each(&file_priv->cmdq_xa, id, cmdq)
-		if (cmdq->priority == priority)
+		if (cmdq->is_legacy && cmdq->priority == priority)
 			break;
 
 	if (!cmdq) {
-		cmdq = ivpu_cmdq_alloc(file_priv);
-		if (!cmdq) {
-			ivpu_err(vdev, "Failed to allocate command queue\n");
+		cmdq = ivpu_cmdq_create(file_priv, priority, true);
+		if (!cmdq)
 			return NULL;
-		}
-
-		ret = ivpu_db_id_alloc(vdev, &cmdq->db_id);
-		if (ret) {
-			ivpu_err(file_priv->vdev, "Failed to allocate doorbell ID: %d\n", ret);
-			goto err_free_cmdq;
-		}
-
-		ret = ivpu_cmdq_id_alloc(file_priv, &cmdq->id);
-		if (ret) {
-			ivpu_err(vdev, "Failed to allocate command queue ID: %d\n", ret);
-			goto err_erase_db_id;
-		}
-
-		cmdq->priority = priority;
-		ret = xa_err(xa_store(&file_priv->cmdq_xa, cmdq->id, cmdq, GFP_KERNEL));
-		if (ret) {
-			ivpu_err(vdev, "Failed to store command queue in cmdq_xa: %d\n", ret);
-			goto err_erase_cmdq_id;
-		}
-	}
-
-	ret = ivpu_cmdq_init(file_priv, cmdq, priority);
-	if (ret) {
-		ivpu_err(vdev, "Failed to initialize command queue: %d\n", ret);
-		goto err_free_cmdq;
 	}
 
 	return cmdq;
+}
 
-err_erase_cmdq_id:
-	xa_erase(&file_priv->cmdq_xa, cmdq->id);
-err_erase_db_id:
-	xa_erase(&vdev->db_xa, cmdq->db_id);
-err_free_cmdq:
-	ivpu_cmdq_free(file_priv, cmdq);
-	return NULL;
+static struct ivpu_cmdq *ivpu_cmdq_acquire(struct ivpu_file_priv *file_priv, u32 cmdq_id)
+{
+	struct ivpu_device *vdev = file_priv->vdev;
+	struct ivpu_cmdq *cmdq;
+
+	lockdep_assert_held(&file_priv->lock);
+
+	cmdq = xa_load(&file_priv->cmdq_xa, cmdq_id);
+	if (!cmdq) {
+		ivpu_err(vdev, "Failed to find command queue with ID: %u\n", cmdq_id);
+		return NULL;
+	}
+
+	return cmdq;
 }
 
 void ivpu_cmdq_release_all_locked(struct ivpu_file_priv *file_priv)
@@ -306,11 +318,8 @@ void ivpu_cmdq_release_all_locked(struct ivpu_file_priv *file_priv)
 
 	lockdep_assert_held(&file_priv->lock);
 
-	xa_for_each(&file_priv->cmdq_xa, cmdq_id, cmdq) {
-		xa_erase(&file_priv->cmdq_xa, cmdq_id);
-		ivpu_cmdq_fini(file_priv, cmdq);
-		ivpu_cmdq_free(file_priv, cmdq);
-	}
+	xa_for_each(&file_priv->cmdq_xa, cmdq_id, cmdq)
+		ivpu_cmdq_destroy(file_priv, cmdq);
 }
 
 /*
@@ -326,8 +335,10 @@ static void ivpu_cmdq_reset(struct ivpu_file_priv *file_priv)
 
 	mutex_lock(&file_priv->lock);
 
-	xa_for_each(&file_priv->cmdq_xa, cmdq_id, cmdq)
-		cmdq->db_registered = false;
+	xa_for_each(&file_priv->cmdq_xa, cmdq_id, cmdq) {
+		xa_erase(&file_priv->vdev->db_xa, cmdq->db_id);
+		cmdq->db_id = 0;
+	}
 
 	mutex_unlock(&file_priv->lock);
 }
@@ -345,13 +356,13 @@ void ivpu_cmdq_reset_all_contexts(struct ivpu_device *vdev)
 	mutex_unlock(&vdev->context_list_lock);
 }
 
-static void ivpu_cmdq_fini_all(struct ivpu_file_priv *file_priv)
+static void ivpu_cmdq_unregister_all(struct ivpu_file_priv *file_priv)
 {
 	struct ivpu_cmdq *cmdq;
 	unsigned long cmdq_id;
 
 	xa_for_each(&file_priv->cmdq_xa, cmdq_id, cmdq)
-		ivpu_cmdq_fini(file_priv, cmdq);
+		ivpu_cmdq_unregister(file_priv, cmdq);
 }
 
 void ivpu_context_abort_locked(struct ivpu_file_priv *file_priv)
@@ -360,7 +371,7 @@ void ivpu_context_abort_locked(struct ivpu_file_priv *file_priv)
 
 	lockdep_assert_held(&file_priv->lock);
 
-	ivpu_cmdq_fini_all(file_priv);
+	ivpu_cmdq_unregister_all(file_priv);
 
 	if (vdev->fw->sched_mode == VPU_SCHEDULING_MODE_OS)
 		ivpu_jsm_context_release(vdev, file_priv->ctx.id);
@@ -549,7 +560,7 @@ void ivpu_jobs_abort_all(struct ivpu_device *vdev)
 		ivpu_job_signal_and_destroy(vdev, id, DRM_IVPU_JOB_STATUS_ABORTED);
 }
 
-static int ivpu_job_submit(struct ivpu_job *job, u8 priority)
+static int ivpu_job_submit(struct ivpu_job *job, u8 priority, u32 cmdq_id)
 {
 	struct ivpu_file_priv *file_priv = job->file_priv;
 	struct ivpu_device *vdev = job->vdev;
@@ -563,11 +574,19 @@ static int ivpu_job_submit(struct ivpu_job *job, u8 priority)
 
 	mutex_lock(&file_priv->lock);
 
-	cmdq = ivpu_cmdq_acquire(file_priv, priority);
+	if (cmdq_id == 0)
+		cmdq = ivpu_cmdq_acquire_legacy(file_priv, priority);
+	else
+		cmdq = ivpu_cmdq_acquire(file_priv, cmdq_id);
 	if (!cmdq) {
-		ivpu_warn_ratelimited(vdev, "Failed to get job queue, ctx %d engine %d prio %d\n",
-				      file_priv->ctx.id, job->engine_idx, priority);
+		ivpu_warn_ratelimited(vdev, "Failed to get job queue, ctx %d\n", file_priv->ctx.id);
 		ret = -EINVAL;
+		goto err_unlock_file_priv;
+	}
+
+	ret = ivpu_cmdq_register(file_priv, cmdq);
+	if (ret) {
+		ivpu_err(vdev, "Failed to register command queue: %d\n", ret);
 		goto err_unlock_file_priv;
 	}
 
@@ -599,7 +618,7 @@ static int ivpu_job_submit(struct ivpu_job *job, u8 priority)
 
 	trace_job("submit", job);
 	ivpu_dbg(vdev, JOB, "Job submitted: id %3u ctx %2d engine %d prio %d addr 0x%llx next %d\n",
-		 job->job_id, file_priv->ctx.id, job->engine_idx, priority,
+		 job->job_id, file_priv->ctx.id, job->engine_idx, cmdq->priority,
 		 job->cmd_buf_vpu_addr, cmdq->jobq->header.tail);
 
 	xa_unlock(&vdev->submitted_jobs_xa);
@@ -625,7 +644,7 @@ static int
 ivpu_job_prepare_bos_for_submit(struct drm_file *file, struct ivpu_job *job, u32 *buf_handles,
 				u32 buf_count, u32 commands_offset)
 {
-	struct ivpu_file_priv *file_priv = file->driver_priv;
+	struct ivpu_file_priv *file_priv = job->file_priv;
 	struct ivpu_device *vdev = file_priv->vdev;
 	struct ww_acquire_ctx acquire_ctx;
 	enum dma_resv_usage usage;
@@ -687,49 +706,20 @@ unlock_reservations:
 	return ret;
 }
 
-static inline u8 ivpu_job_to_hws_priority(struct ivpu_file_priv *file_priv, u8 priority)
+static int ivpu_submit(struct drm_file *file, struct ivpu_file_priv *file_priv, u32 cmdq_id,
+		       u32 buffer_count, u32 engine, void __user *buffers_ptr, u32 cmds_offset,
+		       u8 priority)
 {
-	if (priority == DRM_IVPU_JOB_PRIORITY_DEFAULT)
-		return DRM_IVPU_JOB_PRIORITY_NORMAL;
-
-	return priority - 1;
-}
-
-int ivpu_submit_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
-{
-	struct ivpu_file_priv *file_priv = file->driver_priv;
 	struct ivpu_device *vdev = file_priv->vdev;
-	struct drm_ivpu_submit *params = data;
 	struct ivpu_job *job;
 	u32 *buf_handles;
 	int idx, ret;
-	u8 priority;
 
-	if (params->engine != DRM_IVPU_ENGINE_COMPUTE)
-		return -EINVAL;
-
-	if (params->priority > DRM_IVPU_JOB_PRIORITY_REALTIME)
-		return -EINVAL;
-
-	if (params->buffer_count == 0 || params->buffer_count > JOB_MAX_BUFFER_COUNT)
-		return -EINVAL;
-
-	if (!IS_ALIGNED(params->commands_offset, 8))
-		return -EINVAL;
-
-	if (!file_priv->ctx.id)
-		return -EINVAL;
-
-	if (file_priv->has_mmu_faults)
-		return -EBADFD;
-
-	buf_handles = kcalloc(params->buffer_count, sizeof(u32), GFP_KERNEL);
+	buf_handles = kcalloc(buffer_count, sizeof(u32), GFP_KERNEL);
 	if (!buf_handles)
 		return -ENOMEM;
 
-	ret = copy_from_user(buf_handles,
-			     (void __user *)params->buffers_ptr,
-			     params->buffer_count * sizeof(u32));
+	ret = copy_from_user(buf_handles, buffers_ptr, buffer_count * sizeof(u32));
 	if (ret) {
 		ret = -EFAULT;
 		goto err_free_handles;
@@ -740,27 +730,23 @@ int ivpu_submit_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 		goto err_free_handles;
 	}
 
-	ivpu_dbg(vdev, JOB, "Submit ioctl: ctx %u buf_count %u\n",
-		 file_priv->ctx.id, params->buffer_count);
+	ivpu_dbg(vdev, JOB, "Submit ioctl: ctx %u buf_count %u\n", file_priv->ctx.id, buffer_count);
 
-	job = ivpu_job_create(file_priv, params->engine, params->buffer_count);
+	job = ivpu_job_create(file_priv, engine, buffer_count);
 	if (!job) {
 		ivpu_err(vdev, "Failed to create job\n");
 		ret = -ENOMEM;
 		goto err_exit_dev;
 	}
 
-	ret = ivpu_job_prepare_bos_for_submit(file, job, buf_handles, params->buffer_count,
-					      params->commands_offset);
+	ret = ivpu_job_prepare_bos_for_submit(file, job, buf_handles, buffer_count, cmds_offset);
 	if (ret) {
 		ivpu_err(vdev, "Failed to prepare job: %d\n", ret);
 		goto err_destroy_job;
 	}
 
-	priority = ivpu_job_to_hws_priority(file_priv, params->priority);
-
 	down_read(&vdev->pm->reset_lock);
-	ret = ivpu_job_submit(job, priority);
+	ret = ivpu_job_submit(job, priority, cmdq_id);
 	up_read(&vdev->pm->reset_lock);
 	if (ret)
 		goto err_signal_fence;
@@ -777,6 +763,101 @@ err_exit_dev:
 	drm_dev_exit(idx);
 err_free_handles:
 	kfree(buf_handles);
+	return ret;
+}
+
+int ivpu_submit_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
+{
+	struct ivpu_file_priv *file_priv = file->driver_priv;
+	struct drm_ivpu_submit *args = data;
+	u8 priority;
+
+	if (args->engine != DRM_IVPU_ENGINE_COMPUTE)
+		return -EINVAL;
+
+	if (args->priority > DRM_IVPU_JOB_PRIORITY_REALTIME)
+		return -EINVAL;
+
+	if (args->buffer_count == 0 || args->buffer_count > JOB_MAX_BUFFER_COUNT)
+		return -EINVAL;
+
+	if (!IS_ALIGNED(args->commands_offset, 8))
+		return -EINVAL;
+
+	if (!file_priv->ctx.id)
+		return -EINVAL;
+
+	if (file_priv->has_mmu_faults)
+		return -EBADFD;
+
+	priority = ivpu_job_to_jsm_priority(args->priority);
+
+	return ivpu_submit(file, file_priv, 0, args->buffer_count, args->engine,
+			   (void __user *)args->buffers_ptr, args->commands_offset, priority);
+}
+
+int ivpu_cmdq_submit_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
+{
+	struct ivpu_file_priv *file_priv = file->driver_priv;
+	struct drm_ivpu_cmdq_submit *args = data;
+
+	if (args->cmdq_id < IVPU_CMDQ_MIN_ID || args->cmdq_id > IVPU_CMDQ_MAX_ID)
+		return -EINVAL;
+
+	if (args->buffer_count == 0 || args->buffer_count > JOB_MAX_BUFFER_COUNT)
+		return -EINVAL;
+
+	if (!IS_ALIGNED(args->commands_offset, 8))
+		return -EINVAL;
+
+	if (!file_priv->ctx.id)
+		return -EINVAL;
+
+	if (file_priv->has_mmu_faults)
+		return -EBADFD;
+
+	return ivpu_submit(file, file_priv, args->cmdq_id, args->buffer_count, VPU_ENGINE_COMPUTE,
+			   (void __user *)args->buffers_ptr, args->commands_offset, 0);
+}
+
+int ivpu_cmdq_create_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
+{
+	struct ivpu_file_priv *file_priv = file->driver_priv;
+	struct drm_ivpu_cmdq_create *args = data;
+	struct ivpu_cmdq *cmdq;
+
+	if (args->priority > DRM_IVPU_JOB_PRIORITY_REALTIME)
+		return -EINVAL;
+
+	mutex_lock(&file_priv->lock);
+
+	cmdq = ivpu_cmdq_create(file_priv, ivpu_job_to_jsm_priority(args->priority), false);
+	if (cmdq)
+		args->cmdq_id = cmdq->id;
+
+	mutex_unlock(&file_priv->lock);
+
+	return cmdq ? 0 : -ENOMEM;
+}
+
+int ivpu_cmdq_destroy_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
+{
+	struct ivpu_file_priv *file_priv = file->driver_priv;
+	struct drm_ivpu_cmdq_destroy *args = data;
+	struct ivpu_cmdq *cmdq;
+	int ret = 0;
+
+	mutex_lock(&file_priv->lock);
+
+	cmdq = xa_load(&file_priv->cmdq_xa, args->cmdq_id);
+	if (!cmdq || cmdq->is_legacy) {
+		ret = -ENOENT;
+		goto unlock;
+	}
+
+	ivpu_cmdq_destroy(file_priv, cmdq);
+unlock:
+	mutex_unlock(&file_priv->lock);
 	return ret;
 }
 

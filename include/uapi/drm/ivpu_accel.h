@@ -22,6 +22,9 @@ extern "C" {
 #define DRM_IVPU_METRIC_STREAMER_STOP	  0x08
 #define DRM_IVPU_METRIC_STREAMER_GET_DATA 0x09
 #define DRM_IVPU_METRIC_STREAMER_GET_INFO 0x0a
+#define DRM_IVPU_CMDQ_CREATE              0x0b
+#define DRM_IVPU_CMDQ_DESTROY             0x0c
+#define DRM_IVPU_CMDQ_SUBMIT              0x0d
 
 #define DRM_IOCTL_IVPU_GET_PARAM                                               \
 	DRM_IOWR(DRM_COMMAND_BASE + DRM_IVPU_GET_PARAM, struct drm_ivpu_param)
@@ -56,6 +59,15 @@ extern "C" {
 #define DRM_IOCTL_IVPU_METRIC_STREAMER_GET_INFO                                \
 	DRM_IOWR(DRM_COMMAND_BASE + DRM_IVPU_METRIC_STREAMER_GET_INFO,         \
 		 struct drm_ivpu_metric_streamer_get_data)
+
+#define DRM_IOCTL_IVPU_CMDQ_CREATE                                             \
+	DRM_IOWR(DRM_COMMAND_BASE + DRM_IVPU_CMDQ_CREATE, struct drm_ivpu_cmdq_create)
+
+#define DRM_IOCTL_IVPU_CMDQ_DESTROY                                            \
+	DRM_IOW(DRM_COMMAND_BASE + DRM_IVPU_CMDQ_DESTROY, struct drm_ivpu_cmdq_destroy)
+
+#define DRM_IOCTL_IVPU_CMDQ_SUBMIT                                             \
+	DRM_IOW(DRM_COMMAND_BASE + DRM_IVPU_CMDQ_SUBMIT, struct drm_ivpu_cmdq_submit)
 
 /**
  * DOC: contexts
@@ -107,6 +119,13 @@ extern "C" {
  * accessible by hardware DMA.
  */
 #define DRM_IVPU_CAP_DMA_MEMORY_RANGE	2
+/**
+ * DRM_IVPU_CAP_MANAGE_CMDQ
+ *
+ * Driver supports explicit command queue operations like command queue create,
+ * command queue destroy and submit job on specific command queue.
+ */
+#define DRM_IVPU_CAP_MANAGE_CMDQ       3
 
 /**
  * struct drm_ivpu_param - Get/Set VPU parameters
@@ -316,6 +335,44 @@ struct drm_ivpu_submit {
 	__u32 priority;
 };
 
+/**
+ * struct drm_ivpu_cmdq_submit - Submit commands to the VPU using explicit command queue
+ *
+ * Execute a single command buffer on a given command queue.
+ * Handles to all referenced buffer objects have to be provided in @buffers_ptr.
+ *
+ * User space may wait on job completion using %DRM_IVPU_BO_WAIT ioctl.
+ */
+struct drm_ivpu_cmdq_submit {
+	/**
+	 * @buffers_ptr:
+	 *
+	 * A pointer to an u32 array of GEM handles of the BOs required for this job.
+	 * The number of elements in the array must be equal to the value given by @buffer_count.
+	 *
+	 * The first BO is the command buffer. The rest of array has to contain all
+	 * BOs referenced from the command buffer.
+	 */
+	__u64 buffers_ptr;
+
+	/** @buffer_count: Number of elements in the @buffers_ptr */
+	__u32 buffer_count;
+
+	/** @cmdq_id: ID for the command queue where job will be submitted */
+	__u32 cmdq_id;
+
+	/** @flags: Reserved for future use - must be zero */
+	__u32 flags;
+
+	/**
+	 * @commands_offset:
+	 *
+	 * Offset inside the first buffer in @buffers_ptr containing commands
+	 * to be executed. The offset has to be 8-byte aligned.
+	 */
+	__u32 commands_offset;
+};
+
 /* drm_ivpu_bo_wait job status codes */
 #define DRM_IVPU_JOB_STATUS_SUCCESS 0
 #define DRM_IVPU_JOB_STATUS_ABORTED 256
@@ -386,6 +443,33 @@ struct drm_ivpu_metric_streamer_get_data {
 	 * If the @buffer_size is zero, returns the amount of data ready to be copied.
 	 */
 	__u64 data_size;
+};
+
+/**
+ * struct drm_ivpu_cmdq_create - Create command queue for job submission
+ */
+struct drm_ivpu_cmdq_create {
+	/** @cmdq_id: Returned ID of created command queue */
+	__u32 cmdq_id;
+	/**
+	 * @priority:
+	 *
+	 * Priority to be set for related job command queue, can be one of the following:
+	 * %DRM_IVPU_JOB_PRIORITY_DEFAULT
+	 * %DRM_IVPU_JOB_PRIORITY_IDLE
+	 * %DRM_IVPU_JOB_PRIORITY_NORMAL
+	 * %DRM_IVPU_JOB_PRIORITY_FOCUS
+	 * %DRM_IVPU_JOB_PRIORITY_REALTIME
+	 */
+	__u32 priority;
+};
+
+/**
+ * struct drm_ivpu_cmdq_destroy - Destroy a command queue
+ */
+struct drm_ivpu_cmdq_destroy {
+	/** @cmdq_id: ID of command queue to destroy */
+	__u32 cmdq_id;
 };
 
 /**

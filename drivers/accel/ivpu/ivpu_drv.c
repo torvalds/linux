@@ -137,6 +137,9 @@ static int ivpu_get_capabilities(struct ivpu_device *vdev, struct drm_ivpu_param
 	case DRM_IVPU_CAP_DMA_MEMORY_RANGE:
 		args->value = 1;
 		break;
+	case DRM_IVPU_CAP_MANAGE_CMDQ:
+		args->value = 1;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -310,6 +313,9 @@ static const struct drm_ioctl_desc ivpu_drm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(IVPU_METRIC_STREAMER_GET_DATA, ivpu_ms_get_data_ioctl, 0),
 	DRM_IOCTL_DEF_DRV(IVPU_METRIC_STREAMER_STOP, ivpu_ms_stop_ioctl, 0),
 	DRM_IOCTL_DEF_DRV(IVPU_METRIC_STREAMER_GET_INFO, ivpu_ms_get_info_ioctl, 0),
+	DRM_IOCTL_DEF_DRV(IVPU_CMDQ_CREATE, ivpu_cmdq_create_ioctl, 0),
+	DRM_IOCTL_DEF_DRV(IVPU_CMDQ_DESTROY, ivpu_cmdq_destroy_ioctl, 0),
+	DRM_IOCTL_DEF_DRV(IVPU_CMDQ_SUBMIT, ivpu_cmdq_submit_ioctl, 0),
 };
 
 static int ivpu_wait_for_ready(struct ivpu_device *vdev)
