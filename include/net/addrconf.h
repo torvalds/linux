@@ -546,4 +546,7 @@ int inet6_fill_ifmcaddr(struct sk_buff *skb,
 			const struct ifmcaddr6 *ifmca,
 			struct inet6_fill_args *args);
 
+int inet6_fill_ifacaddr(struct sk_buff *skb,
+			const struct ifacaddr6 *ifaca,
+			struct inet6_fill_args *args);
 #endif
