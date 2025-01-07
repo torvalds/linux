@@ -69,19 +69,21 @@ unevaluatedProperties: false
 
 examples:
   - |
-   #include <dt-bindings/gpio/gpio.h>
-   i2c {
-     #address-cells = <1>;
-     #size-cells = <0>;
-     codec: codec@41 {
-       compatible = "ti,tas2770";
-       reg = <0x41>;
-       #sound-dai-cells = <0>;
-       interrupt-parent = <&gpio1>;
-       interrupts = <14>;
-       reset-gpio = <&gpio1 15 0>;
-       shutdown-gpios = <&gpio1 14 0>;
-       ti,imon-slot-no = <0>;
-       ti,vmon-slot-no = <2>;
-     };
-   };
+    #include <dt-bindings/gpio/gpio.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        codec@41 {
+            compatible = "ti,tas2770";
+            reg = <0x41>;
+            #sound-dai-cells = <0>;
+            interrupt-parent = <&gpio1>;
+            interrupts = <14>;
+            reset-gpio = <&gpio1 15 GPIO_ACTIVE_HIGH>;
+            shutdown-gpios = <&gpio1 14 GPIO_ACTIVE_HIGH>;
+            ti,imon-slot-no = <0>;
+            ti,vmon-slot-no = <2>;
+        };
+    };

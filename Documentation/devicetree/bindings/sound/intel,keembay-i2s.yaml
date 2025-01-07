@@ -72,19 +72,19 @@ unevaluatedProperties: false
 
 examples:
   - |
-     #include <dt-bindings/interrupt-controller/arm-gic.h>
-     #include <dt-bindings/interrupt-controller/irq.h>
-     #define KEEM_BAY_PSS_AUX_I2S3
-     #define KEEM_BAY_PSS_I2S3
-     i2s3: i2s@20140000 {
-         compatible = "intel,keembay-i2s";
-         #sound-dai-cells = <0>;
-         reg = <0x20140000 0x200>, /* I2S registers */
-               <0x202a00a4 0x4>; /* I2S gen configuration */
-         reg-names = "i2s-regs", "i2s_gen_cfg";
-         interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
-         clock-names = "osc", "apb_clk";
-         clocks = <&scmi_clk KEEM_BAY_PSS_AUX_I2S3>, <&scmi_clk KEEM_BAY_PSS_I2S3>;
-         dmas = <&axi_dma0 29>, <&axi_dma0 33>;
-         dma-names = "tx", "rx";
-     };
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #define KEEM_BAY_PSS_AUX_I2S3
+    #define KEEM_BAY_PSS_I2S3
+    i2s@20140000 {
+        compatible = "intel,keembay-i2s";
+        #sound-dai-cells = <0>;
+        reg = <0x20140000 0x200>, /* I2S registers */
+              <0x202a00a4 0x4>; /* I2S gen configuration */
+        reg-names = "i2s-regs", "i2s_gen_cfg";
+        interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
+        clock-names = "osc", "apb_clk";
+        clocks = <&scmi_clk KEEM_BAY_PSS_AUX_I2S3>, <&scmi_clk KEEM_BAY_PSS_I2S3>;
+        dmas = <&axi_dma0 29>, <&axi_dma0 33>;
+        dma-names = "tx", "rx";
+    };

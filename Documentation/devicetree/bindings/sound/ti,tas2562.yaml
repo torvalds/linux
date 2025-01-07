@@ -65,17 +65,19 @@ unevaluatedProperties: false
 
 examples:
   - |
-   #include <dt-bindings/gpio/gpio.h>
-   i2c {
-     #address-cells = <1>;
-     #size-cells = <0>;
-     codec: codec@4c {
-       compatible = "ti,tas2562";
-       reg = <0x4c>;
-       #sound-dai-cells = <0>;
-       interrupt-parent = <&gpio1>;
-       interrupts = <14>;
-       shutdown-gpios = <&gpio1 15 0>;
-       ti,imon-slot-no = <0>;
-     };
-   };
+    #include <dt-bindings/gpio/gpio.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        codec@4c {
+            compatible = "ti,tas2562";
+            reg = <0x4c>;
+            #sound-dai-cells = <0>;
+            interrupt-parent = <&gpio1>;
+            interrupts = <14>;
+            shutdown-gpios = <&gpio1 15 GPIO_ACTIVE_HIGH>;
+            ti,imon-slot-no = <0>;
+        };
+    };
