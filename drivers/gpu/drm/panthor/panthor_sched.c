@@ -88,9 +88,6 @@
 
 #define JOB_TIMEOUT_MS				5000
 
-#define MIN_CS_PER_CSG				8
-
-#define MIN_CSGS				3
 #define MAX_CSG_PRIO				0xf
 
 #define NUM_INSTRS_PER_CACHE_LINE		(64 / sizeof(u64))
