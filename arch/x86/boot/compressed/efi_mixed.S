@@ -279,24 +279,20 @@ SYM_FUNC_END(efi32_entry)
  *			       efi_system_table_32_t *sys_table)
  */
 SYM_FUNC_START(efi32_pe_entry)
-	pushl	%ebp
-	movl	%esp, %ebp
 	pushl	%ebx				// save callee-save registers
-	pushl	%edi
 
-	call	verify_cpu			// check for long mode support
-	testl	%eax, %eax
-	movl	$0x80000003, %eax		// EFI_UNSUPPORTED
-	jnz	2f
-
-	movl	8(%ebp), %ecx			// image_handle
-	movl	12(%ebp), %edx			// sys_table
+	/* Check whether the CPU supports long mode */
+	movl	$0x80000001, %eax		// assume extended info support
+	cpuid
+	btl	$29, %edx			// check long mode bit
+	jnc	1f
+	leal	8(%esp), %esp			// preserve stack alignment
+	movl	(%esp), %ecx			// image_handle
+	movl	4(%esp), %edx			// sys_table
 	jmp	efi32_entry			// pass %ecx, %edx
 						// no other registers remain live
-
-2:	popl	%edi				// restore callee-save registers
+1:	movl	$0x80000003, %eax		// EFI_UNSUPPORTED
 	popl	%ebx
-	leave
 	RET
 SYM_FUNC_END(efi32_pe_entry)
 
