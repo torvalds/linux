@@ -448,38 +448,38 @@
 				  "WLAN_PERST#", "12V_EN";
 
 		/*
-		 * Controls the WiFi card PD pin which is low active
-		 * as power down signal. The output-high states, the signal
-		 * is active, e.g. card is powered down
+		 * Controls the WiFi card's low-active power down pin.
+		 * The output-low states, the signal is inactive,
+		 * resulting in high signal at power-down pin
 		 */
 		wlan-pd-hog {
 			gpio-hog;
 			gpios = <4 GPIO_ACTIVE_LOW>;
-			output-high;
+			output-low;
 			line-name = "WLAN_PD#";
 		};
 
 		/*
-		 * Controls the WiFi card disable pin which is low active
-		 * as disable signal. The output-high states, the signal
-		 * is active, e.g. card is disabled
+		 * Controls the WiFi card's low-active disable pin.
+		 * The output-low states, the signal is inactive,
+		 * resulting in high signal at power-down pin
 		 */
 		wlan-wdisable-hog {
 			gpio-hog;
 			gpios = <5 GPIO_ACTIVE_LOW>;
-			output-high;
+			output-low;
 			line-name = "WLAN_W_DISABLE#";
 		};
 
 		/*
-		 * Controls the WiFi card reset pin which is low active
-		 * as reset signal. The output-high states, the signal
-		 * is active, e.g. card in reset
+		 * Controls the WiFi card's reset pin.
+		 * The output-low states, the signal is inactive,
+		 * resulting in high signal at power-down pin
 		 */
 		wlan-perst-hog {
 			gpio-hog;
 			gpios = <6 GPIO_ACTIVE_LOW>;
-			output-high;
+			output-low;
 			line-name = "WLAN_PERST#";
 		};
 	};
