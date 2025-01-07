@@ -1064,6 +1064,7 @@ static int prepare_func_profile(struct perf_ftrace *ftrace)
 {
 	ftrace->tracer = "function_graph";
 	ftrace->graph_tail = 1;
+	ftrace->graph_verbose = 0;
 
 	ftrace->profile_hash = hashmap__new(profile_hash, profile_equal, NULL);
 	if (ftrace->profile_hash == NULL)
@@ -1650,6 +1651,9 @@ int cmd_ftrace(int argc, const char **argv)
 	OPT_CALLBACK('s', "sort", &profile_sort, "key",
 		     "Sort result by key: total (default), avg, max, count, name.",
 		     parse_sort_key),
+	OPT_CALLBACK(0, "graph-opts", &ftrace, "options",
+		     "Graph tracer options, available options: nosleep-time,noirqs,thresh=<n>,depth=<n>",
+		     parse_graph_tracer_opts),
 	OPT_PARENT(common_options),
 	};
 	const struct option *options = ftrace_options;
