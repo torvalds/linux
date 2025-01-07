@@ -1599,6 +1599,7 @@ static void __flush_qp(struct c4iw_qp *qhp, struct c4iw_cq *rchp,
 	int count;
 	int rq_flushed = 0, sq_flushed;
 	unsigned long flag;
+	struct ib_event ev;
 
 	pr_debug("qhp %p rchp %p schp %p\n", qhp, rchp, schp);
 
@@ -1607,6 +1608,13 @@ static void __flush_qp(struct c4iw_qp *qhp, struct c4iw_cq *rchp,
 	if (schp != rchp)
 		spin_lock(&schp->lock);
 	spin_lock(&qhp->lock);
+	if (qhp->srq && qhp->attr.state == C4IW_QP_STATE_ERROR &&
+	    qhp->ibqp.event_handler) {
+		ev.device = qhp->ibqp.device;
+		ev.element.qp = &qhp->ibqp;
+		ev.event = IB_EVENT_QP_LAST_WQE_REACHED;
+		qhp->ibqp.event_handler(&ev, qhp->ibqp.qp_context);
+	}
 
 	if (qhp->wq.flushed) {
 		spin_unlock(&qhp->lock);
