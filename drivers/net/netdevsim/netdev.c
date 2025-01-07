@@ -595,6 +595,24 @@ static const struct netdev_stat_ops nsim_stat_ops = {
 	.get_base_stats		= nsim_get_base_stats,
 };
 
+static struct nsim_rq *nsim_queue_alloc(void)
+{
+	struct nsim_rq *rq;
+
+	rq = kzalloc(sizeof(*rq), GFP_KERNEL_ACCOUNT);
+	if (!rq)
+		return NULL;
+
+	skb_queue_head_init(&rq->skb_queue);
+	return rq;
+}
+
+static void nsim_queue_free(struct nsim_rq *rq)
+{
+	skb_queue_purge_reason(&rq->skb_queue, SKB_DROP_REASON_QUEUE_PURGE);
+	kfree(rq);
+}
+
 static ssize_t
 nsim_pp_hold_read(struct file *file, char __user *data,
 		  size_t count, loff_t *ppos)
@@ -683,11 +701,9 @@ static int nsim_queue_init(struct netdevsim *ns)
 		return -ENOMEM;
 
 	for (i = 0; i < dev->num_rx_queues; i++) {
-		ns->rq[i] = kzalloc(sizeof(**ns->rq), GFP_KERNEL_ACCOUNT);
+		ns->rq[i] = nsim_queue_alloc();
 		if (!ns->rq[i])
 			goto err_free_prev;
-
-		skb_queue_head_init(&ns->rq[i]->skb_queue);
 	}
 
 	return 0;
@@ -699,16 +715,13 @@ err_free_prev:
 	return -ENOMEM;
 }
 
-static void nsim_queue_free(struct netdevsim *ns)
+static void nsim_queue_uninit(struct netdevsim *ns)
 {
 	struct net_device *dev = ns->netdev;
 	int i;
 
-	for (i = 0; i < dev->num_rx_queues; i++) {
-		skb_queue_purge_reason(&ns->rq[i]->skb_queue,
-				       SKB_DROP_REASON_QUEUE_PURGE);
-		kfree(ns->rq[i]);
-	}
+	for (i = 0; i < dev->num_rx_queues; i++)
+		nsim_queue_free(ns->rq[i]);
 
 	kfree(ns->rq);
 	ns->rq = NULL;
@@ -754,7 +767,7 @@ err_ipsec_teardown:
 	nsim_macsec_teardown(ns);
 	nsim_bpf_uninit(ns);
 err_rq_destroy:
-	nsim_queue_free(ns);
+	nsim_queue_uninit(ns);
 err_utn_destroy:
 	rtnl_unlock();
 	nsim_udp_tunnels_info_destroy(ns->netdev);
@@ -836,7 +849,7 @@ void nsim_destroy(struct netdevsim *ns)
 		nsim_macsec_teardown(ns);
 		nsim_ipsec_teardown(ns);
 		nsim_bpf_uninit(ns);
-		nsim_queue_free(ns);
+		nsim_queue_uninit(ns);
 	}
 	rtnl_unlock();
 	if (nsim_dev_port_is_pf(ns->nsim_dev_port))
