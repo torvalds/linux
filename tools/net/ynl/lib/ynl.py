@@ -733,41 +733,45 @@ class YnlFamily(SpecFamily):
                 self._rsp_add(rsp, attr_name, None, self._decode_unknown(attr))
                 continue
 
-            if attr_spec["type"] == 'nest':
-                subdict = self._decode(NlAttrs(attr.raw), attr_spec['nested-attributes'], search_attrs)
-                decoded = subdict
-            elif attr_spec["type"] == 'string':
-                decoded = attr.as_strz()
-            elif attr_spec["type"] == 'binary':
-                decoded = self._decode_binary(attr, attr_spec)
-            elif attr_spec["type"] == 'flag':
-                decoded = True
-            elif attr_spec.is_auto_scalar:
-                decoded = attr.as_auto_scalar(attr_spec['type'], attr_spec.byte_order)
-            elif attr_spec["type"] in NlAttr.type_formats:
-                decoded = attr.as_scalar(attr_spec['type'], attr_spec.byte_order)
-                if 'enum' in attr_spec:
-                    decoded = self._decode_enum(decoded, attr_spec)
-                elif attr_spec.display_hint:
-                    decoded = self._formatted_string(decoded, attr_spec.display_hint)
-            elif attr_spec["type"] == 'indexed-array':
-                decoded = self._decode_array_attr(attr, attr_spec)
-            elif attr_spec["type"] == 'bitfield32':
-                value, selector = struct.unpack("II", attr.raw)
-                if 'enum' in attr_spec:
-                    value = self._decode_enum(value, attr_spec)
-                    selector = self._decode_enum(selector, attr_spec)
-                decoded = {"value": value, "selector": selector}
-            elif attr_spec["type"] == 'sub-message':
-                decoded = self._decode_sub_msg(attr, attr_spec, search_attrs)
-            elif attr_spec["type"] == 'nest-type-value':
-                decoded = self._decode_nest_type_value(attr, attr_spec)
-            else:
-                if not self.process_unknown:
-                    raise Exception(f'Unknown {attr_spec["type"]} with name {attr_spec["name"]}')
-                decoded = self._decode_unknown(attr)
+            try:
+                if attr_spec["type"] == 'nest':
+                    subdict = self._decode(NlAttrs(attr.raw), attr_spec['nested-attributes'], search_attrs)
+                    decoded = subdict
+                elif attr_spec["type"] == 'string':
+                    decoded = attr.as_strz()
+                elif attr_spec["type"] == 'binary':
+                    decoded = self._decode_binary(attr, attr_spec)
+                elif attr_spec["type"] == 'flag':
+                    decoded = True
+                elif attr_spec.is_auto_scalar:
+                    decoded = attr.as_auto_scalar(attr_spec['type'], attr_spec.byte_order)
+                elif attr_spec["type"] in NlAttr.type_formats:
+                    decoded = attr.as_scalar(attr_spec['type'], attr_spec.byte_order)
+                    if 'enum' in attr_spec:
+                        decoded = self._decode_enum(decoded, attr_spec)
+                    elif attr_spec.display_hint:
+                        decoded = self._formatted_string(decoded, attr_spec.display_hint)
+                elif attr_spec["type"] == 'indexed-array':
+                    decoded = self._decode_array_attr(attr, attr_spec)
+                elif attr_spec["type"] == 'bitfield32':
+                    value, selector = struct.unpack("II", attr.raw)
+                    if 'enum' in attr_spec:
+                        value = self._decode_enum(value, attr_spec)
+                        selector = self._decode_enum(selector, attr_spec)
+                    decoded = {"value": value, "selector": selector}
+                elif attr_spec["type"] == 'sub-message':
+                    decoded = self._decode_sub_msg(attr, attr_spec, search_attrs)
+                elif attr_spec["type"] == 'nest-type-value':
+                    decoded = self._decode_nest_type_value(attr, attr_spec)
+                else:
+                    if not self.process_unknown:
+                        raise Exception(f'Unknown {attr_spec["type"]} with name {attr_spec["name"]}')
+                    decoded = self._decode_unknown(attr)
 
-            self._rsp_add(rsp, attr_spec["name"], attr_spec.is_multi, decoded)
+                self._rsp_add(rsp, attr_spec["name"], attr_spec.is_multi, decoded)
+            except:
+                print(f"Error decoding '{attr_spec.name}' from '{space}'")
+                raise
 
         return rsp
 
