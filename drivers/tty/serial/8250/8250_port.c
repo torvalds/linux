@@ -3299,10 +3299,15 @@ EXPORT_SYMBOL_GPL(serial8250_set_defaults);
 
 static void serial8250_console_putchar(struct uart_port *port, unsigned char ch)
 {
+	serial_port_out(port, UART_TX, ch);
+}
+
+static void serial8250_console_wait_putchar(struct uart_port *port, unsigned char ch)
+{
 	struct uart_8250_port *up = up_to_u8250p(port);
 
 	wait_for_xmitr(up, UART_LSR_THRE);
-	serial_port_out(port, UART_TX, ch);
+	serial8250_console_putchar(port, ch);
 }
 
 /*
@@ -3352,6 +3357,7 @@ static void serial8250_console_fifo_write(struct uart_8250_port *up,
 {
 	const char *end = s + count;
 	unsigned int fifosize = up->tx_loadsz;
+	struct uart_port *port = &up->port;
 	unsigned int tx_count = 0;
 	bool cr_sent = false;
 	unsigned int i;
@@ -3362,10 +3368,10 @@ static void serial8250_console_fifo_write(struct uart_8250_port *up,
 
 		for (i = 0; i < fifosize && s != end; ++i) {
 			if (*s == '\n' && !cr_sent) {
-				serial_out(up, UART_TX, '\r');
+				serial8250_console_putchar(port, '\r');
 				cr_sent = true;
 			} else {
-				serial_out(up, UART_TX, *s++);
+				serial8250_console_putchar(port, *s++);
 				cr_sent = false;
 			}
 		}
@@ -3445,7 +3451,7 @@ void serial8250_console_write(struct uart_8250_port *up, const char *s,
 	if (likely(use_fifo))
 		serial8250_console_fifo_write(up, s, count);
 	else
-		uart_console_write(port, s, count, serial8250_console_putchar);
+		uart_console_write(port, s, count, serial8250_console_wait_putchar);
 
 	/*
 	 *	Finally, wait for transmitter to become empty
