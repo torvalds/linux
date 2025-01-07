@@ -527,6 +527,7 @@ static struct timing_generator_funcs dcn401_tg_funcs = {
 		.get_pipe_update_pending = optc3_get_pipe_update_pending,
 		.set_vupdate_keepout = optc401_set_vupdate_keepout,
 		.wait_update_lock_status = optc401_wait_update_lock_status,
+		.read_otg_state = optc31_read_otg_state,
 };
 
 void dcn401_timing_generator_init(struct optc *optc1)
