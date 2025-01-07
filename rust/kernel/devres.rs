@@ -10,15 +10,19 @@ use crate::{
     bindings,
     device::Device,
     error::{Error, Result},
+    ffi::c_void,
     prelude::*,
     revocable::Revocable,
     sync::Arc,
+    types::ARef,
 };
 
 use core::ops::Deref;
 
 #[pin_data]
 struct DevresInner<T> {
+    dev: ARef<Device>,
+    callback: unsafe extern "C" fn(*mut c_void),
     #[pin]
     data: Revocable<T>,
 }
@@ -98,6 +102,8 @@ impl<T> DevresInner<T> {
     fn new(dev: &Device, data: T, flags: Flags) -> Result<Arc<DevresInner<T>>> {
         let inner = Arc::pin_init(
             pin_init!( DevresInner {
+                dev: dev.into(),
+                callback: Self::devres_callback,
                 data <- Revocable::new(data),
             }),
             flags,
@@ -109,9 +115,8 @@ impl<T> DevresInner<T> {
 
         // SAFETY: `devm_add_action` guarantees to call `Self::devres_callback` once `dev` is
         // detached.
-        let ret = unsafe {
-            bindings::devm_add_action(dev.as_raw(), Some(Self::devres_callback), data as _)
-        };
+        let ret =
+            unsafe { bindings::devm_add_action(dev.as_raw(), Some(inner.callback), data as _) };
 
         if ret != 0 {
             // SAFETY: We just created another reference to `inner` in order to pass it to
@@ -122,6 +127,32 @@ impl<T> DevresInner<T> {
         }
 
         Ok(inner)
+    }
+
+    fn as_ptr(&self) -> *const Self {
+        self as _
+    }
+
+    fn remove_action(this: &Arc<Self>) {
+        // SAFETY:
+        // - `self.inner.dev` is a valid `Device`,
+        // - the `action` and `data` pointers are the exact same ones as given to devm_add_action()
+        //   previously,
+        // - `self` is always valid, even if the action has been released already.
+        let ret = unsafe {
+            bindings::devm_remove_action_nowarn(
+                this.dev.as_raw(),
+                Some(this.callback),
+                this.as_ptr() as _,
+            )
+        };
+
+        if ret == 0 {
+            // SAFETY: We leaked an `Arc` reference to devm_add_action() in `DevresInner::new`; if
+            // devm_remove_action_nowarn() was successful we can (and have to) claim back ownership
+            // of this reference.
+            let _ = unsafe { Arc::from_raw(this.as_ptr()) };
+        }
     }
 
     #[allow(clippy::missing_safety_doc)]
@@ -165,14 +196,6 @@ impl<T> Deref for Devres<T> {
 
 impl<T> Drop for Devres<T> {
     fn drop(&mut self) {
-        // Revoke the data, such that it gets dropped already and the actual resource is freed.
-        //
-        // `DevresInner` has to stay alive until the devres callback has been called. This is
-        // necessary since we don't know when `Devres` is dropped and calling
-        // `devm_remove_action()` instead could race with `devres_release_all()`.
-        //
-        // SAFETY: When `drop` runs, it's guaranteed that nobody is accessing the revocable data
-        // anymore, hence it is safe not to wait for the grace period to finish.
-        unsafe { self.revoke_nosync() };
+        DevresInner::remove_action(&self.0);
     }
 }
