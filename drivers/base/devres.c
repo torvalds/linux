@@ -750,25 +750,38 @@ int __devm_add_action(struct device *dev, void (*action)(void *), void *data, co
 EXPORT_SYMBOL_GPL(__devm_add_action);
 
 /**
- * devm_remove_action() - removes previously added custom action
+ * devm_remove_action_nowarn() - removes previously added custom action
  * @dev: Device that owns the action
  * @action: Function implementing the action
  * @data: Pointer to data passed to @action implementation
  *
  * Removes instance of @action previously added by devm_add_action().
  * Both action and data should match one of the existing entries.
+ *
+ * In contrast to devm_remove_action(), this function does not WARN() if no
+ * entry could have been found.
+ *
+ * This should only be used if the action is contained in an object with
+ * independent lifetime management, e.g. the Devres rust abstraction.
+ *
+ * Causing the warning from regular driver code most likely indicates an abuse
+ * of the devres API.
+ *
+ * Returns: 0 on success, -ENOENT if no entry could have been found.
  */
-void devm_remove_action(struct device *dev, void (*action)(void *), void *data)
+int devm_remove_action_nowarn(struct device *dev,
+			      void (*action)(void *),
+			      void *data)
 {
 	struct action_devres devres = {
 		.data = data,
 		.action = action,
 	};
 
-	WARN_ON(devres_destroy(dev, devm_action_release, devm_action_match,
-			       &devres));
+	return devres_destroy(dev, devm_action_release, devm_action_match,
+			      &devres);
 }
-EXPORT_SYMBOL_GPL(devm_remove_action);
+EXPORT_SYMBOL_GPL(devm_remove_action_nowarn);
 
 /**
  * devm_release_action() - release previously added custom action
