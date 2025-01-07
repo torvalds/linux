@@ -329,10 +329,10 @@ static void qca8337_phy_enable(struct phy_device *phydev)
 			status = 0;
 			status |= phydev->duplex ?
 				QCA8337_PORT_STATUS_DUPLEX : 0;
-			status |= (linkmode_test_bit(ADVERTISED_Asym_Pause, phydev->advertising)) ?
-				QCA8337_PORT_STATUS_TXFLOW : 0;
-			status |= (linkmode_test_bit(ADVERTISED_Pause, phydev->advertising)) ?
-				QCA8337_PORT_STATUS_RXFLOW : 0;
+			status |= (linkmode_test_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+				phydev->advertising)) ? QCA8337_PORT_STATUS_TXFLOW : 0;
+			status |= (linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT,
+				phydev->advertising)) ? QCA8337_PORT_STATUS_RXFLOW : 0;
 
 			if (phydev->speed == SPEED_1000)
 				status |= QCA8337_PORT_SPEED_1000M;
