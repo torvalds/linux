@@ -202,7 +202,7 @@ static void io_req_rw_cleanup(struct io_kiocb *req, unsigned int issue_flags)
 	 * mean that the underlying data can be gone at any time. But that
 	 * should be fixed seperately, and then this check could be killed.
 	 */
-	if (!(req->flags & REQ_F_REFCOUNT)) {
+	if (!(req->flags & (REQ_F_REISSUE | REQ_F_REFCOUNT))) {
 		req->flags &= ~REQ_F_NEED_CLEANUP;
 		io_rw_recycle(req, issue_flags);
 	}
@@ -455,19 +455,12 @@ static inline loff_t *io_kiocb_update_pos(struct io_kiocb *req)
 	return NULL;
 }
 
-#ifdef CONFIG_BLOCK
-static void io_resubmit_prep(struct io_kiocb *req)
-{
-	struct io_async_rw *io = req->async_data;
-	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
-
-	io_meta_restore(io, &rw->kiocb);
-	iov_iter_restore(&io->iter, &io->iter_state);
-}
-
 static bool io_rw_should_reissue(struct io_kiocb *req)
 {
+#ifdef CONFIG_BLOCK
+	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
 	umode_t mode = file_inode(req->file)->i_mode;
+	struct io_async_rw *io = req->async_data;
 	struct io_ring_ctx *ctx = req->ctx;
 
 	if (!S_ISBLK(mode) && !S_ISREG(mode))
@@ -488,17 +481,14 @@ static bool io_rw_should_reissue(struct io_kiocb *req)
 	 */
 	if (!same_thread_group(req->tctx->task, current) || !in_task())
 		return false;
+
+	io_meta_restore(io, &rw->kiocb);
+	iov_iter_restore(&io->iter, &io->iter_state);
 	return true;
-}
 #else
-static void io_resubmit_prep(struct io_kiocb *req)
-{
-}
-static bool io_rw_should_reissue(struct io_kiocb *req)
-{
 	return false;
-}
 #endif
+}
 
 static void io_req_end_write(struct io_kiocb *req)
 {
@@ -525,22 +515,16 @@ static void io_req_io_end(struct io_kiocb *req)
 	}
 }
 
-static bool __io_complete_rw_common(struct io_kiocb *req, long res)
+static void __io_complete_rw_common(struct io_kiocb *req, long res)
 {
-	if (unlikely(res != req->cqe.res)) {
-		if (res == -EAGAIN && io_rw_should_reissue(req)) {
-			/*
-			 * Reissue will start accounting again, finish the
-			 * current cycle.
-			 */
-			io_req_io_end(req);
-			req->flags |= REQ_F_REISSUE | REQ_F_BL_NO_RECYCLE;
-			return true;
-		}
+	if (res == req->cqe.res)
+		return;
+	if (res == -EAGAIN && io_rw_should_reissue(req)) {
+		req->flags |= REQ_F_REISSUE | REQ_F_BL_NO_RECYCLE;
+	} else {
 		req_set_fail(req);
 		req->cqe.res = res;
 	}
-	return false;
 }
 
 static inline int io_fixup_rw_res(struct io_kiocb *req, long res)
@@ -583,8 +567,7 @@ static void io_complete_rw(struct kiocb *kiocb, long res)
 	struct io_kiocb *req = cmd_to_io_kiocb(rw);
 
 	if (!kiocb->dio_complete || !(kiocb->ki_flags & IOCB_DIO_CALLER_COMP)) {
-		if (__io_complete_rw_common(req, res))
-			return;
+		__io_complete_rw_common(req, res);
 		io_req_set_res(req, io_fixup_rw_res(req, res), 0);
 	}
 	req->io_task_work.func = io_req_rw_complete;
@@ -646,26 +629,19 @@ static int kiocb_done(struct io_kiocb *req, ssize_t ret,
 	if (ret >= 0 && req->flags & REQ_F_CUR_POS)
 		req->file->f_pos = rw->kiocb.ki_pos;
 	if (ret >= 0 && (rw->kiocb.ki_complete == io_complete_rw)) {
-		if (!__io_complete_rw_common(req, ret)) {
-			/*
-			 * Safe to call io_end from here as we're inline
-			 * from the submission path.
-			 */
-			io_req_io_end(req);
-			io_req_set_res(req, final_ret,
-				       io_put_kbuf(req, ret, issue_flags));
-			io_req_rw_cleanup(req, issue_flags);
-			return IOU_OK;
-		}
+		__io_complete_rw_common(req, ret);
+		/*
+		 * Safe to call io_end from here as we're inline
+		 * from the submission path.
+		 */
+		io_req_io_end(req);
+		io_req_set_res(req, final_ret, io_put_kbuf(req, ret, issue_flags));
+		io_req_rw_cleanup(req, issue_flags);
+		return IOU_OK;
 	} else {
 		io_rw_done(&rw->kiocb, ret);
 	}
 
-	if (req->flags & REQ_F_REISSUE) {
-		req->flags &= ~REQ_F_REISSUE;
-		io_resubmit_prep(req);
-		return -EAGAIN;
-	}
 	return IOU_ISSUE_SKIP_COMPLETE;
 }
 
@@ -944,8 +920,7 @@ static int __io_read(struct io_kiocb *req, unsigned int issue_flags)
 	if (ret == -EOPNOTSUPP && force_nonblock)
 		ret = -EAGAIN;
 
-	if (ret == -EAGAIN || (req->flags & REQ_F_REISSUE)) {
-		req->flags &= ~REQ_F_REISSUE;
+	if (ret == -EAGAIN) {
 		/* If we can poll, just do that. */
 		if (io_file_can_poll(req))
 			return -EAGAIN;
@@ -1153,11 +1128,6 @@ int io_write(struct io_kiocb *req, unsigned int issue_flags)
 		ret2 = loop_rw_iter(WRITE, rw, &io->iter);
 	else
 		ret2 = -EINVAL;
-
-	if (req->flags & REQ_F_REISSUE) {
-		req->flags &= ~REQ_F_REISSUE;
-		ret2 = -EAGAIN;
-	}
 
 	/*
 	 * Raw bdev writes will return -EOPNOTSUPP for IOCB_NOWAIT. Just
