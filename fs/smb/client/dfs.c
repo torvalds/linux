@@ -48,9 +48,8 @@ int dfs_parse_target_referral(const char *full_path, const struct dfs_info3_para
 	if (rc)
 		goto out;
 
-	rc = dns_resolve_server_name_to_ip(DFS_DOM(ctx), path,
-					   (struct sockaddr *)&ctx->dstaddr,
-					   NULL);
+	rc = dns_resolve_unc(DFS_DOM(ctx), path,
+			     (struct sockaddr *)&ctx->dstaddr);
 out:
 	kfree(path);
 	return rc;
@@ -268,8 +267,7 @@ static int update_fs_context_dstaddr(struct smb3_fs_context *ctx)
 	int rc = 0;
 
 	if (!ctx->nodfs && ctx->dfs_automount) {
-		rc = dns_resolve_server_name_to_ip(NULL, ctx->source,
-						   addr, NULL);
+		rc = dns_resolve_unc(NULL, ctx->source, addr);
 		if (!rc)
 			cifs_set_port(addr, ctx->port);
 		ctx->dfs_automount = false;

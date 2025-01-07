@@ -1096,11 +1096,8 @@ int dfs_cache_get_tgt_share(char *path, const struct dfs_cache_tgt_iterator *it,
 static bool target_share_equal(struct cifs_tcon *tcon, const char *s1)
 {
 	struct TCP_Server_Info *server = tcon->ses->server;
-	struct sockaddr_storage ss;
-	const char *host;
 	const char *s2 = &tcon->tree_name[1];
-	size_t hostlen;
-	char unc[sizeof("\\\\") + SERVER_NAME_LENGTH] = {0};
+	struct sockaddr_storage ss;
 	bool match;
 	int rc;
 
@@ -1111,19 +1108,13 @@ static bool target_share_equal(struct cifs_tcon *tcon, const char *s1)
 	 * Resolve share's hostname and check if server address matches.  Otherwise just ignore it
 	 * as we could not have upcall to resolve hostname or failed to convert ip address.
 	 */
-	extract_unc_hostname(s1, &host, &hostlen);
-	scnprintf(unc, sizeof(unc), "\\\\%.*s", (int)hostlen, host);
-
-	rc = dns_resolve_server_name_to_ip(server->dns_dom, unc,
-					   (struct sockaddr *)&ss, NULL);
-	if (rc < 0) {
-		cifs_dbg(FYI, "%s: could not resolve %.*s. assuming server address matches.\n",
-			 __func__, (int)hostlen, host);
+	rc = dns_resolve_unc(server->dns_dom, s1, (struct sockaddr *)&ss);
+	if (rc < 0)
 		return true;
-	}
 
 	cifs_server_lock(server);
 	match = cifs_match_ipaddr((struct sockaddr *)&server->dstaddr, (struct sockaddr *)&ss);
+	cifs_dbg(FYI, "%s: [share=%s] ipaddr matched: %s\n", __func__, s1, str_yes_no(match));
 	cifs_server_unlock(server);
 
 	return match;

@@ -72,10 +72,8 @@ static void cifs_prune_tlinks(struct work_struct *work);
  */
 static int reconn_set_ipaddr_from_hostname(struct TCP_Server_Info *server)
 {
-	int rc;
-	int len;
-	char *unc;
 	struct sockaddr_storage ss;
+	int rc;
 
 	if (!server->hostname)
 		return -EINVAL;
@@ -84,33 +82,18 @@ static int reconn_set_ipaddr_from_hostname(struct TCP_Server_Info *server)
 	if (server->hostname[0] == '\0')
 		return 0;
 
-	len = strlen(server->hostname) + 3;
-
-	unc = kmalloc(len, GFP_KERNEL);
-	if (!unc) {
-		cifs_dbg(FYI, "%s: failed to create UNC path\n", __func__);
-		return -ENOMEM;
-	}
-	scnprintf(unc, len, "\\\\%s", server->hostname);
-
 	spin_lock(&server->srv_lock);
 	ss = server->dstaddr;
 	spin_unlock(&server->srv_lock);
 
-	rc = dns_resolve_server_name_to_ip(server->dns_dom, unc,
-					   (struct sockaddr *)&ss, NULL);
-	kfree(unc);
-
-	if (rc < 0) {
-		cifs_dbg(FYI, "%s: failed to resolve server part of %s to IP: %d\n",
-			 __func__, server->hostname, rc);
-	} else {
+	rc = dns_resolve_name(server->dns_dom, server->hostname,
+			      strlen(server->hostname),
+			      (struct sockaddr *)&ss);
+	if (!rc) {
 		spin_lock(&server->srv_lock);
 		memcpy(&server->dstaddr, &ss, sizeof(server->dstaddr));
 		spin_unlock(&server->srv_lock);
-		rc = 0;
 	}
-
 	return rc;
 }
 

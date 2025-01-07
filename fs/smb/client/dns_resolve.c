@@ -20,21 +20,19 @@
 #include "cifsproto.h"
 #include "cifs_debug.h"
 
-static int resolve_name(const char *name, size_t namelen,
-			struct sockaddr *addr, time64_t *expiry)
+static int resolve_name(const char *name, size_t namelen, struct sockaddr *addr)
 {
 	char *ip;
 	int rc;
 
 	rc = dns_query(current->nsproxy->net_ns, NULL, name,
-		       namelen, NULL, &ip, expiry, false);
+		       namelen, NULL, &ip, NULL, false);
 	if (rc < 0) {
 		cifs_dbg(FYI, "%s: unable to resolve: %*.*s\n",
 			 __func__, (int)namelen, (int)namelen, name);
 	} else {
-		cifs_dbg(FYI, "%s: resolved: %*.*s to %s expiry %llu\n",
-			 __func__, (int)namelen, (int)namelen, name, ip,
-			 expiry ? (*expiry) : 0);
+		cifs_dbg(FYI, "%s: resolved: %*.*s to %s\n",
+			 __func__, (int)namelen, (int)namelen, name, ip);
 
 		rc = cifs_convert_address(addr, ip, strlen(ip));
 		kfree(ip);
@@ -50,31 +48,23 @@ static int resolve_name(const char *name, size_t namelen,
 }
 
 /**
- * dns_resolve_server_name_to_ip - Resolve UNC server name to ip address.
- * @dom: optional DNS domain name
- * @unc: UNC path specifying the server (with '/' as delimiter)
- * @ip_addr: Where to return the IP address.
- * @expiry: Where to return the expiry time for the dns record.
+ * dns_resolve_name - Perform an upcall to resolve hostname to an ip address.
+ * @dom: DNS domain name (or NULL)
+ * @name: Name to look up
+ * @namelen: Length of name
+ * @ip_addr: Where to return the IP address
  *
- * Returns zero success, -ve on error.
+ * Returns zero on success, -ve code otherwise.
  */
-int dns_resolve_server_name_to_ip(const char *dom, const char *unc,
-				  struct sockaddr *ip_addr, time64_t *expiry)
+int dns_resolve_name(const char *dom, const char *name,
+		     size_t namelen, struct sockaddr *ip_addr)
 {
-	const char *name;
-	size_t namelen, len;
+	size_t len;
 	char *s;
 	int rc;
 
-	if (!ip_addr || !unc)
-		return -EINVAL;
-
-	cifs_dbg(FYI, "%s: dom=%s unc=%s\n", __func__, dom, unc);
-	if (strlen(unc) < 3)
-		return -EINVAL;
-
-	extract_unc_hostname(unc, &name, &namelen);
-	if (!namelen)
+	cifs_dbg(FYI, "%s: dom=%s name=%.*s\n", __func__, dom, (int)namelen, name);
+	if (!ip_addr || !name || !*name || !namelen)
 		return -EINVAL;
 
 	cifs_dbg(FYI, "%s: hostname=%.*s\n", __func__, (int)namelen, name);
@@ -97,10 +87,10 @@ int dns_resolve_server_name_to_ip(const char *dom, const char *unc,
 			return -ENOMEM;
 
 		scnprintf(s, len, "%.*s.%s", (int)namelen, name, dom);
-		rc = resolve_name(s, len - 1, ip_addr, expiry);
+		rc = resolve_name(s, len - 1, ip_addr);
 		kfree(s);
 		if (!rc)
 			return 0;
 	}
-	return resolve_name(name, namelen, ip_addr, expiry);
+	return resolve_name(name, namelen, ip_addr);
 }

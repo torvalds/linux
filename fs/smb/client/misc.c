@@ -1172,34 +1172,25 @@ void cifs_put_tcp_super(struct super_block *sb)
 
 #ifdef CONFIG_CIFS_DFS_UPCALL
 int match_target_ip(struct TCP_Server_Info *server,
-		    const char *share, size_t share_len,
+		    const char *host, size_t hostlen,
 		    bool *result)
 {
-	int rc;
-	char *target;
 	struct sockaddr_storage ss;
+	int rc;
+
+	cifs_dbg(FYI, "%s: hostname=%.*s\n", __func__, (int)hostlen, host);
 
 	*result = false;
 
-	target = kzalloc(share_len + 3, GFP_KERNEL);
-	if (!target)
-		return -ENOMEM;
-
-	scnprintf(target, share_len + 3, "\\\\%.*s", (int)share_len, share);
-
-	cifs_dbg(FYI, "%s: target name: %s\n", __func__, target + 2);
-
-	rc = dns_resolve_server_name_to_ip(server->dns_dom, target,
-					   (struct sockaddr *)&ss, NULL);
-	kfree(target);
-
+	rc = dns_resolve_name(server->dns_dom, host, hostlen,
+			      (struct sockaddr *)&ss);
 	if (rc < 0)
 		return rc;
 
 	spin_lock(&server->srv_lock);
 	*result = cifs_match_ipaddr((struct sockaddr *)&server->dstaddr, (struct sockaddr *)&ss);
 	spin_unlock(&server->srv_lock);
-	cifs_dbg(FYI, "%s: ip addresses match: %u\n", __func__, *result);
+	cifs_dbg(FYI, "%s: ip addresses matched: %s\n", __func__, str_yes_no(*result));
 	return 0;
 }
 

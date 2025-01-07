@@ -680,7 +680,7 @@ static inline int get_dfs_path(const unsigned int xid, struct cifs_ses *ses,
 }
 
 int match_target_ip(struct TCP_Server_Info *server,
-		    const char *share, size_t share_len,
+		    const char *host, size_t hostlen,
 		    bool *result);
 int cifs_inval_name_dfs_link_error(const unsigned int xid,
 				   struct cifs_tcon *tcon,
