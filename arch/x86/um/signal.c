@@ -372,11 +372,13 @@ int setup_signal_stack_si(unsigned long stack_top, struct ksignal *ksig,
 	int err = 0, sig = ksig->sig;
 	unsigned long fp_to;
 
-	frame = (struct rt_sigframe __user *)
-		round_down(stack_top - sizeof(struct rt_sigframe), 16);
+	frame = (void __user *)stack_top - sizeof(struct rt_sigframe);
 
 	/* Add required space for math frame */
-	frame = (struct rt_sigframe __user *)((unsigned long)frame - math_size);
+	frame = (void __user *)((unsigned long)frame - math_size);
+
+	/* ABI requires 16 byte boundary alignment */
+	frame = (void __user *)round_down((unsigned long)frame, 16);
 
 	/* Subtract 128 for a red zone and 8 for proper alignment */
 	frame = (struct rt_sigframe __user *) ((unsigned long) frame - 128 - 8);
