@@ -8707,7 +8707,7 @@ static int sdebug_init_cmd_priv(struct Scsi_Host *shost, struct scsi_cmnd *cmd)
 	return 0;
 }
 
-static struct scsi_host_template sdebug_driver_template = {
+static const struct scsi_host_template sdebug_driver_template = {
 	.show_info =		scsi_debug_show_info,
 	.write_info =		scsi_debug_write_info,
 	.proc_name =		sdebug_proc_name,
@@ -8750,17 +8750,17 @@ static int sdebug_driver_probe(struct device *dev)
 
 	sdbg_host = dev_to_sdebug_host(dev);
 
-	sdebug_driver_template.can_queue = sdebug_max_queue;
-	sdebug_driver_template.cmd_per_lun = sdebug_max_queue;
-	if (!sdebug_clustering)
-		sdebug_driver_template.dma_boundary = PAGE_SIZE - 1;
-
 	hpnt = scsi_host_alloc(&sdebug_driver_template, 0);
 	if (NULL == hpnt) {
 		pr_err("scsi_host_alloc failed\n");
 		error = -ENODEV;
 		return error;
 	}
+	hpnt->can_queue = sdebug_max_queue;
+	hpnt->cmd_per_lun = sdebug_max_queue;
+	if (!sdebug_clustering)
+		hpnt->dma_boundary = PAGE_SIZE - 1;
+
 	if (submit_queues > nr_cpu_ids) {
 		pr_warn("%s: trim submit_queues (was %d) to nr_cpu_ids=%u\n",
 			my_name, submit_queues, nr_cpu_ids);
