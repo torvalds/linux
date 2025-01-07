@@ -33,6 +33,9 @@ properties:
       - const: pll_ref
       - const: aclk
 
+  reset-gpios:
+    maxItems: 1
+
 required:
   - reg
   - clocks
@@ -49,6 +52,7 @@ examples:
         xlnx_vcu: vcu@a0040000 {
             compatible = "xlnx,vcu-logicoreip-1.0";
             reg = <0x0 0xa0040000 0x0 0x1000>;
+            reset-gpios = <&gpio 78 GPIO_ACTIVE_HIGH>;
             clocks = <&si570_1>, <&clkc 71>;
             clock-names = "pll_ref", "aclk";
         };
