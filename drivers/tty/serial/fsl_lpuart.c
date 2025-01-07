@@ -1965,6 +1965,11 @@ static void lpuart32_shutdown(struct uart_port *port)
 			UARTCTRL_TIE | UARTCTRL_TCIE | UARTCTRL_RIE | UARTCTRL_SBK);
 	lpuart32_write(port, temp, UARTCTRL);
 
+	/* flush Rx/Tx FIFO */
+	temp = lpuart32_read(port, UARTFIFO);
+	temp |= UARTFIFO_TXFLUSH | UARTFIFO_RXFLUSH;
+	lpuart32_write(port, temp, UARTFIFO);
+
 	uart_port_unlock_irqrestore(port, flags);
 
 	lpuart_dma_shutdown(sport);
