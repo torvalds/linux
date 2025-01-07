@@ -23,6 +23,10 @@
 #include "kvm-s390.h"
 #include "gaccess.h"
 
+enum vsie_page_flags {
+	VSIE_PAGE_IN_USE = 0,
+};
+
 struct vsie_page {
 	struct kvm_s390_sie_block scb_s;	/* 0x0000 */
 	/*
@@ -52,7 +56,12 @@ struct vsie_page {
 	 * radix tree.
 	 */
 	gpa_t scb_gpa;				/* 0x0258 */
-	__u8 reserved[0x0700 - 0x0260];		/* 0x0260 */
+	/*
+	 * Flags: must be set/cleared atomically after the vsie page can be
+	 * looked up by other CPUs.
+	 */
+	unsigned long flags;			/* 0x0260 */
+	__u8 reserved[0x0700 - 0x0268];		/* 0x0268 */
 	struct kvm_s390_crypto_cb crycb;	/* 0x0700 */
 	__u8 fac[S390_ARCH_FAC_LIST_SIZE_BYTE];	/* 0x0800 */
 };
@@ -1351,6 +1360,20 @@ static int vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	return rc;
 }
 
+/* Try getting a given vsie page, returning "true" on success. */
+static inline bool try_get_vsie_page(struct vsie_page *vsie_page)
+{
+	if (test_bit(VSIE_PAGE_IN_USE, &vsie_page->flags))
+		return false;
+	return !test_and_set_bit(VSIE_PAGE_IN_USE, &vsie_page->flags);
+}
+
+/* Put a vsie page acquired through get_vsie_page / try_get_vsie_page. */
+static void put_vsie_page(struct vsie_page *vsie_page)
+{
+	clear_bit(VSIE_PAGE_IN_USE, &vsie_page->flags);
+}
+
 /*
  * Get or create a vsie page for a scb address.
  *
@@ -1369,15 +1392,15 @@ static struct vsie_page *get_vsie_page(struct kvm *kvm, unsigned long addr)
 	rcu_read_unlock();
 	if (page) {
 		vsie_page = page_to_virt(page);
-		if (page_ref_inc_return(page) == 2) {
+		if (try_get_vsie_page(vsie_page)) {
 			if (vsie_page->scb_gpa == addr)
 				return vsie_page;
 			/*
 			 * We raced with someone reusing + putting this vsie
 			 * page before we grabbed it.
 			 */
+			put_vsie_page(vsie_page);
 		}
-		page_ref_dec(page);
 	}
 
 	/*
@@ -1394,7 +1417,7 @@ static struct vsie_page *get_vsie_page(struct kvm *kvm, unsigned long addr)
 			return ERR_PTR(-ENOMEM);
 		}
 		vsie_page = page_to_virt(page);
-		page_ref_inc(page);
+		__set_bit(VSIE_PAGE_IN_USE, &vsie_page->flags);
 		kvm->arch.vsie.pages[kvm->arch.vsie.page_count] = page;
 		kvm->arch.vsie.page_count++;
 	} else {
@@ -1402,9 +1425,8 @@ static struct vsie_page *get_vsie_page(struct kvm *kvm, unsigned long addr)
 		while (true) {
 			page = kvm->arch.vsie.pages[kvm->arch.vsie.next];
 			vsie_page = page_to_virt(page);
-			if (page_ref_inc_return(page) == 2)
+			if (try_get_vsie_page(vsie_page))
 				break;
-			page_ref_dec(page);
 			kvm->arch.vsie.next++;
 			kvm->arch.vsie.next %= nr_vcpus;
 		}
@@ -1417,7 +1439,7 @@ static struct vsie_page *get_vsie_page(struct kvm *kvm, unsigned long addr)
 
 	/* Double use of the same address or allocation failure. */
 	if (radix_tree_insert(&kvm->arch.vsie.addr_to_page, addr >> 9, page)) {
-		page_ref_dec(page);
+		put_vsie_page(vsie_page);
 		mutex_unlock(&kvm->arch.vsie.mutex);
 		return NULL;
 	}
@@ -1429,14 +1451,6 @@ static struct vsie_page *get_vsie_page(struct kvm *kvm, unsigned long addr)
 	vsie_page->fault_addr = 0;
 	vsie_page->scb_s.ihcpu = 0xffffU;
 	return vsie_page;
-}
-
-/* put a vsie page acquired via get_vsie_page */
-static void put_vsie_page(struct kvm *kvm, struct vsie_page *vsie_page)
-{
-	struct page *page = pfn_to_page(__pa(vsie_page) >> PAGE_SHIFT);
-
-	page_ref_dec(page);
 }
 
 int kvm_s390_handle_vsie(struct kvm_vcpu *vcpu)
@@ -1489,7 +1503,7 @@ out_unshadow:
 out_unpin_scb:
 	unpin_scb(vcpu, vsie_page, scb_addr);
 out_put:
-	put_vsie_page(vcpu->kvm, vsie_page);
+	put_vsie_page(vsie_page);
 
 	return rc < 0 ? rc : 0;
 }
