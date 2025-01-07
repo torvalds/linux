@@ -679,46 +679,23 @@ static const struct file_operations fnic_reset_debugfs_fops = {
  */
 int fnic_stats_debugfs_init(struct fnic *fnic)
 {
-	int rc = -1;
 	char name[16];
 
 	snprintf(name, sizeof(name), "host%d", fnic->host->host_no);
 
-	if (!fnic_stats_debugfs_root) {
-		pr_debug("fnic_stats root doesn't exist\n");
-		return rc;
-	}
-
 	fnic->fnic_stats_debugfs_host = debugfs_create_dir(name,
 						fnic_stats_debugfs_root);
-
-	if (!fnic->fnic_stats_debugfs_host) {
-		pr_debug("Cannot create host directory\n");
-		return rc;
-	}
-
 	fnic->fnic_stats_debugfs_file = debugfs_create_file("stats",
 						S_IFREG|S_IRUGO|S_IWUSR,
 						fnic->fnic_stats_debugfs_host,
 						fnic,
 						&fnic_stats_debugfs_fops);
-
-	if (!fnic->fnic_stats_debugfs_file) {
-		pr_debug("Cannot create host stats file\n");
-		return rc;
-	}
-
 	fnic->fnic_reset_debugfs_file = debugfs_create_file("reset_stats",
 						S_IFREG|S_IRUGO|S_IWUSR,
 						fnic->fnic_stats_debugfs_host,
 						fnic,
 						&fnic_reset_debugfs_fops);
-	if (!fnic->fnic_reset_debugfs_file) {
-		pr_debug("Cannot create host stats file\n");
-		return rc;
-	}
-	rc = 0;
-	return rc;
+	return 0;
 }
 
 /*
