@@ -15,70 +15,23 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/asm-offsets.h>
+#include <asm/desc_defs.h>
 #include <asm/msr.h>
 #include <asm/page_types.h>
 #include <asm/pgtable_types.h>
 #include <asm/processor-flags.h>
 #include <asm/segment.h>
-#include <asm/setup.h>
 
 	.code64
 	.text
-/*
- * When booting in 64-bit mode on 32-bit EFI firmware, startup_64_mixed_mode()
- * is the first thing that runs after switching to long mode. Depending on
- * whether the EFI handover protocol or the compat entry point was used to
- * enter the kernel, it will either branch to the common 64-bit EFI stub
- * entrypoint efi_stub_entry() directly, or via the 64-bit EFI PE/COFF
- * entrypoint efi_pe_entry(). In the former case, the bootloader must provide a
- * struct bootparams pointer as the third argument, so the presence of such a
- * pointer is used to disambiguate.
- *
- *                                                             +--------------+
- *  +------------------+     +------------+            +------>| efi_pe_entry |
- *  | efi32_pe_entry   |---->|            |            |       +-----------+--+
- *  +------------------+     |            |     +------+----------------+  |
- *                           | startup_32 |---->| startup_64_mixed_mode |  |
- *  +------------------+     |            |     +------+----------------+  |
- *  | efi32_stub_entry |---->|            |            |                   |
- *  +------------------+     +------------+            |                   |
- *                                                     V                   |
- *                           +------------+     +----------------+         |
- *                           | startup_64 |<----| efi_stub_entry |<--------+
- *                           +------------+     +----------------+
- */
-SYM_FUNC_START(startup_64_mixed_mode)
-	lea	efi32_boot_args(%rip), %rdx
-	mov	0(%rdx), %edi
-	mov	4(%rdx), %esi
-
-	leaq	(pte + 5 * PAGE_SIZE)(%rip), %rax
-	movq	%rax, %cr3		// reload after startup_32
-
-	/* Switch to the firmware's stack */
-	movl	efi32_boot_sp(%rip), %esp
-	andl	$~7, %esp
-
-	mov	8(%rdx), %edx		// saved bootparams pointer
-	call	efi_stub_entry
-SYM_FUNC_END(startup_64_mixed_mode)
-
 SYM_FUNC_START(__efi64_thunk)
 	push	%rbp
 	push	%rbx
 
-	movl	%ds, %eax
-	push	%rax
-	movl	%es, %eax
-	push	%rax
-	movl	%ss, %eax
-	push	%rax
-
 	/* Copy args passed on stack */
-	movq	0x30(%rsp), %rbp
-	movq	0x38(%rsp), %rbx
-	movq	0x40(%rsp), %rax
+	movq	0x18(%rsp), %rbp
+	movq	0x20(%rsp), %rbx
+	movq	0x28(%rsp), %rax
 
 	/*
 	 * Convert x86-64 ABI params to i386 ABI
@@ -93,43 +46,13 @@ SYM_FUNC_START(__efi64_thunk)
 	movl	%ebx, 0x18(%rsp)
 	movl	%eax, 0x1c(%rsp)
 
-	leaq	0x20(%rsp), %rbx
-	sgdt	(%rbx)
-	sidt	16(%rbx)
-
 	leaq	1f(%rip), %rbp
+	movl	%cs, %ebx
 
-	/*
-	 * Switch to IDT and GDT with 32-bit segments. These are the firmware
-	 * GDT and IDT that were installed when the kernel started executing.
-	 * The pointers were saved by the efi32_entry() routine below.
-	 *
-	 * Pass the saved DS selector to the 32-bit code, and use far return to
-	 * restore the saved CS selector.
-	 */
-	lidt	efi32_boot_idt(%rip)
-	lgdt	efi32_boot_gdt(%rip)
-
-	movzwl	efi32_boot_ds(%rip), %edx
-	movzwq	efi32_boot_cs(%rip), %rax
-	pushq	%rax
-	leaq	efi_enter32(%rip), %rax
-	pushq	%rax
-	lretq
+	ljmpl	*efi32_call(%rip)
 
 1:	addq	$64, %rsp
 	movq	%rdi, %rax
-
-	pop	%rbx
-	movl	%ebx, %ss
-	pop	%rbx
-	movl	%ebx, %es
-	pop	%rbx
-	movl	%ebx, %ds
-	/* Clear out 32-bit selector from FS and GS */
-	xorl	%ebx, %ebx
-	movl	%ebx, %fs
-	movl	%ebx, %gs
 
 	pop	%rbx
 	pop	%rbp
@@ -141,7 +64,6 @@ SYM_FUNC_END(__efi64_thunk)
 SYM_FUNC_START(efi32_stub_entry)
 	call	1f
 1:	popl	%ecx
-	leal	(efi32_boot_args - 1b)(%ecx), %ebx
 
 	/* Clear BSS */
 	xorl	%eax, %eax
@@ -153,11 +75,8 @@ SYM_FUNC_START(efi32_stub_entry)
 	rep	stosl
 
 	add	$0x4, %esp		/* Discard return address */
-	popl	%ecx
-	popl	%edx
-	popl	%esi
-	movl	%esi, 8(%ebx)
-	jmp	efi32_entry
+	movl	8(%esp), %ebx		/* struct boot_params pointer */
+	jmp	efi32_startup
 SYM_FUNC_END(efi32_stub_entry)
 #endif
 
@@ -167,13 +86,6 @@ SYM_FUNC_END(efi32_stub_entry)
  * The stack should represent the 32-bit calling convention.
  */
 SYM_FUNC_START_LOCAL(efi_enter32)
-	/* Load firmware selector into data and stack segment registers */
-	movl	%edx, %ds
-	movl	%edx, %es
-	movl	%edx, %fs
-	movl	%edx, %gs
-	movl	%edx, %ss
-
 	/* Disable paging */
 	movl	%cr0, %eax
 	btrl	$X86_CR0_PG_BIT, %eax
@@ -190,21 +102,9 @@ SYM_FUNC_START_LOCAL(efi_enter32)
 	/* We must preserve return value */
 	movl	%eax, %edi
 
-	/*
-	 * Some firmware will return with interrupts enabled. Be sure to
-	 * disable them before we switch GDTs and IDTs.
-	 */
-	cli
-
-	lidtl	16(%ebx)
-	lgdtl	(%ebx)
-
-	xorl	%eax, %eax
-	lldt	%ax
-
 	call	efi32_enable_long_mode
 
-	pushl	$__KERNEL_CS
+	pushl	%ebx
 	pushl	%ebp
 	lret
 SYM_FUNC_END(efi_enter32)
@@ -230,49 +130,55 @@ SYM_FUNC_START_LOCAL(efi32_enable_long_mode)
 SYM_FUNC_END(efi32_enable_long_mode)
 
 /*
- * This is the common EFI stub entry point for mixed mode.
+ * This is the common EFI stub entry point for mixed mode. It sets up the GDT
+ * and page tables needed for 64-bit execution, after which it calls the
+ * common 64-bit EFI entrypoint efi_stub_entry().
  *
- * Arguments:	%ecx	image handle
- * 		%edx	EFI system table pointer
+ * Arguments:	0(%esp)	image handle
+ * 		4(%esp)	EFI system table pointer
+ *		%ebx	struct boot_params pointer (or NULL)
  *
  * Since this is the point of no return for ordinary execution, no registers
  * are considered live except for the function parameters. [Note that the EFI
  * stub may still exit and return to the firmware using the Exit() EFI boot
  * service.]
  */
-SYM_FUNC_START_LOCAL(efi32_entry)
-	call	1f
-1:	pop	%ebx
+SYM_FUNC_START_LOCAL(efi32_startup)
+	movl	%esp, %ebp
 
-	/* Save firmware GDTR and code/data selectors */
-	sgdtl	(efi32_boot_gdt - 1b)(%ebx)
-	movw	%cs, (efi32_boot_cs - 1b)(%ebx)
-	movw	%ds, (efi32_boot_ds - 1b)(%ebx)
+	subl	$8, %esp
+	sgdtl	(%esp)			/* Save GDT descriptor to the stack */
+	movl	2(%esp), %esi		/* Existing GDT pointer */
+	movzwl	(%esp), %ecx		/* Existing GDT limit */
+	inc	%ecx			/* Existing GDT size */
+	andl	$~7, %ecx		/* Ensure size is multiple of 8 */
 
-	/* Store firmware IDT descriptor */
-	sidtl	(efi32_boot_idt - 1b)(%ebx)
+	subl	%ecx, %esp		/* Allocate new GDT */
+	andl	$~15, %esp		/* Realign the stack */
+	movl	%esp, %edi		/* New GDT address */
+	leal	7(%ecx), %eax		/* New GDT limit */
+	pushw	%cx			/* Push 64-bit CS (for LJMP below) */
+	pushl	%edi			/* Push new GDT address */
+	pushw	%ax			/* Push new GDT limit */
 
-	/* Store firmware stack pointer */
-	movl	%esp, (efi32_boot_sp - 1b)(%ebx)
-
-	/* Store boot arguments */
-	leal	(efi32_boot_args - 1b)(%ebx), %ebx
-	movl	%ecx, 0(%ebx)
-	movl	%edx, 4(%ebx)
-	movb	$0x0, 12(%ebx)          // efi_is64
-
-	/*
-	 * Allocate some memory for a temporary struct boot_params, which only
-	 * needs the minimal pieces that startup_32() relies on.
-	 */
-	subl	$PARAM_SIZE, %esp
-	movl	%esp, %esi
-	movl	$PAGE_SIZE, BP_kernel_alignment(%esi)
-	movl	$_end - 1b, BP_init_size(%esi)
-	subl	$startup_32 - 1b, BP_init_size(%esi)
+	/* Copy GDT to the stack and add a 64-bit code segment at the end */
+	movl	$GDT_ENTRY(DESC_CODE64, 0, 0xfffff) & 0xffffffff, (%edi,%ecx)
+	movl	$GDT_ENTRY(DESC_CODE64, 0, 0xfffff) >> 32, 4(%edi,%ecx)
+	shrl	$2, %ecx
+	cld
+	rep	movsl			/* Copy the firmware GDT */
+	lgdtl	(%esp)			/* Switch to the new GDT */
 
 	call	1f
 1:	pop	%edi
+
+	/* Record mixed mode entry */
+	movb	$0x0, (efi_is64 - 1b)(%edi)
+
+	/* Set up indirect far call to re-enter 32-bit mode */
+	leal	(efi32_call - 1b)(%edi), %eax
+	addl	%eax, (%eax)
+	movw	%cs, 4(%eax)
 
 	/* Disable paging */
 	movl	%cr0, %eax
@@ -297,8 +203,17 @@ SYM_FUNC_START_LOCAL(efi32_entry)
 	movl	%edx, (%eax)
 	movl	%eax, %cr3
 
-	jmp	startup_32
-SYM_FUNC_END(efi32_entry)
+	call	efi32_enable_long_mode
+
+	/* Set up far jump to 64-bit mode (CS is already on the stack) */
+	leal	(efi_stub_entry - 1b)(%edi), %eax
+	movl	%eax, 2(%esp)
+
+	movl	0(%ebp), %edi
+	movl	4(%ebp), %esi
+	movl	%ebx, %edx
+	ljmpl	*2(%esp)
+SYM_FUNC_END(efi32_startup)
 
 /*
  * efi_status_t efi32_pe_entry(efi_handle_t image_handle,
@@ -313,10 +228,8 @@ SYM_FUNC_START(efi32_pe_entry)
 	btl	$29, %edx			// check long mode bit
 	jnc	1f
 	leal	8(%esp), %esp			// preserve stack alignment
-	movl	(%esp), %ecx			// image_handle
-	movl	4(%esp), %edx			// sys_table
-	jmp	efi32_entry			// pass %ecx, %edx
-						// no other registers remain live
+	xor	%ebx, %ebx			// no struct boot_params pointer
+	jmp	efi32_startup			// only ESP and EBX remain live
 1:	movl	$0x80000003, %eax		// EFI_UNSUPPORTED
 	popl	%ebx
 	RET
@@ -332,20 +245,10 @@ SYM_FUNC_END(efi64_stub_entry)
 
 	.data
 	.balign	8
-SYM_DATA_START_LOCAL(efi32_boot_gdt)
-	.word	0
-	.quad	0
-SYM_DATA_END(efi32_boot_gdt)
-
-SYM_DATA_START_LOCAL(efi32_boot_idt)
-	.word	0
-	.quad	0
-SYM_DATA_END(efi32_boot_idt)
-
-SYM_DATA_LOCAL(efi32_boot_cs, .word 0)
-SYM_DATA_LOCAL(efi32_boot_ds, .word 0)
-SYM_DATA_LOCAL(efi32_boot_sp, .long 0)
-SYM_DATA_LOCAL(efi32_boot_args, .long 0, 0, 0)
+SYM_DATA_START_LOCAL(efi32_call)
+	.long	efi_enter32 - .
+	.word	0x0
+SYM_DATA_END(efi32_call)
 SYM_DATA(efi_is64, .byte 1)
 
 	.bss
