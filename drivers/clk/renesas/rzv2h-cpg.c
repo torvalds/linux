@@ -23,6 +23,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_clock.h>
 #include <linux/pm_domain.h>
+#include <linux/refcount.h>
 #include <linux/reset-controller.h>
 
 #include <dt-bindings/clock/renesas-cpg-mssr.h>
@@ -39,6 +40,9 @@
 #define GET_CLK_MON_OFFSET(x)	(0x800 + ((x) * 4))
 #define GET_RST_OFFSET(x)	(0x900 + ((x) * 4))
 #define GET_RST_MON_OFFSET(x)	(0xA00 + ((x) * 4))
+
+#define CPG_BUS_1_MSTOP		(0xd00)
+#define CPG_BUS_MSTOP(m)	(CPG_BUS_1_MSTOP + ((m) - 1) * 4)
 
 #define KDIV(val)		((s16)FIELD_GET(GENMASK(31, 16), (val)))
 #define MDIV(val)		FIELD_GET(GENMASK(15, 6), (val))
@@ -64,6 +68,7 @@
  * @resets: Array of resets
  * @num_resets: Number of Module Resets in info->resets[]
  * @last_dt_core_clk: ID of the last Core Clock exported to DT
+ * @mstop_count: Array of mstop values
  * @rcdev: Reset controller entity
  */
 struct rzv2h_cpg_priv {
@@ -77,6 +82,8 @@ struct rzv2h_cpg_priv {
 	struct rzv2h_reset *resets;
 	unsigned int num_resets;
 	unsigned int last_dt_core_clk;
+
+	atomic_t *mstop_count;
 
 	struct reset_controller_dev rcdev;
 };
@@ -97,6 +104,7 @@ struct pll_clk {
  * struct mod_clock - Module clock
  *
  * @priv: CPG private data
+ * @mstop_data: mstop data relating to module clock
  * @hw: handle between common and hardware-specific interfaces
  * @no_pm: flag to indicate PM is not supported
  * @on_index: register offset
@@ -106,6 +114,7 @@ struct pll_clk {
  */
 struct mod_clock {
 	struct rzv2h_cpg_priv *priv;
+	unsigned int mstop_data;
 	struct clk_hw hw;
 	bool no_pm;
 	u8 on_index;
@@ -433,8 +442,71 @@ fail:
 		core->name, PTR_ERR(clk));
 }
 
+static void rzv2h_mod_clock_mstop_enable(struct rzv2h_cpg_priv *priv,
+					 u32 mstop_data)
+{
+	unsigned long mstop_mask = FIELD_GET(BUS_MSTOP_BITS_MASK, mstop_data);
+	u16 mstop_index = FIELD_GET(BUS_MSTOP_IDX_MASK, mstop_data);
+	unsigned int index = (mstop_index - 1) * 16;
+	atomic_t *mstop = &priv->mstop_count[index];
+	unsigned long flags;
+	unsigned int i;
+	u32 val = 0;
+
+	spin_lock_irqsave(&priv->rmw_lock, flags);
+	for_each_set_bit(i, &mstop_mask, 16) {
+		if (!atomic_read(&mstop[i]))
+			val |= BIT(i) << 16;
+		atomic_inc(&mstop[i]);
+	}
+	if (val)
+		writel(val, priv->base + CPG_BUS_MSTOP(mstop_index));
+	spin_unlock_irqrestore(&priv->rmw_lock, flags);
+}
+
+static void rzv2h_mod_clock_mstop_disable(struct rzv2h_cpg_priv *priv,
+					  u32 mstop_data)
+{
+	unsigned long mstop_mask = FIELD_GET(BUS_MSTOP_BITS_MASK, mstop_data);
+	u16 mstop_index = FIELD_GET(BUS_MSTOP_IDX_MASK, mstop_data);
+	unsigned int index = (mstop_index - 1) * 16;
+	atomic_t *mstop = &priv->mstop_count[index];
+	unsigned long flags;
+	unsigned int i;
+	u32 val = 0;
+
+	spin_lock_irqsave(&priv->rmw_lock, flags);
+	for_each_set_bit(i, &mstop_mask, 16) {
+		if (!atomic_read(&mstop[i]) ||
+		    atomic_dec_and_test(&mstop[i]))
+			val |= BIT(i) << 16 | BIT(i);
+	}
+	if (val)
+		writel(val, priv->base + CPG_BUS_MSTOP(mstop_index));
+	spin_unlock_irqrestore(&priv->rmw_lock, flags);
+}
+
+static int rzv2h_mod_clock_is_enabled(struct clk_hw *hw)
+{
+	struct mod_clock *clock = to_mod_clock(hw);
+	struct rzv2h_cpg_priv *priv = clock->priv;
+	u32 bitmask;
+	u32 offset;
+
+	if (clock->mon_index >= 0) {
+		offset = GET_CLK_MON_OFFSET(clock->mon_index);
+		bitmask = BIT(clock->mon_bit);
+	} else {
+		offset = GET_CLK_ON_OFFSET(clock->on_index);
+		bitmask = BIT(clock->on_bit);
+	}
+
+	return readl(priv->base + offset) & bitmask;
+}
+
 static int rzv2h_mod_clock_endisable(struct clk_hw *hw, bool enable)
 {
+	bool enabled = rzv2h_mod_clock_is_enabled(hw);
 	struct mod_clock *clock = to_mod_clock(hw);
 	unsigned int reg = GET_CLK_ON_OFFSET(clock->on_index);
 	struct rzv2h_cpg_priv *priv = clock->priv;
@@ -446,11 +518,20 @@ static int rzv2h_mod_clock_endisable(struct clk_hw *hw, bool enable)
 	dev_dbg(dev, "CLK_ON 0x%x/%pC %s\n", reg, hw->clk,
 		enable ? "ON" : "OFF");
 
-	value = bitmask << 16;
-	if (enable)
-		value |= bitmask;
+	if (enabled == enable)
+		return 0;
 
-	writel(value, priv->base + reg);
+	value = bitmask << 16;
+	if (enable) {
+		value |= bitmask;
+		writel(value, priv->base + reg);
+		if (clock->mstop_data != BUS_MSTOP_NONE)
+			rzv2h_mod_clock_mstop_enable(priv, clock->mstop_data);
+	} else {
+		if (clock->mstop_data != BUS_MSTOP_NONE)
+			rzv2h_mod_clock_mstop_disable(priv, clock->mstop_data);
+		writel(value, priv->base + reg);
+	}
 
 	if (!enable || clock->mon_index < 0)
 		return 0;
@@ -474,24 +555,6 @@ static int rzv2h_mod_clock_enable(struct clk_hw *hw)
 static void rzv2h_mod_clock_disable(struct clk_hw *hw)
 {
 	rzv2h_mod_clock_endisable(hw, false);
-}
-
-static int rzv2h_mod_clock_is_enabled(struct clk_hw *hw)
-{
-	struct mod_clock *clock = to_mod_clock(hw);
-	struct rzv2h_cpg_priv *priv = clock->priv;
-	u32 bitmask;
-	u32 offset;
-
-	if (clock->mon_index >= 0) {
-		offset = GET_CLK_MON_OFFSET(clock->mon_index);
-		bitmask = BIT(clock->mon_bit);
-	} else {
-		offset = GET_CLK_ON_OFFSET(clock->on_index);
-		bitmask = BIT(clock->on_bit);
-	}
-
-	return readl(priv->base + offset) & bitmask;
 }
 
 static const struct clk_ops rzv2h_mod_clock_ops = {
@@ -546,6 +609,7 @@ rzv2h_cpg_register_mod_clk(const struct rzv2h_mod_clk *mod,
 	clock->no_pm = mod->no_pm;
 	clock->priv = priv;
 	clock->hw.init = &init;
+	clock->mstop_data = mod->mstop_data;
 
 	ret = devm_clk_hw_register(dev, &clock->hw);
 	if (ret) {
@@ -554,6 +618,41 @@ rzv2h_cpg_register_mod_clk(const struct rzv2h_mod_clk *mod,
 	}
 
 	priv->clks[id] = clock->hw.clk;
+
+	/*
+	 * Ensure the module clocks and MSTOP bits are synchronized when they are
+	 * turned ON by the bootloader. Enable MSTOP bits for module clocks that were
+	 * turned ON in an earlier boot stage.
+	 */
+	if (clock->mstop_data != BUS_MSTOP_NONE &&
+	    !mod->critical && rzv2h_mod_clock_is_enabled(&clock->hw)) {
+		rzv2h_mod_clock_mstop_enable(priv, clock->mstop_data);
+	} else if (clock->mstop_data != BUS_MSTOP_NONE && mod->critical) {
+		unsigned long mstop_mask = FIELD_GET(BUS_MSTOP_BITS_MASK, clock->mstop_data);
+		u16 mstop_index = FIELD_GET(BUS_MSTOP_IDX_MASK, clock->mstop_data);
+		unsigned int index = (mstop_index - 1) * 16;
+		atomic_t *mstop = &priv->mstop_count[index];
+		unsigned long flags;
+		unsigned int i;
+		u32 val = 0;
+
+		/*
+		 * Critical clocks are turned ON immediately upon registration, and the
+		 * MSTOP counter is updated through the rzv2h_mod_clock_enable() path.
+		 * However, if the critical clocks were already turned ON by the initial
+		 * bootloader, synchronize the atomic counter here and clear the MSTOP bit.
+		 */
+		spin_lock_irqsave(&priv->rmw_lock, flags);
+		for_each_set_bit(i, &mstop_mask, 16) {
+			if (atomic_read(&mstop[i]))
+				continue;
+			val |= BIT(i) << 16;
+			atomic_inc(&mstop[i]);
+		}
+		if (val)
+			writel(val, priv->base + CPG_BUS_MSTOP(mstop_index));
+		spin_unlock_irqrestore(&priv->rmw_lock, flags);
+	}
 
 	return;
 
@@ -822,6 +921,11 @@ static int __init rzv2h_cpg_probe(struct platform_device *pdev)
 	if (!clks)
 		return -ENOMEM;
 
+	priv->mstop_count = devm_kcalloc(dev, info->num_mstop_bits,
+					 sizeof(*priv->mstop_count), GFP_KERNEL);
+	if (!priv->mstop_count)
+		return -ENOMEM;
+
 	priv->resets = devm_kmemdup(dev, info->resets, sizeof(*info->resets) *
 				    info->num_resets, GFP_KERNEL);
 	if (!priv->resets)
@@ -867,6 +971,12 @@ static const struct of_device_id rzv2h_cpg_match[] = {
 	{
 		.compatible = "renesas,r9a09g057-cpg",
 		.data = &r9a09g057_cpg_info,
+	},
+#endif
+#ifdef CONFIG_CLK_R9A09G047
+	{
+		.compatible = "renesas,r9a09g047-cpg",
+		.data = &r9a09g047_cpg_info,
 	},
 #endif
 	{ /* sentinel */ }
