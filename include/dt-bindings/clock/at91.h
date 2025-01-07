@@ -42,6 +42,10 @@
 #define PMC_PLLADIV2		(PMC_MAIN + 11)
 #define PMC_LVDSPLL		(PMC_MAIN + 12)
 
+/* SAMA7D65 */
+#define PMC_MCK3		(PMC_MAIN + 13)
+#define PMC_MCK5		(PMC_MAIN + 14)
+
 #ifndef AT91_PMC_MOSCS
 #define AT91_PMC_MOSCS		0		/* MOSCS Flag */
 #define AT91_PMC_LOCKA		1		/* PLLA Lock */
@@ -54,5 +58,9 @@
 #define AT91_PMC_CFDEV		18		/* Clock Failure Detector Event */
 #define AT91_PMC_GCKRDY		24		/* Generated Clocks */
 #endif
+
+/* Slow clock. */
+#define SCKC_MD_SLCK		0
+#define SCKC_TD_SLCK		1
 
 #endif
