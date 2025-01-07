@@ -855,31 +855,6 @@ irqreturn_t prueth_rx_irq(int irq, void *dev_id)
 }
 EXPORT_SYMBOL_GPL(prueth_rx_irq);
 
-void prueth_emac_stop(struct prueth_emac *emac)
-{
-	struct prueth *prueth = emac->prueth;
-	int slice;
-
-	switch (emac->port_id) {
-	case PRUETH_PORT_MII0:
-		slice = ICSS_SLICE0;
-		break;
-	case PRUETH_PORT_MII1:
-		slice = ICSS_SLICE1;
-		break;
-	default:
-		netdev_err(emac->ndev, "invalid port\n");
-		return;
-	}
-
-	emac->fw_running = 0;
-	if (!emac->is_sr1)
-		rproc_shutdown(prueth->txpru[slice]);
-	rproc_shutdown(prueth->rtu[slice]);
-	rproc_shutdown(prueth->pru[slice]);
-}
-EXPORT_SYMBOL_GPL(prueth_emac_stop);
-
 void prueth_cleanup_tx_ts(struct prueth_emac *emac)
 {
 	int i;

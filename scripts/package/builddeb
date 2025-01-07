@@ -63,6 +63,12 @@ install_linux_image () {
 	esac
 	cp "$(${MAKE} -s -f ${srctree}/Makefile image_name)" "${pdir}/${installed_image_path}"
 
+	if [ "${ARCH}" != um ]; then
+		install_maint_scripts "${pdir}"
+	fi
+}
+
+install_maint_scripts () {
 	# Install the maintainer scripts
 	# Note: hook scripts under /etc/kernel are also executed by official Debian
 	# kernel packages, as well as kernel packages built using make-kpkg.

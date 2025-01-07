@@ -82,9 +82,9 @@ static int ljca_gpio_config(struct ljca_gpio_dev *ljca_gpio, u8 gpio_id,
 	int ret;
 
 	mutex_lock(&ljca_gpio->trans_lock);
+	packet->num = 1;
 	packet->item[0].index = gpio_id;
 	packet->item[0].value = config | ljca_gpio->connect_mode[gpio_id];
-	packet->num = 1;
 
 	ret = ljca_transfer(ljca_gpio->ljca, LJCA_GPIO_CONFIG, (u8 *)packet,
 			    struct_size(packet, item, packet->num), NULL, 0);

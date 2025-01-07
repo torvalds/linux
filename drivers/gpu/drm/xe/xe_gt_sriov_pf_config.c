@@ -2046,7 +2046,7 @@ static int pf_validate_vf_config(struct xe_gt *gt, unsigned int vfid)
 	valid_any = valid_any || (valid_ggtt && is_primary);
 
 	if (IS_DGFX(xe)) {
-		bool valid_lmem = pf_get_vf_config_ggtt(primary_gt, vfid);
+		bool valid_lmem = pf_get_vf_config_lmem(primary_gt, vfid);
 
 		valid_any = valid_any || (valid_lmem && is_primary);
 		valid_all = valid_all && valid_lmem;

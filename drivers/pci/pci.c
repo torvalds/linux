@@ -6232,11 +6232,13 @@ u8 pcie_get_supported_speeds(struct pci_dev *dev)
 	pcie_capability_read_dword(dev, PCI_EXP_LNKCAP2, &lnkcap2);
 	speeds = lnkcap2 & PCI_EXP_LNKCAP2_SLS;
 
+	/* Ignore speeds higher than Max Link Speed */
+	pcie_capability_read_dword(dev, PCI_EXP_LNKCAP, &lnkcap);
+	speeds &= GENMASK(lnkcap & PCI_EXP_LNKCAP_SLS, 0);
+
 	/* PCIe r3.0-compliant */
 	if (speeds)
 		return speeds;
-
-	pcie_capability_read_dword(dev, PCI_EXP_LNKCAP, &lnkcap);
 
 	/* Synthesize from the Max Link Speed field */
 	if ((lnkcap & PCI_EXP_LNKCAP_SLS) == PCI_EXP_LNKCAP_SLS_5_0GB)

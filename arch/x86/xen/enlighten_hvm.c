@@ -106,15 +106,8 @@ static void __init init_hvm_pv_info(void)
 	/* PVH set up hypercall page in xen_prepare_pvh(). */
 	if (xen_pvh_domain())
 		pv_info.name = "Xen PVH";
-	else {
-		u64 pfn;
-		uint32_t msr;
-
+	else
 		pv_info.name = "Xen HVM";
-		msr = cpuid_ebx(base + 2);
-		pfn = __pa(hypercall_page);
-		wrmsr_safe(msr, (u32)pfn, (u32)(pfn >> 32));
-	}
 
 	xen_setup_features();
 
@@ -299,6 +292,10 @@ static uint32_t __init xen_platform_hvm(void)
 
 	if (xen_pv_domain())
 		return 0;
+
+	/* Set correct hypercall function. */
+	if (xen_domain)
+		xen_hypercall_setfunc();
 
 	if (xen_pvh_domain() && nopv) {
 		/* Guest booting via the Xen-PVH boot entry goes here */

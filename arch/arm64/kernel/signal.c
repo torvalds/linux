@@ -36,14 +36,7 @@
 #include <asm/traps.h>
 #include <asm/vdso.h>
 
-#ifdef CONFIG_ARM64_GCS
 #define GCS_SIGNAL_CAP(addr) (((unsigned long)addr) & GCS_CAP_ADDR_MASK)
-
-static bool gcs_signal_cap_valid(u64 addr, u64 val)
-{
-	return val == GCS_SIGNAL_CAP(addr);
-}
-#endif
 
 /*
  * Do a signal return; undo the signal stack. These are aligned to 128-bit.
@@ -1062,8 +1055,7 @@ static int restore_sigframe(struct pt_regs *regs,
 #ifdef CONFIG_ARM64_GCS
 static int gcs_restore_signal(void)
 {
-	unsigned long __user *gcspr_el0;
-	u64 cap;
+	u64 gcspr_el0, cap;
 	int ret;
 
 	if (!system_supports_gcs())
@@ -1072,7 +1064,7 @@ static int gcs_restore_signal(void)
 	if (!(current->thread.gcs_el0_mode & PR_SHADOW_STACK_ENABLE))
 		return 0;
 
-	gcspr_el0 = (unsigned long __user *)read_sysreg_s(SYS_GCSPR_EL0);
+	gcspr_el0 = read_sysreg_s(SYS_GCSPR_EL0);
 
 	/*
 	 * Ensure that any changes to the GCS done via GCS operations
@@ -1087,22 +1079,23 @@ static int gcs_restore_signal(void)
 	 * then faults will be generated on GCS operations - the main
 	 * concern is to protect GCS pages.
 	 */
-	ret = copy_from_user(&cap, gcspr_el0, sizeof(cap));
+	ret = copy_from_user(&cap, (unsigned long __user *)gcspr_el0,
+			     sizeof(cap));
 	if (ret)
 		return -EFAULT;
 
 	/*
 	 * Check that the cap is the actual GCS before replacing it.
 	 */
-	if (!gcs_signal_cap_valid((u64)gcspr_el0, cap))
+	if (cap != GCS_SIGNAL_CAP(gcspr_el0))
 		return -EINVAL;
 
 	/* Invalidate the token to prevent reuse */
-	put_user_gcs(0, (__user void*)gcspr_el0, &ret);
+	put_user_gcs(0, (unsigned long __user *)gcspr_el0, &ret);
 	if (ret != 0)
 		return -EFAULT;
 
-	write_sysreg_s(gcspr_el0 + 1, SYS_GCSPR_EL0);
+	write_sysreg_s(gcspr_el0 + 8, SYS_GCSPR_EL0);
 
 	return 0;
 }
@@ -1421,7 +1414,7 @@ static int get_sigframe(struct rt_sigframe_user_layout *user,
 
 static int gcs_signal_entry(__sigrestore_t sigtramp, struct ksignal *ksig)
 {
-	unsigned long __user *gcspr_el0;
+	u64 gcspr_el0;
 	int ret = 0;
 
 	if (!system_supports_gcs())
@@ -1434,18 +1427,20 @@ static int gcs_signal_entry(__sigrestore_t sigtramp, struct ksignal *ksig)
 	 * We are entering a signal handler, current register state is
 	 * active.
 	 */
-	gcspr_el0 = (unsigned long __user *)read_sysreg_s(SYS_GCSPR_EL0);
+	gcspr_el0 = read_sysreg_s(SYS_GCSPR_EL0);
 
 	/*
 	 * Push a cap and the GCS entry for the trampoline onto the GCS.
 	 */
-	put_user_gcs((unsigned long)sigtramp, gcspr_el0 - 2, &ret);
-	put_user_gcs(GCS_SIGNAL_CAP(gcspr_el0 - 1), gcspr_el0 - 1, &ret);
+	put_user_gcs((unsigned long)sigtramp,
+		     (unsigned long __user *)(gcspr_el0 - 16), &ret);
+	put_user_gcs(GCS_SIGNAL_CAP(gcspr_el0 - 8),
+		     (unsigned long __user *)(gcspr_el0 - 8), &ret);
 	if (ret != 0)
 		return ret;
 
-	gcspr_el0 -= 2;
-	write_sysreg_s((unsigned long)gcspr_el0, SYS_GCSPR_EL0);
+	gcspr_el0 -= 16;
+	write_sysreg_s(gcspr_el0, SYS_GCSPR_EL0);
 
 	return 0;
 }
@@ -1462,10 +1457,33 @@ static int setup_return(struct pt_regs *regs, struct ksignal *ksig,
 			 struct rt_sigframe_user_layout *user, int usig)
 {
 	__sigrestore_t sigtramp;
+	int err;
+
+	if (ksig->ka.sa.sa_flags & SA_RESTORER)
+		sigtramp = ksig->ka.sa.sa_restorer;
+	else
+		sigtramp = VDSO_SYMBOL(current->mm->context.vdso, sigtramp);
+
+	err = gcs_signal_entry(sigtramp, ksig);
+	if (err)
+		return err;
+
+	/*
+	 * We must not fail from this point onwards. We are going to update
+	 * registers, including SP, in order to invoke the signal handler. If
+	 * we failed and attempted to deliver a nested SIGSEGV to a handler
+	 * after that point, the subsequent sigreturn would end up restoring
+	 * the (partial) state for the original signal handler.
+	 */
 
 	regs->regs[0] = usig;
+	if (ksig->ka.sa.sa_flags & SA_SIGINFO) {
+		regs->regs[1] = (unsigned long)&user->sigframe->info;
+		regs->regs[2] = (unsigned long)&user->sigframe->uc;
+	}
 	regs->sp = (unsigned long)user->sigframe;
 	regs->regs[29] = (unsigned long)&user->next_frame->fp;
+	regs->regs[30] = (unsigned long)sigtramp;
 	regs->pc = (unsigned long)ksig->ka.sa.sa_handler;
 
 	/*
@@ -1506,14 +1524,7 @@ static int setup_return(struct pt_regs *regs, struct ksignal *ksig,
 		sme_smstop();
 	}
 
-	if (ksig->ka.sa.sa_flags & SA_RESTORER)
-		sigtramp = ksig->ka.sa.sa_restorer;
-	else
-		sigtramp = VDSO_SYMBOL(current->mm->context.vdso, sigtramp);
-
-	regs->regs[30] = (unsigned long)sigtramp;
-
-	return gcs_signal_entry(sigtramp, ksig);
+	return 0;
 }
 
 static int setup_rt_frame(int usig, struct ksignal *ksig, sigset_t *set,
@@ -1537,14 +1548,16 @@ static int setup_rt_frame(int usig, struct ksignal *ksig, sigset_t *set,
 
 	err |= __save_altstack(&frame->uc.uc_stack, regs->sp);
 	err |= setup_sigframe(&user, regs, set, &ua_state);
-	if (err == 0) {
+	if (ksig->ka.sa.sa_flags & SA_SIGINFO)
+		err |= copy_siginfo_to_user(&frame->info, &ksig->info);
+
+	if (err == 0)
 		err = setup_return(regs, ksig, &user, usig);
-		if (ksig->ka.sa.sa_flags & SA_SIGINFO) {
-			err |= copy_siginfo_to_user(&frame->info, &ksig->info);
-			regs->regs[1] = (unsigned long)&frame->info;
-			regs->regs[2] = (unsigned long)&frame->uc;
-		}
-	}
+
+	/*
+	 * We must not fail if setup_return() succeeded - see comment at the
+	 * beginning of setup_return().
+	 */
 
 	if (err == 0)
 		set_handler_user_access_state();

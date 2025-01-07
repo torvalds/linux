@@ -1370,7 +1370,7 @@ int parse_line_range_desc(const char *arg, struct line_range *lr)
 {
 	char *buf = strdup(arg);
 	char *p;
-	int err;
+	int err = 0;
 
 	if (!buf)
 		return -ENOMEM;
