@@ -137,11 +137,14 @@ struct ivpu_device {
 	struct mutex context_list_lock; /* Protects user context addition/removal */
 	struct xarray context_xa;
 	struct xa_limit context_xa_limit;
-	struct work_struct context_abort_work;
 
 	struct xarray db_xa;
 	struct xa_limit db_limit;
 	u32 db_next;
+
+	struct work_struct irq_ipc_work;
+	struct work_struct irq_dct_work;
+	struct work_struct context_abort_work;
 
 	struct mutex bo_list_lock; /* Protects bo_list */
 	struct list_head bo_list;

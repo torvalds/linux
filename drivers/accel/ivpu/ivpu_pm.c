@@ -452,8 +452,9 @@ int ivpu_pm_dct_disable(struct ivpu_device *vdev)
 	return 0;
 }
 
-void ivpu_pm_dct_irq_thread_handler(struct ivpu_device *vdev)
+void ivpu_pm_irq_dct_work_fn(struct work_struct *work)
 {
+	struct ivpu_device *vdev = container_of(work, struct ivpu_device, irq_dct_work);
 	bool enable;
 	int ret;
 

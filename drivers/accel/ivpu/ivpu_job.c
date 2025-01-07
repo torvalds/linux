@@ -935,7 +935,7 @@ void ivpu_job_done_consumer_fini(struct ivpu_device *vdev)
 	ivpu_ipc_consumer_del(vdev, &vdev->job_done_consumer);
 }
 
-void ivpu_context_abort_thread_handler(struct work_struct *work)
+void ivpu_context_abort_work_fn(struct work_struct *work)
 {
 	struct ivpu_device *vdev = container_of(work, struct ivpu_device, context_abort_work);
 	struct ivpu_file_priv *file_priv;

@@ -285,8 +285,6 @@ void ivpu_hw_profiling_freq_drive(struct ivpu_device *vdev, bool enable)
 
 void ivpu_irq_handlers_init(struct ivpu_device *vdev)
 {
-	INIT_KFIFO(vdev->hw->irq.fifo);
-
 	if (ivpu_hw_ip_gen(vdev) == IVPU_HW_IP_37XX)
 		vdev->hw->irq.ip_irq_handler = ivpu_hw_ip_irq_handler_37xx;
 	else
@@ -300,7 +298,6 @@ void ivpu_irq_handlers_init(struct ivpu_device *vdev)
 
 void ivpu_hw_irq_enable(struct ivpu_device *vdev)
 {
-	kfifo_reset(&vdev->hw->irq.fifo);
 	ivpu_hw_ip_irq_enable(vdev);
 	ivpu_hw_btrs_irq_enable(vdev);
 }
@@ -327,8 +324,6 @@ irqreturn_t ivpu_hw_irq_handler(int irq, void *ptr)
 	/* Re-enable global interrupts to re-trigger MSI for pending interrupts */
 	ivpu_hw_btrs_global_int_enable(vdev);
 
-	if (!kfifo_is_empty(&vdev->hw->irq.fifo))
-		return IRQ_WAKE_THREAD;
 	if (ip_handled || btrs_handled)
 		return IRQ_HANDLED;
 	return IRQ_NONE;

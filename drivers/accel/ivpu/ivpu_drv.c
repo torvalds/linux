@@ -7,6 +7,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
+#include <linux/workqueue.h>
 #include <generated/utsrelease.h>
 
 #include <drm/drm_accel.h>
@@ -421,6 +422,9 @@ void ivpu_prepare_for_reset(struct ivpu_device *vdev)
 {
 	ivpu_hw_irq_disable(vdev);
 	disable_irq(vdev->irq);
+	cancel_work_sync(&vdev->irq_ipc_work);
+	cancel_work_sync(&vdev->irq_dct_work);
+	cancel_work_sync(&vdev->context_abort_work);
 	ivpu_ipc_disable(vdev);
 	ivpu_mmu_disable(vdev);
 }
@@ -465,31 +469,6 @@ static const struct drm_driver driver = {
 	.major = 1,
 };
 
-static irqreturn_t ivpu_irq_thread_handler(int irq, void *arg)
-{
-	struct ivpu_device *vdev = arg;
-	u8 irq_src;
-
-	if (kfifo_is_empty(&vdev->hw->irq.fifo))
-		return IRQ_NONE;
-
-	while (kfifo_get(&vdev->hw->irq.fifo, &irq_src)) {
-		switch (irq_src) {
-		case IVPU_HW_IRQ_SRC_IPC:
-			ivpu_ipc_irq_thread_handler(vdev);
-			break;
-		case IVPU_HW_IRQ_SRC_DCT:
-			ivpu_pm_dct_irq_thread_handler(vdev);
-			break;
-		default:
-			ivpu_err_ratelimited(vdev, "Unknown IRQ source: %u\n", irq_src);
-			break;
-		}
-	}
-
-	return IRQ_HANDLED;
-}
-
 static int ivpu_irq_init(struct ivpu_device *vdev)
 {
 	struct pci_dev *pdev = to_pci_dev(vdev->drm.dev);
@@ -501,12 +480,16 @@ static int ivpu_irq_init(struct ivpu_device *vdev)
 		return ret;
 	}
 
+	INIT_WORK(&vdev->irq_ipc_work, ivpu_ipc_irq_work_fn);
+	INIT_WORK(&vdev->irq_dct_work, ivpu_pm_irq_dct_work_fn);
+	INIT_WORK(&vdev->context_abort_work, ivpu_context_abort_work_fn);
+
 	ivpu_irq_handlers_init(vdev);
 
 	vdev->irq = pci_irq_vector(pdev, 0);
 
-	ret = devm_request_threaded_irq(vdev->drm.dev, vdev->irq, ivpu_hw_irq_handler,
-					ivpu_irq_thread_handler, IRQF_NO_AUTOEN, DRIVER_NAME, vdev);
+	ret = devm_request_irq(vdev->drm.dev, vdev->irq, ivpu_hw_irq_handler,
+			       IRQF_NO_AUTOEN, DRIVER_NAME, vdev);
 	if (ret)
 		ivpu_err(vdev, "Failed to request an IRQ %d\n", ret);
 
@@ -598,8 +581,6 @@ static int ivpu_dev_init(struct ivpu_device *vdev)
 
 	vdev->db_limit.min = IVPU_MIN_DB;
 	vdev->db_limit.max = IVPU_MAX_DB;
-
-	INIT_WORK(&vdev->context_abort_work, ivpu_context_abort_thread_handler);
 
 	ret = drmm_mutex_init(&vdev->drm, &vdev->context_list_lock);
 	if (ret)
