@@ -101,7 +101,7 @@ struct netdevsim {
 	struct nsim_dev *nsim_dev;
 	struct nsim_dev_port *nsim_dev_port;
 	struct mock_phc *phc;
-	struct nsim_rq *rq;
+	struct nsim_rq **rq;
 
 	u64 tx_packets;
 	u64 tx_bytes;

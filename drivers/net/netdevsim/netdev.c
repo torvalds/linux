@@ -69,7 +69,7 @@ static netdev_tx_t nsim_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	rxq = skb_get_queue_mapping(skb);
 	if (rxq >= peer_dev->num_rx_queues)
 		rxq = rxq % peer_dev->num_rx_queues;
-	rq = &peer_ns->rq[rxq];
+	rq = peer_ns->rq[rxq];
 
 	skb_tx_timestamp(skb);
 	if (unlikely(nsim_forward_skb(peer_dev, skb, rq) == NET_RX_DROP))
@@ -388,13 +388,13 @@ static int nsim_init_napi(struct netdevsim *ns)
 	int err, i;
 
 	for (i = 0; i < dev->num_rx_queues; i++) {
-		rq = &ns->rq[i];
+		rq = ns->rq[i];
 
 		netif_napi_add_config(dev, &rq->napi, nsim_poll, i);
 	}
 
 	for (i = 0; i < dev->num_rx_queues; i++) {
-		rq = &ns->rq[i];
+		rq = ns->rq[i];
 
 		err = nsim_create_page_pool(rq);
 		if (err)
@@ -405,12 +405,12 @@ static int nsim_init_napi(struct netdevsim *ns)
 
 err_pp_destroy:
 	while (i--) {
-		page_pool_destroy(ns->rq[i].page_pool);
-		ns->rq[i].page_pool = NULL;
+		page_pool_destroy(ns->rq[i]->page_pool);
+		ns->rq[i]->page_pool = NULL;
 	}
 
 	for (i = 0; i < dev->num_rx_queues; i++)
-		__netif_napi_del(&ns->rq[i].napi);
+		__netif_napi_del(&ns->rq[i]->napi);
 
 	return err;
 }
@@ -421,7 +421,7 @@ static void nsim_enable_napi(struct netdevsim *ns)
 	int i;
 
 	for (i = 0; i < dev->num_rx_queues; i++) {
-		struct nsim_rq *rq = &ns->rq[i];
+		struct nsim_rq *rq = ns->rq[i];
 
 		netif_queue_set_napi(dev, i, NETDEV_QUEUE_TYPE_RX, &rq->napi);
 		napi_enable(&rq->napi);
@@ -448,7 +448,7 @@ static void nsim_del_napi(struct netdevsim *ns)
 	int i;
 
 	for (i = 0; i < dev->num_rx_queues; i++) {
-		struct nsim_rq *rq = &ns->rq[i];
+		struct nsim_rq *rq = ns->rq[i];
 
 		napi_disable(&rq->napi);
 		__netif_napi_del(&rq->napi);
@@ -456,8 +456,8 @@ static void nsim_del_napi(struct netdevsim *ns)
 	synchronize_net();
 
 	for (i = 0; i < dev->num_rx_queues; i++) {
-		page_pool_destroy(ns->rq[i].page_pool);
-		ns->rq[i].page_pool = NULL;
+		page_pool_destroy(ns->rq[i]->page_pool);
+		ns->rq[i]->page_pool = NULL;
 	}
 }
 
@@ -628,7 +628,7 @@ nsim_pp_hold_write(struct file *file, const char __user *data,
 	if (!netif_running(ns->netdev) && val) {
 		ret = -ENETDOWN;
 	} else if (val) {
-		ns->page = page_pool_dev_alloc_pages(ns->rq[0].page_pool);
+		ns->page = page_pool_dev_alloc_pages(ns->rq[0]->page_pool);
 		if (!ns->page)
 			ret = -ENOMEM;
 	} else {
@@ -677,15 +677,26 @@ static int nsim_queue_init(struct netdevsim *ns)
 	struct net_device *dev = ns->netdev;
 	int i;
 
-	ns->rq = kvcalloc(dev->num_rx_queues, sizeof(*ns->rq),
-			  GFP_KERNEL_ACCOUNT | __GFP_RETRY_MAYFAIL);
+	ns->rq = kcalloc(dev->num_rx_queues, sizeof(*ns->rq),
+			 GFP_KERNEL_ACCOUNT);
 	if (!ns->rq)
 		return -ENOMEM;
 
-	for (i = 0; i < dev->num_rx_queues; i++)
-		skb_queue_head_init(&ns->rq[i].skb_queue);
+	for (i = 0; i < dev->num_rx_queues; i++) {
+		ns->rq[i] = kzalloc(sizeof(**ns->rq), GFP_KERNEL_ACCOUNT);
+		if (!ns->rq[i])
+			goto err_free_prev;
+
+		skb_queue_head_init(&ns->rq[i]->skb_queue);
+	}
 
 	return 0;
+
+err_free_prev:
+	while (i--)
+		kfree(ns->rq[i]);
+	kfree(ns->rq);
+	return -ENOMEM;
 }
 
 static void nsim_queue_free(struct netdevsim *ns)
@@ -693,11 +704,13 @@ static void nsim_queue_free(struct netdevsim *ns)
 	struct net_device *dev = ns->netdev;
 	int i;
 
-	for (i = 0; i < dev->num_rx_queues; i++)
-		skb_queue_purge_reason(&ns->rq[i].skb_queue,
+	for (i = 0; i < dev->num_rx_queues; i++) {
+		skb_queue_purge_reason(&ns->rq[i]->skb_queue,
 				       SKB_DROP_REASON_QUEUE_PURGE);
+		kfree(ns->rq[i]);
+	}
 
-	kvfree(ns->rq);
+	kfree(ns->rq);
 	ns->rq = NULL;
 }
 
