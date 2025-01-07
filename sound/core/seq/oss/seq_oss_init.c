@@ -449,12 +449,6 @@ snd_seq_oss_reset(struct seq_oss_devinfo *dp)
 /*
  * misc. functions for proc interface
  */
-char *
-enabled_str(bool b)
-{
-	return b ? "enabled" : "disabled";
-}
-
 static const char *
 filemode_str(int val)
 {
