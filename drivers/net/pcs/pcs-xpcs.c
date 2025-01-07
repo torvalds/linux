@@ -594,14 +594,13 @@ static unsigned int xpcs_inband_caps(struct phylink_pcs *pcs,
 	}
 }
 
-void xpcs_get_interfaces(struct dw_xpcs *xpcs, unsigned long *interfaces)
+static void xpcs_get_interfaces(struct dw_xpcs *xpcs, unsigned long *interfaces)
 {
 	const struct dw_xpcs_compat *compat;
 
 	for (compat = xpcs->desc->compat; compat->supported; compat++)
 		__set_bit(compat->interface, interfaces);
 }
-EXPORT_SYMBOL_GPL(xpcs_get_interfaces);
 
 int xpcs_config_eee(struct dw_xpcs *xpcs, int mult_fact_100ns, int enable)
 {
@@ -1445,6 +1444,8 @@ static struct dw_xpcs *xpcs_create(struct mdio_device *mdiodev)
 	ret = xpcs_init_id(xpcs);
 	if (ret)
 		goto out_clear_clks;
+
+	xpcs_get_interfaces(xpcs, xpcs->pcs.supported_interfaces);
 
 	if (xpcs->info.pma == WX_TXGBE_XPCS_PMA_10G_ID)
 		xpcs->pcs.poll = false;
