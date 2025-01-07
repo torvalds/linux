@@ -2930,8 +2930,8 @@ static int ext4_da_write_begin(struct file *file, struct address_space *mapping,
 	trace_ext4_da_write_begin(inode, pos, len);
 
 	if (ext4_test_inode_state(inode, EXT4_STATE_MAY_INLINE_DATA)) {
-		ret = ext4_da_write_inline_data_begin(mapping, inode, pos, len,
-						      foliop, fsdata);
+		ret = ext4_generic_write_inline_data(mapping, inode, pos, len,
+						     foliop, fsdata, true);
 		if (ret < 0)
 			return ret;
 		if (ret == 1)

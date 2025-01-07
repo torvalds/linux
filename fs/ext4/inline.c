@@ -657,7 +657,15 @@ out_nofolio:
 	return ret;
 }
 
-static int ext4_generic_write_inline_data(struct address_space *mapping,
+/*
+ * Prepare the write for the inline data.
+ * If the data can be written into the inode, we just read
+ * the page and make it uptodate, and start the journal.
+ * Otherwise read the page, makes it dirty so that it can be
+ * handle in writepages(the i_disksize update is left to the
+ * normal ext4_da_write_end).
+ */
+int ext4_generic_write_inline_data(struct address_space *mapping,
 					  struct inode *inode,
 					  loff_t pos, unsigned len,
 					  struct folio **foliop,
@@ -964,94 +972,6 @@ out:
 		folio_unlock(folio);
 		folio_put(folio);
 	}
-	return ret;
-}
-
-/*
- * Prepare the write for the inline data.
- * If the data can be written into the inode, we just read
- * the page and make it uptodate, and start the journal.
- * Otherwise read the page, makes it dirty so that it can be
- * handle in writepages(the i_disksize update is left to the
- * normal ext4_da_write_end).
- */
-int ext4_da_write_inline_data_begin(struct address_space *mapping,
-				    struct inode *inode,
-				    loff_t pos, unsigned len,
-				    struct folio **foliop,
-				    void **fsdata)
-{
-	int ret;
-	handle_t *handle;
-	struct folio *folio;
-	struct ext4_iloc iloc;
-	int retries = 0;
-
-	ret = ext4_get_inode_loc(inode, &iloc);
-	if (ret)
-		return ret;
-
-retry_journal:
-	handle = ext4_journal_start(inode, EXT4_HT_INODE, 1);
-	if (IS_ERR(handle)) {
-		ret = PTR_ERR(handle);
-		goto out;
-	}
-
-	ret = ext4_prepare_inline_data(handle, inode, pos + len);
-	if (ret && ret != -ENOSPC)
-		goto out_journal;
-
-	if (ret == -ENOSPC) {
-		ext4_journal_stop(handle);
-		ret = ext4_da_convert_inline_data_to_extent(mapping,
-							    inode,
-							    fsdata);
-		if (ret == -ENOSPC &&
-		    ext4_should_retry_alloc(inode->i_sb, &retries))
-			goto retry_journal;
-		goto out;
-	}
-
-	/*
-	 * We cannot recurse into the filesystem as the transaction
-	 * is already started.
-	 */
-	folio = __filemap_get_folio(mapping, 0, FGP_WRITEBEGIN | FGP_NOFS,
-					mapping_gfp_mask(mapping));
-	if (IS_ERR(folio)) {
-		ret = PTR_ERR(folio);
-		goto out_journal;
-	}
-
-	down_read(&EXT4_I(inode)->xattr_sem);
-	if (!ext4_has_inline_data(inode)) {
-		ret = 0;
-		goto out_release_page;
-	}
-
-	if (!folio_test_uptodate(folio)) {
-		ret = ext4_read_inline_folio(inode, folio);
-		if (ret < 0)
-			goto out_release_page;
-	}
-	ret = ext4_journal_get_write_access(handle, inode->i_sb, iloc.bh,
-					    EXT4_JTR_NONE);
-	if (ret)
-		goto out_release_page;
-
-	up_read(&EXT4_I(inode)->xattr_sem);
-	*foliop = folio;
-	brelse(iloc.bh);
-	return 1;
-out_release_page:
-	up_read(&EXT4_I(inode)->xattr_sem);
-	folio_unlock(folio);
-	folio_put(folio);
-out_journal:
-	ext4_journal_stop(handle);
-out:
-	brelse(iloc.bh);
 	return ret;
 }
 
