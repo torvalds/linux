@@ -225,6 +225,31 @@ variable_matches(const char *var_name, size_t len, const char *match_name,
 	}
 }
 
+char *
+efivar_get_utf8name(const efi_char16_t *name16, efi_guid_t *vendor)
+{
+	int len = ucs2_utf8size(name16);
+	char *name;
+
+	/* name, plus '-', plus GUID, plus NUL*/
+	name = kmalloc(len + 1 + EFI_VARIABLE_GUID_LEN + 1, GFP_KERNEL);
+	if (!name)
+		return NULL;
+
+	ucs2_as_utf8(name, name16, len);
+
+	name[len] = '-';
+
+	efi_guid_to_str(vendor, name + len + 1);
+
+	name[len + EFI_VARIABLE_GUID_LEN+1] = '\0';
+
+	/* replace invalid slashes like kobject_set_name_vargs does for /sys/firmware/efi/vars. */
+	strreplace(name, '/', '!');
+
+	return name;
+}
+
 bool
 efivar_validate(efi_guid_t vendor, efi_char16_t *var_name, u8 *data,
 		unsigned long data_size)
