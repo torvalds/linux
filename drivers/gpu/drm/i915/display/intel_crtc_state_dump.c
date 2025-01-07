@@ -50,16 +50,6 @@ intel_dump_infoframe(struct drm_i915_private *i915,
 	hdmi_infoframe_log(KERN_DEBUG, i915->drm.dev, frame);
 }
 
-static void
-intel_dump_buffer(const char *prefix, const u8 *buf, size_t len)
-{
-	if (!drm_debug_enabled(DRM_UT_KMS))
-		return;
-
-	print_hex_dump(KERN_DEBUG, prefix, DUMP_PREFIX_NONE,
-		       16, 0, buf, len, false);
-}
-
 #define OUTPUT_TYPE(x) [INTEL_OUTPUT_ ## x] = #x
 
 static const char * const output_type_str[] = {
@@ -293,8 +283,8 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 		drm_dp_as_sdp_log(&p, &pipe_config->infoframes.as_sdp);
 
 	if (pipe_config->has_audio)
-		intel_dump_buffer("ELD: ", pipe_config->eld,
-				  drm_eld_size(pipe_config->eld));
+		drm_print_hex_dump(&p, "ELD: ", pipe_config->eld,
+				   drm_eld_size(pipe_config->eld));
 
 	drm_printf(&p, "vrr: %s, vmin: %d, vmax: %d, pipeline full: %d, guardband: %d flipline: %d, vmin vblank: %d, vmax vblank: %d\n",
 		   str_yes_no(pipe_config->vrr.enable),

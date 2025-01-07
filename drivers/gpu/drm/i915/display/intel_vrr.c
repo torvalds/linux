@@ -288,7 +288,7 @@ void intel_vrr_set_transcoder_timings(const struct intel_crtc_state *crtc_state)
 	 * ADL/DG2: make TRANS_SET_CONTEXT_LATENCY effective with VRR
 	 */
 	if (IS_DISPLAY_VER(display, 12, 13))
-		intel_de_rmw(display, CHICKEN_TRANS(cpu_transcoder),
+		intel_de_rmw(display, CHICKEN_TRANS(display, cpu_transcoder),
 			     0, PIPE_VBLANK_WITH_DELAY);
 
 	if (!intel_vrr_possible(crtc_state)) {

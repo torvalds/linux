@@ -238,9 +238,6 @@ enum phy_fia {
 	for ((__phy) = PHY_A; (__phy) < I915_MAX_PHYS; (__phy)++)	\
 		for_each_if((__phys_mask) & BIT(__phy))
 
-#define for_each_crtc(dev, crtc) \
-	list_for_each_entry(crtc, &(dev)->mode_config.crtc_list, head)
-
 #define for_each_intel_plane(dev, intel_plane) \
 	list_for_each_entry(intel_plane,			\
 			    &(dev)->mode_config.plane_list,	\

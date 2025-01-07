@@ -57,12 +57,7 @@
 
 /* Private structure for the integrated LVDS support */
 struct intel_lvds_pps {
-	/* 100us units */
-	int t1_t2;
-	int t3;
-	int t4;
-	int t5;
-	int tx;
+	struct intel_pps_delays delays;
 
 	int divider;
 
@@ -168,12 +163,12 @@ static void intel_lvds_pps_get_hw_state(struct drm_i915_private *dev_priv,
 
 	val = intel_de_read(dev_priv, PP_ON_DELAYS(dev_priv, 0));
 	pps->port = REG_FIELD_GET(PANEL_PORT_SELECT_MASK, val);
-	pps->t1_t2 = REG_FIELD_GET(PANEL_POWER_UP_DELAY_MASK, val);
-	pps->t5 = REG_FIELD_GET(PANEL_LIGHT_ON_DELAY_MASK, val);
+	pps->delays.power_up = REG_FIELD_GET(PANEL_POWER_UP_DELAY_MASK, val);
+	pps->delays.backlight_on = REG_FIELD_GET(PANEL_LIGHT_ON_DELAY_MASK, val);
 
 	val = intel_de_read(dev_priv, PP_OFF_DELAYS(dev_priv, 0));
-	pps->t3 = REG_FIELD_GET(PANEL_POWER_DOWN_DELAY_MASK, val);
-	pps->tx = REG_FIELD_GET(PANEL_LIGHT_OFF_DELAY_MASK, val);
+	pps->delays.power_down = REG_FIELD_GET(PANEL_POWER_DOWN_DELAY_MASK, val);
+	pps->delays.backlight_off = REG_FIELD_GET(PANEL_LIGHT_OFF_DELAY_MASK, val);
 
 	val = intel_de_read(dev_priv, PP_DIVISOR(dev_priv, 0));
 	pps->divider = REG_FIELD_GET(PP_REFERENCE_DIVIDER_MASK, val);
@@ -186,25 +181,30 @@ static void intel_lvds_pps_get_hw_state(struct drm_i915_private *dev_priv,
 	if (val)
 		val--;
 	/* Convert from 100ms to 100us units */
-	pps->t4 = val * 1000;
+	pps->delays.power_cycle = val * 1000;
 
 	if (DISPLAY_VER(dev_priv) < 5 &&
-	    pps->t1_t2 == 0 && pps->t5 == 0 && pps->t3 == 0 && pps->tx == 0) {
+	    pps->delays.power_up == 0 &&
+	    pps->delays.backlight_on == 0 &&
+	    pps->delays.power_down == 0 &&
+	    pps->delays.backlight_off == 0) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "Panel power timings uninitialized, "
 			    "setting defaults\n");
 		/* Set T2 to 40ms and T5 to 200ms in 100 usec units */
-		pps->t1_t2 = 40 * 10;
-		pps->t5 = 200 * 10;
+		pps->delays.power_up = 40 * 10;
+		pps->delays.backlight_on = 200 * 10;
 		/* Set T3 to 35ms and Tx to 200ms in 100 usec units */
-		pps->t3 = 35 * 10;
-		pps->tx = 200 * 10;
+		pps->delays.power_down = 35 * 10;
+		pps->delays.backlight_off = 200 * 10;
 	}
 
-	drm_dbg(&dev_priv->drm, "LVDS PPS:t1+t2 %d t3 %d t4 %d t5 %d tx %d "
+	drm_dbg(&dev_priv->drm, "LVDS PPS:power_up %d power_down %d power_cycle %d backlight_on %d backlight_off %d "
 		"divider %d port %d powerdown_on_reset %d\n",
-		pps->t1_t2, pps->t3, pps->t4, pps->t5, pps->tx,
-		pps->divider, pps->port, pps->powerdown_on_reset);
+		pps->delays.power_up, pps->delays.power_down,
+		pps->delays.power_cycle, pps->delays.backlight_on,
+		pps->delays.backlight_off, pps->divider,
+		pps->port, pps->powerdown_on_reset);
 }
 
 static void intel_lvds_pps_init_hw(struct drm_i915_private *dev_priv,
@@ -221,16 +221,17 @@ static void intel_lvds_pps_init_hw(struct drm_i915_private *dev_priv,
 
 	intel_de_write(dev_priv, PP_ON_DELAYS(dev_priv, 0),
 		       REG_FIELD_PREP(PANEL_PORT_SELECT_MASK, pps->port) |
-		       REG_FIELD_PREP(PANEL_POWER_UP_DELAY_MASK, pps->t1_t2) |
-		       REG_FIELD_PREP(PANEL_LIGHT_ON_DELAY_MASK, pps->t5));
+		       REG_FIELD_PREP(PANEL_POWER_UP_DELAY_MASK, pps->delays.power_up) |
+		       REG_FIELD_PREP(PANEL_LIGHT_ON_DELAY_MASK, pps->delays.backlight_on));
 
 	intel_de_write(dev_priv, PP_OFF_DELAYS(dev_priv, 0),
-		       REG_FIELD_PREP(PANEL_POWER_DOWN_DELAY_MASK, pps->t3) |
-		       REG_FIELD_PREP(PANEL_LIGHT_OFF_DELAY_MASK, pps->tx));
+		       REG_FIELD_PREP(PANEL_POWER_DOWN_DELAY_MASK, pps->delays.power_down) |
+		       REG_FIELD_PREP(PANEL_LIGHT_OFF_DELAY_MASK, pps->delays.backlight_off));
 
 	intel_de_write(dev_priv, PP_DIVISOR(dev_priv, 0),
 		       REG_FIELD_PREP(PP_REFERENCE_DIVIDER_MASK, pps->divider) |
-		       REG_FIELD_PREP(PANEL_POWER_CYCLE_DELAY_MASK, DIV_ROUND_UP(pps->t4, 1000) + 1));
+		       REG_FIELD_PREP(PANEL_POWER_CYCLE_DELAY_MASK,
+				      DIV_ROUND_UP(pps->delays.power_cycle, 1000) + 1));
 }
 
 static void intel_pre_enable_lvds(struct intel_atomic_state *state,

@@ -87,6 +87,7 @@ void intel_dbuf_mdclk_cdclk_ratio_update(struct drm_i915_private *i915,
 					 int ratio, bool joined_mbus);
 void intel_dbuf_mbus_pre_ddb_update(struct intel_atomic_state *state);
 void intel_dbuf_mbus_post_ddb_update(struct intel_atomic_state *state);
+void intel_program_dpkgc_latency(struct intel_atomic_state *state);
 
 #endif /* __SKL_WATERMARK_H__ */
 

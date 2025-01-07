@@ -37,7 +37,6 @@
 #include "intel_cdclk.h"
 #include "intel_crtc.h"
 #include "intel_de.h"
-#include "intel_dp.h"
 #include "intel_display_types.h"
 #include "intel_mchbar_regs.h"
 #include "intel_pci_config.h"
@@ -46,6 +45,7 @@
 #include "intel_vdsc.h"
 #include "skl_watermark.h"
 #include "skl_watermark_regs.h"
+#include "vlv_dsi.h"
 #include "vlv_sideband.h"
 
 /**
@@ -2761,23 +2761,34 @@ intel_set_cdclk_post_plane_update(struct intel_atomic_state *state)
 			"Post changing CDCLK to");
 }
 
+/* pixels per CDCLK */
+static int intel_cdclk_ppc(struct intel_display *display, bool double_wide)
+{
+	return DISPLAY_VER(display) >= 10 || double_wide ? 2 : 1;
+}
+
+/* max pixel rate as % of CDCLK (not accounting for PPC) */
+static int intel_cdclk_guardband(struct intel_display *display)
+{
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
+
+	if (DISPLAY_VER(display) >= 9 ||
+	    IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
+		return 100;
+	else if (IS_CHERRYVIEW(dev_priv))
+		return 95;
+	else
+		return 90;
+}
+
 static int intel_pixel_rate_to_cdclk(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
+	int ppc = intel_cdclk_ppc(display, crtc_state->double_wide);
+	int guardband = intel_cdclk_guardband(display);
 	int pixel_rate = crtc_state->pixel_rate;
 
-	if (DISPLAY_VER(display) >= 10)
-		return DIV_ROUND_UP(pixel_rate, 2);
-	else if (DISPLAY_VER(display) == 9 ||
-		 IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
-		return pixel_rate;
-	else if (IS_CHERRYVIEW(dev_priv))
-		return DIV_ROUND_UP(pixel_rate * 100, 95);
-	else if (crtc_state->double_wide)
-		return DIV_ROUND_UP(pixel_rate * 100, 90 * 2);
-	else
-		return DIV_ROUND_UP(pixel_rate * 100, 90);
+	return DIV_ROUND_UP(pixel_rate * 100, guardband * ppc);
 }
 
 static int intel_planes_min_cdclk(const struct intel_crtc_state *crtc_state)
@@ -2788,127 +2799,24 @@ static int intel_planes_min_cdclk(const struct intel_crtc_state *crtc_state)
 	int min_cdclk = 0;
 
 	for_each_intel_plane_on_crtc(display->drm, crtc, plane)
-		min_cdclk = max(crtc_state->min_cdclk[plane->id], min_cdclk);
-
-	return min_cdclk;
-}
-
-static int intel_vdsc_min_cdclk(const struct intel_crtc_state *crtc_state)
-{
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct intel_display *display = to_intel_display(crtc);
-	int num_vdsc_instances = intel_dsc_get_num_vdsc_instances(crtc_state);
-	int min_cdclk = 0;
-
-	/*
-	 * When we decide to use only one VDSC engine, since
-	 * each VDSC operates with 1 ppc throughput, pixel clock
-	 * cannot be higher than the VDSC clock (cdclk)
-	 * If there 2 VDSC engines, then pixel clock can't be higher than
-	 * VDSC clock(cdclk) * 2 and so on.
-	 */
-	min_cdclk = max_t(int, min_cdclk,
-			  DIV_ROUND_UP(crtc_state->pixel_rate, num_vdsc_instances));
-
-	if (crtc_state->joiner_pipes) {
-		int pixel_clock = intel_dp_mode_to_fec_clock(crtc_state->hw.adjusted_mode.clock);
-
-		/*
-		 * According to Bigjoiner bw check:
-		 * compressed_bpp <= PPC * CDCLK * Big joiner Interface bits / Pixel clock
-		 *
-		 * We have already computed compressed_bpp, so now compute the min CDCLK that
-		 * is required to support this compressed_bpp.
-		 *
-		 * => CDCLK >= compressed_bpp * Pixel clock / (PPC * Bigjoiner Interface bits)
-		 *
-		 * Since PPC = 2 with bigjoiner
-		 * => CDCLK >= compressed_bpp * Pixel clock  / 2 * Bigjoiner Interface bits
-		 */
-		int bigjoiner_interface_bits = DISPLAY_VER(display) >= 14 ? 36 : 24;
-		int min_cdclk_bj =
-			(fxp_q4_to_int_roundup(crtc_state->dsc.compressed_bpp_x16) *
-			 pixel_clock) / (2 * bigjoiner_interface_bits);
-
-		min_cdclk = max(min_cdclk, min_cdclk_bj);
-	}
+		min_cdclk = max(min_cdclk, crtc_state->min_cdclk[plane->id]);
 
 	return min_cdclk;
 }
 
 int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
 {
-	struct intel_display *display = to_intel_display(crtc_state);
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	int min_cdclk;
 
 	if (!crtc_state->hw.enable)
 		return 0;
 
 	min_cdclk = intel_pixel_rate_to_cdclk(crtc_state);
-
-	/* pixel rate mustn't exceed 95% of cdclk with IPS on BDW */
-	if (IS_BROADWELL(dev_priv) && hsw_crtc_state_ips_capable(crtc_state))
-		min_cdclk = DIV_ROUND_UP(min_cdclk * 100, 95);
-
-	/* BSpec says "Do not use DisplayPort with CDCLK less than 432 MHz,
-	 * audio enabled, port width x4, and link rate HBR2 (5.4 GHz), or else
-	 * there may be audio corruption or screen corruption." This cdclk
-	 * restriction for GLK is 316.8 MHz.
-	 */
-	if (intel_crtc_has_dp_encoder(crtc_state) &&
-	    crtc_state->has_audio &&
-	    crtc_state->port_clock >= 540000 &&
-	    crtc_state->lane_count == 4) {
-		if (DISPLAY_VER(display) == 10) {
-			/* Display WA #1145: glk */
-			min_cdclk = max(316800, min_cdclk);
-		} else if (DISPLAY_VER(display) == 9 || IS_BROADWELL(dev_priv)) {
-			/* Display WA #1144: skl,bxt */
-			min_cdclk = max(432000, min_cdclk);
-		}
-	}
-
-	/*
-	 * According to BSpec, "The CD clock frequency must be at least twice
-	 * the frequency of the Azalia BCLK." and BCLK is 96 MHz by default.
-	 */
-	if (crtc_state->has_audio && DISPLAY_VER(display) >= 9)
-		min_cdclk = max(2 * 96000, min_cdclk);
-
-	/*
-	 * "For DP audio configuration, cdclk frequency shall be set to
-	 *  meet the following requirements:
-	 *  DP Link Frequency(MHz) | Cdclk frequency(MHz)
-	 *  270                    | 320 or higher
-	 *  162                    | 200 or higher"
-	 */
-	if ((IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
-	    intel_crtc_has_dp_encoder(crtc_state) && crtc_state->has_audio)
-		min_cdclk = max(crtc_state->port_clock, min_cdclk);
-
-	/*
-	 * On Valleyview some DSI panels lose (v|h)sync when the clock is lower
-	 * than 320000KHz.
-	 */
-	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI) &&
-	    IS_VALLEYVIEW(dev_priv))
-		min_cdclk = max(320000, min_cdclk);
-
-	/*
-	 * On Geminilake once the CDCLK gets as low as 79200
-	 * picture gets unstable, despite that values are
-	 * correct for DSI PLL and DE PLL.
-	 */
-	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI) &&
-	    IS_GEMINILAKE(dev_priv))
-		min_cdclk = max(158400, min_cdclk);
-
-	/* Account for additional needs from the planes */
-	min_cdclk = max(intel_planes_min_cdclk(crtc_state), min_cdclk);
-
-	if (crtc_state->dsc.compression_enable)
-		min_cdclk = max(min_cdclk, intel_vdsc_min_cdclk(crtc_state));
+	min_cdclk = max(min_cdclk, hsw_ips_min_cdclk(crtc_state));
+	min_cdclk = max(min_cdclk, intel_audio_min_cdclk(crtc_state));
+	min_cdclk = max(min_cdclk, vlv_dsi_min_cdclk(crtc_state));
+	min_cdclk = max(min_cdclk, intel_planes_min_cdclk(crtc_state));
+	min_cdclk = max(min_cdclk, intel_vdsc_min_cdclk(crtc_state));
 
 	return min_cdclk;
 }
@@ -2960,7 +2868,7 @@ static int intel_compute_min_cdclk(struct intel_atomic_state *state)
 	min_cdclk = max(cdclk_state->force_min_cdclk,
 			cdclk_state->bw_min_cdclk);
 	for_each_pipe(display, pipe)
-		min_cdclk = max(cdclk_state->min_cdclk[pipe], min_cdclk);
+		min_cdclk = max(min_cdclk, cdclk_state->min_cdclk[pipe]);
 
 	/*
 	 * Avoid glk_force_audio_cdclk() causing excessive screen
@@ -2972,7 +2880,7 @@ static int intel_compute_min_cdclk(struct intel_atomic_state *state)
 	 */
 	if (IS_GEMINILAKE(dev_priv) && cdclk_state->active_pipes &&
 	    !is_power_of_2(cdclk_state->active_pipes))
-		min_cdclk = max(2 * 96000, min_cdclk);
+		min_cdclk = max(min_cdclk, 2 * 96000);
 
 	if (min_cdclk > display->cdclk.max_cdclk_freq) {
 		drm_dbg_kms(display->drm,
@@ -3028,8 +2936,8 @@ static int bxt_compute_min_voltage_level(struct intel_atomic_state *state)
 
 	min_voltage_level = 0;
 	for_each_pipe(display, pipe)
-		min_voltage_level = max(cdclk_state->min_voltage_level[pipe],
-					min_voltage_level);
+		min_voltage_level = max(min_voltage_level,
+					cdclk_state->min_voltage_level[pipe]);
 
 	return min_voltage_level;
 }
@@ -3452,20 +3360,11 @@ int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
 
 static int intel_compute_max_dotclk(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
+	int ppc = intel_cdclk_ppc(display, HAS_DOUBLE_WIDE(display));
+	int guardband = intel_cdclk_guardband(display);
 	int max_cdclk_freq = display->cdclk.max_cdclk_freq;
 
-	if (DISPLAY_VER(display) >= 10)
-		return 2 * max_cdclk_freq;
-	else if (DISPLAY_VER(display) == 9 ||
-		 IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
-		return max_cdclk_freq;
-	else if (IS_CHERRYVIEW(dev_priv))
-		return max_cdclk_freq*95/100;
-	else if (DISPLAY_VER(display) < 4)
-		return 2*max_cdclk_freq*90/100;
-	else
-		return max_cdclk_freq*90/100;
+	return ppc * max_cdclk_freq * guardband / 100;
 }
 
 /**
