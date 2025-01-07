@@ -391,7 +391,11 @@ int qcom_scm_set_warm_boot_addr_mc(void *entry, u32 aff0, u32 aff1, u32 aff2,
 	desc.args[4] = ~0ULL;
 	desc.args[5] = flags;
 	desc.arginfo = QCOM_SCM_ARGS(6);
-	ret = qcom_scm_call(__scm ? __scm->dev : NULL, &desc, NULL);
+
+	if (SCM_NOT_INITIALIZED())
+		return -ENODEV;
+
+	ret = qcom_scm_call(__scm->dev, &desc, NULL);
 
 	return ret;
 }
