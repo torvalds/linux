@@ -434,7 +434,8 @@ int io_read_mshot_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 void io_readv_writev_cleanup(struct io_kiocb *req)
 {
-	io_rw_iovec_free(req->async_data);
+	lockdep_assert_held(&req->ctx->uring_lock);
+	io_rw_recycle(req, 0);
 }
 
 static inline loff_t *io_kiocb_update_pos(struct io_kiocb *req)
