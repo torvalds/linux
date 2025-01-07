@@ -2840,10 +2840,13 @@ static int airoha_qdma_get_tx_ets_stats(struct airoha_gdm_port *port,
 static int airoha_tc_setup_qdisc_ets(struct airoha_gdm_port *port,
 				     struct tc_ets_qopt_offload *opt)
 {
-	int channel = TC_H_MAJ(opt->handle) >> 16;
+	int channel;
 
 	if (opt->parent == TC_H_ROOT)
 		return -EINVAL;
+
+	channel = TC_H_MAJ(opt->handle) >> 16;
+	channel = channel % AIROHA_NUM_QOS_CHANNELS;
 
 	switch (opt->command) {
 	case TC_ETS_REPLACE:
