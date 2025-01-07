@@ -157,16 +157,11 @@ allOf:
               - qcom,wcn6750-bt
     then:
       required:
-        - enable-gpios
-        - swctrl-gpios
-        - vddio-supply
         - vddaon-supply
-        - vddbtcxmx-supply
         - vddrfacmn-supply
         - vddrfa0p8-supply
         - vddrfa1p7-supply
         - vddrfa1p2-supply
-        - vddasd-supply
   - if:
       properties:
         compatible:
