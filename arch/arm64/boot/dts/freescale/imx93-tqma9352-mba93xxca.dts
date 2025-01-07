@@ -755,17 +755,17 @@
 		>;
 	};
 
-	pinctrl_pcf85063: pcf85063grp {
-		fsl,pins = <
-			MX93_PAD_SAI1_RXD0__GPIO1_IO14			0x1000
-		>;
-	};
-
 	pinctrl_mipi_csi: mipicsigrp {
 		fsl,pins = <
 			MX93_PAD_CCM_CLKO3__CCMSRCGPCMIX_CLKO3		0x051e /* MCLK */
 			MX93_PAD_GPIO_IO10__GPIO2_IO10			0x051e /* TRIGGER */
 			MX93_PAD_GPIO_IO11__GPIO2_IO11			0x1400 /* SYNC */
+		>;
+	};
+
+	pinctrl_pcf85063: pcf85063grp {
+		fsl,pins = <
+			MX93_PAD_SAI1_RXD0__GPIO1_IO14			0x1000
 		>;
 	};
 
@@ -783,17 +783,17 @@
 		>;
 	};
 
-	pinctrl_temp_sensor_som: tempsensorsomgrp {
-		fsl,pins = <
-			/* HYS | FSEL_0 | no DSE */
-			MX93_PAD_SAI1_TXFS__GPIO1_IO11			0x1000
-		>;
-	};
-
 	pinctrl_tc9595: tc9595-grp {
 		fsl,pins = <
 			/* HYS | PD | FSEL_0 | no DSE */
 			MX93_PAD_CCM_CLKO4__GPIO4_IO29			0x1400
+		>;
+	};
+
+	pinctrl_temp_sensor_som: tempsensorsomgrp {
+		fsl,pins = <
+			/* HYS | FSEL_0 | no DSE */
+			MX93_PAD_SAI1_TXFS__GPIO1_IO11			0x1000
 		>;
 	};
 
