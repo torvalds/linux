@@ -258,7 +258,7 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 	struct dc_link *link = connector->dc_link;
 	struct amdgpu_device *adev = drm_to_adev(connector->base.dev);
 	struct dc *dc = (struct dc *)link->dc;
-	struct dc_link_settings prefer_link_settings;
+	struct dc_link_settings prefer_link_settings = {0};
 	char *wr_buf = NULL;
 	const uint32_t wr_buf_size = 40;
 	/* 0: lane_count; 1: link_rate */
@@ -389,7 +389,7 @@ static ssize_t dp_mst_link_setting(struct file *f, const char __user *buf,
 	struct dc_link *link = aconnector->dc_link;
 	struct amdgpu_device *adev = drm_to_adev(aconnector->base.dev);
 	struct dc *dc = (struct dc *)link->dc;
-	struct dc_link_settings prefer_link_settings;
+	struct dc_link_settings prefer_link_settings = {0};
 	char *wr_buf = NULL;
 	const uint32_t wr_buf_size = 40;
 	/* 0: lane_count; 1: link_rate */
@@ -613,7 +613,7 @@ static ssize_t dp_phy_settings_write(struct file *f, const char __user *buf,
 	uint32_t wr_buf_size = 40;
 	long param[3];
 	bool use_prefer_link_setting;
-	struct link_training_settings link_lane_settings;
+	struct link_training_settings link_lane_settings = {0};
 	int max_param_num = 3;
 	uint8_t param_nums = 0;
 	int r = 0;
@@ -768,7 +768,7 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 			LINK_RATE_UNKNOWN, LINK_SPREAD_DISABLED};
 	struct dc_link_settings cur_link_settings = {LANE_COUNT_UNKNOWN,
 			LINK_RATE_UNKNOWN, LINK_SPREAD_DISABLED};
-	struct link_training_settings link_training_settings;
+	struct link_training_settings link_training_settings = {0};
 	int i;
 
 	if (size == 0)
@@ -902,9 +902,10 @@ static int dmub_tracebuffer_show(struct seq_file *m, void *data)
 {
 	struct amdgpu_device *adev = m->private;
 	struct dmub_srv_fb_info *fb_info = adev->dm.dmub_fb_info;
+	struct dmub_fw_meta_info *fw_meta_info = NULL;
 	struct dmub_debugfs_trace_entry *entries;
 	uint8_t *tbuf_base;
-	uint32_t tbuf_size, max_entries, num_entries, i;
+	uint32_t tbuf_size, max_entries, num_entries, first_entry, i;
 
 	if (!fb_info)
 		return 0;
@@ -913,20 +914,42 @@ static int dmub_tracebuffer_show(struct seq_file *m, void *data)
 	if (!tbuf_base)
 		return 0;
 
-	tbuf_size = fb_info->fb[DMUB_WINDOW_5_TRACEBUFF].size;
+	if (adev->dm.dmub_srv)
+		fw_meta_info = &adev->dm.dmub_srv->meta_info;
+
+	tbuf_size = fw_meta_info ? fw_meta_info->trace_buffer_size :
+				   DMUB_TRACE_BUFFER_SIZE;
 	max_entries = (tbuf_size - sizeof(struct dmub_debugfs_trace_header)) /
 		      sizeof(struct dmub_debugfs_trace_entry);
 
 	num_entries =
 		((struct dmub_debugfs_trace_header *)tbuf_base)->entry_count;
 
+	/* DMCUB tracebuffer is a ring. If it rolled over, print a hint that
+	 * entries are being overwritten.
+	 */
+	if (num_entries > max_entries)
+		seq_printf(m, "...\n");
+
+	first_entry = num_entries % max_entries;
 	num_entries = min(num_entries, max_entries);
 
 	entries = (struct dmub_debugfs_trace_entry
 			   *)(tbuf_base +
 			      sizeof(struct dmub_debugfs_trace_header));
 
-	for (i = 0; i < num_entries; ++i) {
+	/* To print entries chronologically, start from the first entry till the
+	 * top of buffer, then from base of buffer to first entry.
+	 */
+	for (i = first_entry; i < num_entries; ++i) {
+		struct dmub_debugfs_trace_entry *entry = &entries[i];
+
+		seq_printf(m,
+			   "trace_code=%u tick_count=%u param0=%u param1=%u\n",
+			   entry->trace_code, entry->tick_count, entry->param0,
+			   entry->param1);
+	}
+	for (i = 0; i < first_entry; ++i) {
 		struct dmub_debugfs_trace_entry *entry = &entries[i];
 
 		seq_printf(m,

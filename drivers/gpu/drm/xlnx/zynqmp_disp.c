@@ -143,7 +143,6 @@ struct zynqmp_disp_layer {
  * @dpsub: Display subsystem
  * @blend: Register I/O base address for the blender
  * @avbuf: Register I/O base address for the audio/video buffer manager
- * @audio: Registers I/O base address for the audio mixer
  * @layers: Layers (planes)
  */
 struct zynqmp_disp {
@@ -152,7 +151,6 @@ struct zynqmp_disp {
 
 	void __iomem *blend;
 	void __iomem *avbuf;
-	void __iomem *audio;
 
 	struct zynqmp_disp_layer layers[ZYNQMP_DPSUB_NUM_LAYERS];
 };
@@ -866,42 +864,6 @@ static void zynqmp_disp_blend_layer_disable(struct zynqmp_disp *disp,
 }
 
 /* -----------------------------------------------------------------------------
- * Audio Mixer
- */
-
-static void zynqmp_disp_audio_write(struct zynqmp_disp *disp, int reg, u32 val)
-{
-	writel(val, disp->audio + reg);
-}
-
-/**
- * zynqmp_disp_audio_enable - Enable the audio mixer
- * @disp: Display controller
- *
- * Enable the audio mixer by de-asserting the soft reset. The audio state is set to
- * default values by the reset, set the default mixer volume explicitly.
- */
-static void zynqmp_disp_audio_enable(struct zynqmp_disp *disp)
-{
-	/* Clear the audio soft reset register as it's an non-reset flop. */
-	zynqmp_disp_audio_write(disp, ZYNQMP_DISP_AUD_SOFT_RESET, 0);
-	zynqmp_disp_audio_write(disp, ZYNQMP_DISP_AUD_MIXER_VOLUME,
-				ZYNQMP_DISP_AUD_MIXER_VOLUME_NO_SCALE);
-}
-
-/**
- * zynqmp_disp_audio_disable - Disable the audio mixer
- * @disp: Display controller
- *
- * Disable the audio mixer by asserting its soft reset.
- */
-static void zynqmp_disp_audio_disable(struct zynqmp_disp *disp)
-{
-	zynqmp_disp_audio_write(disp, ZYNQMP_DISP_AUD_SOFT_RESET,
-				ZYNQMP_DISP_AUD_SOFT_RESET_AUD_SRST);
-}
-
-/* -----------------------------------------------------------------------------
  * ZynqMP Display Layer & DRM Plane
  */
 
@@ -1341,8 +1303,6 @@ void zynqmp_disp_enable(struct zynqmp_disp *disp)
 					     disp->dpsub->vid_clk_from_ps);
 	zynqmp_disp_avbuf_enable_channels(disp);
 	zynqmp_disp_avbuf_enable_audio(disp);
-
-	zynqmp_disp_audio_enable(disp);
 }
 
 /**
@@ -1351,8 +1311,6 @@ void zynqmp_disp_enable(struct zynqmp_disp *disp)
  */
 void zynqmp_disp_disable(struct zynqmp_disp *disp)
 {
-	zynqmp_disp_audio_disable(disp);
-
 	zynqmp_disp_avbuf_disable_audio(disp);
 	zynqmp_disp_avbuf_disable_channels(disp);
 	zynqmp_disp_avbuf_disable(disp);
@@ -1418,12 +1376,6 @@ int zynqmp_disp_probe(struct zynqmp_dpsub *dpsub)
 	disp->avbuf = devm_platform_ioremap_resource_byname(pdev, "av_buf");
 	if (IS_ERR(disp->avbuf)) {
 		ret = PTR_ERR(disp->avbuf);
-		goto error;
-	}
-
-	disp->audio = devm_platform_ioremap_resource_byname(pdev, "aud");
-	if (IS_ERR(disp->audio)) {
-		ret = PTR_ERR(disp->audio);
 		goto error;
 	}
 

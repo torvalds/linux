@@ -13,32 +13,32 @@ static const double MIN_BLANK_STUTTER_FACTOR = 3.0;
 static const struct dml2_pmo_pstate_strategy base_strategy_list_1_display[] = {
 	// VActive Preferred
 	{
-		.per_stream_pstate_method = { dml2_pmo_pstate_strategy_vactive, dml2_pmo_pstate_strategy_na, dml2_pmo_pstate_strategy_na, dml2_pmo_pstate_strategy_na },
+		.per_stream_pstate_method = { dml2_pstate_method_vactive, dml2_pstate_method_na, dml2_pstate_method_na, dml2_pstate_method_na },
 		.allow_state_increase = true,
 	},
 
 	// Then SVP
 	{
-		.per_stream_pstate_method = { dml2_pmo_pstate_strategy_fw_svp, dml2_pmo_pstate_strategy_na, dml2_pmo_pstate_strategy_na, dml2_pmo_pstate_strategy_na },
+		.per_stream_pstate_method = { dml2_pstate_method_fw_svp, dml2_pstate_method_na, dml2_pstate_method_na, dml2_pstate_method_na },
 		.allow_state_increase = true,
 	},
 
 	// Then VBlank
 	{
-		.per_stream_pstate_method = { dml2_pmo_pstate_strategy_vblank, dml2_pmo_pstate_strategy_na, dml2_pmo_pstate_strategy_na, dml2_pmo_pstate_strategy_na },
+		.per_stream_pstate_method = { dml2_pstate_method_vblank, dml2_pstate_method_na, dml2_pstate_method_na, dml2_pstate_method_na },
 		.allow_state_increase = false,
 	},
 
 	// Then DRR
 	{
-		.per_stream_pstate_method = { dml2_pmo_pstate_strategy_fw_drr, dml2_pmo_pstate_strategy_na, dml2_pmo_pstate_strategy_na, dml2_pmo_pstate_strategy_na },
+		.per_stream_pstate_method = { dml2_pstate_method_fw_drr, dml2_pstate_method_na, dml2_pstate_method_na, dml2_pstate_method_na },
 		.allow_state_increase = true,
 	},
 
 	// Finally VBlank, but allow base clocks for latency to increase
 	/*
 	{
-		.per_stream_pstate_method = { dml2_pmo_pstate_strategy_vblank, dml2_pmo_pstate_strategy_na, dml2_pmo_pstate_strategy_na, dml2_pmo_pstate_strategy_na },
+		.per_stream_pstate_method = { dml2_pstate_method_vblank, dml2_pstate_method_na, dml2_pstate_method_na, dml2_pstate_method_na },
 		.allow_state_increase = true,
 	},
 	*/
@@ -49,56 +49,56 @@ static const int base_strategy_list_1_display_size = sizeof(base_strategy_list_1
 static const struct dml2_pmo_pstate_strategy base_strategy_list_2_display[] = {
 	// VActive only is preferred
 	{
-		.per_stream_pstate_method = { dml2_pmo_pstate_strategy_vactive, dml2_pmo_pstate_strategy_vactive, dml2_pmo_pstate_strategy_na, dml2_pmo_pstate_strategy_na },
+		.per_stream_pstate_method = { dml2_pstate_method_vactive, dml2_pstate_method_vactive, dml2_pstate_method_na, dml2_pstate_method_na },
 		.allow_state_increase = true,
 	},
 
 	// Then VActive + VBlank
 	{
-		.per_stream_pstate_method = { dml2_pmo_pstate_strategy_vactive, dml2_pmo_pstate_strategy_vblank, dml2_pmo_pstate_strategy_na, dml2_pmo_pstate_strategy_na },
+		.per_stream_pstate_method = { dml2_pstate_method_vactive, dml2_pstate_method_vblank, dml2_pstate_method_na, dml2_pstate_method_na },
 		.allow_state_increase = false,
 	},
 
 	// Then VBlank only
 	{
-		.per_stream_pstate_method = { dml2_pmo_pstate_strategy_vblank, dml2_pmo_pstate_strategy_vblank, dml2_pmo_pstate_strategy_na, dml2_pmo_pstate_strategy_na },
+		.per_stream_pstate_method = { dml2_pstate_method_vblank, dml2_pstate_method_vblank, dml2_pstate_method_na, dml2_pstate_method_na },
 		.allow_state_increase = false,
 	},
 
 	// Then SVP + VBlank
 	{
-		.per_stream_pstate_method = { dml2_pmo_pstate_strategy_fw_svp, dml2_pmo_pstate_strategy_vblank, dml2_pmo_pstate_strategy_na, dml2_pmo_pstate_strategy_na },
+		.per_stream_pstate_method = { dml2_pstate_method_fw_svp, dml2_pstate_method_vblank, dml2_pstate_method_na, dml2_pstate_method_na },
 		.allow_state_increase = false,
 	},
 
 	// Then SVP + DRR
 	{
-		.per_stream_pstate_method = { dml2_pmo_pstate_strategy_fw_svp, dml2_pmo_pstate_strategy_fw_drr, dml2_pmo_pstate_strategy_na, dml2_pmo_pstate_strategy_na },
+		.per_stream_pstate_method = { dml2_pstate_method_fw_svp, dml2_pstate_method_fw_drr, dml2_pstate_method_na, dml2_pstate_method_na },
 		.allow_state_increase = true,
 	},
 
 	// Then SVP + SVP
 	{
-		.per_stream_pstate_method = { dml2_pmo_pstate_strategy_fw_svp, dml2_pmo_pstate_strategy_fw_svp, dml2_pmo_pstate_strategy_na, dml2_pmo_pstate_strategy_na },
+		.per_stream_pstate_method = { dml2_pstate_method_fw_svp, dml2_pstate_method_fw_svp, dml2_pstate_method_na, dml2_pstate_method_na },
 		.allow_state_increase = true,
 	},
 
 	// Then DRR + VActive
 	{
-		.per_stream_pstate_method = { dml2_pmo_pstate_strategy_vactive, dml2_pmo_pstate_strategy_fw_drr, dml2_pmo_pstate_strategy_na, dml2_pmo_pstate_strategy_na },
+		.per_stream_pstate_method = { dml2_pstate_method_vactive, dml2_pstate_method_fw_drr, dml2_pstate_method_na, dml2_pstate_method_na },
 		.allow_state_increase = true,
 	},
 
 	// Then DRR + DRR
 	{
-		.per_stream_pstate_method = { dml2_pmo_pstate_strategy_fw_drr, dml2_pmo_pstate_strategy_fw_drr, dml2_pmo_pstate_strategy_na, dml2_pmo_pstate_strategy_na },
+		.per_stream_pstate_method = { dml2_pstate_method_fw_drr, dml2_pstate_method_fw_drr, dml2_pstate_method_na, dml2_pstate_method_na },
 		.allow_state_increase = true,
 	},
 
 	// Finally VBlank, but allow base clocks for latency to increase
 	/*
 	{
-		.per_stream_pstate_method = { dml2_pmo_pstate_strategy_vblank, dml2_pmo_pstate_strategy_vblank, dml2_pmo_pstate_strategy_na, dml2_pmo_pstate_strategy_na },
+		.per_stream_pstate_method = { dml2_pstate_method_vblank, dml2_pstate_method_vblank, dml2_pstate_method_na, dml2_pstate_method_na },
 		.allow_state_increase = true,
 	},
 	*/
@@ -109,32 +109,32 @@ static const int base_strategy_list_2_display_size = sizeof(base_strategy_list_2
 static const struct dml2_pmo_pstate_strategy base_strategy_list_3_display[] = {
 	// All VActive
 	{
-		.per_stream_pstate_method = { dml2_pmo_pstate_strategy_vactive, dml2_pmo_pstate_strategy_vactive, dml2_pmo_pstate_strategy_vactive, dml2_pmo_pstate_strategy_na },
+		.per_stream_pstate_method = { dml2_pstate_method_vactive, dml2_pstate_method_vactive, dml2_pstate_method_vactive, dml2_pstate_method_na },
 		.allow_state_increase = true,
 	},
 
 	// VActive + 1 VBlank
 	{
-		.per_stream_pstate_method = { dml2_pmo_pstate_strategy_vactive, dml2_pmo_pstate_strategy_vactive, dml2_pmo_pstate_strategy_vblank, dml2_pmo_pstate_strategy_na },
+		.per_stream_pstate_method = { dml2_pstate_method_vactive, dml2_pstate_method_vactive, dml2_pstate_method_vblank, dml2_pstate_method_na },
 		.allow_state_increase = false,
 	},
 
 	// All VBlank
 	{
-		.per_stream_pstate_method = { dml2_pmo_pstate_strategy_vblank, dml2_pmo_pstate_strategy_vblank, dml2_pmo_pstate_strategy_vblank, dml2_pmo_pstate_strategy_na },
+		.per_stream_pstate_method = { dml2_pstate_method_vblank, dml2_pstate_method_vblank, dml2_pstate_method_vblank, dml2_pstate_method_na },
 		.allow_state_increase = false,
 	},
 
 	// All DRR
 	{
-		.per_stream_pstate_method = { dml2_pmo_pstate_strategy_fw_drr, dml2_pmo_pstate_strategy_fw_drr, dml2_pmo_pstate_strategy_fw_drr, dml2_pmo_pstate_strategy_na },
+		.per_stream_pstate_method = { dml2_pstate_method_fw_drr, dml2_pstate_method_fw_drr, dml2_pstate_method_fw_drr, dml2_pstate_method_na },
 		.allow_state_increase = true,
 	},
 
 	// All VBlank, with state increase allowed
 	/*
 	{
-		.per_stream_pstate_method = { dml2_pmo_pstate_strategy_vblank, dml2_pmo_pstate_strategy_vblank, dml2_pmo_pstate_strategy_vblank, dml2_pmo_pstate_strategy_na },
+		.per_stream_pstate_method = { dml2_pstate_method_vblank, dml2_pstate_method_vblank, dml2_pstate_method_vblank, dml2_pstate_method_na },
 		.allow_state_increase = true,
 	},
 	*/
@@ -145,32 +145,32 @@ static const int base_strategy_list_3_display_size = sizeof(base_strategy_list_3
 static const struct dml2_pmo_pstate_strategy base_strategy_list_4_display[] = {
 	// All VActive
 	{
-		.per_stream_pstate_method = { dml2_pmo_pstate_strategy_vactive, dml2_pmo_pstate_strategy_vactive, dml2_pmo_pstate_strategy_vactive, dml2_pmo_pstate_strategy_vactive },
+		.per_stream_pstate_method = { dml2_pstate_method_vactive, dml2_pstate_method_vactive, dml2_pstate_method_vactive, dml2_pstate_method_vactive },
 		.allow_state_increase = true,
 	},
 
 	// VActive + 1 VBlank
 	{
-		.per_stream_pstate_method = { dml2_pmo_pstate_strategy_vactive, dml2_pmo_pstate_strategy_vactive, dml2_pmo_pstate_strategy_vactive, dml2_pmo_pstate_strategy_vblank },
+		.per_stream_pstate_method = { dml2_pstate_method_vactive, dml2_pstate_method_vactive, dml2_pstate_method_vactive, dml2_pstate_method_vblank },
 		.allow_state_increase = false,
 	},
 
 	// All Vblank
 	{
-		.per_stream_pstate_method = { dml2_pmo_pstate_strategy_vblank, dml2_pmo_pstate_strategy_vblank, dml2_pmo_pstate_strategy_vblank, dml2_pmo_pstate_strategy_vblank },
+		.per_stream_pstate_method = { dml2_pstate_method_vblank, dml2_pstate_method_vblank, dml2_pstate_method_vblank, dml2_pstate_method_vblank },
 		.allow_state_increase = false,
 	},
 
 	// All DRR
 	{
-		.per_stream_pstate_method = { dml2_pmo_pstate_strategy_fw_drr, dml2_pmo_pstate_strategy_fw_drr, dml2_pmo_pstate_strategy_fw_drr, dml2_pmo_pstate_strategy_fw_drr },
+		.per_stream_pstate_method = { dml2_pstate_method_fw_drr, dml2_pstate_method_fw_drr, dml2_pstate_method_fw_drr, dml2_pstate_method_fw_drr },
 		.allow_state_increase = true,
 	},
 
 	// All VBlank, with state increase allowed
 	/*
 	{
-		.per_stream_pstate_method = { dml2_pmo_pstate_strategy_vblank, dml2_pmo_pstate_strategy_vblank, dml2_pmo_pstate_strategy_vblank, dml2_pmo_pstate_strategy_vblank },
+		.per_stream_pstate_method = { dml2_pstate_method_vblank, dml2_pstate_method_vblank, dml2_pstate_method_vblank, dml2_pstate_method_vblank },
 		.allow_state_increase = true,
 	},
 	*/
@@ -355,29 +355,30 @@ bool pmo_dcn4_fams2_optimize_dcc_mcache(struct dml2_pmo_optimize_dcc_mcache_in_o
 	return result;
 }
 
-static enum dml2_pmo_pstate_method convert_strategy_to_drr_variant(const enum dml2_pmo_pstate_method base_strategy)
+static enum dml2_pstate_method convert_strategy_to_drr_variant(const enum dml2_pstate_method base_strategy)
 {
-	enum dml2_pmo_pstate_method variant_strategy = 0;
+	enum dml2_pstate_method variant_strategy = 0;
 
 	switch (base_strategy) {
-	case dml2_pmo_pstate_strategy_vactive:
-		variant_strategy = dml2_pmo_pstate_strategy_fw_vactive_drr;
+	case dml2_pstate_method_vactive:
+		variant_strategy = dml2_pstate_method_fw_vactive_drr;
 		break;
-	case dml2_pmo_pstate_strategy_vblank:
-		variant_strategy = dml2_pmo_pstate_strategy_fw_vblank_drr;
+	case dml2_pstate_method_vblank:
+		variant_strategy = dml2_pstate_method_fw_vblank_drr;
 		break;
-	case dml2_pmo_pstate_strategy_fw_svp:
-		variant_strategy = dml2_pmo_pstate_strategy_fw_svp_drr;
+	case dml2_pstate_method_fw_svp:
+		variant_strategy = dml2_pstate_method_fw_svp_drr;
 		break;
-	case dml2_pmo_pstate_strategy_fw_vactive_drr:
-	case dml2_pmo_pstate_strategy_fw_vblank_drr:
-	case dml2_pmo_pstate_strategy_fw_svp_drr:
-	case dml2_pmo_pstate_strategy_fw_drr:
-	case dml2_pmo_pstate_strategy_reserved_hw:
-	case dml2_pmo_pstate_strategy_reserved_fw:
-	case dml2_pmo_pstate_strategy_reserved_fw_drr_clamped:
-	case dml2_pmo_pstate_strategy_reserved_fw_drr_var:
-	case dml2_pmo_pstate_strategy_na:
+	case dml2_pstate_method_fw_vactive_drr:
+	case dml2_pstate_method_fw_vblank_drr:
+	case dml2_pstate_method_fw_svp_drr:
+	case dml2_pstate_method_fw_drr:
+	case dml2_pstate_method_reserved_hw:
+	case dml2_pstate_method_reserved_fw:
+	case dml2_pstate_method_reserved_fw_drr_clamped:
+	case dml2_pstate_method_reserved_fw_drr_var:
+	case dml2_pstate_method_count:
+	case dml2_pstate_method_na:
 	default:
 		/* no variant for this mode */
 		variant_strategy = base_strategy;
@@ -419,23 +420,22 @@ static unsigned int get_num_expanded_strategies(
 
 static void insert_strategy_into_expanded_list(
 	const struct dml2_pmo_pstate_strategy *per_stream_pstate_strategy,
-	int stream_count,
-	struct dml2_pmo_init_data *init_data)
+	const int stream_count,
+	struct dml2_pmo_pstate_strategy *expanded_strategy_list,
+	unsigned int *num_expanded_strategies)
 {
-	struct dml2_pmo_pstate_strategy *expanded_strategy_list = NULL;
+	if (expanded_strategy_list && num_expanded_strategies) {
+		memcpy(&expanded_strategy_list[*num_expanded_strategies], per_stream_pstate_strategy, sizeof(struct dml2_pmo_pstate_strategy));
 
-	expanded_strategy_list = get_expanded_strategy_list(init_data, stream_count);
-
-	if (expanded_strategy_list) {
-		memcpy(&expanded_strategy_list[init_data->pmo_dcn4.num_expanded_strategies_per_list[stream_count - 1]], per_stream_pstate_strategy, sizeof(struct dml2_pmo_pstate_strategy));
-
-		init_data->pmo_dcn4.num_expanded_strategies_per_list[stream_count - 1]++;
+		(*num_expanded_strategies)++;
 	}
 }
 
-static void expand_base_strategy(struct dml2_pmo_instance *pmo,
+static void expand_base_strategy(
 	const struct dml2_pmo_pstate_strategy *base_strategy,
-	unsigned int stream_count)
+	const unsigned int stream_count,
+	struct dml2_pmo_pstate_strategy *expanded_strategy_list,
+	unsigned int *num_expanded_strategies)
 {
 	bool skip_to_next_stream;
 	bool expanded_strategy_added;
@@ -473,7 +473,7 @@ static void expand_base_strategy(struct dml2_pmo_instance *pmo,
 
 			if (i >= stream_count - 1) {
 				/* insert into strategy list */
-				insert_strategy_into_expanded_list(&cur_strategy_list, stream_count, &pmo->init_data);
+				insert_strategy_into_expanded_list(&cur_strategy_list, stream_count, expanded_strategy_list, num_expanded_strategies);
 				expanded_strategy_added = true;
 			} else {
 				/* skip to next stream */
@@ -512,9 +512,9 @@ static void expand_base_strategy(struct dml2_pmo_instance *pmo,
 
 static bool is_variant_method_valid(const struct dml2_pmo_pstate_strategy *base_strategy,
 		const struct dml2_pmo_pstate_strategy *variant_strategy,
-		unsigned int num_streams_per_base_method[PMO_DCN4_MAX_DISPLAYS],
-		unsigned int num_streams_per_variant_method[PMO_DCN4_MAX_DISPLAYS],
-		unsigned int stream_count)
+		const unsigned int num_streams_per_base_method[PMO_DCN4_MAX_DISPLAYS],
+		const unsigned int num_streams_per_variant_method[PMO_DCN4_MAX_DISPLAYS],
+		const unsigned int stream_count)
 {
 	bool valid = true;
 	unsigned int i;
@@ -522,7 +522,7 @@ static bool is_variant_method_valid(const struct dml2_pmo_pstate_strategy *base_
 	/* check all restrictions are met */
 	for (i = 0; i < stream_count; i++) {
 		/* vblank + vblank_drr variants are invalid */
-		if (base_strategy->per_stream_pstate_method[i] == dml2_pmo_pstate_strategy_vblank &&
+		if (base_strategy->per_stream_pstate_method[i] == dml2_pstate_method_vblank &&
 				((num_streams_per_base_method[i] > 0 && num_streams_per_variant_method[i] > 0) ||
 				num_streams_per_variant_method[i] > 1)) {
 			valid = false;
@@ -533,9 +533,12 @@ static bool is_variant_method_valid(const struct dml2_pmo_pstate_strategy *base_
 	return valid;
 }
 
-static void expand_variant_strategy(struct dml2_pmo_instance *pmo,
+static void expand_variant_strategy(
 		const struct dml2_pmo_pstate_strategy *base_strategy,
-		unsigned int stream_count)
+		const unsigned int stream_count,
+		const bool should_permute,
+		struct dml2_pmo_pstate_strategy *expanded_strategy_list,
+		unsigned int *num_expanded_strategies)
 {
 	bool variant_found;
 	unsigned int i, j;
@@ -544,7 +547,7 @@ static void expand_variant_strategy(struct dml2_pmo_instance *pmo,
 	unsigned int num_streams_per_method[PMO_DCN4_MAX_DISPLAYS] = { 0 };
 	unsigned int num_streams_per_base_method[PMO_DCN4_MAX_DISPLAYS] = { 0 };
 	unsigned int num_streams_per_variant_method[PMO_DCN4_MAX_DISPLAYS] = { 0 };
-	enum dml2_pmo_pstate_method per_stream_variant_method[DML2_MAX_PLANES];
+	enum dml2_pstate_method per_stream_variant_method[DML2_MAX_PLANES];
 	struct dml2_pmo_pstate_strategy variant_strategy = { 0 };
 
 	/* determine number of displays per method */
@@ -585,7 +588,13 @@ static void expand_variant_strategy(struct dml2_pmo_instance *pmo,
 			}
 
 			if (variant_found && is_variant_method_valid(base_strategy, &variant_strategy, num_streams_per_base_method, num_streams_per_variant_method, stream_count)) {
-				expand_base_strategy(pmo, &variant_strategy, stream_count);
+				if (should_permute) {
+					/* permutations are permitted, proceed to expand */
+					expand_base_strategy(&variant_strategy, stream_count, expanded_strategy_list, num_expanded_strategies);
+				} else {
+					/* no permutations allowed, so add to list now */
+					insert_strategy_into_expanded_list(&variant_strategy, stream_count, expanded_strategy_list, num_expanded_strategies);
+				}
 			}
 
 			/* rollback to earliest method with bases remaining */
@@ -612,18 +621,19 @@ static void expand_variant_strategy(struct dml2_pmo_instance *pmo,
 	}
 }
 
-static void expand_base_strategies(
-	struct dml2_pmo_instance *pmo,
-	const struct dml2_pmo_pstate_strategy *base_strategies_list,
-	const unsigned int num_base_strategies,
-	unsigned int stream_count)
+void pmo_dcn4_fams2_expand_base_pstate_strategies(
+		const struct dml2_pmo_pstate_strategy *base_strategies_list,
+		const unsigned int num_base_strategies,
+		const unsigned int stream_count,
+		struct dml2_pmo_pstate_strategy *expanded_strategy_list,
+		unsigned int *num_expanded_strategies)
 {
 	unsigned int i;
 
 	/* expand every explicit base strategy (except all DRR) */
 	for (i = 0; i < num_base_strategies; i++) {
-		expand_base_strategy(pmo, &base_strategies_list[i], stream_count);
-		expand_variant_strategy(pmo, &base_strategies_list[i], stream_count);
+		expand_base_strategy(&base_strategies_list[i], stream_count, expanded_strategy_list, num_expanded_strategies);
+		expand_variant_strategy(&base_strategies_list[i], stream_count, true, expanded_strategy_list, num_expanded_strategies);
 	}
 }
 
@@ -652,25 +662,45 @@ bool pmo_dcn4_fams2_initialize(struct dml2_pmo_initialize_in_out *in_out)
 			DML2_ASSERT(base_strategy_list_1_display_size <= PMO_DCN4_MAX_BASE_STRATEGIES);
 
 			/* populate list */
-			expand_base_strategies(pmo, base_strategy_list_1_display, base_strategy_list_1_display_size, 1);
+			pmo_dcn4_fams2_expand_base_pstate_strategies(
+					base_strategy_list_1_display,
+					base_strategy_list_1_display_size,
+					i,
+					pmo->init_data.pmo_dcn4.expanded_strategy_list_1_display,
+					&pmo->init_data.pmo_dcn4.num_expanded_strategies_per_list[i - 1]);
 			break;
 		case 2:
 			DML2_ASSERT(base_strategy_list_2_display_size <= PMO_DCN4_MAX_BASE_STRATEGIES);
 
 			/* populate list */
-			expand_base_strategies(pmo, base_strategy_list_2_display, base_strategy_list_2_display_size, 2);
+			pmo_dcn4_fams2_expand_base_pstate_strategies(
+					base_strategy_list_2_display,
+					base_strategy_list_2_display_size,
+					i,
+					pmo->init_data.pmo_dcn4.expanded_strategy_list_2_display,
+					&pmo->init_data.pmo_dcn4.num_expanded_strategies_per_list[i - 1]);
 			break;
 		case 3:
 			DML2_ASSERT(base_strategy_list_3_display_size <= PMO_DCN4_MAX_BASE_STRATEGIES);
 
 			/* populate list */
-			expand_base_strategies(pmo, base_strategy_list_3_display, base_strategy_list_3_display_size, 3);
+			pmo_dcn4_fams2_expand_base_pstate_strategies(
+					base_strategy_list_3_display,
+					base_strategy_list_3_display_size,
+					i,
+					pmo->init_data.pmo_dcn4.expanded_strategy_list_3_display,
+					&pmo->init_data.pmo_dcn4.num_expanded_strategies_per_list[i - 1]);
 			break;
 		case 4:
 			DML2_ASSERT(base_strategy_list_4_display_size <= PMO_DCN4_MAX_BASE_STRATEGIES);
 
 			/* populate list */
-			expand_base_strategies(pmo, base_strategy_list_4_display, base_strategy_list_4_display_size, 4);
+			pmo_dcn4_fams2_expand_base_pstate_strategies(
+					base_strategy_list_4_display,
+					base_strategy_list_4_display_size,
+					i,
+					pmo->init_data.pmo_dcn4.expanded_strategy_list_4_display,
+					&pmo->init_data.pmo_dcn4.num_expanded_strategies_per_list[i - 1]);
 			break;
 		}
 	}
@@ -941,11 +971,8 @@ static void build_synchronized_timing_groups(
 		/* find synchronizable timing groups */
 		for (j = i + 1; j < display_config->display_config.num_streams; j++) {
 			if (memcmp(master_timing,
-					&display_config->display_config.stream_descriptors[j].timing,
-					sizeof(struct dml2_timing_cfg)) == 0 &&
-					display_config->display_config.stream_descriptors[i].output.output_encoder == display_config->display_config.stream_descriptors[j].output.output_encoder &&
-					(display_config->display_config.stream_descriptors[i].output.output_encoder != dml2_hdmi || //hdmi requires formats match
-					display_config->display_config.stream_descriptors[i].output.output_format == display_config->display_config.stream_descriptors[j].output.output_format)) {
+				&display_config->display_config.stream_descriptors[j].timing,
+				sizeof(struct dml2_timing_cfg)) == 0) {
 				set_bit_in_bitfield(&pmo->scratch.pmo_dcn4.synchronized_timing_group_masks[timing_group_idx], j);
 				set_bit_in_bitfield(&stream_mapped_mask, j);
 			}
@@ -1106,24 +1133,73 @@ static void insert_into_candidate_list(const struct dml2_pmo_pstate_strategy *ps
 	scratch->pmo_dcn4.num_pstate_candidates++;
 }
 
-static bool all_planes_match_method(const struct display_configuation_with_meta *display_cfg, int plane_mask, enum dml2_pmo_pstate_method method)
+static enum dml2_pstate_method uclk_pstate_strategy_override_to_pstate_method(const enum dml2_uclk_pstate_change_strategy override_strategy)
+{
+	enum dml2_pstate_method method = dml2_pstate_method_na;
+
+	switch (override_strategy) {
+	case dml2_uclk_pstate_change_strategy_force_vactive:
+		method = dml2_pstate_method_vactive;
+		break;
+	case dml2_uclk_pstate_change_strategy_force_vblank:
+		method = dml2_pstate_method_vblank;
+		break;
+	case dml2_uclk_pstate_change_strategy_force_drr:
+		method = dml2_pstate_method_fw_drr;
+		break;
+	case dml2_uclk_pstate_change_strategy_force_mall_svp:
+		method = dml2_pstate_method_fw_svp;
+		break;
+	case dml2_uclk_pstate_change_strategy_force_mall_full_frame:
+	case dml2_uclk_pstate_change_strategy_auto:
+	default:
+		method = dml2_pstate_method_na;
+	}
+
+	return method;
+}
+
+static enum dml2_uclk_pstate_change_strategy pstate_method_to_uclk_pstate_strategy_override(const enum dml2_pstate_method method)
+{
+	enum dml2_uclk_pstate_change_strategy override_strategy = dml2_uclk_pstate_change_strategy_auto;
+
+	switch (method) {
+	case dml2_pstate_method_vactive:
+	case dml2_pstate_method_fw_vactive_drr:
+		override_strategy = dml2_uclk_pstate_change_strategy_force_vactive;
+		break;
+	case dml2_pstate_method_vblank:
+	case dml2_pstate_method_fw_vblank_drr:
+		override_strategy = dml2_uclk_pstate_change_strategy_force_vblank;
+		break;
+	case dml2_pstate_method_fw_svp:
+	case dml2_pstate_method_fw_svp_drr:
+		override_strategy = dml2_uclk_pstate_change_strategy_force_mall_svp;
+		break;
+	case dml2_pstate_method_fw_drr:
+		override_strategy = dml2_uclk_pstate_change_strategy_force_drr;
+		break;
+	case dml2_pstate_method_reserved_hw:
+	case dml2_pstate_method_reserved_fw:
+	case dml2_pstate_method_reserved_fw_drr_clamped:
+	case dml2_pstate_method_reserved_fw_drr_var:
+	case dml2_pstate_method_count:
+	case dml2_pstate_method_na:
+	default:
+		override_strategy = dml2_uclk_pstate_change_strategy_auto;
+	}
+
+	return override_strategy;
+}
+
+static bool all_planes_match_method(const struct display_configuation_with_meta *display_cfg, int plane_mask, enum dml2_pstate_method method)
 {
 	unsigned char i;
-	enum dml2_uclk_pstate_change_strategy matching_strategy = (enum dml2_uclk_pstate_change_strategy) dml2_pmo_pstate_strategy_na;
-
-	if (method == dml2_pmo_pstate_strategy_vactive || method == dml2_pmo_pstate_strategy_fw_vactive_drr)
-		matching_strategy = dml2_uclk_pstate_change_strategy_force_vactive;
-	else if (method == dml2_pmo_pstate_strategy_vblank || method == dml2_pmo_pstate_strategy_fw_vblank_drr)
-		matching_strategy = dml2_uclk_pstate_change_strategy_force_vblank;
-	else if (method == dml2_pmo_pstate_strategy_fw_svp)
-		matching_strategy = dml2_uclk_pstate_change_strategy_force_mall_svp;
-	else if (method == dml2_pmo_pstate_strategy_fw_drr)
-		matching_strategy = dml2_uclk_pstate_change_strategy_force_drr;
 
 	for (i = 0; i < DML2_MAX_PLANES; i++) {
 		if (is_bit_set_in_bitfield(plane_mask, i)) {
 			if (display_cfg->display_config.plane_descriptors[i].overrides.uclk_pstate_change_strategy != dml2_uclk_pstate_change_strategy_auto &&
-				display_cfg->display_config.plane_descriptors[i].overrides.uclk_pstate_change_strategy != matching_strategy)
+				display_cfg->display_config.plane_descriptors[i].overrides.uclk_pstate_change_strategy != pstate_method_to_uclk_pstate_strategy_override(method))
 				return false;
 		}
 	}
@@ -1149,32 +1225,33 @@ static void build_method_scheduling_params(
 
 static struct dml2_fams2_per_method_common_meta *get_per_method_common_meta(
 	struct dml2_pmo_instance *pmo,
-	enum dml2_pmo_pstate_method stream_pstate_method,
+	enum dml2_pstate_method stream_pstate_method,
 	int stream_idx)
 {
 	struct dml2_fams2_per_method_common_meta *stream_method_fams2_meta = NULL;
 
 	switch (stream_pstate_method) {
-	case dml2_pmo_pstate_strategy_vactive:
-	case dml2_pmo_pstate_strategy_fw_vactive_drr:
+	case dml2_pstate_method_vactive:
+	case dml2_pstate_method_fw_vactive_drr:
 		stream_method_fams2_meta = &pmo->scratch.pmo_dcn4.stream_fams2_meta[stream_idx].method_vactive.common;
 		break;
-	case dml2_pmo_pstate_strategy_vblank:
-	case dml2_pmo_pstate_strategy_fw_vblank_drr:
+	case dml2_pstate_method_vblank:
+	case dml2_pstate_method_fw_vblank_drr:
 		stream_method_fams2_meta = &pmo->scratch.pmo_dcn4.stream_fams2_meta[stream_idx].method_vblank.common;
 		break;
-	case dml2_pmo_pstate_strategy_fw_svp:
-	case dml2_pmo_pstate_strategy_fw_svp_drr:
+	case dml2_pstate_method_fw_svp:
+	case dml2_pstate_method_fw_svp_drr:
 		stream_method_fams2_meta = &pmo->scratch.pmo_dcn4.stream_fams2_meta[stream_idx].method_subvp.common;
 		break;
-	case dml2_pmo_pstate_strategy_fw_drr:
+	case dml2_pstate_method_fw_drr:
 		stream_method_fams2_meta = &pmo->scratch.pmo_dcn4.stream_fams2_meta[stream_idx].method_drr.common;
 		break;
-	case dml2_pmo_pstate_strategy_reserved_hw:
-	case dml2_pmo_pstate_strategy_reserved_fw:
-	case dml2_pmo_pstate_strategy_reserved_fw_drr_clamped:
-	case dml2_pmo_pstate_strategy_reserved_fw_drr_var:
-	case dml2_pmo_pstate_strategy_na:
+	case dml2_pstate_method_reserved_hw:
+	case dml2_pstate_method_reserved_fw:
+	case dml2_pstate_method_reserved_fw_drr_clamped:
+	case dml2_pstate_method_reserved_fw_drr_var:
+	case dml2_pstate_method_count:
+	case dml2_pstate_method_na:
 	default:
 		stream_method_fams2_meta = NULL;
 	}
@@ -1215,7 +1292,7 @@ static bool is_timing_group_schedulable(
 		if (is_bit_set_in_bitfield(pmo->scratch.pmo_dcn4.synchronized_timing_group_masks[timing_group_idx], i)) {
 			stream_method_fams2_meta = get_per_method_common_meta(pmo, pstate_strategy->per_stream_pstate_method[i], i);
 			if (!stream_method_fams2_meta)
-				return false;
+				continue;
 
 			if (group_fams2_meta->allow_start_otg_vline < stream_method_fams2_meta->allow_start_otg_vline) {
 				/* set group allow start to larger otg vline */
@@ -1295,7 +1372,7 @@ static bool is_config_schedulable(
 			if (j_disallow_us < jp1_disallow_us) {
 				/* swap as A < B */
 				swap(s->pmo_dcn4.sorted_group_gtl_disallow_index[j],
-				     s->pmo_dcn4.sorted_group_gtl_disallow_index[j+1]);
+					 s->pmo_dcn4.sorted_group_gtl_disallow_index[j+1]);
 				swapped = true;
 			}
 		}
@@ -1354,7 +1431,7 @@ static bool is_config_schedulable(
 			if (j_period_us < jp1_period_us) {
 				/* swap as A < B */
 				swap(s->pmo_dcn4.sorted_group_gtl_period_index[j],
-				     s->pmo_dcn4.sorted_group_gtl_period_index[j+1]);
+					 s->pmo_dcn4.sorted_group_gtl_period_index[j+1]);
 				swapped = true;
 			}
 		}
@@ -1413,7 +1490,7 @@ static bool is_config_schedulable(
 
 static bool stream_matches_drr_policy(struct dml2_pmo_instance *pmo,
 	const struct display_configuation_with_meta *display_cfg,
-	const enum dml2_pmo_pstate_method stream_pstate_method,
+	const enum dml2_pstate_method stream_pstate_method,
 	unsigned int stream_index)
 {
 	const struct dml2_stream_parameters *stream_descriptor = &display_cfg->display_config.stream_descriptors[stream_index];
@@ -1494,19 +1571,19 @@ static bool validate_pstate_support_strategy_cofunctionality(struct dml2_pmo_ins
 		strategy_matches_drr_requirements &=
 			stream_matches_drr_policy(pmo, display_cfg, pstate_strategy->per_stream_pstate_method[stream_index], stream_index);
 
-		if (pstate_strategy->per_stream_pstate_method[stream_index] == dml2_pmo_pstate_strategy_fw_svp ||
-			pstate_strategy->per_stream_pstate_method[stream_index] == dml2_pmo_pstate_strategy_fw_svp_drr) {
+		if (pstate_strategy->per_stream_pstate_method[stream_index] == dml2_pstate_method_fw_svp ||
+			pstate_strategy->per_stream_pstate_method[stream_index] == dml2_pstate_method_fw_svp_drr) {
 			svp_count++;
 			set_bit_in_bitfield(&svp_stream_mask, stream_index);
-		} else if (pstate_strategy->per_stream_pstate_method[stream_index] == dml2_pmo_pstate_strategy_fw_drr) {
+		} else if (pstate_strategy->per_stream_pstate_method[stream_index] == dml2_pstate_method_fw_drr) {
 			drr_count++;
 			set_bit_in_bitfield(&drr_stream_mask, stream_index);
-		} else if (pstate_strategy->per_stream_pstate_method[stream_index] == dml2_pmo_pstate_strategy_vactive ||
-			pstate_strategy->per_stream_pstate_method[stream_index] == dml2_pmo_pstate_strategy_fw_vactive_drr) {
+		} else if (pstate_strategy->per_stream_pstate_method[stream_index] == dml2_pstate_method_vactive ||
+			pstate_strategy->per_stream_pstate_method[stream_index] == dml2_pstate_method_fw_vactive_drr) {
 			vactive_count++;
 			set_bit_in_bitfield(&vactive_stream_mask, stream_index);
-		} else if (pstate_strategy->per_stream_pstate_method[stream_index] == dml2_pmo_pstate_strategy_vblank ||
-			pstate_strategy->per_stream_pstate_method[stream_index] == dml2_pmo_pstate_strategy_fw_vblank_drr) {
+		} else if (pstate_strategy->per_stream_pstate_method[stream_index] == dml2_pstate_method_vblank ||
+			pstate_strategy->per_stream_pstate_method[stream_index] == dml2_pstate_method_fw_vblank_drr) {
 			vblank_count++;
 			set_bit_in_bitfield(&vblank_stream_mask, stream_index);
 		}
@@ -1625,7 +1702,7 @@ static void build_fams2_meta_per_stream(struct dml2_pmo_instance *pmo,
 		/* for single stream, guarantee at least an instant of allow */
 		stream_fams2_meta->method_vactive.max_vactive_det_fill_delay_otg_vlines = (unsigned int)math_floor(
 				math_max2(0.0,
-				timing->v_active - stream_fams2_meta->min_allow_width_otg_vlines - stream_fams2_meta->dram_clk_change_blackout_otg_vlines));
+				timing->v_active - math_max2(1.0, stream_fams2_meta->min_allow_width_otg_vlines) - stream_fams2_meta->dram_clk_change_blackout_otg_vlines));
 	} else {
 		/* for multi stream, bound to a max fill time defined by IP caps */
 		stream_fams2_meta->method_vactive.max_vactive_det_fill_delay_otg_vlines =
@@ -1738,8 +1815,10 @@ bool pmo_dcn4_fams2_init_for_pstate_support(struct dml2_pmo_init_for_pstate_supp
 	struct display_configuation_with_meta *display_config;
 	const struct dml2_plane_parameters *plane_descriptor;
 	const struct dml2_pmo_pstate_strategy *strategy_list = NULL;
+	struct dml2_pmo_pstate_strategy override_base_strategy = { 0 };
 	unsigned int strategy_list_size = 0;
 	unsigned char plane_index, stream_index, i;
+	bool build_override_strategy = true;
 
 	state->performed = true;
 	in_out->base_display_config->stage3.min_clk_index_for_latency = in_out->base_display_config->stage1.min_clk_index_for_latency;
@@ -1763,7 +1842,11 @@ bool pmo_dcn4_fams2_init_for_pstate_support(struct dml2_pmo_init_for_pstate_supp
 
 		set_bit_in_bitfield(&s->pmo_dcn4.stream_plane_mask[plane_descriptor->stream_index], plane_index);
 
-		state->pstate_switch_modes[plane_index] = dml2_uclk_pstate_support_method_vactive;
+		state->pstate_switch_modes[plane_index] = dml2_pstate_method_vactive;
+
+		build_override_strategy &= plane_descriptor->overrides.uclk_pstate_change_strategy != dml2_uclk_pstate_change_strategy_auto;
+		override_base_strategy.per_stream_pstate_method[plane_descriptor->stream_index] =
+				uclk_pstate_strategy_override_to_pstate_method(plane_descriptor->overrides.uclk_pstate_change_strategy);
 	}
 
 	// Figure out which streams can do vactive, and also build up implicit SVP and FAMS2 meta
@@ -1781,13 +1864,30 @@ bool pmo_dcn4_fams2_init_for_pstate_support(struct dml2_pmo_init_for_pstate_supp
 	/* get synchronized timing groups */
 	build_synchronized_timing_groups(pmo, display_config);
 
-	strategy_list = get_expanded_strategy_list(&pmo->init_data, display_config->display_config.num_streams);
-	if (!strategy_list)
-		return false;
+	if (build_override_strategy) {
+		/* build expanded override strategy list (no permutations) */
+		override_base_strategy.allow_state_increase = true;
+		s->pmo_dcn4.num_expanded_override_strategies = 0;
+		insert_strategy_into_expanded_list(&override_base_strategy,
+				display_config->display_config.num_streams,
+				s->pmo_dcn4.expanded_override_strategy_list,
+				&s->pmo_dcn4.num_expanded_override_strategies);
+		expand_variant_strategy(&override_base_strategy,
+				display_config->display_config.num_streams,
+				false,
+				s->pmo_dcn4.expanded_override_strategy_list,
+				&s->pmo_dcn4.num_expanded_override_strategies);
 
-	strategy_list_size = get_num_expanded_strategies(&pmo->init_data, display_config->display_config.num_streams);
+		/* use override strategy list */
+		strategy_list = s->pmo_dcn4.expanded_override_strategy_list;
+		strategy_list_size = s->pmo_dcn4.num_expanded_override_strategies;
+	} else {
+		/* use predefined strategy list */
+		strategy_list = get_expanded_strategy_list(&pmo->init_data, display_config->display_config.num_streams);
+		strategy_list_size = get_num_expanded_strategies(&pmo->init_data, display_config->display_config.num_streams);
+	}
 
-	if (strategy_list_size == 0)
+	if (!strategy_list || strategy_list_size == 0)
 		return false;
 
 	s->pmo_dcn4.num_pstate_candidates = 0;
@@ -1799,7 +1899,7 @@ bool pmo_dcn4_fams2_init_for_pstate_support(struct dml2_pmo_init_for_pstate_supp
 	}
 
 	if (s->pmo_dcn4.num_pstate_candidates > 0) {
-		s->pmo_dcn4.pstate_strategy_candidates[s->pmo_dcn4.num_pstate_candidates - 1].allow_state_increase = true;
+		s->pmo_dcn4.pstate_strategy_candidates[s->pmo_dcn4.num_pstate_candidates-1].allow_state_increase = true;
 		s->pmo_dcn4.cur_pstate_candidate = -1;
 		return true;
 	} else {
@@ -1832,7 +1932,7 @@ static void reset_display_configuration(struct display_configuation_with_meta *d
 		// Reset strategy to auto
 		plane->overrides.uclk_pstate_change_strategy = dml2_uclk_pstate_change_strategy_auto;
 
-		display_config->stage3.pstate_switch_modes[plane_index] = dml2_uclk_pstate_support_method_not_supported;
+		display_config->stage3.pstate_switch_modes[plane_index] = dml2_pstate_method_na;
 	}
 }
 
@@ -1849,7 +1949,7 @@ static void setup_planes_for_drr_by_mask(struct display_configuation_with_meta *
 
 			plane->overrides.uclk_pstate_change_strategy = dml2_uclk_pstate_change_strategy_force_drr;
 
-			display_config->stage3.pstate_switch_modes[plane_index] = dml2_uclk_pstate_support_method_fw_drr;
+			display_config->stage3.pstate_switch_modes[plane_index] = dml2_pstate_method_fw_drr;
 
 		}
 	}
@@ -1867,7 +1967,7 @@ static void setup_planes_for_svp_by_mask(struct display_configuation_with_meta *
 	for (plane_index = 0; plane_index < display_config->display_config.num_planes; plane_index++) {
 		if (is_bit_set_in_bitfield(plane_mask, plane_index)) {
 			stream_index = (char)display_config->display_config.plane_descriptors[plane_index].stream_index;
-			display_config->stage3.pstate_switch_modes[plane_index] = dml2_uclk_pstate_support_method_fw_subvp_phantom;
+			display_config->stage3.pstate_switch_modes[plane_index] = dml2_pstate_method_fw_svp;
 		}
 	}
 
@@ -1890,7 +1990,7 @@ static void setup_planes_for_svp_drr_by_mask(struct display_configuation_with_me
 	for (plane_index = 0; plane_index < display_config->display_config.num_planes; plane_index++) {
 		if (is_bit_set_in_bitfield(plane_mask, plane_index)) {
 			stream_index = (char)display_config->display_config.plane_descriptors[plane_index].stream_index;
-			display_config->stage3.pstate_switch_modes[plane_index] = dml2_uclk_pstate_support_method_fw_subvp_phantom_drr;
+			display_config->stage3.pstate_switch_modes[plane_index] = dml2_pstate_method_fw_svp_drr;
 		}
 	}
 
@@ -1915,7 +2015,7 @@ static void setup_planes_for_vblank_by_mask(struct display_configuation_with_met
 			plane->overrides.reserved_vblank_time_ns = (long)math_max2(pmo->soc_bb->power_management_parameters.dram_clk_change_blackout_us * 1000.0,
 					plane->overrides.reserved_vblank_time_ns);
 
-			display_config->stage3.pstate_switch_modes[plane_index] = dml2_uclk_pstate_support_method_vblank;
+			display_config->stage3.pstate_switch_modes[plane_index] = dml2_pstate_method_vblank;
 
 		}
 	}
@@ -1933,7 +2033,7 @@ static void setup_planes_for_vblank_drr_by_mask(struct display_configuation_with
 			plane = &display_config->display_config.plane_descriptors[plane_index];
 			plane->overrides.reserved_vblank_time_ns = (long)(pmo->soc_bb->power_management_parameters.dram_clk_change_blackout_us * 1000);
 
-			display_config->stage3.pstate_switch_modes[plane_index] = dml2_uclk_pstate_support_method_fw_vblank_drr;
+			display_config->stage3.pstate_switch_modes[plane_index] = dml2_pstate_method_fw_vblank_drr;
 		}
 	}
 }
@@ -1949,7 +2049,7 @@ static void setup_planes_for_vactive_by_mask(struct display_configuation_with_me
 		if (is_bit_set_in_bitfield(plane_mask, plane_index)) {
 			stream_index = display_config->display_config.plane_descriptors[plane_index].stream_index;
 
-			display_config->stage3.pstate_switch_modes[plane_index] = dml2_uclk_pstate_support_method_vactive;
+			display_config->stage3.pstate_switch_modes[plane_index] = dml2_pstate_method_vactive;
 
 			if (!pmo->options->disable_vactive_det_fill_bw_pad) {
 				display_config->display_config.plane_descriptors[plane_index].overrides.max_vactive_det_fill_delay_us =
@@ -1970,7 +2070,7 @@ static void setup_planes_for_vactive_drr_by_mask(struct display_configuation_wit
 		if (is_bit_set_in_bitfield(plane_mask, plane_index)) {
 			stream_index = display_config->display_config.plane_descriptors[plane_index].stream_index;
 
-			display_config->stage3.pstate_switch_modes[plane_index] = dml2_uclk_pstate_support_method_fw_vactive_drr;
+			display_config->stage3.pstate_switch_modes[plane_index] = dml2_pstate_method_fw_vactive_drr;
 
 			if (!pmo->options->disable_vactive_det_fill_bw_pad) {
 				display_config->display_config.plane_descriptors[plane_index].overrides.max_vactive_det_fill_delay_us =
@@ -1992,26 +2092,26 @@ static bool setup_display_config(struct display_configuation_with_meta *display_
 
 	for (stream_index = 0; stream_index < display_config->display_config.num_streams; stream_index++) {
 
-		if (pmo->scratch.pmo_dcn4.pstate_strategy_candidates[strategy_index].per_stream_pstate_method[stream_index] == dml2_pmo_pstate_strategy_na) {
+		if (pmo->scratch.pmo_dcn4.pstate_strategy_candidates[strategy_index].per_stream_pstate_method[stream_index] == dml2_pstate_method_na) {
 			success = false;
 			break;
-		} else if (scratch->pmo_dcn4.pstate_strategy_candidates[strategy_index].per_stream_pstate_method[stream_index] == dml2_pmo_pstate_strategy_vactive) {
+		} else if (scratch->pmo_dcn4.pstate_strategy_candidates[strategy_index].per_stream_pstate_method[stream_index] == dml2_pstate_method_vactive) {
 			setup_planes_for_vactive_by_mask(display_config, pmo, scratch->pmo_dcn4.stream_plane_mask[stream_index]);
-		} else if (scratch->pmo_dcn4.pstate_strategy_candidates[strategy_index].per_stream_pstate_method[stream_index] == dml2_pmo_pstate_strategy_vblank) {
+		} else if (scratch->pmo_dcn4.pstate_strategy_candidates[strategy_index].per_stream_pstate_method[stream_index] == dml2_pstate_method_vblank) {
 			setup_planes_for_vblank_by_mask(display_config, pmo, scratch->pmo_dcn4.stream_plane_mask[stream_index]);
-		} else if (scratch->pmo_dcn4.pstate_strategy_candidates[strategy_index].per_stream_pstate_method[stream_index] == dml2_pmo_pstate_strategy_fw_svp) {
+		} else if (scratch->pmo_dcn4.pstate_strategy_candidates[strategy_index].per_stream_pstate_method[stream_index] == dml2_pstate_method_fw_svp) {
 			fams2_required = true;
 			setup_planes_for_svp_by_mask(display_config, pmo, scratch->pmo_dcn4.stream_plane_mask[stream_index]);
-		} else if (scratch->pmo_dcn4.pstate_strategy_candidates[strategy_index].per_stream_pstate_method[stream_index] == dml2_pmo_pstate_strategy_fw_vactive_drr) {
+		} else if (scratch->pmo_dcn4.pstate_strategy_candidates[strategy_index].per_stream_pstate_method[stream_index] == dml2_pstate_method_fw_vactive_drr) {
 			fams2_required = true;
 			setup_planes_for_vactive_drr_by_mask(display_config, pmo, scratch->pmo_dcn4.stream_plane_mask[stream_index]);
-		} else if (scratch->pmo_dcn4.pstate_strategy_candidates[strategy_index].per_stream_pstate_method[stream_index] == dml2_pmo_pstate_strategy_fw_vblank_drr) {
+		} else if (scratch->pmo_dcn4.pstate_strategy_candidates[strategy_index].per_stream_pstate_method[stream_index] == dml2_pstate_method_fw_vblank_drr) {
 			fams2_required = true;
 			setup_planes_for_vblank_drr_by_mask(display_config, pmo, scratch->pmo_dcn4.stream_plane_mask[stream_index]);
-		} else if (scratch->pmo_dcn4.pstate_strategy_candidates[strategy_index].per_stream_pstate_method[stream_index] == dml2_pmo_pstate_strategy_fw_svp_drr) {
+		} else if (scratch->pmo_dcn4.pstate_strategy_candidates[strategy_index].per_stream_pstate_method[stream_index] == dml2_pstate_method_fw_svp_drr) {
 			fams2_required = true;
 			setup_planes_for_svp_drr_by_mask(display_config, pmo, scratch->pmo_dcn4.stream_plane_mask[stream_index]);
-		} else if (scratch->pmo_dcn4.pstate_strategy_candidates[strategy_index].per_stream_pstate_method[stream_index] == dml2_pmo_pstate_strategy_fw_drr) {
+		} else if (scratch->pmo_dcn4.pstate_strategy_candidates[strategy_index].per_stream_pstate_method[stream_index] == dml2_pstate_method_fw_drr) {
 			fams2_required = true;
 			setup_planes_for_drr_by_mask(display_config, pmo, scratch->pmo_dcn4.stream_plane_mask[stream_index]);
 		}
@@ -2066,34 +2166,34 @@ bool pmo_dcn4_fams2_test_for_pstate_support(struct dml2_pmo_test_for_pstate_supp
 	for (stream_index = 0; stream_index < in_out->base_display_config->display_config.num_streams; stream_index++) {
 		struct dml2_fams2_meta *stream_fams2_meta = &s->pmo_dcn4.stream_fams2_meta[stream_index];
 
-		if (s->pmo_dcn4.pstate_strategy_candidates[s->pmo_dcn4.cur_pstate_candidate].per_stream_pstate_method[stream_index] == dml2_pmo_pstate_strategy_vactive ||
-				s->pmo_dcn4.pstate_strategy_candidates[s->pmo_dcn4.cur_pstate_candidate].per_stream_pstate_method[stream_index] == dml2_pmo_pstate_strategy_fw_vactive_drr) {
+		if (s->pmo_dcn4.pstate_strategy_candidates[s->pmo_dcn4.cur_pstate_candidate].per_stream_pstate_method[stream_index] == dml2_pstate_method_vactive ||
+				s->pmo_dcn4.pstate_strategy_candidates[s->pmo_dcn4.cur_pstate_candidate].per_stream_pstate_method[stream_index] == dml2_pstate_method_fw_vactive_drr) {
 			if (get_vactive_pstate_margin(in_out->base_display_config, s->pmo_dcn4.stream_plane_mask[stream_index]) < (MIN_VACTIVE_MARGIN_PCT * in_out->instance->soc_bb->power_management_parameters.dram_clk_change_blackout_us) ||
 					get_vactive_det_fill_latency_delay_us(in_out->base_display_config, s->pmo_dcn4.stream_plane_mask[stream_index]) > stream_fams2_meta->method_vactive.max_vactive_det_fill_delay_us) {
 				p_state_supported = false;
 				break;
 			}
-		} else if (s->pmo_dcn4.pstate_strategy_candidates[s->pmo_dcn4.cur_pstate_candidate].per_stream_pstate_method[stream_index] == dml2_pmo_pstate_strategy_vblank ||
-				s->pmo_dcn4.pstate_strategy_candidates[s->pmo_dcn4.cur_pstate_candidate].per_stream_pstate_method[stream_index] == dml2_pmo_pstate_strategy_fw_vblank_drr) {
+		} else if (s->pmo_dcn4.pstate_strategy_candidates[s->pmo_dcn4.cur_pstate_candidate].per_stream_pstate_method[stream_index] == dml2_pstate_method_vblank ||
+				s->pmo_dcn4.pstate_strategy_candidates[s->pmo_dcn4.cur_pstate_candidate].per_stream_pstate_method[stream_index] == dml2_pstate_method_fw_vblank_drr) {
 			if (get_minimum_reserved_time_us_for_planes(in_out->base_display_config, s->pmo_dcn4.stream_plane_mask[stream_index]) <
 				REQUIRED_RESERVED_TIME ||
 				get_vactive_pstate_margin(in_out->base_display_config, s->pmo_dcn4.stream_plane_mask[stream_index]) < MIN_VACTIVE_MARGIN_VBLANK) {
 				p_state_supported = false;
 				break;
 			}
-		} else if (s->pmo_dcn4.pstate_strategy_candidates[s->pmo_dcn4.cur_pstate_candidate].per_stream_pstate_method[stream_index] == dml2_pmo_pstate_strategy_fw_svp ||
-				s->pmo_dcn4.pstate_strategy_candidates[s->pmo_dcn4.cur_pstate_candidate].per_stream_pstate_method[stream_index] == dml2_pmo_pstate_strategy_fw_svp_drr) {
+		} else if (s->pmo_dcn4.pstate_strategy_candidates[s->pmo_dcn4.cur_pstate_candidate].per_stream_pstate_method[stream_index] == dml2_pstate_method_fw_svp ||
+				s->pmo_dcn4.pstate_strategy_candidates[s->pmo_dcn4.cur_pstate_candidate].per_stream_pstate_method[stream_index] == dml2_pstate_method_fw_svp_drr) {
 			if (in_out->base_display_config->stage3.stream_svp_meta[stream_index].valid == false) {
 				p_state_supported = false;
 				break;
 			}
-		} else if (s->pmo_dcn4.pstate_strategy_candidates[s->pmo_dcn4.cur_pstate_candidate].per_stream_pstate_method[stream_index] == dml2_pmo_pstate_strategy_fw_drr) {
-			if (!all_planes_match_method(in_out->base_display_config, s->pmo_dcn4.stream_plane_mask[stream_index], dml2_pmo_pstate_strategy_fw_drr) ||
+		} else if (s->pmo_dcn4.pstate_strategy_candidates[s->pmo_dcn4.cur_pstate_candidate].per_stream_pstate_method[stream_index] == dml2_pstate_method_fw_drr) {
+			if (!all_planes_match_method(in_out->base_display_config, s->pmo_dcn4.stream_plane_mask[stream_index], dml2_pstate_method_fw_drr) ||
 				get_vactive_pstate_margin(in_out->base_display_config, s->pmo_dcn4.stream_plane_mask[stream_index]) < MIN_VACTIVE_MARGIN_DRR) {
 				p_state_supported = false;
 				break;
 			}
-		} else if (s->pmo_dcn4.pstate_strategy_candidates[s->pmo_dcn4.cur_pstate_candidate].per_stream_pstate_method[stream_index] == dml2_pmo_pstate_strategy_na) {
+		} else if (s->pmo_dcn4.pstate_strategy_candidates[s->pmo_dcn4.cur_pstate_candidate].per_stream_pstate_method[stream_index] == dml2_pstate_method_na) {
 			p_state_supported = false;
 			break;
 		}

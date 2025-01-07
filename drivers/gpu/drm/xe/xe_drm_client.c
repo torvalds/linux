@@ -269,6 +269,49 @@ static void show_meminfo(struct drm_printer *p, struct drm_file *file)
 	}
 }
 
+static struct xe_hw_engine *any_engine(struct xe_device *xe)
+{
+	struct xe_gt *gt;
+	unsigned long gt_id;
+
+	for_each_gt(gt, xe, gt_id) {
+		struct xe_hw_engine *hwe = xe_gt_any_hw_engine(gt);
+
+		if (hwe)
+			return hwe;
+	}
+
+	return NULL;
+}
+
+static bool force_wake_get_any_engine(struct xe_device *xe,
+				      struct xe_hw_engine **phwe,
+				      unsigned int *pfw_ref)
+{
+	enum xe_force_wake_domains domain;
+	unsigned int fw_ref;
+	struct xe_hw_engine *hwe;
+	struct xe_force_wake *fw;
+
+	hwe = any_engine(xe);
+	if (!hwe)
+		return false;
+
+	domain = xe_hw_engine_to_fw_domain(hwe);
+	fw = gt_to_fw(hwe->gt);
+
+	fw_ref = xe_force_wake_get(fw, domain);
+	if (!xe_force_wake_ref_has_domain(fw_ref, domain)) {
+		xe_force_wake_put(fw, fw_ref);
+		return false;
+	}
+
+	*phwe = hwe;
+	*pfw_ref = fw_ref;
+
+	return true;
+}
+
 static void show_run_ticks(struct drm_printer *p, struct drm_file *file)
 {
 	unsigned long class, i, gt_id, capacity[XE_ENGINE_CLASS_MAX] = { };
@@ -280,7 +323,18 @@ static void show_run_ticks(struct drm_printer *p, struct drm_file *file)
 	u64 gpu_timestamp;
 	unsigned int fw_ref;
 
+	/*
+	 * Wait for any exec queue going away: their cycles will get updated on
+	 * context switch out, so wait for that to happen
+	 */
+	wait_var_event(&xef->exec_queue.pending_removal,
+		       !atomic_read(&xef->exec_queue.pending_removal));
+
 	xe_pm_runtime_get(xe);
+	if (!force_wake_get_any_engine(xe, &hwe, &fw_ref)) {
+		xe_pm_runtime_put(xe);
+		return;
+	}
 
 	/* Accumulate all the exec queues from this client */
 	mutex_lock(&xef->exec_queue.lock);
@@ -295,32 +349,10 @@ static void show_run_ticks(struct drm_printer *p, struct drm_file *file)
 	}
 	mutex_unlock(&xef->exec_queue.lock);
 
-	/* Get the total GPU cycles */
-	for_each_gt(gt, xe, gt_id) {
-		enum xe_force_wake_domains fw;
+	gpu_timestamp = xe_hw_engine_read_timestamp(hwe);
 
-		hwe = xe_gt_any_hw_engine(gt);
-		if (!hwe)
-			continue;
-
-		fw = xe_hw_engine_to_fw_domain(hwe);
-
-		fw_ref = xe_force_wake_get(gt_to_fw(gt), fw);
-		if (!xe_force_wake_ref_has_domain(fw_ref, fw)) {
-			hwe = NULL;
-			xe_force_wake_put(gt_to_fw(gt), fw_ref);
-			break;
-		}
-
-		gpu_timestamp = xe_hw_engine_read_timestamp(hwe);
-		xe_force_wake_put(gt_to_fw(gt), fw_ref);
-		break;
-	}
-
+	xe_force_wake_put(gt_to_fw(hwe->gt), fw_ref);
 	xe_pm_runtime_put(xe);
-
-	if (unlikely(!hwe))
-		return;
 
 	for (class = 0; class < XE_ENGINE_CLASS_MAX; class++) {
 		const char *class_name;

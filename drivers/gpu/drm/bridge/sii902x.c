@@ -1239,8 +1239,8 @@ static const struct of_device_id sii902x_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, sii902x_dt_ids);
 
 static const struct i2c_device_id sii902x_i2c_ids[] = {
-	{ "sii9022", 0 },
-	{ },
+	{ "sii9022" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, sii902x_i2c_ids);
 

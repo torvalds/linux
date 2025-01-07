@@ -1632,13 +1632,6 @@ static bool retrieve_link_cap(struct dc_link *link)
 				sizeof(link->dpcd_caps.lttpr_caps.phy_repeater_cnt));
 	}
 
-	/* Read DP tunneling information. */
-	if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) {
-		status = dpcd_get_tunneling_device_data(link);
-		if (status != DC_OK)
-			dm_error("%s: Read tunneling device data failed.\n", __func__);
-	}
-
 	dpcd_set_source_specific_data(link);
 	/* Sink may need to configure internals based on vendor, so allow some
 	 * time before proceeding with possibly vendor specific transactions
@@ -1711,7 +1704,7 @@ static bool retrieve_link_cap(struct dc_link *link)
 		link->dpcd_caps.dprx_feature.raw = dpcd_dprx_data;
 
 		if (status != DC_OK)
-			dm_error("%s: Read DPRX caps data failed.\n", __func__);
+			dm_error("%s: Read DPRX feature list failed.\n", __func__);
 
 		/* AdaptiveSyncCapability  */
 		dpcd_dprx_data = 0;
@@ -1726,14 +1719,12 @@ static bool retrieve_link_cap(struct dc_link *link)
 		link->dpcd_caps.adaptive_sync_caps.dp_adap_sync_caps.raw = dpcd_dprx_data;
 
 		if (status != DC_OK)
-			dm_error("%s: Read DPRX caps data failed. Addr:%#x\n",
+			dm_error("%s: Read DPRX feature list_1 failed. Addr:%#x\n",
 					__func__, DP_DPRX_FEATURE_ENUMERATION_LIST_CONT_1);
 	}
-
 	else {
 		link->dpcd_caps.dprx_feature.raw = 0;
 	}
-
 
 	/* Error condition checking...
 	 * It is impossible for Sink to report Max Lane Count = 0.
@@ -1918,6 +1909,7 @@ static bool retrieve_link_cap(struct dc_link *link)
 	if (link->dpcd_caps.channel_coding_cap.bits.DP_128b_132b_SUPPORTED) {
 		DC_LOG_DP2("128b/132b encoding is supported at link %d", link->link_index);
 
+		/* Read 128b/132b suppoerted link rates */
 		core_link_read_dpcd(link,
 				DP_128B132B_SUPPORTED_LINK_RATES,
 				&link->dpcd_caps.dp_128b_132b_supported_link_rates.raw,
@@ -1964,6 +1956,13 @@ static bool retrieve_link_cap(struct dc_link *link)
 			DPCD_MAX_UNCOMPRESSED_PIXEL_RATE_CAP,
 			link->dpcd_caps.max_uncompressed_pixel_rate_cap.raw,
 			sizeof(link->dpcd_caps.max_uncompressed_pixel_rate_cap.raw));
+
+	/* Read DP tunneling information. */
+	if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) {
+		status = dpcd_get_tunneling_device_data(link);
+		if (status != DC_OK)
+			dm_error("%s: Read DP tunneling device data failed.\n", __func__);
+	}
 
 	retrieve_cable_id(link);
 	dpcd_write_cable_id_to_dprx(link);

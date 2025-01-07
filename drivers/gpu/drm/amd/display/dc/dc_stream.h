@@ -447,10 +447,6 @@ enum dc_status dc_stream_add_dsc_to_resource(struct dc *dc,
 		struct dc_state *state,
 		struct dc_stream_state *stream);
 
-bool dc_stream_warmup_writeback(struct dc *dc,
-		int num_dwb,
-		struct dc_writeback_info *wb_info);
-
 bool dc_stream_dmdata_status_done(struct dc *dc, struct dc_stream_state *stream);
 
 bool dc_stream_set_dynamic_metadata(struct dc *dc,
@@ -541,6 +537,7 @@ bool dc_stream_get_crtc_position(struct dc *dc,
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
 bool dc_stream_forward_crc_window(struct dc_stream_state *stream,
 		struct rect *rect,
+		uint8_t phy_id,
 		bool is_stop);
 #endif
 

@@ -24,3 +24,9 @@ config SPARX5_DCB
 	  DSCP and PCP.
 
 	  If unsure, set to Y.
+
+config LAN969X_SWITCH
+	bool "Lan969x switch driver"
+	depends on SPARX5_SWITCH
+	help
+	  This driver supports the lan969x family of network switch devices.

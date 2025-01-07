@@ -82,9 +82,6 @@ struct cdns_hdcp_tx_public_key_param {
 	u8 E[DLP_E];
 };
 
-int cdns_mhdp_hdcp_set_public_key_param(struct cdns_mhdp_device *mhdp,
-					struct cdns_hdcp_tx_public_key_param *val);
-int cdns_mhdp_hdcp_set_lc(struct cdns_mhdp_device *mhdp, u8 *val);
 int cdns_mhdp_hdcp_enable(struct cdns_mhdp_device *mhdp, u8 content_type);
 int cdns_mhdp_hdcp_disable(struct cdns_mhdp_device *mhdp);
 void cdns_mhdp_hdcp_init(struct cdns_mhdp_device *mhdp);

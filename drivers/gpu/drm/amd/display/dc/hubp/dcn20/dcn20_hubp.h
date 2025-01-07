@@ -409,6 +409,8 @@ void hubp2_read_state_common(struct hubp *hubp);
 
 void hubp2_read_state(struct hubp *hubp);
 
+void hubp2_clear_tiling(struct hubp *hubp);
+
 #endif /* __DC_MEM_INPUT_DCN20_H__ */
 
 

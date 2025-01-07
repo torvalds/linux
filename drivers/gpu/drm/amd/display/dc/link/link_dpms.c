@@ -1953,6 +1953,10 @@ static void enable_link_hdmi(struct pipe_ctx *pipe_ctx)
 		stream->phy_pix_clk = stream->timing.pix_clk_100hz / 10;
 	if (stream->phy_pix_clk > 340000)
 		is_over_340mhz = true;
+	if (dc_is_tmds_signal(stream->signal) && stream->phy_pix_clk > 6000000UL) {
+		ASSERT(false);
+		return;
+	}
 
 	if (dc_is_hdmi_signal(pipe_ctx->stream->signal)) {
 		unsigned short masked_chip_caps = pipe_ctx->stream->link->chip_caps &

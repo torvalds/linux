@@ -763,7 +763,7 @@ static int panthor_query_timestamp_info(struct panthor_device *ptdev,
 {
 	int ret;
 
-	ret = pm_runtime_resume_and_get(ptdev->base.dev);
+	ret = panthor_device_resume_and_get(ptdev);
 	if (ret)
 		return ret;
 
@@ -1493,6 +1493,7 @@ static void panthor_debugfs_init(struct drm_minor *minor)
  * - 1.1 - adds DEV_QUERY_TIMESTAMP_INFO query
  * - 1.2 - adds DEV_QUERY_GROUP_PRIORITIES_INFO query
  *       - adds PANTHOR_GROUP_PRIORITY_REALTIME priority
+ * - 1.3 - adds DRM_PANTHOR_GROUP_STATE_INNOCENT flag
  */
 static const struct drm_driver panthor_drm_driver = {
 	.driver_features = DRIVER_RENDER | DRIVER_GEM | DRIVER_SYNCOBJ |
@@ -1505,9 +1506,8 @@ static const struct drm_driver panthor_drm_driver = {
 	.fops = &panthor_drm_driver_fops,
 	.name = "panthor",
 	.desc = "Panthor DRM driver",
-	.date = "20230801",
 	.major = 1,
-	.minor = 2,
+	.minor = 3,
 
 	.gem_create_object = panthor_gem_create_object,
 	.gem_prime_import_sg_table = drm_gem_shmem_prime_import_sg_table,

@@ -934,8 +934,10 @@ static void test_sockmap_same_sock(void)
 
 	err = socketpair(AF_UNIX, SOCK_STREAM, 0, stream);
 	ASSERT_OK(err, "socketpair(af_unix, sock_stream)");
-	if (err)
+	if (err) {
+		close(tcp);
 		goto out;
+	}
 
 	for (i = 0; i < 2; i++) {
 		err = bpf_map_update_elem(map, &zero, &stream[0], BPF_ANY);
@@ -954,14 +956,14 @@ static void test_sockmap_same_sock(void)
 		ASSERT_OK(err, "bpf_map_update_elem(tcp)");
 	}
 
+	close(tcp);
 	err = bpf_map_delete_elem(map, &zero);
-	ASSERT_OK(err, "bpf_map_delete_elem(entry)");
+	ASSERT_ERR(err, "bpf_map_delete_elem(entry)");
 
 	close(stream[0]);
 	close(stream[1]);
 out:
 	close(dgram);
-	close(tcp);
 	close(udp);
 	test_sockmap_pass_prog__destroy(skel);
 }

@@ -141,6 +141,20 @@ static bool dcn401_is_ppclk_idle_dpm_enabled(struct clk_mgr_internal *clk_mgr, P
 	return ppclk_idle_dpm_enabled;
 }
 
+static bool dcn401_is_df_throttle_opt_enabled(struct clk_mgr_internal *clk_mgr)
+{
+	bool is_df_throttle_opt_enabled = false;
+
+	if (ASICREV_IS_GC_12_0_1_A0(clk_mgr->base.ctx->asic_id.hw_internal_rev) &&
+			clk_mgr->smu_ver >= 0x663500) {
+		is_df_throttle_opt_enabled = !clk_mgr->base.ctx->dc->debug.force_subvp_df_throttle;
+	}
+
+	is_df_throttle_opt_enabled &= clk_mgr->smu_present;
+
+	return is_df_throttle_opt_enabled;
+}
+
 /* Query SMU for all clock states for a particular clock */
 static void dcn401_init_single_clock(struct clk_mgr_internal *clk_mgr, PPCLK_e clk, unsigned int *entry_0,
 		unsigned int *num_levels)
@@ -869,6 +883,12 @@ static void dcn401_execute_block_sequence(struct clk_mgr *clk_mgr_base, unsigned
 					params->update_idle_hardmin_params.uclk_mhz,
 					params->update_idle_hardmin_params.fclk_mhz);
 			break;
+		case CLK_MGR401_UPDATE_SUBVP_HARDMINS:
+			dcn401_smu_set_subvp_uclk_fclk_hardmin(
+					clk_mgr_internal,
+					params->update_idle_hardmin_params.uclk_mhz,
+					params->update_idle_hardmin_params.fclk_mhz);
+			break;
 		case CLK_MGR401_UPDATE_DEEP_SLEEP_DCFCLK:
 			dcn401_smu_set_min_deep_sleep_dcef_clk(
 					clk_mgr_internal,
@@ -945,15 +965,21 @@ static unsigned int dcn401_build_update_bandwidth_clocks_sequence(
 	bool update_active_uclk = false;
 	bool update_idle_fclk = false;
 	bool update_idle_uclk = false;
+	bool update_subvp_prefetch_dramclk = false;
+	bool update_subvp_prefetch_fclk = false;
 	bool is_idle_dpm_enabled = dcn401_is_ppclk_dpm_enabled(clk_mgr_internal, PPCLK_UCLK) &&
 			dcn401_is_ppclk_dpm_enabled(clk_mgr_internal, PPCLK_FCLK) &&
 			dcn401_is_ppclk_idle_dpm_enabled(clk_mgr_internal, PPCLK_UCLK) &&
 			dcn401_is_ppclk_idle_dpm_enabled(clk_mgr_internal, PPCLK_FCLK);
+	bool is_df_throttle_opt_enabled = is_idle_dpm_enabled &&
+		dcn401_is_df_throttle_opt_enabled(clk_mgr_internal);
 	int total_plane_count = clk_mgr_helper_get_active_plane_cnt(dc, context);
 	int active_uclk_mhz = khz_to_mhz_ceil(clk_mgr_base->clks.dramclk_khz);
 	int active_fclk_mhz = khz_to_mhz_ceil(clk_mgr_base->clks.fclk_khz);
 	int idle_uclk_mhz = khz_to_mhz_ceil(clk_mgr_base->clks.idle_dramclk_khz);
 	int idle_fclk_mhz = khz_to_mhz_ceil(clk_mgr_base->clks.idle_fclk_khz);
+	int subvp_prefetch_dramclk_mhz = khz_to_mhz_ceil(clk_mgr_base->clks.subvp_prefetch_dramclk_khz);
+	int subvp_prefetch_fclk_mhz = khz_to_mhz_ceil(clk_mgr_base->clks.subvp_prefetch_fclk_khz);
 
 	unsigned int num_steps = 0;
 
@@ -1109,6 +1135,12 @@ static unsigned int dcn401_build_update_bandwidth_clocks_sequence(
 		}
 	}
 
+	if (should_set_clock(safe_to_lower, new_clocks->subvp_prefetch_dramclk_khz, clk_mgr_base->clks.subvp_prefetch_dramclk_khz)) {
+		clk_mgr_base->clks.subvp_prefetch_dramclk_khz = new_clocks->subvp_prefetch_dramclk_khz;
+		update_subvp_prefetch_dramclk = true;
+		subvp_prefetch_dramclk_mhz = khz_to_mhz_ceil(clk_mgr_base->clks.subvp_prefetch_dramclk_khz);
+	}
+
 	/* FCLK */
 	/* Always update saved value, even if new value not set due to P-State switching unsupported */
 	if (should_set_clock(safe_to_lower, new_clocks->fclk_khz, clk_mgr_base->clks.fclk_khz)) {
@@ -1129,6 +1161,12 @@ static unsigned int dcn401_build_update_bandwidth_clocks_sequence(
 		}
 	}
 
+	if (should_set_clock(safe_to_lower, new_clocks->subvp_prefetch_fclk_khz, clk_mgr_base->clks.subvp_prefetch_fclk_khz)) {
+		clk_mgr_base->clks.subvp_prefetch_fclk_khz = new_clocks->subvp_prefetch_fclk_khz;
+		update_subvp_prefetch_fclk = true;
+		subvp_prefetch_fclk_mhz = khz_to_mhz_ceil(clk_mgr_base->clks.subvp_prefetch_fclk_khz);
+	}
+
 	/* When idle DPM is enabled, need to send active and idle hardmins separately */
 	/* CLK_MGR401_UPDATE_ACTIVE_HARDMINS */
 	if ((update_active_uclk || update_active_fclk) && is_idle_dpm_enabled) {
@@ -1143,6 +1181,14 @@ static unsigned int dcn401_build_update_bandwidth_clocks_sequence(
 		block_sequence[num_steps].params.update_idle_hardmin_params.uclk_mhz = idle_uclk_mhz;
 		block_sequence[num_steps].params.update_idle_hardmin_params.fclk_mhz = idle_fclk_mhz;
 		block_sequence[num_steps].func = CLK_MGR401_UPDATE_IDLE_HARDMINS;
+		num_steps++;
+	}
+
+	/* CLK_MGR401_UPDATE_SUBVP_HARDMINS */
+	if ((update_subvp_prefetch_dramclk || update_subvp_prefetch_fclk) && is_df_throttle_opt_enabled) {
+		block_sequence[num_steps].params.update_idle_hardmin_params.uclk_mhz = subvp_prefetch_dramclk_mhz;
+		block_sequence[num_steps].params.update_idle_hardmin_params.fclk_mhz = subvp_prefetch_fclk_mhz;
+		block_sequence[num_steps].func = CLK_MGR401_UPDATE_SUBVP_HARDMINS;
 		num_steps++;
 	}
 

@@ -265,11 +265,11 @@ static __always_inline int futex_read_inatomic(u32 *dest, u32 __user *from)
 	else if (!user_read_access_begin(from, sizeof(*from)))
 		return -EFAULT;
 	unsafe_get_user(val, from, Efault);
-	user_access_end();
+	user_read_access_end();
 	*dest = val;
 	return 0;
 Efault:
-	user_access_end();
+	user_read_access_end();
 	return -EFAULT;
 }
 

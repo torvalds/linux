@@ -1036,8 +1036,10 @@ static int io_clone_buffers(struct io_ring_ctx *ctx, struct io_ring_ctx *src_ctx
 out_put_free:
 	i = data.nr;
 	while (i--) {
-		io_buffer_unmap(src_ctx, data.nodes[i]);
-		kfree(data.nodes[i]);
+		if (data.nodes[i]) {
+			io_buffer_unmap(src_ctx, data.nodes[i]);
+			kfree(data.nodes[i]);
+		}
 	}
 out_unlock:
 	io_rsrc_data_free(ctx, &data);

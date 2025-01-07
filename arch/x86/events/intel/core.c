@@ -7135,6 +7135,7 @@ __init int intel_pmu_init(void)
 
 	case INTEL_METEORLAKE:
 	case INTEL_METEORLAKE_L:
+	case INTEL_ARROWLAKE_U:
 		intel_pmu_init_hybrid(hybrid_big_small);
 
 		x86_pmu.pebs_latency_data = cmt_latency_data;

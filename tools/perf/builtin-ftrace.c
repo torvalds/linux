@@ -1151,8 +1151,9 @@ static int cmp_profile_data(const void *a, const void *b)
 
 	if (v1 > v2)
 		return -1;
-	else
+	if (v1 < v2)
 		return 1;
+	return 0;
 }
 
 static void print_profile_result(struct perf_ftrace *ftrace)

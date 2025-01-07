@@ -738,9 +738,6 @@ void xe_pm_d3cold_allowed_toggle(struct xe_device *xe)
 		xe->d3cold.allowed = false;
 
 	mutex_unlock(&xe->d3cold.lock);
-
-	drm_dbg(&xe->drm,
-		"d3cold: allowed=%s\n", str_yes_no(xe->d3cold.allowed));
 }
 
 /**

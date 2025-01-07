@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2016 Chris Zhong <zyw@rock-chips.com>
- * Copyright (C) 2016 ROCKCHIP, Inc.
+ * Copyright (C) Rockchip Electronics Co., Ltd.
  */
 
 #ifndef _CDN_DP_CORE_H

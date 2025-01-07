@@ -1077,6 +1077,8 @@ void dml21_copy_clocks_to_dc_state(struct dml2_context *in_ctx, struct dc_state 
 	context->bw_ctx.bw.dcn.clk.dtbclk_en = in_ctx->v21.mode_programming.programming->min_clocks.dcn4x.dtbrefclk_khz > 0;
 	context->bw_ctx.bw.dcn.clk.ref_dtbclk_khz = in_ctx->v21.mode_programming.programming->min_clocks.dcn4x.dtbrefclk_khz;
 	context->bw_ctx.bw.dcn.clk.socclk_khz = in_ctx->v21.mode_programming.programming->min_clocks.dcn4x.socclk_khz;
+	context->bw_ctx.bw.dcn.clk.subvp_prefetch_dramclk_khz = in_ctx->v21.mode_programming.programming->min_clocks.dcn4x.svp_prefetch_no_throttle.uclk_khz;
+	context->bw_ctx.bw.dcn.clk.subvp_prefetch_fclk_khz = in_ctx->v21.mode_programming.programming->min_clocks.dcn4x.svp_prefetch_no_throttle.fclk_khz;
 }
 
 void dml21_extract_legacy_watermark_set(const struct dc *in_dc, struct dcn_watermarks *watermark, enum dml2_dchub_watermark_reg_set_index reg_set_idx, struct dml2_context *in_ctx)
@@ -1226,22 +1228,22 @@ void dml21_set_dc_p_state_type(
 		bool sub_vp_enabled)
 {
 	switch (stream_programming->uclk_pstate_method) {
-	case dml2_uclk_pstate_support_method_vactive:
-	case dml2_uclk_pstate_support_method_fw_vactive_drr:
+	case dml2_pstate_method_vactive:
+	case dml2_pstate_method_fw_vactive_drr:
 		pipe_ctx->p_state_type = P_STATE_V_ACTIVE;
 		break;
-	case dml2_uclk_pstate_support_method_vblank:
-	case dml2_uclk_pstate_support_method_fw_vblank_drr:
+	case dml2_pstate_method_vblank:
+	case dml2_pstate_method_fw_vblank_drr:
 		if (sub_vp_enabled)
 			pipe_ctx->p_state_type = P_STATE_V_BLANK_SUB_VP;
 		else
 			pipe_ctx->p_state_type = P_STATE_V_BLANK;
 		break;
-	case dml2_uclk_pstate_support_method_fw_subvp_phantom:
-	case dml2_uclk_pstate_support_method_fw_subvp_phantom_drr:
+	case dml2_pstate_method_fw_svp:
+	case dml2_pstate_method_fw_svp_drr:
 		pipe_ctx->p_state_type = P_STATE_SUB_VP;
 		break;
-	case dml2_uclk_pstate_support_method_fw_drr:
+	case dml2_pstate_method_fw_drr:
 		if (sub_vp_enabled)
 			pipe_ctx->p_state_type = P_STATE_DRR_SUB_VP;
 		else

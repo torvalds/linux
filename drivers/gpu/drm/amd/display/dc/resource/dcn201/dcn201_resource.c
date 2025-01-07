@@ -59,8 +59,8 @@
 
 #include "cyan_skillfish_ip_offset.h"
 
-#include "dcn/dcn_2_0_3_offset.h"
-#include "dcn/dcn_2_0_3_sh_mask.h"
+#include "dcn/dcn_2_0_1_offset.h"
+#include "dcn/dcn_2_0_1_sh_mask.h"
 #include "dpcs/dpcs_2_0_3_offset.h"
 #include "dpcs/dpcs_2_0_3_sh_mask.h"
 

@@ -3972,8 +3972,10 @@ static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 		if (ops->peer_type) {
 			peer_net = rtnl_get_peer_net(ops, data, extack);
-			if (IS_ERR(peer_net))
+			if (IS_ERR(peer_net)) {
+				ret = PTR_ERR(peer_net);
 				goto put_ops;
+			}
 			if (peer_net)
 				rtnl_nets_add(&rtnl_nets, peer_net);
 		}

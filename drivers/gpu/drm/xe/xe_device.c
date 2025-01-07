@@ -44,6 +44,7 @@
 #include "xe_memirq.h"
 #include "xe_mmio.h"
 #include "xe_module.h"
+#include "xe_oa.h"
 #include "xe_observation.h"
 #include "xe_pat.h"
 #include "xe_pcode.h"
@@ -55,6 +56,7 @@
 #include "xe_ttm_sys_mgr.h"
 #include "xe_vm.h"
 #include "xe_vram.h"
+#include "xe_vsec.h"
 #include "xe_wait_user_fence.h"
 #include "xe_wa.h"
 
@@ -269,7 +271,6 @@ static struct drm_driver driver = {
 	.fops = &xe_driver_fops,
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
-	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
 	.minor = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
@@ -365,6 +366,10 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 		err = -ENOMEM;
 		goto err;
 	}
+
+	err = drmm_mutex_init(&xe->drm, &xe->pmt.lock);
+	if (err)
+		goto err;
 
 	err = xe_display_create(xe);
 	if (WARN_ON(err))
@@ -759,6 +764,8 @@ int xe_device_probe(struct xe_device *xe)
 
 	for_each_gt(gt, xe, id)
 		xe_gt_sanitize_freq(gt);
+
+	xe_vsec_init(xe);
 
 	return devm_add_action_or_reset(xe->drm.dev, xe_device_sanitize, xe);
 

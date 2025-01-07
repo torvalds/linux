@@ -923,6 +923,15 @@ enum drm_panthor_group_state_flags {
 	 * When a group ends up with this flag set, no jobs can be submitted to its queues.
 	 */
 	DRM_PANTHOR_GROUP_STATE_FATAL_FAULT = 1 << 1,
+
+	/**
+	 * @DRM_PANTHOR_GROUP_STATE_INNOCENT: Group was killed during a reset caused by other
+	 * groups.
+	 *
+	 * This flag can only be set if DRM_PANTHOR_GROUP_STATE_TIMEDOUT is set and
+	 * DRM_PANTHOR_GROUP_STATE_FATAL_FAULT is not.
+	 */
+	DRM_PANTHOR_GROUP_STATE_INNOCENT = 1 << 2,
 };
 
 /**

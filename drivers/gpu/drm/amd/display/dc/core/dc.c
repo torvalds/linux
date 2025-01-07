@@ -579,7 +579,7 @@ dc_stream_forward_dmcu_crc_window(struct dmcu *dmcu,
 
 bool
 dc_stream_forward_crc_window(struct dc_stream_state *stream,
-		struct rect *rect, bool is_stop)
+		struct rect *rect, uint8_t phy_id, bool is_stop)
 {
 	struct dmcu *dmcu;
 	struct dc_dmub_srv *dmub_srv;
@@ -598,7 +598,7 @@ dc_stream_forward_crc_window(struct dc_stream_state *stream,
 	if (i == MAX_PIPES)
 		return false;
 
-	mux_mapping.phy_output_num = stream->link->link_enc_hw_inst;
+	mux_mapping.phy_output_num = phy_id;
 	mux_mapping.otg_output_num = pipe->stream_res.tg->inst;
 
 	dmcu = dc->res_pool->dmcu;
@@ -2153,6 +2153,11 @@ enum dc_status dc_commit_streams(struct dc *dc, struct dc_commit_streams_params 
 		struct dc_stream_state *stream = params->streams[i];
 		struct dc_stream_status *status = dc_stream_get_status(stream);
 
+		/* revalidate streams */
+		res = dc_validate_stream(dc, stream);
+		if (res != DC_OK)
+			return res;
+
 		dc_stream_log(dc, stream);
 
 		set[i].stream = stream;
@@ -2982,6 +2987,10 @@ static void copy_surface_update_to_plane(
 	if (srf_update->cursor_csc_color_matrix)
 		surface->cursor_csc_color_matrix =
 			*srf_update->cursor_csc_color_matrix;
+
+	if (srf_update->bias_and_scale.bias_and_scale_valid)
+			surface->bias_and_scale =
+					srf_update->bias_and_scale;
 }
 
 static void copy_stream_update_to_stream(struct dc *dc,
@@ -5307,11 +5316,13 @@ void dc_set_power_state(struct dc *dc, enum dc_acpi_cm_power_state power_state)
 			dc->vm_pa_config.valid) {
 			dc->hwss.init_sys_ctx(dc->hwseq, dc, &dc->vm_pa_config);
 		}
-
+		/*mark d0 last*/
+		dc->power_state = power_state;
 		break;
 	default:
 		ASSERT(dc->current_state->stream_count == 0);
-
+		/*mark d3 first*/
+		dc->power_state = power_state;
 		dc_dmub_srv_notify_fw_dc_power_state(dc->ctx->dmub_srv, power_state);
 
 		dc_state_destruct(dc->current_state);
@@ -6056,7 +6067,7 @@ void dc_query_current_properties(struct dc *dc, struct dc_current_properties *pr
 	bool subvp_sw_cursor_req = false;
 
 	for (i = 0; i < dc->current_state->stream_count; i++) {
-		if (check_subvp_sw_cursor_fallback_req(dc, dc->current_state->streams[i])) {
+		if (check_subvp_sw_cursor_fallback_req(dc, dc->current_state->streams[i]) && !dc->current_state->streams[i]->hw_cursor_req) {
 			subvp_sw_cursor_req = true;
 			break;
 		}

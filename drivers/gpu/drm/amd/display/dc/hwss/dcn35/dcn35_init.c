@@ -92,7 +92,6 @@ static const struct hw_sequencer_funcs dcn35_funcs = {
 	.enable_writeback = dcn30_enable_writeback,
 	.disable_writeback = dcn30_disable_writeback,
 	.update_writeback = dcn30_update_writeback,
-	.mmhubbub_warmup = dcn30_mmhubbub_warmup,
 	.dmdata_status_done = dcn20_dmdata_status_done,
 	.program_dmdata_engine = dcn30_program_dmdata_engine,
 	.set_dmdata_attributes = dcn20_set_dmdata_attributes,

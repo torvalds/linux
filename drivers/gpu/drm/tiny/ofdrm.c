@@ -5,9 +5,9 @@
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_state_helper.h>
-#include <drm/drm_client_setup.h>
 #include <drm/drm_connector.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_device.h>
@@ -25,7 +25,6 @@
 
 #define DRIVER_NAME	"ofdrm"
 #define DRIVER_DESC	"DRM driver for OF platform devices"
-#define DRIVER_DATE	"20220501"
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
 
@@ -1348,7 +1347,6 @@ static struct drm_driver ofdrm_driver = {
 	DRM_FBDEV_SHMEM_DRIVER_OPS,
 	.name			= DRIVER_NAME,
 	.desc			= DRIVER_DESC,
-	.date			= DRIVER_DATE,
 	.major			= DRIVER_MAJOR,
 	.minor			= DRIVER_MINOR,
 	.driver_features	= DRIVER_ATOMIC | DRIVER_GEM | DRIVER_MODESET,

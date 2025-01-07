@@ -219,9 +219,11 @@ int amdgpu_sdma_init_microcode(struct amdgpu_device *adev,
 	amdgpu_ucode_ip_version_decode(adev, SDMA0_HWIP, ucode_prefix, sizeof(ucode_prefix));
 	if (instance == 0)
 		err = amdgpu_ucode_request(adev, &adev->sdma.instance[instance].fw,
+					   AMDGPU_UCODE_REQUIRED,
 					   "amdgpu/%s.bin", ucode_prefix);
 	else
 		err = amdgpu_ucode_request(adev, &adev->sdma.instance[instance].fw,
+					   AMDGPU_UCODE_REQUIRED,
 					   "amdgpu/%s%d.bin", ucode_prefix, instance);
 	if (err)
 		goto out;
@@ -260,6 +262,8 @@ int amdgpu_sdma_init_microcode(struct amdgpu_device *adev,
 					 * groups of SDMAs */
 					if ((amdgpu_ip_version(adev, SDMA0_HWIP, 0) ==
 						IP_VERSION(4, 4, 2) ||
+					     amdgpu_ip_version(adev, SDMA0_HWIP, 0) ==
+						IP_VERSION(4, 4, 4) ||
 					     amdgpu_ip_version(adev, SDMA0_HWIP, 0) ==
 						IP_VERSION(4, 4, 5)) &&
 					    adev->firmware.load_type ==

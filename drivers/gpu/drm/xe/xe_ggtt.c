@@ -598,10 +598,10 @@ void xe_ggtt_map_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
 	u64 start;
 	u64 offset, pte;
 
-	if (XE_WARN_ON(!bo->ggtt_node))
+	if (XE_WARN_ON(!bo->ggtt_node[ggtt->tile->id]))
 		return;
 
-	start = bo->ggtt_node->base.start;
+	start = bo->ggtt_node[ggtt->tile->id]->base.start;
 
 	for (offset = 0; offset < bo->size; offset += XE_PAGE_SIZE) {
 		pte = ggtt->pt_ops->pte_encode_bo(bo, offset, pat_index);
@@ -612,15 +612,16 @@ void xe_ggtt_map_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
 static int __xe_ggtt_insert_bo_at(struct xe_ggtt *ggtt, struct xe_bo *bo,
 				  u64 start, u64 end)
 {
-	int err;
 	u64 alignment = bo->min_align > 0 ? bo->min_align : XE_PAGE_SIZE;
+	u8 tile_id = ggtt->tile->id;
+	int err;
 
 	if (xe_bo_is_vram(bo) && ggtt->flags & XE_GGTT_FLAGS_64K)
 		alignment = SZ_64K;
 
-	if (XE_WARN_ON(bo->ggtt_node)) {
+	if (XE_WARN_ON(bo->ggtt_node[tile_id])) {
 		/* Someone's already inserted this BO in the GGTT */
-		xe_tile_assert(ggtt->tile, bo->ggtt_node->base.size == bo->size);
+		xe_tile_assert(ggtt->tile, bo->ggtt_node[tile_id]->base.size == bo->size);
 		return 0;
 	}
 
@@ -630,19 +631,19 @@ static int __xe_ggtt_insert_bo_at(struct xe_ggtt *ggtt, struct xe_bo *bo,
 
 	xe_pm_runtime_get_noresume(tile_to_xe(ggtt->tile));
 
-	bo->ggtt_node = xe_ggtt_node_init(ggtt);
-	if (IS_ERR(bo->ggtt_node)) {
-		err = PTR_ERR(bo->ggtt_node);
-		bo->ggtt_node = NULL;
+	bo->ggtt_node[tile_id] = xe_ggtt_node_init(ggtt);
+	if (IS_ERR(bo->ggtt_node[tile_id])) {
+		err = PTR_ERR(bo->ggtt_node[tile_id]);
+		bo->ggtt_node[tile_id] = NULL;
 		goto out;
 	}
 
 	mutex_lock(&ggtt->lock);
-	err = drm_mm_insert_node_in_range(&ggtt->mm, &bo->ggtt_node->base, bo->size,
-					  alignment, 0, start, end, 0);
+	err = drm_mm_insert_node_in_range(&ggtt->mm, &bo->ggtt_node[tile_id]->base,
+					  bo->size, alignment, 0, start, end, 0);
 	if (err) {
-		xe_ggtt_node_fini(bo->ggtt_node);
-		bo->ggtt_node = NULL;
+		xe_ggtt_node_fini(bo->ggtt_node[tile_id]);
+		bo->ggtt_node[tile_id] = NULL;
 	} else {
 		xe_ggtt_map_bo(ggtt, bo);
 	}
@@ -691,13 +692,15 @@ int xe_ggtt_insert_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
  */
 void xe_ggtt_remove_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
 {
-	if (XE_WARN_ON(!bo->ggtt_node))
+	u8 tile_id = ggtt->tile->id;
+
+	if (XE_WARN_ON(!bo->ggtt_node[tile_id]))
 		return;
 
 	/* This BO is not currently in the GGTT */
-	xe_tile_assert(ggtt->tile, bo->ggtt_node->base.size == bo->size);
+	xe_tile_assert(ggtt->tile, bo->ggtt_node[tile_id]->base.size == bo->size);
 
-	xe_ggtt_node_remove(bo->ggtt_node,
+	xe_ggtt_node_remove(bo->ggtt_node[tile_id],
 			    bo->flags & XE_BO_FLAG_GGTT_INVALIDATE);
 }
 

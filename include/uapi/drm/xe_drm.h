@@ -1486,6 +1486,7 @@ struct drm_xe_oa_unit {
 	__u64 capabilities;
 #define DRM_XE_OA_CAPS_BASE		(1 << 0)
 #define DRM_XE_OA_CAPS_SYNCS		(1 << 1)
+#define DRM_XE_OA_CAPS_OA_BUFFER_SIZE	(1 << 2)
 
 	/** @oa_timestamp_freq: OA timestamp freq */
 	__u64 oa_timestamp_freq;
@@ -1651,6 +1652,14 @@ enum drm_xe_oa_property_id {
 	 * to the VM bind case.
 	 */
 	DRM_XE_OA_PROPERTY_SYNCS,
+
+	/**
+	 * @DRM_XE_OA_PROPERTY_OA_BUFFER_SIZE: Size of OA buffer to be
+	 * allocated by the driver in bytes. Supported sizes are powers of
+	 * 2 from 128 KiB to 128 MiB. When not specified, a 16 MiB OA
+	 * buffer is allocated by default.
+	 */
+	DRM_XE_OA_PROPERTY_OA_BUFFER_SIZE,
 };
 
 /**

@@ -49,6 +49,13 @@ static int ccs_test_migrate(struct xe_tile *tile, struct xe_bo *bo,
 			KUNIT_FAIL(test, "Failed to submit bo clear.\n");
 			return PTR_ERR(fence);
 		}
+
+		if (dma_fence_wait_timeout(fence, false, 5 * HZ) <= 0) {
+			dma_fence_put(fence);
+			KUNIT_FAIL(test, "Timeout while clearing bo.\n");
+			return  -ETIME;
+		}
+
 		dma_fence_put(fence);
 	}
 

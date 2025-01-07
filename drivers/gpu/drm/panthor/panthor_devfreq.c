@@ -243,26 +243,26 @@ int panthor_devfreq_init(struct panthor_device *ptdev)
 	return 0;
 }
 
-int panthor_devfreq_resume(struct panthor_device *ptdev)
+void panthor_devfreq_resume(struct panthor_device *ptdev)
 {
 	struct panthor_devfreq *pdevfreq = ptdev->devfreq;
 
 	if (!pdevfreq->devfreq)
-		return 0;
+		return;
 
 	panthor_devfreq_reset(pdevfreq);
 
-	return devfreq_resume_device(pdevfreq->devfreq);
+	drm_WARN_ON(&ptdev->base, devfreq_resume_device(pdevfreq->devfreq));
 }
 
-int panthor_devfreq_suspend(struct panthor_device *ptdev)
+void panthor_devfreq_suspend(struct panthor_device *ptdev)
 {
 	struct panthor_devfreq *pdevfreq = ptdev->devfreq;
 
 	if (!pdevfreq->devfreq)
-		return 0;
+		return;
 
-	return devfreq_suspend_device(pdevfreq->devfreq);
+	drm_WARN_ON(&ptdev->base, devfreq_suspend_device(pdevfreq->devfreq));
 }
 
 void panthor_devfreq_record_busy(struct panthor_device *ptdev)
