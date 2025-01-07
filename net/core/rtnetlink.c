@@ -84,7 +84,6 @@ int rtnl_lock_killable(void)
 {
 	return mutex_lock_killable(&rtnl_mutex);
 }
-EXPORT_SYMBOL(rtnl_lock_killable);
 
 static struct sk_buff *defer_kfree_skb_list;
 void rtnl_kfree_skbs(struct sk_buff *head, struct sk_buff *tail)
@@ -220,6 +219,16 @@ int rtnl_net_trylock(struct net *net)
 	return ret;
 }
 EXPORT_SYMBOL(rtnl_net_trylock);
+
+int rtnl_net_lock_killable(struct net *net)
+{
+	int ret = rtnl_lock_killable();
+
+	if (!ret)
+		__rtnl_net_lock(net);
+
+	return ret;
+}
 
 static int rtnl_net_cmp_locks(const struct net *net_a, const struct net *net_b)
 {
