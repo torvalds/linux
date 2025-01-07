@@ -70,6 +70,8 @@ struct lpc_driver_data {
 /**
  * struct cros_ec_lpc - LPC device-specific data
  * @mmio_memory_base: The first I/O port addressing EC mapped memory.
+ * @base: For EC supporting memory mapping, base address of the mapped region.
+ * @mem32: Information about the memory mapped register region, if present.
  * @read: Copy length bytes from EC address offset into buffer dest.
  *        Returns a negative error code on error, or the 8-bit checksum
  *        of all bytes read.
@@ -79,6 +81,8 @@ struct lpc_driver_data {
  */
 struct cros_ec_lpc {
 	u16 mmio_memory_base;
+	void __iomem *base;
+	struct acpi_resource_fixed_memory32 mem32;
 	int (*read)(struct cros_ec_lpc *ec_lpc, unsigned int offset,
 		    unsigned int length, u8 *dest);
 	int (*write)(struct cros_ec_lpc *ec_lpc, unsigned int offset,
@@ -160,6 +164,45 @@ static int cros_ec_lpc_mec_write_bytes(struct cros_ec_lpc *ec_lpc, unsigned int 
 					 length, (u8 *)msg) :
 		cros_ec_lpc_write_bytes(ec_lpc, offset, length, msg);
 }
+
+static int cros_ec_lpc_direct_read(struct cros_ec_lpc *ec_lpc, unsigned int offset,
+				   unsigned int length, u8 *dest)
+{
+	int sum = 0;
+	int i;
+
+	if (offset < EC_HOST_CMD_REGION0 || offset > EC_LPC_ADDR_MEMMAP +
+			EC_MEMMAP_SIZE) {
+		return cros_ec_lpc_read_bytes(ec_lpc, offset, length, dest);
+	}
+
+	for (i = 0; i < length; ++i) {
+		dest[i] = readb(ec_lpc->base + offset - EC_HOST_CMD_REGION0 + i);
+		sum += dest[i];
+	}
+
+	/* Return checksum of all bytes read */
+	return sum;
+}
+
+static int cros_ec_lpc_direct_write(struct cros_ec_lpc *ec_lpc, unsigned int offset,
+				    unsigned int length, const u8 *msg)
+{
+	int sum = 0;
+	int i;
+
+	if (offset < EC_HOST_CMD_REGION0 || offset > EC_LPC_ADDR_MEMMAP +
+			EC_MEMMAP_SIZE) {
+		return cros_ec_lpc_write_bytes(ec_lpc, offset, length, msg);
+	}
+
+	for (i = 0; i < length; ++i) {
+		writeb(msg[i], ec_lpc->base + offset - EC_HOST_CMD_REGION0 + i);
+		sum += msg[i];
+	}
+
+	/* Return checksum of all bytes written */
+	return sum;
 }
 
 static int ec_response_timed_out(struct cros_ec_lpc *ec_lpc)
@@ -450,6 +493,20 @@ static struct acpi_device *cros_ec_lpc_get_device(const char *id)
 	return adev;
 }
 
+static acpi_status cros_ec_lpc_resources(struct acpi_resource *res, void *data)
+{
+	struct cros_ec_lpc *ec_lpc = data;
+
+	switch (res->type) {
+	case ACPI_RESOURCE_TYPE_FIXED_MEMORY32:
+		ec_lpc->mem32 = res->data.fixed_memory32;
+		break;
+	default:
+		break;
+	}
+	return AE_OK;
+}
+
 static int cros_ec_lpc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -498,29 +555,52 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 			dev_info(dev, "got AML mutex '%s'", name);
 		}
 	}
+	adev = ACPI_COMPANION(dev);
+	if (adev) {
+		/*
+		 * Retrieve the resource information in the CRS register, if available.
+		 */
+		status = acpi_walk_resources(adev->handle, METHOD_NAME__CRS,
+					     cros_ec_lpc_resources, ec_lpc);
+		if (ACPI_FAILURE(status)) {
+			dev_err(dev, "failed to get resources\n");
+			return -ENODEV;
+		}
+		if (ec_lpc->mem32.address_length) {
+			ec_lpc->base = devm_ioremap(dev,
+						    ec_lpc->mem32.address,
+						    ec_lpc->mem32.address_length);
+			if (!ec_lpc->base)
+				return -EINVAL;
 
-	/*
-	 * The Framework Laptop (and possibly other non-ChromeOS devices)
-	 * only exposes the eight I/O ports that are required for the Microchip EC.
-	 * Requesting a larger reservation will fail.
-	 */
-	if (!devm_request_region(dev, EC_HOST_CMD_REGION0,
-				 EC_HOST_CMD_MEC_REGION_SIZE, dev_name(dev))) {
-		dev_err(dev, "couldn't reserve MEC region\n");
-		return -EBUSY;
+			ec_lpc->read = cros_ec_lpc_direct_read;
+			ec_lpc->write = cros_ec_lpc_direct_write;
+		}
 	}
+	if (!ec_lpc->read) {
+		/*
+		 * The Framework Laptop (and possibly other non-ChromeOS devices)
+		 * only exposes the eight I/O ports that are required for the Microchip EC.
+		 * Requesting a larger reservation will fail.
+		 */
+		if (!devm_request_region(dev, EC_HOST_CMD_REGION0,
+					 EC_HOST_CMD_MEC_REGION_SIZE, dev_name(dev))) {
+			dev_err(dev, "couldn't reserve MEC region\n");
+			return -EBUSY;
+		}
 
-	cros_ec_lpc_mec_init(EC_HOST_CMD_REGION0,
-			     EC_LPC_ADDR_MEMMAP + EC_MEMMAP_SIZE);
+		cros_ec_lpc_mec_init(EC_HOST_CMD_REGION0,
+				     EC_LPC_ADDR_MEMMAP + EC_MEMMAP_SIZE);
 
-	/*
-	 * Read the mapped ID twice, the first one is assuming the
-	 * EC is a Microchip Embedded Controller (MEC) variant, if the
-	 * protocol fails, fallback to the non MEC variant and try to
-	 * read again the ID.
-	 */
-	ec_lpc->read = cros_ec_lpc_mec_read_bytes;
-	ec_lpc->write = cros_ec_lpc_mec_write_bytes;
+		/*
+		 * Read the mapped ID twice, the first one is assuming the
+		 * EC is a Microchip Embedded Controller (MEC) variant, if the
+		 * protocol fails, fallback to the non MEC variant and try to
+		 * read again the ID.
+		 */
+		ec_lpc->read = cros_ec_lpc_mec_read_bytes;
+		ec_lpc->write = cros_ec_lpc_mec_write_bytes;
+	}
 	ret = ec_lpc->read(ec_lpc, EC_LPC_ADDR_MEMMAP + EC_MEMMAP_ID, 2, buf);
 	if (ret < 0)
 		return ret;
@@ -594,7 +674,6 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 	 * Connect a notify handler to process MKBP messages if we have a
 	 * companion ACPI device.
 	 */
-	adev = ACPI_COMPANION(dev);
 	if (adev) {
 		status = acpi_install_notify_handler(adev->handle,
 						     ACPI_ALL_NOTIFY,
