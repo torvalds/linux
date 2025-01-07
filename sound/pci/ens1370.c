@@ -1850,12 +1850,12 @@ static void snd_ensoniq_proc_read(struct snd_info_entry *entry,
 
 	snd_iprintf(buffer, "Ensoniq AudioPCI " CHIP_NAME "\n\n");
 	snd_iprintf(buffer, "Joystick enable  : %s\n",
-		    ensoniq->ctrl & ES_JYSTK_EN ? "on" : "off");
+		    str_on_off(ensoniq->ctrl & ES_JYSTK_EN));
 #ifdef CHIP1370
 	snd_iprintf(buffer, "MIC +5V bias     : %s\n",
-		    ensoniq->ctrl & ES_1370_XCTL1 ? "on" : "off");
+		    str_on_off(ensoniq->ctrl & ES_1370_XCTL1));
 	snd_iprintf(buffer, "Line In to AOUT  : %s\n",
-		    ensoniq->ctrl & ES_1370_XCTL0 ? "on" : "off");
+		    str_on_off(ensoniq->ctrl & ES_1370_XCTL0));
 #else
 	snd_iprintf(buffer, "Joystick port    : 0x%x\n",
 		    (ES_1371_JOY_ASELI(ensoniq->ctrl) * 8) + 0x200);
