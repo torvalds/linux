@@ -38,6 +38,12 @@ struct {
 
 int enabled = 0;
 
+// stats
+__s64 total;
+__s64 count;
+__s64 max;
+__s64 min;
+
 const volatile int has_cpu = 0;
 const volatile int has_task = 0;
 const volatile int use_nsec = 0;
@@ -122,6 +128,8 @@ int BPF_PROG(func_end)
 					delta >= max_latency - min_latency)
 					key = NUM_BUCKET - 1;
 			}
+
+			delta += min_latency;
 			goto do_lookup;
 		}
 		// calculate index using delta
@@ -136,6 +144,17 @@ do_lookup:
 			return 0;
 
 		*hist += 1;
+
+		if (bucket_range == 0)
+			delta /= cmp_base;
+
+		__sync_fetch_and_add(&total, delta);
+		__sync_fetch_and_add(&count, 1);
+
+		if (delta > max)
+			max = delta;
+		if (delta < min)
+			min = delta;
 	}
 
 	return 0;
