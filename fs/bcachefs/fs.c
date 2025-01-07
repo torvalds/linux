@@ -67,6 +67,9 @@ void bch2_inode_update_after_write(struct btree_trans *trans,
 	i_gid_write(&inode->v, bi->bi_gid);
 	inode->v.i_mode	= bi->bi_mode;
 
+	if (fields & ATTR_SIZE)
+		i_size_write(&inode->v, bi->bi_size);
+
 	if (fields & ATTR_ATIME)
 		inode_set_atime_to_ts(&inode->v, bch2_time_to_timespec(c, bi->bi_atime));
 	if (fields & ATTR_MTIME)
@@ -582,7 +585,7 @@ err_before_quota:
 
 	if (!(flags & BCH_CREATE_TMPFILE)) {
 		bch2_inode_update_after_write(trans, dir, &dir_u,
-					      ATTR_MTIME|ATTR_CTIME);
+					      ATTR_MTIME|ATTR_CTIME|ATTR_SIZE);
 		mutex_unlock(&dir->ei_update_lock);
 	}
 
@@ -739,7 +742,7 @@ static int __bch2_link(struct bch_fs *c,
 
 	if (likely(!ret)) {
 		bch2_inode_update_after_write(trans, dir, &dir_u,
-					      ATTR_MTIME|ATTR_CTIME);
+					      ATTR_MTIME|ATTR_CTIME|ATTR_SIZE);
 		bch2_inode_update_after_write(trans, inode, &inode_u, ATTR_CTIME);
 	}
 
@@ -792,7 +795,7 @@ int __bch2_unlink(struct inode *vdir, struct dentry *dentry,
 		goto err;
 
 	bch2_inode_update_after_write(trans, dir, &dir_u,
-				      ATTR_MTIME|ATTR_CTIME);
+				      ATTR_MTIME|ATTR_CTIME|ATTR_SIZE);
 	bch2_inode_update_after_write(trans, inode, &inode_u,
 				      ATTR_MTIME);
 
@@ -970,11 +973,11 @@ err_tx_restart:
 	       dst_inode->v.i_ino != dst_inode_u.bi_inum);
 
 	bch2_inode_update_after_write(trans, src_dir, &src_dir_u,
-				      ATTR_MTIME|ATTR_CTIME);
+				      ATTR_MTIME|ATTR_CTIME|ATTR_SIZE);
 
 	if (src_dir != dst_dir)
 		bch2_inode_update_after_write(trans, dst_dir, &dst_dir_u,
-					      ATTR_MTIME|ATTR_CTIME);
+					      ATTR_MTIME|ATTR_CTIME|ATTR_SIZE);
 
 	bch2_inode_update_after_write(trans, src_inode, &src_inode_u,
 				      ATTR_CTIME);
