@@ -271,7 +271,8 @@ const struct dentry_operations afs_dynroot_dentry_operations = {
 int afs_dynroot_mkdir(struct afs_net *net, struct afs_cell *cell)
 {
 	struct super_block *sb = net->dynroot_sb;
-	struct dentry *root, *subdir;
+	struct dentry *root, *subdir, *dsubdir;
+	char *dotname = cell->name - 1;
 	int ret;
 
 	if (!sb || atomic_read(&sb->s_active) == 0)
@@ -286,34 +287,31 @@ int afs_dynroot_mkdir(struct afs_net *net, struct afs_cell *cell)
 		goto unlock;
 	}
 
-	/* Note that we're retaining an extra ref on the dentry */
+	dsubdir = lookup_one_len(dotname, root, cell->name_len + 1);
+	if (IS_ERR(dsubdir)) {
+		ret = PTR_ERR(dsubdir);
+		dput(subdir);
+		goto unlock;
+	}
+
+	/* Note that we're retaining extra refs on the dentries. */
 	subdir->d_fsdata = (void *)1UL;
+	dsubdir->d_fsdata = (void *)1UL;
 	ret = 0;
 unlock:
 	inode_unlock(root->d_inode);
 	return ret;
 }
 
-/*
- * Remove a manually added cell mount directory.
- * - The caller must hold net->proc_cells_lock
- */
-void afs_dynroot_rmdir(struct afs_net *net, struct afs_cell *cell)
+static void afs_dynroot_rm_one_dir(struct dentry *root, const char *name, size_t name_len)
 {
-	struct super_block *sb = net->dynroot_sb;
-	struct dentry *root, *subdir;
-
-	if (!sb || atomic_read(&sb->s_active) == 0)
-		return;
-
-	root = sb->s_root;
-	inode_lock(root->d_inode);
+	struct dentry *subdir;
 
 	/* Don't want to trigger a lookup call, which will re-add the cell */
-	subdir = try_lookup_one_len(cell->name, root, cell->name_len);
+	subdir = try_lookup_one_len(name, root, name_len);
 	if (IS_ERR_OR_NULL(subdir)) {
 		_debug("lookup %ld", PTR_ERR(subdir));
-		goto no_dentry;
+		return;
 	}
 
 	_debug("rmdir %pd %u", subdir, d_count(subdir));
@@ -324,8 +322,24 @@ void afs_dynroot_rmdir(struct afs_net *net, struct afs_cell *cell)
 		dput(subdir);
 	}
 	dput(subdir);
-no_dentry:
-	inode_unlock(root->d_inode);
+}
+
+/*
+ * Remove a manually added cell mount directory.
+ * - The caller must hold net->proc_cells_lock
+ */
+void afs_dynroot_rmdir(struct afs_net *net, struct afs_cell *cell)
+{
+	struct super_block *sb = net->dynroot_sb;
+	char *dotname = cell->name - 1;
+
+	if (!sb || atomic_read(&sb->s_active) == 0)
+		return;
+
+	inode_lock(sb->s_root->d_inode);
+	afs_dynroot_rm_one_dir(sb->s_root, cell->name, cell->name_len);
+	afs_dynroot_rm_one_dir(sb->s_root, dotname, cell->name_len + 1);
+	inode_unlock(sb->s_root->d_inode);
 	_leave("");
 }
 
