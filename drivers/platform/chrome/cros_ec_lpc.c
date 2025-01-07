@@ -70,13 +70,6 @@ struct lpc_driver_data {
 /**
  * struct cros_ec_lpc - LPC device-specific data
  * @mmio_memory_base: The first I/O port addressing EC mapped memory.
- */
-struct cros_ec_lpc {
-	u16 mmio_memory_base;
-};
-
-/**
- * struct lpc_driver_ops - LPC driver operations
  * @read: Copy length bytes from EC address offset into buffer dest.
  *        Returns a negative error code on error, or the 8-bit checksum
  *        of all bytes read.
@@ -84,18 +77,19 @@ struct cros_ec_lpc {
  *         Returns a negative error code on error, or the 8-bit checksum
  *         of all bytes written.
  */
-struct lpc_driver_ops {
-	int (*read)(unsigned int offset, unsigned int length, u8 *dest);
-	int (*write)(unsigned int offset, unsigned int length, const u8 *msg);
+struct cros_ec_lpc {
+	u16 mmio_memory_base;
+	int (*read)(struct cros_ec_lpc *ec_lpc, unsigned int offset,
+		    unsigned int length, u8 *dest);
+	int (*write)(struct cros_ec_lpc *ec_lpc, unsigned int offset,
+		     unsigned int length, const u8 *msg);
 };
-
-static struct lpc_driver_ops cros_ec_lpc_ops = { };
 
 /*
  * A generic instance of the read function of struct lpc_driver_ops, used for
  * the LPC EC.
  */
-static int cros_ec_lpc_read_bytes(unsigned int offset, unsigned int length,
+static int cros_ec_lpc_read_bytes(struct cros_ec_lpc *_, unsigned int offset, unsigned int length,
 				  u8 *dest)
 {
 	u8 sum = 0;
@@ -114,7 +108,7 @@ static int cros_ec_lpc_read_bytes(unsigned int offset, unsigned int length,
  * A generic instance of the write function of struct lpc_driver_ops, used for
  * the LPC EC.
  */
-static int cros_ec_lpc_write_bytes(unsigned int offset, unsigned int length,
+static int cros_ec_lpc_write_bytes(struct cros_ec_lpc *_, unsigned int offset, unsigned int length,
 				   const u8 *msg)
 {
 	u8 sum = 0;
@@ -133,8 +127,8 @@ static int cros_ec_lpc_write_bytes(unsigned int offset, unsigned int length,
  * An instance of the read function of struct lpc_driver_ops, used for the
  * MEC variant of LPC EC.
  */
-static int cros_ec_lpc_mec_read_bytes(unsigned int offset, unsigned int length,
-				      u8 *dest)
+static int cros_ec_lpc_mec_read_bytes(struct cros_ec_lpc *ec_lpc, unsigned int offset,
+				      unsigned int length, u8 *dest)
 {
 	int in_range = cros_ec_lpc_mec_in_range(offset, length);
 
@@ -145,15 +139,15 @@ static int cros_ec_lpc_mec_read_bytes(unsigned int offset, unsigned int length,
 		cros_ec_lpc_io_bytes_mec(MEC_IO_READ,
 					 offset - EC_HOST_CMD_REGION0,
 					 length, dest) :
-		cros_ec_lpc_read_bytes(offset, length, dest);
+		cros_ec_lpc_read_bytes(ec_lpc, offset, length, dest);
 }
 
 /*
  * An instance of the write function of struct lpc_driver_ops, used for the
  * MEC variant of LPC EC.
  */
-static int cros_ec_lpc_mec_write_bytes(unsigned int offset, unsigned int length,
-				       const u8 *msg)
+static int cros_ec_lpc_mec_write_bytes(struct cros_ec_lpc *ec_lpc, unsigned int offset,
+				       unsigned int length, const u8 *msg)
 {
 	int in_range = cros_ec_lpc_mec_in_range(offset, length);
 
@@ -164,10 +158,11 @@ static int cros_ec_lpc_mec_write_bytes(unsigned int offset, unsigned int length,
 		cros_ec_lpc_io_bytes_mec(MEC_IO_WRITE,
 					 offset - EC_HOST_CMD_REGION0,
 					 length, (u8 *)msg) :
-		cros_ec_lpc_write_bytes(offset, length, msg);
+		cros_ec_lpc_write_bytes(ec_lpc, offset, length, msg);
+}
 }
 
-static int ec_response_timed_out(void)
+static int ec_response_timed_out(struct cros_ec_lpc *ec_lpc)
 {
 	unsigned long one_second = jiffies + HZ;
 	u8 data;
@@ -175,7 +170,7 @@ static int ec_response_timed_out(void)
 
 	usleep_range(200, 300);
 	do {
-		ret = cros_ec_lpc_ops.read(EC_LPC_ADDR_HOST_CMD, 1, &data);
+		ret = ec_lpc->read(ec_lpc, EC_LPC_ADDR_HOST_CMD, 1, &data);
 		if (ret < 0)
 			return ret;
 		if (!(data & EC_LPC_STATUS_BUSY_MASK))
@@ -189,6 +184,7 @@ static int ec_response_timed_out(void)
 static int cros_ec_pkt_xfer_lpc(struct cros_ec_device *ec,
 				struct cros_ec_command *msg)
 {
+	struct cros_ec_lpc *ec_lpc = ec->priv;
 	struct ec_host_response response;
 	u8 sum;
 	int ret = 0;
@@ -199,17 +195,17 @@ static int cros_ec_pkt_xfer_lpc(struct cros_ec_device *ec,
 		goto done;
 
 	/* Write buffer */
-	ret = cros_ec_lpc_ops.write(EC_LPC_ADDR_HOST_PACKET, ret, ec->dout);
+	ret = ec_lpc->write(ec_lpc, EC_LPC_ADDR_HOST_PACKET, ret, ec->dout);
 	if (ret < 0)
 		goto done;
 
 	/* Here we go */
 	sum = EC_COMMAND_PROTOCOL_3;
-	ret = cros_ec_lpc_ops.write(EC_LPC_ADDR_HOST_CMD, 1, &sum);
+	ret = ec_lpc->write(ec_lpc, EC_LPC_ADDR_HOST_CMD, 1, &sum);
 	if (ret < 0)
 		goto done;
 
-	ret = ec_response_timed_out();
+	ret = ec_response_timed_out(ec_lpc);
 	if (ret < 0)
 		goto done;
 	if (ret) {
@@ -219,7 +215,7 @@ static int cros_ec_pkt_xfer_lpc(struct cros_ec_device *ec,
 	}
 
 	/* Check result */
-	ret = cros_ec_lpc_ops.read(EC_LPC_ADDR_HOST_DATA, 1, &sum);
+	ret = ec_lpc->read(ec_lpc, EC_LPC_ADDR_HOST_DATA, 1, &sum);
 	if (ret < 0)
 		goto done;
 	msg->result = ret;
@@ -229,7 +225,7 @@ static int cros_ec_pkt_xfer_lpc(struct cros_ec_device *ec,
 
 	/* Read back response */
 	dout = (u8 *)&response;
-	ret = cros_ec_lpc_ops.read(EC_LPC_ADDR_HOST_PACKET, sizeof(response),
+	ret = ec_lpc->read(ec_lpc, EC_LPC_ADDR_HOST_PACKET, sizeof(response),
 				   dout);
 	if (ret < 0)
 		goto done;
@@ -246,7 +242,7 @@ static int cros_ec_pkt_xfer_lpc(struct cros_ec_device *ec,
 	}
 
 	/* Read response and process checksum */
-	ret = cros_ec_lpc_ops.read(EC_LPC_ADDR_HOST_PACKET +
+	ret = ec_lpc->read(ec_lpc, EC_LPC_ADDR_HOST_PACKET +
 				   sizeof(response), response.data_len,
 				   msg->data);
 	if (ret < 0)
@@ -270,6 +266,7 @@ done:
 static int cros_ec_cmd_xfer_lpc(struct cros_ec_device *ec,
 				struct cros_ec_command *msg)
 {
+	struct cros_ec_lpc *ec_lpc = ec->priv;
 	struct ec_lpc_host_args args;
 	u8 sum;
 	int ret = 0;
@@ -291,7 +288,7 @@ static int cros_ec_cmd_xfer_lpc(struct cros_ec_device *ec,
 	sum = msg->command + args.flags + args.command_version + args.data_size;
 
 	/* Copy data and update checksum */
-	ret = cros_ec_lpc_ops.write(EC_LPC_ADDR_HOST_PARAM, msg->outsize,
+	ret = ec_lpc->write(ec_lpc, EC_LPC_ADDR_HOST_PARAM, msg->outsize,
 				    msg->data);
 	if (ret < 0)
 		goto done;
@@ -299,18 +296,18 @@ static int cros_ec_cmd_xfer_lpc(struct cros_ec_device *ec,
 
 	/* Finalize checksum and write args */
 	args.checksum = sum;
-	ret = cros_ec_lpc_ops.write(EC_LPC_ADDR_HOST_ARGS, sizeof(args),
+	ret = ec_lpc->write(ec_lpc, EC_LPC_ADDR_HOST_ARGS, sizeof(args),
 				    (u8 *)&args);
 	if (ret < 0)
 		goto done;
 
 	/* Here we go */
 	sum = msg->command;
-	ret = cros_ec_lpc_ops.write(EC_LPC_ADDR_HOST_CMD, 1, &sum);
+	ret = ec_lpc->write(ec_lpc, EC_LPC_ADDR_HOST_CMD, 1, &sum);
 	if (ret < 0)
 		goto done;
 
-	ret = ec_response_timed_out();
+	ret = ec_response_timed_out(ec_lpc);
 	if (ret < 0)
 		goto done;
 	if (ret) {
@@ -320,7 +317,7 @@ static int cros_ec_cmd_xfer_lpc(struct cros_ec_device *ec,
 	}
 
 	/* Check result */
-	ret = cros_ec_lpc_ops.read(EC_LPC_ADDR_HOST_DATA, 1, &sum);
+	ret = ec_lpc->read(ec_lpc, EC_LPC_ADDR_HOST_DATA, 1, &sum);
 	if (ret < 0)
 		goto done;
 	msg->result = ret;
@@ -329,7 +326,7 @@ static int cros_ec_cmd_xfer_lpc(struct cros_ec_device *ec,
 		goto done;
 
 	/* Read back args */
-	ret = cros_ec_lpc_ops.read(EC_LPC_ADDR_HOST_ARGS, sizeof(args), (u8 *)&args);
+	ret = ec_lpc->read(ec_lpc, EC_LPC_ADDR_HOST_ARGS, sizeof(args), (u8 *)&args);
 	if (ret < 0)
 		goto done;
 
@@ -345,7 +342,7 @@ static int cros_ec_cmd_xfer_lpc(struct cros_ec_device *ec,
 	sum = msg->command + args.flags + args.command_version + args.data_size;
 
 	/* Read response and update checksum */
-	ret = cros_ec_lpc_ops.read(EC_LPC_ADDR_HOST_PARAM, args.data_size,
+	ret = ec_lpc->read(ec_lpc, EC_LPC_ADDR_HOST_PARAM, args.data_size,
 				   msg->data);
 	if (ret < 0)
 		goto done;
@@ -381,7 +378,7 @@ static int cros_ec_lpc_readmem(struct cros_ec_device *ec, unsigned int offset,
 
 	/* fixed length */
 	if (bytes) {
-		ret = cros_ec_lpc_ops.read(ec_lpc->mmio_memory_base + offset, bytes, s);
+		ret = ec_lpc->read(ec_lpc, ec_lpc->mmio_memory_base + offset, bytes, s);
 		if (ret < 0)
 			return ret;
 		return bytes;
@@ -389,7 +386,7 @@ static int cros_ec_lpc_readmem(struct cros_ec_device *ec, unsigned int offset,
 
 	/* string */
 	for (; i < EC_MEMMAP_SIZE; i++, s++) {
-		ret = cros_ec_lpc_ops.read(ec_lpc->mmio_memory_base + i, 1, s);
+		ret = ec_lpc->read(ec_lpc, ec_lpc->mmio_memory_base + i, 1, s);
 		if (ret < 0)
 			return ret;
 		cnt++;
@@ -492,8 +489,7 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 		}
 
 		if (quirks & CROS_EC_LPC_QUIRK_AML_MUTEX) {
-			const char *name
-				= driver_data->quirk_aml_mutex_name;
+			const char *name = driver_data->quirk_aml_mutex_name;
 			ret = cros_ec_lpc_mec_acpi_mutex(ACPI_COMPANION(dev), name);
 			if (ret) {
 				dev_err(dev, "failed to get AML mutex '%s'", name);
@@ -523,9 +519,9 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 	 * protocol fails, fallback to the non MEC variant and try to
 	 * read again the ID.
 	 */
-	cros_ec_lpc_ops.read = cros_ec_lpc_mec_read_bytes;
-	cros_ec_lpc_ops.write = cros_ec_lpc_mec_write_bytes;
-	ret = cros_ec_lpc_ops.read(EC_LPC_ADDR_MEMMAP + EC_MEMMAP_ID, 2, buf);
+	ec_lpc->read = cros_ec_lpc_mec_read_bytes;
+	ec_lpc->write = cros_ec_lpc_mec_write_bytes;
+	ret = ec_lpc->read(ec_lpc, EC_LPC_ADDR_MEMMAP + EC_MEMMAP_ID, 2, buf);
 	if (ret < 0)
 		return ret;
 	if (buf[0] != 'E' || buf[1] != 'C') {
@@ -536,9 +532,9 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 		}
 
 		/* Re-assign read/write operations for the non MEC variant */
-		cros_ec_lpc_ops.read = cros_ec_lpc_read_bytes;
-		cros_ec_lpc_ops.write = cros_ec_lpc_write_bytes;
-		ret = cros_ec_lpc_ops.read(ec_lpc->mmio_memory_base + EC_MEMMAP_ID, 2,
+		ec_lpc->read = cros_ec_lpc_read_bytes;
+		ec_lpc->write = cros_ec_lpc_write_bytes;
+		ret = ec_lpc->read(ec_lpc, ec_lpc->mmio_memory_base + EC_MEMMAP_ID, 2,
 					   buf);
 		if (ret < 0)
 			return ret;
