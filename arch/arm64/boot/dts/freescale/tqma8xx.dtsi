@@ -115,6 +115,15 @@
 	};
 };
 
+&jpegdec {
+	status = "okay";
+};
+
+&jpegenc {
+	status = "okay";
+};
+
+
 &mu_m0 {
 	status = "okay";
 };
