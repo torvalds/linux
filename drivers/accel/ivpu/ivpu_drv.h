@@ -58,6 +58,7 @@
 #define IVPU_PLATFORM_SILICON 0
 #define IVPU_PLATFORM_SIMICS  2
 #define IVPU_PLATFORM_FPGA    3
+#define IVPU_PLATFORM_HSLE    4
 #define IVPU_PLATFORM_INVALID 8
 
 #define IVPU_SCHED_MODE_AUTO -1
@@ -288,7 +289,8 @@ static inline bool ivpu_is_simics(struct ivpu_device *vdev)
 
 static inline bool ivpu_is_fpga(struct ivpu_device *vdev)
 {
-	return ivpu_get_platform(vdev) == IVPU_PLATFORM_FPGA;
+	return ivpu_get_platform(vdev) == IVPU_PLATFORM_FPGA ||
+	       ivpu_get_platform(vdev) == IVPU_PLATFORM_HSLE;
 }
 
 static inline bool ivpu_is_force_snoop_enabled(struct ivpu_device *vdev)

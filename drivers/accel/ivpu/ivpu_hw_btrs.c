@@ -887,3 +887,10 @@ void ivpu_hw_btrs_diagnose_failure(struct ivpu_device *vdev)
 	else
 		return diagnose_failure_lnl(vdev);
 }
+
+int ivpu_hw_btrs_platform_read(struct ivpu_device *vdev)
+{
+	u32 reg = REGB_RD32(VPU_HW_BTRS_LNL_VPU_STATUS);
+
+	return REG_GET_FLD(VPU_HW_BTRS_LNL_VPU_STATUS, PLATFORM, reg);
+}

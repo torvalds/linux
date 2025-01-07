@@ -19,38 +19,31 @@ static char *platform_to_str(u32 platform)
 		return "SIMICS";
 	case IVPU_PLATFORM_FPGA:
 		return "FPGA";
+	case IVPU_PLATFORM_HSLE:
+		return "HSLE";
 	default:
 		return "Invalid platform";
 	}
 }
 
-static const struct dmi_system_id dmi_platform_simulation[] = {
-	{
-		.ident = "Intel Simics",
-		.matches = {
-			DMI_MATCH(DMI_BOARD_NAME, "lnlrvp"),
-			DMI_MATCH(DMI_BOARD_VERSION, "1.0"),
-			DMI_MATCH(DMI_BOARD_SERIAL, "123456789"),
-		},
-	},
-	{
-		.ident = "Intel Simics",
-		.matches = {
-			DMI_MATCH(DMI_BOARD_NAME, "Simics"),
-		},
-	},
-	{ }
-};
-
 static void platform_init(struct ivpu_device *vdev)
 {
-	if (dmi_check_system(dmi_platform_simulation))
-		vdev->platform = IVPU_PLATFORM_SIMICS;
-	else
-		vdev->platform = IVPU_PLATFORM_SILICON;
+	int platform = ivpu_hw_btrs_platform_read(vdev);
 
-	ivpu_dbg(vdev, MISC, "Platform type: %s (%d)\n",
-		 platform_to_str(vdev->platform), vdev->platform);
+	ivpu_dbg(vdev, MISC, "Platform type: %s (%d)\n", platform_to_str(platform), platform);
+
+	switch (platform) {
+	case IVPU_PLATFORM_SILICON:
+	case IVPU_PLATFORM_SIMICS:
+	case IVPU_PLATFORM_FPGA:
+	case IVPU_PLATFORM_HSLE:
+		vdev->platform = platform;
+		break;
+
+	default:
+		ivpu_err(vdev, "Invalid platform type: %d\n", platform);
+		break;
+	}
 }
 
 static void wa_init(struct ivpu_device *vdev)
