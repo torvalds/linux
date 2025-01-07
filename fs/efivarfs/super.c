@@ -226,25 +226,17 @@ bool efivarfs_variable_is_present(efi_char16_t *variable_name,
 	return dentry != NULL;
 }
 
-static int efivarfs_callback(efi_char16_t *name16, efi_guid_t vendor,
-			     unsigned long name_size, void *data)
+static int efivarfs_create_dentry(struct super_block *sb, efi_char16_t *name16,
+				  unsigned long name_size, efi_guid_t vendor,
+				  char *name)
 {
-	struct super_block *sb = (struct super_block *)data;
 	struct efivar_entry *entry;
-	struct inode *inode = NULL;
+	struct inode *inode;
 	struct dentry *dentry, *root = sb->s_root;
 	unsigned long size = 0;
-	char *name;
 	int len;
 	int err = -ENOMEM;
 	bool is_removable = false;
-
-	if (guid_equal(&vendor, &LINUX_EFI_RANDOM_SEED_TABLE_GUID))
-		return 0;
-
-	name = efivar_get_utf8name(name16, &vendor);
-	if (!name)
-		return err;
 
 	/* length of the variable name itself: remove GUID and separator */
 	len = strlen(name) - EFI_VARIABLE_GUID_LEN - 1;
@@ -287,6 +279,22 @@ fail_name:
 	kfree(name);
 
 	return err;
+}
+
+static int efivarfs_callback(efi_char16_t *name16, efi_guid_t vendor,
+			     unsigned long name_size, void *data)
+{
+	struct super_block *sb = (struct super_block *)data;
+	char *name;
+
+	if (guid_equal(&vendor, &LINUX_EFI_RANDOM_SEED_TABLE_GUID))
+		return 0;
+
+	name = efivar_get_utf8name(name16, &vendor);
+	if (!name)
+		return -ENOMEM;
+
+	return efivarfs_create_dentry(sb, name16, name_size, vendor, name);
 }
 
 enum {
