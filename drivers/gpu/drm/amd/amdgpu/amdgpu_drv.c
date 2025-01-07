@@ -399,7 +399,7 @@ module_param_named(runpm, amdgpu_runtime_pm, int, 0444);
  * the kernel log for the list of IPs on the asic. The default is 0xffffffff (enable all blocks on a device).
  */
 MODULE_PARM_DESC(ip_block_mask, "IP Block Mask (all blocks enabled (default))");
-module_param_named(ip_block_mask, amdgpu_ip_block_mask, uint, 0444);
+module_param_named_unsafe(ip_block_mask, amdgpu_ip_block_mask, uint, 0444);
 
 /**
  * DOC: bapm (int)
@@ -457,7 +457,7 @@ module_param_named(vm_update_mode, amdgpu_vm_update_mode, int, 0444);
  * Enable experimental hw support (1 = enable). The default is 0 (disabled).
  */
 MODULE_PARM_DESC(exp_hw_support, "experimental hw support (1 = enable, 0 = disable (default))");
-module_param_named(exp_hw_support, amdgpu_exp_hw_support, int, 0444);
+module_param_named_unsafe(exp_hw_support, amdgpu_exp_hw_support, int, 0444);
 
 /**
  * DOC: dc (int)
@@ -568,14 +568,14 @@ module_param_named(compute_multipipe, amdgpu_compute_multipipe, int, 0444);
  * Set to enable GPU recovery mechanism (1 = enable, 0 = disable). The default is -1 (auto, disabled except SRIOV).
  */
 MODULE_PARM_DESC(gpu_recovery, "Enable GPU recovery mechanism, (1 = enable, 0 = disable, -1 = auto)");
-module_param_named(gpu_recovery, amdgpu_gpu_recovery, int, 0444);
+module_param_named_unsafe(gpu_recovery, amdgpu_gpu_recovery, int, 0444);
 
 /**
  * DOC: emu_mode (int)
  * Set value 1 to enable emulation mode. This is only needed when running on an emulator. The default is 0 (disabled).
  */
 MODULE_PARM_DESC(emu_mode, "Emulation mode, (1 = enable, 0 = disable)");
-module_param_named(emu_mode, amdgpu_emu_mode, int, 0444);
+module_param_named_unsafe(emu_mode, amdgpu_emu_mode, int, 0444);
 
 /**
  * DOC: ras_enable (int)
@@ -730,7 +730,7 @@ module_param_named(noretry, amdgpu_noretry, int, 0644);
  */
 MODULE_PARM_DESC(force_asic_type,
 	"A non negative value used to specify the asic type for all supported GPUs");
-module_param_named(force_asic_type, amdgpu_force_asic_type, int, 0444);
+module_param_named_unsafe(force_asic_type, amdgpu_force_asic_type, int, 0444);
 
 /**
  * DOC: use_xgmi_p2p (int)
@@ -953,7 +953,7 @@ module_param_named(freesync_video, amdgpu_freesync_vid_mode, uint, 0444);
  * GPU reset method (-1 = auto (default), 0 = legacy, 1 = mode0, 2 = mode1, 3 = mode2, 4 = baco)
  */
 MODULE_PARM_DESC(reset_method, "GPU reset method (-1 = auto (default), 0 = legacy, 1 = mode0, 2 = mode1, 3 = mode2, 4 = baco/bamaco)");
-module_param_named(reset_method, amdgpu_reset_method, int, 0644);
+module_param_named_unsafe(reset_method, amdgpu_reset_method, int, 0644);
 
 /**
  * DOC: bad_page_threshold (int) Bad page threshold is specifies the
@@ -1049,7 +1049,7 @@ module_param_named(seamless, amdgpu_seamless, int, 0444);
  * - 0x4: Disable GPU soft recovery, always do a full reset
  */
 MODULE_PARM_DESC(debug_mask, "debug options for amdgpu, disabled by default");
-module_param_named(debug_mask, amdgpu_debug_mask, uint, 0444);
+module_param_named_unsafe(debug_mask, amdgpu_debug_mask, uint, 0444);
 
 /**
  * DOC: agp (int)
