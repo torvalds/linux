@@ -52,11 +52,11 @@ additionalProperties: false
 examples:
   - |
     interrupt-controller@1e6c0080 {
-         compatible = "aspeed,ast2400-vic";
-         reg = <0x1e6c0080 0x80>;
-         interrupt-controller;
-         #interrupt-cells = <1>;
-         valid-sources = <0xffffffff 0x0007ffff>;
+        compatible = "aspeed,ast2400-vic";
+        reg = <0x1e6c0080 0x80>;
+        interrupt-controller;
+        #interrupt-cells = <1>;
+        valid-sources = <0xffffffff 0x0007ffff>;
     };
 
 ...

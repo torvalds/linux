@@ -130,23 +130,23 @@ required:
 examples:
   - |
     irq0_intc: interrupt-controller@f0406800 {
-      compatible = "brcm,bcm7120-l2-intc";
-      interrupt-parent = <&intc>;
-      #interrupt-cells = <1>;
-      reg = <0xf0406800 0x8>;
-      interrupt-controller;
-      interrupts = <0x0 0x42 0x0>, <0x0 0x40 0x0>;
-      brcm,int-map-mask = <0xeb8>, <0x140>;
-      brcm,int-fwd-mask = <0x7>;
+        compatible = "brcm,bcm7120-l2-intc";
+        interrupt-parent = <&intc>;
+        #interrupt-cells = <1>;
+        reg = <0xf0406800 0x8>;
+        interrupt-controller;
+        interrupts = <0x0 0x42 0x0>, <0x0 0x40 0x0>;
+        brcm,int-map-mask = <0xeb8>, <0x140>;
+        brcm,int-fwd-mask = <0x7>;
     };
 
   - |
     irq1_intc: interrupt-controller@10000020 {
-       compatible = "brcm,bcm3380-l2-intc";
-       reg = <0x10000024 0x4>, <0x1000002c 0x4>,
-             <0x10000020 0x4>, <0x10000028 0x4>;
-       interrupt-controller;
-       #interrupt-cells = <1>;
-       interrupt-parent = <&cpu_intc>;
-       interrupts = <2>;
+        compatible = "brcm,bcm3380-l2-intc";
+        reg = <0x10000024 0x4>, <0x1000002c 0x4>,
+              <0x10000020 0x4>, <0x10000028 0x4>;
+        interrupt-controller;
+        #interrupt-cells = <1>;
+        interrupt-parent = <&cpu_intc>;
+        interrupts = <2>;
     };
