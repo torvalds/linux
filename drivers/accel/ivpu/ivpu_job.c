@@ -17,6 +17,7 @@
 #include "ivpu_ipc.h"
 #include "ivpu_job.h"
 #include "ivpu_jsm_msg.h"
+#include "ivpu_mmu.h"
 #include "ivpu_pm.h"
 #include "ivpu_trace.h"
 #include "vpu_boot_api.h"
@@ -366,12 +367,16 @@ void ivpu_context_abort_locked(struct ivpu_file_priv *file_priv)
 	unsigned long cmdq_id;
 
 	lockdep_assert_held(&file_priv->lock);
+	ivpu_dbg(vdev, JOB, "Context ID: %u abort\n", file_priv->ctx.id);
 
 	xa_for_each(&file_priv->cmdq_xa, cmdq_id, cmdq)
 		ivpu_cmdq_unregister(file_priv, cmdq);
 
 	if (vdev->fw->sched_mode == VPU_SCHEDULING_MODE_OS)
 		ivpu_jsm_context_release(vdev, file_priv->ctx.id);
+
+	ivpu_mmu_disable_ssid_events(vdev, file_priv->ctx.id);
+	ivpu_mmu_discard_events(vdev);
 
 	file_priv->aborted = true;
 }
@@ -939,8 +944,8 @@ void ivpu_context_abort_work_fn(struct work_struct *work)
 {
 	struct ivpu_device *vdev = container_of(work, struct ivpu_device, context_abort_work);
 	struct ivpu_file_priv *file_priv;
-	unsigned long ctx_id;
 	struct ivpu_job *job;
+	unsigned long ctx_id;
 	unsigned long id;
 
 	mutex_lock(&vdev->context_list_lock);
