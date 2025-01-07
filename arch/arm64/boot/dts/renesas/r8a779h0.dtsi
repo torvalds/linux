@@ -793,8 +793,6 @@
 			rx-internal-delay-ps = <0>;
 			tx-internal-delay-ps = <0>;
 			iommus = <&ipmmu_hc 0>;
-			#address-cells = <1>;
-			#size-cells = <0>;
 			status = "disabled";
 		};
 
@@ -842,8 +840,6 @@
 			rx-internal-delay-ps = <0>;
 			tx-internal-delay-ps = <0>;
 			iommus = <&ipmmu_hc 1>;
-			#address-cells = <1>;
-			#size-cells = <0>;
 			status = "disabled";
 		};
 
@@ -891,8 +887,6 @@
 			rx-internal-delay-ps = <0>;
 			tx-internal-delay-ps = <0>;
 			iommus = <&ipmmu_hc 2>;
-			#address-cells = <1>;
-			#size-cells = <0>;
 			status = "disabled";
 		};
 

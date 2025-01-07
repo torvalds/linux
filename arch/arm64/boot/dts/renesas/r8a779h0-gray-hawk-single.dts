@@ -200,17 +200,22 @@
 &avb0 {
 	pinctrl-0 = <&avb0_pins>;
 	pinctrl-names = "default";
-	phy-handle = <&phy0>;
+	phy-handle = <&avb0_phy>;
 	tx-internal-delay-ps = <2000>;
 	status = "okay";
 
-	phy0: ethernet-phy@0 {
-		compatible = "ethernet-phy-id0022.1622",
-			     "ethernet-phy-ieee802.3-c22";
-		rxc-skew-ps = <1500>;
-		reg = <0>;
-		interrupts-extended = <&gpio7 5 IRQ_TYPE_LEVEL_LOW>;
-		reset-gpios = <&gpio7 10 GPIO_ACTIVE_LOW>;
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		avb0_phy: ethernet-phy@0 {
+			compatible = "ethernet-phy-id0022.1622",
+				"ethernet-phy-ieee802.3-c22";
+				rxc-skew-ps = <1500>;
+				reg = <0>;
+				interrupts-extended = <&gpio7 5 IRQ_TYPE_LEVEL_LOW>;
+				reset-gpios = <&gpio7 10 GPIO_ACTIVE_LOW>;
+		};
 	};
 };
 
