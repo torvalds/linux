@@ -9,6 +9,8 @@
 
 #define pr_fmt(fmt)	"SEV: " fmt
 
+#define DISABLE_BRANCH_PROFILING
+
 #include <linux/sched/debug.h>	/* For show_regs() */
 #include <linux/percpu-defs.h>
 #include <linux/cc_platform.h>
