@@ -1034,8 +1034,6 @@ static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
  */
 #define MAX_SWAPFILES_CHECK() BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > __SWP_TYPE_BITS)
 
-extern int kern_addr_valid(unsigned long addr);
-
 #ifdef CONFIG_ARM64_MTE
 
 #define __HAVE_ARCH_PREPARE_TO_SWAP

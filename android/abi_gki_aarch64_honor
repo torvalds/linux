@@ -33,6 +33,12 @@
  mod_node_page_state
  page_cache_sync_ra
  proc_create
+ arch_vma_name
+ __pmd_trans_huge_lock
+ anon_vma_name
+ vm_normal_page
+ walk_page_range
+ pmd_clear_bad
  profile_event_register
  profile_event_unregister
  drop_super
@@ -48,7 +54,14 @@
  udp4_lib_lookup
  udp6_lib_lookup
  next_arg
+ pm_wakeup_irq
  __tracepoint_android_vh_dc_send_copy
  __traceiter_android_vh_dc_send_copy
  __tracepoint_android_vh_dc_receive
  __traceiter_android_vh_dc_receive
+ __tracepoint_android_vh_slab_alloc_node
+ __traceiter_android_vh_slab_alloc_node
+ __tracepoint_android_vh_slab_free
+ __traceiter_android_vh_slab_free
+ __traceiter_android_rvh_hw_protection_shutdown
+ __tracepoint_android_rvh_hw_protection_shutdown
