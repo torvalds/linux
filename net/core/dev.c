@@ -5493,8 +5493,14 @@ static int __netif_receive_skb_core(struct sk_buff **pskb, bool pfmemalloc,
 	orig_dev = skb->dev;
 
 	skb_reset_network_header(skb);
+#if !defined(CONFIG_DEBUG_NET)
+	/* We plan to no longer reset the transport header here.
+	 * Give some time to fuzzers and dev build to catch bugs
+	 * in network stacks.
+	 */
 	if (!skb_transport_header_was_set(skb))
 		skb_reset_transport_header(skb);
+#endif
 	skb_reset_mac_len(skb);
 
 	pt_prev = NULL;
