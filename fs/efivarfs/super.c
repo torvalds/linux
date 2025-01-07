@@ -245,7 +245,7 @@ static int efivarfs_callback(efi_char16_t *name16, efi_guid_t vendor,
 
 	inode_lock(inode);
 	inode->i_private = entry;
-	i_size_write(inode, size + sizeof(entry->var.Attributes));
+	i_size_write(inode, size + sizeof(__u32)); /* attributes + data */
 	inode_unlock(inode);
 	d_add(dentry, inode);
 
