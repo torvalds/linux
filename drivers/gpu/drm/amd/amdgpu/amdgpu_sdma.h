@@ -65,7 +65,10 @@ struct amdgpu_sdma_instance {
 	struct amdgpu_ring	ring;
 	struct amdgpu_ring	page;
 	bool			burst_nop;
-	uint32_t		aid_id;
+	union {
+	    uint32_t		aid_id;
+	    uint32_t		xcc_id;
+	};
 
 	struct amdgpu_bo	*sdma_fw_obj;
 	uint64_t		sdma_fw_gpu_addr;
@@ -123,7 +126,10 @@ struct amdgpu_sdma {
 
 	int			num_instances;
 	uint32_t 		sdma_mask;
-	int			num_inst_per_aid;
+	union {
+	    int			num_inst_per_aid;
+	    int			num_inst_per_xcc;
+	};
 	uint32_t                    srbm_soft_reset;
 	bool			has_page_queue;
 	struct ras_common_if	*ras_if;
