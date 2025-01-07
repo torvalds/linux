@@ -46,7 +46,13 @@ struct vsie_page {
 	gpa_t gvrd_gpa;				/* 0x0240 */
 	gpa_t riccbd_gpa;			/* 0x0248 */
 	gpa_t sdnx_gpa;				/* 0x0250 */
-	__u8 reserved[0x0700 - 0x0258];		/* 0x0258 */
+	/*
+	 * guest address of the original SCB. Remains set for free vsie
+	 * pages, so we can properly look them up in our addr_to_page
+	 * radix tree.
+	 */
+	gpa_t scb_gpa;				/* 0x0258 */
+	__u8 reserved[0x0700 - 0x0260];		/* 0x0260 */
 	struct kvm_s390_crypto_cb crycb;	/* 0x0700 */
 	__u8 fac[S390_ARCH_FAC_LIST_SIZE_BYTE];	/* 0x0800 */
 };
@@ -1362,9 +1368,10 @@ static struct vsie_page *get_vsie_page(struct kvm *kvm, unsigned long addr)
 	page = radix_tree_lookup(&kvm->arch.vsie.addr_to_page, addr >> 9);
 	rcu_read_unlock();
 	if (page) {
+		vsie_page = page_to_virt(page);
 		if (page_ref_inc_return(page) == 2) {
-			if (page->index == addr)
-				return page_to_virt(page);
+			if (vsie_page->scb_gpa == addr)
+				return vsie_page;
 			/*
 			 * We raced with someone reusing + putting this vsie
 			 * page before we grabbed it.
@@ -1386,6 +1393,7 @@ static struct vsie_page *get_vsie_page(struct kvm *kvm, unsigned long addr)
 			mutex_unlock(&kvm->arch.vsie.mutex);
 			return ERR_PTR(-ENOMEM);
 		}
+		vsie_page = page_to_virt(page);
 		page_ref_inc(page);
 		kvm->arch.vsie.pages[kvm->arch.vsie.page_count] = page;
 		kvm->arch.vsie.page_count++;
@@ -1393,18 +1401,19 @@ static struct vsie_page *get_vsie_page(struct kvm *kvm, unsigned long addr)
 		/* reuse an existing entry that belongs to nobody */
 		while (true) {
 			page = kvm->arch.vsie.pages[kvm->arch.vsie.next];
+			vsie_page = page_to_virt(page);
 			if (page_ref_inc_return(page) == 2)
 				break;
 			page_ref_dec(page);
 			kvm->arch.vsie.next++;
 			kvm->arch.vsie.next %= nr_vcpus;
 		}
-		if (page->index != ULONG_MAX)
+		if (vsie_page->scb_gpa != ULONG_MAX)
 			radix_tree_delete(&kvm->arch.vsie.addr_to_page,
-					  page->index >> 9);
+					  vsie_page->scb_gpa >> 9);
 	}
 	/* Mark it as invalid until it resides in the tree. */
-	page->index = ULONG_MAX;
+	vsie_page->scb_gpa = ULONG_MAX;
 
 	/* Double use of the same address or allocation failure. */
 	if (radix_tree_insert(&kvm->arch.vsie.addr_to_page, addr >> 9, page)) {
@@ -1412,10 +1421,9 @@ static struct vsie_page *get_vsie_page(struct kvm *kvm, unsigned long addr)
 		mutex_unlock(&kvm->arch.vsie.mutex);
 		return NULL;
 	}
-	page->index = addr;
+	vsie_page->scb_gpa = addr;
 	mutex_unlock(&kvm->arch.vsie.mutex);
 
-	vsie_page = page_to_virt(page);
 	memset(&vsie_page->scb_s, 0, sizeof(struct kvm_s390_sie_block));
 	release_gmap_shadow(vsie_page);
 	vsie_page->fault_addr = 0;
@@ -1507,9 +1515,9 @@ void kvm_s390_vsie_destroy(struct kvm *kvm)
 		vsie_page = page_to_virt(page);
 		release_gmap_shadow(vsie_page);
 		/* free the radix tree entry */
-		if (page->index != ULONG_MAX)
+		if (vsie_page->scb_gpa != ULONG_MAX)
 			radix_tree_delete(&kvm->arch.vsie.addr_to_page,
-					  page->index >> 9);
+					  vsie_page->scb_gpa >> 9);
 		__free_page(page);
 	}
 	kvm->arch.vsie.page_count = 0;
