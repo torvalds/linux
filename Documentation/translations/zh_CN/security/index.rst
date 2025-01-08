@@ -16,6 +16,7 @@
    :maxdepth: 1
 
    lsm
+   digsig
 
 TODOLIST:
 * credentials
@@ -28,7 +29,6 @@ TODOLIST:
 * self-protection
 * siphash
 * tpm/index
-* digsig
 * landlock
 * secrets/index
 * ipe
