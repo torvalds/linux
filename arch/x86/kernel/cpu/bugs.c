@@ -238,7 +238,7 @@ static void x86_amd_ssb_disable(void)
 
 /* Default mitigation for MDS-affected CPUs */
 static enum mds_mitigations mds_mitigation __ro_after_init =
-	IS_ENABLED(CONFIG_MITIGATION_MDS) ? MDS_MITIGATION_FULL : MDS_MITIGATION_OFF;
+	IS_ENABLED(CONFIG_MITIGATION_MDS) ? MDS_MITIGATION_AUTO : MDS_MITIGATION_OFF;
 static bool mds_nosmt __ro_after_init = false;
 
 static const char * const mds_strings[] = {
@@ -249,6 +249,7 @@ static const char * const mds_strings[] = {
 
 enum taa_mitigations {
 	TAA_MITIGATION_OFF,
+	TAA_MITIGATION_AUTO,
 	TAA_MITIGATION_UCODE_NEEDED,
 	TAA_MITIGATION_VERW,
 	TAA_MITIGATION_TSX_DISABLED,
@@ -256,27 +257,29 @@ enum taa_mitigations {
 
 /* Default mitigation for TAA-affected CPUs */
 static enum taa_mitigations taa_mitigation __ro_after_init =
-	IS_ENABLED(CONFIG_MITIGATION_TAA) ? TAA_MITIGATION_VERW : TAA_MITIGATION_OFF;
+	IS_ENABLED(CONFIG_MITIGATION_TAA) ? TAA_MITIGATION_AUTO : TAA_MITIGATION_OFF;
 
 enum mmio_mitigations {
 	MMIO_MITIGATION_OFF,
+	MMIO_MITIGATION_AUTO,
 	MMIO_MITIGATION_UCODE_NEEDED,
 	MMIO_MITIGATION_VERW,
 };
 
 /* Default mitigation for Processor MMIO Stale Data vulnerabilities */
 static enum mmio_mitigations mmio_mitigation __ro_after_init =
-	IS_ENABLED(CONFIG_MITIGATION_MMIO_STALE_DATA) ? MMIO_MITIGATION_VERW : MMIO_MITIGATION_OFF;
+	IS_ENABLED(CONFIG_MITIGATION_MMIO_STALE_DATA) ?	MMIO_MITIGATION_AUTO : MMIO_MITIGATION_OFF;
 
 enum rfds_mitigations {
 	RFDS_MITIGATION_OFF,
+	RFDS_MITIGATION_AUTO,
 	RFDS_MITIGATION_VERW,
 	RFDS_MITIGATION_UCODE_NEEDED,
 };
 
 /* Default mitigation for Register File Data Sampling */
 static enum rfds_mitigations rfds_mitigation __ro_after_init =
-	IS_ENABLED(CONFIG_MITIGATION_RFDS) ? RFDS_MITIGATION_VERW : RFDS_MITIGATION_OFF;
+	IS_ENABLED(CONFIG_MITIGATION_RFDS) ? RFDS_MITIGATION_AUTO : RFDS_MITIGATION_OFF;
 
 static void __init mds_select_mitigation(void)
 {
@@ -284,6 +287,9 @@ static void __init mds_select_mitigation(void)
 		mds_mitigation = MDS_MITIGATION_OFF;
 		return;
 	}
+
+	if (mds_mitigation == MDS_MITIGATION_AUTO)
+		mds_mitigation = MDS_MITIGATION_FULL;
 
 	if (mds_mitigation == MDS_MITIGATION_FULL) {
 		if (!boot_cpu_has(X86_FEATURE_MD_CLEAR))
@@ -513,6 +519,9 @@ static void __init rfds_select_mitigation(void)
 	}
 	if (rfds_mitigation == RFDS_MITIGATION_OFF)
 		return;
+
+	if (rfds_mitigation == RFDS_MITIGATION_AUTO)
+		rfds_mitigation = RFDS_MITIGATION_VERW;
 
 	if (x86_arch_cap_msr & ARCH_CAP_RFDS_CLEAR)
 		setup_force_cpu_cap(X86_FEATURE_CLEAR_CPU_BUF);
@@ -1979,6 +1988,7 @@ void cpu_bugs_smt_update(void)
 
 	switch (mds_mitigation) {
 	case MDS_MITIGATION_FULL:
+	case MDS_MITIGATION_AUTO:
 	case MDS_MITIGATION_VMWERV:
 		if (sched_smt_active() && !boot_cpu_has(X86_BUG_MSBDS_ONLY))
 			pr_warn_once(MDS_MSG_SMT);
@@ -1990,6 +2000,7 @@ void cpu_bugs_smt_update(void)
 
 	switch (taa_mitigation) {
 	case TAA_MITIGATION_VERW:
+	case TAA_MITIGATION_AUTO:
 	case TAA_MITIGATION_UCODE_NEEDED:
 		if (sched_smt_active())
 			pr_warn_once(TAA_MSG_SMT);
@@ -2001,6 +2012,7 @@ void cpu_bugs_smt_update(void)
 
 	switch (mmio_mitigation) {
 	case MMIO_MITIGATION_VERW:
+	case MMIO_MITIGATION_AUTO:
 	case MMIO_MITIGATION_UCODE_NEEDED:
 		if (sched_smt_active())
 			pr_warn_once(MMIO_MSG_SMT);
