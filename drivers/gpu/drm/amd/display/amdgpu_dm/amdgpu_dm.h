@@ -671,6 +671,8 @@ struct amdgpu_dm_connector {
 	uint32_t connector_id;
 	int bl_idx;
 
+	struct cec_notifier *notifier;
+
 	/* we need to mind the EDID between detect
 	   and get modes due to analog/digital/tvencoder */
 	const struct drm_edid *drm_edid;
@@ -1009,5 +1011,9 @@ void dm_free_gpu_mem(struct amdgpu_device *adev,
 						  void *addr);
 
 bool amdgpu_dm_is_headless(struct amdgpu_device *adev);
+
+void hdmi_cec_set_edid(struct amdgpu_dm_connector *aconnector);
+void hdmi_cec_unset_edid(struct amdgpu_dm_connector *aconnector);
+int amdgpu_dm_initialize_hdmi_connector(struct amdgpu_dm_connector *aconnector);
 
 #endif /* __AMDGPU_DM_H__ */

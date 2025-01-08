@@ -25,6 +25,7 @@
 
 #include <linux/string_helpers.h>
 #include <linux/uaccess.h>
+#include <media/cec-notifier.h>
 
 #include "dc.h"
 #include "amdgpu.h"
@@ -2848,6 +2849,67 @@ static int is_dpia_link_show(struct seq_file *m, void *data)
 	return 0;
 }
 
+/**
+ * hdmi_cec_state_show - Read out the HDMI-CEC feature status
+ * @m: sequence file.
+ * @data: unused.
+ *
+ * Return 0 on success
+ */
+static int hdmi_cec_state_show(struct seq_file *m, void *data)
+{
+	struct drm_connector *connector = m->private;
+	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
+
+	seq_printf(m, "%s:%d\n", connector->name, connector->base.id);
+	seq_printf(m, "HDMI-CEC status: %d\n", aconnector->notifier ? 1 : 0);
+
+	return 0;
+}
+
+/**
+ * hdmi_cec_state_write - Enable/Disable HDMI-CEC feature from driver side
+ * @f: file structure.
+ * @buf: userspace buffer. set to '1' to enable; '0' to disable cec feature.
+ * @size: size of buffer from userpsace.
+ * @pos: unused.
+ *
+ * Return size on success, error code on failure
+ */
+static ssize_t hdmi_cec_state_write(struct file *f, const char __user *buf,
+				    size_t size, loff_t *pos)
+{
+	int ret;
+	bool enable;
+	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct drm_device *ddev = aconnector->base.dev;
+
+	if (size == 0)
+		return -EINVAL;
+
+	ret = kstrtobool_from_user(buf, size, &enable);
+	if (ret) {
+		drm_dbg_driver(ddev, "invalid user data !\n");
+		return ret;
+	}
+
+	if (enable) {
+		if (aconnector->notifier)
+			return -EINVAL;
+		ret = amdgpu_dm_initialize_hdmi_connector(aconnector);
+		if (ret)
+			return ret;
+		hdmi_cec_set_edid(aconnector);
+	} else {
+		if (!aconnector->notifier)
+			return -EINVAL;
+		cec_notifier_conn_unregister(aconnector->notifier);
+		aconnector->notifier = NULL;
+	}
+
+	return size;
+}
+
 DEFINE_SHOW_ATTRIBUTE(dp_dsc_fec_support);
 DEFINE_SHOW_ATTRIBUTE(dmub_fw_state);
 DEFINE_SHOW_ATTRIBUTE(dmub_tracebuffer);
@@ -2860,6 +2922,7 @@ DEFINE_SHOW_ATTRIBUTE(psr_capability);
 DEFINE_SHOW_ATTRIBUTE(dp_is_mst_connector);
 DEFINE_SHOW_ATTRIBUTE(dp_mst_progress_status);
 DEFINE_SHOW_ATTRIBUTE(is_dpia_link);
+DEFINE_SHOW_STORE_ATTRIBUTE(hdmi_cec_state);
 
 static const struct file_operations dp_dsc_clock_en_debugfs_fops = {
 	.owner = THIS_MODULE,
@@ -2995,7 +3058,8 @@ static const struct {
 	char *name;
 	const struct file_operations *fops;
 } hdmi_debugfs_entries[] = {
-		{"hdcp_sink_capability", &hdcp_sink_capability_fops}
+		{"hdcp_sink_capability", &hdcp_sink_capability_fops},
+		{"hdmi_cec_state", &hdmi_cec_state_fops}
 };
 
 /*
