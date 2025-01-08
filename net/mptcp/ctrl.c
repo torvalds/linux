@@ -160,7 +160,9 @@ static int proc_blackhole_detect_timeout(const struct ctl_table *table,
 					 int write, void *buffer, size_t *lenp,
 					 loff_t *ppos)
 {
-	struct mptcp_pernet *pernet = mptcp_get_pernet(current->nsproxy->net_ns);
+	struct mptcp_pernet *pernet = container_of(table->data,
+						   struct mptcp_pernet,
+						   blackhole_timeout);
 	int ret;
 
 	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
