@@ -2521,7 +2521,6 @@ static void intel_set_cdclk(struct intel_display *display,
 			    const struct intel_cdclk_config *cdclk_config,
 			    enum pipe pipe, const char *context)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_encoder *encoder;
 
 	if (!intel_cdclk_changed(&display->cdclk.hw, cdclk_config))
@@ -2538,7 +2537,7 @@ static void intel_set_cdclk(struct intel_display *display,
 		intel_psr_pause(intel_dp);
 	}
 
-	intel_audio_cdclk_change_pre(dev_priv);
+	intel_audio_cdclk_change_pre(display);
 
 	/*
 	 * Lock aux/gmbus while we change cdclk in case those
@@ -2568,7 +2567,7 @@ static void intel_set_cdclk(struct intel_display *display,
 		intel_psr_resume(intel_dp);
 	}
 
-	intel_audio_cdclk_change_post(dev_priv);
+	intel_audio_cdclk_change_post(display);
 
 	if (drm_WARN(display->drm,
 		     intel_cdclk_changed(&display->cdclk.hw, cdclk_config),
