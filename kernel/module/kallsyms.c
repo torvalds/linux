@@ -316,7 +316,7 @@ void * __weak dereference_module_function_descriptor(struct module *mod,
 
 /*
  * For kallsyms to ask for address resolution.  NULL means not found.  Careful
- * not to lock to avoid deadlock on oopses, simply disable preemption.
+ * not to lock to avoid deadlock on oopses, RCU is enough.
  */
 int module_address_lookup(unsigned long addr,
 			  unsigned long *size,
@@ -330,7 +330,6 @@ int module_address_lookup(unsigned long addr,
 	struct module *mod;
 
 	guard(rcu)();
-	preempt_disable();
 	mod = __module_address(addr);
 	if (mod) {
 		if (modname)
@@ -348,8 +347,6 @@ int module_address_lookup(unsigned long addr,
 		if (sym)
 			ret = strscpy(namebuf, sym, KSYM_NAME_LEN);
 	}
-	preempt_enable();
-
 	return ret;
 }
 

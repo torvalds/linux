@@ -3731,13 +3731,8 @@ const struct exception_table_entry *search_module_extables(unsigned long addr)
  */
 bool is_module_address(unsigned long addr)
 {
-	bool ret;
-
-	preempt_disable();
-	ret = __module_address(addr) != NULL;
-	preempt_enable();
-
-	return ret;
+	guard(rcu)();
+	return __module_address(addr) != NULL;
 }
 
 /**
