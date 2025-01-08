@@ -18,7 +18,6 @@
 extern "C" {
 #include <linux/zalloc.h>
 }
-#include "symbol_conf.h"
 #include "llvm-c-helpers.h"
 
 extern "C"
