@@ -71,6 +71,16 @@ static const struct rtw89_pci_info rtw8922a_pci_info = {
 
 static const struct rtw89_driver_info rtw89_8922ae_info = {
 	.chip = &rtw8922a_chip_info,
+	.variant = NULL,
+	.quirks = NULL,
+	.bus = {
+		.pci = &rtw8922a_pci_info,
+	},
+};
+
+static const struct rtw89_driver_info rtw89_8922ae_vs_info = {
+	.chip = &rtw8922a_chip_info,
+	.variant = &rtw8922ae_vs_variant,
 	.quirks = NULL,
 	.bus = {
 		.pci = &rtw8922a_pci_info,
@@ -81,6 +91,10 @@ static const struct pci_device_id rtw89_8922ae_id_table[] = {
 	{
 		PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x8922),
 		.driver_data = (kernel_ulong_t)&rtw89_8922ae_info,
+	},
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x892B),
+		.driver_data = (kernel_ulong_t)&rtw89_8922ae_vs_info,
 	},
 	{},
 };
@@ -96,5 +110,5 @@ static struct pci_driver rtw89_8922ae_driver = {
 module_pci_driver(rtw89_8922ae_driver);
 
 MODULE_AUTHOR("Realtek Corporation");
-MODULE_DESCRIPTION("Realtek 802.11be wireless 8922AE driver");
+MODULE_DESCRIPTION("Realtek 802.11be wireless 8922AE/8922AE-VS driver");
 MODULE_LICENSE("Dual BSD/GPL");

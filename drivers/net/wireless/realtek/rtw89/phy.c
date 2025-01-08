@@ -261,6 +261,9 @@ rtw89_ra_mask_he_rates[4] = {RA_MASK_HE_1SS_RATES, RA_MASK_HE_2SS_RATES,
 static const u64
 rtw89_ra_mask_eht_rates[4] = {RA_MASK_EHT_1SS_RATES, RA_MASK_EHT_2SS_RATES,
 			      RA_MASK_EHT_3SS_RATES, RA_MASK_EHT_4SS_RATES};
+static const u64
+rtw89_ra_mask_eht_mcs0_11[4] = {RA_MASK_EHT_1SS_MCS0_11, RA_MASK_EHT_2SS_MCS0_11,
+				RA_MASK_EHT_3SS_MCS0_11, RA_MASK_EHT_4SS_MCS0_11};
 
 static void rtw89_phy_ra_gi_ltf(struct rtw89_dev *rtwdev,
 				struct rtw89_sta_link *rtwsta_link,
@@ -330,7 +333,12 @@ static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
 	if (link_sta->eht_cap.has_eht) {
 		mode |= RTW89_RA_MODE_EHT;
 		ra_mask |= get_eht_ra_mask(link_sta);
-		high_rate_masks = rtw89_ra_mask_eht_rates;
+
+		if (rtwdev->hal.no_mcs_12_13)
+			high_rate_masks = rtw89_ra_mask_eht_mcs0_11;
+		else
+			high_rate_masks = rtw89_ra_mask_eht_rates;
+
 		rtw89_phy_ra_gi_ltf(rtwdev, rtwsta_link, link_sta,
 				    chan, &fix_giltf_en, &fix_giltf);
 	} else if (link_sta->he_cap.has_he) {

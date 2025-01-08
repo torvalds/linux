@@ -3001,8 +3001,10 @@ static int rtw89_mac_setup_phycap_part0(struct rtw89_dev *rtwdev)
 
 static int rtw89_mac_setup_phycap_part1(struct rtw89_dev *rtwdev)
 {
+	const struct rtw89_chip_variant *variant = rtwdev->variant;
 	const struct rtw89_c2hreg_phycap *phycap;
 	struct rtw89_mac_c2h_info c2h_info = {};
+	struct rtw89_hal *hal = &rtwdev->hal;
 	u8 qam_raw, qam;
 	int ret;
 
@@ -3025,7 +3027,12 @@ static int rtw89_mac_setup_phycap_part1(struct rtw89_dev *rtwdev)
 		break;
 	}
 
-	rtw89_debug(rtwdev, RTW89_DBG_FW, "phycap qam=%d/%d\n", qam_raw, qam);
+	if ((variant && variant->no_mcs_12_13) ||
+	    qam <= RTW89_C2HREG_PHYCAP_P1_W2_QAM_1024)
+		hal->no_mcs_12_13 = true;
+
+	rtw89_debug(rtwdev, RTW89_DBG_FW, "phycap qam=%d/%d no_mcs_12_13=%d\n",
+		    qam_raw, qam, hal->no_mcs_12_13);
 
 	return 0;
 }

@@ -4367,12 +4367,18 @@ struct rtw89_chip_info {
 	const struct rtw89_xtal_info *xtal_info;
 };
 
+struct rtw89_chip_variant {
+	bool no_mcs_12_13: 1;
+	u32 fw_min_ver_code;
+};
+
 union rtw89_bus_info {
 	const struct rtw89_pci_info *pci;
 };
 
 struct rtw89_driver_info {
 	const struct rtw89_chip_info *chip;
+	const struct rtw89_chip_variant *variant;
 	const struct dmi_system_id *quirks;
 	union rtw89_bus_info bus;
 };
@@ -4747,6 +4753,8 @@ struct rtw89_hal {
 	bool ant_diversity_fixed;
 	bool support_cckpd;
 	bool support_igi;
+	bool no_mcs_12_13;
+
 	atomic_t roc_chanctx_idx;
 
 	DECLARE_BITMAP(changes, NUM_OF_RTW89_CHANCTX_CHANGES);
@@ -5605,6 +5613,7 @@ struct rtw89_dev {
 	enum rtw89_mlo_dbcc_mode mlo_dbcc_mode;
 	struct rtw89_hw_scan_info scan_info;
 	const struct rtw89_chip_info *chip;
+	const struct rtw89_chip_variant *variant;
 	const struct rtw89_pci_info *pci_info;
 	const struct rtw89_rfe_parms *rfe_parms;
 	struct rtw89_hal hal;
@@ -7040,7 +7049,8 @@ int rtw89_core_register(struct rtw89_dev *rtwdev);
 void rtw89_core_unregister(struct rtw89_dev *rtwdev);
 struct rtw89_dev *rtw89_alloc_ieee80211_hw(struct device *device,
 					   u32 bus_data_size,
-					   const struct rtw89_chip_info *chip);
+					   const struct rtw89_chip_info *chip,
+					   const struct rtw89_chip_variant *variant);
 void rtw89_free_ieee80211_hw(struct rtw89_dev *rtwdev);
 u8 rtw89_acquire_mac_id(struct rtw89_dev *rtwdev);
 void rtw89_release_mac_id(struct rtw89_dev *rtwdev, u8 mac_id);

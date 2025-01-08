@@ -4235,12 +4235,16 @@ static void rtw89_init_eht_cap(struct rtw89_dev *rtwdev,
 	struct ieee80211_eht_mcs_nss_supp *eht_nss;
 	struct ieee80211_sta_eht_cap *eht_cap;
 	struct rtw89_hal *hal = &rtwdev->hal;
+	bool support_mcs_12_13 = true;
 	bool support_320mhz = false;
+	u8 val, val_mcs13;
 	int sts = 8;
-	u8 val;
 
 	if (chip->chip_gen == RTW89_CHIP_AX)
 		return;
+
+	if (hal->no_mcs_12_13)
+		support_mcs_12_13 = false;
 
 	if (band == NL80211_BAND_6GHZ &&
 	    chip->support_bandwidths & BIT(NL80211_CHAN_WIDTH_320))
@@ -4299,16 +4303,18 @@ static void rtw89_init_eht_cap(struct rtw89_dev *rtwdev,
 
 	val = u8_encode_bits(hal->rx_nss, IEEE80211_EHT_MCS_NSS_RX) |
 	      u8_encode_bits(hal->tx_nss, IEEE80211_EHT_MCS_NSS_TX);
+	val_mcs13 = support_mcs_12_13 ? val : 0;
+
 	eht_nss->bw._80.rx_tx_mcs9_max_nss = val;
 	eht_nss->bw._80.rx_tx_mcs11_max_nss = val;
-	eht_nss->bw._80.rx_tx_mcs13_max_nss = val;
+	eht_nss->bw._80.rx_tx_mcs13_max_nss = val_mcs13;
 	eht_nss->bw._160.rx_tx_mcs9_max_nss = val;
 	eht_nss->bw._160.rx_tx_mcs11_max_nss = val;
-	eht_nss->bw._160.rx_tx_mcs13_max_nss = val;
+	eht_nss->bw._160.rx_tx_mcs13_max_nss = val_mcs13;
 	if (support_320mhz) {
 		eht_nss->bw._320.rx_tx_mcs9_max_nss = val;
 		eht_nss->bw._320.rx_tx_mcs11_max_nss = val;
-		eht_nss->bw._320.rx_tx_mcs13_max_nss = val;
+		eht_nss->bw._320.rx_tx_mcs13_max_nss = val_mcs13;
 	}
 }
 
@@ -5343,7 +5349,8 @@ EXPORT_SYMBOL(rtw89_core_unregister);
 
 struct rtw89_dev *rtw89_alloc_ieee80211_hw(struct device *device,
 					   u32 bus_data_size,
-					   const struct rtw89_chip_info *chip)
+					   const struct rtw89_chip_info *chip,
+					   const struct rtw89_chip_variant *variant)
 {
 	struct rtw89_fw_info early_fw = {};
 	const struct firmware *firmware;
@@ -5401,6 +5408,7 @@ struct rtw89_dev *rtw89_alloc_ieee80211_hw(struct device *device,
 	rtwdev->dev = device;
 	rtwdev->ops = ops;
 	rtwdev->chip = chip;
+	rtwdev->variant = variant;
 	rtwdev->fw.req.firmware = firmware;
 	rtwdev->fw.fw_format = fw_format;
 	rtwdev->support_mlo = support_mlo;

@@ -2838,6 +2838,12 @@ const struct rtw89_chip_info rtw8922a_chip_info = {
 };
 EXPORT_SYMBOL(rtw8922a_chip_info);
 
+const struct rtw89_chip_variant rtw8922ae_vs_variant = {
+	.no_mcs_12_13 = true,
+	.fw_min_ver_code = RTW89_FW_VER_CODE(0, 35, 54, 0),
+};
+EXPORT_SYMBOL(rtw8922ae_vs_variant);
+
 MODULE_FIRMWARE(RTW8922A_MODULE_FIRMWARE);
 MODULE_AUTHOR("Realtek Corporation");
 MODULE_DESCRIPTION("Realtek 802.11be wireless 8922A driver");
