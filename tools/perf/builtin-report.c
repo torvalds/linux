@@ -1758,22 +1758,24 @@ repeat:
 		symbol_conf.enable_latency = false;
 	}
 
-	if (sort_order && strstr(sort_order, "ipc")) {
-		parse_options_usage(report_usage, options, "s", 1);
-		goto error;
-	}
-
-	if (sort_order && strstr(sort_order, "symbol")) {
-		if (sort__mode == SORT_MODE__BRANCH) {
-			snprintf(sort_tmp, sizeof(sort_tmp), "%s,%s",
-				 sort_order, "ipc_lbr");
-			report.symbol_ipc = true;
-		} else {
-			snprintf(sort_tmp, sizeof(sort_tmp), "%s,%s",
-				 sort_order, "ipc_null");
+	if (last_key != K_SWITCH_INPUT_DATA) {
+		if (sort_order && strstr(sort_order, "ipc")) {
+			parse_options_usage(report_usage, options, "s", 1);
+			goto error;
 		}
 
-		sort_order = sort_tmp;
+		if (sort_order && strstr(sort_order, "symbol")) {
+			if (sort__mode == SORT_MODE__BRANCH) {
+				snprintf(sort_tmp, sizeof(sort_tmp), "%s,%s",
+					 sort_order, "ipc_lbr");
+				report.symbol_ipc = true;
+			} else {
+				snprintf(sort_tmp, sizeof(sort_tmp), "%s,%s",
+					 sort_order, "ipc_null");
+			}
+
+			sort_order = sort_tmp;
+		}
 	}
 
 	if ((last_key != K_SWITCH_INPUT_DATA && last_key != K_RELOAD) &&
