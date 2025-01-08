@@ -823,13 +823,12 @@ void symbol_put_addr(void *addr)
 
 	/*
 	 * Even though we hold a reference on the module; we still need to
-	 * disable preemption in order to safely traverse the data structure.
+	 * RCU read section in order to safely traverse the data structure.
 	 */
-	preempt_disable();
+	guard(rcu)();
 	modaddr = __module_text_address(a);
 	BUG_ON(!modaddr);
 	module_put(modaddr);
-	preempt_enable();
 }
 EXPORT_SYMBOL_GPL(symbol_put_addr);
 
@@ -3776,20 +3775,15 @@ lookup:
  */
 bool is_module_text_address(unsigned long addr)
 {
-	bool ret;
-
-	preempt_disable();
-	ret = __module_text_address(addr) != NULL;
-	preempt_enable();
-
-	return ret;
+	guard(rcu)();
+	return __module_text_address(addr) != NULL;
 }
 
 /**
  * __module_text_address() - get the module whose code contains an address.
  * @addr: the address.
  *
- * Must be called with preempt disabled or module mutex held so that
+ * Must be called within RCU read section or module mutex held so that
  * module doesn't get freed during this.
  */
 struct module *__module_text_address(unsigned long addr)
