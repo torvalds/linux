@@ -79,6 +79,20 @@ class Type(SpecAttr):
         self.enum_name = None
         delattr(self, "enum_name")
 
+    def _get_real_attr(self):
+        # if the attr is for a subset return the "real" attr (just one down, does not recurse)
+        return self.family.attr_sets[self.attr_set.subset_of][self.name]
+
+    def set_request(self):
+        self.request = True
+        if self.attr_set.subset_of:
+            self._get_real_attr().set_request()
+
+    def set_reply(self):
+        self.reply = True
+        if self.attr_set.subset_of:
+            self._get_real_attr().set_reply()
+
     def get_limit(self, limit, default=None):
         value = self.checks.get(limit, default)
         if value is None:
@@ -105,6 +119,10 @@ class Type(SpecAttr):
         else:
             enum_name = f"{self.attr_set.name_prefix}{self.name}"
         self.enum_name = c_upper(enum_name)
+
+        if self.attr_set.subset_of:
+            if self.checks != self._get_real_attr().checks:
+                raise Exception("Overriding checks not supported by codegen, yet")
 
     def is_multi_val(self):
         return None
@@ -1119,17 +1137,17 @@ class Family(SpecFamily):
         for _, struct in self.pure_nested_structs.items():
             if struct.request:
                 for _, arg in struct.member_list():
-                    arg.request = True
+                    arg.set_request()
             if struct.reply:
                 for _, arg in struct.member_list():
-                    arg.reply = True
+                    arg.set_reply()
 
         for root_set, rs_members in self.root_sets.items():
             for attr, spec in self.attr_sets[root_set].items():
                 if attr in rs_members['request']:
-                    spec.request = True
+                    spec.set_request()
                 if attr in rs_members['reply']:
-                    spec.reply = True
+                    spec.set_reply()
 
     def _load_global_policy(self):
         global_set = set()
