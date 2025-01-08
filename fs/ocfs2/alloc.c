@@ -6154,6 +6154,9 @@ static int ocfs2_get_truncate_log_info(struct ocfs2_super *osb,
 	int status;
 	struct inode *inode = NULL;
 	struct buffer_head *bh = NULL;
+	struct ocfs2_dinode *di;
+	struct ocfs2_truncate_log *tl;
+	unsigned int tl_count;
 
 	inode = ocfs2_get_system_file_inode(osb,
 					   TRUNCATE_LOG_SYSTEM_INODE,
@@ -6167,6 +6170,18 @@ static int ocfs2_get_truncate_log_info(struct ocfs2_super *osb,
 	status = ocfs2_read_inode_block(inode, &bh);
 	if (status < 0) {
 		iput(inode);
+		mlog_errno(status);
+		goto bail;
+	}
+
+	di = (struct ocfs2_dinode *)bh->b_data;
+	tl = &di->id2.i_dealloc;
+	tl_count = le16_to_cpu(tl->tl_count);
+	if (unlikely(tl_count > ocfs2_truncate_recs_per_inode(osb->sb) ||
+		     tl_count == 0)) {
+		status = -EFSCORRUPTED;
+		iput(inode);
+		brelse(bh);
 		mlog_errno(status);
 		goto bail;
 	}
