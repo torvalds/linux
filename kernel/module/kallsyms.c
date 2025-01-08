@@ -381,13 +381,13 @@ int module_get_kallsym(unsigned int symnum, unsigned long *value, char *type,
 {
 	struct module *mod;
 
-	preempt_disable();
+	guard(rcu)();
 	list_for_each_entry_rcu(mod, &modules, list) {
 		struct mod_kallsyms *kallsyms;
 
 		if (mod->state == MODULE_STATE_UNFORMED)
 			continue;
-		kallsyms = rcu_dereference_sched(mod->kallsyms);
+		kallsyms = rcu_dereference(mod->kallsyms);
 		if (symnum < kallsyms->num_symtab) {
 			const Elf_Sym *sym = &kallsyms->symtab[symnum];
 
@@ -396,12 +396,10 @@ int module_get_kallsym(unsigned int symnum, unsigned long *value, char *type,
 			strscpy(name, kallsyms_symbol_name(kallsyms, symnum), KSYM_NAME_LEN);
 			strscpy(module_name, mod->name, MODULE_NAME_LEN);
 			*exported = is_exported(name, *value, mod);
-			preempt_enable();
 			return 0;
 		}
 		symnum -= kallsyms->num_symtab;
 	}
-	preempt_enable();
 	return -ERANGE;
 }
 
