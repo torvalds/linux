@@ -1111,7 +1111,7 @@ enum registry_type {
 #define REGISTRY_MAX_KEY_LENGTH		64
 
 /**
- * registry_list_entry - linked list member for a registry key/value
+ * struct registry_list_entry - linked list member for a registry key/value
  * @head: list_head struct
  * @type: dword, binary, or string
  * @klen: the length of name of the key
@@ -1327,7 +1327,7 @@ struct nv_gsp_registry_entries {
 	u32 value;
 };
 
-/**
+/*
  * r535_registry_entries - required registry entries for GSP-RM
  *
  * This array lists registry entries that are required for GSP-RM to
@@ -2101,7 +2101,7 @@ MODULE_PARM_DESC(keep_gsp_logging,
 #define NV_GSP_MSG_EVENT_UCODE_LIBOS_CLASS_PMU		0xf3d722
 
 /**
- * rpc_ucode_libos_print_v1E_08 - RPC payload for libos print buffers
+ * struct rpc_ucode_libos_print_v1e_08 - RPC payload for libos print buffers
  * @ucode_eng_desc: the engine descriptor
  * @libos_print_buf_size: the size of the libos_print_buf[]
  * @libos_print_buf: the actual buffer
@@ -2162,7 +2162,7 @@ r535_gsp_msg_libos_print(void *priv, u32 fn, void *repv, u32 repc)
 }
 
 /**
- * create_debufgs - create a blob debugfs entry
+ * create_debugfs - create a blob debugfs entry
  * @gsp: gsp pointer
  * @name: name of this dentry
  * @blob: blob wrapper
@@ -2788,6 +2788,10 @@ static bool is_empty(const struct debugfs_blob_wrapper *b)
 
 /**
  * r535_gsp_copy_log - preserve the logging buffers in a blob
+ * @parent: the top-level dentry for this GPU
+ * @name: name of debugfs entry to create
+ * @s: original wrapper object to copy from
+ * @t: new wrapper object to copy to
  *
  * When GSP shuts down, the nvkm_gsp object and all its memory is deleted.
  * To preserve the logging buffers, the buffers need to be copied, but only
