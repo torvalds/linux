@@ -92,6 +92,38 @@ must restart iiod using the following command:
 
 	root:~# systemctl restart iiod
 
+Alert
+-----
+
+2 channels variants of the ad738x family, can use the SDOB line as an alert pin
+when configured in 1 SDO line mode. 4 channels variants, can use SDOD as an
+alert pin when configured in 1 or 2 SDO line(s) mode, although only 1 SDO line
+mode is currently supported by the driver (see `SPI wiring modes`_).
+
+At the end of a conversion the active-low alert pin gets asserted if the
+conversion result exceeds the alert high limit or falls below the alert low
+limit. It is cleared, on a falling edge of CS. The alert pin is common to all
+channels.
+
+User can enable alert using the regular iio events attribute:
+
+.. code-block:: bash
+
+	events/thresh_either_en
+
+The high and low thresholds are common to all channels and can also be set using
+regular iio events attributes:
+
+.. code-block:: bash
+
+	events/in_thresh_falling_value
+	events/in_thresh_rising_value
+
+If debugfs is available, user can read the ALERT register to determine the
+faulty channel and direction.
+
+In most use cases, user will hardwire the alert pin to trigger a shutdown.
+
 Channel selection and sequencer (single-end chips only)
 -------------------------------------------------------
 
@@ -144,7 +176,6 @@ Unimplemented features
 - Rolling average oversampling
 - Power down mode
 - CRC indication
-- Alert
 
 
 Device buffers
