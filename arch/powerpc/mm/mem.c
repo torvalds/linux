@@ -319,28 +319,6 @@ void __init mem_init(void)
 	per_cpu(next_tlbcam_idx, smp_processor_id()) =
 		(mfspr(SPRN_TLB1CFG) & TLBnCFG_N_ENTRY) - 1;
 #endif
-
-#ifdef CONFIG_PPC32
-	pr_info("Kernel virtual memory layout:\n");
-#ifdef CONFIG_KASAN
-	pr_info("  * 0x%08lx..0x%08lx  : kasan shadow mem\n",
-		KASAN_SHADOW_START, KASAN_SHADOW_END);
-#endif
-	pr_info("  * 0x%08lx..0x%08lx  : fixmap\n", FIXADDR_START, FIXADDR_TOP);
-#ifdef CONFIG_HIGHMEM
-	pr_info("  * 0x%08lx..0x%08lx  : highmem PTEs\n",
-		PKMAP_BASE, PKMAP_ADDR(LAST_PKMAP));
-#endif /* CONFIG_HIGHMEM */
-	if (ioremap_bot != IOREMAP_TOP)
-		pr_info("  * 0x%08lx..0x%08lx  : early ioremap\n",
-			ioremap_bot, IOREMAP_TOP);
-	pr_info("  * 0x%08lx..0x%08lx  : vmalloc & ioremap\n",
-		VMALLOC_START, VMALLOC_END);
-#ifdef MODULES_VADDR
-	pr_info("  * 0x%08lx..0x%08lx  : modules\n",
-		MODULES_VADDR, MODULES_END);
-#endif
-#endif /* CONFIG_PPC32 */
 }
 
 void free_initmem(void)
