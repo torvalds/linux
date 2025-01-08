@@ -476,10 +476,8 @@ int module_kallsyms_on_each_symbol(const char *modname,
 		if (modname && strcmp(modname, mod->name))
 			continue;
 
-		/* Use rcu_dereference_sched() to remain compliant with the sparse tool */
-		preempt_disable();
-		kallsyms = rcu_dereference_sched(mod->kallsyms);
-		preempt_enable();
+		kallsyms = rcu_dereference_check(mod->kallsyms,
+						 lockdep_is_held(&module_mutex));
 
 		for (i = 0; i < kallsyms->num_symtab; i++) {
 			const Elf_Sym *sym = &kallsyms->symtab[i];
