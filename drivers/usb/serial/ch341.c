@@ -660,13 +660,12 @@ restore:
 
 static int ch341_break_ctl(struct tty_struct *tty, int break_state)
 {
-	const uint16_t ch341_break_reg =
-			((uint16_t) CH341_REG_LCR << 8) | CH341_REG_BREAK;
+	const u16 ch341_break_reg = (CH341_REG_LCR << 8) | CH341_REG_BREAK;
 	struct usb_serial_port *port = tty->driver_data;
 	struct ch341_private *priv = usb_get_serial_port_data(port);
+	u16 reg_contents;
+	u8 break_reg[2];
 	int r;
-	uint16_t reg_contents;
-	uint8_t break_reg[2];
 
 	if (priv->quirks & CH341_QUIRK_SIMULATE_BREAK)
 		return ch341_simulate_break(tty, break_state);
