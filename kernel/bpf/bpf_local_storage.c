@@ -217,7 +217,10 @@ static void bpf_selem_free_rcu(struct rcu_head *rcu)
 	selem = container_of(rcu, struct bpf_local_storage_elem, rcu);
 	/* The bpf_local_storage_map_free will wait for rcu_barrier */
 	smap = rcu_dereference_check(SDATA(selem)->smap, 1);
+
+	migrate_disable();
 	bpf_obj_free_fields(smap->map.record, SDATA(selem)->data);
+	migrate_enable();
 	bpf_mem_cache_raw_free(selem);
 }
 
