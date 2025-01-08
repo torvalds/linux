@@ -1783,7 +1783,14 @@ def parse_rsp_nested(ri, struct):
                   f'{struct.ptr_name}dst = yarg->data;']
     init_lines = []
 
-    _multi_parse(ri, struct, init_lines, local_vars)
+    if struct.member_list():
+        _multi_parse(ri, struct, init_lines, local_vars)
+    else:
+        # Empty nest
+        ri.cw.block_start()
+        ri.cw.p('return 0;')
+        ri.cw.block_end()
+        ri.cw.nl()
 
 
 def parse_rsp_msg(ri, deref=False):
@@ -2610,7 +2617,8 @@ def render_uapi(family, cw):
                 val = attr.value
             val += 1
             cw.p(attr.enum_name + suffix)
-        cw.nl()
+        if attr_set.items():
+            cw.nl()
         cw.p(attr_set.cnt_name + ('' if max_by_define else ','))
         if not max_by_define:
             cw.p(f"{attr_set.max_name} = {max_value}")
