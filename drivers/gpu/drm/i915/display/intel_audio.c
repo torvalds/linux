@@ -732,7 +732,6 @@ void intel_audio_codec_enable(struct intel_encoder *encoder,
 			      const struct drm_connector_state *conn_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct i915_audio_component *acomp = display->audio.component;
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
@@ -774,7 +773,7 @@ void intel_audio_codec_enable(struct intel_encoder *encoder,
 						      (int)port, (int)cpu_transcoder);
 	}
 
-	intel_lpe_audio_notify(i915, cpu_transcoder, port, crtc_state->eld,
+	intel_lpe_audio_notify(display, cpu_transcoder, port, crtc_state->eld,
 			       crtc_state->port_clock,
 			       intel_crtc_has_dp_encoder(crtc_state));
 }
@@ -793,7 +792,6 @@ void intel_audio_codec_disable(struct intel_encoder *encoder,
 			       const struct drm_connector_state *old_conn_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct i915_audio_component *acomp = display->audio.component;
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
 	struct intel_connector *connector = to_intel_connector(old_conn_state->connector);
@@ -833,7 +831,7 @@ void intel_audio_codec_disable(struct intel_encoder *encoder,
 						      (int)port, (int)cpu_transcoder);
 	}
 
-	intel_lpe_audio_notify(i915, cpu_transcoder, port, NULL, 0, false);
+	intel_lpe_audio_notify(display, cpu_transcoder, port, NULL, 0, false);
 }
 
 static void intel_acomp_get_config(struct intel_encoder *encoder,
@@ -1399,9 +1397,7 @@ static void i915_audio_component_cleanup(struct intel_display *display)
  */
 void intel_audio_init(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
-	if (intel_lpe_audio_init(i915) < 0)
+	if (intel_lpe_audio_init(display) < 0)
 		i915_audio_component_init(display);
 }
 
@@ -1417,10 +1413,8 @@ void intel_audio_register(struct intel_display *display)
  */
 void intel_audio_deinit(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
 	if (display->audio.lpe.platdev)
-		intel_lpe_audio_teardown(i915);
+		intel_lpe_audio_teardown(display);
 	else
 		i915_audio_component_cleanup(display);
 }
