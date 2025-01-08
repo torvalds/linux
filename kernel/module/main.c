@@ -450,8 +450,7 @@ bool __is_module_percpu_address(unsigned long addr, unsigned long *can_addr)
 	struct module *mod;
 	unsigned int cpu;
 
-	preempt_disable();
-
+	guard(rcu)();
 	list_for_each_entry_rcu(mod, &modules, list) {
 		if (mod->state == MODULE_STATE_UNFORMED)
 			continue;
@@ -468,13 +467,10 @@ bool __is_module_percpu_address(unsigned long addr, unsigned long *can_addr)
 						per_cpu_ptr(mod->percpu,
 							    get_boot_cpu_id());
 				}
-				preempt_enable();
 				return true;
 			}
 		}
 	}
-
-	preempt_enable();
 	return false;
 }
 
