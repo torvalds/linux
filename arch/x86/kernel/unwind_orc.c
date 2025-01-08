@@ -476,7 +476,7 @@ bool unwind_next_frame(struct unwind_state *state)
 		return false;
 
 	/* Don't let modules unload while we're reading their ORC data. */
-	preempt_disable();
+	guard(rcu)();
 
 	/* End-of-stack check for user tasks: */
 	if (state->regs && user_mode(state->regs))
@@ -669,14 +669,12 @@ bool unwind_next_frame(struct unwind_state *state)
 		goto err;
 	}
 
-	preempt_enable();
 	return true;
 
 err:
 	state->error = true;
 
 the_end:
-	preempt_enable();
 	state->stack_info.type = STACK_TYPE_UNKNOWN;
 	return false;
 }
