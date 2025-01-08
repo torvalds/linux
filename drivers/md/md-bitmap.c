@@ -682,7 +682,7 @@ static void bitmap_update_sb(void *data)
 		return;
 	if (!bitmap->storage.sb_page) /* no superblock */
 		return;
-	sb = kmap_atomic(bitmap->storage.sb_page);
+	sb = kmap_local_page(bitmap->storage.sb_page);
 	sb->events = cpu_to_le64(bitmap->mddev->events);
 	if (bitmap->mddev->events < bitmap->events_cleared)
 		/* rocking back to read-only */
@@ -702,7 +702,7 @@ static void bitmap_update_sb(void *data)
 	sb->nodes = cpu_to_le32(bitmap->mddev->bitmap_info.nodes);
 	sb->sectors_reserved = cpu_to_le32(bitmap->mddev->
 					   bitmap_info.space);
-	kunmap_atomic(sb);
+	kunmap_local(sb);
 
 	if (bitmap->storage.file)
 		write_file_page(bitmap, bitmap->storage.sb_page, 1);
@@ -717,7 +717,7 @@ static void bitmap_print_sb(struct bitmap *bitmap)
 
 	if (!bitmap || !bitmap->storage.sb_page)
 		return;
-	sb = kmap_atomic(bitmap->storage.sb_page);
+	sb = kmap_local_page(bitmap->storage.sb_page);
 	pr_debug("%s: bitmap file superblock:\n", bmname(bitmap));
 	pr_debug("         magic: %08x\n", le32_to_cpu(sb->magic));
 	pr_debug("       version: %u\n", le32_to_cpu(sb->version));
@@ -736,7 +736,7 @@ static void bitmap_print_sb(struct bitmap *bitmap)
 	pr_debug("     sync size: %llu KB\n",
 		 (unsigned long long)le64_to_cpu(sb->sync_size)/2);
 	pr_debug("max write behind: %u\n", le32_to_cpu(sb->write_behind));
-	kunmap_atomic(sb);
+	kunmap_local(sb);
 }
 
 /*
@@ -760,7 +760,7 @@ static int md_bitmap_new_disk_sb(struct bitmap *bitmap)
 		return -ENOMEM;
 	bitmap->storage.sb_index = 0;
 
-	sb = kmap_atomic(bitmap->storage.sb_page);
+	sb = kmap_local_page(bitmap->storage.sb_page);
 
 	sb->magic = cpu_to_le32(BITMAP_MAGIC);
 	sb->version = cpu_to_le32(BITMAP_MAJOR_HI);
@@ -768,7 +768,7 @@ static int md_bitmap_new_disk_sb(struct bitmap *bitmap)
 	chunksize = bitmap->mddev->bitmap_info.chunksize;
 	BUG_ON(!chunksize);
 	if (!is_power_of_2(chunksize)) {
-		kunmap_atomic(sb);
+		kunmap_local(sb);
 		pr_warn("bitmap chunksize not a power of 2\n");
 		return -EINVAL;
 	}
@@ -803,7 +803,7 @@ static int md_bitmap_new_disk_sb(struct bitmap *bitmap)
 	sb->events_cleared = cpu_to_le64(bitmap->mddev->events);
 	bitmap->mddev->bitmap_info.nodes = 0;
 
-	kunmap_atomic(sb);
+	kunmap_local(sb);
 
 	return 0;
 }
@@ -865,7 +865,7 @@ re_read:
 		return err;
 
 	err = -EINVAL;
-	sb = kmap_atomic(sb_page);
+	sb = kmap_local_page(sb_page);
 
 	chunksize = le32_to_cpu(sb->chunksize);
 	daemon_sleep = le32_to_cpu(sb->daemon_sleep) * HZ;
@@ -932,7 +932,7 @@ re_read:
 	err = 0;
 
 out:
-	kunmap_atomic(sb);
+	kunmap_local(sb);
 	if (err == 0 && nodes && (bitmap->cluster_slot < 0)) {
 		/* Assigning chunksize is required for "re_read" */
 		bitmap->mddev->bitmap_info.chunksize = chunksize;
@@ -1161,12 +1161,12 @@ static void md_bitmap_file_set_bit(struct bitmap *bitmap, sector_t block)
 	bit = file_page_offset(&bitmap->storage, chunk);
 
 	/* set the bit */
-	kaddr = kmap_atomic(page);
+	kaddr = kmap_local_page(page);
 	if (test_bit(BITMAP_HOSTENDIAN, &bitmap->flags))
 		set_bit(bit, kaddr);
 	else
 		set_bit_le(bit, kaddr);
-	kunmap_atomic(kaddr);
+	kunmap_local(kaddr);
 	pr_debug("set file bit %lu page %lu\n", bit, index);
 	/* record page number so it gets flushed to disk when unplug occurs */
 	set_page_attr(bitmap, index - node_offset, BITMAP_PAGE_DIRTY);
@@ -1190,12 +1190,12 @@ static void md_bitmap_file_clear_bit(struct bitmap *bitmap, sector_t block)
 	if (!page)
 		return;
 	bit = file_page_offset(&bitmap->storage, chunk);
-	paddr = kmap_atomic(page);
+	paddr = kmap_local_page(page);
 	if (test_bit(BITMAP_HOSTENDIAN, &bitmap->flags))
 		clear_bit(bit, paddr);
 	else
 		clear_bit_le(bit, paddr);
-	kunmap_atomic(paddr);
+	kunmap_local(paddr);
 	if (!test_page_attr(bitmap, index - node_offset, BITMAP_PAGE_NEEDWRITE)) {
 		set_page_attr(bitmap, index - node_offset, BITMAP_PAGE_PENDING);
 		bitmap->allclean = 0;
@@ -1214,12 +1214,12 @@ static int md_bitmap_file_test_bit(struct bitmap *bitmap, sector_t block)
 	if (!page)
 		return -EINVAL;
 	bit = file_page_offset(&bitmap->storage, chunk);
-	paddr = kmap_atomic(page);
+	paddr = kmap_local_page(page);
 	if (test_bit(BITMAP_HOSTENDIAN, &bitmap->flags))
 		set = test_bit(bit, paddr);
 	else
 		set = test_bit_le(bit, paddr);
-	kunmap_atomic(paddr);
+	kunmap_local(paddr);
 	return set;
 }
 
@@ -1388,9 +1388,9 @@ static int md_bitmap_init_from_disk(struct bitmap *bitmap, sector_t start)
 			 * If the bitmap is out of date, dirty the whole page
 			 * and write it out
 			 */
-			paddr = kmap_atomic(page);
+			paddr = kmap_local_page(page);
 			memset(paddr + offset, 0xff, PAGE_SIZE - offset);
-			kunmap_atomic(paddr);
+			kunmap_local(paddr);
 
 			filemap_write_page(bitmap, i, true);
 			if (test_bit(BITMAP_WRITE_ERROR, &bitmap->flags)) {
@@ -1406,12 +1406,12 @@ static int md_bitmap_init_from_disk(struct bitmap *bitmap, sector_t start)
 		void *paddr;
 		bool was_set;
 
-		paddr = kmap_atomic(page);
+		paddr = kmap_local_page(page);
 		if (test_bit(BITMAP_HOSTENDIAN, &bitmap->flags))
 			was_set = test_bit(bit, paddr);
 		else
 			was_set = test_bit_le(bit, paddr);
-		kunmap_atomic(paddr);
+		kunmap_local(paddr);
 
 		if (was_set) {
 			/* if the disk bit is set, set the memory bit */
@@ -1546,10 +1546,10 @@ static void bitmap_daemon_work(struct mddev *mddev)
 		bitmap_super_t *sb;
 		bitmap->need_sync = 0;
 		if (bitmap->storage.filemap) {
-			sb = kmap_atomic(bitmap->storage.sb_page);
+			sb = kmap_local_page(bitmap->storage.sb_page);
 			sb->events_cleared =
 				cpu_to_le64(bitmap->events_cleared);
-			kunmap_atomic(sb);
+			kunmap_local(sb);
 			set_page_attr(bitmap, 0,
 				      BITMAP_PAGE_NEEDWRITE);
 		}
