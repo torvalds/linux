@@ -407,7 +407,7 @@ int module_get_kallsym(unsigned int symnum, unsigned long *value, char *type,
 static unsigned long __find_kallsyms_symbol_value(struct module *mod, const char *name)
 {
 	unsigned int i;
-	struct mod_kallsyms *kallsyms = rcu_dereference_sched(mod->kallsyms);
+	struct mod_kallsyms *kallsyms = rcu_dereference(mod->kallsyms);
 
 	for (i = 0; i < kallsyms->num_symtab; i++) {
 		const Elf_Sym *sym = &kallsyms->symtab[i];
@@ -447,24 +447,15 @@ static unsigned long __module_kallsyms_lookup_name(const char *name)
 /* Look for this name: can be of form module:name. */
 unsigned long module_kallsyms_lookup_name(const char *name)
 {
-	unsigned long ret;
-
 	/* Don't lock: we're in enough trouble already. */
 	guard(rcu)();
-	preempt_disable();
-	ret = __module_kallsyms_lookup_name(name);
-	preempt_enable();
-	return ret;
+	return __module_kallsyms_lookup_name(name);
 }
 
 unsigned long find_kallsyms_symbol_value(struct module *mod, const char *name)
 {
-	unsigned long ret;
-
-	preempt_disable();
-	ret = __find_kallsyms_symbol_value(mod, name);
-	preempt_enable();
-	return ret;
+	guard(rcu)();
+	return __find_kallsyms_symbol_value(mod, name);
 }
 
 int module_kallsyms_on_each_symbol(const char *modname,
