@@ -23,7 +23,6 @@ TARGET=$(mktemp -u netcons_XXXXX)
 DEFAULT_PRINTK_VALUES=$(cat /proc/sys/kernel/printk)
 NETCONS_CONFIGFS="/sys/kernel/config/netconsole"
 NETCONS_PATH="${NETCONS_CONFIGFS}"/"${TARGET}"
-KEY_PATH="${NETCONS_PATH}/userdata/${USERDATA_KEY}"
 # NAMESPACE will be populated by setup_ns with a random value
 NAMESPACE=""
 
@@ -116,8 +115,8 @@ function cleanup() {
 
 	# delete netconsole dynamic reconfiguration
 	echo 0 > "${NETCONS_PATH}"/enabled
-	# Remove key
-	rmdir "${KEY_PATH}"
+	# Remove all the keys that got created during the selftest
+	find "${NETCONS_PATH}/userdata/" -mindepth 1 -type d -delete
 	# Remove the configfs entry
 	rmdir "${NETCONS_PATH}"
 
@@ -139,6 +138,7 @@ function set_user_data() {
 		exit "${ksft_skip}"
 	fi
 
+	KEY_PATH="${NETCONS_PATH}/userdata/${USERDATA_KEY}"
 	mkdir -p "${KEY_PATH}"
 	VALUE_PATH="${KEY_PATH}""/value"
 	echo "${USERDATA_VALUE}" > "${VALUE_PATH}"
