@@ -233,6 +233,9 @@ static const struct hdmi_codec_ops adv7511_codec_ops = {
 
 static const struct hdmi_codec_pdata codec_data = {
 	.ops = &adv7511_codec_ops,
+	.i2s_formats = (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |
+			SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S24_LE |
+			SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE),
 	.max_i2s_channels = 2,
 	.i2s = 1,
 	.no_i2s_capture = 1,
