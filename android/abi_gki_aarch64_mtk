@@ -527,6 +527,7 @@
   devm_mbox_controller_register
   devm_mdiobus_alloc_size
   devm_memremap
+  devm_memremap_pages
   devm_mfd_add_devices
   devm_nvmem_cell_get
   devm_nvmem_device_get
@@ -2363,6 +2364,7 @@
   rproc_alloc
   rproc_boot
   rproc_del
+  rproc_detach
   rproc_free
   rproc_get_by_phandle
   rproc_put
@@ -2568,6 +2570,7 @@
   snd_ctl_boolean_mono_info
   snd_jack_set_key
   snd_pcm_format_physical_width
+  snd_pcm_format_set_silence
   snd_pcm_format_width
   snd_pcm_hw_constraint_integer
   snd_pcm_hw_constraint_minmax
@@ -3054,6 +3057,7 @@
   try_module_get
   try_wait_for_completion
   __tty_alloc_driver
+  tty_buffer_space_avail
   tty_chars_in_buffer
   tty_driver_flush_buffer
   tty_driver_kref_put
@@ -3094,6 +3098,9 @@
   tty_vhangup
   tty_wakeup
   tty_write_room
+  tun_get_socket
+  tun_get_tx_ring
+  tun_ptr_free
   typec_get_drvdata
   typec_mux_get_drvdata
   typec_mux_put

@@ -1760,6 +1760,7 @@
 
 # required by nexusmem.ko
   restore_online_page_callback
+  __alloc_pages_bulk
 
 # required by nexus.ko
   recalc_sigpending
