@@ -279,7 +279,7 @@ static inline int srcu_read_lock_lite(struct srcu_struct *ssp) __acquires(ssp)
 {
 	int retval;
 
-	srcu_check_read_flavor_lite(ssp);
+	srcu_check_read_flavor_force(ssp, SRCU_READ_FLAVOR_LITE);
 	retval = __srcu_read_lock_lite(ssp);
 	rcu_try_lock_acquire(&ssp->dep_map);
 	return retval;

@@ -251,16 +251,18 @@ static inline void __srcu_read_unlock_lite(struct srcu_struct *ssp, int idx)
 
 void __srcu_check_read_flavor(struct srcu_struct *ssp, int read_flavor);
 
-// Record _lite() usage even for CONFIG_PROVE_RCU=n kernels.
-static inline void srcu_check_read_flavor_lite(struct srcu_struct *ssp)
+// Record reader usage even for CONFIG_PROVE_RCU=n kernels.  This is
+// needed only for flavors that require grace-period smp_mb() calls to be
+// promoted to synchronize_rcu().
+static inline void srcu_check_read_flavor_force(struct srcu_struct *ssp, int read_flavor)
 {
 	struct srcu_data *sdp = raw_cpu_ptr(ssp->sda);
 
-	if (likely(READ_ONCE(sdp->srcu_reader_flavor) & SRCU_READ_FLAVOR_LITE))
+	if (likely(READ_ONCE(sdp->srcu_reader_flavor) & read_flavor))
 		return;
 
 	// Note that the cmpxchg() in __srcu_check_read_flavor() is fully ordered.
-	__srcu_check_read_flavor(ssp, SRCU_READ_FLAVOR_LITE);
+	__srcu_check_read_flavor(ssp, read_flavor);
 }
 
 // Record non-_lite() usage only for CONFIG_PROVE_RCU=y kernels.
