@@ -1816,6 +1816,10 @@ D: Author/maintainer of most DRM drivers (especially ATI, MGA)
 D: Core DRM templates, general DRM and 3D-related hacking
 S: No fixed address
 
+N: Woojung Huh
+E: woojung.huh@microchip.com
+D: Microchip LAN78XX USB Ethernet driver
+
 N: Kenn Humborg
 E: kenn@wombat.ie
 D: Mods to loop device to support sparse backing files

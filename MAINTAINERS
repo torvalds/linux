@@ -24252,7 +24252,8 @@ F:	Documentation/devicetree/bindings/usb/nxp,isp1760.yaml
 F:	drivers/usb/isp1760/*
 
 USB LAN78XX ETHERNET DRIVER
-M:	Woojung Huh <woojung.huh@microchip.com>
+M:	Thangaraj Samynathan <Thangaraj.S@microchip.com>
+M:	Rengarajan Sundararajan <Rengarajan.S@microchip.com>
 M:	UNGLinuxDriver@microchip.com
 L:	netdev@vger.kernel.org
 S:	Maintained
