@@ -796,8 +796,10 @@ static void make_histogram(struct perf_ftrace *ftrace, int buckets[],
 			// than the min latency desired.
 			if (num > 0) // 1st entry: [ 1 unit .. bucket_range units ]
 				i = num / ftrace->bucket_range + 1;
+			if (num >= max_latency - min_latency)
+				i = NUM_BUCKET -1;
 		}
-		if (i >= NUM_BUCKET || num >= max_latency - min_latency)
+		if (i >= NUM_BUCKET)
 			i = NUM_BUCKET - 1;
 
 		num += min_latency;
@@ -1738,7 +1740,7 @@ int cmd_ftrace(int argc, const char **argv)
 			ret = -EINVAL;
 			goto out_delete_filters;
 		}
-		if (!ftrace.min_latency) {
+		if (ftrace.bucket_range && !ftrace.min_latency) {
 			/* default min latency should be the bucket range */
 			ftrace.min_latency = ftrace.bucket_range;
 		}
@@ -1749,7 +1751,7 @@ int cmd_ftrace(int argc, const char **argv)
 			ret = -EINVAL;
 			goto out_delete_filters;
 		}
-		if (!ftrace.max_latency) {
+		if (ftrace.bucket_range && !ftrace.max_latency) {
 			/* default max latency should depend on bucket range and num_buckets */
 			ftrace.max_latency = (NUM_BUCKET - 2) * ftrace.bucket_range +
 						ftrace.min_latency;
