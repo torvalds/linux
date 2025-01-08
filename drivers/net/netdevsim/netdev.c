@@ -635,10 +635,10 @@ nsim_pp_hold_write(struct file *file, const char __user *data,
 		page_pool_put_full_page(ns->page->pp, ns->page, false);
 		ns->page = NULL;
 	}
-	rtnl_unlock();
 
 exit:
-	return count;
+	rtnl_unlock();
+	return ret;
 }
 
 static const struct file_operations nsim_pp_hold_fops = {

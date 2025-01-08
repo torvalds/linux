@@ -134,6 +134,8 @@ struct machine *machine__new_host(void)
 
 		if (machine__create_kernel_maps(machine) < 0)
 			goto out_delete;
+
+		machine->env = &perf_env;
 	}
 
 	return machine;

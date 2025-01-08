@@ -163,10 +163,6 @@ static int rsassa_pkcs1_sign(struct crypto_sig *tfm,
 	struct rsassa_pkcs1_inst_ctx *ictx = sig_instance_ctx(inst);
 	const struct hash_prefix *hash_prefix = ictx->hash_prefix;
 	struct rsassa_pkcs1_ctx *ctx = crypto_sig_ctx(tfm);
-	unsigned int child_reqsize = crypto_akcipher_reqsize(ctx->child);
-	struct akcipher_request *child_req __free(kfree_sensitive) = NULL;
-	struct scatterlist in_sg[3], out_sg;
-	struct crypto_wait cwait;
 	unsigned int pad_len;
 	unsigned int ps_end;
 	unsigned int len;
@@ -187,37 +183,25 @@ static int rsassa_pkcs1_sign(struct crypto_sig *tfm,
 
 	pad_len = ctx->key_size - slen - hash_prefix->size - 1;
 
-	child_req = kmalloc(sizeof(*child_req) + child_reqsize + pad_len,
-			    GFP_KERNEL);
-	if (!child_req)
-		return -ENOMEM;
-
 	/* RFC 8017 sec 8.2.1 step 1 - EMSA-PKCS1-v1_5 encoding generation */
-	in_buf = (u8 *)(child_req + 1) + child_reqsize;
+	in_buf = dst;
+	memmove(in_buf + pad_len + hash_prefix->size, src, slen);
+	memcpy(in_buf + pad_len, hash_prefix->data, hash_prefix->size);
+
 	ps_end = pad_len - 1;
 	in_buf[0] = 0x01;
 	memset(in_buf + 1, 0xff, ps_end - 1);
 	in_buf[ps_end] = 0x00;
 
-	/* RFC 8017 sec 8.2.1 step 2 - RSA signature */
-	crypto_init_wait(&cwait);
-	sg_init_table(in_sg, 3);
-	sg_set_buf(&in_sg[0], in_buf, pad_len);
-	sg_set_buf(&in_sg[1], hash_prefix->data, hash_prefix->size);
-	sg_set_buf(&in_sg[2], src, slen);
-	sg_init_one(&out_sg, dst, dlen);
-	akcipher_request_set_tfm(child_req, ctx->child);
-	akcipher_request_set_crypt(child_req, in_sg, &out_sg,
-				   ctx->key_size - 1, dlen);
-	akcipher_request_set_callback(child_req, CRYPTO_TFM_REQ_MAY_SLEEP,
-				      crypto_req_done, &cwait);
 
-	err = crypto_akcipher_decrypt(child_req);
-	err = crypto_wait_req(err, &cwait);
-	if (err)
+	/* RFC 8017 sec 8.2.1 step 2 - RSA signature */
+	err = crypto_akcipher_sync_decrypt(ctx->child, in_buf,
+					   ctx->key_size - 1, in_buf,
+					   ctx->key_size);
+	if (err < 0)
 		return err;
 
-	len = child_req->dst_len;
+	len = err;
 	pad_len = ctx->key_size - len;
 
 	/* Four billion to one */
@@ -239,8 +223,8 @@ static int rsassa_pkcs1_verify(struct crypto_sig *tfm,
 	struct rsassa_pkcs1_ctx *ctx = crypto_sig_ctx(tfm);
 	unsigned int child_reqsize = crypto_akcipher_reqsize(ctx->child);
 	struct akcipher_request *child_req __free(kfree_sensitive) = NULL;
-	struct scatterlist in_sg, out_sg;
 	struct crypto_wait cwait;
+	struct scatterlist sg;
 	unsigned int dst_len;
 	unsigned int pos;
 	u8 *out_buf;
@@ -259,13 +243,12 @@ static int rsassa_pkcs1_verify(struct crypto_sig *tfm,
 		return -ENOMEM;
 
 	out_buf = (u8 *)(child_req + 1) + child_reqsize;
+	memcpy(out_buf, src, slen);
 
 	crypto_init_wait(&cwait);
-	sg_init_one(&in_sg, src, slen);
-	sg_init_one(&out_sg, out_buf, ctx->key_size);
+	sg_init_one(&sg, out_buf, slen);
 	akcipher_request_set_tfm(child_req, ctx->child);
-	akcipher_request_set_crypt(child_req, &in_sg, &out_sg,
-				   slen, ctx->key_size);
+	akcipher_request_set_crypt(child_req, &sg, &sg, slen, slen);
 	akcipher_request_set_callback(child_req, CRYPTO_TFM_REQ_MAY_SLEEP,
 				      crypto_req_done, &cwait);
 

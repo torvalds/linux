@@ -1720,8 +1720,6 @@ static void ww_test_normal(void)
 {
 	int ret;
 
-	WWAI(&t);
-
 	/*
 	 * None of the ww_mutex codepaths should be taken in the 'normal'
 	 * mutex calls. The easiest way to verify this is by using the
@@ -1769,6 +1767,8 @@ static void ww_test_normal(void)
 	WARN_ON(ret);
 	ww_mutex_base_unlock(&o.base);
 	WARN_ON(o.ctx != (void *)~0UL);
+
+	WWAI(&t);
 
 	/* nest_lock */
 	o.ctx = (void *)~0UL;

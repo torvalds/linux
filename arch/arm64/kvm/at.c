@@ -739,8 +739,15 @@ static u64 compute_par_s12(struct kvm_vcpu *vcpu, u64 s1_par,
 			final_attr = s1_parattr;
 			break;
 		default:
-			/* MemAttr[2]=0, Device from S2 */
-			final_attr = s2_memattr & GENMASK(1,0) << 2;
+			/*
+			 * MemAttr[2]=0, Device from S2.
+			 *
+			 * FWB does not influence the way that stage 1
+			 * memory types and attributes are combined
+			 * with stage 2 Device type and attributes.
+			 */
+			final_attr = min(s2_memattr_to_attr(s2_memattr),
+					 s1_parattr);
 		}
 	} else {
 		/* Combination of R_HMNDG, R_TNHFM and R_GQFSF */
