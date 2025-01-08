@@ -10,7 +10,7 @@ src_test := $(wildcard *_test.c)
 
 TEST_GEN_PROGS := $(src_test:.c=)
 
-TEST_GEN_PROGS_EXTENDED := true
+TEST_GEN_PROGS_EXTENDED := true sandbox-and-launch wait-pipe
 
 # Short targets:
 $(TEST_GEN_PROGS): LDLIBS += -lcap -lpthread

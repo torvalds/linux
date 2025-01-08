@@ -28,6 +28,9 @@
 /* TEST_F_FORK() should not be used for new tests. */
 #define TEST_F_FORK(fixture_name, test_name) TEST_F(fixture_name, test_name)
 
+static const char bin_sandbox_and_launch[] = "./sandbox-and-launch";
+static const char bin_wait_pipe[] = "./wait-pipe";
+
 static void _init_caps(struct __test_metadata *const _metadata, bool drop_all)
 {
 	cap_t cap_p;
