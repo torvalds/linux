@@ -3703,28 +3703,23 @@ out:
 /* Given an address, look for it in the module exception tables. */
 const struct exception_table_entry *search_module_extables(unsigned long addr)
 {
-	const struct exception_table_entry *e = NULL;
 	struct module *mod;
 
-	preempt_disable();
+	guard(rcu)();
 	mod = __module_address(addr);
 	if (!mod)
-		goto out;
+		return NULL;
 
 	if (!mod->num_exentries)
-		goto out;
-
-	e = search_extable(mod->extable,
-			   mod->num_exentries,
-			   addr);
-out:
-	preempt_enable();
-
+		return NULL;
 	/*
-	 * Now, if we found one, we are running inside it now, hence
-	 * we cannot unload the module, hence no refcnt needed.
+	 * The address passed here belongs to a module that is currently
+	 * invoked (we are running inside it). Therefore its module::refcnt
+	 * needs already be >0 to ensure that it is not removed at this stage.
+	 * All other user need to invoke this function within a RCU read
+	 * section.
 	 */
-	return e;
+	return search_extable(mod->extable, mod->num_exentries, addr);
 }
 
 /**
