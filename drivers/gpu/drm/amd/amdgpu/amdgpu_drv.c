@@ -749,7 +749,7 @@ module_param_named(use_xgmi_p2p, amdgpu_use_xgmi_p2p, int, 0444);
  * assigns queues to HQDs.
  */
 int sched_policy = KFD_SCHED_POLICY_HWS;
-module_param(sched_policy, int, 0444);
+module_param_unsafe(sched_policy, int, 0444);
 MODULE_PARM_DESC(sched_policy,
 	"Scheduling policy (0 = HWS (Default), 1 = HWS without over-subscription, 2 = Non-HWS (Used for debugging only)");
 
@@ -799,7 +799,7 @@ MODULE_PARM_DESC(send_sigterm,
  * Setting 1 enables halt on hang.
  */
 int halt_if_hws_hang;
-module_param(halt_if_hws_hang, int, 0644);
+module_param_unsafe(halt_if_hws_hang, int, 0644);
 MODULE_PARM_DESC(halt_if_hws_hang, "Halt if HWS hang is detected (0 = off (default), 1 = on)");
 
 /**
@@ -808,7 +808,7 @@ MODULE_PARM_DESC(halt_if_hws_hang, "Halt if HWS hang is detected (0 = off (defau
  * check says. Default value: false (rely on MEC2 firmware version check).
  */
 bool hws_gws_support;
-module_param(hws_gws_support, bool, 0444);
+module_param_unsafe(hws_gws_support, bool, 0444);
 MODULE_PARM_DESC(hws_gws_support, "Assume MEC2 FW supports GWS barriers (false = rely on FW version check (Default), true = force supported)");
 
 /**
@@ -841,7 +841,7 @@ MODULE_PARM_DESC(no_system_mem_limit, "disable system memory limit (false = defa
  */
 int amdgpu_no_queue_eviction_on_vm_fault;
 MODULE_PARM_DESC(no_queue_eviction_on_vm_fault, "No queue eviction on VM fault (0 = queue eviction, 1 = no queue eviction)");
-module_param_named(no_queue_eviction_on_vm_fault, amdgpu_no_queue_eviction_on_vm_fault, int, 0444);
+module_param_named_unsafe(no_queue_eviction_on_vm_fault, amdgpu_no_queue_eviction_on_vm_fault, int, 0444);
 #endif
 
 /**
@@ -849,7 +849,7 @@ module_param_named(no_queue_eviction_on_vm_fault, amdgpu_no_queue_eviction_on_vm
  */
 int amdgpu_mtype_local;
 MODULE_PARM_DESC(mtype_local, "MTYPE for local memory (0 = MTYPE_RW (default), 1 = MTYPE_NC, 2 = MTYPE_CC)");
-module_param_named(mtype_local, amdgpu_mtype_local, int, 0444);
+module_param_named_unsafe(mtype_local, amdgpu_mtype_local, int, 0444);
 
 /**
  * DOC: pcie_p2p (bool)
