@@ -910,7 +910,7 @@ static int snb_uncore_imc_event_init(struct perf_event *event)
 
 	pmu = uncore_event_to_pmu(event);
 	/* no device found for this pmu */
-	if (pmu->func_id < 0)
+	if (!pmu->registered)
 		return -ENOENT;
 
 	/* Sampling not supported yet */
