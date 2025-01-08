@@ -1513,13 +1513,6 @@ static void mv88e6xxx_get_regs(struct dsa_switch *ds, int port,
 	mv88e6xxx_reg_unlock(chip);
 }
 
-static int mv88e6xxx_get_mac_eee(struct dsa_switch *ds, int port,
-				 struct ethtool_keee *e)
-{
-	/* Nothing to do on the port's MAC */
-	return 0;
-}
-
 static int mv88e6xxx_set_mac_eee(struct dsa_switch *ds, int port,
 				 struct ethtool_keee *e)
 {
@@ -7100,7 +7093,6 @@ static const struct dsa_switch_ops mv88e6xxx_switch_ops = {
 	.port_max_mtu		= mv88e6xxx_get_max_mtu,
 	.port_change_mtu	= mv88e6xxx_change_mtu,
 	.support_eee		= dsa_supports_eee,
-	.get_mac_eee		= mv88e6xxx_get_mac_eee,
 	.set_mac_eee		= mv88e6xxx_set_mac_eee,
 	.get_eeprom_len		= mv88e6xxx_get_eeprom_len,
 	.get_eeprom		= mv88e6xxx_get_eeprom,

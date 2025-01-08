@@ -991,8 +991,6 @@ struct dsa_switch_ops {
 	bool	(*support_eee)(struct dsa_switch *ds, int port);
 	int	(*set_mac_eee)(struct dsa_switch *ds, int port,
 			       struct ethtool_keee *e);
-	int	(*get_mac_eee)(struct dsa_switch *ds, int port,
-			       struct ethtool_keee *e);
 
 	/* EEPROM access */
 	int	(*get_eeprom_len)(struct dsa_switch *ds);
