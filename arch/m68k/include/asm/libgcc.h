@@ -10,11 +10,18 @@
  * will fallback to using the C-coded version of umul_ppmm().
  */
 #define umul_ppmm(w1, w0, u, v)				\
-	__asm__ ("mulu%.l %3,%1:%0"			\
-		 : "=d" ((unsigned long)(w0)),		\
-		   "=d" ((unsigned long)(w1))		\
-		 : "%0" ((unsigned long)(u)),		\
-		   "dmi" ((unsigned long)(v)))
+	do {						\
+		unsigned long __u = (u), __v = (v);	\
+		unsigned long __w0, __w1;		\
+							\
+		__asm__ ("mulu%.l %3,%1:%0"		\
+			 : "=d" (__w0),			\
+			   "=d" (__w1)			\
+			 : "%0" (__u),			\
+			   "dmi" (__v));		\
+							\
+		(w0) = __w0; (w1) = __w1;		\
+	} while (0)
 #endif /* !CONFIG_CPU_HAS_NO_MULDIV64 */
 
 #endif /* __ASM_M68K_LIBGCC_H */
