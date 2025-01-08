@@ -890,7 +890,6 @@ struct btusb_data {
 	int (*disconnect)(struct hci_dev *hdev);
 
 	int oob_wake_irq;   /* irq for out-of-band wake-on-bt */
-	unsigned cmd_timeout_cnt;
 
 	struct qca_dump_info qca_dump;
 };
@@ -922,9 +921,6 @@ static void btusb_intel_cmd_timeout(struct hci_dev *hdev)
 	struct btusb_data *data = hci_get_drvdata(hdev);
 	struct gpio_desc *reset_gpio = data->reset_gpio;
 	struct btintel_data *intel_data = hci_get_priv(hdev);
-
-	if (++data->cmd_timeout_cnt < 5)
-		return;
 
 	if (intel_data->acpi_reset_method) {
 		if (test_and_set_bit(INTEL_ACPI_RESET_ACTIVE, intel_data->flags)) {
@@ -1008,9 +1004,6 @@ static void btusb_rtl_cmd_timeout(struct hci_dev *hdev)
 
 	btusb_rtl_alloc_devcoredump(hdev, &hdr, NULL, 0);
 
-	if (++data->cmd_timeout_cnt < 5)
-		return;
-
 	if (!reset_gpio) {
 		btusb_reset(hdev);
 		return;
@@ -1054,9 +1047,6 @@ static void btusb_qca_cmd_timeout(struct hci_dev *hdev)
 		bt_dev_info(hdev, "Ramdump in progress, defer cmd_timeout");
 		return;
 	}
-
-	if (++data->cmd_timeout_cnt < 5)
-		return;
 
 	if (reset_gpio) {
 		bt_dev_err(hdev, "Reset qca device via bt_en gpio");
