@@ -81,9 +81,7 @@ bpf_selem_alloc(struct bpf_local_storage_map *smap, void *owner,
 		return NULL;
 
 	if (smap->bpf_ma) {
-		migrate_disable();
 		selem = bpf_mem_cache_alloc_flags(&smap->selem_ma, gfp_flags);
-		migrate_enable();
 		if (selem)
 			/* Keep the original bpf_map_kzalloc behavior
 			 * before started using the bpf_mem_cache_alloc.
