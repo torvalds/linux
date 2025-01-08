@@ -299,6 +299,18 @@ Use ethtool to view and set link-down-on-close, as follows::
   ethtool --show-priv-flags ethX
   ethtool --set-priv-flags ethX link-down-on-close [on|off]
 
+Setting the mdd-auto-reset-vf Private Flag
+------------------------------------------
+
+When the mdd-auto-reset-vf private flag is set to "on", the problematic VF will
+be automatically reset if a malformed descriptor is detected. If the flag is
+set to "off", the problematic VF will be disabled.
+
+Use ethtool to view and set mdd-auto-reset-vf, as follows::
+
+  ethtool --show-priv-flags ethX
+  ethtool --set-priv-flags ethX mdd-auto-reset-vf [on|off]
+
 Viewing Link Messages
 ---------------------
 Link messages will not be displayed to the console if the distribution is
