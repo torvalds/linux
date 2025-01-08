@@ -840,7 +840,7 @@ static void display_histogram(struct perf_ftrace *ftrace, int buckets[])
 	bar_len = buckets[0] * bar_total / total;
 
 	printf("  %4d - %4d %s | %10d | %.*s%*s |\n",
-	       0, min_latency, use_nsec ? "ns" : "us",
+	       0, min_latency ?: 1, use_nsec ? "ns" : "us",
 	       buckets[0], bar_len, bar, bar_total - bar_len, "");
 
 	for (i = 1; i < NUM_BUCKET - 1; i++) {
