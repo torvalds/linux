@@ -83,7 +83,6 @@ struct vmw_bo {
 
 	struct ttm_placement placement;
 	struct ttm_place places[5];
-	struct ttm_place busy_places[5];
 
 	/* Protected by reservation */
 	struct ttm_bo_kmap_obj map;
