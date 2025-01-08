@@ -177,19 +177,15 @@ void add_kallsyms(struct module *mod, const struct load_info *info)
 	unsigned long strtab_size;
 	void *data_base = mod->mem[MOD_DATA].base;
 	void *init_data_base = mod->mem[MOD_INIT_DATA].base;
+	struct mod_kallsyms *kallsyms;
 
-	/* Set up to point into init section. */
-	mod->kallsyms = (void __rcu *)init_data_base +
-		info->mod_kallsyms_init_off;
+	kallsyms = init_data_base + info->mod_kallsyms_init_off;
 
-	rcu_read_lock();
-	/* The following is safe since this pointer cannot change */
-	rcu_dereference(mod->kallsyms)->symtab = (void *)symsec->sh_addr;
-	rcu_dereference(mod->kallsyms)->num_symtab = symsec->sh_size / sizeof(Elf_Sym);
+	kallsyms->symtab = (void *)symsec->sh_addr;
+	kallsyms->num_symtab = symsec->sh_size / sizeof(Elf_Sym);
 	/* Make sure we get permanent strtab: don't use info->strtab. */
-	rcu_dereference(mod->kallsyms)->strtab =
-		(void *)info->sechdrs[info->index.str].sh_addr;
-	rcu_dereference(mod->kallsyms)->typetab = init_data_base + info->init_typeoffs;
+	kallsyms->strtab = (void *)info->sechdrs[info->index.str].sh_addr;
+	kallsyms->typetab = init_data_base + info->init_typeoffs;
 
 	/*
 	 * Now populate the cut down core kallsyms for after init
@@ -199,20 +195,19 @@ void add_kallsyms(struct module *mod, const struct load_info *info)
 	mod->core_kallsyms.strtab = s = data_base + info->stroffs;
 	mod->core_kallsyms.typetab = data_base + info->core_typeoffs;
 	strtab_size = info->core_typeoffs - info->stroffs;
-	src = rcu_dereference(mod->kallsyms)->symtab;
-	for (ndst = i = 0; i < rcu_dereference(mod->kallsyms)->num_symtab; i++) {
-		rcu_dereference(mod->kallsyms)->typetab[i] = elf_type(src + i, info);
+	src = kallsyms->symtab;
+	for (ndst = i = 0; i < kallsyms->num_symtab; i++) {
+		kallsyms->typetab[i] = elf_type(src + i, info);
 		if (i == 0 || is_livepatch_module(mod) ||
 		    is_core_symbol(src + i, info->sechdrs, info->hdr->e_shnum,
 				   info->index.pcpu)) {
 			ssize_t ret;
 
 			mod->core_kallsyms.typetab[ndst] =
-			    rcu_dereference(mod->kallsyms)->typetab[i];
+				kallsyms->typetab[i];
 			dst[ndst] = src[i];
 			dst[ndst++].st_name = s - mod->core_kallsyms.strtab;
-			ret = strscpy(s,
-				      &rcu_dereference(mod->kallsyms)->strtab[src[i].st_name],
+			ret = strscpy(s, &kallsyms->strtab[src[i].st_name],
 				      strtab_size);
 			if (ret < 0)
 				break;
@@ -220,7 +215,9 @@ void add_kallsyms(struct module *mod, const struct load_info *info)
 			strtab_size -= ret + 1;
 		}
 	}
-	rcu_read_unlock();
+
+	/* Set up to point into init section. */
+	rcu_assign_pointer(mod->kallsyms, kallsyms);
 	mod->core_kallsyms.num_symtab = ndst;
 }
 
