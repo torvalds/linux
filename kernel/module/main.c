@@ -331,7 +331,7 @@ static bool find_exported_symbol_in_section(const struct symsearch *syms,
 
 /*
  * Find an exported symbol and return it, along with, (optional) crc and
- * (optional) module which owns it.  Needs preempt disabled or module_mutex.
+ * (optional) module which owns it. Needs RCU or module_mutex.
  */
 bool find_symbol(struct find_symbol_arg *fsa)
 {
@@ -344,8 +344,6 @@ bool find_symbol(struct find_symbol_arg *fsa)
 	};
 	struct module *mod;
 	unsigned int i;
-
-	module_assert_mutex_or_preempt();
 
 	for (i = 0; i < ARRAY_SIZE(arr); i++)
 		if (find_exported_symbol_in_section(&arr[i], NULL, fsa))
@@ -812,10 +810,9 @@ void __symbol_put(const char *symbol)
 		.gplok	= true,
 	};
 
-	preempt_disable();
+	guard(rcu)();
 	BUG_ON(!find_symbol(&fsa));
 	module_put(fsa.owner);
-	preempt_enable();
 }
 EXPORT_SYMBOL(__symbol_put);
 
@@ -1369,21 +1366,18 @@ void *__symbol_get(const char *symbol)
 		.warn	= true,
 	};
 
-	preempt_disable();
-	if (!find_symbol(&fsa))
-		goto fail;
-	if (fsa.license != GPL_ONLY) {
-		pr_warn("failing symbol_get of non-GPLONLY symbol %s.\n",
-			symbol);
-		goto fail;
+	scoped_guard(rcu) {
+		if (!find_symbol(&fsa))
+			return NULL;
+		if (fsa.license != GPL_ONLY) {
+			pr_warn("failing symbol_get of non-GPLONLY symbol %s.\n",
+				symbol);
+			return NULL;
+		}
+		if (strong_try_module_get(fsa.owner))
+			return NULL;
 	}
-	if (strong_try_module_get(fsa.owner))
-		goto fail;
-	preempt_enable();
 	return (void *)kernel_symbol_value(fsa.sym);
-fail:
-	preempt_enable();
-	return NULL;
 }
 EXPORT_SYMBOL_GPL(__symbol_get);
 
