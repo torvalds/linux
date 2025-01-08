@@ -172,17 +172,14 @@ static void bpf_local_storage_free(struct bpf_local_storage *local_storage,
 		return;
 	}
 
-	if (smap) {
-		migrate_disable();
+	if (smap)
 		bpf_mem_cache_free(&smap->storage_ma, local_storage);
-		migrate_enable();
-	} else {
+	else
 		/* smap could be NULL if the selem that triggered
 		 * this 'local_storage' creation had been long gone.
 		 * In this case, directly do call_rcu().
 		 */
 		call_rcu(&local_storage->rcu, bpf_local_storage_free_rcu);
-	}
 }
 
 /* rcu tasks trace callback for bpf_ma == false */
