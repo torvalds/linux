@@ -1423,7 +1423,7 @@ mst_connector_mode_valid_ctx(struct drm_connector *_connector,
 {
 	struct intel_connector *connector = to_intel_connector(_connector);
 	struct intel_display *display = to_intel_display(connector);
-	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct intel_dp *intel_dp = connector->mst_port;
 	struct drm_dp_mst_topology_mgr *mgr = &intel_dp->mst_mgr;
 	struct drm_dp_mst_port *port = connector->port;
@@ -1442,7 +1442,7 @@ mst_connector_mode_valid_ctx(struct drm_connector *_connector,
 		return 0;
 	}
 
-	*status = intel_cpu_transcoder_mode_valid(dev_priv, mode);
+	*status = intel_cpu_transcoder_mode_valid(i915, mode);
 	if (*status != MODE_OK)
 		return 0;
 
@@ -1526,7 +1526,7 @@ mst_connector_mode_valid_ctx(struct drm_connector *_connector,
 		return 0;
 	}
 
-	*status = intel_mode_valid_max_plane_size(dev_priv, mode, num_joined_pipes);
+	*status = intel_mode_valid_max_plane_size(i915, mode, num_joined_pipes);
 	return 0;
 }
 
