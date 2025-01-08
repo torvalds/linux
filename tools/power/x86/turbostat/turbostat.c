@@ -370,6 +370,9 @@ unsigned int has_hwp_activity_window;	/* IA32_HWP_REQUEST[bits 41:32] */
 unsigned int has_hwp_epp;	/* IA32_HWP_REQUEST[bits 31:24] */
 unsigned int has_hwp_pkg;	/* IA32_HWP_REQUEST_PKG */
 unsigned int first_counter_read = 1;
+
+static struct timeval procsysfs_tv_begin;
+
 int ignore_stdin;
 bool no_msr;
 bool no_perf;
@@ -3638,7 +3641,7 @@ int sum_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 
 	/* remember first tv_begin */
 	if (average.threads.tv_begin.tv_sec == 0)
-		average.threads.tv_begin = t->tv_begin;
+		average.threads.tv_begin = procsysfs_tv_begin;
 
 	/* remember last tv_end */
 	average.threads.tv_end = t->tv_end;
@@ -5983,6 +5986,8 @@ int snapshot_sys_lpi_us(void)
  */
 int snapshot_proc_sysfs_files(void)
 {
+	gettimeofday(&procsysfs_tv_begin, (struct timezone *)NULL);
+
 	if (DO_BIC(BIC_IRQ) || DO_BIC(BIC_NMI))
 		if (snapshot_proc_interrupts())
 			return 1;
