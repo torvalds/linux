@@ -1035,7 +1035,7 @@ int intel_audio_min_cdclk(const struct intel_crtc_state *crtc_state)
 	return min_cdclk;
 }
 
-static unsigned long i915_audio_component_get_power(struct device *kdev)
+static unsigned long intel_audio_component_get_power(struct device *kdev)
 {
 	struct intel_display *display = to_intel_display(kdev);
 	struct drm_i915_private *i915 = to_i915(display->drm);
@@ -1067,8 +1067,8 @@ static unsigned long i915_audio_component_get_power(struct device *kdev)
 	return (unsigned long)wakeref;
 }
 
-static void i915_audio_component_put_power(struct device *kdev,
-					   unsigned long cookie)
+static void intel_audio_component_put_power(struct device *kdev,
+					    unsigned long cookie)
 {
 	struct intel_display *display = to_intel_display(kdev);
 	struct drm_i915_private *i915 = to_i915(display->drm);
@@ -1082,8 +1082,8 @@ static void i915_audio_component_put_power(struct device *kdev,
 	intel_display_power_put(i915, POWER_DOMAIN_AUDIO_PLAYBACK, wakeref);
 }
 
-static void i915_audio_component_codec_wake_override(struct device *kdev,
-						     bool enable)
+static void intel_audio_component_codec_wake_override(struct device *kdev,
+						      bool enable)
 {
 	struct intel_display *display = to_intel_display(kdev);
 	unsigned long cookie;
@@ -1091,7 +1091,7 @@ static void i915_audio_component_codec_wake_override(struct device *kdev,
 	if (DISPLAY_VER(display) < 9)
 		return;
 
-	cookie = i915_audio_component_get_power(kdev);
+	cookie = intel_audio_component_get_power(kdev);
 
 	/*
 	 * Enable/disable generating the codec wake signal, overriding the
@@ -1107,11 +1107,11 @@ static void i915_audio_component_codec_wake_override(struct device *kdev,
 		usleep_range(1000, 1500);
 	}
 
-	i915_audio_component_put_power(kdev, cookie);
+	intel_audio_component_put_power(kdev, cookie);
 }
 
 /* Get CDCLK in kHz  */
-static int i915_audio_component_get_cdclk_freq(struct device *kdev)
+static int intel_audio_component_get_cdclk_freq(struct device *kdev)
 {
 	struct intel_display *display = to_intel_display(kdev);
 
@@ -1169,8 +1169,8 @@ static struct intel_audio_state *find_audio_state(struct intel_display *display,
 	return NULL;
 }
 
-static int i915_audio_component_sync_audio_rate(struct device *kdev, int port,
-						int cpu_transcoder, int rate)
+static int intel_audio_component_sync_audio_rate(struct device *kdev, int port,
+						 int cpu_transcoder, int rate)
 {
 	struct intel_display *display = to_intel_display(kdev);
 	struct i915_audio_component *acomp = display->audio.component;
@@ -1183,7 +1183,7 @@ static int i915_audio_component_sync_audio_rate(struct device *kdev, int port,
 	if (!HAS_DDI(display))
 		return 0;
 
-	cookie = i915_audio_component_get_power(kdev);
+	cookie = intel_audio_component_get_power(kdev);
 	mutex_lock(&display->audio.mutex);
 
 	audio_state = find_audio_state(display, port, cpu_transcoder);
@@ -1207,13 +1207,13 @@ static int i915_audio_component_sync_audio_rate(struct device *kdev, int port,
 
  unlock:
 	mutex_unlock(&display->audio.mutex);
-	i915_audio_component_put_power(kdev, cookie);
+	intel_audio_component_put_power(kdev, cookie);
 	return err;
 }
 
-static int i915_audio_component_get_eld(struct device *kdev, int port,
-					int cpu_transcoder, bool *enabled,
-					unsigned char *buf, int max_bytes)
+static int intel_audio_component_get_eld(struct device *kdev, int port,
+					 int cpu_transcoder, bool *enabled,
+					 unsigned char *buf, int max_bytes)
 {
 	struct intel_display *display = to_intel_display(kdev);
 	const struct intel_audio_state *audio_state;
@@ -1241,18 +1241,18 @@ static int i915_audio_component_get_eld(struct device *kdev, int port,
 	return ret;
 }
 
-static const struct drm_audio_component_ops i915_audio_component_ops = {
-	.owner		= THIS_MODULE,
-	.get_power	= i915_audio_component_get_power,
-	.put_power	= i915_audio_component_put_power,
-	.codec_wake_override = i915_audio_component_codec_wake_override,
-	.get_cdclk_freq	= i915_audio_component_get_cdclk_freq,
-	.sync_audio_rate = i915_audio_component_sync_audio_rate,
-	.get_eld	= i915_audio_component_get_eld,
+static const struct drm_audio_component_ops intel_audio_component_ops = {
+	.owner = THIS_MODULE,
+	.get_power = intel_audio_component_get_power,
+	.put_power = intel_audio_component_put_power,
+	.codec_wake_override = intel_audio_component_codec_wake_override,
+	.get_cdclk_freq = intel_audio_component_get_cdclk_freq,
+	.sync_audio_rate = intel_audio_component_sync_audio_rate,
+	.get_eld = intel_audio_component_get_eld,
 };
 
-static int i915_audio_component_bind(struct device *drv_kdev,
-				     struct device *hda_kdev, void *data)
+static int intel_audio_component_bind(struct device *drv_kdev,
+				      struct device *hda_kdev, void *data)
 {
 	struct intel_display *display = to_intel_display(drv_kdev);
 	struct i915_audio_component *acomp = data;
@@ -1267,7 +1267,7 @@ static int i915_audio_component_bind(struct device *drv_kdev,
 		return -ENOMEM;
 
 	drm_modeset_lock_all(display->drm);
-	acomp->base.ops = &i915_audio_component_ops;
+	acomp->base.ops = &intel_audio_component_ops;
 	acomp->base.dev = drv_kdev;
 	BUILD_BUG_ON(MAX_PORTS != I915_MAX_PORTS);
 	for (i = 0; i < ARRAY_SIZE(acomp->aud_sample_rate); i++)
@@ -1278,8 +1278,8 @@ static int i915_audio_component_bind(struct device *drv_kdev,
 	return 0;
 }
 
-static void i915_audio_component_unbind(struct device *drv_kdev,
-					struct device *hda_kdev, void *data)
+static void intel_audio_component_unbind(struct device *drv_kdev,
+					 struct device *hda_kdev, void *data)
 {
 	struct intel_display *display = to_intel_display(drv_kdev);
 	struct i915_audio_component *acomp = data;
@@ -1298,9 +1298,9 @@ static void i915_audio_component_unbind(struct device *drv_kdev,
 			display->audio.power_refcount);
 }
 
-static const struct component_ops i915_audio_component_bind_ops = {
-	.bind	= i915_audio_component_bind,
-	.unbind	= i915_audio_component_unbind,
+static const struct component_ops intel_audio_component_bind_ops = {
+	.bind = intel_audio_component_bind,
+	.unbind = intel_audio_component_unbind,
 };
 
 #define AUD_FREQ_TMODE_SHIFT	14
@@ -1313,7 +1313,7 @@ static const struct component_ops i915_audio_component_bind_ops = {
 #define AUD_FREQ_TGL_BROKEN     (AUD_FREQ_8T | AUD_FREQ_PULLCLKS(2) | AUD_FREQ_BCLK_96M)
 
 /**
- * i915_audio_component_init - initialize and register the audio component
+ * intel_audio_component_init - initialize and register the audio component
  * @display: display device
  *
  * This will register with the component framework a child component which
@@ -1328,7 +1328,7 @@ static const struct component_ops i915_audio_component_bind_ops = {
  * We ignore any error during registration and continue with reduced
  * functionality (i.e. without HDMI audio).
  */
-static void i915_audio_component_init(struct intel_display *display)
+static void intel_audio_component_init(struct intel_display *display)
 {
 	u32 aud_freq, aud_freq_init;
 
@@ -1356,12 +1356,12 @@ static void i915_audio_component_init(struct intel_display *display)
 	intel_audio_cdclk_change_post(display);
 }
 
-static void i915_audio_component_register(struct intel_display *display)
+static void intel_audio_component_register(struct intel_display *display)
 {
 	int ret;
 
 	ret = component_add_typed(display->drm->dev,
-				  &i915_audio_component_bind_ops,
+				  &intel_audio_component_bind_ops,
 				  I915_COMPONENT_AUDIO);
 	if (ret < 0) {
 		drm_err(display->drm,
@@ -1374,18 +1374,18 @@ static void i915_audio_component_register(struct intel_display *display)
 }
 
 /**
- * i915_audio_component_cleanup - deregister the audio component
+ * intel_audio_component_cleanup - deregister the audio component
  * @display: display device
  *
  * Deregisters the audio component, breaking any existing binding to the
  * corresponding snd_hda_intel driver's master component.
  */
-static void i915_audio_component_cleanup(struct intel_display *display)
+static void intel_audio_component_cleanup(struct intel_display *display)
 {
 	if (!display->audio.component_registered)
 		return;
 
-	component_del(display->drm->dev, &i915_audio_component_bind_ops);
+	component_del(display->drm->dev, &intel_audio_component_bind_ops);
 	display->audio.component_registered = false;
 }
 
@@ -1398,13 +1398,13 @@ static void i915_audio_component_cleanup(struct intel_display *display)
 void intel_audio_init(struct intel_display *display)
 {
 	if (intel_lpe_audio_init(display) < 0)
-		i915_audio_component_init(display);
+		intel_audio_component_init(display);
 }
 
 void intel_audio_register(struct intel_display *display)
 {
 	if (!display->audio.lpe.platdev)
-		i915_audio_component_register(display);
+		intel_audio_component_register(display);
 }
 
 /**
@@ -1416,5 +1416,5 @@ void intel_audio_deinit(struct intel_display *display)
 	if (display->audio.lpe.platdev)
 		intel_lpe_audio_teardown(display);
 	else
-		i915_audio_component_cleanup(display);
+		intel_audio_component_cleanup(display);
 }
