@@ -61,15 +61,6 @@ int mite_setup(struct mite_struct *mite);
 void mite_unsetup(struct mite_struct *mite);
 void mite_list_devices(void);
 
-int mite_dma_tcr(struct mite_struct *mite);
-
-void mite_dma_arm(struct mite_struct *mite);
-void mite_dma_disarm(struct mite_struct *mite);
-
-void mite_dump_regs(struct mite_struct *mite);
-void mite_setregs(struct mite_struct *mite, unsigned long ll_start, int chan, int dir);
-int mite_bytes_transferred(struct mite_struct *mite, int chan);
-
 #define CHAN_OFFSET(x)			(0x100 * (x))
 
 /* DMA base for chan 0 is 0x500, chan 1 is 0x600 */
