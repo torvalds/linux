@@ -43,6 +43,7 @@ pub mod block;
 #[doc(hidden)]
 pub mod build_assert;
 pub mod clk;
+pub mod cpu;
 pub mod cpumask;
 pub mod cred;
 pub mod device;
