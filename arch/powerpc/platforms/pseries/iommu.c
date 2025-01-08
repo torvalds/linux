@@ -52,7 +52,8 @@ enum {
 enum {
 	DDW_EXT_SIZE = 0,
 	DDW_EXT_RESET_DMA_WIN = 1,
-	DDW_EXT_QUERY_OUT_SIZE = 2
+	DDW_EXT_QUERY_OUT_SIZE = 2,
+	DDW_EXT_LIMITED_ADDR_MODE = 3
 };
 
 static struct iommu_table *iommu_pseries_alloc_table(int node)
@@ -1331,6 +1332,54 @@ static void reset_dma_window(struct pci_dev *dev, struct device_node *par_dn)
 			 ret);
 }
 
+/*
+ * Platforms support placing PHB in limited address mode starting with LoPAR
+ * level 2.13 implement. In this mode, the DMA address returned by DDW is over
+ * 4GB but, less than 64-bits. This benefits IO adapters that don't support
+ * 64-bits for DMA addresses.
+ */
+static int limited_dma_window(struct pci_dev *dev, struct device_node *par_dn)
+{
+	int ret;
+	u32 cfg_addr, reset_dma_win, las_supported;
+	u64 buid;
+	struct device_node *dn;
+	struct pci_dn *pdn;
+
+	ret = ddw_read_ext(par_dn, DDW_EXT_RESET_DMA_WIN, &reset_dma_win);
+	if (ret)
+		goto out;
+
+	ret = ddw_read_ext(par_dn, DDW_EXT_LIMITED_ADDR_MODE, &las_supported);
+
+	/* Limited Address Space extension available on the platform but DDW in
+	 * limited addressing mode not supported
+	 */
+	if (!ret && !las_supported)
+		ret = -EPROTO;
+
+	if (ret) {
+		dev_info(&dev->dev, "Limited Address Space for DDW not Supported, err: %d", ret);
+		goto out;
+	}
+
+	dn = pci_device_to_OF_node(dev);
+	pdn = PCI_DN(dn);
+	buid = pdn->phb->buid;
+	cfg_addr = (pdn->busno << 16) | (pdn->devfn << 8);
+
+	ret = rtas_call(reset_dma_win, 4, 1, NULL, cfg_addr, BUID_HI(buid),
+			BUID_LO(buid), 1);
+	if (ret)
+		dev_info(&dev->dev,
+			 "ibm,reset-pe-dma-windows(%x) for Limited Addr Support: %x %x %x returned %d ",
+			 reset_dma_win, cfg_addr, BUID_HI(buid), BUID_LO(buid),
+			 ret);
+
+out:
+	return ret;
+}
+
 /* Return largest page shift based on "IO Page Sizes" output of ibm,query-pe-dma-window. */
 static int iommu_get_page_shift(u32 query_page_size)
 {
@@ -1398,7 +1447,7 @@ static struct property *ddw_property_create(const char *propname, u32 liobn, u64
  *
  * returns true if can map all pages (direct mapping), false otherwise..
  */
-static bool enable_ddw(struct pci_dev *dev, struct device_node *pdn)
+static bool enable_ddw(struct pci_dev *dev, struct device_node *pdn, u64 dma_mask)
 {
 	int len = 0, ret;
 	int max_ram_len = order_base_2(ddw_memory_hotplug_max());
@@ -1417,6 +1466,9 @@ static bool enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 	bool pmem_present;
 	struct pci_dn *pci = PCI_DN(pdn);
 	struct property *default_win = NULL;
+	bool limited_addr_req = false, limited_addr_enabled = false;
+	int dev_max_ddw;
+	int ddw_sz;
 
 	dn = of_find_node_by_type(NULL, "ibm,pmemory");
 	pmem_present = dn != NULL;
@@ -1443,7 +1495,6 @@ static bool enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 	 * the ibm,ddw-applicable property holds the tokens for:
 	 * ibm,query-pe-dma-window
 	 * ibm,create-pe-dma-window
-	 * ibm,remove-pe-dma-window
 	 * for the given node in that order.
 	 * the property is actually in the parent, not the PE
 	 */
@@ -1462,6 +1513,20 @@ static bool enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 	ret = query_ddw(dev, ddw_avail, &query, pdn);
 	if (ret != 0)
 		goto out_failed;
+
+	/* DMA Limited Addressing required? This is when the driver has
+	 * requested to create DDW but supports mask which is less than 64-bits
+	 */
+	limited_addr_req = (dma_mask != DMA_BIT_MASK(64));
+
+	/* place the PHB in Limited Addressing mode */
+	if (limited_addr_req) {
+		if (limited_dma_window(dev, pdn))
+			goto out_failed;
+
+		/* PHB is in Limited address mode */
+		limited_addr_enabled = true;
+	}
 
 	/*
 	 * If there is no window available, remove the default DMA window,
@@ -1509,6 +1574,15 @@ static bool enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 		goto out_failed;
 	}
 
+	/* Maximum DMA window size that the device can address (in log2) */
+	dev_max_ddw = fls64(dma_mask);
+
+	/* If the device DMA mask is less than 64-bits, make sure the DMA window
+	 * size is not bigger than what the device can access
+	 */
+	ddw_sz = min(order_base_2(query.largest_available_block << page_shift),
+			dev_max_ddw);
+
 	/*
 	 * The "ibm,pmemory" can appear anywhere in the address space.
 	 * Assuming it is still backed by page structs, try MAX_PHYSMEM_BITS
@@ -1517,23 +1591,21 @@ static bool enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 	 */
 	len = max_ram_len;
 	if (pmem_present) {
-		if (query.largest_available_block >=
-		    (1ULL << (MAX_PHYSMEM_BITS - page_shift)))
+		if (ddw_sz >= MAX_PHYSMEM_BITS)
 			len = MAX_PHYSMEM_BITS;
 		else
 			dev_info(&dev->dev, "Skipping ibm,pmemory");
 	}
 
 	/* check if the available block * number of ptes will map everything */
-	if (query.largest_available_block < (1ULL << (len - page_shift))) {
+	if (ddw_sz < len) {
 		dev_dbg(&dev->dev,
 			"can't map partition max 0x%llx with %llu %llu-sized pages\n",
 			1ULL << len,
 			query.largest_available_block,
 			1ULL << page_shift);
 
-		len = order_base_2(query.largest_available_block << page_shift);
-
+		len = ddw_sz;
 		dynamic_mapping = true;
 	} else {
 		direct_mapping = !default_win_removed ||
@@ -1547,8 +1619,9 @@ static bool enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 		 */
 		if (default_win_removed && pmem_present && !direct_mapping) {
 			/* DDW is big enough to be split */
-			if ((query.largest_available_block << page_shift) >=
-			     MIN_DDW_VPMEM_DMA_WINDOW + (1ULL << max_ram_len)) {
+			if ((1ULL << ddw_sz) >=
+			    MIN_DDW_VPMEM_DMA_WINDOW + (1ULL << max_ram_len)) {
+
 				direct_mapping = true;
 
 				/* offset of the Dynamic part of DDW */
@@ -1559,8 +1632,7 @@ static bool enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 			dynamic_mapping = true;
 
 			/* create max size DDW possible */
-			len = order_base_2(query.largest_available_block
-							<< page_shift);
+			len = ddw_sz;
 		}
 	}
 
@@ -1689,7 +1761,7 @@ out_remove_win:
 	__remove_dma_window(pdn, ddw_avail, create.liobn);
 
 out_failed:
-	if (default_win_removed)
+	if (default_win_removed || limited_addr_enabled)
 		reset_dma_window(dev, pdn);
 
 	fpdn = kzalloc(sizeof(*fpdn), GFP_KERNEL);
@@ -1707,6 +1779,9 @@ out_unlock:
 	if (pmem_present && direct_mapping && len != MAX_PHYSMEM_BITS)
 		dev->dev.bus_dma_limit = dev->dev.archdata.dma_offset +
 						(1ULL << max_ram_len);
+
+	dev_info(&dev->dev, "lsa_required: %x, lsa_enabled: %x, direct mapping: %x\n",
+			limited_addr_req, limited_addr_enabled, direct_mapping);
 
 	return direct_mapping;
 }
@@ -1833,8 +1908,11 @@ static bool iommu_bypass_supported_pSeriesLP(struct pci_dev *pdev, u64 dma_mask)
 {
 	struct device_node *dn = pci_device_to_OF_node(pdev), *pdn;
 
-	/* only attempt to use a new window if 64-bit DMA is requested */
-	if (dma_mask < DMA_BIT_MASK(64))
+	/* For DDW, DMA mask should be more than 32-bits. For mask more then
+	 * 32-bits but less then 64-bits, DMA addressing is supported in
+	 * Limited Addressing mode.
+	 */
+	if (dma_mask <= DMA_BIT_MASK(32))
 		return false;
 
 	dev_dbg(&pdev->dev, "node is %pOF\n", dn);
@@ -1847,7 +1925,7 @@ static bool iommu_bypass_supported_pSeriesLP(struct pci_dev *pdev, u64 dma_mask)
 	 */
 	pdn = pci_dma_find(dn, NULL);
 	if (pdn && PCI_DN(pdn))
-		return enable_ddw(pdev, pdn);
+		return enable_ddw(pdev, pdn, dma_mask);
 
 	return false;
 }
