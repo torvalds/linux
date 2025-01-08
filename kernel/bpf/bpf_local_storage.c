@@ -498,15 +498,11 @@ int bpf_local_storage_alloc(void *owner,
 	if (err)
 		return err;
 
-	if (smap->bpf_ma) {
-		migrate_disable();
+	if (smap->bpf_ma)
 		storage = bpf_mem_cache_alloc_flags(&smap->storage_ma, gfp_flags);
-		migrate_enable();
-	} else {
+	else
 		storage = bpf_map_kzalloc(&smap->map, sizeof(*storage),
 					  gfp_flags | __GFP_NOWARN);
-	}
-
 	if (!storage) {
 		err = -ENOMEM;
 		goto uncharge;
