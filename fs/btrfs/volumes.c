@@ -797,6 +797,10 @@ static int get_canonical_dev_path(const char *dev_path, char *canonical)
 	if (ret)
 		goto out;
 	resolved_path = d_path(&path, path_buf, PATH_MAX);
+	if (IS_ERR(resolved_path)) {
+		ret = PTR_ERR(resolved_path);
+		goto out;
+	}
 	ret = strscpy(canonical, resolved_path, PATH_MAX);
 out:
 	kfree(path_buf);
