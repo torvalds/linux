@@ -1351,7 +1351,7 @@ static bool mst_stream_initial_fastset_check(struct intel_encoder *encoder,
 static int mst_connector_get_ddc_modes(struct drm_connector *_connector)
 {
 	struct intel_connector *connector = to_intel_connector(_connector);
-	struct intel_display *display = to_intel_display(connector->base.dev);
+	struct intel_display *display = to_intel_display(connector);
 	struct intel_dp *intel_dp = connector->mst_port;
 	const struct drm_edid *drm_edid;
 	int ret;
@@ -1422,7 +1422,7 @@ mst_connector_mode_valid_ctx(struct drm_connector *_connector,
 			     enum drm_mode_status *status)
 {
 	struct intel_connector *connector = to_intel_connector(_connector);
-	struct intel_display *display = to_intel_display(connector->base.dev);
+	struct intel_display *display = to_intel_display(connector);
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct intel_dp *intel_dp = connector->mst_port;
 	struct drm_dp_mst_topology_mgr *mgr = &intel_dp->mst_mgr;
@@ -1548,7 +1548,7 @@ mst_connector_detect_ctx(struct drm_connector *_connector,
 			 struct drm_modeset_acquire_ctx *ctx, bool force)
 {
 	struct intel_connector *connector = to_intel_connector(_connector);
-	struct intel_display *display = to_intel_display(connector->base.dev);
+	struct intel_display *display = to_intel_display(connector);
 	struct intel_dp *intel_dp = connector->mst_port;
 
 	if (!intel_display_device_enabled(display))
