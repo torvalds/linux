@@ -38,7 +38,7 @@ static void io_eventfd_do_signal(struct rcu_head *rcu)
 	eventfd_signal_mask(ev_fd->cq_ev_fd, EPOLL_URING_WAKE);
 
 	if (refcount_dec_and_test(&ev_fd->refs))
-		io_eventfd_free(rcu);
+		call_rcu(&ev_fd->rcu, io_eventfd_free);
 }
 
 void io_eventfd_signal(struct io_ring_ctx *ctx)
