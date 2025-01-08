@@ -29,7 +29,7 @@ codepage_convert(const __u8 *codepage, volatile char *addr, unsigned long nr)
 		"0:	tr	0(1,%0),0(%2)\n"
 		"1:	tr	0(256,%0),0(%2)\n"
 		"	la	%0,256(%0)\n"
-		"2:	ahi	%1,-256\n"
+		"2:	aghi	%1,-256\n"
 		"	jnm	1b\n"
 		"	exrl	%1,0b"
 		: "+&a" (addr), "+&a" (nr)
