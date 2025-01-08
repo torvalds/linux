@@ -199,13 +199,13 @@ parameters mentioned above use hyphens instead of underscores:
 
 Per-NAPI configuration can be done programmatically in a user application
 or by using a script included in the kernel source tree:
-``tools/net/ynl/cli.py``.
+``tools/net/ynl/pyynl/cli.py``.
 
 For example, using the script:
 
 .. code-block:: bash
 
-  $ kernel-source/tools/net/ynl/cli.py \
+  $ kernel-source/tools/net/ynl/pyynl/cli.py \
             --spec Documentation/netlink/specs/netdev.yaml \
             --do napi-set \
             --json='{"id": 345,

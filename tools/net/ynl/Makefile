@@ -21,5 +21,7 @@ clean distclean:
 		fi \
 	done
 	rm -f libynl.a
+	rm -rf pyynl/__pycache__
+	rm -rf pyynl/lib/__pycache__
 
 .PHONY: all clean distclean $(SUBDIRS)

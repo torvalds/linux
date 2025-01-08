@@ -89,7 +89,7 @@ Observability
 =============
 The relation between PF, irq, napi, and queue can be observed via netlink spec::
 
-  $ ./tools/net/ynl/cli.py --spec Documentation/netlink/specs/netdev.yaml --dump queue-get --json='{"ifindex": 13}'
+  $ ./tools/net/ynl/pyynl/cli.py --spec Documentation/netlink/specs/netdev.yaml --dump queue-get --json='{"ifindex": 13}'
   [{'id': 0, 'ifindex': 13, 'napi-id': 539, 'type': 'rx'},
    {'id': 1, 'ifindex': 13, 'napi-id': 540, 'type': 'rx'},
    {'id': 2, 'ifindex': 13, 'napi-id': 541, 'type': 'rx'},
@@ -101,7 +101,7 @@ The relation between PF, irq, napi, and queue can be observed via netlink spec::
    {'id': 3, 'ifindex': 13, 'napi-id': 542, 'type': 'tx'},
    {'id': 4, 'ifindex': 13, 'napi-id': 543, 'type': 'tx'}]
 
-  $ ./tools/net/ynl/cli.py --spec Documentation/netlink/specs/netdev.yaml --dump napi-get --json='{"ifindex": 13}'
+  $ ./tools/net/ynl/pyynl/cli.py --spec Documentation/netlink/specs/netdev.yaml --dump napi-get --json='{"ifindex": 13}'
   [{'id': 543, 'ifindex': 13, 'irq': 42},
    {'id': 542, 'ifindex': 13, 'irq': 41},
    {'id': 541, 'ifindex': 13, 'irq': 40},
