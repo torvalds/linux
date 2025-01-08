@@ -835,8 +835,14 @@ static void bpf_map_free(struct bpf_map *map)
 	struct btf_record *rec = map->record;
 	struct btf *btf = map->btf;
 
-	/* implementation dependent freeing */
+	/* implementation dependent freeing. Disabling migration to simplify
+	 * the free of values or special fields allocated from bpf memory
+	 * allocator.
+	 */
+	migrate_disable();
 	map->ops->map_free(map);
+	migrate_enable();
+
 	/* Delay freeing of btf_record for maps, as map_free
 	 * callback usually needs access to them. It is better to do it here
 	 * than require each callback to do the free itself manually.

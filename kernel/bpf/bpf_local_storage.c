@@ -905,15 +905,11 @@ void bpf_local_storage_map_free(struct bpf_map *map,
 		while ((selem = hlist_entry_safe(
 				rcu_dereference_raw(hlist_first_rcu(&b->list)),
 				struct bpf_local_storage_elem, map_node))) {
-			if (busy_counter) {
-				migrate_disable();
+			if (busy_counter)
 				this_cpu_inc(*busy_counter);
-			}
 			bpf_selem_unlink(selem, true);
-			if (busy_counter) {
+			if (busy_counter)
 				this_cpu_dec(*busy_counter);
-				migrate_enable();
-			}
 			cond_resched_rcu();
 		}
 		rcu_read_unlock();
