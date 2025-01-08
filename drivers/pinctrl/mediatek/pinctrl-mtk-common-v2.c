@@ -599,24 +599,6 @@ static int mtk_pinconf_bias_set_pu_pd(struct mtk_pinctrl *hw,
 	return mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_PD, pd);
 }
 
-static int mtk_pinconf_bias_set_pd(struct mtk_pinctrl *hw,
-				const struct mtk_pin_desc *desc,
-				u32 pullup, u32 arg)
-{
-	int err, pd;
-
-	if (arg != MTK_DISABLE && arg != MTK_ENABLE)
-		return -EINVAL;
-
-	if (arg == MTK_DISABLE || pullup)
-		pd = 0;
-	else if (!pullup)
-		pd = 1;
-
-	return mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_PD, pd);
-
-}
-
 static int mtk_pinconf_bias_set_pullsel_pullen(struct mtk_pinctrl *hw,
 				const struct mtk_pin_desc *desc,
 				u32 pullup, u32 arg)
