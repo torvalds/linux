@@ -2208,17 +2208,18 @@ static long bpf_for_each_hash_elem(struct bpf_map *map, bpf_callback_t callback_
 	bool is_percpu;
 	u64 ret = 0;
 
+	cant_migrate();
+
 	if (flags != 0)
 		return -EINVAL;
 
 	is_percpu = htab_is_percpu(htab);
 
 	roundup_key_size = round_up(map->key_size, 8);
-	/* disable migration so percpu value prepared here will be the
-	 * same as the one seen by the bpf program with bpf_map_lookup_elem().
+	/* migration has been disabled, so percpu value prepared here will be
+	 * the same as the one seen by the bpf program with
+	 * bpf_map_lookup_elem().
 	 */
-	if (is_percpu)
-		migrate_disable();
 	for (i = 0; i < htab->n_buckets; i++) {
 		b = &htab->buckets[i];
 		rcu_read_lock();
@@ -2244,8 +2245,6 @@ static long bpf_for_each_hash_elem(struct bpf_map *map, bpf_callback_t callback_
 		rcu_read_unlock();
 	}
 out:
-	if (is_percpu)
-		migrate_enable();
 	return num_elems;
 }
 
