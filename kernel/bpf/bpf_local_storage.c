@@ -254,9 +254,7 @@ void bpf_selem_free(struct bpf_local_storage_elem *selem,
 		 * bpf_mem_cache_free will be able to reuse selem
 		 * immediately.
 		 */
-		migrate_disable();
 		bpf_mem_cache_free(&smap->selem_ma, selem);
-		migrate_enable();
 		return;
 	}
 
