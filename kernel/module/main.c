@@ -3749,7 +3749,7 @@ bool is_module_address(unsigned long addr)
  * __module_address() - get the module which contains an address.
  * @addr: the address.
  *
- * Must be called with preempt disabled or module mutex held so that
+ * Must be called within RCU read section or module mutex held so that
  * module doesn't get freed during this.
  */
 struct module *__module_address(unsigned long addr)
@@ -3767,8 +3767,6 @@ struct module *__module_address(unsigned long addr)
 	return NULL;
 
 lookup:
-	module_assert_mutex_or_preempt();
-
 	mod = mod_find(addr, &mod_tree);
 	if (mod) {
 		BUG_ON(!within_module(addr, mod));
