@@ -228,7 +228,7 @@ static struct ctl_table mptcp_sysctl_table[] = {
 	{
 		.procname = "available_schedulers",
 		.maxlen	= MPTCP_SCHED_BUF_MAX,
-		.mode = 0644,
+		.mode = 0444,
 		.proc_handler = proc_available_schedulers,
 	},
 	{
