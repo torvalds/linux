@@ -3900,7 +3900,7 @@ fdls_process_abts_req(struct fnic_iport_s *iport, struct fc_frame_header *fchdr)
 	uint8_t *frame;
 	struct fc_std_abts_ba_acc *pba_acc;
 	uint32_t nport_id;
-	uint16_t oxid;
+	uint16_t oxid = FNIC_STD_GET_OX_ID(fchdr);
 	struct fnic_tport_s *tport;
 	struct fnic *fnic = iport->fnic;
 	uint16_t frame_size = FNIC_ETH_FCOE_HDRS_OFFSET +
@@ -3912,7 +3912,6 @@ fdls_process_abts_req(struct fnic_iport_s *iport, struct fc_frame_header *fchdr)
 
 	tport = fnic_find_tport_by_fcid(iport, nport_id);
 	if (tport) {
-		oxid = FNIC_STD_GET_OX_ID(fchdr);
 		if (tport->active_oxid == oxid) {
 			tport->flags |= FNIC_FDLS_TGT_ABORT_ISSUED;
 			fdls_free_oxid(iport, oxid, &tport->active_oxid);
