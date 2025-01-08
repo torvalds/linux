@@ -16170,6 +16170,7 @@ M:	Breno Leitao <leitao@debian.org>
 S:	Maintained
 F:	Documentation/networking/netconsole.rst
 F:	drivers/net/netconsole.c
+F:	tools/testing/selftests/drivers/net/lib/sh/lib_netcons.sh
 F:	tools/testing/selftests/drivers/net/netcons_basic.sh
 
 NETDEVSIM
