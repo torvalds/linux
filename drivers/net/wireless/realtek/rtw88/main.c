@@ -19,6 +19,7 @@
 #include "bf.h"
 #include "sar.h"
 #include "sdio.h"
+#include "led.h"
 
 bool rtw_disable_lps_deep_mode;
 EXPORT_SYMBOL(rtw_disable_lps_deep_mode);
@@ -2292,16 +2293,18 @@ int rtw_register_hw(struct rtw_dev *rtwdev, struct ieee80211_hw *hw)
 		return ret;
 	}
 
+	rtw_led_init(rtwdev);
+
 	ret = ieee80211_register_hw(hw);
 	if (ret) {
 		rtw_err(rtwdev, "failed to register hw\n");
-		return ret;
+		goto led_deinit;
 	}
 
 	ret = rtw_regd_hint(rtwdev);
 	if (ret) {
 		rtw_err(rtwdev, "failed to hint regd\n");
-		return ret;
+		goto led_deinit;
 	}
 
 	rtw_debugfs_init(rtwdev);
@@ -2310,6 +2313,10 @@ int rtw_register_hw(struct rtw_dev *rtwdev, struct ieee80211_hw *hw)
 	rtwdev->bf_info.bfer_su_cnt = 0;
 
 	return 0;
+
+led_deinit:
+	rtw_led_deinit(rtwdev);
+	return ret;
 }
 EXPORT_SYMBOL(rtw_register_hw);
 
@@ -2320,6 +2327,7 @@ void rtw_unregister_hw(struct rtw_dev *rtwdev, struct ieee80211_hw *hw)
 	ieee80211_unregister_hw(hw);
 	rtw_unset_supported_band(hw, chip);
 	rtw_debugfs_deinit(rtwdev);
+	rtw_led_deinit(rtwdev);
 }
 EXPORT_SYMBOL(rtw_unregister_hw);
 

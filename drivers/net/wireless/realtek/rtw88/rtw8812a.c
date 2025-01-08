@@ -868,6 +868,22 @@ static void rtw8812a_pwr_track(struct rtw_dev *rtwdev)
 	dm_info->pwr_trk_triggered = false;
 }
 
+static void rtw8812a_led_set(struct led_classdev *led,
+			     enum led_brightness brightness)
+{
+	struct rtw_dev *rtwdev = container_of(led, struct rtw_dev, led_cdev);
+	u8 ledcfg;
+
+	ledcfg = rtw_read8(rtwdev, REG_LED_CFG);
+	ledcfg &= BIT(6) | BIT(4);
+	ledcfg |= BIT(5);
+
+	if (brightness == LED_OFF)
+		ledcfg |= BIT(3);
+
+	rtw_write8(rtwdev, REG_LED_CFG, ledcfg);
+}
+
 static void rtw8812a_fill_txdesc_checksum(struct rtw_dev *rtwdev,
 					  struct rtw_tx_pkt_info *pkt_info,
 					  u8 *txdesc)
@@ -916,6 +932,7 @@ static const struct rtw_chip_ops rtw8812a_ops = {
 	.config_bfee		= NULL,
 	.set_gid_table		= NULL,
 	.cfg_csi_rate		= NULL,
+	.led_set		= rtw8812a_led_set,
 	.fill_txdesc_checksum	= rtw8812a_fill_txdesc_checksum,
 	.coex_set_init		= rtw8812a_coex_cfg_init,
 	.coex_set_ant_switch	= NULL,

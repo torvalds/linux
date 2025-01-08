@@ -887,6 +887,7 @@ struct rtw_chip_ops {
 			       bool is_tx2_path);
 	void (*config_txrx_mode)(struct rtw_dev *rtwdev, u8 tx_path,
 				 u8 rx_path, bool is_tx2_path);
+	void (*led_set)(struct led_classdev *led, enum led_brightness brightness);
 	/* for USB/SDIO only */
 	void (*fill_txdesc_checksum)(struct rtw_dev *rtwdev,
 				     struct rtw_tx_pkt_info *pkt_info,
@@ -2096,6 +2097,10 @@ struct rtw_dev {
 	bool need_rfk;
 	struct completion fw_scan_density;
 	bool ap_active;
+
+	bool led_registered;
+	char led_name[32];
+	struct led_classdev led_cdev;
 
 	/* hci related data, must be last */
 	u8 priv[] __aligned(sizeof(void *));
