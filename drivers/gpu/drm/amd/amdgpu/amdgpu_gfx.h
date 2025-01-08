@@ -57,6 +57,9 @@ enum amdgpu_gfx_pipe_priority {
 #define AMDGPU_GFX_QUEUE_PRIORITY_MINIMUM  0
 #define AMDGPU_GFX_QUEUE_PRIORITY_MAXIMUM  15
 
+/* 1 second timeout */
+#define GFX_PROFILE_IDLE_TIMEOUT	msecs_to_jiffies(1000)
+
 enum amdgpu_gfx_partition {
 	AMDGPU_SPX_PARTITION_MODE = 0,
 	AMDGPU_DPX_PARTITION_MODE = 1,
@@ -476,6 +479,9 @@ struct amdgpu_gfx {
 	bool				kfd_sch_inactive[MAX_XCP];
 	unsigned long			enforce_isolation_jiffies[MAX_XCP];
 	unsigned long			enforce_isolation_time[MAX_XCP];
+
+	atomic_t			total_submission_cnt;
+	struct delayed_work		idle_work;
 };
 
 struct amdgpu_gfx_ras_reg_entry {
@@ -584,6 +590,11 @@ void amdgpu_gfx_cleaner_shader_init(struct amdgpu_device *adev,
 void amdgpu_gfx_enforce_isolation_handler(struct work_struct *work);
 void amdgpu_gfx_enforce_isolation_ring_begin_use(struct amdgpu_ring *ring);
 void amdgpu_gfx_enforce_isolation_ring_end_use(struct amdgpu_ring *ring);
+
+void amdgpu_gfx_profile_idle_work_handler(struct work_struct *work);
+void amdgpu_gfx_profile_ring_begin_use(struct amdgpu_ring *ring);
+void amdgpu_gfx_profile_ring_end_use(struct amdgpu_ring *ring);
+
 void amdgpu_debugfs_gfx_sched_mask_init(struct amdgpu_device *adev);
 void amdgpu_debugfs_compute_sched_mask_init(struct amdgpu_device *adev);
 
