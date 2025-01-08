@@ -2022,6 +2022,7 @@
 		      <0x0 0xfe680000 0 0x100000>; /* GICR */
 		interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH 0>;
 		interrupt-controller;
+		dma-noncoherent;
 		mbi-alias = <0x0 0xfe610000>;
 		mbi-ranges = <424 56>;
 		msi-controller;
@@ -2033,6 +2034,7 @@
 		its0: msi-controller@fe640000 {
 			compatible = "arm,gic-v3-its";
 			reg = <0x0 0xfe640000 0x0 0x20000>;
+			dma-noncoherent;
 			msi-controller;
 			#msi-cells = <1>;
 		};
@@ -2040,6 +2042,7 @@
 		its1: msi-controller@fe660000 {
 			compatible = "arm,gic-v3-its";
 			reg = <0x0 0xfe660000 0x0 0x20000>;
+			dma-noncoherent;
 			msi-controller;
 			#msi-cells = <1>;
 		};
