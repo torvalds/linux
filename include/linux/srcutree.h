@@ -211,6 +211,13 @@ void synchronize_srcu_expedited(struct srcu_struct *ssp);
 void srcu_barrier(struct srcu_struct *ssp);
 void srcu_torture_stats_print(struct srcu_struct *ssp, char *tt, char *tf);
 
+// Converts a per-CPU pointer to an ->srcu_ctrs[] array element to that
+// element's index.
+static inline bool __srcu_ptr_to_ctr(struct srcu_struct *ssp, struct srcu_ctr __percpu *scpp)
+{
+	return scpp - &ssp->sda->srcu_ctrs[0];
+}
+
 /*
  * Counts the new reader in the appropriate per-CPU element of the
  * srcu_struct.  Returns an index that must be passed to the matching
@@ -228,7 +235,7 @@ static inline int __srcu_read_lock_lite(struct srcu_struct *ssp)
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "RCU must be watching srcu_read_lock_lite().");
 	this_cpu_inc(scp->srcu_locks.counter); /* Y */
 	barrier(); /* Avoid leaking the critical section. */
-	return scp - &ssp->sda->srcu_ctrs[0];
+	return __srcu_ptr_to_ctr(ssp, scp);
 }
 
 /*

@@ -753,7 +753,7 @@ int __srcu_read_lock(struct srcu_struct *ssp)
 
 	this_cpu_inc(scp->srcu_locks.counter);
 	smp_mb(); /* B */  /* Avoid leaking the critical section. */
-	return scp - &ssp->sda->srcu_ctrs[0];
+	return __srcu_ptr_to_ctr(ssp, scp);
 }
 EXPORT_SYMBOL_GPL(__srcu_read_lock);
 
@@ -783,7 +783,7 @@ int __srcu_read_lock_nmisafe(struct srcu_struct *ssp)
 
 	atomic_long_inc(&scp->srcu_locks);
 	smp_mb__after_atomic(); /* B */  /* Avoid leaking the critical section. */
-	return scpp - &ssp->sda->srcu_ctrs[0];
+	return __srcu_ptr_to_ctr(ssp, scpp);
 }
 EXPORT_SYMBOL_GPL(__srcu_read_lock_nmisafe);
 
