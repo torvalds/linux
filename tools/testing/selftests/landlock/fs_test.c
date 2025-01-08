@@ -85,6 +85,9 @@ static const char file1_s3d1[] = TMP_DIR "/s3d1/f1";
 /* dir_s3d2 is a mount point. */
 static const char dir_s3d2[] = TMP_DIR "/s3d1/s3d2";
 static const char dir_s3d3[] = TMP_DIR "/s3d1/s3d2/s3d3";
+static const char file1_s3d3[] = TMP_DIR "/s3d1/s3d2/s3d3/f1";
+static const char dir_s3d4[] = TMP_DIR "/s3d1/s3d2/s3d4";
+static const char file1_s3d4[] = TMP_DIR "/s3d1/s3d2/s3d4/f1";
 
 /*
  * layout1 hierarchy:
@@ -108,8 +111,11 @@ static const char dir_s3d3[] = TMP_DIR "/s3d1/s3d2/s3d3";
  * │           └── f2
  * └── s3d1
  *     ├── f1
- *     └── s3d2
- *         └── s3d3
+ *     └── s3d2 [mount point]
+ *         ├── s3d3
+ *         │   └── f1
+ *         └── s3d4
+ *             └── f1
  */
 
 static bool fgrep(FILE *const inf, const char *const str)
@@ -358,7 +364,8 @@ static void create_layout1(struct __test_metadata *const _metadata)
 	ASSERT_EQ(0, mount_opt(&mnt_tmp, dir_s3d2));
 	clear_cap(_metadata, CAP_SYS_ADMIN);
 
-	ASSERT_EQ(0, mkdir(dir_s3d3, 0700));
+	create_file(_metadata, file1_s3d3);
+	create_file(_metadata, file1_s3d4);
 }
 
 static void remove_layout1(struct __test_metadata *const _metadata)
@@ -378,7 +385,8 @@ static void remove_layout1(struct __test_metadata *const _metadata)
 	EXPECT_EQ(0, remove_path(dir_s2d2));
 
 	EXPECT_EQ(0, remove_path(file1_s3d1));
-	EXPECT_EQ(0, remove_path(dir_s3d3));
+	EXPECT_EQ(0, remove_path(file1_s3d3));
+	EXPECT_EQ(0, remove_path(file1_s3d4));
 	set_cap(_metadata, CAP_SYS_ADMIN);
 	umount(dir_s3d2);
 	clear_cap(_metadata, CAP_SYS_ADMIN);
@@ -2442,6 +2450,44 @@ TEST_F_FORK(layout1, refer_mount_root_deny)
 	EXPECT_EQ(EBUSY, errno);
 
 	EXPECT_EQ(0, close(root_fd));
+}
+
+TEST_F_FORK(layout1, refer_part_mount_tree_is_allowed)
+{
+	const struct rule layer1[] = {
+		{
+			/* Parent mount point. */
+			.path = dir_s3d1,
+			.access = LANDLOCK_ACCESS_FS_REFER |
+				  LANDLOCK_ACCESS_FS_MAKE_REG,
+		},
+		{
+			/*
+			 * Removing the source file is allowed because its
+			 * access rights are already a superset of the
+			 * destination.
+			 */
+			.path = dir_s3d4,
+			.access = LANDLOCK_ACCESS_FS_REFER |
+				  LANDLOCK_ACCESS_FS_MAKE_REG |
+				  LANDLOCK_ACCESS_FS_REMOVE_FILE,
+		},
+		{},
+	};
+	int ruleset_fd;
+
+	ASSERT_EQ(0, unlink(file1_s3d3));
+	ruleset_fd = create_ruleset(_metadata,
+				    LANDLOCK_ACCESS_FS_REFER |
+					    LANDLOCK_ACCESS_FS_MAKE_REG |
+					    LANDLOCK_ACCESS_FS_REMOVE_FILE,
+				    layer1);
+
+	ASSERT_LE(0, ruleset_fd);
+	enforce_ruleset(_metadata, ruleset_fd);
+	ASSERT_EQ(0, close(ruleset_fd));
+
+	ASSERT_EQ(0, rename(file1_s3d4, file1_s3d3));
 }
 
 TEST_F_FORK(layout1, reparent_link)
