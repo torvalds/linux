@@ -49,6 +49,9 @@ int init_srcu_struct(struct srcu_struct *ssp);
 #define SRCU_READ_FLAVOR_LITE	0x4		// srcu_read_lock_lite().
 #define SRCU_READ_FLAVOR_ALL   (SRCU_READ_FLAVOR_NORMAL | SRCU_READ_FLAVOR_NMI | \
 				SRCU_READ_FLAVOR_LITE) // All of the above.
+#define SRCU_READ_FLAVOR_SLOWGP	SRCU_READ_FLAVOR_LITE
+						// Flavors requiring synchronize_rcu()
+						// instead of smp_mb().
 
 #ifdef CONFIG_TINY_SRCU
 #include <linux/srcutiny.h>
