@@ -569,8 +569,6 @@ static inline void arch_ftrace_set_direct_caller(struct ftrace_regs *fregs,
 
 #ifdef CONFIG_STACK_TRACER
 
-extern int stack_tracer_enabled;
-
 int stack_trace_sysctl(const struct ctl_table *table, int write, void *buffer,
 		       size_t *lenp, loff_t *ppos);
 
