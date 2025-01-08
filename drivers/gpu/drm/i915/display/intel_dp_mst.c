@@ -1219,11 +1219,10 @@ static void mst_stream_pre_enable(struct intel_atomic_state *state,
 static void enable_bs_jitter_was(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
-	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
 	u32 clear = 0;
 	u32 set = 0;
 
-	if (!IS_ALDERLAKE_P(i915))
+	if (!display->platform.alderlake_p)
 		return;
 
 	if (!IS_DISPLAY_STEP(display, STEP_D0, STEP_FOREVER))
