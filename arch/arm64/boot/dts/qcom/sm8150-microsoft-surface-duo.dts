@@ -453,22 +453,22 @@
 
 &remoteproc_adsp {
 	status = "okay";
-	firmware-name = "qcom/sm8150/microsoft/adsp.mdt";
+	firmware-name = "qcom/sm8150/microsoft/adsp.mbn";
 };
 
 &remoteproc_cdsp {
 	status = "okay";
-	firmware-name = "qcom/sm8150/microsoft/cdsp.mdt";
+	firmware-name = "qcom/sm8150/microsoft/cdsp.mbn";
 };
 
 &remoteproc_mpss {
 	status = "okay";
-	firmware-name = "qcom/sm8150/microsoft/modem.mdt";
+	firmware-name = "qcom/sm8150/microsoft/modem.mbn";
 };
 
 &remoteproc_slpi {
 	status = "okay";
-	firmware-name = "qcom/sm8150/microsoft/slpi.mdt";
+	firmware-name = "qcom/sm8150/microsoft/slpi.mbn";
 };
 
 &pon_resin {
