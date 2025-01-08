@@ -20,7 +20,8 @@
 /*
  * All access rights that are denied by default whether they are handled or not
  * by a ruleset/layer.  This must be ORed with all ruleset->access_masks[]
- * entries when we need to get the absolute handled access masks.
+ * entries when we need to get the absolute handled access masks, see
+ * landlock_upgrade_handled_access_masks().
  */
 /* clang-format off */
 #define _LANDLOCK_ACCESS_FS_INITIALLY_DENIED ( \
@@ -58,5 +59,19 @@ typedef u16 layer_mask_t;
 
 /* Makes sure all layers can be checked. */
 static_assert(BITS_PER_TYPE(layer_mask_t) >= LANDLOCK_MAX_NUM_LAYERS);
+
+/* Upgrades with all initially denied by default access rights. */
+static inline struct access_masks
+landlock_upgrade_handled_access_masks(struct access_masks access_masks)
+{
+	/*
+	 * All access rights that are denied by default whether they are
+	 * explicitly handled or not.
+	 */
+	if (access_masks.fs)
+		access_masks.fs |= _LANDLOCK_ACCESS_FS_INITIALLY_DENIED;
+
+	return access_masks;
+}
 
 #endif /* _SECURITY_LANDLOCK_ACCESS_H */
