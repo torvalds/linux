@@ -450,6 +450,7 @@ unsigned long module_kallsyms_lookup_name(const char *name)
 	unsigned long ret;
 
 	/* Don't lock: we're in enough trouble already. */
+	guard(rcu)();
 	preempt_disable();
 	ret = __module_kallsyms_lookup_name(name);
 	preempt_enable();

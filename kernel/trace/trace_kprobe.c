@@ -124,9 +124,8 @@ static nokprobe_inline bool trace_kprobe_module_exist(struct trace_kprobe *tk)
 	if (!p)
 		return true;
 	*p = '\0';
-	rcu_read_lock_sched();
-	ret = !!find_module(tk->symbol);
-	rcu_read_unlock_sched();
+	scoped_guard(rcu)
+		ret = !!find_module(tk->symbol);
 	*p = ':';
 
 	return ret;
@@ -796,12 +795,10 @@ static struct module *try_module_get_by_name(const char *name)
 {
 	struct module *mod;
 
-	rcu_read_lock_sched();
+	guard(rcu)();
 	mod = find_module(name);
 	if (mod && !try_module_get(mod))
 		mod = NULL;
-	rcu_read_unlock_sched();
-
 	return mod;
 }
 #else
