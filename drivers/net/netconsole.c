@@ -730,7 +730,7 @@ static void update_userdata(struct netconsole_target *nt)
 		struct userdatum *udm_item;
 		struct config_item *item;
 
-		if (child_count >= MAX_USERDATA_ITEMS)
+		if (WARN_ON_ONCE(child_count >= MAX_USERDATA_ITEMS))
 			break;
 		child_count++;
 
