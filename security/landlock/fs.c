@@ -565,6 +565,12 @@ static void test_no_more_access(struct kunit *const test)
 #undef NMA_TRUE
 #undef NMA_FALSE
 
+static bool is_layer_masks_allowed(
+	layer_mask_t (*const layer_masks)[LANDLOCK_NUM_ACCESS_FS])
+{
+	return !memchr_inv(layer_masks, 0, sizeof(*layer_masks));
+}
+
 /*
  * Removes @layer_masks accesses that are not requested.
  *
@@ -582,7 +588,8 @@ scope_to_request(const access_mask_t access_request,
 
 	for_each_clear_bit(access_bit, &access_req, ARRAY_SIZE(*layer_masks))
 		(*layer_masks)[access_bit] = 0;
-	return !memchr_inv(layer_masks, 0, sizeof(*layer_masks));
+
+	return is_layer_masks_allowed(layer_masks);
 }
 
 #ifdef CONFIG_SECURITY_LANDLOCK_KUNIT_TEST
@@ -771,9 +778,14 @@ static bool is_access_to_paths_allowed(
 	if (WARN_ON_ONCE(domain->num_layers < 1 || !layer_masks_parent1))
 		return false;
 
+	allowed_parent1 = is_layer_masks_allowed(layer_masks_parent1);
+
 	if (unlikely(layer_masks_parent2)) {
 		if (WARN_ON_ONCE(!dentry_child1))
 			return false;
+
+		allowed_parent2 = is_layer_masks_allowed(layer_masks_parent2);
+
 		/*
 		 * For a double request, first check for potential privilege
 		 * escalation by looking at domain handled accesses (which are
