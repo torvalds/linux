@@ -22,7 +22,7 @@ extern __u8 _ebc_toupper[256]; /* EBCDIC -> uppercase */
 static inline void
 codepage_convert(const __u8 *codepage, volatile char *addr, unsigned long nr)
 {
-	if (nr-- <= 0)
+	if (!nr--)
 		return;
 	asm volatile(
 		"	j	2f\n"
