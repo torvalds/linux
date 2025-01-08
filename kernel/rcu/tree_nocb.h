@@ -1557,8 +1557,11 @@ static void show_rcu_nocb_gp_state(struct rcu_data *rdp)
 /* Dump out nocb kthread state for the specified rcu_data structure. */
 static void show_rcu_nocb_state(struct rcu_data *rdp)
 {
-	char bufw[20];
-	char bufr[20];
+	char bufd[22];
+	char bufw[45];
+	char bufr[45];
+	char bufn[22];
+	char bufb[22];
 	struct rcu_data *nocb_next_rdp;
 	struct rcu_segcblist *rsclp = &rdp->cblist;
 	bool waslocked;
@@ -1572,9 +1575,13 @@ static void show_rcu_nocb_state(struct rcu_data *rdp)
 					      typeof(*rdp),
 					      nocb_entry_rdp);
 
-	sprintf(bufw, "%ld", rsclp->gp_seq[RCU_WAIT_TAIL]);
-	sprintf(bufr, "%ld", rsclp->gp_seq[RCU_NEXT_READY_TAIL]);
-	pr_info("   CB %d^%d->%d %c%c%c%c%c F%ld L%ld C%d %c%c%s%c%s%c%c q%ld %c CPU %d%s\n",
+	sprintf(bufd, "%ld", rsclp->seglen[RCU_DONE_TAIL]);
+	sprintf(bufw, "%ld(%ld)", rsclp->seglen[RCU_WAIT_TAIL], rsclp->gp_seq[RCU_WAIT_TAIL]);
+	sprintf(bufr, "%ld(%ld)", rsclp->seglen[RCU_NEXT_READY_TAIL],
+		      rsclp->gp_seq[RCU_NEXT_READY_TAIL]);
+	sprintf(bufn, "%ld", rsclp->seglen[RCU_NEXT_TAIL]);
+	sprintf(bufb, "%ld", rcu_cblist_n_cbs(&rdp->nocb_bypass));
+	pr_info("   CB %d^%d->%d %c%c%c%c%c F%ld L%ld C%d %c%s%c%s%c%s%c%s%c%s q%ld %c CPU %d%s\n",
 		rdp->cpu, rdp->nocb_gp_rdp->cpu,
 		nocb_next_rdp ? nocb_next_rdp->cpu : -1,
 		"kK"[!!rdp->nocb_cb_kthread],
@@ -1586,12 +1593,15 @@ static void show_rcu_nocb_state(struct rcu_data *rdp)
 		jiffies - rdp->nocb_nobypass_last,
 		rdp->nocb_nobypass_count,
 		".D"[rcu_segcblist_ready_cbs(rsclp)],
+		rcu_segcblist_segempty(rsclp, RCU_DONE_TAIL) ? "" : bufd,
 		".W"[!rcu_segcblist_segempty(rsclp, RCU_WAIT_TAIL)],
 		rcu_segcblist_segempty(rsclp, RCU_WAIT_TAIL) ? "" : bufw,
 		".R"[!rcu_segcblist_segempty(rsclp, RCU_NEXT_READY_TAIL)],
 		rcu_segcblist_segempty(rsclp, RCU_NEXT_READY_TAIL) ? "" : bufr,
 		".N"[!rcu_segcblist_segempty(rsclp, RCU_NEXT_TAIL)],
+		rcu_segcblist_segempty(rsclp, RCU_NEXT_TAIL) ? "" : bufn,
 		".B"[!!rcu_cblist_n_cbs(&rdp->nocb_bypass)],
+		!rcu_cblist_n_cbs(&rdp->nocb_bypass) ? "" : bufb,
 		rcu_segcblist_n_cbs(&rdp->cblist),
 		rdp->nocb_cb_kthread ? task_state_to_char(rdp->nocb_cb_kthread) : '.',
 		rdp->nocb_cb_kthread ? (int)task_cpu(rdp->nocb_cb_kthread) : -1,
