@@ -20,6 +20,10 @@ N: Thomas Abraham
 E: thomas.ab@samsung.com
 D: Samsung pin controller driver
 
+N: Jose Abreu
+E: jose.abreu@synopsys.com
+D: Synopsys DesignWare XPCS MDIO/PCS driver.
+
 N: Dragos Acostachioaie
 E: dragos@iname.com
 W: http://www.arbornet.org/~dragos
