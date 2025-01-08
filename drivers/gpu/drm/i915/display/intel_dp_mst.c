@@ -1717,11 +1717,8 @@ mst_topology_add_connector(struct drm_dp_mst_topology_mgr *mgr,
 
 	ret = drm_connector_dynamic_init(display->drm, connector, &mst_connector_funcs,
 					 DRM_MODE_CONNECTOR_DisplayPort, NULL);
-	if (ret) {
-		drm_dp_mst_put_port_malloc(port);
-		intel_connector_free(intel_connector);
-		return NULL;
-	}
+	if (ret)
+		goto err_put_port;
 
 	intel_connector->dp.dsc_decompression_aux = drm_dp_mst_dsc_aux_for_port(port);
 	intel_dp_mst_read_decompression_port_dsc_caps(intel_dp, intel_connector);
@@ -1736,12 +1733,12 @@ mst_topology_add_connector(struct drm_dp_mst_topology_mgr *mgr,
 
 		ret = drm_connector_attach_encoder(&intel_connector->base, enc);
 		if (ret)
-			goto err;
+			goto err_cleanup_connector;
 	}
 
 	ret = mst_topology_add_connector_properties(intel_dp, connector, pathprop);
 	if (ret)
-		goto err;
+		goto err_cleanup_connector;
 
 	ret = intel_dp_hdcp_init(dig_port, intel_connector);
 	if (ret)
@@ -1750,8 +1747,12 @@ mst_topology_add_connector(struct drm_dp_mst_topology_mgr *mgr,
 
 	return connector;
 
-err:
+err_cleanup_connector:
 	drm_connector_cleanup(connector);
+err_put_port:
+	drm_dp_mst_put_port_malloc(port);
+	intel_connector_free(intel_connector);
+
 	return NULL;
 }
 
