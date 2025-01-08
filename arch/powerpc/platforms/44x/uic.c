@@ -37,7 +37,7 @@
 #define UIC_VR		0x7
 #define UIC_VCR		0x8
 
-struct uic *primary_uic;
+static struct uic *primary_uic;
 
 struct uic {
 	int index;
