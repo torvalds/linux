@@ -2917,7 +2917,7 @@ static void put_prev_task_scx(struct rq *rq, struct task_struct *p,
 		 */
 		if (p->scx.slice && !scx_rq_bypassing(rq)) {
 			dispatch_enqueue(&rq->scx.local_dsq, p, SCX_ENQ_HEAD);
-			return;
+			goto switch_class;
 		}
 
 		/*
@@ -2934,6 +2934,7 @@ static void put_prev_task_scx(struct rq *rq, struct task_struct *p,
 		}
 	}
 
+switch_class:
 	if (next && next->sched_class != &ext_sched_class)
 		switch_class(rq, next);
 }
