@@ -252,16 +252,16 @@ static int test__cpu_map_equal(struct test_suite *test __maybe_unused, int subte
 	struct perf_cpu_map *empty = perf_cpu_map__intersect(one, two);
 	struct perf_cpu_map *pair = perf_cpu_map__new("1-2");
 	struct perf_cpu_map *tmp;
-	struct perf_cpu_map *maps[] = {empty, any, one, two, pair};
+	struct perf_cpu_map **maps[] = {&empty, &any, &one, &two, &pair};
 
 	for (size_t i = 0; i < ARRAY_SIZE(maps); i++) {
 		/* Maps equal themself. */
-		TEST_ASSERT_VAL("equal", perf_cpu_map__equal(maps[i], maps[i]));
+		TEST_ASSERT_VAL("equal", perf_cpu_map__equal(*maps[i], *maps[i]));
 		for (size_t j = 0; j < ARRAY_SIZE(maps); j++) {
 			/* Maps dont't equal each other. */
 			if (i == j)
 				continue;
-			TEST_ASSERT_VAL("not equal", !perf_cpu_map__equal(maps[i], maps[j]));
+			TEST_ASSERT_VAL("not equal", !perf_cpu_map__equal(*maps[i], *maps[j]));
 		}
 	}
 
@@ -274,7 +274,7 @@ static int test__cpu_map_equal(struct test_suite *test __maybe_unused, int subte
 	perf_cpu_map__put(tmp);
 
 	for (size_t i = 0; i < ARRAY_SIZE(maps); i++)
-		perf_cpu_map__put(maps[i]);
+		perf_cpu_map__put(*maps[i]);
 
 	return TEST_OK;
 }
