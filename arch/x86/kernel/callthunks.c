@@ -143,11 +143,6 @@ static bool skip_addr(void *dest)
 	    dest < (void*)relocate_kernel + KEXEC_CONTROL_CODE_MAX_SIZE)
 		return true;
 #endif
-#ifdef CONFIG_XEN
-	if (dest >= (void *)hypercall_page &&
-	    dest < (void*)hypercall_page + PAGE_SIZE)
-		return true;
-#endif
 	return false;
 }
 

@@ -139,7 +139,7 @@ static u16 nvmet_get_smart_log_all(struct nvmet_req *req,
 	unsigned long idx;
 
 	ctrl = req->sq->ctrl;
-	xa_for_each(&ctrl->subsys->namespaces, idx, ns) {
+	nvmet_for_each_enabled_ns(&ctrl->subsys->namespaces, idx, ns) {
 		/* we don't have the right data for file backed ns */
 		if (!ns->bdev)
 			continue;
@@ -331,9 +331,10 @@ static u32 nvmet_format_ana_group(struct nvmet_req *req, u32 grpid,
 	u32 count = 0;
 
 	if (!(req->cmd->get_log_page.lsp & NVME_ANA_LOG_RGO)) {
-		xa_for_each(&ctrl->subsys->namespaces, idx, ns)
+		nvmet_for_each_enabled_ns(&ctrl->subsys->namespaces, idx, ns) {
 			if (ns->anagrpid == grpid)
 				desc->nsids[count++] = cpu_to_le32(ns->nsid);
+		}
 	}
 
 	desc->grpid = cpu_to_le32(grpid);
@@ -772,7 +773,7 @@ static void nvmet_execute_identify_endgrp_list(struct nvmet_req *req)
 		goto out;
 	}
 
-	xa_for_each(&ctrl->subsys->namespaces, idx, ns) {
+	nvmet_for_each_enabled_ns(&ctrl->subsys->namespaces, idx, ns) {
 		if (ns->nsid <= min_endgid)
 			continue;
 
@@ -815,7 +816,7 @@ static void nvmet_execute_identify_nslist(struct nvmet_req *req, bool match_css)
 		goto out;
 	}
 
-	xa_for_each(&ctrl->subsys->namespaces, idx, ns) {
+	nvmet_for_each_enabled_ns(&ctrl->subsys->namespaces, idx, ns) {
 		if (ns->nsid <= min_nsid)
 			continue;
 		if (match_css && req->ns->csi != req->cmd->identify.csi)

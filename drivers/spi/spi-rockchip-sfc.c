@@ -184,6 +184,7 @@ struct rockchip_sfc {
 	bool use_dma;
 	u32 max_iosize;
 	u16 version;
+	struct spi_controller *host;
 };
 
 static int rockchip_sfc_reset(struct rockchip_sfc *sfc)
@@ -624,6 +625,7 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 
 	sfc = spi_controller_get_devdata(host);
 	sfc->dev = dev;
+	sfc->host = host;
 
 	sfc->regbase = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(sfc->regbase))
@@ -727,8 +729,8 @@ err_hclk:
 
 static void rockchip_sfc_remove(struct platform_device *pdev)
 {
-	struct spi_controller *host = platform_get_drvdata(pdev);
 	struct rockchip_sfc *sfc = platform_get_drvdata(pdev);
+	struct spi_controller *host = sfc->host;
 
 	spi_unregister_controller(host);
 	free_pages((unsigned long)sfc->buffer, get_order(sfc->max_iosize));

@@ -9078,9 +9078,9 @@ out:
 }
 
 struct btrfs_encoded_read_private {
-	wait_queue_head_t wait;
+	struct completion done;
 	void *uring_ctx;
-	atomic_t pending;
+	refcount_t pending_refs;
 	blk_status_t status;
 };
 
@@ -9099,14 +9099,14 @@ static void btrfs_encoded_read_endio(struct btrfs_bio *bbio)
 		 */
 		WRITE_ONCE(priv->status, bbio->bio.bi_status);
 	}
-	if (atomic_dec_and_test(&priv->pending)) {
+	if (refcount_dec_and_test(&priv->pending_refs)) {
 		int err = blk_status_to_errno(READ_ONCE(priv->status));
 
 		if (priv->uring_ctx) {
 			btrfs_uring_read_extent_endio(priv->uring_ctx, err);
 			kfree(priv);
 		} else {
-			wake_up(&priv->wait);
+			complete(&priv->done);
 		}
 	}
 	bio_put(&bbio->bio);
@@ -9126,8 +9126,8 @@ int btrfs_encoded_read_regular_fill_pages(struct btrfs_inode *inode,
 	if (!priv)
 		return -ENOMEM;
 
-	init_waitqueue_head(&priv->wait);
-	atomic_set(&priv->pending, 1);
+	init_completion(&priv->done);
+	refcount_set(&priv->pending_refs, 1);
 	priv->status = 0;
 	priv->uring_ctx = uring_ctx;
 
@@ -9140,7 +9140,7 @@ int btrfs_encoded_read_regular_fill_pages(struct btrfs_inode *inode,
 		size_t bytes = min_t(u64, disk_io_size, PAGE_SIZE);
 
 		if (bio_add_page(&bbio->bio, pages[i], bytes, 0) < bytes) {
-			atomic_inc(&priv->pending);
+			refcount_inc(&priv->pending_refs);
 			btrfs_submit_bbio(bbio, 0);
 
 			bbio = btrfs_bio_alloc(BIO_MAX_VECS, REQ_OP_READ, fs_info,
@@ -9155,11 +9155,11 @@ int btrfs_encoded_read_regular_fill_pages(struct btrfs_inode *inode,
 		disk_io_size -= bytes;
 	} while (disk_io_size);
 
-	atomic_inc(&priv->pending);
+	refcount_inc(&priv->pending_refs);
 	btrfs_submit_bbio(bbio, 0);
 
 	if (uring_ctx) {
-		if (atomic_dec_return(&priv->pending) == 0) {
+		if (refcount_dec_and_test(&priv->pending_refs)) {
 			ret = blk_status_to_errno(READ_ONCE(priv->status));
 			btrfs_uring_read_extent_endio(uring_ctx, ret);
 			kfree(priv);
@@ -9168,8 +9168,8 @@ int btrfs_encoded_read_regular_fill_pages(struct btrfs_inode *inode,
 
 		return -EIOCBQUEUED;
 	} else {
-		if (atomic_dec_return(&priv->pending) != 0)
-			io_wait_event(priv->wait, !atomic_read(&priv->pending));
+		if (!refcount_dec_and_test(&priv->pending_refs))
+			wait_for_completion_io(&priv->done);
 		/* See btrfs_encoded_read_endio() for ordering. */
 		ret = blk_status_to_errno(READ_ONCE(priv->status));
 		kfree(priv);
@@ -9799,15 +9799,25 @@ static int btrfs_swap_activate(struct swap_info_struct *sis, struct file *file,
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	struct extent_state *cached_state = NULL;
-	struct extent_map *em = NULL;
 	struct btrfs_chunk_map *map = NULL;
 	struct btrfs_device *device = NULL;
 	struct btrfs_swap_info bsi = {
 		.lowest_ppage = (sector_t)-1ULL,
 	};
+	struct btrfs_backref_share_check_ctx *backref_ctx = NULL;
+	struct btrfs_path *path = NULL;
 	int ret = 0;
 	u64 isize;
-	u64 start;
+	u64 prev_extent_end = 0;
+
+	/*
+	 * Acquire the inode's mmap lock to prevent races with memory mapped
+	 * writes, as they could happen after we flush delalloc below and before
+	 * we lock the extent range further below. The inode was already locked
+	 * up in the call chain.
+	 */
+	btrfs_assert_inode_locked(BTRFS_I(inode));
+	down_write(&BTRFS_I(inode)->i_mmap_lock);
 
 	/*
 	 * If the swap file was just created, make sure delalloc is done. If the
@@ -9816,22 +9826,32 @@ static int btrfs_swap_activate(struct swap_info_struct *sis, struct file *file,
 	 */
 	ret = btrfs_wait_ordered_range(BTRFS_I(inode), 0, (u64)-1);
 	if (ret)
-		return ret;
+		goto out_unlock_mmap;
 
 	/*
 	 * The inode is locked, so these flags won't change after we check them.
 	 */
 	if (BTRFS_I(inode)->flags & BTRFS_INODE_COMPRESS) {
 		btrfs_warn(fs_info, "swapfile must not be compressed");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_unlock_mmap;
 	}
 	if (!(BTRFS_I(inode)->flags & BTRFS_INODE_NODATACOW)) {
 		btrfs_warn(fs_info, "swapfile must not be copy-on-write");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_unlock_mmap;
 	}
 	if (!(BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM)) {
 		btrfs_warn(fs_info, "swapfile must not be checksummed");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_unlock_mmap;
+	}
+
+	path = btrfs_alloc_path();
+	backref_ctx = btrfs_alloc_backref_share_check_ctx();
+	if (!path || !backref_ctx) {
+		ret = -ENOMEM;
+		goto out_unlock_mmap;
 	}
 
 	/*
@@ -9846,7 +9866,8 @@ static int btrfs_swap_activate(struct swap_info_struct *sis, struct file *file,
 	if (!btrfs_exclop_start(fs_info, BTRFS_EXCLOP_SWAP_ACTIVATE)) {
 		btrfs_warn(fs_info,
 	   "cannot activate swapfile while exclusive operation is running");
-		return -EBUSY;
+		ret = -EBUSY;
+		goto out_unlock_mmap;
 	}
 
 	/*
@@ -9860,7 +9881,8 @@ static int btrfs_swap_activate(struct swap_info_struct *sis, struct file *file,
 		btrfs_exclop_finish(fs_info);
 		btrfs_warn(fs_info,
 	   "cannot activate swapfile because snapshot creation is in progress");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_unlock_mmap;
 	}
 	/*
 	 * Snapshots can create extents which require COW even if NODATACOW is
@@ -9876,11 +9898,13 @@ static int btrfs_swap_activate(struct swap_info_struct *sis, struct file *file,
 	if (btrfs_root_dead(root)) {
 		spin_unlock(&root->root_item_lock);
 
+		btrfs_drew_write_unlock(&root->snapshot_lock);
 		btrfs_exclop_finish(fs_info);
 		btrfs_warn(fs_info,
 		"cannot activate swapfile because subvolume %llu is being deleted",
 			btrfs_root_id(root));
-		return -EPERM;
+		ret = -EPERM;
+		goto out_unlock_mmap;
 	}
 	atomic_inc(&root->nr_swapfiles);
 	spin_unlock(&root->root_item_lock);
@@ -9888,24 +9912,39 @@ static int btrfs_swap_activate(struct swap_info_struct *sis, struct file *file,
 	isize = ALIGN_DOWN(inode->i_size, fs_info->sectorsize);
 
 	lock_extent(io_tree, 0, isize - 1, &cached_state);
-	start = 0;
-	while (start < isize) {
-		u64 logical_block_start, physical_block_start;
+	while (prev_extent_end < isize) {
+		struct btrfs_key key;
+		struct extent_buffer *leaf;
+		struct btrfs_file_extent_item *ei;
 		struct btrfs_block_group *bg;
-		u64 len = isize - start;
+		u64 logical_block_start;
+		u64 physical_block_start;
+		u64 extent_gen;
+		u64 disk_bytenr;
+		u64 len;
 
-		em = btrfs_get_extent(BTRFS_I(inode), NULL, start, len);
-		if (IS_ERR(em)) {
-			ret = PTR_ERR(em);
+		key.objectid = btrfs_ino(BTRFS_I(inode));
+		key.type = BTRFS_EXTENT_DATA_KEY;
+		key.offset = prev_extent_end;
+
+		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+		if (ret < 0)
 			goto out;
-		}
 
-		if (em->disk_bytenr == EXTENT_MAP_HOLE) {
+		/*
+		 * If key not found it means we have an implicit hole (NO_HOLES
+		 * is enabled).
+		 */
+		if (ret > 0) {
 			btrfs_warn(fs_info, "swapfile must not have holes");
 			ret = -EINVAL;
 			goto out;
 		}
-		if (em->disk_bytenr == EXTENT_MAP_INLINE) {
+
+		leaf = path->nodes[0];
+		ei = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_file_extent_item);
+
+		if (btrfs_file_extent_type(leaf, ei) == BTRFS_FILE_EXTENT_INLINE) {
 			/*
 			 * It's unlikely we'll ever actually find ourselves
 			 * here, as a file small enough to fit inline won't be
@@ -9917,23 +9956,45 @@ static int btrfs_swap_activate(struct swap_info_struct *sis, struct file *file,
 			ret = -EINVAL;
 			goto out;
 		}
-		if (extent_map_is_compressed(em)) {
+
+		if (btrfs_file_extent_compression(leaf, ei) != BTRFS_COMPRESS_NONE) {
 			btrfs_warn(fs_info, "swapfile must not be compressed");
 			ret = -EINVAL;
 			goto out;
 		}
 
-		logical_block_start = extent_map_block_start(em) + (start - em->start);
-		len = min(len, em->len - (start - em->start));
-		free_extent_map(em);
-		em = NULL;
+		disk_bytenr = btrfs_file_extent_disk_bytenr(leaf, ei);
+		if (disk_bytenr == 0) {
+			btrfs_warn(fs_info, "swapfile must not have holes");
+			ret = -EINVAL;
+			goto out;
+		}
 
-		ret = can_nocow_extent(inode, start, &len, NULL, false, true);
+		logical_block_start = disk_bytenr + btrfs_file_extent_offset(leaf, ei);
+		extent_gen = btrfs_file_extent_generation(leaf, ei);
+		prev_extent_end = btrfs_file_extent_end(path);
+
+		if (prev_extent_end > isize)
+			len = isize - key.offset;
+		else
+			len = btrfs_file_extent_num_bytes(leaf, ei);
+
+		backref_ctx->curr_leaf_bytenr = leaf->start;
+
+		/*
+		 * Don't need the path anymore, release to avoid deadlocks when
+		 * calling btrfs_is_data_extent_shared() because when joining a
+		 * transaction it can block waiting for the current one's commit
+		 * which in turn may be trying to lock the same leaf to flush
+		 * delayed items for example.
+		 */
+		btrfs_release_path(path);
+
+		ret = btrfs_is_data_extent_shared(BTRFS_I(inode), disk_bytenr,
+						  extent_gen, backref_ctx);
 		if (ret < 0) {
 			goto out;
-		} else if (ret) {
-			ret = 0;
-		} else {
+		} else if (ret > 0) {
 			btrfs_warn(fs_info,
 				   "swapfile must not be copy-on-write");
 			ret = -EINVAL;
@@ -9968,7 +10029,6 @@ static int btrfs_swap_activate(struct swap_info_struct *sis, struct file *file,
 
 		physical_block_start = (map->stripes[0].physical +
 					(logical_block_start - map->start));
-		len = min(len, map->chunk_len - (logical_block_start - map->start));
 		btrfs_free_chunk_map(map);
 		map = NULL;
 
@@ -10009,20 +10069,23 @@ static int btrfs_swap_activate(struct swap_info_struct *sis, struct file *file,
 				if (ret)
 					goto out;
 			}
-			bsi.start = start;
+			bsi.start = key.offset;
 			bsi.block_start = physical_block_start;
 			bsi.block_len = len;
 		}
 
-		start += len;
+		if (fatal_signal_pending(current)) {
+			ret = -EINTR;
+			goto out;
+		}
+
+		cond_resched();
 	}
 
 	if (bsi.block_len)
 		ret = btrfs_add_swap_extent(sis, &bsi);
 
 out:
-	if (!IS_ERR_OR_NULL(em))
-		free_extent_map(em);
 	if (!IS_ERR_OR_NULL(map))
 		btrfs_free_chunk_map(map);
 
@@ -10035,6 +10098,10 @@ out:
 
 	btrfs_exclop_finish(fs_info);
 
+out_unlock_mmap:
+	up_write(&BTRFS_I(inode)->i_mmap_lock);
+	btrfs_free_backref_share_ctx(backref_ctx);
+	btrfs_free_path(path);
 	if (ret)
 		return ret;
 

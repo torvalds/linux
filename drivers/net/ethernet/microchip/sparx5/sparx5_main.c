@@ -24,7 +24,7 @@
 #include <linux/types.h>
 #include <linux/reset.h>
 
-#include "../lan969x/lan969x.h" /* for lan969x match data */
+#include "lan969x/lan969x.h" /* for lan969x match data */
 
 #include "sparx5_main_regs.h"
 #include "sparx5_main.h"
@@ -780,12 +780,11 @@ static int sparx5_start(struct sparx5 *sparx5)
 	err = -ENXIO;
 	if (sparx5->fdma_irq >= 0 && is_sparx5(sparx5)) {
 		if (GCB_CHIP_ID_REV_ID_GET(sparx5->chip_id) > 0)
-			err = devm_request_threaded_irq(sparx5->dev,
-							sparx5->fdma_irq,
-							NULL,
-							sparx5_fdma_handler,
-							IRQF_ONESHOT,
-							"sparx5-fdma", sparx5);
+			err = devm_request_irq(sparx5->dev,
+					       sparx5->fdma_irq,
+					       sparx5_fdma_handler,
+					       0,
+					       "sparx5-fdma", sparx5);
 		if (!err)
 			err = sparx5_fdma_start(sparx5);
 		if (err)
@@ -1093,7 +1092,7 @@ static const struct sparx5_match_data sparx5_desc = {
 
 static const struct of_device_id mchp_sparx5_match[] = {
 	{ .compatible = "microchip,sparx5-switch", .data = &sparx5_desc },
-#if IS_ENABLED(CONFIG_LAN969X_SWITCH)
+#ifdef CONFIG_LAN969X_SWITCH
 	{ .compatible = "microchip,lan9691-switch", .data = &lan969x_desc },
 #endif
 	{ }

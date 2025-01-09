@@ -2478,7 +2478,8 @@ ip_route_input_rcu(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		int our = 0;
 
 		if (!in_dev)
-			return -EINVAL;
+			return reason;
+
 		our = ip_check_mc_rcu(in_dev, daddr, saddr,
 				      ip_hdr(skb)->protocol);
 

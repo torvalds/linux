@@ -35,6 +35,7 @@ properties:
 
   fsl,liodn:
     $ref: /schemas/types.yaml#/definitions/uint32-array
+    maxItems: 2
     description: See pamu.txt. Two LIODN(s). DQRR LIODN (DLIODN) and Frame LIODN
       (FLIODN)
 
@@ -69,6 +70,7 @@ patternProperties:
     type: object
     properties:
       fsl,liodn:
+        $ref: /schemas/types.yaml#/definitions/uint32-array
         description: See pamu.txt, PAMU property used for static LIODN assignment
 
       fsl,iommu-parent:
