@@ -1998,18 +1998,25 @@ static void intel_psr_enable_locked(struct intel_dp *intel_dp,
 	if (!psr_interrupt_error_check(intel_dp))
 		return;
 
-	if (intel_dp->psr.panel_replay_enabled) {
+	if (intel_dp->psr.panel_replay_enabled)
 		drm_dbg_kms(display->drm, "Enabling Panel Replay\n");
-	} else {
+	else
 		drm_dbg_kms(display->drm, "Enabling PSR%s\n",
 			    intel_dp->psr.sel_update_enabled ? "2" : "1");
 
-		/*
-		 * Panel replay has to be enabled before link training: doing it
-		 * only for PSR here.
-		 */
-		intel_psr_enable_sink(intel_dp, crtc_state);
-	}
+	/*
+	 * Enabling here only for PSR. Panel Replay enable bit is already
+	 * written at this point. See
+	 * intel_psr_panel_replay_enable_sink. Modifiers/options:
+	 *  - Selective Update
+	 *  - Region Early Transport
+	 *  - Selective Update Region Scanline Capture
+	 *  - VSC_SDP_CRC
+	 *  - HPD on different Errors
+	 *  - CRC verification
+	 * are written for PSR and Panel Replay here.
+	 */
+	intel_psr_enable_sink(intel_dp, crtc_state);
 
 	if (intel_dp_is_edp(intel_dp))
 		intel_snps_phy_update_psr_power_state(&dig_port->base, true);
@@ -2815,6 +2822,8 @@ void intel_psr_pre_plane_update(struct intel_atomic_state *state,
 		needs_to_disable |= new_crtc_state->has_sel_update != psr->sel_update_enabled;
 		needs_to_disable |= new_crtc_state->enable_psr2_su_region_et !=
 			psr->su_region_et_enabled;
+		needs_to_disable |= new_crtc_state->has_panel_replay !=
+			psr->panel_replay_enabled;
 		needs_to_disable |= DISPLAY_VER(i915) < 11 &&
 			new_crtc_state->wm_level_disabled;
 
