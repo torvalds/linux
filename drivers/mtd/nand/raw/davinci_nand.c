@@ -488,6 +488,44 @@ static const struct mtd_ooblayout_ops hwecc4_small_ooblayout_ops = {
 	.free = hwecc4_ooblayout_small_free,
 };
 
+static int hwecc4_ooblayout_large_ecc(struct mtd_info *mtd, int section,
+				       struct mtd_oob_region *oobregion)
+{
+	struct nand_device *nand = mtd_to_nanddev(mtd);
+	unsigned int total_ecc_bytes = nand->ecc.ctx.total;
+	int nregions = total_ecc_bytes / 10; /* 10 bytes per chunk */
+
+	if (section >= nregions)
+		return -ERANGE;
+
+	oobregion->offset = (section * 16) + 6;
+	oobregion->length = 10;
+
+	return 0;
+}
+
+static int hwecc4_ooblayout_large_free(struct mtd_info *mtd, int section,
+				       struct mtd_oob_region *oobregion)
+{
+	struct nand_device *nand = mtd_to_nanddev(mtd);
+	unsigned int total_ecc_bytes = nand->ecc.ctx.total;
+	int nregions = total_ecc_bytes / 10; /* 10 bytes per chunk */
+
+	/* First region is used for BBT */
+	if (section >= (nregions - 1))
+		return -ERANGE;
+
+	oobregion->offset = ((section + 1) * 16);
+	oobregion->length = 6;
+
+	return 0;
+}
+
+static const struct mtd_ooblayout_ops hwecc4_large_ooblayout_ops = {
+	.ecc = hwecc4_ooblayout_large_ecc,
+	.free = hwecc4_ooblayout_large_free,
+};
+
 #if defined(CONFIG_OF)
 static const struct of_device_id davinci_nand_of_match[] = {
 	{.compatible = "ti,davinci-nand", },
@@ -650,9 +688,12 @@ static int davinci_nand_attach_chip(struct nand_chip *chip)
 				mtd_set_ooblayout(mtd,
 						  &hwecc4_small_ooblayout_ops);
 			} else if (chunks == 4 || chunks == 8) {
-				mtd_set_ooblayout(mtd,
-						  nand_get_large_page_ooblayout());
 				chip->ecc.read_page = nand_read_page_hwecc_oob_first;
+
+				if (chip->options & NAND_IS_BOOT_MEDIUM)
+					mtd_set_ooblayout(mtd, &hwecc4_large_ooblayout_ops);
+				else
+					mtd_set_ooblayout(mtd, nand_get_large_page_ooblayout());
 			} else {
 				return -EIO;
 			}
