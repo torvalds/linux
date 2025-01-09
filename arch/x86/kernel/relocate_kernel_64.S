@@ -70,14 +70,20 @@ SYM_CODE_START_NOALIGN(relocate_kernel)
 	movq	kexec_pa_table_page(%rip), %r9
 	movq	%r9, %cr3
 
+	/* Leave CR4 in %r13 to enable the right paging mode later. */
+	movq	%cr4, %r13
+
+	/* Disable global pages immediately to ensure this mapping is RWX */
+	movq	%r13, %r12
+	andq	$~(X86_CR4_PGE), %r12
+	movq	%r12, %cr4
+
 	/* Save %rsp and CRs. */
+	movq	%r13, saved_cr4(%rip)
 	movq    %rsp, saved_rsp(%rip)
 	movq	%rax, saved_cr3(%rip)
 	movq	%cr0, %rax
 	movq	%rax, saved_cr0(%rip)
-	/* Leave CR4 in %r13 to enable the right paging mode later. */
-	movq	%cr4, %r13
-	movq	%r13, saved_cr4(%rip)
 
 	/* save indirection list for jumping back */
 	movq	%rdi, pa_backup_pages_map(%rip)
