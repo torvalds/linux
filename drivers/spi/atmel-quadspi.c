@@ -280,7 +280,7 @@ struct atmel_qspi {
 	u32			irq_mask;
 	u32			mr;
 	u32			scr;
-	u32			slave_max_speed_hz;
+	u32			target_max_speed_hz;
 	struct completion	cmd_completion;
 	struct completion	dma_completion;
 	dma_addr_t		mmap_phys_base;
@@ -1041,7 +1041,7 @@ static int atmel_qspi_set_pad_calibration(struct atmel_qspi *aq)
 
 	/* Refresh analogic blocks every 1 ms.*/
 	atmel_qspi_write(FIELD_PREP(QSPI_REFRESH_DELAY_COUNTER,
-				    aq->slave_max_speed_hz / 1000),
+				    aq->target_max_speed_hz / 1000),
 			 aq, QSPI_REFRESH);
 
 	return ret;
@@ -1064,12 +1064,12 @@ static int atmel_qspi_set_gclk(struct atmel_qspi *aq)
 			return ret;
 	}
 
-	if (aq->slave_max_speed_hz > QSPI_DLLCFG_THRESHOLD_FREQ)
+	if (aq->target_max_speed_hz > QSPI_DLLCFG_THRESHOLD_FREQ)
 		atmel_qspi_write(QSPI_DLLCFG_RANGE, aq, QSPI_DLLCFG);
 	else
 		atmel_qspi_write(0, aq, QSPI_DLLCFG);
 
-	ret = clk_set_rate(aq->gclk, aq->slave_max_speed_hz);
+	ret = clk_set_rate(aq->gclk, aq->target_max_speed_hz);
 	if (ret) {
 		dev_err(&aq->pdev->dev, "Failed to set generic clock rate.\n");
 		return ret;
@@ -1131,8 +1131,8 @@ static int atmel_qspi_sama7g5_setup(struct spi_device *spi)
 {
 	struct atmel_qspi *aq = spi_controller_get_devdata(spi->controller);
 
-	/* The controller can communicate with a single slave. */
-	aq->slave_max_speed_hz = spi->max_speed_hz;
+	/* The controller can communicate with a single peripheral device (target). */
+	aq->target_max_speed_hz = spi->max_speed_hz;
 
 	return atmel_qspi_sama7g5_init(aq);
 }
