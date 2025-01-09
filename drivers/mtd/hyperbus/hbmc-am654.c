@@ -176,7 +176,7 @@ static int am654_hbmc_probe(struct platform_device *pdev)
 	if (ret)
 		goto put_node;
 
-	if (of_property_read_bool(dev->of_node, "mux-controls")) {
+	if (of_property_present(dev->of_node, "mux-controls")) {
 		struct mux_control *control = devm_mux_control_get(dev, NULL);
 
 		if (IS_ERR(control)) {
