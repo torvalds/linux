@@ -1321,6 +1321,18 @@ static void mlx5_cmd_hws_modify_header_dealloc(struct mlx5_flow_root_namespace *
 	modify_hdr->fs_hws_action.mh_data = NULL;
 }
 
+static int mlx5_cmd_hws_create_match_definer(struct mlx5_flow_root_namespace *ns,
+					     u16 format_id, u32 *match_mask)
+{
+	return -EOPNOTSUPP;
+}
+
+static int mlx5_cmd_hws_destroy_match_definer(struct mlx5_flow_root_namespace *ns,
+					      int definer_id)
+{
+	return -EOPNOTSUPP;
+}
+
 static const struct mlx5_flow_cmds mlx5_flow_cmds_hws = {
 	.create_flow_table = mlx5_cmd_hws_create_flow_table,
 	.destroy_flow_table = mlx5_cmd_hws_destroy_flow_table,
@@ -1335,6 +1347,8 @@ static const struct mlx5_flow_cmds mlx5_flow_cmds_hws = {
 	.packet_reformat_dealloc = mlx5_cmd_hws_packet_reformat_dealloc,
 	.modify_header_alloc = mlx5_cmd_hws_modify_header_alloc,
 	.modify_header_dealloc = mlx5_cmd_hws_modify_header_dealloc,
+	.create_match_definer = mlx5_cmd_hws_create_match_definer,
+	.destroy_match_definer = mlx5_cmd_hws_destroy_match_definer,
 	.create_ns = mlx5_cmd_hws_create_ns,
 	.destroy_ns = mlx5_cmd_hws_destroy_ns,
 	.set_peer = mlx5_cmd_hws_set_peer,
