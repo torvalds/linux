@@ -614,7 +614,7 @@ static void blk_stack_atomic_writes_limits(struct queue_limits *t,
 	if (!(t->features & BLK_FEAT_ATOMIC_WRITES_STACKED))
 		goto unsupported;
 
-	if (!b->atomic_write_unit_min)
+	if (!b->atomic_write_hw_unit_min)
 		goto unsupported;
 
 	if (!blk_atomic_write_start_sect_aligned(start, b))
