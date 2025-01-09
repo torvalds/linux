@@ -13,6 +13,8 @@
 comma   := ,
 squote  := '
 pound   := \#
+empty   :=
+space   := $(empty) $(empty)
 
 ###
 # Name of target with a '.' as filename prefix. foo/bar.o => foo/.bar.o

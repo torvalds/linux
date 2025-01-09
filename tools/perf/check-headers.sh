@@ -71,6 +71,7 @@ FILES=(
   "include/uapi/asm-generic/ioctls.h"
   "include/uapi/asm-generic/mman-common.h"
   "include/uapi/asm-generic/unistd.h"
+  "scripts/syscall.tbl"
 )
 
 declare -a SYNC_CHECK_FILES

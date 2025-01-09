@@ -310,6 +310,10 @@ ifeq ($(filter feature-dump,$(MAKECMDGOALS)),feature-dump)
 FEATURE_TESTS := all
 endif
 endif
+# architectures that use the generic syscall table
+ifeq ($(SRCARCH),riscv)
+include $(srctree)/tools/perf/scripts/Makefile.syscalls
+endif
 include Makefile.config
 endif
 
