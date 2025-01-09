@@ -377,17 +377,25 @@ static void hws_send_engine_update_rule(struct mlx5hws_send_engine *queue,
 
 			*status = MLX5HWS_FLOW_OP_ERROR;
 		} else {
-			/* Increase the status, this only works on good flow as the enum
-			 * is arrange it away creating -> created -> deleting -> deleted
+			/* Increase the status, this only works on good flow as
+			 * the enum is arranged this way:
+			 *  - creating -> created
+			 *  - updating -> updated
+			 *  - deleting -> deleted
 			 */
 			priv->rule->status++;
 			*status = MLX5HWS_FLOW_OP_SUCCESS;
-			/* Rule was deleted now we can safely release action STEs
-			 * and clear resize info
-			 */
 			if (priv->rule->status == MLX5HWS_RULE_STATUS_DELETED) {
-				mlx5hws_rule_free_action_ste(priv->rule);
+				/* Rule was deleted, now we can safely release
+				 * action STEs and clear resize info
+				 */
+				mlx5hws_rule_free_action_ste(&priv->rule->action_ste);
 				mlx5hws_rule_clear_resize_info(priv->rule);
+			} else if (priv->rule->status == MLX5HWS_RULE_STATUS_UPDATED) {
+				/* Rule was updated, free the old action STEs */
+				mlx5hws_rule_free_action_ste(&priv->rule->old_action_ste);
+				/* Update completed - move the rule back to "created" */
+				priv->rule->status = MLX5HWS_RULE_STATUS_CREATED;
 			}
 		}
 	}
