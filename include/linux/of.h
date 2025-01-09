@@ -1271,7 +1271,9 @@ static inline bool of_property_read_bool(const struct device_node *np,
  */
 static inline bool of_property_present(const struct device_node *np, const char *propname)
 {
-	return of_property_read_bool(np, propname);
+	struct property *prop = of_find_property(np, propname, NULL);
+
+	return prop ? true : false;
 }
 
 /**

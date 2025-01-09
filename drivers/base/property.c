@@ -71,6 +71,44 @@ bool fwnode_property_present(const struct fwnode_handle *fwnode,
 EXPORT_SYMBOL_GPL(fwnode_property_present);
 
 /**
+ * device_property_read_bool - Return the value for a boolean property of a device
+ * @dev: Device whose property is being checked
+ * @propname: Name of the property
+ *
+ * Return if property @propname is true or false in the device firmware description.
+ *
+ * Return: true if property @propname is present. Otherwise, returns false.
+ */
+bool device_property_read_bool(const struct device *dev, const char *propname)
+{
+	return fwnode_property_read_bool(dev_fwnode(dev), propname);
+}
+EXPORT_SYMBOL_GPL(device_property_read_bool);
+
+/**
+ * fwnode_property_read_bool - Return the value for a boolean property of a firmware node
+ * @fwnode: Firmware node whose property to check
+ * @propname: Name of the property
+ *
+ * Return if property @propname is true or false in the firmware description.
+ */
+bool fwnode_property_read_bool(const struct fwnode_handle *fwnode,
+			     const char *propname)
+{
+	bool ret;
+
+	if (IS_ERR_OR_NULL(fwnode))
+		return false;
+
+	ret = fwnode_call_bool_op(fwnode, property_read_bool, propname);
+	if (ret)
+		return ret;
+
+	return fwnode_call_bool_op(fwnode->secondary, property_read_bool, propname);
+}
+EXPORT_SYMBOL_GPL(fwnode_property_read_bool);
+
+/**
  * device_property_read_u8_array - return a u8 array property of a device
  * @dev: Device to get the property of
  * @propname: Name of the property
