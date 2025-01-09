@@ -75,6 +75,7 @@ def define_seraph():
         "drivers/soc/qcom/cmd-db.ko",
         "drivers/soc/qcom/core_hang_detect.ko",
         "drivers/soc/qcom/dcc_v2.ko",
+        "drivers/soc/qcom/gic_intr_routing.ko",
         "drivers/soc/qcom/mdt_loader.ko",
         "drivers/soc/qcom/mem-hooks.ko",
         "drivers/soc/qcom/mem-offline.ko",
