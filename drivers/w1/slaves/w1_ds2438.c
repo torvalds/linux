@@ -288,7 +288,7 @@ static int w1_ds2438_get_current(struct w1_slave *sl, int16_t *voltage)
 }
 
 static ssize_t iad_write(struct file *filp, struct kobject *kobj,
-			 struct bin_attribute *bin_attr, char *buf,
+			 const struct bin_attribute *bin_attr, char *buf,
 			 loff_t off, size_t count)
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
@@ -310,7 +310,7 @@ static ssize_t iad_write(struct file *filp, struct kobject *kobj,
 }
 
 static ssize_t iad_read(struct file *filp, struct kobject *kobj,
-			struct bin_attribute *bin_attr, char *buf,
+			const struct bin_attribute *bin_attr, char *buf,
 			loff_t off, size_t count)
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
@@ -331,7 +331,7 @@ static ssize_t iad_read(struct file *filp, struct kobject *kobj,
 }
 
 static ssize_t page0_read(struct file *filp, struct kobject *kobj,
-			  struct bin_attribute *bin_attr, char *buf,
+			  const struct bin_attribute *bin_attr, char *buf,
 			  loff_t off, size_t count)
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
@@ -361,7 +361,7 @@ static ssize_t page0_read(struct file *filp, struct kobject *kobj,
 }
 
 static ssize_t page1_read(struct file *filp, struct kobject *kobj,
-			  struct bin_attribute *bin_attr, char *buf,
+			  const struct bin_attribute *bin_attr, char *buf,
 			  loff_t off, size_t count)
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
@@ -391,7 +391,7 @@ static ssize_t page1_read(struct file *filp, struct kobject *kobj,
 }
 
 static ssize_t offset_write(struct file *filp, struct kobject *kobj,
-			    struct bin_attribute *bin_attr, char *buf,
+			    const struct bin_attribute *bin_attr, char *buf,
 			    loff_t off, size_t count)
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
@@ -410,7 +410,7 @@ static ssize_t offset_write(struct file *filp, struct kobject *kobj,
 }
 
 static ssize_t temperature_read(struct file *filp, struct kobject *kobj,
-				struct bin_attribute *bin_attr, char *buf,
+				const struct bin_attribute *bin_attr, char *buf,
 				loff_t off, size_t count)
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
@@ -431,7 +431,7 @@ static ssize_t temperature_read(struct file *filp, struct kobject *kobj,
 }
 
 static ssize_t vad_read(struct file *filp, struct kobject *kobj,
-			struct bin_attribute *bin_attr, char *buf,
+			const struct bin_attribute *bin_attr, char *buf,
 			loff_t off, size_t count)
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
@@ -452,7 +452,7 @@ static ssize_t vad_read(struct file *filp, struct kobject *kobj,
 }
 
 static ssize_t vdd_read(struct file *filp, struct kobject *kobj,
-			struct bin_attribute *bin_attr, char *buf,
+			const struct bin_attribute *bin_attr, char *buf,
 			loff_t off, size_t count)
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
@@ -472,15 +472,15 @@ static ssize_t vdd_read(struct file *filp, struct kobject *kobj,
 	return ret;
 }
 
-static BIN_ATTR_RW(iad, 0);
-static BIN_ATTR_RO(page0, DS2438_PAGE_SIZE);
-static BIN_ATTR_RO(page1, DS2438_PAGE_SIZE);
-static BIN_ATTR_WO(offset, 2);
-static BIN_ATTR_RO(temperature, 0/* real length varies */);
-static BIN_ATTR_RO(vad, 0/* real length varies */);
-static BIN_ATTR_RO(vdd, 0/* real length varies */);
+static const BIN_ATTR_RW(iad, 0);
+static const BIN_ATTR_RO(page0, DS2438_PAGE_SIZE);
+static const BIN_ATTR_RO(page1, DS2438_PAGE_SIZE);
+static const BIN_ATTR_WO(offset, 2);
+static const BIN_ATTR_RO(temperature, 0/* real length varies */);
+static const BIN_ATTR_RO(vad, 0/* real length varies */);
+static const BIN_ATTR_RO(vdd, 0/* real length varies */);
 
-static struct bin_attribute *w1_ds2438_bin_attrs[] = {
+static const struct bin_attribute *const w1_ds2438_bin_attrs[] = {
 	&bin_attr_iad,
 	&bin_attr_page0,
 	&bin_attr_page1,
@@ -492,7 +492,7 @@ static struct bin_attribute *w1_ds2438_bin_attrs[] = {
 };
 
 static const struct attribute_group w1_ds2438_group = {
-	.bin_attrs = w1_ds2438_bin_attrs,
+	.bin_attrs_new = w1_ds2438_bin_attrs,
 };
 
 static const struct attribute_group *w1_ds2438_groups[] = {
