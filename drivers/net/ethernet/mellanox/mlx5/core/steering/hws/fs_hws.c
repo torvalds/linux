@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /* Copyright (c) 2025 NVIDIA Corporation & Affiliates */
 
+#include <linux/mlx5/vport.h>
 #include <mlx5_core.h>
 #include <fs_core.h>
 #include <fs_cmd.h>
@@ -63,6 +64,8 @@ static int mlx5_fs_init_hws_actions_pool(struct mlx5_core_dev *dev,
 	xa_init(&hws_pool->el2tol2tnl_pools);
 	xa_init(&hws_pool->mh_pools);
 	xa_init(&hws_pool->table_dests);
+	xa_init(&hws_pool->vport_dests);
+	xa_init(&hws_pool->vport_vhca_dests);
 	return 0;
 
 cleanup_insert_hdr:
@@ -85,9 +88,16 @@ destroy_tag:
 static void mlx5_fs_cleanup_hws_actions_pool(struct mlx5_fs_hws_context *fs_ctx)
 {
 	struct mlx5_fs_hws_actions_pool *hws_pool = &fs_ctx->hws_pool;
+	struct mlx5hws_action *action;
 	struct mlx5_fs_pool *pool;
 	unsigned long i;
 
+	xa_for_each(&hws_pool->vport_vhca_dests, i, action)
+		mlx5hws_action_destroy(action);
+	xa_destroy(&hws_pool->vport_vhca_dests);
+	xa_for_each(&hws_pool->vport_dests, i, action)
+		mlx5hws_action_destroy(action);
+	xa_destroy(&hws_pool->vport_dests);
 	xa_destroy(&hws_pool->table_dests);
 	xa_for_each(&hws_pool->mh_pools, i, pool)
 		mlx5_fs_destroy_mh_pool(pool, &hws_pool->mh_pools, i);
@@ -385,6 +395,52 @@ mlx5_fs_create_dest_action_table_num(struct mlx5_fs_hws_context *fs_ctx,
 	u32 table_num = dst->dest_attr.ft_num;
 
 	return mlx5hws_action_create_dest_table_num(ctx, table_num, flags);
+}
+
+static struct mlx5hws_action *
+mlx5_fs_get_dest_action_vport(struct mlx5_fs_hws_context *fs_ctx,
+			      struct mlx5_flow_rule *dst,
+			      bool is_dest_type_uplink)
+{
+	u32 flags = MLX5HWS_ACTION_FLAG_HWS_FDB | MLX5HWS_ACTION_FLAG_SHARED;
+	struct mlx5_flow_destination *dest_attr = &dst->dest_attr;
+	struct mlx5hws_context *ctx = fs_ctx->hws_ctx;
+	struct mlx5hws_action *dest;
+	struct xarray *dests_xa;
+	bool vhca_id_valid;
+	unsigned long idx;
+	u16 vport_num;
+	int err;
+
+	vhca_id_valid = is_dest_type_uplink ||
+			(dest_attr->vport.flags & MLX5_FLOW_DEST_VPORT_VHCA_ID);
+	vport_num = is_dest_type_uplink ? MLX5_VPORT_UPLINK : dest_attr->vport.num;
+	if (vhca_id_valid) {
+		dests_xa = &fs_ctx->hws_pool.vport_vhca_dests;
+		idx = dest_attr->vport.vhca_id << 16 | vport_num;
+	} else {
+		dests_xa = &fs_ctx->hws_pool.vport_dests;
+		idx = vport_num;
+	}
+dest_load:
+	dest = xa_load(dests_xa, idx);
+	if (dest)
+		return dest;
+
+	dest = mlx5hws_action_create_dest_vport(ctx, vport_num,	vhca_id_valid,
+						dest_attr->vport.vhca_id, flags);
+
+	err = xa_insert(dests_xa, idx, dest, GFP_KERNEL);
+	if (err) {
+		mlx5hws_action_destroy(dest);
+		dest = NULL;
+
+		if (err == -EBUSY)
+			/* xarray entry was already stored by another thread */
+			goto dest_load;
+	}
+
+	return dest;
 }
 
 static struct mlx5hws_action *
@@ -695,6 +751,8 @@ static int mlx5_fs_fte_get_hws_actions(struct mlx5_flow_root_namespace *ns,
 	if (fte_action->action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) {
 		list_for_each_entry(dst, &fte->node.children, node.list) {
 			struct mlx5_flow_destination *attr = &dst->dest_attr;
+			bool type_uplink =
+				attr->type == MLX5_FLOW_DESTINATION_TYPE_UPLINK;
 
 			if (num_fs_actions == MLX5_FLOW_CONTEXT_ACTION_MAX ||
 			    num_dest_actions == MLX5_FLOW_CONTEXT_ACTION_MAX) {
@@ -720,6 +778,11 @@ static int mlx5_fs_fte_get_hws_actions(struct mlx5_flow_root_namespace *ns,
 			case MLX5_FLOW_DESTINATION_TYPE_RANGE:
 				dest_action = mlx5_fs_create_dest_action_range(ctx, dst);
 				fs_actions[num_fs_actions++].action = dest_action;
+				break;
+			case MLX5_FLOW_DESTINATION_TYPE_UPLINK:
+			case MLX5_FLOW_DESTINATION_TYPE_VPORT:
+				dest_action = mlx5_fs_get_dest_action_vport(fs_ctx, dst,
+									    type_uplink);
 				break;
 			default:
 				err = -EOPNOTSUPP;
