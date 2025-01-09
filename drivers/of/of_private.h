@@ -188,4 +188,22 @@ void __init fdt_scan_reserved_mem_reg_nodes(void);
 
 bool of_fdt_device_is_available(const void *blob, unsigned long node);
 
+/* Max address size we deal with */
+#define OF_MAX_ADDR_CELLS	4
+#define OF_CHECK_ADDR_COUNT(na)	((na) > 0 && (na) <= OF_MAX_ADDR_CELLS)
+#define OF_CHECK_COUNTS(na, ns)	(OF_CHECK_ADDR_COUNT(na) && (ns) > 0)
+
+/* Debug utility */
+#ifdef DEBUG
+static void __maybe_unused of_dump_addr(const char *s, const __be32 *addr, int na)
+{
+	pr_debug("%s", s);
+	while (na--)
+		pr_cont(" %08x", be32_to_cpu(*(addr++)));
+	pr_cont("\n");
+}
+#else
+static void __maybe_unused of_dump_addr(const char *s, const __be32 *addr, int na) { }
+#endif
+
 #endif /* _LINUX_OF_PRIVATE_H */
