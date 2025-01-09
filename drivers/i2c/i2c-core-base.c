@@ -1015,6 +1015,8 @@ i2c_new_client_device(struct i2c_adapter *adap, struct i2c_board_info const *inf
 	if (status)
 		goto out_remove_swnode;
 
+	client->debugfs = debugfs_create_dir(dev_name(&client->dev), adap->debugfs);
+
 	dev_dbg(&adap->dev, "client [%s] registered with bus id %s\n",
 		client->name, dev_name(&client->dev));
 
@@ -1058,6 +1060,8 @@ void i2c_unregister_device(struct i2c_client *client)
 
 	if (ACPI_COMPANION(&client->dev))
 		acpi_device_clear_enumerated(ACPI_COMPANION(&client->dev));
+
+	debugfs_remove_recursive(client->debugfs);
 	device_remove_software_node(&client->dev);
 	device_unregister(&client->dev);
 }
