@@ -675,16 +675,12 @@ int avs_dsp_first_boot_firmware(struct avs_dev *adev)
 	}
 
 	ret = avs_ipc_get_hw_config(adev, &adev->hw_cfg);
-	if (ret) {
-		dev_err(adev->dev, "get hw cfg failed: %d\n", ret);
+	if (ret)
 		return AVS_IPC_RET(ret);
-	}
 
 	ret = avs_ipc_get_fw_config(adev, &adev->fw_cfg);
-	if (ret) {
-		dev_err(adev->dev, "get fw cfg failed: %d\n", ret);
+	if (ret)
 		return AVS_IPC_RET(ret);
-	}
 
 	adev->core_refs = devm_kcalloc(adev->dev, adev->hw_cfg.dsp_cores,
 				       sizeof(*adev->core_refs), GFP_KERNEL);
