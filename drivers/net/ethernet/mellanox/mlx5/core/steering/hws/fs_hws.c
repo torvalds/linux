@@ -62,6 +62,7 @@ static int mlx5_fs_init_hws_actions_pool(struct mlx5_core_dev *dev,
 	xa_init(&hws_pool->el2tol3tnl_pools);
 	xa_init(&hws_pool->el2tol2tnl_pools);
 	xa_init(&hws_pool->mh_pools);
+	xa_init(&hws_pool->table_dests);
 	return 0;
 
 cleanup_insert_hdr:
@@ -87,6 +88,7 @@ static void mlx5_fs_cleanup_hws_actions_pool(struct mlx5_fs_hws_context *fs_ctx)
 	struct mlx5_fs_pool *pool;
 	unsigned long i;
 
+	xa_destroy(&hws_pool->table_dests);
 	xa_for_each(&hws_pool->mh_pools, i, pool)
 		mlx5_fs_destroy_mh_pool(pool, &hws_pool->mh_pools, i);
 	xa_destroy(&hws_pool->mh_pools);
@@ -173,6 +175,50 @@ static int mlx5_fs_set_ft_default_miss(struct mlx5_flow_root_namespace *ns,
 	return 0;
 }
 
+static int mlx5_fs_add_flow_table_dest_action(struct mlx5_flow_root_namespace *ns,
+					      struct mlx5_flow_table *ft)
+{
+	u32 flags = MLX5HWS_ACTION_FLAG_HWS_FDB | MLX5HWS_ACTION_FLAG_SHARED;
+	struct mlx5_fs_hws_context *fs_ctx = &ns->fs_hws_context;
+	struct mlx5hws_action *dest_ft_action;
+	struct xarray *dests_xa;
+	int err;
+
+	dest_ft_action = mlx5hws_action_create_dest_table_num(fs_ctx->hws_ctx,
+							      ft->id, flags);
+	if (!dest_ft_action) {
+		mlx5_core_err(ns->dev, "Failed creating dest table action\n");
+		return -ENOMEM;
+	}
+
+	dests_xa = &fs_ctx->hws_pool.table_dests;
+	err = xa_insert(dests_xa, ft->id, dest_ft_action, GFP_KERNEL);
+	if (err)
+		mlx5hws_action_destroy(dest_ft_action);
+	return err;
+}
+
+static int mlx5_fs_del_flow_table_dest_action(struct mlx5_flow_root_namespace *ns,
+					      struct mlx5_flow_table *ft)
+{
+	struct mlx5_fs_hws_context *fs_ctx = &ns->fs_hws_context;
+	struct mlx5hws_action *dest_ft_action;
+	struct xarray *dests_xa;
+	int err;
+
+	dests_xa = &fs_ctx->hws_pool.table_dests;
+	dest_ft_action = xa_erase(dests_xa, ft->id);
+	if (!dest_ft_action) {
+		mlx5_core_err(ns->dev, "Failed to erase dest ft action\n");
+		return -ENOENT;
+	}
+
+	err = mlx5hws_action_destroy(dest_ft_action);
+	if (err)
+		mlx5_core_err(ns->dev, "Failed to destroy dest ft action\n");
+	return err;
+}
+
 static int mlx5_cmd_hws_create_flow_table(struct mlx5_flow_root_namespace *ns,
 					  struct mlx5_flow_table *ft,
 					  struct mlx5_flow_table_attr *ft_attr,
@@ -183,9 +229,16 @@ static int mlx5_cmd_hws_create_flow_table(struct mlx5_flow_root_namespace *ns,
 	struct mlx5hws_table *tbl;
 	int err;
 
-	if (mlx5_fs_cmd_is_fw_term_table(ft))
-		return mlx5_fs_cmd_get_fw_cmds()->create_flow_table(ns, ft, ft_attr,
-								    next_ft);
+	if (mlx5_fs_cmd_is_fw_term_table(ft)) {
+		err = mlx5_fs_cmd_get_fw_cmds()->create_flow_table(ns, ft, ft_attr,
+								   next_ft);
+		if (err)
+			return err;
+		err = mlx5_fs_add_flow_table_dest_action(ns, ft);
+		if (err)
+			mlx5_fs_cmd_get_fw_cmds()->destroy_flow_table(ns, ft);
+		return err;
+	}
 
 	if (ns->table_type != FS_FT_FDB) {
 		mlx5_core_err(ns->dev, "Table type %d not supported for HWS\n",
@@ -212,8 +265,13 @@ static int mlx5_cmd_hws_create_flow_table(struct mlx5_flow_root_namespace *ns,
 
 	ft->max_fte = INT_MAX;
 
+	err = mlx5_fs_add_flow_table_dest_action(ns, ft);
+	if (err)
+		goto clear_ft_miss;
 	return 0;
 
+clear_ft_miss:
+	mlx5_fs_set_ft_default_miss(ns, ft, NULL);
 destroy_table:
 	mlx5hws_table_destroy(tbl);
 	ft->fs_hws_table.hws_table = NULL;
@@ -224,6 +282,10 @@ static int mlx5_cmd_hws_destroy_flow_table(struct mlx5_flow_root_namespace *ns,
 					   struct mlx5_flow_table *ft)
 {
 	int err;
+
+	err = mlx5_fs_del_flow_table_dest_action(ns, ft);
+	if (err)
+		mlx5_core_err(ns->dev, "Failed to remove dest action (%d)\n", err);
 
 	if (mlx5_fs_cmd_is_fw_term_table(ft))
 		return mlx5_fs_cmd_get_fw_cmds()->destroy_flow_table(ns, ft);
