@@ -3107,7 +3107,7 @@ module_param(enable_rcu_lazy, bool, 0444);
  * critical sections have completed.
  *
  * Use this API instead of call_rcu() if you don't want the callback to be
- * invoked after very long periods of time, which can happen on systems without
+ * delayed for very long periods of time, which can happen on systems without
  * memory pressure and on systems which are lightly loaded or mostly idle.
  * This function will cause callbacks to be invoked sooner than later at the
  * expense of extra power. Other than that, this function is identical to, and
@@ -3137,6 +3137,12 @@ EXPORT_SYMBOL_GPL(call_rcu_hurry);
  * critical sections have completed.  However, the callback function
  * might well execute concurrently with RCU read-side critical sections
  * that started after call_rcu() was invoked.
+ *
+ * It is perfectly legal to repost an RCU callback, potentially with
+ * a different callback function, from within its callback function.
+ * The specified function will be invoked after another full grace period
+ * has elapsed.  This use case is similar in form to the common practice
+ * of reposting a timer from within its own handler.
  *
  * RCU read-side critical sections are delimited by rcu_read_lock()
  * and rcu_read_unlock(), and may be nested.  In addition, but only in
