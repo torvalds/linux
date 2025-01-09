@@ -216,7 +216,8 @@ const char argp_program_doc[] =
 "\n"
 "USAGE: veristat <obj-file> [<obj-file>...]\n"
 "   OR: veristat -C <baseline.csv> <comparison.csv>\n"
-"   OR: veristat -R <results.csv>\n";
+"   OR: veristat -R <results.csv>\n"
+"   OR: veristat -vl2 <to_analyze.bpf.o>\n";
 
 enum {
 	OPT_LOG_FIXED = 1000,
@@ -228,7 +229,7 @@ static const struct argp_option opts[] = {
 	{ "version", 'V', NULL, 0, "Print version" },
 	{ "verbose", 'v', NULL, 0, "Verbose mode" },
 	{ "debug", 'd', NULL, 0, "Debug mode (turns on libbpf debug logging)" },
-	{ "log-level", 'l', "LEVEL", 0, "Verifier log level (default 0 for normal mode, 1 for verbose mode)" },
+	{ "log-level", 'l', "LEVEL", 0, "Verifier log level (default 0 for normal mode, 1 for verbose mode, 2 for full verification log)" },
 	{ "log-fixed", OPT_LOG_FIXED, NULL, 0, "Disable verifier log rotation" },
 	{ "log-size", OPT_LOG_SIZE, "BYTES", 0, "Customize verifier log size (default to 16MB)" },
 	{ "top-n", 'n', "N", 0, "Emit only up to first N results." },
