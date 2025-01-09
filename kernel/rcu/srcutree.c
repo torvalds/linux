@@ -1398,8 +1398,12 @@ static void __call_srcu(struct srcu_struct *ssp, struct rcu_head *rhp,
  * read-side critical sections are delimited by srcu_read_lock() and
  * srcu_read_unlock(), and may be nested.
  *
- * The callback will be invoked from process context, but must nevertheless
- * be fast and must not block.
+ * The callback will be invoked from process context, but with bh
+ * disabled.  The callback function must therefore be fast and must
+ * not block.
+ *
+ * See the description of call_rcu() for more detailed information on
+ * memory ordering guarantees.
  */
 void call_srcu(struct srcu_struct *ssp, struct rcu_head *rhp,
 	       rcu_callback_t func)
