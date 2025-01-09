@@ -10,6 +10,11 @@ struct mlx5_fs_hws_context {
 	struct mlx5hws_context	*hws_ctx;
 };
 
+struct mlx5_fs_hws_table {
+	struct mlx5hws_table *hws_table;
+	bool miss_ft_set;
+};
+
 #ifdef CONFIG_MLX5_HW_STEERING
 
 const struct mlx5_flow_cmds *mlx5_fs_cmd_get_hws_cmds(void);

@@ -192,7 +192,10 @@ struct mlx5_flow_handle {
 /* Type of children is mlx5_flow_group */
 struct mlx5_flow_table {
 	struct fs_node			node;
-	struct mlx5_fs_dr_table		fs_dr_table;
+	union {
+		struct mlx5_fs_dr_table		fs_dr_table;
+		struct mlx5_fs_hws_table	fs_hws_table;
+	};
 	u32				id;
 	u16				vport;
 	unsigned int			max_fte;
