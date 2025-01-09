@@ -2396,6 +2396,50 @@
 			renesas,fcp = <&fcpvd1>;
 		};
 
+		vspx0: vsp@fedd0000 {
+			compatible = "renesas,vsp2";
+			reg = <0 0xfedd0000 0 0x8000>;
+			interrupts = <GIC_SPI 600 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD 1028>;
+			power-domains = <&sysc R8A779A0_PD_A3ISP01>;
+			resets = <&cpg 1028>;
+
+			renesas,fcp = <&fcpvx0>;
+		};
+
+		vspx1: vsp@fedd8000 {
+			compatible = "renesas,vsp2";
+			reg = <0 0xfedd8000 0 0x8000>;
+			interrupts = <GIC_SPI 601 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD 1029>;
+			power-domains = <&sysc R8A779A0_PD_A3ISP01>;
+			resets = <&cpg 1029>;
+
+			renesas,fcp = <&fcpvx1>;
+		};
+
+		vspx2: vsp@fede0000 {
+			compatible = "renesas,vsp2";
+			reg = <0 0xfede0000 0 0x8000>;
+			interrupts = <GIC_SPI 602 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD 1030>;
+			power-domains = <&sysc R8A779A0_PD_A3ISP23>;
+			resets = <&cpg 1030>;
+
+			renesas,fcp = <&fcpvx2>;
+		};
+
+		vspx3: vsp@fede8000 {
+			compatible = "renesas,vsp2";
+			reg = <0 0xfede8000 0 0x8000>;
+			interrupts = <GIC_SPI 603 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD 1031>;
+			power-domains = <&sysc R8A779A0_PD_A3ISP23>;
+			resets = <&cpg 1031>;
+
+			renesas,fcp = <&fcpvx3>;
+		};
+
 		csi40: csi2@feaa0000 {
 			compatible = "renesas,r8a779a0-csi2";
 			reg = <0 0xfeaa0000 0 0x10000>;
