@@ -23,11 +23,11 @@
 #define PAGE_ATTR (_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED | _PAGE_DIRTY)
 
 /*
- * The .text.relocate_kernel and .data.relocate_kernel sections are copied
+ * The .text..relocate_kernel and .data..relocate_kernel sections are copied
  * into the control page, and the remainder of the page is used as the stack.
  */
 
-	.section .data.relocate_kernel,"a";
+	.section .data..relocate_kernel,"a";
 /* Minimal CPU state */
 SYM_DATA_LOCAL(saved_rsp, .quad 0)
 SYM_DATA_LOCAL(saved_cr0, .quad 0)
@@ -39,7 +39,7 @@ SYM_DATA(kexec_pa_table_page, .quad 0)
 SYM_DATA(kexec_pa_swap_page, .quad 0)
 SYM_DATA_LOCAL(pa_backup_pages_map, .quad 0)
 
-	.section .text.relocate_kernel,"ax";
+	.section .text..relocate_kernel,"ax";
 	.code64
 SYM_CODE_START_NOALIGN(relocate_kernel)
 	UNWIND_HINT_END_OF_STACK
