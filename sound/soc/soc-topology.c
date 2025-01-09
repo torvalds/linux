@@ -1101,16 +1101,8 @@ static int soc_tplg_dapm_graph_elems_load(struct soc_tplg *tplg,
 		}
 
 		ret = snd_soc_dapm_add_routes(dapm, route, 1);
-		if (ret) {
-			if (dapm->card->disable_route_checks) {
-				ret = 0;
-				dev_info(tplg->dev,
-					 "ASoC: disable_route_checks set, ignoring dapm_add_routes errors\n");
-			} else {
-				dev_err(tplg->dev, "ASoC: dapm_add_routes failed: %d\n", ret);
-				break;
-			}
-		}
+		if (ret)
+			break;
 	}
 
 	return ret;
