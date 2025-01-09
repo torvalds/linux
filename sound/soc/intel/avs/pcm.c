@@ -161,6 +161,7 @@ static int avs_dai_be_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dpcm *dpcm;
 
 	be = snd_soc_substream_to_rtd(substream);
+	/* dpcm_fe_dai_open() guarantees the list is not empty at this point. */
 	for_each_dpcm_fe(be, substream->stream, dpcm) {
 		fe = dpcm->fe;
 		fe_hw_params = &fe->dpcm[substream->stream].hw_params;
@@ -576,6 +577,7 @@ static int avs_dai_fe_hw_params(struct snd_pcm_substream *substream,
 	hdac_stream(host_stream)->format_val = 0;
 
 	fe = snd_soc_substream_to_rtd(substream);
+	/* dpcm_fe_dai_open() guarantees the list is not empty at this point. */
 	for_each_dpcm_be(fe, substream->stream, dpcm) {
 		be = dpcm->be;
 		be_hw_params = &be->dpcm[substream->stream].hw_params;
@@ -1564,6 +1566,7 @@ static int avs_component_hda_probe(struct snd_soc_component *component)
 		if (ret < 0) {
 			dev_err(component->dev, "create widgets failed: %d\n",
 				ret);
+			snd_soc_unregister_dai(dai);
 			goto exit;
 		}
 	}
@@ -1578,8 +1581,8 @@ exit:
 
 static void avs_component_hda_remove(struct snd_soc_component *component)
 {
-	avs_component_hda_unregister_dais(component);
 	avs_component_remove(component);
+	avs_component_hda_unregister_dais(component);
 }
 
 static int avs_component_hda_open(struct snd_soc_component *component,
