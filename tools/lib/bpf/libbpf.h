@@ -552,10 +552,12 @@ struct bpf_kprobe_multi_opts {
 	bool retprobe;
 	/* create session kprobes */
 	bool session;
+	/* enforce unique match */
+	bool unique_match;
 	size_t :0;
 };
 
-#define bpf_kprobe_multi_opts__last_field session
+#define bpf_kprobe_multi_opts__last_field unique_match
 
 LIBBPF_API struct bpf_link *
 bpf_program__attach_kprobe_multi_opts(const struct bpf_program *prog,

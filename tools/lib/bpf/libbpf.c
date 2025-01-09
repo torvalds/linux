@@ -11534,7 +11534,7 @@ bpf_program__attach_kprobe_multi_opts(const struct bpf_program *prog,
 	struct bpf_link *link = NULL;
 	const unsigned long *addrs;
 	int err, link_fd, prog_fd;
-	bool retprobe, session;
+	bool retprobe, session, unique_match;
 	const __u64 *cookies;
 	const char **syms;
 	size_t cnt;
@@ -11553,12 +11553,15 @@ bpf_program__attach_kprobe_multi_opts(const struct bpf_program *prog,
 	addrs   = OPTS_GET(opts, addrs, false);
 	cnt     = OPTS_GET(opts, cnt, false);
 	cookies = OPTS_GET(opts, cookies, false);
+	unique_match = OPTS_GET(opts, unique_match, false);
 
 	if (!pattern && !addrs && !syms)
 		return libbpf_err_ptr(-EINVAL);
 	if (pattern && (addrs || syms || cookies || cnt))
 		return libbpf_err_ptr(-EINVAL);
 	if (!pattern && !cnt)
+		return libbpf_err_ptr(-EINVAL);
+	if (!pattern && unique_match)
 		return libbpf_err_ptr(-EINVAL);
 	if (addrs && syms)
 		return libbpf_err_ptr(-EINVAL);
@@ -11570,6 +11573,14 @@ bpf_program__attach_kprobe_multi_opts(const struct bpf_program *prog,
 			err = libbpf_available_kallsyms_parse(&res);
 		if (err)
 			goto error;
+
+		if (unique_match && res.cnt != 1) {
+			pr_warn("prog '%s': failed to find a unique match for '%s' (%zu matches)\n",
+				prog->name, pattern, res.cnt);
+			err = -EINVAL;
+			goto error;
+		}
+
 		addrs = res.addrs;
 		cnt = res.cnt;
 	}
