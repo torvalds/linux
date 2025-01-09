@@ -142,14 +142,9 @@ hws_rule_save_resize_info(struct mlx5hws_rule *rule,
 			return;
 		}
 
-		rule->resize_info->max_stes =
-			rule->matcher->action_ste[MLX5HWS_ACTION_STE_IDX_ANY].max_stes;
-		rule->resize_info->action_ste_pool[0] = rule->matcher->action_ste[0].max_stes ?
-							rule->matcher->action_ste[0].pool :
-							NULL;
-		rule->resize_info->action_ste_pool[1] = rule->matcher->action_ste[1].max_stes ?
-							rule->matcher->action_ste[1].pool :
-							NULL;
+		rule->resize_info->max_stes = rule->matcher->action_ste.max_stes;
+		rule->resize_info->action_ste_pool = rule->matcher->action_ste.max_stes ?
+						     rule->matcher->action_ste.pool : NULL;
 	}
 
 	memcpy(rule->resize_info->ctrl_seg, ste_attr->wqe_ctrl,
@@ -204,15 +199,15 @@ hws_rule_load_delete_info(struct mlx5hws_rule *rule,
 	}
 }
 
-static int hws_rule_alloc_action_ste_idx(struct mlx5hws_rule *rule,
-					 u8 action_ste_selector)
+static int hws_rule_alloc_action_ste(struct mlx5hws_rule *rule,
+				     struct mlx5hws_rule_attr *attr)
 {
 	struct mlx5hws_matcher *matcher = rule->matcher;
 	struct mlx5hws_matcher_action_ste *action_ste;
 	struct mlx5hws_pool_chunk ste = {0};
 	int ret;
 
-	action_ste = &matcher->action_ste[action_ste_selector];
+	action_ste = &matcher->action_ste;
 	ste.order = ilog2(roundup_pow_of_two(action_ste->max_stes));
 	ret = mlx5hws_pool_chunk_alloc(action_ste->pool, &ste);
 	if (unlikely(ret)) {
@@ -225,8 +220,7 @@ static int hws_rule_alloc_action_ste_idx(struct mlx5hws_rule *rule,
 	return 0;
 }
 
-static void hws_rule_free_action_ste_idx(struct mlx5hws_rule *rule,
-					 u8 action_ste_selector)
+void mlx5hws_rule_free_action_ste(struct mlx5hws_rule *rule)
 {
 	struct mlx5hws_matcher *matcher = rule->matcher;
 	struct mlx5hws_pool_chunk ste = {0};
@@ -236,10 +230,10 @@ static void hws_rule_free_action_ste_idx(struct mlx5hws_rule *rule,
 	if (mlx5hws_matcher_is_resizable(matcher)) {
 		/* Free the original action pool if rule was resized */
 		max_stes = rule->resize_info->max_stes;
-		pool = rule->resize_info->action_ste_pool[action_ste_selector];
+		pool = rule->resize_info->action_ste_pool;
 	} else {
-		max_stes = matcher->action_ste[action_ste_selector].max_stes;
-		pool = matcher->action_ste[action_ste_selector].pool;
+		max_stes = matcher->action_ste.max_stes;
+		pool = matcher->action_ste.pool;
 	}
 
 	/* This release is safe only when the rule match part was deleted */
@@ -247,41 +241,6 @@ static void hws_rule_free_action_ste_idx(struct mlx5hws_rule *rule,
 	ste.offset = rule->action_ste_idx;
 
 	mlx5hws_pool_chunk_free(pool, &ste);
-}
-
-static int hws_rule_alloc_action_ste(struct mlx5hws_rule *rule,
-				     struct mlx5hws_rule_attr *attr)
-{
-	int action_ste_idx;
-	int ret;
-
-	ret = hws_rule_alloc_action_ste_idx(rule, 0);
-	if (unlikely(ret))
-		return ret;
-
-	action_ste_idx = rule->action_ste_idx;
-
-	ret = hws_rule_alloc_action_ste_idx(rule, 1);
-	if (unlikely(ret)) {
-		hws_rule_free_action_ste_idx(rule, 0);
-		return ret;
-	}
-
-	/* Both pools have to return the same index */
-	if (unlikely(rule->action_ste_idx != action_ste_idx)) {
-		pr_warn("HWS: allocation of action STE failed - pool indexes mismatch\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-void mlx5hws_rule_free_action_ste(struct mlx5hws_rule *rule)
-{
-	if (rule->action_ste_idx > -1) {
-		hws_rule_free_action_ste_idx(rule, 1);
-		hws_rule_free_action_ste_idx(rule, 0);
-	}
 }
 
 static void hws_rule_create_init(struct mlx5hws_rule *rule,
@@ -298,9 +257,6 @@ static void hws_rule_create_init(struct mlx5hws_rule *rule,
 		/* In update we use these rtc's */
 		rule->rtc_0 = 0;
 		rule->rtc_1 = 0;
-		rule->action_ste_selector = 0;
-	} else {
-		rule->action_ste_selector = !rule->action_ste_selector;
 	}
 
 	rule->pending_wqes = 0;
@@ -316,7 +272,7 @@ static void hws_rule_create_init(struct mlx5hws_rule *rule,
 	/* Init default action apply */
 	apply->tbl_type = tbl->type;
 	apply->common_res = &ctx->common_res;
-	apply->jump_to_action_stc = matcher->action_ste[0].stc.offset;
+	apply->jump_to_action_stc = matcher->action_ste.stc.offset;
 	apply->require_dep = 0;
 }
 
@@ -333,7 +289,6 @@ static void hws_rule_move_init(struct mlx5hws_rule *rule,
 
 	rule->pending_wqes = 0;
 	rule->action_ste_idx = -1;
-	rule->action_ste_selector = 0;
 	rule->status = MLX5HWS_RULE_STATUS_CREATING;
 	rule->resize_info->state = MLX5HWS_RULE_RESIZE_STATE_WRITING;
 }
@@ -403,10 +358,8 @@ static int hws_rule_create_hws(struct mlx5hws_rule *rule,
 			}
 		}
 		/* Skip RX/TX based on the dep_wqe init */
-		ste_attr.rtc_0 = dep_wqe->rtc_0 ?
-				 matcher->action_ste[rule->action_ste_selector].rtc_0_id : 0;
-		ste_attr.rtc_1 = dep_wqe->rtc_1 ?
-				 matcher->action_ste[rule->action_ste_selector].rtc_1_id : 0;
+		ste_attr.rtc_0 = dep_wqe->rtc_0 ? matcher->action_ste.rtc_0_id : 0;
+		ste_attr.rtc_1 = dep_wqe->rtc_1 ? matcher->action_ste.rtc_1_id : 0;
 		/* Action STEs are written to a specific index last to first */
 		ste_attr.direct_index = rule->action_ste_idx + action_stes;
 		apply.next_direct_idx = ste_attr.direct_index;

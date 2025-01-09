@@ -148,8 +148,8 @@ static int hws_debug_dump_matcher(struct seq_file *f, struct mlx5hws_matcher *ma
 		   matcher->match_ste.rtc_1_id,
 		   (int)ste_1_id);
 
-	ste = &matcher->action_ste[0].ste;
-	ste_pool = matcher->action_ste[0].pool;
+	ste = &matcher->action_ste.ste;
+	ste_pool = matcher->action_ste.pool;
 	if (ste_pool) {
 		ste_0_id = mlx5hws_pool_chunk_get_base_id(ste_pool, ste);
 		if (tbl_type == MLX5HWS_TABLE_TYPE_FDB)
@@ -171,10 +171,8 @@ static int hws_debug_dump_matcher(struct seq_file *f, struct mlx5hws_matcher *ma
 		return ret;
 
 	seq_printf(f, ",%d,%d,%d,%d,%d,0x%llx,0x%llx\n",
-		   matcher->action_ste[0].rtc_0_id,
-		   (int)ste_0_id,
-		   matcher->action_ste[0].rtc_1_id,
-		   (int)ste_1_id,
+		   matcher->action_ste.rtc_0_id, (int)ste_0_id,
+		   matcher->action_ste.rtc_1_id, (int)ste_1_id,
 		   0,
 		   mlx5hws_debug_icm_to_idx(icm_addr_0),
 		   mlx5hws_debug_icm_to_idx(icm_addr_1));

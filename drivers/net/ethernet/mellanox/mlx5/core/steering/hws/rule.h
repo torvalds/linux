@@ -42,7 +42,7 @@ struct mlx5hws_rule_match_tag {
 };
 
 struct mlx5hws_rule_resize_info {
-	struct mlx5hws_pool *action_ste_pool[2];
+	struct mlx5hws_pool *action_ste_pool;
 	u32 rtc_0;
 	u32 rtc_1;
 	u32 rule_idx;
@@ -62,7 +62,6 @@ struct mlx5hws_rule {
 	u32 rtc_1; /* The RTC into which the STE was inserted */
 	int action_ste_idx; /* STE array index */
 	u8 status; /* enum mlx5hws_rule_status */
-	u8 action_ste_selector; /* For rule update - which action STE is in use */
 	u8 pending_wqes;
 	bool skip_delete; /* For complex rules - another rule with same tag
 			   * still exists, so don't actually delete this rule.
