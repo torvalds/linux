@@ -297,6 +297,7 @@ void bnxt_ulp_irq_stop(struct bnxt *bp)
 {
 	struct bnxt_en_dev *edev = bp->edev;
 	struct bnxt_ulp_ops *ops;
+	bool reset = false;
 
 	if (!edev || !(edev->flags & BNXT_EN_FLAG_MSIX_REQUESTED))
 		return;
@@ -310,7 +311,9 @@ void bnxt_ulp_irq_stop(struct bnxt *bp)
 		ops = rtnl_dereference(ulp->ulp_ops);
 		if (!ops || !ops->ulp_irq_stop)
 			return;
-		ops->ulp_irq_stop(ulp->handle);
+		if (test_bit(BNXT_STATE_FW_RESET_DET, &bp->state))
+			reset = true;
+		ops->ulp_irq_stop(ulp->handle, reset);
 	}
 }
 

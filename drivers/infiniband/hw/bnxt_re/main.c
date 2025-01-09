@@ -83,6 +83,8 @@ static int bnxt_re_hwrm_qcaps(struct bnxt_re_dev *rdev);
 
 static int bnxt_re_hwrm_qcfg(struct bnxt_re_dev *rdev, u32 *db_len,
 			     u32 *offset);
+static void bnxt_re_dispatch_event(struct ib_device *ibdev, struct ib_qp *qp,
+				   u8 port_num, enum ib_event_type event);
 static void bnxt_re_set_db_offset(struct bnxt_re_dev *rdev)
 {
 	struct bnxt_qplib_chip_ctx *cctx;
@@ -411,7 +413,7 @@ static void bnxt_re_async_notifier(void *handle, struct hwrm_async_event_cmpl *c
 	}
 }
 
-static void bnxt_re_stop_irq(void *handle)
+static void bnxt_re_stop_irq(void *handle, bool reset)
 {
 	struct bnxt_re_en_dev_info *en_info = auxiliary_get_drvdata(handle);
 	struct bnxt_qplib_rcfw *rcfw;
@@ -421,6 +423,14 @@ static void bnxt_re_stop_irq(void *handle)
 
 	rdev = en_info->rdev;
 	rcfw = &rdev->rcfw;
+
+	if (reset) {
+		set_bit(ERR_DEVICE_DETACHED, &rdev->rcfw.cmdq.flags);
+		set_bit(BNXT_RE_FLAG_ERR_DEVICE_DETACHED, &rdev->flags);
+		wake_up_all(&rdev->rcfw.cmdq.waitq);
+		bnxt_re_dispatch_event(&rdev->ibdev, NULL, 1,
+				       IB_EVENT_DEVICE_FATAL);
+	}
 
 	for (indx = BNXT_RE_NQ_IDX; indx < rdev->nqr->num_msix; indx++) {
 		nq = &rdev->nqr->nq[indx - 1];
