@@ -32,6 +32,32 @@
 #include "of_private.h"
 
 /**
+ * of_property_read_bool - Find a property
+ * @np:		device node from which the property value is to be read.
+ * @propname:	name of the property to be searched.
+ *
+ * Search for a boolean property in a device node. Usage on non-boolean
+ * property types is deprecated.
+ *
+ * Return: true if the property exists false otherwise.
+ */
+bool of_property_read_bool(const struct device_node *np, const char *propname)
+{
+	struct property *prop = of_find_property(np, propname, NULL);
+
+	/*
+	 * Boolean properties should not have a value. Testing for property
+	 * presence should either use of_property_present() or just read the
+	 * property value and check the returned error code.
+	 */
+	if (prop && prop->length)
+		pr_warn("%pOF: Read of boolean property '%s' with a value.\n", np, propname);
+
+	return prop ? true : false;
+}
+EXPORT_SYMBOL(of_property_read_bool);
+
+/**
  * of_graph_is_present() - check graph's presence
  * @node: pointer to device_node containing graph port
  *

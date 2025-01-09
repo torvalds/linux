@@ -311,6 +311,7 @@ extern struct device_node *of_find_node_with_property(
 extern struct property *of_find_property(const struct device_node *np,
 					 const char *name,
 					 int *lenp);
+extern bool of_property_read_bool(const struct device_node *np, const char *propname);
 extern int of_property_count_elems_of_size(const struct device_node *np,
 				const char *propname, int elem_size);
 extern int of_property_read_u32_index(const struct device_node *np,
@@ -613,6 +614,12 @@ static inline struct device_node *of_find_compatible_node(
 						const char *compat)
 {
 	return NULL;
+}
+
+static inline bool of_property_read_bool(const struct device_node *np,
+					const char *propname)
+{
+	return false;
 }
 
 static inline int of_property_count_elems_of_size(const struct device_node *np,
@@ -1240,24 +1247,6 @@ static inline int of_property_read_string_index(const struct device_node *np,
 {
 	int rc = of_property_read_string_helper(np, propname, output, 1, index);
 	return rc < 0 ? rc : 0;
-}
-
-/**
- * of_property_read_bool - Find a property
- * @np:		device node from which the property value is to be read.
- * @propname:	name of the property to be searched.
- *
- * Search for a boolean property in a device node. Usage on non-boolean
- * property types is deprecated.
- *
- * Return: true if the property exists false otherwise.
- */
-static inline bool of_property_read_bool(const struct device_node *np,
-					 const char *propname)
-{
-	const struct property *prop = of_find_property(np, propname, NULL);
-
-	return prop ? true : false;
 }
 
 /**
