@@ -573,17 +573,28 @@ xfs_stat_blksize(
 }
 
 static void
-xfs_get_atomic_write_attr(
+xfs_report_dioalign(
 	struct xfs_inode	*ip,
-	unsigned int		*unit_min,
-	unsigned int		*unit_max)
+	struct kstat		*stat)
 {
-	if (!xfs_inode_can_atomicwrite(ip)) {
-		*unit_min = *unit_max = 0;
-		return;
-	}
+	struct xfs_buftarg	*target = xfs_inode_buftarg(ip);
+	struct block_device	*bdev = target->bt_bdev;
 
-	*unit_min = *unit_max = ip->i_mount->m_sb.sb_blocksize;
+	stat->result_mask |= STATX_DIOALIGN;
+	stat->dio_mem_align = bdev_dma_alignment(bdev) + 1;
+	stat->dio_offset_align = bdev_logical_block_size(bdev);
+}
+
+static void
+xfs_report_atomic_write(
+	struct xfs_inode	*ip,
+	struct kstat		*stat)
+{
+	unsigned int		unit_min = 0, unit_max = 0;
+
+	if (xfs_inode_can_atomicwrite(ip))
+		unit_min = unit_max = ip->i_mount->m_sb.sb_blocksize;
+	generic_fill_statx_atomic_writes(stat, unit_min, unit_max);
 }
 
 STATIC int
@@ -647,22 +658,10 @@ xfs_vn_getattr(
 		stat->rdev = inode->i_rdev;
 		break;
 	case S_IFREG:
-		if (request_mask & STATX_DIOALIGN) {
-			struct xfs_buftarg	*target = xfs_inode_buftarg(ip);
-			struct block_device	*bdev = target->bt_bdev;
-
-			stat->result_mask |= STATX_DIOALIGN;
-			stat->dio_mem_align = bdev_dma_alignment(bdev) + 1;
-			stat->dio_offset_align = bdev_logical_block_size(bdev);
-		}
-		if (request_mask & STATX_WRITE_ATOMIC) {
-			unsigned int	unit_min, unit_max;
-
-			xfs_get_atomic_write_attr(ip, &unit_min,
-					&unit_max);
-			generic_fill_statx_atomic_writes(stat,
-					unit_min, unit_max);
-		}
+		if (request_mask & STATX_DIOALIGN)
+			xfs_report_dioalign(ip, stat);
+		if (request_mask & STATX_WRITE_ATOMIC)
+			xfs_report_atomic_write(ip, stat);
 		fallthrough;
 	default:
 		stat->blksize = xfs_stat_blksize(ip);
