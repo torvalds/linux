@@ -2812,13 +2812,12 @@ free_eb:
 }
 #endif
 
-static struct extent_buffer *grab_extent_buffer(
-		struct btrfs_fs_info *fs_info, struct page *page)
+static struct extent_buffer *grab_extent_buffer(struct btrfs_fs_info *fs_info,
+						struct folio *folio)
 {
-	struct folio *folio = page_folio(page);
 	struct extent_buffer *exists;
 
-	lockdep_assert_held(&page->mapping->i_private_lock);
+	lockdep_assert_held(&folio->mapping->i_private_lock);
 
 	/*
 	 * For subpage case, we completely rely on radix tree to ensure we
@@ -2833,7 +2832,7 @@ static struct extent_buffer *grab_extent_buffer(
 		return NULL;
 
 	/*
-	 * We could have already allocated an eb for this page and attached one
+	 * We could have already allocated an eb for this folio and attached one
 	 * so lets see if we can get a ref on the existing eb, and if we can we
 	 * know it's good and we can just return that one, else we know we can
 	 * just overwrite folio private.
@@ -2842,7 +2841,7 @@ static struct extent_buffer *grab_extent_buffer(
 	if (atomic_inc_not_zero(&exists->refs))
 		return exists;
 
-	WARN_ON(PageDirty(page));
+	WARN_ON(folio_test_dirty(folio));
 	folio_detach_private(folio);
 	return NULL;
 }
@@ -2933,8 +2932,7 @@ finish:
 	} else if (existing_folio) {
 		struct extent_buffer *existing_eb;
 
-		existing_eb = grab_extent_buffer(fs_info,
-						 folio_page(existing_folio, 0));
+		existing_eb = grab_extent_buffer(fs_info, existing_folio);
 		if (existing_eb) {
 			/* The extent buffer still exists, we can use it directly. */
 			*found_eb_ret = existing_eb;
