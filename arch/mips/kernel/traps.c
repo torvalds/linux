@@ -38,6 +38,7 @@
 #include <linux/kdb.h>
 #include <linux/irq.h>
 #include <linux/perf_event.h>
+#include <linux/string_choices.h>
 
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>
@@ -1741,8 +1742,8 @@ static inline __init void parity_protection_init(void)
 		gcr_ectl &= CM_GCR_ERR_CONTROL_L2_ECC_EN;
 		WARN_ON(!!gcr_ectl != l2parity);
 
-		pr_info("Cache parity protection %sabled\n",
-			l1parity ? "en" : "dis");
+		pr_info("Cache parity protection %s\n",
+			str_enabled_disabled(l1parity));
 		return;
 	}
 
@@ -1797,14 +1798,14 @@ static inline __init void parity_protection_init(void)
 			printk(KERN_INFO "Readback ErrCtl register=%08lx\n", errctl);
 
 			if (l1parity_present)
-				printk(KERN_INFO "Cache parity protection %sabled\n",
-				       (errctl & ERRCTL_PE) ? "en" : "dis");
+				pr_info("Cache parity protection %s\n",
+					str_enabled_disabled(errctl & ERRCTL_PE));
 
 			if (l2parity_present) {
 				if (l1parity_present && l1parity)
 					errctl ^= ERRCTL_L2P;
-				printk(KERN_INFO "L2 cache parity protection %sabled\n",
-				       (errctl & ERRCTL_L2P) ? "en" : "dis");
+				pr_info("L2 cache parity protection %s\n",
+					str_enabled_disabled(errctl & ERRCTL_L2P));
 			}
 		}
 		break;
@@ -1815,8 +1816,8 @@ static inline __init void parity_protection_init(void)
 		write_c0_errctl(0x80000000);
 		back_to_back_c0_hazard();
 		/* Set the PE bit (bit 31) in the c0_errctl register. */
-		printk(KERN_INFO "Cache parity protection %sabled\n",
-		       (read_c0_errctl() & 0x80000000) ? "en" : "dis");
+		pr_info("Cache parity protection %s\n",
+			str_enabled_disabled(read_c0_errctl() & 0x80000000));
 		break;
 	case CPU_20KC:
 	case CPU_25KF:
