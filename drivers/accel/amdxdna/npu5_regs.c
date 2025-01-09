@@ -61,7 +61,7 @@
 #define NPU5_SMU_BAR_BASE	MMNPU_APERTURE4_BASE
 #define NPU5_SRAM_BAR_BASE	MMNPU_APERTURE1_BASE
 
-const struct amdxdna_dev_priv npu5_dev_priv = {
+static const struct amdxdna_dev_priv npu5_dev_priv = {
 	.fw_path        = "amdnpu/17f0_11/npu.sbin",
 	.protocol_major = 0x6,
 	.protocol_minor = 12,

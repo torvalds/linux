@@ -22,7 +22,7 @@
 #include "amdxdna_mailbox.h"
 #include "amdxdna_pci_drv.h"
 
-bool force_cmdlist;
+static bool force_cmdlist;
 module_param(force_cmdlist, bool, 0600);
 MODULE_PARM_DESC(force_cmdlist, "Force use command list (Default false)");
 
