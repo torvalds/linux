@@ -9,9 +9,60 @@
 #define MLX5HWS_CTX_MAX_NUM_OF_QUEUES 16
 #define MLX5HWS_CTX_QUEUE_SIZE 256
 
+static int mlx5_fs_init_hws_actions_pool(struct mlx5_fs_hws_context *fs_ctx)
+{
+	u32 flags = MLX5HWS_ACTION_FLAG_HWS_FDB | MLX5HWS_ACTION_FLAG_SHARED;
+	struct mlx5_fs_hws_actions_pool *hws_pool = &fs_ctx->hws_pool;
+	struct mlx5hws_action_reformat_header reformat_hdr = {};
+	struct mlx5hws_context *ctx = fs_ctx->hws_ctx;
+	enum mlx5hws_action_type action_type;
+
+	hws_pool->tag_action = mlx5hws_action_create_tag(ctx, flags);
+	if (!hws_pool->tag_action)
+		return -ENOSPC;
+	hws_pool->pop_vlan_action = mlx5hws_action_create_pop_vlan(ctx, flags);
+	if (!hws_pool->pop_vlan_action)
+		goto destroy_tag;
+	hws_pool->push_vlan_action = mlx5hws_action_create_push_vlan(ctx, flags);
+	if (!hws_pool->push_vlan_action)
+		goto destroy_pop_vlan;
+	hws_pool->drop_action = mlx5hws_action_create_dest_drop(ctx, flags);
+	if (!hws_pool->drop_action)
+		goto destroy_push_vlan;
+	action_type = MLX5HWS_ACTION_TYP_REFORMAT_TNL_L2_TO_L2;
+	hws_pool->decapl2_action =
+		mlx5hws_action_create_reformat(ctx, action_type, 1,
+					       &reformat_hdr, 0, flags);
+	if (!hws_pool->decapl2_action)
+		goto destroy_drop;
+	return 0;
+
+destroy_drop:
+	mlx5hws_action_destroy(hws_pool->drop_action);
+destroy_push_vlan:
+	mlx5hws_action_destroy(hws_pool->push_vlan_action);
+destroy_pop_vlan:
+	mlx5hws_action_destroy(hws_pool->pop_vlan_action);
+destroy_tag:
+	mlx5hws_action_destroy(hws_pool->tag_action);
+	return -ENOSPC;
+}
+
+static void mlx5_fs_cleanup_hws_actions_pool(struct mlx5_fs_hws_context *fs_ctx)
+{
+	struct mlx5_fs_hws_actions_pool *hws_pool = &fs_ctx->hws_pool;
+
+	mlx5hws_action_destroy(hws_pool->decapl2_action);
+	mlx5hws_action_destroy(hws_pool->drop_action);
+	mlx5hws_action_destroy(hws_pool->push_vlan_action);
+	mlx5hws_action_destroy(hws_pool->pop_vlan_action);
+	mlx5hws_action_destroy(hws_pool->tag_action);
+}
+
 static int mlx5_cmd_hws_create_ns(struct mlx5_flow_root_namespace *ns)
 {
 	struct mlx5hws_context_attr hws_ctx_attr = {};
+	int err;
 
 	hws_ctx_attr.queues = min_t(int, num_online_cpus(),
 				    MLX5HWS_CTX_MAX_NUM_OF_QUEUES);
@@ -23,11 +74,18 @@ static int mlx5_cmd_hws_create_ns(struct mlx5_flow_root_namespace *ns)
 		mlx5_core_err(ns->dev, "Failed to create hws flow namespace\n");
 		return -EINVAL;
 	}
+	err = mlx5_fs_init_hws_actions_pool(&ns->fs_hws_context);
+	if (err) {
+		mlx5_core_err(ns->dev, "Failed to init hws actions pool\n");
+		mlx5hws_context_close(ns->fs_hws_context.hws_ctx);
+		return err;
+	}
 	return 0;
 }
 
 static int mlx5_cmd_hws_destroy_ns(struct mlx5_flow_root_namespace *ns)
 {
+	mlx5_fs_cleanup_hws_actions_pool(&ns->fs_hws_context);
 	return mlx5hws_context_close(ns->fs_hws_context.hws_ctx);
 }
 

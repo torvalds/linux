@@ -6,8 +6,17 @@
 
 #include "mlx5hws.h"
 
+struct mlx5_fs_hws_actions_pool {
+	struct mlx5hws_action *tag_action;
+	struct mlx5hws_action *pop_vlan_action;
+	struct mlx5hws_action *push_vlan_action;
+	struct mlx5hws_action *drop_action;
+	struct mlx5hws_action *decapl2_action;
+};
+
 struct mlx5_fs_hws_context {
 	struct mlx5hws_context	*hws_ctx;
+	struct mlx5_fs_hws_actions_pool hws_pool;
 };
 
 struct mlx5_fs_hws_table {
