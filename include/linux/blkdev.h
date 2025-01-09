@@ -1706,6 +1706,15 @@ struct io_comp_batch {
 	void (*complete)(struct io_comp_batch *);
 };
 
+static inline bool blk_atomic_write_start_sect_aligned(sector_t sector,
+						struct queue_limits *limits)
+{
+	unsigned int alignment = max(limits->atomic_write_hw_unit_min,
+				limits->atomic_write_hw_boundary);
+
+	return IS_ALIGNED(sector, alignment >> SECTOR_SHIFT);
+}
+
 static inline bool bdev_can_atomic_write(struct block_device *bdev)
 {
 	struct request_queue *bd_queue = bdev->bd_queue;
@@ -1714,15 +1723,9 @@ static inline bool bdev_can_atomic_write(struct block_device *bdev)
 	if (!limits->atomic_write_unit_min)
 		return false;
 
-	if (bdev_is_partition(bdev)) {
-		sector_t bd_start_sect = bdev->bd_start_sect;
-		unsigned int alignment =
-			max(limits->atomic_write_unit_min,
-			    limits->atomic_write_hw_boundary);
-
-		if (!IS_ALIGNED(bd_start_sect, alignment >> SECTOR_SHIFT))
-			return false;
-	}
+	if (bdev_is_partition(bdev))
+		return blk_atomic_write_start_sect_aligned(bdev->bd_start_sect,
+							limits);
 
 	return true;
 }

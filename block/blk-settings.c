@@ -609,12 +609,15 @@ static bool blk_stack_atomic_writes_head(struct queue_limits *t,
 }
 
 static void blk_stack_atomic_writes_limits(struct queue_limits *t,
-				struct queue_limits *b)
+				struct queue_limits *b, sector_t start)
 {
 	if (!(t->features & BLK_FEAT_ATOMIC_WRITES_STACKED))
 		goto unsupported;
 
 	if (!b->atomic_write_unit_min)
+		goto unsupported;
+
+	if (!blk_atomic_write_start_sect_aligned(start, b))
 		goto unsupported;
 
 	/*
@@ -799,7 +802,7 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 		t->zone_write_granularity = 0;
 		t->max_zone_append_sectors = 0;
 	}
-	blk_stack_atomic_writes_limits(t, b);
+	blk_stack_atomic_writes_limits(t, b, start);
 
 	return ret;
 }
