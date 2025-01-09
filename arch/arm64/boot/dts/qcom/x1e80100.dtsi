@@ -4814,6 +4814,8 @@
 				snps,dis-u1-entry-quirk;
 				snps,dis-u2-entry-quirk;
 
+				dma-coherent;
+
 				ports {
 					#address-cells = <1>;
 					#size-cells = <0>;
