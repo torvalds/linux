@@ -2927,8 +2927,7 @@ static void intel_ddi_pre_enable_dp(struct intel_atomic_state *state,
 					    crtc_state);
 
 	/* Panel replay has to be enabled in sink dpcd before link training. */
-	if (crtc_state->has_panel_replay)
-		intel_psr_enable_sink(enc_to_intel_dp(encoder), crtc_state);
+	intel_psr_panel_replay_enable_sink(enc_to_intel_dp(encoder));
 
 	if (DISPLAY_VER(display) >= 14)
 		mtl_ddi_pre_enable_dp(state, encoder, crtc_state, conn_state);
