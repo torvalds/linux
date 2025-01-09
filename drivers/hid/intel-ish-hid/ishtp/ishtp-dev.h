@@ -57,7 +57,6 @@ enum ishtp_dev_state {
 	ISHTP_DEV_POWER_DOWN,
 	ISHTP_DEV_POWER_UP
 };
-const char *ishtp_dev_state_str(int state);
 
 struct ishtp_cl;
 
