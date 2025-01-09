@@ -95,11 +95,10 @@ SYM_CODE_START_NOALIGN(relocate_kernel)
 	lea	PAGE_SIZE(%rsi), %rsp
 
 	/* jump to identity mapped page */
-	addq	$(identity_mapped - relocate_kernel), %rsi
-	pushq	%rsi
-	ANNOTATE_UNRET_SAFE
-	ret
-	int3
+0:	addq	$identity_mapped - 0b, %rsi
+	subq	$__relocate_kernel_start - 0b, %rsi
+	ANNOTATE_RETPOLINE_SAFE
+	jmp	*%rsi
 SYM_CODE_END(relocate_kernel)
 
 SYM_CODE_START_LOCAL_NOALIGN(identity_mapped)
@@ -219,16 +218,21 @@ SYM_CODE_START_LOCAL_NOALIGN(identity_mapped)
 
 	/* get the re-entry point of the peer system */
 	popq	%rbp
-	leaq	relocate_kernel(%rip), %r8
 	movq	kexec_pa_swap_page(%rip), %r10
 	movq	pa_backup_pages_map(%rip), %rdi
 	movq	kexec_pa_table_page(%rip), %rax
 	movq	%rax, %cr3
+
+	/* Find start (and end) of this physical mapping of control page */
+	leaq	(%rip), %r8
+	ANNOTATE_NOENDBR
+	andq	$PAGE_MASK, %r8
 	lea	PAGE_SIZE(%r8), %rsp
 	movl	$1, %r11d	/* Ensure preserve_context flag is set */
 	call	swap_pages
 	movq	kexec_va_control_page(%rip), %rax
-	addq	$(virtual_mapped - relocate_kernel), %rax
+0:	addq	$virtual_mapped - 0b, %rax
+	subq	$__relocate_kernel_start - 0b, %rax
 	pushq	%rax
 	ANNOTATE_UNRET_SAFE
 	ret
