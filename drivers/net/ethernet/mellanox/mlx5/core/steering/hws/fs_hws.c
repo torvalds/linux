@@ -4,22 +4,31 @@
 #include <mlx5_core.h>
 #include <fs_core.h>
 #include <fs_cmd.h>
+#include "fs_hws_pools.h"
 #include "mlx5hws.h"
 
 #define MLX5HWS_CTX_MAX_NUM_OF_QUEUES 16
 #define MLX5HWS_CTX_QUEUE_SIZE 256
 
-static int mlx5_fs_init_hws_actions_pool(struct mlx5_fs_hws_context *fs_ctx)
+static struct mlx5hws_action *
+mlx5_fs_create_action_remove_header_vlan(struct mlx5hws_context *ctx);
+static void
+mlx5_fs_destroy_pr_pool(struct mlx5_fs_pool *pool, struct xarray *pr_pools,
+			unsigned long index);
+
+static int mlx5_fs_init_hws_actions_pool(struct mlx5_core_dev *dev,
+					 struct mlx5_fs_hws_context *fs_ctx)
 {
 	u32 flags = MLX5HWS_ACTION_FLAG_HWS_FDB | MLX5HWS_ACTION_FLAG_SHARED;
 	struct mlx5_fs_hws_actions_pool *hws_pool = &fs_ctx->hws_pool;
 	struct mlx5hws_action_reformat_header reformat_hdr = {};
 	struct mlx5hws_context *ctx = fs_ctx->hws_ctx;
 	enum mlx5hws_action_type action_type;
+	int err = -ENOSPC;
 
 	hws_pool->tag_action = mlx5hws_action_create_tag(ctx, flags);
 	if (!hws_pool->tag_action)
-		return -ENOSPC;
+		return err;
 	hws_pool->pop_vlan_action = mlx5hws_action_create_pop_vlan(ctx, flags);
 	if (!hws_pool->pop_vlan_action)
 		goto destroy_tag;
@@ -35,8 +44,28 @@ static int mlx5_fs_init_hws_actions_pool(struct mlx5_fs_hws_context *fs_ctx)
 					       &reformat_hdr, 0, flags);
 	if (!hws_pool->decapl2_action)
 		goto destroy_drop;
+	hws_pool->remove_hdr_vlan_action =
+		mlx5_fs_create_action_remove_header_vlan(ctx);
+	if (!hws_pool->remove_hdr_vlan_action)
+		goto destroy_decapl2;
+	err = mlx5_fs_hws_pr_pool_init(&hws_pool->insert_hdr_pool, dev, 0,
+				       MLX5HWS_ACTION_TYP_INSERT_HEADER);
+	if (err)
+		goto destroy_remove_hdr;
+	err = mlx5_fs_hws_pr_pool_init(&hws_pool->dl3tnltol2_pool, dev, 0,
+				       MLX5HWS_ACTION_TYP_REFORMAT_TNL_L3_TO_L2);
+	if (err)
+		goto cleanup_insert_hdr;
+	xa_init(&hws_pool->el2tol3tnl_pools);
+	xa_init(&hws_pool->el2tol2tnl_pools);
 	return 0;
 
+cleanup_insert_hdr:
+	mlx5_fs_hws_pr_pool_cleanup(&hws_pool->insert_hdr_pool);
+destroy_remove_hdr:
+	mlx5hws_action_destroy(hws_pool->remove_hdr_vlan_action);
+destroy_decapl2:
+	mlx5hws_action_destroy(hws_pool->decapl2_action);
 destroy_drop:
 	mlx5hws_action_destroy(hws_pool->drop_action);
 destroy_push_vlan:
@@ -45,13 +74,24 @@ destroy_pop_vlan:
 	mlx5hws_action_destroy(hws_pool->pop_vlan_action);
 destroy_tag:
 	mlx5hws_action_destroy(hws_pool->tag_action);
-	return -ENOSPC;
+	return err;
 }
 
 static void mlx5_fs_cleanup_hws_actions_pool(struct mlx5_fs_hws_context *fs_ctx)
 {
 	struct mlx5_fs_hws_actions_pool *hws_pool = &fs_ctx->hws_pool;
+	struct mlx5_fs_pool *pool;
+	unsigned long i;
 
+	xa_for_each(&hws_pool->el2tol2tnl_pools, i, pool)
+		mlx5_fs_destroy_pr_pool(pool, &hws_pool->el2tol2tnl_pools, i);
+	xa_destroy(&hws_pool->el2tol2tnl_pools);
+	xa_for_each(&hws_pool->el2tol3tnl_pools, i, pool)
+		mlx5_fs_destroy_pr_pool(pool, &hws_pool->el2tol3tnl_pools, i);
+	xa_destroy(&hws_pool->el2tol3tnl_pools);
+	mlx5_fs_hws_pr_pool_cleanup(&hws_pool->dl3tnltol2_pool);
+	mlx5_fs_hws_pr_pool_cleanup(&hws_pool->insert_hdr_pool);
+	mlx5hws_action_destroy(hws_pool->remove_hdr_vlan_action);
 	mlx5hws_action_destroy(hws_pool->decapl2_action);
 	mlx5hws_action_destroy(hws_pool->drop_action);
 	mlx5hws_action_destroy(hws_pool->push_vlan_action);
@@ -74,7 +114,7 @@ static int mlx5_cmd_hws_create_ns(struct mlx5_flow_root_namespace *ns)
 		mlx5_core_err(ns->dev, "Failed to create hws flow namespace\n");
 		return -EINVAL;
 	}
-	err = mlx5_fs_init_hws_actions_pool(&ns->fs_hws_context);
+	err = mlx5_fs_init_hws_actions_pool(ns->dev, &ns->fs_hws_context);
 	if (err) {
 		mlx5_core_err(ns->dev, "Failed to init hws actions pool\n");
 		mlx5hws_context_close(ns->fs_hws_context.hws_ctx);
@@ -251,6 +291,247 @@ static int mlx5_cmd_hws_destroy_flow_group(struct mlx5_flow_root_namespace *ns,
 	return mlx5hws_bwc_matcher_destroy(fg->fs_hws_matcher.matcher);
 }
 
+static struct mlx5hws_action *
+mlx5_fs_create_action_remove_header_vlan(struct mlx5hws_context *ctx)
+{
+	u32 flags = MLX5HWS_ACTION_FLAG_HWS_FDB | MLX5HWS_ACTION_FLAG_SHARED;
+	struct mlx5hws_action_remove_header_attr remove_hdr_vlan = {};
+
+	/* MAC anchor not supported in HWS reformat, use VLAN anchor */
+	remove_hdr_vlan.anchor = MLX5_REFORMAT_CONTEXT_ANCHOR_VLAN_START;
+	remove_hdr_vlan.offset = 0;
+	remove_hdr_vlan.size = sizeof(struct vlan_hdr);
+	return mlx5hws_action_create_remove_header(ctx, &remove_hdr_vlan, flags);
+}
+
+static struct mlx5hws_action *
+mlx5_fs_get_action_remove_header_vlan(struct mlx5_fs_hws_context *fs_ctx,
+				      struct mlx5_pkt_reformat_params *params)
+{
+	if (!params ||
+	    params->param_0 != MLX5_REFORMAT_CONTEXT_ANCHOR_MAC_START ||
+	    params->param_1 != offsetof(struct vlan_ethhdr, h_vlan_proto) ||
+	    params->size != sizeof(struct vlan_hdr))
+		return NULL;
+
+	return fs_ctx->hws_pool.remove_hdr_vlan_action;
+}
+
+static int
+mlx5_fs_verify_insert_header_params(struct mlx5_core_dev *mdev,
+				    struct mlx5_pkt_reformat_params *params)
+{
+	if ((!params->data && params->size) || (params->data && !params->size) ||
+	    MLX5_CAP_GEN_2(mdev, max_reformat_insert_size) < params->size ||
+	    MLX5_CAP_GEN_2(mdev, max_reformat_insert_offset) < params->param_1) {
+		mlx5_core_err(mdev, "Invalid reformat params for INSERT_HDR\n");
+		return -EINVAL;
+	}
+	if (params->param_0 != MLX5_FS_INSERT_HDR_VLAN_ANCHOR ||
+	    params->param_1 != MLX5_FS_INSERT_HDR_VLAN_OFFSET ||
+	    params->size != MLX5_FS_INSERT_HDR_VLAN_SIZE) {
+		mlx5_core_err(mdev, "Only vlan insert header supported\n");
+		return -EOPNOTSUPP;
+	}
+	return 0;
+}
+
+static int
+mlx5_fs_verify_encap_decap_params(struct mlx5_core_dev *dev,
+				  struct mlx5_pkt_reformat_params *params)
+{
+	if (params->param_0 || params->param_1) {
+		mlx5_core_err(dev, "Invalid reformat params\n");
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static struct mlx5_fs_pool *
+mlx5_fs_get_pr_encap_pool(struct mlx5_core_dev *dev, struct xarray *pr_pools,
+			  enum mlx5hws_action_type reformat_type, size_t size)
+{
+	struct mlx5_fs_pool *pr_pool;
+	unsigned long index = size;
+	int err;
+
+	pr_pool = xa_load(pr_pools, index);
+	if (pr_pool)
+		return pr_pool;
+
+	pr_pool = kzalloc(sizeof(*pr_pool), GFP_KERNEL);
+	if (!pr_pool)
+		return ERR_PTR(-ENOMEM);
+	err = mlx5_fs_hws_pr_pool_init(pr_pool, dev, size, reformat_type);
+	if (err)
+		goto free_pr_pool;
+	err = xa_insert(pr_pools, index, pr_pool, GFP_KERNEL);
+	if (err)
+		goto cleanup_pr_pool;
+	return pr_pool;
+
+cleanup_pr_pool:
+	mlx5_fs_hws_pr_pool_cleanup(pr_pool);
+free_pr_pool:
+	kfree(pr_pool);
+	return ERR_PTR(err);
+}
+
+static void
+mlx5_fs_destroy_pr_pool(struct mlx5_fs_pool *pool, struct xarray *pr_pools,
+			unsigned long index)
+{
+	xa_erase(pr_pools, index);
+	mlx5_fs_hws_pr_pool_cleanup(pool);
+	kfree(pool);
+}
+
+static int
+mlx5_cmd_hws_packet_reformat_alloc(struct mlx5_flow_root_namespace *ns,
+				   struct mlx5_pkt_reformat_params *params,
+				   enum mlx5_flow_namespace_type namespace,
+				   struct mlx5_pkt_reformat *pkt_reformat)
+{
+	struct mlx5_fs_hws_context *fs_ctx = &ns->fs_hws_context;
+	struct mlx5_fs_hws_actions_pool *hws_pool;
+	struct mlx5hws_action *hws_action = NULL;
+	struct mlx5_fs_hws_pr *pr_data = NULL;
+	struct mlx5_fs_pool *pr_pool = NULL;
+	struct mlx5_core_dev *dev = ns->dev;
+	u8 hdr_idx = 0;
+	int err;
+
+	if (!params)
+		return -EINVAL;
+
+	hws_pool = &fs_ctx->hws_pool;
+
+	switch (params->type) {
+	case MLX5_REFORMAT_TYPE_L2_TO_VXLAN:
+	case MLX5_REFORMAT_TYPE_L2_TO_NVGRE:
+	case MLX5_REFORMAT_TYPE_L2_TO_L2_TUNNEL:
+		if (mlx5_fs_verify_encap_decap_params(dev, params))
+			return -EINVAL;
+		pr_pool = mlx5_fs_get_pr_encap_pool(dev, &hws_pool->el2tol2tnl_pools,
+						    MLX5HWS_ACTION_TYP_REFORMAT_L2_TO_TNL_L2,
+						    params->size);
+		if (IS_ERR(pr_pool))
+			return PTR_ERR(pr_pool);
+		break;
+	case MLX5_REFORMAT_TYPE_L2_TO_L3_TUNNEL:
+		if (mlx5_fs_verify_encap_decap_params(dev, params))
+			return -EINVAL;
+		pr_pool = mlx5_fs_get_pr_encap_pool(dev, &hws_pool->el2tol3tnl_pools,
+						    MLX5HWS_ACTION_TYP_REFORMAT_L2_TO_TNL_L3,
+						    params->size);
+		if (IS_ERR(pr_pool))
+			return PTR_ERR(pr_pool);
+		break;
+	case MLX5_REFORMAT_TYPE_L3_TUNNEL_TO_L2:
+		if (mlx5_fs_verify_encap_decap_params(dev, params))
+			return -EINVAL;
+		pr_pool = &hws_pool->dl3tnltol2_pool;
+		hdr_idx = params->size == ETH_HLEN ?
+			  MLX5_FS_DL3TNLTOL2_MAC_HDR_IDX :
+			  MLX5_FS_DL3TNLTOL2_MAC_VLAN_HDR_IDX;
+		break;
+	case MLX5_REFORMAT_TYPE_INSERT_HDR:
+		err = mlx5_fs_verify_insert_header_params(dev, params);
+		if (err)
+			return err;
+		pr_pool = &hws_pool->insert_hdr_pool;
+		break;
+	case MLX5_REFORMAT_TYPE_REMOVE_HDR:
+		hws_action = mlx5_fs_get_action_remove_header_vlan(fs_ctx, params);
+		if (!hws_action)
+			mlx5_core_err(dev, "Only vlan remove header supported\n");
+		break;
+	default:
+		mlx5_core_err(ns->dev, "Packet-reformat not supported(%d)\n",
+			      params->type);
+		return -EOPNOTSUPP;
+	}
+
+	if (pr_pool) {
+		pr_data = mlx5_fs_hws_pr_pool_acquire_pr(pr_pool);
+		if (IS_ERR_OR_NULL(pr_data))
+			return !pr_data ? -EINVAL : PTR_ERR(pr_data);
+		hws_action = pr_data->bulk->hws_action;
+		if (!hws_action) {
+			mlx5_core_err(dev,
+				      "Failed allocating packet-reformat action\n");
+			err = -EINVAL;
+			goto release_pr;
+		}
+		pr_data->data = kmemdup(params->data, params->size, GFP_KERNEL);
+		if (!pr_data->data) {
+			err = -ENOMEM;
+			goto release_pr;
+		}
+		pr_data->hdr_idx = hdr_idx;
+		pr_data->data_size = params->size;
+		pkt_reformat->fs_hws_action.pr_data = pr_data;
+	}
+
+	pkt_reformat->owner = MLX5_FLOW_RESOURCE_OWNER_SW;
+	pkt_reformat->fs_hws_action.hws_action = hws_action;
+	return 0;
+
+release_pr:
+	if (pr_pool && pr_data)
+		mlx5_fs_hws_pr_pool_release_pr(pr_pool, pr_data);
+	return err;
+}
+
+static void mlx5_cmd_hws_packet_reformat_dealloc(struct mlx5_flow_root_namespace *ns,
+						 struct mlx5_pkt_reformat *pkt_reformat)
+{
+	struct mlx5_fs_hws_actions_pool *hws_pool = &ns->fs_hws_context.hws_pool;
+	struct mlx5_core_dev *dev = ns->dev;
+	struct mlx5_fs_hws_pr *pr_data;
+	struct mlx5_fs_pool *pr_pool;
+
+	if (pkt_reformat->reformat_type == MLX5_REFORMAT_TYPE_REMOVE_HDR)
+		return;
+
+	if (!pkt_reformat->fs_hws_action.pr_data) {
+		mlx5_core_err(ns->dev, "Failed release packet-reformat\n");
+		return;
+	}
+	pr_data = pkt_reformat->fs_hws_action.pr_data;
+
+	switch (pkt_reformat->reformat_type) {
+	case MLX5_REFORMAT_TYPE_L2_TO_VXLAN:
+	case MLX5_REFORMAT_TYPE_L2_TO_NVGRE:
+	case MLX5_REFORMAT_TYPE_L2_TO_L2_TUNNEL:
+		pr_pool = mlx5_fs_get_pr_encap_pool(dev, &hws_pool->el2tol2tnl_pools,
+						    MLX5HWS_ACTION_TYP_REFORMAT_L2_TO_TNL_L2,
+						    pr_data->data_size);
+		break;
+	case MLX5_REFORMAT_TYPE_L2_TO_L3_TUNNEL:
+		pr_pool = mlx5_fs_get_pr_encap_pool(dev, &hws_pool->el2tol2tnl_pools,
+						    MLX5HWS_ACTION_TYP_REFORMAT_L2_TO_TNL_L2,
+						    pr_data->data_size);
+		break;
+	case MLX5_REFORMAT_TYPE_L3_TUNNEL_TO_L2:
+		pr_pool = &hws_pool->dl3tnltol2_pool;
+		break;
+	case MLX5_REFORMAT_TYPE_INSERT_HDR:
+		pr_pool = &hws_pool->insert_hdr_pool;
+		break;
+	default:
+		mlx5_core_err(ns->dev, "Unknown packet-reformat type\n");
+		return;
+	}
+	if (!pkt_reformat->fs_hws_action.pr_data || IS_ERR(pr_pool)) {
+		mlx5_core_err(ns->dev, "Failed release packet-reformat\n");
+		return;
+	}
+	kfree(pr_data->data);
+	mlx5_fs_hws_pr_pool_release_pr(pr_pool, pr_data);
+	pkt_reformat->fs_hws_action.pr_data = NULL;
+}
+
 static const struct mlx5_flow_cmds mlx5_flow_cmds_hws = {
 	.create_flow_table = mlx5_cmd_hws_create_flow_table,
 	.destroy_flow_table = mlx5_cmd_hws_destroy_flow_table,
@@ -258,6 +539,8 @@ static const struct mlx5_flow_cmds mlx5_flow_cmds_hws = {
 	.update_root_ft = mlx5_cmd_hws_update_root_ft,
 	.create_flow_group = mlx5_cmd_hws_create_flow_group,
 	.destroy_flow_group = mlx5_cmd_hws_destroy_flow_group,
+	.packet_reformat_alloc = mlx5_cmd_hws_packet_reformat_alloc,
+	.packet_reformat_dealloc = mlx5_cmd_hws_packet_reformat_dealloc,
 	.create_ns = mlx5_cmd_hws_create_ns,
 	.destroy_ns = mlx5_cmd_hws_destroy_ns,
 	.set_peer = mlx5_cmd_hws_set_peer,

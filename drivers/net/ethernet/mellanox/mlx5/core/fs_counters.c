@@ -449,7 +449,8 @@ static void mlx5_fc_init(struct mlx5_fc *counter, struct mlx5_fc_bulk *bulk,
 	counter->id = id;
 }
 
-static struct mlx5_fs_bulk *mlx5_fc_bulk_create(struct mlx5_core_dev *dev)
+static struct mlx5_fs_bulk *mlx5_fc_bulk_create(struct mlx5_core_dev *dev,
+						void *pool_ctx)
 {
 	enum mlx5_fc_bulk_alloc_bitmask alloc_bitmask;
 	struct mlx5_fc_bulk *fc_bulk;
@@ -518,7 +519,7 @@ static const struct mlx5_fs_pool_ops mlx5_fc_pool_ops = {
 static void
 mlx5_fc_pool_init(struct mlx5_fs_pool *fc_pool, struct mlx5_core_dev *dev)
 {
-	mlx5_fs_pool_init(fc_pool, dev, &mlx5_fc_pool_ops);
+	mlx5_fs_pool_init(fc_pool, dev, &mlx5_fc_pool_ops, NULL);
 }
 
 static void mlx5_fc_pool_cleanup(struct mlx5_fs_pool *fc_pool)

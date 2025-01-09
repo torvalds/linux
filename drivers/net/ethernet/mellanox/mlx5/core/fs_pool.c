@@ -56,11 +56,12 @@ static int mlx5_fs_bulk_release_index(struct mlx5_fs_bulk *fs_bulk, int index)
 }
 
 void mlx5_fs_pool_init(struct mlx5_fs_pool *pool, struct mlx5_core_dev *dev,
-		       const struct mlx5_fs_pool_ops *ops)
+		       const struct mlx5_fs_pool_ops *ops, void *pool_ctx)
 {
 	WARN_ON_ONCE(!ops || !ops->bulk_destroy || !ops->bulk_create ||
 		     !ops->update_threshold);
 	pool->dev = dev;
+	pool->pool_ctx = pool_ctx;
 	mutex_init(&pool->pool_lock);
 	INIT_LIST_HEAD(&pool->fully_used);
 	INIT_LIST_HEAD(&pool->partially_used);
@@ -91,7 +92,7 @@ mlx5_fs_pool_alloc_new_bulk(struct mlx5_fs_pool *fs_pool)
 	struct mlx5_core_dev *dev = fs_pool->dev;
 	struct mlx5_fs_bulk *new_bulk;
 
-	new_bulk = fs_pool->ops->bulk_create(dev);
+	new_bulk = fs_pool->ops->bulk_create(dev, fs_pool->pool_ctx);
 	if (new_bulk)
 		fs_pool->available_units += new_bulk->bulk_len;
 	fs_pool->ops->update_threshold(fs_pool);
