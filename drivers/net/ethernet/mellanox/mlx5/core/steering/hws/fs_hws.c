@@ -1333,6 +1333,17 @@ static int mlx5_cmd_hws_destroy_match_definer(struct mlx5_flow_root_namespace *n
 	return -EOPNOTSUPP;
 }
 
+static u32 mlx5_cmd_hws_get_capabilities(struct mlx5_flow_root_namespace *ns,
+					 enum fs_flow_table_type ft_type)
+{
+	if (ft_type != FS_FT_FDB)
+		return 0;
+
+	return MLX5_FLOW_STEERING_CAP_VLAN_PUSH_ON_RX |
+	       MLX5_FLOW_STEERING_CAP_VLAN_POP_ON_TX |
+	       MLX5_FLOW_STEERING_CAP_MATCH_RANGES;
+}
+
 static const struct mlx5_flow_cmds mlx5_flow_cmds_hws = {
 	.create_flow_table = mlx5_cmd_hws_create_flow_table,
 	.destroy_flow_table = mlx5_cmd_hws_destroy_flow_table,
@@ -1352,6 +1363,7 @@ static const struct mlx5_flow_cmds mlx5_flow_cmds_hws = {
 	.create_ns = mlx5_cmd_hws_create_ns,
 	.destroy_ns = mlx5_cmd_hws_destroy_ns,
 	.set_peer = mlx5_cmd_hws_set_peer,
+	.get_capabilities = mlx5_cmd_hws_get_capabilities,
 };
 
 const struct mlx5_flow_cmds *mlx5_fs_cmd_get_hws_cmds(void)
