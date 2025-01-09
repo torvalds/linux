@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0
+
+syscall_abis_32  +=
+syscall_abis_64  +=
+
+syscalltbl = $(srctree)/tools/perf/arch/parisc/entry/syscalls/syscall.tbl
