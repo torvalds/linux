@@ -153,11 +153,53 @@ static int mlx5_cmd_hws_update_root_ft(struct mlx5_flow_root_namespace *ns,
 							 disconnect);
 }
 
+static int mlx5_cmd_hws_create_flow_group(struct mlx5_flow_root_namespace *ns,
+					  struct mlx5_flow_table *ft, u32 *in,
+					  struct mlx5_flow_group *fg)
+{
+	struct mlx5hws_match_parameters mask;
+	struct mlx5hws_bwc_matcher *matcher;
+	u8 match_criteria_enable;
+	u32 priority;
+
+	if (mlx5_fs_cmd_is_fw_term_table(ft))
+		return mlx5_fs_cmd_get_fw_cmds()->create_flow_group(ns, ft, in, fg);
+
+	mask.match_buf = MLX5_ADDR_OF(create_flow_group_in, in, match_criteria);
+	mask.match_sz = sizeof(fg->mask.match_criteria);
+
+	match_criteria_enable = MLX5_GET(create_flow_group_in, in,
+					 match_criteria_enable);
+	priority = MLX5_GET(create_flow_group_in, in, start_flow_index);
+	matcher = mlx5hws_bwc_matcher_create(ft->fs_hws_table.hws_table,
+					     priority, match_criteria_enable,
+					     &mask);
+	if (!matcher) {
+		mlx5_core_err(ns->dev, "Failed creating matcher\n");
+		return -EINVAL;
+	}
+
+	fg->fs_hws_matcher.matcher = matcher;
+	return 0;
+}
+
+static int mlx5_cmd_hws_destroy_flow_group(struct mlx5_flow_root_namespace *ns,
+					   struct mlx5_flow_table *ft,
+					   struct mlx5_flow_group *fg)
+{
+	if (mlx5_fs_cmd_is_fw_term_table(ft))
+		return mlx5_fs_cmd_get_fw_cmds()->destroy_flow_group(ns, ft, fg);
+
+	return mlx5hws_bwc_matcher_destroy(fg->fs_hws_matcher.matcher);
+}
+
 static const struct mlx5_flow_cmds mlx5_flow_cmds_hws = {
 	.create_flow_table = mlx5_cmd_hws_create_flow_table,
 	.destroy_flow_table = mlx5_cmd_hws_destroy_flow_table,
 	.modify_flow_table = mlx5_cmd_hws_modify_flow_table,
 	.update_root_ft = mlx5_cmd_hws_update_root_ft,
+	.create_flow_group = mlx5_cmd_hws_create_flow_group,
+	.destroy_flow_group = mlx5_cmd_hws_destroy_flow_group,
 	.create_ns = mlx5_cmd_hws_create_ns,
 	.destroy_ns = mlx5_cmd_hws_destroy_ns,
 	.set_peer = mlx5_cmd_hws_set_peer,

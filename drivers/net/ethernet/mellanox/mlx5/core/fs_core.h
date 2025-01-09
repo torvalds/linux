@@ -285,7 +285,10 @@ struct mlx5_flow_group_mask {
 /* Type of children is fs_fte */
 struct mlx5_flow_group {
 	struct fs_node			node;
-	struct mlx5_fs_dr_matcher	fs_dr_matcher;
+	union {
+		struct mlx5_fs_dr_matcher	fs_dr_matcher;
+		struct mlx5_fs_hws_matcher	fs_hws_matcher;
+	};
 	struct mlx5_flow_group_mask	mask;
 	u32				start_index;
 	u32				max_ftes;

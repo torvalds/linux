@@ -15,6 +15,10 @@ struct mlx5_fs_hws_table {
 	bool miss_ft_set;
 };
 
+struct mlx5_fs_hws_matcher {
+	struct mlx5hws_bwc_matcher *matcher;
+};
+
 #ifdef CONFIG_MLX5_HW_STEERING
 
 const struct mlx5_flow_cmds *mlx5_fs_cmd_get_hws_cmds(void);
