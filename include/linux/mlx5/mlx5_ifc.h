@@ -10680,7 +10680,8 @@ struct mlx5_ifc_mcam_access_reg_bits3 {
 
 	u8         regs_63_to_32[0x20];
 
-	u8         regs_31_to_2[0x1e];
+	u8         regs_31_to_3[0x1d];
+	u8         mrtcq[0x1];
 	u8         mtctr[0x1];
 	u8         mtptm[0x1];
 };
@@ -13167,6 +13168,14 @@ struct mlx5_ifc_msees_reg_bits {
 	u8         failure_reason[0x9];
 
 	u8         frequency_diff[0x20];
+
+	u8         reserved_at_80[0x180];
+};
+
+struct mlx5_ifc_mrtcq_reg_bits {
+	u8         reserved_at_0[0x40];
+
+	u8         rt_clock_identity[0x40];
 
 	u8         reserved_at_80[0x180];
 };
