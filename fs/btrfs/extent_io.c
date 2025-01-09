@@ -198,9 +198,8 @@ static void __process_folios_contig(struct address_space *mapping,
 				    u64 end, unsigned long page_ops)
 {
 	struct btrfs_fs_info *fs_info = inode_to_fs_info(mapping->host);
-	pgoff_t start_index = start >> PAGE_SHIFT;
+	pgoff_t index = start >> PAGE_SHIFT;
 	pgoff_t end_index = end >> PAGE_SHIFT;
-	pgoff_t index = start_index;
 	struct folio_batch fbatch;
 	int i;
 
@@ -242,9 +241,8 @@ static noinline int lock_delalloc_folios(struct inode *inode,
 {
 	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
 	struct address_space *mapping = inode->i_mapping;
-	pgoff_t start_index = start >> PAGE_SHIFT;
+	pgoff_t index = start >> PAGE_SHIFT;
 	pgoff_t end_index = end >> PAGE_SHIFT;
-	pgoff_t index = start_index;
 	u64 processed_end = start;
 	struct folio_batch fbatch;
 
