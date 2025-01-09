@@ -484,8 +484,11 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 		return PTR_ERR(base);
 
 	vbus_reg = devm_regulator_get_optional(dev, "vbus");
-	if (IS_ERR(vbus_reg))
-		return dev_err_probe(dev, PTR_ERR(vbus_reg), "vbus init failed\n");
+	if (IS_ERR(vbus_reg)) {
+		if (PTR_ERR(vbus_reg) != -ENODEV)
+			return dev_err_probe(dev, PTR_ERR(vbus_reg), "vbus init failed\n");
+		vbus_reg = NULL;
+	}
 
 	omap->dev	= dev;
 	omap->irq	= irq;
