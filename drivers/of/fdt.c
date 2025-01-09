@@ -497,6 +497,7 @@ static void __init fdt_reserve_elfcorehdr(void)
 void __init early_init_fdt_scan_reserved_mem(void)
 {
 	int n;
+	int res;
 	u64 base, size;
 
 	if (!initial_boot_params)
@@ -507,7 +508,11 @@ void __init early_init_fdt_scan_reserved_mem(void)
 
 	/* Process header /memreserve/ fields */
 	for (n = 0; ; n++) {
-		fdt_get_mem_rsv(initial_boot_params, n, &base, &size);
+		res = fdt_get_mem_rsv(initial_boot_params, n, &base, &size);
+		if (res) {
+			pr_err("Invalid memory reservation block index %d\n", n);
+			break;
+		}
 		if (!size)
 			break;
 		memblock_reserve(base, size);
