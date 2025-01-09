@@ -297,3 +297,13 @@ napi->poll:
 	Context:
 		 softirq
 		 will be called with interrupts disabled by netconsole.
+
+NETDEV_INTERNAL symbol namespace
+================================
+
+Symbols exported as NETDEV_INTERNAL can only be used in networking
+core and drivers which exclusively flow via the main networking list and trees.
+Note that the inverse is not true, most symbols outside of NETDEV_INTERNAL
+are not expected to be used by random code outside netdev either.
+Symbols may lack the designation because they predate the namespaces,
+or simply due to an oversight.
