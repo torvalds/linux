@@ -58,14 +58,14 @@ static int cros_ucsi_read(struct ucsi *ucsi, unsigned int offset, void *val,
 	int ret;
 
 	if (val_len > MAX_EC_DATA_SIZE) {
-		dev_err(udata->dev, "Can't read %zu bytes. Too big.", val_len);
+		dev_err(udata->dev, "Can't read %zu bytes. Too big.\n", val_len);
 		return -EINVAL;
 	}
 
 	ret = cros_ec_cmd(udata->ec, 0, EC_CMD_UCSI_PPM_GET,
 			  &req, sizeof(req), val, val_len);
 	if (ret < 0) {
-		dev_warn(udata->dev, "Failed to send EC message UCSI_PPM_GET: error=%d", ret);
+		dev_warn(udata->dev, "Failed to send EC message UCSI_PPM_GET: error=%d\n", ret);
 		return ret;
 	}
 	return 0;
@@ -99,7 +99,7 @@ static int cros_ucsi_async_control(struct ucsi *ucsi, u64 cmd)
 	ret = cros_ec_cmd(udata->ec, 0, EC_CMD_UCSI_PPM_SET,
 			  req, sizeof(ec_buf), NULL, 0);
 	if (ret < 0) {
-		dev_warn(udata->dev, "Failed to send EC message UCSI_PPM_SET: error=%d", ret);
+		dev_warn(udata->dev, "Failed to send EC message UCSI_PPM_SET: error=%d\n", ret);
 		return ret;
 	}
 	return 0;
@@ -161,7 +161,7 @@ static void cros_ucsi_write_timeout(struct work_struct *work)
 
 	if (cros_ucsi_read(udata->ucsi, UCSI_CCI, &cci, sizeof(cci))) {
 		dev_err(udata->dev,
-			"Reading CCI failed; no write timeout recovery possible.");
+			"Reading CCI failed; no write timeout recovery possible.\n");
 		return;
 	}
 
@@ -173,7 +173,7 @@ static void cros_ucsi_write_timeout(struct work_struct *work)
 					      msecs_to_jiffies(WRITE_TMO_MS));
 		else
 			dev_err(udata->dev,
-				"PPM unresponsive - too many write timeouts.");
+				"PPM unresponsive - too many write timeouts.\n");
 
 		return;
 	}
@@ -208,7 +208,7 @@ static int cros_ucsi_event(struct notifier_block *nb,
 	if (!(host_event & PD_EVENT_PPM))
 		return NOTIFY_OK;
 
-	dev_dbg(udata->dev, "UCSI notification received");
+	dev_dbg(udata->dev, "UCSI notification received\n");
 	flush_work(&udata->work);
 	schedule_work(&udata->work);
 
@@ -237,10 +237,8 @@ static int cros_ucsi_probe(struct platform_device *pdev)
 	udata->dev = dev;
 
 	udata->ec = ec_data->ec_dev;
-	if (!udata->ec) {
-		dev_err(dev, "couldn't find parent EC device");
-		return -ENODEV;
-	}
+	if (!udata->ec)
+		return dev_err_probe(dev, -ENODEV, "couldn't find parent EC device\n");
 
 	platform_set_drvdata(pdev, udata);
 
@@ -249,24 +247,22 @@ static int cros_ucsi_probe(struct platform_device *pdev)
 	init_completion(&udata->complete);
 
 	udata->ucsi = ucsi_create(dev, &cros_ucsi_ops);
-	if (IS_ERR(udata->ucsi)) {
-		dev_err(dev, "failed to allocate UCSI instance");
-		return PTR_ERR(udata->ucsi);
-	}
+	if (IS_ERR(udata->ucsi))
+		return dev_err_probe(dev, PTR_ERR(udata->ucsi), "failed to allocate UCSI instance\n");
 
 	ucsi_set_drvdata(udata->ucsi, udata);
 
 	udata->nb.notifier_call = cros_ucsi_event;
 	ret = cros_usbpd_register_notify(&udata->nb);
 	if (ret) {
-		dev_err(dev, "failed to register notifier: error=%d", ret);
+		dev_err_probe(dev, ret, "failed to register notifier\n");
 		ucsi_destroy(udata->ucsi);
 		return ret;
 	}
 
 	ret = ucsi_register(udata->ucsi);
 	if (ret) {
-		dev_err(dev, "failed to register UCSI: error=%d", ret);
+		dev_err_probe(dev, ret, "failed to register UCSI\n");
 		cros_ucsi_destroy(udata);
 		return ret;
 	}
