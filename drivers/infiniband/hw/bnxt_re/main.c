@@ -148,6 +148,10 @@ static void bnxt_re_destroy_chip_ctx(struct bnxt_re_dev *rdev)
 
 	if (!rdev->chip_ctx)
 		return;
+
+	kfree(rdev->dev_attr);
+	rdev->dev_attr = NULL;
+
 	chip_ctx = rdev->chip_ctx;
 	rdev->chip_ctx = NULL;
 	rdev->rcfw.res = NULL;
@@ -161,7 +165,7 @@ static int bnxt_re_setup_chip_ctx(struct bnxt_re_dev *rdev)
 {
 	struct bnxt_qplib_chip_ctx *chip_ctx;
 	struct bnxt_en_dev *en_dev;
-	int rc;
+	int rc = -ENOMEM;
 
 	en_dev = rdev->en_dev;
 
@@ -177,7 +181,10 @@ static int bnxt_re_setup_chip_ctx(struct bnxt_re_dev *rdev)
 
 	rdev->qplib_res.cctx = rdev->chip_ctx;
 	rdev->rcfw.res = &rdev->qplib_res;
-	rdev->qplib_res.dattr = &rdev->dev_attr;
+	rdev->dev_attr = kzalloc(sizeof(*rdev->dev_attr), GFP_KERNEL);
+	if (!rdev->dev_attr)
+		goto free_chip_ctx;
+	rdev->qplib_res.dattr = rdev->dev_attr;
 	rdev->qplib_res.is_vf = BNXT_EN_VF(en_dev);
 	rdev->qplib_res.en_dev = en_dev;
 
@@ -185,16 +192,20 @@ static int bnxt_re_setup_chip_ctx(struct bnxt_re_dev *rdev)
 
 	bnxt_re_set_db_offset(rdev);
 	rc = bnxt_qplib_map_db_bar(&rdev->qplib_res);
-	if (rc) {
-		kfree(rdev->chip_ctx);
-		rdev->chip_ctx = NULL;
-		return rc;
-	}
+	if (rc)
+		goto free_dev_attr;
 
 	if (bnxt_qplib_determine_atomics(en_dev->pdev))
 		ibdev_info(&rdev->ibdev,
 			   "platform doesn't support global atomics.");
 	return 0;
+free_dev_attr:
+	kfree(rdev->dev_attr);
+	rdev->dev_attr = NULL;
+free_chip_ctx:
+	kfree(rdev->chip_ctx);
+	rdev->chip_ctx = NULL;
+	return rc;
 }
 
 /* SR-IOV helper functions */
@@ -216,7 +227,7 @@ static void bnxt_re_limit_pf_res(struct bnxt_re_dev *rdev)
 	struct bnxt_qplib_ctx *ctx;
 	int i;
 
-	attr = &rdev->dev_attr;
+	attr = rdev->dev_attr;
 	ctx = &rdev->qplib_ctx;
 
 	ctx->qpc_count = min_t(u32, BNXT_RE_MAX_QPC_COUNT,
@@ -230,7 +241,7 @@ static void bnxt_re_limit_pf_res(struct bnxt_re_dev *rdev)
 	if (!bnxt_qplib_is_chip_gen_p5_p7(rdev->chip_ctx))
 		for (i = 0; i < MAX_TQM_ALLOC_REQ; i++)
 			rdev->qplib_ctx.tqm_ctx.qcount[i] =
-			rdev->dev_attr.tqm_alloc_reqs[i];
+			rdev->dev_attr->tqm_alloc_reqs[i];
 }
 
 static void bnxt_re_limit_vf_res(struct bnxt_qplib_ctx *qplib_ctx, u32 num_vf)
@@ -1726,12 +1737,11 @@ static int bnxt_re_alloc_res(struct bnxt_re_dev *rdev)
 
 	/* Configure and allocate resources for qplib */
 	rdev->qplib_res.rcfw = &rdev->rcfw;
-	rc = bnxt_qplib_get_dev_attr(&rdev->rcfw, &rdev->dev_attr);
+	rc = bnxt_qplib_get_dev_attr(&rdev->rcfw);
 	if (rc)
 		goto fail;
 
-	rc = bnxt_qplib_alloc_res(&rdev->qplib_res, rdev->en_dev->pdev,
-				  rdev->netdev, &rdev->dev_attr);
+	rc = bnxt_qplib_alloc_res(&rdev->qplib_res, rdev->netdev);
 	if (rc)
 		goto fail;
 
@@ -2160,7 +2170,7 @@ static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 op_type)
 			rdev->pacing.dbr_pacing = false;
 		}
 	}
-	rc = bnxt_qplib_get_dev_attr(&rdev->rcfw, &rdev->dev_attr);
+	rc = bnxt_qplib_get_dev_attr(&rdev->rcfw);
 	if (rc)
 		goto disable_rcfw;
 
