@@ -1256,12 +1256,12 @@ static int btrfs_issue_discard(struct block_device *bdev, u64 start, u64 len,
 {
 	int j, ret = 0;
 	u64 bytes_left, end;
-	u64 aligned_start = ALIGN(start, 1 << SECTOR_SHIFT);
+	u64 aligned_start = ALIGN(start, SECTOR_SIZE);
 
 	/* Adjust the range to be aligned to 512B sectors if necessary. */
 	if (start != aligned_start) {
 		len -= aligned_start - start;
-		len = round_down(len, 1 << SECTOR_SHIFT);
+		len = round_down(len, SECTOR_SIZE);
 		start = aligned_start;
 	}
 
