@@ -16,7 +16,6 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/ethtool.h>
-#include <linux/hwmon.h>
 #include <linux/phy.h>
 #include <linux/if_vlan.h>
 #include <linux/in.h>
@@ -5347,43 +5346,6 @@ static bool rtl_aspm_is_safe(struct rtl8169_private *tp)
 	return false;
 }
 
-static umode_t r8169_hwmon_is_visible(const void *drvdata,
-				      enum hwmon_sensor_types type,
-				      u32 attr, int channel)
-{
-	return 0444;
-}
-
-static int r8169_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
-			    u32 attr, int channel, long *val)
-{
-	struct rtl8169_private *tp = dev_get_drvdata(dev);
-	int val_raw;
-
-	val_raw = phy_read_paged(tp->phydev, 0xbd8, 0x12) & 0x3ff;
-	if (val_raw >= 512)
-		val_raw -= 1024;
-
-	*val = 1000 * val_raw / 2;
-
-	return 0;
-}
-
-static const struct hwmon_ops r8169_hwmon_ops = {
-	.is_visible =  r8169_hwmon_is_visible,
-	.read = r8169_hwmon_read,
-};
-
-static const struct hwmon_channel_info * const r8169_hwmon_info[] = {
-	HWMON_CHANNEL_INFO(temp, HWMON_T_INPUT),
-	NULL
-};
-
-static const struct hwmon_chip_info r8169_hwmon_chip_info = {
-	.ops = &r8169_hwmon_ops,
-	.info = r8169_hwmon_info,
-};
-
 static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct rtl8169_private *tp;
@@ -5563,12 +5525,6 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		return rc;
 
-	/* The temperature sensor is available from RTl8125B */
-	if (IS_REACHABLE(CONFIG_HWMON) && tp->mac_version >= RTL_GIGA_MAC_VER_63)
-		/* ignore errors */
-		devm_hwmon_device_register_with_info(&pdev->dev, "nic_temp", tp,
-						     &r8169_hwmon_chip_info,
-						     NULL);
 	rc = register_netdev(dev);
 	if (rc)
 		return rc;
