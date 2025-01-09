@@ -18,6 +18,7 @@ struct intel_bw_state;
 struct intel_crtc;
 struct intel_crtc_state;
 struct intel_plane;
+struct intel_plane_state;
 struct skl_pipe_wm;
 struct skl_wm_level;
 
@@ -53,6 +54,9 @@ const struct skl_wm_level *skl_plane_wm_level(const struct skl_pipe_wm *pipe_wm,
 					      int level);
 const struct skl_wm_level *skl_plane_trans_wm(const struct skl_pipe_wm *pipe_wm,
 					      enum plane_id plane_id);
+unsigned int skl_plane_relative_data_rate(const struct intel_crtc_state *crtc_state,
+					  struct intel_plane *plane, int width,
+					  int height, int cpp);
 
 struct intel_dbuf_state {
 	struct intel_global_state base;

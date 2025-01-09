@@ -7,6 +7,7 @@
 
 #include <drm/drm_print.h>
 
+#include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_de.h"
 #include "intel_dmc.h"
@@ -54,12 +55,12 @@ struct intel_dmc_wl_range {
 	u32 end;
 };
 
-static struct intel_dmc_wl_range powered_off_ranges[] = {
+static const struct intel_dmc_wl_range powered_off_ranges[] = {
 	{ .start = 0x60000, .end = 0x7ffff },
 	{},
 };
 
-static struct intel_dmc_wl_range xe3lpd_dc5_dc6_dmc_ranges[] = {
+static const struct intel_dmc_wl_range xe3lpd_dc5_dc6_dmc_ranges[] = {
 	{ .start = 0x45500 }, /* DC_STATE_SEL */
 	{ .start = 0x457a0, .end = 0x457b0 }, /* DC*_RESIDENCY_COUNTER */
 	{ .start = 0x45504 }, /* DC_STATE_EN */
@@ -93,7 +94,7 @@ static struct intel_dmc_wl_range xe3lpd_dc5_dc6_dmc_ranges[] = {
 	{},
 };
 
-static struct intel_dmc_wl_range xe3lpd_dc3co_dmc_ranges[] = {
+static const struct intel_dmc_wl_range xe3lpd_dc3co_dmc_ranges[] = {
 	{ .start = 0x454a0 }, /* CHICKEN_DCPR_4 */
 
 	{ .start = 0x45504 }, /* DC_STATE_EN */

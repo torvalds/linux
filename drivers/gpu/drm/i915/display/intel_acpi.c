@@ -9,8 +9,9 @@
 #include <linux/acpi.h>
 #include <acpi/video.h>
 
-#include "i915_drv.h"
+#include "i915_utils.h"
 #include "intel_acpi.h"
+#include "intel_display_core.h"
 #include "intel_display_types.h"
 
 #define INTEL_DSM_REVISION_ID 1 /* For Calpella anyway... */

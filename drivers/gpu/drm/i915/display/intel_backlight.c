@@ -10,6 +10,7 @@
 
 #include <acpi/video.h>
 
+#include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_backlight.h"
 #include "intel_backlight_regs.h"

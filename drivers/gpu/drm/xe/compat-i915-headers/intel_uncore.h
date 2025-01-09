@@ -10,6 +10,11 @@
 #include "xe_device_types.h"
 #include "xe_mmio.h"
 
+static inline struct intel_uncore *to_intel_uncore(struct drm_device *drm)
+{
+	return &to_xe_device(drm)->uncore;
+}
+
 static inline struct xe_mmio *__compat_uncore_to_mmio(struct intel_uncore *uncore)
 {
 	struct xe_device *xe = container_of(uncore, struct xe_device, uncore);

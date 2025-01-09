@@ -34,6 +34,7 @@ i915-y += \
 	i915_sysfs.o \
 	i915_utils.o \
 	intel_clock_gating.o \
+	intel_cpu_info.o \
 	intel_device_info.o \
 	intel_memory_region.o \
 	intel_pcode.o \
@@ -42,6 +43,7 @@ i915-y += \
 	intel_sbi.o \
 	intel_step.o \
 	intel_uncore.o \
+	intel_uncore_trace.o \
 	intel_wakeref.o \
 	vlv_sideband.o \
 	vlv_suspend.o
@@ -236,6 +238,7 @@ i915-y += \
 	display/intel_crtc_state_dump.o \
 	display/intel_cursor.o \
 	display/intel_display.o \
+	display/intel_display_conversion.o \
 	display/intel_display_driver.o \
 	display/intel_display_irq.o \
 	display/intel_display_params.o \

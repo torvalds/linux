@@ -717,6 +717,22 @@ static u32 skl_plane_ddb_reg_val(const struct skl_ddb_entry *entry)
 		PLANE_BUF_START(entry->start);
 }
 
+static u32 xe3_plane_min_ddb_reg_val(const u16 *min_ddb,
+				     const u16 *interim_ddb)
+{
+	u32 val = 0;
+
+	if (*min_ddb)
+		val |= PLANE_MIN_DBUF_BLOCKS(*min_ddb);
+
+	if (*interim_ddb)
+		val |= PLANE_INTERIM_DBUF_BLOCKS(*interim_ddb);
+
+	val |= val ? PLANE_AUTO_MIN_DBUF_EN : 0;
+
+	return val;
+}
+
 static u32 skl_plane_wm_reg_val(const struct skl_wm_level *level)
 {
 	u32 val = 0;
@@ -725,6 +741,9 @@ static u32 skl_plane_wm_reg_val(const struct skl_wm_level *level)
 		val |= PLANE_WM_EN;
 	if (level->ignore_lines)
 		val |= PLANE_WM_IGNORE_LINES;
+	if (level->auto_min_alloc_wm_enable)
+		val |= PLANE_WM_AUTO_MIN_ALLOC_EN;
+
 	val |= REG_FIELD_PREP(PLANE_WM_BLOCKS_MASK, level->blocks);
 	val |= REG_FIELD_PREP(PLANE_WM_LINES_MASK, level->lines);
 
@@ -743,6 +762,9 @@ static void skl_write_plane_wm(struct intel_dsb *dsb,
 		&crtc_state->wm.skl.plane_ddb[plane_id];
 	const struct skl_ddb_entry *ddb_y =
 		&crtc_state->wm.skl.plane_ddb_y[plane_id];
+	const u16 *min_ddb = &crtc_state->wm.skl.plane_min_ddb[plane_id];
+	const u16 *interim_ddb =
+		&crtc_state->wm.skl.plane_interim_ddb[plane_id];
 	int level;
 
 	for (level = 0; level < display->wm.num_levels; level++)
@@ -767,6 +789,10 @@ static void skl_write_plane_wm(struct intel_dsb *dsb,
 	if (DISPLAY_VER(display) < 11)
 		intel_de_write_dsb(display, dsb, PLANE_NV12_BUF_CFG(pipe, plane_id),
 				   skl_plane_ddb_reg_val(ddb_y));
+
+	if (DISPLAY_VER(display) >= 30)
+		intel_de_write_dsb(display, dsb, PLANE_MIN_BUF_CFG(pipe, plane_id),
+				   xe3_plane_min_ddb_reg_val(min_ddb, interim_ddb));
 }
 
 static void

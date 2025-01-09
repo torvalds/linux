@@ -163,9 +163,7 @@ static void intel_mode_config_init(struct intel_display *display)
 
 static void intel_mode_config_cleanup(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
-	intel_atomic_global_obj_cleanup(i915);
+	intel_atomic_global_obj_cleanup(display);
 	drm_mode_config_cleanup(display->drm);
 }
 
@@ -233,7 +231,7 @@ int intel_display_driver_probe_noirq(struct intel_display *display)
 	if (ret < 0)
 		goto cleanup_vga;
 
-	intel_pmdemand_init_early(i915);
+	intel_pmdemand_init_early(display);
 
 	intel_power_domains_init_hw(display, false);
 
@@ -265,7 +263,7 @@ int intel_display_driver_probe_noirq(struct intel_display *display)
 	if (ret)
 		goto cleanup_vga_client_pw_domain_dmc;
 
-	ret = intel_pmdemand_init(i915);
+	ret = intel_pmdemand_init(display);
 	if (ret)
 		goto cleanup_vga_client_pw_domain_dmc;
 
@@ -573,8 +571,6 @@ void intel_display_driver_register(struct intel_display *display)
 /* part #1: call before irq uninstall */
 void intel_display_driver_remove(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
 	if (!HAS_DISPLAY(display))
 		return;
 
@@ -587,7 +583,7 @@ void intel_display_driver_remove(struct intel_display *display)
 	 * fbdev after it's finalized. MST will be destroyed later as part of
 	 * drm_mode_config_cleanup()
 	 */
-	intel_dp_mst_suspend(i915);
+	intel_dp_mst_suspend(display);
 }
 
 /* part #2: call after irq uninstall */
@@ -672,7 +668,6 @@ void intel_display_driver_unregister(struct intel_display *display)
  */
 int intel_display_driver_suspend(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct drm_atomic_state *state;
 	int ret;
 
@@ -690,7 +685,7 @@ int intel_display_driver_suspend(struct intel_display *display)
 	/* ensure all DPT VMAs have been unpinned for intel_dpt_suspend() */
 	flush_workqueue(display->wq.cleanup);
 
-	intel_dp_mst_suspend(i915);
+	intel_dp_mst_suspend(display);
 
 	return ret;
 }
@@ -747,7 +742,7 @@ void intel_display_driver_resume(struct intel_display *display)
 		return;
 
 	/* MST sideband requires HPD interrupts enabled */
-	intel_dp_mst_resume(i915);
+	intel_dp_mst_resume(display);
 
 	display->restore.modeset_state = NULL;
 	if (state)

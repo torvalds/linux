@@ -45,6 +45,7 @@
 #include "i915_vma_types.h"
 #include "intel_bios.h"
 #include "intel_display.h"
+#include "intel_display_conversion.h"
 #include "intel_display_limits.h"
 #include "intel_display_power.h"
 #include "intel_dpll_mgr.h"
@@ -780,6 +781,7 @@ struct skl_wm_level {
 	u8 lines;
 	bool enable;
 	bool ignore_lines;
+	bool auto_min_alloc_wm_enable;
 	bool can_sagv;
 };
 
@@ -874,6 +876,13 @@ struct intel_crtc_wm_state {
 			struct skl_ddb_entry plane_ddb[I915_MAX_PLANES];
 			/* pre-icl: for planar Y */
 			struct skl_ddb_entry plane_ddb_y[I915_MAX_PLANES];
+
+			/*
+			 * xe3: Minimum amount of display blocks and minimum
+			 * sagv allocation required for async flip
+			 */
+			u16 plane_min_ddb[I915_MAX_PLANES];
+			u16 plane_interim_ddb[I915_MAX_PLANES];
 		} skl;
 
 		struct {
@@ -1150,8 +1159,6 @@ struct intel_crtc_state {
 	bool crc_enabled;
 
 	bool double_wide;
-
-	int pbn;
 
 	struct intel_crtc_scaler_state scaler_state;
 
@@ -1959,6 +1966,19 @@ static inline bool intel_encoder_is_dp(struct intel_encoder *encoder)
 	}
 }
 
+static inline bool intel_encoder_is_hdmi(struct intel_encoder *encoder)
+{
+	switch (encoder->type) {
+	case INTEL_OUTPUT_HDMI:
+		return true;
+	case INTEL_OUTPUT_DDI:
+		/* See if the HDMI encoder is valid. */
+		return i915_mmio_reg_valid(enc_to_intel_hdmi(encoder)->hdmi_reg);
+	default:
+		return false;
+	}
+}
+
 static inline struct intel_lspcon *
 enc_to_intel_lspcon(struct intel_encoder *encoder)
 {
@@ -2099,7 +2119,7 @@ to_intel_frontbuffer(struct drm_framebuffer *fb)
  * intel_display pointer.
  */
 #define __drm_device_to_intel_display(p) \
-	((p) ? &to_i915(p)->display : NULL)
+	((p) ? __drm_to_display(p) : NULL)
 #define __device_to_intel_display(p)				\
 	__drm_device_to_intel_display(dev_get_drvdata(p))
 #define __pci_dev_to_intel_display(p)				\

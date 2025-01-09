@@ -139,7 +139,6 @@ static int intel_dp_mst_max_dpt_bpp(const struct intel_crtc_state *crtc_state,
 }
 
 static int intel_dp_mst_bw_overhead(const struct intel_crtc_state *crtc_state,
-				    const struct intel_connector *connector,
 				    bool ssc, int dsc_slice_count, int bpp_x16)
 {
 	const struct drm_display_mode *adjusted_mode =
@@ -168,7 +167,6 @@ static int intel_dp_mst_bw_overhead(const struct intel_crtc_state *crtc_state,
 }
 
 static void intel_dp_mst_compute_m_n(const struct intel_crtc_state *crtc_state,
-				     const struct intel_connector *connector,
 				     int overhead,
 				     int bpp_x16,
 				     struct intel_link_m_n *m_n)
@@ -211,31 +209,22 @@ static int intel_dp_mst_dsc_get_slice_count(const struct intel_connector *connec
 					    num_joined_pipes);
 }
 
-static int mst_stream_find_vcpi_slots_for_bpp(struct intel_dp *intel_dp,
-					      struct intel_crtc_state *crtc_state,
-					      int max_bpp, int min_bpp,
-					      struct link_config_limits *limits,
-					      struct drm_connector_state *conn_state,
-					      int step, bool dsc)
+int intel_dp_mtp_tu_compute_config(struct intel_dp *intel_dp,
+				   struct intel_crtc_state *crtc_state,
+				   int max_bpp, int min_bpp,
+				   struct drm_connector_state *conn_state,
+				   int step, bool dsc)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	struct drm_atomic_state *state = crtc_state->uapi.state;
-	struct drm_dp_mst_topology_state *mst_state;
 	struct intel_connector *connector =
 		to_intel_connector(conn_state->connector);
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
+	fixed20_12 pbn_div;
 	int bpp, slots = -EINVAL;
 	int dsc_slice_count = 0;
 	int max_dpt_bpp;
-	int ret = 0;
-
-	mst_state = drm_atomic_get_mst_topology_state(state, &intel_dp->mst_mgr);
-	if (IS_ERR(mst_state))
-		return PTR_ERR(mst_state);
-
-	crtc_state->lane_count = limits->max_lane_count;
-	crtc_state->port_clock = limits->max_rate;
 
 	if (dsc) {
 		if (!intel_dp_supports_fec(intel_dp, connector, crtc_state))
@@ -244,9 +233,8 @@ static int mst_stream_find_vcpi_slots_for_bpp(struct intel_dp *intel_dp,
 		crtc_state->fec_enable = !intel_dp_is_uhbr(crtc_state);
 	}
 
-	mst_state->pbn_div = drm_dp_get_vc_payload_bw(&intel_dp->mst_mgr,
-						      crtc_state->port_clock,
-						      crtc_state->lane_count);
+	pbn_div = drm_dp_get_vc_payload_bw(crtc_state->port_clock,
+					   crtc_state->lane_count);
 
 	max_dpt_bpp = intel_dp_mst_max_dpt_bpp(crtc_state, dsc);
 	if (max_bpp > max_dpt_bpp) {
@@ -269,70 +257,82 @@ static int mst_stream_find_vcpi_slots_for_bpp(struct intel_dp *intel_dp,
 
 	for (bpp = max_bpp; bpp >= min_bpp; bpp -= step) {
 		int local_bw_overhead;
-		int remote_bw_overhead;
 		int link_bpp_x16;
-		int remote_tu;
-		fixed20_12 pbn;
 
 		drm_dbg_kms(display->drm, "Trying bpp %d\n", bpp);
 
 		link_bpp_x16 = fxp_q4_from_int(dsc ? bpp :
 					       intel_dp_output_bpp(crtc_state->output_format, bpp));
 
-		local_bw_overhead = intel_dp_mst_bw_overhead(crtc_state, connector,
+		local_bw_overhead = intel_dp_mst_bw_overhead(crtc_state,
 							     false, dsc_slice_count, link_bpp_x16);
-		remote_bw_overhead = intel_dp_mst_bw_overhead(crtc_state, connector,
-							      true, dsc_slice_count, link_bpp_x16);
-
-		intel_dp_mst_compute_m_n(crtc_state, connector,
+		intel_dp_mst_compute_m_n(crtc_state,
 					 local_bw_overhead,
 					 link_bpp_x16,
 					 &crtc_state->dp_m_n);
 
-		/*
-		 * The TU size programmed to the HW determines which slots in
-		 * an MTP frame are used for this stream, which needs to match
-		 * the payload size programmed to the first downstream branch
-		 * device's payload table.
-		 *
-		 * Note that atm the payload's PBN value DRM core sends via
-		 * the ALLOCATE_PAYLOAD side-band message matches the payload
-		 * size (which it calculates from the PBN value) it programs
-		 * to the first branch device's payload table. The allocation
-		 * in the payload table could be reduced though (to
-		 * crtc_state->dp_m_n.tu), provided that the driver doesn't
-		 * enable SSC on the corresponding link.
-		 */
-		pbn.full = dfixed_const(intel_dp_mst_calc_pbn(adjusted_mode->crtc_clock,
-							      link_bpp_x16,
-							      remote_bw_overhead));
-		remote_tu = DIV_ROUND_UP(pbn.full, mst_state->pbn_div.full);
+		if (intel_dp->is_mst) {
+			int remote_bw_overhead;
+			int remote_tu;
+			fixed20_12 pbn;
 
-		/*
-		 * Aligning the TUs ensures that symbols consisting of multiple
-		 * (4) symbol cycles don't get split between two consecutive
-		 * MTPs, as required by Bspec.
-		 * TODO: remove the alignment restriction for 128b/132b links
-		 * on some platforms, where Bspec allows this.
-		 */
-		remote_tu = ALIGN(remote_tu, 4 / crtc_state->lane_count);
+			remote_bw_overhead = intel_dp_mst_bw_overhead(crtc_state,
+								      true, dsc_slice_count, link_bpp_x16);
 
-		/*
-		 * Also align PBNs accordingly, since MST core will derive its
-		 * own copy of TU from the PBN in drm_dp_atomic_find_time_slots().
-		 * The above comment about the difference between the PBN
-		 * allocated for the whole path and the TUs allocated for the
-		 * first branch device's link also applies here.
-		 */
-		pbn.full = remote_tu * mst_state->pbn_div.full;
-		crtc_state->pbn = dfixed_trunc(pbn);
+			/*
+			 * The TU size programmed to the HW determines which slots in
+			 * an MTP frame are used for this stream, which needs to match
+			 * the payload size programmed to the first downstream branch
+			 * device's payload table.
+			 *
+			 * Note that atm the payload's PBN value DRM core sends via
+			 * the ALLOCATE_PAYLOAD side-band message matches the payload
+			 * size (which it calculates from the PBN value) it programs
+			 * to the first branch device's payload table. The allocation
+			 * in the payload table could be reduced though (to
+			 * crtc_state->dp_m_n.tu), provided that the driver doesn't
+			 * enable SSC on the corresponding link.
+			 */
+			pbn.full = dfixed_const(intel_dp_mst_calc_pbn(adjusted_mode->crtc_clock,
+								      link_bpp_x16,
+								      remote_bw_overhead));
+			remote_tu = DIV_ROUND_UP(pbn.full, pbn_div.full);
 
-		drm_WARN_ON(display->drm, remote_tu < crtc_state->dp_m_n.tu);
-		crtc_state->dp_m_n.tu = remote_tu;
+			/*
+			 * Aligning the TUs ensures that symbols consisting of multiple
+			 * (4) symbol cycles don't get split between two consecutive
+			 * MTPs, as required by Bspec.
+			 * TODO: remove the alignment restriction for 128b/132b links
+			 * on some platforms, where Bspec allows this.
+			 */
+			remote_tu = ALIGN(remote_tu, 4 / crtc_state->lane_count);
 
-		slots = drm_dp_atomic_find_time_slots(state, &intel_dp->mst_mgr,
-						      connector->port,
-						      crtc_state->pbn);
+			/*
+			 * Also align PBNs accordingly, since MST core will derive its
+			 * own copy of TU from the PBN in drm_dp_atomic_find_time_slots().
+			 * The above comment about the difference between the PBN
+			 * allocated for the whole path and the TUs allocated for the
+			 * first branch device's link also applies here.
+			 */
+			pbn.full = remote_tu * pbn_div.full;
+
+			drm_WARN_ON(display->drm, remote_tu < crtc_state->dp_m_n.tu);
+			crtc_state->dp_m_n.tu = remote_tu;
+
+			slots = drm_dp_atomic_find_time_slots(state, &intel_dp->mst_mgr,
+							      connector->port,
+							      dfixed_trunc(pbn));
+		} else {
+			/* Same as above for remote_tu */
+			crtc_state->dp_m_n.tu = ALIGN(crtc_state->dp_m_n.tu,
+						      4 / crtc_state->lane_count);
+
+			if (crtc_state->dp_m_n.tu <= 64)
+				slots = crtc_state->dp_m_n.tu;
+			else
+				slots = -EINVAL;
+		}
+
 		if (slots == -EDEADLK)
 			return slots;
 
@@ -343,23 +343,46 @@ static int mst_stream_find_vcpi_slots_for_bpp(struct intel_dp *intel_dp,
 		}
 	}
 
-	/* We failed to find a proper bpp/timeslots, return error */
-	if (ret)
-		slots = ret;
-
 	if (slots < 0) {
 		drm_dbg_kms(display->drm, "failed finding vcpi slots:%d\n",
 			    slots);
-	} else {
-		if (!dsc)
-			crtc_state->pipe_bpp = bpp;
-		else
-			crtc_state->dsc.compressed_bpp_x16 = fxp_q4_from_int(bpp);
-		drm_dbg_kms(display->drm, "Got %d slots for pipe bpp %d dsc %d\n",
-			    slots, bpp, dsc);
+		return slots;
 	}
 
-	return slots;
+	if (!dsc)
+		crtc_state->pipe_bpp = bpp;
+	else
+		crtc_state->dsc.compressed_bpp_x16 = fxp_q4_from_int(bpp);
+
+	drm_dbg_kms(display->drm, "Got %d slots for pipe bpp %d dsc %d\n",
+		    slots, bpp, dsc);
+
+	return 0;
+}
+
+static int mst_stream_find_vcpi_slots_for_bpp(struct intel_dp *intel_dp,
+					      struct intel_crtc_state *crtc_state,
+					      int max_bpp, int min_bpp,
+					      struct link_config_limits *limits,
+					      struct drm_connector_state *conn_state,
+					      int step, bool dsc)
+{
+	struct drm_atomic_state *state = crtc_state->uapi.state;
+	struct drm_dp_mst_topology_state *mst_state;
+
+	mst_state = drm_atomic_get_mst_topology_state(state, &intel_dp->mst_mgr);
+	if (IS_ERR(mst_state))
+		return PTR_ERR(mst_state);
+
+	crtc_state->lane_count = limits->max_lane_count;
+	crtc_state->port_clock = limits->max_rate;
+
+	mst_state->pbn_div = drm_dp_get_vc_payload_bw(crtc_state->port_clock,
+						      crtc_state->lane_count);
+
+	return intel_dp_mtp_tu_compute_config(intel_dp, crtc_state,
+					      max_bpp, min_bpp,
+					      conn_state, step, dsc);
 }
 
 static int mst_stream_compute_link_config(struct intel_dp *intel_dp,
@@ -367,22 +390,15 @@ static int mst_stream_compute_link_config(struct intel_dp *intel_dp,
 					  struct drm_connector_state *conn_state,
 					  struct link_config_limits *limits)
 {
-	int slots = -EINVAL;
-
 	/*
 	 * FIXME: allocate the BW according to link_bpp, which in the case of
 	 * YUV420 is only half of the pipe bpp value.
 	 */
-	slots = mst_stream_find_vcpi_slots_for_bpp(intel_dp, crtc_state,
-						   fxp_q4_to_int(limits->link.max_bpp_x16),
-						   fxp_q4_to_int(limits->link.min_bpp_x16),
-						   limits,
-						   conn_state, 2 * 3, false);
-
-	if (slots < 0)
-		return slots;
-
-	return 0;
+	return mst_stream_find_vcpi_slots_for_bpp(intel_dp, crtc_state,
+						  fxp_q4_to_int(limits->link.max_bpp_x16),
+						  fxp_q4_to_int(limits->link.min_bpp_x16),
+						  limits,
+						  conn_state, 2 * 3, false);
 }
 
 static int mst_stream_dsc_compute_link_config(struct intel_dp *intel_dp,
@@ -392,21 +408,12 @@ static int mst_stream_dsc_compute_link_config(struct intel_dp *intel_dp,
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
-	int slots = -EINVAL;
 	int i, num_bpc;
 	u8 dsc_bpc[3] = {};
 	int min_bpp, max_bpp, sink_min_bpp, sink_max_bpp;
-	u8 dsc_max_bpc;
 	int min_compressed_bpp, max_compressed_bpp;
 
-	/* Max DSC Input BPC for ICL is 10 and for TGL+ is 12 */
-	if (DISPLAY_VER(display) >= 12)
-		dsc_max_bpc = min_t(u8, 12, conn_state->max_requested_bpc);
-	else
-		dsc_max_bpc = min_t(u8, 10, conn_state->max_requested_bpc);
-
-	max_bpp = min_t(u8, dsc_max_bpc * 3, limits->pipe.max_bpp);
+	max_bpp = limits->pipe.max_bpp;
 	min_bpp = limits->pipe.min_bpp;
 
 	num_bpc = drm_dp_dsc_sink_supported_input_bpcs(connector->dp.dsc_dpcd,
@@ -436,33 +443,21 @@ static int mst_stream_dsc_compute_link_config(struct intel_dp *intel_dp,
 
 	crtc_state->pipe_bpp = max_bpp;
 
-	max_compressed_bpp = intel_dp_dsc_sink_max_compressed_bpp(connector,
-								  crtc_state,
-								  max_bpp / 3);
-	max_compressed_bpp = min(max_compressed_bpp,
-				 fxp_q4_to_int(limits->link.max_bpp_x16));
-
-	min_compressed_bpp = intel_dp_dsc_sink_min_compressed_bpp(crtc_state);
-	min_compressed_bpp = max(min_compressed_bpp,
-				 fxp_q4_to_int_roundup(limits->link.min_bpp_x16));
+	max_compressed_bpp = fxp_q4_to_int(limits->link.max_bpp_x16);
+	min_compressed_bpp = fxp_q4_to_int_roundup(limits->link.min_bpp_x16);
 
 	drm_dbg_kms(display->drm, "DSC Sink supported compressed min bpp %d compressed max bpp %d\n",
 		    min_compressed_bpp, max_compressed_bpp);
 
 	/* Align compressed bpps according to our own constraints */
-	max_compressed_bpp = intel_dp_dsc_nearest_valid_bpp(i915, max_compressed_bpp,
+	max_compressed_bpp = intel_dp_dsc_nearest_valid_bpp(display, max_compressed_bpp,
 							    crtc_state->pipe_bpp);
-	min_compressed_bpp = intel_dp_dsc_nearest_valid_bpp(i915, min_compressed_bpp,
+	min_compressed_bpp = intel_dp_dsc_nearest_valid_bpp(display, min_compressed_bpp,
 							    crtc_state->pipe_bpp);
 
-	slots = mst_stream_find_vcpi_slots_for_bpp(intel_dp, crtc_state, max_compressed_bpp,
-						   min_compressed_bpp, limits,
-						   conn_state, 1, true);
-
-	if (slots < 0)
-		return slots;
-
-	return 0;
+	return mst_stream_find_vcpi_slots_for_bpp(intel_dp, crtc_state, max_compressed_bpp,
+						  min_compressed_bpp, limits,
+						  conn_state, 1, true);
 }
 
 static int mst_stream_update_slots(struct intel_dp *intel_dp,
@@ -520,7 +515,8 @@ hblank_expansion_quirk_needs_dsc(const struct intel_connector *connector,
 }
 
 static bool
-adjust_limits_for_dsc_hblank_expansion_quirk(const struct intel_connector *connector,
+adjust_limits_for_dsc_hblank_expansion_quirk(struct intel_dp *intel_dp,
+					     const struct intel_connector *connector,
 					     const struct intel_crtc_state *crtc_state,
 					     struct link_config_limits *limits,
 					     bool dsc)
@@ -533,7 +529,7 @@ adjust_limits_for_dsc_hblank_expansion_quirk(const struct intel_connector *conne
 		return true;
 
 	if (!dsc) {
-		if (intel_dp_supports_dsc(connector, crtc_state)) {
+		if (intel_dp_supports_dsc(intel_dp, connector, crtc_state)) {
 			drm_dbg_kms(display->drm,
 				    "[CRTC:%d:%s][CONNECTOR:%d:%s] DSC needed by hblank expansion quirk\n",
 				    crtc->base.base.id, crtc->base.name,
@@ -585,36 +581,12 @@ mst_stream_compute_config_limits(struct intel_dp *intel_dp,
 				 bool dsc,
 				 struct link_config_limits *limits)
 {
-	/*
-	 * for MST we always configure max link bw - the spec doesn't
-	 * seem to suggest we should do otherwise.
-	 */
-	limits->min_rate = limits->max_rate =
-		intel_dp_max_link_rate(intel_dp);
-
-	limits->min_lane_count = limits->max_lane_count =
-		intel_dp_max_lane_count(intel_dp);
-
-	limits->pipe.min_bpp = intel_dp_min_bpp(crtc_state->output_format);
-	/*
-	 * FIXME: If all the streams can't fit into the link with
-	 * their current pipe_bpp we should reduce pipe_bpp across
-	 * the board until things start to fit. Until then we
-	 * limit to <= 8bpc since that's what was hardcoded for all
-	 * MST streams previously. This hack should be removed once
-	 * we have the proper retry logic in place.
-	 */
-	limits->pipe.max_bpp = min(crtc_state->pipe_bpp, 24);
-
-	intel_dp_test_compute_config(intel_dp, crtc_state, limits);
-
-	if (!intel_dp_compute_config_link_bpp_limits(intel_dp,
-						     crtc_state,
-						     dsc,
-						     limits))
+	if (!intel_dp_compute_config_limits(intel_dp, crtc_state, false, dsc,
+					    limits))
 		return false;
 
-	return adjust_limits_for_dsc_hblank_expansion_quirk(connector,
+	return adjust_limits_for_dsc_hblank_expansion_quirk(intel_dp,
+							    connector,
 							    crtc_state,
 							    limits,
 							    dsc);
@@ -625,7 +597,6 @@ static int mst_stream_compute_config(struct intel_encoder *encoder,
 				     struct drm_connector_state *conn_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_atomic_state *state = to_intel_atomic_state(conn_state->state);
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	struct intel_dp *intel_dp = to_primary_dp(encoder);
@@ -655,7 +626,7 @@ static int mst_stream_compute_config(struct intel_encoder *encoder,
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 	pipe_config->has_pch_encoder = false;
 
-	joiner_needs_dsc = intel_dp_joiner_needs_dsc(dev_priv, num_joined_pipes);
+	joiner_needs_dsc = intel_dp_joiner_needs_dsc(display, num_joined_pipes);
 
 	dsc_needed = joiner_needs_dsc || intel_dp->force_dsc_en ||
 		!mst_stream_compute_config_limits(intel_dp, connector,
@@ -672,14 +643,17 @@ static int mst_stream_compute_config(struct intel_encoder *encoder,
 			dsc_needed = true;
 	}
 
+	if (dsc_needed && !intel_dp_supports_dsc(intel_dp, connector, pipe_config)) {
+		drm_dbg_kms(display->drm, "DSC required but not available\n");
+		return -EINVAL;
+	}
+
 	/* enable compression if the mode doesn't fit available BW */
 	if (dsc_needed) {
 		drm_dbg_kms(display->drm, "Try DSC (fallback=%s, joiner=%s, force=%s)\n",
 			    str_yes_no(ret), str_yes_no(joiner_needs_dsc),
 			    str_yes_no(intel_dp->force_dsc_en));
 
-		if (!intel_dp_supports_dsc(connector, pipe_config))
-			return -EINVAL;
 
 		if (!mst_stream_compute_config_limits(intel_dp, connector,
 						      pipe_config, true,
@@ -1526,7 +1500,7 @@ mst_connector_mode_valid_ctx(struct drm_connector *connector,
 
 		if (drm_dp_sink_supports_fec(intel_connector->dp.fec_capability)) {
 			dsc_max_compressed_bpp =
-				intel_dp_dsc_get_max_compressed_bpp(dev_priv,
+				intel_dp_dsc_get_max_compressed_bpp(display,
 								    max_link_clock,
 								    max_lanes,
 								    target_clock,
@@ -1544,7 +1518,7 @@ mst_connector_mode_valid_ctx(struct drm_connector *connector,
 		dsc = dsc_max_compressed_bpp && dsc_slice_count;
 	}
 
-	if (intel_dp_joiner_needs_dsc(dev_priv, num_joined_pipes) && !dsc) {
+	if (intel_dp_joiner_needs_dsc(display, num_joined_pipes) && !dsc) {
 		*status = MODE_CLOCK_HIGH;
 		return 0;
 	}

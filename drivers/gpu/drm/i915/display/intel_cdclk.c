@@ -29,6 +29,7 @@
 #include "soc/intel_dram.h"
 
 #include "hsw_ips.h"
+#include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_atomic.h"
 #include "intel_atomic_plane.h"
@@ -3216,14 +3217,13 @@ int intel_cdclk_state_set_joined_mbus(struct intel_atomic_state *state, bool joi
 
 int intel_cdclk_init(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_cdclk_state *cdclk_state;
 
 	cdclk_state = kzalloc(sizeof(*cdclk_state), GFP_KERNEL);
 	if (!cdclk_state)
 		return -ENOMEM;
 
-	intel_atomic_global_obj_init(dev_priv, &display->cdclk.obj,
+	intel_atomic_global_obj_init(display, &display->cdclk.obj,
 				     &cdclk_state->base, &intel_cdclk_funcs);
 
 	return 0;

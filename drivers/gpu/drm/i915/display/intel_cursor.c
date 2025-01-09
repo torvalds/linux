@@ -11,6 +11,7 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_vblank.h>
 
+#include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_atomic.h"
 #include "intel_atomic_plane.h"

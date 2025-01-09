@@ -31,11 +31,16 @@
 #include "i915_drv.h"
 #include "i915_iosf_mbi.h"
 #include "i915_reg.h"
-#include "i915_trace.h"
 #include "i915_vgpu.h"
+#include "intel_uncore_trace.h"
 
 #define FORCEWAKE_ACK_TIMEOUT_MS 50
 #define GT_FIFO_TIMEOUT_MS	 10
+
+struct intel_uncore *to_intel_uncore(struct drm_device *drm)
+{
+	return &to_i915(drm)->uncore;
+}
 
 #define __raw_posting_read(...) ((void)__raw_uncore_read32(__VA_ARGS__))
 

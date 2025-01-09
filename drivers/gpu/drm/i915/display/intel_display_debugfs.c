@@ -11,8 +11,10 @@
 #include <drm/drm_fourcc.h>
 
 #include "hsw_ips.h"
+#include "i915_drv.h"
 #include "i915_irq.h"
 #include "i915_reg.h"
+#include "i9xx_wm_regs.h"
 #include "intel_alpm.h"
 #include "intel_bo.h"
 #include "intel_crtc.h"
@@ -1013,6 +1015,8 @@ static int i915_dsc_fec_support_show(struct seq_file *m, void *data)
 								      DP_DSC_YCbCr444)));
 		seq_printf(m, "DSC_Sink_BPP_Precision: %d\n",
 			   drm_dp_dsc_sink_bpp_incr(connector->dp.dsc_dpcd));
+		seq_printf(m, "DSC_Sink_Max_Slice_Count: %d\n",
+			   drm_dp_dsc_sink_max_slice_count((connector->dp.dsc_dpcd), intel_dp_is_edp(intel_dp)));
 		seq_printf(m, "Force_DSC_Enable: %s\n",
 			   str_yes_no(intel_dp->force_dsc_en));
 		if (!intel_dp_is_edp(intel_dp))
