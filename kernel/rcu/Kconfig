@@ -323,21 +323,27 @@ config RCU_LAZY
 	depends on RCU_NOCB_CPU
 	default n
 	help
-	  To save power, batch RCU callbacks and flush after delay, memory
-	  pressure, or callback list growing too big.
+	  To save power, batch RCU callbacks and delay starting the
+	  corresponding grace  period for multiple seconds.  The grace
+	  period will be started after this delay, in case of memory
+	  pressure, or if the corresponding CPU's callback list grows
+	  too large.
 
-	  Requires rcu_nocbs=all to be set.
+	  These delays happen only on rcu_nocbs CPUs, that is, CPUs
+	  whose callbacks have been offloaded.
 
-	  Use rcutree.enable_rcu_lazy=0 to turn it off at boot time.
+	  Use the rcutree.enable_rcu_lazy=0 kernel-boot parameter to
+	  globally disable these delays.
 
 config RCU_LAZY_DEFAULT_OFF
 	bool "Turn RCU lazy invocation off by default"
 	depends on RCU_LAZY
 	default n
 	help
-	  Allows building the kernel with CONFIG_RCU_LAZY=y yet keep it default
-	  off. Boot time param rcutree.enable_rcu_lazy=1 can be used to switch
-	  it back on.
+	  Build the kernel with CONFIG_RCU_LAZY=y, but cause the kernel
+	  to boot with these energy-efficiency delays disabled.  Use the
+	  rcutree.enable_rcu_lazy=0 kernel-boot parameter to override
+	  the this option at boot time, thus re-enabling these delays.
 
 config RCU_DOUBLE_CHECK_CB_TIME
 	bool "RCU callback-batch backup time check"
