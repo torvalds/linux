@@ -38,6 +38,7 @@
 #include <linux/rhashtable.h>
 #include <linux/llist.h>
 #include <steering/sws/fs_dr.h>
+#include <steering/hws/fs_hws.h>
 
 #define FDB_TC_MAX_CHAIN 3
 #define FDB_FT_CHAIN (FDB_TC_MAX_CHAIN + 1)
@@ -126,7 +127,8 @@ enum fs_fte_status {
 
 enum mlx5_flow_steering_mode {
 	MLX5_FLOW_STEERING_MODE_DMFS,
-	MLX5_FLOW_STEERING_MODE_SMFS
+	MLX5_FLOW_STEERING_MODE_SMFS,
+	MLX5_FLOW_STEERING_MODE_HMFS,
 };
 
 enum mlx5_flow_steering_capabilty {
@@ -293,7 +295,10 @@ struct mlx5_flow_group {
 struct mlx5_flow_root_namespace {
 	struct mlx5_flow_namespace	ns;
 	enum   mlx5_flow_steering_mode	mode;
-	struct mlx5_fs_dr_domain	fs_dr_domain;
+	union {
+		struct mlx5_fs_dr_domain	fs_dr_domain;
+		struct mlx5_fs_hws_context	fs_hws_context;
+	};
 	enum   fs_flow_table_type	table_type;
 	struct mlx5_core_dev		*dev;
 	struct mlx5_flow_table		*root_ft;
