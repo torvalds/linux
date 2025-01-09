@@ -1555,8 +1555,7 @@ release_node:
 	return ret;
 }
 
-static int btrfs_delete_delayed_insertion_item(struct btrfs_fs_info *fs_info,
-					       struct btrfs_delayed_node *node,
+static int btrfs_delete_delayed_insertion_item(struct btrfs_delayed_node *node,
 					       u64 index)
 {
 	struct btrfs_delayed_item *item;
@@ -1614,7 +1613,7 @@ int btrfs_delete_delayed_dir_index(struct btrfs_trans_handle *trans,
 	if (IS_ERR(node))
 		return PTR_ERR(node);
 
-	ret = btrfs_delete_delayed_insertion_item(trans->fs_info, node, index);
+	ret = btrfs_delete_delayed_insertion_item(node, index);
 	if (!ret)
 		goto end;
 
