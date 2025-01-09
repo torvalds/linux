@@ -194,6 +194,9 @@ void dpp_reset(struct dpp *dpp_base)
 	dpp->filter_h = NULL;
 	dpp->filter_v = NULL;
 
+	memset(&dpp_base->pos, 0, sizeof(dpp_base->pos));
+	memset(&dpp_base->att, 0, sizeof(dpp_base->att));
+
 	memset(&dpp->scl_data, 0, sizeof(dpp->scl_data));
 	memset(&dpp->pwl_data, 0, sizeof(dpp->pwl_data));
 }
