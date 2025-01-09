@@ -344,12 +344,8 @@ void machine_kexec_cleanup(struct kimage *image)
  */
 void __nocfi machine_kexec(struct kimage *image)
 {
-	unsigned long (*relocate_kernel_ptr)(unsigned long indirection_page,
-					     unsigned long pa_control_page,
-					     unsigned long start_address,
-					     unsigned int preserve_context,
-					     unsigned int host_mem_enc_active);
 	unsigned long reloc_start = (unsigned long)__relocate_kernel_start;
+	relocate_kernel_fn *relocate_kernel_ptr;
 	unsigned int host_mem_enc_active;
 	int save_ftrace_enabled;
 	void *control_page;
@@ -391,8 +387,7 @@ void __nocfi machine_kexec(struct kimage *image)
 	 * Allow for the possibility that relocate_kernel might not be at
 	 * the very start of the page.
 	 */
-	relocate_kernel_ptr = control_page + (unsigned long)relocate_kernel -
-		reloc_start;
+	relocate_kernel_ptr = control_page + (unsigned long)relocate_kernel - reloc_start;
 
 	/*
 	 * The segment registers are funny things, they have both a
