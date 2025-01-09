@@ -28,37 +28,36 @@
 #define ERROR_MASK		GENMASK_ULL(63, 0)
 
 /* mask or unmask port errors by the error mask register. */
-static void __afu_port_err_mask(struct device *dev, bool mask)
+static void __afu_port_err_mask(struct dfl_feature_dev_data *fdata, bool mask)
 {
 	void __iomem *base;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, PORT_FEATURE_ID_ERROR);
+	base = dfl_get_feature_ioaddr_by_id(fdata, PORT_FEATURE_ID_ERROR);
 
 	writeq(mask ? ERROR_MASK : 0, base + PORT_ERROR_MASK);
 }
 
 static void afu_port_err_mask(struct device *dev, bool mask)
 {
-	struct dfl_feature_platform_data *pdata = dev_get_platdata(dev);
+	struct dfl_feature_dev_data *fdata = to_dfl_feature_dev_data(dev);
 
-	mutex_lock(&pdata->lock);
-	__afu_port_err_mask(dev, mask);
-	mutex_unlock(&pdata->lock);
+	mutex_lock(&fdata->lock);
+	__afu_port_err_mask(fdata, mask);
+	mutex_unlock(&fdata->lock);
 }
 
 /* clear port errors. */
 static int afu_port_err_clear(struct device *dev, u64 err)
 {
-	struct dfl_feature_platform_data *pdata = dev_get_platdata(dev);
-	struct platform_device *pdev = to_platform_device(dev);
+	struct dfl_feature_dev_data *fdata = to_dfl_feature_dev_data(dev);
 	void __iomem *base_err, *base_hdr;
 	int enable_ret = 0, ret = -EBUSY;
 	u64 v;
 
-	base_err = dfl_get_feature_ioaddr_by_id(dev, PORT_FEATURE_ID_ERROR);
-	base_hdr = dfl_get_feature_ioaddr_by_id(dev, PORT_FEATURE_ID_HEADER);
+	base_err = dfl_get_feature_ioaddr_by_id(fdata, PORT_FEATURE_ID_ERROR);
+	base_hdr = dfl_get_feature_ioaddr_by_id(fdata, PORT_FEATURE_ID_HEADER);
 
-	mutex_lock(&pdata->lock);
+	mutex_lock(&fdata->lock);
 
 	/*
 	 * clear Port Errors
@@ -80,12 +79,12 @@ static int afu_port_err_clear(struct device *dev, u64 err)
 	}
 
 	/* Halt Port by keeping Port in reset */
-	ret = __afu_port_disable(pdev);
+	ret = __afu_port_disable(fdata);
 	if (ret)
 		goto done;
 
 	/* Mask all errors */
-	__afu_port_err_mask(dev, true);
+	__afu_port_err_mask(fdata, true);
 
 	/* Clear errors if err input matches with current port errors.*/
 	v = readq(base_err + PORT_ERROR);
@@ -102,28 +101,28 @@ static int afu_port_err_clear(struct device *dev, u64 err)
 	}
 
 	/* Clear mask */
-	__afu_port_err_mask(dev, false);
+	__afu_port_err_mask(fdata, false);
 
 	/* Enable the Port by clearing the reset */
-	enable_ret = __afu_port_enable(pdev);
+	enable_ret = __afu_port_enable(fdata);
 
 done:
-	mutex_unlock(&pdata->lock);
+	mutex_unlock(&fdata->lock);
 	return enable_ret ? enable_ret : ret;
 }
 
 static ssize_t errors_show(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
-	struct dfl_feature_platform_data *pdata = dev_get_platdata(dev);
+	struct dfl_feature_dev_data *fdata = to_dfl_feature_dev_data(dev);
 	void __iomem *base;
 	u64 error;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, PORT_FEATURE_ID_ERROR);
+	base = dfl_get_feature_ioaddr_by_id(fdata, PORT_FEATURE_ID_ERROR);
 
-	mutex_lock(&pdata->lock);
+	mutex_lock(&fdata->lock);
 	error = readq(base + PORT_ERROR);
-	mutex_unlock(&pdata->lock);
+	mutex_unlock(&fdata->lock);
 
 	return sprintf(buf, "0x%llx\n", (unsigned long long)error);
 }
@@ -146,15 +145,15 @@ static DEVICE_ATTR_RW(errors);
 static ssize_t first_error_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct dfl_feature_platform_data *pdata = dev_get_platdata(dev);
+	struct dfl_feature_dev_data *fdata = to_dfl_feature_dev_data(dev);
 	void __iomem *base;
 	u64 error;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, PORT_FEATURE_ID_ERROR);
+	base = dfl_get_feature_ioaddr_by_id(fdata, PORT_FEATURE_ID_ERROR);
 
-	mutex_lock(&pdata->lock);
+	mutex_lock(&fdata->lock);
 	error = readq(base + PORT_FIRST_ERROR);
-	mutex_unlock(&pdata->lock);
+	mutex_unlock(&fdata->lock);
 
 	return sprintf(buf, "0x%llx\n", (unsigned long long)error);
 }
@@ -164,16 +163,16 @@ static ssize_t first_malformed_req_show(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	struct dfl_feature_platform_data *pdata = dev_get_platdata(dev);
+	struct dfl_feature_dev_data *fdata = to_dfl_feature_dev_data(dev);
 	void __iomem *base;
 	u64 req0, req1;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, PORT_FEATURE_ID_ERROR);
+	base = dfl_get_feature_ioaddr_by_id(fdata, PORT_FEATURE_ID_ERROR);
 
-	mutex_lock(&pdata->lock);
+	mutex_lock(&fdata->lock);
 	req0 = readq(base + PORT_MALFORMED_REQ0);
 	req1 = readq(base + PORT_MALFORMED_REQ1);
-	mutex_unlock(&pdata->lock);
+	mutex_unlock(&fdata->lock);
 
 	return sprintf(buf, "0x%016llx%016llx\n",
 		       (unsigned long long)req1, (unsigned long long)req0);
@@ -191,12 +190,14 @@ static umode_t port_err_attrs_visible(struct kobject *kobj,
 				      struct attribute *attr, int n)
 {
 	struct device *dev = kobj_to_dev(kobj);
+	struct dfl_feature_dev_data *fdata;
 
+	fdata = to_dfl_feature_dev_data(dev);
 	/*
 	 * sysfs entries are visible only if related private feature is
 	 * enumerated.
 	 */
-	if (!dfl_get_feature_by_id(dev, PORT_FEATURE_ID_ERROR))
+	if (!dfl_get_feature_by_id(fdata, PORT_FEATURE_ID_ERROR))
 		return 0;
 
 	return attr->mode;

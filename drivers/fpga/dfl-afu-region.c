@@ -12,11 +12,11 @@
 
 /**
  * afu_mmio_region_init - init function for afu mmio region support
- * @pdata: afu platform device's pdata.
+ * @fdata: afu feature dev data
  */
-void afu_mmio_region_init(struct dfl_feature_platform_data *pdata)
+void afu_mmio_region_init(struct dfl_feature_dev_data *fdata)
 {
-	struct dfl_afu *afu = dfl_fpga_pdata_get_private(pdata);
+	struct dfl_afu *afu = dfl_fpga_fdata_get_private(fdata);
 
 	INIT_LIST_HEAD(&afu->regions);
 }
@@ -39,7 +39,7 @@ static struct dfl_afu_mmio_region *get_region_by_index(struct dfl_afu *afu,
 /**
  * afu_mmio_region_add - add a mmio region to given feature dev.
  *
- * @pdata: afu platform device's pdata.
+ * @fdata: afu feature dev data
  * @region_index: region index.
  * @region_size: region size.
  * @phys: region's physical address of this region.
@@ -47,14 +47,15 @@ static struct dfl_afu_mmio_region *get_region_by_index(struct dfl_afu *afu,
  *
  * Return: 0 on success, negative error code otherwise.
  */
-int afu_mmio_region_add(struct dfl_feature_platform_data *pdata,
+int afu_mmio_region_add(struct dfl_feature_dev_data *fdata,
 			u32 region_index, u64 region_size, u64 phys, u32 flags)
 {
+	struct device *dev = &fdata->dev->dev;
 	struct dfl_afu_mmio_region *region;
 	struct dfl_afu *afu;
 	int ret = 0;
 
-	region = devm_kzalloc(&pdata->dev->dev, sizeof(*region), GFP_KERNEL);
+	region = devm_kzalloc(dev, sizeof(*region), GFP_KERNEL);
 	if (!region)
 		return -ENOMEM;
 
@@ -63,13 +64,13 @@ int afu_mmio_region_add(struct dfl_feature_platform_data *pdata,
 	region->phys = phys;
 	region->flags = flags;
 
-	mutex_lock(&pdata->lock);
+	mutex_lock(&fdata->lock);
 
-	afu = dfl_fpga_pdata_get_private(pdata);
+	afu = dfl_fpga_fdata_get_private(fdata);
 
 	/* check if @index already exists */
 	if (get_region_by_index(afu, region_index)) {
-		mutex_unlock(&pdata->lock);
+		mutex_unlock(&fdata->lock);
 		ret = -EEXIST;
 		goto exit;
 	}
@@ -80,37 +81,37 @@ int afu_mmio_region_add(struct dfl_feature_platform_data *pdata,
 
 	afu->region_cur_offset += region_size;
 	afu->num_regions++;
-	mutex_unlock(&pdata->lock);
+	mutex_unlock(&fdata->lock);
 
 	return 0;
 
 exit:
-	devm_kfree(&pdata->dev->dev, region);
+	devm_kfree(dev, region);
 	return ret;
 }
 
 /**
  * afu_mmio_region_destroy - destroy all mmio regions under given feature dev.
- * @pdata: afu platform device's pdata.
+ * @fdata: afu feature dev data
  */
-void afu_mmio_region_destroy(struct dfl_feature_platform_data *pdata)
+void afu_mmio_region_destroy(struct dfl_feature_dev_data *fdata)
 {
-	struct dfl_afu *afu = dfl_fpga_pdata_get_private(pdata);
+	struct dfl_afu *afu = dfl_fpga_fdata_get_private(fdata);
 	struct dfl_afu_mmio_region *tmp, *region;
 
 	list_for_each_entry_safe(region, tmp, &afu->regions, node)
-		devm_kfree(&pdata->dev->dev, region);
+		devm_kfree(&fdata->dev->dev, region);
 }
 
 /**
  * afu_mmio_region_get_by_index - find an afu region by index.
- * @pdata: afu platform device's pdata.
+ * @fdata: afu feature dev data
  * @region_index: region index.
  * @pregion: ptr to region for result.
  *
  * Return: 0 on success, negative error code otherwise.
  */
-int afu_mmio_region_get_by_index(struct dfl_feature_platform_data *pdata,
+int afu_mmio_region_get_by_index(struct dfl_feature_dev_data *fdata,
 				 u32 region_index,
 				 struct dfl_afu_mmio_region *pregion)
 {
@@ -118,8 +119,8 @@ int afu_mmio_region_get_by_index(struct dfl_feature_platform_data *pdata,
 	struct dfl_afu *afu;
 	int ret = 0;
 
-	mutex_lock(&pdata->lock);
-	afu = dfl_fpga_pdata_get_private(pdata);
+	mutex_lock(&fdata->lock);
+	afu = dfl_fpga_fdata_get_private(fdata);
 	region = get_region_by_index(afu, region_index);
 	if (!region) {
 		ret = -EINVAL;
@@ -127,14 +128,14 @@ int afu_mmio_region_get_by_index(struct dfl_feature_platform_data *pdata,
 	}
 	*pregion = *region;
 exit:
-	mutex_unlock(&pdata->lock);
+	mutex_unlock(&fdata->lock);
 	return ret;
 }
 
 /**
  * afu_mmio_region_get_by_offset - find an afu mmio region by offset and size
  *
- * @pdata: afu platform device's pdata.
+ * @fdata: afu feature dev data
  * @offset: region offset from start of the device fd.
  * @size: region size.
  * @pregion: ptr to region for result.
@@ -144,7 +145,7 @@ exit:
  *
  * Return: 0 on success, negative error code otherwise.
  */
-int afu_mmio_region_get_by_offset(struct dfl_feature_platform_data *pdata,
+int afu_mmio_region_get_by_offset(struct dfl_feature_dev_data *fdata,
 				  u64 offset, u64 size,
 				  struct dfl_afu_mmio_region *pregion)
 {
@@ -152,8 +153,8 @@ int afu_mmio_region_get_by_offset(struct dfl_feature_platform_data *pdata,
 	struct dfl_afu *afu;
 	int ret = 0;
 
-	mutex_lock(&pdata->lock);
-	afu = dfl_fpga_pdata_get_private(pdata);
+	mutex_lock(&fdata->lock);
+	afu = dfl_fpga_fdata_get_private(fdata);
 	for_each_region(region, afu)
 		if (region->offset <= offset &&
 		    region->offset + region->size >= offset + size) {
@@ -162,6 +163,6 @@ int afu_mmio_region_get_by_offset(struct dfl_feature_platform_data *pdata,
 		}
 	ret = -EINVAL;
 exit:
-	mutex_unlock(&pdata->lock);
+	mutex_unlock(&fdata->lock);
 	return ret;
 }
