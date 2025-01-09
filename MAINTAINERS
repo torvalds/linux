@@ -949,7 +949,6 @@ AMAZON ETHERNET DRIVERS
 M:	Shay Agroskin <shayagr@amazon.com>
 M:	Arthur Kiyanovski <akiyano@amazon.com>
 R:	David Arinzon <darinzon@amazon.com>
-R:	Noam Dagan <ndagan@amazon.com>
 R:	Saeed Bishara <saeedb@amazon.com>
 L:	netdev@vger.kernel.org
 S:	Supported
@@ -2690,7 +2689,6 @@ N:	at91
 N:	atmel
 
 ARM/Microchip Sparx5 SoC support
-M:	Lars Povlsen <lars.povlsen@microchip.com>
 M:	Steen Hegelund <Steen.Hegelund@microchip.com>
 M:	Daniel Machon <daniel.machon@microchip.com>
 M:	UNGLinuxDriver@microchip.com
@@ -4058,7 +4056,6 @@ F:	net/bluetooth/
 
 BONDING DRIVER
 M:	Jay Vosburgh <jv@jvosburgh.net>
-M:	Andy Gospodarek <andy@greyhouse.net>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/networking/bonding.rst
@@ -14566,7 +14563,6 @@ F:	drivers/dma/mediatek/
 MEDIATEK ETHERNET DRIVER
 M:	Felix Fietkau <nbd@nbd.name>
 M:	Sean Wang <sean.wang@mediatek.com>
-M:	Mark Lee <Mark-MC.Lee@mediatek.com>
 M:	Lorenzo Bianconi <lorenzo@kernel.org>
 L:	netdev@vger.kernel.org
 S:	Maintained
@@ -22503,11 +22499,8 @@ F:	Documentation/devicetree/bindings/phy/st,stm32mp25-combophy.yaml
 F:	drivers/phy/st/phy-stm32-combophy.c
 
 STMMAC ETHERNET DRIVER
-M:	Alexandre Torgue <alexandre.torgue@foss.st.com>
-M:	Jose Abreu <joabreu@synopsys.com>
 L:	netdev@vger.kernel.org
-S:	Supported
-W:	http://www.stlinux.com
+S:	Orphan
 F:	Documentation/networking/device_drivers/ethernet/stmicro/
 F:	drivers/net/ethernet/stmicro/stmmac/
 
@@ -22739,9 +22732,8 @@ S:	Supported
 F:	drivers/net/ethernet/synopsys/
 
 SYNOPSYS DESIGNWARE ETHERNET XPCS DRIVER
-M:	Jose Abreu <Jose.Abreu@synopsys.com>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Orphan
 F:	drivers/net/pcs/pcs-xpcs.c
 F:	drivers/net/pcs/pcs-xpcs.h
 F:	include/linux/pcs/pcs-xpcs.h
@@ -23649,7 +23641,6 @@ F:	tools/testing/selftests/timers/
 
 TIPC NETWORK LAYER
 M:	Jon Maloy <jmaloy@redhat.com>
-M:	Ying Xue <ying.xue@windriver.com>
 L:	netdev@vger.kernel.org (core kernel code)
 L:	tipc-discussion@lists.sourceforge.net (user apps, general discussion)
 S:	Maintained
@@ -24255,7 +24246,8 @@ F:	Documentation/devicetree/bindings/usb/nxp,isp1760.yaml
 F:	drivers/usb/isp1760/*
 
 USB LAN78XX ETHERNET DRIVER
-M:	Woojung Huh <woojung.huh@microchip.com>
+M:	Thangaraj Samynathan <Thangaraj.S@microchip.com>
+M:	Rengarajan Sundararajan <Rengarajan.S@microchip.com>
 M:	UNGLinuxDriver@microchip.com
 L:	netdev@vger.kernel.org
 S:	Maintained
