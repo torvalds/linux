@@ -2482,11 +2482,6 @@ next:
 	return try_release_extent_state(io_tree, folio);
 }
 
-static void __free_extent_buffer(struct extent_buffer *eb)
-{
-	kmem_cache_free(extent_buffer_cache, eb);
-}
-
 static int extent_buffer_under_io(const struct extent_buffer *eb)
 {
 	return (test_bit(EXTENT_BUFFER_WRITEBACK, &eb->bflags) ||
@@ -2592,7 +2587,7 @@ static inline void btrfs_release_extent_buffer(struct extent_buffer *eb)
 {
 	btrfs_release_extent_buffer_pages(eb);
 	btrfs_leak_debug_del_eb(eb);
-	__free_extent_buffer(eb);
+	kmem_cache_free(extent_buffer_cache, eb);
 }
 
 static struct extent_buffer *
@@ -2690,7 +2685,7 @@ err:
 			folio_put(eb->folios[i]);
 		}
 	}
-	__free_extent_buffer(eb);
+	kmem_cache_free(extent_buffer_cache, eb);
 	return NULL;
 }
 
@@ -3182,7 +3177,7 @@ static inline void btrfs_release_extent_buffer_rcu(struct rcu_head *head)
 	struct extent_buffer *eb =
 			container_of(head, struct extent_buffer, rcu_head);
 
-	__free_extent_buffer(eb);
+	kmem_cache_free(extent_buffer_cache, eb);
 }
 
 static int release_extent_buffer(struct extent_buffer *eb)
@@ -3210,7 +3205,7 @@ static int release_extent_buffer(struct extent_buffer *eb)
 		btrfs_release_extent_buffer_pages(eb);
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 		if (unlikely(test_bit(EXTENT_BUFFER_UNMAPPED, &eb->bflags))) {
-			__free_extent_buffer(eb);
+			kmem_cache_free(extent_buffer_cache, eb);
 			return 1;
 		}
 #endif
