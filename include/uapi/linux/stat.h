@@ -179,7 +179,8 @@ struct statx {
 	/* Max atomic write segment count */
 	__u32   stx_atomic_write_segments_max;
 
-	__u32   __spare1[1];
+	/* File offset alignment for direct I/O reads */
+	__u32	stx_dio_read_offset_align;
 
 	/* 0xb8 */
 	__u64	__spare3[9];	/* Spare space for future expansion */
@@ -213,6 +214,7 @@ struct statx {
 #define STATX_MNT_ID_UNIQUE	0x00004000U	/* Want/got extended stx_mount_id */
 #define STATX_SUBVOL		0x00008000U	/* Want/got stx_subvol */
 #define STATX_WRITE_ATOMIC	0x00010000U	/* Want/got atomic_write_* fields */
+#define STATX_DIO_READ_ALIGN	0x00020000U	/* Want/got dio read alignment info */
 
 #define STATX__RESERVED		0x80000000U	/* Reserved for future struct statx expansion */
 
