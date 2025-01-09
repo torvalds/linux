@@ -67,4 +67,7 @@ void mlx5_fs_hws_mh_pool_release_mh(struct mlx5_fs_pool *mh_pool,
 				    struct mlx5_fs_hws_mh *mh_data);
 bool mlx5_fs_hws_mh_pool_match(struct mlx5_fs_pool *mh_pool,
 			       struct mlx5hws_action_mh_pattern *pattern);
+struct mlx5hws_action *mlx5_fc_get_hws_action(struct mlx5hws_context *ctx,
+					      struct mlx5_fc *counter);
+void mlx5_fc_put_hws_action(struct mlx5_fc *counter);
 #endif /* __MLX5_FS_HWS_POOLS_H__ */

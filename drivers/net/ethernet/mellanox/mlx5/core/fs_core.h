@@ -316,6 +316,42 @@ struct mlx5_flow_root_namespace {
 	const struct mlx5_flow_cmds	*cmds;
 };
 
+enum mlx5_fc_type {
+	MLX5_FC_TYPE_ACQUIRED = 0,
+	MLX5_FC_TYPE_LOCAL,
+};
+
+struct mlx5_fc_cache {
+	u64 packets;
+	u64 bytes;
+	u64 lastuse;
+};
+
+struct mlx5_fc {
+	u32 id;
+	bool aging;
+	enum mlx5_fc_type type;
+	struct mlx5_fc_bulk *bulk;
+	struct mlx5_fc_cache cache;
+	/* last{packets,bytes} are used for calculating deltas since last reading. */
+	u64 lastpackets;
+	u64 lastbytes;
+};
+
+struct mlx5_fc_bulk_hws_data {
+	struct mlx5hws_action *hws_action;
+	struct mutex lock; /* protects hws_action */
+	refcount_t hws_action_refcount;
+};
+
+struct mlx5_fc_bulk {
+	struct mlx5_fs_bulk fs_bulk;
+	u32 base_id;
+	struct mlx5_fc_bulk_hws_data hws_data;
+	struct mlx5_fc fcs[];
+};
+
+u32 mlx5_fc_get_base_id(struct mlx5_fc *counter);
 int mlx5_init_fc_stats(struct mlx5_core_dev *dev);
 void mlx5_cleanup_fc_stats(struct mlx5_core_dev *dev);
 void mlx5_fc_queue_stats_work(struct mlx5_core_dev *dev,
