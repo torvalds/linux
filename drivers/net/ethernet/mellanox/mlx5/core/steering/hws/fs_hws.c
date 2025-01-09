@@ -15,6 +15,9 @@ mlx5_fs_create_action_remove_header_vlan(struct mlx5hws_context *ctx);
 static void
 mlx5_fs_destroy_pr_pool(struct mlx5_fs_pool *pool, struct xarray *pr_pools,
 			unsigned long index);
+static void
+mlx5_fs_destroy_mh_pool(struct mlx5_fs_pool *pool, struct xarray *mh_pools,
+			unsigned long index);
 
 static int mlx5_fs_init_hws_actions_pool(struct mlx5_core_dev *dev,
 					 struct mlx5_fs_hws_context *fs_ctx)
@@ -58,6 +61,7 @@ static int mlx5_fs_init_hws_actions_pool(struct mlx5_core_dev *dev,
 		goto cleanup_insert_hdr;
 	xa_init(&hws_pool->el2tol3tnl_pools);
 	xa_init(&hws_pool->el2tol2tnl_pools);
+	xa_init(&hws_pool->mh_pools);
 	return 0;
 
 cleanup_insert_hdr:
@@ -83,6 +87,9 @@ static void mlx5_fs_cleanup_hws_actions_pool(struct mlx5_fs_hws_context *fs_ctx)
 	struct mlx5_fs_pool *pool;
 	unsigned long i;
 
+	xa_for_each(&hws_pool->mh_pools, i, pool)
+		mlx5_fs_destroy_mh_pool(pool, &hws_pool->mh_pools, i);
+	xa_destroy(&hws_pool->mh_pools);
 	xa_for_each(&hws_pool->el2tol2tnl_pools, i, pool)
 		mlx5_fs_destroy_pr_pool(pool, &hws_pool->el2tol2tnl_pools, i);
 	xa_destroy(&hws_pool->el2tol2tnl_pools);
@@ -532,6 +539,117 @@ static void mlx5_cmd_hws_packet_reformat_dealloc(struct mlx5_flow_root_namespace
 	pkt_reformat->fs_hws_action.pr_data = NULL;
 }
 
+static struct mlx5_fs_pool *
+mlx5_fs_create_mh_pool(struct mlx5_core_dev *dev,
+		       struct mlx5hws_action_mh_pattern *pattern,
+		       struct xarray *mh_pools, unsigned long index)
+{
+	struct mlx5_fs_pool *pool;
+	int err;
+
+	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
+	if (!pool)
+		return ERR_PTR(-ENOMEM);
+	err = mlx5_fs_hws_mh_pool_init(pool, dev, pattern);
+	if (err)
+		goto free_pool;
+	err = xa_insert(mh_pools, index, pool, GFP_KERNEL);
+	if (err)
+		goto cleanup_pool;
+	return pool;
+
+cleanup_pool:
+	mlx5_fs_hws_mh_pool_cleanup(pool);
+free_pool:
+	kfree(pool);
+	return ERR_PTR(err);
+}
+
+static void
+mlx5_fs_destroy_mh_pool(struct mlx5_fs_pool *pool, struct xarray *mh_pools,
+			unsigned long index)
+{
+	xa_erase(mh_pools, index);
+	mlx5_fs_hws_mh_pool_cleanup(pool);
+	kfree(pool);
+}
+
+static int mlx5_cmd_hws_modify_header_alloc(struct mlx5_flow_root_namespace *ns,
+					    u8 namespace, u8 num_actions,
+					    void *modify_actions,
+					    struct mlx5_modify_hdr *modify_hdr)
+{
+	struct mlx5_fs_hws_actions_pool *hws_pool = &ns->fs_hws_context.hws_pool;
+	struct mlx5hws_action_mh_pattern pattern = {};
+	struct mlx5_fs_hws_mh *mh_data = NULL;
+	struct mlx5hws_action *hws_action;
+	struct mlx5_fs_pool *pool;
+	unsigned long i, cnt = 0;
+	bool known_pattern;
+	int err;
+
+	pattern.sz = MLX5_UN_SZ_BYTES(set_add_copy_action_in_auto) * num_actions;
+	pattern.data = modify_actions;
+
+	known_pattern = false;
+	xa_for_each(&hws_pool->mh_pools, i, pool) {
+		if (mlx5_fs_hws_mh_pool_match(pool, &pattern)) {
+			known_pattern = true;
+			break;
+		}
+		cnt++;
+	}
+
+	if (!known_pattern) {
+		pool = mlx5_fs_create_mh_pool(ns->dev, &pattern,
+					      &hws_pool->mh_pools, cnt);
+		if (IS_ERR(pool))
+			return PTR_ERR(pool);
+	}
+	mh_data = mlx5_fs_hws_mh_pool_acquire_mh(pool);
+	if (IS_ERR(mh_data)) {
+		err = PTR_ERR(mh_data);
+		goto destroy_pool;
+	}
+	hws_action = mh_data->bulk->hws_action;
+	mh_data->data = kmemdup(pattern.data, pattern.sz, GFP_KERNEL);
+	if (!mh_data->data) {
+		err = -ENOMEM;
+		goto release_mh;
+	}
+	modify_hdr->fs_hws_action.mh_data = mh_data;
+	modify_hdr->fs_hws_action.fs_pool = pool;
+	modify_hdr->owner = MLX5_FLOW_RESOURCE_OWNER_SW;
+	modify_hdr->fs_hws_action.hws_action = hws_action;
+
+	return 0;
+
+release_mh:
+	mlx5_fs_hws_mh_pool_release_mh(pool, mh_data);
+destroy_pool:
+	if (!known_pattern)
+		mlx5_fs_destroy_mh_pool(pool, &hws_pool->mh_pools, cnt);
+	return err;
+}
+
+static void mlx5_cmd_hws_modify_header_dealloc(struct mlx5_flow_root_namespace *ns,
+					       struct mlx5_modify_hdr *modify_hdr)
+{
+	struct mlx5_fs_hws_mh *mh_data;
+	struct mlx5_fs_pool *pool;
+
+	if (!modify_hdr->fs_hws_action.fs_pool || !modify_hdr->fs_hws_action.mh_data) {
+		mlx5_core_err(ns->dev, "Failed release modify-header\n");
+		return;
+	}
+
+	mh_data = modify_hdr->fs_hws_action.mh_data;
+	kfree(mh_data->data);
+	pool = modify_hdr->fs_hws_action.fs_pool;
+	mlx5_fs_hws_mh_pool_release_mh(pool, mh_data);
+	modify_hdr->fs_hws_action.mh_data = NULL;
+}
+
 static const struct mlx5_flow_cmds mlx5_flow_cmds_hws = {
 	.create_flow_table = mlx5_cmd_hws_create_flow_table,
 	.destroy_flow_table = mlx5_cmd_hws_destroy_flow_table,
@@ -541,6 +659,8 @@ static const struct mlx5_flow_cmds mlx5_flow_cmds_hws = {
 	.destroy_flow_group = mlx5_cmd_hws_destroy_flow_group,
 	.packet_reformat_alloc = mlx5_cmd_hws_packet_reformat_alloc,
 	.packet_reformat_dealloc = mlx5_cmd_hws_packet_reformat_dealloc,
+	.modify_header_alloc = mlx5_cmd_hws_modify_header_alloc,
+	.modify_header_dealloc = mlx5_cmd_hws_modify_header_dealloc,
 	.create_ns = mlx5_cmd_hws_create_ns,
 	.destroy_ns = mlx5_cmd_hws_destroy_ns,
 	.set_peer = mlx5_cmd_hws_set_peer,

@@ -18,6 +18,7 @@ struct mlx5_fs_hws_actions_pool {
 	struct mlx5_fs_pool dl3tnltol2_pool;
 	struct xarray el2tol3tnl_pools;
 	struct xarray el2tol2tnl_pools;
+	struct xarray mh_pools;
 };
 
 struct mlx5_fs_hws_context {
@@ -34,6 +35,7 @@ struct mlx5_fs_hws_action {
 	struct mlx5hws_action *hws_action;
 	struct mlx5_fs_pool *fs_pool;
 	struct mlx5_fs_hws_pr *pr_data;
+	struct mlx5_fs_hws_mh *mh_data;
 };
 
 struct mlx5_fs_hws_matcher {

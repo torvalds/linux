@@ -36,6 +36,19 @@ struct mlx5_fs_hws_pr_pool_ctx {
 	size_t encap_data_size;
 };
 
+struct mlx5_fs_hws_mh {
+	struct mlx5_fs_hws_mh_bulk *bulk;
+	u32 offset;
+	u8 *data;
+};
+
+struct mlx5_fs_hws_mh_bulk {
+	struct mlx5_fs_bulk fs_bulk;
+	struct mlx5_fs_pool *mh_pool;
+	struct mlx5hws_action *hws_action;
+	struct mlx5_fs_hws_mh mhs_data[];
+};
+
 int mlx5_fs_hws_pr_pool_init(struct mlx5_fs_pool *pr_pool,
 			     struct mlx5_core_dev *dev, size_t encap_data_size,
 			     enum mlx5hws_action_type reformat_type);
@@ -45,4 +58,13 @@ struct mlx5_fs_hws_pr *mlx5_fs_hws_pr_pool_acquire_pr(struct mlx5_fs_pool *pr_po
 void mlx5_fs_hws_pr_pool_release_pr(struct mlx5_fs_pool *pr_pool,
 				    struct mlx5_fs_hws_pr *pr_data);
 struct mlx5hws_action *mlx5_fs_hws_pr_get_action(struct mlx5_fs_hws_pr *pr_data);
+int mlx5_fs_hws_mh_pool_init(struct mlx5_fs_pool *fs_hws_mh_pool,
+			     struct mlx5_core_dev *dev,
+			     struct mlx5hws_action_mh_pattern *pattern);
+void mlx5_fs_hws_mh_pool_cleanup(struct mlx5_fs_pool *fs_hws_mh_pool);
+struct mlx5_fs_hws_mh *mlx5_fs_hws_mh_pool_acquire_mh(struct mlx5_fs_pool *mh_pool);
+void mlx5_fs_hws_mh_pool_release_mh(struct mlx5_fs_pool *mh_pool,
+				    struct mlx5_fs_hws_mh *mh_data);
+bool mlx5_fs_hws_mh_pool_match(struct mlx5_fs_pool *mh_pool,
+			       struct mlx5hws_action_mh_pattern *pattern);
 #endif /* __MLX5_FS_HWS_POOLS_H__ */
