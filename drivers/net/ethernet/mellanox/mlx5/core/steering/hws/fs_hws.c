@@ -361,6 +361,552 @@ static int mlx5_cmd_hws_destroy_flow_group(struct mlx5_flow_root_namespace *ns,
 }
 
 static struct mlx5hws_action *
+mlx5_fs_get_dest_action_ft(struct mlx5_fs_hws_context *fs_ctx,
+			   struct mlx5_flow_rule *dst)
+{
+	return xa_load(&fs_ctx->hws_pool.table_dests, dst->dest_attr.ft->id);
+}
+
+static struct mlx5hws_action *
+mlx5_fs_get_dest_action_table_num(struct mlx5_fs_hws_context *fs_ctx,
+				  struct mlx5_flow_rule *dst)
+{
+	u32 table_num = dst->dest_attr.ft_num;
+
+	return xa_load(&fs_ctx->hws_pool.table_dests, table_num);
+}
+
+static struct mlx5hws_action *
+mlx5_fs_create_dest_action_table_num(struct mlx5_fs_hws_context *fs_ctx,
+				     struct mlx5_flow_rule *dst)
+{
+	u32 flags = MLX5HWS_ACTION_FLAG_HWS_FDB | MLX5HWS_ACTION_FLAG_SHARED;
+	struct mlx5hws_context *ctx = fs_ctx->hws_ctx;
+	u32 table_num = dst->dest_attr.ft_num;
+
+	return mlx5hws_action_create_dest_table_num(ctx, table_num, flags);
+}
+
+static struct mlx5hws_action *
+mlx5_fs_create_dest_action_range(struct mlx5hws_context *ctx,
+				 struct mlx5_flow_rule *dst)
+{
+	u32 flags = MLX5HWS_ACTION_FLAG_HWS_FDB | MLX5HWS_ACTION_FLAG_SHARED;
+	struct mlx5_flow_destination *dest_attr = &dst->dest_attr;
+
+	return mlx5hws_action_create_dest_match_range(ctx,
+						      dest_attr->range.field,
+						      dest_attr->range.hit_ft,
+						      dest_attr->range.miss_ft,
+						      dest_attr->range.min,
+						      dest_attr->range.max,
+						      flags);
+}
+
+static struct mlx5hws_action *
+mlx5_fs_create_action_dest_array(struct mlx5hws_context *ctx,
+				 struct mlx5hws_action_dest_attr *dests,
+				 u32 num_of_dests, bool ignore_flow_level,
+				 u32 flow_source)
+{
+	u32 flags = MLX5HWS_ACTION_FLAG_HWS_FDB | MLX5HWS_ACTION_FLAG_SHARED;
+
+	return mlx5hws_action_create_dest_array(ctx, num_of_dests, dests,
+						ignore_flow_level,
+						flow_source, flags);
+}
+
+static struct mlx5hws_action *
+mlx5_fs_get_action_push_vlan(struct mlx5_fs_hws_context *fs_ctx)
+{
+	return fs_ctx->hws_pool.push_vlan_action;
+}
+
+static u32 mlx5_fs_calc_vlan_hdr(struct mlx5_fs_vlan *vlan)
+{
+	u16 n_ethtype = vlan->ethtype;
+	u8 prio = vlan->prio;
+	u16 vid = vlan->vid;
+
+	return (u32)n_ethtype << 16 | (u32)(prio) << 12 | (u32)vid;
+}
+
+static struct mlx5hws_action *
+mlx5_fs_get_action_pop_vlan(struct mlx5_fs_hws_context *fs_ctx)
+{
+	return fs_ctx->hws_pool.pop_vlan_action;
+}
+
+static struct mlx5hws_action *
+mlx5_fs_get_action_decap_tnl_l2_to_l2(struct mlx5_fs_hws_context *fs_ctx)
+{
+	return fs_ctx->hws_pool.decapl2_action;
+}
+
+static struct mlx5hws_action *
+mlx5_fs_get_dest_action_drop(struct mlx5_fs_hws_context *fs_ctx)
+{
+	return fs_ctx->hws_pool.drop_action;
+}
+
+static struct mlx5hws_action *
+mlx5_fs_get_action_tag(struct mlx5_fs_hws_context *fs_ctx)
+{
+	return fs_ctx->hws_pool.tag_action;
+}
+
+static struct mlx5hws_action *
+mlx5_fs_create_action_last(struct mlx5hws_context *ctx)
+{
+	u32 flags = MLX5HWS_ACTION_FLAG_HWS_FDB | MLX5HWS_ACTION_FLAG_SHARED;
+
+	return mlx5hws_action_create_last(ctx, flags);
+}
+
+static void mlx5_fs_destroy_fs_action(struct mlx5_fs_hws_rule_action *fs_action)
+{
+	switch (mlx5hws_action_get_type(fs_action->action)) {
+	case MLX5HWS_ACTION_TYP_CTR:
+		mlx5_fc_put_hws_action(fs_action->counter);
+		break;
+	default:
+		mlx5hws_action_destroy(fs_action->action);
+	}
+}
+
+static void
+mlx5_fs_destroy_fs_actions(struct mlx5_fs_hws_rule_action **fs_actions,
+			   int *num_fs_actions)
+{
+	int i;
+
+	/* Free in reverse order to handle action dependencies */
+	for (i = *num_fs_actions - 1; i >= 0; i--)
+		mlx5_fs_destroy_fs_action(*fs_actions + i);
+	*num_fs_actions = 0;
+	kfree(*fs_actions);
+	*fs_actions = NULL;
+}
+
+/* Splits FTE's actions into cached, rule and destination actions.
+ * The cached and destination actions are saved on the fte hws rule.
+ * The rule actions are returned as a parameter, together with their count.
+ * We want to support a rule with 32 destinations, which means we need to
+ * account for 32 destinations plus usually a counter plus one more action
+ * for a multi-destination flow table.
+ * 32 is SW limitation for array size, keep. HWS limitation is 16M STEs per matcher
+ */
+#define MLX5_FLOW_CONTEXT_ACTION_MAX 34
+static int mlx5_fs_fte_get_hws_actions(struct mlx5_flow_root_namespace *ns,
+				       struct mlx5_flow_table *ft,
+				       struct mlx5_flow_group *group,
+				       struct fs_fte *fte,
+				       struct mlx5hws_rule_action **ractions)
+{
+	struct mlx5_flow_act *fte_action = &fte->act_dests.action;
+	struct mlx5_fs_hws_context *fs_ctx = &ns->fs_hws_context;
+	struct mlx5hws_action_dest_attr *dest_actions;
+	struct mlx5hws_context *ctx = fs_ctx->hws_ctx;
+	struct mlx5_fs_hws_rule_action *fs_actions;
+	struct mlx5_core_dev *dev = ns->dev;
+	struct mlx5hws_action *dest_action;
+	struct mlx5hws_action *tmp_action;
+	struct mlx5_fs_hws_pr *pr_data;
+	struct mlx5_fs_hws_mh *mh_data;
+	bool delay_encap_set = false;
+	struct mlx5_flow_rule *dst;
+	int num_dest_actions = 0;
+	int num_fs_actions = 0;
+	int num_actions = 0;
+	int err;
+
+	*ractions = kcalloc(MLX5_FLOW_CONTEXT_ACTION_MAX, sizeof(**ractions),
+			    GFP_KERNEL);
+	if (!*ractions) {
+		err = -ENOMEM;
+		goto out_err;
+	}
+
+	fs_actions = kcalloc(MLX5_FLOW_CONTEXT_ACTION_MAX,
+			     sizeof(*fs_actions), GFP_KERNEL);
+	if (!fs_actions) {
+		err = -ENOMEM;
+		goto free_actions_alloc;
+	}
+
+	dest_actions = kcalloc(MLX5_FLOW_CONTEXT_ACTION_MAX,
+			       sizeof(*dest_actions), GFP_KERNEL);
+	if (!dest_actions) {
+		err = -ENOMEM;
+		goto free_fs_actions_alloc;
+	}
+
+	/* The order of the actions are must to be kept, only the following
+	 * order is supported by HW steering:
+	 * HWS: decap -> remove_hdr -> pop_vlan -> modify header -> push_vlan
+	 *      -> reformat (insert_hdr/encap) -> ctr -> tag -> aso
+	 *      -> drop -> FWD:tbl/vport/sampler/tbl_num/range -> dest_array -> last
+	 */
+	if (fte_action->action & MLX5_FLOW_CONTEXT_ACTION_DECAP) {
+		tmp_action = mlx5_fs_get_action_decap_tnl_l2_to_l2(fs_ctx);
+		if (!tmp_action) {
+			err = -ENOMEM;
+			goto free_dest_actions_alloc;
+		}
+		(*ractions)[num_actions++].action = tmp_action;
+	}
+
+	if (fte_action->action & MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT) {
+		int reformat_type = fte_action->pkt_reformat->reformat_type;
+
+		if (fte_action->pkt_reformat->owner == MLX5_FLOW_RESOURCE_OWNER_FW) {
+			mlx5_core_err(dev, "FW-owned reformat can't be used in HWS rule\n");
+			err = -EINVAL;
+			goto free_actions;
+		}
+
+		if (reformat_type == MLX5_REFORMAT_TYPE_L3_TUNNEL_TO_L2) {
+			pr_data = fte_action->pkt_reformat->fs_hws_action.pr_data;
+			(*ractions)[num_actions].reformat.offset = pr_data->offset;
+			(*ractions)[num_actions].reformat.hdr_idx = pr_data->hdr_idx;
+			(*ractions)[num_actions].reformat.data = pr_data->data;
+			(*ractions)[num_actions++].action =
+				fte_action->pkt_reformat->fs_hws_action.hws_action;
+		} else if (reformat_type == MLX5_REFORMAT_TYPE_REMOVE_HDR) {
+			(*ractions)[num_actions++].action =
+				fte_action->pkt_reformat->fs_hws_action.hws_action;
+		} else {
+			delay_encap_set = true;
+		}
+	}
+
+	if (fte_action->action & MLX5_FLOW_CONTEXT_ACTION_VLAN_POP) {
+		tmp_action = mlx5_fs_get_action_pop_vlan(fs_ctx);
+		if (!tmp_action) {
+			err = -ENOMEM;
+			goto free_actions;
+		}
+		(*ractions)[num_actions++].action = tmp_action;
+	}
+
+	if (fte_action->action & MLX5_FLOW_CONTEXT_ACTION_VLAN_POP_2) {
+		tmp_action = mlx5_fs_get_action_pop_vlan(fs_ctx);
+		if (!tmp_action) {
+			err = -ENOMEM;
+			goto free_actions;
+		}
+		(*ractions)[num_actions++].action = tmp_action;
+	}
+
+	if (fte_action->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) {
+		mh_data = fte_action->modify_hdr->fs_hws_action.mh_data;
+		(*ractions)[num_actions].modify_header.offset = mh_data->offset;
+		(*ractions)[num_actions].modify_header.data = mh_data->data;
+		(*ractions)[num_actions++].action =
+			fte_action->modify_hdr->fs_hws_action.hws_action;
+	}
+
+	if (fte_action->action & MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH) {
+		tmp_action = mlx5_fs_get_action_push_vlan(fs_ctx);
+		if (!tmp_action) {
+			err = -ENOMEM;
+			goto free_actions;
+		}
+		(*ractions)[num_actions].push_vlan.vlan_hdr =
+			htonl(mlx5_fs_calc_vlan_hdr(&fte_action->vlan[0]));
+		(*ractions)[num_actions++].action = tmp_action;
+	}
+
+	if (fte_action->action & MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH_2) {
+		tmp_action = mlx5_fs_get_action_push_vlan(fs_ctx);
+		if (!tmp_action) {
+			err = -ENOMEM;
+			goto free_actions;
+		}
+		(*ractions)[num_actions].push_vlan.vlan_hdr =
+			htonl(mlx5_fs_calc_vlan_hdr(&fte_action->vlan[1]));
+		(*ractions)[num_actions++].action = tmp_action;
+	}
+
+	if (delay_encap_set) {
+		pr_data = fte_action->pkt_reformat->fs_hws_action.pr_data;
+		(*ractions)[num_actions].reformat.offset = pr_data->offset;
+		(*ractions)[num_actions].reformat.data = pr_data->data;
+		(*ractions)[num_actions++].action =
+			fte_action->pkt_reformat->fs_hws_action.hws_action;
+	}
+
+	if (fte_action->action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
+		list_for_each_entry(dst, &fte->node.children, node.list) {
+			struct mlx5_fc *counter;
+
+			if (dst->dest_attr.type !=
+			    MLX5_FLOW_DESTINATION_TYPE_COUNTER)
+				continue;
+
+			if (num_actions == MLX5_FLOW_CONTEXT_ACTION_MAX) {
+				err = -EOPNOTSUPP;
+				goto free_actions;
+			}
+
+			counter = dst->dest_attr.counter;
+			tmp_action = mlx5_fc_get_hws_action(ctx, counter);
+			if (!tmp_action) {
+				err = -EINVAL;
+				goto free_actions;
+			}
+
+			(*ractions)[num_actions].counter.offset =
+				mlx5_fc_id(counter) - mlx5_fc_get_base_id(counter);
+			(*ractions)[num_actions++].action = tmp_action;
+			fs_actions[num_fs_actions].action = tmp_action;
+			fs_actions[num_fs_actions++].counter = counter;
+		}
+	}
+
+	if (fte->act_dests.flow_context.flow_tag) {
+		if (num_actions == MLX5_FLOW_CONTEXT_ACTION_MAX) {
+			err = -EOPNOTSUPP;
+			goto free_actions;
+		}
+		tmp_action = mlx5_fs_get_action_tag(fs_ctx);
+		if (!tmp_action) {
+			err = -ENOMEM;
+			goto free_actions;
+		}
+		(*ractions)[num_actions].tag.value = fte->act_dests.flow_context.flow_tag;
+		(*ractions)[num_actions++].action = tmp_action;
+	}
+
+	if (fte_action->action & MLX5_FLOW_CONTEXT_ACTION_EXECUTE_ASO) {
+		err = -EOPNOTSUPP;
+		goto free_actions;
+	}
+
+	if (fte_action->action & MLX5_FLOW_CONTEXT_ACTION_DROP) {
+		dest_action = mlx5_fs_get_dest_action_drop(fs_ctx);
+		if (!dest_action) {
+			err = -ENOMEM;
+			goto free_actions;
+		}
+		dest_actions[num_dest_actions++].dest = dest_action;
+	}
+
+	if (fte_action->action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) {
+		list_for_each_entry(dst, &fte->node.children, node.list) {
+			struct mlx5_flow_destination *attr = &dst->dest_attr;
+
+			if (num_fs_actions == MLX5_FLOW_CONTEXT_ACTION_MAX ||
+			    num_dest_actions == MLX5_FLOW_CONTEXT_ACTION_MAX) {
+				err = -EOPNOTSUPP;
+				goto free_actions;
+			}
+			if (attr->type == MLX5_FLOW_DESTINATION_TYPE_COUNTER)
+				continue;
+
+			switch (attr->type) {
+			case MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE:
+				dest_action = mlx5_fs_get_dest_action_ft(fs_ctx, dst);
+				break;
+			case MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE_NUM:
+				dest_action = mlx5_fs_get_dest_action_table_num(fs_ctx,
+										dst);
+				if (dest_action)
+					break;
+				dest_action = mlx5_fs_create_dest_action_table_num(fs_ctx,
+										   dst);
+				fs_actions[num_fs_actions++].action = dest_action;
+				break;
+			case MLX5_FLOW_DESTINATION_TYPE_RANGE:
+				dest_action = mlx5_fs_create_dest_action_range(ctx, dst);
+				fs_actions[num_fs_actions++].action = dest_action;
+				break;
+			default:
+				err = -EOPNOTSUPP;
+				goto free_actions;
+			}
+			if (!dest_action) {
+				err = -ENOMEM;
+				goto free_actions;
+			}
+			dest_actions[num_dest_actions++].dest = dest_action;
+		}
+	}
+
+	if (num_dest_actions == 1) {
+		if (num_actions == MLX5_FLOW_CONTEXT_ACTION_MAX) {
+			err = -EOPNOTSUPP;
+			goto free_actions;
+		}
+		(*ractions)[num_actions++].action = dest_actions->dest;
+	} else if (num_dest_actions > 1) {
+		u32 flow_source = fte->act_dests.flow_context.flow_source;
+		bool ignore_flow_level;
+
+		if (num_actions == MLX5_FLOW_CONTEXT_ACTION_MAX ||
+		    num_fs_actions == MLX5_FLOW_CONTEXT_ACTION_MAX) {
+			err = -EOPNOTSUPP;
+			goto free_actions;
+		}
+		ignore_flow_level =
+			!!(fte_action->flags & FLOW_ACT_IGNORE_FLOW_LEVEL);
+		tmp_action = mlx5_fs_create_action_dest_array(ctx, dest_actions,
+							      num_dest_actions,
+							      ignore_flow_level,
+							      flow_source);
+		if (!tmp_action) {
+			err = -EOPNOTSUPP;
+			goto free_actions;
+		}
+		fs_actions[num_fs_actions++].action = tmp_action;
+		(*ractions)[num_actions++].action = tmp_action;
+	}
+
+	if (num_actions == MLX5_FLOW_CONTEXT_ACTION_MAX ||
+	    num_fs_actions == MLX5_FLOW_CONTEXT_ACTION_MAX) {
+		err = -EOPNOTSUPP;
+		goto free_actions;
+	}
+
+	tmp_action = mlx5_fs_create_action_last(ctx);
+	if (!tmp_action) {
+		err = -ENOMEM;
+		goto free_actions;
+	}
+	fs_actions[num_fs_actions++].action = tmp_action;
+	(*ractions)[num_actions++].action = tmp_action;
+
+	kfree(dest_actions);
+
+	/* Actions created specifically for this rule will be destroyed
+	 * once rule is deleted.
+	 */
+	fte->fs_hws_rule.num_fs_actions = num_fs_actions;
+	fte->fs_hws_rule.hws_fs_actions = fs_actions;
+
+	return 0;
+
+free_actions:
+	mlx5_fs_destroy_fs_actions(&fs_actions, &num_fs_actions);
+free_dest_actions_alloc:
+	kfree(dest_actions);
+free_fs_actions_alloc:
+	kfree(fs_actions);
+free_actions_alloc:
+	kfree(*ractions);
+	*ractions = NULL;
+out_err:
+	return err;
+}
+
+static int mlx5_cmd_hws_create_fte(struct mlx5_flow_root_namespace *ns,
+				   struct mlx5_flow_table *ft,
+				   struct mlx5_flow_group *group,
+				   struct fs_fte *fte)
+{
+	struct mlx5hws_match_parameters params;
+	struct mlx5hws_rule_action *ractions;
+	struct mlx5hws_bwc_rule *rule;
+	int err = 0;
+
+	if (mlx5_fs_cmd_is_fw_term_table(ft)) {
+		/* Packet reformat on terminamtion table not supported yet */
+		if (fte->act_dests.action.action &
+		    MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT)
+			return -EOPNOTSUPP;
+		return mlx5_fs_cmd_get_fw_cmds()->create_fte(ns, ft, group, fte);
+	}
+
+	err = mlx5_fs_fte_get_hws_actions(ns, ft, group, fte, &ractions);
+	if (err)
+		goto out_err;
+
+	params.match_sz = sizeof(fte->val);
+	params.match_buf = fte->val;
+
+	rule = mlx5hws_bwc_rule_create(group->fs_hws_matcher.matcher, &params,
+				       fte->act_dests.flow_context.flow_source,
+				       ractions);
+	kfree(ractions);
+	if (!rule) {
+		err = -EINVAL;
+		goto free_actions;
+	}
+
+	fte->fs_hws_rule.bwc_rule = rule;
+	return 0;
+
+free_actions:
+	mlx5_fs_destroy_fs_actions(&fte->fs_hws_rule.hws_fs_actions,
+				   &fte->fs_hws_rule.num_fs_actions);
+out_err:
+	mlx5_core_err(ns->dev, "Failed to create hws rule err(%d)\n", err);
+	return err;
+}
+
+static int mlx5_cmd_hws_delete_fte(struct mlx5_flow_root_namespace *ns,
+				   struct mlx5_flow_table *ft,
+				   struct fs_fte *fte)
+{
+	struct mlx5_fs_hws_rule *rule = &fte->fs_hws_rule;
+	int err;
+
+	if (mlx5_fs_cmd_is_fw_term_table(ft))
+		return mlx5_fs_cmd_get_fw_cmds()->delete_fte(ns, ft, fte);
+
+	err = mlx5hws_bwc_rule_destroy(rule->bwc_rule);
+	rule->bwc_rule = NULL;
+
+	mlx5_fs_destroy_fs_actions(&rule->hws_fs_actions, &rule->num_fs_actions);
+
+	return err;
+}
+
+static int mlx5_cmd_hws_update_fte(struct mlx5_flow_root_namespace *ns,
+				   struct mlx5_flow_table *ft,
+				   struct mlx5_flow_group *group,
+				   int modify_mask,
+				   struct fs_fte *fte)
+{
+	int allowed_mask = BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_ACTION) |
+		BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_DESTINATION_LIST) |
+		BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_FLOW_COUNTERS);
+	struct mlx5_fs_hws_rule_action *saved_hws_fs_actions;
+	struct mlx5hws_rule_action *ractions;
+	int saved_num_fs_actions;
+	int ret;
+
+	if (mlx5_fs_cmd_is_fw_term_table(ft))
+		return mlx5_fs_cmd_get_fw_cmds()->update_fte(ns, ft, group,
+							     modify_mask, fte);
+
+	if ((modify_mask & ~allowed_mask) != 0)
+		return -EINVAL;
+
+	saved_hws_fs_actions = fte->fs_hws_rule.hws_fs_actions;
+	saved_num_fs_actions = fte->fs_hws_rule.num_fs_actions;
+
+	ret = mlx5_fs_fte_get_hws_actions(ns, ft, group, fte, &ractions);
+	if (ret)
+		return ret;
+
+	ret = mlx5hws_bwc_rule_action_update(fte->fs_hws_rule.bwc_rule, ractions);
+	kfree(ractions);
+	if (ret)
+		goto restore_actions;
+
+	mlx5_fs_destroy_fs_actions(&saved_hws_fs_actions, &saved_num_fs_actions);
+	return ret;
+
+restore_actions:
+	mlx5_fs_destroy_fs_actions(&fte->fs_hws_rule.hws_fs_actions,
+				   &fte->fs_hws_rule.num_fs_actions);
+	fte->fs_hws_rule.hws_fs_actions = saved_hws_fs_actions;
+	fte->fs_hws_rule.num_fs_actions = saved_num_fs_actions;
+	return ret;
+}
+
+static struct mlx5hws_action *
 mlx5_fs_create_action_remove_header_vlan(struct mlx5hws_context *ctx)
 {
 	u32 flags = MLX5HWS_ACTION_FLAG_HWS_FDB | MLX5HWS_ACTION_FLAG_SHARED;
@@ -719,6 +1265,9 @@ static const struct mlx5_flow_cmds mlx5_flow_cmds_hws = {
 	.update_root_ft = mlx5_cmd_hws_update_root_ft,
 	.create_flow_group = mlx5_cmd_hws_create_flow_group,
 	.destroy_flow_group = mlx5_cmd_hws_destroy_flow_group,
+	.create_fte = mlx5_cmd_hws_create_fte,
+	.delete_fte = mlx5_cmd_hws_delete_fte,
+	.update_fte = mlx5_cmd_hws_update_fte,
 	.packet_reformat_alloc = mlx5_cmd_hws_packet_reformat_alloc,
 	.packet_reformat_dealloc = mlx5_cmd_hws_packet_reformat_dealloc,
 	.modify_header_alloc = mlx5_cmd_hws_modify_header_alloc,

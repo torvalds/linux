@@ -43,6 +43,19 @@ struct mlx5_fs_hws_matcher {
 	struct mlx5hws_bwc_matcher *matcher;
 };
 
+struct mlx5_fs_hws_rule_action {
+	struct mlx5hws_action *action;
+	union {
+		struct mlx5_fc *counter;
+	};
+};
+
+struct mlx5_fs_hws_rule {
+	struct mlx5hws_bwc_rule *bwc_rule;
+	struct mlx5_fs_hws_rule_action *hws_fs_actions;
+	int num_fs_actions;
+};
+
 #ifdef CONFIG_MLX5_HW_STEERING
 
 const struct mlx5_flow_cmds *mlx5_fs_cmd_get_hws_cmds(void);

@@ -254,7 +254,10 @@ struct fs_fte_dup {
 /* Type of children is mlx5_flow_rule */
 struct fs_fte {
 	struct fs_node			node;
-	struct mlx5_fs_dr_rule		fs_dr_rule;
+	union {
+		struct mlx5_fs_dr_rule		fs_dr_rule;
+		struct mlx5_fs_hws_rule		fs_hws_rule;
+	};
 	u32				val[MLX5_ST_SZ_DW_MATCH_PARAM];
 	struct fs_fte_action		act_dests;
 	struct fs_fte_dup		*dup;
