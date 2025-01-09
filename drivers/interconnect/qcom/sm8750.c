@@ -1485,7 +1485,7 @@ static struct qcom_icc_node * const cnoc_main_nodes[] = {
 	[SLAVE_PCIE_0] = &xs_pcie,
 };
 
-static struct qcom_icc_desc sm8750_cnoc_main = {
+static const struct qcom_icc_desc sm8750_cnoc_main = {
 	.nodes = cnoc_main_nodes,
 	.num_nodes = ARRAY_SIZE(cnoc_main_nodes),
 	.bcms = cnoc_main_bcms,
@@ -1518,7 +1518,7 @@ static struct qcom_icc_node * const gem_noc_nodes[] = {
 	[SLAVE_MEM_NOC_PCIE_SNOC] = &qns_pcie,
 };
 
-static struct qcom_icc_desc sm8750_gem_noc = {
+static const struct qcom_icc_desc sm8750_gem_noc = {
 	.nodes = gem_noc_nodes,
 	.num_nodes = ARRAY_SIZE(gem_noc_nodes),
 	.bcms = gem_noc_bcms,
