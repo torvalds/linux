@@ -2327,7 +2327,9 @@ struct mlx5_ifc_wq_bits {
 	u8         headers_mkey[0x20];
 
 	u8         shampo_enable[0x1];
-	u8         reserved_at_1e1[0x4];
+	u8         reserved_at_1e1[0x1];
+	u8         shampo_mode[0x2];
+	u8         reserved_at_1e4[0x1];
 	u8         log_reservation_size[0x3];
 	u8         reserved_at_1e8[0x5];
 	u8         log_max_num_of_packets_per_reservation[0x3];
@@ -3697,6 +3699,22 @@ struct mlx5_ifc_crypto_cap_bits {
 	u8    sw_wrapped_dek[0x10];
 
 	u8    reserved_at_80[0x780];
+};
+
+struct mlx5_ifc_shampo_cap_bits {
+	u8    reserved_at_0[0x3];
+	u8    shampo_log_max_reservation_size[0x5];
+	u8    reserved_at_8[0x3];
+	u8    shampo_log_min_reservation_size[0x5];
+	u8    shampo_min_mss_size[0x10];
+
+	u8    shampo_header_split[0x1];
+	u8    shampo_header_split_data_merge[0x1];
+	u8    reserved_at_22[0x1];
+	u8    shampo_log_max_headers_entry_size[0x5];
+	u8    reserved_at_28[0x18];
+
+	u8    reserved_at_40[0x7c0];
 };
 
 union mlx5_ifc_hca_cap_union_bits {
