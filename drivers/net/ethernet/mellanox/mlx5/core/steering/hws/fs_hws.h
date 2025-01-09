@@ -60,9 +60,16 @@ struct mlx5_fs_hws_rule {
 
 #ifdef CONFIG_MLX5_HW_STEERING
 
+bool mlx5_fs_hws_is_supported(struct mlx5_core_dev *dev);
+
 const struct mlx5_flow_cmds *mlx5_fs_cmd_get_hws_cmds(void);
 
 #else
+
+static inline bool mlx5_fs_hws_is_supported(struct mlx5_core_dev *dev)
+{
+	return false;
+}
 
 static inline const struct mlx5_flow_cmds *mlx5_fs_cmd_get_hws_cmds(void)
 {

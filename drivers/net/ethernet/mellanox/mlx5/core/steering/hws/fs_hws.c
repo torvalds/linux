@@ -1344,6 +1344,11 @@ static u32 mlx5_cmd_hws_get_capabilities(struct mlx5_flow_root_namespace *ns,
 	       MLX5_FLOW_STEERING_CAP_MATCH_RANGES;
 }
 
+bool mlx5_fs_hws_is_supported(struct mlx5_core_dev *dev)
+{
+	return mlx5hws_is_supported(dev);
+}
+
 static const struct mlx5_flow_cmds mlx5_flow_cmds_hws = {
 	.create_flow_table = mlx5_cmd_hws_create_flow_table,
 	.destroy_flow_table = mlx5_cmd_hws_destroy_flow_table,
