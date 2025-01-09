@@ -1519,12 +1519,6 @@ done:
 	return ret;
 }
 
-void wait_on_extent_buffer_writeback(struct extent_buffer *eb)
-{
-	wait_on_bit_io(&eb->bflags, EXTENT_BUFFER_WRITEBACK,
-		       TASK_UNINTERRUPTIBLE);
-}
-
 /*
  * Lock extent buffer status and pages for writeback.
  *

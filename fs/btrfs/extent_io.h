@@ -266,7 +266,12 @@ void free_extent_buffer_stale(struct extent_buffer *eb);
 #define WAIT_PAGE_LOCK	2
 int read_extent_buffer_pages(struct extent_buffer *eb, int wait, int mirror_num,
 			     const struct btrfs_tree_parent_check *parent_check);
-void wait_on_extent_buffer_writeback(struct extent_buffer *eb);
+static inline void wait_on_extent_buffer_writeback(struct extent_buffer *eb)
+{
+	wait_on_bit_io(&eb->bflags, EXTENT_BUFFER_WRITEBACK,
+		       TASK_UNINTERRUPTIBLE);
+}
+
 void btrfs_readahead_tree_block(struct btrfs_fs_info *fs_info,
 				u64 bytenr, u64 owner_root, u64 gen, int level);
 void btrfs_readahead_node_child(struct extent_buffer *node, int slot);
