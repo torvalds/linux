@@ -2086,9 +2086,7 @@ static int __maybe_unused rsnd_resume(struct device *dev)
 {
 	struct rsnd_priv *priv = dev_get_drvdata(dev);
 
-	rsnd_adg_clk_enable(priv);
-
-	return 0;
+	return rsnd_adg_clk_enable(priv);
 }
 
 static const struct dev_pm_ops rsnd_pm_ops = {
