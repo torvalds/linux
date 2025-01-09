@@ -10159,25 +10159,26 @@ static int nl80211_start_radar_detection(struct sk_buff *skb,
 
 	err = rdev_start_radar_detection(rdev, dev, &chandef, cac_time_ms,
 					 link_id);
-	if (!err) {
-		switch (wdev->iftype) {
-		case NL80211_IFTYPE_AP:
-		case NL80211_IFTYPE_P2P_GO:
-			wdev->links[0].ap.chandef = chandef;
-			break;
-		case NL80211_IFTYPE_ADHOC:
-			wdev->u.ibss.chandef = chandef;
-			break;
-		case NL80211_IFTYPE_MESH_POINT:
-			wdev->u.mesh.chandef = chandef;
-			break;
-		default:
-			break;
-		}
-		wdev->links[link_id].cac_started = true;
-		wdev->links[link_id].cac_start_time = jiffies;
-		wdev->links[link_id].cac_time_ms = cac_time_ms;
+	if (err)
+		return err;
+
+	switch (wdev->iftype) {
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_P2P_GO:
+		wdev->links[0].ap.chandef = chandef;
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		wdev->u.ibss.chandef = chandef;
+		break;
+	case NL80211_IFTYPE_MESH_POINT:
+		wdev->u.mesh.chandef = chandef;
+		break;
+	default:
+		break;
 	}
+	wdev->links[link_id].cac_started = true;
+	wdev->links[link_id].cac_start_time = jiffies;
+	wdev->links[link_id].cac_time_ms = cac_time_ms;
 
 	return 0;
 }
