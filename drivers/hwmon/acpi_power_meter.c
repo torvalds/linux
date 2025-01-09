@@ -293,8 +293,8 @@ static ssize_t set_trip(struct device *dev, struct device_attribute *devattr,
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
 	struct acpi_power_meter_resource *resource = acpi_dev->driver_data;
+	unsigned long temp, trip_bk;
 	int res;
-	unsigned long temp;
 
 	res = kstrtoul(buf, 10, &temp);
 	if (res)
@@ -302,13 +302,15 @@ static ssize_t set_trip(struct device *dev, struct device_attribute *devattr,
 
 	temp = DIV_ROUND_CLOSEST(temp, 1000);
 
-	mutex_lock(&resource->lock);
+	guard(mutex)(&resource->lock);
+
+	trip_bk = resource->trip[attr->index - 7];
 	resource->trip[attr->index - 7] = temp;
 	res = set_acpi_trip(resource);
-	mutex_unlock(&resource->lock);
-
-	if (res)
+	if (res) {
+		resource->trip[attr->index - 7] = trip_bk;
 		return res;
+	}
 
 	return count;
 }
