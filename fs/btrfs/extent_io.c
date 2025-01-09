@@ -2562,8 +2562,8 @@ static void detach_extent_buffer_folio(const struct extent_buffer *eb, struct fo
 	spin_unlock(&folio->mapping->i_private_lock);
 }
 
-/* Release all pages attached to the extent buffer */
-static void btrfs_release_extent_buffer_pages(const struct extent_buffer *eb)
+/* Release all folios attached to the extent buffer */
+static void btrfs_release_extent_buffer_folios(const struct extent_buffer *eb)
 {
 	ASSERT(!extent_buffer_under_io(eb));
 
@@ -2585,7 +2585,7 @@ static void btrfs_release_extent_buffer_pages(const struct extent_buffer *eb)
  */
 static inline void btrfs_release_extent_buffer(struct extent_buffer *eb)
 {
-	btrfs_release_extent_buffer_pages(eb);
+	btrfs_release_extent_buffer_folios(eb);
 	btrfs_leak_debug_del_eb(eb);
 	kmem_cache_free(extent_buffer_cache, eb);
 }
@@ -3201,8 +3201,8 @@ static int release_extent_buffer(struct extent_buffer *eb)
 		}
 
 		btrfs_leak_debug_del_eb(eb);
-		/* Should be safe to release our pages at this point */
-		btrfs_release_extent_buffer_pages(eb);
+		/* Should be safe to release folios at this point. */
+		btrfs_release_extent_buffer_folios(eb);
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 		if (unlikely(test_bit(EXTENT_BUFFER_UNMAPPED, &eb->bflags))) {
 			kmem_cache_free(extent_buffer_cache, eb);
