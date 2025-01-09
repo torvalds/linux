@@ -261,10 +261,11 @@ struct extent_buffer *find_extent_buffer(struct btrfs_fs_info *fs_info,
 					 u64 start);
 void free_extent_buffer(struct extent_buffer *eb);
 void free_extent_buffer_stale(struct extent_buffer *eb);
-#define WAIT_NONE	0
-#define WAIT_COMPLETE	1
-int read_extent_buffer_pages(struct extent_buffer *eb, int wait, int mirror_num,
+int read_extent_buffer_pages(struct extent_buffer *eb, int mirror_num,
 			     const struct btrfs_tree_parent_check *parent_check);
+int read_extent_buffer_pages_nowait(struct extent_buffer *eb, int mirror_num,
+				    const struct btrfs_tree_parent_check *parent_check);
+
 static inline void wait_on_extent_buffer_writeback(struct extent_buffer *eb)
 {
 	wait_on_bit_io(&eb->bflags, EXTENT_BUFFER_WRITEBACK,
