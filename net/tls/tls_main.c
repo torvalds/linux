@@ -737,6 +737,10 @@ static int do_tls_setsockopt_conf(struct sock *sk, sockptr_t optval,
 	else
 		ctx->rx_conf = conf;
 	update_sk_prot(sk, ctx);
+
+	if (update)
+		return 0;
+
 	if (tx) {
 		ctx->sk_write_space = sk->sk_write_space;
 		sk->sk_write_space = tls_write_space;
