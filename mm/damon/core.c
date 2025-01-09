@@ -275,6 +275,7 @@ struct damos_filter *damos_new_filter(enum damos_filter_type type,
 		return NULL;
 	filter->type = type;
 	filter->matching = matching;
+	filter->allow = false;
 	INIT_LIST_HEAD(&filter->list);
 	return filter;
 }
