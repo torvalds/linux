@@ -3172,6 +3172,13 @@ EXPORT_SYMBOL_GPL(call_rcu_hurry);
  *
  * Implementation of these memory-ordering guarantees is described here:
  * Documentation/RCU/Design/Memory-Ordering/Tree-RCU-Memory-Ordering.rst.
+ *
+ * Specific to call_rcu() (as opposed to the other call_rcu*() functions),
+ * in kernels built with CONFIG_RCU_LAZY=y, call_rcu() might delay for many
+ * seconds before starting the grace period needed by the corresponding
+ * callback.  This delay can significantly improve energy-efficiency
+ * on low-utilization battery-powered devices.  To avoid this delay,
+ * in latency-sensitive kernel code, use call_rcu_hurry().
  */
 void call_rcu(struct rcu_head *head, rcu_callback_t func)
 {
