@@ -3131,7 +3131,7 @@ again:
 	 * live buffer and won't free them prematurely.
 	 */
 	for (int i = 0; i < num_folios; i++)
-		unlock_page(folio_page(eb->folios[i], 0));
+		folio_unlock(eb->folios[i]);
 	return eb;
 
 out:
@@ -3155,7 +3155,7 @@ out:
 	for (int i = 0; i < attached; i++) {
 		ASSERT(eb->folios[i]);
 		detach_extent_buffer_folio(eb, eb->folios[i]);
-		unlock_page(folio_page(eb->folios[i], 0));
+		folio_unlock(eb->folios[i]);
 		folio_put(eb->folios[i]);
 		eb->folios[i] = NULL;
 	}
@@ -3364,12 +3364,12 @@ void set_extent_buffer_dirty(struct extent_buffer *eb)
 		 * the above race.
 		 */
 		if (subpage)
-			lock_page(folio_page(eb->folios[0], 0));
+			folio_lock(eb->folios[0]);
 		for (int i = 0; i < num_folios; i++)
 			btrfs_folio_set_dirty(eb->fs_info, eb->folios[i],
 					      eb->start, eb->len);
 		if (subpage)
-			unlock_page(folio_page(eb->folios[0], 0));
+			folio_unlock(eb->folios[0]);
 		percpu_counter_add_batch(&eb->fs_info->dirty_metadata_bytes,
 					 eb->len,
 					 eb->fs_info->dirty_metadata_batch);
