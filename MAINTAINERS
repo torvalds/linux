@@ -22450,7 +22450,7 @@ F:	arch/*/kernel/static_call.c
 F:	include/linux/jump_label*.h
 F:	include/linux/static_call*.h
 F:	kernel/jump_label.c
-F:	kernel/static_call.c
+F:	kernel/static_call*.c
 
 STI AUDIO (ASoC) DRIVERS
 M:	Arnaud Pouliquen <arnaud.pouliquen@foss.st.com>
