@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/string_choices.h>
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/info.h>
@@ -1157,8 +1158,8 @@ static void info_read(struct snd_info_entry *entry, struct snd_info_buffer *buff
 				    ((p->acc_rates & SNDRV_SB_CSP_RATE_44100) ? "44100Hz" : ""));
 		}
 		if (p->mode == SNDRV_SB_CSP_MODE_QSOUND) {
-			snd_iprintf(buffer, "QSound decoder %sabled\n",
-				    p->q_enabled ? "en" : "dis");
+			snd_iprintf(buffer, "QSound decoder %s\n",
+				    str_enabled_disabled(p->q_enabled));
 		} else {
 			snd_iprintf(buffer, "PCM format ID: 0x%x (%s/%s) [%s/%s] [%s/%s]\n",
 				    p->acc_format,
