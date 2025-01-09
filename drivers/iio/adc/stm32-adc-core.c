@@ -615,8 +615,7 @@ static int stm32_adc_core_switches_probe(struct device *dev,
 	}
 
 	/* Booster can be used to supply analog switches (optional) */
-	if (priv->cfg->has_syscfg & HAS_VBOOSTER &&
-	    of_property_read_bool(np, "booster-supply")) {
+	if (priv->cfg->has_syscfg & HAS_VBOOSTER) {
 		priv->booster = devm_regulator_get_optional(dev, "booster");
 		if (IS_ERR(priv->booster)) {
 			ret = PTR_ERR(priv->booster);
@@ -628,8 +627,7 @@ static int stm32_adc_core_switches_probe(struct device *dev,
 	}
 
 	/* Vdd can be used to supply analog switches (optional) */
-	if (priv->cfg->has_syscfg & HAS_ANASWVDD &&
-	    of_property_read_bool(np, "vdd-supply")) {
+	if (priv->cfg->has_syscfg & HAS_ANASWVDD) {
 		priv->vdd = devm_regulator_get_optional(dev, "vdd");
 		if (IS_ERR(priv->vdd)) {
 			ret = PTR_ERR(priv->vdd);
