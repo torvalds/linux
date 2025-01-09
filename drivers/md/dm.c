@@ -1968,6 +1968,15 @@ static void dm_split_and_process_bio(struct mapped_device *md,
 
 	/* Only support nowait for normal IO */
 	if (unlikely(bio->bi_opf & REQ_NOWAIT) && !is_abnormal) {
+		/*
+		 * Don't support NOWAIT for FLUSH because it may allocate
+		 * multiple bios and there's no easy way how to undo the
+		 * allocations.
+		 */
+		if (bio->bi_opf & REQ_PREFLUSH) {
+			bio_wouldblock_error(bio);
+			return;
+		}
 		io = alloc_io(md, bio, GFP_NOWAIT);
 		if (unlikely(!io)) {
 			/* Unable to do anything without dm_io. */
