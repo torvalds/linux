@@ -2846,11 +2846,14 @@ static struct extent_buffer *grab_extent_buffer(struct btrfs_fs_info *fs_info,
 	return NULL;
 }
 
-static int check_eb_alignment(struct btrfs_fs_info *fs_info, u64 start)
+/*
+ * Validate alignment constraints of eb at logical address @start.
+ */
+static bool check_eb_alignment(struct btrfs_fs_info *fs_info, u64 start)
 {
 	if (!IS_ALIGNED(start, fs_info->sectorsize)) {
 		btrfs_err(fs_info, "bad tree block start %llu", start);
-		return -EINVAL;
+		return true;
 	}
 
 	if (fs_info->nodesize < PAGE_SIZE &&
@@ -2858,14 +2861,14 @@ static int check_eb_alignment(struct btrfs_fs_info *fs_info, u64 start)
 		btrfs_err(fs_info,
 		"tree block crosses page boundary, start %llu nodesize %u",
 			  start, fs_info->nodesize);
-		return -EINVAL;
+		return true;
 	}
 	if (fs_info->nodesize >= PAGE_SIZE &&
 	    !PAGE_ALIGNED(start)) {
 		btrfs_err(fs_info,
 		"tree block is not page aligned, start %llu nodesize %u",
 			  start, fs_info->nodesize);
-		return -EINVAL;
+		return true;
 	}
 	if (!IS_ALIGNED(start, fs_info->nodesize) &&
 	    !test_and_set_bit(BTRFS_FS_UNALIGNED_TREE_BLOCK, &fs_info->flags)) {
@@ -2873,9 +2876,8 @@ static int check_eb_alignment(struct btrfs_fs_info *fs_info, u64 start)
 "tree block not nodesize aligned, start %llu nodesize %u, can be resolved by a full metadata balance",
 			      start, fs_info->nodesize);
 	}
-	return 0;
+	return false;
 }
-
 
 /*
  * Return 0 if eb->folios[i] is attached to btree inode successfully.
