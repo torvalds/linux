@@ -436,13 +436,12 @@ static int __init __reserved_mem_alloc_size(unsigned long node, const char *unam
 			return -EINVAL;
 		}
 
-		base = 0;
-
 		while (len > 0) {
 			start = dt_mem_next_cell(dt_root_addr_cells, &prop);
 			end = start + dt_mem_next_cell(dt_root_size_cells,
 						       &prop);
 
+			base = 0;
 			ret = __reserved_mem_alloc_in_range(size, align,
 					start, end, nomap, &base);
 			if (ret == 0) {
