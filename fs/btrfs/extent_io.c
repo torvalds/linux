@@ -862,11 +862,6 @@ static int attach_extent_buffer_folio(struct extent_buffer *eb,
 	return ret;
 }
 
-int set_page_extent_mapped(struct page *page)
-{
-	return set_folio_extent_mapped(page_folio(page));
-}
-
 int set_folio_extent_mapped(struct folio *folio)
 {
 	struct btrfs_fs_info *fs_info;
