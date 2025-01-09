@@ -13,7 +13,6 @@ FILES=                                          \
          test-gtk2.bin                          \
          test-gtk2-infobar.bin                  \
          test-hello.bin                         \
-         test-libaudit.bin                      \
          test-libbfd.bin                        \
          test-libbfd-buildid.bin		\
          test-disassembler-four-args.bin        \
@@ -231,9 +230,6 @@ $(OUTPUT)test-libunwind-debug-frame-arm.bin:
 
 $(OUTPUT)test-libunwind-debug-frame-aarch64.bin:
 	$(BUILD) -lelf -llzma -lunwind-aarch64
-
-$(OUTPUT)test-libaudit.bin:
-	$(BUILD) -laudit
 
 $(OUTPUT)test-libslang.bin:
 	$(BUILD) -lslang
