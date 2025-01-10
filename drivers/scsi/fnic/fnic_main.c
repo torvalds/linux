@@ -637,7 +637,7 @@ static int fnic_scsi_drv_init(struct fnic *fnic)
 	err = scsi_add_host(fnic->host, &pdev->dev);
 	if (err) {
 		dev_err(&fnic->pdev->dev, "fnic: scsi add host failed: aborting\n");
-		return -1;
+		return err;
 	}
 	fc_host_maxframe_size(fnic->host) = iport->max_payload_size;
 	fc_host_dev_loss_tmo(fnic->host) =
