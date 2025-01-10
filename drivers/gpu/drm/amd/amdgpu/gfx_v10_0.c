@@ -3796,6 +3796,7 @@ static void gfx_v10_0_kiq_reset_hw_queue(struct amdgpu_ring *kiq_ring, uint32_t 
 {
 	struct amdgpu_device *adev = kiq_ring->adev;
 	unsigned i;
+	uint32_t tmp;
 
 	/* enter save mode */
 	amdgpu_gfx_rlc_enter_safe_mode(adev, xcc_id);
@@ -3813,6 +3814,24 @@ static void gfx_v10_0_kiq_reset_hw_queue(struct amdgpu_ring *kiq_ring, uint32_t 
 		}
 		if (i >= adev->usec_timeout)
 			dev_err(adev->dev, "fail to wait on hqd deactive\n");
+	} else if (queue_type == AMDGPU_RING_TYPE_GFX) {
+		WREG32_SOC15(GC, 0, mmGRBM_GFX_INDEX,
+			     (uint32_t)(0x1 << GRBM_GFX_INDEX__SE_BROADCAST_WRITES__SHIFT));
+		tmp = REG_SET_FIELD(0, CP_VMID_RESET, RESET_REQUEST, 1 << vmid);
+		if (pipe_id == 0)
+			tmp = REG_SET_FIELD(tmp, CP_VMID_RESET, PIPE0_QUEUES, 1 << queue_id);
+		else
+			tmp = REG_SET_FIELD(tmp, CP_VMID_RESET, PIPE1_QUEUES, 1 << queue_id);
+		WREG32_SOC15(GC, 0, mmCP_VMID_RESET, tmp);
+
+		/* wait till dequeue take effects */
+		for (i = 0; i < adev->usec_timeout; i++) {
+			if (!(RREG32_SOC15(GC, 0, mmCP_GFX_HQD_ACTIVE) & 1))
+				break;
+			udelay(1);
+		}
+		if (i >= adev->usec_timeout)
+			dev_err(adev->dev, "failed to wait on gfx hqd deactivate\n");
 	} else {
 		dev_err(adev->dev, "reset queue_type(%d) not supported\n", queue_type);
 	}
