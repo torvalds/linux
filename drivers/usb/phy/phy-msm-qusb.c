@@ -1679,10 +1679,6 @@ static int qusb_phy_probe(struct platform_device *pdev)
 
 	}
 
-	ret = usb_add_phy_dev(&qphy->phy);
-	if (ret)
-		return ret;
-
 	ret = qusb_phy_regulator_init(qphy);
 	if (ret)
 		usb_remove_phy(&qphy->phy);
@@ -1718,6 +1714,9 @@ static int qusb_phy_probe(struct platform_device *pdev)
 	}
 
 	qusb_phy_create_debugfs(qphy);
+
+	/* Placed at the end to ensure the probe is complete */
+	ret = usb_add_phy_dev(&qphy->phy);
 
 	return ret;
 }
