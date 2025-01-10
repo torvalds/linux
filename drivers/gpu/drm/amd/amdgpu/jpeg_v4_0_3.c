@@ -61,8 +61,7 @@ static int amdgpu_ih_srcid_jpeg[] = {
 
 static inline bool jpeg_v4_0_3_normalizn_reqd(struct amdgpu_device *adev)
 {
-	return amdgpu_sriov_vf(adev) ||
-	       (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 4));
+	return (adev->jpeg.caps & AMDGPU_JPEG_CAPS(RRMT_ENABLED)) == 0;
 }
 
 /**
@@ -331,6 +330,11 @@ static int jpeg_v4_0_3_hw_init(struct amdgpu_ip_block *ip_block)
 			}
 		}
 	} else {
+		/* This flag is not set for VF, assumed to be disabled always */
+		if (RREG32_SOC15(VCN, GET_INST(VCN, 0), regVCN_RRMT_CNTL) &
+		    0x100)
+			adev->jpeg.caps |= AMDGPU_JPEG_CAPS(RRMT_ENABLED);
+
 		for (i = 0; i < adev->jpeg.num_jpeg_inst; ++i) {
 			jpeg_inst = GET_INST(JPEG, i);
 

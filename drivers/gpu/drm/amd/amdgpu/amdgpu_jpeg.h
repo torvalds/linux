@@ -92,6 +92,12 @@
 		*adev->jpeg.inst[inst_idx].dpg_sram_curr_addr++ = value;	\
 	} while (0)
 
+enum amdgpu_jpeg_caps {
+	AMDGPU_JPEG_RRMT_ENABLED,
+};
+
+#define AMDGPU_JPEG_CAPS(caps) BIT(AMDGPU_JPEG_##caps)
+
 struct amdgpu_jpeg_reg{
 	unsigned jpeg_pitch[AMDGPU_MAX_JPEG_RINGS];
 };
@@ -130,6 +136,7 @@ struct amdgpu_jpeg {
 	uint8_t num_inst_per_aid;
 	bool	indirect_sram;
 	uint32_t supported_reset;
+	uint32_t caps;
 };
 
 int amdgpu_jpeg_sw_init(struct amdgpu_device *adev);
