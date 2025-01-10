@@ -6,6 +6,7 @@
 //
 
 #include <linux/device.h>
+#include <linux/ethtool.h>
 #include <linux/of.h>
 #include <linux/pse-pd/pse.h>
 #include <linux/regulator/driver.h>

@@ -5,7 +5,6 @@
 #ifndef _LINUX_PSE_CONTROLLER_H
 #define _LINUX_PSE_CONTROLLER_H
 
-#include <linux/ethtool.h>
 #include <linux/list.h>
 #include <uapi/linux/ethtool.h>
 
@@ -16,6 +15,27 @@
 
 struct phy_device;
 struct pse_controller_dev;
+struct netlink_ext_ack;
+
+/* C33 PSE extended state and substate. */
+struct ethtool_c33_pse_ext_state_info {
+	enum ethtool_c33_pse_ext_state c33_pse_ext_state;
+	union {
+		enum ethtool_c33_pse_ext_substate_error_condition error_condition;
+		enum ethtool_c33_pse_ext_substate_mr_pse_enable mr_pse_enable;
+		enum ethtool_c33_pse_ext_substate_option_detect_ted option_detect_ted;
+		enum ethtool_c33_pse_ext_substate_option_vport_lim option_vport_lim;
+		enum ethtool_c33_pse_ext_substate_ovld_detected ovld_detected;
+		enum ethtool_c33_pse_ext_substate_power_not_available power_not_available;
+		enum ethtool_c33_pse_ext_substate_short_detected short_detected;
+		u32 __c33_pse_ext_substate;
+	};
+};
+
+struct ethtool_c33_pse_pw_limit_range {
+	u32 min;
+	u32 max;
+};
 
 /**
  * struct pse_control_config - PSE control/channel configuration.
