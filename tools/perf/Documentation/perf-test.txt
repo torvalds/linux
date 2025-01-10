@@ -33,13 +33,9 @@ OPTIONS
 
 -S::
 --sequential::
-	Run tests one after the other, this is the default mode.
-
--p:: 
---parallel::
-	Run tests in parallel, speeds up the whole process but is not safe with
-	the current infrastructure, where some tests that compete for some resources,
-	for instance, 'perf probe' tests that add/remove probes or clean all probes, etc.
+	Run all tests one after the other. By default "exclusive"
+	tests are run sequentially, but other tests are run in
+	parallel to speed execution.
 
 -F::
 --dont-fork::
