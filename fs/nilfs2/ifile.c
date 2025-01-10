@@ -172,7 +172,8 @@ int nilfs_ifile_count_free_inodes(struct inode *ifile,
  * @cno: number of checkpoint entry to read
  * @inode_size: size of an inode
  *
- * Return: 0 on success, or the following negative error code on failure.
+ * Return: 0 on success, or one of the following negative error codes on
+ * failure:
  * * %-EINVAL	- Invalid checkpoint.
  * * %-ENOMEM	- Insufficient memory available.
  * * %-EIO	- I/O error (including metadata corruption).

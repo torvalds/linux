@@ -850,7 +850,7 @@ out:
  * @nsi:    size of suinfo array
  *
  * Return: Count of segment usage info items stored in the output buffer on
- * success, or the following negative error code on failure.
+ * success, or one of the following negative error codes on failure:
  * * %-EIO	- I/O error (including metadata corruption).
  * * %-ENOMEM	- Insufficient memory available.
  */

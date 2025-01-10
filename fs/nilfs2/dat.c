@@ -276,7 +276,8 @@ void nilfs_dat_abort_update(struct inode *dat,
  * @dat:      DAT file inode
  * @vblocknr: virtual block number
  *
- * Return: 0 on success, or the following negative error code on failure.
+ * Return: 0 on success, or one of the following negative error codes on
+ * failure:
  * * %-EINVAL	- Invalid DAT entry (internal code).
  * * %-EIO	- I/O error (including metadata corruption).
  * * %-ENOMEM	- Insufficient memory available.

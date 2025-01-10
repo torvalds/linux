@@ -236,7 +236,8 @@ static inline int nilfs_cpfile_delete_checkpoint_block(struct inode *cpfile,
  * stores it to the inode file given by @ifile and the nilfs root object
  * given by @root.
  *
- * Return: 0 on success, or the following negative error code on failure.
+ * Return: 0 on success, or one of the following negative error codes on
+ * failure:
  * * %-EINVAL	- Invalid checkpoint.
  * * %-ENOMEM	- Insufficient memory available.
  * * %-EIO	- I/O error (including metadata corruption).
@@ -304,7 +305,8 @@ out_sem:
  * In either case, the buffer of the block containing the checkpoint entry
  * and the cpfile inode are made dirty for inclusion in the write log.
  *
- * Return: 0 on success, or the following negative error code on failure.
+ * Return: 0 on success, or one of the following negative error codes on
+ * failure:
  * * %-ENOMEM	- Insufficient memory available.
  * * %-EIO	- I/O error (including metadata corruption).
  * * %-EROFS	- Read only filesystem
@@ -373,7 +375,8 @@ out_sem:
  * cpfile with the data given by the arguments @root, @blkinc, @ctime, and
  * @minor.
  *
- * Return: 0 on success, or the following negative error code on failure.
+ * Return: 0 on success, or one of the following negative error codes on
+ * failure:
  * * %-ENOMEM	- Insufficient memory available.
  * * %-EIO	- I/O error (including metadata corruption).
  */
@@ -712,7 +715,7 @@ static ssize_t nilfs_cpfile_do_get_ssinfo(struct inode *cpfile, __u64 *cnop,
  * number to continue searching.
  *
  * Return: Count of checkpoint info items stored in the output buffer on
- * success, or the following negative error code on failure.
+ * success, or one of the following negative error codes on failure:
  * * %-EINVAL	- Invalid checkpoint mode.
  * * %-ENOMEM	- Insufficient memory available.
  * * %-EIO	- I/O error (including metadata corruption).
@@ -737,7 +740,8 @@ ssize_t nilfs_cpfile_get_cpinfo(struct inode *cpfile, __u64 *cnop, int mode,
  * @cpfile: checkpoint file inode
  * @cno:    checkpoint number to delete
  *
- * Return: 0 on success, or the following negative error code on failure.
+ * Return: 0 on success, or one of the following negative error codes on
+ * failure:
  * * %-EBUSY	- Checkpoint in use (snapshot specified).
  * * %-EIO	- I/O error (including metadata corruption).
  * * %-ENOENT	- No valid checkpoint found.
@@ -1005,7 +1009,7 @@ static int nilfs_cpfile_clear_snapshot(struct inode *cpfile, __u64 cno)
  * @cno:    checkpoint number
  *
  * Return: 1 if the checkpoint specified by @cno is a snapshot, 0 if not, or
- * the following negative error code on failure.
+ * one of the following negative error codes on failure:
  * * %-EIO	- I/O error (including metadata corruption).
  * * %-ENOENT	- No such checkpoint.
  * * %-ENOMEM	- Insufficient memory available.

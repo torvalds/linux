@@ -1268,7 +1268,8 @@ static int nilfs_ioctl_get_fslabel(struct super_block *sb, void __user *argp)
  * @filp: file object
  * @argp: pointer to userspace memory that contains the volume name
  *
- * Return: 0 on success, or the following negative error code on failure.
+ * Return: 0 on success, or one of the following negative error codes on
+ * failure:
  * * %-EFAULT	- Error copying input data.
  * * %-EINVAL	- Label length exceeds record size in superblock.
  * * %-EIO	- I/O error.

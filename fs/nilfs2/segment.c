@@ -1122,7 +1122,8 @@ static int nilfs_segctor_scan_file_dsync(struct nilfs_sc_info *sci,
  * a super root block containing this sufile change is complete, and it can
  * be canceled with nilfs_sufile_cancel_freev() until then.
  *
- * Return: 0 on success, or the following negative error code on failure.
+ * Return: 0 on success, or one of the following negative error codes on
+ * failure:
  * * %-EINVAL	- Invalid segment number.
  * * %-EIO	- I/O error (including metadata corruption).
  * * %-ENOMEM	- Insufficient memory available.
@@ -2834,7 +2835,8 @@ static void nilfs_segctor_destroy(struct nilfs_sc_info *sci)
  * This allocates a log writer object, initializes it, and starts the
  * log writer.
  *
- * Return: 0 on success, or the following negative error code on failure.
+ * Return: 0 on success, or one of the following negative error codes on
+ * failure:
  * * %-EINTR	- Log writer thread creation failed due to interruption.
  * * %-ENOMEM	- Insufficient memory available.
  */
