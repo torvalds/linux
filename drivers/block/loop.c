@@ -68,7 +68,6 @@ struct loop_device {
 	struct list_head        idle_worker_list;
 	struct rb_root          worker_tree;
 	struct timer_list       timer;
-	bool			use_dio;
 	bool			sysfs_inited;
 
 	struct request_queue	*lo_queue;
@@ -196,32 +195,30 @@ static bool lo_can_use_dio(struct loop_device *lo)
 	return true;
 }
 
+/*
+ * Direct I/O can be enabled either by using an O_DIRECT file descriptor, or by
+ * passing in the LO_FLAGS_DIRECT_IO flag from userspace.  It will be silently
+ * disabled when the device block size is too small or the offset is unaligned.
+ *
+ * loop_get_status will always report the effective LO_FLAGS_DIRECT_IO flag and
+ * not the originally passed in one.
+ */
 static inline void loop_update_dio(struct loop_device *lo)
 {
-	bool dio = lo->use_dio || (lo->lo_backing_file->f_flags & O_DIRECT);
-	bool use_dio = dio && lo_can_use_dio(lo);
+	bool dio_in_use = lo->lo_flags & LO_FLAGS_DIRECT_IO;
 
 	lockdep_assert_held(&lo->lo_mutex);
 	WARN_ON_ONCE(lo->lo_state == Lo_bound &&
 		     lo->lo_queue->mq_freeze_depth == 0);
 
-	if (lo->use_dio == use_dio)
-		return;
-
-	/* flush dirty pages before starting to use direct I/O */
-	if (use_dio)
-		vfs_fsync(lo->lo_backing_file, 0);
-
-	/*
-	 * The flag of LO_FLAGS_DIRECT_IO is handled similarly with
-	 * LO_FLAGS_READ_ONLY, both are set from kernel, and losetup
-	 * will get updated by ioctl(LOOP_GET_STATUS)
-	 */
-	lo->use_dio = use_dio;
-	if (use_dio)
+	if (lo->lo_backing_file->f_flags & O_DIRECT)
 		lo->lo_flags |= LO_FLAGS_DIRECT_IO;
-	else
+	if ((lo->lo_flags & LO_FLAGS_DIRECT_IO) && !lo_can_use_dio(lo))
 		lo->lo_flags &= ~LO_FLAGS_DIRECT_IO;
+
+	/* flush dirty pages before starting to issue direct I/O */
+	if ((lo->lo_flags & LO_FLAGS_DIRECT_IO) && !dio_in_use)
+		vfs_fsync(lo->lo_backing_file, 0);
 }
 
 /**
@@ -1089,7 +1086,6 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
 	disk_force_media_change(lo->lo_disk);
 	set_disk_ro(lo->lo_disk, (lo->lo_flags & LO_FLAGS_READ_ONLY) != 0);
 
-	lo->use_dio = lo->lo_flags & LO_FLAGS_DIRECT_IO;
 	lo->lo_device = bdev;
 	lo->lo_backing_file = file;
 	lo->old_gfp_mask = mapping_gfp_mask(mapping);
@@ -1454,7 +1450,7 @@ static int loop_set_dio(struct loop_device *lo, unsigned long arg)
 
 	if (lo->lo_state != Lo_bound)
 		return -ENXIO;
-	if (use_dio == lo->use_dio)
+	if (use_dio == !!(lo->lo_flags & LO_FLAGS_DIRECT_IO))
 		return 0;
 
 	if (use_dio) {
@@ -1465,7 +1461,6 @@ static int loop_set_dio(struct loop_device *lo, unsigned long arg)
 	}
 
 	blk_mq_freeze_queue(lo->lo_queue);
-	lo->use_dio = use_dio;
 	if (use_dio)
 		lo->lo_flags |= LO_FLAGS_DIRECT_IO;
 	else
@@ -1876,7 +1871,7 @@ static blk_status_t loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 		cmd->use_aio = false;
 		break;
 	default:
-		cmd->use_aio = lo->use_dio;
+		cmd->use_aio = lo->lo_flags & LO_FLAGS_DIRECT_IO;
 		break;
 	}
 
