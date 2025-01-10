@@ -1835,6 +1835,7 @@ static void clean_up_dsc_blocks(struct dc *dc)
 	int i;
 
 	if (dc->ctx->dce_version != DCN_VERSION_3_5 &&
+		dc->ctx->dce_version != DCN_VERSION_3_6 &&
 		dc->ctx->dce_version != DCN_VERSION_3_51)
 		return;
 
