@@ -431,31 +431,6 @@ static int pd692x0_pi_disable(struct pse_controller_dev *pcdev, int id)
 	return 0;
 }
 
-static int pd692x0_pi_is_enabled(struct pse_controller_dev *pcdev, int id)
-{
-	struct pd692x0_priv *priv = to_pd692x0_priv(pcdev);
-	struct pd692x0_msg msg, buf = {0};
-	int ret;
-
-	ret = pd692x0_fw_unavailable(priv);
-	if (ret)
-		return ret;
-
-	msg = pd692x0_msg_template_list[PD692X0_MSG_GET_PORT_STATUS];
-	msg.sub[2] = id;
-	ret = pd692x0_sendrecv_msg(priv, &msg, &buf);
-	if (ret < 0)
-		return ret;
-
-	if (buf.sub[1]) {
-		priv->admin_state[id] = ETHTOOL_C33_PSE_ADMIN_STATE_ENABLED;
-		return 1;
-	} else {
-		priv->admin_state[id] = ETHTOOL_C33_PSE_ADMIN_STATE_DISABLED;
-		return 0;
-	}
-}
-
 struct pd692x0_pse_ext_state_mapping {
 	u32 status_code;
 	enum ethtool_c33_pse_ext_state pse_ext_state;
@@ -1105,7 +1080,6 @@ static const struct pse_controller_ops pd692x0_ops = {
 	.pi_get_actual_pw = pd692x0_pi_get_actual_pw,
 	.pi_enable = pd692x0_pi_enable,
 	.pi_disable = pd692x0_pi_disable,
-	.pi_is_enabled = pd692x0_pi_is_enabled,
 	.pi_get_voltage = pd692x0_pi_get_voltage,
 	.pi_get_pw_limit = pd692x0_pi_get_pw_limit,
 	.pi_set_pw_limit = pd692x0_pi_set_pw_limit,

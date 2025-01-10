@@ -210,16 +210,25 @@ out:
 static int pse_pi_is_enabled(struct regulator_dev *rdev)
 {
 	struct pse_controller_dev *pcdev = rdev_get_drvdata(rdev);
+	struct pse_admin_state admin_state = {0};
 	const struct pse_controller_ops *ops;
 	int id, ret;
 
 	ops = pcdev->ops;
-	if (!ops->pi_is_enabled)
+	if (!ops->pi_get_admin_state)
 		return -EOPNOTSUPP;
 
 	id = rdev_get_id(rdev);
 	mutex_lock(&pcdev->lock);
-	ret = ops->pi_is_enabled(pcdev, id);
+	ret = ops->pi_get_admin_state(pcdev, id, &admin_state);
+	if (ret)
+		goto out;
+
+	if (admin_state.podl_admin_state == ETHTOOL_PODL_PSE_ADMIN_STATE_ENABLED ||
+	    admin_state.c33_admin_state == ETHTOOL_C33_PSE_ADMIN_STATE_ENABLED)
+		ret = 1;
+
+out:
 	mutex_unlock(&pcdev->lock);
 
 	return ret;

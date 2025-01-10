@@ -122,8 +122,6 @@ struct ethtool_pse_control_status {
  * @pi_get_ext_state: Get the extended state of the PSE PI.
  * @pi_get_pw_class: Get the power class of the PSE PI.
  * @pi_get_actual_pw: Get actual power of the PSE PI in mW.
- * @pi_is_enabled: Return 1 if the PSE PI is enabled, 0 if not.
- *		   May also return negative errno.
  * @pi_enable: Configure the PSE PI as enabled.
  * @pi_disable: Configure the PSE PI as disabled.
  * @pi_get_voltage: Return voltage similarly to get_voltage regulator
@@ -145,7 +143,6 @@ struct pse_controller_ops {
 				struct pse_ext_state_info *ext_state_info);
 	int (*pi_get_pw_class)(struct pse_controller_dev *pcdev, int id);
 	int (*pi_get_actual_pw)(struct pse_controller_dev *pcdev, int id);
-	int (*pi_is_enabled)(struct pse_controller_dev *pcdev, int id);
 	int (*pi_enable)(struct pse_controller_dev *pcdev, int id);
 	int (*pi_disable)(struct pse_controller_dev *pcdev, int id);
 	int (*pi_get_voltage)(struct pse_controller_dev *pcdev, int id);

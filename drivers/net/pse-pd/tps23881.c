@@ -174,33 +174,6 @@ static int tps23881_pi_disable(struct pse_controller_dev *pcdev, int id)
 	return i2c_smbus_write_word_data(client, TPS23881_REG_DET_CLA_EN, val);
 }
 
-static int tps23881_pi_is_enabled(struct pse_controller_dev *pcdev, int id)
-{
-	struct tps23881_priv *priv = to_tps23881_priv(pcdev);
-	struct i2c_client *client = priv->client;
-	bool enabled;
-	u8 chan;
-	u16 val;
-	int ret;
-
-	ret = i2c_smbus_read_word_data(client, TPS23881_REG_PW_STATUS);
-	if (ret < 0)
-		return ret;
-
-	chan = priv->port[id].chan[0];
-	val = tps23881_calc_val(ret, chan, 0, BIT(chan % 4));
-	enabled = !!(val);
-
-	if (priv->port[id].is_4p) {
-		chan = priv->port[id].chan[1];
-		val = tps23881_calc_val(ret, chan, 0, BIT(chan % 4));
-		enabled &= !!(val);
-	}
-
-	/* Return enabled status only if both channel are on this state */
-	return enabled;
-}
-
 static int
 tps23881_pi_get_admin_state(struct pse_controller_dev *pcdev, int id,
 			    struct pse_admin_state *admin_state)
@@ -690,7 +663,6 @@ static const struct pse_controller_ops tps23881_ops = {
 	.setup_pi_matrix = tps23881_setup_pi_matrix,
 	.pi_enable = tps23881_pi_enable,
 	.pi_disable = tps23881_pi_disable,
-	.pi_is_enabled = tps23881_pi_is_enabled,
 	.pi_get_admin_state = tps23881_pi_get_admin_state,
 	.pi_get_pw_status = tps23881_pi_get_pw_status,
 };

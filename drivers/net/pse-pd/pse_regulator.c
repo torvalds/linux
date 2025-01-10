@@ -52,14 +52,6 @@ pse_reg_pi_disable(struct pse_controller_dev *pcdev, int id)
 }
 
 static int
-pse_reg_pi_is_enabled(struct pse_controller_dev *pcdev, int id)
-{
-	struct pse_reg_priv *priv = to_pse_reg(pcdev);
-
-	return regulator_is_enabled(priv->ps);
-}
-
-static int
 pse_reg_pi_get_admin_state(struct pse_controller_dev *pcdev, int id,
 			   struct pse_admin_state *admin_state)
 {
@@ -95,7 +87,6 @@ static const struct pse_controller_ops pse_reg_ops = {
 	.pi_get_admin_state = pse_reg_pi_get_admin_state,
 	.pi_get_pw_status = pse_reg_pi_get_pw_status,
 	.pi_enable = pse_reg_pi_enable,
-	.pi_is_enabled = pse_reg_pi_is_enabled,
 	.pi_disable = pse_reg_pi_disable,
 };
 
