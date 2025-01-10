@@ -37,6 +37,11 @@ OPTIONS
 	tests are run sequentially, but other tests are run in
 	parallel to speed execution.
 
+-r::
+--runs-per-test::
+	Run each test the given number of times, by default once. This
+	option can be useful to determine if a test is flaky.
+
 -F::
 --dont-fork::
 	Do not fork child for each test, run all tests within single process, this
