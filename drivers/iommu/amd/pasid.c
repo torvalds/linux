@@ -185,12 +185,13 @@ struct iommu_domain *amd_iommu_domain_alloc_sva(struct device *dev,
 	struct protection_domain *pdom;
 	int ret;
 
-	pdom = protection_domain_alloc(IOMMU_DOMAIN_SVA, dev_to_node(dev));
+	pdom = protection_domain_alloc(dev_to_node(dev));
 	if (!pdom)
 		return ERR_PTR(-ENOMEM);
 
 	pdom->domain.ops = &amd_sva_domain_ops;
 	pdom->mn.ops = &sva_mn;
+	pdom->domain.type = IOMMU_DOMAIN_SVA;
 
 	ret = mmu_notifier_register(&pdom->mn, mm);
 	if (ret) {

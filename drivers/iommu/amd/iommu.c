@@ -2455,7 +2455,7 @@ static void protection_domain_init(struct protection_domain *domain, int nid)
 	domain->iop.pgtbl.cfg.amd.nid = nid;
 }
 
-struct protection_domain *protection_domain_alloc(unsigned int type, int nid)
+struct protection_domain *protection_domain_alloc(int nid)
 {
 	struct protection_domain *domain;
 	int domid;
@@ -2476,14 +2476,9 @@ struct protection_domain *protection_domain_alloc(unsigned int type, int nid)
 	return domain;
 }
 
-static int pdom_setup_pgtable(struct protection_domain *domain,
-			      unsigned int type, int pgtable)
+static int pdom_setup_pgtable(struct protection_domain *domain, int pgtable)
 {
 	struct io_pgtable_ops *pgtbl_ops;
-
-	/* No need to allocate io pgtable ops in passthrough mode */
-	if (!(type & __IOMMU_DOMAIN_PAGING))
-		return 0;
 
 	switch (pgtable) {
 	case AMD_IOMMU_V1:
@@ -2518,27 +2513,19 @@ static bool amd_iommu_hd_support(struct amd_iommu *iommu)
 	return iommu && (iommu->features & FEATURE_HDSUP);
 }
 
-static struct iommu_domain *do_iommu_domain_alloc(unsigned int type,
-						  struct device *dev,
-						  u32 flags, int pgtable)
+static struct iommu_domain *do_iommu_domain_alloc(struct device *dev, u32 flags,
+						  int pgtable)
 {
 	bool dirty_tracking = flags & IOMMU_HWPT_ALLOC_DIRTY_TRACKING;
 	struct amd_iommu *iommu = get_amd_iommu_from_dev(dev);
 	struct protection_domain *domain;
 	int ret;
 
-	/*
-	 * Since DTE[Mode]=0 is prohibited on SNP-enabled system,
-	 * default to use IOMMU_DOMAIN_DMA[_FQ].
-	 */
-	if (amd_iommu_snp_en && (type == IOMMU_DOMAIN_IDENTITY))
-		return ERR_PTR(-EINVAL);
-
-	domain = protection_domain_alloc(type, dev_to_node(dev));
+	domain = protection_domain_alloc(dev_to_node(dev));
 	if (!domain)
 		return ERR_PTR(-ENOMEM);
 
-	ret = pdom_setup_pgtable(domain, type, pgtable);
+	ret = pdom_setup_pgtable(domain, pgtable);
 	if (ret) {
 		pdom_id_free(domain->id);
 		kfree(domain);
@@ -2550,7 +2537,7 @@ static struct iommu_domain *do_iommu_domain_alloc(unsigned int type,
 	domain->domain.geometry.force_aperture = true;
 	domain->domain.pgsize_bitmap = domain->iop.pgtbl.cfg.pgsize_bitmap;
 
-	domain->domain.type = type;
+	domain->domain.type = IOMMU_DOMAIN_UNMANAGED;
 	domain->domain.ops = iommu->iommu.ops->default_domain_ops;
 
 	if (dirty_tracking)
@@ -2564,7 +2551,6 @@ amd_iommu_domain_alloc_paging_flags(struct device *dev, u32 flags,
 				    const struct iommu_user_data *user_data)
 
 {
-	unsigned int type = IOMMU_DOMAIN_UNMANAGED;
 	struct amd_iommu *iommu = get_amd_iommu_from_dev(dev);
 	const u32 supported_flags = IOMMU_HWPT_ALLOC_DIRTY_TRACKING |
 						IOMMU_HWPT_ALLOC_PASID;
@@ -2577,20 +2563,19 @@ amd_iommu_domain_alloc_paging_flags(struct device *dev, u32 flags,
 		if (!amd_iommu_pasid_supported())
 			return ERR_PTR(-EOPNOTSUPP);
 
-		return do_iommu_domain_alloc(type, dev, flags, AMD_IOMMU_V2);
+		return do_iommu_domain_alloc(dev, flags, AMD_IOMMU_V2);
 	}
 
 	/* Allocate domain with v1 page table for dirty tracking */
 	if (flags & IOMMU_HWPT_ALLOC_DIRTY_TRACKING) {
 		if (amd_iommu_hd_support(iommu))
-			return do_iommu_domain_alloc(type, dev, flags,
-						     AMD_IOMMU_V1);
+			return do_iommu_domain_alloc(dev, flags, AMD_IOMMU_V1);
 
 		return ERR_PTR(-EOPNOTSUPP);
 	}
 
 	/* If nothing specific is required use the kernel commandline default */
-	return do_iommu_domain_alloc(type, dev, 0, amd_iommu_pgtable);
+	return do_iommu_domain_alloc(dev, 0, amd_iommu_pgtable);
 }
 
 void amd_iommu_domain_free(struct iommu_domain *dom)
