@@ -16,6 +16,7 @@
    :maxdepth: 1
 
    lsm
+   sak
    siphash
    digsig
    landlock
@@ -26,7 +27,6 @@ TODOLIST:
 * IMA-templates
 * keys/index
 * lsm-development
-* sak
 * SCTP
 * self-protection
 * tpm/index
