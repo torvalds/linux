@@ -2049,7 +2049,8 @@ static int __cmd_contention(int argc, const char **argv)
 				goto out_delete;
 		}
 
-		if (lock_contention_prepare(&con) < 0) {
+		err = lock_contention_prepare(&con);
+		if (err < 0) {
 			pr_err("lock contention BPF setup failed\n");
 			goto out_delete;
 		}
@@ -2070,10 +2071,14 @@ static int __cmd_contention(int argc, const char **argv)
 		}
 	}
 
-	if (setup_output_field(true, output_fields))
+	err = setup_output_field(true, output_fields);
+	if (err) {
+		pr_err("Failed to setup output field\n");
 		goto out_delete;
+	}
 
-	if (select_key(true))
+	err = select_key(true);
+	if (err)
 		goto out_delete;
 
 	if (symbol_conf.field_sep) {
