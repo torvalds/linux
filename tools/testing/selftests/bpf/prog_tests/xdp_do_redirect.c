@@ -11,7 +11,6 @@
 #include <bpf/bpf_endian.h>
 #include <uapi/linux/netdev.h>
 #include "test_xdp_do_redirect.skel.h"
-#include "test_xdp_redirect.skel.h"
 #include "xdp_dummy.skel.h"
 
 struct udp_packet {
@@ -324,7 +323,7 @@ fail:
 
 static void ping_test(struct test_data *data)
 {
-	struct test_xdp_redirect *skel = NULL;
+	struct test_xdp_do_redirect *skel = NULL;
 	struct xdp_dummy *skel_dummy = NULL;
 	struct nstoken *nstoken = NULL;
 	int i, ret;
@@ -351,7 +350,7 @@ static void ping_test(struct test_data *data)
 		nstoken = NULL;
 	}
 
-	skel = test_xdp_redirect__open_and_load();
+	skel = test_xdp_do_redirect__open_and_load();
 	if (!ASSERT_OK_PTR(skel, "open and load skeleton"))
 		goto close;
 
@@ -383,7 +382,7 @@ static void ping_test(struct test_data *data)
 close:
 	close_netns(nstoken);
 	xdp_dummy__destroy(skel_dummy);
-	test_xdp_redirect__destroy(skel);
+	test_xdp_do_redirect__destroy(skel);
 }
 
 
