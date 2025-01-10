@@ -388,6 +388,13 @@ Sequencer API Extensions
   announcement to the ALSA sequencer system port, similarly like the
   normal port change notification.
 
+* There are two extended event types for notifying the UMP Endpoint and
+  Function Block changes via the system announcement port:
+  type 68 (`SNDRV_SEQ_EVENT_UMP_EP_CHANGE`) and type 69
+  (`SNDRV_SEQ_EVENT_UMP_BLOCK_CHANGE`). They take the new type,
+  `snd_seq_ev_ump_notify` in the payload, indicating the client number
+  and the FB number that are changed.
+
 
 MIDI2 USB Gadget Function Driver
 ================================

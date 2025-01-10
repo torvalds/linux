@@ -695,6 +695,15 @@ static void choose_default_protocol(struct snd_ump_endpoint *ump)
 		ump->info.protocol |= SNDRV_UMP_EP_INFO_PROTO_MIDI1;
 }
 
+/* notify the EP info/name change to sequencer */
+static void seq_notify_ep_change(struct snd_ump_endpoint *ump)
+{
+#if IS_ENABLED(CONFIG_SND_SEQUENCER)
+	if (ump->parsed && ump->seq_ops && ump->seq_ops->notify_ep_change)
+		ump->seq_ops->notify_ep_change(ump);
+#endif
+}
+
 /* handle EP info stream message; update the UMP attributes */
 static int ump_handle_ep_info_msg(struct snd_ump_endpoint *ump,
 				  const union snd_ump_stream_msg *buf)
@@ -719,6 +728,7 @@ static int ump_handle_ep_info_msg(struct snd_ump_endpoint *ump,
 
 	ump->info.protocol &= ump->info.protocol_caps;
 	choose_default_protocol(ump);
+	seq_notify_ep_change(ump);
 
 	return 1; /* finished */
 }
@@ -741,6 +751,7 @@ static int ump_handle_device_info_msg(struct snd_ump_endpoint *ump,
 		ump->info.family_id,
 		ump->info.model_id,
 		ump->info.sw_revision);
+	seq_notify_ep_change(ump);
 	return 1; /* finished */
 }
 
@@ -762,6 +773,7 @@ static int ump_handle_ep_name_msg(struct snd_ump_endpoint *ump,
 	if (ret && ump->parsed) {
 		ump_set_rawmidi_name(ump);
 		ump_legacy_set_rawmidi_name(ump);
+		seq_notify_ep_change(ump);
 	}
 
 	return ret;
@@ -771,9 +783,14 @@ static int ump_handle_ep_name_msg(struct snd_ump_endpoint *ump,
 static int ump_handle_product_id_msg(struct snd_ump_endpoint *ump,
 				     const union snd_ump_stream_msg *buf)
 {
-	return ump_append_string(ump, ump->info.product_id,
-				 sizeof(ump->info.product_id),
-				 buf->raw, 2);
+	int ret;
+
+	ret = ump_append_string(ump, ump->info.product_id,
+				sizeof(ump->info.product_id),
+				buf->raw, 2);
+	if (ret)
+		seq_notify_ep_change(ump);
+	return ret;
 }
 
 /* notify the protocol change to sequencer */

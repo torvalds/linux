@@ -2230,6 +2230,16 @@ static int snd_seq_ioctl_client_ump_info(struct snd_seq_client *caller,
  error:
 	mutex_unlock(&cptr->ioctl_mutex);
 	snd_seq_client_unlock(cptr);
+	if (!err && cmd == SNDRV_SEQ_IOCTL_SET_CLIENT_UMP_INFO) {
+		if (type == SNDRV_SEQ_CLIENT_UMP_INFO_ENDPOINT)
+			snd_seq_system_ump_notify(client, 0,
+						  SNDRV_SEQ_EVENT_UMP_EP_CHANGE,
+						  false);
+		else
+			snd_seq_system_ump_notify(client, type - 1,
+						  SNDRV_SEQ_EVENT_UMP_BLOCK_CHANGE,
+						  false);
+	}
 	return err;
 }
 #endif
