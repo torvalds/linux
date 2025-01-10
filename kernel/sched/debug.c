@@ -1292,8 +1292,10 @@ void resched_latency_warn(int cpu, u64 latency)
 {
 	static DEFINE_RATELIMIT_STATE(latency_check_ratelimit, 60 * 60 * HZ, 1);
 
-	WARN(__ratelimit(&latency_check_ratelimit),
-	     "sched: CPU %d need_resched set for > %llu ns (%d ticks) "
-	     "without schedule\n",
-	     cpu, latency, cpu_rq(cpu)->ticks_without_resched);
+	if (likely(!__ratelimit(&latency_check_ratelimit)))
+		return;
+
+	pr_err("sched: CPU %d need_resched set for > %llu ns (%d ticks) without schedule\n",
+	       cpu, latency, cpu_rq(cpu)->ticks_without_resched);
+	dump_stack();
 }
