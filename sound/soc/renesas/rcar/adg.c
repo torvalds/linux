@@ -374,12 +374,12 @@ int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *ssi_mod, unsigned int rate)
 	return 0;
 }
 
-void rsnd_adg_clk_control(struct rsnd_priv *priv, int enable)
+int rsnd_adg_clk_control(struct rsnd_priv *priv, int enable)
 {
 	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
 	struct rsnd_mod *adg_mod = rsnd_mod_get(adg);
 	struct clk *clk;
-	int i;
+	int ret = 0, i;
 
 	if (enable) {
 		rsnd_mod_bset(adg_mod, BRGCKR, 0x80770000, adg->ckr);
@@ -389,18 +389,33 @@ void rsnd_adg_clk_control(struct rsnd_priv *priv, int enable)
 
 	for_each_rsnd_clkin(clk, adg, i) {
 		if (enable) {
-			clk_prepare_enable(clk);
+			ret = clk_prepare_enable(clk);
 
 			/*
 			 * We shouldn't use clk_get_rate() under
 			 * atomic context. Let's keep it when
 			 * rsnd_adg_clk_enable() was called
 			 */
+			if (ret < 0)
+				break;
+
 			adg->clkin_rate[i] = clk_get_rate(clk);
 		} else {
-			clk_disable_unprepare(clk);
+			if (adg->clkin_rate[i])
+				clk_disable_unprepare(clk);
+
+			adg->clkin_rate[i] = 0;
 		}
 	}
+
+	/*
+	 * rsnd_adg_clk_enable() might return error (_disable() will not).
+	 * We need to rollback in such case
+	 */
+	if (ret < 0)
+		rsnd_adg_clk_disable(priv);
+
+	return ret;
 }
 
 static struct clk *rsnd_adg_create_null_clk(struct rsnd_priv *priv,
@@ -753,7 +768,10 @@ int rsnd_adg_probe(struct rsnd_priv *priv)
 	if (ret)
 		return ret;
 
-	rsnd_adg_clk_enable(priv);
+	ret = rsnd_adg_clk_enable(priv);
+	if (ret)
+		return ret;
+
 	rsnd_adg_clk_dbg_info(priv, NULL);
 
 	return 0;
