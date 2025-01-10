@@ -293,6 +293,11 @@ Rawmidi API Extensions
   status 0x05).  When UMP core receives such a message, it updates the
   UMP EP info and the corresponding sequencer clients as well.
 
+* The legacy rawmidi device number is found in the new `tied_device`
+  field of the rawmidi info.
+  On the other hand, the UMP rawmidi device number is found in
+  `tied_device` field of the legacy rawmidi info, too.
+
 
 Control API Extensions
 ======================

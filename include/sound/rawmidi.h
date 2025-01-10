@@ -118,6 +118,7 @@ struct snd_rawmidi {
 	struct list_head list;
 	unsigned int device;		/* device number */
 	unsigned int info_flags;	/* SNDRV_RAWMIDI_INFO_XXXX */
+	unsigned int tied_device;
 	char id[64];
 	char name[80];
 

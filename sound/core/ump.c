@@ -1314,6 +1314,9 @@ int snd_ump_attach_legacy_rawmidi(struct snd_ump_endpoint *ump,
 	ump->legacy_rmidi = rmidi;
 	update_legacy_names(ump);
 
+	rmidi->tied_device = ump->core.device;
+	ump->core.tied_device = rmidi->device;
+
 	ump_dbg(ump, "Created a legacy rawmidi #%d (%s)\n", device, id);
 	return 0;
 }
