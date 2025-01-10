@@ -2554,24 +2554,24 @@ amd_iommu_domain_alloc_paging_flags(struct device *dev, u32 flags,
 	if ((flags & ~supported_flags) || user_data)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	/* Allocate domain with v2 page table if IOMMU supports PASID. */
-	if (flags & IOMMU_HWPT_ALLOC_PASID) {
+	switch (flags & supported_flags) {
+	case IOMMU_HWPT_ALLOC_DIRTY_TRACKING:
+		/* Allocate domain with v1 page table for dirty tracking */
+		if (!amd_iommu_hd_support(iommu))
+			break;
+		return do_iommu_domain_alloc(dev, flags, PD_MODE_V1);
+	case IOMMU_HWPT_ALLOC_PASID:
+		/* Allocate domain with v2 page table if IOMMU supports PASID. */
 		if (!amd_iommu_pasid_supported())
-			return ERR_PTR(-EOPNOTSUPP);
-
+			break;
 		return do_iommu_domain_alloc(dev, flags, PD_MODE_V2);
+	case 0:
+		/* If nothing specific is required use the kernel commandline default */
+		return do_iommu_domain_alloc(dev, 0, amd_iommu_pgtable);
+	default:
+		break;
 	}
-
-	/* Allocate domain with v1 page table for dirty tracking */
-	if (flags & IOMMU_HWPT_ALLOC_DIRTY_TRACKING) {
-		if (amd_iommu_hd_support(iommu))
-			return do_iommu_domain_alloc(dev, flags, PD_MODE_V1);
-
-		return ERR_PTR(-EOPNOTSUPP);
-	}
-
-	/* If nothing specific is required use the kernel commandline default */
-	return do_iommu_domain_alloc(dev, 0, amd_iommu_pgtable);
+	return ERR_PTR(-EOPNOTSUPP);
 }
 
 void amd_iommu_domain_free(struct iommu_domain *dom)
