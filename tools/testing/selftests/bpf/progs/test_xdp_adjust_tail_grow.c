@@ -10,6 +10,8 @@ int _xdp_adjust_tail_grow(struct xdp_md *xdp)
 	/* SKB_DATA_ALIGN(sizeof(struct skb_shared_info)) */
 #if defined(__TARGET_ARCH_s390)
 	int tailroom = 512;
+#elif defined(__TARGET_ARCH_powerpc)
+	int tailroom = 384;
 #else
 	int tailroom = 320;
 #endif
