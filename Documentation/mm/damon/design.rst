@@ -266,6 +266,8 @@ tracepoints.  For more details, please refer to the documentations for
 respectively.
 
 
+.. _damon_design_monitoring_params_tuning_guide:
+
 Monitoring Parameters Tuning Guide
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -310,6 +312,13 @@ appropriate enough to provide a resolution of the monitoring results that
 sufficient for the given purpose, it shouldn't be unnecessarily further
 lowered.  It is recommended to be set proportional to ``aggregation interval``.
 By default, the ratio is set as ``1/20``, and it is still recommended.
+
+Refer to below documents for an example tuning based on the above guide.
+
+.. toctree::
+   :maxdepth: 1
+
+   monitoring_intervals_tuning_example
 
 
 .. _damon_design_damos:
