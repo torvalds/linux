@@ -1249,7 +1249,7 @@ void dcn35_clk_mgr_construct(
 	clk_mgr->base.dprefclk_ss_divider = 1000;
 	clk_mgr->base.ss_on_dprefclk = false;
 	clk_mgr->base.dfs_ref_freq_khz = 48000;
-	if (ctx->dce_version == DCN_VERSION_3_5) {
+	if (ctx->dce_version != DCN_VERSION_3_51) {
 		clk_mgr->base.regs = &clk_mgr_regs_dcn35;
 		clk_mgr->base.clk_mgr_shift = &clk_mgr_shift_dcn35;
 		clk_mgr->base.clk_mgr_mask = &clk_mgr_mask_dcn35;
@@ -1401,7 +1401,7 @@ void dcn35_clk_mgr_construct(
 
 			/* Disable dynamic IPS2 in older PMFW (93.12) for Z8 interop. */
 			if (ctx->dc->config.disable_ips == DMUB_IPS_ENABLE &&
-			    ctx->dce_version == DCN_VERSION_3_5 &&
+			    ctx->dce_version != DCN_VERSION_3_51 &&
 			    ((clk_mgr->base.smu_ver & 0x00FFFFFF) <= 0x005d0c00))
 				ctx->dc->config.disable_ips = DMUB_IPS_RCG_IN_ACTIVE_IPS2_IN_OFF;
 		} else {
