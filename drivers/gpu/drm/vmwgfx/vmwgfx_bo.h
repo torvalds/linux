@@ -56,8 +56,9 @@ struct vmw_bo_params {
 	u32 domain;
 	u32 busy_domain;
 	enum ttm_bo_type bo_type;
-	size_t size;
 	bool pin;
+	bool keep_resv;
+	size_t size;
 	struct dma_resv *resv;
 	struct sg_table *sg;
 };
