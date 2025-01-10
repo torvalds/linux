@@ -971,7 +971,6 @@ loop_set_status_from_info(struct loop_device *lo,
 
 	memcpy(lo->lo_file_name, info->lo_file_name, LO_NAME_SIZE);
 	lo->lo_file_name[LO_NAME_SIZE-1] = 0;
-	lo->lo_flags = info->lo_flags;
 	return 0;
 }
 
@@ -1069,6 +1068,7 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
 	error = loop_set_status_from_info(lo, &config->info);
 	if (error)
 		goto out_unlock;
+	lo->lo_flags = config->info.lo_flags;
 
 	if (!(file->f_mode & FMODE_WRITE) || !(mode & BLK_OPEN_WRITE) ||
 	    !file->f_op->write_iter)
@@ -1258,7 +1258,6 @@ static int
 loop_set_status(struct loop_device *lo, const struct loop_info64 *info)
 {
 	int err;
-	int prev_lo_flags;
 	bool partscan = false;
 	bool size_changed = false;
 
@@ -1280,18 +1279,16 @@ loop_set_status(struct loop_device *lo, const struct loop_info64 *info)
 	/* I/O need to be drained during transfer transition */
 	blk_mq_freeze_queue(lo->lo_queue);
 
-	prev_lo_flags = lo->lo_flags;
-
 	err = loop_set_status_from_info(lo, info);
 	if (err)
 		goto out_unfreeze;
 
-	/* Mask out flags that can't be set using LOOP_SET_STATUS. */
-	lo->lo_flags &= LOOP_SET_STATUS_SETTABLE_FLAGS;
-	/* For those flags, use the previous values instead */
-	lo->lo_flags |= prev_lo_flags & ~LOOP_SET_STATUS_SETTABLE_FLAGS;
-	/* For flags that can't be cleared, use previous values too */
-	lo->lo_flags |= prev_lo_flags & ~LOOP_SET_STATUS_CLEARABLE_FLAGS;
+	partscan = !(lo->lo_flags & LO_FLAGS_PARTSCAN) &&
+		(info->lo_flags & LO_FLAGS_PARTSCAN);
+
+	lo->lo_flags &= ~(LOOP_SET_STATUS_SETTABLE_FLAGS |
+			  LOOP_SET_STATUS_CLEARABLE_FLAGS);
+	lo->lo_flags |= (info->lo_flags & LOOP_SET_STATUS_SETTABLE_FLAGS);
 
 	if (size_changed) {
 		loff_t new_size = get_size(lo->lo_offset, lo->lo_sizelimit,
@@ -1304,12 +1301,8 @@ loop_set_status(struct loop_device *lo, const struct loop_info64 *info)
 
 out_unfreeze:
 	blk_mq_unfreeze_queue(lo->lo_queue);
-
-	if (!err && (lo->lo_flags & LO_FLAGS_PARTSCAN) &&
-	     !(prev_lo_flags & LO_FLAGS_PARTSCAN)) {
+	if (partscan)
 		clear_bit(GD_SUPPRESS_PART_SCAN, &lo->lo_disk->state);
-		partscan = true;
-	}
 out_unlock:
 	mutex_unlock(&lo->lo_mutex);
 	if (partscan)
