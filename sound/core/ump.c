@@ -740,6 +740,13 @@ static int ump_handle_device_info_msg(struct snd_ump_endpoint *ump,
 	return 1; /* finished */
 }
 
+/* set up the core rawmidi name from UMP EP name string */
+static void ump_set_rawmidi_name(struct snd_ump_endpoint *ump)
+{
+	safe_copy_string(ump->core.name, sizeof(ump->core.name),
+			 ump->info.name, sizeof(ump->info.name));
+}
+
 /* handle EP name stream message; update the UMP name string */
 static int ump_handle_ep_name_msg(struct snd_ump_endpoint *ump,
 				  const union snd_ump_stream_msg *buf)
@@ -1067,6 +1074,8 @@ int snd_ump_parse_endpoint(struct snd_ump_endpoint *ump)
 	if (err < 0)
 		ump_dbg(ump, "Unable to get UMP EP name string\n");
 
+	ump_set_rawmidi_name(ump);
+
 	/* Request Endpoint Product ID */
 	err = ump_req_msg(ump, msg, UMP_STREAM_MSG_REQUEST_PRODUCT_ID,
 			  UMP_STREAM_MSG_STATUS_PRODUCT_ID);
@@ -1283,7 +1292,7 @@ static void update_legacy_substreams(struct snd_ump_endpoint *ump,
 		idx = ump->legacy_mapping[s->number];
 		name = ump->groups[idx].name;
 		if (!*name)
-			name = ump->info.name;
+			name = ump->core.name;
 		scnprintf(s->name, sizeof(s->name), "Group %d (%.16s)%s",
 			  idx + 1, name,
 			  ump->groups[idx].active ? "" : " [Inactive]");
@@ -1330,7 +1339,7 @@ int snd_ump_attach_legacy_rawmidi(struct snd_ump_endpoint *ump,
 		snd_rawmidi_set_ops(rmidi, SNDRV_RAWMIDI_STREAM_OUTPUT,
 				    &snd_ump_legacy_output_ops);
 	snprintf(rmidi->name, sizeof(rmidi->name), "%.68s (MIDI 1.0)",
-		 ump->info.name);
+		 ump->core.name);
 	rmidi->info_flags = ump->core.info_flags & ~SNDRV_RAWMIDI_INFO_UMP;
 	rmidi->ops = &snd_ump_legacy_ops;
 	rmidi->private_data = ump;
