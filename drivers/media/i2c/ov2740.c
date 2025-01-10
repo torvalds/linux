@@ -828,8 +828,10 @@ static int ov2740_init_controls(struct ov2740 *ov2740)
 				     0, 0, ov2740_test_pattern_menu);
 
 	ret = v4l2_fwnode_device_parse(&client->dev, &props);
-	if (ret)
+	if (ret) {
+		v4l2_ctrl_handler_free(ctrl_hdlr);
 		return ret;
+	}
 
 	v4l2_ctrl_new_fwnode_properties(ctrl_hdlr, &ov2740_ctrl_ops, &props);
 
