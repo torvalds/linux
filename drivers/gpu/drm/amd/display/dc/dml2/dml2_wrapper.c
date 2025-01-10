@@ -72,6 +72,7 @@ static void map_hw_resources(struct dml2_context *dml2,
 		in_out_display_cfg->hw.NumberOfDSCSlices[i] = mode_support_info->NumberOfDSCSlices[i];
 		in_out_display_cfg->hw.DLGRefClkFreqMHz = 24;
 		if (dml2->v20.dml_core_ctx.project != dml_project_dcn35 &&
+			dml2->v20.dml_core_ctx.project != dml_project_dcn36 &&
 			dml2->v20.dml_core_ctx.project != dml_project_dcn351) {
 			/*dGPU default as 50Mhz*/
 			in_out_display_cfg->hw.DLGRefClkFreqMHz = 50;
@@ -761,6 +762,9 @@ static void dml2_init(const struct dc *in_dc, const struct dml2_configuration_op
 		break;
 	case DCN_VERSION_3_51:
 		(*dml2)->v20.dml_core_ctx.project = dml_project_dcn351;
+		break;
+	case DCN_VERSION_3_6:
+		(*dml2)->v20.dml_core_ctx.project = dml_project_dcn36;
 		break;
 	case DCN_VERSION_3_2:
 		(*dml2)->v20.dml_core_ctx.project = dml_project_dcn32;

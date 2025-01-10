@@ -107,6 +107,7 @@ void dml2_init_ip_params(struct dml2_context *dml2, const struct dc *in_dc, stru
 
 	case dml_project_dcn35:
 	case dml_project_dcn351:
+	case dml_project_dcn36:
 		out->rob_buffer_size_kbytes = 64;
 		out->config_return_buffer_size_in_kbytes = 1792;
 		out->compressed_buffer_segment_size_in_kbytes = 64;
@@ -292,6 +293,7 @@ void dml2_init_socbb_params(struct dml2_context *dml2, const struct dc *in_dc, s
 
 	case dml_project_dcn35:
 	case dml_project_dcn351:
+	case dml_project_dcn36:
 		out->num_chans = 4;
 		out->round_trip_ping_latency_dcfclk_cycles = 106;
 		out->smn_latency_us = 2;
@@ -506,6 +508,7 @@ void dml2_init_soc_states(struct dml2_context *dml2, const struct dc *in_dc,
 		p->dcfclk_stas_mhz[3] = 1324;
 		p->dcfclk_stas_mhz[4] = p->in_states->state_array[1].dcfclk_mhz;
 	} else if (dml2->v20.dml_core_ctx.project != dml_project_dcn35 &&
+			dml2->v20.dml_core_ctx.project != dml_project_dcn36 &&
 			dml2->v20.dml_core_ctx.project != dml_project_dcn351) {
 		p->dcfclk_stas_mhz[0] = 300;
 		p->dcfclk_stas_mhz[1] = 615;
