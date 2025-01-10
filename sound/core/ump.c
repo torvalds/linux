@@ -37,6 +37,7 @@ static int process_legacy_output(struct snd_ump_endpoint *ump,
 				 u32 *buffer, int count);
 static void process_legacy_input(struct snd_ump_endpoint *ump, const u32 *src,
 				 int words);
+static void ump_legacy_set_rawmidi_name(struct snd_ump_endpoint *ump);
 static void update_legacy_names(struct snd_ump_endpoint *ump);
 #else
 static inline int process_legacy_output(struct snd_ump_endpoint *ump,
@@ -46,6 +47,9 @@ static inline int process_legacy_output(struct snd_ump_endpoint *ump,
 }
 static inline void process_legacy_input(struct snd_ump_endpoint *ump,
 					const u32 *src, int words)
+{
+}
+static inline void ump_legacy_set_rawmidi_name(struct snd_ump_endpoint *ump)
 {
 }
 static inline void update_legacy_names(struct snd_ump_endpoint *ump)
@@ -751,8 +755,16 @@ static void ump_set_rawmidi_name(struct snd_ump_endpoint *ump)
 static int ump_handle_ep_name_msg(struct snd_ump_endpoint *ump,
 				  const union snd_ump_stream_msg *buf)
 {
-	return ump_append_string(ump, ump->info.name, sizeof(ump->info.name),
-				 buf->raw, 2);
+	int ret;
+
+	ret = ump_append_string(ump, ump->info.name, sizeof(ump->info.name),
+				buf->raw, 2);
+	if (ret && ump->parsed) {
+		ump_set_rawmidi_name(ump);
+		ump_legacy_set_rawmidi_name(ump);
+	}
+
+	return ret;
 }
 
 /* handle EP product id stream message; update the UMP product_id string */
@@ -1308,6 +1320,14 @@ static void update_legacy_names(struct snd_ump_endpoint *ump)
 	update_legacy_substreams(ump, rmidi, SNDRV_RAWMIDI_STREAM_OUTPUT);
 }
 
+static void ump_legacy_set_rawmidi_name(struct snd_ump_endpoint *ump)
+{
+	struct snd_rawmidi *rmidi = ump->legacy_rmidi;
+
+	snprintf(rmidi->name, sizeof(rmidi->name), "%.68s (MIDI 1.0)",
+		 ump->core.name);
+}
+
 int snd_ump_attach_legacy_rawmidi(struct snd_ump_endpoint *ump,
 				  char *id, int device)
 {
@@ -1338,12 +1358,11 @@ int snd_ump_attach_legacy_rawmidi(struct snd_ump_endpoint *ump,
 	if (output)
 		snd_rawmidi_set_ops(rmidi, SNDRV_RAWMIDI_STREAM_OUTPUT,
 				    &snd_ump_legacy_output_ops);
-	snprintf(rmidi->name, sizeof(rmidi->name), "%.68s (MIDI 1.0)",
-		 ump->core.name);
 	rmidi->info_flags = ump->core.info_flags & ~SNDRV_RAWMIDI_INFO_UMP;
 	rmidi->ops = &snd_ump_legacy_ops;
 	rmidi->private_data = ump;
 	ump->legacy_rmidi = rmidi;
+	ump_legacy_set_rawmidi_name(ump);
 	update_legacy_names(ump);
 
 	rmidi->tied_device = ump->core.device;
