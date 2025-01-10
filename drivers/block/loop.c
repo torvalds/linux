@@ -196,8 +196,9 @@ static bool lo_can_use_dio(struct loop_device *lo)
 	return true;
 }
 
-static void __loop_update_dio(struct loop_device *lo, bool dio)
+static inline void loop_update_dio(struct loop_device *lo)
 {
+	bool dio = lo->use_dio || (lo->lo_backing_file->f_flags & O_DIRECT);
 	bool use_dio = dio && lo_can_use_dio(lo);
 
 	if (lo->use_dio == use_dio)
@@ -529,12 +530,6 @@ static int do_req_filebacked(struct loop_device *lo, struct request *rq)
 		WARN_ON_ONCE(1);
 		return -EIO;
 	}
-}
-
-static inline void loop_update_dio(struct loop_device *lo)
-{
-	__loop_update_dio(lo, (lo->lo_backing_file->f_flags & O_DIRECT) |
-				lo->use_dio);
 }
 
 static void loop_reread_partitions(struct loop_device *lo)
@@ -1301,7 +1296,7 @@ loop_set_status(struct loop_device *lo, const struct loop_info64 *info)
 	}
 
 	/* update the direct I/O flag if lo_offset changed */
-	__loop_update_dio(lo, lo->use_dio);
+	loop_update_dio(lo);
 
 out_unfreeze:
 	blk_mq_unfreeze_queue(lo->lo_queue);
