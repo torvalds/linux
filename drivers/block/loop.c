@@ -203,8 +203,9 @@ static void __loop_update_dio(struct loop_device *lo, bool dio)
 	if (lo->use_dio == use_dio)
 		return;
 
-	/* flush dirty pages before changing direct IO */
-	vfs_fsync(lo->lo_backing_file, 0);
+	/* flush dirty pages before starting to use direct I/O */
+	if (use_dio)
+		vfs_fsync(lo->lo_backing_file, 0);
 
 	/*
 	 * The flag of LO_FLAGS_DIRECT_IO is handled similarly with
