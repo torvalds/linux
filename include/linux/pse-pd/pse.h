@@ -184,8 +184,6 @@ int pse_ethtool_set_config(struct pse_control *psec,
 int pse_ethtool_set_pw_limit(struct pse_control *psec,
 			     struct netlink_ext_ack *extack,
 			     const unsigned int pw_limit);
-int pse_ethtool_get_pw_limit(struct pse_control *psec,
-			     struct netlink_ext_ack *extack);
 
 bool pse_has_podl(struct pse_control *psec);
 bool pse_has_c33(struct pse_control *psec);
@@ -218,12 +216,6 @@ static inline int pse_ethtool_set_config(struct pse_control *psec,
 static inline int pse_ethtool_set_pw_limit(struct pse_control *psec,
 					   struct netlink_ext_ack *extack,
 					   const unsigned int pw_limit)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int pse_ethtool_get_pw_limit(struct pse_control *psec,
-					   struct netlink_ext_ack *extack)
 {
 	return -EOPNOTSUPP;
 }
