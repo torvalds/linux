@@ -2565,25 +2565,6 @@ static struct iommu_domain *do_iommu_domain_alloc(unsigned int type,
 	return &domain->domain;
 }
 
-static struct iommu_domain *amd_iommu_domain_alloc(unsigned int type)
-{
-	struct iommu_domain *domain;
-	int pgtable = amd_iommu_pgtable;
-
-	/*
-	 * Force IOMMU v1 page table when allocating
-	 * domain for pass-through devices.
-	 */
-	if (type == IOMMU_DOMAIN_UNMANAGED)
-		pgtable = AMD_IOMMU_V1;
-
-	domain = do_iommu_domain_alloc(type, NULL, 0, pgtable);
-	if (IS_ERR(domain))
-		return NULL;
-
-	return domain;
-}
-
 static struct iommu_domain *
 amd_iommu_domain_alloc_paging_flags(struct device *dev, u32 flags,
 				    const struct iommu_user_data *user_data)
@@ -3059,7 +3040,6 @@ const struct iommu_ops amd_iommu_ops = {
 	.blocked_domain = &blocked_domain,
 	.release_domain = &release_domain,
 	.identity_domain = &identity_domain.domain,
-	.domain_alloc = amd_iommu_domain_alloc,
 	.domain_alloc_paging_flags = amd_iommu_domain_alloc_paging_flags,
 	.domain_alloc_sva = amd_iommu_domain_alloc_sva,
 	.probe_device = amd_iommu_probe_device,
