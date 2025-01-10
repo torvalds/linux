@@ -44,6 +44,7 @@ properties:
       - allwinner,sun8i-r40-pinctrl
       - allwinner,sun8i-v3-pinctrl
       - allwinner,sun8i-v3s-pinctrl
+      - allwinner,sun8i-v853-pinctrl
       - allwinner,sun9i-a80-pinctrl
       - allwinner,sun9i-a80-r-pinctrl
       - allwinner,sun20i-d1-pinctrl
@@ -178,6 +179,18 @@ allOf:
         interrupts:
           minItems: 7
           maxItems: 7
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - allwinner,sun8i-v853-pinctrl
+
+    then:
+      properties:
+        interrupts:
+          minItems: 8
+          maxItems: 8
 
   - if:
       properties:
