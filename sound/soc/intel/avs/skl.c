@@ -12,6 +12,7 @@
 #include "avs.h"
 #include "cldma.h"
 #include "messages.h"
+#include "registers.h"
 
 void avs_skl_ipc_interrupt(struct avs_dev *adev)
 {

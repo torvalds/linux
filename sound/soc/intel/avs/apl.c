@@ -12,6 +12,7 @@
 #include "avs.h"
 #include "messages.h"
 #include "path.h"
+#include "registers.h"
 #include "topology.h"
 
 static irqreturn_t avs_apl_dsp_interrupt(struct avs_dev *adev)
