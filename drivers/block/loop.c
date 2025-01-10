@@ -201,6 +201,10 @@ static inline void loop_update_dio(struct loop_device *lo)
 	bool dio = lo->use_dio || (lo->lo_backing_file->f_flags & O_DIRECT);
 	bool use_dio = dio && lo_can_use_dio(lo);
 
+	lockdep_assert_held(&lo->lo_mutex);
+	WARN_ON_ONCE(lo->lo_state == Lo_bound &&
+		     lo->lo_queue->mq_freeze_depth == 0);
+
 	if (lo->use_dio == use_dio)
 		return;
 
@@ -213,15 +217,11 @@ static inline void loop_update_dio(struct loop_device *lo)
 	 * LO_FLAGS_READ_ONLY, both are set from kernel, and losetup
 	 * will get updated by ioctl(LOOP_GET_STATUS)
 	 */
-	if (lo->lo_state == Lo_bound)
-		blk_mq_freeze_queue(lo->lo_queue);
 	lo->use_dio = use_dio;
 	if (use_dio)
 		lo->lo_flags |= LO_FLAGS_DIRECT_IO;
 	else
 		lo->lo_flags &= ~LO_FLAGS_DIRECT_IO;
-	if (lo->lo_state == Lo_bound)
-		blk_mq_unfreeze_queue(lo->lo_queue);
 }
 
 /**
