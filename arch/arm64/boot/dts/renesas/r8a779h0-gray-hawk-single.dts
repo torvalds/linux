@@ -282,25 +282,6 @@
 	};
 };
 
-&dsi0 {
-	status = "okay";
-
-	ports {
-		port@1 {
-			reg = <1>;
-
-			dsi0_out: endpoint {
-				remote-endpoint = <&sn65dsi86_in0>;
-				data-lanes = <1 2 3 4>;
-			};
-		};
-	};
-};
-
-&du {
-	status = "okay";
-};
-
 &csi40 {
 	status = "okay";
 
@@ -339,6 +320,25 @@
 			};
 		};
 	};
+};
+
+&dsi0 {
+	status = "okay";
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			dsi0_out: endpoint {
+				remote-endpoint = <&sn65dsi86_in0>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
+
+&du {
+	status = "okay";
 };
 
 &extal_clk {
