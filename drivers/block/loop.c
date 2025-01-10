@@ -1455,16 +1455,28 @@ static int loop_set_capacity(struct loop_device *lo)
 
 static int loop_set_dio(struct loop_device *lo, unsigned long arg)
 {
-	int error = -ENXIO;
-	if (lo->lo_state != Lo_bound)
-		goto out;
+	bool use_dio = !!arg;
 
-	__loop_update_dio(lo, !!arg);
-	if (lo->use_dio == !!arg)
+	if (lo->lo_state != Lo_bound)
+		return -ENXIO;
+	if (use_dio == lo->use_dio)
 		return 0;
-	error = -EINVAL;
- out:
-	return error;
+
+	if (use_dio) {
+		if (!lo_can_use_dio(lo))
+			return -EINVAL;
+		/* flush dirty pages before starting to use direct I/O */
+		vfs_fsync(lo->lo_backing_file, 0);
+	}
+
+	blk_mq_freeze_queue(lo->lo_queue);
+	lo->use_dio = use_dio;
+	if (use_dio)
+		lo->lo_flags |= LO_FLAGS_DIRECT_IO;
+	else
+		lo->lo_flags &= ~LO_FLAGS_DIRECT_IO;
+	blk_mq_unfreeze_queue(lo->lo_queue);
+	return 0;
 }
 
 static int loop_set_block_size(struct loop_device *lo, unsigned long arg)
