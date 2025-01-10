@@ -124,7 +124,6 @@ calculate_rc_params(struct drm_dsc_config *vdsc_cfg)
 							vdsc_cfg->slice_height - 1);
 	}
 
-	/* Our hw supports only 444 modes as of today */
 	if (bpp >= 12)
 		vdsc_cfg->initial_offset = 2048;
 	else if (bpp >= 10)
