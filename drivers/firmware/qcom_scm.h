@@ -258,8 +258,10 @@ extern int scm_legacy_call(struct device *dev, const struct qcom_scm_desc *desc,
 #define QCOM_SCM_SVC_CPUCFG			0x29
 #define QCOM_SCM_CPUCFG_PREFETCH_TGT_CMD	0x1
 
-#define QCOM_SCM_GET_LLCC_MISSRATE_STATS_ID	0x14
 #define QCOM_SCM_SVC_MISSRATE			0x06
+#define QCOM_SCM_GET_LLCC_MISSRATE_STATS_ID	0x14
+#define QCOM_SCM_SVC_LLCC_OCCUPANCY		0x06
+#define QCOM_SCM_GET_LLCC_OCCUPANCY_STATS_ID	0x13
 
 extern void __qcom_scm_init(void);
 extern void __qcom_scm_qcpe_exit(void);

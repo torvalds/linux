@@ -88,6 +88,17 @@ config QCOM_BUS_PROF
 	  which are supported on certain Qualcomm Technologies, Inc.
 	  (QTI) chipsets.
 
+config QCOM_LLCC_OCCUPANCY
+	tristate "QCOM LLCC_OCCUPANCY Driver"
+	depends on ARCH_QCOM && QCOM_LLCC && QCOM_BUS_PROF
+	default n
+	help
+	  This enables the QCOM LLCC occupancy driver which exposes LLCC occupancy stats
+	  to userspace clients at modest time intervals for the intention of
+	  profiling. The purpose of the driver is to enable the monitoring of the
+	  LLCC occupancy at regular intervals, providing the userspace clients with
+	  a detailed view of the current state of the system.
+
 config QTI_PMU_SCMI_CLIENT
 	tristate "Qualcomm Technologies Inc. SCMI client driver for PMU"
 	depends on QTI_SCMI_PMU_PROTOCOL && QCOM_PMU_LIB

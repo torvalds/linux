@@ -11,6 +11,7 @@
 #include "bus_prof.h"
 #include <linux/tracepoint.h>
 
+
 TRACE_EVENT(memory_miss_last_sample,
 
 	TP_PROTO(u64 qtime, struct llcc_miss_buf *master_buf0, struct llcc_miss_buf *master_buf1),
@@ -39,6 +40,33 @@ TRACE_EVENT(memory_miss_last_sample,
 		__entry->miss1,
 		__entry->master2,
 		__entry->miss2)
+);
+
+TRACE_EVENT(llcc_occupancy_last_sample,
+
+	TP_PROTO(u64 qtime, int master, u32 curr_cap, u32 max_cap),
+
+	TP_ARGS(qtime, master, curr_cap, max_cap),
+
+	TP_STRUCT__entry(
+		__field(u64, qtime)
+		__field(int, master)
+		__field(u32, curr_cap)
+		__field(u32, max_cap)
+	),
+
+	TP_fast_assign(
+		__entry->qtime = qtime;
+		__entry->master = master;
+		__entry->curr_cap = curr_cap;
+		__entry->max_cap = max_cap;
+	),
+
+	TP_printk("qtime=%llu master=%u curr_cap=%u max_cap=%u",
+		__entry->qtime,
+		__entry->master,
+		__entry->curr_cap,
+		__entry->max_cap)
 );
 #endif /* _TRACE_BUS_PROF_H */
 
