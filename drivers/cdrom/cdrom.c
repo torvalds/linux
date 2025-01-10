@@ -1106,7 +1106,7 @@ int open_for_data(struct cdrom_device_info *cdi)
 		}
 	}
 
-	cd_dbg(CD_OPEN, "all seems well, opening the devicen");
+	cd_dbg(CD_OPEN, "all seems well, opening the device\n");
 
 	/* all seems well, we can open the device */
 	ret = cdo->open(cdi, 0); /* open for data */

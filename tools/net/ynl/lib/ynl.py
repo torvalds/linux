@@ -556,10 +556,10 @@ class YnlFamily(SpecFamily):
         if attr["type"] == 'nest':
             nl_type |= Netlink.NLA_F_NESTED
             attr_payload = b''
-            sub_attrs = SpaceAttrs(self.attr_sets[space], value, search_attrs)
+            sub_space = attr['nested-attributes']
+            sub_attrs = SpaceAttrs(self.attr_sets[sub_space], value, search_attrs)
             for subname, subvalue in value.items():
-                attr_payload += self._add_attr(attr['nested-attributes'],
-                                               subname, subvalue, sub_attrs)
+                attr_payload += self._add_attr(sub_space, subname, subvalue, sub_attrs)
         elif attr["type"] == 'flag':
             if not value:
                 # If value is absent or false then skip attribute creation.

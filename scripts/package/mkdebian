@@ -70,6 +70,13 @@ set_debarch() {
 			debarch=sh4$(if_enabled_echo CONFIG_CPU_BIG_ENDIAN eb)
 		fi
 		;;
+	um)
+		if is_enabled CONFIG_64BIT; then
+			debarch=amd64
+		else
+			debarch=i386
+		fi
+		;;
 	esac
 	if [ -z "$debarch" ]; then
 		debarch=$(dpkg-architecture -qDEB_HOST_ARCH)
