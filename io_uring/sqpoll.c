@@ -275,8 +275,12 @@ static int io_sq_thread(void *data)
 	DEFINE_WAIT(wait);
 
 	/* offload context creation failed, just exit */
-	if (!current->io_uring)
+	if (!current->io_uring) {
+		mutex_lock(&sqd->lock);
+		sqd->thread = NULL;
+		mutex_unlock(&sqd->lock);
 		goto err_out;
+	}
 
 	snprintf(buf, sizeof(buf), "iou-sqp-%d", sqd->task_pid);
 	set_task_comm(current, buf);
