@@ -3269,6 +3269,7 @@ static int proc_pid_ksm_stat(struct seq_file *m, struct pid_namespace *ns,
 				struct pid *pid, struct task_struct *task)
 {
 	struct mm_struct *mm;
+	int ret = 0;
 
 	mm = get_task_mm(task);
 	if (mm) {
@@ -3276,6 +3277,16 @@ static int proc_pid_ksm_stat(struct seq_file *m, struct pid_namespace *ns,
 		seq_printf(m, "ksm_zero_pages %ld\n", mm_ksm_zero_pages(mm));
 		seq_printf(m, "ksm_merging_pages %lu\n", mm->ksm_merging_pages);
 		seq_printf(m, "ksm_process_profit %ld\n", ksm_process_profit(mm));
+		seq_printf(m, "ksm_merge_any: %s\n",
+				test_bit(MMF_VM_MERGE_ANY, &mm->flags) ? "yes" : "no");
+		ret = mmap_read_lock_killable(mm);
+		if (ret) {
+			mmput(mm);
+			return ret;
+		}
+		seq_printf(m, "ksm_mergeable: %s\n",
+				ksm_process_mergeable(mm) ? "yes" : "no");
+		mmap_read_unlock(mm);
 		mmput(mm);
 	}
 
