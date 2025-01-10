@@ -102,16 +102,15 @@ static void mptcp_pernet_set_defaults(struct mptcp_pernet *pernet)
 }
 
 #ifdef CONFIG_SYSCTL
-static int mptcp_set_scheduler(const struct net *net, const char *name)
+static int mptcp_set_scheduler(char *scheduler, const char *name)
 {
-	struct mptcp_pernet *pernet = mptcp_get_pernet(net);
 	struct mptcp_sched_ops *sched;
 	int ret = 0;
 
 	rcu_read_lock();
 	sched = mptcp_sched_find(name);
 	if (sched)
-		strscpy(pernet->scheduler, name, MPTCP_SCHED_NAME_MAX);
+		strscpy(scheduler, name, MPTCP_SCHED_NAME_MAX);
 	else
 		ret = -ENOENT;
 	rcu_read_unlock();
@@ -122,7 +121,7 @@ static int mptcp_set_scheduler(const struct net *net, const char *name)
 static int proc_scheduler(const struct ctl_table *ctl, int write,
 			  void *buffer, size_t *lenp, loff_t *ppos)
 {
-	const struct net *net = current->nsproxy->net_ns;
+	char (*scheduler)[MPTCP_SCHED_NAME_MAX] = ctl->data;
 	char val[MPTCP_SCHED_NAME_MAX];
 	struct ctl_table tbl = {
 		.data = val,
@@ -130,11 +129,11 @@ static int proc_scheduler(const struct ctl_table *ctl, int write,
 	};
 	int ret;
 
-	strscpy(val, mptcp_get_scheduler(net), MPTCP_SCHED_NAME_MAX);
+	strscpy(val, *scheduler, MPTCP_SCHED_NAME_MAX);
 
 	ret = proc_dostring(&tbl, write, buffer, lenp, ppos);
 	if (write && ret == 0)
-		ret = mptcp_set_scheduler(net, val);
+		ret = mptcp_set_scheduler(*scheduler, val);
 
 	return ret;
 }
@@ -161,7 +160,9 @@ static int proc_blackhole_detect_timeout(const struct ctl_table *table,
 					 int write, void *buffer, size_t *lenp,
 					 loff_t *ppos)
 {
-	struct mptcp_pernet *pernet = mptcp_get_pernet(current->nsproxy->net_ns);
+	struct mptcp_pernet *pernet = container_of(table->data,
+						   struct mptcp_pernet,
+						   blackhole_timeout);
 	int ret;
 
 	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
@@ -228,7 +229,7 @@ static struct ctl_table mptcp_sysctl_table[] = {
 	{
 		.procname = "available_schedulers",
 		.maxlen	= MPTCP_SCHED_BUF_MAX,
-		.mode = 0644,
+		.mode = 0444,
 		.proc_handler = proc_available_schedulers,
 	},
 	{
