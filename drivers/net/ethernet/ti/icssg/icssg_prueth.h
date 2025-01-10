@@ -84,6 +84,8 @@
 #define ICSS_CMD_ADD_MAC 0x8
 
 /* VLAN Filtering Related MACROs */
+#define PRUETH_DFLT_VLAN_HSR	1
+#define PRUETH_DFLT_VLAN_SW	1
 #define PRUETH_DFLT_VLAN_MAC	0
 #define MAX_VLAN_ID		256
 
