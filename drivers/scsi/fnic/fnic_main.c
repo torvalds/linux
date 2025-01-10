@@ -1039,7 +1039,8 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	fnic_fdls_init(fnic, (fnic->config.flags & VFCF_FIP_CAPABLE));
 
-	if (fnic_scsi_drv_init(fnic))
+	err = fnic_scsi_drv_init(fnic);
+	if (err)
 		goto err_out_scsi_drv_init;
 
 	err = fnic_stats_debugfs_init(fnic);
