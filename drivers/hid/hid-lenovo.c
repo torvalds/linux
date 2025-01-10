@@ -31,7 +31,10 @@
 #include <linux/input.h>
 #include <linux/leds.h>
 #include <linux/workqueue.h>
+
+#if IS_ENABLED(CONFIG_ACPI_PLATFORM_PROFILE)
 #include <linux/platform_profile.h>
+#endif /* CONFIG_ACPI_PLATFORM_PROFILE */
 
 #include "hid-ids.h"
 
@@ -724,10 +727,17 @@ static int lenovo_raw_event_TP_X12_tab(struct hid_device *hdev, u32 raw_data)
 			 * Whereas TP X12 TAB2 uses Fn-F8 for toggling
 			 * Power modes
 			 */
-			(hdev->product == USB_DEVICE_ID_LENOVO_X12_TAB) ?
-				report_key_event(input, KEY_RFKILL) :
+			if (hdev->product == USB_DEVICE_ID_LENOVO_X12_TAB) {
+				report_key_event(input, KEY_RFKILL);
+				return 1;
+			}
+#if IS_ENABLED(CONFIG_ACPI_PLATFORM_PROFILE)
+			else {
 				platform_profile_cycle();
-			return 1;
+				return 1;
+			}
+#endif /* CONFIG_ACPI_PLATFORM_PROFILE */
+			return 0;
 		case TP_X12_RAW_HOTKEY_FN_F10:
 			/* TAB1 has PICKUP Phone and TAB2 use Snipping tool*/
 			(hdev->product == USB_DEVICE_ID_LENOVO_X12_TAB) ?
