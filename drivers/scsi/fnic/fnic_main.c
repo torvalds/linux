@@ -888,24 +888,32 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	pool = mempool_create_slab_pool(2, fnic_sgl_cache[FNIC_SGL_CACHE_DFLT]);
-	if (!pool)
+	if (!pool) {
+		err = -ENOMEM;
 		goto err_out_free_resources;
+	}
 	fnic->io_sgl_pool[FNIC_SGL_CACHE_DFLT] = pool;
 
 	pool = mempool_create_slab_pool(2, fnic_sgl_cache[FNIC_SGL_CACHE_MAX]);
-	if (!pool)
+	if (!pool) {
+		err = -ENOMEM;
 		goto err_out_free_dflt_pool;
+	}
 	fnic->io_sgl_pool[FNIC_SGL_CACHE_MAX] = pool;
 
 	pool = mempool_create_slab_pool(FDLS_MIN_FRAMES, fdls_frame_cache);
-	if (!pool)
+	if (!pool) {
+		err = -ENOMEM;
 		goto err_out_fdls_frame_pool;
+	}
 	fnic->frame_pool = pool;
 
 	pool = mempool_create_slab_pool(FDLS_MIN_FRAME_ELEM,
 						fdls_frame_elem_cache);
-	if (!pool)
+	if (!pool) {
+		err = -ENOMEM;
 		goto err_out_fdls_frame_elem_pool;
+	}
 	fnic->frame_elem_pool = pool;
 
 	/* setup vlan config, hw inserts vlan header */
