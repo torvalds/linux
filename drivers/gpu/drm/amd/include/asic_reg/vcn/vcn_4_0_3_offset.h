@@ -779,7 +779,8 @@
 #define regUVD_LMI_MIF_REF_LUMA_64BIT_BAR_HIGH_BASE_IDX                                                 1
 #define regVCN_RAS_CNTL                                                                                 0x02df
 #define regVCN_RAS_CNTL_BASE_IDX                                                                        1
-
+#define regVCN_RRMT_CNTL                                                                                0x0940
+#define regVCN_RRMT_CNTL_BASE_IDX                                                                       1
 
 // addressBlock: aid_uvd0_uvd_jpeg0_jpegnpdec
 // base address: 0x20f00
