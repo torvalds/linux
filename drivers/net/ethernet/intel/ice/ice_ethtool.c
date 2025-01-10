@@ -2873,6 +2873,9 @@ static u64 ice_parse_hash_flds(struct ethtool_rxnfc *nfc, bool symm)
 {
 	u64 hfld = ICE_HASH_INVALID;
 
+	if (nfc->data & RXH_L2DA)
+		hfld |= ICE_FLOW_HASH_FLD_ETH_DA;
+
 	if (nfc->data & RXH_IP_SRC || nfc->data & RXH_IP_DST) {
 		switch (nfc->flow_type) {
 		case TCP_V4_FLOW:
