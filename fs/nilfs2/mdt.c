@@ -519,6 +519,8 @@ void nilfs_mdt_set_entry_size(struct inode *inode, unsigned int entry_size,
  * nilfs_mdt_setup_shadow_map - setup shadow map and bind it to metadata file
  * @inode: inode of the metadata file
  * @shadow: shadow mapping
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 int nilfs_mdt_setup_shadow_map(struct inode *inode,
 			       struct nilfs_shadow_map *shadow)
@@ -540,6 +542,8 @@ int nilfs_mdt_setup_shadow_map(struct inode *inode,
 /**
  * nilfs_mdt_save_to_shadow_map - copy bmap and dirty pages to shadow map
  * @inode: inode of the metadata file
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 int nilfs_mdt_save_to_shadow_map(struct inode *inode)
 {

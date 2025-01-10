@@ -146,6 +146,8 @@ int nilfs_ifile_get_inode_block(struct inode *ifile, ino_t ino,
  * @ifile: ifile inode
  * @nmaxinodes: current maximum of available inodes count [out]
  * @nfreeinodes: free inodes count [out]
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 int nilfs_ifile_count_free_inodes(struct inode *ifile,
 				    u64 *nmaxinodes, u64 *nfreeinodes)

@@ -1124,6 +1124,8 @@ int nilfs_cpfile_get_stat(struct inode *cpfile, struct nilfs_cpstat *cpstat)
  * @cpsize: size of a checkpoint entry
  * @raw_inode: on-disk cpfile inode
  * @inodep: buffer to store the inode
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 int nilfs_cpfile_read(struct super_block *sb, size_t cpsize,
 		      struct nilfs_inode *raw_inode, struct inode **inodep)

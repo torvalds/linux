@@ -165,6 +165,9 @@ static void nilfs_clear_recovery_info(struct nilfs_recovery_info *ri)
  * containing a super root from a given super block, and initializes
  * relevant information on the nilfs object preparatory for log
  * scanning and recovery.
+ *
+ * Return: 0 on success, or %-EINVAL if current segment number is out
+ * of range.
  */
 static int nilfs_store_log_cursor(struct the_nilfs *nilfs,
 				  struct nilfs_super_block *sbp)
@@ -225,6 +228,13 @@ static int nilfs_get_blocksize(struct super_block *sb,
  * load_nilfs() searches and load the latest super root,
  * attaches the last segment, and does recovery if needed.
  * The caller must call this exclusively for simultaneous mounts.
+ *
+ * Return: 0 on success, or one of the following negative error codes on
+ * failure:
+ * * %-EINVAL	- No valid segment found.
+ * * %-EIO	- I/O error.
+ * * %-ENOMEM	- Insufficient memory available.
+ * * %-EROFS	- Read only device or RO compat mode (if recovery is required)
  */
 int load_nilfs(struct the_nilfs *nilfs, struct super_block *sb)
 {
@@ -394,6 +404,8 @@ static unsigned long long nilfs_max_size(unsigned int blkbits)
  * nilfs_nrsvsegs - calculate the number of reserved segments
  * @nilfs: nilfs object
  * @nsegs: total number of segments
+ *
+ * Return: Number of reserved segments.
  */
 unsigned long nilfs_nrsvsegs(struct the_nilfs *nilfs, unsigned long nsegs)
 {
@@ -405,6 +417,8 @@ unsigned long nilfs_nrsvsegs(struct the_nilfs *nilfs, unsigned long nsegs)
 /**
  * nilfs_max_segment_count - calculate the maximum number of segments
  * @nilfs: nilfs object
+ *
+ * Return: Maximum number of segments
  */
 static u64 nilfs_max_segment_count(struct the_nilfs *nilfs)
 {

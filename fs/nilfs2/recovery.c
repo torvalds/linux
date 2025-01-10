@@ -88,6 +88,8 @@ static int nilfs_warn_segment_error(struct super_block *sb, int err)
  * @check_bytes: number of bytes to be checked
  * @start: DBN of start block
  * @nblock: number of blocks to be checked
+ *
+ * Return: 0 on success, or %-EIO if an I/O error occurs.
  */
 static int nilfs_compute_checksum(struct the_nilfs *nilfs,
 				  struct buffer_head *bhs, u32 *sum,
@@ -126,6 +128,11 @@ static int nilfs_compute_checksum(struct the_nilfs *nilfs,
  * @sr_block: disk block number of the super root block
  * @pbh: address of a buffer_head pointer to return super root buffer
  * @check: CRC check flag
+ *
+ * Return: 0 on success, or one of the following negative error codes on
+ * failure:
+ * * %-EINVAL	- Super root block corrupted.
+ * * %-EIO	- I/O error.
  */
 int nilfs_read_super_root_block(struct the_nilfs *nilfs, sector_t sr_block,
 				struct buffer_head **pbh, int check)
@@ -176,6 +183,8 @@ int nilfs_read_super_root_block(struct the_nilfs *nilfs, sector_t sr_block,
  * @nilfs: nilfs object
  * @start_blocknr: start block number of the log
  * @sum: pointer to return segment summary structure
+ *
+ * Return: Buffer head pointer, or NULL if an I/O error occurs.
  */
 static struct buffer_head *
 nilfs_read_log_header(struct the_nilfs *nilfs, sector_t start_blocknr,
@@ -195,6 +204,13 @@ nilfs_read_log_header(struct the_nilfs *nilfs, sector_t start_blocknr,
  * @seg_seq: sequence number of segment
  * @bh_sum: buffer head of summary block
  * @sum: segment summary struct
+ *
+ * Return: 0 on success, or one of the following internal codes on failure:
+ * * %NILFS_SEG_FAIL_MAGIC	    - Magic number mismatch.
+ * * %NILFS_SEG_FAIL_SEQ	    - Sequence number mismatch.
+ * * %NIFLS_SEG_FAIL_CONSISTENCY    - Block count out of range.
+ * * %NILFS_SEG_FAIL_IO		    - I/O error.
+ * * %NILFS_SEG_FAIL_CHECKSUM_FULL  - Full log checksum verification failed.
  */
 static int nilfs_validate_log(struct the_nilfs *nilfs, u64 seg_seq,
 			      struct buffer_head *bh_sum,
@@ -238,6 +254,9 @@ out:
  * @pbh: the current buffer head on summary blocks [in, out]
  * @offset: the current byte offset on summary blocks [in, out]
  * @bytes: byte size of the item to be read
+ *
+ * Return: Kernel space address of current segment summary entry, or
+ * NULL if an I/O error occurs.
  */
 static void *nilfs_read_summary_info(struct the_nilfs *nilfs,
 				     struct buffer_head **pbh,
@@ -300,6 +319,11 @@ static void nilfs_skip_summary_info(struct the_nilfs *nilfs,
  * @start_blocknr: start block number of the log
  * @sum: log summary information
  * @head: list head to add nilfs_recovery_block struct
+ *
+ * Return: 0 on success, or one of the following negative error codes on
+ * failure:
+ * * %-EIO	- I/O error.
+ * * %-ENOMEM	- Insufficient memory available.
  */
 static int nilfs_scan_dsync_log(struct the_nilfs *nilfs, sector_t start_blocknr,
 				struct nilfs_segment_summary *sum,
@@ -571,6 +595,12 @@ static int nilfs_recover_dsync_blocks(struct the_nilfs *nilfs,
  * @sb: super block instance
  * @root: NILFS root instance
  * @ri: pointer to a nilfs_recovery_info
+ *
+ * Return: 0 on success, or one of the following negative error codes on
+ * failure:
+ * * %-EINVAL	- Log format error.
+ * * %-EIO	- I/O error.
+ * * %-ENOMEM	- Insufficient memory available.
  */
 static int nilfs_do_roll_forward(struct the_nilfs *nilfs,
 				 struct super_block *sb,

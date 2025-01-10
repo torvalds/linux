@@ -135,8 +135,7 @@ void nilfs_copy_buffer(struct buffer_head *dbh, struct buffer_head *sbh)
  * nilfs_folio_buffers_clean - Check if a folio has dirty buffers or not.
  * @folio: Folio to be checked.
  *
- * nilfs_folio_buffers_clean() returns false if the folio has dirty buffers.
- * Otherwise, it returns true.
+ * Return: false if the folio has dirty buffers, true otherwise.
  */
 bool nilfs_folio_buffers_clean(struct folio *folio)
 {
@@ -500,8 +499,9 @@ void __nilfs_clear_folio_dirty(struct folio *folio)
  * This function searches an extent of buffers marked "delayed" which
  * starts from a block offset equal to or larger than @start_blk.  If
  * such an extent was found, this will store the start offset in
- * @blkoff and return its length in blocks.  Otherwise, zero is
- * returned.
+ * @blkoff and return its length in blocks.
+ *
+ * Return: Length in blocks of found extent, 0 otherwise.
  */
 unsigned long nilfs_find_uncommitted_extent(struct inode *inode,
 					    sector_t start_blk,

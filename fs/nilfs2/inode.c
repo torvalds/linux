@@ -68,6 +68,8 @@ void nilfs_inode_sub_blocks(struct inode *inode, int n)
  *
  * This function does not issue actual read request of the specified data
  * block. It is done by VFS.
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 int nilfs_get_block(struct inode *inode, sector_t blkoff,
 		    struct buffer_head *bh_result, int create)
@@ -141,6 +143,8 @@ int nilfs_get_block(struct inode *inode, sector_t blkoff,
  * address_space_operations.
  * @file: file struct of the file to be read
  * @folio: the folio to be read
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 static int nilfs_read_folio(struct file *file, struct folio *folio)
 {

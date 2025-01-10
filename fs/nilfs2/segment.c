@@ -250,6 +250,8 @@ int nilfs_transaction_begin(struct super_block *sb,
  * nilfs_transaction_commit() sets a timer to start the segment
  * constructor.  If a sync flag is set, it starts construction
  * directly.
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 int nilfs_transaction_commit(struct super_block *sb)
 {
@@ -405,6 +407,8 @@ static void *nilfs_segctor_map_segsum_entry(struct nilfs_sc_info *sci,
 /**
  * nilfs_segctor_reset_segment_buffer - reset the current segment buffer
  * @sci: nilfs_sc_info
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 static int nilfs_segctor_reset_segment_buffer(struct nilfs_sc_info *sci)
 {
@@ -1315,6 +1319,8 @@ static int nilfs_segctor_collect_blocks(struct nilfs_sc_info *sci, int mode)
  * nilfs_segctor_begin_construction - setup segment buffer to make a new log
  * @sci: nilfs_sc_info
  * @nilfs: nilfs object
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 static int nilfs_segctor_begin_construction(struct nilfs_sc_info *sci,
 					    struct the_nilfs *nilfs)
@@ -2454,6 +2460,8 @@ static void nilfs_segctor_notify(struct nilfs_sc_info *sci, int mode, int err)
  * nilfs_segctor_construct - form logs and write them to disk
  * @sci: segment constructor object
  * @mode: mode of log forming
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 static int nilfs_segctor_construct(struct nilfs_sc_info *sci, int mode)
 {

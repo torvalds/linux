@@ -481,6 +481,8 @@ ssize_t nilfs_dat_get_vinfo(struct inode *dat, void *buf, unsigned int visz,
  * @entry_size: size of a dat entry
  * @raw_inode: on-disk dat inode
  * @inodep: buffer to store the inode
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 int nilfs_dat_read(struct super_block *sb, size_t entry_size,
 		   struct nilfs_inode *raw_inode, struct inode **inodep)

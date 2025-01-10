@@ -133,6 +133,8 @@ static void nilfs_sufile_mod_counter(struct buffer_head *header_bh,
 /**
  * nilfs_sufile_get_ncleansegs - return the number of clean segments
  * @sufile: inode of segment usage file
+ *
+ * Return: Number of clean segments.
  */
 unsigned long nilfs_sufile_get_ncleansegs(struct inode *sufile)
 {
@@ -500,6 +502,8 @@ void nilfs_sufile_do_free(struct inode *sufile, __u64 segnum,
  * nilfs_sufile_mark_dirty - mark the buffer having a segment usage dirty
  * @sufile: inode of segment usage file
  * @segnum: segment number
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 int nilfs_sufile_mark_dirty(struct inode *sufile, __u64 segnum)
 {
@@ -559,6 +563,8 @@ out_sem:
  * @segnum: segment number
  * @nblocks: number of live blocks in the segment
  * @modtime: modification time (option)
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 int nilfs_sufile_set_segment_usage(struct inode *sufile, __u64 segnum,
 				   unsigned long nblocks, time64_t modtime)
@@ -1195,6 +1201,8 @@ out_sem:
  * @susize: size of a segment usage entry
  * @raw_inode: on-disk sufile inode
  * @inodep: buffer to store the inode
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 int nilfs_sufile_read(struct super_block *sb, size_t susize,
 		      struct nilfs_inode *raw_inode, struct inode **inodep)
