@@ -185,7 +185,7 @@ struct iommu_domain *amd_iommu_domain_alloc_sva(struct device *dev,
 	struct protection_domain *pdom;
 	int ret;
 
-	pdom = protection_domain_alloc(dev_to_node(dev));
+	pdom = protection_domain_alloc();
 	if (!pdom)
 		return ERR_PTR(-ENOMEM);
 
