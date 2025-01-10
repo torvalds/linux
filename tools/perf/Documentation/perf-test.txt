@@ -28,8 +28,11 @@ OPTIONS
 	Tests to skip (comma separated numeric list).
 
 -v::
+-vv::
+-vvv::
 --verbose::
-	Be more verbose.
+	With a single '-v', verbose level 1, only failing test output
+	is displayed. With '-vv' and higher all test output is shown.
 
 -S::
 --sequential::
