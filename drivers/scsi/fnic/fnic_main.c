@@ -582,6 +582,14 @@ static void fnic_scsi_init(struct fnic *fnic)
 	host->transportt = fnic_fc_transport;
 }
 
+static void fnic_free_ioreq_tables_mq(struct fnic *fnic)
+{
+	int hwq;
+
+	for (hwq = 0; hwq < fnic->wq_copy_count; hwq++)
+		kfree(fnic->sw_copy_wq[hwq].io_req_table);
+}
+
 static int fnic_scsi_drv_init(struct fnic *fnic)
 {
 	struct Scsi_Host *host = fnic->host;
@@ -614,6 +622,11 @@ static int fnic_scsi_drv_init(struct fnic *fnic)
 		fnic->sw_copy_wq[hwq].io_req_table =
 			kzalloc((fnic->sw_copy_wq[hwq].ioreq_table_size + 1) *
 					sizeof(struct fnic_io_req *), GFP_KERNEL);
+
+		if (!fnic->sw_copy_wq[hwq].io_req_table) {
+			fnic_free_ioreq_tables_mq(fnic);
+			return -ENOMEM;
+		}
 	}
 
 	dev_info(&fnic->pdev->dev, "fnic copy wqs: %d, Q0 ioreq table size: %d\n",
@@ -1060,6 +1073,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 err_out_free_stats_debugfs:
 	fnic_stats_debugfs_remove(fnic);
+	fnic_free_ioreq_tables_mq(fnic);
 	scsi_remove_host(fnic->host);
 err_out_scsi_drv_init:
 	fnic_free_intr(fnic);
