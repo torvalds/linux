@@ -2945,12 +2945,12 @@ static struct ceph_mds_request_head_legacy *
 find_legacy_request_head(void *p, u64 features)
 {
 	bool legacy = !(features & CEPH_FEATURE_FS_BTIME);
-	struct ceph_mds_request_head_old *ohead;
+	struct ceph_mds_request_head *head;
 
 	if (legacy)
 		return (struct ceph_mds_request_head_legacy *)p;
-	ohead = (struct ceph_mds_request_head_old *)p;
-	return (struct ceph_mds_request_head_legacy *)&ohead->oldest_client_tid;
+	head = (struct ceph_mds_request_head *)p;
+	return (struct ceph_mds_request_head_legacy *)&head->oldest_client_tid;
 }
 
 /*
@@ -3020,7 +3020,7 @@ static struct ceph_msg *create_request_message(struct ceph_mds_session *session,
 	if (legacy)
 		len = sizeof(struct ceph_mds_request_head_legacy);
 	else if (request_head_version == 1)
-		len = sizeof(struct ceph_mds_request_head_old);
+		len = offsetofend(struct ceph_mds_request_head, args);
 	else if (request_head_version == 2)
 		len = offsetofend(struct ceph_mds_request_head, ext_num_fwd);
 	else
@@ -3104,11 +3104,11 @@ static struct ceph_msg *create_request_message(struct ceph_mds_session *session,
 		msg->hdr.version = cpu_to_le16(3);
 		p = msg->front.iov_base + sizeof(*lhead);
 	} else if (request_head_version == 1) {
-		struct ceph_mds_request_head_old *ohead = msg->front.iov_base;
+		struct ceph_mds_request_head *nhead = msg->front.iov_base;
 
 		msg->hdr.version = cpu_to_le16(4);
-		ohead->version = cpu_to_le16(1);
-		p = msg->front.iov_base + sizeof(*ohead);
+		nhead->version = cpu_to_le16(1);
+		p = msg->front.iov_base + offsetofend(struct ceph_mds_request_head, args);
 	} else if (request_head_version == 2) {
 		struct ceph_mds_request_head *nhead = msg->front.iov_base;
 
@@ -3265,7 +3265,7 @@ static int __prepare_send_request(struct ceph_mds_session *session,
 	 * so we limit to retry at most 256 times.
 	 */
 	if (req->r_attempts) {
-	       old_max_retry = sizeof_field(struct ceph_mds_request_head_old,
+	       old_max_retry = sizeof_field(struct ceph_mds_request_head,
 					    num_retry);
 	       old_max_retry = 1 << (old_max_retry * BITS_PER_BYTE);
 	       if ((old_version && req->r_attempts >= old_max_retry) ||
