@@ -2523,12 +2523,9 @@ static struct iommu_domain *do_iommu_domain_alloc(unsigned int type,
 						  u32 flags, int pgtable)
 {
 	bool dirty_tracking = flags & IOMMU_HWPT_ALLOC_DIRTY_TRACKING;
+	struct amd_iommu *iommu = get_amd_iommu_from_dev(dev);
 	struct protection_domain *domain;
-	struct amd_iommu *iommu = NULL;
 	int ret;
-
-	if (dev)
-		iommu = get_amd_iommu_from_dev(dev);
 
 	/*
 	 * Since DTE[Mode]=0 is prohibited on SNP-enabled system,
@@ -2537,8 +2534,7 @@ static struct iommu_domain *do_iommu_domain_alloc(unsigned int type,
 	if (amd_iommu_snp_en && (type == IOMMU_DOMAIN_IDENTITY))
 		return ERR_PTR(-EINVAL);
 
-	domain = protection_domain_alloc(type,
-					 dev ? dev_to_node(dev) : NUMA_NO_NODE);
+	domain = protection_domain_alloc(type, dev_to_node(dev));
 	if (!domain)
 		return ERR_PTR(-ENOMEM);
 
@@ -2554,13 +2550,11 @@ static struct iommu_domain *do_iommu_domain_alloc(unsigned int type,
 	domain->domain.geometry.force_aperture = true;
 	domain->domain.pgsize_bitmap = domain->iop.pgtbl.cfg.pgsize_bitmap;
 
-	if (iommu) {
-		domain->domain.type = type;
-		domain->domain.ops = iommu->iommu.ops->default_domain_ops;
+	domain->domain.type = type;
+	domain->domain.ops = iommu->iommu.ops->default_domain_ops;
 
-		if (dirty_tracking)
-			domain->domain.dirty_ops = &amd_dirty_ops;
-	}
+	if (dirty_tracking)
+		domain->domain.dirty_ops = &amd_dirty_ops;
 
 	return &domain->domain;
 }
@@ -2571,12 +2565,9 @@ amd_iommu_domain_alloc_paging_flags(struct device *dev, u32 flags,
 
 {
 	unsigned int type = IOMMU_DOMAIN_UNMANAGED;
-	struct amd_iommu *iommu = NULL;
+	struct amd_iommu *iommu = get_amd_iommu_from_dev(dev);
 	const u32 supported_flags = IOMMU_HWPT_ALLOC_DIRTY_TRACKING |
 						IOMMU_HWPT_ALLOC_PASID;
-
-	if (dev)
-		iommu = get_amd_iommu_from_dev(dev);
 
 	if ((flags & ~supported_flags) || user_data)
 		return ERR_PTR(-EOPNOTSUPP);
@@ -2591,10 +2582,9 @@ amd_iommu_domain_alloc_paging_flags(struct device *dev, u32 flags,
 
 	/* Allocate domain with v1 page table for dirty tracking */
 	if (flags & IOMMU_HWPT_ALLOC_DIRTY_TRACKING) {
-		if (iommu && amd_iommu_hd_support(iommu)) {
-			return do_iommu_domain_alloc(type, dev,
-						     flags, AMD_IOMMU_V1);
-		}
+		if (amd_iommu_hd_support(iommu))
+			return do_iommu_domain_alloc(type, dev, flags,
+						     AMD_IOMMU_V1);
 
 		return ERR_PTR(-EOPNOTSUPP);
 	}
