@@ -3240,16 +3240,8 @@ static void reset_idle_masks(void)
 	cpumask_copy(idle_masks.smt, cpu_online_mask);
 }
 
-void __scx_update_idle(struct rq *rq, bool idle)
+static void update_builtin_idle(int cpu, bool idle)
 {
-	int cpu = cpu_of(rq);
-
-	if (SCX_HAS_OP(update_idle) && !scx_rq_bypassing(rq)) {
-		SCX_CALL_OP(SCX_KF_REST, update_idle, cpu_of(rq), idle);
-		if (!static_branch_unlikely(&scx_builtin_idle_enabled))
-			return;
-	}
-
 	if (idle)
 		cpumask_set_cpu(cpu, idle_masks.cpu);
 	else
@@ -3274,6 +3266,57 @@ void __scx_update_idle(struct rq *rq, bool idle)
 		}
 	}
 #endif
+}
+
+/*
+ * Update the idle state of a CPU to @idle.
+ *
+ * If @do_notify is true, ops.update_idle() is invoked to notify the scx
+ * scheduler of an actual idle state transition (idle to busy or vice
+ * versa). If @do_notify is false, only the idle state in the idle masks is
+ * refreshed without invoking ops.update_idle().
+ *
+ * This distinction is necessary, because an idle CPU can be "reserved" and
+ * awakened via scx_bpf_pick_idle_cpu() + scx_bpf_kick_cpu(), marking it as
+ * busy even if no tasks are dispatched. In this case, the CPU may return
+ * to idle without a true state transition. Refreshing the idle masks
+ * without invoking ops.update_idle() ensures accurate idle state tracking
+ * while avoiding unnecessary updates and maintaining balanced state
+ * transitions.
+ */
+void __scx_update_idle(struct rq *rq, bool idle, bool do_notify)
+{
+	int cpu = cpu_of(rq);
+
+	lockdep_assert_rq_held(rq);
+
+	/*
+	 * Trigger ops.update_idle() only when transitioning from a task to
+	 * the idle thread and vice versa.
+	 *
+	 * Idle transitions are indicated by do_notify being set to true,
+	 * managed by put_prev_task_idle()/set_next_task_idle().
+	 */
+	if (SCX_HAS_OP(update_idle) && do_notify && !scx_rq_bypassing(rq))
+		SCX_CALL_OP(SCX_KF_REST, update_idle, cpu_of(rq), idle);
+
+	/*
+	 * Update the idle masks:
+	 * - for real idle transitions (do_notify == true)
+	 * - for idle-to-idle transitions (indicated by the previous task
+	 *   being the idle thread, managed by pick_task_idle())
+	 *
+	 * Skip updating idle masks if the previous task is not the idle
+	 * thread, since set_next_task_idle() has already handled it when
+	 * transitioning from a task to the idle thread (calling this
+	 * function with do_notify == true).
+	 *
+	 * In this way we can avoid updating the idle masks twice,
+	 * unnecessarily.
+	 */
+	if (static_branch_likely(&scx_builtin_idle_enabled))
+		if (do_notify || is_idle_task(rq->curr))
+			update_builtin_idle(cpu, idle);
 }
 
 static void handle_hotplug(struct rq *rq, bool online)

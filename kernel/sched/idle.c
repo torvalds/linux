@@ -453,19 +453,20 @@ static void wakeup_preempt_idle(struct rq *rq, struct task_struct *p, int flags)
 static void put_prev_task_idle(struct rq *rq, struct task_struct *prev, struct task_struct *next)
 {
 	dl_server_update_idle_time(rq, prev);
-	scx_update_idle(rq, false);
+	scx_update_idle(rq, false, true);
 }
 
 static void set_next_task_idle(struct rq *rq, struct task_struct *next, bool first)
 {
 	update_idle_core(rq);
-	scx_update_idle(rq, true);
+	scx_update_idle(rq, true, true);
 	schedstat_inc(rq->sched_goidle);
 	next->se.exec_start = rq_clock_task(rq);
 }
 
 struct task_struct *pick_task_idle(struct rq *rq)
 {
+	scx_update_idle(rq, true, false);
 	return rq->idle;
 }
 
