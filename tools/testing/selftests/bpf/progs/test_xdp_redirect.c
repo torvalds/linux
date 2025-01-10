@@ -12,12 +12,12 @@
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 
-SEC("redirect_to_111")
+SEC("xdp")
 int xdp_redirect_to_111(struct xdp_md *xdp)
 {
 	return bpf_redirect(111, 0);
 }
-SEC("redirect_to_222")
+SEC("xdp")
 int xdp_redirect_to_222(struct xdp_md *xdp)
 {
 	return bpf_redirect(222, 0);
