@@ -182,26 +182,29 @@ static bool lo_bdev_can_use_dio(struct loop_device *lo,
 	return true;
 }
 
-static void __loop_update_dio(struct loop_device *lo, bool dio)
+static bool lo_can_use_dio(struct loop_device *lo)
 {
-	struct file *file = lo->lo_backing_file;
-	struct inode *inode = file->f_mapping->host;
-	struct block_device *backing_bdev = NULL;
-	bool use_dio;
+	struct inode *inode = lo->lo_backing_file->f_mapping->host;
+
+	if (!(lo->lo_backing_file->f_mode & FMODE_CAN_ODIRECT))
+		return false;
 
 	if (S_ISBLK(inode->i_mode))
-		backing_bdev = I_BDEV(inode);
-	else if (inode->i_sb->s_bdev)
-		backing_bdev = inode->i_sb->s_bdev;
+		return lo_bdev_can_use_dio(lo, I_BDEV(inode));
+	if (inode->i_sb->s_bdev)
+		return lo_bdev_can_use_dio(lo, inode->i_sb->s_bdev);
+	return true;
+}
 
-	use_dio = dio && (file->f_mode & FMODE_CAN_ODIRECT) &&
-		(!backing_bdev || lo_bdev_can_use_dio(lo, backing_bdev));
+static void __loop_update_dio(struct loop_device *lo, bool dio)
+{
+	bool use_dio = dio && lo_can_use_dio(lo);
 
 	if (lo->use_dio == use_dio)
 		return;
 
 	/* flush dirty pages before changing direct IO */
-	vfs_fsync(file, 0);
+	vfs_fsync(lo->lo_backing_file, 0);
 
 	/*
 	 * The flag of LO_FLAGS_DIRECT_IO is handled similarly with
