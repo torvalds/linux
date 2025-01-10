@@ -19112,7 +19112,7 @@ F:	drivers/hwmon/qnap-mcu-hwmon.c
 F:	drivers/input/misc/qnap-mcu-input.c
 F:	drivers/leds/leds-qnap-mcu.c
 F:	drivers/mfd/qnap-mcu.c
-F:	include/linux/qnap-mcu.h
+F:	include/linux/mfd/qnap-mcu.h
 
 QNX4 FILESYSTEM
 M:	Anders Larsen <al@alarsen.net>
