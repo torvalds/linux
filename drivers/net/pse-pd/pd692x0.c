@@ -517,21 +517,38 @@ pd692x0_pse_ext_state_map[] = {
 	{ /* sentinel */ }
 };
 
-static void
-pd692x0_get_ext_state(struct ethtool_c33_pse_ext_state_info *c33_ext_state_info,
-		      u32 status_code)
+static int
+pd692x0_pi_get_ext_state(struct pse_controller_dev *pcdev, int id,
+			 struct pse_ext_state_info *ext_state_info)
 {
+	struct ethtool_c33_pse_ext_state_info *c33_ext_state_info;
 	const struct pd692x0_pse_ext_state_mapping *ext_state_map;
+	struct pd692x0_priv *priv = to_pd692x0_priv(pcdev);
+	struct pd692x0_msg msg, buf = {0};
+	int ret;
 
+	ret = pd692x0_fw_unavailable(priv);
+	if (ret)
+		return ret;
+
+	msg = pd692x0_msg_template_list[PD692X0_MSG_GET_PORT_STATUS];
+	msg.sub[2] = id;
+	ret = pd692x0_sendrecv_msg(priv, &msg, &buf);
+	if (ret < 0)
+		return ret;
+
+	c33_ext_state_info = &ext_state_info->c33_ext_state_info;
 	ext_state_map = pd692x0_pse_ext_state_map;
 	while (ext_state_map->status_code) {
-		if (ext_state_map->status_code == status_code) {
+		if (ext_state_map->status_code == buf.sub[0]) {
 			c33_ext_state_info->c33_pse_ext_state = ext_state_map->pse_ext_state;
 			c33_ext_state_info->__c33_pse_ext_substate = ext_state_map->pse_ext_substate;
-			return;
+			return  0;
 		}
 		ext_state_map++;
 	}
+
+	return 0;
 }
 
 struct pd692x0_class_pw {
@@ -613,35 +630,66 @@ static int pd692x0_pi_set_pw_from_table(struct device *dev,
 }
 
 static int
-pd692x0_pi_get_pw_ranges(struct pse_control_status *st)
+pd692x0_pi_get_pw_limit_ranges(struct pse_controller_dev *pcdev, int id,
+			       struct pse_pw_limit_ranges *pw_limit_ranges)
 {
+	struct ethtool_c33_pse_pw_limit_range *c33_pw_limit_ranges;
 	const struct pd692x0_class_pw *pw_table;
 	int i;
 
 	pw_table = pd692x0_class_pw_table;
-	st->c33_pw_limit_ranges = kcalloc(PD692X0_CLASS_PW_TABLE_SIZE,
-					  sizeof(struct ethtool_c33_pse_pw_limit_range),
-					  GFP_KERNEL);
-	if (!st->c33_pw_limit_ranges)
+	c33_pw_limit_ranges = kcalloc(PD692X0_CLASS_PW_TABLE_SIZE,
+				      sizeof(*c33_pw_limit_ranges),
+				      GFP_KERNEL);
+	if (!c33_pw_limit_ranges)
 		return -ENOMEM;
 
 	for (i = 0; i < PD692X0_CLASS_PW_TABLE_SIZE; i++, pw_table++) {
-		st->c33_pw_limit_ranges[i].min = pw_table->class_pw;
-		st->c33_pw_limit_ranges[i].max = pw_table->class_pw + pw_table->max_added_class_pw;
+		c33_pw_limit_ranges[i].min = pw_table->class_pw;
+		c33_pw_limit_ranges[i].max = pw_table->class_pw +
+					     pw_table->max_added_class_pw;
 	}
 
-	st->c33_pw_limit_nb_ranges = i;
-	return 0;
+	pw_limit_ranges->c33_pw_limit_ranges = c33_pw_limit_ranges;
+	return i;
 }
 
-static int pd692x0_ethtool_get_status(struct pse_controller_dev *pcdev,
-				      unsigned long id,
-				      struct netlink_ext_ack *extack,
-				      struct pse_control_status *status)
+static int
+pd692x0_pi_get_admin_state(struct pse_controller_dev *pcdev, int id,
+			   struct pse_admin_state *admin_state)
 {
 	struct pd692x0_priv *priv = to_pd692x0_priv(pcdev);
 	struct pd692x0_msg msg, buf = {0};
-	u32 class;
+	int ret;
+
+	ret = pd692x0_fw_unavailable(priv);
+	if (ret)
+		return ret;
+
+	msg = pd692x0_msg_template_list[PD692X0_MSG_GET_PORT_STATUS];
+	msg.sub[2] = id;
+	ret = pd692x0_sendrecv_msg(priv, &msg, &buf);
+	if (ret < 0)
+		return ret;
+
+	if (buf.sub[1])
+		admin_state->c33_admin_state =
+			ETHTOOL_C33_PSE_ADMIN_STATE_ENABLED;
+	else
+		admin_state->c33_admin_state =
+			ETHTOOL_C33_PSE_ADMIN_STATE_DISABLED;
+
+	priv->admin_state[id] = admin_state->c33_admin_state;
+
+	return 0;
+}
+
+static int
+pd692x0_pi_get_pw_status(struct pse_controller_dev *pcdev, int id,
+			 struct pse_pw_status *pw_status)
+{
+	struct pd692x0_priv *priv = to_pd692x0_priv(pcdev);
+	struct pd692x0_msg msg, buf = {0};
 	int ret;
 
 	ret = pd692x0_fw_unavailable(priv);
@@ -656,37 +704,33 @@ static int pd692x0_ethtool_get_status(struct pse_controller_dev *pcdev,
 
 	/* Compare Port Status (Communication Protocol Document par. 7.1) */
 	if ((buf.sub[0] & 0xf0) == 0x80 || (buf.sub[0] & 0xf0) == 0x90)
-		status->c33_pw_status = ETHTOOL_C33_PSE_PW_D_STATUS_DELIVERING;
+		pw_status->c33_pw_status =
+			ETHTOOL_C33_PSE_PW_D_STATUS_DELIVERING;
 	else if (buf.sub[0] == 0x1b || buf.sub[0] == 0x22)
-		status->c33_pw_status = ETHTOOL_C33_PSE_PW_D_STATUS_SEARCHING;
+		pw_status->c33_pw_status =
+			ETHTOOL_C33_PSE_PW_D_STATUS_SEARCHING;
 	else if (buf.sub[0] == 0x12)
-		status->c33_pw_status = ETHTOOL_C33_PSE_PW_D_STATUS_FAULT;
+		pw_status->c33_pw_status =
+			ETHTOOL_C33_PSE_PW_D_STATUS_FAULT;
 	else
-		status->c33_pw_status = ETHTOOL_C33_PSE_PW_D_STATUS_DISABLED;
+		pw_status->c33_pw_status =
+			ETHTOOL_C33_PSE_PW_D_STATUS_DISABLED;
 
-	if (buf.sub[1])
-		status->c33_admin_state = ETHTOOL_C33_PSE_ADMIN_STATE_ENABLED;
-	else
-		status->c33_admin_state = ETHTOOL_C33_PSE_ADMIN_STATE_DISABLED;
+	return 0;
+}
 
-	priv->admin_state[id] = status->c33_admin_state;
+static int
+pd692x0_pi_get_pw_class(struct pse_controller_dev *pcdev, int id)
+{
+	struct pd692x0_priv *priv = to_pd692x0_priv(pcdev);
+	struct pd692x0_msg msg, buf = {0};
+	u32 class;
+	int ret;
 
-	pd692x0_get_ext_state(&status->c33_ext_state_info, buf.sub[0]);
-	status->c33_actual_pw = (buf.data[0] << 4 | buf.data[1]) * 100;
-
-	msg = pd692x0_msg_template_list[PD692X0_MSG_GET_PORT_PARAM];
-	msg.sub[2] = id;
-	memset(&buf, 0, sizeof(buf));
-	ret = pd692x0_sendrecv_msg(priv, &msg, &buf);
-	if (ret < 0)
+	ret = pd692x0_fw_unavailable(priv);
+	if (ret)
 		return ret;
 
-	ret = pd692x0_pi_get_pw_from_table(buf.data[0], buf.data[1]);
-	if (ret < 0)
-		return ret;
-	status->c33_avail_pw_limit = ret;
-
-	memset(&buf, 0, sizeof(buf));
 	msg = pd692x0_msg_template_list[PD692X0_MSG_GET_PORT_CLASS];
 	msg.sub[2] = id;
 	ret = pd692x0_sendrecv_msg(priv, &msg, &buf);
@@ -695,13 +739,29 @@ static int pd692x0_ethtool_get_status(struct pse_controller_dev *pcdev,
 
 	class = buf.data[3] >> 4;
 	if (class <= 8)
-		status->c33_pw_class = class;
+		return class;
 
-	ret = pd692x0_pi_get_pw_ranges(status);
+	return 0;
+}
+
+static int
+pd692x0_pi_get_actual_pw(struct pse_controller_dev *pcdev, int id)
+{
+	struct pd692x0_priv *priv = to_pd692x0_priv(pcdev);
+	struct pd692x0_msg msg, buf = {0};
+	int ret;
+
+	ret = pd692x0_fw_unavailable(priv);
+	if (ret)
+		return ret;
+
+	msg = pd692x0_msg_template_list[PD692X0_MSG_GET_PORT_STATUS];
+	msg.sub[2] = id;
+	ret = pd692x0_sendrecv_msg(priv, &msg, &buf);
 	if (ret < 0)
 		return ret;
 
-	return 0;
+	return (buf.data[0] << 4 | buf.data[1]) * 100;
 }
 
 static struct pd692x0_msg_ver pd692x0_get_sw_version(struct pd692x0_priv *priv)
@@ -1038,13 +1098,18 @@ static int pd692x0_pi_set_pw_limit(struct pse_controller_dev *pcdev,
 
 static const struct pse_controller_ops pd692x0_ops = {
 	.setup_pi_matrix = pd692x0_setup_pi_matrix,
-	.ethtool_get_status = pd692x0_ethtool_get_status,
+	.pi_get_admin_state = pd692x0_pi_get_admin_state,
+	.pi_get_pw_status = pd692x0_pi_get_pw_status,
+	.pi_get_ext_state = pd692x0_pi_get_ext_state,
+	.pi_get_pw_class = pd692x0_pi_get_pw_class,
+	.pi_get_actual_pw = pd692x0_pi_get_actual_pw,
 	.pi_enable = pd692x0_pi_enable,
 	.pi_disable = pd692x0_pi_disable,
 	.pi_is_enabled = pd692x0_pi_is_enabled,
 	.pi_get_voltage = pd692x0_pi_get_voltage,
 	.pi_get_pw_limit = pd692x0_pi_get_pw_limit,
 	.pi_set_pw_limit = pd692x0_pi_set_pw_limit,
+	.pi_get_pw_limit_ranges = pd692x0_pi_get_pw_limit_ranges,
 };
 
 #define PD692X0_FW_LINE_MAX_SZ 0xff
