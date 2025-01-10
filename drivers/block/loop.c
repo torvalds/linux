@@ -1276,7 +1276,7 @@ loop_set_status(struct loop_device *lo, const struct loop_info64 *info)
 		invalidate_bdev(lo->lo_device);
 	}
 
-	/* I/O need to be drained during transfer transition */
+	/* I/O needs to be drained before changing lo_offset or lo_sizelimit */
 	blk_mq_freeze_queue(lo->lo_queue);
 
 	err = loop_set_status_from_info(lo, info);
@@ -1296,7 +1296,7 @@ loop_set_status(struct loop_device *lo, const struct loop_info64 *info)
 		loop_set_size(lo, new_size);
 	}
 
-	/* update dio if lo_offset or transfer is changed */
+	/* update the direct I/O flag if lo_offset changed */
 	__loop_update_dio(lo, lo->use_dio);
 
 out_unfreeze:
