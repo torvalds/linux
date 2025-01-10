@@ -7,6 +7,7 @@
 #include <linux/panic.h>
 #include <asm/asm-extable.h>
 #include <asm/extable.h>
+#include <asm/fpu.h>
 
 const struct exception_table_entry *s390_search_extables(unsigned long addr)
 {
@@ -79,7 +80,7 @@ static bool ex_handler_zeropad(const struct exception_table_entry *ex, struct pt
 
 static bool ex_handler_fpc(const struct exception_table_entry *ex, struct pt_regs *regs)
 {
-	asm volatile("sfpc	%[val]\n" : : [val] "d" (0));
+	fpu_sfpc(0);
 	regs->psw.addr = extable_fixup(ex);
 	return true;
 }
