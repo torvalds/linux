@@ -1242,31 +1242,29 @@ bool fdls_delete_tport(struct fnic_iport_s *iport, struct fnic_tport_s *tport)
 		tport->timer_pending = 0;
 	}
 
-	if (IS_FNIC_FCP_INITIATOR(fnic)) {
-		spin_unlock_irqrestore(&fnic->fnic_lock, fnic->lock_flags);
-		fnic_rport_exch_reset(iport->fnic, tport->fcid);
-		spin_lock_irqsave(&fnic->fnic_lock, fnic->lock_flags);
+	spin_unlock_irqrestore(&fnic->fnic_lock, fnic->lock_flags);
+	fnic_rport_exch_reset(iport->fnic, tport->fcid);
+	spin_lock_irqsave(&fnic->fnic_lock, fnic->lock_flags);
 
-		if (tport->flags & FNIC_FDLS_SCSI_REGISTERED) {
-			tport_del_evt =
-				kzalloc(sizeof(struct fnic_tport_event_s), GFP_ATOMIC);
-			if (!tport_del_evt) {
-				FNIC_FCS_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
-					 "Failed to allocate memory for tport fcid: 0x%0x\n",
-					 tport->fcid);
-				return false;
-			}
-			tport_del_evt->event = TGT_EV_RPORT_DEL;
-			tport_del_evt->arg1 = (void *) tport;
-			list_add_tail(&tport_del_evt->links, &fnic->tport_event_list);
-			queue_work(fnic_event_queue, &fnic->tport_work);
-		} else {
+	if (tport->flags & FNIC_FDLS_SCSI_REGISTERED) {
+		tport_del_evt =
+			kzalloc(sizeof(struct fnic_tport_event_s), GFP_ATOMIC);
+		if (!tport_del_evt) {
 			FNIC_FCS_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
-				 "tport 0x%x not reg with scsi_transport. Freeing locally",
+				 "Failed to allocate memory for tport fcid: 0x%0x\n",
 				 tport->fcid);
-			list_del(&tport->links);
-			kfree(tport);
+			return false;
 		}
+		tport_del_evt->event = TGT_EV_RPORT_DEL;
+		tport_del_evt->arg1 = (void *) tport;
+		list_add_tail(&tport_del_evt->links, &fnic->tport_event_list);
+		queue_work(fnic_event_queue, &fnic->tport_work);
+	} else {
+		FNIC_FCS_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+			 "tport 0x%x not reg with scsi_transport. Freeing locally",
+			 tport->fcid);
+		list_del(&tport->links);
+		kfree(tport);
 	}
 	return true;
 }
@@ -1388,8 +1386,7 @@ static void fdls_send_register_fc4_types(struct fnic_iport_s *iport)
 		 "0x%x: FDLS send RFT with oxid: 0x%x", iport->fcid,
 		 oxid);
 
-	if (IS_FNIC_FCP_INITIATOR(fnic))
-		prft_id->rft_id.fr_fts.ff_type_map[0] =
+	prft_id->rft_id.fr_fts.ff_type_map[0] =
 	    cpu_to_be32(1 << FC_TYPE_FCP);
 
 	prft_id->rft_id.fr_fts.ff_type_map[1] =
@@ -1451,12 +1448,7 @@ static void fdls_send_register_fc4_features(struct fnic_iport_s *iport)
 		 "0x%x: FDLS send RFF with oxid: 0x%x", iport->fcid,
 		 oxid);
 
-	if (IS_FNIC_FCP_INITIATOR(fnic)) {
-		prff_id->rff_id.fr_type = FC_TYPE_FCP;
-	} else {
-		FNIC_FCS_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
-					 "0x%x: Unknown type", iport->fcid);
-	}
+	prff_id->rff_id.fr_type = FC_TYPE_FCP;
 
 	fnic_send_fcoe_frame(iport, frame, frame_size);
 
@@ -2332,9 +2324,6 @@ static void fdls_send_delete_tport_msg(struct fnic_tport_s *tport)
 	struct fnic_iport_s *iport = (struct fnic_iport_s *) tport->iport;
 	struct fnic *fnic = iport->fnic;
 	struct fnic_tport_event_s *tport_del_evt;
-
-	if (!IS_FNIC_FCP_INITIATOR(fnic))
-		return;
 
 	tport_del_evt = kzalloc(sizeof(struct fnic_tport_event_s), GFP_ATOMIC);
 	if (!tport_del_evt) {
@@ -3485,11 +3474,9 @@ fdls_process_flogi_rsp(struct fnic_iport_s *iport,
 					 "From fabric: R_A_TOV: %d E_D_TOV: %d",
 					 iport->r_a_tov, iport->e_d_tov);
 
-		if (IS_FNIC_FCP_INITIATOR(fnic)) {
-			fc_host_fabric_name(iport->fnic->host) =
-			get_unaligned_be64(&FNIC_LOGI_NODE_NAME(flogi_rsp->els));
-			fc_host_port_id(iport->fnic->host) = iport->fcid;
-		}
+		fc_host_fabric_name(iport->fnic->host) =
+		get_unaligned_be64(&FNIC_LOGI_NODE_NAME(flogi_rsp->els));
+		fc_host_port_id(iport->fnic->host) = iport->fcid;
 
 		fnic_fdls_learn_fcoe_macs(iport, rx_frame, fcid);
 
@@ -4526,11 +4513,9 @@ void fnic_fdls_disc_start(struct fnic_iport_s *iport)
 {
 	struct fnic *fnic = iport->fnic;
 
-	if (IS_FNIC_FCP_INITIATOR(fnic)) {
-		fc_host_fabric_name(iport->fnic->host) = 0;
-		fc_host_post_event(iport->fnic->host, fc_get_event_number(),
-						   FCH_EVT_LIPRESET, 0);
-	}
+	fc_host_fabric_name(iport->fnic->host) = 0;
+	fc_host_post_event(iport->fnic->host, fc_get_event_number(),
+					   FCH_EVT_LIPRESET, 0);
 
 	if (!iport->usefip) {
 		if (iport->flags & FNIC_FIRST_LINK_UP) {
@@ -4993,15 +4978,13 @@ void fnic_fdls_link_down(struct fnic_iport_s *iport)
 	fdls_set_state((&iport->fabric), FDLS_STATE_LINKDOWN);
 	iport->fabric.flags = 0;
 
-	if (IS_FNIC_FCP_INITIATOR(fnic)) {
-		spin_unlock_irqrestore(&fnic->fnic_lock, fnic->lock_flags);
-		fnic_scsi_fcpio_reset(iport->fnic);
-		spin_lock_irqsave(&fnic->fnic_lock, fnic->lock_flags);
-		list_for_each_entry_safe(tport, next, &iport->tport_list, links) {
-			FNIC_FCS_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
-						 "removing rport: 0x%x", tport->fcid);
-			fdls_delete_tport(iport, tport);
-		}
+	spin_unlock_irqrestore(&fnic->fnic_lock, fnic->lock_flags);
+	fnic_scsi_fcpio_reset(iport->fnic);
+	spin_lock_irqsave(&fnic->fnic_lock, fnic->lock_flags);
+	list_for_each_entry_safe(tport, next, &iport->tport_list, links) {
+		FNIC_FCS_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+					 "removing rport: 0x%x", tport->fcid);
+		fdls_delete_tport(iport, tport);
 	}
 
 	if ((fnic_fdmi_support == 1) && (iport->fabric.fdmi_pending > 0)) {

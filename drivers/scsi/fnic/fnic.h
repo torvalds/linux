@@ -80,8 +80,6 @@
 #define FNIC_DEV_RST_TERM_DONE          BIT(20)
 #define FNIC_DEV_RST_ABTS_PENDING       BIT(21)
 
-#define IS_FNIC_FCP_INITIATOR(fnic) (fnic->role == FNIC_ROLE_FCP_INITIATOR)
-
 #define FNIC_FW_RESET_TIMEOUT        60000	/* mSec   */
 #define FNIC_FCOE_MAX_CMD_LEN        16
 /* Retry supported by rport (returned by PRLI service parameters) */

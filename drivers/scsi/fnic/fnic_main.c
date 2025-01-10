@@ -1031,7 +1031,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	fnic_fdls_init(fnic, (fnic->config.flags & VFCF_FIP_CAPABLE));
 
-	if (IS_FNIC_FCP_INITIATOR(fnic) && fnic_scsi_drv_init(fnic))
+	if (fnic_scsi_drv_init(fnic))
 		goto err_out_scsi_drv_init;
 
 	err = fnic_stats_debugfs_init(fnic);
@@ -1075,8 +1075,7 @@ err_out_free_resources:
 err_out_fnic_alloc_vnic_res:
 	fnic_clear_intr_mode(fnic);
 err_out_fnic_set_intr_mode:
-	if (IS_FNIC_FCP_INITIATOR(fnic))
-		scsi_host_put(fnic->host);
+	scsi_host_put(fnic->host);
 err_out_fnic_role:
 err_out_scsi_host_alloc:
 err_out_fnic_get_config:
@@ -1125,8 +1124,7 @@ static void fnic_remove(struct pci_dev *pdev)
 	 */
 	flush_workqueue(fnic_event_queue);
 
-	if (IS_FNIC_FCP_INITIATOR(fnic))
-		fnic_scsi_unload(fnic);
+	fnic_scsi_unload(fnic);
 
 	if (vnic_dev_get_intr_mode(fnic->vdev) == VNIC_DEV_INTR_MODE_MSI)
 		del_timer_sync(&fnic->notify_timer);
@@ -1171,10 +1169,8 @@ static void fnic_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 	ida_free(&fnic_ida, fnic->fnic_num);
-	if (IS_FNIC_FCP_INITIATOR(fnic)) {
-		fnic_scsi_unload_cleanup(fnic);
-		scsi_host_put(fnic->host);
-	}
+	fnic_scsi_unload_cleanup(fnic);
+	scsi_host_put(fnic->host);
 	kfree(fnic);
 }
 
