@@ -298,6 +298,12 @@ Rawmidi API Extensions
   On the other hand, the UMP rawmidi device number is found in
   `tied_device` field of the legacy rawmidi info, too.
 
+* Each substream of the legacy rawmidi may be enabled / disabled
+  dynamically depending on the UMP FB state.
+  When the selected substream is inactive, it's indicated by the bit
+  0x10 (`SNDRV_RAWMIDI_INFO_STREAM_INACTIVE`) in the `flags` field of
+  the legacy rawmidi info.
+
 
 Control API Extensions
 ======================
