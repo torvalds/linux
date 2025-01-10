@@ -152,7 +152,7 @@ struct ivmd_header {
 bool amd_iommu_dump;
 bool amd_iommu_irq_remap __read_mostly;
 
-enum io_pgtable_fmt amd_iommu_pgtable = AMD_IOMMU_V1;
+enum protection_domain_mode amd_iommu_pgtable = PD_MODE_V1;
 /* Guest page table level */
 int amd_iommu_gpt_level = PAGE_MODE_4_LEVEL;
 
@@ -2164,7 +2164,7 @@ static void print_iommu_info(void)
 		if (amd_iommu_xt_mode == IRQ_REMAP_X2APIC_MODE)
 			pr_info("X2APIC enabled\n");
 	}
-	if (amd_iommu_pgtable == AMD_IOMMU_V2) {
+	if (amd_iommu_pgtable == PD_MODE_V2) {
 		pr_info("V2 page table enabled (Paging mode : %d level)\n",
 			amd_iommu_gpt_level);
 	}
@@ -3082,10 +3082,10 @@ static int __init early_amd_iommu_init(void)
 	    FIELD_GET(FEATURE_GATS, amd_iommu_efr) == GUEST_PGTABLE_5_LEVEL)
 		amd_iommu_gpt_level = PAGE_MODE_5_LEVEL;
 
-	if (amd_iommu_pgtable == AMD_IOMMU_V2) {
+	if (amd_iommu_pgtable == PD_MODE_V2) {
 		if (!amd_iommu_v2_pgtbl_supported()) {
 			pr_warn("Cannot enable v2 page table for DMA-API. Fallback to v1.\n");
-			amd_iommu_pgtable = AMD_IOMMU_V1;
+			amd_iommu_pgtable = PD_MODE_V1;
 		}
 	}
 
@@ -3208,7 +3208,7 @@ static void iommu_snp_enable(void)
 		goto disable_snp;
 	}
 
-	if (amd_iommu_pgtable != AMD_IOMMU_V1) {
+	if (amd_iommu_pgtable != PD_MODE_V1) {
 		pr_warn("SNP: IOMMU is configured with V2 page table mode, SNP cannot be supported.\n");
 		goto disable_snp;
 	}
@@ -3485,9 +3485,9 @@ static int __init parse_amd_iommu_options(char *str)
 		} else if (strncmp(str, "force_isolation", 15) == 0) {
 			amd_iommu_force_isolation = true;
 		} else if (strncmp(str, "pgtbl_v1", 8) == 0) {
-			amd_iommu_pgtable = AMD_IOMMU_V1;
+			amd_iommu_pgtable = PD_MODE_V1;
 		} else if (strncmp(str, "pgtbl_v2", 8) == 0) {
-			amd_iommu_pgtable = AMD_IOMMU_V2;
+			amd_iommu_pgtable = PD_MODE_V2;
 		} else if (strncmp(str, "irtcachedis", 11) == 0) {
 			amd_iommu_irtcachedis = true;
 		} else if (strncmp(str, "nohugepages", 11) == 0) {
