@@ -1365,6 +1365,7 @@ static int agilent_82357a_attach(gpib_board_t *board, const gpib_board_config_t 
 		break;
 	default:
 		dev_err(&usb_dev->dev, "bug, unhandled product_id in switch?\n");
+		mutex_unlock(&agilent_82357a_hotplug_lock);
 		return -EIO;
 	}
 #ifdef RESET_USB_CONFIG
