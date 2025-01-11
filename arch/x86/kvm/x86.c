@@ -12928,7 +12928,7 @@ static int kvm_alloc_memslot_metadata(struct kvm *kvm,
 
 	/*
 	 * Clear out the previous array pointers for the KVM_MR_MOVE case.  The
-	 * old arrays will be freed by __kvm_set_memory_region() if installing
+	 * old arrays will be freed by kvm_set_memory_region() if installing
 	 * the new memslot is successful.
 	 */
 	memset(&slot->arch, 0, sizeof(slot->arch));

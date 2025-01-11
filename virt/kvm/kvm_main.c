@@ -1926,8 +1926,8 @@ static bool kvm_check_memslot_overlap(struct kvm_memslots *slots, int id,
 	return false;
 }
 
-static int __kvm_set_memory_region(struct kvm *kvm,
-				   const struct kvm_userspace_memory_region2 *mem)
+static int kvm_set_memory_region(struct kvm *kvm,
+				 const struct kvm_userspace_memory_region2 *mem)
 {
 	struct kvm_memory_slot *old, *new;
 	struct kvm_memslots *slots;
@@ -2057,7 +2057,7 @@ int kvm_set_internal_memslot(struct kvm *kvm,
 	if (WARN_ON_ONCE(mem->slot < KVM_USER_MEM_SLOTS))
 		return -EINVAL;
 
-	return __kvm_set_memory_region(kvm, mem);
+	return kvm_set_memory_region(kvm, mem);
 }
 EXPORT_SYMBOL_GPL(kvm_set_internal_memslot);
 
@@ -2068,7 +2068,7 @@ static int kvm_vm_ioctl_set_memory_region(struct kvm *kvm,
 		return -EINVAL;
 
 	guard(mutex)(&kvm->slots_lock);
-	return __kvm_set_memory_region(kvm, mem);
+	return kvm_set_memory_region(kvm, mem);
 }
 
 #ifndef CONFIG_KVM_GENERIC_DIRTYLOG_READ_PROTECT
