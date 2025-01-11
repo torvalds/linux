@@ -517,14 +517,22 @@ static void vm_dirty_log_verify(enum vm_guest_mode mode, unsigned long **bmap)
 
 			if (host_log_mode == LOG_MODE_DIRTY_RING) {
 				/*
-				 * The last page in the ring from this iteration
-				 * or the previous can be written with the value
-				 * from the previous iteration (relative to the
-				 * last page's iteration), as the value to be
-				 * written may be cached in a CPU register.
+				 * The last page in the ring from previous
+				 * iteration can be written with the value
+				 * from the previous iteration, as the value to
+				 * be written may be cached in a CPU register.
 				 */
-				if ((page == dirty_ring_last_page ||
-				     page == dirty_ring_prev_iteration_last_page) &&
+				if (page == dirty_ring_prev_iteration_last_page &&
+				    val == iteration - 1)
+					continue;
+
+				/*
+				 * Any value from a previous iteration is legal
+				 * for the last entry, as the write may not yet
+				 * have retired, i.e. the page may hold whatever
+				 * it had before this iteration started.
+				 */
+				if (page == dirty_ring_last_page &&
 				    val < iteration)
 					continue;
 			} else if (!val && iteration == 1 && bmap0_dirty) {
