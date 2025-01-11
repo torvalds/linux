@@ -1058,7 +1058,7 @@ fail_task:
 }
 
 /**
- * kthread_create_worker - create a kthread worker
+ * kthread_create_worker_on_node - create a kthread worker
  * @flags: flags modifying the default behavior of the worker
  * @node: task structure for the thread is allocated on this node
  * @namefmt: printf-style name for the kthread worker (task).
