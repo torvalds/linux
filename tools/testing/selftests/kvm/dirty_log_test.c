@@ -379,12 +379,8 @@ static void dirty_ring_after_vcpu_run(struct kvm_vcpu *vcpu)
 	if (get_ucall(vcpu, NULL) == UCALL_SYNC) {
 		vcpu_handle_sync_stop();
 	} else if (run->exit_reason == KVM_EXIT_DIRTY_RING_FULL) {
-		/* Update the flag first before pause */
 		WRITE_ONCE(dirty_ring_vcpu_ring_full, true);
-		sem_post(&sem_vcpu_stop);
-		pr_info("Dirty ring full, waiting for it to be collected\n");
-		sem_wait(&sem_vcpu_cont);
-		WRITE_ONCE(dirty_ring_vcpu_ring_full, false);
+		vcpu_handle_sync_stop();
 	} else {
 		TEST_ASSERT(false, "Invalid guest sync status: "
 			    "exit_reason=%s",
@@ -743,7 +739,6 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	pthread_create(&vcpu_thread, NULL, vcpu_worker, vcpu);
 
 	while (iteration < p->iterations) {
-		bool saw_dirty_ring_full = false;
 		unsigned long i;
 
 		dirty_ring_prev_iteration_last_page = dirty_ring_last_page;
@@ -775,19 +770,12 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 			 * the ring on every pass would make it unlikely the
 			 * vCPU would ever fill the fing).
 			 */
-			if (READ_ONCE(dirty_ring_vcpu_ring_full))
-				saw_dirty_ring_full = true;
-			if (i && !saw_dirty_ring_full)
+			if (i && !READ_ONCE(dirty_ring_vcpu_ring_full))
 				continue;
 
 			log_mode_collect_dirty_pages(vcpu, TEST_MEM_SLOT_INDEX,
 						     bmap, host_num_pages,
 						     &ring_buf_idx);
-
-			if (READ_ONCE(dirty_ring_vcpu_ring_full)) {
-				pr_info("Dirty ring emptied, restarting vCPU\n");
-				sem_post(&sem_vcpu_cont);
-			}
 		}
 
 		/*
@@ -828,6 +816,8 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 		if (++iteration == p->iterations)
 			WRITE_ONCE(host_quit, true);
 		sync_global_to_guest(vm, iteration);
+
+		WRITE_ONCE(dirty_ring_vcpu_ring_full, false);
 
 		sem_post(&sem_vcpu_cont);
 	}
