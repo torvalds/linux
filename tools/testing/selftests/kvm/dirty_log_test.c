@@ -31,9 +31,6 @@
 /* Default guest test virtual memory offset */
 #define DEFAULT_GUEST_TEST_MEM		0xc0000000
 
-/* How many pages to dirty for each guest loop */
-#define TEST_PAGES_PER_LOOP		1024
-
 /* How many host loops to run (one KVM_GET_DIRTY_LOG for each loop) */
 #define TEST_HOST_LOOP_N		32UL
 
@@ -75,6 +72,7 @@ static uint64_t host_page_size;
 static uint64_t guest_page_size;
 static uint64_t guest_num_pages;
 static uint64_t iteration;
+static bool vcpu_stop;
 
 /*
  * Guest physical memory offset of the testing memory slot.
@@ -96,9 +94,10 @@ static uint64_t guest_test_virt_mem = DEFAULT_GUEST_TEST_MEM;
 static void guest_code(void)
 {
 	uint64_t addr;
-	int i;
 
 #ifdef __s390x__
+	uint64_t i;
+
 	/*
 	 * On s390x, all pages of a 1M segment are initially marked as dirty
 	 * when a page of the segment is written to for the very first time.
@@ -112,7 +111,7 @@ static void guest_code(void)
 #endif
 
 	while (true) {
-		for (i = 0; i < TEST_PAGES_PER_LOOP; i++) {
+		while (!READ_ONCE(vcpu_stop)) {
 			addr = guest_test_virt_mem;
 			addr += (guest_random_u64(&guest_rng) % guest_num_pages)
 				* guest_page_size;
@@ -140,14 +139,7 @@ static uint64_t host_track_next_count;
 /* Whether dirty ring reset is requested, or finished */
 static sem_t sem_vcpu_stop;
 static sem_t sem_vcpu_cont;
-/*
- * This is only set by main thread, and only cleared by vcpu thread.  It is
- * used to request vcpu thread to stop at the next GUEST_SYNC, since GUEST_SYNC
- * is the only place that we'll guarantee both "dirty bit" and "dirty data"
- * will match.  E.g., SIG_IPI won't guarantee that if the vcpu is interrupted
- * after setting dirty bit but before the data is written.
- */
-static atomic_t vcpu_sync_stop_requested;
+
 /*
  * This is updated by the vcpu thread to tell the host whether it's a
  * ring-full event.  It should only be read until a sem_wait() of
@@ -272,9 +264,7 @@ static void clear_log_collect_dirty_pages(struct kvm_vcpu *vcpu, int slot,
 /* Should only be called after a GUEST_SYNC */
 static void vcpu_handle_sync_stop(void)
 {
-	if (atomic_read(&vcpu_sync_stop_requested)) {
-		/* It means main thread is sleeping waiting */
-		atomic_set(&vcpu_sync_stop_requested, false);
+	if (READ_ONCE(vcpu_stop)) {
 		sem_post(&sem_vcpu_stop);
 		sem_wait(&sem_vcpu_cont);
 	}
@@ -801,11 +791,24 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 		}
 
 		/*
-		 * See vcpu_sync_stop_requested definition for details on why
-		 * we need to stop vcpu when verify data.
+		 * Stop the vCPU prior to collecting and verifying the dirty
+		 * log.  If the vCPU is allowed to run during collection, then
+		 * pages that are written during this iteration may be missed,
+		 * i.e. collected in the next iteration.  And if the vCPU is
+		 * writing memory during verification, pages that this thread
+		 * sees as clean may be written with this iteration's value.
 		 */
-		atomic_set(&vcpu_sync_stop_requested, true);
+		WRITE_ONCE(vcpu_stop, true);
+		sync_global_to_guest(vm, vcpu_stop);
 		sem_wait(&sem_vcpu_stop);
+
+		/*
+		 * Clear vcpu_stop after the vCPU thread has acknowledge the
+		 * stop request and is waiting, i.e. is definitely not running!
+		 */
+		WRITE_ONCE(vcpu_stop, false);
+		sync_global_to_guest(vm, vcpu_stop);
+
 		/*
 		 * NOTE: for dirty ring, it's possible that we didn't stop at
 		 * GUEST_SYNC but instead we stopped because ring is full;
@@ -813,8 +816,6 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 		 * the flush of the last page, and since we handle the last
 		 * page specially verification will succeed anyway.
 		 */
-		assert(host_log_mode == LOG_MODE_DIRTY_RING ||
-		       atomic_read(&vcpu_sync_stop_requested) == false);
 		vm_dirty_log_verify(mode, bmap);
 
 		/*
