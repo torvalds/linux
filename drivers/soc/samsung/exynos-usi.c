@@ -186,14 +186,10 @@ static int exynos_usi_parse_dt(struct device_node *np, struct exynos_usi *usi)
 		return -EINVAL;
 	usi->mode = mode;
 
-	usi->sysreg = syscon_regmap_lookup_by_phandle(np, "samsung,sysreg");
+	usi->sysreg = syscon_regmap_lookup_by_phandle_args(np, "samsung,sysreg",
+							   1, &usi->sw_conf);
 	if (IS_ERR(usi->sysreg))
 		return PTR_ERR(usi->sysreg);
-
-	ret = of_property_read_u32_index(np, "samsung,sysreg", 1,
-					 &usi->sw_conf);
-	if (ret)
-		return ret;
 
 	usi->clkreq_on = of_property_read_bool(np, "samsung,clkreq-on");
 
