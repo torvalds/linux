@@ -283,6 +283,9 @@ static int dell_uart_bl_serdev_probe(struct serdev_device *serdev)
 	init_waitqueue_head(&dell_bl->wait_queue);
 	dell_bl->dev = dev;
 
+	serdev_device_set_drvdata(serdev, dell_bl);
+	serdev_device_set_client_ops(serdev, &dell_uart_bl_serdev_ops);
+
 	ret = devm_serdev_device_open(dev, serdev);
 	if (ret)
 		return dev_err_probe(dev, ret, "opening UART device\n");
@@ -290,8 +293,6 @@ static int dell_uart_bl_serdev_probe(struct serdev_device *serdev)
 	/* 9600 bps, no flow control, these are the default but set them to be sure */
 	serdev_device_set_baudrate(serdev, 9600);
 	serdev_device_set_flow_control(serdev, false);
-	serdev_device_set_drvdata(serdev, dell_bl);
-	serdev_device_set_client_ops(serdev, &dell_uart_bl_serdev_ops);
 
 	get_version[0] = DELL_SOF(GET_CMD_LEN);
 	get_version[1] = CMD_GET_VERSION;
