@@ -481,6 +481,8 @@ static void *vcpu_worker(void *data)
 {
 	struct kvm_vcpu *vcpu = data;
 
+	sem_wait(&sem_vcpu_cont);
+
 	while (!READ_ONCE(host_quit)) {
 		/* Let the guest dirty the random pages */
 		vcpu_run(vcpu);
@@ -675,15 +677,9 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	sync_global_to_guest(vm, guest_test_virt_mem);
 	sync_global_to_guest(vm, guest_num_pages);
 
-	/* Start the iterations */
-	iteration = 1;
-	sync_global_to_guest(vm, iteration);
-	WRITE_ONCE(host_quit, false);
 	host_dirty_count = 0;
 	host_clear_count = 0;
-	WRITE_ONCE(dirty_ring_vcpu_ring_full, false);
-	WRITE_ONCE(nr_writes, 0);
-	sync_global_to_guest(vm, nr_writes);
+	WRITE_ONCE(host_quit, false);
 
 	/*
 	 * Ensure the previous iteration didn't leave a dangling semaphore, i.e.
@@ -695,12 +691,22 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	sem_getvalue(&sem_vcpu_cont, &sem_val);
 	TEST_ASSERT_EQ(sem_val, 0);
 
+	TEST_ASSERT_EQ(vcpu_stop, false);
+
 	pthread_create(&vcpu_thread, NULL, vcpu_worker, vcpu);
 
-	while (iteration < p->iterations) {
+	for (iteration = 1; iteration < p->iterations; iteration++) {
 		unsigned long i;
 
+		sync_global_to_guest(vm, iteration);
+
+		WRITE_ONCE(nr_writes, 0);
+		sync_global_to_guest(vm, nr_writes);
+
 		dirty_ring_prev_iteration_last_page = dirty_ring_last_page;
+		WRITE_ONCE(dirty_ring_vcpu_ring_full, false);
+
+		sem_post(&sem_vcpu_cont);
 
 		/*
 		 * Let the vCPU run beyond the configured interval until it has
@@ -785,25 +791,10 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 					     bmap[1], host_num_pages,
 					     &ring_buf_idx);
 		vm_dirty_log_verify(mode, bmap);
-
-		/*
-		 * Set host_quit before sem_vcpu_cont in the final iteration to
-		 * ensure that the vCPU worker doesn't resume the guest.  As
-		 * above, the dirty ring test may stop and wait even when not
-		 * explicitly request to do so, i.e. would hang waiting for a
-		 * "continue" if it's allowed to resume the guest.
-		 */
-		if (++iteration == p->iterations)
-			WRITE_ONCE(host_quit, true);
-		sync_global_to_guest(vm, iteration);
-
-		WRITE_ONCE(nr_writes, 0);
-		sync_global_to_guest(vm, nr_writes);
-
-		WRITE_ONCE(dirty_ring_vcpu_ring_full, false);
-
-		sem_post(&sem_vcpu_cont);
 	}
+
+	WRITE_ONCE(host_quit, true);
+	sem_post(&sem_vcpu_cont);
 
 	pthread_join(vcpu_thread, NULL);
 
