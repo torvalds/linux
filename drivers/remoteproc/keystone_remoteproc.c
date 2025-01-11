@@ -341,16 +341,10 @@ static int keystone_rproc_of_get_dev_syscon(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
-	ksproc->dev_ctrl =
-		syscon_regmap_lookup_by_phandle(np, "ti,syscon-dev");
+	ksproc->dev_ctrl = syscon_regmap_lookup_by_phandle_args(np, "ti,syscon-dev",
+								1, &ksproc->boot_offset);
 	if (IS_ERR(ksproc->dev_ctrl))
 		return PTR_ERR(ksproc->dev_ctrl);
-
-	if (of_property_read_u32_index(np, "ti,syscon-dev", 1,
-				       &ksproc->boot_offset)) {
-		dev_err(dev, "couldn't read the boot register offset\n");
-		return -EINVAL;
-	}
 
 	return 0;
 }
