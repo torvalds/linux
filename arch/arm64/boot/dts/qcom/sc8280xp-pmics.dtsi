@@ -212,7 +212,7 @@
 		pm8280_2_temp_alarm: temp-alarm@a00 {
 			compatible = "qcom,spmi-temp-alarm";
 			reg = <0xa00>;
-			interrupts-extended = <&spmi_bus 0x2 0xa 0x0 IRQ_TYPE_EDGE_BOTH>;
+			interrupts-extended = <&spmi_bus 0x3 0xa 0x0 IRQ_TYPE_EDGE_BOTH>;
 			io-channels = <&pmk8280_vadc PM8350_ADC7_DIE_TEMP(3)>;
 			io-channel-names = "thermal";
 			#thermal-sensor-cells = <0>;
