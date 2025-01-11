@@ -48,7 +48,7 @@ fixes/update part 1.1  Stefani Seibold <stefani@seibold.net>    June 9 2009
   3.11	/proc/<pid>/patch_state - Livepatch patch operation state
   3.12	/proc/<pid>/arch_status - Task architecture specific information
   3.13  /proc/<pid>/fd - List of symlinks to open files
-  3.14  /proc/<pid/ksm_stat - Information about the process' ksm status.
+  3.14  /proc/<pid/ksm_stat - Information about the process's ksm status.
 
   4	Configuring procfs
   4.1	Mount options
@@ -485,14 +485,15 @@ Memory Area, or VMA) there is a series of lines such as the following::
     THPeligible:           0
     VmFlags: rd ex mr mw me dw
 
-The first of these lines shows the same information as is displayed for the
-mapping in /proc/PID/maps.  Following lines show the size of the mapping
-(size); the size of each page allocated when backing a VMA (KernelPageSize),
-which is usually the same as the size in the page table entries; the page size
-used by the MMU when backing a VMA (in most cases, the same as KernelPageSize);
-the amount of the mapping that is currently resident in RAM (RSS); the
-process' proportional share of this mapping (PSS); and the number of clean and
-dirty shared and private pages in the mapping.
+The first of these lines shows the same information as is displayed for
+the mapping in /proc/PID/maps.  Following lines show the size of the
+mapping (size); the size of each page allocated when backing a VMA
+(KernelPageSize), which is usually the same as the size in the page table
+entries; the page size used by the MMU when backing a VMA (in most cases,
+the same as KernelPageSize); the amount of the mapping that is currently
+resident in RAM (RSS); the process's proportional share of this mapping
+(PSS); and the number of clean and dirty shared and private pages in the
+mapping.
 
 The "proportional set size" (PSS) of a process is the count of pages it has
 in memory, where each page is divided by the number of processes sharing it.
@@ -2233,8 +2234,8 @@ The number of open files for the process is stored in 'size' member
 of stat() output for /proc/<pid>/fd for fast access.
 -------------------------------------------------------
 
-3.14 /proc/<pid/ksm_stat - Information about the process' ksm status
---------------------------------------------------------------------
+3.14 /proc/<pid/ksm_stat - Information about the process's ksm status
+---------------------------------------------------------------------
 When CONFIG_KSM is enabled, each process has this file which displays
 the information of ksm merging status.
 
@@ -2288,14 +2289,15 @@ memory consumed.
 ksm_merge_any
 ^^^^^^^^^^^^^
 
-It specifies whether the process'mm is added by prctl() into the candidate list
-of KSM or not, and if KSM scanning is fully enabled at process level.
+It specifies whether the process's 'mm is added by prctl() into the
+candidate list of KSM or not, and if KSM scanning is fully enabled at
+process level.
 
 ksm_mergeable
 ^^^^^^^^^^^^^
 
-It specifies whether any VMAs of the process'mm are currently applicable
-to KSM.
+It specifies whether any VMAs of the process''s mms are currently
+applicable to KSM.
 
 More information about KSM can be found in
 Documentation/admin-guide/mm/ksm.rst.
@@ -2329,7 +2331,7 @@ arguments are now protected against local eavesdroppers.
 hidepid=invisible or hidepid=2 means hidepid=1 plus all /proc/<pid>/ will be
 fully invisible to other users.  It doesn't mean that it hides a fact whether a
 process with a specific pid value exists (it can be learned by other means, e.g.
-by "kill -0 $PID"), but it hides process' uid and gid, which may be learned by
+by "kill -0 $PID"), but it hides process's uid and gid, which may be learned by
 stat()'ing /proc/<pid>/ otherwise.  It greatly complicates an intruder's task of
 gathering information about running processes, whether some daemon runs with
 elevated privileges, whether other user runs some sensitive program, whether
