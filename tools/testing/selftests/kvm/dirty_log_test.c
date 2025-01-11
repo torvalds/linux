@@ -510,8 +510,6 @@ static void vm_dirty_log_verify(enum vm_guest_mode mode, unsigned long *bmap)
 		}
 
 		if (__test_and_clear_bit_le(page, bmap)) {
-			bool matched;
-
 			nr_dirty_pages++;
 
 			/*
@@ -519,9 +517,10 @@ static void vm_dirty_log_verify(enum vm_guest_mode mode, unsigned long *bmap)
 			 * the corresponding page should be either the
 			 * previous iteration number or the current one.
 			 */
-			matched = (val == iteration || val == iteration - 1);
+			if (val == iteration || val == iteration - 1)
+				continue;
 
-			if (host_log_mode == LOG_MODE_DIRTY_RING && !matched) {
+			if (host_log_mode == LOG_MODE_DIRTY_RING) {
 				if (val == iteration - 2 && min_iter <= iteration - 2) {
 					/*
 					 * Short answer: this case is special
@@ -567,10 +566,8 @@ static void vm_dirty_log_verify(enum vm_guest_mode mode, unsigned long *bmap)
 				}
 			}
 
-			TEST_ASSERT(matched,
-				    "Set page %"PRIu64" value %"PRIu64
-				    " incorrect (iteration=%"PRIu64")",
-				    page, val, iteration);
+			TEST_FAIL("Dirty page %lu value (%lu) != iteration (%lu)",
+				  page, val, iteration);
 		} else {
 			nr_clean_pages++;
 			/*
