@@ -335,7 +335,6 @@ static int keystone_rproc_of_get_dev_syscon(struct platform_device *pdev,
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
-	int ret;
 
 	if (!of_property_read_bool(np, "ti,syscon-dev")) {
 		dev_err(dev, "ti,syscon-dev property is absent\n");
@@ -344,10 +343,8 @@ static int keystone_rproc_of_get_dev_syscon(struct platform_device *pdev,
 
 	ksproc->dev_ctrl =
 		syscon_regmap_lookup_by_phandle(np, "ti,syscon-dev");
-	if (IS_ERR(ksproc->dev_ctrl)) {
-		ret = PTR_ERR(ksproc->dev_ctrl);
-		return ret;
-	}
+	if (IS_ERR(ksproc->dev_ctrl))
+		return PTR_ERR(ksproc->dev_ctrl);
 
 	if (of_property_read_u32_index(np, "ti,syscon-dev", 1,
 				       &ksproc->boot_offset)) {
