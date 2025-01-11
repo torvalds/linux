@@ -134,7 +134,6 @@ static uint64_t host_num_pages;
 /* For statistics only */
 static uint64_t host_dirty_count;
 static uint64_t host_clear_count;
-static uint64_t host_track_next_count;
 
 /* Whether dirty ring reset is requested, or finished */
 static sem_t sem_vcpu_stop;
@@ -422,15 +421,6 @@ struct log_mode {
 	},
 };
 
-/*
- * We use this bitmap to track some pages that should have its dirty
- * bit set in the _next_ iteration.  For example, if we detected the
- * page value changed to current iteration but at the same time the
- * page bit is cleared in the latest bitmap, then the system must
- * report that write in the next get dirty log call.
- */
-static unsigned long *host_bmap_track;
-
 static void log_modes_dump(void)
 {
 	int i;
@@ -491,79 +481,52 @@ static void *vcpu_worker(void *data)
 	return NULL;
 }
 
-static void vm_dirty_log_verify(enum vm_guest_mode mode, unsigned long *bmap)
+static void vm_dirty_log_verify(enum vm_guest_mode mode, unsigned long **bmap)
 {
 	uint64_t page, nr_dirty_pages = 0, nr_clean_pages = 0;
 	uint64_t step = vm_num_host_pages(mode, 1);
-	uint64_t min_iter = 0;
 
 	for (page = 0; page < host_num_pages; page += step) {
 		uint64_t val = *(uint64_t *)(host_test_mem + page * host_page_size);
+		bool bmap0_dirty = __test_and_clear_bit_le(page, bmap[0]);
 
-		/* If this is a special page that we were tracking... */
-		if (__test_and_clear_bit_le(page, host_bmap_track)) {
-			host_track_next_count++;
-			TEST_ASSERT(test_bit_le(page, bmap),
-				    "Page %"PRIu64" should have its dirty bit "
-				    "set in this iteration but it is missing",
-				    page);
-		}
-
-		if (__test_and_clear_bit_le(page, bmap)) {
+		/*
+		 * Ensure both bitmaps are cleared, as a page can be written
+		 * multiple times per iteration, i.e. can show up in both
+		 * bitmaps, and the dirty ring is additive, i.e. doesn't purge
+		 * bitmap entries from previous collections.
+		 */
+		if (__test_and_clear_bit_le(page, bmap[1]) || bmap0_dirty) {
 			nr_dirty_pages++;
 
 			/*
-			 * If the bit is set, the value written onto
-			 * the corresponding page should be either the
-			 * previous iteration number or the current one.
+			 * If the page is dirty, the value written to memory
+			 * should be the current iteration number.
 			 */
-			if (val == iteration || val == iteration - 1)
+			if (val == iteration)
 				continue;
 
 			if (host_log_mode == LOG_MODE_DIRTY_RING) {
-				if (val == iteration - 2 && min_iter <= iteration - 2) {
-					/*
-					 * Short answer: this case is special
-					 * only for dirty ring test where the
-					 * page is the last page before a kvm
-					 * dirty ring full in iteration N-2.
-					 *
-					 * Long answer: Assuming ring size R,
-					 * one possible condition is:
-					 *
-					 *      main thr       vcpu thr
-					 *      --------       --------
-					 *    iter=1
-					 *                   write 1 to page 0~(R-1)
-					 *                   full, vmexit
-					 *    collect 0~(R-1)
-					 *    kick vcpu
-					 *                   write 1 to (R-1)~(2R-2)
-					 *                   full, vmexit
-					 *    iter=2
-					 *    collect (R-1)~(2R-2)
-					 *    kick vcpu
-					 *                   write 1 to (2R-2)
-					 *                   (NOTE!!! "1" cached in cpu reg)
-					 *                   write 2 to (2R-1)~(3R-3)
-					 *                   full, vmexit
-					 *    iter=3
-					 *    collect (2R-2)~(3R-3)
-					 *    (here if we read value on page
-					 *     "2R-2" is 1, while iter=3!!!)
-					 *
-					 * This however can only happen once per iteration.
-					 */
-					min_iter = iteration - 1;
+				/*
+				 * The last page in the ring from this iteration
+				 * or the previous can be written with the value
+				 * from the previous iteration (relative to the
+				 * last page's iteration), as the value to be
+				 * written may be cached in a CPU register.
+				 */
+				if (page == dirty_ring_last_page ||
+				    page == dirty_ring_prev_iteration_last_page)
 					continue;
-				} else if (page == dirty_ring_last_page ||
-					   page == dirty_ring_prev_iteration_last_page) {
-					/*
-					 * Please refer to comments in
-					 * dirty_ring_last_page.
-					 */
-					continue;
-				}
+			} else if (!val && iteration == 1 && bmap0_dirty) {
+				/*
+				 * When testing get+clear, the dirty bitmap
+				 * starts with all bits set, and so the first
+				 * iteration can observe a "dirty" page that
+				 * was never written, but only in the first
+				 * bitmap (collecting the bitmap also clears
+				 * all dirty pages).
+				 */
+				continue;
 			}
 
 			TEST_FAIL("Dirty page %lu value (%lu) != iteration (%lu) "
@@ -574,36 +537,13 @@ static void vm_dirty_log_verify(enum vm_guest_mode mode, unsigned long *bmap)
 			nr_clean_pages++;
 			/*
 			 * If cleared, the value written can be any
-			 * value smaller or equals to the iteration
-			 * number.  Note that the value can be exactly
-			 * (iteration-1) if that write can happen
-			 * like this:
-			 *
-			 * (1) increase loop count to "iteration-1"
-			 * (2) write to page P happens (with value
-			 *     "iteration-1")
-			 * (3) get dirty log for "iteration-1"; we'll
-			 *     see that page P bit is set (dirtied),
-			 *     and not set the bit in host_bmap_track
-			 * (4) increase loop count to "iteration"
-			 *     (which is current iteration)
-			 * (5) get dirty log for current iteration,
-			 *     we'll see that page P is cleared, with
-			 *     value "iteration-1".
+			 * value smaller than the iteration number.
 			 */
-			TEST_ASSERT(val <= iteration,
-				    "Clear page %lu value (%lu) > iteration (%lu) "
+			TEST_ASSERT(val < iteration,
+				    "Clear page %lu value (%lu) >= iteration (%lu) "
 				    "(last = %lu, prev_last = %lu)",
 				    page, val, iteration, dirty_ring_last_page,
 				    dirty_ring_prev_iteration_last_page);
-			if (val == iteration) {
-				/*
-				 * This page is _just_ modified; it
-				 * should report its dirtyness in the
-				 * next run
-				 */
-				__set_bit_le(page, host_bmap_track);
-			}
 		}
 	}
 
@@ -639,7 +579,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	struct test_params *p = arg;
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
-	unsigned long *bmap;
+	unsigned long *bmap[2];
 	uint32_t ring_buf_idx = 0;
 	int sem_val;
 
@@ -695,8 +635,8 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 
 	pr_info("guest physical test memory offset: 0x%lx\n", guest_test_phys_mem);
 
-	bmap = bitmap_zalloc(host_num_pages);
-	host_bmap_track = bitmap_zalloc(host_num_pages);
+	bmap[0] = bitmap_zalloc(host_num_pages);
+	bmap[1] = bitmap_zalloc(host_num_pages);
 
 	/* Add an extra memory slot for testing dirty logging */
 	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS,
@@ -723,7 +663,6 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	WRITE_ONCE(host_quit, false);
 	host_dirty_count = 0;
 	host_clear_count = 0;
-	host_track_next_count = 0;
 	WRITE_ONCE(dirty_ring_vcpu_ring_full, false);
 
 	/*
@@ -774,7 +713,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 				continue;
 
 			log_mode_collect_dirty_pages(vcpu, TEST_MEM_SLOT_INDEX,
-						     bmap, host_num_pages,
+						     bmap[0], host_num_pages,
 						     &ring_buf_idx);
 		}
 
@@ -804,6 +743,9 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 		 * the flush of the last page, and since we handle the last
 		 * page specially verification will succeed anyway.
 		 */
+		log_mode_collect_dirty_pages(vcpu, TEST_MEM_SLOT_INDEX,
+					     bmap[1], host_num_pages,
+					     &ring_buf_idx);
 		vm_dirty_log_verify(mode, bmap);
 
 		/*
@@ -824,12 +766,11 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 
 	pthread_join(vcpu_thread, NULL);
 
-	pr_info("Total bits checked: dirty (%"PRIu64"), clear (%"PRIu64"), "
-		"track_next (%"PRIu64")\n", host_dirty_count, host_clear_count,
-		host_track_next_count);
+	pr_info("Total bits checked: dirty (%lu), clear (%lu)\n",
+		host_dirty_count, host_clear_count);
 
-	free(bmap);
-	free(host_bmap_track);
+	free(bmap[0]);
+	free(bmap[1]);
 	kvm_vm_free(vm);
 }
 
