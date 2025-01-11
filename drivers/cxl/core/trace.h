@@ -269,6 +269,28 @@ TRACE_EVENT(cxl_generic_event,
 )
 
 /*
+ * Component ID Format
+ * CXL 3.1 section 8.2.9.2.1; Table 8-44
+ */
+#define CXL_PLDM_COMPONENT_ID_ENTITY_VALID	BIT(0)
+#define CXL_PLDM_COMPONENT_ID_RES_VALID		BIT(1)
+
+#define show_comp_id_pldm_flags(flags)  __print_flags(flags, " | ",	\
+	{ CXL_PLDM_COMPONENT_ID_ENTITY_VALID,   "PLDM Entity ID" },	\
+	{ CXL_PLDM_COMPONENT_ID_RES_VALID,      "Resource ID" }		\
+)
+
+#define show_pldm_entity_id(flags, valid_comp_id, valid_id_format, comp_id)	\
+	(flags & valid_comp_id && flags & valid_id_format) ?			\
+	(comp_id[0] & CXL_PLDM_COMPONENT_ID_ENTITY_VALID) ?			\
+	__print_hex(&comp_id[1], 6) : "0x00" : "0x00"
+
+#define show_pldm_resource_id(flags, valid_comp_id, valid_id_format, comp_id)	\
+	(flags & valid_comp_id && flags & valid_id_format) ?			\
+	(comp_id[0] & CXL_PLDM_COMPONENT_ID_RES_VALID) ?			\
+	__print_hex(&comp_id[7], 4) : "0x00" : "0x00"
+
+/*
  * General Media Event Record - GMER
  * CXL rev 3.0 Section 8.2.9.2.1.1; Table 8-43
  */
