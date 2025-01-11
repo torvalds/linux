@@ -1137,7 +1137,6 @@ static int omap_rproc_get_boot_data(struct platform_device *pdev,
 	struct device_node *np = pdev->dev.of_node;
 	struct omap_rproc *oproc = rproc->priv;
 	const struct omap_rproc_dev_data *data;
-	int ret;
 
 	data = of_device_get_match_data(&pdev->dev);
 	if (!data)
@@ -1153,10 +1152,8 @@ static int omap_rproc_get_boot_data(struct platform_device *pdev,
 
 	oproc->boot_data->syscon =
 			syscon_regmap_lookup_by_phandle(np, "ti,bootreg");
-	if (IS_ERR(oproc->boot_data->syscon)) {
-		ret = PTR_ERR(oproc->boot_data->syscon);
-		return ret;
-	}
+	if (IS_ERR(oproc->boot_data->syscon))
+		return PTR_ERR(oproc->boot_data->syscon);
 
 	if (of_property_read_u32_index(np, "ti,bootreg", 1,
 				       &oproc->boot_data->boot_reg)) {
