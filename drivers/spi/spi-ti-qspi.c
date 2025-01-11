@@ -831,18 +831,10 @@ static int ti_qspi_probe(struct platform_device *pdev)
 
 	if (of_property_present(np, "syscon-chipselects")) {
 		qspi->ctrl_base =
-		syscon_regmap_lookup_by_phandle(np,
-						"syscon-chipselects");
+			syscon_regmap_lookup_by_phandle_args(np, "syscon-chipselects",
+							     1, &qspi->ctrl_reg);
 		if (IS_ERR(qspi->ctrl_base)) {
 			ret = PTR_ERR(qspi->ctrl_base);
-			goto free_host;
-		}
-		ret = of_property_read_u32_index(np,
-						 "syscon-chipselects",
-						 1, &qspi->ctrl_reg);
-		if (ret) {
-			dev_err(&pdev->dev,
-				"couldn't get ctrl_mod reg index\n");
 			goto free_host;
 		}
 	}
