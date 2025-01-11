@@ -566,8 +566,10 @@ static void vm_dirty_log_verify(enum vm_guest_mode mode, unsigned long *bmap)
 				}
 			}
 
-			TEST_FAIL("Dirty page %lu value (%lu) != iteration (%lu)",
-				  page, val, iteration);
+			TEST_FAIL("Dirty page %lu value (%lu) != iteration (%lu) "
+				  "(last = %lu, prev_last = %lu)",
+				  page, val, iteration, dirty_ring_last_page,
+				  dirty_ring_prev_iteration_last_page);
 		} else {
 			nr_clean_pages++;
 			/*
@@ -590,9 +592,10 @@ static void vm_dirty_log_verify(enum vm_guest_mode mode, unsigned long *bmap)
 			 *     value "iteration-1".
 			 */
 			TEST_ASSERT(val <= iteration,
-				    "Clear page %"PRIu64" value %"PRIu64
-				    " incorrect (iteration=%"PRIu64")",
-				    page, val, iteration);
+				    "Clear page %lu value (%lu) > iteration (%lu) "
+				    "(last = %lu, prev_last = %lu)",
+				    page, val, iteration, dirty_ring_last_page,
+				    dirty_ring_prev_iteration_last_page);
 			if (val == iteration) {
 				/*
 				 * This page is _just_ modified; it
