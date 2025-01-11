@@ -1926,14 +1926,6 @@ static bool kvm_check_memslot_overlap(struct kvm_memslots *slots, int id,
 	return false;
 }
 
-/*
- * Allocate some memory and give it an address in the guest physical address
- * space.
- *
- * Discontiguous memory is allowed, mostly for framebuffers.
- *
- * Must be called holding kvm->slots_lock for write.
- */
 int __kvm_set_memory_region(struct kvm *kvm,
 			    const struct kvm_userspace_memory_region2 *mem)
 {
@@ -1944,6 +1936,8 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	gfn_t base_gfn;
 	int as_id, id;
 	int r;
+
+	lockdep_assert_held(&kvm->slots_lock);
 
 	r = check_memory_region_flags(kvm, mem);
 	if (r)
