@@ -520,11 +520,10 @@ static void vm_dirty_log_verify(enum vm_guest_mode mode, unsigned long *bmap)
 {
 	uint64_t page, nr_dirty_pages = 0, nr_clean_pages = 0;
 	uint64_t step = vm_num_host_pages(mode, 1);
-	uint64_t *value_ptr;
 	uint64_t min_iter = 0;
 
 	for (page = 0; page < host_num_pages; page += step) {
-		value_ptr = host_test_mem + page * host_page_size;
+		uint64_t val = *(uint64_t *)(host_test_mem + page * host_page_size);
 
 		/* If this is a special page that we were tracking... */
 		if (__test_and_clear_bit_le(page, host_bmap_track)) {
@@ -545,11 +544,10 @@ static void vm_dirty_log_verify(enum vm_guest_mode mode, unsigned long *bmap)
 			 * the corresponding page should be either the
 			 * previous iteration number or the current one.
 			 */
-			matched = (*value_ptr == iteration ||
-				   *value_ptr == iteration - 1);
+			matched = (val == iteration || val == iteration - 1);
 
 			if (host_log_mode == LOG_MODE_DIRTY_RING && !matched) {
-				if (*value_ptr == iteration - 2 && min_iter <= iteration - 2) {
+				if (val == iteration - 2 && min_iter <= iteration - 2) {
 					/*
 					 * Short answer: this case is special
 					 * only for dirty ring test where the
@@ -597,7 +595,7 @@ static void vm_dirty_log_verify(enum vm_guest_mode mode, unsigned long *bmap)
 			TEST_ASSERT(matched,
 				    "Set page %"PRIu64" value %"PRIu64
 				    " incorrect (iteration=%"PRIu64")",
-				    page, *value_ptr, iteration);
+				    page, val, iteration);
 		} else {
 			nr_clean_pages++;
 			/*
@@ -619,11 +617,11 @@ static void vm_dirty_log_verify(enum vm_guest_mode mode, unsigned long *bmap)
 			 *     we'll see that page P is cleared, with
 			 *     value "iteration-1".
 			 */
-			TEST_ASSERT(*value_ptr <= iteration,
+			TEST_ASSERT(val <= iteration,
 				    "Clear page %"PRIu64" value %"PRIu64
 				    " incorrect (iteration=%"PRIu64")",
-				    page, *value_ptr, iteration);
-			if (*value_ptr == iteration) {
+				    page, val, iteration);
+			if (val == iteration) {
 				/*
 				 * This page is _just_ modified; it
 				 * should report its dirtyness in the
