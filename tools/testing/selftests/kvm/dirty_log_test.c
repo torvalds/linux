@@ -859,9 +859,9 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 		 */
 		if (++iteration == p->iterations)
 			WRITE_ONCE(host_quit, true);
+		sync_global_to_guest(vm, iteration);
 
 		sem_post(&sem_vcpu_cont);
-		sync_global_to_guest(vm, iteration);
 	}
 
 	pthread_join(vcpu_thread, NULL);
