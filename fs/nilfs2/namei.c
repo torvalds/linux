@@ -370,6 +370,7 @@ static int nilfs_rename(struct mnt_idmap *idmap,
 	struct folio *old_folio;
 	struct nilfs_dir_entry *old_de;
 	struct nilfs_transaction_info ti;
+	bool old_is_dir = S_ISDIR(old_inode->i_mode);
 	int err;
 
 	if (flags & ~RENAME_NOREPLACE)
@@ -385,7 +386,7 @@ static int nilfs_rename(struct mnt_idmap *idmap,
 		goto out;
 	}
 
-	if (S_ISDIR(old_inode->i_mode)) {
+	if (old_is_dir && old_dir != new_dir) {
 		err = -EIO;
 		dir_de = nilfs_dotdot(old_inode, &dir_folio);
 		if (!dir_de)
@@ -397,7 +398,7 @@ static int nilfs_rename(struct mnt_idmap *idmap,
 		struct nilfs_dir_entry *new_de;
 
 		err = -ENOTEMPTY;
-		if (dir_de && !nilfs_empty_dir(new_inode))
+		if (old_is_dir && !nilfs_empty_dir(new_inode))
 			goto out_dir;
 
 		new_de = nilfs_find_entry(new_dir, &new_dentry->d_name,
@@ -412,7 +413,7 @@ static int nilfs_rename(struct mnt_idmap *idmap,
 			goto out_dir;
 		nilfs_mark_inode_dirty(new_dir);
 		inode_set_ctime_current(new_inode);
-		if (dir_de)
+		if (old_is_dir)
 			drop_nlink(new_inode);
 		drop_nlink(new_inode);
 		nilfs_mark_inode_dirty(new_inode);
@@ -420,7 +421,7 @@ static int nilfs_rename(struct mnt_idmap *idmap,
 		err = nilfs_add_link(new_dentry, old_inode);
 		if (err)
 			goto out_dir;
-		if (dir_de) {
+		if (old_is_dir) {
 			inc_nlink(new_dir);
 			nilfs_mark_inode_dirty(new_dir);
 		}
@@ -434,9 +435,10 @@ static int nilfs_rename(struct mnt_idmap *idmap,
 
 	err = nilfs_delete_entry(old_de, old_folio);
 	if (likely(!err)) {
-		if (dir_de) {
-			err = nilfs_set_link(old_inode, dir_de, dir_folio,
-					     new_dir);
+		if (old_is_dir) {
+			if (old_dir != new_dir)
+				err = nilfs_set_link(old_inode, dir_de,
+						     dir_folio, new_dir);
 			drop_nlink(old_dir);
 		}
 		nilfs_mark_inode_dirty(old_dir);
