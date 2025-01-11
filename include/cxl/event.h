@@ -81,7 +81,7 @@ struct cxl_event_dram {
 
 /*
  * Get Health Info Record
- * CXL rev 3.0 section 8.2.9.8.3.1; Table 8-100
+ * CXL rev 3.1 section 8.2.9.9.3.1; Table 8-133
  */
 struct cxl_get_health_info {
 	u8 health_status;
@@ -96,13 +96,16 @@ struct cxl_get_health_info {
 
 /*
  * Memory Module Event Record
- * CXL rev 3.0 section 8.2.9.2.1.3; Table 8-45
+ * CXL rev 3.1 section 8.2.9.2.1.3; Table 8-47
  */
 struct cxl_event_mem_module {
 	struct cxl_event_record_hdr hdr;
 	u8 event_type;
 	struct cxl_get_health_info info;
-	u8 reserved[0x3d];
+	u8 validity_flags[2];
+	u8 component_id[CXL_EVENT_GEN_MED_COMP_ID_SIZE];
+	u8 event_sub_type;
+	u8 reserved[0x2a];
 } __packed;
 
 union cxl_event {
