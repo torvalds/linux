@@ -951,7 +951,7 @@ M:	Arthur Kiyanovski <akiyano@amazon.com>
 R:	David Arinzon <darinzon@amazon.com>
 R:	Saeed Bishara <saeedb@amazon.com>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	Documentation/networking/device_drivers/ethernet/amazon/ena.rst
 F:	drivers/net/ethernet/amazon/
 
@@ -1124,7 +1124,7 @@ AMD PDS CORE DRIVER
 M:	Shannon Nelson <shannon.nelson@amd.com>
 M:	Brett Creeley <brett.creeley@amd.com>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	Documentation/networking/device_drivers/ethernet/amd/pds_core.rst
 F:	drivers/net/ethernet/amd/pds_core/
 F:	include/linux/pds/
@@ -1196,7 +1196,7 @@ F:	drivers/spi/spi-amd.c
 AMD XGBE DRIVER
 M:	"Shyam Sundar S K" <Shyam-sundar.S-k@amd.com>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	arch/arm64/boot/dts/amd/amd-seattle-xgbe*.dtsi
 F:	drivers/net/ethernet/amd/xgbe/
 
@@ -1702,14 +1702,14 @@ F:	drivers/edac/xgene_edac.c
 APPLIED MICRO (APM) X-GENE SOC ETHERNET (V2) DRIVER
 M:	Iyappan Subramanian <iyappan@os.amperecomputing.com>
 M:	Keyur Chudgar <keyur@os.amperecomputing.com>
-S:	Supported
+S:	Maintained
 F:	drivers/net/ethernet/apm/xgene-v2/
 
 APPLIED MICRO (APM) X-GENE SOC ETHERNET DRIVER
 M:	Iyappan Subramanian <iyappan@os.amperecomputing.com>
 M:	Keyur Chudgar <keyur@os.amperecomputing.com>
 M:	Quan Nguyen <quan@os.amperecomputing.com>
-S:	Supported
+S:	Maintained
 F:	Documentation/devicetree/bindings/net/apm-xgene-enet.txt
 F:	Documentation/devicetree/bindings/net/apm-xgene-mdio.txt
 F:	drivers/net/ethernet/apm/xgene/
@@ -1747,7 +1747,7 @@ F:	drivers/hwmon/aquacomputer_d5next.c
 AQUANTIA ETHERNET DRIVER (atlantic)
 M:	Igor Russkikh <irusskikh@marvell.com>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 W:	https://www.marvell.com/
 Q:	https://patchwork.kernel.org/project/netdevbpf/list/
 F:	Documentation/networking/device_drivers/ethernet/aquantia/atlantic.rst
@@ -1756,7 +1756,7 @@ F:	drivers/net/ethernet/aquantia/atlantic/
 AQUANTIA ETHERNET DRIVER PTP SUBSYSTEM
 M:	Egor Pomozov <epomozov@marvell.com>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 W:	http://www.aquantia.com
 F:	drivers/net/ethernet/aquantia/atlantic/aq_ptp*
 
@@ -2291,7 +2291,7 @@ F:	arch/arm/mach-highbank/
 ARM/CAVIUM THUNDER NETWORK DRIVER
 M:	Sunil Goutham <sgoutham@marvell.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Supported
+S:	Maintained
 F:	drivers/net/ethernet/cavium/thunder/
 
 ARM/CIRRUS LOGIC BK3 MACHINE SUPPORT
@@ -3666,7 +3666,7 @@ F:	include/uapi/linux/sonet.h
 ATMEL MACB ETHERNET DRIVER
 M:	Nicolas Ferre <nicolas.ferre@microchip.com>
 M:	Claudiu Beznea <claudiu.beznea@tuxon.dev>
-S:	Supported
+S:	Maintained
 F:	drivers/net/ethernet/cadence/
 
 ATMEL MAXTOUCH DRIVER
@@ -4395,7 +4395,7 @@ F:	drivers/net/ethernet/broadcom/asp2/
 BROADCOM B44 10/100 ETHERNET DRIVER
 M:	Michael Chan <michael.chan@broadcom.com>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/net/ethernet/broadcom/b44.*
 
 BROADCOM B53/SF2 ETHERNET SWITCH DRIVER
@@ -4579,7 +4579,7 @@ BROADCOM BNX2 GIGABIT ETHERNET DRIVER
 M:	Rasesh Mody <rmody@marvell.com>
 M:	GR-Linux-NIC-Dev@marvell.com
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/net/ethernet/broadcom/bnx2.*
 F:	drivers/net/ethernet/broadcom/bnx2_*
 
@@ -4603,14 +4603,14 @@ BROADCOM BNX2X 10 GIGABIT ETHERNET DRIVER
 M:	Sudarsana Kalluru <skalluru@marvell.com>
 M:	Manish Chopra <manishc@marvell.com>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/net/ethernet/broadcom/bnx2x/
 
 BROADCOM BNXT_EN 50 GIGABIT ETHERNET DRIVER
 M:	Michael Chan <michael.chan@broadcom.com>
 M:	Pavan Chebbi <pavan.chebbi@broadcom.com>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/firmware/broadcom/tee_bnxt_fw.c
 F:	drivers/net/ethernet/broadcom/bnxt/
 F:	include/linux/firmware/broadcom/tee_bnxt_fw.h
@@ -4706,7 +4706,7 @@ M:	Doug Berger <opendmb@gmail.com>
 M:	Florian Fainelli <florian.fainelli@broadcom.com>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	Documentation/devicetree/bindings/net/brcm,bcmgenet.yaml
 F:	Documentation/devicetree/bindings/net/brcm,unimac-mdio.yaml
 F:	drivers/net/ethernet/broadcom/genet/
@@ -4858,7 +4858,7 @@ BROADCOM SYSTEMPORT ETHERNET DRIVER
 M:	Florian Fainelli <florian.fainelli@broadcom.com>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	Documentation/devicetree/bindings/net/brcm,systemport.yaml
 F:	drivers/net/ethernet/broadcom/bcmsysport.*
 F:	drivers/net/ethernet/broadcom/unimac.h
@@ -4867,7 +4867,7 @@ BROADCOM TG3 GIGABIT ETHERNET DRIVER
 M:	Pavan Chebbi <pavan.chebbi@broadcom.com>
 M:	Michael Chan <mchan@broadcom.com>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/net/ethernet/broadcom/tg3.*
 
 BROADCOM VK DRIVER
@@ -4889,7 +4889,7 @@ M:	Rasesh Mody <rmody@marvell.com>
 M:	Sudarsana Kalluru <skalluru@marvell.com>
 M:	GR-Linux-NIC-Dev@marvell.com
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/net/ethernet/brocade/bna/
 
 BSG (block layer generic sg v4 driver)
@@ -5578,7 +5578,7 @@ F:	drivers/scsi/snic/
 CISCO VIC ETHERNET NIC DRIVER
 M:	Christian Benvenuti <benve@cisco.com>
 M:	Satish Kharat <satishkh@cisco.com>
-S:	Supported
+S:	Maintained
 F:	drivers/net/ethernet/cisco/enic/
 
 CISCO VIC LOW LATENCY NIC DRIVER
@@ -6176,7 +6176,7 @@ F:	drivers/media/dvb-frontends/cxd2820r*
 CXGB3 ETHERNET DRIVER (CXGB3)
 M:	Potnuri Bharat Teja <bharat@chelsio.com>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 W:	http://www.chelsio.com
 F:	drivers/net/ethernet/chelsio/cxgb3/
 
@@ -6197,14 +6197,14 @@ F:	drivers/crypto/chelsio
 CXGB4 ETHERNET DRIVER (CXGB4)
 M:	Potnuri Bharat Teja <bharat@chelsio.com>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 W:	http://www.chelsio.com
 F:	drivers/net/ethernet/chelsio/cxgb4/
 
 CXGB4 INLINE CRYPTO DRIVER
 M:	Ayush Sawal <ayush.sawal@chelsio.com>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 W:	http://www.chelsio.com
 F:	drivers/net/ethernet/chelsio/inline_crypto/
 
@@ -6226,7 +6226,7 @@ F:	include/uapi/rdma/cxgb4-abi.h
 CXGB4VF ETHERNET DRIVER (CXGB4VF)
 M:	Potnuri Bharat Teja <bharat@chelsio.com>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 W:	http://www.chelsio.com
 F:	drivers/net/ethernet/chelsio/cxgb4vf/
 
@@ -8402,7 +8402,7 @@ M:	Ajit Khaparde <ajit.khaparde@broadcom.com>
 M:	Sriharsha Basavapatna <sriharsha.basavapatna@broadcom.com>
 M:	Somnath Kotur <somnath.kotur@broadcom.com>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 W:	http://www.emulex.com
 F:	drivers/net/ethernet/emulex/benet/
 
@@ -9441,7 +9441,7 @@ F:	samples/ftrace
 FUNGIBLE ETHERNET DRIVERS
 M:	Dimitris Michailidis <dmichail@fungible.com>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/net/ethernet/fungible/
 
 FUSE: FILESYSTEM IN USERSPACE
@@ -9746,7 +9746,7 @@ M:	Jeroen de Borst <jeroendb@google.com>
 M:	Praveen Kaligineedi <pkaligineedi@google.com>
 R:	Shailend Chand <shailend@google.com>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	Documentation/networking/device_drivers/ethernet/google/gve.rst
 F:	drivers/net/ethernet/google
 
@@ -10967,7 +10967,7 @@ M:	Rick Lindsley <ricklind@linux.ibm.com>
 R:	Nick Child <nnac123@linux.ibm.com>
 R:	Thomas Falcon <tlfalcon@linux.ibm.com>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/net/ethernet/ibm/ibmvnic.*
 
 IBM Power VFIO Support
@@ -10978,7 +10978,7 @@ F:	drivers/vfio/vfio_iommu_spapr_tce.c
 IBM Power Virtual Ethernet Device Driver
 M:	Nick Child <nnac123@linux.ibm.com>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/net/ethernet/ibm/ibmveth.*
 
 IBM Power Virtual FC Device Drivers
@@ -11511,7 +11511,7 @@ INTEL ETHERNET DRIVERS
 M:	Tony Nguyen <anthony.l.nguyen@intel.com>
 M:	Przemek Kitszel <przemyslaw.kitszel@intel.com>
 L:	intel-wired-lan@lists.osuosl.org (moderated for non-subscribers)
-S:	Supported
+S:	Maintained
 W:	https://www.intel.com/content/www/us/en/support.html
 Q:	https://patchwork.ozlabs.org/project/intel-wired-lan/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tnguy/net-queue.git
@@ -13119,7 +13119,7 @@ LIBETH COMMON ETHERNET LIBRARY
 M:	Alexander Lobakin <aleksander.lobakin@intel.com>
 L:	netdev@vger.kernel.org
 L:	intel-wired-lan@lists.osuosl.org (moderated for non-subscribers)
-S:	Supported
+S:	Maintained
 T:	git https://github.com/alobakin/linux.git
 F:	drivers/net/ethernet/intel/libeth/
 F:	include/net/libeth/
@@ -13129,7 +13129,7 @@ LIBIE COMMON INTEL ETHERNET LIBRARY
 M:	Alexander Lobakin <aleksander.lobakin@intel.com>
 L:	intel-wired-lan@lists.osuosl.org (moderated for non-subscribers)
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 T:	git https://github.com/alobakin/linux.git
 F:	drivers/net/ethernet/intel/libie/
 F:	include/linux/net/intel/libie/
@@ -13932,7 +13932,7 @@ MARVELL OCTEON ENDPOINT DRIVER
 M:	Veerasenareddy Burru <vburru@marvell.com>
 M:	Sathesh Edara <sedara@marvell.com>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/net/ethernet/marvell/octeon_ep
 
 MARVELL OCTEON ENDPOINT VF DRIVER
@@ -13941,7 +13941,7 @@ M:	Sathesh Edara <sedara@marvell.com>
 M:	Shinas Rasheed <srasheed@marvell.com>
 M:	Satananda Burla <sburla@marvell.com>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/net/ethernet/marvell/octeon_ep_vf
 
 MARVELL OCTEONTX2 PHYSICAL FUNCTION DRIVER
@@ -13951,7 +13951,7 @@ M:	Subbaraya Sundeep <sbhatta@marvell.com>
 M:	hariprasad <hkelam@marvell.com>
 M:	Bharat Bhushan <bbhushan2@marvell.com>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/net/ethernet/marvell/octeontx2/nic/
 F:	include/linux/soc/marvell/octeontx2/
 
@@ -13963,7 +13963,7 @@ M:	Jerin Jacob <jerinj@marvell.com>
 M:	hariprasad <hkelam@marvell.com>
 M:	Subbaraya Sundeep <sbhatta@marvell.com>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	Documentation/networking/device_drivers/ethernet/marvell/octeontx2.rst
 F:	drivers/net/ethernet/marvell/octeontx2/af/
 
@@ -14851,7 +14851,7 @@ F:	drivers/i2c/busses/i2c-mlxbf.c
 MELLANOX ETHERNET DRIVER (mlx4_en)
 M:	Tariq Toukan <tariqt@nvidia.com>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 W:	https://www.nvidia.com/networking/
 Q:	https://patchwork.kernel.org/project/netdevbpf/list/
 F:	drivers/net/ethernet/mellanox/mlx4/en_*
@@ -14860,7 +14860,7 @@ MELLANOX ETHERNET DRIVER (mlx5e)
 M:	Saeed Mahameed <saeedm@nvidia.com>
 M:	Tariq Toukan <tariqt@nvidia.com>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 W:	https://www.nvidia.com/networking/
 Q:	https://patchwork.kernel.org/project/netdevbpf/list/
 F:	drivers/net/ethernet/mellanox/mlx5/core/en_*
@@ -14868,7 +14868,7 @@ F:	drivers/net/ethernet/mellanox/mlx5/core/en_*
 MELLANOX ETHERNET INNOVA DRIVERS
 R:	Boris Pismenny <borisp@nvidia.com>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 W:	https://www.nvidia.com/networking/
 Q:	https://patchwork.kernel.org/project/netdevbpf/list/
 F:	drivers/net/ethernet/mellanox/mlx5/core/en_accel/*
@@ -14907,7 +14907,7 @@ MELLANOX MLX4 core VPI driver
 M:	Tariq Toukan <tariqt@nvidia.com>
 L:	netdev@vger.kernel.org
 L:	linux-rdma@vger.kernel.org
-S:	Supported
+S:	Maintained
 W:	https://www.nvidia.com/networking/
 Q:	https://patchwork.kernel.org/project/netdevbpf/list/
 F:	drivers/net/ethernet/mellanox/mlx4/
@@ -14929,7 +14929,7 @@ M:	Leon Romanovsky <leonro@nvidia.com>
 M:	Tariq Toukan <tariqt@nvidia.com>
 L:	netdev@vger.kernel.org
 L:	linux-rdma@vger.kernel.org
-S:	Supported
+S:	Maintained
 W:	https://www.nvidia.com/networking/
 Q:	https://patchwork.kernel.org/project/netdevbpf/list/
 F:	Documentation/networking/device_drivers/ethernet/mellanox/
@@ -15163,7 +15163,7 @@ META ETHERNET DRIVERS
 M:	Alexander Duyck <alexanderduyck@fb.com>
 M:	Jakub Kicinski <kuba@kernel.org>
 R:	kernel-team@meta.com
-S:	Supported
+S:	Maintained
 F:	Documentation/networking/device_drivers/ethernet/meta/
 F:	drivers/net/ethernet/meta/
 
@@ -16189,7 +16189,7 @@ F:	net/sched/sch_netem.c
 NETERION 10GbE DRIVERS (s2io)
 M:	Jon Mason <jdmason@kudzu.us>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	Documentation/networking/device_drivers/ethernet/neterion/s2io.rst
 F:	drivers/net/ethernet/neterion/
 
@@ -16514,7 +16514,7 @@ M:	Manish Chopra <manishc@marvell.com>
 M:	Rahul Verma <rahulv@marvell.com>
 M:	GR-Linux-NIC-Dev@marvell.com
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/net/ethernet/qlogic/netxen/
 
 NET_FAILOVER MODULE
@@ -18291,7 +18291,7 @@ PENSANDO ETHERNET DRIVERS
 M:	Shannon Nelson <shannon.nelson@amd.com>
 M:	Brett Creeley <brett.creeley@amd.com>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	Documentation/networking/device_drivers/ethernet/pensando/ionic.rst
 F:	drivers/net/ethernet/pensando/
 
@@ -19058,7 +19058,7 @@ F:	drivers/scsi/qedi/
 QLOGIC QL4xxx ETHERNET DRIVER
 M:	Manish Chopra <manishc@marvell.com>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/net/ethernet/qlogic/qed/
 F:	drivers/net/ethernet/qlogic/qede/
 F:	include/linux/qed/
@@ -19086,7 +19086,7 @@ F:	drivers/scsi/qla2xxx/
 QLOGIC QLA3XXX NETWORK DRIVER
 M:	GR-Linux-NIC-Dev@marvell.com
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/net/ethernet/qlogic/qla3xxx.*
 
 QLOGIC QLA4XXX iSCSI DRIVER
@@ -19102,7 +19102,7 @@ M:	Shahed Shaikh <shshaikh@marvell.com>
 M:	Manish Chopra <manishc@marvell.com>
 M:	GR-Linux-NIC-Dev@marvell.com
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/net/ethernet/qlogic/qlcnic/
 
 QM1D1B0004 MEDIA DRIVER
@@ -19843,7 +19843,7 @@ M:	Paul Barker <paul.barker.ct@bp.renesas.com>
 M:	Niklas Söderlund <niklas.soderlund@ragnatech.se>
 L:	netdev@vger.kernel.org
 L:	linux-renesas-soc@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	Documentation/devicetree/bindings/net/renesas,etheravb.yaml
 F:	drivers/net/ethernet/renesas/Kconfig
 F:	drivers/net/ethernet/renesas/Makefile
@@ -19863,7 +19863,7 @@ RENESAS ETHERNET TSN DRIVER
 M:	Niklas Söderlund <niklas.soderlund@ragnatech.se>
 L:	netdev@vger.kernel.org
 L:	linux-renesas-soc@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	Documentation/devicetree/bindings/net/renesas,ethertsn.yaml
 F:	drivers/net/ethernet/renesas/rtsn.*
 
@@ -20013,7 +20013,7 @@ RENESAS SUPERH ETHERNET DRIVER
 M:	Niklas Söderlund <niklas.soderlund@ragnatech.se>
 L:	netdev@vger.kernel.org
 L:	linux-renesas-soc@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	Documentation/devicetree/bindings/net/renesas,ether.yaml
 F:	drivers/net/ethernet/renesas/Kconfig
 F:	drivers/net/ethernet/renesas/Makefile
@@ -20856,7 +20856,7 @@ F:	include/linux/platform_data/spi-s3c64xx.h
 SAMSUNG SXGBE DRIVERS
 M:	Byungho An <bh74.an@samsung.com>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/net/ethernet/samsung/sxgbe/
 
 SAMSUNG THERMAL DRIVER
@@ -21258,7 +21258,7 @@ M:	Edward Cree <ecree.xilinx@gmail.com>
 M:	Martin Habets <habetsm.xilinx@gmail.com>
 L:	netdev@vger.kernel.org
 L:	linux-net-drivers@amd.com
-S:	Supported
+S:	Maintained
 F:	Documentation/networking/devlink/sfc.rst
 F:	drivers/net/ethernet/sfc/
 
@@ -22739,7 +22739,7 @@ F:	include/linux/platform_data/dma-dw.h
 SYNOPSYS DESIGNWARE ENTERPRISE ETHERNET DRIVER
 M:	Jose Abreu <Jose.Abreu@synopsys.com>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/net/ethernet/synopsys/
 
 SYNOPSYS DESIGNWARE ETHERNET XPCS DRIVER
@@ -23139,7 +23139,7 @@ F:	drivers/phy/tegra/xusb*
 TEHUTI ETHERNET DRIVER
 M:	Andy Gospodarek <andy@greyhouse.net>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/net/ethernet/tehuti/tehuti.*
 
 TEHUTI TN40XX ETHERNET DRIVER
