@@ -387,8 +387,7 @@ static void dirty_ring_after_vcpu_run(struct kvm_vcpu *vcpu)
 
 	/* A ucall-sync or ring-full event is allowed */
 	if (get_ucall(vcpu, NULL) == UCALL_SYNC) {
-		/* We should allow this to continue */
-		;
+		vcpu_handle_sync_stop();
 	} else if (run->exit_reason == KVM_EXIT_DIRTY_RING_FULL) {
 		/* Update the flag first before pause */
 		WRITE_ONCE(dirty_ring_vcpu_ring_full, true);
@@ -697,6 +696,15 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 #ifdef __s390x__
 	/* Align to 1M (segment size) */
 	guest_test_phys_mem = align_down(guest_test_phys_mem, 1 << 20);
+
+	/*
+	 * The workaround in guest_code() to write all pages prior to the first
+	 * iteration isn't compatible with the dirty ring, as the dirty ring
+	 * support relies on the vCPU to actually stop when vcpu_stop is set so
+	 * that the vCPU doesn't hang waiting for the dirty ring to be emptied.
+	 */
+	TEST_ASSERT(host_log_mode != LOG_MODE_DIRTY_RING,
+		    "Test needs to be updated to support s390 dirty ring");
 #endif
 
 	pr_info("guest physical test memory offset: 0x%lx\n", guest_test_phys_mem);
