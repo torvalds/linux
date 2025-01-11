@@ -3,12 +3,31 @@
 
 import argparse
 import json
+import os
 import pathlib
 import pprint
 import sys
 
 sys.path.append(pathlib.Path(__file__).resolve().parent.as_posix())
 from lib import YnlFamily, Netlink, NlError
+
+sys_schema_dir='/usr/share/ynl'
+relative_schema_dir='../../../../Documentation/netlink'
+
+def schema_dir():
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    schema_dir = os.path.abspath(f"{script_dir}/{relative_schema_dir}")
+    if not os.path.isdir(schema_dir):
+        schema_dir = sys_schema_dir
+    if not os.path.isdir(schema_dir):
+        raise Exception(f"Schema directory {schema_dir} does not exist")
+    return schema_dir
+
+def spec_dir():
+    spec_dir = schema_dir() + '/specs'
+    if not os.path.isdir(spec_dir):
+        raise Exception(f"Spec directory {spec_dir} does not exist")
+    return spec_dir
 
 
 class YnlEncoder(json.JSONEncoder):
@@ -32,7 +51,14 @@ def main():
 
     parser = argparse.ArgumentParser(description=description,
                                      epilog=epilog)
-    parser.add_argument('--spec', dest='spec', type=str, required=True)
+    spec_group = parser.add_mutually_exclusive_group(required=True)
+    spec_group.add_argument('--family', dest='family', type=str,
+                            help='name of the netlink FAMILY')
+    spec_group.add_argument('--list-families', action='store_true',
+                            help='list all netlink families supported by YNL (has spec)')
+    spec_group.add_argument('--spec', dest='spec', type=str,
+                            help='choose the family by SPEC file path')
+
     parser.add_argument('--schema', dest='schema', type=str)
     parser.add_argument('--no-schema', action='store_true')
     parser.add_argument('--json', dest='json_text', type=str)
@@ -70,6 +96,12 @@ def main():
         else:
             pprint.PrettyPrinter().pprint(msg)
 
+    if args.list_families:
+        for filename in sorted(os.listdir(spec_dir())):
+            if filename.endswith('.yaml'):
+                print(filename.removesuffix('.yaml'))
+        return
+
     if args.no_schema:
         args.schema = ''
 
@@ -77,7 +109,16 @@ def main():
     if args.json_text:
         attrs = json.loads(args.json_text)
 
-    ynl = YnlFamily(args.spec, args.schema, args.process_unknown,
+    if args.family:
+        spec = f"{spec_dir()}/{args.family}.yaml"
+        if args.schema is None and spec.startswith(sys_schema_dir):
+            args.schema = '' # disable schema validation when installed
+    else:
+        spec = args.spec
+    if not os.path.isfile(spec):
+        raise Exception(f"Spec file {spec} does not exist")
+
+    ynl = YnlFamily(spec, args.schema, args.process_unknown,
                     recv_size=args.dbg_small_recv)
     if args.dbg_small_recv:
         ynl.set_recv_dbg(True)
