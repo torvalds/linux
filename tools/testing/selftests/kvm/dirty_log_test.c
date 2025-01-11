@@ -388,8 +388,6 @@ static void dirty_ring_collect_dirty_pages(struct kvm_vcpu *vcpu, int slot,
 
 	if (READ_ONCE(dirty_ring_vcpu_ring_full))
 		dirty_ring_continue_vcpu();
-
-	pr_info("Iteration %ld collected %u pages\n", iteration, count);
 }
 
 static void dirty_ring_after_vcpu_run(struct kvm_vcpu *vcpu)
@@ -508,24 +506,20 @@ static void log_mode_after_vcpu_run(struct kvm_vcpu *vcpu)
 static void *vcpu_worker(void *data)
 {
 	struct kvm_vcpu *vcpu = data;
-	uint64_t pages_count = 0;
 
 	while (!READ_ONCE(host_quit)) {
-		pages_count += TEST_PAGES_PER_LOOP;
 		/* Let the guest dirty the random pages */
 		vcpu_run(vcpu);
 		log_mode_after_vcpu_run(vcpu);
 	}
-
-	pr_info("Dirtied %"PRIu64" pages\n", pages_count);
 
 	return NULL;
 }
 
 static void vm_dirty_log_verify(enum vm_guest_mode mode, unsigned long *bmap)
 {
+	uint64_t page, nr_dirty_pages = 0, nr_clean_pages = 0;
 	uint64_t step = vm_num_host_pages(mode, 1);
-	uint64_t page;
 	uint64_t *value_ptr;
 	uint64_t min_iter = 0;
 
@@ -544,7 +538,7 @@ static void vm_dirty_log_verify(enum vm_guest_mode mode, unsigned long *bmap)
 		if (__test_and_clear_bit_le(page, bmap)) {
 			bool matched;
 
-			host_dirty_count++;
+			nr_dirty_pages++;
 
 			/*
 			 * If the bit is set, the value written onto
@@ -605,7 +599,7 @@ static void vm_dirty_log_verify(enum vm_guest_mode mode, unsigned long *bmap)
 				    " incorrect (iteration=%"PRIu64")",
 				    page, *value_ptr, iteration);
 		} else {
-			host_clear_count++;
+			nr_clean_pages++;
 			/*
 			 * If cleared, the value written can be any
 			 * value smaller or equals to the iteration
@@ -639,6 +633,12 @@ static void vm_dirty_log_verify(enum vm_guest_mode mode, unsigned long *bmap)
 			}
 		}
 	}
+
+	pr_info("Iteration %2ld: dirty: %-6lu clean: %-6lu\n",
+		iteration, nr_dirty_pages, nr_clean_pages);
+
+	host_dirty_count += nr_dirty_pages;
+	host_clear_count += nr_clean_pages;
 }
 
 static struct kvm_vm *create_vm(enum vm_guest_mode mode, struct kvm_vcpu **vcpu,
