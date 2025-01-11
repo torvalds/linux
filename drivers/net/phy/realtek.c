@@ -736,7 +736,11 @@ static int rtlgen_read_mmd(struct phy_device *phydev, int devnum, u16 regnum)
 {
 	int ret;
 
-	if (devnum == MDIO_MMD_PCS && regnum == MDIO_PCS_EEE_ABLE) {
+	if (devnum == MDIO_MMD_VEND2) {
+		rtl821x_write_page(phydev, regnum >> 4);
+		ret = __phy_read(phydev, 0x10 + ((regnum & 0xf) >> 1));
+		rtl821x_write_page(phydev, 0);
+	} else if (devnum == MDIO_MMD_PCS && regnum == MDIO_PCS_EEE_ABLE) {
 		rtl821x_write_page(phydev, 0xa5c);
 		ret = __phy_read(phydev, 0x12);
 		rtl821x_write_page(phydev, 0);
@@ -760,7 +764,11 @@ static int rtlgen_write_mmd(struct phy_device *phydev, int devnum, u16 regnum,
 {
 	int ret;
 
-	if (devnum == MDIO_MMD_AN && regnum == MDIO_AN_EEE_ADV) {
+	if (devnum == MDIO_MMD_VEND2) {
+		rtl821x_write_page(phydev, regnum >> 4);
+		ret = __phy_write(phydev, 0x10 + ((regnum & 0xf) >> 1), val);
+		rtl821x_write_page(phydev, 0);
+	} else if (devnum == MDIO_MMD_AN && regnum == MDIO_AN_EEE_ADV) {
 		rtl821x_write_page(phydev, 0xa5d);
 		ret = __phy_write(phydev, 0x10, val);
 		rtl821x_write_page(phydev, 0);
