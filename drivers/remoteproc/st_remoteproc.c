@@ -314,17 +314,11 @@ static int st_rproc_parse_dt(struct platform_device *pdev)
 		return err;
 	}
 
-	ddata->boot_base = syscon_regmap_lookup_by_phandle(np, "st,syscfg");
+	ddata->boot_base = syscon_regmap_lookup_by_phandle_args(np, "st,syscfg",
+								1, &ddata->boot_offset);
 	if (IS_ERR(ddata->boot_base))
 		return dev_err_probe(dev, PTR_ERR(ddata->boot_base),
 				     "Boot base not found\n");
-
-	err = of_property_read_u32_index(np, "st,syscfg", 1,
-					 &ddata->boot_offset);
-	if (err) {
-		dev_err(dev, "Boot offset not found\n");
-		return -EINVAL;
-	}
 
 	err = clk_prepare(ddata->clk);
 	if (err)
