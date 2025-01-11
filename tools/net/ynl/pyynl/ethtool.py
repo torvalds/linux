@@ -11,6 +11,7 @@ import os
 
 sys.path.append(pathlib.Path(__file__).resolve().parent.as_posix())
 from lib import YnlFamily
+from cli import schema_dir, spec_dir
 
 def args_to_req(ynl, op_name, args, req):
     """
@@ -156,10 +157,8 @@ def main():
     args = parser.parse_args()
 
     script_abs_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
-    spec = os.path.join(script_abs_dir,
-                        '../../../Documentation/netlink/specs/ethtool.yaml')
-    schema = os.path.join(script_abs_dir,
-                          '../../../Documentation/netlink/genetlink-legacy.yaml')
+    spec = os.path.join(spec_dir(), 'ethtool.yaml')
+    schema = os.path.join(schema_dir(), 'genetlink-legacy.yaml')
 
     ynl = YnlFamily(spec, schema)
 
