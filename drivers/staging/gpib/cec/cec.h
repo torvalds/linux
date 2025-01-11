@@ -16,10 +16,6 @@ struct cec_priv  {
 	unsigned int irq;
 };
 
-// interfaces
-extern gpib_interface_t cec_pci_interface;
-extern gpib_interface_t cec_pcmcia_interface;
-
 // interface functions
 int cec_read(gpib_board_t *board, uint8_t *buffer, size_t length, int *end, size_t *bytes_read);
 int cec_write(gpib_board_t *board, uint8_t *buffer, size_t length, int send_eoi,

@@ -60,8 +60,6 @@ struct agilent_82350b_priv {
 // driver name
 extern const char *driver_name;
 
-// interfaces
-extern gpib_interface_t agilent_82350b_interface;
 // init functions
 
 int agilent_82350b_unaccel_attach(gpib_board_t *board, const gpib_board_config_t *config);

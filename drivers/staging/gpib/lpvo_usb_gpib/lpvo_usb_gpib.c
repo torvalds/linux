@@ -1131,33 +1131,33 @@ static unsigned int usb_gpib_t1_delay(gpib_board_t *board, unsigned int nano_sec
  *   ***  module dispatch table and init/exit functions	 ***
  */
 
-gpib_interface_t usb_gpib_interface = {
-name: NAME,
-attach : usb_gpib_attach,
-detach : usb_gpib_detach,
-read : usb_gpib_read,
-write : usb_gpib_write,
-command : usb_gpib_command,
-take_control : usb_gpib_take_control,
-go_to_standby : usb_gpib_go_to_standby,
-request_system_control : usb_gpib_request_system_control,
-interface_clear : usb_gpib_interface_clear,
-remote_enable : usb_gpib_remote_enable,
-enable_eos : usb_gpib_enable_eos,
-disable_eos : usb_gpib_disable_eos,
-parallel_poll : usb_gpib_parallel_poll,
-parallel_poll_configure : usb_gpib_parallel_poll_configure,
-parallel_poll_response : usb_gpib_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status : usb_gpib_line_status,
-update_status : usb_gpib_update_status,
-primary_address : usb_gpib_primary_address,
-secondary_address : usb_gpib_secondary_address,
-serial_poll_response : usb_gpib_serial_poll_response,
-serial_poll_status : usb_gpib_serial_poll_status,
-t1_delay : usb_gpib_t1_delay,
-return_to_local : usb_gpib_return_to_local,
-skip_check_for_command_acceptors : 1
+static gpib_interface_t usb_gpib_interface = {
+	.name = NAME,
+	.attach = usb_gpib_attach,
+	.detach = usb_gpib_detach,
+	.read = usb_gpib_read,
+	.write = usb_gpib_write,
+	.command = usb_gpib_command,
+	.take_control = usb_gpib_take_control,
+	.go_to_standby = usb_gpib_go_to_standby,
+	.request_system_control = usb_gpib_request_system_control,
+	.interface_clear = usb_gpib_interface_clear,
+	.remote_enable = usb_gpib_remote_enable,
+	.enable_eos = usb_gpib_enable_eos,
+	.disable_eos = usb_gpib_disable_eos,
+	.parallel_poll = usb_gpib_parallel_poll,
+	.parallel_poll_configure = usb_gpib_parallel_poll_configure,
+	.parallel_poll_response = usb_gpib_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = usb_gpib_line_status,
+	.update_status = usb_gpib_update_status,
+	.primary_address = usb_gpib_primary_address,
+	.secondary_address = usb_gpib_secondary_address,
+	.serial_poll_response = usb_gpib_serial_poll_response,
+	.serial_poll_status = usb_gpib_serial_poll_status,
+	.t1_delay = usb_gpib_t1_delay,
+	.return_to_local = usb_gpib_return_to_local,
+	.skip_check_for_command_acceptors = 1
 };
 
 /*
