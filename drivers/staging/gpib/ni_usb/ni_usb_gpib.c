@@ -783,8 +783,10 @@ static int ni_usb_write(gpib_board_t *board, uint8_t *buffer, size_t length,
 	}
 
 	in_data = kmalloc(in_data_length, GFP_KERNEL);
-	if (!in_data)
+	if (!in_data) {
+		mutex_unlock(&ni_priv->addressed_transfer_lock);
 		return -ENOMEM;
+	}
 	retval = ni_usb_receive_bulk_msg(ni_priv, in_data, in_data_length, &usb_bytes_read,
 					 ni_usb_timeout_msecs(board->usec_timeout), 1);
 
