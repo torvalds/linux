@@ -45,14 +45,17 @@ struct cxl_event_generic {
 
 /*
  * General Media Event Record
- * CXL rev 3.0 Section 8.2.9.2.1.1; Table 8-43
+ * CXL rev 3.1 Section 8.2.9.2.1.1; Table 8-45
  */
 #define CXL_EVENT_GEN_MED_COMP_ID_SIZE	0x10
 struct cxl_event_gen_media {
 	struct cxl_event_media_hdr media_hdr;
 	u8 device[3];
 	u8 component_id[CXL_EVENT_GEN_MED_COMP_ID_SIZE];
-	u8 reserved[46];
+	u8 cme_threshold_ev_flags;
+	u8 cme_count[3];
+	u8 sub_type;
+	u8 reserved[41];
 } __packed;
 
 /*
