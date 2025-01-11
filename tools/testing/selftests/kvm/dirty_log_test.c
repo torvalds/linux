@@ -695,7 +695,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 
 	pthread_create(&vcpu_thread, NULL, vcpu_worker, vcpu);
 
-	for (iteration = 1; iteration < p->iterations; iteration++) {
+	for (iteration = 1; iteration <= p->iterations; iteration++) {
 		unsigned long i;
 
 		sync_global_to_guest(vm, iteration);
