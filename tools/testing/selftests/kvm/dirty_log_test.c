@@ -891,8 +891,6 @@ int main(int argc, char *argv[])
 	pr_info("Test iterations: %"PRIu64", interval: %"PRIu64" (ms)\n",
 		p.iterations, p.interval);
 
-	srandom(time(0));
-
 	if (host_log_mode_option == LOG_MODE_ALL) {
 		/* Run each log mode */
 		for (i = 0; i < LOG_MODE_NUM; i++) {
