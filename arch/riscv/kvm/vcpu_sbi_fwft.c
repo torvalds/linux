@@ -103,6 +103,88 @@ static long kvm_sbi_fwft_get_misaligned_delegation(struct kvm_vcpu *vcpu,
 	return SBI_SUCCESS;
 }
 
+#ifndef CONFIG_32BIT
+
+static bool try_to_set_pmm(unsigned long value)
+{
+	csr_set(CSR_HENVCFG, value);
+	return (csr_read_clear(CSR_HENVCFG, ENVCFG_PMM) & ENVCFG_PMM) == value;
+}
+
+static bool kvm_sbi_fwft_pointer_masking_pmlen_supported(struct kvm_vcpu *vcpu)
+{
+	struct kvm_sbi_fwft *fwft = vcpu_to_fwft(vcpu);
+
+	if (!riscv_isa_extension_available(vcpu->arch.isa, SMNPM))
+		return false;
+
+	fwft->have_vs_pmlen_7 = try_to_set_pmm(ENVCFG_PMM_PMLEN_7);
+	fwft->have_vs_pmlen_16 = try_to_set_pmm(ENVCFG_PMM_PMLEN_16);
+
+	return fwft->have_vs_pmlen_7 || fwft->have_vs_pmlen_16;
+}
+
+static long kvm_sbi_fwft_set_pointer_masking_pmlen(struct kvm_vcpu *vcpu,
+						   struct kvm_sbi_fwft_config *conf,
+						   unsigned long value)
+{
+	struct kvm_sbi_fwft *fwft = vcpu_to_fwft(vcpu);
+	unsigned long pmm;
+
+	switch (value) {
+	case 0:
+		pmm = ENVCFG_PMM_PMLEN_0;
+		break;
+	case 7:
+		if (!fwft->have_vs_pmlen_7)
+			return SBI_ERR_INVALID_PARAM;
+		pmm = ENVCFG_PMM_PMLEN_7;
+		break;
+	case 16:
+		if (!fwft->have_vs_pmlen_16)
+			return SBI_ERR_INVALID_PARAM;
+		pmm = ENVCFG_PMM_PMLEN_16;
+		break;
+	default:
+		return SBI_ERR_INVALID_PARAM;
+	}
+
+	vcpu->arch.cfg.henvcfg &= ~ENVCFG_PMM;
+	vcpu->arch.cfg.henvcfg |= pmm;
+
+	/*
+	 * Instead of waiting for vcpu_load/put() to update HENVCFG CSR,
+	 * update here so that VCPU see's pointer masking mode change
+	 * immediately.
+	 */
+	csr_write(CSR_HENVCFG, vcpu->arch.cfg.henvcfg);
+
+	return SBI_SUCCESS;
+}
+
+static long kvm_sbi_fwft_get_pointer_masking_pmlen(struct kvm_vcpu *vcpu,
+						   struct kvm_sbi_fwft_config *conf,
+						   unsigned long *value)
+{
+	switch (vcpu->arch.cfg.henvcfg & ENVCFG_PMM) {
+	case ENVCFG_PMM_PMLEN_0:
+		*value = 0;
+		break;
+	case ENVCFG_PMM_PMLEN_7:
+		*value = 7;
+		break;
+	case ENVCFG_PMM_PMLEN_16:
+		*value = 16;
+		break;
+	default:
+		return SBI_ERR_FAILURE;
+	}
+
+	return SBI_SUCCESS;
+}
+
+#endif
+
 static const struct kvm_sbi_fwft_feature features[] = {
 	{
 		.id = SBI_FWFT_MISALIGNED_EXC_DELEG,
@@ -110,6 +192,14 @@ static const struct kvm_sbi_fwft_feature features[] = {
 		.set = kvm_sbi_fwft_set_misaligned_delegation,
 		.get = kvm_sbi_fwft_get_misaligned_delegation,
 	},
+#ifndef CONFIG_32BIT
+	{
+		.id = SBI_FWFT_POINTER_MASKING_PMLEN,
+		.supported = kvm_sbi_fwft_pointer_masking_pmlen_supported,
+		.set = kvm_sbi_fwft_set_pointer_masking_pmlen,
+		.get = kvm_sbi_fwft_get_pointer_masking_pmlen,
+	},
+#endif
 };
 
 static struct kvm_sbi_fwft_config *
