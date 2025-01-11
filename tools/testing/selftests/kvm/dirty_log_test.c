@@ -236,24 +236,6 @@ static enum log_mode_t host_log_mode;
 static pthread_t vcpu_thread;
 static uint32_t test_dirty_ring_count = TEST_DIRTY_RING_COUNT;
 
-static void vcpu_kick(void)
-{
-	pthread_kill(vcpu_thread, SIG_IPI);
-}
-
-/*
- * In our test we do signal tricks, let's use a better version of
- * sem_wait to avoid signal interrupts
- */
-static void sem_wait_until(sem_t *sem)
-{
-	int ret;
-
-	do
-		ret = sem_wait(sem);
-	while (ret == -1 && errno == EINTR);
-}
-
 static bool clear_log_supported(void)
 {
 	return kvm_has_cap(KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2);
@@ -292,16 +274,13 @@ static void vcpu_handle_sync_stop(void)
 		/* It means main thread is sleeping waiting */
 		atomic_set(&vcpu_sync_stop_requested, false);
 		sem_post(&sem_vcpu_stop);
-		sem_wait_until(&sem_vcpu_cont);
+		sem_wait(&sem_vcpu_cont);
 	}
 }
 
-static void default_after_vcpu_run(struct kvm_vcpu *vcpu, int ret, int err)
+static void default_after_vcpu_run(struct kvm_vcpu *vcpu)
 {
 	struct kvm_run *run = vcpu->run;
-
-	TEST_ASSERT(ret == 0 || (ret == -1 && err == EINTR),
-		    "vcpu run failed: errno=%d", err);
 
 	TEST_ASSERT(get_ucall(vcpu, NULL) == UCALL_SYNC,
 		    "Invalid guest sync status: exit_reason=%s",
@@ -371,7 +350,6 @@ static uint32_t dirty_ring_collect_one(struct kvm_dirty_gfn *dirty_gfns,
 			    "%u != %u", cur->slot, slot);
 		TEST_ASSERT(cur->offset < num_pages, "Offset overflow: "
 			    "0x%llx >= 0x%x", cur->offset, num_pages);
-		//pr_info("fetch 0x%x page %llu\n", *fetch_index, cur->offset);
 		__set_bit_le(cur->offset, bitmap);
 		dirty_ring_last_page = cur->offset;
 		dirty_gfn_set_collected(cur);
@@ -380,13 +358,6 @@ static uint32_t dirty_ring_collect_one(struct kvm_dirty_gfn *dirty_gfns,
 	}
 
 	return count;
-}
-
-static void dirty_ring_wait_vcpu(void)
-{
-	/* This makes sure that hardware PML cache flushed */
-	vcpu_kick();
-	sem_wait_until(&sem_vcpu_stop);
 }
 
 static void dirty_ring_continue_vcpu(void)
@@ -400,18 +371,6 @@ static void dirty_ring_collect_dirty_pages(struct kvm_vcpu *vcpu, int slot,
 					   uint32_t *ring_buf_idx)
 {
 	uint32_t count = 0, cleared;
-	bool continued_vcpu = false;
-
-	dirty_ring_wait_vcpu();
-
-	if (!dirty_ring_vcpu_ring_full) {
-		/*
-		 * This is not a ring-full event, it's safe to allow
-		 * vcpu to continue
-		 */
-		dirty_ring_continue_vcpu();
-		continued_vcpu = true;
-	}
 
 	/* Only have one vcpu */
 	count = dirty_ring_collect_one(vcpu_map_dirty_ring(vcpu),
@@ -427,16 +386,13 @@ static void dirty_ring_collect_dirty_pages(struct kvm_vcpu *vcpu, int slot,
 	TEST_ASSERT(cleared == count, "Reset dirty pages (%u) mismatch "
 		    "with collected (%u)", cleared, count);
 
-	if (!continued_vcpu) {
-		TEST_ASSERT(dirty_ring_vcpu_ring_full,
-			    "Didn't continue vcpu even without ring full");
+	if (READ_ONCE(dirty_ring_vcpu_ring_full))
 		dirty_ring_continue_vcpu();
-	}
 
 	pr_info("Iteration %ld collected %u pages\n", iteration, count);
 }
 
-static void dirty_ring_after_vcpu_run(struct kvm_vcpu *vcpu, int ret, int err)
+static void dirty_ring_after_vcpu_run(struct kvm_vcpu *vcpu)
 {
 	struct kvm_run *run = vcpu->run;
 
@@ -444,17 +400,14 @@ static void dirty_ring_after_vcpu_run(struct kvm_vcpu *vcpu, int ret, int err)
 	if (get_ucall(vcpu, NULL) == UCALL_SYNC) {
 		/* We should allow this to continue */
 		;
-	} else if (run->exit_reason == KVM_EXIT_DIRTY_RING_FULL ||
-		   (ret == -1 && err == EINTR)) {
+	} else if (run->exit_reason == KVM_EXIT_DIRTY_RING_FULL) {
 		/* Update the flag first before pause */
-		WRITE_ONCE(dirty_ring_vcpu_ring_full,
-			   run->exit_reason == KVM_EXIT_DIRTY_RING_FULL);
+		WRITE_ONCE(dirty_ring_vcpu_ring_full, true);
 		sem_post(&sem_vcpu_stop);
-		pr_info("vcpu stops because %s...\n",
-			dirty_ring_vcpu_ring_full ?
-			"dirty ring is full" : "vcpu is kicked out");
-		sem_wait_until(&sem_vcpu_cont);
+		pr_info("Dirty ring full, waiting for it to be collected\n");
+		sem_wait(&sem_vcpu_cont);
 		pr_info("vcpu continues now.\n");
+		WRITE_ONCE(dirty_ring_vcpu_ring_full, false);
 	} else {
 		TEST_ASSERT(false, "Invalid guest sync status: "
 			    "exit_reason=%s",
@@ -473,7 +426,7 @@ struct log_mode {
 				     void *bitmap, uint32_t num_pages,
 				     uint32_t *ring_buf_idx);
 	/* Hook to call when after each vcpu run */
-	void (*after_vcpu_run)(struct kvm_vcpu *vcpu, int ret, int err);
+	void (*after_vcpu_run)(struct kvm_vcpu *vcpu);
 } log_modes[LOG_MODE_NUM] = {
 	{
 		.name = "dirty-log",
@@ -544,47 +497,24 @@ static void log_mode_collect_dirty_pages(struct kvm_vcpu *vcpu, int slot,
 	mode->collect_dirty_pages(vcpu, slot, bitmap, num_pages, ring_buf_idx);
 }
 
-static void log_mode_after_vcpu_run(struct kvm_vcpu *vcpu, int ret, int err)
+static void log_mode_after_vcpu_run(struct kvm_vcpu *vcpu)
 {
 	struct log_mode *mode = &log_modes[host_log_mode];
 
 	if (mode->after_vcpu_run)
-		mode->after_vcpu_run(vcpu, ret, err);
+		mode->after_vcpu_run(vcpu);
 }
 
 static void *vcpu_worker(void *data)
 {
-	int ret;
 	struct kvm_vcpu *vcpu = data;
 	uint64_t pages_count = 0;
-	struct kvm_signal_mask *sigmask = alloca(offsetof(struct kvm_signal_mask, sigset)
-						 + sizeof(sigset_t));
-	sigset_t *sigset = (sigset_t *) &sigmask->sigset;
-
-	/*
-	 * SIG_IPI is unblocked atomically while in KVM_RUN.  It causes the
-	 * ioctl to return with -EINTR, but it is still pending and we need
-	 * to accept it with the sigwait.
-	 */
-	sigmask->len = 8;
-	pthread_sigmask(0, NULL, sigset);
-	sigdelset(sigset, SIG_IPI);
-	vcpu_ioctl(vcpu, KVM_SET_SIGNAL_MASK, sigmask);
-
-	sigemptyset(sigset);
-	sigaddset(sigset, SIG_IPI);
 
 	while (!READ_ONCE(host_quit)) {
-		/* Clear any existing kick signals */
 		pages_count += TEST_PAGES_PER_LOOP;
 		/* Let the guest dirty the random pages */
-		ret = __vcpu_run(vcpu);
-		if (ret == -1 && errno == EINTR) {
-			int sig = -1;
-			sigwait(sigset, &sig);
-			assert(sig == SIG_IPI);
-		}
-		log_mode_after_vcpu_run(vcpu, ret, errno);
+		vcpu_run(vcpu);
+		log_mode_after_vcpu_run(vcpu);
 	}
 
 	pr_info("Dirtied %"PRIu64" pages\n", pages_count);
@@ -838,7 +768,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 		 * we need to stop vcpu when verify data.
 		 */
 		atomic_set(&vcpu_sync_stop_requested, true);
-		sem_wait_until(&sem_vcpu_stop);
+		sem_wait(&sem_vcpu_stop);
 		/*
 		 * NOTE: for dirty ring, it's possible that we didn't stop at
 		 * GUEST_SYNC but instead we stopped because ring is full;
@@ -905,7 +835,6 @@ int main(int argc, char *argv[])
 		.interval = TEST_HOST_LOOP_INTERVAL,
 	};
 	int opt, i;
-	sigset_t sigset;
 
 	sem_init(&sem_vcpu_stop, 0, 0);
 	sem_init(&sem_vcpu_cont, 0, 0);
@@ -963,11 +892,6 @@ int main(int argc, char *argv[])
 		p.iterations, p.interval);
 
 	srandom(time(0));
-
-	/* Ensure that vCPU threads start with SIG_IPI blocked.  */
-	sigemptyset(&sigset);
-	sigaddset(&sigset, SIG_IPI);
-	pthread_sigmask(SIG_BLOCK, &sigset, NULL);
 
 	if (host_log_mode_option == LOG_MODE_ALL) {
 		/* Run each log mode */
