@@ -12,6 +12,7 @@
 #include <assert.h>
 #include <sched.h>
 #include <sys/mman.h>
+#include <sys/resource.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -411,6 +412,37 @@ static uint64_t vm_nr_pages_required(enum vm_guest_mode mode,
 	return vm_adjust_num_guest_pages(mode, nr_pages);
 }
 
+void kvm_set_files_rlimit(uint32_t nr_vcpus)
+{
+	/*
+	 * Number of file descriptors required, nr_vpucs vCPU fds + an arbitrary
+	 * number for everything else.
+	 */
+	int nr_fds_wanted = nr_vcpus + 100;
+	struct rlimit rl;
+
+	/*
+	 * Check that we're allowed to open nr_fds_wanted file descriptors and
+	 * try raising the limits if needed.
+	 */
+	TEST_ASSERT(!getrlimit(RLIMIT_NOFILE, &rl), "getrlimit() failed!");
+
+	if (rl.rlim_cur < nr_fds_wanted) {
+		rl.rlim_cur = nr_fds_wanted;
+		if (rl.rlim_max < nr_fds_wanted) {
+			int old_rlim_max = rl.rlim_max;
+
+			rl.rlim_max = nr_fds_wanted;
+			__TEST_REQUIRE(setrlimit(RLIMIT_NOFILE, &rl) >= 0,
+				       "RLIMIT_NOFILE hard limit is too low (%d, wanted %d)",
+				       old_rlim_max, nr_fds_wanted);
+		} else {
+			TEST_ASSERT(!setrlimit(RLIMIT_NOFILE, &rl), "setrlimit() failed!");
+		}
+	}
+
+}
+
 struct kvm_vm *__vm_create(struct vm_shape shape, uint32_t nr_runnable_vcpus,
 			   uint64_t nr_extra_pages)
 {
@@ -419,6 +451,8 @@ struct kvm_vm *__vm_create(struct vm_shape shape, uint32_t nr_runnable_vcpus,
 	struct userspace_mem_region *slot0;
 	struct kvm_vm *vm;
 	int i;
+
+	kvm_set_files_rlimit(nr_runnable_vcpus);
 
 	pr_debug("%s: mode='%s' type='%d', pages='%ld'\n", __func__,
 		 vm_guest_mode_string(shape.mode), shape.type, nr_pages);
