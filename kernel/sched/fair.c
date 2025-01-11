@@ -37,6 +37,7 @@
 #include <linux/sched/cputime.h>
 #include <linux/sched/isolation.h>
 #include <linux/sched/nohz.h>
+#include <linux/sched/prio.h>
 
 #include <linux/cpuidle.h>
 #include <linux/interrupt.h>
@@ -50,6 +51,8 @@
 #include <linux/rbtree_augmented.h>
 
 #include <asm/switch_to.h>
+
+#include <uapi/linux/sched/types.h>
 
 #include "sched.h"
 #include "stats.h"
@@ -5257,6 +5260,22 @@ util_est_update(struct cfs_rq *cfs_rq, struct task_struct *p,
 static inline void update_misfit_status(struct task_struct *p, struct rq *rq) {}
 
 #endif /* CONFIG_SMP */
+
+void __setparam_fair(struct task_struct *p, const struct sched_attr *attr)
+{
+	struct sched_entity *se = &p->se;
+
+	p->static_prio = NICE_TO_PRIO(attr->sched_nice);
+	if (attr->sched_runtime) {
+		se->custom_slice = 1;
+		se->slice = clamp_t(u64, attr->sched_runtime,
+				      NSEC_PER_MSEC/10,   /* HZ=1000 * 10 */
+				      NSEC_PER_MSEC*100); /* HZ=100  / 10 */
+	} else {
+		se->custom_slice = 0;
+		se->slice = sysctl_sched_base_slice;
+	}
+}
 
 static void
 place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)

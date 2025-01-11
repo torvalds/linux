@@ -3500,6 +3500,8 @@ unsigned long scale_irq_capacity(unsigned long util, unsigned long irq, unsigned
 
 #endif /* !CONFIG_HAVE_SCHED_AVG_IRQ */
 
+extern void __setparam_fair(struct task_struct *p, const struct sched_attr *attr);
+
 #if defined(CONFIG_ENERGY_MODEL) && defined(CONFIG_CPU_FREQ_GOV_SCHEDUTIL)
 
 #define perf_domain_span(pd) (to_cpumask(((pd)->em_pd->cpus)))
