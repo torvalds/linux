@@ -128,7 +128,7 @@ static_assert(IS_ALIGNED(offsetof(struct slab, freelist), sizeof(freelist_aba_t)
 
 /**
  * slab_folio - The folio allocated for a slab
- * @slab: The slab.
+ * @s: The slab.
  *
  * Slabs are allocated as folios that contain the individual objects and are
  * using some fields in the first struct page of the folio - those fields are
@@ -159,7 +159,7 @@ static_assert(IS_ALIGNED(offsetof(struct slab, freelist), sizeof(freelist_aba_t)
 
 /**
  * slab_page - The first struct page allocated for a slab
- * @slab: The slab.
+ * @s: The slab.
  *
  * A convenience wrapper for converting slab to the first struct page of the
  * underlying folio, to communicate with code not yet converted to folio or
