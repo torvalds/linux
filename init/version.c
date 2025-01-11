@@ -17,25 +17,35 @@
 #include <linux/utsname.h>
 #include <linux/proc_ns.h>
 
+/**
+ * Function to set the hostname during early boot.
+ *
+ * @param arg Pointer to a string containing the hostname.
+ * @return Always returns 0.
+ */
 static int __init early_hostname(char *arg)
 {
-	size_t bufsize = sizeof(init_uts_ns.name.nodename);
-	size_t maxlen  = bufsize - 1;
-	ssize_t arglen;
+    const size_t bufsize = sizeof(init_uts_ns.name.nodename);
+    const size_t maxlen  = bufsize - 1;
+    ssize_t arglen;
 
-	arglen = strscpy(init_uts_ns.name.nodename, arg, bufsize);
-	if (arglen < 0) {
-		pr_warn("hostname parameter exceeds %zd characters and will be truncated",
-			maxlen);
-	}
-	return 0;
+    arglen = strlcpy(init_uts_ns.name.nodename, arg, bufsize);
+    
+    if (arglen > maxlen) {
+        init_uts_ns.name.nodename[maxlen] = '\0';
+        pr_warn("Hostname parameter was truncated to %zu characters.", maxlen);
+    }
+
+    return 0;
 }
 early_param("hostname", early_hostname);
 
+/* Banner format for displaying kernel version information. */
 const char linux_proc_banner[] =
-	"%s version %s"
-	" (" LINUX_COMPILE_BY "@" LINUX_COMPILE_HOST ")"
-	" (" LINUX_COMPILER ") %s\n";
+    "%s version %s (%s)"
+    " (" LINUX_COMPILE_BY "@" LINUX_COMPILE_HOST ")"
+    " (" LINUX_COMPILER ") %s\n"
+    "Kernel command line: %s\n";
 
 BUILD_SALT;
 BUILD_LTO_INFO;
