@@ -21,7 +21,6 @@
 
 #include <linux/module.h>
 #include <linux/mm.h>
-#include <linux/swap.h>
 #include <linux/slab.h>
 #include <linux/sysctl.h>
 #include <linux/bitmap.h>
@@ -2043,15 +2042,6 @@ static const struct ctl_table vm_table[] = {
 		.maxlen		= sizeof(sysctl_overcommit_kbytes),
 		.mode		= 0644,
 		.proc_handler	= overcommit_kbytes_handler,
-	},
-	{
-		.procname	= "page-cluster",
-		.data		= &page_cluster,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= (void *)&page_cluster_max,
 	},
 	{
 		.procname	= "dirtytime_expire_seconds",
