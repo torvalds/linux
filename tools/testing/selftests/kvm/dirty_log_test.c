@@ -37,6 +37,12 @@
 /* Interval for each host loop (ms) */
 #define TEST_HOST_LOOP_INTERVAL		10UL
 
+/*
+ * Ensure the vCPU is able to perform a reasonable number of writes in each
+ * iteration to provide a lower bound on coverage.
+ */
+#define TEST_MIN_WRITES_PER_ITERATION	0x100
+
 /* Dirty bitmaps are always little endian, so we need to swap on big endian */
 #if defined(__s390x__)
 # define BITOP_LE_SWIZZLE	((BITS_PER_LONG-1) & ~0x7)
@@ -72,6 +78,7 @@ static uint64_t host_page_size;
 static uint64_t guest_page_size;
 static uint64_t guest_num_pages;
 static uint64_t iteration;
+static uint64_t nr_writes;
 static bool vcpu_stop;
 
 /*
@@ -107,6 +114,7 @@ static void guest_code(void)
 	for (i = 0; i < guest_num_pages; i++) {
 		addr = guest_test_virt_mem + i * guest_page_size;
 		vcpu_arch_put_guest(*(uint64_t *)addr, READ_ONCE(iteration));
+		nr_writes++;
 	}
 #endif
 
@@ -118,6 +126,7 @@ static void guest_code(void)
 			addr = align_down(addr, host_page_size);
 
 			vcpu_arch_put_guest(*(uint64_t *)addr, READ_ONCE(iteration));
+			nr_writes++;
 		}
 
 		GUEST_SYNC(1);
@@ -548,8 +557,8 @@ static void vm_dirty_log_verify(enum vm_guest_mode mode, unsigned long **bmap)
 		}
 	}
 
-	pr_info("Iteration %2ld: dirty: %-6lu clean: %-6lu\n",
-		iteration, nr_dirty_pages, nr_clean_pages);
+	pr_info("Iteration %2ld: dirty: %-6lu clean: %-6lu writes: %-6lu\n",
+		iteration, nr_dirty_pages, nr_clean_pages, nr_writes);
 
 	host_dirty_count += nr_dirty_pages;
 	host_clear_count += nr_clean_pages;
@@ -665,6 +674,8 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	host_dirty_count = 0;
 	host_clear_count = 0;
 	WRITE_ONCE(dirty_ring_vcpu_ring_full, false);
+	WRITE_ONCE(nr_writes, 0);
+	sync_global_to_guest(vm, nr_writes);
 
 	/*
 	 * Ensure the previous iteration didn't leave a dangling semaphore, i.e.
@@ -683,9 +694,21 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 
 		dirty_ring_prev_iteration_last_page = dirty_ring_last_page;
 
-		/* Give the vcpu thread some time to dirty some pages */
-		for (i = 0; i < p->interval; i++) {
+		/*
+		 * Let the vCPU run beyond the configured interval until it has
+		 * performed the minimum number of writes.  This verifies the
+		 * guest is making forward progress, e.g. isn't stuck because
+		 * of a KVM bug, and puts a firm floor on test coverage.
+		 */
+		for (i = 0; i < p->interval || nr_writes < TEST_MIN_WRITES_PER_ITERATION; i++) {
+			/*
+			 * Sleep in 1ms chunks to keep the interval math simple
+			 * and so that the test doesn't run too far beyond the
+			 * specified interval.
+			 */
 			usleep(1000);
+
+			sync_global_from_guest(vm, nr_writes);
 
 			/*
 			 * Reap dirty pages while the guest is running so that
@@ -738,6 +761,12 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 		sync_global_to_guest(vm, vcpu_stop);
 
 		/*
+		 * Sync the number of writes performed before verification, the
+		 * info will be printed along with the dirty/clean page counts.
+		 */
+		sync_global_from_guest(vm, nr_writes);
+
+		/*
 		 * NOTE: for dirty ring, it's possible that we didn't stop at
 		 * GUEST_SYNC but instead we stopped because ring is full;
 		 * that's okay too because ring full means we're only missing
@@ -759,6 +788,9 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 		if (++iteration == p->iterations)
 			WRITE_ONCE(host_quit, true);
 		sync_global_to_guest(vm, iteration);
+
+		WRITE_ONCE(nr_writes, 0);
+		sync_global_to_guest(vm, nr_writes);
 
 		WRITE_ONCE(dirty_ring_vcpu_ring_full, false);
 
