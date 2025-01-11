@@ -514,8 +514,9 @@ static void vm_dirty_log_verify(enum vm_guest_mode mode, unsigned long **bmap)
 				 * last page's iteration), as the value to be
 				 * written may be cached in a CPU register.
 				 */
-				if (page == dirty_ring_last_page ||
-				    page == dirty_ring_prev_iteration_last_page)
+				if ((page == dirty_ring_last_page ||
+				     page == dirty_ring_prev_iteration_last_page) &&
+				    val < iteration)
 					continue;
 			} else if (!val && iteration == 1 && bmap0_dirty) {
 				/*
