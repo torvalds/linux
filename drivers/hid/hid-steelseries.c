@@ -19,6 +19,7 @@
 
 #define STEELSERIES_SRWS1		BIT(0)
 #define STEELSERIES_ARCTIS_1		BIT(1)
+#define STEELSERIES_ARCTIS_9		BIT(2)
 
 struct steelseries_device {
 	struct hid_device *hdev;
@@ -375,7 +376,9 @@ static void steelseries_srws1_remove(struct hid_device *hdev)
 #define STEELSERIES_HEADSET_BATTERY_TIMEOUT_MS	3000
 
 #define ARCTIS_1_BATTERY_RESPONSE_LEN		8
+#define ARCTIS_9_BATTERY_RESPONSE_LEN		64
 static const char arctis_1_battery_request[] = { 0x06, 0x12 };
+static const char arctis_9_battery_request[] = { 0x00, 0x20 };
 
 static int steelseries_headset_request_battery(struct hid_device *hdev,
 	const char *request, size_t len)
@@ -395,6 +398,7 @@ static int steelseries_headset_request_battery(struct hid_device *hdev,
 		hid_err(hdev, "hid_hw_raw_request() failed with %d\n", ret);
 		ret = -ENODATA;
 	}
+
 	kfree(write_buf);
 	return ret;
 }
@@ -407,6 +411,9 @@ static void steelseries_headset_fetch_battery(struct hid_device *hdev)
 	if (sd->quirks & STEELSERIES_ARCTIS_1)
 		ret = steelseries_headset_request_battery(hdev,
 			arctis_1_battery_request, sizeof(arctis_1_battery_request));
+	else if (sd->quirks & STEELSERIES_ARCTIS_9)
+		ret = steelseries_headset_request_battery(hdev,
+			arctis_9_battery_request, sizeof(arctis_9_battery_request));
 
 	if (ret < 0)
 		hid_dbg(hdev,
@@ -522,7 +529,20 @@ static int steelseries_headset_battery_register(struct steelseries_device *sd)
 	INIT_DELAYED_WORK(&sd->battery_work, steelseries_headset_battery_timer_tick);
 	steelseries_headset_fetch_battery(sd->hdev);
 
+	if (sd->quirks & STEELSERIES_ARCTIS_9) {
+		/* The first fetch_battery request can remain unanswered in some cases */
+		schedule_delayed_work(&sd->battery_work,
+				msecs_to_jiffies(STEELSERIES_HEADSET_BATTERY_TIMEOUT_MS));
+	}
+
 	return 0;
+}
+
+static bool steelseries_is_vendor_usage_page(struct hid_device *hdev, uint8_t usage_page)
+{
+	return hdev->rdesc[0] == 0x06 &&
+		hdev->rdesc[1] == usage_page &&
+		hdev->rdesc[2] == 0xff;
 }
 
 static int steelseries_probe(struct hid_device *hdev, const struct hid_device_id *id)
@@ -549,6 +569,10 @@ static int steelseries_probe(struct hid_device *hdev, const struct hid_device_id
 	ret = hid_parse(hdev);
 	if (ret)
 		return ret;
+
+	if (sd->quirks & STEELSERIES_ARCTIS_9 &&
+			!steelseries_is_vendor_usage_page(hdev, 0xc0))
+		return -ENODEV;
 
 	spin_lock_init(&sd->lock);
 
@@ -606,6 +630,15 @@ static const __u8 *steelseries_srws1_report_fixup(struct hid_device *hdev,
 	return rdesc;
 }
 
+static uint8_t steelseries_headset_map_capacity(uint8_t capacity, uint8_t min_in, uint8_t max_in)
+{
+	if (capacity >= max_in)
+		return 100;
+	if (capacity <= min_in)
+		return 0;
+	return (capacity - min_in) * 100 / (max_in - min_in);
+}
+
 static int steelseries_headset_raw_event(struct hid_device *hdev,
 					struct hid_report *report, u8 *read_buf,
 					int size)
@@ -634,6 +667,32 @@ static int steelseries_headset_raw_event(struct hid_device *hdev,
 		} else {
 			connected = true;
 			capacity = read_buf[3];
+		}
+	}
+
+	if (sd->quirks & STEELSERIES_ARCTIS_9) {
+		hid_dbg(sd->hdev,
+			"Parsing raw event for Arctis 9 headset (%*ph)\n", size, read_buf);
+		if (size < ARCTIS_9_BATTERY_RESPONSE_LEN) {
+			if (!delayed_work_pending(&sd->battery_work))
+				goto request_battery;
+			return 0;
+		}
+
+		if (read_buf[0] == 0xaa && read_buf[1] == 0x01) {
+			connected = true;
+
+			/*
+			 * Found no official documentation about min and max.
+			 * Values defined by testing.
+			 */
+			capacity = steelseries_headset_map_capacity(read_buf[3], 0x68, 0x9d);
+		} else {
+			/*
+			 * Device is off and sends the last known status read_buf[1] == 0x03 or
+			 * there is no known status of the device read_buf[0] == 0x55
+			 */
+			connected = false;
 		}
 	}
 
@@ -672,6 +731,10 @@ static const struct hid_device_id steelseries_devices[] = {
 	  HID_USB_DEVICE(USB_VENDOR_ID_STEELSERIES, 0x12b6),
 	.driver_data = STEELSERIES_ARCTIS_1 },
 
+	{ /* SteelSeries Arctis 9 Wireless for XBox */
+	  HID_USB_DEVICE(USB_VENDOR_ID_STEELSERIES, 0x12c2),
+	  .driver_data = STEELSERIES_ARCTIS_9 },
+
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, steelseries_devices);
@@ -690,3 +753,4 @@ MODULE_DESCRIPTION("HID driver for Steelseries devices");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Bastien Nocera <hadess@hadess.net>");
 MODULE_AUTHOR("Simon Wood <simon@mungewell.org>");
+MODULE_AUTHOR("Christian Mayer <git@mayer-bgk.de>");
