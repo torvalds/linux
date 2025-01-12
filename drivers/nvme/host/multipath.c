@@ -976,6 +976,33 @@ static ssize_t ana_state_show(struct device *dev, struct device_attribute *attr,
 }
 DEVICE_ATTR_RO(ana_state);
 
+static ssize_t numa_nodes_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	int node, srcu_idx;
+	nodemask_t numa_nodes;
+	struct nvme_ns *current_ns;
+	struct nvme_ns *ns = nvme_get_ns_from_dev(dev);
+	struct nvme_ns_head *head = ns->head;
+
+	if (head->subsys->iopolicy != NVME_IOPOLICY_NUMA)
+		return 0;
+
+	nodes_clear(numa_nodes);
+
+	srcu_idx = srcu_read_lock(&head->srcu);
+	for_each_node(node) {
+		current_ns = srcu_dereference(head->current_path[node],
+				&head->srcu);
+		if (ns == current_ns)
+			node_set(node, numa_nodes);
+	}
+	srcu_read_unlock(&head->srcu, srcu_idx);
+
+	return sysfs_emit(buf, "%*pbl\n", nodemask_pr_args(&numa_nodes));
+}
+DEVICE_ATTR_RO(numa_nodes);
+
 static int nvme_lookup_ana_group_desc(struct nvme_ctrl *ctrl,
 		struct nvme_ana_group_desc *desc, void *data)
 {
