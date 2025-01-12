@@ -370,7 +370,6 @@ static void steelseries_srws1_remove(struct hid_device *hdev)
 
 	hid_hw_stop(hdev);
 	kfree(drv_data);
-	return;
 }
 #endif
 
