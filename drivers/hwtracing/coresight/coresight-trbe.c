@@ -1118,7 +1118,7 @@ static u64 cpu_prohibit_trace(void)
 	u64 trfcr = read_trfcr();
 
 	/* Prohibit tracing at EL0 & the kernel EL */
-	write_trfcr(trfcr & ~(TRFCR_ELx_ExTRE | TRFCR_ELx_E0TRE));
+	write_trfcr(trfcr & ~(TRFCR_EL1_ExTRE | TRFCR_EL1_E0TRE));
 	/* Return the original value of the TRFCR */
 	return trfcr;
 }
