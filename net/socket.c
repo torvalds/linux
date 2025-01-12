@@ -776,34 +776,6 @@ int kernel_sendmsg(struct socket *sock, struct msghdr *msg,
 }
 EXPORT_SYMBOL(kernel_sendmsg);
 
-/**
- *	kernel_sendmsg_locked - send a message through @sock (kernel-space)
- *	@sk: sock
- *	@msg: message header
- *	@vec: output s/g array
- *	@num: output s/g array length
- *	@size: total message data size
- *
- *	Builds the message data with @vec and sends it through @sock.
- *	Returns the number of bytes sent, or an error code.
- *	Caller must hold @sk.
- */
-
-int kernel_sendmsg_locked(struct sock *sk, struct msghdr *msg,
-			  struct kvec *vec, size_t num, size_t size)
-{
-	struct socket *sock = sk->sk_socket;
-	const struct proto_ops *ops = READ_ONCE(sock->ops);
-
-	if (!ops->sendmsg_locked)
-		return sock_no_sendmsg_locked(sk, msg, size);
-
-	iov_iter_kvec(&msg->msg_iter, ITER_SOURCE, vec, num, size);
-
-	return ops->sendmsg_locked(sk, msg, msg_data_left(msg));
-}
-EXPORT_SYMBOL(kernel_sendmsg_locked);
-
 static bool skb_is_err_queue(const struct sk_buff *skb)
 {
 	/* pkt_type of skbs enqueued on the error queue are set to
