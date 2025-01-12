@@ -463,8 +463,16 @@ If a person was not directly involved in the preparation or handling of a
 patch but wishes to signify and record their approval of it then they can
 ask to have an Acked-by: line added to the patch's changelog.
 
-Acked-by: is often used by the maintainer of the affected code when that
+Acked-by: is meant to be used by those responsible for or involved with the
+affected code in one way or another.  Most commonly, the maintainer when that
 maintainer neither contributed to nor forwarded the patch.
+
+Acked-by: may also be used by other stakeholders, such as people with domain
+knowledge (e.g. the original author of the code being modified), userspace-side
+reviewers for a kernel uAPI patch or key users of a feature.  Optionally, in
+these cases, it can be useful to add a "# Suffix" to clarify its meaning::
+
+	Acked-by: The Stakeholder <stakeholder@example.org> # As primary user
 
 Acked-by: is not as formal as Signed-off-by:.  It is a record that the acker
 has at least reviewed the patch and has indicated acceptance.  Hence patch
@@ -477,7 +485,7 @@ For example, if a patch affects multiple subsystems and has an Acked-by: from
 one subsystem maintainer then this usually indicates acknowledgement of just
 the part which affects that maintainer's code.  Judgement should be used here.
 When in doubt people should refer to the original discussion in the mailing
-list archives.
+list archives.  A "# Suffix" may also be used in this case to clarify.
 
 If a person has had the opportunity to comment on a patch, but has not
 provided such comments, you may optionally add a ``Cc:`` tag to the patch.
