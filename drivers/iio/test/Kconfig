@@ -5,7 +5,7 @@
 
 # Keep in alphabetical order
 config IIO_GTS_KUNIT_TEST
-	tristate "Test IIO formatting functions" if !KUNIT_ALL_TESTS
+	tristate "Test IIO gain-time-scale helpers" if !KUNIT_ALL_TESTS
 	depends on KUNIT
 	select IIO_GTS_HELPER
 	select TEST_KUNIT_DEVICE_HELPERS
