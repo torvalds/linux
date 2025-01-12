@@ -33,6 +33,7 @@ struct steelseries_device {
 	struct power_supply *battery;
 	uint8_t battery_capacity;
 	bool headset_connected;
+	bool battery_charging;
 };
 
 #if IS_BUILTIN(CONFIG_LEDS_CLASS) || \
@@ -450,9 +451,12 @@ static int steelseries_headset_battery_get_property(struct power_supply *psy,
 		val->intval = 1;
 		break;
 	case POWER_SUPPLY_PROP_STATUS:
-		val->intval = sd->headset_connected ?
-			POWER_SUPPLY_STATUS_DISCHARGING :
-			POWER_SUPPLY_STATUS_UNKNOWN;
+		if (sd->headset_connected) {
+			val->intval = sd->battery_charging ?
+				POWER_SUPPLY_STATUS_CHARGING :
+				POWER_SUPPLY_STATUS_DISCHARGING;
+		} else
+			val->intval = POWER_SUPPLY_STATUS_UNKNOWN;
 		break;
 	case POWER_SUPPLY_PROP_SCOPE:
 		val->intval = POWER_SUPPLY_SCOPE_DEVICE;
@@ -514,6 +518,7 @@ static int steelseries_headset_battery_register(struct steelseries_device *sd)
 	/* avoid the warning of 0% battery while waiting for the first info */
 	steelseries_headset_set_wireless_status(sd->hdev, false);
 	sd->battery_capacity = 100;
+	sd->battery_charging = false;
 
 	sd->battery = devm_power_supply_register(&sd->hdev->dev,
 			&sd->battery_desc, &battery_cfg);
@@ -646,6 +651,7 @@ static int steelseries_headset_raw_event(struct hid_device *hdev,
 	struct steelseries_device *sd = hid_get_drvdata(hdev);
 	int capacity = sd->battery_capacity;
 	bool connected = sd->headset_connected;
+	bool charging = sd->battery_charging;
 	unsigned long flags;
 
 	/* Not a headset */
@@ -681,6 +687,7 @@ static int steelseries_headset_raw_event(struct hid_device *hdev,
 
 		if (read_buf[0] == 0xaa && read_buf[1] == 0x01) {
 			connected = true;
+			charging = read_buf[4] == 0x01;
 
 			/*
 			 * Found no official documentation about min and max.
@@ -693,6 +700,7 @@ static int steelseries_headset_raw_event(struct hid_device *hdev,
 			 * there is no known status of the device read_buf[0] == 0x55
 			 */
 			connected = false;
+			charging = false;
 		}
 	}
 
@@ -710,6 +718,15 @@ static int steelseries_headset_raw_event(struct hid_device *hdev,
 			"Battery capacity changed from %d%% to %d%%\n",
 			sd->battery_capacity, capacity);
 		sd->battery_capacity = capacity;
+		power_supply_changed(sd->battery);
+	}
+
+	if (charging != sd->battery_charging) {
+		hid_dbg(sd->hdev,
+			"Battery charging status changed from %scharging to %scharging\n",
+			sd->battery_charging ? "" : "not ",
+			charging ? "" : "not ");
+		sd->battery_charging = charging;
 		power_supply_changed(sd->battery);
 	}
 
