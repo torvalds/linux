@@ -614,6 +614,10 @@ process nor the requirement to Cc: stable@vger.kernel.org on all stable
 patch candidates. For more information, please read
 Documentation/process/stable-kernel-rules.rst.
 
+Finally, while providing tags is welcome and typically very appreciated, please
+note that signers (i.e. submitters and maintainers) may use their discretion in
+applying offered tags.
+
 .. _the_canonical_patch_format:
 
 The canonical patch format
