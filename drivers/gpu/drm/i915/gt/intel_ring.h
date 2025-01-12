@@ -16,7 +16,6 @@ struct intel_ring *
 intel_engine_create_ring(struct intel_engine_cs *engine, int size);
 
 u32 *intel_ring_begin(struct i915_request *rq, unsigned int num_dwords);
-int intel_ring_cacheline_align(struct i915_request *rq);
 
 unsigned int intel_ring_update_space(struct intel_ring *ring);
 
