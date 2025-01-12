@@ -170,10 +170,6 @@ SYM_FUNC_START_LOCAL(efi_enter32)
 	movl	%edx, %gs
 	movl	%edx, %ss
 
-	/* Reload pgtables */
-	movl	%cr3, %eax
-	movl	%eax, %cr3
-
 	/* Disable paging */
 	movl	%cr0, %eax
 	btrl	$X86_CR0_PG_BIT, %eax
@@ -199,30 +195,35 @@ SYM_FUNC_START_LOCAL(efi_enter32)
 	lidtl	16(%ebx)
 	lgdtl	(%ebx)
 
+	xorl	%eax, %eax
+	lldt	%ax
+
+	call	efi32_enable_long_mode
+
+	pushl	$__KERNEL_CS
+	pushl	%ebp
+	lret
+SYM_FUNC_END(efi_enter32)
+
+SYM_FUNC_START_LOCAL(efi32_enable_long_mode)
 	movl	%cr4, %eax
 	btsl	$(X86_CR4_PAE_BIT), %eax
 	movl	%eax, %cr4
-
-	movl	%cr3, %eax
-	movl	%eax, %cr3
 
 	movl	$MSR_EFER, %ecx
 	rdmsr
 	btsl	$_EFER_LME, %eax
 	wrmsr
 
-	xorl	%eax, %eax
-	lldt	%ax
-
-	pushl	$__KERNEL_CS
-	pushl	%ebp
+	/* Disable interrupts - the firmware's IDT does not work in long mode */
+	cli
 
 	/* Enable paging */
 	movl	%cr0, %eax
 	btsl	$X86_CR0_PG_BIT, %eax
 	movl	%eax, %cr0
-	lret
-SYM_FUNC_END(efi_enter32)
+	ret
+SYM_FUNC_END(efi32_enable_long_mode)
 
 /*
  * This is the common EFI stub entry point for mixed mode.
