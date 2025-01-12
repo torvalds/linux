@@ -67,15 +67,15 @@ static const struct file_operations __fops = {				\
 
 typedef struct vfsmount *(*debugfs_automount_t)(struct dentry *, void *);
 
-#if defined(CONFIG_DEBUG_FS)
-
-struct dentry *debugfs_lookup(const char *name, struct dentry *parent);
-
 struct debugfs_short_fops {
 	ssize_t (*read)(struct file *, char __user *, size_t, loff_t *);
 	ssize_t (*write)(struct file *, const char __user *, size_t, loff_t *);
 	loff_t (*llseek) (struct file *, loff_t, int);
 };
+
+#if defined(CONFIG_DEBUG_FS)
+
+struct dentry *debugfs_lookup(const char *name, struct dentry *parent);
 
 struct dentry *debugfs_create_file_full(const char *name, umode_t mode,
 					struct dentry *parent, void *data,
