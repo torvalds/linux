@@ -424,6 +424,7 @@ static struct dentry *end_creating(struct dentry *dentry)
 
 static struct dentry *__debugfs_create_file(const char *name, umode_t mode,
 				struct dentry *parent, void *data,
+				const void *aux,
 				const struct file_operations *proxy_fops,
 				const void *real_fops)
 {
@@ -458,6 +459,7 @@ static struct dentry *__debugfs_create_file(const char *name, umode_t mode,
 		proxy_fops = &debugfs_noop_file_operations;
 	inode->i_fop = proxy_fops;
 	DEBUGFS_I(inode)->raw = real_fops;
+	DEBUGFS_I(inode)->aux = aux;
 
 	d_instantiate(dentry, inode);
 	fsnotify_create(d_inode(dentry->d_parent), dentry);
@@ -466,19 +468,21 @@ static struct dentry *__debugfs_create_file(const char *name, umode_t mode,
 
 struct dentry *debugfs_create_file_full(const char *name, umode_t mode,
 					struct dentry *parent, void *data,
+					const void *aux,
 					const struct file_operations *fops)
 {
-	return __debugfs_create_file(name, mode, parent, data,
+	return __debugfs_create_file(name, mode, parent, data, aux,
 				&debugfs_full_proxy_file_operations,
 				fops);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_file_full);
 
 struct dentry *debugfs_create_file_short(const char *name, umode_t mode,
-					 struct dentry *parent, void *data,
-					 const struct debugfs_short_fops *fops)
+					struct dentry *parent, void *data,
+					const void *aux,
+					const struct debugfs_short_fops *fops)
 {
-	return __debugfs_create_file(name, mode, parent, data,
+	return __debugfs_create_file(name, mode, parent, data, aux,
 				&debugfs_full_short_proxy_file_operations,
 				fops);
 }
@@ -516,7 +520,7 @@ struct dentry *debugfs_create_file_unsafe(const char *name, umode_t mode,
 				   const struct file_operations *fops)
 {
 
-	return __debugfs_create_file(name, mode, parent, data,
+	return __debugfs_create_file(name, mode, parent, data, NULL,
 				&debugfs_open_proxy_file_operations,
 				fops);
 }

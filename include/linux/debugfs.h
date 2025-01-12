@@ -79,9 +79,11 @@ struct debugfs_short_fops {
 
 struct dentry *debugfs_create_file_full(const char *name, umode_t mode,
 					struct dentry *parent, void *data,
+					const void *aux,
 					const struct file_operations *fops);
 struct dentry *debugfs_create_file_short(const char *name, umode_t mode,
 					 struct dentry *parent, void *data,
+					 const void *aux,
 					 const struct debugfs_short_fops *fops);
 
 /**
@@ -126,7 +128,15 @@ struct dentry *debugfs_create_file_short(const char *name, umode_t mode,
 		 const struct debugfs_short_fops *: debugfs_create_file_short,	\
 		 struct file_operations *: debugfs_create_file_full,		\
 		 struct debugfs_short_fops *: debugfs_create_file_short)	\
-		(name, mode, parent, data, fops)
+		(name, mode, parent, data, NULL, fops)
+
+#define debugfs_create_file_aux(name, mode, parent, data, aux, fops)		\
+	_Generic(fops,								\
+		 const struct file_operations *: debugfs_create_file_full,	\
+		 const struct debugfs_short_fops *: debugfs_create_file_short,	\
+		 struct file_operations *: debugfs_create_file_full,		\
+		 struct debugfs_short_fops *: debugfs_create_file_short)	\
+		(name, mode, parent, data, aux, fops)
 
 struct dentry *debugfs_create_file_unsafe(const char *name, umode_t mode,
 				   struct dentry *parent, void *data,
@@ -153,6 +163,7 @@ void debugfs_remove(struct dentry *dentry);
 void debugfs_lookup_and_remove(const char *name, struct dentry *parent);
 
 const struct file_operations *debugfs_real_fops(const struct file *filp);
+const void *debugfs_get_aux(const struct file *file);
 
 int debugfs_file_get(struct dentry *dentry);
 void debugfs_file_put(struct dentry *dentry);
@@ -259,6 +270,14 @@ static inline struct dentry *debugfs_lookup(const char *name,
 	return ERR_PTR(-ENODEV);
 }
 
+static inline struct dentry *debugfs_create_file_aux(const char *name,
+					umode_t mode, struct dentry *parent,
+					void *data, void *aux,
+					const void *fops)
+{
+	return ERR_PTR(-ENODEV);
+}
+
 static inline struct dentry *debugfs_create_file(const char *name, umode_t mode,
 					struct dentry *parent, void *data,
 					const void *fops)
@@ -312,6 +331,7 @@ static inline void debugfs_lookup_and_remove(const char *name,
 { }
 
 const struct file_operations *debugfs_real_fops(const struct file *filp);
+void *debugfs_get_aux(const struct file *file);
 
 static inline int debugfs_file_get(struct dentry *dentry)
 {
@@ -451,6 +471,11 @@ static inline ssize_t debugfs_read_file_str(struct file *file,
 }
 
 #endif
+
+#define debugfs_create_file_aux_num(name, mode, parent, data, n, fops) \
+	debugfs_create_file_aux(name, mode, parent, data, \
+				(void *)(unsigned long)n, fops)
+#define debugfs_get_aux_num(f) (unsigned long)debugfs_get_aux(f)
 
 /**
  * debugfs_create_xul - create a debugfs file that is used to read and write an
