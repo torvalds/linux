@@ -830,76 +830,70 @@ void debugfs_lookup_and_remove(const char *name, struct dentry *parent)
 EXPORT_SYMBOL_GPL(debugfs_lookup_and_remove);
 
 /**
- * debugfs_rename - rename a file/directory in the debugfs filesystem
- * @old_dir: a pointer to the parent dentry for the renamed object. This
- *          should be a directory dentry.
- * @old_dentry: dentry of an object to be renamed.
- * @new_dir: a pointer to the parent dentry where the object should be
- *          moved. This should be a directory dentry.
- * @new_name: a pointer to a string containing the target name.
+ * debugfs_change_name - rename a file/directory in the debugfs filesystem
+ * @dentry: dentry of an object to be renamed.
+ * @fmt: format for new name
  *
  * This function renames a file/directory in debugfs.  The target must not
  * exist for rename to succeed.
  *
- * This function will return a pointer to old_dentry (which is updated to
- * reflect renaming) if it succeeds. If an error occurs, ERR_PTR(-ERROR)
- * will be returned.
+ * This function will return 0 on success and -E... on failure.
  *
  * If debugfs is not enabled in the kernel, the value -%ENODEV will be
  * returned.
  */
-struct dentry *debugfs_rename(struct dentry *old_dir, struct dentry *old_dentry,
-		struct dentry *new_dir, const char *new_name)
+int __printf(2, 3) debugfs_change_name(struct dentry *dentry, const char *fmt, ...)
 {
-	int error;
-	struct dentry *dentry = NULL, *trap;
+	int error = 0;
+	const char *new_name;
 	struct name_snapshot old_name;
+	struct dentry *parent, *target;
+	struct inode *dir;
+	va_list ap;
 
-	if (IS_ERR(old_dir))
-		return old_dir;
-	if (IS_ERR(new_dir))
-		return new_dir;
-	if (IS_ERR_OR_NULL(old_dentry))
-		return old_dentry;
+	if (IS_ERR_OR_NULL(dentry))
+		return 0;
 
-	trap = lock_rename(new_dir, old_dir);
-	/* Source or destination directories don't exist? */
-	if (d_really_is_negative(old_dir) || d_really_is_negative(new_dir))
-		goto exit;
-	/* Source does not exist, cyclic rename, or mountpoint? */
-	if (d_really_is_negative(old_dentry) || old_dentry == trap ||
-	    d_mountpoint(old_dentry))
-		goto exit;
-	dentry = lookup_one_len(new_name, new_dir, strlen(new_name));
-	/* Lookup failed, cyclic rename or target exists? */
-	if (IS_ERR(dentry) || dentry == trap || d_really_is_positive(dentry))
-		goto exit;
+	va_start(ap, fmt);
+	new_name = kvasprintf_const(GFP_KERNEL, fmt, ap);
+	va_end(ap);
+	if (!new_name)
+		return -ENOMEM;
 
-	take_dentry_name_snapshot(&old_name, old_dentry);
+	parent = dget_parent(dentry);
+	dir = d_inode(parent);
+	inode_lock(dir);
 
-	error = simple_rename(&nop_mnt_idmap, d_inode(old_dir), old_dentry,
-			      d_inode(new_dir), dentry, 0);
-	if (error) {
-		release_dentry_name_snapshot(&old_name);
-		goto exit;
+	take_dentry_name_snapshot(&old_name, dentry);
+
+	if (WARN_ON_ONCE(dentry->d_parent != parent)) {
+		error = -EINVAL;
+		goto out;
 	}
-	d_move(old_dentry, dentry);
-	fsnotify_move(d_inode(old_dir), d_inode(new_dir), &old_name.name,
-		d_is_dir(old_dentry),
-		NULL, old_dentry);
+	if (strcmp(old_name.name.name, new_name) == 0)
+		goto out;
+	target = lookup_one_len(new_name, parent, strlen(new_name));
+	if (IS_ERR(target)) {
+		error = PTR_ERR(target);
+		goto out;
+	}
+	if (d_really_is_positive(target)) {
+		dput(target);
+		error = -EINVAL;
+		goto out;
+	}
+	simple_rename_timestamp(dir, dentry, dir, target);
+	d_move(dentry, target);
+	dput(target);
+	fsnotify_move(dir, dir, &old_name.name, d_is_dir(dentry), NULL, dentry);
+out:
 	release_dentry_name_snapshot(&old_name);
-	unlock_rename(new_dir, old_dir);
-	dput(dentry);
-	return old_dentry;
-exit:
-	if (dentry && !IS_ERR(dentry))
-		dput(dentry);
-	unlock_rename(new_dir, old_dir);
-	if (IS_ERR(dentry))
-		return dentry;
-	return ERR_PTR(-EINVAL);
+	inode_unlock(dir);
+	dput(parent);
+	kfree_const(new_name);
+	return error;
 }
-EXPORT_SYMBOL_GPL(debugfs_rename);
+EXPORT_SYMBOL_GPL(debugfs_change_name);
 
 /**
  * debugfs_initialized - Tells whether debugfs has been registered
