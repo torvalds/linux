@@ -2793,7 +2793,7 @@ static int airoha_qdma_set_tx_ets_sched(struct airoha_gdm_port *port,
 	struct tc_ets_qopt_offload_replace_params *p = &opt->replace_params;
 	enum tx_sched_mode mode = TC_SCH_SP;
 	u16 w[AIROHA_NUM_QOS_QUEUES] = {};
-	int i, nstrict = 0;
+	int i, nstrict = 0, nwrr, qidx;
 
 	if (p->bands > AIROHA_NUM_QOS_QUEUES)
 		return -EINVAL;
@@ -2807,7 +2807,20 @@ static int airoha_qdma_set_tx_ets_sched(struct airoha_gdm_port *port,
 	if (nstrict == AIROHA_NUM_QOS_QUEUES - 1)
 		return -EINVAL;
 
-	for (i = 0; i < p->bands - nstrict; i++)
+	/* EN7581 SoC supports fixed QoS band priority where WRR queues have
+	 * lowest priorities with respect to SP ones.
+	 * e.g: WRR0, WRR1, .., WRRm, SP0, SP1, .., SPn
+	 */
+	nwrr = p->bands - nstrict;
+	qidx = nstrict && nwrr ? nstrict : 0;
+	for (i = 1; i <= p->bands; i++) {
+		if (p->priomap[i % AIROHA_NUM_QOS_QUEUES] != qidx)
+			return -EINVAL;
+
+		qidx = i == nwrr ? 0 : qidx + 1;
+	}
+
+	for (i = 0; i < nwrr; i++)
 		w[i] = p->weights[nstrict + i];
 
 	if (!nstrict)
