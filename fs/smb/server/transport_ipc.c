@@ -871,31 +871,6 @@ struct ksmbd_rpc_command *ksmbd_rpc_ioctl(struct ksmbd_session *sess, int handle
 	return resp;
 }
 
-struct ksmbd_rpc_command *ksmbd_rpc_rap(struct ksmbd_session *sess, void *payload,
-					size_t payload_sz)
-{
-	struct ksmbd_ipc_msg *msg;
-	struct ksmbd_rpc_command *req;
-	struct ksmbd_rpc_command *resp;
-
-	msg = ipc_msg_alloc(sizeof(struct ksmbd_rpc_command) + payload_sz + 1);
-	if (!msg)
-		return NULL;
-
-	msg->type = KSMBD_EVENT_RPC_REQUEST;
-	req = (struct ksmbd_rpc_command *)msg->payload;
-	req->handle = ksmbd_acquire_id(&ipc_ida);
-	req->flags = rpc_context_flags(sess);
-	req->flags |= KSMBD_RPC_RAP_METHOD;
-	req->payload_sz = payload_sz;
-	memcpy(req->payload, payload, payload_sz);
-
-	resp = ipc_msg_send_request(msg, req->handle);
-	ipc_msg_handle_free(req->handle);
-	ipc_msg_free(msg);
-	return resp;
-}
-
 static int __ipc_heartbeat(void)
 {
 	unsigned long delta;
