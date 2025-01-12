@@ -377,20 +377,21 @@ static void steelseries_srws1_remove(struct hid_device *hdev)
 #define ARCTIS_1_BATTERY_RESPONSE_LEN		8
 static const char arctis_1_battery_request[] = { 0x06, 0x12 };
 
-static int steelseries_headset_arctis_1_fetch_battery(struct hid_device *hdev)
+static int steelseries_headset_request_battery(struct hid_device *hdev,
+	const char *request, size_t len)
 {
 	u8 *write_buf;
 	int ret;
 
 	/* Request battery information */
-	write_buf = kmemdup(arctis_1_battery_request, sizeof(arctis_1_battery_request), GFP_KERNEL);
+	write_buf = kmemdup(request, len, GFP_KERNEL);
 	if (!write_buf)
 		return -ENOMEM;
 
-	ret = hid_hw_raw_request(hdev, arctis_1_battery_request[0],
-				 write_buf, sizeof(arctis_1_battery_request),
+	hid_dbg(hdev, "Sending battery request report");
+	ret = hid_hw_raw_request(hdev, request[0], write_buf, len,
 				 HID_OUTPUT_REPORT, HID_REQ_SET_REPORT);
-	if (ret < (int)sizeof(arctis_1_battery_request)) {
+	if (ret < (int)len) {
 		hid_err(hdev, "hid_hw_raw_request() failed with %d\n", ret);
 		ret = -ENODATA;
 	}
@@ -404,7 +405,8 @@ static void steelseries_headset_fetch_battery(struct hid_device *hdev)
 	int ret = 0;
 
 	if (sd->quirks & STEELSERIES_ARCTIS_1)
-		ret = steelseries_headset_arctis_1_fetch_battery(hdev);
+		ret = steelseries_headset_request_battery(hdev,
+			arctis_1_battery_request, sizeof(arctis_1_battery_request));
 
 	if (ret < 0)
 		hid_dbg(hdev,
@@ -554,6 +556,10 @@ static int steelseries_probe(struct hid_device *hdev, const struct hid_device_id
 	if (ret)
 		return ret;
 
+	ret = hid_hw_open(hdev);
+	if (ret)
+		return ret;
+
 	if (steelseries_headset_battery_register(sd) < 0)
 		hid_err(sd->hdev,
 			"Failed to register battery for headset\n");
@@ -580,6 +586,7 @@ static void steelseries_remove(struct hid_device *hdev)
 
 	cancel_delayed_work_sync(&sd->battery_work);
 
+	hid_hw_close(hdev);
 	hid_hw_stop(hdev);
 }
 
