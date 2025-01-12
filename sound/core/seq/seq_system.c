@@ -78,26 +78,27 @@ static int setheader(struct snd_seq_event * ev, int client, int port)
 
 
 /* entry points for broadcasting system events */
-void snd_seq_system_broadcast(int client, int port, int type)
+void snd_seq_system_broadcast(int client, int port, int type, bool atomic)
 {
 	struct snd_seq_event ev;
 	
 	if (setheader(&ev, client, port) < 0)
 		return;
 	ev.type = type;
-	snd_seq_kernel_client_dispatch(sysclient, &ev, 0, 0);
+	snd_seq_kernel_client_dispatch(sysclient, &ev, atomic, 0);
 }
 EXPORT_SYMBOL_GPL(snd_seq_system_broadcast);
 
 /* entry points for broadcasting system events */
-int snd_seq_system_notify(int client, int port, struct snd_seq_event *ev)
+int snd_seq_system_notify(int client, int port, struct snd_seq_event *ev,
+			  bool atomic)
 {
 	ev->flags = SNDRV_SEQ_EVENT_LENGTH_FIXED;
 	ev->source.client = sysclient;
 	ev->source.port = announce_port;
 	ev->dest.client = client;
 	ev->dest.port = port;
-	return snd_seq_kernel_client_dispatch(sysclient, ev, 0, 0);
+	return snd_seq_kernel_client_dispatch(sysclient, ev, atomic, 0);
 }
 
 /* call-back handler for timer events */

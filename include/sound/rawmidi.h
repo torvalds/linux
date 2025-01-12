@@ -89,6 +89,7 @@ struct snd_rawmidi_substream {
 	unsigned int framing;		/* whether to frame input data */
 	unsigned int clock_type;	/* clock source to use for input framing */
 	int use_count;			/* use counter (for output) */
+	bool inactive;			/* inactive substream (for UMP legacy) */
 	size_t bytes;
 	spinlock_t lock;
 	struct snd_rawmidi *rmidi;
@@ -118,6 +119,7 @@ struct snd_rawmidi {
 	struct list_head list;
 	unsigned int device;		/* device number */
 	unsigned int info_flags;	/* SNDRV_RAWMIDI_INFO_XXXX */
+	unsigned int tied_device;
 	char id[64];
 	char name[80];
 
