@@ -208,16 +208,34 @@ static int debugfs_show_options(struct seq_file *m, struct dentry *root)
 	return 0;
 }
 
+static struct kmem_cache *debugfs_inode_cachep __ro_after_init;
+
+static void init_once(void *foo)
+{
+	struct debugfs_inode_info *info = foo;
+	inode_init_once(&info->vfs_inode);
+}
+
+static struct inode *debugfs_alloc_inode(struct super_block *sb)
+{
+	struct debugfs_inode_info *info;
+	info = alloc_inode_sb(sb, debugfs_inode_cachep, GFP_KERNEL);
+	if (!info)
+		return NULL;
+	return &info->vfs_inode;
+}
+
 static void debugfs_free_inode(struct inode *inode)
 {
 	if (S_ISLNK(inode->i_mode))
 		kfree(inode->i_link);
-	free_inode_nonrcu(inode);
+	kmem_cache_free(debugfs_inode_cachep, DEBUGFS_I(inode));
 }
 
 static const struct super_operations debugfs_super_operations = {
 	.statfs		= simple_statfs,
 	.show_options	= debugfs_show_options,
+	.alloc_inode	= debugfs_alloc_inode,
 	.free_inode	= debugfs_free_inode,
 };
 
@@ -939,12 +957,22 @@ static int __init debugfs_init(void)
 	if (retval)
 		return retval;
 
-	retval = register_filesystem(&debug_fs_type);
-	if (retval)
+	debugfs_inode_cachep = kmem_cache_create("debugfs_inode_cache",
+				sizeof(struct debugfs_inode_info), 0,
+				SLAB_RECLAIM_ACCOUNT | SLAB_ACCOUNT,
+				init_once);
+	if (debugfs_inode_cachep == NULL) {
 		sysfs_remove_mount_point(kernel_kobj, "debug");
-	else
-		debugfs_registered = true;
+		return -ENOMEM;
+	}
 
-	return retval;
+	retval = register_filesystem(&debug_fs_type);
+	if (retval) { // Really not going to happen
+		sysfs_remove_mount_point(kernel_kobj, "debug");
+		kmem_cache_destroy(debugfs_inode_cachep);
+		return retval;
+	}
+	debugfs_registered = true;
+	return 0;
 }
 core_initcall(debugfs_init);

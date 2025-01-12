@@ -11,6 +11,15 @@
 
 struct file_operations;
 
+struct debugfs_inode_info {
+	struct inode vfs_inode;
+};
+
+static inline struct debugfs_inode_info *DEBUGFS_I(struct inode *inode)
+{
+	return container_of(inode, struct debugfs_inode_info, vfs_inode);
+}
+
 /* declared over in file.c */
 extern const struct file_operations debugfs_noop_file_operations;
 extern const struct file_operations debugfs_open_proxy_file_operations;
