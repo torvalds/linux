@@ -1092,8 +1092,6 @@ struct kfd_process *kfd_lookup_process_by_pid(struct pid *pid);
 /* PASIDs */
 int kfd_pasid_init(void);
 void kfd_pasid_exit(void);
-bool kfd_set_pasid_limit(unsigned int new_limit);
-unsigned int kfd_get_pasid_limit(void);
 u32 kfd_pasid_alloc(void);
 void kfd_pasid_free(u32 pasid);
 
@@ -1143,7 +1141,6 @@ struct kfd_topology_device *kfd_topology_device_by_proximity_domain_no_lock(
 						uint32_t proximity_domain);
 struct kfd_topology_device *kfd_topology_device_by_id(uint32_t gpu_id);
 struct kfd_node *kfd_device_by_id(uint32_t gpu_id);
-struct kfd_node *kfd_device_by_pci_dev(const struct pci_dev *pdev);
 static inline bool kfd_irq_is_from_node(struct kfd_node *node, uint32_t node_id,
 					uint32_t vmid)
 {
