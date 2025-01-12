@@ -37,7 +37,7 @@ struct adc081c {
 	/* Ensure natural alignment of buffer elements */
 	struct {
 		u16 channel;
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} scan;
 };
 

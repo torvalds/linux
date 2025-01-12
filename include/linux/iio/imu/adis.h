@@ -99,7 +99,6 @@ struct adis_data {
  * @spi: Reference to SPI device which owns this ADIS IIO device
  * @trig: IIO trigger object data
  * @data: ADIS chip variant specific data
- * @burst: ADIS burst transfer information
  * @burst_extra_len: Burst extra length. Should only be used by devices that can
  *		     dynamically change their burst mode length.
  * @state_lock: Lock used by the device to protect state

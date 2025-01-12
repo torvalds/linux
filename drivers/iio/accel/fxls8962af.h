@@ -11,6 +11,8 @@ struct device;
 enum {
 	fxls8962af,
 	fxls8964af,
+	fxls8967af,
+	fxls8974cf,
 };
 
 int fxls8962af_core_probe(struct device *dev, struct regmap *regmap, int irq);

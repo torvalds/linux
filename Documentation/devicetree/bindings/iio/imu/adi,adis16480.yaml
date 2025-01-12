@@ -11,24 +11,30 @@ maintainers:
 
 properties:
   compatible:
-    enum:
-      - adi,adis16375
-      - adi,adis16480
-      - adi,adis16485
-      - adi,adis16488
-      - adi,adis16490
-      - adi,adis16495-1
-      - adi,adis16495-2
-      - adi,adis16495-3
-      - adi,adis16497-1
-      - adi,adis16497-2
-      - adi,adis16497-3
-      - adi,adis16545-1
-      - adi,adis16545-2
-      - adi,adis16545-3
-      - adi,adis16547-1
-      - adi,adis16547-2
-      - adi,adis16547-3
+    oneOf:
+      - enum:
+          - adi,adis16375
+          - adi,adis16480
+          - adi,adis16485
+          - adi,adis16486
+          - adi,adis16488
+          - adi,adis16489
+          - adi,adis16490
+          - adi,adis16495-1
+          - adi,adis16495-2
+          - adi,adis16495-3
+          - adi,adis16497-1
+          - adi,adis16497-2
+          - adi,adis16497-3
+          - adi,adis16545-1
+          - adi,adis16545-2
+          - adi,adis16545-3
+          - adi,adis16547-1
+          - adi,adis16547-2
+          - adi,adis16547-3
+      - items:
+          - const: adi,adis16487
+          - const: adi,adis16485
 
   reg:
     maxItems: 1

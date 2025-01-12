@@ -14,12 +14,20 @@ description: |
   SPI and I2C interface.
     https://www.nxp.com/docs/en/data-sheet/FXLS8962AF.pdf
     https://www.nxp.com/docs/en/data-sheet/FXLS8964AF.pdf
+    https://www.nxp.com/docs/en/data-sheet/FXLS8967AF.pdf
+    https://www.nxp.com/docs/en/data-sheet/FXLS8974CF.pdf
 
 properties:
   compatible:
-    enum:
-      - nxp,fxls8962af
-      - nxp,fxls8964af
+    oneOf:
+      - enum:
+          - nxp,fxls8962af
+          - nxp,fxls8964af
+      - items:
+          - enum:
+              - nxp,fxls8967af
+              - nxp,fxls8974cf
+          - const: nxp,fxls8962af
 
   reg:
     maxItems: 1
@@ -37,6 +45,11 @@ properties:
 
   drive-open-drain:
     type: boolean
+
+  wakeup-source:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      Enable wake on accelerometer event
 
 required:
   - compatible
@@ -61,6 +74,7 @@ examples:
             interrupt-parent = <&gpio0>;
             interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
             interrupt-names = "INT1";
+            wakeup-source;
         };
     };
   - |

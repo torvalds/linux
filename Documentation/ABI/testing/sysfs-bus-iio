@@ -168,18 +168,6 @@ Description:
 		is required is a consistent labeling.  Units after application
 		of scale and offset are millivolts.
 
-What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_raw
-What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_supply_raw
-KernelVersion:	3.17
-Contact:	linux-iio@vger.kernel.org
-Description:
-		Raw (unscaled no bias removal etc.) current measurement from
-		channel Y. In special cases where the channel does not
-		correspond to externally available input one of the named
-		versions may be used. The number must always be specified and
-		unique to allow association with event codes. Units after
-		application of scale and offset are milliamps.
-
 What:		/sys/bus/iio/devices/iio:deviceX/in_powerY_raw
 KernelVersion:	4.5
 Contact:	linux-iio@vger.kernel.org
@@ -227,7 +215,7 @@ Description:
 		same scaling as _raw.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_temp_raw
-What:		/sys/bus/iio/devices/iio:deviceX/in_tempX_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_tempY_raw
 What:		/sys/bus/iio/devices/iio:deviceX/in_temp_x_raw
 What:		/sys/bus/iio/devices/iio:deviceX/in_temp_y_raw
 What:		/sys/bus/iio/devices/iio:deviceX/in_temp_ambient_raw
@@ -416,11 +404,11 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		Scaled humidity measurement in milli percent.
 
-What:		/sys/bus/iio/devices/iio:deviceX/in_X_mean_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_Y_mean_raw
 KernelVersion:	3.5
 Contact:	linux-iio@vger.kernel.org
 Description:
-		Averaged raw measurement from channel X. The number of values
+		Averaged raw measurement from channel Y. The number of values
 		used for averaging is device specific. The converting rules for
 		normal raw values also applies to the averaged raw values.
 
@@ -448,7 +436,7 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_humidityrelative_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_magn_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_rot_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_angl_offset
-What:		/sys/bus/iio/devices/iio:deviceX/in_capacitanceX_offset
+What:		/sys/bus/iio/devices/iio:deviceX/in_capacitanceY_offset
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -508,6 +496,9 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_angl_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_x_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_y_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_z_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_red_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_green_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_blue_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_concentration_co2_scale
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
@@ -660,10 +651,10 @@ What:		/sys/.../iio:deviceX/in_magn_scale_available
 What:		/sys/.../iio:deviceX/in_illuminance_scale_available
 What:		/sys/.../iio:deviceX/in_intensity_scale_available
 What:		/sys/.../iio:deviceX/in_proximity_scale_available
-What:		/sys/.../iio:deviceX/in_voltageX_scale_available
+What:		/sys/.../iio:deviceX/in_voltageY_scale_available
 What:		/sys/.../iio:deviceX/in_voltage-voltage_scale_available
-What:		/sys/.../iio:deviceX/out_voltageX_scale_available
-What:		/sys/.../iio:deviceX/out_altvoltageX_scale_available
+What:		/sys/.../iio:deviceX/out_voltageY_scale_available
+What:		/sys/.../iio:deviceX/out_altvoltageY_scale_available
 What:		/sys/.../iio:deviceX/in_capacitance_scale_available
 What:		/sys/.../iio:deviceX/in_pressure_scale_available
 What:		/sys/.../iio:deviceX/in_pressureY_scale_available
@@ -681,6 +672,7 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_red_hardwaregain
 What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_green_hardwaregain
 What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_blue_hardwaregain
 What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_clear_hardwaregain
+What:		/sys/bus/iio/devices/iio:deviceX/in_illuminance_hardwaregain
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -1562,7 +1554,7 @@ Description:
 		This attribute is used to read the amount of quadrature error
 		present in the device at a given time.
 
-What:		/sys/.../iio:deviceX/in_accelX_power_mode
+What:		/sys/.../iio:deviceX/in_accelY_power_mode
 KernelVersion:	3.11
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -1633,6 +1625,10 @@ What:		/sys/.../iio:deviceX/in_intensityY_uv_raw
 What:		/sys/.../iio:deviceX/in_intensityY_uva_raw
 What:		/sys/.../iio:deviceX/in_intensityY_uvb_raw
 What:		/sys/.../iio:deviceX/in_intensityY_duv_raw
+What:		/sys/.../iio:deviceX/in_intensity_red_raw
+What:		/sys/.../iio:deviceX/in_intensity_green_raw
+What:		/sys/.../iio:deviceX/in_intensity_blue_raw
+What:		/sys/.../iio:deviceX/in_intensity_clear_raw
 KernelVersion:	3.4
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -1691,16 +1687,19 @@ Description:
 		Raw value of rotation from true/magnetic north measured with
 		or without compensation from tilt sensors.
 
-What:		/sys/bus/iio/devices/iio:deviceX/in_currentX_raw
-What:		/sys/bus/iio/devices/iio:deviceX/in_currentX_i_raw
-What:		/sys/bus/iio/devices/iio:deviceX/in_currentX_q_raw
-KernelVersion:	3.18
+What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_supply_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_i_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_q_raw
+KernelVersion:	3.17
 Contact:	linux-iio@vger.kernel.org
 Description:
-		Raw current measurement from channel X. Units are in milliamps
+		Raw current measurement from channel Y. Units are in milliamps
 		after application of scale and offset. If no offset or scale is
 		present, output should be considered as processed with the
-		unit in milliamps.
+		unit in milliamps. In special cases where the channel does not
+		correspond to externally available input one of the named
+		versions may be used.
 
 		Channels with 'i' and 'q' modifiers always exist in pairs and both
 		channels refer to the same signal. The 'i' channel contains the in-phase
@@ -1864,9 +1863,9 @@ Description:
 		hardware fifo watermark level.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_temp_calibemissivity
-What:		/sys/bus/iio/devices/iio:deviceX/in_tempX_calibemissivity
+What:		/sys/bus/iio/devices/iio:deviceX/in_tempY_calibemissivity
 What:		/sys/bus/iio/devices/iio:deviceX/in_temp_object_calibemissivity
-What:		/sys/bus/iio/devices/iio:deviceX/in_tempX_object_calibemissivity
+What:		/sys/bus/iio/devices/iio:deviceX/in_tempY_object_calibemissivity
 KernelVersion:	4.1
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -1887,17 +1886,17 @@ Description:
 		is considered as one sample for <type>[_name]_sampling_frequency.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_concentration_raw
-What:		/sys/bus/iio/devices/iio:deviceX/in_concentrationX_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_concentrationY_raw
 What:		/sys/bus/iio/devices/iio:deviceX/in_concentration_co2_raw
-What:		/sys/bus/iio/devices/iio:deviceX/in_concentrationX_co2_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_concentrationY_co2_raw
 What:		/sys/bus/iio/devices/iio:deviceX/in_concentration_ethanol_raw
-What:		/sys/bus/iio/devices/iio:deviceX/in_concentrationX_ethanol_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_concentrationY_ethanol_raw
 What:		/sys/bus/iio/devices/iio:deviceX/in_concentration_h2_raw
-What:		/sys/bus/iio/devices/iio:deviceX/in_concentrationX_h2_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_concentrationY_h2_raw
 What:		/sys/bus/iio/devices/iio:deviceX/in_concentration_o2_raw
-What:		/sys/bus/iio/devices/iio:deviceX/in_concentrationX_o2_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_concentrationY_o2_raw
 What:		/sys/bus/iio/devices/iio:deviceX/in_concentration_voc_raw
-What:		/sys/bus/iio/devices/iio:deviceX/in_concentrationX_voc_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_concentrationY_voc_raw
 KernelVersion:	4.3
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -1905,9 +1904,9 @@ Description:
 		after application of scale and offset are percents.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_resistance_raw
-What:		/sys/bus/iio/devices/iio:deviceX/in_resistanceX_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_resistanceY_raw
 What:		/sys/bus/iio/devices/iio:deviceX/out_resistance_raw
-What:		/sys/bus/iio/devices/iio:deviceX/out_resistanceX_raw
+What:		/sys/bus/iio/devices/iio:deviceX/out_resistanceY_raw
 KernelVersion:	4.3
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -2096,7 +2095,7 @@ Description:
 		One of the following thermocouple types: B, E, J, K, N, R, S, T.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_temp_object_calibambient
-What:		/sys/bus/iio/devices/iio:deviceX/in_tempX_object_calibambient
+What:		/sys/bus/iio/devices/iio:deviceX/in_tempY_object_calibambient
 KernelVersion:	5.10
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -2172,9 +2171,9 @@ Description:
 
 		- a range specified as "[min step max]"
 
-What:		/sys/bus/iio/devices/iio:deviceX/in_voltageX_sampling_frequency
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_sampling_frequency
 What:		/sys/bus/iio/devices/iio:deviceX/in_powerY_sampling_frequency
-What:		/sys/bus/iio/devices/iio:deviceX/in_currentZ_sampling_frequency
+What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_sampling_frequency
 KernelVersion:	5.20
 Contact:	linux-iio@vger.kernel.org
 Description:

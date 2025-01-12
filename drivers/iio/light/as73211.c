@@ -636,7 +636,7 @@ static irqreturn_t as73211_trigger_handler(int irq __always_unused, void *p)
 	struct as73211_data *data = iio_priv(indio_dev);
 	struct {
 		__le16 chan[4];
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} scan;
 	int data_result, ret;
 

@@ -23,8 +23,6 @@ struct ad8801_state {
 	unsigned char dac_cache[8]; /* Value write on each channel */
 	unsigned int vrefh_mv;
 	unsigned int vrefl_mv;
-	struct regulator *vrefh_reg;
-	struct regulator *vrefl_reg;
 
 	__be16 data __aligned(IIO_DMA_MINALIGN);
 };
@@ -122,86 +120,34 @@ static int ad8801_probe(struct spi_device *spi)
 	state->spi = spi;
 	id = spi_get_device_id(spi);
 
-	state->vrefh_reg = devm_regulator_get(&spi->dev, "vrefh");
-	if (IS_ERR(state->vrefh_reg))
-		return dev_err_probe(&spi->dev, PTR_ERR(state->vrefh_reg),
-				     "Vrefh regulator not specified\n");
+	ret = devm_regulator_get_enable_read_voltage(&spi->dev, "vrefh");
+	if (ret < 0)
+		return dev_err_probe(&spi->dev, ret,
+				     "failed to get Vrefh voltage\n");
 
-	ret = regulator_enable(state->vrefh_reg);
-	if (ret) {
-		dev_err(&spi->dev, "Failed to enable vrefh regulator: %d\n",
-				ret);
-		return ret;
-	}
-
-	ret = regulator_get_voltage(state->vrefh_reg);
-	if (ret < 0) {
-		dev_err(&spi->dev, "Failed to read vrefh regulator: %d\n",
-				ret);
-		goto error_disable_vrefh_reg;
-	}
 	state->vrefh_mv = ret / 1000;
 
 	if (id->driver_data == ID_AD8803) {
-		state->vrefl_reg = devm_regulator_get(&spi->dev, "vrefl");
-		if (IS_ERR(state->vrefl_reg)) {
-			ret = dev_err_probe(&spi->dev, PTR_ERR(state->vrefl_reg),
-					    "Vrefl regulator not specified\n");
-			goto error_disable_vrefh_reg;
-		}
+		ret = devm_regulator_get_enable_read_voltage(&spi->dev, "vrefl");
+		if (ret < 0)
+			return dev_err_probe(&spi->dev, ret,
+					     "failed to get Vrefl voltage\n");
 
-		ret = regulator_enable(state->vrefl_reg);
-		if (ret) {
-			dev_err(&spi->dev, "Failed to enable vrefl regulator: %d\n",
-					ret);
-			goto error_disable_vrefh_reg;
-		}
-
-		ret = regulator_get_voltage(state->vrefl_reg);
-		if (ret < 0) {
-			dev_err(&spi->dev, "Failed to read vrefl regulator: %d\n",
-					ret);
-			goto error_disable_vrefl_reg;
-		}
 		state->vrefl_mv = ret / 1000;
-	} else {
-		state->vrefl_mv = 0;
-		state->vrefl_reg = NULL;
 	}
 
-	spi_set_drvdata(spi, indio_dev);
 	indio_dev->info = &ad8801_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = ad8801_channels;
 	indio_dev->num_channels = ARRAY_SIZE(ad8801_channels);
 	indio_dev->name = id->name;
 
-	ret = iio_device_register(indio_dev);
-	if (ret) {
-		dev_err(&spi->dev, "Failed to register iio device: %d\n",
-				ret);
-		goto error_disable_vrefl_reg;
-	}
+	ret = devm_iio_device_register(&spi->dev, indio_dev);
+	if (ret)
+		return dev_err_probe(&spi->dev, ret,
+				     "Failed to register iio device\n");
 
 	return 0;
-
-error_disable_vrefl_reg:
-	if (state->vrefl_reg)
-		regulator_disable(state->vrefl_reg);
-error_disable_vrefh_reg:
-	regulator_disable(state->vrefh_reg);
-	return ret;
-}
-
-static void ad8801_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-	struct ad8801_state *state = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	if (state->vrefl_reg)
-		regulator_disable(state->vrefl_reg);
-	regulator_disable(state->vrefh_reg);
 }
 
 static const struct spi_device_id ad8801_ids[] = {
@@ -216,7 +162,6 @@ static struct spi_driver ad8801_driver = {
 		.name	= "ad8801",
 	},
 	.probe		= ad8801_probe,
-	.remove		= ad8801_remove,
 	.id_table	= ad8801_ids,
 };
 module_spi_driver(ad8801_driver);

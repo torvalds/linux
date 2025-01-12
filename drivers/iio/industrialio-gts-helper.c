@@ -915,6 +915,41 @@ int iio_gts_find_gain_sel_for_scale_using_time(struct iio_gts *gts, int time_sel
 }
 EXPORT_SYMBOL_NS_GPL(iio_gts_find_gain_sel_for_scale_using_time, "IIO_GTS_HELPER");
 
+/**
+ * iio_gts_find_gain_time_sel_for_scale - Fetch gain and time selectors for scale
+ * @gts:	Gain time scale descriptor
+ * @scale_int:	Integral part of the scale (typically val1)
+ * @scale_nano:	Fractional part of the scale (nano or ppb)
+ * @gain_sel:	Pointer to value where gain selector is stored.
+ * @time_sel:	Pointer to value where time selector is stored.
+ *
+ * Wrapper around iio_gts_find_gain_for_scale_using_time() to fetch the
+ * gain and time selectors for a given scale.
+ *
+ * Return: 0 on success and -EINVAL on error.
+ */
+int iio_gts_find_gain_time_sel_for_scale(struct iio_gts *gts, int scale_int,
+					 int scale_nano, int *gain_sel,
+					 int *time_sel)
+{
+	int i, ret;
+
+	for (i = 0; i < gts->num_itime; i++) {
+		*time_sel = gts->itime_table[i].sel;
+		ret = iio_gts_find_gain_sel_for_scale_using_time(gts, *time_sel,
+								 scale_int,
+								 scale_nano,
+								 gain_sel);
+		if (ret)
+			continue;
+
+		return 0;
+	}
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_NS_GPL(iio_gts_find_gain_time_sel_for_scale, "IIO_GTS_HELPER");
+
 static int iio_gts_get_total_gain(struct iio_gts *gts, int gain, int time)
 {
 	const struct iio_itime_sel_mul *itime;
@@ -1085,6 +1120,48 @@ int iio_gts_find_new_gain_by_old_gain_time(struct iio_gts *gts, int old_gain,
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(iio_gts_find_new_gain_by_old_gain_time, "IIO_GTS_HELPER");
+
+/**
+ * iio_gts_find_new_gain_by_gain_time_min - compensate for time change
+ * @gts:	Gain time scale descriptor
+ * @old_gain:	Previously set gain
+ * @old_time:	Selector corresponding previously set time
+ * @new_time:	Selector corresponding new time to be set
+ * @new_gain:	Pointer to value where new gain is to be written
+ * @in_range:	Indicate if the @new_gain was in the range of
+ *		supported gains.
+ *
+ * Wrapper around iio_gts_find_new_gain_by_old_gain_time() that tries to
+ * set an optimal value if no exact match was found, defaulting to the
+ * minimum gain to avoid saturations if the optimal value is not in the
+ * range of supported gains.
+ *
+ * Return: 0 on success and a negative value if no gain was found.
+ */
+int iio_gts_find_new_gain_by_gain_time_min(struct iio_gts *gts, int old_gain,
+					   int old_time, int new_time,
+					   int *new_gain, bool *in_range)
+{
+	int ret;
+
+	*in_range = true;
+	ret = iio_gts_find_new_gain_by_old_gain_time(gts, old_gain, old_time,
+						     new_time, new_gain);
+	if (*new_gain < 0)
+		return -EINVAL;
+
+	if (ret) {
+		*new_gain = iio_find_closest_gain_low(gts, *new_gain, in_range);
+		if (*new_gain < 0) {
+			*new_gain = iio_gts_get_min_gain(gts);
+			if (*new_gain < 0)
+				return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(iio_gts_find_new_gain_by_gain_time_min, "IIO_GTS_HELPER");
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Matti Vaittinen <mazziesaccount@gmail.com>");
