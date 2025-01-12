@@ -480,6 +480,12 @@ mergers will sometimes manually convert an acker's "yep, looks good to me"
 into an Acked-by: (but note that it is usually better to ask for an
 explicit ack).
 
+Acked-by: is also less formal than Reviewed-by:.  For instance, maintainers may
+use it to signify that they are OK with a patch landing, but they may not have
+reviewed it as thoroughly as if a Reviewed-by: was provided.  Similarly, a key
+user may not have carried out a technical review of the patch, yet they may be
+satisfied with the general approach, the feature or the user-facing interface.
+
 Acked-by: does not necessarily indicate acknowledgement of the entire patch.
 For example, if a patch affects multiple subsystems and has an Acked-by: from
 one subsystem maintainer then this usually indicates acknowledgement of just
