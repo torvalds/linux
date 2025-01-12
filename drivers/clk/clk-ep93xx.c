@@ -586,9 +586,9 @@ static unsigned long calc_pll_rate(u64 rate, u32 config_word)
 
 static int ep93xx_plls_init(struct ep93xx_clk_priv *priv)
 {
-	const char fclk_divisors[] = { 1, 2, 4, 8, 16, 1, 1, 1 };
-	const char hclk_divisors[] = { 1, 2, 4, 5, 6, 8, 16, 32 };
-	const char pclk_divisors[] = { 1, 2, 4, 8 };
+	static const char fclk_divisors[] = { 1, 2, 4, 8, 16, 1, 1, 1 };
+	static const char hclk_divisors[] = { 1, 2, 4, 5, 6, 8, 16, 32 };
+	static const char pclk_divisors[] = { 1, 2, 4, 8 };
 	struct clk_parent_data xtali = { .index = 0 };
 	unsigned int clk_f_div, clk_h_div, clk_p_div;
 	unsigned long clk_pll1_rate, clk_pll2_rate;
