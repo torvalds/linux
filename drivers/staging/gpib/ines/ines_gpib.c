@@ -273,10 +273,10 @@ irqreturn_t ines_pci_interrupt(int irq, void *arg)
 	struct nec7210_priv *nec_priv = &priv->nec7210_priv;
 
 	if (priv->pci_chip_type == PCI_CHIP_QUANCOM) {
-		if ((inb((unsigned long)nec_priv->iobase +
+		if ((inb(nec_priv->iobase +
 			 QUANCOM_IRQ_CONTROL_STATUS_REG) &
 		     QUANCOM_IRQ_ASSERTED_BIT))
-			outb(QUANCOM_IRQ_ENABLE_BIT, (unsigned long)(nec_priv->iobase) +
+			outb(QUANCOM_IRQ_ENABLE_BIT, nec_priv->iobase +
 			     QUANCOM_IRQ_CONTROL_STATUS_REG);
 	}
 
@@ -780,8 +780,8 @@ static int ines_common_pci_attach(gpib_board_t *board, const gpib_board_config_t
 
 	if (pci_request_regions(ines_priv->pci_device, "ines-gpib"))
 		return -1;
-	nec_priv->iobase = (void *)(pci_resource_start(ines_priv->pci_device,
-						       found_id.gpib_region));
+	nec_priv->iobase = pci_resource_start(ines_priv->pci_device,
+					      found_id.gpib_region);
 
 	ines_priv->pci_chip_type = found_id.pci_chip_type;
 	nec_priv->offset = found_id.io_offset;
@@ -840,7 +840,7 @@ static int ines_common_pci_attach(gpib_board_t *board, const gpib_board_config_t
 	}
 	break;
 	case PCI_CHIP_QUANCOM:
-		outb(QUANCOM_IRQ_ENABLE_BIT, (unsigned long)(nec_priv->iobase) +
+		outb(QUANCOM_IRQ_ENABLE_BIT, nec_priv->iobase +
 		     QUANCOM_IRQ_CONTROL_STATUS_REG);
 		break;
 	case PCI_CHIP_QUICKLOGIC5030:
@@ -899,8 +899,8 @@ int ines_isa_attach(gpib_board_t *board, const gpib_board_config_t *config)
 	ines_priv = board->private_data;
 	nec_priv = &ines_priv->nec7210_priv;
 
-	if (!request_region((unsigned long)config->ibbase, ines_isa_iosize, "ines_gpib")) {
-		pr_err("ines_gpib: ioports at 0x%p already in use\n", config->ibbase);
+	if (!request_region(config->ibbase, ines_isa_iosize, "ines_gpib")) {
+		pr_err("ines_gpib: ioports at 0x%x already in use\n", config->ibbase);
 		return -1;
 	}
 	nec_priv->iobase = config->ibbase;
@@ -931,7 +931,7 @@ void ines_pci_detach(gpib_board_t *board)
 				break;
 			case PCI_CHIP_QUANCOM:
 				if (nec_priv->iobase)
-					outb(0, (unsigned long)(nec_priv->iobase) +
+					outb(0, nec_priv->iobase +
 					     QUANCOM_IRQ_CONTROL_STATUS_REG);
 				break;
 			default:
@@ -960,7 +960,7 @@ void ines_isa_detach(gpib_board_t *board)
 			free_irq(ines_priv->irq, board);
 		if (nec_priv->iobase) {
 			nec7210_board_reset(nec_priv, board);
-			release_region((unsigned long)(nec_priv->iobase), ines_isa_iosize);
+			release_region(nec_priv->iobase, ines_isa_iosize);
 		}
 	}
 	ines_free_private(board);
@@ -1355,7 +1355,7 @@ int ines_common_pcmcia_attach(gpib_board_t *board)
 		return -1;
 	}
 
-	nec_priv->iobase = (void *)(unsigned long)curr_dev->resource[0]->start;
+	nec_priv->iobase = curr_dev->resource[0]->start;
 
 	nec7210_board_reset(nec_priv, board);
 
@@ -1410,7 +1410,7 @@ void ines_pcmcia_detach(gpib_board_t *board)
 			free_irq(ines_priv->irq, board);
 		if (nec_priv->iobase) {
 			nec7210_board_reset(nec_priv, board);
-			release_region((unsigned long)(nec_priv->iobase), ines_pcmcia_iosize);
+			release_region(nec_priv->iobase, ines_pcmcia_iosize);
 		}
 	}
 	ines_free_private(board);
