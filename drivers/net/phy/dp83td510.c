@@ -717,7 +717,7 @@ static struct phy_driver dp83td510_driver[] = {
 } };
 module_phy_driver(dp83td510_driver);
 
-static struct mdio_device_id __maybe_unused dp83td510_tbl[] = {
+static const struct mdio_device_id __maybe_unused dp83td510_tbl[] = {
 	{ PHY_ID_MATCH_MODEL(DP83TD510E_PHY_ID) },
 	{ }
 };

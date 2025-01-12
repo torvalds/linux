@@ -522,7 +522,7 @@ static struct phy_driver dp83tg720_driver[] = {
 } };
 module_phy_driver(dp83tg720_driver);
 
-static struct mdio_device_id __maybe_unused dp83tg720_tbl[] = {
+static const struct mdio_device_id __maybe_unused dp83tg720_tbl[] = {
 	{ PHY_ID_MATCH_MODEL(DP83TG720S_PHY_ID) },
 	{ }
 };

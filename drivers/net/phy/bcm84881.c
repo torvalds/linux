@@ -262,7 +262,7 @@ static struct phy_driver bcm84881_drivers[] = {
 module_phy_driver(bcm84881_drivers);
 
 /* FIXME: module auto-loading for Clause 45 PHYs seems non-functional */
-static struct mdio_device_id __maybe_unused bcm84881_tbl[] = {
+static const struct mdio_device_id __maybe_unused bcm84881_tbl[] = {
 	{ 0xae025150, 0xfffffff0 },
 	{ },
 };

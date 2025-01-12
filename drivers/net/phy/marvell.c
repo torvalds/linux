@@ -4189,7 +4189,7 @@ static struct phy_driver marvell_drivers[] = {
 
 module_phy_driver(marvell_drivers);
 
-static struct mdio_device_id __maybe_unused marvell_tbl[] = {
+static const struct mdio_device_id __maybe_unused marvell_tbl[] = {
 	{ MARVELL_PHY_ID_88E1101, MARVELL_PHY_ID_MASK },
 	{ MARVELL_PHY_ID_88E3082, MARVELL_PHY_ID_MASK },
 	{ MARVELL_PHY_ID_88E1112, MARVELL_PHY_ID_MASK },

@@ -497,7 +497,7 @@ static struct phy_driver microchip_t1s_driver[] = {
 
 module_phy_driver(microchip_t1s_driver);
 
-static struct mdio_device_id __maybe_unused tbl[] = {
+static const struct mdio_device_id __maybe_unused tbl[] = {
 	{ PHY_ID_MATCH_EXACT(PHY_ID_LAN867X_REVB1) },
 	{ PHY_ID_MATCH_EXACT(PHY_ID_LAN867X_REVC1) },
 	{ PHY_ID_MATCH_EXACT(PHY_ID_LAN867X_REVC2) },
