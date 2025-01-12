@@ -13,6 +13,9 @@ struct file_operations;
 
 struct debugfs_inode_info {
 	struct inode vfs_inode;
+	union {
+		debugfs_automount_t automount;
+	};
 };
 
 static inline struct debugfs_inode_info *DEBUGFS_I(struct inode *inode)
@@ -29,17 +32,13 @@ extern const struct file_operations debugfs_full_short_proxy_file_operations;
 struct debugfs_fsdata {
 	const struct file_operations *real_fops;
 	const struct debugfs_short_fops *short_fops;
-	union {
-		/* automount_fn is used when real_fops is NULL */
-		debugfs_automount_t automount;
-		struct {
-			refcount_t active_users;
-			struct completion active_users_drained;
+	struct {
+		refcount_t active_users;
+		struct completion active_users_drained;
 
-			/* protect cancellations */
-			struct mutex cancellations_mtx;
-			struct list_head cancellations;
-		};
+		/* protect cancellations */
+		struct mutex cancellations_mtx;
+		struct list_head cancellations;
 	};
 };
 

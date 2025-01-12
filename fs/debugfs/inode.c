@@ -246,8 +246,8 @@ static void debugfs_release_dentry(struct dentry *dentry)
 	if ((unsigned long)fsd & DEBUGFS_FSDATA_IS_REAL_FOPS_BIT)
 		return;
 
-	/* check it wasn't a dir (no fsdata) or automount (no real_fops) */
-	if (fsd && (fsd->real_fops || fsd->short_fops)) {
+	/* check it wasn't a dir or automount (no fsdata) */
+	if (fsd) {
 		WARN_ON(!list_empty(&fsd->cancellations));
 		mutex_destroy(&fsd->cancellations_mtx);
 	}
@@ -257,9 +257,9 @@ static void debugfs_release_dentry(struct dentry *dentry)
 
 static struct vfsmount *debugfs_automount(struct path *path)
 {
-	struct debugfs_fsdata *fsd = path->dentry->d_fsdata;
+	struct inode *inode = path->dentry->d_inode;
 
-	return fsd->automount(path->dentry, d_inode(path->dentry)->i_private);
+	return DEBUGFS_I(inode)->automount(path->dentry, inode->i_private);
 }
 
 static const struct dentry_operations debugfs_dops = {
@@ -642,23 +642,13 @@ struct dentry *debugfs_create_automount(const char *name,
 					void *data)
 {
 	struct dentry *dentry = start_creating(name, parent);
-	struct debugfs_fsdata *fsd;
 	struct inode *inode;
 
 	if (IS_ERR(dentry))
 		return dentry;
 
-	fsd = kzalloc(sizeof(*fsd), GFP_KERNEL);
-	if (!fsd) {
-		failed_creating(dentry);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	fsd->automount = f;
-
 	if (!(debugfs_allow & DEBUGFS_ALLOW_API)) {
 		failed_creating(dentry);
-		kfree(fsd);
 		return ERR_PTR(-EPERM);
 	}
 
@@ -666,14 +656,13 @@ struct dentry *debugfs_create_automount(const char *name,
 	if (unlikely(!inode)) {
 		pr_err("out of free dentries, can not create automount '%s'\n",
 		       name);
-		kfree(fsd);
 		return failed_creating(dentry);
 	}
 
 	make_empty_dir_inode(inode);
 	inode->i_flags |= S_AUTOMOUNT;
 	inode->i_private = data;
-	dentry->d_fsdata = fsd;
+	DEBUGFS_I(inode)->automount = f;
 	/* directory inodes start off with i_nlink == 2 (for "." entry) */
 	inc_nlink(inode);
 	d_instantiate(dentry, inode);
