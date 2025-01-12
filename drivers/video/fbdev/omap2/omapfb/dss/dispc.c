@@ -3933,7 +3933,7 @@ static int dispc_bind(struct device *dev, struct device *master, void *data)
 		return -ENODEV;
 	}
 
-	if (np && of_property_read_bool(np, "syscon-pol")) {
+	if (np && of_property_present(np, "syscon-pol")) {
 		dispc.syscon_pol = syscon_regmap_lookup_by_phandle(np, "syscon-pol");
 		if (IS_ERR(dispc.syscon_pol)) {
 			dev_err(&pdev->dev, "failed to get syscon-pol regmap\n");
