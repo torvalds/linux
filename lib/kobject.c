@@ -1096,30 +1096,6 @@ void *kobj_ns_grab_current(enum kobj_ns_type type)
 }
 EXPORT_SYMBOL_GPL(kobj_ns_grab_current);
 
-const void *kobj_ns_netlink(enum kobj_ns_type type, struct sock *sk)
-{
-	const void *ns = NULL;
-
-	spin_lock(&kobj_ns_type_lock);
-	if (kobj_ns_type_is_valid(type) && kobj_ns_ops_tbl[type])
-		ns = kobj_ns_ops_tbl[type]->netlink_ns(sk);
-	spin_unlock(&kobj_ns_type_lock);
-
-	return ns;
-}
-
-const void *kobj_ns_initial(enum kobj_ns_type type)
-{
-	const void *ns = NULL;
-
-	spin_lock(&kobj_ns_type_lock);
-	if (kobj_ns_type_is_valid(type) && kobj_ns_ops_tbl[type])
-		ns = kobj_ns_ops_tbl[type]->initial_ns();
-	spin_unlock(&kobj_ns_type_lock);
-
-	return ns;
-}
-
 void kobj_ns_drop(enum kobj_ns_type type, void *ns)
 {
 	spin_lock(&kobj_ns_type_lock);

@@ -52,8 +52,6 @@ const struct kobj_ns_type_operations *kobj_ns_ops(const struct kobject *kobj);
 
 bool kobj_ns_current_may_mount(enum kobj_ns_type type);
 void *kobj_ns_grab_current(enum kobj_ns_type type);
-const void *kobj_ns_netlink(enum kobj_ns_type type, struct sock *sk);
-const void *kobj_ns_initial(enum kobj_ns_type type);
 void kobj_ns_drop(enum kobj_ns_type type, void *ns);
 
 #endif /* _LINUX_KOBJECT_NS_H */
