@@ -536,21 +536,3 @@ bool kdb_task_state(const struct task_struct *p, const char *mask)
 
 	return strchr(mask, state);
 }
-
-/* Maintain a small stack of kdb_flags to allow recursion without disturbing
- * the global kdb state.
- */
-
-static int kdb_flags_stack[4], kdb_flags_index;
-
-void kdb_save_flags(void)
-{
-	BUG_ON(kdb_flags_index >= ARRAY_SIZE(kdb_flags_stack));
-	kdb_flags_stack[kdb_flags_index++] = kdb_flags;
-}
-
-void kdb_restore_flags(void)
-{
-	BUG_ON(kdb_flags_index <= 0);
-	kdb_flags = kdb_flags_stack[--kdb_flags_index];
-}
