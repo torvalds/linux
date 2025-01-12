@@ -14,6 +14,9 @@ struct file_operations;
 struct debugfs_inode_info {
 	struct inode vfs_inode;
 	union {
+		const void *raw;
+		const struct file_operations *real_fops;
+		const struct debugfs_short_fops *short_fops;
 		debugfs_automount_t automount;
 	};
 };
@@ -51,15 +54,6 @@ enum {
 	HAS_IOCTL = 16
 };
 
-/*
- * A dentry's ->d_fsdata either points to the real fops or to a
- * dynamically allocated debugfs_fsdata instance.
- * In order to distinguish between these two cases, a real fops
- * pointer gets its lowest bit set.
- */
-#define DEBUGFS_FSDATA_IS_REAL_FOPS_BIT BIT(0)
-
-/* Access BITS */
 #define DEBUGFS_ALLOW_API	BIT(0)
 #define DEBUGFS_ALLOW_MOUNT	BIT(1)
 

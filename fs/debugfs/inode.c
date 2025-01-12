@@ -243,15 +243,10 @@ static void debugfs_release_dentry(struct dentry *dentry)
 {
 	struct debugfs_fsdata *fsd = dentry->d_fsdata;
 
-	if ((unsigned long)fsd & DEBUGFS_FSDATA_IS_REAL_FOPS_BIT)
-		return;
-
-	/* check it wasn't a dir or automount (no fsdata) */
 	if (fsd) {
 		WARN_ON(!list_empty(&fsd->cancellations));
 		mutex_destroy(&fsd->cancellations_mtx);
 	}
-
 	kfree(fsd);
 }
 
@@ -459,9 +454,10 @@ static struct dentry *__debugfs_create_file(const char *name, umode_t mode,
 	inode->i_private = data;
 
 	inode->i_op = &debugfs_file_inode_operations;
+	if (!real_fops)
+		proxy_fops = &debugfs_noop_file_operations;
 	inode->i_fop = proxy_fops;
-	dentry->d_fsdata = (void *)((unsigned long)real_fops |
-				DEBUGFS_FSDATA_IS_REAL_FOPS_BIT);
+	DEBUGFS_I(inode)->raw = real_fops;
 
 	d_instantiate(dentry, inode);
 	fsnotify_create(d_inode(dentry->d_parent), dentry);
@@ -472,13 +468,8 @@ struct dentry *debugfs_create_file_full(const char *name, umode_t mode,
 					struct dentry *parent, void *data,
 					const struct file_operations *fops)
 {
-	if (WARN_ON((unsigned long)fops &
-		    DEBUGFS_FSDATA_IS_REAL_FOPS_BIT))
-		return ERR_PTR(-EINVAL);
-
 	return __debugfs_create_file(name, mode, parent, data,
-				fops ? &debugfs_full_proxy_file_operations :
-					&debugfs_noop_file_operations,
+				&debugfs_full_proxy_file_operations,
 				fops);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_file_full);
@@ -487,13 +478,8 @@ struct dentry *debugfs_create_file_short(const char *name, umode_t mode,
 					 struct dentry *parent, void *data,
 					 const struct debugfs_short_fops *fops)
 {
-	if (WARN_ON((unsigned long)fops &
-		    DEBUGFS_FSDATA_IS_REAL_FOPS_BIT))
-		return ERR_PTR(-EINVAL);
-
 	return __debugfs_create_file(name, mode, parent, data,
-				fops ? &debugfs_full_short_proxy_file_operations :
-					&debugfs_noop_file_operations,
+				&debugfs_full_short_proxy_file_operations,
 				fops);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_file_short);
@@ -531,8 +517,7 @@ struct dentry *debugfs_create_file_unsafe(const char *name, umode_t mode,
 {
 
 	return __debugfs_create_file(name, mode, parent, data,
-				fops ? &debugfs_open_proxy_file_operations :
-					&debugfs_noop_file_operations,
+				&debugfs_open_proxy_file_operations,
 				fops);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_file_unsafe);
@@ -737,7 +722,7 @@ static void __debugfs_file_removed(struct dentry *dentry)
 	 */
 	smp_mb();
 	fsd = READ_ONCE(dentry->d_fsdata);
-	if ((unsigned long)fsd & DEBUGFS_FSDATA_IS_REAL_FOPS_BIT)
+	if (!fsd)
 		return;
 
 	/* if this was the last reference, we're done */
