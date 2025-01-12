@@ -184,29 +184,30 @@ static inline bool vcpu_is_el2(const struct kvm_vcpu *vcpu)
 	return vcpu_is_el2_ctxt(&vcpu->arch.ctxt);
 }
 
-static inline bool __vcpu_el2_e2h_is_set(const struct kvm_cpu_context *ctxt)
-{
-	return (!cpus_have_final_cap(ARM64_HAS_HCR_NV1) ||
-		(ctxt_sys_reg(ctxt, HCR_EL2) & HCR_E2H));
-}
-
 static inline bool vcpu_el2_e2h_is_set(const struct kvm_vcpu *vcpu)
 {
-	return __vcpu_el2_e2h_is_set(&vcpu->arch.ctxt);
-}
-
-static inline bool __vcpu_el2_tge_is_set(const struct kvm_cpu_context *ctxt)
-{
-	return ctxt_sys_reg(ctxt, HCR_EL2) & HCR_TGE;
+	return (!cpus_have_final_cap(ARM64_HAS_HCR_NV1) ||
+		(__vcpu_sys_reg(vcpu, HCR_EL2) & HCR_E2H));
 }
 
 static inline bool vcpu_el2_tge_is_set(const struct kvm_vcpu *vcpu)
 {
-	return __vcpu_el2_tge_is_set(&vcpu->arch.ctxt);
+	return ctxt_sys_reg(&vcpu->arch.ctxt, HCR_EL2) & HCR_TGE;
 }
 
-static inline bool __is_hyp_ctxt(const struct kvm_cpu_context *ctxt)
+static inline bool is_hyp_ctxt(const struct kvm_vcpu *vcpu)
 {
+	bool e2h, tge;
+	u64 hcr;
+
+	if (!vcpu_has_nv(vcpu))
+		return false;
+
+	hcr = __vcpu_sys_reg(vcpu, HCR_EL2);
+
+	e2h = (hcr & HCR_E2H);
+	tge = (hcr & HCR_TGE);
+
 	/*
 	 * We are in a hypervisor context if the vcpu mode is EL2 or
 	 * E2H and TGE bits are set. The latter means we are in the user space
@@ -215,14 +216,7 @@ static inline bool __is_hyp_ctxt(const struct kvm_cpu_context *ctxt)
 	 * Note that the HCR_EL2.{E2H,TGE}={0,1} isn't really handled in the
 	 * rest of the KVM code, and will result in a misbehaving guest.
 	 */
-	return vcpu_is_el2_ctxt(ctxt) ||
-		(__vcpu_el2_e2h_is_set(ctxt) && __vcpu_el2_tge_is_set(ctxt)) ||
-		__vcpu_el2_tge_is_set(ctxt);
-}
-
-static inline bool is_hyp_ctxt(const struct kvm_vcpu *vcpu)
-{
-	return vcpu_has_nv(vcpu) && __is_hyp_ctxt(&vcpu->arch.ctxt);
+	return vcpu_is_el2(vcpu) || (e2h && tge) || tge;
 }
 
 static inline bool vcpu_is_host_el0(const struct kvm_vcpu *vcpu)
