@@ -39,7 +39,16 @@ struct debugfs_fsdata {
 		/* protect cancellations */
 		struct mutex cancellations_mtx;
 		struct list_head cancellations;
+		unsigned int methods;
 	};
+};
+
+enum {
+	HAS_READ = 1,
+	HAS_WRITE = 2,
+	HAS_LSEEK = 4,
+	HAS_POLL = 8,
+	HAS_IOCTL = 16
 };
 
 /*

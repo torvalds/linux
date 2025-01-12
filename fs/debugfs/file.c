@@ -95,13 +95,31 @@ static int __debugfs_file_get(struct dentry *dentry, enum dbgfs_get_mode mode)
 			return -ENOMEM;
 
 		if (mode == DBGFS_GET_SHORT) {
-			fsd->real_fops = NULL;
-			fsd->short_fops = (void *)((unsigned long)d_fsd &
-						~DEBUGFS_FSDATA_IS_REAL_FOPS_BIT);
+			const struct debugfs_short_fops *ops;
+			ops = (void *)((unsigned long)d_fsd &
+					~DEBUGFS_FSDATA_IS_REAL_FOPS_BIT);
+			fsd->short_fops = ops;
+			if (ops->llseek)
+				fsd->methods |= HAS_LSEEK;
+			if (ops->read)
+				fsd->methods |= HAS_READ;
+			if (ops->write)
+				fsd->methods |= HAS_WRITE;
 		} else {
-			fsd->real_fops = (void *)((unsigned long)d_fsd &
-						~DEBUGFS_FSDATA_IS_REAL_FOPS_BIT);
-			fsd->short_fops = NULL;
+			const struct file_operations *ops;
+			ops = (void *)((unsigned long)d_fsd &
+					~DEBUGFS_FSDATA_IS_REAL_FOPS_BIT);
+			fsd->real_fops = ops;
+			if (ops->llseek)
+				fsd->methods |= HAS_LSEEK;
+			if (ops->read)
+				fsd->methods |= HAS_READ;
+			if (ops->write)
+				fsd->methods |= HAS_WRITE;
+			if (ops->unlocked_ioctl)
+				fsd->methods |= HAS_IOCTL;
+			if (ops->poll)
+				fsd->methods |= HAS_POLL;
 		}
 		refcount_set(&fsd->active_users, 1);
 		init_completion(&fsd->active_users_drained);
@@ -322,13 +340,16 @@ const struct file_operations debugfs_open_proxy_file_operations = {
 #define PROTO(args...) args
 #define ARGS(args...) args
 
-#define FULL_PROXY_FUNC(name, ret_type, filp, proto, args)		\
+#define FULL_PROXY_FUNC(name, ret_type, filp, proto, args, bit, ret)	\
 static ret_type full_proxy_ ## name(proto)				\
 {									\
-	struct dentry *dentry = F_DENTRY(filp);			\
+	struct dentry *dentry = F_DENTRY(filp);				\
+	struct debugfs_fsdata *fsd = dentry->d_fsdata;			\
 	const struct file_operations *real_fops;			\
 	ret_type r;							\
 									\
+	if (!(fsd->methods & bit))					\
+		return ret;						\
 	r = debugfs_file_get(dentry);					\
 	if (unlikely(r))						\
 		return r;						\
@@ -338,17 +359,18 @@ static ret_type full_proxy_ ## name(proto)				\
 	return r;							\
 }
 
-#define FULL_PROXY_FUNC_BOTH(name, ret_type, filp, proto, args)		\
+#define FULL_PROXY_FUNC_BOTH(name, ret_type, filp, proto, args, bit, ret)	\
 static ret_type full_proxy_ ## name(proto)				\
 {									\
 	struct dentry *dentry = F_DENTRY(filp);				\
-	struct debugfs_fsdata *fsd;					\
+	struct debugfs_fsdata *fsd = dentry->d_fsdata;			\
 	ret_type r;							\
 									\
+	if (!(fsd->methods & bit))					\
+		return ret;						\
 	r = debugfs_file_get(dentry);					\
 	if (unlikely(r))						\
 		return r;						\
-	fsd = dentry->d_fsdata;						\
 	if (fsd->real_fops)						\
 		r = fsd->real_fops->name(args);				\
 	else								\
@@ -359,29 +381,32 @@ static ret_type full_proxy_ ## name(proto)				\
 
 FULL_PROXY_FUNC_BOTH(llseek, loff_t, filp,
 		     PROTO(struct file *filp, loff_t offset, int whence),
-		     ARGS(filp, offset, whence));
+		     ARGS(filp, offset, whence), HAS_LSEEK, -ESPIPE);
 
 FULL_PROXY_FUNC_BOTH(read, ssize_t, filp,
 		     PROTO(struct file *filp, char __user *buf, size_t size,
 			   loff_t *ppos),
-		     ARGS(filp, buf, size, ppos));
+		     ARGS(filp, buf, size, ppos), HAS_READ, -EINVAL);
 
 FULL_PROXY_FUNC_BOTH(write, ssize_t, filp,
 		     PROTO(struct file *filp, const char __user *buf,
 			   size_t size, loff_t *ppos),
-		     ARGS(filp, buf, size, ppos));
+		     ARGS(filp, buf, size, ppos), HAS_WRITE, -EINVAL);
 
 FULL_PROXY_FUNC(unlocked_ioctl, long, filp,
 		PROTO(struct file *filp, unsigned int cmd, unsigned long arg),
-		ARGS(filp, cmd, arg));
+		ARGS(filp, cmd, arg), HAS_IOCTL, -ENOTTY);
 
 static __poll_t full_proxy_poll(struct file *filp,
 				struct poll_table_struct *wait)
 {
 	struct dentry *dentry = F_DENTRY(filp);
+	struct debugfs_fsdata *fsd = dentry->d_fsdata;
 	__poll_t r = 0;
 	const struct file_operations *real_fops;
 
+	if (!(fsd->methods & HAS_POLL))
+		return DEFAULT_POLLMASK;
 	if (debugfs_file_get(dentry))
 		return EPOLLHUP;
 
@@ -393,9 +418,7 @@ static __poll_t full_proxy_poll(struct file *filp,
 
 static int full_proxy_release(struct inode *inode, struct file *filp)
 {
-	const struct dentry *dentry = F_DENTRY(filp);
 	const struct file_operations *real_fops = debugfs_real_fops(filp);
-	const struct file_operations *proxy_fops = filp->f_op;
 	int r = 0;
 
 	/*
@@ -407,34 +430,8 @@ static int full_proxy_release(struct inode *inode, struct file *filp)
 	if (real_fops && real_fops->release)
 		r = real_fops->release(inode, filp);
 
-	replace_fops(filp, d_inode(dentry)->i_fop);
-	kfree(proxy_fops);
 	fops_put(real_fops);
 	return r;
-}
-
-static void __full_proxy_fops_init(struct file_operations *proxy_fops,
-				   struct debugfs_fsdata *fsd)
-{
-	proxy_fops->release = full_proxy_release;
-
-	if ((fsd->real_fops && fsd->real_fops->llseek) ||
-	    (fsd->short_fops && fsd->short_fops->llseek))
-		proxy_fops->llseek = full_proxy_llseek;
-
-	if ((fsd->real_fops && fsd->real_fops->read) ||
-	    (fsd->short_fops && fsd->short_fops->read))
-		proxy_fops->read = full_proxy_read;
-
-	if ((fsd->real_fops && fsd->real_fops->write) ||
-	    (fsd->short_fops && fsd->short_fops->write))
-		proxy_fops->write = full_proxy_write;
-
-	if (fsd->real_fops && fsd->real_fops->poll)
-		proxy_fops->poll = full_proxy_poll;
-
-	if (fsd->real_fops && fsd->real_fops->unlocked_ioctl)
-		proxy_fops->unlocked_ioctl = full_proxy_unlocked_ioctl;
 }
 
 static int full_proxy_open(struct inode *inode, struct file *filp,
@@ -442,7 +439,6 @@ static int full_proxy_open(struct inode *inode, struct file *filp,
 {
 	struct dentry *dentry = F_DENTRY(filp);
 	const struct file_operations *real_fops;
-	struct file_operations *proxy_fops = NULL;
 	struct debugfs_fsdata *fsd;
 	int r;
 
@@ -472,34 +468,20 @@ static int full_proxy_open(struct inode *inode, struct file *filp,
 		goto out;
 	}
 
-	proxy_fops = kzalloc(sizeof(*proxy_fops), GFP_KERNEL);
-	if (!proxy_fops) {
-		r = -ENOMEM;
-		goto free_proxy;
-	}
-	__full_proxy_fops_init(proxy_fops, fsd);
-	replace_fops(filp, proxy_fops);
-
 	if (!real_fops || real_fops->open) {
 		if (real_fops)
 			r = real_fops->open(inode, filp);
 		else
 			r = simple_open(inode, filp);
 		if (r) {
-			replace_fops(filp, d_inode(dentry)->i_fop);
-			goto free_proxy;
-		} else if (filp->f_op != proxy_fops) {
+			fops_put(real_fops);
+		} else if (filp->f_op != &debugfs_full_proxy_file_operations) {
 			/* No protection against file removal anymore. */
 			WARN(1, "debugfs file owner replaced proxy fops: %pd",
 				dentry);
-			goto free_proxy;
+			fops_put(real_fops);
 		}
 	}
-
-	goto out;
-free_proxy:
-	kfree(proxy_fops);
-	fops_put(real_fops);
 out:
 	debugfs_file_put(dentry);
 	return r;
@@ -512,6 +494,12 @@ static int full_proxy_open_regular(struct inode *inode, struct file *filp)
 
 const struct file_operations debugfs_full_proxy_file_operations = {
 	.open = full_proxy_open_regular,
+	.release = full_proxy_release,
+	.llseek = full_proxy_llseek,
+	.read = full_proxy_read,
+	.write = full_proxy_write,
+	.poll = full_proxy_poll,
+	.unlocked_ioctl = full_proxy_unlocked_ioctl
 };
 
 static int full_proxy_open_short(struct inode *inode, struct file *filp)
@@ -521,6 +509,9 @@ static int full_proxy_open_short(struct inode *inode, struct file *filp)
 
 const struct file_operations debugfs_full_short_proxy_file_operations = {
 	.open = full_proxy_open_short,
+	.llseek = full_proxy_llseek,
+	.read = full_proxy_read,
+	.write = full_proxy_write,
 };
 
 ssize_t debugfs_attr_read(struct file *file, char __user *buf,
