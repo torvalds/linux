@@ -138,60 +138,6 @@ out:
 	return ret;
 }
 
-/**
- * krb5_decrypt - simple decryption of an RPCSEC GSS payload
- * @tfm: initialized cipher transform
- * @iv: pointer to an IV
- * @in: ciphertext to decrypt
- * @out: OUT: plaintext
- * @length: length of input and output buffers, in bytes
- *
- * @iv may be NULL to force the use of an all-zero IV.
- * The buffer containing the IV must be as large as the
- * cipher's ivsize.
- *
- * Return values:
- *   %0: @in successfully decrypted into @out
- *   negative errno: @in not decrypted
- */
-u32
-krb5_decrypt(
-     struct crypto_sync_skcipher *tfm,
-     void * iv,
-     void * in,
-     void * out,
-     int length)
-{
-	u32 ret = -EINVAL;
-	struct scatterlist sg[1];
-	u8 local_iv[GSS_KRB5_MAX_BLOCKSIZE] = {0};
-	SYNC_SKCIPHER_REQUEST_ON_STACK(req, tfm);
-
-	if (length % crypto_sync_skcipher_blocksize(tfm) != 0)
-		goto out;
-
-	if (crypto_sync_skcipher_ivsize(tfm) > GSS_KRB5_MAX_BLOCKSIZE) {
-		dprintk("RPC:       gss_k5decrypt: tfm iv size too large %d\n",
-			crypto_sync_skcipher_ivsize(tfm));
-		goto out;
-	}
-	if (iv)
-		memcpy(local_iv, iv, crypto_sync_skcipher_ivsize(tfm));
-
-	memcpy(out, in, length);
-	sg_init_one(sg, out, length);
-
-	skcipher_request_set_sync_tfm(req, tfm);
-	skcipher_request_set_callback(req, 0, NULL, NULL);
-	skcipher_request_set_crypt(req, sg, sg, length, local_iv);
-
-	ret = crypto_skcipher_decrypt(req);
-	skcipher_request_zero(req);
-out:
-	dprintk("RPC:       gss_k5decrypt returns %d\n",ret);
-	return ret;
-}
-
 static int
 checksummer(struct scatterlist *sg, void *data)
 {

@@ -166,9 +166,6 @@ u32 gss_krb5_checksum(struct crypto_ahash *tfm, char *header, int hdrlen,
 u32 krb5_encrypt(struct crypto_sync_skcipher *key, void *iv, void *in,
 		 void *out, int length);
 
-u32 krb5_decrypt(struct crypto_sync_skcipher *key, void *iv, void *in,
-		 void *out, int length);
-
 int xdr_extend_head(struct xdr_buf *buf, unsigned int base,
 		    unsigned int shiftlen);
 
