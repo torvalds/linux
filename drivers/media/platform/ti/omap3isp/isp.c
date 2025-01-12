@@ -2279,17 +2279,13 @@ static int isp_probe(struct platform_device *pdev)
 	if (ret)
 		goto error_release_isp;
 
-	isp->syscon = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
-						      "syscon");
+	isp->syscon = syscon_regmap_lookup_by_phandle_args(pdev->dev.of_node,
+							   "syscon", 1,
+							   &isp->syscon_offset);
 	if (IS_ERR(isp->syscon)) {
 		ret = PTR_ERR(isp->syscon);
 		goto error_release_isp;
 	}
-
-	ret = of_property_read_u32_index(pdev->dev.of_node,
-					 "syscon", 1, &isp->syscon_offset);
-	if (ret)
-		goto error_release_isp;
 
 	isp->autoidle = autoidle;
 
