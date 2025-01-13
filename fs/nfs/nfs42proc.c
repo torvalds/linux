@@ -175,6 +175,20 @@ int nfs42_proc_deallocate(struct file *filep, loff_t offset, loff_t len)
 	return err;
 }
 
+static void nfs4_copy_dequeue_callback(struct nfs_server *dst_server,
+				       struct nfs_server *src_server,
+				       struct nfs4_copy_state *copy)
+{
+	spin_lock(&dst_server->nfs_client->cl_lock);
+	list_del_init(&copy->copies);
+	spin_unlock(&dst_server->nfs_client->cl_lock);
+	if (dst_server != src_server) {
+		spin_lock(&src_server->nfs_client->cl_lock);
+		list_del_init(&copy->src_copies);
+		spin_unlock(&src_server->nfs_client->cl_lock);
+	}
+}
+
 static int handle_async_copy(struct nfs42_copy_res *res,
 			     struct nfs_server *dst_server,
 			     struct nfs_server *src_server,
@@ -184,9 +198,12 @@ static int handle_async_copy(struct nfs42_copy_res *res,
 			     bool *restart)
 {
 	struct nfs4_copy_state *copy, *tmp_copy = NULL, *iter;
-	int status = NFS4_OK;
 	struct nfs_open_context *dst_ctx = nfs_file_open_context(dst);
 	struct nfs_open_context *src_ctx = nfs_file_open_context(src);
+	struct nfs_client *clp = dst_server->nfs_client;
+	unsigned long timeout = 3 * HZ;
+	int status = NFS4_OK;
+	u64 copied;
 
 	copy = kzalloc(sizeof(struct nfs4_copy_state), GFP_KERNEL);
 	if (!copy)
@@ -224,15 +241,12 @@ static int handle_async_copy(struct nfs42_copy_res *res,
 		spin_unlock(&src_server->nfs_client->cl_lock);
 	}
 
-	status = wait_for_completion_interruptible(&copy->completion);
-	spin_lock(&dst_server->nfs_client->cl_lock);
-	list_del_init(&copy->copies);
-	spin_unlock(&dst_server->nfs_client->cl_lock);
-	if (dst_server != src_server) {
-		spin_lock(&src_server->nfs_client->cl_lock);
-		list_del_init(&copy->src_copies);
-		spin_unlock(&src_server->nfs_client->cl_lock);
-	}
+wait:
+	status = wait_for_completion_interruptible_timeout(&copy->completion,
+							   timeout);
+	if (!status)
+		goto timeout;
+	nfs4_copy_dequeue_callback(dst_server, src_server, copy);
 	if (status == -ERESTARTSYS) {
 		goto out_cancel;
 	} else if (copy->flags || copy->error == NFS4ERR_PARTNER_NO_AUTH) {
@@ -242,6 +256,7 @@ static int handle_async_copy(struct nfs42_copy_res *res,
 	}
 out:
 	res->write_res.count = copy->count;
+	/* Copy out the updated write verifier provided by CB_OFFLOAD. */
 	memcpy(&res->write_res.verifier, &copy->verf, sizeof(copy->verf));
 	status = -copy->error;
 
@@ -252,6 +267,39 @@ out_cancel:
 	nfs42_do_offload_cancel_async(dst, &copy->stateid);
 	if (!nfs42_files_from_same_server(src, dst))
 		nfs42_do_offload_cancel_async(src, src_stateid);
+	goto out_free;
+timeout:
+	timeout <<= 1;
+	if (timeout > (clp->cl_lease_time >> 1))
+		timeout = clp->cl_lease_time >> 1;
+	status = nfs42_proc_offload_status(dst, &copy->stateid, &copied);
+	if (status == -EINPROGRESS)
+		goto wait;
+	nfs4_copy_dequeue_callback(dst_server, src_server, copy);
+	switch (status) {
+	case 0:
+		/* The server recognized the copy stateid, so it hasn't
+		 * rebooted. Don't overwrite the verifier returned in the
+		 * COPY result. */
+		res->write_res.count = copied;
+		goto out_free;
+	case -EREMOTEIO:
+		/* COPY operation failed on the server. */
+		status = -EOPNOTSUPP;
+		res->write_res.count = copied;
+		goto out_free;
+	case -EBADF:
+		/* Server did not recognize the copy stateid. It has
+		 * probably restarted and lost the plot. */
+		res->write_res.count = 0;
+		status = -EOPNOTSUPP;
+		break;
+	case -EOPNOTSUPP:
+		/* RFC 7862 REQUIREs server to support OFFLOAD_STATUS when
+		 * it has signed up for an async COPY, so server is not
+		 * spec-compliant. */
+		res->write_res.count = 0;
+	}
 	goto out_free;
 }
 
@@ -643,7 +691,7 @@ _nfs42_proc_offload_status(struct nfs_server *server, struct file *file,
  * Other negative errnos indicate the client could not complete the
  * request.
  */
-static int __maybe_unused
+static int
 nfs42_proc_offload_status(struct file *dst, nfs4_stateid *stateid, u64 *copied)
 {
 	struct inode *inode = file_inode(dst);
