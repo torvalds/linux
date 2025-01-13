@@ -12,6 +12,7 @@
 #ifndef MODUTILS_GENKSYMS_H
 #define MODUTILS_GENKSYMS_H 1
 
+#include <stdbool.h>
 #include <stdio.h>
 
 #include <list_types.h>
@@ -65,6 +66,8 @@ struct string_list *copy_list_range(struct string_list *start,
 
 int yylex(void);
 int yyparse(void);
+
+extern bool dont_want_type_specifier;
 
 void error_with_pos(const char *, ...) __attribute__ ((format(printf, 1, 2)));
 

@@ -12,6 +12,7 @@
 %{
 
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include "genksyms.h"
@@ -148,6 +149,7 @@ simple_declaration:
 		    current_name = NULL;
 		  }
 		  $$ = $3;
+		  dont_want_type_specifier = false;
 		}
 	;
 
@@ -169,6 +171,7 @@ init_declarator_list:
 			     is_typedef ? SYM_TYPEDEF : SYM_NORMAL, decl, is_extern);
 		  current_name = NULL;
 		  $$ = $1;
+		  dont_want_type_specifier = true;
 		}
 	| init_declarator_list ',' init_declarator
 		{ struct string_list *decl = *$3;
@@ -184,6 +187,7 @@ init_declarator_list:
 			     is_typedef ? SYM_TYPEDEF : SYM_NORMAL, decl, is_extern);
 		  current_name = NULL;
 		  $$ = $3;
+		  dont_want_type_specifier = true;
 		}
 	;
 
@@ -210,7 +214,7 @@ decl_specifier:
 		  remove_node($1);
 		  $$ = $1;
 		}
-	| type_specifier
+	| type_specifier	{ dont_want_type_specifier = true; $$ = $1; }
 	| type_qualifier
 	;
 
@@ -307,15 +311,7 @@ direct_declarator:
 		    current_name = (*$1)->string;
 		    $$ = $1;
 		  }
-		}
-	| TYPE
-		{ if (current_name != NULL) {
-		    error_with_pos("unexpected second declaration name");
-		    YYERROR;
-		  } else {
-		    current_name = (*$1)->string;
-		    $$ = $1;
-		  }
+		  dont_want_type_specifier = false;
 		}
 	| direct_declarator '(' parameter_declaration_clause ')'
 		{ $$ = $4; }
@@ -335,8 +331,7 @@ nested_declarator:
 	;
 
 direct_nested_declarator:
-	IDENT
-	| TYPE
+	IDENT	{ $$ = $1; dont_want_type_specifier = false; }
 	| direct_nested_declarator '(' parameter_declaration_clause ')'
 		{ $$ = $4; }
 	| direct_nested_declarator '(' error ')'
@@ -362,8 +357,9 @@ parameter_declaration_list_opt:
 
 parameter_declaration_list:
 	parameter_declaration
+		{ $$ = $1; dont_want_type_specifier = false; }
 	| parameter_declaration_list ',' parameter_declaration
-		{ $$ = $3; }
+		{ $$ = $3; dont_want_type_specifier = false; }
 	;
 
 parameter_declaration:
@@ -375,6 +371,7 @@ abstract_declarator:
 	ptr_operator abstract_declarator
 		{ $$ = $2 ? $2 : $1; }
 	| direct_abstract_declarator
+		{ $$ = $1; dont_want_type_specifier = false; }
 	;
 
 direct_abstract_declarator:
@@ -383,12 +380,6 @@ direct_abstract_declarator:
 		{ /* For version 2 checksums, we don't want to remember
 		     private parameter names.  */
 		  remove_node($1);
-		  $$ = $1;
-		}
-	/* This wasn't really a typedef name but an identifier that
-	   shadows one.  */
-	| TYPE
-		{ remove_node($1);
 		  $$ = $1;
 		}
 	| direct_abstract_declarator '(' parameter_declaration_clause ')'
@@ -440,9 +431,9 @@ member_specification:
 
 member_declaration:
 	decl_specifier_seq_opt member_declarator_list_opt ';'
-		{ $$ = $3; }
+		{ $$ = $3; dont_want_type_specifier = false; }
 	| error ';'
-		{ $$ = $2; }
+		{ $$ = $2; dont_want_type_specifier = false; }
 	;
 
 member_declarator_list_opt:
@@ -452,7 +443,9 @@ member_declarator_list_opt:
 
 member_declarator_list:
 	member_declarator
-	| member_declarator_list ',' member_declarator	{ $$ = $3; }
+		{ $$ = $1; dont_want_type_specifier = true; }
+	| member_declarator_list ',' member_declarator
+		{ $$ = $3; dont_want_type_specifier = true; }
 	;
 
 member_declarator:
