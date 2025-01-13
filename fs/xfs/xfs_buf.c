@@ -203,9 +203,6 @@ xfs_buf_get_maps(
 	return 0;
 }
 
-/*
- *	Frees b_pages if it was allocated.
- */
 static void
 xfs_buf_free_maps(
 	struct xfs_buf	*bp)
