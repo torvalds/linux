@@ -256,10 +256,19 @@ struct swap_cluster_info {
 	u8 order;
 	struct list_head list;
 };
-#define CLUSTER_FLAG_FREE 1 /* This cluster is free */
-#define CLUSTER_FLAG_NONFULL 2 /* This cluster is on nonfull list */
-#define CLUSTER_FLAG_FRAG 4 /* This cluster is on nonfull list */
-#define CLUSTER_FLAG_FULL 8 /* This cluster is on full list */
+
+/* All on-list cluster must have a non-zero flag. */
+enum swap_cluster_flags {
+	CLUSTER_FLAG_NONE = 0, /* For temporary off-list cluster */
+	CLUSTER_FLAG_FREE,
+	CLUSTER_FLAG_NONFULL,
+	CLUSTER_FLAG_FRAG,
+	/* Clusters with flags above are allocatable */
+	CLUSTER_FLAG_USABLE = CLUSTER_FLAG_FRAG,
+	CLUSTER_FLAG_FULL,
+	CLUSTER_FLAG_DISCARD,
+	CLUSTER_FLAG_MAX,
+};
 
 /*
  * The first page in the swap file is the swap header, which is always marked
