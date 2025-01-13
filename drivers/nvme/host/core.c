@@ -3182,7 +3182,7 @@ static int nvme_init_effects_log(struct nvme_ctrl *ctrl,
 	struct nvme_effects_log *effects, *old;
 
 	effects = kzalloc(sizeof(*effects), GFP_KERNEL);
-	if (effects)
+	if (!effects)
 		return -ENOMEM;
 
 	old = xa_store(&ctrl->cels, csi, effects, GFP_KERNEL);
