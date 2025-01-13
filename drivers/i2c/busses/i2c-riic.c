@@ -464,11 +464,13 @@ static int riic_i2c_probe(struct platform_device *pdev)
 		return ret;
 
 	for (i = 0; i < ARRAY_SIZE(riic_irqs); i++) {
-		ret = platform_get_irq(pdev, riic_irqs[i].res_num);
-		if (ret < 0)
-			return ret;
+		int irq;
 
-		ret = devm_request_irq(dev, ret, riic_irqs[i].isr,
+		irq = platform_get_irq(pdev, riic_irqs[i].res_num);
+		if (irq < 0)
+			return irq;
+
+		ret = devm_request_irq(dev, irq, riic_irqs[i].isr,
 				       0, riic_irqs[i].name, riic);
 		if (ret) {
 			dev_err(dev, "failed to request irq %s\n", riic_irqs[i].name);
