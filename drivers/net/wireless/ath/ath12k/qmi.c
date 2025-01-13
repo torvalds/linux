@@ -2745,6 +2745,10 @@ int ath12k_qmi_request_target_cap(struct ath12k_base *ab)
 		/* ACPI is optional so continue in case of an error */
 		ath12k_dbg(ab, ATH12K_DBG_BOOT, "acpi failed: %d\n", r);
 
+	r = ath12k_acpi_check_bdf_variant_name(ab);
+	if (r)
+		ath12k_dbg(ab, ATH12K_DBG_BOOT, "ACPI bdf variant name not set.\n");
+
 out:
 	return ret;
 }
