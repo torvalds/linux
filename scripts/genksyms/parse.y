@@ -223,7 +223,7 @@ storage_class_specifier:
 
 type_specifier:
 	simple_type_specifier
-	| cvar_qualifier
+	| type_qualifier
 	| TYPEOF_KEYW '(' parameter_declaration ')'
 	| TYPEOF_PHRASE
 
@@ -270,21 +270,21 @@ simple_type_specifier:
 	;
 
 ptr_operator:
-	'*' cvar_qualifier_seq_opt
+	'*' type_qualifier_seq_opt
 		{ $$ = $2 ? $2 : $1; }
 	;
 
-cvar_qualifier_seq_opt:
+type_qualifier_seq_opt:
 	/* empty */					{ $$ = NULL; }
-	| cvar_qualifier_seq
+	| type_qualifier_seq
 	;
 
-cvar_qualifier_seq:
-	cvar_qualifier
-	| cvar_qualifier_seq cvar_qualifier		{ $$ = $2; }
+type_qualifier_seq:
+	type_qualifier
+	| type_qualifier_seq type_qualifier		{ $$ = $2; }
 	;
 
-cvar_qualifier:
+type_qualifier:
 	CONST_KEYW | VOLATILE_KEYW | ATTRIBUTE_PHRASE
 	| RESTRICT_KEYW
 		{ /* restrict has no effect in prototypes so ignore it */
