@@ -399,8 +399,7 @@ SYSCALL_DEFINE4(landlock_add_rule, const int, ruleset_fd,
 		const enum landlock_rule_type, rule_type,
 		const void __user *const, rule_attr, const __u32, flags)
 {
-	struct landlock_ruleset *ruleset;
-	int err;
+	struct landlock_ruleset *ruleset __free(landlock_put_ruleset) = NULL;
 
 	if (!is_initialized())
 		return -EOPNOTSUPP;
@@ -416,17 +415,12 @@ SYSCALL_DEFINE4(landlock_add_rule, const int, ruleset_fd,
 
 	switch (rule_type) {
 	case LANDLOCK_RULE_PATH_BENEATH:
-		err = add_rule_path_beneath(ruleset, rule_attr);
-		break;
+		return add_rule_path_beneath(ruleset, rule_attr);
 	case LANDLOCK_RULE_NET_PORT:
-		err = add_rule_net_port(ruleset, rule_attr);
-		break;
+		return add_rule_net_port(ruleset, rule_attr);
 	default:
-		err = -EINVAL;
-		break;
+		return -EINVAL;
 	}
-	landlock_put_ruleset(ruleset);
-	return err;
 }
 
 /* Enforcement */
