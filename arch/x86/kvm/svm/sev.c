@@ -3883,7 +3883,6 @@ static int __sev_snp_update_protected_guest_state(struct kvm_vcpu *vcpu)
 		svm->vmcb->control.vmsa_pa = pfn_to_hpa(pfn);
 
 		/* Mark the vCPU as runnable */
-		vcpu->arch.pv.pv_unhalted = false;
 		kvm_set_mp_state(vcpu, KVM_MP_STATE_RUNNABLE);
 
 		svm->sev_es.snp_vmsa_gpa = INVALID_PAGE;
