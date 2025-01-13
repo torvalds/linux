@@ -2252,72 +2252,26 @@ xfs_buf_cmp(
 	return 0;
 }
 
-/*
- * Submit buffers for write. If wait_list is specified, the buffers are
- * submitted using sync I/O and placed on the wait list such that the caller can
- * iowait each buffer. Otherwise async I/O is used and the buffers are released
- * at I/O completion time. In either case, buffers remain locked until I/O
- * completes and the buffer is released from the queue.
- */
-static int
-xfs_buf_delwri_submit_buffers(
-	struct list_head	*buffer_list,
-	struct list_head	*wait_list)
+static bool
+xfs_buf_delwri_submit_prep(
+	struct xfs_buf		*bp)
 {
-	struct xfs_buf		*bp, *n;
-	int			pinned = 0;
-	struct blk_plug		plug;
-
-	list_sort(NULL, buffer_list, xfs_buf_cmp);
-
-	blk_start_plug(&plug);
-	list_for_each_entry_safe(bp, n, buffer_list, b_list) {
-		if (!wait_list) {
-			if (!xfs_buf_trylock(bp))
-				continue;
-			if (xfs_buf_ispinned(bp)) {
-				xfs_buf_unlock(bp);
-				pinned++;
-				continue;
-			}
-		} else {
-			xfs_buf_lock(bp);
-		}
-
-		/*
-		 * Someone else might have written the buffer synchronously or
-		 * marked it stale in the meantime.  In that case only the
-		 * _XBF_DELWRI_Q flag got cleared, and we have to drop the
-		 * reference and remove it from the list here.
-		 */
-		if (!(bp->b_flags & _XBF_DELWRI_Q)) {
-			xfs_buf_list_del(bp);
-			xfs_buf_relse(bp);
-			continue;
-		}
-
-		trace_xfs_buf_delwri_split(bp, _RET_IP_);
-
-		/*
-		 * If we have a wait list, each buffer (and associated delwri
-		 * queue reference) transfers to it and is submitted
-		 * synchronously. Otherwise, drop the buffer from the delwri
-		 * queue and submit async.
-		 */
-		bp->b_flags &= ~_XBF_DELWRI_Q;
-		bp->b_flags |= XBF_WRITE;
-		if (wait_list) {
-			bp->b_flags &= ~XBF_ASYNC;
-			list_move_tail(&bp->b_list, wait_list);
-		} else {
-			bp->b_flags |= XBF_ASYNC;
-			xfs_buf_list_del(bp);
-		}
-		xfs_buf_submit(bp);
+	/*
+	 * Someone else might have written the buffer synchronously or marked it
+	 * stale in the meantime.  In that case only the _XBF_DELWRI_Q flag got
+	 * cleared, and we have to drop the reference and remove it from the
+	 * list here.
+	 */
+	if (!(bp->b_flags & _XBF_DELWRI_Q)) {
+		xfs_buf_list_del(bp);
+		xfs_buf_relse(bp);
+		return false;
 	}
-	blk_finish_plug(&plug);
 
-	return pinned;
+	trace_xfs_buf_delwri_split(bp, _RET_IP_);
+	bp->b_flags &= ~_XBF_DELWRI_Q;
+	bp->b_flags |= XBF_WRITE;
+	return true;
 }
 
 /*
@@ -2340,7 +2294,30 @@ int
 xfs_buf_delwri_submit_nowait(
 	struct list_head	*buffer_list)
 {
-	return xfs_buf_delwri_submit_buffers(buffer_list, NULL);
+	struct xfs_buf		*bp, *n;
+	int			pinned = 0;
+	struct blk_plug		plug;
+
+	list_sort(NULL, buffer_list, xfs_buf_cmp);
+
+	blk_start_plug(&plug);
+	list_for_each_entry_safe(bp, n, buffer_list, b_list) {
+		if (!xfs_buf_trylock(bp))
+			continue;
+		if (xfs_buf_ispinned(bp)) {
+			xfs_buf_unlock(bp);
+			pinned++;
+			continue;
+		}
+		if (!xfs_buf_delwri_submit_prep(bp))
+			continue;
+		bp->b_flags |= XBF_ASYNC;
+		xfs_buf_list_del(bp);
+		xfs_buf_submit(bp);
+	}
+	blk_finish_plug(&plug);
+
+	return pinned;
 }
 
 /*
@@ -2357,9 +2334,21 @@ xfs_buf_delwri_submit(
 {
 	LIST_HEAD		(wait_list);
 	int			error = 0, error2;
-	struct xfs_buf		*bp;
+	struct xfs_buf		*bp, *n;
+	struct blk_plug		plug;
 
-	xfs_buf_delwri_submit_buffers(buffer_list, &wait_list);
+	list_sort(NULL, buffer_list, xfs_buf_cmp);
+
+	blk_start_plug(&plug);
+	list_for_each_entry_safe(bp, n, buffer_list, b_list) {
+		xfs_buf_lock(bp);
+		if (!xfs_buf_delwri_submit_prep(bp))
+			continue;
+		bp->b_flags &= ~XBF_ASYNC;
+		list_move_tail(&bp->b_list, &wait_list);
+		xfs_buf_submit(bp);
+	}
+	blk_finish_plug(&plug);
 
 	/* Wait for IO to complete. */
 	while (!list_empty(&wait_list)) {
