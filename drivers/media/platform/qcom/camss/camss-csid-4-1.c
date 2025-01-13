@@ -17,7 +17,6 @@
 #include "camss-csid-gen1.h"
 #include "camss.h"
 
-#define CAMSS_CSID_HW_VERSION		0x0
 #define CAMSS_CSID_CORE_CTRL_0		0x004
 #define CAMSS_CSID_CORE_CTRL_1		0x008
 #define CAMSS_CSID_RST_CMD		0x00c
@@ -139,15 +138,6 @@ static int csid_configure_testgen_pattern(struct csid_device *csid, s32 val)
 	return 0;
 }
 
-static u32 csid_hw_version(struct csid_device *csid)
-{
-	u32 hw_version = readl_relaxed(csid->base + CAMSS_CSID_HW_VERSION);
-
-	dev_dbg(csid->camss->dev, "CSID HW Version = 0x%08x\n", hw_version);
-
-	return hw_version;
-}
-
 static irqreturn_t csid_isr(int irq, void *dev)
 {
 	struct csid_device *csid = dev;
@@ -178,15 +168,6 @@ static int csid_reset(struct csid_device *csid)
 	}
 
 	return 0;
-}
-
-static u32 csid_src_pad_code(struct csid_device *csid, u32 sink_code,
-			     unsigned int match_format_idx, u32 match_code)
-{
-	if (match_format_idx > 0)
-		return 0;
-
-	return sink_code;
 }
 
 static void csid_subdev_init(struct csid_device *csid)
