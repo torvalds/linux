@@ -1657,21 +1657,17 @@ xfs_buf_submit(
 
 	if ((bp->b_flags & XBF_WRITE) && !xfs_buf_verify_write(bp)) {
 		xfs_force_shutdown(bp->b_mount, SHUTDOWN_CORRUPT_INCORE);
-		goto done;
+		xfs_buf_ioend(bp);
+		return;
 	}
 
 	/* In-memory targets are directly mapped, no I/O required. */
-	if (xfs_buftarg_is_mem(bp->b_target))
-		goto done;
+	if (xfs_buftarg_is_mem(bp->b_target)) {
+		xfs_buf_ioend(bp);
+		return;
+	}
 
 	xfs_buf_submit_bio(bp);
-	return;
-
-done:
-	if (bp->b_error || !(bp->b_flags & XBF_ASYNC))
-		xfs_buf_ioend(bp);
-	else
-		xfs_buf_ioend_async(bp);
 }
 
 void *
