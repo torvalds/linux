@@ -1480,7 +1480,7 @@ static bool kvm_xen_schedop_poll(struct kvm_vcpu *vcpu, bool longmode,
 	set_bit(vcpu->vcpu_idx, vcpu->kvm->arch.xen.poll_mask);
 
 	if (!wait_pending_event(vcpu, sched_poll.nr_ports, ports)) {
-		vcpu->arch.mp_state = KVM_MP_STATE_HALTED;
+		kvm_set_mp_state(vcpu, KVM_MP_STATE_HALTED);
 
 		if (sched_poll.timeout)
 			mod_timer(&vcpu->arch.xen.poll_timer,
@@ -1491,7 +1491,7 @@ static bool kvm_xen_schedop_poll(struct kvm_vcpu *vcpu, bool longmode,
 		if (sched_poll.timeout)
 			del_timer(&vcpu->arch.xen.poll_timer);
 
-		vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
+		kvm_set_mp_state(vcpu, KVM_MP_STATE_RUNNABLE);
 	}
 
 	vcpu->arch.xen.poll_evtchn = 0;

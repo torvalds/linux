@@ -121,6 +121,11 @@ static inline bool kvm_vcpu_has_run(struct kvm_vcpu *vcpu)
 	return vcpu->arch.last_vmentry_cpu != -1;
 }
 
+static inline void kvm_set_mp_state(struct kvm_vcpu *vcpu, int mp_state)
+{
+	vcpu->arch.mp_state = mp_state;
+}
+
 static inline bool kvm_is_exception_pending(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.exception.pending ||

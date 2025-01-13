@@ -3845,7 +3845,7 @@ static int __sev_snp_update_protected_guest_state(struct kvm_vcpu *vcpu)
 
 	/* Mark the vCPU as offline and not runnable */
 	vcpu->arch.pv.pv_unhalted = false;
-	vcpu->arch.mp_state = KVM_MP_STATE_HALTED;
+	kvm_set_mp_state(vcpu, KVM_MP_STATE_HALTED);
 
 	/* Clear use of the VMSA */
 	svm->vmcb->control.vmsa_pa = INVALID_PAGE;
@@ -3884,7 +3884,7 @@ static int __sev_snp_update_protected_guest_state(struct kvm_vcpu *vcpu)
 
 		/* Mark the vCPU as runnable */
 		vcpu->arch.pv.pv_unhalted = false;
-		vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
+		kvm_set_mp_state(vcpu, KVM_MP_STATE_RUNNABLE);
 
 		svm->sev_es.snp_vmsa_gpa = INVALID_PAGE;
 
