@@ -125,7 +125,7 @@ static int test_front_delete(struct btrfs_trans_handle *trans)
 	}
 
 	ret = btrfs_get_raid_extent_offset(fs_info, logical, &len, map_type, 0, &io_stripe);
-	if (!ret) {
+	if (ret != -ENODATA) {
 		ret = -EINVAL;
 		test_err("lookup of RAID extent [%llu, %llu] succeeded, should fail",
 			 logical, logical + SZ_32K);
