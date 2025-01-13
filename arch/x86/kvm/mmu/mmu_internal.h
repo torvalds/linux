@@ -315,9 +315,7 @@ int kvm_tdp_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault);
  * tracepoints via TRACE_DEFINE_ENUM() in mmutrace.h
  *
  * Note, all values must be greater than or equal to zero so as not to encroach
- * on -errno return values.  Somewhat arbitrarily use '0' for CONTINUE, which
- * will allow for efficient machine code when checking for CONTINUE, e.g.
- * "TEST %rax, %rax, JNZ", as all "stop!" values are non-zero.
+ * on -errno return values.
  */
 enum {
 	RET_PF_CONTINUE = 0,
@@ -328,6 +326,14 @@ enum {
 	RET_PF_FIXED,
 	RET_PF_SPURIOUS,
 };
+
+/*
+ * Define RET_PF_CONTINUE as 0 to allow for
+ * - efficient machine code when checking for CONTINUE, e.g.
+ *   "TEST %rax, %rax, JNZ", as all "stop!" values are non-zero,
+ * - kvm_mmu_do_page_fault() to return other RET_PF_* as a positive value.
+ */
+static_assert(RET_PF_CONTINUE == 0);
 
 static inline void kvm_mmu_prepare_memory_fault_exit(struct kvm_vcpu *vcpu,
 						     struct kvm_page_fault *fault)

@@ -6111,8 +6111,16 @@ int noinline kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa, u64 err
 	else if (r == RET_PF_SPURIOUS)
 		vcpu->stat.pf_spurious++;
 
+	/*
+	 * None of handle_mmio_page_fault(), kvm_mmu_do_page_fault(), or
+	 * kvm_mmu_write_protect_fault() return RET_PF_CONTINUE.
+	 * kvm_mmu_do_page_fault() only uses RET_PF_CONTINUE internally to
+	 * indicate continuing the page fault handling until to the final
+	 * page table mapping phase.
+	 */
+	WARN_ON_ONCE(r == RET_PF_CONTINUE);
 	if (r != RET_PF_EMULATE)
-		return 1;
+		return r;
 
 emulate:
 	return x86_emulate_instruction(vcpu, cr2_or_gpa, emulation_type, insn,
