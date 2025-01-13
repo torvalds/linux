@@ -86,7 +86,34 @@ int __noreturn __put_user_bad(void);
 #define get_put_user_noinstr_attributes __always_inline
 #endif
 
-#define DEFINE_PUT_USER(type)						\
+#ifdef CONFIG_CC_HAS_ASM_GOTO_OUTPUT
+
+#define DEFINE_PUT_USER_NOINSTR(type)					\
+static get_put_user_noinstr_attributes int				\
+__put_user_##type##_noinstr(unsigned type __user *to,			\
+			    unsigned type *from,			\
+			    unsigned long size)				\
+{									\
+	asm goto(							\
+		"	llilh	%%r0,%[spec]\n"				\
+		"0:	mvcos	%[to],%[from],%[size]\n"		\
+		"1:	nopr	%%r7\n"					\
+		EX_TABLE(0b, %l[Efault])				\
+		EX_TABLE(1b, %l[Efault])				\
+		: [to] "+Q" (*to)					\
+		: [size] "d" (size), [from] "Q" (*from),		\
+		  [spec] "I" (0x81)					\
+		: "cc", "0"						\
+		: Efault						\
+		);							\
+	return 0;							\
+Efault:									\
+	return -EFAULT;							\
+}
+
+#else /* CONFIG_CC_HAS_ASM_GOTO_OUTPUT */
+
+#define DEFINE_PUT_USER_NOINSTR(type)					\
 static get_put_user_noinstr_attributes int				\
 __put_user_##type##_noinstr(unsigned type __user *to,			\
 			    unsigned type *from,			\
@@ -106,8 +133,16 @@ __put_user_##type##_noinstr(unsigned type __user *to,			\
 		  [spec] "I" (0x81)					\
 		: "cc", "0");						\
 	return rc;							\
-}									\
-									\
+}
+
+#endif /* CONFIG_CC_HAS_ASM_GOTO_OUTPUT */
+
+DEFINE_PUT_USER_NOINSTR(char);
+DEFINE_PUT_USER_NOINSTR(short);
+DEFINE_PUT_USER_NOINSTR(int);
+DEFINE_PUT_USER_NOINSTR(long);
+
+#define DEFINE_PUT_USER(type)						\
 static __always_inline int						\
 __put_user_##type(unsigned type __user *to, unsigned type *from,	\
 		  unsigned long size)					\
@@ -166,7 +201,35 @@ DEFINE_PUT_USER(long);
 
 int __noreturn __get_user_bad(void);
 
-#define DEFINE_GET_USER(type)						\
+#ifdef CONFIG_CC_HAS_ASM_GOTO_OUTPUT
+
+#define DEFINE_GET_USER_NOINSTR(type)					\
+static get_put_user_noinstr_attributes int				\
+__get_user_##type##_noinstr(unsigned type *to,				\
+			    const unsigned type __user *from,		\
+			    unsigned long size)				\
+{									\
+	asm goto(							\
+		"	lhi	%%r0,%[spec]\n"				\
+		"0:	mvcos	%[to],%[from],%[size]\n"		\
+		"1:	nopr	%%r7\n"					\
+		EX_TABLE(0b, %l[Efault])				\
+		EX_TABLE(1b, %l[Efault])				\
+		: [to] "=Q" (*to)					\
+		: [size] "d" (size), [from] "Q" (*from),		\
+		  [spec] "I" (0x81)					\
+		: "cc", "0"						\
+		: Efault						\
+		);							\
+	return 0;							\
+Efault:									\
+	*to = 0;							\
+	return -EFAULT;							\
+}
+
+#else /* CONFIG_CC_HAS_ASM_GOTO_OUTPUT */
+
+#define DEFINE_GET_USER_NOINSTR(type)					\
 static get_put_user_noinstr_attributes int				\
 __get_user_##type##_noinstr(unsigned type *to,				\
 			    const unsigned type __user *from,		\
@@ -189,8 +252,16 @@ __get_user_##type##_noinstr(unsigned type *to,				\
 		return 0;						\
 	*to = 0;							\
 	return rc;							\
-}									\
-									\
+}
+
+#endif /* CONFIG_CC_HAS_ASM_GOTO_OUTPUT */
+
+DEFINE_GET_USER_NOINSTR(char);
+DEFINE_GET_USER_NOINSTR(short);
+DEFINE_GET_USER_NOINSTR(int);
+DEFINE_GET_USER_NOINSTR(long);
+
+#define DEFINE_GET_USER(type)						\
 static __always_inline int						\
 __get_user_##type(unsigned type *to, const unsigned type __user *from,	\
 		  unsigned long size)					\
