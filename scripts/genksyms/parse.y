@@ -381,20 +381,24 @@ abstract_declarator:
 	;
 
 direct_abstract_declarator:
+	direct_abstract_declarator1
+	| direct_abstract_declarator1 open_paren parameter_declaration_clause ')'
+		{ $$ = $4; }
+	| open_paren parameter_declaration_clause ')'
+		{ $$ = $3; }
+	;
+
+direct_abstract_declarator1:
 	  IDENT
 		{ /* For version 2 checksums, we don't want to remember
 		     private parameter names.  */
 		  remove_node($1);
 		  $$ = $1;
 		}
-	| direct_abstract_declarator open_paren parameter_declaration_clause ')'
+	| direct_abstract_declarator1 open_paren error ')'
 		{ $$ = $4; }
-	| direct_abstract_declarator open_paren error ')'
-		{ $$ = $4; }
-	| direct_abstract_declarator BRACKET_PHRASE
+	| direct_abstract_declarator1 BRACKET_PHRASE
 		{ $$ = $2; }
-	| open_paren parameter_declaration_clause ')'
-		{ $$ = $3; }
 	| open_paren abstract_declarator ')'
 		{ $$ = $3; }
 	| open_paren error ')'
