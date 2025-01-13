@@ -427,12 +427,11 @@ static int stmmac_enable_eee_mode(struct stmmac_priv *priv)
 }
 
 /**
- * stmmac_disable_sw_eee_mode - disable and exit from LPI mode
+ * stmmac_stop_sw_lpi - stop transmitting LPI
  * @priv: driver private structure
- * Description: this function is to exit and disable EEE in case of
- * LPI state is true. This is called by the xmit.
+ * Description: When using software-controlled LPI, stop transmitting LPI state.
  */
-static void stmmac_disable_sw_eee_mode(struct stmmac_priv *priv)
+static void stmmac_stop_sw_lpi(struct stmmac_priv *priv)
 {
 	stmmac_reset_eee_mode(priv, priv->hw);
 	del_timer_sync(&priv->eee_ctrl_timer);
@@ -4497,7 +4496,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	first_tx = tx_q->cur_tx;
 
 	if (priv->tx_path_in_lpi_mode && priv->eee_sw_timer_en)
-		stmmac_disable_sw_eee_mode(priv);
+		stmmac_stop_sw_lpi(priv);
 
 	/* Manage oversized TCP frames for GMAC4 device */
 	if (skb_is_gso(skb) && priv->tso) {
