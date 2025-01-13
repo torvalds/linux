@@ -160,6 +160,36 @@ static __always_inline int __put_user_fn(void *x, void __user *ptr, unsigned lon
 	return rc;
 }
 
+/*
+ * These are the main single-value transfer routines.  They automatically
+ * use the right size if we just have the right pointer type.
+ */
+#define __put_user(x, ptr)						\
+({									\
+	__typeof__(*(ptr)) __x = (x);					\
+	int __pu_err = -EFAULT;						\
+									\
+	__chk_user_ptr(ptr);						\
+	switch (sizeof(*(ptr))) {					\
+	case 1:								\
+	case 2:								\
+	case 4:								\
+	case 8:								\
+		__pu_err = __put_user_fn(&__x, ptr, sizeof(*(ptr)));	\
+		break;							\
+	default:							\
+		__put_user_bad();					\
+		break;							\
+	}								\
+	__builtin_expect(__pu_err, 0);					\
+})
+
+#define put_user(x, ptr)						\
+({									\
+	might_fault();							\
+	__put_user(x, ptr);						\
+})
+
 int __noreturn __get_user_bad(void);
 
 #define DEFINE_GET_USER(type)						\
@@ -236,36 +266,6 @@ static __always_inline int __get_user_fn(void *x, const void __user *ptr, unsign
 	}
 	return rc;
 }
-
-/*
- * These are the main single-value transfer routines.  They automatically
- * use the right size if we just have the right pointer type.
- */
-#define __put_user(x, ptr)						\
-({									\
-	__typeof__(*(ptr)) __x = (x);					\
-	int __pu_err = -EFAULT;						\
-									\
-	__chk_user_ptr(ptr);						\
-	switch (sizeof(*(ptr))) {					\
-	case 1:								\
-	case 2:								\
-	case 4:								\
-	case 8:								\
-		__pu_err = __put_user_fn(&__x, ptr, sizeof(*(ptr)));	\
-		break;							\
-	default:							\
-		__put_user_bad();					\
-		break;							\
-	}								\
-	__builtin_expect(__pu_err, 0);					\
-})
-
-#define put_user(x, ptr)						\
-({									\
-	might_fault();							\
-	__put_user(x, ptr);						\
-})
 
 #define __get_user(x, ptr)						\
 ({									\
