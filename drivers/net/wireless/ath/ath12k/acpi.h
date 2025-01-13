@@ -70,6 +70,7 @@ int ath12k_acpi_start(struct ath12k_base *ab);
 void ath12k_acpi_stop(struct ath12k_base *ab);
 bool ath12k_acpi_get_disable_rfkill(struct ath12k_base *ab);
 bool ath12k_acpi_get_disable_11be(struct ath12k_base *ab);
+void ath12k_acpi_set_dsm_func(struct ath12k_base *ab);
 
 #else
 
@@ -90,6 +91,10 @@ static inline bool ath12k_acpi_get_disable_rfkill(struct ath12k_base *ab)
 static inline bool ath12k_acpi_get_disable_11be(struct ath12k_base *ab)
 {
 	return false;
+}
+
+static inline void ath12k_acpi_set_dsm_func(struct ath12k_base *ab)
+{
 }
 
 #endif /* CONFIG_ACPI */

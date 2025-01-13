@@ -849,10 +849,7 @@ static int ath12k_core_start(struct ath12k_base *ab)
 		goto err_reo_cleanup;
 	}
 
-	ret = ath12k_acpi_start(ab);
-	if (ret)
-		/* ACPI is optional so continue in case of an error */
-		ath12k_dbg(ab, ATH12K_DBG_BOOT, "acpi failed: %d\n", ret);
+	ath12k_acpi_set_dsm_func(ab);
 
 	if (!test_bit(ATH12K_FLAG_RECOVERY, &ab->dev_flags))
 		/* Indicate the core start in the appropriate group */
