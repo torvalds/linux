@@ -48,7 +48,7 @@ static DEFINE_SPINLOCK(xfrm_input_afinfo_lock);
 static struct xfrm_input_afinfo const __rcu *xfrm_input_afinfo[2][AF_INET6 + 1];
 
 static struct gro_cells gro_cells;
-static struct net_device xfrm_napi_dev;
+static struct net_device *xfrm_napi_dev;
 
 static DEFINE_PER_CPU(struct xfrm_trans_tasklet, xfrm_trans_tasklet);
 
@@ -825,8 +825,11 @@ void __init xfrm_input_init(void)
 	int err;
 	int i;
 
-	init_dummy_netdev(&xfrm_napi_dev);
-	err = gro_cells_init(&gro_cells, &xfrm_napi_dev);
+	xfrm_napi_dev = alloc_netdev_dummy(0);
+	if (!xfrm_napi_dev)
+		panic("Failed to allocate XFRM dummy netdev\n");
+
+	err = gro_cells_init(&gro_cells, xfrm_napi_dev);
 	if (err)
 		gro_cells.cells = NULL;
 
