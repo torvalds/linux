@@ -658,6 +658,8 @@ static bool cluster_alloc_range(struct swap_info_struct *si, struct swap_cluster
 {
 	unsigned int nr_pages = 1 << order;
 
+	lockdep_assert_held(&ci->lock);
+
 	if (!(si->flags & SWP_WRITEOK))
 		return false;
 
@@ -1059,8 +1061,6 @@ static int cluster_alloc_swap(struct swap_info_struct *si,
 {
 	int n_ret = 0;
 
-	si->flags += SWP_SCANNING;
-
 	while (n_ret < nr) {
 		unsigned long offset = cluster_alloc_swap_entry(si, order, usage);
 
@@ -1068,8 +1068,6 @@ static int cluster_alloc_swap(struct swap_info_struct *si,
 			break;
 		slots[n_ret++] = swp_entry(si->type, offset);
 	}
-
-	si->flags -= SWP_SCANNING;
 
 	return n_ret;
 }
@@ -1112,6 +1110,22 @@ static int scan_swap_map_slots(struct swap_info_struct *si,
 	return cluster_alloc_swap(si, usage, nr, slots, order);
 }
 
+static bool get_swap_device_info(struct swap_info_struct *si)
+{
+	if (!percpu_ref_tryget_live(&si->users))
+		return false;
+	/*
+	 * Guarantee the si->users are checked before accessing other
+	 * fields of swap_info_struct, and si->flags (SWP_WRITEOK) is
+	 * up to dated.
+	 *
+	 * Paired with the spin_unlock() after setup_swap_info() in
+	 * enable_swap_info(), and smp_wmb() in swapoff.
+	 */
+	smp_rmb();
+	return true;
+}
+
 int get_swap_pages(int n_goal, swp_entry_t swp_entries[], int entry_order)
 {
 	int order = swap_entry_order(entry_order);
@@ -1139,13 +1153,16 @@ start_over:
 		/* requeue si to after same-priority siblings */
 		plist_requeue(&si->avail_lists[node], &swap_avail_heads[node]);
 		spin_unlock(&swap_avail_lock);
-		spin_lock(&si->lock);
-		n_ret = scan_swap_map_slots(si, SWAP_HAS_CACHE,
-					    n_goal, swp_entries, order);
-		spin_unlock(&si->lock);
-		if (n_ret || size > 1)
-			goto check_out;
-		cond_resched();
+		if (get_swap_device_info(si)) {
+			spin_lock(&si->lock);
+			n_ret = scan_swap_map_slots(si, SWAP_HAS_CACHE,
+					n_goal, swp_entries, order);
+			spin_unlock(&si->lock);
+			put_swap_device(si);
+			if (n_ret || size > 1)
+				goto check_out;
+			cond_resched();
+		}
 
 		spin_lock(&swap_avail_lock);
 		/*
@@ -1296,16 +1313,8 @@ struct swap_info_struct *get_swap_device(swp_entry_t entry)
 	si = swp_swap_info(entry);
 	if (!si)
 		goto bad_nofile;
-	if (!percpu_ref_tryget_live(&si->users))
+	if (!get_swap_device_info(si))
 		goto out;
-	/*
-	 * Guarantee the si->users are checked before accessing other
-	 * fields of swap_info_struct.
-	 *
-	 * Paired with the spin_unlock() after setup_swap_info() in
-	 * enable_swap_info().
-	 */
-	smp_rmb();
 	offset = swp_offset(entry);
 	if (offset >= si->max)
 		goto put_out;
@@ -1785,10 +1794,13 @@ swp_entry_t get_swap_page_of_type(int type)
 		goto fail;
 
 	/* This is called for allocating swap entry, not cache */
-	spin_lock(&si->lock);
-	if ((si->flags & SWP_WRITEOK) && scan_swap_map_slots(si, 1, 1, &entry, 0))
-		atomic_long_dec(&nr_swap_pages);
-	spin_unlock(&si->lock);
+	if (get_swap_device_info(si)) {
+		spin_lock(&si->lock);
+		if ((si->flags & SWP_WRITEOK) && scan_swap_map_slots(si, 1, 1, &entry, 0))
+			atomic_long_dec(&nr_swap_pages);
+		spin_unlock(&si->lock);
+		put_swap_device(si);
+	}
 fail:
 	return entry;
 }
@@ -2562,6 +2574,25 @@ bool has_usable_swap(void)
 	return ret;
 }
 
+/*
+ * Called after clearing SWP_WRITEOK, ensures cluster_alloc_range
+ * see the updated flags, so there will be no more allocations.
+ */
+static void wait_for_allocation(struct swap_info_struct *si)
+{
+	unsigned long offset;
+	unsigned long end = ALIGN(si->max, SWAPFILE_CLUSTER);
+	struct swap_cluster_info *ci;
+
+	BUG_ON(si->flags & SWP_WRITEOK);
+
+	for (offset = 0; offset < end; offset += SWAPFILE_CLUSTER) {
+		ci = lock_cluster(si, offset);
+		unlock_cluster(ci);
+		offset += SWAPFILE_CLUSTER;
+	}
+}
+
 SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 {
 	struct swap_info_struct *p = NULL;
@@ -2632,6 +2663,8 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 	spin_unlock(&p->lock);
 	spin_unlock(&swap_lock);
 
+	wait_for_allocation(p);
+
 	disable_swap_slots_cache_lock();
 
 	set_current_oom_origin();
@@ -2673,15 +2706,6 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 	spin_lock(&swap_lock);
 	spin_lock(&p->lock);
 	drain_mmlist();
-
-	/* wait for anyone still in scan_swap_map_slots */
-	while (p->flags >= SWP_SCANNING) {
-		spin_unlock(&p->lock);
-		spin_unlock(&swap_lock);
-		schedule_timeout_uninterruptible(1);
-		spin_lock(&swap_lock);
-		spin_lock(&p->lock);
-	}
 
 	swap_file = p->swap_file;
 	p->swap_file = NULL;
