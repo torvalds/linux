@@ -426,6 +426,13 @@ static int stmmac_enable_eee_mode(struct stmmac_priv *priv)
 	return 0;
 }
 
+static void stmmac_try_to_start_sw_lpi(struct stmmac_priv *priv)
+{
+	if (stmmac_enable_eee_mode(priv))
+		mod_timer(&priv->eee_ctrl_timer,
+			  STMMAC_LPI_T(priv->tx_lpi_timer));
+}
+
 /**
  * stmmac_stop_sw_lpi - stop transmitting LPI
  * @priv: driver private structure
@@ -449,8 +456,7 @@ static void stmmac_eee_ctrl_timer(struct timer_list *t)
 {
 	struct stmmac_priv *priv = from_timer(priv, t, eee_ctrl_timer);
 
-	if (stmmac_enable_eee_mode(priv))
-		mod_timer(&priv->eee_ctrl_timer, STMMAC_LPI_T(priv->tx_lpi_timer));
+	stmmac_try_to_start_sw_lpi(priv);
 }
 
 /**
@@ -2782,10 +2788,8 @@ static int stmmac_tx_clean(struct stmmac_priv *priv, int budget, u32 queue,
 			xmits = budget;
 	}
 
-	if (priv->eee_sw_timer_en && !priv->tx_path_in_lpi_mode) {
-		if (stmmac_enable_eee_mode(priv))
-			mod_timer(&priv->eee_ctrl_timer, STMMAC_LPI_T(priv->tx_lpi_timer));
-	}
+	if (priv->eee_sw_timer_en && !priv->tx_path_in_lpi_mode)
+		stmmac_try_to_start_sw_lpi(priv);
 
 	/* We still have pending packets, let's call for a new scheduling */
 	if (tx_q->dirty_tx != tx_q->cur_tx)
