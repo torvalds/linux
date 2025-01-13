@@ -39,6 +39,8 @@ extern int pvr;
 extern u64 platform_extended_mask;
 extern int check_pvr_for_sampling_tests(void);
 extern int platform_check_for_tests(void);
+extern int check_extended_regs_support(void);
+extern u64 perf_get_platform_reg_mask(void);
 
 /*
  * Event code field extraction macro.

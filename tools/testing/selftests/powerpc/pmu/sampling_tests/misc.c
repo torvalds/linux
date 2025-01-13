@@ -92,7 +92,7 @@ static void init_ev_encodes(void)
 }
 
 /* Return the extended regs mask value */
-static u64 perf_get_platform_reg_mask(void)
+u64 perf_get_platform_reg_mask(void)
 {
 	if (have_hwcap2(PPC_FEATURE2_ARCH_3_1))
 		return PERF_POWER10_MASK;
