@@ -1643,13 +1643,6 @@ xfs_buf_submit(
 		return;
 	}
 
-	/*
-	 * Grab a reference so the buffer does not go away underneath us. For
-	 * async buffers, I/O completion drops the callers reference, which
-	 * could occur before submission returns.
-	 */
-	xfs_buf_hold(bp);
-
 	if (bp->b_flags & XBF_WRITE)
 		xfs_buf_wait_unpin(bp);
 
@@ -1672,20 +1665,13 @@ xfs_buf_submit(
 		goto done;
 
 	xfs_buf_submit_bio(bp);
-	goto rele;
+	return;
 
 done:
 	if (bp->b_error || !(bp->b_flags & XBF_ASYNC))
 		xfs_buf_ioend(bp);
 	else
 		xfs_buf_ioend_async(bp);
-rele:
-	/*
-	 * Release the hold that keeps the buffer referenced for the entire
-	 * I/O. Note that if the buffer is async, it is not safe to reference
-	 * after this release.
-	 */
-	xfs_buf_rele(bp);
 }
 
 void *
