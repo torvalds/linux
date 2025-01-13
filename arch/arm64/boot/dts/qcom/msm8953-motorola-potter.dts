@@ -130,11 +130,10 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&ts_reset>;
 
+		reset-gpios = <&tlmm 64 GPIO_ACTIVE_LOW>;
+
 		vdd-supply = <&pm8953_l22>;
 		vio-supply = <&pm8953_l6>;
-
-		syna,reset-delay-ms = <200>;
-		syna,startup-delay-ms = <500>;
 	};
 };
 
@@ -193,7 +192,6 @@
 
 	status = "okay";
 };
-
 
 &mpss {
 	status = "okay";
