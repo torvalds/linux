@@ -119,7 +119,14 @@ enum acer_wmi_predator_v4_sensor_id {
 	ACER_WMID_SENSOR_GPU_TEMPERATURE	= 0x0A,
 };
 
+enum acer_wmi_predator_v4_oc {
+	ACER_WMID_OC_NORMAL			= 0x0000,
+	ACER_WMID_OC_TURBO			= 0x0002,
+};
+
 enum acer_wmi_gaming_misc_setting {
+	ACER_WMID_MISC_SETTING_OC_1			= 0x0005,
+	ACER_WMID_MISC_SETTING_OC_2			= 0x0007,
 	ACER_WMID_MISC_SETTING_PLATFORM_PROFILE		= 0x000B,
 };
 
@@ -1546,9 +1553,6 @@ static acpi_status WMID_gaming_set_u64(u64 value, u32 cap)
 	case ACER_CAP_TURBO_FAN:
 		method_id = ACER_WMID_SET_GAMING_FAN_BEHAVIOR;
 		break;
-	case ACER_CAP_TURBO_OC:
-		method_id = ACER_WMID_SET_GAMING_MISC_SETTING_METHODID;
-		break;
 	default:
 		return AE_BAD_PARAMETER;
 	}
@@ -1907,8 +1911,12 @@ static int acer_toggle_turbo(void)
 		WMID_gaming_set_fan_mode(0x1);
 
 		/* Set OC to normal */
-		WMID_gaming_set_u64(0x5, ACER_CAP_TURBO_OC);
-		WMID_gaming_set_u64(0x7, ACER_CAP_TURBO_OC);
+		if (has_cap(ACER_CAP_TURBO_OC)) {
+			WMID_gaming_set_misc_setting(ACER_WMID_MISC_SETTING_OC_1,
+						     ACER_WMID_OC_NORMAL);
+			WMID_gaming_set_misc_setting(ACER_WMID_MISC_SETTING_OC_2,
+						     ACER_WMID_OC_NORMAL);
+		}
 	} else {
 		/* Turn on turbo led */
 		WMID_gaming_set_u64(0x10001, ACER_CAP_TURBO_LED);
@@ -1917,8 +1925,12 @@ static int acer_toggle_turbo(void)
 		WMID_gaming_set_fan_mode(0x2);
 
 		/* Set OC to turbo mode */
-		WMID_gaming_set_u64(0x205, ACER_CAP_TURBO_OC);
-		WMID_gaming_set_u64(0x207, ACER_CAP_TURBO_OC);
+		if (has_cap(ACER_CAP_TURBO_OC)) {
+			WMID_gaming_set_misc_setting(ACER_WMID_MISC_SETTING_OC_1,
+						     ACER_WMID_OC_TURBO);
+			WMID_gaming_set_misc_setting(ACER_WMID_MISC_SETTING_OC_2,
+						     ACER_WMID_OC_TURBO);
+		}
 	}
 	return turbo_led_state;
 }
