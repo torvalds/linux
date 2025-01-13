@@ -1565,7 +1565,7 @@ bool kgd2kfd_vmfault_fast_path(struct amdgpu_device *adev, struct amdgpu_iv_entr
 	u32 cam_index;
 
 	if (entry->ih == &adev->irq.ih_soft || entry->ih == &adev->irq.ih1) {
-		p = kfd_lookup_process_by_pasid(entry->pasid);
+		p = kfd_lookup_process_by_pasid(entry->pasid, NULL);
 		if (!p)
 			return true;
 
