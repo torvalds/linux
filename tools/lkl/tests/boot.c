@@ -479,6 +479,73 @@ static int lkl_test_many_syscall_threads(void)
 
 	return TEST_SUCCESS;
 }
+
+struct lkl_test_tgid {
+	long tgid;
+	long parent_pid;
+	int new_thread_group_leader_result;
+};
+
+static void thread_get_tgid(void *arg)
+{
+	struct lkl_test_tgid *tgid_arg = (struct lkl_test_tgid *)arg;
+
+	int ret = lkl_sys_new_thread_group_leader();
+
+	tgid_arg->new_thread_group_leader_result = ret;
+	if (!ret) {
+		tgid_arg->tgid = lkl_sys_getpid();
+		tgid_arg->parent_pid = lkl_sys_getppid();
+	}
+}
+
+static int lkl_test_new_tgid_threads(void)
+{
+	lkl_thread_t tid;
+	long current_pid;
+	int count = 65, ret;
+	struct lkl_test_tgid test_tgid;
+
+	current_pid = lkl_sys_getpid();
+	if (current_pid < 0) {
+		lkl_test_logf("failed to get pid\n");
+		return TEST_FAILURE;
+	}
+
+	while (--count > 0) {
+		tid = lkl_host_ops.thread_create(thread_get_tgid, &test_tgid);
+		if (!tid) {
+			lkl_test_logf("failed to create thread\n");
+			return TEST_FAILURE;
+		}
+
+		ret = lkl_host_ops.thread_join(tid);
+		if (ret) {
+			lkl_test_logf("failed to join thread\n");
+			return TEST_FAILURE;
+		}
+
+		if (test_tgid.new_thread_group_leader_result) {
+			lkl_test_logf("failed to set new thread group leader %x\n",
+				test_tgid.new_thread_group_leader_result);
+			return TEST_FAILURE;
+		}
+
+		if (test_tgid.tgid == current_pid) {
+			lkl_test_logf("child tgid %lx == current pid %lx\n",
+				test_tgid.tgid, current_pid);
+			return TEST_FAILURE;
+		}
+
+		if (test_tgid.parent_pid != current_pid) {
+			lkl_test_logf("ppid of the child %lx != current pid %lx\n",
+				test_tgid.parent_pid, current_pid);
+			return TEST_FAILURE;
+		}
+	}
+
+	return TEST_SUCCESS;
+}
 #endif
 
 static void thread_quit_immediately(void *unused)
@@ -694,6 +761,7 @@ struct lkl_test tests[] = {
 	 */
 #ifndef __MINGW32__
 	LKL_TEST(many_syscall_threads),
+	LKL_TEST(new_tgid_threads),
 #endif
 #ifdef LKL_HOST_CONFIG_MMU
 	LKL_TEST(shared_mmap),
