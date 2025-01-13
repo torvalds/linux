@@ -92,14 +92,10 @@ __put_user_##type##_noinstr(unsigned type __user *to,			\
 			    unsigned type *from,			\
 			    unsigned long size)				\
 {									\
-	union oac __oac_spec = {					\
-		.oac1.as = PSW_BITS_AS_SECONDARY,			\
-		.oac1.a = 1,						\
-	};								\
 	int rc;								\
 									\
 	asm volatile(							\
-		"	lr	%%r0,%[spec]\n"				\
+		"	llilh	%%r0,%[spec]\n"				\
 		"0:	mvcos	%[to],%[from],%[size]\n"		\
 		"1:	lhi	%[rc],0\n"				\
 		"2:\n"							\
@@ -107,7 +103,7 @@ __put_user_##type##_noinstr(unsigned type __user *to,			\
 		EX_TABLE_UA_FAULT(1b, 2b, %[rc])			\
 		: [rc] "=d" (rc), [to] "+Q" (*to)			\
 		: [size] "d" (size), [from] "Q" (*from),		\
-		  [spec] "d" (__oac_spec.val)				\
+		  [spec] "I" (0x81)					\
 		: "cc", "0");						\
 	return rc;							\
 }									\
@@ -176,14 +172,10 @@ __get_user_##type##_noinstr(unsigned type *to,				\
 			    const unsigned type __user *from,		\
 			    unsigned long size)				\
 {									\
-	union oac __oac_spec = {					\
-		.oac2.as = PSW_BITS_AS_SECONDARY,			\
-		.oac2.a = 1,						\
-	};								\
 	int rc;								\
 									\
 	asm volatile(							\
-		"	lr	%%r0,%[spec]\n"				\
+		"	lhi	%%r0,%[spec]\n"				\
 		"0:	mvcos	%[to],%[from],%[size]\n"		\
 		"1:	lhi	%[rc],0\n"				\
 		"2:\n"							\
@@ -191,7 +183,7 @@ __get_user_##type##_noinstr(unsigned type *to,				\
 		EX_TABLE_UA_FAULT(1b, 2b, %[rc])			\
 		: [rc] "=d" (rc), [to] "=Q" (*to)			\
 		: [size] "d" (size), [from] "Q" (*from),		\
-		  [spec] "d" (__oac_spec.val)				\
+		  [spec] "I" (0x81)					\
 		: "cc", "0");						\
 	if (likely(!rc))						\
 		return 0;						\
