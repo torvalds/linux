@@ -478,8 +478,8 @@ static int run_test(test_func_t test, u32 sectorsize, u32 nodesize)
 		ret = PTR_ERR(root);
 		goto out;
 	}
-	btrfs_set_super_compat_ro_flags(root->fs_info->super_copy,
-					BTRFS_FEATURE_INCOMPAT_RAID_STRIPE_TREE);
+	btrfs_set_super_incompat_flags(root->fs_info->super_copy,
+				       BTRFS_FEATURE_INCOMPAT_RAID_STRIPE_TREE);
 	root->root_key.objectid = BTRFS_RAID_STRIPE_TREE_OBJECTID;
 	root->root_key.type = BTRFS_ROOT_ITEM_KEY;
 	root->root_key.offset = 0;
