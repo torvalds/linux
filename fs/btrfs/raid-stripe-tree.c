@@ -136,10 +136,12 @@ int btrfs_delete_raid_extent(struct btrfs_trans_handle *trans, u64 start, u64 le
 		 * length to the new size and then re-insert the item.
 		 */
 		if (found_end > end) {
-			u64 diff = found_end - end;
+			u64 diff_end = found_end - end;
 
 			btrfs_partially_delete_raid_extent(trans, path, &key,
-							   diff, diff);
+							   key.offset - length,
+							   length);
+			ASSERT(key.offset - diff_end == length);
 			break;
 		}
 
