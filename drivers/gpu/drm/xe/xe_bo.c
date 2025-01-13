@@ -2278,8 +2278,25 @@ int xe_gem_mmap_offset_ioctl(struct drm_device *dev, void *data,
 	    XE_IOCTL_DBG(xe, args->reserved[0] || args->reserved[1]))
 		return -EINVAL;
 
-	if (XE_IOCTL_DBG(xe, args->flags))
+	if (XE_IOCTL_DBG(xe, args->flags &
+			 ~DRM_XE_MMAP_OFFSET_FLAG_PCI_BARRIER))
 		return -EINVAL;
+
+	if (args->flags & DRM_XE_MMAP_OFFSET_FLAG_PCI_BARRIER) {
+		if (XE_IOCTL_DBG(xe, !IS_DGFX(xe)))
+			return -EINVAL;
+
+		if (XE_IOCTL_DBG(xe, args->handle))
+			return -EINVAL;
+
+		if (XE_IOCTL_DBG(xe, PAGE_SIZE > SZ_4K))
+			return -EINVAL;
+
+		BUILD_BUG_ON(((XE_PCI_BARRIER_MMAP_OFFSET >> XE_PTE_SHIFT) +
+			      SZ_4K) >= DRM_FILE_PAGE_OFFSET_START);
+		args->offset = XE_PCI_BARRIER_MMAP_OFFSET;
+		return 0;
+	}
 
 	gem_obj = drm_gem_object_lookup(file, args->handle);
 	if (XE_IOCTL_DBG(xe, !gem_obj))
