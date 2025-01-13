@@ -367,17 +367,17 @@ parameter_declaration_list:
 	;
 
 parameter_declaration:
-	decl_specifier_seq m_abstract_declarator
+	decl_specifier_seq abstract_declarator
 		{ $$ = $2 ? $2 : $1; }
 	;
 
-m_abstract_declarator:
-	ptr_operator m_abstract_declarator
+abstract_declarator:
+	ptr_operator abstract_declarator
 		{ $$ = $2 ? $2 : $1; }
-	| direct_m_abstract_declarator
+	| direct_abstract_declarator
 	;
 
-direct_m_abstract_declarator:
+direct_abstract_declarator:
 	/* empty */					{ $$ = NULL; }
 	| IDENT
 		{ /* For version 2 checksums, we don't want to remember
@@ -391,13 +391,13 @@ direct_m_abstract_declarator:
 		{ remove_node($1);
 		  $$ = $1;
 		}
-	| direct_m_abstract_declarator '(' parameter_declaration_clause ')'
+	| direct_abstract_declarator '(' parameter_declaration_clause ')'
 		{ $$ = $4; }
-	| direct_m_abstract_declarator '(' error ')'
+	| direct_abstract_declarator '(' error ')'
 		{ $$ = $4; }
-	| direct_m_abstract_declarator BRACKET_PHRASE
+	| direct_abstract_declarator BRACKET_PHRASE
 		{ $$ = $2; }
-	| '(' m_abstract_declarator ')'
+	| '(' abstract_declarator ')'
 		{ $$ = $3; }
 	| '(' error ')'
 		{ $$ = $3; }
