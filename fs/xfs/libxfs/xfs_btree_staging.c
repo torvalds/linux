@@ -573,6 +573,7 @@ xfs_btree_bload_compute_geometry(
 	struct xfs_btree_bload	*bbl,
 	uint64_t		nr_records)
 {
+	const struct xfs_btree_ops *ops = cur->bc_ops;
 	uint64_t		nr_blocks = 0;
 	uint64_t		nr_this_level;
 
@@ -599,7 +600,7 @@ xfs_btree_bload_compute_geometry(
 		xfs_btree_bload_level_geometry(cur, bbl, level, nr_this_level,
 				&avg_per_block, &level_blocks, &dontcare64);
 
-		if (cur->bc_ops->type == XFS_BTREE_TYPE_INODE) {
+		if (ops->type == XFS_BTREE_TYPE_INODE) {
 			/*
 			 * If all the items we want to store at this level
 			 * would fit in the inode root block, then we have our
@@ -607,7 +608,9 @@ xfs_btree_bload_compute_geometry(
 			 *
 			 * Note that bmap btrees forbid records in the root.
 			 */
-			if (level != 0 && nr_this_level <= avg_per_block) {
+			if ((level != 0 ||
+			     (ops->geom_flags & XFS_BTGEO_IROOT_RECORDS)) &&
+			    nr_this_level <= avg_per_block) {
 				nr_blocks++;
 				break;
 			}
@@ -658,7 +661,7 @@ xfs_btree_bload_compute_geometry(
 		return -EOVERFLOW;
 
 	bbl->btree_height = cur->bc_nlevels;
-	if (cur->bc_ops->type == XFS_BTREE_TYPE_INODE)
+	if (ops->type == XFS_BTREE_TYPE_INODE)
 		bbl->nr_blocks = nr_blocks - 1;
 	else
 		bbl->nr_blocks = nr_blocks;
