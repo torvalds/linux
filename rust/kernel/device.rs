@@ -6,6 +6,7 @@
 
 use crate::{
     bindings,
+    str::CString,
     types::{ARef, Opaque},
 };
 use core::{fmt, ptr};
@@ -179,6 +180,12 @@ impl Device {
                 &msg as *const _ as *const core::ffi::c_void,
             )
         };
+    }
+
+    /// Checks if property is present or not.
+    pub fn property_present(&self, name: &CString) -> bool {
+        // SAFETY: By the invariant of `CString`, `name` is null-terminated.
+        unsafe { bindings::device_property_present(self.as_raw().cast_const(), name.as_ptr() as *const _) }
     }
 }
 
