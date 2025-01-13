@@ -326,6 +326,11 @@ struct sparx5_ops {
 				 struct sparx5_calendar_data *data);
 	int (*port_config_rgmii)(struct sparx5_port *port,
 				 struct sparx5_port_config *conf);
+	int (*fdma_init)(struct sparx5 *sparx5);
+	int (*fdma_deinit)(struct sparx5 *sparx5);
+	int (*fdma_poll)(struct napi_struct *napi, int weight);
+	int (*fdma_xmit)(struct sparx5 *sparx5, u32 *ifh, struct sk_buff *skb,
+			 struct net_device *dev);
 };
 
 struct sparx5_main_io_resource {
@@ -440,7 +445,9 @@ int sparx5_fdma_init(struct sparx5 *sparx5);
 int sparx5_fdma_deinit(struct sparx5 *sparx5);
 int sparx5_fdma_start(struct sparx5 *sparx5);
 int sparx5_fdma_stop(struct sparx5 *sparx5);
-int sparx5_fdma_xmit(struct sparx5 *sparx5, u32 *ifh, struct sk_buff *skb);
+int sparx5_fdma_napi_callback(struct napi_struct *napi, int weight);
+int sparx5_fdma_xmit(struct sparx5 *sparx5, u32 *ifh, struct sk_buff *skb,
+		     struct net_device *dev);
 irqreturn_t sparx5_fdma_handler(int irq, void *args);
 
 /* sparx5_mactable.c */
