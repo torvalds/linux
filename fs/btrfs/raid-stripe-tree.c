@@ -59,8 +59,21 @@ int btrfs_delete_raid_extent(struct btrfs_trans_handle *trans, u64 start, u64 le
 	int slot;
 	int ret;
 
-	if (!stripe_root)
+	if (!btrfs_fs_incompat(fs_info, RAID_STRIPE_TREE) || !stripe_root)
 		return 0;
+
+	if (!btrfs_is_testing(fs_info)) {
+		struct btrfs_chunk_map *map;
+		bool use_rst;
+
+		map = btrfs_find_chunk_map(fs_info, start, length);
+		if (!map)
+			return -EINVAL;
+		use_rst = btrfs_need_stripe_tree_update(fs_info, map->type);
+		btrfs_free_chunk_map(map);
+		if (!use_rst)
+			return 0;
+	}
 
 	path = btrfs_alloc_path();
 	if (!path)
