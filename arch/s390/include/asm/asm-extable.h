@@ -9,7 +9,7 @@
 #define EX_TYPE_NONE		0
 #define EX_TYPE_FIXUP		1
 #define EX_TYPE_BPF		2
-#define EX_TYPE_UA_STORE	3
+#define EX_TYPE_UA_FAULT	3
 #define EX_TYPE_UA_LOAD_MEM	4
 #define EX_TYPE_UA_LOAD_REG	5
 #define EX_TYPE_UA_LOAD_REGPAIR	6
@@ -70,8 +70,8 @@
 #define EX_TABLE_AMODE31(_fault, _target)				\
 	__EX_TABLE(.amode31.ex_table, _fault, _target, EX_TYPE_FIXUP, __stringify(%%r0), __stringify(%%r0), 0)
 
-#define EX_TABLE_UA_STORE(_fault, _target, _regerr)			\
-	__EX_TABLE(__ex_table, _fault, _target, EX_TYPE_UA_STORE, _regerr, _regerr, 0)
+#define EX_TABLE_UA_FAULT(_fault, _target, _regerr)			\
+	__EX_TABLE(__ex_table, _fault, _target, EX_TYPE_UA_FAULT, _regerr, _regerr, 0)
 
 #define EX_TABLE_UA_LOAD_MEM(_fault, _target, _regerr, _regmem, _len)	\
 	__EX_TABLE(__ex_table, _fault, _target, EX_TYPE_UA_LOAD_MEM, _regerr, _regmem, _len)

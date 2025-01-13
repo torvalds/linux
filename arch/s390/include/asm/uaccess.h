@@ -103,8 +103,8 @@ __put_user_##type##_noinstr(unsigned type __user *to,			\
 		"0:	mvcos	%[_to],%[_from],%[_size]\n"		\
 		"1:	xr	%[rc],%[rc]\n"				\
 		"2:\n"							\
-		EX_TABLE_UA_STORE(0b, 2b, %[rc])			\
-		EX_TABLE_UA_STORE(1b, 2b, %[rc])			\
+		EX_TABLE_UA_FAULT(0b, 2b, %[rc])			\
+		EX_TABLE_UA_FAULT(1b, 2b, %[rc])			\
 		: [rc] "=&d" (rc), [_to] "+Q" (*(to))			\
 		: [_size] "d" (size), [_from] "Q" (*(from)),		\
 		  [spec] "d" (__oac_spec.val)				\
@@ -351,8 +351,8 @@ int __noreturn __put_kernel_bad(void);
 		"0:   " insn "  %[_val],%[_to]\n"			\
 		"1:	xr	%[rc],%[rc]\n"				\
 		"2:\n"							\
-		EX_TABLE_UA_STORE(0b, 2b, %[rc])			\
-		EX_TABLE_UA_STORE(1b, 2b, %[rc])			\
+		EX_TABLE_UA_FAULT(0b, 2b, %[rc])			\
+		EX_TABLE_UA_FAULT(1b, 2b, %[rc])			\
 		: [rc] "=d" (__rc), [_to] "+Q" (*(to))			\
 		: [_val] "d" (val)					\
 		: "cc");						\
