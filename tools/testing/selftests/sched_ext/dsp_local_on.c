@@ -34,8 +34,9 @@ static enum scx_test_status run(void *ctx)
 	/* Just sleeping is fine, plenty of scheduling events happening */
 	sleep(1);
 
-	SCX_EQ(skel->data->uei.kind, EXIT_KIND(SCX_EXIT_ERROR));
 	bpf_link__destroy(link);
+
+	SCX_EQ(skel->data->uei.kind, EXIT_KIND(SCX_EXIT_UNREG));
 
 	return SCX_TEST_PASS;
 }
@@ -50,7 +51,7 @@ static void cleanup(void *ctx)
 struct scx_test dsp_local_on = {
 	.name = "dsp_local_on",
 	.description = "Verify we can directly dispatch tasks to a local DSQs "
-		       "from osp.dispatch()",
+		       "from ops.dispatch()",
 	.setup = setup,
 	.run = run,
 	.cleanup = cleanup,

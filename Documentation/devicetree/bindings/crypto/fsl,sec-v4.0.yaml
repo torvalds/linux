@@ -114,8 +114,9 @@ patternProperties:
           table that specifies the PPID to LIODN mapping. Needed if the PAMU is
           used.  Value is a 12 bit value where value is a LIODN ID for this JR.
           This property is normally set by boot firmware.
-        $ref: /schemas/types.yaml#/definitions/uint32
-        maximum: 0xfff
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+        items:
+          - maximum: 0xfff
 
   '^rtic@[0-9a-f]+$':
     type: object
@@ -186,8 +187,9 @@ patternProperties:
               Needed if the PAMU is used.  Value is a 12 bit value where value
               is a LIODN ID for this JR. This property is normally set by boot
               firmware.
-            $ref: /schemas/types.yaml#/definitions/uint32
-            maximum: 0xfff
+            $ref: /schemas/types.yaml#/definitions/uint32-array
+            items:
+              - maximum: 0xfff
 
           fsl,rtic-region:
             description:

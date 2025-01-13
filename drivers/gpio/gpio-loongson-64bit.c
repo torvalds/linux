@@ -237,9 +237,9 @@ static const struct loongson_gpio_chip_data loongson_gpio_ls2k2000_data1 = {
 static const struct loongson_gpio_chip_data loongson_gpio_ls2k2000_data2 = {
 	.label = "ls2k2000_gpio",
 	.mode = BIT_CTRL_MODE,
-	.conf_offset = 0x84,
-	.in_offset = 0x88,
-	.out_offset = 0x80,
+	.conf_offset = 0x4,
+	.in_offset = 0x8,
+	.out_offset = 0x0,
 };
 
 static const struct loongson_gpio_chip_data loongson_gpio_ls3a5000_data = {

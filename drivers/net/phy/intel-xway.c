@@ -529,7 +529,7 @@ static int xway_gphy_led_polarity_set(struct phy_device *phydev, int index,
 	if (force_active_high)
 		return phy_clear_bits(phydev, XWAY_MDIO_LED, XWAY_GPHY_LED_INV(index));
 
-	unreachable();
+	return -EINVAL;
 }
 
 static struct phy_driver xway_gphy[] = {
