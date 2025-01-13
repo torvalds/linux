@@ -5969,12 +5969,13 @@ static bool tcp_validate_incoming(struct sock *sk, struct sk_buff *skb,
 	if (unlikely(th->syn))
 		goto syn_challenge;
 
-	/* Old ACK are common, do not change PAWSESTABREJECTED
+	/* Old ACK are common, increment PAWS_OLD_ACK
 	 * and do not send a dupack.
 	 */
-	if (reason == SKB_DROP_REASON_TCP_RFC7323_PAWS_ACK)
+	if (reason == SKB_DROP_REASON_TCP_RFC7323_PAWS_ACK) {
+		NET_INC_STATS(sock_net(sk), LINUX_MIB_PAWS_OLD_ACK);
 		goto discard;
-
+	}
 	NET_INC_STATS(sock_net(sk), LINUX_MIB_PAWSESTABREJECTED);
 	if (!tcp_oow_rate_limited(sock_net(sk), skb,
 				  LINUX_MIB_TCPACKSKIPPEDPAWS,
