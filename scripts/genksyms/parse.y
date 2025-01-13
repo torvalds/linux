@@ -234,16 +234,16 @@ type_specifier:
 
 	/* References to s/u/e's defined elsewhere.  Rearrange things
 	   so that it is easier to expand the definition fully later.  */
-	| STRUCT_KEYW IDENT
-		{ remove_node($1); (*$2)->tag = SYM_STRUCT; $$ = $2; }
+	| STRUCT_KEYW attribute_opt IDENT
+		{ remove_node($1); (*$3)->tag = SYM_STRUCT; $$ = $3; }
 	| UNION_KEYW IDENT
 		{ remove_node($1); (*$2)->tag = SYM_UNION; $$ = $2; }
 	| ENUM_KEYW IDENT
 		{ remove_node($1); (*$2)->tag = SYM_ENUM; $$ = $2; }
 
 	/* Full definitions of an s/u/e.  Record it.  */
-	| STRUCT_KEYW IDENT class_body
-		{ record_compound($1, $2, $3, SYM_STRUCT); $$ = $3; }
+	| STRUCT_KEYW attribute_opt IDENT class_body
+		{ record_compound($1, $3, $4, SYM_STRUCT); $$ = $4; }
 	| UNION_KEYW IDENT class_body
 		{ record_compound($1, $2, $3, SYM_UNION); $$ = $3; }
 	| ENUM_KEYW IDENT enum_body
@@ -254,7 +254,7 @@ type_specifier:
 	| ENUM_KEYW enum_body
 		{ add_symbol(NULL, SYM_ENUM, NULL, 0); $$ = $2; }
 	/* Anonymous s/u definitions.  Nothing needs doing.  */
-	| STRUCT_KEYW class_body			{ $$ = $2; }
+	| STRUCT_KEYW attribute_opt class_body		{ $$ = $3; }
 	| UNION_KEYW class_body				{ $$ = $2; }
 	;
 

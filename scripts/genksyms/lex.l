@@ -438,7 +438,12 @@ fini:
 
   if (suppress_type_lookup > 0)
     --suppress_type_lookup;
-  if (dont_want_brace_phrase > 0)
+
+  /*
+   *  __attribute__() can be placed immediately after the 'struct' keyword.
+   *  e.g.) struct __attribute__((__packed__)) foo { ... };
+   */
+  if (token != ATTRIBUTE_PHRASE && dont_want_brace_phrase > 0)
     --dont_want_brace_phrase;
 
   yylval = &next_node->next;
