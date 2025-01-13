@@ -99,6 +99,37 @@ int btrfs_delete_raid_extent(struct btrfs_trans_handle *trans, u64 start, u64 le
 		found_end = found_start + key.offset;
 		ret = 0;
 
+		/*
+		 * The stripe extent starts before the range we want to delete,
+		 * but the range spans more than one stripe extent:
+		 *
+		 * |--- RAID Stripe Extent ---||--- RAID Stripe Extent ---|
+		 *        |--- keep  ---|--- drop ---|
+		 *
+		 * This means we have to get the previous item, truncate its
+		 * length and then restart the search.
+		 */
+		if (found_start > start) {
+			if (slot == 0) {
+				ret = btrfs_previous_item(stripe_root, path, start,
+							  BTRFS_RAID_STRIPE_KEY);
+				if (ret) {
+					if (ret > 0)
+						ret = -ENOENT;
+					break;
+				}
+			} else {
+				path->slots[0]--;
+			}
+
+			leaf = path->nodes[0];
+			slot = path->slots[0];
+			btrfs_item_key_to_cpu(leaf, &key, slot);
+			found_start = key.objectid;
+			found_end = found_start + key.offset;
+			ASSERT(found_start <= start);
+		}
+
 		if (key.type != BTRFS_RAID_STRIPE_KEY)
 			break;
 
@@ -152,6 +183,7 @@ int btrfs_delete_raid_extent(struct btrfs_trans_handle *trans, u64 start, u64 le
 			break;
 		}
 
+		/* Finally we can delete the whole item, no more special cases. */
 		ret = btrfs_del_item(trans, stripe_root, path);
 		if (ret)
 			break;
