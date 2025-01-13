@@ -22,6 +22,7 @@
 #include "xfs_rtalloc.h"
 #include "xfs_sb.h"
 #include "xfs_rtbitmap.h"
+#include "xfs_rtrmap_btree.h"
 #include "xfs_quota.h"
 #include "xfs_log_priv.h"
 #include "xfs_health.h"
@@ -845,6 +846,13 @@ xfs_growfs_rt_init_rtsb(
 	mp->m_rtsb_bp = rtsb_bp;
 	error = xfs_bwrite(rtsb_bp);
 	xfs_buf_unlock(rtsb_bp);
+	if (error)
+		return error;
+
+	/* Initialize the rtrmap to reflect the rtsb. */
+	if (rtg_rmap(args->rtg) != NULL)
+		error = xfs_rtrmapbt_init_rtsb(nargs->mp, args->rtg, args->tp);
+
 	return error;
 }
 
@@ -856,8 +864,8 @@ xfs_growfs_rt_bmblock(
 	xfs_fileoff_t		bmbno)
 {
 	struct xfs_mount	*mp = rtg_mount(rtg);
-	struct xfs_inode	*rbmip = rtg->rtg_inodes[XFS_RTGI_BITMAP];
-	struct xfs_inode	*rsumip = rtg->rtg_inodes[XFS_RTGI_SUMMARY];
+	struct xfs_inode	*rbmip = rtg_bitmap(rtg);
+	struct xfs_inode	*rsumip = rtg_summary(rtg);
 	struct xfs_rtalloc_args	args = {
 		.mp		= mp,
 		.rtg		= rtg,
@@ -893,8 +901,9 @@ xfs_growfs_rt_bmblock(
 		goto out_free;
 	nargs.tp = args.tp;
 
-	xfs_rtgroup_lock(args.rtg, XFS_RTGLOCK_BITMAP);
-	xfs_rtgroup_trans_join(args.tp, args.rtg, XFS_RTGLOCK_BITMAP);
+	xfs_rtgroup_lock(args.rtg, XFS_RTGLOCK_BITMAP | XFS_RTGLOCK_RMAP);
+	xfs_rtgroup_trans_join(args.tp, args.rtg,
+			XFS_RTGLOCK_BITMAP | XFS_RTGLOCK_RMAP);
 
 	/*
 	 * Update the bitmap inode's size ondisk and incore.  We need to update
@@ -980,9 +989,11 @@ xfs_growfs_rt_bmblock(
 		goto out_free;
 
 	/*
-	 * Ensure the mount RT feature flag is now set.
+	 * Ensure the mount RT feature flag is now set, and compute new
+	 * maxlevels for rt btrees.
 	 */
 	mp->m_features |= XFS_FEAT_REALTIME;
+	xfs_rtrmapbt_compute_maxlevels(mp);
 
 	kfree(nmp);
 	return 0;
@@ -1041,8 +1052,8 @@ xfs_growfs_rt_alloc_blocks(
 	xfs_extlen_t		*nrbmblocks)
 {
 	struct xfs_mount	*mp = rtg_mount(rtg);
-	struct xfs_inode	*rbmip = rtg->rtg_inodes[XFS_RTGI_BITMAP];
-	struct xfs_inode	*rsumip = rtg->rtg_inodes[XFS_RTGI_SUMMARY];
+	struct xfs_inode	*rbmip = rtg_bitmap(rtg);
+	struct xfs_inode	*rsumip = rtg_summary(rtg);
 	xfs_extlen_t		orbmblocks = 0;
 	xfs_extlen_t		orsumblocks = 0;
 	struct xfs_mount	*nmp;
@@ -1150,29 +1161,37 @@ out_rele:
 	return error;
 }
 
-static int
+int
 xfs_growfs_check_rtgeom(
 	const struct xfs_mount	*mp,
+	xfs_rfsblock_t		dblocks,
 	xfs_rfsblock_t		rblocks,
 	xfs_extlen_t		rextsize)
 {
+	xfs_extlen_t		min_logfsbs;
 	struct xfs_mount	*nmp;
-	int			error = 0;
 
 	nmp = xfs_growfs_rt_alloc_fake_mount(mp, rblocks, rextsize);
 	if (!nmp)
 		return -ENOMEM;
+	nmp->m_sb.sb_dblocks = dblocks;
+
+	xfs_rtrmapbt_compute_maxlevels(nmp);
+	xfs_trans_resv_calc(nmp, M_RES(nmp));
 
 	/*
 	 * New summary size can't be more than half the size of the log.  This
 	 * prevents us from getting a log overflow, since we'll log basically
 	 * the whole summary file at once.
 	 */
-	if (nmp->m_rsumblocks > (mp->m_sb.sb_logblocks >> 1))
-		error = -EINVAL;
+	min_logfsbs = min_t(xfs_extlen_t, xfs_log_calc_minimum_size(nmp),
+			nmp->m_rsumblocks * 2);
 
 	kfree(nmp);
-	return error;
+
+	if (min_logfsbs > mp->m_sb.sb_logblocks)
+		return -EINVAL;
+	return 0;
 }
 
 /*
@@ -1263,11 +1282,15 @@ xfs_growfs_rt(
 	    XFS_FSB_TO_B(mp, in->extsize) < XFS_MIN_RTEXTSIZE)
 		goto out_unlock;
 
-	/* Unsupported realtime features. */
+	/* Check for features supported only on rtgroups filesystems. */
 	error = -EOPNOTSUPP;
-	if (xfs_has_quota(mp) && !xfs_has_rtgroups(mp))
-		goto out_unlock;
-	if (xfs_has_rmapbt(mp) || xfs_has_reflink(mp))
+	if (!xfs_has_rtgroups(mp)) {
+		if (xfs_has_rmapbt(mp))
+			goto out_unlock;
+		if (xfs_has_quota(mp))
+			goto out_unlock;
+	}
+	if (xfs_has_reflink(mp))
 		goto out_unlock;
 
 	error = xfs_sb_validate_fsb_count(&mp->m_sb, in->newblocks);
@@ -1291,7 +1314,8 @@ xfs_growfs_rt(
 		goto out_unlock;
 
 	/* Make sure the new fs size won't cause problems with the log. */
-	error = xfs_growfs_check_rtgeom(mp, in->newblocks, in->extsize);
+	error = xfs_growfs_check_rtgeom(mp, mp->m_sb.sb_dblocks, in->newblocks,
+			in->extsize);
 	if (error)
 		goto out_unlock;
 
@@ -1498,6 +1522,13 @@ void
 xfs_rt_resv_free(
 	struct xfs_mount	*mp)
 {
+	struct xfs_rtgroup	*rtg = NULL;
+	unsigned int		i;
+
+	while ((rtg = xfs_rtgroup_next(mp, rtg))) {
+		for (i = 0; i < XFS_RTGI_MAX; i++)
+			xfs_metafile_resv_free(rtg->rtg_inodes[i]);
+	}
 }
 
 /* Reserve space for rt metadata inodes' space expansion. */
@@ -1505,7 +1536,20 @@ int
 xfs_rt_resv_init(
 	struct xfs_mount	*mp)
 {
-	return 0;
+	struct xfs_rtgroup	*rtg = NULL;
+	xfs_filblks_t		ask;
+	int			error = 0;
+
+	while ((rtg = xfs_rtgroup_next(mp, rtg))) {
+		int		err2;
+
+		ask = xfs_rtrmapbt_calc_reserves(mp);
+		err2 = xfs_metafile_resv_init(rtg_rmap(rtg), ask);
+		if (err2 && !error)
+			error = err2;
+	}
+
+	return error;
 }
 
 /*
@@ -1622,7 +1666,7 @@ xfs_rtpick_extent(
 	xfs_rtxlen_t		len)		/* allocation length (rtextents) */
 {
 	struct xfs_mount	*mp = rtg_mount(rtg);
-	struct xfs_inode	*rbmip = rtg->rtg_inodes[XFS_RTGI_BITMAP];
+	struct xfs_inode	*rbmip = rtg_bitmap(rtg);
 	xfs_rtxnum_t		b = 0;		/* result rtext */
 	int			log2;		/* log of sequence number */
 	uint64_t		resid;		/* residual after log removed */

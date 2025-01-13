@@ -17,6 +17,7 @@
 #include "xfs_bit.h"
 #include "xfs_quota_defs.h"
 
+struct xfs_rtgroup;
 struct xfs_scrub;
 struct xfile;
 struct xfarray;
@@ -39,6 +40,9 @@ struct xchk_dirtree_outcomes;
  */
 TRACE_DEFINE_ENUM(XFS_REFC_DOMAIN_SHARED);
 TRACE_DEFINE_ENUM(XFS_REFC_DOMAIN_COW);
+
+TRACE_DEFINE_ENUM(XG_TYPE_AG);
+TRACE_DEFINE_ENUM(XG_TYPE_RTG);
 
 TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_PROBE);
 TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_SB);
@@ -72,6 +76,7 @@ TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_DIRTREE);
 TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_BARRIER);
 TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_METAPATH);
 TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_RGSUPER);
+TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_RTRMAPBT);
 
 #define XFS_SCRUB_TYPE_STRINGS \
 	{ XFS_SCRUB_TYPE_PROBE,		"probe" }, \
@@ -105,7 +110,8 @@ TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_RGSUPER);
 	{ XFS_SCRUB_TYPE_DIRTREE,	"dirtree" }, \
 	{ XFS_SCRUB_TYPE_BARRIER,	"barrier" }, \
 	{ XFS_SCRUB_TYPE_METAPATH,	"metapath" }, \
-	{ XFS_SCRUB_TYPE_RGSUPER,	"rgsuper" }
+	{ XFS_SCRUB_TYPE_RGSUPER,	"rgsuper" }, \
+	{ XFS_SCRUB_TYPE_RTRMAPBT,	"rtrmapbt" }
 
 #define XFS_SCRUB_FLAG_STRINGS \
 	{ XFS_SCRUB_IFLAG_REPAIR,		"repair" }, \
@@ -2282,6 +2288,32 @@ TRACE_EVENT(xrep_calc_ag_resblks_btsize,
 		  __entry->rmapbt_sz,
 		  __entry->refcbt_sz)
 )
+
+#ifdef CONFIG_XFS_RT
+TRACE_EVENT(xrep_calc_rtgroup_resblks_btsize,
+	TP_PROTO(struct xfs_mount *mp, xfs_rgnumber_t rgno,
+		 xfs_rgblock_t usedlen, xfs_rgblock_t rmapbt_sz),
+	TP_ARGS(mp, rgno, usedlen, rmapbt_sz),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_rgnumber_t, rgno)
+		__field(xfs_rgblock_t, usedlen)
+		__field(xfs_rgblock_t, rmapbt_sz)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->rgno = rgno;
+		__entry->usedlen = usedlen;
+		__entry->rmapbt_sz = rmapbt_sz;
+	),
+	TP_printk("dev %d:%d rgno 0x%x usedlen %u rmapbt %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->rgno,
+		  __entry->usedlen,
+		  __entry->rmapbt_sz)
+);
+#endif /* CONFIG_XFS_RT */
+
 TRACE_EVENT(xrep_reset_counters,
 	TP_PROTO(struct xfs_mount *mp, struct xchk_fscounters *fsc),
 	TP_ARGS(mp, fsc),
@@ -2680,11 +2712,12 @@ DEFINE_SCRUB_NLINKS_DIFF_EVENT(xrep_nlinks_update_inode);
 DEFINE_SCRUB_NLINKS_DIFF_EVENT(xrep_nlinks_unfixable_inode);
 
 TRACE_EVENT(xrep_rmap_live_update,
-	TP_PROTO(const struct xfs_perag *pag, unsigned int op,
+	TP_PROTO(const struct xfs_group *xg, unsigned int op,
 		 const struct xfs_rmap_update_params *p),
-	TP_ARGS(pag, op, p),
+	TP_ARGS(xg, op, p),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
+		__field(enum xfs_group_type, type)
 		__field(xfs_agnumber_t, agno)
 		__field(unsigned int, op)
 		__field(xfs_agblock_t, agbno)
@@ -2694,8 +2727,9 @@ TRACE_EVENT(xrep_rmap_live_update,
 		__field(unsigned int, flags)
 	),
 	TP_fast_assign(
-		__entry->dev = pag_mount(pag)->m_super->s_dev;
-		__entry->agno = pag_agno(pag);
+		__entry->dev = xg->xg_mount->m_super->s_dev;
+		__entry->type = xg->xg_type;
+		__entry->agno = xg->xg_gno;
 		__entry->op = op;
 		__entry->agbno = p->startblock;
 		__entry->len = p->blockcount;
@@ -2704,10 +2738,12 @@ TRACE_EVENT(xrep_rmap_live_update,
 		if (p->unwritten)
 			__entry->flags |= XFS_RMAP_UNWRITTEN;
 	),
-	TP_printk("dev %d:%d agno 0x%x op %d agbno 0x%x fsbcount 0x%x owner 0x%llx fileoff 0x%llx flags 0x%x",
+	TP_printk("dev %d:%d %sno 0x%x op %d %sbno 0x%x fsbcount 0x%x owner 0x%llx fileoff 0x%llx flags 0x%x",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __print_symbolic(__entry->type, XG_TYPE_STRINGS),
 		  __entry->agno,
 		  __entry->op,
+		  __print_symbolic(__entry->type, XG_TYPE_STRINGS),
 		  __entry->agbno,
 		  __entry->len,
 		  __entry->owner,
@@ -3604,6 +3640,186 @@ DEFINE_XCHK_METAPATH_EVENT(xrep_metapath_lookup);
 DEFINE_XCHK_METAPATH_EVENT(xrep_metapath_try_unlink);
 DEFINE_XCHK_METAPATH_EVENT(xrep_metapath_unlink);
 DEFINE_XCHK_METAPATH_EVENT(xrep_metapath_link);
+
+#ifdef CONFIG_XFS_RT
+DECLARE_EVENT_CLASS(xrep_rtbitmap_class,
+	TP_PROTO(struct xfs_mount *mp, xfs_rtxnum_t start, xfs_rtxnum_t end),
+	TP_ARGS(mp, start, end),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(dev_t, rtdev)
+		__field(xfs_rtxnum_t, start)
+		__field(xfs_rtxnum_t, end)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->rtdev = mp->m_rtdev_targp->bt_dev;
+		__entry->start = start;
+		__entry->end = end;
+	),
+	TP_printk("dev %d:%d rtdev %d:%d startrtx 0x%llx endrtx 0x%llx",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  MAJOR(__entry->rtdev), MINOR(__entry->rtdev),
+		  __entry->start,
+		  __entry->end)
+);
+#define DEFINE_REPAIR_RGBITMAP_EVENT(name) \
+DEFINE_EVENT(xrep_rtbitmap_class, name, \
+	TP_PROTO(struct xfs_mount *mp, xfs_rtxnum_t start, \
+		 xfs_rtxnum_t end), \
+	TP_ARGS(mp, start, end))
+DEFINE_REPAIR_RGBITMAP_EVENT(xrep_rtbitmap_record_free);
+DEFINE_REPAIR_RGBITMAP_EVENT(xrep_rtbitmap_record_free_bulk);
+
+TRACE_EVENT(xrep_rtbitmap_or,
+	TP_PROTO(struct xfs_mount *mp, unsigned long long wordoff,
+		 xfs_rtword_t mask, xfs_rtword_t word),
+	TP_ARGS(mp, wordoff, mask, word),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(dev_t, rtdev)
+		__field(unsigned long long, wordoff)
+		__field(unsigned int, mask)
+		__field(unsigned int, word)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->rtdev = mp->m_rtdev_targp->bt_dev;
+		__entry->wordoff = wordoff;
+		__entry->mask = mask;
+		__entry->word = word;
+	),
+	TP_printk("dev %d:%d rtdev %d:%d wordoff 0x%llx mask 0x%x word 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  MAJOR(__entry->rtdev), MINOR(__entry->rtdev),
+		  __entry->wordoff,
+		  __entry->mask,
+		  __entry->word)
+);
+
+TRACE_EVENT(xrep_rtbitmap_load,
+	TP_PROTO(struct xfs_rtgroup *rtg, xfs_fileoff_t rbmoff,
+		 xfs_rtxnum_t rtx, xfs_rtxnum_t len),
+	TP_ARGS(rtg, rbmoff, rtx, len),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(dev_t, rtdev)
+		__field(xfs_rgnumber_t, rgno)
+		__field(xfs_fileoff_t, rbmoff)
+		__field(xfs_rtxnum_t, rtx)
+		__field(xfs_rtxnum_t, len)
+	),
+	TP_fast_assign(
+		__entry->dev = rtg_mount(rtg)->m_super->s_dev;
+		__entry->rtdev = rtg_mount(rtg)->m_rtdev_targp->bt_dev;
+		__entry->rgno = rtg_rgno(rtg);
+		__entry->rbmoff = rbmoff;
+		__entry->rtx = rtx;
+		__entry->len = len;
+	),
+	TP_printk("dev %d:%d rtdev %d:%d rgno 0x%x rbmoff 0x%llx rtx 0x%llx rtxcount 0x%llx",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  MAJOR(__entry->rtdev), MINOR(__entry->rtdev),
+		  __entry->rgno,
+		  __entry->rbmoff,
+		  __entry->rtx,
+		  __entry->len)
+);
+
+TRACE_EVENT(xrep_rtbitmap_load_words,
+	TP_PROTO(struct xfs_mount *mp, xfs_fileoff_t rbmoff,
+		 unsigned long long wordoff, unsigned int wordcnt),
+	TP_ARGS(mp, rbmoff, wordoff, wordcnt),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(dev_t, rtdev)
+		__field(xfs_fileoff_t, rbmoff)
+		__field(unsigned long long, wordoff)
+		__field(unsigned int, wordcnt)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->rtdev = mp->m_rtdev_targp->bt_dev;
+		__entry->rbmoff = rbmoff;
+		__entry->wordoff = wordoff;
+		__entry->wordcnt = wordcnt;
+	),
+	TP_printk("dev %d:%d rtdev %d:%d rbmoff 0x%llx wordoff 0x%llx wordcnt 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  MAJOR(__entry->rtdev), MINOR(__entry->rtdev),
+		  __entry->rbmoff,
+		  __entry->wordoff,
+		  __entry->wordcnt)
+);
+
+TRACE_EVENT(xrep_rtbitmap_load_word,
+	TP_PROTO(struct xfs_mount *mp, unsigned long long wordoff,
+		 unsigned int bit, xfs_rtword_t ondisk_word,
+		 xfs_rtword_t xfile_word, xfs_rtword_t word_mask),
+	TP_ARGS(mp, wordoff, bit, ondisk_word, xfile_word, word_mask),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(dev_t, rtdev)
+		__field(unsigned long long, wordoff)
+		__field(unsigned int, bit)
+		__field(xfs_rtword_t, ondisk_word)
+		__field(xfs_rtword_t, xfile_word)
+		__field(xfs_rtword_t, word_mask)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->rtdev = mp->m_rtdev_targp->bt_dev;
+		__entry->wordoff = wordoff;
+		__entry->bit = bit;
+		__entry->ondisk_word = ondisk_word;
+		__entry->xfile_word = xfile_word;
+		__entry->word_mask = word_mask;
+	),
+	TP_printk("dev %d:%d rtdev %d:%d wordoff 0x%llx bit %u ondisk 0x%x(0x%x) inmem 0x%x(0x%x) result 0x%x mask 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  MAJOR(__entry->rtdev), MINOR(__entry->rtdev),
+		  __entry->wordoff,
+		  __entry->bit,
+		  __entry->ondisk_word,
+		  __entry->ondisk_word & __entry->word_mask,
+		  __entry->xfile_word,
+		  __entry->xfile_word & ~__entry->word_mask,
+		  (__entry->xfile_word & ~__entry->word_mask) |
+		  (__entry->ondisk_word & __entry->word_mask),
+		  __entry->word_mask)
+);
+
+TRACE_EVENT(xrep_rtrmap_found,
+	TP_PROTO(struct xfs_mount *mp, const struct xfs_rmap_irec *rec),
+	TP_ARGS(mp, rec),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(dev_t, rtdev)
+		__field(xfs_rgblock_t, rgbno)
+		__field(xfs_extlen_t, len)
+		__field(uint64_t, owner)
+		__field(uint64_t, offset)
+		__field(unsigned int, flags)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->rtdev = mp->m_rtdev_targp->bt_dev;
+		__entry->rgbno = rec->rm_startblock;
+		__entry->len = rec->rm_blockcount;
+		__entry->owner = rec->rm_owner;
+		__entry->offset = rec->rm_offset;
+		__entry->flags = rec->rm_flags;
+	),
+	TP_printk("dev %d:%d rtdev %d:%d rgbno 0x%x fsbcount 0x%x owner 0x%llx fileoff 0x%llx flags 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  MAJOR(__entry->rtdev), MINOR(__entry->rtdev),
+		  __entry->rgbno,
+		  __entry->len,
+		  __entry->owner,
+		  __entry->offset,
+		  __entry->flags)
+);
+#endif /* CONFIG_XFS_RT */
 
 #endif /* IS_ENABLED(CONFIG_XFS_ONLINE_REPAIR) */
 

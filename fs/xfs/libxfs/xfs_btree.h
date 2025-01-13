@@ -135,7 +135,7 @@ struct xfs_btree_ops {
 	/* offset of btree stats array */
 	unsigned int		statoff;
 
-	/* sick mask for health reporting (only for XFS_BTREE_TYPE_AG) */
+	/* sick mask for health reporting (not for bmap btrees) */
 	unsigned int		sick_mask;
 
 	/* cursor operations */
@@ -702,5 +702,11 @@ xfs_btree_at_iroot(
 	return cur->bc_ops->type == XFS_BTREE_TYPE_INODE &&
 	       level == cur->bc_nlevels - 1;
 }
+
+int xfs_btree_alloc_metafile_block(struct xfs_btree_cur *cur,
+		const union xfs_btree_ptr *start, union xfs_btree_ptr *newp,
+		int *stat);
+int xfs_btree_free_metafile_block(struct xfs_btree_cur *cur,
+		struct xfs_buf *bp);
 
 #endif	/* __XFS_BTREE_H__ */

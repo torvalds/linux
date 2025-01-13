@@ -27,6 +27,7 @@
 #include "xfs_errortag.h"
 #include "xfs_health.h"
 #include "xfs_symlink_remote.h"
+#include "xfs_rtrmap_btree.h"
 
 struct kmem_cache *xfs_ifork_cache;
 
@@ -267,6 +268,14 @@ xfs_iformat_data_fork(
 			return xfs_iformat_extents(ip, dip, XFS_DATA_FORK);
 		case XFS_DINODE_FMT_BTREE:
 			return xfs_iformat_btree(ip, dip, XFS_DATA_FORK);
+		case XFS_DINODE_FMT_META_BTREE:
+			switch (ip->i_metatype) {
+			case XFS_METAFILE_RTRMAP:
+				return xfs_iformat_rtrmap(ip, dip);
+			default:
+				break;
+			}
+			fallthrough;
 		default:
 			xfs_inode_verifier_error(ip, -EFSCORRUPTED, __func__,
 					dip, sizeof(*dip), __this_address);
@@ -598,6 +607,22 @@ xfs_iflush_fork(
 			ASSERT(whichfork == XFS_DATA_FORK);
 			xfs_dinode_put_rdev(dip,
 					linux_to_xfs_dev_t(VFS_I(ip)->i_rdev));
+		}
+		break;
+
+	case XFS_DINODE_FMT_META_BTREE:
+		ASSERT(whichfork == XFS_DATA_FORK);
+
+		if (!(iip->ili_fields & brootflag[whichfork]))
+			break;
+
+		switch (ip->i_metatype) {
+		case XFS_METAFILE_RTRMAP:
+			xfs_iflush_rtrmap(ip, dip);
+			break;
+		default:
+			ASSERT(0);
+			break;
 		}
 		break;
 

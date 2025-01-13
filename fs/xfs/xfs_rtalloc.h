@@ -46,6 +46,8 @@ xfs_growfs_rt(
 	xfs_growfs_rt_t		*in);	/* user supplied growfs struct */
 
 int xfs_rtalloc_reinit_frextents(struct xfs_mount *mp);
+int xfs_growfs_check_rtgeom(const struct xfs_mount *mp, xfs_rfsblock_t dblocks,
+		xfs_rfsblock_t rblocks, xfs_agblock_t rextsize);
 #else
 # define xfs_growfs_rt(mp,in)				(-ENOSYS)
 # define xfs_rtalloc_reinit_frextents(m)		(0)
@@ -65,6 +67,14 @@ xfs_rtmount_init(
 # define xfs_rtunmount_inodes(m)
 # define xfs_rt_resv_free(mp)				((void)0)
 # define xfs_rt_resv_init(mp)				(0)
+
+static inline int
+xfs_growfs_check_rtgeom(const struct xfs_mount *mp,
+		xfs_rfsblock_t dblocks, xfs_rfsblock_t rblocks,
+		xfs_extlen_t rextsize)
+{
+	return 0;
+}
 #endif	/* CONFIG_XFS_RT */
 
 #endif	/* __XFS_RTALLOC_H__ */

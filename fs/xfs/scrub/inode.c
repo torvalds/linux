@@ -502,6 +502,10 @@ xchk_dinode(
 		if (!S_ISREG(mode) && !S_ISDIR(mode))
 			xchk_ino_set_corrupt(sc, ino);
 		break;
+	case XFS_DINODE_FMT_META_BTREE:
+		if (!S_ISREG(mode))
+			xchk_ino_set_corrupt(sc, ino);
+		break;
 	case XFS_DINODE_FMT_UUID:
 	default:
 		xchk_ino_set_corrupt(sc, ino);
@@ -686,15 +690,13 @@ xchk_inode_xref_bmap(
 		return;
 
 	/* Walk all the extents to check nextents/naextents/nblocks. */
-	error = xfs_bmap_count_blocks(sc->tp, sc->ip, XFS_DATA_FORK,
-			&nextents, &count);
+	error = xchk_inode_count_blocks(sc, XFS_DATA_FORK, &nextents, &count);
 	if (!xchk_should_check_xref(sc, &error, NULL))
 		return;
 	if (nextents < xfs_dfork_data_extents(dip))
 		xchk_ino_xref_set_corrupt(sc, sc->ip->i_ino);
 
-	error = xfs_bmap_count_blocks(sc->tp, sc->ip, XFS_ATTR_FORK,
-			&nextents, &acount);
+	error = xchk_inode_count_blocks(sc, XFS_ATTR_FORK, &nextents, &acount);
 	if (!xchk_should_check_xref(sc, &error, NULL))
 		return;
 	if (nextents != xfs_dfork_attr_extents(dip))

@@ -79,6 +79,8 @@ extern const struct xlog_recover_item_ops xlog_xmi_item_ops;
 extern const struct xlog_recover_item_ops xlog_xmd_item_ops;
 extern const struct xlog_recover_item_ops xlog_rtefi_item_ops;
 extern const struct xlog_recover_item_ops xlog_rtefd_item_ops;
+extern const struct xlog_recover_item_ops xlog_rtrui_item_ops;
+extern const struct xlog_recover_item_ops xlog_rtrud_item_ops;
 
 /*
  * Macros, structures, prototypes for internal log manager use.

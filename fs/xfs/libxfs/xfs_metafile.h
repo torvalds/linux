@@ -6,6 +6,8 @@
 #ifndef __XFS_METAFILE_H__
 #define __XFS_METAFILE_H__
 
+const char *xfs_metafile_type_str(enum xfs_metafile_type metatype);
+
 /* All metadata files must have these flags set. */
 #define XFS_METAFILE_DIFLAGS	(XFS_DIFLAG_IMMUTABLE | \
 				 XFS_DIFLAG_SYNC | \

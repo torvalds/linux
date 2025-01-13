@@ -12,7 +12,7 @@ struct xrep_tempexch {
 };
 
 int xrep_tempexch_trans_reserve(struct xfs_scrub *sc, int whichfork,
-		struct xrep_tempexch *ti);
+		xfs_fileoff_t off, xfs_filblks_t len, struct xrep_tempexch *ti);
 int xrep_tempexch_trans_alloc(struct xfs_scrub *sc, int whichfork,
 		struct xrep_tempexch *ti);
 

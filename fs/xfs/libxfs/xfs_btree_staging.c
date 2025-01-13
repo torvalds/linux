@@ -134,6 +134,7 @@ xfs_btree_stage_ifakeroot(
 	cur->bc_ino.ifake = ifake;
 	cur->bc_nlevels = ifake->if_levels;
 	cur->bc_ino.forksize = ifake->if_fork_size;
+	cur->bc_ino.whichfork = XFS_STAGING_FORK;
 	cur->bc_flags |= XFS_BTREE_STAGING;
 }
 

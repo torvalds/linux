@@ -22,6 +22,24 @@
 #include "xfs_error.h"
 #include "xfs_alloc.h"
 
+static const struct {
+	enum xfs_metafile_type	mtype;
+	const char		*name;
+} xfs_metafile_type_strs[] = { XFS_METAFILE_TYPE_STR };
+
+const char *
+xfs_metafile_type_str(enum xfs_metafile_type metatype)
+{
+	unsigned int	i;
+
+	for (i = 0; i < ARRAY_SIZE(xfs_metafile_type_strs); i++) {
+		if (xfs_metafile_type_strs[i].mtype == metatype)
+			return xfs_metafile_type_strs[i].name;
+	}
+
+	return NULL;
+}
+
 /* Set up an inode to be recognized as a metadata directory inode. */
 void
 xfs_metafile_set_iflag(
