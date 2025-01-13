@@ -112,6 +112,8 @@ enum sparx5_feature {
 #define XTR_QUEUE     0
 #define INJ_QUEUE     0
 
+#define FDMA_XTR_CHANNEL		6
+#define FDMA_INJ_CHANNEL		0
 #define FDMA_DCB_MAX			64
 #define FDMA_RX_DCB_MAX_DBS		15
 #define FDMA_TX_DCB_MAX_DBS		1
@@ -157,11 +159,25 @@ struct sparx5_calendar_data {
  */
 struct sparx5_rx {
 	struct fdma fdma;
-	struct sk_buff *skb[FDMA_DCB_MAX][FDMA_RX_DCB_MAX_DBS];
+	struct page_pool *page_pool;
+	union {
+		struct sk_buff *skb[FDMA_DCB_MAX][FDMA_RX_DCB_MAX_DBS];
+		struct page *page[FDMA_DCB_MAX][FDMA_RX_DCB_MAX_DBS];
+	};
 	dma_addr_t dma;
 	struct napi_struct napi;
 	struct net_device *ndev;
 	u64 packets;
+	u8 page_order;
+};
+
+/* Used to store information about TX buffers. */
+struct sparx5_tx_buf {
+	struct net_device *dev;
+	struct sk_buff *skb;
+	dma_addr_t dma_addr;
+	bool used;
+	bool ptp;
 };
 
 /* Frame DMA transmit state:
@@ -169,6 +185,7 @@ struct sparx5_rx {
  */
 struct sparx5_tx {
 	struct fdma fdma;
+	struct sparx5_tx_buf *dbs;
 	u64 packets;
 	u64 dropped;
 };
@@ -449,6 +466,8 @@ int sparx5_fdma_napi_callback(struct napi_struct *napi, int weight);
 int sparx5_fdma_xmit(struct sparx5 *sparx5, u32 *ifh, struct sk_buff *skb,
 		     struct net_device *dev);
 irqreturn_t sparx5_fdma_handler(int irq, void *args);
+void sparx5_fdma_reload(struct sparx5 *sparx5, struct fdma *fdma);
+void sparx5_fdma_injection_mode(struct sparx5 *sparx5);
 
 /* sparx5_mactable.c */
 void sparx5_mact_pull_work(struct work_struct *work);

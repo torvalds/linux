@@ -267,6 +267,12 @@ netdev_tx_t sparx5_port_xmit_impl(struct sk_buff *skb, struct net_device *dev)
 	if (ret < 0)
 		goto drop;
 
+	if (!is_sparx5(sparx5))
+		/* When lan969x and TX_OK, stats and SKB consumption is handled
+		 * in the TX completion loop, so dont go any further.
+		 */
+		return NETDEV_TX_OK;
+
 	stats->tx_bytes += skb->len;
 	stats->tx_packets++;
 	sparx5->tx.packets++;

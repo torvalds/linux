@@ -18,9 +18,6 @@
 #include "sparx5_main.h"
 #include "sparx5_port.h"
 
-#define FDMA_XTR_CHANNEL		6
-#define FDMA_INJ_CHANNEL		0
-
 #define FDMA_XTR_BUFFER_SIZE		2048
 #define FDMA_WEIGHT			4
 
@@ -133,7 +130,7 @@ static void sparx5_fdma_tx_deactivate(struct sparx5 *sparx5, struct sparx5_tx *t
 		 sparx5, FDMA_CH_ACTIVATE);
 }
 
-static void sparx5_fdma_reload(struct sparx5 *sparx5, struct fdma *fdma)
+void sparx5_fdma_reload(struct sparx5 *sparx5, struct fdma *fdma)
 {
 	/* Reload the RX channel */
 	spx5_wr(BIT(fdma->channel_id), sparx5, FDMA_CH_RELOAD);
@@ -340,7 +337,7 @@ irqreturn_t sparx5_fdma_handler(int irq, void *args)
 	return IRQ_HANDLED;
 }
 
-static void sparx5_fdma_injection_mode(struct sparx5 *sparx5)
+void sparx5_fdma_injection_mode(struct sparx5 *sparx5)
 {
 	const int byte_swap = 1;
 	int portno;
