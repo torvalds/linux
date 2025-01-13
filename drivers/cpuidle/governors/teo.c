@@ -41,11 +41,7 @@
  * idle state 2, the third bin spans from the target residency of idle state 2
  * up to, but not including, the target residency of idle state 3 and so on.
  * The last bin spans from the target residency of the deepest idle state
- * supplied by the driver to the scheduler tick period length or to infinity if
- * the tick period length is less than the target residency of that state.  In
- * the latter case, the governor also counts events with the measured idle
- * duration between the tick period length and the target residency of the
- * deepest idle state.
+ * supplied by the driver to infinity.
  *
  * Two metrics called "hits" and "intercepts" are associated with each bin.
  * They are updated every time before selecting an idle state for the given CPU
@@ -59,6 +55,10 @@
  * that corresponds to an idle state shallower than the one whose bin is fallen
  * into by the sleep length (these events are also referred to as "intercepts"
  * below).
+ *
+ * The governor also counts "intercepts" with the measured idle duration below
+ * the tick period length and uses this information when deciding whether or not
+ * to stop the scheduler tick.
  *
  * In order to select an idle state for a CPU, the governor takes the following
  * steps (modulo the possible latency constraint that must be taken into account
@@ -128,14 +128,14 @@ struct teo_bin {
  * @sleep_length_ns: Time till the closest timer event (at the selection time).
  * @state_bins: Idle state data bins for this CPU.
  * @total: Grand total of the "intercepts" and "hits" metrics for all bins.
- * @tick_hits: Number of "hits" after TICK_NSEC.
+ * @tick_intercepts: "Intercepts" before TICK_NSEC.
  */
 struct teo_cpu {
 	s64 time_span_ns;
 	s64 sleep_length_ns;
 	struct teo_bin state_bins[CPUIDLE_STATE_MAX];
 	unsigned int total;
-	unsigned int tick_hits;
+	unsigned int tick_intercepts;
 };
 
 static DEFINE_PER_CPU(struct teo_cpu, teo_cpus);
@@ -207,38 +207,21 @@ static void teo_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 		}
 	}
 
-	/*
-	 * If the deepest state's target residency is below the tick length,
-	 * make a record of it to help teo_select() decide whether or not
-	 * to stop the tick.  This effectively adds an extra hits-only bin
-	 * beyond the last state-related one.
-	 */
-	if (target_residency_ns < TICK_NSEC) {
-		cpu_data->tick_hits -= cpu_data->tick_hits >> DECAY_SHIFT;
-
-		cpu_data->total += cpu_data->tick_hits;
-
-		if (TICK_NSEC <= cpu_data->sleep_length_ns) {
-			idx_timer = drv->state_count;
-			if (TICK_NSEC <= measured_ns) {
-				cpu_data->tick_hits += PULSE;
-				goto end;
-			}
-		}
-	}
-
+	cpu_data->tick_intercepts -= cpu_data->tick_intercepts >> DECAY_SHIFT;
 	/*
 	 * If the measured idle duration falls into the same bin as the sleep
 	 * length, this is a "hit", so update the "hits" metric for that bin.
 	 * Otherwise, update the "intercepts" metric for the bin fallen into by
 	 * the measured idle duration.
 	 */
-	if (idx_timer == idx_duration)
+	if (idx_timer == idx_duration) {
 		cpu_data->state_bins[idx_timer].hits += PULSE;
-	else
+	} else {
 		cpu_data->state_bins[idx_duration].intercepts += PULSE;
+		if (TICK_NSEC <= measured_ns)
+			cpu_data->tick_intercepts += PULSE;
+	}
 
-end:
 	cpu_data->total += PULSE;
 }
 
@@ -286,7 +269,6 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	struct teo_cpu *cpu_data = per_cpu_ptr(&teo_cpus, dev->cpu);
 	s64 latency_req = cpuidle_governor_latency_req(dev->cpu);
 	ktime_t delta_tick = TICK_NSEC / 2;
-	unsigned int tick_intercept_sum = 0;
 	unsigned int idx_intercept_sum = 0;
 	unsigned int intercept_sum = 0;
 	unsigned int idx_hit_sum = 0;
@@ -364,9 +346,6 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 		duration_ns = drv->states[idx].target_residency_ns;
 		goto end;
 	}
-
-	tick_intercept_sum = intercept_sum +
-			cpu_data->state_bins[drv->state_count-1].intercepts;
 
 	/*
 	 * If the sum of the intercepts metric for all of the idle states
@@ -477,7 +456,7 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	 * total wakeup events, do not stop the tick.
 	 */
 	if (drv->states[idx].target_residency_ns < TICK_NSEC &&
-	    tick_intercept_sum > cpu_data->total / 2 + cpu_data->total / 8)
+	    cpu_data->tick_intercepts > cpu_data->total / 2 + cpu_data->total / 8)
 		duration_ns = TICK_NSEC / 2;
 
 end:
