@@ -32,6 +32,149 @@ static struct btrfs_device *btrfs_device_by_devid(struct btrfs_fs_devices *fs_de
 }
 
 /*
+ * Test a 1M RST write that spans two adjacent RST items on disk and then
+ * delete a portion starting in the first item and spanning into the second
+ * item. This is similar to test_front_delete(), but spanning multiple items.
+ */
+static int test_front_delete_prev_item(struct btrfs_trans_handle *trans)
+{
+	struct btrfs_fs_info *fs_info = trans->fs_info;
+	struct btrfs_io_context *bioc;
+	struct btrfs_io_stripe io_stripe = { 0 };
+	u64 map_type = RST_TEST_RAID1_TYPE;
+	u64 logical1 = SZ_1M;
+	u64 logical2 = SZ_2M;
+	u64 len = SZ_1M;
+	int ret;
+
+	bioc = alloc_btrfs_io_context(fs_info, logical1, RST_TEST_NUM_DEVICES);
+	if (!bioc) {
+		test_std_err(TEST_ALLOC_IO_CONTEXT);
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	io_stripe.dev = btrfs_device_by_devid(fs_info->fs_devices, 0);
+	bioc->map_type = map_type;
+	bioc->size = len;
+
+	/* Insert RAID extent 1. */
+	for (int i = 0; i < RST_TEST_NUM_DEVICES; i++) {
+		struct btrfs_io_stripe *stripe = &bioc->stripes[i];
+
+		stripe->dev = btrfs_device_by_devid(fs_info->fs_devices, i);
+		if (!stripe->dev) {
+			test_err("cannot find device with devid %d", i);
+			ret = -EINVAL;
+			goto out;
+		}
+
+		stripe->physical = logical1 + i * SZ_1G;
+	}
+
+	ret = btrfs_insert_one_raid_extent(trans, bioc);
+	if (ret) {
+		test_err("inserting RAID extent failed: %d", ret);
+		goto out;
+	}
+
+	bioc->logical = logical2;
+	/* Insert RAID extent 2, directly adjacent to it. */
+	for (int i = 0; i < RST_TEST_NUM_DEVICES; i++) {
+		struct btrfs_io_stripe *stripe = &bioc->stripes[i];
+
+		stripe->dev = btrfs_device_by_devid(fs_info->fs_devices, i);
+		if (!stripe->dev) {
+			test_err("cannot find device with devid %d", i);
+			ret = -EINVAL;
+			goto out;
+		}
+
+		stripe->physical = logical2 + i * SZ_1G;
+	}
+
+	ret = btrfs_insert_one_raid_extent(trans, bioc);
+	if (ret) {
+		test_err("inserting RAID extent failed: %d", ret);
+		goto out;
+	}
+
+	ret = btrfs_delete_raid_extent(trans, logical1 + SZ_512K, SZ_1M);
+	if (ret) {
+		test_err("deleting RAID extent [%llu, %llu] failed",
+			 logical1 + SZ_512K, (u64)SZ_1M);
+		goto out;
+	}
+
+	/* Verify item 1 is truncated to 512K. */
+	ret = btrfs_get_raid_extent_offset(fs_info, logical1, &len, map_type, 0,
+					   &io_stripe);
+	if (ret) {
+		test_err("lookup of RAID extent [%llu, %llu] failed", logical1,
+			 logical1 + len);
+		goto out;
+	}
+
+	if (io_stripe.physical != logical1) {
+		test_err("invalid physical address, expected %llu got %llu",
+			 logical1, io_stripe.physical);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (len != SZ_512K) {
+		test_err("invalid stripe length, expected %llu got %llu",
+			 (u64)SZ_512K, len);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	/* Verify item 2's start is moved by 512K. */
+	ret = btrfs_get_raid_extent_offset(fs_info, logical2 + SZ_512K, &len,
+					   map_type, 0, &io_stripe);
+	if (ret) {
+		test_err("lookup of RAID extent [%llu, %llu] failed",
+			 logical2 + SZ_512K, logical2 + len);
+		goto out;
+	}
+
+	if (io_stripe.physical != logical2 + SZ_512K) {
+		test_err("invalid physical address, expected %llu got %llu",
+			 logical2 + SZ_512K, io_stripe.physical);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (len != SZ_512K) {
+		test_err("invalid stripe length, expected %llu got %llu",
+			 (u64)SZ_512K, len);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	/* Verify there's a hole at [1M+512K, 2M+512K] . */
+	len = SZ_1M;
+	ret = btrfs_get_raid_extent_offset(fs_info, logical1 + SZ_512K, &len,
+					   map_type, 0, &io_stripe);
+	if (ret != -ENODATA) {
+		test_err("lookup of RAID [%llu, %llu] succeeded, should fail",
+			 logical1 + SZ_512K, logical1 + SZ_512K + len);
+		goto out;
+	}
+
+	/* Clean up after us. */
+	ret = btrfs_delete_raid_extent(trans, logical1, SZ_512K);
+	if (ret)
+		goto out;
+
+	ret = btrfs_delete_raid_extent(trans, logical2 + SZ_512K, SZ_512K);
+
+out:
+	btrfs_put_bioc(bioc);
+	return ret;
+}
+
+/*
  * Test a 64K RST write on a 2 disk RAID1 at a logical address of 1M and then
  * delete the 1st 32K, making the new start address 1M+32K.
  */
@@ -468,6 +611,7 @@ static const test_func_t tests[] = {
 	test_create_update_delete,
 	test_tail_delete,
 	test_front_delete,
+	test_front_delete_prev_item,
 };
 
 static int run_test(test_func_t test, u32 sectorsize, u32 nodesize)
