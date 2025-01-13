@@ -1392,11 +1392,8 @@ xfs_buf_ioend(
 		if (bp->b_log_item)
 			xfs_buf_item_done(bp);
 
-		if (bp->b_flags & _XBF_INODES)
-			xfs_buf_inode_iodone(bp);
-		else if (bp->b_flags & _XBF_DQUOTS)
-			xfs_buf_dquot_iodone(bp);
-
+		if (bp->b_iodone)
+			bp->b_iodone(bp);
 	}
 
 	bp->b_flags &= ~(XBF_READ | XBF_WRITE | XBF_READ_AHEAD |

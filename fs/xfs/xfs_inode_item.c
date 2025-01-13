@@ -199,7 +199,7 @@ xfs_inode_item_precommit(
 		xfs_buf_hold(bp);
 		spin_lock(&iip->ili_lock);
 		iip->ili_item.li_buf = bp;
-		bp->b_flags |= _XBF_INODES;
+		bp->b_iodone = xfs_buf_inode_iodone;
 		list_add_tail(&iip->ili_item.li_bio_list, &bp->b_li_list);
 		xfs_trans_brelse(tp, bp);
 	}

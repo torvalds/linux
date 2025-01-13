@@ -34,8 +34,6 @@ struct xfs_buf;
 #define XBF_WRITE_FAIL	 (1u << 7) /* async writes have failed on this buffer */
 
 /* buffer type flags for write callbacks */
-#define _XBF_INODES	 (1u << 16)/* inode buffer */
-#define _XBF_DQUOTS	 (1u << 17)/* dquot buffer */
 #define _XBF_LOGRECOVERY (1u << 18)/* log recovery buffer */
 
 /* flags used only internally */
@@ -65,8 +63,6 @@ typedef unsigned int xfs_buf_flags_t;
 	{ XBF_DONE,		"DONE" }, \
 	{ XBF_STALE,		"STALE" }, \
 	{ XBF_WRITE_FAIL,	"WRITE_FAIL" }, \
-	{ _XBF_INODES,		"INODES" }, \
-	{ _XBF_DQUOTS,		"DQUOTS" }, \
 	{ _XBF_LOGRECOVERY,	"LOG_RECOVERY" }, \
 	{ _XBF_PAGES,		"PAGES" }, \
 	{ _XBF_KMEM,		"KMEM" }, \
@@ -205,6 +201,7 @@ struct xfs_buf {
 	unsigned int		b_offset;	/* page offset of b_addr,
 						   only for _XBF_KMEM buffers */
 	int			b_error;	/* error code on I/O */
+	void			(*b_iodone)(struct xfs_buf *bp);
 
 	/*
 	 * async write failure retry count. Initialised to zero on the first

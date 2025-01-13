@@ -659,7 +659,7 @@ xfs_trans_inode_buf(
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
 
 	bip->bli_flags |= XFS_BLI_INODE_BUF;
-	bp->b_flags |= _XBF_INODES;
+	bp->b_iodone = xfs_buf_inode_iodone;
 	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_DINO_BUF);
 }
 
@@ -684,7 +684,7 @@ xfs_trans_stale_inode_buf(
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
 
 	bip->bli_flags |= XFS_BLI_STALE_INODE;
-	bp->b_flags |= _XBF_INODES;
+	bp->b_iodone = xfs_buf_inode_iodone;
 	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_DINO_BUF);
 }
 
@@ -709,7 +709,7 @@ xfs_trans_inode_alloc_buf(
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
 
 	bip->bli_flags |= XFS_BLI_INODE_ALLOC_BUF;
-	bp->b_flags |= _XBF_INODES;
+	bp->b_iodone = xfs_buf_inode_iodone;
 	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_DINO_BUF);
 }
 
@@ -820,6 +820,6 @@ xfs_trans_dquot_buf(
 		break;
 	}
 
-	bp->b_flags |= _XBF_DQUOTS;
+	bp->b_iodone = xfs_buf_dquot_iodone;
 	xfs_trans_buf_set_type(tp, bp, type);
 }
