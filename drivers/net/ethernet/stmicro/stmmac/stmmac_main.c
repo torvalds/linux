@@ -416,6 +416,11 @@ static bool stmmac_eee_tx_busy(struct stmmac_priv *priv)
 	return false;
 }
 
+static void stmmac_restart_sw_lpi_timer(struct stmmac_priv *priv)
+{
+	mod_timer(&priv->eee_ctrl_timer, STMMAC_LPI_T(priv->tx_lpi_timer));
+}
+
 /**
  * stmmac_enable_eee_mode - check and enter in LPI mode
  * @priv: driver private structure
@@ -437,8 +442,7 @@ static int stmmac_enable_eee_mode(struct stmmac_priv *priv)
 static void stmmac_try_to_start_sw_lpi(struct stmmac_priv *priv)
 {
 	if (stmmac_enable_eee_mode(priv))
-		mod_timer(&priv->eee_ctrl_timer,
-			  STMMAC_LPI_T(priv->tx_lpi_timer));
+		stmmac_restart_sw_lpi_timer(priv);
 }
 
 /**
@@ -526,8 +530,7 @@ static void stmmac_eee_init(struct stmmac_priv *priv, bool active)
 		/* Use software LPI mode */
 		priv->eee_sw_timer_en = true;
 		stmmac_disable_hw_lpi_timer(priv);
-		mod_timer(&priv->eee_ctrl_timer,
-			  STMMAC_LPI_T(priv->tx_lpi_timer));
+		stmmac_restart_sw_lpi_timer(priv);
 	}
 
 	priv->eee_enabled = true;
