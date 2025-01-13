@@ -40,7 +40,6 @@ xfs_fill_statvfs_from_dquot(
 
 		statp->f_blocks = min(statp->f_blocks, limit);
 		statp->f_bfree = min(statp->f_bfree, remaining);
-		statp->f_bavail = min(statp->f_bavail, remaining);
 	}
 
 	limit = dqp->q_ino.softlimit ?
