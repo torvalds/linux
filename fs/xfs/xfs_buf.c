@@ -53,14 +53,8 @@ struct kmem_cache *xfs_buf_cache;
  *	  b_lock (trylock due to inversion)
  */
 
-static int __xfs_buf_submit(struct xfs_buf *bp, bool wait);
-
-static inline int
-xfs_buf_submit(
-	struct xfs_buf		*bp)
-{
-	return __xfs_buf_submit(bp, !(bp->b_flags & XBF_ASYNC));
-}
+static void xfs_buf_submit(struct xfs_buf *bp);
+static int xfs_buf_iowait(struct xfs_buf *bp);
 
 static inline bool xfs_buf_is_uncached(struct xfs_buf *bp)
 {
@@ -804,7 +798,10 @@ _xfs_buf_read(
 	bp->b_flags &= ~(XBF_WRITE | XBF_ASYNC | XBF_READ_AHEAD | XBF_DONE);
 	bp->b_flags |= flags & (XBF_READ | XBF_ASYNC | XBF_READ_AHEAD);
 
-	return xfs_buf_submit(bp);
+	xfs_buf_submit(bp);
+	if (flags & XBF_ASYNC)
+		return 0;
+	return xfs_buf_iowait(bp);
 }
 
 /*
@@ -980,8 +977,8 @@ xfs_buf_read_uncached(
 	bp->b_ops = ops;
 
 	xfs_buf_submit(bp);
-	if (bp->b_error) {
-		error = bp->b_error;
+	error = xfs_buf_iowait(bp);
+	if (error) {
 		xfs_buf_relse(bp);
 		return error;
 	}
@@ -1483,7 +1480,8 @@ xfs_bwrite(
 	bp->b_flags &= ~(XBF_ASYNC | XBF_READ | _XBF_DELWRI_Q |
 			 XBF_DONE);
 
-	error = xfs_buf_submit(bp);
+	xfs_buf_submit(bp);
+	error = xfs_buf_iowait(bp);
 	if (error)
 		xfs_force_shutdown(bp->b_mount, SHUTDOWN_META_IO_ERROR);
 	return error;
@@ -1698,13 +1696,10 @@ xfs_buf_iowait(
  * safe to reference the buffer after a call to this function unless the caller
  * holds an additional reference itself.
  */
-static int
-__xfs_buf_submit(
-	struct xfs_buf	*bp,
-	bool		wait)
+static void
+xfs_buf_submit(
+	struct xfs_buf	*bp)
 {
-	int		error = 0;
-
 	trace_xfs_buf_submit(bp, _RET_IP_);
 
 	ASSERT(!(bp->b_flags & _XBF_DELWRI_Q));
@@ -1724,10 +1719,9 @@ __xfs_buf_submit(
 	 * state here rather than mount state to avoid corrupting the log tail
 	 * on shutdown.
 	 */
-	if (bp->b_mount->m_log &&
-	    xlog_is_shutdown(bp->b_mount->m_log)) {
+	if (bp->b_mount->m_log && xlog_is_shutdown(bp->b_mount->m_log)) {
 		xfs_buf_ioend_fail(bp);
-		return -EIO;
+		return;
 	}
 
 	/*
@@ -1765,16 +1759,12 @@ __xfs_buf_submit(
 			xfs_buf_ioend_async(bp);
 	}
 
-	if (wait)
-		error = xfs_buf_iowait(bp);
-
 	/*
 	 * Release the hold that keeps the buffer referenced for the entire
 	 * I/O. Note that if the buffer is async, it is not safe to reference
 	 * after this release.
 	 */
 	xfs_buf_rele(bp);
-	return error;
 }
 
 void *
@@ -2323,7 +2313,7 @@ xfs_buf_delwri_submit_buffers(
 			bp->b_flags |= XBF_ASYNC;
 			xfs_buf_list_del(bp);
 		}
-		__xfs_buf_submit(bp, false);
+		xfs_buf_submit(bp);
 	}
 	blk_finish_plug(&plug);
 
