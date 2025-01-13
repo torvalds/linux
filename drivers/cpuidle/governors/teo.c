@@ -428,6 +428,14 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 				break;
 		}
 	}
+
+	/*
+	 * If there is a latency constraint, it may be necessary to select an
+	 * idle state shallower than the current candidate one.
+	 */
+	if (idx > constraint_idx)
+		idx = constraint_idx;
+
 	if (!idx && prev_intercept_idx) {
 		/*
 		 * We have to query the sleep length here otherwise we don't
@@ -437,13 +445,6 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 		cpu_data->sleep_length_ns = duration_ns;
 		goto out_tick;
 	}
-
-	/*
-	 * If there is a latency constraint, it may be necessary to select an
-	 * idle state shallower than the current candidate one.
-	 */
-	if (idx > constraint_idx)
-		idx = constraint_idx;
 
 	/*
 	 * Skip the timers check if state 0 is the current candidate one,
