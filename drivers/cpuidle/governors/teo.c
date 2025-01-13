@@ -367,7 +367,7 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	 * If the sum of the intercepts metric for all of the idle states
 	 * shallower than the current candidate one (idx) is greater than the
 	 * sum of the intercepts and hits metrics for the candidate state and
-	 * all of the deeper states a shallower idle state is likely to be a
+	 * all of the deeper states, a shallower idle state is likely to be a
 	 * better choice.
 	 */
 	prev_intercept_idx = idx;
@@ -396,30 +396,36 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 				 * first enabled state that is deep enough.
 				 */
 				if (teo_state_ok(i, drv) &&
-				    !dev->states_usage[i].disable)
+				    !dev->states_usage[i].disable) {
 					idx = i;
-				else
-					idx = first_suitable_idx;
-
+					break;
+				}
+				idx = first_suitable_idx;
 				break;
 			}
 
 			if (dev->states_usage[i].disable)
 				continue;
 
-			if (!teo_state_ok(i, drv)) {
+			if (teo_state_ok(i, drv)) {
 				/*
-				 * The current state is too shallow, but if an
-				 * alternative candidate state has been found,
-				 * it may still turn out to be a better choice.
+				 * The current state is deep enough, but still
+				 * there may be a better one.
 				 */
-				if (first_suitable_idx != idx)
-					continue;
-
-				break;
+				first_suitable_idx = i;
+				continue;
 			}
 
-			first_suitable_idx = i;
+			/*
+			 * The current state is too shallow, so if no suitable
+			 * states other than the initial candidate have been
+			 * found, give up (the remaining states to check are
+			 * shallower still), but otherwise the first suitable
+			 * state other than the initial candidate may turn out
+			 * to be preferable.
+			 */
+			if (first_suitable_idx == idx)
+				break;
 		}
 	}
 	if (!idx && prev_intercept_idx) {
