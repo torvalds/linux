@@ -331,12 +331,16 @@ nested_declarator:
 	;
 
 direct_nested_declarator:
+	direct_nested_declarator1
+	| direct_nested_declarator1 '(' parameter_declaration_clause ')'
+		{ $$ = $4; }
+	;
+
+direct_nested_declarator1:
 	IDENT	{ $$ = $1; dont_want_type_specifier = false; }
-	| direct_nested_declarator '(' parameter_declaration_clause ')'
+	| direct_nested_declarator1 '(' error ')'
 		{ $$ = $4; }
-	| direct_nested_declarator '(' error ')'
-		{ $$ = $4; }
-	| direct_nested_declarator BRACKET_PHRASE
+	| direct_nested_declarator1 BRACKET_PHRASE
 		{ $$ = $2; }
 	| '(' nested_declarator ')'
 		{ $$ = $3; }
