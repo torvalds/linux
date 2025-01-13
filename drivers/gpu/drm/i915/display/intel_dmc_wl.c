@@ -67,6 +67,7 @@ struct intel_dmc_wl_range {
 };
 
 static const struct intel_dmc_wl_range powered_off_ranges[] = {
+	{ .start = 0x44400, .end = 0x4447f }, /* PIPE interrupt registers */
 	{ .start = 0x60000, .end = 0x7ffff },
 	{},
 };
