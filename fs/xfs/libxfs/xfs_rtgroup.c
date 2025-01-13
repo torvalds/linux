@@ -338,7 +338,7 @@ struct xfs_rtginode_ops {
 	unsigned int		fmt_mask; /* all valid data fork formats */
 
 	/* Does the fs have this feature? */
-	bool			(*enabled)(struct xfs_mount *mp);
+	bool			(*enabled)(const struct xfs_mount *mp);
 
 	/* Create this rtgroup metadata inode and initialize it. */
 	int			(*create)(struct xfs_rtgroup *rtg,

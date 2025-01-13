@@ -96,7 +96,7 @@ struct xchk_meta_ops {
 	int		(*repair_eval)(struct xfs_scrub *sc);
 
 	/* Decide if we even have this piece of metadata. */
-	bool		(*has)(struct xfs_mount *);
+	bool		(*has)(const struct xfs_mount *);
 
 	/* type describing required/allowed inputs */
 	enum xchk_type	type;
