@@ -8,6 +8,9 @@
 #ifndef __UM_PGTABLE_H
 #define __UM_PGTABLE_H
 
+#include <asm/page.h>
+#include <linux/mm_types.h>
+
 #define _PAGE_PRESENT	0x001
 #define _PAGE_NEEDSYNC	0x002
 #define _PAGE_RW	0x020
