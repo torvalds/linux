@@ -270,6 +270,12 @@ static PyMemberDef pyrf_sample_event__members[] = {
 	{ .name = NULL, },
 };
 
+static void pyrf_sample_event__delete(struct pyrf_event *pevent)
+{
+	perf_sample__exit(&pevent->sample);
+	Py_TYPE(pevent)->tp_free((PyObject*)pevent);
+}
+
 static PyObject *pyrf_sample_event__repr(const struct pyrf_event *pevent)
 {
 	PyObject *ret;
@@ -428,6 +434,9 @@ static int pyrf_event__setup_types(void)
 	pyrf_sample_event__type.tp_new =
 	pyrf_context_switch_event__type.tp_new =
 	pyrf_throttle_event__type.tp_new = PyType_GenericNew;
+
+	pyrf_sample_event__type.tp_dealloc = (destructor)pyrf_sample_event__delete,
+
 	err = PyType_Ready(&pyrf_mmap_event__type);
 	if (err < 0)
 		goto out;

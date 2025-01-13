@@ -1157,6 +1157,7 @@ static int deliver_event(struct ordered_events *qe,
 		return 0;
 	}
 
+	perf_sample__init(&sample, /*all=*/false);
 	ret = evlist__parse_sample(evlist, event, &sample);
 	if (ret) {
 		pr_err("Can't parse sample, err = %d\n", ret);
@@ -1167,8 +1168,10 @@ static int deliver_event(struct ordered_events *qe,
 	assert(evsel != NULL);
 
 	if (event->header.type == PERF_RECORD_SAMPLE) {
-		if (evswitch__discard(&top->evswitch, evsel))
-			return 0;
+		if (evswitch__discard(&top->evswitch, evsel)) {
+			ret = 0;
+			goto next_event;
+		}
 		++top->samples;
 	}
 
@@ -1219,6 +1222,7 @@ static int deliver_event(struct ordered_events *qe,
 
 	ret = 0;
 next_event:
+	perf_sample__exit(&sample);
 	return ret;
 }
 

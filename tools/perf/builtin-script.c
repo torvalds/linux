@@ -783,14 +783,20 @@ tod_scnprintf(struct perf_script *script, char *buf, int buflen,
 static int perf_sample__fprintf_iregs(struct perf_sample *sample,
 				      struct perf_event_attr *attr, const char *arch, FILE *fp)
 {
-	return perf_sample__fprintf_regs(&sample->intr_regs,
+	if (!sample->intr_regs)
+		return 0;
+
+	return perf_sample__fprintf_regs(perf_sample__intr_regs(sample),
 					 attr->sample_regs_intr, arch, fp);
 }
 
 static int perf_sample__fprintf_uregs(struct perf_sample *sample,
 				      struct perf_event_attr *attr, const char *arch, FILE *fp)
 {
-	return perf_sample__fprintf_regs(&sample->user_regs,
+	if (!sample->user_regs)
+		return 0;
+
+	return perf_sample__fprintf_regs(perf_sample__user_regs(sample),
 					 attr->sample_regs_user, arch, fp);
 }
 

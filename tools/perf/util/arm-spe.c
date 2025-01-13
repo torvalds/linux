@@ -379,8 +379,10 @@ static int arm_spe__synth_mem_sample(struct arm_spe_queue *speq,
 	struct arm_spe *spe = speq->spe;
 	struct arm_spe_record *record = &speq->decoder->record;
 	union perf_event *event = speq->event_buf;
-	struct perf_sample sample = { .ip = 0, };
+	struct perf_sample sample;
+	int ret;
 
+	perf_sample__init(&sample, /*all=*/true);
 	arm_spe_prep_sample(spe, speq, event, &sample);
 
 	sample.id = spe_events_id;
@@ -390,7 +392,9 @@ static int arm_spe__synth_mem_sample(struct arm_spe_queue *speq,
 	sample.data_src = data_src;
 	sample.weight = record->latency;
 
-	return arm_spe_deliver_synth_event(spe, speq, event, &sample);
+	ret = arm_spe_deliver_synth_event(spe, speq, event, &sample);
+	perf_sample__exit(&sample);
+	return ret;
 }
 
 static int arm_spe__synth_branch_sample(struct arm_spe_queue *speq,
@@ -399,8 +403,10 @@ static int arm_spe__synth_branch_sample(struct arm_spe_queue *speq,
 	struct arm_spe *spe = speq->spe;
 	struct arm_spe_record *record = &speq->decoder->record;
 	union perf_event *event = speq->event_buf;
-	struct perf_sample sample = { .ip = 0, };
+	struct perf_sample sample;
+	int ret;
 
+	perf_sample__init(&sample, /*all=*/true);
 	arm_spe_prep_sample(spe, speq, event, &sample);
 
 	sample.id = spe_events_id;
@@ -409,7 +415,9 @@ static int arm_spe__synth_branch_sample(struct arm_spe_queue *speq,
 	sample.weight = record->latency;
 	sample.flags = speq->flags;
 
-	return arm_spe_deliver_synth_event(spe, speq, event, &sample);
+	ret = arm_spe_deliver_synth_event(spe, speq, event, &sample);
+	perf_sample__exit(&sample);
+	return ret;
 }
 
 static int arm_spe__synth_instruction_sample(struct arm_spe_queue *speq,
@@ -418,7 +426,8 @@ static int arm_spe__synth_instruction_sample(struct arm_spe_queue *speq,
 	struct arm_spe *spe = speq->spe;
 	struct arm_spe_record *record = &speq->decoder->record;
 	union perf_event *event = speq->event_buf;
-	struct perf_sample sample = { .ip = 0, };
+	struct perf_sample sample;
+	int ret;
 
 	/*
 	 * Handles perf instruction sampling period.
@@ -428,6 +437,7 @@ static int arm_spe__synth_instruction_sample(struct arm_spe_queue *speq,
 		return 0;
 	speq->period_instructions = 0;
 
+	perf_sample__init(&sample, /*all=*/true);
 	arm_spe_prep_sample(spe, speq, event, &sample);
 
 	sample.id = spe_events_id;
@@ -439,7 +449,9 @@ static int arm_spe__synth_instruction_sample(struct arm_spe_queue *speq,
 	sample.weight = record->latency;
 	sample.flags = speq->flags;
 
-	return arm_spe_deliver_synth_event(spe, speq, event, &sample);
+	ret = arm_spe_deliver_synth_event(spe, speq, event, &sample);
+	perf_sample__exit(&sample);
+	return ret;
 }
 
 static const struct midr_range common_ds_encoding_cpus[] = {

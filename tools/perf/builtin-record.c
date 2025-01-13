@@ -1917,9 +1917,10 @@ static void __record__save_lost_samples(struct record *rec, struct evsel *evsel,
 					u16 misc_flag)
 {
 	struct perf_sample_id *sid;
-	struct perf_sample sample = {};
+	struct perf_sample sample;
 	int id_hdr_size;
 
+	perf_sample__init(&sample, /*all=*/true);
 	lost->lost = lost_count;
 	if (evsel->core.ids) {
 		sid = xyarray__entry(evsel->core.sample_id, cpu_idx, thread_idx);
@@ -1931,6 +1932,7 @@ static void __record__save_lost_samples(struct record *rec, struct evsel *evsel,
 	lost->header.size = sizeof(*lost) + id_hdr_size;
 	lost->header.misc = misc_flag;
 	record__write(rec, NULL, lost, lost->header.size);
+	perf_sample__exit(&sample);
 }
 
 static void record__read_lost_samples(struct record *rec)

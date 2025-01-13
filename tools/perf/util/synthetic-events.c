@@ -1508,9 +1508,9 @@ size_t perf_event__sample_event_size(const struct perf_sample *sample, u64 type,
 	}
 
 	if (type & PERF_SAMPLE_REGS_USER) {
-		if (sample->user_regs.abi) {
+		if (sample->user_regs && sample->user_regs->abi) {
 			result += sizeof(u64);
-			sz = hweight64(sample->user_regs.mask) * sizeof(u64);
+			sz = hweight64(sample->user_regs->mask) * sizeof(u64);
 			result += sz;
 		} else {
 			result += sizeof(u64);
@@ -1536,9 +1536,9 @@ size_t perf_event__sample_event_size(const struct perf_sample *sample, u64 type,
 		result += sizeof(u64);
 
 	if (type & PERF_SAMPLE_REGS_INTR) {
-		if (sample->intr_regs.abi) {
+		if (sample->intr_regs && sample->intr_regs->abi) {
 			result += sizeof(u64);
-			sz = hweight64(sample->intr_regs.mask) * sizeof(u64);
+			sz = hweight64(sample->intr_regs->mask) * sizeof(u64);
 			result += sz;
 		} else {
 			result += sizeof(u64);
@@ -1707,10 +1707,10 @@ int perf_event__synthesize_sample(union perf_event *event, u64 type, u64 read_fo
 	}
 
 	if (type & PERF_SAMPLE_REGS_USER) {
-		if (sample->user_regs.abi) {
-			*array++ = sample->user_regs.abi;
-			sz = hweight64(sample->user_regs.mask) * sizeof(u64);
-			memcpy(array, sample->user_regs.regs, sz);
+		if (sample->user_regs && sample->user_regs->abi) {
+			*array++ = sample->user_regs->abi;
+			sz = hweight64(sample->user_regs->mask) * sizeof(u64);
+			memcpy(array, sample->user_regs->regs, sz);
 			array = (void *)array + sz;
 		} else {
 			*array++ = 0;
@@ -1743,10 +1743,10 @@ int perf_event__synthesize_sample(union perf_event *event, u64 type, u64 read_fo
 	}
 
 	if (type & PERF_SAMPLE_REGS_INTR) {
-		if (sample->intr_regs.abi) {
-			*array++ = sample->intr_regs.abi;
-			sz = hweight64(sample->intr_regs.mask) * sizeof(u64);
-			memcpy(array, sample->intr_regs.regs, sz);
+		if (sample->intr_regs && sample->intr_regs->abi) {
+			*array++ = sample->intr_regs->abi;
+			sz = hweight64(sample->intr_regs->mask) * sizeof(u64);
+			memcpy(array, sample->intr_regs->regs, sz);
 			array = (void *)array + sz;
 		} else {
 			*array++ = 0;

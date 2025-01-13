@@ -4066,13 +4066,16 @@ static int __trace__deliver_event(struct trace *trace, union perf_event *event)
 {
 	struct evlist *evlist = trace->evlist;
 	struct perf_sample sample;
-	int err = evlist__parse_sample(evlist, event, &sample);
+	int err;
 
+	perf_sample__init(&sample, /*all=*/false);
+	err = evlist__parse_sample(evlist, event, &sample);
 	if (err)
 		fprintf(trace->output, "Can't parse sample, err = %d, skipping...\n", err);
 	else
 		trace__handle_event(trace, event, &sample);
 
+	perf_sample__exit(&sample);
 	return 0;
 }
 

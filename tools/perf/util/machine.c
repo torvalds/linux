@@ -2909,8 +2909,8 @@ static int thread__resolve_callchain_unwind(struct thread *thread,
 		return 0;
 
 	/* Bail out if nothing was captured. */
-	if ((!sample->user_regs.regs) ||
-	    (!sample->user_stack.size))
+	if (!sample->user_regs || !sample->user_regs->regs ||
+	    !sample->user_stack.size)
 		return 0;
 
 	if (!symbols)
