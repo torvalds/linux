@@ -801,10 +801,15 @@ int ad_sd_init(struct ad_sigma_delta *sigma_delta, struct iio_dev *indio_dev,
 
 	spin_lock_init(&sigma_delta->irq_lock);
 
-	if (info->irq_line)
-		sigma_delta->irq_line = info->irq_line;
-	else
+	if (info->has_named_irqs) {
+		sigma_delta->irq_line = fwnode_irq_get_byname(dev_fwnode(&spi->dev),
+							      "rdy");
+		if (sigma_delta->irq_line < 0)
+			return dev_err_probe(&spi->dev, sigma_delta->irq_line,
+					     "Interrupt 'rdy' is required\n");
+	} else {
 		sigma_delta->irq_line = spi->irq;
+	}
 
 	sigma_delta->rdy_gpiod = devm_gpiod_get_optional(&spi->dev, "rdy", GPIOD_IN);
 	if (IS_ERR(sigma_delta->rdy_gpiod))
