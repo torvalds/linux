@@ -216,6 +216,7 @@ decl_specifier:
 		}
 	| type_specifier	{ dont_want_type_specifier = true; $$ = $1; }
 	| type_qualifier
+	| ATTRIBUTE_PHRASE
 	;
 
 storage_class_specifier:
@@ -285,11 +286,13 @@ type_qualifier_seq_opt:
 
 type_qualifier_seq:
 	type_qualifier
+	| ATTRIBUTE_PHRASE
 	| type_qualifier_seq type_qualifier		{ $$ = $2; }
+	| type_qualifier_seq ATTRIBUTE_PHRASE		{ $$ = $2; }
 	;
 
 type_qualifier:
-	CONST_KEYW | VOLATILE_KEYW | ATTRIBUTE_PHRASE
+	CONST_KEYW | VOLATILE_KEYW
 	| RESTRICT_KEYW
 		{ /* restrict has no effect in prototypes so ignore it */
 		  remove_node($1);
