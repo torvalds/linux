@@ -21,6 +21,8 @@
 
 #define NFSDBG_FACILITY NFSDBG_PROC
 static int nfs42_do_offload_cancel_async(struct file *dst, nfs4_stateid *std);
+static int nfs42_proc_offload_status(struct file *file, nfs4_stateid *stateid,
+				     u64 *copied);
 
 static void nfs42_set_netaddr(struct file *filep, struct nfs42_netaddr *naddr)
 {
@@ -579,6 +581,107 @@ static int nfs42_do_offload_cancel_async(struct file *dst,
 	if (status == -ENOTSUPP)
 		dst_server->caps &= ~NFS_CAP_OFFLOAD_CANCEL;
 	rpc_put_task(task);
+	return status;
+}
+
+static int
+_nfs42_proc_offload_status(struct nfs_server *server, struct file *file,
+			   struct nfs42_offload_data *data)
+{
+	struct nfs_open_context *ctx = nfs_file_open_context(file);
+	struct rpc_message msg = {
+		.rpc_proc	= &nfs4_procedures[NFSPROC4_CLNT_OFFLOAD_STATUS],
+		.rpc_argp	= &data->args,
+		.rpc_resp	= &data->res,
+		.rpc_cred	= ctx->cred,
+	};
+	int status;
+
+	status = nfs4_call_sync(server->client, server, &msg,
+				&data->args.osa_seq_args,
+				&data->res.osr_seq_res, 1);
+	switch (status) {
+	case 0:
+		break;
+
+	case -NFS4ERR_ADMIN_REVOKED:
+	case -NFS4ERR_BAD_STATEID:
+	case -NFS4ERR_OLD_STATEID:
+		/*
+		 * Server does not recognize the COPY stateid. CB_OFFLOAD
+		 * could have purged it, or server might have rebooted.
+		 * Since COPY stateids don't have an associated inode,
+		 * avoid triggering state recovery.
+		 */
+		status = -EBADF;
+		break;
+	case -NFS4ERR_NOTSUPP:
+	case -ENOTSUPP:
+	case -EOPNOTSUPP:
+		server->caps &= ~NFS_CAP_OFFLOAD_STATUS;
+		status = -EOPNOTSUPP;
+		break;
+	}
+
+	return status;
+}
+
+/**
+ * nfs42_proc_offload_status - Poll completion status of an async copy operation
+ * @dst: handle of file being copied into
+ * @stateid: copy stateid (from async COPY result)
+ * @copied: OUT: number of bytes copied so far
+ *
+ * Return values:
+ *   %0: Server returned an NFS4_OK completion status
+ *   %-EINPROGRESS: Server returned no completion status
+ *   %-EREMOTEIO: Server returned an error completion status
+ *   %-EBADF: Server did not recognize the copy stateid
+ *   %-EOPNOTSUPP: Server does not support OFFLOAD_STATUS
+ *   %-ERESTARTSYS: Wait interrupted by signal
+ *
+ * Other negative errnos indicate the client could not complete the
+ * request.
+ */
+static int __maybe_unused
+nfs42_proc_offload_status(struct file *dst, nfs4_stateid *stateid, u64 *copied)
+{
+	struct inode *inode = file_inode(dst);
+	struct nfs_server *server = NFS_SERVER(inode);
+	struct nfs4_exception exception = {
+		.inode = inode,
+	};
+	struct nfs42_offload_data *data;
+	int status;
+
+	if (!(server->caps & NFS_CAP_OFFLOAD_STATUS))
+		return -EOPNOTSUPP;
+
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+	data->seq_server = server;
+	data->args.osa_src_fh = NFS_FH(inode);
+	memcpy(&data->args.osa_stateid, stateid,
+		sizeof(data->args.osa_stateid));
+	exception.stateid = &data->args.osa_stateid;
+	do {
+		status = _nfs42_proc_offload_status(server, dst, data);
+		if (status == -EOPNOTSUPP)
+			goto out;
+		status = nfs4_handle_exception(server, status, &exception);
+	} while (exception.retry);
+	if (status)
+		goto out;
+
+	*copied = data->res.osr_count;
+	if (!data->res.complete_count)
+		status = -EINPROGRESS;
+	else if (data->res.osr_complete != NFS_OK)
+		status = -EREMOTEIO;
+
+out:
+	kfree(data);
 	return status;
 }
 
