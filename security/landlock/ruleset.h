@@ -11,6 +11,8 @@
 
 #include <linux/bitops.h>
 #include <linux/build_bug.h>
+#include <linux/cleanup.h>
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
 #include <linux/rbtree.h>
@@ -251,6 +253,9 @@ landlock_create_ruleset(const access_mask_t access_mask_fs,
 
 void landlock_put_ruleset(struct landlock_ruleset *const ruleset);
 void landlock_put_ruleset_deferred(struct landlock_ruleset *const ruleset);
+
+DEFINE_FREE(landlock_put_ruleset, struct landlock_ruleset *,
+	    if (!IS_ERR_OR_NULL(_T)) landlock_put_ruleset(_T))
 
 int landlock_insert_rule(struct landlock_ruleset *const ruleset,
 			 const struct landlock_id id,
