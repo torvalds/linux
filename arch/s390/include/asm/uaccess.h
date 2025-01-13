@@ -128,60 +128,38 @@ DEFINE_PUT_USER(short);
 DEFINE_PUT_USER(int);
 DEFINE_PUT_USER(long);
 
-static __always_inline int __put_user_fn(void *x, void __user *ptr, unsigned long size)
-{
-	int rc;
-
-	switch (size) {
-	case 1:
-		rc = __put_user_char((unsigned char __user *)ptr,
-				     (unsigned char *)x,
-				     size);
-		break;
-	case 2:
-		rc = __put_user_short((unsigned short __user *)ptr,
-				      (unsigned short *)x,
-				      size);
-		break;
-	case 4:
-		rc = __put_user_int((unsigned int __user *)ptr,
-				    (unsigned int *)x,
-				    size);
-		break;
-	case 8:
-		rc = __put_user_long((unsigned long __user *)ptr,
-				     (unsigned long *)x,
-				     size);
-		break;
-	default:
-		__put_user_bad();
-		break;
-	}
-	return rc;
-}
-
-/*
- * These are the main single-value transfer routines.  They automatically
- * use the right size if we just have the right pointer type.
- */
 #define __put_user(x, ptr)						\
 ({									\
 	__typeof__(*(ptr)) __x = (x);					\
-	int __pu_err = -EFAULT;						\
+	int __prc;							\
 									\
 	__chk_user_ptr(ptr);						\
 	switch (sizeof(*(ptr))) {					\
 	case 1:								\
+		__prc = __put_user_char((unsigned char __user *)(ptr),	\
+					(unsigned char *)&__x,		\
+					sizeof(*(ptr)));		\
+		break;							\
 	case 2:								\
+		__prc = __put_user_short((unsigned short __user *)(ptr),\
+					 (unsigned short *)&__x,	\
+					 sizeof(*(ptr)));		\
+		break;							\
 	case 4:								\
+		__prc = __put_user_int((unsigned int __user *)(ptr),	\
+				       (unsigned int *)&__x,		\
+				       sizeof(*(ptr)));			\
+		break;							\
 	case 8:								\
-		__pu_err = __put_user_fn(&__x, ptr, sizeof(*(ptr)));	\
+		__prc = __put_user_long((unsigned long __user *)(ptr),	\
+					(unsigned long *)&__x,		\
+					sizeof(*(ptr)));		\
 		break;							\
 	default:							\
-		__put_user_bad();					\
+		__prc = __put_user_bad();				\
 		break;							\
 	}								\
-	__builtin_expect(__pu_err, 0);					\
+	__builtin_expect(__prc, 0);					\
 })
 
 #define put_user(x, ptr)						\
@@ -195,7 +173,7 @@ int __noreturn __get_user_bad(void);
 #define DEFINE_GET_USER(type)						\
 static get_put_user_noinstr_attributes int				\
 __get_user_##type##_noinstr(unsigned type *to,				\
-			    unsigned type __user *from,			\
+			    const unsigned type __user *from,		\
 			    unsigned long size)				\
 {									\
 	union oac __oac_spec = {					\
@@ -220,7 +198,7 @@ __get_user_##type##_noinstr(unsigned type *to,				\
 }									\
 									\
 static __always_inline int						\
-__get_user_##type(unsigned type *to, unsigned type __user *from,	\
+__get_user_##type(unsigned type *to, const unsigned type __user *from,	\
 		  unsigned long size)					\
 {									\
 	int rc;								\
@@ -235,77 +213,50 @@ DEFINE_GET_USER(short);
 DEFINE_GET_USER(int);
 DEFINE_GET_USER(long);
 
-static __always_inline int __get_user_fn(void *x, const void __user *ptr, unsigned long size)
-{
-	int rc;
-
-	switch (size) {
-	case 1:
-		rc = __get_user_char((unsigned char *)x,
-				     (unsigned char __user *)ptr,
-				     size);
-		break;
-	case 2:
-		rc = __get_user_short((unsigned short *)x,
-				      (unsigned short __user *)ptr,
-				      size);
-		break;
-	case 4:
-		rc = __get_user_int((unsigned int *)x,
-				    (unsigned int __user *)ptr,
-				    size);
-		break;
-	case 8:
-		rc = __get_user_long((unsigned long *)x,
-				     (unsigned long __user *)ptr,
-				     size);
-		break;
-	default:
-		__get_user_bad();
-		break;
-	}
-	return rc;
-}
-
 #define __get_user(x, ptr)						\
 ({									\
-	int __gu_err = -EFAULT;						\
+	const __user void *____guptr = (ptr);				\
+	int __grc;							\
 									\
 	__chk_user_ptr(ptr);						\
 	switch (sizeof(*(ptr))) {					\
 	case 1: {							\
+		const unsigned char __user *__guptr = ____guptr;	\
 		unsigned char __x;					\
 									\
-		__gu_err = __get_user_fn(&__x, ptr, sizeof(*(ptr)));	\
+		__grc = __get_user_char(&__x, __guptr, sizeof(*(ptr)));	\
 		(x) = *(__force __typeof__(*(ptr)) *)&__x;		\
 		break;							\
 	};								\
 	case 2: {							\
+		const unsigned short __user *__guptr = ____guptr;	\
 		unsigned short __x;					\
 									\
-		__gu_err = __get_user_fn(&__x, ptr, sizeof(*(ptr)));	\
+		__grc = __get_user_short(&__x, __guptr, sizeof(*(ptr)));\
 		(x) = *(__force __typeof__(*(ptr)) *)&__x;		\
 		break;							\
 	};								\
 	case 4: {							\
+		const unsigned int __user *__guptr = ____guptr;		\
 		unsigned int __x;					\
 									\
-		__gu_err = __get_user_fn(&__x, ptr, sizeof(*(ptr)));	\
+		__grc = __get_user_int(&__x, __guptr, sizeof(*(ptr)));	\
 		(x) = *(__force __typeof__(*(ptr)) *)&__x;		\
 		break;							\
 	};								\
 	case 8: {							\
+		const unsigned long __user *__guptr = ____guptr;	\
 		unsigned long __x;					\
 									\
-		__gu_err = __get_user_fn(&__x, ptr, sizeof(*(ptr)));	\
+		__grc = __get_user_long(&__x, __guptr, sizeof(*(ptr)));	\
 		(x) = *(__force __typeof__(*(ptr)) *)&__x;		\
 		break;							\
 	};								\
 	default:							\
-		__get_user_bad();					\
+		__grc = __get_user_bad();				\
 		break;							\
 	}								\
-	__builtin_expect(__gu_err, 0);					\
+	__builtin_expect(__grc, 0);					\
 })
 
 #define get_user(x, ptr)						\
