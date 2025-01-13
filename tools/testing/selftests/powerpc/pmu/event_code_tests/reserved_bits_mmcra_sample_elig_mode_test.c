@@ -57,7 +57,7 @@ static int reserved_bits_mmcra_sample_elig_mode(void)
 
 	/*
 	 * MMCRA Random Sampling Mode (SM) value 0x10
-	 * is reserved in power10 and 0xC is reserved in
+	 * is reserved in power10/power11 and 0xC is reserved in
 	 * power9.
 	 */
 	if ((pvr == POWER10) || (pvr == POWER11)) {
