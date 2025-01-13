@@ -768,10 +768,8 @@ int f2fs_do_truncate_blocks(struct inode *inode, u64 from, bool lock)
 	if (IS_DEVICE_ALIASING(inode)) {
 		struct extent_tree *et = F2FS_I(inode)->extent_tree[EX_READ];
 		struct extent_info ei = et->largest;
-		unsigned int i;
 
-		for (i = 0; i < ei.len; i++)
-			f2fs_invalidate_blocks(sbi, ei.blk + i, 1);
+		f2fs_invalidate_blocks(sbi, ei.blk, ei.len);
 
 		dec_valid_block_count(sbi, inode, ei.len);
 		f2fs_update_time(sbi, REQ_TIME);
