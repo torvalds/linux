@@ -1657,10 +1657,8 @@ _xfs_buf_ioapply(
 	op |= REQ_META;
 
 	/* in-memory targets are directly mapped, no IO required. */
-	if (xfs_buftarg_is_mem(bp->b_target)) {
-		xfs_buf_ioend(bp);
+	if (xfs_buftarg_is_mem(bp->b_target))
 		return;
-	}
 
 	/*
 	 * Walk all the vectors issuing IO on them. Set up the initial offset
