@@ -90,7 +90,7 @@ struct mailbox_pkg {
 
 struct mailbox_msg {
 	void			*handle;
-	int			(*notify_cb)(void *handle, const u32 *data, size_t size);
+	int			(*notify_cb)(void *handle, void __iomem *data, size_t size);
 	size_t			pkg_size; /* package size in bytes */
 	struct mailbox_pkg	pkg;
 };
@@ -243,7 +243,7 @@ no_space:
 
 static int
 mailbox_get_resp(struct mailbox_channel *mb_chann, struct xdna_msg_header *header,
-		 void *data)
+		 void __iomem *data)
 {
 	struct mailbox_msg *mb_msg;
 	int msg_id;
@@ -331,7 +331,7 @@ static int mailbox_get_msg(struct mailbox_channel *mb_chann)
 	memcpy_fromio((u32 *)&header + 1, read_addr, rest);
 	read_addr += rest;
 
-	ret = mailbox_get_resp(mb_chann, &header, (u32 *)read_addr);
+	ret = mailbox_get_resp(mb_chann, &header, read_addr);
 
 	mailbox_set_headptr(mb_chann, head + msg_size);
 	/* After update head, it can equal to ringbuf_size. This is expected. */
