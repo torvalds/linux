@@ -346,8 +346,6 @@ static int devm_of_pci_get_host_bridge_resources(struct device *dev,
 		bus_range->start = busno;
 		bus_range->end = bus_max;
 		bus_range->flags = IORESOURCE_BUS;
-		dev_info(dev, "  No bus range found for %pOF, using %pR\n",
-			 dev_node, bus_range);
 	} else {
 		if (bus_range->end > bus_range->start + bus_max)
 			bus_range->end = bus_range->start + bus_max;
