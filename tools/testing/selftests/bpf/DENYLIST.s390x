@@ -75,3 +75,5 @@ user_ringbuf                             # failed to find kernel BTF type ID of 
 lookup_key                               # JIT does not support calling kernel function                                (kfunc)
 verify_pkcs7_sig                         # JIT does not support calling kernel function                                (kfunc)
 kfunc_dynptr_param                       # JIT does not support calling kernel function                                (kfunc)
+deny_namespace                           # failed to attach: ERROR: strerror_r(-524)=22                                (trampoline)
+libbpf_get_fd_by_id_opts                 # failed to attach: ERROR: strerror_r(-524)=22                                (trampoline)

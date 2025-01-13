@@ -114,9 +114,9 @@ static void bpf_selem_free_rcu(struct rcu_head *rcu)
  * The caller must ensure selem->smap is still valid to be
  * dereferenced for its smap->elem_size and smap->cache_idx.
  */
-bool bpf_selem_unlink_storage_nolock(struct bpf_local_storage *local_storage,
-				     struct bpf_local_storage_elem *selem,
-				     bool uncharge_mem, bool use_trace_rcu)
+static bool bpf_selem_unlink_storage_nolock(struct bpf_local_storage *local_storage,
+					    struct bpf_local_storage_elem *selem,
+					    bool uncharge_mem, bool use_trace_rcu)
 {
 	struct bpf_local_storage_map *smap;
 	bool free_local_storage;
@@ -501,7 +501,7 @@ unlock_err:
 	return ERR_PTR(err);
 }
 
-u16 bpf_local_storage_cache_idx_get(struct bpf_local_storage_cache *cache)
+static u16 bpf_local_storage_cache_idx_get(struct bpf_local_storage_cache *cache)
 {
 	u64 min_usage = U64_MAX;
 	u16 i, res = 0;
@@ -525,20 +525,131 @@ u16 bpf_local_storage_cache_idx_get(struct bpf_local_storage_cache *cache)
 	return res;
 }
 
-void bpf_local_storage_cache_idx_free(struct bpf_local_storage_cache *cache,
-				      u16 idx)
+static void bpf_local_storage_cache_idx_free(struct bpf_local_storage_cache *cache,
+					     u16 idx)
 {
 	spin_lock(&cache->idx_lock);
 	cache->idx_usage_counts[idx]--;
 	spin_unlock(&cache->idx_lock);
 }
 
-void bpf_local_storage_map_free(struct bpf_local_storage_map *smap,
-				int __percpu *busy_counter)
+int bpf_local_storage_map_alloc_check(union bpf_attr *attr)
+{
+	if (attr->map_flags & ~BPF_LOCAL_STORAGE_CREATE_FLAG_MASK ||
+	    !(attr->map_flags & BPF_F_NO_PREALLOC) ||
+	    attr->max_entries ||
+	    attr->key_size != sizeof(int) || !attr->value_size ||
+	    /* Enforce BTF for userspace sk dumping */
+	    !attr->btf_key_type_id || !attr->btf_value_type_id)
+		return -EINVAL;
+
+	if (!bpf_capable())
+		return -EPERM;
+
+	if (attr->value_size > BPF_LOCAL_STORAGE_MAX_VALUE_SIZE)
+		return -E2BIG;
+
+	return 0;
+}
+
+int bpf_local_storage_map_check_btf(const struct bpf_map *map,
+				    const struct btf *btf,
+				    const struct btf_type *key_type,
+				    const struct btf_type *value_type)
+{
+	u32 int_data;
+
+	if (BTF_INFO_KIND(key_type->info) != BTF_KIND_INT)
+		return -EINVAL;
+
+	int_data = *(u32 *)(key_type + 1);
+	if (BTF_INT_BITS(int_data) != 32 || BTF_INT_OFFSET(int_data))
+		return -EINVAL;
+
+	return 0;
+}
+
+bool bpf_local_storage_unlink_nolock(struct bpf_local_storage *local_storage)
 {
 	struct bpf_local_storage_elem *selem;
-	struct bpf_local_storage_map_bucket *b;
+	bool free_storage = false;
+	struct hlist_node *n;
+
+	/* Neither the bpf_prog nor the bpf_map's syscall
+	 * could be modifying the local_storage->list now.
+	 * Thus, no elem can be added to or deleted from the
+	 * local_storage->list by the bpf_prog or by the bpf_map's syscall.
+	 *
+	 * It is racing with bpf_local_storage_map_free() alone
+	 * when unlinking elem from the local_storage->list and
+	 * the map's bucket->list.
+	 */
+	hlist_for_each_entry_safe(selem, n, &local_storage->list, snode) {
+		/* Always unlink from map before unlinking from
+		 * local_storage.
+		 */
+		bpf_selem_unlink_map(selem);
+		/* If local_storage list has only one element, the
+		 * bpf_selem_unlink_storage_nolock() will return true.
+		 * Otherwise, it will return false. The current loop iteration
+		 * intends to remove all local storage. So the last iteration
+		 * of the loop will set the free_cgroup_storage to true.
+		 */
+		free_storage = bpf_selem_unlink_storage_nolock(
+			local_storage, selem, false, false);
+	}
+
+	return free_storage;
+}
+
+struct bpf_map *
+bpf_local_storage_map_alloc(union bpf_attr *attr,
+			    struct bpf_local_storage_cache *cache)
+{
+	struct bpf_local_storage_map *smap;
 	unsigned int i;
+	u32 nbuckets;
+
+	smap = bpf_map_area_alloc(sizeof(*smap), NUMA_NO_NODE);
+	if (!smap)
+		return ERR_PTR(-ENOMEM);
+	bpf_map_init_from_attr(&smap->map, attr);
+
+	nbuckets = roundup_pow_of_two(num_possible_cpus());
+	/* Use at least 2 buckets, select_bucket() is undefined behavior with 1 bucket */
+	nbuckets = max_t(u32, 2, nbuckets);
+	smap->bucket_log = ilog2(nbuckets);
+
+	smap->buckets = bpf_map_kvcalloc(&smap->map, nbuckets,
+					 sizeof(*smap->buckets), GFP_USER | __GFP_NOWARN);
+	if (!smap->buckets) {
+		bpf_map_area_free(smap);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	for (i = 0; i < nbuckets; i++) {
+		INIT_HLIST_HEAD(&smap->buckets[i].list);
+		raw_spin_lock_init(&smap->buckets[i].lock);
+	}
+
+	smap->elem_size = offsetof(struct bpf_local_storage_elem,
+				   sdata.data[attr->value_size]);
+
+	smap->cache_idx = bpf_local_storage_cache_idx_get(cache);
+	return &smap->map;
+}
+
+void bpf_local_storage_map_free(struct bpf_map *map,
+				struct bpf_local_storage_cache *cache,
+				int __percpu *busy_counter)
+{
+	struct bpf_local_storage_map_bucket *b;
+	struct bpf_local_storage_elem *selem;
+	struct bpf_local_storage_map *smap;
+	unsigned int i;
+
+	smap = (struct bpf_local_storage_map *)map;
+	bpf_local_storage_cache_idx_free(cache, smap->cache_idx);
 
 	/* Note that this map might be concurrently cloned from
 	 * bpf_sk_storage_clone. Wait for any existing bpf_sk_storage_clone
@@ -593,74 +704,4 @@ void bpf_local_storage_map_free(struct bpf_local_storage_map *smap,
 
 	kvfree(smap->buckets);
 	bpf_map_area_free(smap);
-}
-
-int bpf_local_storage_map_alloc_check(union bpf_attr *attr)
-{
-	if (attr->map_flags & ~BPF_LOCAL_STORAGE_CREATE_FLAG_MASK ||
-	    !(attr->map_flags & BPF_F_NO_PREALLOC) ||
-	    attr->max_entries ||
-	    attr->key_size != sizeof(int) || !attr->value_size ||
-	    /* Enforce BTF for userspace sk dumping */
-	    !attr->btf_key_type_id || !attr->btf_value_type_id)
-		return -EINVAL;
-
-	if (!bpf_capable())
-		return -EPERM;
-
-	if (attr->value_size > BPF_LOCAL_STORAGE_MAX_VALUE_SIZE)
-		return -E2BIG;
-
-	return 0;
-}
-
-struct bpf_local_storage_map *bpf_local_storage_map_alloc(union bpf_attr *attr)
-{
-	struct bpf_local_storage_map *smap;
-	unsigned int i;
-	u32 nbuckets;
-
-	smap = bpf_map_area_alloc(sizeof(*smap), NUMA_NO_NODE);
-	if (!smap)
-		return ERR_PTR(-ENOMEM);
-	bpf_map_init_from_attr(&smap->map, attr);
-
-	nbuckets = roundup_pow_of_two(num_possible_cpus());
-	/* Use at least 2 buckets, select_bucket() is undefined behavior with 1 bucket */
-	nbuckets = max_t(u32, 2, nbuckets);
-	smap->bucket_log = ilog2(nbuckets);
-
-	smap->buckets = kvcalloc(sizeof(*smap->buckets), nbuckets,
-				 GFP_USER | __GFP_NOWARN | __GFP_ACCOUNT);
-	if (!smap->buckets) {
-		bpf_map_area_free(smap);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	for (i = 0; i < nbuckets; i++) {
-		INIT_HLIST_HEAD(&smap->buckets[i].list);
-		raw_spin_lock_init(&smap->buckets[i].lock);
-	}
-
-	smap->elem_size =
-		sizeof(struct bpf_local_storage_elem) + attr->value_size;
-
-	return smap;
-}
-
-int bpf_local_storage_map_check_btf(const struct bpf_map *map,
-				    const struct btf *btf,
-				    const struct btf_type *key_type,
-				    const struct btf_type *value_type)
-{
-	u32 int_data;
-
-	if (BTF_INFO_KIND(key_type->info) != BTF_KIND_INT)
-		return -EINVAL;
-
-	int_data = *(u32 *)(key_type + 1);
-	if (BTF_INT_BITS(int_data) != 32 || BTF_INT_OFFSET(int_data))
-		return -EINVAL;
-
-	return 0;
 }

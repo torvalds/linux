@@ -425,8 +425,6 @@ static inline void update_mmu_cache_pmd(struct vm_area_struct *vma,
 	__update_tlb(vma, address, (pte_t *)pmdp);
 }
 
-#define kern_addr_valid(addr)	(1)
-
 static inline unsigned long pmd_pfn(pmd_t pmd)
 {
 	return (pmd_val(pmd) & _PFN_MASK) >> _PFN_SHIFT;

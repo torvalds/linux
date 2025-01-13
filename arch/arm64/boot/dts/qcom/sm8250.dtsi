@@ -2182,6 +2182,8 @@
 			reset-names = "ufsphy";
 			status = "disabled";
 
+			power-domains = <&gcc UFS_PHY_GDSC>;
+
 			ufs_mem_phy_lanes: phy@1d87400 {
 				reg = <0 0x01d87400 0 0x16c>,
 				      <0 0x01d87600 0 0x200>,

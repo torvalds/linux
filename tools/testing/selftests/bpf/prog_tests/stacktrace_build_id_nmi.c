@@ -13,11 +13,10 @@ void test_stacktrace_build_id_nmi(void)
 		.config = PERF_COUNT_HW_CPU_CYCLES,
 	};
 	__u32 key, prev_key, val, duration = 0;
-	char buf[256];
-	int i, j;
+	char buf[BPF_BUILD_ID_SIZE];
 	struct bpf_stack_build_id id_offs[PERF_MAX_STACK_DEPTH];
-	int build_id_matches = 0;
-	int retry = 1;
+	int build_id_matches = 0, build_id_size;
+	int i, retry = 1;
 
 	attr.sample_freq = read_perf_max_sample_freq();
 
@@ -79,7 +78,8 @@ retry:
 		  "err %d errno %d\n", err, errno))
 		goto cleanup;
 
-	err = extract_build_id(buf, 256);
+	build_id_size = read_build_id("urandom_read", buf, sizeof(buf));
+	err = build_id_size < 0 ? build_id_size : 0;
 
 	if (CHECK(err, "get build_id with readelf",
 		  "err %d errno %d\n", err, errno))
@@ -91,8 +91,6 @@ retry:
 		goto cleanup;
 
 	do {
-		char build_id[64];
-
 		err = bpf_map__lookup_elem(skel->maps.stackmap, &key, sizeof(key),
 					   id_offs, sizeof(id_offs), 0);
 		if (CHECK(err, "lookup_elem from stackmap",
@@ -101,10 +99,7 @@ retry:
 		for (i = 0; i < PERF_MAX_STACK_DEPTH; ++i)
 			if (id_offs[i].status == BPF_STACK_BUILD_ID_VALID &&
 			    id_offs[i].offset != 0) {
-				for (j = 0; j < 20; ++j)
-					sprintf(build_id + 2 * j, "%02x",
-						id_offs[i].build_id[j] & 0xff);
-				if (strstr(buf, build_id) != NULL)
+				if (memcmp(buf, id_offs[i].build_id, build_id_size) == 0)
 					build_id_matches = 1;
 			}
 		prev_key = key;

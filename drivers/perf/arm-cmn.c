@@ -24,14 +24,6 @@
 #define CMN_NI_NODE_ID			GENMASK_ULL(31, 16)
 #define CMN_NI_LOGICAL_ID		GENMASK_ULL(47, 32)
 
-#define CMN_NODEID_DEVID(reg)		((reg) & 3)
-#define CMN_NODEID_EXT_DEVID(reg)	((reg) & 1)
-#define CMN_NODEID_PID(reg)		(((reg) >> 2) & 1)
-#define CMN_NODEID_EXT_PID(reg)		(((reg) >> 1) & 3)
-#define CMN_NODEID_1x1_PID(reg)		(((reg) >> 2) & 7)
-#define CMN_NODEID_X(reg, bits)		((reg) >> (3 + (bits)))
-#define CMN_NODEID_Y(reg, bits)		(((reg) >> 3) & ((1U << (bits)) - 1))
-
 #define CMN_CHILD_INFO			0x0080
 #define CMN_CI_CHILD_COUNT		GENMASK_ULL(15, 0)
 #define CMN_CI_CHILD_PTR_OFFSET		GENMASK_ULL(31, 16)
@@ -42,6 +34,9 @@
 #define CMN_MAX_DIMENSION		12
 #define CMN_MAX_XPS			(CMN_MAX_DIMENSION * CMN_MAX_DIMENSION)
 #define CMN_MAX_DTMS			(CMN_MAX_XPS + (CMN_MAX_DIMENSION - 1) * 4)
+
+/* Currently XPs are the node type we can have most of; others top out at 128 */
+#define CMN_MAX_NODES_PER_EVENT		CMN_MAX_XPS
 
 /* The CFG node has various info besides the discovery tree */
 #define CMN_CFGM_PERIPH_ID_01		0x0008
@@ -273,16 +268,16 @@ struct arm_cmn_node {
 	u16 id, logid;
 	enum cmn_node_type type;
 
-	int dtm;
-	union {
-		/* DN/HN-F/CXHA */
-		struct {
-			u8 val : 4;
-			u8 count : 4;
-		} occupid[SEL_MAX];
-		/* XP */
-		u8 dtc;
-	};
+	/* XP properties really, but replicated to children for convenience */
+	u8 dtm;
+	s8 dtc;
+	u8 portid_bits:4;
+	u8 deviceid_bits:4;
+	/* DN/HN-F/CXHA */
+	struct {
+		u8 val : 4;
+		u8 count : 4;
+	} occupid[SEL_MAX];
 	union {
 		u8 event[4];
 		__le32 event_sel;
@@ -353,49 +348,33 @@ struct arm_cmn {
 static int arm_cmn_hp_state;
 
 struct arm_cmn_nodeid {
-	u8 x;
-	u8 y;
 	u8 port;
 	u8 dev;
 };
 
 static int arm_cmn_xyidbits(const struct arm_cmn *cmn)
 {
-	return fls((cmn->mesh_x - 1) | (cmn->mesh_y - 1) | 2);
+	return fls((cmn->mesh_x - 1) | (cmn->mesh_y - 1));
 }
 
-static struct arm_cmn_nodeid arm_cmn_nid(const struct arm_cmn *cmn, u16 id)
+static struct arm_cmn_nodeid arm_cmn_nid(const struct arm_cmn_node *dn)
 {
 	struct arm_cmn_nodeid nid;
 
-	if (cmn->num_xps == 1) {
-		nid.x = 0;
-		nid.y = 0;
-		nid.port = CMN_NODEID_1x1_PID(id);
-		nid.dev = CMN_NODEID_DEVID(id);
-	} else {
-		int bits = arm_cmn_xyidbits(cmn);
-
-		nid.x = CMN_NODEID_X(id, bits);
-		nid.y = CMN_NODEID_Y(id, bits);
-		if (cmn->ports_used & 0xc) {
-			nid.port = CMN_NODEID_EXT_PID(id);
-			nid.dev = CMN_NODEID_EXT_DEVID(id);
-		} else {
-			nid.port = CMN_NODEID_PID(id);
-			nid.dev = CMN_NODEID_DEVID(id);
-		}
-	}
+	nid.dev = dn->id & ((1U << dn->deviceid_bits) - 1);
+	nid.port = (dn->id >> dn->deviceid_bits) & ((1U << dn->portid_bits) - 1);
 	return nid;
 }
 
 static struct arm_cmn_node *arm_cmn_node_to_xp(const struct arm_cmn *cmn,
 					       const struct arm_cmn_node *dn)
 {
-	struct arm_cmn_nodeid nid = arm_cmn_nid(cmn, dn->id);
-	int xp_idx = cmn->mesh_x * nid.y + nid.x;
+	int id = dn->id >> (dn->portid_bits + dn->deviceid_bits);
+	int bits = arm_cmn_xyidbits(cmn);
+	int x = id >> bits;
+	int y = id & ((1U << bits) - 1);
 
-	return cmn->xps + xp_idx;
+	return cmn->xps + cmn->mesh_x * y + x;
 }
 static struct arm_cmn_node *arm_cmn_node(const struct arm_cmn *cmn,
 					 enum cmn_node_type type)
@@ -481,13 +460,14 @@ static const char *arm_cmn_device_type(u8 type)
 	}
 }
 
-static void arm_cmn_show_logid(struct seq_file *s, int x, int y, int p, int d)
+static void arm_cmn_show_logid(struct seq_file *s, const struct arm_cmn_node *xp, int p, int d)
 {
 	struct arm_cmn *cmn = s->private;
 	struct arm_cmn_node *dn;
+	u16 id = xp->id | d | (p << xp->deviceid_bits);
 
 	for (dn = cmn->dns; dn->type; dn++) {
-		struct arm_cmn_nodeid nid = arm_cmn_nid(cmn, dn->id);
+		int pad = dn->logid < 10;
 
 		if (dn->type == CMN_TYPE_XP)
 			continue;
@@ -495,10 +475,10 @@ static void arm_cmn_show_logid(struct seq_file *s, int x, int y, int p, int d)
 		if (dn->type < CMN_TYPE_HNI)
 			continue;
 
-		if (nid.x != x || nid.y != y || nid.port != p || nid.dev != d)
+		if (dn->id != id)
 			continue;
 
-		seq_printf(s, "   #%-2d  |", dn->logid);
+		seq_printf(s, " %*c#%-*d  |", pad + 1, ' ', 3 - pad, dn->logid);
 		return;
 	}
 	seq_puts(s, "        |");
@@ -511,33 +491,32 @@ static int arm_cmn_map_show(struct seq_file *s, void *data)
 
 	seq_puts(s, "     X");
 	for (x = 0; x < cmn->mesh_x; x++)
-		seq_printf(s, "    %d    ", x);
+		seq_printf(s, "    %-2d   ", x);
 	seq_puts(s, "\nY P D+");
 	y = cmn->mesh_y;
 	while (y--) {
 		int xp_base = cmn->mesh_x * y;
+		struct arm_cmn_node *xp = cmn->xps + xp_base;
 		u8 port[CMN_MAX_PORTS][CMN_MAX_DIMENSION];
 
 		for (x = 0; x < cmn->mesh_x; x++)
 			seq_puts(s, "--------+");
 
-		seq_printf(s, "\n%d    |", y);
+		seq_printf(s, "\n%-2d   |", y);
 		for (x = 0; x < cmn->mesh_x; x++) {
-			struct arm_cmn_node *xp = cmn->xps + xp_base + x;
-
 			for (p = 0; p < CMN_MAX_PORTS; p++)
-				port[p][x] = arm_cmn_device_connect_info(cmn, xp, p);
-			seq_printf(s, " XP #%-2d |", xp_base + x);
+				port[p][x] = arm_cmn_device_connect_info(cmn, xp + x, p);
+			seq_printf(s, " XP #%-3d|", xp_base + x);
 		}
 
 		seq_puts(s, "\n     |");
 		for (x = 0; x < cmn->mesh_x; x++) {
-			u8 dtc = cmn->xps[xp_base + x].dtc;
+			s8 dtc = xp[x].dtc;
 
-			if (dtc & (dtc - 1))
+			if (dtc < 0)
 				seq_puts(s, " DTC ?? |");
 			else
-				seq_printf(s, " DTC %ld  |", __ffs(dtc));
+				seq_printf(s, " DTC %d  |", dtc);
 		}
 		seq_puts(s, "\n     |");
 		for (x = 0; x < cmn->mesh_x; x++)
@@ -549,10 +528,10 @@ static int arm_cmn_map_show(struct seq_file *s, void *data)
 				seq_puts(s, arm_cmn_device_type(port[p][x]));
 			seq_puts(s, "\n    0|");
 			for (x = 0; x < cmn->mesh_x; x++)
-				arm_cmn_show_logid(s, x, y, p, 0);
+				arm_cmn_show_logid(s, xp + x, p, 0);
 			seq_puts(s, "\n    1|");
 			for (x = 0; x < cmn->mesh_x; x++)
-				arm_cmn_show_logid(s, x, y, p, 1);
+				arm_cmn_show_logid(s, xp + x, p, 1);
 		}
 		seq_puts(s, "\n-----+");
 	}
@@ -580,9 +559,8 @@ static void arm_cmn_debugfs_init(struct arm_cmn *cmn, int id) {}
 
 struct arm_cmn_hw_event {
 	struct arm_cmn_node *dn;
-	u64 dtm_idx[4];
-	unsigned int dtc_idx;
-	u8 dtcs_used;
+	u64 dtm_idx[DIV_ROUND_UP(CMN_MAX_NODES_PER_EVENT * 2, 64)];
+	s8 dtc_idx[CMN_MAX_DTCS];
 	u8 num_dns;
 	u8 dtm_offset;
 	bool wide_sel;
@@ -591,6 +569,10 @@ struct arm_cmn_hw_event {
 
 #define for_each_hw_dn(hw, dn, i) \
 	for (i = 0, dn = hw->dn; i < hw->num_dns; i++, dn++)
+
+/* @i is the DTC number, @idx is the counter index on that DTC */
+#define for_each_hw_dtc_idx(hw, i, idx) \
+	for (int i = 0, idx; i < CMN_MAX_DTCS; i++) if ((idx = hw->dtc_idx[i]) >= 0)
 
 static struct arm_cmn_hw_event *to_cmn_hw(struct perf_event *event)
 {
@@ -1311,12 +1293,11 @@ static void arm_cmn_init_counter(struct perf_event *event)
 {
 	struct arm_cmn *cmn = to_cmn(event->pmu);
 	struct arm_cmn_hw_event *hw = to_cmn_hw(event);
-	unsigned int i, pmevcnt = CMN_DT_PMEVCNT(hw->dtc_idx);
 	u64 count;
 
-	for (i = 0; hw->dtcs_used & (1U << i); i++) {
-		writel_relaxed(CMN_COUNTER_INIT, cmn->dtc[i].base + pmevcnt);
-		cmn->dtc[i].counters[hw->dtc_idx] = event;
+	for_each_hw_dtc_idx(hw, i, idx) {
+		writel_relaxed(CMN_COUNTER_INIT, cmn->dtc[i].base + CMN_DT_PMEVCNT(idx));
+		cmn->dtc[i].counters[idx] = event;
 	}
 
 	count = arm_cmn_read_dtm(cmn, hw, false);
@@ -1329,11 +1310,9 @@ static void arm_cmn_event_read(struct perf_event *event)
 	struct arm_cmn_hw_event *hw = to_cmn_hw(event);
 	u64 delta, new, prev;
 	unsigned long flags;
-	unsigned int i;
 
-	if (hw->dtc_idx == CMN_DT_NUM_COUNTERS) {
-		i = __ffs(hw->dtcs_used);
-		delta = arm_cmn_read_cc(cmn->dtc + i);
+	if (CMN_EVENT_TYPE(event) == CMN_TYPE_DTC) {
+		delta = arm_cmn_read_cc(cmn->dtc + hw->dtc_idx[0]);
 		local64_add(delta, &event->count);
 		return;
 	}
@@ -1343,8 +1322,8 @@ static void arm_cmn_event_read(struct perf_event *event)
 	delta = new - prev;
 
 	local_irq_save(flags);
-	for (i = 0; hw->dtcs_used & (1U << i); i++) {
-		new = arm_cmn_read_counter(cmn->dtc + i, hw->dtc_idx);
+	for_each_hw_dtc_idx(hw, i, idx) {
+		new = arm_cmn_read_counter(cmn->dtc + i, idx);
 		delta += new << 16;
 	}
 	local_irq_restore(flags);
@@ -1396,7 +1375,7 @@ static void arm_cmn_event_start(struct perf_event *event, int flags)
 	int i;
 
 	if (type == CMN_TYPE_DTC) {
-		i = __ffs(hw->dtcs_used);
+		i = hw->dtc_idx[0];
 		writeq_relaxed(CMN_CC_INIT, cmn->dtc[i].base + CMN_DT_PMCCNTR);
 		cmn->dtc[i].cc_active = true;
 	} else if (type == CMN_TYPE_WP) {
@@ -1427,7 +1406,7 @@ static void arm_cmn_event_stop(struct perf_event *event, int flags)
 	int i;
 
 	if (type == CMN_TYPE_DTC) {
-		i = __ffs(hw->dtcs_used);
+		i = hw->dtc_idx[0];
 		cmn->dtc[i].cc_active = false;
 	} else if (type == CMN_TYPE_WP) {
 		int wp_idx = arm_cmn_wp_idx(event);
@@ -1613,29 +1592,27 @@ static int arm_cmn_event_init(struct perf_event *event)
 	hw->dn = arm_cmn_node(cmn, type);
 	if (!hw->dn)
 		return -EINVAL;
+
+	memset(hw->dtc_idx, -1, sizeof(hw->dtc_idx));
 	for (dn = hw->dn; dn->type == type; dn++) {
 		if (bynodeid && dn->id != nodeid) {
 			hw->dn++;
 			continue;
 		}
 		hw->num_dns++;
+		if (dn->dtc < 0)
+			memset(hw->dtc_idx, 0, cmn->num_dtcs);
+		else
+			hw->dtc_idx[dn->dtc] = 0;
+
 		if (bynodeid)
 			break;
 	}
 
 	if (!hw->num_dns) {
-		struct arm_cmn_nodeid nid = arm_cmn_nid(cmn, nodeid);
-
-		dev_dbg(cmn->dev, "invalid node 0x%x (%d,%d,%d,%d) type 0x%x\n",
-			nodeid, nid.x, nid.y, nid.port, nid.dev, type);
+		dev_dbg(cmn->dev, "invalid node 0x%x type 0x%x\n", nodeid, type);
 		return -EINVAL;
 	}
-	/*
-	 * Keep assuming non-cycles events count in all DTC domains; turns out
-	 * it's hard to make a worthwhile optimisation around this, short of
-	 * going all-in with domain-local counter allocation as well.
-	 */
-	hw->dtcs_used = (1U << cmn->num_dtcs) - 1;
 
 	return arm_cmn_validate_group(cmn, event);
 }
@@ -1661,28 +1638,25 @@ static void arm_cmn_event_clear(struct arm_cmn *cmn, struct perf_event *event,
 	}
 	memset(hw->dtm_idx, 0, sizeof(hw->dtm_idx));
 
-	for (i = 0; hw->dtcs_used & (1U << i); i++)
-		cmn->dtc[i].counters[hw->dtc_idx] = NULL;
+	for_each_hw_dtc_idx(hw, j, idx)
+		cmn->dtc[j].counters[idx] = NULL;
 }
 
 static int arm_cmn_event_add(struct perf_event *event, int flags)
 {
 	struct arm_cmn *cmn = to_cmn(event->pmu);
 	struct arm_cmn_hw_event *hw = to_cmn_hw(event);
-	struct arm_cmn_dtc *dtc = &cmn->dtc[0];
 	struct arm_cmn_node *dn;
 	enum cmn_node_type type = CMN_EVENT_TYPE(event);
-	unsigned int i, dtc_idx, input_sel;
+	unsigned int input_sel, i = 0;
 
 	if (type == CMN_TYPE_DTC) {
-		i = 0;
 		while (cmn->dtc[i].cycles)
 			if (++i == cmn->num_dtcs)
 				return -ENOSPC;
 
 		cmn->dtc[i].cycles = event;
-		hw->dtc_idx = CMN_DT_NUM_COUNTERS;
-		hw->dtcs_used = 1U << i;
+		hw->dtc_idx[0] = i;
 
 		if (flags & PERF_EF_START)
 			arm_cmn_event_start(event, 0);
@@ -1690,17 +1664,22 @@ static int arm_cmn_event_add(struct perf_event *event, int flags)
 	}
 
 	/* Grab a free global counter first... */
-	dtc_idx = 0;
-	while (dtc->counters[dtc_idx])
-		if (++dtc_idx == CMN_DT_NUM_COUNTERS)
-			return -ENOSPC;
-
-	hw->dtc_idx = dtc_idx;
+	for_each_hw_dtc_idx(hw, j, idx) {
+		if (j > 0) {
+			idx = hw->dtc_idx[0];
+		} else {
+			idx = 0;
+			while (cmn->dtc[j].counters[idx])
+				if (++idx == CMN_DT_NUM_COUNTERS)
+					return -ENOSPC;
+		}
+		hw->dtc_idx[j] = idx;
+	}
 
 	/* ...then the local counters to feed it. */
 	for_each_hw_dn(hw, dn, i) {
 		struct arm_cmn_dtm *dtm = &cmn->dtms[dn->dtm] + hw->dtm_offset;
-		unsigned int dtm_idx, shift;
+		unsigned int dtm_idx, shift, d = 0;
 		u64 reg;
 
 		dtm_idx = 0;
@@ -1719,14 +1698,14 @@ static int arm_cmn_event_add(struct perf_event *event, int flags)
 
 			tmp = dtm->wp_event[wp_idx ^ 1];
 			if (tmp >= 0 && CMN_EVENT_WP_COMBINE(event) !=
-					CMN_EVENT_WP_COMBINE(dtc->counters[tmp]))
+					CMN_EVENT_WP_COMBINE(cmn->dtc[d].counters[tmp]))
 				goto free_dtms;
 
 			input_sel = CMN__PMEVCNT0_INPUT_SEL_WP + wp_idx;
-			dtm->wp_event[wp_idx] = dtc_idx;
+			dtm->wp_event[wp_idx] = hw->dtc_idx[d];
 			writel_relaxed(cfg, dtm->base + CMN_DTM_WPn_CONFIG(wp_idx));
 		} else {
-			struct arm_cmn_nodeid nid = arm_cmn_nid(cmn, dn->id);
+			struct arm_cmn_nodeid nid = arm_cmn_nid(dn);
 
 			if (cmn->multi_dtm)
 				nid.port %= 2;
@@ -1743,7 +1722,7 @@ static int arm_cmn_event_add(struct perf_event *event, int flags)
 		dtm->input_sel[dtm_idx] = input_sel;
 		shift = CMN__PMEVCNTn_GLOBAL_NUM_SHIFT(dtm_idx);
 		dtm->pmu_config_low &= ~(CMN__PMEVCNT0_GLOBAL_NUM << shift);
-		dtm->pmu_config_low |= FIELD_PREP(CMN__PMEVCNT0_GLOBAL_NUM, dtc_idx) << shift;
+		dtm->pmu_config_low |= FIELD_PREP(CMN__PMEVCNT0_GLOBAL_NUM, hw->dtc_idx[d]) << shift;
 		dtm->pmu_config_low |= CMN__PMEVCNT_PAIRED(dtm_idx);
 		reg = (u64)le32_to_cpu(dtm->pmu_config_high) << 32 | dtm->pmu_config_low;
 		writeq_relaxed(reg, dtm->base + CMN_DTM_PMU_CONFIG);
@@ -1771,7 +1750,7 @@ static void arm_cmn_event_del(struct perf_event *event, int flags)
 	arm_cmn_event_stop(event, PERF_EF_UPDATE);
 
 	if (type == CMN_TYPE_DTC)
-		cmn->dtc[__ffs(hw->dtcs_used)].cycles = NULL;
+		cmn->dtc[hw->dtc_idx[0]].cycles = NULL;
 	else
 		arm_cmn_event_clear(cmn, event, hw->num_dns);
 }
@@ -1951,7 +1930,6 @@ static int arm_cmn_init_dtcs(struct arm_cmn *cmn)
 {
 	struct arm_cmn_node *dn, *xp;
 	int dtc_idx = 0;
-	u8 dtcs_present = (1 << cmn->num_dtcs) - 1;
 
 	cmn->dtc = devm_kcalloc(cmn->dev, cmn->num_dtcs, sizeof(cmn->dtc[0]), GFP_KERNEL);
 	if (!cmn->dtc)
@@ -1961,23 +1939,28 @@ static int arm_cmn_init_dtcs(struct arm_cmn *cmn)
 
 	cmn->xps = arm_cmn_node(cmn, CMN_TYPE_XP);
 
+	if (cmn->part == PART_CMN600 && cmn->num_dtcs > 1) {
+		/* We do at least know that a DTC's XP must be in that DTC's domain */
+		dn = arm_cmn_node(cmn, CMN_TYPE_DTC);
+		for (int i = 0; i < cmn->num_dtcs; i++)
+			arm_cmn_node_to_xp(cmn, dn + i)->dtc = i;
+	}
+
 	for (dn = cmn->dns; dn->type; dn++) {
-		if (dn->type == CMN_TYPE_XP) {
-			dn->dtc &= dtcs_present;
+		if (dn->type == CMN_TYPE_XP)
 			continue;
-		}
 
 		xp = arm_cmn_node_to_xp(cmn, dn);
+		dn->portid_bits = xp->portid_bits;
+		dn->deviceid_bits = xp->deviceid_bits;
+		dn->dtc = xp->dtc;
 		dn->dtm = xp->dtm;
 		if (cmn->multi_dtm)
-			dn->dtm += arm_cmn_nid(cmn, dn->id).port / 2;
+			dn->dtm += arm_cmn_nid(dn).port / 2;
 
 		if (dn->type == CMN_TYPE_DTC) {
-			int err;
-			/* We do at least know that a DTC's XP must be in that DTC's domain */
-			if (xp->dtc == 0xf)
-				xp->dtc = 1 << dtc_idx;
-			err = arm_cmn_init_dtc(cmn, dn, dtc_idx++);
+			int err = arm_cmn_init_dtc(cmn, dn, dtc_idx++);
+
 			if (err)
 				return err;
 		}
@@ -2135,26 +2118,35 @@ static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 			cmn->mesh_x = xp->logid;
 
 		if (cmn->part == PART_CMN600)
-			xp->dtc = 0xf;
+			xp->dtc = -1;
 		else
-			xp->dtc = 1 << arm_cmn_dtc_domain(cmn, xp_region);
+			xp->dtc = arm_cmn_dtc_domain(cmn, xp_region);
 
 		xp->dtm = dtm - cmn->dtms;
 		arm_cmn_init_dtm(dtm++, xp, 0);
 		/*
 		 * Keeping track of connected ports will let us filter out
-		 * unnecessary XP events easily. We can also reliably infer the
-		 * "extra device ports" configuration for the node ID format
-		 * from this, since in that case we will see at least one XP
-		 * with port 2 connected, for the HN-D.
+		 * unnecessary XP events easily, and also infer the per-XP
+		 * part of the node ID format.
 		 */
 		for (int p = 0; p < CMN_MAX_PORTS; p++)
 			if (arm_cmn_device_connect_info(cmn, xp, p))
 				xp_ports |= BIT(p);
 
-		if (cmn->multi_dtm && (xp_ports & 0xc))
+		if (cmn->num_xps == 1) {
+			xp->portid_bits = 3;
+			xp->deviceid_bits = 2;
+		} else if (xp_ports > 0x3) {
+			xp->portid_bits = 2;
+			xp->deviceid_bits = 1;
+		} else {
+			xp->portid_bits = 1;
+			xp->deviceid_bits = 2;
+		}
+
+		if (cmn->multi_dtm && (xp_ports > 0x3))
 			arm_cmn_init_dtm(dtm++, xp, 1);
-		if (cmn->multi_dtm && (xp_ports & 0x30))
+		if (cmn->multi_dtm && (xp_ports > 0xf))
 			arm_cmn_init_dtm(dtm++, xp, 2);
 
 		cmn->ports_used |= xp_ports;

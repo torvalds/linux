@@ -92,16 +92,6 @@ void __update_stats_enqueue_sleeper(struct rq *rq, struct task_struct *p,
 
 			trace_sched_stat_blocked(p, delta);
 
-			/*
-			 * Blocking time is in units of nanosecs, so shift by
-			 * 20 to get a milliseconds-range estimation of the
-			 * amount of time that the task spent sleeping:
-			 */
-			if (unlikely(prof_on == SLEEP_PROFILING)) {
-				profile_hits(SLEEP_PROFILING,
-					     (void *)get_wchan(p),
-					     delta >> 20);
-			}
 			account_scheduler_latency(p, delta >> 10, 0);
 		}
 	}

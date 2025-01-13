@@ -240,7 +240,6 @@ static inline void native_pgd_clear(pgd_t *pgd)
 #define __swp_entry_to_pte(x)		(__pte((x).val))
 #define __swp_entry_to_pmd(x)		(__pmd((x).val))
 
-extern int kern_addr_valid(unsigned long addr);
 extern void cleanup_highmap(void);
 
 #define HAVE_ARCH_UNMAPPED_AREA

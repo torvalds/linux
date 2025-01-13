@@ -4,40 +4,6 @@
 #include <linux/dsa/ocelot.h>
 #include "dsa_priv.h"
 
-/* If the port is under a VLAN-aware bridge, remove the VLAN header from the
- * payload and move it into the DSA tag, which will make the switch classify
- * the packet to the bridge VLAN. Otherwise, leave the classified VLAN at zero,
- * which is the pvid of standalone and VLAN-unaware bridge ports.
- */
-static void ocelot_xmit_get_vlan_info(struct sk_buff *skb, struct dsa_port *dp,
-				      u64 *vlan_tci, u64 *tag_type)
-{
-	struct net_device *br = dsa_port_bridge_dev_get(dp);
-	struct vlan_ethhdr *hdr;
-	u16 proto, tci;
-
-	if (!br || !br_vlan_enabled(br)) {
-		*vlan_tci = 0;
-		*tag_type = IFH_TAG_TYPE_C;
-		return;
-	}
-
-	hdr = (struct vlan_ethhdr *)skb_mac_header(skb);
-	br_vlan_get_proto(br, &proto);
-
-	if (ntohs(hdr->h_vlan_proto) == proto) {
-		__skb_vlan_pop(skb, &tci);
-		*vlan_tci = tci;
-	} else {
-		rcu_read_lock();
-		br_vlan_get_pvid_rcu(br, &tci);
-		rcu_read_unlock();
-		*vlan_tci = tci;
-	}
-
-	*tag_type = (proto != ETH_P_8021Q) ? IFH_TAG_TYPE_S : IFH_TAG_TYPE_C;
-}
-
 static void ocelot_xmit_common(struct sk_buff *skb, struct net_device *netdev,
 			       __be32 ifh_prefix, void **ifh)
 {
@@ -49,7 +15,8 @@ static void ocelot_xmit_common(struct sk_buff *skb, struct net_device *netdev,
 	u32 rew_op = 0;
 	u64 qos_class;
 
-	ocelot_xmit_get_vlan_info(skb, dp, &vlan_tci, &tag_type);
+	ocelot_xmit_get_vlan_info(skb, dsa_port_bridge_dev_get(dp), &vlan_tci,
+				  &tag_type);
 
 	qos_class = netdev_get_num_tc(netdev) ?
 		    netdev_get_prio_tc_map(netdev, skb->priority) : skb->priority;

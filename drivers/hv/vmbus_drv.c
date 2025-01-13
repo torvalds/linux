@@ -1977,6 +1977,7 @@ static umode_t vmbus_chan_attr_is_visible(struct kobject *kobj,
 
 	return attr->mode;
 }
+EXPORT_SYMBOL_GPL(vmbus_device_unregister);
 
 static struct attribute_group vmbus_chan_group = {
 	.attrs = vmbus_chan_attrs,

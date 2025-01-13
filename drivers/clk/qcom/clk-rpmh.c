@@ -310,8 +310,7 @@ static int clk_rpmh_bcm_send_cmd(struct clk_rpmh *c, bool enable)
 		cmd_state = 0;
 	}
 
-	if (cmd_state > BCM_TCS_CMD_VOTE_MASK)
-		cmd_state = BCM_TCS_CMD_VOTE_MASK;
+	cmd_state = min(cmd_state, BCM_TCS_CMD_VOTE_MASK);
 
 	if (c->last_sent_aggr_state != cmd_state) {
 		cmd.addr = c->res_addr;

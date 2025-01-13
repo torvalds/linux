@@ -1068,8 +1068,10 @@ static int mmc_blk_reset(struct mmc_blk_data *md, struct mmc_host *host,
 	 * in that case.
 	 */
 	main_md->part_curr = err ? MMC_BLK_PART_INVALID : main_md->part_type;
-	if (err)
+	if (err) {
+		trace_android_vh_mmc_blk_reset(host, err);
 		return err;
+	}
 	/* Ensure we switch back to the correct partition */
 	if (mmc_blk_part_switch(host->card, md->part_type))
 		/*

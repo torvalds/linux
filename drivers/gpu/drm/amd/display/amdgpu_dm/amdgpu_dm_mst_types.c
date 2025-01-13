@@ -251,7 +251,7 @@ static bool validate_dsc_caps_on_connector(struct amdgpu_dm_connector *aconnecto
 		aconnector->dsc_aux = &aconnector->mst_port->dm_dp_aux.aux;
 
 	/* synaptics cascaded MST hub case */
-	if (!aconnector->dsc_aux && is_synaptics_cascaded_panamera(aconnector->dc_link, port))
+	if (is_synaptics_cascaded_panamera(aconnector->dc_link, port))
 		aconnector->dsc_aux = port->mgr->aux;
 
 	if (!aconnector->dsc_aux)
@@ -1254,6 +1254,12 @@ static bool is_dsc_need_re_compute(
 				return true;
 		}
 	}
+
+	if (new_stream_on_link_num == 0)
+		return false;
+
+	if (new_stream_on_link_num == 0)
+		return false;
 
 	/* check current_state if there stream on link but it is not in
 	 * new request state

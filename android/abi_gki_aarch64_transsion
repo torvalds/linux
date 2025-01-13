@@ -70,3 +70,13 @@
   register_tracepoint_module_notifier
   scsi_register_driver
   trace_seq_puts
+
+# required for failure diagnostics
+  __traceiter_android_vh_mmc_blk_reset
+  __traceiter_android_vh_mmc_attach_sd
+  __traceiter_android_vh_sdhci_get_cd
+  __traceiter_android_vh_mmc_gpio_cd_irqt
+  __tracepoint_android_vh_mmc_blk_reset
+  __tracepoint_android_vh_mmc_attach_sd
+  __tracepoint_android_vh_sdhci_get_cd
+  __tracepoint_android_vh_mmc_gpio_cd_irqt
