@@ -187,7 +187,7 @@ struct xfs_buf {
 	int			b_io_error;	/* internal IO error state */
 	wait_queue_head_t	b_waiters;	/* unpin waiters */
 	struct list_head	b_list;
-	struct xfs_perag	*b_pag;		/* contains rbtree root */
+	struct xfs_perag	*b_pag;
 	struct xfs_mount	*b_mount;
 	struct xfs_buftarg	*b_target;	/* buffer target (device) */
 	void			*b_addr;	/* virtual address of buffer */
