@@ -971,12 +971,12 @@ int cb_pci_attach(gpib_board_t *board, const gpib_board_config_t *config)
 	switch (cb_priv->pci_chip) {
 	case PCI_CHIP_AMCC_S5933:
 		cb_priv->amcc_iobase = pci_resource_start(cb_priv->pci_device, 0);
-		nec_priv->iobase = (void *)(pci_resource_start(cb_priv->pci_device, 1));
+		nec_priv->iobase = pci_resource_start(cb_priv->pci_device, 1);
 		cb_priv->fifo_iobase = pci_resource_start(cb_priv->pci_device, 2);
 		break;
 	case PCI_CHIP_QUANCOM:
-		nec_priv->iobase = (void *)(pci_resource_start(cb_priv->pci_device, 0));
-		cb_priv->fifo_iobase = (unsigned long)nec_priv->iobase;
+		nec_priv->iobase = pci_resource_start(cb_priv->pci_device, 0);
+		cb_priv->fifo_iobase = nec_priv->iobase;
 		break;
 	default:
 		pr_err("cb7210: bug! unhandled pci_chip=%i\n", cb_priv->pci_chip);
@@ -1040,8 +1040,8 @@ int cb_isa_attach(gpib_board_t *board, const gpib_board_config_t *config)
 		return retval;
 	cb_priv = board->private_data;
 	nec_priv = &cb_priv->nec7210_priv;
-	if (request_region((unsigned long)config->ibbase, cb7210_iosize, "cb7210") == 0) {
-		pr_err("gpib: ioports starting at 0x%p are already in use\n", config->ibbase);
+	if (request_region(config->ibbase, cb7210_iosize, "cb7210") == 0) {
+		pr_err("gpib: ioports starting at 0x%u are already in use\n", config->ibbase);
 		return -EIO;
 	}
 	nec_priv->iobase = config->ibbase;
@@ -1471,7 +1471,7 @@ int cb_pcmcia_attach(gpib_board_t *board, const gpib_board_config_t *config)
 		       (unsigned long)curr_dev->resource[0]->start);
 		return -EIO;
 	}
-	nec_priv->iobase = (void *)(unsigned long)curr_dev->resource[0]->start;
+	nec_priv->iobase = curr_dev->resource[0]->start;
 	cb_priv->fifo_iobase = curr_dev->resource[0]->start;
 
 	if (request_irq(curr_dev->irq, cb7210_interrupt, IRQF_SHARED,

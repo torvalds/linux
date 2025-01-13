@@ -315,7 +315,7 @@ struct bb_priv {
 	enum listener_function_state listener_state;
 };
 
-inline long usec_diff(struct timespec64 *a, struct timespec64 *b);
+static inline long usec_diff(struct timespec64 *a, struct timespec64 *b);
 static void bb_buffer_print(unsigned char *buffer, size_t length, int cmd, int eoi);
 static void set_data_lines(u8 byte);
 static u8 get_data_lines(void);

@@ -524,7 +524,16 @@ out:
  */
 const char *rxe_parent_name(struct rxe_dev *rxe, unsigned int port_num)
 {
-	return rxe->ndev->name;
+	struct net_device *ndev;
+	char *ndev_name;
+
+	ndev = rxe_ib_device_get_netdev(&rxe->ib_dev);
+	if (!ndev)
+		return NULL;
+	ndev_name = ndev->name;
+	dev_put(ndev);
+
+	return ndev_name;
 }
 
 int rxe_net_add(const char *ibdev_name, struct net_device *ndev)
@@ -536,10 +545,9 @@ int rxe_net_add(const char *ibdev_name, struct net_device *ndev)
 	if (!rxe)
 		return -ENOMEM;
 
-	rxe->ndev = ndev;
 	ib_mark_name_assigned_by_user(&rxe->ib_dev);
 
-	err = rxe_add(rxe, ndev->mtu, ibdev_name);
+	err = rxe_add(rxe, ndev->mtu, ibdev_name, ndev);
 	if (err) {
 		ib_dealloc_device(&rxe->ib_dev);
 		return err;
@@ -587,10 +595,18 @@ void rxe_port_down(struct rxe_dev *rxe)
 
 void rxe_set_port_state(struct rxe_dev *rxe)
 {
-	if (netif_running(rxe->ndev) && netif_carrier_ok(rxe->ndev))
+	struct net_device *ndev;
+
+	ndev = rxe_ib_device_get_netdev(&rxe->ib_dev);
+	if (!ndev)
+		return;
+
+	if (netif_running(ndev) && netif_carrier_ok(ndev))
 		rxe_port_up(rxe);
 	else
 		rxe_port_down(rxe);
+
+	dev_put(ndev);
 }
 
 static int rxe_notify(struct notifier_block *not_blk,
