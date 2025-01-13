@@ -1519,7 +1519,7 @@ int thc_i2c_subip_init(struct thc_device *dev, const u32 target_address,
 
 	dev->i2c_subip_regs = devm_kzalloc(dev->dev, sizeof(i2c_subip_regs), GFP_KERNEL);
 	if (!dev->i2c_subip_regs)
-		return PTR_ERR(dev->i2c_subip_regs);
+		return -ENOMEM;
 
 	return 0;
 }

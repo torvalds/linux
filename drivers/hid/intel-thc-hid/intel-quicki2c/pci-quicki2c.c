@@ -118,6 +118,7 @@ static int quicki2c_get_acpi_resources(struct quicki2c_device *qcdev)
 	struct acpi_device *adev = ACPI_COMPANION(qcdev->dev);
 	struct quicki2c_subip_acpi_parameter i2c_param;
 	struct quicki2c_subip_acpi_config i2c_config;
+	u32 hid_desc_addr;
 	int ret = -EINVAL;
 
 	if (!adev) {
@@ -131,9 +132,11 @@ static int quicki2c_get_acpi_resources(struct quicki2c_device *qcdev)
 					     QUICKI2C_ACPI_REVISION_NUM,
 					     QUICKI2C_ACPI_FUNC_NUM_HID_DESC_ADDR,
 					     ACPI_TYPE_INTEGER,
-					     &qcdev->hid_desc_addr);
+					     &hid_desc_addr);
 	if (ret)
 		return ret;
+
+	qcdev->hid_desc_addr = (u16)hid_desc_addr;
 
 	ret = quicki2c_acpi_get_dsm_property(adev, &thc_platform_guid,
 					     QUICKI2C_ACPI_REVISION_NUM,
