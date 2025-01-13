@@ -647,7 +647,7 @@ xrep_agfl_fill(
 	xfs_agblock_t		agbno = start;
 	int			error;
 
-	trace_xrep_agfl_insert(sc->sa.pag, agbno, len);
+	trace_xrep_agfl_insert(pag_group(sc->sa.pag), agbno, len);
 
 	while (agbno < start + len && af->fl_off < af->flcount)
 		af->agfl_bno[af->fl_off++] = cpu_to_be32(agbno++);

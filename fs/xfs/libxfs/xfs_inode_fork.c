@@ -28,6 +28,7 @@
 #include "xfs_health.h"
 #include "xfs_symlink_remote.h"
 #include "xfs_rtrmap_btree.h"
+#include "xfs_rtrefcount_btree.h"
 
 struct kmem_cache *xfs_ifork_cache;
 
@@ -272,6 +273,8 @@ xfs_iformat_data_fork(
 			switch (ip->i_metatype) {
 			case XFS_METAFILE_RTRMAP:
 				return xfs_iformat_rtrmap(ip, dip);
+			case XFS_METAFILE_RTREFCOUNT:
+				return xfs_iformat_rtrefcount(ip, dip);
 			default:
 				break;
 			}
@@ -619,6 +622,9 @@ xfs_iflush_fork(
 		switch (ip->i_metatype) {
 		case XFS_METAFILE_RTRMAP:
 			xfs_iflush_rtrmap(ip, dip);
+			break;
+		case XFS_METAFILE_RTREFCOUNT:
+			xfs_iflush_rtrefcount(ip, dip);
 			break;
 		default:
 			ASSERT(0);

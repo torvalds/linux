@@ -27,6 +27,7 @@
 #include "xfs_ag.h"
 #include "xfs_rtgroup.h"
 #include "xfs_rtrmap_btree.h"
+#include "xfs_rtrefcount_btree.h"
 
 /* Convert an xfs_fsmap to an fsmap. */
 static void
@@ -212,21 +213,20 @@ xfs_getfsmap_is_shared(
 	struct xfs_mount		*mp = tp->t_mountp;
 	struct xfs_btree_cur		*cur;
 	xfs_agblock_t			fbno;
-	xfs_extlen_t			flen;
+	xfs_extlen_t			flen = 0;
 	int				error;
 
 	*stat = false;
-	if (!xfs_has_reflink(mp))
+	if (!xfs_has_reflink(mp) || !info->group)
 		return 0;
-	/* rt files will have no perag structure */
-	if (!info->group)
-		return 0;
+
+	if (info->group->xg_type == XG_TYPE_RTG)
+		cur = xfs_rtrefcountbt_init_cursor(tp, to_rtg(info->group));
+	else
+		cur = xfs_refcountbt_init_cursor(mp, tp, info->agf_bp,
+				to_perag(info->group));
 
 	/* Are there any shared blocks here? */
-	flen = 0;
-	cur = xfs_refcountbt_init_cursor(mp, tp, info->agf_bp,
-			to_perag(info->group));
-
 	error = xfs_refcount_find_shared(cur, frec->rec_key,
 			XFS_BB_TO_FSBT(mp, frec->len_daddr), &fbno, &flen,
 			false);
@@ -863,7 +863,7 @@ xfs_getfsmap_rtdev_rmapbt_query(
 	struct xfs_rtgroup		*rtg = to_rtg(info->group);
 
 	/* Query the rtrmapbt */
-	xfs_rtgroup_lock(rtg, XFS_RTGLOCK_RMAP);
+	xfs_rtgroup_lock(rtg, XFS_RTGLOCK_RMAP | XFS_RTGLOCK_REFCOUNT);
 	*curpp = xfs_rtrmapbt_init_cursor(tp, rtg);
 	return xfs_rmap_query_range(*curpp, &info->low, &info->high,
 			xfs_getfsmap_rtdev_rmapbt_helper, info);
@@ -950,7 +950,8 @@ xfs_getfsmap_rtdev_rmapbt(
 
 		if (bt_cur) {
 			xfs_rtgroup_unlock(to_rtg(bt_cur->bc_group),
-					XFS_RTGLOCK_RMAP);
+					XFS_RTGLOCK_RMAP |
+					XFS_RTGLOCK_REFCOUNT);
 			xfs_btree_del_cursor(bt_cur, XFS_BTREE_NOERROR);
 			bt_cur = NULL;
 		}
@@ -988,7 +989,7 @@ xfs_getfsmap_rtdev_rmapbt(
 
 	if (bt_cur) {
 		xfs_rtgroup_unlock(to_rtg(bt_cur->bc_group),
-				XFS_RTGLOCK_RMAP);
+				XFS_RTGLOCK_RMAP | XFS_RTGLOCK_REFCOUNT);
 		xfs_btree_del_cursor(bt_cur, error < 0 ? XFS_BTREE_ERROR :
 							 XFS_BTREE_NOERROR);
 	}

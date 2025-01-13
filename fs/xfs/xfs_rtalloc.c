@@ -31,6 +31,8 @@
 #include "xfs_rtgroup.h"
 #include "xfs_error.h"
 #include "xfs_trace.h"
+#include "xfs_rtrefcount_btree.h"
+#include "xfs_reflink.h"
 
 /*
  * Return whether there are any free extents in the size range given
@@ -593,7 +595,7 @@ xfs_rtalloc_sumlevel(
  * specified.  If we don't get maxlen then use prod to trim
  * the length, if given.  The lengths are all in rtextents.
  */
-STATIC int
+static int
 xfs_rtallocate_extent_size(
 	struct xfs_rtalloc_args	*args,
 	xfs_rtxlen_t		minlen,	/* minimum length to allocate */
@@ -994,6 +996,7 @@ xfs_growfs_rt_bmblock(
 	 */
 	mp->m_features |= XFS_FEAT_REALTIME;
 	xfs_rtrmapbt_compute_maxlevels(mp);
+	xfs_rtrefcountbt_compute_maxlevels(mp);
 
 	kfree(nmp);
 	return 0;
@@ -1177,6 +1180,7 @@ xfs_growfs_check_rtgeom(
 	nmp->m_sb.sb_dblocks = dblocks;
 
 	xfs_rtrmapbt_compute_maxlevels(nmp);
+	xfs_rtrefcountbt_compute_maxlevels(nmp);
 	xfs_trans_resv_calc(nmp, M_RES(nmp));
 
 	/*
@@ -1289,8 +1293,10 @@ xfs_growfs_rt(
 			goto out_unlock;
 		if (xfs_has_quota(mp))
 			goto out_unlock;
-	}
-	if (xfs_has_reflink(mp))
+		if (xfs_has_reflink(mp))
+			goto out_unlock;
+	} else if (xfs_has_reflink(mp) &&
+		   !xfs_reflink_supports_rextsize(mp, in->extsize))
 		goto out_unlock;
 
 	error = xfs_sb_validate_fsb_count(&mp->m_sb, in->newblocks);
@@ -1545,6 +1551,11 @@ xfs_rt_resv_init(
 
 		ask = xfs_rtrmapbt_calc_reserves(mp);
 		err2 = xfs_metafile_resv_init(rtg_rmap(rtg), ask);
+		if (err2 && !error)
+			error = err2;
+
+		ask = xfs_rtrefcountbt_calc_reserves(mp);
+		err2 = xfs_metafile_resv_init(rtg_refcount(rtg), ask);
 		if (err2 && !error)
 			error = err2;
 	}
@@ -1950,7 +1961,7 @@ out_unlock:
 	goto out_release;
 }
 
-static int
+int
 xfs_rtallocate_rtgs(
 	struct xfs_trans	*tp,
 	xfs_fsblock_t		bno_hint,
@@ -2015,7 +2026,10 @@ xfs_rtallocate_align(
 	if (*noalign) {
 		align = mp->m_sb.sb_rextsize;
 	} else {
-		align = xfs_get_extsz_hint(ap->ip);
+		if (ap->flags & XFS_BMAPI_COWFORK)
+			align = xfs_get_cowextsz_hint(ap->ip);
+		else
+			align = xfs_get_extsz_hint(ap->ip);
 		if (!align)
 			align = 1;
 		if (align == mp->m_sb.sb_rextsize)

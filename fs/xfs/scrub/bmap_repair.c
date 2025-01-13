@@ -101,14 +101,21 @@ xrep_bmap_discover_shared(
 	xfs_filblks_t		blockcount)
 {
 	struct xfs_scrub	*sc = rb->sc;
+	struct xfs_btree_cur	*cur;
 	xfs_agblock_t		agbno;
 	xfs_agblock_t		fbno;
 	xfs_extlen_t		flen;
 	int			error;
 
-	agbno = XFS_FSB_TO_AGBNO(sc->mp, startblock);
-	error = xfs_refcount_find_shared(sc->sa.refc_cur, agbno, blockcount,
-			&fbno, &flen, false);
+	if (XFS_IS_REALTIME_INODE(sc->ip)) {
+		agbno = xfs_rtb_to_rgbno(sc->mp, startblock);
+		cur = sc->sr.refc_cur;
+	} else {
+		agbno = XFS_FSB_TO_AGBNO(sc->mp, startblock);
+		cur = sc->sa.refc_cur;
+	}
+	error = xfs_refcount_find_shared(cur, agbno, blockcount, &fbno, &flen,
+			false);
 	if (error)
 		return error;
 
@@ -450,7 +457,9 @@ xrep_bmap_scan_rtgroup(
 		return 0;
 
 	error = xrep_rtgroup_init(sc, rtg, &sc->sr,
-			XFS_RTGLOCK_RMAP | XFS_RTGLOCK_BITMAP_SHARED);
+			XFS_RTGLOCK_RMAP |
+			XFS_RTGLOCK_REFCOUNT |
+			XFS_RTGLOCK_BITMAP_SHARED);
 	if (error)
 		return error;
 
@@ -901,10 +910,6 @@ xrep_bmap_init_reflink_scan(
 
 	/* cannot share attr fork extents */
 	if (whichfork != XFS_DATA_FORK)
-		return RLS_IRRELEVANT;
-
-	/* cannot share realtime extents */
-	if (XFS_IS_REALTIME_INODE(sc->ip))
 		return RLS_IRRELEVANT;
 
 	return RLS_UNKNOWN;

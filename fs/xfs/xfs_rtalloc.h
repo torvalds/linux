@@ -77,4 +77,9 @@ xfs_growfs_check_rtgeom(const struct xfs_mount *mp,
 }
 #endif	/* CONFIG_XFS_RT */
 
+int xfs_rtallocate_rtgs(struct xfs_trans *tp, xfs_fsblock_t bno_hint,
+		xfs_rtxlen_t minlen, xfs_rtxlen_t maxlen, xfs_rtxlen_t prod,
+		bool wasdel, bool initial_user_data, xfs_rtblock_t *bno,
+		xfs_extlen_t *blen);
+
 #endif	/* __XFS_RTALLOC_H__ */
