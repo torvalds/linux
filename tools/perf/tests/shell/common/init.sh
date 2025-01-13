@@ -88,7 +88,7 @@ consider_skipping()
 	# the runmode of a testcase needs to be at least the current suite's runmode
 	if [ $PERFTOOL_TESTSUITE_RUNMODE -lt $TESTCASE_RUNMODE ]; then
 		print_overall_skipped
-		exit 0
+		exit 2
 	fi
 }
 

@@ -22,7 +22,7 @@ TEST_RESULT=0
 BLACKFUNC_LIST=`head -n 5 /sys/kernel/debug/kprobes/blacklist 2> /dev/null | cut -f2`
 if [ -z "$BLACKFUNC_LIST" ]; then
 	print_overall_skipped
-	exit 0
+	exit 2
 fi
 
 # try to find vmlinux with DWARF debug info

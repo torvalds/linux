@@ -33,7 +33,7 @@ fi
 check_kprobes_available
 if [ $? -ne 0 ]; then
 	print_overall_skipped
-	exit 0
+	exit 2
 fi
 
 
