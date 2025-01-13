@@ -513,11 +513,8 @@ static unsigned long damon_pa_stat(struct damon_region *r, struct damos *s,
 			continue;
 		}
 
-		if (damos_pa_filter_out(s, folio))
-			goto put_folio;
-		else
+		if (!damos_pa_filter_out(s, folio))
 			*sz_filter_passed += folio_size(folio);
-put_folio:
 		addr += folio_size(folio);
 		folio_put(folio);
 	}
