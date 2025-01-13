@@ -50,7 +50,8 @@ MODULE_PARM_DESC(tablet_mode_sw, "Tablet mode detect: -1:auto 0:disable 1:kbd-do
 static struct quirk_entry *quirks;
 static bool atkbd_reports_vol_keys;
 
-static bool asus_i8042_filter(unsigned char data, unsigned char str, struct serio *port)
+static bool asus_i8042_filter(unsigned char data, unsigned char str, struct serio *port,
+			      void *context)
 {
 	static bool extended_e0;
 	static bool extended_e1;
