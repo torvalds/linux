@@ -480,7 +480,7 @@ member_bitfield_declarator:
 
 attribute_opt:
 	/* empty */					{ $$ = NULL; }
-	| attribute_opt ATTRIBUTE_PHRASE
+	| attribute_opt ATTRIBUTE_PHRASE		{ $$ = $2; }
 	;
 
 enum_body:
