@@ -1612,36 +1612,6 @@ _xfs_buf_ioapply(
 
 	if (bp->b_flags & XBF_WRITE) {
 		op = REQ_OP_WRITE;
-
-		/*
-		 * Run the write verifier callback function if it exists. If
-		 * this function fails it will mark the buffer with an error and
-		 * the IO should not be dispatched.
-		 */
-		if (bp->b_ops) {
-			bp->b_ops->verify_write(bp);
-			if (bp->b_error) {
-				xfs_force_shutdown(bp->b_mount,
-						   SHUTDOWN_CORRUPT_INCORE);
-				return;
-			}
-		} else if (bp->b_rhash_key != XFS_BUF_DADDR_NULL) {
-			struct xfs_mount *mp = bp->b_mount;
-
-			/*
-			 * non-crc filesystems don't attach verifiers during
-			 * log recovery, so don't warn for such filesystems.
-			 */
-			if (xfs_has_crc(mp)) {
-				xfs_warn(mp,
-					"%s: no buf ops on daddr 0x%llx len %d",
-					__func__, xfs_buf_daddr(bp),
-					bp->b_length);
-				xfs_hex_dump(bp->b_addr,
-						XFS_CORRUPTION_DUMP_LEN);
-				dump_stack();
-			}
-		}
 	} else {
 		op = REQ_OP_READ;
 		if (bp->b_flags & XBF_READ_AHEAD)
@@ -1688,6 +1658,36 @@ xfs_buf_iowait(
 	trace_xfs_buf_iowait_done(bp, _RET_IP_);
 
 	return bp->b_error;
+}
+
+/*
+ * Run the write verifier callback function if it exists. If this fails, mark
+ * the buffer with an error and do not dispatch the I/O.
+ */
+static bool
+xfs_buf_verify_write(
+	struct xfs_buf		*bp)
+{
+	if (bp->b_ops) {
+		bp->b_ops->verify_write(bp);
+		if (bp->b_error)
+			return false;
+	} else if (bp->b_rhash_key != XFS_BUF_DADDR_NULL) {
+		/*
+		 * Non-crc filesystems don't attach verifiers during log
+		 * recovery, so don't warn for such filesystems.
+		 */
+		if (xfs_has_crc(bp->b_mount)) {
+			xfs_warn(bp->b_mount,
+				"%s: no buf ops on daddr 0x%llx len %d",
+				__func__, xfs_buf_daddr(bp),
+				bp->b_length);
+			xfs_hex_dump(bp->b_addr, XFS_CORRUPTION_DUMP_LEN);
+			dump_stack();
+		}
+	}
+
+	return true;
 }
 
 /*
@@ -1745,8 +1745,15 @@ xfs_buf_submit(
 	atomic_set(&bp->b_io_remaining, 1);
 	if (bp->b_flags & XBF_ASYNC)
 		xfs_buf_ioacct_inc(bp);
+
+	if ((bp->b_flags & XBF_WRITE) && !xfs_buf_verify_write(bp)) {
+		xfs_force_shutdown(bp->b_mount, SHUTDOWN_CORRUPT_INCORE);
+		goto done;
+	}
+
 	_xfs_buf_ioapply(bp);
 
+done:
 	/*
 	 * If _xfs_buf_ioapply failed, we can get back here with only the IO
 	 * reference we took above. If we drop it to zero, run completion so
