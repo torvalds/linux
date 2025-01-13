@@ -891,11 +891,6 @@ static void i915_pmu_event_del(struct perf_event *event, int flags)
 	i915_pmu_event_stop(event, PERF_EF_UPDATE);
 }
 
-static int i915_pmu_event_event_idx(struct perf_event *event)
-{
-	return 0;
-}
-
 struct i915_str_attribute {
 	struct device_attribute attr;
 	const char *str;
@@ -1301,7 +1296,6 @@ void i915_pmu_register(struct drm_i915_private *i915)
 	pmu->base.start		= i915_pmu_event_start;
 	pmu->base.stop		= i915_pmu_event_stop;
 	pmu->base.read		= i915_pmu_event_read;
-	pmu->base.event_idx	= i915_pmu_event_event_idx;
 
 	ret = perf_pmu_register(&pmu->base, pmu->name, -1);
 	if (ret)
