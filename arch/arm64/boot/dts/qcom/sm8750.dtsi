@@ -1883,6 +1883,11 @@
 			};
 		};
 
+		rng: rng@10c3000 {
+			compatible = "qcom,sm8750-trng", "qcom,trng";
+			reg = <0x0 0x010c3000 0x0 0x1000>;
+		};
+
 		cnoc_main: interconnect@1500000 {
 			compatible = "qcom,sm8750-cnoc-main";
 			reg = <0x0 0x01500000 0x0 0x16080>;
