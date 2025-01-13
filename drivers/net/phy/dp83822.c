@@ -762,7 +762,7 @@ static int dp83822_of_init_leds(struct phy_device *phydev)
 
 	if (dp83822->led_pin_enable[DP83822_LED_INDEX_COL_GPIO2] &&
 	    dp83822->set_gpio2_clk_out) {
-		phydev_err(phydev, "COL(GPIO2) cannot be used as LED outout, already used as clock output\n");
+		phydev_err(phydev, "COL(GPIO2) cannot be used as LED output, already used as clock output\n");
 		return -EINVAL;
 	}
 
