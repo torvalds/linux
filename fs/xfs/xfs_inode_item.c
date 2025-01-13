@@ -1039,18 +1039,6 @@ xfs_buf_inode_iodone(
 		list_splice_tail(&flushed_inodes, &bp->b_li_list);
 }
 
-void
-xfs_buf_inode_io_fail(
-	struct xfs_buf		*bp)
-{
-	struct xfs_log_item	*lip;
-
-	list_for_each_entry(lip, &bp->b_li_list, li_bio_list) {
-		set_bit(XFS_LI_FAILED, &lip->li_flags);
-		clear_bit(XFS_LI_FLUSHING, &lip->li_flags);
-	}
-}
-
 /*
  * Clear the inode logging fields so no more flushes are attempted.  If we are
  * on a buffer list, it is now safe to remove it because the buffer is

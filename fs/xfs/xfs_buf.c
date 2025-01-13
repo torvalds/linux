@@ -1286,6 +1286,7 @@ xfs_buf_ioend_handle_error(
 {
 	struct xfs_mount	*mp = bp->b_mount;
 	struct xfs_error_cfg	*cfg;
+	struct xfs_log_item	*lip;
 
 	/*
 	 * If we've already shutdown the journal because of I/O errors, there's
@@ -1333,12 +1334,11 @@ xfs_buf_ioend_handle_error(
 	}
 
 	/* Still considered a transient error. Caller will schedule retries. */
-	if (bp->b_flags & _XBF_INODES)
-		xfs_buf_inode_io_fail(bp);
-	else if (bp->b_flags & _XBF_DQUOTS)
-		xfs_buf_dquot_io_fail(bp);
-	else
-		ASSERT(list_empty(&bp->b_li_list));
+	list_for_each_entry(lip, &bp->b_li_list, li_bio_list) {
+		set_bit(XFS_LI_FAILED, &lip->li_flags);
+		clear_bit(XFS_LI_FLUSHING, &lip->li_flags);
+	}
+
 	xfs_buf_ioerror(bp, 0);
 	xfs_buf_relse(bp);
 	return true;
