@@ -190,7 +190,8 @@ EXPORT_SYMBOL_GPL(of_pci_get_devfn);
  *
  * Returns 0 on success or a negative error-code on failure.
  */
-int of_pci_parse_bus_range(struct device_node *node, struct resource *res)
+static int of_pci_parse_bus_range(struct device_node *node,
+				  struct resource *res)
 {
 	u32 bus_range[2];
 	int error;
@@ -207,7 +208,6 @@ int of_pci_parse_bus_range(struct device_node *node, struct resource *res)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(of_pci_parse_bus_range);
 
 /**
  * of_get_pci_domain_nr - Find the host bridge domain number
