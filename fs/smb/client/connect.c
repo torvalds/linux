@@ -422,7 +422,8 @@ static int __cifs_reconnect(struct TCP_Server_Info *server,
 }
 
 #ifdef CONFIG_CIFS_DFS_UPCALL
-static int __reconnect_target_unlocked(struct TCP_Server_Info *server, const char *target)
+static int __reconnect_target_locked(struct TCP_Server_Info *server,
+				     const char *target)
 {
 	int rc;
 	char *hostname;
@@ -455,27 +456,36 @@ static int __reconnect_target_unlocked(struct TCP_Server_Info *server, const cha
 	return rc;
 }
 
-static int reconnect_target_unlocked(struct TCP_Server_Info *server, struct dfs_cache_tgt_list *tl,
-				     struct dfs_cache_tgt_iterator **target_hint)
+static int reconnect_target_locked(struct TCP_Server_Info *server,
+				   struct dfs_cache_tgt_list *tl,
+				   struct dfs_cache_tgt_iterator **target_hint)
 {
-	int rc;
 	struct dfs_cache_tgt_iterator *tit;
+	int rc;
 
 	*target_hint = NULL;
 
 	/* If dfs target list is empty, then reconnect to last server */
 	tit = dfs_cache_get_tgt_iterator(tl);
 	if (!tit)
-		return __reconnect_target_unlocked(server, server->hostname);
+		return __reconnect_target_locked(server, server->hostname);
 
 	/* Otherwise, try every dfs target in @tl */
-	for (; tit; tit = dfs_cache_get_next_tgt(tl, tit)) {
-		rc = __reconnect_target_unlocked(server, dfs_cache_get_tgt_name(tit));
+	do {
+		const char *target = dfs_cache_get_tgt_name(tit);
+
+		spin_lock(&server->srv_lock);
+		if (server->tcpStatus != CifsNeedReconnect) {
+			spin_unlock(&server->srv_lock);
+			return -ECONNRESET;
+		}
+		spin_unlock(&server->srv_lock);
+		rc = __reconnect_target_locked(server, target);
 		if (!rc) {
 			*target_hint = tit;
 			break;
 		}
-	}
+	} while ((tit = dfs_cache_get_next_tgt(tl, tit)));
 	return rc;
 }
 
@@ -518,7 +528,7 @@ static int reconnect_dfs_server(struct TCP_Server_Info *server)
 		try_to_freeze();
 		cifs_server_lock(server);
 
-		rc = reconnect_target_unlocked(server, &tl, &target_hint);
+		rc = reconnect_target_locked(server, &tl, &target_hint);
 		if (rc) {
 			/* Failed to reconnect socket */
 			cifs_server_unlock(server);
