@@ -132,7 +132,8 @@ struct devtable {
  * based at address m.
  */
 #define DEF_FIELD(m, devid, f) \
-	typeof(((struct devid *)0)->f) f = TO_NATIVE(*(typeof(f) *)((m) + OFF_##devid##_##f))
+	typeof(((struct devid *)0)->f) f = \
+		get_unaligned_native((typeof(f) *)((m) + OFF_##devid##_##f))
 
 /* Define a variable f that holds the address of field f of struct devid
  * based at address m.  Due to the way typeof works, for a field of type
@@ -600,7 +601,7 @@ static void do_pnp_card_entry(struct module *mod, void *symval)
 static void do_pcmcia_entry(struct module *mod, void *symval)
 {
 	char alias[256] = {};
-	unsigned int i;
+
 	DEF_FIELD(symval, pcmcia_device_id, match_flags);
 	DEF_FIELD(symval, pcmcia_device_id, manf_id);
 	DEF_FIELD(symval, pcmcia_device_id, card_id);
@@ -608,10 +609,6 @@ static void do_pcmcia_entry(struct module *mod, void *symval)
 	DEF_FIELD(symval, pcmcia_device_id, function);
 	DEF_FIELD(symval, pcmcia_device_id, device_no);
 	DEF_FIELD_ADDR(symval, pcmcia_device_id, prod_id_hash);
-
-	for (i=0; i<4; i++) {
-		(*prod_id_hash)[i] = TO_NATIVE((*prod_id_hash)[i]);
-	}
 
 	ADD(alias, "m", match_flags & PCMCIA_DEV_ID_MATCH_MANF_ID,
 	    manf_id);
@@ -623,10 +620,14 @@ static void do_pcmcia_entry(struct module *mod, void *symval)
 	    function);
 	ADD(alias, "pfn", match_flags & PCMCIA_DEV_ID_MATCH_DEVICE_NO,
 	    device_no);
-	ADD(alias, "pa", match_flags & PCMCIA_DEV_ID_MATCH_PROD_ID1, (*prod_id_hash)[0]);
-	ADD(alias, "pb", match_flags & PCMCIA_DEV_ID_MATCH_PROD_ID2, (*prod_id_hash)[1]);
-	ADD(alias, "pc", match_flags & PCMCIA_DEV_ID_MATCH_PROD_ID3, (*prod_id_hash)[2]);
-	ADD(alias, "pd", match_flags & PCMCIA_DEV_ID_MATCH_PROD_ID4, (*prod_id_hash)[3]);
+	ADD(alias, "pa", match_flags & PCMCIA_DEV_ID_MATCH_PROD_ID1,
+	    get_unaligned_native(*prod_id_hash + 0));
+	ADD(alias, "pb", match_flags & PCMCIA_DEV_ID_MATCH_PROD_ID2,
+	    get_unaligned_native(*prod_id_hash + 1));
+	ADD(alias, "pc", match_flags & PCMCIA_DEV_ID_MATCH_PROD_ID3,
+	    get_unaligned_native(*prod_id_hash + 2));
+	ADD(alias, "pd", match_flags & PCMCIA_DEV_ID_MATCH_PROD_ID4,
+	    get_unaligned_native(*prod_id_hash + 3));
 
 	module_alias_printf(mod, true, "pcmcia:%s", alias);
 }
@@ -654,10 +655,9 @@ static void do_input(char *alias,
 {
 	unsigned int i;
 
-	for (i = min / BITS_PER_LONG; i < max / BITS_PER_LONG + 1; i++)
-		arr[i] = TO_NATIVE(arr[i]);
-	for (i = min; i < max; i++)
-		if (arr[i / BITS_PER_LONG] & (1ULL << (i%BITS_PER_LONG)))
+	for (i = min; i <= max; i++)
+		if (get_unaligned_native(arr + i / BITS_PER_LONG) &
+		    (1ULL << (i % BITS_PER_LONG)))
 			sprintf(alias + strlen(alias), "%X,*", i);
 }
 
@@ -812,15 +812,13 @@ static void do_virtio_entry(struct module *mod, void *symval)
  * Each byte of the guid will be represented by two hex characters
  * in the name.
  */
-
 static void do_vmbus_entry(struct module *mod, void *symval)
 {
-	int i;
 	DEF_FIELD_ADDR(symval, hv_vmbus_device_id, guid);
-	char guid_name[(sizeof(*guid) + 1) * 2];
+	char guid_name[sizeof(*guid) * 2 + 1];
 
-	for (i = 0; i < (sizeof(*guid) * 2); i += 2)
-		sprintf(&guid_name[i], "%02x", TO_NATIVE((guid->b)[i/2]));
+	for (int i = 0; i < sizeof(*guid); i++)
+		sprintf(&guid_name[i * 2], "%02x", guid->b[i]);
 
 	module_alias_printf(mod, false, "vmbus:%s", guid_name);
 }

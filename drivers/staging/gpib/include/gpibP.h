@@ -16,6 +16,7 @@
 
 #include <linux/fs.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
 
 void gpib_register_driver(gpib_interface_t *interface, struct module *mod);
 void gpib_unregister_driver(gpib_interface_t *interface);
@@ -34,17 +35,6 @@ int gpib_match_device_path(struct device *dev, const char *device_path_in);
 extern gpib_board_t board_array[GPIB_MAX_NUM_BOARDS];
 
 extern struct list_head registered_drivers;
-
-#include <linux/io.h>
-
-void writeb_wrapper(unsigned int value, void *address);
-unsigned int readb_wrapper(void *address);
-void outb_wrapper(unsigned int value, void *address);
-unsigned int inb_wrapper(void *address);
-void writew_wrapper(unsigned int value, void *address);
-unsigned int readw_wrapper(void *address);
-void outw_wrapper(unsigned int value, void *address);
-unsigned int inw_wrapper(void *address);
 
 #endif	// _GPIB_P_H
 

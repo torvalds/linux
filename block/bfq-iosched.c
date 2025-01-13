@@ -6844,15 +6844,23 @@ static struct bfq_queue *bfq_waker_bfqq(struct bfq_queue *bfqq)
 		if (new_bfqq == waker_bfqq) {
 			/*
 			 * If waker_bfqq is in the merge chain, and current
-			 * is the only procress.
+			 * is the only process, waker_bfqq can be freed.
 			 */
 			if (bfqq_process_refs(waker_bfqq) == 1)
 				return NULL;
-			break;
+
+			return waker_bfqq;
 		}
 
 		new_bfqq = new_bfqq->new_bfqq;
 	}
+
+	/*
+	 * If waker_bfqq is not in the merge chain, and it's procress reference
+	 * is 0, waker_bfqq can be freed.
+	 */
+	if (bfqq_process_refs(waker_bfqq) == 0)
+		return NULL;
 
 	return waker_bfqq;
 }
