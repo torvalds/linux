@@ -58,10 +58,9 @@ static void swap_entry_range_free(struct swap_info_struct *si, swp_entry_t entry
 static void swap_range_alloc(struct swap_info_struct *si, unsigned long offset,
 			     unsigned int nr_entries);
 static bool folio_swapcache_freeable(struct folio *folio);
-static struct swap_cluster_info *lock_cluster_or_swap_info(
-		struct swap_info_struct *si, unsigned long offset);
-static void unlock_cluster_or_swap_info(struct swap_info_struct *si,
-					struct swap_cluster_info *ci);
+static struct swap_cluster_info *lock_cluster(struct swap_info_struct *si,
+					      unsigned long offset);
+static void unlock_cluster(struct swap_cluster_info *ci);
 
 static DEFINE_SPINLOCK(swap_lock);
 static unsigned int nr_swapfiles;
@@ -222,9 +221,9 @@ static int __try_to_reclaim_swap(struct swap_info_struct *si,
 	 * swap_map is HAS_CACHE only, which means the slots have no page table
 	 * reference or pending writeback, and can't be allocated to others.
 	 */
-	ci = lock_cluster_or_swap_info(si, offset);
+	ci = lock_cluster(si, offset);
 	need_reclaim = swap_is_has_cache(si, offset, nr_pages);
-	unlock_cluster_or_swap_info(si, ci);
+	unlock_cluster(ci);
 	if (!need_reclaim)
 		goto out_unlock;
 
@@ -404,45 +403,15 @@ static inline struct swap_cluster_info *lock_cluster(struct swap_info_struct *si
 {
 	struct swap_cluster_info *ci;
 
-	ci = si->cluster_info;
-	if (ci) {
-		ci += offset / SWAPFILE_CLUSTER;
-		spin_lock(&ci->lock);
-	}
+	ci = &si->cluster_info[offset / SWAPFILE_CLUSTER];
+	spin_lock(&ci->lock);
+
 	return ci;
 }
 
 static inline void unlock_cluster(struct swap_cluster_info *ci)
 {
-	if (ci)
-		spin_unlock(&ci->lock);
-}
-
-/*
- * Determine the locking method in use for this device.  Return
- * swap_cluster_info if SSD-style cluster-based locking is in place.
- */
-static inline struct swap_cluster_info *lock_cluster_or_swap_info(
-		struct swap_info_struct *si, unsigned long offset)
-{
-	struct swap_cluster_info *ci;
-
-	/* Try to use fine-grained SSD-style locking if available: */
-	ci = lock_cluster(si, offset);
-	/* Otherwise, fall back to traditional, coarse locking: */
-	if (!ci)
-		spin_lock(&si->lock);
-
-	return ci;
-}
-
-static inline void unlock_cluster_or_swap_info(struct swap_info_struct *si,
-					       struct swap_cluster_info *ci)
-{
-	if (ci)
-		unlock_cluster(ci);
-	else
-		spin_unlock(&si->lock);
+	spin_unlock(&ci->lock);
 }
 
 /* Add a cluster to discard list and schedule it to do discard */
@@ -558,9 +527,6 @@ static void inc_cluster_info_page(struct swap_info_struct *si,
 	unsigned long idx = page_nr / SWAPFILE_CLUSTER;
 	struct swap_cluster_info *ci;
 
-	if (!cluster_info)
-		return;
-
 	ci = cluster_info + idx;
 	ci->count++;
 
@@ -576,9 +542,6 @@ static void inc_cluster_info_page(struct swap_info_struct *si,
 static void dec_cluster_info_page(struct swap_info_struct *si,
 				  struct swap_cluster_info *ci, int nr_pages)
 {
-	if (!si->cluster_info)
-		return;
-
 	VM_BUG_ON(ci->count < nr_pages);
 	VM_BUG_ON(cluster_is_free(ci));
 	lockdep_assert_held(&si->lock);
@@ -940,7 +903,7 @@ static void swap_range_alloc(struct swap_info_struct *si, unsigned long offset,
 		si->highest_bit = 0;
 		del_from_avail_list(si);
 
-		if (si->cluster_info && vm_swap_full())
+		if (vm_swap_full())
 			schedule_work(&si->reclaim_work);
 	}
 }
@@ -1007,8 +970,6 @@ static int cluster_alloc_swap(struct swap_info_struct *si,
 {
 	int n_ret = 0;
 
-	VM_BUG_ON(!si->cluster_info);
-
 	si->flags += SWP_SCANNING;
 
 	while (n_ret < nr) {
@@ -1052,10 +1013,10 @@ static int scan_swap_map_slots(struct swap_info_struct *si,
 		}
 
 		/*
-		 * Swapfile is not block device or not using clusters so unable
+		 * Swapfile is not block device so unable
 		 * to allocate large entries.
 		 */
-		if (!(si->flags & SWP_BLKDEV) || !si->cluster_info)
+		if (!(si->flags & SWP_BLKDEV))
 			return 0;
 	}
 
@@ -1295,9 +1256,9 @@ static unsigned char __swap_entry_free(struct swap_info_struct *si,
 	unsigned long offset = swp_offset(entry);
 	unsigned char usage;
 
-	ci = lock_cluster_or_swap_info(si, offset);
+	ci = lock_cluster(si, offset);
 	usage = __swap_entry_free_locked(si, offset, 1);
-	unlock_cluster_or_swap_info(si, ci);
+	unlock_cluster(ci);
 	if (!usage)
 		free_swap_slot(entry);
 
@@ -1320,14 +1281,14 @@ static bool __swap_entries_free(struct swap_info_struct *si,
 	if (nr > SWAPFILE_CLUSTER - offset % SWAPFILE_CLUSTER)
 		goto fallback;
 
-	ci = lock_cluster_or_swap_info(si, offset);
+	ci = lock_cluster(si, offset);
 	if (!swap_is_last_map(si, offset, nr, &has_cache)) {
-		unlock_cluster_or_swap_info(si, ci);
+		unlock_cluster(ci);
 		goto fallback;
 	}
 	for (i = 0; i < nr; i++)
 		WRITE_ONCE(si->swap_map[offset + i], SWAP_HAS_CACHE);
-	unlock_cluster_or_swap_info(si, ci);
+	unlock_cluster(ci);
 
 	if (!has_cache) {
 		for (i = 0; i < nr; i++)
@@ -1383,7 +1344,7 @@ static void cluster_swap_free_nr(struct swap_info_struct *si,
 	DECLARE_BITMAP(to_free, BITS_PER_LONG) = { 0 };
 	int i, nr;
 
-	ci = lock_cluster_or_swap_info(si, offset);
+	ci = lock_cluster(si, offset);
 	while (nr_pages) {
 		nr = min(BITS_PER_LONG, nr_pages);
 		for (i = 0; i < nr; i++) {
@@ -1391,18 +1352,18 @@ static void cluster_swap_free_nr(struct swap_info_struct *si,
 				bitmap_set(to_free, i, 1);
 		}
 		if (!bitmap_empty(to_free, BITS_PER_LONG)) {
-			unlock_cluster_or_swap_info(si, ci);
+			unlock_cluster(ci);
 			for_each_set_bit(i, to_free, BITS_PER_LONG)
 				free_swap_slot(swp_entry(si->type, offset + i));
 			if (nr == nr_pages)
 				return;
 			bitmap_clear(to_free, 0, BITS_PER_LONG);
-			ci = lock_cluster_or_swap_info(si, offset);
+			ci = lock_cluster(si, offset);
 		}
 		offset += nr;
 		nr_pages -= nr;
 	}
-	unlock_cluster_or_swap_info(si, ci);
+	unlock_cluster(ci);
 }
 
 /*
@@ -1441,9 +1402,9 @@ void put_swap_folio(struct folio *folio, swp_entry_t entry)
 	if (!si)
 		return;
 
-	ci = lock_cluster_or_swap_info(si, offset);
+	ci = lock_cluster(si, offset);
 	if (size > 1 && swap_is_has_cache(si, offset, size)) {
-		unlock_cluster_or_swap_info(si, ci);
+		unlock_cluster(ci);
 		spin_lock(&si->lock);
 		swap_entry_range_free(si, entry, size);
 		spin_unlock(&si->lock);
@@ -1451,14 +1412,14 @@ void put_swap_folio(struct folio *folio, swp_entry_t entry)
 	}
 	for (int i = 0; i < size; i++, entry.val++) {
 		if (!__swap_entry_free_locked(si, offset + i, SWAP_HAS_CACHE)) {
-			unlock_cluster_or_swap_info(si, ci);
+			unlock_cluster(ci);
 			free_swap_slot(entry);
 			if (i == size - 1)
 				return;
-			lock_cluster_or_swap_info(si, offset);
+			lock_cluster(si, offset);
 		}
 	}
-	unlock_cluster_or_swap_info(si, ci);
+	unlock_cluster(ci);
 }
 
 static int swp_entry_cmp(const void *ent1, const void *ent2)
@@ -1522,9 +1483,9 @@ int swap_swapcount(struct swap_info_struct *si, swp_entry_t entry)
 	struct swap_cluster_info *ci;
 	int count;
 
-	ci = lock_cluster_or_swap_info(si, offset);
+	ci = lock_cluster(si, offset);
 	count = swap_count(si->swap_map[offset]);
-	unlock_cluster_or_swap_info(si, ci);
+	unlock_cluster(ci);
 	return count;
 }
 
@@ -1547,7 +1508,7 @@ int swp_swapcount(swp_entry_t entry)
 
 	offset = swp_offset(entry);
 
-	ci = lock_cluster_or_swap_info(si, offset);
+	ci = lock_cluster(si, offset);
 
 	count = swap_count(si->swap_map[offset]);
 	if (!(count & COUNT_CONTINUED))
@@ -1570,7 +1531,7 @@ int swp_swapcount(swp_entry_t entry)
 		n *= (SWAP_CONT_MAX + 1);
 	} while (tmp_count & COUNT_CONTINUED);
 out:
-	unlock_cluster_or_swap_info(si, ci);
+	unlock_cluster(ci);
 	return count;
 }
 
@@ -1585,8 +1546,8 @@ static bool swap_page_trans_huge_swapped(struct swap_info_struct *si,
 	int i;
 	bool ret = false;
 
-	ci = lock_cluster_or_swap_info(si, offset);
-	if (!ci || nr_pages == 1) {
+	ci = lock_cluster(si, offset);
+	if (nr_pages == 1) {
 		if (swap_count(map[roffset]))
 			ret = true;
 		goto unlock_out;
@@ -1598,7 +1559,7 @@ static bool swap_page_trans_huge_swapped(struct swap_info_struct *si,
 		}
 	}
 unlock_out:
-	unlock_cluster_or_swap_info(si, ci);
+	unlock_cluster(ci);
 	return ret;
 }
 
@@ -3428,7 +3389,7 @@ static int __swap_duplicate(swp_entry_t entry, unsigned char usage, int nr)
 	offset = swp_offset(entry);
 	VM_WARN_ON(nr > SWAPFILE_CLUSTER - offset % SWAPFILE_CLUSTER);
 	VM_WARN_ON(usage == 1 && nr > 1);
-	ci = lock_cluster_or_swap_info(si, offset);
+	ci = lock_cluster(si, offset);
 
 	err = 0;
 	for (i = 0; i < nr; i++) {
@@ -3483,7 +3444,7 @@ static int __swap_duplicate(swp_entry_t entry, unsigned char usage, int nr)
 	}
 
 unlock_out:
-	unlock_cluster_or_swap_info(si, ci);
+	unlock_cluster(ci);
 	return err;
 }
 
