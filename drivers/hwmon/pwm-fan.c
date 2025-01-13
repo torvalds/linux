@@ -497,7 +497,7 @@ static int pwm_fan_probe(struct platform_device *pdev)
 	struct device *hwmon;
 	int ret;
 	const struct hwmon_channel_info **channels;
-	u32 pwm_min_from_stopped = 0;
+	u32 initial_pwm, pwm_min_from_stopped = 0;
 	u32 *fan_channel_config;
 	int channel_count = 1;	/* We always have a PWM channel. */
 	int i;
@@ -545,11 +545,21 @@ static int pwm_fan_probe(struct platform_device *pdev)
 
 	ctx->enable_mode = pwm_disable_reg_enable;
 
+	ret = pwm_fan_get_cooling_data(dev, ctx);
+	if (ret)
+		return ret;
+
+	/* use maximum cooling level if provided */
+	if (ctx->pwm_fan_cooling_levels)
+		initial_pwm = ctx->pwm_fan_cooling_levels[ctx->pwm_fan_max_state];
+	else
+		initial_pwm = MAX_PWM;
+
 	/*
 	 * Set duty cycle to maximum allowed and enable PWM output as well as
 	 * the regulator. In case of error nothing is changed
 	 */
-	ret = set_pwm(ctx, MAX_PWM);
+	ret = set_pwm(ctx, initial_pwm);
 	if (ret) {
 		dev_err(dev, "Failed to configure PWM: %d\n", ret);
 		return ret;
@@ -660,10 +670,6 @@ static int pwm_fan_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed to register hwmon device\n");
 		return PTR_ERR(hwmon);
 	}
-
-	ret = pwm_fan_get_cooling_data(dev, ctx);
-	if (ret)
-		return ret;
 
 	ctx->pwm_fan_state = ctx->pwm_fan_max_state;
 	if (IS_ENABLED(CONFIG_THERMAL)) {
