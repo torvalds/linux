@@ -436,22 +436,17 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	if (idx > constraint_idx)
 		idx = constraint_idx;
 
-	if (!idx && prev_intercept_idx) {
-		/*
-		 * We have to query the sleep length here otherwise we don't
-		 * know after wakeup if our guess was correct.
-		 */
-		duration_ns = tick_nohz_get_sleep_length(&delta_tick);
-		cpu_data->sleep_length_ns = duration_ns;
+	if (!idx) {
+		if (prev_intercept_idx) {
+			/*
+			 * Query the sleep length to be able to count the wakeup
+			 * as a hit if it is caused by a timer.
+			 */
+			duration_ns = tick_nohz_get_sleep_length(&delta_tick);
+			cpu_data->sleep_length_ns = duration_ns;
+		}
 		goto out_tick;
 	}
-
-	/*
-	 * Skip the timers check if state 0 is the current candidate one,
-	 * because an immediate non-timer wakeup is expected in that case.
-	 */
-	if (!idx)
-		goto out_tick;
 
 	/*
 	 * If state 0 is a polling one, check if the target residency of
