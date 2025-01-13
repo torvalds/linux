@@ -38,6 +38,7 @@ properties:
               - qcom,sm8250-cpu-bwmon
               - qcom,sm8550-cpu-bwmon
               - qcom,sm8650-cpu-bwmon
+              - qcom,sm8750-cpu-bwmon
               - qcom,x1e80100-cpu-bwmon
           - const: qcom,sdm845-bwmon    # BWMON v4, unified register space
       - items:
