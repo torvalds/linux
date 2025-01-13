@@ -343,29 +343,25 @@ static inline void *s390_kernel_write(void *dst, const void *src, size_t size)
 
 void __noreturn __mvc_kernel_nofault_bad(void);
 
-#ifdef CONFIG_CC_HAS_ASM_AOR_FORMAT_FLAGS
+#if defined(CONFIG_CC_HAS_ASM_GOTO_OUTPUT) && defined(CONFIG_CC_HAS_ASM_AOR_FORMAT_FLAGS)
 
 #define __mvc_kernel_nofault(dst, src, type, err_label)			\
 do {									\
-	int __rc;							\
-									\
 	switch (sizeof(type)) {						\
 	case 1:								\
 	case 2:								\
 	case 4:								\
 	case 8:								\
-		asm_inline volatile(					\
+		asm goto(						\
 			"0:	mvc	%O[_dst](%[_len],%R[_dst]),%[_src]\n" \
-			"1:	lhi	%[_rc],0\n"			\
-			"2:\n"						\
-			EX_TABLE_UA_FAULT(0b, 2b, %[_rc])		\
-			EX_TABLE_UA_FAULT(1b, 2b, %[_rc])		\
-			: [_rc] "=d" (__rc),				\
-			  [_dst] "=Q" (*(type *)dst)			\
+			"1:	nopr	%%r7\n"				\
+			EX_TABLE(0b, %l[err_label])			\
+			EX_TABLE(1b, %l[err_label])			\
+			: [_dst] "=Q" (*(type *)dst)			\
 			: [_src] "Q" (*(type *)(src)),			\
-			  [_len] "I" (sizeof(type)));			\
-		if (__rc)						\
-			goto err_label;					\
+			  [_len] "I" (sizeof(type))			\
+			:						\
+			: err_label);					\
 		break;							\
 	default:							\
 		__mvc_kernel_nofault_bad();				\
@@ -373,7 +369,7 @@ do {									\
 	}								\
 } while (0)
 
-#else /* CONFIG_CC_HAS_ASM_AOR_FORMAT_FLAGS */
+#else /* CONFIG_CC_HAS_ASM_GOTO_OUTPUT) && CONFIG_CC_HAS_ASM_AOR_FORMAT_FLAGS */
 
 #define __mvc_kernel_nofault(dst, src, type, err_label)			\
 do {									\
@@ -405,7 +401,7 @@ do {									\
 	}								\
 } while (0)
 
-#endif /* CONFIG_CC_HAS_ASM_AOR_FORMAT_FLAGS */
+#endif /* CONFIG_CC_HAS_ASM_GOTO_OUTPUT && CONFIG_CC_HAS_ASM_AOR_FORMAT_FLAGS */
 
 #define __get_kernel_nofault __mvc_kernel_nofault
 #define __put_kernel_nofault __mvc_kernel_nofault
