@@ -1363,6 +1363,9 @@ xfs_buf_ioend(
 	trace_xfs_buf_iodone(bp, _RET_IP_);
 
 	if (bp->b_flags & XBF_READ) {
+		if (!bp->b_error && xfs_buf_is_vmapped(bp))
+			invalidate_kernel_vmap_range(bp->b_addr,
+					xfs_buf_vmap_len(bp));
 		if (!bp->b_error && bp->b_ops)
 			bp->b_ops->verify_read(bp);
 		if (!bp->b_error)
@@ -1491,9 +1494,6 @@ xfs_buf_bio_end_io(
 	else if ((bp->b_flags & XBF_WRITE) && (bp->b_flags & XBF_ASYNC) &&
 		 XFS_TEST_ERROR(false, bp->b_mount, XFS_ERRTAG_BUF_IOERROR))
 		xfs_buf_ioerror(bp, -EIO);
-
-	if (!bp->b_error && xfs_buf_is_vmapped(bp) && (bp->b_flags & XBF_READ))
-		invalidate_kernel_vmap_range(bp->b_addr, xfs_buf_vmap_len(bp));
 
 	xfs_buf_ioend_async(bp);
 	bio_put(bio);
