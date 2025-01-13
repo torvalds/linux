@@ -345,8 +345,8 @@ direct_nested_declarator1:
 		{ $$ = $4; }
 	| direct_nested_declarator1 BRACKET_PHRASE
 		{ $$ = $2; }
-	| '(' nested_declarator ')'
-		{ $$ = $3; }
+	| '(' attribute_opt nested_declarator ')'
+		{ $$ = $4; }
 	| '(' error ')'
 		{ $$ = $3; }
 	;
