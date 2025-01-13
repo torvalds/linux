@@ -4108,7 +4108,7 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, unsigned long id)
 		goto vcpu_free_run_page;
 
 	if (kvm->dirty_ring_size) {
-		r = kvm_dirty_ring_alloc(&vcpu->dirty_ring,
+		r = kvm_dirty_ring_alloc(kvm, &vcpu->dirty_ring,
 					 id, kvm->dirty_ring_size);
 		if (r)
 			goto arch_vcpu_destroy;
@@ -4847,7 +4847,7 @@ static int kvm_vm_ioctl_enable_dirty_log_ring(struct kvm *kvm, u32 size)
 		return -EINVAL;
 
 	/* Should be bigger to keep the reserved entries, or a page */
-	if (size < kvm_dirty_ring_get_rsvd_entries() *
+	if (size < kvm_dirty_ring_get_rsvd_entries(kvm) *
 	    sizeof(struct kvm_dirty_gfn) || size < PAGE_SIZE)
 		return -EINVAL;
 
