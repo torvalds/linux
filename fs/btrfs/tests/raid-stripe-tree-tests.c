@@ -31,6 +31,145 @@ static struct btrfs_device *btrfs_device_by_devid(struct btrfs_fs_devices *fs_de
 	return NULL;
 }
 
+/* Test punching a hole into a single RAID stripe-extent. */
+static int test_punch_hole(struct btrfs_trans_handle *trans)
+{
+	struct btrfs_fs_info *fs_info = trans->fs_info;
+	struct btrfs_io_context *bioc;
+	struct btrfs_io_stripe io_stripe = { 0 };
+	u64 map_type = RST_TEST_RAID1_TYPE;
+	u64 logical1 = SZ_1M;
+	u64 hole_start = logical1 + SZ_32K;
+	u64 hole_len = SZ_64K;
+	u64 logical2 = hole_start + hole_len;
+	u64 len = SZ_1M;
+	u64 len1 = SZ_32K;
+	u64 len2 = len - len1 - hole_len;
+	int ret;
+
+	bioc = alloc_btrfs_io_context(fs_info, logical1, RST_TEST_NUM_DEVICES);
+	if (!bioc) {
+		test_std_err(TEST_ALLOC_IO_CONTEXT);
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	io_stripe.dev = btrfs_device_by_devid(fs_info->fs_devices, 0);
+	bioc->map_type = map_type;
+	bioc->size = len;
+
+	for (int i = 0; i < RST_TEST_NUM_DEVICES; i++) {
+		struct btrfs_io_stripe *stripe = &bioc->stripes[i];
+
+		stripe->dev = btrfs_device_by_devid(fs_info->fs_devices, i);
+		if (!stripe->dev) {
+			test_err("cannot find device with devid %d", i);
+			ret = -EINVAL;
+			goto out;
+		}
+
+		stripe->physical = logical1 + i * SZ_1G;
+	}
+
+	ret = btrfs_insert_one_raid_extent(trans, bioc);
+	if (ret) {
+		test_err("inserting RAID extent failed: %d", ret);
+		goto out;
+	}
+
+	ret = btrfs_get_raid_extent_offset(fs_info, logical1, &len, map_type, 0,
+					   &io_stripe);
+	if (ret) {
+		test_err("lookup of RAID extent [%llu, %llu] failed", logical1,
+			 logical1 + len);
+		goto out;
+	}
+
+	if (io_stripe.physical != logical1) {
+		test_err("invalid physical address, expected %llu got %llu",
+			 logical1, io_stripe.physical);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (len != SZ_1M) {
+		test_err("invalid stripe length, expected %llu got %llu",
+			 (u64)SZ_1M, len);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = btrfs_delete_raid_extent(trans, hole_start, hole_len);
+	if (ret) {
+		test_err("deleting RAID extent [%llu, %llu] failed",
+			 hole_start, hole_start + hole_len);
+		goto out;
+	}
+
+	ret = btrfs_get_raid_extent_offset(fs_info, logical1, &len1, map_type,
+					   0, &io_stripe);
+	if (ret) {
+		test_err("lookup of RAID extent [%llu, %llu] failed",
+			 logical1, logical1 + len1);
+		goto out;
+	}
+
+	if (io_stripe.physical != logical1) {
+		test_err("invalid physical address, expected %llu, got %llu",
+			 logical1, io_stripe.physical);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (len1 != SZ_32K) {
+		test_err("invalid stripe length, expected %llu, got %llu",
+			 (u64)SZ_32K, len1);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = btrfs_get_raid_extent_offset(fs_info, logical2, &len2, map_type,
+					   0, &io_stripe);
+	if (ret) {
+		test_err("lookup of RAID extent [%llu, %llu] failed", logical2,
+			 logical2 + len2);
+		goto out;
+	}
+
+	if (io_stripe.physical != logical2) {
+		test_err("invalid physical address, expected %llu, got %llu",
+			 logical2, io_stripe.physical);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (len2 != len - len1 - hole_len) {
+		test_err("invalid length, expected %llu, got %llu",
+			 len - len1 - hole_len, len2);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	/* Check for the absence of the hole. */
+	ret = btrfs_get_raid_extent_offset(fs_info, hole_start, &hole_len,
+					   map_type, 0, &io_stripe);
+	if (ret != -ENODATA) {
+		ret = -EINVAL;
+		test_err("lookup of RAID extent [%llu, %llu] succeeded, should fail",
+			 hole_start, hole_start + SZ_64K);
+		goto out;
+	}
+
+	ret = btrfs_delete_raid_extent(trans, logical1, len1);
+	if (ret)
+		goto out;
+
+	ret = btrfs_delete_raid_extent(trans, logical2, len2);
+out:
+	btrfs_put_bioc(bioc);
+	return ret;
+}
+
 /*
  * Test a 1M RST write that spans two adjacent RST items on disk and then
  * delete a portion starting in the first item and spanning into the second
@@ -612,6 +751,7 @@ static const test_func_t tests[] = {
 	test_tail_delete,
 	test_front_delete,
 	test_front_delete_prev_item,
+	test_punch_hole,
 };
 
 static int run_test(test_func_t test, u32 sectorsize, u32 nodesize)
