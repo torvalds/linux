@@ -203,8 +203,9 @@ decl_specifier_seq_opt:
 	;
 
 decl_specifier_seq:
-	decl_specifier				{ decl_spec = *$1; }
+	attribute_opt decl_specifier		{ decl_spec = *$2; }
 	| decl_specifier_seq decl_specifier	{ decl_spec = *$2; }
+	| decl_specifier_seq ATTRIBUTE_PHRASE	{ decl_spec = *$2; }
 	;
 
 decl_specifier:
@@ -216,7 +217,6 @@ decl_specifier:
 		}
 	| type_specifier	{ dont_want_type_specifier = true; $$ = $1; }
 	| type_qualifier
-	| ATTRIBUTE_PHRASE
 	;
 
 storage_class_specifier:
@@ -406,8 +406,8 @@ direct_abstract_declarator1:
 		{ $$ = $4; }
 	| direct_abstract_declarator1 BRACKET_PHRASE
 		{ $$ = $2; }
-	| open_paren abstract_declarator ')'
-		{ $$ = $3; }
+	| open_paren attribute_opt abstract_declarator ')'
+		{ $$ = $4; }
 	| open_paren error ')'
 		{ $$ = $3; }
 	| BRACKET_PHRASE
