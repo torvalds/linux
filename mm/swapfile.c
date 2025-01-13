@@ -261,12 +261,10 @@ static int __try_to_reclaim_swap(struct swap_info_struct *si,
 	folio_ref_sub(folio, nr_pages);
 	folio_set_dirty(folio);
 
-	spin_lock(&si->lock);
 	/* Only sinple page folio can be backed by zswap */
 	if (nr_pages == 1)
 		zswap_invalidate(entry);
 	swap_entry_range_free(si, entry, nr_pages);
-	spin_unlock(&si->lock);
 	ret = nr_pages;
 out_unlock:
 	folio_unlock(folio);
@@ -401,9 +399,23 @@ static void discard_swap_cluster(struct swap_info_struct *si,
 #endif
 #define LATENCY_LIMIT		256
 
-static inline bool cluster_is_free(struct swap_cluster_info *info)
+static inline bool cluster_is_empty(struct swap_cluster_info *info)
 {
-	return info->flags == CLUSTER_FLAG_FREE;
+	return info->count == 0;
+}
+
+static inline bool cluster_is_discard(struct swap_cluster_info *info)
+{
+	return info->flags == CLUSTER_FLAG_DISCARD;
+}
+
+static inline bool cluster_is_usable(struct swap_cluster_info *ci, int order)
+{
+	if (unlikely(ci->flags > CLUSTER_FLAG_USABLE))
+		return false;
+	if (!order)
+		return true;
+	return cluster_is_empty(ci) || order == ci->order;
 }
 
 static inline unsigned int cluster_index(struct swap_info_struct *si,
@@ -441,19 +453,20 @@ static void move_cluster(struct swap_info_struct *si,
 	VM_WARN_ON(ci->flags == new_flags);
 
 	BUILD_BUG_ON(1 << sizeof(ci->flags) * BITS_PER_BYTE < CLUSTER_FLAG_MAX);
+	lockdep_assert_held(&ci->lock);
 
-	if (ci->flags == CLUSTER_FLAG_NONE) {
+	spin_lock(&si->lock);
+	if (ci->flags == CLUSTER_FLAG_NONE)
 		list_add_tail(&ci->list, list);
-	} else {
-		if (ci->flags == CLUSTER_FLAG_FRAG) {
-			VM_WARN_ON(!si->frag_cluster_nr[ci->order]);
-			si->frag_cluster_nr[ci->order]--;
-		}
+	else
 		list_move_tail(&ci->list, list);
-	}
+	spin_unlock(&si->lock);
+
+	if (ci->flags == CLUSTER_FLAG_FRAG)
+		atomic_long_dec(&si->frag_cluster_nr[ci->order]);
+	else if (new_flags == CLUSTER_FLAG_FRAG)
+		atomic_long_inc(&si->frag_cluster_nr[ci->order]);
 	ci->flags = new_flags;
-	if (new_flags == CLUSTER_FLAG_FRAG)
-		si->frag_cluster_nr[ci->order]++;
 }
 
 /* Add a cluster to discard list and schedule it to do discard */
@@ -476,39 +489,91 @@ static void swap_cluster_schedule_discard(struct swap_info_struct *si,
 
 static void __free_cluster(struct swap_info_struct *si, struct swap_cluster_info *ci)
 {
-	lockdep_assert_held(&si->lock);
 	lockdep_assert_held(&ci->lock);
 	move_cluster(si, ci, &si->free_clusters, CLUSTER_FLAG_FREE);
 	ci->order = 0;
 }
 
 /*
+ * Isolate and lock the first cluster that is not contented on a list,
+ * clean its flag before taken off-list. Cluster flag must be in sync
+ * with list status, so cluster updaters can always know the cluster
+ * list status without touching si lock.
+ *
+ * Note it's possible that all clusters on a list are contented so
+ * this returns NULL for an non-empty list.
+ */
+static struct swap_cluster_info *isolate_lock_cluster(
+		struct swap_info_struct *si, struct list_head *list)
+{
+	struct swap_cluster_info *ci, *ret = NULL;
+
+	spin_lock(&si->lock);
+
+	if (unlikely(!(si->flags & SWP_WRITEOK)))
+		goto out;
+
+	list_for_each_entry(ci, list, list) {
+		if (!spin_trylock(&ci->lock))
+			continue;
+
+		/* We may only isolate and clear flags of following lists */
+		VM_BUG_ON(!ci->flags);
+		VM_BUG_ON(ci->flags > CLUSTER_FLAG_USABLE &&
+			  ci->flags != CLUSTER_FLAG_FULL);
+
+		list_del(&ci->list);
+		ci->flags = CLUSTER_FLAG_NONE;
+		ret = ci;
+		break;
+	}
+out:
+	spin_unlock(&si->lock);
+
+	return ret;
+}
+
+/*
  * Doing discard actually. After a cluster discard is finished, the cluster
- * will be added to free cluster list. caller should hold si->lock.
-*/
-static void swap_do_scheduled_discard(struct swap_info_struct *si)
+ * will be added to free cluster list. Discard cluster is a bit special as
+ * they don't participate in allocation or reclaim, so clusters marked as
+ * CLUSTER_FLAG_DISCARD must remain off-list or on discard list.
+ */
+static bool swap_do_scheduled_discard(struct swap_info_struct *si)
 {
 	struct swap_cluster_info *ci;
+	bool ret = false;
 	unsigned int idx;
 
+	spin_lock(&si->lock);
 	while (!list_empty(&si->discard_clusters)) {
 		ci = list_first_entry(&si->discard_clusters, struct swap_cluster_info, list);
+		/*
+		 * Delete the cluster from list to prepare for discard, but keep
+		 * the CLUSTER_FLAG_DISCARD flag, there could be percpu_cluster
+		 * pointing to it, or ran into by relocate_cluster.
+		 */
 		list_del(&ci->list);
-		/* Must clear flag when taking a cluster off-list */
-		ci->flags = CLUSTER_FLAG_NONE;
 		idx = cluster_index(si, ci);
 		spin_unlock(&si->lock);
-
 		discard_swap_cluster(si, idx * SWAPFILE_CLUSTER,
 				SWAPFILE_CLUSTER);
 
-		spin_lock(&si->lock);
 		spin_lock(&ci->lock);
-		__free_cluster(si, ci);
+		/*
+		 * Discard is done, clear its flags as it's off-list, then
+		 * return the cluster to allocation list.
+		 */
+		ci->flags = CLUSTER_FLAG_NONE;
 		memset(si->swap_map + idx * SWAPFILE_CLUSTER,
 				0, SWAPFILE_CLUSTER);
+		__free_cluster(si, ci);
 		spin_unlock(&ci->lock);
+		ret = true;
+		spin_lock(&si->lock);
 	}
+	spin_unlock(&si->lock);
+	return ret;
 }
 
 static void swap_discard_work(struct work_struct *work)
@@ -517,9 +582,7 @@ static void swap_discard_work(struct work_struct *work)
 
 	si = container_of(work, struct swap_info_struct, discard_work);
 
-	spin_lock(&si->lock);
 	swap_do_scheduled_discard(si);
-	spin_unlock(&si->lock);
 }
 
 static void swap_users_ref_free(struct percpu_ref *ref)
@@ -530,10 +593,14 @@ static void swap_users_ref_free(struct percpu_ref *ref)
 	complete(&si->comp);
 }
 
+/*
+ * Must be called after freeing if ci->count == 0, moves the cluster to free
+ * or discard list.
+ */
 static void free_cluster(struct swap_info_struct *si, struct swap_cluster_info *ci)
 {
 	VM_BUG_ON(ci->count != 0);
-	lockdep_assert_held(&si->lock);
+	VM_BUG_ON(ci->flags == CLUSTER_FLAG_FREE);
 	lockdep_assert_held(&ci->lock);
 
 	/*
@@ -548,6 +615,48 @@ static void free_cluster(struct swap_info_struct *si, struct swap_cluster_info *
 	}
 
 	__free_cluster(si, ci);
+}
+
+/*
+ * Must be called after freeing if ci->count != 0, moves the cluster to
+ * nonfull list.
+ */
+static void partial_free_cluster(struct swap_info_struct *si,
+				 struct swap_cluster_info *ci)
+{
+	VM_BUG_ON(!ci->count || ci->count == SWAPFILE_CLUSTER);
+	lockdep_assert_held(&ci->lock);
+
+	if (ci->flags != CLUSTER_FLAG_NONFULL)
+		move_cluster(si, ci, &si->nonfull_clusters[ci->order],
+			     CLUSTER_FLAG_NONFULL);
+}
+
+/*
+ * Must be called after allocation, moves the cluster to full or frag list.
+ * Note: allocation doesn't acquire si lock, and may drop the ci lock for
+ * reclaim, so the cluster could be any where when called.
+ */
+static void relocate_cluster(struct swap_info_struct *si,
+			     struct swap_cluster_info *ci)
+{
+	lockdep_assert_held(&ci->lock);
+
+	/* Discard cluster must remain off-list or on discard list */
+	if (cluster_is_discard(ci))
+		return;
+
+	if (!ci->count) {
+		free_cluster(si, ci);
+	} else if (ci->count != SWAPFILE_CLUSTER) {
+		if (ci->flags != CLUSTER_FLAG_FRAG)
+			move_cluster(si, ci, &si->frag_clusters[ci->order],
+				     CLUSTER_FLAG_FRAG);
+	} else {
+		if (ci->flags != CLUSTER_FLAG_FULL)
+			move_cluster(si, ci, &si->full_clusters,
+				     CLUSTER_FLAG_FULL);
+	}
 }
 
 /*
@@ -568,30 +677,6 @@ static void inc_cluster_info_page(struct swap_info_struct *si,
 	VM_BUG_ON(ci->flags);
 }
 
-/*
- * The cluster ci decreases @nr_pages usage. If the usage counter becomes 0,
- * which means no page in the cluster is in use, we can optionally discard
- * the cluster and add it to free cluster list.
- */
-static void dec_cluster_info_page(struct swap_info_struct *si,
-				  struct swap_cluster_info *ci, int nr_pages)
-{
-	VM_BUG_ON(ci->count < nr_pages);
-	VM_BUG_ON(cluster_is_free(ci));
-	lockdep_assert_held(&si->lock);
-	lockdep_assert_held(&ci->lock);
-	ci->count -= nr_pages;
-
-	if (!ci->count) {
-		free_cluster(si, ci);
-		return;
-	}
-
-	if (ci->flags != CLUSTER_FLAG_NONFULL)
-		move_cluster(si, ci, &si->nonfull_clusters[ci->order],
-			     CLUSTER_FLAG_NONFULL);
-}
-
 static bool cluster_reclaim_range(struct swap_info_struct *si,
 				  struct swap_cluster_info *ci,
 				  unsigned long start, unsigned long end)
@@ -601,8 +686,6 @@ static bool cluster_reclaim_range(struct swap_info_struct *si,
 	int nr_reclaim;
 
 	spin_unlock(&ci->lock);
-	spin_unlock(&si->lock);
-
 	do {
 		switch (READ_ONCE(map[offset])) {
 		case 0:
@@ -620,9 +703,7 @@ static bool cluster_reclaim_range(struct swap_info_struct *si,
 		}
 	} while (offset < end);
 out:
-	spin_lock(&si->lock);
 	spin_lock(&ci->lock);
-
 	/*
 	 * Recheck the range no matter reclaim succeeded or not, the slot
 	 * could have been be freed while we are not holding the lock.
@@ -636,11 +717,11 @@ out:
 
 static bool cluster_scan_range(struct swap_info_struct *si,
 			       struct swap_cluster_info *ci,
-			       unsigned long start, unsigned int nr_pages)
+			       unsigned long start, unsigned int nr_pages,
+			       bool *need_reclaim)
 {
 	unsigned long offset, end = start + nr_pages;
 	unsigned char *map = si->swap_map;
-	bool need_reclaim = false;
 
 	for (offset = start; offset < end; offset++) {
 		switch (READ_ONCE(map[offset])) {
@@ -649,15 +730,12 @@ static bool cluster_scan_range(struct swap_info_struct *si,
 		case SWAP_HAS_CACHE:
 			if (!vm_swap_full())
 				return false;
-			need_reclaim = true;
+			*need_reclaim = true;
 			continue;
 		default:
 			return false;
 		}
 	}
-
-	if (need_reclaim)
-		return cluster_reclaim_range(si, ci, start, end);
 
 	return true;
 }
@@ -673,22 +751,16 @@ static bool cluster_alloc_range(struct swap_info_struct *si, struct swap_cluster
 	if (!(si->flags & SWP_WRITEOK))
 		return false;
 
-	VM_BUG_ON(ci->flags == CLUSTER_FLAG_NONE);
-	VM_BUG_ON(ci->flags > CLUSTER_FLAG_USABLE);
-
-	if (cluster_is_free(ci)) {
-		if (nr_pages < SWAPFILE_CLUSTER)
-			move_cluster(si, ci, &si->nonfull_clusters[order],
-				     CLUSTER_FLAG_NONFULL);
+	/*
+	 * The first allocation in a cluster makes the
+	 * cluster exclusive to this order
+	 */
+	if (cluster_is_empty(ci))
 		ci->order = order;
-	}
 
 	memset(si->swap_map + start, usage, nr_pages);
 	swap_range_alloc(si, nr_pages);
 	ci->count += nr_pages;
-
-	if (ci->count == SWAPFILE_CLUSTER)
-		move_cluster(si, ci, &si->full_clusters, CLUSTER_FLAG_FULL);
 
 	return true;
 }
@@ -700,37 +772,55 @@ static unsigned int alloc_swap_scan_cluster(struct swap_info_struct *si, unsigne
 	unsigned long start = offset & ~(SWAPFILE_CLUSTER - 1);
 	unsigned long end = min(start + SWAPFILE_CLUSTER, si->max);
 	unsigned int nr_pages = 1 << order;
+	bool need_reclaim, ret;
 	struct swap_cluster_info *ci;
 
-	if (end < nr_pages)
-		return SWAP_NEXT_INVALID;
-	end -= nr_pages;
+	ci = &si->cluster_info[offset / SWAPFILE_CLUSTER];
+	lockdep_assert_held(&ci->lock);
 
-	ci = lock_cluster(si, offset);
-	if (ci->count + nr_pages > SWAPFILE_CLUSTER) {
+	if (end < nr_pages || ci->count + nr_pages > SWAPFILE_CLUSTER) {
 		offset = SWAP_NEXT_INVALID;
-		goto done;
+		goto out;
 	}
 
-	while (offset <= end) {
-		if (cluster_scan_range(si, ci, offset, nr_pages)) {
-			if (!cluster_alloc_range(si, ci, offset, usage, order)) {
+	for (end -= nr_pages; offset <= end; offset += nr_pages) {
+		need_reclaim = false;
+		if (!cluster_scan_range(si, ci, offset, nr_pages, &need_reclaim))
+			continue;
+		if (need_reclaim) {
+			ret = cluster_reclaim_range(si, ci, start, end);
+			/*
+			 * Reclaim drops ci->lock and cluster could be used
+			 * by another order. Not checking flag as off-list
+			 * cluster has no flag set, and change of list
+			 * won't cause fragmentation.
+			 */
+			if (!cluster_is_usable(ci, order)) {
 				offset = SWAP_NEXT_INVALID;
-				goto done;
+				goto out;
 			}
-			*foundp = offset;
-			if (ci->count == SWAPFILE_CLUSTER) {
-				offset = SWAP_NEXT_INVALID;
-				goto done;
-			}
-			offset += nr_pages;
-			break;
+			if (cluster_is_empty(ci))
+				offset = start;
+			/* Reclaim failed but cluster is usable, try next */
+			if (!ret)
+				continue;
+		}
+		if (!cluster_alloc_range(si, ci, offset, usage, order)) {
+			offset = SWAP_NEXT_INVALID;
+			goto out;
+		}
+		*foundp = offset;
+		if (ci->count == SWAPFILE_CLUSTER) {
+			offset = SWAP_NEXT_INVALID;
+			goto out;
 		}
 		offset += nr_pages;
+		break;
 	}
 	if (offset > end)
 		offset = SWAP_NEXT_INVALID;
-done:
+out:
+	relocate_cluster(si, ci);
 	unlock_cluster(ci);
 	return offset;
 }
@@ -747,18 +837,17 @@ static void swap_reclaim_full_clusters(struct swap_info_struct *si, bool force)
 	if (force)
 		to_scan = swap_usage_in_pages(si) / SWAPFILE_CLUSTER;
 
-	while (!list_empty(&si->full_clusters)) {
-		ci = list_first_entry(&si->full_clusters, struct swap_cluster_info, list);
-		list_move_tail(&ci->list, &si->full_clusters);
+	while ((ci = isolate_lock_cluster(si, &si->full_clusters))) {
 		offset = cluster_offset(si, ci);
 		end = min(si->max, offset + SWAPFILE_CLUSTER);
 		to_scan--;
 
-		spin_unlock(&si->lock);
 		while (offset < end) {
 			if (READ_ONCE(map[offset]) == SWAP_HAS_CACHE) {
+				spin_unlock(&ci->lock);
 				nr_reclaim = __try_to_reclaim_swap(si, offset,
 								   TTRS_ANYWAY | TTRS_DIRECT);
+				spin_lock(&ci->lock);
 				if (nr_reclaim) {
 					offset += abs(nr_reclaim);
 					continue;
@@ -766,8 +855,8 @@ static void swap_reclaim_full_clusters(struct swap_info_struct *si, bool force)
 			}
 			offset++;
 		}
-		spin_lock(&si->lock);
 
+		unlock_cluster(ci);
 		if (to_scan <= 0)
 			break;
 	}
@@ -779,9 +868,7 @@ static void swap_reclaim_work(struct work_struct *work)
 
 	si = container_of(work, struct swap_info_struct, reclaim_work);
 
-	spin_lock(&si->lock);
 	swap_reclaim_full_clusters(si, true);
-	spin_unlock(&si->lock);
 }
 
 /*
@@ -792,29 +879,34 @@ static void swap_reclaim_work(struct work_struct *work)
 static unsigned long cluster_alloc_swap_entry(struct swap_info_struct *si, int order,
 					      unsigned char usage)
 {
-	struct percpu_cluster *cluster;
 	struct swap_cluster_info *ci;
 	unsigned int offset, found = 0;
 
-new_cluster:
-	lockdep_assert_held(&si->lock);
-	cluster = this_cpu_ptr(si->percpu_cluster);
-	offset = cluster->next[order];
+	/* Fast path using per CPU cluster */
+	local_lock(&si->percpu_cluster->lock);
+	offset = __this_cpu_read(si->percpu_cluster->next[order]);
 	if (offset) {
-		offset = alloc_swap_scan_cluster(si, offset, &found, order, usage);
+		ci = lock_cluster(si, offset);
+		/* Cluster could have been used by another order */
+		if (cluster_is_usable(ci, order)) {
+			if (cluster_is_empty(ci))
+				offset = cluster_offset(si, ci);
+			offset = alloc_swap_scan_cluster(si, offset, &found,
+							 order, usage);
+		} else {
+			unlock_cluster(ci);
+		}
 		if (found)
 			goto done;
 	}
 
-	if (!list_empty(&si->free_clusters)) {
-		ci = list_first_entry(&si->free_clusters, struct swap_cluster_info, list);
-		offset = alloc_swap_scan_cluster(si, cluster_offset(si, ci), &found, order, usage);
-		/*
-		 * Either we didn't touch the cluster due to swapoff,
-		 * or the allocation must success.
-		 */
-		VM_BUG_ON((si->flags & SWP_WRITEOK) && !found);
-		goto done;
+new_cluster:
+	ci = isolate_lock_cluster(si, &si->free_clusters);
+	if (ci) {
+		offset = alloc_swap_scan_cluster(si, cluster_offset(si, ci),
+						 &found, order, usage);
+		if (found)
+			goto done;
 	}
 
 	/* Try reclaim from full clusters if free clusters list is drained */
@@ -822,49 +914,42 @@ new_cluster:
 		swap_reclaim_full_clusters(si, false);
 
 	if (order < PMD_ORDER) {
-		unsigned int frags = 0;
+		unsigned int frags = 0, frags_existing;
 
-		while (!list_empty(&si->nonfull_clusters[order])) {
-			ci = list_first_entry(&si->nonfull_clusters[order],
-					      struct swap_cluster_info, list);
-			move_cluster(si, ci, &si->frag_clusters[order], CLUSTER_FLAG_FRAG);
+		while ((ci = isolate_lock_cluster(si, &si->nonfull_clusters[order]))) {
 			offset = alloc_swap_scan_cluster(si, cluster_offset(si, ci),
 							 &found, order, usage);
-			frags++;
 			if (found)
 				goto done;
+			/* Clusters failed to allocate are moved to frag_clusters */
+			frags++;
 		}
 
-		/*
-		 * Nonfull clusters are moved to frag tail if we reached
-		 * here, count them too, don't over scan the frag list.
-		 */
-		while (frags < si->frag_cluster_nr[order]) {
-			ci = list_first_entry(&si->frag_clusters[order],
-					      struct swap_cluster_info, list);
+		frags_existing = atomic_long_read(&si->frag_cluster_nr[order]);
+		while (frags < frags_existing &&
+		       (ci = isolate_lock_cluster(si, &si->frag_clusters[order]))) {
+			atomic_long_dec(&si->frag_cluster_nr[order]);
 			/*
-			 * Rotate the frag list to iterate, they were all failing
-			 * high order allocation or moved here due to per-CPU usage,
-			 * this help keeping usable cluster ahead.
+			 * Rotate the frag list to iterate, they were all
+			 * failing high order allocation or moved here due to
+			 * per-CPU usage, but they could contain newly released
+			 * reclaimable (eg. lazy-freed swap cache) slots.
 			 */
-			list_move_tail(&ci->list, &si->frag_clusters[order]);
 			offset = alloc_swap_scan_cluster(si, cluster_offset(si, ci),
 							 &found, order, usage);
-			frags++;
 			if (found)
 				goto done;
+			frags++;
 		}
 	}
 
-	if (!list_empty(&si->discard_clusters)) {
-		/*
-		 * we don't have free cluster but have some clusters in
-		 * discarding, do discard now and reclaim them, then
-		 * reread cluster_next_cpu since we dropped si->lock
-		 */
-		swap_do_scheduled_discard(si);
+	/*
+	 * We don't have free cluster but have some clusters in
+	 * discarding, do discard now and reclaim them, then
+	 * reread cluster_next_cpu since we dropped si->lock
+	 */
+	if ((si->flags & SWP_PAGE_DISCARD) && swap_do_scheduled_discard(si))
 		goto new_cluster;
-	}
 
 	if (order)
 		goto done;
@@ -875,26 +960,25 @@ new_cluster:
 		 * Clusters here have at least one usable slots and can't fail order 0
 		 * allocation, but reclaim may drop si->lock and race with another user.
 		 */
-		while (!list_empty(&si->frag_clusters[o])) {
-			ci = list_first_entry(&si->frag_clusters[o],
-					      struct swap_cluster_info, list);
+		while ((ci = isolate_lock_cluster(si, &si->frag_clusters[o]))) {
+			atomic_long_dec(&si->frag_cluster_nr[o]);
 			offset = alloc_swap_scan_cluster(si, cluster_offset(si, ci),
-							 &found, 0, usage);
+							 &found, order, usage);
 			if (found)
 				goto done;
 		}
 
-		while (!list_empty(&si->nonfull_clusters[o])) {
-			ci = list_first_entry(&si->nonfull_clusters[o],
-					      struct swap_cluster_info, list);
+		while ((ci = isolate_lock_cluster(si, &si->nonfull_clusters[o]))) {
 			offset = alloc_swap_scan_cluster(si, cluster_offset(si, ci),
-							 &found, 0, usage);
+							 &found, order, usage);
 			if (found)
 				goto done;
 		}
 	}
 done:
-	cluster->next[order] = offset;
+	__this_cpu_write(si->percpu_cluster->next[order], offset);
+	local_unlock(&si->percpu_cluster->lock);
+
 	return found;
 }
 
@@ -1158,14 +1242,11 @@ start_over:
 		plist_requeue(&si->avail_lists[node], &swap_avail_heads[node]);
 		spin_unlock(&swap_avail_lock);
 		if (get_swap_device_info(si)) {
-			spin_lock(&si->lock);
 			n_ret = scan_swap_map_slots(si, SWAP_HAS_CACHE,
 					n_goal, swp_entries, order);
-			spin_unlock(&si->lock);
 			put_swap_device(si);
 			if (n_ret || size > 1)
 				goto check_out;
-			cond_resched();
 		}
 
 		spin_lock(&swap_avail_lock);
@@ -1378,9 +1459,7 @@ static bool __swap_entries_free(struct swap_info_struct *si,
 	if (!has_cache) {
 		for (i = 0; i < nr; i++)
 			zswap_invalidate(swp_entry(si->type, offset + i));
-		spin_lock(&si->lock);
 		swap_entry_range_free(si, entry, nr);
-		spin_unlock(&si->lock);
 	}
 	return has_cache;
 
@@ -1409,16 +1488,27 @@ static void swap_entry_range_free(struct swap_info_struct *si, swp_entry_t entry
 	unsigned char *map_end = map + nr_pages;
 	struct swap_cluster_info *ci;
 
+	/* It should never free entries across different clusters */
+	VM_BUG_ON((offset / SWAPFILE_CLUSTER) != ((offset + nr_pages - 1) / SWAPFILE_CLUSTER));
+
 	ci = lock_cluster(si, offset);
+	VM_BUG_ON(cluster_is_empty(ci));
+	VM_BUG_ON(ci->count < nr_pages);
+
+	ci->count -= nr_pages;
 	do {
 		VM_BUG_ON(*map != SWAP_HAS_CACHE);
 		*map = 0;
 	} while (++map < map_end);
-	dec_cluster_info_page(si, ci, nr_pages);
-	unlock_cluster(ci);
 
 	mem_cgroup_uncharge_swap(entry, nr_pages);
 	swap_range_free(si, offset, nr_pages);
+
+	if (!ci->count)
+		free_cluster(si, ci);
+	else
+		partial_free_cluster(si, ci);
+	unlock_cluster(ci);
 }
 
 static void cluster_swap_free_nr(struct swap_info_struct *si,
@@ -1490,9 +1580,7 @@ void put_swap_folio(struct folio *folio, swp_entry_t entry)
 	ci = lock_cluster(si, offset);
 	if (size > 1 && swap_is_has_cache(si, offset, size)) {
 		unlock_cluster(ci);
-		spin_lock(&si->lock);
 		swap_entry_range_free(si, entry, size);
-		spin_unlock(&si->lock);
 		return;
 	}
 	for (int i = 0; i < size; i++, entry.val++) {
@@ -1507,46 +1595,19 @@ void put_swap_folio(struct folio *folio, swp_entry_t entry)
 	unlock_cluster(ci);
 }
 
-static int swp_entry_cmp(const void *ent1, const void *ent2)
-{
-	const swp_entry_t *e1 = ent1, *e2 = ent2;
-
-	return (int)swp_type(*e1) - (int)swp_type(*e2);
-}
-
 void swapcache_free_entries(swp_entry_t *entries, int n)
 {
-	struct swap_info_struct *si, *prev;
 	int i;
+	struct swap_info_struct *si = NULL;
 
 	if (n <= 0)
 		return;
 
-	prev = NULL;
-	si = NULL;
-
-	/*
-	 * Sort swap entries by swap device, so each lock is only taken once.
-	 * nr_swapfiles isn't absolutely correct, but the overhead of sort() is
-	 * so low that it isn't necessary to optimize further.
-	 */
-	if (nr_swapfiles > 1)
-		sort(entries, n, sizeof(entries[0]), swp_entry_cmp, NULL);
 	for (i = 0; i < n; ++i) {
 		si = _swap_info_get(entries[i]);
-
-		if (si != prev) {
-			if (prev != NULL)
-				spin_unlock(&prev->lock);
-			if (si != NULL)
-				spin_lock(&si->lock);
-		}
 		if (si)
 			swap_entry_range_free(si, entries[i], 1);
-		prev = si;
 	}
-	if (si)
-		spin_unlock(&si->lock);
 }
 
 int __swap_count(swp_entry_t entry)
@@ -1799,10 +1860,8 @@ swp_entry_t get_swap_page_of_type(int type)
 
 	/* This is called for allocating swap entry, not cache */
 	if (get_swap_device_info(si)) {
-		spin_lock(&si->lock);
 		if ((si->flags & SWP_WRITEOK) && scan_swap_map_slots(si, 1, 1, &entry, 0))
 			atomic_long_dec(&nr_swap_pages);
-		spin_unlock(&si->lock);
 		put_swap_device(si);
 	}
 fail:
@@ -3142,6 +3201,7 @@ static struct swap_cluster_info *setup_clusters(struct swap_info_struct *si,
 		cluster = per_cpu_ptr(si->percpu_cluster, cpu);
 		for (i = 0; i < SWAP_NR_ORDERS; i++)
 			cluster->next[i] = SWAP_NEXT_INVALID;
+		local_lock_init(&cluster->lock);
 	}
 
 	/*
@@ -3165,7 +3225,7 @@ static struct swap_cluster_info *setup_clusters(struct swap_info_struct *si,
 	for (i = 0; i < SWAP_NR_ORDERS; i++) {
 		INIT_LIST_HEAD(&si->nonfull_clusters[i]);
 		INIT_LIST_HEAD(&si->frag_clusters[i]);
-		si->frag_cluster_nr[i] = 0;
+		atomic_long_set(&si->frag_cluster_nr[i], 0);
 	}
 
 	/*
@@ -3647,7 +3707,6 @@ int add_swap_count_continuation(swp_entry_t entry, gfp_t gfp_mask)
 		 */
 		goto outer;
 	}
-	spin_lock(&si->lock);
 
 	offset = swp_offset(entry);
 
@@ -3712,7 +3771,6 @@ out_unlock_cont:
 	spin_unlock(&si->cont_lock);
 out:
 	unlock_cluster(ci);
-	spin_unlock(&si->lock);
 	put_swap_device(si);
 outer:
 	if (page)
