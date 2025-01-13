@@ -38,6 +38,7 @@ struct mount {
 	struct dentry *mnt_mountpoint;
 	struct vfsmount mnt;
 	union {
+		struct rb_node mnt_node; /* node in the ns->mounts rbtree */
 		struct rcu_head mnt_rcu;
 		struct llist_node mnt_llist;
 	};
@@ -51,10 +52,7 @@ struct mount {
 	struct list_head mnt_child;	/* and going through their mnt_child */
 	struct list_head mnt_instance;	/* mount instance on sb->s_mounts */
 	const char *mnt_devname;	/* Name of device e.g. /dev/dsk/hda1 */
-	union {
-		struct rb_node mnt_node;	/* Under ns->mounts */
-		struct list_head mnt_list;
-	};
+	struct list_head mnt_list;
 	struct list_head mnt_expire;	/* link in fs-specific expiry list */
 	struct list_head mnt_share;	/* circular list of shared mounts */
 	struct list_head mnt_slave_list;/* list of slave mounts */
@@ -145,11 +143,16 @@ static inline bool is_anon_ns(struct mnt_namespace *ns)
 	return ns->seq == 0;
 }
 
+static inline bool mnt_ns_attached(const struct mount *mnt)
+{
+	return !RB_EMPTY_NODE(&mnt->mnt_node);
+}
+
 static inline void move_from_ns(struct mount *mnt, struct list_head *dt_list)
 {
-	WARN_ON(!(mnt->mnt.mnt_flags & MNT_ONRB));
-	mnt->mnt.mnt_flags &= ~MNT_ONRB;
+	WARN_ON(!mnt_ns_attached(mnt));
 	rb_erase(&mnt->mnt_node, &mnt->mnt_ns->mounts);
+	RB_CLEAR_NODE(&mnt->mnt_node);
 	list_add_tail(&mnt->mnt_list, dt_list);
 }
 

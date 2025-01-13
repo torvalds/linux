@@ -335,6 +335,7 @@ static const struct of_device_id i2c_imx_dt_ids[] = {
 	{ .compatible = "fsl,imx6sll-i2c", .data = &imx6_i2c_hwdata, },
 	{ .compatible = "fsl,imx6sx-i2c", .data = &imx6_i2c_hwdata, },
 	{ .compatible = "fsl,imx6ul-i2c", .data = &imx6_i2c_hwdata, },
+	{ .compatible = "fsl,imx7d-i2c", .data = &imx6_i2c_hwdata, },
 	{ .compatible = "fsl,imx7s-i2c", .data = &imx6_i2c_hwdata, },
 	{ .compatible = "fsl,imx8mm-i2c", .data = &imx6_i2c_hwdata, },
 	{ .compatible = "fsl,imx8mn-i2c", .data = &imx6_i2c_hwdata, },
@@ -532,22 +533,20 @@ static void i2c_imx_dma_free(struct imx_i2c_struct *i2c_imx)
 
 static int i2c_imx_bus_busy(struct imx_i2c_struct *i2c_imx, int for_busy, bool atomic)
 {
+	bool multi_master = i2c_imx->multi_master;
 	unsigned long orig_jiffies = jiffies;
 	unsigned int temp;
-
-	if (!i2c_imx->multi_master)
-		return 0;
 
 	while (1) {
 		temp = imx_i2c_read_reg(i2c_imx, IMX_I2C_I2SR);
 
 		/* check for arbitration lost */
-		if (temp & I2SR_IAL) {
+		if (multi_master && (temp & I2SR_IAL)) {
 			i2c_imx_clear_irq(i2c_imx, I2SR_IAL);
 			return -EAGAIN;
 		}
 
-		if (for_busy && (temp & I2SR_IBB)) {
+		if (for_busy && (!multi_master || (temp & I2SR_IBB))) {
 			i2c_imx->stopped = 0;
 			break;
 		}

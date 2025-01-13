@@ -9,6 +9,7 @@
  */
 
 #include "hp82335.h"
+#include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/module.h>
@@ -233,7 +234,7 @@ static void hp82335_clear_interrupt(struct hp82335_priv *hp_priv)
 {
 	struct tms9914_priv *tms_priv = &hp_priv->tms9914_priv;
 
-	writeb(0, tms_priv->iobase + HPREG_INTR_CLEAR);
+	writeb(0, tms_priv->mmiobase + HPREG_INTR_CLEAR);
 }
 
 int hp82335_attach(gpib_board_t *board, const gpib_board_config_t *config)
@@ -241,7 +242,7 @@ int hp82335_attach(gpib_board_t *board, const gpib_board_config_t *config)
 	struct hp82335_priv *hp_priv;
 	struct tms9914_priv *tms_priv;
 	int retval;
-	const unsigned long upper_iomem_base = (unsigned long)config->ibbase + hp82335_rom_size;
+	const unsigned long upper_iomem_base = config->ibbase + hp82335_rom_size;
 
 	board->status = 0;
 
@@ -253,7 +254,7 @@ int hp82335_attach(gpib_board_t *board, const gpib_board_config_t *config)
 	tms_priv->write_byte = hp82335_write_byte;
 	tms_priv->offset = 1;
 
-	switch ((unsigned long)(config->ibbase)) {
+	switch (config->ibbase) {
 	case 0xc4000:
 	case 0xc8000:
 	case 0xcc000:
@@ -271,7 +272,7 @@ int hp82335_attach(gpib_board_t *board, const gpib_board_config_t *config)
 	case 0xfc000:
 		break;
 	default:
-		pr_err("hp82335: invalid base io address 0x%p\n", config->ibbase);
+		pr_err("hp82335: invalid base io address 0x%u\n", config->ibbase);
 		return -EINVAL;
 	}
 	if (!request_mem_region(upper_iomem_base, hp82335_upper_iomem_size, "hp82335")) {
@@ -280,9 +281,9 @@ int hp82335_attach(gpib_board_t *board, const gpib_board_config_t *config)
 		return -EBUSY;
 	}
 	hp_priv->raw_iobase = upper_iomem_base;
-	tms_priv->iobase = ioremap(upper_iomem_base, hp82335_upper_iomem_size);
+	tms_priv->mmiobase = ioremap(upper_iomem_base, hp82335_upper_iomem_size);
 	pr_info("hp82335: upper half of 82335 iomem region 0x%lx remapped to 0x%p\n",
-		hp_priv->raw_iobase, tms_priv->iobase);
+		hp_priv->raw_iobase, tms_priv->mmiobase);
 
 	retval = request_irq(config->ibirq, hp82335_interrupt, 0, "hp82335", board);
 	if (retval) {
@@ -296,7 +297,7 @@ int hp82335_attach(gpib_board_t *board, const gpib_board_config_t *config)
 
 	hp82335_clear_interrupt(hp_priv);
 
-	writeb(INTR_ENABLE, tms_priv->iobase + HPREG_CCR);
+	writeb(INTR_ENABLE, tms_priv->mmiobase + HPREG_CCR);
 
 	tms9914_online(board, tms_priv);
 
@@ -312,10 +313,10 @@ void hp82335_detach(gpib_board_t *board)
 		tms_priv = &hp_priv->tms9914_priv;
 		if (hp_priv->irq)
 			free_irq(hp_priv->irq, board);
-		if (tms_priv->iobase) {
-			writeb(0, tms_priv->iobase + HPREG_CCR);
+		if (tms_priv->mmiobase) {
+			writeb(0, tms_priv->mmiobase + HPREG_CCR);
 			tms9914_board_reset(tms_priv);
-			iounmap((void *)tms_priv->iobase);
+			iounmap(tms_priv->mmiobase);
 		}
 		if (hp_priv->raw_iobase)
 			release_mem_region(hp_priv->raw_iobase, hp82335_upper_iomem_size);

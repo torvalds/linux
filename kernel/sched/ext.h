@@ -57,15 +57,15 @@ static inline void init_sched_ext_class(void) {}
 #endif	/* CONFIG_SCHED_CLASS_EXT */
 
 #if defined(CONFIG_SCHED_CLASS_EXT) && defined(CONFIG_SMP)
-void __scx_update_idle(struct rq *rq, bool idle);
+void __scx_update_idle(struct rq *rq, bool idle, bool do_notify);
 
-static inline void scx_update_idle(struct rq *rq, bool idle)
+static inline void scx_update_idle(struct rq *rq, bool idle, bool do_notify)
 {
 	if (scx_enabled())
-		__scx_update_idle(rq, idle);
+		__scx_update_idle(rq, idle, do_notify);
 }
 #else
-static inline void scx_update_idle(struct rq *rq, bool idle) {}
+static inline void scx_update_idle(struct rq *rq, bool idle, bool do_notify) {}
 #endif
 
 #ifdef CONFIG_CGROUP_SCHED

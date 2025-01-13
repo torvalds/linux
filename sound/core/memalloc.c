@@ -505,7 +505,7 @@ static void *snd_dma_wc_alloc(struct snd_dma_buffer *dmab, size_t size)
 	if (!p)
 		return NULL;
 	dmab->addr = dma_map_single(dmab->dev.dev, p, size, DMA_BIDIRECTIONAL);
-	if (dmab->addr == DMA_MAPPING_ERROR) {
+	if (dma_mapping_error(dmab->dev.dev, dmab->addr)) {
 		do_free_pages(dmab->area, size, true);
 		return NULL;
 	}
