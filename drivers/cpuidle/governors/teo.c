@@ -124,20 +124,20 @@ struct teo_bin {
 
 /**
  * struct teo_cpu - CPU data used by the TEO cpuidle governor.
- * @time_span_ns: Time between idle state selection and post-wakeup update.
  * @sleep_length_ns: Time till the closest timer event (at the selection time).
  * @state_bins: Idle state data bins for this CPU.
  * @total: Grand total of the "intercepts" and "hits" metrics for all bins.
  * @tick_intercepts: "Intercepts" before TICK_NSEC.
  * @short_idles: Wakeups after short idle periods.
+ * @artificial_wakeup: Set if the wakeup has been triggered by a safety net.
  */
 struct teo_cpu {
-	s64 time_span_ns;
 	s64 sleep_length_ns;
 	struct teo_bin state_bins[CPUIDLE_STATE_MAX];
 	unsigned int total;
 	unsigned int tick_intercepts;
 	unsigned int short_idles;
+	bool artificial_wakeup;
 };
 
 static DEFINE_PER_CPU(struct teo_cpu, teo_cpus);
@@ -156,7 +156,7 @@ static void teo_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 
 	cpu_data->short_idles -= cpu_data->short_idles >> DECAY_SHIFT;
 
-	if (cpu_data->time_span_ns < 0) {
+	if (cpu_data->artificial_wakeup) {
 		/*
 		 * If one of the safety nets has triggered, assume that this
 		 * might have been a long sleep.
@@ -165,13 +165,6 @@ static void teo_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	} else {
 		u64 lat_ns = drv->states[dev->last_state_idx].exit_latency_ns;
 
-		/*
-		 * The computations below are to determine whether or not the
-		 * (saved) time till the next timer event and the measured idle
-		 * duration fall into the same "bin", so use last_residency_ns
-		 * for that instead of time_span_ns which includes the cpuidle
-		 * overhead.
-		 */
 		measured_ns = dev->last_residency_ns;
 		/*
 		 * The delay between the wakeup and the first instruction
@@ -286,7 +279,6 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 		dev->last_state_idx = -1;
 	}
 
-	cpu_data->time_span_ns = local_clock();
 	/*
 	 * Set the sleep length to infinity in case the invocation of
 	 * tick_nohz_get_sleep_length() below is skipped, in which case it won't
@@ -504,17 +496,16 @@ static void teo_reflect(struct cpuidle_device *dev, int state)
 	struct teo_cpu *cpu_data = per_cpu_ptr(&teo_cpus, dev->cpu);
 
 	dev->last_state_idx = state;
-	/*
-	 * If the wakeup was not "natural", but triggered by one of the safety
-	 * nets, assume that the CPU might have been idle for the entire sleep
-	 * length time.
-	 */
 	if (dev->poll_time_limit ||
 	    (tick_nohz_idle_got_tick() && cpu_data->sleep_length_ns > TICK_NSEC)) {
+		/*
+		 * The wakeup was not "genuine", but triggered by one of the
+		 * safety nets.
+		 */
 		dev->poll_time_limit = false;
-		cpu_data->time_span_ns = KTIME_MIN;
+		cpu_data->artificial_wakeup = true;
 	} else {
-		cpu_data->time_span_ns = local_clock() - cpu_data->time_span_ns;
+		cpu_data->artificial_wakeup = false;
 	}
 }
 
