@@ -211,6 +211,7 @@ decl_specifier:
 		  $$ = $1;
 		}
 	| type_specifier
+	| type_qualifier
 	;
 
 storage_class_specifier:
@@ -223,7 +224,6 @@ storage_class_specifier:
 
 type_specifier:
 	simple_type_specifier
-	| type_qualifier
 	| TYPEOF_KEYW '(' parameter_declaration ')'
 	| TYPEOF_PHRASE
 
