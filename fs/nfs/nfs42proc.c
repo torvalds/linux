@@ -648,6 +648,7 @@ _nfs42_proc_offload_status(struct nfs_server *server, struct file *file,
 	status = nfs4_call_sync(server->client, server, &msg,
 				&data->args.osa_seq_args,
 				&data->res.osr_seq_res, 1);
+	trace_nfs4_offload_status(&data->args, status);
 	switch (status) {
 	case 0:
 		break;
