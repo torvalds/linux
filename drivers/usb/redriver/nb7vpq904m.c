@@ -495,6 +495,7 @@ static int nb7vpq904m_notify_connect(struct usb_redriver *r, int ort)
 	orientation_set(redriver, ort);
 
 	nb7vpq904m_gen_dev_set(redriver);
+	nb7vpq904m_dev_aux_set(redriver);
 	nb7vpq904m_channel_update(redriver);
 
 	return 0;
