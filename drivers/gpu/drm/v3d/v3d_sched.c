@@ -656,8 +656,6 @@ v3d_cpu_job_run(struct drm_sched_job *sched_job)
 	struct v3d_cpu_job *job = to_cpu_job(sched_job);
 	struct v3d_dev *v3d = job->base.v3d;
 
-	v3d->cpu_job = job;
-
 	if (job->job_type >= ARRAY_SIZE(cpu_job_function)) {
 		DRM_DEBUG_DRIVER("Unknown CPU job: %d\n", job->job_type);
 		return NULL;
