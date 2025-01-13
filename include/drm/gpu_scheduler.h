@@ -564,7 +564,8 @@ int drm_sched_job_add_resv_dependencies(struct drm_sched_job *job,
 int drm_sched_job_add_implicit_dependencies(struct drm_sched_job *job,
 					    struct drm_gem_object *obj,
 					    bool write);
-
+bool drm_sched_job_has_dependency(struct drm_sched_job *job,
+				  struct dma_fence *fence);
 
 void drm_sched_entity_modify_sched(struct drm_sched_entity *entity,
 				    struct drm_gpu_scheduler **sched_list,

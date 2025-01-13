@@ -985,6 +985,29 @@ int drm_sched_job_add_implicit_dependencies(struct drm_sched_job *job,
 EXPORT_SYMBOL(drm_sched_job_add_implicit_dependencies);
 
 /**
+ * drm_sched_job_has_dependency - check whether fence is the job's dependency
+ * @job: scheduler job to check
+ * @fence: fence to look for
+ *
+ * Returns:
+ * True if @fence is found within the job's dependencies, or otherwise false.
+ */
+bool drm_sched_job_has_dependency(struct drm_sched_job *job,
+				  struct dma_fence *fence)
+{
+	struct dma_fence *f;
+	unsigned long index;
+
+	xa_for_each(&job->dependencies, index, f) {
+		if (f == fence)
+			return true;
+	}
+
+	return false;
+}
+EXPORT_SYMBOL(drm_sched_job_has_dependency);
+
+/**
  * drm_sched_job_cleanup - clean up scheduler job resources
  * @job: scheduler job to clean up
  *
