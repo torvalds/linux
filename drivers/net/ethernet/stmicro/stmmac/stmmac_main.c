@@ -422,27 +422,22 @@ static void stmmac_restart_sw_lpi_timer(struct stmmac_priv *priv)
 }
 
 /**
- * stmmac_enable_eee_mode - check and enter in LPI mode
+ * stmmac_try_to_start_sw_lpi - check and enter in LPI mode
  * @priv: driver private structure
  * Description: this function is to verify and enter in LPI mode in case of
  * EEE.
  */
-static int stmmac_enable_eee_mode(struct stmmac_priv *priv)
+static void stmmac_try_to_start_sw_lpi(struct stmmac_priv *priv)
 {
-	if (stmmac_eee_tx_busy(priv))
-		return -EBUSY; /* still unfinished work */
+	if (stmmac_eee_tx_busy(priv)) {
+		stmmac_restart_sw_lpi_timer(priv);
+		return;
+	}
 
 	/* Check and enter in LPI mode */
 	if (!priv->tx_path_in_lpi_mode)
 		stmmac_set_eee_mode(priv, priv->hw,
 			priv->plat->flags & STMMAC_FLAG_EN_TX_LPI_CLOCKGATING);
-	return 0;
-}
-
-static void stmmac_try_to_start_sw_lpi(struct stmmac_priv *priv)
-{
-	if (stmmac_enable_eee_mode(priv))
-		stmmac_restart_sw_lpi_timer(priv);
 }
 
 /**
