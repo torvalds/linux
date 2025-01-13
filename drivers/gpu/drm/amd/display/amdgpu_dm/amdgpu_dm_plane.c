@@ -177,7 +177,7 @@ static unsigned int amdgpu_dm_plane_modifier_gfx9_swizzle_mode(uint64_t modifier
 	return AMD_FMT_MOD_GET(TILE, modifier);
 }
 
-static void amdgpu_dm_plane_fill_gfx8_tiling_info_from_flags(union dc_tiling_info *tiling_info,
+static void amdgpu_dm_plane_fill_gfx8_tiling_info_from_flags(struct dc_tiling_info *tiling_info,
 							     uint64_t tiling_flags)
 {
 	/* Fill GFX8 params */
@@ -190,6 +190,7 @@ static void amdgpu_dm_plane_fill_gfx8_tiling_info_from_flags(union dc_tiling_inf
 		tile_split = AMDGPU_TILING_GET(tiling_flags, TILE_SPLIT);
 		num_banks = AMDGPU_TILING_GET(tiling_flags, NUM_BANKS);
 
+		tiling_info->gfxversion = DcGfxVersion8;
 		/* XXX fix me for VI */
 		tiling_info->gfx8.num_banks = num_banks;
 		tiling_info->gfx8.array_mode =
@@ -210,7 +211,7 @@ static void amdgpu_dm_plane_fill_gfx8_tiling_info_from_flags(union dc_tiling_inf
 }
 
 static void amdgpu_dm_plane_fill_gfx9_tiling_info_from_device(const struct amdgpu_device *adev,
-							      union dc_tiling_info *tiling_info)
+							      struct dc_tiling_info *tiling_info)
 {
 	/* Fill GFX9 params */
 	tiling_info->gfx9.num_pipes =
@@ -231,7 +232,7 @@ static void amdgpu_dm_plane_fill_gfx9_tiling_info_from_device(const struct amdgp
 }
 
 static void amdgpu_dm_plane_fill_gfx9_tiling_info_from_modifier(const struct amdgpu_device *adev,
-								union dc_tiling_info *tiling_info,
+								struct dc_tiling_info *tiling_info,
 								uint64_t modifier)
 {
 	unsigned int mod_bank_xor_bits = AMD_FMT_MOD_GET(BANK_XOR_BITS, modifier);
@@ -261,7 +262,7 @@ static void amdgpu_dm_plane_fill_gfx9_tiling_info_from_modifier(const struct amd
 static int amdgpu_dm_plane_validate_dcc(struct amdgpu_device *adev,
 					const enum surface_pixel_format format,
 					const enum dc_rotation_angle rotation,
-					const union dc_tiling_info *tiling_info,
+					const struct dc_tiling_info *tiling_info,
 					const struct dc_plane_dcc_param *dcc,
 					const struct dc_plane_address *address,
 					const struct plane_size *plane_size)
@@ -308,7 +309,7 @@ static int amdgpu_dm_plane_fill_gfx9_plane_attributes_from_modifiers(struct amdg
 								     const enum surface_pixel_format format,
 								     const enum dc_rotation_angle rotation,
 								     const struct plane_size *plane_size,
-								     union dc_tiling_info *tiling_info,
+								     struct dc_tiling_info *tiling_info,
 								     struct dc_plane_dcc_param *dcc,
 								     struct dc_plane_address *address)
 {
@@ -317,6 +318,7 @@ static int amdgpu_dm_plane_fill_gfx9_plane_attributes_from_modifiers(struct amdg
 
 	amdgpu_dm_plane_fill_gfx9_tiling_info_from_modifier(adev, tiling_info, modifier);
 	tiling_info->gfx9.swizzle = amdgpu_dm_plane_modifier_gfx9_swizzle_mode(modifier);
+	tiling_info->gfxversion = DcGfxVersion9;
 
 	if (amdgpu_dm_plane_modifier_has_dcc(modifier)) {
 		uint64_t dcc_address = afb->address + afb->base.offsets[1];
@@ -358,7 +360,7 @@ static int amdgpu_dm_plane_fill_gfx12_plane_attributes_from_modifiers(struct amd
 								      const enum surface_pixel_format format,
 								      const enum dc_rotation_angle rotation,
 								      const struct plane_size *plane_size,
-								      union dc_tiling_info *tiling_info,
+								      struct dc_tiling_info *tiling_info,
 								      struct dc_plane_dcc_param *dcc,
 								      struct dc_plane_address *address)
 {
@@ -369,6 +371,7 @@ static int amdgpu_dm_plane_fill_gfx12_plane_attributes_from_modifiers(struct amd
 	amdgpu_dm_plane_fill_gfx9_tiling_info_from_device(adev, tiling_info);
 
 	tiling_info->gfx9.swizzle = amdgpu_dm_plane_modifier_gfx9_swizzle_mode(modifier);
+	tiling_info->gfxversion = DcGfxAddr3;
 
 	if (amdgpu_dm_plane_modifier_has_dcc(modifier)) {
 		int max_compressed_block = AMD_FMT_MOD_GET(DCC_MAX_COMPRESSED_BLOCK, modifier);
@@ -834,7 +837,7 @@ int amdgpu_dm_plane_fill_plane_buffer_attributes(struct amdgpu_device *adev,
 			     const enum surface_pixel_format format,
 			     const enum dc_rotation_angle rotation,
 			     const uint64_t tiling_flags,
-			     union dc_tiling_info *tiling_info,
+			     struct dc_tiling_info *tiling_info,
 			     struct plane_size *plane_size,
 			     struct dc_plane_dcc_param *dcc,
 			     struct dc_plane_address *address,

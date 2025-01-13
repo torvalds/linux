@@ -344,6 +344,11 @@ enum DC_DEBUG_MASK {
 	 * eDP display from ACPI _DDC method.
 	 */
 	DC_DISABLE_ACPI_EDID = 0x8000,
+
+	/*
+	 * @DC_DISABLE_HDMI_CEC: If set, disable HDMI-CEC feature in amdgpu driver.
+	 */
+	DC_DISABLE_HDMI_CEC = 0x10000,
 };
 
 enum amd_dpm_forced_level;

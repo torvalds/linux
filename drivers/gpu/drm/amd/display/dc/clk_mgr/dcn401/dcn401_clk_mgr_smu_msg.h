@@ -28,5 +28,6 @@ bool dcn401_smu_set_subvp_uclk_fclk_hardmin(struct clk_mgr_internal *clk_mgr,
 		uint16_t fclk_freq_mhz);
 void dcn401_smu_set_min_deep_sleep_dcef_clk(struct clk_mgr_internal *clk_mgr, uint32_t freq_mhz);
 void dcn401_smu_set_num_of_displays(struct clk_mgr_internal *clk_mgr, uint32_t num_displays);
+unsigned int dcn401_smu_get_num_of_umc_channels(struct clk_mgr_internal *clk_mgr);
 
 #endif /* __DCN401_CLK_MGR_SMU_MSG_H_ */

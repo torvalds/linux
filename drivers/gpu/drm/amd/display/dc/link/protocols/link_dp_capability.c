@@ -1554,7 +1554,7 @@ enum dc_status dp_retrieve_lttpr_cap(struct dc_link *link)
 
 	/* If this chip cap is set, at least one retimer must exist in the chain
 	 * Override count to 1 if we receive a known bad count (0 or an invalid value) */
-	if ((link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
+	if (((link->chip_caps & AMD_EXT_DISPLAY_PATH_CAPS__EXT_CHIP_MASK) == AMD_EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
 			(dp_parse_lttpr_repeater_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt) == 0)) {
 		/* If you see this message consistently, either the host platform has FIXED_VS flag
 		 * incorrectly configured or the sink device is returning an invalid count.
@@ -1778,6 +1778,11 @@ static bool retrieve_link_cap(struct dc_link *link)
 			dpcd_data[DP_MAIN_LINK_CHANNEL_CODING - DP_DPCD_REV];
 	link->test_pattern_enabled = false;
 	link->compliance_test_state.raw = 0;
+
+	link->dpcd_caps.receive_port0_cap.raw[0] =
+			dpcd_data[DP_RECEIVE_PORT_0_CAP_0 - DP_DPCD_REV];
+	link->dpcd_caps.receive_port0_cap.raw[1] =
+			dpcd_data[DP_RECEIVE_PORT_0_BUFFER_SIZE - DP_DPCD_REV];
 
 	/* read sink count */
 	core_link_read_dpcd(link,
@@ -2307,6 +2312,14 @@ bool dp_verify_link_cap_with_retries(
 		} else {
 			link->verified_link_cap = last_verified_link_cap;
 		}
+
+		/* For Dp tunneling link, a pending HPD means that we have a race condition between processing
+		 * current link and processing the pending HPD. Since the training is failed, we should just brak
+		 * the loop so that we have chance to process the pending HPD.
+		 */
+		if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA && link->is_hpd_pending)
+			break;
+
 		fsleep(10 * 1000);
 	}
 

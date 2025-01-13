@@ -2832,8 +2832,10 @@ int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
 
 	mutex_lock(&con->recovery_lock);
 	data = con->eh_data;
-	if (!data)
+	if (!data) {
+		/* Returning 0 as the absence of eh_data is acceptable */
 		goto free;
+	}
 
 	for (i = 0; i < pages; i++) {
 		if (from_rom &&
@@ -2845,26 +2847,34 @@ int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
 						 * one row
 						 */
 						if (amdgpu_umc_pages_in_a_row(adev, &err_data,
-								bps[i].retired_page << AMDGPU_GPU_PAGE_SHIFT))
+									      bps[i].retired_page <<
+									      AMDGPU_GPU_PAGE_SHIFT)) {
+							ret = -EINVAL;
 							goto free;
-						else
+						} else {
 							find_pages_per_pa = true;
+						}
 					} else {
 						/* unsupported cases */
+						ret = -EOPNOTSUPP;
 						goto free;
 					}
 				}
 			} else {
 				if (amdgpu_umc_pages_in_a_row(adev, &err_data,
-						bps[i].retired_page << AMDGPU_GPU_PAGE_SHIFT))
+						bps[i].retired_page << AMDGPU_GPU_PAGE_SHIFT)) {
+					ret = -EINVAL;
 					goto free;
+				}
 			}
 		} else {
 			if (from_rom && !find_pages_per_pa) {
 				if (bps[i].retired_page & UMC_CHANNEL_IDX_V2) {
 					/* bad page in any NPS mode in eeprom */
-					if (amdgpu_ras_mca2pa_by_idx(adev, &bps[i], &err_data))
+					if (amdgpu_ras_mca2pa_by_idx(adev, &bps[i], &err_data)) {
+						ret = -EINVAL;
 						goto free;
+					}
 				} else {
 					/* legacy bad page in eeprom, generated only in
 					 * NPS1 mode
@@ -2881,6 +2891,7 @@ int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
 							/* non-nps1 mode, old RAS TA
 							 * can't support it
 							 */
+							ret = -EOPNOTSUPP;
 							goto free;
 						}
 					}

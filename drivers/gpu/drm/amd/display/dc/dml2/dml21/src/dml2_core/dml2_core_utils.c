@@ -556,7 +556,7 @@ bool dml2_core_utils_is_dual_plane(enum dml2_source_format_class source_format)
 {
 	bool ret_val = 0;
 
-	if ((source_format == dml2_420_12) || (source_format == dml2_420_8) || (source_format == dml2_420_10) || (source_format == dml2_rgbe_alpha))
+	if (dml2_core_utils_is_420(source_format) || dml2_core_utils_is_422_planar(source_format) || (source_format == dml2_rgbe_alpha))
 		ret_val = 1;
 
 	return ret_val;

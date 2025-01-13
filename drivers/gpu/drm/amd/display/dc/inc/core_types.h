@@ -217,6 +217,7 @@ struct resource_funcs {
 	 */
 	int (*get_power_profile)(const struct dc_state *context);
 	unsigned int (*get_det_buffer_size)(const struct dc_state *context);
+	unsigned int (*get_vstartup_for_pipe)(struct pipe_ctx *pipe_ctx);
 };
 
 struct audio_support{
@@ -465,6 +466,7 @@ struct pipe_ctx {
 	unsigned int surface_size_in_mall_bytes;
 	struct dml2_dchub_per_pipe_register_set hubp_regs;
 	struct dml2_hubp_pipe_mcache_regs mcache_regs;
+	union dml2_global_sync_programming global_sync;
 
 	struct dwbc *dwbc;
 	struct mcif_wb *mcif_wb;
