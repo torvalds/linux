@@ -272,7 +272,7 @@ static inline int xfs_initialize_rtgroups(struct xfs_mount *mp,
 }
 
 # define xfs_rtgroup_extents(mp, rgno)		(0)
-# define xfs_update_last_rtgroup_size(mp, rgno)	(-EOPNOTSUPP)
+# define xfs_update_last_rtgroup_size(mp, rgno)	(0)
 # define xfs_rtgroup_lock(rtg, gf)		((void)0)
 # define xfs_rtgroup_unlock(rtg, gf)		((void)0)
 # define xfs_rtgroup_trans_join(tp, rtg, gf)	((void)0)

@@ -22,6 +22,7 @@
 #include <linux/close_range.h>
 #include <linux/file_ref.h>
 #include <net/sock.h>
+#include <linux/init_task.h>
 
 #include "internal.h"
 
