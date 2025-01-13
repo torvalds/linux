@@ -1116,7 +1116,7 @@ static u64 measure_power(struct intel_rps *rps, int *freq)
 	for (i = 0; i < 5; i++)
 		x[i] = __measure_power(5);
 
-	*freq = (*freq + intel_rps_read_actual_frequency(rps)) / 2;
+	*freq = (*freq + read_cagf(rps)) / 2;
 
 	/* A simple triangle filter for better result stability */
 	sort(x, 5, sizeof(*x), cmp_u64, NULL);
