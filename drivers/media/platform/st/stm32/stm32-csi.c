@@ -357,7 +357,7 @@ static inline struct stm32_csi_dev *to_csidev(struct v4l2_subdev *sd)
 static int stm32_csi_setup_lane_merger(struct stm32_csi_dev *csidev)
 {
 	u32 lmcfgr = 0;
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < csidev->num_lanes; i++) {
 		if (!csidev->lanes[i] || csidev->lanes[i] > STM32_CSI_LANES_MAX) {
@@ -595,20 +595,20 @@ static int stm32_csi_start_vc(struct stm32_csi_dev *csidev,
 {
 	struct v4l2_mbus_framefmt *mbus_fmt;
 	const struct stm32_csi_fmts *fmt;
-	u32 cfgr1 = 0;
-	int ret = 0;
 	u32 status;
+	u32 cfgr1;
+	int ret;
 
 	mbus_fmt = v4l2_subdev_state_get_format(state, STM32_CSI_PAD_SOURCE);
 	fmt = stm32_csi_code_to_fmt(mbus_fmt->code);
 
 	/* If the mbus code is JPEG, don't enable filtering */
 	if (mbus_fmt->code == MEDIA_BUS_FMT_JPEG_1X8) {
-		cfgr1 |= STM32_CSI_VCXCFGR1_ALLDT;
+		cfgr1 = STM32_CSI_VCXCFGR1_ALLDT;
 		cfgr1 |= fmt->input_fmt << STM32_CSI_VCXCFGR1_CDTFT_SHIFT;
 		dev_dbg(csidev->dev, "VC%d: enable AllDT mode\n", vc);
 	} else {
-		cfgr1 |= fmt->datatype << STM32_CSI_VCXCFGR1_DT0_SHIFT;
+		cfgr1 = fmt->datatype << STM32_CSI_VCXCFGR1_DT0_SHIFT;
 		cfgr1 |= fmt->input_fmt << STM32_CSI_VCXCFGR1_DT0FT_SHIFT;
 		cfgr1 |= STM32_CSI_VCXCFGR1_DT0EN;
 		dev_dbg(csidev->dev, "VC%d: enable DT0(0x%x)/DT0FT(0x%x)\n",
@@ -634,8 +634,8 @@ static int stm32_csi_start_vc(struct stm32_csi_dev *csidev,
 
 static int stm32_csi_stop_vc(struct stm32_csi_dev *csidev, u32 vc)
 {
-	int ret = 0;
 	u32 status;
+	int ret;
 
 	/* Stop the Virtual Channel */
 	writel_relaxed(STM32_CSI_CR_VCXSTOP(vc) | STM32_CSI_CR_CSIEN,
@@ -714,7 +714,7 @@ failed_start_vc:
 static int stm32_csi_init_state(struct v4l2_subdev *sd,
 				struct v4l2_subdev_state *state)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < sd->entity.num_pads; i++)
 		*v4l2_subdev_state_get_format(state, i) = fmt_default;
@@ -879,7 +879,8 @@ static irqreturn_t stm32_csi_irq_thread(int irq, void *arg)
 static int stm32_csi_get_resources(struct stm32_csi_dev *csidev,
 				   struct platform_device *pdev)
 {
-	int irq, ret, i;
+	unsigned int i;
+	int irq, ret;
 
 	csidev->base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(csidev->base))
