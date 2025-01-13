@@ -154,9 +154,10 @@ static void teo_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 
 	if (cpu_data->time_span_ns >= cpu_data->sleep_length_ns) {
 		/*
-		 * One of the safety nets has triggered or the wakeup was close
-		 * enough to the closest timer event expected at the idle state
-		 * selection time to be discarded.
+		 * This causes the wakeup to be counted as a hit regardless of
+		 * the real idle duration which doesn't need to be computed
+		 * because the wakeup has been close enough to an anticipated
+		 * timer.
 		 */
 		measured_ns = U64_MAX;
 	} else {
@@ -302,8 +303,13 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 
 	cpu_data->time_span_ns = local_clock();
 	/*
-	 * Set the expected sleep length to infinity in case of an early
-	 * return.
+	 * Set the sleep length to infinity in case the invocation of
+	 * tick_nohz_get_sleep_length() below is skipped, in which case it won't
+	 * be known whether or not the subsequent wakeup is caused by a timer.
+	 * It is generally fine to count the wakeup as an intercept then, except
+	 * for the cases when the CPU is mostly woken up by timers and there may
+	 * be opportunities to ask for a deeper idle state when no imminent
+	 * timers are scheduled which may be missed.
 	 */
 	cpu_data->sleep_length_ns = KTIME_MAX;
 
