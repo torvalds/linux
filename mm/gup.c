@@ -2344,7 +2344,7 @@ static unsigned long collect_longterm_unpinnable_folios(
 			continue;
 
 		if (folio_test_hugetlb(folio)) {
-			isolate_hugetlb(folio, movable_folio_list);
+			folio_isolate_hugetlb(folio, movable_folio_list);
 			continue;
 		}
 

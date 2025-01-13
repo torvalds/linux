@@ -128,7 +128,7 @@ static void putback_movable_folio(struct folio *folio)
  *
  * This function shall be used whenever the isolated pageset has been
  * built from lru, balloon, hugetlbfs page. See isolate_migratepages_range()
- * and isolate_hugetlb().
+ * and folio_isolate_hugetlb().
  */
 void putback_movable_pages(struct list_head *l)
 {
@@ -169,7 +169,7 @@ bool isolate_folio_to_list(struct folio *folio, struct list_head *list)
 	bool isolated, lru;
 
 	if (folio_test_hugetlb(folio))
-		return isolate_hugetlb(folio, list);
+		return folio_isolate_hugetlb(folio, list);
 
 	lru = !__folio_test_movable(folio);
 	if (lru)
@@ -2200,7 +2200,7 @@ static int __add_folio_for_migration(struct folio *folio, int node,
 		return -EACCES;
 
 	if (folio_test_hugetlb(folio)) {
-		if (isolate_hugetlb(folio, pagelist))
+		if (folio_isolate_hugetlb(folio, pagelist))
 			return 1;
 	} else if (folio_isolate_lru(folio)) {
 		list_add_tail(&folio->lru, pagelist);
