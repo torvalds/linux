@@ -1042,9 +1042,7 @@ xfs_bmap_add_attrfork(
 	int			error;		/* error return value */
 
 	xfs_assert_ilocked(ip, XFS_ILOCK_EXCL);
-	if (xfs_is_metadir_inode(ip))
-		ASSERT(XFS_IS_DQDETACHED(ip));
-	else
+	if (!xfs_is_metadir_inode(ip))
 		ASSERT(!XFS_NOT_DQATTACHED(mp, ip));
 	ASSERT(!xfs_inode_has_attr_fork(ip));
 

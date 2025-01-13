@@ -428,6 +428,8 @@ void
 xfs_qm_dqdetach(
 	xfs_inode_t	*ip)
 {
+	if (xfs_is_metadir_inode(ip))
+		return;
 	if (!(ip->i_udquot || ip->i_gdquot || ip->i_pdquot))
 		return;
 

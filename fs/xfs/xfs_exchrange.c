@@ -119,6 +119,9 @@ xfs_exchrange_reserve_quota(
 	int				ip1_error = 0;
 	int				error;
 
+	ASSERT(!xfs_is_metadir_inode(req->ip1));
+	ASSERT(!xfs_is_metadir_inode(req->ip2));
+
 	/*
 	 * Don't bother with a quota reservation if we're not enforcing them
 	 * or the two inodes have the same dquots.

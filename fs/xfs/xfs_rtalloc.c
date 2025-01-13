@@ -1344,6 +1344,12 @@ xfs_growfs_rt(
 
 		if (!error)
 			error = error2;
+
+		/* Reset the rt metadata btree space reservations. */
+		xfs_rt_resv_free(mp);
+		error2 = xfs_rt_resv_init(mp);
+		if (error2 && error2 != -ENOSPC)
+			error = error2;
 	}
 
 out_unlock:
@@ -1484,6 +1490,21 @@ xfs_rtalloc_reinit_frextents(
 	mp->m_sb.sb_frextents = val;
 	spin_unlock(&mp->m_sb_lock);
 	percpu_counter_set(&mp->m_frextents, mp->m_sb.sb_frextents);
+	return 0;
+}
+
+/* Free space reservations for rt metadata inodes. */
+void
+xfs_rt_resv_free(
+	struct xfs_mount	*mp)
+{
+}
+
+/* Reserve space for rt metadata inodes' space expansion. */
+int
+xfs_rt_resv_init(
+	struct xfs_mount	*mp)
+{
 	return 0;
 }
 

@@ -749,6 +749,7 @@ xrep_tempexch_reserve_quota(
 	 * or the two inodes have the same dquots.
 	 */
 	if (!XFS_IS_QUOTA_ON(tp->t_mountp) || req->ip1 == req->ip2 ||
+	    xfs_is_metadir_inode(req->ip1) ||
 	    (req->ip1->i_udquot == req->ip2->i_udquot &&
 	     req->ip1->i_gdquot == req->ip2->i_gdquot &&
 	     req->ip1->i_pdquot == req->ip2->i_pdquot))
