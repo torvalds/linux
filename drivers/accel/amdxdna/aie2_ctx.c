@@ -361,7 +361,7 @@ aie2_sched_job_timedout(struct drm_sched_job *sched_job)
 	return DRM_GPU_SCHED_STAT_NOMINAL;
 }
 
-const struct drm_sched_backend_ops sched_ops = {
+static const struct drm_sched_backend_ops sched_ops = {
 	.run_job = aie2_sched_job_run,
 	.free_job = aie2_sched_job_free,
 	.timedout_job = aie2_sched_job_timedout,
