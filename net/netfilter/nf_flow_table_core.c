@@ -161,11 +161,23 @@ void flow_offload_route_init(struct flow_offload *flow,
 }
 EXPORT_SYMBOL_GPL(flow_offload_route_init);
 
-static void flow_offload_fixup_tcp(struct nf_conn *ct)
+static inline bool nf_flow_has_expired(const struct flow_offload *flow)
+{
+	return nf_flow_timeout_delta(flow->timeout) <= 0;
+}
+
+static void flow_offload_fixup_tcp(struct nf_conn *ct, u8 tcp_state)
 {
 	struct ip_ct_tcp *tcp = &ct->proto.tcp;
 
 	spin_lock_bh(&ct->lock);
+	if (tcp->state != tcp_state)
+		tcp->state = tcp_state;
+
+	/* syn packet triggers the TCP reopen case from conntrack. */
+	if (tcp->state == TCP_CONNTRACK_CLOSE)
+		ct->proto.tcp.seen[0].flags |= IP_CT_TCP_FLAG_CLOSE_INIT;
+
 	/* Conntrack state is outdated due to offload bypass.
 	 * Clear IP_CT_TCP_FLAG_MAXACK_SET, otherwise conntracks
 	 * TCP reset validation will fail.
@@ -177,36 +189,58 @@ static void flow_offload_fixup_tcp(struct nf_conn *ct)
 	spin_unlock_bh(&ct->lock);
 }
 
-static void flow_offload_fixup_ct(struct nf_conn *ct)
+static void flow_offload_fixup_ct(struct flow_offload *flow)
 {
+	struct nf_conn *ct = flow->ct;
 	struct net *net = nf_ct_net(ct);
 	int l4num = nf_ct_protonum(ct);
+	bool expired, closing = false;
+	u32 offload_timeout = 0;
 	s32 timeout;
 
 	if (l4num == IPPROTO_TCP) {
-		struct nf_tcp_net *tn = nf_tcp_pernet(net);
+		const struct nf_tcp_net *tn = nf_tcp_pernet(net);
+		u8 tcp_state;
 
-		flow_offload_fixup_tcp(ct);
+		/* Enter CLOSE state if fin/rst packet has been seen, this
+		 * allows TCP reopen from conntrack. Otherwise, pick up from
+		 * the last seen TCP state.
+		 */
+		closing = test_bit(NF_FLOW_CLOSING, &flow->flags);
+		if (closing) {
+			flow_offload_fixup_tcp(ct, TCP_CONNTRACK_CLOSE);
+			timeout = READ_ONCE(tn->timeouts[TCP_CONNTRACK_CLOSE]);
+			expired = false;
+		} else {
+			tcp_state = READ_ONCE(ct->proto.tcp.state);
+			flow_offload_fixup_tcp(ct, tcp_state);
+			timeout = READ_ONCE(tn->timeouts[tcp_state]);
+			expired = nf_flow_has_expired(flow);
+		}
+		offload_timeout = READ_ONCE(tn->offload_timeout);
 
-		timeout = tn->timeouts[ct->proto.tcp.state];
-		timeout -= tn->offload_timeout;
 	} else if (l4num == IPPROTO_UDP) {
-		struct nf_udp_net *tn = nf_udp_pernet(net);
+		const struct nf_udp_net *tn = nf_udp_pernet(net);
 		enum udp_conntrack state =
 			test_bit(IPS_SEEN_REPLY_BIT, &ct->status) ?
 			UDP_CT_REPLIED : UDP_CT_UNREPLIED;
 
-		timeout = tn->timeouts[state];
-		timeout -= tn->offload_timeout;
+		timeout = READ_ONCE(tn->timeouts[state]);
+		expired = nf_flow_has_expired(flow);
+		offload_timeout = READ_ONCE(tn->offload_timeout);
 	} else {
 		return;
 	}
 
+	if (expired)
+		timeout -= offload_timeout;
+
 	if (timeout < 0)
 		timeout = 0;
 
-	if (nf_flow_timeout_delta(READ_ONCE(ct->timeout)) > (__s32)timeout)
-		WRITE_ONCE(ct->timeout, nfct_time_stamp + timeout);
+	if (closing ||
+	    nf_flow_timeout_delta(READ_ONCE(ct->timeout)) > (__s32)timeout)
+		nf_ct_refresh(ct, timeout);
 }
 
 static void flow_offload_route_release(struct flow_offload *flow)
@@ -326,17 +360,13 @@ void flow_offload_refresh(struct nf_flowtable *flow_table,
 	else
 		return;
 
-	if (likely(!nf_flowtable_hw_offload(flow_table)))
+	if (likely(!nf_flowtable_hw_offload(flow_table)) ||
+	    test_bit(NF_FLOW_CLOSING, &flow->flags))
 		return;
 
 	nf_flow_offload_add(flow_table, flow);
 }
 EXPORT_SYMBOL_GPL(flow_offload_refresh);
-
-static inline bool nf_flow_has_expired(const struct flow_offload *flow)
-{
-	return nf_flow_timeout_delta(flow->timeout) <= 0;
-}
 
 static void flow_offload_del(struct nf_flowtable *flow_table,
 			     struct flow_offload *flow)
@@ -354,7 +384,7 @@ void flow_offload_teardown(struct flow_offload *flow)
 {
 	clear_bit(IPS_OFFLOAD_BIT, &flow->ct->status);
 	set_bit(NF_FLOW_TEARDOWN, &flow->flags);
-	flow_offload_fixup_ct(flow->ct);
+	flow_offload_fixup_ct(flow);
 }
 EXPORT_SYMBOL_GPL(flow_offload_teardown);
 
@@ -542,6 +572,10 @@ static void nf_flow_offload_gc_step(struct nf_flowtable *flow_table,
 		} else {
 			flow_offload_del(flow_table, flow);
 		}
+	} else if (test_bit(NF_FLOW_CLOSING, &flow->flags) &&
+		   test_bit(NF_FLOW_HW, &flow->flags) &&
+		   !test_bit(NF_FLOW_HW_DYING, &flow->flags)) {
+		nf_flow_offload_del(flow_table, flow);
 	} else if (test_bit(NF_FLOW_HW, &flow->flags)) {
 		nf_flow_offload_stats(flow_table, flow);
 	}
