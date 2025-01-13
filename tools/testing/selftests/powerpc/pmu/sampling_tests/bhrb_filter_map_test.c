@@ -83,13 +83,16 @@ static int bhrb_filter_map_test(void)
 	 * using PVR will work correctly for all cases including generic
 	 * compat mode.
 	 */
-	if (PVR_VER(mfspr(SPRN_PVR)) == POWER10) {
+	switch (PVR_VER(mfspr(SPRN_PVR))) {
+	case POWER11:
+	case POWER10:
 		for (i = 0; i < ARRAY_SIZE(bhrb_filter_map_valid_p10); i++) {
 			event.attr.branch_sample_type = bhrb_filter_map_valid_p10[i];
 			FAIL_IF(event_open(&event));
 			event_close(&event);
 		}
-	} else {
+		break;
+	default:
 		for (i = 0; i < ARRAY_SIZE(bhrb_filter_map_valid_p10); i++) {
 			event.attr.branch_sample_type = bhrb_filter_map_valid_p10[i];
 			FAIL_IF(!event_open(&event));
