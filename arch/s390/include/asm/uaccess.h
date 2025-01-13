@@ -341,108 +341,74 @@ static inline void *s390_kernel_write(void *dst, const void *src, size_t size)
 	return __s390_kernel_write(dst, src, size);
 }
 
-int __noreturn __put_kernel_bad(void);
+void __noreturn __mvc_kernel_nofault_bad(void);
 
-#define __put_kernel_asm(val, to, insn)					\
-({									\
-	int __rc;							\
-									\
-	asm volatile(							\
-		"0:   " insn "  %[_val],%[_to]\n"			\
-		"1:	xr	%[rc],%[rc]\n"				\
-		"2:\n"							\
-		EX_TABLE_UA_FAULT(0b, 2b, %[rc])			\
-		EX_TABLE_UA_FAULT(1b, 2b, %[rc])			\
-		: [rc] "=d" (__rc), [_to] "+Q" (*(to))			\
-		: [_val] "d" (val)					\
-		: "cc");						\
-	__rc;								\
-})
+#ifdef CONFIG_CC_HAS_ASM_AOR_FORMAT_FLAGS
 
-#define __put_kernel_nofault(dst, src, type, err_label)			\
+#define __mvc_kernel_nofault(dst, src, type, err_label)			\
 do {									\
-	unsigned long __x = (unsigned long)(*((type *)(src)));		\
-	int __pk_err;							\
+	int __rc;							\
 									\
 	switch (sizeof(type)) {						\
 	case 1:								\
-		__pk_err = __put_kernel_asm(__x, (type *)(dst), "stc"); \
-		break;							\
 	case 2:								\
-		__pk_err = __put_kernel_asm(__x, (type *)(dst), "sth"); \
-		break;							\
 	case 4:								\
-		__pk_err = __put_kernel_asm(__x, (type *)(dst), "st");	\
-		break;							\
 	case 8:								\
-		__pk_err = __put_kernel_asm(__x, (type *)(dst), "stg"); \
+		asm_inline volatile(					\
+			"0:	mvc	%O[_dst](%[_len],%R[_dst]),%[_src]\n" \
+			"1:	lhi	%[_rc],0\n"			\
+			"2:\n"						\
+			EX_TABLE_UA_FAULT(0b, 2b, %[_rc])		\
+			EX_TABLE_UA_FAULT(1b, 2b, %[_rc])		\
+			: [_rc] "=d" (__rc),				\
+			  [_dst] "=Q" (*(type *)dst)			\
+			: [_src] "Q" (*(type *)(src)),			\
+			  [_len] "I" (sizeof(type)));			\
+		if (__rc)						\
+			goto err_label;					\
 		break;							\
 	default:							\
-		__pk_err = __put_kernel_bad();				\
+		__mvc_kernel_nofault_bad();				\
 		break;							\
 	}								\
-	if (unlikely(__pk_err))						\
-		goto err_label;						\
 } while (0)
 
-int __noreturn __get_kernel_bad(void);
+#else /* CONFIG_CC_HAS_ASM_AOR_FORMAT_FLAGS */
 
-#define __get_kernel_asm(val, from, insn)				\
-({									\
+#define __mvc_kernel_nofault(dst, src, type, err_label)			\
+do {									\
+	type *(__dst) = (type *)(dst);					\
 	int __rc;							\
 									\
-	asm volatile(							\
-		"0:   " insn "  %[_val],%[_from]\n"			\
-		"1:	xr	%[rc],%[rc]\n"				\
-		"2:\n"							\
-		EX_TABLE_UA_LOAD_REG(0b, 2b, %[rc], %[_val])		\
-		EX_TABLE_UA_LOAD_REG(1b, 2b, %[rc], %[_val])		\
-		: [rc] "=d" (__rc), [_val] "=d" (val)			\
-		: [_from] "Q" (*(from))					\
-		: "cc");						\
-	__rc;								\
-})
-
-#define __get_kernel_nofault(dst, src, type, err_label)			\
-do {									\
-	int __gk_err;							\
-									\
 	switch (sizeof(type)) {						\
-	case 1: {							\
-		unsigned char __x;					\
-									\
-		__gk_err = __get_kernel_asm(__x, (type *)(src), "ic");	\
-		*((type *)(dst)) = (type)__x;				\
+	case 1:								\
+	case 2:								\
+	case 4:								\
+	case 8:								\
+		asm_inline volatile(					\
+			"0:	mvc	0(%[_len],%[_dst]),%[_src]\n"	\
+			"1:	lhi	%[_rc],0\n"			\
+			"2:\n"						\
+			EX_TABLE_UA_FAULT(0b, 2b, %[_rc])		\
+			EX_TABLE_UA_FAULT(1b, 2b, %[_rc])		\
+			: [_rc] "=d" (__rc),				\
+			  "=m" (*__dst)					\
+			: [_src] "Q" (*(type *)(src)),			\
+			[_dst] "a" (__dst),				\
+			[_len] "I" (sizeof(type)));			\
+		if (__rc)						\
+			goto err_label;					\
 		break;							\
-	};								\
-	case 2: {							\
-		unsigned short __x;					\
-									\
-		__gk_err = __get_kernel_asm(__x, (type *)(src), "lh");	\
-		*((type *)(dst)) = (type)__x;				\
-		break;							\
-	};								\
-	case 4: {							\
-		unsigned int __x;					\
-									\
-		__gk_err = __get_kernel_asm(__x, (type *)(src), "l");	\
-		*((type *)(dst)) = (type)__x;				\
-		break;							\
-	};								\
-	case 8: {							\
-		unsigned long __x;					\
-									\
-		__gk_err = __get_kernel_asm(__x, (type *)(src), "lg");	\
-		*((type *)(dst)) = (type)__x;				\
-		break;							\
-	};								\
 	default:							\
-		__gk_err = __get_kernel_bad();				\
+		__mvc_kernel_nofault_bad();				\
 		break;							\
 	}								\
-	if (unlikely(__gk_err))						\
-		goto err_label;						\
 } while (0)
+
+#endif /* CONFIG_CC_HAS_ASM_AOR_FORMAT_FLAGS */
+
+#define __get_kernel_nofault __mvc_kernel_nofault
+#define __put_kernel_nofault __mvc_kernel_nofault
 
 void __cmpxchg_user_key_called_with_bad_pointer(void);
 
