@@ -3290,7 +3290,7 @@ static void __split_huge_page(struct page *page, struct list_head *list,
 	/* lock lru list/PageCompound, ref frozen by page_ref_freeze */
 	lruvec = folio_lruvec_lock(folio);
 
-	ClearPageHasHWPoisoned(head);
+	folio_clear_has_hwpoisoned(folio);
 
 	for (i = nr - new_nr; i >= new_nr; i -= new_nr) {
 		struct folio *tail;
