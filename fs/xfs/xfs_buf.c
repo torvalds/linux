@@ -1604,12 +1604,6 @@ _xfs_buf_ioapply(
 	int		size;
 	int		i;
 
-	/*
-	 * Make sure we capture only current IO errors rather than stale errors
-	 * left over from previous use of the buffer (e.g. failed readahead).
-	 */
-	bp->b_error = 0;
-
 	if (bp->b_flags & XBF_WRITE) {
 		op = REQ_OP_WRITE;
 	} else {
@@ -1620,10 +1614,6 @@ _xfs_buf_ioapply(
 
 	/* we only use the buffer cache for meta-data */
 	op |= REQ_META;
-
-	/* in-memory targets are directly mapped, no IO required. */
-	if (xfs_buftarg_is_mem(bp->b_target))
-		return;
 
 	/*
 	 * Walk all the vectors issuing IO on them. Set up the initial offset
@@ -1734,7 +1724,11 @@ xfs_buf_submit(
 	if (bp->b_flags & XBF_WRITE)
 		xfs_buf_wait_unpin(bp);
 
-	/* clear the internal error state to avoid spurious errors */
+	/*
+	 * Make sure we capture only current IO errors rather than stale errors
+	 * left over from previous use of the buffer (e.g. failed readahead).
+	 */
+	bp->b_error = 0;
 	bp->b_io_error = 0;
 
 	/*
@@ -1750,6 +1744,10 @@ xfs_buf_submit(
 		xfs_force_shutdown(bp->b_mount, SHUTDOWN_CORRUPT_INCORE);
 		goto done;
 	}
+
+	/* In-memory targets are directly mapped, no I/O required. */
+	if (xfs_buftarg_is_mem(bp->b_target))
+		goto done;
 
 	_xfs_buf_ioapply(bp);
 
