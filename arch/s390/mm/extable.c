@@ -36,18 +36,6 @@ static bool ex_handler_ua_fault(const struct exception_table_entry *ex, struct p
 	return true;
 }
 
-static bool ex_handler_ua_load_mem(const struct exception_table_entry *ex, struct pt_regs *regs)
-{
-	unsigned int reg_addr = FIELD_GET(EX_DATA_REG_ADDR, ex->data);
-	unsigned int reg_err = FIELD_GET(EX_DATA_REG_ERR, ex->data);
-	size_t len = FIELD_GET(EX_DATA_LEN, ex->data);
-
-	regs->gprs[reg_err] = -EFAULT;
-	memset((void *)regs->gprs[reg_addr], 0, len);
-	regs->psw.addr = extable_fixup(ex);
-	return true;
-}
-
 static bool ex_handler_ua_load_reg(const struct exception_table_entry *ex,
 				   bool pair, struct pt_regs *regs)
 {
@@ -99,8 +87,6 @@ bool fixup_exception(struct pt_regs *regs)
 		return ex_handler_bpf(ex, regs);
 	case EX_TYPE_UA_FAULT:
 		return ex_handler_ua_fault(ex, regs);
-	case EX_TYPE_UA_LOAD_MEM:
-		return ex_handler_ua_load_mem(ex, regs);
 	case EX_TYPE_UA_LOAD_REG:
 		return ex_handler_ua_load_reg(ex, false, regs);
 	case EX_TYPE_UA_LOAD_REGPAIR:

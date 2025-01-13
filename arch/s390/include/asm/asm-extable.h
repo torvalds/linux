@@ -10,7 +10,6 @@
 #define EX_TYPE_FIXUP		1
 #define EX_TYPE_BPF		2
 #define EX_TYPE_UA_FAULT	3
-#define EX_TYPE_UA_LOAD_MEM	4
 #define EX_TYPE_UA_LOAD_REG	5
 #define EX_TYPE_UA_LOAD_REGPAIR	6
 #define EX_TYPE_ZEROPAD		7
@@ -72,9 +71,6 @@
 
 #define EX_TABLE_UA_FAULT(_fault, _target, _regerr)			\
 	__EX_TABLE(__ex_table, _fault, _target, EX_TYPE_UA_FAULT, _regerr, _regerr, 0)
-
-#define EX_TABLE_UA_LOAD_MEM(_fault, _target, _regerr, _regmem, _len)	\
-	__EX_TABLE(__ex_table, _fault, _target, EX_TYPE_UA_LOAD_MEM, _regerr, _regmem, _len)
 
 #define EX_TABLE_UA_LOAD_REG(_fault, _target, _regerr, _regzero)	\
 	__EX_TABLE(__ex_table, _fault, _target, EX_TYPE_UA_LOAD_REG, _regerr, _regzero, 0)

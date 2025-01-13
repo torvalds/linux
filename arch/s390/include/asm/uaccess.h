@@ -184,16 +184,18 @@ __get_user_##type##_noinstr(unsigned type *to,				\
 									\
 	asm volatile(							\
 		"	lr	%%r0,%[spec]\n"				\
-		"0:	mvcos	0(%[to]),%[from],%[size]\n"		\
+		"0:	mvcos	%[to],%[from],%[size]\n"		\
 		"1:	lhi	%[rc],0\n"				\
 		"2:\n"							\
-		EX_TABLE_UA_LOAD_MEM(0b, 2b, %[rc], %[to], %[ksize])	\
-		EX_TABLE_UA_LOAD_MEM(1b, 2b, %[rc], %[to], %[ksize])	\
-		: [rc] "=d" (rc), "=Q" (*to)				\
+		EX_TABLE_UA_FAULT(0b, 2b, %[rc])			\
+		EX_TABLE_UA_FAULT(1b, 2b, %[rc])			\
+		: [rc] "=d" (rc), [to] "=Q" (*to)			\
 		: [size] "d" (size), [from] "Q" (*from),		\
-		  [spec] "d" (__oac_spec.val), [to] "a" (to),		\
-		  [ksize] "K" (size)					\
+		  [spec] "d" (__oac_spec.val)				\
 		: "cc", "0");						\
+	if (likely(!rc))						\
+		return 0;						\
+	*to = 0;							\
 	return rc;							\
 }									\
 									\
