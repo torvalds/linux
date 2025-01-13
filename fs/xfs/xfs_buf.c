@@ -2384,14 +2384,9 @@ xfs_buf_delwri_submit(
  * Push a single buffer on a delwri queue.
  *
  * The purpose of this function is to submit a single buffer of a delwri queue
- * and return with the buffer still on the original queue. The waiting delwri
- * buffer submission infrastructure guarantees transfer of the delwri queue
- * buffer reference to a temporary wait list. We reuse this infrastructure to
- * transfer the buffer back to the original queue.
+ * and return with the buffer still on the original queue.
  *
- * Note the buffer transitions from the queued state, to the submitted and wait
- * listed state and back to the queued state during this call. The buffer
- * locking and queue management logic between _delwri_pushbuf() and
+ * The buffer locking and queue management logic between _delwri_pushbuf() and
  * _delwri_queue() guarantee that the buffer cannot be queued to another list
  * before returning.
  */
@@ -2400,33 +2395,21 @@ xfs_buf_delwri_pushbuf(
 	struct xfs_buf		*bp,
 	struct list_head	*buffer_list)
 {
-	LIST_HEAD		(submit_list);
 	int			error;
 
 	ASSERT(bp->b_flags & _XBF_DELWRI_Q);
 
 	trace_xfs_buf_delwri_pushbuf(bp, _RET_IP_);
 
-	/*
-	 * Isolate the buffer to a new local list so we can submit it for I/O
-	 * independently from the rest of the original list.
-	 */
 	xfs_buf_lock(bp);
-	list_move(&bp->b_list, &submit_list);
-	xfs_buf_unlock(bp);
+	bp->b_flags &= ~(_XBF_DELWRI_Q | XBF_ASYNC);
+	bp->b_flags |= XBF_WRITE;
+	xfs_buf_submit(bp);
 
 	/*
-	 * Delwri submission clears the DELWRI_Q buffer flag and returns with
-	 * the buffer on the wait list with the original reference. Rather than
-	 * bounce the buffer from a local wait list back to the original list
-	 * after I/O completion, reuse the original list as the wait list.
-	 */
-	xfs_buf_delwri_submit_buffers(&submit_list, buffer_list);
-
-	/*
-	 * The buffer is now locked, under I/O and wait listed on the original
-	 * delwri queue. Wait for I/O completion, restore the DELWRI_Q flag and
-	 * return with the buffer unlocked and on the original queue.
+	 * The buffer is now locked, under I/O but still on the original delwri
+	 * queue. Wait for I/O completion, restore the DELWRI_Q flag and
+	 * return with the buffer unlocked and still on the original queue.
 	 */
 	error = xfs_buf_iowait(bp);
 	bp->b_flags |= _XBF_DELWRI_Q;
