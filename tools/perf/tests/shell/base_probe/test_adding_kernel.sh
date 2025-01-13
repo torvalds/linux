@@ -1,5 +1,5 @@
 #!/bin/bash
-# Add 'perf probe's, list and remove them
+# perf_probe :: Add probes, list and remove them (exclusive)
 # SPDX-License-Identifier: GPL-2.0
 
 #

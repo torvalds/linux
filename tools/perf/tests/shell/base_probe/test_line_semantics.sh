@@ -1,5 +1,5 @@
 #!/bin/bash
-
+# perf_probe :: Check patterns for line semantics (exclusive)
 # SPDX-License-Identifier: GPL-2.0
 
 #

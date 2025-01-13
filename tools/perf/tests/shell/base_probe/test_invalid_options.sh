@@ -1,5 +1,5 @@
 #!/bin/bash
-
+# perf_probe :: Reject invalid options (exclusive)
 # SPDX-License-Identifier: GPL-2.0
 
 #
