@@ -2682,7 +2682,8 @@ qualifier:
 		p = lookup_state + *fmt.str;
 	}
 	if (p->state) {
-		spec->base = p->base;
+		if (p->base)
+			spec->base = p->base;
 		spec->flags |= p->flags_or_double_size;
 		fmt.state = p->state;
 		fmt.str++;
