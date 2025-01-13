@@ -99,14 +99,14 @@ __put_user_##type##_noinstr(unsigned type __user *to,			\
 	int rc;								\
 									\
 	asm volatile(							\
-		"	lr	0,%[spec]\n"				\
-		"0:	mvcos	%[_to],%[_from],%[_size]\n"		\
-		"1:	xr	%[rc],%[rc]\n"				\
+		"	lr	%%r0,%[spec]\n"				\
+		"0:	mvcos	%[to],%[from],%[size]\n"		\
+		"1:	lhi	%[rc],0\n"				\
 		"2:\n"							\
 		EX_TABLE_UA_FAULT(0b, 2b, %[rc])			\
 		EX_TABLE_UA_FAULT(1b, 2b, %[rc])			\
-		: [rc] "=&d" (rc), [_to] "+Q" (*(to))			\
-		: [_size] "d" (size), [_from] "Q" (*(from)),		\
+		: [rc] "=d" (rc), [to] "+Q" (*to)			\
+		: [size] "d" (size), [from] "Q" (*from),		\
 		  [spec] "d" (__oac_spec.val)				\
 		: "cc", "0");						\
 	return rc;							\
@@ -183,16 +183,16 @@ __get_user_##type##_noinstr(unsigned type *to,				\
 	int rc;								\
 									\
 	asm volatile(							\
-		"	lr	0,%[spec]\n"				\
-		"0:	mvcos	0(%[_to]),%[_from],%[_size]\n"		\
-		"1:	xr	%[rc],%[rc]\n"				\
+		"	lr	%%r0,%[spec]\n"				\
+		"0:	mvcos	0(%[to]),%[from],%[size]\n"		\
+		"1:	lhi	%[rc],0\n"				\
 		"2:\n"							\
-		EX_TABLE_UA_LOAD_MEM(0b, 2b, %[rc], %[_to], %[_ksize])	\
-		EX_TABLE_UA_LOAD_MEM(1b, 2b, %[rc], %[_to], %[_ksize])	\
-		: [rc] "=&d" (rc), "=Q" (*(to))				\
-		: [_size] "d" (size), [_from] "Q" (*(from)),		\
-		  [spec] "d" (__oac_spec.val), [_to] "a" (to),		\
-		  [_ksize] "K" (size)					\
+		EX_TABLE_UA_LOAD_MEM(0b, 2b, %[rc], %[to], %[ksize])	\
+		EX_TABLE_UA_LOAD_MEM(1b, 2b, %[rc], %[to], %[ksize])	\
+		: [rc] "=d" (rc), "=Q" (*to)				\
+		: [size] "d" (size), [from] "Q" (*from),		\
+		  [spec] "d" (__oac_spec.val), [to] "a" (to),		\
+		  [ksize] "K" (size)					\
 		: "cc", "0");						\
 	return rc;							\
 }									\
