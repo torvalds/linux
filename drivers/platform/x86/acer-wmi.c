@@ -2044,76 +2044,36 @@ static int acer_platform_profile_setup(struct platform_device *device)
 static int acer_thermal_profile_change(void)
 {
 	/*
-	 * This mode key can rotate each mode or toggle turbo mode.
-	 * On battery, only ECO and BALANCED mode are available.
+	 * This mode key will either cycle through each mode or toggle the turbo profile.
 	 */
 	if (quirks->predator_v4) {
 		u8 current_tp;
-		int tp, err;
-		u64 on_AC;
+		int err, tp;
 
-		err = WMID_gaming_get_misc_setting(ACER_WMID_MISC_SETTING_PLATFORM_PROFILE,
-						   &current_tp);
-		if (err)
-			return err;
+		if (cycle_gaming_thermal_profile) {
+			platform_profile_cycle();
+		} else {
+			err = WMID_gaming_get_misc_setting(
+				ACER_WMID_MISC_SETTING_PLATFORM_PROFILE, &current_tp);
+			if (err)
+				return err;
 
-		/* Check power source */
-		err = WMID_gaming_get_sys_info(ACER_WMID_CMD_GET_PREDATOR_V4_BAT_STATUS, &on_AC);
-		if (err < 0)
-			return err;
-
-		switch (current_tp) {
-		case ACER_PREDATOR_V4_THERMAL_PROFILE_TURBO:
-			if (!on_AC)
-				tp = ACER_PREDATOR_V4_THERMAL_PROFILE_BALANCED;
-			else if (cycle_gaming_thermal_profile)
-				tp = ACER_PREDATOR_V4_THERMAL_PROFILE_ECO;
-			else
+			if (current_tp == ACER_PREDATOR_V4_THERMAL_PROFILE_TURBO)
 				tp = last_non_turbo_profile;
-			break;
-		case ACER_PREDATOR_V4_THERMAL_PROFILE_PERFORMANCE:
-			if (!on_AC)
-				tp = ACER_PREDATOR_V4_THERMAL_PROFILE_BALANCED;
 			else
 				tp = ACER_PREDATOR_V4_THERMAL_PROFILE_TURBO;
-			break;
-		case ACER_PREDATOR_V4_THERMAL_PROFILE_BALANCED:
-			if (!on_AC)
-				tp = ACER_PREDATOR_V4_THERMAL_PROFILE_ECO;
-			else if (cycle_gaming_thermal_profile)
-				tp = ACER_PREDATOR_V4_THERMAL_PROFILE_PERFORMANCE;
-			else
-				tp = ACER_PREDATOR_V4_THERMAL_PROFILE_TURBO;
-			break;
-		case ACER_PREDATOR_V4_THERMAL_PROFILE_QUIET:
-			if (!on_AC)
-				tp = ACER_PREDATOR_V4_THERMAL_PROFILE_BALANCED;
-			else if (cycle_gaming_thermal_profile)
-				tp = ACER_PREDATOR_V4_THERMAL_PROFILE_BALANCED;
-			else
-				tp = ACER_PREDATOR_V4_THERMAL_PROFILE_TURBO;
-			break;
-		case ACER_PREDATOR_V4_THERMAL_PROFILE_ECO:
-			if (!on_AC)
-				tp = ACER_PREDATOR_V4_THERMAL_PROFILE_BALANCED;
-			else if (cycle_gaming_thermal_profile)
-				tp = ACER_PREDATOR_V4_THERMAL_PROFILE_QUIET;
-			else
-				tp = ACER_PREDATOR_V4_THERMAL_PROFILE_TURBO;
-			break;
-		default:
-			return -EOPNOTSUPP;
+
+			err = WMID_gaming_set_misc_setting(
+				ACER_WMID_MISC_SETTING_PLATFORM_PROFILE, tp);
+			if (err)
+				return err;
+
+			/* Store last profile for toggle */
+			if (current_tp != ACER_PREDATOR_V4_THERMAL_PROFILE_TURBO)
+				last_non_turbo_profile = current_tp;
+
+			platform_profile_notify(&platform_profile_handler);
 		}
-
-		err = WMID_gaming_set_misc_setting(ACER_WMID_MISC_SETTING_PLATFORM_PROFILE, tp);
-		if (err)
-			return err;
-
-		/* Store non-turbo profile for turbo mode toggle*/
-		if (tp != ACER_PREDATOR_V4_THERMAL_PROFILE_TURBO)
-			last_non_turbo_profile = tp;
-
-		platform_profile_notify(&platform_profile_handler);
 	}
 
 	return 0;
