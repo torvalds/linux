@@ -306,7 +306,7 @@ struct swap_info_struct {
 					/* list of cluster that are fragmented or contented */
 	unsigned int frag_cluster_nr[SWAP_NR_ORDERS];
 	unsigned int pages;		/* total of usable pages of swap */
-	unsigned int inuse_pages;	/* number of those currently in use */
+	atomic_long_t inuse_pages;	/* number of those currently in use */
 	struct percpu_cluster __percpu *percpu_cluster; /* per cpu's swap location */
 	struct rb_root swap_extent_root;/* root of the swap extent rbtree */
 	struct block_device *bdev;	/* swap device or bdev of swap file */
