@@ -1375,22 +1375,6 @@ out:
 	return NULL;
 }
 
-static struct swap_info_struct *swap_info_get_cont(swp_entry_t entry,
-					struct swap_info_struct *q)
-{
-	struct swap_info_struct *p;
-
-	p = _swap_info_get(entry);
-
-	if (p != q) {
-		if (q != NULL)
-			spin_unlock(&q->lock);
-		if (p != NULL)
-			spin_lock(&p->lock);
-	}
-	return p;
-}
-
 static unsigned char __swap_entry_free_locked(struct swap_info_struct *si,
 					      unsigned long offset,
 					      unsigned char usage)
@@ -1687,14 +1671,14 @@ static int swp_entry_cmp(const void *ent1, const void *ent2)
 
 void swapcache_free_entries(swp_entry_t *entries, int n)
 {
-	struct swap_info_struct *p, *prev;
+	struct swap_info_struct *si, *prev;
 	int i;
 
 	if (n <= 0)
 		return;
 
 	prev = NULL;
-	p = NULL;
+	si = NULL;
 
 	/*
 	 * Sort swap entries by swap device, so each lock is only taken once.
@@ -1704,13 +1688,20 @@ void swapcache_free_entries(swp_entry_t *entries, int n)
 	if (nr_swapfiles > 1)
 		sort(entries, n, sizeof(entries[0]), swp_entry_cmp, NULL);
 	for (i = 0; i < n; ++i) {
-		p = swap_info_get_cont(entries[i], prev);
-		if (p)
-			swap_entry_range_free(p, entries[i], 1);
-		prev = p;
+		si = _swap_info_get(entries[i]);
+
+		if (si != prev) {
+			if (prev != NULL)
+				spin_unlock(&prev->lock);
+			if (si != NULL)
+				spin_lock(&si->lock);
+		}
+		if (si)
+			swap_entry_range_free(si, entries[i], 1);
+		prev = si;
 	}
-	if (p)
-		spin_unlock(&p->lock);
+	if (si)
+		spin_unlock(&si->lock);
 }
 
 int __swap_count(swp_entry_t entry)
