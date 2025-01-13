@@ -168,7 +168,7 @@ bool make_spte(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 
 	if (sp->role.ad_disabled)
 		spte |= SPTE_TDP_AD_DISABLED;
-	else if (kvm_mmu_page_ad_need_write_protect(sp))
+	else if (kvm_mmu_page_ad_need_write_protect(vcpu->kvm, sp))
 		spte |= SPTE_TDP_AD_WRPROT_ONLY;
 
 	spte |= shadow_present_mask;

@@ -187,7 +187,8 @@ static inline gfn_t kvm_gfn_root_bits(const struct kvm *kvm, const struct kvm_mm
 	return kvm_gfn_direct_bits(kvm);
 }
 
-static inline bool kvm_mmu_page_ad_need_write_protect(struct kvm_mmu_page *sp)
+static inline bool kvm_mmu_page_ad_need_write_protect(struct kvm *kvm,
+						      struct kvm_mmu_page *sp)
 {
 	/*
 	 * When using the EPT page-modification log, the GPAs in the CPU dirty
