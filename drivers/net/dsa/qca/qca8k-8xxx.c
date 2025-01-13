@@ -1491,7 +1491,7 @@ static struct qca8k_pcs *pcs_to_qca8k_pcs(struct phylink_pcs *pcs)
 	return container_of(pcs, struct qca8k_pcs, pcs);
 }
 
-static void qca8k_pcs_get_state(struct phylink_pcs *pcs,
+static void qca8k_pcs_get_state(struct phylink_pcs *pcs, unsigned int neg_mode,
 				struct phylink_link_state *state)
 {
 	struct qca8k_priv *priv = pcs_to_qca8k_pcs(pcs)->priv;
