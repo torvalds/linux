@@ -85,6 +85,11 @@ struct csiphy_subdev_resources {
 	const struct csiphy_formats *formats;
 };
 
+struct csiphy_device_regs {
+	const struct csiphy_lane_regs *lane_regs;
+	int lane_array_size;
+};
+
 struct csiphy_device {
 	struct camss *camss;
 	u8 id;
@@ -103,6 +108,7 @@ struct csiphy_device {
 	struct csiphy_config cfg;
 	struct v4l2_mbus_framefmt fmt[MSM_CSIPHY_PADS_NUM];
 	const struct csiphy_subdev_resources *res;
+	struct csiphy_device_regs *regs;
 };
 
 struct camss_subdev_resources;
