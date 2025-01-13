@@ -2782,8 +2782,7 @@ static int stmmac_tx_clean(struct stmmac_priv *priv, int budget, u32 queue,
 			xmits = budget;
 	}
 
-	if (priv->eee_enabled && !priv->tx_path_in_lpi_mode &&
-	    priv->eee_sw_timer_en) {
+	if (priv->eee_sw_timer_en && !priv->tx_path_in_lpi_mode) {
 		if (stmmac_enable_eee_mode(priv))
 			mod_timer(&priv->eee_ctrl_timer, STMMAC_LPI_T(priv->tx_lpi_timer));
 	}
