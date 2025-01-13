@@ -604,23 +604,28 @@ static bool cluster_reclaim_range(struct swap_info_struct *si,
 				  unsigned long start, unsigned long end)
 {
 	unsigned char *map = si->swap_map;
-	unsigned long offset;
+	unsigned long offset = start;
+	int nr_reclaim;
 
 	spin_unlock(&ci->lock);
 	spin_unlock(&si->lock);
 
-	for (offset = start; offset < end; offset++) {
+	do {
 		switch (READ_ONCE(map[offset])) {
 		case 0:
-			continue;
+			offset++;
+			break;
 		case SWAP_HAS_CACHE:
-			if (__try_to_reclaim_swap(si, offset, TTRS_ANYWAY | TTRS_DIRECT) > 0)
-				continue;
-			goto out;
+			nr_reclaim = __try_to_reclaim_swap(si, offset, TTRS_ANYWAY | TTRS_DIRECT);
+			if (nr_reclaim > 0)
+				offset += nr_reclaim;
+			else
+				goto out;
+			break;
 		default:
 			goto out;
 		}
-	}
+	} while (offset < end);
 out:
 	spin_lock(&si->lock);
 	spin_lock(&ci->lock);
@@ -838,34 +843,29 @@ new_cluster:
 							 &found, order, usage);
 			frags++;
 			if (found)
-				break;
+				goto done;
 		}
 
-		if (!found) {
+		/*
+		 * Nonfull clusters are moved to frag tail if we reached
+		 * here, count them too, don't over scan the frag list.
+		 */
+		while (frags < si->frag_cluster_nr[order]) {
+			ci = list_first_entry(&si->frag_clusters[order],
+					      struct swap_cluster_info, list);
 			/*
-			 * Nonfull clusters are moved to frag tail if we reached
-			 * here, count them too, don't over scan the frag list.
+			 * Rotate the frag list to iterate, they were all failing
+			 * high order allocation or moved here due to per-CPU usage,
+			 * this help keeping usable cluster ahead.
 			 */
-			while (frags < si->frag_cluster_nr[order]) {
-				ci = list_first_entry(&si->frag_clusters[order],
-						      struct swap_cluster_info, list);
-				/*
-				 * Rotate the frag list to iterate, they were all failing
-				 * high order allocation or moved here due to per-CPU usage,
-				 * this help keeping usable cluster ahead.
-				 */
-				list_move_tail(&ci->list, &si->frag_clusters[order]);
-				offset = alloc_swap_scan_cluster(si, cluster_offset(si, ci),
-								 &found, order, usage);
-				frags++;
-				if (found)
-					break;
-			}
+			list_move_tail(&ci->list, &si->frag_clusters[order]);
+			offset = alloc_swap_scan_cluster(si, cluster_offset(si, ci),
+							 &found, order, usage);
+			frags++;
+			if (found)
+				goto done;
 		}
 	}
-
-	if (found)
-		goto done;
 
 	if (!list_empty(&si->discard_clusters)) {
 		/*
@@ -904,7 +904,6 @@ new_cluster:
 				goto done;
 		}
 	}
-
 done:
 	cluster->next[order] = offset;
 	return found;
