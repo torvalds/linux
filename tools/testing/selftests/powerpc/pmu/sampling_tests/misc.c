@@ -497,6 +497,13 @@ int get_thresh_cmp_val(struct event event)
  * Utility function to check for generic compat PMU
  * by comparing base_platform value from auxv and real
  * PVR value.
+ * auxv_base_platform() func gives information of "base platform"
+ * corresponding to PVR value. Incase, if the distro doesn't
+ * support platform PVR (missing cputable support), base platform
+ * in auxv will have a default value other than the real PVR's.
+ * In this case, ISAv3 PMU (generic compat PMU) will be registered
+ * in the system. auxv_generic_compat_pmu() makes use of the base
+ * platform value from auxv to do this check.
  */
 static bool auxv_generic_compat_pmu(void)
 {
