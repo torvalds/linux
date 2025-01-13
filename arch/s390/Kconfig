@@ -59,6 +59,12 @@ config CC_ASM_FLAG_OUTPUT_BROKEN
 	  compiler error in some configurations if flag output
 	  operands are used within inline assemblies.
 
+config CC_HAS_ASM_AOR_FORMAT_FLAGS
+	def_bool !(CC_IS_CLANG && CLANG_VERSION < 190100)
+	help
+	  Clang versions before 19.1.0 do not support A,
+	  O, and R inline assembly format flags.
+
 config S390
 	def_bool y
 	#
