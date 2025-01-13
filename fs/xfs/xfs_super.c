@@ -850,11 +850,13 @@ xfs_fs_statfs(
 	ifree = percpu_counter_sum(&mp->m_ifree);
 	fdblocks = percpu_counter_sum(&mp->m_fdblocks);
 
-	spin_lock(&mp->m_sb_lock);
 	statp->f_bsize = sbp->sb_blocksize;
 	lsize = sbp->sb_logstart ? sbp->sb_logblocks : 0;
+	/*
+	 * sb_dblocks can change during growfs, but nothing cares about reporting
+	 * the old or new value during growfs.
+	 */
 	statp->f_blocks = sbp->sb_dblocks - lsize;
-	spin_unlock(&mp->m_sb_lock);
 
 	/* make sure statp->f_bfree does not underflow */
 	statp->f_bfree = max_t(int64_t, 0,
