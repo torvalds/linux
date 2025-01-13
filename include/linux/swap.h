@@ -274,9 +274,9 @@ enum swap_cluster_flags {
  * The first page in the swap file is the swap header, which is always marked
  * bad to prevent it from being allocated as an entry. This also prevents the
  * cluster to which it belongs being marked free. Therefore 0 is safe to use as
- * a sentinel to indicate next is not valid in percpu_cluster.
+ * a sentinel to indicate an entry is not valid.
  */
-#define SWAP_NEXT_INVALID	0
+#define SWAP_ENTRY_INVALID	0
 
 #ifdef CONFIG_THP_SWAP
 #define SWAP_NR_ORDERS		(PMD_ORDER + 1)

@@ -765,23 +765,23 @@ static bool cluster_alloc_range(struct swap_info_struct *si, struct swap_cluster
 	return true;
 }
 
-static unsigned int alloc_swap_scan_cluster(struct swap_info_struct *si, unsigned long offset,
-					    unsigned int *foundp, unsigned int order,
+/* Try use a new cluster for current CPU and allocate from it. */
+static unsigned int alloc_swap_scan_cluster(struct swap_info_struct *si,
+					    struct swap_cluster_info *ci,
+					    unsigned long offset,
+					    unsigned int order,
 					    unsigned char usage)
 {
-	unsigned long start = offset & ~(SWAPFILE_CLUSTER - 1);
+	unsigned int next = SWAP_ENTRY_INVALID, found = SWAP_ENTRY_INVALID;
+	unsigned long start = ALIGN_DOWN(offset, SWAPFILE_CLUSTER);
 	unsigned long end = min(start + SWAPFILE_CLUSTER, si->max);
 	unsigned int nr_pages = 1 << order;
 	bool need_reclaim, ret;
-	struct swap_cluster_info *ci;
 
-	ci = &si->cluster_info[offset / SWAPFILE_CLUSTER];
 	lockdep_assert_held(&ci->lock);
 
-	if (end < nr_pages || ci->count + nr_pages > SWAPFILE_CLUSTER) {
-		offset = SWAP_NEXT_INVALID;
+	if (end < nr_pages || ci->count + nr_pages > SWAPFILE_CLUSTER)
 		goto out;
-	}
 
 	for (end -= nr_pages; offset <= end; offset += nr_pages) {
 		need_reclaim = false;
@@ -795,34 +795,27 @@ static unsigned int alloc_swap_scan_cluster(struct swap_info_struct *si, unsigne
 			 * cluster has no flag set, and change of list
 			 * won't cause fragmentation.
 			 */
-			if (!cluster_is_usable(ci, order)) {
-				offset = SWAP_NEXT_INVALID;
+			if (!cluster_is_usable(ci, order))
 				goto out;
-			}
 			if (cluster_is_empty(ci))
 				offset = start;
 			/* Reclaim failed but cluster is usable, try next */
 			if (!ret)
 				continue;
 		}
-		if (!cluster_alloc_range(si, ci, offset, usage, order)) {
-			offset = SWAP_NEXT_INVALID;
-			goto out;
-		}
-		*foundp = offset;
-		if (ci->count == SWAPFILE_CLUSTER) {
-			offset = SWAP_NEXT_INVALID;
-			goto out;
-		}
+		if (!cluster_alloc_range(si, ci, offset, usage, order))
+			break;
+		found = offset;
 		offset += nr_pages;
+		if (ci->count < SWAPFILE_CLUSTER && offset <= end)
+			next = offset;
 		break;
 	}
-	if (offset > end)
-		offset = SWAP_NEXT_INVALID;
 out:
 	relocate_cluster(si, ci);
 	unlock_cluster(ci);
-	return offset;
+	__this_cpu_write(si->percpu_cluster->next[order], next);
+	return found;
 }
 
 /* Return true if reclaimed a whole cluster */
@@ -891,8 +884,8 @@ static unsigned long cluster_alloc_swap_entry(struct swap_info_struct *si, int o
 		if (cluster_is_usable(ci, order)) {
 			if (cluster_is_empty(ci))
 				offset = cluster_offset(si, ci);
-			offset = alloc_swap_scan_cluster(si, offset, &found,
-							 order, usage);
+			found = alloc_swap_scan_cluster(si, ci, offset,
+							order, usage);
 		} else {
 			unlock_cluster(ci);
 		}
@@ -903,8 +896,8 @@ static unsigned long cluster_alloc_swap_entry(struct swap_info_struct *si, int o
 new_cluster:
 	ci = isolate_lock_cluster(si, &si->free_clusters);
 	if (ci) {
-		offset = alloc_swap_scan_cluster(si, cluster_offset(si, ci),
-						 &found, order, usage);
+		found = alloc_swap_scan_cluster(si, ci, cluster_offset(si, ci),
+						order, usage);
 		if (found)
 			goto done;
 	}
@@ -917,8 +910,8 @@ new_cluster:
 		unsigned int frags = 0, frags_existing;
 
 		while ((ci = isolate_lock_cluster(si, &si->nonfull_clusters[order]))) {
-			offset = alloc_swap_scan_cluster(si, cluster_offset(si, ci),
-							 &found, order, usage);
+			found = alloc_swap_scan_cluster(si, ci, cluster_offset(si, ci),
+							order, usage);
 			if (found)
 				goto done;
 			/* Clusters failed to allocate are moved to frag_clusters */
@@ -935,8 +928,8 @@ new_cluster:
 			 * per-CPU usage, but they could contain newly released
 			 * reclaimable (eg. lazy-freed swap cache) slots.
 			 */
-			offset = alloc_swap_scan_cluster(si, cluster_offset(si, ci),
-							 &found, order, usage);
+			found = alloc_swap_scan_cluster(si, ci, cluster_offset(si, ci),
+							order, usage);
 			if (found)
 				goto done;
 			frags++;
@@ -962,21 +955,20 @@ new_cluster:
 		 */
 		while ((ci = isolate_lock_cluster(si, &si->frag_clusters[o]))) {
 			atomic_long_dec(&si->frag_cluster_nr[o]);
-			offset = alloc_swap_scan_cluster(si, cluster_offset(si, ci),
-							 &found, order, usage);
+			found = alloc_swap_scan_cluster(si, ci, cluster_offset(si, ci),
+							0, usage);
 			if (found)
 				goto done;
 		}
 
 		while ((ci = isolate_lock_cluster(si, &si->nonfull_clusters[o]))) {
-			offset = alloc_swap_scan_cluster(si, cluster_offset(si, ci),
-							 &found, order, usage);
+			found = alloc_swap_scan_cluster(si, ci, cluster_offset(si, ci),
+							0, usage);
 			if (found)
 				goto done;
 		}
 	}
 done:
-	__this_cpu_write(si->percpu_cluster->next[order], offset);
 	local_unlock(&si->percpu_cluster->lock);
 
 	return found;
@@ -3200,7 +3192,7 @@ static struct swap_cluster_info *setup_clusters(struct swap_info_struct *si,
 
 		cluster = per_cpu_ptr(si->percpu_cluster, cpu);
 		for (i = 0; i < SWAP_NR_ORDERS; i++)
-			cluster->next[i] = SWAP_NEXT_INVALID;
+			cluster->next[i] = SWAP_ENTRY_INVALID;
 		local_lock_init(&cluster->lock);
 	}
 
