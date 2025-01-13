@@ -2122,9 +2122,19 @@ static void __init start_shepherd_timer(void)
 {
 	int cpu;
 
-	for_each_possible_cpu(cpu)
+	for_each_possible_cpu(cpu) {
 		INIT_DEFERRABLE_WORK(per_cpu_ptr(&vmstat_work, cpu),
 			vmstat_update);
+
+		/*
+		 * For secondary CPUs during CPU hotplug scenarios,
+		 * vmstat_cpu_online() will enable the work.
+		 * mm/vmstat:online enables and disables vmstat_work
+		 * symmetrically during CPU hotplug events.
+		 */
+		if (!cpu_online(cpu))
+			disable_delayed_work_sync(&per_cpu(vmstat_work, cpu));
+	}
 
 	schedule_delayed_work(&shepherd,
 		round_jiffies_relative(sysctl_stat_interval));
@@ -2148,13 +2158,14 @@ static int vmstat_cpu_online(unsigned int cpu)
 	if (!node_state(cpu_to_node(cpu), N_CPU)) {
 		node_set_state(cpu_to_node(cpu), N_CPU);
 	}
+	enable_delayed_work(&per_cpu(vmstat_work, cpu));
 
 	return 0;
 }
 
 static int vmstat_cpu_down_prep(unsigned int cpu)
 {
-	cancel_delayed_work_sync(&per_cpu(vmstat_work, cpu));
+	disable_delayed_work_sync(&per_cpu(vmstat_work, cpu));
 	return 0;
 }
 
