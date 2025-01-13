@@ -51,6 +51,7 @@ MC_TOKEN		([~%^&*+=|<>/-]=)|(&&)|("||")|(->)|(<<)|(>>)
 
 %%
 
+u?int(8|16|32|64)x(1|2|4|8|16)_t	return BUILTIN_INT_KEYW;
 
  /* Keep track of our location in the original source files.  */
 ^#[ \t]+{INT}[ \t]+\"[^\"\n]+\".*\n	return FILENAME;
