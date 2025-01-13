@@ -4,6 +4,7 @@
  * Copyright (c) 2011 Unixphere
  */
 
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/rmi.h>
 #include <linux/of.h>
@@ -26,7 +27,9 @@
  * @tx_buf_size: Size of the buffer
  *
  * @supplies: Array of voltage regulators
+ * @reset_gpio: Reference to the reset GPIO
  * @startup_delay: Milliseconds to pause after powering up the regulators
+ * @reset_delay: Milliseconds to pause after resetting the device
  */
 struct rmi_i2c_xport {
 	struct rmi_transport_dev xport;
@@ -39,7 +42,9 @@ struct rmi_i2c_xport {
 	size_t tx_buf_size;
 
 	struct regulator_bulk_data supplies[2];
+	struct gpio_desc *reset_gpio;
 	u32 startup_delay;
+	u32 reset_delay;
 };
 
 #define RMI_PAGE_SELECT_REGISTER 0xff
@@ -227,6 +232,15 @@ static int rmi_i2c_probe(struct i2c_client *client)
 		return -ENODEV;
 	}
 
+	rmi_i2c->reset_gpio = devm_gpiod_get_optional(&client->dev, "reset",
+						      GPIOD_OUT_HIGH);
+	if (IS_ERR(rmi_i2c->reset_gpio)) {
+		error = PTR_ERR(rmi_i2c->reset_gpio);
+		dev_err(&client->dev, "failed to get reset GPIO: %d\n", error);
+		return error;
+	}
+	gpiod_set_consumer_name(rmi_i2c->reset_gpio, "rmi4 reset");
+
 	rmi_i2c->supplies[0].supply = "vdd";
 	rmi_i2c->supplies[1].supply = "vio";
 	error = devm_regulator_bulk_get(&client->dev,
@@ -250,6 +264,15 @@ static int rmi_i2c_probe(struct i2c_client *client)
 			     &rmi_i2c->startup_delay);
 
 	msleep(rmi_i2c->startup_delay);
+
+	if (rmi_i2c->reset_gpio) {
+		of_property_read_u32(client->dev.of_node, "syna,reset-delay-ms",
+				     &rmi_i2c->reset_delay);
+		gpiod_set_value_cansleep(rmi_i2c->reset_gpio, 1);
+		usleep_range(10000, 20000);
+		gpiod_set_value_cansleep(rmi_i2c->reset_gpio, 0);
+		msleep(rmi_i2c->reset_delay ?: DEFAULT_RESET_DELAY_MS);
+	}
 
 	rmi_i2c->client = client;
 	mutex_init(&rmi_i2c->page_mutex);

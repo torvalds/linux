@@ -30,7 +30,6 @@
 #define RMI4_PAGE_MASK 0xFF00
 
 #define RMI_DEVICE_RESET_CMD	0x01
-#define DEFAULT_RESET_DELAY_MS	100
 
 void rmi_free_function_list(struct rmi_device *rmi_dev)
 {

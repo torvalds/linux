@@ -16,6 +16,8 @@
 #define SYNAPTICS_INPUT_DEVICE_NAME "Synaptics RMI4 Touch Sensor"
 #define SYNAPTICS_VENDOR_ID 0x06cb
 
+#define DEFAULT_RESET_DELAY_MS	100
+
 #define GROUP(_attrs) { \
 	.attrs = _attrs,  \
 }
