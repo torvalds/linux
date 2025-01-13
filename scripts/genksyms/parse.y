@@ -363,35 +363,47 @@ parameter_declaration_list:
 	;
 
 parameter_declaration:
-	decl_specifier_seq abstract_declarator
+	decl_specifier_seq abstract_declarator_opt
 		{ $$ = $2 ? $2 : $1; }
 	;
 
+abstract_declarator_opt:
+	/* empty */				{ $$ = NULL; }
+	| abstract_declarator
+	;
+
 abstract_declarator:
-	ptr_operator abstract_declarator
+	ptr_operator
+	| ptr_operator abstract_declarator
 		{ $$ = $2 ? $2 : $1; }
 	| direct_abstract_declarator
 		{ $$ = $1; dont_want_type_specifier = false; }
 	;
 
 direct_abstract_declarator:
-	/* empty */					{ $$ = NULL; }
-	| IDENT
+	  IDENT
 		{ /* For version 2 checksums, we don't want to remember
 		     private parameter names.  */
 		  remove_node($1);
 		  $$ = $1;
 		}
-	| direct_abstract_declarator '(' parameter_declaration_clause ')'
+	| direct_abstract_declarator open_paren parameter_declaration_clause ')'
 		{ $$ = $4; }
-	| direct_abstract_declarator '(' error ')'
+	| direct_abstract_declarator open_paren error ')'
 		{ $$ = $4; }
 	| direct_abstract_declarator BRACKET_PHRASE
 		{ $$ = $2; }
-	| '(' abstract_declarator ')'
+	| open_paren parameter_declaration_clause ')'
 		{ $$ = $3; }
-	| '(' error ')'
+	| open_paren abstract_declarator ')'
 		{ $$ = $3; }
+	| open_paren error ')'
+		{ $$ = $3; }
+	| BRACKET_PHRASE
+	;
+
+open_paren:
+	'('	{ $$ = $1; dont_want_type_specifier = false; }
 	;
 
 function_definition:
