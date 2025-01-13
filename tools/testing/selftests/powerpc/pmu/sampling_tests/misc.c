@@ -59,6 +59,7 @@ static void init_ev_encodes(void)
 	ev_shift_thd_stop = 32;
 
 	switch (pvr) {
+	case POWER11:
 	case POWER10:
 		ev_mask_thd_cmp = 0x3ffff;
 		ev_shift_thd_cmp = 0;
@@ -129,8 +130,14 @@ int platform_check_for_tests(void)
 	 * Check for supported platforms
 	 * for sampling test
 	 */
-	if ((pvr != POWER10) && (pvr != POWER9))
+	switch (pvr) {
+	case POWER11:
+	case POWER10:
+	case POWER9:
+		break;
+	default:
 		goto out;
+	}
 
 	/*
 	 * Check PMU driver registered by looking for
@@ -499,6 +506,8 @@ static bool auxv_generic_compat_pmu(void)
 		base_pvr = POWER9;
 	else if (!strcmp(auxv_base_platform(), "power10"))
 		base_pvr = POWER10;
+	else if (!strcmp(auxv_base_platform(), "power11"))
+		base_pvr = POWER11;
 
 	return (!base_pvr);
 }
