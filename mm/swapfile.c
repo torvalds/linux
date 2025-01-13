@@ -55,7 +55,7 @@ static bool swap_count_continued(struct swap_info_struct *, pgoff_t,
 static void free_swap_count_continuations(struct swap_info_struct *);
 static void swap_entry_range_free(struct swap_info_struct *si, swp_entry_t entry,
 				  unsigned int nr_pages);
-static void swap_range_alloc(struct swap_info_struct *si, unsigned long offset,
+static void swap_range_alloc(struct swap_info_struct *si,
 			     unsigned int nr_entries);
 static bool folio_swapcache_freeable(struct folio *folio);
 static struct swap_cluster_info *lock_cluster(struct swap_info_struct *si,
@@ -650,7 +650,7 @@ static bool cluster_alloc_range(struct swap_info_struct *si, struct swap_cluster
 	}
 
 	memset(si->swap_map + start, usage, nr_pages);
-	swap_range_alloc(si, start, nr_pages);
+	swap_range_alloc(si, nr_pages);
 	ci->count += nr_pages;
 
 	if (ci->count == SWAPFILE_CLUSTER) {
@@ -888,19 +888,11 @@ static void del_from_avail_list(struct swap_info_struct *si)
 	spin_unlock(&swap_avail_lock);
 }
 
-static void swap_range_alloc(struct swap_info_struct *si, unsigned long offset,
+static void swap_range_alloc(struct swap_info_struct *si,
 			     unsigned int nr_entries)
 {
-	unsigned int end = offset + nr_entries - 1;
-
-	if (offset == si->lowest_bit)
-		si->lowest_bit += nr_entries;
-	if (end == si->highest_bit)
-		WRITE_ONCE(si->highest_bit, si->highest_bit - nr_entries);
 	WRITE_ONCE(si->inuse_pages, si->inuse_pages + nr_entries);
 	if (si->inuse_pages == si->pages) {
-		si->lowest_bit = si->max;
-		si->highest_bit = 0;
 		del_from_avail_list(si);
 
 		if (vm_swap_full())
@@ -933,15 +925,8 @@ static void swap_range_free(struct swap_info_struct *si, unsigned long offset,
 	for (i = 0; i < nr_entries; i++)
 		clear_bit(offset + i, si->zeromap);
 
-	if (offset < si->lowest_bit)
-		si->lowest_bit = offset;
-	if (end > si->highest_bit) {
-		bool was_full = !si->highest_bit;
-
-		WRITE_ONCE(si->highest_bit, end);
-		if (was_full && (si->flags & SWP_WRITEOK))
-			add_to_avail_list(si);
-	}
+	if (si->inuse_pages == si->pages)
+		add_to_avail_list(si);
 	if (si->flags & SWP_BLKDEV)
 		swap_slot_free_notify =
 			si->bdev->bd_disk->fops->swap_slot_free_notify;
@@ -1051,15 +1036,12 @@ start_over:
 		plist_requeue(&si->avail_lists[node], &swap_avail_heads[node]);
 		spin_unlock(&swap_avail_lock);
 		spin_lock(&si->lock);
-		if (!si->highest_bit || !(si->flags & SWP_WRITEOK)) {
+		if ((si->inuse_pages == si->pages) || !(si->flags & SWP_WRITEOK)) {
 			spin_lock(&swap_avail_lock);
 			if (plist_node_empty(&si->avail_lists[node])) {
 				spin_unlock(&si->lock);
 				goto nextsi;
 			}
-			WARN(!si->highest_bit,
-			     "swap_info %d in list but !highest_bit\n",
-			     si->type);
 			WARN(!(si->flags & SWP_WRITEOK),
 			     "swap_info %d in list but !SWP_WRITEOK\n",
 			     si->type);
@@ -2441,8 +2423,8 @@ static void _enable_swap_info(struct swap_info_struct *si)
 	 */
 	plist_add(&si->list, &swap_active_head);
 
-	/* add to available list iff swap device is not full */
-	if (si->highest_bit)
+	/* add to available list if swap device is not full */
+	if (si->inuse_pages < si->pages)
 		add_to_avail_list(si);
 }
 
@@ -2606,7 +2588,6 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 	drain_mmlist();
 
 	/* wait for anyone still in scan_swap_map_slots */
-	p->highest_bit = 0;		/* cuts scans short */
 	while (p->flags >= SWP_SCANNING) {
 		spin_unlock(&p->lock);
 		spin_unlock(&swap_lock);
@@ -2941,8 +2922,6 @@ static unsigned long read_swap_header(struct swap_info_struct *si,
 		return 0;
 	}
 
-	si->lowest_bit  = 1;
-
 	maxpages = swapfile_maximum_size;
 	last_page = swap_header->info.last_page;
 	if (!last_page) {
@@ -2959,7 +2938,6 @@ static unsigned long read_swap_header(struct swap_info_struct *si,
 		if ((unsigned int)maxpages == 0)
 			maxpages = UINT_MAX;
 	}
-	si->highest_bit = maxpages - 1;
 
 	if (!maxpages)
 		return 0;
