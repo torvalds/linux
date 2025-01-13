@@ -48,7 +48,7 @@
  *
  * **Coredump release**:
  *   After a coredump is generated, it stays in kernel memory until released by
- *   userpace by writing anything to it, or after an internal timer expires. The
+ *   userspace by writing anything to it, or after an internal timer expires. The
  *   exact timeout may vary and should not be relied upon. Example to release
  *   a coredump:
  *

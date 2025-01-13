@@ -385,7 +385,7 @@ static void show_run_ticks(struct drm_printer *p, struct drm_file *file)
  * @p: The drm_printer ptr
  * @file: The drm_file ptr
  *
- * This is callabck for drm fdinfo interface. Register this callback
+ * This is callback for drm fdinfo interface. Register this callback
  * in drm driver ops for show_fdinfo.
  *
  * Return: void

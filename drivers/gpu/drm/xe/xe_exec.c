@@ -33,7 +33,7 @@
  *
  * In XE we avoid all of this complication by not allowing a BO list to be
  * passed into an exec, using the dma-buf implicit sync uAPI, have binds as
- * seperate operations, and using the DRM scheduler to flow control the ring.
+ * separate operations, and using the DRM scheduler to flow control the ring.
  * Let's deep dive on each of these.
  *
  * We can get away from a BO list by forcing the user to use in / out fences on
