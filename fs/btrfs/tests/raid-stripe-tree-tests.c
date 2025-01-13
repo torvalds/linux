@@ -14,6 +14,8 @@
 #define RST_TEST_NUM_DEVICES	(2)
 #define RST_TEST_RAID1_TYPE	(BTRFS_BLOCK_GROUP_DATA | BTRFS_BLOCK_GROUP_RAID1)
 
+#define SZ_48K (SZ_32K + SZ_16K)
+
 typedef int (*test_func_t)(struct btrfs_trans_handle *trans);
 
 static struct btrfs_device *btrfs_device_by_devid(struct btrfs_fs_devices *fs_devices,
@@ -94,32 +96,32 @@ static int test_front_delete(struct btrfs_trans_handle *trans)
 		goto out;
 	}
 
-	ret = btrfs_delete_raid_extent(trans, logical, SZ_32K);
+	ret = btrfs_delete_raid_extent(trans, logical, SZ_16K);
 	if (ret) {
 		test_err("deleting RAID extent [%llu, %llu] failed", logical,
-			 logical + SZ_32K);
+			 logical + SZ_16K);
 		goto out;
 	}
 
-	len = SZ_32K;
-	ret = btrfs_get_raid_extent_offset(fs_info, logical + SZ_32K, &len,
+	len -= SZ_16K;
+	ret = btrfs_get_raid_extent_offset(fs_info, logical + SZ_16K, &len,
 					   map_type, 0, &io_stripe);
 	if (ret) {
 		test_err("lookup of RAID extent [%llu, %llu] failed",
-			 logical + SZ_32K, logical + SZ_32K + len);
+			 logical + SZ_16K, logical + SZ_64K);
 		goto out;
 	}
 
-	if (io_stripe.physical != logical + SZ_32K) {
+	if (io_stripe.physical != logical + SZ_16K) {
 		test_err("invalid physical address, expected %llu, got %llu",
-			 logical + SZ_32K, io_stripe.physical);
+			 logical + SZ_16K, io_stripe.physical);
 		ret = -EINVAL;
 		goto out;
 	}
 
-	if (len != SZ_32K) {
+	if (len != SZ_48K) {
 		test_err("invalid stripe length, expected %llu, got %llu",
-			 (u64)SZ_32K, len);
+			 (u64)SZ_48K, len);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -128,11 +130,11 @@ static int test_front_delete(struct btrfs_trans_handle *trans)
 	if (ret != -ENODATA) {
 		ret = -EINVAL;
 		test_err("lookup of RAID extent [%llu, %llu] succeeded, should fail",
-			 logical, logical + SZ_32K);
+			 logical, logical + SZ_16K);
 		goto out;
 	}
 
-	ret = btrfs_delete_raid_extent(trans, logical + SZ_32K, SZ_32K);
+	ret = btrfs_delete_raid_extent(trans, logical + SZ_16K, SZ_48K);
 out:
 	btrfs_put_bioc(bioc);
 	return ret;
@@ -209,14 +211,14 @@ static int test_tail_delete(struct btrfs_trans_handle *trans)
 		goto out;
 	}
 
-	ret = btrfs_delete_raid_extent(trans, logical + SZ_32K, SZ_32K);
+	ret = btrfs_delete_raid_extent(trans, logical + SZ_48K, SZ_16K);
 	if (ret) {
 		test_err("deleting RAID extent [%llu, %llu] failed",
-			 logical + SZ_32K, logical + SZ_64K);
+			 logical + SZ_48K, logical + SZ_64K);
 		goto out;
 	}
 
-	len = SZ_32K;
+	len = SZ_48K;
 	ret = btrfs_get_raid_extent_offset(fs_info, logical, &len, map_type, 0, &io_stripe);
 	if (ret) {
 		test_err("lookup of RAID extent [%llu, %llu] failed", logical,
@@ -231,9 +233,19 @@ static int test_tail_delete(struct btrfs_trans_handle *trans)
 		goto out;
 	}
 
-	if (len != SZ_32K) {
+	if (len != SZ_48K) {
 		test_err("invalid stripe length, expected %llu, got %llu",
-			 (u64)SZ_32K, len);
+			 (u64)SZ_48K, len);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	len = SZ_16K;
+	ret = btrfs_get_raid_extent_offset(fs_info, logical + SZ_48K, &len,
+					   map_type, 0, &io_stripe);
+	if (ret != -ENODATA) {
+		test_err("lookup of RAID extent [%llu, %llu] succeeded should fail",
+			 logical + SZ_48K, logical + SZ_64K);
 		ret = -EINVAL;
 		goto out;
 	}
