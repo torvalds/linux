@@ -173,9 +173,9 @@ init_declarator_list:
 		  $$ = $1;
 		  dont_want_type_specifier = true;
 		}
-	| init_declarator_list ',' init_declarator
-		{ struct string_list *decl = *$3;
-		  *$3 = NULL;
+	| init_declarator_list ',' attribute_opt init_declarator
+		{ struct string_list *decl = *$4;
+		  *$4 = NULL;
 		  free_list(*$2, NULL);
 		  *$2 = decl_spec;
 
@@ -186,7 +186,7 @@ init_declarator_list:
 		  add_symbol(current_name,
 			     is_typedef ? SYM_TYPEDEF : SYM_NORMAL, decl, is_extern);
 		  current_name = NULL;
-		  $$ = $3;
+		  $$ = $4;
 		  dont_want_type_specifier = true;
 		}
 	;
