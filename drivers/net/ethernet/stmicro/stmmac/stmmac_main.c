@@ -2795,7 +2795,7 @@ static int stmmac_tx_clean(struct stmmac_priv *priv, int budget, u32 queue,
 	}
 
 	if (priv->eee_sw_timer_en && !priv->tx_path_in_lpi_mode)
-		stmmac_try_to_start_sw_lpi(priv);
+		stmmac_restart_sw_lpi_timer(priv);
 
 	/* We still have pending packets, let's call for a new scheduling */
 	if (tx_q->dirty_tx != tx_q->cur_tx)
