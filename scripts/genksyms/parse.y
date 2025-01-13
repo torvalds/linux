@@ -383,8 +383,8 @@ abstract_declarator:
 	ptr_operator
 	| ptr_operator abstract_declarator
 		{ $$ = $2 ? $2 : $1; }
-	| direct_abstract_declarator
-		{ $$ = $1; dont_want_type_specifier = false; }
+	| direct_abstract_declarator attribute_opt
+		{ $$ = $2; dont_want_type_specifier = false; }
 	;
 
 direct_abstract_declarator:
