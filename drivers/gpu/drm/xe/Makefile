@@ -301,6 +301,9 @@ ifeq ($(CONFIG_DEBUG_FS),y)
 		i915-display/intel_pipe_crc.o
 endif
 
+xe-$(CONFIG_DRM_XE_DP_TUNNEL) += \
+	i915-display/intel_dp_tunnel.o
+
 obj-$(CONFIG_DRM_XE) += xe.o
 obj-$(CONFIG_DRM_XE_KUNIT_TEST) += tests/
 
