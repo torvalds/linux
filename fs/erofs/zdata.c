@@ -516,13 +516,11 @@ static void z_erofs_bind_cache(struct z_erofs_frontend *fe)
 	struct z_erofs_pcluster *pcl = fe->pcl;
 	unsigned int pclusterpages = z_erofs_pclusterpages(pcl);
 	bool shouldalloc = z_erofs_should_alloc_cache(fe);
-	bool standalone = true;
-	/*
-	 * optimistic allocation without direct reclaim since inplace I/O
-	 * can be used if low memory otherwise.
-	 */
+	bool may_bypass = true;
+	/* Optimistic allocation, as in-place I/O can be used as a fallback */
 	gfp_t gfp = (mapping_gfp_mask(mc) & ~__GFP_DIRECT_RECLAIM) |
 			__GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN;
+	struct folio *folio, *newfolio;
 	unsigned int i;
 
 	if (i_blocksize(fe->inode) != PAGE_SIZE ||
@@ -530,47 +528,42 @@ static void z_erofs_bind_cache(struct z_erofs_frontend *fe)
 		return;
 
 	for (i = 0; i < pclusterpages; ++i) {
-		struct page *page, *newpage;
-
 		/* Inaccurate check w/o locking to avoid unneeded lookups */
 		if (READ_ONCE(pcl->compressed_bvecs[i].page))
 			continue;
 
-		page = find_get_page(mc, pcl->index + i);
-		if (!page) {
-			/* I/O is needed, no possible to decompress directly */
-			standalone = false;
+		folio = filemap_get_folio(mc, pcl->index + i);
+		if (IS_ERR(folio)) {
+			may_bypass = false;
 			if (!shouldalloc)
 				continue;
 
 			/*
-			 * Try cached I/O if allocation succeeds or fallback to
-			 * in-place I/O instead to avoid any direct reclaim.
+			 * Allocate a managed folio for cached I/O, or it may be
+			 * then filled with a file-backed folio for in-place I/O
 			 */
-			newpage = erofs_allocpage(&fe->pagepool, gfp);
-			if (!newpage)
+			newfolio = filemap_alloc_folio(gfp, 0);
+			if (!newfolio)
 				continue;
-			set_page_private(newpage, Z_EROFS_PREALLOCATED_PAGE);
+			newfolio->private = Z_EROFS_PREALLOCATED_FOLIO;
+			folio = NULL;
 		}
 		spin_lock(&pcl->lockref.lock);
 		if (!pcl->compressed_bvecs[i].page) {
-			pcl->compressed_bvecs[i].page = page ? page : newpage;
+			pcl->compressed_bvecs[i].page =
+				folio_page(folio ?: newfolio, 0);
 			spin_unlock(&pcl->lockref.lock);
 			continue;
 		}
 		spin_unlock(&pcl->lockref.lock);
-
-		if (page)
-			put_page(page);
-		else if (newpage)
-			erofs_pagepool_add(&fe->pagepool, newpage);
+		folio_put(folio ?: newfolio);
 	}
 
 	/*
-	 * don't do inplace I/O if all compressed pages are available in
-	 * managed cache since it can be moved to the bypass queue instead.
+	 * Don't perform in-place I/O if all compressed pages are available in
+	 * the managed cache, as the pcluster can be moved to the bypass queue.
 	 */
-	if (standalone)
+	if (may_bypass)
 		fe->mode = Z_EROFS_PCLUSTER_FOLLOWED_NOINPLACE;
 }
 
@@ -1480,12 +1473,8 @@ repeat:
 	DBG_BUGON(z_erofs_is_shortlived_page(bvec->bv_page));
 
 	folio = page_folio(zbv.page);
-	/*
-	 * Handle preallocated cached folios.  We tried to allocate such folios
-	 * without triggering direct reclaim.  If allocation failed, inplace
-	 * file-backed folios will be used instead.
-	 */
-	if (folio->private == (void *)Z_EROFS_PREALLOCATED_PAGE) {
+	/* For preallocated managed folios, add them to page cache here */
+	if (folio->private == Z_EROFS_PREALLOCATED_FOLIO) {
 		tocache = true;
 		goto out_tocache;
 	}
