@@ -348,20 +348,6 @@ static int bcmasp_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 	return err;
 }
 
-void bcmasp_eee_enable_set(struct bcmasp_intf *intf, bool enable)
-{
-	u32 reg;
-
-	reg = umac_rl(intf, UMC_EEE_CTRL);
-	if (enable)
-		reg |= EEE_EN;
-	else
-		reg &= ~EEE_EN;
-	umac_wl(intf, reg, UMC_EEE_CTRL);
-
-	intf->eee.eee_enabled = enable;
-}
-
 static int bcmasp_get_eee(struct net_device *dev, struct ethtool_keee *e)
 {
 	if (!dev->phydev)
@@ -372,25 +358,8 @@ static int bcmasp_get_eee(struct net_device *dev, struct ethtool_keee *e)
 
 static int bcmasp_set_eee(struct net_device *dev, struct ethtool_keee *e)
 {
-	struct bcmasp_intf *intf = netdev_priv(dev);
-	struct ethtool_keee *p = &intf->eee;
-	int ret;
-
 	if (!dev->phydev)
 		return -ENODEV;
-
-	if (!p->eee_enabled) {
-		bcmasp_eee_enable_set(intf, false);
-	} else {
-		ret = phy_init_eee(dev->phydev, 0);
-		if (ret) {
-			netif_err(intf, hw, dev,
-				  "EEE initialization failed: %d\n", ret);
-			return ret;
-		}
-
-		bcmasp_eee_enable_set(intf, true);
-	}
 
 	return phy_ethtool_set_eee(dev->phydev, e);
 }
