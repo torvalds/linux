@@ -173,23 +173,24 @@ static int __init virtio_gpu_driver_init(void)
 	pdev = pci_get_device(PCI_VENDOR_ID_REDHAT_QUMRANET,
 			      PCI_DEVICE_ID_VIRTIO_GPU,
 			      NULL);
-	if (!pdev)
-		return -ENODEV;
-
-	if (pci_is_vga(pdev)) {
+	if (pdev && pci_is_vga(pdev)) {
 		ret = vga_get_interruptible(pdev,
 			VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM);
-		if (ret)
-			goto error;
+		if (ret) {
+			pci_dev_put(pdev);
+			return ret;
+		}
 	}
 
 	ret = register_virtio_driver(&virtio_gpu_driver);
 
-	if (pci_is_vga(pdev))
-		vga_put(pdev, VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM);
+	if (pdev) {
+		if (pci_is_vga(pdev))
+			vga_put(pdev,
+				VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM);
 
-error:
-	pci_dev_put(pdev);
+		pci_dev_put(pdev);
+	}
 
 	return ret;
 }
