@@ -5976,24 +5976,6 @@ out:
 				__func__, err);
 }
 
-static void ufshcd_temp_exception_event_handler(struct ufs_hba *hba, u16 status)
-{
-	u32 value;
-
-	if (ufshcd_query_attr_retry(hba, UPIU_QUERY_OPCODE_READ_ATTR,
-				QUERY_ATTR_IDN_CASE_ROUGH_TEMP, 0, 0, &value))
-		return;
-
-	dev_info(hba->dev, "exception Tcase %d\n", value - 80);
-
-	ufs_hwmon_notify_event(hba, status & MASK_EE_URGENT_TEMP);
-
-	/*
-	 * A placeholder for the platform vendors to add whatever additional
-	 * steps required
-	 */
-}
-
 static int __ufshcd_wb_toggle(struct ufs_hba *hba, bool set, enum flag_idn idn)
 {
 	u8 index;
@@ -6214,7 +6196,7 @@ static void ufshcd_exception_event_handler(struct work_struct *work)
 		ufshcd_bkops_exception_event_handler(hba);
 
 	if (status & hba->ee_drv_mask & MASK_EE_URGENT_TEMP)
-		ufshcd_temp_exception_event_handler(hba, status);
+		ufs_hwmon_notify_event(hba, status & MASK_EE_URGENT_TEMP);
 
 	ufs_debugfs_exception_event(hba, status);
 }
