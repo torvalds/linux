@@ -110,4 +110,5 @@ void amdgpu_ih_decode_iv_helper(struct amdgpu_device *adev,
 				struct amdgpu_iv_entry *entry);
 uint64_t amdgpu_ih_decode_iv_ts_helper(struct amdgpu_ih_ring *ih, u32 rptr,
 				       signed int offset);
+const char *amdgpu_ih_ring_name(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih);
 #endif

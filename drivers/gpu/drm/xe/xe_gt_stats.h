@@ -6,14 +6,10 @@
 #ifndef _XE_GT_STATS_H_
 #define _XE_GT_STATS_H_
 
+#include "xe_gt_stats_types.h"
+
 struct xe_gt;
 struct drm_printer;
-
-enum xe_gt_stats_id {
-	XE_GT_STATS_ID_TLB_INVAL,
-	/* must be the last entry */
-	__XE_GT_STATS_NUM_IDS,
-};
 
 #ifdef CONFIG_DEBUG_FS
 int xe_gt_stats_print_info(struct xe_gt *gt, struct drm_printer *p);

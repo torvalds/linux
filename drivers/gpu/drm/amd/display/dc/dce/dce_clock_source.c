@@ -1105,6 +1105,9 @@ static bool dcn401_program_pix_clk(
 				&dto_params);
 
 	} else {
+		if (pll_settings->actual_pix_clk_100hz > 6000000UL)
+			return false;
+
 		/* disables DP DTO when provided with TMDS signal type */
 		clock_source->ctx->dc->res_pool->dccg->funcs->set_dp_dto(
 				clock_source->ctx->dc->res_pool->dccg,

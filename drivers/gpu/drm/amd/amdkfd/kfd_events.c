@@ -748,6 +748,16 @@ void kfd_signal_event_interrupt(u32 pasid, uint32_t partial_id,
 		uint64_t *slots = page_slots(p->signal_page);
 		uint32_t id;
 
+		/*
+		 * If id is valid but slot is not signaled, GPU may signal the same event twice
+		 * before driver have chance to process the first interrupt, then signal slot is
+		 * auto-reset after set_event wakeup the user space, just drop the second event as
+		 * the application only need wakeup once.
+		 */
+		if ((valid_id_bits > 31 || (1U << valid_id_bits) >= KFD_SIGNAL_EVENT_LIMIT) &&
+		    partial_id < KFD_SIGNAL_EVENT_LIMIT && slots[partial_id] == UNSIGNALED_EVENT_SLOT)
+			goto out_unlock;
+
 		if (valid_id_bits)
 			pr_debug_ratelimited("Partial ID invalid: %u (%u valid bits)\n",
 					     partial_id, valid_id_bits);
@@ -776,6 +786,7 @@ void kfd_signal_event_interrupt(u32 pasid, uint32_t partial_id,
 		}
 	}
 
+out_unlock:
 	rcu_read_unlock();
 	kfd_unref_process(p);
 }

@@ -434,7 +434,8 @@ void i9xx_pipestat_irq_ack(struct drm_i915_private *dev_priv,
 
 	spin_lock(&dev_priv->irq_lock);
 
-	if (!dev_priv->display.irq.display_irqs_enabled) {
+	if ((IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
+	    !dev_priv->display.irq.vlv_display_irqs_enabled) {
 		spin_unlock(&dev_priv->irq_lock);
 		return;
 	}
@@ -843,7 +844,9 @@ static u32 gen8_de_port_aux_mask(struct drm_i915_private *dev_priv)
 
 static u32 gen8_de_pipe_fault_mask(struct drm_i915_private *dev_priv)
 {
-	if (DISPLAY_VER(dev_priv) >= 14)
+	struct intel_display *display = &dev_priv->display;
+
+	if (DISPLAY_VER(display) >= 14)
 		return MTL_PIPEDMC_ATS_FAULT |
 			MTL_PLANE_ATS_FAULT |
 			GEN12_PIPEDMC_FAULT |
@@ -853,7 +856,7 @@ static u32 gen8_de_pipe_fault_mask(struct drm_i915_private *dev_priv)
 			GEN9_PIPE_PLANE3_FAULT |
 			GEN9_PIPE_PLANE2_FAULT |
 			GEN9_PIPE_PLANE1_FAULT;
-	if (DISPLAY_VER(dev_priv) >= 13 || HAS_D12_PLANE_MINIMIZATION(dev_priv))
+	if (DISPLAY_VER(display) >= 13 || HAS_D12_PLANE_MINIMIZATION(display))
 		return GEN12_PIPEDMC_FAULT |
 			GEN9_PIPE_CURSOR_FAULT |
 			GEN11_PIPE_PLANE5_FAULT |
@@ -861,7 +864,7 @@ static u32 gen8_de_pipe_fault_mask(struct drm_i915_private *dev_priv)
 			GEN9_PIPE_PLANE3_FAULT |
 			GEN9_PIPE_PLANE2_FAULT |
 			GEN9_PIPE_PLANE1_FAULT;
-	else if (DISPLAY_VER(dev_priv) == 12)
+	else if (DISPLAY_VER(display) == 12)
 		return GEN12_PIPEDMC_FAULT |
 			GEN9_PIPE_CURSOR_FAULT |
 			GEN11_PIPE_PLANE7_FAULT |
@@ -871,7 +874,7 @@ static u32 gen8_de_pipe_fault_mask(struct drm_i915_private *dev_priv)
 			GEN9_PIPE_PLANE3_FAULT |
 			GEN9_PIPE_PLANE2_FAULT |
 			GEN9_PIPE_PLANE1_FAULT;
-	else if (DISPLAY_VER(dev_priv) == 11)
+	else if (DISPLAY_VER(display) == 11)
 		return GEN9_PIPE_CURSOR_FAULT |
 			GEN11_PIPE_PLANE7_FAULT |
 			GEN11_PIPE_PLANE6_FAULT |
@@ -880,7 +883,7 @@ static u32 gen8_de_pipe_fault_mask(struct drm_i915_private *dev_priv)
 			GEN9_PIPE_PLANE3_FAULT |
 			GEN9_PIPE_PLANE2_FAULT |
 			GEN9_PIPE_PLANE1_FAULT;
-	else if (DISPLAY_VER(dev_priv) >= 9)
+	else if (DISPLAY_VER(display) >= 9)
 		return GEN9_PIPE_CURSOR_FAULT |
 			GEN9_PIPE_PLANE4_FAULT |
 			GEN9_PIPE_PLANE3_FAULT |
@@ -1420,7 +1423,6 @@ static void intel_display_vblank_dc_work(struct work_struct *work)
 {
 	struct intel_display *display =
 		container_of(work, typeof(*display), irq.vblank_dc_work);
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	int vblank_wa_num_pipes = READ_ONCE(display->irq.vblank_wa_num_pipes);
 
 	/*
@@ -1429,7 +1431,7 @@ static void intel_display_vblank_dc_work(struct work_struct *work)
 	 * PSR code. If DC3CO is taken into use we need take that into account
 	 * here as well.
 	 */
-	intel_display_power_set_target_dc_state(i915, vblank_wa_num_pipes ? DC_STATE_DISABLE :
+	intel_display_power_set_target_dc_state(display, vblank_wa_num_pipes ? DC_STATE_DISABLE :
 						DC_STATE_EN_UPTO_DC6);
 }
 
@@ -1479,7 +1481,7 @@ void bdw_disable_vblank(struct drm_crtc *_crtc)
 		schedule_work(&display->irq.vblank_dc_work);
 }
 
-void vlv_display_irq_reset(struct drm_i915_private *dev_priv)
+static void _vlv_display_irq_reset(struct drm_i915_private *dev_priv)
 {
 	struct intel_uncore *uncore = &dev_priv->uncore;
 
@@ -1495,6 +1497,12 @@ void vlv_display_irq_reset(struct drm_i915_private *dev_priv)
 
 	gen2_irq_reset(uncore, VLV_IRQ_REGS);
 	dev_priv->irq_mask = ~0u;
+}
+
+void vlv_display_irq_reset(struct drm_i915_private *dev_priv)
+{
+	if (dev_priv->display.irq.vlv_display_irqs_enabled)
+		_vlv_display_irq_reset(dev_priv);
 }
 
 void i9xx_display_irq_reset(struct drm_i915_private *i915)
@@ -1515,6 +1523,9 @@ void vlv_display_irq_postinstall(struct drm_i915_private *dev_priv)
 	u32 pipestat_mask;
 	u32 enable_mask;
 	enum pipe pipe;
+
+	if (!dev_priv->display.irq.vlv_display_irqs_enabled)
+		return;
 
 	pipestat_mask = PIPE_CRC_DONE_INTERRUPT_STATUS;
 
@@ -1688,13 +1699,13 @@ void valleyview_enable_display_irqs(struct drm_i915_private *dev_priv)
 {
 	lockdep_assert_held(&dev_priv->irq_lock);
 
-	if (dev_priv->display.irq.display_irqs_enabled)
+	if (dev_priv->display.irq.vlv_display_irqs_enabled)
 		return;
 
-	dev_priv->display.irq.display_irqs_enabled = true;
+	dev_priv->display.irq.vlv_display_irqs_enabled = true;
 
 	if (intel_irqs_enabled(dev_priv)) {
-		vlv_display_irq_reset(dev_priv);
+		_vlv_display_irq_reset(dev_priv);
 		vlv_display_irq_postinstall(dev_priv);
 	}
 }
@@ -1703,13 +1714,13 @@ void valleyview_disable_display_irqs(struct drm_i915_private *dev_priv)
 {
 	lockdep_assert_held(&dev_priv->irq_lock);
 
-	if (!dev_priv->display.irq.display_irqs_enabled)
+	if (!dev_priv->display.irq.vlv_display_irqs_enabled)
 		return;
 
-	dev_priv->display.irq.display_irqs_enabled = false;
+	dev_priv->display.irq.vlv_display_irqs_enabled = false;
 
 	if (intel_irqs_enabled(dev_priv))
-		vlv_display_irq_reset(dev_priv);
+		_vlv_display_irq_reset(dev_priv);
 }
 
 void ilk_de_irq_postinstall(struct drm_i915_private *i915)
@@ -1901,17 +1912,6 @@ void dg1_de_irq_postinstall(struct drm_i915_private *i915)
 void intel_display_irq_init(struct drm_i915_private *i915)
 {
 	i915->drm.vblank_disable_immediate = true;
-
-	/*
-	 * Most platforms treat the display irq block as an always-on power
-	 * domain. vlv/chv can disable it at runtime and need special care to
-	 * avoid writing any of the display block registers outside of the power
-	 * domain. We defer setting up the display irqs in this case to the
-	 * runtime pm.
-	 */
-	i915->display.irq.display_irqs_enabled = true;
-	if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915))
-		i915->display.irq.display_irqs_enabled = false;
 
 	intel_hotplug_irq_init(i915);
 

@@ -164,6 +164,7 @@ static void pf_add_policy_attrs(struct xe_gt *gt, struct dentry *parent)
  *      │   │   ├── contexts_spare
  *      │   │   ├── exec_quantum_ms
  *      │   │   ├── preempt_timeout_us
+ *      │   │   ├── sched_priority
  *      │   ├── vf1
  *      │   │   ├── ggtt_quota
  *      │   │   ├── lmem_quota
@@ -171,6 +172,7 @@ static void pf_add_policy_attrs(struct xe_gt *gt, struct dentry *parent)
  *      │   │   ├── contexts_quota
  *      │   │   ├── exec_quantum_ms
  *      │   │   ├── preempt_timeout_us
+ *      │   │   ├── sched_priority
  */
 
 #define DEFINE_SRIOV_GT_CONFIG_DEBUGFS_ATTRIBUTE(CONFIG, TYPE, FORMAT)		\
@@ -209,6 +211,7 @@ DEFINE_SRIOV_GT_CONFIG_DEBUGFS_ATTRIBUTE(ctxs, u32, "%llu\n");
 DEFINE_SRIOV_GT_CONFIG_DEBUGFS_ATTRIBUTE(dbs, u32, "%llu\n");
 DEFINE_SRIOV_GT_CONFIG_DEBUGFS_ATTRIBUTE(exec_quantum, u32, "%llu\n");
 DEFINE_SRIOV_GT_CONFIG_DEBUGFS_ATTRIBUTE(preempt_timeout, u32, "%llu\n");
+DEFINE_SRIOV_GT_CONFIG_DEBUGFS_ATTRIBUTE(sched_priority, u32, "%llu\n");
 
 /*
  *      /sys/kernel/debug/dri/0/
@@ -295,6 +298,8 @@ static void pf_add_config_attrs(struct xe_gt *gt, struct dentry *parent, unsigne
 				   &exec_quantum_fops);
 	debugfs_create_file_unsafe("preempt_timeout_us", 0644, parent, parent,
 				   &preempt_timeout_fops);
+	debugfs_create_file_unsafe("sched_priority", 0644, parent, parent,
+				   &sched_priority_fops);
 
 	/* register all threshold attributes */
 #define register_threshold_attribute(TAG, NAME, ...) \

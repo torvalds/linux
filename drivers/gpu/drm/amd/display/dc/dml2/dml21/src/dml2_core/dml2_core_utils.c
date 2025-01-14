@@ -63,6 +63,150 @@ bool dml2_core_utils_is_420(enum dml2_source_format_class source_format)
 	case dml2_mono_16:
 		val = 0;
 		break;
+	case dml2_422_planar_8:
+		val = 0;
+		break;
+	case dml2_422_planar_10:
+		val = 0;
+		break;
+	case dml2_422_planar_12:
+		val = 0;
+		break;
+	case dml2_422_packed_8:
+		val = 0;
+		break;
+	case dml2_422_packed_10:
+		val = 0;
+		break;
+	case dml2_422_packed_12:
+		val = 0;
+		break;
+	default:
+		DML2_ASSERT(0);
+		break;
+	}
+	return val;
+}
+
+bool dml2_core_utils_is_422_planar(enum dml2_source_format_class source_format)
+{
+	bool val = false;
+
+	switch (source_format) {
+	case dml2_444_8:
+		val = 0;
+		break;
+	case dml2_444_16:
+		val = 0;
+		break;
+	case dml2_444_32:
+		val = 0;
+		break;
+	case dml2_444_64:
+		val = 0;
+		break;
+	case dml2_420_8:
+		val = 0;
+		break;
+	case dml2_420_10:
+		val = 0;
+		break;
+	case dml2_420_12:
+		val = 0;
+		break;
+	case dml2_rgbe_alpha:
+		val = 0;
+		break;
+	case dml2_rgbe:
+		val = 0;
+		break;
+	case dml2_mono_8:
+		val = 0;
+		break;
+	case dml2_mono_16:
+		val = 0;
+		break;
+	case dml2_422_planar_8:
+		val = 1;
+		break;
+	case dml2_422_planar_10:
+		val = 1;
+		break;
+	case dml2_422_planar_12:
+		val = 1;
+		break;
+	case dml2_422_packed_8:
+		val = 0;
+		break;
+	case dml2_422_packed_10:
+		val = 0;
+		break;
+	case dml2_422_packed_12:
+		val = 0;
+		break;
+	default:
+		DML2_ASSERT(0);
+		break;
+	}
+	return val;
+}
+
+bool dml2_core_utils_is_422_packed(enum dml2_source_format_class source_format)
+{
+	bool val = false;
+
+	switch (source_format) {
+	case dml2_444_8:
+		val = 0;
+		break;
+	case dml2_444_16:
+		val = 0;
+		break;
+	case dml2_444_32:
+		val = 0;
+		break;
+	case dml2_444_64:
+		val = 0;
+		break;
+	case dml2_420_8:
+		val = 0;
+		break;
+	case dml2_420_10:
+		val = 0;
+		break;
+	case dml2_420_12:
+		val = 0;
+		break;
+	case dml2_rgbe_alpha:
+		val = 0;
+		break;
+	case dml2_rgbe:
+		val = 0;
+		break;
+	case dml2_mono_8:
+		val = 0;
+		break;
+	case dml2_mono_16:
+		val = 0;
+		break;
+	case dml2_422_planar_8:
+		val = 0;
+		break;
+	case dml2_422_planar_10:
+		val = 0;
+		break;
+	case dml2_422_planar_12:
+		val = 0;
+		break;
+	case dml2_422_packed_8:
+		val = 1;
+		break;
+	case dml2_422_packed_10:
+		val = 1;
+		break;
+	case dml2_422_packed_12:
+		val = 1;
+		break;
 	default:
 		DML2_ASSERT(0);
 		break;
@@ -154,9 +298,9 @@ void dml2_core_utils_print_mode_support_info(const struct dml2_core_internal_mod
 		dml2_printf("DML: support: DynamicMetadataSupported = %d\n", support->DynamicMetadataSupported);
 	if (!fail_only || support->VRatioInPrefetchSupported == 0)
 		dml2_printf("DML: support: VRatioInPrefetchSupported = %d\n", support->VRatioInPrefetchSupported);
-	if (!fail_only || support->PTEBufferSizeNotExceeded == 1)
+	if (!fail_only || support->PTEBufferSizeNotExceeded == 0)
 		dml2_printf("DML: support: PTEBufferSizeNotExceeded = %d\n", support->PTEBufferSizeNotExceeded);
-	if (!fail_only || support->DCCMetaBufferSizeNotExceeded == 1)
+	if (!fail_only || support->DCCMetaBufferSizeNotExceeded == 0)
 		dml2_printf("DML: support: DCCMetaBufferSizeNotExceeded = %d\n", support->DCCMetaBufferSizeNotExceeded);
 	if (!fail_only || support->ExceededMALLSize == 1)
 		dml2_printf("DML: support: ExceededMALLSize = %d\n", support->ExceededMALLSize);
@@ -280,38 +424,48 @@ bool dml2_core_utils_is_phantom_pipe(const struct dml2_plane_parameters *plane_c
 	return is_phantom;
 }
 
-unsigned int dml2_core_utils_get_tile_block_size_bytes(enum dml2_swizzle_mode sw_mode)
+unsigned int dml2_core_utils_get_tile_block_size_bytes(enum dml2_swizzle_mode sw_mode, unsigned int byte_per_pixel)
 {
-	switch (sw_mode) {
-	case (dml2_sw_linear):
-		return 256; break;
-	case (dml2_sw_256b_2d):
-		return 256; break;
-	case (dml2_sw_4kb_2d):
-		return 4096; break;
-	case (dml2_sw_64kb_2d):
-		return 65536; break;
-	case (dml2_sw_256kb_2d):
-		return 262144; break;
-	case (dml2_gfx11_sw_linear):
-		return 256; break;
-	case (dml2_gfx11_sw_64kb_d):
-		return 65536; break;
-	case (dml2_gfx11_sw_64kb_d_t):
-		return 65536; break;
-	case (dml2_gfx11_sw_64kb_d_x):
-		return 65536; break;
-	case (dml2_gfx11_sw_64kb_r_x):
-		return 65536; break;
-	case (dml2_gfx11_sw_256kb_d_x):
-		return 262144; break;
-	case (dml2_gfx11_sw_256kb_r_x):
-		return 262144; break;
-	default:
+
+	if (sw_mode == dml2_sw_linear)
+		return 256;
+	else if (sw_mode == dml2_sw_256b_2d)
+		return 256;
+	else if (sw_mode == dml2_sw_4kb_2d)
+		return 4096;
+	else if (sw_mode == dml2_sw_64kb_2d)
+		return 65536;
+	else if (sw_mode == dml2_sw_256kb_2d)
+		return 262144;
+	else if (sw_mode == dml2_gfx11_sw_linear)
+		return 256;
+	else if (sw_mode == dml2_gfx11_sw_64kb_d)
+		return 65536;
+	else if (sw_mode == dml2_gfx11_sw_64kb_d_t)
+		return 65536;
+	else if (sw_mode == dml2_gfx11_sw_64kb_d_x)
+		return 65536;
+	else if (sw_mode == dml2_gfx11_sw_64kb_r_x)
+		return 65536;
+	else if (sw_mode == dml2_gfx11_sw_256kb_d_x)
+		return 262144;
+	else if (sw_mode == dml2_gfx11_sw_256kb_r_x)
+		return 262144;
+	else {
 		DML2_ASSERT(0);
 		return 256;
 	};
 }
+
+bool dml2_core_utils_get_segment_horizontal_contiguous(enum dml2_swizzle_mode sw_mode, unsigned int byte_per_pixel)
+{
+	return (byte_per_pixel != 2);
+}
+
+bool dml2_core_utils_is_linear(enum dml2_swizzle_mode sw_mode)
+{
+	return (sw_mode == dml2_sw_linear || sw_mode == dml2_sw_linear_256b || sw_mode == dml2_linear_64elements);
+};
 
 
 bool dml2_core_utils_is_vertical_rotation(enum dml2_rotation_angle Scan)
@@ -325,7 +479,6 @@ bool dml2_core_utils_is_vertical_rotation(enum dml2_rotation_angle Scan)
 	return is_vert;
 }
 
-
 int unsigned dml2_core_utils_get_gfx_version(enum dml2_swizzle_mode sw_mode)
 {
 	int unsigned version = 0;
@@ -334,17 +487,17 @@ int unsigned dml2_core_utils_get_gfx_version(enum dml2_swizzle_mode sw_mode)
 		sw_mode == dml2_sw_256b_2d ||
 		sw_mode == dml2_sw_4kb_2d ||
 		sw_mode == dml2_sw_64kb_2d ||
-		sw_mode == dml2_sw_256kb_2d) {
+		sw_mode == dml2_sw_256kb_2d)
 		version = 12;
-	} else if (sw_mode == dml2_gfx11_sw_linear ||
+	else if (sw_mode == dml2_gfx11_sw_linear ||
 		sw_mode == dml2_gfx11_sw_64kb_d ||
 		sw_mode == dml2_gfx11_sw_64kb_d_t ||
 		sw_mode == dml2_gfx11_sw_64kb_d_x ||
 		sw_mode == dml2_gfx11_sw_64kb_r_x ||
 		sw_mode == dml2_gfx11_sw_256kb_d_x ||
-		sw_mode == dml2_gfx11_sw_256kb_r_x) {
+		sw_mode == dml2_gfx11_sw_256kb_r_x)
 		version = 11;
-	} else {
+	else {
 		dml2_printf("ERROR: Invalid sw_mode setting! val=%u\n", sw_mode);
 		DML2_ASSERT(0);
 	}
@@ -403,7 +556,7 @@ bool dml2_core_utils_is_dual_plane(enum dml2_source_format_class source_format)
 {
 	bool ret_val = 0;
 
-	if ((source_format == dml2_420_12) || (source_format == dml2_420_8) || (source_format == dml2_420_10) || (source_format == dml2_rgbe_alpha))
+	if (dml2_core_utils_is_420(source_format) || dml2_core_utils_is_422_planar(source_format) || (source_format == dml2_rgbe_alpha))
 		ret_val = 1;
 
 	return ret_val;

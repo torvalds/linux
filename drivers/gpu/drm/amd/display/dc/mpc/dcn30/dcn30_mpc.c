@@ -110,6 +110,23 @@ void mpc3_disable_dwb_mux(
 		MPC_DWB0_MUX, 0xf);
 }
 
+void mpc3_set_out_rate_control(
+	struct mpc *mpc,
+	int opp_id,
+	bool enable,
+	bool rate_2x_mode,
+	struct mpc_dwb_flow_control *flow_control)
+{
+	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
+
+	/* Always disable mpc out rate and flow control.
+	 * MPC flow rate control is not needed for DCN30 and above.
+	 */
+	REG_UPDATE_2(MUX[opp_id],
+			MPC_OUT_RATE_CONTROL_DISABLE, 1,
+			MPC_OUT_RATE_CONTROL, 0);
+}
+
 enum dc_lut_mode mpc3_get_ogam_current(struct mpc *mpc, int mpcc_id)
 {
 	/*Contrary to DCN2 and DCN1 wherein a single status register field holds this info;
@@ -1519,6 +1536,7 @@ static const struct mpc_funcs dcn30_mpc_funcs = {
 	.set_dwb_mux = mpc3_set_dwb_mux,
 	.disable_dwb_mux = mpc3_disable_dwb_mux,
 	.is_dwb_idle = mpc3_is_dwb_idle,
+	.set_out_rate_control = mpc3_set_out_rate_control,
 	.set_gamut_remap = mpc3_set_gamut_remap,
 	.program_shaper = mpc3_program_shaper,
 	.acquire_rmu = mpcc3_acquire_rmu,

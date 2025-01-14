@@ -427,18 +427,6 @@ void dml_rq_dlg_get_dlg_reg(dml_display_dlg_regs_st		   *disp_dlg_regs,
 	dml_print("DML_DLG: %s: disp_dlg_regs->dst_y_per_vm_flip	= 0x%x\n", __func__, disp_dlg_regs->dst_y_per_vm_flip);
 	dml_print("DML_DLG: %s: disp_dlg_regs->dst_y_per_row_flip	= 0x%x\n", __func__, disp_dlg_regs->dst_y_per_row_flip);
 
-	// hack for FPGA
-	/* NOTE: We dont have getenv defined in driver and it does not make any sense in the driver */
-	/*char* fpga_env = getenv("FPGA_FPDIV");
-	if(fpga_env !=NULL)
-	{
-		if(disp_dlg_regs->vratio_prefetch >= (dml_uint_t)dml_pow(2, 22))
-		{
-			disp_dlg_regs->vratio_prefetch = (dml_uint_t)dml_pow(2, 22)-1;
-			dml_print("FPGA msg: vratio_prefetch exceed the max value, the register field is [21:0]\n");
-		}
-	}*/
-
 	disp_dlg_regs->refcyc_per_vm_group_vblank		= (dml_uint_t)(dml_get_refcyc_per_vm_group_vblank_in_us(mode_lib, pipe_idx) * refclk_freq_in_mhz);
 	disp_dlg_regs->refcyc_per_vm_group_flip			= (dml_uint_t)(dml_get_refcyc_per_vm_group_flip_in_us(mode_lib, pipe_idx) * refclk_freq_in_mhz);
 	disp_dlg_regs->refcyc_per_vm_req_vblank			= (dml_uint_t)(dml_get_refcyc_per_vm_req_vblank_in_us(mode_lib, pipe_idx) * refclk_freq_in_mhz * dml_pow(2, 10));

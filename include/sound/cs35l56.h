@@ -271,12 +271,6 @@ struct cs35l56_base {
 	struct gpio_desc *reset_gpio;
 };
 
-/* Temporary to avoid a build break with the HDA driver */
-static inline int cs35l56_force_sync_asp1_registers_from_cache(struct cs35l56_base *cs35l56_base)
-{
-	return 0;
-}
-
 static inline bool cs35l56_is_otp_register(unsigned int reg)
 {
 	return (reg >> 16) == 3;

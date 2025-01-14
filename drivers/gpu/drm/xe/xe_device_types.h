@@ -16,7 +16,7 @@
 #include "xe_heci_gsc.h"
 #include "xe_lmtt_types.h"
 #include "xe_memirq_types.h"
-#include "xe_oa.h"
+#include "xe_oa_types.h"
 #include "xe_platform_types.h"
 #include "xe_pt_types.h"
 #include "xe_sriov_types.h"
@@ -42,8 +42,6 @@ struct xe_pat_ops;
 #define GRAPHICS_VERx100(xe) ((xe)->info.graphics_verx100)
 #define MEDIA_VERx100(xe) ((xe)->info.media_verx100)
 #define IS_DGFX(xe) ((xe)->info.is_dgfx)
-#define HAS_HECI_GSCFI(xe) ((xe)->info.has_heci_gscfi)
-#define HAS_HECI_CSCFI(xe) ((xe)->info.has_heci_cscfi)
 
 #define XE_VRAM_FLAGS_NEED64K		BIT(0)
 
@@ -296,14 +294,24 @@ struct xe_device {
 		/** @info.va_bits: Maximum bits of a virtual address */
 		u8 va_bits;
 
-		/** @info.is_dgfx: is discrete device */
-		u8 is_dgfx:1;
-		/** @info.has_asid: Has address space ID */
-		u8 has_asid:1;
+		/*
+		 * Keep all flags below alphabetically sorted
+		 */
+
 		/** @info.force_execlist: Forced execlist submission */
 		u8 force_execlist:1;
+		/** @info.has_asid: Has address space ID */
+		u8 has_asid:1;
+		/** @info.has_atomic_enable_pte_bit: Device has atomic enable PTE bit */
+		u8 has_atomic_enable_pte_bit:1;
+		/** @info.has_device_atomics_on_smem: Supports device atomics on SMEM */
+		u8 has_device_atomics_on_smem:1;
 		/** @info.has_flat_ccs: Whether flat CCS metadata is used */
 		u8 has_flat_ccs:1;
+		/** @info.has_heci_cscfi: device has heci cscfi */
+		u8 has_heci_cscfi:1;
+		/** @info.has_heci_gscfi: device has heci gscfi */
+		u8 has_heci_gscfi:1;
 		/** @info.has_llc: Device has a shared CPU+GPU last level cache */
 		u8 has_llc:1;
 		/** @info.has_mmio_ext: Device has extra MMIO address range */
@@ -314,6 +322,8 @@ struct xe_device {
 		u8 has_sriov:1;
 		/** @info.has_usm: Device has unified shared memory support */
 		u8 has_usm:1;
+		/** @info.is_dgfx: is discrete device */
+		u8 is_dgfx:1;
 		/**
 		 * @info.probe_display: Probe display hardware.  If set to
 		 * false, the driver will behave as if there is no display
@@ -323,20 +333,12 @@ struct xe_device {
 		 * state the firmware or bootloader left it in.
 		 */
 		u8 probe_display:1;
+		/** @info.skip_guc_pc: Skip GuC based PM feature init */
+		u8 skip_guc_pc:1;
 		/** @info.skip_mtcfg: skip Multi-Tile configuration from MTCFG register */
 		u8 skip_mtcfg:1;
 		/** @info.skip_pcode: skip access to PCODE uC */
 		u8 skip_pcode:1;
-		/** @info.has_heci_gscfi: device has heci gscfi */
-		u8 has_heci_gscfi:1;
-		/** @info.has_heci_cscfi: device has heci cscfi */
-		u8 has_heci_cscfi:1;
-		/** @info.skip_guc_pc: Skip GuC based PM feature init */
-		u8 skip_guc_pc:1;
-		/** @info.has_atomic_enable_pte_bit: Device has atomic enable PTE bit */
-		u8 has_atomic_enable_pte_bit:1;
-		/** @info.has_device_atomics_on_smem: Supports device atomics on SMEM */
-		u8 has_device_atomics_on_smem:1;
 	} info;
 
 	/** @irq: device interrupt state */
@@ -345,7 +347,15 @@ struct xe_device {
 		spinlock_t lock;
 
 		/** @irq.enabled: interrupts enabled on this device */
-		bool enabled;
+		atomic_t enabled;
+
+		/** @irq.msix: irq info for platforms that support MSI-X */
+		struct {
+			/** @irq.msix.nvec: number of MSI-X interrupts */
+			u16 nvec;
+			/** @irq.msix.indexes: used to allocate MSI-X indexes */
+			struct xarray indexes;
+		} msix;
 	} irq;
 
 	/** @ttm: ttm device */
@@ -374,6 +384,8 @@ struct xe_device {
 
 		/** @sriov.pf: PF specific data */
 		struct xe_device_pf pf;
+		/** @sriov.vf: VF specific data */
+		struct xe_device_vf vf;
 
 		/** @sriov.wq: workqueue used by the virtualization workers */
 		struct workqueue_struct *wq;
@@ -480,6 +492,12 @@ struct xe_device {
 		/** @d3cold.lock: protect vram_threshold */
 		struct mutex lock;
 	} d3cold;
+
+	/** @pmt: Support the PMT driver callback interface */
+	struct {
+		/** @pmt.lock: protect access for telemetry data */
+		struct mutex lock;
+	} pmt;
 
 	/**
 	 * @pm_callback_task: Track the active task that is running in either
@@ -588,7 +606,7 @@ struct xe_file {
 		/** @vm.xe: xarray to store VMs */
 		struct xarray xa;
 		/**
-		 * @vm.lock: Protects VM lookup + reference and removal a from
+		 * @vm.lock: Protects VM lookup + reference and removal from
 		 * file xarray. Not an intended to be an outer lock which does
 		 * thing while being held.
 		 */
@@ -601,10 +619,15 @@ struct xe_file {
 		struct xarray xa;
 		/**
 		 * @exec_queue.lock: Protects exec queue lookup + reference and
-		 * removal a frommfile xarray. Not an intended to be an outer
-		 * lock which does thing while being held.
+		 * removal from file xarray. Not intended to be an outer lock
+		 * which does things while being held.
 		 */
 		struct mutex lock;
+		/**
+		 * @exec_queue.pending_removal: items pending to be removed to
+		 * synchronize GPU state update with ongoing query.
+		 */
+		atomic_t pending_removal;
 	} exec_queue;
 
 	/** @run_ticks: hw engine class run time in ticks for this drm client */

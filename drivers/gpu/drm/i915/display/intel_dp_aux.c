@@ -5,8 +5,6 @@
 
 #include "i915_drv.h"
 #include "i915_reg.h"
-#include "i915_trace.h"
-#include "intel_bios.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
@@ -15,6 +13,7 @@
 #include "intel_pps.h"
 #include "intel_quirks.h"
 #include "intel_tc.h"
+#include "intel_uncore_trace.h"
 
 #define AUX_CH_NAME_BUFSIZE	6
 

@@ -7,11 +7,7 @@
 #include "bpf_misc.h"
 
 SEC("tp_btf/bpf_testmod_test_nullable_bare")
-/* This used to be a failure test, but raw_tp nullable arguments can now
- * directly be dereferenced, whether they have nullable annotation or not,
- * and don't need to be explicitly checked.
- */
-__success
+__failure __msg("R1 invalid mem access 'trusted_ptr_or_null_'")
 int BPF_PROG(handle_tp_btf_nullable_bare1, struct bpf_testmod_test_read_ctx *nullable_ctx)
 {
 	return nullable_ctx->len;

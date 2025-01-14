@@ -33,7 +33,6 @@
 
 #include <drm/drm_edid.h>
 
-#include "i915_drv.h"
 #include "intel_backlight.h"
 #include "intel_connector.h"
 #include "intel_display_core.h"
@@ -383,12 +382,12 @@ void intel_panel_add_encoder_fixed_mode(struct intel_connector *connector,
 enum drm_connector_status
 intel_panel_detect(struct drm_connector *connector, bool force)
 {
-	struct drm_i915_private *i915 = to_i915(connector->dev);
+	struct intel_display *display = to_intel_display(connector->dev);
 
-	if (!intel_display_device_enabled(i915))
+	if (!intel_display_device_enabled(display))
 		return connector_status_disconnected;
 
-	if (!intel_display_driver_check_access(i915))
+	if (!intel_display_driver_check_access(display))
 		return connector->status;
 
 	return connector_status_connected;
