@@ -146,9 +146,7 @@ static int hv_irq_version;
  */
 static bool sun4v_cookie_only_virqs(void)
 {
-	if (hv_irq_version >= 3)
-		return true;
-	return false;
+	return hv_irq_version >= 3;
 }
 
 static void __init irq_init_hv(void)
