@@ -685,7 +685,8 @@ static int xpcs_config_aneg_c37_sgmii(struct dw_xpcs *xpcs,
 		return ret;
 
 	val = 0;
-	mask = DW_VR_MII_DIG_CTRL1_MAC_AUTO_SW;
+	mask = DW_VR_MII_DIG_CTRL1_2G5_EN | DW_VR_MII_DIG_CTRL1_MAC_AUTO_SW;
+
 	if (neg_mode == PHYLINK_PCS_NEG_INBAND_ENABLED)
 		val = DW_VR_MII_DIG_CTRL1_MAC_AUTO_SW;
 
