@@ -225,8 +225,8 @@ static void wilc_sdio_remove(struct sdio_func *func)
 	struct wilc *wilc = sdio_get_drvdata(func);
 	struct wilc_sdio *sdio_priv = wilc->bus_data;
 
-	wiphy_unregister(wilc->wiphy);
 	wilc_netdev_cleanup(wilc);
+	wiphy_unregister(wilc->wiphy);
 	wiphy_free(wilc->wiphy);
 	kfree(sdio_priv->cmd53_buf);
 	kfree(sdio_priv);

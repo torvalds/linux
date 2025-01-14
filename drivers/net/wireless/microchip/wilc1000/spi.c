@@ -285,8 +285,8 @@ static void wilc_bus_remove(struct spi_device *spi)
 	struct wilc *wilc = spi_get_drvdata(spi);
 	struct wilc_spi *spi_priv = wilc->bus_data;
 
-	wiphy_unregister(wilc->wiphy);
 	wilc_netdev_cleanup(wilc);
+	wiphy_unregister(wilc->wiphy);
 	wiphy_free(wilc->wiphy);
 	kfree(spi_priv);
 }
