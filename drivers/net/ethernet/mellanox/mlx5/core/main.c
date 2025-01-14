@@ -368,6 +368,10 @@ int mlx5_core_get_caps_mode(struct mlx5_core_dev *dev, enum mlx5_cap_type cap_ty
 	u16 opmod = (cap_type << 1) | (cap_mode & 0x01);
 	int err;
 
+	if (WARN_ON(!dev->caps.hca[cap_type]))
+		/* this cap_type must be added to mlx5_hca_caps_alloc() */
+		return -EINVAL;
+
 	memset(in, 0, sizeof(in));
 	out = kzalloc(out_sz, GFP_KERNEL);
 	if (!out)
@@ -1790,6 +1794,7 @@ static const int types[] = {
 	MLX5_CAP_MACSEC,
 	MLX5_CAP_ADV_VIRTUALIZATION,
 	MLX5_CAP_CRYPTO,
+	MLX5_CAP_SHAMPO,
 };
 
 static void mlx5_hca_caps_free(struct mlx5_core_dev *dev)
