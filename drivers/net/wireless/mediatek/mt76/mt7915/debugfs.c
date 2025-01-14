@@ -303,9 +303,9 @@ static int mt7915_muru_stats_show(struct seq_file *file, void *data)
 		   phy->mib.dl_vht_3mu_cnt,
 		   phy->mib.dl_vht_4mu_cnt);
 
-	sub_total_cnt = phy->mib.dl_vht_2mu_cnt +
-			phy->mib.dl_vht_3mu_cnt +
-			phy->mib.dl_vht_4mu_cnt;
+	sub_total_cnt = (u64)phy->mib.dl_vht_2mu_cnt +
+			     phy->mib.dl_vht_3mu_cnt +
+			     phy->mib.dl_vht_4mu_cnt;
 
 	seq_printf(file, "\nTotal non-HE MU-MIMO DL PPDU count: %lld",
 		   sub_total_cnt);
@@ -353,26 +353,27 @@ static int mt7915_muru_stats_show(struct seq_file *file, void *data)
 		   phy->mib.dl_he_9to16ru_cnt,
 		   phy->mib.dl_he_gtr16ru_cnt);
 
-	sub_total_cnt = phy->mib.dl_he_2mu_cnt +
-			phy->mib.dl_he_3mu_cnt +
-			phy->mib.dl_he_4mu_cnt;
+	sub_total_cnt = (u64)phy->mib.dl_he_2mu_cnt +
+			     phy->mib.dl_he_3mu_cnt +
+			     phy->mib.dl_he_4mu_cnt;
 	total_ppdu_cnt = sub_total_cnt;
 
 	seq_printf(file, "\nTotal HE MU-MIMO DL PPDU count: %lld",
 		   sub_total_cnt);
 
-	sub_total_cnt = phy->mib.dl_he_2ru_cnt +
-			phy->mib.dl_he_3ru_cnt +
-			phy->mib.dl_he_4ru_cnt +
-			phy->mib.dl_he_5to8ru_cnt +
-			phy->mib.dl_he_9to16ru_cnt +
-			phy->mib.dl_he_gtr16ru_cnt;
+	sub_total_cnt = (u64)phy->mib.dl_he_2ru_cnt +
+			     phy->mib.dl_he_3ru_cnt +
+			     phy->mib.dl_he_4ru_cnt +
+			     phy->mib.dl_he_5to8ru_cnt +
+			     phy->mib.dl_he_9to16ru_cnt +
+			     phy->mib.dl_he_gtr16ru_cnt;
 	total_ppdu_cnt += sub_total_cnt;
 
 	seq_printf(file, "\nTotal HE OFDMA DL PPDU count: %lld",
 		   sub_total_cnt);
 
-	total_ppdu_cnt += phy->mib.dl_he_su_cnt + phy->mib.dl_he_ext_su_cnt;
+	total_ppdu_cnt += (u64)phy->mib.dl_he_su_cnt +
+			       phy->mib.dl_he_ext_su_cnt;
 
 	seq_printf(file, "\nAll HE DL PPDU count: %lld", total_ppdu_cnt);
 
@@ -404,20 +405,20 @@ static int mt7915_muru_stats_show(struct seq_file *file, void *data)
 		   phy->mib.ul_hetrig_9to16ru_cnt,
 		   phy->mib.ul_hetrig_gtr16ru_cnt);
 
-	sub_total_cnt = phy->mib.ul_hetrig_2mu_cnt +
-			phy->mib.ul_hetrig_3mu_cnt +
-			phy->mib.ul_hetrig_4mu_cnt;
+	sub_total_cnt = (u64)phy->mib.ul_hetrig_2mu_cnt +
+			     phy->mib.ul_hetrig_3mu_cnt +
+			     phy->mib.ul_hetrig_4mu_cnt;
 	total_ppdu_cnt = sub_total_cnt;
 
 	seq_printf(file, "\nTotal HE MU-MIMO UL TB PPDU count: %lld",
 		   sub_total_cnt);
 
-	sub_total_cnt = phy->mib.ul_hetrig_2ru_cnt +
-			phy->mib.ul_hetrig_3ru_cnt +
-			phy->mib.ul_hetrig_4ru_cnt +
-			phy->mib.ul_hetrig_5to8ru_cnt +
-			phy->mib.ul_hetrig_9to16ru_cnt +
-			phy->mib.ul_hetrig_gtr16ru_cnt;
+	sub_total_cnt = (u64)phy->mib.ul_hetrig_2ru_cnt +
+			     phy->mib.ul_hetrig_3ru_cnt +
+			     phy->mib.ul_hetrig_4ru_cnt +
+			     phy->mib.ul_hetrig_5to8ru_cnt +
+			     phy->mib.ul_hetrig_9to16ru_cnt +
+			     phy->mib.ul_hetrig_gtr16ru_cnt;
 	total_ppdu_cnt += sub_total_cnt;
 
 	seq_printf(file, "\nTotal HE OFDMA UL TB PPDU count: %lld",
