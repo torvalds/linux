@@ -8,6 +8,7 @@
 #include <linux/soundwire/sdw_registers.h>
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_type.h>
+#include <linux/string_choices.h>
 #include "bus.h"
 #include "irq.h"
 #include "sysfs_local.h"
@@ -277,7 +278,7 @@ static int sdw_transfer_unlocked(struct sdw_bus *bus, struct sdw_msg *msg)
 	if (ret != 0 && ret != -ENODATA)
 		dev_err(bus->dev, "trf on Slave %d failed:%d %s addr %x count %d\n",
 			msg->dev_num, ret,
-			(msg->flags & SDW_MSG_FLAG_WRITE) ? "write" : "read",
+			str_write_read(msg->flags & SDW_MSG_FLAG_WRITE),
 			msg->addr, msg->len);
 
 	return ret;
@@ -1263,7 +1264,7 @@ int sdw_configure_dpn_intr(struct sdw_slave *slave,
 
 	if (slave->bus->params.s_data_mode != SDW_PORT_DATA_MODE_NORMAL) {
 		dev_dbg(&slave->dev, "TEST FAIL interrupt %s\n",
-			enable ? "on" : "off");
+			str_on_off(enable));
 		mask |= SDW_DPN_INT_TEST_FAIL;
 	}
 

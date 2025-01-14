@@ -14,6 +14,7 @@
 #include <linux/soundwire/sdw_registers.h>
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_type.h>
+#include <linux/string_choices.h>
 #include <sound/soc.h>
 #include "bus.h"
 
@@ -358,7 +359,7 @@ static int sdw_enable_disable_master_ports(struct sdw_master_runtime *m_rt,
 	} else {
 		dev_err(bus->dev,
 			"dpn_port_enable_ch not supported, %s failed\n",
-			en ? "enable" : "disable");
+			str_enable_disable(en));
 		return -EINVAL;
 	}
 

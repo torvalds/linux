@@ -10,6 +10,7 @@
 #include <linux/slab.h>
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_registers.h>
+#include <linux/string_choices.h>
 #include "bus.h"
 
 static struct dentry *sdw_debugfs_root;
@@ -153,7 +154,7 @@ static int set_command(void *data, u64 value)
 	/* Userspace changed the hardware state behind the kernel's back */
 	add_taint(TAINT_USER, LOCKDEP_STILL_OK);
 
-	dev_dbg(&slave->dev, "command: %s\n", value ? "read" : "write");
+	dev_dbg(&slave->dev, "command: %s\n", str_read_write(value));
 	cmd = value;
 
 	return 0;
