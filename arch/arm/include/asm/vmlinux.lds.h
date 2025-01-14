@@ -19,7 +19,7 @@
 #endif
 
 #ifdef CONFIG_MMU
-#define ARM_MMU_KEEP(x)		x
+#define ARM_MMU_KEEP(x)		KEEP(x)
 #define ARM_MMU_DISCARD(x)
 #else
 #define ARM_MMU_KEEP(x)
