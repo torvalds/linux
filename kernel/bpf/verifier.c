@@ -287,6 +287,7 @@ struct bpf_call_arg_meta {
 	u32 ret_btf_id;
 	u32 subprogno;
 	struct btf_field *kptr_field;
+	s64 const_map_key;
 };
 
 struct bpf_kfunc_call_arg_meta {
@@ -9148,6 +9149,63 @@ static int check_reg_const_str(struct bpf_verifier_env *env,
 	return 0;
 }
 
+/* Returns constant key value if possible, else negative error */
+static s64 get_constant_map_key(struct bpf_verifier_env *env,
+				struct bpf_reg_state *key,
+				u32 key_size)
+{
+	struct bpf_func_state *state = func(env, key);
+	struct bpf_reg_state *reg;
+	int slot, spi, off;
+	int spill_size = 0;
+	int zero_size = 0;
+	int stack_off;
+	int i, err;
+	u8 *stype;
+
+	if (!env->bpf_capable)
+		return -EOPNOTSUPP;
+	if (key->type != PTR_TO_STACK)
+		return -EOPNOTSUPP;
+	if (!tnum_is_const(key->var_off))
+		return -EOPNOTSUPP;
+
+	stack_off = key->off + key->var_off.value;
+	slot = -stack_off - 1;
+	spi = slot / BPF_REG_SIZE;
+	off = slot % BPF_REG_SIZE;
+	stype = state->stack[spi].slot_type;
+
+	/* First handle precisely tracked STACK_ZERO */
+	for (i = off; i >= 0 && stype[i] == STACK_ZERO; i--)
+		zero_size++;
+	if (zero_size >= key_size)
+		return 0;
+
+	/* Check that stack contains a scalar spill of expected size */
+	if (!is_spilled_scalar_reg(&state->stack[spi]))
+		return -EOPNOTSUPP;
+	for (i = off; i >= 0 && stype[i] == STACK_SPILL; i--)
+		spill_size++;
+	if (spill_size != key_size)
+		return -EOPNOTSUPP;
+
+	reg = &state->stack[spi].spilled_ptr;
+	if (!tnum_is_const(reg->var_off))
+		/* Stack value not statically known */
+		return -EOPNOTSUPP;
+
+	/* We are relying on a constant value. So mark as precise
+	 * to prevent pruning on it.
+	 */
+	bt_set_frame_slot(&env->bt, key->frameno, spi);
+	err = mark_chain_precision_batch(env);
+	if (err < 0)
+		return err;
+
+	return reg->var_off.value;
+}
+
 static int check_func_arg(struct bpf_verifier_env *env, u32 arg,
 			  struct bpf_call_arg_meta *meta,
 			  const struct bpf_func_proto *fn,
@@ -9158,6 +9216,7 @@ static int check_func_arg(struct bpf_verifier_env *env, u32 arg,
 	enum bpf_arg_type arg_type = fn->arg_type[arg];
 	enum bpf_reg_type type = reg->type;
 	u32 *arg_btf_id = NULL;
+	u32 key_size;
 	int err = 0;
 
 	if (arg_type == ARG_DONTCARE)
@@ -9291,8 +9350,13 @@ skip_type_check:
 			verbose(env, "invalid map_ptr to access map->key\n");
 			return -EACCES;
 		}
-		err = check_helper_mem_access(env, regno, meta->map_ptr->key_size,
-					      BPF_READ, false, NULL);
+		key_size = meta->map_ptr->key_size;
+		err = check_helper_mem_access(env, regno, key_size, BPF_READ, false, NULL);
+		if (err)
+			return err;
+		meta->const_map_key = get_constant_map_key(env, reg, key_size);
+		if (meta->const_map_key < 0 && meta->const_map_key != -EOPNOTSUPP)
+			return meta->const_map_key;
 		break;
 	case ARG_PTR_TO_MAP_VALUE:
 		if (type_may_be_null(arg_type) && register_is_null(reg))
@@ -10816,6 +10880,21 @@ static void update_loop_inline_state(struct bpf_verifier_env *env, u32 subprogno
 				 state->callback_subprogno == subprogno);
 }
 
+/* Returns whether or not the given map type can potentially elide
+ * lookup return value nullness check. This is possible if the key
+ * is statically known.
+ */
+static bool can_elide_value_nullness(enum bpf_map_type type)
+{
+	switch (type) {
+	case BPF_MAP_TYPE_ARRAY:
+	case BPF_MAP_TYPE_PERCPU_ARRAY:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static int get_helper_proto(struct bpf_verifier_env *env, int func_id,
 			    const struct bpf_func_proto **ptr)
 {
@@ -11182,10 +11261,17 @@ static int check_helper_call(struct bpf_verifier_env *env, struct bpf_insn *insn
 				"kernel subsystem misconfigured verifier\n");
 			return -EINVAL;
 		}
+
+		if (func_id == BPF_FUNC_map_lookup_elem &&
+		    can_elide_value_nullness(meta.map_ptr->map_type) &&
+		    meta.const_map_key >= 0 &&
+		    meta.const_map_key < meta.map_ptr->max_entries)
+			ret_flag &= ~PTR_MAYBE_NULL;
+
 		regs[BPF_REG_0].map_ptr = meta.map_ptr;
 		regs[BPF_REG_0].map_uid = meta.map_uid;
 		regs[BPF_REG_0].type = PTR_TO_MAP_VALUE | ret_flag;
-		if (!type_may_be_null(ret_type) &&
+		if (!type_may_be_null(ret_flag) &&
 		    btf_record_has_field(meta.map_ptr->record, BPF_SPIN_LOCK)) {
 			regs[BPF_REG_0].id = ++env->id_gen;
 		}
