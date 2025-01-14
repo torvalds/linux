@@ -215,18 +215,18 @@ static void dpc_process_rp_pio_error(struct pci_dev *pdev)
 				first_error == i ? " (First)" : "");
 	}
 
-	if (pdev->dpc_rp_log_size < 4)
+	if (pdev->dpc_rp_log_size < PCIE_STD_NUM_TLP_HEADERLOG)
 		goto clear_status;
 	pcie_read_tlp_log(pdev, cap + PCI_EXP_DPC_RP_PIO_HEADER_LOG, &tlp_log);
 	pci_err(pdev, "TLP Header: %#010x %#010x %#010x %#010x\n",
 		tlp_log.dw[0], tlp_log.dw[1], tlp_log.dw[2], tlp_log.dw[3]);
 
-	if (pdev->dpc_rp_log_size < 5)
+	if (pdev->dpc_rp_log_size < PCIE_STD_NUM_TLP_HEADERLOG + 1)
 		goto clear_status;
 	pci_read_config_dword(pdev, cap + PCI_EXP_DPC_RP_PIO_IMPSPEC_LOG, &log);
 	pci_err(pdev, "RP PIO ImpSpec Log %#010x\n", log);
 
-	for (i = 0; i < pdev->dpc_rp_log_size - 5; i++) {
+	for (i = 0; i < pdev->dpc_rp_log_size - PCIE_STD_NUM_TLP_HEADERLOG - 1; i++) {
 		pci_read_config_dword(pdev,
 			cap + PCI_EXP_DPC_RP_PIO_TLPPREFIX_LOG + i * 4, &prefix);
 		pci_err(pdev, "TLP Prefix Header: dw%d, %#010x\n", i, prefix);
@@ -404,7 +404,9 @@ void pci_dpc_init(struct pci_dev *pdev)
 	if (!pdev->dpc_rp_log_size) {
 		pdev->dpc_rp_log_size =
 				FIELD_GET(PCI_EXP_DPC_RP_PIO_LOG_SIZE, cap);
-		if (pdev->dpc_rp_log_size < 4 || pdev->dpc_rp_log_size > 9) {
+		if (pdev->dpc_rp_log_size < PCIE_STD_NUM_TLP_HEADERLOG ||
+		    pdev->dpc_rp_log_size > PCIE_STD_NUM_TLP_HEADERLOG + 1 +
+					    PCIE_STD_MAX_TLP_PREFIXLOG) {
 			pci_err(pdev, "RP PIO log size %u is invalid\n",
 				pdev->dpc_rp_log_size);
 			pdev->dpc_rp_log_size = 0;

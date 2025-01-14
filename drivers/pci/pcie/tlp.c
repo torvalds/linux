@@ -28,7 +28,7 @@ int pcie_read_tlp_log(struct pci_dev *dev, int where,
 
 	memset(tlp_log, 0, sizeof(*tlp_log));
 
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < PCIE_STD_NUM_TLP_HEADERLOG; i++) {
 		ret = pci_read_config_dword(dev, where + i * 4,
 					    &tlp_log->dw[i]);
 		if (ret)
