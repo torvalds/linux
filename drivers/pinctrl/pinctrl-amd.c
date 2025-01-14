@@ -30,6 +30,7 @@
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinmux.h>
+#include <linux/string_choices.h>
 #include <linux/suspend.h>
 
 #include "core.h"
@@ -458,7 +459,7 @@ static int amd_gpio_irq_set_wake(struct irq_data *d, unsigned int on)
 
 	if (err)
 		dev_err(&gpio_dev->pdev->dev, "failed to %s wake-up interrupt\n",
-			on ? "enable" : "disable");
+			str_enable_disable(on));
 
 	return 0;
 }
