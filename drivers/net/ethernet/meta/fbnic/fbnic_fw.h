@@ -44,6 +44,15 @@ struct fbnic_fw_cap {
 	u8	link_fec;
 };
 
+struct fbnic_fw_completion {
+	u32 msg_type;
+	struct completion done;
+	struct kref ref_count;
+	int result;
+	union {
+	} u;
+};
+
 void fbnic_mbx_init(struct fbnic_dev *fbd);
 void fbnic_mbx_clean(struct fbnic_dev *fbd);
 void fbnic_mbx_poll(struct fbnic_dev *fbd);
@@ -52,6 +61,10 @@ void fbnic_mbx_flush_tx(struct fbnic_dev *fbd);
 int fbnic_fw_xmit_ownership_msg(struct fbnic_dev *fbd, bool take_ownership);
 int fbnic_fw_init_heartbeat(struct fbnic_dev *fbd, bool poll);
 void fbnic_fw_check_heartbeat(struct fbnic_dev *fbd);
+void fbnic_fw_init_cmpl(struct fbnic_fw_completion *cmpl_data,
+			u32 msg_type);
+void fbnic_fw_clear_compl(struct fbnic_dev *fbd);
+void fbnic_fw_put_cmpl(struct fbnic_fw_completion *cmpl_data);
 
 #define fbnic_mk_full_fw_ver_str(_rev_id, _delim, _commit, _str, _str_sz) \
 do {									\

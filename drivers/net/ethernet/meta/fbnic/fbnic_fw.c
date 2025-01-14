@@ -228,6 +228,63 @@ static void fbnic_mbx_process_tx_msgs(struct fbnic_dev *fbd)
 	tx_mbx->head = head;
 }
 
+static __maybe_unused int fbnic_mbx_map_req_w_cmpl(struct fbnic_dev *fbd,
+						   struct fbnic_tlv_msg *msg,
+						   struct fbnic_fw_completion *cmpl_data)
+{
+	unsigned long flags;
+	int err;
+
+	spin_lock_irqsave(&fbd->fw_tx_lock, flags);
+
+	/* If we are already waiting on a completion then abort */
+	if (cmpl_data && fbd->cmpl_data) {
+		err = -EBUSY;
+		goto unlock_mbx;
+	}
+
+	/* Record completion location and submit request */
+	if (cmpl_data)
+		fbd->cmpl_data = cmpl_data;
+
+	err = fbnic_mbx_map_msg(fbd, FBNIC_IPC_MBX_TX_IDX, msg,
+				le16_to_cpu(msg->hdr.len) * sizeof(u32), 1);
+
+	/* If msg failed then clear completion data for next caller */
+	if (err && cmpl_data)
+		fbd->cmpl_data = NULL;
+
+unlock_mbx:
+	spin_unlock_irqrestore(&fbd->fw_tx_lock, flags);
+
+	return err;
+}
+
+static void fbnic_fw_release_cmpl_data(struct kref *kref)
+{
+	struct fbnic_fw_completion *cmpl_data;
+
+	cmpl_data = container_of(kref, struct fbnic_fw_completion,
+				 ref_count);
+	kfree(cmpl_data);
+}
+
+static __maybe_unused struct fbnic_fw_completion *
+fbnic_fw_get_cmpl_by_type(struct fbnic_dev *fbd, u32 msg_type)
+{
+	struct fbnic_fw_completion *cmpl_data = NULL;
+	unsigned long flags;
+
+	spin_lock_irqsave(&fbd->fw_tx_lock, flags);
+	if (fbd->cmpl_data && fbd->cmpl_data->msg_type == msg_type) {
+		cmpl_data = fbd->cmpl_data;
+		kref_get(&fbd->cmpl_data->ref_count);
+	}
+	spin_unlock_irqrestore(&fbd->fw_tx_lock, flags);
+
+	return cmpl_data;
+}
+
 /**
  * fbnic_fw_xmit_simple_msg - Transmit a simple single TLV message w/o data
  * @fbd: FBNIC device structure
@@ -801,4 +858,26 @@ void fbnic_get_fw_ver_commit_str(struct fbnic_dev *fbd, char *fw_version,
 
 	fbnic_mk_full_fw_ver_str(mgmt->version, delim, mgmt->commit,
 				 fw_version, str_sz);
+}
+
+void fbnic_fw_init_cmpl(struct fbnic_fw_completion *fw_cmpl,
+			u32 msg_type)
+{
+	fw_cmpl->msg_type = msg_type;
+	init_completion(&fw_cmpl->done);
+	kref_init(&fw_cmpl->ref_count);
+}
+
+void fbnic_fw_clear_compl(struct fbnic_dev *fbd)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&fbd->fw_tx_lock, flags);
+	fbd->cmpl_data = NULL;
+	spin_unlock_irqrestore(&fbd->fw_tx_lock, flags);
+}
+
+void fbnic_fw_put_cmpl(struct fbnic_fw_completion *fw_cmpl)
+{
+	kref_put(&fw_cmpl->ref_count, fbnic_fw_release_cmpl_data);
 }
