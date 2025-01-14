@@ -2273,7 +2273,7 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 	}
 
 	/* Get the clocks from the DT */
-	scodec->clk_apb = devm_clk_get(&pdev->dev, "apb");
+	scodec->clk_apb = devm_clk_get_enabled(&pdev->dev, "apb");
 	if (IS_ERR(scodec->clk_apb)) {
 		dev_err(&pdev->dev, "Failed to get the APB clock\n");
 		return PTR_ERR(scodec->clk_apb);
@@ -2286,8 +2286,7 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 	}
 
 	if (quirks->has_reset) {
-		scodec->rst = devm_reset_control_get_exclusive(&pdev->dev,
-							       NULL);
+		scodec->rst = devm_reset_control_get_exclusive_deasserted(&pdev->dev, NULL);
 		if (IS_ERR(scodec->rst)) {
 			dev_err(&pdev->dev, "Failed to get reset control\n");
 			return PTR_ERR(scodec->rst);
@@ -2323,22 +2322,6 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* Enable the bus clock */
-	if (clk_prepare_enable(scodec->clk_apb)) {
-		dev_err(&pdev->dev, "Failed to enable the APB clock\n");
-		return -EINVAL;
-	}
-
-	/* Deassert the reset control */
-	if (scodec->rst) {
-		ret = reset_control_deassert(scodec->rst);
-		if (ret) {
-			dev_err(&pdev->dev,
-				"Failed to deassert the reset control\n");
-			goto err_clk_disable;
-		}
-	}
-
 	/* DMA configuration for TX FIFO */
 	scodec->playback_dma_data.addr = res->start + quirks->reg_dac_txdata;
 	scodec->playback_dma_data.maxburst = quirks->dma_max_burst;
@@ -2356,7 +2339,7 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 				     &sun4i_codec_dai, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register our codec\n");
-		goto err_assert_reset;
+		return ret;
 	}
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
@@ -2364,20 +2347,20 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 					      &dummy_cpu_dai, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register our DAI\n");
-		goto err_assert_reset;
+		return ret;
 	}
 
 	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register against DMAEngine\n");
-		goto err_assert_reset;
+		return ret;
 	}
 
 	card = quirks->create_card(&pdev->dev);
 	if (IS_ERR(card)) {
 		ret = PTR_ERR(card);
 		dev_err(&pdev->dev, "Failed to create our card\n");
-		goto err_assert_reset;
+		return ret;
 	}
 
 	snd_soc_card_set_drvdata(card, scodec);
@@ -2385,28 +2368,17 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 	ret = snd_soc_register_card(card);
 	if (ret) {
 		dev_err_probe(&pdev->dev, ret, "Failed to register our card\n");
-		goto err_assert_reset;
+		return ret;
 	}
 
 	return 0;
-
-err_assert_reset:
-	if (scodec->rst)
-		reset_control_assert(scodec->rst);
-err_clk_disable:
-	clk_disable_unprepare(scodec->clk_apb);
-	return ret;
 }
 
 static void sun4i_codec_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
-	struct sun4i_codec *scodec = snd_soc_card_get_drvdata(card);
 
 	snd_soc_unregister_card(card);
-	if (scodec->rst)
-		reset_control_assert(scodec->rst);
-	clk_disable_unprepare(scodec->clk_apb);
 }
 
 static struct platform_driver sun4i_codec_driver = {
