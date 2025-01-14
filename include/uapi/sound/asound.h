@@ -730,7 +730,7 @@ enum {
 #define SNDRV_RAWMIDI_INFO_UMP			0x00000008
 #define SNDRV_RAWMIDI_INFO_STREAM_INACTIVE	0x00000010
 
-#define SNDRV_RAWMIDI_DEVICE_UNKNOWN		-1
+#define SNDRV_RAWMIDI_DEVICE_UNKNOWN		0
 
 struct snd_rawmidi_info {
 	unsigned int device;		/* RO/WR (control): device number */
