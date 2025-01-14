@@ -2065,10 +2065,19 @@ mlx5_tc_ct_fs_init(struct mlx5_tc_ct_priv *ct_priv)
 	struct mlx5_ct_fs_ops *fs_ops = mlx5_ct_fs_dmfs_ops_get();
 	int err;
 
-	if (ct_priv->ns_type == MLX5_FLOW_NAMESPACE_FDB &&
-	    ct_priv->dev->priv.steering->mode == MLX5_FLOW_STEERING_MODE_SMFS) {
-		ct_dbg("Using SMFS ct flow steering provider");
-		fs_ops = mlx5_ct_fs_smfs_ops_get();
+	if (ct_priv->ns_type == MLX5_FLOW_NAMESPACE_FDB) {
+		if (ct_priv->dev->priv.steering->mode == MLX5_FLOW_STEERING_MODE_HMFS) {
+			ct_dbg("Using HMFS ct flow steering provider");
+			fs_ops = mlx5_ct_fs_hmfs_ops_get();
+		} else if (ct_priv->dev->priv.steering->mode == MLX5_FLOW_STEERING_MODE_SMFS) {
+			ct_dbg("Using SMFS ct flow steering provider");
+			fs_ops = mlx5_ct_fs_smfs_ops_get();
+		}
+
+		if (!fs_ops) {
+			ct_dbg("Requested flow steering mode is not enabled.");
+			return -EOPNOTSUPP;
+		}
 	}
 
 	ct_priv->fs = kzalloc(sizeof(*ct_priv->fs) + fs_ops->priv_size, GFP_KERNEL);
