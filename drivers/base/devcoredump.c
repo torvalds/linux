@@ -106,7 +106,7 @@ static void devcd_del(struct work_struct *wk)
 }
 
 static ssize_t devcd_data_read(struct file *filp, struct kobject *kobj,
-			       struct bin_attribute *bin_attr,
+			       const struct bin_attribute *bin_attr,
 			       char *buffer, loff_t offset, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -116,7 +116,7 @@ static ssize_t devcd_data_read(struct file *filp, struct kobject *kobj,
 }
 
 static ssize_t devcd_data_write(struct file *filp, struct kobject *kobj,
-				struct bin_attribute *bin_attr,
+				const struct bin_attribute *bin_attr,
 				char *buffer, loff_t offset, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -132,15 +132,15 @@ static ssize_t devcd_data_write(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static struct bin_attribute devcd_attr_data =
+static const struct bin_attribute devcd_attr_data =
 	__BIN_ATTR(data, 0600, devcd_data_read, devcd_data_write, 0);
 
-static struct bin_attribute *devcd_dev_bin_attrs[] = {
+static const struct bin_attribute *const devcd_dev_bin_attrs[] = {
 	&devcd_attr_data, NULL,
 };
 
 static const struct attribute_group devcd_dev_group = {
-	.bin_attrs = devcd_dev_bin_attrs,
+	.bin_attrs_new = devcd_dev_bin_attrs,
 };
 
 static const struct attribute_group *devcd_dev_groups[] = {
