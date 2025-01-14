@@ -562,11 +562,7 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 		 */
 		status = acpi_walk_resources(adev->handle, METHOD_NAME__CRS,
 					     cros_ec_lpc_resources, ec_lpc);
-		if (ACPI_FAILURE(status)) {
-			dev_err(dev, "failed to get resources\n");
-			return -ENODEV;
-		}
-		if (ec_lpc->mem32.address_length) {
+		if (ACPI_SUCCESS(status) && ec_lpc->mem32.address_length) {
 			ec_lpc->base = devm_ioremap(dev,
 						    ec_lpc->mem32.address,
 						    ec_lpc->mem32.address_length);
