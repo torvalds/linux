@@ -596,8 +596,10 @@ int do_uring(unsigned long lam)
 	fi->file_fd = file_fd;
 
 	ring = malloc(sizeof(*ring));
-	if (!ring)
+	if (!ring) {
+		free(fi);
 		return 1;
+	}
 
 	memset(ring, 0, sizeof(struct io_ring));
 
