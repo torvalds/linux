@@ -503,7 +503,7 @@ config I2C_BRCMSTB
 	tristate "BRCM Settop/DSL I2C controller"
 	depends on ARCH_BCM2835 || ARCH_BCMBCA || ARCH_BRCMSTB || \
 		   BMIPS_GENERIC || COMPILE_TEST
-	default y
+	default ARCH_BCM2835 || ARCH_BCMBCA || ARCH_BRCMSTB || BMIPS_GENERIC
 	help
 	  If you say yes to this option, support will be included for the
 	  I2C interface on the Broadcom Settop/DSL SoCs.
@@ -910,7 +910,7 @@ config I2C_MXS
 
 config I2C_NOMADIK
 	tristate "ST-Ericsson Nomadik/Ux500 I2C Controller"
-	depends on ARM_AMBA
+	depends on ARM_AMBA || COMPILE_TEST
 	help
 	  If you say yes to this option, support will be included for the
 	  I2C interface from ST-Ericsson's Nomadik and Ux500 architectures,
