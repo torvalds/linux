@@ -137,13 +137,20 @@ static int ad3552r_hs_buffer_postenable(struct iio_dev *indio_dev)
 	if (ret)
 		return ret;
 
+	/* Primary region access, set streaming mode (now in SPI + SDR). */
+	ret = ad3552r_qspi_update_reg_bits(st,
+					   AD3552R_REG_ADDR_INTERFACE_CONFIG_B,
+					   AD3552R_MASK_SINGLE_INST, 0, 1);
+	if (ret)
+		return ret;
+
 	/* Inform DAC chip to switch into DDR mode */
 	ret = ad3552r_qspi_update_reg_bits(st,
 					   AD3552R_REG_ADDR_INTERFACE_CONFIG_D,
 					   AD3552R_MASK_SPI_CONFIG_DDR,
 					   AD3552R_MASK_SPI_CONFIG_DDR, 1);
 	if (ret)
-		return ret;
+		goto exit_err_ddr;
 
 	/* Inform DAC IP to go for DDR mode from now on */
 	ret = iio_backend_ddr_enable(st->back);
@@ -174,6 +181,11 @@ exit_err:
 
 	iio_backend_ddr_disable(st->back);
 
+exit_err_ddr:
+	ad3552r_qspi_update_reg_bits(st, AD3552R_REG_ADDR_INTERFACE_CONFIG_B,
+				     AD3552R_MASK_SINGLE_INST,
+				     AD3552R_MASK_SINGLE_INST, 1);
+
 	return ret;
 }
 
@@ -195,6 +207,14 @@ static int ad3552r_hs_buffer_predisable(struct iio_dev *indio_dev)
 		return ret;
 
 	ret = iio_backend_ddr_disable(st->back);
+	if (ret)
+		return ret;
+
+	/* Back to single instruction mode, disabling loop. */
+	ret = ad3552r_qspi_update_reg_bits(st,
+					   AD3552R_REG_ADDR_INTERFACE_CONFIG_B,
+					   AD3552R_MASK_SINGLE_INST,
+					   AD3552R_MASK_SINGLE_INST, 1);
 	if (ret)
 		return ret;
 
@@ -305,6 +325,13 @@ static int ad3552r_hs_setup(struct ad3552r_hs_state *st)
 		return ret;
 
 	ret = iio_backend_ddr_disable(st->back);
+	if (ret)
+		return ret;
+
+	ret = st->data->bus_reg_write(st->back,
+				      AD3552R_REG_ADDR_INTERFACE_CONFIG_B,
+				      AD3552R_MASK_SINGLE_INST |
+				      AD3552R_MASK_SHORT_INSTRUCTION, 1);
 	if (ret)
 		return ret;
 
