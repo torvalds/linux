@@ -2520,7 +2520,7 @@ int mt7996_mcu_add_beacon(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct sk_buff *skb, *rskb;
 	struct tlv *tlv;
 	struct bss_bcn_content_tlv *bcn;
-	int len;
+	int len, extra_len = 0;
 
 	if (link_conf->nontransmitted)
 		return 0;
@@ -2534,27 +2534,31 @@ int mt7996_mcu_add_beacon(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		return PTR_ERR(rskb);
 
 	skb = ieee80211_beacon_get_template(hw, vif, &offs, link_conf->link_id);
-	if (!skb) {
+	if (link_conf->enable_beacon && !skb) {
 		dev_kfree_skb(rskb);
 		return -EINVAL;
 	}
 
-	if (skb->len > MT7996_MAX_BEACON_SIZE) {
-		dev_err(dev->mt76.dev, "Bcn size limit exceed\n");
-		dev_kfree_skb(rskb);
-		dev_kfree_skb(skb);
-		return -EINVAL;
+	if (skb) {
+		if (skb->len > MT7996_MAX_BEACON_SIZE) {
+			dev_err(dev->mt76.dev, "Bcn size limit exceed\n");
+			dev_kfree_skb(rskb);
+			dev_kfree_skb(skb);
+			return -EINVAL;
+		}
+
+		extra_len = skb->len;
 	}
 
-	info = IEEE80211_SKB_CB(skb);
-	info->hw_queue |= FIELD_PREP(MT_TX_HW_QUEUE_PHY, mlink->band_idx);
-
-	len = ALIGN(sizeof(*bcn) + MT_TXD_SIZE + skb->len, 4);
+	len = ALIGN(sizeof(*bcn) + MT_TXD_SIZE + extra_len, 4);
 	tlv = mt7996_mcu_add_uni_tlv(rskb, UNI_BSS_INFO_BCN_CONTENT, len);
 	bcn = (struct bss_bcn_content_tlv *)tlv;
 	bcn->enable = link_conf->enable_beacon;
 	if (!bcn->enable)
 		goto out;
+
+	info = IEEE80211_SKB_CB(skb);
+	info->hw_queue |= FIELD_PREP(MT_TX_HW_QUEUE_PHY, mlink->band_idx);
 
 	mt7996_mcu_beacon_cont(dev, link_conf, rskb, skb, bcn, &offs);
 	if (link_conf->bssid_indicator)
