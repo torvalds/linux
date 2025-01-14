@@ -31,6 +31,7 @@
 #include <linux/pwrseq/consumer.h>
 #include <linux/regulator/consumer.h>
 #include <linux/serdev.h>
+#include <linux/string_choices.h>
 #include <linux/mutex.h>
 #include <linux/unaligned.h>
 
@@ -343,8 +344,8 @@ static void serial_clock_vote(unsigned long vote, struct hci_uart *hu)
 		else
 			__serial_clock_off(hu->tty);
 
-		BT_DBG("Vote serial clock %s(%s)", new_vote ? "true" : "false",
-		       vote ? "true" : "false");
+		BT_DBG("Vote serial clock %s(%s)", str_true_false(new_vote),
+		       str_true_false(vote));
 
 		diff = jiffies_to_msecs(jiffies - qca->vote_last_jif);
 
