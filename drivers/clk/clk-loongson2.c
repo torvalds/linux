@@ -294,7 +294,7 @@ static int loongson2_clk_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	for (p = data; p->name; p++)
-		clks_num++;
+		clks_num = max(clks_num, p->id + 1);
 
 	clp = devm_kzalloc(dev, struct_size(clp, clk_data.hws, clks_num),
 			   GFP_KERNEL);
@@ -308,6 +308,9 @@ static int loongson2_clk_probe(struct platform_device *pdev)
 	spin_lock_init(&clp->clk_lock);
 	clp->clk_data.num = clks_num;
 	clp->dev = dev;
+
+	/* Avoid returning NULL for unused id */
+	memset_p((void **)clp->clk_data.hws, ERR_PTR(-ENOENT), clks_num);
 
 	for (i = 0; i < clks_num; i++) {
 		p = &data[i];
