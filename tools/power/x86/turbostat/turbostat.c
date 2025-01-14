@@ -2113,13 +2113,17 @@ int get_msr(int cpu, off_t offset, unsigned long long *msr)
 int probe_msr(int cpu, off_t offset)
 {
 	ssize_t retval;
-	unsigned long long dummy;
+	unsigned long long value;
 
 	assert(!no_msr);
 
-	retval = pread(get_msr_fd(cpu), &dummy, sizeof(dummy), offset);
+	retval = pread(get_msr_fd(cpu), &value, sizeof(value), offset);
 
-	if (retval != sizeof(dummy))
+	/*
+	 * Expect MSRs to accumulate some non-zero value since the system was powered on.
+	 * Treat zero as a read failure.
+	 */
+	if (retval != sizeof(value) || value == 0)
 		return 1;
 
 	return 0;
