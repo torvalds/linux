@@ -289,7 +289,8 @@ static int hws_matcher_create_rtc(struct mlx5hws_matcher *matcher,
 		 *     (2 to support writing new STEs for update rule))
 		 */
 		ste->order = ilog2(roundup_pow_of_two(action_ste->max_stes)) +
-			     attr->table.sz_row_log + 1;
+			     attr->table.sz_row_log +
+			     MLX5HWS_MATCHER_ACTION_RTC_UPDATE_MULT;
 		rtc_attr.log_size = ste->order;
 		rtc_attr.log_depth = 0;
 		rtc_attr.update_index_mode = MLX5_IFC_RTC_STE_UPDATE_MODE_BY_OFFSET;
@@ -561,7 +562,8 @@ static int hws_matcher_bind_at(struct mlx5hws_matcher *matcher)
 	pool_attr.flags = MLX5HWS_POOL_FLAGS_FOR_STE_ACTION_POOL;
 	/* Pool size is similar to action RTC size */
 	pool_attr.alloc_log_sz = ilog2(roundup_pow_of_two(action_ste->max_stes)) +
-				 matcher->attr.table.sz_row_log + 1;
+				 matcher->attr.table.sz_row_log +
+				 MLX5HWS_MATCHER_ACTION_RTC_UPDATE_MULT;
 	hws_matcher_set_pool_attr(&pool_attr, matcher);
 	action_ste->pool = mlx5hws_pool_create(ctx, &pool_attr);
 	if (!action_ste->pool) {
