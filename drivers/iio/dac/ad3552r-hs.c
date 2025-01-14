@@ -65,9 +65,8 @@ static int ad3552r_hs_reg_read(struct ad3552r_hs_state *st, u32 reg, u32 *val,
 	return st->data->bus_reg_read(st->back, reg, val, xfer_size);
 }
 
-static int ad3552r_qspi_update_reg_bits(struct ad3552r_hs_state *st,
-					u32 reg, u32 mask, u32 val,
-					size_t xfer_size)
+static int ad3552r_hs_update_reg_bits(struct ad3552r_hs_state *st, u32 reg,
+				      u32 mask, u32 val, size_t xfer_size)
 {
 	u32 rval;
 	int ret;
@@ -215,9 +214,9 @@ static int ad3552r_hs_buffer_postenable(struct iio_dev *indio_dev)
 	 */
 
 	/* Primary region access, set streaming mode (now in SPI + SDR). */
-	ret = ad3552r_qspi_update_reg_bits(st,
-					   AD3552R_REG_ADDR_INTERFACE_CONFIG_B,
-					   AD3552R_MASK_SINGLE_INST, 0, 1);
+	ret = ad3552r_hs_update_reg_bits(st,
+					 AD3552R_REG_ADDR_INTERFACE_CONFIG_B,
+					 AD3552R_MASK_SINGLE_INST, 0, 1);
 	if (ret)
 		return ret;
 
@@ -226,10 +225,10 @@ static int ad3552r_hs_buffer_postenable(struct iio_dev *indio_dev)
 	 * 0x2c or 0x2a, in descending loop (2 or 4 bytes), keeping loop len
 	 * value so that it's not cleared hereafter when _CS is deasserted.
 	 */
-	ret = ad3552r_qspi_update_reg_bits(st,
-		AD3552R_REG_ADDR_TRANSFER_REGISTER,
-		AD3552R_MASK_STREAM_LENGTH_KEEP_VALUE,
-		AD3552R_MASK_STREAM_LENGTH_KEEP_VALUE, 1);
+	ret = ad3552r_hs_update_reg_bits(st, AD3552R_REG_ADDR_TRANSFER_REGISTER,
+					 AD3552R_MASK_STREAM_LENGTH_KEEP_VALUE,
+					 AD3552R_MASK_STREAM_LENGTH_KEEP_VALUE,
+					 1);
 	if (ret)
 		goto exit_err_streaming;
 
@@ -252,7 +251,7 @@ static int ad3552r_hs_buffer_postenable(struct iio_dev *indio_dev)
 
 	/*
 	 * From here onward mode is DDR, so reading any register is not possible
-	 * anymore, including calling "ad3552r_qspi_update_reg_bits" function.
+	 * anymore, including calling "ad3552r_hs_update_reg_bits" function.
 	 */
 
 	/* Set target to best high speed mode (D or QSPI). */
@@ -353,18 +352,17 @@ static int ad3552r_hs_buffer_predisable(struct iio_dev *indio_dev)
 	 * Back to simple SPI for secondary region too now, so to be able to
 	 * dump/read registers there too if needed.
 	 */
-	ret = ad3552r_qspi_update_reg_bits(st,
-					   AD3552R_REG_ADDR_TRANSFER_REGISTER,
-					   AD3552R_MASK_MULTI_IO_MODE,
-					   AD3552R_SPI, 1);
+	ret = ad3552r_hs_update_reg_bits(st, AD3552R_REG_ADDR_TRANSFER_REGISTER,
+					 AD3552R_MASK_MULTI_IO_MODE,
+					 AD3552R_SPI, 1);
 	if (ret)
 		return ret;
 
 	/* Back to single instruction mode, disabling loop. */
-	ret = ad3552r_qspi_update_reg_bits(st,
-					   AD3552R_REG_ADDR_INTERFACE_CONFIG_B,
-					   AD3552R_MASK_SINGLE_INST,
-					   AD3552R_MASK_SINGLE_INST, 1);
+	ret = ad3552r_hs_update_reg_bits(st,
+					 AD3552R_REG_ADDR_INTERFACE_CONFIG_B,
+					 AD3552R_MASK_SINGLE_INST,
+					 AD3552R_MASK_SINGLE_INST, 1);
 	if (ret)
 		return ret;
 
@@ -381,10 +379,10 @@ static inline int ad3552r_hs_set_output_range(struct ad3552r_hs_state *st,
 	else
 		val = FIELD_PREP(AD3552R_MASK_CH1_RANGE, mode);
 
-	return ad3552r_qspi_update_reg_bits(st,
-					AD3552R_REG_ADDR_CH0_CH1_OUTPUT_RANGE,
-					AD3552R_MASK_CH_OUTPUT_RANGE_SEL(ch),
-					val, 1);
+	return ad3552r_hs_update_reg_bits(st,
+					  AD3552R_REG_ADDR_CH0_CH1_OUTPUT_RANGE,
+					  AD3552R_MASK_CH_OUTPUT_RANGE_SEL(ch),
+					  val, 1);
 }
 
 static int ad3552r_hs_reset(struct ad3552r_hs_state *st)
@@ -400,10 +398,10 @@ static int ad3552r_hs_reset(struct ad3552r_hs_state *st)
 		fsleep(10);
 		gpiod_set_value_cansleep(st->reset_gpio, 0);
 	} else {
-		ret = ad3552r_qspi_update_reg_bits(st,
-					AD3552R_REG_ADDR_INTERFACE_CONFIG_A,
-					AD3552R_MASK_SOFTWARE_RESET,
-					AD3552R_MASK_SOFTWARE_RESET, 1);
+		ret = ad3552r_hs_update_reg_bits(st,
+			AD3552R_REG_ADDR_INTERFACE_CONFIG_A,
+			AD3552R_MASK_SOFTWARE_RESET,
+			AD3552R_MASK_SOFTWARE_RESET, 1);
 		if (ret)
 			return ret;
 	}
@@ -544,10 +542,10 @@ static int ad3552r_hs_setup(struct ad3552r_hs_state *st)
 
 	val = ret;
 
-	ret = ad3552r_qspi_update_reg_bits(st,
-				AD3552R_REG_ADDR_SH_REFERENCE_CONFIG,
-				AD3552R_MASK_REFERENCE_VOLTAGE_SEL,
-				val, 1);
+	ret = ad3552r_hs_update_reg_bits(st,
+					 AD3552R_REG_ADDR_SH_REFERENCE_CONFIG,
+					 AD3552R_MASK_REFERENCE_VOLTAGE_SEL,
+					 val, 1);
 	if (ret)
 		return ret;
 
