@@ -191,4 +191,13 @@ long snd_rawmidi_kernel_read(struct snd_rawmidi_substream *substream,
 long snd_rawmidi_kernel_write(struct snd_rawmidi_substream *substream,
 			      const unsigned char *buf, long count);
 
+/* set up the tied devices */
+static inline void snd_rawmidi_tie_devices(struct snd_rawmidi *r1,
+					   struct snd_rawmidi *r2)
+{
+	/* tied_device field keeps the device+1 (so that 0 being unknown) */
+	r1->tied_device = r2->device + 1;
+	r2->tied_device = r1->device + 1;
+}
+
 #endif /* __SOUND_RAWMIDI_H */
