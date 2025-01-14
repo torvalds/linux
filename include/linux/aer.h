@@ -27,6 +27,7 @@ struct pci_dev;
 
 struct pcie_tlp_log {
 	u32 dw[PCIE_STD_NUM_TLP_HEADERLOG];
+	u32 prefix[PCIE_STD_MAX_TLP_PREFIXLOG];
 };
 
 struct aer_capability_regs {
