@@ -55,6 +55,7 @@
 #include <linux/jiffies.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 #include <linux/dma-mapping.h>
 #include "xhci.h"
 #include "xhci-trace.h"
@@ -3441,8 +3442,8 @@ static void check_interval(struct urb *urb, struct xhci_ep_ctx *ep_ctx)
 	if (xhci_interval != ep_interval) {
 		dev_dbg_ratelimited(&urb->dev->dev,
 				"Driver uses different interval (%d microframe%s) than xHCI (%d microframe%s)\n",
-				ep_interval, ep_interval == 1 ? "" : "s",
-				xhci_interval, xhci_interval == 1 ? "" : "s");
+				ep_interval, str_plural(ep_interval),
+				xhci_interval, str_plural(xhci_interval));
 		urb->interval = xhci_interval;
 		/* Convert back to frames for LS/FS devices */
 		if (urb->dev->speed == USB_SPEED_LOW ||
