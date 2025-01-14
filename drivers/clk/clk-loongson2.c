@@ -335,8 +335,8 @@ static int loongson2_clk_probe(struct platform_device *pdev)
 						       &clp->clk_lock);
 			break;
 		case CLK_TYPE_FIXED:
-			hw = clk_hw_register_fixed_rate_parent_data(dev, p->name, pdata,
-								    0, p->fixed_rate);
+			hw = devm_clk_hw_register_fixed_rate_parent_data(dev, p->name, pdata,
+									 0, p->fixed_rate);
 			break;
 		default:
 			return dev_err_probe(dev, -EINVAL, "Invalid clk type\n");
