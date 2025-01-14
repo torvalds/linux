@@ -11628,9 +11628,8 @@ void unregister_netdevice_many_notify(struct list_head *head,
 
 	rtnl_drop_if_cleanup_net();
 	flush_all_backlogs();
-	rtnl_acquire_if_cleanup_net();
-	/* TODO: move this before the prior rtnl_acquire_if_cleanup_net() */
 	synchronize_net();
+	rtnl_acquire_if_cleanup_net();
 
 	list_for_each_entry(dev, head, unreg_list) {
 		struct sk_buff *skb = NULL;
