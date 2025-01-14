@@ -61,7 +61,9 @@ static int rings_reply_size(const struct ethnl_req_info *req_base,
 	       nla_total_size(sizeof(u8))  +	/* _RINGS_TX_PUSH */
 	       nla_total_size(sizeof(u8))) +	/* _RINGS_RX_PUSH */
 	       nla_total_size(sizeof(u32)) +	/* _RINGS_TX_PUSH_BUF_LEN */
-	       nla_total_size(sizeof(u32));	/* _RINGS_TX_PUSH_BUF_LEN_MAX */
+	       nla_total_size(sizeof(u32)) +	/* _RINGS_TX_PUSH_BUF_LEN_MAX */
+	       nla_total_size(sizeof(u32)) +	/* _RINGS_HDS_THRESH */
+	       nla_total_size(sizeof(u32));	/* _RINGS_HDS_THRESH_MAX*/
 }
 
 static int rings_fill_reply(struct sk_buff *skb,
@@ -108,7 +110,12 @@ static int rings_fill_reply(struct sk_buff *skb,
 	     (nla_put_u32(skb, ETHTOOL_A_RINGS_TX_PUSH_BUF_LEN_MAX,
 			  kr->tx_push_buf_max_len) ||
 	      nla_put_u32(skb, ETHTOOL_A_RINGS_TX_PUSH_BUF_LEN,
-			  kr->tx_push_buf_len))))
+			  kr->tx_push_buf_len))) ||
+	    ((supported_ring_params & ETHTOOL_RING_USE_HDS_THRS) &&
+	     (nla_put_u32(skb, ETHTOOL_A_RINGS_HDS_THRESH,
+			  kr->hds_thresh) ||
+	      nla_put_u32(skb, ETHTOOL_A_RINGS_HDS_THRESH_MAX,
+			  kr->hds_thresh_max))))
 		return -EMSGSIZE;
 
 	return 0;
@@ -130,6 +137,7 @@ const struct nla_policy ethnl_rings_set_policy[] = {
 	[ETHTOOL_A_RINGS_TX_PUSH]		= NLA_POLICY_MAX(NLA_U8, 1),
 	[ETHTOOL_A_RINGS_RX_PUSH]		= NLA_POLICY_MAX(NLA_U8, 1),
 	[ETHTOOL_A_RINGS_TX_PUSH_BUF_LEN]	= { .type = NLA_U32 },
+	[ETHTOOL_A_RINGS_HDS_THRESH]		= { .type = NLA_U32 },
 };
 
 static int
@@ -152,6 +160,14 @@ ethnl_set_rings_validate(struct ethnl_req_info *req_info,
 		NL_SET_ERR_MSG_ATTR(info->extack,
 				    tb[ETHTOOL_A_RINGS_TCP_DATA_SPLIT],
 				    "setting TCP data split is not supported");
+		return -EOPNOTSUPP;
+	}
+
+	if (tb[ETHTOOL_A_RINGS_HDS_THRESH] &&
+	    !(ops->supported_ring_params & ETHTOOL_RING_USE_HDS_THRS)) {
+		NL_SET_ERR_MSG_ATTR(info->extack,
+				    tb[ETHTOOL_A_RINGS_HDS_THRESH],
+				    "setting hds-thresh is not supported");
 		return -EOPNOTSUPP;
 	}
 
@@ -223,6 +239,8 @@ ethnl_set_rings(struct ethnl_req_info *req_info, struct genl_info *info)
 			tb[ETHTOOL_A_RINGS_RX_PUSH], &mod);
 	ethnl_update_u32(&kernel_ringparam.tx_push_buf_len,
 			 tb[ETHTOOL_A_RINGS_TX_PUSH_BUF_LEN], &mod);
+	ethnl_update_u32(&kernel_ringparam.hds_thresh,
+			 tb[ETHTOOL_A_RINGS_HDS_THRESH], &mod);
 	if (!mod)
 		return 0;
 
@@ -243,6 +261,8 @@ ethnl_set_rings(struct ethnl_req_info *req_info, struct genl_info *info)
 		err_attr = tb[ETHTOOL_A_RINGS_RX_JUMBO];
 	else if (ringparam.tx_pending > ringparam.tx_max_pending)
 		err_attr = tb[ETHTOOL_A_RINGS_TX];
+	else if (kernel_ringparam.hds_thresh > kernel_ringparam.hds_thresh_max)
+		err_attr = tb[ETHTOOL_A_RINGS_HDS_THRESH];
 	else
 		err_attr = NULL;
 	if (err_attr) {
@@ -261,8 +281,10 @@ ethnl_set_rings(struct ethnl_req_info *req_info, struct genl_info *info)
 
 	ret = dev->ethtool_ops->set_ringparam(dev, &ringparam,
 					      &kernel_ringparam, info->extack);
-	if (!ret)
+	if (!ret) {
 		dev->ethtool->hds_config = kernel_ringparam.tcp_data_split;
+		dev->ethtool->hds_thresh = kernel_ringparam.hds_thresh;
+	}
 
 	return ret < 0 ? ret : 1;
 }
