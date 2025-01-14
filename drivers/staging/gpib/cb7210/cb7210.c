@@ -1041,7 +1041,7 @@ int cb_isa_attach(gpib_board_t *board, const gpib_board_config_t *config)
 	cb_priv = board->private_data;
 	nec_priv = &cb_priv->nec7210_priv;
 	if (!request_region(config->ibbase, cb7210_iosize, "cb7210")) {
-		pr_err("gpib: ioports starting at 0x%u are already in use\n", config->ibbase);
+		pr_err("gpib: ioports starting at 0x%x are already in use\n", config->ibbase);
 		return -EIO;
 	}
 	nec_priv->iobase = config->ibbase;
