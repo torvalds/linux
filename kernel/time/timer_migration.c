@@ -534,8 +534,13 @@ static void __walk_groups(up_f up, struct tmigr_walk *data,
 			break;
 
 		child = group;
-		group = group->parent;
+		/*
+		 * Pairs with the store release on group connection
+		 * to make sure group initialization is visible.
+		 */
+		group = READ_ONCE(group->parent);
 		data->childmask = child->groupmask;
+		WARN_ON_ONCE(!data->childmask);
 	} while (group);
 }
 
@@ -1578,7 +1583,12 @@ static void tmigr_connect_child_parent(struct tmigr_group *child,
 		child->groupmask = BIT(parent->num_children++);
 	}
 
-	child->parent = parent;
+	/*
+	 * Make sure parent initialization is visible before publishing it to a
+	 * racing CPU entering/exiting idle. This RELEASE barrier enforces an
+	 * address dependency that pairs with the READ_ONCE() in __walk_groups().
+	 */
+	smp_store_release(&child->parent, parent);
 
 	raw_spin_unlock(&parent->lock);
 	raw_spin_unlock_irq(&child->lock);
