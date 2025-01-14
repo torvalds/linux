@@ -677,6 +677,8 @@ static void bcmasp_adj_link(struct net_device *dev)
 		}
 		umac_wl(intf, reg, UMC_CMD);
 
+		umac_wl(intf, phydev->eee_cfg.tx_lpi_timer, UMC_EEE_LPI_TIMER);
+
 		active = phy_init_eee(phydev, 0) >= 0;
 		bcmasp_eee_enable_set(intf, active);
 	}
@@ -1055,6 +1057,9 @@ static int bcmasp_netif_init(struct net_device *dev, bool phy_connect)
 
 		/* Indicate that the MAC is responsible for PHY PM */
 		phydev->mac_managed_pm = true;
+
+		/* Set phylib's copy of the LPI timer */
+		phydev->eee_cfg.tx_lpi_timer = umac_rl(intf, UMC_EEE_LPI_TIMER);
 	}
 
 	umac_reset(intf);
