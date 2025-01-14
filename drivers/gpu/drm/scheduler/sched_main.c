@@ -1153,9 +1153,6 @@ static void drm_sched_free_job_work(struct work_struct *w)
 		container_of(w, struct drm_gpu_scheduler, work_free_job);
 	struct drm_sched_job *job;
 
-	if (READ_ONCE(sched->pause_submit))
-		return;
-
 	job = drm_sched_get_finished_job(sched);
 	if (job)
 		sched->ops->free_job(job);
@@ -1178,9 +1175,6 @@ static void drm_sched_run_job_work(struct work_struct *w)
 	struct drm_sched_fence *s_fence;
 	struct drm_sched_job *sched_job;
 	int r;
-
-	if (READ_ONCE(sched->pause_submit))
-		return;
 
 	/* Find entity with a ready job */
 	entity = drm_sched_select_entity(sched);
