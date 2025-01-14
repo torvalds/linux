@@ -118,11 +118,11 @@ mptcp_lib_pr_err_stats() {
 	echo -en "${MPTCP_LIB_COLOR_RED}"
 	{
 		printf "\nnetns %s (listener) socket stat for %d:\n" "${lns}" "${port}"
-		ip netns exec "${lns}" ss -Menita -o "sport = :${port}"
+		ip netns exec "${lns}" ss -Menitam -o "sport = :${port}"
 		cat "${lstat}"
 
 		printf "\nnetns %s (connector) socket stat for %d:\n" "${cns}" "${port}"
-		ip netns exec "${cns}" ss -Menita -o "dport = :${port}"
+		ip netns exec "${cns}" ss -Menitam -o "dport = :${port}"
 		[ "${lstat}" != "${cstat}" ] && cat "${cstat}"
 	} 1>&2
 	echo -en "${MPTCP_LIB_COLOR_RESET}"
