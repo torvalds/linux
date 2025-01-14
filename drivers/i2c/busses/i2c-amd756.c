@@ -31,7 +31,6 @@
 #include <linux/i2c.h>
 #include <linux/acpi.h>
 #include <linux/io.h>
-#include <linux/byteorder/generic.h>
 
 /* AMD756 SMBus address offsets */
 #define SMB_ADDR_OFFSET		0xE0
@@ -212,7 +211,7 @@ static s32 amd756_access(struct i2c_adapter * adap, u16 addr,
 		       SMB_HOST_ADDRESS);
 		outb_p(command, SMB_HOST_COMMAND);
 		if (read_write == I2C_SMBUS_WRITE)
-			outw_p(cpu_to_le16((u16)data->word), SMB_HOST_DATA);
+			outw_p(data->word, SMB_HOST_DATA);	/* TODO: endian???? */
 		size = AMD756_WORD_DATA;
 		break;
 	case I2C_SMBUS_BLOCK_DATA:
@@ -257,7 +256,7 @@ static s32 amd756_access(struct i2c_adapter * adap, u16 addr,
 		data->byte = inw_p(SMB_HOST_DATA);
 		break;
 	case AMD756_WORD_DATA:
-		data->word = (u16)le16_to_cpu(inw_p(SMB_HOST_DATA));
+		data->word = inw_p(SMB_HOST_DATA);	/* TODO: endian???? */
 		break;
 	case AMD756_BLOCK_DATA:
 		data->block[0] = inw_p(SMB_HOST_DATA) & 0x3f;
