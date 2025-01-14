@@ -14,6 +14,8 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 
+#include "realtek.h"
+
 #define RTL821x_PHYSR				0x11
 #define RTL821x_PHYSR_DUPLEX			BIT(13)
 #define RTL821x_PHYSR_SPEED			GENMASK(15, 14)
@@ -736,7 +738,11 @@ static int rtlgen_read_mmd(struct phy_device *phydev, int devnum, u16 regnum)
 {
 	int ret;
 
-	if (devnum == MDIO_MMD_PCS && regnum == MDIO_PCS_EEE_ABLE) {
+	if (devnum == MDIO_MMD_VEND2) {
+		rtl821x_write_page(phydev, regnum >> 4);
+		ret = __phy_read(phydev, 0x10 + ((regnum & 0xf) >> 1));
+		rtl821x_write_page(phydev, 0);
+	} else if (devnum == MDIO_MMD_PCS && regnum == MDIO_PCS_EEE_ABLE) {
 		rtl821x_write_page(phydev, 0xa5c);
 		ret = __phy_read(phydev, 0x12);
 		rtl821x_write_page(phydev, 0);
@@ -760,7 +766,11 @@ static int rtlgen_write_mmd(struct phy_device *phydev, int devnum, u16 regnum,
 {
 	int ret;
 
-	if (devnum == MDIO_MMD_AN && regnum == MDIO_AN_EEE_ADV) {
+	if (devnum == MDIO_MMD_VEND2) {
+		rtl821x_write_page(phydev, regnum >> 4);
+		ret = __phy_write(phydev, 0x10 + ((regnum & 0xf) >> 1), val);
+		rtl821x_write_page(phydev, 0);
+	} else if (devnum == MDIO_MMD_AN && regnum == MDIO_AN_EEE_ADV) {
 		rtl821x_write_page(phydev, 0xa5d);
 		ret = __phy_write(phydev, 0x10, val);
 		rtl821x_write_page(phydev, 0);
@@ -810,6 +820,15 @@ static int rtl822x_write_mmd(struct phy_device *phydev, int devnum, u16 regnum,
 	}
 
 	return ret;
+}
+
+static int rtl822x_probe(struct phy_device *phydev)
+{
+	if (IS_ENABLED(CONFIG_REALTEK_PHY_HWMON) &&
+	    phydev->phy_id != RTL_GENERIC_PHYID)
+		return rtl822x_hwmon_init(phydev);
+
+	return 0;
 }
 
 static int rtl822xb_config_init(struct phy_device *phydev)
@@ -1511,6 +1530,7 @@ static struct phy_driver realtek_drvs[] = {
 		.match_phy_device = rtl_internal_nbaset_match_phy_device,
 		.name           = "Realtek Internal NBASE-T PHY",
 		.flags		= PHY_IS_INTERNAL,
+		.probe		= rtl822x_probe,
 		.get_features   = rtl822x_get_features,
 		.config_aneg    = rtl822x_config_aneg,
 		.read_status    = rtl822x_read_status,
