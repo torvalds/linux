@@ -45,11 +45,11 @@ enum board_model {
 struct agilent_82350b_priv {
 	struct tms9914_priv tms9914_priv;
 	struct pci_dev *pci_device;
-	void *plx_base;	//82350a only
-	void *gpib_base;
-	void *sram_base;
-	void *misc_base;
-	void *borg_base;
+	void __iomem *plx_base;	//82350a only
+	void __iomem *gpib_base;
+	void __iomem *sram_base;
+	void __iomem *misc_base;
+	void __iomem *borg_base;
 	int irq;
 	unsigned short card_mode_bits;
 	unsigned short event_status_bits;

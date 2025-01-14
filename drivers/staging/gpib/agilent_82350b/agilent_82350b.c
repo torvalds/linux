@@ -808,15 +808,15 @@ void agilent_82350b_detach(gpib_board_t *board)
 		if (a_priv->gpib_base) {
 			tms9914_board_reset(tms_priv);
 			if (a_priv->misc_base)
-				iounmap((void *)a_priv->misc_base);
+				iounmap(a_priv->misc_base);
 			if (a_priv->borg_base)
-				iounmap((void *)a_priv->borg_base);
+				iounmap(a_priv->borg_base);
 			if (a_priv->sram_base)
-				iounmap((void *)a_priv->sram_base);
+				iounmap(a_priv->sram_base);
 			if (a_priv->gpib_base)
-				iounmap((void *)a_priv->gpib_base);
+				iounmap(a_priv->gpib_base);
 			if (a_priv->plx_base)
-				iounmap((void *)a_priv->plx_base);
+				iounmap(a_priv->plx_base);
 			pci_release_regions(a_priv->pci_device);
 		}
 		if (a_priv->pci_device)

@@ -1122,7 +1122,7 @@ static int ines_gpib_config(struct pcmcia_device *link)
 {
 	struct local_info *dev;
 	int retval;
-	void *virt;
+	void __iomem *virt;
 
 	dev = link->priv;
 	DEBUG(0, "%s(0x%p)\n", __func__, link);
@@ -1156,7 +1156,7 @@ static int ines_gpib_config(struct pcmcia_device *link)
 	}
 	virt = ioremap(link->resource[2]->start, resource_size(link->resource[2]));
 	writeb((link->resource[2]->start >> 2) & 0xff, virt + 0xf0); // IOWindow base
-	iounmap((void *)virt);
+	iounmap(virt);
 
 	/*
 	 * This actually configures the PCMCIA socket -- setting up

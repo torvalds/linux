@@ -116,7 +116,7 @@ static inline void tnt_paged_writeb(struct tnt4882_priv *priv, unsigned int valu
 /* readb/writeb wrappers */
 static inline unsigned short tnt_readb(struct tnt4882_priv *priv, unsigned long offset)
 {
-	void *address = priv->nec7210_priv.mmiobase + offset;
+	void __iomem *address = priv->nec7210_priv.mmiobase + offset;
 	unsigned long flags;
 	unsigned short retval;
 	spinlock_t *register_lock = &priv->nec7210_priv.register_page_lock;
@@ -154,7 +154,7 @@ static inline unsigned short tnt_readb(struct tnt4882_priv *priv, unsigned long 
 
 static inline void tnt_writeb(struct tnt4882_priv *priv, unsigned short value, unsigned long offset)
 {
-	void *address = priv->nec7210_priv.mmiobase + offset;
+	void __iomem *address = priv->nec7210_priv.mmiobase + offset;
 	unsigned long flags;
 	spinlock_t *register_lock = &priv->nec7210_priv.register_page_lock;
 
