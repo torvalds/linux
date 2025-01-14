@@ -15,6 +15,7 @@
 #include <sys/time.h>
 #include <fcntl.h>
 
+#include "vm_util.h"
 #include "../kselftest.h"
 
 /*
@@ -157,6 +158,9 @@ static int validate_complete_va_space(void)
 		prev_end_addr = end_addr;
 
 		if (prot[0] != 'r')
+			continue;
+
+		if (check_vmflag_io((void *)start_addr))
 			continue;
 
 		/*
