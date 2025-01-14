@@ -228,9 +228,9 @@ static void fbnic_mbx_process_tx_msgs(struct fbnic_dev *fbd)
 	tx_mbx->head = head;
 }
 
-static __maybe_unused int fbnic_mbx_map_req_w_cmpl(struct fbnic_dev *fbd,
-						   struct fbnic_tlv_msg *msg,
-						   struct fbnic_fw_completion *cmpl_data)
+static int fbnic_mbx_map_req_w_cmpl(struct fbnic_dev *fbd,
+				    struct fbnic_tlv_msg *msg,
+				    struct fbnic_fw_completion *cmpl_data)
 {
 	unsigned long flags;
 	int err;
@@ -269,7 +269,7 @@ static void fbnic_fw_release_cmpl_data(struct kref *kref)
 	kfree(cmpl_data);
 }
 
-static __maybe_unused struct fbnic_fw_completion *
+static struct fbnic_fw_completion *
 fbnic_fw_get_cmpl_by_type(struct fbnic_dev *fbd, u32 msg_type)
 {
 	struct fbnic_fw_completion *cmpl_data = NULL;
@@ -708,6 +708,84 @@ void fbnic_fw_check_heartbeat(struct fbnic_dev *fbd)
 		dev_warn(fbd->dev, "Failed to send heartbeat message\n");
 }
 
+/**
+ * fbnic_fw_xmit_tsene_read_msg - Create and transmit a sensor read request
+ * @fbd: FBNIC device structure
+ * @cmpl_data: Completion data structure to store sensor response
+ *
+ * Asks the firmware to provide an update with the latest sensor data.
+ * The response will contain temperature and voltage readings.
+ *
+ * Return: 0 on success, negative error value on failure
+ */
+int fbnic_fw_xmit_tsene_read_msg(struct fbnic_dev *fbd,
+				 struct fbnic_fw_completion *cmpl_data)
+{
+	struct fbnic_tlv_msg *msg;
+	int err;
+
+	if (!fbnic_fw_present(fbd))
+		return -ENODEV;
+
+	msg = fbnic_tlv_msg_alloc(FBNIC_TLV_MSG_ID_TSENE_READ_REQ);
+	if (!msg)
+		return -ENOMEM;
+
+	err = fbnic_mbx_map_req_w_cmpl(fbd, msg, cmpl_data);
+	if (err)
+		goto free_message;
+
+	return 0;
+
+free_message:
+	free_page((unsigned long)msg);
+	return err;
+}
+
+static const struct fbnic_tlv_index fbnic_tsene_read_resp_index[] = {
+	FBNIC_TLV_ATTR_S32(FBNIC_TSENE_THERM),
+	FBNIC_TLV_ATTR_S32(FBNIC_TSENE_VOLT),
+	FBNIC_TLV_ATTR_S32(FBNIC_TSENE_ERROR),
+	FBNIC_TLV_ATTR_LAST
+};
+
+static int fbnic_fw_parse_tsene_read_resp(void *opaque,
+					  struct fbnic_tlv_msg **results)
+{
+	struct fbnic_fw_completion *cmpl_data;
+	struct fbnic_dev *fbd = opaque;
+	int err = 0;
+
+	/* Verify we have a completion pointer to provide with data */
+	cmpl_data = fbnic_fw_get_cmpl_by_type(fbd,
+					      FBNIC_TLV_MSG_ID_TSENE_READ_RESP);
+	if (!cmpl_data)
+		return -EINVAL;
+
+	if (results[FBNIC_TSENE_ERROR]) {
+		err = fbnic_tlv_attr_get_unsigned(results[FBNIC_TSENE_ERROR]);
+		if (err)
+			goto exit_complete;
+	}
+
+	if (!results[FBNIC_TSENE_THERM] || !results[FBNIC_TSENE_VOLT]) {
+		err = -EINVAL;
+		goto exit_complete;
+	}
+
+	cmpl_data->u.tsene.millidegrees =
+		fbnic_tlv_attr_get_signed(results[FBNIC_TSENE_THERM]);
+	cmpl_data->u.tsene.millivolts =
+		fbnic_tlv_attr_get_signed(results[FBNIC_TSENE_VOLT]);
+
+exit_complete:
+	cmpl_data->result = err;
+	complete(&cmpl_data->done);
+	fbnic_fw_put_cmpl(cmpl_data);
+
+	return err;
+}
+
 static const struct fbnic_tlv_parser fbnic_fw_tlv_parser[] = {
 	FBNIC_TLV_PARSER(FW_CAP_RESP, fbnic_fw_cap_resp_index,
 			 fbnic_fw_parse_cap_resp),
@@ -715,6 +793,9 @@ static const struct fbnic_tlv_parser fbnic_fw_tlv_parser[] = {
 			 fbnic_fw_parse_ownership_resp),
 	FBNIC_TLV_PARSER(HEARTBEAT_RESP, fbnic_heartbeat_resp_index,
 			 fbnic_fw_parse_heartbeat_resp),
+	FBNIC_TLV_PARSER(TSENE_READ_RESP,
+			 fbnic_tsene_read_resp_index,
+			 fbnic_fw_parse_tsene_read_resp),
 	FBNIC_TLV_MSG_ERROR
 };
 
