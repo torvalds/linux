@@ -177,6 +177,7 @@ static struct promote_op *__promote_alloc(struct btree_trans *trans,
 					  struct bch_io_failures *failed)
 {
 	struct bch_fs *c = trans->c;
+	struct bch_read_bio *orig = *rbio;
 	struct promote_op *op = NULL;
 	struct bio *bio;
 	unsigned pages = DIV_ROUND_UP(sectors, PAGE_SECTORS);
@@ -206,7 +207,7 @@ static struct promote_op *__promote_alloc(struct btree_trans *trans,
 		goto err;
 	}
 
-	rbio_init(&(*rbio)->bio, opts);
+	rbio_init_fragment(&(*rbio)->bio, orig);
 	bio_init(&(*rbio)->bio, NULL, (*rbio)->bio.bi_inline_vecs, pages, 0);
 
 	if (bch2_bio_alloc_pages(&(*rbio)->bio, sectors << 9, GFP_KERNEL)) {
@@ -215,7 +216,6 @@ static struct promote_op *__promote_alloc(struct btree_trans *trans,
 	}
 
 	(*rbio)->bounce		= true;
-	(*rbio)->split		= true;
 	(*rbio)->kmalloc	= true;
 
 	if (rhashtable_lookup_insert_fast(&c->promote_table, &op->hash,
@@ -1024,16 +1024,15 @@ get_bio:
 	} else if (bounce) {
 		unsigned sectors = pick.crc.compressed_size;
 
-		rbio = rbio_init(bio_alloc_bioset(NULL,
+		rbio = rbio_init_fragment(bio_alloc_bioset(NULL,
 						  DIV_ROUND_UP(sectors, PAGE_SECTORS),
 						  0,
 						  GFP_NOFS,
 						  &c->bio_read_split),
-				 orig->opts);
+				 orig);
 
 		bch2_bio_alloc_pages_pool(c, &rbio->bio, sectors << 9);
 		rbio->bounce	= true;
-		rbio->split	= true;
 	} else if (flags & BCH_READ_must_clone) {
 		/*
 		 * Have to clone if there were any splits, due to error
@@ -1043,11 +1042,10 @@ get_bio:
 		 * from the whole bio, in which case we don't want to retry and
 		 * lose the error)
 		 */
-		rbio = rbio_init(bio_alloc_clone(NULL, &orig->bio, GFP_NOFS,
+		rbio = rbio_init_fragment(bio_alloc_clone(NULL, &orig->bio, GFP_NOFS,
 						 &c->bio_read_split),
-				 orig->opts);
+				 orig);
 		rbio->bio.bi_iter = iter;
-		rbio->split	= true;
 	} else {
 		rbio = orig;
 		rbio->bio.bi_iter = iter;
@@ -1058,9 +1056,7 @@ get_bio:
 
 	rbio->c			= c;
 	rbio->submit_time	= local_clock();
-	if (rbio->split)
-		rbio->parent	= orig;
-	else
+	if (!rbio->split)
 		rbio->end_io	= orig->bio.bi_end_io;
 	rbio->bvec_iter		= iter;
 	rbio->offset_into_extent= offset_into_extent;

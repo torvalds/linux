@@ -162,6 +162,20 @@ static inline void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio,
 		    BCH_READ_user_mapped);
 }
 
+
+static inline struct bch_read_bio *rbio_init_fragment(struct bio *bio,
+						      struct bch_read_bio *orig)
+{
+	struct bch_read_bio *rbio = to_rbio(bio);
+
+	rbio->_state	= 0;
+	rbio->split	= true;
+	rbio->parent	= orig;
+	rbio->promote	= NULL;
+	rbio->opts	= orig->opts;
+	return rbio;
+}
+
 static inline struct bch_read_bio *rbio_init(struct bio *bio,
 					     struct bch_io_opts opts)
 {
