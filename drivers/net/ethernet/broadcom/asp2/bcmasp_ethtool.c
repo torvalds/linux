@@ -364,13 +364,8 @@ void bcmasp_eee_enable_set(struct bcmasp_intf *intf, bool enable)
 
 static int bcmasp_get_eee(struct net_device *dev, struct ethtool_keee *e)
 {
-	struct bcmasp_intf *intf = netdev_priv(dev);
-	struct ethtool_keee *p = &intf->eee;
-
 	if (!dev->phydev)
 		return -ENODEV;
-
-	e->tx_lpi_enabled = p->tx_lpi_enabled;
 
 	return phy_ethtool_get_eee(dev->phydev, e);
 }
@@ -394,7 +389,6 @@ static int bcmasp_set_eee(struct net_device *dev, struct ethtool_keee *e)
 			return ret;
 		}
 
-		intf->eee.tx_lpi_enabled = e->tx_lpi_enabled;
 		bcmasp_eee_enable_set(intf, true);
 	}
 
