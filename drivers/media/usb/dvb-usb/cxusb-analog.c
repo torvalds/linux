@@ -817,8 +817,8 @@ static int cxusb_medion_v_start_streaming(struct vb2_queue *q,
 		 * doing a large continuous allocation when (if)
 		 * s-g isochronous USB transfers are supported
 		 */
-		streambuf = kmalloc(npackets * CXUSB_VIDEO_PKT_SIZE,
-				    GFP_KERNEL);
+		streambuf = kmalloc_array(npackets, CXUSB_VIDEO_PKT_SIZE,
+					  GFP_KERNEL);
 		if (!streambuf) {
 			if (i < 2) {
 				ret = -ENOMEM;
