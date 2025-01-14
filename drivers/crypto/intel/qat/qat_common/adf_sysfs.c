@@ -3,6 +3,7 @@
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/pci.h>
+#include <linux/string_choices.h>
 #include "adf_accel_devices.h"
 #include "adf_cfg.h"
 #include "adf_cfg_services.h"
@@ -19,14 +20,12 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
 	struct adf_accel_dev *accel_dev;
-	char *state;
 
 	accel_dev = adf_devmgr_pci_to_accel_dev(to_pci_dev(dev));
 	if (!accel_dev)
 		return -EINVAL;
 
-	state = adf_dev_started(accel_dev) ? "up" : "down";
-	return sysfs_emit(buf, "%s\n", state);
+	return sysfs_emit(buf, "%s\n", str_up_down(adf_dev_started(accel_dev)));
 }
 
 static ssize_t state_store(struct device *dev, struct device_attribute *attr,
@@ -207,16 +206,13 @@ static DEVICE_ATTR_RW(pm_idle_enabled);
 static ssize_t auto_reset_show(struct device *dev, struct device_attribute *attr,
 			       char *buf)
 {
-	char *auto_reset;
 	struct adf_accel_dev *accel_dev;
 
 	accel_dev = adf_devmgr_pci_to_accel_dev(to_pci_dev(dev));
 	if (!accel_dev)
 		return -EINVAL;
 
-	auto_reset = accel_dev->autoreset_on_error ? "on" : "off";
-
-	return sysfs_emit(buf, "%s\n", auto_reset);
+	return sysfs_emit(buf, "%s\n", str_on_off(accel_dev->autoreset_on_error));
 }
 
 static ssize_t auto_reset_store(struct device *dev, struct device_attribute *attr,
