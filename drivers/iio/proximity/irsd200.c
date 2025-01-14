@@ -10,6 +10,7 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
+#include <linux/string_choices.h>
 
 #include <linux/iio/buffer.h>
 #include <linux/iio/events.h>
@@ -783,7 +784,7 @@ static int irsd200_set_trigger_state(struct iio_trigger *trig, bool state)
 	ret = regmap_field_write(data->regfields[IRS_REGF_INTR_DATA], state);
 	if (ret) {
 		dev_err(data->dev, "Could not %s data interrupt source (%d)\n",
-			state ? "enable" : "disable", ret);
+			str_enable_disable(state), ret);
 	}
 
 	return ret;
