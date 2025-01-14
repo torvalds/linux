@@ -202,12 +202,8 @@ do_transfer()
 	print_title "Transfer ${ip:2}"
 	if [ ${rets} -ne 0 ] || [ ${retc} -ne 0 ]; then
 		mptcp_lib_pr_fail "client exit code $retc, server $rets"
-		echo -e "\nnetns ${listener_ns} socket stat for ${port}:" 1>&2
-		ip netns exec ${listener_ns} ss -Menita 1>&2 -o "sport = :$port"
-		cat /tmp/${listener_ns}.out
-		echo -e "\nnetns ${connector_ns} socket stat for ${port}:" 1>&2
-		ip netns exec ${connector_ns} ss -Menita 1>&2 -o "dport = :$port"
-		cat /tmp/${connector_ns}.out
+		mptcp_lib_pr_err_stats "${listener_ns}" "${connector_ns}" "${port}" \
+			"/tmp/${listener_ns}.out" "/tmp/${connector_ns}.out"
 
 		mptcp_lib_result_fail "transfer ${ip}"
 

@@ -204,12 +204,8 @@ do_transfer()
 	fi
 
 	mptcp_lib_pr_fail "client exit code $retc, server $rets"
-	echo -e "\nnetns ${ns3} socket stat for $port:" 1>&2
-	ip netns exec ${ns3} ss -Menita 1>&2 -o "sport = :$port"
-	cat /tmp/${ns3}.out
-	echo -e "\nnetns ${ns1} socket stat for $port:" 1>&2
-	ip netns exec ${ns1} ss -Menita 1>&2 -o "dport = :$port"
-	cat /tmp/${ns1}.out
+	mptcp_lib_pr_err_stats "${ns3}" "${ns1}" "${port}" \
+		"/tmp/${ns3}.out" "/tmp/${ns1}.out"
 	ls -l $sin $cout
 	ls -l $cin $sout
 
