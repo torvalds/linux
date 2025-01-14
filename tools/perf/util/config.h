@@ -50,6 +50,7 @@ int perf_config_set__collect(struct perf_config_set *set, const char *file_name,
 			     const char *var, const char *value);
 void perf_config__exit(void);
 void perf_config__refresh(void);
+int perf_config__set_variable(const char *var, const char *value);
 
 /**
  * perf_config_sections__for_each - iterate thru all the sections
