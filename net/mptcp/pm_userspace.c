@@ -520,7 +520,7 @@ int mptcp_pm_nl_subflow_destroy_doit(struct sk_buff *skb, struct genl_info *info
 		addr_l.addr.family = AF_INET6;
 	}
 	if (addr_r.family == AF_INET && ipv6_addr_v4mapped(&addr_l.addr.addr6)) {
-		ipv6_addr_set_v4mapped(addr_r.addr.s_addr, &addr_l.addr.addr6);
+		ipv6_addr_set_v4mapped(addr_r.addr.s_addr, &addr_r.addr6);
 		addr_r.family = AF_INET6;
 	}
 #endif
