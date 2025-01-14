@@ -137,7 +137,7 @@ TEST_GROUP=""
 #shellcheck disable=SC2317
 cleanup()
 {
-	rm -f "$cin_disconnect" "$cout_disconnect"
+	rm -f "$cin_disconnect"
 	rm -f "$cin" "$cout"
 	rm -f "$sin" "$sout"
 	rm -f "$capout"
@@ -155,7 +155,6 @@ cin=$(mktemp)
 cout=$(mktemp)
 capout=$(mktemp)
 cin_disconnect="$cin".disconnect
-cout_disconnect="$cout".disconnect
 trap cleanup EXIT
 
 mptcp_lib_ns_init ns1 ns2 ns3 ns4
