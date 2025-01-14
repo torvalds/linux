@@ -15,6 +15,7 @@
 .. toctree::
    :maxdepth: 1
 
+   credentials
    lsm
    sak
    siphash
@@ -23,7 +24,6 @@
    landlock
 
 TODOLIST:
-* credentials
 * snp-tdx-threat-model
 * IMA-templates
 * keys/index
