@@ -299,7 +299,7 @@ bool dmem_cgroup_state_evict_valuable(struct dmem_cgroup_pool_state *limit_pool,
 				      bool ignore_low, bool *ret_hit_low)
 {
 	struct dmem_cgroup_pool_state *pool = test_pool;
-	struct page_counter *climit, *ctest;
+	struct page_counter *ctest;
 	u64 used, min, low;
 
 	/* Can always evict from current pool, despite limits */
@@ -324,7 +324,6 @@ bool dmem_cgroup_state_evict_valuable(struct dmem_cgroup_pool_state *limit_pool,
 			{}
 	}
 
-	climit = &limit_pool->cnt;
 	ctest = &test_pool->cnt;
 
 	dmem_cgroup_calculate_protection(limit_pool, test_pool);
