@@ -1236,7 +1236,7 @@ static int dss_video_pll_probe(struct dss_device *dss)
 	if (!np)
 		return 0;
 
-	if (of_property_read_bool(np, "syscon-pll-ctrl")) {
+	if (of_property_present(np, "syscon-pll-ctrl")) {
 		dss->syscon_pll_ctrl = syscon_regmap_lookup_by_phandle(np,
 			"syscon-pll-ctrl");
 		if (IS_ERR(dss->syscon_pll_ctrl)) {
