@@ -55,6 +55,7 @@ static void __init sclp_early_facilities_detect(void)
 	if (sccb->fac91 & 0x40)
 		get_lowcore()->machine_flags |= MACHINE_FLAG_TLB_GUEST;
 	sclp.has_diag204_bif = !!(sccb->fac98 & 0x80);
+	sclp.has_diag310 = !!(sccb->fac91 & 0x80);
 	if (sccb->cpuoff > 134) {
 		sclp.has_diag318 = !!(sccb->byte_134 & 0x80);
 		sclp.has_diag320 = !!(sccb->byte_134 & 0x04);

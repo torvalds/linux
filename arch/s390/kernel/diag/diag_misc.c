@@ -26,6 +26,15 @@ static long diag_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case DIAG324_GET_PIBBUF:
 		rc = diag324_pibbuf(arg);
 		break;
+	case DIAG310_GET_STRIDE:
+		rc = diag310_memtop_stride(arg);
+		break;
+	case DIAG310_GET_MEMTOPLEN:
+		rc = diag310_memtop_len(arg);
+		break;
+	case DIAG310_GET_MEMTOPBUF:
+		rc = diag310_memtop_buf(arg);
+		break;
 	default:
 		rc = -ENOIOCTLCMD;
 		break;

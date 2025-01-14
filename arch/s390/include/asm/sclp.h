@@ -92,6 +92,7 @@ struct sclp_info {
 	unsigned char has_kss : 1;
 	unsigned char has_diag204_bif : 1;
 	unsigned char has_gisaf : 1;
+	unsigned char has_diag310 : 1;
 	unsigned char has_diag318 : 1;
 	unsigned char has_diag320 : 1;
 	unsigned char has_diag324 : 1;
