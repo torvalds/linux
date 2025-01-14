@@ -89,6 +89,13 @@ struct simple_util_priv {
 #define simple_props_to_dai_codec(props, i)	((props)->codec_dai + i)
 #define simple_props_to_codec_conf(props, i)	((props)->codec_conf + i)
 
+/* has the same effect as simple_priv_to_props(). Preferred over
+ * simple_priv_to_props() when dealing with PCM runtime data as
+ * the ID stored in rtd->id may not be a valid array index.
+ */
+#define runtime_simple_priv_to_props(priv, rtd)				\
+	((priv)->dai_props + ((rtd)->dai_link - (priv)->dai_link))
+
 #define for_each_prop_dlc_cpus(props, i, cpu)				\
 	for ((i) = 0;							\
 	     ((i) < (props)->num.cpus) &&				\
