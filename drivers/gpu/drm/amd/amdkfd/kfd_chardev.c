@@ -606,7 +606,8 @@ static int kfd_ioctl_set_memory_policy(struct file *filep,
 				default_policy,
 				alternate_policy,
 				(void __user *)args->alternate_aperture_base,
-				args->alternate_aperture_size))
+				args->alternate_aperture_size,
+				args->misc_process_flag))
 		err = -EINVAL;
 
 out:

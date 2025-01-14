@@ -2596,7 +2596,8 @@ static bool set_cache_memory_policy(struct device_queue_manager *dqm,
 				   enum cache_policy default_policy,
 				   enum cache_policy alternate_policy,
 				   void __user *alternate_aperture_base,
-				   uint64_t alternate_aperture_size)
+				   uint64_t alternate_aperture_size,
+				   u32 misc_process_properties)
 {
 	bool retval = true;
 
@@ -2611,7 +2612,8 @@ static bool set_cache_memory_policy(struct device_queue_manager *dqm,
 			default_policy,
 			alternate_policy,
 			alternate_aperture_base,
-			alternate_aperture_size);
+			alternate_aperture_size,
+			misc_process_properties);
 
 	if (retval)
 		goto out;

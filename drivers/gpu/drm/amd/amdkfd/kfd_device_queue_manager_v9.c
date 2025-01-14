@@ -35,7 +35,8 @@ static bool set_cache_memory_policy_v9(struct device_queue_manager *dqm,
 				   enum cache_policy default_policy,
 				   enum cache_policy alternate_policy,
 				   void __user *alternate_aperture_base,
-				   uint64_t alternate_aperture_size);
+				   uint64_t alternate_aperture_size,
+				   u32 misc_process_properties);
 
 void device_queue_manager_init_v9(
 	struct device_queue_manager_asic_ops *asic_ops)
@@ -60,7 +61,8 @@ static bool set_cache_memory_policy_v9(struct device_queue_manager *dqm,
 				   enum cache_policy default_policy,
 				   enum cache_policy alternate_policy,
 				   void __user *alternate_aperture_base,
-				   uint64_t alternate_aperture_size)
+				   uint64_t alternate_aperture_size,
+				   u32 misc_process_properties)
 {
 	qpd->sh_mem_config = SH_MEM_ALIGNMENT_MODE_UNALIGNED <<
 				SH_MEM_CONFIG__ALIGNMENT_MODE__SHIFT;
@@ -72,6 +74,11 @@ static bool set_cache_memory_policy_v9(struct device_queue_manager *dqm,
 		KFD_GC_VERSION(dqm->dev->kfd) == IP_VERSION(9, 4, 4) ||
 		KFD_GC_VERSION(dqm->dev->kfd) == IP_VERSION(9, 5, 0))
 		qpd->sh_mem_config |= (1 << SH_MEM_CONFIG__F8_MODE__SHIFT);
+
+	if (KFD_GC_VERSION(dqm->dev->kfd) == IP_VERSION(9, 5, 0)) {
+		if (misc_process_properties & KFD_PROC_FLAG_MFMA_HIGH_PRECISION)
+			qpd->sh_mem_config |= 1 << SH_MEM_CONFIG__PRECISION_MODE__SHIFT;
+	}
 
 	qpd->sh_mem_ape1_limit = 0;
 	qpd->sh_mem_ape1_base = 0;

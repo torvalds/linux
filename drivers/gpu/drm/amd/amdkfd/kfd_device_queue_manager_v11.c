@@ -35,7 +35,8 @@ static bool set_cache_memory_policy_v11(struct device_queue_manager *dqm,
 				   enum cache_policy default_policy,
 				   enum cache_policy alternate_policy,
 				   void __user *alternate_aperture_base,
-				   uint64_t alternate_aperture_size);
+				   uint64_t alternate_aperture_size,
+				   u32 misc_process_properties);
 
 void device_queue_manager_init_v11(
 	struct device_queue_manager_asic_ops *asic_ops)
@@ -60,7 +61,8 @@ static bool set_cache_memory_policy_v11(struct device_queue_manager *dqm,
 				   enum cache_policy default_policy,
 				   enum cache_policy alternate_policy,
 				   void __user *alternate_aperture_base,
-				   uint64_t alternate_aperture_size)
+				   uint64_t alternate_aperture_size,
+				   u32 misc_process_properties)
 {
 	qpd->sh_mem_config = (SH_MEM_ALIGNMENT_MODE_UNALIGNED <<
 			      SH_MEM_CONFIG__ALIGNMENT_MODE__SHIFT) |
