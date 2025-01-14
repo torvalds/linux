@@ -10099,6 +10099,15 @@ static void dev_index_release(struct net *net, int ifindex)
 	WARN_ON(xa_erase(&net->dev_by_index, ifindex));
 }
 
+static bool from_cleanup_net(void)
+{
+#ifdef CONFIG_NET_NS
+	return current == cleanup_net_task;
+#else
+	return false;
+#endif
+}
+
 /* Delayed registration/unregisteration */
 LIST_HEAD(net_todo_list);
 DECLARE_WAIT_QUEUE_HEAD(netdev_unregistering_wq);
@@ -11474,7 +11483,7 @@ EXPORT_SYMBOL_GPL(alloc_netdev_dummy);
 void synchronize_net(void)
 {
 	might_sleep();
-	if (rtnl_is_locked())
+	if (from_cleanup_net() || rtnl_is_locked())
 		synchronize_rcu_expedited();
 	else
 		synchronize_rcu();
