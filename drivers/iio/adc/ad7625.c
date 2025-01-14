@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
+// SPDX-License-Identifier: (GPL-2.0-only)
 /*
  * Analog Devices Inc. AD7625 ADC driver
  *
@@ -680,5 +680,5 @@ module_platform_driver(ad7625_driver);
 
 MODULE_AUTHOR("Trevor Gamblin <tgamblin@baylibre.com>");
 MODULE_DESCRIPTION("Analog Devices AD7625 ADC");
-MODULE_LICENSE("Dual BSD/GPL");
+MODULE_LICENSE("GPL");
 MODULE_IMPORT_NS("IIO_BACKEND");
