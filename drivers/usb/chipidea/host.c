@@ -13,6 +13,7 @@
 #include <linux/usb/hcd.h>
 #include <linux/usb/chipidea.h>
 #include <linux/regulator/consumer.h>
+#include <linux/string_choices.h>
 #include <linux/pinctrl/consumer.h>
 
 #include "../host/ehci.h"
@@ -56,7 +57,7 @@ static int ehci_ci_portpower(struct usb_hcd *hcd, int portnum, bool enable)
 		if (ret) {
 			dev_err(dev,
 				"Failed to %s vbus regulator, ret=%d\n",
-				enable ? "enable" : "disable", ret);
+				str_enable_disable(enable), ret);
 			return ret;
 		}
 		priv->enabled = enable;
