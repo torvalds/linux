@@ -670,7 +670,6 @@ static int amd_spi_exec_mem_op(struct spi_mem *mem,
 			       const struct spi_mem_op *op)
 {
 	struct amd_spi *amd_spi;
-	int ret;
 
 	amd_spi = spi_controller_get_devdata(mem->spi->controller);
 
@@ -689,10 +688,10 @@ static int amd_spi_exec_mem_op(struct spi_mem *mem,
 		amd_spi_mem_data_out(amd_spi, op);
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		return -EOPNOTSUPP;
 	}
 
-	return ret;
+	return 0;
 }
 
 static const struct spi_controller_mem_ops amd_spi_mem_ops = {
