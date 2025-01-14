@@ -1342,8 +1342,8 @@ int ines_common_pcmcia_attach(gpib_board_t *board)
 	ines_priv = board->private_data;
 	nec_priv = &ines_priv->nec7210_priv;
 
-	if (request_region(curr_dev->resource[0]->start,
-			   resource_size(curr_dev->resource[0]), "ines_gpib") == 0) {
+	if (!request_region(curr_dev->resource[0]->start,
+			    resource_size(curr_dev->resource[0]), "ines_gpib")) {
 		pr_err("ines_gpib: ioports at 0x%lx already in use\n",
 		       (unsigned long)(curr_dev->resource[0]->start));
 		return -1;

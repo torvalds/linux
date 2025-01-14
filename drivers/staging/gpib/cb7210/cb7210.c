@@ -1040,7 +1040,7 @@ int cb_isa_attach(gpib_board_t *board, const gpib_board_config_t *config)
 		return retval;
 	cb_priv = board->private_data;
 	nec_priv = &cb_priv->nec7210_priv;
-	if (request_region(config->ibbase, cb7210_iosize, "cb7210") == 0) {
+	if (!request_region(config->ibbase, cb7210_iosize, "cb7210")) {
 		pr_err("gpib: ioports starting at 0x%u are already in use\n", config->ibbase);
 		return -EIO;
 	}
@@ -1459,8 +1459,8 @@ int cb_pcmcia_attach(gpib_board_t *board, const gpib_board_config_t *config)
 	cb_priv = board->private_data;
 	nec_priv = &cb_priv->nec7210_priv;
 
-	if (request_region(curr_dev->resource[0]->start, resource_size(curr_dev->resource[0]),
-			   "cb7210") == 0)	{
+	if (!request_region(curr_dev->resource[0]->start, resource_size(curr_dev->resource[0]),
+			    "cb7210"))	{
 		pr_err("gpib: ioports starting at 0x%lx are already in use\n",
 		       (unsigned long)curr_dev->resource[0]->start);
 		return -EIO;

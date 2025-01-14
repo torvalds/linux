@@ -2197,7 +2197,7 @@ static int __init gpib_common_init_module(void)
 		return PTR_ERR(gpib_class);
 	}
 	for (i = 0; i < GPIB_MAX_NUM_BOARDS; ++i)
-		board_array[i].gpib_dev = device_create(gpib_class, 0,
+		board_array[i].gpib_dev = device_create(gpib_class, NULL,
 							MKDEV(GPIB_CODE, i), NULL, "gpib%i", i);
 
 	return 0;

@@ -265,7 +265,7 @@ static struct gpiod_lookup_table gpib_gpio_table_0 = {
 static struct gpiod_lookup_table *lookup_tables[] = {
 	&gpib_gpio_table_0,
 	&gpib_gpio_table_1,
-	0
+	NULL
 };
 
 /* struct which defines private_data for gpio driver */
@@ -1119,7 +1119,7 @@ static void release_gpios(void)
 	for (j = 0 ; j < NUM_PINS ; j++) {
 		if (all_descriptors[j]) {
 			gpiod_put(all_descriptors[j]);
-			all_descriptors[j] = 0;
+			all_descriptors[j] = NULL;
 		}
 	}
 }

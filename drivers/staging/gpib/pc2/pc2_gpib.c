@@ -426,7 +426,7 @@ int pc2_attach(gpib_board_t *board, const gpib_board_config_t *config)
 	nec_priv = &pc2_priv->nec7210_priv;
 	nec_priv->offset = pc2_reg_offset;
 
-	if (request_region(config->ibbase, pc2_iosize, "pc2") == 0) {
+	if (!request_region(config->ibbase, pc2_iosize, "pc2")) {
 		pr_err("gpib: ioports are already in use\n");
 		return -1;
 	}

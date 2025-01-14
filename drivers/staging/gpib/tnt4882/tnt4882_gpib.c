@@ -1896,8 +1896,8 @@ int ni_pcmcia_attach(gpib_board_t *board, const gpib_board_config_t *config)
 	nec_priv->offset = atgpib_reg_offset;
 
 	DEBUG(0, "ioport1 window attributes: 0x%lx\n", curr_dev->resource[0]->flags);
-	if (request_region(curr_dev->resource[0]->start, resource_size(curr_dev->resource[0]),
-			   "tnt4882") == 0) {
+	if (!request_region(curr_dev->resource[0]->start, resource_size(curr_dev->resource[0]),
+			    "tnt4882")) {
 		pr_err("gpib: ioports starting at 0x%lx are already in use\n",
 		       (unsigned long)curr_dev->resource[0]->start);
 		return -EIO;
