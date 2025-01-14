@@ -1880,7 +1880,7 @@ static int skel_release(struct inode *inode, struct file *file)
  *  user space access to read function
  */
 
-static ssize_t skel_read(struct file *file, char *buffer, size_t count,
+static ssize_t skel_read(struct file *file, char __user *buffer, size_t count,
 			 loff_t *ppos)
 {
 	struct usb_skel *dev;
@@ -1911,7 +1911,7 @@ static ssize_t skel_read(struct file *file, char *buffer, size_t count,
  *  user space access to write function
  */
 
-static ssize_t skel_write(struct file *file, const char *user_buffer,
+static ssize_t skel_write(struct file *file, const char __user *user_buffer,
 			  size_t count, loff_t *ppos)
 {
 	struct usb_skel *dev;
