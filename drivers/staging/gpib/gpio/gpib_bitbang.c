@@ -147,7 +147,7 @@ DEFINE_LED_TRIGGER(ledtrig_gpib);
 			led_trigger_event(ledtrig_gpib, LED_OFF); }	\
 	while (0)
 
-struct gpio_desc *all_descriptors[GPIB_PINS + SN7516X_PINS];
+static struct gpio_desc *all_descriptors[GPIB_PINS + SN7516X_PINS];
 
 #define D01 all_descriptors[0]
 #define D02 all_descriptors[1]
@@ -175,7 +175,7 @@ struct gpio_desc *all_descriptors[GPIB_PINS + SN7516X_PINS];
 /* YOGA dapter uses a global enable for the buffer chips, re-using the TE pin */
 #define YOGA_ENABLE TE
 
-int gpios_vector[] = {
+static int gpios_vector[] = {
 	D01_pin_nr,
 	D02_pin_nr,
 	D03_pin_nr,

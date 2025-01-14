@@ -2023,13 +2023,13 @@ static int t1_delay_ioctl(gpib_board_t *board, unsigned long arg)
 	return 0;
 }
 
-const struct file_operations ib_fops = {
-owner: THIS_MODULE,
-llseek : NULL,
-unlocked_ioctl : &ibioctl,
-compat_ioctl : &ibioctl,
-open : &ibopen,
-release : &ibclose,
+static const struct file_operations ib_fops = {
+	.owner = THIS_MODULE,
+	.llseek = NULL,
+	.unlocked_ioctl = &ibioctl,
+	.compat_ioctl = &ibioctl,
+	.open = &ibopen,
+	.release = &ibclose,
 };
 
 gpib_board_t board_array[GPIB_MAX_NUM_BOARDS];
