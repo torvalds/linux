@@ -21,7 +21,8 @@ struct mlx5_fs_pool;
 
 struct mlx5_fs_pool_ops {
 	int (*bulk_destroy)(struct mlx5_core_dev *dev, struct mlx5_fs_bulk *bulk);
-	struct mlx5_fs_bulk * (*bulk_create)(struct mlx5_core_dev *dev);
+	struct mlx5_fs_bulk * (*bulk_create)(struct mlx5_core_dev *dev,
+					     void *pool_ctx);
 	void (*update_threshold)(struct mlx5_fs_pool *pool);
 };
 
@@ -44,7 +45,7 @@ void mlx5_fs_bulk_cleanup(struct mlx5_fs_bulk *fs_bulk);
 int mlx5_fs_bulk_get_free_amount(struct mlx5_fs_bulk *bulk);
 
 void mlx5_fs_pool_init(struct mlx5_fs_pool *pool, struct mlx5_core_dev *dev,
-		       const struct mlx5_fs_pool_ops *ops);
+		       const struct mlx5_fs_pool_ops *ops, void *pool_ctx);
 void mlx5_fs_pool_cleanup(struct mlx5_fs_pool *pool);
 int mlx5_fs_pool_acquire_index(struct mlx5_fs_pool *fs_pool,
 			       struct mlx5_fs_pool_index *pool_index);

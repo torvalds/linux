@@ -44,28 +44,6 @@
 #define MLX5_FC_POOL_MAX_THRESHOLD BIT(18)
 #define MLX5_FC_POOL_USED_BUFF_RATIO 10
 
-enum mlx5_fc_type {
-	MLX5_FC_TYPE_ACQUIRED = 0,
-	MLX5_FC_TYPE_LOCAL,
-};
-
-struct mlx5_fc_cache {
-	u64 packets;
-	u64 bytes;
-	u64 lastuse;
-};
-
-struct mlx5_fc {
-	u32 id;
-	bool aging;
-	enum mlx5_fc_type type;
-	struct mlx5_fc_bulk *bulk;
-	struct mlx5_fc_cache cache;
-	/* last{packets,bytes} are used for calculating deltas since last reading. */
-	u64 lastpackets;
-	u64 lastbytes;
-};
-
 struct mlx5_fc_stats {
 	struct xarray counters;
 
@@ -434,13 +412,7 @@ void mlx5_fc_update_sampling_interval(struct mlx5_core_dev *dev,
 					    fc_stats->sampling_interval);
 }
 
-/* Flow counter bluks */
-
-struct mlx5_fc_bulk {
-	struct mlx5_fs_bulk fs_bulk;
-	u32 base_id;
-	struct mlx5_fc fcs[];
-};
+/* Flow counter bulks */
 
 static void mlx5_fc_init(struct mlx5_fc *counter, struct mlx5_fc_bulk *bulk,
 			 u32 id)
@@ -449,7 +421,13 @@ static void mlx5_fc_init(struct mlx5_fc *counter, struct mlx5_fc_bulk *bulk,
 	counter->id = id;
 }
 
-static struct mlx5_fs_bulk *mlx5_fc_bulk_create(struct mlx5_core_dev *dev)
+u32 mlx5_fc_get_base_id(struct mlx5_fc *counter)
+{
+	return counter->bulk->base_id;
+}
+
+static struct mlx5_fs_bulk *mlx5_fc_bulk_create(struct mlx5_core_dev *dev,
+						void *pool_ctx)
 {
 	enum mlx5_fc_bulk_alloc_bitmask alloc_bitmask;
 	struct mlx5_fc_bulk *fc_bulk;
@@ -473,6 +451,8 @@ static struct mlx5_fs_bulk *mlx5_fc_bulk_create(struct mlx5_core_dev *dev)
 	for (i = 0; i < bulk_len; i++)
 		mlx5_fc_init(&fc_bulk->fcs[i], fc_bulk, base_id + i);
 
+	refcount_set(&fc_bulk->hws_data.hws_action_refcount, 0);
+	mutex_init(&fc_bulk->hws_data.lock);
 	return &fc_bulk->fs_bulk;
 
 fs_bulk_cleanup:
@@ -518,7 +498,7 @@ static const struct mlx5_fs_pool_ops mlx5_fc_pool_ops = {
 static void
 mlx5_fc_pool_init(struct mlx5_fs_pool *fc_pool, struct mlx5_core_dev *dev)
 {
-	mlx5_fs_pool_init(fc_pool, dev, &mlx5_fc_pool_ops);
+	mlx5_fs_pool_init(fc_pool, dev, &mlx5_fc_pool_ops, NULL);
 }
 
 static void mlx5_fc_pool_cleanup(struct mlx5_fs_pool *fc_pool)

@@ -52,15 +52,11 @@ struct mlx5hws_matcher_action_ste {
 	u8 max_stes;
 };
 
-struct mlx5hws_matcher_resize_data_node {
+struct mlx5hws_matcher_resize_data {
 	struct mlx5hws_pool_chunk stc;
 	u32 rtc_0_id;
 	u32 rtc_1_id;
 	struct mlx5hws_pool *pool;
-};
-
-struct mlx5hws_matcher_resize_data {
-	struct mlx5hws_matcher_resize_data_node action_ste[2];
 	u8 max_stes;
 	struct list_head list_node;
 };
@@ -78,7 +74,7 @@ struct mlx5hws_matcher {
 	struct mlx5hws_matcher *col_matcher;
 	struct mlx5hws_matcher *resize_dst;
 	struct mlx5hws_matcher_match_ste match_ste;
-	struct mlx5hws_matcher_action_ste action_ste[2];
+	struct mlx5hws_matcher_action_ste action_ste;
 	struct list_head list_node;
 	struct list_head resize_data;
 };
