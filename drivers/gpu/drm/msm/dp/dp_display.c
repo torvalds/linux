@@ -11,6 +11,7 @@
 #include <linux/of_irq.h>
 #include <linux/phy/phy.h>
 #include <linux/delay.h>
+#include <linux/string_choices.h>
 #include <drm/display/drm_dp_aux_bus.h>
 #include <drm/drm_edid.h>
 
@@ -343,8 +344,7 @@ static int msm_dp_display_send_hpd_notification(struct msm_dp_display_private *d
 {
 	if ((hpd && dp->msm_dp_display.link_ready) ||
 			(!hpd && !dp->msm_dp_display.link_ready)) {
-		drm_dbg_dp(dp->drm_dev, "HPD already %s\n",
-				(hpd ? "on" : "off"));
+		drm_dbg_dp(dp->drm_dev, "HPD already %s\n", str_on_off(hpd));
 		return 0;
 	}
 
