@@ -21,6 +21,7 @@
 #include <linux/irqchip/chained_irq.h>
 #include <linux/of_irq.h>
 #include <linux/regmap.h>
+#include <linux/string_choices.h>
 
 #include "realtek.h"
 #include "realtek-smi.h"
@@ -1522,7 +1523,7 @@ static int rtl8366rb_vlan_filtering(struct dsa_switch *ds, int port,
 	rb = priv->chip_data;
 
 	dev_dbg(priv->dev, "port %d: %s VLAN filtering\n", port,
-		vlan_filtering ? "enable" : "disable");
+		str_enable_disable(vlan_filtering));
 
 	/* If the port is not in the member set, the frame will be dropped */
 	ret = regmap_update_bits(priv->map, RTL8366RB_VLAN_INGRESS_CTRL2_REG,
@@ -1884,7 +1885,7 @@ static bool rtl8366rb_is_vlan_valid(struct realtek_priv *priv, unsigned int vlan
 
 static int rtl8366rb_enable_vlan(struct realtek_priv *priv, bool enable)
 {
-	dev_dbg(priv->dev, "%s VLAN\n", enable ? "enable" : "disable");
+	dev_dbg(priv->dev, "%s VLAN\n", str_enable_disable(enable));
 	return regmap_update_bits(priv->map,
 				  RTL8366RB_SGCR, RTL8366RB_SGCR_EN_VLAN,
 				  enable ? RTL8366RB_SGCR_EN_VLAN : 0);
@@ -1892,7 +1893,7 @@ static int rtl8366rb_enable_vlan(struct realtek_priv *priv, bool enable)
 
 static int rtl8366rb_enable_vlan4k(struct realtek_priv *priv, bool enable)
 {
-	dev_dbg(priv->dev, "%s VLAN 4k\n", enable ? "enable" : "disable");
+	dev_dbg(priv->dev, "%s VLAN 4k\n", str_enable_disable(enable));
 	return regmap_update_bits(priv->map, RTL8366RB_SGCR,
 				  RTL8366RB_SGCR_EN_VLAN_4KTB,
 				  enable ? RTL8366RB_SGCR_EN_VLAN_4KTB : 0);

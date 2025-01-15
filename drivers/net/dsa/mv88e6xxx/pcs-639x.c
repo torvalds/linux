@@ -9,6 +9,7 @@
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 #include <linux/mii.h>
+#include <linux/string_choices.h>
 
 #include "chip.h"
 #include "global2.h"
@@ -750,7 +751,7 @@ static int mv88e6393x_sgmii_apply_2500basex_an(struct mv88e639x_pcs *mpcs,
 	if (err)
 		dev_err(mpcs->mdio.dev.parent,
 			"failed to %s 2500basex fix: %pe\n",
-			enable ? "enable" : "disable", ERR_PTR(err));
+			str_enable_disable(enable), ERR_PTR(err));
 
 	return err;
 }
