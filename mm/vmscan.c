@@ -2400,6 +2400,43 @@ static void prepare_scan_control(pg_data_t *pgdat, struct scan_control *sc)
 	}
 }
 
+static inline void calculate_pressure_balance(struct scan_control *sc,
+			int swappiness, u64 *fraction, u64 *denominator)
+{
+	unsigned long anon_cost, file_cost, total_cost;
+	unsigned long ap, fp;
+
+	/*
+	 * Calculate the pressure balance between anon and file pages.
+	 *
+	 * The amount of pressure we put on each LRU is inversely
+	 * proportional to the cost of reclaiming each list, as
+	 * determined by the share of pages that are refaulting, times
+	 * the relative IO cost of bringing back a swapped out
+	 * anonymous page vs reloading a filesystem page (swappiness).
+	 *
+	 * Although we limit that influence to ensure no list gets
+	 * left behind completely: at least a third of the pressure is
+	 * applied, before swappiness.
+	 *
+	 * With swappiness at 100, anon and file have equal IO cost.
+	 */
+	total_cost = sc->anon_cost + sc->file_cost;
+	anon_cost = total_cost + sc->anon_cost;
+	file_cost = total_cost + sc->file_cost;
+	total_cost = anon_cost + file_cost;
+
+	ap = swappiness * (total_cost + 1);
+	ap /= anon_cost + 1;
+
+	fp = (MAX_SWAPPINESS - swappiness) * (total_cost + 1);
+	fp /= file_cost + 1;
+
+	fraction[WORKINGSET_ANON] = ap;
+	fraction[WORKINGSET_FILE] = fp;
+	*denominator = ap + fp;
+}
+
 /*
  * Determine how aggressively the anon and file LRU lists should be
  * scanned.
@@ -2412,12 +2449,10 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
 {
 	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
 	struct mem_cgroup *memcg = lruvec_memcg(lruvec);
-	unsigned long anon_cost, file_cost, total_cost;
 	int swappiness = sc_swappiness(sc, memcg);
 	u64 fraction[ANON_AND_FILE];
 	u64 denominator = 0;	/* gcc */
 	enum scan_balance scan_balance;
-	unsigned long ap, fp;
 	enum lru_list lru;
 
 	/* If we have no swap space, do not bother scanning anon folios. */
@@ -2466,35 +2501,8 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
 	}
 
 	scan_balance = SCAN_FRACT;
-	/*
-	 * Calculate the pressure balance between anon and file pages.
-	 *
-	 * The amount of pressure we put on each LRU is inversely
-	 * proportional to the cost of reclaiming each list, as
-	 * determined by the share of pages that are refaulting, times
-	 * the relative IO cost of bringing back a swapped out
-	 * anonymous page vs reloading a filesystem page (swappiness).
-	 *
-	 * Although we limit that influence to ensure no list gets
-	 * left behind completely: at least a third of the pressure is
-	 * applied, before swappiness.
-	 *
-	 * With swappiness at 100, anon and file have equal IO cost.
-	 */
-	total_cost = sc->anon_cost + sc->file_cost;
-	anon_cost = total_cost + sc->anon_cost;
-	file_cost = total_cost + sc->file_cost;
-	total_cost = anon_cost + file_cost;
+	calculate_pressure_balance(sc, swappiness, fraction, &denominator);
 
-	ap = swappiness * (total_cost + 1);
-	ap /= anon_cost + 1;
-
-	fp = (MAX_SWAPPINESS - swappiness) * (total_cost + 1);
-	fp /= file_cost + 1;
-
-	fraction[0] = ap;
-	fraction[1] = fp;
-	denominator = ap + fp;
 out:
 	for_each_evictable_lru(lru) {
 		bool file = is_file_lru(lru);
