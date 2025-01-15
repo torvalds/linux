@@ -400,13 +400,7 @@ static void stmmac_enable_hw_lpi_timer(struct stmmac_priv *priv)
 	stmmac_set_eee_lpi_timer(priv, priv->hw, priv->tx_lpi_timer);
 }
 
-/**
- * stmmac_enable_eee_mode - check and enter in LPI mode
- * @priv: driver private structure
- * Description: this function is to verify and enter in LPI mode in case of
- * EEE.
- */
-static int stmmac_enable_eee_mode(struct stmmac_priv *priv)
+static bool stmmac_eee_tx_busy(struct stmmac_priv *priv)
 {
 	u32 tx_cnt = priv->plat->tx_queues_to_use;
 	u32 queue;
@@ -416,23 +410,42 @@ static int stmmac_enable_eee_mode(struct stmmac_priv *priv)
 		struct stmmac_tx_queue *tx_q = &priv->dma_conf.tx_queue[queue];
 
 		if (tx_q->dirty_tx != tx_q->cur_tx)
-			return -EBUSY; /* still unfinished work */
+			return true; /* still unfinished work */
+	}
+
+	return false;
+}
+
+static void stmmac_restart_sw_lpi_timer(struct stmmac_priv *priv)
+{
+	mod_timer(&priv->eee_ctrl_timer, STMMAC_LPI_T(priv->tx_lpi_timer));
+}
+
+/**
+ * stmmac_try_to_start_sw_lpi - check and enter in LPI mode
+ * @priv: driver private structure
+ * Description: this function is to verify and enter in LPI mode in case of
+ * EEE.
+ */
+static void stmmac_try_to_start_sw_lpi(struct stmmac_priv *priv)
+{
+	if (stmmac_eee_tx_busy(priv)) {
+		stmmac_restart_sw_lpi_timer(priv);
+		return;
 	}
 
 	/* Check and enter in LPI mode */
 	if (!priv->tx_path_in_lpi_mode)
 		stmmac_set_eee_mode(priv, priv->hw,
 			priv->plat->flags & STMMAC_FLAG_EN_TX_LPI_CLOCKGATING);
-	return 0;
 }
 
 /**
- * stmmac_disable_sw_eee_mode - disable and exit from LPI mode
+ * stmmac_stop_sw_lpi - stop transmitting LPI
  * @priv: driver private structure
- * Description: this function is to exit and disable EEE in case of
- * LPI state is true. This is called by the xmit.
+ * Description: When using software-controlled LPI, stop transmitting LPI state.
  */
-static void stmmac_disable_sw_eee_mode(struct stmmac_priv *priv)
+static void stmmac_stop_sw_lpi(struct stmmac_priv *priv)
 {
 	stmmac_reset_eee_mode(priv, priv->hw);
 	del_timer_sync(&priv->eee_ctrl_timer);
@@ -450,8 +463,7 @@ static void stmmac_eee_ctrl_timer(struct timer_list *t)
 {
 	struct stmmac_priv *priv = from_timer(priv, t, eee_ctrl_timer);
 
-	if (stmmac_enable_eee_mode(priv))
-		mod_timer(&priv->eee_ctrl_timer, STMMAC_LPI_T(priv->tx_lpi_timer));
+	stmmac_try_to_start_sw_lpi(priv);
 }
 
 /**
@@ -479,7 +491,7 @@ static void stmmac_eee_init(struct stmmac_priv *priv, bool active)
 	if (!priv->eee_active) {
 		if (priv->eee_enabled) {
 			netdev_dbg(priv->dev, "disable EEE\n");
-			priv->eee_sw_timer_en = true;
+			priv->eee_sw_timer_en = false;
 			stmmac_disable_hw_lpi_timer(priv);
 			del_timer_sync(&priv->eee_ctrl_timer);
 			stmmac_set_eee_timer(priv, priv->hw, 0,
@@ -513,8 +525,7 @@ static void stmmac_eee_init(struct stmmac_priv *priv, bool active)
 		/* Use software LPI mode */
 		priv->eee_sw_timer_en = true;
 		stmmac_disable_hw_lpi_timer(priv);
-		mod_timer(&priv->eee_ctrl_timer,
-			  STMMAC_LPI_T(priv->tx_lpi_timer));
+		stmmac_restart_sw_lpi_timer(priv);
 	}
 
 	priv->eee_enabled = true;
@@ -2783,11 +2794,8 @@ static int stmmac_tx_clean(struct stmmac_priv *priv, int budget, u32 queue,
 			xmits = budget;
 	}
 
-	if (priv->eee_enabled && !priv->tx_path_in_lpi_mode &&
-	    priv->eee_sw_timer_en) {
-		if (stmmac_enable_eee_mode(priv))
-			mod_timer(&priv->eee_ctrl_timer, STMMAC_LPI_T(priv->tx_lpi_timer));
-	}
+	if (priv->eee_sw_timer_en && !priv->tx_path_in_lpi_mode)
+		stmmac_restart_sw_lpi_timer(priv);
 
 	/* We still have pending packets, let's call for a new scheduling */
 	if (tx_q->dirty_tx != tx_q->cur_tx)
@@ -4497,7 +4505,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	first_tx = tx_q->cur_tx;
 
 	if (priv->tx_path_in_lpi_mode && priv->eee_sw_timer_en)
-		stmmac_disable_sw_eee_mode(priv);
+		stmmac_stop_sw_lpi(priv);
 
 	/* Manage oversized TCP frames for GMAC4 device */
 	if (skb_is_gso(skb) && priv->tso) {
@@ -7721,7 +7729,7 @@ int stmmac_suspend(struct device *dev)
 	for (chan = 0; chan < priv->plat->tx_queues_to_use; chan++)
 		hrtimer_cancel(&priv->dma_conf.tx_queue[chan].txtimer);
 
-	if (priv->eee_enabled) {
+	if (priv->eee_sw_timer_en) {
 		priv->tx_path_in_lpi_mode = false;
 		del_timer_sync(&priv->eee_ctrl_timer);
 	}
