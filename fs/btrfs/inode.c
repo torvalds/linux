@@ -9146,7 +9146,7 @@ out:
 }
 
 struct btrfs_encoded_read_private {
-	struct completion done;
+	struct completion *sync_reads;
 	void *uring_ctx;
 	refcount_t pending_refs;
 	blk_status_t status;
@@ -9158,11 +9158,10 @@ static void btrfs_encoded_read_endio(struct btrfs_bio *bbio)
 
 	if (bbio->bio.bi_status) {
 		/*
-		 * The memory barrier implied by the atomic_dec_return() here
-		 * pairs with the memory barrier implied by the
-		 * atomic_dec_return() or io_wait_event() in
-		 * btrfs_encoded_read_regular_fill_pages() to ensure that this
-		 * write is observed before the load of status in
+		 * The memory barrier implied by the refcount_dec_and_test() here
+		 * pairs with the memory barrier implied by the refcount_dec_and_test()
+		 * in btrfs_encoded_read_regular_fill_pages() to ensure that
+		 * this write is observed before the load of status in
 		 * btrfs_encoded_read_regular_fill_pages().
 		 */
 		WRITE_ONCE(priv->status, bbio->bio.bi_status);
@@ -9174,7 +9173,7 @@ static void btrfs_encoded_read_endio(struct btrfs_bio *bbio)
 			btrfs_uring_read_extent_endio(priv->uring_ctx, err);
 			kfree(priv);
 		} else {
-			complete(&priv->done);
+			complete(priv->sync_reads);
 		}
 	}
 	bio_put(&bbio->bio);
@@ -9185,16 +9184,26 @@ int btrfs_encoded_read_regular_fill_pages(struct btrfs_inode *inode,
 					  struct page **pages, void *uring_ctx)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	struct btrfs_encoded_read_private *priv;
+	struct btrfs_encoded_read_private *priv, sync_priv;
+	struct completion sync_reads;
 	unsigned long i = 0;
 	struct btrfs_bio *bbio;
 	int ret;
 
-	priv = kmalloc(sizeof(struct btrfs_encoded_read_private), GFP_NOFS);
-	if (!priv)
-		return -ENOMEM;
+	/*
+	 * Fast path for synchronous reads which completes in this call, io_uring
+	 * needs longer time span.
+	 */
+	if (uring_ctx) {
+		priv = kmalloc(sizeof(struct btrfs_encoded_read_private), GFP_NOFS);
+		if (!priv)
+			return -ENOMEM;
+	} else {
+		priv = &sync_priv;
+		init_completion(&sync_reads);
+		priv->sync_reads = &sync_reads;
+	}
 
-	init_completion(&priv->done);
 	refcount_set(&priv->pending_refs, 1);
 	priv->status = 0;
 	priv->uring_ctx = uring_ctx;
@@ -9237,11 +9246,9 @@ int btrfs_encoded_read_regular_fill_pages(struct btrfs_inode *inode,
 		return -EIOCBQUEUED;
 	} else {
 		if (!refcount_dec_and_test(&priv->pending_refs))
-			wait_for_completion_io(&priv->done);
+			wait_for_completion_io(&sync_reads);
 		/* See btrfs_encoded_read_endio() for ordering. */
-		ret = blk_status_to_errno(READ_ONCE(priv->status));
-		kfree(priv);
-		return ret;
+		return blk_status_to_errno(READ_ONCE(priv->status));
 	}
 }
 
