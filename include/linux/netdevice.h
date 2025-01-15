@@ -2444,11 +2444,23 @@ struct net_device {
 	u32			napi_defer_hard_irqs;
 
 	/**
+	 * @up: copy of @state's IFF_UP, but safe to read with just @lock.
+	 *	May report false negatives while the device is being opened
+	 *	or closed (@lock does not protect .ndo_open, or .ndo_close).
+	 */
+	bool			up;
+
+	/**
 	 * @lock: netdev-scope lock, protects a small selection of fields.
 	 * Should always be taken using netdev_lock() / netdev_unlock() helpers.
 	 * Drivers are free to use it for other protection.
 	 *
-	 * Protects: @reg_state, @net_shaper_hierarchy.
+	 * Protects:
+	 *	@net_shaper_hierarchy, @reg_state
+	 *
+	 * Partially protects (writers must hold both @lock and rtnl_lock):
+	 *	@up
+	 *
 	 * Ordering: take after rtnl_lock.
 	 */
 	struct mutex		lock;

@@ -128,6 +128,18 @@ void __dev_notify_flags(struct net_device *dev, unsigned int old_flags,
 void unregister_netdevice_many_notify(struct list_head *head,
 				      u32 portid, const struct nlmsghdr *nlh);
 
+static inline void netif_set_up(struct net_device *dev, bool value)
+{
+	if (value)
+		dev->flags |= IFF_UP;
+	else
+		dev->flags &= ~IFF_UP;
+
+	netdev_lock(dev);
+	dev->up = value;
+	netdev_unlock(dev);
+}
+
 static inline void netif_set_gso_max_size(struct net_device *dev,
 					  unsigned int size)
 {
