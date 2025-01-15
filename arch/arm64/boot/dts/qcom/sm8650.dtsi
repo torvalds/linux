@@ -493,6 +493,62 @@
 		qcom,bcm-voters = <&apps_bcm_voter>;
 	};
 
+	qup_opp_table_100mhz: opp-table-qup100mhz {
+		compatible = "operating-points-v2";
+
+		opp-75000000 {
+			opp-hz = /bits/ 64 <75000000>;
+			required-opps = <&rpmhpd_opp_low_svs>;
+		};
+
+		opp-100000000 {
+			opp-hz = /bits/ 64 <100000000>;
+			required-opps = <&rpmhpd_opp_svs>;
+		};
+	};
+
+	qup_opp_table_120mhz: opp-table-qup120mhz {
+		compatible = "operating-points-v2";
+
+		opp-75000000 {
+			opp-hz = /bits/ 64 <75000000>;
+			required-opps = <&rpmhpd_opp_low_svs>;
+		};
+
+		opp-120000000 {
+			opp-hz = /bits/ 64 <120000000>;
+			required-opps = <&rpmhpd_opp_svs>;
+		};
+	};
+
+	qup_opp_table_128mhz: opp-table-qup128mhz {
+		compatible = "operating-points-v2";
+
+		opp-75000000 {
+			opp-hz = /bits/ 64 <75000000>;
+			required-opps = <&rpmhpd_opp_low_svs>;
+		};
+
+		opp-128000000 {
+			opp-hz = /bits/ 64 <128000000>;
+			required-opps = <&rpmhpd_opp_svs>;
+		};
+	};
+
+	qup_opp_table_240mhz: opp-table-qup240mhz {
+		compatible = "operating-points-v2";
+
+		opp-150000000 {
+			opp-hz = /bits/ 64 <150000000>;
+			required-opps = <&rpmhpd_opp_low_svs>;
+		};
+
+		opp-240000000 {
+			opp-hz = /bits/ 64 <240000000>;
+			required-opps = <&rpmhpd_opp_svs>;
+		};
+	};
+
 	memory@a0000000 {
 		device_type = "memory";
 		/* We expect the bootloader to fill in the size */
@@ -1822,6 +1878,10 @@
 						     "qup-config",
 						     "qup-memory";
 
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				operating-points-v2 = <&qup_opp_table_120mhz>;
+
 				dmas = <&gpi_dma2 0 0 QCOM_GPI_I2C>,
 				       <&gpi_dma2 1 0 QCOM_GPI_I2C>;
 				dma-names = "tx",
@@ -1854,6 +1914,10 @@
 				interconnect-names = "qup-core",
 						     "qup-config",
 						     "qup-memory";
+
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				operating-points-v2 = <&qup_opp_table_100mhz>;
 
 				dmas = <&gpi_dma2 0 0 QCOM_GPI_SPI>,
 				       <&gpi_dma2 1 0 QCOM_GPI_SPI>;
@@ -1888,6 +1952,10 @@
 						     "qup-config",
 						     "qup-memory";
 
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				operating-points-v2 = <&qup_opp_table_120mhz>;
+
 				dmas = <&gpi_dma2 0 1 QCOM_GPI_I2C>,
 				       <&gpi_dma2 1 1 QCOM_GPI_I2C>;
 				dma-names = "tx",
@@ -1920,6 +1988,10 @@
 				interconnect-names = "qup-core",
 						     "qup-config",
 						     "qup-memory";
+
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				operating-points-v2 = <&qup_opp_table_120mhz>;
 
 				dmas = <&gpi_dma2 0 1 QCOM_GPI_SPI>,
 				       <&gpi_dma2 1 1 QCOM_GPI_SPI>;
@@ -1954,6 +2026,10 @@
 						     "qup-config",
 						     "qup-memory";
 
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				operating-points-v2 = <&qup_opp_table_120mhz>;
+
 				dmas = <&gpi_dma2 0 2 QCOM_GPI_I2C>,
 				       <&gpi_dma2 1 2 QCOM_GPI_I2C>;
 				dma-names = "tx",
@@ -1986,6 +2062,10 @@
 				interconnect-names = "qup-core",
 						     "qup-config",
 						     "qup-memory";
+
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				operating-points-v2 = <&qup_opp_table_120mhz>;
 
 				dmas = <&gpi_dma2 0 2 QCOM_GPI_SPI>,
 				       <&gpi_dma2 1 2 QCOM_GPI_SPI>;
@@ -2020,6 +2100,10 @@
 						     "qup-config",
 						     "qup-memory";
 
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				operating-points-v2 = <&qup_opp_table_120mhz>;
+
 				dmas = <&gpi_dma2 0 3 QCOM_GPI_I2C>,
 				       <&gpi_dma2 1 3 QCOM_GPI_I2C>;
 				dma-names = "tx",
@@ -2052,6 +2136,10 @@
 				interconnect-names = "qup-core",
 						     "qup-config",
 						     "qup-memory";
+
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				operating-points-v2 = <&qup_opp_table_120mhz>;
 
 				dmas = <&gpi_dma2 0 3 QCOM_GPI_SPI>,
 				       <&gpi_dma2 1 3 QCOM_GPI_SPI>;
@@ -2086,6 +2174,10 @@
 						     "qup-config",
 						     "qup-memory";
 
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				operating-points-v2 = <&qup_opp_table_100mhz>;
+
 				dmas = <&gpi_dma2 0 4 QCOM_GPI_I2C>,
 				       <&gpi_dma2 1 4 QCOM_GPI_I2C>;
 				dma-names = "tx",
@@ -2118,6 +2210,10 @@
 				interconnect-names = "qup-core",
 						     "qup-config",
 						     "qup-memory";
+
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				operating-points-v2 = <&qup_opp_table_100mhz>;
 
 				dmas = <&gpi_dma2 0 4 QCOM_GPI_SPI>,
 				       <&gpi_dma2 1 4 QCOM_GPI_SPI>;
@@ -2152,6 +2248,10 @@
 						     "qup-config",
 						     "qup-memory";
 
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				operating-points-v2 = <&qup_opp_table_100mhz>;
+
 				dmas = <&gpi_dma2 0 5 QCOM_GPI_I2C>,
 				       <&gpi_dma2 1 5 QCOM_GPI_I2C>;
 				dma-names = "tx",
@@ -2185,6 +2285,10 @@
 						     "qup-config",
 						     "qup-memory";
 
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				operating-points-v2 = <&qup_opp_table_100mhz>;
+
 				dmas = <&gpi_dma2 0 5 QCOM_GPI_SPI>,
 				       <&gpi_dma2 1 5 QCOM_GPI_SPI>;
 				dma-names = "tx",
@@ -2215,6 +2319,10 @@
 				interconnect-names = "qup-core",
 						     "qup-config";
 
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				operating-points-v2 = <&qup_opp_table_128mhz>;
+
 				pinctrl-0 = <&qup_uart14_default>, <&qup_uart14_cts_rts>;
 				pinctrl-names = "default";
 
@@ -2236,6 +2344,10 @@
 						 &config_noc SLAVE_QUP_2 QCOM_ICC_TAG_ACTIVE_ONLY>;
 				interconnect-names = "qup-core",
 						     "qup-config";
+
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				operating-points-v2 = <&qup_opp_table_100mhz>;
 
 				pinctrl-0 = <&qup_uart15_default>;
 				pinctrl-names = "default";
@@ -2275,6 +2387,10 @@
 				interconnect-names = "qup-core",
 						     "qup-config";
 
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				required-opps = <&rpmhpd_opp_low_svs>;
+
 				pinctrl-0 = <&hub_i2c0_data_clk>;
 				pinctrl-names = "default";
 
@@ -2301,6 +2417,10 @@
 						 &config_noc SLAVE_I2C QCOM_ICC_TAG_ACTIVE_ONLY>;
 				interconnect-names = "qup-core",
 						     "qup-config";
+
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				required-opps = <&rpmhpd_opp_low_svs>;
 
 				pinctrl-0 = <&hub_i2c1_data_clk>;
 				pinctrl-names = "default";
@@ -2329,6 +2449,10 @@
 				interconnect-names = "qup-core",
 						     "qup-config";
 
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				required-opps = <&rpmhpd_opp_low_svs>;
+
 				pinctrl-0 = <&hub_i2c2_data_clk>;
 				pinctrl-names = "default";
 
@@ -2355,6 +2479,10 @@
 						 &config_noc SLAVE_I2C QCOM_ICC_TAG_ACTIVE_ONLY>;
 				interconnect-names = "qup-core",
 						     "qup-config";
+
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				required-opps = <&rpmhpd_opp_low_svs>;
 
 				pinctrl-0 = <&hub_i2c3_data_clk>;
 				pinctrl-names = "default";
@@ -2383,6 +2511,10 @@
 				interconnect-names = "qup-core",
 						     "qup-config";
 
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				required-opps = <&rpmhpd_opp_low_svs>;
+
 				pinctrl-0 = <&hub_i2c4_data_clk>;
 				pinctrl-names = "default";
 
@@ -2409,6 +2541,10 @@
 						 &config_noc SLAVE_I2C QCOM_ICC_TAG_ACTIVE_ONLY>;
 				interconnect-names = "qup-core",
 						     "qup-config";
+
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				required-opps = <&rpmhpd_opp_low_svs>;
 
 				pinctrl-0 = <&hub_i2c5_data_clk>;
 				pinctrl-names = "default";
@@ -2437,6 +2573,10 @@
 				interconnect-names = "qup-core",
 						     "qup-config";
 
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				required-opps = <&rpmhpd_opp_low_svs>;
+
 				pinctrl-0 = <&hub_i2c6_data_clk>;
 				pinctrl-names = "default";
 
@@ -2463,6 +2603,10 @@
 						 &config_noc SLAVE_I2C QCOM_ICC_TAG_ACTIVE_ONLY>;
 				interconnect-names = "qup-core",
 						     "qup-config";
+
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				required-opps = <&rpmhpd_opp_low_svs>;
 
 				pinctrl-0 = <&hub_i2c7_data_clk>;
 				pinctrl-names = "default";
@@ -2491,6 +2635,10 @@
 				interconnect-names = "qup-core",
 						     "qup-config";
 
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				required-opps = <&rpmhpd_opp_low_svs>;
+
 				pinctrl-0 = <&hub_i2c8_data_clk>;
 				pinctrl-names = "default";
 
@@ -2517,6 +2665,10 @@
 						 &config_noc SLAVE_I2C QCOM_ICC_TAG_ACTIVE_ONLY>;
 				interconnect-names = "qup-core",
 						     "qup-config";
+
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				required-opps = <&rpmhpd_opp_low_svs>;
 
 				pinctrl-0 = <&hub_i2c9_data_clk>;
 				pinctrl-names = "default";
@@ -2597,6 +2749,10 @@
 						     "qup-config",
 						     "qup-memory";
 
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				operating-points-v2 = <&qup_opp_table_120mhz>;
+
 				dmas = <&gpi_dma1 0 0 QCOM_GPI_I2C>,
 				       <&gpi_dma1 1 0 QCOM_GPI_I2C>;
 				dma-names = "tx",
@@ -2629,6 +2785,10 @@
 				interconnect-names = "qup-core",
 						     "qup-config",
 						     "qup-memory";
+
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				operating-points-v2 = <&qup_opp_table_120mhz>;
 
 				dmas = <&gpi_dma1 0 0 QCOM_GPI_SPI>,
 				       <&gpi_dma1 1 0 QCOM_GPI_SPI>;
@@ -2663,6 +2823,10 @@
 						     "qup-config",
 						     "qup-memory";
 
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				operating-points-v2 = <&qup_opp_table_120mhz>;
+
 				dmas = <&gpi_dma1 0 1 QCOM_GPI_I2C>,
 				       <&gpi_dma1 1 1 QCOM_GPI_I2C>;
 				dma-names = "tx",
@@ -2695,6 +2859,10 @@
 				interconnect-names = "qup-core",
 						     "qup-config",
 						     "qup-memory";
+
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				operating-points-v2 = <&qup_opp_table_120mhz>;
 
 				dmas = <&gpi_dma1 0 1 QCOM_GPI_SPI>,
 				       <&gpi_dma1 1 1 QCOM_GPI_SPI>;
@@ -2729,6 +2897,10 @@
 						     "qup-config",
 						     "qup-memory";
 
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				operating-points-v2 = <&qup_opp_table_240mhz>;
+
 				dmas = <&gpi_dma1 0 2 QCOM_GPI_I2C>,
 				       <&gpi_dma1 1 2 QCOM_GPI_I2C>;
 				dma-names = "tx",
@@ -2761,6 +2933,10 @@
 				interconnect-names = "qup-core",
 						     "qup-config",
 						     "qup-memory";
+
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				operating-points-v2 = <&qup_opp_table_240mhz>;
 
 				dmas = <&gpi_dma1 0 2 QCOM_GPI_SPI>,
 				       <&gpi_dma1 1 2 QCOM_GPI_SPI>;
@@ -2795,6 +2971,10 @@
 						     "qup-config",
 						     "qup-memory";
 
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				operating-points-v2 = <&qup_opp_table_100mhz>;
+
 				dmas = <&gpi_dma1 0 3 QCOM_GPI_I2C>,
 				       <&gpi_dma1 1 3 QCOM_GPI_I2C>;
 				dma-names = "tx",
@@ -2827,6 +3007,10 @@
 				interconnect-names = "qup-core",
 						     "qup-config",
 						     "qup-memory";
+
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				operating-points-v2 = <&qup_opp_table_100mhz>;
 
 				dmas = <&gpi_dma1 0 3 QCOM_GPI_SPI>,
 				       <&gpi_dma1 1 3 QCOM_GPI_SPI>;
@@ -2861,6 +3045,10 @@
 						     "qup-config",
 						     "qup-memory";
 
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				operating-points-v2 = <&qup_opp_table_120mhz>;
+
 				dmas = <&gpi_dma1 0 4 QCOM_GPI_I2C>,
 				       <&gpi_dma1 1 4 QCOM_GPI_I2C>;
 				dma-names = "tx",
@@ -2893,6 +3081,10 @@
 				interconnect-names = "qup-core",
 						     "qup-config",
 						     "qup-memory";
+
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				operating-points-v2 = <&qup_opp_table_120mhz>;
 
 				dmas = <&gpi_dma1 0 4 QCOM_GPI_SPI>,
 				       <&gpi_dma1 1 4 QCOM_GPI_SPI>;
@@ -2927,6 +3119,10 @@
 						     "qup-config",
 						     "qup-memory";
 
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				operating-points-v2 = <&qup_opp_table_100mhz>;
+
 				dmas = <&gpi_dma1 0 5 QCOM_GPI_I2C>,
 				       <&gpi_dma1 1 5 QCOM_GPI_I2C>;
 				dma-names = "tx",
@@ -2959,6 +3155,10 @@
 				interconnect-names = "qup-core",
 						     "qup-config",
 						     "qup-memory";
+
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				operating-points-v2 = <&qup_opp_table_100mhz>;
 
 				dmas = <&gpi_dma1 0 5 QCOM_GPI_SPI>,
 				       <&gpi_dma1 1 5 QCOM_GPI_SPI>;
@@ -2993,6 +3193,10 @@
 						     "qup-config",
 						     "qup-memory";
 
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				operating-points-v2 = <&qup_opp_table_120mhz>;
+
 				dmas = <&gpi_dma1 0 6 QCOM_GPI_I2C>,
 				       <&gpi_dma1 1 6 QCOM_GPI_I2C>;
 				dma-names = "tx",
@@ -3025,6 +3229,10 @@
 				interconnect-names = "qup-core",
 						     "qup-config",
 						     "qup-memory";
+
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				operating-points-v2 = <&qup_opp_table_120mhz>;
 
 				dmas = <&gpi_dma1 0 6 QCOM_GPI_SPI>,
 				       <&gpi_dma1 1 6 QCOM_GPI_SPI>;
@@ -3059,6 +3267,10 @@
 						     "qup-config",
 						     "qup-memory";
 
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				operating-points-v2 = <&qup_opp_table_100mhz>;
+
 				dmas = <&gpi_dma1 0 7 QCOM_GPI_I2C>,
 				       <&gpi_dma1 1 7 QCOM_GPI_I2C>;
 				dma-names = "tx",
@@ -3091,6 +3303,10 @@
 				interconnect-names = "qup-core",
 						     "qup-config",
 						     "qup-memory";
+
+				power-domains = <&rpmhpd RPMHPD_CX>;
+
+				operating-points-v2 = <&qup_opp_table_100mhz>;
 
 				dmas = <&gpi_dma1 0 7 QCOM_GPI_SPI>,
 				       <&gpi_dma1 1 7 QCOM_GPI_SPI>;
