@@ -82,34 +82,6 @@ int lockref_get_not_zero(struct lockref *lockref)
 EXPORT_SYMBOL(lockref_get_not_zero);
 
 /**
- * lockref_put_not_zero - Decrements count unless count <= 1 before decrement
- * @lockref: pointer to lockref structure
- * Return: 1 if count updated successfully or 0 if count would become zero
- */
-int lockref_put_not_zero(struct lockref *lockref)
-{
-	int retval;
-
-	CMPXCHG_LOOP(
-		new.count--;
-		if (old.count <= 1)
-			return 0;
-	,
-		return 1;
-	);
-
-	spin_lock(&lockref->lock);
-	retval = 0;
-	if (lockref->count > 1) {
-		lockref->count--;
-		retval = 1;
-	}
-	spin_unlock(&lockref->lock);
-	return retval;
-}
-EXPORT_SYMBOL(lockref_put_not_zero);
-
-/**
  * lockref_put_return - Decrement reference count if possible
  * @lockref: pointer to lockref structure
  *
