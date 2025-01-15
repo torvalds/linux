@@ -43,6 +43,7 @@ if [[ -n "${KSFT_MACHINE_SLOW}" ]]; then
 		"tcp_timestamping.*.pkt"
 		"tcp_user_timeout_user-timeout-probe.pkt"
 		"tcp_zerocopy_epoll_.*.pkt"
+		"tcp_tcp_info_tcp-info-*-limited.pkt"
 	)
 	readonly xfail_regex="^($(printf '%s|' "${xfail_list[@]}"))$"
 	[[ "$script" =~ ${xfail_regex} ]] && failfunc=ktap_test_xfail
