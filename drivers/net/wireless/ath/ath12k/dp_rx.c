@@ -1697,7 +1697,11 @@ static void ath12k_htt_mlo_offset_event_handler(struct ath12k_base *ab,
 	rcu_read_lock();
 	ar = ath12k_mac_get_ar_by_pdev_id(ab, pdev_id);
 	if (!ar) {
-		ath12k_warn(ab, "invalid pdev id %d on htt mlo offset\n", pdev_id);
+		/* It is possible that the ar is not yet active (started).
+		 * The above function will only look for the active pdev
+		 * and hence %NULL return is possible. Just silently
+		 * discard this message
+		 */
 		goto exit;
 	}
 
@@ -2474,6 +2478,11 @@ static void ath12k_dp_rx_deliver_msdu(struct ath12k *ar, struct napi_struct *nap
 
 	pubsta = peer ? peer->sta : NULL;
 
+	if (pubsta && pubsta->valid_links) {
+		status->link_valid = 1;
+		status->link_id = peer->link_id;
+	}
+
 	spin_unlock_bh(&ab->base_lock);
 
 	ath12k_dbg(ab, ATH12K_DBG_DATA,
@@ -2595,11 +2604,14 @@ static void ath12k_dp_rx_process_received_packets(struct ath12k_base *ab,
 						  struct sk_buff_head *msdu_list,
 						  int ring_id)
 {
+	struct ath12k_hw_group *ag = ab->ag;
 	struct ieee80211_rx_status rx_status = {0};
 	struct ath12k_skb_rxcb *rxcb;
 	struct sk_buff *msdu;
 	struct ath12k *ar;
-	u8 mac_id, pdev_id;
+	struct ath12k_hw_link *hw_links = ag->hw_links;
+	struct ath12k_base *partner_ab;
+	u8 hw_link_id, pdev_id;
 	int ret;
 
 	if (skb_queue_empty(msdu_list))
@@ -2609,15 +2621,18 @@ static void ath12k_dp_rx_process_received_packets(struct ath12k_base *ab,
 
 	while ((msdu = __skb_dequeue(msdu_list))) {
 		rxcb = ATH12K_SKB_RXCB(msdu);
-		mac_id = rxcb->mac_id;
-		pdev_id = ath12k_hw_mac_id_to_pdev_id(ab->hw_params, mac_id);
-		ar = ab->pdevs[pdev_id].ar;
-		if (!rcu_dereference(ab->pdevs_active[pdev_id])) {
+		hw_link_id = rxcb->hw_link_id;
+		partner_ab = ath12k_ag_to_ab(ag,
+					     hw_links[hw_link_id].device_id);
+		pdev_id = ath12k_hw_mac_id_to_pdev_id(partner_ab->hw_params,
+						      hw_links[hw_link_id].pdev_idx);
+		ar = partner_ab->pdevs[pdev_id].ar;
+		if (!rcu_dereference(partner_ab->pdevs_active[pdev_id])) {
 			dev_kfree_skb_any(msdu);
 			continue;
 		}
 
-		if (test_bit(ATH12K_CAC_RUNNING, &ar->dev_flags)) {
+		if (test_bit(ATH12K_FLAG_CAC_RUNNING, &ar->dev_flags)) {
 			dev_kfree_skb_any(msdu);
 			continue;
 		}
@@ -2662,22 +2677,28 @@ static u16 ath12k_dp_rx_get_peer_id(struct ath12k_base *ab,
 int ath12k_dp_rx_process(struct ath12k_base *ab, int ring_id,
 			 struct napi_struct *napi, int budget)
 {
-	LIST_HEAD(rx_desc_used_list);
+	struct ath12k_hw_group *ag = ab->ag;
+	struct list_head rx_desc_used_list[ATH12K_MAX_SOCS];
+	struct ath12k_hw_link *hw_links = ag->hw_links;
+	int num_buffs_reaped[ATH12K_MAX_SOCS] = {};
 	struct ath12k_rx_desc_info *desc_info;
 	struct ath12k_dp *dp = &ab->dp;
 	struct dp_rxdma_ring *rx_ring = &dp->rx_refill_buf_ring;
 	struct hal_reo_dest_ring *desc;
-	int num_buffs_reaped = 0;
+	struct ath12k_base *partner_ab;
 	struct sk_buff_head msdu_list;
 	struct ath12k_skb_rxcb *rxcb;
 	int total_msdu_reaped = 0;
+	u8 hw_link_id, device_id;
 	struct hal_srng *srng;
 	struct sk_buff *msdu;
 	bool done = false;
-	int mac_id;
 	u64 desc_va;
 
 	__skb_queue_head_init(&msdu_list);
+
+	for (device_id = 0; device_id < ATH12K_MAX_SOCS; device_id++)
+		INIT_LIST_HEAD(&rx_desc_used_list[device_id]);
 
 	srng = &ab->hal.srng_list[dp->reo_dst_ring[ring_id].ring_id];
 
@@ -2695,18 +2716,29 @@ try_again:
 		cookie = le32_get_bits(desc->buf_addr_info.info1,
 				       BUFFER_ADDR_INFO1_SW_COOKIE);
 
-		mac_id = le32_get_bits(desc->info0,
-				       HAL_REO_DEST_RING_INFO0_SRC_LINK_ID);
+		hw_link_id = le32_get_bits(desc->info0,
+					   HAL_REO_DEST_RING_INFO0_SRC_LINK_ID);
 
 		desc_va = ((u64)le32_to_cpu(desc->buf_va_hi) << 32 |
 			   le32_to_cpu(desc->buf_va_lo));
 		desc_info = (struct ath12k_rx_desc_info *)((unsigned long)desc_va);
 
+		device_id = hw_links[hw_link_id].device_id;
+		partner_ab = ath12k_ag_to_ab(ag, device_id);
+		if (unlikely(!partner_ab)) {
+			if (desc_info->skb) {
+				dev_kfree_skb_any(desc_info->skb);
+				desc_info->skb = NULL;
+			}
+
+			continue;
+		}
+
 		/* retry manual desc retrieval */
 		if (!desc_info) {
-			desc_info = ath12k_dp_get_rx_desc(ab, cookie);
+			desc_info = ath12k_dp_get_rx_desc(partner_ab, cookie);
 			if (!desc_info) {
-				ath12k_warn(ab, "Invalid cookie in manual descriptor retrieval: 0x%x\n",
+				ath12k_warn(partner_ab, "Invalid cookie in manual descriptor retrieval: 0x%x\n",
 					    cookie);
 				continue;
 			}
@@ -2718,14 +2750,14 @@ try_again:
 		msdu = desc_info->skb;
 		desc_info->skb = NULL;
 
-		list_add_tail(&desc_info->list, &rx_desc_used_list);
+		list_add_tail(&desc_info->list, &rx_desc_used_list[device_id]);
 
 		rxcb = ATH12K_SKB_RXCB(msdu);
-		dma_unmap_single(ab->dev, rxcb->paddr,
+		dma_unmap_single(partner_ab->dev, rxcb->paddr,
 				 msdu->len + skb_tailroom(msdu),
 				 DMA_FROM_DEVICE);
 
-		num_buffs_reaped++;
+		num_buffs_reaped[device_id]++;
 
 		push_reason = le32_get_bits(desc->info0,
 					    HAL_REO_DEST_RING_INFO0_PUSH_REASON);
@@ -2745,7 +2777,7 @@ try_again:
 					RX_MSDU_DESC_INFO0_LAST_MSDU_IN_MPDU);
 		rxcb->is_continuation = !!(le32_to_cpu(msdu_info->info0) &
 					   RX_MSDU_DESC_INFO0_MSDU_CONTINUATION);
-		rxcb->mac_id = mac_id;
+		rxcb->hw_link_id = hw_link_id;
 		rxcb->peer_id = ath12k_dp_rx_get_peer_id(ab, dp->peer_metadata_ver,
 							 mpdu_info->peer_meta_data);
 		rxcb->tid = le32_get_bits(mpdu_info->info0,
@@ -2782,8 +2814,17 @@ try_again:
 	if (!total_msdu_reaped)
 		goto exit;
 
-	ath12k_dp_rx_bufs_replenish(ab, rx_ring, &rx_desc_used_list,
-				    num_buffs_reaped);
+	for (device_id = 0; device_id < ATH12K_MAX_SOCS; device_id++) {
+		if (!num_buffs_reaped[device_id])
+			continue;
+
+		partner_ab = ath12k_ag_to_ab(ag, device_id);
+		rx_ring = &partner_ab->dp.rx_refill_buf_ring;
+
+		ath12k_dp_rx_bufs_replenish(partner_ab, rx_ring,
+					    &rx_desc_used_list[device_id],
+					    num_buffs_reaped[device_id]);
+	}
 
 	ath12k_dp_rx_process_received_packets(ab, napi, &msdu_list,
 					      ring_id);
@@ -2830,6 +2871,7 @@ int ath12k_dp_rx_peer_frag_setup(struct ath12k *ar, const u8 *peer_mac, int vdev
 
 	if (!peer->primary_link) {
 		spin_unlock_bh(&ab->base_lock);
+		crypto_free_shash(tfm);
 		return 0;
 	}
 
@@ -3442,7 +3484,7 @@ ath12k_dp_process_rx_err_buf(struct ath12k *ar, struct hal_reo_dest_ring *desc,
 		goto exit;
 	}
 
-	if (test_bit(ATH12K_CAC_RUNNING, &ar->dev_flags)) {
+	if (test_bit(ATH12K_FLAG_CAC_RUNNING, &ar->dev_flags)) {
 		dev_kfree_skb_any(msdu);
 		goto exit;
 	}
@@ -3472,7 +3514,10 @@ exit:
 int ath12k_dp_rx_process_err(struct ath12k_base *ab, struct napi_struct *napi,
 			     int budget)
 {
+	struct ath12k_hw_group *ag = ab->ag;
+	struct list_head rx_desc_used_list[ATH12K_MAX_SOCS];
 	u32 msdu_cookies[HAL_NUM_RX_MSDUS_PER_LINK_DESC];
+	int num_buffs_reaped[ATH12K_MAX_SOCS] = {};
 	struct dp_link_desc_bank *link_desc_banks;
 	enum hal_rx_buf_return_buf_manager rbm;
 	struct hal_rx_msdu_link *link_desc_va;
@@ -3480,11 +3525,11 @@ int ath12k_dp_rx_process_err(struct ath12k_base *ab, struct napi_struct *napi,
 	struct hal_reo_dest_ring *reo_desc;
 	struct dp_rxdma_ring *rx_ring;
 	struct dp_srng *reo_except;
-	LIST_HEAD(rx_desc_used_list);
+	struct ath12k_hw_link *hw_links = ag->hw_links;
+	struct ath12k_base *partner_ab;
+	u8 hw_link_id, device_id;
 	u32 desc_bank, num_msdus;
 	struct hal_srng *srng;
-	struct ath12k_dp *dp;
-	int mac_id;
 	struct ath12k *ar;
 	dma_addr_t paddr;
 	bool is_frag;
@@ -3494,9 +3539,10 @@ int ath12k_dp_rx_process_err(struct ath12k_base *ab, struct napi_struct *napi,
 	tot_n_bufs_reaped = 0;
 	quota = budget;
 
-	dp = &ab->dp;
-	reo_except = &dp->reo_except_ring;
-	link_desc_banks = dp->link_desc_banks;
+	for (device_id = 0; device_id < ATH12K_MAX_SOCS; device_id++)
+		INIT_LIST_HEAD(&rx_desc_used_list[device_id]);
+
+	reo_except = &ab->dp.reo_except_ring;
 
 	srng = &ab->hal.srng_list[reo_except->ring_id];
 
@@ -3516,16 +3562,27 @@ int ath12k_dp_rx_process_err(struct ath12k_base *ab, struct napi_struct *napi,
 				    ret);
 			continue;
 		}
+
+		hw_link_id = le32_get_bits(reo_desc->info0,
+					   HAL_REO_DEST_RING_INFO0_SRC_LINK_ID);
+		device_id = hw_links[hw_link_id].device_id;
+		partner_ab = ath12k_ag_to_ab(ag, device_id);
+
+		pdev_id = ath12k_hw_mac_id_to_pdev_id(partner_ab->hw_params,
+						      hw_links[hw_link_id].pdev_idx);
+		ar = partner_ab->pdevs[pdev_id].ar;
+
+		link_desc_banks = partner_ab->dp.link_desc_banks;
 		link_desc_va = link_desc_banks[desc_bank].vaddr +
 			       (paddr - link_desc_banks[desc_bank].paddr);
 		ath12k_hal_rx_msdu_link_info_get(link_desc_va, &num_msdus, msdu_cookies,
 						 &rbm);
-		if (rbm != dp->idle_link_rbm &&
+		if (rbm != partner_ab->dp.idle_link_rbm &&
 		    rbm != HAL_RX_BUF_RBM_SW3_BM &&
-		    rbm != ab->hw_params->hal_params->rx_buf_rbm) {
+		    rbm != partner_ab->hw_params->hal_params->rx_buf_rbm) {
 			ab->soc_stats.invalid_rbm++;
 			ath12k_warn(ab, "invalid return buffer manager %d\n", rbm);
-			ath12k_dp_rx_link_desc_return(ab, reo_desc,
+			ath12k_dp_rx_link_desc_return(partner_ab, reo_desc,
 						      HAL_WBM_REL_BM_ACT_REL_MSDU);
 			continue;
 		}
@@ -3535,26 +3592,26 @@ int ath12k_dp_rx_process_err(struct ath12k_base *ab, struct napi_struct *napi,
 
 		/* Process only rx fragments with one msdu per link desc below, and drop
 		 * msdu's indicated due to error reasons.
+		 * Dynamic fragmentation not supported in Multi-link client, so drop the
+		 * partner device buffers.
 		 */
-		if (!is_frag || num_msdus > 1) {
+		if (!is_frag || num_msdus > 1 ||
+		    partner_ab->device_id != ab->device_id) {
 			drop = true;
+
 			/* Return the link desc back to wbm idle list */
-			ath12k_dp_rx_link_desc_return(ab, reo_desc,
+			ath12k_dp_rx_link_desc_return(partner_ab, reo_desc,
 						      HAL_WBM_REL_BM_ACT_PUT_IN_IDLE);
 		}
 
 		for (i = 0; i < num_msdus; i++) {
-			mac_id = le32_get_bits(reo_desc->info0,
-					       HAL_REO_DEST_RING_INFO0_SRC_LINK_ID);
-
-			pdev_id = ath12k_hw_mac_id_to_pdev_id(ab->hw_params, mac_id);
-			ar = ab->pdevs[pdev_id].ar;
-
 			if (!ath12k_dp_process_rx_err_buf(ar, reo_desc,
-							  &rx_desc_used_list,
+							  &rx_desc_used_list[device_id],
 							  drop,
-							  msdu_cookies[i]))
+							  msdu_cookies[i])) {
+				num_buffs_reaped[device_id]++;
 				tot_n_bufs_reaped++;
+			}
 		}
 
 		if (tot_n_bufs_reaped >= quota) {
@@ -3570,10 +3627,17 @@ exit:
 
 	spin_unlock_bh(&srng->lock);
 
-	rx_ring = &dp->rx_refill_buf_ring;
+	for (device_id = 0; device_id < ATH12K_MAX_SOCS; device_id++) {
+		if (!num_buffs_reaped[device_id])
+			continue;
 
-	ath12k_dp_rx_bufs_replenish(ab, rx_ring, &rx_desc_used_list,
-				    tot_n_bufs_reaped);
+		partner_ab = ath12k_ag_to_ab(ag, device_id);
+		rx_ring = &partner_ab->dp.rx_refill_buf_ring;
+
+		ath12k_dp_rx_bufs_replenish(partner_ab, rx_ring,
+					    &rx_desc_used_list[device_id],
+					    num_buffs_reaped[device_id]);
+	}
 
 	return tot_n_bufs_reaped;
 }
@@ -3790,7 +3854,8 @@ static void ath12k_dp_rx_wbm_err(struct ath12k *ar,
 int ath12k_dp_rx_process_wbm_err(struct ath12k_base *ab,
 				 struct napi_struct *napi, int budget)
 {
-	LIST_HEAD(rx_desc_used_list);
+	struct list_head rx_desc_used_list[ATH12K_MAX_SOCS];
+	struct ath12k_hw_group *ag = ab->ag;
 	struct ath12k *ar;
 	struct ath12k_dp *dp = &ab->dp;
 	struct dp_rxdma_ring *rx_ring;
@@ -3800,17 +3865,22 @@ int ath12k_dp_rx_process_wbm_err(struct ath12k_base *ab,
 	struct sk_buff_head msdu_list, scatter_msdu_list;
 	struct ath12k_skb_rxcb *rxcb;
 	void *rx_desc;
-	u8 mac_id;
-	int num_buffs_reaped = 0;
+	int num_buffs_reaped[ATH12K_MAX_SOCS] = {};
+	int total_num_buffs_reaped = 0;
 	struct ath12k_rx_desc_info *desc_info;
+	struct ath12k_hw_link *hw_links = ag->hw_links;
+	struct ath12k_base *partner_ab;
+	u8 hw_link_id, device_id;
 	int ret, pdev_id;
 	struct hal_rx_desc *msdu_data;
 
 	__skb_queue_head_init(&msdu_list);
 	__skb_queue_head_init(&scatter_msdu_list);
 
+	for (device_id = 0; device_id < ATH12K_MAX_SOCS; device_id++)
+		INIT_LIST_HEAD(&rx_desc_used_list[device_id]);
+
 	srng = &ab->hal.srng_list[dp->rx_rel_ring.ring_id];
-	rx_ring = &dp->rx_refill_buf_ring;
 	spin_lock_bh(&srng->lock);
 
 	ath12k_hal_srng_access_begin(ab, srng);
@@ -3846,14 +3916,27 @@ int ath12k_dp_rx_process_wbm_err(struct ath12k_base *ab,
 		msdu = desc_info->skb;
 		desc_info->skb = NULL;
 
-		list_add_tail(&desc_info->list, &rx_desc_used_list);
+		device_id = desc_info->device_id;
+		partner_ab = ath12k_ag_to_ab(ag, device_id);
+		if (unlikely(!partner_ab)) {
+			dev_kfree_skb_any(msdu);
+
+			/* In any case continuation bit is set
+			 * in the previous record, cleanup scatter_msdu_list
+			 */
+			ath12k_dp_clean_up_skb_list(&scatter_msdu_list);
+			continue;
+		}
+
+		list_add_tail(&desc_info->list, &rx_desc_used_list[device_id]);
 
 		rxcb = ATH12K_SKB_RXCB(msdu);
-		dma_unmap_single(ab->dev, rxcb->paddr,
+		dma_unmap_single(partner_ab->dev, rxcb->paddr,
 				 msdu->len + skb_tailroom(msdu),
 				 DMA_FROM_DEVICE);
 
-		num_buffs_reaped++;
+		num_buffs_reaped[device_id]++;
+		total_num_buffs_reaped++;
 
 		if (!err_info.continuation)
 			budget--;
@@ -3877,9 +3960,9 @@ int ath12k_dp_rx_process_wbm_err(struct ath12k_base *ab,
 			continue;
 		}
 
-		mac_id = ath12k_dp_rx_get_msdu_src_link(ab,
-							msdu_data);
-		if (mac_id >= MAX_RADIOS) {
+		hw_link_id = ath12k_dp_rx_get_msdu_src_link(partner_ab,
+							    msdu_data);
+		if (hw_link_id >= ATH12K_GROUP_MAX_RADIO) {
 			dev_kfree_skb_any(msdu);
 
 			/* In any case continuation bit is set
@@ -3894,7 +3977,7 @@ int ath12k_dp_rx_process_wbm_err(struct ath12k_base *ab,
 
 			skb_queue_walk(&scatter_msdu_list, msdu) {
 				rxcb = ATH12K_SKB_RXCB(msdu);
-				rxcb->mac_id = mac_id;
+				rxcb->hw_link_id = hw_link_id;
 			}
 
 			skb_queue_splice_tail_init(&scatter_msdu_list,
@@ -3902,7 +3985,7 @@ int ath12k_dp_rx_process_wbm_err(struct ath12k_base *ab,
 		}
 
 		rxcb = ATH12K_SKB_RXCB(msdu);
-		rxcb->mac_id = mac_id;
+		rxcb->hw_link_id = hw_link_id;
 		__skb_queue_tail(&msdu_list, msdu);
 	}
 
@@ -3915,26 +3998,46 @@ int ath12k_dp_rx_process_wbm_err(struct ath12k_base *ab,
 
 	spin_unlock_bh(&srng->lock);
 
-	if (!num_buffs_reaped)
+	if (!total_num_buffs_reaped)
 		goto done;
 
-	ath12k_dp_rx_bufs_replenish(ab, rx_ring, &rx_desc_used_list,
-				    num_buffs_reaped);
+	for (device_id = 0; device_id < ATH12K_MAX_SOCS; device_id++) {
+		if (!num_buffs_reaped[device_id])
+			continue;
+
+		partner_ab = ath12k_ag_to_ab(ag, device_id);
+		rx_ring = &partner_ab->dp.rx_refill_buf_ring;
+
+		ath12k_dp_rx_bufs_replenish(ab, rx_ring,
+					    &rx_desc_used_list[device_id],
+					    num_buffs_reaped[device_id]);
+	}
 
 	rcu_read_lock();
 	while ((msdu = __skb_dequeue(&msdu_list))) {
 		rxcb = ATH12K_SKB_RXCB(msdu);
-		mac_id = rxcb->mac_id;
+		hw_link_id = rxcb->hw_link_id;
 
-		pdev_id = ath12k_hw_mac_id_to_pdev_id(ab->hw_params, mac_id);
-		ar = ab->pdevs[pdev_id].ar;
-
-		if (!ar || !rcu_dereference(ar->ab->pdevs_active[mac_id])) {
+		device_id = hw_links[hw_link_id].device_id;
+		partner_ab = ath12k_ag_to_ab(ag, device_id);
+		if (unlikely(!partner_ab)) {
+			ath12k_dbg(ab, ATH12K_DBG_DATA,
+				   "Unable to process WBM error msdu due to invalid hw link id %d device id %d\n",
+				   hw_link_id, device_id);
 			dev_kfree_skb_any(msdu);
 			continue;
 		}
 
-		if (test_bit(ATH12K_CAC_RUNNING, &ar->dev_flags)) {
+		pdev_id = ath12k_hw_mac_id_to_pdev_id(partner_ab->hw_params,
+						      hw_links[hw_link_id].pdev_idx);
+		ar = partner_ab->pdevs[pdev_id].ar;
+
+		if (!ar || !rcu_dereference(ar->ab->pdevs_active[hw_link_id])) {
+			dev_kfree_skb_any(msdu);
+			continue;
+		}
+
+		if (test_bit(ATH12K_FLAG_CAC_RUNNING, &ar->dev_flags)) {
 			dev_kfree_skb_any(msdu);
 			continue;
 		}
@@ -3942,7 +4045,7 @@ int ath12k_dp_rx_process_wbm_err(struct ath12k_base *ab,
 	}
 	rcu_read_unlock();
 done:
-	return num_buffs_reaped;
+	return total_num_buffs_reaped;
 }
 
 void ath12k_dp_rx_process_reo_status(struct ath12k_base *ab)

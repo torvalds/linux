@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH12K_CORE_H
@@ -136,7 +136,7 @@ struct ath12k_skb_rxcb {
 	struct hal_rx_desc *rx_desc;
 	u8 err_rel_src;
 	u8 err_code;
-	u8 mac_id;
+	u8 hw_link_id;
 	u8 unmapped;
 	u8 is_frag;
 	u8 tid;
@@ -219,10 +219,11 @@ enum ath12k_scan_state {
 
 enum ath12k_hw_group_flags {
 	ATH12K_GROUP_FLAG_REGISTERED,
+	ATH12K_GROUP_FLAG_UNREGISTER,
 };
 
 enum ath12k_dev_flags {
-	ATH12K_CAC_RUNNING,
+	ATH12K_FLAG_CAC_RUNNING,
 	ATH12K_FLAG_CRASH_FLUSH,
 	ATH12K_FLAG_RAW_MODE,
 	ATH12K_FLAG_HW_CRYPTO_DISABLED,
@@ -380,10 +381,6 @@ struct ath12k_rx_peer_stats {
 	u64 non_ampdu_msdu_count;
 	u64 stbc_count;
 	u64 beamformed_count;
-	u64 mcs_count[HAL_RX_MAX_MCS + 1];
-	u64 nss_count[HAL_RX_MAX_NSS];
-	u64 bw_count[HAL_RX_BW_MAX];
-	u64 gi_count[HAL_RX_GI_MAX];
 	u64 coding_count[HAL_RX_SU_MU_CODING_MAX];
 	u64 tid_count[IEEE80211_NUM_TIDS + 1];
 	u64 pream_cnt[HAL_RX_PREAMBLE_MAX];
@@ -602,9 +599,10 @@ struct ath12k {
 		struct delayed_work timeout;
 		enum ath12k_scan_state state;
 		bool is_roc;
-		int vdev_id;
 		int roc_freq;
 		bool roc_notify;
+		struct wiphy_work vdev_clean_wk;
+		struct ath12k_link_vif *arvif;
 	} scan;
 
 	struct {
@@ -710,10 +708,12 @@ struct ath12k {
 	bool monitor_started;
 	int monitor_vdev_id;
 
-	u32 freq_low;
-	u32 freq_high;
+	struct wiphy_radio_freq_range freq_range;
 
 	bool nlo_enabled;
+
+	struct completion mlo_setup_done;
+	u32 mlo_setup_status;
 };
 
 struct ath12k_hw {
@@ -769,6 +769,8 @@ struct ath12k_pdev_cap {
 	u32 tx_chain_mask_shift;
 	u32 rx_chain_mask_shift;
 	struct ath12k_band_cap band[NUM_NL80211_BANDS];
+	u32 eml_cap;
+	u32 mld_cap;
 };
 
 struct mlo_timestamp {
@@ -821,6 +823,17 @@ struct ath12k_soc_dp_stats {
 	struct ath12k_soc_dp_tx_err_stats tx_err;
 };
 
+struct ath12k_mlo_memory {
+	struct target_mem_chunk chunk[ATH12K_QMI_WLANFW_MAX_NUM_MEM_SEG_V01];
+	int mlo_mem_size;
+	bool init_done;
+};
+
+struct ath12k_hw_link {
+	u8 device_id;
+	u8 pdev_idx;
+};
+
 /* Holds info on the group of devices that are registered as a single
  * wiphy, protected with struct ath12k_hw_group::mutex.
  */
@@ -845,6 +858,16 @@ struct ath12k_hw_group {
 	struct ath12k_hw *ah[ATH12K_GROUP_MAX_RADIO];
 	u8 num_hw;
 	bool mlo_capable;
+	struct device_node *wsi_node[ATH12K_MAX_SOCS];
+	struct ath12k_mlo_memory mlo_mem;
+	struct ath12k_hw_link hw_links[ATH12K_GROUP_MAX_RADIO];
+	bool hw_link_id_init_done;
+};
+
+/* Holds WSI info specific to each device, excluding WSI group info */
+struct ath12k_wsi_info {
+	u32 index;
+	u32 hw_link_id_base;
 };
 
 /* Master structure to hold the hw data which may be used in core module */
@@ -1028,6 +1051,7 @@ struct ath12k_base {
 	struct notifier_block panic_nb;
 
 	struct ath12k_hw_group *ag;
+	struct ath12k_wsi_info wsi_info;
 
 	/* must be last */
 	u8 drv_priv[] __aligned(sizeof(void *));
@@ -1170,20 +1194,15 @@ static inline struct ieee80211_hw *ath12k_ar_to_hw(struct ath12k *ar)
 	for ((index) = 0; ((index) < (ah)->num_radio && \
 	     ((ar) = &(ah)->radio[(index)])); (index)++)
 
-static inline struct ath12k_hw *ath12k_ab_to_ah(struct ath12k_base *ab, int idx)
+static inline struct ath12k_hw *ath12k_ag_to_ah(struct ath12k_hw_group *ag, int idx)
 {
-	return ab->ag->ah[idx];
+	return ag->ah[idx];
 }
 
-static inline void ath12k_ab_set_ah(struct ath12k_base *ab, int idx,
+static inline void ath12k_ag_set_ah(struct ath12k_hw_group *ag, int idx,
 				    struct ath12k_hw *ah)
 {
-	ab->ag->ah[idx] = ah;
-}
-
-static inline int ath12k_get_num_hw(struct ath12k_base *ab)
-{
-	return ab->ag->num_hw;
+	ag->ah[idx] = ah;
 }
 
 static inline struct ath12k_hw_group *ath12k_ab_to_ag(struct ath12k_base *ab)
@@ -1203,6 +1222,12 @@ static inline void ath12k_core_stopped(struct ath12k_base *ab)
 	lockdep_assert_held(&ab->ag->mutex);
 
 	ab->ag->num_started--;
+}
+
+static inline struct ath12k_base *ath12k_ag_to_ab(struct ath12k_hw_group *ag,
+						  u8 device_id)
+{
+	return ag->ab[device_id];
 }
 
 #endif /* _CORE_H_ */

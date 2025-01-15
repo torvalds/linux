@@ -59,6 +59,9 @@ struct ath12k_peer {
 
 	/* To ensure only certain work related to dp is done once */
 	bool primary_link;
+
+	/* for reference to ath12k_link_sta */
+	u8 link_id;
 };
 
 struct ath12k_ml_peer {
