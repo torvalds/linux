@@ -926,7 +926,7 @@ static int ipgre_open(struct net_device *dev)
 	if (ipv4_is_multicast(t->parms.iph.daddr)) {
 		struct flowi4 fl4 = {
 			.flowi4_oif = t->parms.link,
-			.flowi4_tos = t->parms.iph.tos & INET_DSCP_MASK,
+			.flowi4_tos = inet_dscp_to_dsfield(ip4h_dscp(&t->parms.iph)),
 			.flowi4_scope = RT_SCOPE_UNIVERSE,
 			.flowi4_proto = IPPROTO_GRE,
 			.saddr = t->parms.iph.saddr,
