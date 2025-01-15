@@ -1313,7 +1313,7 @@ static int q6v5_mpss_load(struct q6v5 *qproc)
 			memcpy(ptr, fw->data + phdr->p_offset, phdr->p_filesz);
 		} else if (phdr->p_filesz) {
 			/* Replace "xxx.xxx" with "xxx.bxx" */
-			sprintf(fw_name + fw_name_len - 3, "b%02d", i);
+			snprintf(fw_name + fw_name_len - 3, fw_name_len - 3, "b%02d", i);
 			ret = request_firmware_into_buf(&seg_fw, fw_name, qproc->dev,
 							ptr, phdr->p_filesz);
 			if (ret) {
