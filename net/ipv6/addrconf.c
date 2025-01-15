@@ -4751,9 +4751,9 @@ static void addrconf_verify_work(struct work_struct *w)
 	struct net *net = container_of(to_delayed_work(w), struct net,
 				       ipv6.addr_chk_work);
 
-	rtnl_lock();
+	rtnl_net_lock(net);
 	addrconf_verify_rtnl(net);
-	rtnl_unlock();
+	rtnl_net_unlock(net);
 }
 
 static void addrconf_verify(struct net *net)
