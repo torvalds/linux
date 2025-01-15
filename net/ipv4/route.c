@@ -3270,6 +3270,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 	struct flowi4 fl4 = {};
 	__be32 dst = 0;
 	__be32 src = 0;
+	dscp_t dscp;
 	kuid_t uid;
 	u32 iif;
 	int err;
@@ -3284,6 +3285,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 	dst = nla_get_in_addr_default(tb[RTA_DST], 0);
 	iif = nla_get_u32_default(tb[RTA_IIF], 0);
 	mark = nla_get_u32_default(tb[RTA_MARK], 0);
+	dscp = inet_dsfield_to_dscp(rtm->rtm_tos);
 	if (tb[RTA_UID])
 		uid = make_kuid(current_user_ns(), nla_get_u32(tb[RTA_UID]));
 	else
@@ -3308,7 +3310,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 
 	fl4.daddr = dst;
 	fl4.saddr = src;
-	fl4.flowi4_tos = rtm->rtm_tos & INET_DSCP_MASK;
+	fl4.flowi4_tos = inet_dscp_to_dsfield(dscp);
 	fl4.flowi4_oif = nla_get_u32_default(tb[RTA_OIF], 0);
 	fl4.flowi4_mark = mark;
 	fl4.flowi4_uid = uid;
@@ -3332,9 +3334,8 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 		fl4.flowi4_iif = iif; /* for rt_fill_info */
 		skb->dev	= dev;
 		skb->mark	= mark;
-		err = ip_route_input_rcu(skb, dst, src,
-					 inet_dsfield_to_dscp(rtm->rtm_tos),
-					 dev, &res) ? -EINVAL : 0;
+		err = ip_route_input_rcu(skb, dst, src, dscp, dev,
+					 &res) ? -EINVAL : 0;
 
 		rt = skb_rtable(skb);
 		if (err == 0 && rt->dst.error)
