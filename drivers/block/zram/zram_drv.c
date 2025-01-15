@@ -1683,7 +1683,6 @@ static int write_incompressible_page(struct zram *zram, struct page *page,
 		return PTR_ERR((void *)handle);
 
 	if (!zram_can_store_page(zram)) {
-		zcomp_stream_put(zram->comps[ZRAM_PRIMARY_COMP]);
 		zs_free(zram->mem_pool, handle);
 		return -ENOMEM;
 	}
