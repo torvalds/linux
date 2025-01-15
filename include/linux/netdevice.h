@@ -384,11 +384,11 @@ struct napi_struct {
 	int			rx_count; /* length of rx_list */
 	unsigned int		napi_id; /* protected by netdev_lock */
 	struct hrtimer		timer;
-	struct task_struct	*thread; /* protected by netdev_lock */
+	/* all fields past this point are write-protected by netdev_lock */
+	struct task_struct	*thread;
 	unsigned long		gro_flush_timeout;
 	unsigned long		irq_suspend_timeout;
 	u32			defer_hard_irqs;
-	/* all fields past this point are write-protected by netdev_lock */
 	/* control-path-only fields follow */
 	struct list_head	dev_list;
 	struct hlist_node	napi_hash_node;
@@ -2452,7 +2452,8 @@ struct net_device {
 	 * Drivers are free to use it for other protection.
 	 *
 	 * Protects:
-	 *	@napi_list, @net_shaper_hierarchy, @reg_state, @threaded
+	 *	@gro_flush_timeout, @napi_defer_hard_irqs, @napi_list,
+	 *	@net_shaper_hierarchy, @reg_state, @threaded
 	 *
 	 * Partially protects (writers must hold both @lock and rtnl_lock):
 	 *	@up
