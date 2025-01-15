@@ -5529,7 +5529,8 @@ read_again:
 
 			dma_sync_single_for_cpu(priv->device, buf->addr,
 						buf1_len, dma_dir);
-			prefetch(page_address(buf->page) + buf->page_offset);
+			net_prefetch(page_address(buf->page) +
+				     buf->page_offset);
 
 			xdp_init_buff(&ctx.xdp, buf_sz, &rx_q->xdp_rxq);
 			xdp_prepare_buff(&ctx.xdp, page_address(buf->page),
