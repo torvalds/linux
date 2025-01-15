@@ -457,6 +457,9 @@ static void perf_ibs_start(struct perf_event *event, int flags)
 	WARN_ON_ONCE(!(hwc->state & PERF_HES_UPTODATE));
 	hwc->state = 0;
 
+	if (event->attr.freq && hwc->sample_period < perf_ibs->min_period)
+		hwc->sample_period = perf_ibs->min_period;
+
 	perf_ibs_set_period(perf_ibs, hwc, &period);
 	if (perf_ibs == &perf_ibs_op && (ibs_caps & IBS_CAPS_OPCNTEXT)) {
 		config |= period & IBS_OP_MAX_CNT_EXT_MASK;
@@ -1191,6 +1194,10 @@ fail:
 	perf_sample_save_callchain(&data, event, iregs);
 
 	throttle = perf_event_overflow(event, &data, &regs);
+
+	if (event->attr.freq && hwc->sample_period < perf_ibs->min_period)
+		hwc->sample_period = perf_ibs->min_period;
+
 out:
 	if (throttle) {
 		perf_ibs_stop(event, 0);
