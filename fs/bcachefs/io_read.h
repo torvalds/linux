@@ -152,8 +152,6 @@ static inline void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio,
 
 	BUG_ON(rbio->_state);
 
-	rbio->c = c;
-	rbio->start_time = local_clock();
 	rbio->subvol = inum.subvol;
 
 	__bch2_read(c, rbio, rbio->bio.bi_iter, inum, &failed,
@@ -162,12 +160,12 @@ static inline void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio,
 		    BCH_READ_user_mapped);
 }
 
-
 static inline struct bch_read_bio *rbio_init_fragment(struct bio *bio,
 						      struct bch_read_bio *orig)
 {
 	struct bch_read_bio *rbio = to_rbio(bio);
 
+	rbio->c		= orig->c;
 	rbio->_state	= 0;
 	rbio->split	= true;
 	rbio->parent	= orig;
@@ -177,13 +175,18 @@ static inline struct bch_read_bio *rbio_init_fragment(struct bio *bio,
 }
 
 static inline struct bch_read_bio *rbio_init(struct bio *bio,
-					     struct bch_io_opts opts)
+					     struct bch_fs *c,
+					     struct bch_io_opts opts,
+					     bio_end_io_t end_io)
 {
 	struct bch_read_bio *rbio = to_rbio(bio);
 
-	rbio->_state	= 0;
-	rbio->promote	= NULL;
-	rbio->opts	= opts;
+	rbio->start_time	= local_clock();
+	rbio->c			= c;
+	rbio->_state		= 0;
+	rbio->promote		= NULL;
+	rbio->opts		= opts;
+	rbio->bio.bi_end_io	= end_io;
 	return rbio;
 }
 

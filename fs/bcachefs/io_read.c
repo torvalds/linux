@@ -171,13 +171,12 @@ static struct promote_op *__promote_alloc(struct btree_trans *trans,
 					  struct bkey_s_c k,
 					  struct bpos pos,
 					  struct extent_ptr_decoded *pick,
-					  struct bch_io_opts opts,
 					  unsigned sectors,
+					  struct bch_read_bio *orig,
 					  struct bch_read_bio **rbio,
 					  struct bch_io_failures *failed)
 {
 	struct bch_fs *c = trans->c;
-	struct bch_read_bio *orig = *rbio;
 	struct promote_op *op = NULL;
 	struct bio *bio;
 	unsigned pages = DIV_ROUND_UP(sectors, PAGE_SECTORS);
@@ -230,11 +229,11 @@ static struct promote_op *__promote_alloc(struct btree_trans *trans,
 	struct data_update_opts update_opts = {};
 
 	if (!have_io_error(failed)) {
-		update_opts.target = opts.promote_target;
+		update_opts.target = orig->opts.promote_target;
 		update_opts.extra_replicas = 1;
 		update_opts.write_flags = BCH_WRITE_alloc_nowait|BCH_WRITE_cached;
 	} else {
-		update_opts.target = opts.foreground_target;
+		update_opts.target = orig->opts.foreground_target;
 
 		struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 		unsigned ptr_bit = 1;
@@ -247,7 +246,7 @@ static struct promote_op *__promote_alloc(struct btree_trans *trans,
 
 	ret = bch2_data_update_init(trans, NULL, NULL, &op->write,
 			writepoint_hashed((unsigned long) current),
-			opts,
+			orig->opts,
 			update_opts,
 			btree_id, k);
 	/*
@@ -279,8 +278,8 @@ static struct promote_op *promote_alloc(struct btree_trans *trans,
 					struct bvec_iter iter,
 					struct bkey_s_c k,
 					struct extent_ptr_decoded *pick,
-					struct bch_io_opts opts,
 					unsigned flags,
+					struct bch_read_bio *orig,
 					struct bch_read_bio **rbio,
 					bool *bounce,
 					bool *read_full,
@@ -304,7 +303,7 @@ static struct promote_op *promote_alloc(struct btree_trans *trans,
 	struct promote_op *promote;
 	int ret;
 
-	ret = should_promote(c, k, pos, opts, flags, failed);
+	ret = should_promote(c, k, pos, orig->opts, flags, failed);
 	if (ret)
 		goto nopromote;
 
@@ -312,7 +311,7 @@ static struct promote_op *promote_alloc(struct btree_trans *trans,
 				  k.k->type == KEY_TYPE_reflink_v
 				  ? BTREE_ID_reflink
 				  : BTREE_ID_extents,
-				  k, pos, pick, opts, sectors, rbio, failed);
+				  k, pos, pick, sectors, orig, rbio, failed);
 	ret = PTR_ERR_OR_ZERO(promote);
 	if (ret)
 		goto nopromote;
@@ -989,7 +988,7 @@ retry_pick:
 	}
 
 	if (orig->opts.promote_target || have_io_error(failed))
-		promote = promote_alloc(trans, iter, k, &pick, orig->opts, flags,
+		promote = promote_alloc(trans, iter, k, &pick, flags, orig,
 					&rbio, &bounce, &read_full, failed);
 
 	if (!read_full) {
@@ -1054,7 +1053,6 @@ get_bio:
 
 	EBUG_ON(bio_sectors(&rbio->bio) != pick.crc.compressed_size);
 
-	rbio->c			= c;
 	rbio->submit_time	= local_clock();
 	if (!rbio->split)
 		rbio->end_io	= orig->bio.bi_end_io;

@@ -307,8 +307,6 @@ int bch2_move_extent(struct moving_context *ctxt,
 				 GFP_KERNEL))
 		goto err_free;
 
-	io->rbio.c		= c;
-	io->rbio.opts		= io_opts;
 	bio_init(&io->rbio.bio, NULL, io->bi_inline_vecs, pages, 0);
 	io->rbio.bio.bi_vcnt = pages;
 	io->rbio.bio.bi_ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_IDLE, 0);
@@ -316,7 +314,11 @@ int bch2_move_extent(struct moving_context *ctxt,
 
 	io->rbio.bio.bi_opf		= REQ_OP_READ;
 	io->rbio.bio.bi_iter.bi_sector	= bkey_start_offset(k.k);
-	io->rbio.bio.bi_end_io		= move_read_endio;
+
+	rbio_init(&io->rbio.bio,
+		  c,
+		  io_opts,
+		  move_read_endio);
 
 	ret = bch2_data_update_init(trans, iter, ctxt, &io->write, ctxt->wp,
 				    io_opts, data_opts, iter->btree_id, k);
