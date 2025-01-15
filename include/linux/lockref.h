@@ -34,6 +34,17 @@ struct lockref {
 	};
 };
 
+/**
+ * lockref_init - Initialize a lockref
+ * @lockref: pointer to lockref structure
+ * @count: initial count
+ */
+static inline void lockref_init(struct lockref *lockref, unsigned int count)
+{
+	spin_lock_init(&lockref->lock);
+	lockref->count = count;
+}
+
 void lockref_get(struct lockref *lockref);
 int lockref_put_return(struct lockref *lockref);
 bool lockref_get_not_zero(struct lockref *lockref);
