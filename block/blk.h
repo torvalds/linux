@@ -13,6 +13,8 @@
 
 struct elevator_type;
 
+#define	BLK_DEV_MAX_SECTORS	(LLONG_MAX >> 9)
+
 /* Max future timer expiry for timeouts */
 #define BLK_MAX_TIMEOUT		(5 * HZ)
 

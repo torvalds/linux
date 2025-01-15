@@ -58,6 +58,13 @@ static DEFINE_IDA(ext_devt_ida);
 
 void set_capacity(struct gendisk *disk, sector_t sectors)
 {
+	if (sectors > BLK_DEV_MAX_SECTORS) {
+		pr_warn_once("%s: truncate capacity from %lld to %lld\n",
+				disk->disk_name, sectors,
+				BLK_DEV_MAX_SECTORS);
+		sectors = BLK_DEV_MAX_SECTORS;
+	}
+
 	bdev_set_nr_sectors(disk->part0, sectors);
 }
 EXPORT_SYMBOL(set_capacity);
@@ -399,6 +406,9 @@ int __must_check add_disk_fwnode(struct device *parent, struct gendisk *disk,
 {
 	struct device *ddev = disk_to_dev(disk);
 	int ret;
+
+	if (WARN_ON_ONCE(bdev_nr_sectors(disk->part0) > BLK_DEV_MAX_SECTORS))
+		return -EINVAL;
 
 	if (queue_is_mq(disk->queue)) {
 		/*
