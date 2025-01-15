@@ -358,7 +358,7 @@ static void btrfs_simple_end_io(struct bio *bio)
 		INIT_WORK(&bbio->end_io_work, btrfs_end_bio_work);
 		queue_work(btrfs_end_io_wq(fs_info, bio), &bbio->end_io_work);
 	} else {
-		if (bio_op(bio) == REQ_OP_ZONE_APPEND && !bio->bi_status)
+		if (bio_is_zone_append(bio) && !bio->bi_status)
 			btrfs_record_physical_zoned(bbio);
 		btrfs_bio_end_io(bbio, bbio->bio.bi_status);
 	}
@@ -401,7 +401,7 @@ static void btrfs_orig_write_end_io(struct bio *bio)
 	else
 		bio->bi_status = BLK_STS_OK;
 
-	if (bio_op(bio) == REQ_OP_ZONE_APPEND && !bio->bi_status)
+	if (bio_is_zone_append(bio) && !bio->bi_status)
 		stripe->physical = bio->bi_iter.bi_sector << SECTOR_SHIFT;
 
 	btrfs_bio_end_io(bbio, bbio->bio.bi_status);
@@ -415,7 +415,7 @@ static void btrfs_clone_write_end_io(struct bio *bio)
 	if (bio->bi_status) {
 		atomic_inc(&stripe->bioc->error);
 		btrfs_log_dev_io_error(bio, stripe->dev);
-	} else if (bio_op(bio) == REQ_OP_ZONE_APPEND) {
+	} else if (bio_is_zone_append(bio)) {
 		stripe->physical = bio->bi_iter.bi_sector << SECTOR_SHIFT;
 	}
 
@@ -652,8 +652,14 @@ static u64 btrfs_append_map_length(struct btrfs_bio *bbio, u64 map_length)
 	map_length = min(map_length, bbio->fs_info->max_zone_append_size);
 	sector_offset = bio_split_rw_at(&bbio->bio, &bbio->fs_info->limits,
 					&nr_segs, map_length);
-	if (sector_offset)
-		return sector_offset << SECTOR_SHIFT;
+	if (sector_offset) {
+		/*
+		 * bio_split_rw_at() could split at a size smaller than our
+		 * sectorsize and thus cause unaligned I/Os.  Fix that by
+		 * always rounding down to the nearest boundary.
+		 */
+		return ALIGN_DOWN(sector_offset << SECTOR_SHIFT, bbio->fs_info->sectorsize);
+	}
 	return map_length;
 }
 

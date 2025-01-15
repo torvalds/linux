@@ -229,7 +229,7 @@ static void debugfs_release_dentry(struct dentry *dentry)
 		return;
 
 	/* check it wasn't a dir (no fsdata) or automount (no real_fops) */
-	if (fsd && fsd->real_fops) {
+	if (fsd && (fsd->real_fops || fsd->short_fops)) {
 		WARN_ON(!list_empty(&fsd->cancellations));
 		mutex_destroy(&fsd->cancellations_mtx);
 	}
@@ -455,8 +455,7 @@ struct dentry *debugfs_create_file_full(const char *name, umode_t mode,
 					const struct file_operations *fops)
 {
 	if (WARN_ON((unsigned long)fops &
-		    (DEBUGFS_FSDATA_IS_SHORT_FOPS_BIT |
-		     DEBUGFS_FSDATA_IS_REAL_FOPS_BIT)))
+		    DEBUGFS_FSDATA_IS_REAL_FOPS_BIT))
 		return ERR_PTR(-EINVAL);
 
 	return __debugfs_create_file(name, mode, parent, data,
@@ -471,15 +470,13 @@ struct dentry *debugfs_create_file_short(const char *name, umode_t mode,
 					 const struct debugfs_short_fops *fops)
 {
 	if (WARN_ON((unsigned long)fops &
-		    (DEBUGFS_FSDATA_IS_SHORT_FOPS_BIT |
-		     DEBUGFS_FSDATA_IS_REAL_FOPS_BIT)))
+		    DEBUGFS_FSDATA_IS_REAL_FOPS_BIT))
 		return ERR_PTR(-EINVAL);
 
 	return __debugfs_create_file(name, mode, parent, data,
-				fops ? &debugfs_full_proxy_file_operations :
+				fops ? &debugfs_full_short_proxy_file_operations :
 					&debugfs_noop_file_operations,
-				(const void *)((unsigned long)fops |
-					       DEBUGFS_FSDATA_IS_SHORT_FOPS_BIT));
+				fops);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_file_short);
 

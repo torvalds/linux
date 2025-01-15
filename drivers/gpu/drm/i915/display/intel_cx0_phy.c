@@ -2115,14 +2115,6 @@ static void intel_c10_pll_program(struct intel_display *display,
 		      0, C10_VDR_CTRL_MSGBUS_ACCESS,
 		      MB_WRITE_COMMITTED);
 
-	/* Custom width needs to be programmed to 0 for both the phy lanes */
-	intel_cx0_rmw(encoder, INTEL_CX0_BOTH_LANES, PHY_C10_VDR_CUSTOM_WIDTH,
-		      C10_VDR_CUSTOM_WIDTH_MASK, C10_VDR_CUSTOM_WIDTH_8_10,
-		      MB_WRITE_COMMITTED);
-	intel_cx0_rmw(encoder, INTEL_CX0_BOTH_LANES, PHY_C10_VDR_CONTROL(1),
-		      0, C10_VDR_CTRL_UPDATE_CFG,
-		      MB_WRITE_COMMITTED);
-
 	/* Program the pll values only for the master lane */
 	for (i = 0; i < ARRAY_SIZE(pll_state->pll); i++)
 		intel_cx0_write(encoder, INTEL_CX0_LANE0, PHY_C10_VDR_PLL(i),
@@ -2132,6 +2124,10 @@ static void intel_c10_pll_program(struct intel_display *display,
 	intel_cx0_write(encoder, INTEL_CX0_LANE0, PHY_C10_VDR_CMN(0), pll_state->cmn, MB_WRITE_COMMITTED);
 	intel_cx0_write(encoder, INTEL_CX0_LANE0, PHY_C10_VDR_TX(0), pll_state->tx, MB_WRITE_COMMITTED);
 
+	/* Custom width needs to be programmed to 0 for both the phy lanes */
+	intel_cx0_rmw(encoder, INTEL_CX0_BOTH_LANES, PHY_C10_VDR_CUSTOM_WIDTH,
+		      C10_VDR_CUSTOM_WIDTH_MASK, C10_VDR_CUSTOM_WIDTH_8_10,
+		      MB_WRITE_COMMITTED);
 	intel_cx0_rmw(encoder, INTEL_CX0_LANE0, PHY_C10_VDR_CONTROL(1),
 		      0, C10_VDR_CTRL_MASTER_LANE | C10_VDR_CTRL_UPDATE_CFG,
 		      MB_WRITE_COMMITTED);

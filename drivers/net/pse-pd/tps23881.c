@@ -64,15 +64,11 @@ static int tps23881_pi_enable(struct pse_controller_dev *pcdev, int id)
 	if (id >= TPS23881_MAX_CHANS)
 		return -ERANGE;
 
-	ret = i2c_smbus_read_word_data(client, TPS23881_REG_PW_STATUS);
-	if (ret < 0)
-		return ret;
-
 	chan = priv->port[id].chan[0];
 	if (chan < 4)
-		val = (u16)(ret | BIT(chan));
+		val = BIT(chan);
 	else
-		val = (u16)(ret | BIT(chan + 4));
+		val = BIT(chan + 4);
 
 	if (priv->port[id].is_4p) {
 		chan = priv->port[id].chan[1];
@@ -100,15 +96,11 @@ static int tps23881_pi_disable(struct pse_controller_dev *pcdev, int id)
 	if (id >= TPS23881_MAX_CHANS)
 		return -ERANGE;
 
-	ret = i2c_smbus_read_word_data(client, TPS23881_REG_PW_STATUS);
-	if (ret < 0)
-		return ret;
-
 	chan = priv->port[id].chan[0];
 	if (chan < 4)
-		val = (u16)(ret | BIT(chan + 4));
+		val = BIT(chan + 4);
 	else
-		val = (u16)(ret | BIT(chan + 8));
+		val = BIT(chan + 8);
 
 	if (priv->port[id].is_4p) {
 		chan = priv->port[id].chan[1];

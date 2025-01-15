@@ -60,7 +60,7 @@ static void __dma_buf_debugfs_list_add(struct dma_buf *dmabuf)
 {
 }
 
-static void __dma_buf_debugfs_list_del(struct file *file)
+static void __dma_buf_debugfs_list_del(struct dma_buf *dmabuf)
 {
 }
 #endif

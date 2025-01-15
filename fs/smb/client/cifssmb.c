@@ -1319,14 +1319,16 @@ cifs_readv_callback(struct mid_q_entry *mid)
 	}
 
 	if (rdata->result == -ENODATA) {
-		__set_bit(NETFS_SREQ_HIT_EOF, &rdata->subreq.flags);
 		rdata->result = 0;
+		__set_bit(NETFS_SREQ_HIT_EOF, &rdata->subreq.flags);
 	} else {
 		size_t trans = rdata->subreq.transferred + rdata->got_bytes;
 		if (trans < rdata->subreq.len &&
 		    rdata->subreq.start + trans == ictx->remote_i_size) {
-			__set_bit(NETFS_SREQ_HIT_EOF, &rdata->subreq.flags);
 			rdata->result = 0;
+			__set_bit(NETFS_SREQ_HIT_EOF, &rdata->subreq.flags);
+		} else if (rdata->got_bytes > 0) {
+			__set_bit(NETFS_SREQ_MADE_PROGRESS, &rdata->subreq.flags);
 		}
 	}
 
@@ -1670,10 +1672,13 @@ cifs_writev_callback(struct mid_q_entry *mid)
 		if (written > wdata->subreq.len)
 			written &= 0xFFFF;
 
-		if (written < wdata->subreq.len)
+		if (written < wdata->subreq.len) {
 			result = -ENOSPC;
-		else
+		} else {
 			result = written;
+			if (written > 0)
+				__set_bit(NETFS_SREQ_MADE_PROGRESS, &wdata->subreq.flags);
+		}
 		break;
 	case MID_REQUEST_SUBMITTED:
 	case MID_RETRY_NEEDED:

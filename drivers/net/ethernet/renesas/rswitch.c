@@ -547,7 +547,6 @@ static int rswitch_gwca_ts_queue_alloc(struct rswitch_private *priv)
 	desc = &gq->ts_ring[gq->ring_size];
 	desc->desc.die_dt = DT_LINKFIX;
 	rswitch_desc_set_dptr(&desc->desc, gq->ring_dma);
-	INIT_LIST_HEAD(&priv->gwca.ts_info_list);
 
 	return 0;
 }
@@ -1003,9 +1002,10 @@ static int rswitch_gwca_request_irqs(struct rswitch_private *priv)
 static void rswitch_ts(struct rswitch_private *priv)
 {
 	struct rswitch_gwca_queue *gq = &priv->gwca.ts_queue;
-	struct rswitch_gwca_ts_info *ts_info, *ts_info2;
 	struct skb_shared_hwtstamps shhwtstamps;
 	struct rswitch_ts_desc *desc;
+	struct rswitch_device *rdev;
+	struct sk_buff *ts_skb;
 	struct timespec64 ts;
 	unsigned int num;
 	u32 tag, port;
@@ -1015,23 +1015,28 @@ static void rswitch_ts(struct rswitch_private *priv)
 		dma_rmb();
 
 		port = TS_DESC_DPN(__le32_to_cpu(desc->desc.dptrl));
+		if (unlikely(port >= RSWITCH_NUM_PORTS))
+			goto next;
+		rdev = priv->rdev[port];
+
 		tag = TS_DESC_TSUN(__le32_to_cpu(desc->desc.dptrl));
+		if (unlikely(tag >= TS_TAGS_PER_PORT))
+			goto next;
+		ts_skb = xchg(&rdev->ts_skb[tag], NULL);
+		smp_mb(); /* order rdev->ts_skb[] read before bitmap update */
+		clear_bit(tag, rdev->ts_skb_used);
 
-		list_for_each_entry_safe(ts_info, ts_info2, &priv->gwca.ts_info_list, list) {
-			if (!(ts_info->port == port && ts_info->tag == tag))
-				continue;
+		if (unlikely(!ts_skb))
+			goto next;
 
-			memset(&shhwtstamps, 0, sizeof(shhwtstamps));
-			ts.tv_sec = __le32_to_cpu(desc->ts_sec);
-			ts.tv_nsec = __le32_to_cpu(desc->ts_nsec & cpu_to_le32(0x3fffffff));
-			shhwtstamps.hwtstamp = timespec64_to_ktime(ts);
-			skb_tstamp_tx(ts_info->skb, &shhwtstamps);
-			dev_consume_skb_irq(ts_info->skb);
-			list_del(&ts_info->list);
-			kfree(ts_info);
-			break;
-		}
+		memset(&shhwtstamps, 0, sizeof(shhwtstamps));
+		ts.tv_sec = __le32_to_cpu(desc->ts_sec);
+		ts.tv_nsec = __le32_to_cpu(desc->ts_nsec & cpu_to_le32(0x3fffffff));
+		shhwtstamps.hwtstamp = timespec64_to_ktime(ts);
+		skb_tstamp_tx(ts_skb, &shhwtstamps);
+		dev_consume_skb_irq(ts_skb);
 
+next:
 		gq->cur = rswitch_next_queue_index(gq, true, 1);
 		desc = &gq->ts_ring[gq->cur];
 	}
@@ -1576,8 +1581,9 @@ static int rswitch_open(struct net_device *ndev)
 static int rswitch_stop(struct net_device *ndev)
 {
 	struct rswitch_device *rdev = netdev_priv(ndev);
-	struct rswitch_gwca_ts_info *ts_info, *ts_info2;
+	struct sk_buff *ts_skb;
 	unsigned long flags;
+	unsigned int tag;
 
 	netif_tx_stop_all_queues(ndev);
 
@@ -1594,12 +1600,13 @@ static int rswitch_stop(struct net_device *ndev)
 	if (bitmap_empty(rdev->priv->opened_ports, RSWITCH_NUM_PORTS))
 		iowrite32(GWCA_TS_IRQ_BIT, rdev->priv->addr + GWTSDID);
 
-	list_for_each_entry_safe(ts_info, ts_info2, &rdev->priv->gwca.ts_info_list, list) {
-		if (ts_info->port != rdev->port)
-			continue;
-		dev_kfree_skb_irq(ts_info->skb);
-		list_del(&ts_info->list);
-		kfree(ts_info);
+	for (tag = find_first_bit(rdev->ts_skb_used, TS_TAGS_PER_PORT);
+	     tag < TS_TAGS_PER_PORT;
+	     tag = find_next_bit(rdev->ts_skb_used, TS_TAGS_PER_PORT, tag + 1)) {
+		ts_skb = xchg(&rdev->ts_skb[tag], NULL);
+		clear_bit(tag, rdev->ts_skb_used);
+		if (ts_skb)
+			dev_kfree_skb(ts_skb);
 	}
 
 	return 0;
@@ -1612,20 +1619,17 @@ static bool rswitch_ext_desc_set_info1(struct rswitch_device *rdev,
 	desc->info1 = cpu_to_le64(INFO1_DV(BIT(rdev->etha->index)) |
 				  INFO1_IPV(GWCA_IPV_NUM) | INFO1_FMT);
 	if (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) {
-		struct rswitch_gwca_ts_info *ts_info;
+		unsigned int tag;
 
-		ts_info = kzalloc(sizeof(*ts_info), GFP_ATOMIC);
-		if (!ts_info)
+		tag = find_first_zero_bit(rdev->ts_skb_used, TS_TAGS_PER_PORT);
+		if (tag == TS_TAGS_PER_PORT)
 			return false;
+		smp_mb(); /* order bitmap read before rdev->ts_skb[] write */
+		rdev->ts_skb[tag] = skb_get(skb);
+		set_bit(tag, rdev->ts_skb_used);
 
 		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
-		rdev->ts_tag++;
-		desc->info1 |= cpu_to_le64(INFO1_TSUN(rdev->ts_tag) | INFO1_TXC);
-
-		ts_info->skb = skb_get(skb);
-		ts_info->port = rdev->port;
-		ts_info->tag = rdev->ts_tag;
-		list_add_tail(&ts_info->list, &rdev->priv->gwca.ts_info_list);
+		desc->info1 |= cpu_to_le64(INFO1_TSUN(tag) | INFO1_TXC);
 
 		skb_tx_timestamp(skb);
 	}

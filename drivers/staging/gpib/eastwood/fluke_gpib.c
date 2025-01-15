@@ -1011,12 +1011,12 @@ static int fluke_attach_impl(gpib_board_t *board, const gpib_board_config_t *con
 	}
 	e_priv->gpib_iomem_res = res;
 
-	nec_priv->iobase = ioremap(e_priv->gpib_iomem_res->start,
+	nec_priv->mmiobase = ioremap(e_priv->gpib_iomem_res->start,
 				   resource_size(e_priv->gpib_iomem_res));
-	pr_info("gpib: iobase %lx remapped to %p, length=%d\n",
-		(unsigned long)e_priv->gpib_iomem_res->start,
-		nec_priv->iobase, (int)resource_size(e_priv->gpib_iomem_res));
-	if (!nec_priv->iobase) {
+	pr_info("gpib: mmiobase %llx remapped to %p, length=%d\n",
+		(u64)e_priv->gpib_iomem_res->start,
+		nec_priv->mmiobase, (int)resource_size(e_priv->gpib_iomem_res));
+	if (!nec_priv->mmiobase) {
 		dev_err(&fluke_gpib_pdev->dev, "Could not map I/O memory\n");
 		return -ENOMEM;
 	}
@@ -1107,7 +1107,7 @@ void fluke_detach(gpib_board_t *board)
 		gpib_free_pseudo_irq(board);
 		nec_priv = &e_priv->nec7210_priv;
 
-		if (nec_priv->iobase) {
+		if (nec_priv->mmiobase) {
 			fluke_paged_write_byte(e_priv, 0, ISR0_IMR0, ISR0_IMR0_PAGE);
 			nec7210_board_reset(nec_priv, board);
 		}

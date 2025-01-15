@@ -902,16 +902,13 @@ static void profile_graph_return(struct ftrace_graph_ret *trace,
 }
 
 static struct fgraph_ops fprofiler_ops = {
-	.ops = {
-		.flags = FTRACE_OPS_FL_INITIALIZED,
-		INIT_OPS_HASH(fprofiler_ops.ops)
-	},
 	.entryfunc = &profile_graph_entry,
 	.retfunc = &profile_graph_return,
 };
 
 static int register_ftrace_profiler(void)
 {
+	ftrace_ops_set_global_filter(&fprofiler_ops.ops);
 	return register_ftrace_graph(&fprofiler_ops);
 }
 
@@ -922,12 +919,11 @@ static void unregister_ftrace_profiler(void)
 #else
 static struct ftrace_ops ftrace_profile_ops __read_mostly = {
 	.func		= function_profile_call,
-	.flags		= FTRACE_OPS_FL_INITIALIZED,
-	INIT_OPS_HASH(ftrace_profile_ops)
 };
 
 static int register_ftrace_profiler(void)
 {
+	ftrace_ops_set_global_filter(&ftrace_profile_ops);
 	return register_ftrace_function(&ftrace_profile_ops);
 }
 

@@ -275,13 +275,15 @@ void blk_mq_sysfs_unregister_hctxs(struct request_queue *q)
 	struct blk_mq_hw_ctx *hctx;
 	unsigned long i;
 
-	lockdep_assert_held(&q->sysfs_dir_lock);
-
+	mutex_lock(&q->sysfs_dir_lock);
 	if (!q->mq_sysfs_init_done)
-		return;
+		goto unlock;
 
 	queue_for_each_hw_ctx(q, hctx, i)
 		blk_mq_unregister_hctx(hctx);
+
+unlock:
+	mutex_unlock(&q->sysfs_dir_lock);
 }
 
 int blk_mq_sysfs_register_hctxs(struct request_queue *q)
@@ -290,16 +292,18 @@ int blk_mq_sysfs_register_hctxs(struct request_queue *q)
 	unsigned long i;
 	int ret = 0;
 
-	lockdep_assert_held(&q->sysfs_dir_lock);
-
+	mutex_lock(&q->sysfs_dir_lock);
 	if (!q->mq_sysfs_init_done)
-		return ret;
+		goto unlock;
 
 	queue_for_each_hw_ctx(q, hctx, i) {
 		ret = blk_mq_register_hctx(hctx);
 		if (ret)
 			break;
 	}
+
+unlock:
+	mutex_unlock(&q->sysfs_dir_lock);
 
 	return ret;
 }

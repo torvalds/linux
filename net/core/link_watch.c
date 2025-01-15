@@ -42,14 +42,18 @@ static unsigned int default_operstate(const struct net_device *dev)
 	 * first check whether lower is indeed the source of its down state.
 	 */
 	if (!netif_carrier_ok(dev)) {
-		int iflink = dev_get_iflink(dev);
 		struct net_device *peer;
+		int iflink;
 
 		/* If called from netdev_run_todo()/linkwatch_sync_dev(),
 		 * dev_net(dev) can be already freed, and RTNL is not held.
 		 */
-		if (dev->reg_state == NETREG_UNREGISTERED ||
-		    iflink == dev->ifindex)
+		if (dev->reg_state <= NETREG_REGISTERED)
+			iflink = dev_get_iflink(dev);
+		else
+			iflink = dev->ifindex;
+
+		if (iflink == dev->ifindex)
 			return IF_OPER_DOWN;
 
 		ASSERT_RTNL();
