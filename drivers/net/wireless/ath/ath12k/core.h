@@ -503,6 +503,7 @@ struct ath12k_link_sta {
 	struct ath12k_wbm_tx_stats *wbm_tx_stats;
 	u32 bw_prev;
 	u32 peer_nss;
+	s8 rssi_beacon;
 
 	/* For now the assoc link will be considered primary */
 	bool is_assoc_link;
@@ -721,6 +722,8 @@ struct ath12k {
 	struct wiphy_radio_freq_range freq_range;
 
 	bool nlo_enabled;
+
+	struct completion fw_stats_complete;
 
 	struct completion mlo_setup_done;
 	u32 mlo_setup_status;
