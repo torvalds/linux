@@ -261,7 +261,6 @@ static void drm_test_buddy_alloc_range_bias(struct kunit *test)
 static void drm_test_buddy_alloc_clear(struct kunit *test)
 {
 	unsigned long n_pages, total, i = 0;
-	DRM_RND_STATE(prng, random_seed);
 	const unsigned long ps = SZ_4K;
 	struct drm_buddy_block *block;
 	const int max_order = 12;
