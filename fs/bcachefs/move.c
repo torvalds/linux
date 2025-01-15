@@ -74,11 +74,7 @@ struct moving_io {
 	unsigned			read_sectors;
 	unsigned			write_sectors;
 
-	struct bch_read_bio		rbio;
-
 	struct data_update		write;
-	/* Must be last since it is variable size */
-	struct bio_vec			bi_inline_vecs[];
 };
 
 static void move_free(struct moving_io *io)
@@ -113,7 +109,7 @@ static void move_write_done(struct bch_write_op *op)
 
 static void move_write(struct moving_io *io)
 {
-	if (unlikely(io->rbio.bio.bi_status || io->rbio.hole)) {
+	if (unlikely(io->write.rbio.bio.bi_status || io->write.rbio.hole)) {
 		move_free(io);
 		return;
 	}
@@ -131,7 +127,7 @@ static void move_write(struct moving_io *io)
 	atomic_add(io->write_sectors, &io->write.ctxt->write_sectors);
 	atomic_inc(&io->write.ctxt->write_ios);
 
-	bch2_data_update_read_done(&io->write, io->rbio.pick.crc);
+	bch2_data_update_read_done(&io->write, io->write.rbio.pick.crc);
 }
 
 struct moving_io *bch2_moving_ctxt_next_pending_write(struct moving_context *ctxt)
@@ -144,7 +140,7 @@ struct moving_io *bch2_moving_ctxt_next_pending_write(struct moving_context *ctx
 
 static void move_read_endio(struct bio *bio)
 {
-	struct moving_io *io = container_of(bio, struct moving_io, rbio.bio);
+	struct moving_io *io = container_of(bio, struct moving_io, write.rbio.bio);
 	struct moving_context *ctxt = io->write.ctxt;
 
 	atomic_sub(io->read_sectors, &ctxt->read_sectors);
@@ -299,7 +295,7 @@ int bch2_move_extent(struct moving_context *ctxt,
 	io->read_sectors	= k.k->size;
 	io->write_sectors	= k.k->size;
 
-	bio_init(&io->write.op.wbio.bio, NULL, io->bi_inline_vecs, pages, 0);
+	bio_init(&io->write.op.wbio.bio, NULL, io->write.bi_inline_vecs, pages, 0);
 	io->write.op.wbio.bio.bi_ioprio =
 		     IOPRIO_PRIO_VALUE(IOPRIO_CLASS_IDLE, 0);
 
@@ -307,15 +303,15 @@ int bch2_move_extent(struct moving_context *ctxt,
 				 GFP_KERNEL))
 		goto err_free;
 
-	bio_init(&io->rbio.bio, NULL, io->bi_inline_vecs, pages, 0);
-	io->rbio.bio.bi_vcnt = pages;
-	io->rbio.bio.bi_ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_IDLE, 0);
-	io->rbio.bio.bi_iter.bi_size = sectors << 9;
+	bio_init(&io->write.rbio.bio, NULL, io->write.bi_inline_vecs, pages, 0);
+	io->write.rbio.bio.bi_vcnt = pages;
+	io->write.rbio.bio.bi_ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_IDLE, 0);
+	io->write.rbio.bio.bi_iter.bi_size = sectors << 9;
 
-	io->rbio.bio.bi_opf		= REQ_OP_READ;
-	io->rbio.bio.bi_iter.bi_sector	= bkey_start_offset(k.k);
+	io->write.rbio.bio.bi_opf		= REQ_OP_READ;
+	io->write.rbio.bio.bi_iter.bi_sector	= bkey_start_offset(k.k);
 
-	rbio_init(&io->rbio.bio,
+	rbio_init(&io->write.rbio.bio,
 		  c,
 		  io_opts,
 		  move_read_endio);
@@ -357,7 +353,7 @@ int bch2_move_extent(struct moving_context *ctxt,
 	 * ctxt when doing wakeup
 	 */
 	closure_get(&ctxt->cl);
-	bch2_read_extent(trans, &io->rbio,
+	bch2_read_extent(trans, &io->write.rbio,
 			 bkey_start_pos(k.k),
 			 iter->btree_id, k, 0,
 			 BCH_READ_data_update|

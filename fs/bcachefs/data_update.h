@@ -4,6 +4,7 @@
 #define _BCACHEFS_DATA_UPDATE_H
 
 #include "bkey_buf.h"
+#include "io_read.h"
 #include "io_write_types.h"
 
 struct moving_context;
@@ -28,7 +29,11 @@ struct data_update {
 	struct data_update_opts	data_opts;
 	struct moving_context	*ctxt;
 	struct bch_move_stats	*stats;
+
+	struct bch_read_bio	rbio;
 	struct bch_write_op	op;
+	/* Must be last since it is variable size */
+	struct bio_vec		bi_inline_vecs[];
 };
 
 void bch2_data_update_to_text(struct printbuf *, struct data_update *);
