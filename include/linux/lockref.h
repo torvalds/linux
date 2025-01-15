@@ -34,12 +34,12 @@ struct lockref {
 	};
 };
 
-extern void lockref_get(struct lockref *);
-extern int lockref_put_return(struct lockref *);
+void lockref_get(struct lockref *lockref);
+int lockref_put_return(struct lockref *lockref);
 bool lockref_get_not_zero(struct lockref *lockref);
 bool lockref_put_or_lock(struct lockref *lockref);
 
-extern void lockref_mark_dead(struct lockref *);
+void lockref_mark_dead(struct lockref *lockref);
 bool lockref_get_not_dead(struct lockref *lockref);
 
 /* Must be called under spinlock for reliable results */
