@@ -118,7 +118,7 @@ static void io_buffer_unmap(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
 	}
 }
 
-struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx, int type)
+struct io_rsrc_node *io_rsrc_node_alloc(int type)
 {
 	struct io_rsrc_node *node;
 
@@ -203,7 +203,7 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 				err = -EBADF;
 				break;
 			}
-			node = io_rsrc_node_alloc(ctx, IORING_RSRC_FILE);
+			node = io_rsrc_node_alloc(IORING_RSRC_FILE);
 			if (!node) {
 				err = -ENOMEM;
 				fput(file);
@@ -525,7 +525,7 @@ int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 			goto fail;
 		}
 		ret = -ENOMEM;
-		node = io_rsrc_node_alloc(ctx, IORING_RSRC_FILE);
+		node = io_rsrc_node_alloc(IORING_RSRC_FILE);
 		if (!node) {
 			fput(file);
 			goto fail;
@@ -730,7 +730,7 @@ static struct io_rsrc_node *io_sqe_buffer_register(struct io_ring_ctx *ctx,
 	if (!iov->iov_base)
 		return NULL;
 
-	node = io_rsrc_node_alloc(ctx, IORING_RSRC_BUFFER);
+	node = io_rsrc_node_alloc(IORING_RSRC_BUFFER);
 	if (!node)
 		return ERR_PTR(-ENOMEM);
 	node->buf = NULL;
@@ -1004,7 +1004,7 @@ static int io_clone_buffers(struct io_ring_ctx *ctx, struct io_ring_ctx *src_ctx
 		if (!src_node) {
 			dst_node = NULL;
 		} else {
-			dst_node = io_rsrc_node_alloc(ctx, IORING_RSRC_BUFFER);
+			dst_node = io_rsrc_node_alloc(IORING_RSRC_BUFFER);
 			if (!dst_node) {
 				ret = -ENOMEM;
 				goto out_free;

@@ -43,7 +43,7 @@ struct io_imu_folio_data {
 	unsigned int	nr_folios;
 };
 
-struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx, int type);
+struct io_rsrc_node *io_rsrc_node_alloc(int type);
 void io_free_rsrc_node(struct io_ring_ctx *ctx, struct io_rsrc_node *node);
 void io_rsrc_data_free(struct io_ring_ctx *ctx, struct io_rsrc_data *data);
 int io_rsrc_data_alloc(struct io_rsrc_data *data, unsigned nr);
