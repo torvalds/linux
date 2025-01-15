@@ -952,15 +952,15 @@ static int rtl822x_read_status(struct phy_device *phydev)
 {
 	int lpadv, ret;
 
+	mii_10gbt_stat_mod_linkmode_lpa_t(phydev->lp_advertising, 0);
+
 	ret = rtlgen_read_status(phydev);
 	if (ret < 0)
 		return ret;
 
 	if (phydev->autoneg == AUTONEG_DISABLE ||
-	    !phydev->autoneg_complete) {
-		mii_10gbt_stat_mod_linkmode_lpa_t(phydev->lp_advertising, 0);
+	    !phydev->autoneg_complete)
 		return 0;
-	}
 
 	lpadv = phy_read_paged(phydev, 0xa5d, 0x13);
 	if (lpadv < 0)
