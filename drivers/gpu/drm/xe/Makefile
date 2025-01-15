@@ -34,8 +34,8 @@ xe-y += xe_bb.o \
 	xe_dma_buf.o \
 	xe_drm_client.o \
 	xe_exec.o \
-	xe_execlist.o \
 	xe_exec_queue.o \
+	xe_execlist.o \
 	xe_force_wake.o \
 	xe_ggtt.o \
 	xe_gpu_scheduler.o \
@@ -67,11 +67,11 @@ xe-y += xe_bb.o \
 	xe_guc_pc.o \
 	xe_guc_submit.o \
 	xe_heci_gsc.o \
+	xe_huc.o \
 	xe_hw_engine.o \
 	xe_hw_engine_class_sysfs.o \
 	xe_hw_engine_group.o \
 	xe_hw_fence.o \
-	xe_huc.o \
 	xe_irq.o \
 	xe_lrc.o \
 	xe_migrate.o \
@@ -91,8 +91,8 @@ xe-y += xe_bb.o \
 	xe_range_fence.o \
 	xe_reg_sr.o \
 	xe_reg_whitelist.o \
-	xe_rtp.o \
 	xe_ring_ops.o \
+	xe_rtp.o \
 	xe_sa.o \
 	xe_sched_job.o \
 	xe_step.o \
@@ -104,8 +104,8 @@ xe-y += xe_bb.o \
 	xe_trace_bo.o \
 	xe_trace_guc.o \
 	xe_trace_lrc.o \
-	xe_ttm_sys_mgr.o \
 	xe_ttm_stolen_mgr.o \
+	xe_ttm_sys_mgr.o \
 	xe_ttm_vram_mgr.o \
 	xe_tuning.o \
 	xe_uc.o \
@@ -114,8 +114,8 @@ xe-y += xe_bb.o \
 	xe_vram.o \
 	xe_vram_freq.o \
 	xe_vsec.o \
-	xe_wait_user_fence.o \
 	xe_wa.o \
+	xe_wait_user_fence.o \
 	xe_wopcm.o
 
 xe-$(CONFIG_HMM_MIRROR) += xe_hmm.o
@@ -224,6 +224,7 @@ xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	i915-display/intel_display_wa.o \
 	i915-display/intel_dkl_phy.o \
 	i915-display/intel_dmc.o \
+	i915-display/intel_dmc_wl.o \
 	i915-display/intel_dp.o \
 	i915-display/intel_dp_aux.o \
 	i915-display/intel_dp_aux_backlight.o \
@@ -271,7 +272,6 @@ xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	i915-display/intel_vdsc.o \
 	i915-display/intel_vga.o \
 	i915-display/intel_vrr.o \
-	i915-display/intel_dmc_wl.o \
 	i915-display/intel_wm.o \
 	i915-display/skl_scaler.o \
 	i915-display/skl_universal_plane.o \
