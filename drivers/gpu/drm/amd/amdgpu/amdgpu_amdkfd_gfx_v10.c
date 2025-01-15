@@ -1084,6 +1084,12 @@ uint64_t kgd_gfx_v10_hqd_reset(struct amdgpu_device *adev,
 	return 0;
 }
 
+uint32_t kgd_gfx_v10_hqd_sdma_get_doorbell(struct amdgpu_device *adev,
+					   int engine, int queue)
+{
+	return 0;
+}
+
 const struct kfd2kgd_calls gfx_v10_kfd2kgd = {
 	.program_sh_mem_settings = kgd_program_sh_mem_settings,
 	.set_pasid_vmid_mapping = kgd_set_pasid_vmid_mapping,
@@ -1112,5 +1118,6 @@ const struct kfd2kgd_calls gfx_v10_kfd2kgd = {
 	.build_grace_period_packet_info = kgd_gfx_v10_build_grace_period_packet_info,
 	.program_trap_handler_settings = program_trap_handler_settings,
 	.hqd_get_pq_addr = kgd_gfx_v10_hqd_get_pq_addr,
-	.hqd_reset = kgd_gfx_v10_hqd_reset
+	.hqd_reset = kgd_gfx_v10_hqd_reset,
+	.hqd_sdma_get_doorbell = kgd_gfx_v10_hqd_sdma_get_doorbell
 };

@@ -419,5 +419,6 @@ const struct kfd2kgd_calls arcturus_kfd2kgd = {
 	.get_cu_occupancy = kgd_gfx_v9_get_cu_occupancy,
 	.program_trap_handler_settings = kgd_gfx_v9_program_trap_handler_settings,
 	.hqd_get_pq_addr = kgd_gfx_v9_hqd_get_pq_addr,
-	.hqd_reset = kgd_gfx_v9_hqd_reset
+	.hqd_reset = kgd_gfx_v9_hqd_reset,
+	.hqd_sdma_get_doorbell = kgd_gfx_v9_hqd_sdma_get_doorbell
 };

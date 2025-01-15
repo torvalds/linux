@@ -682,5 +682,6 @@ const struct kfd2kgd_calls gfx_v10_3_kfd2kgd = {
 	.set_address_watch = kgd_gfx_v10_set_address_watch,
 	.clear_address_watch = kgd_gfx_v10_clear_address_watch,
 	.hqd_get_pq_addr = kgd_gfx_v10_hqd_get_pq_addr,
-	.hqd_reset = kgd_gfx_v10_hqd_reset
+	.hqd_reset = kgd_gfx_v10_hqd_reset,
+	.hqd_sdma_get_doorbell = kgd_gfx_v10_hqd_sdma_get_doorbell
 };
