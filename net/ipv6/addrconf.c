@@ -7460,9 +7460,9 @@ int __init addrconf_init(void)
 		goto out_nowq;
 	}
 
-	rtnl_lock();
+	rtnl_net_lock(&init_net);
 	idev = ipv6_add_dev(blackhole_netdev);
-	rtnl_unlock();
+	rtnl_net_unlock(&init_net);
 	if (IS_ERR(idev)) {
 		err = PTR_ERR(idev);
 		goto errlo;
@@ -7512,17 +7512,17 @@ void addrconf_cleanup(void)
 
 	rtnl_af_unregister(&inet6_ops);
 
-	rtnl_lock();
+	rtnl_net_lock(&init_net);
 
 	/* clean dev list */
 	for_each_netdev(&init_net, dev) {
-		if (__in6_dev_get(dev) == NULL)
+		if (!__in6_dev_get_rtnl_net(dev))
 			continue;
 		addrconf_ifdown(dev, true);
 	}
 	addrconf_ifdown(init_net.loopback_dev, true);
 
-	rtnl_unlock();
+	rtnl_net_unlock(&init_net);
 
 	destroy_workqueue(addrconf_wq);
 }
