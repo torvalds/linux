@@ -89,7 +89,7 @@ static struct sparx5_port *sparx5_pcs_to_port(struct phylink_pcs *pcs)
 	return container_of(pcs, struct sparx5_port, phylink_pcs);
 }
 
-static void sparx5_pcs_get_state(struct phylink_pcs *pcs,
+static void sparx5_pcs_get_state(struct phylink_pcs *pcs, unsigned int neg_mode,
 				 struct phylink_link_state *state)
 {
 	struct sparx5_port *port = sparx5_pcs_to_port(pcs);

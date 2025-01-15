@@ -257,6 +257,7 @@ static int mv88e639x_sgmii_pcs_post_config(struct phylink_pcs *pcs,
 }
 
 static void mv88e639x_sgmii_pcs_get_state(struct phylink_pcs *pcs,
+					  unsigned int neg_mode,
 					  struct phylink_link_state *state)
 {
 	struct mv88e639x_pcs *mpcs = sgmii_pcs_to_mv88e639x_pcs(pcs);
@@ -395,6 +396,7 @@ static void mv88e639x_xg_pcs_disable(struct mv88e639x_pcs *mpcs)
 }
 
 static void mv88e639x_xg_pcs_get_state(struct phylink_pcs *pcs,
+				       unsigned int neg_mode,
 				       struct phylink_link_state *state)
 {
 	struct mv88e639x_pcs *mpcs = xg_pcs_to_mv88e639x_pcs(pcs);
@@ -889,6 +891,7 @@ static int mv88e6393x_xg_pcs_post_config(struct phylink_pcs *pcs,
 }
 
 static void mv88e6393x_xg_pcs_get_state(struct phylink_pcs *pcs,
+					unsigned int neg_mode,
 					struct phylink_link_state *state)
 {
 	struct mv88e639x_pcs *mpcs = xg_pcs_to_mv88e639x_pcs(pcs);
@@ -896,7 +899,7 @@ static void mv88e6393x_xg_pcs_get_state(struct phylink_pcs *pcs,
 	int err;
 
 	if (state->interface != PHY_INTERFACE_MODE_USXGMII)
-		return mv88e639x_xg_pcs_get_state(pcs, state);
+		return mv88e639x_xg_pcs_get_state(pcs, neg_mode, state);
 
 	state->link = false;
 

@@ -2994,7 +2994,7 @@ static int mt753x_pcs_validate(struct phylink_pcs *pcs,
 	return 0;
 }
 
-static void mt7530_pcs_get_state(struct phylink_pcs *pcs,
+static void mt7530_pcs_get_state(struct phylink_pcs *pcs, unsigned int neg_mode,
 				 struct phylink_link_state *state)
 {
 	struct mt7530_priv *priv = pcs_to_mt753x_pcs(pcs)->priv;

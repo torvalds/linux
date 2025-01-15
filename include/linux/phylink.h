@@ -446,7 +446,7 @@ struct phylink_pcs_ops {
 			       phy_interface_t interface);
 	int (*pcs_post_config)(struct phylink_pcs *pcs,
 			       phy_interface_t interface);
-	void (*pcs_get_state)(struct phylink_pcs *pcs,
+	void (*pcs_get_state)(struct phylink_pcs *pcs, unsigned int neg_mode,
 			      struct phylink_link_state *state);
 	int (*pcs_config)(struct phylink_pcs *pcs, unsigned int neg_mode,
 			  phy_interface_t interface,
@@ -505,6 +505,7 @@ void pcs_disable(struct phylink_pcs *pcs);
 /**
  * pcs_get_state() - Read the current inband link state from the hardware
  * @pcs: a pointer to a &struct phylink_pcs.
+ * @neg_mode: link negotiation mode (PHYLINK_PCS_NEG_xxx)
  * @state: a pointer to a &struct phylink_link_state.
  *
  * Read the current inband link state from the MAC PCS, reporting the
@@ -513,8 +514,11 @@ void pcs_disable(struct phylink_pcs *pcs);
  * negotiation completion state in @state->an_complete, and link up state
  * in @state->link. If possible, @state->lp_advertising should also be
  * populated.
+ *
+ * Note that the @neg_mode parameter is always the PHYLINK_PCS_NEG_xxx
+ * state, not MLO_AN_xxx.
  */
-void pcs_get_state(struct phylink_pcs *pcs,
+void pcs_get_state(struct phylink_pcs *pcs, unsigned int neg_mode,
 		   struct phylink_link_state *state);
 
 /**
@@ -689,8 +693,9 @@ static inline int phylink_get_link_timer_ns(phy_interface_t interface)
 }
 
 void phylink_mii_c22_pcs_decode_state(struct phylink_link_state *state,
-				      u16 bmsr, u16 lpa);
+				      unsigned int neg_mode, u16 bmsr, u16 lpa);
 void phylink_mii_c22_pcs_get_state(struct mdio_device *pcs,
+				   unsigned int neg_mode,
 				   struct phylink_link_state *state);
 int phylink_mii_c22_pcs_encode_advertisement(phy_interface_t interface,
 					     const unsigned long *advertising);

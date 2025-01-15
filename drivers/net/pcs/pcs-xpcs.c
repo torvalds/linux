@@ -1030,6 +1030,7 @@ static int xpcs_get_state_c37_sgmii(struct dw_xpcs *xpcs,
 }
 
 static int xpcs_get_state_c37_1000basex(struct dw_xpcs *xpcs,
+					unsigned int neg_mode,
 					struct phylink_link_state *state)
 {
 	int lpa, bmsr;
@@ -1058,7 +1059,7 @@ static int xpcs_get_state_c37_1000basex(struct dw_xpcs *xpcs,
 			}
 		}
 
-		phylink_mii_c22_pcs_decode_state(state, bmsr, lpa);
+		phylink_mii_c22_pcs_decode_state(state, neg_mode, bmsr, lpa);
 	}
 
 	return 0;
@@ -1086,7 +1087,7 @@ static int xpcs_get_state_2500basex(struct dw_xpcs *xpcs,
 	return 0;
 }
 
-static void xpcs_get_state(struct phylink_pcs *pcs,
+static void xpcs_get_state(struct phylink_pcs *pcs, unsigned int neg_mode,
 			   struct phylink_link_state *state)
 {
 	struct dw_xpcs *xpcs = phylink_pcs_to_xpcs(pcs);
@@ -1114,7 +1115,7 @@ static void xpcs_get_state(struct phylink_pcs *pcs,
 				"xpcs_get_state_c37_sgmii", ERR_PTR(ret));
 		break;
 	case DW_AN_C37_1000BASEX:
-		ret = xpcs_get_state_c37_1000basex(xpcs, state);
+		ret = xpcs_get_state_c37_1000basex(xpcs, neg_mode, state);
 		if (ret)
 			dev_err(&xpcs->mdiodev->dev, "%s returned %pe\n",
 				"xpcs_get_state_c37_1000basex", ERR_PTR(ret));
