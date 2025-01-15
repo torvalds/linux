@@ -812,6 +812,9 @@ static void __print_regd(struct seq_file *m, struct rtw89_dev *rtwdev,
 	case_REGD(MEXICO);
 	case_REGD(UKRAINE);
 	case_REGD(CN);
+	case_REGD(QATAR);
+	case_REGD(UK);
+	case_REGD(THAILAND);
 	}
 }
 
