@@ -3096,7 +3096,7 @@ static int inet6_addr_del(struct net *net, int ifindex, u32 ifa_flags,
 		return -ENODEV;
 	}
 
-	idev = __in6_dev_get(dev);
+	idev = __in6_dev_get_rtnl_net(dev);
 	if (!idev) {
 		NL_SET_ERR_MSG_MOD(extack, "IPv6 is disabled on this device");
 		return -ENXIO;
@@ -4792,8 +4792,12 @@ inet6_rtm_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh,
 	/* We ignore other flags so far. */
 	ifa_flags &= IFA_F_MANAGETEMPADDR;
 
-	return inet6_addr_del(net, ifm->ifa_index, ifa_flags, pfx,
-			      ifm->ifa_prefixlen, extack);
+	rtnl_net_lock(net);
+	err = inet6_addr_del(net, ifm->ifa_index, ifa_flags, pfx,
+			     ifm->ifa_prefixlen, extack);
+	rtnl_net_unlock(net);
+
+	return err;
 }
 
 static int modify_prefix_route(struct net *net, struct inet6_ifaddr *ifp,
@@ -7404,7 +7408,7 @@ static const struct rtnl_msg_handler addrconf_rtnl_msg_handlers[] __initconst_or
 	{.owner = THIS_MODULE, .protocol = PF_INET6, .msgtype = RTM_NEWADDR,
 	 .doit = inet6_rtm_newaddr, .flags = RTNL_FLAG_DOIT_PERNET},
 	{.owner = THIS_MODULE, .protocol = PF_INET6, .msgtype = RTM_DELADDR,
-	 .doit = inet6_rtm_deladdr},
+	 .doit = inet6_rtm_deladdr, .flags = RTNL_FLAG_DOIT_PERNET},
 	{.owner = THIS_MODULE, .protocol = PF_INET6, .msgtype = RTM_GETADDR,
 	 .doit = inet6_rtm_getaddr, .dumpit = inet6_dump_ifaddr,
 	 .flags = RTNL_FLAG_DOIT_UNLOCKED | RTNL_FLAG_DUMP_UNLOCKED},
