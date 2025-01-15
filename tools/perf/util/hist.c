@@ -1303,7 +1303,16 @@ hist_entry__cmp_impl(struct perf_hpp_list *hpp_list, struct hist_entry *left,
 	struct hists *hists = left->hists;
 	struct perf_hpp_fmt *fmt;
 	perf_hpp_fmt_cmp_t *fn;
-	int64_t cmp = 0;
+	int64_t cmp;
+
+	/*
+	 * Never collapse filtered and non-filtered entries.
+	 * Note this is not the same as having an extra (invisible) fmt
+	 * that corresponds to the filtered status.
+	 */
+	cmp = (int64_t)!!left->filtered - (int64_t)!!right->filtered;
+	if (cmp)
+		return cmp;
 
 	perf_hpp_list__for_each_sort_list(hpp_list, fmt) {
 		if (ignore_dynamic && perf_hpp__is_dynamic_entry(fmt) &&
