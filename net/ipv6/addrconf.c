@@ -3008,25 +3008,16 @@ static int ipv6_mc_config(struct sock *sk, bool join,
  *	Manual configuration of address on an interface
  */
 static int inet6_addr_add(struct net *net, struct net_device *dev,
-			  struct ifa6_config *cfg,
+			  struct ifa6_config *cfg, clock_t expires, u32 flags,
 			  struct netlink_ext_ack *extack)
 {
 	struct inet6_ifaddr *ifp;
 	struct inet6_dev *idev;
-	unsigned long timeout;
-	clock_t expires;
-	u32 flags;
 
 	ASSERT_RTNL();
 
 	if (cfg->plen > 128) {
 		NL_SET_ERR_MSG_MOD(extack, "Invalid prefix length");
-		return -EINVAL;
-	}
-
-	/* check the lifetime */
-	if (!cfg->valid_lft || cfg->preferred_lft > cfg->valid_lft) {
-		NL_SET_ERR_MSG_MOD(extack, "address lifetime invalid");
 		return -EINVAL;
 	}
 
@@ -3052,24 +3043,6 @@ static int inet6_addr_add(struct net *net, struct net_device *dev,
 	}
 
 	cfg->scope = ipv6_addr_scope(cfg->pfx);
-
-	timeout = addrconf_timeout_fixup(cfg->valid_lft, HZ);
-	if (addrconf_finite_timeout(timeout)) {
-		expires = jiffies_to_clock_t(timeout * HZ);
-		cfg->valid_lft = timeout;
-		flags = RTF_EXPIRES;
-	} else {
-		expires = 0;
-		flags = 0;
-		cfg->ifa_flags |= IFA_F_PERMANENT;
-	}
-
-	timeout = addrconf_timeout_fixup(cfg->preferred_lft, HZ);
-	if (addrconf_finite_timeout(timeout)) {
-		if (timeout == 0)
-			cfg->ifa_flags |= IFA_F_DEPRECATED;
-		cfg->preferred_lft = timeout;
-	}
 
 	ifp = ipv6_add_addr(idev, cfg, true, extack);
 	if (!IS_ERR(ifp)) {
@@ -3180,7 +3153,7 @@ int addrconf_add_ifaddr(struct net *net, void __user *arg)
 	rtnl_net_lock(net);
 	dev = __dev_get_by_index(net, ireq.ifr6_ifindex);
 	if (dev)
-		err = inet6_addr_add(net, dev, &cfg, NULL);
+		err = inet6_addr_add(net, dev, &cfg, 0, 0, NULL);
 	else
 		err = -ENODEV;
 	rtnl_net_unlock(net);
@@ -4869,19 +4842,14 @@ static int modify_prefix_route(struct net *net, struct inet6_ifaddr *ifp,
 }
 
 static int inet6_addr_modify(struct net *net, struct inet6_ifaddr *ifp,
-			     struct ifa6_config *cfg)
+			     struct ifa6_config *cfg, clock_t expires,
+			     u32 flags)
 {
-	u32 flags;
-	clock_t expires;
-	unsigned long timeout;
 	bool was_managetempaddr;
-	bool had_prefixroute;
 	bool new_peer = false;
+	bool had_prefixroute;
 
 	ASSERT_RTNL();
-
-	if (!cfg->valid_lft || cfg->preferred_lft > cfg->valid_lft)
-		return -EINVAL;
 
 	if (cfg->ifa_flags & IFA_F_MANAGETEMPADDR &&
 	    (ifp->flags & IFA_F_TEMPORARY || ifp->prefix_len != 64))
@@ -4889,24 +4857,6 @@ static int inet6_addr_modify(struct net *net, struct inet6_ifaddr *ifp,
 
 	if (!(ifp->flags & IFA_F_TENTATIVE) || ifp->flags & IFA_F_DADFAILED)
 		cfg->ifa_flags &= ~IFA_F_OPTIMISTIC;
-
-	timeout = addrconf_timeout_fixup(cfg->valid_lft, HZ);
-	if (addrconf_finite_timeout(timeout)) {
-		expires = jiffies_to_clock_t(timeout * HZ);
-		cfg->valid_lft = timeout;
-		flags = RTF_EXPIRES;
-	} else {
-		expires = 0;
-		flags = 0;
-		cfg->ifa_flags |= IFA_F_PERMANENT;
-	}
-
-	timeout = addrconf_timeout_fixup(cfg->preferred_lft, HZ);
-	if (addrconf_finite_timeout(timeout)) {
-		if (timeout == 0)
-			cfg->ifa_flags |= IFA_F_DEPRECATED;
-		cfg->preferred_lft = timeout;
-	}
 
 	if (cfg->peer_pfx &&
 	    memcmp(&ifp->peer_addr, cfg->peer_pfx, sizeof(struct in6_addr))) {
@@ -4992,13 +4942,16 @@ inet6_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 		  struct netlink_ext_ack *extack)
 {
 	struct net *net = sock_net(skb->sk);
-	struct ifaddrmsg *ifm;
 	struct nlattr *tb[IFA_MAX+1];
 	struct in6_addr *peer_pfx;
 	struct inet6_ifaddr *ifa;
 	struct net_device *dev;
 	struct inet6_dev *idev;
 	struct ifa6_config cfg;
+	struct ifaddrmsg *ifm;
+	unsigned long timeout;
+	clock_t expires;
+	u32 flags;
 	int err;
 
 	err = nlmsg_parse_deprecated(nlh, sizeof(*ifm), tb, IFA_MAX,
@@ -5028,8 +4981,11 @@ inet6_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 			 IFA_F_MANAGETEMPADDR | IFA_F_NOPREFIXROUTE |
 			 IFA_F_MCAUTOJOIN | IFA_F_OPTIMISTIC;
 
+	cfg.ifa_flags |= IFA_F_PERMANENT;
 	cfg.valid_lft = INFINITY_LIFE_TIME;
 	cfg.preferred_lft = INFINITY_LIFE_TIME;
+	expires = 0;
+	flags = 0;
 
 	if (tb[IFA_CACHEINFO]) {
 		struct ifa_cacheinfo *ci;
@@ -5037,6 +4993,27 @@ inet6_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 		ci = nla_data(tb[IFA_CACHEINFO]);
 		cfg.valid_lft = ci->ifa_valid;
 		cfg.preferred_lft = ci->ifa_prefered;
+
+		if (!cfg.valid_lft || cfg.preferred_lft > cfg.valid_lft) {
+			NL_SET_ERR_MSG_MOD(extack, "address lifetime invalid");
+			return -EINVAL;
+		}
+
+		timeout = addrconf_timeout_fixup(cfg.valid_lft, HZ);
+		if (addrconf_finite_timeout(timeout)) {
+			cfg.ifa_flags &= ~IFA_F_PERMANENT;
+			cfg.valid_lft = timeout;
+			expires = jiffies_to_clock_t(timeout * HZ);
+			flags = RTF_EXPIRES;
+		}
+
+		timeout = addrconf_timeout_fixup(cfg.preferred_lft, HZ);
+		if (addrconf_finite_timeout(timeout)) {
+			if (timeout == 0)
+				cfg.ifa_flags |= IFA_F_DEPRECATED;
+
+			cfg.preferred_lft = timeout;
+		}
 	}
 
 	dev =  __dev_get_by_index(net, ifm->ifa_index);
@@ -5064,7 +5041,7 @@ inet6_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 		 * It would be best to check for !NLM_F_CREATE here but
 		 * userspace already relies on not having to provide this.
 		 */
-		return inet6_addr_add(net, dev, &cfg, extack);
+		return inet6_addr_add(net, dev, &cfg, expires, flags, extack);
 	}
 
 	if (nlh->nlmsg_flags & NLM_F_EXCL ||
@@ -5072,7 +5049,7 @@ inet6_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 		NL_SET_ERR_MSG_MOD(extack, "address already assigned");
 		err = -EEXIST;
 	} else {
-		err = inet6_addr_modify(net, ifa, &cfg);
+		err = inet6_addr_modify(net, ifa, &cfg, expires, flags);
 	}
 
 	in6_ifa_put(ifa);
