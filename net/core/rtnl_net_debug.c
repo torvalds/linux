@@ -27,7 +27,6 @@ static int rtnl_net_debug_event(struct notifier_block *nb,
 	case NETDEV_CHANGEADDR:
 	case NETDEV_PRE_CHANGEADDR:
 	case NETDEV_GOING_DOWN:
-	case NETDEV_CHANGENAME:
 	case NETDEV_FEAT_CHANGE:
 	case NETDEV_BONDING_FAILOVER:
 	case NETDEV_PRE_UP:
@@ -60,18 +59,10 @@ static int rtnl_net_debug_event(struct notifier_block *nb,
 		ASSERT_RTNL();
 		break;
 
-	/* Once an event fully supports RTNL_NET, move it here
-	 * and remove "if (0)" below.
-	 *
-	 * case NETDEV_XXX:
-	 *	ASSERT_RTNL_NET(net);
-	 *	break;
-	 */
-	}
-
-	/* Just to avoid unused-variable error for dev and net. */
-	if (0)
+	case NETDEV_CHANGENAME:
 		ASSERT_RTNL_NET(net);
+		break;
+	}
 
 	return NOTIFY_DONE;
 }

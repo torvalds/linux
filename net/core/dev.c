@@ -1348,16 +1348,13 @@ static int dev_get_valid_name(struct net *net, struct net_device *dev,
  */
 int dev_change_name(struct net_device *dev, const char *newname)
 {
+	struct net *net = dev_net(dev);
 	unsigned char old_assign_type;
 	char oldname[IFNAMSIZ];
 	int err = 0;
 	int ret;
-	struct net *net;
 
-	ASSERT_RTNL();
-	BUG_ON(!dev_net(dev));
-
-	net = dev_net(dev);
+	ASSERT_RTNL_NET(net);
 
 	if (!strncmp(newname, dev->name, IFNAMSIZ))
 		return 0;
