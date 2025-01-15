@@ -22,6 +22,7 @@
 #include <linux/seq_file.h>
 #include <linux/ftrace.h>
 #include <linux/irq.h>
+#include <linux/string_choices.h>
 
 #include <asm/ptrace.h>
 #include <asm/processor.h>
@@ -170,7 +171,7 @@ static void __init irq_init_hv(void)
 
 	pr_info("SUN4V: Using IRQ API major %d, cookie only virqs %s\n",
 		hv_irq_version,
-		sun4v_cookie_only_virqs() ? "enabled" : "disabled");
+		str_enabled_disabled(sun4v_cookie_only_virqs()));
 }
 
 /* This function is for the timer interrupt.*/
