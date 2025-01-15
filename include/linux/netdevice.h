@@ -2444,8 +2444,12 @@ struct net_device {
 	u32			napi_defer_hard_irqs;
 
 	/**
-	 * @lock: protects @net_shaper_hierarchy, feel free to use for other
-	 * netdev-scope protection. Ordering: take after rtnl_lock.
+	 * @lock: netdev-scope lock, protects a small selection of fields.
+	 * Should always be taken using netdev_lock() / netdev_unlock() helpers.
+	 * Drivers are free to use it for other protection.
+	 *
+	 * Protects: @net_shaper_hierarchy.
+	 * Ordering: take after rtnl_lock.
 	 */
 	struct mutex		lock;
 
@@ -2670,6 +2674,21 @@ static inline void *netdev_priv(const struct net_device *dev)
 void netif_queue_set_napi(struct net_device *dev, unsigned int queue_index,
 			  enum netdev_queue_type type,
 			  struct napi_struct *napi);
+
+static inline void netdev_lock(struct net_device *dev)
+{
+	mutex_lock(&dev->lock);
+}
+
+static inline void netdev_unlock(struct net_device *dev)
+{
+	mutex_unlock(&dev->lock);
+}
+
+static inline void netdev_assert_locked(struct net_device *dev)
+{
+	lockdep_assert_held(&dev->lock);
+}
 
 static inline void netif_napi_set_irq(struct napi_struct *napi, int irq)
 {
