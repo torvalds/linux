@@ -11486,6 +11486,11 @@ static bool amdgpu_dm_crtc_mem_type_changed(struct drm_device *dev,
 		new_plane_state = drm_atomic_get_plane_state(state, plane);
 		old_plane_state = drm_atomic_get_plane_state(state, plane);
 
+		if (IS_ERR(new_plane_state) || IS_ERR(old_plane_state)) {
+			DRM_ERROR("Failed to get plane state for plane %s\n", plane->name);
+			return false;
+		}
+
 		if (old_plane_state->fb && new_plane_state->fb &&
 		    get_mem_type(old_plane_state->fb) != get_mem_type(new_plane_state->fb))
 			return true;
