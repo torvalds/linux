@@ -514,7 +514,7 @@ static int io_register_resize_rings(struct io_ring_ctx *ctx, void __user *arg)
 		goto overflow;
 	for (i = o.rings->sq.head; i < tail; i++) {
 		unsigned src_head = i & (ctx->sq_entries - 1);
-		unsigned dst_head = i & n.rings->sq_ring_mask;
+		unsigned dst_head = i & (p.sq_entries - 1);
 
 		n.sq_sqes[dst_head] = o.sq_sqes[src_head];
 	}
@@ -533,7 +533,7 @@ overflow:
 	}
 	for (i = o.rings->cq.head; i < tail; i++) {
 		unsigned src_head = i & (ctx->cq_entries - 1);
-		unsigned dst_head = i & n.rings->cq_ring_mask;
+		unsigned dst_head = i & (p.cq_entries - 1);
 
 		n.rings->cqes[dst_head] = o.rings->cqes[src_head];
 	}
