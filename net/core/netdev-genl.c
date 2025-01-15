@@ -229,8 +229,6 @@ int netdev_nl_napi_get_doit(struct sk_buff *skb, struct genl_info *info)
 	if (!rsp)
 		return -ENOMEM;
 
-	rtnl_lock();
-
 	napi = netdev_napi_by_id_lock(genl_info_net(info), napi_id);
 	if (napi) {
 		err = netdev_nl_napi_fill_one(rsp, napi, info);
@@ -239,8 +237,6 @@ int netdev_nl_napi_get_doit(struct sk_buff *skb, struct genl_info *info)
 		NL_SET_BAD_ATTR(info->extack, info->attrs[NETDEV_A_NAPI_ID]);
 		err = -ENOENT;
 	}
-
-	rtnl_unlock();
 
 	if (err) {
 		goto err_free_msg;
@@ -300,7 +296,6 @@ int netdev_nl_napi_get_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 	if (info->attrs[NETDEV_A_NAPI_IFINDEX])
 		ifindex = nla_get_u32(info->attrs[NETDEV_A_NAPI_IFINDEX]);
 
-	rtnl_lock();
 	if (ifindex) {
 		netdev = netdev_get_by_index_lock(net, ifindex);
 		if (netdev) {
@@ -317,7 +312,6 @@ int netdev_nl_napi_get_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 			ctx->napi_id = 0;
 		}
 	}
-	rtnl_unlock();
 
 	return err;
 }
@@ -358,8 +352,6 @@ int netdev_nl_napi_set_doit(struct sk_buff *skb, struct genl_info *info)
 
 	napi_id = nla_get_u32(info->attrs[NETDEV_A_NAPI_ID]);
 
-	rtnl_lock();
-
 	napi = netdev_napi_by_id_lock(genl_info_net(info), napi_id);
 	if (napi) {
 		err = netdev_nl_napi_set_config(napi, info);
@@ -368,8 +360,6 @@ int netdev_nl_napi_set_doit(struct sk_buff *skb, struct genl_info *info)
 		NL_SET_BAD_ATTR(info->extack, info->attrs[NETDEV_A_NAPI_ID]);
 		err = -ENOENT;
 	}
-
-	rtnl_unlock();
 
 	return err;
 }
