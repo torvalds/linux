@@ -341,6 +341,10 @@ static const struct sparx5_ops lan969x_ops = {
 	.ptp_irq_handler         = &lan969x_ptp_irq_handler,
 	.dsm_calendar_calc       = &lan969x_dsm_calendar_calc,
 	.port_config_rgmii       = &lan969x_port_config_rgmii,
+	.fdma_init               = &lan969x_fdma_init,
+	.fdma_deinit             = &lan969x_fdma_deinit,
+	.fdma_poll               = &lan969x_fdma_napi_poll,
+	.fdma_xmit               = &lan969x_fdma_xmit,
 };
 
 const struct sparx5_match_data lan969x_desc = {
