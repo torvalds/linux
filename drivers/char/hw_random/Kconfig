@@ -534,10 +534,10 @@ config HW_RANDOM_NPCM
 	  If unsure, say Y.
 
 config HW_RANDOM_KEYSTONE
+	tristate "TI Keystone NETCP SA Hardware random number generator"
 	depends on ARCH_KEYSTONE || COMPILE_TEST
 	depends on HAS_IOMEM && OF
 	default HW_RANDOM
-	tristate "TI Keystone NETCP SA Hardware random number generator"
 	help
 	  This option enables Keystone's hardware random generator.
 
