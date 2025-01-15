@@ -86,7 +86,7 @@ EXPORT_SYMBOL(lockref_get_not_zero);
  * @lockref: pointer to lockref structure
  *
  * Decrement the reference count and return the new value.
- * If the lockref was dead or locked, return an error.
+ * If the lockref was dead or locked, return -1.
  */
 int lockref_put_return(struct lockref *lockref)
 {
