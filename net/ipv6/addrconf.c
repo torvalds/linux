@@ -4204,6 +4204,7 @@ static void addrconf_dad_work(struct work_struct *w)
 	struct inet6_dev *idev = ifp->idev;
 	bool bump_id, disable_ipv6 = false;
 	struct in6_addr mcaddr;
+	struct net *net;
 
 	enum {
 		DAD_PROCESS,
@@ -4211,7 +4212,9 @@ static void addrconf_dad_work(struct work_struct *w)
 		DAD_ABORT,
 	} action = DAD_PROCESS;
 
-	rtnl_lock();
+	net = dev_net(idev->dev);
+
+	rtnl_net_lock(net);
 
 	spin_lock_bh(&ifp->lock);
 	if (ifp->state == INET6_IFADDR_STATE_PREDAD) {
@@ -4221,7 +4224,7 @@ static void addrconf_dad_work(struct work_struct *w)
 		action = DAD_ABORT;
 		ifp->state = INET6_IFADDR_STATE_POSTDAD;
 
-		if ((READ_ONCE(dev_net(idev->dev)->ipv6.devconf_all->accept_dad) > 1 ||
+		if ((READ_ONCE(net->ipv6.devconf_all->accept_dad) > 1 ||
 		     READ_ONCE(idev->cnf.accept_dad) > 1) &&
 		    !idev->cnf.disable_ipv6 &&
 		    !(ifp->flags & IFA_F_STABLE_PRIVACY)) {
@@ -4303,7 +4306,7 @@ static void addrconf_dad_work(struct work_struct *w)
 		      ifp->dad_nonce);
 out:
 	in6_ifa_put(ifp);
-	rtnl_unlock();
+	rtnl_net_unlock(net);
 }
 
 /* ifp->idev must be at least read locked */
