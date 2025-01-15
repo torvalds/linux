@@ -169,7 +169,6 @@ static int rza_wdt_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rza_wdt *priv;
 	unsigned long rate;
-	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -218,11 +217,7 @@ static int rza_wdt_probe(struct platform_device *pdev)
 	watchdog_init_timeout(&priv->wdev, 0, dev);
 	watchdog_set_drvdata(&priv->wdev, priv);
 
-	ret = devm_watchdog_register_device(dev, &priv->wdev);
-	if (ret)
-		dev_err(dev, "Cannot register watchdog device\n");
-
-	return ret;
+	return devm_watchdog_register_device(dev, &priv->wdev);
 }
 
 static const struct of_device_id rza_wdt_of_match[] = {

@@ -246,7 +246,7 @@ MODULE_DEVICE_TABLE(of, panel_lvds_of_table);
 
 static struct platform_driver panel_lvds_driver = {
 	.probe		= panel_lvds_probe,
-	.remove_new	= panel_lvds_remove,
+	.remove		= panel_lvds_remove,
 	.driver		= {
 		.name	= "panel-lvds",
 		.of_match_table = panel_lvds_of_table,

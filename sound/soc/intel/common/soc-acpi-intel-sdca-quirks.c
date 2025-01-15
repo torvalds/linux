@@ -35,8 +35,8 @@ bool snd_soc_acpi_intel_sdca_is_device_rt712_vb(void *arg)
 
 	return false;
 }
-EXPORT_SYMBOL_NS(snd_soc_acpi_intel_sdca_is_device_rt712_vb, SND_SOC_ACPI_INTEL_SDCA_QUIRKS);
+EXPORT_SYMBOL_NS(snd_soc_acpi_intel_sdca_is_device_rt712_vb, "SND_SOC_ACPI_INTEL_SDCA_QUIRKS");
 
 MODULE_DESCRIPTION("ASoC ACPI Intel SDCA quirks");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(SND_SOC_SDCA);
+MODULE_IMPORT_NS("SND_SOC_SDCA");

@@ -1153,7 +1153,7 @@ static const struct of_device_id vc4_hvs_dt_match[] = {
 
 struct platform_driver vc4_hvs_driver = {
 	.probe = vc4_hvs_dev_probe,
-	.remove_new = vc4_hvs_dev_remove,
+	.remove = vc4_hvs_dev_remove,
 	.driver = {
 		.name = "vc4_hvs",
 		.of_match_table = vc4_hvs_dt_match,

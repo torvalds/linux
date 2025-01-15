@@ -346,7 +346,7 @@ static const struct dev_pm_ops dw_hdmi_cec_pm = {
 
 static struct platform_driver dw_hdmi_cec_driver = {
 	.probe	= dw_hdmi_cec_probe,
-	.remove_new = dw_hdmi_cec_remove,
+	.remove = dw_hdmi_cec_remove,
 	.driver = {
 		.name = "dw-hdmi-cec",
 		.pm = pm_ptr(&dw_hdmi_cec_pm),

@@ -2094,7 +2094,8 @@ int resource_get_odm_slice_dst_width(struct pipe_ctx *otg_master,
 	count = resource_get_odm_slice_count(otg_master);
 	h_active = timing->h_addressable +
 			timing->h_border_left +
-			timing->h_border_right;
+			timing->h_border_right +
+			otg_master->hblank_borrow;
 	width = h_active / count;
 
 	if (otg_master->stream_res.tg)
@@ -4027,6 +4028,41 @@ fail:
 }
 
 /**
+ * decide_hblank_borrow - Decides the horizontal blanking borrow value for a given pipe context.
+ * @pipe_ctx: Pointer to the pipe context structure.
+ *
+ * This function calculates the horizontal blanking borrow value for a given pipe context based on the
+ * display stream compression (DSC) configuration. If the horizontal active pixels (hactive) are less
+ * than the total width of the DSC slices, it sets the hblank_borrow value to the difference. If the
+ * total horizontal timing minus the hblank_borrow value is less than 32, it resets the hblank_borrow
+ * value to 0.
+ */
+static void decide_hblank_borrow(struct pipe_ctx *pipe_ctx)
+{
+	uint32_t hactive;
+	uint32_t ceil_slice_width;
+	struct dc_stream_state *stream = NULL;
+
+	if (!pipe_ctx)
+		return;
+
+	stream = pipe_ctx->stream;
+
+	if (stream->timing.flags.DSC) {
+		hactive = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right;
+
+		/* Assume if determined slices does not divide Hactive evenly, Hborrow is needed for padding*/
+		if (hactive % stream->timing.dsc_cfg.num_slices_h != 0) {
+			ceil_slice_width = (hactive / stream->timing.dsc_cfg.num_slices_h) + 1;
+			pipe_ctx->hblank_borrow = ceil_slice_width * stream->timing.dsc_cfg.num_slices_h - hactive;
+
+			if (stream->timing.h_total - hactive - pipe_ctx->hblank_borrow < 32)
+				pipe_ctx->hblank_borrow = 0;
+		}
+	}
+}
+
+/**
  * dc_validate_global_state() - Determine if hardware can support a given state
  *
  * @dc: dc struct for this driver
@@ -4063,6 +4099,10 @@ enum dc_status dc_validate_global_state(
 
 			if (pipe_ctx->stream != stream)
 				continue;
+
+			/* Decide whether hblank borrow is needed and save it in pipe_ctx */
+			if (dc->debug.enable_hblank_borrow)
+				decide_hblank_borrow(pipe_ctx);
 
 			if (dc->res_pool->funcs->patch_unknown_plane_state &&
 					pipe_ctx->plane_state &&

@@ -1562,7 +1562,7 @@ static struct platform_driver arm_trbe_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe	= arm_trbe_device_probe,
-	.remove_new = arm_trbe_device_remove,
+	.remove = arm_trbe_device_remove,
 };
 
 static int __init arm_trbe_init(void)

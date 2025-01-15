@@ -65,7 +65,7 @@ static struct perf_pmu *test_pmu_get(char *dir, size_t sz)
 		{ "temp2_label", "test hwmon event2\n", },
 		{ "temp2_input", "50000\n", },
 	};
-	int dirfd, file;
+	int hwmon_dirfd = -1, test_dirfd = -1, file;
 	struct perf_pmu *hwm = NULL;
 	ssize_t len;
 
@@ -76,19 +76,24 @@ static struct perf_pmu *test_pmu_get(char *dir, size_t sz)
 		dir[0] = '\0';
 		return NULL;
 	}
-	dirfd = open(dir, O_DIRECTORY);
-	if (dirfd < 0) {
+	test_dirfd = open(dir, O_PATH|O_DIRECTORY);
+	if (test_dirfd < 0) {
 		pr_err("Failed to open test directory \"%s\"\n", dir);
 		goto err_out;
 	}
 
 	/* Create the test hwmon directory and give it a name. */
-	if (mkdirat(dirfd, "hwmon1234", 0755) < 0) {
+	if (mkdirat(test_dirfd, "hwmon1234", 0755) < 0) {
 		pr_err("Failed to mkdir hwmon directory\n");
 		goto err_out;
 	}
-	file = openat(dirfd, "hwmon1234/name", O_WRONLY | O_CREAT, 0600);
-	if (!file) {
+	hwmon_dirfd = openat(test_dirfd, "hwmon1234", O_DIRECTORY);
+	if (hwmon_dirfd < 0) {
+		pr_err("Failed to open test hwmon directory \"%s/hwmon1234\"\n", dir);
+		goto err_out;
+	}
+	file = openat(hwmon_dirfd, "name", O_WRONLY | O_CREAT, 0600);
+	if (file < 0) {
 		pr_err("Failed to open for writing file \"name\"\n");
 		goto err_out;
 	}
@@ -104,8 +109,8 @@ static struct perf_pmu *test_pmu_get(char *dir, size_t sz)
 	for (size_t i = 0; i < ARRAY_SIZE(test_items); i++) {
 		const struct test_item *item = &test_items[i];
 
-		file = openat(dirfd, item->name, O_WRONLY | O_CREAT, 0600);
-		if (!file) {
+		file = openat(hwmon_dirfd, item->name, O_WRONLY | O_CREAT, 0600);
+		if (file < 0) {
 			pr_err("Failed to open for writing file \"%s\"\n", item->name);
 			goto err_out;
 		}
@@ -119,16 +124,18 @@ static struct perf_pmu *test_pmu_get(char *dir, size_t sz)
 	}
 
 	/* Make the PMU reading the files created above. */
-	hwm = perf_pmus__add_test_hwmon_pmu(dirfd, "hwmon1234", test_hwmon_name);
+	hwm = perf_pmus__add_test_hwmon_pmu(hwmon_dirfd, "hwmon1234", test_hwmon_name);
 	if (!hwm)
 		pr_err("Test hwmon creation failed\n");
 
 err_out:
 	if (!hwm) {
 		test_pmu_put(dir, hwm);
-		if (dirfd >= 0)
-			close(dirfd);
+		if (hwmon_dirfd >= 0)
+			close(hwmon_dirfd);
 	}
+	if (test_dirfd >= 0)
+		close(test_dirfd);
 	return hwm;
 }
 

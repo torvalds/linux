@@ -134,7 +134,7 @@ int iio_gts_total_gain_to_scale(struct iio_gts *gts, int total_gain,
 
 	return iio_gts_delinearize(tmp, NANO, scale_int, scale_nano);
 }
-EXPORT_SYMBOL_NS_GPL(iio_gts_total_gain_to_scale, IIO_GTS_HELPER);
+EXPORT_SYMBOL_NS_GPL(iio_gts_total_gain_to_scale, "IIO_GTS_HELPER");
 
 /**
  * iio_gts_purge_avail_scale_table - free-up the available scale tables
@@ -622,7 +622,7 @@ int devm_iio_init_iio_gts(struct device *dev, int max_scale_int, int max_scale_n
 
 	return devm_iio_gts_build_avail_tables(dev, gts);
 }
-EXPORT_SYMBOL_NS_GPL(devm_iio_init_iio_gts, IIO_GTS_HELPER);
+EXPORT_SYMBOL_NS_GPL(devm_iio_init_iio_gts, "IIO_GTS_HELPER");
 
 /**
  * iio_gts_all_avail_scales - helper for listing all available scales
@@ -645,7 +645,7 @@ int iio_gts_all_avail_scales(struct iio_gts *gts, const int **vals, int *type,
 
 	return IIO_AVAIL_LIST;
 }
-EXPORT_SYMBOL_NS_GPL(iio_gts_all_avail_scales, IIO_GTS_HELPER);
+EXPORT_SYMBOL_NS_GPL(iio_gts_all_avail_scales, "IIO_GTS_HELPER");
 
 /**
  * iio_gts_avail_scales_for_time - list scales for integration time
@@ -679,7 +679,7 @@ int iio_gts_avail_scales_for_time(struct iio_gts *gts, int time,
 
 	return IIO_AVAIL_LIST;
 }
-EXPORT_SYMBOL_NS_GPL(iio_gts_avail_scales_for_time, IIO_GTS_HELPER);
+EXPORT_SYMBOL_NS_GPL(iio_gts_avail_scales_for_time, "IIO_GTS_HELPER");
 
 /**
  * iio_gts_avail_times - helper for listing available integration times
@@ -702,7 +702,7 @@ int iio_gts_avail_times(struct iio_gts *gts,  const int **vals, int *type,
 
 	return IIO_AVAIL_LIST;
 }
-EXPORT_SYMBOL_NS_GPL(iio_gts_avail_times, IIO_GTS_HELPER);
+EXPORT_SYMBOL_NS_GPL(iio_gts_avail_times, "IIO_GTS_HELPER");
 
 /**
  * iio_gts_find_sel_by_gain - find selector corresponding to a HW-gain
@@ -722,7 +722,7 @@ int iio_gts_find_sel_by_gain(struct iio_gts *gts, int gain)
 
 	return -EINVAL;
 }
-EXPORT_SYMBOL_NS_GPL(iio_gts_find_sel_by_gain, IIO_GTS_HELPER);
+EXPORT_SYMBOL_NS_GPL(iio_gts_find_sel_by_gain, "IIO_GTS_HELPER");
 
 /**
  * iio_gts_find_gain_by_sel - find HW-gain corresponding to a selector
@@ -742,7 +742,7 @@ int iio_gts_find_gain_by_sel(struct iio_gts *gts, int sel)
 
 	return -EINVAL;
 }
-EXPORT_SYMBOL_NS_GPL(iio_gts_find_gain_by_sel, IIO_GTS_HELPER);
+EXPORT_SYMBOL_NS_GPL(iio_gts_find_gain_by_sel, "IIO_GTS_HELPER");
 
 /**
  * iio_gts_get_min_gain - find smallest valid HW-gain
@@ -765,7 +765,7 @@ int iio_gts_get_min_gain(struct iio_gts *gts)
 
 	return min;
 }
-EXPORT_SYMBOL_NS_GPL(iio_gts_get_min_gain, IIO_GTS_HELPER);
+EXPORT_SYMBOL_NS_GPL(iio_gts_get_min_gain, "IIO_GTS_HELPER");
 
 /**
  * iio_find_closest_gain_low - Find the closest lower matching gain
@@ -826,7 +826,7 @@ int iio_find_closest_gain_low(struct iio_gts *gts, int gain, bool *in_range)
 
 	return gts->hwgain_table[best].gain;
 }
-EXPORT_SYMBOL_NS_GPL(iio_find_closest_gain_low, IIO_GTS_HELPER);
+EXPORT_SYMBOL_NS_GPL(iio_find_closest_gain_low, "IIO_GTS_HELPER");
 
 static int iio_gts_get_int_time_gain_multiplier_by_sel(struct iio_gts *gts,
 						       int sel)
@@ -913,7 +913,7 @@ int iio_gts_find_gain_sel_for_scale_using_time(struct iio_gts *gts, int time_sel
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(iio_gts_find_gain_sel_for_scale_using_time, IIO_GTS_HELPER);
+EXPORT_SYMBOL_NS_GPL(iio_gts_find_gain_sel_for_scale_using_time, "IIO_GTS_HELPER");
 
 static int iio_gts_get_total_gain(struct iio_gts *gts, int gain, int time)
 {
@@ -975,7 +975,7 @@ int iio_gts_get_scale(struct iio_gts *gts, int gain, int time, int *scale_int,
 
 	return iio_gts_delinearize(lin_scale, NANO, scale_int, scale_nano);
 }
-EXPORT_SYMBOL_NS_GPL(iio_gts_get_scale, IIO_GTS_HELPER);
+EXPORT_SYMBOL_NS_GPL(iio_gts_get_scale, "IIO_GTS_HELPER");
 
 /**
  * iio_gts_find_new_gain_sel_by_old_gain_time - compensate for time change
@@ -1032,7 +1032,7 @@ int iio_gts_find_new_gain_sel_by_old_gain_time(struct iio_gts *gts,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(iio_gts_find_new_gain_sel_by_old_gain_time, IIO_GTS_HELPER);
+EXPORT_SYMBOL_NS_GPL(iio_gts_find_new_gain_sel_by_old_gain_time, "IIO_GTS_HELPER");
 
 /**
  * iio_gts_find_new_gain_by_old_gain_time - compensate for time change
@@ -1084,7 +1084,7 @@ int iio_gts_find_new_gain_by_old_gain_time(struct iio_gts *gts, int old_gain,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(iio_gts_find_new_gain_by_old_gain_time, IIO_GTS_HELPER);
+EXPORT_SYMBOL_NS_GPL(iio_gts_find_new_gain_by_old_gain_time, "IIO_GTS_HELPER");
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Matti Vaittinen <mazziesaccount@gmail.com>");

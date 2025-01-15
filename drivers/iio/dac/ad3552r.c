@@ -728,4 +728,4 @@ module_spi_driver(ad3552r_driver);
 MODULE_AUTHOR("Mihail Chindris <mihail.chindris@analog.com>");
 MODULE_DESCRIPTION("Analog Device AD3552R DAC");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(IIO_AD3552R);
+MODULE_IMPORT_NS("IIO_AD3552R");

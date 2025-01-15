@@ -576,4 +576,4 @@ module_exit(hctr2_module_exit);
 MODULE_DESCRIPTION("HCTR2 length-preserving encryption mode");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS_CRYPTO("hctr2");
-MODULE_IMPORT_NS(CRYPTO_INTERNAL);
+MODULE_IMPORT_NS("CRYPTO_INTERNAL");

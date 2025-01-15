@@ -512,4 +512,4 @@ kunit_test_suite(iio_gts_test_suite);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Matti Vaittinen <mazziesaccount@gmail.com>");
 MODULE_DESCRIPTION("Test IIO light sensor gain-time-scale helpers");
-MODULE_IMPORT_NS(IIO_GTS_HELPER);
+MODULE_IMPORT_NS("IIO_GTS_HELPER");

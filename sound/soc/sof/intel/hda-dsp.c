@@ -90,7 +90,7 @@ u32 hda_get_interface_mask(struct snd_sof_dev *sdev)
 
 	return interface_mask[sdev->dspless_mode_selected];
 }
-EXPORT_SYMBOL_NS(hda_get_interface_mask, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_get_interface_mask, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 bool hda_is_chain_dma_supported(struct snd_sof_dev *sdev, u32 dai_type)
 {
@@ -120,7 +120,7 @@ bool hda_is_chain_dma_supported(struct snd_sof_dev *sdev, u32 dai_type)
 		return false;
 	}
 }
-EXPORT_SYMBOL_NS(hda_is_chain_dma_supported, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_is_chain_dma_supported, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 /*
  * DSP Core control.
@@ -216,7 +216,7 @@ int hda_dsp_core_stall_reset(struct snd_sof_dev *sdev, unsigned int core_mask)
 	/* set reset state */
 	return hda_dsp_core_reset_enter(sdev, core_mask);
 }
-EXPORT_SYMBOL_NS(hda_dsp_core_stall_reset, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_core_stall_reset, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 bool hda_dsp_core_is_enabled(struct snd_sof_dev *sdev, unsigned int core_mask)
 {
@@ -242,7 +242,7 @@ bool hda_dsp_core_is_enabled(struct snd_sof_dev *sdev, unsigned int core_mask)
 
 	return is_enable;
 }
-EXPORT_SYMBOL_NS(hda_dsp_core_is_enabled, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_core_is_enabled, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 int hda_dsp_core_run(struct snd_sof_dev *sdev, unsigned int core_mask)
 {
@@ -270,7 +270,7 @@ int hda_dsp_core_run(struct snd_sof_dev *sdev, unsigned int core_mask)
 
 	return ret;
 }
-EXPORT_SYMBOL_NS(hda_dsp_core_run, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_core_run, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 /*
  * Power Management.
@@ -322,7 +322,7 @@ int hda_dsp_core_power_up(struct snd_sof_dev *sdev, unsigned int core_mask)
 
 	return ret;
 }
-EXPORT_SYMBOL_NS(hda_dsp_core_power_up, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_core_power_up, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 static int hda_dsp_core_power_down(struct snd_sof_dev *sdev, unsigned int core_mask)
 {
@@ -370,7 +370,7 @@ int hda_dsp_enable_core(struct snd_sof_dev *sdev, unsigned int core_mask)
 
 	return hda_dsp_core_run(sdev, core_mask);
 }
-EXPORT_SYMBOL_NS(hda_dsp_enable_core, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_enable_core, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 int hda_dsp_core_reset_power_down(struct snd_sof_dev *sdev,
 				  unsigned int core_mask)
@@ -411,7 +411,7 @@ int hda_dsp_core_reset_power_down(struct snd_sof_dev *sdev,
 
 	return ret;
 }
-EXPORT_SYMBOL_NS(hda_dsp_core_reset_power_down, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_core_reset_power_down, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 void hda_dsp_ipc_int_enable(struct snd_sof_dev *sdev)
 {
@@ -430,7 +430,7 @@ void hda_dsp_ipc_int_enable(struct snd_sof_dev *sdev)
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, HDA_DSP_REG_ADSPIC,
 				HDA_DSP_ADSPIC_IPC, HDA_DSP_ADSPIC_IPC);
 }
-EXPORT_SYMBOL_NS(hda_dsp_ipc_int_enable, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_ipc_int_enable, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 void hda_dsp_ipc_int_disable(struct snd_sof_dev *sdev)
 {
@@ -448,7 +448,7 @@ void hda_dsp_ipc_int_disable(struct snd_sof_dev *sdev)
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, chip->ipc_ctl,
 			HDA_DSP_REG_HIPCCTL_BUSY | HDA_DSP_REG_HIPCCTL_DONE, 0);
 }
-EXPORT_SYMBOL_NS(hda_dsp_ipc_int_disable, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_ipc_int_disable, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 static int hda_dsp_wait_d0i3c_done(struct snd_sof_dev *sdev)
 {
@@ -732,7 +732,7 @@ int hda_dsp_set_power_state_ipc3(struct snd_sof_dev *sdev,
 
 	return hda_dsp_set_power_state(sdev, target_state);
 }
-EXPORT_SYMBOL_NS(hda_dsp_set_power_state_ipc3, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_set_power_state_ipc3, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 int hda_dsp_set_power_state_ipc4(struct snd_sof_dev *sdev,
 				 const struct sof_dsp_power_state *target_state)
@@ -744,7 +744,7 @@ int hda_dsp_set_power_state_ipc4(struct snd_sof_dev *sdev,
 
 	return hda_dsp_set_power_state(sdev, target_state);
 }
-EXPORT_SYMBOL_NS(hda_dsp_set_power_state_ipc4, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_set_power_state_ipc4, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 /*
  * Audio DSP states may transform as below:-
@@ -948,7 +948,7 @@ int hda_dsp_resume(struct snd_sof_dev *sdev)
 
 	return snd_sof_dsp_set_power_state(sdev, &target_state);
 }
-EXPORT_SYMBOL_NS(hda_dsp_resume, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_resume, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 int hda_dsp_runtime_resume(struct snd_sof_dev *sdev)
 {
@@ -964,7 +964,7 @@ int hda_dsp_runtime_resume(struct snd_sof_dev *sdev)
 
 	return snd_sof_dsp_set_power_state(sdev, &target_state);
 }
-EXPORT_SYMBOL_NS(hda_dsp_runtime_resume, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_runtime_resume, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 int hda_dsp_runtime_idle(struct snd_sof_dev *sdev)
 {
@@ -978,7 +978,7 @@ int hda_dsp_runtime_idle(struct snd_sof_dev *sdev)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(hda_dsp_runtime_idle, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_runtime_idle, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 int hda_dsp_runtime_suspend(struct snd_sof_dev *sdev)
 {
@@ -1000,7 +1000,7 @@ int hda_dsp_runtime_suspend(struct snd_sof_dev *sdev)
 
 	return snd_sof_dsp_set_power_state(sdev, &target_state);
 }
-EXPORT_SYMBOL_NS(hda_dsp_runtime_suspend, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_runtime_suspend, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 int hda_dsp_suspend(struct snd_sof_dev *sdev, u32 target_state)
 {
@@ -1061,7 +1061,7 @@ int hda_dsp_suspend(struct snd_sof_dev *sdev, u32 target_state)
 
 	return snd_sof_dsp_set_power_state(sdev, &target_dsp_state);
 }
-EXPORT_SYMBOL_NS(hda_dsp_suspend, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_suspend, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 static unsigned int hda_dsp_check_for_dma_streams(struct snd_sof_dev *sdev)
 {
@@ -1134,14 +1134,14 @@ int hda_dsp_shutdown_dma_flush(struct snd_sof_dev *sdev)
 
 	return ret;
 }
-EXPORT_SYMBOL_NS(hda_dsp_shutdown_dma_flush, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_shutdown_dma_flush, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 int hda_dsp_shutdown(struct snd_sof_dev *sdev)
 {
 	sdev->system_suspend_target = SOF_SUSPEND_S3;
 	return snd_sof_suspend(sdev->dev);
 }
-EXPORT_SYMBOL_NS(hda_dsp_shutdown, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_shutdown, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 int hda_dsp_set_hw_params_upon_resume(struct snd_sof_dev *sdev)
 {
@@ -1154,7 +1154,7 @@ int hda_dsp_set_hw_params_upon_resume(struct snd_sof_dev *sdev)
 
 	return ret;
 }
-EXPORT_SYMBOL_NS(hda_dsp_set_hw_params_upon_resume, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_set_hw_params_upon_resume, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 void hda_dsp_d0i3_work(struct work_struct *work)
 {
@@ -1181,7 +1181,7 @@ void hda_dsp_d0i3_work(struct work_struct *work)
 				    "error: failed to set DSP state %d substate %d\n",
 				    target_state.state, target_state.substate);
 }
-EXPORT_SYMBOL_NS(hda_dsp_d0i3_work, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_d0i3_work, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 int hda_dsp_core_get(struct snd_sof_dev *sdev, int core)
 {
@@ -1222,7 +1222,7 @@ power_down:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS(hda_dsp_core_get, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_core_get, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL_SOUNDWIRE)
 void hda_common_enable_sdw_irq(struct snd_sof_dev *sdev, bool enable)
@@ -1238,7 +1238,7 @@ void hda_common_enable_sdw_irq(struct snd_sof_dev *sdev, bool enable)
 				HDA_DSP_REG_ADSPIC2_SNDW,
 				enable ? HDA_DSP_REG_ADSPIC2_SNDW : 0);
 }
-EXPORT_SYMBOL_NS(hda_common_enable_sdw_irq, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_common_enable_sdw_irq, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 void hda_sdw_int_enable(struct snd_sof_dev *sdev, bool enable)
 {
@@ -1252,7 +1252,7 @@ void hda_sdw_int_enable(struct snd_sof_dev *sdev, bool enable)
 	if (chip && chip->enable_sdw_irq)
 		chip->enable_sdw_irq(sdev, enable);
 }
-EXPORT_SYMBOL_NS(hda_sdw_int_enable, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_sdw_int_enable, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 int hda_sdw_check_lcount_common(struct snd_sof_dev *sdev)
 {
@@ -1276,7 +1276,7 @@ int hda_sdw_check_lcount_common(struct snd_sof_dev *sdev)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(hda_sdw_check_lcount_common, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_sdw_check_lcount_common, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 int hda_sdw_check_lcount_ext(struct snd_sof_dev *sdev)
 {
@@ -1302,7 +1302,7 @@ int hda_sdw_check_lcount_ext(struct snd_sof_dev *sdev)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(hda_sdw_check_lcount_ext, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_sdw_check_lcount_ext, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 int hda_sdw_check_lcount(struct snd_sof_dev *sdev)
 {
@@ -1314,7 +1314,7 @@ int hda_sdw_check_lcount(struct snd_sof_dev *sdev)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(hda_sdw_check_lcount, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_sdw_check_lcount, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 void hda_sdw_process_wakeen(struct snd_sof_dev *sdev)
 {
@@ -1328,7 +1328,7 @@ void hda_sdw_process_wakeen(struct snd_sof_dev *sdev)
 	if (chip && chip->sdw_process_wakeen)
 		chip->sdw_process_wakeen(sdev);
 }
-EXPORT_SYMBOL_NS(hda_sdw_process_wakeen, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_sdw_process_wakeen, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 #endif
 
@@ -1339,7 +1339,7 @@ int hda_dsp_disable_interrupts(struct snd_sof_dev *sdev)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(hda_dsp_disable_interrupts, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_disable_interrupts, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 static const struct hda_dsp_msg_code hda_dsp_rom_fw_error_texts[] = {
 	{HDA_DSP_ROM_CSE_ERROR, "error: cse error"},
@@ -1550,7 +1550,7 @@ void hda_dsp_get_state(struct snd_sof_dev *sdev, const char *level)
 		dev_printk(level, sdev->dev, "error code: %#x (%s)\n", error_code,
 			   error_text);
 }
-EXPORT_SYMBOL_NS(hda_dsp_get_state, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_get_state, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 static void hda_dsp_get_registers(struct snd_sof_dev *sdev,
 				  struct sof_ipc_dsp_oops_xtensa *xoops,
@@ -1623,4 +1623,4 @@ void hda_dsp_dump(struct snd_sof_dev *sdev, u32 flags)
 		hda_dsp_dump_ext_rom_status(sdev, level, flags);
 	}
 }
-EXPORT_SYMBOL_NS(hda_dsp_dump, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_dump, "SND_SOC_SOF_INTEL_HDA_COMMON");

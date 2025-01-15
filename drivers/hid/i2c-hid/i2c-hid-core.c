@@ -414,7 +414,19 @@ static int i2c_hid_set_power(struct i2c_hid *ihid, int power_state)
 
 	i2c_hid_dbg(ihid, "%s\n", __func__);
 
+	/*
+	 * Some STM-based devices need 400µs after a rising clock edge to wake
+	 * from deep sleep, in which case the first request will fail due to
+	 * the address not being acknowledged. Try after a short sleep to see
+	 * if the device came alive on the bus. Certain Weida Tech devices also
+	 * need this.
+	 */
 	ret = i2c_hid_set_power_command(ihid, power_state);
+	if (ret && power_state == I2C_HID_PWR_ON) {
+		usleep_range(400, 500);
+		ret = i2c_hid_set_power_command(ihid, I2C_HID_PWR_ON);
+	}
+
 	if (ret)
 		dev_err(&ihid->client->dev,
 			"failed to change power setting.\n");
@@ -975,14 +987,6 @@ static int i2c_hid_core_resume(struct i2c_hid *ihid)
 		i2c_hid_core_power_up(ihid);
 
 	enable_irq(client->irq);
-
-	/* Make sure the device is awake on the bus */
-	ret = i2c_hid_probe_address(ihid);
-	if (ret < 0) {
-		dev_err(&client->dev, "nothing at address after resume: %d\n",
-			ret);
-		return -ENXIO;
-	}
 
 	/* On Goodix 27c6:0d42 wait extra time before device wakeup.
 	 * It's not clear why but if we send wakeup too early, the device will

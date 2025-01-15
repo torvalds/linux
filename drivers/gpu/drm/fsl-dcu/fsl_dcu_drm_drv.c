@@ -378,7 +378,7 @@ static void fsl_dcu_drm_shutdown(struct platform_device *pdev)
 
 static struct platform_driver fsl_dcu_drm_platform_driver = {
 	.probe		= fsl_dcu_drm_probe,
-	.remove_new	= fsl_dcu_drm_remove,
+	.remove		= fsl_dcu_drm_remove,
 	.shutdown	= fsl_dcu_drm_shutdown,
 	.driver		= {
 		.name	= "fsl-dcu",

@@ -35,7 +35,7 @@ struct mmap_state {
 		.mm = mm_,						\
 		.vmi = vmi_,						\
 		.addr = addr_,						\
-		.end = (addr_) + len,					\
+		.end = (addr_) + (len_),				\
 		.pgoff = pgoff_,					\
 		.pglen = PHYS_PFN(len_),				\
 		.flags = flags_,					\
@@ -2460,10 +2460,13 @@ unsigned long __mmap_region(struct file *file, unsigned long addr,
 
 	/* If flags changed, we might be able to merge, so try again. */
 	if (map.retry_merge) {
+		struct vm_area_struct *merged;
 		VMG_MMAP_STATE(vmg, &map, vma);
 
 		vma_iter_config(map.vmi, map.addr, map.end);
-		vma_merge_existing_range(&vmg);
+		merged = vma_merge_existing_range(&vmg);
+		if (merged)
+			vma = merged;
 	}
 
 	__mmap_complete(&map, vma);

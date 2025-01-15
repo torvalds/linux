@@ -87,6 +87,7 @@ static const u32 slic_base[] = { 100000000, 3125000 };
 static const u32 npu_base[] = { 333000000, 400000000, 500000000 };
 /* EN7581 */
 static const u32 emi7581_base[] = { 540000000, 480000000, 400000000, 300000000 };
+static const u32 bus7581_base[] = { 600000000, 540000000 };
 static const u32 npu7581_base[] = { 800000000, 750000000, 720000000, 600000000 };
 static const u32 crypto_base[] = { 540000000, 480000000 };
 
@@ -222,8 +223,8 @@ static const struct en_clk_desc en7581_base_clks[] = {
 		.base_reg = REG_BUS_CLK_DIV_SEL,
 		.base_bits = 1,
 		.base_shift = 8,
-		.base_values = bus_base,
-		.n_base_values = ARRAY_SIZE(bus_base),
+		.base_values = bus7581_base,
+		.n_base_values = ARRAY_SIZE(bus7581_base),
 
 		.div_bits = 3,
 		.div_shift = 0,
@@ -503,6 +504,8 @@ static void en7523_register_clocks(struct device *dev, struct clk_hw_onecell_dat
 	u32 rate;
 	int i;
 
+	clk_data->num = EN7523_NUM_CLOCKS;
+
 	for (i = 0; i < ARRAY_SIZE(en7523_base_clks); i++) {
 		const struct en_clk_desc *desc = &en7523_base_clks[i];
 		u32 reg = desc->div_reg ? desc->div_reg : desc->base_reg;
@@ -524,8 +527,6 @@ static void en7523_register_clocks(struct device *dev, struct clk_hw_onecell_dat
 
 	hw = en7523_register_pcie_clk(dev, np_base);
 	clk_data->hws[EN7523_CLK_PCIE] = hw;
-
-	clk_data->num = EN7523_NUM_CLOCKS;
 }
 
 static int en7523_clk_hw_init(struct platform_device *pdev,

@@ -266,6 +266,6 @@ static struct platform_driver sun9i_a80_de_clk_driver = {
 };
 module_platform_driver(sun9i_a80_de_clk_driver);
 
-MODULE_IMPORT_NS(SUNXI_CCU);
+MODULE_IMPORT_NS("SUNXI_CCU");
 MODULE_DESCRIPTION("Support for the Allwinner A80 Display Engine CCU");
 MODULE_LICENSE("GPL");

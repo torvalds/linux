@@ -171,23 +171,13 @@ static int
 xchk_setup_metapath_quotadir(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_trans	*tp;
-	struct xfs_inode	*dp = NULL;
-	int			error;
+	struct xfs_quotainfo	*qi = sc->mp->m_quotainfo;
 
-	error = xfs_trans_alloc_empty(sc->mp, &tp);
-	if (error)
-		return error;
+	if (!qi || !qi->qi_dirip)
+		return -ENOENT;
 
-	error = xfs_dqinode_load_parent(tp, &dp);
-	xfs_trans_cancel(tp);
-	if (error)
-		return error;
-
-	error = xchk_setup_metapath_scan(sc, sc->mp->m_metadirip,
-			kasprintf(GFP_KERNEL, "quota"), dp);
-	xfs_irele(dp);
-	return error;
+	return xchk_setup_metapath_scan(sc, sc->mp->m_metadirip,
+			kstrdup("quota", GFP_KERNEL), qi->qi_dirip);
 }
 
 /* Scan a quota inode under the /quota directory. */
@@ -196,37 +186,31 @@ xchk_setup_metapath_dqinode(
 	struct xfs_scrub	*sc,
 	xfs_dqtype_t		type)
 {
-	struct xfs_trans	*tp = NULL;
-	struct xfs_inode	*dp = NULL;
+	struct xfs_quotainfo	*qi = sc->mp->m_quotainfo;
 	struct xfs_inode	*ip = NULL;
-	const char		*path;
-	int			error;
 
-	error = xfs_trans_alloc_empty(sc->mp, &tp);
-	if (error)
-		return error;
+	if (!qi)
+		return -ENOENT;
 
-	error = xfs_dqinode_load_parent(tp, &dp);
-	if (error)
-		goto out_cancel;
+	switch (type) {
+	case XFS_DQTYPE_USER:
+		ip = qi->qi_uquotaip;
+		break;
+	case XFS_DQTYPE_GROUP:
+		ip = qi->qi_gquotaip;
+		break;
+	case XFS_DQTYPE_PROJ:
+		ip = qi->qi_pquotaip;
+		break;
+	default:
+		ASSERT(0);
+		return -EINVAL;
+	}
+	if (!ip)
+		return -ENOENT;
 
-	error = xfs_dqinode_load(tp, dp, type, &ip);
-	if (error)
-		goto out_dp;
-
-	xfs_trans_cancel(tp);
-	tp = NULL;
-
-	path = kasprintf(GFP_KERNEL, "%s", xfs_dqinode_path(type));
-	error = xchk_setup_metapath_scan(sc, dp, path, ip);
-
-	xfs_irele(ip);
-out_dp:
-	xfs_irele(dp);
-out_cancel:
-	if (tp)
-		xfs_trans_cancel(tp);
-	return error;
+	return xchk_setup_metapath_scan(sc, qi->qi_dirip,
+			kstrdup(xfs_dqinode_path(type), GFP_KERNEL), ip);
 }
 #else
 # define xchk_setup_metapath_quotadir(...)	(-ENOENT)

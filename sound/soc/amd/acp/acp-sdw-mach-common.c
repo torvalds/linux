@@ -57,7 +57,7 @@ int get_acp63_cpu_pin_id(u32 sdw_link_id, int be_id, int *cpu_pin_id, struct dev
 	}
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(get_acp63_cpu_pin_id, SND_SOC_AMD_SDW_MACH);
+EXPORT_SYMBOL_NS_GPL(get_acp63_cpu_pin_id, "SND_SOC_AMD_SDW_MACH");
 
 MODULE_DESCRIPTION("AMD SoundWire Common Machine driver");
 MODULE_AUTHOR("Vijendar Mukunda <Vijendar.Mukunda@amd.com>");

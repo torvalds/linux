@@ -370,7 +370,7 @@ static void sngl_calib_start(struct tasdevice_priv *tas_priv, int i,
 			tasdevice_dev_read(tas_priv, i, p[j].reg,
 				(int *)&p[j].val[0]);
 		} else {
-			switch (p[j].reg) {
+			switch (tas2781_cali_start_reg[j].reg) {
 			case 0: {
 				if (!reg[0])
 					continue;
@@ -1746,4 +1746,4 @@ MODULE_AUTHOR("Shenghao Ding <shenghao-ding@ti.com>");
 MODULE_AUTHOR("Kevin Lu <kevin-lu@ti.com>");
 MODULE_DESCRIPTION("ASoC TAS2781 Driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(SND_SOC_TAS2781_FMWLIB);
+MODULE_IMPORT_NS("SND_SOC_TAS2781_FMWLIB");

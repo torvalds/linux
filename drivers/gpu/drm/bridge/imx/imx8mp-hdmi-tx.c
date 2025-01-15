@@ -144,7 +144,7 @@ MODULE_DEVICE_TABLE(of, imx8mp_dw_hdmi_of_table);
 
 static struct platform_driver imx8mp_dw_hdmi_platform_driver = {
 	.probe		= imx8mp_dw_hdmi_probe,
-	.remove_new	= imx8mp_dw_hdmi_remove,
+	.remove		= imx8mp_dw_hdmi_remove,
 	.driver		= {
 		.name	= "imx8mp-dw-hdmi-tx",
 		.of_match_table = imx8mp_dw_hdmi_of_table,

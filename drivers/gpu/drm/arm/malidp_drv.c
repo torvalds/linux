@@ -988,7 +988,7 @@ static const struct dev_pm_ops malidp_pm_ops = {
 
 static struct platform_driver malidp_platform_driver = {
 	.probe		= malidp_platform_probe,
-	.remove_new	= malidp_platform_remove,
+	.remove		= malidp_platform_remove,
 	.shutdown	= malidp_platform_shutdown,
 	.driver	= {
 		.name = "mali-dp",

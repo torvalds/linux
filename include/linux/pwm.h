@@ -8,7 +8,7 @@
 #include <linux/mutex.h>
 #include <linux/of.h>
 
-MODULE_IMPORT_NS(PWM);
+MODULE_IMPORT_NS("PWM");
 
 struct pwm_chip;
 

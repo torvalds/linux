@@ -112,7 +112,7 @@ int asoc_sdw_bridge_cs35l56_count_sidecar(struct snd_soc_card *card,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(asoc_sdw_bridge_cs35l56_count_sidecar, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_bridge_cs35l56_count_sidecar, "SND_SOC_SDW_UTILS");
 
 int asoc_sdw_bridge_cs35l56_add_sidecar(struct snd_soc_card *card,
 					struct snd_soc_dai_link **dai_links,
@@ -134,7 +134,7 @@ int asoc_sdw_bridge_cs35l56_add_sidecar(struct snd_soc_card *card,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(asoc_sdw_bridge_cs35l56_add_sidecar, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_bridge_cs35l56_add_sidecar, "SND_SOC_SDW_UTILS");
 
 int asoc_sdw_bridge_cs35l56_spk_init(struct snd_soc_card *card,
 				     struct snd_soc_dai_link *dai_links,
@@ -148,4 +148,4 @@ int asoc_sdw_bridge_cs35l56_spk_init(struct snd_soc_card *card,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(asoc_sdw_bridge_cs35l56_spk_init, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_bridge_cs35l56_spk_init, "SND_SOC_SDW_UTILS");

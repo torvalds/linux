@@ -73,7 +73,7 @@ int devm_cxl_add_passthrough_decoder(struct cxl_port *port)
 
 	return add_hdm_decoder(port, &cxlsd->cxld, single_port_map);
 }
-EXPORT_SYMBOL_NS_GPL(devm_cxl_add_passthrough_decoder, CXL);
+EXPORT_SYMBOL_NS_GPL(devm_cxl_add_passthrough_decoder, "CXL");
 
 static void parse_hdm_decoder_caps(struct cxl_hdm *cxlhdm)
 {
@@ -199,7 +199,7 @@ struct cxl_hdm *devm_cxl_setup_hdm(struct cxl_port *port,
 
 	return cxlhdm;
 }
-EXPORT_SYMBOL_NS_GPL(devm_cxl_setup_hdm, CXL);
+EXPORT_SYMBOL_NS_GPL(devm_cxl_setup_hdm, "CXL");
 
 static void __cxl_dpa_debug(struct seq_file *file, struct resource *r, int depth)
 {
@@ -221,7 +221,7 @@ void cxl_dpa_debug(struct seq_file *file, struct cxl_dev_state *cxlds)
 	}
 	up_read(&cxl_dpa_rwsem);
 }
-EXPORT_SYMBOL_NS_GPL(cxl_dpa_debug, CXL);
+EXPORT_SYMBOL_NS_GPL(cxl_dpa_debug, "CXL");
 
 /*
  * Must be called in a context that synchronizes against this decoder's
@@ -358,7 +358,7 @@ int devm_cxl_dpa_reserve(struct cxl_endpoint_decoder *cxled,
 
 	return devm_add_action_or_reset(&port->dev, cxl_dpa_release, cxled);
 }
-EXPORT_SYMBOL_NS_GPL(devm_cxl_dpa_reserve, CXL);
+EXPORT_SYMBOL_NS_GPL(devm_cxl_dpa_reserve, "CXL");
 
 resource_size_t cxl_dpa_size(struct cxl_endpoint_decoder *cxled)
 {
@@ -738,7 +738,7 @@ void cxl_port_commit_reap(struct cxl_decoder *cxld)
 	device_for_each_child_reverse_from(&port->dev, &cxld->dev, NULL,
 					   commit_reap);
 }
-EXPORT_SYMBOL_NS_GPL(cxl_port_commit_reap, CXL);
+EXPORT_SYMBOL_NS_GPL(cxl_port_commit_reap, "CXL");
 
 static void cxl_decoder_reset(struct cxl_decoder *cxld)
 {
@@ -1064,4 +1064,4 @@ int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(devm_cxl_enumerate_decoders, CXL);
+EXPORT_SYMBOL_NS_GPL(devm_cxl_enumerate_decoders, "CXL");

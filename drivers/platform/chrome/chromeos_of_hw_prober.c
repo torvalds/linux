@@ -151,4 +151,4 @@ module_exit(chromeos_of_hw_prober_driver_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("ChromeOS device tree hardware prober");
-MODULE_IMPORT_NS(I2C_OF_PROBER);
+MODULE_IMPORT_NS("I2C_OF_PROBER");
