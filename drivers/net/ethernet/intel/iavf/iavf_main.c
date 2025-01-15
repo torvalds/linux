@@ -1180,7 +1180,7 @@ static void iavf_napi_enable_all(struct iavf_adapter *adapter)
 
 		q_vector = &adapter->q_vectors[q_idx];
 		napi = &q_vector->napi;
-		napi_enable(napi);
+		napi_enable_locked(napi);
 	}
 }
 
@@ -1196,7 +1196,7 @@ static void iavf_napi_disable_all(struct iavf_adapter *adapter)
 
 	for (q_idx = 0; q_idx < q_vectors; q_idx++) {
 		q_vector = &adapter->q_vectors[q_idx];
-		napi_disable(&q_vector->napi);
+		napi_disable_locked(&q_vector->napi);
 	}
 }
 
