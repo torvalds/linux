@@ -167,10 +167,19 @@ found:;
 		goto err;
 
 	struct bch_hash_info hash2 = bch2_hash_info_init(c, &inode);
-	if (memcmp(hash_info, &hash2, sizeof(hash2))) {
+	if (hash_info->type != hash2.type ||
+	    memcmp(&hash_info->siphash_key, &hash2.siphash_key, sizeof(hash2.siphash_key))) {
 		ret = repair_inode_hash_info(trans, &inode);
 		if (!ret) {
-			bch_err(c, "inode hash info mismatch with root, but mismatch not found");
+			bch_err(c, "inode hash info mismatch with root, but mismatch not found\n"
+				"%u %llx %llx\n"
+				"%u %llx %llx",
+				hash_info->type,
+				hash_info->siphash_key.k0,
+				hash_info->siphash_key.k1,
+				hash2.type,
+				hash2.siphash_key.k0,
+				hash2.siphash_key.k1);
 			ret = -BCH_ERR_fsck_repair_unimplemented;
 		}
 	}
