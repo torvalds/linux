@@ -1114,7 +1114,7 @@ int timerlat_top_main(int argc, char *argv[])
 	while (!stop_tracing) {
 		sleep(params->sleep_time);
 
-		if (params->aa_only && !trace_is_off(&top->trace, &record->trace))
+		if (params->aa_only && !osnoise_trace_is_off(top, record))
 			continue;
 
 		retval = tracefs_iterate_raw_events(trace->tep,
@@ -1131,7 +1131,7 @@ int timerlat_top_main(int argc, char *argv[])
 		if (!params->quiet)
 			timerlat_print_stats(params, top);
 
-		if (trace_is_off(&top->trace, &record->trace))
+		if (osnoise_trace_is_off(top, record))
 			break;
 
 		/* is there still any user-threads ? */
@@ -1152,7 +1152,7 @@ int timerlat_top_main(int argc, char *argv[])
 
 	return_value = 0;
 
-	if (trace_is_off(&top->trace, &record->trace) && !stop_tracing) {
+	if (osnoise_trace_is_off(top, record) && !stop_tracing) {
 		printf("rtla timerlat hit stop tracing\n");
 
 		if (!params->no_aa)

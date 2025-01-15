@@ -104,6 +104,7 @@ struct osnoise_tool {
 void osnoise_destroy_tool(struct osnoise_tool *top);
 struct osnoise_tool *osnoise_init_tool(char *tool_name);
 struct osnoise_tool *osnoise_init_trace_tool(char *tracer);
+bool osnoise_trace_is_off(struct osnoise_tool *tool, struct osnoise_tool *record);
 
 int osnoise_hist_main(int argc, char *argv[]);
 int osnoise_top_main(int argc, char **argv);
