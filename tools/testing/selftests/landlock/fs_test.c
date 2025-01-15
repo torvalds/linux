@@ -59,6 +59,12 @@ int open_tree(int dfd, const char *filename, unsigned int flags)
 }
 #endif
 
+static int sys_execveat(int dirfd, const char *pathname, char *const argv[],
+			char *const envp[], int flags)
+{
+	return syscall(__NR_execveat, dirfd, pathname, argv, envp, flags);
+}
+
 #ifndef RENAME_EXCHANGE
 #define RENAME_EXCHANGE (1 << 1)
 #endif
@@ -2018,8 +2024,8 @@ static void test_check_exec(struct __test_metadata *const _metadata,
 	int ret;
 	char *const argv[] = { (char *)path, NULL };
 
-	ret = execveat(AT_FDCWD, path, argv, NULL,
-		       AT_EMPTY_PATH | AT_EXECVE_CHECK);
+	ret = sys_execveat(AT_FDCWD, path, argv, NULL,
+			   AT_EMPTY_PATH | AT_EXECVE_CHECK);
 	if (err) {
 		EXPECT_EQ(-1, ret);
 		EXPECT_EQ(errno, err);
