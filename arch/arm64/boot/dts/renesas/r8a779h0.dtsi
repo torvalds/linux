@@ -1921,6 +1921,17 @@
 			renesas,fcp = <&fcpvd0>;
 		};
 
+		vspx0: vsp@fedd0000 {
+			compatible = "renesas,vsp2";
+			reg = <0 0xfedd0000 0 0x8000>;
+			interrupts = <GIC_SPI 556 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD 1028>;
+			power-domains = <&sysc R8A779H0_PD_A3ISP0>;
+			resets = <&cpg 1028>;
+
+			renesas,fcp = <&fcpvx0>;
+		};
+
 		du: display@feb00000 {
 			compatible = "renesas,du-r8a779h0";
 			reg = <0 0xfeb00000 0 0x40000>;
