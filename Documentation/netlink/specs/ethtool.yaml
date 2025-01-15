@@ -332,6 +332,12 @@ attribute-sets:
       -
         name: tx-push-buf-len-max
         type: u32
+      -
+        name: hds-thresh
+        type: u32
+      -
+        name: hds-thresh-max
+        type: u32
 
   -
     name: mm-stat
@@ -1777,6 +1783,8 @@ operations:
             - rx-push
             - tx-push-buf-len
             - tx-push-buf-len-max
+            - hds-thresh
+            - hds-thresh-max
       dump: *ring-get-op
     -
       name: rings-set
