@@ -2448,7 +2448,7 @@ struct net_device {
 	 * Should always be taken using netdev_lock() / netdev_unlock() helpers.
 	 * Drivers are free to use it for other protection.
 	 *
-	 * Protects: @net_shaper_hierarchy.
+	 * Protects: @reg_state, @net_shaper_hierarchy.
 	 * Ordering: take after rtnl_lock.
 	 */
 	struct mutex		lock;
