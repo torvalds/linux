@@ -768,7 +768,8 @@ static struct napi_struct *napi_by_id(unsigned int napi_id)
 }
 
 /* must be called under rcu_read_lock(), as we dont take a reference */
-struct napi_struct *netdev_napi_by_id(struct net *net, unsigned int napi_id)
+static struct napi_struct *
+netdev_napi_by_id(struct net *net, unsigned int napi_id)
 {
 	struct napi_struct *napi;
 
