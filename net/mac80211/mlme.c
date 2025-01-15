@@ -10273,8 +10273,10 @@ int ieee80211_mgd_assoc_ml_reconf(struct ieee80211_sub_if_data *sdata,
 	 * on which the request was received.
 	 */
 	skb = ieee80211_build_ml_reconf_req(sdata, data, rem_links);
-	if (!skb)
-		return -ENOMEM;
+	if (!skb) {
+		err = -ENOMEM;
+		goto err_free;
+	}
 
 	if (rem_links) {
 		u16 new_dormant_links = sdata->vif.dormant_links & ~rem_links;
