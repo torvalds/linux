@@ -1038,8 +1038,10 @@ static int rtl822x_c45_read_status(struct phy_device *phydev)
 	if (ret < 0)
 		return ret;
 
-	if (!phydev->link)
+	if (!phydev->link) {
+		phydev->master_slave_state = MASTER_SLAVE_STATE_UNKNOWN;
 		return 0;
+	}
 
 	/* Read actual speed from vendor register. */
 	val = phy_read_mmd(phydev, MDIO_MMD_VEND2, RTL_VND2_PHYSR);
