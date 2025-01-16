@@ -35,6 +35,7 @@
 #include "reg.h"
 #include "resources.h"
 #include "../mlxfw/mlxfw.h"
+#include "txheader.h"
 
 static LIST_HEAD(mlxsw_core_driver_list);
 static DEFINE_SPINLOCK(mlxsw_core_driver_list_lock);
@@ -943,7 +944,7 @@ static struct sk_buff *mlxsw_emad_alloc(const struct mlxsw_core *mlxsw_core,
 
 	emad_len = (reg_len + sizeof(u32) + MLXSW_EMAD_ETH_HDR_LEN +
 		    (MLXSW_EMAD_OP_TLV_LEN + MLXSW_EMAD_END_TLV_LEN) *
-		    sizeof(u32) + mlxsw_core->driver->txhdr_len);
+		    sizeof(u32) + MLXSW_TXHDR_LEN);
 	if (mlxsw_core->emad.enable_string_tlv)
 		emad_len += MLXSW_EMAD_STRING_TLV_LEN * sizeof(u32);
 	if (mlxsw_core->emad.enable_latency_tlv)

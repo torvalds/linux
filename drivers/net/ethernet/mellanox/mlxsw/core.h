@@ -444,7 +444,6 @@ struct mlxsw_driver {
 	void (*ptp_transmitted)(struct mlxsw_core *mlxsw_core,
 				struct sk_buff *skb, u16 local_port);
 
-	u8 txhdr_len;
 	const struct mlxsw_config_profile *profile;
 	bool sdq_supports_cqe_v2;
 };
