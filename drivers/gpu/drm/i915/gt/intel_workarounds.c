@@ -691,16 +691,17 @@ static void gen12_ctx_workarounds_init(struct intel_engine_cs *engine,
 	struct drm_i915_private *i915 = engine->i915;
 
 	/*
-	 * Wa_1409142259:tgl,dg1,adl-p
+	 * Wa_1409142259:tgl,dg1,adl-p,adl-n
 	 * Wa_1409347922:tgl,dg1,adl-p
 	 * Wa_1409252684:tgl,dg1,adl-p
 	 * Wa_1409217633:tgl,dg1,adl-p
 	 * Wa_1409207793:tgl,dg1,adl-p
-	 * Wa_1409178076:tgl,dg1,adl-p
-	 * Wa_1408979724:tgl,dg1,adl-p
-	 * Wa_14010443199:tgl,rkl,dg1,adl-p
-	 * Wa_14010698770:tgl,rkl,dg1,adl-s,adl-p
-	 * Wa_1409342910:tgl,rkl,dg1,adl-s,adl-p
+	 * Wa_1409178076:tgl,dg1,adl-p,adl-n
+	 * Wa_1408979724:tgl,dg1,adl-p,adl-n
+	 * Wa_14010443199:tgl,rkl,dg1,adl-p,adl-n
+	 * Wa_14010698770:tgl,rkl,dg1,adl-s,adl-p,adl-n
+	 * Wa_1409342910:tgl,rkl,dg1,adl-s,adl-p,adl-n
+	 * Wa_22010465259:tgl,rkl,dg1,adl-s,adl-p,adl-n
 	 */
 	wa_masked_en(wal, GEN11_COMMON_SLICE_CHICKEN3,
 		     GEN12_DISABLE_CPS_AWARE_COLOR_PIPE);
