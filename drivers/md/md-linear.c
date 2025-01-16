@@ -204,8 +204,8 @@ static int linear_add(struct mddev *mddev, struct md_rdev *rdev)
 	rdev->saved_raid_disk = -1;
 
 	newconf = linear_conf(mddev, mddev->raid_disks + 1);
-	if (!newconf)
-		return -ENOMEM;
+	if (IS_ERR(newconf))
+		return PTR_ERR(newconf);
 
 	/* newconf->raid_disks already keeps a copy of * the increased
 	 * value of mddev->raid_disks, WARN_ONCE() is just used to make
