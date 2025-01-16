@@ -83,11 +83,11 @@
 #include <linux/blkdev.h>
 #include <linux/backing-dev.h>
 #include <linux/init.h>
-#include <linux/parser.h>
+#include <linux/fs_context.h>
+#include <linux/fs_parser.h>
 #include <linux/buffer_head.h>
 #include <linux/vfs.h>
 #include <linux/log2.h>
-#include <linux/mount.h>
 #include <linux/seq_file.h>
 #include <linux/iversion.h>
 
@@ -342,120 +342,74 @@ void ufs_warning (struct super_block * sb, const char * function,
 	va_end(args);
 }
 
-enum {
-       Opt_type_old = UFS_MOUNT_UFSTYPE_OLD,
-       Opt_type_sunx86 = UFS_MOUNT_UFSTYPE_SUNx86,
-       Opt_type_sun = UFS_MOUNT_UFSTYPE_SUN,
-       Opt_type_sunos = UFS_MOUNT_UFSTYPE_SUNOS,
-       Opt_type_44bsd = UFS_MOUNT_UFSTYPE_44BSD,
-       Opt_type_ufs2 = UFS_MOUNT_UFSTYPE_UFS2,
-       Opt_type_hp = UFS_MOUNT_UFSTYPE_HP,
-       Opt_type_nextstepcd = UFS_MOUNT_UFSTYPE_NEXTSTEP_CD,
-       Opt_type_nextstep = UFS_MOUNT_UFSTYPE_NEXTSTEP,
-       Opt_type_openstep = UFS_MOUNT_UFSTYPE_OPENSTEP,
-       Opt_onerror_panic = UFS_MOUNT_ONERROR_PANIC,
-       Opt_onerror_lock = UFS_MOUNT_ONERROR_LOCK,
-       Opt_onerror_umount = UFS_MOUNT_ONERROR_UMOUNT,
-       Opt_onerror_repair = UFS_MOUNT_ONERROR_REPAIR,
-       Opt_err
+enum { Opt_type, Opt_onerror };
+
+static const struct constant_table ufs_param_ufstype[] = {
+	{"old",		UFS_MOUNT_UFSTYPE_OLD},
+	{"sunx86",	UFS_MOUNT_UFSTYPE_SUNx86},
+	{"sun",		UFS_MOUNT_UFSTYPE_SUN},
+	{"sunos",	UFS_MOUNT_UFSTYPE_SUNOS},
+	{"44bsd",	UFS_MOUNT_UFSTYPE_44BSD},
+	{"ufs2",	UFS_MOUNT_UFSTYPE_UFS2},
+	{"5xbsd",	UFS_MOUNT_UFSTYPE_UFS2},
+	{"hp",		UFS_MOUNT_UFSTYPE_HP},
+	{"nextstep-cd",	UFS_MOUNT_UFSTYPE_NEXTSTEP_CD},
+	{"nextstep",	UFS_MOUNT_UFSTYPE_NEXTSTEP},
+	{"openstep",	UFS_MOUNT_UFSTYPE_OPENSTEP},
+	{}
 };
 
-static const match_table_t tokens = {
-	{Opt_type_old, "ufstype=old"},
-	{Opt_type_sunx86, "ufstype=sunx86"},
-	{Opt_type_sun, "ufstype=sun"},
-	{Opt_type_sunos, "ufstype=sunos"},
-	{Opt_type_44bsd, "ufstype=44bsd"},
-	{Opt_type_ufs2, "ufstype=ufs2"},
-	{Opt_type_ufs2, "ufstype=5xbsd"},
-	{Opt_type_hp, "ufstype=hp"},
-	{Opt_type_nextstepcd, "ufstype=nextstep-cd"},
-	{Opt_type_nextstep, "ufstype=nextstep"},
-	{Opt_type_openstep, "ufstype=openstep"},
-/*end of possible ufs types */
-	{Opt_onerror_panic, "onerror=panic"},
-	{Opt_onerror_lock, "onerror=lock"},
-	{Opt_onerror_umount, "onerror=umount"},
-	{Opt_onerror_repair, "onerror=repair"},
-	{Opt_err, NULL}
+static const struct constant_table ufs_param_onerror[] = {
+	{"panic",	UFS_MOUNT_ONERROR_PANIC},
+	{"lock",	UFS_MOUNT_ONERROR_LOCK},
+	{"umount",	UFS_MOUNT_ONERROR_UMOUNT},
+	{"repair",	UFS_MOUNT_ONERROR_REPAIR},
+	{}
 };
 
-static int ufs_parse_options(char *options, unsigned *flavour, unsigned *on_err, bool remount)
+static const struct fs_parameter_spec ufs_param_spec[] = {
+	fsparam_enum	("ufstype",	Opt_type, ufs_param_ufstype),
+	fsparam_enum	("onerror",	Opt_onerror, ufs_param_onerror),
+	{}
+};
+
+struct ufs_fs_context {
+	unsigned int flavour, on_err;
+};
+
+static int ufs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 {
-	char * p;
-	
+	struct ufs_fs_context *ctx = fc->fs_private;
+	struct fs_parse_result result;
+	int opt;
+
 	UFSD("ENTER\n");
-	
-	if (!options)
-		return 1;
 
-	while ((p = strsep(&options, ",")) != NULL) {
-		substring_t args[MAX_OPT_ARGS];
-		int token;
-		unsigned int old = *flavour;
-		if (!*p)
-			continue;
+	opt = fs_parse(fc, ufs_param_spec, param, &result);
+	if (opt < 0)
+		return opt;
 
-		token = match_token(p, tokens, args);
-		switch (token) {
-		case Opt_type_old:
-			*flavour = UFS_MOUNT_UFSTYPE_OLD;
-			break;
-		case Opt_type_sunx86:
-			*flavour = UFS_MOUNT_UFSTYPE_SUNx86;
-			break;
-		case Opt_type_sun:
-			*flavour = UFS_MOUNT_UFSTYPE_SUN;
-			break;
-		case Opt_type_sunos:
-			*flavour = UFS_MOUNT_UFSTYPE_SUNOS;
-			break;
-		case Opt_type_44bsd:
-			*flavour = UFS_MOUNT_UFSTYPE_44BSD;
-			break;
-		case Opt_type_ufs2:
-			*flavour = UFS_MOUNT_UFSTYPE_UFS2;
-			break;
-		case Opt_type_hp:
-			*flavour = UFS_MOUNT_UFSTYPE_HP;
-			break;
-		case Opt_type_nextstepcd:
-			*flavour = UFS_MOUNT_UFSTYPE_NEXTSTEP_CD;
-			break;
-		case Opt_type_nextstep:
-			*flavour = UFS_MOUNT_UFSTYPE_NEXTSTEP;
-			break;
-		case Opt_type_openstep:
-			*flavour = UFS_MOUNT_UFSTYPE_OPENSTEP;
-			break;
-		case Opt_onerror_panic:
-			*on_err = UFS_MOUNT_ONERROR_PANIC;
-			break;
-		case Opt_onerror_lock:
-			*on_err = UFS_MOUNT_ONERROR_LOCK;
-			break;
-		case Opt_onerror_umount:
-			*on_err = UFS_MOUNT_ONERROR_UMOUNT;
-			break;
-		case Opt_onerror_repair:
-			*on_err = UFS_MOUNT_ONERROR_REPAIR;
-			pr_err("Unable to do repair on error, will lock lock instead\n");
-			break;
-		default:
-			pr_err("Invalid option: \"%s\" or missing value\n", p);
+	switch (opt) {
+	case Opt_type:
+		if (ctx->flavour == result.uint_32) /* no-op */
 			return 0;
-		}
-		if (*flavour == old)
-			continue;
-		if (!old)
-			continue;
-		if (remount)
+		if (fc->purpose == FS_CONTEXT_FOR_RECONFIGURE) {
 			pr_err("ufstype can't be changed during remount\n");
-		else
+			return -EINVAL;
+		}
+                if (!ctx->flavour) {
 			pr_err("conflicting ufstype options\n");
-		return 0;
+			return -EINVAL;
+		}
+		ctx->flavour = result.uint_32;
+		break;
+	case Opt_onerror:
+		ctx->on_err = result.uint_32;
+		break;
+	default:
+		return -EINVAL;
 	}
-	return 1;
+	return 0;
 }
 
 /*
@@ -760,8 +714,10 @@ static u64 ufs_max_bytes(struct super_block *sb)
 	return res << uspi->s_bshift;
 }
 
-static int ufs_fill_super(struct super_block *sb, void *data, int silent)
+static int ufs_fill_super(struct super_block *sb, struct fs_context *fc)
 {
+	struct ufs_fs_context *ctx = fc->fs_private;
+	int silent = fc->sb_flags & SB_SILENT;
 	struct ufs_sb_info * sbi;
 	struct ufs_sb_private_info * uspi;
 	struct ufs_super_block_first * usb1;
@@ -799,16 +755,10 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 	mutex_init(&sbi->s_lock);
 	spin_lock_init(&sbi->work_lock);
 	INIT_DELAYED_WORK(&sbi->sync_work, delayed_sync_fs);
-	/*
-	 * Set default mount options
-	 * Parse mount options
-	 */
-	sbi->s_flavour = 0;
-	sbi->s_on_err = UFS_MOUNT_ONERROR_LOCK;
-	if (!ufs_parse_options(data, &sbi->s_flavour, &sbi->s_on_err, false)) {
-		pr_err("wrong mount options\n");
-		goto failed;
-	}
+
+	sbi->s_flavour = ctx->flavour;
+	sbi->s_on_err = ctx->on_err;
+
 	if (!sbi->s_flavour) {
 		if (!silent)
 			pr_err("You didn't specify the type of your ufs filesystem\n\n"
@@ -1286,13 +1236,15 @@ failed_nomem:
 	return -ENOMEM;
 }
 
-static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
+static int ufs_reconfigure(struct fs_context *fc)
 {
 	struct ufs_sb_private_info * uspi;
 	struct ufs_super_block_first * usb1;
 	struct ufs_super_block_third * usb3;
-	unsigned on_err, ufstype;
-	unsigned flags;
+	struct ufs_fs_context *ctx = fc->fs_private;
+	struct super_block *sb = fc->root->d_sb;
+	unsigned int ufstype;
+	unsigned int flags;
 
 	sync_filesystem(sb);
 	mutex_lock(&UFS_SB(sb)->s_lock);
@@ -1301,19 +1253,10 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 	usb1 = ubh_get_usb_first(uspi);
 	usb3 = ubh_get_usb_third(uspi);
 	
-	/*
-	 * Allow the "check" option to be passed as a remount option.
-	 * It is not possible to change ufstype option during remount
-	 */
 	ufstype = UFS_SB(sb)->s_flavour;
-	on_err = UFS_MOUNT_ONERROR_LOCK;
-	if (!ufs_parse_options(data, &ufstype, &on_err, true)) {
-		mutex_unlock(&UFS_SB(sb)->s_lock);
-		return -EINVAL;
-	}
 
-	if ((bool)(*mount_flags & SB_RDONLY) == sb_rdonly(sb)) {
-		UFS_SB(sb)->s_on_err = on_err;
+	if ((bool)(fc->sb_flags & SB_RDONLY) == sb_rdonly(sb)) {
+		UFS_SB(sb)->s_on_err = ctx->on_err;
 		mutex_unlock(&UFS_SB(sb)->s_lock);
 		return 0;
 	}
@@ -1321,7 +1264,7 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 	/*
 	 * fs was mouted as rw, remounting ro
 	 */
-	if (*mount_flags & SB_RDONLY) {
+	if (fc->sb_flags & SB_RDONLY) {
 		ufs_put_super_internal(sb);
 		usb1->fs_time = ufs_get_seconds(sb);
 		if ((flags & UFS_ST_MASK) == UFS_ST_SUN
@@ -1357,7 +1300,7 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 		sb->s_flags &= ~SB_RDONLY;
 #endif
 	}
-	UFS_SB(sb)->s_on_err = on_err;
+	UFS_SB(sb)->s_on_err = ctx->on_err;
 	mutex_unlock(&UFS_SB(sb)->s_lock);
 	return 0;
 }
@@ -1366,18 +1309,18 @@ static int ufs_show_options(struct seq_file *seq, struct dentry *root)
 {
 	struct ufs_sb_info *sbi = UFS_SB(root->d_sb);
 	unsigned mval = sbi->s_flavour;
-	const struct match_token *tp = tokens;
+	const struct constant_table *tp;
 
-	while (tp->token != Opt_onerror_panic && tp->token != mval)
+	tp = ufs_param_ufstype;
+	while (tp->value && tp->value != mval)
 		++tp;
-	BUG_ON(tp->token == Opt_onerror_panic);
-	seq_printf(seq, ",%s", tp->pattern);
+	seq_printf(seq, ",ufstype=%s", tp->name);
 
+	tp = ufs_param_onerror;
 	mval = sbi->s_on_err;
-	while (tp->token != Opt_err && tp->token != mval)
+	while (tp->value && tp->value != mval)
 		++tp;
-	BUG_ON(tp->token == Opt_err);
-	seq_printf(seq, ",%s", tp->pattern);
+	seq_printf(seq, ",onerror=%s", tp->name);
 
 	return 0;
 }
@@ -1471,21 +1414,57 @@ static const struct super_operations ufs_super_ops = {
 	.put_super	= ufs_put_super,
 	.sync_fs	= ufs_sync_fs,
 	.statfs		= ufs_statfs,
-	.remount_fs	= ufs_remount,
 	.show_options   = ufs_show_options,
 };
 
-static struct dentry *ufs_mount(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int ufs_get_tree(struct fs_context *fc)
 {
-	return mount_bdev(fs_type, flags, dev_name, data, ufs_fill_super);
+	return get_tree_bdev(fc, ufs_fill_super);
+}
+
+static void ufs_free_fc(struct fs_context *fc)
+{
+	kfree(fc->fs_private);
+}
+
+static const struct fs_context_operations ufs_context_ops = {
+	.parse_param	= ufs_parse_param,
+	.get_tree	= ufs_get_tree,
+	.reconfigure	= ufs_reconfigure,
+	.free		= ufs_free_fc,
+};
+
+static int ufs_init_fs_context(struct fs_context *fc)
+{
+	struct ufs_fs_context *ctx;
+
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+
+	if (fc->purpose == FS_CONTEXT_FOR_RECONFIGURE) {
+		struct super_block *sb = fc->root->d_sb;
+		struct ufs_sb_info *sbi = UFS_SB(sb);
+
+		ctx->flavour = sbi->s_flavour;
+		ctx->on_err = sbi->s_on_err;
+	} else {
+		ctx->flavour = 0;
+		ctx->on_err = UFS_MOUNT_ONERROR_LOCK;
+	}
+
+	fc->fs_private = ctx;
+	fc->ops = &ufs_context_ops;
+
+	return 0;
 }
 
 static struct file_system_type ufs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "ufs",
-	.mount		= ufs_mount,
 	.kill_sb	= kill_block_super,
+	.init_fs_context = ufs_init_fs_context,
+	.parameters	= ufs_param_spec,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
 MODULE_ALIAS_FS("ufs");
