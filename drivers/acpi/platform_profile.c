@@ -5,10 +5,11 @@
 #include <linux/acpi.h>
 #include <linux/bits.h>
 #include <linux/init.h>
-#include <linux/kdev_t.h>
 #include <linux/mutex.h>
 #include <linux/platform_profile.h>
 #include <linux/sysfs.h>
+
+#define to_pprof_handler(d)	(container_of(d, struct platform_profile_handler, class_dev))
 
 static DEFINE_MUTEX(profile_lock);
 
@@ -60,7 +61,7 @@ static int _store_class_profile(struct device *dev, void *data)
 	int *bit = (int *)data;
 
 	lockdep_assert_held(&profile_lock);
-	handler = dev_get_drvdata(dev);
+	handler = to_pprof_handler(dev);
 	if (!test_bit(*bit, handler->choices))
 		return -EOPNOTSUPP;
 
@@ -76,11 +77,11 @@ static int _store_class_profile(struct device *dev, void *data)
  */
 static int _notify_class_profile(struct device *dev, void *data)
 {
-	struct platform_profile_handler *handler = dev_get_drvdata(dev);
+	struct platform_profile_handler *handler = to_pprof_handler(dev);
 
 	lockdep_assert_held(&profile_lock);
-	sysfs_notify(&handler->class_dev->kobj, NULL, "profile");
-	kobject_uevent(&handler->class_dev->kobj, KOBJ_CHANGE);
+	sysfs_notify(&handler->class_dev.kobj, NULL, "profile");
+	kobject_uevent(&handler->class_dev.kobj, KOBJ_CHANGE);
 
 	return 0;
 }
@@ -100,7 +101,7 @@ static int get_class_profile(struct device *dev,
 	int err;
 
 	lockdep_assert_held(&profile_lock);
-	handler = dev_get_drvdata(dev);
+	handler = to_pprof_handler(dev);
 	err = handler->profile_get(handler, &val);
 	if (err) {
 		pr_err("Failed to get profile for handler %s\n", handler->name);
@@ -124,7 +125,7 @@ static int get_class_profile(struct device *dev,
  */
 static ssize_t name_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct platform_profile_handler *handler = dev_get_drvdata(dev);
+	struct platform_profile_handler *handler = to_pprof_handler(dev);
 
 	return sysfs_emit(buf, "%s\n", handler->name);
 }
@@ -142,7 +143,7 @@ static ssize_t choices_show(struct device *dev,
 			    struct device_attribute *attr,
 			    char *buf)
 {
-	struct platform_profile_handler *handler = dev_get_drvdata(dev);
+	struct platform_profile_handler *handler = to_pprof_handler(dev);
 
 	return _commmon_choices_show(handler->choices, buf);
 }
@@ -229,7 +230,7 @@ static int _aggregate_choices(struct device *dev, void *data)
 	unsigned long *aggregate = data;
 
 	lockdep_assert_held(&profile_lock);
-	handler = dev_get_drvdata(dev);
+	handler = to_pprof_handler(dev);
 	if (test_bit(PLATFORM_PROFILE_LAST, aggregate))
 		bitmap_copy(aggregate, handler->choices, PLATFORM_PROFILE_LAST);
 	else
@@ -410,7 +411,7 @@ static const struct attribute_group platform_profile_group = {
 void platform_profile_notify(struct platform_profile_handler *pprof)
 {
 	scoped_cond_guard(mutex_intr, return, &profile_lock) {
-		_notify_class_profile(pprof->class_dev, NULL);
+		_notify_class_profile(&pprof->class_dev, NULL);
 	}
 	sysfs_notify(acpi_kobj, NULL, "platform_profile");
 }
@@ -476,11 +477,13 @@ int platform_profile_register(struct platform_profile_handler *pprof)
 	pprof->minor = ida_alloc(&platform_profile_ida, GFP_KERNEL);
 	if (pprof->minor < 0)
 		return pprof->minor;
-	pprof->class_dev = device_create(&platform_profile_class, pprof->dev,
-					 MKDEV(0, 0), pprof, "platform-profile-%d",
-					 pprof->minor);
-	if (IS_ERR(pprof->class_dev)) {
-		err = PTR_ERR(pprof->class_dev);
+
+	pprof->class_dev.class = &platform_profile_class;
+	pprof->class_dev.parent = pprof->dev;
+	dev_set_name(&pprof->class_dev, "platform-profile-%d", pprof->minor);
+	err = device_register(&pprof->class_dev);
+	if (err) {
+		put_device(&pprof->class_dev);
 		goto cleanup_ida;
 	}
 
@@ -493,7 +496,7 @@ int platform_profile_register(struct platform_profile_handler *pprof)
 	return 0;
 
 cleanup_cur:
-	device_unregister(pprof->class_dev);
+	device_unregister(&pprof->class_dev);
 
 cleanup_ida:
 	ida_free(&platform_profile_ida, pprof->minor);
@@ -508,7 +511,7 @@ int platform_profile_remove(struct platform_profile_handler *pprof)
 	guard(mutex)(&profile_lock);
 
 	id = pprof->minor;
-	device_unregister(pprof->class_dev);
+	device_unregister(&pprof->class_dev);
 	ida_free(&platform_profile_ida, id);
 
 	sysfs_notify(acpi_kobj, NULL, "platform_profile");
