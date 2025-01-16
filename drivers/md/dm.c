@@ -1745,6 +1745,9 @@ static blk_status_t __split_and_process_bio(struct clone_info *ci)
 	ci->submit_as_polled = !!(ci->bio->bi_opf & REQ_POLLED);
 
 	len = min_t(sector_t, max_io_len(ti, ci->sector), ci->sector_count);
+	if (ci->bio->bi_opf & REQ_ATOMIC && len != ci->sector_count)
+		return BLK_STS_IOERR;
+
 	setup_split_accounting(ci, len);
 
 	if (unlikely(ci->bio->bi_opf & REQ_NOWAIT)) {
