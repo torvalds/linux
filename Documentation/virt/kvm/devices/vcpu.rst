@@ -142,9 +142,8 @@ the cpu field to the processor id.
 
 :Architectures: ARM64
 
-2.1. ATTRIBUTES: KVM_ARM_VCPU_TIMER_IRQ_VTIMER, KVM_ARM_VCPU_TIMER_IRQ_PTIMER,
-                 KVM_ARM_VCPU_TIMER_IRQ_HVTIMER, KVM_ARM_VCPU_TIMER_IRQ_HPTIMER,
---------------------------------------------------------------------------------
+2.1. ATTRIBUTES: KVM_ARM_VCPU_TIMER_IRQ_{VTIMER,PTIMER,HVTIMER,HPTIMER}
+-----------------------------------------------------------------------
 
 :Parameters: in kvm_device_attr.addr the address for the timer interrupt is a
 	     pointer to an int
