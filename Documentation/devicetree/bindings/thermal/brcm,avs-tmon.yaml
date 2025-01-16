@@ -18,6 +18,7 @@ properties:
   compatible:
     items:
       - enum:
+          - brcm,avs-tmon-bcm74110
           - brcm,avs-tmon-bcm7216
           - brcm,avs-tmon-bcm7445
       - const: brcm,avs-tmon
