@@ -166,15 +166,14 @@ static void promote_start(struct promote_op *op, struct bch_read_bio *rbio)
 	bch2_data_update_read_done(&op->write, rbio->pick.crc);
 }
 
-static struct promote_op *__promote_alloc(struct btree_trans *trans,
-					  enum btree_id btree_id,
-					  struct bkey_s_c k,
-					  struct bpos pos,
-					  struct extent_ptr_decoded *pick,
-					  unsigned sectors,
-					  struct bch_read_bio *orig,
-					  struct bch_read_bio **rbio,
-					  struct bch_io_failures *failed)
+static struct bch_read_bio *__promote_alloc(struct btree_trans *trans,
+					    enum btree_id btree_id,
+					    struct bkey_s_c k,
+					    struct bpos pos,
+					    struct extent_ptr_decoded *pick,
+					    unsigned sectors,
+					    struct bch_read_bio *orig,
+					    struct bch_io_failures *failed)
 {
 	struct bch_fs *c = trans->c;
 	struct promote_op *op = NULL;
@@ -188,34 +187,25 @@ static struct promote_op *__promote_alloc(struct btree_trans *trans,
 	op = kzalloc(struct_size(op, bi_inline_vecs, pages), GFP_KERNEL);
 	if (!op) {
 		ret = -BCH_ERR_nopromote_enomem;
-		goto err;
+		goto err_put;
 	}
 
 	op->start_time = local_clock();
 	op->pos = pos;
 
-	/*
-	 * We don't use the mempool here because extents that aren't
-	 * checksummed or compressed can be too big for the mempool:
-	 */
-	*rbio = kzalloc(sizeof(struct bch_read_bio) +
-			sizeof(struct bio_vec) * pages,
-			GFP_KERNEL);
-	if (!*rbio) {
+	rbio_init_fragment(&op->write.rbio.bio, orig);
+	bio_init(&op->write.rbio.bio,
+		 NULL,
+		 op->write.bi_inline_vecs,
+		 pages, 0);
+
+	if (bch2_bio_alloc_pages(&op->write.rbio.bio, sectors << 9, GFP_KERNEL)) {
 		ret = -BCH_ERR_nopromote_enomem;
 		goto err;
 	}
 
-	rbio_init_fragment(&(*rbio)->bio, orig);
-	bio_init(&(*rbio)->bio, NULL, (*rbio)->bio.bi_inline_vecs, pages, 0);
-
-	if (bch2_bio_alloc_pages(&(*rbio)->bio, sectors << 9, GFP_KERNEL)) {
-		ret = -BCH_ERR_nopromote_enomem;
-		goto err;
-	}
-
-	(*rbio)->bounce		= true;
-	(*rbio)->kmalloc	= true;
+	op->write.rbio.bounce	= true;
+	op->write.rbio.promote	= true;
 
 	if (rhashtable_lookup_insert_fast(&c->promote_table, &op->hash,
 					  bch_promote_params)) {
@@ -260,27 +250,23 @@ static struct promote_op *__promote_alloc(struct btree_trans *trans,
 	}
 
 	op->write.op.end_io = promote_done;
-
-	return op;
+	return &op->write.rbio;
 err:
-	if (*rbio)
-		bio_free_pages(&(*rbio)->bio);
-	kfree(*rbio);
-	*rbio = NULL;
+	bio_free_pages(&op->write.rbio.bio);
 	/* We may have added to the rhashtable and thus need rcu freeing: */
 	kfree_rcu(op, rcu);
+err_put:
 	bch2_write_ref_put(c, BCH_WRITE_REF_promote);
 	return ERR_PTR(ret);
 }
 
 noinline
-static struct promote_op *promote_alloc(struct btree_trans *trans,
+static struct bch_read_bio *promote_alloc(struct btree_trans *trans,
 					struct bvec_iter iter,
 					struct bkey_s_c k,
 					struct extent_ptr_decoded *pick,
 					unsigned flags,
 					struct bch_read_bio *orig,
-					struct bch_read_bio **rbio,
 					bool *bounce,
 					bool *read_full,
 					struct bch_io_failures *failed)
@@ -300,18 +286,18 @@ static struct promote_op *promote_alloc(struct btree_trans *trans,
 	struct bpos pos = promote_full
 		? bkey_start_pos(k.k)
 		: POS(k.k->p.inode, iter.bi_sector);
-	struct promote_op *promote;
 	int ret;
 
 	ret = should_promote(c, k, pos, orig->opts, flags, failed);
 	if (ret)
 		goto nopromote;
 
-	promote = __promote_alloc(trans,
-				  k.k->type == KEY_TYPE_reflink_v
-				  ? BTREE_ID_reflink
-				  : BTREE_ID_extents,
-				  k, pos, pick, sectors, orig, rbio, failed);
+	struct bch_read_bio *promote =
+		__promote_alloc(trans,
+				k.k->type == KEY_TYPE_reflink_v
+				? BTREE_ID_reflink
+				: BTREE_ID_extents,
+				k, pos, pick, sectors, orig, failed);
 	ret = PTR_ERR_OR_ZERO(promote);
 	if (ret)
 		goto nopromote;
@@ -374,20 +360,24 @@ static inline struct bch_read_bio *bch2_rbio_free(struct bch_read_bio *rbio)
 {
 	BUG_ON(rbio->bounce && !rbio->split);
 
-	if (rbio->promote)
-		promote_free(rbio->c, rbio->promote);
-	rbio->promote = NULL;
-
-	if (rbio->bounce)
-		bch2_bio_free_pages_pool(rbio->c, &rbio->bio);
-
 	if (rbio->split) {
 		struct bch_read_bio *parent = rbio->parent;
 
-		if (rbio->kmalloc)
-			kfree(rbio);
-		else
+		if (rbio->promote) {
+			struct promote_op *op = container_of(rbio, struct promote_op, write.rbio);
+
+			if (!rbio->bio.bi_status) {
+				promote_start(op, rbio);
+			} else {
+				bch2_bio_free_pages_pool(rbio->c, &rbio->bio);
+				promote_free(rbio->c, op);
+			}
+		} else {
+			if (rbio->bounce)
+				bch2_bio_free_pages_pool(rbio->c, &rbio->bio);
+
 			bio_put(&rbio->bio);
+		}
 
 		rbio = parent;
 	}
@@ -482,7 +472,8 @@ static void bch2_rbio_retry(struct work_struct *work)
 	if (rbio->retry == READ_RETRY_AVOID)
 		bch2_mark_io_failure(&failed, &rbio->pick);
 
-	rbio->bio.bi_status = 0;
+	if (!rbio->split)
+		rbio->bio.bi_status = 0;
 
 	rbio = bch2_rbio_free(rbio);
 
@@ -753,9 +744,6 @@ static void __bch2_read_endio(struct work_struct *work)
 		ret = bch2_encrypt_bio(c, crc.csum_type, nonce, src);
 		if (ret)
 			goto decrypt_err;
-
-		promote_start(rbio->promote, rbio);
-		rbio->promote = NULL;
 	}
 nodecode:
 	if (likely(!(rbio->flags & BCH_READ_in_retry))) {
@@ -887,7 +875,6 @@ int __bch2_read_extent(struct btree_trans *trans, struct bch_read_bio *orig,
 	struct bch_fs *c = trans->c;
 	struct extent_ptr_decoded pick;
 	struct bch_read_bio *rbio = NULL;
-	struct promote_op *promote = NULL;
 	bool bounce = false, read_full = false, narrow_crcs = false;
 	struct bpos data_pos = bkey_start_pos(k.k);
 	int pick_ret;
@@ -988,8 +975,8 @@ retry_pick:
 	}
 
 	if (orig->opts.promote_target || have_io_error(failed))
-		promote = promote_alloc(trans, iter, k, &pick, flags, orig,
-					&rbio, &bounce, &read_full, failed);
+		rbio = promote_alloc(trans, iter, k, &pick, flags, orig,
+				     &bounce, &read_full, failed);
 
 	if (!read_full) {
 		EBUG_ON(crc_is_compressed(pick.crc));
@@ -1070,7 +1057,6 @@ get_bio:
 	rbio->data_btree	= data_btree;
 	rbio->data_pos		= data_pos;
 	rbio->version		= k.k->bversion;
-	rbio->promote		= promote;
 	INIT_WORK(&rbio->work, NULL);
 
 	if (flags & BCH_READ_data_update)
