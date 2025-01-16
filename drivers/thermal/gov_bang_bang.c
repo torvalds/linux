@@ -7,6 +7,27 @@
  *  Based on step_wise.c with following Copyrights:
  *  Copyright (C) 2012 Intel Corp
  *  Copyright (C) 2012 Durgadoss R <durgadoss.r@intel.com>
+ *
+ * Regulation Logic: a two point regulation, deliver cooling state depending
+ * on the previous state shown in this diagram:
+ *
+ *                Fan:   OFF    ON
+ *
+ *                              |
+ *                              |
+ *          trip_temp:    +---->+
+ *                        |     |        ^
+ *                        |     |        |
+ *                        |     |   Temperature
+ * (trip_temp - hyst):    +<----+
+ *                        |
+ *                        |
+ *                        |
+ *
+ *   * If the fan is not running and temperature exceeds trip_temp, the fan
+ *     gets turned on.
+ *   * In case the fan is running, temperature must fall below
+ *     (trip_temp - hyst) so that the fan gets turned off again.
  */
 
 #include <linux/thermal.h>
@@ -38,28 +59,6 @@ static void bang_bang_set_instance_target(struct thermal_instance *instance,
  * @tz: thermal_zone_device
  * @trip: the trip point
  * @crossed_up: whether or not the trip has been crossed on the way up
- *
- * Regulation Logic: a two point regulation, deliver cooling state depending
- * on the previous state shown in this diagram:
- *
- *                Fan:   OFF    ON
- *
- *                              |
- *                              |
- *          trip_temp:    +---->+
- *                        |     |        ^
- *                        |     |        |
- *                        |     |   Temperature
- * (trip_temp - hyst):    +<----+
- *                        |
- *                        |
- *                        |
- *
- *   * If the fan is not running and temperature exceeds trip_temp, the fan
- *     gets turned on.
- *   * In case the fan is running, temperature must fall below
- *     (trip_temp - hyst) so that the fan gets turned off again.
- *
  */
 static void bang_bang_trip_crossed(struct thermal_zone_device *tz,
 				   const struct thermal_trip *trip,
