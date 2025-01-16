@@ -2,6 +2,8 @@
 
 /* Platform profile sysfs interface */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/acpi.h>
 #include <linux/bits.h>
 #include <linux/cleanup.h>
