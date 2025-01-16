@@ -281,7 +281,7 @@ static int thermal_init(void)
 	thermal_handler->ops = &dell_pc_platform_profile_ops;
 
 	/* Clean up if failed */
-	ret = platform_profile_register(thermal_handler, NULL);
+	ret = devm_platform_profile_register(thermal_handler, NULL);
 	if (ret)
 		goto cleanup_thermal_handler;
 
@@ -298,8 +298,6 @@ cleanup_platform_device:
 
 static void thermal_cleanup(void)
 {
-	if (thermal_handler)
-		platform_profile_remove(thermal_handler);
 	platform_device_unregister(platform_device);
 }
 
