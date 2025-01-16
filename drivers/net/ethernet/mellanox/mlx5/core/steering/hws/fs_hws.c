@@ -417,7 +417,7 @@ mlx5_fs_get_dest_action_vport(struct mlx5_fs_hws_context *fs_ctx,
 	vport_num = is_dest_type_uplink ? MLX5_VPORT_UPLINK : dest_attr->vport.num;
 	if (vhca_id_valid) {
 		dests_xa = &fs_ctx->hws_pool.vport_vhca_dests;
-		idx = dest_attr->vport.vhca_id << 16 | vport_num;
+		idx = (unsigned long)dest_attr->vport.vhca_id << 16 | vport_num;
 	} else {
 		dests_xa = &fs_ctx->hws_pool.vport_dests;
 		idx = vport_num;
