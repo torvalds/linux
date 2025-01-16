@@ -325,8 +325,6 @@ config QORIQ_CPUFREQ
 	  This adds the CPUFreq driver support for Freescale QorIQ SoCs
 	  which are capable of changing the CPU's frequency dynamically.
 
-endif
-
 config ACPI_CPPC_CPUFREQ
 	tristate "CPUFreq driver based on the ACPI CPPC spec"
 	depends on ACPI_PROCESSOR
@@ -354,5 +352,7 @@ config ACPI_CPPC_CPUFREQ_FIE
 	  by using CPPC delivered and reference performance counters.
 
 	  If in doubt, say N.
+
+endif
 
 endmenu
