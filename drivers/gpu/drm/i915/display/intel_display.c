@@ -5358,6 +5358,19 @@ pipe_config_cx0pll_mismatch(struct drm_printer *p, bool fastset,
 	intel_cx0pll_dump_hw_state(display, b);
 }
 
+static bool allow_vblank_delay_fastset(const struct intel_crtc_state *old_crtc_state)
+{
+	struct intel_display *display = to_intel_display(old_crtc_state);
+
+	/*
+	 * Allow fastboot to fix up vblank delay (handled via LRR
+	 * codepaths), a bit dodgy as the registers aren't
+	 * double buffered but seems to be working more or less...
+	 */
+	return HAS_LRR(display) && old_crtc_state->inherited &&
+		!intel_crtc_has_type(old_crtc_state, INTEL_OUTPUT_DSI);
+}
+
 bool
 intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 			  const struct intel_crtc_state *pipe_config,
@@ -5490,7 +5503,8 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	PIPE_CONF_CHECK_I(name.crtc_hsync_start); \
 	PIPE_CONF_CHECK_I(name.crtc_hsync_end); \
 	PIPE_CONF_CHECK_I(name.crtc_vdisplay); \
-	PIPE_CONF_CHECK_I(name.crtc_vblank_start); \
+	if (!fastset || !allow_vblank_delay_fastset(current_config)) \
+		PIPE_CONF_CHECK_I(name.crtc_vblank_start); \
 	PIPE_CONF_CHECK_I(name.crtc_vsync_start); \
 	PIPE_CONF_CHECK_I(name.crtc_vsync_end); \
 	if (!fastset || !pipe_config->update_lrr) { \
@@ -6070,7 +6084,8 @@ static int intel_modeset_checks(struct intel_atomic_state *state)
 static bool lrr_params_changed(const struct drm_display_mode *old_adjusted_mode,
 			       const struct drm_display_mode *new_adjusted_mode)
 {
-	return old_adjusted_mode->crtc_vblank_end != new_adjusted_mode->crtc_vblank_end ||
+	return old_adjusted_mode->crtc_vblank_start != new_adjusted_mode->crtc_vblank_start ||
+		old_adjusted_mode->crtc_vblank_end != new_adjusted_mode->crtc_vblank_end ||
 		old_adjusted_mode->crtc_vtotal != new_adjusted_mode->crtc_vtotal;
 }
 
@@ -6084,11 +6099,14 @@ static void intel_crtc_check_fastset(const struct intel_crtc_state *old_crtc_sta
 	if (old_crtc_state->vrr.in_range != new_crtc_state->vrr.in_range)
 		new_crtc_state->update_lrr = false;
 
-	if (!intel_pipe_config_compare(old_crtc_state, new_crtc_state, true))
+	if (!intel_pipe_config_compare(old_crtc_state, new_crtc_state, true)) {
 		drm_dbg_kms(&i915->drm, "[CRTC:%d:%s] fastset requirement not met, forcing full modeset\n",
 			    crtc->base.base.id, crtc->base.name);
-	else
+	} else {
+		if (allow_vblank_delay_fastset(old_crtc_state))
+			new_crtc_state->update_lrr = true;
 		new_crtc_state->uapi.mode_changed = false;
+	}
 
 	if (intel_compare_link_m_n(&old_crtc_state->dp_m_n,
 				   &new_crtc_state->dp_m_n))
