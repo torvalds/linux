@@ -509,25 +509,25 @@
 	/*AB0-AB7*/	"","","","","","","","",
 	/*AC0-AC7*/	"","","","","","","","";
 
-	line_iso_u146_en {
+	line-iso-u146-en-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(O, 4) GPIO_ACTIVE_HIGH>;
 		output-high;
 	};
 
-	ncsi_mux_en_n {
+	ncsi-mux-en-n-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(P, 0) GPIO_ACTIVE_HIGH>;
 		output-low;
 	};
 
-	line_bmc_i2c2_sw_rst_n {
+	line-bmc-i2c2-sw-rst-n-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(P, 1) GPIO_ACTIVE_HIGH>;
 		output-high;
 	};
 
-	line_bmc_i2c5_sw_rst_n {
+	line-bmc-i2c5-sw-rst-n-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(P, 3) GPIO_ACTIVE_HIGH>;
 		output-high;

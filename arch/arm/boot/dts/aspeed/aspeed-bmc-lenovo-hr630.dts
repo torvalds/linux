@@ -405,161 +405,161 @@
 
 &gpio {
 
-	pin_gpio_b5 {
+	pin-gpio-b5-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(B, 5) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "IRQ_BMC_PCH_SMI_LPC_N";
 	};
 
-	pin_gpio_f0 {
+	pin-gpio-f0-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(F, 0) GPIO_ACTIVE_HIGH>;
 		output-low;
 		line-name = "IRQ_BMC_PCH_NMI_R";
 	};
 
-	pin_gpio_f3 {
+	pin-gpio-f3-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(F, 3) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "I2C_BUS0_RST_OUT_N";
 	};
 
-	pin_gpio_f4 {
+	pin-gpio-f4-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(F, 4) GPIO_ACTIVE_HIGH>;
 		output-low;
 		line-name = "FM_SKT0_FAULT_LED";
 	};
 
-	pin_gpio_f5 {
+	pin-gpio-f5-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(F, 5) GPIO_ACTIVE_HIGH>;
 		output-low;
 		line-name = "FM_SKT1_FAULT_LED";
 	};
 
-	pin_gpio_g4 {
+	pin-gpio-g4-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(G, 4) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "FAN_PWR_CTL_N";
 	};
 
-	pin_gpio_g7 {
+	pin-gpio-g7-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(G, 7) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "RST_BMC_PCIE_I2CMUX_N";
 	};
 
-	pin_gpio_h2 {
+	pin-gpio-h2-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(H, 2) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "PSU1_FFS_N_R";
 	};
 
-	pin_gpio_h3 {
+	pin-gpio-h3-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(H, 3) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "PSU2_FFS_N_R";
 	};
 
-	pin_gpio_i3 {
+	pin-gpio-i3-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(I, 3) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "BMC_INTRUDED_COVER";
 	};
 
-	pin_gpio_j2 {
+	pin-gpio-j2-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(J, 2) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "BMC_BIOS_UPDATE_N";
 	};
 
-	pin_gpio_j3 {
+	pin-gpio-j3-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(J, 3) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "RST_BMC_HDD_I2CMUX_N";
 	};
 
-	pin_gpio_s2 {
+	pin-gpio-s2-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(S, 2) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "BMC_VGA_SW";
 	};
 
-	pin_gpio_s4 {
+	pin-gpio-s4-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(S, 4) GPIO_ACTIVE_HIGH>;
 		output;
 		line-name = "VBAT_EN_N";
 	};
 
-	pin_gpio_s6 {
+	pin-gpio-s6-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(S, 6) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "PU_BMC_GPIOS6";
 	};
 
-	pin_gpio_y0 {
+	pin-gpio-y0-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(Y, 0) GPIO_ACTIVE_HIGH>;
 		output-low;
 		line-name = "BMC_NCSI_MUX_CTL_S0";
 	};
 
-	pin_gpio_y1 {
+	pin-gpio-y1-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(Y, 1) GPIO_ACTIVE_HIGH>;
 		output-low;
 		line-name = "BMC_NCSI_MUX_CTL_S1";
 	};
 
-	pin_gpio_z0 {
+	pin-gpio-z0-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(Z, 0) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "I2C_RISER2_INT_N";
 	};
 
-	pin_gpio_z2 {
+	pin-gpio-z2-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(Z, 2) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "I2C_RISER2_RESET_N";
 	};
 
-	pin_gpio_z3 {
+	pin-gpio-z3-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(Z, 3) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "FM_BMC_PCH_SCI_LPC_N";
 	};
 
-	pin_gpio_z7 {
+	pin-gpio-z7-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(Z, 7) GPIO_ACTIVE_HIGH>;
 		output-low;
 		line-name = "BMC_POST_CMPLT_N";
 	};
 
-	pin_gpio_aa0 {
+	pin-gpio-aa0-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(AA, 0) GPIO_ACTIVE_HIGH>;
 		output-low;
 		line-name = "HOST_BMC_USB_SEL";
 	};
 
-	pin_gpio_aa5 {
+	pin-gpio-aa5-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(AA, 5) GPIO_ACTIVE_HIGH>;
 		output-high;

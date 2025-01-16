@@ -248,27 +248,27 @@
 	/*AB0-AB7*/	"","","","","","","","",
 	/*AC0-AC7*/	"","","","","","","","";
 
-	func_mode0 {
+	func-mode0-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(D, 3) GPIO_ACTIVE_HIGH>;
 		output-low;
 	};
-	func_mode1 {
+	func-mode1-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(D, 4) GPIO_ACTIVE_HIGH>;
 		output-low;
 	};
-	func_mode2 {
+	func-mode2-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(D, 5) GPIO_ACTIVE_HIGH>;
 		output-low;
 	};
-	seq_cont {
+	seq-cont-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(S, 7) GPIO_ACTIVE_HIGH>;
 		output-low;
 	};
-	ncsi_cfg {
+	ncsi-cfg-hog {
 		gpio-hog;
 		input;
 		gpios = <ASPEED_GPIO(E, 1) GPIO_ACTIVE_HIGH>;
