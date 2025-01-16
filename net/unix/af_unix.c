@@ -1701,7 +1701,7 @@ out_unlock:
 	unix_state_unlock(other);
 	sock_put(other);
 out_free_skb:
-	kfree_skb(skb);
+	consume_skb(skb);
 out_free_sk:
 	unix_release_sock(newsk, 0);
 out:
@@ -2172,7 +2172,7 @@ out_unlock:
 out_sock_put:
 	sock_put(other);
 out_free:
-	kfree_skb(skb);
+	consume_skb(skb);
 out:
 	scm_destroy(&scm);
 	return err;
@@ -2189,7 +2189,7 @@ static int queue_oob(struct socket *sock, struct msghdr *msg, struct sock *other
 {
 	struct unix_sock *ousk = unix_sk(other);
 	struct sk_buff *skb;
-	int err = 0;
+	int err;
 
 	skb = sock_alloc_send_skb(sock->sk, 1, msg->msg_flags & MSG_DONTWAIT, &err);
 
@@ -2197,25 +2197,22 @@ static int queue_oob(struct socket *sock, struct msghdr *msg, struct sock *other
 		return err;
 
 	err = unix_scm_to_skb(scm, skb, !fds_sent);
-	if (err < 0) {
-		kfree_skb(skb);
-		return err;
-	}
+	if (err < 0)
+		goto out;
+
 	skb_put(skb, 1);
 	err = skb_copy_datagram_from_iter(skb, 0, &msg->msg_iter, 1);
 
-	if (err) {
-		kfree_skb(skb);
-		return err;
-	}
+	if (err)
+		goto out;
 
 	unix_state_lock(other);
 
 	if (sock_flag(other, SOCK_DEAD) ||
 	    (other->sk_shutdown & RCV_SHUTDOWN)) {
 		unix_state_unlock(other);
-		kfree_skb(skb);
-		return -EPIPE;
+		err = -EPIPE;
+		goto out;
 	}
 
 	maybe_add_creds(skb, sock, other);
@@ -2230,6 +2227,9 @@ static int queue_oob(struct socket *sock, struct msghdr *msg, struct sock *other
 	unix_state_unlock(other);
 	other->sk_data_ready(other);
 
+	return 0;
+out:
+	consume_skb(skb);
 	return err;
 }
 #endif
@@ -2359,7 +2359,7 @@ out_pipe:
 		send_sig(SIGPIPE, current, 0);
 	err = -EPIPE;
 out_free:
-	kfree_skb(skb);
+	consume_skb(skb);
 out_err:
 	scm_destroy(&scm);
 	return sent ? : err;
