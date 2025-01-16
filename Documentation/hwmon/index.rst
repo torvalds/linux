@@ -91,6 +91,7 @@ Hardware Monitoring Kernel Drivers
    ibmpowernv
    ina209
    ina2xx
+   ina233
    ina238
    ina3221
    inspur-ipsps1
