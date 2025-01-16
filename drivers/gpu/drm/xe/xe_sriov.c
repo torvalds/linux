@@ -81,7 +81,7 @@ void xe_sriov_probe_early(struct xe_device *xe)
 	xe->sriov.__mode = mode;
 	xe_assert(xe, xe->sriov.__mode);
 
-	if (has_sriov)
+	if (IS_SRIOV(xe))
 		drm_info(&xe->drm, "Running in %s mode\n",
 			 xe_sriov_mode_to_string(xe_device_sriov_mode(xe)));
 }
