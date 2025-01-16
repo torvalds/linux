@@ -10,14 +10,13 @@
 #include <linux/platform_profile.h>
 #include <linux/sysfs.h>
 
-#define to_pprof_handler(d)	(container_of(d, struct platform_profile_handler, class_dev))
+#define to_pprof_handler(d)	(container_of(d, struct platform_profile_handler, dev))
 
 static DEFINE_MUTEX(profile_lock);
 
 struct platform_profile_handler {
 	const char *name;
-	struct device *dev;
-	struct device class_dev;
+	struct device dev;
 	int minor;
 	unsigned long choices[BITS_TO_LONGS(PLATFORM_PROFILE_LAST)];
 	const struct platform_profile_ops *ops;
@@ -90,8 +89,8 @@ static int _notify_class_profile(struct device *dev, void *data)
 	struct platform_profile_handler *handler = to_pprof_handler(dev);
 
 	lockdep_assert_held(&profile_lock);
-	sysfs_notify(&handler->class_dev.kobj, NULL, "profile");
-	kobject_uevent(&handler->class_dev.kobj, KOBJ_CHANGE);
+	sysfs_notify(&handler->dev.kobj, NULL, "profile");
+	kobject_uevent(&handler->dev.kobj, KOBJ_CHANGE);
 
 	return 0;
 }
@@ -517,12 +516,12 @@ struct device *platform_profile_register(struct device *dev, const char *name,
 	pprof->name = name;
 	pprof->ops = ops;
 	pprof->minor = minor;
-	pprof->class_dev.class = &platform_profile_class;
-	pprof->class_dev.parent = dev;
-	dev_set_drvdata(&pprof->class_dev, drvdata);
-	dev_set_name(&pprof->class_dev, "platform-profile-%d", pprof->minor);
+	pprof->dev.class = &platform_profile_class;
+	pprof->dev.parent = dev;
+	dev_set_drvdata(&pprof->dev, drvdata);
+	dev_set_name(&pprof->dev, "platform-profile-%d", pprof->minor);
 	/* device_register() takes ownership of pprof/ppdev */
-	ppdev = &no_free_ptr(pprof)->class_dev;
+	ppdev = &no_free_ptr(pprof)->dev;
 	err = device_register(ppdev);
 	if (err) {
 		put_device(ppdev);
@@ -554,7 +553,7 @@ int platform_profile_remove(struct device *dev)
 	guard(mutex)(&profile_lock);
 
 	id = pprof->minor;
-	device_unregister(&pprof->class_dev);
+	device_unregister(&pprof->dev);
 	ida_free(&platform_profile_ida, id);
 
 	sysfs_notify(acpi_kobj, NULL, "platform_profile");
