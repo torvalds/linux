@@ -65,7 +65,7 @@ static int _store_class_profile(struct device *dev, void *data)
 	if (!test_bit(*bit, handler->choices))
 		return -EOPNOTSUPP;
 
-	return handler->profile_set(dev, *bit);
+	return handler->ops->profile_set(dev, *bit);
 }
 
 /**
@@ -102,7 +102,7 @@ static int get_class_profile(struct device *dev,
 
 	lockdep_assert_held(&profile_lock);
 	handler = to_pprof_handler(dev);
-	err = handler->profile_get(dev, &val);
+	err = handler->ops->profile_get(dev, &val);
 	if (err) {
 		pr_err("Failed to get profile for handler %s\n", handler->name);
 		return err;
@@ -466,7 +466,7 @@ int platform_profile_register(struct platform_profile_handler *pprof, void *drvd
 
 	/* Sanity check the profile handler */
 	if (!pprof || bitmap_empty(pprof->choices, PLATFORM_PROFILE_LAST) ||
-	    !pprof->profile_set || !pprof->profile_get) {
+	    !pprof->ops->profile_set || !pprof->ops->profile_get) {
 		pr_err("platform_profile: handler is invalid\n");
 		return -EINVAL;
 	}
