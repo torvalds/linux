@@ -60,7 +60,9 @@ a specific module::
 
 	# echo ':mod:<module>' > /sys/kernel/tracing/set_event
 
-Will enable all events in the module ``<module>``.
+Will enable all events in the module ``<module>``.  If the module is not yet
+loaded, the string will be saved and when a module is that matches ``<module>``
+is loaded, then it will apply the enabling of events then.
 
 The text before ``:mod:`` will be parsed to specify specific events that the
 module creates::

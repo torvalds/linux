@@ -400,6 +400,9 @@ struct trace_array {
 	cpumask_var_t		pipe_cpumask;
 	int			ref;
 	int			trace_ref;
+#ifdef CONFIG_MODULES
+	struct list_head	mod_events;
+#endif
 #ifdef CONFIG_FUNCTION_TRACER
 	struct ftrace_ops	*ops;
 	struct trace_pid_list	__rcu *function_pids;
@@ -433,6 +436,15 @@ enum {
 	TRACE_ARRAY_FL_GLOBAL	= BIT(0),
 	TRACE_ARRAY_FL_BOOT	= BIT(1),
 };
+
+#ifdef CONFIG_MODULES
+bool module_exists(const char *module);
+#else
+static inline bool module_exists(const char *module)
+{
+	return false;
+}
+#endif
 
 extern struct list_head ftrace_trace_arrays;
 

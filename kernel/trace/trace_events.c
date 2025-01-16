@@ -857,6 +857,120 @@ static int ftrace_event_enable_disable(struct trace_event_file *file,
 	return __ftrace_event_enable_disable(file, enable, 0);
 }
 
+#if CONFIG_MODULES
+struct event_mod_load {
+	struct list_head	list;
+	char			*module;
+	char			*match;
+	char			*system;
+	char			*event;
+};
+
+static void free_event_mod(struct event_mod_load *event_mod)
+{
+	list_del(&event_mod->list);
+	kfree(event_mod->module);
+	kfree(event_mod->match);
+	kfree(event_mod->system);
+	kfree(event_mod->event);
+	kfree(event_mod);
+}
+
+static void clear_mod_events(struct trace_array *tr)
+{
+	struct event_mod_load *event_mod, *n;
+
+	list_for_each_entry_safe(event_mod, n, &tr->mod_events, list) {
+		free_event_mod(event_mod);
+	}
+}
+
+static int remove_cache_mod(struct trace_array *tr, const char *mod,
+			    const char *match, const char *system, const char *event)
+{
+	struct event_mod_load *event_mod, *n;
+	int ret = -EINVAL;
+
+	list_for_each_entry_safe(event_mod, n, &tr->mod_events, list) {
+		if (strcmp(event_mod->module, mod) != 0)
+			continue;
+
+		if (match && strcmp(event_mod->match, match) != 0)
+			continue;
+
+		if (system &&
+		    (!event_mod->system || strcmp(event_mod->system, system) != 0))
+			continue;
+
+		if (event &&
+		    (!event_mod->event || strcmp(event_mod->event, event) != 0))
+			continue;
+
+		free_event_mod(event_mod);
+		ret = 0;
+	}
+
+	return ret;
+}
+
+static int cache_mod(struct trace_array *tr, const char *mod, int set,
+		     const char *match, const char *system, const char *event)
+{
+	struct event_mod_load *event_mod;
+
+	/* If the module exists, then this just failed to find an event */
+	if (module_exists(mod))
+		return -EINVAL;
+
+	/* See if this is to remove a cached filter */
+	if (!set)
+		return remove_cache_mod(tr, mod, match, system, event);
+
+	event_mod = kzalloc(sizeof(*event_mod), GFP_KERNEL);
+	if (!event_mod)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&event_mod->list);
+	event_mod->module = kstrdup(mod, GFP_KERNEL);
+	if (!event_mod->module)
+		goto out_free;
+
+	if (match) {
+		event_mod->match = kstrdup(match, GFP_KERNEL);
+		if (!event_mod->match)
+			goto out_free;
+	}
+
+	if (system) {
+		event_mod->system = kstrdup(system, GFP_KERNEL);
+		if (!event_mod->system)
+			goto out_free;
+	}
+
+	if (event) {
+		event_mod->event = kstrdup(event, GFP_KERNEL);
+		if (!event_mod->event)
+			goto out_free;
+	}
+
+	list_add(&event_mod->list, &tr->mod_events);
+
+	return 0;
+
+ out_free:
+	free_event_mod(event_mod);
+
+	return -ENOMEM;
+}
+#else /* CONFIG_MODULES */
+static inline void clear_mod_events(struct trace_array *tr) { }
+static int cache_mod(struct trace_array *tr, const char *mod, int set,
+		     const char *match, const char *system, const char *event)
+{
+	return -EINVAL;
+}
+#endif
+
 static void ftrace_clear_events(struct trace_array *tr)
 {
 	struct trace_event_file *file;
@@ -865,6 +979,7 @@ static void ftrace_clear_events(struct trace_array *tr)
 	list_for_each_entry(file, &tr->events, list) {
 		ftrace_event_enable_disable(file, 0);
 	}
+	clear_mod_events(tr);
 	mutex_unlock(&event_mutex);
 }
 
@@ -1215,6 +1330,13 @@ __ftrace_set_clr_event_nolock(struct trace_array *tr, const char *match,
 		ret = eret;
 	}
 
+	/*
+	 * If this is a module setting and nothing was found,
+	 * check if the module was loaded. If it wasn't cache it.
+	 */
+	if (module && ret == -EINVAL && !eret)
+		ret = cache_mod(tr, module, set, match, sub, event);
+
 	return ret;
 }
 
@@ -1416,37 +1538,71 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 	return file;
 }
 
+enum set_event_iter_type {
+	SET_EVENT_FILE,
+	SET_EVENT_MOD,
+};
+
+struct set_event_iter {
+	enum set_event_iter_type	type;
+	union {
+		struct trace_event_file	*file;
+		struct event_mod_load	*event_mod;
+	};
+};
+
 static void *
 s_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	struct trace_event_file *file = v;
+	struct set_event_iter *iter = v;
+	struct trace_event_file *file;
 	struct trace_array *tr = m->private;
 
 	(*pos)++;
 
-	list_for_each_entry_continue(file, &tr->events, list) {
-		if (file->flags & EVENT_FILE_FL_ENABLED)
-			return file;
+	if (iter->type == SET_EVENT_FILE) {
+		file = iter->file;
+		list_for_each_entry_continue(file, &tr->events, list) {
+			if (file->flags & EVENT_FILE_FL_ENABLED) {
+				iter->file = file;
+				return iter;
+			}
+		}
+#ifdef CONFIG_MODULES
+		iter->type = SET_EVENT_MOD;
+		iter->event_mod = list_entry(&tr->mod_events, struct event_mod_load, list);
+#endif
 	}
+
+#ifdef CONFIG_MODULES
+	list_for_each_entry_continue(iter->event_mod, &tr->mod_events, list)
+		return iter;
+#endif
 
 	return NULL;
 }
 
 static void *s_start(struct seq_file *m, loff_t *pos)
 {
-	struct trace_event_file *file;
 	struct trace_array *tr = m->private;
+	struct set_event_iter *iter;
 	loff_t l;
+
+	iter = kzalloc(sizeof(iter), GFP_KERNEL);
+	if (!iter)
+		return NULL;
 
 	mutex_lock(&event_mutex);
 
-	file = list_entry(&tr->events, struct trace_event_file, list);
+	iter->type = SET_EVENT_FILE;
+	iter->file = list_entry(&tr->events, struct trace_event_file, list);
+
 	for (l = 0; l <= *pos; ) {
-		file = s_next(m, file, &l);
-		if (!file)
+		iter = s_next(m, iter, &l);
+		if (!iter)
 			break;
 	}
-	return file;
+	return iter;
 }
 
 static int t_show(struct seq_file *m, void *v)
@@ -1464,6 +1620,45 @@ static int t_show(struct seq_file *m, void *v)
 static void t_stop(struct seq_file *m, void *p)
 {
 	mutex_unlock(&event_mutex);
+}
+
+#ifdef CONFIG_MODULES
+static int s_show(struct seq_file *m, void *v)
+{
+	struct set_event_iter *iter = v;
+	const char *system;
+	const char *event;
+
+	if (iter->type == SET_EVENT_FILE)
+		return t_show(m, iter->file);
+
+	/* When match is set, system and event are not */
+	if (iter->event_mod->match) {
+		seq_printf(m, "%s:mod:%s", iter->event_mod->match,
+			   iter->event_mod->module);
+		return 0;
+	}
+
+	system = iter->event_mod->system ? : "*";
+	event = iter->event_mod->event ? : "*";
+
+	seq_printf(m, "%s:%s:mod:%s\n", system, event, iter->event_mod->module);
+
+	return 0;
+}
+#else /* CONFIG_MODULES */
+static int s_show(struct seq_file *m, void *v)
+{
+	struct set_event_iter *iter = v;
+
+	return t_show(m, iter->file);
+}
+#endif
+
+static void s_stop(struct seq_file *m, void *p)
+{
+	kfree(p);
+	t_stop(m, NULL);
 }
 
 static void *
@@ -2253,8 +2448,8 @@ static const struct seq_operations show_event_seq_ops = {
 static const struct seq_operations show_set_event_seq_ops = {
 	.start = s_start,
 	.next = s_next,
-	.show = t_show,
-	.stop = t_stop,
+	.show = s_show,
+	.stop = s_stop,
 };
 
 static const struct seq_operations show_set_pid_seq_ops = {
@@ -3385,6 +3580,28 @@ EXPORT_SYMBOL_GPL(trace_remove_event_call);
 	     event++)
 
 #ifdef CONFIG_MODULES
+static void update_cache(struct trace_array *tr, struct module *mod)
+{
+	struct event_mod_load *event_mod, *n;
+
+	list_for_each_entry_safe(event_mod, n, &tr->mod_events, list) {
+		if (strcmp(event_mod->module, mod->name) != 0)
+			continue;
+
+		__ftrace_set_clr_event_nolock(tr, event_mod->match,
+					      event_mod->system,
+					      event_mod->event, 1, mod->name);
+		free_event_mod(event_mod);
+	}
+}
+
+static void update_cache_events(struct module *mod)
+{
+	struct trace_array *tr;
+
+	list_for_each_entry(tr, &ftrace_trace_arrays, list)
+		update_cache(tr, mod);
+}
 
 static void trace_module_add_events(struct module *mod)
 {
@@ -3407,6 +3624,8 @@ static void trace_module_add_events(struct module *mod)
 		__register_event(*call, mod);
 		__add_event_to_tracers(*call);
 	}
+
+	update_cache_events(mod);
 }
 
 static void trace_module_remove_events(struct module *mod)
