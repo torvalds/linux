@@ -44,16 +44,32 @@ static const int mc3230_nscale = 115411765;
 	.channel2 = IIO_MOD_##axis,	\
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),	\
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),	\
+	.ext_info = mc3230_ext_info, \
 }
+
+struct mc3230_data {
+	struct i2c_client *client;
+	struct iio_mount_matrix orientation;
+};
+
+static const struct iio_mount_matrix *
+mc3230_get_mount_matrix(const struct iio_dev *indio_dev,
+			const struct iio_chan_spec *chan)
+{
+	struct mc3230_data *data = iio_priv(indio_dev);
+
+	return &data->orientation;
+}
+
+static const struct iio_chan_spec_ext_info mc3230_ext_info[] = {
+	IIO_MOUNT_MATRIX(IIO_SHARED_BY_DIR, mc3230_get_mount_matrix),
+	{ }
+};
 
 static const struct iio_chan_spec mc3230_channels[] = {
 	MC3230_CHANNEL(MC3230_REG_XOUT, X),
 	MC3230_CHANNEL(MC3230_REG_YOUT, Y),
 	MC3230_CHANNEL(MC3230_REG_ZOUT, Z),
-};
-
-struct mc3230_data {
-	struct i2c_client *client;
 };
 
 static int mc3230_set_opcon(struct mc3230_data *data, int opcon)
@@ -139,6 +155,10 @@ static int mc3230_probe(struct i2c_client *client)
 
 	ret = mc3230_set_opcon(data, MC3230_MODE_OPCON_WAKE);
 	if (ret < 0)
+		return ret;
+
+	ret = iio_read_mount_matrix(&client->dev, &data->orientation);
+	if (ret)
 		return ret;
 
 	ret = iio_device_register(indio_dev);
