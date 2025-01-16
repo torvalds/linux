@@ -1158,9 +1158,15 @@ static int intel_hdcp_check_link(struct intel_connector *connector)
 		goto out;
 	}
 
-	intel_hdcp_update_value(connector,
-				DRM_MODE_CONTENT_PROTECTION_DESIRED,
-				true);
+	ret = intel_hdcp1_enable(connector);
+	if (ret) {
+		drm_err(display->drm, "Failed to enable hdcp (%d)\n", ret);
+		intel_hdcp_update_value(connector,
+					DRM_MODE_CONTENT_PROTECTION_DESIRED,
+					true);
+		goto out;
+	}
+
 out:
 	mutex_unlock(&dig_port->hdcp_mutex);
 	mutex_unlock(&hdcp->mutex);

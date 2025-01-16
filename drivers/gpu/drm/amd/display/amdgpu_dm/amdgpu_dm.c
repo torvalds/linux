@@ -8400,16 +8400,6 @@ static void manage_dm_interrupts(struct amdgpu_device *adev,
 				 struct amdgpu_crtc *acrtc,
 				 struct dm_crtc_state *acrtc_state)
 {
-	/*
-	 * We have no guarantee that the frontend index maps to the same
-	 * backend index - some even map to more than one.
-	 *
-	 * TODO: Use a different interrupt or check DC itself for the mapping.
-	 */
-	int irq_type =
-		amdgpu_display_crtc_idx_to_irq_type(
-			adev,
-			acrtc->crtc_id);
 	struct drm_vblank_crtc_config config = {0};
 	struct dc_crtc_timing *timing;
 	int offdelay;
@@ -8435,28 +8425,7 @@ static void manage_dm_interrupts(struct amdgpu_device *adev,
 
 		drm_crtc_vblank_on_config(&acrtc->base,
 					  &config);
-
-		amdgpu_irq_get(
-			adev,
-			&adev->pageflip_irq,
-			irq_type);
-#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
-		amdgpu_irq_get(
-			adev,
-			&adev->vline0_irq,
-			irq_type);
-#endif
 	} else {
-#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
-		amdgpu_irq_put(
-			adev,
-			&adev->vline0_irq,
-			irq_type);
-#endif
-		amdgpu_irq_put(
-			adev,
-			&adev->pageflip_irq,
-			irq_type);
 		drm_crtc_vblank_off(&acrtc->base);
 	}
 }
@@ -11155,8 +11124,8 @@ dm_get_plane_scale(struct drm_plane_state *plane_state,
 	int plane_src_w, plane_src_h;
 
 	dm_get_oriented_plane_size(plane_state, &plane_src_w, &plane_src_h);
-	*out_plane_scale_w = plane_state->crtc_w * 1000 / plane_src_w;
-	*out_plane_scale_h = plane_state->crtc_h * 1000 / plane_src_h;
+	*out_plane_scale_w = plane_src_w ? plane_state->crtc_w * 1000 / plane_src_w : 0;
+	*out_plane_scale_h = plane_src_h ? plane_state->crtc_h * 1000 / plane_src_h : 0;
 }
 
 /*
