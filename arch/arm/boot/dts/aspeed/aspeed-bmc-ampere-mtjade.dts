@@ -825,7 +825,7 @@
 		line-name = "ocp-aux-pwren";
 	};
 
-	bmc-ready {
+	bmc-ready-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(AC, 5) GPIO_ACTIVE_HIGH>;
 		output-high;
