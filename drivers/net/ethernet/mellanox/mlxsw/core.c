@@ -737,9 +737,8 @@ static int mlxsw_emad_transmit(struct mlxsw_core *mlxsw_core,
 	if (!skb)
 		return -ENOMEM;
 
-	trace_devlink_hwmsg(priv_to_devlink(mlxsw_core), false, 0,
-			    skb->data + mlxsw_core->driver->txhdr_len,
-			    skb->len - mlxsw_core->driver->txhdr_len);
+	trace_devlink_hwmsg(priv_to_devlink(mlxsw_core), false, 0, skb->data,
+			    skb->len);
 
 	atomic_set(&trans->active, 1);
 	err = mlxsw_core_skb_transmit(mlxsw_core, skb, &trans->txhdr_info);
@@ -995,7 +994,6 @@ static int mlxsw_emad_reg_access(struct mlxsw_core *mlxsw_core,
 	trans->type = type;
 
 	mlxsw_emad_construct(mlxsw_core, skb, reg, payload, type, trans->tid);
-	mlxsw_core->driver->txhdr_construct(skb, &trans->txhdr_info.tx_info);
 
 	spin_lock_bh(&mlxsw_core->emad.trans_list_lock);
 	list_add_tail_rcu(&trans->list, &mlxsw_core->emad.trans_list);

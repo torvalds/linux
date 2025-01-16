@@ -432,8 +432,6 @@ struct mlxsw_driver {
 	int (*trap_policer_counter_get)(struct mlxsw_core *mlxsw_core,
 					const struct devlink_trap_policer *policer,
 					u64 *p_drops);
-	void (*txhdr_construct)(struct sk_buff *skb,
-				const struct mlxsw_tx_info *tx_info);
 	int (*resources_register)(struct mlxsw_core *mlxsw_core);
 	int (*kvd_sizes_get)(struct mlxsw_core *mlxsw_core,
 			     const struct mlxsw_config_profile *profile,
