@@ -58,11 +58,11 @@ static void bang_bang_set_instance_target(struct thermal_instance *instance,
  * bang_bang_trip_crossed - controls devices associated with the given zone
  * @tz: thermal_zone_device
  * @trip: the trip point
- * @crossed_up: whether or not the trip has been crossed on the way up
+ * @upward: whether or not the trip has been crossed on the way up
  */
 static void bang_bang_trip_crossed(struct thermal_zone_device *tz,
 				   const struct thermal_trip *trip,
-				   bool crossed_up)
+				   bool upward)
 {
 	const struct thermal_trip_desc *td = trip_to_trip_desc(trip);
 	struct thermal_instance *instance;
@@ -74,7 +74,7 @@ static void bang_bang_trip_crossed(struct thermal_zone_device *tz,
 		tz->temperature, trip->hysteresis);
 
 	list_for_each_entry(instance, &td->thermal_instances, trip_node)
-		bang_bang_set_instance_target(instance, crossed_up);
+		bang_bang_set_instance_target(instance, upward);
 }
 
 static void bang_bang_manage(struct thermal_zone_device *tz)
