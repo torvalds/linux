@@ -232,11 +232,6 @@ _xfs_buf_alloc(
 	bp->b_mount = target->bt_mount;
 	bp->b_flags = flags;
 
-	/*
-	 * Set length and io_length to the same value initially.
-	 * I/O routines should use io_length, which will be the same in
-	 * most cases but may be reset (e.g. XFS recovery).
-	 */
 	error = xfs_buf_get_maps(bp, nmaps);
 	if (error)  {
 		kmem_cache_free(xfs_buf_cache, bp);
