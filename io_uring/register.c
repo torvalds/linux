@@ -853,6 +853,8 @@ struct file *io_uring_register_get_file(unsigned int fd, bool registered)
 			return ERR_PTR(-EINVAL);
 		fd = array_index_nospec(fd, IO_RINGFD_REG_MAX);
 		file = tctx->registered_rings[fd];
+		if (file)
+			get_file(file);
 	} else {
 		file = fget(fd);
 	}
@@ -919,7 +921,7 @@ SYSCALL_DEFINE4(io_uring_register, unsigned int, fd, unsigned int, opcode,
 	trace_io_uring_register(ctx, opcode, ctx->file_table.data.nr,
 				ctx->buf_table.nr, ret);
 	mutex_unlock(&ctx->uring_lock);
-	if (!use_registered_ring)
-		fput(file);
+
+	fput(file);
 	return ret;
 }

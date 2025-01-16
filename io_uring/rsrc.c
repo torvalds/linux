@@ -1079,7 +1079,6 @@ int io_register_clone_buffers(struct io_ring_ctx *ctx, void __user *arg)
 	if (src_ctx != ctx)
 		mutex_unlock(&src_ctx->uring_lock);
 
-	if (!registered_src)
-		fput(file);
+	fput(file);
 	return ret;
 }
