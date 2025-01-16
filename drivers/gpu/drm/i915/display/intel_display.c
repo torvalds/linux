@@ -6067,6 +6067,13 @@ static int intel_modeset_checks(struct intel_atomic_state *state)
 	return 0;
 }
 
+static bool lrr_params_changed(const struct drm_display_mode *old_adjusted_mode,
+			       const struct drm_display_mode *new_adjusted_mode)
+{
+	return old_adjusted_mode->crtc_vblank_end != new_adjusted_mode->crtc_vblank_end ||
+		old_adjusted_mode->crtc_vtotal != new_adjusted_mode->crtc_vtotal;
+}
+
 static void intel_crtc_check_fastset(const struct intel_crtc_state *old_crtc_state,
 				     struct intel_crtc_state *new_crtc_state)
 {
@@ -6087,8 +6094,8 @@ static void intel_crtc_check_fastset(const struct intel_crtc_state *old_crtc_sta
 				   &new_crtc_state->dp_m_n))
 		new_crtc_state->update_m_n = false;
 
-	if ((old_crtc_state->hw.adjusted_mode.crtc_vtotal == new_crtc_state->hw.adjusted_mode.crtc_vtotal &&
-	     old_crtc_state->hw.adjusted_mode.crtc_vblank_end == new_crtc_state->hw.adjusted_mode.crtc_vblank_end))
+	if (!lrr_params_changed(&old_crtc_state->hw.adjusted_mode,
+				&new_crtc_state->hw.adjusted_mode))
 		new_crtc_state->update_lrr = false;
 
 	if (intel_crtc_needs_modeset(new_crtc_state))
