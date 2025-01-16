@@ -10,6 +10,10 @@
 	model = "Banana Pi BPI-F3";
 	compatible = "bananapi,bpi-f3", "spacemit,k1";
 
+	aliases {
+		serial0 = &uart0;
+	};
+
 	chosen {
 		stdout-path = "serial0";
 	};

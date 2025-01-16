@@ -10,18 +10,6 @@
 	model = "SpacemiT K1";
 	compatible = "spacemit,k1";
 
-	aliases {
-		serial0 = &uart0;
-		serial1 = &uart2;
-		serial2 = &uart3;
-		serial3 = &uart4;
-		serial4 = &uart5;
-		serial5 = &uart6;
-		serial6 = &uart7;
-		serial7 = &uart8;
-		serial8 = &uart9;
-	};
-
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
