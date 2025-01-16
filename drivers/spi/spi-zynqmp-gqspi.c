@@ -82,7 +82,6 @@
 #define GQSPI_GENFIFO_RX			0x00020000
 #define GQSPI_GENFIFO_STRIPE			0x00040000
 #define GQSPI_GENFIFO_POLL			0x00080000
-#define GQSPI_GENFIFO_EXP_START			0x00000100
 #define GQSPI_FIFO_CTRL_RST_RX_FIFO_MASK	0x00000004
 #define GQSPI_FIFO_CTRL_RST_TX_FIFO_MASK	0x00000002
 #define GQSPI_FIFO_CTRL_RST_GEN_FIFO_MASK	0x00000001
@@ -672,71 +671,50 @@ static void zynqmp_qspi_readrxfifo(struct zynqmp_qspi *xqspi, u32 size)
 static void zynqmp_qspi_fillgenfifo(struct zynqmp_qspi *xqspi, u8 nbits,
 				    u32 genfifoentry)
 {
-	u32 transfer_len = 0;
+	u32 transfer_len, tempcount, exponent;
+	u8 imm_data;
 
-	if (xqspi->txbuf) {
-		genfifoentry &= ~GQSPI_GENFIFO_RX;
-		genfifoentry |= GQSPI_GENFIFO_DATA_XFER;
-		genfifoentry |= GQSPI_GENFIFO_TX;
-		transfer_len = xqspi->bytes_to_transfer;
-	} else if (xqspi->rxbuf) {
-		genfifoentry &= ~GQSPI_GENFIFO_TX;
-		genfifoentry |= GQSPI_GENFIFO_DATA_XFER;
+	genfifoentry |= GQSPI_GENFIFO_DATA_XFER;
+	if (xqspi->rxbuf) {
 		genfifoentry |= GQSPI_GENFIFO_RX;
 		if (xqspi->mode == GQSPI_MODE_DMA)
 			transfer_len = xqspi->dma_rx_bytes;
 		else
 			transfer_len = xqspi->bytes_to_receive;
 	} else {
-		/* Sending dummy circles here */
-		genfifoentry &= ~(GQSPI_GENFIFO_TX | GQSPI_GENFIFO_RX);
-		genfifoentry |= GQSPI_GENFIFO_DATA_XFER;
 		transfer_len = xqspi->bytes_to_transfer;
 	}
+
+	if (xqspi->txbuf)
+		genfifoentry |= GQSPI_GENFIFO_TX;
+
 	genfifoentry |= zynqmp_qspi_selectspimode(xqspi, nbits);
 	xqspi->genfifoentry = genfifoentry;
 	dev_dbg(xqspi->dev, "genfifo %05x transfer_len %u\n",
 		genfifoentry, transfer_len);
 
-	if ((transfer_len) < GQSPI_GENFIFO_IMM_DATA_MASK) {
-		genfifoentry &= ~GQSPI_GENFIFO_IMM_DATA_MASK;
-		genfifoentry |= transfer_len;
-		zynqmp_gqspi_write(xqspi, GQSPI_GEN_FIFO_OFST, genfifoentry);
-	} else {
-		int tempcount = transfer_len;
-		u32 exponent = 8;	/* 2^8 = 256 */
-		u8 imm_data = tempcount & 0xFF;
-
-		tempcount &= ~(tempcount & 0xFF);
-		/* Immediate entry */
-		if (tempcount != 0) {
-			/* Exponent entries */
-			genfifoentry |= GQSPI_GENFIFO_EXP;
-			while (tempcount != 0) {
-				if (tempcount & GQSPI_GENFIFO_EXP_START) {
-					genfifoentry &=
-						~GQSPI_GENFIFO_IMM_DATA_MASK;
-					genfifoentry |= exponent;
-					zynqmp_gqspi_write(xqspi,
-							   GQSPI_GEN_FIFO_OFST,
-							   genfifoentry);
-				}
-				tempcount = tempcount >> 1;
-				exponent++;
-			}
-		}
-		if (imm_data != 0) {
-			genfifoentry &= ~GQSPI_GENFIFO_EXP;
-			genfifoentry &= ~GQSPI_GENFIFO_IMM_DATA_MASK;
-			genfifoentry |= (u8)(imm_data & 0xFF);
+	/* Exponent entries */
+	imm_data = transfer_len;
+	tempcount = transfer_len >> 8;
+	exponent = 8;
+	genfifoentry |= GQSPI_GENFIFO_EXP;
+	while (tempcount) {
+		if (tempcount & 1)
 			zynqmp_gqspi_write(xqspi, GQSPI_GEN_FIFO_OFST,
-					   genfifoentry);
-		}
+					   genfifoentry | exponent);
+		tempcount >>= 1;
+		exponent++;
 	}
-	if (xqspi->mode == GQSPI_MODE_IO && xqspi->rxbuf) {
-		/* Dummy generic FIFO entry */
-		zynqmp_gqspi_write(xqspi, GQSPI_GEN_FIFO_OFST, 0x0);
-	}
+
+	/* Immediate entry */
+	genfifoentry &= ~GQSPI_GENFIFO_EXP;
+	if (imm_data)
+		zynqmp_gqspi_write(xqspi, GQSPI_GEN_FIFO_OFST,
+				   genfifoentry | imm_data);
+
+	/* Dummy generic FIFO entry */
+	if (xqspi->mode == GQSPI_MODE_IO && xqspi->rxbuf)
+		zynqmp_gqspi_write(xqspi, GQSPI_GEN_FIFO_OFST, 0);
 }
 
 /**
