@@ -196,6 +196,22 @@ int drm_writeback_connector_init(struct drm_device *dev,
 }
 EXPORT_SYMBOL(drm_writeback_connector_init);
 
+static void delete_writeback_properties(struct drm_device *dev)
+{
+	if (dev->mode_config.writeback_pixel_formats_property) {
+		drm_property_destroy(dev, dev->mode_config.writeback_pixel_formats_property);
+		dev->mode_config.writeback_pixel_formats_property = NULL;
+	}
+	if (dev->mode_config.writeback_out_fence_ptr_property) {
+		drm_property_destroy(dev, dev->mode_config.writeback_out_fence_ptr_property);
+		dev->mode_config.writeback_out_fence_ptr_property = NULL;
+	}
+	if (dev->mode_config.writeback_fb_id_property) {
+		drm_property_destroy(dev, dev->mode_config.writeback_fb_id_property);
+		dev->mode_config.writeback_fb_id_property = NULL;
+	}
+}
+
 /**
  * drm_writeback_connector_init_with_encoder - Initialize a writeback connector with
  * a custom encoder
@@ -231,18 +247,20 @@ static int __drm_writeback_connector_init(struct drm_device *dev,
 	int ret = create_writeback_properties(dev);
 
 	if (ret != 0)
-		return ret;
+		goto failed_properties;
 
 	connector->interlace_allowed = 0;
 
 	ret = drm_connector_attach_encoder(connector, enc);
 	if (ret)
-		return ret;
+		goto failed_properties;
 
 	blob = drm_property_create_blob(dev, n_formats * sizeof(*formats),
 					formats);
-	if (IS_ERR(blob))
-		return PTR_ERR(blob);
+	if (IS_ERR(blob)) {
+		ret = PTR_ERR(blob);
+		goto failed_properties;
+	}
 
 	INIT_LIST_HEAD(&wb_connector->job_queue);
 	spin_lock_init(&wb_connector->job_lock);
@@ -265,6 +283,9 @@ static int __drm_writeback_connector_init(struct drm_device *dev,
 	wb_connector->pixel_formats_blob_ptr = blob;
 
 	return 0;
+failed_properties:
+	delete_writeback_properties(dev);
+	return ret;
 }
 
 /**
