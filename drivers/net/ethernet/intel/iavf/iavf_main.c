@@ -1180,7 +1180,7 @@ static void iavf_napi_enable_all(struct iavf_adapter *adapter)
 
 		q_vector = &adapter->q_vectors[q_idx];
 		napi = &q_vector->napi;
-		napi_enable(napi);
+		napi_enable_locked(napi);
 	}
 }
 
@@ -1196,7 +1196,7 @@ static void iavf_napi_disable_all(struct iavf_adapter *adapter)
 
 	for (q_idx = 0; q_idx < q_vectors; q_idx++) {
 		q_vector = &adapter->q_vectors[q_idx];
-		napi_disable(&q_vector->napi);
+		napi_disable_locked(&q_vector->napi);
 	}
 }
 
@@ -1800,8 +1800,8 @@ static int iavf_alloc_q_vectors(struct iavf_adapter *adapter)
 		q_vector->v_idx = q_idx;
 		q_vector->reg_idx = q_idx;
 		cpumask_copy(&q_vector->affinity_mask, cpu_possible_mask);
-		netif_napi_add(adapter->netdev, &q_vector->napi,
-			       iavf_napi_poll);
+		netif_napi_add_locked(adapter->netdev, &q_vector->napi,
+				      iavf_napi_poll);
 	}
 
 	return 0;
@@ -1827,7 +1827,7 @@ static void iavf_free_q_vectors(struct iavf_adapter *adapter)
 	for (q_idx = 0; q_idx < num_q_vectors; q_idx++) {
 		struct iavf_q_vector *q_vector = &adapter->q_vectors[q_idx];
 
-		netif_napi_del(&q_vector->napi);
+		netif_napi_del_locked(&q_vector->napi);
 	}
 	kfree(adapter->q_vectors);
 	adapter->q_vectors = NULL;
@@ -1977,7 +1977,7 @@ static void iavf_finish_config(struct work_struct *work)
 	 * The dev->lock is needed to update the queue number
 	 */
 	rtnl_lock();
-	mutex_lock(&adapter->netdev->lock);
+	netdev_lock(adapter->netdev);
 	mutex_lock(&adapter->crit_lock);
 
 	if ((adapter->flags & IAVF_FLAG_SETUP_NETDEV_FEATURES) &&
@@ -1997,7 +1997,7 @@ static void iavf_finish_config(struct work_struct *work)
 		netif_set_real_num_tx_queues(adapter->netdev, pairs);
 
 		if (adapter->netdev->reg_state != NETREG_REGISTERED) {
-			mutex_unlock(&adapter->netdev->lock);
+			netdev_unlock(adapter->netdev);
 			netdev_released = true;
 			err = register_netdevice(adapter->netdev);
 			if (err) {
@@ -2027,7 +2027,7 @@ static void iavf_finish_config(struct work_struct *work)
 out:
 	mutex_unlock(&adapter->crit_lock);
 	if (!netdev_released)
-		mutex_unlock(&adapter->netdev->lock);
+		netdev_unlock(adapter->netdev);
 	rtnl_unlock();
 }
 
@@ -2724,10 +2724,10 @@ static void iavf_watchdog_task(struct work_struct *work)
 	struct iavf_hw *hw = &adapter->hw;
 	u32 reg_val;
 
-	mutex_lock(&netdev->lock);
+	netdev_lock(netdev);
 	if (!mutex_trylock(&adapter->crit_lock)) {
 		if (adapter->state == __IAVF_REMOVE) {
-			mutex_unlock(&netdev->lock);
+			netdev_unlock(netdev);
 			return;
 		}
 
@@ -2741,35 +2741,35 @@ static void iavf_watchdog_task(struct work_struct *work)
 	case __IAVF_STARTUP:
 		iavf_startup(adapter);
 		mutex_unlock(&adapter->crit_lock);
-		mutex_unlock(&netdev->lock);
+		netdev_unlock(netdev);
 		queue_delayed_work(adapter->wq, &adapter->watchdog_task,
 				   msecs_to_jiffies(30));
 		return;
 	case __IAVF_INIT_VERSION_CHECK:
 		iavf_init_version_check(adapter);
 		mutex_unlock(&adapter->crit_lock);
-		mutex_unlock(&netdev->lock);
+		netdev_unlock(netdev);
 		queue_delayed_work(adapter->wq, &adapter->watchdog_task,
 				   msecs_to_jiffies(30));
 		return;
 	case __IAVF_INIT_GET_RESOURCES:
 		iavf_init_get_resources(adapter);
 		mutex_unlock(&adapter->crit_lock);
-		mutex_unlock(&netdev->lock);
+		netdev_unlock(netdev);
 		queue_delayed_work(adapter->wq, &adapter->watchdog_task,
 				   msecs_to_jiffies(1));
 		return;
 	case __IAVF_INIT_EXTENDED_CAPS:
 		iavf_init_process_extended_caps(adapter);
 		mutex_unlock(&adapter->crit_lock);
-		mutex_unlock(&netdev->lock);
+		netdev_unlock(netdev);
 		queue_delayed_work(adapter->wq, &adapter->watchdog_task,
 				   msecs_to_jiffies(1));
 		return;
 	case __IAVF_INIT_CONFIG_ADAPTER:
 		iavf_init_config_adapter(adapter);
 		mutex_unlock(&adapter->crit_lock);
-		mutex_unlock(&netdev->lock);
+		netdev_unlock(netdev);
 		queue_delayed_work(adapter->wq, &adapter->watchdog_task,
 				   msecs_to_jiffies(1));
 		return;
@@ -2781,7 +2781,7 @@ static void iavf_watchdog_task(struct work_struct *work)
 			 * as it can loop forever
 			 */
 			mutex_unlock(&adapter->crit_lock);
-			mutex_unlock(&netdev->lock);
+			netdev_unlock(netdev);
 			return;
 		}
 		if (++adapter->aq_wait_count > IAVF_AQ_MAX_ERR) {
@@ -2790,7 +2790,7 @@ static void iavf_watchdog_task(struct work_struct *work)
 			adapter->flags |= IAVF_FLAG_PF_COMMS_FAILED;
 			iavf_shutdown_adminq(hw);
 			mutex_unlock(&adapter->crit_lock);
-			mutex_unlock(&netdev->lock);
+			netdev_unlock(netdev);
 			queue_delayed_work(adapter->wq,
 					   &adapter->watchdog_task, (5 * HZ));
 			return;
@@ -2798,7 +2798,7 @@ static void iavf_watchdog_task(struct work_struct *work)
 		/* Try again from failed step*/
 		iavf_change_state(adapter, adapter->last_state);
 		mutex_unlock(&adapter->crit_lock);
-		mutex_unlock(&netdev->lock);
+		netdev_unlock(netdev);
 		queue_delayed_work(adapter->wq, &adapter->watchdog_task, HZ);
 		return;
 	case __IAVF_COMM_FAILED:
@@ -2811,7 +2811,7 @@ static void iavf_watchdog_task(struct work_struct *work)
 			iavf_change_state(adapter, __IAVF_INIT_FAILED);
 			adapter->flags &= ~IAVF_FLAG_PF_COMMS_FAILED;
 			mutex_unlock(&adapter->crit_lock);
-			mutex_unlock(&netdev->lock);
+			netdev_unlock(netdev);
 			return;
 		}
 		reg_val = rd32(hw, IAVF_VFGEN_RSTAT) &
@@ -2831,14 +2831,14 @@ static void iavf_watchdog_task(struct work_struct *work)
 		adapter->aq_required = 0;
 		adapter->current_op = VIRTCHNL_OP_UNKNOWN;
 		mutex_unlock(&adapter->crit_lock);
-		mutex_unlock(&netdev->lock);
+		netdev_unlock(netdev);
 		queue_delayed_work(adapter->wq,
 				   &adapter->watchdog_task,
 				   msecs_to_jiffies(10));
 		return;
 	case __IAVF_RESETTING:
 		mutex_unlock(&adapter->crit_lock);
-		mutex_unlock(&netdev->lock);
+		netdev_unlock(netdev);
 		queue_delayed_work(adapter->wq, &adapter->watchdog_task,
 				   HZ * 2);
 		return;
@@ -2869,7 +2869,7 @@ static void iavf_watchdog_task(struct work_struct *work)
 	case __IAVF_REMOVE:
 	default:
 		mutex_unlock(&adapter->crit_lock);
-		mutex_unlock(&netdev->lock);
+		netdev_unlock(netdev);
 		return;
 	}
 
@@ -2881,14 +2881,14 @@ static void iavf_watchdog_task(struct work_struct *work)
 		dev_err(&adapter->pdev->dev, "Hardware reset detected\n");
 		iavf_schedule_reset(adapter, IAVF_FLAG_RESET_PENDING);
 		mutex_unlock(&adapter->crit_lock);
-		mutex_unlock(&netdev->lock);
+		netdev_unlock(netdev);
 		queue_delayed_work(adapter->wq,
 				   &adapter->watchdog_task, HZ * 2);
 		return;
 	}
 
 	mutex_unlock(&adapter->crit_lock);
-	mutex_unlock(&netdev->lock);
+	netdev_unlock(netdev);
 restart_watchdog:
 	if (adapter->state >= __IAVF_DOWN)
 		queue_work(adapter->wq, &adapter->adminq_task);
@@ -3015,12 +3015,12 @@ static void iavf_reset_task(struct work_struct *work)
 	/* When device is being removed it doesn't make sense to run the reset
 	 * task, just return in such a case.
 	 */
-	mutex_lock(&netdev->lock);
+	netdev_lock(netdev);
 	if (!mutex_trylock(&adapter->crit_lock)) {
 		if (adapter->state != __IAVF_REMOVE)
 			queue_work(adapter->wq, &adapter->reset_task);
 
-		mutex_unlock(&netdev->lock);
+		netdev_unlock(netdev);
 		return;
 	}
 
@@ -3068,7 +3068,7 @@ static void iavf_reset_task(struct work_struct *work)
 			reg_val);
 		iavf_disable_vf(adapter);
 		mutex_unlock(&adapter->crit_lock);
-		mutex_unlock(&netdev->lock);
+		netdev_unlock(netdev);
 		return; /* Do not attempt to reinit. It's dead, Jim. */
 	}
 
@@ -3209,7 +3209,7 @@ continue_reset:
 
 	wake_up(&adapter->reset_waitqueue);
 	mutex_unlock(&adapter->crit_lock);
-	mutex_unlock(&netdev->lock);
+	netdev_unlock(netdev);
 
 	return;
 reset_err:
@@ -3220,7 +3220,7 @@ reset_err:
 	iavf_disable_vf(adapter);
 
 	mutex_unlock(&adapter->crit_lock);
-	mutex_unlock(&netdev->lock);
+	netdev_unlock(netdev);
 	dev_err(&adapter->pdev->dev, "failed to allocate resources during reinit\n");
 }
 
@@ -3692,10 +3692,10 @@ exit:
 	if (test_bit(__IAVF_IN_REMOVE_TASK, &adapter->crit_section))
 		return 0;
 
-	mutex_lock(&netdev->lock);
+	netdev_lock(netdev);
 	netif_set_real_num_rx_queues(netdev, total_qps);
 	netif_set_real_num_tx_queues(netdev, total_qps);
-	mutex_unlock(&netdev->lock);
+	netdev_unlock(netdev);
 
 	return ret;
 }
@@ -4365,7 +4365,7 @@ static int iavf_open(struct net_device *netdev)
 		return -EIO;
 	}
 
-	mutex_lock(&netdev->lock);
+	netdev_lock(netdev);
 	while (!mutex_trylock(&adapter->crit_lock)) {
 		/* If we are in __IAVF_INIT_CONFIG_ADAPTER state the crit_lock
 		 * is already taken and iavf_open is called from an upper
@@ -4373,7 +4373,7 @@ static int iavf_open(struct net_device *netdev)
 		 * We have to leave here to avoid dead lock.
 		 */
 		if (adapter->state == __IAVF_INIT_CONFIG_ADAPTER) {
-			mutex_unlock(&netdev->lock);
+			netdev_unlock(netdev);
 			return -EBUSY;
 		}
 
@@ -4424,7 +4424,7 @@ static int iavf_open(struct net_device *netdev)
 	iavf_irq_enable(adapter, true);
 
 	mutex_unlock(&adapter->crit_lock);
-	mutex_unlock(&netdev->lock);
+	netdev_unlock(netdev);
 
 	return 0;
 
@@ -4437,7 +4437,7 @@ err_setup_tx:
 	iavf_free_all_tx_resources(adapter);
 err_unlock:
 	mutex_unlock(&adapter->crit_lock);
-	mutex_unlock(&netdev->lock);
+	netdev_unlock(netdev);
 
 	return err;
 }
@@ -4459,12 +4459,12 @@ static int iavf_close(struct net_device *netdev)
 	u64 aq_to_restore;
 	int status;
 
-	mutex_lock(&netdev->lock);
+	netdev_lock(netdev);
 	mutex_lock(&adapter->crit_lock);
 
 	if (adapter->state <= __IAVF_DOWN_PENDING) {
 		mutex_unlock(&adapter->crit_lock);
-		mutex_unlock(&netdev->lock);
+		netdev_unlock(netdev);
 		return 0;
 	}
 
@@ -4498,7 +4498,7 @@ static int iavf_close(struct net_device *netdev)
 	iavf_free_traffic_irqs(adapter);
 
 	mutex_unlock(&adapter->crit_lock);
-	mutex_unlock(&netdev->lock);
+	netdev_unlock(netdev);
 
 	/* We explicitly don't free resources here because the hardware is
 	 * still active and can DMA into memory. Resources are cleared in
@@ -5375,7 +5375,7 @@ static int iavf_suspend(struct device *dev_d)
 
 	netif_device_detach(netdev);
 
-	mutex_lock(&netdev->lock);
+	netdev_lock(netdev);
 	mutex_lock(&adapter->crit_lock);
 
 	if (netif_running(netdev)) {
@@ -5387,7 +5387,7 @@ static int iavf_suspend(struct device *dev_d)
 	iavf_reset_interrupt_capability(adapter);
 
 	mutex_unlock(&adapter->crit_lock);
-	mutex_unlock(&netdev->lock);
+	netdev_unlock(netdev);
 
 	return 0;
 }
@@ -5486,7 +5486,7 @@ static void iavf_remove(struct pci_dev *pdev)
 	if (netdev->reg_state == NETREG_REGISTERED)
 		unregister_netdev(netdev);
 
-	mutex_lock(&netdev->lock);
+	netdev_lock(netdev);
 	mutex_lock(&adapter->crit_lock);
 	dev_info(&adapter->pdev->dev, "Removing device\n");
 	iavf_change_state(adapter, __IAVF_REMOVE);
@@ -5523,7 +5523,7 @@ static void iavf_remove(struct pci_dev *pdev)
 	mutex_destroy(&hw->aq.asq_mutex);
 	mutex_unlock(&adapter->crit_lock);
 	mutex_destroy(&adapter->crit_lock);
-	mutex_unlock(&netdev->lock);
+	netdev_unlock(netdev);
 
 	iounmap(hw->hw_addr);
 	pci_release_regions(pdev);

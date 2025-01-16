@@ -382,8 +382,9 @@ struct napi_struct {
 	struct sk_buff		*skb;
 	struct list_head	rx_list; /* Pending GRO_NORMAL skbs */
 	int			rx_count; /* length of rx_list */
-	unsigned int		napi_id;
+	unsigned int		napi_id; /* protected by netdev_lock */
 	struct hrtimer		timer;
+	/* all fields past this point are write-protected by netdev_lock */
 	struct task_struct	*thread;
 	unsigned long		gro_flush_timeout;
 	unsigned long		irq_suspend_timeout;
@@ -570,16 +571,11 @@ static inline bool napi_complete(struct napi_struct *n)
 
 int dev_set_threaded(struct net_device *dev, bool threaded);
 
-/**
- *	napi_disable - prevent NAPI from scheduling
- *	@n: NAPI context
- *
- * Stop NAPI from being scheduled on this context.
- * Waits till any outstanding processing completes.
- */
 void napi_disable(struct napi_struct *n);
+void napi_disable_locked(struct napi_struct *n);
 
 void napi_enable(struct napi_struct *n);
+void napi_enable_locked(struct napi_struct *n);
 
 /**
  *	napi_synchronize - wait until NAPI is not running
@@ -2444,8 +2440,27 @@ struct net_device {
 	u32			napi_defer_hard_irqs;
 
 	/**
-	 * @lock: protects @net_shaper_hierarchy, feel free to use for other
-	 * netdev-scope protection. Ordering: take after rtnl_lock.
+	 * @up: copy of @state's IFF_UP, but safe to read with just @lock.
+	 *	May report false negatives while the device is being opened
+	 *	or closed (@lock does not protect .ndo_open, or .ndo_close).
+	 */
+	bool			up;
+
+	/**
+	 * @lock: netdev-scope lock, protects a small selection of fields.
+	 * Should always be taken using netdev_lock() / netdev_unlock() helpers.
+	 * Drivers are free to use it for other protection.
+	 *
+	 * Protects:
+	 *	@gro_flush_timeout, @napi_defer_hard_irqs, @napi_list,
+	 *	@net_shaper_hierarchy, @reg_state, @threaded
+	 *
+	 * Partially protects (writers must hold both @lock and rtnl_lock):
+	 *	@up
+	 *
+	 * Also protects some fields in struct napi_struct.
+	 *
+	 * Ordering: take after rtnl_lock.
 	 */
 	struct mutex		lock;
 
@@ -2671,9 +2686,38 @@ void netif_queue_set_napi(struct net_device *dev, unsigned int queue_index,
 			  enum netdev_queue_type type,
 			  struct napi_struct *napi);
 
-static inline void netif_napi_set_irq(struct napi_struct *napi, int irq)
+static inline void netdev_lock(struct net_device *dev)
+{
+	mutex_lock(&dev->lock);
+}
+
+static inline void netdev_unlock(struct net_device *dev)
+{
+	mutex_unlock(&dev->lock);
+}
+
+static inline void netdev_assert_locked(struct net_device *dev)
+{
+	lockdep_assert_held(&dev->lock);
+}
+
+static inline void netdev_assert_locked_or_invisible(struct net_device *dev)
+{
+	if (dev->reg_state == NETREG_REGISTERED ||
+	    dev->reg_state == NETREG_UNREGISTERING)
+		netdev_assert_locked(dev);
+}
+
+static inline void netif_napi_set_irq_locked(struct napi_struct *napi, int irq)
 {
 	napi->irq = irq;
+}
+
+static inline void netif_napi_set_irq(struct napi_struct *napi, int irq)
+{
+	netdev_lock(napi->dev);
+	netif_napi_set_irq_locked(napi, irq);
+	netdev_unlock(napi->dev);
 }
 
 /* Default NAPI poll() weight
@@ -2681,8 +2725,19 @@ static inline void netif_napi_set_irq(struct napi_struct *napi, int irq)
  */
 #define NAPI_POLL_WEIGHT 64
 
-void netif_napi_add_weight(struct net_device *dev, struct napi_struct *napi,
-			   int (*poll)(struct napi_struct *, int), int weight);
+void netif_napi_add_weight_locked(struct net_device *dev,
+				  struct napi_struct *napi,
+				  int (*poll)(struct napi_struct *, int),
+				  int weight);
+
+static inline void
+netif_napi_add_weight(struct net_device *dev, struct napi_struct *napi,
+		      int (*poll)(struct napi_struct *, int), int weight)
+{
+	netdev_lock(dev);
+	netif_napi_add_weight_locked(dev, napi, poll, weight);
+	netdev_unlock(dev);
+}
 
 /**
  * netif_napi_add() - initialize a NAPI context
@@ -2701,6 +2756,13 @@ netif_napi_add(struct net_device *dev, struct napi_struct *napi,
 }
 
 static inline void
+netif_napi_add_locked(struct net_device *dev, struct napi_struct *napi,
+		      int (*poll)(struct napi_struct *, int))
+{
+	netif_napi_add_weight_locked(dev, napi, poll, NAPI_POLL_WEIGHT);
+}
+
+static inline void
 netif_napi_add_tx_weight(struct net_device *dev,
 			 struct napi_struct *napi,
 			 int (*poll)(struct napi_struct *, int),
@@ -2708,6 +2770,15 @@ netif_napi_add_tx_weight(struct net_device *dev,
 {
 	set_bit(NAPI_STATE_NO_BUSY_POLL, &napi->state);
 	netif_napi_add_weight(dev, napi, poll, weight);
+}
+
+static inline void
+netif_napi_add_config_locked(struct net_device *dev, struct napi_struct *napi,
+			     int (*poll)(struct napi_struct *, int), int index)
+{
+	napi->index = index;
+	napi->config = &dev->napi_config[index];
+	netif_napi_add_weight_locked(dev, napi, poll, NAPI_POLL_WEIGHT);
 }
 
 /**
@@ -2721,9 +2792,9 @@ static inline void
 netif_napi_add_config(struct net_device *dev, struct napi_struct *napi,
 		      int (*poll)(struct napi_struct *, int), int index)
 {
-	napi->index = index;
-	napi->config = &dev->napi_config[index];
-	netif_napi_add_weight(dev, napi, poll, NAPI_POLL_WEIGHT);
+	netdev_lock(dev);
+	netif_napi_add_config_locked(dev, napi, poll, index);
+	netdev_unlock(dev);
 }
 
 /**
@@ -2743,6 +2814,8 @@ static inline void netif_napi_add_tx(struct net_device *dev,
 	netif_napi_add_tx_weight(dev, napi, poll, NAPI_POLL_WEIGHT);
 }
 
+void __netif_napi_del_locked(struct napi_struct *napi);
+
 /**
  *  __netif_napi_del - remove a NAPI context
  *  @napi: NAPI context
@@ -2751,7 +2824,18 @@ static inline void netif_napi_add_tx(struct net_device *dev,
  * containing @napi. Drivers might want to call this helper to combine
  * all the needed RCU grace periods into a single one.
  */
-void __netif_napi_del(struct napi_struct *napi);
+static inline void __netif_napi_del(struct napi_struct *napi)
+{
+	netdev_lock(napi->dev);
+	__netif_napi_del_locked(napi);
+	netdev_unlock(napi->dev);
+}
+
+static inline void netif_napi_del_locked(struct napi_struct *napi)
+{
+	__netif_napi_del_locked(napi);
+	synchronize_net();
+}
 
 /**
  *  netif_napi_del - remove a NAPI context

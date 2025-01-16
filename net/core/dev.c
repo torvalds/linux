@@ -768,7 +768,8 @@ static struct napi_struct *napi_by_id(unsigned int napi_id)
 }
 
 /* must be called under rcu_read_lock(), as we dont take a reference */
-struct napi_struct *netdev_napi_by_id(struct net *net, unsigned int napi_id)
+static struct napi_struct *
+netdev_napi_by_id(struct net *net, unsigned int napi_id)
 {
 	struct napi_struct *napi;
 
@@ -781,6 +782,49 @@ struct napi_struct *netdev_napi_by_id(struct net *net, unsigned int napi_id)
 	if (!net_eq(net, dev_net(napi->dev)))
 		return NULL;
 
+	return napi;
+}
+
+/**
+ *	netdev_napi_by_id_lock() - find a device by NAPI ID and lock it
+ *	@net: the applicable net namespace
+ *	@napi_id: ID of a NAPI of a target device
+ *
+ *	Find a NAPI instance with @napi_id. Lock its device.
+ *	The device must be in %NETREG_REGISTERED state for lookup to succeed.
+ *	netdev_unlock() must be called to release it.
+ *
+ *	Return: pointer to NAPI, its device with lock held, NULL if not found.
+ */
+struct napi_struct *
+netdev_napi_by_id_lock(struct net *net, unsigned int napi_id)
+{
+	struct napi_struct *napi;
+	struct net_device *dev;
+
+	rcu_read_lock();
+	napi = netdev_napi_by_id(net, napi_id);
+	if (!napi || READ_ONCE(napi->dev->reg_state) != NETREG_REGISTERED) {
+		rcu_read_unlock();
+		return NULL;
+	}
+
+	dev = napi->dev;
+	dev_hold(dev);
+	rcu_read_unlock();
+
+	dev = __netdev_put_lock(dev);
+	if (!dev)
+		return NULL;
+
+	rcu_read_lock();
+	napi = netdev_napi_by_id(net, napi_id);
+	if (napi && napi->dev != dev)
+		napi = NULL;
+	rcu_read_unlock();
+
+	if (!napi)
+		netdev_unlock(dev);
 	return napi;
 }
 
@@ -970,6 +1014,73 @@ struct net_device *dev_get_by_napi_id(unsigned int napi_id)
 	napi = napi_by_id(napi_id);
 
 	return napi ? napi->dev : NULL;
+}
+
+/* Release the held reference on the net_device, and if the net_device
+ * is still registered try to lock the instance lock. If device is being
+ * unregistered NULL will be returned (but the reference has been released,
+ * either way!)
+ *
+ * This helper is intended for locking net_device after it has been looked up
+ * using a lockless lookup helper. Lock prevents the instance from going away.
+ */
+struct net_device *__netdev_put_lock(struct net_device *dev)
+{
+	netdev_lock(dev);
+	if (dev->reg_state > NETREG_REGISTERED) {
+		netdev_unlock(dev);
+		dev_put(dev);
+		return NULL;
+	}
+	dev_put(dev);
+	return dev;
+}
+
+/**
+ *	netdev_get_by_index_lock() - find a device by its ifindex
+ *	@net: the applicable net namespace
+ *	@ifindex: index of device
+ *
+ *	Search for an interface by index. If a valid device
+ *	with @ifindex is found it will be returned with netdev->lock held.
+ *	netdev_unlock() must be called to release it.
+ *
+ *	Return: pointer to a device with lock held, NULL if not found.
+ */
+struct net_device *netdev_get_by_index_lock(struct net *net, int ifindex)
+{
+	struct net_device *dev;
+
+	dev = dev_get_by_index(net, ifindex);
+	if (!dev)
+		return NULL;
+
+	return __netdev_put_lock(dev);
+}
+
+struct net_device *
+netdev_xa_find_lock(struct net *net, struct net_device *dev,
+		    unsigned long *index)
+{
+	if (dev)
+		netdev_unlock(dev);
+
+	do {
+		rcu_read_lock();
+		dev = xa_find(&net->dev_by_index, index, ULONG_MAX, XA_PRESENT);
+		if (!dev) {
+			rcu_read_unlock();
+			return NULL;
+		}
+		dev_hold(dev);
+		rcu_read_unlock();
+
+		dev = __netdev_put_lock(dev);
+		if (dev)
+			return dev;
+
+		(*index)++;
+	} while (true);
 }
 
 static DEFINE_SEQLOCK(netdev_rename_lock);
@@ -1509,7 +1620,7 @@ static int __dev_open(struct net_device *dev, struct netlink_ext_ack *extack)
 	if (ret)
 		clear_bit(__LINK_STATE_START, &dev->state);
 	else {
-		dev->flags |= IFF_UP;
+		netif_set_up(dev, true);
 		dev_set_rx_mode(dev);
 		dev_activate(dev);
 		add_device_randomness(dev->dev_addr, dev->addr_len);
@@ -1588,7 +1699,7 @@ static void __dev_close_many(struct list_head *head)
 		if (ops->ndo_stop)
 			ops->ndo_stop(dev);
 
-		dev->flags &= ~IFF_UP;
+		netif_set_up(dev, false);
 		netpoll_poll_enable(dev);
 	}
 }
@@ -6674,6 +6785,8 @@ int dev_set_threaded(struct net_device *dev, bool threaded)
 	struct napi_struct *napi;
 	int err = 0;
 
+	netdev_assert_locked_or_invisible(dev);
+
 	if (dev->threaded == threaded)
 		return 0;
 
@@ -6800,9 +6913,12 @@ netif_napi_dev_list_add(struct net_device *dev, struct napi_struct *napi)
 	list_add_rcu(&napi->dev_list, higher); /* adds after higher */
 }
 
-void netif_napi_add_weight(struct net_device *dev, struct napi_struct *napi,
-			   int (*poll)(struct napi_struct *, int), int weight)
+void netif_napi_add_weight_locked(struct net_device *dev,
+				  struct napi_struct *napi,
+				  int (*poll)(struct napi_struct *, int),
+				  int weight)
 {
+	netdev_assert_locked(dev);
 	if (WARN_ON(test_and_set_bit(NAPI_STATE_LISTED, &napi->state)))
 		return;
 
@@ -6841,15 +6957,17 @@ void netif_napi_add_weight(struct net_device *dev, struct napi_struct *napi,
 	 */
 	if (dev->threaded && napi_kthread_create(napi))
 		dev->threaded = false;
-	netif_napi_set_irq(napi, -1);
+	netif_napi_set_irq_locked(napi, -1);
 }
-EXPORT_SYMBOL(netif_napi_add_weight);
+EXPORT_SYMBOL(netif_napi_add_weight_locked);
 
-void napi_disable(struct napi_struct *n)
+void napi_disable_locked(struct napi_struct *n)
 {
 	unsigned long val, new;
 
 	might_sleep();
+	netdev_assert_locked(n->dev);
+
 	set_bit(NAPI_STATE_DISABLE, &n->state);
 
 	val = READ_ONCE(n->state);
@@ -6872,16 +6990,25 @@ void napi_disable(struct napi_struct *n)
 
 	clear_bit(NAPI_STATE_DISABLE, &n->state);
 }
-EXPORT_SYMBOL(napi_disable);
+EXPORT_SYMBOL(napi_disable_locked);
 
 /**
- *	napi_enable - enable NAPI scheduling
- *	@n: NAPI context
+ * napi_disable() - prevent NAPI from scheduling
+ * @n: NAPI context
  *
- * Resume NAPI from being scheduled on this context.
- * Must be paired with napi_disable.
+ * Stop NAPI from being scheduled on this context.
+ * Waits till any outstanding processing completes.
+ * Takes netdev_lock() for associated net_device.
  */
-void napi_enable(struct napi_struct *n)
+void napi_disable(struct napi_struct *n)
+{
+	netdev_lock(n->dev);
+	napi_disable_locked(n);
+	netdev_unlock(n->dev);
+}
+EXPORT_SYMBOL(napi_disable);
+
+void napi_enable_locked(struct napi_struct *n)
 {
 	unsigned long new, val = READ_ONCE(n->state);
 
@@ -6897,6 +7024,22 @@ void napi_enable(struct napi_struct *n)
 		if (n->dev->threaded && n->thread)
 			new |= NAPIF_STATE_THREADED;
 	} while (!try_cmpxchg(&n->state, &val, new));
+}
+EXPORT_SYMBOL(napi_enable_locked);
+
+/**
+ * napi_enable() - enable NAPI scheduling
+ * @n: NAPI context
+ *
+ * Enable scheduling of a NAPI instance.
+ * Must be paired with napi_disable().
+ * Takes netdev_lock() for associated net_device.
+ */
+void napi_enable(struct napi_struct *n)
+{
+	netdev_lock(n->dev);
+	napi_enable_locked(n);
+	netdev_unlock(n->dev);
 }
 EXPORT_SYMBOL(napi_enable);
 
@@ -6914,8 +7057,10 @@ static void flush_gro_hash(struct napi_struct *napi)
 }
 
 /* Must be called in process context */
-void __netif_napi_del(struct napi_struct *napi)
+void __netif_napi_del_locked(struct napi_struct *napi)
 {
+	netdev_assert_locked(napi->dev);
+
 	if (!test_and_clear_bit(NAPI_STATE_LISTED, &napi->state))
 		return;
 
@@ -6935,7 +7080,7 @@ void __netif_napi_del(struct napi_struct *napi)
 		napi->thread = NULL;
 	}
 }
-EXPORT_SYMBOL(__netif_napi_del);
+EXPORT_SYMBOL(__netif_napi_del_locked);
 
 static int __napi_poll(struct napi_struct *n, bool *repoll)
 {
@@ -10695,7 +10840,9 @@ int register_netdevice(struct net_device *dev)
 
 	ret = netdev_register_kobject(dev);
 
+	netdev_lock(dev);
 	WRITE_ONCE(dev->reg_state, ret ? NETREG_UNREGISTERED : NETREG_REGISTERED);
+	netdev_unlock(dev);
 
 	if (ret)
 		goto err_uninit_notify;
@@ -10969,7 +11116,9 @@ void netdev_run_todo(void)
 			continue;
 		}
 
+		netdev_lock(dev);
 		WRITE_ONCE(dev->reg_state, NETREG_UNREGISTERED);
+		netdev_unlock(dev);
 		linkwatch_sync_dev(dev);
 	}
 
@@ -11575,7 +11724,9 @@ void unregister_netdevice_many_notify(struct list_head *head,
 	list_for_each_entry(dev, head, unreg_list) {
 		/* And unlink it from device chain. */
 		unlist_netdevice(dev);
+		netdev_lock(dev);
 		WRITE_ONCE(dev->reg_state, NETREG_UNREGISTERING);
+		netdev_unlock(dev);
 	}
 	flush_all_backlogs();
 
