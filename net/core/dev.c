@@ -6124,8 +6124,6 @@ void netif_receive_skb_list(struct list_head *head)
 }
 EXPORT_SYMBOL(netif_receive_skb_list);
 
-static DEFINE_PER_CPU(struct work_struct, flush_works);
-
 /* Network device is going away, flush any packets still pending */
 static void flush_backlog(struct work_struct *work)
 {
@@ -6182,36 +6180,54 @@ static bool flush_required(int cpu)
 	return true;
 }
 
+struct flush_backlogs {
+	cpumask_t		flush_cpus;
+	struct work_struct	w[];
+};
+
+static struct flush_backlogs *flush_backlogs_alloc(void)
+{
+	return kmalloc(struct_size_t(struct flush_backlogs, w, nr_cpu_ids),
+		       GFP_KERNEL);
+}
+
+static struct flush_backlogs *flush_backlogs_fallback;
+static DEFINE_MUTEX(flush_backlogs_mutex);
+
 static void flush_all_backlogs(void)
 {
-	static cpumask_t flush_cpus;
+	struct flush_backlogs *ptr = flush_backlogs_alloc();
 	unsigned int cpu;
 
-	/* since we are under rtnl lock protection we can use static data
-	 * for the cpumask and avoid allocating on stack the possibly
-	 * large mask
-	 */
-	ASSERT_RTNL();
+	if (!ptr) {
+		mutex_lock(&flush_backlogs_mutex);
+		ptr = flush_backlogs_fallback;
+	}
+	cpumask_clear(&ptr->flush_cpus);
 
 	cpus_read_lock();
 
-	cpumask_clear(&flush_cpus);
 	for_each_online_cpu(cpu) {
 		if (flush_required(cpu)) {
-			queue_work_on(cpu, system_highpri_wq,
-				      per_cpu_ptr(&flush_works, cpu));
-			cpumask_set_cpu(cpu, &flush_cpus);
+			INIT_WORK(&ptr->w[cpu], flush_backlog);
+			queue_work_on(cpu, system_highpri_wq, &ptr->w[cpu]);
+			__cpumask_set_cpu(cpu, &ptr->flush_cpus);
 		}
 	}
 
 	/* we can have in flight packet[s] on the cpus we are not flushing,
 	 * synchronize_net() in unregister_netdevice_many() will take care of
-	 * them
+	 * them.
 	 */
-	for_each_cpu(cpu, &flush_cpus)
-		flush_work(per_cpu_ptr(&flush_works, cpu));
+	for_each_cpu(cpu, &ptr->flush_cpus)
+		flush_work(&ptr->w[cpu]);
 
 	cpus_read_unlock();
+
+	if (ptr != flush_backlogs_fallback)
+		kfree(ptr);
+	else
+		mutex_unlock(&flush_backlogs_mutex);
 }
 
 static void net_rps_send_ipi(struct softnet_data *remsd)
@@ -10244,14 +10260,46 @@ static void dev_index_release(struct net *net, int ifindex)
 	WARN_ON(xa_erase(&net->dev_by_index, ifindex));
 }
 
+static bool from_cleanup_net(void)
+{
+#ifdef CONFIG_NET_NS
+	return current == cleanup_net_task;
+#else
+	return false;
+#endif
+}
+
+static void rtnl_drop_if_cleanup_net(void)
+{
+	if (from_cleanup_net())
+		__rtnl_unlock();
+}
+
+static void rtnl_acquire_if_cleanup_net(void)
+{
+	if (from_cleanup_net())
+		rtnl_lock();
+}
+
 /* Delayed registration/unregisteration */
 LIST_HEAD(net_todo_list);
+static LIST_HEAD(net_todo_list_for_cleanup_net);
+
+/* TODO: net_todo_list/net_todo_list_for_cleanup_net should probably
+ * be provided by callers, instead of being static, rtnl protected.
+ */
+static struct list_head *todo_list(void)
+{
+	return from_cleanup_net() ? &net_todo_list_for_cleanup_net :
+				    &net_todo_list;
+}
+
 DECLARE_WAIT_QUEUE_HEAD(netdev_unregistering_wq);
 atomic_t dev_unreg_count = ATOMIC_INIT(0);
 
 static void net_set_todo(struct net_device *dev)
 {
-	list_add_tail(&dev->todo_list, &net_todo_list);
+	list_add_tail(&dev->todo_list, todo_list());
 }
 
 static netdev_features_t netdev_sync_upper_features(struct net_device *lower,
@@ -11101,7 +11149,7 @@ void netdev_run_todo(void)
 #endif
 
 	/* Snapshot list, allow later requests */
-	list_replace_init(&net_todo_list, &list);
+	list_replace_init(todo_list(), &list);
 
 	__rtnl_unlock();
 
@@ -11623,7 +11671,7 @@ EXPORT_SYMBOL_GPL(alloc_netdev_dummy);
 void synchronize_net(void)
 {
 	might_sleep();
-	if (rtnl_is_locked())
+	if (from_cleanup_net() || rtnl_is_locked())
 		synchronize_rcu_expedited();
 	else
 		synchronize_rcu();
@@ -11728,9 +11776,11 @@ void unregister_netdevice_many_notify(struct list_head *head,
 		WRITE_ONCE(dev->reg_state, NETREG_UNREGISTERING);
 		netdev_unlock(dev);
 	}
-	flush_all_backlogs();
 
+	rtnl_drop_if_cleanup_net();
+	flush_all_backlogs();
 	synchronize_net();
+	rtnl_acquire_if_cleanup_net();
 
 	list_for_each_entry(dev, head, unreg_list) {
 		struct sk_buff *skb = NULL;
@@ -11790,7 +11840,9 @@ void unregister_netdevice_many_notify(struct list_head *head,
 #endif
 	}
 
+	rtnl_drop_if_cleanup_net();
 	synchronize_net();
+	rtnl_acquire_if_cleanup_net();
 
 	list_for_each_entry(dev, head, unreg_list) {
 		netdev_put(dev, &dev->dev_registered_tracker);
@@ -12455,11 +12507,12 @@ static int __init net_dev_init(void)
 	 *	Initialise the packet receive queues.
 	 */
 
-	for_each_possible_cpu(i) {
-		struct work_struct *flush = per_cpu_ptr(&flush_works, i);
-		struct softnet_data *sd = &per_cpu(softnet_data, i);
+	flush_backlogs_fallback = flush_backlogs_alloc();
+	if (!flush_backlogs_fallback)
+		goto out;
 
-		INIT_WORK(flush, flush_backlog);
+	for_each_possible_cpu(i) {
+		struct softnet_data *sd = &per_cpu(softnet_data, i);
 
 		skb_queue_head_init(&sd->input_pkt_queue);
 		skb_queue_head_init(&sd->process_queue);
