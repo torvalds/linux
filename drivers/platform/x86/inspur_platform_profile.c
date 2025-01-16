@@ -194,15 +194,7 @@ static int inspur_wmi_probe(struct wmi_device *wdev, const void *context)
 	priv->handler.dev = &wdev->dev;
 	priv->handler.ops = &inspur_platform_profile_ops;
 
-	return platform_profile_register(&priv->handler, priv);
-}
-
-static void inspur_wmi_remove(struct wmi_device *wdev)
-{
-	struct inspur_wmi_priv *priv;
-
-	priv = dev_get_drvdata(&wdev->dev);
-	platform_profile_remove(&priv->handler);
+	return devm_platform_profile_register(&priv->handler, priv);
 }
 
 static const struct wmi_device_id inspur_wmi_id_table[] = {
@@ -219,7 +211,6 @@ static struct wmi_driver inspur_wmi_driver = {
 	},
 	.id_table = inspur_wmi_id_table,
 	.probe = inspur_wmi_probe,
-	.remove = inspur_wmi_remove,
 	.no_singleton = true,
 };
 
