@@ -580,6 +580,8 @@ static int zynqmp_qspi_config_op(struct zynqmp_qspi *xqspi,
 		zynqmp_gqspi_write(xqspi, GQSPI_CONFIG_OFST, config_reg);
 		zynqmp_qspi_set_tapdelay(xqspi, baud_rate_val);
 	}
+
+	dev_dbg(xqspi->dev, "config speed %u\n", req_speed_hz);
 	return 0;
 }
 
@@ -693,6 +695,8 @@ static void zynqmp_qspi_fillgenfifo(struct zynqmp_qspi *xqspi, u8 nbits,
 	}
 	genfifoentry |= zynqmp_qspi_selectspimode(xqspi, nbits);
 	xqspi->genfifoentry = genfifoentry;
+	dev_dbg(xqspi->dev, "genfifo %05x transfer_len %u\n",
+		genfifoentry, transfer_len);
 
 	if ((transfer_len) < GQSPI_GENFIFO_IMM_DATA_MASK) {
 		genfifoentry &= ~GQSPI_GENFIFO_IMM_DATA_MASK;
