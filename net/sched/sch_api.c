@@ -1560,7 +1560,7 @@ static int tc_get_qdisc(struct sk_buff *skb, struct nlmsghdr *n,
 	}
 
 	if (tca[TCA_KIND] && nla_strcmp(tca[TCA_KIND], q->ops->id)) {
-		NL_SET_ERR_MSG(extack, "Invalid qdisc name");
+		NL_SET_ERR_MSG(extack, "Invalid qdisc name: must match existing qdisc");
 		return -EINVAL;
 	}
 
@@ -1670,7 +1670,7 @@ replay:
 				}
 				if (tca[TCA_KIND] &&
 				    nla_strcmp(tca[TCA_KIND], q->ops->id)) {
-					NL_SET_ERR_MSG(extack, "Invalid qdisc name");
+					NL_SET_ERR_MSG(extack, "Invalid qdisc name: must match existing qdisc");
 					return -EINVAL;
 				}
 				if (q->flags & TCQ_F_INGRESS) {
@@ -1746,7 +1746,7 @@ replay:
 		return -EEXIST;
 	}
 	if (tca[TCA_KIND] && nla_strcmp(tca[TCA_KIND], q->ops->id)) {
-		NL_SET_ERR_MSG(extack, "Invalid qdisc name");
+		NL_SET_ERR_MSG(extack, "Invalid qdisc name: must match existing qdisc");
 		return -EINVAL;
 	}
 	err = qdisc_change(q, tca, extack);
