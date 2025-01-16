@@ -95,7 +95,7 @@ int vkms_output_init(struct vkms_device *vkmsdev)
 	}
 
 	if (vkmsdev->config->writeback) {
-		writeback = vkms_enable_writeback_connector(vkmsdev);
+		writeback = vkms_enable_writeback_connector(vkmsdev, crtc);
 		if (writeback)
 			DRM_ERROR("Failed to init writeback connector\n");
 	}
