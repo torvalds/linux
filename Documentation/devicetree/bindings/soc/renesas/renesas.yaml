@@ -557,6 +557,12 @@ properties:
               - renesas,r9a09g057h48 # RZ/V2HP with Mali-G31 + Mali-C55 + cryptographic extension support
           - const: renesas,r9a09g057
 
+      - description: Yuridenki-Shokai RZ/V2H Kakip
+        items:
+          - const: yuridenki,kakip
+          - const: renesas,r9a09g057h48
+          - const: renesas,r9a09g057
+
 additionalProperties: true
 
 ...
