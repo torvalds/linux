@@ -2930,6 +2930,10 @@ static void intel_set_transcoder_timings_lrr(const struct intel_crtc_state *crtc
 	}
 
 	if (DISPLAY_VER(dev_priv) >= 13) {
+		intel_de_write(dev_priv,
+			       TRANS_SET_CONTEXT_LATENCY(dev_priv, cpu_transcoder),
+			       crtc_vblank_start - crtc_vdisplay);
+
 		/*
 		 * VBLANK_START not used by hw, just clear it
 		 * to make it stand out in register dumps.
