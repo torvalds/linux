@@ -197,6 +197,14 @@ int trace_instance_start(struct trace_instance *trace)
 }
 
 /*
+ * trace_instance_stop - stop tracing a given rtla instance
+ */
+int trace_instance_stop(struct trace_instance *trace)
+{
+	return tracefs_trace_off(trace->inst);
+}
+
+/*
  * trace_events_free - free a list of trace events
  */
 static void trace_events_free(struct trace_events *events)
