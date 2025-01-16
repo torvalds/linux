@@ -721,16 +721,16 @@ static netdev_tx_t mlxsw_sp_port_xmit(struct sk_buff *skb,
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	struct mlxsw_sp_port_pcpu_stats *pcpu_stats;
-	const struct mlxsw_tx_info tx_info = {
-		.local_port = mlxsw_sp_port->local_port,
-		.is_emad = false,
+	const struct mlxsw_txhdr_info txhdr_info = {
+		.tx_info.local_port = mlxsw_sp_port->local_port,
+		.tx_info.is_emad = false,
 	};
 	u64 len;
 	int err;
 
 	memset(skb->cb, 0, sizeof(struct mlxsw_skb_cb));
 
-	if (mlxsw_core_skb_transmit_busy(mlxsw_sp->core, &tx_info))
+	if (mlxsw_core_skb_transmit_busy(mlxsw_sp->core, &txhdr_info.tx_info))
 		return NETDEV_TX_BUSY;
 
 	if (eth_skb_pad(skb)) {
@@ -739,7 +739,7 @@ static netdev_tx_t mlxsw_sp_port_xmit(struct sk_buff *skb,
 	}
 
 	err = mlxsw_sp_txhdr_handle(mlxsw_sp->core, mlxsw_sp_port, skb,
-				    &tx_info);
+				    &txhdr_info.tx_info);
 	if (err)
 		return NETDEV_TX_OK;
 
@@ -751,7 +751,7 @@ static netdev_tx_t mlxsw_sp_port_xmit(struct sk_buff *skb,
 	/* Due to a race we might fail here because of a full queue. In that
 	 * unlikely case we simply drop the packet.
 	 */
-	err = mlxsw_core_skb_transmit(mlxsw_sp->core, skb, &tx_info);
+	err = mlxsw_core_skb_transmit(mlxsw_sp->core, skb, &txhdr_info);
 
 	if (!err) {
 		pcpu_stats = this_cpu_ptr(mlxsw_sp_port->pcpu_stats);

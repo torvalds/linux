@@ -2122,7 +2122,7 @@ static bool mlxsw_pci_skb_transmit_busy(void *bus_priv,
 }
 
 static int mlxsw_pci_skb_transmit(void *bus_priv, struct sk_buff *skb,
-				  const struct mlxsw_tx_info *tx_info)
+				  const struct mlxsw_txhdr_info *txhdr_info)
 {
 	struct mlxsw_pci *mlxsw_pci = bus_priv;
 	struct mlxsw_pci_queue *q;
@@ -2137,7 +2137,7 @@ static int mlxsw_pci_skb_transmit(void *bus_priv, struct sk_buff *skb,
 			return err;
 	}
 
-	q = mlxsw_pci_sdq_pick(mlxsw_pci, tx_info);
+	q = mlxsw_pci_sdq_pick(mlxsw_pci, &txhdr_info->tx_info);
 	spin_lock_bh(&q->lock);
 	elem_info = mlxsw_pci_queue_elem_info_producer_get(q);
 	if (!elem_info) {
@@ -2145,7 +2145,7 @@ static int mlxsw_pci_skb_transmit(void *bus_priv, struct sk_buff *skb,
 		err = -EAGAIN;
 		goto unlock;
 	}
-	mlxsw_skb_cb(skb)->tx_info = *tx_info;
+	mlxsw_skb_cb(skb)->tx_info = txhdr_info->tx_info;
 	elem_info->sdq.skb = skb;
 
 	wqe = elem_info->elem;
