@@ -1668,7 +1668,7 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 		goto put_padctl;
 	}
 
-	if (!of_property_read_bool(pdev->dev.of_node, "power-domains")) {
+	if (!of_property_present(pdev->dev.of_node, "power-domains")) {
 		tegra->host_rst = devm_reset_control_get(&pdev->dev,
 							 "xusb_host");
 		if (IS_ERR(tegra->host_rst)) {
