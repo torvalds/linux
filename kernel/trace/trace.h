@@ -432,6 +432,7 @@ struct trace_array {
 enum {
 	TRACE_ARRAY_FL_GLOBAL	= BIT(0),
 	TRACE_ARRAY_FL_BOOT	= BIT(1),
+	TRACE_ARRAY_FL_MOD_INIT	= BIT(2),
 };
 
 extern struct list_head ftrace_trace_arrays;
@@ -1116,6 +1117,7 @@ void ftrace_destroy_function_files(struct trace_array *tr);
 int ftrace_allocate_ftrace_ops(struct trace_array *tr);
 void ftrace_free_ftrace_ops(struct trace_array *tr);
 void ftrace_init_global_array_ops(struct trace_array *tr);
+struct trace_array *trace_get_global_array(void);
 void ftrace_init_array_ops(struct trace_array *tr, ftrace_func_t func);
 void ftrace_reset_array_ops(struct trace_array *tr);
 void ftrace_init_tracefs(struct trace_array *tr, struct dentry *d_tracer);

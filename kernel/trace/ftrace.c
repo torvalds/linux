@@ -4968,10 +4968,6 @@ static int cache_mod(struct trace_array *tr,
 	return ftrace_add_mod(tr, func, module, enable);
 }
 
-static int
-ftrace_set_regex(struct ftrace_ops *ops, unsigned char *buf, int len,
-		 int reset, int enable);
-
 #ifdef CONFIG_MODULES
 static void process_mod_list(struct list_head *head, struct ftrace_ops *ops,
 			     char *mod, bool enable)
@@ -5761,7 +5757,7 @@ ftrace_match_addr(struct ftrace_hash *hash, unsigned long *ips,
 static int
 ftrace_set_hash(struct ftrace_ops *ops, unsigned char *buf, int len,
 		unsigned long *ips, unsigned int cnt,
-		int remove, int reset, int enable)
+		int remove, int reset, int enable, char *mod)
 {
 	struct ftrace_hash **orig_hash;
 	struct ftrace_hash *hash;
@@ -5787,7 +5783,15 @@ ftrace_set_hash(struct ftrace_ops *ops, unsigned char *buf, int len,
 		goto out_regex_unlock;
 	}
 
-	if (buf && !ftrace_match_records(hash, buf, len)) {
+	if (buf && !match_records(hash, buf, len, mod)) {
+		/* If this was for a module and nothing was enabled, flag it */
+		if (mod)
+			(*orig_hash)->flags |= FTRACE_HASH_FL_MOD;
+
+		/*
+		 * Even if it is a mod, return error to let caller know
+		 * nothing was added
+		 */
 		ret = -EINVAL;
 		goto out_regex_unlock;
 	}
@@ -5812,7 +5816,7 @@ static int
 ftrace_set_addr(struct ftrace_ops *ops, unsigned long *ips, unsigned int cnt,
 		int remove, int reset, int enable)
 {
-	return ftrace_set_hash(ops, NULL, 0, ips, cnt, remove, reset, enable);
+	return ftrace_set_hash(ops, NULL, 0, ips, cnt, remove, reset, enable, NULL);
 }
 
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
@@ -6190,7 +6194,38 @@ static int
 ftrace_set_regex(struct ftrace_ops *ops, unsigned char *buf, int len,
 		 int reset, int enable)
 {
-	return ftrace_set_hash(ops, buf, len, NULL, 0, 0, reset, enable);
+	char *mod = NULL, *func, *command, *next = buf;
+	char *tmp __free(kfree) = NULL;
+	struct trace_array *tr = ops->private;
+	int ret;
+
+	func = strsep(&next, ":");
+
+	/* This can also handle :mod: parsing */
+	if (next) {
+		if (!tr)
+			return -EINVAL;
+
+		command = strsep(&next, ":");
+		if (strcmp(command, "mod") != 0)
+			return -EINVAL;
+
+		mod = next;
+		len = command - func;
+		/* Save the original func as ftrace_set_hash() can modify it */
+		tmp = kstrdup(func, GFP_KERNEL);
+	}
+
+	ret = ftrace_set_hash(ops, func, len, NULL, 0, 0, reset, enable, mod);
+
+	if (tr && mod && ret < 0) {
+		/* Did tmp fail to allocate? */
+		if (!tmp)
+			return -ENOMEM;
+		ret = cache_mod(tr, tmp, mod, enable);
+	}
+
+	return ret;
 }
 
 /**
@@ -6353,6 +6388,14 @@ ftrace_set_early_filter(struct ftrace_ops *ops, char *buf, int enable)
 	char *func;
 
 	ftrace_ops_init(ops);
+
+	/* The trace_array is needed for caching module function filters */
+	if (!ops->private) {
+		struct trace_array *tr = trace_get_global_array();
+
+		ops->private = tr;
+		ftrace_init_trace_array(tr);
+	}
 
 	while (buf) {
 		func = strsep(&buf, ",");
@@ -7787,9 +7830,14 @@ static void ftrace_update_trampoline(struct ftrace_ops *ops)
 
 void ftrace_init_trace_array(struct trace_array *tr)
 {
+	if (tr->flags & TRACE_ARRAY_FL_MOD_INIT)
+		return;
+
 	INIT_LIST_HEAD(&tr->func_probes);
 	INIT_LIST_HEAD(&tr->mod_trace);
 	INIT_LIST_HEAD(&tr->mod_notrace);
+
+	tr->flags |= TRACE_ARRAY_FL_MOD_INIT;
 }
 #else
 
@@ -7818,7 +7866,8 @@ static void ftrace_update_trampoline(struct ftrace_ops *ops)
 __init void ftrace_init_global_array_ops(struct trace_array *tr)
 {
 	tr->ops = &global_ops;
-	tr->ops->private = tr;
+	if (!global_ops.private)
+		global_ops.private = tr;
 	ftrace_init_trace_array(tr);
 	init_array_fgraph_ops(tr, tr->ops);
 }
