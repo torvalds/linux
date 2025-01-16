@@ -1059,8 +1059,8 @@ static unsigned long zynqmp_qspi_timeout(struct zynqmp_qspi *xqspi, u8 bits,
 static int zynqmp_qspi_exec_op(struct spi_mem *mem,
 			       const struct spi_mem_op *op)
 {
-	struct zynqmp_qspi *xqspi = spi_controller_get_devdata
-				    (mem->spi->controller);
+	struct zynqmp_qspi *xqspi =
+		spi_controller_get_devdata(mem->spi->controller);
 	unsigned long timeout;
 	int err = 0, i;
 	u32 genfifoentry = 0;
