@@ -201,7 +201,18 @@ static int ssam_platform_profile_set(struct device *dev,
 	return tp;
 }
 
+static int ssam_platform_profile_probe(void *drvdata, unsigned long *choices)
+{
+	set_bit(PLATFORM_PROFILE_LOW_POWER, choices);
+	set_bit(PLATFORM_PROFILE_BALANCED, choices);
+	set_bit(PLATFORM_PROFILE_BALANCED_PERFORMANCE, choices);
+	set_bit(PLATFORM_PROFILE_PERFORMANCE, choices);
+
+	return 0;
+}
+
 static const struct platform_profile_ops ssam_platform_profile_ops = {
+	.probe = ssam_platform_profile_probe,
 	.profile_get = ssam_platform_profile_get,
 	.profile_set = ssam_platform_profile_set,
 };
@@ -222,11 +233,6 @@ static int surface_platform_profile_probe(struct ssam_device *sdev)
 	tpd->handler.ops = &ssam_platform_profile_ops;
 
 	tpd->has_fan = device_property_read_bool(&sdev->dev, "has_fan");
-
-	set_bit(PLATFORM_PROFILE_LOW_POWER, tpd->handler.choices);
-	set_bit(PLATFORM_PROFILE_BALANCED, tpd->handler.choices);
-	set_bit(PLATFORM_PROFILE_BALANCED_PERFORMANCE, tpd->handler.choices);
-	set_bit(PLATFORM_PROFILE_PERFORMANCE, tpd->handler.choices);
 
 	return platform_profile_register(&tpd->handler, tpd);
 }

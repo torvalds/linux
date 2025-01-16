@@ -465,9 +465,20 @@ int platform_profile_register(struct platform_profile_handler *pprof, void *drvd
 	int err;
 
 	/* Sanity check the profile handler */
-	if (!pprof || bitmap_empty(pprof->choices, PLATFORM_PROFILE_LAST) ||
-	    !pprof->ops->profile_set || !pprof->ops->profile_get) {
+	if (!pprof || !pprof->ops->profile_set || !pprof->ops->profile_get ||
+	    !pprof->ops->probe) {
 		pr_err("platform_profile: handler is invalid\n");
+		return -EINVAL;
+	}
+
+	err = pprof->ops->probe(drvdata, pprof->choices);
+	if (err) {
+		dev_err(pprof->dev, "platform_profile probe failed\n");
+		return err;
+	}
+
+	if (bitmap_empty(pprof->choices, PLATFORM_PROFILE_LAST)) {
+		dev_err(pprof->dev, "Failed to register a platform_profile class device with empty choices\n");
 		return -EINVAL;
 	}
 

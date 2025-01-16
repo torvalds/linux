@@ -164,7 +164,17 @@ static int inspur_platform_profile_get(struct device *dev,
 	return 0;
 }
 
+static int inspur_platform_profile_probe(void *drvdata, unsigned long *choices)
+{
+	set_bit(PLATFORM_PROFILE_LOW_POWER, choices);
+	set_bit(PLATFORM_PROFILE_BALANCED, choices);
+	set_bit(PLATFORM_PROFILE_PERFORMANCE, choices);
+
+	return 0;
+}
+
 static const struct platform_profile_ops inspur_platform_profile_ops = {
+	.probe = inspur_platform_profile_probe,
 	.profile_get = inspur_platform_profile_get,
 	.profile_set = inspur_platform_profile_set,
 };
@@ -183,10 +193,6 @@ static int inspur_wmi_probe(struct wmi_device *wdev, const void *context)
 	priv->handler.name = "inspur-wmi";
 	priv->handler.dev = &wdev->dev;
 	priv->handler.ops = &inspur_platform_profile_ops;
-
-	set_bit(PLATFORM_PROFILE_LOW_POWER, priv->handler.choices);
-	set_bit(PLATFORM_PROFILE_BALANCED, priv->handler.choices);
-	set_bit(PLATFORM_PROFILE_PERFORMANCE, priv->handler.choices);
 
 	return platform_profile_register(&priv->handler, priv);
 }

@@ -2019,7 +2019,53 @@ acer_predator_v4_platform_profile_set(struct device *dev,
 	return 0;
 }
 
+static int
+acer_predator_v4_platform_profile_probe(void *drvdata, unsigned long *choices)
+{
+	unsigned long supported_profiles;
+	int err;
+
+	err = WMID_gaming_get_misc_setting(ACER_WMID_MISC_SETTING_SUPPORTED_PROFILES,
+					   (u8 *)&supported_profiles);
+	if (err)
+		return err;
+
+	/* Iterate through supported profiles in order of increasing performance */
+	if (test_bit(ACER_PREDATOR_V4_THERMAL_PROFILE_ECO, &supported_profiles)) {
+		set_bit(PLATFORM_PROFILE_LOW_POWER, choices);
+		acer_predator_v4_max_perf =
+			ACER_PREDATOR_V4_THERMAL_PROFILE_ECO;
+	}
+
+	if (test_bit(ACER_PREDATOR_V4_THERMAL_PROFILE_QUIET, &supported_profiles)) {
+		set_bit(PLATFORM_PROFILE_QUIET, choices);
+		acer_predator_v4_max_perf =
+			ACER_PREDATOR_V4_THERMAL_PROFILE_QUIET;
+	}
+
+	if (test_bit(ACER_PREDATOR_V4_THERMAL_PROFILE_BALANCED, &supported_profiles)) {
+		set_bit(PLATFORM_PROFILE_BALANCED, choices);
+		acer_predator_v4_max_perf =
+			ACER_PREDATOR_V4_THERMAL_PROFILE_BALANCED;
+	}
+
+	if (test_bit(ACER_PREDATOR_V4_THERMAL_PROFILE_PERFORMANCE, &supported_profiles)) {
+		set_bit(PLATFORM_PROFILE_BALANCED_PERFORMANCE, choices);
+		acer_predator_v4_max_perf =
+			ACER_PREDATOR_V4_THERMAL_PROFILE_PERFORMANCE;
+	}
+
+	if (test_bit(ACER_PREDATOR_V4_THERMAL_PROFILE_TURBO, &supported_profiles)) {
+		set_bit(PLATFORM_PROFILE_PERFORMANCE, choices);
+		acer_predator_v4_max_perf =
+			ACER_PREDATOR_V4_THERMAL_PROFILE_TURBO;
+	}
+
+	return 0;
+}
+
 static const struct platform_profile_ops acer_predator_v4_platform_profile_ops = {
+	.probe = acer_predator_v4_platform_profile_probe,
 	.profile_get = acer_predator_v4_platform_profile_get,
 	.profile_set = acer_predator_v4_platform_profile_set,
 };
@@ -2027,54 +2073,12 @@ static const struct platform_profile_ops acer_predator_v4_platform_profile_ops =
 static int acer_platform_profile_setup(struct platform_device *device)
 {
 	if (quirks->predator_v4) {
-		unsigned long supported_profiles;
 		int err;
 
 		platform_profile_handler.name = "acer-wmi";
 		platform_profile_handler.dev = &device->dev;
 		platform_profile_handler.ops =
 			&acer_predator_v4_platform_profile_ops;
-
-		err = WMID_gaming_get_misc_setting(ACER_WMID_MISC_SETTING_SUPPORTED_PROFILES,
-						   (u8 *)&supported_profiles);
-		if (err)
-			return err;
-
-		/* Iterate through supported profiles in order of increasing performance */
-		if (test_bit(ACER_PREDATOR_V4_THERMAL_PROFILE_ECO, &supported_profiles)) {
-			set_bit(PLATFORM_PROFILE_LOW_POWER,
-				platform_profile_handler.choices);
-			acer_predator_v4_max_perf =
-				ACER_PREDATOR_V4_THERMAL_PROFILE_ECO;
-		}
-
-		if (test_bit(ACER_PREDATOR_V4_THERMAL_PROFILE_QUIET, &supported_profiles)) {
-			set_bit(PLATFORM_PROFILE_QUIET,
-				platform_profile_handler.choices);
-			acer_predator_v4_max_perf =
-				ACER_PREDATOR_V4_THERMAL_PROFILE_QUIET;
-		}
-
-		if (test_bit(ACER_PREDATOR_V4_THERMAL_PROFILE_BALANCED, &supported_profiles)) {
-			set_bit(PLATFORM_PROFILE_BALANCED,
-				platform_profile_handler.choices);
-			acer_predator_v4_max_perf =
-				ACER_PREDATOR_V4_THERMAL_PROFILE_BALANCED;
-		}
-
-		if (test_bit(ACER_PREDATOR_V4_THERMAL_PROFILE_PERFORMANCE, &supported_profiles)) {
-			set_bit(PLATFORM_PROFILE_BALANCED_PERFORMANCE,
-				platform_profile_handler.choices);
-			acer_predator_v4_max_perf =
-				ACER_PREDATOR_V4_THERMAL_PROFILE_PERFORMANCE;
-		}
-
-		if (test_bit(ACER_PREDATOR_V4_THERMAL_PROFILE_TURBO, &supported_profiles)) {
-			set_bit(PLATFORM_PROFILE_PERFORMANCE,
-				platform_profile_handler.choices);
-			acer_predator_v4_max_perf =
-				ACER_PREDATOR_V4_THERMAL_PROFILE_TURBO;
-		}
 
 		err = platform_profile_register(&platform_profile_handler, NULL);
 		if (err)
