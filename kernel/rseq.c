@@ -201,7 +201,7 @@ static int rseq_reset_rseq_cpu_node_id(struct task_struct *t)
 	/*
 	 * Validate read-only rseq fields.
 	 */
-	if (!rseq_validate_ro_fields(t))
+	if (rseq_validate_ro_fields(t))
 		return -EFAULT;
 	/*
 	 * Reset cpu_id_start to its initial state (0).
