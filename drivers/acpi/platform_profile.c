@@ -425,6 +425,10 @@ static const struct attribute_group platform_profile_group = {
 	.is_visible = profile_class_is_visible,
 };
 
+/**
+ * platform_profile_notify - Notify class device and legacy sysfs interface
+ * @dev: The class device
+ */
 void platform_profile_notify(struct device *dev)
 {
 	scoped_cond_guard(mutex_intr, return, &profile_lock) {
@@ -434,6 +438,11 @@ void platform_profile_notify(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(platform_profile_notify);
 
+/**
+ * platform_profile_cycle - Cycles profiles available on all registered class devices
+ *
+ * Return: 0 on success, -errno on failure
+ */
 int platform_profile_cycle(void)
 {
 	enum platform_profile_option next = PLATFORM_PROFILE_LAST;
@@ -477,6 +486,15 @@ int platform_profile_cycle(void)
 }
 EXPORT_SYMBOL_GPL(platform_profile_cycle);
 
+/**
+ * platform_profile_register - Creates and registers a platform profile class device
+ * @dev: Parent device
+ * @name: Name of the class device
+ * @drvdata: Driver data that will be attached to the class device
+ * @ops: Platform profile's mandatory operations
+ *
+ * Return: pointer to the new class device on success, ERR_PTR on failure
+ */
 struct device *platform_profile_register(struct device *dev, const char *name,
 					 void *drvdata,
 					 const struct platform_profile_ops *ops)
@@ -546,6 +564,12 @@ cleanup_ida:
 }
 EXPORT_SYMBOL_GPL(platform_profile_register);
 
+/**
+ * platform_profile_remove - Unregisters a platform profile class device
+ * @dev: Class device
+ *
+ * Return: 0
+ */
 int platform_profile_remove(struct device *dev)
 {
 	struct platform_profile_handler *pprof = to_pprof_handler(dev);
@@ -571,6 +595,15 @@ static void devm_platform_profile_release(struct device *dev, void *res)
 	platform_profile_remove(*ppdev);
 }
 
+/**
+ * devm_platform_profile_register - Device managed version of platform_profile_register
+ * @dev: Parent device
+ * @name: Name of the class device
+ * @drvdata: Driver data that will be attached to the class device
+ * @ops: Platform profile's mandatory operations
+ *
+ * Return: pointer to the new class device on success, ERR_PTR on failure
+ */
 struct device *devm_platform_profile_register(struct device *dev, const char *name,
 					      void *drvdata,
 					      const struct platform_profile_ops *ops)

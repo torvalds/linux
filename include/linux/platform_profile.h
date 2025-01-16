@@ -28,6 +28,16 @@ enum platform_profile_option {
 	PLATFORM_PROFILE_LAST, /*must always be last */
 };
 
+/**
+ * struct platform_profile_ops - platform profile operations
+ * @probe: Callback to setup choices available to the new class device. These
+ *	   choices will only be enforced when setting a new profile, not when
+ *	   getting the current one.
+ * @profile_get: Callback that will be called when showing the current platform
+ *		 profile in sysfs.
+ * @profile_set: Callback that will be called when storing a new platform
+ *		 profile in sysfs.
+ */
 struct platform_profile_ops {
 	int (*probe)(void *drvdata, unsigned long *choices);
 	int (*profile_get)(struct device *dev, enum platform_profile_option *profile);
