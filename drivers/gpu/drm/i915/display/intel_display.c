@@ -2923,6 +2923,12 @@ static void intel_set_transcoder_timings_lrr(const struct intel_crtc_state *crtc
 	crtc_vblank_start = adjusted_mode->crtc_vblank_start;
 	crtc_vblank_end = adjusted_mode->crtc_vblank_end;
 
+	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
+		/* the chip adds 2 halflines automatically */
+		crtc_vtotal -= 1;
+		crtc_vblank_end -= 1;
+	}
+
 	if (DISPLAY_VER(dev_priv) >= 13) {
 		/*
 		 * VBLANK_START not used by hw, just clear it
@@ -2930,8 +2936,6 @@ static void intel_set_transcoder_timings_lrr(const struct intel_crtc_state *crtc
 		 */
 		crtc_vblank_start = 1;
 	}
-
-	drm_WARN_ON(&dev_priv->drm, adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE);
 
 	/*
 	 * The hardware actually ignores TRANS_VBLANK.VBLANK_END in DP mode.
