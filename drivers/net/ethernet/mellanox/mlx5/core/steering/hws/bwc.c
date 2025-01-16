@@ -468,8 +468,22 @@ hws_bwc_matcher_size_maxed_out(struct mlx5hws_bwc_matcher *bwc_matcher)
 {
 	struct mlx5hws_cmd_query_caps *caps = bwc_matcher->matcher->tbl->ctx->caps;
 
-	return bwc_matcher->size_log + MLX5HWS_MATCHER_ASSURED_MAIN_TBL_DEPTH >=
-	       caps->ste_alloc_log_max - 1;
+	/* check the match RTC size */
+	if ((bwc_matcher->size_log +
+	     MLX5HWS_MATCHER_ASSURED_MAIN_TBL_DEPTH +
+	     MLX5HWS_BWC_MATCHER_SIZE_LOG_STEP) >
+	    (caps->ste_alloc_log_max - 1))
+		return true;
+
+	/* check the action RTC size */
+	if ((bwc_matcher->size_log +
+	     MLX5HWS_BWC_MATCHER_SIZE_LOG_STEP +
+	     ilog2(roundup_pow_of_two(bwc_matcher->matcher->action_ste.max_stes)) +
+	     MLX5HWS_MATCHER_ACTION_RTC_UPDATE_MULT) >
+	    (caps->ste_alloc_log_max - 1))
+		return true;
+
+	return false;
 }
 
 static bool

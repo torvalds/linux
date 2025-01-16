@@ -60,6 +60,7 @@ mlx5_core-$(CONFIG_MLX5_CLS_ACT)     += en/tc/act/act.o en/tc/act/drop.o en/tc/a
 ifneq ($(CONFIG_MLX5_TC_CT),)
 	mlx5_core-y			     += en/tc_ct.o en/tc/ct_fs_dmfs.o
 	mlx5_core-$(CONFIG_MLX5_SW_STEERING) += en/tc/ct_fs_smfs.o
+	mlx5_core-$(CONFIG_MLX5_HW_STEERING) += en/tc/ct_fs_hmfs.o
 endif
 
 mlx5_core-$(CONFIG_MLX5_TC_SAMPLE)   += en/tc/sample.o
