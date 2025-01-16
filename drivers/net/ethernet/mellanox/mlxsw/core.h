@@ -74,6 +74,8 @@ struct mlxsw_tx_info {
 
 struct mlxsw_txhdr_info {
 	struct mlxsw_tx_info tx_info;
+	bool data;
+	u16 max_fid; /* Used for PTP packets which are sent as data. */
 };
 
 struct mlxsw_rx_md_info {

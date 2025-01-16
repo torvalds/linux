@@ -299,6 +299,33 @@ static bool mlxsw_sp_skb_requires_ts(struct sk_buff *skb)
 	return !!ptp_parse_header(skb, type);
 }
 
+static void mlxsw_sp_txhdr_info_data_init(struct mlxsw_core *mlxsw_core,
+					  struct sk_buff *skb,
+					  struct mlxsw_txhdr_info *txhdr_info)
+{
+	/* Resource validation was done as part of PTP init. */
+	u16 max_fid = MLXSW_CORE_RES_GET(mlxsw_core, FID);
+
+	txhdr_info->data = true;
+	txhdr_info->max_fid = max_fid;
+}
+
+static void
+mlxsw_sp_txhdr_preparations(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
+			    struct mlxsw_txhdr_info *txhdr_info)
+{
+	if (likely(!mlxsw_sp_skb_requires_ts(skb)))
+		return;
+
+	if (!mlxsw_sp->ptp_ops->tx_as_data)
+		return;
+
+	/* Special handling for PTP events that require a time stamp and cannot
+	 * be transmitted as regular control packets.
+	 */
+	mlxsw_sp_txhdr_info_data_init(mlxsw_sp->core, skb, txhdr_info);
+}
+
 static int mlxsw_sp_txhdr_handle(struct mlxsw_core *mlxsw_core,
 				 struct mlxsw_sp_port *mlxsw_sp_port,
 				 struct sk_buff *skb,
@@ -721,7 +748,7 @@ static netdev_tx_t mlxsw_sp_port_xmit(struct sk_buff *skb,
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	struct mlxsw_sp_port_pcpu_stats *pcpu_stats;
-	const struct mlxsw_txhdr_info txhdr_info = {
+	struct mlxsw_txhdr_info txhdr_info = {
 		.tx_info.local_port = mlxsw_sp_port->local_port,
 		.tx_info.is_emad = false,
 	};
@@ -737,6 +764,8 @@ static netdev_tx_t mlxsw_sp_port_xmit(struct sk_buff *skb,
 		this_cpu_inc(mlxsw_sp_port->pcpu_stats->tx_dropped);
 		return NETDEV_TX_OK;
 	}
+
+	mlxsw_sp_txhdr_preparations(mlxsw_sp, skb, &txhdr_info);
 
 	err = mlxsw_sp_txhdr_handle(mlxsw_sp->core, mlxsw_sp_port, skb,
 				    &txhdr_info.tx_info);
@@ -2812,6 +2841,7 @@ static const struct mlxsw_sp_ptp_ops mlxsw_sp2_ptp_ops = {
 	.get_stats_strings = mlxsw_sp2_get_stats_strings,
 	.get_stats	= mlxsw_sp2_get_stats,
 	.txhdr_construct = mlxsw_sp2_ptp_txhdr_construct,
+	.tx_as_data     = true,
 };
 
 static const struct mlxsw_sp_ptp_ops mlxsw_sp4_ptp_ops = {

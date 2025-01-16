@@ -247,6 +247,7 @@ struct mlxsw_sp_ptp_ops {
 			       struct mlxsw_sp_port *mlxsw_sp_port,
 			       struct sk_buff *skb,
 			       const struct mlxsw_tx_info *tx_info);
+	bool tx_as_data;
 };
 
 struct mlxsw_sp_fid_core_ops {

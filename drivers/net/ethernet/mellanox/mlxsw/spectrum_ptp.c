@@ -1353,6 +1353,10 @@ struct mlxsw_sp_ptp_state *mlxsw_sp2_ptp_init(struct mlxsw_sp *mlxsw_sp)
 	struct mlxsw_sp2_ptp_state *ptp_state;
 	int err;
 
+	/* Max FID will be used in data path, check validity as part of init. */
+	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, FID))
+		return ERR_PTR(-EIO);
+
 	ptp_state = kzalloc(sizeof(*ptp_state), GFP_KERNEL);
 	if (!ptp_state)
 		return ERR_PTR(-ENOMEM);
