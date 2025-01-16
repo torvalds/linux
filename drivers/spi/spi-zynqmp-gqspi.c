@@ -740,6 +740,33 @@ static void zynqmp_qspi_fillgenfifo(struct zynqmp_qspi *xqspi, u8 nbits,
 }
 
 /**
+ * zynqmp_qspi_disable_dma() - Disable DMA mode
+ * @xqspi: GQSPI instance
+ */
+static void zynqmp_qspi_disable_dma(struct zynqmp_qspi *xqspi)
+{
+	u32 config_reg = zynqmp_gqspi_read(xqspi, GQSPI_CONFIG_OFST);
+
+	config_reg &= ~GQSPI_CFG_MODE_EN_MASK;
+	zynqmp_gqspi_write(xqspi, GQSPI_CONFIG_OFST, config_reg);
+	xqspi->mode = GQSPI_MODE_IO;
+}
+
+/**
+ * zynqmp_qspi_enable_dma() - Enable DMA mode
+ * @xqspi: GQSPI instance
+ */
+static void zynqmp_qspi_enable_dma(struct zynqmp_qspi *xqspi)
+{
+	u32 config_reg = zynqmp_gqspi_read(xqspi, GQSPI_CONFIG_OFST);
+
+	config_reg &= ~GQSPI_CFG_MODE_EN_MASK;
+	config_reg |= GQSPI_CFG_MODE_EN_DMA_MASK;
+	zynqmp_gqspi_write(xqspi, GQSPI_CONFIG_OFST, config_reg);
+	xqspi->mode = GQSPI_MODE_DMA;
+}
+
+/**
  * zynqmp_process_dma_irq - Handler for DMA done interrupt of QSPI
  *				controller
  * @xqspi:	zynqmp_qspi instance pointer
@@ -748,7 +775,7 @@ static void zynqmp_qspi_fillgenfifo(struct zynqmp_qspi *xqspi, u8 nbits,
  */
 static void zynqmp_process_dma_irq(struct zynqmp_qspi *xqspi)
 {
-	u32 config_reg, genfifoentry;
+	u32 genfifoentry;
 
 	dma_unmap_single(xqspi->dev, xqspi->dma_addr,
 			 xqspi->dma_rx_bytes, DMA_FROM_DEVICE);
@@ -762,9 +789,7 @@ static void zynqmp_process_dma_irq(struct zynqmp_qspi *xqspi)
 
 	if (xqspi->bytes_to_receive > 0) {
 		/* Switch to IO mode,for remaining bytes to receive */
-		config_reg = zynqmp_gqspi_read(xqspi, GQSPI_CONFIG_OFST);
-		config_reg &= ~GQSPI_CFG_MODE_EN_MASK;
-		zynqmp_gqspi_write(xqspi, GQSPI_CONFIG_OFST, config_reg);
+		zynqmp_qspi_disable_dma(xqspi);
 
 		/* Initiate the transfer of remaining bytes */
 		genfifoentry = xqspi->genfifoentry;
@@ -849,17 +874,14 @@ static irqreturn_t zynqmp_qspi_irq(int irq, void *dev_id)
  */
 static int zynqmp_qspi_setuprxdma(struct zynqmp_qspi *xqspi)
 {
-	u32 rx_bytes, rx_rem, config_reg;
+	u32 rx_bytes, rx_rem;
 	dma_addr_t addr;
 	u64 dma_align =  (u64)(uintptr_t)xqspi->rxbuf;
 
 	if (xqspi->bytes_to_receive < 8 ||
 	    ((dma_align & GQSPI_DMA_UNALIGN) != 0x0)) {
 		/* Setting to IO mode */
-		config_reg = zynqmp_gqspi_read(xqspi, GQSPI_CONFIG_OFST);
-		config_reg &= ~GQSPI_CFG_MODE_EN_MASK;
-		zynqmp_gqspi_write(xqspi, GQSPI_CONFIG_OFST, config_reg);
-		xqspi->mode = GQSPI_MODE_IO;
+		zynqmp_qspi_disable_dma(xqspi);
 		xqspi->dma_rx_bytes = 0;
 		return 0;
 	}
@@ -882,14 +904,7 @@ static int zynqmp_qspi_setuprxdma(struct zynqmp_qspi *xqspi)
 	zynqmp_gqspi_write(xqspi, GQSPI_QSPIDMA_DST_ADDR_MSB_OFST,
 			   ((u32)addr) & 0xfff);
 
-	/* Enabling the DMA mode */
-	config_reg = zynqmp_gqspi_read(xqspi, GQSPI_CONFIG_OFST);
-	config_reg &= ~GQSPI_CFG_MODE_EN_MASK;
-	config_reg |= GQSPI_CFG_MODE_EN_DMA_MASK;
-	zynqmp_gqspi_write(xqspi, GQSPI_CONFIG_OFST, config_reg);
-
-	/* Switch to DMA mode */
-	xqspi->mode = GQSPI_MODE_DMA;
+	zynqmp_qspi_enable_dma(xqspi);
 
 	/* Write the number of bytes to transfer */
 	zynqmp_gqspi_write(xqspi, GQSPI_QSPIDMA_DST_SIZE_OFST, rx_bytes);
@@ -909,18 +924,10 @@ static int zynqmp_qspi_setuprxdma(struct zynqmp_qspi *xqspi)
 static void zynqmp_qspi_write_op(struct zynqmp_qspi *xqspi, u8 tx_nbits,
 				 u32 genfifoentry)
 {
-	u32 config_reg;
-
 	zynqmp_qspi_fillgenfifo(xqspi, tx_nbits, genfifoentry);
 	zynqmp_qspi_filltxfifo(xqspi, GQSPI_TXD_DEPTH);
-	if (xqspi->mode == GQSPI_MODE_DMA) {
-		config_reg = zynqmp_gqspi_read(xqspi,
-					       GQSPI_CONFIG_OFST);
-		config_reg &= ~GQSPI_CFG_MODE_EN_MASK;
-		zynqmp_gqspi_write(xqspi, GQSPI_CONFIG_OFST,
-				   config_reg);
-		xqspi->mode = GQSPI_MODE_IO;
-	}
+	if (xqspi->mode == GQSPI_MODE_DMA)
+		zynqmp_qspi_disable_dma(xqspi);
 }
 
 /**
