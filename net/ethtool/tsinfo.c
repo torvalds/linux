@@ -186,6 +186,8 @@ static int tsinfo_put_stats(struct sk_buff *skb,
 
 	if (tsinfo_put_stat(skb, stats->tx_stats.pkts,
 			    ETHTOOL_A_TS_STAT_TX_PKTS) ||
+	    tsinfo_put_stat(skb, stats->tx_stats.onestep_pkts_unconfirmed,
+			    ETHTOOL_A_TS_STAT_TX_ONESTEP_PKTS_UNCONFIRMED) ||
 	    tsinfo_put_stat(skb, stats->tx_stats.lost,
 			    ETHTOOL_A_TS_STAT_TX_LOST) ||
 	    tsinfo_put_stat(skb, stats->tx_stats.err,
