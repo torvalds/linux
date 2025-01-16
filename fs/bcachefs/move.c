@@ -127,7 +127,7 @@ static void move_write(struct moving_io *io)
 	atomic_add(io->write_sectors, &io->write.ctxt->write_sectors);
 	atomic_inc(&io->write.ctxt->write_ios);
 
-	bch2_data_update_read_done(&io->write, io->write.rbio.pick.crc);
+	bch2_data_update_read_done(&io->write);
 }
 
 struct moving_io *bch2_moving_ctxt_next_pending_write(struct moving_context *ctxt)
@@ -253,11 +253,6 @@ int bch2_move_extent(struct moving_context *ctxt,
 {
 	struct btree_trans *trans = ctxt->trans;
 	struct bch_fs *c = trans->c;
-	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
-	struct moving_io *io;
-	const union bch_extent_entry *entry;
-	struct extent_ptr_decoded p;
-	unsigned sectors = k.k->size, pages;
 	int ret = -ENOMEM;
 
 	trace_move_extent2(c, k, &io_opts, &data_opts);
@@ -280,13 +275,7 @@ int bch2_move_extent(struct moving_context *ctxt,
 	 */
 	bch2_trans_unlock(trans);
 
-	/* write path might have to decompress data: */
-	bkey_for_each_ptr_decode(k.k, ptrs, p, entry)
-		sectors = max_t(unsigned, sectors, p.crc.uncompressed_size);
-
-	pages = DIV_ROUND_UP(sectors, PAGE_SECTORS);
-	io = kzalloc(sizeof(struct moving_io) +
-		     sizeof(struct bio_vec) * pages, GFP_KERNEL);
+	struct moving_io *io = kzalloc(sizeof(struct moving_io), GFP_KERNEL);
 	if (!io)
 		goto err;
 
@@ -295,31 +284,13 @@ int bch2_move_extent(struct moving_context *ctxt,
 	io->read_sectors	= k.k->size;
 	io->write_sectors	= k.k->size;
 
-	bio_init(&io->write.op.wbio.bio, NULL, io->write.bi_inline_vecs, pages, 0);
-	io->write.op.wbio.bio.bi_ioprio =
-		     IOPRIO_PRIO_VALUE(IOPRIO_CLASS_IDLE, 0);
-
-	if (bch2_bio_alloc_pages(&io->write.op.wbio.bio, sectors << 9,
-				 GFP_KERNEL))
-		goto err_free;
-
-	bio_init(&io->write.rbio.bio, NULL, io->write.bi_inline_vecs, pages, 0);
-	io->write.rbio.bio.bi_vcnt = pages;
-	io->write.rbio.bio.bi_ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_IDLE, 0);
-	io->write.rbio.bio.bi_iter.bi_size = sectors << 9;
-
-	io->write.rbio.bio.bi_opf		= REQ_OP_READ;
-	io->write.rbio.bio.bi_iter.bi_sector	= bkey_start_offset(k.k);
-
-	rbio_init(&io->write.rbio.bio,
-		  c,
-		  io_opts,
-		  move_read_endio);
-
 	ret = bch2_data_update_init(trans, iter, ctxt, &io->write, ctxt->wp,
 				    io_opts, data_opts, iter->btree_id, k);
 	if (ret)
-		goto err_free_pages;
+		goto err_free;
+
+	io->write.rbio.bio.bi_end_io = move_read_endio;
+	io->write.rbio.bio.bi_ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_IDLE, 0);
 
 	io->write.op.end_io = move_write_done;
 
@@ -359,8 +330,6 @@ int bch2_move_extent(struct moving_context *ctxt,
 			 BCH_READ_data_update|
 			 BCH_READ_last_fragment);
 	return 0;
-err_free_pages:
-	bio_free_pages(&io->write.op.wbio.bio);
 err_free:
 	kfree(io);
 err:
@@ -624,7 +593,7 @@ static int bch2_move_data_btree(struct moving_context *ctxt,
 			if (bch2_err_matches(ret2, BCH_ERR_transaction_restart))
 				continue;
 
-			if (ret2 == -ENOMEM) {
+			if (bch2_err_matches(ret2, ENOMEM)) {
 				/* memory allocation failure, wait for some IO to finish */
 				bch2_move_ctxt_wait_for_io(ctxt);
 				continue;

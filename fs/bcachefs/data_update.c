@@ -20,6 +20,8 @@
 #include "subvolume.h"
 #include "trace.h"
 
+#include <linux/ioprio.h>
+
 static void bkey_put_dev_refs(struct bch_fs *c, struct bkey_s_c k)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
@@ -427,16 +429,15 @@ int bch2_data_update_index_update(struct bch_write_op *op)
 	return bch2_trans_run(op->c, __bch2_data_update_index_update(trans, op));
 }
 
-void bch2_data_update_read_done(struct data_update *m,
-				struct bch_extent_crc_unpacked crc)
+void bch2_data_update_read_done(struct data_update *m)
 {
 	m->read_done = true;
 
 	/* write bio must own pages: */
 	BUG_ON(!m->op.wbio.bio.bi_vcnt);
 
-	m->op.crc = crc;
-	m->op.wbio.bio.bi_iter.bi_size = crc.compressed_size << 9;
+	m->op.crc = m->rbio.pick.crc;
+	m->op.wbio.bio.bi_iter.bi_size = m->op.crc.compressed_size << 9;
 
 	this_cpu_add(m->op.c->counters[BCH_COUNTER_move_extent_write], m->k.k->k.size);
 
@@ -454,6 +455,8 @@ void bch2_data_update_exit(struct data_update *update)
 	bch2_bkey_buf_exit(&update->k, c);
 	bch2_disk_reservation_put(c, &update->op.res);
 	bch2_bio_free_pages_pool(c, &update->op.wbio.bio);
+	kfree(update->bvecs);
+	update->bvecs = NULL;
 }
 
 static int bch2_update_unwritten_extent(struct btree_trans *trans,
@@ -779,7 +782,31 @@ int bch2_data_update_init(struct btree_trans *trans,
 		goto out;
 	}
 
+	/* write path might have to decompress data: */
+	unsigned buf_bytes = 0;
+	bkey_for_each_ptr_decode(k.k, ptrs, p, entry)
+		buf_bytes = max_t(unsigned, buf_bytes, p.crc.uncompressed_size << 9);
+
+	unsigned nr_vecs = DIV_ROUND_UP(buf_bytes, PAGE_SIZE);
+
+	m->bvecs = kmalloc_array(nr_vecs, sizeof*(m->bvecs), GFP_KERNEL);
+	if (!m->bvecs)
+		goto enomem;
+
+	bio_init(&m->rbio.bio,		NULL, m->bvecs, nr_vecs, REQ_OP_READ);
+	bio_init(&m->op.wbio.bio,	NULL, m->bvecs, nr_vecs, 0);
+
+	if (bch2_bio_alloc_pages(&m->op.wbio.bio, buf_bytes, GFP_KERNEL))
+		goto enomem;
+
+	rbio_init(&m->rbio.bio, c, io_opts, NULL);
+	m->rbio.bio.bi_iter.bi_size	= buf_bytes;
+	m->rbio.bio.bi_iter.bi_sector	= bkey_start_offset(k.k);
+	m->op.wbio.bio.bi_ioprio	= IOPRIO_PRIO_VALUE(IOPRIO_CLASS_IDLE, 0);
+
 	return 0;
+enomem:
+	ret = -ENOMEM;
 out:
 	bch2_data_update_exit(m);
 	return ret ?: -BCH_ERR_data_update_done;

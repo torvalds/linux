@@ -125,45 +125,37 @@ static inline int should_promote(struct bch_fs *c, struct bkey_s_c k,
 	return 0;
 }
 
-static void promote_free(struct bch_fs *c, struct promote_op *op)
+static noinline void promote_free(struct bch_read_bio *rbio)
 {
-	int ret;
+	struct promote_op *op = container_of(rbio, struct promote_op, write.rbio);
+	struct bch_fs *c = rbio->c;
+
+	int ret = rhashtable_remove_fast(&c->promote_table, &op->hash,
+					 bch_promote_params);
+	BUG_ON(ret);
 
 	bch2_data_update_exit(&op->write);
 
-	ret = rhashtable_remove_fast(&c->promote_table, &op->hash,
-				     bch_promote_params);
-	BUG_ON(ret);
 	bch2_write_ref_put(c, BCH_WRITE_REF_promote);
 	kfree_rcu(op, rcu);
 }
 
 static void promote_done(struct bch_write_op *wop)
 {
-	struct promote_op *op =
-		container_of(wop, struct promote_op, write.op);
-	struct bch_fs *c = op->write.op.c;
+	struct promote_op *op = container_of(wop, struct promote_op, write.op);
+	struct bch_fs *c = op->write.rbio.c;
 
-	bch2_time_stats_update(&c->times[BCH_TIME_data_promote],
-			       op->start_time);
-	promote_free(c, op);
+	bch2_time_stats_update(&c->times[BCH_TIME_data_promote], op->start_time);
+	promote_free(&op->write.rbio);
 }
 
-static void promote_start(struct promote_op *op, struct bch_read_bio *rbio)
+static noinline void promote_start(struct bch_read_bio *rbio)
 {
-	struct bio *bio = &op->write.op.wbio.bio;
+	struct promote_op *op = container_of(rbio, struct promote_op, write.rbio);
 
 	trace_and_count(op->write.op.c, read_promote, &rbio->bio);
 
-	/* we now own pages: */
-	BUG_ON(!rbio->bounce);
-	BUG_ON(rbio->bio.bi_vcnt > bio->bi_max_vecs);
-
-	memcpy(bio->bi_io_vec, rbio->bio.bi_io_vec,
-	       sizeof(struct bio_vec) * rbio->bio.bi_vcnt);
-	swap(bio->bi_vcnt, rbio->bio.bi_vcnt);
-
-	bch2_data_update_read_done(&op->write, rbio->pick.crc);
+	bch2_data_update_read_done(&op->write);
 }
 
 static struct bch_read_bio *__promote_alloc(struct btree_trans *trans,
@@ -176,15 +168,12 @@ static struct bch_read_bio *__promote_alloc(struct btree_trans *trans,
 					    struct bch_io_failures *failed)
 {
 	struct bch_fs *c = trans->c;
-	struct promote_op *op = NULL;
-	struct bio *bio;
-	unsigned pages = DIV_ROUND_UP(sectors, PAGE_SECTORS);
 	int ret;
 
 	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_promote))
 		return ERR_PTR(-BCH_ERR_nopromote_no_writes);
 
-	op = kzalloc(struct_size(op, bi_inline_vecs, pages), GFP_KERNEL);
+	struct promote_op *op = kzalloc(sizeof(*op), GFP_KERNEL);
 	if (!op) {
 		ret = -BCH_ERR_nopromote_enomem;
 		goto err_put;
@@ -193,28 +182,11 @@ static struct bch_read_bio *__promote_alloc(struct btree_trans *trans,
 	op->start_time = local_clock();
 	op->pos = pos;
 
-	rbio_init_fragment(&op->write.rbio.bio, orig);
-	bio_init(&op->write.rbio.bio,
-		 NULL,
-		 op->write.bi_inline_vecs,
-		 pages, 0);
-
-	if (bch2_bio_alloc_pages(&op->write.rbio.bio, sectors << 9, GFP_KERNEL)) {
-		ret = -BCH_ERR_nopromote_enomem;
-		goto err;
-	}
-
-	op->write.rbio.bounce	= true;
-	op->write.rbio.promote	= true;
-
 	if (rhashtable_lookup_insert_fast(&c->promote_table, &op->hash,
 					  bch_promote_params)) {
 		ret = -BCH_ERR_nopromote_in_flight;
 		goto err;
 	}
-
-	bio = &op->write.op.wbio.bio;
-	bio_init(bio, NULL, bio->bi_inline_vecs, pages, 0);
 
 	struct data_update_opts update_opts = {};
 
@@ -243,16 +215,20 @@ static struct bch_read_bio *__promote_alloc(struct btree_trans *trans,
 	 * possible errors: -BCH_ERR_nocow_lock_blocked,
 	 * -BCH_ERR_ENOSPC_disk_reservation:
 	 */
-	if (ret) {
-		BUG_ON(rhashtable_remove_fast(&c->promote_table, &op->hash,
-					      bch_promote_params));
-		goto err;
-	}
+	if (ret)
+		goto err_remove_hash;
 
+	rbio_init_fragment(&op->write.rbio.bio, orig);
+	op->write.rbio.bounce	= true;
+	op->write.rbio.promote	= true;
 	op->write.op.end_io = promote_done;
+
 	return &op->write.rbio;
+err_remove_hash:
+	BUG_ON(rhashtable_remove_fast(&c->promote_table, &op->hash,
+				      bch_promote_params));
 err:
-	bio_free_pages(&op->write.rbio.bio);
+	bio_free_pages(&op->write.op.wbio.bio);
 	/* We may have added to the rhashtable and thus need rcu freeing: */
 	kfree_rcu(op, rcu);
 err_put:
@@ -363,15 +339,11 @@ static inline struct bch_read_bio *bch2_rbio_free(struct bch_read_bio *rbio)
 	if (rbio->split) {
 		struct bch_read_bio *parent = rbio->parent;
 
-		if (rbio->promote) {
-			struct promote_op *op = container_of(rbio, struct promote_op, write.rbio);
-
-			if (!rbio->bio.bi_status) {
-				promote_start(op, rbio);
-			} else {
-				bch2_bio_free_pages_pool(rbio->c, &rbio->bio);
-				promote_free(rbio->c, op);
-			}
+		if (unlikely(rbio->promote)) {
+			if (!rbio->bio.bi_status)
+				promote_start(rbio);
+			else
+				promote_free(rbio);
 		} else {
 			if (rbio->bounce)
 				bch2_bio_free_pages_pool(rbio->c, &rbio->bio);
@@ -938,11 +910,13 @@ retry_pick:
 	}
 
 	if (flags & BCH_READ_data_update) {
+		struct data_update *u = container_of(orig, struct data_update, rbio);
+
 		/*
 		 * can happen if we retry, and the extent we were going to read
 		 * has been merged in the meantime:
 		 */
-		if (pick.crc.compressed_size > orig->bio.bi_vcnt * PAGE_SECTORS) {
+		if (pick.crc.compressed_size > u->op.wbio.bio.bi_iter.bi_size) {
 			if (ca)
 				percpu_ref_put(&ca->io_ref);
 			goto hole;

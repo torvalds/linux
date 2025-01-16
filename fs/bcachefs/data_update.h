@@ -32,8 +32,7 @@ struct data_update {
 
 	struct bch_read_bio	rbio;
 	struct bch_write_op	op;
-	/* Must be last since it is variable size */
-	struct bio_vec		bi_inline_vecs[];
+	struct bio_vec		*bvecs;
 };
 
 void bch2_data_update_to_text(struct printbuf *, struct data_update *);
@@ -41,8 +40,7 @@ void bch2_data_update_inflight_to_text(struct printbuf *, struct data_update *);
 
 int bch2_data_update_index_update(struct bch_write_op *);
 
-void bch2_data_update_read_done(struct data_update *,
-				struct bch_extent_crc_unpacked);
+void bch2_data_update_read_done(struct data_update *);
 
 int bch2_extent_drop_ptrs(struct btree_trans *,
 			  struct btree_iter *,
