@@ -781,7 +781,7 @@ static int ntsync_create_mutex(struct ntsync_device *dev, void __user *argp)
 	mutex->u.mutex.owner = args.owner;
 	fd = ntsync_obj_get_fd(mutex);
 	if (fd < 0)
-		kfree(mutex);
+		ntsync_free_obj(mutex);
 
 	return fd;
 }
@@ -802,7 +802,7 @@ static int ntsync_create_event(struct ntsync_device *dev, void __user *argp)
 	event->u.event.signaled = args.signaled;
 	fd = ntsync_obj_get_fd(event);
 	if (fd < 0)
-		kfree(event);
+		ntsync_free_obj(event);
 
 	return fd;
 }
