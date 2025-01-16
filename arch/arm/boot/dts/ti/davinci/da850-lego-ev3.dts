@@ -412,14 +412,14 @@
 	status = "okay";
 
 	/* Don't pull down battery voltage adc io channel */
-	batt_volt_en {
+	batt-volt-en-hog {
 		gpio-hog;
 		gpios = <6 GPIO_ACTIVE_HIGH>;
 		output-high;
 	};
 
 	/* Don't impede Bluetooth clock signal */
-	bt_clock_en {
+	bt-clock-en-hog {
 		gpio-hog;
 		gpios = <5 GPIO_ACTIVE_HIGH>;
 		input;
@@ -433,19 +433,19 @@
 	 * anything, but they are present in the source code from LEGO.
 	 */
 
-	bt_pic_en {
+	bt-pic-en-hog {
 		gpio-hog;
 		gpios = <51 GPIO_ACTIVE_HIGH>;
 		output-low;
 	};
 
-	bt_pic_rst {
+	bt-pic-rst-hog {
 		gpio-hog;
 		gpios = <78 GPIO_ACTIVE_HIGH>;
 		output-high;
 	};
 
-	bt_pic_cts {
+	bt-pic-cts-hog {
 		gpio-hog;
 		gpios = <87 GPIO_ACTIVE_HIGH>;
 		input;
