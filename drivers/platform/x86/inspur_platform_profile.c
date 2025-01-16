@@ -32,7 +32,7 @@ enum inspur_tmp_profile {
 
 struct inspur_wmi_priv {
 	struct wmi_device *wdev;
-	struct platform_profile_handler handler;
+	struct device *ppdev;
 };
 
 static int inspur_wmi_perform_query(struct wmi_device *wdev,
@@ -190,11 +190,10 @@ static int inspur_wmi_probe(struct wmi_device *wdev, const void *context)
 	priv->wdev = wdev;
 	dev_set_drvdata(&wdev->dev, priv);
 
-	priv->handler.name = "inspur-wmi";
-	priv->handler.dev = &wdev->dev;
-	priv->handler.ops = &inspur_platform_profile_ops;
+	priv->ppdev = devm_platform_profile_register(&wdev->dev, "inspur-wmi", priv,
+						     &inspur_platform_profile_ops);
 
-	return devm_platform_profile_register(&priv->handler, priv);
+	return PTR_ERR_OR_ZERO(priv->ppdev);
 }
 
 static const struct wmi_device_id inspur_wmi_id_table[] = {

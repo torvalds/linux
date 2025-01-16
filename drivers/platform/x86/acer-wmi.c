@@ -784,7 +784,7 @@ static const struct dmi_system_id non_acer_quirks[] __initconst = {
 	{}
 };
 
-static struct platform_profile_handler platform_profile_handler;
+static struct device *platform_profile_device;
 static bool platform_profile_support;
 
 /*
@@ -2073,16 +2073,10 @@ static const struct platform_profile_ops acer_predator_v4_platform_profile_ops =
 static int acer_platform_profile_setup(struct platform_device *device)
 {
 	if (quirks->predator_v4) {
-		int err;
-
-		platform_profile_handler.name = "acer-wmi";
-		platform_profile_handler.dev = &device->dev;
-		platform_profile_handler.ops =
-			&acer_predator_v4_platform_profile_ops;
-
-		err = devm_platform_profile_register(&platform_profile_handler, NULL);
-		if (err)
-			return err;
+		platform_profile_device = devm_platform_profile_register(
+			&device->dev, "acer-wmi", NULL, &acer_predator_v4_platform_profile_ops);
+		if (IS_ERR(platform_profile_device))
+			return PTR_ERR(platform_profile_device);
 
 		platform_profile_support = true;
 
@@ -2125,7 +2119,7 @@ static int acer_thermal_profile_change(void)
 			if (current_tp != acer_predator_v4_max_perf)
 				last_non_turbo_profile = current_tp;
 
-			platform_profile_notify(&platform_profile_handler);
+			platform_profile_notify(platform_profile_device);
 		}
 	}
 

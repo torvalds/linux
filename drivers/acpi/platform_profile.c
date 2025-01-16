@@ -4,6 +4,7 @@
 
 #include <linux/acpi.h>
 #include <linux/bits.h>
+#include <linux/cleanup.h>
 #include <linux/init.h>
 #include <linux/mutex.h>
 #include <linux/platform_profile.h>
@@ -212,9 +213,17 @@ static struct attribute *profile_attrs[] = {
 };
 ATTRIBUTE_GROUPS(profile);
 
+static void pprof_device_release(struct device *dev)
+{
+	struct platform_profile_handler *pprof = to_pprof_handler(dev);
+
+	kfree(pprof);
+}
+
 static const struct class platform_profile_class = {
 	.name = "platform-profile",
 	.dev_groups = profile_groups,
+	.dev_release = pprof_device_release,
 };
 
 /**
@@ -408,10 +417,10 @@ static const struct attribute_group platform_profile_group = {
 	.is_visible = profile_class_is_visible,
 };
 
-void platform_profile_notify(struct platform_profile_handler *pprof)
+void platform_profile_notify(struct device *dev)
 {
 	scoped_cond_guard(mutex_intr, return, &profile_lock) {
-		_notify_class_profile(&pprof->class_dev, NULL);
+		_notify_class_profile(dev, NULL);
 	}
 	sysfs_notify(acpi_kobj, NULL, "platform_profile");
 }
@@ -460,42 +469,54 @@ int platform_profile_cycle(void)
 }
 EXPORT_SYMBOL_GPL(platform_profile_cycle);
 
-int platform_profile_register(struct platform_profile_handler *pprof, void *drvdata)
+struct device *platform_profile_register(struct device *dev, const char *name,
+					 void *drvdata,
+					 const struct platform_profile_ops *ops)
 {
+	struct device *ppdev;
+	int minor;
 	int err;
 
-	/* Sanity check the profile handler */
-	if (!pprof || !pprof->ops->profile_set || !pprof->ops->profile_get ||
-	    !pprof->ops->probe) {
-		pr_err("platform_profile: handler is invalid\n");
-		return -EINVAL;
-	}
+	/* Sanity check */
+	if (WARN_ON_ONCE(!dev || !name || !ops || !ops->profile_get ||
+	    !ops->profile_set || !ops->probe))
+		return ERR_PTR(-EINVAL);
 
-	err = pprof->ops->probe(drvdata, pprof->choices);
+	struct platform_profile_handler *pprof __free(kfree) = kzalloc(
+		sizeof(*pprof), GFP_KERNEL);
+	if (!pprof)
+		return ERR_PTR(-ENOMEM);
+
+	err = ops->probe(drvdata, pprof->choices);
 	if (err) {
-		dev_err(pprof->dev, "platform_profile probe failed\n");
-		return err;
+		dev_err(dev, "platform_profile probe failed\n");
+		return ERR_PTR(err);
 	}
 
 	if (bitmap_empty(pprof->choices, PLATFORM_PROFILE_LAST)) {
-		dev_err(pprof->dev, "Failed to register a platform_profile class device with empty choices\n");
-		return -EINVAL;
+		dev_err(dev, "Failed to register platform_profile class device with empty choices\n");
+		return ERR_PTR(-EINVAL);
 	}
 
 	guard(mutex)(&profile_lock);
 
 	/* create class interface for individual handler */
-	pprof->minor = ida_alloc(&platform_profile_ida, GFP_KERNEL);
-	if (pprof->minor < 0)
-		return pprof->minor;
+	minor = ida_alloc(&platform_profile_ida, GFP_KERNEL);
+	if (minor < 0)
+		return ERR_PTR(minor);
 
+	pprof->name = name;
+	pprof->ops = ops;
+	pprof->minor = minor;
 	pprof->class_dev.class = &platform_profile_class;
-	pprof->class_dev.parent = pprof->dev;
+	pprof->class_dev.parent = dev;
 	dev_set_drvdata(&pprof->class_dev, drvdata);
 	dev_set_name(&pprof->class_dev, "platform-profile-%d", pprof->minor);
-	err = device_register(&pprof->class_dev);
+	/* device_register() takes ownership of pprof/ppdev */
+	ppdev = &no_free_ptr(pprof)->class_dev;
+	err = device_register(ppdev);
 	if (err) {
-		put_device(&pprof->class_dev);
+		put_device(ppdev);
 		goto cleanup_ida;
 	}
 
@@ -505,20 +526,21 @@ int platform_profile_register(struct platform_profile_handler *pprof, void *drvd
 	if (err)
 		goto cleanup_cur;
 
-	return 0;
+	return ppdev;
 
 cleanup_cur:
-	device_unregister(&pprof->class_dev);
+	device_unregister(ppdev);
 
 cleanup_ida:
-	ida_free(&platform_profile_ida, pprof->minor);
+	ida_free(&platform_profile_ida, minor);
 
-	return err;
+	return ERR_PTR(err);
 }
 EXPORT_SYMBOL_GPL(platform_profile_register);
 
-int platform_profile_remove(struct platform_profile_handler *pprof)
+int platform_profile_remove(struct device *dev)
 {
+	struct platform_profile_handler *pprof = to_pprof_handler(dev);
 	int id;
 	guard(mutex)(&profile_lock);
 
@@ -536,30 +558,32 @@ EXPORT_SYMBOL_GPL(platform_profile_remove);
 
 static void devm_platform_profile_release(struct device *dev, void *res)
 {
-	struct platform_profile_handler **pprof = res;
+	struct device **ppdev = res;
 
-	platform_profile_remove(*pprof);
+	platform_profile_remove(*ppdev);
 }
 
-int devm_platform_profile_register(struct platform_profile_handler *pprof, void *drvdata)
+struct device *devm_platform_profile_register(struct device *dev, const char *name,
+					      void *drvdata,
+					      const struct platform_profile_ops *ops)
 {
-	struct platform_profile_handler **dr;
-	int ret;
+	struct device *ppdev;
+	struct device **dr;
 
 	dr = devres_alloc(devm_platform_profile_release, sizeof(*dr), GFP_KERNEL);
 	if (!dr)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
-	ret = platform_profile_register(pprof, drvdata);
-	if (ret) {
+	ppdev = platform_profile_register(dev, name, drvdata, ops);
+	if (IS_ERR(ppdev)) {
 		devres_free(dr);
-		return ret;
+		return ppdev;
 	}
 
-	*dr = pprof;
-	devres_add(pprof->dev, dr);
+	*dr = ppdev;
+	devres_add(dev, dr);
 
-	return 0;
+	return ppdev;
 }
 EXPORT_SYMBOL_GPL(devm_platform_profile_register);
 

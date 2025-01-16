@@ -962,6 +962,7 @@ static const struct proc_ops dispatch_proc_ops = {
 static struct platform_device *tpacpi_pdev;
 static struct platform_device *tpacpi_sensors_pdev;
 static struct device *tpacpi_hwmon;
+static struct device *tpacpi_pprof;
 static struct input_dev *tpacpi_inputdev;
 static struct mutex tpacpi_inputdev_send_mutex;
 static LIST_HEAD(tpacpi_all_drivers);
@@ -10554,11 +10555,6 @@ static const struct platform_profile_ops dytc_profile_ops = {
 	.profile_set = dytc_profile_set,
 };
 
-static struct platform_profile_handler dytc_profile = {
-	.name = "thinkpad-acpi",
-	.ops = &dytc_profile_ops,
-};
-
 static void dytc_profile_refresh(void)
 {
 	enum platform_profile_option profile;
@@ -10587,7 +10583,7 @@ static void dytc_profile_refresh(void)
 	err = convert_dytc_to_profile(funcmode, perfmode, &profile);
 	if (!err && profile != dytc_current_profile) {
 		dytc_current_profile = profile;
-		platform_profile_notify(&dytc_profile);
+		platform_profile_notify(tpacpi_pprof);
 	}
 }
 
@@ -10648,14 +10644,14 @@ static int tpacpi_dytc_profile_init(struct ibm_init_struct *iibm)
 	dbg_printk(TPACPI_DBG_INIT,
 			"DYTC version %d: thermal mode available\n", dytc_version);
 
-	dytc_profile.dev = &tpacpi_pdev->dev;
 	/* Create platform_profile structure and register */
-	err = devm_platform_profile_register(&dytc_profile, NULL);
+	tpacpi_pprof = devm_platform_profile_register(&tpacpi_pdev->dev, "thinkpad-acpi",
+						      NULL, &dytc_profile_ops);
 	/*
 	 * If for some reason platform_profiles aren't enabled
 	 * don't quit terminally.
 	 */
-	if (err)
+	if (IS_ERR(tpacpi_pprof))
 		return -ENODEV;
 
 	/* Ensure initial values are correct */

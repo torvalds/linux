@@ -404,8 +404,6 @@ static const struct platform_profile_ops amd_pmf_profile_ops = {
 
 int amd_pmf_init_sps(struct amd_pmf_dev *dev)
 {
-	int err;
-
 	dev->current_profile = PLATFORM_PROFILE_BALANCED;
 
 	if (is_apmf_func_supported(dev, APMF_FUNC_STATIC_SLIDER_GRANULAR)) {
@@ -420,15 +418,12 @@ int amd_pmf_init_sps(struct amd_pmf_dev *dev)
 		amd_pmf_set_sps_power_limits(dev);
 	}
 
-	dev->pprof.name = "amd-pmf";
-	dev->pprof.dev = dev->dev;
-	dev->pprof.ops = &amd_pmf_profile_ops;
-
 	/* Create platform_profile structure and register */
-	err = devm_platform_profile_register(&dev->pprof, dev);
-	if (err)
-		dev_err(dev->dev, "Failed to register SPS support, this is most likely an SBIOS bug: %d\n",
-			err);
+	dev->ppdev = devm_platform_profile_register(dev->dev, "amd-pmf", dev,
+						    &amd_pmf_profile_ops);
+	if (IS_ERR(dev->ppdev))
+		dev_err(dev->dev, "Failed to register SPS support, this is most likely an SBIOS bug: %ld\n",
+			PTR_ERR(dev->ppdev));
 
-	return err;
+	return PTR_ERR_OR_ZERO(dev->ppdev);
 }

@@ -109,8 +109,6 @@ MODULE_DEVICE_TABLE(dmi, dell_device_table);
 #define DELL_ACC_SET_FIELD	GENMASK(11, 8)
 #define DELL_THERMAL_SUPPORTED	GENMASK(3, 0)
 
-static struct platform_profile_handler *thermal_handler;
-
 enum thermal_mode_bits {
 	DELL_BALANCED    = BIT(0),
 	DELL_COOL_BOTTOM = BIT(1),
@@ -254,6 +252,7 @@ static const struct platform_profile_ops dell_pc_platform_profile_ops = {
 
 static int thermal_init(void)
 {
+	struct device *ppdev;
 	int ret;
 
 	/* If thermal commands are not supported, exit without error */
@@ -271,24 +270,14 @@ static int thermal_init(void)
 	if (IS_ERR(platform_device))
 		return PTR_ERR(platform_device);
 
-	thermal_handler = devm_kzalloc(&platform_device->dev, sizeof(*thermal_handler), GFP_KERNEL);
-	if (!thermal_handler) {
-		ret = -ENOMEM;
+	ppdev = devm_platform_profile_register(&platform_device->dev, "dell-pc",
+					       NULL, &dell_pc_platform_profile_ops);
+	if (IS_ERR(ppdev)) {
+		ret = PTR_ERR(ppdev);
 		goto cleanup_platform_device;
 	}
-	thermal_handler->name = "dell-pc";
-	thermal_handler->dev = &platform_device->dev;
-	thermal_handler->ops = &dell_pc_platform_profile_ops;
-
-	/* Clean up if failed */
-	ret = devm_platform_profile_register(thermal_handler, NULL);
-	if (ret)
-		goto cleanup_thermal_handler;
 
 	return 0;
-
-cleanup_thermal_handler:
-	thermal_handler = NULL;
 
 cleanup_platform_device:
 	platform_device_unregister(platform_device);
