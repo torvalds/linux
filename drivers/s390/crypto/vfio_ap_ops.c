@@ -2199,8 +2199,8 @@ static ssize_t vfio_ap_mdev_ioctl(struct vfio_device *vdev,
 		ret = vfio_ap_mdev_reset_queues(matrix_mdev);
 		break;
 	case VFIO_DEVICE_GET_IRQ_INFO:
-			ret = vfio_ap_get_irq_info(arg);
-			break;
+		ret = vfio_ap_get_irq_info(arg);
+		break;
 	case VFIO_DEVICE_SET_IRQS:
 		ret = vfio_ap_set_irqs(matrix_mdev, arg);
 		break;
