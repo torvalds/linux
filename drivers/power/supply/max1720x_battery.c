@@ -16,6 +16,11 @@
 
 #include <linux/unaligned.h>
 
+/* SBS compliant registers */
+#define MAX172XX_TEMP1			0x34
+#define MAX172XX_INT_TEMP		0x35
+#define MAX172XX_TEMP2			0x3B
+
 /* Nonvolatile registers */
 #define MAX1720X_NXTABLE0		0x80
 #define MAX1720X_NRSENSE		0xCF	/* RSense in 10^-5 Ohm */
@@ -113,11 +118,15 @@ static const struct regmap_config max1720x_regmap_cfg = {
 };
 
 static const struct regmap_range max1720x_nvmem_allow[] = {
+	regmap_reg_range(MAX172XX_TEMP1, MAX172XX_INT_TEMP),
+	regmap_reg_range(MAX172XX_TEMP2, MAX172XX_TEMP2),
 	regmap_reg_range(MAX1720X_NXTABLE0, MAX1720X_NDEVICE_NAME4),
 };
 
 static const struct regmap_range max1720x_nvmem_deny[] = {
-	regmap_reg_range(0x00, 0x7F),
+	regmap_reg_range(0x00, 0x33),
+	regmap_reg_range(0x36, 0x3A),
+	regmap_reg_range(0x3C, 0x7F),
 	regmap_reg_range(0xE0, 0xFF),
 };
 
@@ -388,6 +397,54 @@ static int max1720x_battery_get_property(struct power_supply *psy,
 	return ret;
 }
 
+static int max1720x_read_temp(struct device *dev, u8 reg, char *buf)
+{
+	struct power_supply *psy = dev_get_drvdata(dev);
+	struct max1720x_device_info *info = power_supply_get_drvdata(psy);
+	unsigned int val;
+	int ret;
+
+	ret = regmap_read(info->regmap_nv, reg, &val);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * Temperature in degrees Celsius starting at absolute zero, -273C or
+	 * 0K with an LSb of 0.1C
+	 */
+	return sysfs_emit(buf, "%d\n", val - 2730);
+}
+
+static ssize_t temp_ain1_show(struct device *dev, struct device_attribute *attr,
+			      char *buf)
+{
+	return max1720x_read_temp(dev, MAX172XX_TEMP1, buf);
+}
+
+static ssize_t temp_ain2_show(struct device *dev, struct device_attribute *attr,
+			      char *buf)
+{
+	return max1720x_read_temp(dev, MAX172XX_TEMP2, buf);
+}
+
+static ssize_t temp_int_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	return max1720x_read_temp(dev, MAX172XX_INT_TEMP, buf);
+}
+
+static DEVICE_ATTR_RO(temp_ain1);
+static DEVICE_ATTR_RO(temp_ain2);
+static DEVICE_ATTR_RO(temp_int);
+
+static struct attribute *max1720x_attrs[] = {
+	&dev_attr_temp_ain1.attr,
+	&dev_attr_temp_ain2.attr,
+	&dev_attr_temp_int.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(max1720x);
+
 static
 int max1720x_nvmem_reg_read(void *priv, unsigned int off, void *val, size_t len)
 {
@@ -488,6 +545,7 @@ static int max1720x_probe(struct i2c_client *client)
 
 	psy_cfg.drv_data = info;
 	psy_cfg.fwnode = dev_fwnode(dev);
+	psy_cfg.attr_grp = max1720x_groups;
 	i2c_set_clientdata(client, info);
 	info->regmap = devm_regmap_init_i2c(client, &max1720x_regmap_cfg);
 	if (IS_ERR(info->regmap))
