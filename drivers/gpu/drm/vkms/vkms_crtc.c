@@ -4,6 +4,7 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 
@@ -296,7 +297,9 @@ int vkms_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 	spin_lock_init(&vkms_out->lock);
 	spin_lock_init(&vkms_out->composer_lock);
 
-	vkms_out->composer_workq = alloc_ordered_workqueue("vkms_composer", 0);
+	vkms_out->composer_workq = drmm_alloc_ordered_workqueue(dev, "vkms_composer", 0);
+	if (IS_ERR(vkms_out->composer_workq))
+		return PTR_ERR(vkms_out->composer_workq);
 	if (!vkms_out->composer_workq)
 		return -ENOMEM;
 
