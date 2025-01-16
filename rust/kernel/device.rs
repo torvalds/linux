@@ -185,7 +185,7 @@ impl Device {
     /// Checks if property is present or not.
     pub fn property_present(&self, name: &CStr) -> bool {
         // SAFETY: By the invariant of `CStr`, `name` is null-terminated.
-        unsafe { bindings::device_property_present(self.as_raw().cast_const(), name.as_ptr() as *const _) }
+        unsafe { bindings::device_property_present(self.as_raw().cast_const(), name.as_char_ptr()) }
     }
 }
 
