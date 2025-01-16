@@ -14,6 +14,15 @@
 
 static DEFINE_MUTEX(profile_lock);
 
+struct platform_profile_handler {
+	const char *name;
+	struct device *dev;
+	struct device class_dev;
+	int minor;
+	unsigned long choices[BITS_TO_LONGS(PLATFORM_PROFILE_LAST)];
+	const struct platform_profile_ops *ops;
+};
+
 static const char * const profile_names[] = {
 	[PLATFORM_PROFILE_LOW_POWER] = "low-power",
 	[PLATFORM_PROFILE_COOL] = "cool",

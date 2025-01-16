@@ -28,21 +28,10 @@ enum platform_profile_option {
 	PLATFORM_PROFILE_LAST, /*must always be last */
 };
 
-struct platform_profile_handler;
-
 struct platform_profile_ops {
 	int (*probe)(void *drvdata, unsigned long *choices);
 	int (*profile_get)(struct device *dev, enum platform_profile_option *profile);
 	int (*profile_set)(struct device *dev, enum platform_profile_option profile);
-};
-
-struct platform_profile_handler {
-	const char *name;
-	struct device *dev;
-	struct device class_dev;
-	int minor;
-	unsigned long choices[BITS_TO_LONGS(PLATFORM_PROFILE_LAST)];
-	const struct platform_profile_ops *ops;
 };
 
 struct device *platform_profile_register(struct device *dev, const char *name,
