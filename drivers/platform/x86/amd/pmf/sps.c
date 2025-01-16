@@ -425,15 +425,10 @@ int amd_pmf_init_sps(struct amd_pmf_dev *dev)
 	dev->pprof.ops = &amd_pmf_profile_ops;
 
 	/* Create platform_profile structure and register */
-	err = platform_profile_register(&dev->pprof, dev);
+	err = devm_platform_profile_register(&dev->pprof, dev);
 	if (err)
 		dev_err(dev->dev, "Failed to register SPS support, this is most likely an SBIOS bug: %d\n",
 			err);
 
 	return err;
-}
-
-void amd_pmf_deinit_sps(struct amd_pmf_dev *dev)
-{
-	platform_profile_remove(&dev->pprof);
 }
