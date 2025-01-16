@@ -87,8 +87,7 @@ out_free:
 static int inspur_platform_profile_set(struct platform_profile_handler *pprof,
 				       enum platform_profile_option profile)
 {
-	struct inspur_wmi_priv *priv = container_of(pprof, struct inspur_wmi_priv,
-						    handler);
+	struct inspur_wmi_priv *priv = dev_get_drvdata(&pprof->class_dev);
 	u8 ret_code[4] = {0, 0, 0, 0};
 	int ret;
 
@@ -135,8 +134,7 @@ static int inspur_platform_profile_set(struct platform_profile_handler *pprof,
 static int inspur_platform_profile_get(struct platform_profile_handler *pprof,
 				       enum platform_profile_option *profile)
 {
-	struct inspur_wmi_priv *priv = container_of(pprof, struct inspur_wmi_priv,
-						    handler);
+	struct inspur_wmi_priv *priv = dev_get_drvdata(&pprof->class_dev);
 	u8 ret_code[4] = {0, 0, 0, 0};
 	int ret;
 
@@ -186,7 +184,7 @@ static int inspur_wmi_probe(struct wmi_device *wdev, const void *context)
 	set_bit(PLATFORM_PROFILE_BALANCED, priv->handler.choices);
 	set_bit(PLATFORM_PROFILE_PERFORMANCE, priv->handler.choices);
 
-	return platform_profile_register(&priv->handler);
+	return platform_profile_register(&priv->handler, priv);
 }
 
 static void inspur_wmi_remove(struct wmi_device *wdev)

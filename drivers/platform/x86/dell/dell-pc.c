@@ -271,7 +271,7 @@ static int thermal_init(void)
 		set_bit(PLATFORM_PROFILE_PERFORMANCE, thermal_handler->choices);
 
 	/* Clean up if failed */
-	ret = platform_profile_register(thermal_handler);
+	ret = platform_profile_register(thermal_handler, NULL);
 	if (ret)
 		goto cleanup_thermal_handler;
 

@@ -460,7 +460,7 @@ int platform_profile_cycle(void)
 }
 EXPORT_SYMBOL_GPL(platform_profile_cycle);
 
-int platform_profile_register(struct platform_profile_handler *pprof)
+int platform_profile_register(struct platform_profile_handler *pprof, void *drvdata)
 {
 	int err;
 
@@ -480,6 +480,7 @@ int platform_profile_register(struct platform_profile_handler *pprof)
 
 	pprof->class_dev.class = &platform_profile_class;
 	pprof->class_dev.parent = pprof->dev;
+	dev_set_drvdata(&pprof->class_dev, drvdata);
 	dev_set_name(&pprof->class_dev, "platform-profile-%d", pprof->minor);
 	err = device_register(&pprof->class_dev);
 	if (err) {
@@ -529,7 +530,7 @@ static void devm_platform_profile_release(struct device *dev, void *res)
 	platform_profile_remove(*pprof);
 }
 
-int devm_platform_profile_register(struct platform_profile_handler *pprof)
+int devm_platform_profile_register(struct platform_profile_handler *pprof, void *drvdata)
 {
 	struct platform_profile_handler **dr;
 	int ret;
@@ -538,7 +539,7 @@ int devm_platform_profile_register(struct platform_profile_handler *pprof)
 	if (!dr)
 		return -ENOMEM;
 
-	ret = platform_profile_register(pprof);
+	ret = platform_profile_register(pprof, drvdata);
 	if (ret) {
 		devres_free(dr);
 		return ret;

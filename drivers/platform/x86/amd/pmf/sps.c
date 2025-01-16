@@ -285,7 +285,7 @@ bool is_pprof_balanced(struct amd_pmf_dev *pmf)
 static int amd_pmf_profile_get(struct platform_profile_handler *pprof,
 			       enum platform_profile_option *profile)
 {
-	struct amd_pmf_dev *pmf = container_of(pprof, struct amd_pmf_dev, pprof);
+	struct amd_pmf_dev *pmf = dev_get_drvdata(&pprof->class_dev);
 
 	*profile = pmf->current_profile;
 	return 0;
@@ -366,7 +366,7 @@ int amd_pmf_power_slider_update_event(struct amd_pmf_dev *dev)
 static int amd_pmf_profile_set(struct platform_profile_handler *pprof,
 			       enum platform_profile_option profile)
 {
-	struct amd_pmf_dev *pmf = container_of(pprof, struct amd_pmf_dev, pprof);
+	struct amd_pmf_dev *pmf = dev_get_drvdata(&pprof->class_dev);
 	int ret = 0;
 
 	pmf->current_profile = profile;
@@ -416,7 +416,7 @@ int amd_pmf_init_sps(struct amd_pmf_dev *dev)
 	set_bit(PLATFORM_PROFILE_PERFORMANCE, dev->pprof.choices);
 
 	/* Create platform_profile structure and register */
-	err = platform_profile_register(&dev->pprof);
+	err = platform_profile_register(&dev->pprof, dev);
 	if (err)
 		dev_err(dev->dev, "Failed to register SPS support, this is most likely an SBIOS bug: %d\n",
 			err);
