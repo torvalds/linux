@@ -7694,7 +7694,6 @@ static void intel_atomic_dsb_finish(struct intel_atomic_state *state,
 	/* FIXME deal with everything */
 	new_crtc_state->use_dsb =
 		new_crtc_state->update_planes &&
-		!new_crtc_state->vrr.enable &&
 		!new_crtc_state->do_async_flip &&
 		!new_crtc_state->has_psr &&
 		!new_crtc_state->scaler_state.scaler_users &&
