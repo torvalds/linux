@@ -280,7 +280,7 @@ module_param_named(gartsize, amdgpu_gart_size, uint, 0600);
 /**
  * DOC: gttsize (int)
  * Restrict the size of GTT domain (for userspace use) in MiB for testing.
- * The default is -1 (Use 1/2 RAM, minimum value is 3GB).
+ * The default is -1 (Use value specified by TTM).
  */
 MODULE_PARM_DESC(gttsize, "Size of the GTT userspace domain in megabytes (-1 = auto)");
 module_param_named(gttsize, amdgpu_gtt_size, int, 0600);
