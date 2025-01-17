@@ -36,6 +36,7 @@ MODULE_IMPORT_NS("DMA_BUF");
 
 #define PCI_DEVICE_ID_QCOM_AIC080	0xa080
 #define PCI_DEVICE_ID_QCOM_AIC100	0xa100
+#define PCI_DEVICE_ID_QCOM_AIC200	0xa110
 #define QAIC_NAME			"qaic"
 #define QAIC_DESC			"Qualcomm Cloud AI Accelerators"
 #define CNTL_MAJOR			5
@@ -63,6 +64,13 @@ static const struct qaic_device_config aic100_config = {
 	.family = FAMILY_AIC100,
 	.bar_mask = BIT(0) | BIT(2) | BIT(4),
 	.mhi_bar_idx = 0,
+	.dbc_bar_idx = 2,
+};
+
+static const struct qaic_device_config aic200_config = {
+	.family = FAMILY_AIC200,
+	.bar_mask = BIT(0) | BIT(1) | BIT(2) | BIT(4),
+	.mhi_bar_idx = 1,
 	.dbc_bar_idx = 2,
 };
 
@@ -568,7 +576,7 @@ static int qaic_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return ret;
 
 	qdev->mhi_cntrl = qaic_mhi_register_controller(pdev, qdev->bar_mhi, mhi_irq,
-						       qdev->single_msi);
+						       qdev->single_msi, config->family);
 	if (IS_ERR(qdev->mhi_cntrl)) {
 		ret = PTR_ERR(qdev->mhi_cntrl);
 		qaic_destroy_drm_device(qdev, QAIC_NO_PARTITION);
@@ -637,6 +645,7 @@ static struct mhi_driver qaic_mhi_driver = {
 static const struct pci_device_id qaic_ids[] = {
 	{ PCI_DEVICE_DATA(QCOM, AIC080, (kernel_ulong_t)&aic080_config), },
 	{ PCI_DEVICE_DATA(QCOM, AIC100, (kernel_ulong_t)&aic100_config), },
+	{ PCI_DEVICE_DATA(QCOM, AIC200, (kernel_ulong_t)&aic200_config), },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, qaic_ids);
