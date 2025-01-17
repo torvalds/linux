@@ -11387,8 +11387,32 @@ static int avail_kallsyms_cb(unsigned long long sym_addr, char sym_type,
 	struct kprobe_multi_resolve *res = data->res;
 	int err;
 
-	if (!bsearch(&sym_name, data->syms, data->cnt, sizeof(*data->syms), avail_func_cmp))
+	if (!glob_match(sym_name, res->pattern))
 		return 0;
+
+	if (!bsearch(&sym_name, data->syms, data->cnt, sizeof(*data->syms), avail_func_cmp)) {
+		/* Some versions of kernel strip out .llvm.<hash> suffix from
+		 * function names reported in available_filter_functions, but
+		 * don't do so for kallsyms. While this is clearly a kernel
+		 * bug (fixed by [0]) we try to accommodate that in libbpf to
+		 * make multi-kprobe usability a bit better: if no match is
+		 * found, we will strip .llvm. suffix and try one more time.
+		 *
+		 *   [0] fb6a421fb615 ("kallsyms: Match symbols exactly with CONFIG_LTO_CLANG")
+		 */
+		char sym_trim[256], *psym_trim = sym_trim, *sym_sfx;
+
+		if (!(sym_sfx = strstr(sym_name, ".llvm.")))
+			return 0;
+
+		/* psym_trim vs sym_trim dance is done to avoid pointer vs array
+		 * coercion differences and get proper `const char **` pointer
+		 * which avail_func_cmp() expects
+		 */
+		snprintf(sym_trim, sizeof(sym_trim), "%.*s", (int)(sym_sfx - sym_name), sym_name);
+		if (!bsearch(&psym_trim, data->syms, data->cnt, sizeof(*data->syms), avail_func_cmp))
+			return 0;
+	}
 
 	err = libbpf_ensure_mem((void **)&res->addrs, &res->cap, sizeof(*res->addrs), res->cnt + 1);
 	if (err)
