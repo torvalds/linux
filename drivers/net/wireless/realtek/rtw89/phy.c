@@ -7017,6 +7017,7 @@ void rtw89_phy_config_edcca(struct rtw89_dev *rtwdev,
 static void rtw89_phy_edcca_log(struct rtw89_dev *rtwdev, struct rtw89_bb_ctx *bb)
 {
 	const struct rtw89_edcca_regs *edcca_regs = rtwdev->chip->edcca_regs;
+	const struct rtw89_edcca_p_regs *edcca_p_regs;
 	bool flag_fb, flag_p20, flag_s20, flag_s40, flag_s80;
 	s8 pwdb_fb, pwdb_p20, pwdb_s20, pwdb_s40, pwdb_s80;
 	u8 path, per20_bitmap;
@@ -7026,13 +7027,18 @@ static void rtw89_phy_edcca_log(struct rtw89_dev *rtwdev, struct rtw89_bb_ctx *b
 	if (!rtw89_debug_is_enabled(rtwdev, RTW89_DBG_EDCCA))
 		return;
 
+	if (bb->phy_idx == RTW89_PHY_1)
+		edcca_p_regs = &edcca_regs->p[RTW89_PHY_1];
+	else
+		edcca_p_regs = &edcca_regs->p[RTW89_PHY_0];
+
 	if (rtwdev->chip->chip_id == RTL8922A)
 		rtw89_phy_write32_mask(rtwdev, edcca_regs->rpt_sel_be,
 				       edcca_regs->rpt_sel_be_mask, 0);
 
-	rtw89_phy_write32_mask(rtwdev, edcca_regs->rpt_sel,
-			       edcca_regs->rpt_sel_mask, 0);
-	tmp = rtw89_phy_read32(rtwdev, edcca_regs->rpt_b);
+	rtw89_phy_write32_mask(rtwdev, edcca_p_regs->rpt_sel,
+			       edcca_p_regs->rpt_sel_mask, 0);
+	tmp = rtw89_phy_read32(rtwdev, edcca_p_regs->rpt_b);
 	path = u32_get_bits(tmp, B_EDCCA_RPT_B_PATH_MASK);
 	flag_s80 = u32_get_bits(tmp, B_EDCCA_RPT_B_S80);
 	flag_s40 = u32_get_bits(tmp, B_EDCCA_RPT_B_S40);
@@ -7043,19 +7049,19 @@ static void rtw89_phy_edcca_log(struct rtw89_dev *rtwdev, struct rtw89_bb_ctx *b
 	pwdb_p20 = u32_get_bits(tmp, MASKBYTE2);
 	pwdb_fb = u32_get_bits(tmp, MASKBYTE3);
 
-	rtw89_phy_write32_mask(rtwdev, edcca_regs->rpt_sel,
-			       edcca_regs->rpt_sel_mask, 4);
-	tmp = rtw89_phy_read32(rtwdev, edcca_regs->rpt_b);
+	rtw89_phy_write32_mask(rtwdev, edcca_p_regs->rpt_sel,
+			       edcca_p_regs->rpt_sel_mask, 4);
+	tmp = rtw89_phy_read32(rtwdev, edcca_p_regs->rpt_b);
 	pwdb_s80 = u32_get_bits(tmp, MASKBYTE1);
 	pwdb_s40 = u32_get_bits(tmp, MASKBYTE2);
 
-	per20_bitmap = rtw89_phy_read32_mask(rtwdev, edcca_regs->rpt_a,
+	per20_bitmap = rtw89_phy_read32_mask(rtwdev, edcca_p_regs->rpt_a,
 					     MASKBYTE0);
 
 	if (rtwdev->chip->chip_id == RTL8922A) {
 		rtw89_phy_write32_mask(rtwdev, edcca_regs->rpt_sel_be,
 				       edcca_regs->rpt_sel_be_mask, 4);
-		tmp = rtw89_phy_read32(rtwdev, edcca_regs->rpt_b);
+		tmp = rtw89_phy_read32(rtwdev, edcca_p_regs->rpt_b);
 		pwdb[0] = u32_get_bits(tmp, MASKBYTE3);
 		pwdb[1] = u32_get_bits(tmp, MASKBYTE2);
 		pwdb[2] = u32_get_bits(tmp, MASKBYTE1);
@@ -7063,33 +7069,33 @@ static void rtw89_phy_edcca_log(struct rtw89_dev *rtwdev, struct rtw89_bb_ctx *b
 
 		rtw89_phy_write32_mask(rtwdev, edcca_regs->rpt_sel_be,
 				       edcca_regs->rpt_sel_be_mask, 5);
-		tmp = rtw89_phy_read32(rtwdev, edcca_regs->rpt_b);
+		tmp = rtw89_phy_read32(rtwdev, edcca_p_regs->rpt_b);
 		pwdb[4] = u32_get_bits(tmp, MASKBYTE3);
 		pwdb[5] = u32_get_bits(tmp, MASKBYTE2);
 		pwdb[6] = u32_get_bits(tmp, MASKBYTE1);
 		pwdb[7] = u32_get_bits(tmp, MASKBYTE0);
 	} else {
-		rtw89_phy_write32_mask(rtwdev, edcca_regs->rpt_sel,
-				       edcca_regs->rpt_sel_mask, 0);
-		tmp = rtw89_phy_read32(rtwdev, edcca_regs->rpt_a);
+		rtw89_phy_write32_mask(rtwdev, edcca_p_regs->rpt_sel,
+				       edcca_p_regs->rpt_sel_mask, 0);
+		tmp = rtw89_phy_read32(rtwdev, edcca_p_regs->rpt_a);
 		pwdb[0] = u32_get_bits(tmp, MASKBYTE3);
 		pwdb[1] = u32_get_bits(tmp, MASKBYTE2);
 
-		rtw89_phy_write32_mask(rtwdev, edcca_regs->rpt_sel,
-				       edcca_regs->rpt_sel_mask, 1);
-		tmp = rtw89_phy_read32(rtwdev, edcca_regs->rpt_a);
+		rtw89_phy_write32_mask(rtwdev, edcca_p_regs->rpt_sel,
+				       edcca_p_regs->rpt_sel_mask, 1);
+		tmp = rtw89_phy_read32(rtwdev, edcca_p_regs->rpt_a);
 		pwdb[2] = u32_get_bits(tmp, MASKBYTE3);
 		pwdb[3] = u32_get_bits(tmp, MASKBYTE2);
 
-		rtw89_phy_write32_mask(rtwdev, edcca_regs->rpt_sel,
-				       edcca_regs->rpt_sel_mask, 2);
-		tmp = rtw89_phy_read32(rtwdev, edcca_regs->rpt_a);
+		rtw89_phy_write32_mask(rtwdev, edcca_p_regs->rpt_sel,
+				       edcca_p_regs->rpt_sel_mask, 2);
+		tmp = rtw89_phy_read32(rtwdev, edcca_p_regs->rpt_a);
 		pwdb[4] = u32_get_bits(tmp, MASKBYTE3);
 		pwdb[5] = u32_get_bits(tmp, MASKBYTE2);
 
-		rtw89_phy_write32_mask(rtwdev, edcca_regs->rpt_sel,
-				       edcca_regs->rpt_sel_mask, 3);
-		tmp = rtw89_phy_read32(rtwdev, edcca_regs->rpt_a);
+		rtw89_phy_write32_mask(rtwdev, edcca_p_regs->rpt_sel,
+				       edcca_p_regs->rpt_sel_mask, 3);
+		tmp = rtw89_phy_read32(rtwdev, edcca_p_regs->rpt_a);
 		pwdb[6] = u32_get_bits(tmp, MASKBYTE3);
 		pwdb[7] = u32_get_bits(tmp, MASKBYTE2);
 	}

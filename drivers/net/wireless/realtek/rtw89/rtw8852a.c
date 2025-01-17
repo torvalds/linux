@@ -522,10 +522,17 @@ static const struct rtw89_edcca_regs rtw8852a_edcca_regs = {
 	.edcca_p_mask			= B_EDCCA_LVL_MSK1,
 	.ppdu_level			= R_SEG0R_EDCCA_LVL,
 	.ppdu_mask			= B_EDCCA_LVL_MSK3,
-	.rpt_a				= R_EDCCA_RPT_A,
-	.rpt_b				= R_EDCCA_RPT_B,
-	.rpt_sel			= R_EDCCA_RPT_SEL,
-	.rpt_sel_mask			= B_EDCCA_RPT_SEL_MSK,
+	.p = {{
+		.rpt_a			= R_EDCCA_RPT_A,
+		.rpt_b			= R_EDCCA_RPT_B,
+		.rpt_sel		= R_EDCCA_RPT_SEL,
+		.rpt_sel_mask		= B_EDCCA_RPT_SEL_MSK,
+	}, {
+		.rpt_a			= R_EDCCA_RPT_P1_A,
+		.rpt_b			= R_EDCCA_RPT_P1_B,
+		.rpt_sel		= R_EDCCA_RPT_SEL,
+		.rpt_sel_mask		= B_EDCCA_RPT_SEL_P1_MSK,
+	}},
 	.tx_collision_t2r_st		= R_TX_COLLISION_T2R_ST,
 	.tx_collision_t2r_st_mask	= B_TX_COLLISION_T2R_ST_M,
 };

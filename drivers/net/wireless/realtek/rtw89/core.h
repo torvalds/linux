@@ -4190,10 +4190,12 @@ struct rtw89_edcca_regs {
 	u32 edcca_p_mask;
 	u32 ppdu_level;
 	u32 ppdu_mask;
-	u32 rpt_a;
-	u32 rpt_b;
-	u32 rpt_sel;
-	u32 rpt_sel_mask;
+	struct rtw89_edcca_p_regs {
+		u32 rpt_a;
+		u32 rpt_b;
+		u32 rpt_sel;
+		u32 rpt_sel_mask;
+	} p[RTW89_PHY_NUM];
 	u32 rpt_sel_be;
 	u32 rpt_sel_be_mask;
 	u32 tx_collision_t2r_st;
