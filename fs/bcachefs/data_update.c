@@ -456,23 +456,23 @@ void bch2_data_update_exit(struct data_update *update)
 	bch2_bio_free_pages_pool(c, &update->op.wbio.bio);
 }
 
-static void bch2_update_unwritten_extent(struct btree_trans *trans,
-				  struct data_update *update)
+static int bch2_update_unwritten_extent(struct btree_trans *trans,
+					struct data_update *update)
 {
 	struct bch_fs *c = update->op.c;
-	struct bio *bio = &update->op.wbio.bio;
 	struct bkey_i_extent *e;
 	struct write_point *wp;
 	struct closure cl;
 	struct btree_iter iter;
 	struct bkey_s_c k;
-	int ret;
+	int ret = 0;
 
 	closure_init_stack(&cl);
 	bch2_keylist_init(&update->op.insert_keys, update->op.inline_keys);
 
-	while (bio_sectors(bio)) {
-		unsigned sectors = bio_sectors(bio);
+	while (bpos_lt(update->op.pos, update->k.k->k.p)) {
+		unsigned sectors = update->k.k->k.p.offset -
+			update->op.pos.offset;
 
 		bch2_trans_begin(trans);
 
@@ -508,7 +508,7 @@ static void bch2_update_unwritten_extent(struct btree_trans *trans,
 		bch_err_fn_ratelimited(c, ret);
 
 		if (ret)
-			return;
+			break;
 
 		sectors = min(sectors, wp->sectors_free);
 
@@ -518,7 +518,6 @@ static void bch2_update_unwritten_extent(struct btree_trans *trans,
 		bch2_alloc_sectors_append_ptrs(c, wp, &e->k_i, sectors, false);
 		bch2_alloc_sectors_done(c, wp);
 
-		bio_advance(bio, sectors << 9);
 		update->op.pos.offset += sectors;
 
 		extent_for_each_ptr(extent_i_to_s(e), ptr)
@@ -537,6 +536,8 @@ static void bch2_update_unwritten_extent(struct btree_trans *trans,
 		bch2_trans_unlock(trans);
 		closure_sync(&cl);
 	}
+
+	return ret;
 }
 
 void bch2_data_update_opts_to_text(struct printbuf *out, struct bch_fs *c,
@@ -657,10 +658,10 @@ int bch2_data_update_init(struct btree_trans *trans,
 	 * snapshots table - just skip it, we can move it later.
 	 */
 	if (unlikely(k.k->p.snapshot && !bch2_snapshot_exists(c, k.k->p.snapshot)))
-		return -BCH_ERR_data_update_done;
+		return -BCH_ERR_data_update_done_no_snapshot;
 
 	if (!bkey_get_dev_refs(c, k))
-		return -BCH_ERR_data_update_done;
+		return -BCH_ERR_data_update_done_no_dev_refs;
 
 	if (c->opts.nocow_enabled &&
 	    !bkey_nocow_lock(c, ctxt, k)) {
@@ -758,6 +759,8 @@ int bch2_data_update_init(struct btree_trans *trans,
 		/* if iter == NULL, it's just a promote */
 		if (iter)
 			ret = bch2_extent_drop_ptrs(trans, iter, k, &io_opts, &m->data_opts);
+		if (!ret)
+			ret = -BCH_ERR_data_update_done_no_writes_needed;
 		goto out;
 	}
 
@@ -771,7 +774,8 @@ int bch2_data_update_init(struct btree_trans *trans,
 	}
 
 	if (bkey_extent_is_unwritten(k)) {
-		bch2_update_unwritten_extent(trans, m);
+		ret = bch2_update_unwritten_extent(trans, m) ?:
+			-BCH_ERR_data_update_done_unwritten;
 		goto out;
 	}
 

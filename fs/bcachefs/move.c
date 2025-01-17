@@ -364,7 +364,7 @@ err_free_pages:
 err_free:
 	kfree(io);
 err:
-	if (ret == -BCH_ERR_data_update_done)
+	if (bch2_err_matches(ret, BCH_ERR_data_update_done))
 		return 0;
 
 	if (bch2_err_matches(ret, EROFS) ||
