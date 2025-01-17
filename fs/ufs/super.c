@@ -289,7 +289,7 @@ void ufs_error (struct super_block * sb, const char * function,
 	va_start(args, fmt);
 	vaf.fmt = fmt;
 	vaf.va = &args;
-	switch (UFS_SB(sb)->s_mount_opt & UFS_MOUNT_ONERROR) {
+	switch (UFS_SB(sb)->s_on_err) {
 	case UFS_MOUNT_ONERROR_PANIC:
 		panic("panic (device %s): %s: %pV\n",
 		      sb->s_id, function, &vaf);
@@ -380,7 +380,7 @@ static const match_table_t tokens = {
 	{Opt_err, NULL}
 };
 
-static int ufs_parse_options (char * options, unsigned * mount_options)
+static int ufs_parse_options(char *options, unsigned *flavour, unsigned *on_err)
 {
 	char * p;
 	
@@ -398,61 +398,47 @@ static int ufs_parse_options (char * options, unsigned * mount_options)
 		token = match_token(p, tokens, args);
 		switch (token) {
 		case Opt_type_old:
-			ufs_clear_opt (*mount_options, UFSTYPE);
-			ufs_set_opt (*mount_options, UFSTYPE_OLD);
+			*flavour = UFS_MOUNT_UFSTYPE_OLD;
 			break;
 		case Opt_type_sunx86:
-			ufs_clear_opt (*mount_options, UFSTYPE);
-			ufs_set_opt (*mount_options, UFSTYPE_SUNx86);
+			*flavour = UFS_MOUNT_UFSTYPE_SUNx86;
 			break;
 		case Opt_type_sun:
-			ufs_clear_opt (*mount_options, UFSTYPE);
-			ufs_set_opt (*mount_options, UFSTYPE_SUN);
+			*flavour = UFS_MOUNT_UFSTYPE_SUN;
 			break;
 		case Opt_type_sunos:
-			ufs_clear_opt(*mount_options, UFSTYPE);
-			ufs_set_opt(*mount_options, UFSTYPE_SUNOS);
+			*flavour = UFS_MOUNT_UFSTYPE_SUNOS;
 			break;
 		case Opt_type_44bsd:
-			ufs_clear_opt (*mount_options, UFSTYPE);
-			ufs_set_opt (*mount_options, UFSTYPE_44BSD);
+			*flavour = UFS_MOUNT_UFSTYPE_44BSD;
 			break;
 		case Opt_type_ufs2:
-			ufs_clear_opt(*mount_options, UFSTYPE);
-			ufs_set_opt(*mount_options, UFSTYPE_UFS2);
+			*flavour = UFS_MOUNT_UFSTYPE_UFS2;
 			break;
 		case Opt_type_hp:
-			ufs_clear_opt (*mount_options, UFSTYPE);
-			ufs_set_opt (*mount_options, UFSTYPE_HP);
+			*flavour = UFS_MOUNT_UFSTYPE_HP;
 			break;
 		case Opt_type_nextstepcd:
-			ufs_clear_opt (*mount_options, UFSTYPE);
-			ufs_set_opt (*mount_options, UFSTYPE_NEXTSTEP_CD);
+			*flavour = UFS_MOUNT_UFSTYPE_NEXTSTEP_CD;
 			break;
 		case Opt_type_nextstep:
-			ufs_clear_opt (*mount_options, UFSTYPE);
-			ufs_set_opt (*mount_options, UFSTYPE_NEXTSTEP);
+			*flavour = UFS_MOUNT_UFSTYPE_NEXTSTEP;
 			break;
 		case Opt_type_openstep:
-			ufs_clear_opt (*mount_options, UFSTYPE);
-			ufs_set_opt (*mount_options, UFSTYPE_OPENSTEP);
+			*flavour = UFS_MOUNT_UFSTYPE_OPENSTEP;
 			break;
 		case Opt_onerror_panic:
-			ufs_clear_opt (*mount_options, ONERROR);
-			ufs_set_opt (*mount_options, ONERROR_PANIC);
+			*on_err = UFS_MOUNT_ONERROR_PANIC;
 			break;
 		case Opt_onerror_lock:
-			ufs_clear_opt (*mount_options, ONERROR);
-			ufs_set_opt (*mount_options, ONERROR_LOCK);
+			*on_err = UFS_MOUNT_ONERROR_LOCK;
 			break;
 		case Opt_onerror_umount:
-			ufs_clear_opt (*mount_options, ONERROR);
-			ufs_set_opt (*mount_options, ONERROR_UMOUNT);
+			*on_err = UFS_MOUNT_ONERROR_UMOUNT;
 			break;
 		case Opt_onerror_repair:
+			*on_err = UFS_MOUNT_ONERROR_REPAIR;
 			pr_err("Unable to do repair on error, will lock lock instead\n");
-			ufs_clear_opt (*mount_options, ONERROR);
-			ufs_set_opt (*mount_options, ONERROR_REPAIR);
 			break;
 		default:
 			pr_err("Invalid option: \"%s\" or missing value\n", p);
@@ -474,7 +460,7 @@ static void ufs_setup_cstotal(struct super_block *sb)
 	struct ufs_super_block_first *usb1;
 	struct ufs_super_block_second *usb2;
 	struct ufs_super_block_third *usb3;
-	unsigned mtype = sbi->s_mount_opt & UFS_MOUNT_UFSTYPE;
+	unsigned mtype = sbi->s_flavour;
 
 	UFSD("ENTER, mtype=%u\n", mtype);
 	usb1 = ubh_get_usb_first(uspi);
@@ -580,7 +566,7 @@ failed:
  */
 static void ufs_put_cstotal(struct super_block *sb)
 {
-	unsigned mtype = UFS_SB(sb)->s_mount_opt & UFS_MOUNT_UFSTYPE;
+	unsigned mtype = UFS_SB(sb)->s_flavour;
 	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
 	struct ufs_super_block_first *usb1;
 	struct ufs_super_block_second *usb2;
@@ -807,20 +793,20 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 	 * Set default mount options
 	 * Parse mount options
 	 */
-	sbi->s_mount_opt = 0;
-	ufs_set_opt (sbi->s_mount_opt, ONERROR_LOCK);
-	if (!ufs_parse_options ((char *) data, &sbi->s_mount_opt)) {
+	sbi->s_flavour = 0;
+	sbi->s_on_err = UFS_MOUNT_ONERROR_LOCK;
+	if (!ufs_parse_options(data, &sbi->s_flavour, &sbi->s_on_err)) {
 		pr_err("wrong mount options\n");
 		goto failed;
 	}
-	if (!(sbi->s_mount_opt & UFS_MOUNT_UFSTYPE)) {
+	if (!sbi->s_flavour) {
 		if (!silent)
 			pr_err("You didn't specify the type of your ufs filesystem\n\n"
 			"mount -t ufs -o ufstype="
 			"sun|sunx86|44bsd|ufs2|5xbsd|old|hp|nextstep|nextstep-cd|openstep ...\n\n"
 			">>>WARNING<<< Wrong ufstype may corrupt your filesystem, "
 			"default is ufstype=old\n");
-		ufs_set_opt (sbi->s_mount_opt, UFSTYPE_OLD);
+		sbi->s_flavour = UFS_MOUNT_UFSTYPE_OLD;
 	}
 
 	uspi = kzalloc(sizeof(struct ufs_sb_private_info), GFP_KERNEL);
@@ -836,7 +822,7 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_time_min = S32_MIN;
 	sb->s_time_max = S32_MAX;
 
-	switch (sbi->s_mount_opt & UFS_MOUNT_UFSTYPE) {
+	switch (sbi->s_flavour) {
 	case UFS_MOUNT_UFSTYPE_44BSD:
 		UFSD("ufstype=44bsd\n");
 		uspi->s_fsize = block_size = 512;
@@ -1035,9 +1021,9 @@ again:
 			goto magic_found;
 	}
 
-	if ((((sbi->s_mount_opt & UFS_MOUNT_UFSTYPE) == UFS_MOUNT_UFSTYPE_NEXTSTEP) 
-	  || ((sbi->s_mount_opt & UFS_MOUNT_UFSTYPE) == UFS_MOUNT_UFSTYPE_NEXTSTEP_CD) 
-	  || ((sbi->s_mount_opt & UFS_MOUNT_UFSTYPE) == UFS_MOUNT_UFSTYPE_OPENSTEP)) 
+	if ((sbi->s_flavour == UFS_MOUNT_UFSTYPE_NEXTSTEP
+	  || sbi->s_flavour == UFS_MOUNT_UFSTYPE_NEXTSTEP_CD
+	  || sbi->s_flavour == UFS_MOUNT_UFSTYPE_OPENSTEP)
 	  && uspi->s_sbbase < 256) {
 		ubh_brelse_uspi(uspi);
 		ubh = NULL;
@@ -1237,8 +1223,8 @@ magic_found:
 	uspi->s_bpf = uspi->s_fsize << 3;
 	uspi->s_bpfshift = uspi->s_fshift + 3;
 	uspi->s_bpfmask = uspi->s_bpf - 1;
-	if ((sbi->s_mount_opt & UFS_MOUNT_UFSTYPE) == UFS_MOUNT_UFSTYPE_44BSD ||
-	    (sbi->s_mount_opt & UFS_MOUNT_UFSTYPE) == UFS_MOUNT_UFSTYPE_UFS2)
+	if (sbi->s_flavour == UFS_MOUNT_UFSTYPE_44BSD ||
+	    sbi->s_flavour == UFS_MOUNT_UFSTYPE_UFS2)
 		uspi->s_maxsymlinklen =
 		    fs32_to_cpu(sb, usb3->fs_un2.fs_44.fs_maxsymlinklen);
 
@@ -1295,7 +1281,7 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 	struct ufs_sb_private_info * uspi;
 	struct ufs_super_block_first * usb1;
 	struct ufs_super_block_third * usb3;
-	unsigned new_mount_opt, ufstype;
+	unsigned on_err, ufstype;
 	unsigned flags;
 
 	sync_filesystem(sb);
@@ -1309,23 +1295,22 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 	 * Allow the "check" option to be passed as a remount option.
 	 * It is not possible to change ufstype option during remount
 	 */
-	ufstype = UFS_SB(sb)->s_mount_opt & UFS_MOUNT_UFSTYPE;
-	new_mount_opt = 0;
-	ufs_set_opt (new_mount_opt, ONERROR_LOCK);
-	if (!ufs_parse_options (data, &new_mount_opt)) {
+	ufstype = 0;
+	on_err = UFS_MOUNT_ONERROR_LOCK;
+	if (!ufs_parse_options(data, &ufstype, &on_err)) {
 		mutex_unlock(&UFS_SB(sb)->s_lock);
 		return -EINVAL;
 	}
-	if (!(new_mount_opt & UFS_MOUNT_UFSTYPE)) {
-		new_mount_opt |= ufstype;
-	} else if ((new_mount_opt & UFS_MOUNT_UFSTYPE) != ufstype) {
+	if (!ufstype)
+		ufstype = UFS_SB(sb)->s_flavour;
+	else if (ufstype != UFS_SB(sb)->s_flavour) {
 		pr_err("ufstype can't be changed during remount\n");
 		mutex_unlock(&UFS_SB(sb)->s_lock);
 		return -EINVAL;
 	}
 
 	if ((bool)(*mount_flags & SB_RDONLY) == sb_rdonly(sb)) {
-		UFS_SB(sb)->s_mount_opt = new_mount_opt;
+		UFS_SB(sb)->s_on_err = on_err;
 		mutex_unlock(&UFS_SB(sb)->s_lock);
 		return 0;
 	}
@@ -1369,7 +1354,7 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 		sb->s_flags &= ~SB_RDONLY;
 #endif
 	}
-	UFS_SB(sb)->s_mount_opt = new_mount_opt;
+	UFS_SB(sb)->s_on_err = on_err;
 	mutex_unlock(&UFS_SB(sb)->s_lock);
 	return 0;
 }
@@ -1377,7 +1362,7 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 static int ufs_show_options(struct seq_file *seq, struct dentry *root)
 {
 	struct ufs_sb_info *sbi = UFS_SB(root->d_sb);
-	unsigned mval = sbi->s_mount_opt & UFS_MOUNT_UFSTYPE;
+	unsigned mval = sbi->s_flavour;
 	const struct match_token *tp = tokens;
 
 	while (tp->token != Opt_onerror_panic && tp->token != mval)
@@ -1385,7 +1370,7 @@ static int ufs_show_options(struct seq_file *seq, struct dentry *root)
 	BUG_ON(tp->token == Opt_onerror_panic);
 	seq_printf(seq, ",%s", tp->pattern);
 
-	mval = sbi->s_mount_opt & UFS_MOUNT_ONERROR;
+	mval = sbi->s_on_err;
 	while (tp->token != Opt_err && tp->token != mval)
 		++tp;
 	BUG_ON(tp->token == Opt_err);
