@@ -4925,6 +4925,7 @@ void rtw89_core_scan_complete(struct rtw89_dev *rtwdev,
 			      struct rtw89_vif_link *rtwvif_link, bool hw_scan)
 {
 	struct ieee80211_bss_conf *bss_conf;
+	struct rtw89_bb_ctx *bb;
 
 	if (!rtwvif_link)
 		return;
@@ -4943,7 +4944,8 @@ void rtw89_core_scan_complete(struct rtw89_dev *rtwdev,
 	rtw89_phy_config_edcca(rtwdev, false);
 
 	rtwdev->scanning = false;
-	rtwdev->dig.bypass_dig = true;
+	rtw89_for_each_active_bb(rtwdev, bb)
+		bb->dig.bypass_dig = true;
 	if (hw_scan && (rtwdev->hw->conf.flags & IEEE80211_CONF_IDLE))
 		ieee80211_queue_work(rtwdev->hw, &rtwdev->ips_work);
 }
