@@ -563,7 +563,6 @@ static void test_fixed_counters(uint8_t pmu_version, uint64_t perf_capabilities,
 
 static void test_intel_counters(void)
 {
-	uint8_t nr_arch_events = this_cpu_property(X86_PROPERTY_PMU_EBX_BIT_VECTOR_LENGTH);
 	uint8_t nr_fixed_counters = kvm_cpu_property(X86_PROPERTY_PMU_NR_FIXED_COUNTERS);
 	uint8_t nr_gp_counters = kvm_cpu_property(X86_PROPERTY_PMU_NR_GP_COUNTERS);
 	uint8_t pmu_version = kvm_cpu_property(X86_PROPERTY_PMU_VERSION);
@@ -588,9 +587,10 @@ static void test_intel_counters(void)
 	 * This will (obviously) fail any time hardware adds support for a new
 	 * event, but it's worth paying that price to keep the test fresh.
 	 */
-	TEST_ASSERT(nr_arch_events <= NR_INTEL_ARCH_EVENTS,
+	TEST_ASSERT(this_cpu_property(X86_PROPERTY_PMU_EBX_BIT_VECTOR_LENGTH) <= NR_INTEL_ARCH_EVENTS,
 		    "New architectural event(s) detected; please update this test (length = %u, mask = %x)",
-		    nr_arch_events, this_cpu_property(X86_PROPERTY_PMU_EVENTS_MASK));
+		    this_cpu_property(X86_PROPERTY_PMU_EBX_BIT_VECTOR_LENGTH),
+		    this_cpu_property(X86_PROPERTY_PMU_EVENTS_MASK));
 
 	/*
 	 * Iterate over known arch events irrespective of KVM/hardware support
@@ -600,8 +600,7 @@ static void test_intel_counters(void)
 	 * count correctly, even if *enumeration* of the event is unsupported
 	 * by KVM and/or isn't exposed to the guest.
 	 */
-	nr_arch_events = max_t(typeof(nr_arch_events), nr_arch_events, NR_INTEL_ARCH_EVENTS);
-	for (i = 0; i < nr_arch_events; i++) {
+	for (i = 0; i < NR_INTEL_ARCH_EVENTS; i++) {
 		if (this_pmu_has(intel_event_to_feature(i).gp_event))
 			hardware_pmu_arch_events |= BIT(i);
 	}
@@ -620,8 +619,8 @@ static void test_intel_counters(void)
 			 * vector length.
 			 */
 			if (v == pmu_version) {
-				for (k = 1; k < (BIT(nr_arch_events) - 1); k++)
-					test_arch_events(v, perf_caps[i], nr_arch_events, k);
+				for (k = 1; k < (BIT(NR_INTEL_ARCH_EVENTS) - 1); k++)
+					test_arch_events(v, perf_caps[i], NR_INTEL_ARCH_EVENTS, k);
 			}
 			/*
 			 * Test single bits for all PMU version and lengths up
@@ -630,11 +629,11 @@ static void test_intel_counters(void)
 			 * host length).  Explicitly test a mask of '0' and all
 			 * ones i.e. all events being available and unavailable.
 			 */
-			for (j = 0; j <= nr_arch_events + 1; j++) {
+			for (j = 0; j <= NR_INTEL_ARCH_EVENTS + 1; j++) {
 				test_arch_events(v, perf_caps[i], j, 0);
 				test_arch_events(v, perf_caps[i], j, 0xff);
 
-				for (k = 0; k < nr_arch_events; k++)
+				for (k = 0; k < NR_INTEL_ARCH_EVENTS; k++)
 					test_arch_events(v, perf_caps[i], j, BIT(k));
 			}
 
