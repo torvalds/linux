@@ -2637,6 +2637,9 @@ static void calculate_mcache_setting(
 	// Luma/Chroma combine in the last mcache
 	// In the case of Luma/Chroma combine-mCache (with lc_comb_mcache==1), all mCaches except the last segment are filled as much as possible, when stay aligned to mvmpg boundary
 	if (*p->lc_comb_mcache && l->is_dual_plane) {
+		/* if luma and chroma planes share an mcache, increase total chroma mcache count */
+		*p->num_mcaches_c = *p->num_mcaches_c + 1;
+
 		for (n = 0; n < *p->num_mcaches_l - 1; n++)
 			p->mcache_offsets_l[n] = (n + 1) * l->mvmpg_per_mcache_lb_l * l->mvmpg_access_width_l;
 		p->mcache_offsets_l[*p->num_mcaches_l - 1] = l->full_vp_access_width_l;
