@@ -358,8 +358,8 @@ int bch2_move_extent(struct moving_context *ctxt,
 	bch2_read_extent(trans, &io->rbio,
 			 bkey_start_pos(k.k),
 			 iter->btree_id, k, 0,
-			 BCH_READ_NODECODE|
-			 BCH_READ_LAST_FRAGMENT);
+			 BCH_READ_data_update|
+			 BCH_READ_last_fragment);
 	return 0;
 err_free_pages:
 	bio_free_pages(&io->write.op.wbio.bio);

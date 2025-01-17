@@ -159,8 +159,8 @@ static void bchfs_read(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
 	struct bkey_buf sk;
-	int flags = BCH_READ_RETRY_IF_STALE|
-		BCH_READ_MAY_PROMOTE;
+	int flags = BCH_READ_retry_if_stale|
+		BCH_READ_may_promote;
 	int ret = 0;
 
 	rbio->c = c;
@@ -221,14 +221,14 @@ static void bchfs_read(struct btree_trans *trans,
 		swap(rbio->bio.bi_iter.bi_size, bytes);
 
 		if (rbio->bio.bi_iter.bi_size == bytes)
-			flags |= BCH_READ_LAST_FRAGMENT;
+			flags |= BCH_READ_last_fragment;
 
 		bch2_bio_page_state_set(&rbio->bio, k);
 
 		bch2_read_extent(trans, rbio, iter.pos,
 				 data_btree, k, offset_into_extent, flags);
 
-		if (flags & BCH_READ_LAST_FRAGMENT)
+		if (flags & BCH_READ_last_fragment)
 			break;
 
 		swap(rbio->bio.bi_iter.bi_size, bytes);

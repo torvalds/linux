@@ -106,17 +106,26 @@ static inline int bch2_read_indirect_extent(struct btree_trans *trans,
 	return 0;
 }
 
-enum bch_read_flags {
-	BCH_READ_RETRY_IF_STALE		= 1 << 0,
-	BCH_READ_MAY_PROMOTE		= 1 << 1,
-	BCH_READ_USER_MAPPED		= 1 << 2,
-	BCH_READ_NODECODE		= 1 << 3,
-	BCH_READ_LAST_FRAGMENT		= 1 << 4,
+#define BCH_READ_FLAGS()		\
+	x(retry_if_stale)		\
+	x(may_promote)			\
+	x(user_mapped)			\
+	x(data_update)			\
+	x(last_fragment)		\
+	x(must_bounce)			\
+	x(must_clone)			\
+	x(in_retry)
 
-	/* internal: */
-	BCH_READ_MUST_BOUNCE		= 1 << 5,
-	BCH_READ_MUST_CLONE		= 1 << 6,
-	BCH_READ_IN_RETRY		= 1 << 7,
+enum __bch_read_flags {
+#define x(n)	__BCH_READ_##n,
+	BCH_READ_FLAGS()
+#undef x
+};
+
+enum bch_read_flags {
+#define x(n)	BCH_READ_##n = BIT(__BCH_READ_##n),
+	BCH_READ_FLAGS()
+#undef x
 };
 
 int __bch2_read_extent(struct btree_trans *, struct bch_read_bio *,
@@ -148,9 +157,9 @@ static inline void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio,
 	rbio->subvol = inum.subvol;
 
 	__bch2_read(c, rbio, rbio->bio.bi_iter, inum, &failed,
-		    BCH_READ_RETRY_IF_STALE|
-		    BCH_READ_MAY_PROMOTE|
-		    BCH_READ_USER_MAPPED);
+		    BCH_READ_retry_if_stale|
+		    BCH_READ_may_promote|
+		    BCH_READ_user_mapped);
 }
 
 static inline struct bch_read_bio *rbio_init(struct bio *bio,
