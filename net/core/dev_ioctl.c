@@ -543,7 +543,7 @@ static int dev_siocwandev(struct net_device *dev, struct if_settings *ifs)
 }
 
 /*
- *	Perform the SIOCxIFxxx calls, inside rtnl_lock()
+ *	Perform the SIOCxIFxxx calls, inside rtnl_net_lock()
  */
 static int dev_ifsioc(struct net *net, struct ifreq *ifr, void __user *data,
 		      unsigned int cmd)
@@ -620,11 +620,14 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, void __user *data,
 			return -ENODEV;
 		if (!netif_is_bridge_master(dev))
 			return -EOPNOTSUPP;
+
 		netdev_hold(dev, &dev_tracker, GFP_KERNEL);
-		rtnl_unlock();
+		rtnl_net_unlock(net);
+
 		err = br_ioctl_call(net, netdev_priv(dev), cmd, ifr, NULL);
+
 		netdev_put(dev, &dev_tracker);
-		rtnl_lock();
+		rtnl_net_lock(net);
 		return err;
 
 	case SIOCDEVPRIVATE ... SIOCDEVPRIVATE + 15:
@@ -770,9 +773,11 @@ int dev_ioctl(struct net *net, unsigned int cmd, struct ifreq *ifr,
 		dev_load(net, ifr->ifr_name);
 		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 			return -EPERM;
-		rtnl_lock();
+
+		rtnl_net_lock(net);
 		ret = dev_ifsioc(net, ifr, data, cmd);
-		rtnl_unlock();
+		rtnl_net_unlock(net);
+
 		if (colon)
 			*colon = ':';
 		return ret;
@@ -816,9 +821,11 @@ int dev_ioctl(struct net *net, unsigned int cmd, struct ifreq *ifr,
 	case SIOCBONDSLAVEINFOQUERY:
 	case SIOCBONDINFOQUERY:
 		dev_load(net, ifr->ifr_name);
-		rtnl_lock();
+
+		rtnl_net_lock(net);
 		ret = dev_ifsioc(net, ifr, data, cmd);
-		rtnl_unlock();
+		rtnl_net_unlock(net);
+
 		if (need_copyout)
 			*need_copyout = false;
 		return ret;
@@ -841,9 +848,10 @@ int dev_ioctl(struct net *net, unsigned int cmd, struct ifreq *ifr,
 		    (cmd >= SIOCDEVPRIVATE &&
 		     cmd <= SIOCDEVPRIVATE + 15)) {
 			dev_load(net, ifr->ifr_name);
-			rtnl_lock();
+
+			rtnl_net_lock(net);
 			ret = dev_ifsioc(net, ifr, data, cmd);
-			rtnl_unlock();
+			rtnl_net_unlock(net);
 			return ret;
 		}
 		return -ENOTTY;
