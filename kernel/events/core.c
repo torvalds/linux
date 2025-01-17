@@ -1270,6 +1270,9 @@ static void put_ctx(struct perf_event_context *ctx)
 		if (ctx->task && ctx->task != TASK_TOMBSTONE)
 			put_task_struct(ctx->task);
 		call_rcu(&ctx->rcu_head, free_ctx);
+	} else if (ctx->task == TASK_TOMBSTONE) {
+		smp_mb(); /* pairs with wait_var_event() */
+		wake_up_var(&ctx->refcount);
 	}
 }
 
@@ -5729,8 +5732,6 @@ int perf_event_release_kernel(struct perf_event *event)
 again:
 	mutex_lock(&event->child_mutex);
 	list_for_each_entry(child, &event->child_list, child_list) {
-		void *var = NULL;
-
 		/*
 		 * Cannot change, child events are not migrated, see the
 		 * comment with perf_event_ctx_lock_nested().
@@ -5765,40 +5766,20 @@ again:
 		if (tmp == child) {
 			perf_remove_from_context(child, DETACH_GROUP | DETACH_CHILD);
 			list_add(&child->child_list, &free_list);
-		} else {
-			var = &ctx->refcount;
 		}
 
 		mutex_unlock(&event->child_mutex);
 		mutex_unlock(&ctx->mutex);
 		put_ctx(ctx);
 
-		if (var) {
-			/*
-			 * If perf_event_free_task() has deleted all events from the
-			 * ctx while the child_mutex got released above, make sure to
-			 * notify about the preceding put_ctx().
-			 */
-			smp_mb(); /* pairs with wait_var_event() */
-			wake_up_var(var);
-		}
 		goto again;
 	}
 	mutex_unlock(&event->child_mutex);
 
 	list_for_each_entry_safe(child, tmp, &free_list, child_list) {
-		void *var = &child->ctx->refcount;
-
 		list_del(&child->child_list);
 		/* Last reference unless ->pending_task work is pending */
 		put_event(child);
-
-		/*
-		 * Wake any perf_event_free_task() waiting for this event to be
-		 * freed.
-		 */
-		smp_mb(); /* pairs with wait_var_event() */
-		wake_up_var(var);
 	}
 
 no_ctx:
