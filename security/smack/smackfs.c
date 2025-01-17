@@ -41,7 +41,9 @@ enum smk_inos {
 	SMK_AMBIENT	= 7,	/* internet ambient label */
 	SMK_NET4ADDR	= 8,	/* single label hosts */
 	SMK_ONLYCAP	= 9,	/* the only "capable" label */
+#ifdef CONFIG_AUDIT
 	SMK_LOGGING	= 10,	/* logging */
+#endif /* CONFIG_AUDIT */
 	SMK_LOAD_SELF	= 11,	/* task specific rules */
 	SMK_ACCESSES	= 12,	/* access policy */
 	SMK_MAPPED	= 13,	/* CIPSO level indicating mapped label */
@@ -2133,6 +2135,7 @@ static const struct file_operations smk_unconfined_ops = {
 };
 #endif /* CONFIG_SECURITY_SMACK_BRINGUP */
 
+#ifdef CONFIG_AUDIT
 /**
  * smk_read_logging - read() for /smack/logging
  * @filp: file pointer, not actually used
@@ -2197,6 +2200,7 @@ static const struct file_operations smk_logging_ops = {
 	.write		= smk_write_logging,
 	.llseek		= default_llseek,
 };
+#endif /* CONFIG_AUDIT */
 
 /*
  * Seq_file read operations for /smack/load-self
@@ -2883,8 +2887,10 @@ static int smk_fill_super(struct super_block *sb, struct fs_context *fc)
 			"netlabel", &smk_net4addr_ops, S_IRUGO|S_IWUSR},
 		[SMK_ONLYCAP] = {
 			"onlycap", &smk_onlycap_ops, S_IRUGO|S_IWUSR},
+#ifdef CONFIG_AUDIT
 		[SMK_LOGGING] = {
 			"logging", &smk_logging_ops, S_IRUGO|S_IWUSR},
+#endif /* CONFIG_AUDIT */
 		[SMK_LOAD_SELF] = {
 			"load-self", &smk_load_self_ops, S_IRUGO|S_IWUGO},
 		[SMK_ACCESSES] = {

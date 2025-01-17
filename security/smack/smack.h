@@ -432,18 +432,18 @@ static inline struct smack_known *smk_of_current(void)
 	return smk_of_task(smack_cred(current_cred()));
 }
 
+void smack_log(char *subject_label, char *object_label,
+		int request,
+		int result, struct smk_audit_info *auditdata);
+
+#ifdef CONFIG_AUDIT
+
 /*
  * logging functions
  */
 #define SMACK_AUDIT_DENIED 0x1
 #define SMACK_AUDIT_ACCEPT 0x2
 extern int log_policy;
-
-void smack_log(char *subject_label, char *object_label,
-		int request,
-		int result, struct smk_audit_info *auditdata);
-
-#ifdef CONFIG_AUDIT
 
 /*
  * some inline functions to set up audit data
