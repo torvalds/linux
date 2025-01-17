@@ -508,8 +508,6 @@ static int erofs_fc_parse_param(struct fs_context *fc,
 		errorfc(fc, "%s option not supported", erofs_fs_parameters[opt].name);
 #endif
 		break;
-	default:
-		return -ENOPARAM;
 	}
 	return 0;
 }
