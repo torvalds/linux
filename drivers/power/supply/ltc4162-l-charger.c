@@ -410,7 +410,7 @@ static int ltc4162l_get_icharge(struct ltc4162l_info *info,
 	if (ret)
 		return ret;
 
-	regval &= BIT(6) - 1; /* Only the lower 5 bits */
+	regval &= GENMASK(5, 0);
 
 	/* The charge current servo level: (icharge_dac + 1) × 1mV/RSNSB */
 	++regval;
@@ -449,7 +449,7 @@ static int ltc4162l_get_vcharge(struct ltc4162l_info *info,
 	if (ret)
 		return ret;
 
-	regval &= BIT(6) - 1; /* Only the lower 5 bits */
+	regval &= GENMASK(5, 0);
 
 	/*
 	 * charge voltage setting can be computed from
@@ -500,7 +500,7 @@ static int ltc4015_get_vcharge(struct ltc4162l_info *info,
 	if (ret)
 		return ret;
 
-	regval &= BIT(6) - 1; /* Only the lower 5 bits */
+	regval &= GENMASK(5, 0);
 
 	/*
 	 * charge voltage setting can be computed from:
@@ -636,7 +636,7 @@ static int ltc4162l_get_iin_limit_dac(struct ltc4162l_info *info,
 	if (ret)
 		return ret;
 
-	regval &= BIT(6) - 1; /* Only 6 bits */
+	regval &= GENMASK(5, 0);
 
 	/* (iin_limit_dac + 1) × 500μV / RSNSI */
 	++regval;
