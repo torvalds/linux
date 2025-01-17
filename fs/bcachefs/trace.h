@@ -902,32 +902,30 @@ TRACE_EVENT(evacuate_bucket,
 
 TRACE_EVENT(copygc,
 	TP_PROTO(struct bch_fs *c,
-		 u64 sectors_moved, u64 sectors_not_moved,
-		 u64 buckets_moved, u64 buckets_not_moved),
-	TP_ARGS(c,
-		sectors_moved, sectors_not_moved,
-		buckets_moved, buckets_not_moved),
+		 u64 buckets,
+		 u64 sectors_seen,
+		 u64 sectors_moved),
+	TP_ARGS(c, buckets, sectors_seen, sectors_moved),
 
 	TP_STRUCT__entry(
 		__field(dev_t,		dev			)
+		__field(u64,		buckets			)
+		__field(u64,		sectors_seen		)
 		__field(u64,		sectors_moved		)
-		__field(u64,		sectors_not_moved	)
-		__field(u64,		buckets_moved		)
-		__field(u64,		buckets_not_moved	)
 	),
 
 	TP_fast_assign(
 		__entry->dev			= c->dev;
+		__entry->buckets		= buckets;
+		__entry->sectors_seen		= sectors_seen;
 		__entry->sectors_moved		= sectors_moved;
-		__entry->sectors_not_moved	= sectors_not_moved;
-		__entry->buckets_moved		= buckets_moved;
-		__entry->buckets_not_moved = buckets_moved;
 	),
 
-	TP_printk("%d,%d sectors moved %llu remain %llu buckets moved %llu remain %llu",
+	TP_printk("%d,%d buckets %llu sectors seen %llu moved %llu",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->sectors_moved, __entry->sectors_not_moved,
-		  __entry->buckets_moved, __entry->buckets_not_moved)
+		  __entry->buckets,
+		  __entry->sectors_seen,
+		  __entry->sectors_moved)
 );
 
 TRACE_EVENT(copygc_wait,
