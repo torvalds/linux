@@ -295,12 +295,13 @@ static int hisi_hha_pmu_init_data(struct platform_device *pdev,
 	unsigned long long id;
 	acpi_status status;
 
+	hisi_uncore_pmu_init_topology(hha_pmu, &pdev->dev);
+
 	/*
 	 * Use SCCL_ID and UID to identify the HHA PMU, while
 	 * SCCL_ID is in MPIDR[aff2].
 	 */
-	if (device_property_read_u32(&pdev->dev, "hisilicon,scl-id",
-				     &hha_pmu->sccl_id)) {
+	if (hha_pmu->topo.sccl_id < 0) {
 		dev_err(&pdev->dev, "Can not read hha sccl-id!\n");
 		return -EINVAL;
 	}
@@ -309,8 +310,7 @@ static int hisi_hha_pmu_init_data(struct platform_device *pdev,
 	 * Early versions of BIOS support _UID by mistake, so we support
 	 * both "hisilicon, idx-id" as preference, if available.
 	 */
-	if (device_property_read_u32(&pdev->dev, "hisilicon,idx-id",
-				     &hha_pmu->index_id)) {
+	if (hha_pmu->topo.index_id < 0) {
 		status = acpi_evaluate_integer(ACPI_HANDLE(&pdev->dev),
 					       "_UID", NULL, &id);
 		if (ACPI_FAILURE(status)) {
@@ -318,10 +318,8 @@ static int hisi_hha_pmu_init_data(struct platform_device *pdev,
 			return -EINVAL;
 		}
 
-		hha_pmu->index_id = id;
+		hha_pmu->topo.index_id = id;
 	}
-	/* HHA PMUs only share the same SCCL */
-	hha_pmu->ccl_id = -1;
 
 	hha_pmu->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(hha_pmu->base)) {
@@ -407,42 +405,19 @@ static const struct attribute_group hisi_hha_pmu_v2_events_group = {
 	.attrs = hisi_hha_pmu_v2_events_attr,
 };
 
-static DEVICE_ATTR(cpumask, 0444, hisi_cpumask_sysfs_show, NULL);
-
-static struct attribute *hisi_hha_pmu_cpumask_attrs[] = {
-	&dev_attr_cpumask.attr,
-	NULL,
-};
-
-static const struct attribute_group hisi_hha_pmu_cpumask_attr_group = {
-	.attrs = hisi_hha_pmu_cpumask_attrs,
-};
-
-static struct device_attribute hisi_hha_pmu_identifier_attr =
-	__ATTR(identifier, 0444, hisi_uncore_pmu_identifier_attr_show, NULL);
-
-static struct attribute *hisi_hha_pmu_identifier_attrs[] = {
-	&hisi_hha_pmu_identifier_attr.attr,
-	NULL
-};
-
-static const struct attribute_group hisi_hha_pmu_identifier_group = {
-	.attrs = hisi_hha_pmu_identifier_attrs,
-};
-
 static const struct attribute_group *hisi_hha_pmu_v1_attr_groups[] = {
 	&hisi_hha_pmu_v1_format_group,
 	&hisi_hha_pmu_v1_events_group,
-	&hisi_hha_pmu_cpumask_attr_group,
-	&hisi_hha_pmu_identifier_group,
+	&hisi_pmu_cpumask_attr_group,
+	&hisi_pmu_identifier_group,
 	NULL,
 };
 
 static const struct attribute_group *hisi_hha_pmu_v2_attr_groups[] = {
 	&hisi_hha_pmu_v2_format_group,
 	&hisi_hha_pmu_v2_events_group,
-	&hisi_hha_pmu_cpumask_attr_group,
-	&hisi_hha_pmu_identifier_group,
+	&hisi_pmu_cpumask_attr_group,
+	&hisi_pmu_identifier_group,
 	NULL
 };
 
@@ -510,8 +485,8 @@ static int hisi_hha_pmu_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "hisi_sccl%u_hha%u",
-			      hha_pmu->sccl_id, hha_pmu->index_id);
+	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "hisi_sccl%d_hha%d",
+			      hha_pmu->topo.sccl_id, hha_pmu->topo.index_id);
 	if (!name)
 		return -ENOMEM;
 
@@ -581,6 +556,7 @@ static void __exit hisi_hha_pmu_module_exit(void)
 }
 module_exit(hisi_hha_pmu_module_exit);
 
+MODULE_IMPORT_NS("HISI_PMU");
 MODULE_DESCRIPTION("HiSilicon SoC HHA uncore PMU driver");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Shaokun Zhang <zhangshaokun@hisilicon.com>");
