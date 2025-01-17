@@ -29,6 +29,8 @@
 /* Total number of instructions retired within the measured section. */
 #define NUM_INSNS_RETIRED		(NUM_LOOPS * NUM_INSNS_PER_LOOP + NUM_EXTRA_INSNS)
 
+/* Track which architectural events are supported by hardware. */
+static uint32_t hardware_pmu_arch_events;
 
 static uint8_t kvm_pmu_version;
 static bool kvm_has_perf_caps;
@@ -89,6 +91,7 @@ static struct kvm_vm *pmu_vm_create_with_one_vcpu(struct kvm_vcpu **vcpu,
 
 	vm = vm_create_with_one_vcpu(vcpu, guest_code);
 	sync_global_to_guest(vm, kvm_pmu_version);
+	sync_global_to_guest(vm, hardware_pmu_arch_events);
 
 	/*
 	 * Set PERF_CAPABILITIES before PMU version as KVM disallows enabling
@@ -152,7 +155,7 @@ static void guest_assert_event_count(uint8_t idx,
 	uint64_t count;
 
 	count = _rdpmc(pmc);
-	if (!this_pmu_has(event))
+	if (!(hardware_pmu_arch_events & BIT(idx)))
 		goto sanity_checks;
 
 	switch (idx) {
@@ -560,7 +563,7 @@ static void test_fixed_counters(uint8_t pmu_version, uint64_t perf_capabilities,
 
 static void test_intel_counters(void)
 {
-	uint8_t nr_arch_events = kvm_cpu_property(X86_PROPERTY_PMU_EBX_BIT_VECTOR_LENGTH);
+	uint8_t nr_arch_events = this_cpu_property(X86_PROPERTY_PMU_EBX_BIT_VECTOR_LENGTH);
 	uint8_t nr_fixed_counters = kvm_cpu_property(X86_PROPERTY_PMU_NR_FIXED_COUNTERS);
 	uint8_t nr_gp_counters = kvm_cpu_property(X86_PROPERTY_PMU_NR_GP_COUNTERS);
 	uint8_t pmu_version = kvm_cpu_property(X86_PROPERTY_PMU_VERSION);
@@ -582,18 +585,26 @@ static void test_intel_counters(void)
 
 	/*
 	 * Detect the existence of events that aren't supported by selftests.
-	 * This will (obviously) fail any time the kernel adds support for a
-	 * new event, but it's worth paying that price to keep the test fresh.
+	 * This will (obviously) fail any time hardware adds support for a new
+	 * event, but it's worth paying that price to keep the test fresh.
 	 */
 	TEST_ASSERT(nr_arch_events <= NR_INTEL_ARCH_EVENTS,
 		    "New architectural event(s) detected; please update this test (length = %u, mask = %x)",
-		    nr_arch_events, kvm_cpu_property(X86_PROPERTY_PMU_EVENTS_MASK));
+		    nr_arch_events, this_cpu_property(X86_PROPERTY_PMU_EVENTS_MASK));
 
 	/*
-	 * Force iterating over known arch events regardless of whether or not
-	 * KVM/hardware supports a given event.
+	 * Iterate over known arch events irrespective of KVM/hardware support
+	 * to verify that KVM doesn't reject programming of events just because
+	 * the *architectural* encoding is unsupported.  Track which events are
+	 * supported in hardware; the guest side will validate supported events
+	 * count correctly, even if *enumeration* of the event is unsupported
+	 * by KVM and/or isn't exposed to the guest.
 	 */
 	nr_arch_events = max_t(typeof(nr_arch_events), nr_arch_events, NR_INTEL_ARCH_EVENTS);
+	for (i = 0; i < nr_arch_events; i++) {
+		if (this_pmu_has(intel_event_to_feature(i).gp_event))
+			hardware_pmu_arch_events |= BIT(i);
+	}
 
 	for (v = 0; v <= max_pmu_version; v++) {
 		for (i = 0; i < ARRAY_SIZE(perf_caps); i++) {
