@@ -4184,7 +4184,7 @@ err:
 static void bnxt_get_pkgver(struct net_device *dev)
 {
 	struct bnxt *bp = netdev_priv(dev);
-	char buf[FW_VER_STR_LEN];
+	char buf[FW_VER_STR_LEN - 5];
 	int len;
 
 	if (!bnxt_get_pkginfo(dev, buf, sizeof(buf))) {
