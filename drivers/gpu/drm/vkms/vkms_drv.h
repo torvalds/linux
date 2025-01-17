@@ -176,7 +176,6 @@ struct vkms_crtc_state {
  */
 struct vkms_output {
 	struct drm_crtc crtc;
-	struct drm_encoder encoder;
 	struct drm_writeback_connector wb_connector;
 	struct drm_encoder wb_encoder;
 	struct hrtimer vblank_hrtimer;
