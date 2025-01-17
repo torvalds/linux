@@ -22,6 +22,7 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/string_choices.h>
 #include <net/netlink.h>
 #include "skcipher.h"
 
@@ -612,7 +613,7 @@ static void crypto_skcipher_show(struct seq_file *m, struct crypto_alg *alg)
 
 	seq_printf(m, "type         : skcipher\n");
 	seq_printf(m, "async        : %s\n",
-		   alg->cra_flags & CRYPTO_ALG_ASYNC ?  "yes" : "no");
+		   str_yes_no(alg->cra_flags & CRYPTO_ALG_ASYNC));
 	seq_printf(m, "blocksize    : %u\n", alg->cra_blocksize);
 	seq_printf(m, "min keysize  : %u\n", skcipher->min_keysize);
 	seq_printf(m, "max keysize  : %u\n", skcipher->max_keysize);
