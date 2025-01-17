@@ -350,7 +350,7 @@ enum DC_DEBUG_MASK {
 	 */
 	DC_DISABLE_HDMI_CEC = 0x10000,
 
-	/*
+	/**
 	 * @DC_DISABLE_SUBVP: If set, disable DCN Sub-Viewport feature in amdgpu driver.
 	 */
 	DC_DISABLE_SUBVP = 0x20000,
