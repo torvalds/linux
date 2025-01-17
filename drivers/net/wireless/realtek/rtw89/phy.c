@@ -4600,7 +4600,7 @@ static void rtw89_phy_cfo_dm(struct rtw89_dev *rtwdev)
 	cfo->dcfo_avg = 0;
 	rtw89_debug(rtwdev, RTW89_DBG_CFO, "CFO:total_sta_assoc=%d\n",
 		    rtwdev->total_sta_assoc);
-	if (rtwdev->total_sta_assoc == 0) {
+	if (rtwdev->total_sta_assoc == 0 || rtw89_is_mlo_1_1(rtwdev)) {
 		rtw89_phy_cfo_reset(rtwdev);
 		return;
 	}
