@@ -76,7 +76,7 @@ static void ast_detect_tx_chip(struct ast_device *ast, bool need_post)
 	};
 
 	struct drm_device *dev = &ast->base;
-	u8 jreg, vgacrd1;
+	u8 vgacra3, vgacrd1;
 
 	/*
 	 * Several of the listed TX chips are not explicitly supported
@@ -106,8 +106,8 @@ static void ast_detect_tx_chip(struct ast_device *ast, bool need_post)
 		 * SIL164 when there is none.
 		 */
 		if (!need_post) {
-			jreg = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xa3, 0xff);
-			if (jreg & 0x80)
+			vgacra3 = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xa3, 0xff);
+			if (vgacra3 & AST_IO_VGACRA3_DVO_ENABLED)
 				ast->tx_chip = AST_TX_SIL164;
 		}
 	} else if (IS_AST_GEN4(ast) || IS_AST_GEN5(ast) || IS_AST_GEN6(ast)) {
