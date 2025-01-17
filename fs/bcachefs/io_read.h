@@ -47,8 +47,6 @@ struct bch_read_bio {
 	u16			_state;
 	};
 
-	struct bch_devs_list	devs_have;
-
 	struct extent_ptr_decoded pick;
 
 	/*

@@ -1070,8 +1070,6 @@ get_bio:
 	rbio->hole		= 0;
 	rbio->retry		= 0;
 	rbio->context		= 0;
-	/* XXX: only initialize this if needed */
-	rbio->devs_have		= bch2_bkey_devs(k);
 	rbio->pick		= pick;
 	rbio->subvol		= orig->subvol;
 	rbio->read_pos		= read_pos;
