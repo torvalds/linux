@@ -33,6 +33,53 @@
 static uint8_t kvm_pmu_version;
 static bool kvm_has_perf_caps;
 
+#define X86_PMU_FEATURE_NULL						\
+({									\
+	struct kvm_x86_pmu_feature feature = {};			\
+									\
+	feature;							\
+})
+
+static bool pmu_is_null_feature(struct kvm_x86_pmu_feature event)
+{
+	return !(*(u64 *)&event);
+}
+
+struct kvm_intel_pmu_event {
+	struct kvm_x86_pmu_feature gp_event;
+	struct kvm_x86_pmu_feature fixed_event;
+};
+
+/*
+ * Wrap the array to appease the compiler, as the macros used to construct each
+ * kvm_x86_pmu_feature use syntax that's only valid in function scope, and the
+ * compiler often thinks the feature definitions aren't compile-time constants.
+ */
+static struct kvm_intel_pmu_event intel_event_to_feature(uint8_t idx)
+{
+	const struct kvm_intel_pmu_event __intel_event_to_feature[] = {
+		[INTEL_ARCH_CPU_CYCLES_INDEX]		 = { X86_PMU_FEATURE_CPU_CYCLES, X86_PMU_FEATURE_CPU_CYCLES_FIXED },
+		[INTEL_ARCH_INSTRUCTIONS_RETIRED_INDEX]	 = { X86_PMU_FEATURE_INSNS_RETIRED, X86_PMU_FEATURE_INSNS_RETIRED_FIXED },
+		/*
+		 * Note, the fixed counter for reference cycles is NOT the same as the
+		 * general purpose architectural event.  The fixed counter explicitly
+		 * counts at the same frequency as the TSC, whereas the GP event counts
+		 * at a fixed, but uarch specific, frequency.  Bundle them here for
+		 * simplicity.
+		 */
+		[INTEL_ARCH_REFERENCE_CYCLES_INDEX]	 = { X86_PMU_FEATURE_REFERENCE_CYCLES, X86_PMU_FEATURE_REFERENCE_TSC_CYCLES_FIXED },
+		[INTEL_ARCH_LLC_REFERENCES_INDEX]	 = { X86_PMU_FEATURE_LLC_REFERENCES, X86_PMU_FEATURE_NULL },
+		[INTEL_ARCH_LLC_MISSES_INDEX]		 = { X86_PMU_FEATURE_LLC_MISSES, X86_PMU_FEATURE_NULL },
+		[INTEL_ARCH_BRANCHES_RETIRED_INDEX]	 = { X86_PMU_FEATURE_BRANCH_INSNS_RETIRED, X86_PMU_FEATURE_NULL },
+		[INTEL_ARCH_BRANCHES_MISPREDICTED_INDEX] = { X86_PMU_FEATURE_BRANCHES_MISPREDICTED, X86_PMU_FEATURE_NULL },
+		[INTEL_ARCH_TOPDOWN_SLOTS_INDEX]	 = { X86_PMU_FEATURE_TOPDOWN_SLOTS, X86_PMU_FEATURE_TOPDOWN_SLOTS_FIXED },
+	};
+
+	kvm_static_assert(ARRAY_SIZE(__intel_event_to_feature) == NR_INTEL_ARCH_EVENTS);
+
+	return __intel_event_to_feature[idx];
+}
+
 static struct kvm_vm *pmu_vm_create_with_one_vcpu(struct kvm_vcpu **vcpu,
 						  void *guest_code,
 						  uint8_t pmu_version,
@@ -197,41 +244,8 @@ static void __guest_test_arch_event(uint8_t idx, struct kvm_x86_pmu_feature even
 		GUEST_TEST_EVENT(idx, event, pmc, pmc_msr, ctrl_msr, ctrl_msr_value, KVM_FEP);
 }
 
-#define X86_PMU_FEATURE_NULL						\
-({									\
-	struct kvm_x86_pmu_feature feature = {};			\
-									\
-	feature;							\
-})
-
-static bool pmu_is_null_feature(struct kvm_x86_pmu_feature event)
-{
-	return !(*(u64 *)&event);
-}
-
 static void guest_test_arch_event(uint8_t idx)
 {
-	const struct {
-		struct kvm_x86_pmu_feature gp_event;
-		struct kvm_x86_pmu_feature fixed_event;
-	} intel_event_to_feature[] = {
-		[INTEL_ARCH_CPU_CYCLES_INDEX]		 = { X86_PMU_FEATURE_CPU_CYCLES, X86_PMU_FEATURE_CPU_CYCLES_FIXED },
-		[INTEL_ARCH_INSTRUCTIONS_RETIRED_INDEX]	 = { X86_PMU_FEATURE_INSNS_RETIRED, X86_PMU_FEATURE_INSNS_RETIRED_FIXED },
-		/*
-		 * Note, the fixed counter for reference cycles is NOT the same
-		 * as the general purpose architectural event.  The fixed counter
-		 * explicitly counts at the same frequency as the TSC, whereas
-		 * the GP event counts at a fixed, but uarch specific, frequency.
-		 * Bundle them here for simplicity.
-		 */
-		[INTEL_ARCH_REFERENCE_CYCLES_INDEX]	 = { X86_PMU_FEATURE_REFERENCE_CYCLES, X86_PMU_FEATURE_REFERENCE_TSC_CYCLES_FIXED },
-		[INTEL_ARCH_LLC_REFERENCES_INDEX]	 = { X86_PMU_FEATURE_LLC_REFERENCES, X86_PMU_FEATURE_NULL },
-		[INTEL_ARCH_LLC_MISSES_INDEX]		 = { X86_PMU_FEATURE_LLC_MISSES, X86_PMU_FEATURE_NULL },
-		[INTEL_ARCH_BRANCHES_RETIRED_INDEX]	 = { X86_PMU_FEATURE_BRANCH_INSNS_RETIRED, X86_PMU_FEATURE_NULL },
-		[INTEL_ARCH_BRANCHES_MISPREDICTED_INDEX] = { X86_PMU_FEATURE_BRANCHES_MISPREDICTED, X86_PMU_FEATURE_NULL },
-		[INTEL_ARCH_TOPDOWN_SLOTS_INDEX]	 = { X86_PMU_FEATURE_TOPDOWN_SLOTS, X86_PMU_FEATURE_TOPDOWN_SLOTS_FIXED },
-	};
-
 	uint32_t nr_gp_counters = this_cpu_property(X86_PROPERTY_PMU_NR_GP_COUNTERS);
 	uint32_t pmu_version = guest_get_pmu_version();
 	/* PERF_GLOBAL_CTRL exists only for Architectural PMU Version 2+. */
@@ -249,7 +263,7 @@ static void guest_test_arch_event(uint8_t idx)
 	else
 		base_pmc_msr = MSR_IA32_PERFCTR0;
 
-	gp_event = intel_event_to_feature[idx].gp_event;
+	gp_event = intel_event_to_feature(idx).gp_event;
 	GUEST_ASSERT_EQ(idx, gp_event.f.bit);
 
 	GUEST_ASSERT(nr_gp_counters);
@@ -270,7 +284,7 @@ static void guest_test_arch_event(uint8_t idx)
 	if (!guest_has_perf_global_ctrl)
 		return;
 
-	fixed_event = intel_event_to_feature[idx].fixed_event;
+	fixed_event = intel_event_to_feature(idx).fixed_event;
 	if (pmu_is_null_feature(fixed_event) || !this_pmu_has(fixed_event))
 		return;
 
