@@ -411,7 +411,8 @@ static const struct rtw89_reg_def txpwr_regs[] = {
 
 void rtw89_tas_track(struct rtw89_dev *rtwdev)
 {
-	struct rtw89_env_monitor_info *env = &rtwdev->env_monitor;
+	struct rtw89_bb_ctx *bb = rtw89_get_bb_ctx(rtwdev, RTW89_PHY_0);
+	struct rtw89_env_monitor_info *env = &bb->env_monitor;
 	const enum rtw89_sar_sources src = rtwdev->sar.src;
 	u8 max_nss_num = rtwdev->chip->rf_path_num;
 	struct rtw89_tas_info *tas = &rtwdev->tas;
