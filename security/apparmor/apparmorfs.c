@@ -632,6 +632,14 @@ static void profile_query_cb(struct aa_profile *profile, struct aa_perms *perms,
 	} else if (rules->policy->dfa) {
 		if (!RULE_MEDIATES(rules, *match_str))
 			return;	/* no change to current perms */
+		/* old user space does not correctly detect dbus mediation
+		 * support so we may get dbus policy and requests when
+		 * the abi doesn't support it. This can cause mediation
+		 * regressions, so explicitly test for this situation.
+		 */
+		if (*match_str == AA_CLASS_DBUS &&
+		    !RULE_MEDIATES_v9NET(rules))
+			return; /* no change to current perms */
 		state = aa_dfa_match_len(rules->policy->dfa,
 					 rules->policy->start[0],
 					 match_str, match_len);
