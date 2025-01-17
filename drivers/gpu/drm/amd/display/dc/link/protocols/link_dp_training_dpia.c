@@ -110,6 +110,7 @@ static enum link_training_result dpia_configure_link(
 
 	dp_decide_training_settings(
 		link,
+		link_res,
 		link_setting,
 		lt_settings);
 

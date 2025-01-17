@@ -647,4 +647,9 @@ void resource_init_common_dml2_callbacks(struct dc *dc, struct dml2_configuratio
 int resource_calculate_det_for_stream(struct dc_state *state, struct pipe_ctx *otg_master);
 
 bool resource_is_hpo_acquired(struct dc_state *context);
+
+struct link_encoder *get_temp_dio_link_enc(
+		const struct resource_context *res_ctx,
+		const struct resource_pool *const pool,
+		const struct dc_link *link);
 #endif /* DRIVERS_GPU_DRM_AMD_DC_DEV_DC_INC_RESOURCE_H_ */

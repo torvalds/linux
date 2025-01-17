@@ -35,11 +35,14 @@ static void update_dpia_stream_allocation_table(struct dc_link *link,
 		const struct link_resource *link_res,
 		const struct link_mst_stream_allocation_table *table)
 {
-	struct link_encoder *link_enc = link_enc_cfg_get_link_enc(link);
+	struct link_encoder *link_enc = link_res->dio_link_enc;
 	static enum dc_status status;
 	uint8_t mst_alloc_slots = 0, prev_mst_slots_in_use = 0xFF;
 	int i;
 	DC_LOGGER_INIT(link->ctx->logger);
+
+	if (!link->dc->config.unify_link_enc_assignment)
+		link_enc = link_enc_cfg_get_link_enc(link);
 
 	for (i = 0; i < table->stream_count; i++)
 		mst_alloc_slots += table->stream_allocations[i].slot_count;
@@ -61,7 +64,10 @@ static void set_dio_dpia_link_test_pattern(struct dc_link *link,
 	if (tp_params->dp_phy_pattern != DP_TEST_PATTERN_VIDEO_MODE)
 		return;
 
-	struct link_encoder *link_enc = link_enc_cfg_get_link_enc(link);
+	struct link_encoder *link_enc = link_res->dio_link_enc;
+
+	if (!link->dc->config.unify_link_enc_assignment)
+		link_enc = link_enc_cfg_get_link_enc(link);
 
 	if (!link_enc)
 		return;
@@ -83,7 +89,10 @@ static void enable_dpia_link_output(struct dc_link *link,
 		enum clock_source_id clock_source,
 		const struct dc_link_settings *link_settings)
 {
-	struct link_encoder *link_enc = link_enc_cfg_get_link_enc(link);
+	struct link_encoder *link_enc = link_res->dio_link_enc;
+
+	if (!link->dc->config.unify_link_enc_assignment)
+		link_enc = link_enc_cfg_get_link_enc(link);
 
 	if (link_enc != NULL) {
 		if (link->dc->config.enable_dpia_pre_training && link_enc->funcs->enable_dpia_output) {
@@ -119,7 +128,10 @@ static void disable_dpia_link_output(struct dc_link *link,
 		const struct link_resource *link_res,
 		enum signal_type signal)
 {
-	struct link_encoder *link_enc = link_enc_cfg_get_link_enc(link);
+	struct link_encoder *link_enc = link_res->dio_link_enc;
+
+	if (!link->dc->config.unify_link_enc_assignment)
+		link_enc = link_enc_cfg_get_link_enc(link);
 
 	if (link_enc != NULL) {
 		if (link->dc->config.enable_dpia_pre_training && link_enc->funcs->disable_dpia_output) {

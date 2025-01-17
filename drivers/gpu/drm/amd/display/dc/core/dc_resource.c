@@ -5191,7 +5191,7 @@ void get_audio_check(struct audio_info *aud_modes,
 	}
 }
 
-static struct link_encoder *get_temp_dio_link_enc(
+struct link_encoder *get_temp_dio_link_enc(
 		const struct resource_context *res_ctx,
 		const struct resource_pool *const pool,
 		const struct dc_link *link)
