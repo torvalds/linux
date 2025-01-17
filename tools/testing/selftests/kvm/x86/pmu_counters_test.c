@@ -148,9 +148,7 @@ static uint8_t guest_get_pmu_version(void)
  * Sanity check that in all cases, the event doesn't count when it's disabled,
  * and that KVM correctly emulates the write of an arbitrary value.
  */
-static void guest_assert_event_count(uint8_t idx,
-				     struct kvm_x86_pmu_feature event,
-				     uint32_t pmc, uint32_t pmc_msr)
+static void guest_assert_event_count(uint8_t idx, uint32_t pmc, uint32_t pmc_msr)
 {
 	uint64_t count;
 
@@ -223,7 +221,7 @@ do {										\
 	);									\
 } while (0)
 
-#define GUEST_TEST_EVENT(_idx, _event, _pmc, _pmc_msr, _ctrl_msr, _value, FEP)	\
+#define GUEST_TEST_EVENT(_idx, _pmc, _pmc_msr, _ctrl_msr, _value, FEP)		\
 do {										\
 	wrmsr(_pmc_msr, 0);							\
 										\
@@ -234,17 +232,16 @@ do {										\
 	else									\
 		GUEST_MEASURE_EVENT(_ctrl_msr, _value, "nop", FEP);		\
 										\
-	guest_assert_event_count(_idx, _event, _pmc, _pmc_msr);			\
+	guest_assert_event_count(_idx, _pmc, _pmc_msr);				\
 } while (0)
 
-static void __guest_test_arch_event(uint8_t idx, struct kvm_x86_pmu_feature event,
-				    uint32_t pmc, uint32_t pmc_msr,
+static void __guest_test_arch_event(uint8_t idx, uint32_t pmc, uint32_t pmc_msr,
 				    uint32_t ctrl_msr, uint64_t ctrl_msr_value)
 {
-	GUEST_TEST_EVENT(idx, event, pmc, pmc_msr, ctrl_msr, ctrl_msr_value, "");
+	GUEST_TEST_EVENT(idx, pmc, pmc_msr, ctrl_msr, ctrl_msr_value, "");
 
 	if (is_forced_emulation_enabled)
-		GUEST_TEST_EVENT(idx, event, pmc, pmc_msr, ctrl_msr, ctrl_msr_value, KVM_FEP);
+		GUEST_TEST_EVENT(idx, pmc, pmc_msr, ctrl_msr, ctrl_msr_value, KVM_FEP);
 }
 
 static void guest_test_arch_event(uint8_t idx)
@@ -280,7 +277,7 @@ static void guest_test_arch_event(uint8_t idx)
 		if (guest_has_perf_global_ctrl)
 			wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, BIT_ULL(i));
 
-		__guest_test_arch_event(idx, gp_event, i, base_pmc_msr + i,
+		__guest_test_arch_event(idx, i, base_pmc_msr + i,
 					MSR_P6_EVNTSEL0 + i, eventsel);
 	}
 
@@ -295,7 +292,7 @@ static void guest_test_arch_event(uint8_t idx)
 
 	wrmsr(MSR_CORE_PERF_FIXED_CTR_CTRL, FIXED_PMC_CTRL(i, FIXED_PMC_KERNEL));
 
-	__guest_test_arch_event(idx, fixed_event, i | INTEL_RDPMC_FIXED,
+	__guest_test_arch_event(idx, i | INTEL_RDPMC_FIXED,
 				MSR_CORE_PERF_FIXED_CTR0 + i,
 				MSR_CORE_PERF_GLOBAL_CTRL,
 				FIXED_PMC_GLOBAL_CTRL_ENABLE(i));
