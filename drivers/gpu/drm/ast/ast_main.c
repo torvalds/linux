@@ -290,7 +290,6 @@ struct drm_device *ast_device_create(struct pci_dev *pdev,
 	ast->regs = regs;
 	ast->ioregs = ioregs;
 
-	ast_detect_widescreen(ast);
 	ast_detect_tx_chip(ast, need_post);
 
 	ret = ast_get_dram_info(ast);
@@ -314,6 +313,8 @@ struct drm_device *ast_device_create(struct pci_dev *pdev,
 		if (!ast->dp501_fw_buf)
 			drm_info(dev, "failed to map reserved buffer!\n");
 	}
+
+	ast_detect_widescreen(ast);
 
 	ret = ast_mode_config_init(ast);
 	if (ret)
