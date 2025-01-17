@@ -465,12 +465,13 @@ static int init_pci(struct qaic_device *qdev, struct pci_dev *pdev)
 
 static int init_msi(struct qaic_device *qdev, struct pci_dev *pdev)
 {
+	int irq_count = qdev->num_dbc + 1;
 	int mhi_irq;
 	int ret;
 	int i;
 
 	/* Managed release since we use pcim_enable_device */
-	ret = pci_alloc_irq_vectors(pdev, 32, 32, PCI_IRQ_MSI);
+	ret = pci_alloc_irq_vectors(pdev, irq_count, irq_count, PCI_IRQ_MSI);
 	if (ret == -ENOSPC) {
 		ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI);
 		if (ret < 0)
@@ -485,7 +486,8 @@ static int init_msi(struct qaic_device *qdev, struct pci_dev *pdev)
 		 * interrupted, it shouldn't race with itself.
 		 */
 		qdev->single_msi = true;
-		pci_info(pdev, "Allocating 32 MSIs failed, operating in 1 MSI mode. Performance may be impacted.\n");
+		pci_info(pdev, "Allocating %d MSIs failed, operating in 1 MSI mode. Performance may be impacted.\n",
+			 irq_count);
 	} else if (ret < 0) {
 		return ret;
 	}
