@@ -280,8 +280,6 @@ dmem_cgroup_calculate_protection(struct dmem_cgroup_pool_state *limit_pool,
 
 /**
  * dmem_cgroup_state_evict_valuable() - Check if we should evict from test_pool
- * @dev: &dmem_cgroup_region
- * @index: The index number of the region being tested.
  * @limit_pool: The pool for which we hit limits
  * @test_pool: The pool for which to test
  * @ignore_low: Whether we have to respect low watermarks.
@@ -299,7 +297,7 @@ bool dmem_cgroup_state_evict_valuable(struct dmem_cgroup_pool_state *limit_pool,
 				      bool ignore_low, bool *ret_hit_low)
 {
 	struct dmem_cgroup_pool_state *pool = test_pool;
-	struct page_counter *climit, *ctest;
+	struct page_counter *ctest;
 	u64 used, min, low;
 
 	/* Can always evict from current pool, despite limits */
@@ -324,7 +322,6 @@ bool dmem_cgroup_state_evict_valuable(struct dmem_cgroup_pool_state *limit_pool,
 			{}
 	}
 
-	climit = &limit_pool->cnt;
 	ctest = &test_pool->cnt;
 
 	dmem_cgroup_calculate_protection(limit_pool, test_pool);
@@ -611,13 +608,12 @@ EXPORT_SYMBOL_GPL(dmem_cgroup_uncharge);
 
 /**
  * dmem_cgroup_try_charge() - Try charging a new allocation to a region.
- * @dev: Device to charge
+ * @region: dmem region to charge
  * @size: Size (in bytes) to charge.
  * @ret_pool: On succesfull allocation, the pool that is charged.
  * @ret_limit_pool: On a failed allocation, the limiting pool.
  *
- * This function charges the current pool for @dev with region at @index for a
- * size of @size bytes.
+ * This function charges the @region region for a size of @size bytes.
  *
  * If the function succeeds, @ret_pool is set, which must be passed to
  * dmem_cgroup_uncharge() when undoing the allocation.

@@ -1139,6 +1139,7 @@ config CGROUP_RDMA
 
 config CGROUP_DMEM
 	bool "Device memory controller (DMEM)"
+	select PAGE_COUNTER
 	help
 	  The DMEM controller allows compatible devices to restrict device
 	  memory usage based on the cgroup hierarchy.

@@ -6,6 +6,7 @@
 struct drm_atomic_state;
 struct drm_connector;
 struct drm_connector_state;
+struct drm_display_mode;
 struct hdmi_audio_infoframe;
 
 enum drm_connector_status;
