@@ -32,7 +32,7 @@ int vkms_output_init(struct vkms_device *vkmsdev)
 {
 	struct vkms_output *output = &vkmsdev->output;
 	struct drm_device *dev = &vkmsdev->drm;
-	struct drm_connector *connector = &output->connector;
+	struct drm_connector *connector;
 	struct drm_encoder *encoder = &output->encoder;
 	struct drm_crtc *crtc = &output->crtc;
 	struct vkms_plane *primary, *overlay, *cursor = NULL;
@@ -69,6 +69,12 @@ int vkms_output_init(struct vkms_device *vkmsdev)
 			}
 			overlay->base.possible_crtcs = drm_crtc_mask(crtc);
 		}
+	}
+
+	connector = drmm_kzalloc(dev, sizeof(*connector), GFP_KERNEL);
+	if (!connector) {
+		DRM_ERROR("Failed to allocate connector\n");
+		return -ENOMEM;
 	}
 
 	ret = drmm_connector_init(dev, connector, &vkms_connector_funcs,
