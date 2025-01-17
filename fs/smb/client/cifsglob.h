@@ -811,18 +811,9 @@ struct TCP_Server_Info {
 	bool use_swn_dstaddr;
 	struct sockaddr_storage swn_dstaddr;
 #endif
-	struct mutex refpath_lock; /* protects leaf_fullpath */
 	/*
-	 * leaf_fullpath: Canonical DFS referral path related to this
-	 *                connection.
-	 *                It is used in DFS cache refresher, reconnect and may
-	 *                change due to nested DFS links.
-	 *
-	 * Protected by @refpath_lock and @srv_lock.  The @refpath_lock is
-	 * mostly used for not requiring a copy of @leaf_fullpath when getting
-	 * cached or new DFS referrals (which might also sleep during I/O).
-	 * While @srv_lock is held for making string and NULL comparisons against
-	 * both fields as in mount(2) and cache refresh.
+	 * Canonical DFS referral path used in cifs_reconnect() for failover as
+	 * well as in DFS cache refresher.
 	 *
 	 * format: \\HOST\SHARE[\OPTIONAL PATH]
 	 */

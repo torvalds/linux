@@ -492,7 +492,7 @@ static int reconnect_target_locked(struct TCP_Server_Info *server,
 static int reconnect_dfs_server(struct TCP_Server_Info *server)
 {
 	struct dfs_cache_tgt_iterator *target_hint = NULL;
-
+	const char *ref_path = server->leaf_fullpath + 1;
 	DFS_CACHE_TGT_LIST(tl);
 	int num_targets = 0;
 	int rc = 0;
@@ -505,10 +505,8 @@ static int reconnect_dfs_server(struct TCP_Server_Info *server)
 	 * through /proc/fs/cifs/dfscache or the target list is empty due to server settings after
 	 * refreshing the referral, so, in this case, default it to 1.
 	 */
-	mutex_lock(&server->refpath_lock);
-	if (!dfs_cache_noreq_find(server->leaf_fullpath + 1, NULL, &tl))
+	if (!dfs_cache_noreq_find(ref_path, NULL, &tl))
 		num_targets = dfs_cache_get_nr_tgts(&tl);
-	mutex_unlock(&server->refpath_lock);
 	if (!num_targets)
 		num_targets = 1;
 
@@ -552,9 +550,7 @@ static int reconnect_dfs_server(struct TCP_Server_Info *server)
 		mod_delayed_work(cifsiod_wq, &server->reconnect, 0);
 	} while (server->tcpStatus == CifsNeedReconnect);
 
-	mutex_lock(&server->refpath_lock);
-	dfs_cache_noreq_update_tgthint(server->leaf_fullpath + 1, target_hint);
-	mutex_unlock(&server->refpath_lock);
+	dfs_cache_noreq_update_tgthint(ref_path, target_hint);
 	dfs_cache_free_tgts(&tl);
 
 	/* Need to set up echo worker again once connection has been established */
@@ -569,13 +565,8 @@ static int reconnect_dfs_server(struct TCP_Server_Info *server)
 
 int cifs_reconnect(struct TCP_Server_Info *server, bool mark_smb_session)
 {
-	mutex_lock(&server->refpath_lock);
-	if (!server->leaf_fullpath) {
-		mutex_unlock(&server->refpath_lock);
+	if (!server->leaf_fullpath)
 		return __cifs_reconnect(server, mark_smb_session);
-	}
-	mutex_unlock(&server->refpath_lock);
-
 	return reconnect_dfs_server(server);
 }
 #else
@@ -1754,9 +1745,6 @@ cifs_get_tcp_session(struct smb3_fs_context *ctx,
 	INIT_DELAYED_WORK(&tcp_ses->echo, cifs_echo_request);
 	INIT_DELAYED_WORK(&tcp_ses->reconnect, smb2_reconnect_server);
 	mutex_init(&tcp_ses->reconnect_mutex);
-#ifdef CONFIG_CIFS_DFS_UPCALL
-	mutex_init(&tcp_ses->refpath_lock);
-#endif
 	memcpy(&tcp_ses->srcaddr, &ctx->srcaddr,
 	       sizeof(tcp_ses->srcaddr));
 	memcpy(&tcp_ses->dstaddr, &ctx->dstaddr,

@@ -1141,13 +1141,11 @@ static char *get_ses_refpath(struct cifs_ses *ses)
 	struct TCP_Server_Info *server = ses->server;
 	char *path = ERR_PTR(-ENOENT);
 
-	mutex_lock(&server->refpath_lock);
 	if (server->leaf_fullpath) {
-		path = kstrdup(server->leaf_fullpath + 1, GFP_ATOMIC);
+		path = kstrdup(server->leaf_fullpath + 1, GFP_KERNEL);
 		if (!path)
 			path = ERR_PTR(-ENOMEM);
 	}
-	mutex_unlock(&server->refpath_lock);
 	return path;
 }
 
