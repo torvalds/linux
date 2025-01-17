@@ -68,7 +68,7 @@ static void pvm_init_traps_aa64pfr0(struct kvm_vcpu *vcpu)
 	/* Trap SVE */
 	if (!FIELD_GET(ARM64_FEATURE_MASK(ID_AA64PFR0_EL1_SVE), feature_ids)) {
 		if (has_hvhe())
-			cptr_clear |= CPACR_ELx_ZEN;
+			cptr_clear |= CPACR_EL1_ZEN;
 		else
 			cptr_set |= CPTR_EL2_TZ;
 	}
