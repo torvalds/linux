@@ -830,8 +830,10 @@ static void limit_nv_id_regs(struct kvm *kvm)
 		 NV_FTR(PFR0, RAS)	|
 		 NV_FTR(PFR0, EL3)	|
 		 NV_FTR(PFR0, EL2)	|
-		 NV_FTR(PFR0, EL1));
-	/* 64bit EL1/EL2/EL3 only */
+		 NV_FTR(PFR0, EL1)	|
+		 NV_FTR(PFR0, EL0));
+	/* 64bit only at any EL */
+	val |= FIELD_PREP(NV_FTR(PFR0, EL0), 0b0001);
 	val |= FIELD_PREP(NV_FTR(PFR0, EL1), 0b0001);
 	val |= FIELD_PREP(NV_FTR(PFR0, EL2), 0b0001);
 	val |= FIELD_PREP(NV_FTR(PFR0, EL3), 0b0001);
