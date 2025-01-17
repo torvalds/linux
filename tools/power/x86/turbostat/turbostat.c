@@ -1538,6 +1538,8 @@ static struct msr_counter_arch_info msr_counter_arch_infos[] = {
 #define PMT_MTL_DC6_GUID           0x1a067102
 #define PMT_MTL_DC6_SEQ            0
 
+unsigned long long tcore_clock_freq_hz = 800000000;
+
 #define PMT_COUNTER_NAME_SIZE_BYTES      16
 #define PMT_COUNTER_TYPE_NAME_SIZE_BYTES 32
 
@@ -1560,6 +1562,7 @@ struct pmt_mmio {
 enum pmt_datatype {
 	PMT_TYPE_RAW,
 	PMT_TYPE_XTAL_TIME,
+	PMT_TYPE_TCORE_CLOCK,
 };
 
 struct pmt_domain_info {
@@ -2474,6 +2477,7 @@ void print_header(char *delim)
 			break;
 
 		case PMT_TYPE_XTAL_TIME:
+		case PMT_TYPE_TCORE_CLOCK:
 			outp += sprintf(outp, "%s%s", (printed++ ? delim : ""), ppmt->name);
 			break;
 		}
@@ -2548,6 +2552,7 @@ void print_header(char *delim)
 			break;
 
 		case PMT_TYPE_XTAL_TIME:
+		case PMT_TYPE_TCORE_CLOCK:
 			outp += sprintf(outp, "%s%s", (printed++ ? delim : ""), ppmt->name);
 			break;
 		}
@@ -2679,6 +2684,7 @@ void print_header(char *delim)
 			break;
 
 		case PMT_TYPE_XTAL_TIME:
+		case PMT_TYPE_TCORE_CLOCK:
 			outp += sprintf(outp, "%s%s", (printed++ ? delim : ""), ppmt->name);
 			break;
 		}
@@ -2997,7 +3003,7 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 
 	for (i = 0, ppmt = sys.pmt_tp; ppmt; i++, ppmt = ppmt->next) {
 		const unsigned long value_raw = t->pmt_counter[i];
-		const double value_converted = 100.0 * value_raw / crystal_hz / interval_float;
+		double value_converted;
 		switch (ppmt->type) {
 		case PMT_TYPE_RAW:
 			if (pmt_counter_get_width(ppmt) <= 32)
@@ -3009,8 +3015,13 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 			break;
 
 		case PMT_TYPE_XTAL_TIME:
+			value_converted = 100.0 * value_raw / crystal_hz / interval_float;
 			outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), value_converted);
 			break;
+
+		case PMT_TYPE_TCORE_CLOCK:
+			value_converted = 100.0 * value_raw / tcore_clock_freq_hz / interval_float;
+			outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), value_converted);
 		}
 	}
 
@@ -3077,7 +3088,7 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 
 	for (i = 0, ppmt = sys.pmt_cp; ppmt; i++, ppmt = ppmt->next) {
 		const unsigned long value_raw = c->pmt_counter[i];
-		const double value_converted = 100.0 * value_raw / crystal_hz / interval_float;
+		double value_converted;
 		switch (ppmt->type) {
 		case PMT_TYPE_RAW:
 			if (pmt_counter_get_width(ppmt) <= 32)
@@ -3089,8 +3100,13 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 			break;
 
 		case PMT_TYPE_XTAL_TIME:
+			value_converted = 100.0 * value_raw / crystal_hz / interval_float;
 			outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), value_converted);
 			break;
+
+		case PMT_TYPE_TCORE_CLOCK:
+			value_converted = 100.0 * value_raw / tcore_clock_freq_hz / interval_float;
+			outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), value_converted);
 		}
 	}
 
@@ -3275,7 +3291,7 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 
 	for (i = 0, ppmt = sys.pmt_pp; ppmt; i++, ppmt = ppmt->next) {
 		const unsigned long value_raw = p->pmt_counter[i];
-		const double value_converted = 100.0 * value_raw / crystal_hz / interval_float;
+		double value_converted;
 		switch (ppmt->type) {
 		case PMT_TYPE_RAW:
 			if (pmt_counter_get_width(ppmt) <= 32)
@@ -3287,8 +3303,13 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 			break;
 
 		case PMT_TYPE_XTAL_TIME:
+			value_converted = 100.0 * value_raw / crystal_hz / interval_float;
 			outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), value_converted);
 			break;
+
+		case PMT_TYPE_TCORE_CLOCK:
+			value_converted = 100.0 * value_raw / tcore_clock_freq_hz / interval_float;
+			outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), value_converted);
 		}
 	}
 
@@ -10013,6 +10034,11 @@ next:
 
 		if (strcmp("txtal_time", type_name) == 0) {
 			type = PMT_TYPE_XTAL_TIME;
+			has_type = true;
+		}
+
+		if (strcmp("tcore_clock", type_name) == 0) {
+			type = PMT_TYPE_TCORE_CLOCK;
 			has_type = true;
 		}
 
