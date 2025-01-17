@@ -440,12 +440,59 @@ static void mhi_firmware_copy_bhie(struct mhi_controller *mhi_cntrl,
 	}
 }
 
+static enum mhi_fw_load_type mhi_fw_load_type_get(const struct mhi_controller *mhi_cntrl)
+{
+	if (mhi_cntrl->fbc_download) {
+		return MHI_FW_LOAD_FBC;
+	} else {
+		if (mhi_cntrl->seg_len)
+			return MHI_FW_LOAD_BHIE;
+		else
+			return MHI_FW_LOAD_BHI;
+	}
+}
+
+static int mhi_load_image_bhi(struct mhi_controller *mhi_cntrl, const u8 *fw_data, size_t size)
+{
+	struct image_info *image;
+	int ret;
+
+	ret = mhi_alloc_bhi_buffer(mhi_cntrl, &image, size);
+	if (ret)
+		return ret;
+
+	/* Load the firmware into BHI vec table */
+	memcpy(image->mhi_buf->buf, fw_data, size);
+
+	ret = mhi_fw_load_bhi(mhi_cntrl, &image->mhi_buf[image->entries - 1]);
+	mhi_free_bhi_buffer(mhi_cntrl, image);
+
+	return ret;
+}
+
+static int mhi_load_image_bhie(struct mhi_controller *mhi_cntrl, const u8 *fw_data, size_t size)
+{
+	struct image_info *image;
+	int ret;
+
+	ret = mhi_alloc_bhie_table(mhi_cntrl, &image, size);
+	if (ret)
+		return ret;
+
+	mhi_firmware_copy_bhie(mhi_cntrl, fw_data, size, image);
+
+	ret = mhi_fw_load_bhie(mhi_cntrl, &image->mhi_buf[image->entries - 1]);
+	mhi_free_bhie_table(mhi_cntrl, image);
+
+	return ret;
+}
+
 void mhi_fw_load_handler(struct mhi_controller *mhi_cntrl)
 {
 	const struct firmware *firmware = NULL;
 	struct device *dev = &mhi_cntrl->mhi_dev->dev;
+	enum mhi_fw_load_type fw_load_type;
 	enum mhi_pm_state new_state;
-	struct image_info *image;
 	const char *fw_name;
 	const u8 *fw_data;
 	size_t size, fw_sz;
@@ -506,21 +553,17 @@ void mhi_fw_load_handler(struct mhi_controller *mhi_cntrl)
 	fw_sz = firmware->size;
 
 skip_req_fw:
-	ret = mhi_alloc_bhi_buffer(mhi_cntrl, &image, size);
-	if (ret) {
-		release_firmware(firmware);
-		goto error_fw_load;
-	}
-	/* Load the firmware into BHI vec table */
-	memcpy(image->mhi_buf->buf, fw_data, size);
-
-	/* Download image using BHI */
-	ret = mhi_fw_load_bhi(mhi_cntrl, image->mhi_buf);
-	mhi_free_bhi_buffer(mhi_cntrl, image);
+	fw_load_type = mhi_fw_load_type_get(mhi_cntrl);
+	if (fw_load_type == MHI_FW_LOAD_BHIE)
+		ret = mhi_load_image_bhie(mhi_cntrl, fw_data, size);
+	else
+		ret = mhi_load_image_bhi(mhi_cntrl, fw_data, size);
 
 	/* Error or in EDL mode, we're done */
 	if (ret) {
-		dev_err(dev, "MHI did not load image over BHI, ret: %d\n", ret);
+		dev_err(dev, "MHI did not load image over BHI%s, ret: %d\n",
+			fw_load_type == MHI_FW_LOAD_BHIE ? "e" : "",
+			ret);
 		release_firmware(firmware);
 		goto error_fw_load;
 	}
@@ -539,7 +582,7 @@ skip_req_fw:
 	 * If we're doing fbc, populate vector tables while
 	 * device transitioning into MHI READY state
 	 */
-	if (mhi_cntrl->fbc_download) {
+	if (fw_load_type == MHI_FW_LOAD_FBC) {
 		ret = mhi_alloc_bhie_table(mhi_cntrl, &mhi_cntrl->fbc_image, fw_sz);
 		if (ret) {
 			release_firmware(firmware);
@@ -564,7 +607,7 @@ fw_load_ready_state:
 	return;
 
 error_ready_state:
-	if (mhi_cntrl->fbc_download) {
+	if (fw_load_type == MHI_FW_LOAD_FBC) {
 		mhi_free_bhie_table(mhi_cntrl, mhi_cntrl->fbc_image);
 		mhi_cntrl->fbc_image = NULL;
 	}
