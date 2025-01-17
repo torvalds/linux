@@ -11568,6 +11568,22 @@ free_dev:
 }
 EXPORT_SYMBOL(alloc_netdev_mqs);
 
+static void netdev_napi_exit(struct net_device *dev)
+{
+	if (!list_empty(&dev->napi_list)) {
+		struct napi_struct *p, *n;
+
+		netdev_lock(dev);
+		list_for_each_entry_safe(p, n, &dev->napi_list, dev_list)
+			__netif_napi_del_locked(p);
+		netdev_unlock(dev);
+
+		synchronize_net();
+	}
+
+	kvfree(dev->napi_config);
+}
+
 /**
  * free_netdev - free network device
  * @dev: device
@@ -11579,8 +11595,6 @@ EXPORT_SYMBOL(alloc_netdev_mqs);
  */
 void free_netdev(struct net_device *dev)
 {
-	struct napi_struct *p, *n;
-
 	might_sleep();
 
 	/* When called immediately after register_netdevice() failed the unwind
@@ -11602,10 +11616,7 @@ void free_netdev(struct net_device *dev)
 	/* Flush device addresses */
 	dev_addr_flush(dev);
 
-	list_for_each_entry_safe(p, n, &dev->napi_list, dev_list)
-		netif_napi_del(p);
-
-	kvfree(dev->napi_config);
+	netdev_napi_exit(dev);
 
 	ref_tracker_dir_exit(&dev->refcnt_tracker);
 #ifdef CONFIG_PCPU_DEV_REFCNT
