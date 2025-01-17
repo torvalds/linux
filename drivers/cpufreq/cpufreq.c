@@ -1476,6 +1476,10 @@ static int cpufreq_online(unsigned int cpu)
 
 		blocking_notifier_call_chain(&cpufreq_policy_notifier_list,
 				CPUFREQ_CREATE_POLICY, policy);
+	} else {
+		ret = freq_qos_update_request(policy->max_freq_req, policy->max);
+		if (ret < 0)
+			goto out_destroy_policy;
 	}
 
 	if (cpufreq_driver->get && has_target()) {
