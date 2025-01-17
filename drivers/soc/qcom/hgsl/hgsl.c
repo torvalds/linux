@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2019-2022, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <asm/unistd.h>
@@ -1415,19 +1415,26 @@ static int hgsl_init_global_hyp_channel(struct qcom_hgsl *hgsl)
 {
 	int ret = 0;
 	int rval = 0;
+	unsigned int retry_count = 5;
 
 	ret = hgsl_hyp_init(&hgsl->global_hyp, hgsl->dev, 0, "hgsl");
 	if (ret != 0)
 		goto out;
 
-	ret = hgsl_hyp_gsl_lib_open(&hgsl->global_hyp, 0, &rval);
+	/* Retry to communicate with BE here */
+	do {
+		ret = hgsl_hyp_gsl_lib_open(&hgsl->global_hyp, 0, &rval);
+	} while (ret == -EAGAIN && retry_count--);
 	if (rval)
 		ret = -EINVAL;
 	else
 		hgsl->global_hyp_inited = true;
 out:
-	if (ret)
+	if (ret) {
+		LOGE("Failed to open gsl lib ret: %d retry_count: %u\n",
+				ret, retry_count);
 		hgsl_hyp_close(&hgsl->global_hyp);
+	}
 
 	return ret;
 }
