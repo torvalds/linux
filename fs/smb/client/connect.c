@@ -1526,42 +1526,10 @@ static int match_server(struct TCP_Server_Info *server,
 	if (!cifs_match_ipaddr((struct sockaddr *)&ctx->srcaddr,
 			       (struct sockaddr *)&server->srcaddr))
 		return 0;
-	/*
-	 * When matching cifs.ko superblocks (@match_super == true), we can't
-	 * really match either @server->leaf_fullpath or @server->dstaddr
-	 * directly since this @server might belong to a completely different
-	 * server -- in case of domain-based DFS referrals or DFS links -- as
-	 * provided earlier by mount(2) through 'source' and 'ip' options.
-	 *
-	 * Otherwise, match the DFS referral in @server->leaf_fullpath or the
-	 * destination address in @server->dstaddr.
-	 *
-	 * When using 'nodfs' mount option, we avoid sharing it with DFS
-	 * connections as they might failover.
-	 */
-	if (!match_super) {
-		if (!ctx->nodfs) {
-			if (server->leaf_fullpath) {
-				if (!ctx->leaf_fullpath ||
-				    strcasecmp(server->leaf_fullpath,
-					       ctx->leaf_fullpath))
-					return 0;
-			} else if (ctx->leaf_fullpath) {
-				return 0;
-			}
-		} else if (server->leaf_fullpath) {
-			return 0;
-		}
-	}
 
-	/*
-	 * Match for a regular connection (address/hostname/port) which has no
-	 * DFS referrals set.
-	 */
-	if (!server->leaf_fullpath &&
-	    (strcasecmp(server->hostname, ctx->server_hostname) ||
-	     !match_server_address(server, addr) ||
-	     !match_port(server, addr)))
+	if (strcasecmp(server->hostname, ctx->server_hostname) ||
+	    !match_server_address(server, addr) ||
+	    !match_port(server, addr))
 		return 0;
 
 	if (!match_security(server, ctx))
