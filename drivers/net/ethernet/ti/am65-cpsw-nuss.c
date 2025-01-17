@@ -502,6 +502,7 @@ static inline void am65_cpsw_put_page(struct am65_cpsw_rx_flow *flow,
 				      struct page *page,
 				      bool allow_direct);
 static void am65_cpsw_nuss_rx_cleanup(void *data, dma_addr_t desc_dma);
+static void am65_cpsw_nuss_tx_cleanup(void *data, dma_addr_t desc_dma);
 
 static void am65_cpsw_destroy_rxq(struct am65_cpsw_common *common, int id)
 {
@@ -656,6 +657,76 @@ err:
 	return ret;
 }
 
+static void am65_cpsw_destroy_txq(struct am65_cpsw_common *common, int id)
+{
+	struct am65_cpsw_tx_chn *tx_chn = &common->tx_chns[id];
+
+	napi_disable(&tx_chn->napi_tx);
+	hrtimer_cancel(&tx_chn->tx_hrtimer);
+	k3_udma_glue_reset_tx_chn(tx_chn->tx_chn, tx_chn,
+				  am65_cpsw_nuss_tx_cleanup);
+	k3_udma_glue_disable_tx_chn(tx_chn->tx_chn);
+}
+
+static void am65_cpsw_destroy_txqs(struct am65_cpsw_common *common)
+{
+	struct am65_cpsw_tx_chn *tx_chn = common->tx_chns;
+	int id;
+
+	/* shutdown tx channels */
+	atomic_set(&common->tdown_cnt, common->tx_ch_num);
+	/* ensure new tdown_cnt value is visible */
+	smp_mb__after_atomic();
+	reinit_completion(&common->tdown_complete);
+
+	for (id = 0; id < common->tx_ch_num; id++)
+		k3_udma_glue_tdown_tx_chn(tx_chn[id].tx_chn, false);
+
+	id = wait_for_completion_timeout(&common->tdown_complete,
+					 msecs_to_jiffies(1000));
+	if (!id)
+		dev_err(common->dev, "tx teardown timeout\n");
+
+	for (id = common->tx_ch_num - 1; id >= 0; id--)
+		am65_cpsw_destroy_txq(common, id);
+}
+
+static int am65_cpsw_create_txq(struct am65_cpsw_common *common, int id)
+{
+	struct am65_cpsw_tx_chn *tx_chn = &common->tx_chns[id];
+	int ret;
+
+	ret = k3_udma_glue_enable_tx_chn(tx_chn->tx_chn);
+	if (ret)
+		return ret;
+
+	napi_enable(&tx_chn->napi_tx);
+
+	return 0;
+}
+
+static int am65_cpsw_create_txqs(struct am65_cpsw_common *common)
+{
+	int id, ret;
+
+	for (id = 0; id < common->tx_ch_num; id++) {
+		ret = am65_cpsw_create_txq(common, id);
+		if (ret) {
+			dev_err(common->dev, "couldn't create txq %d: %d\n",
+				id, ret);
+			goto err;
+		}
+	}
+
+	return 0;
+
+err:
+	for (--id; id >= 0; id--)
+		am65_cpsw_destroy_txq(common, id);
+
+	return ret;
+}
+
 static int am65_cpsw_nuss_desc_idx(struct k3_cppi_desc_pool *desc_pool,
 				   void *desc,
 				   unsigned char dsize_log2)
@@ -790,9 +861,8 @@ static struct sk_buff *am65_cpsw_build_skb(void *page_addr,
 static int am65_cpsw_nuss_common_open(struct am65_cpsw_common *common)
 {
 	struct am65_cpsw_host *host_p = am65_common_get_host(common);
-	struct am65_cpsw_tx_chn *tx_chn = common->tx_chns;
-	int port_idx, ret, tx;
 	u32 val, port_mask;
+	int port_idx, ret;
 
 	if (common->usage_count)
 		return 0;
@@ -856,27 +926,14 @@ static int am65_cpsw_nuss_common_open(struct am65_cpsw_common *common)
 	if (ret)
 		return ret;
 
-	for (tx = 0; tx < common->tx_ch_num; tx++) {
-		ret = k3_udma_glue_enable_tx_chn(tx_chn[tx].tx_chn);
-		if (ret) {
-			dev_err(common->dev, "couldn't enable tx chn %d: %d\n",
-				tx, ret);
-			tx--;
-			goto fail_tx;
-		}
-		napi_enable(&tx_chn[tx].napi_tx);
-	}
+	ret = am65_cpsw_create_txqs(common);
+	if (ret)
+		goto cleanup_rx;
 
 	dev_dbg(common->dev, "cpsw_nuss started\n");
 	return 0;
 
-fail_tx:
-	while (tx >= 0) {
-		napi_disable(&tx_chn[tx].napi_tx);
-		k3_udma_glue_disable_tx_chn(tx_chn[tx].tx_chn);
-		tx--;
-	}
-
+cleanup_rx:
 	am65_cpsw_destroy_rxqs(common);
 
 	return ret;
@@ -884,39 +941,13 @@ fail_tx:
 
 static int am65_cpsw_nuss_common_stop(struct am65_cpsw_common *common)
 {
-	struct am65_cpsw_tx_chn *tx_chn = common->tx_chns;
-	int i;
-
 	if (common->usage_count != 1)
 		return 0;
 
 	cpsw_ale_control_set(common->ale, HOST_PORT_NUM,
 			     ALE_PORT_STATE, ALE_PORT_STATE_DISABLE);
 
-	/* shutdown tx channels */
-	atomic_set(&common->tdown_cnt, common->tx_ch_num);
-	/* ensure new tdown_cnt value is visible */
-	smp_mb__after_atomic();
-	reinit_completion(&common->tdown_complete);
-
-	for (i = 0; i < common->tx_ch_num; i++)
-		k3_udma_glue_tdown_tx_chn(tx_chn[i].tx_chn, false);
-
-	i = wait_for_completion_timeout(&common->tdown_complete,
-					msecs_to_jiffies(1000));
-	if (!i)
-		dev_err(common->dev, "tx timeout\n");
-	for (i = 0; i < common->tx_ch_num; i++) {
-		napi_disable(&tx_chn[i].napi_tx);
-		hrtimer_cancel(&tx_chn[i].tx_hrtimer);
-	}
-
-	for (i = 0; i < common->tx_ch_num; i++) {
-		k3_udma_glue_reset_tx_chn(tx_chn[i].tx_chn, &tx_chn[i],
-					  am65_cpsw_nuss_tx_cleanup);
-		k3_udma_glue_disable_tx_chn(tx_chn[i].tx_chn);
-	}
-
+	am65_cpsw_destroy_txqs(common);
 	am65_cpsw_destroy_rxqs(common);
 	cpsw_ale_stop(common->ale);
 
