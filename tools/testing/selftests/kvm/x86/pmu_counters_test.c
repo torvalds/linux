@@ -174,7 +174,9 @@ static void guest_assert_event_count(uint8_t idx, uint32_t pmc, uint32_t pmc_msr
 		GUEST_ASSERT_NE(count, 0);
 		break;
 	case INTEL_ARCH_TOPDOWN_SLOTS_INDEX:
-		GUEST_ASSERT(count >= NUM_INSNS_RETIRED);
+		__GUEST_ASSERT(count >= NUM_INSNS_RETIRED,
+			       "Expected top-down slots >= %u, got count = %lu",
+			       NUM_INSNS_RETIRED, count);
 		break;
 	default:
 		break;
