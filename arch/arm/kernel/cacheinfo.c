@@ -23,7 +23,7 @@
 
 #define MAX_CACHE_LEVEL			7	/* Max 7 level supported */
 
-#define CTR_FORMAT_MASK	GENMASK(27, 24)
+#define CTR_FORMAT_MASK	GENMASK(31, 29)
 #define CTR_FORMAT_ARMV6 0
 #define CTR_FORMAT_ARMV7 4
 #define CTR_CWG_MASK	GENMASK(27, 24)
