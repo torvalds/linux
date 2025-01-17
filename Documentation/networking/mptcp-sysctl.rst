@@ -108,3 +108,19 @@ stale_loss_cnt - INTEGER
 	This is a per-namespace sysctl.
 
 	Default: 4
+
+syn_retrans_before_tcp_fallback - INTEGER
+	The number of SYN + MP_CAPABLE retransmissions before falling back to
+	TCP, i.e. dropping the MPTCP options. In other words, if all the packets
+	are dropped on the way, there will be:
+
+	* The initial SYN with MPTCP support
+	* This number of SYN retransmitted with MPTCP support
+	* The next SYN retransmissions will be without MPTCP support
+
+	0 means the first retransmission will be done without MPTCP options.
+	>= 128 means that all SYN retransmissions will keep the MPTCP options. A
+	lower number might increase false-positive MPTCP blackholes detections.
+	This is a per-namespace sysctl.
+
+	Default: 2
