@@ -1803,14 +1803,14 @@ struct rtw89_h2c_lps_ml_cmn_info {
 	u8 fmt_id;
 	u8 rsvd0[3];
 	__le32 mlo_dbcc_mode;
-	u8 central_ch[RTW89_PHY_MAX];
-	u8 pri_ch[RTW89_PHY_MAX];
-	u8 bw[RTW89_PHY_MAX];
-	u8 band[RTW89_PHY_MAX];
-	u8 bcn_rate_type[RTW89_PHY_MAX];
+	u8 central_ch[RTW89_PHY_NUM];
+	u8 pri_ch[RTW89_PHY_NUM];
+	u8 bw[RTW89_PHY_NUM];
+	u8 band[RTW89_PHY_NUM];
+	u8 bcn_rate_type[RTW89_PHY_NUM];
 	u8 rsvd1[2];
-	__le16 tia_gain[RTW89_PHY_MAX][TIA_GAIN_NUM];
-	u8 lna_gain[RTW89_PHY_MAX][LNA_GAIN_NUM];
+	__le16 tia_gain[RTW89_PHY_NUM][TIA_GAIN_NUM];
+	u8 lna_gain[RTW89_PHY_NUM][LNA_GAIN_NUM];
 	u8 rsvd2[2];
 } __packed;
 

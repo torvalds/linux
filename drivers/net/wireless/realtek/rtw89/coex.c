@@ -1602,7 +1602,7 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 			wl->ver_info.fw = le32_to_cpu(prpt->v4.wl_fw_info.fw_ver);
 			dm->wl_fw_cx_offload = !!le32_to_cpu(prpt->v4.wl_fw_info.cx_offload);
 
-			for (i = RTW89_PHY_0; i < RTW89_PHY_MAX; i++)
+			for (i = RTW89_PHY_0; i < RTW89_PHY_NUM; i++)
 				memcpy(&dm->gnt.band[i], &prpt->v4.gnt_val[i],
 				       sizeof(dm->gnt.band[i]));
 
@@ -1634,7 +1634,7 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 			wl->ver_info.fw = le32_to_cpu(prpt->v5.rpt_info.fw_ver);
 			dm->wl_fw_cx_offload = 0;
 
-			for (i = RTW89_PHY_0; i < RTW89_PHY_MAX; i++)
+			for (i = RTW89_PHY_0; i < RTW89_PHY_NUM; i++)
 				memcpy(&dm->gnt.band[i], &prpt->v5.gnt_val[i][0],
 				       sizeof(dm->gnt.band[i]));
 
@@ -1661,7 +1661,7 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 			wl->ver_info.fw = le32_to_cpu(prpt->v105.rpt_info.fw_ver);
 			dm->wl_fw_cx_offload = 0;
 
-			for (i = RTW89_PHY_0; i < RTW89_PHY_MAX; i++)
+			for (i = RTW89_PHY_0; i < RTW89_PHY_NUM; i++)
 				memcpy(&dm->gnt.band[i], &prpt->v105.gnt_val[i][0],
 				       sizeof(dm->gnt.band[i]));
 
@@ -1687,7 +1687,7 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 			wl->ver_info.fw_coex = le32_to_cpu(prpt->v7.rpt_info.cx_ver);
 			wl->ver_info.fw = le32_to_cpu(prpt->v7.rpt_info.fw_ver);
 
-			for (i = RTW89_PHY_0; i < RTW89_PHY_MAX; i++)
+			for (i = RTW89_PHY_0; i < RTW89_PHY_NUM; i++)
 				memcpy(&dm->gnt.band[i], &prpt->v7.gnt_val[i][0],
 				       sizeof(dm->gnt.band[i]));
 
@@ -1719,7 +1719,7 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 			wl->ver_info.fw_coex = le32_to_cpu(prpt->v8.rpt_info.cx_ver);
 			wl->ver_info.fw = le32_to_cpu(prpt->v8.rpt_info.fw_ver);
 
-			for (i = RTW89_PHY_0; i < RTW89_PHY_MAX; i++)
+			for (i = RTW89_PHY_0; i < RTW89_PHY_NUM; i++)
 				memcpy(&dm->gnt.band[i], &prpt->v8.gnt_val[i][0],
 				       sizeof(dm->gnt.band[i]));
 
@@ -2706,7 +2706,7 @@ static void _set_gnt(struct rtw89_dev *rtwdev, u8 phy_map, u8 wl_state, u8 bt_st
 	if (phy_map > BTC_PHY_ALL)
 		return;
 
-	for (i = 0; i < RTW89_PHY_MAX; i++) {
+	for (i = 0; i < RTW89_PHY_NUM; i++) {
 		if (!(phy_map & BIT(i)))
 			continue;
 
@@ -2755,7 +2755,7 @@ static void _set_gnt_v1(struct rtw89_dev *rtwdev, u8 phy_map,
 	if (phy_map > BTC_PHY_ALL)
 		return;
 
-	for (i = 0; i < RTW89_PHY_MAX; i++) {
+	for (i = 0; i < RTW89_PHY_NUM; i++) {
 		if (!(phy_map & BIT(i)))
 			continue;
 
@@ -2955,7 +2955,7 @@ static void _set_rf_trx_para(struct rtw89_dev *rtwdev)
 
 	if (ver->fwlrole == 0) {
 		link_mode = wl->role_info.link_mode;
-		for (i = 0; i < RTW89_PHY_MAX; i++) {
+		for (i = 0; i < RTW89_PHY_NUM; i++) {
 			if (wl->dbcc_info.real_band[i] == RTW89_BAND_2G)
 				dbcc_2g_phy = i;
 		}
@@ -4240,7 +4240,7 @@ static void _set_ant_v0(struct rtw89_dev *rtwdev, bool force_exec,
 	case BTC_ANT_W2G:
 		rtw89_chip_cfg_ctrl_path(rtwdev, BTC_CTRL_BY_WL);
 		if (rtwdev->dbcc_en) {
-			for (i = 0; i < RTW89_PHY_MAX; i++) {
+			for (i = 0; i < RTW89_PHY_NUM; i++) {
 				b2g = (wl_dinfo->real_band[i] == RTW89_BAND_2G);
 
 				gnt_wl_ctrl = b2g ? BTC_GNT_HW : BTC_GNT_SW_HI;
@@ -4896,9 +4896,9 @@ static void _set_btg_ctrl(struct rtw89_dev *rtwdev)
 
 	if (rtwdev->dbcc_en) {
 		if (ver->fwlrole == 0) {
-			wl_rinfo.dbcc_2g_phy = RTW89_PHY_MAX;
+			wl_rinfo.dbcc_2g_phy = RTW89_PHY_NUM;
 
-			for (i = 0; i < RTW89_PHY_MAX; i++) {
+			for (i = 0; i < RTW89_PHY_NUM; i++) {
 				if (wl_dinfo->real_band[i] == RTW89_BAND_2G)
 					wl_rinfo.dbcc_2g_phy = i;
 			}
@@ -5790,7 +5790,7 @@ static void _update_wl_info(struct rtw89_dev *rtwdev)
 		phy = wl_linfo[i].phy;
 
 		/* check dbcc role */
-		if (rtwdev->dbcc_en && phy < RTW89_PHY_MAX) {
+		if (rtwdev->dbcc_en && phy < RTW89_PHY_NUM) {
 			wl_dinfo->role[phy] = wl_linfo[i].role;
 			wl_dinfo->op_band[phy] = wl_linfo[i].band;
 			_update_dbcc_band(rtwdev, phy);
@@ -5940,7 +5940,7 @@ static void _update_wl_info_v1(struct rtw89_dev *rtwdev)
 
 		phy = wl_linfo[i].phy;
 
-		if (rtwdev->dbcc_en && phy < RTW89_PHY_MAX) {
+		if (rtwdev->dbcc_en && phy < RTW89_PHY_NUM) {
 			wl_dinfo->role[phy] = wl_linfo[i].role;
 			wl_dinfo->op_band[phy] = wl_linfo[i].band;
 			_update_dbcc_band(rtwdev, phy);
@@ -6090,7 +6090,7 @@ static void _update_wl_info_v2(struct rtw89_dev *rtwdev)
 
 		phy = wl_linfo[i].phy;
 
-		if (rtwdev->dbcc_en && phy < RTW89_PHY_MAX) {
+		if (rtwdev->dbcc_en && phy < RTW89_PHY_NUM) {
 			wl_dinfo->role[phy] = wl_linfo[i].role;
 			wl_dinfo->op_band[phy] = wl_linfo[i].band;
 			_update_dbcc_band(rtwdev, phy);
@@ -6381,7 +6381,7 @@ static void _update_wl_info_v7(struct rtw89_dev *rtwdev, u8 rid)
 	struct rtw89_btc_wl_dbcc_info *wl_dinfo = &wl->dbcc_info;
 	struct rtw89_btc_wl_link_info *wl_linfo = wl->link_info;
 	struct rtw89_btc_wl_active_role_v7 *act_role = NULL;
-	u8 i, mode, cnt = 0, cnt_2g = 0, cnt_5g = 0, phy_now = RTW89_PHY_MAX, phy_dbcc;
+	u8 i, mode, cnt = 0, cnt_2g = 0, cnt_5g = 0, phy_now = RTW89_PHY_NUM, phy_dbcc;
 	bool b2g = false, b5g = false, client_joined = false, client_inc_2g = false;
 	u8 client_cnt_last[RTW89_BE_BTC_WL_MAX_ROLE_NUMBER] = {};
 	u8 cid_role[RTW89_BE_BTC_WL_MAX_ROLE_NUMBER] = {};
@@ -6392,7 +6392,7 @@ static void _update_wl_info_v7(struct rtw89_dev *rtwdev, u8 rid)
 	memset(wl_rinfo, 0, sizeof(*wl_rinfo));
 
 	for (i = 0; i < RTW89_PORT_NUM; i++) {
-		if (!wl_linfo[i].active || wl_linfo[i].phy >= RTW89_PHY_MAX)
+		if (!wl_linfo[i].active || wl_linfo[i].phy >= RTW89_PHY_NUM)
 			continue;
 
 		act_role = &wl_rinfo->active_role[i];
@@ -6486,7 +6486,7 @@ static void _update_wl_info_v7(struct rtw89_dev *rtwdev, u8 rid)
 		mode = _chk_dbcc(rtwdev, cid_ch, cid_phy, cid_role, &dbcc_2g_phy);
 
 		/* correct 2G-located PHY band for gnt ctrl */
-		if (dbcc_2g_phy < RTW89_PHY_MAX)
+		if (dbcc_2g_phy < RTW89_PHY_NUM)
 			wl_dinfo->op_band[dbcc_2g_phy] = RTW89_BAND_2G;
 	} else if (b2g && b5g && cnt == 2) {
 		mode = BTC_WLINK_25G_MCC;
@@ -7179,7 +7179,7 @@ void rtw89_btc_ntfy_scan_start(struct rtw89_dev *rtwdev, u8 phy_idx, u8 band)
 		    "[BTC], %s(): phy_idx=%d, band=%d\n",
 		    __func__, phy_idx, band);
 
-	if (phy_idx >= RTW89_PHY_MAX)
+	if (phy_idx >= RTW89_PHY_NUM)
 		return;
 
 	btc->dm.cnt_notify[BTC_NCNT_SCAN_START]++;
@@ -7229,7 +7229,7 @@ void rtw89_btc_ntfy_switch_band(struct rtw89_dev *rtwdev, u8 phy_idx, u8 band)
 		    "[BTC], %s(): phy_idx=%d, band=%d\n",
 		    __func__, phy_idx, band);
 
-	if (phy_idx >= RTW89_PHY_MAX)
+	if (phy_idx >= RTW89_PHY_NUM)
 		return;
 
 	btc->dm.cnt_notify[BTC_NCNT_SWITCH_BAND]++;
