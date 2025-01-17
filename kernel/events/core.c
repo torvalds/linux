@@ -2325,7 +2325,11 @@ static void perf_child_detach(struct perf_event *event)
 	if (WARN_ON_ONCE(!parent_event))
 		return;
 
+	/*
+	 * Can't check this from an IPI, the holder is likey another CPU.
+	 *
 	lockdep_assert_held(&parent_event->child_mutex);
+	 */
 
 	sync_child_event(event);
 	list_del_init(&event->child_list);
@@ -5759,8 +5763,8 @@ again:
 		tmp = list_first_entry_or_null(&event->child_list,
 					       struct perf_event, child_list);
 		if (tmp == child) {
-			perf_remove_from_context(child, DETACH_GROUP);
-			list_move(&child->child_list, &free_list);
+			perf_remove_from_context(child, DETACH_GROUP | DETACH_CHILD);
+			list_add(&child->child_list, &free_list);
 		} else {
 			var = &ctx->refcount;
 		}
