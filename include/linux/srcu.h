@@ -359,7 +359,8 @@ srcu_read_lock_notrace(struct srcu_struct *ssp) __acquires(ssp)
  * srcu_down_read() nor srcu_up_read() may be invoked from an NMI handler.
  *
  * Calls to srcu_down_read() may be nested, similar to the manner in
- * which calls to down_read() may be nested.
+ * which calls to down_read() may be nested.  The same srcu_struct may be
+ * used concurrently by srcu_down_read() and srcu_read_lock().
  */
 static inline int srcu_down_read(struct srcu_struct *ssp) __acquires(ssp)
 {
