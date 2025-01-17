@@ -68,6 +68,8 @@
 
 #include <linux/slab.h>
 #include <linux/lcm.h>
+#include <linux/rtnetlink.h>
+#include <crypto/authenc.h>
 #include <crypto/skcipher.h>
 #include <crypto/hash.h>
 #include "internal.h"
@@ -399,9 +401,121 @@ err:
 	return ret;
 }
 
+/*
+ * Derive the Ke and Ki keys and package them into a key parameter that can be
+ * given to the setkey of a authenc AEAD crypto object.
+ */
+int authenc_derive_encrypt_keys(const struct krb5_enctype *krb5,
+				const struct krb5_buffer *TK,
+				unsigned int usage,
+				struct krb5_buffer *setkey,
+				gfp_t gfp)
+{
+	struct crypto_authenc_key_param *param;
+	struct krb5_buffer Ke, Ki;
+	struct rtattr *rta;
+	int ret;
+
+	Ke.len  = krb5->Ke_len;
+	Ki.len  = krb5->Ki_len;
+	setkey->len = RTA_LENGTH(sizeof(*param)) + Ke.len + Ki.len;
+	setkey->data = kzalloc(setkey->len, GFP_KERNEL);
+	if (!setkey->data)
+		return -ENOMEM;
+
+	rta = setkey->data;
+	rta->rta_type = CRYPTO_AUTHENC_KEYA_PARAM;
+	rta->rta_len = RTA_LENGTH(sizeof(*param));
+	param = RTA_DATA(rta);
+	param->enckeylen = htonl(Ke.len);
+
+	Ki.data = (void *)(param + 1);
+	Ke.data = Ki.data + Ki.len;
+
+	ret = krb5_derive_Ke(krb5, TK, usage, &Ke, gfp);
+	if (ret < 0) {
+		pr_err("get_Ke failed %d\n", ret);
+		return ret;
+	}
+	ret = krb5_derive_Ki(krb5, TK, usage, &Ki, gfp);
+	if (ret < 0)
+		pr_err("get_Ki failed %d\n", ret);
+	return ret;
+}
+
+/*
+ * Package predefined Ke and Ki keys and into a key parameter that can be given
+ * to the setkey of an authenc AEAD crypto object.
+ */
+int authenc_load_encrypt_keys(const struct krb5_enctype *krb5,
+			      const struct krb5_buffer *Ke,
+			      const struct krb5_buffer *Ki,
+			      struct krb5_buffer *setkey,
+			      gfp_t gfp)
+{
+	struct crypto_authenc_key_param *param;
+	struct rtattr *rta;
+
+	setkey->len = RTA_LENGTH(sizeof(*param)) + Ke->len + Ki->len;
+	setkey->data = kzalloc(setkey->len, GFP_KERNEL);
+	if (!setkey->data)
+		return -ENOMEM;
+
+	rta = setkey->data;
+	rta->rta_type = CRYPTO_AUTHENC_KEYA_PARAM;
+	rta->rta_len = RTA_LENGTH(sizeof(*param));
+	param = RTA_DATA(rta);
+	param->enckeylen = htonl(Ke->len);
+	memcpy((void *)(param + 1), Ki->data, Ki->len);
+	memcpy((void *)(param + 1) + Ki->len, Ke->data, Ke->len);
+	return 0;
+}
+
+/*
+ * Derive the Kc key for checksum-only mode and package it into a key parameter
+ * that can be given to the setkey of a hash crypto object.
+ */
+int rfc3961_derive_checksum_key(const struct krb5_enctype *krb5,
+				const struct krb5_buffer *TK,
+				unsigned int usage,
+				struct krb5_buffer *setkey,
+				gfp_t gfp)
+{
+	int ret;
+
+	setkey->len = krb5->Kc_len;
+	setkey->data = kzalloc(setkey->len, GFP_KERNEL);
+	if (!setkey->data)
+		return -ENOMEM;
+
+	ret = krb5_derive_Kc(krb5, TK, usage, setkey, gfp);
+	if (ret < 0)
+		pr_err("get_Kc failed %d\n", ret);
+	return ret;
+}
+
+/*
+ * Package a predefined Kc key for checksum-only mode into a key parameter that
+ * can be given to the setkey of a hash crypto object.
+ */
+int rfc3961_load_checksum_key(const struct krb5_enctype *krb5,
+			      const struct krb5_buffer *Kc,
+			      struct krb5_buffer *setkey,
+			      gfp_t gfp)
+{
+	setkey->len = krb5->Kc_len;
+	setkey->data = kmemdup(Kc->data, Kc->len, GFP_KERNEL);
+	if (!setkey->data)
+		return -ENOMEM;
+	return 0;
+}
 const struct krb5_crypto_profile rfc3961_simplified_profile = {
-	.calc_PRF	= rfc3961_calc_PRF,
-	.calc_Kc	= rfc3961_calc_DK,
-	.calc_Ke	= rfc3961_calc_DK,
-	.calc_Ki	= rfc3961_calc_DK,
+	.calc_PRF		= rfc3961_calc_PRF,
+	.calc_Kc		= rfc3961_calc_DK,
+	.calc_Ke		= rfc3961_calc_DK,
+	.calc_Ki		= rfc3961_calc_DK,
+	.derive_encrypt_keys	= authenc_derive_encrypt_keys,
+	.load_encrypt_keys	= authenc_load_encrypt_keys,
+	.derive_checksum_key	= rfc3961_derive_checksum_key,
+	.load_checksum_key	= rfc3961_load_checksum_key,
 };

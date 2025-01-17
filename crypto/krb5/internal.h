@@ -136,3 +136,23 @@ int krb5_derive_Ki(const struct krb5_enctype *krb5, const struct krb5_buffer *TK
  * rfc3961_simplified.c
  */
 extern const struct krb5_crypto_profile rfc3961_simplified_profile;
+
+int authenc_derive_encrypt_keys(const struct krb5_enctype *krb5,
+				const struct krb5_buffer *TK,
+				unsigned int usage,
+				struct krb5_buffer *setkey,
+				gfp_t gfp);
+int authenc_load_encrypt_keys(const struct krb5_enctype *krb5,
+			      const struct krb5_buffer *Ke,
+			      const struct krb5_buffer *Ki,
+			      struct krb5_buffer *setkey,
+			      gfp_t gfp);
+int rfc3961_derive_checksum_key(const struct krb5_enctype *krb5,
+				const struct krb5_buffer *TK,
+				unsigned int usage,
+				struct krb5_buffer *setkey,
+				gfp_t gfp);
+int rfc3961_load_checksum_key(const struct krb5_enctype *krb5,
+			      const struct krb5_buffer *Kc,
+			      struct krb5_buffer *setkey,
+			      gfp_t gfp);
