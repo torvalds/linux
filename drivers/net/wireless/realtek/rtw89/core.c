@@ -4867,6 +4867,9 @@ int rtw89_core_init(struct rtw89_dev *rtwdev)
 		rtwdev->mlo_dbcc_mode = MLO_2_PLUS_0_1RF;
 	}
 
+	rtwdev->bbs[RTW89_PHY_0].phy_idx = RTW89_PHY_0;
+	rtwdev->bbs[RTW89_PHY_1].phy_idx = RTW89_PHY_1;
+
 	INIT_WORK(&btc->eapol_notify_work, rtw89_btc_ntfy_eapol_packet_work);
 	INIT_WORK(&btc->arp_notify_work, rtw89_btc_ntfy_arp_packet_work);
 	INIT_WORK(&btc->dhcp_notify_work, rtw89_btc_ntfy_dhcp_packet_work);
