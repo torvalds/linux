@@ -1605,22 +1605,19 @@ void ice_fdir_replay_fltrs(struct ice_pf *pf)
  */
 int ice_fdir_create_dflt_rules(struct ice_pf *pf)
 {
+	const enum ice_fltr_ptype dflt_rules[] = {
+		ICE_FLTR_PTYPE_NONF_IPV4_TCP, ICE_FLTR_PTYPE_NONF_IPV4_UDP,
+		ICE_FLTR_PTYPE_NONF_IPV6_TCP, ICE_FLTR_PTYPE_NONF_IPV6_UDP,
+	};
 	int err;
 
 	/* Create perfect TCP and UDP rules in hardware. */
-	err = ice_create_init_fdir_rule(pf, ICE_FLTR_PTYPE_NONF_IPV4_TCP);
-	if (err)
-		return err;
+	for (int i = 0; i < ARRAY_SIZE(dflt_rules); i++) {
+		err = ice_create_init_fdir_rule(pf, dflt_rules[i]);
 
-	err = ice_create_init_fdir_rule(pf, ICE_FLTR_PTYPE_NONF_IPV4_UDP);
-	if (err)
-		return err;
-
-	err = ice_create_init_fdir_rule(pf, ICE_FLTR_PTYPE_NONF_IPV6_TCP);
-	if (err)
-		return err;
-
-	err = ice_create_init_fdir_rule(pf, ICE_FLTR_PTYPE_NONF_IPV6_UDP);
+		if (err)
+			break;
+	}
 
 	return err;
 }
