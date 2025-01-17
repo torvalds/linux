@@ -130,6 +130,23 @@
 #define MCHP_RDS_PTP_TSU_HARD_RESET		0xc1
 #define MCHP_RDS_PTP_TSU_HARDRESET		BIT(0)
 
+#define MCHP_RDS_PTP_CLK_TRGT_SEC_HI		0x15
+#define MCHP_RDS_PTP_CLK_TRGT_SEC_LO		0x16
+#define MCHP_RDS_PTP_CLK_TRGT_NS_HI		0x17
+#define MCHP_RDS_PTP_CLK_TRGT_NS_LO		0x18
+
+#define MCHP_RDS_PTP_CLK_TRGT_RELOAD_SEC_HI	0x19
+#define MCHP_RDS_PTP_CLK_TRGT_RELOAD_SEC_LO	0x1a
+#define MCHP_RDS_PTP_CLK_TRGT_RELOAD_NS_HI	0x1b
+#define MCHP_RDS_PTP_CLK_TRGT_RELOAD_NS_LO	0x1c
+
+#define MCHP_RDS_PTP_GEN_CFG			0x01
+#define MCHP_RDS_PTP_GEN_CFG_LTC_EVT_MASK	GENMASK(11, 8)
+
+#define MCHP_RDS_PTP_GEN_CFG_LTC_EVT_SET(value) (((value) & 0xF) << 4)
+#define MCHP_RDS_PTP_GEN_CFG_RELOAD_ADD		BIT(0)
+#define MCHP_RDS_PTP_GEN_CFG_POLARITY		BIT(1)
+
 /* Represents 1ppm adjustment in 2^32 format with
  * each nsec contains 4 clock cycles in 250MHz.
  * The value is calculated as following: (1/1000000)/((2^-32)/4)
@@ -137,6 +154,10 @@
 #define MCHP_RDS_PTP_1PPM_FORMAT		17179
 #define MCHP_RDS_PTP_FIFO_SIZE			8
 #define MCHP_RDS_PTP_MAX_ADJ			31249999
+
+#define MCHP_RDS_PTP_BUFFER_TIME		2
+#define MCHP_RDS_PTP_N_PIN			4
+#define MCHP_RDS_PTP_N_PEROUT			1
 
 #define BASE_CLK(p)				((p)->clk_base_addr)
 #define BASE_PORT(p)				((p)->port_base_addr)
@@ -176,6 +197,9 @@ struct mchp_rds_ptp_clock {
 	/* Lock for phc */
 	struct mutex ptp_lock;
 	u8 mmd;
+	int mchp_rds_ptp_event;
+	int event_pin;
+	struct ptp_pin_desc *pin_config;
 };
 
 struct mchp_rds_ptp_rx_ts {
