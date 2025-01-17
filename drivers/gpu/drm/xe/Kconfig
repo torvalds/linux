@@ -61,7 +61,7 @@ config DRM_XE_DISPLAY
 
 config DRM_XE_DP_TUNNEL
 	bool "Enable DP tunnel support"
-	depends on DRM_XE
+	depends on DRM_XE_DISPLAY
 	depends on USB4
 	select DRM_DISPLAY_DP_TUNNEL
 	default y
