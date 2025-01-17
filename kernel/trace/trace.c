@@ -4122,6 +4122,7 @@ print_trace_header(struct seq_file *m, struct trace_iterator *iter)
 		   preempt_model_none()      ? "server" :
 		   preempt_model_voluntary() ? "desktop" :
 		   preempt_model_full()      ? "preempt" :
+		   preempt_model_lazy()	     ? "lazy"    :
 		   preempt_model_rt()        ? "preempt_rt" :
 		   "unknown",
 		   /* These are reserved for later use */
