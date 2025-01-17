@@ -1663,14 +1663,16 @@ static int __htab_map_lookup_and_delete_elem(struct bpf_map *map, void *key,
 		check_and_init_map_value(map, value);
 	}
 	hlist_nulls_del_rcu(&l->hash_node);
-	if (!is_lru_map)
-		free_htab_elem(htab, l);
 
 out_unlock:
 	htab_unlock_bucket(htab, b, hash, bflags);
 
-	if (is_lru_map && l)
-		htab_lru_push_free(htab, l);
+	if (l) {
+		if (is_lru_map)
+			htab_lru_push_free(htab, l);
+		else
+			free_htab_elem(htab, l);
+	}
 
 	return ret;
 }
