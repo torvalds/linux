@@ -963,14 +963,15 @@ static __always_inline void set_sysreg_masks(struct kvm *kvm, int sr, u64 res0, 
 	kvm->arch.sysreg_masks->mask[i].res1 = res1;
 }
 
-int kvm_init_nv_sysregs(struct kvm *kvm)
+int kvm_init_nv_sysregs(struct kvm_vcpu *vcpu)
 {
+	struct kvm *kvm = vcpu->kvm;
 	u64 res0, res1;
 
 	lockdep_assert_held(&kvm->arch.config_lock);
 
 	if (kvm->arch.sysreg_masks)
-		return 0;
+		goto out;
 
 	kvm->arch.sysreg_masks = kzalloc(sizeof(*(kvm->arch.sysreg_masks)),
 					 GFP_KERNEL_ACCOUNT);
@@ -1285,6 +1286,10 @@ int kvm_init_nv_sysregs(struct kvm *kvm)
 	if (!kvm_has_feat(kvm, ID_AA64MMFR1_EL1, VH, IMP))
 		res0 |= GENMASK(11, 8);
 	set_sysreg_masks(kvm, CNTHCTL_EL2, res0, res1);
+
+out:
+	for (enum vcpu_sysreg sr = __SANITISED_REG_START__; sr < NR_SYS_REGS; sr++)
+		(void)__vcpu_sys_reg(vcpu, sr);
 
 	return 0;
 }

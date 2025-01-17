@@ -4450,6 +4450,9 @@ void kvm_reset_sys_regs(struct kvm_vcpu *vcpu)
 			reset_vcpu_ftr_id_reg(vcpu, r);
 		else
 			r->reset(vcpu, r);
+
+		if (r->reg >= __SANITISED_REG_START__ && r->reg < NR_SYS_REGS)
+			(void)__vcpu_sys_reg(vcpu, r->reg);
 	}
 
 	set_bit(KVM_ARCH_FLAG_ID_REGS_INITIALIZED, &kvm->arch.flags);
@@ -5053,7 +5056,7 @@ int kvm_finalize_sys_regs(struct kvm_vcpu *vcpu)
 	}
 
 	if (vcpu_has_nv(vcpu)) {
-		int ret = kvm_init_nv_sysregs(kvm);
+		int ret = kvm_init_nv_sysregs(vcpu);
 		if (ret)
 			return ret;
 	}

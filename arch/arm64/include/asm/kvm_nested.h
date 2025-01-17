@@ -187,7 +187,7 @@ static inline bool kvm_supported_tlbi_s1e2_op(struct kvm_vcpu *vpcu, u32 instr)
 	return true;
 }
 
-int kvm_init_nv_sysregs(struct kvm *kvm);
+int kvm_init_nv_sysregs(struct kvm_vcpu *vcpu);
 
 #ifdef CONFIG_ARM64_PTR_AUTH
 bool kvm_auth_eretax(struct kvm_vcpu *vcpu, u64 *elr);
