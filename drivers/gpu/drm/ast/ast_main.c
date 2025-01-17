@@ -96,21 +96,21 @@ static void ast_detect_tx_chip(struct ast_device *ast, bool need_post)
 	/* Check 3rd Tx option (digital output afaik) */
 	ast->tx_chip = AST_TX_NONE;
 
-	/*
-	 * VGACRA3 Enhanced Color Mode Register, check if DVO is already
-	 * enabled, in that case, assume we have a SIL164 TMDS transmitter
-	 *
-	 * Don't make that assumption if we the chip wasn't enabled and
-	 * is at power-on reset, otherwise we'll incorrectly "detect" a
-	 * SIL164 when there is none.
-	 */
-	if (!need_post) {
-		jreg = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xa3, 0xff);
-		if (jreg & 0x80)
-			ast->tx_chip = AST_TX_SIL164;
-	}
-
-	if (IS_AST_GEN4(ast) || IS_AST_GEN5(ast) || IS_AST_GEN6(ast)) {
+	if (AST_GEN(ast) <= 3) {
+		/*
+		 * VGACRA3 Enhanced Color Mode Register, check if DVO is already
+		 * enabled, in that case, assume we have a SIL164 TMDS transmitter
+		 *
+		 * Don't make that assumption if we the chip wasn't enabled and
+		 * is at power-on reset, otherwise we'll incorrectly "detect" a
+		 * SIL164 when there is none.
+		 */
+		if (!need_post) {
+			jreg = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xa3, 0xff);
+			if (jreg & 0x80)
+				ast->tx_chip = AST_TX_SIL164;
+		}
+	} else if (IS_AST_GEN4(ast) || IS_AST_GEN5(ast) || IS_AST_GEN6(ast)) {
 		/*
 		 * On AST GEN4+, look the configuration set by the SoC in
 		 * the SOC scratch register #1 bits 11:8 (interestingly marked
