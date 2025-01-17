@@ -2068,9 +2068,10 @@ icl_dsc_compute_link_config(struct intel_dp *intel_dp,
 			    int timeslots)
 {
 	int i, ret;
+	int output_bpp = intel_dp_output_bpp(pipe_config->output_format, pipe_bpp);
 
 	/* Compressed BPP should be less than the Input DSC bpp */
-	dsc_max_bpp = min(dsc_max_bpp, pipe_bpp - 1);
+	dsc_max_bpp = min(dsc_max_bpp, output_bpp - 1);
 
 	for (i = 0; i < ARRAY_SIZE(valid_dsc_bpp); i++) {
 		if (valid_dsc_bpp[i] < dsc_min_bpp)
@@ -2111,6 +2112,7 @@ xelpd_dsc_compute_link_config(struct intel_dp *intel_dp,
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	u8 bppx16_incr = drm_dp_dsc_sink_bpp_incr(connector->dp.dsc_dpcd);
+	int output_bpp = intel_dp_output_bpp(pipe_config->output_format, pipe_bpp);
 	u16 compressed_bppx16;
 	u8 bppx16_step;
 	int ret;
@@ -2121,7 +2123,7 @@ xelpd_dsc_compute_link_config(struct intel_dp *intel_dp,
 		bppx16_step = 16 / bppx16_incr;
 
 	/* Compressed BPP should be less than the Input DSC bpp */
-	dsc_max_bpp = min(dsc_max_bpp << 4, (pipe_bpp << 4) - bppx16_step);
+	dsc_max_bpp = min(dsc_max_bpp << 4, (output_bpp << 4) - bppx16_step);
 	dsc_min_bpp = dsc_min_bpp << 4;
 
 	for (compressed_bppx16 = dsc_max_bpp;
