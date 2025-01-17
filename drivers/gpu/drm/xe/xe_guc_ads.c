@@ -29,6 +29,7 @@
 #include "xe_platform_types.h"
 #include "xe_uc_fw.h"
 #include "xe_wa.h"
+#include "xe_gt_mcr.h"
 
 /* Slack of a few additional entries per engine */
 #define ADS_REGSET_EXTRA_MAX	8
@@ -700,6 +701,20 @@ static void guc_mmio_regset_write_one(struct xe_guc_ads *ads,
 		.offset = reg.addr,
 		.flags = reg.masked ? GUC_REGSET_MASKED : 0,
 	};
+
+	if (reg.mcr) {
+		struct xe_reg_mcr mcr_reg = XE_REG_MCR(reg.addr);
+		u8 group, instance;
+
+		bool steer = xe_gt_mcr_get_nonterminated_steering(ads_to_gt(ads), mcr_reg,
+								  &group, &instance);
+
+		if (steer) {
+			entry.flags |= FIELD_PREP(GUC_REGSET_STEERING_GROUP, group);
+			entry.flags |= FIELD_PREP(GUC_REGSET_STEERING_INSTANCE, instance);
+			entry.flags |= GUC_REGSET_STEERING_NEEDED;
+		}
+	}
 
 	xe_map_memcpy_to(ads_to_xe(ads), regset_map, n_entry * sizeof(entry),
 			 &entry, sizeof(entry));

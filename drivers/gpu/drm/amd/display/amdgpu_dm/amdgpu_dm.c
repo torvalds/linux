@@ -8896,6 +8896,7 @@ static void amdgpu_dm_enable_self_refresh(struct amdgpu_crtc *acrtc_attach,
 	struct replay_settings *pr = &acrtc_state->stream->link->replay_settings;
 	struct amdgpu_dm_connector *aconn =
 		(struct amdgpu_dm_connector *)acrtc_state->stream->dm_stream_context;
+	bool vrr_active = amdgpu_dm_crtc_vrr_active(acrtc_state);
 
 	if (acrtc_state->update_type > UPDATE_TYPE_FAST) {
 		if (pr->config.replay_supported && !pr->replay_feature_enabled)
@@ -8922,14 +8923,15 @@ static void amdgpu_dm_enable_self_refresh(struct amdgpu_crtc *acrtc_attach,
 		 * adequate number of fast atomic commits to notify KMD
 		 * of update events. See `vblank_control_worker()`.
 		 */
-		if (acrtc_attach->dm_irq_params.allow_sr_entry &&
+		if (!vrr_active &&
+		    acrtc_attach->dm_irq_params.allow_sr_entry &&
 #ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
 		    !amdgpu_dm_crc_window_is_activated(acrtc_state->base.crtc) &&
 #endif
 		    (current_ts - psr->psr_dirty_rects_change_timestamp_ns) > 500000000) {
 			if (pr->replay_feature_enabled && !pr->replay_allow_active)
 				amdgpu_dm_replay_enable(acrtc_state->stream, true);
-			if (psr->psr_version >= DC_PSR_VERSION_SU_1 &&
+			if (psr->psr_version == DC_PSR_VERSION_SU_1 &&
 			    !psr->psr_allow_active && !aconn->disallow_edp_enter_psr)
 				amdgpu_dm_psr_enable(acrtc_state->stream);
 		}
@@ -9100,7 +9102,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 				acrtc_state->stream->link->psr_settings.psr_dirty_rects_change_timestamp_ns =
 				timestamp_ns;
 				if (acrtc_state->stream->link->psr_settings.psr_allow_active)
-					amdgpu_dm_psr_disable(acrtc_state->stream);
+					amdgpu_dm_psr_disable(acrtc_state->stream, true);
 				mutex_unlock(&dm->dc_lock);
 			}
 		}
@@ -9266,11 +9268,11 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			bundle->stream_update.abm_level = &acrtc_state->abm_level;
 
 		mutex_lock(&dm->dc_lock);
-		if (acrtc_state->update_type > UPDATE_TYPE_FAST) {
+		if ((acrtc_state->update_type > UPDATE_TYPE_FAST) || vrr_active) {
 			if (acrtc_state->stream->link->replay_settings.replay_allow_active)
 				amdgpu_dm_replay_disable(acrtc_state->stream);
 			if (acrtc_state->stream->link->psr_settings.psr_allow_active)
-				amdgpu_dm_psr_disable(acrtc_state->stream);
+				amdgpu_dm_psr_disable(acrtc_state->stream, true);
 		}
 		mutex_unlock(&dm->dc_lock);
 
@@ -11379,6 +11381,25 @@ static int dm_crtc_get_cursor_mode(struct amdgpu_device *adev,
 	return 0;
 }
 
+static bool amdgpu_dm_crtc_mem_type_changed(struct drm_device *dev,
+					    struct drm_atomic_state *state,
+					    struct drm_crtc_state *crtc_state)
+{
+	struct drm_plane *plane;
+	struct drm_plane_state *new_plane_state, *old_plane_state;
+
+	drm_for_each_plane_mask(plane, dev, crtc_state->plane_mask) {
+		new_plane_state = drm_atomic_get_plane_state(state, plane);
+		old_plane_state = drm_atomic_get_plane_state(state, plane);
+
+		if (old_plane_state->fb && new_plane_state->fb &&
+		    get_mem_type(old_plane_state->fb) != get_mem_type(new_plane_state->fb))
+			return true;
+	}
+
+	return false;
+}
+
 /**
  * amdgpu_dm_atomic_check() - Atomic check implementation for AMDgpu DM.
  *
@@ -11576,10 +11597,6 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 
 	/* Remove exiting planes if they are modified */
 	for_each_oldnew_plane_in_descending_zpos(state, plane, old_plane_state, new_plane_state) {
-		if (old_plane_state->fb && new_plane_state->fb &&
-		    get_mem_type(old_plane_state->fb) !=
-		    get_mem_type(new_plane_state->fb))
-			lock_and_validation_needed = true;
 
 		ret = dm_update_plane_state(dc, state, plane,
 					    old_plane_state,
@@ -11874,9 +11891,11 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 
 		/*
 		 * Only allow async flips for fast updates that don't change
-		 * the FB pitch, the DCC state, rotation, etc.
+		 * the FB pitch, the DCC state, rotation, mem_type, etc.
 		 */
-		if (new_crtc_state->async_flip && lock_and_validation_needed) {
+		if (new_crtc_state->async_flip &&
+		    (lock_and_validation_needed ||
+		     amdgpu_dm_crtc_mem_type_changed(dev, state, new_crtc_state))) {
 			drm_dbg_atomic(crtc->dev,
 				       "[CRTC:%d:%s] async flips are only supported for fast updates\n",
 				       crtc->base.id, crtc->name);

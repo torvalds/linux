@@ -579,8 +579,8 @@ static void CalculateBytePerPixelAndBlockSizes(
 {
 	*BytePerPixelDETY = 0;
 	*BytePerPixelDETC = 0;
-	*BytePerPixelY = 0;
-	*BytePerPixelC = 0;
+	*BytePerPixelY = 1;
+	*BytePerPixelC = 1;
 
 	if (SourcePixelFormat == dml2_444_64) {
 		*BytePerPixelDETY = 8;
