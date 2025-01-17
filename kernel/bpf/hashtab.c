@@ -1635,37 +1635,38 @@ static int __htab_map_lookup_and_delete_elem(struct bpf_map *map, void *key,
 	l = lookup_elem_raw(head, hash, key, key_size);
 	if (!l) {
 		ret = -ENOENT;
-	} else {
-		if (is_percpu) {
-			u32 roundup_value_size = round_up(map->value_size, 8);
-			void __percpu *pptr;
-			int off = 0, cpu;
-
-			pptr = htab_elem_get_ptr(l, key_size);
-			for_each_possible_cpu(cpu) {
-				copy_map_value_long(&htab->map, value + off, per_cpu_ptr(pptr, cpu));
-				check_and_init_map_value(&htab->map, value + off);
-				off += roundup_value_size;
-			}
-		} else {
-			u32 roundup_key_size = round_up(map->key_size, 8);
-
-			if (flags & BPF_F_LOCK)
-				copy_map_value_locked(map, value, l->key +
-						      roundup_key_size,
-						      true);
-			else
-				copy_map_value(map, value, l->key +
-					       roundup_key_size);
-			/* Zeroing special fields in the temp buffer */
-			check_and_init_map_value(map, value);
-		}
-
-		hlist_nulls_del_rcu(&l->hash_node);
-		if (!is_lru_map)
-			free_htab_elem(htab, l);
+		goto out_unlock;
 	}
 
+	if (is_percpu) {
+		u32 roundup_value_size = round_up(map->value_size, 8);
+		void __percpu *pptr;
+		int off = 0, cpu;
+
+		pptr = htab_elem_get_ptr(l, key_size);
+		for_each_possible_cpu(cpu) {
+			copy_map_value_long(&htab->map, value + off, per_cpu_ptr(pptr, cpu));
+			check_and_init_map_value(&htab->map, value + off);
+			off += roundup_value_size;
+		}
+	} else {
+		u32 roundup_key_size = round_up(map->key_size, 8);
+
+		if (flags & BPF_F_LOCK)
+			copy_map_value_locked(map, value, l->key +
+					      roundup_key_size,
+					      true);
+		else
+			copy_map_value(map, value, l->key +
+				       roundup_key_size);
+		/* Zeroing special fields in the temp buffer */
+		check_and_init_map_value(map, value);
+	}
+	hlist_nulls_del_rcu(&l->hash_node);
+	if (!is_lru_map)
+		free_htab_elem(htab, l);
+
+out_unlock:
 	htab_unlock_bucket(htab, b, hash, bflags);
 
 	if (is_lru_map && l)
