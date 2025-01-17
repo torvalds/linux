@@ -5115,7 +5115,6 @@ static void rtw89_phy_stat_thermal_update(struct rtw89_dev *rtwdev)
 
 struct rtw89_phy_iter_rssi_data {
 	struct rtw89_dev *rtwdev;
-	struct rtw89_phy_ch_info *ch_info;
 	bool rssi_changed;
 };
 
@@ -5123,10 +5122,15 @@ static
 void __rtw89_phy_stat_rssi_update_iter(struct rtw89_sta_link *rtwsta_link,
 				       struct rtw89_phy_iter_rssi_data *rssi_data)
 {
-	struct rtw89_phy_ch_info *ch_info = rssi_data->ch_info;
+	struct rtw89_vif_link *rtwvif_link = rtwsta_link->rtwvif_link;
+	struct rtw89_dev *rtwdev = rssi_data->rtwdev;
+	struct rtw89_phy_ch_info *ch_info;
+	struct rtw89_bb_ctx *bb;
 	unsigned long rssi_curr;
 
 	rssi_curr = ewma_rssi_read(&rtwsta_link->avg_rssi);
+	bb = rtw89_get_bb_ctx(rtwdev, rtwvif_link->phy_idx);
+	ch_info = &bb->ch_info;
 
 	if (rssi_curr < ch_info->rssi_min) {
 		ch_info->rssi_min = rssi_curr;
@@ -5157,11 +5161,13 @@ static void rtw89_phy_stat_rssi_update_iter(void *data,
 
 static void rtw89_phy_stat_rssi_update(struct rtw89_dev *rtwdev)
 {
-	struct rtw89_phy_iter_rssi_data rssi_data = {0};
+	struct rtw89_phy_iter_rssi_data rssi_data = {};
+	struct rtw89_bb_ctx *bb;
 
 	rssi_data.rtwdev = rtwdev;
-	rssi_data.ch_info = &rtwdev->ch_info;
-	rssi_data.ch_info->rssi_min = U8_MAX;
+	rtw89_for_each_active_bb(rtwdev, bb)
+		bb->ch_info.rssi_min = U8_MAX;
+
 	ieee80211_iterate_stations_atomic(rtwdev->hw,
 					  rtw89_phy_stat_rssi_update_iter,
 					  &rssi_data);
@@ -5919,7 +5925,7 @@ static const u16 fa_th_nolink[FA_TH_NUM] = {196, 352, 440, 528};
 static void rtw89_phy_dig_update_rssi_info(struct rtw89_dev *rtwdev,
 					   struct rtw89_bb_ctx *bb)
 {
-	struct rtw89_phy_ch_info *ch_info = &rtwdev->ch_info;
+	struct rtw89_phy_ch_info *ch_info = &bb->ch_info;
 	struct rtw89_dig_info *dig = &bb->dig;
 	bool is_linked = rtwdev->total_sta_assoc > 0;
 
