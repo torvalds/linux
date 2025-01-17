@@ -205,6 +205,7 @@ struct msr_counter bic[] = {
 	{ 0x0, "SysWatt", NULL, 0, 0, 0, NULL, 0 },
 	{ 0x0, "Sys_J", NULL, 0, 0, 0, NULL, 0 },
 	{ 0x0, "NMI", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "CPU%c1e", NULL, 0, 0, 0, NULL, 0 },
 };
 
 #define MAX_BIC (sizeof(bic) / sizeof(struct msr_counter))
@@ -270,6 +271,7 @@ struct msr_counter bic[] = {
 #define	BIC_SysWatt		(1ULL << 59)
 #define	BIC_Sys_J		(1ULL << 60)
 #define	BIC_NMI			(1ULL << 61)
+#define	BIC_CPU_c1e		(1ULL << 62)
 
 #define BIC_TOPOLOGY (BIC_Package | BIC_Node | BIC_CoreCnt | BIC_PkgCnt | BIC_Core | BIC_CPU | BIC_Die)
 #define BIC_THERMAL_PWR (BIC_CoreTmp | BIC_PkgTmp | BIC_PkgWatt | BIC_CorWatt | BIC_GFXWatt | BIC_RAMWatt | BIC_PKG__ | BIC_RAM__ | BIC_SysWatt)
@@ -1537,6 +1539,14 @@ static struct msr_counter_arch_info msr_counter_arch_infos[] = {
 #define PMT_COUNTER_MTL_DC6_MSB    63
 #define PMT_MTL_DC6_GUID           0x1a067102
 #define PMT_MTL_DC6_SEQ            0
+
+#define PMT_COUNTER_CWF_MC1E_OFFSET_BASE          20936
+#define PMT_COUNTER_CWF_MC1E_OFFSET_INCREMENT     24
+#define PMT_COUNTER_CWF_MC1E_NUM_MODULES_PER_FILE 12
+#define PMT_COUNTER_CWF_CPUS_PER_MODULE           4
+#define PMT_COUNTER_CWF_MC1E_LSB                  0
+#define PMT_COUNTER_CWF_MC1E_MSB                  63
+#define PMT_CWF_MC1E_GUID                         0x14421519
 
 unsigned long long tcore_clock_freq_hz = 800000000;
 
@@ -9367,10 +9377,68 @@ int pmt_add_counter(unsigned int guid, unsigned int seq, const char *name, enum 
 
 void pmt_init(void)
 {
+	int cpu_num;
+	unsigned long seq, offset, mod_num;
+
 	if (BIC_IS_ENABLED(BIC_Diec6)) {
 		pmt_add_counter(PMT_MTL_DC6_GUID, PMT_MTL_DC6_SEQ, "Die%c6", PMT_TYPE_XTAL_TIME,
 				PMT_COUNTER_MTL_DC6_LSB, PMT_COUNTER_MTL_DC6_MSB, PMT_COUNTER_MTL_DC6_OFFSET,
 				SCOPE_PACKAGE, FORMAT_DELTA, 0, PMT_OPEN_TRY);
+	}
+
+	if (BIC_IS_ENABLED(BIC_CPU_c1e)) {
+		seq = 0;
+		offset = PMT_COUNTER_CWF_MC1E_OFFSET_BASE;
+		mod_num = 0;	/* Relative module number for current PMT file. */
+
+		/* Open the counter for each CPU. */
+		for (cpu_num = 0; cpu_num < topo.max_cpu_num;) {
+
+			if (cpu_is_not_allowed(cpu_num))
+				goto next_loop_iter;
+
+			/*
+			 * Set the scope to CPU, even though CWF report the counter per module.
+			 * CPUs inside the same module will read from the same location, instead of reporting zeros.
+			 *
+			 * CWF with newer firmware might require a PMT_TYPE_XTAL_TIME intead of PMT_TYPE_TCORE_CLOCK.
+			 */
+			pmt_add_counter(PMT_CWF_MC1E_GUID, seq, "CPU%c1e", PMT_TYPE_TCORE_CLOCK,
+					PMT_COUNTER_CWF_MC1E_LSB, PMT_COUNTER_CWF_MC1E_MSB, offset, SCOPE_CPU,
+					FORMAT_DELTA, cpu_num, PMT_OPEN_TRY);
+
+			/*
+			 * Rather complex logic for each time we go to the next loop iteration,
+			 * so keep it as a label.
+			 */
+next_loop_iter:
+			/*
+			 * Advance the cpu number and check if we should also advance offset to
+			 * the next counter inside the PMT file.
+			 *
+			 * On Clearwater Forest platform, the counter is reported per module,
+			 * so open the same counter for all of the CPUs inside the module.
+			 * That way, reported table show the correct value for all of the CPUs inside the module,
+			 * instead of zeros.
+			 */
+			++cpu_num;
+			if (cpu_num % PMT_COUNTER_CWF_CPUS_PER_MODULE == 0) {
+				offset += PMT_COUNTER_CWF_MC1E_OFFSET_INCREMENT;
+				++mod_num;
+			}
+
+			/*
+			 * There are PMT_COUNTER_CWF_MC1E_NUM_MODULES_PER_FILE in each PMT file.
+			 *
+			 * If that number is reached, seq must be incremented to advance to the next file in a sequence.
+			 * Offset inside that file and a module counter has to be reset.
+			 */
+			if (mod_num == PMT_COUNTER_CWF_MC1E_NUM_MODULES_PER_FILE) {
+				++seq;
+				offset = PMT_COUNTER_CWF_MC1E_OFFSET_BASE;
+				mod_num = 0;
+			}
+		}
 	}
 }
 
