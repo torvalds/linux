@@ -436,17 +436,17 @@ int dw_pcie_host_init(struct dw_pcie_rp *pp)
 		return ret;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "config");
-	if (res) {
-		pp->cfg0_size = resource_size(res);
-		pp->cfg0_base = res->start;
-
-		pp->va_cfg0_base = devm_pci_remap_cfg_resource(dev, res);
-		if (IS_ERR(pp->va_cfg0_base))
-			return PTR_ERR(pp->va_cfg0_base);
-	} else {
-		dev_err(dev, "Missing *config* reg space\n");
+	if (!res) {
+		dev_err(dev, "Missing \"config\" reg space\n");
 		return -ENODEV;
 	}
+
+	pp->cfg0_size = resource_size(res);
+	pp->cfg0_base = res->start;
+
+	pp->va_cfg0_base = devm_pci_remap_cfg_resource(dev, res);
+	if (IS_ERR(pp->va_cfg0_base))
+		return PTR_ERR(pp->va_cfg0_base);
 
 	bridge = devm_pci_alloc_host_bridge(dev, 0);
 	if (!bridge)
