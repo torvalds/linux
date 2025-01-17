@@ -3541,12 +3541,11 @@ static phy_interface_t phylink_choose_sfp_interface(struct phylink *pl,
 	return interface;
 }
 
-static void phylink_sfp_set_config(struct phylink *pl,
-				   unsigned long *supported,
-				   struct phylink_link_state *state)
+static void phylink_sfp_set_config(struct phylink *pl, unsigned long *supported,
+				   struct phylink_link_state *state,
+				   bool changed)
 {
 	u8 mode = MLO_AN_INBAND;
-	bool changed = false;
 
 	phylink_dbg(pl, "requesting link mode %s/%s with support %*pb\n",
 		    phylink_an_mode_str(mode), phy_modes(state->interface),
@@ -3623,7 +3622,7 @@ static int phylink_sfp_config_phy(struct phylink *pl, struct phy_device *phy)
 
 	pl->link_port = pl->sfp_port;
 
-	phylink_sfp_set_config(pl, support, &config);
+	phylink_sfp_set_config(pl, support, &config, true);
 
 	return 0;
 }
@@ -3698,7 +3697,7 @@ static int phylink_sfp_config_optical(struct phylink *pl)
 
 	pl->link_port = pl->sfp_port;
 
-	phylink_sfp_set_config(pl, pl->sfp_support, &config);
+	phylink_sfp_set_config(pl, pl->sfp_support, &config, false);
 
 	return 0;
 }
