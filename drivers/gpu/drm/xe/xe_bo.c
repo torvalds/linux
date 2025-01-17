@@ -128,6 +128,22 @@ bool xe_bo_is_stolen_devmem(struct xe_bo *bo)
 		GRAPHICS_VERx100(xe_bo_device(bo)) >= 1270;
 }
 
+/**
+ * xe_bo_is_vm_bound - check if BO has any mappings through VM_BIND
+ * @bo: The BO
+ *
+ * Check if a given bo is bound through VM_BIND. This requires the
+ * reservation lock for the BO to be held.
+ *
+ * Returns: boolean
+ */
+bool xe_bo_is_vm_bound(struct xe_bo *bo)
+{
+	xe_bo_assert_held(bo);
+
+	return !list_empty(&bo->ttm.base.gpuva.list);
+}
+
 static bool xe_bo_is_user(struct xe_bo *bo)
 {
 	return bo->flags & XE_BO_FLAG_USER;
