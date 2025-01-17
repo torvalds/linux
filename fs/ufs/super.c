@@ -380,7 +380,7 @@ static const match_table_t tokens = {
 	{Opt_err, NULL}
 };
 
-static int ufs_parse_options(char *options, unsigned *flavour, unsigned *on_err)
+static int ufs_parse_options(char *options, unsigned *flavour, unsigned *on_err, bool remount)
 {
 	char * p;
 	
@@ -392,6 +392,7 @@ static int ufs_parse_options(char *options, unsigned *flavour, unsigned *on_err)
 	while ((p = strsep(&options, ",")) != NULL) {
 		substring_t args[MAX_OPT_ARGS];
 		int token;
+		unsigned int old = *flavour;
 		if (!*p)
 			continue;
 
@@ -444,6 +445,15 @@ static int ufs_parse_options(char *options, unsigned *flavour, unsigned *on_err)
 			pr_err("Invalid option: \"%s\" or missing value\n", p);
 			return 0;
 		}
+		if (*flavour == old)
+			continue;
+		if (!old)
+			continue;
+		if (remount)
+			pr_err("ufstype can't be changed during remount\n");
+		else
+			pr_err("conflicting ufstype options\n");
+		return 0;
 	}
 	return 1;
 }
@@ -795,7 +805,7 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 	 */
 	sbi->s_flavour = 0;
 	sbi->s_on_err = UFS_MOUNT_ONERROR_LOCK;
-	if (!ufs_parse_options(data, &sbi->s_flavour, &sbi->s_on_err)) {
+	if (!ufs_parse_options(data, &sbi->s_flavour, &sbi->s_on_err, false)) {
 		pr_err("wrong mount options\n");
 		goto failed;
 	}
@@ -1295,16 +1305,9 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 	 * Allow the "check" option to be passed as a remount option.
 	 * It is not possible to change ufstype option during remount
 	 */
-	ufstype = 0;
+	ufstype = UFS_SB(sb)->s_flavour;
 	on_err = UFS_MOUNT_ONERROR_LOCK;
-	if (!ufs_parse_options(data, &ufstype, &on_err)) {
-		mutex_unlock(&UFS_SB(sb)->s_lock);
-		return -EINVAL;
-	}
-	if (!ufstype)
-		ufstype = UFS_SB(sb)->s_flavour;
-	else if (ufstype != UFS_SB(sb)->s_flavour) {
-		pr_err("ufstype can't be changed during remount\n");
+	if (!ufs_parse_options(data, &ufstype, &on_err, true)) {
 		mutex_unlock(&UFS_SB(sb)->s_lock);
 		return -EINVAL;
 	}
