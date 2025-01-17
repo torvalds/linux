@@ -4906,6 +4906,7 @@ void rtw89_core_scan_start(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwv
 {
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
 						       rtwvif_link->chanctx_idx);
+	struct rtw89_bb_ctx *bb = rtw89_get_bb_ctx(rtwdev, rtwvif_link->phy_idx);
 
 	rtwdev->scanning = true;
 	rtw89_leave_lps(rtwdev);
@@ -4916,7 +4917,7 @@ void rtw89_core_scan_start(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwv
 	rtw89_btc_ntfy_scan_start(rtwdev, rtwvif_link->phy_idx, chan->band_type);
 	rtw89_chip_rfk_scan(rtwdev, rtwvif_link, true);
 	rtw89_hci_recalc_int_mit(rtwdev);
-	rtw89_phy_config_edcca(rtwdev, true);
+	rtw89_phy_config_edcca(rtwdev, bb, true);
 
 	rtw89_fw_h2c_cam(rtwdev, rtwvif_link, NULL, mac_addr);
 }
@@ -4941,7 +4942,8 @@ void rtw89_core_scan_complete(struct rtw89_dev *rtwdev,
 
 	rtw89_chip_rfk_scan(rtwdev, rtwvif_link, false);
 	rtw89_btc_ntfy_scan_finish(rtwdev, rtwvif_link->phy_idx);
-	rtw89_phy_config_edcca(rtwdev, false);
+	bb = rtw89_get_bb_ctx(rtwdev, rtwvif_link->phy_idx);
+	rtw89_phy_config_edcca(rtwdev, bb, false);
 
 	rtwdev->scanning = false;
 	rtw89_for_each_active_bb(rtwdev, bb)
