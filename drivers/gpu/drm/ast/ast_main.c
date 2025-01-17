@@ -138,10 +138,7 @@ static void ast_detect_tx_chip(struct ast_device *ast, bool need_post)
 	} else if (IS_AST_GEN7(ast)) {
 		if (ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd1, AST_IO_VGACRD1_TX_TYPE_MASK) ==
 		    AST_IO_VGACRD1_TX_ASTDP) {
-			int ret = ast_dp_launch(ast);
-
-			if (!ret)
-				ast->tx_chip = AST_TX_ASTDP;
+			ast->tx_chip = AST_TX_ASTDP;
 		}
 	}
 
@@ -297,8 +294,18 @@ struct drm_device *ast_device_create(struct pci_dev *pdev,
 		 ast->mclk, ast->dram_type, ast->dram_bus_width);
 
 	ast_detect_tx_chip(ast, need_post);
-	if (need_post)
-		ast_post_gpu(ast);
+	switch (ast->tx_chip) {
+	case AST_TX_ASTDP:
+		ret = ast_post_gpu(ast);
+		break;
+	default:
+		ret = 0;
+		if (need_post)
+			ret = ast_post_gpu(ast);
+		break;
+	}
+	if (ret)
+		return ERR_PTR(ret);
 
 	ret = ast_mm_init(ast);
 	if (ret)

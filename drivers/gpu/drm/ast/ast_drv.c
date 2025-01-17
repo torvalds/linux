@@ -393,11 +393,15 @@ static int ast_drm_freeze(struct drm_device *dev)
 static int ast_drm_thaw(struct drm_device *dev)
 {
 	struct ast_device *ast = to_ast_device(dev);
+	int ret;
 
 	ast_enable_vga(ast->ioregs);
 	ast_open_key(ast->ioregs);
 	ast_enable_mmio(dev->dev, ast->ioregs);
-	ast_post_gpu(ast);
+
+	ret = ast_post_gpu(ast);
+	if (ret)
+		return ret;
 
 	return drm_mode_config_helper_resume(dev);
 }

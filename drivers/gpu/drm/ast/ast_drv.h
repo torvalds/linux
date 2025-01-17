@@ -445,7 +445,7 @@ int ast_mode_config_init(struct ast_device *ast);
 int ast_mm_init(struct ast_device *ast);
 
 /* ast post */
-void ast_post_gpu(struct ast_device *ast);
+int ast_post_gpu(struct ast_device *ast);
 u32 ast_mindwm(struct ast_device *ast, u32 r);
 void ast_moutdwm(struct ast_device *ast, u32 r, u32 v);
 void ast_patch_ahb_2500(void __iomem *regs);

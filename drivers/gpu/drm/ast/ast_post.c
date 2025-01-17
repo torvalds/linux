@@ -340,13 +340,18 @@ static void ast_init_dram_reg(struct ast_device *ast)
 	} while ((j & 0x40) == 0);
 }
 
-void ast_post_gpu(struct ast_device *ast)
+int ast_post_gpu(struct ast_device *ast)
 {
+	int ret;
+
 	ast_set_def_ext_reg(ast);
 
 	if (AST_GEN(ast) >= 7) {
-		if (ast->tx_chip == AST_TX_ASTDP)
-			ast_dp_launch(ast);
+		if (ast->tx_chip == AST_TX_ASTDP) {
+			ret = ast_dp_launch(ast);
+			if (ret)
+				return ret;
+		}
 	} else if (AST_GEN(ast) >= 6) {
 		if (ast->config_mode == ast_use_p2a) {
 			ast_post_chip_2500(ast);
@@ -376,6 +381,8 @@ void ast_post_gpu(struct ast_device *ast)
 			}
 		}
 	}
+
+	return 0;
 }
 
 /* AST 2300 DRAM settings */
