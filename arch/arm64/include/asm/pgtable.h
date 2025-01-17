@@ -273,7 +273,7 @@ static inline pte_t pte_mknoncont(pte_t pte)
 	return clear_pte_bit(pte, __pgprot(PTE_CONT));
 }
 
-static inline pte_t pte_mkpresent(pte_t pte)
+static inline pte_t pte_mkvalid(pte_t pte)
 {
 	return set_pte_bit(pte, __pgprot(PTE_VALID));
 }
