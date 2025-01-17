@@ -110,15 +110,18 @@ static void ast_detect_tx_chip(struct ast_device *ast, bool need_post)
 			if (vgacra3 & AST_IO_VGACRA3_DVO_ENABLED)
 				ast->tx_chip = AST_TX_SIL164;
 		}
-	} else if (IS_AST_GEN4(ast) || IS_AST_GEN5(ast) || IS_AST_GEN6(ast)) {
+	} else {
 		/*
-		 * On AST GEN4+, look the configuration set by the SoC in
+		 * On AST GEN4+, look at the configuration set by the SoC in
 		 * the SOC scratch register #1 bits 11:8 (interestingly marked
 		 * as "reserved" in the spec)
 		 */
 		jreg = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd1,
 					      AST_IO_VGACRD1_TX_TYPE_MASK);
 		switch (jreg) {
+		/*
+		 * GEN4 to GEN6
+		 */
 		case AST_IO_VGACRD1_TX_SIL164_VBIOS:
 			ast->tx_chip = AST_TX_SIL164;
 			break;
@@ -134,11 +137,13 @@ static void ast_detect_tx_chip(struct ast_device *ast, bool need_post)
 			fallthrough;
 		case AST_IO_VGACRD1_TX_FW_EMBEDDED_FW:
 			ast->tx_chip = AST_TX_DP501;
-		}
-	} else if (IS_AST_GEN7(ast)) {
-		if (ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd1, AST_IO_VGACRD1_TX_TYPE_MASK) ==
-		    AST_IO_VGACRD1_TX_ASTDP) {
+			break;
+		/*
+		 * GEN7+
+		 */
+		case AST_IO_VGACRD1_TX_ASTDP:
 			ast->tx_chip = AST_TX_ASTDP;
+			break;
 		}
 	}
 
