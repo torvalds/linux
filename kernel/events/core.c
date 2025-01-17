@@ -5696,7 +5696,6 @@ int perf_event_release_kernel(struct perf_event *event)
 {
 	struct perf_event_context *ctx = event->ctx;
 	struct perf_event *child, *tmp;
-	LIST_HEAD(free_list);
 
 	/*
 	 * If we got here through err_alloc: free_event(event); we will not
@@ -5765,22 +5764,22 @@ again:
 					       struct perf_event, child_list);
 		if (tmp == child) {
 			perf_remove_from_context(child, DETACH_GROUP | DETACH_CHILD);
-			list_add(&child->child_list, &free_list);
+		} else {
+			child = NULL;
 		}
 
 		mutex_unlock(&event->child_mutex);
 		mutex_unlock(&ctx->mutex);
+
+		if (child) {
+			/* Last reference unless ->pending_task work is pending */
+			put_event(child);
+		}
 		put_ctx(ctx);
 
 		goto again;
 	}
 	mutex_unlock(&event->child_mutex);
-
-	list_for_each_entry_safe(child, tmp, &free_list, child_list) {
-		list_del(&child->child_list);
-		/* Last reference unless ->pending_task work is pending */
-		put_event(child);
-	}
 
 no_ctx:
 	/*
