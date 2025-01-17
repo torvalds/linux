@@ -433,13 +433,47 @@ retry:
 	return pending;
 }
 
+static int hv_pick_new_cpu(struct vmbus_channel *channel)
+{
+	int ret = -EBUSY;
+	int start;
+	int cpu;
+
+	lockdep_assert_cpus_held();
+	lockdep_assert_held(&vmbus_connection.channel_mutex);
+
+	/*
+	 * We can't assume that the relevant interrupts will be sent before
+	 * the cpu is offlined on older versions of hyperv.
+	 */
+	if (vmbus_proto_version < VERSION_WIN10_V5_3)
+		return -EBUSY;
+
+	start = get_random_u32_below(nr_cpu_ids);
+
+	for_each_cpu_wrap(cpu, cpu_online_mask, start) {
+		if (channel->target_cpu == cpu ||
+		    channel->target_cpu == VMBUS_CONNECT_CPU)
+			continue;
+
+		ret = vmbus_channel_set_cpu(channel, cpu);
+		if (!ret)
+			break;
+	}
+
+	if (ret)
+		ret = vmbus_channel_set_cpu(channel, VMBUS_CONNECT_CPU);
+
+	return ret;
+}
+
 /*
  * hv_synic_cleanup - Cleanup routine for hv_synic_init().
  */
 int hv_synic_cleanup(unsigned int cpu)
 {
 	struct vmbus_channel *channel, *sc;
-	bool channel_found = false;
+	int ret = 0;
 
 	if (vmbus_connection.conn_state != CONNECTED)
 		goto always_cleanup;
@@ -456,38 +490,34 @@ int hv_synic_cleanup(unsigned int cpu)
 
 	/*
 	 * Search for channels which are bound to the CPU we're about to
-	 * cleanup.  In case we find one and vmbus is still connected, we
-	 * fail; this will effectively prevent CPU offlining.
-	 *
-	 * TODO: Re-bind the channels to different CPUs.
+	 * cleanup.
 	 */
 	mutex_lock(&vmbus_connection.channel_mutex);
 	list_for_each_entry(channel, &vmbus_connection.chn_list, listentry) {
 		if (channel->target_cpu == cpu) {
-			channel_found = true;
-			break;
+			ret = hv_pick_new_cpu(channel);
+			if (ret) {
+				mutex_unlock(&vmbus_connection.channel_mutex);
+				return ret;
+			}
 		}
 		list_for_each_entry(sc, &channel->sc_list, sc_list) {
 			if (sc->target_cpu == cpu) {
-				channel_found = true;
-				break;
+				ret = hv_pick_new_cpu(sc);
+				if (ret) {
+					mutex_unlock(&vmbus_connection.channel_mutex);
+					return ret;
+				}
 			}
 		}
-		if (channel_found)
-			break;
 	}
 	mutex_unlock(&vmbus_connection.channel_mutex);
 
-	if (channel_found)
-		return -EBUSY;
-
 	/*
-	 * channel_found == false means that any channels that were previously
-	 * assigned to the CPU have been reassigned elsewhere with a call of
-	 * vmbus_send_modifychannel().  Scan the event flags page looking for
-	 * bits that are set and waiting with a timeout for vmbus_chan_sched()
-	 * to process such bits.  If bits are still set after this operation
-	 * and VMBus is connected, fail the CPU offlining operation.
+	 * Scan the event flags page looking for bits that are set and waiting
+	 * with a timeout for vmbus_chan_sched() to process such bits. If bits
+	 * are still set after this operation and VMBus is connected, fail the
+	 * CPU offlining operation.
 	 */
 	if (vmbus_proto_version >= VERSION_WIN10_V4_1 && hv_synic_event_pending())
 		return -EBUSY;
@@ -497,5 +527,5 @@ always_cleanup:
 
 	hv_synic_disable_regs(cpu);
 
-	return 0;
+	return ret;
 }
