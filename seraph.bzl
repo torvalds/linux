@@ -69,11 +69,17 @@ def define_seraph():
         "drivers/soc/qcom/socinfo.ko",
         "drivers/soc/qcom/tmecom/tmecom-intf.ko",
         "drivers/usb/dwc3/dwc3-msm.ko",
+        "drivers/usb/gadget/function/usb_f_ccid.ko",
+        "drivers/usb/gadget/function/usb_f_cdev.ko",
+        "drivers/usb/gadget/function/usb_f_gsi.ko",
+        "drivers/usb/gadget/function/usb_f_qdss.ko",
         "drivers/usb/phy/phy-generic.ko",
+        "drivers/usb/phy/phy-msm-ssusb-qmp.ko",
         "drivers/usb/phy/phy-qcom-emu.ko",
         "drivers/virt/gunyah/gh_virt_wdt.ko",
         "net/mac80211/mac80211.ko",
         "net/wireless/cfg80211.ko",
+        "sound/usb/snd-usb-audio-qmi.ko",
     ]
 
     _seraph_consolidate_in_tree_modules = _seraph_in_tree_modules + [
