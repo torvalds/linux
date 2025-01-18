@@ -5,6 +5,7 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
+#include <linux/units.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -28,9 +29,10 @@
 #define BMI270_INTERNAL_STATUS_REG			0x21
 #define BMI270_INTERNAL_STATUS_MSG_MSK			GENMASK(3, 0)
 #define BMI270_INTERNAL_STATUS_MSG_INIT_OK		0x01
-
 #define BMI270_INTERNAL_STATUS_AXES_REMAP_ERR_MSK	BIT(5)
 #define BMI270_INTERNAL_STATUS_ODR_50HZ_ERR_MSK		BIT(6)
+
+#define BMI270_TEMPERATURE_0_REG			0x22
 
 #define BMI270_ACC_CONF_REG				0x40
 #define BMI270_ACC_CONF_ODR_MSK				GENMASK(3, 0)
@@ -68,6 +70,10 @@
 #define BMI270_PWR_CTRL_GYR_EN_MSK			BIT(1)
 #define BMI270_PWR_CTRL_ACCEL_EN_MSK			BIT(2)
 #define BMI270_PWR_CTRL_TEMP_EN_MSK			BIT(3)
+
+/* See datasheet section 4.6.14, Temperature Sensor */
+#define BMI270_TEMP_OFFSET				11776
+#define BMI270_TEMP_SCALE				1953125
 
 #define BMI260_INIT_DATA_FILE "bmi260-init-data.fw"
 #define BMI270_INIT_DATA_FILE "bmi270-init-data.fw"
@@ -109,6 +115,7 @@ EXPORT_SYMBOL_NS_GPL(bmi270_chip_info, "IIO_BMI270");
 enum bmi270_sensor_type {
 	BMI270_ACCEL	= 0,
 	BMI270_GYRO,
+	BMI270_TEMP,
 };
 
 struct bmi270_scale {
@@ -136,6 +143,10 @@ static const struct bmi270_scale bmi270_gyro_scale[] = {
 	{ 0, 66 },
 };
 
+static const struct bmi270_scale bmi270_temp_scale[] = {
+	{ BMI270_TEMP_SCALE / MICRO, BMI270_TEMP_SCALE % MICRO },
+};
+
 struct bmi270_scale_item {
 	const struct bmi270_scale *tbl;
 	int num;
@@ -149,6 +160,10 @@ static const struct bmi270_scale_item bmi270_scale_table[] = {
 	[BMI270_GYRO] = {
 		.tbl	= bmi270_gyro_scale,
 		.num	= ARRAY_SIZE(bmi270_gyro_scale),
+	},
+	[BMI270_TEMP] = {
+		.tbl	= bmi270_temp_scale,
+		.num	= ARRAY_SIZE(bmi270_temp_scale),
 	},
 };
 
@@ -255,7 +270,7 @@ static int bmi270_set_scale(struct bmi270_data *data, int chan_type, int uscale)
 }
 
 static int bmi270_get_scale(struct bmi270_data *bmi270_device, int chan_type,
-			    int *uscale)
+			    int *scale, int *uscale)
 {
 	int ret;
 	unsigned int val;
@@ -280,6 +295,10 @@ static int bmi270_get_scale(struct bmi270_data *bmi270_device, int chan_type,
 		val = FIELD_GET(BMI270_GYR_CONF_RANGE_MSK, val);
 		bmi270_scale_item = bmi270_scale_table[BMI270_GYRO];
 		break;
+	case IIO_TEMP:
+		val = 0;
+		bmi270_scale_item = bmi270_scale_table[BMI270_TEMP];
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -287,6 +306,7 @@ static int bmi270_get_scale(struct bmi270_data *bmi270_device, int chan_type,
 	if (val >= bmi270_scale_item.num)
 		return -EINVAL;
 
+	*scale = bmi270_scale_item.tbl[val].scale;
 	*uscale = bmi270_scale_item.tbl[val].uscale;
 	return 0;
 }
@@ -399,6 +419,9 @@ static int bmi270_get_data(struct bmi270_data *bmi270_device,
 	case IIO_ANGL_VEL:
 		reg = BMI270_ANG_VEL_X_REG + (axis - IIO_MOD_X) * 2;
 		break;
+	case IIO_TEMP:
+		reg = BMI270_TEMPERATURE_0_REG;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -427,9 +450,16 @@ static int bmi270_read_raw(struct iio_dev *indio_dev,
 
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
-		*val = 0;
-		ret = bmi270_get_scale(bmi270_device, chan->type, val2);
+		ret = bmi270_get_scale(bmi270_device, chan->type, val, val2);
 		return ret ? ret : IIO_VAL_INT_PLUS_MICRO;
+	case IIO_CHAN_INFO_OFFSET:
+		switch (chan->type) {
+		case IIO_TEMP:
+			*val = BMI270_TEMP_OFFSET;
+			return IIO_VAL_INT;
+		default:
+			return -EINVAL;
+		}
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		ret = bmi270_get_odr(bmi270_device, chan->type, val, val2);
 		return ret ? ret : IIO_VAL_INT_PLUS_MICRO;
@@ -544,6 +574,13 @@ static const struct iio_chan_spec bmi270_channels[] = {
 	BMI270_ANG_VEL_CHANNEL(X),
 	BMI270_ANG_VEL_CHANNEL(Y),
 	BMI270_ANG_VEL_CHANNEL(Z),
+	{
+		.type = IIO_TEMP,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+				      BIT(IIO_CHAN_INFO_SCALE) |
+				      BIT(IIO_CHAN_INFO_OFFSET),
+		.scan_index = -1, /* No buffer support */
+	},
 	IIO_CHAN_SOFT_TIMESTAMP(BMI270_SCAN_TIMESTAMP),
 };
 
@@ -646,7 +683,8 @@ static int bmi270_configure_imu(struct bmi270_data *bmi270_device)
 	ret = regmap_set_bits(regmap, BMI270_PWR_CTRL_REG,
 			      BMI270_PWR_CTRL_AUX_EN_MSK |
 			      BMI270_PWR_CTRL_GYR_EN_MSK |
-			      BMI270_PWR_CTRL_ACCEL_EN_MSK);
+			      BMI270_PWR_CTRL_ACCEL_EN_MSK |
+			      BMI270_PWR_CTRL_TEMP_EN_MSK);
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to enable accelerometer and gyroscope");
 
