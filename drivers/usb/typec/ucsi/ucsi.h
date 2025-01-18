@@ -106,7 +106,7 @@ void ucsi_connector_change(struct ucsi *ucsi, u8 num);
 #define UCSI_GET_CAPABILITY_SIZE		128
 #define UCSI_GET_CONNECTOR_CAPABILITY		0x07
 #define UCSI_GET_CONNECTOR_CAPABILITY_SIZE	32
-#define UCSI_SET_UOM				0x08
+#define UCSI_SET_CCOM				0x08
 #define UCSI_SET_UOR				0x09
 #define UCSI_SET_PDM				0x0a
 #define UCSI_SET_PDR				0x0b

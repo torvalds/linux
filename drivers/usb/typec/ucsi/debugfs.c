@@ -28,7 +28,7 @@ static int ucsi_cmd(void *data, u64 val)
 	ucsi->debugfs->status = 0;
 
 	switch (UCSI_COMMAND(val)) {
-	case UCSI_SET_UOM:
+	case UCSI_SET_CCOM:
 	case UCSI_SET_UOR:
 	case UCSI_SET_PDR:
 	case UCSI_CONNECTOR_RESET:
