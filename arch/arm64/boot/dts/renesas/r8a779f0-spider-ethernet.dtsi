@@ -5,6 +5,14 @@
  * Copyright (C) 2021 Renesas Electronics Corp.
  */
 
+/ {
+	aliases {
+		ethernet0 = &rswitch_port0;
+		ethernet1 = &rswitch_port1;
+		ethernet2 = &rswitch_port2;
+	};
+};
+
 &eth_serdes {
 	status = "okay";
 };
