@@ -1393,12 +1393,6 @@ static int pistachio_gpio_register(struct pistachio_pinctrl *pctl)
 			dev_err(pctl->dev, "Failed to retrieve IRQ for bank %u\n", i);
 			goto err;
 		}
-		if (!ret) {
-			fwnode_handle_put(child);
-			dev_err(pctl->dev, "No IRQ for bank %u\n", i);
-			ret = -EINVAL;
-			goto err;
-		}
 		irq = ret;
 
 		bank = &pctl->gpio_banks[i];
