@@ -43,6 +43,7 @@ static bool smt_possible(void)
 
 static void test_hv_cpuid(struct kvm_vcpu *vcpu, bool evmcs_expected)
 {
+	const bool has_irqchip = !vcpu || vcpu->vm->has_irqchip;
 	const struct kvm_cpuid2 *hv_cpuid_entries;
 	int i;
 	int nent_expected = 10;
@@ -85,12 +86,19 @@ static void test_hv_cpuid(struct kvm_vcpu *vcpu, bool evmcs_expected)
 				    entry->eax, evmcs_expected
 				);
 			break;
+		case 0x40000003:
+			TEST_ASSERT(has_irqchip || !(entry->edx & BIT(19)),
+				    "\"Direct\" Synthetic Timers should require in-kernel APIC");
+			break;
 		case 0x40000004:
 			test_val = entry->eax & (1UL << 18);
 
 			TEST_ASSERT(!!test_val == !smt_possible(),
 				    "NoNonArchitecturalCoreSharing bit"
 				    " doesn't reflect SMT setting");
+
+			TEST_ASSERT(has_irqchip || !(entry->eax & BIT(10)),
+				    "Cluster IPI (i.e. SEND_IPI) should require in-kernel APIC");
 			break;
 		case 0x4000000A:
 			TEST_ASSERT(entry->eax & (1UL << 19),
@@ -145,9 +153,14 @@ int main(int argc, char *argv[])
 
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_HYPERV_CPUID));
 
-	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
+	/* Test the vCPU ioctl without an in-kernel local APIC. */
+	vm = vm_create_barebones();
+	vcpu = __vm_vcpu_add(vm, 0);
+	test_hv_cpuid(vcpu, false);
+	kvm_vm_free(vm);
 
 	/* Test vCPU ioctl version */
+	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 	test_hv_cpuid_e2big(vm, vcpu);
 	test_hv_cpuid(vcpu, false);
 
