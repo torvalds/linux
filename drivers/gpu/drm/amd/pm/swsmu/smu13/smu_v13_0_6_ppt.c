@@ -2833,29 +2833,17 @@ static int smu_v13_0_6_send_rma_reason(struct smu_context *smu)
 
 static int smu_v13_0_6_reset_sdma(struct smu_context *smu, uint32_t inst_mask)
 {
-	uint32_t smu_program;
+	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
 
-	smu_program = (smu->smc_fw_version >> 24) & 0xff;
-	switch (amdgpu_ip_version(smu->adev, MP1_HWIP, 0)) {
-	case IP_VERSION(13, 0, 6):
-		if ((smu_program == 7 || smu_program == 0) &&
-		    smu_v13_0_6_caps_supported(smu, SMU_CAPS(SDMA_RESET)))
-			ret = smu_cmn_send_smc_msg_with_param(smu,
-				SMU_MSG_ResetSDMA, inst_mask, NULL);
-		else if ((smu_program == 4) &&
-			 smu_v13_0_6_caps_supported(smu, SMU_CAPS(SDMA_RESET)))
-			ret = smu_cmn_send_smc_msg_with_param(smu,
-				      SMU_MSG_ResetSDMA2, inst_mask, NULL);
-		break;
-	case IP_VERSION(13, 0, 14):
-		if (smu_v13_0_6_caps_supported(smu, SMU_CAPS(SDMA_RESET)))
-			ret = smu_cmn_send_smc_msg_with_param(smu,
-				      SMU_MSG_ResetSDMA2, inst_mask, NULL);
-		break;
-	default:
-		break;
-	}
+	/* the message is only valid on SMU 13.0.6 with pmfw 85.121.00 and above */
+	if ((adev->flags & AMD_IS_APU) ||
+		amdgpu_ip_version(adev, MP1_HWIP, 0) != IP_VERSION(13, 0, 6) ||
+		smu->smc_fw_version < 0x00557900)
+		return 0;
+
+	ret = smu_cmn_send_smc_msg_with_param(smu,
+						SMU_MSG_ResetSDMA, inst_mask, NULL);
 
 	if (ret)
 		dev_err(smu->adev->dev,
