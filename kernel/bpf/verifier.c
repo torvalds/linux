@@ -15972,9 +15972,8 @@ static int check_cond_jmp_op(struct bpf_verifier_env *env,
 
 		if (insn->code != (BPF_JMP | BPF_JCOND) ||
 		    insn->src_reg != BPF_MAY_GOTO ||
-		    insn->dst_reg || insn->imm || insn->off == 0) {
-			verbose(env, "invalid may_goto off %d imm %d\n",
-				insn->off, insn->imm);
+		    insn->dst_reg || insn->imm) {
+			verbose(env, "invalid may_goto imm %d\n", insn->imm);
 			return -EINVAL;
 		}
 		prev_st = find_prev_entry(env, cur_st->parent, idx);
