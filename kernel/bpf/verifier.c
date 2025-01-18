@@ -20184,23 +20184,28 @@ static int opt_remove_dead_code(struct bpf_verifier_env *env)
 }
 
 static const struct bpf_insn NOP = BPF_JMP_IMM(BPF_JA, 0, 0, 0);
+static const struct bpf_insn MAY_GOTO_0 = BPF_RAW_INSN(BPF_JMP | BPF_JCOND, 0, 0, 0, 0);
 
 static int opt_remove_nops(struct bpf_verifier_env *env)
 {
-	const struct bpf_insn ja = NOP;
 	struct bpf_insn *insn = env->prog->insnsi;
 	int insn_cnt = env->prog->len;
+	bool is_may_goto_0, is_ja;
 	int i, err;
 
 	for (i = 0; i < insn_cnt; i++) {
-		if (memcmp(&insn[i], &ja, sizeof(ja)))
+		is_may_goto_0 = !memcmp(&insn[i], &MAY_GOTO_0, sizeof(MAY_GOTO_0));
+		is_ja = !memcmp(&insn[i], &NOP, sizeof(NOP));
+
+		if (!is_may_goto_0 && !is_ja)
 			continue;
 
 		err = verifier_remove_insns(env, i, 1);
 		if (err)
 			return err;
 		insn_cnt--;
-		i--;
+		/* Go back one insn to catch may_goto +1; may_goto +0 sequence */
+		i -= (is_may_goto_0 && i > 0) ? 2 : 1;
 	}
 
 	return 0;
