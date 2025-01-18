@@ -29,7 +29,7 @@ struct mpfs_glue {
 	struct clk *clk;
 };
 
-static struct musb_fifo_cfg mpfs_musb_mode_cfg[] = {
+static const struct musb_fifo_cfg mpfs_musb_mode_cfg[] = {
 	{ .hw_ep_num = 1, .style = FIFO_TX, .maxpacket = 512, },
 	{ .hw_ep_num = 1, .style = FIFO_RX, .maxpacket = 512, },
 	{ .hw_ep_num = 2, .style = FIFO_TX, .maxpacket = 512, },
