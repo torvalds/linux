@@ -317,8 +317,9 @@ static int cachefiles_ondemand_get_fd(struct cachefiles_req *req,
 		goto err_free_id;
 	}
 
-	anon_file->file = anon_inode_getfile("[cachefiles]",
-				&cachefiles_ondemand_fd_fops, object, O_WRONLY);
+	anon_file->file = anon_inode_getfile_fmode("[cachefiles]",
+				&cachefiles_ondemand_fd_fops, object,
+				O_WRONLY, FMODE_PWRITE | FMODE_LSEEK);
 	if (IS_ERR(anon_file->file)) {
 		ret = PTR_ERR(anon_file->file);
 		goto err_put_fd;
@@ -332,8 +333,6 @@ static int cachefiles_ondemand_get_fd(struct cachefiles_req *req,
 		ret = -EEXIST;
 		goto err_put_file;
 	}
-
-	anon_file->file->f_mode |= FMODE_PWRITE | FMODE_LSEEK;
 
 	load = (void *)req->msg.data;
 	load->fd = anon_file->fd;

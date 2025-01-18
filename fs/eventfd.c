@@ -406,14 +406,13 @@ static int do_eventfd(unsigned int count, int flags)
 	if (fd < 0)
 		goto err;
 
-	file = anon_inode_getfile("[eventfd]", &eventfd_fops, ctx, flags);
+	file = anon_inode_getfile_fmode("[eventfd]", &eventfd_fops,
+					ctx, flags, FMODE_NOWAIT);
 	if (IS_ERR(file)) {
 		put_unused_fd(fd);
 		fd = PTR_ERR(file);
 		goto err;
 	}
-
-	file->f_mode |= FMODE_NOWAIT;
 	fd_install(fd, file);
 	return fd;
 err:
