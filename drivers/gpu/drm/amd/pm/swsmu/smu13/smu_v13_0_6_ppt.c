@@ -2834,12 +2834,19 @@ static int smu_v13_0_6_reset_sdma(struct smu_context *smu, uint32_t inst_mask)
 {
 	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
+	uint32_t smu_program;
 
-	/* the message is only valid on SMU 13.0.6 with pmfw 85.121.00 and above */
-	if ((adev->flags & AMD_IS_APU) ||
-		amdgpu_ip_version(adev, MP1_HWIP, 0) != IP_VERSION(13, 0, 6) ||
-		smu->smc_fw_version < 0x00557900)
-		return 0;
+	smu_program = (smu->smc_fw_version >> 24) & 0xff;
+	/* the message is only valid on SMU 13.0.6/12/14 with these pmfw and above */
+	if (((amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 12)) &&
+		(smu->smc_fw_version < 0x00561700)) ||
+		((amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 14)) &&
+		(smu->smc_fw_version < 0x5551200)) ||
+		((amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 6)) &&
+		(((smu_program == 0) && (smu->smc_fw_version < 0x00557900)) ||
+		((smu_program == 4) && (smu->smc_fw_version < 0x4557000)) ||
+		((smu_program == 7) && (smu->smc_fw_version < 0x7550700)))))
+		return -EOPNOTSUPP;
 
 	ret = smu_cmn_send_smc_msg_with_param(smu,
 						SMU_MSG_ResetSDMA, inst_mask, NULL);
