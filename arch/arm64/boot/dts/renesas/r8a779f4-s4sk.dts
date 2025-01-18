@@ -179,51 +179,46 @@
 	pinctrl-0 = <&tsn0_pins>, <&tsn1_pins>;
 	pinctrl-names = "default";
 	status = "okay";
+};
 
-	ethernet-ports {
+&rswitch_port0 {
+	reg = <0>;
+	phy-handle = <&ic99>;
+	phy-mode = "sgmii";
+	phys = <&eth_serdes 0>;
+
+	mdio {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		port@0 {
-			reg = <0>;
-			phy-handle = <&ic99>;
-			phy-mode = "sgmii";
-			phys = <&eth_serdes 0>;
-
-			mdio {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				ic99: ethernet-phy@1 {
-					reg = <1>;
-					compatible = "ethernet-phy-ieee802.3-c45";
-					interrupts-extended = <&gpio3 10 IRQ_TYPE_LEVEL_LOW>;
-				};
-			};
-		};
-
-		port@1 {
+		ic99: ethernet-phy@1 {
 			reg = <1>;
-			phy-handle = <&ic102>;
-			phy-mode = "sgmii";
-			phys = <&eth_serdes 1>;
-
-			mdio {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				ic102: ethernet-phy@2 {
-					reg = <2>;
-					compatible = "ethernet-phy-ieee802.3-c45";
-					interrupts-extended = <&gpio3 11 IRQ_TYPE_LEVEL_LOW>;
-				};
-			};
-		};
-
-		port@2 {
-			status = "disabled";
+			compatible = "ethernet-phy-ieee802.3-c45";
+			interrupts-extended = <&gpio3 10 IRQ_TYPE_LEVEL_LOW>;
 		};
 	};
+};
+
+&rswitch_port1 {
+	reg = <1>;
+	phy-handle = <&ic102>;
+	phy-mode = "sgmii";
+	phys = <&eth_serdes 1>;
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ic102: ethernet-phy@2 {
+			reg = <2>;
+			compatible = "ethernet-phy-ieee802.3-c45";
+			interrupts-extended = <&gpio3 11 IRQ_TYPE_LEVEL_LOW>;
+		};
+	};
+};
+
+&rswitch_port2 {
+	status = "disabled";
 };
 
 &rwdt {
