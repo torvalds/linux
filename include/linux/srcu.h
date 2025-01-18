@@ -282,6 +282,24 @@ static inline struct srcu_ctr __percpu *srcu_read_lock_fast(struct srcu_struct *
 }
 
 /**
+ * srcu_down_read_fast - register a new reader for an SRCU-protected structure.
+ * @ssp: srcu_struct in which to register the new reader.
+ *
+ * Enter a semaphore-like SRCU read-side critical section, but for
+ * a light-weight smp_mb()-free reader.  See srcu_read_lock_fast() and
+ * srcu_down_read() for more information.
+ *
+ * The same srcu_struct may be used concurrently by srcu_down_read_fast()
+ * and srcu_read_lock_fast().
+ */
+static inline struct srcu_ctr __percpu *srcu_down_read_fast(struct srcu_struct *ssp) __acquires(ssp)
+{
+	WARN_ON_ONCE(IS_ENABLED(CONFIG_PROVE_RCU) && in_nmi());
+	srcu_check_read_flavor_force(ssp, SRCU_READ_FLAVOR_FAST);
+	return __srcu_read_lock_fast(ssp);
+}
+
+/**
  * srcu_read_lock_lite - register a new reader for an SRCU-protected structure.
  * @ssp: srcu_struct in which to register the new reader.
  *
@@ -397,6 +415,22 @@ static inline void srcu_read_unlock_fast(struct srcu_struct *ssp, struct srcu_ct
 {
 	srcu_check_read_flavor(ssp, SRCU_READ_FLAVOR_FAST);
 	srcu_lock_release(&ssp->dep_map);
+	__srcu_read_unlock_fast(ssp, scp);
+}
+
+/**
+ * srcu_up_read_fast - unregister a old reader from an SRCU-protected structure.
+ * @ssp: srcu_struct in which to unregister the old reader.
+ * @scp: return value from corresponding srcu_read_lock_fast().
+ *
+ * Exit an SRCU read-side critical section, but not necessarily from
+ * the same context as the maching srcu_down_read_fast().
+ */
+static inline void srcu_up_read_fast(struct srcu_struct *ssp, struct srcu_ctr __percpu *scp)
+	__releases(ssp)
+{
+	WARN_ON_ONCE(IS_ENABLED(CONFIG_PROVE_RCU) && in_nmi());
+	srcu_check_read_flavor(ssp, SRCU_READ_FLAVOR_FAST);
 	__srcu_read_unlock_fast(ssp, scp);
 }
 
