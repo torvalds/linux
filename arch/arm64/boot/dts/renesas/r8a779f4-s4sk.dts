@@ -22,7 +22,8 @@
 		i2c5 = &i2c5;
 		serial0 = &hscif0;
 		serial1 = &hscif1;
-		ethernet0 = &rswitch;
+		ethernet0 = &rswitch_port0;
+		ethernet1 = &rswitch_port1;
 	};
 
 	chosen {
