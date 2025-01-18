@@ -80,6 +80,7 @@ struct promote_op {
 	struct rhash_head	hash;
 	struct bpos		pos;
 
+	struct work_struct	work;
 	struct data_update	write;
 	struct bio_vec		bi_inline_vecs[]; /* must be last */
 };
@@ -149,13 +150,21 @@ static void promote_done(struct bch_write_op *wop)
 	promote_free(&op->write.rbio);
 }
 
+static void promote_start_work(struct work_struct *work)
+{
+	struct promote_op *op = container_of(work, struct promote_op, work);
+
+	bch2_data_update_read_done(&op->write);
+}
+
 static noinline void promote_start(struct bch_read_bio *rbio)
 {
 	struct promote_op *op = container_of(rbio, struct promote_op, write.rbio);
 
 	trace_and_count(op->write.op.c, read_promote, &rbio->bio);
 
-	bch2_data_update_read_done(&op->write);
+	INIT_WORK(&op->work, promote_start_work);
+	queue_work(rbio->c->write_ref_wq, &op->work);
 }
 
 static struct bch_read_bio *__promote_alloc(struct btree_trans *trans,
