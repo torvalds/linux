@@ -416,7 +416,7 @@ struct sched_ext_ops {
 
 	/**
 	 * @update_idle: Update the idle state of a CPU
-	 * @cpu: CPU to udpate the idle state for
+	 * @cpu: CPU to update the idle state for
 	 * @idle: whether entering or exiting the idle state
 	 *
 	 * This operation is called when @rq's CPU goes or leaves the idle
@@ -1214,7 +1214,7 @@ static bool scx_kf_allowed_if_unlocked(void)
 
 /**
  * nldsq_next_task - Iterate to the next task in a non-local DSQ
- * @dsq: user dsq being interated
+ * @dsq: user dsq being iterated
  * @cur: current position, %NULL to start iteration
  * @rev: walk backwards
  *
@@ -2078,7 +2078,7 @@ static void set_task_runnable(struct rq *rq, struct task_struct *p)
 
 	/*
 	 * list_add_tail() must be used. scx_ops_bypass() depends on tasks being
-	 * appened to the runnable_list.
+	 * appended to the runnable_list.
 	 */
 	list_add_tail(&p->scx.runnable_node, &rq->scx.runnable_list);
 }
@@ -2480,7 +2480,7 @@ static struct rq *move_task_between_dsqs(struct task_struct *p, u64 enq_flags,
 /*
  * A poorly behaving BPF scheduler can live-lock the system by e.g. incessantly
  * banging on the same DSQ on a large NUMA system to the point where switching
- * to the bypass mode can take a long time. Inject artifical delays while the
+ * to the bypass mode can take a long time. Inject artificial delays while the
  * bypass mode is switching to guarantee timely completion.
  */
 static void scx_ops_breather(struct rq *rq)
@@ -3144,7 +3144,7 @@ static struct task_struct *pick_task_scx(struct rq *rq)
  *
  * Unless overridden by ops.core_sched_before(), @p->scx.core_sched_at is used
  * to implement the default task ordering. The older the timestamp, the higher
- * prority the task - the global FIFO ordering matching the default scheduling
+ * priority the task - the global FIFO ordering matching the default scheduling
  * behavior.
  *
  * When ops.core_sched_before() is enabled, @p->scx.core_sched_at is used to
@@ -4590,7 +4590,7 @@ static int scx_cgroup_init(void)
 	cgroup_warned_missing_idle = false;
 
 	/*
-	 * scx_tg_on/offline() are excluded thorugh scx_cgroup_rwsem. If we walk
+	 * scx_tg_on/offline() are excluded through scx_cgroup_rwsem. If we walk
 	 * cgroups and init, all online cgroups are initialized.
 	 */
 	rcu_read_lock();
