@@ -1281,11 +1281,17 @@ would be empty (no bit set).
 
 Additional hardware timestamping statistics response contents:
 
-  =====================================  ======  ===================================
-  ``ETHTOOL_A_TS_STAT_TX_PKTS``          uint    Packets with Tx HW timestamps
-  ``ETHTOOL_A_TS_STAT_TX_LOST``          uint    Tx HW timestamp not arrived count
-  ``ETHTOOL_A_TS_STAT_TX_ERR``           uint    HW error request Tx timestamp count
-  =====================================  ======  ===================================
+  ==================================================  ======  =====================
+  ``ETHTOOL_A_TS_STAT_TX_PKTS``                       uint    Packets with Tx
+                                                              HW timestamps
+  ``ETHTOOL_A_TS_STAT_TX_LOST``                       uint    Tx HW timestamp
+                                                              not arrived count
+  ``ETHTOOL_A_TS_STAT_TX_ERR``                        uint    HW error request
+                                                              Tx timestamp count
+  ``ETHTOOL_A_TS_STAT_TX_ONESTEP_PKTS_UNCONFIRMED``   uint    Packets with one-step
+                                                              HW TX timestamps with
+                                                              unconfirmed delivery
+  ==================================================  ======  =====================
 
 CABLE_TEST
 ==========

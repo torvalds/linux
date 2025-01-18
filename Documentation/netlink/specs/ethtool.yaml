@@ -842,6 +842,9 @@ attribute-sets:
       -
         name: tx-err
         type: uint
+      -
+        name: tx-onestep-pkts-unconfirmed
+        type: uint
   -
     name: ts-hwtstamp-provider
     attr-cnt-name: __ethtool-a-ts-hwtstamp-provider-cnt

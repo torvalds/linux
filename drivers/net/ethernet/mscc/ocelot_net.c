@@ -993,6 +993,16 @@ static int ocelot_port_get_ts_info(struct net_device *dev,
 	return ocelot_get_ts_info(ocelot, port, info);
 }
 
+static void ocelot_port_ts_stats(struct net_device *dev,
+				 struct ethtool_ts_stats *ts_stats)
+{
+	struct ocelot_port_private *priv = netdev_priv(dev);
+	struct ocelot *ocelot = priv->port.ocelot;
+	int port = priv->port.index;
+
+	ocelot_port_get_ts_stats(ocelot, port, ts_stats);
+}
+
 static const struct ethtool_ops ocelot_ethtool_ops = {
 	.get_strings		= ocelot_port_get_strings,
 	.get_ethtool_stats	= ocelot_port_get_ethtool_stats,
@@ -1000,6 +1010,7 @@ static const struct ethtool_ops ocelot_ethtool_ops = {
 	.get_link_ksettings	= phy_ethtool_get_link_ksettings,
 	.set_link_ksettings	= phy_ethtool_set_link_ksettings,
 	.get_ts_info		= ocelot_port_get_ts_info,
+	.get_ts_stats		= ocelot_port_ts_stats,
 };
 
 static void ocelot_port_attr_stp_state_set(struct ocelot *ocelot, int port,

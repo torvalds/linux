@@ -1150,6 +1150,16 @@ dsa_user_get_rmon_stats(struct net_device *dev,
 		ds->ops->get_rmon_stats(ds, dp->index, rmon_stats, ranges);
 }
 
+static void dsa_user_get_ts_stats(struct net_device *dev,
+				  struct ethtool_ts_stats *ts_stats)
+{
+	struct dsa_port *dp = dsa_user_to_port(dev);
+	struct dsa_switch *ds = dp->ds;
+
+	if (ds->ops->get_ts_stats)
+		ds->ops->get_ts_stats(ds, dp->index, ts_stats);
+}
+
 static void dsa_user_net_selftest(struct net_device *ndev,
 				  struct ethtool_test *etest, u64 *buf)
 {
@@ -2501,6 +2511,7 @@ static const struct ethtool_ops dsa_user_ethtool_ops = {
 	.get_eth_mac_stats	= dsa_user_get_eth_mac_stats,
 	.get_eth_ctrl_stats	= dsa_user_get_eth_ctrl_stats,
 	.get_rmon_stats		= dsa_user_get_rmon_stats,
+	.get_ts_stats		= dsa_user_get_ts_stats,
 	.set_wol		= dsa_user_set_wol,
 	.get_wol		= dsa_user_get_wol,
 	.set_eee		= dsa_user_set_eee,
