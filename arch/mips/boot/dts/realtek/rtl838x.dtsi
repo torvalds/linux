@@ -73,5 +73,15 @@
 
 			status = "disabled";
 		};
+
+		intc: interrupt-controller@3000 {
+			compatible = "realtek,rtl8380-intc", "realtek,rtl-intc";
+			reg = <0x3000 0x20>;
+			interrupt-controller;
+			#interrupt-cells = <1>;
+
+			interrupt-parent = <&cpuintc>;
+			interrupts = <2>, <3>, <4>, <5>, <6>;
+		};
 	};
 };
