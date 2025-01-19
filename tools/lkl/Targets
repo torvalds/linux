@@ -42,4 +42,7 @@ endif
 
 # LKL fuzzers
 fuzzers-y += fuzzers/hid/hid-fuzzer
+fuzzers-$(LKL_HOST_CONFIG_MMU) += fuzzers/binder/binder-fuzzer
 
+LDFLAGS_/binder-fuzzer-$(LKL_HOST_CONFIG_MMU) += $(LIBPROTOBUF_MUTATOR_LIBS_DIR)
+LDLIBS_/binder-fuzzer-$(LKL_HOST_CONFIG_MMU) += $(LIBPROTOBUF_MUTATOR_LIBS)

@@ -114,13 +114,58 @@ $(OUTPUT)%-in.o: $(OUTPUT)lib/lkl.o FORCE
 $(OUTPUT)cpfromfs$(EXESUF): cptofs$(EXESUF)
 	$(Q)if ! [ -e $@ ]; then ln -s $< $@; fi
 
+# START: fuzzing-related build-rules
+FUZZ_TARGETS := $(fuzzers-y:%=$(OUTPUT)%$(EXESUF))
+fuzzers: $(FUZZ_TARGETS)
+
+# Enable libFuzzer fuzzing instrumentation for the LKL fuzzers
+$(OUTPUT)fuzzers/%$(EXESUF): LDFLAGS += -fsanitize=fuzzer --coverage
+
+# Binder fuzzer is special: built with C++ toolchain and linked with libprotobuf-mutator
+$(OUTPUT)fuzzers/binder%$(EXESUF): $(OUTPUT)fuzzers/binder%-in.o $(OUTPUT)liblkl.a
+	$(QUIET_LINK)$(CXX) $(LDFLAGS) $(LDFLAGS_$*-y) -o $@ $^ $(LDLIBS) $(LDLIBS_$*-y)
+
+# Track all the protoc generated files for 'clean' target
+PROTOC_GENERATED_FILES :=
+
+read_proto_deps = \
+  $(strip $(shell grep PROTOBUF_MUTATOR_PROTO $(1) | sed 's/^.*= //g'))
+
+define gen_protobuf_deps =
+  $(eval FUZZER_SRC_DIR := $(dir $(srctree)/tools/lkl/$(1)))
+  $(eval FUZZER_PROTO_FILES := $(call read_proto_deps,$(FUZZER_SRC_DIR)Build))
+  $(eval FUZZER_PROTO_FILES := $(FUZZER_PROTO_FILES:.proto=.pb.cpp) \
+    $(FUZZER_PROTO_FILES:.proto=.pb.h))
+  $(eval FUZZER_PROTO_FILES := \
+    $(addprefix $(FUZZER_SRC_DIR),$(FUZZER_PROTO_FILES)))
+  PROTOC_GENERATED_FILES += $(FUZZER_PROTO_FILES)
+  $(OUTPUT)$(1)-in.o: $(FUZZER_PROTO_FILES)
+endef
+
+# Add generated .pb.cc and pb.h files for libprotobuf-mutator as prerequisites
+# for the corresponding fuzz targets to have them made using the rule below.
+$(foreach fuzzer,$(fuzzers-y),$(eval $(call gen_protobuf_deps,$(fuzzer))))
+
+# TODO: Cannot depend on the corresponding $(srctree)/tools/lkl/%.proto file
+# due to the pattern rule
+# '$(OUTPUT)%$(EXESUF): $(OUTPUT)%-in.o $(OUTPUT)liblkl.a' above. For POSIX
+# target $(EXESUF) is an empty string, thus, target $(OUTPUT)%$(EXESUF) would
+# match any source file and will try to make it.
+# Update once https://github.com/lkl/linux/issues/573 is fixed.
+$(srctree)/tools/lkl/%.pb.cpp $(srctree)/tools/lkl/%.pb.h&: FORCE
+	$(PROTOC_PATH) --cpp_out=$(@D) --proto_path=$(@D) $(@F:pb.cpp=proto)
+	mv $(@:.cpp=.cc) $@
+
+# END: fuzzing-related build-rules
+
 clean:
 	$(call QUIET_CLEAN, vmlinux)$(MAKE) -C ../.. ARCH=lkl $(KOPT) clean
 	$(call QUIET_CLEAN, objects)find $(OUTPUT) -name '*.o' -delete -o -name '\.*.cmd'\
 	 -delete -o -name '\.*.d' -delete
 	$(call QUIET_CLEAN, headers)$(RM) -r $(OUTPUT)/include/lkl/
 	$(call QUIET_CLEAN, liblkl.a)$(RM) $(OUTPUT)/liblkl.a
-	$(call QUIET_CLEAN, targets)$(RM) $(TARGETS) bin/stat
+	$(call QUIET_CLEAN, targets)$(RM) $(TARGETS) $(FUZZ_TARGETS) bin/stat
+	$(call QUIET_CLEAN, gen_protos)$(RM) $(PROTOC_GENERATED_FILES)
 
 mrproper: clean
 	$(call QUIET_CLEAN, vmlinux)$(MAKE) -C ../.. ARCH=lkl $(KOPT) mrproper
@@ -152,12 +197,6 @@ install: headers_install libraries_install programs_install
 
 run-tests:
 	./tests/run.py $(tests)
-
-# Enable libFuzzer fuzzing instrumentation for the LKL fuzzers
-$(OUTPUT)fuzzers/%$(EXESUF): LDFLAGS += -fsanitize=fuzzer --coverage
-
-FUZZ_TARGETS := $(fuzzers-y:%=$(OUTPUT)%$(EXESUF))
-fuzzers: $(FUZZ_TARGETS)
 
 FORCE: ;
 .PHONY: all clean clean-conf mrproper FORCE run-tests

@@ -1,0 +1,111 @@
+syntax = "proto2";
+
+message Session {
+  repeated Ioctl ioctls = 1;
+}
+
+message Ioctl {
+  enum BinderClientId {
+    CLIENT_1 = 0;
+    CLIENT_2 = 1;
+    CLIENT_3 = 2;
+  }
+  oneof ioctl {
+    BinderWrite binder_write = 1;
+    BinderRead binder_read = 2;
+    bool binder_thread_exit = 3;
+    bool binder_version = 4;
+    BinderGetNodeDebugInfo binder_get_node_debug_info = 5;
+    BinderGetNodeInfoForRef binder_get_node_info_for_ref = 6;
+    bool binder_enable_oneway_spam_detection = 7;
+  }
+  required BinderClientId binder_client = 10;
+}
+
+message BinderWrite {
+  repeated BinderCommand binder_commands = 1;
+}
+
+message BinderRead {
+  required uint32 read_size = 1;
+}
+
+message BinderCommand {
+  oneof bc {
+    uint32 acquire = 1;
+    uint32 increfs = 2;
+    uint32 release = 3;
+    uint32 decrefs = 4;
+    Binder increfs_done = 5;
+    Binder acquire_done = 6;
+    Transaction transaction = 7;
+    Transaction reply = 8;
+    TransactionSg transaction_sg = 9;
+    TransactionSg reply_sg = 10;
+    bool free_buffer = 11;
+    Binder request_death_notification = 12;
+    Binder clear_death_notification = 13;
+    bool dead_binder_done = 14;
+    bool register_looper = 15;
+    bool enter_looper = 16;
+    bool exit_looper = 17;
+  }
+}
+
+message Transaction {
+  enum TransactionFlag {
+    TF_ONE_WAY = 0x1;
+    TF_ROOT_OBJECT = 0x04;
+    TF_STATUS_CODE = 0x08;
+    TF_ACCEPT_FDS = 0x10;
+    TF_CLEAR_BUF = 0x20;
+    TF_UPDATE_TXN = 0x40;
+  }
+  repeated BinderObject binder_objects = 1;
+  required uint32 target_handle = 2;
+  repeated TransactionFlag flags = 3;
+  required uint32 extra_data_size = 4;
+  required uint32 extra_offsets_size = 5;
+}
+
+message BinderObject {
+  oneof type {
+    Binder binder = 1;
+    Binder weak_binder = 2;
+    uint32 handle = 3;
+    uint32 weak_handle = 4;
+    bool fd = 5;
+    FdArray fda = 6;
+    BufferObject ptr = 7;
+  }
+}
+
+message Binder {
+  required uint32 ptr = 1;
+}
+
+message FdArray {
+  required uint32 num_fds = 1;
+  required uint32 parent = 2;
+  required uint32 parent_offset = 3;
+}
+
+message BufferObject {
+  required bool has_parent_flag = 1;
+  repeated bytes buffer = 2;
+  required uint32 parent = 3;
+  required uint32 parent_offset = 4;
+}
+
+message TransactionSg {
+  required Transaction transaction = 1;
+  required uint32 extra_buffers_size = 2;
+}
+
+message BinderGetNodeDebugInfo {
+  required uint32 ptr = 1;
+}
+
+message BinderGetNodeInfoForRef {
+  required uint32 handle = 1;
+}

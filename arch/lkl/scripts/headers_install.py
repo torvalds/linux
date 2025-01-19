@@ -132,6 +132,7 @@ args = parser.parse_args()
 
 find_headers("arch/lkl/include/uapi/asm/syscalls.h")
 headers.add("arch/lkl/include/uapi/asm/host_ops.h")
+find_headers("include/uapi/linux/android/binder.h")
 find_headers("include/uapi/linux/uhid.h")
 find_headers("include/uapi/linux/mman.h")
 find_headers("include/uapi/linux/input-event-codes.h")
