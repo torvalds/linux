@@ -55,8 +55,6 @@ static void efivarfs_free_inode(struct inode *inode)
 {
 	struct efivar_entry *entry = efivar_entry(inode);
 
-	if (inode->i_private)
-		list_del(&entry->list);
 	kfree(entry);
 }
 
@@ -228,8 +226,7 @@ bool efivarfs_variable_is_present(efi_char16_t *variable_name,
 }
 
 static int efivarfs_callback(efi_char16_t *name16, efi_guid_t vendor,
-			     unsigned long name_size, void *data,
-			     struct list_head *list)
+			     unsigned long name_size, void *data)
 {
 	struct super_block *sb = (struct super_block *)data;
 	struct efivar_entry *entry;
@@ -271,7 +268,6 @@ static int efivarfs_callback(efi_char16_t *name16, efi_guid_t vendor,
 	}
 
 	__efivar_entry_get(entry, NULL, &size, NULL);
-	__efivar_entry_add(entry, list);
 
 	/* copied by the above to local storage in the dentry. */
 	kfree(name);
@@ -361,7 +357,7 @@ static int efivarfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (err)
 		return err;
 
-	return efivar_init(efivarfs_callback, sb, &sfi->efivarfs_list);
+	return efivar_init(efivarfs_callback, sb);
 }
 
 static int efivarfs_get_tree(struct fs_context *fc)
@@ -396,8 +392,6 @@ static int efivarfs_init_fs_context(struct fs_context *fc)
 	if (!sfi)
 		return -ENOMEM;
 
-	INIT_LIST_HEAD(&sfi->efivarfs_list);
-
 	sfi->mount_opts.uid = GLOBAL_ROOT_UID;
 	sfi->mount_opts.gid = GLOBAL_ROOT_GID;
 
@@ -413,8 +407,6 @@ static void efivarfs_kill_sb(struct super_block *sb)
 	blocking_notifier_chain_unregister(&efivar_ops_nh, &sfi->nb);
 	kill_litter_super(sb);
 
-	/* Remove all entries and destroy */
-	WARN_ON(!list_empty(&sfi->efivarfs_list));
 	kfree(sfi);
 }
 

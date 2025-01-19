@@ -77,7 +77,6 @@ static bool efivarfs_valid_name(const char *str, int len)
 static int efivarfs_create(struct mnt_idmap *idmap, struct inode *dir,
 			   struct dentry *dentry, umode_t mode, bool excl)
 {
-	struct efivarfs_fs_info *info = dir->i_sb->s_fs_info;
 	struct inode *inode = NULL;
 	struct efivar_entry *var;
 	int namelen, i = 0, err = 0;
@@ -92,21 +91,17 @@ static int efivarfs_create(struct mnt_idmap *idmap, struct inode *dir,
 
 	err = guid_parse(dentry->d_name.name + namelen + 1, &vendor);
 	if (err)
-		goto out;
-	if (guid_equal(&vendor, &LINUX_EFI_RANDOM_SEED_TABLE_GUID)) {
-		err = -EPERM;
-		goto out;
-	}
+		return err;
+	if (guid_equal(&vendor, &LINUX_EFI_RANDOM_SEED_TABLE_GUID))
+		return -EPERM;
 
 	if (efivar_variable_is_removable(vendor,
 					 dentry->d_name.name, namelen))
 		is_removable = true;
 
 	inode = efivarfs_get_inode(dir->i_sb, dir, mode, 0, is_removable);
-	if (!inode) {
-		err = -ENOMEM;
-		goto out;
-	}
+	if (!inode)
+		return -ENOMEM;
 	var = efivar_entry(inode);
 
 	var->var.VendorGuid = vendor;
@@ -118,17 +113,10 @@ static int efivarfs_create(struct mnt_idmap *idmap, struct inode *dir,
 
 	inode->i_private = var;
 
-	err = efivar_entry_add(var, &info->efivarfs_list);
-	if (err)
-		goto out;
-
 	d_instantiate(dentry, inode);
 	dget(dentry);
-out:
-	if (err && inode)
-		iput(inode);
 
-	return err;
+	return 0;
 }
 
 static int efivarfs_unlink(struct inode *dir, struct dentry *dentry)

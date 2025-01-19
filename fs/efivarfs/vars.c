@@ -364,16 +364,14 @@ static void dup_variable_bug(efi_char16_t *str16, efi_guid_t *vendor_guid,
  * efivar_init - build the initial list of EFI variables
  * @func: callback function to invoke for every variable
  * @data: function-specific data to pass to @func
- * @head: initialised head of variable list
  *
  * Get every EFI variable from the firmware and invoke @func. @func
- * should call efivar_entry_add() to build the list of variables.
+ * should populate the initial dentry and inode tree.
  *
  * Returns 0 on success, or a kernel error code on failure.
  */
-int efivar_init(int (*func)(efi_char16_t *, efi_guid_t, unsigned long, void *,
-			    struct list_head *),
-		void *data, struct list_head *head)
+int efivar_init(int (*func)(efi_char16_t *, efi_guid_t, unsigned long, void *),
+		void *data)
 {
 	unsigned long variable_name_size = 512;
 	efi_char16_t *variable_name;
@@ -424,7 +422,7 @@ int efivar_init(int (*func)(efi_char16_t *, efi_guid_t, unsigned long, void *,
 				status = EFI_NOT_FOUND;
 			} else {
 				err = func(variable_name, vendor_guid,
-					   variable_name_size, data, head);
+					   variable_name_size, data);
 				if (err)
 					status = EFI_NOT_FOUND;
 			}
@@ -456,42 +454,12 @@ free:
 }
 
 /**
- * efivar_entry_add - add entry to variable list
- * @entry: entry to add to list
- * @head: list head
- *
- * Returns 0 on success, or a kernel error code on failure.
- */
-int efivar_entry_add(struct efivar_entry *entry, struct list_head *head)
-{
-	int err;
-
-	err = efivar_lock();
-	if (err)
-		return err;
-	list_add(&entry->list, head);
-	efivar_unlock();
-
-	return 0;
-}
-
-/**
- * __efivar_entry_add - add entry to variable list
- * @entry: entry to add to list
- * @head: list head
- */
-void __efivar_entry_add(struct efivar_entry *entry, struct list_head *head)
-{
-	list_add(&entry->list, head);
-}
-
-/**
- * efivar_entry_delete - delete variable and remove entry from list
+ * efivar_entry_delete - delete variable
  * @entry: entry containing variable to delete
  *
- * Delete the variable from the firmware and remove @entry from the
- * variable list. It is the caller's responsibility to free @entry
- * once we return.
+ * Delete the variable from the firmware. It is the caller's
+ * responsibility to free @entry (by deleting the dentry/inode) once
+ * we return.
  *
  * Returns 0 on success, -EINTR if we can't grab the semaphore,
  * converted EFI status code if set_variable() fails.
@@ -605,7 +573,7 @@ int efivar_entry_get(struct efivar_entry *entry, u32 *attributes,
  * get_variable() fail.
  *
  * If the EFI variable does not exist when calling set_variable()
- * (EFI_NOT_FOUND), @entry is removed from the variable list.
+ * (EFI_NOT_FOUND).
  */
 int efivar_entry_set_get_size(struct efivar_entry *entry, u32 attributes,
 			      unsigned long *size, void *data, bool *set)
@@ -621,9 +589,8 @@ int efivar_entry_set_get_size(struct efivar_entry *entry, u32 attributes,
 		return -EINVAL;
 
 	/*
-	 * The lock here protects the get_variable call, the conditional
-	 * set_variable call, and removal of the variable from the efivars
-	 * list (in the case of an authenticated delete).
+	 * The lock here protects the get_variable call and the
+	 * conditional set_variable call
 	 */
 	err = efivar_lock();
 	if (err)
@@ -660,38 +627,4 @@ out:
 	efivar_unlock();
 	return err;
 
-}
-
-/**
- * efivar_entry_iter - iterate over variable list
- * @func: callback function
- * @head: head of variable list
- * @data: function-specific data to pass to callback
- *
- * Iterate over the list of EFI variables and call @func with every
- * entry on the list. It is safe for @func to remove entries in the
- * list via efivar_entry_delete() while iterating.
- *
- * Some notes for the callback function:
- *  - a non-zero return value indicates an error and terminates the loop
- *  - @func is called from atomic context
- */
-int efivar_entry_iter(int (*func)(struct efivar_entry *, void *),
-		      struct list_head *head, void *data)
-{
-	struct efivar_entry *entry, *n;
-	int err = 0;
-
-	err = efivar_lock();
-	if (err)
-		return err;
-
-	list_for_each_entry_safe(entry, n, head, list) {
-		err = func(entry, data);
-		if (err)
-			break;
-	}
-	efivar_unlock();
-
-	return err;
 }

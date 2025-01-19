@@ -6,7 +6,6 @@
 #ifndef EFIVAR_FS_INTERNAL_H
 #define EFIVAR_FS_INTERNAL_H
 
-#include <linux/list.h>
 #include <linux/efi.h>
 
 struct efivarfs_mount_opts {
@@ -16,7 +15,6 @@ struct efivarfs_mount_opts {
 
 struct efivarfs_fs_info {
 	struct efivarfs_mount_opts mount_opts;
-	struct list_head efivarfs_list;
 	struct super_block *sb;
 	struct notifier_block nb;
 };
@@ -28,7 +26,6 @@ struct efi_variable {
 
 struct efivar_entry {
 	struct efi_variable var;
-	struct list_head list;
 	struct inode vfs_inode;
 };
 
@@ -37,12 +34,9 @@ static inline struct efivar_entry *efivar_entry(struct inode *inode)
 	return container_of(inode, struct efivar_entry, vfs_inode);
 }
 
-int efivar_init(int (*func)(efi_char16_t *, efi_guid_t, unsigned long, void *,
-			    struct list_head *),
-		void *data, struct list_head *head);
+int efivar_init(int (*func)(efi_char16_t *, efi_guid_t, unsigned long, void *),
+		void *data);
 
-int efivar_entry_add(struct efivar_entry *entry, struct list_head *head);
-void __efivar_entry_add(struct efivar_entry *entry, struct list_head *head);
 int efivar_entry_delete(struct efivar_entry *entry);
 
 int efivar_entry_size(struct efivar_entry *entry, unsigned long *size);
@@ -53,8 +47,6 @@ int efivar_entry_get(struct efivar_entry *entry, u32 *attributes,
 int efivar_entry_set_get_size(struct efivar_entry *entry, u32 attributes,
 			      unsigned long *size, void *data, bool *set);
 
-int efivar_entry_iter(int (*func)(struct efivar_entry *, void *),
-		      struct list_head *head, void *data);
 
 bool efivar_validate(efi_guid_t vendor, efi_char16_t *var_name, u8 *data,
 		     unsigned long data_size);
