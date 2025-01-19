@@ -76,11 +76,11 @@ test_create_empty()
 
 	: > $file
 
-	if [ ! -e $file ]; then
-		echo "$file can not be created without writing" >&2
+	if [ -e $file ]; then
+		echo "$file can be created without writing" >&2
+		file_cleanup $file
 		exit 1
 	fi
-	file_cleanup $file
 }
 
 test_create_read()
@@ -89,10 +89,13 @@ test_create_read()
 	./create-read $file
 	if [ $? -ne 0 ]; then
 		echo "create and read $file failed"
+		exit 1
+	fi
+	if [ -e $file ]; then
+		echo "file still exists and should not"
 		file_cleanup $file
 		exit 1
 	fi
-	file_cleanup $file
 }
 
 test_delete()
