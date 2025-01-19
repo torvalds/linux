@@ -333,12 +333,43 @@ static const struct iio_chan_spec veml7700_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(VEML6030_SCAN_TIMESTAMP),
 };
 
+static const struct regmap_range veml6030_readable_ranges[] = {
+	regmap_reg_range(VEML6030_REG_ALS_CONF, VEML6030_REG_ALS_INT),
+};
+
+static const struct regmap_access_table veml6030_readable_table = {
+	.yes_ranges = veml6030_readable_ranges,
+	.n_yes_ranges = ARRAY_SIZE(veml6030_readable_ranges),
+};
+
+static const struct regmap_range veml6030_writable_ranges[] = {
+	regmap_reg_range(VEML6030_REG_ALS_CONF, VEML6030_REG_ALS_PSM),
+};
+
+static const struct regmap_access_table veml6030_writable_table = {
+	.yes_ranges = veml6030_writable_ranges,
+	.n_yes_ranges = ARRAY_SIZE(veml6030_writable_ranges),
+};
+
+static const struct regmap_range veml6030_volatile_ranges[] = {
+	regmap_reg_range(VEML6030_REG_ALS_DATA, VEML6030_REG_WH_DATA),
+};
+
+static const struct regmap_access_table veml6030_volatile_table = {
+	.yes_ranges = veml6030_volatile_ranges,
+	.n_yes_ranges = ARRAY_SIZE(veml6030_volatile_ranges),
+};
+
 static const struct regmap_config veml6030_regmap_config = {
 	.name = "veml6030_regmap",
 	.reg_bits = 8,
 	.val_bits = 16,
 	.max_register = VEML6030_REG_ALS_INT,
 	.val_format_endian = REGMAP_ENDIAN_LITTLE,
+	.rd_table = &veml6030_readable_table,
+	.wr_table = &veml6030_writable_table,
+	.volatile_table = &veml6030_volatile_table,
+	.cache_type = REGCACHE_RBTREE,
 };
 
 static int veml6030_get_intgrn_tm(struct iio_dev *indio_dev,
