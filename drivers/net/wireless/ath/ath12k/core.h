@@ -235,6 +235,7 @@ enum ath12k_dev_flags {
 	ATH12K_FLAG_CE_IRQ_ENABLED,
 	ATH12K_FLAG_EXT_IRQ_ENABLED,
 	ATH12K_FLAG_QMI_FW_READY_COMPLETE,
+	ATH12K_FLAG_FTM_SEGMENTED,
 };
 
 struct ath12k_tx_conf {
@@ -534,11 +535,18 @@ enum ath12k_hw_state {
 	ATH12K_HW_STATE_RESTARTING,
 	ATH12K_HW_STATE_RESTARTED,
 	ATH12K_HW_STATE_WEDGED,
+	ATH12K_HW_STATE_TM,
 	/* Add other states as required */
 };
 
 /* Antenna noise floor */
 #define ATH12K_DEFAULT_NOISE_FLOOR -95
+
+struct ath12k_ftm_event_obj {
+	u32 data_pos;
+	u32 expected_seq;
+	u8 *eventdata;
+};
 
 struct ath12k_fw_stats {
 	u32 pdev_id;
@@ -714,6 +722,7 @@ struct ath12k {
 
 	struct completion mlo_setup_done;
 	u32 mlo_setup_status;
+	u8 ftm_msgref;
 };
 
 struct ath12k_hw {
@@ -1052,6 +1061,8 @@ struct ath12k_base {
 
 	struct ath12k_hw_group *ag;
 	struct ath12k_wsi_info wsi_info;
+	enum ath12k_firmware_mode fw_mode;
+	struct ath12k_ftm_event_obj ftm_event_obj;
 
 	/* must be last */
 	u8 drv_priv[] __aligned(sizeof(void *));

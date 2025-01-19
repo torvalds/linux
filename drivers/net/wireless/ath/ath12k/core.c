@@ -23,6 +23,10 @@ unsigned int ath12k_debug_mask;
 module_param_named(debug_mask, ath12k_debug_mask, uint, 0644);
 MODULE_PARM_DESC(debug_mask, "Debugging mask");
 
+bool ath12k_ftm_mode;
+module_param_named(ftm_mode, ath12k_ftm_mode, bool, 0444);
+MODULE_PARM_DESC(ftm_mode, "Boots up in factory test mode");
+
 /* protected with ath12k_hw_group_mutex */
 static struct list_head ath12k_hw_group_list = LIST_HEAD_INIT(ath12k_hw_group_list);
 
@@ -693,6 +697,11 @@ static int ath12k_core_soc_create(struct ath12k_base *ab)
 {
 	int ret;
 
+	if (ath12k_ftm_mode) {
+		ab->fw_mode = ATH12K_FIRMWARE_MODE_FTM;
+		ath12k_info(ab, "Booting in ftm mode\n");
+	}
+
 	ret = ath12k_qmi_init_service(ab);
 	if (ret) {
 		ath12k_err(ab, "failed to initialize qmi :%d\n", ret);
@@ -741,8 +750,7 @@ static void ath12k_core_pdev_destroy(struct ath12k_base *ab)
 	ath12k_dp_pdev_free(ab);
 }
 
-static int ath12k_core_start(struct ath12k_base *ab,
-			     enum ath12k_firmware_mode mode)
+static int ath12k_core_start(struct ath12k_base *ab)
 {
 	int ret;
 
@@ -1068,7 +1076,7 @@ int ath12k_core_qmi_firmware_ready(struct ath12k_base *ab)
 	struct ath12k_hw_group *ag = ath12k_ab_to_ag(ab);
 	int ret, i;
 
-	ret = ath12k_core_start_firmware(ab, ATH12K_FIRMWARE_MODE_NORMAL);
+	ret = ath12k_core_start_firmware(ab, ab->fw_mode);
 	if (ret) {
 		ath12k_err(ab, "failed to start firmware: %d\n", ret);
 		return ret;
@@ -1089,7 +1097,7 @@ int ath12k_core_qmi_firmware_ready(struct ath12k_base *ab)
 	mutex_lock(&ag->mutex);
 	mutex_lock(&ab->core_lock);
 
-	ret = ath12k_core_start(ab, ATH12K_FIRMWARE_MODE_NORMAL);
+	ret = ath12k_core_start(ab);
 	if (ret) {
 		ath12k_err(ab, "failed to start core: %d\n", ret);
 		goto err_dp_free;
@@ -1239,7 +1247,8 @@ static void ath12k_core_pre_reconfigure_recovery(struct ath12k_base *ab)
 
 	for (i = 0; i < ag->num_hw; i++) {
 		ah = ath12k_ag_to_ah(ag, i);
-		if (!ah || ah->state == ATH12K_HW_STATE_OFF)
+		if (!ah || ah->state == ATH12K_HW_STATE_OFF ||
+		    ah->state == ATH12K_HW_STATE_TM)
 			continue;
 
 		ieee80211_stop_queues(ah->hw);
@@ -1308,6 +1317,9 @@ static void ath12k_core_post_reconfigure_recovery(struct ath12k_base *ab)
 		case ATH12K_HW_STATE_WEDGED:
 			ath12k_warn(ab,
 				    "device is wedged, will not restart hw %d\n", i);
+			break;
+		case ATH12K_HW_STATE_TM:
+			ath12k_warn(ab, "fw mode reset done radio %d\n", i);
 			break;
 		}
 
