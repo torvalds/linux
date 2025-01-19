@@ -667,6 +667,7 @@ static int ethnl_default_set_doit(struct sk_buff *skb, struct genl_info *info)
 	const struct ethnl_request_ops *ops;
 	struct ethnl_req_info req_info = {};
 	const u8 cmd = info->genlhdr->cmd;
+	struct net_device *dev;
 	int ret;
 
 	ops = ethnl_default_requests[cmd];
@@ -688,19 +689,21 @@ static int ethnl_default_set_doit(struct sk_buff *skb, struct genl_info *info)
 			goto out_dev;
 	}
 
+	dev = req_info.dev;
+
 	rtnl_lock();
-	ret = ethnl_ops_begin(req_info.dev);
+	ret = ethnl_ops_begin(dev);
 	if (ret < 0)
 		goto out_rtnl;
 
 	ret = ops->set(&req_info, info);
 	if (ret <= 0)
 		goto out_ops;
-	ethtool_notify(req_info.dev, ops->set_ntf_cmd, NULL);
+	ethtool_notify(dev, ops->set_ntf_cmd, NULL);
 
 	ret = 0;
 out_ops:
-	ethnl_ops_complete(req_info.dev);
+	ethnl_ops_complete(dev);
 out_rtnl:
 	rtnl_unlock();
 out_dev:
