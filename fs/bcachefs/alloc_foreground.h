@@ -33,6 +33,23 @@ static inline struct bch_dev *ob_dev(struct bch_fs *c, struct open_bucket *ob)
 	return bch2_dev_have_ref(c, ob->dev);
 }
 
+static inline unsigned bch2_open_buckets_reserved(enum bch_watermark watermark)
+{
+	switch (watermark) {
+	case BCH_WATERMARK_interior_updates:
+		return 0;
+	case BCH_WATERMARK_reclaim:
+		return OPEN_BUCKETS_COUNT / 6;
+	case BCH_WATERMARK_btree:
+	case BCH_WATERMARK_btree_copygc:
+		return OPEN_BUCKETS_COUNT / 4;
+	case BCH_WATERMARK_copygc:
+		return OPEN_BUCKETS_COUNT / 3;
+	default:
+		return OPEN_BUCKETS_COUNT / 2;
+	}
+}
+
 struct open_bucket *bch2_bucket_alloc(struct bch_fs *, struct bch_dev *,
 				      enum bch_watermark, enum bch_data_type,
 				      struct closure *);

@@ -179,23 +179,6 @@ static void open_bucket_free_unused(struct bch_fs *c, struct open_bucket *ob)
 	closure_wake_up(&c->freelist_wait);
 }
 
-static inline unsigned open_buckets_reserved(enum bch_watermark watermark)
-{
-	switch (watermark) {
-	case BCH_WATERMARK_interior_updates:
-		return 0;
-	case BCH_WATERMARK_reclaim:
-		return OPEN_BUCKETS_COUNT / 6;
-	case BCH_WATERMARK_btree:
-	case BCH_WATERMARK_btree_copygc:
-		return OPEN_BUCKETS_COUNT / 4;
-	case BCH_WATERMARK_copygc:
-		return OPEN_BUCKETS_COUNT / 3;
-	default:
-		return OPEN_BUCKETS_COUNT / 2;
-	}
-}
-
 static inline bool may_alloc_bucket(struct bch_fs *c,
 				    struct bpos bucket,
 				    struct bucket_alloc_state *s)
@@ -239,7 +222,7 @@ static struct open_bucket *__try_alloc_bucket(struct bch_fs *c, struct bch_dev *
 
 	spin_lock(&c->freelist_lock);
 
-	if (unlikely(c->open_buckets_nr_free <= open_buckets_reserved(watermark))) {
+	if (unlikely(c->open_buckets_nr_free <= bch2_open_buckets_reserved(watermark))) {
 		if (cl)
 			closure_wait(&c->open_buckets_wait, cl);
 

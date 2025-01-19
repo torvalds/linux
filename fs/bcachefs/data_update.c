@@ -639,6 +639,40 @@ int bch2_extent_drop_ptrs(struct btree_trans *trans,
 		bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc);
 }
 
+static bool can_allocate_without_blocking(struct bch_fs *c,
+					  struct data_update *m)
+{
+	if (unlikely(c->open_buckets_nr_free <= bch2_open_buckets_reserved(m->op.watermark)))
+		return false;
+
+	unsigned target = m->op.flags & BCH_WRITE_only_specified_devs
+		? m->op.target
+		: 0;
+	struct bch_devs_mask devs = target_rw_devs(c, BCH_DATA_user, target);
+
+	darray_for_each(m->op.devs_have, i)
+		__clear_bit(*i, devs.d);
+
+	rcu_read_lock();
+	unsigned nr_replicas = 0, i;
+	for_each_set_bit(i, devs.d, BCH_SB_MEMBERS_MAX) {
+		struct bch_dev *ca = bch2_dev_rcu(c, i);
+
+		struct bch_dev_usage usage;
+		bch2_dev_usage_read_fast(ca, &usage);
+
+		if (!dev_buckets_free(ca, usage, m->op.watermark))
+			continue;
+
+		nr_replicas += ca->mi.durability;
+		if (nr_replicas >= m->op.nr_replicas)
+			break;
+	}
+	rcu_read_unlock();
+
+	return nr_replicas >= m->op.nr_replicas;
+}
+
 int bch2_data_update_init(struct btree_trans *trans,
 			  struct btree_iter *iter,
 			  struct moving_context *ctxt,
@@ -756,6 +790,12 @@ int bch2_data_update_init(struct btree_trans *trans,
 			ret = bch2_extent_drop_ptrs(trans, iter, k, &io_opts, &m->data_opts);
 		if (!ret)
 			ret = -BCH_ERR_data_update_done_no_writes_needed;
+		goto out_bkey_buf_exit;
+	}
+
+	if ((m->op.flags & BCH_WRITE_alloc_nowait) &&
+	    !can_allocate_without_blocking(c, m)) {
+		ret = -BCH_ERR_data_update_done_would_block;
 		goto out_bkey_buf_exit;
 	}
 
