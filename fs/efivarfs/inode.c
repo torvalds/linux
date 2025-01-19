@@ -82,26 +82,23 @@ static int efivarfs_create(struct mnt_idmap *idmap, struct inode *dir,
 	struct efivar_entry *var;
 	int namelen, i = 0, err = 0;
 	bool is_removable = false;
+	efi_guid_t vendor;
 
 	if (!efivarfs_valid_name(dentry->d_name.name, dentry->d_name.len))
 		return -EINVAL;
 
-	var = kzalloc(sizeof(struct efivar_entry), GFP_KERNEL);
-	if (!var)
-		return -ENOMEM;
-
 	/* length of the variable name itself: remove GUID and separator */
 	namelen = dentry->d_name.len - EFI_VARIABLE_GUID_LEN - 1;
 
-	err = guid_parse(dentry->d_name.name + namelen + 1, &var->var.VendorGuid);
+	err = guid_parse(dentry->d_name.name + namelen + 1, &vendor);
 	if (err)
 		goto out;
-	if (guid_equal(&var->var.VendorGuid, &LINUX_EFI_RANDOM_SEED_TABLE_GUID)) {
+	if (guid_equal(&vendor, &LINUX_EFI_RANDOM_SEED_TABLE_GUID)) {
 		err = -EPERM;
 		goto out;
 	}
 
-	if (efivar_variable_is_removable(var->var.VendorGuid,
+	if (efivar_variable_is_removable(vendor,
 					 dentry->d_name.name, namelen))
 		is_removable = true;
 
@@ -110,6 +107,9 @@ static int efivarfs_create(struct mnt_idmap *idmap, struct inode *dir,
 		err = -ENOMEM;
 		goto out;
 	}
+	var = efivar_entry(inode);
+
+	var->var.VendorGuid = vendor;
 
 	for (i = 0; i < namelen; i++)
 		var->var.VariableName[i] = dentry->d_name.name[i];
@@ -117,7 +117,6 @@ static int efivarfs_create(struct mnt_idmap *idmap, struct inode *dir,
 	var->var.VariableName[i] = '\0';
 
 	inode->i_private = var;
-	kmemleak_ignore(var);
 
 	err = efivar_entry_add(var, &info->efivarfs_list);
 	if (err)
@@ -126,11 +125,9 @@ static int efivarfs_create(struct mnt_idmap *idmap, struct inode *dir,
 	d_instantiate(dentry, inode);
 	dget(dentry);
 out:
-	if (err) {
-		kfree(var);
-		if (inode)
-			iput(inode);
-	}
+	if (err && inode)
+		iput(inode);
+
 	return err;
 }
 

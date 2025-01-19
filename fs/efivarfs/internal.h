@@ -29,7 +29,13 @@ struct efi_variable {
 struct efivar_entry {
 	struct efi_variable var;
 	struct list_head list;
+	struct inode vfs_inode;
 };
+
+static inline struct efivar_entry *efivar_entry(struct inode *inode)
+{
+	return container_of(inode, struct efivar_entry, vfs_inode);
+}
 
 int efivar_init(int (*func)(efi_char16_t *, efi_guid_t, unsigned long, void *,
 			    struct list_head *),
@@ -37,7 +43,6 @@ int efivar_init(int (*func)(efi_char16_t *, efi_guid_t, unsigned long, void *,
 
 int efivar_entry_add(struct efivar_entry *entry, struct list_head *head);
 void __efivar_entry_add(struct efivar_entry *entry, struct list_head *head);
-void efivar_entry_remove(struct efivar_entry *entry);
 int efivar_entry_delete(struct efivar_entry *entry);
 
 int efivar_entry_size(struct efivar_entry *entry, unsigned long *size);

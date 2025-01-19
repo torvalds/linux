@@ -486,34 +486,6 @@ void __efivar_entry_add(struct efivar_entry *entry, struct list_head *head)
 }
 
 /**
- * efivar_entry_remove - remove entry from variable list
- * @entry: entry to remove from list
- *
- * Returns 0 on success, or a kernel error code on failure.
- */
-void efivar_entry_remove(struct efivar_entry *entry)
-{
-	list_del(&entry->list);
-}
-
-/*
- * efivar_entry_list_del_unlock - remove entry from variable list
- * @entry: entry to remove
- *
- * Remove @entry from the variable list and release the list lock.
- *
- * NOTE: slightly weird locking semantics here - we expect to be
- * called with the efivars lock already held, and we release it before
- * returning. This is because this function is usually called after
- * set_variable() while the lock is still held.
- */
-static void efivar_entry_list_del_unlock(struct efivar_entry *entry)
-{
-	list_del(&entry->list);
-	efivar_unlock();
-}
-
-/**
  * efivar_entry_delete - delete variable and remove entry from list
  * @entry: entry containing variable to delete
  *
@@ -536,12 +508,10 @@ int efivar_entry_delete(struct efivar_entry *entry)
 	status = efivar_set_variable_locked(entry->var.VariableName,
 					    &entry->var.VendorGuid,
 					    0, 0, NULL, false);
-	if (!(status == EFI_SUCCESS || status == EFI_NOT_FOUND)) {
-		efivar_unlock();
+	efivar_unlock();
+	if (!(status == EFI_SUCCESS || status == EFI_NOT_FOUND))
 		return efi_status_to_err(status);
-	}
 
-	efivar_entry_list_del_unlock(entry);
 	return 0;
 }
 
@@ -679,10 +649,7 @@ int efivar_entry_set_get_size(struct efivar_entry *entry, u32 attributes,
 				    &entry->var.VendorGuid,
 				    NULL, size, NULL);
 
-	if (status == EFI_NOT_FOUND)
-		efivar_entry_list_del_unlock(entry);
-	else
-		efivar_unlock();
+	efivar_unlock();
 
 	if (status && status != EFI_BUFFER_TOO_SMALL)
 		return efi_status_to_err(status);
