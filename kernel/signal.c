@@ -2007,11 +2007,22 @@ void posixtimer_send_sigqueue(struct k_itimer *tmr)
 
 		if (!list_empty(&q->list)) {
 			/*
-			 * If task group is exiting with the signal already pending,
-			 * wait for __exit_signal() to do its job. Otherwise if
-			 * ignored, it's not supposed to be queued. Try to survive.
+			 * The signal was ignored and blocked. The timer
+			 * expiry queued it because blocked signals are
+			 * queued independent of the ignored state.
+			 *
+			 * The unblocking set SIGPENDING, but the signal
+			 * was not yet dequeued from the pending list.
+			 * So prepare_signal() sees unblocked and ignored,
+			 * which ends up here. Leave it queued like a
+			 * regular signal.
+			 *
+			 * The same happens when the task group is exiting
+			 * and the signal is already queued.
+			 * prepare_signal() treats SIGNAL_GROUP_EXIT as
+			 * ignored independent of its queued state. This
+			 * gets cleaned up in __exit_signal().
 			 */
-			WARN_ON_ONCE(!(t->signal->flags & SIGNAL_GROUP_EXIT));
 			goto out;
 		}
 
@@ -2046,17 +2057,25 @@ void posixtimer_send_sigqueue(struct k_itimer *tmr)
 		goto out;
 	}
 
-	/* This should never happen and leaks a reference count */
-	if (WARN_ON_ONCE(!hlist_unhashed(&tmr->ignored_list)))
-		hlist_del_init(&tmr->ignored_list);
-
 	if (unlikely(!list_empty(&q->list))) {
 		/* This holds a reference count already */
 		result = TRACE_SIGNAL_ALREADY_PENDING;
 		goto out;
 	}
 
-	posixtimer_sigqueue_getref(q);
+	/*
+	 * If the signal is on the ignore list, it got blocked after it was
+	 * ignored earlier. But nothing lifted the ignore. Move it back to
+	 * the pending list to be consistent with the regular signal
+	 * handling. This already holds a reference count.
+	 *
+	 * If it's not on the ignore list acquire a reference count.
+	 */
+	if (likely(hlist_unhashed(&tmr->ignored_list)))
+		posixtimer_sigqueue_getref(q);
+	else
+		hlist_del_init(&tmr->ignored_list);
+
 	posixtimer_queue_sigqueue(q, t, tmr->it_pid_type);
 	result = TRACE_SIGNAL_DELIVERED;
 out:
