@@ -1445,6 +1445,7 @@ static int ath12k_dp_cc_desc_init(struct ath12k_base *ab)
 		for (j = 0; j < ATH12K_MAX_SPT_ENTRIES; j++) {
 			rx_descs[j].cookie = ath12k_dp_cc_cookie_gen(cookie_ppt_idx, j);
 			rx_descs[j].magic = ATH12K_DP_RX_DESC_MAGIC;
+			rx_descs[j].device_id = ab->device_id;
 			list_add_tail(&rx_descs[j].list, &dp->rx_desc_free_list);
 
 			/* Update descriptor VA in SPT */
@@ -1519,6 +1520,19 @@ static int ath12k_dp_cmem_init(struct ath12k_base *ab,
 				   dp->spt_info[i].paddr >> ATH12K_SPT_4K_ALIGN_OFFSET);
 
 	return 0;
+}
+
+void ath12k_dp_partner_cc_init(struct ath12k_base *ab)
+{
+	struct ath12k_hw_group *ag = ab->ag;
+	int i;
+
+	for (i = 0; i < ag->num_devices; i++) {
+		if (ag->ab[i] == ab)
+			continue;
+
+		ath12k_dp_cmem_init(ab, &ag->ab[i]->dp, ATH12K_DP_RX_DESC);
+	}
 }
 
 static int ath12k_dp_cc_init(struct ath12k_base *ab)

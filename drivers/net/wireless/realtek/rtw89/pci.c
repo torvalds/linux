@@ -321,10 +321,11 @@ static u32 rtw89_pci_get_rx_skb_idx(struct rtw89_dev *rtwdev,
 static u32 rtw89_pci_rxbd_deliver_skbs(struct rtw89_dev *rtwdev,
 				       struct rtw89_pci_rx_ring *rx_ring)
 {
-	struct rtw89_pci_dma_ring *bd_ring = &rx_ring->bd_ring;
-	struct rtw89_pci_rx_info *rx_info;
 	struct rtw89_rx_desc_info *desc_info = &rx_ring->diliver_desc;
+	struct rtw89_pci_dma_ring *bd_ring = &rx_ring->bd_ring;
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
 	struct sk_buff *new = rx_ring->diliver_skb;
+	struct rtw89_pci_rx_info *rx_info;
 	struct sk_buff *skb;
 	u32 rxinfo_size = sizeof(struct rtw89_pci_rxbd_info);
 	u32 skb_idx;
@@ -344,8 +345,13 @@ static u32 rtw89_pci_rxbd_deliver_skbs(struct rtw89_dev *rtwdev,
 	}
 
 	rx_info = RTW89_PCI_RX_SKB_CB(skb);
-	fs = rx_info->fs;
+	fs = info->no_rxbd_fs ? !new : rx_info->fs;
 	ls = rx_info->ls;
+
+	if (unlikely(!fs || !ls))
+		rtw89_debug(rtwdev, RTW89_DBG_UNEXP,
+			    "unexpected fs/ls=%d/%d tag=%u len=%u new->len=%u\n",
+			    fs, ls, rx_info->tag, rx_info->len, new ? new->len : 0);
 
 	if (fs) {
 		if (new) {
@@ -4078,6 +4084,15 @@ static void rtw89_pci_l1ss_cfg(struct rtw89_dev *rtwdev)
 		rtw89_pci_l1ss_set(rtwdev, true);
 }
 
+static void rtw89_pci_cpl_timeout_cfg(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
+	struct pci_dev *pdev = rtwpci->pdev;
+
+	pcie_capability_set_word(pdev, PCI_EXP_DEVCTL2,
+				 PCI_EXP_DEVCTL2_COMP_TMOUT_DIS);
+}
+
 static int rtw89_pci_poll_io_idle_ax(struct rtw89_dev *rtwdev)
 {
 	int ret = 0;
@@ -4291,6 +4306,7 @@ void rtw89_pci_basic_cfg(struct rtw89_dev *rtwdev, bool resume)
 
 	rtw89_pci_disable_eq(rtwdev);
 	rtw89_pci_filter_out(rtwdev);
+	rtw89_pci_cpl_timeout_cfg(rtwdev);
 	rtw89_pci_link_cfg(rtwdev);
 	rtw89_pci_l1ss_cfg(rtwdev);
 }
@@ -4410,7 +4426,7 @@ int rtw89_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	rtwdev = rtw89_alloc_ieee80211_hw(&pdev->dev,
 					  sizeof(struct rtw89_pci),
-					  info->chip);
+					  info->chip, info->variant);
 	if (!rtwdev) {
 		dev_err(&pdev->dev, "failed to allocate hw\n");
 		return -ENOMEM;

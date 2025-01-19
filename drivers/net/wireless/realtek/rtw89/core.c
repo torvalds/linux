@@ -980,6 +980,11 @@ rtw89_core_tx_update_desc_info(struct rtw89_dev *rtwdev,
 	bool is_bmc;
 	u16 seq;
 
+	if (tx_req->sta)
+		desc_info->mlo = tx_req->sta->mlo;
+	else if (tx_req->vif)
+		desc_info->mlo = ieee80211_vif_is_mld(tx_req->vif);
+
 	seq = (le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_SEQ) >> 4;
 	if (tx_req->tx_type != RTW89_CORE_TX_TYPE_FWCMD) {
 		tx_type = rtw89_core_get_tx_type(rtwdev, skb);
@@ -987,7 +992,7 @@ rtw89_core_tx_update_desc_info(struct rtw89_dev *rtwdev,
 
 		addr_cam = rtw89_get_addr_cam_of(tx_req->rtwvif_link,
 						 tx_req->rtwsta_link);
-		if (addr_cam->valid)
+		if (addr_cam->valid && desc_info->mlo)
 			upd_wlan_hdr = true;
 	}
 	is_bmc = (is_broadcast_ether_addr(hdr->addr1) ||
@@ -1127,6 +1132,8 @@ int rtw89_core_tx_write(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
 	}
 
 	tx_req.skb = skb;
+	tx_req.vif = vif;
+	tx_req.sta = sta;
 	tx_req.rtwvif_link = rtwvif_link;
 	tx_req.rtwsta_link = rtwsta_link;
 
@@ -3357,7 +3364,7 @@ void rtw89_roc_end(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 
 	roc->state = RTW89_ROC_IDLE;
 	rtw89_config_roc_chandef(rtwdev, rtwvif_link->chanctx_idx, NULL);
-	rtw89_chanctx_proceed(rtwdev);
+	rtw89_chanctx_proceed(rtwdev, NULL);
 	ret = rtw89_core_send_nullfunc(rtwdev, rtwvif_link, true, false);
 	if (ret)
 		rtw89_debug(rtwdev, RTW89_DBG_TXRX,
@@ -4228,12 +4235,16 @@ static void rtw89_init_eht_cap(struct rtw89_dev *rtwdev,
 	struct ieee80211_eht_mcs_nss_supp *eht_nss;
 	struct ieee80211_sta_eht_cap *eht_cap;
 	struct rtw89_hal *hal = &rtwdev->hal;
+	bool support_mcs_12_13 = true;
 	bool support_320mhz = false;
+	u8 val, val_mcs13;
 	int sts = 8;
-	u8 val;
 
 	if (chip->chip_gen == RTW89_CHIP_AX)
 		return;
+
+	if (hal->no_mcs_12_13)
+		support_mcs_12_13 = false;
 
 	if (band == NL80211_BAND_6GHZ &&
 	    chip->support_bandwidths & BIT(NL80211_CHAN_WIDTH_320))
@@ -4292,16 +4303,18 @@ static void rtw89_init_eht_cap(struct rtw89_dev *rtwdev,
 
 	val = u8_encode_bits(hal->rx_nss, IEEE80211_EHT_MCS_NSS_RX) |
 	      u8_encode_bits(hal->tx_nss, IEEE80211_EHT_MCS_NSS_TX);
+	val_mcs13 = support_mcs_12_13 ? val : 0;
+
 	eht_nss->bw._80.rx_tx_mcs9_max_nss = val;
 	eht_nss->bw._80.rx_tx_mcs11_max_nss = val;
-	eht_nss->bw._80.rx_tx_mcs13_max_nss = val;
+	eht_nss->bw._80.rx_tx_mcs13_max_nss = val_mcs13;
 	eht_nss->bw._160.rx_tx_mcs9_max_nss = val;
 	eht_nss->bw._160.rx_tx_mcs11_max_nss = val;
-	eht_nss->bw._160.rx_tx_mcs13_max_nss = val;
+	eht_nss->bw._160.rx_tx_mcs13_max_nss = val_mcs13;
 	if (support_320mhz) {
 		eht_nss->bw._320.rx_tx_mcs9_max_nss = val;
 		eht_nss->bw._320.rx_tx_mcs11_max_nss = val;
-		eht_nss->bw._320.rx_tx_mcs13_max_nss = val;
+		eht_nss->bw._320.rx_tx_mcs13_max_nss = val_mcs13;
 	}
 }
 
@@ -5336,7 +5349,8 @@ EXPORT_SYMBOL(rtw89_core_unregister);
 
 struct rtw89_dev *rtw89_alloc_ieee80211_hw(struct device *device,
 					   u32 bus_data_size,
-					   const struct rtw89_chip_info *chip)
+					   const struct rtw89_chip_info *chip,
+					   const struct rtw89_chip_variant *variant)
 {
 	struct rtw89_fw_info early_fw = {};
 	const struct firmware *firmware;
@@ -5394,6 +5408,7 @@ struct rtw89_dev *rtw89_alloc_ieee80211_hw(struct device *device,
 	rtwdev->dev = device;
 	rtwdev->ops = ops;
 	rtwdev->chip = chip;
+	rtwdev->variant = variant;
 	rtwdev->fw.req.firmware = firmware;
 	rtwdev->fw.fw_format = fw_format;
 	rtwdev->support_mlo = support_mlo;

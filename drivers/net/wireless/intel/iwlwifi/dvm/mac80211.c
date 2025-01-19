@@ -1565,6 +1565,16 @@ static void iwlagn_mac_sta_notify(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
+static void
+iwlagn_mac_reconfig_complete(struct ieee80211_hw *hw,
+			     enum ieee80211_reconfig_type reconfig_type)
+{
+	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
+
+	if (reconfig_type == IEEE80211_RECONFIG_TYPE_RESTART)
+		iwl_trans_finish_sw_reset(priv->trans);
+}
+
 const struct ieee80211_ops iwlagn_hw_ops = {
 	.add_chanctx = ieee80211_emulate_add_chanctx,
 	.remove_chanctx = ieee80211_emulate_remove_chanctx,
@@ -1598,6 +1608,7 @@ const struct ieee80211_ops iwlagn_hw_ops = {
 	.tx_last_beacon = iwlagn_mac_tx_last_beacon,
 	.event_callback = iwlagn_mac_event_callback,
 	.set_tim = iwlagn_mac_set_tim,
+	.reconfig_complete = iwlagn_mac_reconfig_complete,
 };
 
 /* This function both allocates and initializes hw and priv. */
