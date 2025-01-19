@@ -4,6 +4,8 @@
 
 #include "rtl838x.dtsi"
 
+#include <dt-bindings/gpio/gpio.h>
+
 / {
 	model = "Cisco SG220-26";
 	compatible = "cisco,sg220-26", "realtek,rtl8382-soc";
@@ -16,6 +18,13 @@
 	memory@0 {
 		device_type = "memory";
 		reg = <0x0 0x8000000>;
+	};
+
+	gpio-restart {
+		compatible = "gpio-restart";
+		gpios = <&gpio0 1 GPIO_ACTIVE_LOW>;
+		priority = <192>;
+		open-source;
 	};
 };
 
