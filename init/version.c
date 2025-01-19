@@ -17,34 +17,44 @@
 #include <linux/utsname.h>
 #include <linux/proc_ns.h>
 
+/**
+ * Sets the hostname based on a command line argument.
+ *
+ * @param arg Pointer to the string containing the hostname.
+ * @return 0 on success, negative value on error.
+ */
 static int __init early_hostname(char *arg)
 {
-	size_t bufsize = sizeof(init_uts_ns.name.nodename);
-	size_t maxlen  = bufsize - 1;
-	ssize_t arglen;
+    size_t bufsize = sizeof(init_uts_ns.name.nodename);
+    size_t maxlen  = bufsize - 1;
 
-	arglen = strscpy(init_uts_ns.name.nodename, arg, bufsize);
-	if (arglen < 0) {
-		pr_warn("hostname parameter exceeds %zd characters and will be truncated",
-			maxlen);
-	}
-	return 0;
+    if (!arg || strlen(arg) >= bufsize) {
+        if (!arg) {
+            pr_err("Invalid hostname argument: null pointer.\n");
+        } else {
+            pr_err("Hostname is too long, it must be less than %zu characters.\n", bufsize);
+        }
+        return -EINVAL;
+    }
+
+    if (strscpy(init_uts_ns.name.nodename, arg, bufsize) >= bufsize) {
+        WARN_ONCE(1, "Hostname '%s' exceeds maximum length (%zu), it will be truncated.\n", arg, maxlen);
+    }
+
+    return 0;
 }
 early_param("hostname", early_hostname);
 
 const char linux_proc_banner[] =
-	"%s version %s"
-	" (" LINUX_COMPILE_BY "@" LINUX_COMPILE_HOST ")"
-	" (" LINUX_COMPILER ") %s\n";
+    "%s version %s (%s)\n"
+    "Compiled by %s on %s\n"
+    "Compiler: %s\n";
 
 BUILD_SALT;
-BUILD_LTO_INFO;
 
-/*
- * init_uts_ns and linux_banner contain the build version and timestamp,
- * which are really fixed at the very last step of build process.
- * They are compiled with __weak first, and without __weak later.
- */
+#ifdef CONFIG_LTO_CLANG
+BUILD_LTO_INFO;
+#endif
 
 struct uts_namespace init_uts_ns __weak;
 const char linux_banner[] __weak;
