@@ -739,12 +739,26 @@ cma_validate_port(struct ib_device *device, u32 port,
 		goto out;
 	}
 
-	if (dev_type == ARPHRD_ETHER && rdma_protocol_roce(device, port)) {
-		ndev = dev_get_by_index(dev_addr->net, bound_if_index);
-		if (!ndev)
-			goto out;
+	/*
+	 * For a RXE device, it should work with TUN device and normal ethernet
+	 * devices. Use driver_id to check if a device is a RXE device or not.
+	 * ARPHDR_NONE means a TUN device.
+	 */
+	if (device->ops.driver_id == RDMA_DRIVER_RXE) {
+		if ((dev_type == ARPHRD_NONE || dev_type == ARPHRD_ETHER)
+			&& rdma_protocol_roce(device, port)) {
+			ndev = dev_get_by_index(dev_addr->net, bound_if_index);
+			if (!ndev)
+				goto out;
+		}
 	} else {
-		gid_type = IB_GID_TYPE_IB;
+		if (dev_type == ARPHRD_ETHER && rdma_protocol_roce(device, port)) {
+			ndev = dev_get_by_index(dev_addr->net, bound_if_index);
+			if (!ndev)
+				goto out;
+		} else {
+			gid_type = IB_GID_TYPE_IB;
+		}
 	}
 
 	sgid_attr = rdma_find_gid_by_port(device, gid, gid_type, port, ndev);
