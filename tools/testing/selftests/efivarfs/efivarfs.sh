@@ -202,6 +202,28 @@ test_invalid_filenames()
 	exit $ret
 }
 
+test_no_set_size()
+{
+	local attrs='\x07\x00\x00\x00'
+	local file=$efivarfs_mount/$FUNCNAME-$test_guid
+	local ret=0
+
+	printf "$attrs\x00" > $file
+	[ -e $file -a -s $file ] || exit 1
+	chattr -i $file
+	: > $file
+	if [ $? != 0 ]; then
+		echo "variable file failed to accept truncation"
+		ret=1
+	elif [ -e $file -a ! -s $file ]; then
+		echo "file can be truncated to zero size"
+		ret=1
+	fi
+	rm $file || exit 1
+
+	exit $ret
+}
+
 check_prereqs
 
 rc=0
@@ -214,5 +236,6 @@ run_test test_zero_size_delete
 run_test test_open_unlink
 run_test test_valid_filenames
 run_test test_invalid_filenames
+run_test test_no_set_size
 
 exit $rc
