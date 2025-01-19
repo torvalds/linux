@@ -194,6 +194,7 @@ static struct bch_read_bio *__promote_alloc(struct btree_trans *trans,
 		update_opts.target = orig->opts.promote_target;
 		update_opts.extra_replicas = 1;
 		update_opts.write_flags = BCH_WRITE_alloc_nowait|BCH_WRITE_cached;
+		update_opts.write_flags |= BCH_WRITE_only_specified_devs;
 	} else {
 		update_opts.target = orig->opts.foreground_target;
 
