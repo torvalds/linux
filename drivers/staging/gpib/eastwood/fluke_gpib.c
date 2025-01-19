@@ -1143,7 +1143,6 @@ MODULE_DEVICE_TABLE(of, fluke_gpib_of_match);
 static struct platform_driver fluke_gpib_platform_driver = {
 	.driver = {
 		.name = "fluke_gpib",
-		.owner = THIS_MODULE,
 		.of_match_table = fluke_gpib_of_match,
 	},
 	.probe = &fluke_gpib_probe
