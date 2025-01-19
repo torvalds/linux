@@ -4609,8 +4609,13 @@ void bnxt_set_tpa_flags(struct bnxt *bp)
 
 static void bnxt_init_ring_params(struct bnxt *bp)
 {
+	unsigned int rx_size;
+
 	bp->rx_copybreak = BNXT_DEFAULT_RX_COPYBREAK;
-	bp->dev->cfg->hds_thresh = BNXT_DEFAULT_RX_COPYBREAK;
+	/* Try to fit 4 chunks into a 4k page */
+	rx_size = SZ_1K -
+		NET_SKB_PAD - SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+	bp->dev->cfg->hds_thresh = max(BNXT_DEFAULT_RX_COPYBREAK, rx_size);
 }
 
 /* bp->rx_ring_size, bp->tx_ring_size, dev->mtu, BNXT_FLAG_{G|L}RO flags must
