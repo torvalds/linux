@@ -506,7 +506,7 @@ static const u32 iwl_mvm_cdev_budgets[] = {
 
 int iwl_mvm_ctdp_command(struct iwl_mvm *mvm, u32 op, u32 state)
 {
-	struct iwl_mvm_ctdp_cmd cmd = {
+	struct iwl_ctdp_cmd cmd = {
 		.operation = cpu_to_le32(op),
 		.budget = cpu_to_le32(iwl_mvm_cdev_budgets[state]),
 		.window_size = 0,
