@@ -187,7 +187,24 @@ efivarfs_fileattr_set(struct mnt_idmap *idmap,
 	return 0;
 }
 
+/* copy of simple_setattr except that it doesn't do i_size updates */
+static int efivarfs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+		   struct iattr *iattr)
+{
+	struct inode *inode = d_inode(dentry);
+	int error;
+
+	error = setattr_prepare(idmap, dentry, iattr);
+	if (error)
+		return error;
+
+	setattr_copy(idmap, inode, iattr);
+	mark_inode_dirty(inode);
+	return 0;
+}
+
 static const struct inode_operations efivarfs_file_inode_operations = {
 	.fileattr_get = efivarfs_fileattr_get,
 	.fileattr_set = efivarfs_fileattr_set,
+	.setattr      = efivarfs_setattr,
 };
