@@ -46,7 +46,7 @@
 
 			clock-frequency = <200000000>;
 
-			interrupt-parent = <&cpuintc>;
+			interrupt-parent = <&intc>;
 			interrupts = <31>;
 
 			reg-io-width = <1>;
@@ -63,7 +63,7 @@
 
 			clock-frequency = <200000000>;
 
-			interrupt-parent = <&cpuintc>;
+			interrupt-parent = <&intc>;
 			interrupts = <30>;
 
 			reg-io-width = <1>;
