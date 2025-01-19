@@ -39,9 +39,24 @@ static int efivarfs_ops_notifier(struct notifier_block *nb, unsigned long event,
 	return NOTIFY_OK;
 }
 
-static void efivarfs_evict_inode(struct inode *inode)
+static struct inode *efivarfs_alloc_inode(struct super_block *sb)
 {
-	clear_inode(inode);
+	struct efivar_entry *entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+
+	if (!entry)
+		return NULL;
+
+	inode_init_once(&entry->vfs_inode);
+	entry->removed = false;
+
+	return &entry->vfs_inode;
+}
+
+static void efivarfs_free_inode(struct inode *inode)
+{
+	struct efivar_entry *entry = efivar_entry(inode);
+
+	kfree(entry);
 }
 
 static int efivarfs_show_options(struct seq_file *m, struct dentry *root)
@@ -106,7 +121,8 @@ static int efivarfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 static const struct super_operations efivarfs_ops = {
 	.statfs = efivarfs_statfs,
 	.drop_inode = generic_delete_inode,
-	.evict_inode = efivarfs_evict_inode,
+	.alloc_inode = efivarfs_alloc_inode,
+	.free_inode = efivarfs_free_inode,
 	.show_options = efivarfs_show_options,
 };
 
@@ -181,9 +197,37 @@ static struct dentry *efivarfs_alloc_dentry(struct dentry *parent, char *name)
 	return ERR_PTR(-ENOMEM);
 }
 
+bool efivarfs_variable_is_present(efi_char16_t *variable_name,
+				  efi_guid_t *vendor, void *data)
+{
+	char *name = efivar_get_utf8name(variable_name, vendor);
+	struct super_block *sb = data;
+	struct dentry *dentry;
+	struct qstr qstr;
+
+	if (!name)
+		/*
+		 * If the allocation failed there'll already be an
+		 * error in the log (and likely a huge and growing
+		 * number of them since they system will be under
+		 * extreme memory pressure), so simply assume
+		 * collision for safety but don't add to the log
+		 * flood.
+		 */
+		return true;
+
+	qstr.name = name;
+	qstr.len = strlen(name);
+	dentry = d_hash_and_lookup(sb->s_root, &qstr);
+	kfree(name);
+	if (!IS_ERR_OR_NULL(dentry))
+		dput(dentry);
+
+	return dentry != NULL;
+}
+
 static int efivarfs_callback(efi_char16_t *name16, efi_guid_t vendor,
-			     unsigned long name_size, void *data,
-			     struct list_head *list)
+			     unsigned long name_size, void *data)
 {
 	struct super_block *sb = (struct super_block *)data;
 	struct efivar_entry *entry;
@@ -198,38 +242,25 @@ static int efivarfs_callback(efi_char16_t *name16, efi_guid_t vendor,
 	if (guid_equal(&vendor, &LINUX_EFI_RANDOM_SEED_TABLE_GUID))
 		return 0;
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
-	if (!entry)
+	name = efivar_get_utf8name(name16, &vendor);
+	if (!name)
 		return err;
 
-	memcpy(entry->var.VariableName, name16, name_size);
-	memcpy(&(entry->var.VendorGuid), &vendor, sizeof(efi_guid_t));
+	/* length of the variable name itself: remove GUID and separator */
+	len = strlen(name) - EFI_VARIABLE_GUID_LEN - 1;
 
-	len = ucs2_utf8size(entry->var.VariableName);
-
-	/* name, plus '-', plus GUID, plus NUL*/
-	name = kmalloc(len + 1 + EFI_VARIABLE_GUID_LEN + 1, GFP_KERNEL);
-	if (!name)
-		goto fail;
-
-	ucs2_as_utf8(name, entry->var.VariableName, len);
-
-	if (efivar_variable_is_removable(entry->var.VendorGuid, name, len))
+	if (efivar_variable_is_removable(vendor, name, len))
 		is_removable = true;
-
-	name[len] = '-';
-
-	efi_guid_to_str(&entry->var.VendorGuid, name + len + 1);
-
-	name[len + EFI_VARIABLE_GUID_LEN+1] = '\0';
-
-	/* replace invalid slashes like kobject_set_name_vargs does for /sys/firmware/efi/vars. */
-	strreplace(name, '/', '!');
 
 	inode = efivarfs_get_inode(sb, d_inode(root), S_IFREG | 0644, 0,
 				   is_removable);
 	if (!inode)
 		goto fail_name;
+
+	entry = efivar_entry(inode);
+
+	memcpy(entry->var.VariableName, name16, name_size);
+	memcpy(&(entry->var.VendorGuid), &vendor, sizeof(efi_guid_t));
 
 	dentry = efivarfs_alloc_dentry(root, name);
 	if (IS_ERR(dentry)) {
@@ -238,14 +269,13 @@ static int efivarfs_callback(efi_char16_t *name16, efi_guid_t vendor,
 	}
 
 	__efivar_entry_get(entry, NULL, &size, NULL);
-	__efivar_entry_add(entry, list);
 
 	/* copied by the above to local storage in the dentry. */
 	kfree(name);
 
 	inode_lock(inode);
 	inode->i_private = entry;
-	i_size_write(inode, size + sizeof(entry->var.Attributes));
+	i_size_write(inode, size + sizeof(__u32)); /* attributes + data */
 	inode_unlock(inode);
 	d_add(dentry, inode);
 
@@ -255,16 +285,8 @@ fail_inode:
 	iput(inode);
 fail_name:
 	kfree(name);
-fail:
-	kfree(entry);
-	return err;
-}
 
-static int efivarfs_destroy(struct efivar_entry *entry, void *data)
-{
-	efivar_entry_remove(entry);
-	kfree(entry);
-	return 0;
+	return err;
 }
 
 enum {
@@ -336,7 +358,7 @@ static int efivarfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (err)
 		return err;
 
-	return efivar_init(efivarfs_callback, sb, &sfi->efivarfs_list);
+	return efivar_init(efivarfs_callback, sb);
 }
 
 static int efivarfs_get_tree(struct fs_context *fc)
@@ -371,8 +393,6 @@ static int efivarfs_init_fs_context(struct fs_context *fc)
 	if (!sfi)
 		return -ENOMEM;
 
-	INIT_LIST_HEAD(&sfi->efivarfs_list);
-
 	sfi->mount_opts.uid = GLOBAL_ROOT_UID;
 	sfi->mount_opts.gid = GLOBAL_ROOT_GID;
 
@@ -388,8 +408,6 @@ static void efivarfs_kill_sb(struct super_block *sb)
 	blocking_notifier_chain_unregister(&efivar_ops_nh, &sfi->nb);
 	kill_litter_super(sb);
 
-	/* Remove all entries and destroy */
-	efivar_entry_iter(efivarfs_destroy, &sfi->efivarfs_list, NULL);
 	kfree(sfi);
 }
 
