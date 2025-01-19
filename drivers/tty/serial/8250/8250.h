@@ -314,6 +314,21 @@ static inline int serial8250_in_MCR(struct uart_8250_port *up)
 	return mctrl;
 }
 
+/* uart_config[] table port type defines */
+/* Airoha UART */
+#define PORT_AIROHA	124
+
+/* Airoha HSUART */
+#define PORT_AIROHA_HS	125
+
+#ifdef CONFIG_SERIAL_8250_AIROHA
+void airoha8250_set_baud_rate(struct uart_port *port,
+			     unsigned int baud, unsigned int hs);
+#else
+static inline void airoha8250_set_baud_rate(struct uart_port *port,
+			     unsigned int baud, unsigned int hs) { }
+#endif
+
 #ifdef CONFIG_SERIAL_8250_PNP
 int serial8250_pnp_init(void);
 void serial8250_pnp_exit(void);
