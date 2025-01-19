@@ -584,6 +584,8 @@ replay_again:
 				goto finished;
 			}
 			num_rqst++;
+			trace_smb3_query_wsl_ea_compound_enter(xid, tcon->tid,
+							       ses->Suid, full_path);
 			break;
 		default:
 			cifs_dbg(VFS, "Invalid command\n");
