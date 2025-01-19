@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#include <net/netdev_queues.h>
 #include <net/sock.h>
 #include <linux/ethtool_netlink.h>
 #include <linux/phy_link_topology.h>
@@ -692,19 +693,33 @@ static int ethnl_default_set_doit(struct sk_buff *skb, struct genl_info *info)
 	dev = req_info.dev;
 
 	rtnl_lock();
+	dev->cfg_pending = kmemdup(dev->cfg, sizeof(*dev->cfg),
+				   GFP_KERNEL_ACCOUNT);
+	if (!dev->cfg_pending) {
+		ret = -ENOMEM;
+		goto out_tie_cfg;
+	}
+
 	ret = ethnl_ops_begin(dev);
 	if (ret < 0)
-		goto out_rtnl;
+		goto out_free_cfg;
 
 	ret = ops->set(&req_info, info);
-	if (ret <= 0)
+	if (ret < 0)
+		goto out_ops;
+
+	swap(dev->cfg, dev->cfg_pending);
+	if (!ret)
 		goto out_ops;
 	ethtool_notify(dev, ops->set_ntf_cmd, NULL);
 
 	ret = 0;
 out_ops:
 	ethnl_ops_complete(dev);
-out_rtnl:
+out_free_cfg:
+	kfree(dev->cfg_pending);
+out_tie_cfg:
+	dev->cfg_pending = dev->cfg;
 	rtnl_unlock();
 out_dev:
 	ethnl_parse_header_dev_put(&req_info);

@@ -294,13 +294,11 @@ ethnl_set_rings(struct ethnl_req_info *req_info, struct genl_info *info)
 		return -EINVAL;
 	}
 
+	dev->cfg_pending->hds_config = kernel_ringparam.tcp_data_split;
+	dev->cfg_pending->hds_thresh = kernel_ringparam.hds_thresh;
+
 	ret = dev->ethtool_ops->set_ringparam(dev, &ringparam,
 					      &kernel_ringparam, info->extack);
-	if (!ret) {
-		dev->cfg->hds_config = kernel_ringparam.tcp_data_split;
-		dev->cfg->hds_thresh = kernel_ringparam.hds_thresh;
-	}
-
 	return ret < 0 ? ret : 1;
 }
 
