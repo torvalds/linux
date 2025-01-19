@@ -181,7 +181,7 @@ find_symbols(p, defines)
 p = re.compile(r"static\s+__always_inline(\s+\w+)+\s+(\w+)\([^)]*\)\s")
 find_symbols(p, defines)
 p = re.compile(r"enum\s+(\w*)\s*{([^}]*)}", re.M|re.S)
-q = re.compile(r"(\w+)\s*(,|=[^,]*|$)", re.M|re.S)
+q = re.compile(r"(\w+)\s*(,|=\s*\w+\s*\([^()]*\)|=[^,]*|$)", re.M|re.S)
 find_enums(p, q, defines)
 
 # needed for i386
