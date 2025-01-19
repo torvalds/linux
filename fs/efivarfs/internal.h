@@ -27,6 +27,8 @@ struct efi_variable {
 struct efivar_entry {
 	struct efi_variable var;
 	struct inode vfs_inode;
+	unsigned long open_count;
+	bool removed;
 };
 
 static inline struct efivar_entry *efivar_entry(struct inode *inode)

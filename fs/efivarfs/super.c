@@ -47,6 +47,7 @@ static struct inode *efivarfs_alloc_inode(struct super_block *sb)
 		return NULL;
 
 	inode_init_once(&entry->vfs_inode);
+	entry->removed = false;
 
 	return &entry->vfs_inode;
 }
