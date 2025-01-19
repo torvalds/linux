@@ -21,7 +21,7 @@
 
 static void mwifiex_sdio_work(struct work_struct *work);
 
-static struct mwifiex_if_ops sdio_ops;
+static const struct mwifiex_if_ops sdio_ops;
 
 static const struct mwifiex_sdio_card_reg mwifiex_reg_sd87xx = {
 	.start_rd_port = 1,
@@ -3167,7 +3167,7 @@ static void mwifiex_sdio_up_dev(struct mwifiex_adapter *adapter)
 		dev_err(&card->func->dev, "error enabling SDIO port\n");
 }
 
-static struct mwifiex_if_ops sdio_ops = {
+static const struct mwifiex_if_ops sdio_ops = {
 	.init_if = mwifiex_init_sdio,
 	.cleanup_if = mwifiex_cleanup_sdio,
 	.check_fw_status = mwifiex_check_fw_status,

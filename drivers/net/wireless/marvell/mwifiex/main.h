@@ -1470,7 +1470,7 @@ int mwifiex_init_shutdown_fw(struct mwifiex_private *priv,
 			     u32 func_init_shutdown);
 
 int mwifiex_add_card(void *card, struct completion *fw_done,
-		     struct mwifiex_if_ops *if_ops, u8 iface_type,
+		     const struct mwifiex_if_ops *if_ops, u8 iface_type,
 		     struct device *dev);
 int mwifiex_remove_card(struct mwifiex_adapter *adapter);
 
