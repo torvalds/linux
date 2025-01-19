@@ -5803,7 +5803,7 @@ static const struct pci_device_id mpi3mr_pci_id_table[] = {
 };
 MODULE_DEVICE_TABLE(pci, mpi3mr_pci_id_table);
 
-static struct pci_error_handlers mpi3mr_err_handler = {
+static const struct pci_error_handlers mpi3mr_err_handler = {
 	.error_detected = mpi3mr_pcierr_error_detected,
 	.mmio_enabled = mpi3mr_pcierr_mmio_enabled,
 	.slot_reset = mpi3mr_pcierr_slot_reset,

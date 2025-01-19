@@ -735,7 +735,7 @@ efct_pci_io_resume(struct pci_dev *pdev)
 
 MODULE_DEVICE_TABLE(pci, efct_pci_table);
 
-static struct pci_error_handlers efct_pci_err_handler = {
+static const struct pci_error_handlers efct_pci_err_handler = {
 	.error_detected = efct_pci_io_error_detected,
 	.slot_reset = efct_pci_io_slot_reset,
 	.resume = efct_pci_io_resume,
