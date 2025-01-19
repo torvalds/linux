@@ -72,8 +72,6 @@ static void nsim_get_ringparam(struct net_device *dev,
 	struct netdevsim *ns = netdev_priv(dev);
 
 	memcpy(ring, &ns->ethtool.ring, sizeof(ns->ethtool.ring));
-	kernel_ring->tcp_data_split = dev->cfg->hds_config;
-	kernel_ring->hds_thresh = dev->cfg->hds_thresh;
 	kernel_ring->hds_thresh_max = NSIM_HDS_THRESHOLD_MAX;
 
 	if (kernel_ring->tcp_data_split == ETHTOOL_TCP_DATA_SPLIT_UNKNOWN)
@@ -190,9 +188,6 @@ static void nsim_ethtool_ring_init(struct netdevsim *ns)
 	ns->ethtool.ring.rx_jumbo_max_pending = 4096;
 	ns->ethtool.ring.rx_mini_max_pending = 4096;
 	ns->ethtool.ring.tx_max_pending = 4096;
-
-	ns->netdev->cfg->hds_config = ETHTOOL_TCP_DATA_SPLIT_UNKNOWN;
-	ns->netdev->cfg->hds_thresh = 0;
 }
 
 void nsim_ethtool_init(struct netdevsim *ns)
