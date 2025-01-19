@@ -35,7 +35,7 @@ static bool bkey_get_dev_refs(struct bch_fs *c, struct bkey_s_c k)
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 
 	bkey_for_each_ptr(ptrs, ptr) {
-		if (!bch2_dev_tryget(c, ptr->dev)) {
+		if (unlikely(!bch2_dev_tryget(c, ptr->dev))) {
 			bkey_for_each_ptr(ptrs, ptr2) {
 				if (ptr2 == ptr)
 					break;
@@ -449,14 +449,15 @@ void bch2_data_update_exit(struct data_update *update)
 	struct bch_fs *c = update->op.c;
 	struct bkey_s_c k = bkey_i_to_s_c(update->k.k);
 
-	if (c->opts.nocow_enabled)
-		bkey_nocow_unlock(c, k);
-	bkey_put_dev_refs(c, k);
-	bch2_bkey_buf_exit(&update->k, c);
-	bch2_disk_reservation_put(c, &update->op.res);
 	bch2_bio_free_pages_pool(c, &update->op.wbio.bio);
 	kfree(update->bvecs);
 	update->bvecs = NULL;
+
+	if (c->opts.nocow_enabled)
+		bkey_nocow_unlock(c, k);
+	bkey_put_dev_refs(c, k);
+	bch2_disk_reservation_put(c, &update->op.res);
+	bch2_bkey_buf_exit(&update->k, c);
 }
 
 static int bch2_update_unwritten_extent(struct btree_trans *trans,
@@ -663,15 +664,6 @@ int bch2_data_update_init(struct btree_trans *trans,
 	if (unlikely(k.k->p.snapshot && !bch2_snapshot_exists(c, k.k->p.snapshot)))
 		return -BCH_ERR_data_update_done_no_snapshot;
 
-	if (!bkey_get_dev_refs(c, k))
-		return -BCH_ERR_data_update_done_no_dev_refs;
-
-	if (c->opts.nocow_enabled &&
-	    !bkey_nocow_lock(c, ctxt, k)) {
-		bkey_put_dev_refs(c, k);
-		return -BCH_ERR_nocow_lock_blocked;
-	}
-
 	bch2_bkey_buf_init(&m->k);
 	bch2_bkey_buf_reassemble(&m->k, c, k);
 	m->btree_id	= btree_id;
@@ -764,7 +756,7 @@ int bch2_data_update_init(struct btree_trans *trans,
 			ret = bch2_extent_drop_ptrs(trans, iter, k, &io_opts, &m->data_opts);
 		if (!ret)
 			ret = -BCH_ERR_data_update_done_no_writes_needed;
-		goto out;
+		goto out_bkey_buf_exit;
 	}
 
 	if (reserve_sectors) {
@@ -773,13 +765,24 @@ int bch2_data_update_init(struct btree_trans *trans,
 				? 0
 				: BCH_DISK_RESERVATION_NOFAIL);
 		if (ret)
-			goto out;
+			goto out_bkey_buf_exit;
+	}
+
+	if (!bkey_get_dev_refs(c, k)) {
+		ret = -BCH_ERR_data_update_done_no_dev_refs;
+		goto out_put_disk_res;
+	}
+
+	if (c->opts.nocow_enabled &&
+	    !bkey_nocow_lock(c, ctxt, k)) {
+		ret = -BCH_ERR_nocow_lock_blocked;
+		goto out_put_dev_refs;
 	}
 
 	if (bkey_extent_is_unwritten(k)) {
 		ret = bch2_update_unwritten_extent(trans, m) ?:
 			-BCH_ERR_data_update_done_unwritten;
-		goto out;
+		goto out_nocow_unlock;
 	}
 
 	/* write path might have to decompress data: */
@@ -807,9 +810,18 @@ int bch2_data_update_init(struct btree_trans *trans,
 	return 0;
 enomem:
 	ret = -ENOMEM;
-out:
-	bch2_data_update_exit(m);
-	return ret ?: -BCH_ERR_data_update_done;
+	kfree(m->bvecs);
+	m->bvecs = NULL;
+out_nocow_unlock:
+	if (c->opts.nocow_enabled)
+		bkey_nocow_unlock(c, k);
+out_put_dev_refs:
+	bkey_put_dev_refs(c, k);
+out_put_disk_res:
+	bch2_disk_reservation_put(c, &m->op.res);
+out_bkey_buf_exit:
+	bch2_bkey_buf_exit(&m->k, c);
+	return ret;
 }
 
 void bch2_data_update_opts_normalize(struct bkey_s_c k, struct data_update_opts *opts)
