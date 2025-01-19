@@ -728,7 +728,7 @@ int bch2_bucket_alloc_set_trans(struct btree_trans *trans,
 
 		struct bch_dev_usage usage;
 		struct open_bucket *ob = bch2_bucket_alloc_trans(trans, ca, watermark, data_type,
-						     cl, flags & BCH_WRITE_ALLOC_NOWAIT, &usage);
+						     cl, flags & BCH_WRITE_alloc_nowait, &usage);
 		if (!IS_ERR(ob))
 			bch2_dev_stripe_increment_inlined(ca, stripe, &usage);
 		bch2_dev_put(ca);
@@ -1336,7 +1336,7 @@ retry:
 	if (wp->data_type != BCH_DATA_user)
 		have_cache = true;
 
-	if (target && !(flags & BCH_WRITE_ONLY_SPECIFIED_DEVS)) {
+	if (target && !(flags & BCH_WRITE_only_specified_devs)) {
 		ret = open_bucket_add_buckets(trans, &ptrs, wp, devs_have,
 					      target, erasure_code,
 					      nr_replicas, &nr_effective,
@@ -1426,7 +1426,7 @@ err:
 	if (cl && bch2_err_matches(ret, BCH_ERR_open_buckets_empty))
 		ret = -BCH_ERR_bucket_alloc_blocked;
 
-	if (cl && !(flags & BCH_WRITE_ALLOC_NOWAIT) &&
+	if (cl && !(flags & BCH_WRITE_alloc_nowait) &&
 	    bch2_err_matches(ret, BCH_ERR_freelist_empty))
 		ret = -BCH_ERR_bucket_alloc_blocked;
 

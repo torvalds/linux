@@ -511,8 +511,8 @@ static __always_inline long bch2_dio_write_loop(struct dio_write *dio)
 		dio->op.devs_need_flush	= &inode->ei_devs_need_flush;
 
 		if (sync)
-			dio->op.flags |= BCH_WRITE_SYNC;
-		dio->op.flags |= BCH_WRITE_CHECK_ENOSPC;
+			dio->op.flags |= BCH_WRITE_sync;
+		dio->op.flags |= BCH_WRITE_check_enospc;
 
 		ret = bch2_quota_reservation_add(c, inode, &dio->quota_res,
 						 bio_sectors(bio), true);

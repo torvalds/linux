@@ -374,7 +374,7 @@ static int bch2_write_index_default(struct bch_write_op *op)
 			bch2_extent_update(trans, inum, &iter, sk.k,
 					&op->res,
 					op->new_i_size, &op->i_sectors_delta,
-					op->flags & BCH_WRITE_CHECK_ENOSPC);
+					op->flags & BCH_WRITE_check_enospc);
 		bch2_trans_iter_exit(trans, &iter);
 
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
@@ -403,7 +403,7 @@ static void __bch2_write_op_error(struct printbuf *out, struct bch_write_op *op,
 				 (subvol_inum) { op->subvol, op->pos.inode, },
 				 offset << 9);
 	prt_printf(out, "write error%s: ",
-		   op->flags & BCH_WRITE_MOVE ? "(internal move)" : "");
+		   op->flags & BCH_WRITE_move ? "(internal move)" : "");
 }
 
 void bch2_write_op_error(struct printbuf *out, struct bch_write_op *op)
@@ -418,7 +418,7 @@ static void bch2_write_op_error_trans(struct btree_trans *trans, struct printbuf
 				       (subvol_inum) { op->subvol, op->pos.inode, },
 				       offset << 9);
 	prt_printf(out, "write error%s: ",
-		   op->flags & BCH_WRITE_MOVE ? "(internal move)" : "");
+		   op->flags & BCH_WRITE_move ? "(internal move)" : "");
 }
 
 void bch2_submit_wbio_replicas(struct bch_write_bio *wbio, struct bch_fs *c,
@@ -493,7 +493,7 @@ static void bch2_write_done(struct closure *cl)
 	bch2_time_stats_update(&c->times[BCH_TIME_data_write], op->start_time);
 	bch2_disk_reservation_put(c, &op->res);
 
-	if (!(op->flags & BCH_WRITE_MOVE))
+	if (!(op->flags & BCH_WRITE_move))
 		bch2_write_ref_put(c, BCH_WRITE_REF_write);
 	bch2_keylist_free(&op->insert_keys, op->inline_keys);
 
@@ -539,7 +539,7 @@ static void __bch2_write_index(struct bch_write_op *op)
 	unsigned dev;
 	int ret = 0;
 
-	if (unlikely(op->flags & BCH_WRITE_IO_ERROR)) {
+	if (unlikely(op->flags & BCH_WRITE_io_error)) {
 		ret = bch2_write_drop_io_error_ptrs(op);
 		if (ret)
 			goto err;
@@ -548,7 +548,7 @@ static void __bch2_write_index(struct bch_write_op *op)
 	if (!bch2_keylist_empty(keys)) {
 		u64 sectors_start = keylist_sectors(keys);
 
-		ret = !(op->flags & BCH_WRITE_MOVE)
+		ret = !(op->flags & BCH_WRITE_move)
 			? bch2_write_index_default(op)
 			: bch2_data_update_index_update(op);
 
@@ -580,7 +580,7 @@ out:
 err:
 	keys->top = keys->keys;
 	op->error = ret;
-	op->flags |= BCH_WRITE_SUBMITTED;
+	op->flags |= BCH_WRITE_submitted;
 	goto out;
 }
 
@@ -623,8 +623,8 @@ static CLOSURE_CALLBACK(bch2_write_index)
 	struct workqueue_struct *wq = index_update_wq(op);
 	unsigned long flags;
 
-	if ((op->flags & BCH_WRITE_SUBMITTED) &&
-	    (op->flags & BCH_WRITE_MOVE))
+	if ((op->flags & BCH_WRITE_submitted) &&
+	    (op->flags & BCH_WRITE_move))
 		bch2_bio_free_pages_pool(op->c, &op->wbio.bio);
 
 	spin_lock_irqsave(&wp->writes_lock, flags);
@@ -662,11 +662,11 @@ void bch2_write_point_do_index_updates(struct work_struct *work)
 		if (!op)
 			break;
 
-		op->flags |= BCH_WRITE_IN_WORKER;
+		op->flags |= BCH_WRITE_in_worker;
 
 		__bch2_write_index(op);
 
-		if (!(op->flags & BCH_WRITE_SUBMITTED))
+		if (!(op->flags & BCH_WRITE_submitted))
 			__bch2_write(op);
 		else
 			bch2_write_done(&op->cl);
@@ -690,7 +690,7 @@ static void bch2_write_endio(struct bio *bio)
 				    "data write error: %s",
 				    bch2_blk_status_to_str(bio->bi_status))) {
 		set_bit(wbio->dev, op->failed.d);
-		op->flags |= BCH_WRITE_IO_ERROR;
+		op->flags |= BCH_WRITE_io_error;
 	}
 
 	if (wbio->nocow) {
@@ -737,7 +737,7 @@ static void init_append_extent(struct bch_write_op *op,
 		bch2_extent_crc_append(&e->k_i, crc);
 
 	bch2_alloc_sectors_append_ptrs_inlined(op->c, wp, &e->k_i, crc.compressed_size,
-				       op->flags & BCH_WRITE_CACHED);
+				       op->flags & BCH_WRITE_cached);
 
 	bch2_keylist_push(&op->insert_keys);
 }
@@ -854,7 +854,7 @@ static enum prep_encoded_ret {
 	struct bch_fs *c = op->c;
 	struct bio *bio = &op->wbio.bio;
 
-	if (!(op->flags & BCH_WRITE_DATA_ENCODED))
+	if (!(op->flags & BCH_WRITE_data_encoded))
 		return PREP_ENCODED_OK;
 
 	BUG_ON(bio_sectors(bio) != op->crc.compressed_size);
@@ -962,9 +962,9 @@ static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp,
 	if (ec_buf ||
 	    op->compression_opt ||
 	    (op->csum_type &&
-	     !(op->flags & BCH_WRITE_PAGES_STABLE)) ||
+	     !(op->flags & BCH_WRITE_pages_stable)) ||
 	    (bch2_csum_type_is_encryption(op->csum_type) &&
-	     !(op->flags & BCH_WRITE_PAGES_OWNED))) {
+	     !(op->flags & BCH_WRITE_pages_owned))) {
 		dst = bch2_write_bio_alloc(c, wp, src,
 					   &page_alloc_failed,
 					   ec_buf);
@@ -984,7 +984,7 @@ static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp,
 			break;
 
 		BUG_ON(op->compression_opt &&
-		       (op->flags & BCH_WRITE_DATA_ENCODED) &&
+		       (op->flags & BCH_WRITE_data_encoded) &&
 		       bch2_csum_type_is_encryption(op->crc.csum_type));
 		BUG_ON(op->compression_opt && !bounce);
 
@@ -1022,7 +1022,7 @@ static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp,
 			}
 		}
 
-		if ((op->flags & BCH_WRITE_DATA_ENCODED) &&
+		if ((op->flags & BCH_WRITE_data_encoded) &&
 		    !crc_is_compressed(crc) &&
 		    bch2_csum_type_is_encryption(op->crc.csum_type) ==
 		    bch2_csum_type_is_encryption(op->csum_type)) {
@@ -1054,7 +1054,7 @@ static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp,
 			crc.compression_type = compression_type;
 			crc.nonce = nonce;
 		} else {
-			if ((op->flags & BCH_WRITE_DATA_ENCODED) &&
+			if ((op->flags & BCH_WRITE_data_encoded) &&
 			    bch2_rechecksum_bio(c, src, version, op->crc,
 					NULL, &op->crc,
 					src_len >> 9,
@@ -1228,9 +1228,9 @@ static void bch2_nocow_write_convert_unwritten(struct bch_write_op *op)
 
 static void __bch2_nocow_write_done(struct bch_write_op *op)
 {
-	if (unlikely(op->flags & BCH_WRITE_IO_ERROR)) {
+	if (unlikely(op->flags & BCH_WRITE_io_error)) {
 		op->error = -EIO;
-	} else if (unlikely(op->flags & BCH_WRITE_CONVERT_UNWRITTEN))
+	} else if (unlikely(op->flags & BCH_WRITE_convert_unwritten))
 		bch2_nocow_write_convert_unwritten(op);
 }
 
@@ -1259,7 +1259,7 @@ static void bch2_nocow_write(struct bch_write_op *op)
 	struct bucket_to_lock *stale_at;
 	int stale, ret;
 
-	if (op->flags & BCH_WRITE_MOVE)
+	if (op->flags & BCH_WRITE_move)
 		return;
 
 	darray_init(&buckets);
@@ -1317,7 +1317,7 @@ retry:
 						   }), GFP_KERNEL|__GFP_NOFAIL);
 
 			if (ptr->unwritten)
-				op->flags |= BCH_WRITE_CONVERT_UNWRITTEN;
+				op->flags |= BCH_WRITE_convert_unwritten;
 		}
 
 		/* Unlock before taking nocow locks, doing IO: */
@@ -1325,7 +1325,7 @@ retry:
 		bch2_trans_unlock(trans);
 
 		bch2_cut_front(op->pos, op->insert_keys.top);
-		if (op->flags & BCH_WRITE_CONVERT_UNWRITTEN)
+		if (op->flags & BCH_WRITE_convert_unwritten)
 			bch2_cut_back(POS(op->pos.inode, op->pos.offset + bio_sectors(bio)), op->insert_keys.top);
 
 		darray_for_each(buckets, i) {
@@ -1350,7 +1350,7 @@ retry:
 			wbio_init(bio)->put_bio = true;
 			bio->bi_opf = op->wbio.bio.bi_opf;
 		} else {
-			op->flags |= BCH_WRITE_SUBMITTED;
+			op->flags |= BCH_WRITE_submitted;
 		}
 
 		op->pos.offset += bio_sectors(bio);
@@ -1364,7 +1364,7 @@ retry:
 					  op->insert_keys.top, true);
 
 		bch2_keylist_push(&op->insert_keys);
-		if (op->flags & BCH_WRITE_SUBMITTED)
+		if (op->flags & BCH_WRITE_submitted)
 			break;
 		bch2_btree_iter_advance(&iter);
 	}
@@ -1384,15 +1384,15 @@ err:
 		bch_err_ratelimited(c, "%s", buf.buf);
 		printbuf_exit(&buf);
 		op->error = ret;
-		op->flags |= BCH_WRITE_SUBMITTED;
+		op->flags |= BCH_WRITE_submitted;
 	}
 
 	/* fallback to cow write path? */
-	if (!(op->flags & BCH_WRITE_SUBMITTED)) {
+	if (!(op->flags & BCH_WRITE_submitted)) {
 		closure_sync(&op->cl);
 		__bch2_nocow_write_done(op);
 		op->insert_keys.top = op->insert_keys.keys;
-	} else if (op->flags & BCH_WRITE_SYNC) {
+	} else if (op->flags & BCH_WRITE_sync) {
 		closure_sync(&op->cl);
 		bch2_nocow_write_done(&op->cl.work);
 	} else {
@@ -1444,7 +1444,7 @@ static void __bch2_write(struct bch_write_op *op)
 
 	if (unlikely(op->opts.nocow && c->opts.nocow_enabled)) {
 		bch2_nocow_write(op);
-		if (op->flags & BCH_WRITE_SUBMITTED)
+		if (op->flags & BCH_WRITE_submitted)
 			goto out_nofs_restore;
 	}
 again:
@@ -1474,7 +1474,7 @@ again:
 		ret = bch2_trans_run(c, lockrestart_do(trans,
 			bch2_alloc_sectors_start_trans(trans,
 				op->target,
-				op->opts.erasure_code && !(op->flags & BCH_WRITE_CACHED),
+				op->opts.erasure_code && !(op->flags & BCH_WRITE_cached),
 				op->write_point,
 				&op->devs_have,
 				op->nr_replicas,
@@ -1497,10 +1497,10 @@ again:
 		bch2_alloc_sectors_done_inlined(c, wp);
 err:
 		if (ret <= 0) {
-			op->flags |= BCH_WRITE_SUBMITTED;
+			op->flags |= BCH_WRITE_submitted;
 
 			if (unlikely(ret < 0)) {
-				if (!(op->flags & BCH_WRITE_ALLOC_NOWAIT)) {
+				if (!(op->flags & BCH_WRITE_alloc_nowait)) {
 					struct printbuf buf = PRINTBUF;
 					bch2_write_op_error(&buf, op);
 					prt_printf(&buf, "%s(): %s", __func__, bch2_err_str(ret));
@@ -1532,14 +1532,14 @@ err:
 	 * synchronously here if we weren't able to submit all of the IO at
 	 * once, as that signals backpressure to the caller.
 	 */
-	if ((op->flags & BCH_WRITE_SYNC) ||
-	    (!(op->flags & BCH_WRITE_SUBMITTED) &&
-	     !(op->flags & BCH_WRITE_IN_WORKER))) {
+	if ((op->flags & BCH_WRITE_sync) ||
+	    (!(op->flags & BCH_WRITE_submitted) &&
+	     !(op->flags & BCH_WRITE_in_worker))) {
 		bch2_wait_on_allocator(c, &op->cl);
 
 		__bch2_write_index(op);
 
-		if (!(op->flags & BCH_WRITE_SUBMITTED))
+		if (!(op->flags & BCH_WRITE_submitted))
 			goto again;
 		bch2_write_done(&op->cl);
 	} else {
@@ -1560,8 +1560,8 @@ static void bch2_write_data_inline(struct bch_write_op *op, unsigned data_len)
 
 	memset(&op->failed, 0, sizeof(op->failed));
 
-	op->flags |= BCH_WRITE_WROTE_DATA_INLINE;
-	op->flags |= BCH_WRITE_SUBMITTED;
+	op->flags |= BCH_WRITE_wrote_data_inline;
+	op->flags |= BCH_WRITE_submitted;
 
 	bch2_check_set_feature(op->c, BCH_FEATURE_inline_data);
 
@@ -1624,8 +1624,8 @@ CLOSURE_CALLBACK(bch2_write)
 	BUG_ON(!op->write_point.v);
 	BUG_ON(bkey_eq(op->pos, POS_MAX));
 
-	if (op->flags & BCH_WRITE_ONLY_SPECIFIED_DEVS)
-		op->flags |= BCH_WRITE_ALLOC_NOWAIT;
+	if (op->flags & BCH_WRITE_only_specified_devs)
+		op->flags |= BCH_WRITE_alloc_nowait;
 
 	op->nr_replicas_required = min_t(unsigned, op->nr_replicas_required, op->nr_replicas);
 	op->start_time = local_clock();
@@ -1646,13 +1646,13 @@ CLOSURE_CALLBACK(bch2_write)
 		goto err;
 	}
 
-	if (!(op->flags & BCH_WRITE_MOVE) &&
+	if (!(op->flags & BCH_WRITE_move) &&
 	    !bch2_write_ref_tryget(c, BCH_WRITE_REF_write)) {
 		op->error = -BCH_ERR_erofs_no_writes;
 		goto err;
 	}
 
-	if (!(op->flags & BCH_WRITE_MOVE))
+	if (!(op->flags & BCH_WRITE_move))
 		this_cpu_add(c->counters[BCH_COUNTER_io_write], bio_sectors(bio));
 	bch2_increment_clock(c, bio_sectors(bio), WRITE);
 

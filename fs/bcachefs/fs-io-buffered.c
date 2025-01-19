@@ -430,7 +430,7 @@ static void bch2_writepage_io_done(struct bch_write_op *op)
 		}
 	}
 
-	if (io->op.flags & BCH_WRITE_WROTE_DATA_INLINE) {
+	if (io->op.flags & BCH_WRITE_wrote_data_inline) {
 		bio_for_each_folio_all(fi, bio) {
 			struct bch_folio *s;
 

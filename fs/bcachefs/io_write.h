@@ -23,21 +23,20 @@ void bch2_submit_wbio_replicas(struct bch_write_bio *, struct bch_fs *,
 void bch2_write_op_error(struct printbuf *out, struct bch_write_op *op);
 
 #define BCH_WRITE_FLAGS()		\
-	x(ALLOC_NOWAIT)			\
-	x(CACHED)			\
-	x(DATA_ENCODED)			\
-	x(PAGES_STABLE)			\
-	x(PAGES_OWNED)			\
-	x(ONLY_SPECIFIED_DEVS)		\
-	x(WROTE_DATA_INLINE)		\
-	x(FROM_INTERNAL)		\
-	x(CHECK_ENOSPC)			\
-	x(SYNC)				\
-	x(MOVE)				\
-	x(IN_WORKER)			\
-	x(SUBMITTED)			\
-	x(IO_ERROR)			\
-	x(CONVERT_UNWRITTEN)
+	x(alloc_nowait)			\
+	x(cached)			\
+	x(data_encoded)			\
+	x(pages_stable)			\
+	x(pages_owned)			\
+	x(only_specified_devs)		\
+	x(wrote_data_inline)		\
+	x(check_enospc)			\
+	x(sync)				\
+	x(move)				\
+	x(in_worker)			\
+	x(submitted)			\
+	x(io_error)			\
+	x(convert_unwritten)
 
 enum __bch_write_flags {
 #define x(f)	__BCH_WRITE_##f,

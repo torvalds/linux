@@ -681,10 +681,10 @@ int bch2_data_update_init(struct btree_trans *trans,
 	m->op.target	= data_opts.target;
 	m->op.write_point = wp;
 	m->op.nr_replicas = 0;
-	m->op.flags	|= BCH_WRITE_PAGES_STABLE|
-		BCH_WRITE_PAGES_OWNED|
-		BCH_WRITE_DATA_ENCODED|
-		BCH_WRITE_MOVE|
+	m->op.flags	|= BCH_WRITE_pages_stable|
+		BCH_WRITE_pages_owned|
+		BCH_WRITE_data_encoded|
+		BCH_WRITE_move|
 		m->data_opts.write_flags;
 	m->op.compression_opt	= io_opts.background_compression;
 	m->op.watermark		= m->data_opts.btree_insert_flags & BCH_WATERMARK_MASK;

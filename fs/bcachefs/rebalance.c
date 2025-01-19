@@ -341,7 +341,7 @@ static struct bkey_s_c next_rebalance_extent(struct btree_trans *trans,
 	memset(data_opts, 0, sizeof(*data_opts));
 	data_opts->rewrite_ptrs		= bch2_bkey_ptrs_need_rebalance(c, io_opts, k);
 	data_opts->target		= io_opts->background_target;
-	data_opts->write_flags		|= BCH_WRITE_ONLY_SPECIFIED_DEVS;
+	data_opts->write_flags		|= BCH_WRITE_only_specified_devs;
 
 	if (!data_opts->rewrite_ptrs) {
 		/*
@@ -449,7 +449,7 @@ static bool rebalance_pred(struct bch_fs *c, void *arg,
 {
 	data_opts->rewrite_ptrs		= bch2_bkey_ptrs_need_rebalance(c, io_opts, k);
 	data_opts->target		= io_opts->background_target;
-	data_opts->write_flags		|= BCH_WRITE_ONLY_SPECIFIED_DEVS;
+	data_opts->write_flags		|= BCH_WRITE_only_specified_devs;
 	return data_opts->rewrite_ptrs != 0;
 }
 
