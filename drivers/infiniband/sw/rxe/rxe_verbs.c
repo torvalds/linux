@@ -1523,7 +1523,7 @@ int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name,
 	dev->num_comp_vectors = num_possible_cpus();
 	dev->local_dma_lkey = 0;
 	addrconf_addr_eui48((unsigned char *)&dev->node_guid,
-			    ndev->dev_addr);
+			    rxe->raw_gid);
 
 	dev->uverbs_cmd_mask |= BIT_ULL(IB_USER_VERBS_CMD_POST_SEND) |
 				BIT_ULL(IB_USER_VERBS_CMD_REQ_NOTIFY_CQ);

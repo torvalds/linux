@@ -78,8 +78,19 @@ static void rxe_init_device_param(struct rxe_dev *rxe)
 	if (!ndev)
 		return;
 
+	if (ndev->addr_len) {
+		memcpy(rxe->raw_gid, ndev->dev_addr,
+			min_t(unsigned int, ndev->addr_len, ETH_ALEN));
+	} else {
+		/*
+		 * This device does not have a HW address, but
+		 * connection mangagement requires a unique gid.
+		 */
+		eth_random_addr(rxe->raw_gid);
+	}
+
 	addrconf_addr_eui48((unsigned char *)&rxe->attr.sys_image_guid,
-			ndev->dev_addr);
+			rxe->raw_gid);
 
 	dev_put(ndev);
 
@@ -125,7 +136,7 @@ static void rxe_init_ports(struct rxe_dev *rxe)
 	if (!ndev)
 		return;
 	addrconf_addr_eui48((unsigned char *)&port->port_guid,
-			    ndev->dev_addr);
+			    rxe->raw_gid);
 	dev_put(ndev);
 	spin_lock_init(&port->port_lock);
 }

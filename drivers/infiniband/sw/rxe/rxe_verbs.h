@@ -376,7 +376,9 @@ struct rxe_dev {
 	struct ib_device_attr	attr;
 	int			max_ucontext;
 	int			max_inline_data;
-	struct mutex	usdev_lock;
+	struct mutex		usdev_lock;
+
+	char			raw_gid[ETH_ALEN];
 
 	struct rxe_pool		uc_pool;
 	struct rxe_pool		pd_pool;
