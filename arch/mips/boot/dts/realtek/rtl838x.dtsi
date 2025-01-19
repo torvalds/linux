@@ -9,8 +9,7 @@
 			device_type = "cpu";
 			compatible = "mips,mips4KEc";
 			reg = <0>;
-			clocks = <&baseclk 0>;
-			clock-names = "cpu";
+			clocks = <&baseclk>;
 		};
 	};
 

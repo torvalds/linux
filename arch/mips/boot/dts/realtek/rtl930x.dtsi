@@ -26,8 +26,7 @@
 			device_type = "cpu";
 			compatible = "mips,mips34Kc";
 			reg = <0>;
-			clocks = <&baseclk 0>;
-			clock-names = "cpu";
+			clocks = <&baseclk>;
 		};
 	};
 
