@@ -104,6 +104,7 @@ enum acer_wmi_event_ids {
 	WMID_HOTKEY_EVENT = 0x1,
 	WMID_ACCEL_OR_KBD_DOCK_EVENT = 0x5,
 	WMID_GAMING_TURBO_KEY_EVENT = 0x7,
+	WMID_AC_EVENT = 0x8,
 };
 
 enum acer_wmi_predator_v4_sys_info_command {
@@ -2413,6 +2414,9 @@ static void acer_wmi_notify(union acpi_object *obj, void *context)
 			acer_toggle_turbo();
 		if (return_value.key_num == 0x5 && has_cap(ACER_CAP_PLATFORM_PROFILE))
 			acer_thermal_profile_change();
+		break;
+	case WMID_AC_EVENT:
+		/* We ignore AC events here */
 		break;
 	default:
 		pr_warn("Unknown function number - %d - %d\n",
