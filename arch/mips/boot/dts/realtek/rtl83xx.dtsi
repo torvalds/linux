@@ -16,7 +16,7 @@
 		interrupt-controller;
 	};
 
-	soc: soc {
+	soc@18000000 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
