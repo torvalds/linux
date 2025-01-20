@@ -55,10 +55,10 @@ static int nsim_forward_skb(struct net_device *dev, struct sk_buff *skb,
 static netdev_tx_t nsim_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct netdevsim *ns = netdev_priv(dev);
-	struct ethtool_netdev_state *ethtool;
 	struct net_device *peer_dev;
 	unsigned int len = skb->len;
 	struct netdevsim *peer_ns;
+	struct netdev_config *cfg;
 	struct nsim_rq *rq;
 	int rxq;
 
@@ -76,11 +76,11 @@ static netdev_tx_t nsim_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		rxq = rxq % peer_dev->num_rx_queues;
 	rq = peer_ns->rq[rxq];
 
-	ethtool = peer_dev->ethtool;
+	cfg = peer_dev->cfg;
 	if (skb_is_nonlinear(skb) &&
-	    (ethtool->hds_config != ETHTOOL_TCP_DATA_SPLIT_ENABLED ||
-	     (ethtool->hds_config == ETHTOOL_TCP_DATA_SPLIT_ENABLED &&
-	      ethtool->hds_thresh > len)))
+	    (cfg->hds_config != ETHTOOL_TCP_DATA_SPLIT_ENABLED ||
+	     (cfg->hds_config == ETHTOOL_TCP_DATA_SPLIT_ENABLED &&
+	      cfg->hds_thresh > len)))
 		skb_linearize(skb);
 
 	skb_tx_timestamp(skb);

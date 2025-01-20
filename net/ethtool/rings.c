@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#include <net/netdev_queues.h>
+
 #include "netlink.h"
 #include "common.h"
 
@@ -37,6 +39,10 @@ static int rings_prepare_data(const struct ethnl_req_info *req_base,
 	ret = ethnl_ops_begin(dev);
 	if (ret < 0)
 		return ret;
+
+	data->kernel_ringparam.tcp_data_split = dev->cfg->hds_config;
+	data->kernel_ringparam.hds_thresh = dev->cfg->hds_thresh;
+
 	dev->ethtool_ops->get_ringparam(dev, &data->ringparam,
 					&data->kernel_ringparam, info->extack);
 	ethnl_ops_complete(dev);
@@ -219,7 +225,7 @@ ethnl_set_rings(struct ethnl_req_info *req_info, struct genl_info *info)
 
 	dev->ethtool_ops->get_ringparam(dev, &ringparam,
 					&kernel_ringparam, info->extack);
-	kernel_ringparam.tcp_data_split = dev->ethtool->hds_config;
+	kernel_ringparam.tcp_data_split = dev->cfg->hds_config;
 
 	ethnl_update_u32(&ringparam.rx_pending, tb[ETHTOOL_A_RINGS_RX], &mod);
 	ethnl_update_u32(&ringparam.rx_mini_pending,
@@ -292,13 +298,11 @@ ethnl_set_rings(struct ethnl_req_info *req_info, struct genl_info *info)
 		return -EINVAL;
 	}
 
+	dev->cfg_pending->hds_config = kernel_ringparam.tcp_data_split;
+	dev->cfg_pending->hds_thresh = kernel_ringparam.hds_thresh;
+
 	ret = dev->ethtool_ops->set_ringparam(dev, &ringparam,
 					      &kernel_ringparam, info->extack);
-	if (!ret) {
-		dev->ethtool->hds_config = kernel_ringparam.tcp_data_split;
-		dev->ethtool->hds_thresh = kernel_ringparam.hds_thresh;
-	}
-
 	return ret < 0 ? ret : 1;
 }
 
