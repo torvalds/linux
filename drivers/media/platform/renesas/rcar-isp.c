@@ -169,6 +169,7 @@ struct rcar_isp {
 
 	struct v4l2_async_notifier notifier;
 	struct v4l2_subdev *remote;
+	unsigned int remote_pad;
 
 	struct mutex lock; /* Protects mf and stream_count. */
 	struct v4l2_mbus_framefmt mf;
@@ -267,7 +268,8 @@ static int risp_start(struct rcar_isp *isp)
 	/* Start ISP. */
 	risp_write(isp, ISPSTART_REG, ISPSTART_START);
 
-	ret = v4l2_subdev_call(isp->remote, video, s_stream, 1);
+	ret = v4l2_subdev_enable_streams(isp->remote, isp->remote_pad,
+					 BIT_ULL(0));
 	if (ret)
 		risp_power_off(isp);
 
@@ -276,7 +278,7 @@ static int risp_start(struct rcar_isp *isp)
 
 static void risp_stop(struct rcar_isp *isp)
 {
-	v4l2_subdev_call(isp->remote, video, s_stream, 0);
+	v4l2_subdev_disable_streams(isp->remote, isp->remote_pad, BIT_ULL(0));
 
 	/* Stop ISP. */
 	risp_write(isp, ISPSTART_REG, ISPSTART_STOP);
@@ -387,6 +389,7 @@ static int risp_notify_bound(struct v4l2_async_notifier *notifier,
 	}
 
 	isp->remote = subdev;
+	isp->remote_pad = pad;
 
 	dev_dbg(isp->dev, "Bound %s pad: %d\n", subdev->name, pad);
 
