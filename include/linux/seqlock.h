@@ -272,7 +272,7 @@ SEQCOUNT_LOCKNAME(mutex,        struct mutex,    true,     mutex)
 ({									\
 	unsigned __seq;							\
 									\
-	while ((__seq = seqprop_sequence(s)) & 1)			\
+	while (unlikely((__seq = seqprop_sequence(s)) & 1))		\
 		cpu_relax();						\
 									\
 	kcsan_atomic_next(KCSAN_SEQLOCK_REGION_MAX);			\

@@ -3917,6 +3917,7 @@ static int shmem_symlink(struct mnt_idmap *idmap, struct inode *dir,
 	int len;
 	struct inode *inode;
 	struct folio *folio;
+	char *link;
 
 	len = strlen(symname) + 1;
 	if (len > PAGE_SIZE)
@@ -3938,12 +3939,13 @@ static int shmem_symlink(struct mnt_idmap *idmap, struct inode *dir,
 
 	inode->i_size = len-1;
 	if (len <= SHORT_SYMLINK_LEN) {
-		inode->i_link = kmemdup(symname, len, GFP_KERNEL);
-		if (!inode->i_link) {
+		link = kmemdup(symname, len, GFP_KERNEL);
+		if (!link) {
 			error = -ENOMEM;
 			goto out_remove_offset;
 		}
 		inode->i_op = &shmem_short_symlink_operations;
+		inode_set_cached_link(inode, link, len - 1);
 	} else {
 		inode_nohighmem(inode);
 		inode->i_mapping->a_ops = &shmem_aops;

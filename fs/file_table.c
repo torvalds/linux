@@ -128,7 +128,7 @@ static struct ctl_table fs_stat_sysctls[] = {
 		.data		= &sysctl_nr_open,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.proc_handler	= proc_douintvec_minmax,
 		.extra1		= &sysctl_nr_open_min,
 		.extra2		= &sysctl_nr_open_max,
 	},
@@ -478,6 +478,8 @@ static void ____fput(struct callback_head *work)
 	__fput(container_of(work, struct file, f_task_work));
 }
 
+static DECLARE_DELAYED_WORK(delayed_fput_work, delayed_fput);
+
 /*
  * If kernel thread really needs to have the final fput() it has done
  * to complete, call this.  The only user right now is the boot - we
@@ -491,10 +493,9 @@ static void ____fput(struct callback_head *work)
 void flush_delayed_fput(void)
 {
 	delayed_fput(NULL);
+	flush_delayed_work(&delayed_fput_work);
 }
 EXPORT_SYMBOL_GPL(flush_delayed_fput);
-
-static DECLARE_DELAYED_WORK(delayed_fput_work, delayed_fput);
 
 void fput(struct file *file)
 {
