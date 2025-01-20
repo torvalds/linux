@@ -842,7 +842,7 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
  * block right away if this is the last reference.
  *
  * This function is only for the power domain code's internal use to suppress wakeref
- * tracking when the correspondig debug kconfig option is disabled, should not
+ * tracking when the corresponding debug kconfig option is disabled, should not
  * be used otherwise.
  */
 void intel_display_power_put_unchecked(struct drm_i915_private *dev_priv,
@@ -1733,7 +1733,7 @@ static void icl_display_core_uninit(struct intel_display *display)
 	gen9_disable_dc_states(display);
 	intel_dmc_disable_program(display);
 
-	/* 1. Disable all display engine functions -> aready done */
+	/* 1. Disable all display engine functions -> already done */
 
 	/* 2. Disable DBUF */
 	gen9_dbuf_disable(display);

@@ -837,7 +837,7 @@ static int intel_dp_mst_check_bw(struct intel_atomic_state *state,
  * @state must be recomputed with the updated @limits.
  *
  * Returns:
- *   - 0 if the confugration is valid
+ *   - 0 if the configuration is valid
  *   - %-EAGAIN, if the configuration is invalid and @limits got updated
  *     with fallback values with which the configuration of all CRTCs in
  *     @state must be recomputed
@@ -2052,7 +2052,7 @@ bool intel_dp_mst_crtc_needs_modeset(struct intel_atomic_state *state,
  * @intel_dp: DP port object
  *
  * Prepare an MST link for topology probing, programming the target
- * link parameters to DPCD. This step is a requirement of the enumaration
+ * link parameters to DPCD. This step is a requirement of the enumeration
  * of path resources during probing.
  */
 void intel_dp_mst_prepare_probe(struct intel_dp *intel_dp)

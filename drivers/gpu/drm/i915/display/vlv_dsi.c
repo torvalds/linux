@@ -59,7 +59,7 @@ static u16 txbyteclkhs(u16 pixels, int bpp, int lane_count,
 					 8 * 100), lane_count);
 }
 
-/* return pixels equvalent to txbyteclkhs */
+/* return pixels equivalent to txbyteclkhs */
 static u16 pixels_from_txbyteclkhs(u16 clk_hs, int bpp, int lane_count,
 			u16 burst_mode_ratio)
 {

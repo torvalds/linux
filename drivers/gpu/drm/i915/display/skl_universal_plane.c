@@ -1099,7 +1099,7 @@ static u32 skl_plane_ctl_rotate(unsigned int rotate)
 		break;
 	/*
 	 * DRM_MODE_ROTATE_ is counter clockwise to stay compatible with Xrandr
-	 * while i915 HW rotation is clockwise, thats why this swapping.
+	 * while i915 HW rotation is clockwise, that's why this swapping.
 	 */
 	case DRM_MODE_ROTATE_90:
 		return PLANE_CTL_ROTATE_270;
@@ -2997,7 +2997,7 @@ skl_get_initial_plane_config(struct intel_crtc *crtc,
 
 	/*
 	 * DRM_MODE_ROTATE_ is counter clockwise to stay compatible with Xrandr
-	 * while i915 HW rotation is clockwise, thats why this swapping.
+	 * while i915 HW rotation is clockwise, that's why this swapping.
 	 */
 	switch (val & PLANE_CTL_ROTATE_MASK) {
 	case PLANE_CTL_ROTATE_0:

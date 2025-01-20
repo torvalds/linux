@@ -745,8 +745,10 @@ intel_crt_load_detect(struct intel_crt *crt, enum pipe pipe)
 			       transconf | TRANSCONF_FORCE_BORDER);
 		intel_de_posting_read(display,
 				      TRANSCONF(display, cpu_transcoder));
-		/* Wait for next Vblank to substitue
-		 * border color for Color info */
+		/*
+		 * Wait for next Vblank to substitute
+		 * border color for Color info.
+		 */
 		intel_crtc_wait_for_next_vblank(intel_crtc_for_pipe(display, pipe));
 		st00 = intel_de_read8(display, _VGA_MSR_WRITE);
 		status = ((st00 & (1 << 4)) != 0) ?

@@ -584,7 +584,7 @@ u32 skl_ddb_dbuf_slice_mask(struct drm_i915_private *i915,
 
 	/*
 	 * Per plane DDB entry can in a really worst case be on multiple slices
-	 * but single entry is anyway contigious.
+	 * but single entry is anyway contiguous.
 	 */
 	while (start_slice <= end_slice) {
 		slice_mask |= BIT(start_slice);
@@ -3204,7 +3204,7 @@ adjust_wm_latency(struct drm_i915_private *i915,
 	 * WaWmMemoryReadLatency
 	 *
 	 * punit doesn't take into account the read latency so we need
-	 * to add proper adjustement to each valid level we retrieve
+	 * to add proper adjustment to each valid level we retrieve
 	 * from the punit when level 0 response data is 0us.
 	 */
 	if (wm[0] == 0) {

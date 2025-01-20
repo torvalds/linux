@@ -290,7 +290,7 @@ static bool __intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
 }
 
 /**
- * intel_set_cpu_fifo_underrun_reporting - set cpu fifo underrrun reporting state
+ * intel_set_cpu_fifo_underrun_reporting - set cpu fifo underrun reporting state
  * @dev_priv: i915 device instance
  * @pipe: (CPU) pipe to set state for
  * @enable: whether underruns should be reported or not

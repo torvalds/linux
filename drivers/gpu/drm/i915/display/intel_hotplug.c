@@ -806,7 +806,7 @@ static void i915_hpd_poll_init_work(struct work_struct *work)
  * of the powerwells.
  *
  * Since this function can get called in contexts where we're already holding
- * dev->mode_config.mutex, we do the actual hotplug enabling in a seperate
+ * dev->mode_config.mutex, we do the actual hotplug enabling in a separate
  * worker.
  *
  * Also see: intel_hpd_init() and intel_hpd_poll_disable().
@@ -823,7 +823,7 @@ void intel_hpd_poll_enable(struct drm_i915_private *dev_priv)
 
 	/*
 	 * We might already be holding dev->mode_config.mutex, so do this in a
-	 * seperate worker
+	 * separate worker
 	 * As well, there's no issue if we race here since we always reschedule
 	 * this worker anyway
 	 */
@@ -844,7 +844,7 @@ void intel_hpd_poll_enable(struct drm_i915_private *dev_priv)
  * of the powerwells.
  *
  * Since this function can get called in contexts where we're already holding
- * dev->mode_config.mutex, we do the actual hotplug enabling in a seperate
+ * dev->mode_config.mutex, we do the actual hotplug enabling in a separate
  * worker.
  *
  * Also used during driver init to initialize connector->polled

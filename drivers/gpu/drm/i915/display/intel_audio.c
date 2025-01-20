@@ -567,7 +567,7 @@ static void hsw_audio_codec_enable(struct intel_encoder *encoder,
 		     AUDIO_ELD_VALID(cpu_transcoder), 0);
 
 	/*
-	 * The audio componenent is used to convey the ELD
+	 * The audio component is used to convey the ELD
 	 * instead using of the hardware ELD buffer.
 	 */
 
@@ -665,7 +665,7 @@ static void ibx_audio_codec_enable(struct intel_encoder *encoder,
 		     IBX_ELD_VALID(port), 0);
 
 	/*
-	 * The audio componenent is used to convey the ELD
+	 * The audio component is used to convey the ELD
 	 * instead using of the hardware ELD buffer.
 	 */
 

@@ -940,7 +940,7 @@ static int i915_lpsp_capability_show(struct seq_file *m, void *data)
 		/*
 		 * Actually TGL can drive LPSP on port till DDI_C
 		 * but there is no physical connected DDI_C on TGL sku's,
-		 * even driver is not initilizing DDI_C port for gen12.
+		 * even driver is not initializing DDI_C port for gen12.
 		 */
 		lpsp_capable = encoder->port <= PORT_B;
 	else if (DISPLAY_VER(i915) == 11)

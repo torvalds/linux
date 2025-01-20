@@ -998,7 +998,7 @@ static void skl_color_commit_noarm(struct intel_dsb *dsb,
 	 * output all black (until CSC_MODE is rearmed and properly latched).
 	 * Once PSR exit (and proper register latching) has occurred the
 	 * danger is over. Thus when PSR is enabled the CSC coeff/offset
-	 * register programming will be peformed from skl_color_commit_arm()
+	 * register programming will be performed from skl_color_commit_arm()
 	 * which is called after PSR exit.
 	 */
 	if (!crtc_state->has_psr)

@@ -680,7 +680,7 @@ static void i9xx_cursor_update_arm(struct intel_dsb *dsb,
 	 * CURPOS.
 	 *
 	 * On other platforms CURPOS always requires the
-	 * CURBASE write to arm the update. Additonally
+	 * CURBASE write to arm the update. Additionally
 	 * a write to any of the cursor register will cancel
 	 * an already armed cursor update. Thus leaving out
 	 * the CURBASE write after CURPOS could lead to a

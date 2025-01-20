@@ -244,7 +244,7 @@ struct intel_sdvo_set_target_input_args {
  * Takes a struct intel_sdvo_output_flags of which outputs are targeted by
  * future output commands.
  *
- * Affected commands inclue SET_OUTPUT_TIMINGS_PART[12],
+ * Affected commands include SET_OUTPUT_TIMINGS_PART[12],
  * GET_OUTPUT_TIMINGS_PART[12], and GET_OUTPUT_PIXEL_CLOCK_RANGE.
  */
 #define SDVO_CMD_SET_TARGET_OUTPUT			0x11

@@ -446,7 +446,7 @@ static const struct intel_watermark_params i845_wm_info = {
  * @latency: Memory wakeup latency in 0.1us units
  *
  * Compute the watermark using the method 1 or "small buffer"
- * formula. The caller may additonally add extra cachelines
+ * formula. The caller may additionally add extra cachelines
  * to account for TLB misses and clock crossings.
  *
  * This method is concerned with the short term drain rate
@@ -493,7 +493,7 @@ static unsigned int intel_wm_method1(unsigned int pixel_rate,
  * @latency: Memory wakeup latency in 0.1us units
  *
  * Compute the watermark using the method 2 or "large buffer"
- * formula. The caller may additonally add extra cachelines
+ * formula. The caller may additionally add extra cachelines
  * to account for TLB misses and clock crossings.
  *
  * This method is concerned with the long term drain rate
@@ -1562,7 +1562,7 @@ static int vlv_compute_fifo(struct intel_crtc_state *crtc_state)
 	/*
 	 * When enabling sprite0 after sprite1 has already been enabled
 	 * we tend to get an underrun unless sprite0 already has some
-	 * FIFO space allcoated. Hence we always allocate at least one
+	 * FIFO space allocated. Hence we always allocate at least one
 	 * cacheline for sprite0 whenever sprite1 is enabled.
 	 *
 	 * All other plane enable sequences appear immune to this problem.

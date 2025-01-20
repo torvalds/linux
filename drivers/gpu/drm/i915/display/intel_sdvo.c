@@ -1741,8 +1741,8 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 	 * pixel multiplier readout is tricky: Only on i915g/gm it is stored in
 	 * the sdvo port register, on all other platforms it is part of the dpll
 	 * state. Since the general pipe state readout happens before the
-	 * encoder->get_config we so already have a valid pixel multplier on all
-	 * other platfroms.
+	 * encoder->get_config we so already have a valid pixel multiplier on all
+	 * other platforms.
 	 */
 	if (IS_I915G(dev_priv) || IS_I915GM(dev_priv)) {
 		pipe_config->pixel_multiplier =

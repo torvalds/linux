@@ -353,7 +353,7 @@ static bool hdcp_key_loadable(struct intel_display *display)
 
 	/*
 	 * Another req for hdcp key loadability is enabled state of pll for
-	 * cdclk. Without active crtc we wont land here. So we are assuming that
+	 * cdclk. Without active crtc we won't land here. So we are assuming that
 	 * cdclk is already on.
 	 */
 
@@ -1550,9 +1550,9 @@ static int hdcp2_authentication_key_exchange(struct intel_connector *connector)
 	 * with a 50ms delay if not hdcp2 capable for DP/DPMST encoders
 	 * (dock decides to stop advertising hdcp2 capability for some reason).
 	 * The reason being that during suspend resume dock usually keeps the
-	 * HDCP2 registers inaccesible causing AUX error. This wouldn't be a
+	 * HDCP2 registers inaccessible causing AUX error. This wouldn't be a
 	 * big problem if the userspace just kept retrying with some delay while
-	 * it continues to play low value content but most userpace applications
+	 * it continues to play low value content but most userspace applications
 	 * end up throwing an error when it receives one from KMD. This makes
 	 * sure we give the dock and the sink devices to complete its power cycle
 	 * and then try HDCP authentication. The values of 10 and delay of 50ms
@@ -2573,7 +2573,7 @@ void intel_hdcp_update_pipe(struct intel_atomic_state *state,
 
 	/*
 	 * During the HDCP encryption session if Type change is requested,
-	 * disable the HDCP and reenable it with new TYPE value.
+	 * disable the HDCP and re-enable it with new TYPE value.
 	 */
 	if (conn_state->content_protection ==
 	    DRM_MODE_CONTENT_PROTECTION_UNDESIRED ||

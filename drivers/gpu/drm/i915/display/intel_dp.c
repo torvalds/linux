@@ -1075,7 +1075,7 @@ static bool source_can_output(struct intel_dp *intel_dp,
 		/*
 		 * No YCbCr output support on gmch platforms.
 		 * Also, ILK doesn't seem capable of DP YCbCr output.
-		 * The displayed image is severly corrupted. SNB+ is fine.
+		 * The displayed image is severely corrupted. SNB+ is fine.
 		 */
 		return !HAS_GMCH(display) && !display->platform.ironlake;
 

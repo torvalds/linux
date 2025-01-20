@@ -2250,7 +2250,7 @@ static void bxt_sanitize_cdclk(struct intel_display *display)
 
 	/*
 	 * Let's ignore the pipe field, since BIOS could have configured the
-	 * dividers both synching to an active pipe, or asynchronously
+	 * dividers both syncing to an active pipe, or asynchronously
 	 * (PIPE_NONE).
 	 */
 	cdctl &= ~bxt_cdclk_cd2x_pipe(display, INVALID_PIPE);

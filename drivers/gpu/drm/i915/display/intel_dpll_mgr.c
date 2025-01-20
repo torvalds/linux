@@ -4372,7 +4372,7 @@ void intel_shared_dpll_init(struct drm_i915_private *i915)
  * calling intel_shared_dpll_swap_state().
  *
  * Returns:
- * 0 on success, negative error code on falure.
+ * 0 on success, negative error code on failure.
  */
 int intel_compute_shared_dplls(struct intel_atomic_state *state,
 			       struct intel_crtc *crtc,

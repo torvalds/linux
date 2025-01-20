@@ -459,7 +459,7 @@ static void bxt_dsi_program_clocks(struct drm_device *dev, enum port port,
 
 	/*
 	 * rx divider value needs to be updated in the
-	 * two differnt bit fields in the register hence splitting the
+	 * two different bit fields in the register hence splitting the
 	 * rx divider value accordingly
 	 */
 	rx_div_lower = rx_div & RX_DIVIDER_BIT_1_2;

@@ -369,7 +369,7 @@ static bool i915_get_crtc_scanoutpos(struct drm_crtc *_crtc,
 
 		/*
 		 * Already exiting vblank? If so, shift our position
-		 * so it looks like we're already apporaching the full
+		 * so it looks like we're already approaching the full
 		 * vblank end. This should make the generated timestamp
 		 * more or less match when the active portion will start.
 		 */

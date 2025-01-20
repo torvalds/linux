@@ -732,7 +732,7 @@ struct intel_crtc_scaler_state {
 	 *
 	 * intel_atomic_setup_scalers will setup available scalers to users
 	 * requesting scalers. It will gracefully fail if request exceeds
-	 * avilability.
+	 * availability.
 	 */
 #define SKL_CRTC_INDEX 31
 	unsigned scaler_users;
@@ -1113,7 +1113,7 @@ struct intel_crtc_state {
 	u16 su_y_granularity;
 
 	/*
-	 * Frequence the dpll for the port should run at. Differs from the
+	 * Frequency the dpll for the port should run at. Differs from the
 	 * adjusted dotclock e.g. for DP or 10/12bpc hdmi mode. This is also
 	 * already multiplied by pixel_multiplier.
 	 */

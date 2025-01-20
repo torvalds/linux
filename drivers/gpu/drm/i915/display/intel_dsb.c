@@ -821,7 +821,7 @@ void intel_dsb_irq_handler(struct intel_display *display,
 
 		if (crtc->dsb_event) {
 			/*
-			 * Update vblank counter/timestmap in case it
+			 * Update vblank counter/timestamp in case it
 			 * hasn't been done yet for this frame.
 			 */
 			drm_crtc_accurate_vblank_count(&crtc->base);

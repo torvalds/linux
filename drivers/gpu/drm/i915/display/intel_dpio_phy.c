@@ -40,7 +40,7 @@
  * VLV, CHV and BXT have slightly peculiar display PHYs for driving DP/HDMI
  * ports. DPIO is the name given to such a display PHY. These PHYs
  * don't follow the standard programming model using direct MMIO
- * registers, and instead their registers must be accessed trough IOSF
+ * registers, and instead their registers must be accessed through IOSF
  * sideband. VLV has one such PHY for driving ports B and C, and CHV
  * adds another PHY for driving port D. Each PHY responds to specific
  * IOSF-SB port.

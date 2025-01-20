@@ -522,7 +522,7 @@ static const struct intel_mpllb_state dg2_hdmi_148_5 = {
 		REG_FIELD_PREP(SNPS_PHY_MPLLB_SSC_UP_SPREAD, 1),
 };
 
-/* values in the below table are calculted using the algo */
+/* values in the below table are calculated using the algo */
 static const struct intel_mpllb_state dg2_hdmi_25200 = {
 	.clock = 25200,
 	.ref_control =

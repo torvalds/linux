@@ -227,7 +227,7 @@ static void intel_frontbuffer_flush_work(struct work_struct *work)
  * @front: GEM object to flush
  *
  * This function is targeted for our dirty callback for queueing flush when
- * dma fence is signales
+ * dma fence is signals
  */
 void intel_frontbuffer_queue_flush(struct intel_frontbuffer *front)
 {

@@ -106,7 +106,7 @@ calculate_rc_params(struct drm_dsc_config *vdsc_cfg)
 	 * According to DSC 1.2 spec in Section 4.1 if native_420 is set:
 	 * -second_line_bpg_offset is 12 in general and equal to 2*(slice_height-1) if slice
 	 * height < 8.
-	 * -second_line_offset_adj is 512 as shown by emperical values to yield best chroma
+	 * -second_line_offset_adj is 512 as shown by empirical values to yield best chroma
 	 * preservation in second line.
 	 * -nsl_bpg_offset is calculated as second_line_offset/slice_height -1 then rounded
 	 * up to 16 fractional bits, we left shift second line offset by 11 to preserve 11

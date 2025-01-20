@@ -318,7 +318,7 @@ struct dpll_info {
 	const struct intel_shared_dpll_funcs *funcs;
 
 	/**
-	 * @id: unique indentifier for this DPLL
+	 * @id: unique identifier for this DPLL
 	 */
 	enum intel_dpll_id id;
 
