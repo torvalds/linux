@@ -14,6 +14,8 @@
 
 struct fuse_arg;
 struct fuse_args;
+struct fuse_pqueue;
+struct fuse_req;
 
 struct fuse_copy_state {
 	int write;
@@ -41,6 +43,9 @@ static inline struct fuse_dev *fuse_get_dev(struct file *file)
 	 */
 	return READ_ONCE(file->private_data);
 }
+
+unsigned int fuse_req_hash(u64 unique);
+struct fuse_req *fuse_request_find(struct fuse_pqueue *fpq, u64 unique);
 
 void fuse_dev_end_requests(struct list_head *head);
 

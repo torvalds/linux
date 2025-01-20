@@ -1238,6 +1238,11 @@ void fuse_change_entry_timeout(struct dentry *entry, struct fuse_entry_out *o);
 struct fuse_conn *fuse_conn_get(struct fuse_conn *fc);
 
 /**
+ * Initialize the fuse processing queue
+ */
+void fuse_pqueue_init(struct fuse_pqueue *fpq);
+
+/**
  * Initialize fuse_conn
  */
 void fuse_conn_init(struct fuse_conn *fc, struct fuse_mount *fm,
