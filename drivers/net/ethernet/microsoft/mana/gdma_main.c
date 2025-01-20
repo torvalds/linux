@@ -331,6 +331,7 @@ void mana_gd_wq_ring_doorbell(struct gdma_context *gc, struct gdma_queue *queue)
 	mana_gd_ring_doorbell(gc, queue->gdma_dev->doorbell, queue->type,
 			      queue->id, queue->head * GDMA_WQE_BU_SIZE, 0);
 }
+EXPORT_SYMBOL_NS(mana_gd_wq_ring_doorbell, "NET_MANA");
 
 void mana_gd_ring_cq(struct gdma_queue *cq, u8 arm_bit)
 {
@@ -1149,6 +1150,7 @@ int mana_gd_post_work_request(struct gdma_queue *wq,
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(mana_gd_post_work_request, "NET_MANA");
 
 int mana_gd_post_and_ring(struct gdma_queue *queue,
 			  const struct gdma_wqe_request *wqe_req,

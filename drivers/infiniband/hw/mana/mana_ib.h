@@ -14,6 +14,7 @@
 #include <linux/dmapool.h>
 
 #include <net/mana/mana.h>
+#include "shadow_queue.h"
 
 #define PAGE_SZ_BM                                                             \
 	(SZ_4K | SZ_8K | SZ_16K | SZ_32K | SZ_64K | SZ_128K | SZ_256K |        \
@@ -164,6 +165,9 @@ struct mana_ib_qp {
 
 	/* The port on the IB device, starting with 1 */
 	u32 port;
+
+	struct shadow_queue shadow_rq;
+	struct shadow_queue shadow_sq;
 
 	refcount_t		refcount;
 	struct completion	free;
@@ -404,6 +408,30 @@ struct mana_rnic_set_qp_state_resp {
 	struct gdma_resp_hdr hdr;
 }; /* HW Data */
 
+enum WQE_OPCODE_TYPES {
+	WQE_TYPE_UD_SEND = 0,
+	WQE_TYPE_UD_RECV = 8,
+}; /* HW DATA */
+
+struct rdma_send_oob {
+	u32 wqe_type	: 5;
+	u32 fence	: 1;
+	u32 signaled	: 1;
+	u32 solicited	: 1;
+	u32 psn		: 24;
+
+	u32 ssn_or_rqpn	: 24;
+	u32 reserved1	: 8;
+	union {
+		struct {
+			u32 remote_qkey;
+			u32 immediate;
+			u32 reserved1;
+			u32 reserved2;
+		} ud_send;
+	};
+}; /* HW DATA */
+
 static inline struct gdma_context *mdev_to_gc(struct mana_ib_dev *mdev)
 {
 	return mdev->gdma_dev->gdma_context;
@@ -562,4 +590,9 @@ int mana_ib_gd_destroy_ud_qp(struct mana_ib_dev *mdev, struct mana_ib_qp *qp);
 int mana_ib_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
 		      struct ib_udata *udata);
 int mana_ib_destroy_ah(struct ib_ah *ah, u32 flags);
+
+int mana_ib_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
+		      const struct ib_recv_wr **bad_wr);
+int mana_ib_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
+		      const struct ib_send_wr **bad_wr);
 #endif

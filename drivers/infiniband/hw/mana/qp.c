@@ -562,10 +562,23 @@ static int mana_ib_create_ud_qp(struct ib_qp *ibqp, struct ib_pd *ibpd,
 	}
 	doorbell = gc->mana_ib.doorbell;
 
+	err = create_shadow_queue(&qp->shadow_rq, attr->cap.max_recv_wr,
+				  sizeof(struct ud_rq_shadow_wqe));
+	if (err) {
+		ibdev_err(&mdev->ib_dev, "Failed to create shadow rq err %d\n", err);
+		goto destroy_queues;
+	}
+	err = create_shadow_queue(&qp->shadow_sq, attr->cap.max_send_wr,
+				  sizeof(struct ud_sq_shadow_wqe));
+	if (err) {
+		ibdev_err(&mdev->ib_dev, "Failed to create shadow sq err %d\n", err);
+		goto destroy_shadow_queues;
+	}
+
 	err = mana_ib_gd_create_ud_qp(mdev, qp, attr, doorbell, attr->qp_type);
 	if (err) {
 		ibdev_err(&mdev->ib_dev, "Failed to create ud qp  %d\n", err);
-		goto destroy_queues;
+		goto destroy_shadow_queues;
 	}
 	qp->ibqp.qp_num = qp->ud_qp.queues[MANA_UD_RECV_QUEUE].id;
 	qp->port = attr->port_num;
@@ -575,6 +588,9 @@ static int mana_ib_create_ud_qp(struct ib_qp *ibqp, struct ib_pd *ibpd,
 
 	return 0;
 
+destroy_shadow_queues:
+	destroy_shadow_queue(&qp->shadow_rq);
+	destroy_shadow_queue(&qp->shadow_sq);
 destroy_queues:
 	while (i-- > 0)
 		mana_ib_destroy_queue(mdev, &qp->ud_qp.queues[i]);
@@ -753,6 +769,9 @@ static int mana_ib_destroy_ud_qp(struct mana_ib_qp *qp, struct ib_udata *udata)
 	struct mana_ib_dev *mdev =
 		container_of(qp->ibqp.device, struct mana_ib_dev, ib_dev);
 	int i;
+
+	destroy_shadow_queue(&qp->shadow_rq);
+	destroy_shadow_queue(&qp->shadow_sq);
 
 	/* Ignore return code as there is not much we can do about it.
 	 * The error message is printed inside.
