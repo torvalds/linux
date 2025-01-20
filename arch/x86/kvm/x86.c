@@ -12800,7 +12800,8 @@ void __user * __x86_set_memory_region(struct kvm *kvm, int id, gpa_t gpa,
 	struct kvm_memslots *slots = kvm_memslots(kvm);
 	struct kvm_memory_slot *slot;
 
-	/* Called with kvm->slots_lock held.  */
+	lockdep_assert_held(&kvm->slots_lock);
+
 	if (WARN_ON(id >= KVM_MEM_SLOTS_NUM))
 		return ERR_PTR_USR(-EINVAL);
 
@@ -12833,7 +12834,7 @@ void __user * __x86_set_memory_region(struct kvm *kvm, int id, gpa_t gpa,
 		m.guest_phys_addr = gpa;
 		m.userspace_addr = hva;
 		m.memory_size = size;
-		r = __kvm_set_memory_region(kvm, &m);
+		r = kvm_set_internal_memslot(kvm, &m);
 		if (r < 0)
 			return ERR_PTR_USR(r);
 	}
@@ -12934,7 +12935,7 @@ static int kvm_alloc_memslot_metadata(struct kvm *kvm,
 
 	/*
 	 * Clear out the previous array pointers for the KVM_MR_MOVE case.  The
-	 * old arrays will be freed by __kvm_set_memory_region() if installing
+	 * old arrays will be freed by kvm_set_memory_region() if installing
 	 * the new memslot is successful.
 	 */
 	memset(&slot->arch, 0, sizeof(slot->arch));

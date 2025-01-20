@@ -1926,16 +1926,8 @@ static bool kvm_check_memslot_overlap(struct kvm_memslots *slots, int id,
 	return false;
 }
 
-/*
- * Allocate some memory and give it an address in the guest physical address
- * space.
- *
- * Discontiguous memory is allowed, mostly for framebuffers.
- *
- * Must be called holding kvm->slots_lock for write.
- */
-int __kvm_set_memory_region(struct kvm *kvm,
-			    const struct kvm_userspace_memory_region2 *mem)
+static int kvm_set_memory_region(struct kvm *kvm,
+				 const struct kvm_userspace_memory_region2 *mem)
 {
 	struct kvm_memory_slot *old, *new;
 	struct kvm_memslots *slots;
@@ -1944,6 +1936,8 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	gfn_t base_gfn;
 	int as_id, id;
 	int r;
+
+	lockdep_assert_held(&kvm->slots_lock);
 
 	r = check_memory_region_flags(kvm, mem);
 	if (r)
@@ -2056,19 +2050,19 @@ out:
 	kfree(new);
 	return r;
 }
-EXPORT_SYMBOL_GPL(__kvm_set_memory_region);
 
-int kvm_set_memory_region(struct kvm *kvm,
-			  const struct kvm_userspace_memory_region2 *mem)
+int kvm_set_internal_memslot(struct kvm *kvm,
+			     const struct kvm_userspace_memory_region2 *mem)
 {
-	int r;
+	if (WARN_ON_ONCE(mem->slot < KVM_USER_MEM_SLOTS))
+		return -EINVAL;
 
-	mutex_lock(&kvm->slots_lock);
-	r = __kvm_set_memory_region(kvm, mem);
-	mutex_unlock(&kvm->slots_lock);
-	return r;
+	if (WARN_ON_ONCE(mem->flags))
+		return -EINVAL;
+
+	return kvm_set_memory_region(kvm, mem);
 }
-EXPORT_SYMBOL_GPL(kvm_set_memory_region);
+EXPORT_SYMBOL_GPL(kvm_set_internal_memslot);
 
 static int kvm_vm_ioctl_set_memory_region(struct kvm *kvm,
 					  struct kvm_userspace_memory_region2 *mem)
@@ -2076,6 +2070,7 @@ static int kvm_vm_ioctl_set_memory_region(struct kvm *kvm,
 	if ((u16)mem->slot >= KVM_USER_MEM_SLOTS)
 		return -EINVAL;
 
+	guard(mutex)(&kvm->slots_lock);
 	return kvm_set_memory_region(kvm, mem);
 }
 
