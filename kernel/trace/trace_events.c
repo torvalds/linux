@@ -3580,7 +3580,7 @@ EXPORT_SYMBOL_GPL(trace_remove_event_call);
 	     event++)
 
 #ifdef CONFIG_MODULES
-static void update_cache(struct trace_array *tr, struct module *mod)
+static void update_mod_cache(struct trace_array *tr, struct module *mod)
 {
 	struct event_mod_load *event_mod, *n;
 
@@ -3600,7 +3600,7 @@ static void update_cache_events(struct module *mod)
 	struct trace_array *tr;
 
 	list_for_each_entry(tr, &ftrace_trace_arrays, list)
-		update_cache(tr, mod);
+		update_mod_cache(tr, mod);
 }
 
 static void trace_module_add_events(struct module *mod)
