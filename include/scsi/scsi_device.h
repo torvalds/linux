@@ -687,6 +687,12 @@ static inline int scsi_device_busy(struct scsi_device *sdev)
 	return sbitmap_weight(&sdev->budget_map);
 }
 
+/* Macros to access the UNIT ATTENTION counters */
+#define scsi_get_ua_new_media_ctr(sdev) \
+	((const unsigned int)(sdev->ua_new_media_ctr))
+#define scsi_get_ua_por_ctr(sdev) \
+	((const unsigned int)(sdev->ua_por_ctr))
+
 #define MODULE_ALIAS_SCSI_DEVICE(type) \
 	MODULE_ALIAS("scsi:t-" __stringify(type) "*")
 #define SCSI_DEVICE_MODALIAS_FMT "scsi:t-0x%02x"

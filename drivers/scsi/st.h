@@ -179,6 +179,10 @@ struct scsi_tape {
 	int recover_count;     /* From tape opening */
 	int recover_reg;       /* From last status call */
 
+	/* The saved values of midlevel counters */
+	unsigned int new_media_ctr;
+	unsigned int por_ctr;
+
 #if DEBUG
 	unsigned char write_pending;
 	int nbr_finished;
