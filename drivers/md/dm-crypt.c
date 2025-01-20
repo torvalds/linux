@@ -1187,7 +1187,7 @@ static int dm_crypt_integrity_io_alloc(struct dm_crypt_io *io, struct bio *bio)
 
 	tag_len = io->cc->tuple_size * (bio_sectors(bio) >> io->cc->sector_shift);
 
-	bip->bip_iter.bi_sector = io->cc->start + io->sector;
+	bip->bip_iter.bi_sector = bio->bi_iter.bi_sector;
 
 	ret = bio_integrity_add_page(bio, virt_to_page(io->integrity_metadata),
 				     tag_len, offset_in_page(io->integrity_metadata));
