@@ -1320,6 +1320,21 @@
 		status = "disabled";
 	};
 
+	spdif_tx2: spdif-tx@fddb0000 {
+		compatible = "rockchip,rk3588-spdif", "rockchip,rk3568-spdif";
+		reg = <0x0 0xfddb0000 0x0 0x1000>;
+		assigned-clock-parents = <&cru PLL_AUPLL>;
+		assigned-clocks = <&cru CLK_SPDIF2_DP0_SRC>;
+		clock-names = "mclk", "hclk";
+		clocks = <&cru MCLK_SPDIF2>, <&cru HCLK_SPDIF2_DP0>;
+		dma-names = "tx";
+		dmas = <&dmac1 6>;
+		interrupts = <GIC_SPI 195 IRQ_TYPE_LEVEL_HIGH 0>;
+		power-domains = <&power RK3588_PD_VO0>;
+		#sound-dai-cells = <0>;
+		status = "disabled";
+	};
+
 	i2s4_8ch: i2s@fddc0000 {
 		compatible = "rockchip,rk3588-i2s-tdm";
 		reg = <0x0 0xfddc0000 0x0 0x1000>;
@@ -1333,6 +1348,21 @@
 		power-domains = <&power RK3588_PD_VO0>;
 		resets = <&cru SRST_M_I2S4_8CH_TX>;
 		reset-names = "tx-m";
+		#sound-dai-cells = <0>;
+		status = "disabled";
+	};
+
+	spdif_tx3: spdif-tx@fdde0000 {
+		compatible = "rockchip,rk3588-spdif", "rockchip,rk3568-spdif";
+		reg = <0x0 0xfdde0000 0x0 0x1000>;
+		assigned-clock-parents = <&cru PLL_AUPLL>;
+		assigned-clocks = <&cru CLK_SPDIF3_SRC>;
+		clock-names = "mclk", "hclk";
+		clocks = <&cru MCLK_SPDIF3>, <&cru HCLK_SPDIF3>;
+		dma-names = "tx";
+		dmas = <&dmac1 7>;
+		interrupts = <GIC_SPI 196 IRQ_TYPE_LEVEL_HIGH 0>;
+		power-domains = <&power RK3588_PD_VO1>;
 		#sound-dai-cells = <0>;
 		status = "disabled";
 	};
@@ -2014,6 +2044,40 @@
 			     &i2s3_sclk
 			     &i2s3_sdi
 			     &i2s3_sdo>;
+		#sound-dai-cells = <0>;
+		status = "disabled";
+	};
+
+	spdif_tx0: spdif-tx@fe4e0000 {
+		compatible = "rockchip,rk3588-spdif", "rockchip,rk3568-spdif";
+		reg = <0x0 0xfe4e0000 0x0 0x1000>;
+		assigned-clock-parents = <&cru PLL_AUPLL>;
+		assigned-clocks = <&cru CLK_SPDIF0_SRC>;
+		clock-names = "mclk", "hclk";
+		clocks = <&cru MCLK_SPDIF0>, <&cru HCLK_SPDIF0>;
+		dma-names = "tx";
+		dmas = <&dmac0 5>;
+		interrupts = <GIC_SPI 193 IRQ_TYPE_LEVEL_HIGH 0>;
+		pinctrl-0 = <&spdif0m0_tx>;
+		pinctrl-names = "default";
+		power-domains = <&power RK3588_PD_AUDIO>;
+		#sound-dai-cells = <0>;
+		status = "disabled";
+	};
+
+	spdif_tx1: spdif-tx@fe4f0000 {
+		compatible = "rockchip,rk3588-spdif", "rockchip,rk3568-spdif";
+		reg = <0x0 0xfe4f0000 0x0 0x1000>;
+		assigned-clock-parents = <&cru PLL_AUPLL>;
+		assigned-clocks = <&cru CLK_SPDIF1_SRC>;
+		clock-names = "mclk", "hclk";
+		clocks = <&cru MCLK_SPDIF1>, <&cru HCLK_SPDIF1>;
+		dma-names = "tx";
+		dmas = <&dmac1 5>;
+		interrupts = <GIC_SPI 194 IRQ_TYPE_LEVEL_HIGH 0>;
+		pinctrl-0 = <&spdif1m0_tx>;
+		pinctrl-names = "default";
+		power-domains = <&power RK3588_PD_AUDIO>;
 		#sound-dai-cells = <0>;
 		status = "disabled";
 	};
