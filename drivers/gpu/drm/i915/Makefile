@@ -346,6 +346,7 @@ i915-y += \
 	display/intel_pps.o \
 	display/intel_qp_tables.o \
 	display/intel_sdvo.o \
+	display/intel_snps_hdmi_pll.o \
 	display/intel_snps_phy.o \
 	display/intel_tv.o \
 	display/intel_vdsc.o \
