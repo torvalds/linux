@@ -1193,7 +1193,7 @@ static int ppgtt_populate_shadow_entry(struct intel_vgpu *vgpu,
 		gvt_vdbg_mm("shadow 64K gtt entry\n");
 		/*
 		 * The layout of 64K page is special, the page size is
-		 * controlled by uper PDE. To be simple, we always split
+		 * controlled by upper PDE. To be simple, we always split
 		 * 64K page to smaller 4K pages in shadow PT.
 		 */
 		return split_64KB_gtt_entry(vgpu, spt, index, &se);
