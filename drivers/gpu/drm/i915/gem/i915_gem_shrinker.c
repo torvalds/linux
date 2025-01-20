@@ -25,7 +25,7 @@ static bool swap_available(void)
 
 static bool can_release_pages(struct drm_i915_gem_object *obj)
 {
-	/* Consider only shrinkable ojects. */
+	/* Consider only shrinkable objects. */
 	if (!i915_gem_object_is_shrinkable(obj))
 		return false;
 
@@ -261,7 +261,7 @@ skip:
  * i915_gem_shrink_all - Shrink buffer object caches completely
  * @i915: i915 device
  *
- * This is a simple wraper around i915_gem_shrink() to aggressively shrink all
+ * This is a simple wrapper around i915_gem_shrink() to aggressively shrink all
  * caches completely. It also first waits for and retires all outstanding
  * requests to also be able to release backing storage for active objects.
  *

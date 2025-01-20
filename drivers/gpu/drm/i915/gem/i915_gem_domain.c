@@ -276,7 +276,7 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 	 * For objects created by userspace through GEM_CREATE with pat_index
 	 * set by set_pat extension, simply return 0 here without touching
 	 * the cache setting, because such objects should have an immutable
-	 * cache setting by desgin and always managed by userspace.
+	 * cache setting by design and always managed by userspace.
 	 */
 	if (i915_gem_object_has_cache_level(obj, cache_level))
 		return 0;
