@@ -1970,7 +1970,7 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 	if (amdgpu_device_seamless_boot_supported(adev)) {
 		init_data.flags.seamless_boot_edp_requested = true;
 		init_data.flags.allow_seamless_boot_optimization = true;
-		DRM_INFO("Seamless boot condition check passed\n");
+		drm_dbg(adev->dm.ddev, "Seamless boot requested\n");
 	}
 
 	init_data.flags.enable_mipi_converter_optimization = true;
