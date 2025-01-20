@@ -105,18 +105,17 @@ static const struct regmap_config tasdevice_regmap = {
 static int tasdevice_spi_switch_book(struct tasdevice_priv *tas_priv, int reg)
 {
 	struct regmap *map = tas_priv->regmap;
-	int ret;
 
 	if (tas_priv->cur_book != TASDEVICE_BOOK_ID(reg)) {
-		ret = regmap_write(map, TASDEVICE_BOOKCTL_REG,
-				   TASDEVICE_BOOK_ID(reg));
+		int ret = regmap_write(map, TASDEVICE_BOOKCTL_REG,
+				       TASDEVICE_BOOK_ID(reg));
 		if (ret < 0) {
 			dev_err(tas_priv->dev, "Switch Book E=%d\n", ret);
 			return ret;
 		}
 		tas_priv->cur_book = TASDEVICE_BOOK_ID(reg);
 	}
-	return ret;
+	return 0;
 }
 
 int tasdevice_spi_dev_read(struct tasdevice_priv *tas_priv,
