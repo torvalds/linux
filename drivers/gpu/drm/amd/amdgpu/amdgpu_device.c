@@ -6190,8 +6190,8 @@ static void amdgpu_device_gpu_bandwidth(struct amdgpu_device *adev,
 		}
 	} else {
 		/* use the device itself */
-		*speed = pcie_get_speed_cap(parent);
-		*width = pcie_get_width_cap(parent);
+		*speed = pcie_get_speed_cap(adev->pdev);
+		*width = pcie_get_width_cap(adev->pdev);
 	}
 }
 
