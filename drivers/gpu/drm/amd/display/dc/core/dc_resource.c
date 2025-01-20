@@ -3592,16 +3592,20 @@ static int acquire_resource_from_hw_enabled_state(
 	return -1;
 }
 
-static void mark_seamless_boot_stream(
-		const struct dc  *dc,
-		struct dc_stream_state *stream)
+static void mark_seamless_boot_stream(const struct dc  *dc,
+				      struct dc_stream_state *stream)
 {
 	struct dc_bios *dcb = dc->ctx->dc_bios;
 
-	if (dc->config.allow_seamless_boot_optimization &&
-			!dcb->funcs->is_accelerated_mode(dcb)) {
-		if (dc_validate_boot_timing(dc, stream->sink, &stream->timing))
-			stream->apply_seamless_boot_optimization = true;
+	if (stream->apply_seamless_boot_optimization)
+		return;
+	if (!dc->config.allow_seamless_boot_optimization)
+		return;
+	if (dcb->funcs->is_accelerated_mode(dcb))
+		return;
+	if (dc_validate_boot_timing(dc, stream->sink, &stream->timing)) {
+		stream->apply_seamless_boot_optimization = true;
+		DC_LOG_INFO("Marked stream for seamless boot optimization\n");
 	}
 }
 
