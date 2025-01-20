@@ -6,95 +6,9 @@
 #include <limits.h>
 #include <linux/types.h>
 #include <stdio.h>
-#include <sys/ioctl.h>
-#include <sys/syscall.h>
 
 #include "../../tools/testing/selftests/pidfd/pidfd.h"
-
-#define die_errno(format, ...)                                             \
-	do {                                                               \
-		fprintf(stderr, "%m | %s: %d: %s: " format "\n", __FILE__, \
-			__LINE__, __func__, ##__VA_ARGS__);                \
-		exit(EXIT_FAILURE);                                        \
-	} while (0)
-
-/* Get the id for a mount namespace */
-#define NS_GET_MNTNS_ID _IO(0xb7, 0x5)
-/* Get next mount namespace. */
-
-struct mnt_ns_info {
-	__u32 size;
-	__u32 nr_mounts;
-	__u64 mnt_ns_id;
-};
-
-#define MNT_NS_INFO_SIZE_VER0 16 /* size of first published struct */
-
-/* Get information about namespace. */
-#define NS_MNT_GET_INFO _IOR(0xb7, 10, struct mnt_ns_info)
-/* Get next namespace. */
-#define NS_MNT_GET_NEXT _IOR(0xb7, 11, struct mnt_ns_info)
-/* Get previous namespace. */
-#define NS_MNT_GET_PREV _IOR(0xb7, 12, struct mnt_ns_info)
-
-#define PIDFD_GET_MNT_NAMESPACE _IO(0xFF, 3)
-
-#ifndef __NR_listmount
-#define __NR_listmount 458
-#endif
-
-#ifndef __NR_statmount
-#define __NR_statmount 457
-#endif
-
-/* @mask bits for statmount(2) */
-#define STATMOUNT_SB_BASIC		0x00000001U /* Want/got sb_... */
-#define STATMOUNT_MNT_BASIC		0x00000002U /* Want/got mnt_... */
-#define STATMOUNT_PROPAGATE_FROM	0x00000004U /* Want/got propagate_from */
-#define STATMOUNT_MNT_ROOT		0x00000008U /* Want/got mnt_root  */
-#define STATMOUNT_MNT_POINT		0x00000010U /* Want/got mnt_point */
-#define STATMOUNT_FS_TYPE		0x00000020U /* Want/got fs_type */
-#define STATMOUNT_MNT_NS_ID		0x00000040U /* Want/got mnt_ns_id */
-#define STATMOUNT_MNT_OPTS		0x00000080U /* Want/got mnt_opts */
-
-#define STATX_MNT_ID_UNIQUE 0x00004000U /* Want/got extended stx_mount_id */
-
-struct statmount {
-	__u32 size;
-	__u32 mnt_opts;
-	__u64 mask;
-	__u32 sb_dev_major;
-	__u32 sb_dev_minor;
-	__u64 sb_magic;
-	__u32 sb_flags;
-	__u32 fs_type;
-	__u64 mnt_id;
-	__u64 mnt_parent_id;
-	__u32 mnt_id_old;
-	__u32 mnt_parent_id_old;
-	__u64 mnt_attr;
-	__u64 mnt_propagation;
-	__u64 mnt_peer_group;
-	__u64 mnt_master;
-	__u64 propagate_from;
-	__u32 mnt_root;
-	__u32 mnt_point;
-	__u64 mnt_ns_id;
-	__u64 __spare2[49];
-	char str[];
-};
-
-struct mnt_id_req {
-	__u32 size;
-	__u32 spare;
-	__u64 mnt_id;
-	__u64 param;
-	__u64 mnt_ns_id;
-};
-
-#define MNT_ID_REQ_SIZE_VER1 32 /* sizeof second published struct */
-
-#define LSMT_ROOT 0xffffffffffffffff /* root mount */
+#include "samples-vfs.h"
 
 static int __statmount(__u64 mnt_id, __u64 mnt_ns_id, __u64 mask,
 		       struct statmount *stmnt, size_t bufsize,

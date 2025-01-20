@@ -8,17 +8,14 @@
 #define __SANE_USERSPACE_TYPES__
 #include <stdio.h>
 #include <stdint.h>
-#include <sys/ioctl.h>
-#include <sys/syscall.h>
-#include <linux/pidfd.h>
-#include <linux/mount.h>
-#include <linux/nsfs.h>
 #include <unistd.h>
 #include <alloca.h>
 #include <getopt.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <errno.h>
+
+#include "samples-vfs.h"
 
 /* max mounts per listmount call */
 #define MAXMOUNTS		1024
@@ -27,6 +24,10 @@
 #define STATMOUNT_BUFSIZE	4096
 
 static bool ext_format;
+
+#ifndef __NR_pidfd_open
+#define __NR_pidfd_open -1
+#endif
 
 /*
  * There are no bindings in glibc for listmount() and statmount() (yet),
@@ -232,7 +233,7 @@ int main(int argc, char * const *argv)
 	}
 
 	/* Get a pidfd for pid */
-	pidfd = syscall(SYS_pidfd_open, pid, 0);
+	pidfd = syscall(__NR_pidfd_open, pid, 0);
 	if (pidfd < 0) {
 		perror("pidfd_open");
 		return 1;
