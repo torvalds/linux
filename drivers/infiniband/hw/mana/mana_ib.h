@@ -11,6 +11,7 @@
 #include <rdma/ib_umem.h>
 #include <rdma/mana-abi.h>
 #include <rdma/uverbs_ioctl.h>
+#include <linux/dmapool.h>
 
 #include <net/mana/mana.h>
 
@@ -31,6 +32,11 @@
  * The CA timeout is approx. 260ms (4us * 2^(DELAY))
  */
 #define MANA_CA_ACK_DELAY	16
+
+/*
+ * The buffer used for writing AV
+ */
+#define MANA_AV_BUFFER_SIZE	64
 
 struct mana_ib_adapter_caps {
 	u32 max_sq_id;
@@ -65,6 +71,7 @@ struct mana_ib_dev {
 	struct gdma_queue **eqs;
 	struct xarray qp_table_wq;
 	struct mana_ib_adapter_caps adapter_caps;
+	struct dma_pool *av_pool;
 };
 
 struct mana_ib_wq {
@@ -86,6 +93,25 @@ struct mana_ib_pd {
 
 	bool tx_shortform_allowed;
 	u32 tx_vp_offset;
+};
+
+struct mana_ib_av {
+	u8 dest_ip[16];
+	u8 dest_mac[ETH_ALEN];
+	u16 udp_src_port;
+	u8 src_ip[16];
+	u32 hop_limit	: 8;
+	u32 reserved1	: 12;
+	u32 dscp	: 6;
+	u32 reserved2	: 5;
+	u32 is_ipv6	: 1;
+	u32 reserved3	: 32;
+};
+
+struct mana_ib_ah {
+	struct ib_ah ibah;
+	struct mana_ib_av *av;
+	dma_addr_t dma_handle;
 };
 
 struct mana_ib_mr {
@@ -532,4 +558,8 @@ int mana_ib_gd_destroy_rc_qp(struct mana_ib_dev *mdev, struct mana_ib_qp *qp);
 int mana_ib_gd_create_ud_qp(struct mana_ib_dev *mdev, struct mana_ib_qp *qp,
 			    struct ib_qp_init_attr *attr, u32 doorbell, u32 type);
 int mana_ib_gd_destroy_ud_qp(struct mana_ib_dev *mdev, struct mana_ib_qp *qp);
+
+int mana_ib_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
+		      struct ib_udata *udata);
+int mana_ib_destroy_ah(struct ib_ah *ah, u32 flags);
 #endif

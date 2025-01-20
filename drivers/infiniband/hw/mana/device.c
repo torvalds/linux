@@ -19,6 +19,7 @@ static const struct ib_device_ops mana_ib_dev_ops = {
 	.add_gid = mana_ib_gd_add_gid,
 	.alloc_pd = mana_ib_alloc_pd,
 	.alloc_ucontext = mana_ib_alloc_ucontext,
+	.create_ah = mana_ib_create_ah,
 	.create_cq = mana_ib_create_cq,
 	.create_qp = mana_ib_create_qp,
 	.create_rwq_ind_table = mana_ib_create_rwq_ind_table,
@@ -27,6 +28,7 @@ static const struct ib_device_ops mana_ib_dev_ops = {
 	.dealloc_ucontext = mana_ib_dealloc_ucontext,
 	.del_gid = mana_ib_gd_del_gid,
 	.dereg_mr = mana_ib_dereg_mr,
+	.destroy_ah = mana_ib_destroy_ah,
 	.destroy_cq = mana_ib_destroy_cq,
 	.destroy_qp = mana_ib_destroy_qp,
 	.destroy_rwq_ind_table = mana_ib_destroy_rwq_ind_table,
@@ -44,6 +46,7 @@ static const struct ib_device_ops mana_ib_dev_ops = {
 	.query_port = mana_ib_query_port,
 	.reg_user_mr = mana_ib_reg_user_mr,
 
+	INIT_RDMA_OBJ_SIZE(ib_ah, mana_ib_ah, ibah),
 	INIT_RDMA_OBJ_SIZE(ib_cq, mana_ib_cq, ibcq),
 	INIT_RDMA_OBJ_SIZE(ib_pd, mana_ib_pd, ibpd),
 	INIT_RDMA_OBJ_SIZE(ib_qp, mana_ib_qp, ibqp),
@@ -135,15 +138,22 @@ static int mana_ib_probe(struct auxiliary_device *adev,
 		goto destroy_rnic;
 	}
 
+	dev->av_pool = dma_pool_create("mana_ib_av", mdev->gdma_context->dev,
+				       MANA_AV_BUFFER_SIZE, MANA_AV_BUFFER_SIZE, 0);
+	if (!dev->av_pool)
+		goto destroy_rnic;
+
 	ret = ib_register_device(&dev->ib_dev, "mana_%d",
 				 mdev->gdma_context->dev);
 	if (ret)
-		goto destroy_rnic;
+		goto deallocate_pool;
 
 	dev_set_drvdata(&adev->dev, dev);
 
 	return 0;
 
+deallocate_pool:
+	dma_pool_destroy(dev->av_pool);
 destroy_rnic:
 	xa_destroy(&dev->qp_table_wq);
 	mana_ib_gd_destroy_rnic_adapter(dev);
@@ -161,6 +171,7 @@ static void mana_ib_remove(struct auxiliary_device *adev)
 	struct mana_ib_dev *dev = dev_get_drvdata(&adev->dev);
 
 	ib_unregister_device(&dev->ib_dev);
+	dma_pool_destroy(dev->av_pool);
 	xa_destroy(&dev->qp_table_wq);
 	mana_ib_gd_destroy_rnic_adapter(dev);
 	mana_ib_destroy_eqs(dev);
