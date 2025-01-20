@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include "cgroup-internal.h"
 #include "cpuset-internal.h"
 
 /*
@@ -372,6 +373,46 @@ int cpuset1_validate_change(struct cpuset *cur, struct cpuset *trial)
 out:
 	return ret;
 }
+
+#ifdef CONFIG_PROC_PID_CPUSET
+/*
+ * proc_cpuset_show()
+ *  - Print tasks cpuset path into seq_file.
+ *  - Used for /proc/<pid>/cpuset.
+ */
+int proc_cpuset_show(struct seq_file *m, struct pid_namespace *ns,
+		     struct pid *pid, struct task_struct *tsk)
+{
+	char *buf;
+	struct cgroup_subsys_state *css;
+	int retval;
+
+	retval = -ENOMEM;
+	buf = kmalloc(PATH_MAX, GFP_KERNEL);
+	if (!buf)
+		goto out;
+
+	rcu_read_lock();
+	spin_lock_irq(&css_set_lock);
+	css = task_css(tsk, cpuset_cgrp_id);
+	retval = cgroup_path_ns_locked(css->cgroup, buf, PATH_MAX,
+				       current->nsproxy->cgroup_ns);
+	spin_unlock_irq(&css_set_lock);
+	rcu_read_unlock();
+
+	if (retval == -E2BIG)
+		retval = -ENAMETOOLONG;
+	if (retval < 0)
+		goto out_free;
+	seq_puts(m, buf);
+	seq_putc(m, '\n');
+	retval = 0;
+out_free:
+	kfree(buf);
+out:
+	return retval;
+}
+#endif /* CONFIG_PROC_PID_CPUSET */
 
 static u64 cpuset_read_u64(struct cgroup_subsys_state *css, struct cftype *cft)
 {
