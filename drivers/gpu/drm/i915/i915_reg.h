@@ -84,7 +84,7 @@
  * Try to name registers according to the specs. If the register name changes in
  * the specs from platform to another, stick to the original name.
  *
- * Try to re-use existing register macro definitions. Only add new macros for
+ * Try to reuse existing register macro definitions. Only add new macros for
  * new register offsets, or when the register contents have changed enough to
  * warrant a full redefinition.
  *
@@ -492,8 +492,9 @@
 #define MBUS_ABOX_BT_CREDIT_POOL1_MASK	(0x1F << 0)
 #define MBUS_ABOX_BT_CREDIT_POOL1(x)	((x) << 0)
 
-/* Make render/texture TLB fetches lower priorty than associated data
- *   fetches. This is not turned on by default
+/*
+ * Make render/texture TLB fetches lower priority than associated data
+ * fetches. This is not turned on by default.
  */
 #define   MI_ARB_RENDER_TLB_LOW_PRIORITY	(1 << 15)
 

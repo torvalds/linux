@@ -1233,7 +1233,7 @@ int intel_irq_install(struct drm_i915_private *dev_priv)
 }
 
 /**
- * intel_irq_uninstall - finilizes all irq handling
+ * intel_irq_uninstall - finalizes all irq handling
  * @dev_priv: i915 device instance
  *
  * This stops interrupt and hotplug handling and unregisters and frees all

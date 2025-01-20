@@ -103,7 +103,7 @@ struct i915_pmu {
 	/**
 	 * @timer_last:
 	 *
-	 * Timestmap of the previous timer invocation.
+	 * Timestamp of the previous timer invocation.
 	 */
 	ktime_t timer_last;
 
