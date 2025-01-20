@@ -1,0 +1,178 @@
+#!/bin/bash -u
+#
+# Manage kernel config annotations
+#
+# Supported environment variales:
+#   conc_level  : Concurrency level for upstream make (-jX)
+#   skip_checks : Skip config checks if set to 'true'
+#   gcc         : Default gcc to use (mandatory)
+#
+
+function cleanup()
+{
+	rm -rf build "${TMP_DIR}"
+}
+
+# We have to be in the top level Ubuntu kernel source directory
+if ! [ -e debian/debian.env ] ; then
+	echo "ERROR: This is not an Ubuntu kernel source directory" >&2
+	exit 1
+fi
+
+if [ -z "${gcc:-}" ] ; then
+	echo "ERROR: 'gcc' environment variable must be set" >&2
+	exit 1
+fi
+
+if [ ${#} -ne 1 ] ; then
+	echo "Usage: $0 updateconfigs|defaultconfigs|genconfigs|editconfigs"
+	exit 2
+fi
+
+mode=${1}
+
+case "${mode}" in
+	updateconfigs)  target="syncconfig" ;;
+	defaultconfigs) target="olddefconfig" ;;
+	genconfigs)     target="oldconfig" ;;
+	editconfigs)    ;;  # Target is set later based on user input
+	*) echo "ERROR: Invalid mode: ${1}" >&2
+	   exit 1 ;;
+esac
+
+. debian/debian.env
+
+annotations_file=${DEBIAN}/config/annotations
+warning_partial=()
+
+TMP_DIR=$(mktemp -d)
+trap cleanup EXIT
+
+# Use annotations to generate configs
+FLAVOURS=$(sed -ne 's/^# FLAVOUR: //p' "${annotations_file}")
+
+for arch_flavour in ${FLAVOURS} ; do
+	arch=${arch_flavour%%-*}
+	flavour=${arch_flavour#*-}
+	tmp_conf_file=${TMP_DIR}/${arch}-config.flavour.${flavour}
+
+	# Map debian archs to kernel archs
+	case "${arch}" in
+		amd64)   kern_arch="x86_64" ;;
+		arm64)   kern_arch="arm64" ;;
+		armhf)   kern_arch="arm" ;;
+		ppc64el) kern_arch="powerpc" ;;
+		riscv64) kern_arch="riscv" ;;
+		s390x)   kern_arch="s390" ;;
+		*)       echo "WARNING: Unsupported architecture: ${arch}"
+		         warning_partial+=("${arch}")
+		         continue ;;
+	esac
+
+	# Determine cross toolchain to use for Kconfig compiler tests
+	cross_compile="$(dpkg-architecture -qDEB_HOST_GNU_TYPE -a"${arch}" 2>/dev/null)-"
+
+	# Arch-specific compiler, if any
+	arch_gcc=$(cat <<EOF | make -s -f - all
+include ${DEBIAN}/rules.d/${arch}.mk
+all:
+	@echo \$(if \$(gcc),\$(gcc),${gcc})
+EOF
+			)
+	gcc_path=$(which "${cross_compile}${arch_gcc}" || true)
+	if [ -z "${gcc_path}" ] ; then
+		echo "WARNING: ${cross_compile}${arch_gcc} not installed"
+		warning_partial+=("${arch}")
+		continue
+	fi
+
+	if [ "${mode}" = "editconfigs" ] ; then
+		while true ; do
+			echo -n "Do you want to edit configs for ${arch}-${flavour}? [Y/n] "
+			read -r choice
+			case "${choice,,}" in
+				y|"") target="menuconfig" ; break ;;
+				n)    target="syncconfig" ; break ;;
+			esac
+		done
+	fi
+
+	rm -rf build
+	mkdir build
+
+	# Generate .config from annotations
+	python3 debian/scripts/misc/annotations -f "${annotations_file}" \
+			--arch "${arch}" --flavour "${flavour}" --export > build/.config
+
+	# Environment variables for 'make *config'
+	env=(ARCH="${kern_arch}"
+		 DEB_ARCH="${arch}"
+		 CROSS_COMPILE="${cross_compile}"
+		 CC="${gcc_path}")
+
+	# Concurrency level
+	if [ -n "${conc_level:-}" ] ; then
+		env+=("${conc_level}")
+	fi
+
+	# Call config target
+	echo
+	echo "* Run ${target} on ${arch}/${flavour} ..."
+	${kmake} O=build "${env[@]}" "${target}"
+
+	# Move config for further processing
+	mv build/.config "${tmp_conf_file}"
+done
+
+rc=0
+
+if [ "${skip_checks:-}" = "true" ] ; then
+	echo
+	echo "Skipping config-check (skip_checks=${skip_checks}) ..."
+else
+	echo
+	echo "Running config-check for all configurations ..."
+	fail=0
+	for arch_flavour in ${FLAVOURS} ; do
+		arch=${arch_flavour%%-*}
+		flavour=${arch_flavour#*-}
+		tmp_conf_file=${TMP_DIR}/${arch}-config.flavour.${flavour}
+
+		echo
+		echo "* Run config-check for ${arch}-${flavour} ..."
+		python3 debian/scripts/misc/annotations -f "${annotations_file}" \
+				--arch "${arch}" --flavour "${flavour}" --check "${tmp_conf_file}" || \
+			fail=$((fail + 1))
+	done
+
+	if [ ${fail} -gt 0 ] ; then
+		rc=1
+		echo "ERROR: ${fail} config-check failures detected" >&2
+	fi
+fi
+
+if [ ${#warning_partial[@]} -gt 0 ] ; then
+	rc=1
+	echo "ERROR: Config operation not applied to all architectures (skipped ${warning_partial[*]})" >&2
+fi
+
+# Recreate the annotations file
+if [ "${mode}" = "genconfigs" ] ; then
+	rm -rf CONFIGS
+	mv "${TMP_DIR}" CONFIGS
+else
+	echo
+	echo "Importing all configurations ..."
+	echo
+	for arch_flavour in ${FLAVOURS} ; do
+		arch=${arch_flavour%%-*}
+		flavour=${arch_flavour#*-}
+		tmp_conf_file=${TMP_DIR}/${arch}-config.flavour.${flavour}
+
+		echo "* Import configs for ${arch}-${flavour} ..."
+		python3 debian/scripts/misc/annotations -f "${annotations_file}" \
+				--arch "${arch}" --flavour "${flavour}" --import "${tmp_conf_file}"
+	done
+fi
+
+exit "${rc}"

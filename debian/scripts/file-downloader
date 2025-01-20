@@ -1,0 +1,34 @@
+#!/bin/sh
+
+if [ "$#" -ne 1 ]; then
+	echo "Usage: $0 <url>" 1>&2
+	exit 1
+fi
+url="$1"
+
+to=$(basename "$url")
+
+count=0
+what='fetching'
+while :
+do
+	if [ "$count" -eq 20 ]; then
+		echo "EE: excessive redirects" 1>&2
+		exit 1
+	fi
+	count=$(($count+1))
+
+	echo "II: $what $url"
+
+	curl --silent --fail --show-error "$url" -o "$to" -D "$to.hdr" || exit 1
+	redirect=$(awk '/^Location: / {gsub(/^[[:space:]]+|[[:space:]]+$/,"",$2); print $2;}' "$to.hdr")
+	[ -z "$redirect" ] && break
+	what='  following'
+
+	url=$(echo "$redirect" | sed -e 's@https://launchpadlibrarian.net/@http://launchpadlibrarian.net/@')
+	if [ "$redirect" != "$url" ]; then
+		echo "II:   fixing $redirect"
+	fi
+done
+
+exit 0

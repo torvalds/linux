@@ -1,0 +1,7 @@
+Package: linux-bpf-dev
+Architecture: amd64 armhf arm64 i386 ppc64el riscv64 s390x
+Depends: ${misc:Depends}
+Multi-Arch: same
+Description: Headers for BPF development
+ The vmlinux.h header is provided to allow userspace to build BPF CO-RE
+ programs targeting the packaged kernel.

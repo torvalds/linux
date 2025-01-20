@@ -1,0 +1,20 @@
+#!/bin/sh
+
+# If we are triggering for just linux or linux-meta we know we have
+# just built the kernel and there is no point in repeating that
+# build, it just wastes time.  (LP: #1498862)
+build_needed=0
+for trigger in ${ADT_TEST_TRIGGERS:-force}
+do
+	case "$trigger" in
+	linux/*|linux-lts-*/*|linux-meta*/*|linux-oem*/*|fakeroot/*|gdb/*|git/*|bzr/*|gcc-multilib/*)	;;
+	*)						build_needed=1 ;;
+	esac
+done
+if [ "$build_needed" -eq 0 ]; then
+	echo "rebuild: short circuiting build for '${ADT_TEST_TRIGGERS}'"
+	exit 77
+fi
+
+set -e
+dpkg-buildpackage -rfakeroot -us -uc -b -Pautopkgtest

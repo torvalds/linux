@@ -1,0 +1,13 @@
+[Unit]
+Description=Install SGX kernel module
+DefaultDependencies=false
+ConditionVirtualization=microsoft
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+ExecStart=/sbin/modprobe intel_sgx
+ExecStop=/sbin/modprobe -r intel_sgx
+
+[Install]
+WantedBy=multi-user.target

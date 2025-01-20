@@ -1,0 +1,23 @@
+Package: linux-source-PKGVER
+Build-Profiles: <!stage1>
+Architecture: all
+Section: devel
+Priority: optional
+Provides: linux-source
+Depends: ${misc:Depends}, binutils, bzip2, coreutils
+Recommends: libc-dev, gcc, make
+Suggests: libncurses-dev | ncurses-dev, kernel-package, libqt3-dev
+Description: Linux kernel source for version PKGVER with Ubuntu patches
+ This package provides the source code for the Linux kernel version
+ PKGVER.
+ .
+ This package is mainly meant for other packages to use, in order to build
+ custom flavours.
+ .
+ If you wish to use this package to create a custom Linux kernel, then it
+ is suggested that you investigate the package kernel-package, which has
+ been designed to ease the task of creating kernel image packages.
+ .
+ If you are simply trying to build third-party modules for your kernel,
+ you do not want this package. Install the appropriate linux-headers
+ package instead.

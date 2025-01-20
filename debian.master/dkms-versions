@@ -1,0 +1,2 @@
+zfs-linux 2.2.6-1ubuntu2 modulename=zfs debpath=pool/universe/z/%package%/zfs-dkms_%version%_all.deb arch=amd64 arch=arm64 arch=ppc64el arch=s390x rprovides=spl-modules rprovides=spl-dkms rprovides=zfs-modules rprovides=zfs-dkms
+v4l2loopback 0.13.2-1ubuntu1 modulename=v4l2loopback debpath=pool/universe/v/%package%/v4l2loopback-dkms_%version%_all.deb arch=amd64 rprovides=v4l2loopback-modules rprovides=v4l2loopback-dkms
