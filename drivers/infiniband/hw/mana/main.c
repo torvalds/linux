@@ -82,6 +82,9 @@ int mana_ib_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 	mana_gd_init_req_hdr(&req.hdr, GDMA_CREATE_PD, sizeof(req),
 			     sizeof(resp));
 
+	if (!udata)
+		flags |= GDMA_PD_FLAG_ALLOW_GPA_MR;
+
 	req.flags = flags;
 	err = mana_gd_send_request(gc, sizeof(req), &req,
 				   sizeof(resp), &resp);
