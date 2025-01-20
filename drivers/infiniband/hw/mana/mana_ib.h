@@ -127,6 +127,10 @@ struct mana_ib_mr {
 struct mana_ib_cq {
 	struct ib_cq ibcq;
 	struct mana_ib_queue queue;
+	/* protects CQ polling */
+	spinlock_t cq_lock;
+	struct list_head list_send_qp;
+	struct list_head list_recv_qp;
 	int cqe;
 	u32 comp_vector;
 	mana_handle_t  cq_handle;
@@ -169,6 +173,8 @@ struct mana_ib_qp {
 	/* The port on the IB device, starting with 1 */
 	u32 port;
 
+	struct list_head cq_send_list;
+	struct list_head cq_recv_list;
 	struct shadow_queue shadow_rq;
 	struct shadow_queue shadow_sq;
 
@@ -435,6 +441,31 @@ struct rdma_send_oob {
 	};
 }; /* HW DATA */
 
+struct mana_rdma_cqe {
+	union {
+		struct {
+			u8 cqe_type;
+			u8 data[GDMA_COMP_DATA_SIZE - 1];
+		};
+		struct {
+			u32 cqe_type		: 8;
+			u32 vendor_error	: 9;
+			u32 reserved1		: 15;
+			u32 sge_offset		: 5;
+			u32 tx_wqe_offset	: 27;
+		} ud_send;
+		struct {
+			u32 cqe_type		: 8;
+			u32 reserved1		: 24;
+			u32 msg_len;
+			u32 src_qpn		: 24;
+			u32 reserved2		: 8;
+			u32 imm_data;
+			u32 rx_wqe_offset;
+		} ud_recv;
+	};
+}; /* HW DATA */
+
 static inline struct gdma_context *mdev_to_gc(struct mana_ib_dev *mdev)
 {
 	return mdev->gdma_dev->gdma_context;
@@ -602,5 +633,6 @@ int mana_ib_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 int mana_ib_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 		      const struct ib_send_wr **bad_wr);
 
+int mana_ib_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc);
 int mana_ib_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
 #endif

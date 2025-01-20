@@ -40,6 +40,7 @@ static const struct ib_device_ops mana_ib_dev_ops = {
 	.mmap = mana_ib_mmap,
 	.modify_qp = mana_ib_modify_qp,
 	.modify_wq = mana_ib_modify_wq,
+	.poll_cq = mana_ib_poll_cq,
 	.post_recv = mana_ib_post_recv,
 	.post_send = mana_ib_post_send,
 	.query_device = mana_ib_query_device,

@@ -600,6 +600,36 @@ destroy_queues:
 	return err;
 }
 
+static void mana_add_qp_to_cqs(struct mana_ib_qp *qp)
+{
+	struct mana_ib_cq *send_cq = container_of(qp->ibqp.send_cq, struct mana_ib_cq, ibcq);
+	struct mana_ib_cq *recv_cq = container_of(qp->ibqp.recv_cq, struct mana_ib_cq, ibcq);
+	unsigned long flags;
+
+	spin_lock_irqsave(&send_cq->cq_lock, flags);
+	list_add_tail(&qp->cq_send_list, &send_cq->list_send_qp);
+	spin_unlock_irqrestore(&send_cq->cq_lock, flags);
+
+	spin_lock_irqsave(&recv_cq->cq_lock, flags);
+	list_add_tail(&qp->cq_recv_list, &recv_cq->list_recv_qp);
+	spin_unlock_irqrestore(&recv_cq->cq_lock, flags);
+}
+
+static void mana_remove_qp_from_cqs(struct mana_ib_qp *qp)
+{
+	struct mana_ib_cq *send_cq = container_of(qp->ibqp.send_cq, struct mana_ib_cq, ibcq);
+	struct mana_ib_cq *recv_cq = container_of(qp->ibqp.recv_cq, struct mana_ib_cq, ibcq);
+	unsigned long flags;
+
+	spin_lock_irqsave(&send_cq->cq_lock, flags);
+	list_del(&qp->cq_send_list);
+	spin_unlock_irqrestore(&send_cq->cq_lock, flags);
+
+	spin_lock_irqsave(&recv_cq->cq_lock, flags);
+	list_del(&qp->cq_recv_list);
+	spin_unlock_irqrestore(&recv_cq->cq_lock, flags);
+}
+
 static int mana_ib_create_ud_qp(struct ib_qp *ibqp, struct ib_pd *ibpd,
 				struct ib_qp_init_attr *attr, struct ib_udata *udata)
 {
@@ -653,6 +683,8 @@ static int mana_ib_create_ud_qp(struct ib_qp *ibqp, struct ib_pd *ibpd,
 	err = mana_table_store_qp(mdev, qp);
 	if (err)
 		goto destroy_qp;
+
+	mana_add_qp_to_cqs(qp);
 
 	return 0;
 
@@ -840,6 +872,7 @@ static int mana_ib_destroy_ud_qp(struct mana_ib_qp *qp, struct ib_udata *udata)
 		container_of(qp->ibqp.device, struct mana_ib_dev, ib_dev);
 	int i;
 
+	mana_remove_qp_from_cqs(qp);
 	mana_table_remove_qp(mdev, qp);
 
 	destroy_shadow_queue(&qp->shadow_rq);

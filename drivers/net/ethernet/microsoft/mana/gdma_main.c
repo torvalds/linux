@@ -1222,6 +1222,7 @@ int mana_gd_poll_cq(struct gdma_queue *cq, struct gdma_comp *comp, int num_cqe)
 
 	return cqe_idx;
 }
+EXPORT_SYMBOL_NS(mana_gd_poll_cq, "NET_MANA");
 
 static irqreturn_t mana_gd_intr(int irq, void *arg)
 {
