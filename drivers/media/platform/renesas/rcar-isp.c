@@ -289,37 +289,49 @@ static void risp_stop(struct rcar_isp *isp)
 	risp_power_off(isp);
 }
 
-static int risp_s_stream(struct v4l2_subdev *sd, int enable)
+static int risp_enable_streams(struct v4l2_subdev *sd,
+			       struct v4l2_subdev_state *state, u32 source_pad,
+			       u64 source_streams_mask)
 {
 	struct rcar_isp *isp = sd_to_isp(sd);
-	struct v4l2_subdev_state *state;
 	int ret = 0;
 
-	state = v4l2_subdev_lock_and_get_active_state(sd);
+	if (source_streams_mask != 1)
+		return -EINVAL;
 
-	if (!isp->remote) {
-		ret = -ENODEV;
-		goto out;
-	}
+	if (!isp->remote)
+		return -ENODEV;
 
-	if (enable && isp->stream_count == 0) {
+	if (isp->stream_count == 0) {
 		ret = risp_start(isp, state);
 		if (ret)
-			goto out;
-	} else if (!enable && isp->stream_count == 1) {
-		risp_stop(isp);
+			return ret;
 	}
 
-	isp->stream_count += enable ? 1 : -1;
-out:
-	v4l2_subdev_unlock_state(state);
+	isp->stream_count += 1;
 
 	return ret;
 }
 
-static const struct v4l2_subdev_video_ops risp_video_ops = {
-	.s_stream = risp_s_stream,
-};
+static int risp_disable_streams(struct v4l2_subdev *sd,
+				struct v4l2_subdev_state *state, u32 source_pad,
+				u64 source_streams_mask)
+{
+	struct rcar_isp *isp = sd_to_isp(sd);
+
+	if (source_streams_mask != 1)
+		return -EINVAL;
+
+	if (!isp->remote)
+		return -ENODEV;
+
+	if (isp->stream_count == 1)
+		risp_stop(isp);
+
+	isp->stream_count -= 1;
+
+	return 0;
+}
 
 static int risp_set_pad_format(struct v4l2_subdev *sd,
 			       struct v4l2_subdev_state *state,
@@ -342,13 +354,14 @@ static int risp_set_pad_format(struct v4l2_subdev *sd,
 }
 
 static const struct v4l2_subdev_pad_ops risp_pad_ops = {
+	.enable_streams = risp_enable_streams,
+	.disable_streams = risp_disable_streams,
 	.set_fmt = risp_set_pad_format,
 	.get_fmt = v4l2_subdev_get_fmt,
 	.link_validate = v4l2_subdev_link_validate_default,
 };
 
 static const struct v4l2_subdev_ops rcar_isp_subdev_ops = {
-	.video	= &risp_video_ops,
 	.pad	= &risp_pad_ops,
 };
 
