@@ -616,4 +616,32 @@ int kvm_sev_es_string_io(struct kvm_vcpu *vcpu, unsigned int size,
 			 unsigned int port, void *data,  unsigned int count,
 			 int in);
 
+static inline bool user_exit_on_hypercall(struct kvm *kvm, unsigned long hc_nr)
+{
+	return kvm->arch.hypercall_exit_enabled & BIT(hc_nr);
+}
+
+int ____kvm_emulate_hypercall(struct kvm_vcpu *vcpu, unsigned long nr,
+			      unsigned long a0, unsigned long a1,
+			      unsigned long a2, unsigned long a3,
+			      int op_64_bit, int cpl,
+			      int (*complete_hypercall)(struct kvm_vcpu *));
+
+#define __kvm_emulate_hypercall(_vcpu, nr, a0, a1, a2, a3, op_64_bit, cpl, complete_hypercall)	\
+({												\
+	int __ret;										\
+												\
+	__ret = ____kvm_emulate_hypercall(_vcpu,						\
+					  kvm_##nr##_read(_vcpu), kvm_##a0##_read(_vcpu),	\
+					  kvm_##a1##_read(_vcpu), kvm_##a2##_read(_vcpu),	\
+					  kvm_##a3##_read(_vcpu), op_64_bit, cpl,		\
+					  complete_hypercall);					\
+												\
+	if (__ret > 0)										\
+		__ret = complete_hypercall(_vcpu);						\
+	__ret;											\
+})
+
+int kvm_emulate_hypercall(struct kvm_vcpu *vcpu);
+
 #endif
