@@ -899,11 +899,6 @@ static void btusb_reset(struct hci_dev *hdev)
 	struct btusb_data *data;
 	int err;
 
-	if (hdev->reset) {
-		hdev->reset(hdev);
-		return;
-	}
-
 	data = hci_get_drvdata(hdev);
 	/* This is not an unbalanced PM reference since the device will reset */
 	err = usb_autopm_get_interface(data->intf);
