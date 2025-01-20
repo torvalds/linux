@@ -247,6 +247,9 @@ struct scsi_device {
 	unsigned int queue_stopped;	/* request queue is quiesced */
 	bool offline_already;		/* Device offline message logged */
 
+	unsigned int ua_new_media_ctr;	/* Counter for New Media UNIT ATTENTIONs */
+	unsigned int ua_por_ctr;	/* Counter for Power On / Reset UAs */
+
 	atomic_t disk_events_disable_depth; /* disable depth for disk events */
 
 	DECLARE_BITMAP(supported_events, SDEV_EVT_MAXBITS); /* supported events */
