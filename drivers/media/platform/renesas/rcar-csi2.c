@@ -1593,28 +1593,47 @@ static void rcsi2_stop(struct rcar_csi2 *priv)
 	v4l2_subdev_disable_streams(priv->remote, priv->remote_pad, BIT_ULL(0));
 }
 
-static int rcsi2_s_stream(struct v4l2_subdev *sd, int enable)
+static int rcsi2_enable_streams(struct v4l2_subdev *sd,
+				struct v4l2_subdev_state *state, u32 source_pad,
+				u64 source_streams_mask)
 {
 	struct rcar_csi2 *priv = sd_to_csi2(sd);
-	struct v4l2_subdev_state *state;
 	int ret = 0;
+
+	if (source_streams_mask != 1)
+		return -EINVAL;
 
 	if (!priv->remote)
 		return -ENODEV;
 
-	state = v4l2_subdev_lock_and_get_active_state(&priv->subdev);
-
-	if (enable && priv->stream_count == 0) {
+	if (priv->stream_count == 0) {
 		ret = rcsi2_start(priv, state);
 		if (ret)
-			goto out;
-	} else if (!enable && priv->stream_count == 1) {
-		rcsi2_stop(priv);
+			return ret;
 	}
 
-	priv->stream_count += enable ? 1 : -1;
-out:
-	v4l2_subdev_unlock_state(state);
+	priv->stream_count += 1;
+
+	return ret;
+}
+
+static int rcsi2_disable_streams(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_state *state,
+				 u32 source_pad, u64 source_streams_mask)
+{
+	struct rcar_csi2 *priv = sd_to_csi2(sd);
+	int ret = 0;
+
+	if (source_streams_mask != 1)
+		return -EINVAL;
+
+	if (!priv->remote)
+		return -ENODEV;
+
+	if (priv->stream_count == 1)
+		rcsi2_stop(priv);
+
+	priv->stream_count -= 1;
 
 	return ret;
 }
@@ -1641,17 +1660,15 @@ static int rcsi2_set_pad_format(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static const struct v4l2_subdev_video_ops rcar_csi2_video_ops = {
-	.s_stream = rcsi2_s_stream,
-};
-
 static const struct v4l2_subdev_pad_ops rcar_csi2_pad_ops = {
+	.enable_streams = rcsi2_enable_streams,
+	.disable_streams = rcsi2_disable_streams,
+
 	.set_fmt = rcsi2_set_pad_format,
 	.get_fmt = v4l2_subdev_get_fmt,
 };
 
 static const struct v4l2_subdev_ops rcar_csi2_subdev_ops = {
-	.video	= &rcar_csi2_video_ops,
 	.pad	= &rcar_csi2_pad_ops,
 };
 
