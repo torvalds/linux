@@ -704,7 +704,7 @@ mana_ib_event_handler(void *ctx, struct gdma_queue *q, struct gdma_event *event)
 	switch (event->type) {
 	case GDMA_EQE_RNIC_QP_FATAL:
 		qpn = event->details[0];
-		qp = mana_get_qp_ref(mdev, qpn);
+		qp = mana_get_qp_ref(mdev, qpn, false);
 		if (!qp)
 			break;
 		if (qp->ibqp.event_handler) {

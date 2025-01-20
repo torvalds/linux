@@ -23,6 +23,9 @@
 /* MANA doesn't have any limit for MR size */
 #define MANA_IB_MAX_MR_SIZE	U64_MAX
 
+/* Send queue ID mask */
+#define MANA_SENDQ_MASK	BIT(31)
+
 /*
  * The hardware limit of number of MRs is greater than maximum number of MRs
  * that can possibly represent in 24 bits
@@ -438,10 +441,13 @@ static inline struct gdma_context *mdev_to_gc(struct mana_ib_dev *mdev)
 }
 
 static inline struct mana_ib_qp *mana_get_qp_ref(struct mana_ib_dev *mdev,
-						 uint32_t qid)
+						 u32 qid, bool is_sq)
 {
 	struct mana_ib_qp *qp;
 	unsigned long flag;
+
+	if (is_sq)
+		qid |= MANA_SENDQ_MASK;
 
 	xa_lock_irqsave(&mdev->qp_table_wq, flag);
 	qp = xa_load(&mdev->qp_table_wq, qid);
