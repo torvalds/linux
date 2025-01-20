@@ -7,6 +7,9 @@
 #include "ps.h"
 #include "util.h"
 
+static
+void rtw89_regd_notifier(struct wiphy *wiphy, struct regulatory_request *request);
+
 #define COUNTRY_REGD(_alpha2, _rule_2ghz, _rule_5ghz, _rule_6ghz, _fmap) \
 	{							\
 		.alpha2 = _alpha2,				\
@@ -598,6 +601,8 @@ int rtw89_regd_setup(struct rtw89_dev *rtwdev)
 		regulatory->ctrl.map = rtw89_regd_map;
 	}
 
+	regulatory->reg_6ghz_power = RTW89_REG_6GHZ_POWER_DFLT;
+
 	if (!wiphy)
 		return -EINVAL;
 
@@ -608,16 +613,11 @@ int rtw89_regd_setup(struct rtw89_dev *rtwdev)
 	return 0;
 }
 
-int rtw89_regd_init(struct rtw89_dev *rtwdev,
-		    void (*reg_notifier)(struct wiphy *wiphy,
-					 struct regulatory_request *request))
+int rtw89_regd_init_hint(struct rtw89_dev *rtwdev)
 {
-	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
 	const struct rtw89_regd *chip_regd;
 	struct wiphy *wiphy = rtwdev->hw->wiphy;
 	int ret;
-
-	regulatory->reg_6ghz_power = RTW89_REG_6GHZ_POWER_DFLT;
 
 	if (!wiphy)
 		return -EINVAL;
@@ -738,6 +738,7 @@ static void rtw89_regd_notifier_apply(struct rtw89_dev *rtwdev,
 	rtw89_regd_apply_policy_6ghz(rtwdev, wiphy);
 }
 
+static
 void rtw89_regd_notifier(struct wiphy *wiphy, struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);

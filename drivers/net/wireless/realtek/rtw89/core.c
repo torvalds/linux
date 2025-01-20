@@ -5303,7 +5303,7 @@ static int rtw89_core_register_hw(struct rtw89_dev *rtwdev)
 		goto err_free_supported_band;
 	}
 
-	ret = rtw89_regd_init(rtwdev, rtw89_regd_notifier);
+	ret = rtw89_regd_init_hint(rtwdev);
 	if (ret) {
 		rtw89_err(rtwdev, "failed to init regd\n");
 		goto err_unregister_hw;
