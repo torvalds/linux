@@ -815,13 +815,13 @@ static int fcp_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 	/* not reached */
 }
 
-static ssize_t fcp_hwdep_read(struct snd_hwdep *hw, char __user *buf,
-			      ssize_t count, loff_t *offset)
+static long fcp_hwdep_read(struct snd_hwdep *hw, char __user *buf,
+			   long count, loff_t *offset)
 {
 	struct usb_mixer_interface *mixer = hw->private_data;
 	struct fcp_data *private = mixer->private_data;
 	unsigned long flags;
-	ssize_t ret = 0;
+	long ret = 0;
 	u32 event;
 
 	if (count < sizeof(event))
