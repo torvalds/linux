@@ -115,6 +115,17 @@ struct mana_ib_rc_qp {
 	struct mana_ib_queue queues[MANA_RC_QUEUE_TYPE_MAX];
 };
 
+enum mana_ud_queue_type {
+	MANA_UD_SEND_QUEUE = 0,
+	MANA_UD_RECV_QUEUE,
+	MANA_UD_QUEUE_TYPE_MAX,
+};
+
+struct mana_ib_ud_qp {
+	struct mana_ib_queue queues[MANA_UD_QUEUE_TYPE_MAX];
+	u32 sq_psn;
+};
+
 struct mana_ib_qp {
 	struct ib_qp ibqp;
 
@@ -122,6 +133,7 @@ struct mana_ib_qp {
 	union {
 		struct mana_ib_queue raw_sq;
 		struct mana_ib_rc_qp rc_qp;
+		struct mana_ib_ud_qp ud_qp;
 	};
 
 	/* The port on the IB device, starting with 1 */
@@ -146,6 +158,8 @@ enum mana_ib_command_code {
 	MANA_IB_DESTROY_ADAPTER = 0x30003,
 	MANA_IB_CONFIG_IP_ADDR	= 0x30004,
 	MANA_IB_CONFIG_MAC_ADDR	= 0x30005,
+	MANA_IB_CREATE_UD_QP	= 0x30006,
+	MANA_IB_DESTROY_UD_QP	= 0x30007,
 	MANA_IB_CREATE_CQ       = 0x30008,
 	MANA_IB_DESTROY_CQ      = 0x30009,
 	MANA_IB_CREATE_RC_QP    = 0x3000a,
@@ -294,6 +308,37 @@ struct mana_rnic_destroy_rc_qp_req {
 }; /* HW Data */
 
 struct mana_rnic_destroy_rc_qp_resp {
+	struct gdma_resp_hdr hdr;
+}; /* HW Data */
+
+struct mana_rnic_create_udqp_req {
+	struct gdma_req_hdr hdr;
+	mana_handle_t adapter;
+	mana_handle_t pd_handle;
+	mana_handle_t send_cq_handle;
+	mana_handle_t recv_cq_handle;
+	u64 dma_region[MANA_UD_QUEUE_TYPE_MAX];
+	u32 qp_type;
+	u32 doorbell_page;
+	u32 max_send_wr;
+	u32 max_recv_wr;
+	u32 max_send_sge;
+	u32 max_recv_sge;
+}; /* HW Data */
+
+struct mana_rnic_create_udqp_resp {
+	struct gdma_resp_hdr hdr;
+	mana_handle_t qp_handle;
+	u32 queue_ids[MANA_UD_QUEUE_TYPE_MAX];
+}; /* HW Data*/
+
+struct mana_rnic_destroy_udqp_req {
+	struct gdma_req_hdr hdr;
+	mana_handle_t adapter;
+	mana_handle_t qp_handle;
+}; /* HW Data */
+
+struct mana_rnic_destroy_udqp_resp {
 	struct gdma_resp_hdr hdr;
 }; /* HW Data */
 
@@ -483,4 +528,8 @@ int mana_ib_gd_destroy_cq(struct mana_ib_dev *mdev, struct mana_ib_cq *cq);
 int mana_ib_gd_create_rc_qp(struct mana_ib_dev *mdev, struct mana_ib_qp *qp,
 			    struct ib_qp_init_attr *attr, u32 doorbell, u64 flags);
 int mana_ib_gd_destroy_rc_qp(struct mana_ib_dev *mdev, struct mana_ib_qp *qp);
+
+int mana_ib_gd_create_ud_qp(struct mana_ib_dev *mdev, struct mana_ib_qp *qp,
+			    struct ib_qp_init_attr *attr, u32 doorbell, u32 type);
+int mana_ib_gd_destroy_ud_qp(struct mana_ib_dev *mdev, struct mana_ib_qp *qp);
 #endif
