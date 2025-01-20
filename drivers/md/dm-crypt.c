@@ -1719,6 +1719,7 @@ retry:
 	clone->bi_private = io;
 	clone->bi_end_io = crypt_endio;
 	clone->bi_ioprio = io->base_bio->bi_ioprio;
+	clone->bi_iter.bi_sector = cc->start + io->sector;
 
 	remaining_size = size;
 
@@ -1909,7 +1910,6 @@ static int kcryptd_io_read(struct dm_crypt_io *io, gfp_t gfp)
 			crypt_dec_pending(io);
 			return 1;
 		}
-		clone->bi_iter.bi_sector = cc->start + io->sector;
 		crypt_convert_init(cc, &io->ctx, clone, clone, io->sector);
 		io->saved_bi_iter = clone->bi_iter;
 		dm_submit_bio_remap(io->base_bio, clone);
@@ -1925,12 +1925,12 @@ static int kcryptd_io_read(struct dm_crypt_io *io, gfp_t gfp)
 	clone = bio_alloc_clone(cc->dev->bdev, io->base_bio, gfp, &cc->bs);
 	if (!clone)
 		return 1;
+
+	clone->bi_iter.bi_sector = cc->start + io->sector;
 	clone->bi_private = io;
 	clone->bi_end_io = crypt_endio;
 
 	crypt_inc_pending(io);
-
-	clone->bi_iter.bi_sector = cc->start + io->sector;
 
 	if (dm_crypt_integrity_io_alloc(io, clone)) {
 		crypt_dec_pending(io);
@@ -2038,8 +2038,6 @@ static void kcryptd_crypt_write_io_submit(struct dm_crypt_io *io, int async)
 
 	/* crypt_convert should have filled the clone bio */
 	BUG_ON(io->ctx.iter_out.bi_size);
-
-	clone->bi_iter.bi_sector = cc->start + io->sector;
 
 	if ((likely(!async) && test_bit(DM_CRYPT_NO_OFFLOAD, &cc->flags)) ||
 	    test_bit(DM_CRYPT_NO_WRITE_WORKQUEUE, &cc->flags)) {
