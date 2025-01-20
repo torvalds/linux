@@ -1,0 +1,3 @@
+# CONFIG_RISCV_ISA_C is not set
+CONFIG_NONPORTABLE=y
+# CONFIG_EFI is not set
