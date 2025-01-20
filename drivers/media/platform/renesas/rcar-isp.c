@@ -171,8 +171,6 @@ struct rcar_isp {
 	struct v4l2_subdev *remote;
 	unsigned int remote_pad;
 
-	struct mutex lock; /* Protects mf and stream_count. */
-	struct v4l2_mbus_framefmt mf;
 	int stream_count;
 };
 
@@ -219,14 +217,19 @@ static void risp_power_off(struct rcar_isp *isp)
 	pm_runtime_put(isp->dev);
 }
 
-static int risp_start(struct rcar_isp *isp)
+static int risp_start(struct rcar_isp *isp, struct v4l2_subdev_state *state)
 {
+	const struct v4l2_mbus_framefmt *fmt;
 	const struct rcar_isp_format *format;
 	unsigned int vc;
 	u32 sel_csi = 0;
 	int ret;
 
-	format = risp_code_to_fmt(isp->mf.code);
+	fmt = v4l2_subdev_state_get_format(state, RCAR_ISP_SINK);
+	if (!fmt)
+		return -EINVAL;
+
+	format = risp_code_to_fmt(fmt->code);
 	if (!format) {
 		dev_err(isp->dev, "Unsupported bus format\n");
 		return -EINVAL;
@@ -289,9 +292,10 @@ static void risp_stop(struct rcar_isp *isp)
 static int risp_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct rcar_isp *isp = sd_to_isp(sd);
+	struct v4l2_subdev_state *state;
 	int ret = 0;
 
-	mutex_lock(&isp->lock);
+	state = v4l2_subdev_lock_and_get_active_state(sd);
 
 	if (!isp->remote) {
 		ret = -ENODEV;
@@ -299,7 +303,7 @@ static int risp_s_stream(struct v4l2_subdev *sd, int enable)
 	}
 
 	if (enable && isp->stream_count == 0) {
-		ret = risp_start(isp);
+		ret = risp_start(isp, state);
 		if (ret)
 			goto out;
 	} else if (!enable && isp->stream_count == 1) {
@@ -308,7 +312,7 @@ static int risp_s_stream(struct v4l2_subdev *sd, int enable)
 
 	isp->stream_count += enable ? 1 : -1;
 out:
-	mutex_unlock(&isp->lock);
+	v4l2_subdev_unlock_state(state);
 
 	return ret;
 }
@@ -318,50 +322,28 @@ static const struct v4l2_subdev_video_ops risp_video_ops = {
 };
 
 static int risp_set_pad_format(struct v4l2_subdev *sd,
-			       struct v4l2_subdev_state *sd_state,
+			       struct v4l2_subdev_state *state,
 			       struct v4l2_subdev_format *format)
 {
-	struct rcar_isp *isp = sd_to_isp(sd);
 	struct v4l2_mbus_framefmt *framefmt;
 
-	mutex_lock(&isp->lock);
+	if (format->pad > RCAR_ISP_SINK)
+		return v4l2_subdev_get_fmt(sd, state, format);
 
 	if (!risp_code_to_fmt(format->format.code))
 		format->format.code = rcar_isp_formats[0].code;
 
-	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
-		isp->mf = format->format;
-	} else {
-		framefmt = v4l2_subdev_state_get_format(sd_state, 0);
+	for (unsigned int i = 0; i < RCAR_ISP_NUM_PADS; i++) {
+		framefmt = v4l2_subdev_state_get_format(state, i);
 		*framefmt = format->format;
 	}
-
-	mutex_unlock(&isp->lock);
-
-	return 0;
-}
-
-static int risp_get_pad_format(struct v4l2_subdev *sd,
-			       struct v4l2_subdev_state *sd_state,
-			       struct v4l2_subdev_format *format)
-{
-	struct rcar_isp *isp = sd_to_isp(sd);
-
-	mutex_lock(&isp->lock);
-
-	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
-		format->format = isp->mf;
-	else
-		format->format = *v4l2_subdev_state_get_format(sd_state, 0);
-
-	mutex_unlock(&isp->lock);
 
 	return 0;
 }
 
 static const struct v4l2_subdev_pad_ops risp_pad_ops = {
 	.set_fmt = risp_set_pad_format,
-	.get_fmt = risp_get_pad_format,
+	.get_fmt = v4l2_subdev_get_fmt,
 	.link_validate = v4l2_subdev_link_validate_default,
 };
 
@@ -500,12 +482,10 @@ static int risp_probe(struct platform_device *pdev)
 
 	isp->dev = &pdev->dev;
 
-	mutex_init(&isp->lock);
-
 	ret = risp_probe_resources(isp, pdev);
 	if (ret) {
 		dev_err(isp->dev, "Failed to get resources\n");
-		goto error_mutex;
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, isp);
@@ -536,20 +516,25 @@ static int risp_probe(struct platform_device *pdev)
 	if (ret)
 		goto error_notifier;
 
+	ret = v4l2_subdev_init_finalize(&isp->subdev);
+	if (ret)
+		goto error_notifier;
+
 	ret = v4l2_async_register_subdev(&isp->subdev);
 	if (ret < 0)
-		goto error_notifier;
+		goto error_subdev;
 
 	dev_info(isp->dev, "Using CSI-2 input: %u\n", isp->csi_input);
 
 	return 0;
+
+error_subdev:
+	v4l2_subdev_cleanup(&isp->subdev);
 error_notifier:
 	v4l2_async_nf_unregister(&isp->notifier);
 	v4l2_async_nf_cleanup(&isp->notifier);
 error_pm:
 	pm_runtime_disable(&pdev->dev);
-error_mutex:
-	mutex_destroy(&isp->lock);
 
 	return ret;
 }
@@ -562,10 +547,9 @@ static void risp_remove(struct platform_device *pdev)
 	v4l2_async_nf_cleanup(&isp->notifier);
 
 	v4l2_async_unregister_subdev(&isp->subdev);
+	v4l2_subdev_cleanup(&isp->subdev);
 
 	pm_runtime_disable(&pdev->dev);
-
-	mutex_destroy(&isp->lock);
 }
 
 static struct platform_driver rcar_isp_driver = {
