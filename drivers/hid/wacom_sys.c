@@ -1084,6 +1084,17 @@ static ssize_t wacom_luminance_store(struct wacom *wacom, u8 *dest,
 	mutex_lock(&wacom->lock);
 
 	*dest = value & 0x7f;
+	for (unsigned int i = 0; i < wacom->led.count; i++) {
+		struct wacom_group_leds *group = &wacom->led.groups[i];
+
+		for (unsigned int j = 0; j < group->count; j++) {
+			if (dest == &wacom->led.llv)
+				group->leds[j].llv = *dest;
+			else if (dest == &wacom->led.hlv)
+				group->leds[j].hlv = *dest;
+		}
+	}
+
 	err = wacom_led_control(wacom);
 
 	mutex_unlock(&wacom->lock);
@@ -1302,10 +1313,10 @@ enum led_brightness wacom_leds_brightness_get(struct wacom_led *led)
 	struct wacom *wacom = led->wacom;
 
 	if (wacom->led.max_hlv)
-		return led->hlv * LED_FULL / wacom->led.max_hlv;
+		return wacom_rescale(led->hlv, wacom->led.max_hlv, LED_FULL);
 
 	if (wacom->led.max_llv)
-		return led->llv * LED_FULL / wacom->led.max_llv;
+		return wacom_rescale(led->llv, wacom->led.max_llv, LED_FULL);
 
 	/* device doesn't support brightness tuning */
 	return LED_FULL;
@@ -1337,8 +1348,8 @@ static int wacom_led_brightness_set(struct led_classdev *cdev,
 		goto out;
 	}
 
-	led->llv = wacom->led.llv = wacom->led.max_llv * brightness / LED_FULL;
-	led->hlv = wacom->led.hlv = wacom->led.max_hlv * brightness / LED_FULL;
+	led->llv = wacom->led.llv = wacom_rescale(brightness, LED_FULL, wacom->led.max_llv);
+	led->hlv = wacom->led.hlv = wacom_rescale(brightness, LED_FULL, wacom->led.max_hlv);
 
 	wacom->led.groups[led->group].select = led->id;
 
