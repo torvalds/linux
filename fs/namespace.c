@@ -33,7 +33,6 @@
 #include <linux/shmem_fs.h>
 #include <linux/mnt_idmapping.h>
 #include <linux/pidfs.h>
-#include <linux/nospec.h>
 
 #include "pnode.h"
 #include "internal.h"
@@ -67,12 +66,12 @@ static int __init set_mphash_entries(char *str)
 __setup("mphash_entries=", set_mphash_entries);
 
 static u64 event;
-static DEFINE_IDA(mnt_id_ida);
+static DEFINE_XARRAY_FLAGS(mnt_id_xa, XA_FLAGS_ALLOC);
 static DEFINE_IDA(mnt_group_ida);
 
 /* Don't allow confusion with old 32bit mount ID */
 #define MNT_UNIQUE_ID_OFFSET (1ULL << 31)
-static atomic64_t mnt_id_ctr = ATOMIC64_INIT(MNT_UNIQUE_ID_OFFSET);
+static u64 mnt_id_ctr = MNT_UNIQUE_ID_OFFSET;
 
 static struct hlist_head *mount_hashtable __ro_after_init;
 static struct hlist_head *mountpoint_hashtable __ro_after_init;
@@ -80,8 +79,10 @@ static struct kmem_cache *mnt_cache __ro_after_init;
 static DECLARE_RWSEM(namespace_sem);
 static HLIST_HEAD(unmounted);	/* protected by namespace_sem */
 static LIST_HEAD(ex_mountpoints); /* protected by namespace_sem */
-static DEFINE_RWLOCK(mnt_ns_tree_lock);
+static DEFINE_SEQLOCK(mnt_ns_tree_lock);
+
 static struct rb_root mnt_ns_tree = RB_ROOT; /* protected by mnt_ns_tree_lock */
+static LIST_HEAD(mnt_ns_list); /* protected by mnt_ns_tree_lock */
 
 struct mount_kattr {
 	unsigned int attr_set;
@@ -107,17 +108,6 @@ EXPORT_SYMBOL_GPL(fs_kobj);
  */
 __cacheline_aligned_in_smp DEFINE_SEQLOCK(mount_lock);
 
-static int mnt_ns_cmp(u64 seq, const struct mnt_namespace *ns)
-{
-	u64 seq_b = ns->seq;
-
-	if (seq < seq_b)
-		return -1;
-	if (seq > seq_b)
-		return 1;
-	return 0;
-}
-
 static inline struct mnt_namespace *node_to_mnt_ns(const struct rb_node *node)
 {
 	if (!node)
@@ -125,25 +115,52 @@ static inline struct mnt_namespace *node_to_mnt_ns(const struct rb_node *node)
 	return rb_entry(node, struct mnt_namespace, mnt_ns_tree_node);
 }
 
-static bool mnt_ns_less(struct rb_node *a, const struct rb_node *b)
+static int mnt_ns_cmp(struct rb_node *a, const struct rb_node *b)
 {
 	struct mnt_namespace *ns_a = node_to_mnt_ns(a);
 	struct mnt_namespace *ns_b = node_to_mnt_ns(b);
 	u64 seq_a = ns_a->seq;
+	u64 seq_b = ns_b->seq;
 
-	return mnt_ns_cmp(seq_a, ns_b) < 0;
+	if (seq_a < seq_b)
+		return -1;
+	if (seq_a > seq_b)
+		return 1;
+	return 0;
+}
+
+static inline void mnt_ns_tree_write_lock(void)
+{
+	write_seqlock(&mnt_ns_tree_lock);
+}
+
+static inline void mnt_ns_tree_write_unlock(void)
+{
+	write_sequnlock(&mnt_ns_tree_lock);
 }
 
 static void mnt_ns_tree_add(struct mnt_namespace *ns)
 {
-	guard(write_lock)(&mnt_ns_tree_lock);
-	rb_add(&ns->mnt_ns_tree_node, &mnt_ns_tree, mnt_ns_less);
+	struct rb_node *node, *prev;
+
+	mnt_ns_tree_write_lock();
+	node = rb_find_add_rcu(&ns->mnt_ns_tree_node, &mnt_ns_tree, mnt_ns_cmp);
+	/*
+	 * If there's no previous entry simply add it after the
+	 * head and if there is add it after the previous entry.
+	 */
+	prev = rb_prev(&ns->mnt_ns_tree_node);
+	if (!prev)
+		list_add_rcu(&ns->mnt_ns_list, &mnt_ns_list);
+	else
+		list_add_rcu(&ns->mnt_ns_list, &node_to_mnt_ns(prev)->mnt_ns_list);
+	mnt_ns_tree_write_unlock();
+
+	WARN_ON_ONCE(node);
 }
 
 static void mnt_ns_release(struct mnt_namespace *ns)
 {
-	lockdep_assert_not_held(&mnt_ns_tree_lock);
-
 	/* keep alive for {list,stat}mount() */
 	if (refcount_dec_and_test(&ns->passive)) {
 		put_user_ns(ns->user_ns);
@@ -152,41 +169,34 @@ static void mnt_ns_release(struct mnt_namespace *ns)
 }
 DEFINE_FREE(mnt_ns_release, struct mnt_namespace *, if (_T) mnt_ns_release(_T))
 
+static void mnt_ns_release_rcu(struct rcu_head *rcu)
+{
+	mnt_ns_release(container_of(rcu, struct mnt_namespace, mnt_ns_rcu));
+}
+
 static void mnt_ns_tree_remove(struct mnt_namespace *ns)
 {
 	/* remove from global mount namespace list */
 	if (!is_anon_ns(ns)) {
-		guard(write_lock)(&mnt_ns_tree_lock);
+		mnt_ns_tree_write_lock();
 		rb_erase(&ns->mnt_ns_tree_node, &mnt_ns_tree);
+		list_bidir_del_rcu(&ns->mnt_ns_list);
+		mnt_ns_tree_write_unlock();
 	}
 
-	mnt_ns_release(ns);
+	call_rcu(&ns->mnt_ns_rcu, mnt_ns_release_rcu);
 }
 
-/*
- * Returns the mount namespace which either has the specified id, or has the
- * next smallest id afer the specified one.
- */
-static struct mnt_namespace *mnt_ns_find_id_at(u64 mnt_ns_id)
+static int mnt_ns_find(const void *key, const struct rb_node *node)
 {
-	struct rb_node *node = mnt_ns_tree.rb_node;
-	struct mnt_namespace *ret = NULL;
+	const u64 mnt_ns_id = *(u64 *)key;
+	const struct mnt_namespace *ns = node_to_mnt_ns(node);
 
-	lockdep_assert_held(&mnt_ns_tree_lock);
-
-	while (node) {
-		struct mnt_namespace *n = node_to_mnt_ns(node);
-
-		if (mnt_ns_id <= n->seq) {
-			ret = node_to_mnt_ns(node);
-			if (mnt_ns_id == n->seq)
-				break;
-			node = node->rb_left;
-		} else {
-			node = node->rb_right;
-		}
-	}
-	return ret;
+	if (mnt_ns_id < ns->seq)
+		return -1;
+	if (mnt_ns_id > ns->seq)
+		return 1;
+	return 0;
 }
 
 /*
@@ -196,18 +206,37 @@ static struct mnt_namespace *mnt_ns_find_id_at(u64 mnt_ns_id)
  * namespace the @namespace_sem must first be acquired. If the namespace has
  * already shut down before acquiring @namespace_sem, {list,stat}mount() will
  * see that the mount rbtree of the namespace is empty.
+ *
+ * Note the lookup is lockless protected by a sequence counter. We only
+ * need to guard against false negatives as false positives aren't
+ * possible. So if we didn't find a mount namespace and the sequence
+ * counter has changed we need to retry. If the sequence counter is
+ * still the same we know the search actually failed.
  */
 static struct mnt_namespace *lookup_mnt_ns(u64 mnt_ns_id)
 {
-       struct mnt_namespace *ns;
+	struct mnt_namespace *ns;
+	struct rb_node *node;
+	unsigned int seq;
 
-       guard(read_lock)(&mnt_ns_tree_lock);
-       ns = mnt_ns_find_id_at(mnt_ns_id);
-       if (!ns || ns->seq != mnt_ns_id)
-               return NULL;
+	guard(rcu)();
+	do {
+		seq = read_seqbegin(&mnt_ns_tree_lock);
+		node = rb_find_rcu(&mnt_ns_id, &mnt_ns_tree, mnt_ns_find);
+		if (node)
+			break;
+	} while (read_seqretry(&mnt_ns_tree_lock, seq));
 
-       refcount_inc(&ns->passive);
-       return ns;
+	if (!node)
+		return NULL;
+
+	/*
+	 * The last reference count is put with RCU delay so we can
+	 * unconditonally acquire a reference here.
+	 */
+	ns = node_to_mnt_ns(node);
+	refcount_inc(&ns->passive);
+	return ns;
 }
 
 static inline void lock_mount_hash(void)
@@ -237,18 +266,19 @@ static inline struct hlist_head *mp_hash(struct dentry *dentry)
 
 static int mnt_alloc_id(struct mount *mnt)
 {
-	int res = ida_alloc(&mnt_id_ida, GFP_KERNEL);
+	int res;
 
-	if (res < 0)
-		return res;
-	mnt->mnt_id = res;
-	mnt->mnt_id_unique = atomic64_inc_return(&mnt_id_ctr);
-	return 0;
+	xa_lock(&mnt_id_xa);
+	res = __xa_alloc(&mnt_id_xa, &mnt->mnt_id, mnt, XA_LIMIT(1, INT_MAX), GFP_KERNEL);
+	if (!res)
+		mnt->mnt_id_unique = ++mnt_id_ctr;
+	xa_unlock(&mnt_id_xa);
+	return res;
 }
 
 static void mnt_free_id(struct mount *mnt)
 {
-	ida_free(&mnt_id_ida, mnt->mnt_id);
+	xa_erase(&mnt_id_xa, mnt->mnt_id);
 }
 
 /*
@@ -1125,16 +1155,25 @@ static void mnt_add_to_ns(struct mnt_namespace *ns, struct mount *mnt)
 {
 	struct rb_node **link = &ns->mounts.rb_node;
 	struct rb_node *parent = NULL;
+	bool mnt_first_node = true, mnt_last_node = true;
 
 	WARN_ON(mnt_ns_attached(mnt));
 	mnt->mnt_ns = ns;
 	while (*link) {
 		parent = *link;
-		if (mnt->mnt_id_unique < node_to_mount(parent)->mnt_id_unique)
+		if (mnt->mnt_id_unique < node_to_mount(parent)->mnt_id_unique) {
 			link = &parent->rb_left;
-		else
+			mnt_last_node = false;
+		} else {
 			link = &parent->rb_right;
+			mnt_first_node = false;
+		}
 	}
+
+	if (mnt_last_node)
+		ns->mnt_last_node = &mnt->mnt_node;
+	if (mnt_first_node)
+		ns->mnt_first_node = &mnt->mnt_node;
 	rb_link_node(&mnt->mnt_node, parent, link);
 	rb_insert_color(&mnt->mnt_node, &ns->mounts);
 }
@@ -2070,30 +2109,34 @@ struct ns_common *from_mnt_ns(struct mnt_namespace *mnt)
 	return &mnt->ns;
 }
 
-struct mnt_namespace *__lookup_next_mnt_ns(struct mnt_namespace *mntns, bool previous)
+struct mnt_namespace *get_sequential_mnt_ns(struct mnt_namespace *mntns, bool previous)
 {
-	guard(read_lock)(&mnt_ns_tree_lock);
+	guard(rcu)();
+
 	for (;;) {
-		struct rb_node *node;
+		struct list_head *list;
 
 		if (previous)
-			node = rb_prev(&mntns->mnt_ns_tree_node);
+			list = rcu_dereference(list_bidir_prev_rcu(&mntns->mnt_ns_list));
 		else
-			node = rb_next(&mntns->mnt_ns_tree_node);
-		if (!node)
+			list = rcu_dereference(list_next_rcu(&mntns->mnt_ns_list));
+		if (list_is_head(list, &mnt_ns_list))
 			return ERR_PTR(-ENOENT);
 
-		mntns = node_to_mnt_ns(node);
-		node = &mntns->mnt_ns_tree_node;
+		mntns = list_entry_rcu(list, struct mnt_namespace, mnt_ns_list);
 
+		/*
+		 * The last passive reference count is put with RCU
+		 * delay so accessing the mount namespace is not just
+		 * safe but all relevant members are still valid.
+		 */
 		if (!ns_capable_noaudit(mntns->user_ns, CAP_SYS_ADMIN))
 			continue;
 
 		/*
-		 * Holding mnt_ns_tree_lock prevents the mount namespace from
-		 * being freed but it may well be on it's deathbed. We want an
-		 * active reference, not just a passive one here as we're
-		 * persisting the mount namespace.
+		 * We need an active reference count as we're persisting
+		 * the mount namespace and it might already be on its
+		 * deathbed.
 		 */
 		if (!refcount_inc_not_zero(&mntns->ns.count))
 			continue;
@@ -3915,6 +3958,7 @@ static struct mnt_namespace *alloc_mnt_ns(struct user_namespace *user_ns, bool a
 	refcount_set(&new_ns->ns.count, 1);
 	refcount_set(&new_ns->passive, 1);
 	new_ns->mounts = RB_ROOT;
+	INIT_LIST_HEAD(&new_ns->mnt_ns_list);
 	RB_CLEAR_NODE(&new_ns->mnt_ns_tree_node);
 	init_waitqueue_head(&new_ns->poll);
 	new_ns->user_ns = get_user_ns(user_ns);
@@ -3994,7 +4038,6 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
 		while (p->mnt.mnt_root != q->mnt.mnt_root)
 			p = next_mnt(skip_mnt_tree(p), old);
 	}
-	mnt_ns_tree_add(new_ns);
 	namespace_unlock();
 
 	if (rootmnt)
@@ -4002,6 +4045,7 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
 	if (pwdmnt)
 		mntput(pwdmnt);
 
+	mnt_ns_tree_add(new_ns);
 	return new_ns;
 }
 
@@ -5048,6 +5092,10 @@ static int statmount_mnt_opts(struct kstatmount *s, struct seq_file *seq)
 	if (sb->s_op->show_options) {
 		size_t start = seq->count;
 
+		err = security_sb_show_options(seq, sb);
+		if (err)
+			return err;
+
 		err = sb->s_op->show_options(seq, mnt->mnt_root);
 		if (err)
 			return err;
@@ -5535,9 +5583,9 @@ static ssize_t do_listmount(struct mnt_namespace *ns, u64 mnt_parent_id,
 
 	if (!last_mnt_id) {
 		if (reverse)
-			first = node_to_mount(rb_last(&ns->mounts));
+			first = node_to_mount(ns->mnt_last_node);
 		else
-			first = node_to_mount(rb_first(&ns->mounts));
+			first = node_to_mount(ns->mnt_first_node);
 	} else {
 		if (reverse)
 			first = mnt_find_id_at_reverse(ns, last_mnt_id - 1);

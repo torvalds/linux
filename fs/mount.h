@@ -8,15 +8,23 @@
 struct mnt_namespace {
 	struct ns_common	ns;
 	struct mount *	root;
-	struct rb_root		mounts; /* Protected by namespace_sem */
+	struct {
+		struct rb_root	mounts;		 /* Protected by namespace_sem */
+		struct rb_node	*mnt_last_node;	 /* last (rightmost) mount in the rbtree */
+		struct rb_node	*mnt_first_node; /* first (leftmost) mount in the rbtree */
+	};
 	struct user_namespace	*user_ns;
 	struct ucounts		*ucounts;
 	u64			seq;	/* Sequence number to prevent loops */
-	wait_queue_head_t poll;
+	union {
+		wait_queue_head_t	poll;
+		struct rcu_head		mnt_ns_rcu;
+	};
 	u64 event;
 	unsigned int		nr_mounts; /* # of mounts in the namespace */
 	unsigned int		pending_mounts;
 	struct rb_node		mnt_ns_tree_node; /* node in the mnt_ns_tree */
+	struct list_head	mnt_ns_list; /* entry in the sequential list of mounts namespace */
 	refcount_t		passive; /* number references not pinning @mounts */
 } __randomize_layout;
 
@@ -150,22 +158,21 @@ static inline bool mnt_ns_attached(const struct mount *mnt)
 
 static inline void move_from_ns(struct mount *mnt, struct list_head *dt_list)
 {
+	struct mnt_namespace *ns = mnt->mnt_ns;
 	WARN_ON(!mnt_ns_attached(mnt));
-	rb_erase(&mnt->mnt_node, &mnt->mnt_ns->mounts);
+	if (ns->mnt_last_node == &mnt->mnt_node)
+		ns->mnt_last_node = rb_prev(&mnt->mnt_node);
+	if (ns->mnt_first_node == &mnt->mnt_node)
+		ns->mnt_first_node = rb_next(&mnt->mnt_node);
+	rb_erase(&mnt->mnt_node, &ns->mounts);
 	RB_CLEAR_NODE(&mnt->mnt_node);
 	list_add_tail(&mnt->mnt_list, dt_list);
 }
 
 bool has_locked_children(struct mount *mnt, struct dentry *dentry);
-struct mnt_namespace *__lookup_next_mnt_ns(struct mnt_namespace *mnt_ns, bool previous);
-static inline struct mnt_namespace *lookup_next_mnt_ns(struct mnt_namespace *mntns)
-{
-	return __lookup_next_mnt_ns(mntns, false);
-}
-static inline struct mnt_namespace *lookup_prev_mnt_ns(struct mnt_namespace *mntns)
-{
-	return __lookup_next_mnt_ns(mntns, true);
-}
+struct mnt_namespace *get_sequential_mnt_ns(struct mnt_namespace *mnt_ns,
+					    bool previous);
+
 static inline struct mnt_namespace *to_mnt_ns(struct ns_common *ns)
 {
 	return container_of(ns, struct mnt_namespace, ns);
