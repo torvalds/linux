@@ -857,7 +857,7 @@ static int ftrace_event_enable_disable(struct trace_event_file *file,
 	return __ftrace_event_enable_disable(file, enable, 0);
 }
 
-#if CONFIG_MODULES
+#ifdef CONFIG_MODULES
 struct event_mod_load {
 	struct list_head	list;
 	char			*module;
