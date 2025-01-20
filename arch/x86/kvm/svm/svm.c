@@ -28,6 +28,7 @@
 #include <linux/rwsem.h>
 #include <linux/cc_platform.h>
 #include <linux/smp.h>
+#include <linux/string_choices.h>
 
 #include <asm/apic.h>
 #include <asm/perf_event.h>
@@ -283,8 +284,6 @@ u32 svm_msrpm_offset(u32 msr)
 	/* MSR not in any range */
 	return MSR_INVALID;
 }
-
-static void svm_flush_tlb_current(struct kvm_vcpu *vcpu);
 
 static int get_npt_level(void)
 {
@@ -1920,9 +1919,6 @@ void svm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 {
 	unsigned long host_cr4_mce = cr4_read_shadow() & X86_CR4_MCE;
 	unsigned long old_cr4 = vcpu->arch.cr4;
-
-	if (npt_enabled && ((old_cr4 ^ cr4) & X86_CR4_PGE))
-		svm_flush_tlb_current(vcpu);
 
 	vcpu->arch.cr4 = cr4;
 	if (!npt_enabled) {
@@ -5328,7 +5324,7 @@ static __init int svm_hardware_setup(void)
 	/* Force VM NPT level equal to the host's paging level */
 	kvm_configure_mmu(npt_enabled, get_npt_level(),
 			  get_npt_level(), PG_LEVEL_1G);
-	pr_info("Nested Paging %sabled\n", npt_enabled ? "en" : "dis");
+	pr_info("Nested Paging %s\n", str_enabled_disabled(npt_enabled));
 
 	/* Setup shadow_me_value and shadow_me_mask */
 	kvm_mmu_set_me_spte_mask(sme_me_mask, sme_me_mask);

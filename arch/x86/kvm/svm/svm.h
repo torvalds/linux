@@ -358,39 +358,32 @@ static __always_inline struct kvm_sev_info *to_kvm_sev_info(struct kvm *kvm)
 	return &to_kvm_svm(kvm)->sev_info;
 }
 
+#ifdef CONFIG_KVM_AMD_SEV
 static __always_inline bool sev_guest(struct kvm *kvm)
 {
-#ifdef CONFIG_KVM_AMD_SEV
 	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
 
 	return sev->active;
-#else
-	return false;
-#endif
 }
-
 static __always_inline bool sev_es_guest(struct kvm *kvm)
 {
-#ifdef CONFIG_KVM_AMD_SEV
 	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
 
 	return sev->es_active && !WARN_ON_ONCE(!sev->active);
-#else
-	return false;
-#endif
 }
 
 static __always_inline bool sev_snp_guest(struct kvm *kvm)
 {
-#ifdef CONFIG_KVM_AMD_SEV
 	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
 
 	return (sev->vmsa_features & SVM_SEV_FEAT_SNP_ACTIVE) &&
 	       !WARN_ON_ONCE(!sev_es_guest(kvm));
-#else
-	return false;
-#endif
 }
+#else
+#define sev_guest(kvm) false
+#define sev_es_guest(kvm) false
+#define sev_snp_guest(kvm) false
+#endif
 
 static inline bool ghcb_gpa_is_registered(struct vcpu_svm *svm, u64 val)
 {
