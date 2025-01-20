@@ -28,6 +28,12 @@ enum fuse_ring_req_state {
 
 	/* The ring entry is in or on the way to user space */
 	FRRS_USERSPACE,
+
+	/* The ring entry is in teardown */
+	FRRS_TEARDOWN,
+
+	/* The ring entry is released, but not freed yet */
+	FRRS_RELEASED,
 };
 
 /** A fuse ring entry, part of the ring queue */
@@ -78,6 +84,9 @@ struct fuse_ring_queue {
 
 	/* entries in userspace */
 	struct list_head ent_in_userspace;
+
+	/* entries that are released */
+	struct list_head ent_released;
 
 	/* fuse requests waiting for an entry slot */
 	struct list_head fuse_req_queue;
