@@ -790,6 +790,22 @@
 	status = "okay";
 };
 
+/* Apalis HDMI Audio */
+&sai5 {
+	assigned-clocks = <&acm IMX_ADMA_ACM_SAI5_MCLK_SEL>,
+			  <&acm IMX_ADMA_ACM_AUD_CLK1_SEL>,
+			  <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_PLL>,
+			  <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_SLV_BUS>,
+			  <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_MST_BUS>,
+			  <&clk IMX_SC_R_AUDIO_PLL_1 IMX_SC_PM_CLK_PLL>,
+			  <&clk IMX_SC_R_AUDIO_PLL_1 IMX_SC_PM_CLK_SLV_BUS>,
+			  <&clk IMX_SC_R_AUDIO_PLL_1 IMX_SC_PM_CLK_MST_BUS>,
+			  <&sai5_lpcg 0>;
+	assigned-clock-parents = <&aud_pll_div0_lpcg 0>, <&aud_rec1_lpcg 0>;
+	assigned-clock-rates = <0>, <0>, <786432000>, <49152000>, <12288000>,
+			       <722534400>, <45158400>, <11289600>, <49152000>;
+};
+
 /* TODO: Apalis SATA1 */
 
 /* Apalis SPDIF1 */
