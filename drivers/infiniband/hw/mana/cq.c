@@ -15,42 +15,57 @@ int mana_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	struct ib_device *ibdev = ibcq->device;
 	struct mana_ib_create_cq ucmd = {};
 	struct mana_ib_dev *mdev;
+	struct gdma_context *gc;
 	bool is_rnic_cq;
 	u32 doorbell;
+	u32 buf_size;
 	int err;
 
 	mdev = container_of(ibdev, struct mana_ib_dev, ib_dev);
+	gc = mdev_to_gc(mdev);
 
 	cq->comp_vector = attr->comp_vector % ibdev->num_comp_vectors;
 	cq->cq_handle = INVALID_MANA_HANDLE;
 
-	if (udata->inlen < offsetof(struct mana_ib_create_cq, flags))
-		return -EINVAL;
+	if (udata) {
+		if (udata->inlen < offsetof(struct mana_ib_create_cq, flags))
+			return -EINVAL;
 
-	err = ib_copy_from_udata(&ucmd, udata, min(sizeof(ucmd), udata->inlen));
-	if (err) {
-		ibdev_dbg(ibdev,
-			  "Failed to copy from udata for create cq, %d\n", err);
-		return err;
+		err = ib_copy_from_udata(&ucmd, udata, min(sizeof(ucmd), udata->inlen));
+		if (err) {
+			ibdev_dbg(ibdev, "Failed to copy from udata for create cq, %d\n", err);
+			return err;
+		}
+
+		is_rnic_cq = !!(ucmd.flags & MANA_IB_CREATE_RNIC_CQ);
+
+		if (!is_rnic_cq && attr->cqe > mdev->adapter_caps.max_qp_wr) {
+			ibdev_dbg(ibdev, "CQE %d exceeding limit\n", attr->cqe);
+			return -EINVAL;
+		}
+
+		cq->cqe = attr->cqe;
+		err = mana_ib_create_queue(mdev, ucmd.buf_addr, cq->cqe * COMP_ENTRY_SIZE,
+					   &cq->queue);
+		if (err) {
+			ibdev_dbg(ibdev, "Failed to create queue for create cq, %d\n", err);
+			return err;
+		}
+
+		mana_ucontext = rdma_udata_to_drv_context(udata, struct mana_ib_ucontext,
+							  ibucontext);
+		doorbell = mana_ucontext->doorbell;
+	} else {
+		is_rnic_cq = true;
+		buf_size = MANA_PAGE_ALIGN(roundup_pow_of_two(attr->cqe * COMP_ENTRY_SIZE));
+		cq->cqe = buf_size / COMP_ENTRY_SIZE;
+		err = mana_ib_create_kernel_queue(mdev, buf_size, GDMA_CQ, &cq->queue);
+		if (err) {
+			ibdev_dbg(ibdev, "Failed to create kernel queue for create cq, %d\n", err);
+			return err;
+		}
+		doorbell = gc->mana_ib.doorbell;
 	}
-
-	is_rnic_cq = !!(ucmd.flags & MANA_IB_CREATE_RNIC_CQ);
-
-	if (!is_rnic_cq && attr->cqe > mdev->adapter_caps.max_qp_wr) {
-		ibdev_dbg(ibdev, "CQE %d exceeding limit\n", attr->cqe);
-		return -EINVAL;
-	}
-
-	cq->cqe = attr->cqe;
-	err = mana_ib_create_queue(mdev, ucmd.buf_addr, cq->cqe * COMP_ENTRY_SIZE, &cq->queue);
-	if (err) {
-		ibdev_dbg(ibdev, "Failed to create queue for create cq, %d\n", err);
-		return err;
-	}
-
-	mana_ucontext = rdma_udata_to_drv_context(udata, struct mana_ib_ucontext,
-						  ibucontext);
-	doorbell = mana_ucontext->doorbell;
 
 	if (is_rnic_cq) {
 		err = mana_ib_gd_create_cq(mdev, cq, doorbell);
@@ -66,11 +81,13 @@ int mana_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		}
 	}
 
-	resp.cqid = cq->queue.id;
-	err = ib_copy_to_udata(udata, &resp, min(sizeof(resp), udata->outlen));
-	if (err) {
-		ibdev_dbg(&mdev->ib_dev, "Failed to copy to udata, %d\n", err);
-		goto err_remove_cq_cb;
+	if (udata) {
+		resp.cqid = cq->queue.id;
+		err = ib_copy_to_udata(udata, &resp, min(sizeof(resp), udata->outlen));
+		if (err) {
+			ibdev_dbg(&mdev->ib_dev, "Failed to copy to udata, %d\n", err);
+			goto err_remove_cq_cb;
+		}
 	}
 
 	return 0;
@@ -122,7 +139,10 @@ int mana_ib_install_cq_cb(struct mana_ib_dev *mdev, struct mana_ib_cq *cq)
 		return -EINVAL;
 	/* Create CQ table entry */
 	WARN_ON(gc->cq_table[cq->queue.id]);
-	gdma_cq = kzalloc(sizeof(*gdma_cq), GFP_KERNEL);
+	if (cq->queue.kmem)
+		gdma_cq = cq->queue.kmem;
+	else
+		gdma_cq = kzalloc(sizeof(*gdma_cq), GFP_KERNEL);
 	if (!gdma_cq)
 		return -ENOMEM;
 
@@ -139,6 +159,10 @@ void mana_ib_remove_cq_cb(struct mana_ib_dev *mdev, struct mana_ib_cq *cq)
 	struct gdma_context *gc = mdev_to_gc(mdev);
 
 	if (cq->queue.id >= gc->max_num_cqs || cq->queue.id == INVALID_QUEUE_ID)
+		return;
+
+	if (cq->queue.kmem)
+	/* Then it will be cleaned and removed by the mana */
 		return;
 
 	kfree(gc->cq_table[cq->queue.id]);
