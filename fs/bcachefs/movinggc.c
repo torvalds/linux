@@ -167,7 +167,7 @@ static int bch2_copygc_get_buckets(struct moving_context *ctxt,
 
 	bch2_trans_begin(trans);
 
-	ret = for_each_btree_key_upto(trans, iter, BTREE_ID_lru,
+	ret = for_each_btree_key_max(trans, iter, BTREE_ID_lru,
 				  lru_pos(BCH_LRU_FRAGMENTATION_START, 0, 0),
 				  lru_pos(BCH_LRU_FRAGMENTATION_START, U64_MAX, LRU_TIME_MAX),
 				  0, k, ({
@@ -350,9 +350,9 @@ static int bch2_copygc_thread(void *arg)
 		bch2_trans_unlock_long(ctxt.trans);
 		cond_resched();
 
-		if (!c->copy_gc_enabled) {
+		if (!c->opts.copygc_enabled) {
 			move_buckets_wait(&ctxt, buckets, true);
-			kthread_wait_freezable(c->copy_gc_enabled ||
+			kthread_wait_freezable(c->opts.copygc_enabled ||
 					       kthread_should_stop());
 		}
 

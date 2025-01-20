@@ -472,7 +472,9 @@ static void bch2_cached_btree_node_to_text(struct printbuf *out, struct bch_fs *
 	if (!out->nr_tabstops)
 		printbuf_tabstop_push(out, 32);
 
-	prt_printf(out, "%px btree=%s l=%u\n", b, bch2_btree_id_str(b->c.btree_id), b->c.level);
+	prt_printf(out, "%px ", b);
+	bch2_btree_id_level_to_text(out, b->c.btree_id, b->c.level);
+	prt_printf(out, "\n");
 
 	printbuf_indent_add(out, 2);
 

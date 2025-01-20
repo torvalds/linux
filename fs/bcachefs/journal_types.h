@@ -9,6 +9,9 @@
 #include "super_types.h"
 #include "fifo.h"
 
+/* btree write buffer steals 8 bits for its own purposes: */
+#define JOURNAL_SEQ_MAX		((1ULL << 56) - 1)
+
 #define JOURNAL_BUF_BITS	2
 #define JOURNAL_BUF_NR		(1U << JOURNAL_BUF_BITS)
 #define JOURNAL_BUF_MASK	(JOURNAL_BUF_NR - 1)
@@ -112,6 +115,7 @@ union journal_res_state {
  */
 #define JOURNAL_ENTRY_OFFSET_MAX	((1U << 20) - 1)
 
+#define JOURNAL_ENTRY_BLOCKED_VAL	(JOURNAL_ENTRY_OFFSET_MAX - 2)
 #define JOURNAL_ENTRY_CLOSED_VAL	(JOURNAL_ENTRY_OFFSET_MAX - 1)
 #define JOURNAL_ENTRY_ERROR_VAL		(JOURNAL_ENTRY_OFFSET_MAX)
 
@@ -193,6 +197,7 @@ struct journal {
 	 * insufficient devices:
 	 */
 	enum journal_errors	cur_entry_error;
+	unsigned		cur_entry_offset_if_blocked;
 
 	unsigned		buf_size_want;
 	/*

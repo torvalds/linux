@@ -38,6 +38,9 @@ unsigned bch2_journal_dev_buckets_available(struct journal *j,
 					    struct journal_device *ja,
 					    enum journal_space_from from)
 {
+	if (!ja->nr)
+		return 0;
+
 	unsigned available = (journal_space_from(ja, from) -
 			      ja->cur_idx - 1 + ja->nr) % ja->nr;
 
@@ -137,13 +140,17 @@ static struct journal_space __journal_space_available(struct journal *j, unsigne
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	unsigned pos, nr_devs = 0;
 	struct journal_space space, dev_space[BCH_SB_MEMBERS_MAX];
+	unsigned min_bucket_size = U32_MAX;
 
 	BUG_ON(nr_devs_want > ARRAY_SIZE(dev_space));
 
 	rcu_read_lock();
 	for_each_member_device_rcu(c, ca, &c->rw_devs[BCH_DATA_journal]) {
-		if (!ca->journal.nr)
+		if (!ca->journal.nr ||
+		    !ca->mi.durability)
 			continue;
+
+		min_bucket_size = min(min_bucket_size, ca->mi.bucket_size);
 
 		space = journal_dev_space_available(j, ca, from);
 		if (!space.next_entry)
@@ -164,7 +171,9 @@ static struct journal_space __journal_space_available(struct journal *j, unsigne
 	 * We sorted largest to smallest, and we want the smallest out of the
 	 * @nr_devs_want largest devices:
 	 */
-	return dev_space[nr_devs_want - 1];
+	space = dev_space[nr_devs_want - 1];
+	space.next_entry = min(space.next_entry, min_bucket_size);
+	return space;
 }
 
 void bch2_journal_space_available(struct journal *j)
@@ -758,10 +767,12 @@ static int bch2_journal_reclaim_thread(void *arg)
 			journal_empty = fifo_empty(&j->pin);
 			spin_unlock(&j->lock);
 
+			long timeout = j->next_reclaim - jiffies;
+
 			if (journal_empty)
 				schedule();
-			else if (time_after(j->next_reclaim, jiffies))
-				schedule_timeout(j->next_reclaim - jiffies);
+			else if (timeout > 0)
+				schedule_timeout(timeout);
 			else
 				break;
 		}

@@ -55,6 +55,16 @@ static inline size_t buf_pages(void *p, size_t len)
 			    PAGE_SIZE);
 }
 
+static inline void *bch2_kvmalloc(size_t n, gfp_t flags)
+{
+	void *p = unlikely(n >= INT_MAX)
+		? vmalloc(n)
+		: kvmalloc(n, flags & ~__GFP_ZERO);
+	if (p && (flags & __GFP_ZERO))
+		memset(p, 0, n);
+	return p;
+}
+
 #define init_heap(heap, _size, gfp)					\
 ({									\
 	(heap)->nr = 0;						\
@@ -316,6 +326,19 @@ do {									\
 	typeof(ptr) _ptr = ptr;						\
 	_ptr ? container_of(_ptr, type, member) : NULL;			\
 })
+
+static inline struct list_head *list_pop(struct list_head *head)
+{
+	if (list_empty(head))
+		return NULL;
+
+	struct list_head *ret = head->next;
+	list_del_init(ret);
+	return ret;
+}
+
+#define list_pop_entry(head, type, member)		\
+	container_of_or_null(list_pop(head), type, member)
 
 /* Does linear interpolation between powers of two */
 static inline unsigned fract_exp_two(unsigned x, unsigned fract_bits)
@@ -694,6 +717,15 @@ static inline void __clear_bit_le64(size_t bit, __le64 *addr)
 static inline bool test_bit_le64(size_t bit, __le64 *addr)
 {
 	return (addr[bit / 64] & cpu_to_le64(BIT_ULL(bit % 64))) != 0;
+}
+
+static inline void memcpy_swab(void *_dst, void *_src, size_t len)
+{
+	u8 *dst = _dst + len;
+	u8 *src = _src;
+
+	while (len--)
+		*--dst = *src++;
 }
 
 #endif /* _BCACHEFS_UTIL_H */

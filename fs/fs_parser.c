@@ -13,7 +13,7 @@
 #include <linux/namei.h>
 #include "internal.h"
 
-static const struct constant_table bool_names[] = {
+const struct constant_table bool_names[] = {
 	{ "0",		false },
 	{ "1",		true },
 	{ "false",	false },
@@ -22,6 +22,7 @@ static const struct constant_table bool_names[] = {
 	{ "yes",	true },
 	{ },
 };
+EXPORT_SYMBOL(bool_names);
 
 static const struct constant_table *
 __lookup_constant(const struct constant_table *tbl, const char *name)
