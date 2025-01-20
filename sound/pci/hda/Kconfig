@@ -212,7 +212,7 @@ config SND_HDA_SCODEC_TAS2781_SPI
 	depends on ACPI
 	depends on EFI
 	depends on SND_SOC
-	select CRC32_SARWATE
+	select CRC32
 	help
 	  Say Y or M here to include TAS2781 SPI HD-audio side codec support
 	  in snd-hda-intel driver, such as ALC287.
