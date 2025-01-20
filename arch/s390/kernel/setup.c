@@ -1025,3 +1025,8 @@ void __init setup_arch(char **cmdline_p)
 	/* Add system specific data to the random pool */
 	setup_randomness();
 }
+
+void __init arch_cpu_finalize_init(void)
+{
+	sclp_init();
+}
