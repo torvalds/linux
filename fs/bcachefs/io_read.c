@@ -97,6 +97,26 @@ static inline bool have_io_error(struct bch_io_failures *failed)
 	return failed && failed->nr;
 }
 
+static bool ptr_being_rewritten(struct bch_read_bio *orig,
+				unsigned dev,
+				unsigned flags)
+{
+	if (!(flags & BCH_READ_data_update))
+		return false;
+
+	struct data_update *u = container_of(orig, struct data_update, rbio);
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(bkey_i_to_s_c(u->k.k));
+	unsigned i = 0;
+	bkey_for_each_ptr(ptrs, ptr) {
+		if (ptr->dev == dev &&
+		    u->data_opts.rewrite_ptrs & BIT(i))
+			return true;
+		i++;
+	}
+
+	return false;
+}
+
 static inline int should_promote(struct bch_fs *c, struct bkey_s_c k,
 				  struct bpos pos,
 				  struct bch_io_opts opts,
@@ -173,11 +193,35 @@ static struct bch_read_bio *__promote_alloc(struct btree_trans *trans,
 					    struct bpos pos,
 					    struct extent_ptr_decoded *pick,
 					    unsigned sectors,
+					    unsigned flags,
 					    struct bch_read_bio *orig,
 					    struct bch_io_failures *failed)
 {
 	struct bch_fs *c = trans->c;
 	int ret;
+
+	struct data_update_opts update_opts = { .write_flags = BCH_WRITE_alloc_nowait };
+
+	if (!have_io_error(failed)) {
+		update_opts.target = orig->opts.promote_target;
+		update_opts.extra_replicas = 1;
+		update_opts.write_flags |= BCH_WRITE_cached;
+		update_opts.write_flags |= BCH_WRITE_only_specified_devs;
+	} else {
+		update_opts.target = orig->opts.foreground_target;
+
+		struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+		unsigned ptr_bit = 1;
+		bkey_for_each_ptr(ptrs, ptr) {
+			if (bch2_dev_io_failures(failed, ptr->dev) &&
+			    !ptr_being_rewritten(orig, ptr->dev, flags))
+				update_opts.rewrite_ptrs |= ptr_bit;
+			ptr_bit <<= 1;
+		}
+
+		if (!update_opts.rewrite_ptrs)
+			return NULL;
+	}
 
 	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_promote))
 		return ERR_PTR(-BCH_ERR_nopromote_no_writes);
@@ -195,25 +239,6 @@ static struct bch_read_bio *__promote_alloc(struct btree_trans *trans,
 					  bch_promote_params)) {
 		ret = -BCH_ERR_nopromote_in_flight;
 		goto err;
-	}
-
-	struct data_update_opts update_opts = { .write_flags = BCH_WRITE_alloc_nowait };
-
-	if (!have_io_error(failed)) {
-		update_opts.target = orig->opts.promote_target;
-		update_opts.extra_replicas = 1;
-		update_opts.write_flags |= BCH_WRITE_cached;
-		update_opts.write_flags |= BCH_WRITE_only_specified_devs;
-	} else {
-		update_opts.target = orig->opts.foreground_target;
-
-		struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
-		unsigned ptr_bit = 1;
-		bkey_for_each_ptr(ptrs, ptr) {
-			if (bch2_dev_io_failures(failed, ptr->dev))
-				update_opts.rewrite_ptrs |= ptr_bit;
-			ptr_bit <<= 1;
-		}
 	}
 
 	ret = bch2_data_update_init(trans, NULL, NULL, &op->write,
@@ -283,7 +308,10 @@ static struct bch_read_bio *promote_alloc(struct btree_trans *trans,
 				k.k->type == KEY_TYPE_reflink_v
 				? BTREE_ID_reflink
 				: BTREE_ID_extents,
-				k, pos, pick, sectors, orig, failed);
+				k, pos, pick, sectors, flags, orig, failed);
+	if (!promote)
+		return NULL;
+
 	ret = PTR_ERR_OR_ZERO(promote);
 	if (ret)
 		goto nopromote;
