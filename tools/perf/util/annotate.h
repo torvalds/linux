@@ -34,6 +34,9 @@ struct annotated_data_type;
 #define ANNOTATION__BR_CNTR_WIDTH 30
 #define ANNOTATION_DUMMY_LEN	256
 
+// llvm, capstone, objdump
+#define MAX_DISASSEMBLERS 3
+
 struct annotation_options {
 	bool hide_src_code,
 	     use_offset,
@@ -49,11 +52,14 @@ struct annotation_options {
 	     annotate_src,
 	     full_addr;
 	u8   offset_level;
+	u8   nr_disassemblers;
 	int  min_pcnt;
 	int  max_lines;
 	int  context;
 	char *objdump_path;
 	char *disassembler_style;
+	const char *disassemblers_str;
+	const char *disassemblers[MAX_DISASSEMBLERS];
 	const char *prefix;
 	const char *prefix_strip;
 	unsigned int percent_type;

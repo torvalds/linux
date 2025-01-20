@@ -84,5 +84,7 @@ int amdgpu_xgmi_reset_on_init(struct amdgpu_device *adev);
 int amdgpu_xgmi_request_nps_change(struct amdgpu_device *adev,
 				   struct amdgpu_hive_info *hive,
 				   int req_nps_mode);
+int amdgpu_get_xgmi_link_status(struct amdgpu_device *adev,
+				int global_link_num);
 
 #endif

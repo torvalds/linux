@@ -648,7 +648,8 @@ static int irsd200_read_event_config(struct iio_dev *indio_dev,
 static int irsd200_write_event_config(struct iio_dev *indio_dev,
 				      const struct iio_chan_spec *chan,
 				      enum iio_event_type type,
-				      enum iio_event_direction dir, int state)
+				      enum iio_event_direction dir,
+				      bool state)
 {
 	struct irsd200_data *data = iio_priv(indio_dev);
 	unsigned int tmp;
@@ -662,7 +663,7 @@ static int irsd200_write_event_config(struct iio_dev *indio_dev,
 			return ret;
 
 		return regmap_field_write(
-			data->regfields[IRS_REGF_INTR_COUNT_THR_OR], !!state);
+			data->regfields[IRS_REGF_INTR_COUNT_THR_OR], state);
 	default:
 		return -EINVAL;
 	}

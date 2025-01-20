@@ -115,7 +115,7 @@ struct bma400_data {
 	struct {
 		__le16 buff[3];
 		u8 temperature;
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} buffer __aligned(IIO_DMA_MINALIGN);
 	__le16 status;
 	__be16 duration;
@@ -194,7 +194,7 @@ const struct regmap_config bma400_regmap_config = {
 	.writeable_reg = bma400_is_writable_reg,
 	.volatile_reg = bma400_is_volatile_reg,
 };
-EXPORT_SYMBOL_NS(bma400_regmap_config, IIO_BMA400);
+EXPORT_SYMBOL_NS(bma400_regmap_config, "IIO_BMA400");
 
 static const struct iio_mount_matrix *
 bma400_accel_get_mount_matrix(const struct iio_dev *indio_dev,
@@ -1293,7 +1293,7 @@ static int bma400_disable_adv_interrupt(struct bma400_data *data)
 static int bma400_write_event_config(struct iio_dev *indio_dev,
 				     const struct iio_chan_spec *chan,
 				     enum iio_event_type type,
-				     enum iio_event_direction dir, int state)
+				     enum iio_event_direction dir, bool state)
 {
 	struct bma400_data *data = iio_priv(indio_dev);
 	int ret;
@@ -1763,7 +1763,7 @@ int bma400_probe(struct device *dev, struct regmap *regmap, int irq,
 
 	return devm_iio_device_register(dev, indio_dev);
 }
-EXPORT_SYMBOL_NS(bma400_probe, IIO_BMA400);
+EXPORT_SYMBOL_NS(bma400_probe, "IIO_BMA400");
 
 MODULE_AUTHOR("Dan Robertson <dan@dlrobertson.com>");
 MODULE_AUTHOR("Jagath Jog J <jagathjog1996@gmail.com>");

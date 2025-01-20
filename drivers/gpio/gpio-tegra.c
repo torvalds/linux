@@ -600,7 +600,7 @@ static void tegra_gpio_irq_print_chip(struct irq_data *d, struct seq_file *s)
 {
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(d);
 
-	seq_printf(s, dev_name(chip->parent));
+	seq_puts(s, dev_name(chip->parent));
 }
 
 static const struct irq_chip tegra_gpio_irq_chip = {

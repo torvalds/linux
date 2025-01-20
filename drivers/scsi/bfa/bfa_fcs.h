@@ -373,15 +373,11 @@ bfa_boolean_t   bfa_fcs_lport_is_online(struct bfa_fcs_lport_s *port);
 struct bfa_fcs_lport_s *bfa_fcs_get_base_port(struct bfa_fcs_s *fcs);
 void bfa_fcs_lport_get_rport_quals(struct bfa_fcs_lport_s *port,
 			struct bfa_rport_qualifier_s rport[], int *nrports);
-wwn_t bfa_fcs_lport_get_rport(struct bfa_fcs_lport_s *port, wwn_t wwn,
-			      int index, int nrports, bfa_boolean_t bwwn);
 
 struct bfa_fcs_lport_s *bfa_fcs_lookup_port(struct bfa_fcs_s *fcs,
 					    u16 vf_id, wwn_t lpwwn);
 
 void bfa_fcs_lport_set_symname(struct bfa_fcs_lport_s *port, char *symname);
-void bfa_fcs_lport_get_info(struct bfa_fcs_lport_s *port,
-			    struct bfa_lport_info_s *port_info);
 void bfa_fcs_lport_get_attr(struct bfa_fcs_lport_s *port,
 			    struct bfa_lport_attr_s *port_attr);
 void bfa_fcs_lport_get_stats(struct bfa_fcs_lport_s *fcs_port,
@@ -416,8 +412,6 @@ struct bfa_fcs_rport_s *bfa_fcs_lport_get_rport_by_old_pid(
 		struct bfa_fcs_lport_s *port, u32 pid);
 struct bfa_fcs_rport_s *bfa_fcs_lport_get_rport_by_pwwn(
 		struct bfa_fcs_lport_s *port, wwn_t pwwn);
-struct bfa_fcs_rport_s *bfa_fcs_lport_get_rport_by_nwwn(
-		struct bfa_fcs_lport_s *port, wwn_t nwwn);
 struct bfa_fcs_rport_s *bfa_fcs_lport_get_rport_by_qualifier(
 		struct bfa_fcs_lport_s *port, wwn_t pwwn, u32 pid);
 void            bfa_fcs_lport_add_rport(struct bfa_fcs_lport_s *port,
@@ -486,7 +480,6 @@ bfa_status_t bfa_fcs_pbc_vport_create(struct bfa_fcs_vport_s *vport,
 				      struct bfa_fcs_s *fcs, u16 vf_id,
 				      struct bfa_lport_cfg_s *port_cfg,
 				      struct bfad_vport_s *vport_drv);
-bfa_boolean_t bfa_fcs_is_pbc_vport(struct bfa_fcs_vport_s *vport);
 bfa_status_t bfa_fcs_vport_delete(struct bfa_fcs_vport_s *vport);
 bfa_status_t bfa_fcs_vport_start(struct bfa_fcs_vport_s *vport);
 bfa_status_t bfa_fcs_vport_stop(struct bfa_fcs_vport_s *vport);
@@ -494,7 +487,6 @@ void bfa_fcs_vport_get_attr(struct bfa_fcs_vport_s *vport,
 			    struct bfa_vport_attr_s *vport_attr);
 struct bfa_fcs_vport_s *bfa_fcs_vport_lookup(struct bfa_fcs_s *fcs,
 					     u16 vf_id, wwn_t vpwwn);
-void bfa_fcs_vport_cleanup(struct bfa_fcs_vport_s *vport);
 void bfa_fcs_vport_online(struct bfa_fcs_vport_s *vport);
 void bfa_fcs_vport_offline(struct bfa_fcs_vport_s *vport);
 void bfa_fcs_vport_delete_comp(struct bfa_fcs_vport_s *vport);
@@ -623,8 +615,6 @@ void bfa_fcs_rport_get_attr(struct bfa_fcs_rport_s *rport,
 			struct bfa_rport_attr_s *attr);
 struct bfa_fcs_rport_s *bfa_fcs_rport_lookup(struct bfa_fcs_lport_s *port,
 					     wwn_t rpwwn);
-struct bfa_fcs_rport_s *bfa_fcs_rport_lookup_by_nwwn(
-	struct bfa_fcs_lport_s *port, wwn_t rnwwn);
 void bfa_fcs_rport_set_del_timeout(u8 rport_tmo);
 void bfa_fcs_rport_set_max_logins(u32 max_logins);
 void bfa_fcs_rport_uf_recv(struct bfa_fcs_rport_s *rport,
@@ -633,8 +623,6 @@ void bfa_fcs_rport_scn(struct bfa_fcs_rport_s *rport);
 
 struct bfa_fcs_rport_s *bfa_fcs_rport_create(struct bfa_fcs_lport_s *port,
 	 u32 pid);
-void bfa_fcs_rport_start(struct bfa_fcs_lport_s *port, struct fchs_s *rx_fchs,
-			 struct fc_logi_s *plogi_rsp);
 void bfa_fcs_rport_plogi_create(struct bfa_fcs_lport_s *port,
 				struct fchs_s *rx_fchs,
 				struct fc_logi_s *plogi);

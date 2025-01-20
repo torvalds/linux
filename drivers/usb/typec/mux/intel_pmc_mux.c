@@ -828,7 +828,7 @@ static struct platform_driver pmc_usb_driver = {
 		.acpi_match_table = ACPI_PTR(pmc_usb_acpi_ids),
 	},
 	.probe = pmc_usb_probe,
-	.remove_new = pmc_usb_remove,
+	.remove = pmc_usb_remove,
 };
 
 static int __init pmc_usb_init(void)

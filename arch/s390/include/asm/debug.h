@@ -66,14 +66,15 @@ typedef int (debug_header_proc_t) (debug_info_t *id,
 				   struct debug_view *view,
 				   int area,
 				   debug_entry_t *entry,
-				   char *out_buf);
+				   char *out_buf, size_t out_buf_size);
 
 typedef int (debug_format_proc_t) (debug_info_t *id,
 				   struct debug_view *view, char *out_buf,
+				   size_t out_buf_size,
 				   const char *in_buf);
 typedef int (debug_prolog_proc_t) (debug_info_t *id,
 				   struct debug_view *view,
-				   char *out_buf);
+				   char *out_buf, size_t out_buf_size);
 typedef int (debug_input_proc_t) (debug_info_t *id,
 				  struct debug_view *view,
 				  struct file *file,
@@ -81,7 +82,8 @@ typedef int (debug_input_proc_t) (debug_info_t *id,
 				  size_t in_buf_size, loff_t *offset);
 
 int debug_dflt_header_fn(debug_info_t *id, struct debug_view *view,
-			 int area, debug_entry_t *entry, char *out_buf);
+			 int area, debug_entry_t *entry,
+			 char *out_buf, size_t out_buf_size);
 
 struct debug_view {
 	char name[DEBUG_MAX_NAME_LEN];

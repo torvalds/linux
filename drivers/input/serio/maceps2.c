@@ -159,7 +159,7 @@ static struct platform_driver maceps2_driver = {
 		.name	= "maceps2",
 	},
 	.probe		= maceps2_probe,
-	.remove_new	= maceps2_remove,
+	.remove		= maceps2_remove,
 };
 
 static int __init maceps2_init(void)

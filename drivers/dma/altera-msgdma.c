@@ -954,7 +954,7 @@ static struct platform_driver msgdma_driver = {
 		.of_match_table = of_match_ptr(msgdma_match),
 	},
 	.probe = msgdma_probe,
-	.remove_new = msgdma_remove,
+	.remove = msgdma_remove,
 };
 
 module_platform_driver(msgdma_driver);

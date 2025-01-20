@@ -307,10 +307,6 @@ sg_open(struct inode *inode, struct file *filp)
 	if (retval)
 		goto sg_put;
 
-	retval = scsi_autopm_get_device(device);
-	if (retval)
-		goto sdp_put;
-
 	/* scsi_block_when_processing_errors() may block so bypass
 	 * check if O_NONBLOCK. Permits SCSI commands to be issued
 	 * during error recovery. Tread carefully. */
@@ -318,7 +314,7 @@ sg_open(struct inode *inode, struct file *filp)
 	      scsi_block_when_processing_errors(device))) {
 		retval = -ENXIO;
 		/* we are in error recovery for this device */
-		goto error_out;
+		goto sdp_put;
 	}
 
 	mutex_lock(&sdp->open_rel_lock);
@@ -371,8 +367,6 @@ out_undo:
 	}
 error_mutex_locked:
 	mutex_unlock(&sdp->open_rel_lock);
-error_out:
-	scsi_autopm_put_device(device);
 sdp_put:
 	kref_put(&sdp->d_ref, sg_device_destroy);
 	scsi_device_put(device);
@@ -392,7 +386,6 @@ sg_release(struct inode *inode, struct file *filp)
 	SCSI_LOG_TIMEOUT(3, sg_printk(KERN_INFO, sdp, "sg_release\n"));
 
 	mutex_lock(&sdp->open_rel_lock);
-	scsi_autopm_put_device(sdp->device);
 	kref_put(&sfp->f_ref, sg_remove_sfp);
 	sdp->open_cnt--;
 

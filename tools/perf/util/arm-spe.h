@@ -12,10 +12,46 @@
 enum {
 	ARM_SPE_PMU_TYPE,
 	ARM_SPE_PER_CPU_MMAPS,
+	ARM_SPE_AUXTRACE_V1_PRIV_MAX,
+};
+
+#define ARM_SPE_AUXTRACE_V1_PRIV_SIZE	\
+	(ARM_SPE_AUXTRACE_V1_PRIV_MAX * sizeof(u64))
+
+enum {
+	/*
+	 * The old metadata format (defined above) does not include a
+	 * field for version number. Version 1 is reserved and starts
+	 * from version 2.
+	 */
+	ARM_SPE_HEADER_VERSION,
+	/* Number of sizeof(u64) */
+	ARM_SPE_HEADER_SIZE,
+	/* PMU type shared by CPUs */
+	ARM_SPE_PMU_TYPE_V2,
+	/* Number of CPUs */
+	ARM_SPE_CPUS_NUM,
 	ARM_SPE_AUXTRACE_PRIV_MAX,
 };
 
-#define ARM_SPE_AUXTRACE_PRIV_SIZE (ARM_SPE_AUXTRACE_PRIV_MAX * sizeof(u64))
+enum {
+	/* Magic number */
+	ARM_SPE_MAGIC,
+	/* CPU logical number in system */
+	ARM_SPE_CPU,
+	/* Number of parameters */
+	ARM_SPE_CPU_NR_PARAMS,
+	/* CPU MIDR */
+	ARM_SPE_CPU_MIDR,
+	/* Associated PMU type */
+	ARM_SPE_CPU_PMU_TYPE,
+	/* Minimal interval */
+	ARM_SPE_CAP_MIN_IVAL,
+	ARM_SPE_CPU_PRIV_MAX,
+};
+
+#define ARM_SPE_HEADER_CURRENT_VERSION	2
+
 
 union perf_event;
 struct perf_session;

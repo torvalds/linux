@@ -40,6 +40,11 @@
 #define smnPCS_GOPX1_PCS_ERROR_STATUS    0x12200210
 #define smnPCS_GOPX1_PCS_ERROR_NONCORRECTABLE_MASK      0x12200218
 
+#define XGMI_STATE_DISABLE                      0xD1
+#define XGMI_STATE_LS0                          0x81
+#define XGMI_LINK_ACTIVE			1
+#define XGMI_LINK_INACTIVE			0
+
 static DEFINE_MUTEX(xgmi_mutex);
 
 #define AMDGPU_MAX_XGMI_DEVICE_PER_HIVE		4
@@ -288,6 +293,42 @@ static const struct amdgpu_pcs_ras_field xgmi3x16_pcs_ras_fields[] = {
 	{"XGMI3X16 PCS RxCMDPktErr",
 	 SOC15_REG_FIELD(PCS_XGMI3X16_PCS_ERROR_STATUS, RxCMDPktErr)},
 };
+
+static u32 xgmi_v6_4_get_link_status(struct amdgpu_device *adev, int global_link_num)
+{
+	const u32 smnpcs_xgmi3x16_pcs_state_hist1 = 0x11a00070;
+	const int xgmi_inst = 2;
+	u32 link_inst;
+	u64 addr;
+
+	link_inst = global_link_num % xgmi_inst;
+
+	addr = (smnpcs_xgmi3x16_pcs_state_hist1 | (link_inst << 20)) +
+		adev->asic_funcs->encode_ext_smn_addressing(global_link_num / xgmi_inst);
+
+	return RREG32_PCIE_EXT(addr);
+}
+
+int amdgpu_get_xgmi_link_status(struct amdgpu_device *adev, int global_link_num)
+{
+	u32 xgmi_state_reg_val;
+
+	switch (amdgpu_ip_version(adev, XGMI_HWIP, 0)) {
+	case IP_VERSION(6, 4, 0):
+		xgmi_state_reg_val = xgmi_v6_4_get_link_status(adev, global_link_num);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	if ((xgmi_state_reg_val & 0xFF) == XGMI_STATE_DISABLE)
+		return -ENOLINK;
+
+	if ((xgmi_state_reg_val & 0xFF) == XGMI_STATE_LS0)
+		return XGMI_LINK_ACTIVE;
+
+	return XGMI_LINK_INACTIVE;
+}
 
 /**
  * DOC: AMDGPU XGMI Support

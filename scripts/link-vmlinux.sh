@@ -68,6 +68,10 @@ vmlinux_link()
 		libs="${KBUILD_VMLINUX_LIBS}"
 	fi
 
+	if is_enabled CONFIG_GENERIC_BUILTIN_DTB; then
+		objs="${objs} .builtin-dtbs.o"
+	fi
+
 	if is_enabled CONFIG_MODULES; then
 		objs="${objs} .vmlinux.export.o"
 	fi
@@ -208,8 +212,8 @@ kallsymso=
 strip_debug=
 
 if is_enabled CONFIG_KALLSYMS; then
-	true > .tmp_vmlinux.kallsyms0.syms
-	kallsyms .tmp_vmlinux.kallsyms0.syms .tmp_vmlinux0.kallsyms
+	true > .tmp_vmlinux0.syms
+	kallsyms .tmp_vmlinux0.syms .tmp_vmlinux0.kallsyms
 fi
 
 if is_enabled CONFIG_KALLSYMS || is_enabled CONFIG_DEBUG_INFO_BTF; then
@@ -236,14 +240,14 @@ if is_enabled CONFIG_KALLSYMS; then
 	# Generate section listing all symbols and add it into vmlinux
 	# It's a four step process:
 	# 0)  Generate a dummy __kallsyms with empty symbol list.
-	# 1)  Link .tmp_vmlinux.kallsyms1 so it has all symbols and sections,
+	# 1)  Link .tmp_vmlinux1.kallsyms so it has all symbols and sections,
 	#     with a dummy __kallsyms.
-	#     Running kallsyms on that gives us .tmp_kallsyms1.o with
+	#     Running kallsyms on that gives us .tmp_vmlinux1.kallsyms.o with
 	#     the right size
-	# 2)  Link .tmp_vmlinux.kallsyms2 so it now has a __kallsyms section of
+	# 2)  Link .tmp_vmlinux2.kallsyms so it now has a __kallsyms section of
 	#     the right size, but due to the added section, some
 	#     addresses have shifted.
-	#     From here, we generate a correct .tmp_vmlinux.kallsyms2.o
+	#     From here, we generate a correct .tmp_vmlinux2.kallsyms.o
 	# 3)  That link may have expanded the kernel image enough that
 	#     more linker branch stubs / trampolines had to be added, which
 	#     introduces new names, which further expands kallsyms. Do another

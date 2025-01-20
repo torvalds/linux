@@ -8,7 +8,7 @@ bool
 {% else %}
 static bool __maybe_unused
 {% endif %}
-xdrgen_encode_{{ name }}(struct xdr_stream *xdr, enum {{ name }} value)
+xdrgen_encode_{{ name }}(struct xdr_stream *xdr, {{ name }} value)
 {
 	return xdr_stream_encode_u32(xdr, value) == XDR_UNIT;
 }

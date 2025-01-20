@@ -1354,7 +1354,7 @@ static struct platform_driver ds1685_rtc_driver = {
 		.name	= "rtc-ds1685",
 	},
 	.probe		= ds1685_rtc_probe,
-	.remove_new	= ds1685_rtc_remove,
+	.remove		= ds1685_rtc_remove,
 };
 module_platform_driver(ds1685_rtc_driver);
 /* ----------------------------------------------------------------------- */

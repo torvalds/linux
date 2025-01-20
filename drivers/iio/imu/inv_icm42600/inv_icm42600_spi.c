@@ -67,6 +67,22 @@ static int inv_icm42600_probe(struct spi_device *spi)
 				       inv_icm42600_spi_bus_setup);
 }
 
+/*
+ * device id table is used to identify what device can be
+ * supported by this driver
+ */
+static const struct spi_device_id inv_icm42600_id[] = {
+	{ "icm42600", INV_CHIP_ICM42600 },
+	{ "icm42602", INV_CHIP_ICM42602 },
+	{ "icm42605", INV_CHIP_ICM42605 },
+	{ "icm42686", INV_CHIP_ICM42686 },
+	{ "icm42622", INV_CHIP_ICM42622 },
+	{ "icm42688", INV_CHIP_ICM42688 },
+	{ "icm42631", INV_CHIP_ICM42631 },
+	{ }
+};
+MODULE_DEVICE_TABLE(spi, inv_icm42600_id);
+
 static const struct of_device_id inv_icm42600_of_matches[] = {
 	{
 		.compatible = "invensense,icm42600",
@@ -100,6 +116,7 @@ static struct spi_driver inv_icm42600_driver = {
 		.of_match_table = inv_icm42600_of_matches,
 		.pm = pm_ptr(&inv_icm42600_pm_ops),
 	},
+	.id_table = inv_icm42600_id,
 	.probe = inv_icm42600_probe,
 };
 module_spi_driver(inv_icm42600_driver);
@@ -107,4 +124,4 @@ module_spi_driver(inv_icm42600_driver);
 MODULE_AUTHOR("InvenSense, Inc.");
 MODULE_DESCRIPTION("InvenSense ICM-426xx SPI driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(IIO_ICM42600);
+MODULE_IMPORT_NS("IIO_ICM42600");

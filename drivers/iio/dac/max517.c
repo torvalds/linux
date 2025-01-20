@@ -143,10 +143,10 @@ static const struct iio_chan_spec max517_channels[] = {
 
 static int max517_probe(struct i2c_client *client)
 {
+	const struct max517_platform_data *platform_data = dev_get_platdata(&client->dev);
 	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct max517_data *data;
 	struct iio_dev *indio_dev;
-	struct max517_platform_data *platform_data = client->dev.platform_data;
 	int chan;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));

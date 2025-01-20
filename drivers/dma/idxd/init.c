@@ -25,7 +25,7 @@ MODULE_VERSION(IDXD_DRIVER_VERSION);
 MODULE_DESCRIPTION("Intel Data Streaming Accelerator and In-Memory Analytics Accelerator common driver");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Intel Corporation");
-MODULE_IMPORT_NS(IDXD);
+MODULE_IMPORT_NS("IDXD");
 
 static bool sva = true;
 module_param(sva, bool, 0644);

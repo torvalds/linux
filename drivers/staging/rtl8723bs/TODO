@@ -6,6 +6,3 @@ TODO:
   of them will require refactoring
 - merge Realtek's bugfixes and new features into the driver
 - switch to use MAC80211
-
-Please send any patches to Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-Hans de Goede <hdegoede@redhat.com> and Larry Finger <Larry.Finger@lwfinger.net>.

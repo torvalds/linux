@@ -23,4 +23,13 @@ typedef struct {
 	u8 *data;
 } opaque;
 
+#define XDR_void		(0)
+#define XDR_bool		(1)
+#define XDR_int			(1)
+#define XDR_unsigned_int	(1)
+#define XDR_long		(1)
+#define XDR_unsigned_long	(1)
+#define XDR_hyper		(2)
+#define XDR_unsigned_hyper	(2)
+
 #endif /* _SUNRPC_XDRGEN__DEFS_H_ */

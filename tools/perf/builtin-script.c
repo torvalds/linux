@@ -67,7 +67,7 @@
 
 #include <linux/ctype.h>
 #ifdef HAVE_LIBTRACEEVENT
-#include <traceevent/event-parse.h>
+#include <event-parse.h>
 #endif
 
 static char const		*script_name;
@@ -1728,6 +1728,7 @@ static struct {
 	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_TRACE_END, "tr end"},
 	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CALL | PERF_IP_FLAG_VMENTRY, "vmentry"},
 	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CALL | PERF_IP_FLAG_VMEXIT, "vmexit"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_BRANCH_MISS, "br miss"},
 	{0, NULL}
 };
 
@@ -2136,11 +2137,11 @@ struct metric_ctx {
 };
 
 static void script_print_metric(struct perf_stat_config *config __maybe_unused,
-				void *ctx, const char *color,
-			        const char *fmt,
-			        const char *unit, double val)
+				void *ctx, enum metric_threshold_classify thresh,
+				const char *fmt, const char *unit, double val)
 {
 	struct metric_ctx *mctx = ctx;
+	const char *color = metric_threshold_classify__color(thresh);
 
 	if (!fmt)
 		return;

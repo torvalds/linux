@@ -687,7 +687,7 @@ static struct platform_driver wcove_typec_driver = {
 		.name		= "bxt_wcove_usbc",
 	},
 	.probe			= wcove_typec_probe,
-	.remove_new		= wcove_typec_remove,
+	.remove			= wcove_typec_remove,
 };
 
 module_platform_driver(wcove_typec_driver);

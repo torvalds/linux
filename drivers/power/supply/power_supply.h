@@ -13,9 +13,12 @@ struct device;
 struct device_type;
 struct power_supply;
 
+extern int power_supply_property_is_writeable(struct power_supply *psy,
+					      enum power_supply_property psp);
+
 #ifdef CONFIG_SYSFS
 
-extern void power_supply_init_attrs(void);
+extern void __init power_supply_init_attrs(void);
 extern int power_supply_uevent(const struct device *dev, struct kobj_uevent_env *env);
 extern const struct attribute_group *power_supply_attr_groups[];
 
@@ -41,3 +44,20 @@ static inline int power_supply_create_triggers(struct power_supply *psy)
 static inline void power_supply_remove_triggers(struct power_supply *psy) {}
 
 #endif /* CONFIG_LEDS_TRIGGERS */
+
+#ifdef CONFIG_POWER_SUPPLY_HWMON
+
+int power_supply_add_hwmon_sysfs(struct power_supply *psy);
+void power_supply_remove_hwmon_sysfs(struct power_supply *psy);
+
+#else
+
+static inline int power_supply_add_hwmon_sysfs(struct power_supply *psy)
+{
+	return 0;
+}
+
+static inline
+void power_supply_remove_hwmon_sysfs(struct power_supply *psy) {}
+
+#endif /* CONFIG_POWER_SUPPLY_HWMON */

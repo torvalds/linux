@@ -27,7 +27,7 @@ void netdev_info(const struct net_device *dev, const char *format, ...);
 
 #define netdev_level_once(level, dev, fmt, ...)			\
 do {								\
-	static bool __section(".data.once") __print_once;	\
+	static bool __section(".data..once") __print_once;	\
 								\
 	if (!__print_once) {					\
 		__print_once = true;				\

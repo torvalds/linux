@@ -451,7 +451,7 @@ static DEFINE_RUNTIME_DEV_PM_OPS(rotator_pm_ops, rotator_runtime_suspend,
 
 struct platform_driver rotator_driver = {
 	.probe		= rotator_probe,
-	.remove_new	= rotator_remove,
+	.remove		= rotator_remove,
 	.driver		= {
 		.name	= "exynos-rotator",
 		.pm	= pm_ptr(&rotator_pm_ops),

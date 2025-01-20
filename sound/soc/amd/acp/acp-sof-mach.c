@@ -169,6 +169,6 @@ static struct platform_driver acp_asoc_audio = {
 
 module_platform_driver(acp_asoc_audio);
 
-MODULE_IMPORT_NS(SND_SOC_AMD_MACH);
+MODULE_IMPORT_NS("SND_SOC_AMD_MACH");
 MODULE_DESCRIPTION("ACP SOF Machine Driver");
 MODULE_LICENSE("GPL v2");

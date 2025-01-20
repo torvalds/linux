@@ -208,7 +208,7 @@ static int cypress_sf_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(cypress_sf_pm_ops,
 				cypress_sf_suspend, cypress_sf_resume);
 
-static struct i2c_device_id cypress_sf_id_table[] = {
+static const struct i2c_device_id cypress_sf_id_table[] = {
 	{ CYPRESS_SF_DEV_NAME },
 	{ }
 };

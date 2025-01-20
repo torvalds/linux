@@ -416,7 +416,7 @@ void cxl_endpoint_parse_cdat(struct cxl_port *port)
 	cxl_qos_class_verify(cxlmd);
 	cxl_memdev_update_perf(cxlmd);
 }
-EXPORT_SYMBOL_NS_GPL(cxl_endpoint_parse_cdat, CXL);
+EXPORT_SYMBOL_NS_GPL(cxl_endpoint_parse_cdat, "CXL");
 
 static int cdat_sslbis_handler(union acpi_subtable_headers *header, void *arg,
 			       const unsigned long end)
@@ -513,7 +513,7 @@ void cxl_switch_parse_cdat(struct cxl_port *port)
 	if (rc)
 		dev_dbg(&port->dev, "Failed to parse SSLBIS: %d\n", rc);
 }
-EXPORT_SYMBOL_NS_GPL(cxl_switch_parse_cdat, CXL);
+EXPORT_SYMBOL_NS_GPL(cxl_switch_parse_cdat, "CXL");
 
 static void __cxl_coordinates_combine(struct access_coordinate *out,
 				      struct access_coordinate *c1,
@@ -545,7 +545,7 @@ void cxl_coordinates_combine(struct access_coordinate *out,
 		__cxl_coordinates_combine(&out[i], &c1[i], &c2[i]);
 }
 
-MODULE_IMPORT_NS(CXL);
+MODULE_IMPORT_NS("CXL");
 
 static void cxl_bandwidth_add(struct access_coordinate *coord,
 			      struct access_coordinate *c1,

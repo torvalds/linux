@@ -145,8 +145,8 @@ out:
  * @cl: host client
  * @buf: buffer to receive
  * @length: buffer length
- * @mode: io mode
  * @vtag: virtual tag
+ * @mode: io mode
  * @timeout: recv timeout, 0 for infinite timeout
  *
  * Return: read size in bytes of < 0 on error

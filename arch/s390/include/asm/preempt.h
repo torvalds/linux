@@ -130,10 +130,24 @@ static __always_inline bool should_resched(int preempt_offset)
 #define init_idle_preempt_count(p, cpu)	do { } while (0)
 
 #ifdef CONFIG_PREEMPTION
-extern void preempt_schedule(void);
-#define __preempt_schedule() preempt_schedule()
-extern void preempt_schedule_notrace(void);
-#define __preempt_schedule_notrace() preempt_schedule_notrace()
+
+void preempt_schedule(void);
+void preempt_schedule_notrace(void);
+
+#ifdef CONFIG_PREEMPT_DYNAMIC
+
+void dynamic_preempt_schedule(void);
+void dynamic_preempt_schedule_notrace(void);
+#define __preempt_schedule()		dynamic_preempt_schedule()
+#define __preempt_schedule_notrace()	dynamic_preempt_schedule_notrace()
+
+#else /* CONFIG_PREEMPT_DYNAMIC */
+
+#define __preempt_schedule()		preempt_schedule()
+#define __preempt_schedule_notrace()	preempt_schedule_notrace()
+
+#endif /* CONFIG_PREEMPT_DYNAMIC */
+
 #endif /* CONFIG_PREEMPTION */
 
 #endif /* __ASM_PREEMPT_H */

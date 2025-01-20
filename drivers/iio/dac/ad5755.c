@@ -699,7 +699,6 @@ static const struct ad5755_platform_data ad5755_default_pdata = {
 
 static struct ad5755_platform_data *ad5755_parse_fw(struct device *dev)
 {
-	struct fwnode_handle *pp;
 	struct ad5755_platform_data *pdata;
 	unsigned int tmp;
 	unsigned int tmparray[3];
@@ -746,11 +745,12 @@ static struct ad5755_platform_data *ad5755_parse_fw(struct device *dev)
 	}
 
 	devnr = 0;
-	device_for_each_child_node(dev, pp) {
+	device_for_each_child_node_scoped(dev, pp) {
 		if (devnr >= AD5755_NUM_CHANNELS) {
 			dev_err(dev,
 				"There are too many channels defined in DT\n");
-			goto error_out;
+			devm_kfree(dev, pdata);
+			return NULL;
 		}
 
 		pdata->dac[devnr].mode = AD5755_MODE_CURRENT_4mA_20mA;
@@ -800,11 +800,6 @@ static struct ad5755_platform_data *ad5755_parse_fw(struct device *dev)
 	}
 
 	return pdata;
-
- error_out:
-	fwnode_handle_put(pp);
-	devm_kfree(dev, pdata);
-	return NULL;
 }
 
 static int ad5755_probe(struct spi_device *spi)

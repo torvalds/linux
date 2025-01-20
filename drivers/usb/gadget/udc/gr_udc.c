@@ -2249,7 +2249,7 @@ static struct platform_driver gr_driver = {
 		.of_match_table = gr_match,
 	},
 	.probe = gr_probe,
-	.remove_new = gr_remove,
+	.remove = gr_remove,
 };
 module_platform_driver(gr_driver);
 

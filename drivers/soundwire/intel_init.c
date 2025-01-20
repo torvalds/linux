@@ -149,7 +149,7 @@ irqreturn_t sdw_intel_thread(int irq, void *dev_id)
 
 	return IRQ_HANDLED;
 }
-EXPORT_SYMBOL_NS(sdw_intel_thread, SOUNDWIRE_INTEL_INIT);
+EXPORT_SYMBOL_NS(sdw_intel_thread, "SOUNDWIRE_INTEL_INIT");
 
 static struct sdw_intel_ctx
 *sdw_intel_probe_controller(struct sdw_intel_res *res)
@@ -334,7 +334,7 @@ struct sdw_intel_ctx
 {
 	return sdw_intel_probe_controller(res);
 }
-EXPORT_SYMBOL_NS(sdw_intel_probe, SOUNDWIRE_INTEL_INIT);
+EXPORT_SYMBOL_NS(sdw_intel_probe, "SOUNDWIRE_INTEL_INIT");
 
 /**
  * sdw_intel_startup() - SoundWire Intel startup
@@ -347,7 +347,7 @@ int sdw_intel_startup(struct sdw_intel_ctx *ctx)
 {
 	return sdw_intel_startup_controller(ctx);
 }
-EXPORT_SYMBOL_NS(sdw_intel_startup, SOUNDWIRE_INTEL_INIT);
+EXPORT_SYMBOL_NS(sdw_intel_startup, "SOUNDWIRE_INTEL_INIT");
 /**
  * sdw_intel_exit() - SoundWire Intel exit
  * @ctx: SoundWire context allocated in the probe
@@ -374,7 +374,7 @@ void sdw_intel_exit(struct sdw_intel_ctx *ctx)
 	kfree(ctx->ldev);
 	kfree(ctx);
 }
-EXPORT_SYMBOL_NS(sdw_intel_exit, SOUNDWIRE_INTEL_INIT);
+EXPORT_SYMBOL_NS(sdw_intel_exit, "SOUNDWIRE_INTEL_INIT");
 
 void sdw_intel_process_wakeen_event(struct sdw_intel_ctx *ctx)
 {
@@ -397,7 +397,7 @@ void sdw_intel_process_wakeen_event(struct sdw_intel_ctx *ctx)
 		intel_link_process_wakeen_event(&ldev->auxdev);
 	}
 }
-EXPORT_SYMBOL_NS(sdw_intel_process_wakeen_event, SOUNDWIRE_INTEL_INIT);
+EXPORT_SYMBOL_NS(sdw_intel_process_wakeen_event, "SOUNDWIRE_INTEL_INIT");
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("Intel Soundwire Init Library");

@@ -61,6 +61,8 @@
 };
 
 &soc {
+	ranges = <0x0 0x18000000 0x20000>;
+
 	intc: interrupt-controller@3000 {
 		compatible = "realtek,rtl9300-intc", "realtek,rtl-intc";
 		reg = <0x3000 0x18>, <0x3018 0x18>;
@@ -87,6 +89,17 @@
 		interrupt-parent = <&intc>;
 		interrupts = <7>, <8>, <9>, <10>, <11>;
 		clocks = <&lx_clk>;
+	};
+
+	snand: spi@1a400 {
+		compatible = "realtek,rtl9301-snand";
+		reg = <0x1a400 0x44>;
+		interrupt-parent = <&intc>;
+		interrupts = <19>;
+		clocks = <&lx_clk>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
 	};
 };
 

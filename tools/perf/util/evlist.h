@@ -102,18 +102,6 @@ void evlist__delete(struct evlist *evlist);
 void evlist__add(struct evlist *evlist, struct evsel *entry);
 void evlist__remove(struct evlist *evlist, struct evsel *evsel);
 
-int evlist__add_attrs(struct evlist *evlist, struct perf_event_attr *attrs, size_t nr_attrs);
-
-int __evlist__add_default_attrs(struct evlist *evlist,
-				     struct perf_event_attr *attrs, size_t nr_attrs);
-
-int arch_evlist__add_default_attrs(struct evlist *evlist,
-				   struct perf_event_attr *attrs,
-				   size_t nr_attrs);
-
-#define evlist__add_default_attrs(evlist, array) \
-	arch_evlist__add_default_attrs(evlist, array, ARRAY_SIZE(array))
-
 int arch_evlist__cmp(const struct evsel *lhs, const struct evsel *rhs);
 
 int evlist__add_dummy(struct evlist *evlist);
@@ -144,7 +132,6 @@ int __evlist__set_tracepoints_handlers(struct evlist *evlist,
 	__evlist__set_tracepoints_handlers(evlist, array, ARRAY_SIZE(array))
 
 int evlist__set_tp_filter(struct evlist *evlist, const char *filter);
-int evlist__set_tp_filter_pid(struct evlist *evlist, pid_t pid);
 int evlist__set_tp_filter_pids(struct evlist *evlist, size_t npids, pid_t *pids);
 
 int evlist__append_tp_filter(struct evlist *evlist, const char *filter);
@@ -152,7 +139,6 @@ int evlist__append_tp_filter(struct evlist *evlist, const char *filter);
 int evlist__append_tp_filter_pid(struct evlist *evlist, pid_t pid);
 int evlist__append_tp_filter_pids(struct evlist *evlist, size_t npids, pid_t *pids);
 
-struct evsel *evlist__find_tracepoint_by_id(struct evlist *evlist, int id);
 struct evsel *evlist__find_tracepoint_by_name(struct evlist *evlist, const char *name);
 
 int evlist__add_pollfd(struct evlist *evlist, int fd);
@@ -186,6 +172,7 @@ int evlist__prepare_workload(struct evlist *evlist, struct target *target,
 			     const char *argv[], bool pipe_output,
 			     void (*exec_error)(int signo, siginfo_t *info, void *ucontext));
 int evlist__start_workload(struct evlist *evlist);
+void evlist__cancel_workload(struct evlist *evlist);
 
 struct option;
 

@@ -15,6 +15,8 @@
 #include "evsel.h"
 #include "pmus.h"
 #include "pmu.h"
+#include "hwmon_pmu.h"
+#include "tool_pmu.h"
 #include "print-events.h"
 #include "strbuf.h"
 
@@ -200,6 +202,7 @@ static void pmu_read_sysfs(bool core_only)
 	int fd;
 	DIR *dir;
 	struct dirent *dent;
+	struct perf_pmu *tool_pmu;
 
 	if (read_sysfs_all_pmus || (core_only && read_sysfs_core_pmus))
 		return;
@@ -229,6 +232,11 @@ static void pmu_read_sysfs(bool core_only)
 			pr_err("Failure to set up any core PMUs\n");
 	}
 	list_sort(NULL, &core_pmus, pmus_cmp);
+	if (!core_only) {
+		tool_pmu = perf_pmus__tool_pmu();
+		list_add_tail(&tool_pmu->list, &other_pmus);
+		perf_pmus__read_hwmon_pmus(&other_pmus);
+	}
 	list_sort(NULL, &other_pmus, pmus_cmp);
 	if (!list_empty(&core_pmus)) {
 		read_sysfs_core_pmus = true;
@@ -434,6 +442,7 @@ static int perf_pmus__print_pmu_events__callback(void *vstate,
 		pr_err("Unexpected event %s/%s/\n", info->pmu->name, info->name);
 		return 1;
 	}
+	assert(info->pmu != NULL || info->name != NULL);
 	s = &state->aliases[state->index];
 	s->pmu = info->pmu;
 #define COPY_STR(str) s->str = info->str ? strdup(info->str) : NULL
@@ -494,8 +503,8 @@ void perf_pmus__print_pmu_events(const struct print_callbacks *print_cb, void *p
 			goto free;
 
 		print_cb->print_event(print_state,
-				aliases[j].pmu_name,
 				aliases[j].topic,
+				aliases[j].pmu_name,
 				aliases[j].name,
 				aliases[j].alias,
 				aliases[j].scale_unit,
@@ -722,6 +731,13 @@ struct perf_pmu *perf_pmus__add_test_pmu(int test_sysfs_dirfd, const char *name)
 	 * format files.
 	 */
 	return perf_pmu__lookup(&other_pmus, test_sysfs_dirfd, name, /*eager_load=*/true);
+}
+
+struct perf_pmu *perf_pmus__add_test_hwmon_pmu(int hwmon_dir,
+					       const char *sysfs_name,
+					       const char *name)
+{
+	return hwmon_pmu__new(&other_pmus, hwmon_dir, sysfs_name, name);
 }
 
 struct perf_pmu *perf_pmus__fake_pmu(void)

@@ -6,10 +6,10 @@
  * I2C master mode controller driver, used in Nomadik 8815
  * and Ux500 platforms.
  *
- * The Mobileye EyeQ5 platform is also supported; it uses
+ * The Mobileye EyeQ5 and EyeQ6H platforms are also supported; they use
  * the same Ux500/DB8500 IP block with two quirks:
  *  - The memory bus only supports 32-bit accesses.
- *  - A register must be configured for the I2C speed mode;
+ *  - (only EyeQ5) A register must be configured for the I2C speed mode;
  *    it is located in a shared register region called OLB.
  *
  * Author: Srinidhi Kasagar <srinidhi.kasagar@stericsson.com>
@@ -26,6 +26,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
@@ -396,7 +397,7 @@ static u32 load_i2c_mcr_reg(struct nmk_i2c_dev *priv, u16 flags)
  */
 static void setup_i2c_controller(struct nmk_i2c_dev *priv)
 {
-	u32 brcr1, brcr2;
+	u32 brcr;
 	u32 i2c_clk, div;
 	u32 ns;
 	u16 slsu;
@@ -443,7 +444,7 @@ static void setup_i2c_controller(struct nmk_i2c_dev *priv)
 	/*
 	 * The spec says, in case of std. mode the divider is
 	 * 2 whereas it is 3 for fast and fastplus mode of
-	 * operation. TODO - high speed support.
+	 * operation.
 	 */
 	div = (priv->clk_freq > I2C_MAX_STANDARD_MODE_FREQ) ? 3 : 2;
 
@@ -451,30 +452,23 @@ static void setup_i2c_controller(struct nmk_i2c_dev *priv)
 	 * generate the mask for baud rate counters. The controller
 	 * has two baud rate counters. One is used for High speed
 	 * operation, and the other is for std, fast mode, fast mode
-	 * plus operation. Currently we do not supprt high speed mode
-	 * so set brcr1 to 0.
+	 * plus operation.
+	 *
+	 * BRCR is a clock divider amount. Pick highest value that
+	 * leads to rate strictly below target. Eg when asking for
+	 * 400kHz you want a bus rate <=400kHz (and not >=400kHz).
 	 */
-	brcr1 = FIELD_PREP(I2C_BRCR_BRCNT1, 0);
-	brcr2 = FIELD_PREP(I2C_BRCR_BRCNT2, i2c_clk / (priv->clk_freq * div));
+	brcr = DIV_ROUND_UP(i2c_clk, priv->clk_freq * div);
+
+	if (priv->sm == I2C_FREQ_MODE_HIGH_SPEED)
+		brcr = FIELD_PREP(I2C_BRCR_BRCNT1, brcr);
+	else
+		brcr = FIELD_PREP(I2C_BRCR_BRCNT2, brcr);
 
 	/* set the baud rate counter register */
-	writel((brcr1 | brcr2), priv->virtbase + I2C_BRCR);
+	writel(brcr, priv->virtbase + I2C_BRCR);
 
-	/*
-	 * set the speed mode. Currently we support
-	 * only standard and fast mode of operation
-	 * TODO - support for fast mode plus (up to 1Mb/s)
-	 * and high speed (up to 3.4 Mb/s)
-	 */
-	if (priv->sm > I2C_FREQ_MODE_FAST) {
-		dev_err(&priv->adev->dev,
-			"do not support this mode defaulting to std. mode\n");
-		brcr2 = FIELD_PREP(I2C_BRCR_BRCNT2,
-				   i2c_clk / (I2C_MAX_STANDARD_MODE_FREQ * 2));
-		writel((brcr1 | brcr2), priv->virtbase + I2C_BRCR);
-		writel(FIELD_PREP(I2C_CR_SM, I2C_FREQ_MODE_STANDARD),
-		       priv->virtbase + I2C_CR);
-	}
+	/* set the speed mode */
 	writel(FIELD_PREP(I2C_CR_SM, priv->sm), priv->virtbase + I2C_CR);
 
 	/* set the Tx and Rx FIFO threshold */
@@ -1015,11 +1009,14 @@ static void nmk_i2c_of_probe(struct device_node *np,
 	if (of_property_read_u32(np, "clock-frequency", &priv->clk_freq))
 		priv->clk_freq = I2C_MAX_STANDARD_MODE_FREQ;
 
-	/* This driver only supports 'standard' and 'fast' modes of operation. */
 	if (priv->clk_freq <= I2C_MAX_STANDARD_MODE_FREQ)
 		priv->sm = I2C_FREQ_MODE_STANDARD;
-	else
+	else if (priv->clk_freq <= I2C_MAX_FAST_MODE_FREQ)
 		priv->sm = I2C_FREQ_MODE_FAST;
+	else if (priv->clk_freq <= I2C_MAX_FAST_MODE_PLUS_FREQ)
+		priv->sm = I2C_FREQ_MODE_FAST_PLUS;
+	else
+		priv->sm = I2C_FREQ_MODE_HIGH_SPEED;
 	priv->tft = 1; /* Tx FIFO threshold */
 	priv->rft = 8; /* Rx FIFO threshold */
 
@@ -1046,8 +1043,6 @@ static int nmk_i2c_eyeq5_probe(struct nmk_i2c_dev *priv)
 	struct regmap *olb;
 	unsigned int id;
 
-	priv->has_32b_bus = true;
-
 	olb = syscon_regmap_lookup_by_phandle_args(np, "mobileye,olb", 1, &id);
 	if (IS_ERR(olb))
 		return PTR_ERR(olb);
@@ -1068,15 +1063,39 @@ static int nmk_i2c_eyeq5_probe(struct nmk_i2c_dev *priv)
 	return 0;
 }
 
+#define NMK_I2C_EYEQ_FLAG_32B_BUS	BIT(0)
+#define NMK_I2C_EYEQ_FLAG_IS_EYEQ5	BIT(1)
+
+static const struct of_device_id nmk_i2c_eyeq_match_table[] = {
+	{
+		.compatible = "mobileye,eyeq5-i2c",
+		.data = (void *)(NMK_I2C_EYEQ_FLAG_32B_BUS | NMK_I2C_EYEQ_FLAG_IS_EYEQ5),
+	},
+	{
+		.compatible = "mobileye,eyeq6h-i2c",
+		.data = (void *)NMK_I2C_EYEQ_FLAG_32B_BUS,
+	},
+};
+
 static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 {
-	int ret = 0;
-	struct nmk_i2c_dev *priv;
-	struct device_node *np = adev->dev.of_node;
-	struct device *dev = &adev->dev;
-	struct i2c_adapter *adap;
 	struct i2c_vendor_data *vendor = id->data;
 	u32 max_fifo_threshold = (vendor->fifodepth / 2) - 1;
+	struct device_node *np = adev->dev.of_node;
+	const struct of_device_id *match;
+	struct device *dev = &adev->dev;
+	unsigned long match_flags = 0;
+	struct nmk_i2c_dev *priv;
+	struct i2c_adapter *adap;
+	int ret = 0;
+
+	/*
+	 * We do not want to attach a .of_match_table to our amba driver.
+	 * Do not convert to device_get_match_data().
+	 */
+	match = of_match_device(nmk_i2c_eyeq_match_table, dev);
+	if (match)
+		match_flags = (unsigned long)match->data;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -1084,10 +1103,10 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 
 	priv->vendor = vendor;
 	priv->adev = adev;
-	priv->has_32b_bus = false;
+	priv->has_32b_bus = match_flags & NMK_I2C_EYEQ_FLAG_32B_BUS;
 	nmk_i2c_of_probe(np, priv);
 
-	if (of_device_is_compatible(np, "mobileye,eyeq5-i2c")) {
+	if (match_flags & NMK_I2C_EYEQ_FLAG_IS_EYEQ5) {
 		ret = nmk_i2c_eyeq5_probe(priv);
 		if (ret)
 			return dev_err_probe(dev, ret, "failed OLB lookup\n");

@@ -52,8 +52,8 @@ void setup_machinename(char *machine_out)
 	struct utsname host;
 
 	uname(&host);
-#ifdef UML_CONFIG_UML_X86
-# ifndef UML_CONFIG_64BIT
+#if IS_ENABLED(CONFIG_UML_X86)
+# if !IS_ENABLED(CONFIG_64BIT)
 	if (!strcmp(host.machine, "x86_64")) {
 		strcpy(machine_out, "i686");
 		return;

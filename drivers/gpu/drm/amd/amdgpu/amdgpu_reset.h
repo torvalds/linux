@@ -158,4 +158,6 @@ extern struct amdgpu_reset_handler xgmi_reset_on_init_handler;
 int amdgpu_reset_do_xgmi_reset_on_init(
 	struct amdgpu_reset_context *reset_context);
 
+bool amdgpu_reset_in_recovery(struct amdgpu_device *adev);
+
 #endif

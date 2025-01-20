@@ -8,6 +8,7 @@
  * Supported chipsets: 93c46 & 93c66.
  */
 
+#include <linux/bits.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -102,7 +103,7 @@ static void eeprom_93cx6_write_bits(struct eeprom_93cx6 *eeprom,
 		/*
 		 * Check if this bit needs to be set.
 		 */
-		eeprom->reg_data_in = !!(data & (1 << (i - 1)));
+		eeprom->reg_data_in = !!(data & BIT(i - 1));
 
 		/*
 		 * Write the bit to the eeprom register.
@@ -152,7 +153,7 @@ static void eeprom_93cx6_read_bits(struct eeprom_93cx6 *eeprom,
 		 * Read if the bit has been set.
 		 */
 		if (eeprom->reg_data_out)
-			buf |= (1 << (i - 1));
+			buf |= BIT(i - 1);
 
 		eeprom_93cx6_pulse_low(eeprom);
 	}
@@ -185,6 +186,11 @@ void eeprom_93cx6_read(struct eeprom_93cx6 *eeprom, const u8 word,
 	command = (PCI_EEPROM_READ_OPCODE << eeprom->width) | word;
 	eeprom_93cx6_write_bits(eeprom, command,
 		PCI_EEPROM_WIDTH_OPCODE + eeprom->width);
+
+	if (has_quirk_extra_read_cycle(eeprom)) {
+		eeprom_93cx6_pulse_high(eeprom);
+		eeprom_93cx6_pulse_low(eeprom);
+	}
 
 	/*
 	 * Read the requested 16 bits.
@@ -251,6 +257,11 @@ void eeprom_93cx6_readb(struct eeprom_93cx6 *eeprom, const u8 byte,
 	command = (PCI_EEPROM_READ_OPCODE << (eeprom->width + 1)) | byte;
 	eeprom_93cx6_write_bits(eeprom, command,
 		PCI_EEPROM_WIDTH_OPCODE + eeprom->width + 1);
+
+	if (has_quirk_extra_read_cycle(eeprom)) {
+		eeprom_93cx6_pulse_high(eeprom);
+		eeprom_93cx6_pulse_low(eeprom);
+	}
 
 	/*
 	 * Read the requested 8 bits.

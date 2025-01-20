@@ -36,7 +36,7 @@ None
 Usage
 =====
 
-If you're just interested in OCFS2, then please see ocfs2.txt. The
+If you're just interested in OCFS2, then please see ocfs2.rst. The
 rest of this document will be geared towards those who want to use
 dlmfs for easy to setup and easy to use clustered locking in
 userspace.

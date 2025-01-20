@@ -130,7 +130,7 @@ static int d_namespace_path(const struct path *path, char *buf, char **name,
 	/* handle error conditions - and still allow a partial path to
 	 * be returned.
 	 */
-	if (!res || IS_ERR(res)) {
+	if (IS_ERR_OR_NULL(res)) {
 		if (PTR_ERR(res) == -ENAMETOOLONG) {
 			error = -ENAMETOOLONG;
 			*name = buf;

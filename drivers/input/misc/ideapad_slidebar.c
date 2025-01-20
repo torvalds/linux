@@ -23,7 +23,7 @@
  *
  * The value is in byte range, however, I only figured out
  * how bits 0b10011001 work. Some other bits, probably,
- * are meaningfull too.
+ * are meaningful too.
  *
  * Possible states:
  *
@@ -95,41 +95,29 @@ static struct platform_device *slidebar_platform_dev;
 
 static u8 slidebar_pos_get(void)
 {
-	u8 res;
-	unsigned long flags;
+	guard(spinlock_irqsave)(&io_lock);
 
-	spin_lock_irqsave(&io_lock, flags);
 	outb(0xf4, 0xff29);
 	outb(0xbf, 0xff2a);
-	res = inb(0xff2b);
-	spin_unlock_irqrestore(&io_lock, flags);
-
-	return res;
+	return inb(0xff2b);
 }
 
 static u8 slidebar_mode_get(void)
 {
-	u8 res;
-	unsigned long flags;
+	guard(spinlock_irqsave)(&io_lock);
 
-	spin_lock_irqsave(&io_lock, flags);
 	outb(0xf7, 0xff29);
 	outb(0x8b, 0xff2a);
-	res = inb(0xff2b);
-	spin_unlock_irqrestore(&io_lock, flags);
-
-	return res;
+	return inb(0xff2b);
 }
 
 static void slidebar_mode_set(u8 mode)
 {
-	unsigned long flags;
+	guard(spinlock_irqsave)(&io_lock);
 
-	spin_lock_irqsave(&io_lock, flags);
 	outb(0xf7, 0xff29);
 	outb(0x8b, 0xff2a);
 	outb(mode, 0xff2b);
-	spin_unlock_irqrestore(&io_lock, flags);
 }
 
 static bool slidebar_i8042_filter(unsigned char data, unsigned char str,
@@ -267,7 +255,7 @@ static struct platform_driver slidebar_drv = {
 	.driver = {
 		.name = "ideapad_slidebar",
 	},
-	.remove_new = ideapad_remove,
+	.remove = ideapad_remove,
 };
 
 static int __init ideapad_dmi_check(const struct dmi_system_id *id)

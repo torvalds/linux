@@ -92,7 +92,8 @@ static irqreturn_t ps2_txint(int irq, void *dev_id)
 	struct ps2if *ps2if = dev_id;
 	unsigned int status;
 
-	spin_lock(&ps2if->lock);
+	guard(spinlock)(&ps2if->lock);
+
 	status = readl_relaxed(ps2if->base + PS2STAT);
 	if (ps2if->head == ps2if->tail) {
 		disable_irq_nosync(irq);
@@ -101,7 +102,6 @@ static irqreturn_t ps2_txint(int irq, void *dev_id)
 		writel_relaxed(ps2if->buf[ps2if->tail], ps2if->base + PS2DATA);
 		ps2if->tail = (ps2if->tail + 1) & (sizeof(ps2if->buf) - 1);
 	}
-	spin_unlock(&ps2if->lock);
 
 	return IRQ_HANDLED;
 }
@@ -113,10 +113,9 @@ static irqreturn_t ps2_txint(int irq, void *dev_id)
 static int ps2_write(struct serio *io, unsigned char val)
 {
 	struct ps2if *ps2if = io->port_data;
-	unsigned long flags;
 	unsigned int head;
 
-	spin_lock_irqsave(&ps2if->lock, flags);
+	guard(spinlock_irqsave)(&ps2if->lock);
 
 	/*
 	 * If the TX register is empty, we can go straight out.
@@ -133,7 +132,6 @@ static int ps2_write(struct serio *io, unsigned char val)
 		}
 	}
 
-	spin_unlock_irqrestore(&ps2if->lock, flags);
 	return 0;
 }
 

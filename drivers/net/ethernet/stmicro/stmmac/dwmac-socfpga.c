@@ -487,6 +487,8 @@ static int socfpga_dwmac_probe(struct platform_device *pdev)
 	plat_dat->select_pcs = socfpga_dwmac_select_pcs;
 	plat_dat->has_gmac = true;
 
+	plat_dat->riwt_off = 1;
+
 	ret = stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
 	if (ret)
 		return ret;

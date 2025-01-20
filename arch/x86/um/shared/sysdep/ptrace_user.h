@@ -11,12 +11,6 @@
 #define REGS_IP_INDEX HOST_IP
 #define REGS_SP_INDEX HOST_SP
 
-#ifdef __i386__
-#define FP_SIZE ((HOST_FPX_SIZE > HOST_FP_SIZE) ? HOST_FPX_SIZE : HOST_FP_SIZE)
-#else
-#define FP_SIZE HOST_FP_SIZE
-#endif
-
 /*
  * glibc before 2.27 does not include PTRACE_SYSEMU_SINGLESTEP in its enum,
  * ensure we have a definition by (re-)defining it here.

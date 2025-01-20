@@ -1841,7 +1841,7 @@ static void vc4_dsi_dev_remove(struct platform_device *pdev)
 
 struct platform_driver vc4_dsi_driver = {
 	.probe = vc4_dsi_dev_probe,
-	.remove_new = vc4_dsi_dev_remove,
+	.remove = vc4_dsi_dev_remove,
 	.driver = {
 		.name = "vc4_dsi",
 		.of_match_table = vc4_dsi_dt_match,

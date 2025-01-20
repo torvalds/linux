@@ -839,6 +839,7 @@ struct amdgpu_mqd {
 enum amdgpu_init_lvl_id {
 	AMDGPU_INIT_LEVEL_DEFAULT,
 	AMDGPU_INIT_LEVEL_MINIMAL_XGMI,
+	AMDGPU_INIT_LEVEL_RESET_RECOVERY,
 };
 
 struct amdgpu_init_level {

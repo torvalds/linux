@@ -342,3 +342,8 @@ void amdgpu_reset_get_desc(struct amdgpu_reset_context *rst_ctxt, char *buf,
 		strscpy(buf, "unknown", len);
 	}
 }
+
+bool amdgpu_reset_in_recovery(struct amdgpu_device *adev)
+{
+	return (adev->init_lvl->level == AMDGPU_INIT_LEVEL_RESET_RECOVERY);
+}

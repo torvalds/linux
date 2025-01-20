@@ -913,14 +913,6 @@ bfa_fcxp_get_reqbuf(struct bfa_fcxp_s *fcxp)
 	return reqbuf;
 }
 
-u32
-bfa_fcxp_get_reqbufsz(struct bfa_fcxp_s *fcxp)
-{
-	struct bfa_fcxp_mod_s *mod = fcxp->fcxp_mod;
-
-	return mod->req_pld_sz;
-}
-
 /*
  * Get the internal response buffer pointer
  *
@@ -1021,21 +1013,6 @@ bfa_fcxp_send(struct bfa_fcxp_s *fcxp, struct bfa_rport_s *rport,
 	}
 
 	bfa_fcxp_queue(fcxp, send_req);
-}
-
-/*
- * Abort a BFA FCXP
- *
- * @param[in]	fcxp	BFA fcxp pointer
- *
- * @return		void
- */
-bfa_status_t
-bfa_fcxp_abort(struct bfa_fcxp_s *fcxp)
-{
-	bfa_trc(fcxp->fcxp_mod->bfa, fcxp->fcxp_tag);
-	WARN_ON(1);
-	return BFA_STATUS_OK;
 }
 
 void
@@ -3857,15 +3834,6 @@ bfa_fcport_clr_hardalpa(struct bfa_s *bfa)
 	return BFA_STATUS_OK;
 }
 
-bfa_boolean_t
-bfa_fcport_get_hardalpa(struct bfa_s *bfa, u8 *alpa)
-{
-	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
-
-	*alpa = fcport->cfg.hardalpa;
-	return fcport->cfg.cfg_hardalpa;
-}
-
 u8
 bfa_fcport_get_myalpa(struct bfa_s *bfa)
 {
@@ -3923,17 +3891,6 @@ bfa_fcport_set_tx_bbcredit(struct bfa_s *bfa, u16 tx_bbcredit)
 /*
  * Get port attributes.
  */
-
-wwn_t
-bfa_fcport_get_wwn(struct bfa_s *bfa, bfa_boolean_t node)
-{
-	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
-	if (node)
-		return fcport->nwwn;
-	else
-		return fcport->pwwn;
-}
-
 void
 bfa_fcport_get_attr(struct bfa_s *bfa, struct bfa_port_attr_s *attr)
 {
@@ -4103,18 +4060,6 @@ bfa_fcport_is_ratelim(struct bfa_s *bfa)
 
 	return fcport->cfg.ratelimit ? BFA_TRUE : BFA_FALSE;
 
-}
-
-/*
- *	Enable/Disable FAA feature in port config
- */
-void
-bfa_fcport_cfg_faa(struct bfa_s *bfa, u8 state)
-{
-	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
-
-	bfa_trc(bfa, state);
-	fcport->cfg.faa_state = state;
 }
 
 /*
@@ -5526,23 +5471,6 @@ uf_recv(struct bfa_s *bfa, struct bfi_uf_frm_rcvd_s *m)
 		__bfa_cb_uf_recv(uf, BFA_TRUE);
 	else
 		bfa_cb_queue(bfa, &uf->hcb_qe, __bfa_cb_uf_recv, uf);
-}
-
-void
-bfa_uf_iocdisable(struct bfa_s *bfa)
-{
-	struct bfa_uf_mod_s *ufm = BFA_UF_MOD(bfa);
-	struct bfa_uf_s *uf;
-	struct list_head *qe, *qen;
-
-	/* Enqueue unused uf resources to free_q */
-	list_splice_tail_init(&ufm->uf_unused_q, &ufm->uf_free_q);
-
-	list_for_each_safe(qe, qen, &ufm->uf_posted_q) {
-		uf = (struct bfa_uf_s *) qe;
-		list_del(&uf->qe);
-		bfa_uf_put(ufm, uf);
-	}
 }
 
 void

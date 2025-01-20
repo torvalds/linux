@@ -442,7 +442,7 @@ static const struct dev_pm_ops ufs_sprd_pm_ops = {
 
 static struct platform_driver ufs_sprd_pltform = {
 	.probe = ufs_sprd_probe,
-	.remove_new = ufs_sprd_remove,
+	.remove = ufs_sprd_remove,
 	.driver = {
 		.name = "ufshcd-sprd",
 		.pm = &ufs_sprd_pm_ops,

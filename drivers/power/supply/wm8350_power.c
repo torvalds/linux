@@ -577,7 +577,7 @@ static void wm8350_power_remove(struct platform_device *pdev)
 
 static struct platform_driver wm8350_power_driver = {
 	.probe = wm8350_power_probe,
-	.remove_new = wm8350_power_remove,
+	.remove = wm8350_power_remove,
 	.driver = {
 		.name = "wm8350-power",
 	},

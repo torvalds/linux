@@ -803,7 +803,6 @@ static struct attribute *con3215_drv_attrs[] = {
 
 static struct attribute_group con3215_drv_attr_group = {
 	.attrs = con3215_drv_attrs,
-	NULL,
 };
 
 static const struct attribute_group *con3215_drv_attr_groups[] = {

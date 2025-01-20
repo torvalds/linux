@@ -520,7 +520,7 @@ MODULE_DEVICE_TABLE(of, dwc3_octeon_of_match);
 
 static struct platform_driver dwc3_octeon_driver = {
 	.probe		= dwc3_octeon_probe,
-	.remove_new	= dwc3_octeon_remove,
+	.remove		= dwc3_octeon_remove,
 	.driver		= {
 		.name	= "dwc3-octeon",
 		.of_match_table = dwc3_octeon_of_match,

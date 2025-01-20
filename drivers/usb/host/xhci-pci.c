@@ -28,18 +28,18 @@
 #define SPARSE_CNTL_ENABLE	0xC12C
 
 /* Device for a quirk */
-#define PCI_VENDOR_ID_FRESCO_LOGIC	0x1b73
-#define PCI_DEVICE_ID_FRESCO_LOGIC_PDK	0x1000
+#define PCI_VENDOR_ID_FRESCO_LOGIC		0x1b73
+#define PCI_DEVICE_ID_FRESCO_LOGIC_PDK		0x1000
 #define PCI_DEVICE_ID_FRESCO_LOGIC_FL1009	0x1009
 #define PCI_DEVICE_ID_FRESCO_LOGIC_FL1100	0x1100
 #define PCI_DEVICE_ID_FRESCO_LOGIC_FL1400	0x1400
 
-#define PCI_VENDOR_ID_ETRON		0x1b6f
-#define PCI_DEVICE_ID_EJ168		0x7023
-#define PCI_DEVICE_ID_EJ188		0x7052
+#define PCI_VENDOR_ID_ETRON			0x1b6f
+#define PCI_DEVICE_ID_ETRON_EJ168		0x7023
+#define PCI_DEVICE_ID_ETRON_EJ188		0x7052
 
-#define PCI_DEVICE_ID_INTEL_LYNXPOINT_XHCI	0x8c31
-#define PCI_DEVICE_ID_INTEL_LYNXPOINT_LP_XHCI	0x9c31
+#define PCI_DEVICE_ID_INTEL_LYNXPOINT_XHCI		0x8c31
+#define PCI_DEVICE_ID_INTEL_LYNXPOINT_LP_XHCI		0x9c31
 #define PCI_DEVICE_ID_INTEL_WILDCATPOINT_LP_XHCI	0x9cb1
 #define PCI_DEVICE_ID_INTEL_CHERRYVIEW_XHCI		0x22b5
 #define PCI_DEVICE_ID_INTEL_SUNRISEPOINT_H_XHCI		0xa12f
@@ -81,9 +81,6 @@
 #define PCI_DEVICE_ID_ASMEDIA_2142_XHCI			0x2142
 #define PCI_DEVICE_ID_ASMEDIA_3042_XHCI			0x3042
 #define PCI_DEVICE_ID_ASMEDIA_3242_XHCI			0x3242
-
-#define PCI_DEVICE_ID_CADENCE				0x17CD
-#define PCI_DEVICE_ID_CADENCE_SSP			0x0200
 
 static const char hcd_name[] = "xhci_hcd";
 
@@ -150,14 +147,11 @@ static int xhci_try_enable_msi(struct usb_hcd *hcd)
 	hcd->irq = 0;
 
 	/*
-	 * calculate number of MSI-X vectors supported.
-	 * - HCS_MAX_INTRS: the max number of interrupts the host can handle,
-	 *   with max number of interrupters based on the xhci HCSPARAMS1.
-	 * - num_online_cpus: maximum MSI-X vectors per CPUs core.
-	 *   Add additional 1 vector to ensure always available interrupt.
+	 * Calculate number of MSI/MSI-X vectors supported.
+	 * - max_interrupters: the max number of interrupts requested, capped to xhci HCSPARAMS1.
+	 * - num_online_cpus: one vector per CPUs core, with at least one overall.
 	 */
-	xhci->nvecs = min(num_online_cpus() + 1,
-			  HCS_MAX_INTRS(xhci->hcs_params1));
+	xhci->nvecs = min(num_online_cpus() + 1, xhci->max_interrupters);
 
 	/* TODO: Check with MSI Soc for sysdev */
 	xhci->nvecs = pci_alloc_irq_vectors(pdev, 1, xhci->nvecs,
@@ -395,14 +389,12 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 		xhci->quirks |= XHCI_DEFAULT_PM_RUNTIME_ALLOW;
 
 	if (pdev->vendor == PCI_VENDOR_ID_ETRON &&
-			pdev->device == PCI_DEVICE_ID_EJ168) {
+	    (pdev->device == PCI_DEVICE_ID_ETRON_EJ168 ||
+	     pdev->device == PCI_DEVICE_ID_ETRON_EJ188)) {
+		xhci->quirks |= XHCI_ETRON_HOST;
 		xhci->quirks |= XHCI_RESET_ON_RESUME;
 		xhci->quirks |= XHCI_BROKEN_STREAMS;
-	}
-	if (pdev->vendor == PCI_VENDOR_ID_ETRON &&
-			pdev->device == PCI_DEVICE_ID_EJ188) {
-		xhci->quirks |= XHCI_RESET_ON_RESUME;
-		xhci->quirks |= XHCI_BROKEN_STREAMS;
+		xhci->quirks |= XHCI_NO_SOFT_RETRY;
 	}
 
 	if (pdev->vendor == PCI_VENDOR_ID_RENESAS &&
@@ -482,8 +474,8 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 			xhci->quirks |= XHCI_ZHAOXIN_TRB_FETCH;
 	}
 
-	if (pdev->vendor == PCI_DEVICE_ID_CADENCE &&
-	    pdev->device == PCI_DEVICE_ID_CADENCE_SSP)
+	if (pdev->vendor == PCI_VENDOR_ID_CDNS &&
+	    pdev->device == PCI_DEVICE_ID_CDNS_USBSSP)
 		xhci->quirks |= XHCI_CDNS_SCTX_QUIRK;
 
 	/* xHC spec requires PCI devices to support D3hot and D3cold */
@@ -646,6 +638,9 @@ int xhci_pci_common_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	dma_set_max_seg_size(&dev->dev, UINT_MAX);
 
+	if (device_property_read_bool(&dev->dev, "ti,pwron-active-high"))
+		pci_clear_and_set_config_dword(dev, 0xE0, 0, 1 << 22);
+
 	return 0;
 
 put_usb3_hcd:
@@ -656,7 +651,7 @@ put_runtime_pm:
 	pm_runtime_put_noidle(&dev->dev);
 	return retval;
 }
-EXPORT_SYMBOL_NS_GPL(xhci_pci_common_probe, xhci);
+EXPORT_SYMBOL_NS_GPL(xhci_pci_common_probe, "xhci");
 
 static const struct pci_device_id pci_ids_reject[] = {
 	/* handled by xhci-pci-renesas */
@@ -700,7 +695,7 @@ void xhci_pci_remove(struct pci_dev *dev)
 	if (set_power_d3)
 		pci_set_power_state(dev, PCI_D3hot);
 }
-EXPORT_SYMBOL_NS_GPL(xhci_pci_remove, xhci);
+EXPORT_SYMBOL_NS_GPL(xhci_pci_remove, "xhci");
 
 /*
  * In some Intel xHCI controllers, in order to get D3 working,

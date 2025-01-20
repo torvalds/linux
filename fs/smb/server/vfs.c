@@ -444,7 +444,7 @@ static int ksmbd_vfs_stream_write(struct ksmbd_file *fp, char *buf, loff_t *pos,
 	}
 
 	if (v_len < size) {
-		wbuf = kvzalloc(size, GFP_KERNEL);
+		wbuf = kvzalloc(size, KSMBD_DEFAULT_GFP);
 		if (!wbuf) {
 			err = -ENOMEM;
 			goto out;
@@ -865,7 +865,7 @@ ssize_t ksmbd_vfs_listxattr(struct dentry *dentry, char **list)
 	if (size <= 0)
 		return size;
 
-	vlist = kvzalloc(size, GFP_KERNEL);
+	vlist = kvzalloc(size, KSMBD_DEFAULT_GFP);
 	if (!vlist)
 		return -ENOMEM;
 
@@ -907,7 +907,7 @@ ssize_t ksmbd_vfs_getxattr(struct mnt_idmap *idmap,
 	if (xattr_len < 0)
 		return xattr_len;
 
-	buf = kmalloc(xattr_len + 1, GFP_KERNEL);
+	buf = kmalloc(xattr_len + 1, KSMBD_DEFAULT_GFP);
 	if (!buf)
 		return -ENOMEM;
 
@@ -1411,7 +1411,7 @@ static struct xattr_smb_acl *ksmbd_vfs_make_xattr_posix_acl(struct mnt_idmap *id
 
 	smb_acl = kzalloc(sizeof(struct xattr_smb_acl) +
 			  sizeof(struct xattr_acl_entry) * posix_acls->a_count,
-			  GFP_KERNEL);
+			  KSMBD_DEFAULT_GFP);
 	if (!smb_acl)
 		goto out;
 
@@ -1767,7 +1767,7 @@ int ksmbd_vfs_xattr_stream_name(char *stream_name, char **xattr_stream_name,
 	else
 		type = ":$DATA";
 
-	buf = kasprintf(GFP_KERNEL, "%s%s%s",
+	buf = kasprintf(KSMBD_DEFAULT_GFP, "%s%s%s",
 			XATTR_NAME_STREAM, stream_name,	type);
 	if (!buf)
 		return -ENOMEM;
@@ -1896,7 +1896,7 @@ int ksmbd_vfs_set_init_posix_acl(struct mnt_idmap *idmap,
 		acl_state.group.allow;
 	acl_state.mask.allow = 0x07;
 
-	acls = posix_acl_alloc(6, GFP_KERNEL);
+	acls = posix_acl_alloc(6, KSMBD_DEFAULT_GFP);
 	if (!acls) {
 		free_acl_state(&acl_state);
 		return -ENOMEM;

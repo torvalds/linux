@@ -366,7 +366,6 @@ void dispc_disable_sidle(void);
 
 void dispc_lcd_enable_signal(bool enable);
 void dispc_pck_free_enable(bool enable);
-void dispc_enable_fifomerge(bool enable);
 void dispc_enable_gamma_table(bool enable);
 
 typedef bool (*dispc_div_calc_func)(int lckd, int pckd, unsigned long lck,
@@ -388,8 +387,6 @@ void dispc_ovl_compute_fifo_thresholds(enum omap_plane plane,
 
 void dispc_mgr_set_clock_div(enum omap_channel channel,
 		const struct dispc_clock_info *cinfo);
-int dispc_mgr_get_clock_div(enum omap_channel channel,
-		struct dispc_clock_info *cinfo);
 void dispc_set_tv_pclk(unsigned long pclk);
 
 u32 dispc_read_irqstatus(void);

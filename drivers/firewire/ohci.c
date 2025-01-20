@@ -1384,7 +1384,7 @@ struct driver_data {
 };
 
 /*
- * This function apppends a packet to the DMA queue for transmission.
+ * This function appends a packet to the DMA queue for transmission.
  * Must always be called with the ochi->lock held to ensure proper
  * generation handling and locking around packet queue manipulation.
  */
@@ -2213,7 +2213,7 @@ static irqreturn_t irq_handler(int irq, void *data)
 
 	if (unlikely(param_debug > 0)) {
 		dev_notice_ratelimited(ohci->card.device,
-				       "The debug parameter is superceded by tracepoints events, and deprecated.");
+				       "The debug parameter is superseded by tracepoints events, and deprecated.");
 	}
 
 	/*
@@ -2614,7 +2614,7 @@ static int ohci_set_config_rom(struct fw_card *card,
 	 * ConfigRomHeader and BusOptions doesn't honor the
 	 * noByteSwapData bit, so with a be32 config rom, the
 	 * controller will load be32 values in to these registers
-	 * during the atomic update, even on litte endian
+	 * during the atomic update, even on little endian
 	 * architectures.  The workaround we use is to put a 0 in the
 	 * header quadlet; 0 is endian agnostic and means that the
 	 * config rom isn't ready yet.  In the bus reset tasklet we
@@ -3726,12 +3726,11 @@ static int pci_probe(struct pci_dev *dev,
 		return -ENXIO;
 	}
 
-	err = pcim_iomap_regions(dev, 1 << 0, ohci_driver_name);
-	if (err) {
+	ohci->registers = pcim_iomap_region(dev, 0, ohci_driver_name);
+	if (IS_ERR(ohci->registers)) {
 		ohci_err(ohci, "request and map MMIO resource unavailable\n");
 		return -ENXIO;
 	}
-	ohci->registers = pcim_iomap_table(dev)[0];
 
 	for (i = 0; i < ARRAY_SIZE(ohci_quirks); i++)
 		if ((ohci_quirks[i].vendor == dev->vendor) &&

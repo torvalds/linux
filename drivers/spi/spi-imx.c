@@ -1685,7 +1685,7 @@ static unsigned int spi_imx_transfer_estimate_time_us(struct spi_transfer *trans
 		words = DIV_ROUND_UP(transfer->len * BITS_PER_BYTE, transfer->bits_per_word);
 		word_delay_us = DIV_ROUND_CLOSEST(spi_delay_to_ns(&transfer->word_delay, transfer),
 						  NSEC_PER_USEC);
-		result += words * word_delay_us;
+		result += (u64)words * word_delay_us;
 	}
 
 	return min(result, U32_MAX);

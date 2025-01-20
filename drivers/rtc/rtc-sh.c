@@ -678,7 +678,7 @@ static struct platform_driver sh_rtc_platform_driver __refdata = {
 		.pm	= &sh_rtc_pm_ops,
 		.of_match_table = sh_rtc_of_match,
 	},
-	.remove_new	= __exit_p(sh_rtc_remove),
+	.remove		= __exit_p(sh_rtc_remove),
 };
 
 module_platform_driver_probe(sh_rtc_platform_driver, sh_rtc_probe);

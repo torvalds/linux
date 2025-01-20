@@ -65,7 +65,7 @@ struct ad7091r_state {
 	struct regulator *vref;
 	const struct ad7091r_chip_info *chip_info;
 	enum ad7091r_mode mode;
-	struct mutex lock; /*lock to prevent concurent reads */
+	struct mutex lock; /*lock to prevent concurrent reads */
 	__be16 tx_buf __aligned(IIO_DMA_MINALIGN);
 	__be16 rx_buf;
 };

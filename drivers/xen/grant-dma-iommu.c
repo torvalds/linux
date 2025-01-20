@@ -65,7 +65,7 @@ static struct platform_driver grant_dma_iommu_driver = {
 		.of_match_table = grant_dma_iommu_of_match,
 	},
 	.probe = grant_dma_iommu_probe,
-	.remove_new = grant_dma_iommu_remove,
+	.remove = grant_dma_iommu_remove,
 };
 
 static int __init grant_dma_iommu_init(void)

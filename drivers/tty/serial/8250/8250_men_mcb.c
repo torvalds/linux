@@ -271,4 +271,4 @@ MODULE_AUTHOR("Michael Moese <michael.moese@men.de");
 MODULE_ALIAS("mcb:16z125");
 MODULE_ALIAS("mcb:16z025");
 MODULE_ALIAS("mcb:16z057");
-MODULE_IMPORT_NS(MCB);
+MODULE_IMPORT_NS("MCB");

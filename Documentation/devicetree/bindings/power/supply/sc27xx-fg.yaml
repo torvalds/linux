@@ -27,6 +27,11 @@ properties:
   battery-detect-gpios:
     maxItems: 1
 
+  bat-detect-gpio:
+    maxItems: 1
+    deprecated: true
+    description: use battery-detect-gpios instead
+
   interrupts:
     maxItems: 1
 

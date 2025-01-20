@@ -88,4 +88,4 @@ int asoc_sdw_cs42l42_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_da
 
 	return ret;
 }
-EXPORT_SYMBOL_NS(asoc_sdw_cs42l42_rtd_init, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_cs42l42_rtd_init, "SND_SOC_SDW_UTILS");

@@ -73,6 +73,8 @@ void *io_pages_map(struct page ***out_pages, unsigned short *npages,
 	ret = io_mem_alloc_compound(pages, nr_pages, size, gfp);
 	if (!IS_ERR(ret))
 		goto done;
+	if (nr_pages == 1)
+		goto fail;
 
 	ret = io_mem_alloc_single(pages, nr_pages, size, gfp);
 	if (!IS_ERR(ret)) {
@@ -81,7 +83,7 @@ done:
 		*npages = nr_pages;
 		return ret;
 	}
-
+fail:
 	kvfree(pages);
 	*out_pages = NULL;
 	*npages = 0;
@@ -136,7 +138,12 @@ struct page **io_pin_pages(unsigned long uaddr, unsigned long len, int *npages)
 	struct page **pages;
 	int ret;
 
-	end = (uaddr + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	if (check_add_overflow(uaddr, len, &end))
+		return ERR_PTR(-EOVERFLOW);
+	if (check_add_overflow(end, PAGE_SIZE - 1, &end))
+		return ERR_PTR(-EOVERFLOW);
+
+	end = end >> PAGE_SHIFT;
 	start = uaddr >> PAGE_SHIFT;
 	nr_pages = end - start;
 	if (WARN_ON_ONCE(!nr_pages))
@@ -229,7 +236,7 @@ int io_create_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr,
 	if (!reg->size || reg->mmap_offset || reg->id)
 		return -EINVAL;
 	if ((reg->size >> PAGE_SHIFT) > INT_MAX)
-		return E2BIG;
+		return -E2BIG;
 	if ((reg->user_addr | reg->size) & ~PAGE_MASK)
 		return -EINVAL;
 	if (check_add_overflow(reg->user_addr, reg->size, &end))

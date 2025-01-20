@@ -40,6 +40,7 @@
 #include "session.h"
 #include "string2.h"
 #include "strbuf.h"
+#include "parse-events.h"
 
 #include <subcmd/pager.h>
 #include <linux/ctype.h>
@@ -50,6 +51,9 @@
 #endif
 
 #define PERFPROBE_GROUP "probe"
+
+/* Defined in kernel/trace/trace.h */
+#define MAX_EVENT_NAME_LEN	64
 
 bool probe_event_dry_run;	/* Dry run flag */
 struct probe_conf probe_conf = { .magic_num = DEFAULT_PROBE_MAGIC_NUM };
@@ -342,7 +346,7 @@ elf_err:
 	return mod_name;
 }
 
-#ifdef HAVE_DWARF_SUPPORT
+#ifdef HAVE_LIBDW_SUPPORT
 
 static int kernel_get_module_dso(const char *module, struct dso **pdso)
 {
@@ -1036,6 +1040,17 @@ static int _show_one_line(FILE *fp, int l, bool skip, bool show_num)
 	return rv;
 }
 
+static int sprint_line_description(char *sbuf, size_t size, struct line_range *lr)
+{
+	if (!lr->function)
+		return snprintf(sbuf, size, "file: %s, line: %d", lr->file, lr->start);
+
+	if (lr->file)
+		return snprintf(sbuf, size, "function: %s, file:%s, line: %d", lr->function, lr->file, lr->start);
+
+	return snprintf(sbuf, size, "function: %s, line:%d", lr->function, lr->start);
+}
+
 #define show_one_line_with_num(f,l)	_show_one_line(f,l,false,true)
 #define show_one_line(f,l)		_show_one_line(f,l,false,false)
 #define skip_one_line(f,l)		_show_one_line(f,l,true,false)
@@ -1065,9 +1080,12 @@ static int __show_line_range(struct line_range *lr, const char *module,
 
 	ret = debuginfo__find_line_range(dinfo, lr);
 	if (!ret) {	/* Not found, retry with an alternative */
+		pr_debug2("Failed to find line range in debuginfo. Fallback to alternative\n");
 		ret = get_alternative_line_range(dinfo, lr, module, user);
 		if (!ret)
 			ret = debuginfo__find_line_range(dinfo, lr);
+		else /* Ignore error, we just failed to find it. */
+			ret = -ENOENT;
 	}
 	if (dinfo->build_id) {
 		build_id__init(&bid, dinfo->build_id, BUILD_ID_SIZE);
@@ -1075,7 +1093,8 @@ static int __show_line_range(struct line_range *lr, const char *module,
 	}
 	debuginfo__delete(dinfo);
 	if (ret == 0 || ret == -ENOENT) {
-		pr_warning("Specified source line is not found.\n");
+		sprint_line_description(sbuf, sizeof(sbuf), lr);
+		pr_warning("Specified source line(%s) is not found.\n", sbuf);
 		return -ENOENT;
 	} else if (ret < 0) {
 		pr_warning("Debuginfo analysis failed.\n");
@@ -1250,7 +1269,7 @@ out:
 	return ret;
 }
 
-#else	/* !HAVE_DWARF_SUPPORT */
+#else	/* !HAVE_LIBDW_SUPPORT */
 
 static void debuginfo_cache__exit(void)
 {
@@ -1343,30 +1362,39 @@ static bool is_c_func_name(const char *name)
  *
  *         SRC[:SLN[+NUM|-ELN]]
  *         FNC[@SRC][:SLN[+NUM|-ELN]]
+ *
+ * FNC@SRC accepts `FNC@*` which forcibly specify FNC as function name.
+ * SRC and FUNC can be quoted by double/single quotes.
  */
 int parse_line_range_desc(const char *arg, struct line_range *lr)
 {
-	char *range, *file, *name = strdup(arg);
+	char *buf = strdup(arg);
+	char *p;
 	int err;
 
-	if (!name)
+	if (!buf)
 		return -ENOMEM;
 
 	lr->start = 0;
 	lr->end = INT_MAX;
 
-	range = strchr(name, ':');
-	if (range) {
-		*range++ = '\0';
+	p = strpbrk_esq(buf, ":");
+	if (p) {
+		if (p == buf) {
+			semantic_error("No file/function name in '%s'.\n", p);
+			err = -EINVAL;
+			goto err;
+		}
+		*(p++) = '\0';
 
-		err = parse_line_num(&range, &lr->start, "start line");
+		err = parse_line_num(&p, &lr->start, "start line");
 		if (err)
 			goto err;
 
-		if (*range == '+' || *range == '-') {
-			const char c = *range++;
+		if (*p == '+' || *p == '-') {
+			const char c = *(p++);
 
-			err = parse_line_num(&range, &lr->end, "end line");
+			err = parse_line_num(&p, &lr->end, "end line");
 			if (err)
 				goto err;
 
@@ -1390,34 +1418,41 @@ int parse_line_range_desc(const char *arg, struct line_range *lr)
 				       " than end line.\n");
 			goto err;
 		}
-		if (*range != '\0') {
-			semantic_error("Tailing with invalid str '%s'.\n", range);
+		if (*p != '\0') {
+			semantic_error("Tailing with invalid str '%s'.\n", p);
 			goto err;
 		}
 	}
 
-	file = strchr(name, '@');
-	if (file) {
-		*file = '\0';
-		lr->file = strdup(++file);
-		if (lr->file == NULL) {
-			err = -ENOMEM;
+	p = strpbrk_esq(buf, "@");
+	if (p) {
+		*p++ = '\0';
+		if (strcmp(p, "*")) {
+			lr->file = strdup_esq(p);
+			if (lr->file == NULL) {
+				err = -ENOMEM;
+				goto err;
+			}
+		}
+		if (*buf != '\0')
+			lr->function = strdup_esq(buf);
+		if (!lr->function && !lr->file) {
+			semantic_error("Only '@*' is not allowed.\n");
+			err = -EINVAL;
 			goto err;
 		}
-		lr->function = name;
-	} else if (strchr(name, '/') || strchr(name, '.'))
-		lr->file = name;
-	else if (is_c_func_name(name))/* We reuse it for checking funcname */
-		lr->function = name;
+	} else if (strpbrk_esq(buf, "/."))
+		lr->file = strdup_esq(buf);
+	else if (is_c_func_name(buf))/* We reuse it for checking funcname */
+		lr->function = strdup_esq(buf);
 	else {	/* Invalid name */
-		semantic_error("'%s' is not a valid function name.\n", name);
+		semantic_error("'%s' is not a valid function name.\n", buf);
 		err = -EINVAL;
 		goto err;
 	}
 
-	return 0;
 err:
-	free(name);
+	free(buf);
 	return err;
 }
 
@@ -1425,19 +1460,19 @@ static int parse_perf_probe_event_name(char **arg, struct perf_probe_event *pev)
 {
 	char *ptr;
 
-	ptr = strpbrk_esc(*arg, ":");
+	ptr = strpbrk_esq(*arg, ":");
 	if (ptr) {
 		*ptr = '\0';
 		if (!pev->sdt && !is_c_func_name(*arg))
 			goto ng_name;
-		pev->group = strdup_esc(*arg);
+		pev->group = strdup_esq(*arg);
 		if (!pev->group)
 			return -ENOMEM;
 		*arg = ptr + 1;
 	} else
 		pev->group = NULL;
 
-	pev->event = strdup_esc(*arg);
+	pev->event = strdup_esq(*arg);
 	if (pev->event == NULL)
 		return -ENOMEM;
 
@@ -1476,7 +1511,7 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 			arg++;
 	}
 
-	ptr = strpbrk_esc(arg, ";=@+%");
+	ptr = strpbrk_esq(arg, ";=@+%");
 	if (pev->sdt) {
 		if (ptr) {
 			if (*ptr != '@') {
@@ -1490,7 +1525,7 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 				pev->target = build_id_cache__origname(tmp);
 				free(tmp);
 			} else
-				pev->target = strdup_esc(ptr + 1);
+				pev->target = strdup_esq(ptr + 1);
 			if (!pev->target)
 				return -ENOMEM;
 			*ptr = '\0';
@@ -1531,7 +1566,7 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 			file_spec = true;
 	}
 
-	ptr = strpbrk_esc(arg, ";:+@%");
+	ptr = strpbrk_esq(arg, ";:+@%");
 	if (ptr) {
 		nc = *ptr;
 		*ptr++ = '\0';
@@ -1540,7 +1575,7 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 	if (arg[0] == '\0')
 		tmp = NULL;
 	else {
-		tmp = strdup_esc(arg);
+		tmp = strdup_esq(arg);
 		if (tmp == NULL)
 			return -ENOMEM;
 	}
@@ -1578,7 +1613,7 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 				return -ENOMEM;
 			break;
 		}
-		ptr = strpbrk_esc(arg, ";:+@%");
+		ptr = strpbrk_esq(arg, ";:+@%");
 		if (ptr) {
 			nc = *ptr;
 			*ptr++ = '\0';
@@ -1605,7 +1640,9 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 				semantic_error("SRC@SRC is not allowed.\n");
 				return -EINVAL;
 			}
-			pp->file = strdup_esc(arg);
+			if (!strcmp(arg, "*"))
+				break;
+			pp->file = strdup_esq(arg);
 			if (pp->file == NULL)
 				return -ENOMEM;
 			break;
@@ -2757,7 +2794,10 @@ static int get_new_event_name(char *buf, size_t len, const char *base,
 	/* Try no suffix number */
 	ret = e_snprintf(buf, len, "%s%s", nbase, ret_event ? "__return" : "");
 	if (ret < 0) {
-		pr_warning("snprintf() failed: %d; the event name nbase='%s' is too long\n", ret, nbase);
+		pr_warning("snprintf() failed: %d; the event name '%s' is too long\n"
+			   "  Hint: Set a shorter event with syntax \"EVENT=PROBEDEF\"\n"
+			   "        EVENT: Event name (max length: %d bytes).\n",
+			   ret, nbase, MAX_EVENT_NAME_LEN);
 		goto out;
 	}
 	if (!strlist__has_entry(namelist, buf))
@@ -2777,7 +2817,10 @@ static int get_new_event_name(char *buf, size_t len, const char *base,
 	for (i = 1; i < MAX_EVENT_INDEX; i++) {
 		ret = e_snprintf(buf, len, "%s_%d", nbase, i);
 		if (ret < 0) {
-			pr_debug("snprintf() failed: %d\n", ret);
+			pr_warning("Add suffix failed: %d; the event name '%s' is too long\n"
+				   "  Hint: Set a shorter event with syntax \"EVENT=PROBEDEF\"\n"
+				   "        EVENT: Event name (max length: %d bytes).\n",
+				   ret, nbase, MAX_EVENT_NAME_LEN);
 			goto out;
 		}
 		if (!strlist__has_entry(namelist, buf))
@@ -2841,7 +2884,7 @@ static int probe_trace_event__set_name(struct probe_trace_event *tev,
 				       bool allow_suffix)
 {
 	const char *event, *group;
-	char buf[64];
+	char buf[MAX_EVENT_NAME_LEN];
 	int ret;
 
 	/* If probe_event or trace_event already have the name, reuse it */
@@ -2864,6 +2907,12 @@ static int probe_trace_event__set_name(struct probe_trace_event *tev,
 		group = tev->group;
 	else
 		group = PERFPROBE_GROUP;
+
+	if (strlen(group) >= MAX_EVENT_NAME_LEN) {
+		pr_err("Probe group string='%s' is too long (>= %d bytes)\n",
+			group, MAX_EVENT_NAME_LEN);
+		return -ENOMEM;
+	}
 
 	/* Get an unused new event name */
 	ret = get_new_event_name(buf, sizeof(buf), event, namelist,
@@ -3703,59 +3752,6 @@ void cleanup_perf_probe_events(struct perf_probe_event *pevs, int npevs)
 		nsinfo__zput(pev->nsi);
 		clear_perf_probe_event(&pevs[i]);
 	}
-}
-
-int add_perf_probe_events(struct perf_probe_event *pevs, int npevs)
-{
-	int ret;
-
-	ret = init_probe_symbol_maps(pevs->uprobes);
-	if (ret < 0)
-		return ret;
-
-	ret = convert_perf_probe_events(pevs, npevs);
-	if (ret == 0)
-		ret = apply_perf_probe_events(pevs, npevs);
-
-	cleanup_perf_probe_events(pevs, npevs);
-
-	exit_probe_symbol_maps();
-	return ret;
-}
-
-int del_perf_probe_events(struct strfilter *filter)
-{
-	int ret, ret2, ufd = -1, kfd = -1;
-	char *str = strfilter__string(filter);
-
-	if (!str)
-		return -EINVAL;
-
-	/* Get current event names */
-	ret = probe_file__open_both(&kfd, &ufd, PF_FL_RW);
-	if (ret < 0)
-		goto out;
-
-	ret = probe_file__del_events(kfd, filter);
-	if (ret < 0 && ret != -ENOENT)
-		goto error;
-
-	ret2 = probe_file__del_events(ufd, filter);
-	if (ret2 < 0 && ret2 != -ENOENT) {
-		ret = ret2;
-		goto error;
-	}
-	ret = 0;
-
-error:
-	if (kfd >= 0)
-		close(kfd);
-	if (ufd >= 0)
-		close(ufd);
-out:
-	free(str);
-
-	return ret;
 }
 
 int show_available_funcs(const char *target, struct nsinfo *nsi,

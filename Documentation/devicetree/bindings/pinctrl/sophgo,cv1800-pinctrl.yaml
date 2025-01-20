@@ -58,7 +58,7 @@ patternProperties:
           pinmux:
             description: |
               The list of GPIOs and their mux settings that properties in the
-              node apply to. This should be set using the GPIOMUX or GPIOMUX2
+              node apply to. This should be set using the PINMUX or PINMUX2
               macro.
 
           bias-pull-up:

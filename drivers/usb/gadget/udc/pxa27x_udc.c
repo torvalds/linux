@@ -2539,7 +2539,7 @@ static struct platform_driver udc_driver = {
 		.of_match_table = of_match_ptr(udc_pxa_dt_ids),
 	},
 	.probe		= pxa_udc_probe,
-	.remove_new	= pxa_udc_remove,
+	.remove		= pxa_udc_remove,
 	.shutdown	= pxa_udc_shutdown,
 #ifdef CONFIG_PM
 	.suspend	= pxa_udc_suspend,

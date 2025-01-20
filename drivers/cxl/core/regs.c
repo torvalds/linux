@@ -106,7 +106,7 @@ void cxl_probe_component_regs(struct device *dev, void __iomem *base,
 		rmap->size = length;
 	}
 }
-EXPORT_SYMBOL_NS_GPL(cxl_probe_component_regs, CXL);
+EXPORT_SYMBOL_NS_GPL(cxl_probe_component_regs, "CXL");
 
 /**
  * cxl_probe_device_regs() - Detect CXL Device register blocks
@@ -174,7 +174,7 @@ void cxl_probe_device_regs(struct device *dev, void __iomem *base,
 		rmap->size = length;
 	}
 }
-EXPORT_SYMBOL_NS_GPL(cxl_probe_device_regs, CXL);
+EXPORT_SYMBOL_NS_GPL(cxl_probe_device_regs, "CXL");
 
 void __iomem *devm_cxl_iomap_block(struct device *dev, resource_size_t addr,
 				   resource_size_t length)
@@ -232,7 +232,7 @@ int cxl_map_component_regs(const struct cxl_register_map *map,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(cxl_map_component_regs, CXL);
+EXPORT_SYMBOL_NS_GPL(cxl_map_component_regs, "CXL");
 
 int cxl_map_device_regs(const struct cxl_register_map *map,
 			struct cxl_device_regs *regs)
@@ -266,7 +266,7 @@ int cxl_map_device_regs(const struct cxl_register_map *map,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(cxl_map_device_regs, CXL);
+EXPORT_SYMBOL_NS_GPL(cxl_map_device_regs, "CXL");
 
 static bool cxl_decode_regblock(struct pci_dev *pdev, u32 reg_lo, u32 reg_hi,
 				struct cxl_register_map *map)
@@ -344,7 +344,7 @@ int cxl_find_regblock_instance(struct pci_dev *pdev, enum cxl_regloc_type type,
 	map->resource = CXL_RESOURCE_NONE;
 	return -ENODEV;
 }
-EXPORT_SYMBOL_NS_GPL(cxl_find_regblock_instance, CXL);
+EXPORT_SYMBOL_NS_GPL(cxl_find_regblock_instance, "CXL");
 
 /**
  * cxl_find_regblock() - Locate register blocks by type
@@ -362,7 +362,7 @@ int cxl_find_regblock(struct pci_dev *pdev, enum cxl_regloc_type type,
 {
 	return cxl_find_regblock_instance(pdev, type, map, 0);
 }
-EXPORT_SYMBOL_NS_GPL(cxl_find_regblock, CXL);
+EXPORT_SYMBOL_NS_GPL(cxl_find_regblock, "CXL");
 
 /**
  * cxl_count_regblock() - Count instances of a given regblock type.
@@ -385,7 +385,7 @@ int cxl_count_regblock(struct pci_dev *pdev, enum cxl_regloc_type type)
 		count++;
 	}
 }
-EXPORT_SYMBOL_NS_GPL(cxl_count_regblock, CXL);
+EXPORT_SYMBOL_NS_GPL(cxl_count_regblock, "CXL");
 
 int cxl_map_pmu_regs(struct cxl_register_map *map, struct cxl_pmu_regs *regs)
 {
@@ -399,7 +399,7 @@ int cxl_map_pmu_regs(struct cxl_register_map *map, struct cxl_pmu_regs *regs)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(cxl_map_pmu_regs, CXL);
+EXPORT_SYMBOL_NS_GPL(cxl_map_pmu_regs, "CXL");
 
 static int cxl_map_regblock(struct cxl_register_map *map)
 {
@@ -468,7 +468,7 @@ int cxl_setup_regs(struct cxl_register_map *map)
 
 	return rc;
 }
-EXPORT_SYMBOL_NS_GPL(cxl_setup_regs, CXL);
+EXPORT_SYMBOL_NS_GPL(cxl_setup_regs, "CXL");
 
 u16 cxl_rcrb_to_aer(struct device *dev, resource_size_t rcrb)
 {
@@ -560,7 +560,7 @@ int cxl_dport_map_rcd_linkcap(struct pci_dev *pdev, struct cxl_dport *dport)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(cxl_dport_map_rcd_linkcap, CXL);
+EXPORT_SYMBOL_NS_GPL(cxl_dport_map_rcd_linkcap, "CXL");
 
 resource_size_t __rcrb_to_component(struct device *dev, struct cxl_rcrb_info *ri,
 				    enum cxl_rcrb which)
@@ -633,4 +633,4 @@ resource_size_t cxl_rcd_component_reg_phys(struct device *dev,
 		return CXL_RESOURCE_NONE;
 	return __rcrb_to_component(dev, &dport->rcrb, CXL_RCRB_UPSTREAM);
 }
-EXPORT_SYMBOL_NS_GPL(cxl_rcd_component_reg_phys, CXL);
+EXPORT_SYMBOL_NS_GPL(cxl_rcd_component_reg_phys, "CXL");

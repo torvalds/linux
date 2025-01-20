@@ -195,7 +195,7 @@ MODULE_DEVICE_TABLE(of, lpc18xx_serial_match);
 
 static struct platform_driver lpc18xx_serial_driver = {
 	.probe  = lpc18xx_serial_probe,
-	.remove_new = lpc18xx_serial_remove,
+	.remove = lpc18xx_serial_remove,
 	.driver = {
 		.name = "lpc18xx-uart",
 		.of_match_table = lpc18xx_serial_match,

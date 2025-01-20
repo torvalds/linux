@@ -951,7 +951,7 @@ static struct platform_driver tegra_hsp_driver = {
 		.pm = &tegra_hsp_pm_ops,
 	},
 	.probe = tegra_hsp_probe,
-	.remove_new = tegra_hsp_remove,
+	.remove = tegra_hsp_remove,
 };
 
 static int __init tegra_hsp_init(void)

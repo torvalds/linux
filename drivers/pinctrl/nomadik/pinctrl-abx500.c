@@ -1089,7 +1089,7 @@ static struct platform_driver abx500_gpio_driver = {
 		.of_match_table = abx500_gpio_match,
 	},
 	.probe = abx500_gpio_probe,
-	.remove_new = abx500_gpio_remove,
+	.remove = abx500_gpio_remove,
 };
 
 static int __init abx500_gpio_init(void)

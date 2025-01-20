@@ -53,7 +53,7 @@ impl<T: Operations> TagSet<T> {
                     queue_depth: num_tags,
                     cmd_size,
                     flags: bindings::BLK_MQ_F_SHOULD_MERGE,
-                    driver_data: core::ptr::null_mut::<core::ffi::c_void>(),
+                    driver_data: core::ptr::null_mut::<crate::ffi::c_void>(),
                     nr_maps: num_maps,
                     ..tag_set
                 }

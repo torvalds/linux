@@ -254,11 +254,11 @@ static int of_count_cache_leaves(struct device_node *np)
 {
 	unsigned int leaves = 0;
 
-	if (of_property_read_bool(np, "cache-size"))
+	if (of_property_present(np, "cache-size"))
 		++leaves;
-	if (of_property_read_bool(np, "i-cache-size"))
+	if (of_property_present(np, "i-cache-size"))
 		++leaves;
-	if (of_property_read_bool(np, "d-cache-size"))
+	if (of_property_present(np, "d-cache-size"))
 		++leaves;
 
 	if (!leaves) {
@@ -367,9 +367,7 @@ static int cache_shared_cpu_map_setup(unsigned int cpu)
 
 		cpumask_set_cpu(cpu, &this_leaf->shared_cpu_map);
 		for_each_online_cpu(i) {
-			struct cpu_cacheinfo *sib_cpu_ci = get_cpu_cacheinfo(i);
-
-			if (i == cpu || !sib_cpu_ci->info_list)
+			if (i == cpu || !per_cpu_cacheinfo(i))
 				continue;/* skip if itself or no cacheinfo */
 			for (sib_index = 0; sib_index < cache_leaves(i); sib_index++) {
 				sib_leaf = per_cpu_cacheinfo_idx(i, sib_index);
@@ -409,10 +407,7 @@ static void cache_shared_cpu_map_remove(unsigned int cpu)
 	for (index = 0; index < cache_leaves(cpu); index++) {
 		this_leaf = per_cpu_cacheinfo_idx(cpu, index);
 		for_each_cpu(sibling, &this_leaf->shared_cpu_map) {
-			struct cpu_cacheinfo *sib_cpu_ci =
-						get_cpu_cacheinfo(sibling);
-
-			if (sibling == cpu || !sib_cpu_ci->info_list)
+			if (sibling == cpu || !per_cpu_cacheinfo(sibling))
 				continue;/* skip if itself or no cacheinfo */
 
 			for (sib_index = 0; sib_index < cache_leaves(sibling); sib_index++) {

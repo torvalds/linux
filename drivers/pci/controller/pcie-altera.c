@@ -815,10 +815,10 @@ static void altera_pcie_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver altera_pcie_driver = {
-	.probe		= altera_pcie_probe,
-	.remove_new	= altera_pcie_remove,
+	.probe = altera_pcie_probe,
+	.remove = altera_pcie_remove,
 	.driver = {
-		.name	= "altera-pcie",
+		.name = "altera-pcie",
 		.of_match_table = altera_pcie_of_match,
 	},
 };

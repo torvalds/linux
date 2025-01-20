@@ -54,7 +54,7 @@ else:
 """)
 
     @classmethod
-    def generate_bindgen(cls, version_stdout, libclang_stderr, version_0_66_patched=False):
+    def generate_bindgen(cls, version_stdout, libclang_stderr, version_0_66_patched=False, libclang_concat_patched=False):
         if libclang_stderr is None:
             libclang_case = f"raise SystemExit({cls.bindgen_default_bindgen_libclang_failure_exit_code})"
         else:
@@ -65,12 +65,19 @@ else:
         else:
             version_0_66_case = "raise SystemExit(1)"
 
+        if libclang_concat_patched:
+            libclang_concat_case = "print('pub static mut foofoo: ::std::os::raw::c_int;')"
+        else:
+            libclang_concat_case = "pass"
+
         return cls.generate_executable(f"""#!/usr/bin/env python3
 import sys
 if "rust_is_available_bindgen_libclang.h" in " ".join(sys.argv):
     {libclang_case}
 elif "rust_is_available_bindgen_0_66.h" in " ".join(sys.argv):
     {version_0_66_case}
+elif "rust_is_available_bindgen_libclang_concat.h" in " ".join(sys.argv):
+    {libclang_concat_case}
 else:
     print({repr(version_stdout)})
 """)
@@ -267,6 +274,31 @@ else:
         bindgen = self.generate_bindgen_libclang("scripts/rust_is_available_bindgen_libclang.h:2:9: warning: clang version 10.0.0 [-W#pragma-messages], err: false")
         result = self.run_script(self.Expected.FAILURE, { "BINDGEN": bindgen })
         self.assertIn(f"libclang (used by the Rust bindings generator '{bindgen}') is too old.", result.stderr)
+
+    def test_bindgen_bad_libclang_concat(self):
+        for (bindgen_version, libclang_version, expected_not_patched) in (
+            ("0.69.4", "18.0.0", self.Expected.SUCCESS),
+            ("0.69.4", "19.1.0", self.Expected.SUCCESS_WITH_WARNINGS),
+            ("0.69.4", "19.2.0", self.Expected.SUCCESS_WITH_WARNINGS),
+
+            ("0.69.5", "18.0.0", self.Expected.SUCCESS),
+            ("0.69.5", "19.1.0", self.Expected.SUCCESS),
+            ("0.69.5", "19.2.0", self.Expected.SUCCESS),
+
+            ("0.70.0", "18.0.0", self.Expected.SUCCESS),
+            ("0.70.0", "19.1.0", self.Expected.SUCCESS),
+            ("0.70.0", "19.2.0", self.Expected.SUCCESS),
+        ):
+            with self.subTest(bindgen_version=bindgen_version, libclang_version=libclang_version):
+                cc = self.generate_clang(f"clang version {libclang_version}")
+                libclang_stderr = f"scripts/rust_is_available_bindgen_libclang.h:2:9: warning: clang version {libclang_version} [-W#pragma-messages], err: false"
+                bindgen = self.generate_bindgen(f"bindgen {bindgen_version}", libclang_stderr)
+                result = self.run_script(expected_not_patched, { "BINDGEN": bindgen, "CC": cc })
+                if expected_not_patched == self.Expected.SUCCESS_WITH_WARNINGS:
+                    self.assertIn(f"Rust bindings generator '{bindgen}' < 0.69.5 together with libclang >= 19.1", result.stderr)
+
+                bindgen = self.generate_bindgen(f"bindgen {bindgen_version}", libclang_stderr, libclang_concat_patched=True)
+                result = self.run_script(self.Expected.SUCCESS, { "BINDGEN": bindgen, "CC": cc })
 
     def test_clang_matches_bindgen_libclang_different_bindgen(self):
         bindgen = self.generate_bindgen_libclang("scripts/rust_is_available_bindgen_libclang.h:2:9: warning: clang version 999.0.0 [-W#pragma-messages], err: false")

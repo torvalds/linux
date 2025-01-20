@@ -2037,7 +2037,7 @@ static struct platform_driver rcar_dmac_driver = {
 		.of_match_table = rcar_dmac_of_ids,
 	},
 	.probe		= rcar_dmac_probe,
-	.remove_new	= rcar_dmac_remove,
+	.remove		= rcar_dmac_remove,
 	.shutdown	= rcar_dmac_shutdown,
 };
 

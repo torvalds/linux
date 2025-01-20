@@ -1,0 +1,161 @@
+# SPDX-License-Identifier: GPL-2.0-only
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/microchip,mcp23s08.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Microchip I/O expander with serial interface (I2C/SPI)
+
+maintainers:
+  - Himanshu Bhavani <himanshu.bhavani@siliconsignals.io>
+
+description:
+  Microchip MCP23008, MCP23017, MCP23S08, MCP23S17, MCP23S18 GPIO expander
+  chips.These chips provide 8 or 16 GPIO pins with either I2C or SPI interface.
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+properties:
+  compatible:
+    enum:
+      - microchip,mcp23s08
+      - microchip,mcp23s17
+      - microchip,mcp23s18
+      - microchip,mcp23008
+      - microchip,mcp23017
+      - microchip,mcp23018
+
+  reg:
+    maxItems: 1
+
+  gpio-controller: true
+
+  '#gpio-cells':
+    const: 2
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 2
+
+  interrupts:
+    maxItems: 1
+
+  reset-gpios:
+    description: GPIO specifier for active-low reset pin.
+    maxItems: 1
+
+  microchip,spi-present-mask:
+    description:
+      Multiple SPI chips can share the same SPI chipselect. Set a bit in
+      bit0-7 in this mask to 1 if there is a chip connected with the
+      corresponding spi address set. For example if you have a chip with
+      address 3 connected, you have to set bit3 to 1, which is 0x08. mcp23s08
+      chip variant only supports bits 0-3. It is not possible to mix mcp23s08
+      and mcp23s17 on the same chipselect. Set at least one bit to 1 for SPI
+      chips.
+    $ref: /schemas/types.yaml#/definitions/uint8
+
+  microchip,irq-mirror:
+    type: boolean
+    description:
+      Sets the mirror flag in the IOCON register. Devices with two interrupt
+      outputs (these are the devices ending with 17 and those that have 16 IOs)
+      have two IO banks IO 0-7 form bank 1 and IO 8-15 are bank 2. These chips
+      have two different interrupt outputs One for bank 1 and another for
+      bank 2. If irq-mirror is set, both interrupts are generated regardless of
+      the bank that an input change occurred on. If it is not set,the interrupt
+      are only generated for the bank they belong to.
+
+  microchip,irq-active-high:
+    type: boolean
+    description:
+      Sets the INTPOL flag in the IOCON register.This configures the IRQ output
+      polarity as active high.
+
+  drive-open-drain:
+    type: boolean
+    description:
+      Sets the ODR flag in the IOCON register. This configures the IRQ output as
+      open drain active low.
+
+  pinmux:
+    type: object
+    properties:
+      pins:
+        description:
+          The list of GPIO pins controlled by this node. Each pin name
+          corresponds to a physical pin on the GPIO expander.
+        items:
+          pattern: '^gpio([0-9]|[1][0-5])$'
+        maxItems: 16
+
+      bias-pull-up:
+        type: boolean
+        description:
+          Configures pull-up resistors for the GPIO pins. Absence of this
+          property will leave the configuration in its default state.
+
+    required:
+      - pins
+
+    additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - gpio-controller
+  - '#gpio-cells'
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/gpio/gpio.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        gpio@21 {
+            compatible = "microchip,mcp23017";
+            reg = <0x21>;
+            gpio-controller;
+            #gpio-cells = <2>;
+
+            interrupt-parent = <&gpio1>;
+            interrupts = <17 IRQ_TYPE_LEVEL_LOW>;
+            interrupt-controller;
+            #interrupt-cells = <2>;
+
+            microchip,irq-mirror;
+            pinctrl-names = "default";
+            pinctrl-0 = <&pinctrl_i2c_gpio0>, <&gpiopullups>;
+            reset-gpios = <&gpio6 15 GPIO_ACTIVE_LOW>;
+
+            gpiopullups: pinmux {
+                pins = "gpio0", "gpio1", "gpio2", "gpio3",
+                       "gpio4", "gpio5", "gpio6", "gpio7",
+                       "gpio8", "gpio9", "gpio10", "gpio11",
+                       "gpio12", "gpio13", "gpio14", "gpio15";
+                bias-pull-up;
+            };
+        };
+    };
+
+  - |
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        gpio@0 {
+            compatible = "microchip,mcp23s17";
+            reg = <0>;
+            gpio-controller;
+            #gpio-cells = <2>;
+            spi-max-frequency = <1000000>;
+            microchip,spi-present-mask = /bits/ 8 <0x01>;
+        };
+    };

@@ -1420,7 +1420,7 @@ MODULE_DEVICE_TABLE(of, exynos_drm_gsc_of_match);
 
 struct platform_driver gsc_driver = {
 	.probe		= gsc_probe,
-	.remove_new	= gsc_remove,
+	.remove		= gsc_remove,
 	.driver		= {
 		.name	= "exynos-drm-gsc",
 		.pm	= &gsc_pm_ops,

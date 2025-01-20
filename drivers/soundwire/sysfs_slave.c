@@ -215,7 +215,7 @@ const struct attribute_group *sdw_attr_groups[] = {
 
 /*
  * the status is shown in capital letters for UNATTACHED and RESERVED
- * on purpose, to highligh users to the fact that these status values
+ * on purpose, to highlight users to the fact that these status values
  * are not expected.
  */
 static const char *const slave_status[] = {

@@ -24,8 +24,8 @@
 
 #include "dfs_cache.h"
 
-#define CACHE_HTABLE_SIZE	32
-#define CACHE_MAX_ENTRIES	64
+#define CACHE_HTABLE_SIZE	512
+#define CACHE_MAX_ENTRIES	1024
 #define CACHE_MIN_TTL		120 /* 2 minutes */
 #define CACHE_DEFAULT_TTL	300 /* 5 minutes */
 

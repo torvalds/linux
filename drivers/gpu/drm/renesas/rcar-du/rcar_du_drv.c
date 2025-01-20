@@ -729,7 +729,7 @@ error:
 
 static struct platform_driver rcar_du_platform_driver = {
 	.probe		= rcar_du_probe,
-	.remove_new	= rcar_du_remove,
+	.remove		= rcar_du_remove,
 	.shutdown	= rcar_du_shutdown,
 	.driver		= {
 		.name	= "rcar-du",

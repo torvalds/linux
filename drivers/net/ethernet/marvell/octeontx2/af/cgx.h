@@ -32,6 +32,10 @@
 #define CGX_LMAC_TYPE_MASK		0xF
 #define CGXX_CMRX_INT			0x040
 #define FW_CGX_INT			BIT_ULL(1)
+#define CGXX_CMR_GLOBAL_CONFIG          0x08
+#define CGX_NIX0_RESET			BIT_ULL(2)
+#define CGX_NIX1_RESET			BIT_ULL(3)
+#define CGX_NSCI_DROP			BIT_ULL(9)
 #define CGXX_CMRX_INT_ENA_W1S		0x058
 #define CGXX_CMRX_RX_ID_MAP		0x060
 #define CGXX_CMRX_RX_STAT0		0x070
@@ -185,4 +189,5 @@ int cgx_lmac_get_pfc_frm_cfg(void *cgxd, int lmac_id, u8 *tx_pause,
 int verify_lmac_fc_cfg(void *cgxd, int lmac_id, u8 tx_pause, u8 rx_pause,
 		       int pfvf_idx);
 int cgx_lmac_reset(void *cgxd, int lmac_id, u8 pf_req_flr);
+u32 cgx_get_fifo_len(void *cgxd);
 #endif /* CGX_H */

@@ -75,7 +75,7 @@ static ssize_t hsmp_metric_tbl_plat_read(struct file *filp, struct kobject *kobj
 }
 
 static umode_t hsmp_is_sock_attr_visible(struct kobject *kobj,
-					 struct bin_attribute *battr, int id)
+					 const struct bin_attribute *battr, int id)
 {
 	u16 sock_ind;
 
@@ -332,7 +332,7 @@ static void __exit hsmp_plt_exit(void)
 device_initcall(hsmp_plt_init);
 module_exit(hsmp_plt_exit);
 
-MODULE_IMPORT_NS(AMD_HSMP);
+MODULE_IMPORT_NS("AMD_HSMP");
 MODULE_DESCRIPTION("AMD HSMP Platform Interface Driver");
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");

@@ -178,9 +178,26 @@ static void blk_validate_atomic_write_limits(struct queue_limits *lim)
 	if (!lim->atomic_write_hw_max)
 		goto unsupported;
 
+	if (WARN_ON_ONCE(!is_power_of_2(lim->atomic_write_hw_unit_min)))
+		goto unsupported;
+
+	if (WARN_ON_ONCE(!is_power_of_2(lim->atomic_write_hw_unit_max)))
+		goto unsupported;
+
+	if (WARN_ON_ONCE(lim->atomic_write_hw_unit_min >
+			 lim->atomic_write_hw_unit_max))
+		goto unsupported;
+
+	if (WARN_ON_ONCE(lim->atomic_write_hw_unit_max >
+			 lim->atomic_write_hw_max))
+		goto unsupported;
+
 	boundary_sectors = lim->atomic_write_hw_boundary >> SECTOR_SHIFT;
 
 	if (boundary_sectors) {
+		if (WARN_ON_ONCE(lim->atomic_write_hw_max >
+				 lim->atomic_write_hw_boundary))
+			goto unsupported;
 		/*
 		 * A feature of boundary support is that it disallows bios to
 		 * be merged which would result in a merged request which
@@ -247,6 +264,13 @@ int blk_validate_limits(struct queue_limits *lim)
 	 */
 	if (lim->io_min < lim->physical_block_size)
 		lim->io_min = lim->physical_block_size;
+
+	/*
+	 * The optimal I/O size may not be aligned to physical block size
+	 * (because it may be limited by dma engines which have no clue about
+	 * block size of the disks attached to them), so we round it down here.
+	 */
+	lim->io_opt = round_down(lim->io_opt, lim->physical_block_size);
 
 	/*
 	 * max_hw_sectors has a somewhat weird default for historical reason,
@@ -458,8 +482,6 @@ static unsigned int queue_limit_discard_alignment(
 	/* Why are these in bytes, not sectors? */
 	alignment = lim->discard_alignment >> SECTOR_SHIFT;
 	granularity = lim->discard_granularity >> SECTOR_SHIFT;
-	if (!granularity)
-		return 0;
 
 	/* Offset of the partition start in 'granularity' sectors */
 	offset = sector_div(sector, granularity);
@@ -477,6 +499,119 @@ static unsigned int blk_round_down_sectors(unsigned int sectors, unsigned int lb
 	if (sectors < PAGE_SIZE >> SECTOR_SHIFT)
 		sectors = PAGE_SIZE >> SECTOR_SHIFT;
 	return sectors;
+}
+
+/* Check if second and later bottom devices are compliant */
+static bool blk_stack_atomic_writes_tail(struct queue_limits *t,
+				struct queue_limits *b)
+{
+	/* We're not going to support different boundary sizes.. yet */
+	if (t->atomic_write_hw_boundary != b->atomic_write_hw_boundary)
+		return false;
+
+	/* Can't support this */
+	if (t->atomic_write_hw_unit_min > b->atomic_write_hw_unit_max)
+		return false;
+
+	/* Or this */
+	if (t->atomic_write_hw_unit_max < b->atomic_write_hw_unit_min)
+		return false;
+
+	t->atomic_write_hw_max = min(t->atomic_write_hw_max,
+				b->atomic_write_hw_max);
+	t->atomic_write_hw_unit_min = max(t->atomic_write_hw_unit_min,
+				b->atomic_write_hw_unit_min);
+	t->atomic_write_hw_unit_max = min(t->atomic_write_hw_unit_max,
+				b->atomic_write_hw_unit_max);
+	return true;
+}
+
+/* Check for valid boundary of first bottom device */
+static bool blk_stack_atomic_writes_boundary_head(struct queue_limits *t,
+				struct queue_limits *b)
+{
+	/*
+	 * Ensure atomic write boundary is aligned with chunk sectors. Stacked
+	 * devices store chunk sectors in t->io_min.
+	 */
+	if (b->atomic_write_hw_boundary > t->io_min &&
+	    b->atomic_write_hw_boundary % t->io_min)
+		return false;
+	if (t->io_min > b->atomic_write_hw_boundary &&
+	    t->io_min % b->atomic_write_hw_boundary)
+		return false;
+
+	t->atomic_write_hw_boundary = b->atomic_write_hw_boundary;
+	return true;
+}
+
+
+/* Check stacking of first bottom device */
+static bool blk_stack_atomic_writes_head(struct queue_limits *t,
+				struct queue_limits *b)
+{
+	if (b->atomic_write_hw_boundary &&
+	    !blk_stack_atomic_writes_boundary_head(t, b))
+		return false;
+
+	if (t->io_min <= SECTOR_SIZE) {
+		/* No chunk sectors, so use bottom device values directly */
+		t->atomic_write_hw_unit_max = b->atomic_write_hw_unit_max;
+		t->atomic_write_hw_unit_min = b->atomic_write_hw_unit_min;
+		t->atomic_write_hw_max = b->atomic_write_hw_max;
+		return true;
+	}
+
+	/*
+	 * Find values for limits which work for chunk size.
+	 * b->atomic_write_hw_unit_{min, max} may not be aligned with chunk
+	 * size (t->io_min), as chunk size is not restricted to a power-of-2.
+	 * So we need to find highest power-of-2 which works for the chunk
+	 * size.
+	 * As an example scenario, we could have b->unit_max = 16K and
+	 * t->io_min = 24K. For this case, reduce t->unit_max to a value
+	 * aligned with both limits, i.e. 8K in this example.
+	 */
+	t->atomic_write_hw_unit_max = b->atomic_write_hw_unit_max;
+	while (t->io_min % t->atomic_write_hw_unit_max)
+		t->atomic_write_hw_unit_max /= 2;
+
+	t->atomic_write_hw_unit_min = min(b->atomic_write_hw_unit_min,
+					  t->atomic_write_hw_unit_max);
+	t->atomic_write_hw_max = min(b->atomic_write_hw_max, t->io_min);
+
+	return true;
+}
+
+static void blk_stack_atomic_writes_limits(struct queue_limits *t,
+				struct queue_limits *b)
+{
+	if (!(t->features & BLK_FEAT_ATOMIC_WRITES_STACKED))
+		goto unsupported;
+
+	if (!b->atomic_write_unit_min)
+		goto unsupported;
+
+	/*
+	 * If atomic_write_hw_max is set, we have already stacked 1x bottom
+	 * device, so check for compliance.
+	 */
+	if (t->atomic_write_hw_max) {
+		if (!blk_stack_atomic_writes_tail(t, b))
+			goto unsupported;
+		return;
+	}
+
+	if (!blk_stack_atomic_writes_head(t, b))
+		goto unsupported;
+	return;
+
+unsupported:
+	t->atomic_write_hw_max = 0;
+	t->atomic_write_hw_unit_max = 0;
+	t->atomic_write_hw_unit_min = 0;
+	t->atomic_write_hw_boundary = 0;
+	t->features &= ~BLK_FEAT_ATOMIC_WRITES_STACKED;
 }
 
 /**
@@ -639,6 +774,8 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 		t->zone_write_granularity = 0;
 		t->max_zone_append_sectors = 0;
 	}
+	blk_stack_atomic_writes_limits(t, b);
+
 	return ret;
 }
 EXPORT_SYMBOL(blk_stack_limits);

@@ -949,7 +949,7 @@ static struct platform_driver pm8xxx_mpp_driver = {
 		.of_match_table = pm8xxx_mpp_of_match,
 	},
 	.probe = pm8xxx_mpp_probe,
-	.remove_new = pm8xxx_mpp_remove,
+	.remove = pm8xxx_mpp_remove,
 };
 
 module_platform_driver(pm8xxx_mpp_driver);

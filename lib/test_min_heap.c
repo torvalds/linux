@@ -23,14 +23,6 @@ static __init bool greater_than(const void *lhs, const void *rhs, void __always_
 	return *(int *)lhs > *(int *)rhs;
 }
 
-static __init void swap_ints(void *lhs, void *rhs, void __always_unused *args)
-{
-	int temp = *(int *)lhs;
-
-	*(int *)lhs = *(int *)rhs;
-	*(int *)rhs = temp;
-}
-
 static __init int pop_verify_heap(bool min_heap,
 				struct min_heap_test *heap,
 				const struct min_heap_callbacks *funcs)
@@ -72,7 +64,7 @@ static __init int test_heapify_all(bool min_heap)
 	};
 	struct min_heap_callbacks funcs = {
 		.less = min_heap ? less_than : greater_than,
-		.swp = swap_ints,
+		.swp = NULL,
 	};
 	int i, err;
 
@@ -104,7 +96,7 @@ static __init int test_heap_push(bool min_heap)
 	};
 	struct min_heap_callbacks funcs = {
 		.less = min_heap ? less_than : greater_than,
-		.swp = swap_ints,
+		.swp = NULL,
 	};
 	int i, temp, err;
 
@@ -136,7 +128,7 @@ static __init int test_heap_pop_push(bool min_heap)
 	};
 	struct min_heap_callbacks funcs = {
 		.less = min_heap ? less_than : greater_than,
-		.swp = swap_ints,
+		.swp = NULL,
 	};
 	int i, temp, err;
 
@@ -175,7 +167,7 @@ static __init int test_heap_del(bool min_heap)
 	heap.nr = ARRAY_SIZE(values);
 	struct min_heap_callbacks funcs = {
 		.less = min_heap ? less_than : greater_than,
-		.swp = swap_ints,
+		.swp = NULL,
 	};
 	int i, err;
 

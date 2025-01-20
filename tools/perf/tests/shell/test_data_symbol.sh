@@ -1,5 +1,5 @@
 #!/bin/bash
-# Test data symbol
+# Test data symbol (exclusive)
 
 # SPDX-License-Identifier: GPL-2.0
 # Leo Yan <leo.yan@linaro.org>, 2022

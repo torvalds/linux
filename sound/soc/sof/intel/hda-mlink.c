@@ -434,7 +434,7 @@ int hda_bus_ml_init(struct hdac_bus *bus)
 	}
 	return 0;
 }
-EXPORT_SYMBOL_NS(hda_bus_ml_init, SND_SOC_SOF_HDA_MLINK);
+EXPORT_SYMBOL_NS(hda_bus_ml_init, "SND_SOC_SOF_HDA_MLINK");
 
 void hda_bus_ml_free(struct hdac_bus *bus)
 {
@@ -452,7 +452,7 @@ void hda_bus_ml_free(struct hdac_bus *bus)
 		kfree(h2link);
 	}
 }
-EXPORT_SYMBOL_NS(hda_bus_ml_free, SND_SOC_SOF_HDA_MLINK);
+EXPORT_SYMBOL_NS(hda_bus_ml_free, "SND_SOC_SOF_HDA_MLINK");
 
 static struct hdac_ext2_link *
 find_ext2_link(struct hdac_bus *bus, bool alt, int elid)
@@ -479,7 +479,7 @@ int hdac_bus_eml_get_count(struct hdac_bus *bus, bool alt, int elid)
 
 	return h2link->slcount;
 }
-EXPORT_SYMBOL_NS(hdac_bus_eml_get_count, SND_SOC_SOF_HDA_MLINK);
+EXPORT_SYMBOL_NS(hdac_bus_eml_get_count, "SND_SOC_SOF_HDA_MLINK");
 
 void hdac_bus_eml_enable_interrupt_unlocked(struct hdac_bus *bus, bool alt, int elid, bool enable)
 {
@@ -497,7 +497,7 @@ void hdac_bus_eml_enable_interrupt_unlocked(struct hdac_bus *bus, bool alt, int 
 
 	hdaml_link_enable_interrupt(hlink->ml_addr + AZX_REG_ML_LCTL, enable);
 }
-EXPORT_SYMBOL_NS(hdac_bus_eml_enable_interrupt_unlocked, SND_SOC_SOF_HDA_MLINK);
+EXPORT_SYMBOL_NS(hdac_bus_eml_enable_interrupt_unlocked, "SND_SOC_SOF_HDA_MLINK");
 
 void hdac_bus_eml_enable_interrupt(struct hdac_bus *bus, bool alt, int elid, bool enable)
 {
@@ -519,7 +519,7 @@ void hdac_bus_eml_enable_interrupt(struct hdac_bus *bus, bool alt, int elid, boo
 
 	mutex_unlock(&h2link->eml_lock);
 }
-EXPORT_SYMBOL_NS(hdac_bus_eml_enable_interrupt, SND_SOC_SOF_HDA_MLINK);
+EXPORT_SYMBOL_NS(hdac_bus_eml_enable_interrupt, "SND_SOC_SOF_HDA_MLINK");
 
 bool hdac_bus_eml_check_interrupt(struct hdac_bus *bus, bool alt, int elid)
 {
@@ -537,7 +537,7 @@ bool hdac_bus_eml_check_interrupt(struct hdac_bus *bus, bool alt, int elid)
 
 	return hdaml_link_check_interrupt(hlink->ml_addr + AZX_REG_ML_LCTL);
 }
-EXPORT_SYMBOL_NS(hdac_bus_eml_check_interrupt, SND_SOC_SOF_HDA_MLINK);
+EXPORT_SYMBOL_NS(hdac_bus_eml_check_interrupt, "SND_SOC_SOF_HDA_MLINK");
 
 int hdac_bus_eml_set_syncprd_unlocked(struct hdac_bus *bus, bool alt, int elid, u32 syncprd)
 {
@@ -557,13 +557,13 @@ int hdac_bus_eml_set_syncprd_unlocked(struct hdac_bus *bus, bool alt, int elid, 
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(hdac_bus_eml_set_syncprd_unlocked, SND_SOC_SOF_HDA_MLINK);
+EXPORT_SYMBOL_NS(hdac_bus_eml_set_syncprd_unlocked, "SND_SOC_SOF_HDA_MLINK");
 
 int hdac_bus_eml_sdw_set_syncprd_unlocked(struct hdac_bus *bus, u32 syncprd)
 {
 	return hdac_bus_eml_set_syncprd_unlocked(bus, true, AZX_REG_ML_LEPTR_ID_SDW, syncprd);
 }
-EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_set_syncprd_unlocked, SND_SOC_SOF_HDA_MLINK);
+EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_set_syncprd_unlocked, "SND_SOC_SOF_HDA_MLINK");
 
 int hdac_bus_eml_wait_syncpu_unlocked(struct hdac_bus *bus, bool alt, int elid)
 {
@@ -581,13 +581,13 @@ int hdac_bus_eml_wait_syncpu_unlocked(struct hdac_bus *bus, bool alt, int elid)
 
 	return hdaml_link_wait_syncpu(hlink->ml_addr + AZX_REG_ML_LSYNC);
 }
-EXPORT_SYMBOL_NS(hdac_bus_eml_wait_syncpu_unlocked, SND_SOC_SOF_HDA_MLINK);
+EXPORT_SYMBOL_NS(hdac_bus_eml_wait_syncpu_unlocked, "SND_SOC_SOF_HDA_MLINK");
 
 int hdac_bus_eml_sdw_wait_syncpu_unlocked(struct hdac_bus *bus)
 {
 	return hdac_bus_eml_wait_syncpu_unlocked(bus, true, AZX_REG_ML_LEPTR_ID_SDW);
 }
-EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_wait_syncpu_unlocked, SND_SOC_SOF_HDA_MLINK);
+EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_wait_syncpu_unlocked, "SND_SOC_SOF_HDA_MLINK");
 
 void hdac_bus_eml_sync_arm_unlocked(struct hdac_bus *bus, bool alt, int elid, int sublink)
 {
@@ -605,13 +605,13 @@ void hdac_bus_eml_sync_arm_unlocked(struct hdac_bus *bus, bool alt, int elid, in
 
 	hdaml_link_sync_arm(hlink->ml_addr + AZX_REG_ML_LSYNC, sublink);
 }
-EXPORT_SYMBOL_NS(hdac_bus_eml_sync_arm_unlocked, SND_SOC_SOF_HDA_MLINK);
+EXPORT_SYMBOL_NS(hdac_bus_eml_sync_arm_unlocked, "SND_SOC_SOF_HDA_MLINK");
 
 void hdac_bus_eml_sdw_sync_arm_unlocked(struct hdac_bus *bus, int sublink)
 {
 	hdac_bus_eml_sync_arm_unlocked(bus, true, AZX_REG_ML_LEPTR_ID_SDW, sublink);
 }
-EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_sync_arm_unlocked, SND_SOC_SOF_HDA_MLINK);
+EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_sync_arm_unlocked, "SND_SOC_SOF_HDA_MLINK");
 
 int hdac_bus_eml_sync_go_unlocked(struct hdac_bus *bus, bool alt, int elid)
 {
@@ -631,13 +631,13 @@ int hdac_bus_eml_sync_go_unlocked(struct hdac_bus *bus, bool alt, int elid)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(hdac_bus_eml_sync_go_unlocked, SND_SOC_SOF_HDA_MLINK);
+EXPORT_SYMBOL_NS(hdac_bus_eml_sync_go_unlocked, "SND_SOC_SOF_HDA_MLINK");
 
 int hdac_bus_eml_sdw_sync_go_unlocked(struct hdac_bus *bus)
 {
 	return hdac_bus_eml_sync_go_unlocked(bus, true, AZX_REG_ML_LEPTR_ID_SDW);
 }
-EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_sync_go_unlocked, SND_SOC_SOF_HDA_MLINK);
+EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_sync_go_unlocked, "SND_SOC_SOF_HDA_MLINK");
 
 bool hdac_bus_eml_check_cmdsync_unlocked(struct hdac_bus *bus, bool alt, int elid)
 {
@@ -660,13 +660,13 @@ bool hdac_bus_eml_check_cmdsync_unlocked(struct hdac_bus *bus, bool alt, int eli
 	return hdaml_link_check_cmdsync(hlink->ml_addr + AZX_REG_ML_LSYNC,
 					cmdsync_mask);
 }
-EXPORT_SYMBOL_NS(hdac_bus_eml_check_cmdsync_unlocked, SND_SOC_SOF_HDA_MLINK);
+EXPORT_SYMBOL_NS(hdac_bus_eml_check_cmdsync_unlocked, "SND_SOC_SOF_HDA_MLINK");
 
 bool hdac_bus_eml_sdw_check_cmdsync_unlocked(struct hdac_bus *bus)
 {
 	return hdac_bus_eml_check_cmdsync_unlocked(bus, true, AZX_REG_ML_LEPTR_ID_SDW);
 }
-EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_check_cmdsync_unlocked, SND_SOC_SOF_HDA_MLINK);
+EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_check_cmdsync_unlocked, "SND_SOC_SOF_HDA_MLINK");
 
 static int hdac_bus_eml_power_up_base(struct hdac_bus *bus, bool alt, int elid, int sublink,
 				      bool eml_lock)
@@ -708,13 +708,13 @@ int hdac_bus_eml_power_up(struct hdac_bus *bus, bool alt, int elid, int sublink)
 {
 	return hdac_bus_eml_power_up_base(bus, alt, elid, sublink, true);
 }
-EXPORT_SYMBOL_NS(hdac_bus_eml_power_up, SND_SOC_SOF_HDA_MLINK);
+EXPORT_SYMBOL_NS(hdac_bus_eml_power_up, "SND_SOC_SOF_HDA_MLINK");
 
 int hdac_bus_eml_power_up_unlocked(struct hdac_bus *bus, bool alt, int elid, int sublink)
 {
 	return hdac_bus_eml_power_up_base(bus, alt, elid, sublink, false);
 }
-EXPORT_SYMBOL_NS(hdac_bus_eml_power_up_unlocked, SND_SOC_SOF_HDA_MLINK);
+EXPORT_SYMBOL_NS(hdac_bus_eml_power_up_unlocked, "SND_SOC_SOF_HDA_MLINK");
 
 static int hdac_bus_eml_power_down_base(struct hdac_bus *bus, bool alt, int elid, int sublink,
 					bool eml_lock)
@@ -755,25 +755,25 @@ int hdac_bus_eml_power_down(struct hdac_bus *bus, bool alt, int elid, int sublin
 {
 	return hdac_bus_eml_power_down_base(bus, alt, elid, sublink, true);
 }
-EXPORT_SYMBOL_NS(hdac_bus_eml_power_down, SND_SOC_SOF_HDA_MLINK);
+EXPORT_SYMBOL_NS(hdac_bus_eml_power_down, "SND_SOC_SOF_HDA_MLINK");
 
 int hdac_bus_eml_power_down_unlocked(struct hdac_bus *bus, bool alt, int elid, int sublink)
 {
 	return hdac_bus_eml_power_down_base(bus, alt, elid, sublink, false);
 }
-EXPORT_SYMBOL_NS(hdac_bus_eml_power_down_unlocked, SND_SOC_SOF_HDA_MLINK);
+EXPORT_SYMBOL_NS(hdac_bus_eml_power_down_unlocked, "SND_SOC_SOF_HDA_MLINK");
 
 int hdac_bus_eml_sdw_power_up_unlocked(struct hdac_bus *bus, int sublink)
 {
 	return hdac_bus_eml_power_up_unlocked(bus, true, AZX_REG_ML_LEPTR_ID_SDW, sublink);
 }
-EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_power_up_unlocked, SND_SOC_SOF_HDA_MLINK);
+EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_power_up_unlocked, "SND_SOC_SOF_HDA_MLINK");
 
 int hdac_bus_eml_sdw_power_down_unlocked(struct hdac_bus *bus, int sublink)
 {
 	return hdac_bus_eml_power_down_unlocked(bus, true, AZX_REG_ML_LEPTR_ID_SDW, sublink);
 }
-EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_power_down_unlocked, SND_SOC_SOF_HDA_MLINK);
+EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_power_down_unlocked, "SND_SOC_SOF_HDA_MLINK");
 
 int hdac_bus_eml_sdw_get_lsdiid_unlocked(struct hdac_bus *bus, int sublink, u16 *lsdiid)
 {
@@ -789,7 +789,7 @@ int hdac_bus_eml_sdw_get_lsdiid_unlocked(struct hdac_bus *bus, int sublink, u16 
 	*lsdiid = hdaml_link_get_lsdiid(hlink->ml_addr + AZX_REG_ML_LSDIID_OFFSET(sublink));
 
 	return 0;
-} EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_get_lsdiid_unlocked, SND_SOC_SOF_HDA_MLINK);
+} EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_get_lsdiid_unlocked, "SND_SOC_SOF_HDA_MLINK");
 
 int hdac_bus_eml_sdw_set_lsdiid(struct hdac_bus *bus, int sublink, int dev_num)
 {
@@ -809,7 +809,7 @@ int hdac_bus_eml_sdw_set_lsdiid(struct hdac_bus *bus, int sublink, int dev_num)
 	mutex_unlock(&h2link->eml_lock);
 
 	return 0;
-} EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_set_lsdiid, SND_SOC_SOF_HDA_MLINK);
+} EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_set_lsdiid, "SND_SOC_SOF_HDA_MLINK");
 
 /*
  * the 'y' parameter comes from the PCMSyCM hardware register naming. 'y' refers to the
@@ -853,7 +853,7 @@ int hdac_bus_eml_sdw_map_stream_ch(struct hdac_bus *bus, int sublink, int y,
 		sublink, channel_mask, stream_id, dir, val);
 
 	return 0;
-} EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_map_stream_ch, SND_SOC_SOF_HDA_MLINK);
+} EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_map_stream_ch, "SND_SOC_SOF_HDA_MLINK");
 
 void hda_bus_ml_put_all(struct hdac_bus *bus)
 {
@@ -866,7 +866,7 @@ void hda_bus_ml_put_all(struct hdac_bus *bus)
 			snd_hdac_ext_bus_link_put(bus, hlink);
 	}
 }
-EXPORT_SYMBOL_NS(hda_bus_ml_put_all, SND_SOC_SOF_HDA_MLINK);
+EXPORT_SYMBOL_NS(hda_bus_ml_put_all, "SND_SOC_SOF_HDA_MLINK");
 
 void hda_bus_ml_reset_losidv(struct hdac_bus *bus)
 {
@@ -876,7 +876,7 @@ void hda_bus_ml_reset_losidv(struct hdac_bus *bus)
 	list_for_each_entry(hlink, &bus->hlink_list, list)
 		writel(0, hlink->ml_addr + AZX_REG_ML_LOSIDV);
 }
-EXPORT_SYMBOL_NS(hda_bus_ml_reset_losidv, SND_SOC_SOF_HDA_MLINK);
+EXPORT_SYMBOL_NS(hda_bus_ml_reset_losidv, "SND_SOC_SOF_HDA_MLINK");
 
 int hda_bus_ml_resume(struct hdac_bus *bus)
 {
@@ -895,7 +895,7 @@ int hda_bus_ml_resume(struct hdac_bus *bus)
 	}
 	return 0;
 }
-EXPORT_SYMBOL_NS(hda_bus_ml_resume, SND_SOC_SOF_HDA_MLINK);
+EXPORT_SYMBOL_NS(hda_bus_ml_resume, "SND_SOC_SOF_HDA_MLINK");
 
 int hda_bus_ml_suspend(struct hdac_bus *bus)
 {
@@ -913,7 +913,7 @@ int hda_bus_ml_suspend(struct hdac_bus *bus)
 	}
 	return 0;
 }
-EXPORT_SYMBOL_NS(hda_bus_ml_suspend, SND_SOC_SOF_HDA_MLINK);
+EXPORT_SYMBOL_NS(hda_bus_ml_suspend, "SND_SOC_SOF_HDA_MLINK");
 
 struct mutex *hdac_bus_eml_get_mutex(struct hdac_bus *bus, bool alt, int elid)
 {
@@ -925,7 +925,7 @@ struct mutex *hdac_bus_eml_get_mutex(struct hdac_bus *bus, bool alt, int elid)
 
 	return &h2link->eml_lock;
 }
-EXPORT_SYMBOL_NS(hdac_bus_eml_get_mutex, SND_SOC_SOF_HDA_MLINK);
+EXPORT_SYMBOL_NS(hdac_bus_eml_get_mutex, "SND_SOC_SOF_HDA_MLINK");
 
 struct hdac_ext_link *hdac_bus_eml_ssp_get_hlink(struct hdac_bus *bus)
 {
@@ -937,7 +937,7 @@ struct hdac_ext_link *hdac_bus_eml_ssp_get_hlink(struct hdac_bus *bus)
 
 	return &h2link->hext_link;
 }
-EXPORT_SYMBOL_NS(hdac_bus_eml_ssp_get_hlink, SND_SOC_SOF_HDA_MLINK);
+EXPORT_SYMBOL_NS(hdac_bus_eml_ssp_get_hlink, "SND_SOC_SOF_HDA_MLINK");
 
 struct hdac_ext_link *hdac_bus_eml_dmic_get_hlink(struct hdac_bus *bus)
 {
@@ -949,7 +949,7 @@ struct hdac_ext_link *hdac_bus_eml_dmic_get_hlink(struct hdac_bus *bus)
 
 	return &h2link->hext_link;
 }
-EXPORT_SYMBOL_NS(hdac_bus_eml_dmic_get_hlink, SND_SOC_SOF_HDA_MLINK);
+EXPORT_SYMBOL_NS(hdac_bus_eml_dmic_get_hlink, "SND_SOC_SOF_HDA_MLINK");
 
 struct hdac_ext_link *hdac_bus_eml_sdw_get_hlink(struct hdac_bus *bus)
 {
@@ -961,7 +961,7 @@ struct hdac_ext_link *hdac_bus_eml_sdw_get_hlink(struct hdac_bus *bus)
 
 	return &h2link->hext_link;
 }
-EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_get_hlink, SND_SOC_SOF_HDA_MLINK);
+EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_get_hlink, "SND_SOC_SOF_HDA_MLINK");
 
 int hdac_bus_eml_enable_offload(struct hdac_bus *bus, bool alt, int elid, bool enable)
 {
@@ -985,7 +985,7 @@ int hdac_bus_eml_enable_offload(struct hdac_bus *bus, bool alt, int elid, bool e
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(hdac_bus_eml_enable_offload, SND_SOC_SOF_HDA_MLINK);
+EXPORT_SYMBOL_NS(hdac_bus_eml_enable_offload, "SND_SOC_SOF_HDA_MLINK");
 
 #endif
 

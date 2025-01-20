@@ -75,11 +75,11 @@ static __always_inline void ndelay(unsigned long nsec)
 {
 	if (__builtin_constant_p(nsec)) {
 		if (nsec >= DELAY_CONST_MAX)
-			__bad_udelay();
+			__bad_ndelay();
 		else
 			__const_udelay(nsec * NDELAY_CONST_MULT);
 	} else {
-		__udelay(nsec);
+		__ndelay(nsec);
 	}
 }
 #define ndelay(x) ndelay(x)

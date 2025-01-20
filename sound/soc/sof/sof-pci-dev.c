@@ -162,7 +162,7 @@ const struct dev_pm_ops sof_pci_pm = {
 	SET_RUNTIME_PM_OPS(snd_sof_runtime_suspend, snd_sof_runtime_resume,
 			   snd_sof_runtime_idle)
 };
-EXPORT_SYMBOL_NS(sof_pci_pm, SND_SOC_SOF_PCI_DEV);
+EXPORT_SYMBOL_NS(sof_pci_pm, "SND_SOC_SOF_PCI_DEV");
 
 static void sof_pci_probe_complete(struct device *dev)
 {
@@ -280,7 +280,7 @@ out:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS(sof_pci_probe, SND_SOC_SOF_PCI_DEV);
+EXPORT_SYMBOL_NS(sof_pci_probe, "SND_SOC_SOF_PCI_DEV");
 
 void sof_pci_remove(struct pci_dev *pci)
 {
@@ -295,13 +295,13 @@ void sof_pci_remove(struct pci_dev *pci)
 	/* release pci regions and disable device */
 	pci_release_regions(pci);
 }
-EXPORT_SYMBOL_NS(sof_pci_remove, SND_SOC_SOF_PCI_DEV);
+EXPORT_SYMBOL_NS(sof_pci_remove, "SND_SOC_SOF_PCI_DEV");
 
 void sof_pci_shutdown(struct pci_dev *pci)
 {
 	snd_sof_device_shutdown(&pci->dev);
 }
-EXPORT_SYMBOL_NS(sof_pci_shutdown, SND_SOC_SOF_PCI_DEV);
+EXPORT_SYMBOL_NS(sof_pci_shutdown, "SND_SOC_SOF_PCI_DEV");
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("SOF support for PCI platforms");

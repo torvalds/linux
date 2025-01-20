@@ -1817,7 +1817,7 @@ MODULE_DEVICE_TABLE(of, optee_dt_match);
 
 static struct platform_driver optee_driver = {
 	.probe  = optee_probe,
-	.remove_new = optee_smc_remove,
+	.remove = optee_smc_remove,
 	.shutdown = optee_shutdown,
 	.driver = {
 		.name = "optee",

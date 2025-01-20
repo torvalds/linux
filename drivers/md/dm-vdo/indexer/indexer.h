@@ -283,10 +283,6 @@ struct uds_request {
 	enum uds_index_region location;
 };
 
-/* Compute the number of bytes needed to store an index. */
-int __must_check uds_compute_index_size(const struct uds_parameters *parameters,
-					u64 *index_size);
-
 /* A session is required for most index operations. */
 int __must_check uds_create_index_session(struct uds_index_session **session);
 

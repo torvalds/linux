@@ -18,7 +18,7 @@ struct iio_map;
  * @map:	array of mappings specifying association of channel with client
  */
 int iio_map_array_register(struct iio_dev *indio_dev,
-			   struct iio_map *map);
+			   const struct iio_map *map);
 
 /**
  * iio_map_array_unregister() - tell the core to remove consumer mappings for
@@ -38,6 +38,7 @@ int iio_map_array_unregister(struct iio_dev *indio_dev);
  * handle de-registration of the IIO map object when the device's refcount goes to
  * zero.
  */
-int devm_iio_map_array_register(struct device *dev, struct iio_dev *indio_dev, struct iio_map *maps);
+int devm_iio_map_array_register(struct device *dev, struct iio_dev *indio_dev,
+				const struct iio_map *maps);
 
 #endif

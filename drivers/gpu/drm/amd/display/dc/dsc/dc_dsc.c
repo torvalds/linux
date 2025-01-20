@@ -1093,14 +1093,11 @@ static bool setup_dsc_config(
 	if (!is_dsc_possible)
 		goto done;
 
-	// Final decission: can we do DSC or not?
-	if (is_dsc_possible) {
-		// Fill out the rest of DSC settings
-		dsc_cfg->block_pred_enable = dsc_common_caps.is_block_pred_supported;
-		dsc_cfg->linebuf_depth = dsc_common_caps.lb_bit_depth;
-		dsc_cfg->version_minor = (dsc_common_caps.dsc_version & 0xf0) >> 4;
-		dsc_cfg->is_dp = dsc_sink_caps->is_dp;
-	}
+	/* Fill out the rest of DSC settings */
+	dsc_cfg->block_pred_enable = dsc_common_caps.is_block_pred_supported;
+	dsc_cfg->linebuf_depth = dsc_common_caps.lb_bit_depth;
+	dsc_cfg->version_minor = (dsc_common_caps.dsc_version & 0xf0) >> 4;
+	dsc_cfg->is_dp = dsc_sink_caps->is_dp;
 
 done:
 	if (!is_dsc_possible)

@@ -1501,6 +1501,10 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 		res = spl_calculate_scaler_params(spl_in, spl_out);
 		// Convert respective out params from SPL to scaler data
 		translate_SPL_out_params_to_pipe_ctx(pipe_ctx, spl_out);
+
+		/* Ignore scaler failure if pipe context plane is phantom plane */
+		if (!res && plane_state->is_phantom)
+			res = true;
 	} else {
 #endif
 	/* depends on h_active */
@@ -1570,6 +1574,10 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 					&pipe_ctx->plane_res.scl_data,
 					&plane_state->scaling_quality);
 	}
+
+	/* Ignore scaler failure if pipe context plane is phantom plane */
+	if (!res && plane_state->is_phantom)
+		res = true;
 
 	if (res && (pipe_ctx->plane_res.scl_data.taps.v_taps != temp.v_taps ||
 		pipe_ctx->plane_res.scl_data.taps.h_taps != temp.h_taps ||
