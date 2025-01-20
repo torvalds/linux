@@ -22,6 +22,7 @@ struct rtw89_h2c_rf_tssi;
 struct rtw89_fw_txpwr_track_cfg;
 struct rtw89_phy_rfk_log_fmt;
 struct rtw89_debugfs;
+struct rtw89_regd_data;
 
 extern const struct ieee80211_ops rtw89_ops;
 
@@ -718,6 +719,7 @@ enum rtw89_ofdma_type {
 	RTW89_OFDMA_NUM,
 };
 
+/* neither insert new in the middle, nor change any given definition */
 enum rtw89_regulation_type {
 	RTW89_WW	= 0,
 	RTW89_ETSI	= 1,
@@ -4539,6 +4541,7 @@ struct rtw89_fw_elm_info {
 	struct rtw89_phy_table *rf_nctl;
 	struct rtw89_fw_txpwr_track_cfg *txpwr_trk;
 	struct rtw89_phy_rfk_log_fmt *rfk_log_fmt;
+	const struct rtw89_regd_data *regd;
 };
 
 enum rtw89_fw_mss_dev_type {
@@ -5153,11 +5156,22 @@ struct rtw89_regd {
 	u8 txpwr_regd[RTW89_BAND_NUM];
 };
 
+struct rtw89_regd_data {
+	unsigned int nr;
+	struct rtw89_regd map[] __counted_by(nr);
+};
+
+struct rtw89_regd_ctrl {
+	unsigned int nr;
+	const struct rtw89_regd *map;
+};
+
 #define RTW89_REGD_MAX_COUNTRY_NUM U8_MAX
 #define RTW89_5GHZ_UNII4_CHANNEL_NUM 3
 #define RTW89_5GHZ_UNII4_START_INDEX 25
 
 struct rtw89_regulatory_info {
+	struct rtw89_regd_ctrl ctrl;
 	const struct rtw89_regd *regd;
 	enum rtw89_reg_6ghz_power reg_6ghz_power;
 	struct rtw89_reg_6ghz_tpe reg_6ghz_tpe;

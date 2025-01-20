@@ -7,9 +7,12 @@
 #include "ps.h"
 #include "util.h"
 
-#define COUNTRY_REGD(_alpha2, _txpwr_regd...) \
-	{.alpha2 = (_alpha2), \
-	 .txpwr_regd = {_txpwr_regd}, \
+#define COUNTRY_REGD(_alpha2, _rule_2ghz, _rule_5ghz, _rule_6ghz) \
+	{							\
+		.alpha2 = _alpha2,				\
+		.txpwr_regd[RTW89_BAND_2G] = _rule_2ghz,	\
+		.txpwr_regd[RTW89_BAND_5G] = _rule_5ghz,	\
+		.txpwr_regd[RTW89_BAND_6G] = _rule_6ghz,	\
 	}
 
 static const struct rtw89_regd rtw89_ww_regd =
@@ -295,13 +298,16 @@ static const char rtw89_alpha2_list_eu[][3] = {
 	"RO",
 };
 
-static const struct rtw89_regd *rtw89_regd_find_reg_by_name(const char *alpha2)
+static const struct rtw89_regd *rtw89_regd_find_reg_by_name(struct rtw89_dev *rtwdev,
+							    const char *alpha2)
 {
+	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
+	const struct rtw89_regd_ctrl *regd_ctrl = &regulatory->ctrl;
 	u32 i;
 
-	for (i = 0; i < ARRAY_SIZE(rtw89_regd_map); i++) {
-		if (!memcmp(rtw89_regd_map[i].alpha2, alpha2, 2))
-			return &rtw89_regd_map[i];
+	for (i = 0; i < regd_ctrl->nr; i++) {
+		if (!memcmp(regd_ctrl->map[i].alpha2, alpha2, 2))
+			return &regd_ctrl->map[i];
 	}
 
 	return &rtw89_ww_regd;
@@ -312,22 +318,25 @@ static bool rtw89_regd_is_ww(const struct rtw89_regd *regd)
 	return regd == &rtw89_ww_regd;
 }
 
-static u8 rtw89_regd_get_index(const struct rtw89_regd *regd)
+static u8 rtw89_regd_get_index(struct rtw89_dev *rtwdev, const struct rtw89_regd *regd)
 {
+	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
+	const struct rtw89_regd_ctrl *regd_ctrl = &regulatory->ctrl;
+
 	BUILD_BUG_ON(ARRAY_SIZE(rtw89_regd_map) > RTW89_REGD_MAX_COUNTRY_NUM);
 
 	if (rtw89_regd_is_ww(regd))
 		return RTW89_REGD_MAX_COUNTRY_NUM;
 
-	return regd - rtw89_regd_map;
+	return regd - regd_ctrl->map;
 }
 
-static u8 rtw89_regd_get_index_by_name(const char *alpha2)
+static u8 rtw89_regd_get_index_by_name(struct rtw89_dev *rtwdev, const char *alpha2)
 {
 	const struct rtw89_regd *regd;
 
-	regd = rtw89_regd_find_reg_by_name(alpha2);
-	return rtw89_regd_get_index(regd);
+	regd = rtw89_regd_find_reg_by_name(rtwdev, alpha2);
+	return rtw89_regd_get_index(rtwdev, regd);
 }
 
 #define rtw89_debug_regd(_dev, _regd, _desc, _argv...) \
@@ -345,6 +354,7 @@ static void rtw89_regd_setup_unii4(struct rtw89_dev *rtwdev,
 				   struct wiphy *wiphy)
 {
 	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
+	const struct rtw89_regd_ctrl *regd_ctrl = &regulatory->ctrl;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct ieee80211_supported_band *sband;
 	struct rtw89_acpi_dsm_result res = {};
@@ -382,8 +392,8 @@ static void rtw89_regd_setup_unii4(struct rtw89_dev *rtwdev,
 		    "acpi: eval if allow unii-4: 0x%x\n", val);
 
 bottom:
-	for (i = 0; i < ARRAY_SIZE(rtw89_regd_map); i++) {
-		const struct rtw89_regd *regd = &rtw89_regd_map[i];
+	for (i = 0; i < regd_ctrl->nr; i++) {
+		const struct rtw89_regd *regd = &regd_ctrl->map[i];
 
 		switch (regd->txpwr_regd[RTW89_BAND_5G]) {
 		case RTW89_FCC:
@@ -406,7 +416,7 @@ static void __rtw89_regd_setup_policy_6ghz(struct rtw89_dev *rtwdev, bool block,
 	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
 	u8 index;
 
-	index = rtw89_regd_get_index_by_name(alpha2);
+	index = rtw89_regd_get_index_by_name(rtwdev, alpha2);
 	if (index == RTW89_REGD_MAX_COUNTRY_NUM) {
 		rtw89_debug(rtwdev, RTW89_DBG_REGD, "%s: unknown alpha2 %c%c\n",
 			    __func__, alpha2[0], alpha2[1]);
@@ -474,6 +484,7 @@ out:
 static void rtw89_regd_setup_policy_6ghz_sp(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
+	const struct rtw89_regd_ctrl *regd_ctrl = &regulatory->ctrl;
 	const struct rtw89_acpi_policy_6ghz_sp *ptr;
 	struct rtw89_acpi_dsm_result res = {};
 	bool enable_by_us;
@@ -505,8 +516,8 @@ static void rtw89_regd_setup_policy_6ghz_sp(struct rtw89_dev *rtwdev)
 
 	enable_by_us = u8_get_bits(ptr->conf, RTW89_ACPI_CONF_6GHZ_SP_US);
 
-	for (i = 0; i < ARRAY_SIZE(rtw89_regd_map); i++) {
-		const struct rtw89_regd *tmp = &rtw89_regd_map[i];
+	for (i = 0; i < regd_ctrl->nr; i++) {
+		const struct rtw89_regd *tmp = &regd_ctrl->map[i];
 
 		if (enable_by_us && memcmp(tmp->alpha2, "US", 2) == 0)
 			clear_bit(i, regulatory->block_6ghz_sp);
@@ -573,7 +584,18 @@ bottom:
 
 int rtw89_regd_setup(struct rtw89_dev *rtwdev)
 {
+	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
+	struct rtw89_fw_elm_info *elm_info = &rtwdev->fw.elm_info;
+	const struct rtw89_regd_data *regd_data = elm_info->regd;
 	struct wiphy *wiphy = rtwdev->hw->wiphy;
+
+	if (regd_data) {
+		regulatory->ctrl.nr = regd_data->nr;
+		regulatory->ctrl.map = regd_data->map;
+	} else {
+		regulatory->ctrl.nr = ARRAY_SIZE(rtw89_regd_map);
+		regulatory->ctrl.map = rtw89_regd_map;
+	}
 
 	if (!wiphy)
 		return -EINVAL;
@@ -599,7 +621,7 @@ int rtw89_regd_init(struct rtw89_dev *rtwdev,
 	if (!wiphy)
 		return -EINVAL;
 
-	chip_regd = rtw89_regd_find_reg_by_name(rtwdev->efuse.country_code);
+	chip_regd = rtw89_regd_find_reg_by_name(rtwdev, rtwdev->efuse.country_code);
 	if (!rtw89_regd_is_ww(chip_regd)) {
 		rtwdev->regulatory.regd = chip_regd;
 		/* Ignore country ie if there is a country domain programmed in chip */
@@ -637,7 +659,7 @@ static void rtw89_regd_apply_policy_unii4(struct rtw89_dev *rtwdev,
 	if (!chip->support_unii4)
 		return;
 
-	index = rtw89_regd_get_index(regd);
+	index = rtw89_regd_get_index(rtwdev, regd);
 	if (index != RTW89_REGD_MAX_COUNTRY_NUM &&
 	    !test_bit(index, regulatory->block_unii4))
 		return;
@@ -655,7 +677,7 @@ static bool regd_is_6ghz_blocked(struct rtw89_dev *rtwdev)
 	const struct rtw89_regd *regd = regulatory->regd;
 	u8 index;
 
-	index = rtw89_regd_get_index(regd);
+	index = rtw89_regd_get_index(rtwdev, regd);
 	if (index != RTW89_REGD_MAX_COUNTRY_NUM &&
 	    !test_bit(index, regulatory->block_6ghz))
 		return false;
@@ -700,7 +722,7 @@ static void rtw89_regd_notifier_apply(struct rtw89_dev *rtwdev,
 				      struct wiphy *wiphy,
 				      struct regulatory_request *request)
 {
-	rtwdev->regulatory.regd = rtw89_regd_find_reg_by_name(request->alpha2);
+	rtwdev->regulatory.regd = rtw89_regd_find_reg_by_name(rtwdev, request->alpha2);
 	/* This notification might be set from the system of distros,
 	 * and it does not expect the regulatory will be modified by
 	 * connecting to an AP (i.e. country ie).
@@ -925,7 +947,7 @@ static bool __rtw89_reg_6ghz_power_recalc(struct rtw89_dev *rtwdev)
 		sel = RTW89_REG_6GHZ_POWER_DFLT;
 
 	if (sel == RTW89_REG_6GHZ_POWER_STD) {
-		index = rtw89_regd_get_index(regd);
+		index = rtw89_regd_get_index(rtwdev, regd);
 		if (index == RTW89_REGD_MAX_COUNTRY_NUM ||
 		    test_bit(index, regulatory->block_6ghz_sp)) {
 			rtw89_debug(rtwdev, RTW89_DBG_REGD,

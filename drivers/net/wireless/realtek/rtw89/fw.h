@@ -3882,6 +3882,7 @@ enum rtw89_fw_element_id {
 	RTW89_FW_ELEMENT_ID_TX_SHAPE_LMT_RU = 17,
 	RTW89_FW_ELEMENT_ID_TXPWR_TRK = 18,
 	RTW89_FW_ELEMENT_ID_RFKLOG_FMT = 19,
+	RTW89_FW_ELEMENT_ID_REGD = 20,
 
 	RTW89_FW_ELEMENT_ID_NUM,
 };
@@ -3920,6 +3921,15 @@ struct __rtw89_fw_txpwr_element {
 	u8 rsvd0;
 	u8 rsvd1;
 	u8 rfe_type;
+	u8 ent_sz;
+	__le32 num_ents;
+	u8 content[];
+} __packed;
+
+struct __rtw89_fw_regd_element {
+	u8 rsvd0;
+	u8 rsvd1;
+	u8 rsvd2;
 	u8 ent_sz;
 	__le32 num_ents;
 	u8 content[];
@@ -4016,6 +4026,7 @@ struct rtw89_fw_element_hdr {
 			__le16 offset[];
 		} __packed rfk_log_fmt;
 		struct __rtw89_fw_txpwr_element txpwr;
+		struct __rtw89_fw_regd_element regd;
 	} __packed u;
 } __packed;
 
@@ -4873,6 +4884,17 @@ int rtw89_chip_h2c_ba_cam(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
 
 	return 0;
 }
+
+/* Must consider compatibility; don't insert new in the mid.
+ * Fill each field's default value in rtw89_regd_entcpy().
+ */
+struct rtw89_fw_regd_entry {
+	u8 alpha2_0;
+	u8 alpha2_1;
+	u8 rule_2ghz;
+	u8 rule_5ghz;
+	u8 rule_6ghz;
+} __packed;
 
 /* must consider compatibility; don't insert new in the mid */
 struct rtw89_fw_txpwr_byrate_entry {

@@ -1056,6 +1056,89 @@ allocated:
 	return 0;
 }
 
+static bool rtw89_regd_entcpy(struct rtw89_regd *regd, const void *cursor,
+			      u8 cursor_size)
+{
+	/* fill default values if needed for backward compatibility */
+	struct rtw89_fw_regd_entry entry = {
+		.rule_2ghz = RTW89_NA,
+		.rule_5ghz = RTW89_NA,
+		.rule_6ghz = RTW89_NA,
+	};
+	u8 valid_size = min_t(u8, sizeof(entry), cursor_size);
+
+	memcpy(&entry, cursor, valid_size);
+	memset(regd, 0, sizeof(*regd));
+
+	regd->alpha2[0] = entry.alpha2_0;
+	regd->alpha2[1] = entry.alpha2_1;
+	regd->alpha2[2] = '\0';
+
+	/* also need to consider forward compatibility */
+	regd->txpwr_regd[RTW89_BAND_2G] = entry.rule_2ghz < RTW89_REGD_NUM ?
+					  entry.rule_2ghz : RTW89_NA;
+	regd->txpwr_regd[RTW89_BAND_5G] = entry.rule_5ghz < RTW89_REGD_NUM ?
+					  entry.rule_5ghz : RTW89_NA;
+	regd->txpwr_regd[RTW89_BAND_6G] = entry.rule_6ghz < RTW89_REGD_NUM ?
+					  entry.rule_6ghz : RTW89_NA;
+
+	return true;
+}
+
+#define rtw89_for_each_in_regd_element(regd, element) \
+	for (const void *cursor = (element)->content, \
+	     *end = (element)->content + \
+		    le32_to_cpu((element)->num_ents) * (element)->ent_sz; \
+	     cursor < end; cursor += (element)->ent_sz) \
+		if (rtw89_regd_entcpy(regd, cursor, (element)->ent_sz))
+
+static
+int rtw89_recognize_regd_from_elm(struct rtw89_dev *rtwdev,
+				  const struct rtw89_fw_element_hdr *elm,
+				  const union rtw89_fw_element_arg arg)
+{
+	const struct __rtw89_fw_regd_element *regd_elm = &elm->u.regd;
+	struct rtw89_fw_elm_info *elm_info = &rtwdev->fw.elm_info;
+	u32 num_ents = le32_to_cpu(regd_elm->num_ents);
+	struct rtw89_regd_data *p;
+	struct rtw89_regd regd;
+	u32 i = 0;
+
+	if (num_ents > RTW89_REGD_MAX_COUNTRY_NUM) {
+		rtw89_warn(rtwdev,
+			   "regd element ents (%d) are over max num (%d)\n",
+			   num_ents, RTW89_REGD_MAX_COUNTRY_NUM);
+		rtw89_warn(rtwdev,
+			   "regd element ignore and take another/common\n");
+		return 1;
+	}
+
+	if (elm_info->regd) {
+		rtw89_debug(rtwdev, RTW89_DBG_REGD,
+			    "regd element take the latter\n");
+		devm_kfree(rtwdev->dev, elm_info->regd);
+		elm_info->regd = NULL;
+	}
+
+	p = devm_kzalloc(rtwdev->dev, struct_size(p, map, num_ents), GFP_KERNEL);
+	if (!p)
+		return -ENOMEM;
+
+	p->nr = num_ents;
+	rtw89_for_each_in_regd_element(&regd, regd_elm)
+		p->map[i++] = regd;
+
+	if (i != num_ents) {
+		rtw89_err(rtwdev, "regd element has %d invalid ents\n",
+			  num_ents - i);
+		devm_kfree(rtwdev->dev, p);
+		return -EINVAL;
+	}
+
+	elm_info->regd = p;
+	return 0;
+}
+
 static const struct rtw89_fw_element_handler __fw_element_handlers[] = {
 	[RTW89_FW_ELEMENT_ID_BBMCU0] = {__rtw89_fw_recognize_from_elm,
 					{ .fw_type = RTW89_FW_BBMCU0 }, NULL},
@@ -1113,6 +1196,9 @@ static const struct rtw89_fw_element_handler __fw_element_handlers[] = {
 	},
 	[RTW89_FW_ELEMENT_ID_RFKLOG_FMT] = {
 		rtw89_build_rfk_log_fmt_from_elm, {}, NULL,
+	},
+	[RTW89_FW_ELEMENT_ID_REGD] = {
+		rtw89_recognize_regd_from_elm, {}, "REGD",
 	},
 };
 
