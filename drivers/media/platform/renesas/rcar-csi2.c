@@ -660,6 +660,38 @@ static const struct rcar_csi2_format rcar_csi2_formats[] = {
 		.code = MEDIA_BUS_FMT_SRGGB8_1X8,
 		.datatype = MIPI_CSI2_DT_RAW8,
 		.bpp = 8,
+	}, {
+		.code = MEDIA_BUS_FMT_SBGGR10_1X10,
+		.datatype = MIPI_CSI2_DT_RAW10,
+		.bpp = 10,
+	}, {
+		.code = MEDIA_BUS_FMT_SGBRG10_1X10,
+		.datatype = MIPI_CSI2_DT_RAW10,
+		.bpp = 10,
+	}, {
+		.code = MEDIA_BUS_FMT_SGRBG10_1X10,
+		.datatype = MIPI_CSI2_DT_RAW10,
+		.bpp = 10,
+	}, {
+		.code = MEDIA_BUS_FMT_SRGGB10_1X10,
+		.datatype = MIPI_CSI2_DT_RAW10,
+		.bpp = 10,
+	}, {
+		.code = MEDIA_BUS_FMT_SBGGR12_1X12,
+		.datatype = MIPI_CSI2_DT_RAW12,
+		.bpp = 12,
+	}, {
+		.code = MEDIA_BUS_FMT_SGBRG12_1X12,
+		.datatype = MIPI_CSI2_DT_RAW12,
+		.bpp = 12,
+	}, {
+		.code = MEDIA_BUS_FMT_SGRBG12_1X12,
+		.datatype = MIPI_CSI2_DT_RAW12,
+		.bpp = 12,
+	}, {
+		.code = MEDIA_BUS_FMT_SRGGB12_1X12,
+		.datatype = MIPI_CSI2_DT_RAW12,
+		.bpp = 12,
 	},
 };
 
