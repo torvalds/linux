@@ -203,7 +203,7 @@ static void accum_label_info(struct aa_label *new)
 	long u = FLAG_UNCONFINED;
 	int i;
 
-	AA_BUG(!new->vec);
+	AA_BUG(!new);
 
 	/* size == 1 is a profile and flags must be set as part of creation */
 	if (new->size == 1)
