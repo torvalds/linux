@@ -122,6 +122,7 @@ static int stm32_impedance_tune(struct stm32_combophy *combophy)
 	u32 max_vswing = imp_lookup[imp_size - 1].vswing[vswing_size - 1];
 	u32 min_vswing = imp_lookup[0].vswing[0];
 	u32 val;
+	u32 regval;
 
 	if (!of_property_read_u32(combophy->dev->of_node, "st,output-micro-ohms", &val)) {
 		if (val < min_imp || val > max_imp) {
@@ -129,16 +130,20 @@ static int stm32_impedance_tune(struct stm32_combophy *combophy)
 			return -EINVAL;
 		}
 
-		for (imp_of = 0; imp_of < ARRAY_SIZE(imp_lookup); imp_of++)
-			if (imp_lookup[imp_of].microohm <= val)
+		regval = 0;
+		for (imp_of = 0; imp_of < ARRAY_SIZE(imp_lookup); imp_of++) {
+			if (imp_lookup[imp_of].microohm <= val) {
+				regval = FIELD_PREP(STM32MP25_PCIEPRG_IMPCTRL_OHM, imp_of);
 				break;
+			}
+		}
 
 		dev_dbg(combophy->dev, "Set %u micro-ohms output impedance\n",
 			imp_lookup[imp_of].microohm);
 
 		regmap_update_bits(combophy->regmap, SYSCFG_PCIEPRGCR,
 				   STM32MP25_PCIEPRG_IMPCTRL_OHM,
-				   FIELD_PREP(STM32MP25_PCIEPRG_IMPCTRL_OHM, imp_of));
+				   regval);
 	} else {
 		regmap_read(combophy->regmap, SYSCFG_PCIEPRGCR, &val);
 		imp_of = FIELD_GET(STM32MP25_PCIEPRG_IMPCTRL_OHM, val);
@@ -150,16 +155,20 @@ static int stm32_impedance_tune(struct stm32_combophy *combophy)
 			return -EINVAL;
 		}
 
-		for (vswing_of = 0; vswing_of < ARRAY_SIZE(imp_lookup[imp_of].vswing); vswing_of++)
-			if (imp_lookup[imp_of].vswing[vswing_of] >= val)
+		regval = 0;
+		for (vswing_of = 0; vswing_of < ARRAY_SIZE(imp_lookup[imp_of].vswing); vswing_of++) {
+			if (imp_lookup[imp_of].vswing[vswing_of] >= val) {
+				regval = FIELD_PREP(STM32MP25_PCIEPRG_IMPCTRL_VSWING, vswing_of);
 				break;
+			}
+		}
 
 		dev_dbg(combophy->dev, "Set %u microvolt swing\n",
 			 imp_lookup[imp_of].vswing[vswing_of]);
 
 		regmap_update_bits(combophy->regmap, SYSCFG_PCIEPRGCR,
 				   STM32MP25_PCIEPRG_IMPCTRL_VSWING,
-				   FIELD_PREP(STM32MP25_PCIEPRG_IMPCTRL_VSWING, vswing_of));
+				   regval);
 	}
 
 	return 0;

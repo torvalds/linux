@@ -932,7 +932,7 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 	if (!asrc_pdev)
 		priv->card.num_dapm_routes /= 2;
 
-	if (of_property_read_bool(np, "audio-routing")) {
+	if (of_property_present(np, "audio-routing")) {
 		ret = snd_soc_of_parse_audio_routing(&priv->card, "audio-routing");
 		if (ret) {
 			dev_err(&pdev->dev, "failed to parse audio-routing: %d\n", ret);

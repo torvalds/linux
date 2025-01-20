@@ -1715,11 +1715,8 @@ static bool bnxt_re_is_qp1_or_shadow_qp(struct bnxt_re_dev *rdev,
 
 static void bnxt_re_dev_stop(struct bnxt_re_dev *rdev)
 {
-	int mask = IB_QP_STATE;
-	struct ib_qp_attr qp_attr;
 	struct bnxt_re_qp *qp;
 
-	qp_attr.qp_state = IB_QPS_ERR;
 	mutex_lock(&rdev->qp_lock);
 	list_for_each_entry(qp, &rdev->qp_list, list) {
 		/* Modify the state of all QPs except QP1/Shadow QP */
@@ -1727,12 +1724,9 @@ static void bnxt_re_dev_stop(struct bnxt_re_dev *rdev)
 			if (qp->qplib_qp.state !=
 			    CMDQ_MODIFY_QP_NEW_STATE_RESET &&
 			    qp->qplib_qp.state !=
-			    CMDQ_MODIFY_QP_NEW_STATE_ERR) {
+			    CMDQ_MODIFY_QP_NEW_STATE_ERR)
 				bnxt_re_dispatch_event(&rdev->ibdev, &qp->ib_qp,
 						       1, IB_EVENT_QP_FATAL);
-				bnxt_re_modify_qp(&qp->ib_qp, &qp_attr, mask,
-						  NULL);
-			}
 		}
 	}
 	mutex_unlock(&rdev->qp_lock);

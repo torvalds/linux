@@ -26,11 +26,13 @@ struct dma_slave_map;
  * @max_mm_channels: Maximum number of MM DMA channels in each direction
  * @device_map: DMA slave map
  * @irq_index: The index of first IRQ
+ * @dma_dev: The device pointer for dma operations
  */
 struct qdma_platdata {
 	u32			max_mm_channels;
 	u32			irq_index;
 	struct dma_slave_map	*device_map;
+	struct device		*dma_dev;
 };
 
 #endif /* _PLATDATA_AMD_QDMA_H */

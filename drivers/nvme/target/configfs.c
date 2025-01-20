@@ -810,18 +810,6 @@ static struct configfs_attribute *nvmet_ns_attrs[] = {
 	NULL,
 };
 
-bool nvmet_subsys_nsid_exists(struct nvmet_subsys *subsys, u32 nsid)
-{
-	struct config_item *ns_item;
-	char name[12];
-
-	snprintf(name, sizeof(name), "%u", nsid);
-	mutex_lock(&subsys->namespaces_group.cg_subsys->su_mutex);
-	ns_item = config_group_find_item(&subsys->namespaces_group, name);
-	mutex_unlock(&subsys->namespaces_group.cg_subsys->su_mutex);
-	return ns_item != NULL;
-}
-
 static void nvmet_ns_release(struct config_item *item)
 {
 	struct nvmet_ns *ns = to_nvmet_ns(item);
@@ -2254,11 +2242,16 @@ static ssize_t nvmet_root_discovery_nqn_store(struct config_item *item,
 		const char *page, size_t count)
 {
 	struct list_head *entry;
+	char *old_nqn, *new_nqn;
 	size_t len;
 
 	len = strcspn(page, "\n");
 	if (!len || len > NVMF_NQN_FIELD_LEN - 1)
 		return -EINVAL;
+
+	new_nqn = kstrndup(page, len, GFP_KERNEL);
+	if (!new_nqn)
+		return -ENOMEM;
 
 	down_write(&nvmet_config_sem);
 	list_for_each(entry, &nvmet_subsystems_group.cg_children) {
@@ -2268,13 +2261,15 @@ static ssize_t nvmet_root_discovery_nqn_store(struct config_item *item,
 		if (!strncmp(config_item_name(item), page, len)) {
 			pr_err("duplicate NQN %s\n", config_item_name(item));
 			up_write(&nvmet_config_sem);
+			kfree(new_nqn);
 			return -EINVAL;
 		}
 	}
-	memset(nvmet_disc_subsys->subsysnqn, 0, NVMF_NQN_FIELD_LEN);
-	memcpy(nvmet_disc_subsys->subsysnqn, page, len);
+	old_nqn = nvmet_disc_subsys->subsysnqn;
+	nvmet_disc_subsys->subsysnqn = new_nqn;
 	up_write(&nvmet_config_sem);
 
+	kfree(old_nqn);
 	return len;
 }
 

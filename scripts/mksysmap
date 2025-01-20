@@ -26,7 +26,7 @@
 #  (do not forget a space before each pattern)
 
 # local symbols for ARM, MIPS, etc.
-/ \\$/d
+/ \$/d
 
 # local labels, .LBB, .Ltmpxxx, .L__unnamed_xx, .LASANPC, etc.
 / \.L/d
@@ -39,7 +39,7 @@
 / __pi_\.L/d
 
 # arm64 local symbols in non-VHE KVM namespace
-/ __kvm_nvhe_\\$/d
+/ __kvm_nvhe_\$/d
 / __kvm_nvhe_\.L/d
 
 # lld arm/aarch64/mips thunks

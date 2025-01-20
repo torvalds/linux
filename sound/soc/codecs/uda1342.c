@@ -319,7 +319,7 @@ static DEFINE_RUNTIME_DEV_PM_OPS(uda1342_pm_ops,
 				 uda1342_suspend, uda1342_resume, NULL);
 
 static const struct i2c_device_id uda1342_i2c_id[] = {
-	 { "uda1342", 0 },
+	 { "uda1342" },
 	 { }
 };
 MODULE_DEVICE_TABLE(i2c, uda1342_i2c_id);

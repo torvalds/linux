@@ -667,8 +667,15 @@ static bool mptcp_established_options_add_addr(struct sock *sk, struct sk_buff *
 		    &echo, &drop_other_suboptions))
 		return false;
 
+	/*
+	 * Later on, mptcp_write_options() will enforce mutually exclusion with
+	 * DSS, bail out if such option is set and we can't drop it.
+	 */
 	if (drop_other_suboptions)
 		remaining += opt_size;
+	else if (opts->suboptions & OPTION_MPTCP_DSS)
+		return false;
+
 	len = mptcp_add_addr_len(opts->addr.family, echo, !!opts->addr.port);
 	if (remaining < len)
 		return false;
