@@ -424,8 +424,7 @@ static unsigned long fsl_samsung_hdmi_phy_find_pms(unsigned long fout, u8 *p, u1
 			 * Fvco = (M * f_ref) / P,
 			 * where f_ref is 24MHz.
 			 */
-			tmp = (u64)_m * 24 * MHZ;
-			do_div(tmp, _p);
+			tmp = div64_ul((u64)_m * 24 * MHZ, _p);
 			if (tmp < 750 * MHZ ||
 			    tmp > 3000 * MHZ)
 				continue;

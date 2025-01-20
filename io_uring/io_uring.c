@@ -215,9 +215,9 @@ bool io_match_task_safe(struct io_kiocb *head, struct io_uring_task *tctx,
 		struct io_ring_ctx *ctx = head->ctx;
 
 		/* protect against races with linked timeouts */
-		spin_lock_irq(&ctx->timeout_lock);
+		raw_spin_lock_irq(&ctx->timeout_lock);
 		matched = io_match_linked(head);
-		spin_unlock_irq(&ctx->timeout_lock);
+		raw_spin_unlock_irq(&ctx->timeout_lock);
 	} else {
 		matched = io_match_linked(head);
 	}
@@ -333,7 +333,7 @@ static __cold struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	init_waitqueue_head(&ctx->cq_wait);
 	init_waitqueue_head(&ctx->poll_wq);
 	spin_lock_init(&ctx->completion_lock);
-	spin_lock_init(&ctx->timeout_lock);
+	raw_spin_lock_init(&ctx->timeout_lock);
 	INIT_WQ_LIST(&ctx->iopoll_list);
 	INIT_LIST_HEAD(&ctx->io_buffers_comp);
 	INIT_LIST_HEAD(&ctx->defer_list);
@@ -498,10 +498,10 @@ static void io_prep_async_link(struct io_kiocb *req)
 	if (req->flags & REQ_F_LINK_TIMEOUT) {
 		struct io_ring_ctx *ctx = req->ctx;
 
-		spin_lock_irq(&ctx->timeout_lock);
+		raw_spin_lock_irq(&ctx->timeout_lock);
 		io_for_each_link(cur, req)
 			io_prep_async_work(cur);
-		spin_unlock_irq(&ctx->timeout_lock);
+		raw_spin_unlock_irq(&ctx->timeout_lock);
 	} else {
 		io_for_each_link(cur, req)
 			io_prep_async_work(cur);
@@ -514,7 +514,11 @@ static void io_queue_iowq(struct io_kiocb *req)
 	struct io_uring_task *tctx = req->tctx;
 
 	BUG_ON(!tctx);
-	BUG_ON(!tctx->io_wq);
+
+	if ((current->flags & PF_KTHREAD) || !tctx->io_wq) {
+		io_req_task_queue_fail(req, -ECANCELED);
+		return;
+	}
 
 	/* init ->work of the whole link before punting */
 	io_prep_async_link(req);
@@ -3214,6 +3218,7 @@ end_wait:
 
 void __io_uring_cancel(bool cancel_all)
 {
+	io_uring_unreg_ringfd();
 	io_uring_cancel_generic(cancel_all, NULL);
 }
 

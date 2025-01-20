@@ -27,7 +27,8 @@
 #include <asm/mshyperv.h>
 
 static struct clock_event_device __percpu *hv_clock_event;
-static u64 hv_sched_clock_offset __ro_after_init;
+/* Note: offset can hold negative values after hibernation. */
+static u64 hv_sched_clock_offset __read_mostly;
 
 /*
  * If false, we're using the old mechanism for stimer0 interrupts
@@ -468,6 +469,17 @@ static void resume_hv_clock_tsc(struct clocksource *arg)
 	tsc_msr.enable = 1;
 	tsc_msr.pfn = tsc_pfn;
 	hv_set_msr(HV_MSR_REFERENCE_TSC, tsc_msr.as_uint64);
+}
+
+/*
+ * Called during resume from hibernation, from overridden
+ * x86_platform.restore_sched_clock_state routine. This is to adjust offsets
+ * used to calculate time for hv tsc page based sched_clock, to account for
+ * time spent before hibernation.
+ */
+void hv_adj_sched_clock_offset(u64 offset)
+{
+	hv_sched_clock_offset -= offset;
 }
 
 #ifdef HAVE_VDSO_CLOCKMODE_HVCLOCK

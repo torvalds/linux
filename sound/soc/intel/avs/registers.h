@@ -76,7 +76,7 @@
 /* Constants used when accessing SRAM, space shared with firmware */
 #define AVS_FW_REG_BASE(adev)		((adev)->spec->sram->base_offset)
 #define AVS_FW_REG_STATUS(adev)		(AVS_FW_REG_BASE(adev) + 0x0)
-#define AVS_FW_REG_ERROR_CODE(adev)	(AVS_FW_REG_BASE(adev) + 0x4)
+#define AVS_FW_REG_ERROR(adev)		(AVS_FW_REG_BASE(adev) + 0x4)
 
 #define AVS_WINDOW_CHUNK_SIZE		SZ_4K
 #define AVS_FW_REGS_SIZE		AVS_WINDOW_CHUNK_SIZE

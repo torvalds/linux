@@ -333,6 +333,14 @@ int gve_napi_poll(struct napi_struct *napi, int budget)
 
 	if (block->rx) {
 		work_done = gve_rx_poll(block, budget);
+
+		/* Poll XSK TX as part of RX NAPI. Setup re-poll based on max of
+		 * TX and RX work done.
+		 */
+		if (priv->xdp_prog)
+			work_done = max_t(int, work_done,
+					  gve_xsk_tx_poll(block, budget));
+
 		reschedule |= work_done == budget;
 	}
 
@@ -922,11 +930,13 @@ static void gve_init_sync_stats(struct gve_priv *priv)
 static void gve_tx_get_curr_alloc_cfg(struct gve_priv *priv,
 				      struct gve_tx_alloc_rings_cfg *cfg)
 {
+	int num_xdp_queues = priv->xdp_prog ? priv->rx_cfg.num_queues : 0;
+
 	cfg->qcfg = &priv->tx_cfg;
 	cfg->raw_addressing = !gve_is_qpl(priv);
 	cfg->ring_size = priv->tx_desc_cnt;
 	cfg->start_idx = 0;
-	cfg->num_rings = gve_num_tx_queues(priv);
+	cfg->num_rings = priv->tx_cfg.num_queues + num_xdp_queues;
 	cfg->tx = priv->tx;
 }
 
@@ -1623,8 +1633,8 @@ static int gve_xsk_pool_enable(struct net_device *dev,
 	if (err)
 		return err;
 
-	/* If XDP prog is not installed, return */
-	if (!priv->xdp_prog)
+	/* If XDP prog is not installed or interface is down, return. */
+	if (!priv->xdp_prog || !netif_running(dev))
 		return 0;
 
 	rx = &priv->rx[qid];
@@ -1669,21 +1679,16 @@ static int gve_xsk_pool_disable(struct net_device *dev,
 	if (qid >= priv->rx_cfg.num_queues)
 		return -EINVAL;
 
-	/* If XDP prog is not installed, unmap DMA and return */
-	if (!priv->xdp_prog)
+	/* If XDP prog is not installed or interface is down, unmap DMA and
+	 * return.
+	 */
+	if (!priv->xdp_prog || !netif_running(dev))
 		goto done;
-
-	tx_qid = gve_xdp_tx_queue_id(priv, qid);
-	if (!netif_running(dev)) {
-		priv->rx[qid].xsk_pool = NULL;
-		xdp_rxq_info_unreg(&priv->rx[qid].xsk_rxq);
-		priv->tx[tx_qid].xsk_pool = NULL;
-		goto done;
-	}
 
 	napi_rx = &priv->ntfy_blocks[priv->rx[qid].ntfy_id].napi;
 	napi_disable(napi_rx); /* make sure current rx poll is done */
 
+	tx_qid = gve_xdp_tx_queue_id(priv, qid);
 	napi_tx = &priv->ntfy_blocks[priv->tx[tx_qid].ntfy_id].napi;
 	napi_disable(napi_tx); /* make sure current tx poll is done */
 
@@ -1709,24 +1714,20 @@ done:
 static int gve_xsk_wakeup(struct net_device *dev, u32 queue_id, u32 flags)
 {
 	struct gve_priv *priv = netdev_priv(dev);
-	int tx_queue_id = gve_xdp_tx_queue_id(priv, queue_id);
+	struct napi_struct *napi;
+
+	if (!gve_get_napi_enabled(priv))
+		return -ENETDOWN;
 
 	if (queue_id >= priv->rx_cfg.num_queues || !priv->xdp_prog)
 		return -EINVAL;
 
-	if (flags & XDP_WAKEUP_TX) {
-		struct gve_tx_ring *tx = &priv->tx[tx_queue_id];
-		struct napi_struct *napi =
-			&priv->ntfy_blocks[tx->ntfy_id].napi;
-
-		if (!napi_if_scheduled_mark_missed(napi)) {
-			/* Call local_bh_enable to trigger SoftIRQ processing */
-			local_bh_disable();
-			napi_schedule(napi);
-			local_bh_enable();
-		}
-
-		tx->xdp_xsk_wakeup++;
+	napi = &priv->ntfy_blocks[gve_rx_idx_to_ntfy(priv, queue_id)].napi;
+	if (!napi_if_scheduled_mark_missed(napi)) {
+		/* Call local_bh_enable to trigger SoftIRQ processing */
+		local_bh_disable();
+		napi_schedule(napi);
+		local_bh_enable();
 	}
 
 	return 0;
@@ -1837,6 +1838,7 @@ int gve_adjust_queues(struct gve_priv *priv,
 {
 	struct gve_tx_alloc_rings_cfg tx_alloc_cfg = {0};
 	struct gve_rx_alloc_rings_cfg rx_alloc_cfg = {0};
+	int num_xdp_queues;
 	int err;
 
 	gve_get_curr_alloc_cfgs(priv, &tx_alloc_cfg, &rx_alloc_cfg);
@@ -1846,6 +1848,10 @@ int gve_adjust_queues(struct gve_priv *priv,
 	rx_alloc_cfg.qcfg_tx = &new_tx_config;
 	rx_alloc_cfg.qcfg = &new_rx_config;
 	tx_alloc_cfg.num_rings = new_tx_config.num_queues;
+
+	/* Add dedicated XDP TX queues if enabled. */
+	num_xdp_queues = priv->xdp_prog ? new_rx_config.num_queues : 0;
+	tx_alloc_cfg.num_rings += num_xdp_queues;
 
 	if (netif_running(priv->dev)) {
 		err = gve_adjust_config(priv, &tx_alloc_cfg, &rx_alloc_cfg);
@@ -1899,6 +1905,9 @@ static void gve_turndown(struct gve_priv *priv)
 
 	gve_clear_napi_enabled(priv);
 	gve_clear_report_stats(priv);
+
+	/* Make sure that all traffic is finished processing. */
+	synchronize_net();
 }
 
 static void gve_turnup(struct gve_priv *priv)

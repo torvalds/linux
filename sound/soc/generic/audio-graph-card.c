@@ -81,18 +81,14 @@ static void graph_parse_convert(struct device *dev,
 				struct simple_util_data *adata)
 {
 	struct device_node *top = dev->of_node;
-	struct device_node *port = ep_to_port(ep);
-	struct device_node *ports = port_to_ports(port);
-	struct device_node *node = of_graph_get_port_parent(ep);
+	struct device_node *port  __free(device_node) = ep_to_port(ep);
+	struct device_node *ports __free(device_node) = port_to_ports(port);
+	struct device_node *node  __free(device_node) = of_graph_get_port_parent(ep);
 
 	simple_util_parse_convert(top,   NULL,   adata);
 	simple_util_parse_convert(ports, NULL,   adata);
 	simple_util_parse_convert(port,  NULL,   adata);
 	simple_util_parse_convert(ep,    NULL,   adata);
-
-	of_node_put(port);
-	of_node_put(ports);
-	of_node_put(node);
 }
 
 static int graph_parse_node(struct simple_util_priv *priv,
@@ -140,10 +136,10 @@ static int graph_link_init(struct simple_util_priv *priv,
 	struct device_node *top = dev->of_node;
 	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, li->link);
 	struct simple_dai_props *dai_props = simple_priv_to_props(priv, li->link);
-	struct device_node *port_cpu = ep_to_port(ep_cpu);
-	struct device_node *port_codec = ep_to_port(ep_codec);
-	struct device_node *ports_cpu = port_to_ports(port_cpu);
-	struct device_node *ports_codec = port_to_ports(port_codec);
+	struct device_node *port_cpu    __free(device_node) = ep_to_port(ep_cpu);
+	struct device_node *port_codec  __free(device_node) = ep_to_port(ep_codec);
+	struct device_node *ports_cpu   __free(device_node) = port_to_ports(port_cpu);
+	struct device_node *ports_codec __free(device_node) = port_to_ports(port_codec);
 	enum snd_soc_trigger_order trigger_start = SND_SOC_TRIGGER_ORDER_DEFAULT;
 	enum snd_soc_trigger_order trigger_stop  = SND_SOC_TRIGGER_ORDER_DEFAULT;
 	bool playback_only = 0, capture_only = 0;
@@ -152,7 +148,7 @@ static int graph_link_init(struct simple_util_priv *priv,
 	ret = simple_util_parse_daifmt(dev, ep_cpu, ep_codec,
 				       NULL, &dai_link->dai_fmt);
 	if (ret < 0)
-		goto init_end;
+		return ret;
 
 	graph_util_parse_link_direction(top,		&playback_only, &capture_only);
 	graph_util_parse_link_direction(port_cpu,	&playback_only, &capture_only);
@@ -187,14 +183,7 @@ static int graph_link_init(struct simple_util_priv *priv,
 	if (priv->ops)
 		dai_link->ops	= priv->ops;
 
-	ret = simple_util_set_dailink_name(dev, dai_link, name);
-init_end:
-	of_node_put(ports_cpu);
-	of_node_put(ports_codec);
-	of_node_put(port_cpu);
-	of_node_put(port_codec);
-
-	return ret;
+	return simple_util_set_dailink_name(dev, dai_link, name);
 }
 
 static int graph_dai_link_of_dpcm(struct simple_util_priv *priv,
@@ -250,8 +239,6 @@ static int graph_dai_link_of_dpcm(struct simple_util_priv *priv,
 	} else {
 		struct snd_soc_codec_conf *cconf = simple_props_to_codec_conf(dai_props, 0);
 		struct snd_soc_dai_link_component *codecs = snd_soc_link_to_codec(dai_link, 0);
-		struct device_node *port;
-		struct device_node *ports;
 
 		/* CPU is dummy */
 
@@ -267,14 +254,12 @@ static int graph_dai_link_of_dpcm(struct simple_util_priv *priv,
 			 "be.%pOFP.%s", codecs->of_node, codecs->dai_name);
 
 		/* check "prefix" from top node */
-		port  = ep_to_port(ep);
-		ports = port_to_ports(port);
+		struct device_node *port  __free(device_node) = ep_to_port(ep);
+		struct device_node *ports __free(device_node) = port_to_ports(port);
+
 		snd_soc_of_parse_node_prefix(top,   cconf, codecs->of_node, "prefix");
 		snd_soc_of_parse_node_prefix(ports, cconf, codecs->of_node, "prefix");
 		snd_soc_of_parse_node_prefix(port,  cconf, codecs->of_node, "prefix");
-
-		of_node_put(ports);
-		of_node_put(port);
 	}
 
 	graph_parse_convert(dev, ep, &dai_props->adata);
@@ -361,8 +346,6 @@ static int __graph_for_each_link(struct simple_util_priv *priv,
 	struct device *dev = simple_priv_to_dev(priv);
 	struct device_node *node = dev->of_node;
 	struct device_node *cpu_port;
-	struct device_node *codec_ep;
-	struct device_node *codec_port;
 	struct device_node *codec_port_old = NULL;
 	struct simple_util_data adata;
 	int rc, ret = 0;
@@ -374,8 +357,8 @@ static int __graph_for_each_link(struct simple_util_priv *priv,
 		/* loop for all CPU endpoint */
 		for_each_of_graph_port_endpoint(cpu_port, cpu_ep) {
 			/* get codec */
-			codec_ep = of_graph_get_remote_endpoint(cpu_ep);
-			codec_port = ep_to_port(codec_ep);
+			struct device_node *codec_ep   __free(device_node) = of_graph_get_remote_endpoint(cpu_ep);
+			struct device_node *codec_port __free(device_node) = ep_to_port(codec_ep);
 
 			/* get convert-xxx property */
 			memset(&adata, 0, sizeof(adata));
@@ -398,9 +381,6 @@ static int __graph_for_each_link(struct simple_util_priv *priv,
 				if (li->cpu)
 					ret = func_noml(priv, cpu_ep, codec_ep, li);
 			}
-
-			of_node_put(codec_ep);
-			of_node_put(codec_port);
 
 			if (ret < 0)
 				return ret;

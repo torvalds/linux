@@ -186,6 +186,12 @@ static int rt5682_i2c_probe(struct i2c_client *i2c)
 		return -ENODEV;
 	}
 
+	regmap_read(rt5682->regmap, RT5682_INT_DEVICE_ID, &val);
+	if (val == 0x6956) {
+		dev_dbg(&i2c->dev, "ALC5682I-VE device\n");
+		rt5682->ve_ic = true;
+	}
+
 	mutex_init(&rt5682->calibrate_mutex);
 	rt5682_calibrate(rt5682);
 
