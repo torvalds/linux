@@ -11,6 +11,7 @@ kafs-y := \
 	cmservice.o \
 	dir.o \
 	dir_edit.o \
+	dir_search.o \
 	dir_silly.o \
 	dynroot.o \
 	file.o \

@@ -314,8 +314,10 @@ static void nfs_netfs_issue_read(struct netfs_io_subrequest *sreq)
 			     &nfs_async_read_completion_ops);
 
 	netfs = nfs_netfs_alloc(sreq);
-	if (!netfs)
-		return netfs_read_subreq_terminated(sreq, -ENOMEM, false);
+	if (!netfs) {
+		sreq->error = -ENOMEM;
+		return netfs_read_subreq_terminated(sreq);
+	}
 
 	pgio.pg_netfs = netfs; /* used in completion */
 
