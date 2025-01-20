@@ -444,8 +444,6 @@ int io_files_update(struct io_kiocb *req, unsigned int issue_flags)
 
 void io_free_rsrc_node(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
 {
-	lockdep_assert_held(&ctx->uring_lock);
-
 	if (node->tag)
 		io_post_aux_cqe(ctx, node->tag, 0, 0);
 
