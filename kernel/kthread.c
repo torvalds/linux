@@ -738,10 +738,11 @@ EXPORT_SYMBOL(kthread_stop_put);
 
 int kthreadd(void *unused)
 {
+	static const char comm[TASK_COMM_LEN] = "kthreadd";
 	struct task_struct *tsk = current;
 
 	/* Setup a clean context for our children to inherit. */
-	set_task_comm(tsk, "kthreadd");
+	set_task_comm(tsk, comm);
 	ignore_signals(tsk);
 	set_cpus_allowed_ptr(tsk, housekeeping_cpumask(HK_TYPE_KTHREAD));
 	set_mems_allowed(node_states[N_MEMORY]);

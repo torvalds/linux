@@ -264,7 +264,7 @@ static int io_sq_thread(void *data)
 	struct io_ring_ctx *ctx;
 	struct rusage start;
 	unsigned long timeout = 0;
-	char buf[TASK_COMM_LEN];
+	char buf[TASK_COMM_LEN] = {};
 	DEFINE_WAIT(wait);
 
 	/* offload context creation failed, just exit */
