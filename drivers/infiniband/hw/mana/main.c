@@ -240,6 +240,27 @@ void mana_ib_dealloc_ucontext(struct ib_ucontext *ibcontext)
 		ibdev_dbg(ibdev, "Failed to destroy doorbell page %d\n", ret);
 }
 
+int mana_ib_create_kernel_queue(struct mana_ib_dev *mdev, u32 size, enum gdma_queue_type type,
+				struct mana_ib_queue *queue)
+{
+	struct gdma_context *gc = mdev_to_gc(mdev);
+	struct gdma_queue_spec spec = {};
+	int err;
+
+	queue->id = INVALID_QUEUE_ID;
+	queue->gdma_region = GDMA_INVALID_DMA_REGION;
+	spec.type = type;
+	spec.monitor_avl_buf = false;
+	spec.queue_size = size;
+	err = mana_gd_create_mana_wq_cq(&gc->mana_ib, &spec, &queue->kmem);
+	if (err)
+		return err;
+	/* take ownership into mana_ib from mana */
+	queue->gdma_region = queue->kmem->mem_info.dma_region_handle;
+	queue->kmem->mem_info.dma_region_handle = GDMA_INVALID_DMA_REGION;
+	return 0;
+}
+
 int mana_ib_create_queue(struct mana_ib_dev *mdev, u64 addr, u32 size,
 			 struct mana_ib_queue *queue)
 {
@@ -279,6 +300,8 @@ void mana_ib_destroy_queue(struct mana_ib_dev *mdev, struct mana_ib_queue *queue
 	 */
 	mana_ib_gd_destroy_dma_region(mdev, queue->gdma_region);
 	ib_umem_release(queue->umem);
+	if (queue->kmem)
+		mana_gd_destroy_queue(mdev_to_gc(mdev), queue->kmem);
 }
 
 static int
