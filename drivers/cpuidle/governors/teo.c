@@ -106,6 +106,12 @@
 #include "gov.h"
 
 /*
+ * Idle state exit latency threshold used for deciding whether or not to check
+ * the time till the closest expected timer event.
+ */
+#define LATENCY_THRESHOLD_NS	(RESIDENCY_THRESHOLD_NS / 2)
+
+/*
  * The PULSE value is added to metrics when they grow and the DECAY_SHIFT value
  * is used for decreasing metrics on a regular basis.
  */
@@ -432,9 +438,14 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	 * duration falls into that range in the majority of cases, assume
 	 * non-timer wakeups to be dominant and skip updating the sleep length
 	 * to reduce latency.
+	 *
+	 * Also, if the latency constraint is sufficiently low, it will force
+	 * shallow idle states regardless of the wakeup type, so the sleep
+	 * length need not be known in that case.
 	 */
 	if ((!idx || drv->states[idx].target_residency_ns < RESIDENCY_THRESHOLD_NS) &&
-	    2 * cpu_data->short_idles >= cpu_data->total)
+	    (2 * cpu_data->short_idles >= cpu_data->total ||
+	     latency_req < LATENCY_THRESHOLD_NS))
 		goto out_tick;
 
 	duration_ns = tick_nohz_get_sleep_length(&delta_tick);
