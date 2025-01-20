@@ -295,7 +295,7 @@ struct intel_guc {
 	 */
 	struct work_struct dead_guc_worker;
 	/**
-	 * @last_dead_guc_jiffies: timestamp of previous 'dead guc' occurrance
+	 * @last_dead_guc_jiffies: timestamp of previous 'dead guc' occurrence
 	 * used to prevent a fundamentally broken system from continuously
 	 * reloading the GuC.
 	 */

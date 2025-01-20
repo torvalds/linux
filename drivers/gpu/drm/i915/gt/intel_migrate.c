@@ -304,7 +304,7 @@ struct intel_context *intel_migrate_create_context(struct intel_migrate *m)
 	struct intel_context *ce;
 
 	/*
-	 * We randomly distribute contexts across the engines upon constrction,
+	 * We randomly distribute contexts across the engines upon construction,
 	 * as they all share the same pinned vm, and so in order to allow
 	 * multiple blits to run in parallel, we must construct each blit
 	 * to use a different range of the vm for its GTT. This has to be
@@ -646,7 +646,7 @@ calculate_chunk_sz(struct drm_i915_private *i915, bool src_is_lmem,
 		 * When CHUNK_SZ is passed all the pages upto CHUNK_SZ
 		 * will be taken for the blt. in Flat-ccs supported
 		 * platform Smem obj will have more pages than required
-		 * for main meory hence limit it to the required size
+		 * for main memory hence limit it to the required size
 		 * for main memory
 		 */
 		return min_t(u64, bytes_to_cpy, CHUNK_SZ);

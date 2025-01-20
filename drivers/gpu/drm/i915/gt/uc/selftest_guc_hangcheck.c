@@ -64,7 +64,7 @@ static int intel_hang_guc(void *arg)
 	old_beat = engine->props.heartbeat_interval_ms;
 	ret = intel_engine_set_heartbeat(engine, BEAT_INTERVAL);
 	if (ret) {
-		gt_err(gt, "Failed to boost heatbeat interval: %pe\n", ERR_PTR(ret));
+		gt_err(gt, "Failed to boost heartbeat interval: %pe\n", ERR_PTR(ret));
 		goto err;
 	}
 

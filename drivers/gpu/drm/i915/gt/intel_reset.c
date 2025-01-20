@@ -1098,7 +1098,7 @@ static bool __intel_gt_unset_wedged(struct intel_gt *gt)
 		dma_fence_default_wait(fence, false, MAX_SCHEDULE_TIMEOUT);
 		dma_fence_put(fence);
 
-		/* Restart iteration after droping lock */
+		/* Restart iteration after dropping lock */
 		spin_lock(&timelines->lock);
 		tl = list_entry(&timelines->active_list, typeof(*tl), link);
 	}

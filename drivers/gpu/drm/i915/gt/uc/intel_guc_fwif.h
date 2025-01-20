@@ -408,7 +408,7 @@ enum guc_capture_type {
 	GUC_CAPTURE_LIST_TYPE_MAX,
 };
 
-/* Class indecies for capture_class and capture_instance arrays */
+/* Class indices for capture_class and capture_instance arrays */
 enum {
 	GUC_CAPTURE_LIST_CLASS_RENDER_COMPUTE = 0,
 	GUC_CAPTURE_LIST_CLASS_VIDEO = 1,

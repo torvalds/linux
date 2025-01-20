@@ -687,7 +687,7 @@ u32 intel_sseu_make_rpcs(struct intel_gt *gt,
 	 * According to documentation software must consider the configuration
 	 * as 2x4x8 and hardware will translate this to 1x8x8.
 	 *
-	 * Furthemore, even though SScount is three bits, maximum documented
+	 * Furthermore, even though SScount is three bits, maximum documented
 	 * value for it is four. From this some rules/restrictions follow:
 	 *
 	 * 1.
