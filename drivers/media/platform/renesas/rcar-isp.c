@@ -76,6 +76,54 @@ static const struct rcar_isp_format rcar_isp_formats[] = {
 		.code = MEDIA_BUS_FMT_YUYV10_2X10,
 		.datatype = MIPI_CSI2_DT_YUV422_8B,
 		.procmode = 0x0c,
+	}, {
+		.code = MEDIA_BUS_FMT_SBGGR8_1X8,
+		.datatype = MIPI_CSI2_DT_RAW8,
+		.procmode = 0x00,
+	}, {
+		.code = MEDIA_BUS_FMT_SGBRG8_1X8,
+		.datatype = MIPI_CSI2_DT_RAW8,
+		.procmode = 0x00,
+	}, {
+		.code = MEDIA_BUS_FMT_SGRBG8_1X8,
+		.datatype = MIPI_CSI2_DT_RAW8,
+		.procmode = 0x00,
+	}, {
+		.code = MEDIA_BUS_FMT_SRGGB8_1X8,
+		.datatype = MIPI_CSI2_DT_RAW8,
+		.procmode = 0x00,
+	}, {
+		.code = MEDIA_BUS_FMT_SBGGR10_1X10,
+		.datatype = MIPI_CSI2_DT_RAW10,
+		.procmode = 0x01,
+	}, {
+		.code = MEDIA_BUS_FMT_SGBRG10_1X10,
+		.datatype = MIPI_CSI2_DT_RAW10,
+		.procmode = 0x01,
+	}, {
+		.code = MEDIA_BUS_FMT_SGRBG10_1X10,
+		.datatype = MIPI_CSI2_DT_RAW10,
+		.procmode = 0x01,
+	}, {
+		.code = MEDIA_BUS_FMT_SRGGB10_1X10,
+		.datatype = MIPI_CSI2_DT_RAW10,
+		.procmode = 0x01,
+	}, {
+		.code = MEDIA_BUS_FMT_SBGGR12_1X12,
+		.datatype = MIPI_CSI2_DT_RAW12,
+		.procmode = 0x02,
+	}, {
+		.code = MEDIA_BUS_FMT_SGBRG12_1X12,
+		.datatype = MIPI_CSI2_DT_RAW12,
+		.procmode = 0x02,
+	}, {
+		.code = MEDIA_BUS_FMT_SGRBG12_1X12,
+		.datatype = MIPI_CSI2_DT_RAW12,
+		.procmode = 0x02,
+	}, {
+		.code = MEDIA_BUS_FMT_SRGGB12_1X12,
+		.datatype = MIPI_CSI2_DT_RAW12,
+		.procmode = 0x02,
 	},
 };
 
