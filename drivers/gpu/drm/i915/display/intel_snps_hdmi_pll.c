@@ -5,6 +5,7 @@
 
 #include <linux/math.h>
 
+#include "intel_cx0_phy_regs.h"
 #include "intel_display_types.h"
 #include "intel_snps_phy.h"
 #include "intel_snps_phy_regs.h"
@@ -285,4 +286,79 @@ void intel_snps_hdmi_pll_compute_mpllb(struct intel_mpllb_state *pll_state, u64 
 		REG_FIELD_PREP(SNPS_PHY_MPLLB_FRACN_REM, pll_params.fracn_rem);
 	pll_state->mpllb_sscen =
 		REG_FIELD_PREP(SNPS_PHY_MPLLB_SSC_UP_SPREAD, pll_params.ssc_up_spread);
+}
+
+void intel_snps_hdmi_pll_compute_c10pll(struct intel_c10pll_state *pll_state, u64 pixel_clock)
+{
+	/* x axis frequencies. One curve in each array per v2i point */
+	static const u64 c10_curve_freq_hz[2][8] = {
+		{ 2500000000ULL, 3000000000ULL, 3000000000ULL, 3500000000ULL, 3500000000ULL,
+		  4000000000ULL, 4000000000ULL, 5000000000ULL },
+		{ 4000000000ULL, 4600000000ULL, 4601000000ULL, 5400000000ULL, 5401000000ULL,
+		  6600000000ULL, 6601000000ULL, 8001000000ULL }
+	};
+
+	/* y axis heights multiplied with 1000000000 */
+	static const u64 c10_curve_0[2][8] = {
+		{ 41174500, 48605500, 42973700, 49433100, 42408600, 47681900, 40297400, 49131400 },
+		{ 82056800, 94420700, 82323400, 96370600, 81273300, 98630100, 81728700, 99105700}
+	};
+
+	static const u64 c10_curve_1[2][8] = {
+		{ 73300000000000ULL, 66000000000000ULL, 83100000000000ULL, 75300000000000ULL,
+		  99700000000000ULL, 92300000000000ULL, 125000000000000ULL, 110000000000000ULL },
+		{ 53700000000000ULL, 47700000000000ULL, 62200000000000ULL, 54400000000000ULL,
+		  75100000000000ULL, 63400000000000ULL, 90600000000000ULL, 76300000000000ULL }
+	};
+
+	/* Multiplied with 1000000000000 */
+	static const u64 c10_curve_2[2][8] = {
+		{ 2415790000ULL, 3136460000ULL, 2581990000ULL, 3222670000ULL, 2529330000ULL,
+		  3042020000ULL, 2336970000ULL, 3191460000ULL},
+		{ 4808390000ULL, 5994250000ULL, 4832730000ULL, 6193730000ULL, 4737700000ULL,
+		  6428750000ULL, 4779200000ULL, 6479340000ULL }
+	};
+
+	struct pll_output_params pll_params;
+	u32 refclk = 38400000;
+	u32 prescaler_divider = 0;
+	u32 ref_range = 1;
+	u32 ana_cp_int_gs = 30;
+	u32 ana_cp_prop_gs = 28;
+
+	compute_hdmi_tmds_pll(pixel_clock, refclk, ref_range,
+			      ana_cp_int_gs, ana_cp_prop_gs,
+			      c10_curve_freq_hz, c10_curve_0,
+			      c10_curve_1, c10_curve_2, prescaler_divider,
+			      &pll_params);
+
+	pll_state->tx = 0x10;
+	pll_state->cmn = 0x1;
+	pll_state->pll[0] = REG_FIELD_PREP(C10_PLL0_DIV5CLK_EN, pll_params.mpll_div5_en) |
+			    REG_FIELD_PREP(C10_PLL0_FRACEN, pll_params.fracn_en) |
+			    REG_FIELD_PREP(C10_PLL0_PMIX_EN, pll_params.pmix_en) |
+			    REG_FIELD_PREP(C10_PLL0_ANA_FREQ_VCO_MASK, pll_params.ana_freq_vco);
+	pll_state->pll[2] = REG_FIELD_PREP(C10_PLL2_MULTIPLIERL_MASK, pll_params.multiplier);
+	pll_state->pll[3] = REG_FIELD_PREP(C10_PLL3_MULTIPLIERH_MASK, pll_params.multiplier >> 8);
+	pll_state->pll[8] = REG_FIELD_PREP(C10_PLL8_SSC_UP_SPREAD, pll_params.ssc_up_spread);
+	pll_state->pll[9] = REG_FIELD_PREP(C10_PLL9_FRACN_DENL_MASK, pll_params.fracn_den);
+	pll_state->pll[10] = REG_FIELD_PREP(C10_PLL10_FRACN_DENH_MASK, pll_params.fracn_den >> 8);
+	pll_state->pll[11] = REG_FIELD_PREP(C10_PLL11_FRACN_QUOT_L_MASK, pll_params.fracn_quot);
+	pll_state->pll[12] = REG_FIELD_PREP(C10_PLL12_FRACN_QUOT_H_MASK,
+					    pll_params.fracn_quot >> 8);
+
+	pll_state->pll[13] = REG_FIELD_PREP(C10_PLL13_FRACN_REM_L_MASK, pll_params.fracn_rem);
+	pll_state->pll[14] = REG_FIELD_PREP(C10_PLL14_FRACN_REM_H_MASK, pll_params.fracn_rem >> 8);
+	pll_state->pll[15] = REG_FIELD_PREP(C10_PLL15_TXCLKDIV_MASK, pll_params.tx_clk_div) |
+			     REG_FIELD_PREP(C10_PLL15_HDMIDIV_MASK, pll_params.hdmi_div);
+	pll_state->pll[16] = REG_FIELD_PREP(C10_PLL16_ANA_CPINT, pll_params.ana_cp_int) |
+			     REG_FIELD_PREP(C10_PLL16_ANA_CPINTGS_L, ana_cp_int_gs);
+	pll_state->pll[17] = REG_FIELD_PREP(C10_PLL17_ANA_CPINTGS_H_MASK, ana_cp_int_gs >> 1) |
+			     REG_FIELD_PREP(C10_PLL17_ANA_CPPROP_L_MASK, pll_params.ana_cp_prop);
+	pll_state->pll[18] =
+			REG_FIELD_PREP(C10_PLL18_ANA_CPPROP_H_MASK, pll_params.ana_cp_prop >> 2) |
+			REG_FIELD_PREP(C10_PLL18_ANA_CPPROPGS_L_MASK, ana_cp_prop_gs);
+
+	pll_state->pll[19] = REG_FIELD_PREP(C10_PLL19_ANA_CPPROPGS_H_MASK, ana_cp_prop_gs >> 3) |
+			     REG_FIELD_PREP(C10_PLL19_ANA_V2I_MASK, pll_params.mpll_ana_v2i);
 }
