@@ -5549,8 +5549,10 @@ unsigned long long f2fs_get_section_mtime(struct f2fs_sb_info *sbi,
 	secno = GET_SEC_FROM_SEG(sbi, segno);
 	start = GET_SEG_FROM_SEC(sbi, secno);
 
-	if (!__is_large_section(sbi))
-		return get_seg_entry(sbi, start + i)->mtime;
+	if (!__is_large_section(sbi)) {
+		mtime = get_seg_entry(sbi, start + i)->mtime;
+		goto out;
+	}
 
 	for (i = 0; i < usable_segs_per_sec; i++) {
 		/* for large section, only check the mtime of valid segments */
@@ -5563,7 +5565,11 @@ unsigned long long f2fs_get_section_mtime(struct f2fs_sb_info *sbi,
 	if (total_valid_blocks == 0)
 		return INVALID_MTIME;
 
-	return div_u64(mtime, total_valid_blocks);
+	mtime = div_u64(mtime, total_valid_blocks);
+out:
+	if (unlikely(mtime == INVALID_MTIME))
+		mtime -= 1;
+	return mtime;
 }
 
 /*
