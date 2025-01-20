@@ -41,13 +41,15 @@ do {										\
 	TEST_ASSERT(!memcmp(&new, &orig, sizeof(new)), "KVM modified sregs");	\
 } while (0)
 
+#define KVM_ALWAYS_ALLOWED_CR4 (X86_CR4_VME | X86_CR4_PVI | X86_CR4_TSD |	\
+				X86_CR4_DE | X86_CR4_PSE | X86_CR4_PAE |	\
+				X86_CR4_MCE | X86_CR4_PGE | X86_CR4_PCE |	\
+				X86_CR4_OSFXSR | X86_CR4_OSXMMEXCPT)
+
 static uint64_t calc_supported_cr4_feature_bits(void)
 {
-	uint64_t cr4;
+	uint64_t cr4 = KVM_ALWAYS_ALLOWED_CR4;
 
-	cr4 = X86_CR4_VME | X86_CR4_PVI | X86_CR4_TSD | X86_CR4_DE |
-	      X86_CR4_PSE | X86_CR4_PAE | X86_CR4_MCE | X86_CR4_PGE |
-	      X86_CR4_PCE | X86_CR4_OSFXSR | X86_CR4_OSXMMEXCPT;
 	if (kvm_cpu_has(X86_FEATURE_UMIP))
 		cr4 |= X86_CR4_UMIP;
 	if (kvm_cpu_has(X86_FEATURE_LA57))
@@ -72,36 +74,31 @@ static uint64_t calc_supported_cr4_feature_bits(void)
 	return cr4;
 }
 
-int main(int argc, char *argv[])
+static void test_cr_bits(struct kvm_vcpu *vcpu, uint64_t cr4)
 {
 	struct kvm_sregs sregs;
-	struct kvm_vcpu *vcpu;
-	struct kvm_vm *vm;
-	uint64_t cr4;
 	int rc, i;
 
-	/*
-	 * Create a dummy VM, specifically to avoid doing KVM_SET_CPUID2, and
-	 * use it to verify all supported CR4 bits can be set prior to defining
-	 * the vCPU model, i.e. without doing KVM_SET_CPUID2.
-	 */
-	vm = vm_create_barebones();
-	vcpu = __vm_vcpu_add(vm, 0);
-
 	vcpu_sregs_get(vcpu, &sregs);
-
-	sregs.cr0 = 0;
-	sregs.cr4 |= calc_supported_cr4_feature_bits();
-	cr4 = sregs.cr4;
-
+	sregs.cr0 &= ~(X86_CR0_CD | X86_CR0_NW);
+	sregs.cr4 |= cr4;
 	rc = _vcpu_sregs_set(vcpu, &sregs);
 	TEST_ASSERT(!rc, "Failed to set supported CR4 bits (0x%lx)", cr4);
+
+	TEST_ASSERT(!!(sregs.cr4 & X86_CR4_OSXSAVE) ==
+		    (vcpu->cpuid && vcpu_cpuid_has(vcpu, X86_FEATURE_OSXSAVE)),
+		    "KVM didn't %s OSXSAVE in CPUID as expected",
+		    (sregs.cr4 & X86_CR4_OSXSAVE) ? "set" : "clear");
+
+	TEST_ASSERT(!!(sregs.cr4 & X86_CR4_PKE) ==
+		    (vcpu->cpuid && vcpu_cpuid_has(vcpu, X86_FEATURE_OSPKE)),
+		    "KVM didn't %s OSPKE in CPUID as expected",
+		    (sregs.cr4 & X86_CR4_PKE) ? "set" : "clear");
 
 	vcpu_sregs_get(vcpu, &sregs);
 	TEST_ASSERT(sregs.cr4 == cr4, "sregs.CR4 (0x%llx) != CR4 (0x%lx)",
 		    sregs.cr4, cr4);
 
-	/* Verify all unsupported features are rejected by KVM. */
 	TEST_INVALID_CR_BIT(vcpu, cr4, sregs, X86_CR4_UMIP);
 	TEST_INVALID_CR_BIT(vcpu, cr4, sregs, X86_CR4_LA57);
 	TEST_INVALID_CR_BIT(vcpu, cr4, sregs, X86_CR4_VMXE);
@@ -119,10 +116,28 @@ int main(int argc, char *argv[])
 	/* NW without CD is illegal, as is PG without PE. */
 	TEST_INVALID_CR_BIT(vcpu, cr0, sregs, X86_CR0_NW);
 	TEST_INVALID_CR_BIT(vcpu, cr0, sregs, X86_CR0_PG);
+}
 
+int main(int argc, char *argv[])
+{
+	struct kvm_sregs sregs;
+	struct kvm_vcpu *vcpu;
+	struct kvm_vm *vm;
+	int rc;
+
+	/*
+	 * Create a dummy VM, specifically to avoid doing KVM_SET_CPUID2, and
+	 * use it to verify KVM enforces guest CPUID even if *userspace* never
+	 * sets CPUID.
+	 */
+	vm = vm_create_barebones();
+	vcpu = __vm_vcpu_add(vm, 0);
+	test_cr_bits(vcpu, KVM_ALWAYS_ALLOWED_CR4);
 	kvm_vm_free(vm);
 
-	/* Create a "real" VM and verify APIC_BASE can be set. */
+	/* Create a "real" VM with a fully populated guest CPUID and verify
+	 * APIC_BASE and all supported CR4 can be set.
+	 */
 	vm = vm_create_with_one_vcpu(&vcpu, NULL);
 
 	vcpu_sregs_get(vcpu, &sregs);
@@ -134,6 +149,8 @@ int main(int argc, char *argv[])
 	rc = _vcpu_sregs_set(vcpu, &sregs);
 	TEST_ASSERT(!rc, "Couldn't set IA32_APIC_BASE to %llx (valid)",
 		    sregs.apic_base);
+
+	test_cr_bits(vcpu, calc_supported_cr4_feature_bits());
 
 	kvm_vm_free(vm);
 
