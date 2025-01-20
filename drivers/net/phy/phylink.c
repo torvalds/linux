@@ -2268,7 +2268,11 @@ static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy,
 	/* Explicitly configure whether the PHY is allowed to stop it's
 	 * receive clock.
 	 */
-	return phy_eee_rx_clock_stop(phy, pl->config->eee_rx_clk_stop_enable);
+	ret = phy_eee_rx_clock_stop(phy, pl->config->eee_rx_clk_stop_enable);
+	if (ret == -EOPNOTSUPP)
+		ret = 0;
+
+	return ret;
 }
 
 static int phylink_attach_phy(struct phylink *pl, struct phy_device *phy,
