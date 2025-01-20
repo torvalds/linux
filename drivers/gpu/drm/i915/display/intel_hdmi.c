@@ -1918,8 +1918,6 @@ hdmi_port_clock_valid(struct intel_hdmi *hdmi,
 	 */
 	if (DISPLAY_VER(display) >= 14)
 		return intel_cx0_phy_check_hdmi_link_rate(hdmi, clock);
-	else if (IS_DG2(dev_priv))
-		return intel_snps_phy_check_hdmi_link_rate(clock);
 
 	return MODE_OK;
 }
