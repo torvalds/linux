@@ -32,6 +32,7 @@
 #include <linux/fs_context.h>
 #include <linux/shmem_fs.h>
 #include <linux/mnt_idmapping.h>
+#include <linux/pidfs.h>
 #include <linux/nospec.h>
 
 #include "pnode.h"
@@ -2736,8 +2737,13 @@ static struct mount *__do_loopback(struct path *old_path, int recurse)
 	if (IS_MNT_UNBINDABLE(old))
 		return mnt;
 
-	if (!check_mnt(old) && old_path->dentry->d_op != &ns_dentry_operations)
-		return mnt;
+	if (!check_mnt(old)) {
+		const struct dentry_operations *d_op = old_path->dentry->d_op;
+
+		if (d_op != &ns_dentry_operations &&
+		    d_op != &pidfs_dentry_operations)
+			return mnt;
+	}
 
 	if (!recurse && has_locked_children(old, old_path->dentry))
 		return mnt;
