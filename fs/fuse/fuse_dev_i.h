@@ -27,6 +27,10 @@ struct fuse_copy_state {
 	unsigned int len;
 	unsigned int offset;
 	unsigned int move_pages:1;
+	unsigned int is_uring:1;
+	struct {
+		unsigned int copied_sz; /* copied size into the user buffer */
+	} ring;
 };
 
 static inline struct fuse_dev *fuse_get_dev(struct file *file)
