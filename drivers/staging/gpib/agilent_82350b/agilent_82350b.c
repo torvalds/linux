@@ -66,10 +66,7 @@ int agilent_82350b_accel_read(gpib_board_t *board, uint8_t *buffer, size_t lengt
 		int j;
 		int count;
 
-		if (num_fifo_bytes - i < agilent_82350b_fifo_size)
-			block_size = num_fifo_bytes - i;
-		else
-			block_size = agilent_82350b_fifo_size;
+		block_size = min(num_fifo_bytes - i, agilent_82350b_fifo_size);
 		set_transfer_counter(a_priv, block_size);
 		writeb(ENABLE_TI_TO_SRAM | DIRECTION_GPIB_TO_HOST,
 		       a_priv->gpib_base + SRAM_ACCESS_CONTROL_REG);
@@ -200,10 +197,7 @@ int agilent_82350b_accel_write(gpib_board_t *board, uint8_t *buffer, size_t leng
 	for (i = 1; i < fifotransferlength;) {
 		clear_bit(WRITE_READY_BN, &tms_priv->state);
 
-		if (fifotransferlength - i < agilent_82350b_fifo_size)
-			block_size = fifotransferlength - i;
-		else
-			block_size = agilent_82350b_fifo_size;
+		block_size = min(fifotransferlength - i, agilent_82350b_fifo_size);
 		set_transfer_counter(a_priv, block_size);
 		for (j = 0; j < block_size; ++j, ++i) {
 			// load data into board's sram
