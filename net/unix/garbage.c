@@ -573,7 +573,7 @@ static void __unix_gc(struct work_struct *work)
 			UNIXCB(skb).fp->dead = true;
 	}
 
-	__skb_queue_purge(&hitlist);
+	__skb_queue_purge_reason(&hitlist, SKB_DROP_REASON_SOCKET_CLOSE);
 skip_gc:
 	WRITE_ONCE(gc_in_progress, false);
 }

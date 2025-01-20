@@ -622,7 +622,9 @@ static void unix_write_space(struct sock *sk)
 static void unix_dgram_disconnected(struct sock *sk, struct sock *other)
 {
 	if (!skb_queue_empty(&sk->sk_receive_queue)) {
-		skb_queue_purge(&sk->sk_receive_queue);
+		skb_queue_purge_reason(&sk->sk_receive_queue,
+				       SKB_DROP_REASON_UNIX_DISCONNECT);
+
 		wake_up_interruptible_all(&unix_sk(sk)->peer_wait);
 
 		/* If one link of bidirectional dgram pipe is disconnected,
@@ -640,7 +642,7 @@ static void unix_sock_destructor(struct sock *sk)
 {
 	struct unix_sock *u = unix_sk(sk);
 
-	skb_queue_purge(&sk->sk_receive_queue);
+	skb_queue_purge_reason(&sk->sk_receive_queue, SKB_DROP_REASON_SOCKET_CLOSE);
 
 	DEBUG_NET_WARN_ON_ONCE(refcount_read(&sk->sk_wmem_alloc));
 	DEBUG_NET_WARN_ON_ONCE(!sk_unhashed(sk));
@@ -715,8 +717,8 @@ static void unix_release_sock(struct sock *sk, int embrion)
 		if (state == TCP_LISTEN)
 			unix_release_sock(skb->sk, 1);
 
-		/* passed fds are erased in the kfree_skb hook	      */
-		kfree_skb(skb);
+		/* passed fds are erased in the kfree_skb hook */
+		kfree_skb_reason(skb, SKB_DROP_REASON_SOCKET_CLOSE);
 	}
 
 	if (path.dentry)
@@ -1699,7 +1701,7 @@ out_unlock:
 	unix_state_unlock(other);
 	sock_put(other);
 out_free_skb:
-	kfree_skb(skb);
+	consume_skb(skb);
 out_free_sk:
 	unix_release_sock(newsk, 0);
 out:
@@ -2170,7 +2172,7 @@ out_unlock:
 out_sock_put:
 	sock_put(other);
 out_free:
-	kfree_skb(skb);
+	consume_skb(skb);
 out:
 	scm_destroy(&scm);
 	return err;
@@ -2187,7 +2189,7 @@ static int queue_oob(struct socket *sock, struct msghdr *msg, struct sock *other
 {
 	struct unix_sock *ousk = unix_sk(other);
 	struct sk_buff *skb;
-	int err = 0;
+	int err;
 
 	skb = sock_alloc_send_skb(sock->sk, 1, msg->msg_flags & MSG_DONTWAIT, &err);
 
@@ -2195,25 +2197,22 @@ static int queue_oob(struct socket *sock, struct msghdr *msg, struct sock *other
 		return err;
 
 	err = unix_scm_to_skb(scm, skb, !fds_sent);
-	if (err < 0) {
-		kfree_skb(skb);
-		return err;
-	}
+	if (err < 0)
+		goto out;
+
 	skb_put(skb, 1);
 	err = skb_copy_datagram_from_iter(skb, 0, &msg->msg_iter, 1);
 
-	if (err) {
-		kfree_skb(skb);
-		return err;
-	}
+	if (err)
+		goto out;
 
 	unix_state_lock(other);
 
 	if (sock_flag(other, SOCK_DEAD) ||
 	    (other->sk_shutdown & RCV_SHUTDOWN)) {
 		unix_state_unlock(other);
-		kfree_skb(skb);
-		return -EPIPE;
+		err = -EPIPE;
+		goto out;
 	}
 
 	maybe_add_creds(skb, sock, other);
@@ -2228,6 +2227,9 @@ static int queue_oob(struct socket *sock, struct msghdr *msg, struct sock *other
 	unix_state_unlock(other);
 	other->sk_data_ready(other);
 
+	return 0;
+out:
+	consume_skb(skb);
 	return err;
 }
 #endif
@@ -2236,13 +2238,11 @@ static int unix_stream_sendmsg(struct socket *sock, struct msghdr *msg,
 			       size_t len)
 {
 	struct sock *sk = sock->sk;
+	struct sk_buff *skb = NULL;
 	struct sock *other = NULL;
-	int err, size;
-	struct sk_buff *skb;
-	int sent = 0;
 	struct scm_cookie scm;
 	bool fds_sent = false;
-	int data_len;
+	int err, sent = 0;
 
 	err = scm_send(sock, msg, &scm, false);
 	if (err < 0)
@@ -2271,16 +2271,12 @@ static int unix_stream_sendmsg(struct socket *sock, struct msghdr *msg,
 		}
 	}
 
-	if (READ_ONCE(sk->sk_shutdown) & SEND_SHUTDOWN) {
-		if (!(msg->msg_flags & MSG_NOSIGNAL))
-			send_sig(SIGPIPE, current, 0);
-
-		err = -EPIPE;
-		goto out_err;
-	}
+	if (READ_ONCE(sk->sk_shutdown) & SEND_SHUTDOWN)
+		goto out_pipe;
 
 	while (sent < len) {
-		size = len - sent;
+		int size = len - sent;
+		int data_len;
 
 		if (unlikely(msg->msg_flags & MSG_SPLICE_PAGES)) {
 			skb = sock_alloc_send_pskb(sk, 0, 0,
@@ -2333,7 +2329,7 @@ static int unix_stream_sendmsg(struct socket *sock, struct msghdr *msg,
 
 		if (sock_flag(other, SOCK_DEAD) ||
 		    (other->sk_shutdown & RCV_SHUTDOWN))
-			goto out_pipe;
+			goto out_pipe_unlock;
 
 		maybe_add_creds(skb, sock, other);
 		scm_stat_add(other, skb);
@@ -2356,13 +2352,14 @@ static int unix_stream_sendmsg(struct socket *sock, struct msghdr *msg,
 
 	return sent;
 
-out_pipe:
+out_pipe_unlock:
 	unix_state_unlock(other);
+out_pipe:
 	if (!sent && !(msg->msg_flags & MSG_NOSIGNAL))
 		send_sig(SIGPIPE, current, 0);
 	err = -EPIPE;
 out_free:
-	kfree_skb(skb);
+	consume_skb(skb);
 out_err:
 	scm_destroy(&scm);
 	return sent ? : err;
@@ -2695,7 +2692,7 @@ unlock:
 	spin_unlock(&sk->sk_receive_queue.lock);
 
 	consume_skb(read_skb);
-	kfree_skb(unread_skb);
+	kfree_skb_reason(unread_skb, SKB_DROP_REASON_UNIX_SKIP_OOB);
 
 	return skb;
 }
@@ -2724,7 +2721,7 @@ static int unix_stream_read_skb(struct sock *sk, skb_read_actor_t recv_actor)
 
 		if (sock_flag(sk, SOCK_DEAD)) {
 			unix_state_unlock(sk);
-			kfree_skb(skb);
+			kfree_skb_reason(skb, SKB_DROP_REASON_SOCKET_CLOSE);
 			return -ECONNRESET;
 		}
 
@@ -2738,7 +2735,7 @@ static int unix_stream_read_skb(struct sock *sk, skb_read_actor_t recv_actor)
 		unix_state_unlock(sk);
 
 		if (drop) {
-			kfree_skb(skb);
+			kfree_skb_reason(skb, SKB_DROP_REASON_UNIX_SKIP_OOB);
 			return -EAGAIN;
 		}
 	}
