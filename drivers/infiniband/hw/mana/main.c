@@ -561,8 +561,10 @@ int mana_ib_get_port_immutable(struct ib_device *ibdev, u32 port_num,
 	immutable->pkey_tbl_len = attr.pkey_tbl_len;
 	immutable->gid_tbl_len = attr.gid_tbl_len;
 	immutable->core_cap_flags = RDMA_CORE_PORT_RAW_PACKET;
-	if (port_num == 1)
+	if (port_num == 1) {
 		immutable->core_cap_flags |= RDMA_CORE_PORT_IBA_ROCE_UDP_ENCAP;
+		immutable->max_mad_size = IB_MGMT_MAD_SIZE;
+	}
 
 	return 0;
 }
@@ -621,8 +623,11 @@ int mana_ib_query_port(struct ib_device *ibdev, u32 port,
 	props->active_width = IB_WIDTH_4X;
 	props->active_speed = IB_SPEED_EDR;
 	props->pkey_tbl_len = 1;
-	if (port == 1)
+	if (port == 1) {
 		props->gid_tbl_len = 16;
+		props->port_cap_flags = IB_PORT_CM_SUP;
+		props->ip_gids = true;
+	}
 
 	return 0;
 }
