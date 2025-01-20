@@ -31,7 +31,7 @@ Build-Depends:
  libnuma-dev [amd64 arm64 ppc64el s390x] <!stage1>,
  libpci-dev <!stage1>,
  libssl-dev <!stage1>,
- libstdc++-dev,
+ libstdc++-14-dev,
  libtool <!stage1>,
  libtraceevent-dev [amd64 arm64 armhf ppc64el s390x riscv64] <!stage1>,
  libtracefs-dev [amd64 arm64 armhf ppc64el s390x riscv64] <!stage1>,
