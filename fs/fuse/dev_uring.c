@@ -957,6 +957,7 @@ static void fuse_uring_do_register(struct fuse_ring_ent *ent,
 		if (ready) {
 			WRITE_ONCE(fiq->ops, &fuse_io_uring_ops);
 			WRITE_ONCE(ring->ready, true);
+			wake_up_all(&fc->blocked_waitq);
 		}
 	}
 }
@@ -1130,6 +1131,8 @@ int __maybe_unused fuse_uring_cmd(struct io_uring_cmd *cmd,
 		if (err) {
 			pr_info_once("FUSE_IO_URING_CMD_REGISTER failed err=%d\n",
 				     err);
+			fc->io_uring = 0;
+			wake_up_all(&fc->blocked_waitq);
 			return err;
 		}
 		break;
