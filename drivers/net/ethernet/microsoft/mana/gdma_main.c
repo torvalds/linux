@@ -344,6 +344,7 @@ void mana_gd_ring_cq(struct gdma_queue *cq, u8 arm_bit)
 	mana_gd_ring_doorbell(gc, cq->gdma_dev->doorbell, cq->type, cq->id,
 			      head, arm_bit);
 }
+EXPORT_SYMBOL_NS(mana_gd_ring_cq, "NET_MANA");
 
 static void mana_gd_process_eqe(struct gdma_queue *eq)
 {

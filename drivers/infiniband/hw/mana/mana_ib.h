@@ -595,4 +595,6 @@ int mana_ib_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 		      const struct ib_recv_wr **bad_wr);
 int mana_ib_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 		      const struct ib_send_wr **bad_wr);
+
+int mana_ib_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
 #endif

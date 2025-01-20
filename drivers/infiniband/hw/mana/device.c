@@ -47,6 +47,7 @@ static const struct ib_device_ops mana_ib_dev_ops = {
 	.query_pkey = mana_ib_query_pkey,
 	.query_port = mana_ib_query_port,
 	.reg_user_mr = mana_ib_reg_user_mr,
+	.req_notify_cq = mana_ib_arm_cq,
 
 	INIT_RDMA_OBJ_SIZE(ib_ah, mana_ib_ah, ibah),
 	INIT_RDMA_OBJ_SIZE(ib_cq, mana_ib_cq, ibcq),

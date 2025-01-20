@@ -168,3 +168,15 @@ void mana_ib_remove_cq_cb(struct mana_ib_dev *mdev, struct mana_ib_cq *cq)
 	kfree(gc->cq_table[cq->queue.id]);
 	gc->cq_table[cq->queue.id] = NULL;
 }
+
+int mana_ib_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
+{
+	struct mana_ib_cq *cq = container_of(ibcq, struct mana_ib_cq, ibcq);
+	struct gdma_queue *gdma_cq = cq->queue.kmem;
+
+	if (!gdma_cq)
+		return -EINVAL;
+
+	mana_gd_ring_cq(gdma_cq, SET_ARM_BIT);
+	return 0;
+}
