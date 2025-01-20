@@ -2211,7 +2211,6 @@ static void kcryptd_crypt_read_convert(struct dm_crypt_io *io)
 	crypt_inc_pending(io);
 
 	if (io->ctx.aead_recheck) {
-		io->ctx.cc_sector = io->sector + cc->iv_offset;
 		r = crypt_convert(cc, &io->ctx,
 				  test_bit(DM_CRYPT_NO_READ_WORKQUEUE, &cc->flags), true);
 	} else {
