@@ -801,6 +801,11 @@ struct gdma_destory_pd_resp {
 };/* HW DATA */
 
 enum gdma_mr_type {
+	/*
+	 * Guest Physical Address - MRs of this type allow access
+	 * to any DMA-mapped memory using bus-logical address
+	 */
+	GDMA_MR_TYPE_GPA = 1,
 	/* Guest Virtual Address - MRs of this type allow access
 	 * to memory mapped by PTEs associated with this MR using a virtual
 	 * address that is set up in the MST

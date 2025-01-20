@@ -8,6 +8,8 @@
 #define VALID_MR_FLAGS                                                         \
 	(IB_ACCESS_LOCAL_WRITE | IB_ACCESS_REMOTE_WRITE | IB_ACCESS_REMOTE_READ)
 
+#define VALID_DMA_MR_FLAGS (IB_ACCESS_LOCAL_WRITE)
+
 static enum gdma_mr_access_flags
 mana_ib_verbs_to_gdma_access_flags(int access_flags)
 {
@@ -39,6 +41,8 @@ static int mana_ib_gd_create_mr(struct mana_ib_dev *dev, struct mana_ib_mr *mr,
 	req.mr_type = mr_params->mr_type;
 
 	switch (mr_params->mr_type) {
+	case GDMA_MR_TYPE_GPA:
+		break;
 	case GDMA_MR_TYPE_GVA:
 		req.gva.dma_region_handle = mr_params->gva.dma_region_handle;
 		req.gva.virtual_address = mr_params->gva.virtual_address;
@@ -163,6 +167,38 @@ err_dma_region:
 
 err_umem:
 	ib_umem_release(mr->umem);
+
+err_free:
+	kfree(mr);
+	return ERR_PTR(err);
+}
+
+struct ib_mr *mana_ib_get_dma_mr(struct ib_pd *ibpd, int access_flags)
+{
+	struct mana_ib_pd *pd = container_of(ibpd, struct mana_ib_pd, ibpd);
+	struct gdma_create_mr_params mr_params = {};
+	struct ib_device *ibdev = ibpd->device;
+	struct mana_ib_dev *dev;
+	struct mana_ib_mr *mr;
+	int err;
+
+	dev = container_of(ibdev, struct mana_ib_dev, ib_dev);
+
+	if (access_flags & ~VALID_DMA_MR_FLAGS)
+		return ERR_PTR(-EINVAL);
+
+	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	if (!mr)
+		return ERR_PTR(-ENOMEM);
+
+	mr_params.pd_handle = pd->pd_handle;
+	mr_params.mr_type = GDMA_MR_TYPE_GPA;
+
+	err = mana_ib_gd_create_mr(dev, mr, &mr_params);
+	if (err)
+		goto err_free;
+
+	return &mr->ibmr;
 
 err_free:
 	kfree(mr);
