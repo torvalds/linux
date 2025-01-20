@@ -851,7 +851,8 @@ static int ubi_get_ec_info(struct ubi_device *ubi, struct ubi_ecinfo_req __user 
 		end_peb = ubi->peb_count;
 
 	/* Check access rights before filling erase_counters array */
-	if (!access_ok(ureq->erase_counters, (end_peb-req.start) * sizeof(int32_t)))
+	if (!access_ok((void __user *)ureq->erase_counters,
+		       (end_peb-req.start) * sizeof(int32_t)))
 		return -EFAULT;
 
 	/* Fill erase counter array */
