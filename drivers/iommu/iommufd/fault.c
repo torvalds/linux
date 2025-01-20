@@ -263,7 +263,7 @@ static ssize_t iommufd_fault_fops_read(struct file *filep, char __user *buf,
 {
 	size_t fault_size = sizeof(struct iommu_hwpt_pgfault);
 	struct iommufd_fault *fault = filep->private_data;
-	struct iommu_hwpt_pgfault data;
+	struct iommu_hwpt_pgfault data = {};
 	struct iommufd_device *idev;
 	struct iopf_group *group;
 	struct iopf_fault *iopf;
