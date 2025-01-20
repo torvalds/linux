@@ -717,7 +717,7 @@ static void battery_hook_unregister_unlocked(struct acpi_battery_hook *hook)
 	}
 	list_del_init(&hook->list);
 
-	pr_info("extension unregistered: %s\n", hook->name);
+	pr_info("hook unregistered: %s\n", hook->name);
 }
 
 void battery_hook_unregister(struct acpi_battery_hook *hook)
@@ -751,18 +751,18 @@ void battery_hook_register(struct acpi_battery_hook *hook)
 		if (hook->add_battery(battery->bat, hook)) {
 			/*
 			 * If a add-battery returns non-zero,
-			 * the registration of the extension has failed,
+			 * the registration of the hook has failed,
 			 * and we will not add it to the list of loaded
 			 * hooks.
 			 */
-			pr_err("extension failed to load: %s", hook->name);
+			pr_err("hook failed to load: %s", hook->name);
 			battery_hook_unregister_unlocked(hook);
 			goto end;
 		}
 
 		power_supply_changed(battery->bat);
 	}
-	pr_info("new extension: %s\n", hook->name);
+	pr_info("new hook: %s\n", hook->name);
 end:
 	mutex_unlock(&hook_mutex);
 }
@@ -805,10 +805,10 @@ static void battery_hook_add_battery(struct acpi_battery *battery)
 	list_for_each_entry_safe(hook_node, tmp, &battery_hook_list, list) {
 		if (hook_node->add_battery(battery->bat, hook_node)) {
 			/*
-			 * The notification of the extensions has failed, to
-			 * prevent further errors we will unload the extension.
+			 * The notification of the hook has failed, to
+			 * prevent further errors we will unload the hook.
 			 */
-			pr_err("error in extension, unloading: %s",
+			pr_err("error in hook, unloading: %s",
 					hook_node->name);
 			battery_hook_unregister_unlocked(hook_node);
 		}
