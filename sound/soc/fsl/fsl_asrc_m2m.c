@@ -633,7 +633,7 @@ int fsl_asrc_m2m_suspend(struct fsl_asrc *asrc)
 
 	for (i = 0; i < PAIR_CTX_NUM; i++) {
 		pair = asrc->pair[i];
-		if (!pair)
+		if (!pair || !pair->dma_buffer[IN].area || !pair->dma_buffer[OUT].area)
 			continue;
 		if (!completion_done(&pair->complete[IN])) {
 			if (pair->dma_chan[IN])
