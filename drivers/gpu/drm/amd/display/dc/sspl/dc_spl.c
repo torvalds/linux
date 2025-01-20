@@ -1819,7 +1819,7 @@ static bool spl_calculate_number_of_taps(struct spl_in *spl_in, struct spl_scrat
 }
 
 /* Calculate scaler parameters */
-bool spl_calculate_scaler_params(struct spl_in *spl_in, struct spl_out *spl_out)
+bool SPL_NAMESPACE(spl_calculate_scaler_params(struct spl_in *spl_in, struct spl_out *spl_out))
 {
 	bool res = false;
 	bool enable_easf_v = false;
@@ -1884,7 +1884,7 @@ bool spl_calculate_scaler_params(struct spl_in *spl_in, struct spl_out *spl_out)
 }
 
 /* External interface to get number of taps only */
-bool spl_get_number_of_taps(struct spl_in *spl_in, struct spl_out *spl_out)
+bool SPL_NAMESPACE(spl_get_number_of_taps(struct spl_in *spl_in, struct spl_out *spl_out))
 {
 	bool res = false;
 	bool enable_easf_v = false;
