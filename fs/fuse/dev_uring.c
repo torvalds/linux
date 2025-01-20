@@ -1084,8 +1084,7 @@ static int fuse_uring_register(struct io_uring_cmd *cmd,
  * Entry function from io_uring to handle the given passthrough command
  * (op code IORING_OP_URING_CMD)
  */
-int __maybe_unused fuse_uring_cmd(struct io_uring_cmd *cmd,
-				  unsigned int issue_flags)
+int fuse_uring_cmd(struct io_uring_cmd *cmd, unsigned int issue_flags)
 {
 	struct fuse_dev *fud;
 	struct fuse_conn *fc;
