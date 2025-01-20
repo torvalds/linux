@@ -15972,9 +15972,8 @@ static int check_cond_jmp_op(struct bpf_verifier_env *env,
 
 		if (insn->code != (BPF_JMP | BPF_JCOND) ||
 		    insn->src_reg != BPF_MAY_GOTO ||
-		    insn->dst_reg || insn->imm || insn->off == 0) {
-			verbose(env, "invalid may_goto off %d imm %d\n",
-				insn->off, insn->imm);
+		    insn->dst_reg || insn->imm) {
+			verbose(env, "invalid may_goto imm %d\n", insn->imm);
 			return -EINVAL;
 		}
 		prev_st = find_prev_entry(env, cur_st->parent, idx);
@@ -20185,23 +20184,28 @@ static int opt_remove_dead_code(struct bpf_verifier_env *env)
 }
 
 static const struct bpf_insn NOP = BPF_JMP_IMM(BPF_JA, 0, 0, 0);
+static const struct bpf_insn MAY_GOTO_0 = BPF_RAW_INSN(BPF_JMP | BPF_JCOND, 0, 0, 0, 0);
 
 static int opt_remove_nops(struct bpf_verifier_env *env)
 {
-	const struct bpf_insn ja = NOP;
 	struct bpf_insn *insn = env->prog->insnsi;
 	int insn_cnt = env->prog->len;
+	bool is_may_goto_0, is_ja;
 	int i, err;
 
 	for (i = 0; i < insn_cnt; i++) {
-		if (memcmp(&insn[i], &ja, sizeof(ja)))
+		is_may_goto_0 = !memcmp(&insn[i], &MAY_GOTO_0, sizeof(MAY_GOTO_0));
+		is_ja = !memcmp(&insn[i], &NOP, sizeof(NOP));
+
+		if (!is_may_goto_0 && !is_ja)
 			continue;
 
 		err = verifier_remove_insns(env, i, 1);
 		if (err)
 			return err;
 		insn_cnt--;
-		i--;
+		/* Go back one insn to catch may_goto +1; may_goto +0 sequence */
+		i -= (is_may_goto_0 && i > 0) ? 2 : 1;
 	}
 
 	return 0;
