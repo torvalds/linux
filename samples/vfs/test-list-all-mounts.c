@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <linux/types.h>
+#include <inttypes.h>
 #include <stdio.h>
 
 #include "../../tools/testing/selftests/pidfd/pidfd.h"
@@ -86,8 +87,8 @@ int main(int argc, char *argv[])
 	if (ret < 0)
 		die_errno("ioctl(NS_GET_MNTNS_ID) failed");
 
-	printf("Listing %u mounts for mount namespace %llu\n",
-	       info.nr_mounts, info.mnt_ns_id);
+	printf("Listing %u mounts for mount namespace %" PRIu64 "\n",
+	       info.nr_mounts, (uint64_t)info.mnt_ns_id);
 	for (;;) {
 		ssize_t nr_mounts;
 next:
@@ -97,8 +98,8 @@ next:
 		if (nr_mounts <= 0) {
 			int fd_mntns_next;
 
-			printf("Finished listing %u mounts for mount namespace %llu\n\n",
-			       info.nr_mounts, info.mnt_ns_id);
+			printf("Finished listing %u mounts for mount namespace %" PRIu64 "\n\n",
+			       info.nr_mounts, (uint64_t)info.mnt_ns_id);
 			fd_mntns_next = ioctl(fd_mntns, NS_MNT_GET_NEXT, &info);
 			if (fd_mntns_next < 0) {
 				if (errno == ENOENT) {
@@ -110,8 +111,8 @@ next:
 			close(fd_mntns);
 			fd_mntns = fd_mntns_next;
 			last_mnt_id = 0;
-			printf("Listing %u mounts for mount namespace %llu\n",
-			       info.nr_mounts, info.mnt_ns_id);
+			printf("Listing %u mounts for mount namespace %" PRIu64 "\n",
+			       info.nr_mounts, (uint64_t)info.mnt_ns_id);
 			goto next;
 		}
 
@@ -129,14 +130,14 @@ next:
 					      STATMOUNT_MNT_OPTS |
 					      STATMOUNT_FS_TYPE, 0);
 			if (!stmnt) {
-				printf("Failed to statmount(%llu) in mount namespace(%llu)\n",
-				       last_mnt_id, info.mnt_ns_id);
+				printf("Failed to statmount(%" PRIu64 ") in mount namespace(%" PRIu64 ")\n",
+				       (uint64_t)last_mnt_id, (uint64_t)info.mnt_ns_id);
 				continue;
 			}
 
-			printf("mnt_id:\t\t%llu\nmnt_parent_id:\t%llu\nfs_type:\t%s\nmnt_root:\t%s\nmnt_point:\t%s\nmnt_opts:\t%s\n\n",
-			       stmnt->mnt_id,
-			       stmnt->mnt_parent_id,
+			printf("mnt_id:\t\t%" PRIu64 "\nmnt_parent_id:\t%" PRIu64 "\nfs_type:\t%s\nmnt_root:\t%s\nmnt_point:\t%s\nmnt_opts:\t%s\n\n",
+			       (uint64_t)stmnt->mnt_id,
+			       (uint64_t)stmnt->mnt_parent_id,
 			       stmnt->str + stmnt->fs_type,
 			       stmnt->str + stmnt->mnt_root,
 			       stmnt->str + stmnt->mnt_point,
