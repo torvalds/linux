@@ -1064,8 +1064,11 @@ static bool rtw89_regd_entcpy(struct rtw89_regd *regd, const void *cursor,
 		.rule_2ghz = RTW89_NA,
 		.rule_5ghz = RTW89_NA,
 		.rule_6ghz = RTW89_NA,
+		.fmap = cpu_to_le32(0x0),
 	};
 	u8 valid_size = min_t(u8, sizeof(entry), cursor_size);
+	unsigned int i;
+	u32 fmap;
 
 	memcpy(&entry, cursor, valid_size);
 	memset(regd, 0, sizeof(*regd));
@@ -1081,6 +1084,15 @@ static bool rtw89_regd_entcpy(struct rtw89_regd *regd, const void *cursor,
 					  entry.rule_5ghz : RTW89_NA;
 	regd->txpwr_regd[RTW89_BAND_6G] = entry.rule_6ghz < RTW89_REGD_NUM ?
 					  entry.rule_6ghz : RTW89_NA;
+
+	BUILD_BUG_ON(sizeof(fmap) != sizeof(entry.fmap));
+	BUILD_BUG_ON(sizeof(fmap) * 8 < NUM_OF_RTW89_REGD_FUNC);
+
+	fmap = le32_to_cpu(entry.fmap);
+	for (i = 0; i < NUM_OF_RTW89_REGD_FUNC; i++) {
+		if (fmap & BIT(i))
+			set_bit(i, regd->func_bitmap);
+	}
 
 	return true;
 }

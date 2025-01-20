@@ -4894,6 +4894,7 @@ struct rtw89_fw_regd_entry {
 	u8 rule_2ghz;
 	u8 rule_5ghz;
 	u8 rule_6ghz;
+	__le32 fmap;
 } __packed;
 
 /* must consider compatibility; don't insert new in the mid */

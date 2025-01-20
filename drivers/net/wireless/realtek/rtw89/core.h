@@ -5151,9 +5151,17 @@ struct rtw89_power_trim_info {
 	u8 pad_bias_trim[RF_PATH_MAX];
 };
 
+enum rtw89_regd_func {
+	RTW89_REGD_FUNC_TAS = 0, /* TAS (Time Average SAR) */
+	RTW89_REGD_FUNC_DAG = 1, /* DAG (Dynamic Antenna Gain) */
+
+	NUM_OF_RTW89_REGD_FUNC,
+};
+
 struct rtw89_regd {
 	char alpha2[3];
 	u8 txpwr_regd[RTW89_BAND_NUM];
+	DECLARE_BITMAP(func_bitmap, NUM_OF_RTW89_REGD_FUNC);
 };
 
 struct rtw89_regd_data {
