@@ -16,6 +16,7 @@
 #include <asm/sclp.h>
 
 #include "pci_bus.h"
+#include "pci_report.h"
 
 /* Content Code Description for PCI Function Error */
 struct zpci_ccdf_err {
@@ -169,6 +170,8 @@ static pci_ers_result_t zpci_event_do_reset(struct pci_dev *pdev,
 static pci_ers_result_t zpci_event_attempt_error_recovery(struct pci_dev *pdev)
 {
 	pci_ers_result_t ers_res = PCI_ERS_RESULT_DISCONNECT;
+	struct zpci_dev *zdev = to_zpci(pdev);
+	char *status_str = "success";
 	struct pci_driver *driver;
 
 	/*
@@ -186,29 +189,37 @@ static pci_ers_result_t zpci_event_attempt_error_recovery(struct pci_dev *pdev)
 	if (is_passed_through(pdev)) {
 		pr_info("%s: Cannot be recovered in the host because it is a pass-through device\n",
 			pci_name(pdev));
+		status_str = "failed (pass-through)";
 		goto out_unlock;
 	}
 
 	driver = to_pci_driver(pdev->dev.driver);
 	if (!is_driver_supported(driver)) {
-		if (!driver)
+		if (!driver) {
 			pr_info("%s: Cannot be recovered because no driver is bound to the device\n",
 				pci_name(pdev));
-		else
+			status_str = "failed (no driver)";
+		} else {
 			pr_info("%s: The %s driver bound to the device does not support error recovery\n",
 				pci_name(pdev),
 				driver->name);
+			status_str = "failed (no driver support)";
+		}
 		goto out_unlock;
 	}
 
 	ers_res = zpci_event_notify_error_detected(pdev, driver);
-	if (ers_result_indicates_abort(ers_res))
+	if (ers_result_indicates_abort(ers_res)) {
+		status_str = "failed (abort on detection)";
 		goto out_unlock;
+	}
 
 	if (ers_res == PCI_ERS_RESULT_CAN_RECOVER) {
 		ers_res = zpci_event_do_error_state_clear(pdev, driver);
-		if (ers_result_indicates_abort(ers_res))
+		if (ers_result_indicates_abort(ers_res)) {
+			status_str = "failed (abort on MMIO enable)";
 			goto out_unlock;
+		}
 	}
 
 	if (ers_res == PCI_ERS_RESULT_NEED_RESET)
@@ -217,6 +228,7 @@ static pci_ers_result_t zpci_event_attempt_error_recovery(struct pci_dev *pdev)
 	if (ers_res != PCI_ERS_RESULT_RECOVERED) {
 		pr_err("%s: Automatic recovery failed; operator intervention is required\n",
 		       pci_name(pdev));
+		status_str = "failed (driver can't recover)";
 		goto out_unlock;
 	}
 
@@ -225,6 +237,7 @@ static pci_ers_result_t zpci_event_attempt_error_recovery(struct pci_dev *pdev)
 		driver->err_handler->resume(pdev);
 out_unlock:
 	pci_dev_unlock(pdev);
+	zpci_report_status(zdev, "recovery", status_str);
 
 	return ers_res;
 }

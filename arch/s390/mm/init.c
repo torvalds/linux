@@ -56,6 +56,15 @@ pgd_t invalid_pg_dir[PTRS_PER_PGD] __section(".bss..invalid_pg_dir");
 
 struct ctlreg __bootdata_preserved(s390_invalid_asce);
 
+unsigned long __bootdata_preserved(page_noexec_mask);
+EXPORT_SYMBOL(page_noexec_mask);
+
+unsigned long __bootdata_preserved(segment_noexec_mask);
+EXPORT_SYMBOL(segment_noexec_mask);
+
+unsigned long __bootdata_preserved(region_noexec_mask);
+EXPORT_SYMBOL(region_noexec_mask);
+
 unsigned long empty_zero_page, zero_page_mask;
 EXPORT_SYMBOL(empty_zero_page);
 EXPORT_SYMBOL(zero_page_mask);

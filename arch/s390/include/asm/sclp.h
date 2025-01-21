@@ -16,6 +16,11 @@
 /* 24 + 16 * SCLP_MAX_CORES */
 #define EXT_SCCB_READ_CPU	(3 * PAGE_SIZE)
 
+#define SCLP_ERRNOTIFY_AQ_RESET			0
+#define SCLP_ERRNOTIFY_AQ_REPAIR		1
+#define SCLP_ERRNOTIFY_AQ_INFO_LOG		2
+#define SCLP_ERRNOTIFY_AQ_OPTICS_DATA		3
+
 #ifndef __ASSEMBLY__
 #include <linux/uio.h>
 #include <asm/chpid.h>
@@ -87,8 +92,10 @@ struct sclp_info {
 	unsigned char has_kss : 1;
 	unsigned char has_diag204_bif : 1;
 	unsigned char has_gisaf : 1;
+	unsigned char has_diag310 : 1;
 	unsigned char has_diag318 : 1;
 	unsigned char has_diag320 : 1;
+	unsigned char has_diag324 : 1;
 	unsigned char has_sipl : 1;
 	unsigned char has_sipl_eckd : 1;
 	unsigned char has_dirq : 1;
@@ -110,6 +117,34 @@ struct sclp_info {
 	unsigned int hmfai;
 };
 extern struct sclp_info sclp;
+
+struct sccb_header {
+	u16	length;
+	u8	function_code;
+	u8	control_mask[3];
+	u16	response_code;
+} __packed;
+
+struct evbuf_header {
+	u16	length;
+	u8	type;
+	u8	flags;
+	u16	_reserved;
+} __packed;
+
+struct err_notify_evbuf {
+	struct evbuf_header header;
+	u8 action;
+	u8 atype;
+	u32 fh;
+	u32 fid;
+	u8 data[];
+} __packed;
+
+struct err_notify_sccb {
+	struct sccb_header header;
+	struct err_notify_evbuf evbuf;
+} __packed;
 
 struct zpci_report_error_header {
 	u8 version;	/* Interface version byte */

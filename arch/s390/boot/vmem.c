@@ -63,13 +63,10 @@ static void kasan_populate_shadow(unsigned long kernel_start, unsigned long kern
 	pud_t pud_z = __pud(__pa(kasan_early_shadow_pmd) | _REGION3_ENTRY);
 	p4d_t p4d_z = __p4d(__pa(kasan_early_shadow_pud) | _REGION2_ENTRY);
 	unsigned long memgap_start = 0;
-	unsigned long untracked_end;
 	unsigned long start, end;
 	int i;
 
 	pte_z = __pte(__pa(kasan_early_shadow_page) | pgprot_val(PAGE_KERNEL_RO));
-	if (!machine.has_nx)
-		pte_z = clear_pte_bit(pte_z, __pgprot(_PAGE_NOEXEC));
 	crst_table_init((unsigned long *)kasan_early_shadow_p4d, p4d_val(p4d_z));
 	crst_table_init((unsigned long *)kasan_early_shadow_pud, pud_val(pud_z));
 	crst_table_init((unsigned long *)kasan_early_shadow_pmd, pmd_val(pmd_z));
@@ -93,15 +90,10 @@ static void kasan_populate_shadow(unsigned long kernel_start, unsigned long kern
 	kasan_populate(kernel_start + TEXT_OFFSET, kernel_end, POPULATE_KASAN_MAP_SHADOW);
 	kasan_populate(0, (unsigned long)__identity_va(0), POPULATE_KASAN_ZERO_SHADOW);
 	kasan_populate(AMODE31_START, AMODE31_END, POPULATE_KASAN_ZERO_SHADOW);
-	if (IS_ENABLED(CONFIG_KASAN_VMALLOC)) {
-		untracked_end = VMALLOC_START;
-		/* shallowly populate kasan shadow for vmalloc and modules */
-		kasan_populate(VMALLOC_START, MODULES_END, POPULATE_KASAN_SHALLOW);
-	} else {
-		untracked_end = MODULES_VADDR;
-	}
+	/* shallowly populate kasan shadow for vmalloc and modules */
+	kasan_populate(VMALLOC_START, MODULES_END, POPULATE_KASAN_SHALLOW);
 	/* populate kasan shadow for untracked memory */
-	kasan_populate((unsigned long)__identity_va(ident_map_size), untracked_end,
+	kasan_populate((unsigned long)__identity_va(ident_map_size), VMALLOC_START,
 		       POPULATE_KASAN_ZERO_SHADOW);
 	kasan_populate(kernel_end, _REGION1_SIZE, POPULATE_KASAN_ZERO_SHADOW);
 }
@@ -300,8 +292,6 @@ static void pgtable_pte_populate(pmd_t *pmd, unsigned long addr, unsigned long e
 				continue;
 			entry = __pte(_pa(addr, PAGE_SIZE, mode));
 			entry = set_pte_bit(entry, PAGE_KERNEL);
-			if (!machine.has_nx)
-				entry = clear_pte_bit(entry, __pgprot(_PAGE_NOEXEC));
 			set_pte(pte, entry);
 			pages++;
 		}
@@ -326,8 +316,6 @@ static void pgtable_pmd_populate(pud_t *pud, unsigned long addr, unsigned long e
 			if (can_large_pmd(pmd, addr, next, mode)) {
 				entry = __pmd(_pa(addr, _SEGMENT_SIZE, mode));
 				entry = set_pmd_bit(entry, SEGMENT_KERNEL);
-				if (!machine.has_nx)
-					entry = clear_pmd_bit(entry, __pgprot(_SEGMENT_ENTRY_NOEXEC));
 				set_pmd(pmd, entry);
 				pages++;
 				continue;
@@ -359,8 +347,6 @@ static void pgtable_pud_populate(p4d_t *p4d, unsigned long addr, unsigned long e
 			if (can_large_pud(pud, addr, next, mode)) {
 				entry = __pud(_pa(addr, _REGION3_SIZE, mode));
 				entry = set_pud_bit(entry, REGION3_KERNEL);
-				if (!machine.has_nx)
-					entry = clear_pud_bit(entry, __pgprot(_REGION_ENTRY_NOEXEC));
 				set_pud(pud, entry);
 				pages++;
 				continue;
