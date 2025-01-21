@@ -78,6 +78,7 @@ allOf:
     then:
       properties:
         clocks:
+          minItems: 8
           items:
             - description: Board PXO source
             - description: PLL 3 clock
@@ -87,8 +88,10 @@ allOf:
             - description: DSI phy instance 2 dsi clock
             - description: DSI phy instance 2 byte clock
             - description: HDMI phy PLL clock
+            - description: LVDS PLL clock
 
         clock-names:
+          minItems: 8
           items:
             - const: pxo
             - const: pll3
@@ -98,6 +101,7 @@ allOf:
             - const: dsi2pll
             - const: dsi2pllbyte
             - const: hdmipll
+            - const: lvdspll
 
   - if:
       properties:

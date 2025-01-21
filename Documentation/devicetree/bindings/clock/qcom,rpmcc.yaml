@@ -33,6 +33,8 @@ properties:
           - qcom,rpmcc-msm8916
           - qcom,rpmcc-msm8917
           - qcom,rpmcc-msm8936
+          - qcom,rpmcc-msm8937
+          - qcom,rpmcc-msm8940
           - qcom,rpmcc-msm8953
           - qcom,rpmcc-msm8974
           - qcom,rpmcc-msm8976
@@ -110,6 +112,8 @@ allOf:
               - qcom,rpmcc-msm8916
               - qcom,rpmcc-msm8917
               - qcom,rpmcc-msm8936
+              - qcom,rpmcc-msm8937
+              - qcom,rpmcc-msm8940
               - qcom,rpmcc-msm8953
               - qcom,rpmcc-msm8974
               - qcom,rpmcc-msm8976
