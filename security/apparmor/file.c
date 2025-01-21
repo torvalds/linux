@@ -169,7 +169,7 @@ static int path_name(const char *op, const struct cred *subj_cred,
 
 struct aa_perms default_perms = {};
 /**
- * aa_lookup_fperms - convert dfa compressed perms to internal perms
+ * aa_lookup_condperms - convert dfa compressed perms to internal perms
  * @subj_uid: uid to use for subject owner test
  * @rules: the aa_policydb to lookup perms for  (NOT NULL)
  * @state: state in dfa
