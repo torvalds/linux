@@ -44,3 +44,4 @@ qcom_wdt_core.ko
 gh_virt_wdt.ko
 qcom-cpufreq-hw.ko
 clk-rpmh.ko
+sched-walt.ko

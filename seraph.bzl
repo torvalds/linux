@@ -77,6 +77,7 @@ def define_seraph():
         "drivers/usb/phy/phy-msm-ssusb-qmp.ko",
         "drivers/usb/phy/phy-qcom-emu.ko",
         "drivers/virt/gunyah/gh_virt_wdt.ko",
+        "kernel/sched/walt/sched-walt.ko",
         "net/mac80211/mac80211.ko",
         "net/wireless/cfg80211.ko",
         "sound/usb/snd-usb-audio-qmi.ko",
