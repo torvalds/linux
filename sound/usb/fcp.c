@@ -266,7 +266,7 @@ retry:
 	if (req->opcode != resp->opcode) {
 		usb_audio_err(mixer->chip,
 			      "FCP response %08x opcode mismatch %08x\n",
-			      opcode, le16_to_cpu(resp->opcode));
+			      opcode, le32_to_cpu(resp->opcode));
 		return -EINVAL;
 	}
 
