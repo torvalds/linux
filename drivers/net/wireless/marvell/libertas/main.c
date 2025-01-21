@@ -256,8 +256,7 @@ void lbs_host_to_card_done(struct lbs_private *priv)
 
 	/* Wake main thread if commands are pending */
 	if (!priv->cur_cmd || priv->tx_pending_len > 0) {
-		if (!priv->wakeup_dev_required)
-			wake_up(&priv->waitq);
+		wake_up(&priv->waitq);
 	}
 
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
@@ -448,8 +447,7 @@ static int lbs_thread(void *data)
 			shouldsleep = 0;	/* We have a command response */
 		else if (priv->cur_cmd)
 			shouldsleep = 1;	/* Can't send a command; one already running */
-		else if (!list_empty(&priv->cmdpendingq) &&
-					!(priv->wakeup_dev_required))
+		else if (!list_empty(&priv->cmdpendingq))
 			shouldsleep = 0;	/* We have a command to send */
 		else if (kfifo_len(&priv->event_fifo))
 			shouldsleep = 0;	/* We have an event to process */
@@ -515,14 +513,6 @@ static int lbs_thread(void *data)
 			spin_lock_irq(&priv->driver_lock);
 		}
 		spin_unlock_irq(&priv->driver_lock);
-
-		if (priv->wakeup_dev_required) {
-			lbs_deb_thread("Waking up device...\n");
-			/* Wake up device */
-			if (priv->exit_deep_sleep(priv))
-				lbs_deb_thread("Wakeup device failed\n");
-			continue;
-		}
 
 		/* command timeout stuff */
 		if (priv->cmd_timed_out && priv->cur_cmd) {
@@ -606,7 +596,6 @@ static int lbs_thread(void *data)
 
 	del_timer(&priv->command_timer);
 	del_timer(&priv->tx_lockup_timer);
-	del_timer(&priv->auto_deepsleep_timer);
 
 	return 0;
 }
@@ -753,35 +742,6 @@ static void lbs_tx_lockup_handler(struct timer_list *t)
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 }
 
-/**
- * auto_deepsleep_timer_fn - put the device back to deep sleep mode when
- * timer expires and no activity (command, event, data etc.) is detected.
- * @t: Context from which to retrieve a &struct lbs_private pointer
- * returns:	N/A
- */
-static void auto_deepsleep_timer_fn(struct timer_list *t)
-{
-	struct lbs_private *priv = from_timer(priv, t, auto_deepsleep_timer);
-
-	if (priv->is_activity_detected) {
-		priv->is_activity_detected = 0;
-	} else {
-		if (priv->is_auto_deep_sleep_enabled &&
-		    (!priv->wakeup_dev_required) &&
-		    (priv->connect_status != LBS_CONNECTED)) {
-			struct cmd_header cmd;
-
-			lbs_deb_main("Entering auto deep sleep mode...\n");
-			memset(&cmd, 0, sizeof(cmd));
-			cmd.size = cpu_to_le16(sizeof(cmd));
-			lbs_cmd_async(priv, CMD_802_11_DEEP_SLEEP, &cmd,
-					sizeof(cmd));
-		}
-	}
-	mod_timer(&priv->auto_deepsleep_timer , jiffies +
-				(priv->auto_deep_sleep_timeout * HZ)/1000);
-}
-
 static int lbs_init_adapter(struct lbs_private *priv)
 {
 	int ret;
@@ -795,9 +755,7 @@ static int lbs_init_adapter(struct lbs_private *priv)
 	priv->psmode = LBS802_11POWERMODECAM;
 	priv->psstate = PS_STATE_FULL_POWER;
 	priv->is_deep_sleep = 0;
-	priv->is_auto_deep_sleep_enabled = 0;
 	priv->deep_sleep_required = 0;
-	priv->wakeup_dev_required = 0;
 	init_waitqueue_head(&priv->ds_awake_q);
 	init_waitqueue_head(&priv->scan_q);
 	priv->authtype_auto = 1;
@@ -809,7 +767,6 @@ static int lbs_init_adapter(struct lbs_private *priv)
 
 	timer_setup(&priv->command_timer, lbs_cmd_timeout_handler, 0);
 	timer_setup(&priv->tx_lockup_timer, lbs_tx_lockup_handler, 0);
-	timer_setup(&priv->auto_deepsleep_timer, auto_deepsleep_timer_fn, 0);
 
 	INIT_LIST_HEAD(&priv->cmdfreeq);
 	INIT_LIST_HEAD(&priv->cmdpendingq);
@@ -843,7 +800,6 @@ static void lbs_free_adapter(struct lbs_private *priv)
 	kfifo_free(&priv->event_fifo);
 	del_timer(&priv->command_timer);
 	del_timer(&priv->tx_lockup_timer);
-	del_timer(&priv->auto_deepsleep_timer);
 }
 
 static const struct net_device_ops lbs_netdev_ops = {

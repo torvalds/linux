@@ -903,10 +903,6 @@ static void lbs_submit_command(struct lbs_private *priv,
 	}
 
 	if (command == CMD_802_11_DEEP_SLEEP) {
-		if (priv->is_auto_deep_sleep_enabled) {
-			priv->wakeup_dev_required = 1;
-			priv->dnld_sent = 0;
-		}
 		priv->is_deep_sleep = 1;
 		lbs_complete_command(priv, cmdnode, 0);
 	} else {
@@ -1391,12 +1387,10 @@ struct cmd_ctrl_node *__lbs_cmd_async(struct lbs_private *priv,
 	/* No commands are allowed in Deep Sleep until we toggle the GPIO
 	 * to wake up the card and it has signaled that it's ready.
 	 */
-	if (!priv->is_auto_deep_sleep_enabled) {
-		if (priv->is_deep_sleep) {
-			lbs_deb_cmd("command not allowed in deep sleep\n");
-			cmdnode = ERR_PTR(-EBUSY);
-			goto done;
-		}
+	if (priv->is_deep_sleep) {
+		lbs_deb_cmd("command not allowed in deep sleep\n");
+		cmdnode = ERR_PTR(-EBUSY);
+		goto done;
 	}
 
 	cmdnode = lbs_get_free_cmd_node(priv);
