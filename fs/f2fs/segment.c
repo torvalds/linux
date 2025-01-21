@@ -5462,7 +5462,8 @@ int f2fs_check_and_fix_write_pointer(struct f2fs_sb_info *sbi)
 {
 	int ret;
 
-	if (!f2fs_sb_has_blkzoned(sbi) || f2fs_readonly(sbi->sb))
+	if (!f2fs_sb_has_blkzoned(sbi) || f2fs_readonly(sbi->sb) ||
+	    f2fs_hw_is_readonly(sbi))
 		return 0;
 
 	f2fs_notice(sbi, "Checking entire write pointers");
