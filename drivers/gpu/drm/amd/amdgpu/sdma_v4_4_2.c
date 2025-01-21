@@ -1477,7 +1477,7 @@ static int sdma_v4_4_2_sw_init(struct amdgpu_ip_block *ip_block)
 	r = amdgpu_sdma_sysfs_reset_mask_init(adev);
 	if (r)
 		return r;
-
+	INIT_LIST_HEAD(&adev->sdma.reset_callback_list);
 	return r;
 }
 
