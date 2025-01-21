@@ -159,16 +159,15 @@ copy_to_user_key(void __user *to, const void *from, unsigned long n, unsigned lo
 int __noreturn __put_user_bad(void);
 
 #ifdef CONFIG_KMSAN
-#define get_put_user_noinstr_attributes \
-	noinline __maybe_unused __no_sanitize_memory
+#define uaccess_kmsan_or_inline noinline __maybe_unused __no_sanitize_memory
 #else
-#define get_put_user_noinstr_attributes __always_inline
+#define uaccess_kmsan_or_inline __always_inline
 #endif
 
 #ifdef CONFIG_CC_HAS_ASM_GOTO_OUTPUT
 
 #define DEFINE_PUT_USER_NOINSTR(type)					\
-static get_put_user_noinstr_attributes int				\
+static uaccess_kmsan_or_inline int					\
 __put_user_##type##_noinstr(unsigned type __user *to,			\
 			    unsigned type *from,			\
 			    unsigned long size)				\
@@ -193,7 +192,7 @@ Efault:									\
 #else /* CONFIG_CC_HAS_ASM_GOTO_OUTPUT */
 
 #define DEFINE_PUT_USER_NOINSTR(type)					\
-static get_put_user_noinstr_attributes int				\
+static uaccess_kmsan_or_inline int					\
 __put_user_##type##_noinstr(unsigned type __user *to,			\
 			    unsigned type *from,			\
 			    unsigned long size)				\
@@ -283,7 +282,7 @@ int __noreturn __get_user_bad(void);
 #ifdef CONFIG_CC_HAS_ASM_GOTO_OUTPUT
 
 #define DEFINE_GET_USER_NOINSTR(type)					\
-static get_put_user_noinstr_attributes int				\
+static uaccess_kmsan_or_inline int					\
 __get_user_##type##_noinstr(unsigned type *to,				\
 			    const unsigned type __user *from,		\
 			    unsigned long size)				\
@@ -309,7 +308,7 @@ Efault:									\
 #else /* CONFIG_CC_HAS_ASM_GOTO_OUTPUT */
 
 #define DEFINE_GET_USER_NOINSTR(type)					\
-static get_put_user_noinstr_attributes int				\
+static uaccess_kmsan_or_inline int					\
 __get_user_##type##_noinstr(unsigned type *to,				\
 			    const unsigned type __user *from,		\
 			    unsigned long size)				\
