@@ -100,7 +100,7 @@ struct fcp_data {
 
 	u8                   num_meter_slots;
 	s16                 *meter_level_map;
-	u32                 *meter_levels;
+	__le32              *meter_levels;
 	struct snd_kcontrol *meter_ctl;
 
 	unsigned int *meter_labels_tlv;
@@ -266,7 +266,7 @@ retry:
 	if (req->opcode != resp->opcode) {
 		usb_audio_err(mixer->chip,
 			      "FCP response %08x opcode mismatch %08x\n",
-			      opcode, le16_to_cpu(resp->opcode));
+			      opcode, le32_to_cpu(resp->opcode));
 		return -EINVAL;
 	}
 
@@ -383,7 +383,7 @@ static int fcp_meter_ctl_get(struct snd_kcontrol *kctl,
 	struct usb_mixer_interface *mixer = elem->head.mixer;
 	struct fcp_data *private = mixer->private_data;
 	int num_meter_slots, resp_size;
-	u32 *resp = private->meter_levels;
+	__le32 *resp = private->meter_levels;
 	int i, err = 0;
 
 	struct {
@@ -655,7 +655,7 @@ static int fcp_ioctl_set_meter_map(struct usb_mixer_interface *mixer,
 	/* If the control doesn't exist, create it */
 	if (!private->meter_ctl) {
 		s16 *new_map __free(kfree) = NULL;
-		u32 *meter_levels __free(kfree) = NULL;
+		__le32 *meter_levels __free(kfree) = NULL;
 
 		/* Allocate buffer for the map */
 		new_map = kmalloc_array(map.map_size, sizeof(s16), GFP_KERNEL);
@@ -663,7 +663,7 @@ static int fcp_ioctl_set_meter_map(struct usb_mixer_interface *mixer,
 			return -ENOMEM;
 
 		/* Allocate buffer for reading meter levels */
-		meter_levels = kmalloc_array(map.meter_slots, sizeof(u32),
+		meter_levels = kmalloc_array(map.meter_slots, sizeof(__le32),
 					     GFP_KERNEL);
 		if (!meter_levels)
 			return -ENOMEM;
@@ -843,18 +843,18 @@ static long fcp_hwdep_read(struct snd_hwdep *hw, char __user *buf,
 	return sizeof(event);
 }
 
-static unsigned int fcp_hwdep_poll(struct snd_hwdep *hw,
-				   struct file *file,
-				   poll_table *wait)
+static __poll_t fcp_hwdep_poll(struct snd_hwdep *hw,
+			       struct file *file,
+			       poll_table *wait)
 {
 	struct usb_mixer_interface *mixer = hw->private_data;
 	struct fcp_data *private = mixer->private_data;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	poll_wait(file, &private->notify.queue, wait);
 
 	if (private->notify.event)
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 
 	return mask;
 }
