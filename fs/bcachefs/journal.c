@@ -601,6 +601,16 @@ out:
 		: -BCH_ERR_journal_res_get_blocked;
 }
 
+static unsigned max_dev_latency(struct bch_fs *c)
+{
+	u64 nsecs = 0;
+
+	for_each_rw_member(c, ca)
+		nsecs = max(nsecs, ca->io_latency[WRITE].stats.max_duration);
+
+	return nsecs_to_jiffies(nsecs);
+}
+
 /*
  * Essentially the entry function to the journaling code. When bcachefs is doing
  * a btree insert, it calls this function to get the current journal write.
@@ -612,17 +622,31 @@ out:
  * btree node write locks.
  */
 int bch2_journal_res_get_slowpath(struct journal *j, struct journal_res *res,
-				  unsigned flags)
+				  unsigned flags,
+				  struct btree_trans *trans)
 {
 	int ret;
 
 	if (closure_wait_event_timeout(&j->async_wait,
 		   (ret = __journal_res_get(j, res, flags)) != -BCH_ERR_journal_res_get_blocked ||
 		   (flags & JOURNAL_RES_GET_NONBLOCK),
-		   HZ * 10))
+		   HZ))
 		return ret;
 
+	if (trans)
+		bch2_trans_unlock_long(trans);
+
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
+	int remaining_wait = max(max_dev_latency(c) * 2, HZ * 10);
+
+	remaining_wait = max(0, remaining_wait - HZ);
+
+	if (closure_wait_event_timeout(&j->async_wait,
+		   (ret = __journal_res_get(j, res, flags)) != -BCH_ERR_journal_res_get_blocked ||
+		   (flags & JOURNAL_RES_GET_NONBLOCK),
+		   remaining_wait))
+		return ret;
+
 	struct printbuf buf = PRINTBUF;
 	bch2_journal_debug_to_text(&buf, j);
 	bch_err(c, "Journal stuck? Waited for 10 seconds...\n%s",
@@ -727,7 +751,7 @@ recheck_need_open:
 		 * livelock:
 		 */
 		sched_annotate_sleep();
-		ret = bch2_journal_res_get(j, &res, jset_u64s(0), 0);
+		ret = bch2_journal_res_get(j, &res, jset_u64s(0), 0, NULL);
 		if (ret)
 			return ret;
 
@@ -848,7 +872,7 @@ out:
 static int __bch2_journal_meta(struct journal *j)
 {
 	struct journal_res res = {};
-	int ret = bch2_journal_res_get(j, &res, jset_u64s(0), 0);
+	int ret = bch2_journal_res_get(j, &res, jset_u64s(0), 0, NULL);
 	if (ret)
 		return ret;
 

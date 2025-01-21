@@ -312,7 +312,7 @@ static inline void bch2_journal_res_put(struct journal *j,
 }
 
 int bch2_journal_res_get_slowpath(struct journal *, struct journal_res *,
-				  unsigned);
+				  unsigned, struct btree_trans *);
 
 /* First bits for BCH_WATERMARK: */
 enum journal_res_flags {
@@ -368,7 +368,8 @@ static inline int journal_res_get_fast(struct journal *j,
 }
 
 static inline int bch2_journal_res_get(struct journal *j, struct journal_res *res,
-				       unsigned u64s, unsigned flags)
+				       unsigned u64s, unsigned flags,
+				       struct btree_trans *trans)
 {
 	int ret;
 
@@ -380,7 +381,7 @@ static inline int bch2_journal_res_get(struct journal *j, struct journal_res *re
 	if (journal_res_get_fast(j, res, flags))
 		goto out;
 
-	ret = bch2_journal_res_get_slowpath(j, res, flags);
+	ret = bch2_journal_res_get_slowpath(j, res, flags, trans);
 	if (ret)
 		return ret;
 out:
