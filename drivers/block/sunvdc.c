@@ -829,7 +829,7 @@ static int probe_disk(struct vdc_port *port)
 	}
 
 	err = blk_mq_alloc_sq_tag_set(&port->tag_set, &vdc_mq_ops,
-			VDC_TX_RING_SIZE, BLK_MQ_F_SHOULD_MERGE);
+			VDC_TX_RING_SIZE, 0);
 	if (err)
 		return err;
 

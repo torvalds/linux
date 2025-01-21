@@ -10411,7 +10411,6 @@ static int ufshcd_add_scsi_host(struct ufs_hba *hba)
 		.nr_hw_queues	= 1,
 		.queue_depth	= hba->nutmrs,
 		.ops		= &ufshcd_tmf_ops,
-		.flags		= BLK_MQ_F_NO_SCHED,
 	};
 	err = blk_mq_alloc_tag_set(&hba->tmf_tag_set);
 	if (err < 0)

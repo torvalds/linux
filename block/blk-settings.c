@@ -175,6 +175,9 @@ static void blk_validate_atomic_write_limits(struct queue_limits *lim)
 {
 	unsigned int boundary_sectors;
 
+	if (!(lim->features & BLK_FEAT_ATOMIC_WRITES))
+		goto unsupported;
+
 	if (!lim->atomic_write_hw_max)
 		goto unsupported;
 
@@ -413,7 +416,8 @@ int blk_set_default_limits(struct queue_limits *lim)
  * @lim:	limits to apply
  *
  * Apply the limits in @lim that were obtained from queue_limits_start_update()
- * and updated by the caller to @q.
+ * and updated by the caller to @q.  The caller must have frozen the queue or
+ * ensure that there are no outstanding I/Os by other means.
  *
  * Returns 0 if successful, else a negative error code.
  */
@@ -442,6 +446,30 @@ out_unlock:
 	return error;
 }
 EXPORT_SYMBOL_GPL(queue_limits_commit_update);
+
+/**
+ * queue_limits_commit_update_frozen - commit an atomic update of queue limits
+ * @q:		queue to update
+ * @lim:	limits to apply
+ *
+ * Apply the limits in @lim that were obtained from queue_limits_start_update()
+ * and updated with the new values by the caller to @q.  Freezes the queue
+ * before the update and unfreezes it after.
+ *
+ * Returns 0 if successful, else a negative error code.
+ */
+int queue_limits_commit_update_frozen(struct request_queue *q,
+		struct queue_limits *lim)
+{
+	int ret;
+
+	blk_mq_freeze_queue(q);
+	ret = queue_limits_commit_update(q, lim);
+	blk_mq_unfreeze_queue(q);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(queue_limits_commit_update_frozen);
 
 /**
  * queue_limits_set - apply queue limits to queue
@@ -584,12 +612,15 @@ static bool blk_stack_atomic_writes_head(struct queue_limits *t,
 }
 
 static void blk_stack_atomic_writes_limits(struct queue_limits *t,
-				struct queue_limits *b)
+				struct queue_limits *b, sector_t start)
 {
-	if (!(t->features & BLK_FEAT_ATOMIC_WRITES_STACKED))
+	if (!(b->features & BLK_FEAT_ATOMIC_WRITES))
 		goto unsupported;
 
-	if (!b->atomic_write_unit_min)
+	if (!b->atomic_write_hw_unit_min)
+		goto unsupported;
+
+	if (!blk_atomic_write_start_sect_aligned(start, b))
 		goto unsupported;
 
 	/*
@@ -611,7 +642,6 @@ unsupported:
 	t->atomic_write_hw_unit_max = 0;
 	t->atomic_write_hw_unit_min = 0;
 	t->atomic_write_hw_boundary = 0;
-	t->features &= ~BLK_FEAT_ATOMIC_WRITES_STACKED;
 }
 
 /**
@@ -774,7 +804,7 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 		t->zone_write_granularity = 0;
 		t->max_zone_append_sectors = 0;
 	}
-	blk_stack_atomic_writes_limits(t, b);
+	blk_stack_atomic_writes_limits(t, b, start);
 
 	return ret;
 }

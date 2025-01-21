@@ -58,6 +58,13 @@ static DEFINE_IDA(ext_devt_ida);
 
 void set_capacity(struct gendisk *disk, sector_t sectors)
 {
+	if (sectors > BLK_DEV_MAX_SECTORS) {
+		pr_warn_once("%s: truncate capacity from %lld to %lld\n",
+				disk->disk_name, sectors,
+				BLK_DEV_MAX_SECTORS);
+		sectors = BLK_DEV_MAX_SECTORS;
+	}
+
 	bdev_set_nr_sectors(disk->part0, sectors);
 }
 EXPORT_SYMBOL(set_capacity);
@@ -400,21 +407,26 @@ int __must_check add_disk_fwnode(struct device *parent, struct gendisk *disk,
 	struct device *ddev = disk_to_dev(disk);
 	int ret;
 
-	/* Only makes sense for bio-based to set ->poll_bio */
-	if (queue_is_mq(disk->queue) && disk->fops->poll_bio)
+	if (WARN_ON_ONCE(bdev_nr_sectors(disk->part0) > BLK_DEV_MAX_SECTORS))
 		return -EINVAL;
 
-	/*
-	 * The disk queue should now be all set with enough information about
-	 * the device for the elevator code to pick an adequate default
-	 * elevator if one is needed, that is, for devices requesting queue
-	 * registration.
-	 */
-	elevator_init_mq(disk->queue);
+	if (queue_is_mq(disk->queue)) {
+		/*
+		 * ->submit_bio and ->poll_bio are bypassed for blk-mq drivers.
+		 */
+		if (disk->fops->submit_bio || disk->fops->poll_bio)
+			return -EINVAL;
 
-	/* Mark bdev as having a submit_bio, if needed */
-	if (disk->fops->submit_bio)
+		/*
+		 * Initialize the I/O scheduler code and pick a default one if
+		 * needed.
+		 */
+		elevator_init_mq(disk->queue);
+	} else {
+		if (!disk->fops->submit_bio)
+			return -EINVAL;
 		bdev_set_flag(disk->part0, BD_HAS_SUBMIT_BIO);
+	}
 
 	/*
 	 * If the driver provides an explicit major number it also must provide
@@ -661,7 +673,7 @@ void del_gendisk(struct gendisk *disk)
 	struct request_queue *q = disk->queue;
 	struct block_device *part;
 	unsigned long idx;
-	bool start_drain, queue_dying;
+	bool start_drain;
 
 	might_sleep();
 
@@ -690,9 +702,8 @@ void del_gendisk(struct gendisk *disk)
 	 */
 	mutex_lock(&disk->open_mutex);
 	start_drain = __blk_mark_disk_dead(disk);
-	queue_dying = blk_queue_dying(q);
 	if (start_drain)
-		blk_freeze_acquire_lock(q, true, queue_dying);
+		blk_freeze_acquire_lock(q);
 	xa_for_each_start(&disk->part_tbl, idx, part, 1)
 		drop_partition(part);
 	mutex_unlock(&disk->open_mutex);
@@ -748,7 +759,7 @@ void del_gendisk(struct gendisk *disk)
 		blk_mq_exit_queue(q);
 
 	if (start_drain)
-		blk_unfreeze_release_lock(q, true, queue_dying);
+		blk_unfreeze_release_lock(q);
 }
 EXPORT_SYMBOL(del_gendisk);
 
@@ -798,7 +809,7 @@ static ssize_t disk_badblocks_store(struct device *dev,
 }
 
 #ifdef CONFIG_BLOCK_LEGACY_AUTOLOAD
-void blk_request_module(dev_t devt)
+static bool blk_probe_dev(dev_t devt)
 {
 	unsigned int major = MAJOR(devt);
 	struct blk_major_name **n;
@@ -808,14 +819,26 @@ void blk_request_module(dev_t devt)
 		if ((*n)->major == major && (*n)->probe) {
 			(*n)->probe(devt);
 			mutex_unlock(&major_names_lock);
-			return;
+			return true;
 		}
 	}
 	mutex_unlock(&major_names_lock);
+	return false;
+}
 
-	if (request_module("block-major-%d-%d", MAJOR(devt), MINOR(devt)) > 0)
-		/* Make old-style 2.4 aliases work */
-		request_module("block-major-%d", MAJOR(devt));
+void blk_request_module(dev_t devt)
+{
+	int error;
+
+	if (blk_probe_dev(devt))
+		return;
+
+	error = request_module("block-major-%d-%d", MAJOR(devt), MINOR(devt));
+	/* Make old-style 2.4 aliases work */
+	if (error > 0)
+		error = request_module("block-major-%d", MAJOR(devt));
+	if (!error)
+		blk_probe_dev(devt);
 }
 #endif /* CONFIG_BLOCK_LEGACY_AUTOLOAD */
 

@@ -266,6 +266,10 @@ static bool g_zone_full;
 module_param_named(zone_full, g_zone_full, bool, S_IRUGO);
 MODULE_PARM_DESC(zone_full, "Initialize the sequential write required zones of a zoned device to be full. Default: false");
 
+static bool g_rotational;
+module_param_named(rotational, g_rotational, bool, S_IRUGO);
+MODULE_PARM_DESC(rotational, "Set the rotational feature for the device. Default: false");
+
 static struct nullb_device *null_alloc_dev(void);
 static void null_free_dev(struct nullb_device *dev);
 static void null_del_dev(struct nullb *nullb);
@@ -468,6 +472,7 @@ NULLB_DEVICE_ATTR(no_sched, bool, NULL);
 NULLB_DEVICE_ATTR(shared_tags, bool, NULL);
 NULLB_DEVICE_ATTR(shared_tag_bitmap, bool, NULL);
 NULLB_DEVICE_ATTR(fua, bool, NULL);
+NULLB_DEVICE_ATTR(rotational, bool, NULL);
 
 static ssize_t nullb_device_power_show(struct config_item *item, char *page)
 {
@@ -621,6 +626,7 @@ static struct configfs_attribute *nullb_device_attrs[] = {
 	&nullb_device_attr_shared_tags,
 	&nullb_device_attr_shared_tag_bitmap,
 	&nullb_device_attr_fua,
+	&nullb_device_attr_rotational,
 	NULL,
 };
 
@@ -706,7 +712,8 @@ static ssize_t memb_group_features_show(struct config_item *item, char *page)
 			"shared_tags,size,submit_queues,use_per_node_hctx,"
 			"virt_boundary,zoned,zone_capacity,zone_max_active,"
 			"zone_max_open,zone_nr_conv,zone_offline,zone_readonly,"
-			"zone_size,zone_append_max_sectors,zone_full\n");
+			"zone_size,zone_append_max_sectors,zone_full,"
+			"rotational\n");
 }
 
 CONFIGFS_ATTR_RO(memb_group_, features);
@@ -793,6 +800,7 @@ static struct nullb_device *null_alloc_dev(void)
 	dev->shared_tags = g_shared_tags;
 	dev->shared_tag_bitmap = g_shared_tag_bitmap;
 	dev->fua = g_fua;
+	dev->rotational = g_rotational;
 
 	return dev;
 }
@@ -899,7 +907,7 @@ static struct nullb_page *null_radix_tree_insert(struct nullb *nullb, u64 idx,
 	if (radix_tree_insert(root, idx, t_page)) {
 		null_free_page(t_page);
 		t_page = radix_tree_lookup(root, idx);
-		WARN_ON(!t_page || t_page->page->index != idx);
+		WARN_ON(!t_page || t_page->page->private != idx);
 	} else if (is_cache)
 		nullb->dev->curr_cache += PAGE_SIZE;
 
@@ -922,7 +930,7 @@ static void null_free_device_storage(struct nullb_device *dev, bool is_cache)
 				(void **)t_pages, pos, FREE_BATCH);
 
 		for (i = 0; i < nr_pages; i++) {
-			pos = t_pages[i]->page->index;
+			pos = t_pages[i]->page->private;
 			ret = radix_tree_delete_item(root, pos, t_pages[i]);
 			WARN_ON(ret != t_pages[i]);
 			null_free_page(ret);
@@ -948,7 +956,7 @@ static struct nullb_page *__null_lookup_page(struct nullb *nullb,
 
 	root = is_cache ? &nullb->dev->cache : &nullb->dev->data;
 	t_page = radix_tree_lookup(root, idx);
-	WARN_ON(t_page && t_page->page->index != idx);
+	WARN_ON(t_page && t_page->page->private != idx);
 
 	if (t_page && (for_write || test_bit(sector_bit, t_page->bitmap)))
 		return t_page;
@@ -991,7 +999,7 @@ static struct nullb_page *null_insert_page(struct nullb *nullb,
 
 	spin_lock_irq(&nullb->lock);
 	idx = sector >> PAGE_SECTORS_SHIFT;
-	t_page->page->index = idx;
+	t_page->page->private = idx;
 	t_page = null_radix_tree_insert(nullb, idx, t_page, !ignore_cache);
 	radix_tree_preload_end();
 
@@ -1011,7 +1019,7 @@ static int null_flush_cache_page(struct nullb *nullb, struct nullb_page *c_page)
 	struct nullb_page *t_page, *ret;
 	void *dst, *src;
 
-	idx = c_page->page->index;
+	idx = c_page->page->private;
 
 	t_page = null_insert_page(nullb, idx << PAGE_SECTORS_SHIFT, true);
 
@@ -1070,7 +1078,7 @@ again:
 	 * avoid race, we don't allow page free
 	 */
 	for (i = 0; i < nr_pages; i++) {
-		nullb->cache_flush_pos = c_pages[i]->page->index;
+		nullb->cache_flush_pos = c_pages[i]->page->private;
 		/*
 		 * We found the page which is being flushed to disk by other
 		 * threads
@@ -1783,9 +1791,8 @@ static int null_init_global_tag_set(void)
 	tag_set.nr_hw_queues = g_submit_queues;
 	tag_set.queue_depth = g_hw_queue_depth;
 	tag_set.numa_node = g_home_node;
-	tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
 	if (g_no_sched)
-		tag_set.flags |= BLK_MQ_F_NO_SCHED;
+		tag_set.flags |= BLK_MQ_F_NO_SCHED_BY_DEFAULT;
 	if (g_shared_tag_bitmap)
 		tag_set.flags |= BLK_MQ_F_TAG_HCTX_SHARED;
 	if (g_blocking)
@@ -1809,9 +1816,8 @@ static int null_setup_tagset(struct nullb *nullb)
 	nullb->tag_set->nr_hw_queues = nullb->dev->submit_queues;
 	nullb->tag_set->queue_depth = nullb->dev->hw_queue_depth;
 	nullb->tag_set->numa_node = nullb->dev->home_node;
-	nullb->tag_set->flags = BLK_MQ_F_SHOULD_MERGE;
 	if (nullb->dev->no_sched)
-		nullb->tag_set->flags |= BLK_MQ_F_NO_SCHED;
+		nullb->tag_set->flags |= BLK_MQ_F_NO_SCHED_BY_DEFAULT;
 	if (nullb->dev->shared_tag_bitmap)
 		nullb->tag_set->flags |= BLK_MQ_F_TAG_HCTX_SHARED;
 	if (nullb->dev->blocking)
@@ -1937,6 +1943,9 @@ static int null_add_dev(struct nullb_device *dev)
 		if (dev->fua)
 			lim.features |= BLK_FEAT_FUA;
 	}
+
+	if (dev->rotational)
+		lim.features |= BLK_FEAT_ROTATIONAL;
 
 	nullb->disk = blk_mq_alloc_disk(nullb->tag_set, &lim, nullb);
 	if (IS_ERR(nullb->disk)) {

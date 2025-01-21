@@ -3328,8 +3328,8 @@ static void hisi_sas_map_queues(struct Scsi_Host *shost)
 		if (i == HCTX_TYPE_POLL)
 			blk_mq_map_queues(qmap);
 		else
-			blk_mq_pci_map_queues(qmap, hisi_hba->pci_dev,
-					      BASE_VECTORS_V3_HW);
+			blk_mq_map_hw_queues(qmap, hisi_hba->dev,
+					     BASE_VECTORS_V3_HW);
 		qoff += qmap->nr_queues;
 	}
 }
@@ -3345,7 +3345,7 @@ static const struct scsi_host_template sht_v3_hw = {
 	.slave_alloc		= hisi_sas_slave_alloc,
 	.shost_groups		= host_v3_hw_groups,
 	.sdev_groups		= sdev_groups_v3_hw,
-	.tag_alloc_policy	= BLK_TAG_ALLOC_RR,
+	.tag_alloc_policy_rr	= true,
 	.host_reset             = hisi_sas_host_reset,
 	.host_tagset		= 1,
 	.mq_poll		= queue_complete_v3_hw,
