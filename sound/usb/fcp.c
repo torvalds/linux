@@ -843,18 +843,18 @@ static long fcp_hwdep_read(struct snd_hwdep *hw, char __user *buf,
 	return sizeof(event);
 }
 
-static unsigned int fcp_hwdep_poll(struct snd_hwdep *hw,
-				   struct file *file,
-				   poll_table *wait)
+static __poll_t fcp_hwdep_poll(struct snd_hwdep *hw,
+			       struct file *file,
+			       poll_table *wait)
 {
 	struct usb_mixer_interface *mixer = hw->private_data;
 	struct fcp_data *private = mixer->private_data;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	poll_wait(file, &private->notify.queue, wait);
 
 	if (private->notify.event)
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 
 	return mask;
 }
