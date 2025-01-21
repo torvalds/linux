@@ -815,7 +815,8 @@ static void smp_call_function_many_cond(const struct cpumask *mask,
 	WARN_ON_ONCE(!in_task());
 
 	/* Check if we need local execution. */
-	if ((scf_flags & SCF_RUN_LOCAL) && cpumask_test_cpu(this_cpu, mask))
+	if ((scf_flags & SCF_RUN_LOCAL) && cpumask_test_cpu(this_cpu, mask) &&
+	    (!cond_func || cond_func(this_cpu, info)))
 		run_local = true;
 
 	/* Check if we need remote execution, i.e., any CPU excluding this one. */
@@ -868,7 +869,7 @@ static void smp_call_function_many_cond(const struct cpumask *mask,
 			send_call_function_ipi_mask(cfd->cpumask_ipi);
 	}
 
-	if (run_local && (!cond_func || cond_func(this_cpu, info))) {
+	if (run_local) {
 		unsigned long flags;
 
 		local_irq_save(flags);
