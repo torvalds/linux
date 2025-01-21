@@ -13,6 +13,7 @@
 #include "xfs_log.h"
 #include "xfs_log_priv.h"
 #include "xfs_mount.h"
+#include "xfs_zones.h"
 
 struct xfs_sysfs_attr {
 	struct attribute attr;
@@ -701,6 +702,34 @@ out_error:
 	return error;
 }
 
+static inline struct xfs_mount *zoned_to_mp(struct kobject *kobj)
+{
+	return container_of(to_kobj(kobj), struct xfs_mount, m_zoned_kobj);
+}
+
+static ssize_t
+max_open_zones_show(
+	struct kobject		*kobj,
+	char			*buf)
+{
+	/* only report the open zones available for user data */
+	return sysfs_emit(buf, "%u\n",
+		zoned_to_mp(kobj)->m_max_open_zones - XFS_OPEN_GC_ZONES);
+}
+XFS_SYSFS_ATTR_RO(max_open_zones);
+
+static struct attribute *xfs_zoned_attrs[] = {
+	ATTR_LIST(max_open_zones),
+	NULL,
+};
+ATTRIBUTE_GROUPS(xfs_zoned);
+
+static const struct kobj_type xfs_zoned_ktype = {
+	.release = xfs_sysfs_release,
+	.sysfs_ops = &xfs_sysfs_ops,
+	.default_groups = xfs_zoned_groups,
+};
+
 int
 xfs_mount_sysfs_init(
 	struct xfs_mount	*mp)
@@ -741,6 +770,14 @@ xfs_mount_sysfs_init(
 	if (error)
 		goto out_remove_error_dir;
 
+	if (IS_ENABLED(CONFIG_XFS_RT) && xfs_has_zoned(mp)) {
+		/* .../xfs/<dev>/zoned/ */
+		error = xfs_sysfs_init(&mp->m_zoned_kobj, &xfs_zoned_ktype,
+					&mp->m_kobj, "zoned");
+		if (error)
+			goto out_remove_error_dir;
+	}
+
 	return 0;
 
 out_remove_error_dir:
@@ -758,6 +795,9 @@ xfs_mount_sysfs_del(
 {
 	struct xfs_error_cfg	*cfg;
 	int			i, j;
+
+	if (IS_ENABLED(CONFIG_XFS_RT) && xfs_has_zoned(mp))
+		xfs_sysfs_del(&mp->m_zoned_kobj);
 
 	for (i = 0; i < XFS_ERR_CLASS_MAX; i++) {
 		for (j = 0; j < XFS_ERR_ERRNO_MAX; j++) {
