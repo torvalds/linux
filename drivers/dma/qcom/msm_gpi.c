@@ -830,12 +830,15 @@ static void gpi_dump_cntxt_regs(struct gpii *gpii)
 			 gpii->gpii_id, chan, reg_val);
 	}
 
-	for (chan = 0; chan < MAX_CHANNELS_PER_GPII; chan++) {
-		offset = GPI_GPII_MAP_EE_n_CH_k_VP_TABLE(gpii->gpii_id,
-							 gpii->gpii_chan[chan].chid);
-		reg_val = readl_relaxed(gpii->regs + offset);
-		GPII_ERR(gpii, GPI_DBG_COMMON, "GPI_GPII_%d_CH_%d_VP_TABLE_val:0x%x\n",
-			 gpii->gpii_id, chan, reg_val);
+	/* Skip dumping gpi vp table registers for LE_VM */
+	if (!gpii->gpi_dev->is_le_vm) {
+		for (chan = 0; chan < MAX_CHANNELS_PER_GPII; chan++) {
+			offset = GPI_GPII_MAP_EE_n_CH_k_VP_TABLE(gpii->gpii_id,
+								 gpii->gpii_chan[chan].chid);
+			reg_val = readl_relaxed(gpii->regs + offset);
+			GPII_ERR(gpii, GPI_DBG_COMMON, "GPI_GPII_%d_CH_%d_VP_TABLE_val:0x%x\n",
+				 gpii->gpii_id, chan, reg_val);
+		}
 	}
 }
 
