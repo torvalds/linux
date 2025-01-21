@@ -36,6 +36,7 @@
 #include <linux/slab.h>
 #include <linux/torture.h>
 #include <linux/types.h>
+#include <linux/sched/clock.h>
 
 #include "rcu.h"
 
@@ -530,6 +531,39 @@ static const struct ref_scale_ops acqrel_ops = {
 };
 
 static volatile u64 stopopts;
+
+static void ref_sched_clock_section(const int nloops)
+{
+	u64 x = 0;
+	int i;
+
+	preempt_disable();
+	for (i = nloops; i >= 0; i--)
+		x += sched_clock();
+	preempt_enable();
+	stopopts = x;
+}
+
+static void ref_sched_clock_delay_section(const int nloops, const int udl, const int ndl)
+{
+	u64 x = 0;
+	int i;
+
+	preempt_disable();
+	for (i = nloops; i >= 0; i--) {
+		x += sched_clock();
+		un_delay(udl, ndl);
+	}
+	preempt_enable();
+	stopopts = x;
+}
+
+static const struct ref_scale_ops sched_clock_ops = {
+	.readsection	= ref_sched_clock_section,
+	.delaysection	= ref_sched_clock_delay_section,
+	.name		= "sched-clock"
+};
+
 
 static void ref_clock_section(const int nloops)
 {
@@ -1130,9 +1164,9 @@ ref_scale_init(void)
 	int firsterr = 0;
 	static const struct ref_scale_ops *scale_ops[] = {
 		&rcu_ops, &srcu_ops, &srcu_lite_ops, RCU_TRACE_OPS RCU_TASKS_OPS
-		&refcnt_ops, &rwlock_ops, &rwsem_ops, &lock_ops, &lock_irq_ops, &acqrel_ops,
-		&clock_ops, &jiffies_ops, &typesafe_ref_ops, &typesafe_lock_ops,
-		&typesafe_seqlock_ops,
+		&refcnt_ops, &rwlock_ops, &rwsem_ops, &lock_ops, &lock_irq_ops,
+		&acqrel_ops, &sched_clock_ops, &clock_ops, &jiffies_ops,
+		&typesafe_ref_ops, &typesafe_lock_ops, &typesafe_seqlock_ops,
 	};
 
 	if (!torture_init_begin(scale_type, verbose))
