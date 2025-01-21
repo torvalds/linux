@@ -1094,8 +1094,8 @@ static bool all_timings_support_svp(const struct dml2_pmo_instance *pmo,
 
 		if (plane_descriptor->surface.dcc.enable) {
 			mcaches_per_plane += display_config->stage2.mcache_allocations[i].num_mcaches_plane0 +
-					display_config->stage2.mcache_allocations[i].num_mcaches_plane1 -
-					(display_config->stage2.mcache_allocations[i].last_slice_sharing.plane0_plane1 ? 1 : 0);
+				display_config->stage2.mcache_allocations[i].num_mcaches_plane1 -
+				(display_config->stage2.mcache_allocations[i].last_slice_sharing.plane0_plane1 ? 1 : 0);
 		}
 
 		if (is_bit_set_in_bitfield(mask, (unsigned char)plane_descriptor->stream_index)) {
@@ -1113,7 +1113,6 @@ static bool all_timings_support_svp(const struct dml2_pmo_instance *pmo,
 				mcaches_per_plane *= 2;
 			}
 		}
-
 		total_mcaches_required += mcaches_per_plane;
 	}
 

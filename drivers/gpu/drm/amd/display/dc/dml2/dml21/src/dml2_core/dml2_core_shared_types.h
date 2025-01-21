@@ -484,7 +484,7 @@ struct dml2_core_internal_mode_support {
 	double WriteBandwidth[DML2_MAX_PLANES][DML2_MAX_WRITEBACK];
 	double RequiredPrefetchPixelDataBWLuma[DML2_MAX_PLANES];
 	double RequiredPrefetchPixelDataBWChroma[DML2_MAX_PLANES];
-	/* oto bw should also be considered when calculating urgent bw to avoid situations oto/equ mismatches between ms and mp */
+	/* oto bw should also be considered when calculating peak urgent bw to avoid situations oto/equ mismatches between ms and mp */
 	double RequiredPrefetchBWOTO[DML2_MAX_PLANES];
 	double cursor_bw[DML2_MAX_PLANES];
 	double prefetch_cursor_bw[DML2_MAX_PLANES];
@@ -524,11 +524,13 @@ struct dml2_core_internal_mode_support {
 
 	unsigned int num_mcaches_l[DML2_MAX_PLANES];
 	unsigned int mcache_row_bytes_l[DML2_MAX_PLANES];
+	unsigned int mcache_row_bytes_per_channel_l[DML2_MAX_PLANES];
 	unsigned int mcache_offsets_l[DML2_MAX_PLANES][DML2_MAX_MCACHES + 1];
 	unsigned int mcache_shift_granularity_l[DML2_MAX_PLANES];
 
 	unsigned int num_mcaches_c[DML2_MAX_PLANES];
 	unsigned int mcache_row_bytes_c[DML2_MAX_PLANES];
+	unsigned int mcache_row_bytes_per_channel_c[DML2_MAX_PLANES];
 	unsigned int mcache_offsets_c[DML2_MAX_PLANES][DML2_MAX_MCACHES + 1];
 	unsigned int mcache_shift_granularity_c[DML2_MAX_PLANES];
 
@@ -841,11 +843,13 @@ struct dml2_core_internal_mode_program {
 
 	unsigned int num_mcaches_l[DML2_MAX_PLANES];
 	unsigned int mcache_row_bytes_l[DML2_MAX_PLANES];
+	unsigned int mcache_row_bytes_per_channel_l[DML2_MAX_PLANES];
 	unsigned int mcache_offsets_l[DML2_MAX_PLANES][DML2_MAX_MCACHES + 1];
 	unsigned int mcache_shift_granularity_l[DML2_MAX_PLANES];
 
 	unsigned int num_mcaches_c[DML2_MAX_PLANES];
 	unsigned int mcache_row_bytes_c[DML2_MAX_PLANES];
+	unsigned int mcache_row_bytes_per_channel_c[DML2_MAX_PLANES];
 	unsigned int mcache_offsets_c[DML2_MAX_PLANES][DML2_MAX_MCACHES + 1];
 	unsigned int mcache_shift_granularity_c[DML2_MAX_PLANES];
 
@@ -1887,6 +1891,7 @@ struct dml2_core_calcs_calculate_mcache_row_bytes_params {
 	// output
 	unsigned int *num_mcaches;
 	unsigned int *mcache_row_bytes;
+	unsigned int *mcache_row_bytes_per_channel;
 	unsigned int *meta_row_width_ub;
 	double *dcc_dram_bw_nom_overhead_factor;
 	double *dcc_dram_bw_pref_overhead_factor;
@@ -1966,6 +1971,7 @@ struct dml2_core_calcs_calculate_mcache_setting_params {
 	// output
 	unsigned int *num_mcaches_l;
 	unsigned int *mcache_row_bytes_l;
+	unsigned int *mcache_row_bytes_per_channel_l;
 	unsigned int *mcache_offsets_l;
 	unsigned int *mcache_shift_granularity_l;
 	double *dcc_dram_bw_nom_overhead_factor_l;
@@ -1973,6 +1979,7 @@ struct dml2_core_calcs_calculate_mcache_setting_params {
 
 	unsigned int *num_mcaches_c;
 	unsigned int *mcache_row_bytes_c;
+	unsigned int *mcache_row_bytes_per_channel_c;
 	unsigned int *mcache_offsets_c;
 	unsigned int *mcache_shift_granularity_c;
 	double *dcc_dram_bw_nom_overhead_factor_c;

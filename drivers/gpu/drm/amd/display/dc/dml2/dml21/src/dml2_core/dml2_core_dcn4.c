@@ -44,7 +44,7 @@ struct dml2_core_ip_params core_dcn4_ip_caps_base = {
 	.dppclk_delay_scl_lb_only = 16,
 	.dppclk_delay_cnvc_formatter = 28,
 	.dppclk_delay_cnvc_cursor = 6,
-	.cursor_buffer_size = 24,
+	.cursor_buffer_size = 42,
 	.cursor_chunk_size = 2,
 	.dispclk_delay_subtotal = 125,
 	.max_inter_dcn_tile_repeaters = 8,
@@ -327,11 +327,11 @@ static void pack_mode_programming_params_with_implicit_subvp(struct dml2_core_in
 		dml2_core_calcs_get_mall_allocation(&core->clean_me_up.mode_lib, &programming->plane_programming[plane_index].surface_size_mall_bytes, dml_internal_pipe_index);
 
 		memcpy(&programming->plane_programming[plane_index].mcache_allocation,
-				&display_cfg->stage2.mcache_allocations[plane_index],
-				sizeof(struct dml2_mcache_surface_allocation));
+			&display_cfg->stage2.mcache_allocations[plane_index],
+			sizeof(struct dml2_mcache_surface_allocation));
 		total_main_mcaches_required += programming->plane_programming[plane_index].mcache_allocation.num_mcaches_plane0 +
-				programming->plane_programming[plane_index].mcache_allocation.num_mcaches_plane1 -
-				(programming->plane_programming[plane_index].mcache_allocation.last_slice_sharing.plane0_plane1 ? 1 : 0);
+			programming->plane_programming[plane_index].mcache_allocation.num_mcaches_plane1 -
+			(programming->plane_programming[plane_index].mcache_allocation.last_slice_sharing.plane0_plane1 ? 1 : 0);
 
 		for (pipe_offset = 0; pipe_offset < programming->plane_programming[plane_index].num_dpps_required; pipe_offset++) {
 			// Assign storage for this pipe's register values
@@ -374,17 +374,17 @@ static void pack_mode_programming_params_with_implicit_subvp(struct dml2_core_in
 
 		/* generate mcache allocation, phantoms use identical mcache configuration, but in the MALL set and unique mcache ID's beginning after all main ID's */
 		memcpy(&programming->plane_programming[main_plane_index].phantom_plane.mcache_allocation,
-				&programming->plane_programming[main_plane_index].mcache_allocation,
-				sizeof(struct dml2_mcache_surface_allocation));
+			&programming->plane_programming[main_plane_index].mcache_allocation,
+			sizeof(struct dml2_mcache_surface_allocation));
 		for (mcache_index = 0; mcache_index < programming->plane_programming[main_plane_index].phantom_plane.mcache_allocation.num_mcaches_plane0; mcache_index++) {
 			programming->plane_programming[main_plane_index].phantom_plane.mcache_allocation.global_mcache_ids_plane0[mcache_index] += total_main_mcaches_required;
 			programming->plane_programming[main_plane_index].phantom_plane.mcache_allocation.global_mcache_ids_mall_plane0[mcache_index] =
-					programming->plane_programming[main_plane_index].phantom_plane.mcache_allocation.global_mcache_ids_plane0[mcache_index];
+				programming->plane_programming[main_plane_index].phantom_plane.mcache_allocation.global_mcache_ids_plane0[mcache_index];
 		}
 		for (mcache_index = 0; mcache_index < programming->plane_programming[main_plane_index].phantom_plane.mcache_allocation.num_mcaches_plane1; mcache_index++) {
 			programming->plane_programming[main_plane_index].phantom_plane.mcache_allocation.global_mcache_ids_plane1[mcache_index] += total_main_mcaches_required;
 			programming->plane_programming[main_plane_index].phantom_plane.mcache_allocation.global_mcache_ids_mall_plane1[mcache_index] =
-					programming->plane_programming[main_plane_index].phantom_plane.mcache_allocation.global_mcache_ids_plane1[mcache_index];
+				programming->plane_programming[main_plane_index].phantom_plane.mcache_allocation.global_mcache_ids_plane1[mcache_index];
 		}
 
 		for (pipe_offset = 0; pipe_offset < programming->plane_programming[main_plane_index].num_dpps_required; pipe_offset++) {
@@ -597,8 +597,8 @@ bool core_dcn4_mode_programming(struct dml2_core_mode_programming_in_out *in_out
 				dml2_core_calcs_get_mall_allocation(&core->clean_me_up.mode_lib, &in_out->programming->plane_programming[plane_index].surface_size_mall_bytes, dml_internal_pipe_index);
 
 				memcpy(&in_out->programming->plane_programming[plane_index].mcache_allocation,
-						&in_out->display_cfg->stage2.mcache_allocations[plane_index],
-						sizeof(struct dml2_mcache_surface_allocation));
+					&in_out->display_cfg->stage2.mcache_allocations[plane_index],
+					sizeof(struct dml2_mcache_surface_allocation));
 
 				for (pipe_offset = 0; pipe_offset < in_out->programming->plane_programming[plane_index].num_dpps_required; pipe_offset++) {
 					in_out->programming->plane_programming[plane_index].plane_descriptor = &in_out->programming->display_config.plane_descriptors[plane_index];
