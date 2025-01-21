@@ -79,26 +79,6 @@ u32 lbs_fw_index_to_data_rate(u8 idx)
 	return fw_data_rates[idx];
 }
 
-/**
- *  lbs_data_rate_to_fw_index - use rate to get the index
- *
- *  @rate:	data rate
- *  returns:	index or 0
- */
-u8 lbs_data_rate_to_fw_index(u32 rate)
-{
-	u8 i;
-
-	if (!rate)
-		return 0;
-
-	for (i = 0; i < sizeof(fw_data_rates); i++) {
-		if (rate == fw_data_rates[i])
-			return i;
-	}
-	return 0;
-}
-
 int lbs_set_iface_type(struct lbs_private *priv, enum nl80211_iftype type)
 {
 	int ret = 0;
@@ -800,26 +780,6 @@ static void auto_deepsleep_timer_fn(struct timer_list *t)
 	}
 	mod_timer(&priv->auto_deepsleep_timer , jiffies +
 				(priv->auto_deep_sleep_timeout * HZ)/1000);
-}
-
-int lbs_enter_auto_deep_sleep(struct lbs_private *priv)
-{
-	priv->is_auto_deep_sleep_enabled = 1;
-	if (priv->is_deep_sleep)
-		priv->wakeup_dev_required = 1;
-	mod_timer(&priv->auto_deepsleep_timer ,
-			jiffies + (priv->auto_deep_sleep_timeout * HZ)/1000);
-
-	return 0;
-}
-
-int lbs_exit_auto_deep_sleep(struct lbs_private *priv)
-{
-	priv->is_auto_deep_sleep_enabled = 0;
-	priv->auto_deep_sleep_timeout = 0;
-	del_timer(&priv->auto_deepsleep_timer);
-
-	return 0;
 }
 
 static int lbs_init_adapter(struct lbs_private *priv)
