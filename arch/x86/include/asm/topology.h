@@ -251,7 +251,7 @@ extern bool x86_topology_update;
 #include <asm/percpu.h>
 
 DECLARE_PER_CPU_READ_MOSTLY(int, sched_core_priority);
-extern unsigned int __read_mostly sysctl_sched_itmt_enabled;
+extern bool __read_mostly sysctl_sched_itmt_enabled;
 
 /* Interface to set priority of a cpu */
 void sched_set_itmt_core_prio(int prio, int core_cpu);
@@ -264,7 +264,7 @@ void sched_clear_itmt_support(void);
 
 #else /* CONFIG_SCHED_MC_PRIO */
 
-#define sysctl_sched_itmt_enabled	0
+#define sysctl_sched_itmt_enabled	false
 static inline void sched_set_itmt_core_prio(int prio, int core_cpu)
 {
 }
