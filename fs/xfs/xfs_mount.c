@@ -765,27 +765,15 @@ xfs_mountfs(
 	/* enable fail_at_unmount as default */
 	mp->m_fail_unmount = true;
 
-	super_set_sysfs_name_id(mp->m_super);
-
-	error = xfs_sysfs_init(&mp->m_kobj, &xfs_mp_ktype,
-			       NULL, mp->m_super->s_id);
-	if (error)
-		goto out;
-
-	error = xfs_sysfs_init(&mp->m_stats.xs_kobj, &xfs_stats_ktype,
-			       &mp->m_kobj, "stats");
-	if (error)
-		goto out_remove_sysfs;
-
-	xchk_stats_register(mp->m_scrub_stats, mp->m_debugfs);
-
-	error = xfs_error_sysfs_init(mp);
+	error = xfs_mount_sysfs_init(mp);
 	if (error)
 		goto out_remove_scrub_stats;
 
+	xchk_stats_register(mp->m_scrub_stats, mp->m_debugfs);
+
 	error = xfs_errortag_init(mp);
 	if (error)
-		goto out_remove_error_sysfs;
+		goto out_remove_sysfs;
 
 	error = xfs_uuid_mount(mp);
 	if (error)
@@ -1148,13 +1136,10 @@ xfs_mountfs(
 	xfs_uuid_unmount(mp);
  out_remove_errortag:
 	xfs_errortag_del(mp);
- out_remove_error_sysfs:
-	xfs_error_sysfs_del(mp);
+ out_remove_sysfs:
+	xfs_mount_sysfs_del(mp);
  out_remove_scrub_stats:
 	xchk_stats_unregister(mp->m_scrub_stats);
-	xfs_sysfs_del(&mp->m_stats.xs_kobj);
- out_remove_sysfs:
-	xfs_sysfs_del(&mp->m_kobj);
  out:
 	return error;
 }
@@ -1231,10 +1216,8 @@ xfs_unmountfs(
 	xfs_free_rtgroups(mp, 0, mp->m_sb.sb_rgcount);
 	xfs_free_perag_range(mp, 0, mp->m_sb.sb_agcount);
 	xfs_errortag_del(mp);
-	xfs_error_sysfs_del(mp);
 	xchk_stats_unregister(mp->m_scrub_stats);
-	xfs_sysfs_del(&mp->m_stats.xs_kobj);
-	xfs_sysfs_del(&mp->m_kobj);
+	xfs_mount_sysfs_del(mp);
 }
 
 /*
