@@ -87,7 +87,7 @@ static int sys_getcpu(unsigned *cpu, unsigned *node)
 	return syscall(__NR_getcpu, cpu, node, NULL);
 }
 
-int rseq_available(void)
+bool rseq_available(void)
 {
 	int rc;
 
@@ -96,9 +96,9 @@ int rseq_available(void)
 		abort();
 	switch (errno) {
 	case ENOSYS:
-		return 0;
+		return false;
 	case EINVAL:
-		return 1;
+		return true;
 	default:
 		abort();
 	}
