@@ -71,19 +71,20 @@ int arch_futex_atomic_op_inuser(int op, int oparg, int *oval, u32 __user *uaddr)
 static inline int futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 						u32 oldval, u32 newval)
 {
-	int ret;
+	int rc;
 
-	asm volatile(
-		"   sacf 256\n"
-		"0: cs   %1,%4,0(%5)\n"
-		"1: la   %0,0\n"
-		"2: sacf 768\n"
-		EX_TABLE(0b,2b) EX_TABLE(1b,2b)
-		: "=d" (ret), "+d" (oldval), "=m" (*uaddr)
-		: "0" (-EFAULT), "d" (newval), "a" (uaddr), "m" (*uaddr)
+	asm_inline volatile(
+		"	sacf	256\n"
+		"0:	cs	%[old],%[new],%[uaddr]\n"
+		"1:	lhi	%[rc],0\n"
+		"2:	sacf	768\n"
+		EX_TABLE_UA_FAULT(0b, 2b, %[rc])
+		EX_TABLE_UA_FAULT(1b, 2b, %[rc])
+		: [rc] "=d" (rc), [old] "+d" (oldval), [uaddr] "+Q" (*uaddr)
+		: [new] "d" (newval)
 		: "cc", "memory");
 	*uval = oldval;
-	return ret;
+	return rc;
 }
 
 #endif /* _ASM_S390_FUTEX_H */
