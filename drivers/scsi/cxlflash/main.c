@@ -3651,6 +3651,8 @@ static int cxlflash_probe(struct pci_dev *pdev,
 	int rc = 0;
 	int k;
 
+	dev_err_once(&pdev->dev, "DEPRECATION: cxlflash is deprecated and will be removed in a future kernel release\n");
+
 	dev_dbg(&pdev->dev, "%s: Found CXLFLASH with IRQ: %d\n",
 		__func__, pdev->irq);
 

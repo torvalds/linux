@@ -1,3 +1,6 @@
+The cxl driver is no longer maintained, and will be removed from the kernel in
+the near future.
+
 Please note that attributes that are shared between devices are stored in
 the directory pointed to by the symlink device/.
 For example, the real path of the attribute /sys/class/cxl/afu0.0s/irqs_max is
