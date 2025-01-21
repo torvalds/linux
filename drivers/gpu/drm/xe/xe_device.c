@@ -814,10 +814,6 @@ int xe_device_probe(struct xe_device *xe)
 	if (err)
 		return err;
 
-	err = xe_irq_install(xe);
-	if (err)
-		goto err;
-
 	err = probe_has_flat_ccs(xe);
 	if (err)
 		goto err;
@@ -850,6 +846,10 @@ int xe_device_probe(struct xe_device *xe)
 		if (err)
 			goto err;
 	}
+
+	err = xe_irq_install(xe);
+	if (err)
+		goto err;
 
 	for_each_gt(gt, xe, id) {
 		last_gt = id;
