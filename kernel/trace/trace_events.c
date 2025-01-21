@@ -1634,7 +1634,7 @@ static int s_show(struct seq_file *m, void *v)
 
 	/* When match is set, system and event are not */
 	if (iter->event_mod->match) {
-		seq_printf(m, "%s:mod:%s", iter->event_mod->match,
+		seq_printf(m, "%s:mod:%s\n", iter->event_mod->match,
 			   iter->event_mod->module);
 		return 0;
 	}
