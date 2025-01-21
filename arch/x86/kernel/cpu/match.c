@@ -6,7 +6,7 @@
 #include <linux/slab.h>
 
 /**
- * x86_match_cpu - match current CPU again an array of x86_cpu_ids
+ * x86_match_cpu - match current CPU against an array of x86_cpu_ids
  * @match: Pointer to array of x86_cpu_ids. Last entry terminated with
  *         {}.
  *

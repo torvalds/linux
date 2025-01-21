@@ -2582,18 +2582,11 @@ int apic_is_clustered_box(void)
 /*
  * APIC command line parameters
  */
-static int __init setup_disableapic(char *arg)
+static int __init setup_nolapic(char *arg)
 {
 	apic_is_disabled = true;
 	setup_clear_cpu_cap(X86_FEATURE_APIC);
 	return 0;
-}
-early_param("disableapic", setup_disableapic);
-
-/* same as disableapic, for compatibility */
-static int __init setup_nolapic(char *arg)
-{
-	return setup_disableapic(arg);
 }
 early_param("nolapic", setup_nolapic);
 
