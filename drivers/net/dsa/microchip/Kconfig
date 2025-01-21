@@ -1,14 +1,17 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menuconfig NET_DSA_MICROCHIP_KSZ_COMMON
-	tristate "Microchip KSZ8795/KSZ9477/LAN937x series switch support"
+	tristate "Microchip KSZ8XXX/KSZ9XXX/LAN937X series switch support"
 	depends on NET_DSA
 	select NET_DSA_TAG_KSZ
 	select NET_DSA_TAG_NONE
 	select NET_IEEE8021Q_HELPERS
 	select DCB
 	help
-	  This driver adds support for Microchip KSZ9477 series switch and
-	  KSZ8795/KSZ88x3 switch chips.
+	  This driver adds support for Microchip KSZ8, KSZ9 and
+	  LAN937X series switch chips, being KSZ8863/8873,
+	  KSZ8895/8864, KSZ8794/8795/8765,
+	  KSZ9477/9897/9896/9567/8567, KSZ9893/9563/8563 and
+	  LAN9370/9371/9372/9373/9374.
 
 config NET_DSA_MICROCHIP_KSZ9477_I2C
 	tristate "KSZ series I2C connected switch driver"

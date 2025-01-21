@@ -393,6 +393,9 @@ void intel_tc_port_set_fia_lane_count(struct intel_digital_port *dig_port,
 	bool lane_reversal = dig_port->saved_port_bits & DDI_BUF_PORT_REVERSAL;
 	u32 val;
 
+	if (DISPLAY_VER(i915) >= 14)
+		return;
+
 	drm_WARN_ON(&i915->drm,
 		    lane_reversal && tc->mode != TC_PORT_LEGACY);
 
@@ -1002,7 +1005,7 @@ xelpdp_tc_phy_wait_for_tcss_power(struct intel_tc_port *tc, bool enabled)
 	if (wait_for(xelpdp_tc_phy_tcss_power_is_enabled(tc) == enabled, 5)) {
 		drm_dbg_kms(&i915->drm,
 			    "Port %s: timeout waiting for TCSS power to get %s\n",
-			    enabled ? "enabled" : "disabled",
+			    str_enabled_disabled(enabled),
 			    tc->port_name);
 		return false;
 	}

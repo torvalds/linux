@@ -317,7 +317,7 @@ static struct platform_driver env_driver = {
 		.of_match_table = env_match,
 	},
 	.probe		= env_probe,
-	.remove_new	= env_remove,
+	.remove		= env_remove,
 };
 
 module_platform_driver(env_driver);

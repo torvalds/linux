@@ -59,19 +59,6 @@ static struct omap_dma_dev_attr *d;
 static int enable_1510_mode;
 static u32 errata;
 
-struct dma_link_info {
-	int *linked_dmach_q;
-	int no_of_lchs_linked;
-
-	int q_count;
-	int q_tail;
-	int q_head;
-
-	int chain_state;
-	int chain_mode;
-
-};
-
 static int dma_lch_count;
 static int dma_chan_count;
 static int omap_dma_reserve_channels;
@@ -845,7 +832,7 @@ static void omap_system_dma_remove(struct platform_device *pdev)
 
 static struct platform_driver omap_system_dma_driver = {
 	.probe		= omap_system_dma_probe,
-	.remove_new	= omap_system_dma_remove,
+	.remove		= omap_system_dma_remove,
 	.driver		= {
 		.name	= "omap_dma_system"
 	},

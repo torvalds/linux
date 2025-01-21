@@ -60,6 +60,13 @@ config LLD_VERSION
 	default $(ld-version) if LD_IS_LLD
 	default 0
 
+config RUSTC_VERSION
+	int
+	default $(rustc-version)
+	help
+	  It does not depend on `RUST` since that one may need to use the version
+	  in a `depends on`.
+
 config RUST_IS_AVAILABLE
 	def_bool $(success,$(srctree)/scripts/rust_is_available.sh)
 	help
@@ -70,6 +77,10 @@ config RUST_IS_AVAILABLE
 
 	  In particular, the Makefile target 'rustavailable' is useful to check
 	  why the Rust toolchain is not being detected.
+
+config RUSTC_LLVM_VERSION
+	int
+	default $(rustc-llvm-version)
 
 config CC_CAN_LINK
 	bool
@@ -108,6 +119,15 @@ config CC_HAS_ASM_INLINE
 
 config CC_HAS_NO_PROFILE_FN_ATTR
 	def_bool $(success,echo '__attribute__((no_profile_instrument_function)) int x();' | $(CC) -x c - -c -o /dev/null -Werror)
+
+config CC_HAS_COUNTED_BY
+	# TODO: when gcc 15 is released remove the build test and add
+	# a gcc version check
+	def_bool $(success,echo 'struct flex { int count; int array[] __attribute__((__counted_by__(count))); };' | $(CC) $(CLANG_FLAGS) -x c - -c -o /dev/null -Werror)
+	# clang needs to be at least 19.1.3 to avoid __bdos miscalculations
+	# https://github.com/llvm/llvm-project/pull/110497
+	# https://github.com/llvm/llvm-project/pull/112636
+	depends on !(CC_IS_CLANG && CLANG_VERSION < 190103)
 
 config PAHOLE_VERSION
 	int
@@ -310,8 +330,9 @@ config KERNEL_XZ
 	  BCJ filters which can improve compression ratio of executable
 	  code. The size of the kernel is about 30% smaller with XZ in
 	  comparison to gzip. On architectures for which there is a BCJ
-	  filter (i386, x86_64, ARM, IA-64, PowerPC, and SPARC), XZ
-	  will create a few percent smaller kernel than plain LZMA.
+	  filter (i386, x86_64, ARM, ARM64, RISC-V, big endian PowerPC,
+	  and SPARC), XZ will create a few percent smaller kernel than
+	  plain LZMA.
 
 	  The speed is about the same as with LZMA: The decompression
 	  speed of XZ is better than that of bzip2 but worse than gzip
@@ -986,7 +1007,7 @@ config MEMCG_V1
 	  going to shrink due to deprecation process. New deployments with v1
 	  controller are highly discouraged.
 
-	  San N is unsure.
+	  Say N if unsure.
 
 config BLK_CGROUP
 	bool "IO controller"
@@ -1024,9 +1045,13 @@ menuconfig CGROUP_SCHED
 	  tasks.
 
 if CGROUP_SCHED
+config GROUP_SCHED_WEIGHT
+	def_bool n
+
 config FAIR_GROUP_SCHED
 	bool "Group scheduling for SCHED_OTHER"
 	depends on CGROUP_SCHED
+	select GROUP_SCHED_WEIGHT
 	default CGROUP_SCHED
 
 config CFS_BANDWIDTH
@@ -1050,6 +1075,12 @@ config RT_GROUP_SCHED
 	  schedule realtime tasks for non-root users until you allocate
 	  realtime bandwidth for them.
 	  See Documentation/scheduler/sched-rt-group.rst for more information.
+
+config EXT_GROUP_SCHED
+	bool
+	depends on SCHED_CLASS_EXT && CGROUP_SCHED
+	select GROUP_SCHED_WEIGHT
+	default y
 
 endif #CGROUP_SCHED
 
@@ -1135,11 +1166,25 @@ config CGROUP_HUGETLB
 config CPUSETS
 	bool "Cpuset controller"
 	depends on SMP
+	select UNION_FIND
 	help
 	  This option will let you create and manage CPUSETs which
 	  allow dynamically partitioning a system into sets of CPUs and
 	  Memory Nodes and assigning tasks to run only within those sets.
 	  This is primarily useful on large SMP or NUMA systems.
+
+	  Say N if unsure.
+
+config CPUSETS_V1
+	bool "Legacy cgroup v1 cpusets controller"
+	depends on CPUSETS
+	default n
+	help
+	  Legacy cgroup v1 cpusets controller which has been deprecated by
+	  cgroup v2 implementation. The v1 is there for legacy applications
+	  which haven't migrated to the new cgroup v2 interface yet. If you
+	  do not have any such application then you are completely fine leaving
+	  this option disabled.
 
 	  Say N if unsure.
 
@@ -1687,6 +1732,19 @@ config IO_URING
 	  applications to submit and complete IO through submission and
 	  completion rings that are shared between the kernel and application.
 
+config GCOV_PROFILE_URING
+	bool "Enable GCOV profiling on the io_uring subsystem"
+	depends on GCOV_KERNEL
+	help
+	  Enable GCOV profiling on the io_uring subsystem, to facilitate
+	  code coverage testing.
+
+	  If unsure, say N.
+
+	  Note that this will have a negative impact on the performance of
+	  the io_uring subsystem, hence this should only be enabled for
+	  specific test purposes.
+
 config ADVISE_SYSCALLS
 	bool "Enable madvise/fadvise syscalls" if EXPERT
 	default y
@@ -1898,12 +1956,15 @@ config RUST
 	bool "Rust support"
 	depends on HAVE_RUST
 	depends on RUST_IS_AVAILABLE
-	depends on !CFI_CLANG
 	depends on !MODVERSIONS
-	depends on !GCC_PLUGINS
+	depends on !GCC_PLUGIN_RANDSTRUCT
 	depends on !RANDSTRUCT
-	depends on !SHADOW_CALL_STACK
 	depends on !DEBUG_INFO_BTF || PAHOLE_HAS_LANG_EXCLUDE
+	depends on !CFI_CLANG || HAVE_CFI_ICALL_NORMALIZE_INTEGERS_RUSTC
+	select CFI_ICALL_NORMALIZE_INTEGERS if CFI_CLANG
+	depends on !CALL_PADDING || RUSTC_VERSION >= 108100
+	depends on !KASAN_SW_TAGS
+	depends on !(MITIGATION_RETHUNK && KASAN) || RUSTC_VERSION >= 108300
 	help
 	  Enables Rust support in the kernel.
 
@@ -1920,7 +1981,9 @@ config RUST
 config RUSTC_VERSION_TEXT
 	string
 	depends on RUST
-	default "$(shell,$(RUSTC) --version 2>/dev/null)"
+	default "$(RUSTC_VERSION_TEXT)"
+	help
+	  See `CC_VERSION_TEXT`.
 
 config BINDGEN_VERSION_TEXT
 	string
@@ -1936,6 +1999,7 @@ config BINDGEN_VERSION_TEXT
 #
 config TRACEPOINTS
 	bool
+	select TASKS_TRACE_RCU
 
 source "kernel/Kconfig.kexec"
 

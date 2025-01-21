@@ -11,7 +11,7 @@ maintainers:
   - Alexandre TORGUE <alexandre.torgue@foss.st.com>
 
 description: |
-  STMicroelectronics's STM32 MCUs intregrate a GPIO and Pin mux/config hardware
+  STMicroelectronics's STM32 MCUs integrate a GPIO and Pin mux/config hardware
   controller. It controls the input/output settings on the available pins and
   also provides ability to multiplex and configure the output of various
   on-chip controllers onto these pads.
@@ -164,7 +164,7 @@ patternProperties:
               This macro is available here:
                 - include/dt-bindings/pinctrl/stm32-pinfunc.h
               Some examples of using macro:
-               /* GPIO A9 set as alernate function 2 */
+               /* GPIO A9 set as alternate function 2 */
                ... {
                           pinmux = <STM32_PINMUX('A', 9, AF2)>;
                };

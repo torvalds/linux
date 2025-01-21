@@ -17,7 +17,7 @@
 #include <linux/usb/usbnet.h>
 #include <linux/slab.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 
 /*

@@ -382,7 +382,7 @@ MODULE_DEVICE_TABLE(of, xlnx_rtc_of_match);
 
 static struct platform_driver xlnx_rtc_driver = {
 	.probe		= xlnx_rtc_probe,
-	.remove_new	= xlnx_rtc_remove,
+	.remove		= xlnx_rtc_remove,
 	.driver		= {
 		.name	= KBUILD_MODNAME,
 		.pm	= &xlnx_rtc_pm_ops,

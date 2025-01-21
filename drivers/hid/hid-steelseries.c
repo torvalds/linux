@@ -51,7 +51,7 @@ struct steelseries_srws1_data {
  * appear in the 'Generic Desktop' usage.
  */
 
-static __u8 steelseries_srws1_rdesc_fixed[] = {
+static const __u8 steelseries_srws1_rdesc_fixed[] = {
 0x05, 0x01,         /*  Usage Page (Desktop)                */
 0x09, 0x08,         /*  Usage (MultiAxis), Changed          */
 0xA1, 0x01,         /*  Collection (Application),           */
@@ -411,6 +411,15 @@ static void steelseries_headset_fetch_battery(struct hid_device *hdev)
 			"Battery query failed (err: %d)\n", ret);
 }
 
+static int battery_capacity_to_level(int capacity)
+{
+	if (capacity >= 50)
+		return POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
+	if (capacity >= 20)
+		return POWER_SUPPLY_CAPACITY_LEVEL_LOW;
+	return POWER_SUPPLY_CAPACITY_LEVEL_CRITICAL;
+}
+
 static void steelseries_headset_battery_timer_tick(struct work_struct *work)
 {
 	struct steelseries_device *sd = container_of(work,
@@ -442,6 +451,9 @@ static int steelseries_headset_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CAPACITY:
 		val->intval = sd->battery_capacity;
 		break;
+	case POWER_SUPPLY_PROP_CAPACITY_LEVEL:
+		val->intval = battery_capacity_to_level(sd->battery_capacity);
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -469,6 +481,7 @@ static enum power_supply_property steelseries_headset_battery_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_SCOPE,
 	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 };
 
 static int steelseries_headset_battery_register(struct steelseries_device *sd)
@@ -570,8 +583,8 @@ static void steelseries_remove(struct hid_device *hdev)
 	hid_hw_stop(hdev);
 }
 
-static __u8 *steelseries_srws1_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-		unsigned int *rsize)
+static const __u8 *steelseries_srws1_report_fixup(struct hid_device *hdev,
+		__u8 *rdesc, unsigned int *rsize)
 {
 	if (hdev->vendor != USB_VENDOR_ID_STEELSERIES ||
 	    hdev->product != USB_DEVICE_ID_STEELSERIES_SRWS1)
@@ -580,8 +593,8 @@ static __u8 *steelseries_srws1_report_fixup(struct hid_device *hdev, __u8 *rdesc
 	if (*rsize >= 115 && rdesc[11] == 0x02 && rdesc[13] == 0xc8
 			&& rdesc[29] == 0xbb && rdesc[40] == 0xc5) {
 		hid_info(hdev, "Fixing up Steelseries SRW-S1 report descriptor\n");
-		rdesc = steelseries_srws1_rdesc_fixed;
 		*rsize = sizeof(steelseries_srws1_rdesc_fixed);
+		return steelseries_srws1_rdesc_fixed;
 	}
 	return rdesc;
 }
@@ -603,8 +616,11 @@ static int steelseries_headset_raw_event(struct hid_device *hdev,
 		hid_dbg(sd->hdev,
 			"Parsing raw event for Arctis 1 headset (%*ph)\n", size, read_buf);
 		if (size < ARCTIS_1_BATTERY_RESPONSE_LEN ||
-		    memcmp (read_buf, arctis_1_battery_request, sizeof(arctis_1_battery_request)))
+		    memcmp(read_buf, arctis_1_battery_request, sizeof(arctis_1_battery_request))) {
+			if (!delayed_work_pending(&sd->battery_work))
+				goto request_battery;
 			return 0;
+		}
 		if (read_buf[2] == 0x01) {
 			connected = false;
 			capacity = 100;
@@ -631,6 +647,7 @@ static int steelseries_headset_raw_event(struct hid_device *hdev,
 		power_supply_changed(sd->battery);
 	}
 
+request_battery:
 	spin_lock_irqsave(&sd->lock, flags);
 	if (!sd->removed)
 		schedule_delayed_work(&sd->battery_work,

@@ -150,4 +150,11 @@ int kfunc_call_test_mem_acquire_fail(struct __sk_buff *skb)
 	return ret;
 }
 
+SEC("?tc")
+int kfunc_call_test_pointer_arg_type_mismatch(struct __sk_buff *skb)
+{
+	bpf_kfunc_call_test_pass_ctx((void *)10);
+	return 0;
+}
+
 char _license[] SEC("license") = "GPL";

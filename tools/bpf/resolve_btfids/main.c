@@ -679,8 +679,8 @@ static int sets_patch(struct object *obj)
 
 	next = rb_first(&obj->sets);
 	while (next) {
-		struct btf_id_set8 *set8;
-		struct btf_id_set *set;
+		struct btf_id_set8 *set8 = NULL;
+		struct btf_id_set *set = NULL;
 		unsigned long addr, off;
 		struct btf_id *id;
 

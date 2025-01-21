@@ -477,7 +477,7 @@ static int mxs_spi_runtime_resume(struct device *dev)
 	return ret;
 }
 
-static int __maybe_unused mxs_spi_suspend(struct device *dev)
+static int mxs_spi_suspend(struct device *dev)
 {
 	struct spi_controller *host = dev_get_drvdata(dev);
 	int ret;
@@ -492,7 +492,7 @@ static int __maybe_unused mxs_spi_suspend(struct device *dev)
 		return 0;
 }
 
-static int __maybe_unused mxs_spi_resume(struct device *dev)
+static int mxs_spi_resume(struct device *dev)
 {
 	struct spi_controller *host = dev_get_drvdata(dev);
 	int ret;
@@ -512,9 +512,8 @@ static int __maybe_unused mxs_spi_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops mxs_spi_pm = {
-	SET_RUNTIME_PM_OPS(mxs_spi_runtime_suspend,
-			   mxs_spi_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(mxs_spi_suspend, mxs_spi_resume)
+	RUNTIME_PM_OPS(mxs_spi_runtime_suspend, mxs_spi_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(mxs_spi_suspend, mxs_spi_resume)
 };
 
 static const struct of_device_id mxs_spi_dt_ids[] = {
@@ -658,11 +657,11 @@ static void mxs_spi_remove(struct platform_device *pdev)
 
 static struct platform_driver mxs_spi_driver = {
 	.probe	= mxs_spi_probe,
-	.remove_new = mxs_spi_remove,
+	.remove = mxs_spi_remove,
 	.driver	= {
 		.name	= DRIVER_NAME,
 		.of_match_table = mxs_spi_dt_ids,
-		.pm = &mxs_spi_pm,
+		.pm = pm_ptr(&mxs_spi_pm),
 	},
 };
 

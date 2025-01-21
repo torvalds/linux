@@ -24,6 +24,7 @@
 #include <linux/types.h>
 #include <linux/uio.h>
 #include <linux/uaccess.h>
+#include <linux/dma-buf.h>
 #include <linux/module.h>
 #include <linux/compat.h>
 #include <sound/core.h>
@@ -53,6 +54,12 @@ struct snd_compr_file {
 };
 
 static void error_delayed_work(struct work_struct *work);
+
+#if IS_ENABLED(CONFIG_SND_COMPRESS_ACCEL)
+static void snd_compr_task_free_all(struct snd_compr_stream *stream);
+#else
+static inline void snd_compr_task_free_all(struct snd_compr_stream *stream) { }
+#endif
 
 /*
  * a note on stream states used:
@@ -85,6 +92,8 @@ static int snd_compr_open(struct inode *inode, struct file *f)
 		dirn = SND_COMPRESS_PLAYBACK;
 	else if ((f->f_flags & O_ACCMODE) == O_RDONLY)
 		dirn = SND_COMPRESS_CAPTURE;
+	else if ((f->f_flags & O_ACCMODE) == O_RDWR)
+		dirn = SND_COMPRESS_ACCEL;
 	else
 		return -EINVAL;
 
@@ -125,6 +134,9 @@ static int snd_compr_open(struct inode *inode, struct file *f)
 	}
 	runtime->state = SNDRV_PCM_STATE_OPEN;
 	init_waitqueue_head(&runtime->sleep);
+#if IS_ENABLED(CONFIG_SND_COMPRESS_ACCEL)
+	INIT_LIST_HEAD(&runtime->tasks);
+#endif
 	data->stream.runtime = runtime;
 	f->private_data = (void *)data;
 	scoped_guard(mutex, &compr->lock)
@@ -153,6 +165,8 @@ static int snd_compr_free(struct inode *inode, struct file *f)
 	default:
 		break;
 	}
+
+	snd_compr_task_free_all(&data->stream);
 
 	data->stream.ops->free(&data->stream);
 	if (!data->stream.runtime->dma_buffer_p)
@@ -226,6 +240,9 @@ snd_compr_ioctl_avail(struct snd_compr_stream *stream, unsigned long arg)
 	struct snd_compr_avail ioctl_avail;
 	size_t avail;
 
+	if (stream->direction == SND_COMPRESS_ACCEL)
+		return -EBADFD;
+
 	avail = snd_compr_calc_avail(stream, &ioctl_avail);
 	ioctl_avail.avail = avail;
 
@@ -287,8 +304,10 @@ static ssize_t snd_compr_write(struct file *f, const char __user *buf,
 		return -EFAULT;
 
 	stream = &data->stream;
+	if (stream->direction == SND_COMPRESS_ACCEL)
+		return -EBADFD;
 	guard(mutex)(&stream->device->lock);
-	/* write is allowed when stream is running or has been steup */
+	/* write is allowed when stream is running or has been setup */
 	switch (stream->runtime->state) {
 	case SNDRV_PCM_STATE_SETUP:
 	case SNDRV_PCM_STATE_PREPARED:
@@ -336,6 +355,8 @@ static ssize_t snd_compr_read(struct file *f, char __user *buf,
 		return -EFAULT;
 
 	stream = &data->stream;
+	if (stream->direction == SND_COMPRESS_ACCEL)
+		return -EBADFD;
 	guard(mutex)(&stream->device->lock);
 
 	/* read is allowed when stream is running, paused, draining and setup
@@ -385,6 +406,7 @@ static __poll_t snd_compr_poll(struct file *f, poll_table *wait)
 {
 	struct snd_compr_file *data = f->private_data;
 	struct snd_compr_stream *stream;
+	struct snd_compr_runtime *runtime;
 	size_t avail;
 	__poll_t retval = 0;
 
@@ -392,10 +414,11 @@ static __poll_t snd_compr_poll(struct file *f, poll_table *wait)
 		return EPOLLERR;
 
 	stream = &data->stream;
+	runtime = stream->runtime;
 
 	guard(mutex)(&stream->device->lock);
 
-	switch (stream->runtime->state) {
+	switch (runtime->state) {
 	case SNDRV_PCM_STATE_OPEN:
 	case SNDRV_PCM_STATE_XRUN:
 		return snd_compr_get_poll(stream) | EPOLLERR;
@@ -403,23 +426,37 @@ static __poll_t snd_compr_poll(struct file *f, poll_table *wait)
 		break;
 	}
 
-	poll_wait(f, &stream->runtime->sleep, wait);
+	poll_wait(f, &runtime->sleep, wait);
+
+#if IS_ENABLED(CONFIG_SND_COMPRESS_ACCEL)
+	if (stream->direction == SND_COMPRESS_ACCEL) {
+		struct snd_compr_task_runtime *task;
+		if (runtime->fragments > runtime->active_tasks)
+			retval |= EPOLLOUT | EPOLLWRNORM;
+		task = list_first_entry_or_null(&runtime->tasks,
+						struct snd_compr_task_runtime,
+						list);
+		if (task && task->state == SND_COMPRESS_TASK_STATE_FINISHED)
+			retval |= EPOLLIN | EPOLLRDNORM;
+		return retval;
+	}
+#endif
 
 	avail = snd_compr_get_avail(stream);
 	pr_debug("avail is %ld\n", (unsigned long)avail);
 	/* check if we have at least one fragment to fill */
-	switch (stream->runtime->state) {
+	switch (runtime->state) {
 	case SNDRV_PCM_STATE_DRAINING:
 		/* stream has been woken up after drain is complete
 		 * draining done so set stream state to stopped
 		 */
 		retval = snd_compr_get_poll(stream);
-		stream->runtime->state = SNDRV_PCM_STATE_SETUP;
+		runtime->state = SNDRV_PCM_STATE_SETUP;
 		break;
 	case SNDRV_PCM_STATE_RUNNING:
 	case SNDRV_PCM_STATE_PREPARED:
 	case SNDRV_PCM_STATE_PAUSED:
-		if (avail >= stream->runtime->fragment_size)
+		if (avail >= runtime->fragment_size)
 			retval = snd_compr_get_poll(stream);
 		break;
 	default:
@@ -521,6 +558,9 @@ static int snd_compr_allocate_buffer(struct snd_compr_stream *stream,
 	unsigned int buffer_size;
 	void *buffer = NULL;
 
+	if (stream->direction == SND_COMPRESS_ACCEL)
+		goto params;
+
 	buffer_size = params->buffer.fragment_size * params->buffer.fragments;
 	if (stream->ops->copy) {
 		buffer = NULL;
@@ -543,18 +583,30 @@ static int snd_compr_allocate_buffer(struct snd_compr_stream *stream,
 		if (!buffer)
 			return -ENOMEM;
 	}
-	stream->runtime->fragment_size = params->buffer.fragment_size;
-	stream->runtime->fragments = params->buffer.fragments;
+
 	stream->runtime->buffer = buffer;
 	stream->runtime->buffer_size = buffer_size;
+params:
+	stream->runtime->fragment_size = params->buffer.fragment_size;
+	stream->runtime->fragments = params->buffer.fragments;
 	return 0;
 }
 
-static int snd_compress_check_input(struct snd_compr_params *params)
+static int
+snd_compress_check_input(struct snd_compr_stream *stream, struct snd_compr_params *params)
 {
+	u32 max_fragments;
+
 	/* first let's check the buffer parameter's */
-	if (params->buffer.fragment_size == 0 ||
-	    params->buffer.fragments > U32_MAX / params->buffer.fragment_size ||
+	if (params->buffer.fragment_size == 0)
+		return -EINVAL;
+
+	if (stream->direction == SND_COMPRESS_ACCEL)
+		max_fragments = 64;			/* safe value */
+	else
+		max_fragments = U32_MAX / params->buffer.fragment_size;
+
+	if (params->buffer.fragments > max_fragments ||
 	    params->buffer.fragments == 0)
 		return -EINVAL;
 
@@ -581,9 +633,9 @@ snd_compr_set_params(struct snd_compr_stream *stream, unsigned long arg)
 		 */
 		params = memdup_user((void __user *)arg, sizeof(*params));
 		if (IS_ERR(params))
-			return PTR_ERR(no_free_ptr(params));
+			return PTR_ERR(params);
 
-		retval = snd_compress_check_input(params);
+		retval = snd_compress_check_input(stream, params);
 		if (retval)
 			return retval;
 
@@ -939,6 +991,264 @@ static int snd_compr_partial_drain(struct snd_compr_stream *stream)
 	return snd_compress_wait_for_drain(stream);
 }
 
+#if IS_ENABLED(CONFIG_SND_COMPRESS_ACCEL)
+
+static struct snd_compr_task_runtime *
+snd_compr_find_task(struct snd_compr_stream *stream, __u64 seqno)
+{
+	struct snd_compr_task_runtime *task;
+
+	list_for_each_entry(task, &stream->runtime->tasks, list) {
+		if (task->seqno == seqno)
+			return task;
+	}
+	return NULL;
+}
+
+static void snd_compr_task_free(struct snd_compr_task_runtime *task)
+{
+	if (task->output)
+		dma_buf_put(task->output);
+	if (task->input)
+		dma_buf_put(task->input);
+	kfree(task);
+}
+
+static u64 snd_compr_seqno_next(struct snd_compr_stream *stream)
+{
+	u64 seqno = ++stream->runtime->task_seqno;
+	if (seqno == 0)
+		seqno = ++stream->runtime->task_seqno;
+	return seqno;
+}
+
+static int snd_compr_task_new(struct snd_compr_stream *stream, struct snd_compr_task *utask)
+{
+	struct snd_compr_task_runtime *task;
+	int retval;
+
+	if (stream->runtime->total_tasks >= stream->runtime->fragments)
+		return -EBUSY;
+	if (utask->origin_seqno != 0 || utask->input_size != 0)
+		return -EINVAL;
+	task = kzalloc(sizeof(*task), GFP_KERNEL);
+	if (task == NULL)
+		return -ENOMEM;
+	task->seqno = utask->seqno = snd_compr_seqno_next(stream);
+	task->input_size = utask->input_size;
+	retval = stream->ops->task_create(stream, task);
+	if (retval < 0)
+		goto cleanup;
+	utask->input_fd = dma_buf_fd(task->input, O_WRONLY|O_CLOEXEC);
+	if (utask->input_fd < 0) {
+		retval = utask->input_fd;
+		goto cleanup;
+	}
+	utask->output_fd = dma_buf_fd(task->output, O_RDONLY|O_CLOEXEC);
+	if (utask->output_fd < 0) {
+		retval = utask->output_fd;
+		goto cleanup;
+	}
+	/* keep dmabuf reference until freed with task free ioctl */
+	dma_buf_get(utask->input_fd);
+	dma_buf_get(utask->output_fd);
+	list_add_tail(&task->list, &stream->runtime->tasks);
+	stream->runtime->total_tasks++;
+	return 0;
+cleanup:
+	snd_compr_task_free(task);
+	return retval;
+}
+
+static int snd_compr_task_create(struct snd_compr_stream *stream, unsigned long arg)
+{
+	struct snd_compr_task *task __free(kfree) = NULL;
+	int retval;
+
+	if (stream->runtime->state != SNDRV_PCM_STATE_SETUP)
+		return -EPERM;
+	task = memdup_user((void __user *)arg, sizeof(*task));
+	if (IS_ERR(task))
+		return PTR_ERR(no_free_ptr(task));
+	retval = snd_compr_task_new(stream, task);
+	if (retval >= 0)
+		if (copy_to_user((void __user *)arg, task, sizeof(*task)))
+			retval = -EFAULT;
+	return retval;
+}
+
+static int snd_compr_task_start_prepare(struct snd_compr_task_runtime *task,
+					struct snd_compr_task *utask)
+{
+	if (task == NULL)
+		return -EINVAL;
+	if (task->state >= SND_COMPRESS_TASK_STATE_FINISHED)
+		return -EBUSY;
+	if (utask->input_size > task->input->size)
+		return -EINVAL;
+	task->flags = utask->flags;
+	task->input_size = utask->input_size;
+	task->state = SND_COMPRESS_TASK_STATE_IDLE;
+	return 0;
+}
+
+static int snd_compr_task_start(struct snd_compr_stream *stream, struct snd_compr_task *utask)
+{
+	struct snd_compr_task_runtime *task;
+	int retval;
+
+	if (utask->origin_seqno > 0) {
+		task = snd_compr_find_task(stream, utask->origin_seqno);
+		retval = snd_compr_task_start_prepare(task, utask);
+		if (retval < 0)
+			return retval;
+		task->seqno = utask->seqno = snd_compr_seqno_next(stream);
+		utask->origin_seqno = 0;
+		list_move_tail(&task->list, &stream->runtime->tasks);
+	} else {
+		task = snd_compr_find_task(stream, utask->seqno);
+		if (task && task->state != SND_COMPRESS_TASK_STATE_IDLE)
+			return -EBUSY;
+		retval = snd_compr_task_start_prepare(task, utask);
+		if (retval < 0)
+			return retval;
+	}
+	retval = stream->ops->task_start(stream, task);
+	if (retval >= 0) {
+		task->state = SND_COMPRESS_TASK_STATE_ACTIVE;
+		stream->runtime->active_tasks++;
+	}
+	return retval;
+}
+
+static int snd_compr_task_start_ioctl(struct snd_compr_stream *stream, unsigned long arg)
+{
+	struct snd_compr_task *task __free(kfree) = NULL;
+	int retval;
+
+	if (stream->runtime->state != SNDRV_PCM_STATE_SETUP)
+		return -EPERM;
+	task = memdup_user((void __user *)arg, sizeof(*task));
+	if (IS_ERR(task))
+		return PTR_ERR(no_free_ptr(task));
+	retval = snd_compr_task_start(stream, task);
+	if (retval >= 0)
+		if (copy_to_user((void __user *)arg, task, sizeof(*task)))
+			retval = -EFAULT;
+	return retval;
+}
+
+static void snd_compr_task_stop_one(struct snd_compr_stream *stream,
+					struct snd_compr_task_runtime *task)
+{
+	if (task->state != SND_COMPRESS_TASK_STATE_ACTIVE)
+		return;
+	stream->ops->task_stop(stream, task);
+	if (!snd_BUG_ON(stream->runtime->active_tasks == 0))
+		stream->runtime->active_tasks--;
+	list_move_tail(&task->list, &stream->runtime->tasks);
+	task->state = SND_COMPRESS_TASK_STATE_IDLE;
+}
+
+static void snd_compr_task_free_one(struct snd_compr_stream *stream,
+					struct snd_compr_task_runtime *task)
+{
+	snd_compr_task_stop_one(stream, task);
+	stream->ops->task_free(stream, task);
+	list_del(&task->list);
+	snd_compr_task_free(task);
+	stream->runtime->total_tasks--;
+}
+
+static void snd_compr_task_free_all(struct snd_compr_stream *stream)
+{
+	struct snd_compr_task_runtime *task, *temp;
+
+	list_for_each_entry_safe_reverse(task, temp, &stream->runtime->tasks, list)
+		snd_compr_task_free_one(stream, task);
+}
+
+typedef void (*snd_compr_seq_func_t)(struct snd_compr_stream *stream,
+					struct snd_compr_task_runtime *task);
+
+static int snd_compr_task_seq(struct snd_compr_stream *stream, unsigned long arg,
+					snd_compr_seq_func_t fcn)
+{
+	struct snd_compr_task_runtime *task;
+	__u64 seqno;
+	int retval;
+
+	if (stream->runtime->state != SNDRV_PCM_STATE_SETUP)
+		return -EPERM;
+	retval = get_user(seqno, (__u64 __user *)arg);
+	if (retval < 0)
+		return retval;
+	retval = 0;
+	if (seqno == 0) {
+		list_for_each_entry_reverse(task, &stream->runtime->tasks, list)
+			fcn(stream, task);
+	} else {
+		task = snd_compr_find_task(stream, seqno);
+		if (task == NULL) {
+			retval = -EINVAL;
+		} else {
+			fcn(stream, task);
+		}
+	}
+	return retval;
+}
+
+static int snd_compr_task_status(struct snd_compr_stream *stream,
+					struct snd_compr_task_status *status)
+{
+	struct snd_compr_task_runtime *task;
+
+	task = snd_compr_find_task(stream, status->seqno);
+	if (task == NULL)
+		return -EINVAL;
+	status->input_size = task->input_size;
+	status->output_size = task->output_size;
+	status->state = task->state;
+	return 0;
+}
+
+static int snd_compr_task_status_ioctl(struct snd_compr_stream *stream, unsigned long arg)
+{
+	struct snd_compr_task_status *status __free(kfree) = NULL;
+	int retval;
+
+	if (stream->runtime->state != SNDRV_PCM_STATE_SETUP)
+		return -EPERM;
+	status = memdup_user((void __user *)arg, sizeof(*status));
+	if (IS_ERR(status))
+		return PTR_ERR(no_free_ptr(status));
+	retval = snd_compr_task_status(stream, status);
+	if (retval >= 0)
+		if (copy_to_user((void __user *)arg, status, sizeof(*status)))
+			retval = -EFAULT;
+	return retval;
+}
+
+/**
+ * snd_compr_task_finished: Notify that the task was finished
+ * @stream: pointer to stream
+ * @task: runtime task structure
+ *
+ * Set the finished task state and notify waiters.
+ */
+void snd_compr_task_finished(struct snd_compr_stream *stream,
+			    struct snd_compr_task_runtime *task)
+{
+	guard(mutex)(&stream->device->lock);
+	if (!snd_BUG_ON(stream->runtime->active_tasks == 0))
+		stream->runtime->active_tasks--;
+	task->state = SND_COMPRESS_TASK_STATE_FINISHED;
+	wake_up(&stream->runtime->sleep);
+}
+EXPORT_SYMBOL_GPL(snd_compr_task_finished);
+
+#endif /* CONFIG_SND_COMPRESS_ACCEL */
+
 static long snd_compr_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 {
 	struct snd_compr_file *data = f->private_data;
@@ -968,6 +1278,27 @@ static long snd_compr_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 		return snd_compr_set_metadata(stream, arg);
 	case _IOC_NR(SNDRV_COMPRESS_GET_METADATA):
 		return snd_compr_get_metadata(stream, arg);
+	}
+
+	if (stream->direction == SND_COMPRESS_ACCEL) {
+#if IS_ENABLED(CONFIG_SND_COMPRESS_ACCEL)
+		switch (_IOC_NR(cmd)) {
+		case _IOC_NR(SNDRV_COMPRESS_TASK_CREATE):
+			return snd_compr_task_create(stream, arg);
+		case _IOC_NR(SNDRV_COMPRESS_TASK_FREE):
+			return snd_compr_task_seq(stream, arg, snd_compr_task_free_one);
+		case _IOC_NR(SNDRV_COMPRESS_TASK_START):
+			return snd_compr_task_start_ioctl(stream, arg);
+		case _IOC_NR(SNDRV_COMPRESS_TASK_STOP):
+			return snd_compr_task_seq(stream, arg, snd_compr_task_stop_one);
+		case _IOC_NR(SNDRV_COMPRESS_TASK_STATUS):
+			return snd_compr_task_status_ioctl(stream, arg);
+		}
+#endif
+		return -ENOTTY;
+	}
+
+	switch (_IOC_NR(cmd)) {
 	case _IOC_NR(SNDRV_COMPRESS_TSTAMP):
 		return snd_compr_tstamp(stream, arg);
 	case _IOC_NR(SNDRV_COMPRESS_AVAIL):
@@ -1139,6 +1470,11 @@ int snd_compress_new(struct snd_card *card, int device,
 		.dev_disconnect = snd_compress_dev_disconnect,
 	};
 	int ret;
+
+#if !IS_ENABLED(CONFIG_SND_COMPRESS_ACCEL)
+	if (snd_BUG_ON(dirn == SND_COMPRESS_ACCEL))
+		return -EINVAL;
+#endif
 
 	compr->card = card;
 	compr->device = device;

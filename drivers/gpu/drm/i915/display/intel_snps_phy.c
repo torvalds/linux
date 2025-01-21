@@ -1997,6 +1997,7 @@ int intel_snps_phy_check_hdmi_link_rate(int clock)
 void intel_mpllb_state_verify(struct intel_atomic_state *state,
 			      struct intel_crtc *crtc)
 {
+	struct intel_display *display = to_intel_display(state);
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	const struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
@@ -2019,11 +2020,11 @@ void intel_mpllb_state_verify(struct intel_atomic_state *state,
 	intel_mpllb_readout_hw_state(encoder, &mpllb_hw_state);
 
 #define MPLLB_CHECK(__name)						\
-	I915_STATE_WARN(i915, mpllb_sw_state->__name != mpllb_hw_state.__name, \
-			"[CRTC:%d:%s] mismatch in MPLLB: %s (expected 0x%08x, found 0x%08x)", \
-			crtc->base.base.id, crtc->base.name,		\
-			__stringify(__name),				\
-			mpllb_sw_state->__name, mpllb_hw_state.__name)
+	INTEL_DISPLAY_STATE_WARN(display, mpllb_sw_state->__name != mpllb_hw_state.__name, \
+				 "[CRTC:%d:%s] mismatch in MPLLB: %s (expected 0x%08x, found 0x%08x)", \
+				 crtc->base.base.id, crtc->base.name,	\
+				 __stringify(__name),			\
+				 mpllb_sw_state->__name, mpllb_hw_state.__name)
 
 	MPLLB_CHECK(mpllb_cp);
 	MPLLB_CHECK(mpllb_div);

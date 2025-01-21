@@ -397,8 +397,8 @@ bool ice_gnss_is_gps_present(struct ice_hw *hw)
 		int err;
 		u8 data;
 
-		err = ice_read_pca9575_reg_e810t(hw, ICE_PCA9575_P0_IN, &data);
-		if (err || !!(data & ICE_E810T_P0_GNSS_PRSNT_N))
+		err = ice_read_pca9575_reg(hw, ICE_PCA9575_P0_IN, &data);
+		if (err || !!(data & ICE_P0_GNSS_PRSNT_N))
 			return false;
 	} else {
 		return false;

@@ -164,7 +164,7 @@ MODULE_DEVICE_TABLE(of, sun4i_mdio_dt_ids);
 
 static struct platform_driver sun4i_mdio_driver = {
 	.probe = sun4i_mdio_probe,
-	.remove_new = sun4i_mdio_remove,
+	.remove = sun4i_mdio_remove,
 	.driver = {
 		.name = "sun4i-mdio",
 		.of_match_table = sun4i_mdio_dt_ids,

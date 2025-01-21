@@ -688,7 +688,7 @@ static int aw_dev_load_cfg_by_hdr(struct aw_device *aw_dev,
 		ret = aw_dev_cfg_get_reg_valid_prof(aw_dev, all_prof_info);
 		break;
 	default:
-		dev_err(aw_dev->dev, "unsupport data type\n");
+		dev_err(aw_dev->dev, "unsupported data type\n");
 		ret = -EINVAL;
 		break;
 	}

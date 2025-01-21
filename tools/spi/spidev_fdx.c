@@ -99,7 +99,7 @@ static void dumpstat(const char *name, int fd)
 		return;
 	}
 
-	printf("%s: spi mode 0x%x, %d bits %sper word, %d Hz max\n",
+	printf("%s: spi mode 0x%x, %d bits %sper word, %u Hz max\n",
 		name, mode, bits, lsb ? "(lsb first) " : "", speed);
 }
 

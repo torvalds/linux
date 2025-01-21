@@ -15,13 +15,13 @@ int gen2_emit_flush(struct i915_request *rq, u32 mode);
 int gen4_emit_flush_rcs(struct i915_request *rq, u32 mode);
 int gen4_emit_flush_vcs(struct i915_request *rq, u32 mode);
 
-u32 *gen3_emit_breadcrumb(struct i915_request *rq, u32 *cs);
+u32 *gen2_emit_breadcrumb(struct i915_request *rq, u32 *cs);
 u32 *gen5_emit_breadcrumb(struct i915_request *rq, u32 *cs);
 
 int i830_emit_bb_start(struct i915_request *rq,
 		       u64 offset, u32 len,
 		       unsigned int dispatch_flags);
-int gen3_emit_bb_start(struct i915_request *rq,
+int gen2_emit_bb_start(struct i915_request *rq,
 		       u64 offset, u32 len,
 		       unsigned int dispatch_flags);
 int gen4_emit_bb_start(struct i915_request *rq,
@@ -30,8 +30,6 @@ int gen4_emit_bb_start(struct i915_request *rq,
 
 void gen2_irq_enable(struct intel_engine_cs *engine);
 void gen2_irq_disable(struct intel_engine_cs *engine);
-void gen3_irq_enable(struct intel_engine_cs *engine);
-void gen3_irq_disable(struct intel_engine_cs *engine);
 void gen5_irq_enable(struct intel_engine_cs *engine);
 void gen5_irq_disable(struct intel_engine_cs *engine);
 

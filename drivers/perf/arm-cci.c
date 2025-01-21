@@ -1705,7 +1705,7 @@ static struct platform_driver cci_pmu_driver = {
 		   .suppress_bind_attrs = true,
 		  },
 	.probe = cci_pmu_probe,
-	.remove_new = cci_pmu_remove,
+	.remove = cci_pmu_remove,
 };
 
 module_platform_driver(cci_pmu_driver);

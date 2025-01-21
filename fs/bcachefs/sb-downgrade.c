@@ -78,7 +78,10 @@
 	  BCH_FSCK_ERR_accounting_mismatch)			\
 	x(rebalance_work_acct_fix,				\
 	  BIT_ULL(BCH_RECOVERY_PASS_check_allocations),		\
-	  BCH_FSCK_ERR_accounting_mismatch)
+	  BCH_FSCK_ERR_accounting_mismatch)			\
+	x(inode_has_child_snapshots,				\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_inodes),		\
+	  BCH_FSCK_ERR_inode_has_child_snapshots_wrong)
 
 #define DOWNGRADE_TABLE()					\
 	x(bucket_stripe_sectors,				\
@@ -140,6 +143,9 @@ UPGRADE_TABLE()
 
 static int have_stripes(struct bch_fs *c)
 {
+	if (IS_ERR_OR_NULL(c->btree_roots_known[BTREE_ID_stripes].b))
+		return 0;
+
 	return !btree_node_fake(c->btree_roots_known[BTREE_ID_stripes].b);
 }
 
@@ -312,8 +318,7 @@ static void bch2_sb_downgrade_to_text(struct printbuf *out, struct bch_sb *sb,
 			if (!first)
 				prt_char(out, ',');
 			first = false;
-			unsigned e = le16_to_cpu(i->errors[j]);
-			prt_str(out, e < BCH_SB_ERR_MAX ? bch2_sb_error_strs[e] : "(unknown)");
+			bch2_sb_error_id_to_text(out, le16_to_cpu(i->errors[j]));
 		}
 		prt_newline(out);
 	}
@@ -353,7 +358,9 @@ int bch2_sb_downgrade_update(struct bch_fs *c)
 		for (unsigned i = 0; i < src->nr_errors; i++)
 			dst->errors[i] = cpu_to_le16(src->errors[i]);
 
-		downgrade_table_extra(c, &table);
+		ret = downgrade_table_extra(c, &table);
+		if (ret)
+			goto out;
 
 		if (!dst->recovery_passes[0] &&
 		    !dst->recovery_passes[1] &&
@@ -399,7 +406,7 @@ void bch2_sb_set_downgrade(struct bch_fs *c, unsigned new_minor, unsigned old_mi
 
 			for (unsigned j = 0; j < le16_to_cpu(i->nr_errors); j++) {
 				unsigned e = le16_to_cpu(i->errors[j]);
-				if (e < BCH_SB_ERR_MAX)
+				if (e < BCH_FSCK_ERR_MAX)
 					__set_bit(e, c->sb.errors_silent);
 				if (e < sizeof(ext->errors_silent) * 8)
 					__set_bit_le64(e, ext->errors_silent);

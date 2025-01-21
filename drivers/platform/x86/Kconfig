@@ -52,6 +52,7 @@ config WMI_BMOF
 config HUAWEI_WMI
 	tristate "Huawei WMI laptop extras driver"
 	depends on ACPI_BATTERY
+	depends on ACPI_EC
 	depends on ACPI_WMI
 	depends on INPUT
 	select INPUT_SPARSEKMAP
@@ -147,7 +148,7 @@ config YT2_1380
 
 config ACERHDF
 	tristate "Acer Aspire One temperature and fan driver"
-	depends on ACPI && THERMAL
+	depends on ACPI_EC && THERMAL
 	select THERMAL_GOV_BANG_BANG
 	help
 	  This is a driver for Acer Aspire One netbooks. It allows to access
@@ -186,6 +187,7 @@ config ACER_WMI
 	depends on SERIO_I8042
 	depends on INPUT
 	depends on RFKILL || RFKILL = n
+	depends on ACPI_EC
 	depends on ACPI_WMI
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	depends on HWMON
@@ -334,7 +336,7 @@ config MERAKI_MX100
 
 config EEEPC_LAPTOP
 	tristate "Eee PC Hotkey Driver"
-	depends on ACPI
+	depends on ACPI_EC
 	depends on INPUT
 	depends on RFKILL || RFKILL = n
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
@@ -503,7 +505,7 @@ config SENSORS_HDAPS
 
 config THINKPAD_ACPI
 	tristate "ThinkPad ACPI Laptop Extras"
-	depends on ACPI
+	depends on ACPI_EC
 	depends on ACPI_BATTERY
 	depends on INPUT
 	depends on RFKILL || RFKILL = n
@@ -682,7 +684,7 @@ config MEEGOPAD_ANX7428
 
 config MSI_EC
 	tristate "MSI EC Extras"
-	depends on ACPI
+	depends on ACPI_EC
 	depends on ACPI_BATTERY
 	help
 	  This driver allows various MSI laptops' functionalities to be
@@ -690,7 +692,7 @@ config MSI_EC
 
 config MSI_LAPTOP
 	tristate "MSI Laptop Extras"
-	depends on ACPI
+	depends on ACPI_EC
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	depends on RFKILL
@@ -796,7 +798,7 @@ config SAMSUNG_LAPTOP
 
 config SAMSUNG_Q10
 	tristate "Samsung Q10 Extras"
-	depends on ACPI
+	depends on ACPI_EC
 	select BACKLIGHT_CLASS_DEVICE
 	help
 	  This driver provides support for backlight control on Samsung Q10
@@ -804,7 +806,7 @@ config SAMSUNG_Q10
 
 config ACPI_TOSHIBA
 	tristate "Toshiba Laptop Extras"
-	depends on ACPI
+	depends on ACPI_EC
 	depends on ACPI_BATTERY
 	depends on ACPI_WMI
 	select LEDS_CLASS
@@ -904,7 +906,7 @@ config ACPI_CMPC
 
 config COMPAL_LAPTOP
 	tristate "Compal (and others) Laptop Extras"
-	depends on ACPI
+	depends on ACPI_EC
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	depends on RFKILL
@@ -949,7 +951,7 @@ config PANASONIC_LAPTOP
 
 config SONY_LAPTOP
 	tristate "Sony Laptop Extras"
-	depends on ACPI
+	depends on ACPI_EC
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on INPUT
@@ -972,7 +974,7 @@ config SONYPI_COMPAT
 
 config SYSTEM76_ACPI
 	tristate "System76 ACPI Driver"
-	depends on ACPI
+	depends on ACPI_EC
 	depends on ACPI_BATTERY
 	depends on HWMON
 	depends on INPUT
@@ -1000,7 +1002,8 @@ config TOPSTAR_LAPTOP
 
 config SERIAL_MULTI_INSTANTIATE
 	tristate "Serial bus multi instantiate pseudo device driver"
-	depends on I2C && SPI && ACPI
+	depends on ACPI
+	depends on (I2C && !SPI) || (!I2C && SPI) || (I2C && SPI)
 	help
 	  Some ACPI-based systems list multiple devices in a single ACPI
 	  firmware-node. This driver will instantiate separate clients

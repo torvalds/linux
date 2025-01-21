@@ -810,7 +810,7 @@ cache in your filesystem.  The following members are defined:
 				struct page **pagep, void **fsdata);
 		int (*write_end)(struct file *, struct address_space *mapping,
 				 loff_t pos, unsigned len, unsigned copied,
-				 struct page *page, void *fsdata);
+				 struct folio *folio, void *fsdata);
 		sector_t (*bmap)(struct address_space *, sector_t);
 		void (*invalidate_folio) (struct folio *, size_t start, size_t len);
 		bool (*release_folio)(struct folio *, gfp_t);
@@ -913,8 +913,7 @@ cache in your filesystem.  The following members are defined:
 	stop attempting I/O, it can simply return.  The caller will
 	remove the remaining pages from the address space, unlock them
 	and decrement the page refcount.  Set PageUptodate if the I/O
-	completes successfully.  Setting PageError on any page will be
-	ignored; simply unlock the page if an I/O error occurs.
+	completes successfully.
 
 ``write_begin``
 	Called by the generic buffered write code to ask the filesystem
@@ -926,12 +925,12 @@ cache in your filesystem.  The following members are defined:
 	(if they haven't been read already) so that the updated blocks
 	can be written out properly.
 
-	The filesystem must return the locked pagecache page for the
-	specified offset, in ``*pagep``, for the caller to write into.
+	The filesystem must return the locked pagecache folio for the
+	specified offset, in ``*foliop``, for the caller to write into.
 
 	It must be able to cope with short writes (where the length
 	passed to write_begin is greater than the number of bytes copied
-	into the page).
+	into the folio).
 
 	A void * may be returned in fsdata, which then gets passed into
 	write_end.
@@ -944,8 +943,8 @@ cache in your filesystem.  The following members are defined:
 	called.  len is the original len passed to write_begin, and
 	copied is the amount that was able to be copied.
 
-	The filesystem must take care of unlocking the page and
-	releasing it refcount, and updating i_size.
+	The filesystem must take care of unlocking the folio,
+	decrementing its refcount, and updating i_size.
 
 	Returns < 0 on failure, otherwise the number of bytes (<=
 	'copied') that were able to be copied into pagecache.

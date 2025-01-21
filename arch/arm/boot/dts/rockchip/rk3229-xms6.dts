@@ -20,7 +20,7 @@
 		reg = <0x60000000 0x40000000>;
 	};
 
-	dc_12v: dc-12v-regulator {
+	dc_12v: regulator-dc-12v {
 		compatible = "regulator-fixed";
 		regulator-name = "dc_12v";
 		regulator-always-on;
@@ -51,7 +51,7 @@
 		              <&gpio2 29 GPIO_ACTIVE_LOW>;
 	};
 
-	vcc_host: vcc-host-regulator {
+	vcc_host: regulator-vcc-host {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio3 RK_PC4 GPIO_ACTIVE_HIGH>;
@@ -63,7 +63,7 @@
 		vin-supply = <&vcc_sys>;
 	};
 
-	vcc_phy: vcc-phy-regulator {
+	vcc_phy: regulator-vcc-phy {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		regulator-name = "vcc_phy";
@@ -74,7 +74,7 @@
 		vin-supply = <&vccio_1v8>;
 	};
 
-	vcc_sys: vcc-sys-regulator {
+	vcc_sys: regulator-vcc-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_sys";
 		regulator-always-on;
@@ -84,7 +84,7 @@
 		vin-supply = <&dc_12v>;
 	};
 
-	vccio_1v8: vccio-1v8-regulator {
+	vccio_1v8: regulator-vccio-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "vccio_1v8";
 		regulator-min-microvolt = <1800000>;
@@ -93,7 +93,7 @@
 		vin-supply = <&vcc_sys>;
 	};
 
-	vccio_3v3: vccio-3v3-regulator {
+	vccio_3v3: regulator-vccio-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vccio_3v3";
 		regulator-min-microvolt = <3300000>;
@@ -102,7 +102,7 @@
 		vin-supply = <&vcc_sys>;
 	};
 
-	vdd_arm: vdd-arm-regulator {
+	vdd_arm: regulator-vdd-arm {
 		compatible = "pwm-regulator";
 		pwms = <&pwm1 0 25000 1>;
 		pwm-supply = <&vcc_sys>;
@@ -113,7 +113,7 @@
 		regulator-boot-on;
 	};
 
-	vdd_log: vdd-log-regulator {
+	vdd_log: regulator-vdd-log {
 		compatible = "pwm-regulator";
 		pwms = <&pwm2 0 25000 1>;
 		pwm-supply = <&vcc_sys>;

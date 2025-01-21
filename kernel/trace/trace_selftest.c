@@ -17,6 +17,7 @@ static inline int trace_valid_entry(struct trace_entry *entry)
 	case TRACE_PRINT:
 	case TRACE_BRANCH:
 	case TRACE_GRAPH_ENT:
+	case TRACE_GRAPH_RETADDR_ENT:
 	case TRACE_GRAPH_RET:
 		return 1;
 	}
@@ -942,7 +943,7 @@ static __init int test_graph_storage_multi(void)
 {
 	struct fgraph_fixture *fixture;
 	bool printed = false;
-	int i, ret;
+	int i, j, ret;
 
 	pr_cont("PASSED\n");
 	pr_info("Testing multiple fgraph storage on a function: ");
@@ -953,22 +954,35 @@ static __init int test_graph_storage_multi(void)
 		if (ret && ret != -ENODEV) {
 			pr_cont("*Could not set filter* ");
 			printed = true;
-			goto out;
+			goto out2;
 		}
+	}
 
+	for (j = 0; j < ARRAY_SIZE(store_bytes); j++) {
+		fixture = &store_bytes[j];
 		ret = register_ftrace_graph(&fixture->gops);
 		if (ret) {
 			pr_warn("Failed to init store_bytes fgraph tracing\n");
 			printed = true;
-			goto out;
+			goto out1;
 		}
 	}
 
 	DYN_FTRACE_TEST_NAME();
-out:
+out1:
+	while (--j >= 0) {
+		fixture = &store_bytes[j];
+		unregister_ftrace_graph(&fixture->gops);
+
+		if (fixture->error_str && !printed) {
+			pr_cont("*** %s ***", fixture->error_str);
+			printed = true;
+		}
+	}
+out2:
 	while (--i >= 0) {
 		fixture = &store_bytes[i];
-		unregister_ftrace_graph(&fixture->gops);
+		ftrace_free_filter(&fixture->gops.ops);
 
 		if (fixture->error_str && !printed) {
 			pr_cont("*** %s ***", fixture->error_str);
@@ -1472,7 +1486,7 @@ trace_selftest_startup_wakeup(struct tracer *trace, struct trace_array *tr)
 	/* reset the max latency */
 	tr->max_latency = 0;
 
-	while (p->on_rq) {
+	while (task_is_runnable(p)) {
 		/*
 		 * Sleep to make sure the -deadline thread is asleep too.
 		 * On virtual machines we can't rely on timings,

@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/seq_file.h>
 
 #include <dt-bindings/gpio/tegra186-gpio.h>
@@ -609,7 +610,7 @@ static void tegra186_irq_print_chip(struct irq_data *data, struct seq_file *p)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
 
-	seq_printf(p, dev_name(gc->parent));
+	seq_puts(p, dev_name(gc->parent));
 }
 
 static const struct irq_chip tegra186_gpio_irq_chip = {
@@ -928,7 +929,7 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 
 	irq = &gpio->gpio.irq;
 	gpio_irq_chip_set_chip(irq, &tegra186_gpio_irq_chip);
-	irq->fwnode = of_node_to_fwnode(pdev->dev.of_node);
+	irq->fwnode = dev_fwnode(&pdev->dev);
 	irq->child_to_parent_hwirq = tegra186_gpio_child_to_parent_hwirq;
 	irq->populate_parent_alloc_arg = tegra186_gpio_populate_parent_fwspec;
 	irq->child_offset_to_irq = tegra186_gpio_child_offset_to_irq;

@@ -1,19 +1,21 @@
 # SPDX-License-Identifier: GPL-2.0
 # Makefile for nolibc tests
-include ../../../scripts/Makefile.include
-include ../../../scripts/utilities.mak
-# We need this for the "cc-option" macro.
-include ../../../build/Build.include
+# we're in ".../tools/testing/selftests/nolibc"
+ifeq ($(srctree),)
+srctree := $(patsubst %/tools/testing/selftests/,%,$(dir $(CURDIR)))
+endif
+
+include $(srctree)/tools/scripts/utilities.mak
+# We need this for the "__cc-option" macro.
+include $(srctree)/scripts/Makefile.compiler
 
 ifneq ($(O),)
 ifneq ($(call is-absolute,$(O)),y)
 $(error Only absolute O= parameters are supported)
 endif
-endif
-
-# we're in ".../tools/testing/selftests/nolibc"
-ifeq ($(srctree),)
-srctree := $(patsubst %/tools/testing/selftests/,%,$(dir $(CURDIR)))
+objtree := $(O)
+else
+objtree ?= $(srctree)
 endif
 
 ifeq ($(ARCH),)
@@ -21,7 +23,7 @@ include $(srctree)/scripts/subarch.include
 ARCH = $(SUBARCH)
 endif
 
-objtree ?= $(srctree)
+cc-option = $(call __cc-option, $(CC),$(CLANG_CROSS_FLAGS),$(1),$(2))
 
 # XARCH extends the kernel's ARCH with a few variants of the same
 # architecture that only differ by the configuration, the toolchain
@@ -128,9 +130,9 @@ QEMU_ARGS_ppc        = -M g3beige -append "console=ttyS0 panic=-1 $(TEST:%=NOLIB
 QEMU_ARGS_ppc64      = -M powernv -append "console=hvc0 panic=-1 $(TEST:%=NOLIBC_TEST=%)"
 QEMU_ARGS_ppc64le    = -M powernv -append "console=hvc0 panic=-1 $(TEST:%=NOLIBC_TEST=%)"
 QEMU_ARGS_riscv      = -M virt -append "console=ttyS0 panic=-1 $(TEST:%=NOLIBC_TEST=%)"
-QEMU_ARGS_s390       = -M s390-ccw-virtio -m 1G -append "console=ttyS0 panic=-1 $(TEST:%=NOLIBC_TEST=%)"
+QEMU_ARGS_s390       = -M s390-ccw-virtio -append "console=ttyS0 panic=-1 $(TEST:%=NOLIBC_TEST=%)"
 QEMU_ARGS_loongarch  = -M virt -append "console=ttyS0,115200 panic=-1 $(TEST:%=NOLIBC_TEST=%)"
-QEMU_ARGS            = $(QEMU_ARGS_$(XARCH)) $(QEMU_ARGS_BIOS) $(QEMU_ARGS_EXTRA)
+QEMU_ARGS            = -m 1G $(QEMU_ARGS_$(XARCH)) $(QEMU_ARGS_BIOS) $(QEMU_ARGS_EXTRA)
 
 # OUTPUT is only set when run from the main makefile, otherwise
 # it defaults to this nolibc directory.
@@ -155,9 +157,22 @@ CFLAGS  ?= -Os -fno-ident -fno-asynchronous-unwind-tables -std=c89 -W -Wall -Wex
 		$(CFLAGS_$(XARCH)) $(CFLAGS_STACKPROTECTOR) $(CFLAGS_EXTRA)
 LDFLAGS :=
 
+LIBGCC := -lgcc
+
+ifneq ($(LLVM),)
+# Not needed for clang
+LIBGCC :=
+endif
+
+# Modify CFLAGS based on LLVM=
+include $(srctree)/tools/scripts/Makefile.include
+
+# GCC uses "s390", clang "systemz"
+CLANG_CROSS_FLAGS := $(subst --target=s390-linux,--target=systemz-linux,$(CLANG_CROSS_FLAGS))
+
 REPORT  ?= awk '/\[OK\][\r]*$$/{p++} /\[FAIL\][\r]*$$/{if (!f) printf("\n"); f++; print;} /\[SKIPPED\][\r]*$$/{s++} \
 		END{ printf("\n%3d test(s): %3d passed, %3d skipped, %3d failed => status: ", p+s+f, p, s, f); \
-		if (f) printf("failure\n"); else if (s) printf("warning\n"); else printf("success\n");; \
+		if (f || !p) printf("failure\n"); else if (s) printf("warning\n"); else printf("success\n");; \
 		printf("\nSee all results in %s\n", ARGV[1]); }'
 
 help:
@@ -204,11 +219,11 @@ sysroot/$(ARCH)/include:
 ifneq ($(NOLIBC_SYSROOT),0)
 nolibc-test: nolibc-test.c nolibc-test-linkage.c sysroot/$(ARCH)/include
 	$(QUIET_CC)$(CC) $(CFLAGS) $(LDFLAGS) -o $@ \
-	  -nostdlib -nostdinc -static -Isysroot/$(ARCH)/include nolibc-test.c nolibc-test-linkage.c -lgcc
+	  -nostdlib -nostdinc -static -Isysroot/$(ARCH)/include nolibc-test.c nolibc-test-linkage.c $(LIBGCC)
 else
 nolibc-test: nolibc-test.c nolibc-test-linkage.c
 	$(QUIET_CC)$(CC) $(CFLAGS) $(LDFLAGS) -o $@ \
-	  -nostdlib -static -include $(srctree)/tools/include/nolibc/nolibc.h nolibc-test.c nolibc-test-linkage.c -lgcc
+	  -nostdlib -static -include $(srctree)/tools/include/nolibc/nolibc.h nolibc-test.c nolibc-test-linkage.c $(LIBGCC)
 endif
 
 libc-test: nolibc-test.c nolibc-test-linkage.c

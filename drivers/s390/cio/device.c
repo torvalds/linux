@@ -201,10 +201,9 @@ devtype_show (struct device *dev, struct device_attribute *attr, char *buf)
 	struct ccw_device_id *id = &(cdev->id);
 
 	if (id->dev_type != 0)
-		return sprintf(buf, "%04x/%02x\n",
-				id->dev_type, id->dev_model);
+		return sysfs_emit(buf, "%04x/%02x\n", id->dev_type, id->dev_model);
 	else
-		return sprintf(buf, "n/a\n");
+		return sysfs_emit(buf, "n/a\n");
 }
 
 static ssize_t
@@ -213,8 +212,7 @@ cutype_show (struct device *dev, struct device_attribute *attr, char *buf)
 	struct ccw_device *cdev = to_ccwdev(dev);
 	struct ccw_device_id *id = &(cdev->id);
 
-	return sprintf(buf, "%04x/%02x\n",
-		       id->cu_type, id->cu_model);
+	return sysfs_emit(buf, "%04x/%02x\n", id->cu_type, id->cu_model);
 }
 
 static ssize_t
@@ -234,7 +232,7 @@ online_show (struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ccw_device *cdev = to_ccwdev(dev);
 
-	return sprintf(buf, cdev->online ? "1\n" : "0\n");
+	return sysfs_emit(buf, cdev->online ? "1\n" : "0\n");
 }
 
 int ccw_device_is_orphan(struct ccw_device *cdev)
@@ -546,21 +544,21 @@ available_show (struct device *dev, struct device_attribute *attr, char *buf)
 	struct subchannel *sch;
 
 	if (ccw_device_is_orphan(cdev))
-		return sprintf(buf, "no device\n");
+		return sysfs_emit(buf, "no device\n");
 	switch (cdev->private->state) {
 	case DEV_STATE_BOXED:
-		return sprintf(buf, "boxed\n");
+		return sysfs_emit(buf, "boxed\n");
 	case DEV_STATE_DISCONNECTED:
 	case DEV_STATE_DISCONNECTED_SENSE_ID:
 	case DEV_STATE_NOT_OPER:
 		sch = to_subchannel(dev->parent);
 		if (!sch->lpm)
-			return sprintf(buf, "no path\n");
+			return sysfs_emit(buf, "no path\n");
 		else
-			return sprintf(buf, "no device\n");
+			return sysfs_emit(buf, "no device\n");
 	default:
 		/* All other states considered fine. */
-		return sprintf(buf, "good\n");
+		return sysfs_emit(buf, "good\n");
 	}
 }
 
@@ -587,7 +585,7 @@ static ssize_t vpm_show(struct device *dev, struct device_attribute *attr,
 {
 	struct subchannel *sch = to_subchannel(dev);
 
-	return sprintf(buf, "%02x\n", sch->vpm);
+	return sysfs_emit(buf, "%02x\n", sch->vpm);
 }
 
 static DEVICE_ATTR_RO(devtype);
@@ -1387,14 +1385,18 @@ enum io_sch_action {
 	IO_SCH_VERIFY,
 	IO_SCH_DISC,
 	IO_SCH_NOP,
+	IO_SCH_ORPH_CDEV,
 };
 
 static enum io_sch_action sch_get_action(struct subchannel *sch)
 {
 	struct ccw_device *cdev;
+	int rc;
 
 	cdev = sch_get_cdev(sch);
-	if (cio_update_schib(sch)) {
+	rc = cio_update_schib(sch);
+
+	if (rc == -ENODEV) {
 		/* Not operational. */
 		if (!cdev)
 			return IO_SCH_UNREG;
@@ -1402,6 +1404,16 @@ static enum io_sch_action sch_get_action(struct subchannel *sch)
 			return IO_SCH_UNREG;
 		return IO_SCH_ORPH_UNREG;
 	}
+
+	/* Avoid unregistering subchannels without working device. */
+	if (rc == -EACCES) {
+		if (!cdev)
+			return IO_SCH_NOP;
+		if (ccw_device_notify(cdev, CIO_GONE) != NOTIFY_OK)
+			return IO_SCH_UNREG_CDEV;
+		return IO_SCH_ORPH_CDEV;
+	}
+
 	/* Operational. */
 	if (!cdev)
 		return IO_SCH_ATTACH;
@@ -1471,6 +1483,7 @@ static int io_subchannel_sch_event(struct subchannel *sch, int process)
 		rc = 0;
 		goto out_unlock;
 	case IO_SCH_ORPH_UNREG:
+	case IO_SCH_ORPH_CDEV:
 	case IO_SCH_ORPH_ATTACH:
 		ccw_device_set_disconnected(cdev);
 		break;
@@ -1502,6 +1515,7 @@ static int io_subchannel_sch_event(struct subchannel *sch, int process)
 	/* Handle attached ccw device. */
 	switch (action) {
 	case IO_SCH_ORPH_UNREG:
+	case IO_SCH_ORPH_CDEV:
 	case IO_SCH_ORPH_ATTACH:
 		/* Move ccw device to orphanage. */
 		rc = ccw_device_move_to_orph(cdev);

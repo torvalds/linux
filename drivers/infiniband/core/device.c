@@ -437,6 +437,7 @@ int ib_device_rename(struct ib_device *ibdev, const char *name)
 		client->rename(ibdev, client_data);
 	}
 	up_read(&ibdev->client_data_rwsem);
+	rdma_nl_notify_event(ibdev, 0, RDMA_RENAME_EVENT);
 	up_read(&devices_rwsem);
 	return 0;
 }
@@ -1351,6 +1352,29 @@ static void prevent_dealloc_device(struct ib_device *ib_dev)
 {
 }
 
+static void ib_device_notify_register(struct ib_device *device)
+{
+	struct net_device *netdev;
+	u32 port;
+	int ret;
+
+	ret = rdma_nl_notify_event(device, 0, RDMA_REGISTER_EVENT);
+	if (ret)
+		return;
+
+	rdma_for_each_port(device, port) {
+		netdev = ib_device_get_netdev(device, port);
+		if (!netdev)
+			continue;
+
+		ret = rdma_nl_notify_event(device, port,
+					   RDMA_NETDEV_ATTACH_EVENT);
+		dev_put(netdev);
+		if (ret)
+			return;
+	}
+}
+
 /**
  * ib_register_device - Register an IB device with IB core
  * @device: Device to register
@@ -1449,6 +1473,8 @@ int ib_register_device(struct ib_device *device, const char *name,
 	dev_set_uevent_suppress(&device->dev, false);
 	/* Mark for userspace that device is ready */
 	kobject_uevent(&device->dev.kobj, KOBJ_ADD);
+
+	ib_device_notify_register(device);
 	ib_device_put(device);
 
 	return 0;
@@ -1491,6 +1517,7 @@ static void __ib_unregister_device(struct ib_device *ib_dev)
 		goto out;
 
 	disable_device(ib_dev);
+	rdma_nl_notify_event(ib_dev, 0, RDMA_UNREGISTER_EVENT);
 
 	/* Expedite removing unregistered pointers from the hash table */
 	free_netdevs(ib_dev);
@@ -2159,6 +2186,7 @@ static void add_ndev_hash(struct ib_port_data *pdata)
 int ib_device_set_netdev(struct ib_device *ib_dev, struct net_device *ndev,
 			 u32 port)
 {
+	enum rdma_nl_notify_event_type etype;
 	struct net_device *old_ndev;
 	struct ib_port_data *pdata;
 	unsigned long flags;
@@ -2190,6 +2218,14 @@ int ib_device_set_netdev(struct ib_device *ib_dev, struct net_device *ndev,
 	spin_unlock_irqrestore(&pdata->netdev_lock, flags);
 
 	add_ndev_hash(pdata);
+
+	/* Make sure that the device is registered before we send events */
+	if (xa_load(&devices, ib_dev->index) != ib_dev)
+		return 0;
+
+	etype = ndev ? RDMA_NETDEV_ATTACH_EVENT : RDMA_NETDEV_DETACH_EVENT;
+	rdma_nl_notify_event(ib_dev, port, etype);
+
 	return 0;
 }
 EXPORT_SYMBOL(ib_device_set_netdev);
@@ -2236,6 +2272,9 @@ struct net_device *ib_device_get_netdev(struct ib_device *ib_dev,
 	if (!rdma_is_port_valid(ib_dev, port))
 		return NULL;
 
+	if (!ib_dev->port_data)
+		return NULL;
+
 	pdata = &ib_dev->port_data[port];
 
 	/*
@@ -2252,17 +2291,9 @@ struct net_device *ib_device_get_netdev(struct ib_device *ib_dev,
 		spin_unlock(&pdata->netdev_lock);
 	}
 
-	/*
-	 * If we are starting to unregister expedite things by preventing
-	 * propagation of an unregistering netdev.
-	 */
-	if (res && res->reg_state != NETREG_REGISTERED) {
-		dev_put(res);
-		return NULL;
-	}
-
 	return res;
 }
+EXPORT_SYMBOL(ib_device_get_netdev);
 
 /**
  * ib_device_get_by_netdev - Find an IB device associated with a netdev
@@ -2729,6 +2760,7 @@ void ib_set_device_ops(struct ib_device *dev, const struct ib_device_ops *ops)
 	SET_DEVICE_OP(dev_ops, resize_cq);
 	SET_DEVICE_OP(dev_ops, set_vf_guid);
 	SET_DEVICE_OP(dev_ops, set_vf_link_state);
+	SET_DEVICE_OP(dev_ops, ufile_hw_cleanup);
 
 	SET_OBJ_SIZE(dev_ops, ib_ah);
 	SET_OBJ_SIZE(dev_ops, ib_counters);
@@ -2822,6 +2854,40 @@ static const struct rdma_nl_cbs ibnl_ls_cb_table[RDMA_NL_LS_NUM_OPS] = {
 	},
 };
 
+static int ib_netdevice_event(struct notifier_block *this,
+			      unsigned long event, void *ptr)
+{
+	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *ib_ndev;
+	struct ib_device *ibdev;
+	u32 port;
+
+	switch (event) {
+	case NETDEV_CHANGENAME:
+		ibdev = ib_device_get_by_netdev(ndev, RDMA_DRIVER_UNKNOWN);
+		if (!ibdev)
+			return NOTIFY_DONE;
+
+		rdma_for_each_port(ibdev, port) {
+			ib_ndev = ib_device_get_netdev(ibdev, port);
+			if (ndev == ib_ndev)
+				rdma_nl_notify_event(ibdev, port,
+						     RDMA_NETDEV_RENAME_EVENT);
+			dev_put(ib_ndev);
+		}
+		ib_device_put(ibdev);
+		break;
+	default:
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block nb_netdevice = {
+	.notifier_call = ib_netdevice_event,
+};
+
 static int __init ib_core_init(void)
 {
 	int ret = -ENOMEM;
@@ -2893,6 +2959,8 @@ static int __init ib_core_init(void)
 		goto err_parent;
 	}
 
+	register_netdevice_notifier(&nb_netdevice);
+
 	return 0;
 
 err_parent:
@@ -2922,6 +2990,7 @@ err:
 
 static void __exit ib_core_cleanup(void)
 {
+	unregister_netdevice_notifier(&nb_netdevice);
 	roce_gid_mgmt_cleanup();
 	rdma_nl_unregister(RDMA_NL_LS);
 	nldev_exit();

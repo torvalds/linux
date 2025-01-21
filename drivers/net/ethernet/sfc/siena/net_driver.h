@@ -707,20 +707,14 @@ struct vfdi_status;
 /* The reserved RSS context value */
 #define EFX_MCDI_RSS_CONTEXT_INVALID	0xffffffff
 /**
- * struct efx_rss_context - A user-defined RSS context for filtering
- * @list: node of linked list on which this struct is stored
- * @context_id: the RSS_CONTEXT_ID returned by MC firmware, or
- *	%EFX_MCDI_RSS_CONTEXT_INVALID if this context is not present on the NIC.
- *	For Siena, 0 if RSS is active, else %EFX_MCDI_RSS_CONTEXT_INVALID.
- * @user_id: the rss_context ID exposed to userspace over ethtool.
+ * struct efx_rss_context - An RSS context for filtering
+ * @context_id: 0 if RSS is active, else %EFX_MCDI_RSS_CONTEXT_INVALID.
  * @rx_hash_udp_4tuple: UDP 4-tuple hashing enabled
  * @rx_hash_key: Toeplitz hash key for this RSS context
  * @indir_table: Indirection table for this RSS context
  */
 struct efx_rss_context {
-	struct list_head list;
 	u32 context_id;
-	u32 user_id;
 	bool rx_hash_udp_4tuple;
 	u8 rx_hash_key[40];
 	u32 rx_indir_table[128];
@@ -851,9 +845,7 @@ enum efx_xdp_tx_queues_mode {
  * @rx_packet_ts_offset: Offset of timestamp from start of packet data
  *	(valid only if channel->sync_timestamps_enabled; always negative)
  * @rx_scatter: Scatter mode enabled for receives
- * @rss_context: Main RSS context.  Its @list member is the head of the list of
- *	RSS contexts created by user requests
- * @rss_lock: Protects custom RSS context software state in @rss_context.list
+ * @rss_context: Main RSS context
  * @vport_id: The function's vport ID, only relevant for PFs
  * @int_error_count: Number of internal errors seen recently
  * @int_error_expire: Time at which error count will be expired
@@ -1018,7 +1010,6 @@ struct efx_nic {
 	int rx_packet_ts_offset;
 	bool rx_scatter;
 	struct efx_rss_context rss_context;
-	struct mutex rss_lock;
 	u32 vport_id;
 
 	unsigned int_error_count;
@@ -1220,10 +1211,6 @@ struct efx_udp_tunnel {
  * @tx_enqueue: Add an SKB to TX queue
  * @rx_push_rss_config: Write RSS hash key and indirection table to the NIC
  * @rx_pull_rss_config: Read RSS hash key and indirection table back from the NIC
- * @rx_push_rss_context_config: Write RSS hash key and indirection table for
- *	user RSS context to the NIC
- * @rx_pull_rss_context_config: Read RSS hash key and indirection table for user
- *	RSS context back from the NIC
  * @rx_probe: Allocate resources for RX queue
  * @rx_init: Initialise RX queue on the NIC
  * @rx_remove: Free resources for RX queue
@@ -1320,7 +1307,7 @@ struct efx_nic_type {
 	void (*finish_flush)(struct efx_nic *efx);
 	void (*prepare_flr)(struct efx_nic *efx);
 	void (*finish_flr)(struct efx_nic *efx);
-	size_t (*describe_stats)(struct efx_nic *efx, u8 *names);
+	size_t (*describe_stats)(struct efx_nic *efx, u8 **names);
 	size_t (*update_stats)(struct efx_nic *efx, u64 *full_stats,
 			       struct rtnl_link_stats64 *core_stats);
 	size_t (*update_stats_atomic)(struct efx_nic *efx, u64 *full_stats,
@@ -1366,13 +1353,6 @@ struct efx_nic_type {
 	int (*rx_push_rss_config)(struct efx_nic *efx, bool user,
 				  const u32 *rx_indir_table, const u8 *key);
 	int (*rx_pull_rss_config)(struct efx_nic *efx);
-	int (*rx_push_rss_context_config)(struct efx_nic *efx,
-					  struct efx_rss_context *ctx,
-					  const u32 *rx_indir_table,
-					  const u8 *key);
-	int (*rx_pull_rss_context_config)(struct efx_nic *efx,
-					  struct efx_rss_context *ctx);
-	void (*rx_restore_rss_contexts)(struct efx_nic *efx);
 	int (*rx_probe)(struct efx_rx_queue *rx_queue);
 	void (*rx_init)(struct efx_rx_queue *rx_queue);
 	void (*rx_remove)(struct efx_rx_queue *rx_queue);

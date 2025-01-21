@@ -55,9 +55,13 @@
 #define NFSDBG_FACILITY		NFSDBG_CLIENT
 
 static DECLARE_WAIT_QUEUE_HEAD(nfs_client_active_wq);
-static DEFINE_SPINLOCK(nfs_version_lock);
-static DEFINE_MUTEX(nfs_version_mutex);
-static LIST_HEAD(nfs_versions);
+static DEFINE_RWLOCK(nfs_version_lock);
+
+static struct nfs_subversion *nfs_version_mods[5] = {
+	[2] = NULL,
+	[3] = NULL,
+	[4] = NULL,
+};
 
 /*
  * RPC cruft for NFS
@@ -76,37 +80,37 @@ const struct rpc_program nfs_program = {
 	.pipe_dir_name		= NFS_PIPE_DIRNAME,
 };
 
-static struct nfs_subversion *find_nfs_version(unsigned int version)
+static struct nfs_subversion *__find_nfs_version(unsigned int version)
 {
 	struct nfs_subversion *nfs;
-	spin_lock(&nfs_version_lock);
 
-	list_for_each_entry(nfs, &nfs_versions, list) {
-		if (nfs->rpc_ops->version == version) {
-			spin_unlock(&nfs_version_lock);
-			return nfs;
-		}
-	}
-
-	spin_unlock(&nfs_version_lock);
-	return ERR_PTR(-EPROTONOSUPPORT);
-}
-
-struct nfs_subversion *get_nfs_version(unsigned int version)
-{
-	struct nfs_subversion *nfs = find_nfs_version(version);
-
-	if (IS_ERR(nfs)) {
-		mutex_lock(&nfs_version_mutex);
-		request_module("nfsv%d", version);
-		nfs = find_nfs_version(version);
-		mutex_unlock(&nfs_version_mutex);
-	}
-
-	if (!IS_ERR(nfs) && !try_module_get(nfs->owner))
-		return ERR_PTR(-EAGAIN);
+	read_lock(&nfs_version_lock);
+	nfs = nfs_version_mods[version];
+	read_unlock(&nfs_version_lock);
 	return nfs;
 }
+
+struct nfs_subversion *find_nfs_version(unsigned int version)
+{
+	struct nfs_subversion *nfs = __find_nfs_version(version);
+
+	if (!nfs && request_module("nfsv%d", version) == 0)
+		nfs = __find_nfs_version(version);
+
+	if (!nfs)
+		return ERR_PTR(-EPROTONOSUPPORT);
+
+	if (!get_nfs_version(nfs))
+		return ERR_PTR(-EAGAIN);
+
+	return nfs;
+}
+
+int get_nfs_version(struct nfs_subversion *nfs)
+{
+	return try_module_get(nfs->owner);
+}
+EXPORT_SYMBOL_GPL(get_nfs_version);
 
 void put_nfs_version(struct nfs_subversion *nfs)
 {
@@ -115,23 +119,23 @@ void put_nfs_version(struct nfs_subversion *nfs)
 
 void register_nfs_version(struct nfs_subversion *nfs)
 {
-	spin_lock(&nfs_version_lock);
+	write_lock(&nfs_version_lock);
 
-	list_add(&nfs->list, &nfs_versions);
+	nfs_version_mods[nfs->rpc_ops->version] = nfs;
 	nfs_version[nfs->rpc_ops->version] = nfs->rpc_vers;
 
-	spin_unlock(&nfs_version_lock);
+	write_unlock(&nfs_version_lock);
 }
 EXPORT_SYMBOL_GPL(register_nfs_version);
 
 void unregister_nfs_version(struct nfs_subversion *nfs)
 {
-	spin_lock(&nfs_version_lock);
+	write_lock(&nfs_version_lock);
 
 	nfs_version[nfs->rpc_ops->version] = NULL;
-	list_del(&nfs->list);
+	nfs_version_mods[nfs->rpc_ops->version] = NULL;
 
-	spin_unlock(&nfs_version_lock);
+	write_unlock(&nfs_version_lock);
 }
 EXPORT_SYMBOL_GPL(unregister_nfs_version);
 
@@ -151,7 +155,7 @@ struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_init)
 
 	clp->cl_minorversion = cl_init->minorversion;
 	clp->cl_nfs_mod = cl_init->nfs_mod;
-	if (!try_module_get(clp->cl_nfs_mod->owner))
+	if (!get_nfs_version(clp->cl_nfs_mod))
 		goto error_dealloc;
 
 	clp->rpc_ops = clp->cl_nfs_mod->rpc_ops;
@@ -177,6 +181,13 @@ struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_init)
 	clp->cl_nconnect = cl_init->nconnect;
 	clp->cl_max_connect = cl_init->max_connect ? cl_init->max_connect : 1;
 	clp->cl_net = get_net(cl_init->net);
+
+#if IS_ENABLED(CONFIG_NFS_LOCALIO)
+	seqlock_init(&clp->cl_boot_lock);
+	ktime_get_real_ts64(&clp->cl_nfssvc_boot);
+	nfs_uuid_init(&clp->cl_uuid);
+	spin_lock_init(&clp->cl_localio_lock);
+#endif /* CONFIG_NFS_LOCALIO */
 
 	clp->cl_principal = "*";
 	clp->cl_xprtsec = cl_init->xprtsec;
@@ -233,6 +244,8 @@ static void pnfs_init_server(struct nfs_server *server)
  */
 void nfs_free_client(struct nfs_client *clp)
 {
+	nfs_local_disable(clp);
+
 	/* -EIO all pending I/O */
 	if (!IS_ERR(clp->cl_rpcclient))
 		rpc_shutdown_client(clp->cl_rpcclient);
@@ -424,7 +437,10 @@ struct nfs_client *nfs_get_client(const struct nfs_client_initdata *cl_init)
 			list_add_tail(&new->cl_share_link,
 					&nn->nfs_client_list);
 			spin_unlock(&nn->nfs_client_lock);
-			return rpc_ops->init_client(new, cl_init);
+			new = rpc_ops->init_client(new, cl_init);
+			if (!IS_ERR(new))
+				 nfs_local_probe(new);
+			return new;
 		}
 
 		spin_unlock(&nn->nfs_client_lock);
@@ -983,6 +999,7 @@ struct nfs_server *nfs_alloc_server(void)
 	INIT_LIST_HEAD(&server->layouts);
 	INIT_LIST_HEAD(&server->state_owners_lru);
 	INIT_LIST_HEAD(&server->ss_copies);
+	INIT_LIST_HEAD(&server->ss_src_copies);
 
 	atomic_set(&server->active, 0);
 
@@ -997,8 +1014,8 @@ struct nfs_server *nfs_alloc_server(void)
 	init_waitqueue_head(&server->write_congestion_wait);
 	atomic_long_set(&server->writeback, 0);
 
-	ida_init(&server->openowner_id);
-	ida_init(&server->lockowner_id);
+	atomic64_set(&server->owner_ctr, 0);
+
 	pnfs_init_server(server);
 	rpc_init_wait_queue(&server->uoc_rpcwaitq, "NFS UOC");
 
@@ -1037,8 +1054,6 @@ void nfs_free_server(struct nfs_server *server)
 	}
 	ida_free(&s_sysfs_ids, server->s_sysfs_id);
 
-	ida_destroy(&server->lockowner_id);
-	ida_destroy(&server->openowner_id);
 	put_cred(server->cred);
 	nfs_release_automount_timer();
 	call_rcu(&server->rcu, delayed_free);

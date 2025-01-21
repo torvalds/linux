@@ -29,15 +29,27 @@ Complete virtual memory map with 4-level page tables
       Start addr    |   Offset   |     End addr     |  Size   | VM area description
   ========================================================================================================================
                     |            |                  |         |
-   0000000000000000 |    0       | 00007fffffffffff |  128 TB | user-space virtual memory, different per mm
+   0000000000000000 |    0       | 00007fffffffefff | ~128 TB | user-space virtual memory, different per mm
+   00007ffffffff000 | ~128    TB | 00007fffffffffff |    4 kB | ... guard hole
   __________________|____________|__________________|_________|___________________________________________________________
                     |            |                  |         |
-   0000800000000000 | +128    TB | ffff7fffffffffff | ~16M TB | ... huge, almost 64 bits wide hole of non-canonical
-                    |            |                  |         |     virtual memory addresses up to the -128 TB
+   0000800000000000 | +128    TB | 7fffffffffffffff |   ~8 EB | ... huge, almost 63 bits wide hole of non-canonical
+                    |            |                  |         |     virtual memory addresses up to the -8 EB
                     |            |                  |         |     starting offset of kernel mappings.
+                    |            |                  |         |
+                    |            |                  |         | LAM relaxes canonicallity check allowing to create aliases
+                    |            |                  |         | for userspace memory here.
   __________________|____________|__________________|_________|___________________________________________________________
                                                               |
                                                               | Kernel-space virtual memory, shared between all processes:
+  __________________|____________|__________________|_________|___________________________________________________________
+                    |            |                  |         |
+   8000000000000000 |   -8    EB | ffff7fffffffffff |   ~8 EB | ... huge, almost 63 bits wide hole of non-canonical
+                    |            |                  |         |     virtual memory addresses up to the -128 TB
+                    |            |                  |         |     starting offset of kernel mappings.
+                    |            |                  |         |
+                    |            |                  |         | LAM_SUP relaxes canonicallity check allowing to create
+                    |            |                  |         | aliases for kernel memory here.
   ____________________________________________________________|___________________________________________________________
                     |            |                  |         |
    ffff800000000000 | -128    TB | ffff87ffffffffff |    8 TB | ... guard hole, also reserved for hypervisor
@@ -88,15 +100,26 @@ Complete virtual memory map with 5-level page tables
       Start addr    |   Offset   |     End addr     |  Size   | VM area description
   ========================================================================================================================
                     |            |                  |         |
-   0000000000000000 |    0       | 00ffffffffffffff |   64 PB | user-space virtual memory, different per mm
+   0000000000000000 |    0       | 00fffffffffff000 |  ~64 PB | user-space virtual memory, different per mm
+   00fffffffffff000 |  ~64    PB | 00ffffffffffffff |    4 kB | ... guard hole
   __________________|____________|__________________|_________|___________________________________________________________
                     |            |                  |         |
-   0100000000000000 |  +64    PB | feffffffffffffff | ~16K PB | ... huge, still almost 64 bits wide hole of non-canonical
-                    |            |                  |         |     virtual memory addresses up to the -64 PB
+   0100000000000000 |  +64    PB | 7fffffffffffffff |   ~8 EB | ... huge, almost 63 bits wide hole of non-canonical
+                    |            |                  |         |     virtual memory addresses up to the -8EB TB
                     |            |                  |         |     starting offset of kernel mappings.
+                    |            |                  |         |
+                    |            |                  |         | LAM relaxes canonicallity check allowing to create aliases
+                    |            |                  |         | for userspace memory here.
   __________________|____________|__________________|_________|___________________________________________________________
                                                               |
                                                               | Kernel-space virtual memory, shared between all processes:
+  ____________________________________________________________|___________________________________________________________
+   8000000000000000 |   -8    EB | feffffffffffffff |   ~8 EB | ... huge, almost 63 bits wide hole of non-canonical
+                    |            |                  |         |     virtual memory addresses up to the -64 PB
+                    |            |                  |         |     starting offset of kernel mappings.
+                    |            |                  |         |
+                    |            |                  |         | LAM_SUP relaxes canonicallity check allowing to create
+                    |            |                  |         | aliases for kernel memory here.
   ____________________________________________________________|___________________________________________________________
                     |            |                  |         |
    ff00000000000000 |  -64    PB | ff0fffffffffffff |    4 PB | ... guard hole, also reserved for hypervisor

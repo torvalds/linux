@@ -16,6 +16,7 @@ struct stripe {
 	u8			nr_blocks;
 	u8			nr_redundant;
 	u8			blocks_nonempty;
+	u8			disk_label;
 };
 
 struct gc_stripe {

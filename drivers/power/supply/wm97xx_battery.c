@@ -265,7 +265,7 @@ static struct platform_driver wm97xx_bat_driver = {
 #endif
 	},
 	.probe		= wm97xx_bat_probe,
-	.remove_new	= wm97xx_bat_remove,
+	.remove		= wm97xx_bat_remove,
 };
 
 module_platform_driver(wm97xx_bat_driver);

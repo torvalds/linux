@@ -357,13 +357,13 @@ static void dc_i2c_remove(struct platform_device *pdev)
 
 static const struct of_device_id dc_i2c_match[] = {
 	{ .compatible = "cnxt,cx92755-i2c" },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, dc_i2c_match);
 
 static struct platform_driver dc_i2c_driver = {
 	.probe   = dc_i2c_probe,
-	.remove_new = dc_i2c_remove,
+	.remove = dc_i2c_remove,
 	.driver  = {
 		.name  = "digicolor-i2c",
 		.of_match_table = dc_i2c_match,

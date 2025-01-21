@@ -535,6 +535,72 @@ cleanup:
 	btf__free(vmlinux_btf);
 }
 
+/* Split and new base BTFs should inherit endianness from source BTF. */
+static void test_distilled_endianness(void)
+{
+	struct btf *base = NULL, *split = NULL, *new_base = NULL, *new_split = NULL;
+	struct btf *new_base1 = NULL, *new_split1 = NULL;
+	enum btf_endianness inverse_endianness;
+	const void *raw_data;
+	__u32 size;
+
+	base = btf__new_empty();
+	if (!ASSERT_OK_PTR(base, "empty_main_btf"))
+		return;
+	inverse_endianness = btf__endianness(base) == BTF_LITTLE_ENDIAN ? BTF_BIG_ENDIAN
+									: BTF_LITTLE_ENDIAN;
+	btf__set_endianness(base, inverse_endianness);
+	btf__add_int(base, "int", 4, BTF_INT_SIGNED);   /* [1] int */
+	VALIDATE_RAW_BTF(
+		base,
+		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED");
+	split = btf__new_empty_split(base);
+	if (!ASSERT_OK_PTR(split, "empty_split_btf"))
+		goto cleanup;
+	btf__add_ptr(split, 1);
+	VALIDATE_RAW_BTF(
+		split,
+		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
+		"[2] PTR '(anon)' type_id=1");
+	if (!ASSERT_EQ(0, btf__distill_base(split, &new_base, &new_split),
+		       "distilled_base") ||
+	    !ASSERT_OK_PTR(new_base, "distilled_base") ||
+	    !ASSERT_OK_PTR(new_split, "distilled_split") ||
+	    !ASSERT_EQ(2, btf__type_cnt(new_base), "distilled_base_type_cnt"))
+		goto cleanup;
+	VALIDATE_RAW_BTF(
+		new_split,
+		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
+		"[2] PTR '(anon)' type_id=1");
+
+	raw_data = btf__raw_data(new_base, &size);
+	if (!ASSERT_OK_PTR(raw_data, "btf__raw_data #1"))
+		goto cleanup;
+	new_base1 = btf__new(raw_data, size);
+	if (!ASSERT_OK_PTR(new_base1, "new_base1 = btf__new()"))
+		goto cleanup;
+	raw_data = btf__raw_data(new_split, &size);
+	if (!ASSERT_OK_PTR(raw_data, "btf__raw_data #2"))
+		goto cleanup;
+	new_split1 = btf__new_split(raw_data, size, new_base1);
+	if (!ASSERT_OK_PTR(new_split1, "new_split1 = btf__new()"))
+		goto cleanup;
+
+	ASSERT_EQ(btf__endianness(new_base1), inverse_endianness, "new_base1 endianness");
+	ASSERT_EQ(btf__endianness(new_split1), inverse_endianness, "new_split1 endianness");
+	VALIDATE_RAW_BTF(
+		new_split1,
+		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
+		"[2] PTR '(anon)' type_id=1");
+cleanup:
+	btf__free(new_split1);
+	btf__free(new_base1);
+	btf__free(new_split);
+	btf__free(new_base);
+	btf__free(split);
+	btf__free(base);
+}
+
 void test_btf_distill(void)
 {
 	if (test__start_subtest("distilled_base"))
@@ -549,4 +615,6 @@ void test_btf_distill(void)
 		test_distilled_base_multi_err2();
 	if (test__start_subtest("distilled_base_vmlinux"))
 		test_distilled_base_vmlinux();
+	if (test__start_subtest("distilled_endianness"))
+		test_distilled_endianness();
 }

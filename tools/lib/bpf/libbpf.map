@@ -421,9 +421,15 @@ LIBBPF_1.5.0 {
 	global:
 		btf__distill_base;
 		btf__relocate;
+		btf_ext__endianness;
+		btf_ext__set_endianness;
 		bpf_map__autoattach;
 		bpf_map__set_autoattach;
+		bpf_object__token_fd;
 		bpf_program__attach_sockmap;
 		ring__consume_n;
 		ring_buffer__consume_n;
 } LIBBPF_1.4.0;
+
+LIBBPF_1.6.0 {
+} LIBBPF_1.5.0;

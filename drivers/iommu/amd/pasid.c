@@ -100,13 +100,17 @@ static const struct mmu_notifier_ops sva_mn = {
 };
 
 int iommu_sva_set_dev_pasid(struct iommu_domain *domain,
-			    struct device *dev, ioasid_t pasid)
+			    struct device *dev, ioasid_t pasid,
+			    struct iommu_domain *old)
 {
 	struct pdom_dev_data *pdom_dev_data;
 	struct protection_domain *sva_pdom = to_pdomain(domain);
 	struct iommu_dev_data *dev_data = dev_iommu_priv_get(dev);
 	unsigned long flags;
 	int ret = -EINVAL;
+
+	if (old)
+		return -EOPNOTSUPP;
 
 	/* PASID zero is used for requests from the I/O device without PASID */
 	if (!is_pasid_valid(dev_data, pasid))
@@ -181,7 +185,7 @@ struct iommu_domain *amd_iommu_domain_alloc_sva(struct device *dev,
 	struct protection_domain *pdom;
 	int ret;
 
-	pdom = protection_domain_alloc(IOMMU_DOMAIN_SVA);
+	pdom = protection_domain_alloc(IOMMU_DOMAIN_SVA, dev_to_node(dev));
 	if (!pdom)
 		return ERR_PTR(-ENOMEM);
 

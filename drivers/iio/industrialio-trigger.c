@@ -347,6 +347,7 @@ int iio_trigger_detach_poll_func(struct iio_trigger *trig,
 	iio_trigger_put_irq(trig, pf->irq);
 	free_irq(pf->irq, pf);
 	module_put(iio_dev_opaque->driver_module);
+	pf->irq = 0;
 
 	return ret;
 }
@@ -770,3 +771,29 @@ void iio_device_unregister_trigger_consumer(struct iio_dev *indio_dev)
 	if (indio_dev->trig)
 		iio_trigger_put(indio_dev->trig);
 }
+
+int iio_device_suspend_triggering(struct iio_dev *indio_dev)
+{
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+
+	guard(mutex)(&iio_dev_opaque->mlock);
+
+	if ((indio_dev->pollfunc) && (indio_dev->pollfunc->irq > 0))
+		disable_irq(indio_dev->pollfunc->irq);
+
+	return 0;
+}
+EXPORT_SYMBOL(iio_device_suspend_triggering);
+
+int iio_device_resume_triggering(struct iio_dev *indio_dev)
+{
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+
+	guard(mutex)(&iio_dev_opaque->mlock);
+
+	if ((indio_dev->pollfunc) && (indio_dev->pollfunc->irq > 0))
+		enable_irq(indio_dev->pollfunc->irq);
+
+	return 0;
+}
+EXPORT_SYMBOL(iio_device_resume_triggering);

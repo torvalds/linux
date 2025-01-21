@@ -32,7 +32,7 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define WORK_REGISTER_THRESHOLD		0x00
 #define WORK_REGISTER_REPORT_RATE	0x08

@@ -80,7 +80,7 @@ void lzo_free_workspace(struct list_head *ws)
 	kfree(workspace);
 }
 
-struct list_head *lzo_alloc_workspace(unsigned int level)
+struct list_head *lzo_alloc_workspace(void)
 {
 	struct workspace *workspace;
 
@@ -438,11 +438,11 @@ int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 }
 
 int lzo_decompress(struct list_head *ws, const u8 *data_in,
-		struct page *dest_page, unsigned long dest_pgoff, size_t srclen,
+		struct folio *dest_folio, unsigned long dest_pgoff, size_t srclen,
 		size_t destlen)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
-	struct btrfs_fs_info *fs_info = page_to_fs_info(dest_page);
+	struct btrfs_fs_info *fs_info = folio_to_fs_info(dest_folio);
 	const u32 sectorsize = fs_info->sectorsize;
 	size_t in_len;
 	size_t out_len;
@@ -467,22 +467,22 @@ int lzo_decompress(struct list_head *ws, const u8 *data_in,
 	out_len = sectorsize;
 	ret = lzo1x_decompress_safe(data_in, in_len, workspace->buf, &out_len);
 	if (unlikely(ret != LZO_E_OK)) {
-		struct btrfs_inode *inode = BTRFS_I(dest_page->mapping->host);
+		struct btrfs_inode *inode = folio_to_inode(dest_folio);
 
 		btrfs_err(fs_info,
 		"lzo decompression failed, error %d root %llu inode %llu offset %llu",
 			  ret, btrfs_root_id(inode->root), btrfs_ino(inode),
-			  page_offset(dest_page));
+			  folio_pos(dest_folio));
 		ret = -EIO;
 		goto out;
 	}
 
 	ASSERT(out_len <= sectorsize);
-	memcpy_to_page(dest_page, dest_pgoff, workspace->buf, out_len);
+	memcpy_to_folio(dest_folio, dest_pgoff, workspace->buf, out_len);
 	/* Early end, considered as an error. */
 	if (unlikely(out_len < destlen)) {
 		ret = -EIO;
-		memzero_page(dest_page, dest_pgoff + out_len, destlen - out_len);
+		folio_zero_range(dest_folio, dest_pgoff + out_len, destlen - out_len);
 	}
 out:
 	return ret;

@@ -150,6 +150,7 @@ mptcp_lib_events "${ns2}" "${client_evts}" client_evts_pid
 server_evts=$(mktemp)
 mptcp_lib_events "${ns1}" "${server_evts}" server_evts_pid
 sleep 0.5
+mptcp_lib_subtests_last_ts_reset
 
 print_title "Init"
 print_test "Created network namespaces ns1, ns2"

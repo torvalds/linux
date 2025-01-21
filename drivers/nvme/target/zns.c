@@ -537,12 +537,20 @@ void nvmet_bdev_execute_zone_append(struct nvmet_req *req)
 	u16 status = NVME_SC_SUCCESS;
 	unsigned int total_len = 0;
 	struct scatterlist *sg;
+	u32 data_len = nvmet_rw_data_len(req);
 	struct bio *bio;
 	int sg_cnt;
 
 	/* Request is completed on len mismatch in nvmet_check_transter_len() */
 	if (!nvmet_check_transfer_len(req, nvmet_rw_data_len(req)))
 		return;
+
+	if (data_len >
+	    bdev_max_zone_append_sectors(req->ns->bdev) << SECTOR_SHIFT) {
+		req->error_loc = offsetof(struct nvme_rw_command, length);
+		status = NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
+		goto out;
+	}
 
 	if (!req->sg_cnt) {
 		nvmet_req_complete(req, 0);
@@ -576,20 +584,17 @@ void nvmet_bdev_execute_zone_append(struct nvmet_req *req)
 		bio->bi_opf |= REQ_FUA;
 
 	for_each_sg(req->sg, sg, req->sg_cnt, sg_cnt) {
-		struct page *p = sg_page(sg);
-		unsigned int l = sg->length;
-		unsigned int o = sg->offset;
-		unsigned int ret;
+		unsigned int len = sg->length;
 
-		ret = bio_add_zone_append_page(bio, p, l, o);
-		if (ret != sg->length) {
+		if (bio_add_pc_page(bdev_get_queue(bio->bi_bdev), bio,
+				sg_page(sg), len, sg->offset) != len) {
 			status = NVME_SC_INTERNAL;
 			goto out_put_bio;
 		}
-		total_len += sg->length;
+		total_len += len;
 	}
 
-	if (total_len != nvmet_rw_data_len(req)) {
+	if (total_len != data_len) {
 		status = NVME_SC_INTERNAL | NVME_STATUS_DNR;
 		goto out_put_bio;
 	}

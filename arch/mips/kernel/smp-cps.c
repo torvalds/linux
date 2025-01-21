@@ -37,7 +37,7 @@ enum label_id {
 UASM_L_LA(_not_nmi)
 
 static DECLARE_BITMAP(core_power, NR_CPUS);
-static uint32_t core_entry_reg;
+static u64 core_entry_reg;
 static phys_addr_t cps_vec_pa;
 
 struct core_boot_config *mips_cps_core_bootcfg;
@@ -94,6 +94,20 @@ static void __init *mips_cps_build_core_entry(void *addr)
 	return p;
 }
 
+static bool __init check_64bit_reset(void)
+{
+	bool cx_64bit_reset = false;
+
+	mips_cm_lock_other(0, 0, 0, CM_GCR_Cx_OTHER_BLOCK_LOCAL);
+	write_gcr_co_reset64_base(CM_GCR_Cx_RESET64_BASE_BEVEXCBASE);
+	if ((read_gcr_co_reset64_base() & CM_GCR_Cx_RESET64_BASE_BEVEXCBASE) ==
+	    CM_GCR_Cx_RESET64_BASE_BEVEXCBASE)
+		cx_64bit_reset = true;
+	mips_cm_unlock_other();
+
+	return cx_64bit_reset;
+}
+
 static int __init allocate_cps_vecs(void)
 {
 	/* Try to allocate in KSEG1 first */
@@ -105,11 +119,23 @@ static int __init allocate_cps_vecs(void)
 					CM_GCR_Cx_RESET_BASE_BEVEXCBASE;
 
 	if (!cps_vec_pa && mips_cm_is64) {
-		cps_vec_pa = memblock_phys_alloc_range(BEV_VEC_SIZE, BEV_VEC_ALIGN,
-							0x0, SZ_4G - 1);
-		if (cps_vec_pa)
-			core_entry_reg = (cps_vec_pa & CM_GCR_Cx_RESET_BASE_BEVEXCBASE) |
+		phys_addr_t end;
+
+		if (check_64bit_reset()) {
+			pr_info("VP Local Reset Exception Base support 47 bits address\n");
+			end = MEMBLOCK_ALLOC_ANYWHERE;
+		} else {
+			end = SZ_4G - 1;
+		}
+		cps_vec_pa = memblock_phys_alloc_range(BEV_VEC_SIZE, BEV_VEC_ALIGN, 0, end);
+		if (cps_vec_pa) {
+			if (check_64bit_reset())
+				core_entry_reg = (cps_vec_pa & CM_GCR_Cx_RESET64_BASE_BEVEXCBASE) |
 					CM_GCR_Cx_RESET_BASE_MODE;
+			else
+				core_entry_reg = (cps_vec_pa & CM_GCR_Cx_RESET_BASE_BEVEXCBASE) |
+					CM_GCR_Cx_RESET_BASE_MODE;
+		}
 	}
 
 	if (!cps_vec_pa)
@@ -308,7 +334,10 @@ static void boot_core(unsigned int core, unsigned int vpe_id)
 	mips_cm_lock_other(0, core, 0, CM_GCR_Cx_OTHER_BLOCK_LOCAL);
 
 	/* Set its reset vector */
-	write_gcr_co_reset_base(core_entry_reg);
+	if (mips_cm_is64)
+		write_gcr_co_reset64_base(core_entry_reg);
+	else
+		write_gcr_co_reset_base(core_entry_reg);
 
 	/* Ensure its coherency is disabled */
 	write_gcr_co_coherence(0);
@@ -411,7 +440,10 @@ static int cps_boot_secondary(int cpu, struct task_struct *idle)
 
 	if (cpu_has_vp) {
 		mips_cm_lock_other(0, core, vpe_id, CM_GCR_Cx_OTHER_BLOCK_LOCAL);
-		write_gcr_co_reset_base(core_entry_reg);
+		if (mips_cm_is64)
+			write_gcr_co_reset64_base(core_entry_reg);
+		else
+			write_gcr_co_reset_base(core_entry_reg);
 		mips_cm_unlock_other();
 	}
 

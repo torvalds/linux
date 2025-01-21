@@ -714,8 +714,8 @@ static int acpi_pci_link_add(struct acpi_device *device,
 		return -ENOMEM;
 
 	link->device = device;
-	strcpy(acpi_device_name(device), ACPI_PCI_LINK_DEVICE_NAME);
-	strcpy(acpi_device_class(device), ACPI_PCI_LINK_CLASS);
+	strscpy(acpi_device_name(device), ACPI_PCI_LINK_DEVICE_NAME);
+	strscpy(acpi_device_class(device), ACPI_PCI_LINK_CLASS);
 	device->driver_data = link;
 
 	mutex_lock(&acpi_link_lock);
@@ -747,6 +747,8 @@ static int acpi_pci_link_add(struct acpi_device *device,
 
 	if (result)
 		kfree(link);
+
+	acpi_dev_clear_dependencies(device);
 
 	return result < 0 ? result : 1;
 }

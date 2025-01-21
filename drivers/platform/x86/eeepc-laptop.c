@@ -15,7 +15,6 @@
 #include <linux/types.h>
 #include <linux/platform_device.h>
 #include <linux/backlight.h>
-#include <linux/fb.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/slab.h>
@@ -26,6 +25,7 @@
 #include <linux/rfkill.h>
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
+#include <linux/sysfs.h>
 #include <linux/leds.h>
 #include <linux/dmi.h>
 #include <acpi/video.h>
@@ -286,7 +286,7 @@ static ssize_t show_sys_acpi(struct device *dev, int cm, char *buf)
 
 	if (value < 0)
 		return -EIO;
-	return sprintf(buf, "%d\n", value);
+	return sysfs_emit(buf, "%d\n", value);
 }
 
 #define EEEPC_ACPI_SHOW_FUNC(_name, _cm)				\
@@ -362,7 +362,7 @@ static ssize_t cpufv_show(struct device *dev,
 
 	if (get_cpufv(eeepc, &c))
 		return -ENODEV;
-	return sprintf(buf, "%#x\n", (c.num << 8) | c.cur);
+	return sysfs_emit(buf, "%#x\n", (c.num << 8) | c.cur);
 }
 
 static ssize_t cpufv_store(struct device *dev,
@@ -394,7 +394,7 @@ static ssize_t cpufv_disabled_show(struct device *dev,
 {
 	struct eeepc_laptop *eeepc = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%d\n", eeepc->cpufv_disabled);
+	return sysfs_emit(buf, "%d\n", eeepc->cpufv_disabled);
 }
 
 static ssize_t cpufv_disabled_store(struct device *dev,
@@ -1026,7 +1026,7 @@ static ssize_t store_sys_hwmon(void (*set)(int), const char *buf, size_t count)
 
 static ssize_t show_sys_hwmon(int (*get)(void), char *buf)
 {
-	return sprintf(buf, "%d\n", get());
+	return sysfs_emit(buf, "%d\n", get());
 }
 
 #define EEEPC_SENSOR_SHOW_FUNC(_name, _get)				\
@@ -1137,7 +1137,7 @@ static int eeepc_backlight_init(struct eeepc_laptop *eeepc)
 	}
 	eeepc->backlight_device = bd;
 	bd->props.brightness = read_brightness(bd);
-	bd->props.power = FB_BLANK_UNBLANK;
+	bd->props.power = BACKLIGHT_POWER_ON;
 	backlight_update_status(bd);
 	return 0;
 }

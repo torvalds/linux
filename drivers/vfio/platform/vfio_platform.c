@@ -112,7 +112,7 @@ static const struct vfio_device_ops vfio_platform_ops = {
 
 static struct platform_driver vfio_platform_driver = {
 	.probe		= vfio_platform_probe,
-	.remove_new	= vfio_platform_remove,
+	.remove		= vfio_platform_remove,
 	.driver	= {
 		.name	= "vfio-platform",
 	},

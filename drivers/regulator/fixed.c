@@ -129,7 +129,7 @@ static irqreturn_t reg_fixed_under_voltage_irq_handler(int irq, void *data)
  * If it's an optional IRQ and not found, it returns 0.
  * Otherwise, it attempts to request the threaded IRQ.
  *
- * Return: 0 on success, or error code on failure.
+ * Return: 0 on success, or a negative error number on failure.
  */
 static int reg_fixed_get_irqs(struct device *dev,
 			      struct fixed_voltage_data *priv)
@@ -158,8 +158,10 @@ static int reg_fixed_get_irqs(struct device *dev,
  * @desc: regulator description
  *
  * Populates fixed_voltage_config structure by extracting data from device
- * tree node, returns a pointer to the populated structure of NULL if memory
- * alloc fails.
+ * tree node.
+ *
+ * Return: Pointer to a populated &struct fixed_voltage_config or %NULL if
+ *	   memory allocation fails.
  */
 static struct fixed_voltage_config *
 of_get_fixed_voltage_config(struct device *dev,

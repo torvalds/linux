@@ -51,6 +51,7 @@
 #define KVM_REQ_RELOAD_PMU	KVM_ARCH_REQ(5)
 #define KVM_REQ_SUSPEND		KVM_ARCH_REQ(6)
 #define KVM_REQ_RESYNC_PMU_EL0	KVM_ARCH_REQ(7)
+#define KVM_REQ_NESTED_S2_UNMAP	KVM_ARCH_REQ(8)
 
 #define KVM_DIRTY_LOG_MANUAL_CAPS   (KVM_DIRTY_LOG_MANUAL_PROTECT_ENABLE | \
 				     KVM_DIRTY_LOG_INITIALLY_SET)
@@ -72,8 +73,6 @@ enum kvm_mode kvm_get_mode(void);
 #else
 static inline enum kvm_mode kvm_get_mode(void) { return KVM_MODE_NONE; };
 #endif
-
-DECLARE_STATIC_KEY_FALSE(userspace_irqchip_in_use);
 
 extern unsigned int __ro_after_init kvm_sve_max_vl;
 extern unsigned int __ro_after_init kvm_host_sve_max_vl;
@@ -210,6 +209,12 @@ struct kvm_s2_mmu {
 	 * HCR_EL2.VM == 1
 	 */
 	bool	nested_stage2_enabled;
+
+	/*
+	 * true when this MMU needs to be unmapped before being used for a new
+	 * purpose.
+	 */
+	bool	pending_unmap;
 
 	/*
 	 *  0: Nobody is currently using this, check vttbr for validity
@@ -367,7 +372,7 @@ struct kvm_arch {
 
 	u64 ctr_el0;
 
-	/* Masks for VNCR-baked sysregs */
+	/* Masks for VNCR-backed and general EL2 sysregs */
 	struct kvm_sysreg_masks	*sysreg_masks;
 
 	/*
@@ -400,6 +405,9 @@ struct kvm_vcpu_fault_info {
 	__before_##r,					\
 	r = __VNCR_START__ + ((VNCR_ ## r) / 8),	\
 	__after_##r = __MAX__(__before_##r - 1, r)
+
+#define MARKER(m)				\
+	m, __after_##m = m - 1
 
 enum vcpu_sysreg {
 	__INVALID_SYSREG__,   /* 0 is reserved as an invalid value */
@@ -446,6 +454,12 @@ enum vcpu_sysreg {
 	GCR_EL1,	/* Tag Control Register */
 	TFSRE0_EL1,	/* Tag Fault Status Register (EL0) */
 
+	POR_EL0,	/* Permission Overlay Register 0 (EL0) */
+
+	/* FP/SIMD/SVE */
+	SVCR,
+	FPMR,
+
 	/* 32bit specific registers. */
 	DACR32_EL2,	/* Domain Access Control Register */
 	IFSR32_EL2,	/* Instruction Fault Status Register */
@@ -455,13 +469,15 @@ enum vcpu_sysreg {
 	/* EL2 registers */
 	SCTLR_EL2,	/* System Control Register (EL2) */
 	ACTLR_EL2,	/* Auxiliary Control Register (EL2) */
-	MDCR_EL2,	/* Monitor Debug Configuration Register (EL2) */
 	CPTR_EL2,	/* Architectural Feature Trap Register (EL2) */
 	HACR_EL2,	/* Hypervisor Auxiliary Control Register */
 	ZCR_EL2,	/* SVE Control Register (EL2) */
 	TTBR0_EL2,	/* Translation Table Base Register 0 (EL2) */
 	TTBR1_EL2,	/* Translation Table Base Register 1 (EL2) */
 	TCR_EL2,	/* Translation Control Register (EL2) */
+	PIRE0_EL2,	/* Permission Indirection Register 0 (EL2) */
+	PIR_EL2,	/* Permission Indirection Register 1 (EL2) */
+	POR_EL2,	/* Permission Overlay Register 2 (EL2) */
 	SPSR_EL2,	/* EL2 saved program status register */
 	ELR_EL2,	/* EL2 exception link register */
 	AFSR0_EL2,	/* Auxiliary Fault Status Register 0 (EL2) */
@@ -481,7 +497,13 @@ enum vcpu_sysreg {
 	CNTHV_CTL_EL2,
 	CNTHV_CVAL_EL2,
 
-	__VNCR_START__,	/* Any VNCR-capable reg goes after this point */
+	/* Anything from this can be RES0/RES1 sanitised */
+	MARKER(__SANITISED_REG_START__),
+	TCR2_EL2,	/* Extended Translation Control Register (EL2) */
+	MDCR_EL2,	/* Monitor Debug Configuration Register (EL2) */
+
+	/* Any VNCR-capable reg goes after this point */
+	MARKER(__VNCR_START__),
 
 	VNCR(SCTLR_EL1),/* System Control Register */
 	VNCR(ACTLR_EL1),/* Auxiliary Control Register */
@@ -517,6 +539,8 @@ enum vcpu_sysreg {
 	VNCR(PIR_EL1),	 /* Permission Indirection Register 1 (EL1) */
 	VNCR(PIRE0_EL1), /*  Permission Indirection Register 0 (EL1) */
 
+	VNCR(POR_EL1),	/* Permission Overlay Register 1 (EL1) */
+
 	VNCR(HFGRTR_EL2),
 	VNCR(HFGWTR_EL2),
 	VNCR(HFGITR_EL2),
@@ -530,6 +554,8 @@ enum vcpu_sysreg {
 	VNCR(CNTP_CVAL_EL0),
 	VNCR(CNTP_CTL_EL0),
 
+	VNCR(ICH_HCR_EL2),
+
 	NR_SYS_REGS	/* Nothing after this line! */
 };
 
@@ -537,7 +563,7 @@ struct kvm_sysreg_masks {
 	struct {
 		u64	res0;
 		u64	res1;
-	} mask[NR_SYS_REGS - __VNCR_START__];
+	} mask[NR_SYS_REGS - __SANITISED_REG_START__];
 };
 
 struct kvm_cpu_context {
@@ -593,6 +619,16 @@ struct kvm_host_data {
 	union {
 		struct user_fpsimd_state *fpsimd_state;
 		struct cpu_sve_state *sve_state;
+	};
+
+	union {
+		/* HYP VA pointer to the host storage for FPMR */
+		u64	*fpmr_ptr;
+		/*
+		 * Used by pKVM only, as it needs to provide storage
+		 * for the host
+		 */
+		u64	fpmr;
 	};
 
 	/* Ownership of the FP regs */
@@ -664,8 +700,6 @@ struct kvm_vcpu_arch {
 	void *sve_state;
 	enum fp_type fp_type;
 	unsigned int sve_max_vl;
-	u64 svcr;
-	u64 fpmr;
 
 	/* Stage 2 paging state used by the hardware on next switch */
 	struct kvm_s2_mmu *hw_mmu;
@@ -977,13 +1011,13 @@ static inline u64 *___ctxt_sys_reg(const struct kvm_cpu_context *ctxt, int r)
 
 #define ctxt_sys_reg(c,r)	(*__ctxt_sys_reg(c,r))
 
-u64 kvm_vcpu_sanitise_vncr_reg(const struct kvm_vcpu *, enum vcpu_sysreg);
+u64 kvm_vcpu_apply_reg_masks(const struct kvm_vcpu *, enum vcpu_sysreg, u64);
 #define __vcpu_sys_reg(v,r)						\
 	(*({								\
 		const struct kvm_cpu_context *ctxt = &(v)->arch.ctxt;	\
 		u64 *__r = __ctxt_sys_reg(ctxt, (r));			\
-		if (vcpu_has_nv((v)) && (r) >= __VNCR_START__)		\
-			*__r = kvm_vcpu_sanitise_vncr_reg((v), (r));	\
+		if (vcpu_has_nv((v)) && (r) >= __SANITISED_REG_START__)	\
+			*__r = kvm_vcpu_apply_reg_masks((v), (r), *__r);\
 		__r;							\
 	}))
 
@@ -1012,6 +1046,10 @@ static inline bool __vcpu_read_sys_reg_from_cpu(int reg, u64 *val)
 	case TTBR0_EL1:		*val = read_sysreg_s(SYS_TTBR0_EL12);	break;
 	case TTBR1_EL1:		*val = read_sysreg_s(SYS_TTBR1_EL12);	break;
 	case TCR_EL1:		*val = read_sysreg_s(SYS_TCR_EL12);	break;
+	case TCR2_EL1:		*val = read_sysreg_s(SYS_TCR2_EL12);	break;
+	case PIR_EL1:		*val = read_sysreg_s(SYS_PIR_EL12);	break;
+	case PIRE0_EL1:		*val = read_sysreg_s(SYS_PIRE0_EL12);	break;
+	case POR_EL1:		*val = read_sysreg_s(SYS_POR_EL12);	break;
 	case ESR_EL1:		*val = read_sysreg_s(SYS_ESR_EL12);	break;
 	case AFSR0_EL1:		*val = read_sysreg_s(SYS_AFSR0_EL12);	break;
 	case AFSR1_EL1:		*val = read_sysreg_s(SYS_AFSR1_EL12);	break;
@@ -1058,6 +1096,10 @@ static inline bool __vcpu_write_sys_reg_to_cpu(u64 val, int reg)
 	case TTBR0_EL1:		write_sysreg_s(val, SYS_TTBR0_EL12);	break;
 	case TTBR1_EL1:		write_sysreg_s(val, SYS_TTBR1_EL12);	break;
 	case TCR_EL1:		write_sysreg_s(val, SYS_TCR_EL12);	break;
+	case TCR2_EL1:		write_sysreg_s(val, SYS_TCR2_EL12);	break;
+	case PIR_EL1:		write_sysreg_s(val, SYS_PIR_EL12);	break;
+	case PIRE0_EL1:		write_sysreg_s(val, SYS_PIRE0_EL12);	break;
+	case POR_EL1:		write_sysreg_s(val, SYS_POR_EL12);	break;
 	case ESR_EL1:		write_sysreg_s(val, SYS_ESR_EL12);	break;
 	case AFSR0_EL1:		write_sysreg_s(val, SYS_AFSR0_EL12);	break;
 	case AFSR1_EL1:		write_sysreg_s(val, SYS_AFSR1_EL12);	break;
@@ -1115,7 +1157,7 @@ int __kvm_arm_vcpu_set_events(struct kvm_vcpu *vcpu,
 void kvm_arm_halt_guest(struct kvm *kvm);
 void kvm_arm_resume_guest(struct kvm *kvm);
 
-#define vcpu_has_run_once(vcpu)	!!rcu_access_pointer((vcpu)->pid)
+#define vcpu_has_run_once(vcpu)	(!!READ_ONCE((vcpu)->pid))
 
 #ifndef __KVM_NVHE_HYPERVISOR__
 #define kvm_call_hyp_nvhe(f, ...)						\
@@ -1330,12 +1372,12 @@ void kvm_arch_vcpu_load_debug_state_flags(struct kvm_vcpu *vcpu);
 void kvm_arch_vcpu_put_debug_state_flags(struct kvm_vcpu *vcpu);
 
 #ifdef CONFIG_KVM
-void kvm_set_pmu_events(u32 set, struct perf_event_attr *attr);
-void kvm_clr_pmu_events(u32 clr);
+void kvm_set_pmu_events(u64 set, struct perf_event_attr *attr);
+void kvm_clr_pmu_events(u64 clr);
 bool kvm_set_pmuserenr(u64 val);
 #else
-static inline void kvm_set_pmu_events(u32 set, struct perf_event_attr *attr) {}
-static inline void kvm_clr_pmu_events(u32 clr) {}
+static inline void kvm_set_pmu_events(u64 set, struct perf_event_attr *attr) {}
+static inline void kvm_clr_pmu_events(u64 clr) {}
 static inline bool kvm_set_pmuserenr(u64 val)
 {
 	return false;
@@ -1423,11 +1465,6 @@ void kvm_set_vm_id_reg(struct kvm *kvm, u32 reg, u64 val);
 		sign_extend64(__val, id##_##fld##_WIDTH - 1);		\
 	})
 
-#define expand_field_sign(id, fld, val)					\
-	(id##_##fld##_SIGNED ?						\
-	 __expand_field_sign_signed(id, fld, val) :			\
-	 __expand_field_sign_unsigned(id, fld, val))
-
 #define get_idreg_field_unsigned(kvm, id, fld)				\
 	({								\
 		u64 __val = kvm_read_vm_id_reg((kvm), SYS_##id);	\
@@ -1443,20 +1480,26 @@ void kvm_set_vm_id_reg(struct kvm *kvm, u32 reg, u64 val);
 #define get_idreg_field_enum(kvm, id, fld)				\
 	get_idreg_field_unsigned(kvm, id, fld)
 
-#define get_idreg_field(kvm, id, fld)					\
+#define kvm_cmp_feat_signed(kvm, id, fld, op, limit)			\
+	(get_idreg_field_signed((kvm), id, fld) op __expand_field_sign_signed(id, fld, limit))
+
+#define kvm_cmp_feat_unsigned(kvm, id, fld, op, limit)			\
+	(get_idreg_field_unsigned((kvm), id, fld) op __expand_field_sign_unsigned(id, fld, limit))
+
+#define kvm_cmp_feat(kvm, id, fld, op, limit)				\
 	(id##_##fld##_SIGNED ?						\
-	 get_idreg_field_signed(kvm, id, fld) :				\
-	 get_idreg_field_unsigned(kvm, id, fld))
+	 kvm_cmp_feat_signed(kvm, id, fld, op, limit) :			\
+	 kvm_cmp_feat_unsigned(kvm, id, fld, op, limit))
 
 #define kvm_has_feat(kvm, id, fld, limit)				\
-	(get_idreg_field((kvm), id, fld) >= expand_field_sign(id, fld, limit))
+	kvm_cmp_feat(kvm, id, fld, >=, limit)
 
 #define kvm_has_feat_enum(kvm, id, fld, val)				\
-	(get_idreg_field_unsigned((kvm), id, fld) == __expand_field_sign_unsigned(id, fld, val))
+	kvm_cmp_feat_unsigned(kvm, id, fld, ==, val)
 
 #define kvm_has_feat_range(kvm, id, fld, min, max)			\
-	(get_idreg_field((kvm), id, fld) >= expand_field_sign(id, fld, min) && \
-	 get_idreg_field((kvm), id, fld) <= expand_field_sign(id, fld, max))
+	(kvm_cmp_feat(kvm, id, fld, >=, min) &&				\
+	kvm_cmp_feat(kvm, id, fld, <=, max))
 
 /* Check for a given level of PAuth support */
 #define kvm_has_pauth(k, l)						\
@@ -1472,5 +1515,18 @@ void kvm_set_vm_id_reg(struct kvm *kvm, u32 reg, u64 val);
 									\
 		(pa + pi + pa3) == 1;					\
 	})
+
+#define kvm_has_fpmr(k)					\
+	(system_supports_fpmr() &&			\
+	 kvm_has_feat((k), ID_AA64PFR2_EL1, FPMR, IMP))
+
+#define kvm_has_tcr2(k)				\
+	(kvm_has_feat((k), ID_AA64MMFR3_EL1, TCRX, IMP))
+
+#define kvm_has_s1pie(k)				\
+	(kvm_has_feat((k), ID_AA64MMFR3_EL1, S1PIE, IMP))
+
+#define kvm_has_s1poe(k)				\
+	(kvm_has_feat((k), ID_AA64MMFR3_EL1, S1POE, IMP))
 
 #endif /* __ARM64_KVM_HOST_H__ */

@@ -70,7 +70,6 @@ static void wishbone_serial_close(struct usb_serial_port *port)
 
 static struct usb_serial_driver wishbone_serial_device = {
 	.driver = {
-		.owner =	THIS_MODULE,
 		.name =		"wishbone_serial",
 	},
 	.id_table =		id_table,

@@ -52,7 +52,7 @@ static struct iio_chan_spec mp2629_channels[] = {
 	MP2629_ADC_CHAN(INPUT_CURRENT, IIO_CURRENT)
 };
 
-static struct iio_map mp2629_adc_maps[] = {
+static const struct iio_map mp2629_adc_maps[] = {
 	MP2629_MAP(BATT_VOLT, "batt-volt"),
 	MP2629_MAP(SYSTEM_VOLT, "system-volt"),
 	MP2629_MAP(INPUT_VOLT, "input-volt"),
@@ -184,8 +184,8 @@ static void mp2629_adc_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id mp2629_adc_of_match[] = {
-	{ .compatible = "mps,mp2629_adc"},
-	{}
+	{ .compatible = "mps,mp2629_adc" },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, mp2629_adc_of_match);
 
@@ -195,7 +195,7 @@ static struct platform_driver mp2629_adc_driver = {
 		.of_match_table = mp2629_adc_of_match,
 	},
 	.probe		= mp2629_adc_probe,
-	.remove_new	= mp2629_adc_remove,
+	.remove		= mp2629_adc_remove,
 };
 module_platform_driver(mp2629_adc_driver);
 

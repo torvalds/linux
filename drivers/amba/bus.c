@@ -435,7 +435,7 @@ static const struct dev_pm_ops amba_pm = {
  * DMA configuration for platform and AMBA bus is same. So here we reuse
  * platform's DMA config routine.
  */
-struct bus_type amba_bustype = {
+const struct bus_type amba_bustype = {
 	.name		= "amba",
 	.dev_groups	= amba_dev_groups,
 	.match		= amba_match,
@@ -448,6 +448,12 @@ struct bus_type amba_bustype = {
 	.pm		= &amba_pm,
 };
 EXPORT_SYMBOL_GPL(amba_bustype);
+
+bool dev_is_amba(const struct device *dev)
+{
+	return dev->bus == &amba_bustype;
+}
+EXPORT_SYMBOL_GPL(dev_is_amba);
 
 static int __init amba_init(void)
 {

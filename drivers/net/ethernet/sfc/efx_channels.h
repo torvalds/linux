@@ -43,6 +43,13 @@ struct efx_channel *efx_copy_channel(const struct efx_channel *old_channel);
 void efx_start_channels(struct efx_nic *efx);
 void efx_stop_channels(struct efx_nic *efx);
 
+static inline u64 efx_get_queue_stat_rx_hw_drops(struct efx_channel *channel)
+{
+	return channel->n_rx_eth_crc_err + channel->n_rx_frm_trunc +
+	       channel->n_rx_overlength + channel->n_rx_nodesc_trunc +
+	       channel->n_rx_mport_bad;
+}
+
 void efx_init_napi_channel(struct efx_channel *channel);
 void efx_init_napi(struct efx_nic *efx);
 void efx_fini_napi_channel(struct efx_channel *channel);

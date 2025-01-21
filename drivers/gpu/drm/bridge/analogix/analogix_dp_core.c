@@ -36,11 +36,6 @@
 
 static const bool verify_fast_training;
 
-struct bridge_init {
-	struct i2c_client *client;
-	struct device_node *node;
-};
-
 static void analogix_dp_init_dp(struct analogix_dp_device *dp)
 {
 	analogix_dp_reset(dp);

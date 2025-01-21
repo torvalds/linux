@@ -133,7 +133,7 @@ static struct platform_driver da903x_led_driver = {
 		.name	= "da903x-led",
 	},
 	.probe		= da903x_led_probe,
-	.remove_new	= da903x_led_remove,
+	.remove		= da903x_led_remove,
 };
 
 module_platform_driver(da903x_led_driver);

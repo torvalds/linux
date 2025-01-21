@@ -37,10 +37,11 @@ class APIElement(object):
     @desc: textual description of the symbol
     @ret: (optional) description of any associated return value
     """
-    def __init__(self, proto='', desc='', ret=''):
+    def __init__(self, proto='', desc='', ret='', attrs=[]):
         self.proto = proto
         self.desc = desc
         self.ret = ret
+        self.attrs = attrs
 
 
 class Helper(APIElement):
@@ -81,6 +82,11 @@ class Helper(APIElement):
         return res
 
 
+ATTRS = {
+    '__bpf_fastcall': 'bpf_fastcall'
+}
+
+
 class HeaderParser(object):
     """
     An object used to parse a file in order to extract the documentation of a
@@ -111,7 +117,8 @@ class HeaderParser(object):
         proto    = self.parse_proto()
         desc     = self.parse_desc(proto)
         ret      = self.parse_ret(proto)
-        return Helper(proto=proto, desc=desc, ret=ret)
+        attrs    = self.parse_attrs(proto)
+        return Helper(proto=proto, desc=desc, ret=ret, attrs=attrs)
 
     def parse_symbol(self):
         p = re.compile(r' \* ?(BPF\w+)$')
@@ -191,6 +198,28 @@ class HeaderParser(object):
         if not ret_present:
             raise Exception("No return found for " + proto)
         return ret
+
+    def parse_attrs(self, proto):
+        p = re.compile(r' \* ?(?:\t| {5,8})Attributes$')
+        capture = p.match(self.line)
+        if not capture:
+            return []
+        # Expect a single line with mnemonics for attributes separated by spaces
+        self.line = self.reader.readline()
+        p = re.compile(r' \* ?(?:\t| {5,8})(?:\t| {8})(.*)')
+        capture = p.match(self.line)
+        if not capture:
+            raise Exception("Incomplete 'Attributes' section for " + proto)
+        attrs = capture.group(1).split(' ')
+        for attr in attrs:
+            if attr not in ATTRS:
+                raise Exception("Unexpected attribute '" + attr + "' specified for " + proto)
+        self.line = self.reader.readline()
+        if self.line != ' *\n':
+            raise Exception("Expecting empty line after 'Attributes' section for " + proto)
+        # Prepare a line for next self.parse_* to consume
+        self.line = self.reader.readline()
+        return attrs
 
     def seek_to(self, target, help_message, discard_lines = 1):
         self.reader.seek(0)
@@ -789,6 +818,21 @@ class PrinterHelpers(Printer):
             print('%s;' % fwd)
         print('')
 
+        used_attrs = set()
+        for helper in self.elements:
+            for attr in helper.attrs:
+                used_attrs.add(attr)
+        for attr in sorted(used_attrs):
+            print('#ifndef %s' % attr)
+            print('#if __has_attribute(%s)' % ATTRS[attr])
+            print('#define %s __attribute__((%s))' % (attr, ATTRS[attr]))
+            print('#else')
+            print('#define %s' % attr)
+            print('#endif')
+            print('#endif')
+        if used_attrs:
+            print('')
+
     def print_footer(self):
         footer = ''
         print(footer)
@@ -827,7 +871,10 @@ class PrinterHelpers(Printer):
                 print(' *{}{}'.format(' \t' if line else '', line))
 
         print(' */')
-        print('static %s %s(* const %s)(' % (self.map_type(proto['ret_type']),
+        print('static ', end='')
+        if helper.attrs:
+            print('%s ' % (" ".join(helper.attrs)), end='')
+        print('%s %s(* const %s)(' % (self.map_type(proto['ret_type']),
                                       proto['ret_star'], proto['name']), end='')
         comma = ''
         for i, a in enumerate(proto['args']):

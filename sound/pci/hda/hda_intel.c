@@ -40,7 +40,6 @@
 
 #ifdef CONFIG_X86
 /* for snoop control */
-#include <linux/dma-map-ops.h>
 #include <asm/set_memory.h>
 #include <asm/cpufeature.h>
 #endif
@@ -176,8 +175,8 @@ module_param(power_save, xint, 0644);
 MODULE_PARM_DESC(power_save, "Automatic power-saving timeout "
 		 "(in second, 0 = disable).");
 
-static bool pm_blacklist = true;
-module_param(pm_blacklist, bool, 0644);
+static int pm_blacklist = -1;
+module_param(pm_blacklist, bint, 0644);
 MODULE_PARM_DESC(pm_blacklist, "Enable power-management denylist");
 
 /* reset the HD-audio controller in power save mode.
@@ -189,7 +188,7 @@ module_param(power_save_controller, bool, 0644);
 MODULE_PARM_DESC(power_save_controller, "Reset controller in power save mode.");
 #else /* CONFIG_PM */
 #define power_save	0
-#define pm_blacklist	false
+#define pm_blacklist	0
 #define power_save_controller	false
 #endif /* CONFIG_PM */
 
@@ -307,7 +306,7 @@ enum {
 
 /* quirks for ATI HDMI with snoop off */
 #define AZX_DCAPS_PRESET_ATI_HDMI_NS \
-	(AZX_DCAPS_PRESET_ATI_HDMI | AZX_DCAPS_AMD_ALLOC_FIX)
+	(AZX_DCAPS_PRESET_ATI_HDMI | AZX_DCAPS_SNOOP_OFF)
 
 /* quirks for AMD SB */
 #define AZX_DCAPS_PRESET_AMD_SB \
@@ -774,6 +773,14 @@ static void azx_clear_irq_pending(struct azx *chip)
 static int azx_acquire_irq(struct azx *chip, int do_disconnect)
 {
 	struct hdac_bus *bus = azx_bus(chip);
+	int ret;
+
+	if (!chip->msi || pci_alloc_irq_vectors(chip->pci, 1, 1, PCI_IRQ_MSI) < 0) {
+		ret = pci_alloc_irq_vectors(chip->pci, 1, 1, PCI_IRQ_INTX);
+		if (ret < 0)
+			return ret;
+		chip->msi = 0;
+	}
 
 	if (request_irq(chip->pci->irq, azx_interrupt,
 			chip->msi ? 0 : IRQF_SHARED,
@@ -787,7 +794,6 @@ static int azx_acquire_irq(struct azx *chip, int do_disconnect)
 	}
 	bus->irq = chip->pci->irq;
 	chip->card->sync_irq = bus->irq;
-	pci_intx(chip->pci, !chip->msi);
 	return 0;
 }
 
@@ -931,10 +937,14 @@ static int __maybe_unused param_set_xint(const char *val, const struct kernel_pa
 	if (ret || prev == power_save)
 		return ret;
 
+	if (pm_blacklist > 0)
+		return 0;
+
 	mutex_lock(&card_list_lock);
 	list_for_each_entry(hda, &card_list, list) {
 		chip = &hda->chip;
-		if (!hda->probe_continued || chip->disabled)
+		if (!hda->probe_continued || chip->disabled ||
+		    hda->runtime_pm_disabled)
 			continue;
 		snd_hda_set_power_save(&chip->bus, power_save * 1000);
 	}
@@ -1029,22 +1039,12 @@ static int azx_suspend(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip;
-	struct hdac_bus *bus;
 
 	if (!azx_is_pm_ready(card))
 		return 0;
 
 	chip = card->private_data;
-	bus = azx_bus(chip);
 	azx_shutdown_chip(chip);
-	if (bus->irq >= 0) {
-		free_irq(bus->irq, chip);
-		bus->irq = -1;
-		chip->card->sync_irq = -1;
-	}
-
-	if (chip->msi)
-		pci_disable_msi(chip->pci);
 
 	trace_azx_suspend(chip);
 	return 0;
@@ -1059,11 +1059,6 @@ static int __maybe_unused azx_resume(struct device *dev)
 		return 0;
 
 	chip = card->private_data;
-	if (chip->msi)
-		if (pci_enable_msi(chip->pci) < 0)
-			chip->msi = 0;
-	if (azx_acquire_irq(chip, 1) < 0)
-		return -EIO;
 
 	__azx_runtime_resume(chip);
 
@@ -1703,13 +1698,6 @@ static void azx_check_snoop_available(struct azx *chip)
 	if (chip->driver_caps & AZX_DCAPS_SNOOP_OFF)
 		snoop = false;
 
-#ifdef CONFIG_X86
-	/* check the presence of DMA ops (i.e. IOMMU), disable snoop conditionally */
-	if ((chip->driver_caps & AZX_DCAPS_AMD_ALLOC_FIX) &&
-	    !get_dma_ops(chip->card->dev))
-		snoop = false;
-#endif
-
 	chip->snoop = snoop;
 	if (!snoop) {
 		dev_info(chip->card->dev, "Force to non-snoop mode\n");
@@ -1817,7 +1805,7 @@ static int azx_create(struct snd_card *card, struct pci_dev *pci,
 
 	/* use the non-cached pages in non-snoop mode */
 	if (!azx_snoop(chip))
-		azx_bus(chip)->dma_type = SNDRV_DMA_TYPE_DEV_WC_SG;
+		azx_bus(chip)->dma_type = SNDRV_DMA_TYPE_DEV_WC;
 
 	if (chip->driver_type == AZX_DRIVER_NVIDIA) {
 		dev_dbg(chip->card->dev, "Enable delay in RIRB handling\n");
@@ -1871,6 +1859,8 @@ static int azx_first_init(struct azx *chip)
 		bus->polling_mode = 1;
 		bus->not_use_interrupts = 1;
 		bus->access_sdnctl_in_dword = 1;
+		if (!chip->jackpoll_interval)
+			chip->jackpoll_interval = msecs_to_jiffies(1500);
 	}
 
 	err = pcim_iomap_regions(pci, 1 << 0, "ICH HD audio");
@@ -1896,13 +1886,9 @@ static int azx_first_init(struct azx *chip)
 		chip->gts_present = true;
 #endif
 
-	if (chip->msi) {
-		if (chip->driver_caps & AZX_DCAPS_NO_MSI64) {
-			dev_dbg(card->dev, "Disabling 64bit MSI\n");
-			pci->no_64bit_msi = true;
-		}
-		if (pci_enable_msi(pci) < 0)
-			chip->msi = 0;
+	if (chip->msi && chip->driver_caps & AZX_DCAPS_NO_MSI64) {
+		dev_dbg(card->dev, "Disabling 64bit MSI\n");
+		pci->no_64bit_msi = true;
 	}
 
 	pci_set_master(pci);
@@ -2054,7 +2040,7 @@ static int disable_msi_reset_irq(struct azx *chip)
 	free_irq(bus->irq, chip);
 	bus->irq = -1;
 	chip->card->sync_irq = -1;
-	pci_disable_msi(chip->pci);
+	pci_free_irq_vectors(chip->pci);
 	chip->msi = 0;
 	err = azx_acquire_irq(chip, 1);
 	if (err < 0)
@@ -2251,9 +2237,10 @@ static const struct snd_pci_quirk power_save_denylist[] = {
 
 static void set_default_power_save(struct azx *chip)
 {
+	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
 	int val = power_save;
 
-	if (pm_blacklist) {
+	if (pm_blacklist < 0) {
 		const struct snd_pci_quirk *q;
 
 		q = snd_pci_quirk_lookup(chip->pci, power_save_denylist);
@@ -2261,7 +2248,11 @@ static void set_default_power_save(struct azx *chip)
 			dev_info(chip->card->dev, "device %04x:%04x is on the power_save denylist, forcing power_save to 0\n",
 				 q->subvendor, q->subdevice);
 			val = 0;
+			hda->runtime_pm_disabled = 1;
 		}
+	} else if (pm_blacklist > 0) {
+		dev_info(chip->card->dev, "Forcing power_save to 0 via option\n");
+		val = 0;
 	}
 	snd_hda_set_power_save(&chip->bus, val * 1000);
 }
@@ -2679,7 +2670,7 @@ static const struct pci_device_id azx_ids[] = {
 	  .driver_data = AZX_DRIVER_ATIHDMI_NS | AZX_DCAPS_PRESET_ATI_HDMI_NS |
 	  AZX_DCAPS_PM_RUNTIME },
 	/* GLENFLY */
-	{ PCI_DEVICE(0x6766, PCI_ANY_ID),
+	{ PCI_DEVICE(PCI_VENDOR_ID_GLENFLY, PCI_ANY_ID),
 	  .class = PCI_CLASS_MULTIMEDIA_HD_AUDIO << 8,
 	  .class_mask = 0xffffff,
 	  .driver_data = AZX_DRIVER_GFHDMI | AZX_DCAPS_POSFIX_LPIB |

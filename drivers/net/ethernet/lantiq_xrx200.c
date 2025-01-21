@@ -669,7 +669,7 @@ MODULE_DEVICE_TABLE(of, xrx200_match);
 
 static struct platform_driver xrx200_driver = {
 	.probe = xrx200_probe,
-	.remove_new = xrx200_remove,
+	.remove = xrx200_remove,
 	.driver = {
 		.name = "lantiq,xrx200-net",
 		.of_match_table = xrx200_match,

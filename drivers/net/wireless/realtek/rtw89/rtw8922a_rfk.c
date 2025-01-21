@@ -252,49 +252,58 @@ static void rtw8922a_chlk_ktbl_sel(struct rtw89_dev *rtwdev, u8 kpath, u8 idx)
 	}
 }
 
-static void rtw8922a_chlk_reload(struct rtw89_dev *rtwdev)
+static u8 rtw8922a_chlk_reload_sel_tbl(struct rtw89_dev *rtwdev,
+				       const struct rtw89_chan *chan, u8 path)
 {
 	struct rtw89_rfk_mcc_info *rfk_mcc = &rtwdev->rfk_mcc;
 	struct rtw89_rfk_chan_desc desc[__RTW89_RFK_CHS_NR_V1] = {};
-	enum rtw89_sub_entity_idx sub_entity_idx;
-	const struct rtw89_chan *chan;
-	enum rtw89_entity_mode mode;
-	u8 s0_tbl, s1_tbl;
 	u8 tbl_sel;
-
-	mode = rtw89_get_entity_mode(rtwdev);
-	switch (mode) {
-	case RTW89_ENTITY_MODE_MCC_PREPARE:
-		sub_entity_idx = RTW89_SUB_ENTITY_1;
-		break;
-	default:
-		sub_entity_idx = RTW89_SUB_ENTITY_0;
-		break;
-	}
-
-	chan = rtw89_chan_get(rtwdev, sub_entity_idx);
 
 	for (tbl_sel = 0; tbl_sel < ARRAY_SIZE(desc); tbl_sel++) {
 		struct rtw89_rfk_chan_desc *p = &desc[tbl_sel];
 
-		p->ch = rfk_mcc->ch[tbl_sel];
+		p->ch = rfk_mcc->data[path].ch[tbl_sel];
 
 		p->has_band = true;
-		p->band = rfk_mcc->band[tbl_sel];
+		p->band = rfk_mcc->data[path].band[tbl_sel];
 
 		p->has_bw = true;
-		p->bw = rfk_mcc->bw[tbl_sel];
+		p->bw = rfk_mcc->data[path].bw[tbl_sel];
 	}
 
 	tbl_sel = rtw89_rfk_chan_lookup(rtwdev, desc, ARRAY_SIZE(desc), chan);
 
-	rfk_mcc->ch[tbl_sel] = chan->channel;
-	rfk_mcc->band[tbl_sel] = chan->band_type;
-	rfk_mcc->bw[tbl_sel] = chan->band_width;
-	rfk_mcc->table_idx = tbl_sel;
+	rfk_mcc->data[path].ch[tbl_sel] = chan->channel;
+	rfk_mcc->data[path].band[tbl_sel] = chan->band_type;
+	rfk_mcc->data[path].bw[tbl_sel] = chan->band_width;
+	rfk_mcc->data[path].table_idx = tbl_sel;
 
-	s0_tbl = tbl_sel;
-	s1_tbl = tbl_sel;
+	return tbl_sel;
+}
+
+static void rtw8922a_chlk_reload(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_chan *chan0, *chan1;
+	u8 s0_tbl, s1_tbl;
+
+	switch (rtwdev->mlo_dbcc_mode) {
+	default:
+	case MLO_2_PLUS_0_1RF:
+		chan0 = rtw89_mgnt_chan_get(rtwdev, 0);
+		chan1 = chan0;
+		break;
+	case MLO_0_PLUS_2_1RF:
+		chan1 = rtw89_mgnt_chan_get(rtwdev, 1);
+		chan0 = chan1;
+		break;
+	case MLO_1_PLUS_1_1RF:
+		chan0 = rtw89_mgnt_chan_get(rtwdev, 0);
+		chan1 = rtw89_mgnt_chan_get(rtwdev, 1);
+		break;
+	}
+
+	s0_tbl = rtw8922a_chlk_reload_sel_tbl(rtwdev, chan0, 0);
+	s1_tbl = rtw8922a_chlk_reload_sel_tbl(rtwdev, chan1, 1);
 
 	rtw8922a_chlk_ktbl_sel(rtwdev, RF_A, s0_tbl);
 	rtw8922a_chlk_ktbl_sel(rtwdev, RF_B, s1_tbl);

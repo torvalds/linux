@@ -159,6 +159,26 @@
 			};
 		};
 	};
+
+	flash-led-controller@53 {
+		compatible = "silergy,sy7802";
+		reg = <0x53>;
+
+		enable-gpios = <&tlmm 16 GPIO_ACTIVE_HIGH>;
+
+		pinctrl-0 = <&camera_rear_flash_default>;
+		pinctrl-names = "default";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		led@0 {
+			reg = <0>;
+			function = LED_FUNCTION_FLASH;
+			color = <LED_COLOR_ID_WHITE>;
+			led-sources = <0>, <1>;
+		};
+	};
 };
 
 &blsp_i2c3 {
@@ -313,6 +333,13 @@
 
 	camera_front_flash_default: camera-front-flash-default-state {
 		pins = "gpio8", "gpio49";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	camera_rear_flash_default: camera-rear-flash-default-state {
+		pins = "gpio9", "gpio16", "gpio51";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;

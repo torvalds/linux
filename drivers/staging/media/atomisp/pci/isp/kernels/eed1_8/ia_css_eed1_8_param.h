@@ -2,15 +2,6 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #ifndef __IA_CSS_EED1_8_PARAM_H
@@ -94,8 +85,8 @@
 
 struct eed1_8_vmem_params {
 	VMEM_ARRAY(e_dew_enh_x, ISP_VEC_NELEMS);
-	VMEM_ARRAY(e_dew_enh_y, ISP_VEC_NELEMS);
-	VMEM_ARRAY(e_dew_enh_a, ISP_VEC_NELEMS);
+	SVMEM_ARRAY(e_dew_enh_y, ISP_VEC_NELEMS);
+	SVMEM_ARRAY(e_dew_enh_a, ISP_VEC_NELEMS);
 	VMEM_ARRAY(e_dew_enh_f, ISP_VEC_NELEMS);
 	VMEM_ARRAY(chgrinv_x, ISP_VEC_NELEMS);
 	VMEM_ARRAY(chgrinv_a, ISP_VEC_NELEMS);

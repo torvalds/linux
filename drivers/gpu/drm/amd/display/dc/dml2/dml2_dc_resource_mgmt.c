@@ -258,12 +258,25 @@ static unsigned int find_preferred_pipe_candidates(const struct dc_state *existi
 	 * However this condition comes with a caveat. We need to ignore pipes that will
 	 * require a change in OPP but still have the same stream id. For example during
 	 * an MPC to ODM transiton.
+	 *
+	 * Adding check to avoid pipe select on the head pipe by utilizing dc resource
+	 * helper function resource_get_primary_dpp_pipe and comparing the pipe index.
 	 */
 	if (existing_state) {
 		for (i = 0; i < pipe_count; i++) {
 			if (existing_state->res_ctx.pipe_ctx[i].stream && existing_state->res_ctx.pipe_ctx[i].stream->stream_id == stream_id) {
+				struct pipe_ctx *head_pipe =
+					resource_is_pipe_type(&existing_state->res_ctx.pipe_ctx[i], DPP_PIPE) ?
+						resource_get_primary_dpp_pipe(&existing_state->res_ctx.pipe_ctx[i]) :
+							NULL;
+
+				// we should always respect the head pipe from selection
+				if (head_pipe && head_pipe->pipe_idx == i)
+					continue;
 				if (existing_state->res_ctx.pipe_ctx[i].plane_res.hubp &&
-					existing_state->res_ctx.pipe_ctx[i].plane_res.hubp->opp_id != i)
+					existing_state->res_ctx.pipe_ctx[i].plane_res.hubp->opp_id != i &&
+						(existing_state->res_ctx.pipe_ctx[i].prev_odm_pipe ||
+						existing_state->res_ctx.pipe_ctx[i].next_odm_pipe))
 					continue;
 
 				preferred_pipe_candidates[num_preferred_candidates++] = i;
@@ -292,6 +305,14 @@ static unsigned int find_last_resort_pipe_candidates(const struct dc_state *exis
 	 */
 	if (existing_state) {
 		for (i  = 0; i < pipe_count; i++) {
+			struct pipe_ctx *head_pipe =
+				resource_is_pipe_type(&existing_state->res_ctx.pipe_ctx[i], DPP_PIPE) ?
+					resource_get_primary_dpp_pipe(&existing_state->res_ctx.pipe_ctx[i]) :
+						NULL;
+
+			// we should always respect the head pipe from selection
+			if (head_pipe && head_pipe->pipe_idx == i)
+				continue;
 			if ((existing_state->res_ctx.pipe_ctx[i].plane_res.hubp &&
 				existing_state->res_ctx.pipe_ctx[i].plane_res.hubp->opp_id != i) ||
 				existing_state->res_ctx.pipe_ctx[i].stream_res.tg)

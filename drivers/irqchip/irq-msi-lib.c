@@ -128,6 +128,9 @@ int msi_lib_irq_domain_select(struct irq_domain *d, struct irq_fwspec *fwspec,
 	const struct msi_parent_ops *ops = d->msi_parent_ops;
 	u32 busmask = BIT(bus_token);
 
+	if (!ops)
+		return 0;
+
 	if (fwspec->fwnode != d->fwnode || fwspec->param_count != 0)
 		return 0;
 
@@ -135,6 +138,6 @@ int msi_lib_irq_domain_select(struct irq_domain *d, struct irq_fwspec *fwspec,
 	if (bus_token == ops->bus_select_token)
 		return 1;
 
-	return ops && !!(ops->bus_select_mask & busmask);
+	return !!(ops->bus_select_mask & busmask);
 }
 EXPORT_SYMBOL_GPL(msi_lib_irq_domain_select);

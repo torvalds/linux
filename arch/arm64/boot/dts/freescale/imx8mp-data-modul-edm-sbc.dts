@@ -59,6 +59,18 @@
 		pwms = <&pwm4 0 83 0>;
 	};
 
+	hdmi-connector {
+		compatible = "hdmi-connector";
+		label = "J17";
+		type = "a";
+
+		port {
+			hdmi_connector_in: endpoint {
+				remote-endpoint = <&hdmi_tx_out>;
+			};
+		};
+	};
+
 	panel: panel {
 		/* Compatible string is filled in by panel board DT Overlay. */
 		backlight = <&backlight>;
@@ -311,6 +323,33 @@
 		"", "SPI3_CS#", "", "", "", "", "", "";
 };
 
+&hdmi_pvi {
+	status = "okay";
+};
+
+&hdmi_tx {
+	ddc-i2c-bus = <&i2c5>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hdmi>;
+	status = "okay";
+
+	ports {
+		port@1 {
+			hdmi_tx_out: endpoint {
+				remote-endpoint = <&hdmi_connector_in>;
+			};
+		};
+	};
+};
+
+&hdmi_tx_phy {
+	status = "okay";
+};
+
+&lcdif3 {
+	status = "okay";
+};
+
 &i2c1 {
 	clock-frequency = <100000>;
 	pinctrl-names = "default", "gpio";
@@ -499,7 +538,6 @@
 };
 
 &sai3 {
-	#clock-cells = <0>;
 	#sound-dai-cells = <0>;
 	assigned-clocks = <&clk IMX8MP_CLK_SAI3>;
 	assigned-clock-parents = <&clk IMX8MP_AUDIO_PLL1_OUT>;
@@ -679,6 +717,13 @@
 		fsl,pins = <
 			MX8MP_IOMUXC_SPDIF_RX__CAN1_RX			0x154
 			MX8MP_IOMUXC_SPDIF_TX__CAN1_TX			0x154
+		>;
+	};
+
+	pinctrl_hdmi: hdmi-grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_HDMI_CEC__HDMIMIX_HDMI_CEC		0x154
+			MX8MP_IOMUXC_HDMI_HPD__HDMIMIX_HDMI_HPD		0x154
 		>;
 	};
 

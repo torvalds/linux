@@ -360,7 +360,7 @@ mlx5e_rep_set_ringparam(struct net_device *dev,
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 
-	return mlx5e_ethtool_set_ringparam(priv, param);
+	return mlx5e_ethtool_set_ringparam(priv, param, extack);
 }
 
 static void mlx5e_rep_get_channels(struct net_device *dev,
@@ -386,7 +386,7 @@ static int mlx5e_rep_get_coalesce(struct net_device *netdev,
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 
-	return mlx5e_ethtool_get_coalesce(priv, coal, kernel_coal);
+	return mlx5e_ethtool_get_coalesce(priv, coal, kernel_coal, extack);
 }
 
 static int mlx5e_rep_set_coalesce(struct net_device *netdev,
@@ -600,7 +600,8 @@ mlx5e_add_sqs_fwd_rules(struct mlx5e_priv *priv)
 			if (c->xdp)
 				sqs[num_sqs++] = c->rq_xdpsq.sqn;
 
-			sqs[num_sqs++] = c->xdpsq.sqn;
+			if (c->xdpsq)
+				sqs[num_sqs++] = c->xdpsq->sqn;
 		}
 	}
 	if (ptp_sq) {
@@ -898,7 +899,8 @@ static void mlx5e_build_rep_netdev(struct net_device *netdev,
 	netdev->hw_features    |= NETIF_F_RXCSUM;
 
 	netdev->features |= netdev->hw_features;
-	netdev->features |= NETIF_F_NETNS_LOCAL;
+
+	netdev->netns_local = true;
 }
 
 static int mlx5e_init_rep(struct mlx5_core_dev *mdev,

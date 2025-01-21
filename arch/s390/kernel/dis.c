@@ -122,6 +122,7 @@ enum {
 	U8_32,	/* 8 bit unsigned value starting at 32 */
 	U12_16, /* 12 bit unsigned value starting at 16 */
 	U16_16, /* 16 bit unsigned value starting at 16 */
+	U16_20, /* 16 bit unsigned value starting at 20 */
 	U16_32, /* 16 bit unsigned value starting at 32 */
 	U32_16, /* 32 bit unsigned value starting at 16 */
 	VX_12,	/* Vector index register starting at position 12 */
@@ -184,6 +185,7 @@ static const struct s390_operand operands[] = {
 	[U8_32]	 = {  8, 32, 0 },
 	[U12_16] = { 12, 16, 0 },
 	[U16_16] = { 16, 16, 0 },
+	[U16_20] = { 16, 20, 0 },
 	[U16_32] = { 16, 32, 0 },
 	[U32_16] = { 32, 16, 0 },
 	[VX_12]	 = {  4, 12, OPERAND_INDEX | OPERAND_VR },
@@ -257,7 +259,6 @@ static const unsigned char formats[][6] = {
 	[INSTR_RSL_R0RD]     = { D_20, L4_8, B_16, 0, 0, 0 },
 	[INSTR_RSY_AARD]     = { A_8, A_12, D20_20, B_16, 0, 0 },
 	[INSTR_RSY_CCRD]     = { C_8, C_12, D20_20, B_16, 0, 0 },
-	[INSTR_RSY_RDRU]     = { R_8, D20_20, B_16, U4_12, 0, 0 },
 	[INSTR_RSY_RRRD]     = { R_8, R_12, D20_20, B_16, 0, 0 },
 	[INSTR_RSY_RURD]     = { R_8, U4_12, D20_20, B_16, 0, 0 },
 	[INSTR_RSY_RURD2]    = { R_8, D20_20, B_16, U4_12, 0, 0 },
@@ -300,14 +301,17 @@ static const unsigned char formats[][6] = {
 	[INSTR_VRI_V0UU2]    = { V_8, U16_16, U4_32, 0, 0, 0 },
 	[INSTR_VRI_V0UUU]    = { V_8, U8_16, U8_24, U4_32, 0, 0 },
 	[INSTR_VRI_VR0UU]    = { V_8, R_12, U8_28, U4_24, 0, 0 },
+	[INSTR_VRI_VV0UU]    = { V_8, V_12, U8_28, U4_24, 0, 0 },
 	[INSTR_VRI_VVUU]     = { V_8, V_12, U16_16, U4_32, 0, 0 },
 	[INSTR_VRI_VVUUU]    = { V_8, V_12, U12_16, U4_32, U4_28, 0 },
 	[INSTR_VRI_VVUUU2]   = { V_8, V_12, U8_28, U8_16, U4_24, 0 },
 	[INSTR_VRI_VVV0U]    = { V_8, V_12, V_16, U8_24, 0, 0 },
 	[INSTR_VRI_VVV0UU]   = { V_8, V_12, V_16, U8_24, U4_32, 0 },
 	[INSTR_VRI_VVV0UU2]  = { V_8, V_12, V_16, U8_28, U4_24, 0 },
-	[INSTR_VRR_0V]	     = { V_12, 0, 0, 0, 0, 0 },
+	[INSTR_VRI_VVV0UV]   = { V_8, V_12, V_16, V_32, U8_24, 0 },
+	[INSTR_VRR_0V0U]     = { V_12, U16_20, 0, 0, 0, 0 },
 	[INSTR_VRR_0VV0U]    = { V_12, V_16, U4_24, 0, 0, 0 },
+	[INSTR_VRR_0VVU]     = { V_12, V_16, U16_20, 0, 0, 0 },
 	[INSTR_VRR_RV0UU]    = { R_8, V_12, U4_24, U4_28, 0, 0 },
 	[INSTR_VRR_VRR]	     = { V_8, R_12, R_16, 0, 0, 0 },
 	[INSTR_VRR_VV]	     = { V_8, V_12, 0, 0, 0, 0 },
@@ -455,21 +459,21 @@ static int print_insn(char *buffer, unsigned char *code, unsigned long addr)
 			if (separator)
 				ptr += sprintf(ptr, "%c", separator);
 			if (operand->flags & OPERAND_GPR)
-				ptr += sprintf(ptr, "%%r%i", value);
+				ptr += sprintf(ptr, "%%r%u", value);
 			else if (operand->flags & OPERAND_FPR)
-				ptr += sprintf(ptr, "%%f%i", value);
+				ptr += sprintf(ptr, "%%f%u", value);
 			else if (operand->flags & OPERAND_AR)
-				ptr += sprintf(ptr, "%%a%i", value);
+				ptr += sprintf(ptr, "%%a%u", value);
 			else if (operand->flags & OPERAND_CR)
-				ptr += sprintf(ptr, "%%c%i", value);
+				ptr += sprintf(ptr, "%%c%u", value);
 			else if (operand->flags & OPERAND_VR)
-				ptr += sprintf(ptr, "%%v%i", value);
+				ptr += sprintf(ptr, "%%v%u", value);
 			else if (operand->flags & OPERAND_PCREL) {
 				void *pcrel = (void *)((int)value + addr);
 
 				ptr += sprintf(ptr, "%px", pcrel);
 			} else if (operand->flags & OPERAND_SIGNED)
-				ptr += sprintf(ptr, "%i", value);
+				ptr += sprintf(ptr, "%i", (int)value);
 			else
 				ptr += sprintf(ptr, "%u", value);
 			if (operand->flags & OPERAND_DISP)

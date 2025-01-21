@@ -686,7 +686,7 @@ pipe_poll(struct file *filp, poll_table *wait)
 	if (filp->f_mode & FMODE_READ) {
 		if (!pipe_empty(head, tail))
 			mask |= EPOLLIN | EPOLLRDNORM;
-		if (!pipe->writers && filp->f_version != pipe->w_counter)
+		if (!pipe->writers && filp->f_pipe != pipe->w_counter)
 			mask |= EPOLLHUP;
 	}
 
@@ -945,6 +945,7 @@ int create_pipe_files(struct file **res, int flags)
 	}
 
 	f->private_data = inode->i_pipe;
+	f->f_pipe = 0;
 
 	res[0] = alloc_file_clone(f, O_RDONLY | (flags & O_NONBLOCK),
 				  &pipefifo_fops);
@@ -954,6 +955,7 @@ int create_pipe_files(struct file **res, int flags)
 		return PTR_ERR(res[0]);
 	}
 	res[0]->private_data = inode->i_pipe;
+	res[0]->f_pipe = 0;
 	res[1] = f;
 	stream_open(inode, res[0]);
 	stream_open(inode, res[1]);
@@ -1108,7 +1110,7 @@ static int fifo_open(struct inode *inode, struct file *filp)
 	bool is_pipe = inode->i_sb->s_magic == PIPEFS_MAGIC;
 	int ret;
 
-	filp->f_version = 0;
+	filp->f_pipe = 0;
 
 	spin_lock(&inode->i_lock);
 	if (inode->i_pipe) {
@@ -1155,7 +1157,7 @@ static int fifo_open(struct inode *inode, struct file *filp)
 			if ((filp->f_flags & O_NONBLOCK)) {
 				/* suppress EPOLLHUP until we have
 				 * seen a writer */
-				filp->f_version = pipe->w_counter;
+				filp->f_pipe = pipe->w_counter;
 			} else {
 				if (wait_for_partner(pipe, &pipe->w_counter))
 					goto err_rd;
@@ -1229,7 +1231,6 @@ err:
 
 const struct file_operations pipefifo_fops = {
 	.open		= fifo_open,
-	.llseek		= no_llseek,
 	.read_iter	= pipe_read,
 	.write_iter	= pipe_write,
 	.poll		= pipe_poll,
@@ -1427,7 +1428,7 @@ static const struct super_operations pipefs_ops = {
 
 /*
  * pipefs should _never_ be mounted by userland - too much of security hassle,
- * no real gain from having the whole whorehouse mounted. So we don't need
+ * no real gain from having the whole file system mounted. So we don't need
  * any operations on the root directory. However, we need a non-trivial
  * d_name - pipe: will go nicely and kill the special-casing in procfs.
  */

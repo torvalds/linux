@@ -913,4 +913,5 @@ static const struct scmi_protocol scmi_pinctrl = {
 	.ops = &pinctrl_proto_ops,
 	.supported_version = SCMI_PROTOCOL_SUPPORTED_VERSION,
 };
+
 DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(pinctrl, scmi_pinctrl)

@@ -55,7 +55,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.291"
+#define DC_VER "3.2.310"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -225,6 +225,11 @@ struct dc_dmub_caps {
 	bool subvp_psr;
 	bool gecc_enable;
 	uint8_t fams_ver;
+	bool aux_backlight_support;
+};
+
+struct dc_scl_caps {
+	bool sharpener_support;
 };
 
 struct dc_caps {
@@ -261,10 +266,7 @@ struct dc_caps {
 	bool zstate_support;
 	bool ips_support;
 	uint32_t num_of_internal_disp;
-	uint32_t max_dwb_htap;
-	uint32_t max_dwb_vtap;
 	enum dp_protocol_version max_dp_protocol_version;
-	bool spdif_aud;
 	unsigned int mall_size_per_mem_channel;
 	unsigned int mall_size_total;
 	unsigned int cursor_cache_size;
@@ -288,6 +290,7 @@ struct dc_caps {
 	uint16_t subvp_vertical_int_margin_us;
 	bool seamless_odm;
 	uint32_t max_v_total;
+	bool vtotal_limited_by_fp2;
 	uint32_t max_disp_clock_khz_at_vmin;
 	uint8_t subvp_drr_vblank_start_margin_us;
 	bool cursor_not_scaled;
@@ -295,6 +298,7 @@ struct dc_caps {
 	bool sequential_ono;
 	/* Conservative limit for DCC cases which require ODM4:1 to support*/
 	uint32_t dcc_plane_width_limit;
+	struct dc_scl_caps scl_caps;
 };
 
 struct dc_bug_wa {
@@ -309,8 +313,6 @@ struct dc_bug_wa {
 		uint8_t dcfclk_ds: 1;
 	} clock_update_disable_mask;
 	bool skip_psr_ips_crtc_disable;
-	//Customer Specific WAs
-	uint32_t force_backlight_start_level;
 };
 struct dc_dcc_surface_param {
 	struct dc_size surface_size;
@@ -466,6 +468,9 @@ struct dc_config {
 	bool use_assr_psp_message;
 	bool support_edp0_on_dp1;
 	unsigned int enable_fpo_flicker_detection;
+	bool disable_hbr_audio_dp2;
+	bool consolidated_dpia_dp_lt;
+	bool set_pipe_unlock_order;
 };
 
 enum visual_confirm {
@@ -513,6 +518,7 @@ enum in_game_fams_config {
 	INGAME_FAMS_SINGLE_DISP_ENABLE, // enable in-game fams
 	INGAME_FAMS_DISABLE, // disable in-game fams
 	INGAME_FAMS_MULTI_DISP_ENABLE, //enable in-game fams for multi-display
+	INGAME_FAMS_MULTI_DISP_CLAMPED_ONLY, //enable in-game fams for multi-display only for clamped RR strategies
 };
 
 /**
@@ -764,7 +770,9 @@ union dpia_debug_options {
 		uint32_t extend_aux_rd_interval:1; /* bit 2 */
 		uint32_t disable_mst_dsc_work_around:1; /* bit 3 */
 		uint32_t enable_force_tbt3_work_around:1; /* bit 4 */
-		uint32_t reserved:27;
+		uint32_t disable_usb4_pm_support:1; /* bit 5 */
+		uint32_t enable_consolidated_dpia_dp_lt:1; /* bit 6 */
+		uint32_t reserved:25;
 	} bits;
 	uint32_t raw;
 };
@@ -862,7 +870,6 @@ struct dc_debug_options {
 	bool sanity_checks;
 	bool max_disp_clk;
 	bool surface_trace;
-	bool timing_trace;
 	bool clock_trace;
 	bool validation_trace;
 	bool bandwidth_calcs_trace;
@@ -981,6 +988,7 @@ struct dc_debug_options {
 	bool disable_z10;
 	bool enable_z9_disable_interface;
 	bool psr_skip_crtc_disable;
+	uint32_t ips_skip_crtc_disable_mask;
 	union dpia_debug_options dpia_debug;
 	bool disable_fixed_vs_aux_timeout_wa;
 	uint32_t fixed_vs_aux_delay_config_wa;
@@ -1053,8 +1061,15 @@ struct dc_debug_options {
 	unsigned int disable_spl;
 	unsigned int force_easf;
 	unsigned int force_sharpness;
+	unsigned int force_sharpness_level;
 	unsigned int force_lls;
 	bool notify_dpia_hr_bw;
+	bool enable_ips_visual_confirm;
+	unsigned int sharpen_policy;
+	unsigned int scale_to_sharpness_policy;
+	bool skip_full_updated_if_possible;
+	unsigned int enable_oled_edp_power_up_opt;
+	bool enable_hblank_borrow;
 };
 
 
@@ -1247,7 +1262,6 @@ union surface_update_flags {
 		uint32_t rotation_change:1;
 		uint32_t swizzle_change:1;
 		uint32_t scaling_change:1;
-		uint32_t clip_size_change: 1;
 		uint32_t position_change:1;
 		uint32_t in_transfer_func_change:1;
 		uint32_t input_csc_change:1;
@@ -1268,6 +1282,7 @@ union surface_update_flags {
 		uint32_t tmz_changed:1;
 		uint32_t mcm_transfer_function_enable_change:1; /* disable or enable MCM transfer func */
 		uint32_t full_update:1;
+		uint32_t sdr_white_level_nits:1;
 	} bits;
 
 	uint32_t raw;
@@ -1291,7 +1306,7 @@ struct dc_plane_state {
 
 	struct dc_gamma gamma_correction;
 	struct dc_transfer_func in_transfer_func;
-	struct dc_bias_and_scale *bias_and_scale;
+	struct dc_bias_and_scale bias_and_scale;
 	struct dc_csc_transform input_csc_color_matrix;
 	struct fixed31_32 coeff_reduction_factor;
 	struct fixed31_32 hdr_mult;
@@ -1348,8 +1363,10 @@ struct dc_plane_state {
 	enum mpcc_movable_cm_location mcm_location;
 	struct dc_csc_transform cursor_csc_color_matrix;
 	bool adaptive_sharpness_en;
-	unsigned int sharpnessX1000;
+	int adaptive_sharpness_policy;
+	int sharpness_level;
 	enum linear_light_scaling linear_light_scaling;
+	unsigned int sdr_white_level_nits;
 };
 
 struct dc_plane_info {
@@ -1368,7 +1385,6 @@ struct dc_plane_info {
 	int  global_alpha_value;
 	bool input_csc_enabled;
 	int layer_index;
-	bool front_buffer_rendering_active;
 	enum chroma_cositing cositing;
 };
 
@@ -1454,6 +1470,7 @@ struct dc {
 		struct dc_scratch_space current_state;
 		struct dc_scratch_space new_state;
 		struct dc_stream_state temp_stream; // Used so we don't need to allocate stream on the stack
+		bool pipes_to_unlock_first[MAX_PIPES]; /* Any of the pipes indicated here should be unlocked first */
 	} scratch;
 
 	struct dml2_configuration_options dml2_options;
@@ -1506,8 +1523,9 @@ struct dc_surface_update {
 	 * change cm2_params.component_settings: Full update
 	 * change cm2_params.cm2_luts: Fast update
 	 */
-	struct dc_cm2_parameters *cm2_params;
+	const struct dc_cm2_parameters *cm2_params;
 	const struct dc_csc_transform *cursor_csc_color_matrix;
+	unsigned int sdr_white_level_nits;
 };
 
 /*
@@ -1585,6 +1603,12 @@ bool dc_acquire_release_mpc_3dlut(
 bool dc_resource_is_dsc_encoding_supported(const struct dc *dc);
 void get_audio_check(struct audio_info *aud_modes,
 	struct audio_check *aud_chk);
+
+bool fast_nonaddr_updates_exist(struct dc_fast_update *fast_update, int surface_count);
+void populate_fast_updates(struct dc_fast_update *fast_update,
+		struct dc_surface_update *srf_updates,
+		int surface_count,
+		struct dc_stream_update *stream_update);
 /*
  * Set up streams and links associated to drive sinks
  * The streams parameter is an absolute set of all active streams.
@@ -1771,6 +1795,7 @@ struct dc_link {
 	// BW ALLOCATON USB4 ONLY
 	struct dc_dpia_bw_alloc dpia_bw_alloc_config;
 	bool skip_implict_edp_power_control;
+	enum backlight_control_type backlight_control_type;
 };
 
 /* Return an enumerated dc_link.
@@ -2188,8 +2213,7 @@ void dc_link_edp_panel_backlight_power_on(struct dc_link *link,
  * and 16 bit fractional, where 1.0 is max backlight value.
  */
 bool dc_link_set_backlight_level(const struct dc_link *dc_link,
-		uint32_t backlight_pwm_u16_16,
-		uint32_t frame_ramp);
+		struct set_backlight_level_params *backlight_level_params);
 
 /* Set/get nits-based backlight level of an embedded panel (eDP, LVDS). */
 bool dc_link_set_backlight_level_nits(struct dc_link *link,
@@ -2513,6 +2537,8 @@ enum dc_status dc_process_dmub_set_mst_slots(const struct dc *dc,
 				uint8_t mst_alloc_slots,
 				uint8_t *mst_slots_in_use);
 
+void dc_process_dmub_dpia_set_tps_notification(const struct dc *dc, uint32_t link_index, uint8_t tps);
+
 void dc_process_dmub_dpia_hpd_int_enable(const struct dc *dc,
 				uint32_t hpd_int_enable);
 
@@ -2525,6 +2551,8 @@ struct dc_power_profile {
 };
 
 struct dc_power_profile dc_get_power_profile_for_dc_state(const struct dc_state *context);
+
+unsigned int dc_get_det_buffer_size_from_state(const struct dc_state *context);
 
 /* DSC Interfaces */
 #include "dc_dsc.h"

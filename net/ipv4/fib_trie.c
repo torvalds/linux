@@ -292,15 +292,9 @@ static const int inflate_threshold = 50;
 static const int halve_threshold_root = 15;
 static const int inflate_threshold_root = 30;
 
-static void __alias_free_mem(struct rcu_head *head)
-{
-	struct fib_alias *fa = container_of(head, struct fib_alias, rcu);
-	kmem_cache_free(fn_alias_kmem, fa);
-}
-
 static inline void alias_free_mem_rcu(struct fib_alias *fa)
 {
-	call_rcu(&fa->rcu, __alias_free_mem);
+	kfree_rcu(fa, rcu);
 }
 
 #define TNODE_VMALLOC_MAX \
@@ -1580,8 +1574,7 @@ found:
 			if (index >= (1ul << fa->fa_slen))
 				continue;
 		}
-		if (fa->fa_dscp &&
-		    inet_dscp_to_dsfield(fa->fa_dscp) != flp->flowi4_tos)
+		if (fa->fa_dscp && !fib_dscp_masked_match(fa->fa_dscp, flp))
 			continue;
 		/* Paired with WRITE_ONCE() in fib_release_info() */
 		if (READ_ONCE(fi->fib_dead))

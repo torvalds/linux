@@ -1741,7 +1741,7 @@ static const struct dev_pm_ops samsung_i2s_pm = {
 
 static struct platform_driver samsung_i2s_driver = {
 	.probe  = samsung_i2s_probe,
-	.remove_new = samsung_i2s_remove,
+	.remove = samsung_i2s_remove,
 	.id_table = samsung_i2s_driver_ids,
 	.driver = {
 		.name = "samsung-i2s",

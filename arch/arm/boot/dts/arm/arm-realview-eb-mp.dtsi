@@ -103,7 +103,7 @@
 		};
 
 		/* PMU with one IRQ line per core */
-		pmu: pmu@0 {
+		pmu: pmu {
 			compatible = "arm,arm11mpcore-pmu";
 			interrupt-parent = <&intc>;
 			interrupts = <0 17 IRQ_TYPE_LEVEL_HIGH>,

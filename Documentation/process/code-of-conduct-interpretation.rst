@@ -156,3 +156,90 @@ overridden decisions including complete and identifiable voting details.
 Because how we interpret and enforce the Code of Conduct will evolve over
 time, this document will be updated when necessary to reflect any
 changes.
+
+Enforcement for Unacceptable Behavior Code of Conduct Violations
+----------------------------------------------------------------
+
+The Code of Conduct committee works to ensure that our community continues
+to be inclusive and fosters diverse discussions and viewpoints, and works
+to improve those characteristics over time. A majority of the reports the
+Code of Conduct Committee receives stem from incorrect understanding regarding
+the development process and maintainers' roles, responsibilities, and their
+right to make decisions on code acceptance. These are resolved through
+clarification of the development process and the scope of the Code of Conduct.
+
+Unacceptable behaviors could interrupt respectful collaboration for a short
+period of time and negatively impact the health of the community longer term.
+Unacceptable behaviors often get resolved when individuals acknowledge their
+behavior and make amends for it in the setting the violation has taken place.
+
+The Code of Conduct Committee receives reports about unacceptable behaviors
+when they don't get resolved through community discussions. The Code of
+Conduct committee takes measures to restore productive and respectful
+collaboration when an unacceptable behavior has negatively impacted that
+relationship.
+
+The Code of Conduct Committee has the obligation to keep the reports and
+reporters' information private. Reports could come from injured parties
+and community members who are observers of unacceptable behaviors. The
+Code of Conduct Committee has the responsibility to investigate and resolve
+these reports, working with all involved parties.
+
+The Code of Conduct Committee works with the individual to bring about
+change in their understanding of the importance to repair the damage caused
+by their behavior to the injured party and the long term negative impact
+on the community.
+
+The goal is to reach a resolution which is agreeable to all parties. If
+working with the individual fails to bring about the desired outcome, the
+Code of Conduct Committee will evaluate other measures such as seeking
+public apology to repair the damage.
+
+Seek public apology for the violation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The Code of Conduct Committee publicly calls out the behavior in the
+setting in which the violation has taken place, seeking public apology
+for the violation.
+
+A public apology for the violation is the first step towards rebuilding
+the trust. Trust is essential for the continued success and health of the
+community which operates on trust and respect.
+
+Remedial measures if there is no public apology for the violation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The Code of Conduct Committee determines the next course of action to restore
+the healthy collaboration by recommending remedial measure(s) to the TAB for
+approval.
+
+- Ban violator from participating in the kernel development process for
+  a period of up to a full kernel development cycle. The Code of Conduct
+  Committee could require public apology as a condition for lifting the
+  ban.
+
+The scope of the ban for a period of time could include:
+
+    a. denying patch contributions and pull requests
+    b. pausing collaboration with the violator by ignoring their
+       contributions and/or blocking their email account(s)
+    c. restricting their ability to communicate via kernel.org platforms,
+       such as mailing lists and social media sites
+
+Once the TAB approves one or more of the measures outlined in the scope of
+the ban by a two-thirds vote, the Code of Conduct Committee will enforce
+the TAB approved measure(s) in collaboration with the community, maintainers,
+sub-maintainers, and kernel.org administrators.
+
+The Code of Conduct Committee is mindful of the negative impact of seeking
+public apology and instituting ban could have on individuals. It is also
+mindful of the longer term harm to the community that could result from
+not taking action when such serious public violations occur.
+
+The effectiveness of the remedial measure(s) approved by the TAB depends
+on the trust and cooperation from the community, maintainers, sub-maintainers,
+and kernel.org administrators in enforcing them.
+
+The Code of Conduct Committee sincerely hopes that unacceptable behaviors
+that require seeking public apologies continue to be exceedingly rare
+occurrences in the future.

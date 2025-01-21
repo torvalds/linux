@@ -121,6 +121,19 @@
 			};
 		};
 	};
+
+	v3v3_ao: v3v3-ao {
+		compatible = "regulator-fixed";
+		regulator-name = "v3v3_ao";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+
+	wifi_pwrseq: wifi-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&mcp23017 11 GPIO_ACTIVE_LOW>;
+	};
 };
 
 &adc_1 {
@@ -346,7 +359,14 @@
 };
 
 &rtc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&rtc_rsvd_pins_a>;
 	status = "okay";
+
+	rtc_lsco_pins_a: rtc-lsco-0 {
+		pins = "out2_rmp";
+		function = "lsco";
+	};
 };
 
 &scmi_regu {
@@ -383,6 +403,30 @@
 	bus-width = <4>;
 	vmmc-supply = <&scmi_vdd_sd>;
 	status = "okay";
+};
+
+/* Wifi */
+&sdmmc2 {
+	pinctrl-names = "default", "opendrain", "sleep";
+	pinctrl-0 = <&sdmmc2_b4_pins_a &sdmmc2_clk_pins_a>;
+	pinctrl-1 = <&sdmmc2_b4_od_pins_a &sdmmc2_clk_pins_a>;
+	pinctrl-2 = <&sdmmc2_b4_sleep_pins_a>;
+	non-removable;
+	cap-sdio-irq;
+	st,neg-edge;
+	bus-width = <4>;
+	vmmc-supply = <&v3v3_ao>;
+	mmc-pwrseq = <&wifi_pwrseq>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	brcmf: bcrmf@1 {
+		reg = <1>;
+		compatible = "brcm,bcm4329-fmac";
+		pinctrl-names = "default";
+		pinctrl-0 = <&rtc_lsco_pins_a>;
+	};
 };
 
 &spi5 {
@@ -491,6 +535,14 @@
 	pinctrl-2 = <&usart2_idle_pins_a>;
 	uart-has-rtscts;
 	status = "okay";
+
+	bluetooth {
+		shutdown-gpios = <&mcp23017 13 GPIO_ACTIVE_HIGH>;
+		compatible = "brcm,bcm43438-bt";
+		max-speed = <3000000>;
+		vbat-supply = <&v3v3_ao>;
+		vddio-supply = <&v3v3_ao>;
+	};
 };
 
 &usbh_ehci {

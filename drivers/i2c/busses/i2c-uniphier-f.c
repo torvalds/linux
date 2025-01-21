@@ -615,7 +615,7 @@ MODULE_DEVICE_TABLE(of, uniphier_fi2c_match);
 
 static struct platform_driver uniphier_fi2c_drv = {
 	.probe  = uniphier_fi2c_probe,
-	.remove_new = uniphier_fi2c_remove,
+	.remove = uniphier_fi2c_remove,
 	.driver = {
 		.name  = "uniphier-fi2c",
 		.of_match_table = uniphier_fi2c_match,

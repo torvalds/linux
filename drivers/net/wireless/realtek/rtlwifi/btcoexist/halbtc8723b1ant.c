@@ -3409,17 +3409,6 @@ void ex_btc8723b1ant_pnp_notify(struct btc_coexist *btcoexist, u8 pnp_state)
 	}
 }
 
-void ex_btc8723b1ant_coex_dm_reset(struct btc_coexist *btcoexist)
-{
-	struct rtl_priv *rtlpriv = btcoexist->adapter;
-
-	rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-		"[BTCoex], *****************Coex DM Reset****************\n");
-
-	halbtc8723b1ant_init_hw_config(btcoexist, false, false);
-	halbtc8723b1ant_init_coex_dm(btcoexist);
-}
-
 void ex_btc8723b1ant_periodical(struct btc_coexist *btcoexist)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;

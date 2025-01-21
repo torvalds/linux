@@ -662,10 +662,6 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 		JBUFFER_TRACE(jh, "ph3: write metadata");
 		escape = jbd2_journal_write_metadata_buffer(commit_transaction,
 						jh, &wbuf[bufs], blocknr);
-		if (escape < 0) {
-			jbd2_journal_abort(journal, escape);
-			continue;
-		}
 		jbd2_file_log_bh(&io_bufs, wbuf[bufs]);
 
 		/* Record the new block's tag in the current descriptor

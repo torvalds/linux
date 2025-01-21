@@ -97,7 +97,6 @@ typedef int (*hotplug_t)(struct smscore_device_t *coredev,
 typedef int (*setmode_t)(void *context, int mode);
 typedef void (*detectmode_t)(void *context, int *mode);
 typedef int (*sendrequest_t)(void *context, void *buffer, size_t size);
-typedef int (*loadfirmware_t)(void *context, void *buffer, size_t size);
 typedef int (*preload_t)(void *context);
 typedef int (*postload_t)(void *context);
 
@@ -1102,9 +1101,6 @@ extern int smscore_register_device(struct smsdevice_params_t *params,
 extern void smscore_unregister_device(struct smscore_device_t *coredev);
 
 extern int smscore_start_device(struct smscore_device_t *coredev);
-extern int smscore_load_firmware(struct smscore_device_t *coredev,
-				 char *filename,
-				 loadfirmware_t loadfirmware_handler);
 
 extern int smscore_set_device_mode(struct smscore_device_t *coredev, int mode);
 extern int smscore_get_device_mode(struct smscore_device_t *coredev);
@@ -1118,12 +1114,6 @@ extern int smsclient_sendrequest(struct smscore_client_t *client,
 				 void *buffer, size_t size);
 extern void smscore_onresponse(struct smscore_device_t *coredev,
 			       struct smscore_buffer_t *cb);
-
-extern int smscore_get_common_buffer_size(struct smscore_device_t *coredev);
-extern int smscore_map_common_buffer(struct smscore_device_t *coredev,
-				      struct vm_area_struct *vma);
-extern int smscore_send_fw_file(struct smscore_device_t *coredev,
-				u8 *ufwbuf, int size);
 
 extern
 struct smscore_buffer_t *smscore_getbuffer(struct smscore_device_t *coredev);

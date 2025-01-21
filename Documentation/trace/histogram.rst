@@ -81,7 +81,7 @@ Documentation written by Tom Zanussi
 	.usecs         display a common_timestamp in microseconds
         .percent       display a number of percentage value
         .graph         display a bar-graph of a value
-	.stacktrace    display as a stacktrace (must by a long[] type)
+	.stacktrace    display as a stacktrace (must be a long[] type)
 	=============  =================================================
 
   Note that in general the semantics of a given field aren't

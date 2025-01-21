@@ -131,9 +131,6 @@
 
 &phyrst {
 	status = "okay";
-	usb0_vbus_otg: regulator-vbus {
-		regulator-name = "vbus";
-	};
 };
 
 &scif0 {

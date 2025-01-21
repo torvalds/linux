@@ -167,10 +167,6 @@ int bio_integrity_add_page(struct bio *bio, struct page *page,
 	struct request_queue *q = bdev_get_queue(bio->bi_bdev);
 	struct bio_integrity_payload *bip = bio_integrity(bio);
 
-	if (((bip->bip_iter.bi_size + len) >> SECTOR_SHIFT) >
-	    queue_max_hw_sectors(q))
-		return 0;
-
 	if (bip->bip_vcnt > 0) {
 		struct bio_vec *bv = &bip->bip_vec[bip->bip_vcnt - 1];
 		bool same_page = false;
@@ -203,7 +199,7 @@ EXPORT_SYMBOL(bio_integrity_add_page);
 
 static int bio_integrity_copy_user(struct bio *bio, struct bio_vec *bvec,
 				   int nr_vecs, unsigned int len,
-				   unsigned int direction, u32 seed)
+				   unsigned int direction)
 {
 	bool write = direction == ITER_SOURCE;
 	struct bio_integrity_payload *bip;
@@ -251,7 +247,6 @@ static int bio_integrity_copy_user(struct bio *bio, struct bio_vec *bvec,
 	}
 
 	bip->bip_flags |= BIP_COPY_USER;
-	bip->bip_iter.bi_sector = seed;
 	bip->bip_vcnt = nr_vecs;
 	return 0;
 free_bip:
@@ -262,7 +257,7 @@ free_buf:
 }
 
 static int bio_integrity_init_user(struct bio *bio, struct bio_vec *bvec,
-				   int nr_vecs, unsigned int len, u32 seed)
+				   int nr_vecs, unsigned int len)
 {
 	struct bio_integrity_payload *bip;
 
@@ -271,7 +266,6 @@ static int bio_integrity_init_user(struct bio *bio, struct bio_vec *bvec,
 		return PTR_ERR(bip);
 
 	memcpy(bip->bip_vec, bvec, nr_vecs * sizeof(*bvec));
-	bip->bip_iter.bi_sector = seed;
 	bip->bip_iter.bi_size = len;
 	bip->bip_vcnt = nr_vecs;
 	return 0;
@@ -307,8 +301,7 @@ static unsigned int bvec_from_pages(struct bio_vec *bvec, struct page **pages,
 	return nr_bvecs;
 }
 
-int bio_integrity_map_user(struct bio *bio, void __user *ubuf, ssize_t bytes,
-			   u32 seed)
+int bio_integrity_map_user(struct bio *bio, void __user *ubuf, ssize_t bytes)
 {
 	struct request_queue *q = bdev_get_queue(bio->bi_bdev);
 	unsigned int align = blk_lim_dma_alignment_and_pad(&q->limits);
@@ -354,9 +347,9 @@ int bio_integrity_map_user(struct bio *bio, void __user *ubuf, ssize_t bytes,
 
 	if (copy)
 		ret = bio_integrity_copy_user(bio, bvec, nr_bvecs, bytes,
-					      direction, seed);
+					      direction);
 	else
-		ret = bio_integrity_init_user(bio, bvec, nr_bvecs, bytes, seed);
+		ret = bio_integrity_init_user(bio, bvec, nr_bvecs, bytes);
 	if (ret)
 		goto release_pages;
 	if (bvec != stack_vec)
@@ -371,7 +364,6 @@ free_bvec:
 		kfree(bvec);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(bio_integrity_map_user);
 
 /**
  * bio_integrity_prep - Prepare bio for integrity I/O

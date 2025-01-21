@@ -3,14 +3,15 @@
  */
 #define pr_fmt(fmt) "iommufd: " fmt
 
+#include <linux/anon_inodes.h>
 #include <linux/file.h>
 #include <linux/fs.h>
+#include <linux/iommufd.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/iommufd.h>
 #include <linux/pci.h>
+#include <linux/pci-ats.h>
 #include <linux/poll.h>
-#include <linux/anon_inodes.h>
 #include <uapi/linux/iommufd.h>
 
 #include "../iommu-priv.h"
@@ -27,8 +28,12 @@ static int iommufd_fault_iopf_enable(struct iommufd_device *idev)
 	 * resource between PF and VFs. There is no coordination for this
 	 * shared capability. This waits for a vPRI reset to recover.
 	 */
-	if (dev_is_pci(dev) && to_pci_dev(dev)->is_virtfn)
-		return -EINVAL;
+	if (dev_is_pci(dev)) {
+		struct pci_dev *pdev = to_pci_dev(dev);
+
+		if (pdev->is_virtfn && pci_pri_supported(pdev))
+			return -EINVAL;
+	}
 
 	mutex_lock(&idev->iopf_lock);
 	/* Device iopf has already been on. */
@@ -161,7 +166,6 @@ static int __fault_domain_replace_dev(struct iommufd_device *idev,
 		if (!handle)
 			return -ENOMEM;
 
-		handle->handle.domain = hwpt->domain;
 		handle->idev = idev;
 		ret = iommu_replace_group_handle(idev->igroup->group,
 						 hwpt->domain, &handle->handle);
@@ -361,7 +365,6 @@ static const struct file_operations iommufd_fault_fops = {
 	.write		= iommufd_fault_fops_write,
 	.poll		= iommufd_fault_fops_poll,
 	.release	= iommufd_fault_fops_release,
-	.llseek		= no_llseek,
 };
 
 int iommufd_fault_alloc(struct iommufd_ucmd *ucmd)
@@ -417,8 +420,6 @@ out_put_fdno:
 	put_unused_fd(fdno);
 out_fput:
 	fput(filep);
-	refcount_dec(&fault->obj.users);
-	iommufd_ctx_put(fault->ictx);
 out_abort:
 	iommufd_object_abort_and_destroy(ucmd->ictx, &fault->obj);
 

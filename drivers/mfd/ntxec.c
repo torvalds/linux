@@ -21,7 +21,7 @@
 #include <linux/reboot.h>
 #include <linux/regmap.h>
 #include <linux/types.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define NTXEC_REG_VERSION	0x00
 #define NTXEC_REG_POWEROFF	0x50

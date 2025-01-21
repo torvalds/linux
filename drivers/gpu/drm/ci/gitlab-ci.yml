@@ -1,14 +1,14 @@
 variables:
   DRM_CI_PROJECT_PATH: &drm-ci-project-path mesa/mesa
-  DRM_CI_COMMIT_SHA: &drm-ci-commit-sha e2b9c5a9e3e4f9b532067af8022eaef8d6fc6c00
+  DRM_CI_COMMIT_SHA: &drm-ci-commit-sha c6a9a9c3bce90923f7700219354e0b6e5a3c9ba6
 
-  UPSTREAM_REPO: git://anongit.freedesktop.org/drm/drm
+  UPSTREAM_REPO: https://gitlab.freedesktop.org/drm/kernel.git
   TARGET_BRANCH: drm-next
 
-  IGT_VERSION: 0df7b9b97f9da0e364f5ee30fe331004b8c86b56
+  IGT_VERSION: a73311079a5d8ac99eb25336a8369a2c3c6b519b
 
-  DEQP_RUNNER_GIT_URL: https://gitlab.freedesktop.org/anholt/deqp-runner.git
-  DEQP_RUNNER_GIT_TAG: v0.15.0
+  DEQP_RUNNER_GIT_URL: https://gitlab.freedesktop.org/mesa/deqp-runner.git
+  DEQP_RUNNER_GIT_TAG: v0.20.0
 
   FDO_UPSTREAM_REPO: helen.fornazier/linux   # The repo where the git-archive daily runs
   MESA_TEMPLATES_COMMIT: &ci-templates-commit d5aa3941aa03c2f716595116354fb81eb8012acb
@@ -85,22 +85,24 @@ include:
   - project: *drm-ci-project-path
     ref: *drm-ci-commit-sha
     file:
-      - '/.gitlab-ci/farm-rules.yml'
-      - '/.gitlab-ci/test-source-dep.yml'
       - '/.gitlab-ci/container/gitlab-ci.yml'
-      - '/.gitlab-ci/test/gitlab-ci.yml'
+      - '/.gitlab-ci/farm-rules.yml'
       - '/.gitlab-ci/lava/lava-gitlab-ci.yml'
-      - '/src/microsoft/ci/gitlab-ci-inc.yml'
-      - '/src/gallium/drivers/zink/ci/gitlab-ci-inc.yml'
-      - '/src/gallium/drivers/crocus/ci/gitlab-ci-inc.yml'
-      - '/src/gallium/drivers/softpipe/ci/gitlab-ci-inc.yml'
-      - '/src/gallium/drivers/llvmpipe/ci/gitlab-ci-inc.yml'
-      - '/src/gallium/drivers/virgl/ci/gitlab-ci-inc.yml'
-      - '/src/gallium/drivers/nouveau/ci/gitlab-ci-inc.yml'
-      - '/src/gallium/frontends/lavapipe/ci/gitlab-ci-inc.yml'
-      - '/src/intel/ci/gitlab-ci-inc.yml'
-      - '/src/freedreno/ci/gitlab-ci-inc.yml'
+      - '/.gitlab-ci/test-source-dep.yml'
+      - '/.gitlab-ci/test/gitlab-ci.yml'
       - '/src/amd/ci/gitlab-ci-inc.yml'
+      - '/src/freedreno/ci/gitlab-ci-inc.yml'
+      - '/src/gallium/drivers/crocus/ci/gitlab-ci-inc.yml'
+      - '/src/gallium/drivers/llvmpipe/ci/gitlab-ci-inc.yml'
+      - '/src/gallium/drivers/nouveau/ci/gitlab-ci-inc.yml'
+      - '/src/gallium/drivers/softpipe/ci/gitlab-ci-inc.yml'
+      - '/src/gallium/drivers/virgl/ci/gitlab-ci-inc.yml'
+      - '/src/gallium/drivers/zink/ci/gitlab-ci-inc.yml'
+      - '/src/gallium/frontends/lavapipe/ci/gitlab-ci-inc.yml'
+      - '/src/gallium/frontends/rusticl/ci/gitlab-ci.yml'
+      - '/src/intel/ci/gitlab-ci-inc.yml'
+      - '/src/microsoft/ci/gitlab-ci-inc.yml'
+      - '/src/nouveau/ci/gitlab-ci-inc.yml'
       - '/src/virtio/ci/gitlab-ci-inc.yml'
   - drivers/gpu/drm/ci/image-tags.yml
   - drivers/gpu/drm/ci/container.yml
@@ -121,8 +123,9 @@ stages:
   - mediatek
   - meson
   - msm
+  - panfrost
+  - powervr
   - rockchip
-  - virtio-gpu
   - software-driver
 
 # YAML anchors for rule conditions
@@ -150,6 +153,14 @@ stages:
     # Pre-merge pipeline for Marge Bot
     - if: &is-pre-merge-for-marge '$GITLAB_USER_LOGIN == "marge-bot" && $CI_PIPELINE_SOURCE == "merge_request_event"'
       when: on_success
+    # Push to a branch on a fork
+    - &is-fork-push '$CI_PROJECT_NAMESPACE != "mesa" && $CI_PIPELINE_SOURCE == "push"'
+
+# Rules applied to every job in the pipeline
+.common-rules:
+  rules:
+    - if: *is-fork-push
+      when: manual
 
 .never-post-merge-rules:
   rules:

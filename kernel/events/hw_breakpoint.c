@@ -849,7 +849,7 @@ register_wide_hw_breakpoint(struct perf_event_attr *attr,
 
 	cpu_events = alloc_percpu(typeof(*cpu_events));
 	if (!cpu_events)
-		return (void __percpu __force *)ERR_PTR(-ENOMEM);
+		return ERR_PTR_PCPU(-ENOMEM);
 
 	cpus_read_lock();
 	for_each_online_cpu(cpu) {
@@ -868,7 +868,7 @@ register_wide_hw_breakpoint(struct perf_event_attr *attr,
 		return cpu_events;
 
 	unregister_wide_hw_breakpoint(cpu_events);
-	return (void __percpu __force *)ERR_PTR(err);
+	return ERR_PTR_PCPU(err);
 }
 EXPORT_SYMBOL_GPL(register_wide_hw_breakpoint);
 

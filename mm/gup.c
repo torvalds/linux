@@ -52,7 +52,12 @@ static inline void sanity_check_pinned_pages(struct page **pages,
 	 */
 	for (; npages; npages--, pages++) {
 		struct page *page = *pages;
-		struct folio *folio = page_folio(page);
+		struct folio *folio;
+
+		if (!page)
+			continue;
+
+		folio = page_folio(page);
 
 		if (is_zero_page(page) ||
 		    !folio_test_anon(folio))
@@ -409,11 +414,28 @@ void unpin_user_pages(struct page **pages, unsigned long npages)
 
 	sanity_check_pinned_pages(pages, npages);
 	for (i = 0; i < npages; i += nr) {
+		if (!pages[i]) {
+			nr = 1;
+			continue;
+		}
 		folio = gup_folio_next(pages, npages, i, &nr);
 		gup_put_folio(folio, nr, FOLL_PIN);
 	}
 }
 EXPORT_SYMBOL(unpin_user_pages);
+
+/**
+ * unpin_user_folio() - release pages of a folio
+ * @folio:  pointer to folio to be released
+ * @npages: number of pages of same folio
+ *
+ * Release npages of the folio
+ */
+void unpin_user_folio(struct folio *folio, unsigned long npages)
+{
+	gup_put_folio(folio, npages, FOLL_PIN);
+}
+EXPORT_SYMBOL(unpin_user_folio);
 
 /**
  * unpin_folios() - release an array of gup-pinned folios.
@@ -819,6 +841,7 @@ static struct page *follow_page_pte(struct vm_area_struct *vma,
 		struct dev_pagemap **pgmap)
 {
 	struct mm_struct *mm = vma->vm_mm;
+	struct folio *folio;
 	struct page *page;
 	spinlock_t *ptl;
 	pte_t *ptep, pte;
@@ -876,6 +899,7 @@ static struct page *follow_page_pte(struct vm_area_struct *vma,
 			goto out;
 		}
 	}
+	folio = page_folio(page);
 
 	if (!pte_write(pte) && gup_must_unshare(vma, flags, page)) {
 		page = ERR_PTR(-EMLINK);
@@ -886,7 +910,7 @@ static struct page *follow_page_pte(struct vm_area_struct *vma,
 		       !PageAnonExclusive(page), page);
 
 	/* try_grab_folio() does nothing unless FOLL_GET or FOLL_PIN is set. */
-	ret = try_grab_folio(page_folio(page), 1, flags);
+	ret = try_grab_folio(folio, 1, flags);
 	if (unlikely(ret)) {
 		page = ERR_PTR(ret);
 		goto out;
@@ -898,7 +922,7 @@ static struct page *follow_page_pte(struct vm_area_struct *vma,
 	 * Documentation/core-api/pin_user_pages.rst for details.
 	 */
 	if (flags & FOLL_PIN) {
-		ret = arch_make_page_accessible(page);
+		ret = arch_make_folio_accessible(folio);
 		if (ret) {
 			unpin_user_page(page);
 			page = ERR_PTR(ret);
@@ -907,14 +931,14 @@ static struct page *follow_page_pte(struct vm_area_struct *vma,
 	}
 	if (flags & FOLL_TOUCH) {
 		if ((flags & FOLL_WRITE) &&
-		    !pte_dirty(pte) && !PageDirty(page))
-			set_page_dirty(page);
+		    !pte_dirty(pte) && !folio_test_dirty(folio))
+			folio_mark_dirty(folio);
 		/*
 		 * pte_mkyoung() would be more correct here, but atomic care
 		 * is needed to avoid losing the dirty bit: it is easier to use
-		 * mark_page_accessed().
+		 * folio_mark_accessed().
 		 */
-		mark_page_accessed(page);
+		folio_mark_accessed(folio);
 	}
 out:
 	pte_unmap_unlock(ptep, ptl);
@@ -1070,28 +1094,6 @@ static struct page *follow_page_mask(struct vm_area_struct *vma,
 	return page;
 }
 
-struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
-			 unsigned int foll_flags)
-{
-	struct follow_page_context ctx = { NULL };
-	struct page *page;
-
-	if (vma_is_secretmem(vma))
-		return NULL;
-
-	if (WARN_ON_ONCE(foll_flags & FOLL_PIN))
-		return NULL;
-
-	/*
-	 * We never set FOLL_HONOR_NUMA_FAULT because callers don't expect
-	 * to fail on PROT_NONE-mapped pages.
-	 */
-	page = follow_page_mask(vma, address, foll_flags, &ctx);
-	if (ctx.pgmap)
-		put_dev_pagemap(ctx.pgmap);
-	return page;
-}
-
 static int get_gate_page(struct mm_struct *mm, unsigned long address,
 		unsigned int gup_flags, struct vm_area_struct **vma,
 		struct page **page)
@@ -1153,19 +1155,19 @@ unmap:
  * to 0 and -EBUSY returned.
  */
 static int faultin_page(struct vm_area_struct *vma,
-		unsigned long address, unsigned int *flags, bool unshare,
+		unsigned long address, unsigned int flags, bool unshare,
 		int *locked)
 {
 	unsigned int fault_flags = 0;
 	vm_fault_t ret;
 
-	if (*flags & FOLL_NOFAULT)
+	if (flags & FOLL_NOFAULT)
 		return -EFAULT;
-	if (*flags & FOLL_WRITE)
+	if (flags & FOLL_WRITE)
 		fault_flags |= FAULT_FLAG_WRITE;
-	if (*flags & FOLL_REMOTE)
+	if (flags & FOLL_REMOTE)
 		fault_flags |= FAULT_FLAG_REMOTE;
-	if (*flags & FOLL_UNLOCKABLE) {
+	if (flags & FOLL_UNLOCKABLE) {
 		fault_flags |= FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
 		/*
 		 * FAULT_FLAG_INTERRUPTIBLE is opt-in. GUP callers must set
@@ -1173,12 +1175,12 @@ static int faultin_page(struct vm_area_struct *vma,
 		 * That's because some callers may not be prepared to
 		 * handle early exits caused by non-fatal signals.
 		 */
-		if (*flags & FOLL_INTERRUPTIBLE)
+		if (flags & FOLL_INTERRUPTIBLE)
 			fault_flags |= FAULT_FLAG_INTERRUPTIBLE;
 	}
-	if (*flags & FOLL_NOWAIT)
+	if (flags & FOLL_NOWAIT)
 		fault_flags |= FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_RETRY_NOWAIT;
-	if (*flags & FOLL_TRIED) {
+	if (flags & FOLL_TRIED) {
 		/*
 		 * Note: FAULT_FLAG_ALLOW_RETRY and FAULT_FLAG_TRIED
 		 * can co-exist
@@ -1212,7 +1214,7 @@ static int faultin_page(struct vm_area_struct *vma,
 	}
 
 	if (ret & VM_FAULT_ERROR) {
-		int err = vm_fault_to_errno(ret, *flags);
+		int err = vm_fault_to_errno(ret, flags);
 
 		if (err)
 			return err;
@@ -1437,7 +1439,6 @@ static long __get_user_pages(struct mm_struct *mm,
 
 	do {
 		struct page *page;
-		unsigned int foll_flags = gup_flags;
 		unsigned int page_increm;
 
 		/* first iteration or cross vma bound */
@@ -1488,9 +1489,9 @@ retry:
 		}
 		cond_resched();
 
-		page = follow_page_mask(vma, start, foll_flags, &ctx);
+		page = follow_page_mask(vma, start, gup_flags, &ctx);
 		if (!page || PTR_ERR(page) == -EMLINK) {
-			ret = faultin_page(vma, start, &foll_flags,
+			ret = faultin_page(vma, start, gup_flags,
 					   PTR_ERR(page) == -EMLINK, locked);
 			switch (ret) {
 			case 0:
@@ -1547,13 +1548,12 @@ next_page:
 				 * large folio, this should never fail.
 				 */
 				if (try_grab_folio(folio, page_increm - 1,
-						   foll_flags)) {
+						   gup_flags)) {
 					/*
 					 * Release the 1st page ref if the
 					 * folio is problematic, fail hard.
 					 */
-					gup_put_folio(folio, 1,
-						      foll_flags);
+					gup_put_folio(folio, 1, gup_flags);
 					ret = -EFAULT;
 					goto out;
 				}
@@ -2282,20 +2282,57 @@ struct page *get_dump_page(unsigned long addr)
 #endif /* CONFIG_ELF_CORE */
 
 #ifdef CONFIG_MIGRATION
+
+/*
+ * An array of either pages or folios ("pofs"). Although it may seem tempting to
+ * avoid this complication, by simply interpreting a list of folios as a list of
+ * pages, that approach won't work in the longer term, because eventually the
+ * layouts of struct page and struct folio will become completely different.
+ * Furthermore, this pof approach avoids excessive page_folio() calls.
+ */
+struct pages_or_folios {
+	union {
+		struct page **pages;
+		struct folio **folios;
+		void **entries;
+	};
+	bool has_folios;
+	long nr_entries;
+};
+
+static struct folio *pofs_get_folio(struct pages_or_folios *pofs, long i)
+{
+	if (pofs->has_folios)
+		return pofs->folios[i];
+	return page_folio(pofs->pages[i]);
+}
+
+static void pofs_clear_entry(struct pages_or_folios *pofs, long i)
+{
+	pofs->entries[i] = NULL;
+}
+
+static void pofs_unpin(struct pages_or_folios *pofs)
+{
+	if (pofs->has_folios)
+		unpin_folios(pofs->folios, pofs->nr_entries);
+	else
+		unpin_user_pages(pofs->pages, pofs->nr_entries);
+}
+
 /*
  * Returns the number of collected folios. Return value is always >= 0.
  */
 static unsigned long collect_longterm_unpinnable_folios(
-					struct list_head *movable_folio_list,
-					unsigned long nr_folios,
-					struct folio **folios)
+		struct list_head *movable_folio_list,
+		struct pages_or_folios *pofs)
 {
 	unsigned long i, collected = 0;
 	struct folio *prev_folio = NULL;
 	bool drain_allow = true;
 
-	for (i = 0; i < nr_folios; i++) {
-		struct folio *folio = folios[i];
+	for (i = 0; i < pofs->nr_entries; i++) {
+		struct folio *folio = pofs_get_folio(pofs, i);
 
 		if (folio == prev_folio)
 			continue;
@@ -2336,16 +2373,15 @@ static unsigned long collect_longterm_unpinnable_folios(
  * Returns -EAGAIN if all folios were successfully migrated or -errno for
  * failure (or partial success).
  */
-static int migrate_longterm_unpinnable_folios(
-					struct list_head *movable_folio_list,
-					unsigned long nr_folios,
-					struct folio **folios)
+static int
+migrate_longterm_unpinnable_folios(struct list_head *movable_folio_list,
+				   struct pages_or_folios *pofs)
 {
 	int ret;
 	unsigned long i;
 
-	for (i = 0; i < nr_folios; i++) {
-		struct folio *folio = folios[i];
+	for (i = 0; i < pofs->nr_entries; i++) {
+		struct folio *folio = pofs_get_folio(pofs, i);
 
 		if (folio_is_device_coherent(folio)) {
 			/*
@@ -2353,11 +2389,11 @@ static int migrate_longterm_unpinnable_folios(
 			 * convert the pin on the source folio to a normal
 			 * reference.
 			 */
-			folios[i] = NULL;
+			pofs_clear_entry(pofs, i);
 			folio_get(folio);
 			gup_put_folio(folio, 1, FOLL_PIN);
 
-			if (migrate_device_coherent_page(&folio->page)) {
+			if (migrate_device_coherent_folio(folio)) {
 				ret = -EBUSY;
 				goto err;
 			}
@@ -2372,8 +2408,8 @@ static int migrate_longterm_unpinnable_folios(
 		 * calling folio_isolate_lru() which takes a reference so the
 		 * folio won't be freed if it's migrating.
 		 */
-		unpin_folio(folios[i]);
-		folios[i] = NULL;
+		unpin_folio(folio);
+		pofs_clear_entry(pofs, i);
 	}
 
 	if (!list_empty(movable_folio_list)) {
@@ -2396,66 +2432,73 @@ static int migrate_longterm_unpinnable_folios(
 	return -EAGAIN;
 
 err:
-	unpin_folios(folios, nr_folios);
+	pofs_unpin(pofs);
 	putback_movable_pages(movable_folio_list);
 
 	return ret;
 }
 
+static long
+check_and_migrate_movable_pages_or_folios(struct pages_or_folios *pofs)
+{
+	LIST_HEAD(movable_folio_list);
+	unsigned long collected;
+
+	collected = collect_longterm_unpinnable_folios(&movable_folio_list,
+						       pofs);
+	if (!collected)
+		return 0;
+
+	return migrate_longterm_unpinnable_folios(&movable_folio_list, pofs);
+}
+
 /*
- * Check whether all folios are *allowed* to be pinned indefinitely (longterm).
+ * Check whether all folios are *allowed* to be pinned indefinitely (long term).
  * Rather confusingly, all folios in the range are required to be pinned via
  * FOLL_PIN, before calling this routine.
  *
- * If any folios in the range are not allowed to be pinned, then this routine
- * will migrate those folios away, unpin all the folios in the range and return
- * -EAGAIN. The caller should re-pin the entire range with FOLL_PIN and then
- * call this routine again.
+ * Return values:
  *
- * If an error other than -EAGAIN occurs, this indicates a migration failure.
- * The caller should give up, and propagate the error back up the call stack.
- *
- * If everything is OK and all folios in the range are allowed to be pinned,
+ * 0: if everything is OK and all folios in the range are allowed to be pinned,
  * then this routine leaves all folios pinned and returns zero for success.
+ *
+ * -EAGAIN: if any folios in the range are not allowed to be pinned, then this
+ * routine will migrate those folios away, unpin all the folios in the range. If
+ * migration of the entire set of folios succeeds, then -EAGAIN is returned. The
+ * caller should re-pin the entire range with FOLL_PIN and then call this
+ * routine again.
+ *
+ * -ENOMEM, or any other -errno: if an error *other* than -EAGAIN occurs, this
+ * indicates a migration failure. The caller should give up, and propagate the
+ * error back up the call stack. The caller does not need to unpin any folios in
+ * that case, because this routine will do the unpinning.
  */
 static long check_and_migrate_movable_folios(unsigned long nr_folios,
 					     struct folio **folios)
 {
-	unsigned long collected;
-	LIST_HEAD(movable_folio_list);
+	struct pages_or_folios pofs = {
+		.folios = folios,
+		.has_folios = true,
+		.nr_entries = nr_folios,
+	};
 
-	collected = collect_longterm_unpinnable_folios(&movable_folio_list,
-						       nr_folios, folios);
-	if (!collected)
-		return 0;
-
-	return migrate_longterm_unpinnable_folios(&movable_folio_list,
-						  nr_folios, folios);
+	return check_and_migrate_movable_pages_or_folios(&pofs);
 }
 
 /*
- * This routine just converts all the pages in the @pages array to folios and
- * calls check_and_migrate_movable_folios() to do the heavy lifting.
- *
- * Please see the check_and_migrate_movable_folios() documentation for details.
+ * Return values and behavior are the same as those for
+ * check_and_migrate_movable_folios().
  */
 static long check_and_migrate_movable_pages(unsigned long nr_pages,
 					    struct page **pages)
 {
-	struct folio **folios;
-	long i, ret;
+	struct pages_or_folios pofs = {
+		.pages = pages,
+		.has_folios = false,
+		.nr_entries = nr_pages,
+	};
 
-	folios = kmalloc_array(nr_pages, sizeof(*folios), GFP_KERNEL);
-	if (!folios)
-		return -ENOMEM;
-
-	for (i = 0; i < nr_pages; i++)
-		folios[i] = page_folio(pages[i]);
-
-	ret = check_and_migrate_movable_folios(nr_pages, folios);
-
-	kfree(folios);
-	return ret;
+	return check_and_migrate_movable_pages_or_folios(&pofs);
 }
 #else
 static long check_and_migrate_movable_pages(unsigned long nr_pages,
@@ -2519,7 +2562,7 @@ static bool is_valid_gup_args(struct page **pages, int *locked,
 	 * These flags not allowed to be specified externally to the gup
 	 * interfaces:
 	 * - FOLL_TOUCH/FOLL_PIN/FOLL_TRIED/FOLL_FAST_ONLY are internal only
-	 * - FOLL_REMOTE is internal only and used on follow_page()
+	 * - FOLL_REMOTE is internal only, set in (get|pin)_user_pages_remote()
 	 * - FOLL_UNLOCKABLE is internal only and used if locked is !NULL
 	 */
 	if (WARN_ON_ONCE(gup_flags & INTERNAL_GUP_FLAGS))
@@ -2921,7 +2964,7 @@ static int gup_fast_pte_range(pmd_t pmd, pmd_t *pmdp, unsigned long addr,
 		 * details.
 		 */
 		if (flags & FOLL_PIN) {
-			ret = arch_make_page_accessible(page);
+			ret = arch_make_folio_accessible(folio);
 			if (ret) {
 				gup_put_folio(folio, 1, flags);
 				goto pte_unmap;
@@ -3060,6 +3103,9 @@ static int gup_fast_pmd_leaf(pmd_t orig, pmd_t *pmdp, unsigned long addr,
 	if (!pmd_access_permitted(orig, flags & FOLL_WRITE))
 		return 0;
 
+	if (pmd_special(orig))
+		return 0;
+
 	if (pmd_devmap(orig)) {
 		if (unlikely(flags & FOLL_LONGTERM))
 			return 0;
@@ -3102,6 +3148,9 @@ static int gup_fast_pud_leaf(pud_t orig, pud_t *pudp, unsigned long addr,
 	int refs;
 
 	if (!pud_access_permitted(orig, flags & FOLL_WRITE))
+		return 0;
+
+	if (pud_special(orig))
 		return 0;
 
 	if (pud_devmap(orig)) {
@@ -3703,6 +3752,7 @@ long memfd_pin_folios(struct file *memfd, loff_t start, loff_t end,
 					ret = PTR_ERR(folio);
 					if (ret != -EEXIST)
 						goto err;
+					folio = NULL;
 				}
 			}
 		}
@@ -3719,3 +3769,27 @@ err:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(memfd_pin_folios);
+
+/**
+ * folio_add_pins() - add pins to an already-pinned folio
+ * @folio: the folio to add more pins to
+ * @pins: number of pins to add
+ *
+ * Try to add more pins to an already-pinned folio. The semantics
+ * of the pin (e.g., FOLL_WRITE) follow any existing pin and cannot
+ * be changed.
+ *
+ * This function is helpful when having obtained a pin on a large folio
+ * using memfd_pin_folios(), but wanting to logically unpin parts
+ * (e.g., individual pages) of the folio later, for example, using
+ * unpin_user_page_range_dirty_lock().
+ *
+ * This is not the right interface to initially pin a folio.
+ */
+int folio_add_pins(struct folio *folio, unsigned int pins)
+{
+	VM_WARN_ON_ONCE(!folio_maybe_dma_pinned(folio));
+
+	return try_grab_folio(folio, pins, FOLL_PIN);
+}
+EXPORT_SYMBOL_GPL(folio_add_pins);

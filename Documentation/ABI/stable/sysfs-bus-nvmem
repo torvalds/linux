@@ -11,7 +11,7 @@ Description:
 		Read returns '0' or '1' for read-write or read-only modes
 		respectively.
 		Write parses one of 'YyTt1NnFf0', or [oO][NnFf] for "on"
-		and "off", i.e. what kstrbool() supports.
+		and "off", i.e. what kstrtobool() supports.
 		Note: This file is only present if CONFIG_NVMEM_SYSFS
 		is enabled.
 

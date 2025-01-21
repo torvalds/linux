@@ -86,7 +86,7 @@
 			#clock-cells = <1>;
 		};
 
-		clock-controller@1001b000 {
+		topckgen: clock-controller@1001b000 {
 			compatible = "mediatek,mt7988-topckgen", "syscon";
 			reg = <0 0x1001b000 0 0x1000>;
 			#clock-cells = <1>;
@@ -121,6 +121,39 @@
 			clock-names = "top", "main", "pwm1", "pwm2", "pwm3",
 				      "pwm4", "pwm5", "pwm6", "pwm7", "pwm8";
 			#pwm-cells = <2>;
+			status = "disabled";
+		};
+
+		serial@11000000 {
+			compatible = "mediatek,mt7988-uart", "mediatek,mt6577-uart";
+			reg = <0 0x11000000 0 0x100>;
+			interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "uart", "wakeup";
+			clocks = <&topckgen CLK_TOP_UART_SEL>,
+				 <&infracfg CLK_INFRA_52M_UART0_CK>;
+			clock-names = "baud", "bus";
+			status = "disabled";
+		};
+
+		serial@11000100 {
+			compatible = "mediatek,mt7988-uart", "mediatek,mt6577-uart";
+			reg = <0 0x11000100 0 0x100>;
+			interrupts = <GIC_SPI 124 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "uart", "wakeup";
+			clocks = <&topckgen CLK_TOP_UART_SEL>,
+				 <&infracfg CLK_INFRA_52M_UART1_CK>;
+			clock-names = "baud", "bus";
+			status = "disabled";
+		};
+
+		serial@11000200 {
+			compatible = "mediatek,mt7988-uart", "mediatek,mt6577-uart";
+			reg = <0 0x11000200 0 0x100>;
+			interrupts = <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "uart", "wakeup";
+			clocks = <&topckgen CLK_TOP_UART_SEL>,
+				 <&infracfg CLK_INFRA_52M_UART2_CK>;
+			clock-names = "baud", "bus";
 			status = "disabled";
 		};
 
@@ -196,6 +229,13 @@
 			reg = <0 0x11f40000 0 0x1000>;
 			resets = <&watchdog 16>;
 			#clock-cells = <1>;
+		};
+
+		efuse@11f50000 {
+			compatible = "mediatek,mt7988-efuse", "mediatek,efuse";
+			reg = <0 0x11f50000 0 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
 		};
 
 		clock-controller@15000000 {

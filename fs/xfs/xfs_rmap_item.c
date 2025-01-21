@@ -243,7 +243,7 @@ xfs_rmap_update_diff_items(
 	struct xfs_rmap_intent		*ra = ri_entry(a);
 	struct xfs_rmap_intent		*rb = ri_entry(b);
 
-	return ra->ri_pag->pag_agno - rb->ri_pag->pag_agno;
+	return ra->ri_group->xg_gno - rb->ri_group->xg_gno;
 }
 
 /* Log rmap updates in the intent item. */
@@ -353,7 +353,8 @@ xfs_rmap_defer_add(
 
 	trace_xfs_rmap_defer(mp, ri);
 
-	ri->ri_pag = xfs_perag_intent_get(mp, ri->ri_bmap.br_startblock);
+	ri->ri_group = xfs_group_intent_get(mp, ri->ri_bmap.br_startblock,
+			XG_TYPE_AG);
 	xfs_defer_add(tp, &ri->ri_list, &xfs_rmap_update_defer_type);
 }
 
@@ -364,7 +365,7 @@ xfs_rmap_update_cancel_item(
 {
 	struct xfs_rmap_intent		*ri = ri_entry(item);
 
-	xfs_perag_intent_put(ri->ri_pag);
+	xfs_group_intent_put(ri->ri_group);
 	kmem_cache_free(xfs_rmap_intent_cache, ri);
 }
 
@@ -494,7 +495,7 @@ xfs_rui_recover_work(
 	ri->ri_bmap.br_blockcount = map->me_len;
 	ri->ri_bmap.br_state = (map->me_flags & XFS_RMAP_EXTENT_UNWRITTEN) ?
 			XFS_EXT_UNWRITTEN : XFS_EXT_NORM;
-	ri->ri_pag = xfs_perag_intent_get(mp, map->me_startblock);
+	ri->ri_group = xfs_group_intent_get(mp, map->me_startblock, XG_TYPE_AG);
 
 	xfs_defer_add_item(dfp, &ri->ri_list);
 }

@@ -18,7 +18,7 @@
 #
 # Links:
 #	 Home Page
-#	   https://01.org/pm-graph
+#	   https://www.intel.com/content/www/us/en/developer/topic-technology/open/pm-graph/overview.html
 #	 Source repo
 #	   git@github.com:intel/pm-graph
 #
@@ -65,6 +65,7 @@ import gzip
 from threading import Thread
 from subprocess import call, Popen, PIPE
 import base64
+import traceback
 
 debugtiming = False
 mystarttime = time.time()
@@ -86,7 +87,7 @@ def ascii(text):
 #	 store system values and test parameters
 class SystemValues:
 	title = 'SleepGraph'
-	version = '5.12'
+	version = '5.13'
 	ansi = False
 	rs = 0
 	display = ''
@@ -236,7 +237,11 @@ class SystemValues:
 		'msleep': { 'args_x86_64': {'time':'%di:s32'}, 'ub': 1 },
 		'schedule_timeout': { 'args_x86_64': {'timeout':'%di:s32'}, 'ub': 1 },
 		'udelay': { 'func':'__const_udelay', 'args_x86_64': {'loops':'%di:s32'}, 'ub': 1 },
-		'usleep_range': { 'args_x86_64': {'min':'%di:s32', 'max':'%si:s32'}, 'ub': 1 },
+		'usleep_range': {
+			'func':'usleep_range_state',
+			'args_x86_64': {'min':'%di:s32', 'max':'%si:s32'},
+			'ub': 1
+		},
 		'mutex_lock_slowpath': { 'func':'__mutex_lock_slowpath', 'ub': 1 },
 		'acpi_os_stall': {'ub': 1},
 		'rt_mutex_slowlock': {'ub': 1},
@@ -342,15 +347,21 @@ class SystemValues:
 		if self.verbose or msg.startswith('WARNING:'):
 			pprint(msg)
 	def signalHandler(self, signum, frame):
-		if not self.result:
-			return
 		signame = self.signames[signum] if signum in self.signames else 'UNKNOWN'
-		msg = 'Signal %s caused a tool exit, line %d' % (signame, frame.f_lineno)
+		if signame in ['SIGUSR1', 'SIGUSR2', 'SIGSEGV']:
+			traceback.print_stack()
+			stack = traceback.format_list(traceback.extract_stack())
+			self.outputResult({'stack':stack})
+			if signame == 'SIGUSR1':
+				return
+		msg = '%s caused a tool exit, line %d' % (signame, frame.f_lineno)
+		pprint(msg)
 		self.outputResult({'error':msg})
+		os.kill(os.getpid(), signal.SIGKILL)
 		sys.exit(3)
 	def signalHandlerInit(self):
 		capture = ['BUS', 'SYS', 'XCPU', 'XFSZ', 'PWR', 'HUP', 'INT', 'QUIT',
-			'ILL', 'ABRT', 'FPE', 'SEGV', 'TERM']
+			'ILL', 'ABRT', 'FPE', 'SEGV', 'TERM', 'USR1', 'USR2']
 		self.signames = dict()
 		for i in capture:
 			s = 'SIG'+i
@@ -859,6 +870,11 @@ class SystemValues:
 		# files needed for any trace data
 		files = ['buffer_size_kb', 'current_tracer', 'trace', 'trace_clock',
 				 'trace_marker', 'trace_options', 'tracing_on']
+		# legacy check for old systems
+		if not os.path.exists(self.tpath+'trace'):
+			self.tpath = '/sys/kernel/debug/tracing/'
+		if not os.path.exists(self.epath):
+			self.epath = '/sys/kernel/debug/tracing/events/power/'
 		# files needed for callgraph trace data
 		tp = self.tpath
 		if(self.usecallgraph):
@@ -911,6 +927,13 @@ class SystemValues:
 		if num > 0:
 			n = '%d' % num
 		fp = open(self.result, 'a')
+		if 'stack' in testdata:
+			fp.write('Printing stack trace:\n')
+			for line in testdata['stack']:
+				fp.write(line)
+			fp.close()
+			self.sudoUserchown(self.result)
+			return
 		if 'error' in testdata:
 			fp.write('result%s: fail\n' % n)
 			fp.write('error%s: %s\n' % (n, testdata['error']))
@@ -1980,7 +2003,7 @@ class Data:
 		length = -1.0
 		if(start >= 0 and end >= 0):
 			length = end - start
-		if pid == -2 or name not in sysvals.tracefuncs.keys():
+		if pid >= -2:
 			i = 2
 			origname = name
 			while(name in list):
@@ -2753,7 +2776,8 @@ class Timeline:
 	def createHeader(self, sv, stamp):
 		if(not stamp['time']):
 			return
-		self.html += '<div class="version"><a href="https://01.org/pm-graph">%s v%s</a></div>' \
+		self.html += '<div class="version"><a href="https://www.intel.com/content/www/'+\
+			'us/en/developer/topic-technology/open/pm-graph/overview.html">%s v%s</a></div>' \
 			% (sv.title, sv.version)
 		if sv.logmsg and sv.testlog:
 			self.html += '<button id="showtest" class="logbtn btnfmt">log</button>'
@@ -5238,12 +5262,16 @@ def addScriptCode(hf, testruns):
 				}
 				var info = dev[i].title.split(" ");
 				var pname = info[info.length-1];
-				pd[pname] = parseFloat(info[info.length-3].slice(1));
-				total[0] += pd[pname];
-				if(pname.indexOf("suspend") >= 0)
-					total[tidx] += pd[pname];
+				var length = parseFloat(info[info.length-3].slice(1));
+				if (pname in pd)
+					pd[pname] += length;
 				else
-					total[tidx+1] += pd[pname];
+					pd[pname] = length;
+				total[0] += length;
+				if(pname.indexOf("suspend") >= 0)
+					total[tidx] += length;
+				else
+					total[tidx+1] += length;
 			}
 		}
 		var devname = deviceTitle(this.title, total, cpu);
@@ -5262,7 +5290,7 @@ def addScriptCode(hf, testruns):
 					phases[i].style.left = left+"%";
 					phases[i].title = phases[i].id+" "+pd[phases[i].id]+" ms";
 					left += w;
-					var time = "<t4 style=\"font-size:"+fs+"px\">"+pd[phases[i].id]+" ms<br></t4>";
+					var time = "<t4 style=\"font-size:"+fs+"px\">"+pd[phases[i].id].toFixed(3)+" ms<br></t4>";
 					var pname = "<t3 style=\"font-size:"+fs2+"px\">"+phases[i].id.replace(new RegExp("_", "g"), " ")+"</t3>";
 					phases[i].innerHTML = time+pname;
 				} else {
@@ -6742,6 +6770,7 @@ def printHelp():
 	'   -wifi        If a wifi connection is available, check that it reconnects after resume.\n'\
 	'   -wifitrace   Trace kernel execution through wifi reconnect.\n'\
 	'   -netfix      Use netfix to reset the network in the event it fails to resume.\n'\
+	'   -debugtiming Add timestamp to each printed line\n'\
 	'  [testprep]\n'\
 	'   -sync        Sync the filesystems before starting the test\n'\
 	'   -rs on/off   Enable/disable runtime suspend for all devices, restore all after test\n'\
@@ -7047,7 +7076,6 @@ if __name__ == '__main__':
 			except:
 				doError('No result file supplied', True)
 			sysvals.result = val
-			sysvals.signalHandlerInit()
 		else:
 			doError('Invalid argument: '+arg, True)
 
@@ -7057,6 +7085,7 @@ if __name__ == '__main__':
 	if(sysvals.usecallgraph and sysvals.useprocmon):
 		doError('-proc is not compatible with -f')
 
+	sysvals.signalHandlerInit()
 	if sysvals.usecallgraph and sysvals.cgskip:
 		sysvals.vprint('Using cgskip file: %s' % sysvals.cgskip)
 		sysvals.setCallgraphBlacklist(sysvals.cgskip)

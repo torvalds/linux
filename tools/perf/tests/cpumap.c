@@ -11,7 +11,7 @@
 
 struct machine;
 
-static int process_event_mask(struct perf_tool *tool __maybe_unused,
+static int process_event_mask(const struct perf_tool *tool __maybe_unused,
 			 union perf_event *event,
 			 struct perf_sample *sample __maybe_unused,
 			 struct machine *machine __maybe_unused)
@@ -47,7 +47,7 @@ static int process_event_mask(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
-static int process_event_cpus(struct perf_tool *tool __maybe_unused,
+static int process_event_cpus(const struct perf_tool *tool __maybe_unused,
 			 union perf_event *event,
 			 struct perf_sample *sample __maybe_unused,
 			 struct machine *machine __maybe_unused)
@@ -73,7 +73,7 @@ static int process_event_cpus(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
-static int process_event_range_cpus(struct perf_tool *tool __maybe_unused,
+static int process_event_range_cpus(const struct perf_tool *tool __maybe_unused,
 				union perf_event *event,
 				struct perf_sample *sample __maybe_unused,
 				struct machine *machine __maybe_unused)

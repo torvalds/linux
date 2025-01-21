@@ -3,9 +3,11 @@
  * Copyright © 2023 Intel Corporation
  */
 
+#include <linux/fault-inject.h>
+
 #include <drm/drm_managed.h>
 
-#include "regs/xe_sriov_regs.h"
+#include "regs/xe_regs.h"
 
 #include "xe_assert.h"
 #include "xe_device.h"
@@ -35,7 +37,7 @@ const char *xe_sriov_mode_to_string(enum xe_sriov_mode mode)
 
 static bool test_is_vf(struct xe_device *xe)
 {
-	u32 value = xe_mmio_read32(xe_root_mmio_gt(xe), VF_CAP_REG);
+	u32 value = xe_mmio_read32(xe_root_tile_mmio(xe), VF_CAP_REG);
 
 	return value & VF_CAP;
 }
@@ -119,6 +121,7 @@ int xe_sriov_init(struct xe_device *xe)
 
 	return drmm_add_action_or_reset(&xe->drm, fini_sriov, xe);
 }
+ALLOW_ERROR_INJECTION(xe_sriov_init, ERRNO); /* See xe_pci_probe() */
 
 /**
  * xe_sriov_print_info - Print basic SR-IOV information.

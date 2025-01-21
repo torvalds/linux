@@ -51,7 +51,7 @@
 #include <linux/jiffies.h>
 #include <linux/percpu-defs.h>
 #include <linux/percpu.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <asm/div64.h>
 #include "hpsa_cmd.h"
 #include "hpsa.h"

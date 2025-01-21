@@ -159,7 +159,7 @@ static ssize_t signalfd_dequeue(struct signalfd_ctx *ctx, kernel_siginfo_t *info
 	DECLARE_WAITQUEUE(wait, current);
 
 	spin_lock_irq(&current->sighand->siglock);
-	ret = dequeue_signal(current, &ctx->sigmask, info, &type);
+	ret = dequeue_signal(&ctx->sigmask, info, &type);
 	switch (ret) {
 	case 0:
 		if (!nonblock)
@@ -174,7 +174,7 @@ static ssize_t signalfd_dequeue(struct signalfd_ctx *ctx, kernel_siginfo_t *info
 	add_wait_queue(&current->sighand->signalfd_wqh, &wait);
 	for (;;) {
 		set_current_state(TASK_INTERRUPTIBLE);
-		ret = dequeue_signal(current, &ctx->sigmask, info, &type);
+		ret = dequeue_signal(&ctx->sigmask, info, &type);
 		if (ret != 0)
 			break;
 		if (signal_pending(current)) {
@@ -288,20 +288,17 @@ static int do_signalfd4(int ufd, sigset_t *mask, int flags)
 
 		fd_install(ufd, file);
 	} else {
-		struct fd f = fdget(ufd);
-		if (!f.file)
+		CLASS(fd, f)(ufd);
+		if (fd_empty(f))
 			return -EBADF;
-		ctx = f.file->private_data;
-		if (f.file->f_op != &signalfd_fops) {
-			fdput(f);
+		ctx = fd_file(f)->private_data;
+		if (fd_file(f)->f_op != &signalfd_fops)
 			return -EINVAL;
-		}
 		spin_lock_irq(&current->sighand->siglock);
 		ctx->sigmask = *mask;
 		spin_unlock_irq(&current->sighand->siglock);
 
 		wake_up(&current->sighand->signalfd_wqh);
-		fdput(f);
 	}
 
 	return ufd;

@@ -2,7 +2,6 @@
 //
 // Copyright 2024 Advanced Micro Devices, Inc.
 
-
 #include "dml2_dpmm_factory.h"
 #include "dml2_dpmm_dcn4.h"
 #include "dml2_external_lib_deps.h"
@@ -21,7 +20,7 @@ bool dml2_dpmm_create(enum dml2_project_id project_id, struct dml2_dpmm_instance
 {
 	bool result = false;
 
-	if (!out)
+	if (out == 0)
 		return false;
 
 	memset(out, 0, sizeof(struct dml2_dpmm_instance));

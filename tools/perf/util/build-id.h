@@ -16,11 +16,9 @@ struct build_id {
 	size_t	size;
 };
 
-struct nsinfo;
-
-extern struct perf_tool build_id__mark_dso_hit_ops;
 struct dso;
 struct feat_fd;
+struct nsinfo;
 
 void build_id__init(struct build_id *bid, const u8 *data, size_t size);
 int build_id__sprintf(const struct build_id *build_id, char *bf);
@@ -35,11 +33,11 @@ char *dso__build_id_filename(const struct dso *dso, char *bf, size_t size,
 char *__dso__build_id_filename(const struct dso *dso, char *bf, size_t size,
 			       bool is_debug, bool is_kallsyms);
 
-int build_id__mark_dso_hit(struct perf_tool *tool, union perf_event *event,
+int build_id__mark_dso_hit(const struct perf_tool *tool, union perf_event *event,
 			   struct perf_sample *sample, struct evsel *evsel,
 			   struct machine *machine);
 
-int perf_event__inject_buildid(struct perf_tool *tool, union perf_event *event,
+int perf_event__inject_buildid(const struct perf_tool *tool, union perf_event *event,
 			       struct perf_sample *sample, struct evsel *evsel,
 			       struct machine *machine);
 

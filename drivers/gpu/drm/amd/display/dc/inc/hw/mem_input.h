@@ -63,7 +63,7 @@ union dcn_watermark_set {
 		struct dml2_dchub_watermark_regs b;
 		struct dml2_dchub_watermark_regs c;
 		struct dml2_dchub_watermark_regs d;
-	} dcn4; //dcn4+
+	} dcn4x; //dcn4+
 };
 
 struct dce_watermarks {

@@ -1012,4 +1012,93 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 		<reg32 offset="0x00110" name="TX_ALOG_INTF_OBSV"/>
 </domain>
 
+<domain name="HDMI_8998_PHY" width="32">
+	<reg32 offset="0x00000" name="CFG"/>
+	<reg32 offset="0x00004" name="PD_CTL"/>
+	<reg32 offset="0x00010" name="MODE"/>
+	<reg32 offset="0x0005C" name="CLOCK"/>
+	<reg32 offset="0x00068" name="CMN_CTRL"/>
+	<reg32 offset="0x000B4" name="STATUS"/>
+</domain>
+
+<domain name="HDMI_8998_PHY_QSERDES_COM" width="32">
+	<reg32 offset="0x0000" name="ATB_SEL1"/>
+	<reg32 offset="0x0004" name="ATB_SEL2"/>
+	<reg32 offset="0x0008" name="FREQ_UPDATE"/>
+	<reg32 offset="0x000C" name="BG_TIMER"/>
+	<reg32 offset="0x0010" name="SSC_EN_CENTER"/>
+	<reg32 offset="0x0014" name="SSC_ADJ_PER1"/>
+	<reg32 offset="0x0018" name="SSC_ADJ_PER2"/>
+	<reg32 offset="0x001C" name="SSC_PER1"/>
+	<reg32 offset="0x0020" name="SSC_PER2"/>
+	<reg32 offset="0x0024" name="SSC_STEP_SIZE1"/>
+	<reg32 offset="0x0028" name="SSC_STEP_SIZE2"/>
+	<reg32 offset="0x002C" name="POST_DIV"/>
+	<reg32 offset="0x0030" name="POST_DIV_MUX"/>
+	<reg32 offset="0x0034" name="BIAS_EN_CLKBUFLR_EN"/>
+	<reg32 offset="0x0038" name="CLK_ENABLE1"/>
+	<reg32 offset="0x003C" name="SYS_CLK_CTRL"/>
+	<reg32 offset="0x0040" name="SYSCLK_BUF_ENABLE"/>
+	<reg32 offset="0x0044" name="PLL_EN"/>
+	<reg32 offset="0x0048" name="PLL_IVCO"/>
+	<reg32 offset="0x004C" name="CMN_IETRIM"/>
+	<reg32 offset="0x0050" name="CMN_IPTRIM"/>
+	<reg32 offset="0x0060" name="CP_CTRL_MODE0"/>
+	<reg32 offset="0x0064" name="CP_CTRL_MODE1"/>
+	<reg32 offset="0x0068" name="PLL_RCTRL_MODE0"/>
+	<reg32 offset="0x006C" name="PLL_RCTRL_MODE1"/>
+	<reg32 offset="0x0070" name="PLL_CCTRL_MODE0"/>
+	<reg32 offset="0x0074" name="PLL_CCTRL_MODE1"/>
+	<reg32 offset="0x0078" name="PLL_CNTRL"/>
+	<reg32 offset="0x007C" name="BIAS_EN_CTRL_BY_PSM"/>
+	<reg32 offset="0x0080" name="SYSCLK_EN_SEL"/>
+	<reg32 offset="0x0084" name="CML_SYSCLK_SEL"/>
+	<reg32 offset="0x0088" name="RESETSM_CNTRL"/>
+	<reg32 offset="0x008C" name="RESETSM_CNTRL2"/>
+	<reg32 offset="0x0090" name="LOCK_CMP_EN"/>
+	<reg32 offset="0x0094" name="LOCK_CMP_CFG"/>
+	<reg32 offset="0x0098" name="LOCK_CMP1_MODE0"/>
+	<reg32 offset="0x009C" name="LOCK_CMP2_MODE0"/>
+	<reg32 offset="0x00A0" name="LOCK_CMP3_MODE0"/>
+	<reg32 offset="0x00B0" name="DEC_START_MODE0"/>
+	<reg32 offset="0x00B4" name="DEC_START_MODE1"/>
+	<reg32 offset="0x00B8" name="DIV_FRAC_START1_MODE0"/>
+	<reg32 offset="0x00BC" name="DIV_FRAC_START2_MODE0"/>
+	<reg32 offset="0x00C0" name="DIV_FRAC_START3_MODE0"/>
+	<reg32 offset="0x00C4" name="DIV_FRAC_START1_MODE1"/>
+	<reg32 offset="0x00C8" name="DIV_FRAC_START2_MODE1"/>
+	<reg32 offset="0x00CC" name="DIV_FRAC_START3_MODE1"/>
+	<reg32 offset="0x00D0" name="INTEGLOOP_INITVAL"/>
+	<reg32 offset="0x00D4" name="INTEGLOOP_EN"/>
+	<reg32 offset="0x00D8" name="INTEGLOOP_GAIN0_MODE0"/>
+	<reg32 offset="0x00DC" name="INTEGLOOP_GAIN1_MODE0"/>
+	<reg32 offset="0x00E0" name="INTEGLOOP_GAIN0_MODE1"/>
+	<reg32 offset="0x00E4" name="INTEGLOOP_GAIN1_MODE1"/>
+	<reg32 offset="0x00E8" name="VCOCAL_DEADMAN_CTRL"/>
+	<reg32 offset="0x00EC" name="VCO_TUNE_CTRL"/>
+	<reg32 offset="0x00F0" name="VCO_TUNE_MAP"/>
+	<reg32 offset="0x0124" name="CMN_STATUS"/>
+	<reg32 offset="0x0128" name="RESET_SM_STATUS"/>
+	<reg32 offset="0x0138" name="CLK_SEL"/>
+	<reg32 offset="0x013C" name="HSCLK_SEL"/>
+	<reg32 offset="0x0148" name="CORECLK_DIV_MODE0"/>
+	<reg32 offset="0x0150" name="SW_RESET"/>
+	<reg32 offset="0x0154" name="CORE_CLK_EN"/>
+	<reg32 offset="0x0158" name="C_READY_STATUS"/>
+	<reg32 offset="0x015C" name="CMN_CONFIG"/>
+	<reg32 offset="0x0164" name="SVS_MODE_CLK_SEL"/>
+</domain>
+
+<domain name="HDMI_8998_PHY_TXn" width="32">
+	<reg32 offset="0x0000" name="EMP_POST1_LVL"/>
+	<reg32 offset="0x0008" name="INTERFACE_SELECT_TX_BAND"/>
+	<reg32 offset="0x000C" name="CLKBUF_TERM_ENABLE"/>
+	<reg32 offset="0x0014" name="DRV_LVL_RES_CODE_OFFSET"/>
+	<reg32 offset="0x0018" name="DRV_LVL"/>
+	<reg32 offset="0x001C" name="LANE_CONFIG"/>
+	<reg32 offset="0x0024" name="PRE_DRIVER_1"/>
+	<reg32 offset="0x0028" name="PRE_DRIVER_2"/>
+	<reg32 offset="0x002C" name="LANE_MODE"/>
+</domain>
+
 </database>

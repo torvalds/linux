@@ -961,6 +961,7 @@ static int amdgpu_dm_plane_helper_prepare_fb(struct drm_plane *plane,
 	else
 		domain = AMDGPU_GEM_DOMAIN_VRAM;
 
+	rbo->flags |= AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
 	r = amdgpu_bo_pin(rbo, domain);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS)
@@ -1283,6 +1284,7 @@ int amdgpu_dm_plane_get_cursor_position(struct drm_plane *plane, struct drm_crtc
 					struct dc_cursor_position *position)
 {
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
+	struct amdgpu_device *adev = drm_to_adev(plane->dev);
 	int x, y;
 	int xorigin = 0, yorigin = 0;
 
@@ -1314,11 +1316,13 @@ int amdgpu_dm_plane_get_cursor_position(struct drm_plane *plane, struct drm_crtc
 		y = 0;
 	}
 	position->enable = true;
-	position->translate_by_source = true;
 	position->x = x;
 	position->y = y;
 	position->x_hotspot = xorigin;
 	position->y_hotspot = yorigin;
+
+	if (amdgpu_ip_version(adev, DCE_HWIP, 0) < IP_VERSION(4, 0, 1))
+		position->translate_by_source = true;
 
 	return 0;
 }
@@ -1377,7 +1381,8 @@ void amdgpu_dm_plane_handle_cursor_update(struct drm_plane *plane,
 	    adev->dm.dc->caps.color.dpp.gamma_corr)
 		attributes.attribute_flags.bits.ENABLE_CURSOR_DEGAMMA = 1;
 
-	attributes.pitch = afb->base.pitches[0] / afb->base.format->cpp[0];
+	if (afb)
+		attributes.pitch = afb->base.pitches[0] / afb->base.format->cpp[0];
 
 	if (crtc_state->stream) {
 		mutex_lock(&adev->dm.dc_lock);

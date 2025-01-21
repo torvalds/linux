@@ -166,10 +166,9 @@ config CRYPTO_AES_ARM
 config CRYPTO_AES_ARM_BS
 	tristate "Ciphers: AES, modes: ECB/CBC/CTR/XTS (bit-sliced NEON)"
 	depends on KERNEL_MODE_NEON
+	select CRYPTO_AES_ARM
 	select CRYPTO_SKCIPHER
 	select CRYPTO_LIB_AES
-	select CRYPTO_AES
-	select CRYPTO_CBC
 	select CRYPTO_SIMD
 	help
 	  Length-preserving ciphers: AES cipher algorithms (FIPS-197)
@@ -183,8 +182,15 @@ config CRYPTO_AES_ARM_BS
 	  Bit sliced AES gives around 45% speedup on Cortex-A15 for CTR mode
 	  and for XTS mode encryption, CBC and XTS mode decryption speedup is
 	  around 25%. (CBC encryption speed is not affected by this driver.)
-	  This implementation does not rely on any lookup tables so it is
-	  believed to be invulnerable to cache timing attacks.
+
+	  The bit sliced AES code does not use lookup tables, so it is believed
+	  to be invulnerable to cache timing attacks. However, since the bit
+	  sliced AES code cannot process single blocks efficiently, in certain
+	  cases table-based code with some countermeasures against cache timing
+	  attacks will still be used as a fallback method; specifically CBC
+	  encryption (not CBC decryption), the encryption of XTS tweaks, XTS
+	  ciphertext stealing when the message isn't a multiple of 16 bytes, and
+	  CTR when invoked in a context in which NEON instructions are unusable.
 
 config CRYPTO_AES_ARM_CE
 	tristate "Ciphers: AES, modes: ECB/CBC/CTS/CTR/XTS (ARMv8 Crypto Extensions)"

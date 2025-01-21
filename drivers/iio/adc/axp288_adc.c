@@ -103,7 +103,7 @@ static const struct iio_chan_spec axp288_adc_channels[] = {
 };
 
 /* for consumer drivers */
-static struct iio_map axp288_adc_default_maps[] = {
+static const struct iio_map axp288_adc_default_maps[] = {
 	IIO_MAP("TS_PIN", "axp288-batt", "axp288-batt-temp"),
 	IIO_MAP("PMIC_TEMP", "axp288-pmic", "axp288-pmic-temp"),
 	IIO_MAP("GPADC", "axp288-gpadc", "axp288-system-temp"),
@@ -299,7 +299,7 @@ static int axp288_adc_probe(struct platform_device *pdev)
 
 static const struct platform_device_id axp288_adc_id_table[] = {
 	{ .name = "axp288_adc" },
-	{},
+	{ }
 };
 
 static struct platform_driver axp288_adc_driver = {

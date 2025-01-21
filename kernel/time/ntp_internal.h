@@ -14,9 +14,9 @@ extern int __do_adjtimex(struct __kernel_timex *txc,
 extern void __hardpps(const struct timespec64 *phase_ts, const struct timespec64 *raw_ts);
 
 #if defined(CONFIG_GENERIC_CMOS_UPDATE) || defined(CONFIG_RTC_SYSTOHC)
-extern void ntp_notify_cmos_timer(void);
+extern void ntp_notify_cmos_timer(bool offset_set);
 #else
-static inline void ntp_notify_cmos_timer(void) { }
+static inline void ntp_notify_cmos_timer(bool offset_set) { }
 #endif
 
 #endif /* _LINUX_NTP_INTERNAL_H */

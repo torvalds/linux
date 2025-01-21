@@ -13,7 +13,9 @@
 #include <linux/irq.h>
 #include <linux/gpio/consumer.h>
 #include <linux/kthread.h>
+#include <linux/leds.h>
 #include <linux/phy.h>
+#include <linux/property.h>
 #include <linux/ptp_clock_kernel.h>
 #include <linux/timecounter.h>
 #include <net/dsa.h>
@@ -206,6 +208,7 @@ struct mv88e6xxx_gpio_ops;
 struct mv88e6xxx_avb_ops;
 struct mv88e6xxx_ptp_ops;
 struct mv88e6xxx_pcs_ops;
+struct mv88e6xxx_cc_coeffs;
 
 struct mv88e6xxx_irq {
 	u16 masked;
@@ -275,6 +278,7 @@ struct mv88e6xxx_vlan {
 struct mv88e6xxx_port {
 	struct mv88e6xxx_chip *chip;
 	int port;
+	struct fwnode_handle *fwnode;
 	struct mv88e6xxx_vlan bridge_pvid;
 	u64 serdes_stats[2];
 	u64 atu_member_violation;
@@ -288,6 +292,11 @@ struct mv88e6xxx_port {
 	bool mirror_egress;
 	struct devlink_region *region;
 	void *pcs_private;
+
+	/* LED related information */
+	bool fiber;
+	struct led_classdev led0;
+	struct led_classdev led1;
 
 	/* MacAuth Bypass control flag */
 	bool mab;
@@ -408,6 +417,7 @@ struct mv88e6xxx_chip {
 	struct cyclecounter	tstamp_cc;
 	struct timecounter	tstamp_tc;
 	struct delayed_work	overflow_work;
+	const struct mv88e6xxx_cc_coeffs *cc_coeffs;
 
 	struct ptp_clock	*ptp_clock;
 	struct ptp_clock_info	ptp_clock_info;
@@ -432,6 +442,9 @@ struct mv88e6xxx_chip {
 
 	/* Bridge MST to SID mappings */
 	struct list_head msts;
+
+	/* FID map */
+	DECLARE_BITMAP(fid_bitmap, MV88E6XXX_N_FID);
 };
 
 struct mv88e6xxx_bus_ops {
@@ -572,6 +585,9 @@ struct mv88e6xxx_ops {
 			      phy_interface_t mode);
 	int (*port_get_cmode)(struct mv88e6xxx_chip *chip, int port, u8 *cmode);
 
+	/* LED control */
+	int (*port_setup_leds)(struct mv88e6xxx_chip *chip, int port);
+
 	/* Some devices have a per port register indicating what is
 	 * the upstream port this port should forward to.
 	 */
@@ -590,7 +606,7 @@ struct mv88e6xxx_ops {
 
 	/* Return the number of strings describing statistics */
 	int (*stats_get_sset_count)(struct mv88e6xxx_chip *chip);
-	int (*stats_get_strings)(struct mv88e6xxx_chip *chip,  uint8_t *data);
+	void (*stats_get_strings)(struct mv88e6xxx_chip *chip, uint8_t **data);
 	size_t (*stats_get_stat)(struct mv88e6xxx_chip *chip, int port,
 				 const struct mv88e6xxx_hw_stat *stat,
 				 uint64_t *data);
@@ -617,8 +633,8 @@ struct mv88e6xxx_ops {
 
 	/* Statistics from the SERDES interface */
 	int (*serdes_get_sset_count)(struct mv88e6xxx_chip *chip, int port);
-	int (*serdes_get_strings)(struct mv88e6xxx_chip *chip,  int port,
-				  uint8_t *data);
+	int (*serdes_get_strings)(struct mv88e6xxx_chip *chip, int port,
+				  uint8_t **data);
 	size_t (*serdes_get_stats)(struct mv88e6xxx_chip *chip, int port,
 				   uint64_t *data);
 
@@ -731,10 +747,6 @@ struct mv88e6xxx_ptp_ops {
 	int arr1_sts_reg;
 	int dep_sts_reg;
 	u32 rx_filters;
-	u32 cc_shift;
-	u32 cc_mult;
-	u32 cc_mult_num;
-	u32 cc_mult_dem;
 };
 
 struct mv88e6xxx_pcs_ops {
@@ -831,7 +843,5 @@ int mv88e6xxx_vtu_walk(struct mv88e6xxx_chip *chip,
 				 const struct mv88e6xxx_vtu_entry *entry,
 				 void *priv),
 		       void *priv);
-
-int mv88e6xxx_fid_map(struct mv88e6xxx_chip *chip, unsigned long *bitmap);
 
 #endif /* _MV88E6XXX_CHIP_H */

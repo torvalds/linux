@@ -1407,7 +1407,8 @@ static int cpsw_create_ports(struct cpsw_common *cpsw)
 		cpsw->slaves[i].ndev = ndev;
 
 		ndev->features |= NETIF_F_HW_VLAN_CTAG_FILTER |
-				  NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_NETNS_LOCAL | NETIF_F_HW_TC;
+				  NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_TC;
+		ndev->netns_local = true;
 
 		ndev->xdp_features = NETDEV_XDP_ACT_BASIC |
 				     NETDEV_XDP_ACT_REDIRECT |
@@ -2126,7 +2127,7 @@ static struct platform_driver cpsw_driver = {
 		.of_match_table = cpsw_of_mtable,
 	},
 	.probe = cpsw_probe,
-	.remove_new = cpsw_remove,
+	.remove = cpsw_remove,
 };
 
 module_platform_driver(cpsw_driver);

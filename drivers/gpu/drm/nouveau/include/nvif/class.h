@@ -7,9 +7,6 @@
 
 #define NVIF_CLASS_CONTROL                           /* if0001.h */ -0x00000001
 
-#define NVIF_CLASS_PERFMON                           /* if0002.h */ -0x00000002
-#define NVIF_CLASS_PERFDOM                           /* if0003.h */ -0x00000003
-
 #define NVIF_CLASS_SW_NV04                           /* if0004.h */ -0x00000004
 #define NVIF_CLASS_SW_NV10                           /* if0005.h */ -0x00000005
 #define NVIF_CLASS_SW_NV50                           /* if0005.h */ -0x00000006

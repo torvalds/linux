@@ -539,7 +539,6 @@ int qlcnic_83xx_setup_intr(struct qlcnic_adapter *);
 void qlcnic_83xx_get_func_no(struct qlcnic_adapter *);
 int qlcnic_83xx_cam_lock(struct qlcnic_adapter *);
 void qlcnic_83xx_cam_unlock(struct qlcnic_adapter *);
-int qlcnic_send_ctrl_op(struct qlcnic_adapter *, struct qlcnic_cmd_args *, u32);
 void qlcnic_83xx_add_sysfs(struct qlcnic_adapter *);
 void qlcnic_83xx_remove_sysfs(struct qlcnic_adapter *);
 void qlcnic_83xx_write_crb(struct qlcnic_adapter *, char *, loff_t, size_t);
@@ -577,8 +576,6 @@ int qlcnic_83xx_get_mac_address(struct qlcnic_adapter *, u8 *, u8);
 int qlcnic_83xx_alloc_mbx_args(struct qlcnic_cmd_args *,
 			       struct qlcnic_adapter *, u32);
 void qlcnic_free_mbx_args(struct qlcnic_cmd_args *);
-void qlcnic_set_npar_data(struct qlcnic_adapter *, const struct qlcnic_info *,
-			  struct qlcnic_info *);
 int qlcnic_83xx_config_intr_coal(struct qlcnic_adapter *,
 				 struct ethtool_coalesce *);
 int qlcnic_83xx_set_rx_tx_intr_coal(struct qlcnic_adapter *);
@@ -590,7 +587,6 @@ irqreturn_t qlcnic_83xx_intr(int, void *);
 irqreturn_t qlcnic_83xx_tmp_intr(int, void *);
 void qlcnic_83xx_check_vf(struct qlcnic_adapter *,
 			  const struct pci_device_id *);
-int qlcnic_83xx_config_default_opmode(struct qlcnic_adapter *);
 int qlcnic_83xx_setup_mbx_intr(struct qlcnic_adapter *);
 void qlcnic_83xx_free_mbx_intr(struct qlcnic_adapter *);
 void qlcnic_83xx_register_map(struct qlcnic_hardware_context *);
@@ -602,8 +598,6 @@ int qlcnic_83xx_flash_bulk_write(struct qlcnic_adapter *, u32, u32 *, int);
 int qlcnic_83xx_flash_write32(struct qlcnic_adapter *, u32, u32 *);
 int qlcnic_83xx_lock_flash(struct qlcnic_adapter *);
 void qlcnic_83xx_unlock_flash(struct qlcnic_adapter *);
-int qlcnic_83xx_save_flash_status(struct qlcnic_adapter *);
-int qlcnic_83xx_restore_flash_status(struct qlcnic_adapter *, int);
 int qlcnic_83xx_read_flash_mfg_id(struct qlcnic_adapter *);
 int qlcnic_83xx_read_flash_descriptor_table(struct qlcnic_adapter *);
 int qlcnic_83xx_flash_read32(struct qlcnic_adapter *, u32, u8 *, int);
@@ -616,13 +610,9 @@ void qlcnic_83xx_idc_exit(struct qlcnic_adapter *);
 void qlcnic_83xx_idc_request_reset(struct qlcnic_adapter *, u32);
 int qlcnic_83xx_lock_driver(struct qlcnic_adapter *);
 void qlcnic_83xx_unlock_driver(struct qlcnic_adapter *);
-int qlcnic_83xx_set_default_offload_settings(struct qlcnic_adapter *);
 int qlcnic_83xx_idc_vnic_pf_entry(struct qlcnic_adapter *);
 int qlcnic_83xx_disable_vnic_mode(struct qlcnic_adapter *, int);
 int qlcnic_83xx_config_vnic_opmode(struct qlcnic_adapter *);
-int qlcnic_83xx_get_vnic_vport_info(struct qlcnic_adapter *,
-				    struct qlcnic_info *, u8);
-int qlcnic_83xx_get_vnic_pf_info(struct qlcnic_adapter *, struct qlcnic_info *);
 int qlcnic_83xx_set_port_eswitch_status(struct qlcnic_adapter *, int, int *);
 
 void qlcnic_83xx_get_minidump_template(struct qlcnic_adapter *);

@@ -196,7 +196,7 @@ MODULE_ALIAS("platform:jazz_esp");
 
 static struct platform_driver esp_jazz_driver = {
 	.probe		= esp_jazz_probe,
-	.remove_new	= esp_jazz_remove,
+	.remove		= esp_jazz_remove,
 	.driver	= {
 		.name	= "jazz_esp",
 	},

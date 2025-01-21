@@ -484,7 +484,6 @@ static const struct file_operations input_fops = {
 	.owner	= THIS_MODULE,
 	.open	= moxtet_debug_open,
 	.read	= input_read,
-	.llseek	= no_llseek,
 };
 
 static ssize_t output_read(struct file *file, char __user *buf, size_t len,
@@ -549,7 +548,6 @@ static const struct file_operations output_fops = {
 	.open	= moxtet_debug_open,
 	.read	= output_read,
 	.write	= output_write,
-	.llseek	= no_llseek,
 };
 
 static int moxtet_register_debugfs(struct moxtet *moxtet)

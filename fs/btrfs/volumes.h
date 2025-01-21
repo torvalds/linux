@@ -30,6 +30,12 @@ struct btrfs_zoned_device_info;
 
 #define BTRFS_MAX_DATA_CHUNK_SIZE	(10ULL * SZ_1G)
 
+/*
+ * Arbitratry maximum size of one discard request to limit potentially long time
+ * spent in blkdev_issue_discard().
+ */
+#define BTRFS_MAX_DISCARD_CHUNK_SIZE	(SZ_1G)
+
 extern struct mutex uuid_mutex;
 
 #define BTRFS_STRIPE_LEN		SZ_64K
@@ -300,7 +306,7 @@ enum btrfs_read_policy {
 	BTRFS_NR_READ_POLICY,
 };
 
-#ifdef CONFIG_BTRFS_DEBUG
+#ifdef CONFIG_BTRFS_EXPERIMENTAL
 /*
  * Checksum mode - offload it to workqueues or do it synchronously in
  * btrfs_submit_chunk().
@@ -424,7 +430,7 @@ struct btrfs_fs_devices {
 	/* Policy used to read the mirrored stripes. */
 	enum btrfs_read_policy read_policy;
 
-#ifdef CONFIG_BTRFS_DEBUG
+#ifdef CONFIG_BTRFS_EXPERIMENTAL
 	/* Checksum mode - offload it or do it synchronously. */
 	enum btrfs_offload_csum_mode offload_csum_mode;
 #endif
@@ -444,7 +450,7 @@ struct btrfs_io_stripe {
 	/* Block mapping. */
 	u64 physical;
 	u64 length;
-	bool is_scrub;
+	bool rst_search_commit_root;
 	/* For the endio handler. */
 	struct btrfs_io_context *bioc;
 };
@@ -725,8 +731,6 @@ int btrfs_recover_balance(struct btrfs_fs_info *fs_info);
 int btrfs_pause_balance(struct btrfs_fs_info *fs_info);
 int btrfs_relocate_chunk(struct btrfs_fs_info *fs_info, u64 chunk_offset);
 int btrfs_cancel_balance(struct btrfs_fs_info *fs_info);
-int btrfs_create_uuid_tree(struct btrfs_fs_info *fs_info);
-int btrfs_uuid_scan_kthread(void *data);
 bool btrfs_chunk_writeable(struct btrfs_fs_info *fs_info, u64 chunk_offset);
 void btrfs_dev_stat_inc_and_print(struct btrfs_device *dev, int index);
 int btrfs_get_dev_stats(struct btrfs_fs_info *fs_info,
@@ -737,8 +741,6 @@ int btrfs_run_dev_stats(struct btrfs_trans_handle *trans);
 void btrfs_rm_dev_replace_remove_srcdev(struct btrfs_device *srcdev);
 void btrfs_rm_dev_replace_free_srcdev(struct btrfs_device *srcdev);
 void btrfs_destroy_dev_replace_tgtdev(struct btrfs_device *tgtdev);
-int btrfs_is_parity_mirror(struct btrfs_fs_info *fs_info,
-			   u64 logical, u64 len);
 unsigned long btrfs_full_stripe_len(struct btrfs_fs_info *fs_info,
 				    u64 logical);
 u64 btrfs_calc_stripe_length(const struct btrfs_chunk_map *map);
@@ -835,5 +837,10 @@ bool btrfs_repair_one_zone(struct btrfs_fs_info *fs_info, u64 logical);
 
 bool btrfs_pinned_by_swapfile(struct btrfs_fs_info *fs_info, void *ptr);
 const u8 *btrfs_sb_fsid_ptr(const struct btrfs_super_block *sb);
+
+#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
+struct btrfs_io_context *alloc_btrfs_io_context(struct btrfs_fs_info *fs_info,
+						u64 logical, u16 total_stripes);
+#endif
 
 #endif

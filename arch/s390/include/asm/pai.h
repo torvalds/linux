@@ -11,6 +11,7 @@
 #include <linux/jump_label.h>
 #include <asm/lowcore.h>
 #include <asm/ptrace.h>
+#include <asm/asm.h>
 
 struct qpaci_info_block {
 	u64 header;
@@ -33,12 +34,11 @@ static inline int qpaci(struct qpaci_info_block *info)
 		"	lgr	0,%[size]\n"
 		"	.insn	s,0xb28f0000,%[info]\n"
 		"	lgr	%[size],0\n"
-		"	ipm	%[cc]\n"
-		"	srl	%[cc],28\n"
-		: [cc] "=d" (cc), [info] "=Q" (*info), [size] "+&d" (size)
+		CC_IPM(cc)
+		: CC_OUT(cc, cc), [info] "=Q" (*info), [size] "+&d" (size)
 		:
-		: "0", "cc", "memory");
-	return cc ? (size + 1) * sizeof(u64) : 0;
+		: CC_CLOBBER_LIST("0", "memory"));
+	return CC_TRANSFORM(cc) ? (size + 1) * sizeof(u64) : 0;
 }
 
 #define PAI_CRYPTO_BASE			0x1000	/* First event number */

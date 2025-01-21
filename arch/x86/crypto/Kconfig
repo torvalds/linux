@@ -14,7 +14,7 @@ config CRYPTO_CURVE25519_X86
 	  - ADX (large integer arithmetic)
 
 config CRYPTO_AES_NI_INTEL
-	tristate "Ciphers: AES, modes: ECB, CBC, CTS, CTR, XTR, XTS, GCM (AES-NI)"
+	tristate "Ciphers: AES, modes: ECB, CBC, CTS, CTR, XCTR, XTS, GCM (AES-NI/VAES)"
 	depends on X86
 	select CRYPTO_AEAD
 	select CRYPTO_LIB_AES
@@ -25,10 +25,14 @@ config CRYPTO_AES_NI_INTEL
 	help
 	  Block cipher: AES cipher algorithms
 	  AEAD cipher: AES with GCM
-	  Length-preserving ciphers: AES with ECB, CBC, CTS, CTR, XTR, XTS
+	  Length-preserving ciphers: AES with ECB, CBC, CTS, CTR, XCTR, XTS
 
 	  Architecture: x86 (32-bit and 64-bit) using:
 	  - AES-NI (AES new instructions)
+	  - VAES (Vector AES)
+
+	  Some algorithm implementations are supported only in 64-bit builds,
+	  and some have additional prerequisites such as AVX2 or AVX512.
 
 config CRYPTO_BLOWFISH_X86_64
 	tristate "Ciphers: Blowfish, modes: ECB, CBC"
@@ -359,7 +363,7 @@ config CRYPTO_CHACHA20_X86_64
 	  - AVX-512VL (Advanced Vector Extensions-512VL)
 
 config CRYPTO_AEGIS128_AESNI_SSE2
-	tristate "AEAD ciphers: AEGIS-128 (AES-NI/SSE2)"
+	tristate "AEAD ciphers: AEGIS-128 (AES-NI/SSE4.1)"
 	depends on X86 && 64BIT
 	select CRYPTO_AEAD
 	select CRYPTO_SIMD
@@ -368,7 +372,7 @@ config CRYPTO_AEGIS128_AESNI_SSE2
 
 	  Architecture: x86_64 using:
 	  - AES-NI (AES New Instructions)
-	  - SSE2 (Streaming SIMD Extensions 2)
+	  - SSE4.1 (Streaming SIMD Extensions 4.1)
 
 config CRYPTO_NHPOLY1305_SSE2
 	tristate "Hash functions: NHPoly1305 (SSE2)"

@@ -169,7 +169,7 @@ static const struct regmap_config fsl_aud2htx_regmap_config = {
 	.readable_reg = fsl_aud2htx_readable_reg,
 	.volatile_reg = fsl_aud2htx_volatile_reg,
 	.writeable_reg = fsl_aud2htx_writeable_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static const struct of_device_id fsl_aud2htx_dt_ids[] = {
@@ -296,7 +296,7 @@ static const struct dev_pm_ops fsl_aud2htx_pm_ops = {
 
 static struct platform_driver fsl_aud2htx_driver = {
 	.probe = fsl_aud2htx_probe,
-	.remove_new = fsl_aud2htx_remove,
+	.remove = fsl_aud2htx_remove,
 	.driver = {
 		.name = "fsl-aud2htx",
 		.pm = pm_ptr(&fsl_aud2htx_pm_ops),

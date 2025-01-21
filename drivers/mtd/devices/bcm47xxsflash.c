@@ -367,7 +367,7 @@ static void bcm47xxsflash_bcma_remove(struct platform_device *pdev)
 
 static struct platform_driver bcma_sflash_driver = {
 	.probe	= bcm47xxsflash_bcma_probe,
-	.remove_new = bcm47xxsflash_bcma_remove,
+	.remove = bcm47xxsflash_bcma_remove,
 	.driver = {
 		.name = "bcma_sflash",
 	},

@@ -13,7 +13,7 @@
 #include <linux/property.h>
 #include <linux/regulator/consumer.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define LTC2632_CMD_WRITE_INPUT_N               0x0
 #define LTC2632_CMD_UPDATE_DAC_N                0x1

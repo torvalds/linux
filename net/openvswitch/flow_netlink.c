@@ -1938,7 +1938,7 @@ int ovs_nla_get_identifier(struct sw_flow_id *sfid, const struct nlattr *ufid,
 
 u32 ovs_nla_get_ufid_flags(const struct nlattr *attr)
 {
-	return attr ? nla_get_u32(attr) : 0;
+	return nla_get_u32_default(attr, 0);
 }
 
 /**
@@ -2491,7 +2491,7 @@ static struct nlattr *reserve_sfa_size(struct sw_flow_actions **sfa,
 
 	acts = nla_alloc_flow_actions(new_acts_size);
 	if (IS_ERR(acts))
-		return (void *)acts;
+		return ERR_CAST(acts);
 
 	memcpy(acts->actions, (*sfa)->actions, (*sfa)->actions_len);
 	acts->actions_len = (*sfa)->actions_len;

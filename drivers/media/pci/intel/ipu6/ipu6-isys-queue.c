@@ -13,17 +13,48 @@
 
 #include <media/media-entity.h>
 #include <media/v4l2-subdev.h>
-#include <media/videobuf2-dma-contig.h>
+#include <media/videobuf2-dma-sg.h>
 #include <media/videobuf2-v4l2.h>
 
 #include "ipu6-bus.h"
+#include "ipu6-dma.h"
 #include "ipu6-fw-isys.h"
 #include "ipu6-isys.h"
 #include "ipu6-isys-video.h"
 
-static int queue_setup(struct vb2_queue *q, unsigned int *num_buffers,
-		       unsigned int *num_planes, unsigned int sizes[],
-		       struct device *alloc_devs[])
+static int ipu6_isys_buf_init(struct vb2_buffer *vb)
+{
+	struct ipu6_isys *isys = vb2_get_drv_priv(vb->vb2_queue);
+	struct sg_table *sg = vb2_dma_sg_plane_desc(vb, 0);
+	struct vb2_v4l2_buffer *vvb = to_vb2_v4l2_buffer(vb);
+	struct ipu6_isys_video_buffer *ivb =
+		vb2_buffer_to_ipu6_isys_video_buffer(vvb);
+	int ret;
+
+	ret = ipu6_dma_map_sgtable(isys->adev, sg, DMA_TO_DEVICE, 0);
+	if (ret)
+		return ret;
+
+	ivb->dma_addr = sg_dma_address(sg->sgl);
+
+	return 0;
+}
+
+static void ipu6_isys_buf_cleanup(struct vb2_buffer *vb)
+{
+	struct ipu6_isys *isys = vb2_get_drv_priv(vb->vb2_queue);
+	struct sg_table *sg = vb2_dma_sg_plane_desc(vb, 0);
+	struct vb2_v4l2_buffer *vvb = to_vb2_v4l2_buffer(vb);
+	struct ipu6_isys_video_buffer *ivb =
+		vb2_buffer_to_ipu6_isys_video_buffer(vvb);
+
+	ivb->dma_addr = 0;
+	ipu6_dma_unmap_sgtable(isys->adev, sg, DMA_TO_DEVICE, 0);
+}
+
+static int ipu6_isys_queue_setup(struct vb2_queue *q, unsigned int *num_buffers,
+				 unsigned int *num_planes, unsigned int sizes[],
+				 struct device *alloc_devs[])
 {
 	struct ipu6_isys_queue *aq = vb2_queue_to_isys_queue(q);
 	struct ipu6_isys_video *av = ipu6_isys_queue_to_video(aq);
@@ -207,9 +238,11 @@ ipu6_isys_buf_to_fw_frame_buf_pin(struct vb2_buffer *vb,
 				  struct ipu6_fw_isys_frame_buff_set_abi *set)
 {
 	struct ipu6_isys_queue *aq = vb2_queue_to_isys_queue(vb->vb2_queue);
+	struct vb2_v4l2_buffer *vvb = to_vb2_v4l2_buffer(vb);
+	struct ipu6_isys_video_buffer *ivb =
+		vb2_buffer_to_ipu6_isys_video_buffer(vvb);
 
-	set->output_pins[aq->fw_output].addr =
-		vb2_dma_contig_plane_dma_addr(vb, 0);
+	set->output_pins[aq->fw_output].addr = ivb->dma_addr;
 	set->output_pins[aq->fw_output].out_buf_id = vb->index + 1;
 }
 
@@ -332,7 +365,7 @@ static void buf_queue(struct vb2_buffer *vb)
 
 	dev_dbg(dev, "queue buffer %u for %s\n", vb->index, av->vdev.name);
 
-	dma = vb2_dma_contig_plane_dma_addr(vb, 0);
+	dma = ivb->dma_addr;
 	dev_dbg(dev, "iova: iova %pad\n", &dma);
 
 	spin_lock_irqsave(&aq->lock, flags);
@@ -724,10 +757,14 @@ void ipu6_isys_queue_buf_ready(struct ipu6_isys_stream *stream,
 	}
 
 	list_for_each_entry_reverse(ib, &aq->active, head) {
+		struct ipu6_isys_video_buffer *ivb;
+		struct vb2_v4l2_buffer *vvb;
 		dma_addr_t addr;
 
 		vb = ipu6_isys_buffer_to_vb2_buffer(ib);
-		addr = vb2_dma_contig_plane_dma_addr(vb, 0);
+		vvb = to_vb2_v4l2_buffer(vb);
+		ivb = vb2_buffer_to_ipu6_isys_video_buffer(vvb);
+		addr = ivb->dma_addr;
 
 		if (info->pin.addr != addr) {
 			if (first)
@@ -766,10 +803,12 @@ void ipu6_isys_queue_buf_ready(struct ipu6_isys_stream *stream,
 }
 
 static const struct vb2_ops ipu6_isys_queue_ops = {
-	.queue_setup = queue_setup,
+	.queue_setup = ipu6_isys_queue_setup,
 	.wait_prepare = vb2_ops_wait_prepare,
 	.wait_finish = vb2_ops_wait_finish,
+	.buf_init = ipu6_isys_buf_init,
 	.buf_prepare = ipu6_isys_buf_prepare,
+	.buf_cleanup = ipu6_isys_buf_cleanup,
 	.start_streaming = start_streaming,
 	.stop_streaming = stop_streaming,
 	.buf_queue = buf_queue,
@@ -779,16 +818,17 @@ int ipu6_isys_queue_init(struct ipu6_isys_queue *aq)
 {
 	struct ipu6_isys *isys = ipu6_isys_queue_to_video(aq)->isys;
 	struct ipu6_isys_video *av = ipu6_isys_queue_to_video(aq);
+	struct ipu6_bus_device *adev = isys->adev;
 	int ret;
 
 	/* no support for userptr */
 	if (!aq->vbq.io_modes)
 		aq->vbq.io_modes = VB2_MMAP | VB2_DMABUF;
 
-	aq->vbq.drv_priv = aq;
+	aq->vbq.drv_priv = isys;
 	aq->vbq.ops = &ipu6_isys_queue_ops;
 	aq->vbq.lock = &av->mutex;
-	aq->vbq.mem_ops = &vb2_dma_contig_memops;
+	aq->vbq.mem_ops = &vb2_dma_sg_memops;
 	aq->vbq.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	aq->vbq.min_queued_buffers = 1;
 	aq->vbq.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
@@ -797,8 +837,8 @@ int ipu6_isys_queue_init(struct ipu6_isys_queue *aq)
 	if (ret)
 		return ret;
 
-	aq->dev = &isys->adev->auxdev.dev;
-	aq->vbq.dev = &isys->adev->auxdev.dev;
+	aq->dev = &adev->auxdev.dev;
+	aq->vbq.dev = &adev->isp->pdev->dev;
 	spin_lock_init(&aq->lock);
 	INIT_LIST_HEAD(&aq->active);
 	INIT_LIST_HEAD(&aq->incoming);

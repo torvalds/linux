@@ -824,7 +824,7 @@ static int rtw_pci_tx_write_data(struct rtw_dev *rtwdev,
 	pkt_desc = skb_push(skb, chip->tx_pkt_desc_sz);
 	memset(pkt_desc, 0, tx_pkt_desc_sz);
 	pkt_info->qsel = rtw_pci_get_tx_qsel(skb, queue);
-	rtw_tx_fill_tx_desc(pkt_info, skb);
+	rtw_tx_fill_tx_desc(rtwdev, pkt_info, skb);
 	dma = dma_map_single(&rtwpci->pdev->dev, skb->data, skb->len,
 			     DMA_TO_DEVICE);
 	if (dma_mapping_error(&rtwpci->pdev->dev, dma))
@@ -1065,7 +1065,7 @@ static u32 rtw_pci_rx_napi(struct rtw_dev *rtwdev, struct rtw_pci *rtwpci,
 		dma_sync_single_for_cpu(rtwdev->dev, dma, RTK_PCI_RX_BUF_SIZE,
 					DMA_FROM_DEVICE);
 		rx_desc = skb->data;
-		chip->ops->query_rx_desc(rtwdev, rx_desc, &pkt_stat, &rx_status);
+		rtw_rx_query_rx_desc(rtwdev, rx_desc, &pkt_stat, &rx_status);
 
 		/* offset from rx_desc to payload */
 		pkt_offset = pkt_desc_sz + pkt_stat.drv_info_sz +
@@ -1088,6 +1088,7 @@ static u32 rtw_pci_rx_napi(struct rtw_dev *rtwdev, struct rtw_pci *rtwpci,
 			/* remove rx_desc */
 			skb_pull(new, pkt_offset);
 
+			rtw_update_rx_freq_for_invalid(rtwdev, new, &rx_status, &pkt_stat);
 			rtw_rx_stats(rtwdev, pkt_stat.vif, new);
 			memcpy(new->cb, &rx_status, sizeof(rx_status));
 			ieee80211_rx_napi(rtwdev->hw, NULL, new, napi);
@@ -1600,6 +1601,7 @@ static struct rtw_hci_ops rtw_pci_ops = {
 	.deep_ps = rtw_pci_deep_ps,
 	.link_ps = rtw_pci_link_ps,
 	.interface_cfg = rtw_pci_interface_cfg,
+	.dynamic_rx_agg = NULL,
 
 	.read8 = rtw_pci_read8,
 	.read16 = rtw_pci_read16,

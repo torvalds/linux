@@ -258,6 +258,12 @@ create_elf_tables(struct linux_binprm *bprm, const struct elfhdr *exec,
 #ifdef ELF_HWCAP2
 	NEW_AUX_ENT(AT_HWCAP2, ELF_HWCAP2);
 #endif
+#ifdef ELF_HWCAP3
+	NEW_AUX_ENT(AT_HWCAP3, ELF_HWCAP3);
+#endif
+#ifdef ELF_HWCAP4
+	NEW_AUX_ENT(AT_HWCAP4, ELF_HWCAP4);
+#endif
 	NEW_AUX_ENT(AT_EXECFN, bprm->exec);
 	if (k_platform) {
 		NEW_AUX_ENT(AT_PLATFORM,
@@ -1251,6 +1257,7 @@ out_free_interp:
 		}
 		reloc_func_desc = interp_load_addr;
 
+		allow_write_access(interpreter);
 		fput(interpreter);
 
 		kfree(interp_elf_ex);
@@ -1314,6 +1321,11 @@ out_free_interp:
 		   emulate the SVr4 behavior. Sigh. */
 		error = vm_mmap(NULL, 0, PAGE_SIZE, PROT_READ | PROT_EXEC,
 				MAP_FIXED | MAP_PRIVATE, 0);
+
+		retval = do_mseal(0, PAGE_SIZE, 0);
+		if (retval)
+			pr_warn_ratelimited("pid=%d, couldn't seal address 0, ret=%d.\n",
+					    task_pid_nr(current), retval);
 	}
 
 	regs = current_pt_regs();
@@ -1342,6 +1354,7 @@ out_free_dentry:
 	kfree(interp_elf_ex);
 	kfree(interp_elf_phdata);
 out_free_file:
+	allow_write_access(interpreter);
 	if (interpreter)
 		fput(interpreter);
 out_free_ph:
@@ -2039,7 +2052,7 @@ static int elf_core_dump(struct coredump_params *cprm)
 	{
 		size_t sz = info.size;
 
-		/* For cell spufs */
+		/* For cell spufs and x86 xstate */
 		sz += elf_coredump_extra_notes_size();
 
 		phdr4note = kmalloc(sizeof(*phdr4note), GFP_KERNEL);
@@ -2103,7 +2116,7 @@ static int elf_core_dump(struct coredump_params *cprm)
 	if (!write_note_info(&info, cprm))
 		goto end_coredump;
 
-	/* For cell spufs */
+	/* For cell spufs and x86 xstate */
 	if (elf_coredump_extra_notes_write(cprm))
 		goto end_coredump;
 

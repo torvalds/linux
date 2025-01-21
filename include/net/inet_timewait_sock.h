@@ -45,6 +45,8 @@ struct inet_timewait_sock {
 #define tw_node			__tw_common.skc_nulls_node
 #define tw_bind_node		__tw_common.skc_bind_node
 #define tw_refcnt		__tw_common.skc_refcnt
+#define tw_tx_queue_mapping	__tw_common.skc_tx_queue_mapping
+#define tw_rx_queue_mapping	__tw_common.skc_rx_queue_mapping
 #define tw_hash			__tw_common.skc_hash
 #define tw_prot			__tw_common.skc_prot
 #define tw_net			__tw_common.skc_net
@@ -58,7 +60,7 @@ struct inet_timewait_sock {
 #define tw_dr			__tw_common.skc_tw_dr
 
 	__u32			tw_mark;
-	volatile unsigned char	tw_substate;
+	unsigned char		tw_substate;
 	unsigned char		tw_rcv_wscale;
 
 	/* Socket demultiplex comparisons on incoming packets. */

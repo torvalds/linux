@@ -123,7 +123,7 @@ void ionic_debugfs_add_qcq(struct ionic_lif *lif, struct ionic_qcq *qcq)
 	struct ionic_cq *cq = &qcq->cq;
 
 	qcq_dentry = debugfs_create_dir(q->name, lif->dentry);
-	if (IS_ERR_OR_NULL(qcq_dentry))
+	if (IS_ERR(qcq_dentry))
 		return;
 	qcq->dentry = qcq_dentry;
 

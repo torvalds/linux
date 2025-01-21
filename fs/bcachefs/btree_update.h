@@ -192,7 +192,7 @@ static inline int bch2_trans_commit(struct btree_trans *trans,
 	nested_lockrestart_do(_trans, _do ?: bch2_trans_commit(_trans, (_disk_res),\
 					(_journal_seq), (_flags)))
 
-#define bch2_trans_do(_c, _disk_res, _journal_seq, _flags, _do)		\
+#define bch2_trans_commit_do(_c, _disk_res, _journal_seq, _flags, _do)		\
 	bch2_trans_run(_c, commit_do(trans, _disk_res, _journal_seq, _flags, _do))
 
 #define trans_for_each_update(_trans, _i)				\
@@ -220,7 +220,8 @@ static inline struct bkey_i *__bch2_bkey_make_mut_noupdate(struct btree_trans *t
 	if (type && k.k->type != type)
 		return ERR_PTR(-ENOENT);
 
-	mut = bch2_trans_kmalloc_nomemzero(trans, bytes);
+	/* extra padding for varint_decode_fast... */
+	mut = bch2_trans_kmalloc_nomemzero(trans, bytes + 8);
 	if (!IS_ERR(mut)) {
 		bkey_reassemble(mut, k);
 

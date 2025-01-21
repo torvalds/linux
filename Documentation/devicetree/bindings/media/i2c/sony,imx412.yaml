@@ -26,10 +26,6 @@ properties:
     description: I2C address
     maxItems: 1
 
-  assigned-clocks: true
-  assigned-clock-parents: true
-  assigned-clock-rates: true
-
   clocks:
     description: Clock frequency 6MHz, 12MHz, 18MHz, 24MHz or 27MHz
     maxItems: 1
@@ -85,10 +81,6 @@ examples:
             compatible = "sony,imx412";
             reg = <0x1a>;
             clocks = <&imx412_clk>;
-
-            assigned-clocks = <&imx412_clk>;
-            assigned-clock-parents = <&imx412_clk_parent>;
-            assigned-clock-rates = <24000000>;
 
             port {
                 imx412: endpoint {

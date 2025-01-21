@@ -32,7 +32,7 @@
 };
 
 &iomuxc {
-	pinctrl_ecspi5_mba6x: ecspi5grp-mba6x {
+	pinctrl_ecspi5_mba6x: ecspi5-mba6xgrp {
 		fsl,pins = <
 			/* HYS, SPEED = MED, 100k up, DSE = 011, SRE_FAST */
 			MX6QDL_PAD_SD1_DAT0__ECSPI5_MISO 0x1b099

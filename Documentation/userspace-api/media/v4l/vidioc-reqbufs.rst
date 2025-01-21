@@ -73,6 +73,8 @@ aborting or finishing any DMA in progress, an implicit
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.5cm}|
 
+.. cssclass:: longtable
+
 .. flat-table:: struct v4l2_requestbuffers
     :header-rows:  0
     :stub-columns: 0
@@ -123,14 +125,6 @@ aborting or finishing any DMA in progress, an implicit
 .. _V4L2-BUF-CAP-SUPPORTS-MAX-NUM-BUFFERS:
 .. _V4L2-BUF-CAP-SUPPORTS-REMOVE-BUFS:
 
-.. raw:: latex
-
-   \footnotesize
-
-.. tabularcolumns:: |p{8.1cm}|p{2.2cm}|p{7.0cm}|
-
-.. cssclass:: longtable
-
 .. flat-table:: V4L2 Buffer Capabilities Flags
     :header-rows:  0
     :stub-columns: 0
@@ -166,6 +160,36 @@ aborting or finishing any DMA in progress, an implicit
         :ref:`V4L2_BUF_FLAG_NO_CACHE_INVALIDATE <V4L2-BUF-FLAG-NO-CACHE-INVALIDATE>`,
         :ref:`V4L2_BUF_FLAG_NO_CACHE_CLEAN <V4L2-BUF-FLAG-NO-CACHE-CLEAN>` and
         :ref:`V4L2_MEMORY_FLAG_NON_COHERENT <V4L2-MEMORY-FLAG-NON-COHERENT>`.
+    * - ``V4L2_BUF_CAP_SUPPORTS_MAX_NUM_BUFFERS``
+      - 0x00000080
+      - If set, then the ``max_num_buffers`` field in ``struct v4l2_create_buffers``
+        is valid. If not set, then the maximum is ``VIDEO_MAX_FRAME`` buffers.
+    * - ``V4L2_BUF_CAP_SUPPORTS_REMOVE_BUFS``
+      - 0x00000100
+      - If set, then ``VIDIOC_REMOVE_BUFS`` is supported.
+
+.. _memory-flags:
+.. _V4L2-MEMORY-FLAG-NON-COHERENT:
+
+.. flat-table:: Memory Consistency Flags
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       3 1 4
+
+    * - ``V4L2_MEMORY_FLAG_NON_COHERENT``
+      - 0x00000001
+      - A buffer is allocated either in coherent (it will be automatically
+	coherent between the CPU and the bus) or non-coherent memory. The
+	latter can provide performance gains, for instance the CPU cache
+	sync/flush operations can be avoided if the buffer is accessed by the
+	corresponding device only and the CPU does not read/write to/from that
+	buffer. However, this requires extra care from the driver -- it must
+	guarantee memory consistency by issuing a cache flush/sync when
+	consistency is needed. If this flag is set V4L2 will attempt to
+	allocate the buffer in non-coherent memory. The flag takes effect
+	only if the buffer is used for :ref:`memory mapping <mmap>` I/O and the
+	queue reports the :ref:`V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS
+	<V4L2-BUF-CAP-SUPPORTS-MMAP-CACHE-HINTS>` capability.
 
 .. raw:: latex
 

@@ -27,6 +27,7 @@
 #define SCLP_ERRNOTIFY_AQ_RESET			0
 #define SCLP_ERRNOTIFY_AQ_REPAIR		1
 #define SCLP_ERRNOTIFY_AQ_INFO_LOG		2
+#define SCLP_ERRNOTIFY_AQ_OPTICS_DATA		3
 
 static DEFINE_MUTEX(sclp_pci_mutex);
 static struct sclp_register sclp_pci_event = {
@@ -116,6 +117,7 @@ static int sclp_pci_check_report(struct zpci_report_error_header *report)
 	case SCLP_ERRNOTIFY_AQ_RESET:
 	case SCLP_ERRNOTIFY_AQ_REPAIR:
 	case SCLP_ERRNOTIFY_AQ_INFO_LOG:
+	case SCLP_ERRNOTIFY_AQ_OPTICS_DATA:
 		break;
 	default:
 		return -EINVAL;

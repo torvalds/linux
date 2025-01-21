@@ -43,11 +43,13 @@
 #include <linux/stacktrace.h>
 
 #include <asm/alternative.h>
+#include <asm/arch_timer.h>
 #include <asm/compat.h>
 #include <asm/cpufeature.h>
 #include <asm/cacheflush.h>
 #include <asm/exec.h>
 #include <asm/fpsimd.h>
+#include <asm/gcs.h>
 #include <asm/mmu_context.h>
 #include <asm/mte.h>
 #include <asm/processor.h>
@@ -226,7 +228,7 @@ void __show_regs(struct pt_regs *regs)
 	printk("sp : %016llx\n", sp);
 
 	if (system_uses_irq_prio_masking())
-		printk("pmr_save: %08llx\n", regs->pmr_save);
+		printk("pmr: %08x\n", regs->pmr);
 
 	i = top_reg;
 
@@ -271,17 +273,73 @@ static void flush_tagged_addr_state(void)
 		clear_thread_flag(TIF_TAGGED_ADDR);
 }
 
+static void flush_poe(void)
+{
+	if (!system_supports_poe())
+		return;
+
+	write_sysreg_s(POR_EL0_INIT, SYS_POR_EL0);
+}
+
+#ifdef CONFIG_ARM64_GCS
+
+static void flush_gcs(void)
+{
+	if (!system_supports_gcs())
+		return;
+
+	gcs_free(current);
+	current->thread.gcs_el0_mode = 0;
+	write_sysreg_s(GCSCRE0_EL1_nTR, SYS_GCSCRE0_EL1);
+	write_sysreg_s(0, SYS_GCSPR_EL0);
+}
+
+static int copy_thread_gcs(struct task_struct *p,
+			   const struct kernel_clone_args *args)
+{
+	unsigned long gcs;
+
+	if (!system_supports_gcs())
+		return 0;
+
+	p->thread.gcs_base = 0;
+	p->thread.gcs_size = 0;
+
+	gcs = gcs_alloc_thread_stack(p, args);
+	if (IS_ERR_VALUE(gcs))
+		return PTR_ERR((void *)gcs);
+
+	p->thread.gcs_el0_mode = current->thread.gcs_el0_mode;
+	p->thread.gcs_el0_locked = current->thread.gcs_el0_locked;
+
+	return 0;
+}
+
+#else
+
+static void flush_gcs(void) { }
+static int copy_thread_gcs(struct task_struct *p,
+			   const struct kernel_clone_args *args)
+{
+	return 0;
+}
+
+#endif
+
 void flush_thread(void)
 {
 	fpsimd_flush_thread();
 	tls_thread_flush();
 	flush_ptrace_hw_breakpoint(current);
 	flush_tagged_addr_state();
+	flush_poe();
+	flush_gcs();
 }
 
 void arch_release_task_struct(struct task_struct *tsk)
 {
 	fpsimd_release_task(tsk);
+	gcs_free(tsk);
 }
 
 int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
@@ -345,6 +403,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	unsigned long stack_start = args->stack;
 	unsigned long tls = args->tls;
 	struct pt_regs *childregs = task_pt_regs(p);
+	int ret;
 
 	memset(&p->thread.cpu_context, 0, sizeof(struct cpu_context));
 
@@ -371,6 +430,9 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 		if (system_supports_tpidr2())
 			p->thread.tpidr2_el0 = read_sysreg_s(SYS_TPIDR2_EL0);
 
+		if (system_supports_poe())
+			p->thread.por_el0 = read_sysreg_s(SYS_POR_EL0);
+
 		if (stack_start) {
 			if (is_compat_thread(task_thread_info(p)))
 				childregs->compat_sp = stack_start;
@@ -386,6 +448,10 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 			p->thread.uw.tp_value = tls;
 			p->thread.tpidr2_el0 = 0;
 		}
+
+		ret = copy_thread_gcs(p, args);
+		if (ret != 0)
+			return ret;
 	} else {
 		/*
 		 * A kthread has no context to ERET to, so ensure any buggy
@@ -396,9 +462,13 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 		 */
 		memset(childregs, 0, sizeof(struct pt_regs));
 		childregs->pstate = PSR_MODE_EL1h | PSR_IL_BIT;
+		childregs->stackframe.type = FRAME_META_TYPE_FINAL;
 
 		p->thread.cpu_context.x19 = (unsigned long)args->fn;
 		p->thread.cpu_context.x20 = (unsigned long)args->fn_arg;
+
+		if (system_supports_poe())
+			p->thread.por_el0 = POR_EL0_INIT;
 	}
 	p->thread.cpu_context.pc = (unsigned long)ret_from_fork;
 	p->thread.cpu_context.sp = (unsigned long)childregs;
@@ -406,7 +476,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	 * For the benefit of the unwinder, set up childregs->stackframe
 	 * as the final frame for the new task.
 	 */
-	p->thread.cpu_context.fp = (unsigned long)childregs->stackframe;
+	p->thread.cpu_context.fp = (unsigned long)&childregs->stackframe;
 
 	ptrace_hw_copy_thread(p);
 
@@ -426,7 +496,7 @@ static void tls_thread_switch(struct task_struct *next)
 
 	if (is_compat_thread(task_thread_info(next)))
 		write_sysreg(next->thread.uw.tp_value, tpidrro_el0);
-	else if (!arm64_kernel_unmapped_at_el0())
+	else
 		write_sysreg(0, tpidrro_el0);
 
 	write_sysreg(*task_user_tls(next), tpidr_el0);
@@ -471,28 +541,104 @@ static void entry_task_switch(struct task_struct *next)
 	__this_cpu_write(__entry_task, next);
 }
 
-/*
- * ARM erratum 1418040 handling, affecting the 32bit view of CNTVCT.
- * Ensure access is disabled when switching to a 32bit task, ensure
- * access is enabled when switching to a 64bit task.
- */
-static void erratum_1418040_thread_switch(struct task_struct *next)
+#ifdef CONFIG_ARM64_GCS
+
+void gcs_preserve_current_state(void)
 {
-	if (!IS_ENABLED(CONFIG_ARM64_ERRATUM_1418040) ||
-	    !this_cpu_has_cap(ARM64_WORKAROUND_1418040))
+	current->thread.gcspr_el0 = read_sysreg_s(SYS_GCSPR_EL0);
+}
+
+static void gcs_thread_switch(struct task_struct *next)
+{
+	if (!system_supports_gcs())
 		return;
 
-	if (is_compat_thread(task_thread_info(next)))
+	/* GCSPR_EL0 is always readable */
+	gcs_preserve_current_state();
+	write_sysreg_s(next->thread.gcspr_el0, SYS_GCSPR_EL0);
+
+	if (current->thread.gcs_el0_mode != next->thread.gcs_el0_mode)
+		gcs_set_el0_mode(next);
+
+	/*
+	 * Ensure that GCS memory effects of the 'prev' thread are
+	 * ordered before other memory accesses with release semantics
+	 * (or preceded by a DMB) on the current PE. In addition, any
+	 * memory accesses with acquire semantics (or succeeded by a
+	 * DMB) are ordered before GCS memory effects of the 'next'
+	 * thread. This will ensure that the GCS memory effects are
+	 * visible to other PEs in case of migration.
+	 */
+	if (task_gcs_el0_enabled(current) || task_gcs_el0_enabled(next))
+		gcsb_dsync();
+}
+
+#else
+
+static void gcs_thread_switch(struct task_struct *next)
+{
+}
+
+#endif
+
+/*
+ * Handle sysreg updates for ARM erratum 1418040 which affects the 32bit view of
+ * CNTVCT, various other errata which require trapping all CNTVCT{,_EL0}
+ * accesses and prctl(PR_SET_TSC). Ensure access is disabled iff a workaround is
+ * required or PR_TSC_SIGSEGV is set.
+ */
+static void update_cntkctl_el1(struct task_struct *next)
+{
+	struct thread_info *ti = task_thread_info(next);
+
+	if (test_ti_thread_flag(ti, TIF_TSC_SIGSEGV) ||
+	    has_erratum_handler(read_cntvct_el0) ||
+	    (IS_ENABLED(CONFIG_ARM64_ERRATUM_1418040) &&
+	     this_cpu_has_cap(ARM64_WORKAROUND_1418040) &&
+	     is_compat_thread(ti)))
 		sysreg_clear_set(cntkctl_el1, ARCH_TIMER_USR_VCT_ACCESS_EN, 0);
 	else
 		sysreg_clear_set(cntkctl_el1, 0, ARCH_TIMER_USR_VCT_ACCESS_EN);
 }
 
-static void erratum_1418040_new_exec(void)
+static void cntkctl_thread_switch(struct task_struct *prev,
+				  struct task_struct *next)
 {
+	if ((read_ti_thread_flags(task_thread_info(prev)) &
+	     (_TIF_32BIT | _TIF_TSC_SIGSEGV)) !=
+	    (read_ti_thread_flags(task_thread_info(next)) &
+	     (_TIF_32BIT | _TIF_TSC_SIGSEGV)))
+		update_cntkctl_el1(next);
+}
+
+static int do_set_tsc_mode(unsigned int val)
+{
+	bool tsc_sigsegv;
+
+	if (val == PR_TSC_SIGSEGV)
+		tsc_sigsegv = true;
+	else if (val == PR_TSC_ENABLE)
+		tsc_sigsegv = false;
+	else
+		return -EINVAL;
+
 	preempt_disable();
-	erratum_1418040_thread_switch(current);
+	update_thread_flag(TIF_TSC_SIGSEGV, tsc_sigsegv);
+	update_cntkctl_el1(current);
 	preempt_enable();
+
+	return 0;
+}
+
+static void permission_overlay_switch(struct task_struct *next)
+{
+	if (!system_supports_poe())
+		return;
+
+	current->thread.por_el0 = read_sysreg_s(SYS_POR_EL0);
+	if (current->thread.por_el0 != next->thread.por_el0) {
+		write_sysreg_s(next->thread.por_el0, SYS_POR_EL0);
+	}
 }
 
 /*
@@ -528,8 +674,10 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	contextidr_thread_switch(next);
 	entry_task_switch(next);
 	ssbs_thread_switch(next);
-	erratum_1418040_thread_switch(next);
+	cntkctl_thread_switch(prev, next);
 	ptrauth_thread_switch_user(next);
+	permission_overlay_switch(next);
+	gcs_thread_switch(next);
 
 	/*
 	 * Complete any pending TLB or cache maintenance on this CPU in case
@@ -645,7 +793,7 @@ void arch_setup_new_exec(void)
 	current->mm->context.flags = mmflags;
 	ptrauth_thread_init_user();
 	mte_thread_init_user();
-	erratum_1418040_new_exec();
+	do_set_tsc_mode(PR_TSC_ENABLE);
 
 	if (task_spec_ssb_noexec(current)) {
 		arch_prctl_spec_ctrl_set(current, PR_SPEC_STORE_BYPASS,
@@ -754,3 +902,26 @@ int arch_elf_adjust_prot(int prot, const struct arch_elf_state *state,
 	return prot;
 }
 #endif
+
+int get_tsc_mode(unsigned long adr)
+{
+	unsigned int val;
+
+	if (is_compat_task())
+		return -EINVAL;
+
+	if (test_thread_flag(TIF_TSC_SIGSEGV))
+		val = PR_TSC_SIGSEGV;
+	else
+		val = PR_TSC_ENABLE;
+
+	return put_user(val, (unsigned int __user *)adr);
+}
+
+int set_tsc_mode(unsigned int val)
+{
+	if (is_compat_task())
+		return -EINVAL;
+
+	return do_set_tsc_mode(val);
+}

@@ -12,22 +12,12 @@
 #include <sysdep/syscalls.h>
 #include <linux/time-internal.h>
 #include <asm/unistd.h>
+#include <asm/delay.h>
 
 void handle_syscall(struct uml_pt_regs *r)
 {
 	struct pt_regs *regs = container_of(r, struct pt_regs, regs);
 	int syscall;
-
-	/*
-	 * If we have infinite CPU resources, then make every syscall also a
-	 * preemption point, since we don't have any other preemption in this
-	 * case, and kernel threads would basically never run until userspace
-	 * went to sleep, even if said userspace interacts with the kernel in
-	 * various ways.
-	 */
-	if (time_travel_mode == TT_MODE_INFCPU ||
-	    time_travel_mode == TT_MODE_EXTERNAL)
-		schedule();
 
 	/* Initialize the syscall number and default return value. */
 	UPT_SYSCALL_NR(r) = PT_SYSCALL_NR(r->gp);
@@ -41,9 +31,25 @@ void handle_syscall(struct uml_pt_regs *r)
 		goto out;
 
 	syscall = UPT_SYSCALL_NR(r);
-	if (syscall >= 0 && syscall < __NR_syscalls)
-		PT_REGS_SET_SYSCALL_RETURN(regs,
-				EXECUTE_SYSCALL(syscall, regs));
+	if (syscall >= 0 && syscall < __NR_syscalls) {
+		unsigned long ret = EXECUTE_SYSCALL(syscall, regs);
+
+		PT_REGS_SET_SYSCALL_RETURN(regs, ret);
+
+		/*
+		 * An error value here can be some form of -ERESTARTSYS
+		 * and then we'd just loop. Make any error syscalls take
+		 * some time, so that it won't just loop if something is
+		 * not ready, and hopefully other things will make some
+		 * progress.
+		 */
+		if (IS_ERR_VALUE(ret) &&
+		    (time_travel_mode == TT_MODE_INFCPU ||
+		     time_travel_mode == TT_MODE_EXTERNAL)) {
+			um_udelay(1);
+			schedule();
+		}
+	}
 
 out:
 	syscall_trace_leave(regs);

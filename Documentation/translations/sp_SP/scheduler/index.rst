@@ -6,3 +6,5 @@
     :maxdepth: 1
 
     sched-design-CFS
+    sched-eevdf
+    sched-bwc

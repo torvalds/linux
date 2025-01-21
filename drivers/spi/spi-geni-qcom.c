@@ -604,6 +604,21 @@ static int spi_geni_prepare_message(struct spi_controller *spi,
 	return -EINVAL;
 }
 
+static void spi_geni_release_dma_chan(void *data)
+{
+	struct spi_geni_master *mas = data;
+
+	if (mas->rx) {
+		dma_release_channel(mas->rx);
+		mas->rx = NULL;
+	}
+
+	if (mas->tx) {
+		dma_release_channel(mas->tx);
+		mas->tx = NULL;
+	}
+}
+
 static int spi_geni_grab_gpi_chan(struct spi_geni_master *mas)
 {
 	int ret;
@@ -622,6 +637,12 @@ static int spi_geni_grab_gpi_chan(struct spi_geni_master *mas)
 		goto err_rx;
 	}
 
+	ret = devm_add_action_or_reset(mas->dev, spi_geni_release_dma_chan, mas);
+	if (ret) {
+		dev_err(mas->dev, "Unable to add action.\n");
+		return ret;
+	}
+
 	return 0;
 
 err_rx:
@@ -630,19 +651,6 @@ err_rx:
 err_tx:
 	mas->tx = NULL;
 	return ret;
-}
-
-static void spi_geni_release_dma_chan(struct spi_geni_master *mas)
-{
-	if (mas->rx) {
-		dma_release_channel(mas->rx);
-		mas->rx = NULL;
-	}
-
-	if (mas->tx) {
-		dma_release_channel(mas->tx);
-		mas->tx = NULL;
-	}
 }
 
 static int spi_geni_init(struct spi_geni_master *mas)
@@ -1108,27 +1116,31 @@ static int spi_geni_probe(struct platform_device *pdev)
 	init_completion(&mas->tx_reset_done);
 	init_completion(&mas->rx_reset_done);
 	spin_lock_init(&mas->lock);
+
+	ret = geni_icc_get(&mas->se, NULL);
+	if (ret)
+		return ret;
+
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 250);
-	pm_runtime_enable(dev);
+	ret = devm_pm_runtime_enable(dev);
+	if (ret)
+		return ret;
 
 	if (device_property_read_bool(&pdev->dev, "spi-slave"))
 		spi->target = true;
 
-	ret = geni_icc_get(&mas->se, NULL);
-	if (ret)
-		goto spi_geni_probe_runtime_disable;
 	/* Set the bus quota to a reasonable value for register access */
 	mas->se.icc_paths[GENI_TO_CORE].avg_bw = Bps_to_icc(CORE_2X_50_MHZ);
 	mas->se.icc_paths[CPU_TO_GENI].avg_bw = GENI_DEFAULT_BW;
 
 	ret = geni_icc_set_bw(&mas->se);
 	if (ret)
-		goto spi_geni_probe_runtime_disable;
+		return ret;
 
 	ret = spi_geni_init(mas);
 	if (ret)
-		goto spi_geni_probe_runtime_disable;
+		return ret;
 
 	/*
 	 * check the mode supported and set_cs for fifo mode only
@@ -1144,36 +1156,11 @@ static int spi_geni_probe(struct platform_device *pdev)
 	if (mas->cur_xfer_mode == GENI_GPI_DMA)
 		spi->flags = SPI_CONTROLLER_MUST_TX;
 
-	ret = request_irq(mas->irq, geni_spi_isr, 0, dev_name(dev), spi);
+	ret = devm_request_irq(dev, mas->irq, geni_spi_isr, 0, dev_name(dev), spi);
 	if (ret)
-		goto spi_geni_release_dma;
+		return ret;
 
-	ret = spi_register_controller(spi);
-	if (ret)
-		goto spi_geni_probe_free_irq;
-
-	return 0;
-spi_geni_probe_free_irq:
-	free_irq(mas->irq, spi);
-spi_geni_release_dma:
-	spi_geni_release_dma_chan(mas);
-spi_geni_probe_runtime_disable:
-	pm_runtime_disable(dev);
-	return ret;
-}
-
-static void spi_geni_remove(struct platform_device *pdev)
-{
-	struct spi_controller *spi = platform_get_drvdata(pdev);
-	struct spi_geni_master *mas = spi_controller_get_devdata(spi);
-
-	/* Unregister _before_ disabling pm_runtime() so we stop transfers */
-	spi_unregister_controller(spi);
-
-	spi_geni_release_dma_chan(mas);
-
-	free_irq(mas->irq, spi);
-	pm_runtime_disable(&pdev->dev);
+	return devm_spi_register_controller(dev, spi);
 }
 
 static int __maybe_unused spi_geni_runtime_suspend(struct device *dev)
@@ -1255,7 +1242,6 @@ MODULE_DEVICE_TABLE(of, spi_geni_dt_match);
 
 static struct platform_driver spi_geni_driver = {
 	.probe  = spi_geni_probe,
-	.remove_new = spi_geni_remove,
 	.driver = {
 		.name = "geni_spi",
 		.pm = &spi_geni_pm_ops,

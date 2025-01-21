@@ -30,6 +30,7 @@ config SND_SOC_FSL_MQS
 	tristate "Medium Quality Sound (MQS) module support"
 	depends on SND_SOC_FSL_SAI
 	select REGMAP_MMIO
+	select IMX_SCMI_MISC_DRV if IMX_SCMI_MISC_EXT !=n
 	help
 	  Say Y if you want to add Medium Quality Sound (MQS)
 	  support for the Freescale CPUs.

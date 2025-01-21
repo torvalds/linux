@@ -996,7 +996,7 @@ static int msb_verify_block(struct msb_data *msb, u16 pba,
 	return 0;
 }
 
-/* Writes exectly one block + oob */
+/* Writes exactly one block + oob */
 static int msb_write_block(struct msb_data *msb,
 			u16 pba, u32 lba, struct scatterlist *sg, int offset)
 {
@@ -1684,7 +1684,7 @@ static int msb_cache_read(struct msb_data *msb, int lba,
  */
 
 static const struct chs_entry chs_table[] = {
-/*        size sectors cylynders  heads */
+/*        size sectors cylinders heads */
 	{ 4,    16,    247,       2  },
 	{ 8,    16,    495,       2  },
 	{ 16,   16,    495,       4  },
@@ -1729,7 +1729,7 @@ static int msb_init_card(struct memstick_dev *card)
 
 	boot_block = &msb->boot_page[0];
 
-	/* Save intersting attributes from boot page */
+	/* Save interesting attributes from boot page */
 	msb->block_count = boot_block->attr.number_of_blocks;
 	msb->page_size = boot_block->attr.page_size;
 
@@ -2279,7 +2279,7 @@ out:
 
 #endif /* CONFIG_PM */
 
-static struct memstick_device_id msb_id_tbl[] = {
+static const struct memstick_device_id msb_id_tbl[] = {
 	{MEMSTICK_MATCH_ALL, MEMSTICK_TYPE_LEGACY, MEMSTICK_CATEGORY_STORAGE,
 	 MEMSTICK_CLASS_FLASH},
 

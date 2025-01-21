@@ -29,6 +29,7 @@
 #include <linux/phy.h>
 #include <linux/phylib_stubs.h>
 #include <linux/phy_led_triggers.h>
+#include <linux/phy_link_topology.h>
 #include <linux/pse-pd/pse.h>
 #include <linux/property.h>
 #include <linux/rtnetlink.h>
@@ -279,6 +280,15 @@ static struct phy_driver genphy_driver;
 static LIST_HEAD(phy_fixup_list);
 static DEFINE_MUTEX(phy_fixup_lock);
 
+static bool phy_drv_wol_enabled(struct phy_device *phydev)
+{
+	struct ethtool_wolinfo wol = { .cmd = ETHTOOL_GWOL };
+
+	phy_ethtool_get_wol(phydev, &wol);
+
+	return wol.wolopts != 0;
+}
+
 static bool mdio_bus_phy_may_suspend(struct phy_device *phydev)
 {
 	struct device_driver *drv = phydev->mdio.dev.driver;
@@ -286,6 +296,12 @@ static bool mdio_bus_phy_may_suspend(struct phy_device *phydev)
 	struct net_device *netdev = phydev->attached_dev;
 
 	if (!drv || !phydrv->suspend)
+		return false;
+
+	/* If the PHY on the mido bus is not attached but has WOL enabled
+	 * we cannot suspend the PHY.
+	 */
+	if (!netdev && phy_drv_wol_enabled(phydev))
 		return false;
 
 	/* PHY not attached? May suspend if the PHY has not already been
@@ -1370,6 +1386,48 @@ phy_standalone_show(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR_RO(phy_standalone);
 
 /**
+ * phy_sfp_connect_phy - Connect the SFP module's PHY to the upstream PHY
+ * @upstream: pointer to the upstream phy device
+ * @phy: pointer to the SFP module's phy device
+ *
+ * This helper allows keeping track of PHY devices on the link. It adds the
+ * SFP module's phy to the phy namespace of the upstream phy
+ *
+ * Return: 0 on success, otherwise a negative error code.
+ */
+int phy_sfp_connect_phy(void *upstream, struct phy_device *phy)
+{
+	struct phy_device *phydev = upstream;
+	struct net_device *dev = phydev->attached_dev;
+
+	if (dev)
+		return phy_link_topo_add_phy(dev, phy, PHY_UPSTREAM_PHY, phydev);
+
+	return 0;
+}
+EXPORT_SYMBOL(phy_sfp_connect_phy);
+
+/**
+ * phy_sfp_disconnect_phy - Disconnect the SFP module's PHY from the upstream PHY
+ * @upstream: pointer to the upstream phy device
+ * @phy: pointer to the SFP module's phy device
+ *
+ * This helper allows keeping track of PHY devices on the link. It removes the
+ * SFP module's phy to the phy namespace of the upstream phy. As the module phy
+ * will be destroyed, re-inserting the same module will add a new phy with a
+ * new index.
+ */
+void phy_sfp_disconnect_phy(void *upstream, struct phy_device *phy)
+{
+	struct phy_device *phydev = upstream;
+	struct net_device *dev = phydev->attached_dev;
+
+	if (dev)
+		phy_link_topo_del_phy(dev, phy);
+}
+EXPORT_SYMBOL(phy_sfp_disconnect_phy);
+
+/**
  * phy_sfp_attach - attach the SFP bus to the PHY upstream network device
  * @upstream: pointer to the phy device
  * @bus: sfp bus representing cage being attached
@@ -1511,6 +1569,10 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 
 		if (phydev->sfp_bus_attached)
 			dev->sfp_bus = phydev->sfp_bus;
+
+		err = phy_link_topo_add_phy(dev, phydev, PHY_UPSTREAM_MAC, dev);
+		if (err)
+			goto error;
 	}
 
 	/* Some Ethernet drivers try to connect to a PHY device before
@@ -1938,6 +2000,7 @@ void phy_detach(struct phy_device *phydev)
 	if (dev) {
 		phydev->attached_dev->phydev = NULL;
 		phydev->attached_dev = NULL;
+		phy_link_topo_del_phy(dev, phydev);
 	}
 	phydev->phylink = NULL;
 
@@ -1975,7 +2038,6 @@ EXPORT_SYMBOL(phy_detach);
 
 int phy_suspend(struct phy_device *phydev)
 {
-	struct ethtool_wolinfo wol = { .cmd = ETHTOOL_GWOL };
 	struct net_device *netdev = phydev->attached_dev;
 	const struct phy_driver *phydrv = phydev->drv;
 	int ret;
@@ -1983,8 +2045,7 @@ int phy_suspend(struct phy_device *phydev)
 	if (phydev->suspended || !phydrv)
 		return 0;
 
-	phy_ethtool_get_wol(phydev, &wol);
-	phydev->wol_enabled = wol.wolopts ||
+	phydev->wol_enabled = phy_drv_wol_enabled(phydev) ||
 			      (netdev && netdev->ethtool->wol_enabled);
 	/* If the device has WOL enabled, we cannot suspend the PHY */
 	if (phydev->wol_enabled && !(phydrv->flags & PHY_ALWAYS_CALL_SUSPEND))
@@ -2095,22 +2156,20 @@ EXPORT_SYMBOL(phy_reset_after_clk_enable);
 /**
  * genphy_config_advert - sanitize and advertise auto-negotiation parameters
  * @phydev: target phy_device struct
+ * @advert: auto-negotiation parameters to advertise
  *
  * Description: Writes MII_ADVERTISE with the appropriate values,
  *   after sanitizing the values to make sure we only advertise
  *   what is supported.  Returns < 0 on error, 0 if the PHY's advertisement
  *   hasn't changed, and > 0 if it has changed.
  */
-static int genphy_config_advert(struct phy_device *phydev)
+static int genphy_config_advert(struct phy_device *phydev,
+				const unsigned long *advert)
 {
 	int err, bmsr, changed = 0;
 	u32 adv;
 
-	/* Only allow advertising what this PHY supports */
-	linkmode_and(phydev->advertising, phydev->advertising,
-		     phydev->supported);
-
-	adv = linkmode_adv_to_mii_adv_t(phydev->advertising);
+	adv = linkmode_adv_to_mii_adv_t(advert);
 
 	/* Setup standard advertisement */
 	err = phy_modify_changed(phydev, MII_ADVERTISE,
@@ -2133,7 +2192,7 @@ static int genphy_config_advert(struct phy_device *phydev)
 	if (!(bmsr & BMSR_ESTATEN))
 		return changed;
 
-	adv = linkmode_adv_to_mii_ctrl1000_t(phydev->advertising);
+	adv = linkmode_adv_to_mii_ctrl1000_t(advert);
 
 	err = phy_modify_changed(phydev, MII_CTRL1000,
 				 ADVERTISE_1000FULL | ADVERTISE_1000HALF,
@@ -2179,29 +2238,6 @@ static int genphy_c37_config_advert(struct phy_device *phydev)
 				  ADVERTISE_1000XHALF | ADVERTISE_1000XPSE_ASYM,
 				  adv);
 }
-
-/**
- * genphy_config_eee_advert - disable unwanted eee mode advertisement
- * @phydev: target phy_device struct
- *
- * Description: Writes MDIO_AN_EEE_ADV after disabling unsupported energy
- *   efficent ethernet modes. Returns 0 if the PHY's advertisement hasn't
- *   changed, and 1 if it has changed.
- */
-int genphy_config_eee_advert(struct phy_device *phydev)
-{
-	int err;
-
-	/* Nothing to disable */
-	if (!phydev->eee_broken_modes)
-		return 0;
-
-	err = phy_modify_mmd_changed(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV,
-				     phydev->eee_broken_modes, 0);
-	/* If the call failed, we assume that EEE is not supported */
-	return err < 0 ? 0 : err;
-}
-EXPORT_SYMBOL(genphy_config_eee_advert);
 
 /**
  * genphy_setup_forced - configures/forces speed/duplex from @phydev
@@ -2357,6 +2393,9 @@ EXPORT_SYMBOL(genphy_check_and_restart_aneg);
  */
 int __genphy_config_aneg(struct phy_device *phydev, bool changed)
 {
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(fixed_advert);
+	const struct phy_setting *set;
+	unsigned long *advert;
 	int err;
 
 	err = genphy_c45_an_config_eee_aneg(phydev);
@@ -2371,10 +2410,25 @@ int __genphy_config_aneg(struct phy_device *phydev, bool changed)
 	else if (err)
 		changed = true;
 
-	if (AUTONEG_ENABLE != phydev->autoneg)
+	if (phydev->autoneg == AUTONEG_ENABLE) {
+		/* Only allow advertising what this PHY supports */
+		linkmode_and(phydev->advertising, phydev->advertising,
+			     phydev->supported);
+		advert = phydev->advertising;
+	} else if (phydev->speed < SPEED_1000) {
 		return genphy_setup_forced(phydev);
+	} else {
+		linkmode_zero(fixed_advert);
 
-	err = genphy_config_advert(phydev);
+		set = phy_lookup_setting(phydev->speed, phydev->duplex,
+					 phydev->supported, true);
+		if (set)
+			linkmode_set_bit(set->bit, fixed_advert);
+
+		advert = fixed_advert;
+	}
+
+	err = genphy_config_advert(phydev, advert);
 	if (err < 0) /* error */
 		return err;
 	else if (err)
@@ -3249,10 +3303,11 @@ static __maybe_unused int phy_led_hw_is_supported(struct led_classdev *led_cdev,
 
 static void phy_leds_unregister(struct phy_device *phydev)
 {
-	struct phy_led *phyled;
+	struct phy_led *phyled, *tmp;
 
-	list_for_each_entry(phyled, &phydev->leds, list) {
+	list_for_each_entry_safe(phyled, tmp, &phydev->leds, list) {
 		led_classdev_unregister(&phyled->led_cdev);
+		list_del(&phyled->list);
 	}
 }
 
@@ -3280,10 +3335,16 @@ static int of_phy_led(struct phy_device *phydev,
 	if (index > U8_MAX)
 		return -EINVAL;
 
+	if (of_property_read_bool(led, "active-high"))
+		set_bit(PHY_LED_ACTIVE_HIGH, &modes);
 	if (of_property_read_bool(led, "active-low"))
 		set_bit(PHY_LED_ACTIVE_LOW, &modes);
 	if (of_property_read_bool(led, "inactive-high-impedance"))
 		set_bit(PHY_LED_INACTIVE_HIGH_IMPEDANCE, &modes);
+
+	if (WARN_ON(modes & BIT(PHY_LED_ACTIVE_LOW) &&
+		    modes & BIT(PHY_LED_ACTIVE_HIGH)))
+		return -EINVAL;
 
 	if (modes) {
 		/* Return error if asked to set polarity modes but not supported */
@@ -3330,7 +3391,7 @@ static int of_phy_led(struct phy_device *phydev,
 static int of_phy_leds(struct phy_device *phydev)
 {
 	struct device_node *node = phydev->mdio.dev.of_node;
-	struct device_node *leds, *led;
+	struct device_node *leds;
 	int err;
 
 	if (!IS_ENABLED(CONFIG_OF_MDIO))
@@ -3343,15 +3404,27 @@ static int of_phy_leds(struct phy_device *phydev)
 	if (!leds)
 		return 0;
 
-	for_each_available_child_of_node(leds, led) {
+	/* Check if the PHY driver have at least an OP to
+	 * set the LEDs.
+	 */
+	if (!(phydev->drv->led_brightness_set ||
+	      phydev->drv->led_blink_set ||
+	      phydev->drv->led_hw_control_set)) {
+		phydev_dbg(phydev, "ignoring leds node defined with no PHY driver support\n");
+		goto exit;
+	}
+
+	for_each_available_child_of_node_scoped(leds, led) {
 		err = of_phy_led(phydev, led);
 		if (err) {
-			of_node_put(led);
+			of_node_put(leds);
 			phy_leds_unregister(phydev);
 			return err;
 		}
 	}
 
+exit:
+	of_node_put(leds);
 	return 0;
 }
 
@@ -3516,12 +3589,12 @@ static int phy_probe(struct device *dev)
 	/* There is no "enabled" flag. If PHY is advertising, assume it is
 	 * kind of enabled.
 	 */
-	phydev->eee_enabled = !linkmode_empty(phydev->advertising_eee);
+	phydev->eee_cfg.eee_enabled = !linkmode_empty(phydev->advertising_eee);
 
 	/* Some PHYs may advertise, by default, not support EEE modes. So,
 	 * we need to clean them.
 	 */
-	if (phydev->eee_enabled)
+	if (phydev->eee_cfg.eee_enabled)
 		linkmode_and(phydev->advertising_eee, phydev->supported_eee,
 			     phydev->advertising_eee);
 
@@ -3529,6 +3602,9 @@ static int phy_probe(struct device *dev)
 	 * the PHY stop advertising these mode later on
 	 */
 	of_set_phy_eee_broken(phydev);
+
+	/* Get master/slave strap overrides */
+	of_set_phy_timing_role(phydev);
 
 	/* The Pause Frame bits indicate that the PHY can support passing
 	 * pause frames. During autonegotiation, the PHYs will determine if

@@ -308,7 +308,7 @@ put_file_unlock:
 
 	spin_unlock_bh(&reuseport_lock);
 put_file:
-	fput(socket->file);
+	sockfd_put(socket);
 	return err;
 }
 

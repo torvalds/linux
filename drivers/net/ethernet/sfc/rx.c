@@ -125,8 +125,6 @@ void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 	struct efx_channel *channel = efx_rx_queue_channel(rx_queue);
 	struct efx_rx_buffer *rx_buf;
 
-	rx_queue->rx_packets++;
-
 	rx_buf = efx_rx_buffer(rx_queue, index);
 	rx_buf->flags |= flags;
 
@@ -393,6 +391,9 @@ void __efx_rx_packet(struct efx_channel *channel)
 				    channel->rx_pkt_n_frags);
 		goto out;
 	}
+
+	rx_queue->rx_packets++;
+	rx_queue->rx_bytes += rx_buf->len;
 
 	if (!efx_do_xdp(efx, channel, rx_buf, &eh))
 		goto out;

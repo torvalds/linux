@@ -13,8 +13,10 @@
 #include <linux/dma/ti-cppi5.h>
 #include <linux/etherdevice.h>
 #include <linux/genalloc.h>
+#include <linux/if_hsr.h>
 #include <linux/if_vlan.h>
 #include <linux/interrupt.h>
+#include <linux/io-64-nonatomic-hi-lo.h>
 #include <linux/kernel.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
@@ -39,6 +41,11 @@
 #define DEFAULT_VID		1
 #define DEFAULT_PORT_MASK	1
 #define DEFAULT_UNTAG_MASK	1
+
+#define NETIF_PRUETH_HSR_OFFLOAD_FEATURES	(NETIF_F_HW_HSR_FWD | \
+						 NETIF_F_HW_HSR_DUP | \
+						 NETIF_F_HW_HSR_TAG_INS | \
+						 NETIF_F_HW_HSR_TAG_RM)
 
 /* CTRLMMR_ICSSG_RGMII_CTRL register bits */
 #define ICSSG_CTRL_RGMII_ID_MODE                BIT(24)
@@ -118,6 +125,19 @@ static irqreturn_t prueth_tx_ts_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static struct icssg_firmwares icssg_hsr_firmwares[] = {
+	{
+		.pru = "ti-pruss/am65x-sr2-pru0-pruhsr-fw.elf",
+		.rtu = "ti-pruss/am65x-sr2-rtu0-pruhsr-fw.elf",
+		.txpru = "ti-pruss/am65x-sr2-txpru0-pruhsr-fw.elf",
+	},
+	{
+		.pru = "ti-pruss/am65x-sr2-pru1-pruhsr-fw.elf",
+		.rtu = "ti-pruss/am65x-sr2-rtu1-pruhsr-fw.elf",
+		.txpru = "ti-pruss/am65x-sr2-txpru1-pruhsr-fw.elf",
+	}
+};
+
 static struct icssg_firmwares icssg_switch_firmwares[] = {
 	{
 		.pru = "ti-pruss/am65x-sr2-pru0-prusw-fw.elf",
@@ -152,6 +172,8 @@ static int prueth_emac_start(struct prueth *prueth, struct prueth_emac *emac)
 
 	if (prueth->is_switch_mode)
 		firmwares = icssg_switch_firmwares;
+	else if (prueth->is_hsr_offload_mode)
+		firmwares = icssg_hsr_firmwares;
 	else
 		firmwares = icssg_emac_firmwares;
 
@@ -365,7 +387,8 @@ static void prueth_iep_settime(void *clockops_data, u64 ns)
 	sc_desc.cyclecounter0_set = cyclecount & GENMASK(31, 0);
 	sc_desc.cyclecounter1_set = (cyclecount & GENMASK(63, 32)) >> 32;
 	sc_desc.iepcount_set = ns % cycletime;
-	sc_desc.CMP0_current = cycletime - 4; //Count from 0 to (cycle time)-4
+	/* Count from 0 to (cycle time) - emac->iep->def_inc */
+	sc_desc.CMP0_current = cycletime - emac->iep->def_inc;
 
 	memcpy_toio(sc_descp, &sc_desc, sizeof(sc_desc));
 
@@ -389,6 +412,8 @@ static int prueth_perout_enable(void *clockops_data,
 	struct prueth_emac *emac = clockops_data;
 	u32 reduction_factor = 0, offset = 0;
 	struct timespec64 ts;
+	u64 current_cycle;
+	u64 start_offset;
 	u64 ns_period;
 
 	if (!on)
@@ -427,8 +452,14 @@ static int prueth_perout_enable(void *clockops_data,
 	writel(reduction_factor, emac->prueth->shram.va +
 		TIMESYNC_FW_WC_SYNCOUT_REDUCTION_FACTOR_OFFSET);
 
-	writel(0, emac->prueth->shram.va +
-		TIMESYNC_FW_WC_SYNCOUT_START_TIME_CYCLECOUNT_OFFSET);
+	current_cycle = icssg_read_time(emac->prueth->shram.va +
+					TIMESYNC_FW_WC_CYCLECOUNT_OFFSET);
+
+	/* Rounding of current_cycle count to next second */
+	start_offset = roundup(current_cycle, MSEC_PER_SEC);
+
+	hi_lo_writeq(start_offset, emac->prueth->shram.va +
+		     TIMESYNC_FW_WC_SYNCOUT_START_TIME_CYCLECOUNT_OFFSET);
 
 	return 0;
 }
@@ -466,6 +497,36 @@ static int icssg_prueth_del_mcast(struct net_device *ndev, const u8 *addr)
 		icssg_fdb_add_del(emac, addr, 0, other_port_mask, true);
 		icssg_vtbl_modify(emac, 0, other_port_mask, other_port_mask, true);
 	}
+
+	return 0;
+}
+
+static int icssg_prueth_hsr_add_mcast(struct net_device *ndev, const u8 *addr)
+{
+	struct prueth_emac *emac = netdev_priv(ndev);
+	struct prueth *prueth = emac->prueth;
+
+	icssg_fdb_add_del(emac, addr, prueth->default_vlan,
+			  ICSSG_FDB_ENTRY_P0_MEMBERSHIP |
+			  ICSSG_FDB_ENTRY_P1_MEMBERSHIP |
+			  ICSSG_FDB_ENTRY_P2_MEMBERSHIP |
+			  ICSSG_FDB_ENTRY_BLOCK, true);
+
+	icssg_vtbl_modify(emac, emac->port_vlan, BIT(emac->port_id),
+			  BIT(emac->port_id), true);
+	return 0;
+}
+
+static int icssg_prueth_hsr_del_mcast(struct net_device *ndev, const u8 *addr)
+{
+	struct prueth_emac *emac = netdev_priv(ndev);
+	struct prueth *prueth = emac->prueth;
+
+	icssg_fdb_add_del(emac, addr, prueth->default_vlan,
+			  ICSSG_FDB_ENTRY_P0_MEMBERSHIP |
+			  ICSSG_FDB_ENTRY_P1_MEMBERSHIP |
+			  ICSSG_FDB_ENTRY_P2_MEMBERSHIP |
+			  ICSSG_FDB_ENTRY_BLOCK, false);
 
 	return 0;
 }
@@ -630,7 +691,10 @@ static int emac_ndo_stop(struct net_device *ndev)
 
 	icssg_class_disable(prueth->miig_rt, prueth_emac_slice(emac));
 
-	__dev_mc_unsync(ndev, icssg_prueth_del_mcast);
+	if (emac->prueth->is_hsr_offload_mode)
+		__dev_mc_unsync(ndev, icssg_prueth_hsr_del_mcast);
+	else
+		__dev_mc_unsync(ndev, icssg_prueth_del_mcast);
 
 	atomic_set(&emac->tdown_cnt, emac->tx_ch_num);
 	/* ensure new tdown_cnt value is visible */
@@ -708,7 +772,12 @@ static void emac_ndo_set_rx_mode_work(struct work_struct *work)
 		return;
 	}
 
-	__dev_mc_sync(ndev, icssg_prueth_add_mcast, icssg_prueth_del_mcast);
+	if (emac->prueth->is_hsr_offload_mode)
+		__dev_mc_sync(ndev, icssg_prueth_hsr_add_mcast,
+			      icssg_prueth_hsr_del_mcast);
+	else
+		__dev_mc_sync(ndev, icssg_prueth_add_mcast,
+			      icssg_prueth_del_mcast);
 }
 
 /**
@@ -725,6 +794,70 @@ static void emac_ndo_set_rx_mode(struct net_device *ndev)
 	queue_work(emac->cmd_wq, &emac->rx_mode_work);
 }
 
+static netdev_features_t emac_ndo_fix_features(struct net_device *ndev,
+					       netdev_features_t features)
+{
+	/* hsr tag insertion offload and hsr dup offload are tightly coupled in
+	 * firmware implementation. Both these features need to be enabled /
+	 * disabled together.
+	 */
+	if (!(ndev->features & (NETIF_F_HW_HSR_DUP | NETIF_F_HW_HSR_TAG_INS)))
+		if ((features & NETIF_F_HW_HSR_DUP) ||
+		    (features & NETIF_F_HW_HSR_TAG_INS))
+			features |= NETIF_F_HW_HSR_DUP |
+				    NETIF_F_HW_HSR_TAG_INS;
+
+	if ((ndev->features & NETIF_F_HW_HSR_DUP) ||
+	    (ndev->features & NETIF_F_HW_HSR_TAG_INS))
+		if (!(features & NETIF_F_HW_HSR_DUP) ||
+		    !(features & NETIF_F_HW_HSR_TAG_INS))
+			features &= ~(NETIF_F_HW_HSR_DUP |
+				      NETIF_F_HW_HSR_TAG_INS);
+
+	return features;
+}
+
+static int emac_ndo_vlan_rx_add_vid(struct net_device *ndev,
+				    __be16 proto, u16 vid)
+{
+	struct prueth_emac *emac = netdev_priv(ndev);
+	struct prueth *prueth = emac->prueth;
+	int untag_mask = 0;
+	int port_mask;
+
+	if (prueth->is_hsr_offload_mode) {
+		port_mask = BIT(PRUETH_PORT_HOST) | BIT(emac->port_id);
+		untag_mask = 0;
+
+		netdev_dbg(emac->ndev, "VID add vid:%u port_mask:%X untag_mask %X\n",
+			   vid, port_mask, untag_mask);
+
+		icssg_vtbl_modify(emac, vid, port_mask, untag_mask, true);
+		icssg_set_pvid(emac->prueth, vid, emac->port_id);
+	}
+	return 0;
+}
+
+static int emac_ndo_vlan_rx_del_vid(struct net_device *ndev,
+				    __be16 proto, u16 vid)
+{
+	struct prueth_emac *emac = netdev_priv(ndev);
+	struct prueth *prueth = emac->prueth;
+	int untag_mask = 0;
+	int port_mask;
+
+	if (prueth->is_hsr_offload_mode) {
+		port_mask = BIT(PRUETH_PORT_HOST);
+		untag_mask = 0;
+
+		netdev_dbg(emac->ndev, "VID del vid:%u port_mask:%X untag_mask  %X\n",
+			   vid, port_mask, untag_mask);
+
+		icssg_vtbl_modify(emac, vid, port_mask, untag_mask, false);
+	}
+	return 0;
+}
+
 static const struct net_device_ops emac_netdev_ops = {
 	.ndo_open = emac_ndo_open,
 	.ndo_stop = emac_ndo_stop,
@@ -736,6 +869,9 @@ static const struct net_device_ops emac_netdev_ops = {
 	.ndo_eth_ioctl = icssg_ndo_ioctl,
 	.ndo_get_stats64 = icssg_ndo_get_stats64,
 	.ndo_get_phys_port_name = icssg_ndo_get_phys_port_name,
+	.ndo_fix_features = emac_ndo_fix_features,
+	.ndo_vlan_rx_add_vid = emac_ndo_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid = emac_ndo_vlan_rx_del_vid,
 };
 
 static int prueth_netdev_init(struct prueth *prueth,
@@ -857,12 +993,14 @@ static int prueth_netdev_init(struct prueth *prueth,
 	}
 	ether_addr_copy(emac->mac_addr, ndev->dev_addr);
 
+	ndev->dev.of_node = eth_node;
 	ndev->min_mtu = PRUETH_MIN_PKT_SIZE;
 	ndev->max_mtu = PRUETH_MAX_MTU;
 	ndev->netdev_ops = &emac_netdev_ops;
 	ndev->ethtool_ops = &icssg_ethtool_ops;
 	ndev->hw_features = NETIF_F_SG;
-	ndev->features = ndev->hw_features;
+	ndev->features = ndev->hw_features | NETIF_F_HW_VLAN_CTAG_FILTER;
+	ndev->hw_features |= NETIF_PRUETH_HSR_OFFLOAD_FEATURES;
 
 	netif_napi_add(ndev, &emac->napi_rx, icssg_napi_rx_poll);
 	hrtimer_init(&emac->rx_hrtimer, CLOCK_MONOTONIC,
@@ -951,7 +1089,7 @@ static void prueth_emac_restart(struct prueth *prueth)
 	netif_device_attach(emac1->ndev);
 }
 
-static void icssg_enable_switch_mode(struct prueth *prueth)
+static void icssg_change_mode(struct prueth *prueth)
 {
 	struct prueth_emac *emac;
 	int mac;
@@ -960,6 +1098,13 @@ static void icssg_enable_switch_mode(struct prueth *prueth)
 
 	for (mac = PRUETH_MAC0; mac < PRUETH_NUM_MACS; mac++) {
 		emac = prueth->emac[mac];
+		if (prueth->is_hsr_offload_mode) {
+			if (emac->ndev->features & NETIF_F_HW_HSR_TAG_RM)
+				icssg_set_port_state(emac, ICSSG_EMAC_HSR_RX_OFFLOAD_ENABLE);
+			else
+				icssg_set_port_state(emac, ICSSG_EMAC_HSR_RX_OFFLOAD_DISABLE);
+		}
+
 		if (netif_running(emac->ndev)) {
 			icssg_fdb_add_del(emac, eth_stp_addr, prueth->default_vlan,
 					  ICSSG_FDB_ENTRY_P0_MEMBERSHIP |
@@ -971,8 +1116,13 @@ static void icssg_enable_switch_mode(struct prueth *prueth)
 					  BIT(emac->port_id) | DEFAULT_PORT_MASK,
 					  BIT(emac->port_id) | DEFAULT_UNTAG_MASK,
 					  true);
+			if (prueth->is_hsr_offload_mode)
+				icssg_vtbl_modify(emac, DEFAULT_VID,
+						  DEFAULT_PORT_MASK,
+						  DEFAULT_UNTAG_MASK, true);
 			icssg_set_pvid(prueth, emac->port_vlan, emac->port_id);
-			icssg_set_port_state(emac, ICSSG_EMAC_PORT_VLAN_AWARE_ENABLE);
+			if (prueth->is_switch_mode)
+				icssg_set_port_state(emac, ICSSG_EMAC_PORT_VLAN_AWARE_ENABLE);
 		}
 	}
 }
@@ -1010,7 +1160,7 @@ static int prueth_netdevice_port_link(struct net_device *ndev,
 			prueth->is_switch_mode = true;
 			prueth->default_vlan = 1;
 			emac->port_vlan = prueth->default_vlan;
-			icssg_enable_switch_mode(prueth);
+			icssg_change_mode(prueth);
 		}
 	}
 
@@ -1038,6 +1188,61 @@ static void prueth_netdevice_port_unlink(struct net_device *ndev)
 		prueth->hw_bridge_dev = NULL;
 }
 
+static int prueth_hsr_port_link(struct net_device *ndev)
+{
+	struct prueth_emac *emac = netdev_priv(ndev);
+	struct prueth *prueth = emac->prueth;
+	struct prueth_emac *emac0;
+	struct prueth_emac *emac1;
+
+	emac0 = prueth->emac[PRUETH_MAC0];
+	emac1 = prueth->emac[PRUETH_MAC1];
+
+	if (prueth->is_switch_mode)
+		return -EOPNOTSUPP;
+
+	prueth->hsr_members |= BIT(emac->port_id);
+	if (!prueth->is_hsr_offload_mode) {
+		if (prueth->hsr_members & BIT(PRUETH_PORT_MII0) &&
+		    prueth->hsr_members & BIT(PRUETH_PORT_MII1)) {
+			if (!(emac0->ndev->features &
+			      NETIF_PRUETH_HSR_OFFLOAD_FEATURES) &&
+			    !(emac1->ndev->features &
+			      NETIF_PRUETH_HSR_OFFLOAD_FEATURES))
+				return -EOPNOTSUPP;
+			prueth->is_hsr_offload_mode = true;
+			prueth->default_vlan = 1;
+			emac0->port_vlan = prueth->default_vlan;
+			emac1->port_vlan = prueth->default_vlan;
+			icssg_change_mode(prueth);
+			netdev_dbg(ndev, "Enabling HSR offload mode\n");
+		}
+	}
+
+	return 0;
+}
+
+static void prueth_hsr_port_unlink(struct net_device *ndev)
+{
+	struct prueth_emac *emac = netdev_priv(ndev);
+	struct prueth *prueth = emac->prueth;
+	struct prueth_emac *emac0;
+	struct prueth_emac *emac1;
+
+	emac0 = prueth->emac[PRUETH_MAC0];
+	emac1 = prueth->emac[PRUETH_MAC1];
+
+	prueth->hsr_members &= ~BIT(emac->port_id);
+	if (prueth->is_hsr_offload_mode) {
+		prueth->is_hsr_offload_mode = false;
+		emac0->port_vlan = 0;
+		emac1->port_vlan = 0;
+		prueth->hsr_dev = NULL;
+		prueth_emac_restart(prueth);
+		netdev_dbg(ndev, "Disabling HSR Offload mode\n");
+	}
+}
+
 /* netdev notifier */
 static int prueth_netdevice_event(struct notifier_block *unused,
 				  unsigned long event, void *ptr)
@@ -1045,6 +1250,8 @@ static int prueth_netdevice_event(struct notifier_block *unused,
 	struct netlink_ext_ack *extack = netdev_notifier_info_to_extack(ptr);
 	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
 	struct netdev_notifier_changeupper_info *info;
+	struct prueth_emac *emac = netdev_priv(ndev);
+	struct prueth *prueth = emac->prueth;
 	int ret = NOTIFY_DONE;
 
 	if (ndev->netdev_ops != &emac_netdev_ops)
@@ -1053,6 +1260,25 @@ static int prueth_netdevice_event(struct notifier_block *unused,
 	switch (event) {
 	case NETDEV_CHANGEUPPER:
 		info = ptr;
+
+		if ((ndev->features & NETIF_PRUETH_HSR_OFFLOAD_FEATURES) &&
+		    is_hsr_master(info->upper_dev)) {
+			if (info->linking) {
+				if (!prueth->hsr_dev) {
+					prueth->hsr_dev = info->upper_dev;
+					icssg_class_set_host_mac_addr(prueth->miig_rt,
+								      prueth->hsr_dev->dev_addr);
+				} else {
+					if (prueth->hsr_dev != info->upper_dev) {
+						netdev_dbg(ndev, "Both interfaces must be linked to same upper device\n");
+						return -EOPNOTSUPP;
+					}
+				}
+				prueth_hsr_port_link(ndev);
+			} else {
+				prueth_hsr_port_unlink(ndev);
+			}
+		}
 
 		if (netif_is_bridge_master(info->upper_dev)) {
 			if (info->linking)
@@ -1181,6 +1407,12 @@ static int prueth_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	prueth->pa_stats = syscon_regmap_lookup_by_phandle(np, "ti,pa-stats");
+	if (IS_ERR(prueth->pa_stats)) {
+		dev_err(dev, "couldn't get ti,pa-stats syscon regmap\n");
+		prueth->pa_stats = NULL;
+	}
+
 	if (eth0_node) {
 		ret = prueth_get_cores(prueth, ICSS_SLICE0, false);
 		if (ret)
@@ -1262,6 +1494,7 @@ static int prueth_probe(struct platform_device *pdev)
 		icss_iep_init_fw(prueth->iep1);
 	}
 
+	spin_lock_init(&prueth->vtbl_lock);
 	/* setup netdev interfaces */
 	if (eth0_node) {
 		ret = prueth_netdev_init(prueth, eth0_node);
@@ -1271,8 +1504,8 @@ static int prueth_probe(struct platform_device *pdev)
 			goto exit_iep;
 		}
 
-		if (of_find_property(eth0_node, "ti,half-duplex-capable", NULL))
-			prueth->emac[PRUETH_MAC0]->half_duplex = 1;
+		prueth->emac[PRUETH_MAC0]->half_duplex =
+			of_property_read_bool(eth0_node, "ti,half-duplex-capable");
 
 		prueth->emac[PRUETH_MAC0]->iep = prueth->iep0;
 	}
@@ -1285,8 +1518,8 @@ static int prueth_probe(struct platform_device *pdev)
 			goto netdev_exit;
 		}
 
-		if (of_find_property(eth1_node, "ti,half-duplex-capable", NULL))
-			prueth->emac[PRUETH_MAC1]->half_duplex = 1;
+		prueth->emac[PRUETH_MAC1]->half_duplex =
+			of_property_read_bool(eth1_node, "ti,half-duplex-capable");
 
 		prueth->emac[PRUETH_MAC1]->iep = prueth->iep0;
 	}
@@ -1465,7 +1698,7 @@ MODULE_DEVICE_TABLE(of, prueth_dt_match);
 
 static struct platform_driver prueth_driver = {
 	.probe = prueth_probe,
-	.remove_new = prueth_remove,
+	.remove = prueth_remove,
 	.driver = {
 		.name = "icssg-prueth",
 		.of_match_table = prueth_dt_match,

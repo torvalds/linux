@@ -33,7 +33,7 @@
 		#cooling-cells = <2>;
 	};
 
-	vcc3v3_pcie30: vcc3v3-pcie30-regulator {
+	vcc3v3_pcie30: regulator-vcc3v3-pcie30 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_pcie30";
 		regulator-min-microvolt = <3300000>;
@@ -45,7 +45,7 @@
 		startup-delay-us = <5000>;
 	};
 
-	vcc5v0_sys: vcc5v0-sys-regulator {
+	vcc5v0_sys: regulator-vcc5v0-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_sys";
 		regulator-always-on;
@@ -54,7 +54,7 @@
 		regulator-max-microvolt = <5000000>;
 	};
 
-	vcc_1v1_nldo_s3: vcc-1v1-nldo-s3-regulator {
+	vcc_1v1_nldo_s3: regulator-vcc-1v1-nldo-s3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_1v1_nldo_s3";
 		regulator-always-on;
@@ -113,6 +113,11 @@
 	pinctrl-names = "default";
 	rx_delay = <0x00>;
 	tx_delay = <0x43>;
+	status = "okay";
+};
+
+&gpu {
+	mali-supply = <&vdd_gpu_s0>;
 	status = "okay";
 };
 
@@ -208,10 +213,63 @@
 	};
 };
 
+&package_thermal {
+	trips {
+		package_active1: trip-active1 {
+			temperature = <45000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+		package_active2: trip-active2 {
+			temperature = <50000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+		package_active3: trip-active3 {
+			temperature = <60000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+		package_active4: trip-active4 {
+			temperature = <70000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+		package_active5: trip-active5 {
+			temperature = <80000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+	};
+
+	cooling-maps {
+		map1 {
+			trip = <&package_active1>;
+			cooling-device = <&fan 1 1>;
+		};
+		map2 {
+			trip = <&package_active2>;
+			cooling-device = <&fan 2 2>;
+		};
+		map3 {
+			trip = <&package_active3>;
+			cooling-device = <&fan 3 3>;
+		};
+		map4 {
+			trip = <&package_active4>;
+			cooling-device = <&fan 4 4>;
+		};
+		map5 {
+			trip = <&package_active5>;
+			cooling-device = <&fan 5 5>;
+		};
+	};
+};
+
 &pcie2x1l1 {
 	linux,pci-domain = <1>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&pcie2_reset>;
+	pinctrl-0 = <&pcie2_reset>, <&pcie30x1m1_0_clkreqn>, <&pcie30x1m1_0_waken>;
 	reset-gpios = <&gpio4 RK_PA2 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
@@ -223,7 +281,7 @@
 &pcie3x4 {
 	linux,pci-domain = <0>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&pcie3_reset>;
+	pinctrl-0 = <&pcie3_reset>, <&pcie30x4m1_clkreqn>, <&pcie30x4m1_waken>;
 	reset-gpios = <&gpio4 RK_PB6 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc3v3_pcie30>;
 	status = "okay";
@@ -296,6 +354,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_pins>, <&rk806_dvs1_null>,
 			    <&rk806_dvs2_null>, <&rk806_dvs3_null>;
+		system-power-controller;
 
 		vcc1-supply = <&vcc5v0_sys>;
 		vcc2-supply = <&vcc5v0_sys>;
@@ -333,6 +392,17 @@
 
 		regulators {
 			vdd_gpu_s0: vdd_gpu_mem_s0: dcdc-reg1 {
+				/*
+				 * RK3588's GPU power domain cannot be enabled
+				 * without this regulator active, but it
+				 * doesn't have to be on when the GPU PD is
+				 * disabled.  Because the PD binding does not
+				 * currently allow us to express this
+				 * relationship, we have no choice but to do
+				 * this instead:
+				 */
+				regulator-always-on;
+
 				regulator-boot-on;
 				regulator-min-microvolt = <550000>;
 				regulator-max-microvolt = <950000>;
@@ -611,5 +681,70 @@
 
 &uart9 {
 	pinctrl-0 = <&uart9m0_xfer>;
+	status = "okay";
+};
+
+/* USB 0: USB 2.0 only, OTG-capable */
+&u2phy0 {
+	status = "okay";
+};
+
+&u2phy0_otg {
+	status = "okay";
+};
+
+&usbdp_phy0 {
+	/*
+	 * TODO: On the RK1, USBDP0 drives the DisplayPort pins and is not
+	 * involved in this USB2-only bus. The bus controller (below) needs to
+	 * know that it doesn't have a USB3 port so it can ignore any
+	 * USB3-related signals. This is handled in hardware by updating the
+	 * GRFs corresponding to that bus controller. Alas, Linux currently
+	 * puts the code to do that in the USBDP driver, so USBDP0 must be
+	 * enabled for now.
+	 */
+	rockchip,dp-lane-mux = <0 1 2 3>; /* "No USB lanes" */
+	status = "okay";
+};
+
+&usb_host0_xhci {
+	extcon = <&u2phy0>;
+	maximum-speed = "high-speed";
+	status = "okay";
+};
+
+/* USB 1: USB 3.0, host only */
+&u2phy1 {
+	status = "okay";
+};
+
+&u2phy1_otg {
+	status = "okay";
+};
+
+&usbdp_phy1 {
+	status = "okay";
+};
+
+&usb_host1_xhci {
+	dr_mode = "host";
+	extcon = <&u2phy1>;
+	status = "okay";
+};
+
+/* USB 2: USB 2.0, host only */
+&u2phy2 {
+	status = "okay";
+};
+
+&u2phy2_host {
+	status = "okay";
+};
+
+&usb_host0_ehci {
+	status = "okay";
+};
+
+&usb_host0_ohci {
 	status = "okay";
 };

@@ -78,7 +78,7 @@ MODULE_PARM_DESC(debug, "turn on debugging (default: 0)");
 #define SOC_8090_P1G_11R1 0x86
 #define SOC_8090_P1G_21R1 0x8e
 
-/* else use thos ones to check */
+/* else use those ones to check */
 #define P1A_B      0x0
 #define P1C	   0x1
 #define P1D_E_F    0x3
@@ -1574,7 +1574,7 @@ static int dib0090_reset(struct dvb_frontend *fe)
 	if (((state->identity.version & 0x1f) >= P1D_E_F) || (state->identity.in_soc))
 		dib0090_set_EFUSE(state);
 
-	/* Congigure in function of the crystal */
+	/* Configure in function of the crystal */
 	if (state->config->force_crystal_mode != 0)
 		dib0090_write_reg(state, 0x14,
 				state->config->force_crystal_mode & 3);

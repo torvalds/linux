@@ -1272,8 +1272,7 @@ static inline void bio_list_put(struct bio_list *bio_list)
 
 static void assert_rbio(struct btrfs_raid_bio *rbio)
 {
-	if (!IS_ENABLED(CONFIG_BTRFS_DEBUG) ||
-	    !IS_ENABLED(CONFIG_BTRFS_ASSERT))
+	if (!IS_ENABLED(CONFIG_BTRFS_ASSERT))
 		return;
 
 	/*

@@ -100,8 +100,7 @@ static const struct hw_sequencer_funcs dcn351_funcs = {
 	.set_flip_control_gsl = dcn20_set_flip_control_gsl,
 	.get_vupdate_offset_from_vsync = dcn10_get_vupdate_offset_from_vsync,
 	.calc_vupdate_position = dcn10_calc_vupdate_position,
-	.power_down = dce110_power_down,
-	.set_backlight_level = dcn21_set_backlight_level,
+	.set_backlight_level = dcn31_set_backlight_level,
 	.set_abm_immediate_disable = dcn21_set_abm_immediate_disable,
 	.set_pipe = dcn21_set_pipe,
 	.enable_lvds_link_output = dce110_enable_lvds_link_output,
@@ -123,11 +122,11 @@ static const struct hw_sequencer_funcs dcn351_funcs = {
 	.root_clock_control = dcn35_root_clock_control,
 	.set_long_vtotal = dcn35_set_long_vblank,
 	.calculate_pix_rate_divider = dcn32_calculate_pix_rate_divider,
+	.setup_hpo_hw_control = dcn35_setup_hpo_hw_control,
 };
 
 static const struct hwseq_private_funcs dcn351_private_funcs = {
 	.init_pipes = dcn35_init_pipes,
-	.update_plane_addr = dcn20_update_plane_addr,
 	.plane_atomic_disconnect = dcn10_plane_atomic_disconnect,
 	.update_mpcc = dcn20_update_mpcc,
 	.set_input_transfer_func = dcn32_set_input_transfer_func,

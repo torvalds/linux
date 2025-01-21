@@ -24,7 +24,7 @@ struct press_state {
 	struct hid_sensor_hub_attribute_info press_attr;
 	struct {
 		u32 press_data;
-		u64 timestamp __aligned(8);
+		aligned_s64 timestamp;
 	} scan;
 	int scale_pre_decml;
 	int scale_post_decml;
@@ -241,11 +241,11 @@ static int press_parse_report(struct platform_device *pdev,
 /* Function to initialize the processing for usage id */
 static int hid_press_probe(struct platform_device *pdev)
 {
+	struct hid_sensor_hub_device *hsdev = dev_get_platdata(&pdev->dev);
 	int ret = 0;
 	static const char *name = "press";
 	struct iio_dev *indio_dev;
 	struct press_state *press_state;
-	struct hid_sensor_hub_device *hsdev = pdev->dev.platform_data;
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev,
 				sizeof(struct press_state));
@@ -325,7 +325,7 @@ error_remove_trigger:
 /* Function to deinitialize the processing for usage id */
 static void hid_press_remove(struct platform_device *pdev)
 {
-	struct hid_sensor_hub_device *hsdev = pdev->dev.platform_data;
+	struct hid_sensor_hub_device *hsdev = dev_get_platdata(&pdev->dev);
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 	struct press_state *press_state = iio_priv(indio_dev);
 
@@ -350,11 +350,11 @@ static struct platform_driver hid_press_platform_driver = {
 		.pm	= &hid_sensor_pm_ops,
 	},
 	.probe		= hid_press_probe,
-	.remove_new	= hid_press_remove,
+	.remove		= hid_press_remove,
 };
 module_platform_driver(hid_press_platform_driver);
 
 MODULE_DESCRIPTION("HID Sensor Pressure");
 MODULE_AUTHOR("Archana Patni <archana.patni@intel.com>");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(IIO_HID);
+MODULE_IMPORT_NS("IIO_HID");

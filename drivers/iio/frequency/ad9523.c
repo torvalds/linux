@@ -970,7 +970,7 @@ static int ad9523_setup(struct iio_dev *indio_dev)
 
 static int ad9523_probe(struct spi_device *spi)
 {
-	struct ad9523_platform_data *pdata = spi->dev.platform_data;
+	struct ad9523_platform_data *pdata = dev_get_platdata(&spi->dev);
 	struct iio_dev *indio_dev;
 	struct ad9523_state *st;
 	int ret;

@@ -177,6 +177,10 @@ struct drm_printer {
 	void *arg;
 	const void *origin;
 	const char *prefix;
+	struct {
+		unsigned int series;
+		unsigned int counter;
+	} line;
 	enum drm_debug_category category;
 };
 
@@ -187,6 +191,7 @@ void __drm_puts_seq_file(struct drm_printer *p, const char *str);
 void __drm_printfn_info(struct drm_printer *p, struct va_format *vaf);
 void __drm_printfn_dbg(struct drm_printer *p, struct va_format *vaf);
 void __drm_printfn_err(struct drm_printer *p, struct va_format *vaf);
+void __drm_printfn_line(struct drm_printer *p, struct va_format *vaf);
 
 __printf(2, 3)
 void drm_printf(struct drm_printer *p, const char *f, ...);
@@ -221,7 +226,8 @@ drm_vprintf(struct drm_printer *p, const char *fmt, va_list *va)
 
 /**
  * struct drm_print_iterator - local struct used with drm_printer_coredump
- * @data: Pointer to the devcoredump output buffer
+ * @data: Pointer to the devcoredump output buffer, can be NULL if using
+ * drm_printer_coredump to determine size of devcoredump
  * @start: The offset within the buffer to start writing
  * @remain: The number of bytes to write for this iteration
  */
@@ -265,6 +271,57 @@ struct drm_print_iterator {
  *		dev_coredumpm(dev, THIS_MODULE, data, 0, GFP_KERNEL,
  *			coredump_read, ...)
  *	}
+ *
+ * The above example has a time complexity of O(N^2), where N is the size of the
+ * devcoredump. This is acceptable for small devcoredumps but scales poorly for
+ * larger ones.
+ *
+ * Another use case for drm_coredump_printer is to capture the devcoredump into
+ * a saved buffer before the dev_coredump() callback. This involves two passes:
+ * one to determine the size of the devcoredump and another to print it to a
+ * buffer. Then, in dev_coredump(), copy from the saved buffer into the
+ * devcoredump read buffer.
+ *
+ * For example::
+ *
+ *	char *devcoredump_saved_buffer;
+ *
+ *	ssize_t __coredump_print(char *buffer, ssize_t count, ...)
+ *	{
+ *		struct drm_print_iterator iter;
+ *		struct drm_printer p;
+ *
+ *		iter.data = buffer;
+ *		iter.start = 0;
+ *		iter.remain = count;
+ *
+ *		p = drm_coredump_printer(&iter);
+ *
+ *		drm_printf(p, "foo=%d\n", foo);
+ *		...
+ *		return count - iter.remain;
+ *	}
+ *
+ *	void coredump_print(...)
+ *	{
+ *		ssize_t count;
+ *
+ *		count = __coredump_print(NULL, INT_MAX, ...);
+ *		devcoredump_saved_buffer = kvmalloc(count, GFP_KERNEL);
+ *		__coredump_print(devcoredump_saved_buffer, count, ...);
+ *	}
+ *
+ *	void coredump_read(char *buffer, loff_t offset, size_t count,
+ *			   void *data, size_t datalen)
+ *	{
+ *		...
+ *		memcpy(buffer, devcoredump_saved_buffer + offset, count);
+ *		...
+ *	}
+ *
+ * The above example has a time complexity of O(N*2), where N is the size of the
+ * devcoredump. This scales better than the previous example for larger
+ * devcoredumps.
  *
  * RETURNS:
  * The &drm_printer object
@@ -357,6 +414,65 @@ static inline struct drm_printer drm_err_printer(struct drm_device *drm,
 		.prefix = prefix
 	};
 	return p;
+}
+
+/**
+ * drm_line_printer - construct a &drm_printer that prefixes outputs with line numbers
+ * @p: the &struct drm_printer which actually generates the output
+ * @prefix: optional output prefix, or NULL for no prefix
+ * @series: optional unique series identifier, or 0 to omit identifier in the output
+ *
+ * This printer can be used to increase the robustness of the captured output
+ * to make sure we didn't lost any intermediate lines of the output. Helpful
+ * while capturing some crash data.
+ *
+ * Example 1::
+ *
+ *	void crash_dump(struct drm_device *drm)
+ *	{
+ *		static unsigned int id;
+ *		struct drm_printer p = drm_err_printer(drm, "crash");
+ *		struct drm_printer lp = drm_line_printer(&p, "dump", ++id);
+ *
+ *		drm_printf(&lp, "foo");
+ *		drm_printf(&lp, "bar");
+ *	}
+ *
+ * Above code will print into the dmesg something like::
+ *
+ *	[ ] 0000:00:00.0: [drm] *ERROR* crash dump 1.1: foo
+ *	[ ] 0000:00:00.0: [drm] *ERROR* crash dump 1.2: bar
+ *
+ * Example 2::
+ *
+ *	void line_dump(struct device *dev)
+ *	{
+ *		struct drm_printer p = drm_info_printer(dev);
+ *		struct drm_printer lp = drm_line_printer(&p, NULL, 0);
+ *
+ *		drm_printf(&lp, "foo");
+ *		drm_printf(&lp, "bar");
+ *	}
+ *
+ * Above code will print::
+ *
+ *	[ ] 0000:00:00.0: [drm] 1: foo
+ *	[ ] 0000:00:00.0: [drm] 2: bar
+ *
+ * RETURNS:
+ * The &drm_printer object
+ */
+static inline struct drm_printer drm_line_printer(struct drm_printer *p,
+						  const char *prefix,
+						  unsigned int series)
+{
+	struct drm_printer lp = {
+		.printfn = __drm_printfn_line,
+		.arg = p,
+		.prefix = prefix,
+		.line = { .series = series, },
+	};
+	return lp;
 }
 
 /*

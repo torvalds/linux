@@ -1069,7 +1069,8 @@ static inline bool tcp_skb_can_collapse(const struct sk_buff *to,
 	/* skb_cmp_decrypted() not needed, use tcp_write_collapse_fence() */
 	return likely(tcp_skb_can_collapse_to(to) &&
 		      mptcp_skb_can_collapse(to, from) &&
-		      skb_pure_zcopy_same(to, from));
+		      skb_pure_zcopy_same(to, from) &&
+		      skb_frags_readable(to) == skb_frags_readable(from));
 }
 
 static inline bool tcp_skb_can_collapse_rx(const struct sk_buff *to,
@@ -2429,14 +2430,35 @@ void tcp_plb_update_state(const struct sock *sk, struct tcp_plb_state *plb,
 void tcp_plb_check_rehash(struct sock *sk, struct tcp_plb_state *plb);
 void tcp_plb_update_state_upon_rto(struct sock *sk, struct tcp_plb_state *plb);
 
+static inline void tcp_warn_once(const struct sock *sk, bool cond, const char *str)
+{
+	WARN_ONCE(cond,
+		  "%scwn:%u out:%u sacked:%u lost:%u retrans:%u tlp_high_seq:%u sk_state:%u ca_state:%u advmss:%u mss_cache:%u pmtu:%u\n",
+		  str,
+		  tcp_snd_cwnd(tcp_sk(sk)),
+		  tcp_sk(sk)->packets_out, tcp_sk(sk)->sacked_out,
+		  tcp_sk(sk)->lost_out, tcp_sk(sk)->retrans_out,
+		  tcp_sk(sk)->tlp_high_seq, sk->sk_state,
+		  inet_csk(sk)->icsk_ca_state,
+		  tcp_sk(sk)->advmss, tcp_sk(sk)->mss_cache,
+		  inet_csk(sk)->icsk_pmtu_cookie);
+}
+
 /* At how many usecs into the future should the RTO fire? */
 static inline s64 tcp_rto_delta_us(const struct sock *sk)
 {
 	const struct sk_buff *skb = tcp_rtx_queue_head(sk);
 	u32 rto = inet_csk(sk)->icsk_rto;
-	u64 rto_time_stamp_us = tcp_skb_timestamp_us(skb) + jiffies_to_usecs(rto);
 
-	return rto_time_stamp_us - tcp_sk(sk)->tcp_mstamp;
+	if (likely(skb)) {
+		u64 rto_time_stamp_us = tcp_skb_timestamp_us(skb) + jiffies_to_usecs(rto);
+
+		return rto_time_stamp_us - tcp_sk(sk)->tcp_mstamp;
+	} else {
+		tcp_warn_once(sk, 1, "rtx queue empty: ");
+		return jiffies_to_usecs(rto);
+	}
+
 }
 
 /*

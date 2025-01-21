@@ -2,7 +2,7 @@
 #include <linux/vgaarb.h>
 #include <linux/vga_switcheroo.h>
 
-#include <drm/drm_fb_helper.h>
+#include <drm/drm_client_event.h>
 
 #include "nouveau_drv.h"
 #include "nouveau_acpi.h"
@@ -11,7 +11,7 @@
 static unsigned int
 nouveau_vga_set_decode(struct pci_dev *pdev, bool state)
 {
-	struct nouveau_drm *drm = nouveau_drm(pci_get_drvdata(pdev));
+	struct nouveau_drm *drm = pci_get_drvdata(pdev);
 	struct nvif_object *device = &drm->client.device.object;
 
 	if (drm->client.device.info.family == NV_DEVICE_INFO_V0_CURIE &&
@@ -34,7 +34,8 @@ static void
 nouveau_switcheroo_set_state(struct pci_dev *pdev,
 			     enum vga_switcheroo_state state)
 {
-	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct nouveau_drm *drm = pci_get_drvdata(pdev);
+	struct drm_device *dev = drm->dev;
 
 	if ((nouveau_is_optimus() || nouveau_is_v1_dsm()) && state == VGA_SWITCHEROO_OFF)
 		return;
@@ -56,21 +57,23 @@ nouveau_switcheroo_set_state(struct pci_dev *pdev,
 static void
 nouveau_switcheroo_reprobe(struct pci_dev *pdev)
 {
-	struct drm_device *dev = pci_get_drvdata(pdev);
-	drm_fb_helper_output_poll_changed(dev);
+	struct nouveau_drm *drm = pci_get_drvdata(pdev);
+	struct drm_device *dev = drm->dev;
+
+	drm_client_dev_hotplug(dev);
 }
 
 static bool
 nouveau_switcheroo_can_switch(struct pci_dev *pdev)
 {
-	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct nouveau_drm *drm = pci_get_drvdata(pdev);
 
 	/*
 	 * FIXME: open_count is protected by drm_global_mutex but that would lead to
 	 * locking inversion with the driver load path. And the access here is
 	 * completely racy anyway. So don't bother with locking for now.
 	 */
-	return atomic_read(&dev->open_count) == 0;
+	return atomic_read(&drm->dev->open_count) == 0;
 }
 
 static const struct vga_switcheroo_client_ops
@@ -124,11 +127,4 @@ nouveau_vga_fini(struct nouveau_drm *drm)
 	vga_switcheroo_unregister_client(pdev);
 	if (runtime && nouveau_is_v1_dsm() && !nouveau_is_optimus())
 		vga_switcheroo_fini_domain_pm_ops(drm->dev->dev);
-}
-
-
-void
-nouveau_vga_lastclose(struct drm_device *dev)
-{
-	vga_switcheroo_process_delayed_switch();
 }

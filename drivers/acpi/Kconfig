@@ -132,8 +132,17 @@ config ACPI_REV_OVERRIDE_POSSIBLE
 	  makes it possible to force the kernel to return "5" as the supported
 	  ACPI revision via the "acpi_rev_override" command line switch.
 
+config ACPI_EC
+	bool "Embedded Controller"
+	depends on HAS_IOPORT
+	default X86
+	help
+	  This driver handles communication with the microcontroller
+	  on many x86 laptops and other machines.
+
 config ACPI_EC_DEBUGFS
 	tristate "EC read/write access through /sys/kernel/debug/ec"
+	depends on ACPI_EC
 	help
 	  Say N to disable Embedded Controller /sys/kernel/debug interface
 
@@ -433,7 +442,7 @@ config ACPI_HOTPLUG_IOAPIC
 
 config ACPI_SBS
 	tristate "Smart Battery System"
-	depends on X86
+	depends on X86 && ACPI_EC
 	select POWER_SUPPLY
 	help
 	  This driver supports the Smart Battery System, another
@@ -451,7 +460,7 @@ config ACPI_HED
 
 config ACPI_BGRT
 	bool "Boottime Graphics Resource Table support"
-	depends on EFI && (X86 || ARM64)
+	depends on EFI && (X86 || ARM64 || LOONGARCH)
 	help
 	  This driver adds support for exposing the ACPI Boottime Graphics
 	  Resource Table, which allows the operating system to obtain

@@ -95,6 +95,7 @@ struct amdgpu_virt_ops {
 	void (*ras_poison_handler)(struct amdgpu_device *adev,
 					enum amdgpu_ras_block block);
 	bool (*rcvd_ras_intr)(struct amdgpu_device *adev);
+	int (*req_ras_err_count)(struct amdgpu_device *adev);
 };
 
 /*
@@ -103,6 +104,7 @@ struct amdgpu_virt_ops {
 struct amdgpu_virt_fw_reserve {
 	struct amd_sriov_msg_pf2vf_info_header *p_pf2vf;
 	struct amd_sriov_msg_vf2pf_info_header *p_vf2pf;
+	void *ras_telemetry;
 	unsigned int checksum_key;
 };
 
@@ -136,6 +138,8 @@ enum AMDGIM_FEATURE_FLAG {
 	AMDGIM_FEATURE_VCN_RB_DECOUPLE = (1 << 7),
 	/* MES info */
 	AMDGIM_FEATURE_MES_INFO_ENABLE = (1 << 8),
+	AMDGIM_FEATURE_RAS_CAPS = (1 << 9),
+	AMDGIM_FEATURE_RAS_TELEMETRY = (1 << 10),
 };
 
 enum AMDGIM_REG_ACCESS_FLAG {
@@ -276,6 +280,12 @@ struct amdgpu_virt {
 	uint32_t autoload_ucode_id;
 
 	struct mutex rlcg_reg_lock;
+
+	union amd_sriov_ras_caps ras_en_caps;
+	union amd_sriov_ras_caps ras_telemetry_en_caps;
+
+	struct ratelimit_state ras_telemetry_rs;
+	struct amd_sriov_ras_telemetry_error_count count_cache;
 };
 
 struct amdgpu_video_codec_info;
@@ -319,6 +329,15 @@ struct amdgpu_video_codec_info;
 
 #define amdgpu_sriov_vf_mmio_access_protection(adev) \
 ((adev)->virt.caps & AMDGPU_VF_MMIO_ACCESS_PROTECT)
+
+#define amdgpu_sriov_ras_caps_en(adev) \
+((adev)->virt.gim_feature & AMDGIM_FEATURE_RAS_CAPS)
+
+#define amdgpu_sriov_ras_telemetry_en(adev) \
+(((adev)->virt.gim_feature & AMDGIM_FEATURE_RAS_TELEMETRY) && (adev)->virt.fw_reserve.ras_telemetry)
+
+#define amdgpu_sriov_ras_telemetry_block_en(adev, sriov_blk) \
+(amdgpu_sriov_ras_telemetry_en((adev)) && (adev)->virt.ras_telemetry_en_caps.all & BIT(sriov_blk))
 
 static inline bool is_virtual_machine(void)
 {
@@ -376,10 +395,15 @@ u32 amdgpu_sriov_rreg(struct amdgpu_device *adev,
 		      u32 offset, u32 acc_flags, u32 hwip, u32 xcc_id);
 bool amdgpu_virt_fw_load_skip_check(struct amdgpu_device *adev,
 			uint32_t ucode_id);
+void amdgpu_virt_pre_reset(struct amdgpu_device *adev);
 void amdgpu_virt_post_reset(struct amdgpu_device *adev);
 bool amdgpu_sriov_xnack_support(struct amdgpu_device *adev);
 bool amdgpu_virt_get_rlcg_reg_access_flag(struct amdgpu_device *adev,
 					  u32 acc_flags, u32 hwip,
 					  bool write, u32 *rlcg_flag);
 u32 amdgpu_virt_rlcg_reg_rw(struct amdgpu_device *adev, u32 offset, u32 v, u32 flag, u32 xcc_id);
+bool amdgpu_virt_get_ras_capability(struct amdgpu_device *adev);
+int amdgpu_virt_req_ras_err_count(struct amdgpu_device *adev, enum amdgpu_ras_block block,
+				  struct ras_err_data *err_data);
+int amdgpu_virt_ras_telemetry_post_reset(struct amdgpu_device *adev);
 #endif

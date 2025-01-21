@@ -8,7 +8,6 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/pwm/pwm.h>
 #include "rk3399.dtsi"
-#include "rk3399-opp.dtsi"
 
 / {
 	model = "Leez RK3399 P710";
@@ -41,7 +40,7 @@
 		reset-gpios = <&gpio0 RK_PB2 GPIO_ACTIVE_LOW>;
 	};
 
-	dc5v_adp: dc5v-adp {
+	dc5v_adp: regulator-dc5v-adp {
 		compatible = "regulator-fixed";
 		regulator-name = "dc5v_adapter";
 		regulator-always-on;
@@ -50,7 +49,7 @@
 		regulator-max-microvolt = <5000000>;
 	};
 
-	vcc3v3_lan: vcc3v3-lan {
+	vcc3v3_lan: regulator-vcc3v3-lan {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_lan";
 		regulator-always-on;
@@ -60,7 +59,7 @@
 		vin-supply = <&vcc3v3_sys>;
 	};
 
-	vcc3v3_sys: vcc3v3-sys {
+	vcc3v3_sys: regulator-vcc3v3-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_sys";
 		regulator-always-on;
@@ -70,7 +69,7 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	vcc5v0_host0: vcc5v0_host1: vcc5v0-host {
+	vcc5v0_host0: vcc5v0_host1: regulator-vcc5v0-host {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_host";
 		regulator-boot-on;
@@ -80,7 +79,7 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	vcc5v0_host3: vcc5v0-host3 {
+	vcc5v0_host3: regulator-vcc5v0-host3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_host3";
 		enable-active-high;
@@ -91,7 +90,7 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	vcc5v0_sys: vcc5v0-sys {
+	vcc5v0_sys: regulator-vcc5v0-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_sys";
 		regulator-always-on;
@@ -101,7 +100,7 @@
 		vin-supply = <&dc5v_adp>;
 	};
 
-	vdd_log: vdd-log {
+	vdd_log: regulator-vdd-log {
 		compatible = "pwm-regulator";
 		pwms = <&pwm2 0 25000 1>;
 		pwm-supply = <&vcc5v0_sys>;
@@ -188,7 +187,7 @@
 		clock-output-names = "xin32k", "rk808-clkout2";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int_l>;
-		rockchip,system-power-controller;
+		system-power-controller;
 		wakeup-source;
 
 		vcc1-supply = <&vcc5v0_sys>;

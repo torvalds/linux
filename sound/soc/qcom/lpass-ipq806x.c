@@ -172,7 +172,7 @@ static struct platform_driver ipq806x_lpass_cpu_platform_driver = {
 		.of_match_table	= of_match_ptr(ipq806x_lpass_cpu_device_id),
 	},
 	.probe	= asoc_qcom_lpass_cpu_platform_probe,
-	.remove_new = asoc_qcom_lpass_cpu_platform_remove,
+	.remove = asoc_qcom_lpass_cpu_platform_remove,
 };
 module_platform_driver(ipq806x_lpass_cpu_platform_driver);
 

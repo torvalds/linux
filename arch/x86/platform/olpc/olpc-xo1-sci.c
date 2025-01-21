@@ -616,7 +616,7 @@ static struct platform_driver xo1_sci_driver = {
 		.dev_groups = lid_groups,
 	},
 	.probe = xo1_sci_probe,
-	.remove_new = xo1_sci_remove,
+	.remove = xo1_sci_remove,
 	.suspend = xo1_sci_suspend,
 	.resume = xo1_sci_resume,
 };

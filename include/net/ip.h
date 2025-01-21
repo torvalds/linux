@@ -33,6 +33,7 @@
 #include <net/flow_dissector.h>
 #include <net/netns/hash.h>
 #include <net/lwtunnel.h>
+#include <net/inet_dscp.h>
 
 #define IPV4_MAX_PMTU		65535U		/* RFC 2675, Section 5.1 */
 #define IPV4_MIN_MTU		68			/* RFC 791 */
@@ -258,7 +259,9 @@ static inline u8 ip_sendmsg_scope(const struct inet_sock *inet,
 
 static inline __u8 get_rttos(struct ipcm_cookie* ipc, struct inet_sock *inet)
 {
-	return (ipc->tos != -1) ? RT_TOS(ipc->tos) : RT_TOS(READ_ONCE(inet->tos));
+	u8 dsfield = ipc->tos != -1 ? ipc->tos : READ_ONCE(inet->tos);
+
+	return dsfield & INET_DSCP_MASK;
 }
 
 /* datagram.c */
@@ -285,7 +288,8 @@ static inline __u8 ip_reply_arg_flowi_flags(const struct ip_reply_arg *arg)
 	return (arg->flags & IP_REPLY_ARG_NOSRCCHECK) ? FLOWI_FLAG_ANYSRC : 0;
 }
 
-void ip_send_unicast_reply(struct sock *sk, struct sk_buff *skb,
+void ip_send_unicast_reply(struct sock *sk, const struct sock *orig_sk,
+			   struct sk_buff *skb,
 			   const struct ip_options *sopt,
 			   __be32 daddr, __be32 saddr,
 			   const struct ip_reply_arg *arg,
@@ -419,6 +423,11 @@ int ip_decrease_ttl(struct iphdr *iph)
 	check += (__force u32)htons(0x0100);
 	iph->check = (__force __sum16)(check + (check>=0xFFFF));
 	return --iph->ttl;
+}
+
+static inline dscp_t ip4h_dscp(const struct iphdr *ip4h)
+{
+	return inet_dsfield_to_dscp(ip4h->tos);
 }
 
 static inline int ip_mtu_locked(const struct dst_entry *dst)
@@ -681,6 +690,11 @@ static inline unsigned int ipv4_addr_hash(__be32 ip)
 	return (__force unsigned int) ip;
 }
 
+static inline u32 __ipv4_addr_hash(const __be32 ip, const u32 initval)
+{
+	return jhash_1word((__force u32)ip, initval);
+}
+
 static inline u32 ipv4_portaddr_hash(const struct net *net,
 				     __be32 saddr,
 				     unsigned int port)
@@ -794,9 +808,8 @@ static inline void ip_cmsg_recv(struct msghdr *msg, struct sk_buff *skb)
 	ip_cmsg_recv_offset(msg, skb->sk, skb, 0, 0);
 }
 
-bool icmp_global_allow(void);
-extern int sysctl_icmp_msgs_per_sec;
-extern int sysctl_icmp_msgs_burst;
+bool icmp_global_allow(struct net *net);
+void icmp_global_consume(struct net *net);
 
 #ifdef CONFIG_PROC_FS
 int ip_misc_proc_init(void);

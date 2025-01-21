@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#define _GNU_SOURCE
 #include <test_progs.h>
 #include "progs/core_reloc_types.h"
 #include "bpf_testmod/bpf_testmod.h"
@@ -1009,7 +1010,7 @@ static void run_core_reloc_tests(bool use_btfgen)
 	struct data *data;
 	void *mmap_data = NULL;
 
-	my_pid_tgid = getpid() | ((uint64_t)syscall(SYS_gettid) << 32);
+	my_pid_tgid = getpid() | ((uint64_t)sys_gettid() << 32);
 
 	for (i = 0; i < ARRAY_SIZE(test_cases); i++) {
 		char btf_file[] = "/tmp/core_reloc.btf.XXXXXX";

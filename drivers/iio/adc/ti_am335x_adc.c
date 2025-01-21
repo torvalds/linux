@@ -494,7 +494,7 @@ static int tiadc_read_raw(struct iio_dev *indio_dev,
 	/*
 	 * We check the complete FIFO. We programmed just one entry but in case
 	 * something went wrong we left empty handed (-EAGAIN previously) and
-	 * then the value apeared somehow in the FIFO we would have two entries.
+	 * then the value appeared somehow in the FIFO we would have two entries.
 	 * Therefore we read every item and keep only the latest version of the
 	 * requested channel.
 	 */
@@ -740,12 +740,12 @@ MODULE_DEVICE_TABLE(of, ti_adc_dt_ids);
 
 static struct platform_driver tiadc_driver = {
 	.driver = {
-		.name   = "TI-am335x-adc",
-		.pm	= pm_sleep_ptr(&tiadc_pm_ops),
+		.name = "TI-am335x-adc",
+		.pm = pm_sleep_ptr(&tiadc_pm_ops),
 		.of_match_table = ti_adc_dt_ids,
 	},
-	.probe	= tiadc_probe,
-	.remove_new = tiadc_remove,
+	.probe = tiadc_probe,
+	.remove = tiadc_remove,
 };
 module_platform_driver(tiadc_driver);
 

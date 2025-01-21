@@ -8,7 +8,7 @@
  * NUMA policy allows the user to give hints in which node(s) memory should
  * be allocated.
  *
- * Support four policies per VMA and per process:
+ * Support six policies per VMA and per process:
  *
  * The VMA policy has priority over the process policy for a page fault.
  *
@@ -676,8 +676,10 @@ unsigned long change_prot_numa(struct vm_area_struct *vma,
 	tlb_gather_mmu(&tlb, vma->vm_mm);
 
 	nr_updated = change_protection(&tlb, vma, addr, end, MM_CP_PROT_NUMA);
-	if (nr_updated > 0)
+	if (nr_updated > 0) {
 		count_vm_numa_events(NUMA_PTE_UPDATES, nr_updated);
+		count_memcg_events_mm(vma->vm_mm, NUMA_PTE_UPDATES, nr_updated);
+	}
 
 	tlb_finish_mmu(&tlb);
 
@@ -1078,6 +1080,10 @@ static long migrate_to_node(struct mm_struct *mm, int source, int dest,
 
 	mmap_read_lock(mm);
 	vma = find_vma(mm, 0);
+	if (unlikely(!vma)) {
+		mmap_read_unlock(mm);
+		return 0;
+	}
 
 	/*
 	 * This does not migrate the range, but isolates all pages that
@@ -1365,7 +1371,7 @@ static long do_mbind(unsigned long start, unsigned long len,
 			if (!list_entry_is_head(folio, &pagelist, lru)) {
 				vma_iter_init(&vmi, mm, start);
 				for_each_vma_range(vmi, vma, end) {
-					addr = page_address_in_vma(
+					addr = page_address_in_vma(folio,
 						folio_page(folio, 0), vma);
 					if (addr != -EFAULT)
 						break;
@@ -1951,7 +1957,7 @@ unsigned int mempolicy_slab_node(void)
 		zonelist = &NODE_DATA(node)->node_zonelists[ZONELIST_FALLBACK];
 		z = first_zones_zonelist(zonelist, highest_zoneidx,
 							&policy->nodes);
-		return z->zone ? zone_to_nid(z->zone) : node;
+		return zonelist_zone(z) ? zonelist_node_idx(z) : node;
 	}
 	case MPOL_LOCAL:
 		return node;
@@ -2288,7 +2294,6 @@ struct folio *folio_alloc_mpol_noprof(gfp_t gfp, unsigned int order,
  * @order: Order of the folio.
  * @vma: Pointer to VMA.
  * @addr: Virtual address of the allocation.  Must be inside @vma.
- * @hugepage: Unused (was: For hugepages try only preferred node if possible).
  *
  * Allocate a folio for a specific address in @vma, using the appropriate
  * NUMA policy.  The caller must hold the mmap_lock of the mm_struct of the
@@ -2299,7 +2304,7 @@ struct folio *folio_alloc_mpol_noprof(gfp_t gfp, unsigned int order,
  * Return: The folio on success or NULL if allocation fails.
  */
 struct folio *vma_alloc_folio_noprof(gfp_t gfp, int order, struct vm_area_struct *vma,
-		unsigned long addr, bool hugepage)
+		unsigned long addr)
 {
 	struct mempolicy *pol;
 	pgoff_t ilx;
@@ -2809,7 +2814,7 @@ int mpol_misplaced(struct folio *folio, struct vm_fault *vmf,
 				node_zonelist(thisnid, GFP_HIGHUSER),
 				gfp_zone(GFP_HIGHUSER),
 				&pol->nodes);
-		polnid = zone_to_nid(z->zone);
+		polnid = zonelist_node_idx(z);
 		break;
 
 	default:

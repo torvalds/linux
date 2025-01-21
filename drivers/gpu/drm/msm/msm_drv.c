@@ -7,9 +7,11 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/fault-inject.h>
+#include <linux/debugfs.h>
 #include <linux/of_address.h>
 #include <linux/uaccess.h>
 
+#include <drm/drm_client_setup.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
 #include <drm/drm_ioctl.h>
@@ -58,10 +60,8 @@ static bool modeset = true;
 MODULE_PARM_DESC(modeset, "Use kernel modesetting [KMS] (1=on (default), 0=disable)");
 module_param(modeset, bool, 0600);
 
-#ifdef CONFIG_FAULT_INJECTION
 DECLARE_FAULT_ATTR(fail_gem_alloc);
 DECLARE_FAULT_ATTR(fail_gem_iova);
-#endif
 
 static int msm_drm_uninit(struct device *dev)
 {
@@ -292,7 +292,7 @@ static int msm_drm_init(struct device *dev, const struct drm_driver *drv)
 
 	if (priv->kms_init) {
 		drm_kms_helper_poll_init(ddev);
-		msm_fbdev_setup(ddev);
+		drm_client_setup(ddev, NULL);
 	}
 
 	return 0;
@@ -903,6 +903,7 @@ static const struct drm_driver msm_driver = {
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init       = msm_debugfs_init,
 #endif
+	MSM_FBDEV_DRIVER_OPS,
 	.show_fdinfo        = msm_show_fdinfo,
 	.ioctls             = msm_ioctls,
 	.num_ioctls         = ARRAY_SIZE(msm_ioctls),
@@ -984,6 +985,10 @@ module_param(prefer_mdp5, bool, 0444);
 
 /* list all platforms supported by both mdp5 and dpu drivers */
 static const char *const msm_mdp5_dpu_migration[] = {
+	"qcom,msm8917-mdp5",
+	"qcom,msm8937-mdp5",
+	"qcom,msm8953-mdp5",
+	"qcom,msm8996-mdp5",
 	"qcom,sdm630-mdp5",
 	"qcom,sdm660-mdp5",
 	NULL,
@@ -1106,7 +1111,7 @@ static void msm_pdev_remove(struct platform_device *pdev)
 
 static struct platform_driver msm_platform_driver = {
 	.probe      = msm_pdev_probe,
-	.remove_new = msm_pdev_remove,
+	.remove     = msm_pdev_remove,
 	.driver     = {
 		.name   = "msm",
 	},

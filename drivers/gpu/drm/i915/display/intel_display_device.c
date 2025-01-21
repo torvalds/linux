@@ -3,12 +3,13 @@
  * Copyright © 2023 Intel Corporation
  */
 
-#include <drm/intel/i915_pciids.h>
+#include <drm/intel/pciids.h>
 #include <drm/drm_color_mgmt.h>
 #include <linux/pci.h>
 
 #include "i915_drv.h"
 #include "i915_reg.h"
+#include "intel_cx0_phy_regs.h"
 #include "intel_de.h"
 #include "intel_display.h"
 #include "intel_display_device.h"
@@ -16,26 +17,56 @@
 #include "intel_display_power.h"
 #include "intel_display_reg_defs.h"
 #include "intel_fbc.h"
+#include "intel_step.h"
 
 __diag_push();
 __diag_ignore_all("-Woverride-init", "Allow field initialization overrides for display info");
 
-struct subplatform_desc {
-	enum intel_display_subplatform subplatform;
-	const char *name;
-	const u16 *pciidlist;
+struct stepping_desc {
+	const enum intel_step *map; /* revid to step map */
+	size_t size; /* map size */
 };
 
+#define STEP_INFO(_map)				\
+	.step_info.map = _map,			\
+	.step_info.size = ARRAY_SIZE(_map)
+
+struct subplatform_desc {
+	struct intel_display_platforms platforms;
+	const char *name;
+	const u16 *pciidlist;
+	struct stepping_desc step_info;
+};
+
+#define SUBPLATFORM(_platform, _subplatform)				\
+	.platforms._platform##_##_subplatform = 1,			\
+	.name = #_subplatform
+
+/*
+ * Group subplatform alias that matches multiple subplatforms. For making ult
+ * cover both ult and ulx on HSW/BDW.
+ */
+#define SUBPLATFORM_GROUP(_platform, _subplatform)			\
+	.platforms._platform##_##_subplatform = 1
+
 struct platform_desc {
-	enum intel_display_platform platform;
+	struct intel_display_platforms platforms;
 	const char *name;
 	const struct subplatform_desc *subplatforms;
 	const struct intel_display_device_info *info; /* NULL for GMD ID */
+	struct stepping_desc step_info;
 };
 
 #define PLATFORM(_platform)			 \
-	.platform = (INTEL_DISPLAY_##_platform), \
+	.platforms._platform = 1,		 \
 	.name = #_platform
+
+/*
+ * Group platform alias that matches multiple platforms. For aliases such as g4x
+ * that covers both g45 and gm45.
+ */
+#define PLATFORM_GROUP(_platform)		\
+	.platforms._platform = 1
 
 #define ID(id) (id)
 
@@ -220,7 +251,7 @@ static const struct intel_display_device_info no_display = {};
 	.__runtime_defaults.cpu_transcoder_mask = BIT(TRANSCODER_A)
 
 static const struct platform_desc i830_desc = {
-	PLATFORM(I830),
+	PLATFORM(i830),
 	.info = &(const struct intel_display_device_info) {
 		I830_DISPLAY,
 
@@ -229,7 +260,7 @@ static const struct platform_desc i830_desc = {
 };
 
 static const struct platform_desc i845_desc = {
-	PLATFORM(I845G),
+	PLATFORM(i845g),
 	.info = &(const struct intel_display_device_info) {
 		I845_DISPLAY,
 
@@ -238,7 +269,7 @@ static const struct platform_desc i845_desc = {
 };
 
 static const struct platform_desc i85x_desc = {
-	PLATFORM(I85X),
+	PLATFORM(i85x),
 	.info = &(const struct intel_display_device_info) {
 		I830_DISPLAY,
 
@@ -248,7 +279,7 @@ static const struct platform_desc i85x_desc = {
 };
 
 static const struct platform_desc i865g_desc = {
-	PLATFORM(I865G),
+	PLATFORM(i865g),
 	.info = &(const struct intel_display_device_info) {
 		I845_DISPLAY,
 
@@ -270,7 +301,7 @@ static const struct platform_desc i865g_desc = {
 	.__runtime_defaults.port_mask = BIT(PORT_B) | BIT(PORT_C) /* SDVO B/C */
 
 static const struct platform_desc i915g_desc = {
-	PLATFORM(I915G),
+	PLATFORM(i915g),
 	.info = &(const struct intel_display_device_info) {
 		GEN3_DISPLAY,
 		I845_COLORS,
@@ -280,7 +311,7 @@ static const struct platform_desc i915g_desc = {
 };
 
 static const struct platform_desc i915gm_desc = {
-	PLATFORM(I915GM),
+	PLATFORM(i915gm),
 	.info = &(const struct intel_display_device_info) {
 		GEN3_DISPLAY,
 		I9XX_COLORS,
@@ -293,7 +324,7 @@ static const struct platform_desc i915gm_desc = {
 };
 
 static const struct platform_desc i945g_desc = {
-	PLATFORM(I945G),
+	PLATFORM(i945g),
 	.info = &(const struct intel_display_device_info) {
 		GEN3_DISPLAY,
 		I845_COLORS,
@@ -304,7 +335,7 @@ static const struct platform_desc i945g_desc = {
 };
 
 static const struct platform_desc i945gm_desc = {
-	PLATFORM(I915GM),
+	PLATFORM(i915gm),
 	.info = &(const struct intel_display_device_info) {
 		GEN3_DISPLAY,
 		I9XX_COLORS,
@@ -318,7 +349,7 @@ static const struct platform_desc i945gm_desc = {
 };
 
 static const struct platform_desc g33_desc = {
-	PLATFORM(G33),
+	PLATFORM(g33),
 	.info = &(const struct intel_display_device_info) {
 		GEN3_DISPLAY,
 		I845_COLORS,
@@ -327,7 +358,7 @@ static const struct platform_desc g33_desc = {
 };
 
 static const struct platform_desc pnv_desc = {
-	PLATFORM(PINEVIEW),
+	PLATFORM(pineview),
 	.info = &(const struct intel_display_device_info) {
 		GEN3_DISPLAY,
 		I9XX_COLORS,
@@ -348,7 +379,7 @@ static const struct platform_desc pnv_desc = {
 		BIT(TRANSCODER_A) | BIT(TRANSCODER_B)
 
 static const struct platform_desc i965g_desc = {
-	PLATFORM(I965G),
+	PLATFORM(i965g),
 	.info = &(const struct intel_display_device_info) {
 		GEN4_DISPLAY,
 		.has_overlay = 1,
@@ -358,7 +389,7 @@ static const struct platform_desc i965g_desc = {
 };
 
 static const struct platform_desc i965gm_desc = {
-	PLATFORM(I965GM),
+	PLATFORM(i965gm),
 	.info = &(const struct intel_display_device_info) {
 		GEN4_DISPLAY,
 		.has_overlay = 1,
@@ -370,7 +401,8 @@ static const struct platform_desc i965gm_desc = {
 };
 
 static const struct platform_desc g45_desc = {
-	PLATFORM(G45),
+	PLATFORM(g45),
+	PLATFORM_GROUP(g4x),
 	.info = &(const struct intel_display_device_info) {
 		GEN4_DISPLAY,
 
@@ -379,7 +411,8 @@ static const struct platform_desc g45_desc = {
 };
 
 static const struct platform_desc gm45_desc = {
-	PLATFORM(GM45),
+	PLATFORM(gm45),
+	PLATFORM_GROUP(g4x),
 	.info = &(const struct intel_display_device_info) {
 		GEN4_DISPLAY,
 		.supports_tv = 1,
@@ -402,14 +435,14 @@ static const struct platform_desc gm45_desc = {
 	.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C) | BIT(PORT_D) /* DP A, SDVO/HDMI/DP B, HDMI/DP C/D */
 
 static const struct platform_desc ilk_d_desc = {
-	PLATFORM(IRONLAKE),
+	PLATFORM(ironlake),
 	.info = &(const struct intel_display_device_info) {
 		ILK_DISPLAY,
 	},
 };
 
 static const struct platform_desc ilk_m_desc = {
-	PLATFORM(IRONLAKE),
+	PLATFORM(ironlake),
 	.info = &(const struct intel_display_device_info) {
 		ILK_DISPLAY,
 
@@ -418,7 +451,7 @@ static const struct platform_desc ilk_m_desc = {
 };
 
 static const struct platform_desc snb_desc = {
-	PLATFORM(SANDYBRIDGE),
+	PLATFORM(sandybridge),
 	.info = &(const struct intel_display_device_info) {
 		.has_hotplug = 1,
 		I9XX_PIPE_OFFSETS,
@@ -435,7 +468,7 @@ static const struct platform_desc snb_desc = {
 };
 
 static const struct platform_desc ivb_desc = {
-	PLATFORM(IVYBRIDGE),
+	PLATFORM(ivybridge),
 	.info = &(const struct intel_display_device_info) {
 		.has_hotplug = 1,
 		IVB_PIPE_OFFSETS,
@@ -452,7 +485,7 @@ static const struct platform_desc ivb_desc = {
 };
 
 static const struct platform_desc vlv_desc = {
-	PLATFORM(VALLEYVIEW),
+	PLATFORM(valleyview),
 	.info = &(const struct intel_display_device_info) {
 		.has_gmch = 1,
 		.has_hotplug = 1,
@@ -483,10 +516,19 @@ static const u16 hsw_ulx_ids[] = {
 };
 
 static const struct platform_desc hsw_desc = {
-	PLATFORM(HASWELL),
+	PLATFORM(haswell),
 	.subplatforms = (const struct subplatform_desc[]) {
-		{ INTEL_DISPLAY_HASWELL_ULT, "ULT", hsw_ult_ids },
-		{ INTEL_DISPLAY_HASWELL_ULX, "ULX", hsw_ulx_ids },
+		/* Special case: Use ult both as group and subplatform. */
+		{
+			SUBPLATFORM(haswell, ult),
+			SUBPLATFORM_GROUP(haswell, ult),
+			.pciidlist = hsw_ult_ids,
+		},
+		{
+			SUBPLATFORM(haswell, ulx),
+			SUBPLATFORM_GROUP(haswell, ult),
+			.pciidlist = hsw_ulx_ids,
+		},
 		{},
 	},
 	.info = &(const struct intel_display_device_info) {
@@ -527,10 +569,19 @@ static const u16 bdw_ulx_ids[] = {
 };
 
 static const struct platform_desc bdw_desc = {
-	PLATFORM(BROADWELL),
+	PLATFORM(broadwell),
 	.subplatforms = (const struct subplatform_desc[]) {
-		{ INTEL_DISPLAY_BROADWELL_ULT, "ULT", bdw_ult_ids },
-		{ INTEL_DISPLAY_BROADWELL_ULX, "ULX", bdw_ulx_ids },
+		/* Special case: Use ult both as group and subplatform. */
+		{
+			SUBPLATFORM(broadwell, ult),
+			SUBPLATFORM_GROUP(broadwell, ult),
+			.pciidlist = bdw_ult_ids,
+		},
+		{
+			SUBPLATFORM(broadwell, ulx),
+			SUBPLATFORM_GROUP(broadwell, ult),
+			.pciidlist = bdw_ulx_ids,
+		},
 		{},
 	},
 	.info = &(const struct intel_display_device_info) {
@@ -555,7 +606,7 @@ static const struct platform_desc bdw_desc = {
 };
 
 static const struct platform_desc chv_desc = {
-	PLATFORM(CHERRYVIEW),
+	PLATFORM(cherryview),
 	.info = &(const struct intel_display_device_info) {
 		.has_hotplug = 1,
 		.has_gmch = 1,
@@ -610,14 +661,28 @@ static const u16 skl_ulx_ids[] = {
 	0
 };
 
+static const enum intel_step skl_steppings[] = {
+	[0x6] = STEP_G0,
+	[0x7] = STEP_H0,
+	[0x9] = STEP_J0,
+	[0xA] = STEP_I1,
+};
+
 static const struct platform_desc skl_desc = {
-	PLATFORM(SKYLAKE),
+	PLATFORM(skylake),
 	.subplatforms = (const struct subplatform_desc[]) {
-		{ INTEL_DISPLAY_SKYLAKE_ULT, "ULT", skl_ult_ids },
-		{ INTEL_DISPLAY_SKYLAKE_ULX, "ULX", skl_ulx_ids },
+		{
+			SUBPLATFORM(skylake, ult),
+			.pciidlist = skl_ult_ids,
+		},
+		{
+			SUBPLATFORM(skylake, ulx),
+			.pciidlist = skl_ulx_ids,
+		},
 		{},
 	},
 	.info = &skl_display,
+	STEP_INFO(skl_steppings),
 };
 
 static const u16 kbl_ult_ids[] = {
@@ -634,14 +699,31 @@ static const u16 kbl_ulx_ids[] = {
 	0
 };
 
+static const enum intel_step kbl_steppings[] = {
+	[1] = STEP_B0,
+	[2] = STEP_B0,
+	[3] = STEP_B0,
+	[4] = STEP_C0,
+	[5] = STEP_B1,
+	[6] = STEP_B1,
+	[7] = STEP_C0,
+};
+
 static const struct platform_desc kbl_desc = {
-	PLATFORM(KABYLAKE),
+	PLATFORM(kabylake),
 	.subplatforms = (const struct subplatform_desc[]) {
-		{ INTEL_DISPLAY_KABYLAKE_ULT, "ULT", kbl_ult_ids },
-		{ INTEL_DISPLAY_KABYLAKE_ULX, "ULX", kbl_ulx_ids },
+		{
+			SUBPLATFORM(kabylake, ult),
+			.pciidlist = kbl_ult_ids,
+		},
+		{
+			SUBPLATFORM(kabylake, ulx),
+			.pciidlist = kbl_ulx_ids,
+		},
 		{},
 	},
 	.info = &skl_display,
+	STEP_INFO(kbl_steppings),
 };
 
 static const u16 cfl_ult_ids[] = {
@@ -659,10 +741,16 @@ static const u16 cfl_ulx_ids[] = {
 };
 
 static const struct platform_desc cfl_desc = {
-	PLATFORM(COFFEELAKE),
+	PLATFORM(coffeelake),
 	.subplatforms = (const struct subplatform_desc[]) {
-		{ INTEL_DISPLAY_COFFEELAKE_ULT, "ULT", cfl_ult_ids },
-		{ INTEL_DISPLAY_COFFEELAKE_ULX, "ULX", cfl_ulx_ids },
+		{
+			SUBPLATFORM(coffeelake, ult),
+			.pciidlist = cfl_ult_ids,
+		},
+		{
+			SUBPLATFORM(coffeelake, ulx),
+			.pciidlist = cfl_ulx_ids,
+		},
 		{},
 	},
 	.info = &skl_display,
@@ -675,9 +763,12 @@ static const u16 cml_ult_ids[] = {
 };
 
 static const struct platform_desc cml_desc = {
-	PLATFORM(COMETLAKE),
+	PLATFORM(cometlake),
 	.subplatforms = (const struct subplatform_desc[]) {
-		{ INTEL_DISPLAY_COMETLAKE_ULT, "ULT", cml_ult_ids },
+		{
+			SUBPLATFORM(cometlake, ult),
+			.pciidlist = cml_ult_ids,
+		},
 		{},
 	},
 	.info = &skl_display,
@@ -706,18 +797,30 @@ static const struct platform_desc cml_desc = {
 		BIT(TRANSCODER_DSI_A) | BIT(TRANSCODER_DSI_C), \
 	.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C)
 
+static const enum intel_step bxt_steppings[] = {
+	[0xA] = STEP_C0,
+	[0xB] = STEP_C0,
+	[0xC] = STEP_D0,
+	[0xD] = STEP_E0,
+};
+
 static const struct platform_desc bxt_desc = {
-	PLATFORM(BROXTON),
+	PLATFORM(broxton),
 	.info = &(const struct intel_display_device_info) {
 		GEN9_LP_DISPLAY,
 		.dbuf.size = 512 - 4, /* 4 blocks for bypass path allocation */
 
 		.__runtime_defaults.ip.ver = 9,
 	},
+	STEP_INFO(bxt_steppings),
+};
+
+static const enum intel_step glk_steppings[] = {
+	[3] = STEP_B0,
 };
 
 static const struct platform_desc glk_desc = {
-	PLATFORM(GEMINILAKE),
+	PLATFORM(geminilake),
 	.info = &(const struct intel_display_device_info) {
 		GEN9_LP_DISPLAY,
 		.dbuf.size = 1024 - 4, /* 4 blocks for bypass path allocation */
@@ -725,6 +828,7 @@ static const struct platform_desc glk_desc = {
 
 		.__runtime_defaults.ip.ver = 10,
 	},
+	STEP_INFO(glk_steppings),
 };
 
 #define ICL_DISPLAY \
@@ -773,10 +877,17 @@ static const u16 icl_port_f_ids[] = {
 	0
 };
 
+static const enum intel_step icl_steppings[] = {
+	[7] = STEP_D0,
+};
+
 static const struct platform_desc icl_desc = {
-	PLATFORM(ICELAKE),
+	PLATFORM(icelake),
 	.subplatforms = (const struct subplatform_desc[]) {
-		{ INTEL_DISPLAY_ICELAKE_PORT_F, "Port F", icl_port_f_ids },
+		{
+			SUBPLATFORM(icelake, port_f),
+			.pciidlist = icl_port_f_ids,
+		},
 		{},
 	},
 	.info = &(const struct intel_display_device_info) {
@@ -784,6 +895,7 @@ static const struct platform_desc icl_desc = {
 
 		.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C) | BIT(PORT_D) | BIT(PORT_E),
 	},
+	STEP_INFO(icl_steppings),
 };
 
 static const struct intel_display_device_info jsl_ehl_display = {
@@ -792,14 +904,21 @@ static const struct intel_display_device_info jsl_ehl_display = {
 	.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C) | BIT(PORT_D),
 };
 
+static const enum intel_step jsl_ehl_steppings[] = {
+	[0] = STEP_A0,
+	[1] = STEP_B0,
+};
+
 static const struct platform_desc jsl_desc = {
-	PLATFORM(JASPERLAKE),
+	PLATFORM(jasperlake),
 	.info = &jsl_ehl_display,
+	STEP_INFO(jsl_ehl_steppings),
 };
 
 static const struct platform_desc ehl_desc = {
-	PLATFORM(ELKHARTLAKE),
+	PLATFORM(elkhartlake),
 	.info = &jsl_ehl_display,
+	STEP_INFO(jsl_ehl_steppings),
 };
 
 #define XE_D_DISPLAY \
@@ -850,10 +969,26 @@ static const u16 tgl_uy_ids[] = {
 	0
 };
 
+static const enum intel_step tgl_steppings[] = {
+	[0] = STEP_B0,
+	[1] = STEP_D0,
+};
+
+static const enum intel_step tgl_uy_steppings[] = {
+	[0] = STEP_A0,
+	[1] = STEP_C0,
+	[2] = STEP_C0,
+	[3] = STEP_D0,
+};
+
 static const struct platform_desc tgl_desc = {
-	PLATFORM(TIGERLAKE),
+	PLATFORM(tigerlake),
 	.subplatforms = (const struct subplatform_desc[]) {
-		{ INTEL_DISPLAY_TIGERLAKE_UY, "UY", tgl_uy_ids },
+		{
+			SUBPLATFORM(tigerlake, uy),
+			.pciidlist = tgl_uy_ids,
+			STEP_INFO(tgl_uy_steppings),
+		},
 		{},
 	},
 	.info = &(const struct intel_display_device_info) {
@@ -866,20 +1001,33 @@ static const struct platform_desc tgl_desc = {
 		.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) |
 		BIT(PORT_TC1) | BIT(PORT_TC2) | BIT(PORT_TC3) | BIT(PORT_TC4) | BIT(PORT_TC5) | BIT(PORT_TC6),
 	},
+	STEP_INFO(tgl_steppings),
+};
+
+static const enum intel_step dg1_steppings[] = {
+	[0] = STEP_A0,
+	[1] = STEP_B0,
 };
 
 static const struct platform_desc dg1_desc = {
-	PLATFORM(DG1),
+	PLATFORM(dg1),
 	.info = &(const struct intel_display_device_info) {
 		XE_D_DISPLAY,
 
 		.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) |
 		BIT(PORT_TC1) | BIT(PORT_TC2),
 	},
+	STEP_INFO(dg1_steppings),
+};
+
+static const enum intel_step rkl_steppings[] = {
+	[0] = STEP_A0,
+	[1] = STEP_B0,
+	[4] = STEP_C0,
 };
 
 static const struct platform_desc rkl_desc = {
-	PLATFORM(ROCKETLAKE),
+	PLATFORM(rocketlake),
 	.info = &(const struct intel_display_device_info) {
 		XE_D_DISPLAY,
 		.abox_mask = BIT(0),
@@ -892,6 +1040,7 @@ static const struct platform_desc rkl_desc = {
 		.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) |
 		BIT(PORT_TC1) | BIT(PORT_TC2),
 	},
+	STEP_INFO(rkl_steppings),
 };
 
 static const u16 adls_rpls_ids[] = {
@@ -899,10 +1048,27 @@ static const u16 adls_rpls_ids[] = {
 	0
 };
 
+static const enum intel_step adl_s_steppings[] = {
+	[0x0] = STEP_A0,
+	[0x1] = STEP_A2,
+	[0x4] = STEP_B0,
+	[0x8] = STEP_B0,
+	[0xC] = STEP_C0,
+};
+
+static const enum intel_step adl_s_rpl_s_steppings[] = {
+	[0x4] = STEP_D0,
+	[0xC] = STEP_C0,
+};
+
 static const struct platform_desc adl_s_desc = {
-	PLATFORM(ALDERLAKE_S),
+	PLATFORM(alderlake_s),
 	.subplatforms = (const struct subplatform_desc[]) {
-		{ INTEL_DISPLAY_ALDERLAKE_S_RAPTORLAKE_S, "RPL-S", adls_rpls_ids },
+		{
+			SUBPLATFORM(alderlake_s, raptorlake_s),
+			.pciidlist = adls_rpls_ids,
+			STEP_INFO(adl_s_rpl_s_steppings),
+		},
 		{},
 	},
 	.info = &(const struct intel_display_device_info) {
@@ -913,6 +1079,7 @@ static const struct platform_desc adl_s_desc = {
 		.__runtime_defaults.port_mask = BIT(PORT_A) |
 		BIT(PORT_TC1) | BIT(PORT_TC2) | BIT(PORT_TC3) | BIT(PORT_TC4),
 	},
+	STEP_INFO(adl_s_steppings),
 };
 
 #define XE_LPD_FEATURES \
@@ -986,15 +1153,43 @@ static const u16 adlp_rplp_ids[] = {
 	0
 };
 
+static const enum intel_step adl_p_steppings[] = {
+	[0x0] = STEP_A0,
+	[0x4] = STEP_B0,
+	[0x8] = STEP_C0,
+	[0xC] = STEP_D0,
+};
+
+static const enum intel_step adl_p_adl_n_steppings[] = {
+	[0x0] = STEP_D0,
+};
+
+static const enum intel_step adl_p_rpl_pu_steppings[] = {
+	[0x4] = STEP_E0,
+};
+
 static const struct platform_desc adl_p_desc = {
-	PLATFORM(ALDERLAKE_P),
+	PLATFORM(alderlake_p),
 	.subplatforms = (const struct subplatform_desc[]) {
-		{ INTEL_DISPLAY_ALDERLAKE_P_ALDERLAKE_N, "ADL-N", adlp_adln_ids },
-		{ INTEL_DISPLAY_ALDERLAKE_P_RAPTORLAKE_U, "RPL-U", adlp_rplu_ids },
-		{ INTEL_DISPLAY_ALDERLAKE_P_RAPTORLAKE_P, "RPL-P", adlp_rplp_ids },
+		{
+			SUBPLATFORM(alderlake_p, alderlake_n),
+			.pciidlist = adlp_adln_ids,
+			STEP_INFO(adl_p_adl_n_steppings),
+		},
+		{
+			SUBPLATFORM(alderlake_p, raptorlake_p),
+			.pciidlist = adlp_rplp_ids,
+			STEP_INFO(adl_p_rpl_pu_steppings),
+		},
+		{
+			SUBPLATFORM(alderlake_p, raptorlake_u),
+			.pciidlist = adlp_rplu_ids,
+			STEP_INFO(adl_p_rpl_pu_steppings),
+		},
 		{},
 	},
 	.info = &xe_lpd_display,
+	STEP_INFO(adl_p_steppings),
 };
 
 static const struct intel_display_device_info xe_hpd_display = {
@@ -1023,12 +1218,42 @@ static const u16 dg2_g12_ids[] = {
 	0
 };
 
+static const enum intel_step dg2_g10_steppings[] = {
+	[0x0] = STEP_A0,
+	[0x1] = STEP_A0,
+	[0x4] = STEP_B0,
+	[0x8] = STEP_C0,
+};
+
+static const enum intel_step dg2_g11_steppings[] = {
+	[0x0] = STEP_B0,
+	[0x4] = STEP_C0,
+	[0x5] = STEP_C0,
+};
+
+static const enum intel_step dg2_g12_steppings[] = {
+	[0x0] = STEP_C0,
+	[0x1] = STEP_C0,
+};
+
 static const struct platform_desc dg2_desc = {
-	PLATFORM(DG2),
+	PLATFORM(dg2),
 	.subplatforms = (const struct subplatform_desc[]) {
-		{ INTEL_DISPLAY_DG2_G10, "G10", dg2_g10_ids },
-		{ INTEL_DISPLAY_DG2_G11, "G11", dg2_g11_ids },
-		{ INTEL_DISPLAY_DG2_G12, "G12", dg2_g12_ids },
+		{
+			SUBPLATFORM(dg2, g10),
+			.pciidlist = dg2_g10_ids,
+			STEP_INFO(dg2_g10_steppings),
+		},
+		{
+			SUBPLATFORM(dg2, g11),
+			.pciidlist = dg2_g11_ids,
+			STEP_INFO(dg2_g11_steppings),
+		},
+		{
+			SUBPLATFORM(dg2, g12),
+			.pciidlist = dg2_g12_ids,
+			STEP_INFO(dg2_g12_steppings),
+		},
 		{},
 	},
 	.info = &xe_hpd_display,
@@ -1089,6 +1314,7 @@ static const struct intel_display_device_info xe2_lpd_display = {
 	.__runtime_defaults.fbc_mask =
 		BIT(INTEL_FBC_A) | BIT(INTEL_FBC_B) |
 		BIT(INTEL_FBC_C) | BIT(INTEL_FBC_D),
+	.__runtime_defaults.has_dbuf_overlap_detection = true,
 };
 
 static const struct intel_display_device_info xe2_hpd_display = {
@@ -1103,15 +1329,19 @@ static const struct intel_display_device_info xe2_hpd_display = {
  * reported by the hardware.
  */
 static const struct platform_desc mtl_desc = {
-	PLATFORM(METEORLAKE),
+	PLATFORM(meteorlake),
 };
 
 static const struct platform_desc lnl_desc = {
-	PLATFORM(LUNARLAKE),
+	PLATFORM(lunarlake),
 };
 
 static const struct platform_desc bmg_desc = {
-	PLATFORM(BATTLEMAGE),
+	PLATFORM(battlemage),
+};
+
+static const struct platform_desc ptl_desc = {
+	PLATFORM(pantherlake),
 };
 
 __diag_pop();
@@ -1180,9 +1410,11 @@ static const struct {
 	INTEL_RPLU_IDS(INTEL_DISPLAY_DEVICE, &adl_p_desc),
 	INTEL_RPLP_IDS(INTEL_DISPLAY_DEVICE, &adl_p_desc),
 	INTEL_DG2_IDS(INTEL_DISPLAY_DEVICE, &dg2_desc),
+	INTEL_ARL_IDS(INTEL_DISPLAY_DEVICE, &mtl_desc),
 	INTEL_MTL_IDS(INTEL_DISPLAY_DEVICE, &mtl_desc),
 	INTEL_LNL_IDS(INTEL_DISPLAY_DEVICE, &lnl_desc),
 	INTEL_BMG_IDS(INTEL_DISPLAY_DEVICE, &bmg_desc),
+	INTEL_PTL_IDS(INTEL_DISPLAY_DEVICE, &ptl_desc),
 };
 
 static const struct {
@@ -1193,6 +1425,7 @@ static const struct {
 	{ 14,  0, &xe_lpdp_display },
 	{ 14,  1, &xe2_hpd_display },
 	{ 20,  0, &xe2_lpd_display },
+	{ 30,  0, &xe2_lpd_display },
 };
 
 static const struct intel_display_device_info *
@@ -1253,7 +1486,7 @@ find_subplatform_desc(struct pci_dev *pdev, const struct platform_desc *desc)
 	const struct subplatform_desc *sp;
 	const u16 *id;
 
-	for (sp = desc->subplatforms; sp && sp->subplatform; sp++)
+	for (sp = desc->subplatforms; sp && sp->pciidlist; sp++)
 		for (id = sp->pciidlist; *id; id++)
 			if (*id == pdev->device)
 				return sp;
@@ -1261,13 +1494,85 @@ find_subplatform_desc(struct pci_dev *pdev, const struct platform_desc *desc)
 	return NULL;
 }
 
+static enum intel_step get_pre_gmdid_step(struct intel_display *display,
+					  const struct stepping_desc *main,
+					  const struct stepping_desc *sub)
+{
+	struct pci_dev *pdev = to_pci_dev(display->drm->dev);
+	const enum intel_step *map = main->map;
+	int size = main->size;
+	int revision = pdev->revision;
+	enum intel_step step;
+
+	/* subplatform stepping info trumps main platform info */
+	if (sub && sub->map && sub->size) {
+		map = sub->map;
+		size = sub->size;
+	}
+
+	/* not all platforms define steppings, and it's fine */
+	if (!map || !size)
+		return STEP_NONE;
+
+	if (revision < size && map[revision] != STEP_NONE) {
+		step = map[revision];
+	} else {
+		drm_warn(display->drm, "Unknown revision 0x%02x\n", revision);
+
+		/*
+		 * If we hit a gap in the revision to step map, use the information
+		 * for the next revision.
+		 *
+		 * This may be wrong in all sorts of ways, especially if the
+		 * steppings in the array are not monotonically increasing, but
+		 * it's better than defaulting to 0.
+		 */
+		while (revision < size && map[revision] == STEP_NONE)
+			revision++;
+
+		if (revision < size) {
+			drm_dbg_kms(display->drm, "Using display stepping for revision 0x%02x\n",
+				    revision);
+			step = map[revision];
+		} else {
+			drm_dbg_kms(display->drm, "Using future display stepping\n");
+			step = STEP_FUTURE;
+		}
+	}
+
+	drm_WARN_ON(display->drm, step == STEP_NONE);
+
+	return step;
+}
+
+/* Size of the entire bitmap, not the number of platforms */
+static unsigned int display_platforms_num_bits(void)
+{
+	return sizeof(((struct intel_display_platforms *)0)->bitmap) * BITS_PER_BYTE;
+}
+
+/* Number of platform bits set */
+static unsigned int display_platforms_weight(const struct intel_display_platforms *p)
+{
+	return bitmap_weight(p->bitmap, display_platforms_num_bits());
+}
+
+/* Merge the subplatform information from src to dst */
+static void display_platforms_or(struct intel_display_platforms *dst,
+				 const struct intel_display_platforms *src)
+{
+	bitmap_or(dst->bitmap, dst->bitmap, src->bitmap, display_platforms_num_bits());
+}
+
 void intel_display_device_probe(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
 	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 	const struct intel_display_device_info *info;
 	struct intel_display_ip_ver ip_ver = {};
 	const struct platform_desc *desc;
 	const struct subplatform_desc *subdesc;
+	enum intel_step step;
 
 	/* Add drm device backpointer as early as possible. */
 	i915->display.drm = &i915->drm;
@@ -1298,22 +1603,44 @@ void intel_display_device_probe(struct drm_i915_private *i915)
 	       &DISPLAY_INFO(i915)->__runtime_defaults,
 	       sizeof(*DISPLAY_RUNTIME_INFO(i915)));
 
-	drm_WARN_ON(&i915->drm, !desc->platform || !desc->name);
-	DISPLAY_RUNTIME_INFO(i915)->platform = desc->platform;
+	drm_WARN_ON(&i915->drm, !desc->name ||
+		    !display_platforms_weight(&desc->platforms));
+
+	display->platform = desc->platforms;
 
 	subdesc = find_subplatform_desc(pdev, desc);
 	if (subdesc) {
-		drm_WARN_ON(&i915->drm, !subdesc->subplatform || !subdesc->name);
-		DISPLAY_RUNTIME_INFO(i915)->subplatform = subdesc->subplatform;
+		drm_WARN_ON(&i915->drm, !subdesc->name ||
+			    !display_platforms_weight(&subdesc->platforms));
+
+		display_platforms_or(&display->platform, &subdesc->platforms);
+
+		/* Ensure platform and subplatform are distinct */
+		drm_WARN_ON(&i915->drm,
+			    display_platforms_weight(&display->platform) !=
+			    display_platforms_weight(&desc->platforms) +
+			    display_platforms_weight(&subdesc->platforms));
 	}
 
-	if (ip_ver.ver || ip_ver.rel || ip_ver.step)
+	if (ip_ver.ver || ip_ver.rel || ip_ver.step) {
 		DISPLAY_RUNTIME_INFO(i915)->ip = ip_ver;
+		step = STEP_A0 + ip_ver.step;
+		if (step > STEP_FUTURE) {
+			drm_dbg_kms(display->drm, "Using future display stepping\n");
+			step = STEP_FUTURE;
+		}
+	} else {
+		step = get_pre_gmdid_step(display, &desc->step_info,
+					  subdesc ? &subdesc->step_info : NULL);
+	}
 
-	drm_info(&i915->drm, "Found %s%s%s (device ID %04x) display version %u.%02u\n",
+	DISPLAY_RUNTIME_INFO(i915)->step = step;
+
+	drm_info(&i915->drm, "Found %s%s%s (device ID %04x) display version %u.%02u stepping %s\n",
 		 desc->name, subdesc ? "/" : "", subdesc ? subdesc->name : "",
 		 pdev->device, DISPLAY_RUNTIME_INFO(i915)->ip.ver,
-		 DISPLAY_RUNTIME_INFO(i915)->ip.rel);
+		 DISPLAY_RUNTIME_INFO(i915)->ip.rel,
+		 step != STEP_NONE ? intel_step_name(step) : "N/A");
 
 	return;
 
@@ -1328,6 +1655,7 @@ void intel_display_device_remove(struct drm_i915_private *i915)
 
 static void __intel_display_device_info_runtime_init(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
 	struct intel_display_runtime_info *display_runtime = DISPLAY_RUNTIME_INFO(i915);
 	enum pipe pipe;
 
@@ -1448,8 +1776,10 @@ static void __intel_display_device_info_runtime_init(struct drm_i915_private *i9
 		if (dfsm & SKL_DFSM_DISPLAY_HDCP_DISABLE)
 			display_runtime->has_hdcp = 0;
 
-		if (dfsm & SKL_DFSM_DISPLAY_PM_DISABLE)
-			display_runtime->fbc_mask = 0;
+		if (IS_DG2(i915) || DISPLAY_VER(i915) < 13) {
+			if (dfsm & SKL_DFSM_DISPLAY_PM_DISABLE)
+				display_runtime->fbc_mask = 0;
+		}
 
 		if (DISPLAY_VER(i915) >= 11 && (dfsm & ICL_DFSM_DMC_DISABLE))
 			display_runtime->has_dmc = 0;
@@ -1457,6 +1787,10 @@ static void __intel_display_device_info_runtime_init(struct drm_i915_private *i9
 		if (IS_DISPLAY_VER(i915, 10, 12) &&
 		    (dfsm & GLK_DFSM_DISPLAY_DSC_DISABLE))
 			display_runtime->has_dsc = 0;
+
+		if (DISPLAY_VER(display) >= 20 &&
+		    (dfsm & XE2LPD_DFSM_DBUF_OVERLAP_DISABLE))
+			display_runtime->has_dbuf_overlap_detection = false;
 	}
 
 	if (DISPLAY_VER(i915) >= 20) {
@@ -1473,6 +1807,13 @@ static void __intel_display_device_info_runtime_init(struct drm_i915_private *i9
 					display_runtime->num_scalers[pipe] = 1;
 		}
 	}
+
+	if (DISPLAY_VER(i915) >= 30)
+		display_runtime->edp_typec_support =
+			intel_de_read(display, PICA_PHY_CONFIG_CONTROL) & EDP_ON_TYPEC;
+
+	display_runtime->rawclk_freq = intel_read_rawclk(display);
+	drm_dbg_kms(&i915->drm, "rawclk rate: %d kHz\n", display_runtime->rawclk_freq);
 
 	return;
 
@@ -1509,6 +1850,8 @@ void intel_display_device_info_print(const struct intel_display_device_info *inf
 		drm_printf(p, "display version: %u\n",
 			   runtime->ip.ver);
 
+	drm_printf(p, "display stepping: %s\n", intel_step_name(runtime->step));
+
 #define PRINT_FLAG(name) drm_printf(p, "%s: %s\n", #name, str_yes_no(info->name))
 	DEV_INFO_DISPLAY_FOR_EACH_FLAG(PRINT_FLAG);
 #undef PRINT_FLAG
@@ -1516,6 +1859,8 @@ void intel_display_device_info_print(const struct intel_display_device_info *inf
 	drm_printf(p, "has_hdcp: %s\n", str_yes_no(runtime->has_hdcp));
 	drm_printf(p, "has_dmc: %s\n", str_yes_no(runtime->has_dmc));
 	drm_printf(p, "has_dsc: %s\n", str_yes_no(runtime->has_dsc));
+
+	drm_printf(p, "rawclk rate: %u kHz\n", runtime->rawclk_freq);
 }
 
 /*
@@ -1529,9 +1874,11 @@ void intel_display_device_info_print(const struct intel_display_device_info *inf
  */
 bool intel_display_device_enabled(struct drm_i915_private *i915)
 {
-	/* Only valid when HAS_DISPLAY() is true */
-	drm_WARN_ON(&i915->drm, !HAS_DISPLAY(i915));
+	struct intel_display *display = &i915->display;
 
-	return !i915->display.params.disable_display &&
-		!intel_opregion_headless_sku(i915);
+	/* Only valid when HAS_DISPLAY() is true */
+	drm_WARN_ON(display->drm, !HAS_DISPLAY(display));
+
+	return !display->params.disable_display &&
+		!intel_opregion_headless_sku(display);
 }

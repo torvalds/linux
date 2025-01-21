@@ -196,7 +196,7 @@ xrep_bmap_check_fork_rmap(
 		return -EFSCORRUPTED;
 
 	/* Check that this is within the AG. */
-	if (!xfs_verify_agbext(cur->bc_ag.pag, rec->rm_startblock,
+	if (!xfs_verify_agbext(to_perag(cur->bc_group), rec->rm_startblock,
 				rec->rm_blockcount))
 		return -EFSCORRUPTED;
 
@@ -237,7 +237,6 @@ xrep_bmap_walk_rmap(
 	void				*priv)
 {
 	struct xrep_bmap		*rb = priv;
-	struct xfs_mount		*mp = cur->bc_mp;
 	xfs_fsblock_t			fsbno;
 	int				error = 0;
 
@@ -269,8 +268,7 @@ xrep_bmap_walk_rmap(
 	if ((rec->rm_flags & XFS_RMAP_UNWRITTEN) && !rb->allow_unwritten)
 		return -EFSCORRUPTED;
 
-	fsbno = XFS_AGB_TO_FSB(mp, cur->bc_ag.pag->pag_agno,
-			rec->rm_startblock);
+	fsbno = xfs_agbno_to_fsb(to_perag(cur->bc_group), rec->rm_startblock);
 
 	if (rec->rm_flags & XFS_RMAP_BMBT_BLOCK) {
 		rb->old_bmbt_block_count += rec->rm_blockcount;
@@ -409,12 +407,11 @@ xrep_bmap_find_mappings(
 	struct xrep_bmap	*rb)
 {
 	struct xfs_scrub	*sc = rb->sc;
-	struct xfs_perag	*pag;
-	xfs_agnumber_t		agno;
+	struct xfs_perag	*pag = NULL;
 	int			error = 0;
 
 	/* Iterate the rmaps for extents. */
-	for_each_perag(sc->mp, agno, pag) {
+	while ((pag = xfs_perag_next(sc->mp, pag))) {
 		error = xrep_bmap_scan_ag(rb, pag);
 		if (error) {
 			xfs_perag_rele(pag);
@@ -480,7 +477,7 @@ xrep_bmap_iroot_size(
 {
 	ASSERT(level > 0);
 
-	return XFS_BMAP_BROOT_SPACE_CALC(cur->bc_mp, nr_this_level);
+	return xfs_bmap_broot_space_calc(cur->bc_mp, nr_this_level);
 }
 
 /* Update the inode counters. */
@@ -801,7 +798,7 @@ xrep_bmap(
 {
 	struct xrep_bmap	*rb;
 	char			*descr;
-	unsigned int		max_bmbt_recs;
+	xfs_extnum_t		max_bmbt_recs;
 	bool			large_extcount;
 	int			error = 0;
 

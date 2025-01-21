@@ -240,7 +240,6 @@ struct hw_sequencer_funcs {
 	void (*program_triplebuffer)(const struct dc *dc,
 		struct pipe_ctx *pipe_ctx, bool enableTripleBuffer);
 	void (*update_pending_status)(struct pipe_ctx *pipe_ctx);
-	void (*power_down)(struct dc *dc);
 	void (*update_dsc_pg)(struct dc *dc, struct dc_state *context, bool safe_to_disable);
 
 	/* Pipe Lock Related */
@@ -366,8 +365,7 @@ struct hw_sequencer_funcs {
 	void (*clear_status_bits)(struct dc *dc, unsigned int mask);
 
 	bool (*set_backlight_level)(struct pipe_ctx *pipe_ctx,
-			uint32_t backlight_pwm_u16_16,
-			uint32_t frame_ramp);
+		struct set_backlight_level_params *params);
 
 	void (*set_abm_immediate_disable)(struct pipe_ctx *pipe_ctx);
 
@@ -460,6 +458,10 @@ struct hw_sequencer_funcs {
 			bool enable);
 	void (*fams2_global_control_lock_fast)(union block_sequence_params *params);
 	void (*set_long_vtotal)(struct pipe_ctx **pipe_ctx, int num_pipes, uint32_t v_total_min, uint32_t v_total_max);
+	void (*program_outstanding_updates)(struct dc *dc,
+			struct dc_state *context);
+	void (*setup_hpo_hw_control)(const struct dce_hwseq *hws, bool enable);
+	void (*wait_for_all_pending_updates)(const struct pipe_ctx *pipe_ctx);
 };
 
 void color_space_to_black_color(
@@ -502,6 +504,10 @@ void get_mclk_switch_visual_confirm_color(
 		struct pipe_ctx *pipe_ctx,
 		struct tg_color *color);
 
+void get_cursor_visual_confirm_color(
+		struct pipe_ctx *pipe_ctx,
+		struct tg_color *color);
+
 void set_p_state_switch_method(
 		struct dc *dc,
 		struct dc_state *context,
@@ -519,6 +525,21 @@ void hwss_build_fast_sequence(struct dc *dc,
 		struct pipe_ctx *pipe_ctx,
 		struct dc_stream_status *stream_status,
 		struct dc_state *context);
+
+void hwss_wait_for_all_blank_complete(struct dc *dc,
+		struct dc_state *context);
+
+void hwss_wait_for_odm_update_pending_complete(struct dc *dc,
+		struct dc_state *context);
+
+void hwss_wait_for_no_pipes_pending(struct dc *dc,
+		struct dc_state *context);
+
+void hwss_wait_for_outstanding_hw_updates(struct dc *dc,
+		struct dc_state *dc_context);
+
+void hwss_process_outstanding_hw_updates(struct dc *dc,
+		struct dc_state *dc_context);
 
 void hwss_send_dmcub_cmd(union block_sequence_params *params);
 

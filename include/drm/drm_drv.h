@@ -34,6 +34,8 @@
 
 #include <drm/drm_device.h>
 
+struct drm_fb_helper;
+struct drm_fb_helper_surface_size;
 struct drm_file;
 struct drm_gem_object;
 struct drm_master;
@@ -229,34 +231,6 @@ struct drm_driver {
 	void (*postclose) (struct drm_device *, struct drm_file *);
 
 	/**
-	 * @lastclose:
-	 *
-	 * Called when the last &struct drm_file has been closed and there's
-	 * currently no userspace client for the &struct drm_device.
-	 *
-	 * Modern drivers should only use this to force-restore the fbdev
-	 * framebuffer using drm_fb_helper_restore_fbdev_mode_unlocked().
-	 * Anything else would indicate there's something seriously wrong.
-	 * Modern drivers can also use this to execute delayed power switching
-	 * state changes, e.g. in conjunction with the :ref:`vga_switcheroo`
-	 * infrastructure.
-	 *
-	 * This is called after @postclose hook has been called.
-	 *
-	 * NOTE:
-	 *
-	 * All legacy drivers use this callback to de-initialize the hardware.
-	 * This is purely because of the shadow-attach model, where the DRM
-	 * kernel driver does not really own the hardware. Instead ownershipe is
-	 * handled with the help of userspace through an inheritedly racy dance
-	 * to set/unset the VT into raw mode.
-	 *
-	 * Legacy drivers initialize the hardware in the @firstopen callback,
-	 * which isn't even called for modern drivers.
-	 */
-	void (*lastclose) (struct drm_device *);
-
-	/**
 	 * @unload:
 	 *
 	 * Reverse the effects of the driver load callback.  Ideally,
@@ -393,6 +367,22 @@ struct drm_driver {
 	int (*dumb_map_offset)(struct drm_file *file_priv,
 			       struct drm_device *dev, uint32_t handle,
 			       uint64_t *offset);
+
+	/**
+	 * @fbdev_probe:
+	 *
+	 * Allocates and initialize the fb_info structure for fbdev emulation.
+	 * Furthermore it also needs to allocate the DRM framebuffer used to
+	 * back the fbdev.
+	 *
+	 * This callback is mandatory for fbdev support.
+	 *
+	 * Returns:
+	 *
+	 * 0 on success ot a negative error code otherwise.
+	 */
+	int (*fbdev_probe)(struct drm_fb_helper *fbdev_helper,
+			   struct drm_fb_helper_surface_size *sizes);
 
 	/**
 	 * @show_fdinfo:

@@ -207,6 +207,9 @@ static int powernv_flash_set_driver_info(struct device *dev,
 	 * get them
 	 */
 	mtd->name = devm_kasprintf(dev, GFP_KERNEL, "%pOFP", dev->of_node);
+	if (!mtd->name)
+		return -ENOMEM;
+
 	mtd->type = MTD_NORFLASH;
 	mtd->flags = MTD_WRITEABLE;
 	mtd->size = size;
@@ -283,7 +286,7 @@ static struct platform_driver powernv_flash_driver = {
 		.name		= "powernv_flash",
 		.of_match_table	= powernv_flash_match,
 	},
-	.remove_new	= powernv_flash_release,
+	.remove		= powernv_flash_release,
 	.probe		= powernv_flash_probe,
 };
 

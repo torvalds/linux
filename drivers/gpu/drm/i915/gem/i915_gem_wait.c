@@ -266,7 +266,7 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 		if (ret == -ETIME && !nsecs_to_jiffies(args->timeout_ns))
 			args->timeout_ns = 0;
 
-		/* Asked to wait beyond the jiffie/scheduler precision? */
+		/* Asked to wait beyond the jiffy/scheduler precision? */
 		if (ret == -ETIME && args->timeout_ns)
 			ret = -EAGAIN;
 	}

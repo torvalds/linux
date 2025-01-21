@@ -184,6 +184,14 @@ struct thread_struct {
 	u64			sctlr_user;
 	u64			svcr;
 	u64			tpidr2_el0;
+	u64			por_el0;
+#ifdef CONFIG_ARM64_GCS
+	unsigned int		gcs_el0_mode;
+	unsigned int		gcs_el0_locked;
+	u64			gcspr_el0;
+	u64			gcs_base;
+	u64			gcs_size;
+#endif
 };
 
 static inline unsigned int thread_get_vl(struct thread_struct *thread,
@@ -284,22 +292,44 @@ void tls_preserve_current_state(void);
 	.fpsimd_cpu = NR_CPUS,			\
 }
 
-static inline void start_thread_common(struct pt_regs *regs, unsigned long pc)
+static inline void start_thread_common(struct pt_regs *regs, unsigned long pc,
+				       unsigned long pstate)
 {
-	s32 previous_syscall = regs->syscallno;
-	memset(regs, 0, sizeof(*regs));
-	regs->syscallno = previous_syscall;
-	regs->pc = pc;
+	/*
+	 * Ensure all GPRs are zeroed, and initialize PC + PSTATE.
+	 * The SP (or compat SP) will be initialized later.
+	 */
+	regs->user_regs = (struct user_pt_regs) {
+		.pc = pc,
+		.pstate = pstate,
+	};
 
+	/*
+	 * To allow the syscalls:sys_exit_execve tracepoint we need to preserve
+	 * syscallno, but do not need orig_x0 or the original GPRs.
+	 */
+	regs->orig_x0 = 0;
+
+	/*
+	 * An exec from a kernel thread won't have an existing PMR value.
+	 */
 	if (system_uses_irq_prio_masking())
-		regs->pmr_save = GIC_PRIO_IRQON;
+		regs->pmr = GIC_PRIO_IRQON;
+
+	/*
+	 * The pt_regs::stackframe field must remain valid throughout this
+	 * function as a stacktrace can be taken at any time. Any user or
+	 * kernel task should have a valid final frame.
+	 */
+	WARN_ON_ONCE(regs->stackframe.record.fp != 0);
+	WARN_ON_ONCE(regs->stackframe.record.lr != 0);
+	WARN_ON_ONCE(regs->stackframe.type != FRAME_META_TYPE_FINAL);
 }
 
 static inline void start_thread(struct pt_regs *regs, unsigned long pc,
 				unsigned long sp)
 {
-	start_thread_common(regs, pc);
-	regs->pstate = PSR_MODE_EL0t;
+	start_thread_common(regs, pc, PSR_MODE_EL0t);
 	spectre_v4_enable_task_mitigation(current);
 	regs->sp = sp;
 }
@@ -308,15 +338,13 @@ static inline void start_thread(struct pt_regs *regs, unsigned long pc,
 static inline void compat_start_thread(struct pt_regs *regs, unsigned long pc,
 				       unsigned long sp)
 {
-	start_thread_common(regs, pc);
-	regs->pstate = PSR_AA32_MODE_USR;
+	unsigned long pstate = PSR_AA32_MODE_USR;
 	if (pc & 1)
-		regs->pstate |= PSR_AA32_T_BIT;
+		pstate |= PSR_AA32_T_BIT;
+	if (IS_ENABLED(CONFIG_CPU_BIG_ENDIAN))
+		pstate |= PSR_AA32_E_BIT;
 
-#ifdef __AARCH64EB__
-	regs->pstate |= PSR_AA32_E_BIT;
-#endif
-
+	start_thread_common(regs, pc, pstate);
 	spectre_v4_enable_task_mitigation(current);
 	regs->compat_sp = sp;
 }
@@ -401,6 +429,11 @@ long get_tagged_addr_ctrl(struct task_struct *task);
 #define SET_TAGGED_ADDR_CTRL(arg)	set_tagged_addr_ctrl(current, arg)
 #define GET_TAGGED_ADDR_CTRL()		get_tagged_addr_ctrl(current)
 #endif
+
+int get_tsc_mode(unsigned long adr);
+int set_tsc_mode(unsigned int val);
+#define GET_TSC_CTL(adr)        get_tsc_mode((adr))
+#define SET_TSC_CTL(val)        set_tsc_mode((val))
 
 #endif /* __ASSEMBLY__ */
 #endif /* __ASM_PROCESSOR_H */

@@ -3,12 +3,15 @@
  * Copyright © 2023 Intel Corporation
  */
 
+#include <linux/fault-inject.h>
+
 #include <drm/drm_managed.h>
 
 #include "xe_device.h"
 #include "xe_ggtt.h"
 #include "xe_gt.h"
 #include "xe_migrate.h"
+#include "xe_pcode.h"
 #include "xe_sa.h"
 #include "xe_tile.h"
 #include "xe_tile_sysfs.h"
@@ -124,8 +127,11 @@ int xe_tile_init_early(struct xe_tile *tile, struct xe_device *xe, u8 id)
 	if (IS_ERR(tile->primary_gt))
 		return PTR_ERR(tile->primary_gt);
 
+	xe_pcode_init(tile);
+
 	return 0;
 }
+ALLOW_ERROR_INJECTION(xe_tile_init_early, ERRNO); /* See xe_pci_probe() */
 
 static int tile_ttm_mgr_init(struct xe_tile *tile)
 {

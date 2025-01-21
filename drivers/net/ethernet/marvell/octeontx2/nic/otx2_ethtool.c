@@ -85,26 +85,22 @@ static void otx2_get_qset_strings(struct otx2_nic *pfvf, u8 **data, int qset)
 	int start_qidx = qset * pfvf->hw.rx_queues;
 	int qidx, stats;
 
-	for (qidx = 0; qidx < pfvf->hw.rx_queues; qidx++) {
-		for (stats = 0; stats < otx2_n_queue_stats; stats++) {
-			sprintf(*data, "rxq%d: %s", qidx + start_qidx,
-				otx2_queue_stats[stats].name);
-			*data += ETH_GSTRING_LEN;
-		}
-	}
+	for (qidx = 0; qidx < pfvf->hw.rx_queues; qidx++)
+		for (stats = 0; stats < otx2_n_queue_stats; stats++)
+			ethtool_sprintf(data, "rxq%d: %s", qidx + start_qidx,
+					otx2_queue_stats[stats].name);
 
-	for (qidx = 0; qidx < otx2_get_total_tx_queues(pfvf); qidx++) {
-		for (stats = 0; stats < otx2_n_queue_stats; stats++) {
+	for (qidx = 0; qidx < otx2_get_total_tx_queues(pfvf); qidx++)
+		for (stats = 0; stats < otx2_n_queue_stats; stats++)
 			if (qidx >= pfvf->hw.non_qos_queues)
-				sprintf(*data, "txq_qos%d: %s",
-					qidx + start_qidx - pfvf->hw.non_qos_queues,
-					otx2_queue_stats[stats].name);
+				ethtool_sprintf(data, "txq_qos%d: %s",
+						qidx + start_qidx -
+							pfvf->hw.non_qos_queues,
+						otx2_queue_stats[stats].name);
 			else
-				sprintf(*data, "txq%d: %s", qidx + start_qidx,
-					otx2_queue_stats[stats].name);
-			*data += ETH_GSTRING_LEN;
-		}
-	}
+				ethtool_sprintf(data, "txq%d: %s",
+						qidx + start_qidx,
+						otx2_queue_stats[stats].name);
 }
 
 static void otx2_get_strings(struct net_device *netdev, u32 sset, u8 *data)
@@ -115,36 +111,25 @@ static void otx2_get_strings(struct net_device *netdev, u32 sset, u8 *data)
 	if (sset != ETH_SS_STATS)
 		return;
 
-	for (stats = 0; stats < otx2_n_dev_stats; stats++) {
-		memcpy(data, otx2_dev_stats[stats].name, ETH_GSTRING_LEN);
-		data += ETH_GSTRING_LEN;
-	}
+	for (stats = 0; stats < otx2_n_dev_stats; stats++)
+		ethtool_puts(&data, otx2_dev_stats[stats].name);
 
-	for (stats = 0; stats < otx2_n_drv_stats; stats++) {
-		memcpy(data, otx2_drv_stats[stats].name, ETH_GSTRING_LEN);
-		data += ETH_GSTRING_LEN;
-	}
+	for (stats = 0; stats < otx2_n_drv_stats; stats++)
+		ethtool_puts(&data, otx2_drv_stats[stats].name);
 
 	otx2_get_qset_strings(pfvf, &data, 0);
 
 	if (!test_bit(CN10K_RPM, &pfvf->hw.cap_flag)) {
-		for (stats = 0; stats < CGX_RX_STATS_COUNT; stats++) {
-			sprintf(data, "cgx_rxstat%d: ", stats);
-			data += ETH_GSTRING_LEN;
-		}
+		for (stats = 0; stats < CGX_RX_STATS_COUNT; stats++)
+			ethtool_sprintf(&data, "cgx_rxstat%d: ", stats);
 
-		for (stats = 0; stats < CGX_TX_STATS_COUNT; stats++) {
-			sprintf(data, "cgx_txstat%d: ", stats);
-			data += ETH_GSTRING_LEN;
-		}
+		for (stats = 0; stats < CGX_TX_STATS_COUNT; stats++)
+			ethtool_sprintf(&data, "cgx_txstat%d: ", stats);
 	}
 
-	strcpy(data, "reset_count");
-	data += ETH_GSTRING_LEN;
-	sprintf(data, "Fec Corrected Errors: ");
-	data += ETH_GSTRING_LEN;
-	sprintf(data, "Fec Uncorrected Errors: ");
-	data += ETH_GSTRING_LEN;
+	ethtool_puts(&data, "reset_count");
+	ethtool_puts(&data, "Fec Corrected Errors: ");
+	ethtool_puts(&data, "Fec Uncorrected Errors: ");
 }
 
 static void otx2_get_qset_stats(struct otx2_nic *pfvf,
@@ -343,6 +328,11 @@ static void otx2_get_pauseparam(struct net_device *netdev,
 	if (!otx2_sync_mbox_msg(&pfvf->mbox)) {
 		rsp = (struct cgx_pause_frm_cfg *)
 		       otx2_mbox_get_rsp(&pfvf->mbox.mbox, 0, &req->hdr);
+		if (IS_ERR(rsp)) {
+			mutex_unlock(&pfvf->mbox.lock);
+			return;
+		}
+
 		pause->rx_pause = rsp->rx_pause;
 		pause->tx_pause = rsp->tx_pause;
 	}
@@ -962,8 +952,6 @@ static int otx2_get_ts_info(struct net_device *netdev,
 		return ethtool_op_get_ts_info(netdev, info);
 
 	info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
-				SOF_TIMESTAMPING_RX_SOFTWARE |
-				SOF_TIMESTAMPING_SOFTWARE |
 				SOF_TIMESTAMPING_TX_HARDWARE |
 				SOF_TIMESTAMPING_RX_HARDWARE |
 				SOF_TIMESTAMPING_RAW_HARDWARE;
@@ -1074,6 +1062,11 @@ static int otx2_set_fecparam(struct net_device *netdev,
 
 	rsp = (struct fec_mode *)otx2_mbox_get_rsp(&pfvf->mbox.mbox,
 						   0, &req->hdr);
+	if (IS_ERR(rsp)) {
+		err = PTR_ERR(rsp);
+		goto end;
+	}
+
 	if (rsp->fec >= 0)
 		pfvf->linfo.fec = rsp->fec;
 	else
@@ -1367,20 +1360,15 @@ static void otx2vf_get_strings(struct net_device *netdev, u32 sset, u8 *data)
 	if (sset != ETH_SS_STATS)
 		return;
 
-	for (stats = 0; stats < otx2_n_dev_stats; stats++) {
-		memcpy(data, otx2_dev_stats[stats].name, ETH_GSTRING_LEN);
-		data += ETH_GSTRING_LEN;
-	}
+	for (stats = 0; stats < otx2_n_dev_stats; stats++)
+		ethtool_puts(&data, otx2_dev_stats[stats].name);
 
-	for (stats = 0; stats < otx2_n_drv_stats; stats++) {
-		memcpy(data, otx2_drv_stats[stats].name, ETH_GSTRING_LEN);
-		data += ETH_GSTRING_LEN;
-	}
+	for (stats = 0; stats < otx2_n_drv_stats; stats++)
+		ethtool_puts(&data, otx2_drv_stats[stats].name);
 
 	otx2_get_qset_strings(vf, &data, 0);
 
-	strcpy(data, "reset_count");
-	data += ETH_GSTRING_LEN;
+	ethtool_puts(&data, "reset_count");
 }
 
 static void otx2vf_get_ethtool_stats(struct net_device *netdev,

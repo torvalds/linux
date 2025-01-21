@@ -12,7 +12,7 @@
 #if defined(CONFIG_DEBUG_FS)
 
 /**
- * dp_debug_get() - configure and get the DisplayPlot debug module data
+ * msm_dp_debug_get() - configure and get the DisplayPlot debug module data
  *
  * @dev: device instance of the caller
  * @panel: instance of panel module
@@ -25,8 +25,8 @@
  * This function sets up the debug module and provides a way
  * for debugfs input to be communicated with existing modules
  */
-int dp_debug_init(struct device *dev, struct dp_panel *panel,
-		  struct dp_link *link,
+int msm_dp_debug_init(struct device *dev, struct msm_dp_panel *panel,
+		  struct msm_dp_link *link,
 		  struct drm_connector *connector,
 		  struct dentry *root,
 		  bool is_edp);
@@ -34,8 +34,8 @@ int dp_debug_init(struct device *dev, struct dp_panel *panel,
 #else
 
 static inline
-int dp_debug_init(struct device *dev, struct dp_panel *panel,
-		  struct dp_link *link,
+int msm_dp_debug_init(struct device *dev, struct msm_dp_panel *panel,
+		  struct msm_dp_link *link,
 		  struct drm_connector *connector,
 		  struct dentry *root,
 		  bool is_edp)

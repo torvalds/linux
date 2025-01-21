@@ -403,9 +403,9 @@ static bool xgbe_ecc_ded(struct xgbe_prv_data *pdata, unsigned long *period,
 	return false;
 }
 
-static void xgbe_ecc_isr_task(struct tasklet_struct *t)
+static void xgbe_ecc_isr_bh_work(struct work_struct *work)
 {
-	struct xgbe_prv_data *pdata = from_tasklet(pdata, t, tasklet_ecc);
+	struct xgbe_prv_data *pdata = from_work(pdata, work, ecc_bh_work);
 	unsigned int ecc_isr;
 	bool stop = false;
 
@@ -465,17 +465,17 @@ static irqreturn_t xgbe_ecc_isr(int irq, void *data)
 {
 	struct xgbe_prv_data *pdata = data;
 
-	if (pdata->isr_as_tasklet)
-		tasklet_schedule(&pdata->tasklet_ecc);
+	if (pdata->isr_as_bh_work)
+		queue_work(system_bh_wq, &pdata->ecc_bh_work);
 	else
-		xgbe_ecc_isr_task(&pdata->tasklet_ecc);
+		xgbe_ecc_isr_bh_work(&pdata->ecc_bh_work);
 
 	return IRQ_HANDLED;
 }
 
-static void xgbe_isr_task(struct tasklet_struct *t)
+static void xgbe_isr_bh_work(struct work_struct *work)
 {
-	struct xgbe_prv_data *pdata = from_tasklet(pdata, t, tasklet_dev);
+	struct xgbe_prv_data *pdata = from_work(pdata, work, dev_bh_work);
 	struct xgbe_hw_if *hw_if = &pdata->hw_if;
 	struct xgbe_channel *channel;
 	unsigned int dma_isr, dma_ch_isr;
@@ -582,7 +582,7 @@ isr_done:
 
 	/* If there is not a separate ECC irq, handle it here */
 	if (pdata->vdata->ecc_support && (pdata->dev_irq == pdata->ecc_irq))
-		xgbe_ecc_isr_task(&pdata->tasklet_ecc);
+		xgbe_ecc_isr_bh_work(&pdata->ecc_bh_work);
 
 	/* If there is not a separate I2C irq, handle it here */
 	if (pdata->vdata->i2c_support && (pdata->dev_irq == pdata->i2c_irq))
@@ -604,10 +604,10 @@ static irqreturn_t xgbe_isr(int irq, void *data)
 {
 	struct xgbe_prv_data *pdata = data;
 
-	if (pdata->isr_as_tasklet)
-		tasklet_schedule(&pdata->tasklet_dev);
+	if (pdata->isr_as_bh_work)
+		queue_work(system_bh_wq, &pdata->dev_bh_work);
 	else
-		xgbe_isr_task(&pdata->tasklet_dev);
+		xgbe_isr_bh_work(&pdata->dev_bh_work);
 
 	return IRQ_HANDLED;
 }
@@ -1007,8 +1007,8 @@ static int xgbe_request_irqs(struct xgbe_prv_data *pdata)
 	unsigned int i;
 	int ret;
 
-	tasklet_setup(&pdata->tasklet_dev, xgbe_isr_task);
-	tasklet_setup(&pdata->tasklet_ecc, xgbe_ecc_isr_task);
+	INIT_WORK(&pdata->dev_bh_work, xgbe_isr_bh_work);
+	INIT_WORK(&pdata->ecc_bh_work, xgbe_ecc_isr_bh_work);
 
 	ret = devm_request_irq(pdata->dev, pdata->dev_irq, xgbe_isr, 0,
 			       netdev_name(netdev), pdata);
@@ -1078,8 +1078,8 @@ static void xgbe_free_irqs(struct xgbe_prv_data *pdata)
 
 	devm_free_irq(pdata->dev, pdata->dev_irq, pdata);
 
-	tasklet_kill(&pdata->tasklet_dev);
-	tasklet_kill(&pdata->tasklet_ecc);
+	cancel_work_sync(&pdata->dev_bh_work);
+	cancel_work_sync(&pdata->ecc_bh_work);
 
 	if (pdata->vdata->ecc_support && (pdata->dev_irq != pdata->ecc_irq))
 		devm_free_irq(pdata->dev, pdata->ecc_irq, pdata);

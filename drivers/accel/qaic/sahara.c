@@ -2,6 +2,7 @@
 
 /* Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved. */
 
+#include <linux/devcoredump.h>
 #include <linux/firmware.h>
 #include <linux/limits.h>
 #include <linux/mhi.h>
@@ -9,6 +10,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/overflow.h>
 #include <linux/types.h>
+#include <linux/vmalloc.h>
 #include <linux/workqueue.h>
 
 #include "sahara.h"
@@ -36,12 +38,14 @@
 
 #define SAHARA_PACKET_MAX_SIZE		0xffffU /* MHI_MAX_MTU */
 #define SAHARA_TRANSFER_MAX_SIZE	0x80000
+#define SAHARA_READ_MAX_SIZE		0xfff0U /* Avoid unaligned requests */
 #define SAHARA_NUM_TX_BUF		DIV_ROUND_UP(SAHARA_TRANSFER_MAX_SIZE,\
 							SAHARA_PACKET_MAX_SIZE)
 #define SAHARA_IMAGE_ID_NONE		U32_MAX
 
 #define SAHARA_VERSION			2
 #define SAHARA_SUCCESS			0
+#define SAHARA_TABLE_ENTRY_STR_LEN	20
 
 #define SAHARA_MODE_IMAGE_TX_PENDING	0x0
 #define SAHARA_MODE_IMAGE_TX_COMPLETE	0x1
@@ -53,6 +57,8 @@
 #define SAHARA_END_OF_IMAGE_LENGTH	0x10
 #define SAHARA_DONE_LENGTH		0x8
 #define SAHARA_RESET_LENGTH		0x8
+#define SAHARA_MEM_DEBUG64_LENGTH	0x18
+#define SAHARA_MEM_READ64_LENGTH	0x18
 
 struct sahara_packet {
 	__le32 cmd;
@@ -80,18 +86,95 @@ struct sahara_packet {
 			__le32 image;
 			__le32 status;
 		} end_of_image;
+		struct {
+			__le64 table_address;
+			__le64 table_length;
+		} memory_debug64;
+		struct {
+			__le64 memory_address;
+			__le64 memory_length;
+		} memory_read64;
 	};
 };
+
+struct sahara_debug_table_entry64 {
+	__le64	type;
+	__le64	address;
+	__le64	length;
+	char	description[SAHARA_TABLE_ENTRY_STR_LEN];
+	char	filename[SAHARA_TABLE_ENTRY_STR_LEN];
+};
+
+struct sahara_dump_table_entry {
+	u64	type;
+	u64	address;
+	u64	length;
+	char	description[SAHARA_TABLE_ENTRY_STR_LEN];
+	char	filename[SAHARA_TABLE_ENTRY_STR_LEN];
+};
+
+#define SAHARA_DUMP_V1_MAGIC 0x1234567890abcdef
+#define SAHARA_DUMP_V1_VER   1
+struct sahara_memory_dump_meta_v1 {
+	u64	magic;
+	u64	version;
+	u64	dump_size;
+	u64	table_size;
+};
+
+/*
+ * Layout of crashdump provided to user via devcoredump
+ *              +------------------------------------------+
+ *              |         Crashdump Meta structure         |
+ *              | type: struct sahara_memory_dump_meta_v1  |
+ *              +------------------------------------------+
+ *              |             Crashdump Table              |
+ *              | type: array of struct                    |
+ *              |       sahara_dump_table_entry            |
+ *              |                                          |
+ *              |                                          |
+ *              +------------------------------------------+
+ *              |                Crashdump                 |
+ *              |                                          |
+ *              |                                          |
+ *              |                                          |
+ *              |                                          |
+ *              |                                          |
+ *              +------------------------------------------+
+ *
+ * First is the metadata header. Userspace can use the magic number to verify
+ * the content type, and then check the version for the rest of the format.
+ * New versions should keep the magic number location/value, and version
+ * location, but increment the version value.
+ *
+ * For v1, the metadata lists the size of the entire dump (header + table +
+ * dump) and the size of the table. Then the dump image table, which describes
+ * the contents of the dump. Finally all the images are listed in order, with
+ * no deadspace in between. Userspace can use the sizes listed in the image
+ * table to reconstruct the individual images.
+ */
 
 struct sahara_context {
 	struct sahara_packet		*tx[SAHARA_NUM_TX_BUF];
 	struct sahara_packet		*rx;
-	struct work_struct		work;
+	struct work_struct		fw_work;
+	struct work_struct		dump_work;
 	struct mhi_device		*mhi_dev;
 	const char			**image_table;
 	u32				table_size;
 	u32				active_image_id;
 	const struct firmware		*firmware;
+	u64				dump_table_address;
+	u64				dump_table_length;
+	size_t				rx_size;
+	size_t				rx_size_requested;
+	void				*mem_dump;
+	size_t				mem_dump_sz;
+	struct sahara_dump_table_entry	*dump_image;
+	u64				dump_image_offset;
+	void				*mem_dump_freespace;
+	u64				dump_images_left;
+	bool				is_mem_dump_mode;
 };
 
 static const char *aic100_image_table[] = {
@@ -153,6 +236,8 @@ static void sahara_send_reset(struct sahara_context *context)
 {
 	int ret;
 
+	context->is_mem_dump_mode = false;
+
 	context->tx[0]->cmd = cpu_to_le32(SAHARA_RESET_CMD);
 	context->tx[0]->length = cpu_to_le32(SAHARA_RESET_LENGTH);
 
@@ -186,7 +271,8 @@ static void sahara_hello(struct sahara_context *context)
 	}
 
 	if (le32_to_cpu(context->rx->hello.mode) != SAHARA_MODE_IMAGE_TX_PENDING &&
-	    le32_to_cpu(context->rx->hello.mode) != SAHARA_MODE_IMAGE_TX_COMPLETE) {
+	    le32_to_cpu(context->rx->hello.mode) != SAHARA_MODE_IMAGE_TX_COMPLETE &&
+	    le32_to_cpu(context->rx->hello.mode) != SAHARA_MODE_MEMORY_DEBUG) {
 		dev_err(&context->mhi_dev->dev, "Unsupported hello packet - mode %d\n",
 			le32_to_cpu(context->rx->hello.mode));
 		return;
@@ -320,9 +406,70 @@ static void sahara_end_of_image(struct sahara_context *context)
 		dev_dbg(&context->mhi_dev->dev, "Unable to send done response %d\n", ret);
 }
 
+static void sahara_memory_debug64(struct sahara_context *context)
+{
+	int ret;
+
+	dev_dbg(&context->mhi_dev->dev,
+		"MEMORY DEBUG64 cmd received. length:%d table_address:%#llx table_length:%#llx\n",
+		le32_to_cpu(context->rx->length),
+		le64_to_cpu(context->rx->memory_debug64.table_address),
+		le64_to_cpu(context->rx->memory_debug64.table_length));
+
+	if (le32_to_cpu(context->rx->length) != SAHARA_MEM_DEBUG64_LENGTH) {
+		dev_err(&context->mhi_dev->dev, "Malformed memory debug64 packet - length %d\n",
+			le32_to_cpu(context->rx->length));
+		return;
+	}
+
+	context->dump_table_address = le64_to_cpu(context->rx->memory_debug64.table_address);
+	context->dump_table_length = le64_to_cpu(context->rx->memory_debug64.table_length);
+
+	if (context->dump_table_length % sizeof(struct sahara_debug_table_entry64) != 0 ||
+	    !context->dump_table_length) {
+		dev_err(&context->mhi_dev->dev, "Malformed memory debug64 packet - table length %lld\n",
+			context->dump_table_length);
+		return;
+	}
+
+	/*
+	 * From this point, the protocol flips. We make memory_read requests to
+	 * the device, and the device responds with the raw data. If the device
+	 * has an error, it will send an End of Image command. First we need to
+	 * request the memory dump table so that we know where all the pieces
+	 * of the dump are that we can consume.
+	 */
+
+	context->is_mem_dump_mode = true;
+
+	/*
+	 * Assume that the table is smaller than our MTU so that we can read it
+	 * in one shot. The spec does not put an upper limit on the table, but
+	 * no known device will exceed this.
+	 */
+	if (context->dump_table_length > SAHARA_PACKET_MAX_SIZE) {
+		dev_err(&context->mhi_dev->dev, "Memory dump table length %lld exceeds supported size. Discarding dump\n",
+			context->dump_table_length);
+		sahara_send_reset(context);
+		return;
+	}
+
+	context->tx[0]->cmd = cpu_to_le32(SAHARA_MEM_READ64_CMD);
+	context->tx[0]->length = cpu_to_le32(SAHARA_MEM_READ64_LENGTH);
+	context->tx[0]->memory_read64.memory_address = cpu_to_le64(context->dump_table_address);
+	context->tx[0]->memory_read64.memory_length = cpu_to_le64(context->dump_table_length);
+
+	context->rx_size_requested = context->dump_table_length;
+
+	ret = mhi_queue_buf(context->mhi_dev, DMA_TO_DEVICE, context->tx[0],
+			    SAHARA_MEM_READ64_LENGTH, MHI_EOT);
+	if (ret)
+		dev_err(&context->mhi_dev->dev, "Unable to send read for dump table %d\n", ret);
+}
+
 static void sahara_processing(struct work_struct *work)
 {
-	struct sahara_context *context = container_of(work, struct sahara_context, work);
+	struct sahara_context *context = container_of(work, struct sahara_context, fw_work);
 	int ret;
 
 	switch (le32_to_cpu(context->rx->cmd)) {
@@ -338,6 +485,12 @@ static void sahara_processing(struct work_struct *work)
 	case SAHARA_DONE_RESP_CMD:
 		/* Intentional do nothing as we don't need to exit an app */
 		break;
+	case SAHARA_RESET_RESP_CMD:
+		/* Intentional do nothing as we don't need to exit an app */
+		break;
+	case SAHARA_MEM_DEBUG64_CMD:
+		sahara_memory_debug64(context);
+		break;
 	default:
 		dev_err(&context->mhi_dev->dev, "Unknown command %d\n",
 			le32_to_cpu(context->rx->cmd));
@@ -348,6 +501,217 @@ static void sahara_processing(struct work_struct *work)
 			    SAHARA_PACKET_MAX_SIZE, MHI_EOT);
 	if (ret)
 		dev_err(&context->mhi_dev->dev, "Unable to requeue rx buf %d\n", ret);
+}
+
+static void sahara_parse_dump_table(struct sahara_context *context)
+{
+	struct sahara_dump_table_entry *image_out_table;
+	struct sahara_debug_table_entry64 *dev_table;
+	struct sahara_memory_dump_meta_v1 *dump_meta;
+	u64 table_nents;
+	u64 dump_length;
+	int ret;
+	u64 i;
+
+	table_nents = context->dump_table_length / sizeof(*dev_table);
+	context->dump_images_left = table_nents;
+	dump_length = 0;
+
+	dev_table = (struct sahara_debug_table_entry64 *)(context->rx);
+	for (i = 0; i < table_nents; ++i) {
+		/* Do not trust the device, ensure the strings are terminated */
+		dev_table[i].description[SAHARA_TABLE_ENTRY_STR_LEN - 1] = 0;
+		dev_table[i].filename[SAHARA_TABLE_ENTRY_STR_LEN - 1] = 0;
+
+		dump_length = size_add(dump_length, le64_to_cpu(dev_table[i].length));
+		if (dump_length == SIZE_MAX) {
+			/* Discard the dump */
+			sahara_send_reset(context);
+			return;
+		}
+
+		dev_dbg(&context->mhi_dev->dev,
+			"Memory dump table entry %lld type: %lld address: %#llx length: %#llx description: \"%s\" filename \"%s\"\n",
+			i,
+			le64_to_cpu(dev_table[i].type),
+			le64_to_cpu(dev_table[i].address),
+			le64_to_cpu(dev_table[i].length),
+			dev_table[i].description,
+			dev_table[i].filename);
+	}
+
+	dump_length = size_add(dump_length, sizeof(*dump_meta));
+	if (dump_length == SIZE_MAX) {
+		/* Discard the dump */
+		sahara_send_reset(context);
+		return;
+	}
+	dump_length = size_add(dump_length, size_mul(sizeof(*image_out_table), table_nents));
+	if (dump_length == SIZE_MAX) {
+		/* Discard the dump */
+		sahara_send_reset(context);
+		return;
+	}
+
+	context->mem_dump_sz = dump_length;
+	context->mem_dump = vzalloc(dump_length);
+	if (!context->mem_dump) {
+		/* Discard the dump */
+		sahara_send_reset(context);
+		return;
+	}
+
+	/* Populate the dump metadata and table for userspace */
+	dump_meta = context->mem_dump;
+	dump_meta->magic = SAHARA_DUMP_V1_MAGIC;
+	dump_meta->version = SAHARA_DUMP_V1_VER;
+	dump_meta->dump_size = dump_length;
+	dump_meta->table_size = context->dump_table_length;
+
+	image_out_table = context->mem_dump + sizeof(*dump_meta);
+	for (i = 0; i < table_nents; ++i) {
+		image_out_table[i].type = le64_to_cpu(dev_table[i].type);
+		image_out_table[i].address = le64_to_cpu(dev_table[i].address);
+		image_out_table[i].length = le64_to_cpu(dev_table[i].length);
+		strscpy(image_out_table[i].description, dev_table[i].description,
+			SAHARA_TABLE_ENTRY_STR_LEN);
+		strscpy(image_out_table[i].filename,
+			dev_table[i].filename,
+			SAHARA_TABLE_ENTRY_STR_LEN);
+	}
+
+	context->mem_dump_freespace = &image_out_table[i];
+
+	/* Done parsing the table, switch to image dump mode */
+	context->dump_table_length = 0;
+
+	/* Request the first chunk of the first image */
+	context->dump_image = &image_out_table[0];
+	dump_length = min(context->dump_image->length, SAHARA_READ_MAX_SIZE);
+	/* Avoid requesting EOI sized data so that we can identify errors */
+	if (dump_length == SAHARA_END_OF_IMAGE_LENGTH)
+		dump_length = SAHARA_END_OF_IMAGE_LENGTH / 2;
+
+	context->dump_image_offset = dump_length;
+
+	context->tx[0]->cmd = cpu_to_le32(SAHARA_MEM_READ64_CMD);
+	context->tx[0]->length = cpu_to_le32(SAHARA_MEM_READ64_LENGTH);
+	context->tx[0]->memory_read64.memory_address = cpu_to_le64(context->dump_image->address);
+	context->tx[0]->memory_read64.memory_length = cpu_to_le64(dump_length);
+
+	context->rx_size_requested = dump_length;
+
+	ret = mhi_queue_buf(context->mhi_dev, DMA_TO_DEVICE, context->tx[0],
+			    SAHARA_MEM_READ64_LENGTH, MHI_EOT);
+	if (ret)
+		dev_err(&context->mhi_dev->dev, "Unable to send read for dump content %d\n", ret);
+}
+
+static void sahara_parse_dump_image(struct sahara_context *context)
+{
+	u64 dump_length;
+	int ret;
+
+	memcpy(context->mem_dump_freespace, context->rx, context->rx_size);
+	context->mem_dump_freespace += context->rx_size;
+
+	if (context->dump_image_offset >= context->dump_image->length) {
+		/* Need to move to next image */
+		context->dump_image++;
+		context->dump_images_left--;
+		context->dump_image_offset = 0;
+
+		if (!context->dump_images_left) {
+			/* Dump done */
+			dev_coredumpv(context->mhi_dev->mhi_cntrl->cntrl_dev,
+				      context->mem_dump,
+				      context->mem_dump_sz,
+				      GFP_KERNEL);
+			context->mem_dump = NULL;
+			sahara_send_reset(context);
+			return;
+		}
+	}
+
+	/* Get next image chunk */
+	dump_length = context->dump_image->length - context->dump_image_offset;
+	dump_length = min(dump_length, SAHARA_READ_MAX_SIZE);
+	/* Avoid requesting EOI sized data so that we can identify errors */
+	if (dump_length == SAHARA_END_OF_IMAGE_LENGTH)
+		dump_length = SAHARA_END_OF_IMAGE_LENGTH / 2;
+
+	context->tx[0]->cmd = cpu_to_le32(SAHARA_MEM_READ64_CMD);
+	context->tx[0]->length = cpu_to_le32(SAHARA_MEM_READ64_LENGTH);
+	context->tx[0]->memory_read64.memory_address =
+		cpu_to_le64(context->dump_image->address + context->dump_image_offset);
+	context->tx[0]->memory_read64.memory_length = cpu_to_le64(dump_length);
+
+	context->dump_image_offset += dump_length;
+	context->rx_size_requested = dump_length;
+
+	ret = mhi_queue_buf(context->mhi_dev, DMA_TO_DEVICE, context->tx[0],
+			    SAHARA_MEM_READ64_LENGTH, MHI_EOT);
+	if (ret)
+		dev_err(&context->mhi_dev->dev,
+			"Unable to send read for dump content %d\n", ret);
+}
+
+static void sahara_dump_processing(struct work_struct *work)
+{
+	struct sahara_context *context = container_of(work, struct sahara_context, dump_work);
+	int ret;
+
+	/*
+	 * We should get the expected raw data, but if the device has an error
+	 * it is supposed to send EOI with an error code.
+	 */
+	if (context->rx_size != context->rx_size_requested &&
+	    context->rx_size != SAHARA_END_OF_IMAGE_LENGTH) {
+		dev_err(&context->mhi_dev->dev,
+			"Unexpected response to read_data. Expected size: %#zx got: %#zx\n",
+			context->rx_size_requested,
+			context->rx_size);
+		goto error;
+	}
+
+	if (context->rx_size == SAHARA_END_OF_IMAGE_LENGTH &&
+	    le32_to_cpu(context->rx->cmd) == SAHARA_END_OF_IMAGE_CMD) {
+		dev_err(&context->mhi_dev->dev,
+			"Unexpected EOI response to read_data. Status: %d\n",
+			le32_to_cpu(context->rx->end_of_image.status));
+		goto error;
+	}
+
+	if (context->rx_size == SAHARA_END_OF_IMAGE_LENGTH &&
+	    le32_to_cpu(context->rx->cmd) != SAHARA_END_OF_IMAGE_CMD) {
+		dev_err(&context->mhi_dev->dev,
+			"Invalid EOI response to read_data. CMD: %d\n",
+			le32_to_cpu(context->rx->cmd));
+		goto error;
+	}
+
+	/*
+	 * Need to know if we received the dump table, or part of a dump image.
+	 * Since we get raw data, we cannot tell from the data itself. Instead,
+	 * we use the stored dump_table_length, which we zero after we read and
+	 * process the entire table.
+	 */
+	if (context->dump_table_length)
+		sahara_parse_dump_table(context);
+	else
+		sahara_parse_dump_image(context);
+
+	ret = mhi_queue_buf(context->mhi_dev, DMA_FROM_DEVICE, context->rx,
+			    SAHARA_PACKET_MAX_SIZE, MHI_EOT);
+	if (ret)
+		dev_err(&context->mhi_dev->dev, "Unable to requeue rx buf %d\n", ret);
+
+	return;
+
+error:
+	vfree(context->mem_dump);
+	context->mem_dump = NULL;
+	sahara_send_reset(context);
 }
 
 static int sahara_mhi_probe(struct mhi_device *mhi_dev, const struct mhi_device_id *id)
@@ -382,7 +746,8 @@ static int sahara_mhi_probe(struct mhi_device *mhi_dev, const struct mhi_device_
 	}
 
 	context->mhi_dev = mhi_dev;
-	INIT_WORK(&context->work, sahara_processing);
+	INIT_WORK(&context->fw_work, sahara_processing);
+	INIT_WORK(&context->dump_work, sahara_dump_processing);
 	context->image_table = aic100_image_table;
 	context->table_size = ARRAY_SIZE(aic100_image_table);
 	context->active_image_id = SAHARA_IMAGE_ID_NONE;
@@ -405,7 +770,10 @@ static void sahara_mhi_remove(struct mhi_device *mhi_dev)
 {
 	struct sahara_context *context = dev_get_drvdata(&mhi_dev->dev);
 
-	cancel_work_sync(&context->work);
+	cancel_work_sync(&context->fw_work);
+	cancel_work_sync(&context->dump_work);
+	if (context->mem_dump)
+		vfree(context->mem_dump);
 	sahara_release_image(context);
 	mhi_unprepare_from_transfer(mhi_dev);
 }
@@ -418,8 +786,14 @@ static void sahara_mhi_dl_xfer_cb(struct mhi_device *mhi_dev, struct mhi_result 
 {
 	struct sahara_context *context = dev_get_drvdata(&mhi_dev->dev);
 
-	if (!mhi_result->transaction_status)
-		schedule_work(&context->work);
+	if (!mhi_result->transaction_status) {
+		context->rx_size = mhi_result->bytes_xferd;
+		if (context->is_mem_dump_mode)
+			schedule_work(&context->dump_work);
+		else
+			schedule_work(&context->fw_work);
+	}
+
 }
 
 static const struct mhi_device_id sahara_mhi_match_table[] = {

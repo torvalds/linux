@@ -874,6 +874,25 @@ void kunit_kfree(struct kunit *test, const void *ptr)
 }
 EXPORT_SYMBOL_GPL(kunit_kfree);
 
+void kunit_kfree_const(struct kunit *test, const void *x)
+{
+#if !IS_MODULE(CONFIG_KUNIT)
+	if (!is_kernel_rodata((unsigned long)x))
+#endif
+		kunit_kfree(test, x);
+}
+EXPORT_SYMBOL_GPL(kunit_kfree_const);
+
+const char *kunit_kstrdup_const(struct kunit *test, const char *str, gfp_t gfp)
+{
+#if !IS_MODULE(CONFIG_KUNIT)
+	if (is_kernel_rodata((unsigned long)str))
+		return str;
+#endif
+	return kunit_kstrdup(test, str, gfp);
+}
+EXPORT_SYMBOL_GPL(kunit_kstrdup_const);
+
 void kunit_cleanup(struct kunit *test)
 {
 	struct kunit_resource *res;

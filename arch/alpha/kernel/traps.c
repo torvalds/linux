@@ -22,7 +22,7 @@
 
 #include <asm/gentrap.h>
 #include <linux/uaccess.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <asm/sysinfo.h>
 #include <asm/hwrpb.h>
 #include <asm/mmu_context.h>

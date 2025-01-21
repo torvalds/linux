@@ -302,7 +302,6 @@ static const struct file_operations cros_ec_console_log_fops = {
 	.owner = THIS_MODULE,
 	.open = cros_ec_console_log_open,
 	.read = cros_ec_console_log_read,
-	.llseek = no_llseek,
 	.poll = cros_ec_console_log_poll,
 	.release = cros_ec_console_log_release,
 };
@@ -583,7 +582,7 @@ static struct platform_driver cros_ec_debugfs_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = cros_ec_debugfs_probe,
-	.remove_new = cros_ec_debugfs_remove,
+	.remove = cros_ec_debugfs_remove,
 	.id_table = cros_ec_debugfs_id,
 };
 

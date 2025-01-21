@@ -206,8 +206,7 @@ static irqreturn_t tcs3414_trigger_handler(int irq, void *p)
 	struct tcs3414_data *data = iio_priv(indio_dev);
 	int i, j = 0;
 
-	for_each_set_bit(i, indio_dev->active_scan_mask,
-		indio_dev->masklength) {
+	iio_for_each_active_channel(indio_dev, i) {
 		int ret = i2c_smbus_read_word_data(data->client,
 			TCS3414_DATA_GREEN + 2*i);
 		if (ret < 0)

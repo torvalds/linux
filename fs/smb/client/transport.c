@@ -28,6 +28,7 @@
 #include "cifs_debug.h"
 #include "smb2proto.h"
 #include "smbdirect.h"
+#include "compress.h"
 
 /* Max number of iovectors we can use off the stack when sending requests. */
 #define CIFS_MAX_IOV_SIZE 8
@@ -417,20 +418,20 @@ out:
 	return rc;
 }
 
-struct send_req_vars {
-	struct smb2_transform_hdr tr_hdr;
-	struct smb_rqst rqst[MAX_COMPOUND];
-	struct kvec iov;
-};
-
 static int
 smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
 	      struct smb_rqst *rqst, int flags)
 {
-	struct send_req_vars *vars;
-	struct smb_rqst *cur_rqst;
-	struct kvec *iov;
+	struct smb2_transform_hdr tr_hdr;
+	struct smb_rqst new_rqst[MAX_COMPOUND] = {};
+	struct kvec iov = {
+		.iov_base = &tr_hdr,
+		.iov_len = sizeof(tr_hdr),
+	};
 	int rc;
+
+	if (flags & CIFS_COMPRESS_REQ)
+		return smb_compress(server, &rqst[0], __smb_send_rqst);
 
 	if (!(flags & CIFS_TRANSFORM_REQ))
 		return __smb_send_rqst(server, num_rqst, rqst);
@@ -443,26 +444,15 @@ smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
 		return -EIO;
 	}
 
-	vars = kzalloc(sizeof(*vars), GFP_NOFS);
-	if (!vars)
-		return -ENOMEM;
-	cur_rqst = vars->rqst;
-	iov = &vars->iov;
-
-	iov->iov_base = &vars->tr_hdr;
-	iov->iov_len = sizeof(vars->tr_hdr);
-	cur_rqst[0].rq_iov = iov;
-	cur_rqst[0].rq_nvec = 1;
+	new_rqst[0].rq_iov = &iov;
+	new_rqst[0].rq_nvec = 1;
 
 	rc = server->ops->init_transform_rq(server, num_rqst + 1,
-					    &cur_rqst[0], rqst);
-	if (rc)
-		goto out;
-
-	rc = __smb_send_rqst(server, num_rqst + 1, &cur_rqst[0]);
-	smb3_free_compound_rqst(num_rqst, &cur_rqst[1]);
-out:
-	kfree(vars);
+					    new_rqst, rqst);
+	if (!rc) {
+		rc = __smb_send_rqst(server, num_rqst + 1, new_rqst);
+		smb3_free_compound_rqst(num_rqst, &new_rqst[1]);
+	}
 	return rc;
 }
 
@@ -1813,11 +1803,8 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 		length = data_len; /* An RDMA read is already done. */
 	else
 #endif
-	{
 		length = cifs_read_iter_from_socket(server, &rdata->subreq.io_iter,
 						    data_len);
-		iov_iter_revert(&rdata->subreq.io_iter, data_len);
-	}
 	if (length > 0)
 		rdata->got_bytes += length;
 	server->total_read += length;

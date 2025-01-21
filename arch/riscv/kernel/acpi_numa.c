@@ -30,7 +30,7 @@
 
 static int acpi_early_node_map[NR_CPUS] __initdata = { [0 ... NR_CPUS - 1] = NUMA_NO_NODE };
 
-int __init acpi_numa_get_nid(unsigned int cpu)
+static int __init acpi_numa_get_nid(unsigned int cpu)
 {
 	return acpi_early_node_map[cpu];
 }

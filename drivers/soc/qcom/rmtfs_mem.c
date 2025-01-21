@@ -315,7 +315,7 @@ MODULE_DEVICE_TABLE(of, qcom_rmtfs_mem_of_match);
 
 static struct platform_driver qcom_rmtfs_mem_driver = {
 	.probe = qcom_rmtfs_mem_probe,
-	.remove_new = qcom_rmtfs_mem_remove,
+	.remove = qcom_rmtfs_mem_remove,
 	.driver  = {
 		.name  = "qcom_rmtfs_mem",
 		.of_match_table = qcom_rmtfs_mem_of_match,

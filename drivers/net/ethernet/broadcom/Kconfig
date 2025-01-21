@@ -72,7 +72,6 @@ config BCMGENET
 	tristate "Broadcom GENET internal MAC support"
 	depends on HAS_IOMEM
 	depends on PTP_1588_CLOCK_OPTIONAL || !ARCH_BCM2835
-	select MII
 	select PHYLIB
 	select FIXED_PHY
 	select BCM7XXX_PHY
@@ -195,7 +194,6 @@ config SYSTEMPORT
 	tristate "Broadcom SYSTEMPORT internal MAC support"
 	depends on HAS_IOMEM
 	depends on NET_DSA || !NET_DSA
-	select MII
 	select PHYLIB
 	select FIXED_PHY
 	select DIMLIB
@@ -260,7 +258,6 @@ config BCMASP
 	depends on ARCH_BRCMSTB || COMPILE_TEST
 	default ARCH_BRCMSTB
 	depends on OF
-	select MII
 	select PHYLIB
 	select MDIO_BCM_UNIMAC
 	help

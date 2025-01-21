@@ -6,6 +6,8 @@
 #ifndef _ASM_X86_CPUID_H
 #define _ASM_X86_CPUID_H
 
+#include <linux/types.h>
+
 #include <asm/string.h>
 
 struct cpuid_regs {
@@ -20,11 +22,11 @@ enum cpuid_regs_idx {
 };
 
 #ifdef CONFIG_X86_32
-extern int have_cpuid_p(void);
+bool have_cpuid_p(void);
 #else
-static inline int have_cpuid_p(void)
+static inline bool have_cpuid_p(void)
 {
-	return 1;
+	return true;
 }
 #endif
 static inline void native_cpuid(unsigned int *eax, unsigned int *ebx,
@@ -179,6 +181,7 @@ static __always_inline bool cpuid_function_is_indexed(u32 function)
 	case 0x1d:
 	case 0x1e:
 	case 0x1f:
+	case 0x24:
 	case 0x8000001d:
 		return true;
 	}
@@ -196,7 +199,12 @@ static inline uint32_t hypervisor_cpuid_base(const char *sig, uint32_t leaves)
 	for_each_possible_hypervisor_cpuid_base(base) {
 		cpuid(base, &eax, &signature[0], &signature[1], &signature[2]);
 
-		if (!memcmp(sig, signature, 12) &&
+		/*
+		 * This must not compile to "call memcmp" because it's called
+		 * from PVH early boot code before instrumentation is set up
+		 * and memcmp() itself may be instrumented.
+		 */
+		if (!__builtin_memcmp(sig, signature, 12) &&
 		    (leaves == 0 || ((eax - base) >= leaves)))
 			return base;
 	}

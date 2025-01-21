@@ -51,7 +51,7 @@
 		};
 	};
 
-	dc_5v: dc-5v-regulator {
+	dc_5v: regulator-dc-5v {
 		compatible = "regulator-fixed";
 		regulator-name = "dc_5v";
 		regulator-always-on;
@@ -60,7 +60,7 @@
 		regulator-max-microvolt = <5000000>;
 	};
 
-	vcc3v3_sys: vcc3v3-sys-regulator {
+	vcc3v3_sys: regulator-vcc3v3-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_sys";
 		regulator-always-on;
@@ -70,7 +70,7 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	vcc5v0_sys: vcc5v0-sys-regulator {
+	vcc5v0_sys: regulator-vcc5v0-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_sys";
 		regulator-always-on;
@@ -80,7 +80,7 @@
 		vin-supply = <&dc_5v>;
 	};
 
-	vcc3v3_m2_pcie: vcc3v3-m2-pcie-regulator {
+	vcc3v3_m2_pcie: regulator-vcc3v3-m2-pcie {
 		compatible = "regulator-fixed";
 		regulator-name = "m2_pcie_3v3";
 		enable-active-high;
@@ -93,7 +93,7 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	vcc3v3_mini_pcie: vcc3v3-mini-pcie-regulator {
+	vcc3v3_mini_pcie: regulator-vcc3v3-mini-pcie {
 		compatible = "regulator-fixed";
 		regulator-name = "minipcie_3v3";
 		enable-active-high;
@@ -106,7 +106,7 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	vcc5v0_usb20_host: vcc5v0-usb20-host-regulator {
+	vcc5v0_usb20_host: regulator-vcc5v0-usb20-host {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_usb20_host";
 		enable-active-high;
@@ -115,7 +115,7 @@
 		pinctrl-names = "default";
 	};
 
-	vcc5v0_usb30_host: vcc5v0-usb30-host-regulator {
+	vcc5v0_usb30_host: regulator-vcc5v0-usb30-host {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_usb30_host";
 		enable-active-high;
@@ -124,7 +124,7 @@
 		pinctrl-names = "default";
 	};
 
-	vcc5v0_otg_vbus: vcc5v0-otg-vbus-regulator {
+	vcc5v0_otg_vbus: regulator-vcc5v0-otg-vbus {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_otg_vbus";
 		enable-active-high;
@@ -223,7 +223,7 @@
 		clocks = <&cru I2S1_MCLKOUT_TX>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int>;
-		rockchip,system-power-controller;
+		system-power-controller;
 		#sound-dai-cells = <0>;
 		vcc1-supply = <&vcc3v3_sys>;
 		vcc2-supply = <&vcc3v3_sys>;
@@ -589,7 +589,6 @@
 	non-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_bus8 &emmc_clk &emmc_cmd>;
-	supports-emmc;
 	status = "okay";
 };
 

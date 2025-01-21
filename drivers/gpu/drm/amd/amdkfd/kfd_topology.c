@@ -292,6 +292,8 @@ static ssize_t iolink_show(struct kobject *kobj, struct attribute *attr,
 			      iolink->max_bandwidth);
 	sysfs_show_32bit_prop(buffer, offs, "recommended_transfer_size",
 			      iolink->rec_transfer_size);
+	sysfs_show_32bit_prop(buffer, offs, "recommended_sdma_engine_id_mask",
+			      iolink->rec_sdma_eng_id_mask);
 	sysfs_show_32bit_prop(buffer, offs, "flags", iolink->flags);
 
 	return offs;
@@ -1265,6 +1267,54 @@ static void kfd_set_iolink_non_coherent(struct kfd_topology_device *to_dev,
 	}
 }
 
+#define REC_SDMA_NUM_GPU	8
+static const int rec_sdma_eng_map[REC_SDMA_NUM_GPU][REC_SDMA_NUM_GPU] = {
+							{ -1, 14, 12, 2, 4, 8, 10, 6 },
+							{ 14, -1, 2, 10, 8, 4, 6, 12 },
+							{ 10, 2, -1, 12, 14, 6, 4, 8 },
+							{ 2, 12, 10, -1, 6, 14, 8, 4 },
+							{ 4, 8, 14, 6, -1, 10, 12, 2 },
+							{ 8, 4, 6, 14, 12, -1, 2, 10 },
+							{ 10, 6, 4, 8, 12, 2, -1, 14 },
+							{ 6, 12, 8, 4, 2, 10, 14, -1 }};
+
+static void kfd_set_recommended_sdma_engines(struct kfd_topology_device *to_dev,
+					     struct kfd_iolink_properties *outbound_link,
+					     struct kfd_iolink_properties *inbound_link)
+{
+	struct kfd_node *gpu = outbound_link->gpu;
+	struct amdgpu_device *adev = gpu->adev;
+	int num_xgmi_nodes = adev->gmc.xgmi.num_physical_nodes;
+	bool support_rec_eng = !amdgpu_sriov_vf(adev) && to_dev->gpu &&
+		adev->aid_mask && num_xgmi_nodes && gpu->kfd->num_nodes == 1 &&
+		kfd_get_num_xgmi_sdma_engines(gpu) >= 14 &&
+		(!(adev->flags & AMD_IS_APU) && num_xgmi_nodes == 8);
+
+	if (support_rec_eng) {
+		int src_socket_id = adev->gmc.xgmi.physical_node_id;
+		int dst_socket_id = to_dev->gpu->adev->gmc.xgmi.physical_node_id;
+
+		outbound_link->rec_sdma_eng_id_mask =
+			1 << rec_sdma_eng_map[src_socket_id][dst_socket_id];
+		inbound_link->rec_sdma_eng_id_mask =
+			1 << rec_sdma_eng_map[dst_socket_id][src_socket_id];
+	} else {
+		int num_sdma_eng = kfd_get_num_sdma_engines(gpu);
+		int i, eng_offset = 0;
+
+		if (outbound_link->iolink_type == CRAT_IOLINK_TYPE_XGMI &&
+		    kfd_get_num_xgmi_sdma_engines(gpu) && to_dev->gpu) {
+			eng_offset = num_sdma_eng;
+			num_sdma_eng = kfd_get_num_xgmi_sdma_engines(gpu);
+		}
+
+		for (i = 0; i < num_sdma_eng; i++) {
+			outbound_link->rec_sdma_eng_id_mask |= (1 << (i + eng_offset));
+			inbound_link->rec_sdma_eng_id_mask |= (1 << (i + eng_offset));
+		}
+	}
+}
+
 static void kfd_fill_iolink_non_crat_info(struct kfd_topology_device *dev)
 {
 	struct kfd_iolink_properties *link, *inbound_link;
@@ -1303,6 +1353,7 @@ static void kfd_fill_iolink_non_crat_info(struct kfd_topology_device *dev)
 			inbound_link->flags = CRAT_IOLINK_FLAGS_ENABLED;
 			kfd_set_iolink_no_atomics(peer_dev, dev, inbound_link);
 			kfd_set_iolink_non_coherent(peer_dev, link, inbound_link);
+			kfd_set_recommended_sdma_engines(peer_dev, link, inbound_link);
 		}
 	}
 
@@ -1947,6 +1998,8 @@ static void kfd_topology_set_capabilities(struct kfd_topology_device *dev)
 		if (KFD_GC_VERSION(dev->gpu) >= IP_VERSION(9, 4, 2))
 			dev->node_props.capability |=
 				HSA_CAP_TRAP_DEBUG_PRECISE_MEMORY_OPERATIONS_SUPPORTED;
+
+		dev->node_props.capability |= HSA_CAP_PER_QUEUE_RESET_SUPPORTED;
 	} else {
 		dev->node_props.debug_prop |= HSA_DBG_WATCH_ADDR_MASK_LO_BIT_GFX10 |
 					HSA_DBG_WATCH_ADDR_MASK_HI_BIT;
@@ -2027,7 +2080,7 @@ int kfd_topology_add_device(struct kfd_node *gpu)
 			HSA_CAP_ASIC_REVISION_MASK);
 
 	dev->node_props.location_id = pci_dev_id(gpu->adev->pdev);
-	if (KFD_GC_VERSION(dev->gpu->kfd) == IP_VERSION(9, 4, 3))
+	if (gpu->kfd->num_nodes > 1)
 		dev->node_props.location_id |= dev->gpu->node_id;
 
 	dev->node_props.domain = pci_domain_nr(gpu->adev->pdev->bus);
@@ -2119,6 +2172,8 @@ int kfd_topology_add_device(struct kfd_node *gpu)
 	if (dev->gpu->adev->gmc.is_app_apu ||
 		dev->gpu->adev->gmc.xgmi.connected_to_cpu)
 		dev->node_props.capability |= HSA_CAP_FLAGS_COHERENTHOSTACCESS;
+
+	kfd_queue_ctx_save_restore_size(dev);
 
 	kfd_debug_print_topology();
 

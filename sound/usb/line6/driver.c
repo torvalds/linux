@@ -2,7 +2,7 @@
 /*
  * Line 6 Linux USB driver
  *
- * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
+ * Copyright (C) 2004-2010 Markus Grabner (line6@grabner-graz.at)
  */
 
 #include <linux/kernel.h>
@@ -20,7 +20,7 @@
 #include "midi.h"
 #include "playback.h"
 
-#define DRIVER_AUTHOR  "Markus Grabner <grabner@icg.tugraz.at>"
+#define DRIVER_AUTHOR  "Markus Grabner <line6@grabner-graz.at>"
 #define DRIVER_DESC    "Line 6 USB Driver"
 
 /*

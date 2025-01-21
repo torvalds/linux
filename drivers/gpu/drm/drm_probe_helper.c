@@ -33,7 +33,7 @@
 #include <linux/moduleparam.h>
 
 #include <drm/drm_bridge.h>
-#include <drm/drm_client.h>
+#include <drm/drm_client_event.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_fourcc.h>
@@ -714,7 +714,7 @@ EXPORT_SYMBOL(drm_helper_probe_single_connector_modes);
  * @dev: drm_device whose connector state changed
  *
  * This function fires off the uevent for userspace and also calls the
- * output_poll_changed function, which is most commonly used to inform the fbdev
+ * client hotplug function, which is most commonly used to inform the fbdev
  * emulation code and allow it to update the fbcon output configuration.
  *
  * Drivers should call this from their hotplug handling code when a change is
@@ -730,11 +730,7 @@ EXPORT_SYMBOL(drm_helper_probe_single_connector_modes);
  */
 void drm_kms_helper_hotplug_event(struct drm_device *dev)
 {
-	/* send a uevent + call fbdev */
 	drm_sysfs_hotplug_event(dev);
-	if (dev->mode_config.funcs->output_poll_changed)
-		dev->mode_config.funcs->output_poll_changed(dev);
-
 	drm_client_dev_hotplug(dev);
 }
 EXPORT_SYMBOL(drm_kms_helper_hotplug_event);
@@ -750,11 +746,7 @@ void drm_kms_helper_connector_hotplug_event(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 
-	/* send a uevent + call fbdev */
 	drm_sysfs_connector_hotplug_event(connector);
-	if (dev->mode_config.funcs->output_poll_changed)
-		dev->mode_config.funcs->output_poll_changed(dev);
-
 	drm_client_dev_hotplug(dev);
 }
 EXPORT_SYMBOL(drm_kms_helper_connector_hotplug_event);
@@ -888,7 +880,7 @@ EXPORT_SYMBOL(drm_kms_helper_is_poll_worker);
  * disabled. Polling is re-enabled by calling drm_kms_helper_poll_enable().
  *
  * If however, the polling was never initialized, this call will trigger a
- * warning and return
+ * warning and return.
  *
  * Note that calls to enable and disable polling must be strictly ordered, which
  * is automatically the case when they're only call from suspend/resume

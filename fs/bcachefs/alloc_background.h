@@ -16,7 +16,7 @@ enum bch_validate_flags;
 static inline bool bch2_dev_bucket_exists(struct bch_fs *c, struct bpos pos)
 {
 	rcu_read_lock();
-	struct bch_dev *ca = bch2_dev_rcu(c, pos.inode);
+	struct bch_dev *ca = bch2_dev_rcu_noerror(c, pos.inode);
 	bool ret = ca && bucket_valid(ca, pos.offset);
 	rcu_read_unlock();
 	return ret;
@@ -168,6 +168,9 @@ static inline bool data_type_movable(enum bch_data_type type)
 static inline u64 alloc_lru_idx_fragmentation(struct bch_alloc_v4 a,
 					      struct bch_dev *ca)
 {
+	if (a.data_type >= BCH_DATA_NR)
+		return 0;
+
 	if (!data_type_movable(a.data_type) ||
 	    !bch2_bucket_sectors_fragmented(ca, a))
 		return 0;
@@ -338,6 +341,7 @@ static inline const struct bch_backpointer *alloc_v4_backpointers_c(const struct
 
 int bch2_dev_freespace_init(struct bch_fs *, struct bch_dev *, u64, u64);
 int bch2_fs_freespace_init(struct bch_fs *);
+int bch2_dev_remove_alloc(struct bch_fs *, struct bch_dev *);
 
 void bch2_recalc_capacity(struct bch_fs *);
 u64 bch2_min_rw_member_capacity(struct bch_fs *);

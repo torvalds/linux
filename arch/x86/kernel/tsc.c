@@ -28,6 +28,7 @@
 #include <asm/apic.h>
 #include <asm/cpu_device_id.h>
 #include <asm/i8259.h>
+#include <asm/topology.h>
 #include <asm/uv/uv.h>
 
 unsigned int __read_mostly cpu_khz;	/* TSC clocks / usec, not used here */
@@ -173,10 +174,11 @@ static void __set_cyc2ns_scale(unsigned long khz, int cpu, unsigned long long ts
 
 	c2n = per_cpu_ptr(&cyc2ns, cpu);
 
-	raw_write_seqcount_latch(&c2n->seq);
+	write_seqcount_latch_begin(&c2n->seq);
 	c2n->data[0] = data;
-	raw_write_seqcount_latch(&c2n->seq);
+	write_seqcount_latch(&c2n->seq);
 	c2n->data[1] = data;
+	write_seqcount_latch_end(&c2n->seq);
 }
 
 static void set_cyc2ns_scale(unsigned long khz, int cpu, unsigned long long tsc_now)
@@ -1253,15 +1255,12 @@ static void __init check_system_tsc_reliable(void)
 	 *  - TSC which does not stop in C-States
 	 *  - the TSC_ADJUST register which allows to detect even minimal
 	 *    modifications
-	 *  - not more than two sockets. As the number of sockets cannot be
-	 *    evaluated at the early boot stage where this has to be
-	 *    invoked, check the number of online memory nodes as a
-	 *    fallback solution which is an reasonable estimate.
+	 *  - not more than four packages
 	 */
 	if (boot_cpu_has(X86_FEATURE_CONSTANT_TSC) &&
 	    boot_cpu_has(X86_FEATURE_NONSTOP_TSC) &&
 	    boot_cpu_has(X86_FEATURE_TSC_ADJUST) &&
-	    nr_online_nodes <= 4)
+	    topology_max_packages() <= 4)
 		tsc_disable_clocksource_watchdog();
 }
 
@@ -1290,7 +1289,7 @@ int unsynchronized_tsc(void)
 	 */
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL) {
 		/* assume multi socket systems are not synchronized: */
-		if (num_possible_cpus() > 1)
+		if (topology_max_packages() > 1)
 			return 1;
 	}
 

@@ -1360,7 +1360,7 @@ static void anfc_chips_cleanup(struct arasan_nfc *nfc)
 
 static int anfc_chips_init(struct arasan_nfc *nfc)
 {
-	struct device_node *np = nfc->dev->of_node, *nand_np;
+	struct device_node *np = nfc->dev->of_node;
 	int nchips = of_get_child_count(np);
 	int ret;
 
@@ -1370,10 +1370,9 @@ static int anfc_chips_init(struct arasan_nfc *nfc)
 		return -EINVAL;
 	}
 
-	for_each_child_of_node(np, nand_np) {
+	for_each_child_of_node_scoped(np, nand_np) {
 		ret = anfc_chip_init(nfc, nand_np);
 		if (ret) {
-			of_node_put(nand_np);
 			anfc_chips_cleanup(nfc);
 			break;
 		}
@@ -1501,7 +1500,7 @@ static struct platform_driver anfc_driver = {
 		.of_match_table = anfc_ids,
 	},
 	.probe = anfc_probe,
-	.remove_new = anfc_remove,
+	.remove = anfc_remove,
 };
 module_platform_driver(anfc_driver);
 

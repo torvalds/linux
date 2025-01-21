@@ -2376,33 +2376,29 @@ static int atmel_aes_probe(struct platform_device *pdev)
 	}
 
 	/* Initializing the clock */
-	aes_dd->iclk = devm_clk_get(&pdev->dev, "aes_clk");
+	aes_dd->iclk = devm_clk_get_prepared(&pdev->dev, "aes_clk");
 	if (IS_ERR(aes_dd->iclk)) {
 		dev_err(dev, "clock initialization failed.\n");
 		err = PTR_ERR(aes_dd->iclk);
 		goto err_tasklet_kill;
 	}
 
-	err = clk_prepare(aes_dd->iclk);
-	if (err)
-		goto err_tasklet_kill;
-
 	err = atmel_aes_hw_version_init(aes_dd);
 	if (err)
-		goto err_iclk_unprepare;
+		goto err_tasklet_kill;
 
 	atmel_aes_get_cap(aes_dd);
 
 #if IS_ENABLED(CONFIG_CRYPTO_DEV_ATMEL_AUTHENC)
 	if (aes_dd->caps.has_authenc && !atmel_sha_authenc_is_ready()) {
 		err = -EPROBE_DEFER;
-		goto err_iclk_unprepare;
+		goto err_tasklet_kill;
 	}
 #endif
 
 	err = atmel_aes_buff_init(aes_dd);
 	if (err)
-		goto err_iclk_unprepare;
+		goto err_tasklet_kill;
 
 	err = atmel_aes_dma_init(aes_dd);
 	if (err)
@@ -2429,8 +2425,6 @@ err_algs:
 	atmel_aes_dma_cleanup(aes_dd);
 err_buff_cleanup:
 	atmel_aes_buff_cleanup(aes_dd);
-err_iclk_unprepare:
-	clk_unprepare(aes_dd->iclk);
 err_tasklet_kill:
 	tasklet_kill(&aes_dd->done_task);
 	tasklet_kill(&aes_dd->queue_task);
@@ -2455,13 +2449,11 @@ static void atmel_aes_remove(struct platform_device *pdev)
 
 	atmel_aes_dma_cleanup(aes_dd);
 	atmel_aes_buff_cleanup(aes_dd);
-
-	clk_unprepare(aes_dd->iclk);
 }
 
 static struct platform_driver atmel_aes_driver = {
 	.probe		= atmel_aes_probe,
-	.remove_new	= atmel_aes_remove,
+	.remove		= atmel_aes_remove,
 	.driver		= {
 		.name	= "atmel_aes",
 		.of_match_table = atmel_aes_dt_ids,

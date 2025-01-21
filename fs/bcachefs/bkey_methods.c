@@ -289,7 +289,7 @@ void bch2_bkey_to_text(struct printbuf *out, const struct bkey *k)
 
 		bch2_bpos_to_text(out, k->p);
 
-		prt_printf(out, " len %u ver %llu", k->size, k->version.lo);
+		prt_printf(out, " len %u ver %llu", k->size, k->bversion.lo);
 	} else {
 		prt_printf(out, "(null)");
 	}

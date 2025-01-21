@@ -4,87 +4,94 @@
 
 #include <linux/firmware.h>
 #include <linux/delay.h>
+
+#include <drm/drm_atomic_state_helper.h>
+#include <drm/drm_edid.h>
+#include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_print.h>
+#include <drm/drm_probe_helper.h>
+
 #include "ast_drv.h"
 
-bool ast_astdp_is_connected(struct ast_device *ast)
+static bool ast_astdp_is_connected(struct ast_device *ast)
 {
-	if (!ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD1, ASTDP_MCU_FW_EXECUTING))
-		return false;
-	if (!ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF, ASTDP_HPD))
-		return false;
-	if (!ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDC, ASTDP_LINK_SUCCESS))
+	if (!ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF, AST_IO_VGACRDF_HPD))
 		return false;
 	return true;
 }
 
-int ast_astdp_read_edid(struct drm_device *dev, u8 *ediddata)
+static int ast_astdp_read_edid_block(void *data, u8 *buf, unsigned int block, size_t len)
 {
-	struct ast_device *ast = to_ast_device(dev);
-	u8 i = 0, j = 0;
+	struct ast_device *ast = data;
+	size_t rdlen = round_up(len, 4);
+	int ret = 0;
+	unsigned int i;
+
+	if (block > 0)
+		return -EIO; /* extension headers not supported */
 
 	/*
-	 * CRD1[b5]: DP MCU FW is executing
-	 * CRDC[b0]: DP link success
-	 * CRDF[b0]: DP HPD
-	 * CRE5[b0]: Host reading EDID process is done
+	 * Protect access to I/O registers from concurrent modesetting
+	 * by acquiring the I/O-register lock.
 	 */
-	if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD1, ASTDP_MCU_FW_EXECUTING) &&
-		ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDC, ASTDP_LINK_SUCCESS) &&
-		ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF, ASTDP_HPD) &&
-		ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xE5,
-								ASTDP_HOST_EDID_READ_DONE_MASK))) {
-		goto err_astdp_edid_not_ready;
-	}
+	mutex_lock(&ast->modeset_lock);
 
-	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE5, (u8) ~ASTDP_HOST_EDID_READ_DONE_MASK,
-							0x00);
+	/* Start reading EDID data */
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xe5, (u8)~AST_IO_VGACRE5_EDID_READ_DONE, 0x00);
 
-	for (i = 0; i < 32; i++) {
+	for (i = 0; i < rdlen; i += 4) {
+		unsigned int offset;
+		unsigned int j;
+		u8 ediddata[4];
+		u8 vgacre4;
+
+		offset = (i + block * EDID_LENGTH) / 4;
+		if (offset >= 64) {
+			ret = -EIO;
+			goto out;
+		}
+		vgacre4 = offset;
+
 		/*
 		 * CRE4[7:0]: Read-Pointer for EDID (Unit: 4bytes); valid range: 0~64
 		 */
-		ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE4,
-				       ASTDP_AND_CLEAR_MASK, (u8)i);
-		j = 0;
+		ast_set_index_reg(ast, AST_IO_VGACRI, 0xe4, vgacre4);
 
 		/*
 		 * CRD7[b0]: valid flag for EDID
 		 * CRD6[b0]: mirror read pointer for EDID
 		 */
-		while ((ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD7,
-				ASTDP_EDID_VALID_FLAG_MASK) != 0x01) ||
-			(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD6,
-						ASTDP_EDID_READ_POINTER_MASK) != i)) {
+		for (j = 0; j < 200; ++j) {
+			u8 vgacrd7, vgacrd6;
+
 			/*
 			 * Delay are getting longer with each retry.
-			 * 1. The Delays are often 2 loops when users request "Display Settings"
+			 *
+			 * 1. No delay on first try
+			 * 2. The Delays are often 2 loops when users request "Display Settings"
 			 *	  of right-click of mouse.
-			 * 2. The Delays are often longer a lot when system resume from S3/S4.
+			 * 3. The Delays are often longer a lot when system resume from S3/S4.
 			 */
-			mdelay(j+1);
+			if (j)
+				mdelay(j + 1);
 
-			if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD1,
-							ASTDP_MCU_FW_EXECUTING) &&
-				ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDC,
-							ASTDP_LINK_SUCCESS) &&
-				ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF, ASTDP_HPD))) {
-				goto err_astdp_jump_out_loop_of_edid;
+			/* Wait for EDID offset to show up in mirror register */
+			vgacrd7 = ast_get_index_reg(ast, AST_IO_VGACRI, 0xd7);
+			if (vgacrd7 & AST_IO_VGACRD7_EDID_VALID_FLAG) {
+				vgacrd6 = ast_get_index_reg(ast, AST_IO_VGACRI, 0xd6);
+				if (vgacrd6 == offset)
+					break;
 			}
-
-			j++;
-			if (j > 200)
-				goto err_astdp_jump_out_loop_of_edid;
+		}
+		if (j == 200) {
+			ret = -EBUSY;
+			goto out;
 		}
 
-		*(ediddata) = ast_get_index_reg_mask(ast, AST_IO_VGACRI,
-							0xD8, ASTDP_EDID_READ_DATA_MASK);
-		*(ediddata + 1) = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD9,
-								ASTDP_EDID_READ_DATA_MASK);
-		*(ediddata + 2) = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDA,
-								ASTDP_EDID_READ_DATA_MASK);
-		*(ediddata + 3) = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDB,
-								ASTDP_EDID_READ_DATA_MASK);
+		ediddata[0] = ast_get_index_reg(ast, AST_IO_VGACRI, 0xd8);
+		ediddata[1] = ast_get_index_reg(ast, AST_IO_VGACRI, 0xd9);
+		ediddata[2] = ast_get_index_reg(ast, AST_IO_VGACRI, 0xda);
+		ediddata[3] = ast_get_index_reg(ast, AST_IO_VGACRI, 0xdb);
 
 		if (i == 31) {
 			/*
@@ -96,117 +103,125 @@ int ast_astdp_read_edid(struct drm_device *dev, u8 *ediddata)
 			 *		The Bytes-126 indicates the Number of extensions to
 			 *		follow. 0 represents noextensions.
 			 */
-			*(ediddata + 3) = *(ediddata + 3) + *(ediddata + 2);
-			*(ediddata + 2) = 0;
+			ediddata[3] = ediddata[3] + ediddata[2];
+			ediddata[2] = 0;
 		}
 
-		ediddata += 4;
+		memcpy(buf, ediddata, min((len - i), 4));
+		buf += 4;
 	}
 
-	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE5, (u8) ~ASTDP_HOST_EDID_READ_DONE_MASK,
-							ASTDP_HOST_EDID_READ_DONE);
+out:
+	/* Signal end of reading */
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xe5, (u8)~AST_IO_VGACRE5_EDID_READ_DONE,
+			       AST_IO_VGACRE5_EDID_READ_DONE);
 
-	return 0;
+	mutex_unlock(&ast->modeset_lock);
 
-err_astdp_jump_out_loop_of_edid:
-	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE5,
-							(u8) ~ASTDP_HOST_EDID_READ_DONE_MASK,
-							ASTDP_HOST_EDID_READ_DONE);
-	return (~(j+256) + 1);
-
-err_astdp_edid_not_ready:
-	if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD1, ASTDP_MCU_FW_EXECUTING)))
-		return (~0xD1 + 1);
-	if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDC, ASTDP_LINK_SUCCESS)))
-		return (~0xDC + 1);
-	if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF, ASTDP_HPD)))
-		return (~0xDF + 1);
-	if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xE5, ASTDP_HOST_EDID_READ_DONE_MASK)))
-		return (~0xE5 + 1);
-
-	return	0;
+	return ret;
 }
 
 /*
  * Launch Aspeed DP
  */
-void ast_dp_launch(struct drm_device *dev)
+int ast_dp_launch(struct ast_device *ast)
 {
-	u32 i = 0;
-	u8 bDPExecute = 1;
-	struct ast_device *ast = to_ast_device(dev);
+	struct drm_device *dev = &ast->base;
+	unsigned int i = 10;
 
-	// Wait one second then timeout.
-	while (ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD1, ASTDP_MCU_FW_EXECUTING) !=
-		ASTDP_MCU_FW_EXECUTING) {
-		i++;
-		// wait 100 ms
-		msleep(100);
+	while (i) {
+		u8 vgacrd1 = ast_get_index_reg(ast, AST_IO_VGACRI, 0xd1);
 
-		if (i >= 10) {
-			// DP would not be ready.
-			bDPExecute = 0;
+		if (vgacrd1 & AST_IO_VGACRD1_MCU_FW_EXECUTING)
 			break;
-		}
+		--i;
+		msleep(100);
 	}
-
-	if (!bDPExecute)
+	if (!i) {
 		drm_err(dev, "Wait DPMCU executing timeout\n");
-
-	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE5,
-			       (u8) ~ASTDP_HOST_EDID_READ_DONE_MASK,
-			       ASTDP_HOST_EDID_READ_DONE);
-}
-
-bool ast_dp_power_is_on(struct ast_device *ast)
-{
-	u8 vgacre3;
-
-	vgacre3 = ast_get_index_reg(ast, AST_IO_VGACRI, 0xe3);
-
-	return !(vgacre3 & AST_DP_PHY_SLEEP);
-}
-
-void ast_dp_power_on_off(struct drm_device *dev, bool on)
-{
-	struct ast_device *ast = to_ast_device(dev);
-	// Read and Turn off DP PHY sleep
-	u8 bE3 = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xE3, AST_DP_VIDEO_ENABLE);
-
-	// Turn on DP PHY sleep
-	if (!on)
-		bE3 |= AST_DP_PHY_SLEEP;
-
-	// DP Power on/off
-	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE3, (u8) ~AST_DP_PHY_SLEEP, bE3);
-}
-
-
-
-void ast_dp_set_on_off(struct drm_device *dev, bool on)
-{
-	struct ast_device *ast = to_ast_device(dev);
-	u8 video_on_off = on;
-	u32 i = 0;
-
-	// Video On/Off
-	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE3, (u8) ~AST_DP_VIDEO_ENABLE, on);
-
-	// If DP plug in and link successful then check video on / off status
-	if (ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDC, ASTDP_LINK_SUCCESS) &&
-		ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF, ASTDP_HPD)) {
-		video_on_off <<= 4;
-		while (ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF,
-						ASTDP_MIRROR_VIDEO_ENABLE) != video_on_off) {
-			// wait 1 ms
-			mdelay(1);
-			if (++i > 200)
-				break;
-		}
+		return -ENODEV;
 	}
+
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xe5,
+			       (u8) ~AST_IO_VGACRE5_EDID_READ_DONE,
+			       AST_IO_VGACRE5_EDID_READ_DONE);
+
+	return 0;
 }
 
-void ast_dp_set_mode(struct drm_crtc *crtc, struct ast_vbios_mode_info *vbios_mode)
+static bool ast_dp_get_phy_sleep(struct ast_device *ast)
+{
+	u8 vgacre3 = ast_get_index_reg(ast, AST_IO_VGACRI, 0xe3);
+
+	return (vgacre3 & AST_IO_VGACRE3_DP_PHY_SLEEP);
+}
+
+static void ast_dp_set_phy_sleep(struct ast_device *ast, bool sleep)
+{
+	u8 vgacre3 = 0x00;
+
+	if (sleep)
+		vgacre3 |= AST_IO_VGACRE3_DP_PHY_SLEEP;
+
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xe3, (u8)~AST_IO_VGACRE3_DP_PHY_SLEEP,
+			       vgacre3);
+	msleep(50);
+}
+
+static void ast_dp_link_training(struct ast_device *ast)
+{
+	struct drm_device *dev = &ast->base;
+	int i;
+
+	for (i = 0; i < 10; i++) {
+		u8 vgacrdc;
+
+		if (i)
+			msleep(100);
+
+		vgacrdc = ast_get_index_reg(ast, AST_IO_VGACRI, 0xdc);
+		if (vgacrdc & AST_IO_VGACRDC_LINK_SUCCESS)
+			return;
+	}
+	drm_err(dev, "Link training failed\n");
+}
+
+static bool __ast_dp_wait_enable(struct ast_device *ast, bool enabled)
+{
+	u8 vgacrdf_test = 0x00;
+	u8 vgacrdf;
+	unsigned int i;
+
+	if (enabled)
+		vgacrdf_test |= AST_IO_VGACRDF_DP_VIDEO_ENABLE;
+
+	for (i = 0; i < 200; ++i) {
+		if (i)
+			mdelay(1);
+		vgacrdf = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xdf,
+						 AST_IO_VGACRDF_DP_VIDEO_ENABLE);
+		if (vgacrdf == vgacrdf_test)
+			return true;
+	}
+
+	return false;
+}
+
+static void ast_dp_set_enable(struct ast_device *ast, bool enabled)
+{
+	struct drm_device *dev = &ast->base;
+	u8 vgacre3 = 0x00;
+
+	if (enabled)
+		vgacre3 |= AST_IO_VGACRE3_DP_VIDEO_ENABLE;
+
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xe3, (u8)~AST_IO_VGACRE3_DP_VIDEO_ENABLE,
+			       vgacre3);
+
+	drm_WARN_ON(dev, !__ast_dp_wait_enable(ast, enabled));
+}
+
+static void ast_dp_set_mode(struct drm_crtc *crtc, struct ast_vbios_mode_info *vbios_mode)
 {
 	struct ast_device *ast = to_ast_device(crtc->dev);
 
@@ -278,4 +293,186 @@ void ast_dp_set_mode(struct drm_crtc *crtc, struct ast_vbios_mode_info *vbios_mo
 			       ASTDP_MISC0_24bpp);
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE1, ASTDP_AND_CLEAR_MASK, ASTDP_MISC1);
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE2, ASTDP_AND_CLEAR_MASK, ModeIdx);
+}
+
+static void ast_wait_for_vretrace(struct ast_device *ast)
+{
+	unsigned long timeout = jiffies + HZ;
+	u8 vgair1;
+
+	do {
+		vgair1 = ast_io_read8(ast, AST_IO_VGAIR1_R);
+	} while (!(vgair1 & AST_IO_VGAIR1_VREFRESH) && time_before(jiffies, timeout));
+}
+
+/*
+ * Encoder
+ */
+
+static const struct drm_encoder_funcs ast_astdp_encoder_funcs = {
+	.destroy = drm_encoder_cleanup,
+};
+
+static void ast_astdp_encoder_helper_atomic_mode_set(struct drm_encoder *encoder,
+						     struct drm_crtc_state *crtc_state,
+						     struct drm_connector_state *conn_state)
+{
+	struct drm_crtc *crtc = crtc_state->crtc;
+	struct ast_crtc_state *ast_crtc_state = to_ast_crtc_state(crtc_state);
+	struct ast_vbios_mode_info *vbios_mode_info = &ast_crtc_state->vbios_mode_info;
+
+	ast_dp_set_mode(crtc, vbios_mode_info);
+}
+
+static void ast_astdp_encoder_helper_atomic_enable(struct drm_encoder *encoder,
+						   struct drm_atomic_state *state)
+{
+	struct ast_device *ast = to_ast_device(encoder->dev);
+	struct ast_connector *ast_connector = &ast->output.astdp.connector;
+
+	if (ast_connector->physical_status == connector_status_connected) {
+		ast_dp_set_phy_sleep(ast, false);
+		ast_dp_link_training(ast);
+
+		ast_wait_for_vretrace(ast);
+		ast_dp_set_enable(ast, true);
+	}
+}
+
+static void ast_astdp_encoder_helper_atomic_disable(struct drm_encoder *encoder,
+						    struct drm_atomic_state *state)
+{
+	struct ast_device *ast = to_ast_device(encoder->dev);
+
+	ast_dp_set_enable(ast, false);
+	ast_dp_set_phy_sleep(ast, true);
+}
+
+static const struct drm_encoder_helper_funcs ast_astdp_encoder_helper_funcs = {
+	.atomic_mode_set = ast_astdp_encoder_helper_atomic_mode_set,
+	.atomic_enable = ast_astdp_encoder_helper_atomic_enable,
+	.atomic_disable = ast_astdp_encoder_helper_atomic_disable,
+};
+
+/*
+ * Connector
+ */
+
+static int ast_astdp_connector_helper_get_modes(struct drm_connector *connector)
+{
+	struct ast_connector *ast_connector = to_ast_connector(connector);
+	int count;
+
+	if (ast_connector->physical_status == connector_status_connected) {
+		struct ast_device *ast = to_ast_device(connector->dev);
+		const struct drm_edid *drm_edid;
+
+		drm_edid = drm_edid_read_custom(connector, ast_astdp_read_edid_block, ast);
+		drm_edid_connector_update(connector, drm_edid);
+		count = drm_edid_connector_add_modes(connector);
+		drm_edid_free(drm_edid);
+	} else {
+		drm_edid_connector_update(connector, NULL);
+
+		/*
+		 * There's no EDID data without a connected monitor. Set BMC-
+		 * compatible modes in this case. The XGA default resolution
+		 * should work well for all BMCs.
+		 */
+		count = drm_add_modes_noedid(connector, 4096, 4096);
+		if (count)
+			drm_set_preferred_mode(connector, 1024, 768);
+	}
+
+	return count;
+}
+
+static int ast_astdp_connector_helper_detect_ctx(struct drm_connector *connector,
+						 struct drm_modeset_acquire_ctx *ctx,
+						 bool force)
+{
+	struct ast_connector *ast_connector = to_ast_connector(connector);
+	struct ast_device *ast = to_ast_device(connector->dev);
+	enum drm_connector_status status = connector_status_disconnected;
+	bool phy_sleep;
+
+	mutex_lock(&ast->modeset_lock);
+
+	phy_sleep = ast_dp_get_phy_sleep(ast);
+	if (phy_sleep)
+		ast_dp_set_phy_sleep(ast, false);
+
+	if (ast_astdp_is_connected(ast))
+		status = connector_status_connected;
+
+	if (phy_sleep && status == connector_status_disconnected)
+		ast_dp_set_phy_sleep(ast, true);
+
+	mutex_unlock(&ast->modeset_lock);
+
+	if (status != ast_connector->physical_status)
+		++connector->epoch_counter;
+	ast_connector->physical_status = status;
+
+	return connector_status_connected;
+}
+
+static const struct drm_connector_helper_funcs ast_astdp_connector_helper_funcs = {
+	.get_modes = ast_astdp_connector_helper_get_modes,
+	.detect_ctx = ast_astdp_connector_helper_detect_ctx,
+};
+
+/*
+ * Output
+ */
+
+static const struct drm_connector_funcs ast_astdp_connector_funcs = {
+	.reset = drm_atomic_helper_connector_reset,
+	.fill_modes = drm_helper_probe_single_connector_modes,
+	.destroy = drm_connector_cleanup,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+};
+
+int ast_astdp_output_init(struct ast_device *ast)
+{
+	struct drm_device *dev = &ast->base;
+	struct drm_crtc *crtc = &ast->crtc;
+	struct drm_encoder *encoder;
+	struct ast_connector *ast_connector;
+	struct drm_connector *connector;
+	int ret;
+
+	/* encoder */
+
+	encoder = &ast->output.astdp.encoder;
+	ret = drm_encoder_init(dev, encoder, &ast_astdp_encoder_funcs,
+			       DRM_MODE_ENCODER_TMDS, NULL);
+	if (ret)
+		return ret;
+	drm_encoder_helper_add(encoder, &ast_astdp_encoder_helper_funcs);
+
+	encoder->possible_crtcs = drm_crtc_mask(crtc);
+
+	/* connector */
+
+	ast_connector = &ast->output.astdp.connector;
+	connector = &ast_connector->base;
+	ret = drm_connector_init(dev, connector, &ast_astdp_connector_funcs,
+				 DRM_MODE_CONNECTOR_DisplayPort);
+	if (ret)
+		return ret;
+	drm_connector_helper_add(connector, &ast_astdp_connector_helper_funcs);
+
+	connector->interlace_allowed = 0;
+	connector->doublescan_allowed = 0;
+	connector->polled = DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
+
+	ast_connector->physical_status = connector->status;
+
+	ret = drm_connector_attach_encoder(connector, encoder);
+	if (ret)
+		return ret;
+
+	return 0;
 }

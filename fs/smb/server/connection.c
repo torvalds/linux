@@ -25,7 +25,7 @@ DECLARE_RWSEM(conn_list_lock);
 /**
  * ksmbd_conn_free() - free resources of the connection instance
  *
- * @conn:	connection instance to be cleand up
+ * @conn:	connection instance to be cleaned up
  *
  * During the thread termination, the corresponding conn instance
  * resources(sock/memory) are released and finally the conn object is freed.
@@ -39,7 +39,8 @@ void ksmbd_conn_free(struct ksmbd_conn *conn)
 	xa_destroy(&conn->sessions);
 	kvfree(conn->request_buf);
 	kfree(conn->preauth_info);
-	kfree(conn);
+	if (atomic_dec_and_test(&conn->refcnt))
+		kfree(conn);
 }
 
 /**
@@ -51,7 +52,7 @@ struct ksmbd_conn *ksmbd_conn_alloc(void)
 {
 	struct ksmbd_conn *conn;
 
-	conn = kzalloc(sizeof(struct ksmbd_conn), GFP_KERNEL);
+	conn = kzalloc(sizeof(struct ksmbd_conn), KSMBD_DEFAULT_GFP);
 	if (!conn)
 		return NULL;
 
@@ -68,6 +69,8 @@ struct ksmbd_conn *ksmbd_conn_alloc(void)
 		conn->um = NULL;
 	atomic_set(&conn->req_running, 0);
 	atomic_set(&conn->r_count, 0);
+	atomic_set(&conn->refcnt, 1);
+	atomic_set(&conn->mux_smb_requests, 0);
 	conn->total_credits = 1;
 	conn->outstanding_credits = 0;
 
@@ -356,7 +359,7 @@ int ksmbd_conn_handler_loop(void *p)
 		/* 4 for rfc1002 length field */
 		/* 1 for implied bcc[0] */
 		size = pdu_size + 4 + 1;
-		conn->request_buf = kvmalloc(size, GFP_KERNEL);
+		conn->request_buf = kvmalloc(size, KSMBD_DEFAULT_GFP);
 		if (!conn->request_buf)
 			break;
 
@@ -401,6 +404,7 @@ int ksmbd_conn_handler_loop(void *p)
 out:
 	ksmbd_conn_set_releasing(conn);
 	/* Wait till all reference dropped to the Server object*/
+	ksmbd_debug(CONN, "Wait for all pending requests(%d)\n", atomic_read(&conn->r_count));
 	wait_event(conn->r_count_q, atomic_read(&conn->r_count) == 0);
 
 	if (IS_ENABLED(CONFIG_UNICODE))
@@ -459,7 +463,7 @@ again:
 	up_read(&conn_list_lock);
 
 	if (!list_empty(&conn_list)) {
-		schedule_timeout_interruptible(HZ / 10); /* 100ms */
+		msleep(100);
 		goto again;
 	}
 }

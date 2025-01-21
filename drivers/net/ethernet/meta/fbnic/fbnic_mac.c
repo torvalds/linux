@@ -403,6 +403,21 @@ static void fbnic_mac_init_regs(struct fbnic_dev *fbd)
 	fbnic_mac_init_txb(fbd);
 }
 
+static void __fbnic_mac_stat_rd64(struct fbnic_dev *fbd, bool reset, u32 reg,
+				  struct fbnic_stat_counter *stat)
+{
+	u64 new_reg_value;
+
+	new_reg_value = fbnic_stat_rd64(fbd, reg, 1);
+	if (!reset)
+		stat->value += new_reg_value - stat->u.old_reg_value_64;
+	stat->u.old_reg_value_64 = new_reg_value;
+	stat->reported = true;
+}
+
+#define fbnic_mac_stat_rd64(fbd, reset, __stat, __CSR) \
+	__fbnic_mac_stat_rd64(fbd, reset, FBNIC_##__CSR##_L, &(__stat))
+
 static void fbnic_mac_tx_pause_config(struct fbnic_dev *fbd, bool tx_pause)
 {
 	u32 rxb_pause_ctrl;
@@ -637,14 +652,71 @@ static void fbnic_mac_link_up_asic(struct fbnic_dev *fbd,
 	wr32(fbd, FBNIC_MAC_COMMAND_CONFIG, cmd_cfg);
 }
 
+static void
+fbnic_mac_get_eth_mac_stats(struct fbnic_dev *fbd, bool reset,
+			    struct fbnic_eth_mac_stats *mac_stats)
+{
+	fbnic_mac_stat_rd64(fbd, reset, mac_stats->OctetsReceivedOK,
+			    MAC_STAT_RX_BYTE_COUNT);
+	fbnic_mac_stat_rd64(fbd, reset, mac_stats->AlignmentErrors,
+			    MAC_STAT_RX_ALIGN_ERROR);
+	fbnic_mac_stat_rd64(fbd, reset, mac_stats->FrameTooLongErrors,
+			    MAC_STAT_RX_TOOLONG);
+	fbnic_mac_stat_rd64(fbd, reset, mac_stats->FramesReceivedOK,
+			    MAC_STAT_RX_RECEIVED_OK);
+	fbnic_mac_stat_rd64(fbd, reset, mac_stats->FrameCheckSequenceErrors,
+			    MAC_STAT_RX_PACKET_BAD_FCS);
+	fbnic_mac_stat_rd64(fbd, reset,
+			    mac_stats->FramesLostDueToIntMACRcvError,
+			    MAC_STAT_RX_IFINERRORS);
+	fbnic_mac_stat_rd64(fbd, reset, mac_stats->MulticastFramesReceivedOK,
+			    MAC_STAT_RX_MULTICAST);
+	fbnic_mac_stat_rd64(fbd, reset, mac_stats->BroadcastFramesReceivedOK,
+			    MAC_STAT_RX_BROADCAST);
+	fbnic_mac_stat_rd64(fbd, reset, mac_stats->OctetsTransmittedOK,
+			    MAC_STAT_TX_BYTE_COUNT);
+	fbnic_mac_stat_rd64(fbd, reset, mac_stats->FramesTransmittedOK,
+			    MAC_STAT_TX_TRANSMITTED_OK);
+	fbnic_mac_stat_rd64(fbd, reset,
+			    mac_stats->FramesLostDueToIntMACXmitError,
+			    MAC_STAT_TX_IFOUTERRORS);
+	fbnic_mac_stat_rd64(fbd, reset, mac_stats->MulticastFramesXmittedOK,
+			    MAC_STAT_TX_MULTICAST);
+	fbnic_mac_stat_rd64(fbd, reset, mac_stats->BroadcastFramesXmittedOK,
+			    MAC_STAT_TX_BROADCAST);
+}
+
+static int fbnic_mac_get_sensor_asic(struct fbnic_dev *fbd, int id, long *val)
+{
+	struct fbnic_fw_completion fw_cmpl;
+	s32 *sensor;
+
+	switch (id) {
+	case FBNIC_SENSOR_TEMP:
+		sensor = &fw_cmpl.tsene.millidegrees;
+		break;
+	case FBNIC_SENSOR_VOLTAGE:
+		sensor = &fw_cmpl.tsene.millivolts;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	*val = *sensor;
+
+	return 0;
+}
+
 static const struct fbnic_mac fbnic_mac_asic = {
 	.init_regs = fbnic_mac_init_regs,
 	.pcs_enable = fbnic_pcs_enable_asic,
 	.pcs_disable = fbnic_pcs_disable_asic,
 	.pcs_get_link = fbnic_pcs_get_link_asic,
 	.pcs_get_link_event = fbnic_pcs_get_link_event_asic,
+	.get_eth_mac_stats = fbnic_mac_get_eth_mac_stats,
 	.link_down = fbnic_mac_link_down_asic,
 	.link_up = fbnic_mac_link_up_asic,
+	.get_sensor = fbnic_mac_get_sensor_asic,
 };
 
 /**

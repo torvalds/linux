@@ -157,7 +157,7 @@ int __must_check driver_for_each_device(struct device_driver *drv, struct device
 					void *data, int (*fn)(struct device *dev, void *));
 struct device *driver_find_device(const struct device_driver *drv,
 				  struct device *start, const void *data,
-				  int (*match)(struct device *dev, const void *data));
+				  device_match_t match);
 
 /**
  * driver_find_device_by_name - device iterator for locating a particular device

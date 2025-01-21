@@ -657,7 +657,7 @@ static SIMPLE_DEV_PM_OPS(gpio_rcar_pm_ops, gpio_rcar_suspend, gpio_rcar_resume);
 
 static struct platform_driver gpio_rcar_device_driver = {
 	.probe		= gpio_rcar_probe,
-	.remove_new	= gpio_rcar_remove,
+	.remove		= gpio_rcar_remove,
 	.driver		= {
 		.name	= "gpio_rcar",
 		.pm     = &gpio_rcar_pm_ops,

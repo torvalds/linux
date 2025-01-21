@@ -12,6 +12,13 @@
 #include <asm/cpufeatures.h>
 #include <asm/page.h>
 #include <asm/percpu.h>
+#include <asm/runtime-const.h>
+
+/*
+ * Virtual variable: there's no actual backing store for this,
+ * it can purely be used as 'runtime_const_ptr(USER_PTR_MAX)'
+ */
+extern unsigned long USER_PTR_MAX;
 
 #ifdef CONFIG_ADDRESS_MASKING
 /*
@@ -46,35 +53,44 @@ static inline unsigned long __untagged_addr_remote(struct mm_struct *mm,
 
 #endif
 
+#define valid_user_address(x) \
+	((__force unsigned long)(x) <= runtime_const_ptr(USER_PTR_MAX))
+
 /*
- * The virtual address space space is logically divided into a kernel
- * half and a user half.  When cast to a signed type, user pointers
- * are positive and kernel pointers are negative.
+ * Masking the user address is an alternative to a conditional
+ * user_access_begin that can avoid the fencing. This only works
+ * for dense accesses starting at the address.
  */
-#define valid_user_address(x) ((__force long)(x) >= 0)
+static inline void __user *mask_user_address(const void __user *ptr)
+{
+	unsigned long mask;
+	asm("cmp %1,%0\n\t"
+	    "sbb %0,%0"
+		:"=r" (mask)
+		:"r" (ptr),
+		 "0" (runtime_const_ptr(USER_PTR_MAX)));
+	return (__force void __user *)(mask | (__force unsigned long)ptr);
+}
+#define masked_user_access_begin(x) ({				\
+	__auto_type __masked_ptr = (x);				\
+	__masked_ptr = mask_user_address(__masked_ptr);		\
+	__uaccess_begin(); __masked_ptr; })
 
 /*
  * User pointers can have tag bits on x86-64.  This scheme tolerates
  * arbitrary values in those bits rather then masking them off.
  *
  * Enforce two rules:
- * 1. 'ptr' must be in the user half of the address space
+ * 1. 'ptr' must be in the user part of the address space
  * 2. 'ptr+size' must not overflow into kernel addresses
  *
- * Note that addresses around the sign change are not valid addresses,
- * and will GP-fault even with LAM enabled if the sign bit is set (see
- * "CR3.LAM_SUP" that can narrow the canonicality check if we ever
- * enable it, but not remove it entirely).
- *
- * So the "overflow into kernel addresses" does not imply some sudden
- * exact boundary at the sign bit, and we can allow a lot of slop on the
- * size check.
+ * Note that we always have at least one guard page between the
+ * max user address and the non-canonical gap, allowing us to
+ * ignore small sizes entirely.
  *
  * In fact, we could probably remove the size check entirely, since
  * any kernel accesses will be in increasing address order starting
- * at 'ptr', and even if the end might be in kernel space, we'll
- * hit the GP faults for non-canonical accesses before we ever get
- * there.
+ * at 'ptr'.
  *
  * That's a separate optimization, for now just handle the small
  * constant case.

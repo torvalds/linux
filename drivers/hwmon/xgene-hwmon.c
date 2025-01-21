@@ -772,7 +772,7 @@ MODULE_DEVICE_TABLE(of, xgene_hwmon_of_match);
 
 static struct platform_driver xgene_hwmon_driver = {
 	.probe = xgene_hwmon_probe,
-	.remove_new = xgene_hwmon_remove,
+	.remove = xgene_hwmon_remove,
 	.driver = {
 		.name = "xgene-slimpro-hwmon",
 		.of_match_table = xgene_hwmon_of_match,

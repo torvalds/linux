@@ -4,6 +4,7 @@
 
 #include <linux/bio-integrity.h>
 #include <linux/blk-crypto.h>
+#include <linux/lockdep.h>
 #include <linux/memblock.h>	/* for max_pfn/max_low_pfn */
 #include <linux/sched/sysctl.h>
 #include <linux/timekeeping.h>
@@ -34,9 +35,10 @@ struct blk_flush_queue *blk_alloc_flush_queue(int node, int cmd_size,
 					      gfp_t flags);
 void blk_free_flush_queue(struct blk_flush_queue *q);
 
-void blk_freeze_queue(struct request_queue *q);
-void __blk_mq_unfreeze_queue(struct request_queue *q, bool force_atomic);
-void blk_queue_start_drain(struct request_queue *q);
+bool __blk_mq_unfreeze_queue(struct request_queue *q, bool force_atomic);
+bool blk_queue_start_drain(struct request_queue *q);
+bool __blk_freeze_queue_start(struct request_queue *q,
+			      struct task_struct *owner);
 int __bio_queue_enter(struct request_queue *q, struct bio *bio);
 void submit_bio_noacct_nocheck(struct bio *bio);
 void bio_await_chain(struct bio *bio);
@@ -69,8 +71,11 @@ static inline int bio_queue_enter(struct bio *bio)
 {
 	struct request_queue *q = bdev_get_queue(bio->bi_bdev);
 
-	if (blk_try_enter_queue(q, false))
+	if (blk_try_enter_queue(q, false)) {
+		rwsem_acquire_read(&q->io_lockdep_map, 0, 0, _RET_IP_);
+		rwsem_release(&q->io_lockdep_map, _RET_IP_);
 		return 0;
+	}
 	return __bio_queue_enter(q, bio);
 }
 
@@ -331,33 +336,67 @@ ssize_t part_timeout_show(struct device *, struct device_attribute *, char *);
 ssize_t part_timeout_store(struct device *, struct device_attribute *,
 				const char *, size_t);
 
-static inline bool bio_may_exceed_limits(struct bio *bio,
-					 const struct queue_limits *lim)
-{
-	switch (bio_op(bio)) {
-	case REQ_OP_DISCARD:
-	case REQ_OP_SECURE_ERASE:
-	case REQ_OP_WRITE_ZEROES:
-		return true; /* non-trivial splitting decisions */
-	default:
-		break;
-	}
+struct bio *bio_split_discard(struct bio *bio, const struct queue_limits *lim,
+		unsigned *nsegs);
+struct bio *bio_split_write_zeroes(struct bio *bio,
+		const struct queue_limits *lim, unsigned *nsegs);
+struct bio *bio_split_rw(struct bio *bio, const struct queue_limits *lim,
+		unsigned *nr_segs);
+struct bio *bio_split_zone_append(struct bio *bio,
+		const struct queue_limits *lim, unsigned *nr_segs);
 
-	/*
-	 * All drivers must accept single-segments bios that are <= PAGE_SIZE.
-	 * This is a quick and dirty check that relies on the fact that
-	 * bi_io_vec[0] is always valid if a bio has data.  The check might
-	 * lead to occasional false negatives when bios are cloned, but compared
-	 * to the performance impact of cloned bios themselves the loop below
-	 * doesn't matter anyway.
-	 */
+/*
+ * All drivers must accept single-segments bios that are smaller than PAGE_SIZE.
+ *
+ * This is a quick and dirty check that relies on the fact that bi_io_vec[0] is
+ * always valid if a bio has data.  The check might lead to occasional false
+ * positives when bios are cloned, but compared to the performance impact of
+ * cloned bios themselves the loop below doesn't matter anyway.
+ */
+static inline bool bio_may_need_split(struct bio *bio,
+		const struct queue_limits *lim)
+{
 	return lim->chunk_sectors || bio->bi_vcnt != 1 ||
 		bio->bi_io_vec->bv_len + bio->bi_io_vec->bv_offset > PAGE_SIZE;
 }
 
-struct bio *__bio_split_to_limits(struct bio *bio,
-				  const struct queue_limits *lim,
-				  unsigned int *nr_segs);
+/**
+ * __bio_split_to_limits - split a bio to fit the queue limits
+ * @bio:     bio to be split
+ * @lim:     queue limits to split based on
+ * @nr_segs: returns the number of segments in the returned bio
+ *
+ * Check if @bio needs splitting based on the queue limits, and if so split off
+ * a bio fitting the limits from the beginning of @bio and return it.  @bio is
+ * shortened to the remainder and re-submitted.
+ *
+ * The split bio is allocated from @q->bio_split, which is provided by the
+ * block layer.
+ */
+static inline struct bio *__bio_split_to_limits(struct bio *bio,
+		const struct queue_limits *lim, unsigned int *nr_segs)
+{
+	switch (bio_op(bio)) {
+	case REQ_OP_READ:
+	case REQ_OP_WRITE:
+		if (bio_may_need_split(bio, lim))
+			return bio_split_rw(bio, lim, nr_segs);
+		*nr_segs = 1;
+		return bio;
+	case REQ_OP_ZONE_APPEND:
+		return bio_split_zone_append(bio, lim, nr_segs);
+	case REQ_OP_DISCARD:
+	case REQ_OP_SECURE_ERASE:
+		return bio_split_discard(bio, lim, nr_segs);
+	case REQ_OP_WRITE_ZEROES:
+		return bio_split_write_zeroes(bio, lim, nr_segs);
+	default:
+		/* other operations can't be split */
+		*nr_segs = 0;
+		return bio;
+	}
+}
+
 int ll_back_merge_fn(struct request *req, struct bio *bio,
 		unsigned int nr_segs);
 bool blk_attempt_req_merge(struct request_queue *q, struct request *rq,
@@ -370,17 +409,6 @@ int blk_set_default_limits(struct queue_limits *lim);
 void blk_apply_bdi_limits(struct backing_dev_info *bdi,
 		struct queue_limits *lim);
 int blk_dev_init(void);
-
-/*
- * Contribute to IO statistics IFF:
- *
- *	a) it's attached to a gendisk, and
- *	b) the queue had IO stats enabled when this request was started
- */
-static inline bool blk_do_io_stat(struct request *rq)
-{
-	return (rq->rq_flags & RQF_IO_STAT) && !blk_rq_is_passthrough(rq);
-}
 
 void update_io_ticks(struct block_device *part, unsigned long now, bool end);
 unsigned int part_in_flight(struct block_device *part);
@@ -428,11 +456,6 @@ void disk_free_zone_resources(struct gendisk *disk);
 static inline bool bio_zone_write_plugging(struct bio *bio)
 {
 	return bio_flagged(bio, BIO_ZONE_WRITE_PLUGGING);
-}
-static inline bool bio_is_zone_append(struct bio *bio)
-{
-	return bio_op(bio) == REQ_OP_ZONE_APPEND ||
-		bio_flagged(bio, BIO_EMULATES_ZONE_APPEND);
 }
 void blk_zone_write_plug_bio_merged(struct bio *bio);
 void blk_zone_write_plug_init_request(struct request *rq);
@@ -482,10 +505,6 @@ static inline bool bio_zone_write_plugging(struct bio *bio)
 {
 	return false;
 }
-static inline bool bio_is_zone_append(struct bio *bio)
-{
-	return false;
-}
 static inline void blk_zone_write_plug_bio_merged(struct bio *bio)
 {
 }
@@ -524,6 +543,7 @@ void blk_free_ext_minor(unsigned int minor);
 #define ADDPART_FLAG_NONE	0
 #define ADDPART_FLAG_RAID	1
 #define ADDPART_FLAG_WHOLEDISK	2
+#define ADDPART_FLAG_READONLY	4
 int bdev_add_partition(struct gendisk *disk, int partno, sector_t start,
 		sector_t length);
 int bdev_del_partition(struct gendisk *disk, int partno);
@@ -538,6 +558,10 @@ struct gendisk *__alloc_disk_node(struct request_queue *q, int node_id,
 
 int bio_add_hw_page(struct request_queue *q, struct bio *bio,
 		struct page *page, unsigned int len, unsigned int offset,
+		unsigned int max_sectors, bool *same_page);
+
+int bio_add_hw_folio(struct request_queue *q, struct bio *bio,
+		struct folio *folio, size_t len, size_t offset,
 		unsigned int max_sectors, bool *same_page);
 
 /*
@@ -571,6 +595,7 @@ blk_mode_t file_to_blk_mode(struct file *file);
 int truncate_bdev_range(struct block_device *bdev, blk_mode_t mode,
 		loff_t lstart, loff_t lend);
 long blkdev_ioctl(struct file *file, unsigned cmd, unsigned long arg);
+int blkdev_uring_cmd(struct io_uring_cmd *cmd, unsigned int issue_flags);
 long compat_blkdev_ioctl(struct file *file, unsigned cmd, unsigned long arg);
 
 extern const struct address_space_operations def_blk_aops;
@@ -694,5 +719,23 @@ void blk_integrity_generate(struct bio *bio);
 void blk_integrity_verify(struct bio *bio);
 void blk_integrity_prepare(struct request *rq);
 void blk_integrity_complete(struct request *rq, unsigned int nr_bytes);
+
+static inline void blk_freeze_acquire_lock(struct request_queue *q, bool
+		disk_dead, bool queue_dying)
+{
+	if (!disk_dead)
+		rwsem_acquire(&q->io_lockdep_map, 0, 1, _RET_IP_);
+	if (!queue_dying)
+		rwsem_acquire(&q->q_lockdep_map, 0, 1, _RET_IP_);
+}
+
+static inline void blk_unfreeze_release_lock(struct request_queue *q, bool
+		disk_dead, bool queue_dying)
+{
+	if (!queue_dying)
+		rwsem_release(&q->q_lockdep_map, _RET_IP_);
+	if (!disk_dead)
+		rwsem_release(&q->io_lockdep_map, _RET_IP_);
+}
 
 #endif /* BLK_INTERNAL_H */

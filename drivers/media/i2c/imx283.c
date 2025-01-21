@@ -32,7 +32,6 @@
 #include <media/v4l2-cci.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-event.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-mediabus.h>
 
@@ -463,6 +462,39 @@ static const struct imx283_mode supported_modes_12bit[] = {
 
 		.min_shr = 12,
 		.horizontal_ob = 48,
+		.vertical_ob = 4,
+
+		.crop = {
+			.top = 40,
+			.left = 108,
+			.width = 5472,
+			.height = 3648,
+		},
+	},
+	{
+		/*
+		 * Readout mode 3 : 3/3 binned mode (1824x1216)
+		 */
+		.mode = IMX283_MODE_3,
+		.bpp = 12,
+		.width = 1824,
+		.height = 1216,
+		.min_hmax = 1894, /* Pixels (284 * 480MHz/72MHz + padding) */
+		.min_vmax = 4200, /* Lines */
+
+		/* 60.00 fps */
+		.default_hmax = 1900, /* 285 @ 480MHz/72Mhz */
+		.default_vmax = 4200,
+
+		.veff = 1234,
+		.vst = 0,
+		.vct = 0,
+
+		.hbin_ratio = 3,
+		.vbin_ratio = 3,
+
+		.min_shr = 16,
+		.horizontal_ob = 32,
 		.vertical_ob = 4,
 
 		.crop = {
@@ -1251,11 +1283,6 @@ static int imx283_get_selection(struct v4l2_subdev *sd,
 	}
 }
 
-static const struct v4l2_subdev_core_ops imx283_core_ops = {
-	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
-	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
-};
-
 static const struct v4l2_subdev_video_ops imx283_video_ops = {
 	.s_stream = v4l2_subdev_s_stream_helper,
 };
@@ -1275,7 +1302,6 @@ static const struct v4l2_subdev_internal_ops imx283_internal_ops = {
 };
 
 static const struct v4l2_subdev_ops imx283_subdev_ops = {
-	.core = &imx283_core_ops,
 	.video = &imx283_video_ops,
 	.pad = &imx283_pad_ops,
 };
@@ -1515,8 +1541,7 @@ static int imx283_probe(struct i2c_client *client)
 		goto error_pm;
 
 	/* Initialize subdev */
-	imx283->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
-			    V4L2_SUBDEV_FL_HAS_EVENTS;
+	imx283->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	imx283->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	imx283->sd.internal_ops = &imx283_internal_ops;
 

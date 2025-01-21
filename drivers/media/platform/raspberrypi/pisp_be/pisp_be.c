@@ -1781,7 +1781,7 @@ MODULE_DEVICE_TABLE(of, pispbe_of_match);
 
 static struct platform_driver pispbe_pdrv = {
 	.probe		= pispbe_probe,
-	.remove_new	= pispbe_remove,
+	.remove		= pispbe_remove,
 	.driver		= {
 		.name	= PISPBE_NAME,
 		.of_match_table = pispbe_of_match,

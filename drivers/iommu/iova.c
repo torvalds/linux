@@ -6,6 +6,7 @@
  */
 
 #include <linux/iova.h>
+#include <linux/kmemleak.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/smp.h>
@@ -506,7 +507,7 @@ __adjust_overlap_range(struct iova *iova,
  * reserve_iova - reserves an iova in the given range
  * @iovad: - iova domain pointer
  * @pfn_lo: - lower page frame address
- * @pfn_hi:- higher pfn adderss
+ * @pfn_hi:- higher pfn address
  * This function allocates reserves the address range from pfn_lo to pfn_hi so
  * that this address is not dished out as part of alloc_iova.
  */
@@ -673,6 +674,11 @@ static struct iova_magazine *iova_depot_pop(struct iova_rcache *rcache)
 {
 	struct iova_magazine *mag = rcache->depot;
 
+	/*
+	 * As the mag->next pointer is moved to rcache->depot and reset via
+	 * the mag->size assignment, mark it as a transient false positive.
+	 */
+	kmemleak_transient_leak(mag->next);
 	rcache->depot = mag->next;
 	mag->size = IOVA_MAG_SIZE;
 	rcache->depot_size--;

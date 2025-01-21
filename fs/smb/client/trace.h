@@ -44,6 +44,8 @@
 	EM(netfs_trace_tcon_ref_free_ipc,		"FRE Ipc   ") \
 	EM(netfs_trace_tcon_ref_free_ipc_fail,		"FRE Ipc-F ") \
 	EM(netfs_trace_tcon_ref_free_reconnect_server,	"FRE Reconn") \
+	EM(netfs_trace_tcon_ref_get_cached_laundromat,	"GET Ch-Lau") \
+	EM(netfs_trace_tcon_ref_get_cached_lease_break,	"GET Ch-Lea") \
 	EM(netfs_trace_tcon_ref_get_cancelled_close,	"GET Cn-Cls") \
 	EM(netfs_trace_tcon_ref_get_dfs_refer,		"GET DfsRef") \
 	EM(netfs_trace_tcon_ref_get_find,		"GET Find  ") \
@@ -52,6 +54,7 @@
 	EM(netfs_trace_tcon_ref_new,			"NEW       ") \
 	EM(netfs_trace_tcon_ref_new_ipc,		"NEW Ipc   ") \
 	EM(netfs_trace_tcon_ref_new_reconnect_server,	"NEW Reconn") \
+	EM(netfs_trace_tcon_ref_put_cached_close,	"PUT Ch-Cls") \
 	EM(netfs_trace_tcon_ref_put_cancelled_close,	"PUT Cn-Cls") \
 	EM(netfs_trace_tcon_ref_put_cancelled_close_fid, "PUT Cn-Fid") \
 	EM(netfs_trace_tcon_ref_put_cancelled_mid,	"PUT Cn-Mid") \
@@ -157,6 +160,7 @@ DEFINE_EVENT(smb3_rw_err_class, smb3_##name,    \
 	TP_ARGS(rreq_debug_id, rreq_debug_index, xid, fid, tid, sesid, offset, len, rc))
 
 DEFINE_SMB3_RW_ERR_EVENT(read_err);
+DEFINE_SMB3_RW_ERR_EVENT(write_err);
 
 /* For logging errors in other file I/O ops */
 DECLARE_EVENT_CLASS(smb3_other_err_class,
@@ -202,7 +206,6 @@ DEFINE_EVENT(smb3_other_err_class, smb3_##name, \
 		int	rc),			\
 	TP_ARGS(xid, fid, tid, sesid, offset, len, rc))
 
-DEFINE_SMB3_OTHER_ERR_EVENT(write_err);
 DEFINE_SMB3_OTHER_ERR_EVENT(query_dir_err);
 DEFINE_SMB3_OTHER_ERR_EVENT(zero_err);
 DEFINE_SMB3_OTHER_ERR_EVENT(falloc_err);
@@ -370,6 +373,8 @@ DEFINE_EVENT(smb3_rw_done_class, smb3_##name,   \
 
 DEFINE_SMB3_RW_DONE_EVENT(read_enter);
 DEFINE_SMB3_RW_DONE_EVENT(read_done);
+DEFINE_SMB3_RW_DONE_EVENT(write_enter);
+DEFINE_SMB3_RW_DONE_EVENT(write_done);
 
 /* For logging successful other op */
 DECLARE_EVENT_CLASS(smb3_other_done_class,
@@ -411,11 +416,9 @@ DEFINE_EVENT(smb3_other_done_class, smb3_##name,   \
 		__u32	len),			\
 	TP_ARGS(xid, fid, tid, sesid, offset, len))
 
-DEFINE_SMB3_OTHER_DONE_EVENT(write_enter);
 DEFINE_SMB3_OTHER_DONE_EVENT(query_dir_enter);
 DEFINE_SMB3_OTHER_DONE_EVENT(zero_enter);
 DEFINE_SMB3_OTHER_DONE_EVENT(falloc_enter);
-DEFINE_SMB3_OTHER_DONE_EVENT(write_done);
 DEFINE_SMB3_OTHER_DONE_EVENT(query_dir_done);
 DEFINE_SMB3_OTHER_DONE_EVENT(zero_done);
 DEFINE_SMB3_OTHER_DONE_EVENT(falloc_done);

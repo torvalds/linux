@@ -7,7 +7,7 @@
  *
  * Based on goodix_ts_berlin driver.
  */
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/regmap.h>

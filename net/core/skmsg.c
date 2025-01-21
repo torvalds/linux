@@ -293,7 +293,7 @@ out:
 	/* If we trim data a full sg elem before curr pointer update
 	 * copybreak and current so that any future copy operations
 	 * start at new copy location.
-	 * However trimed data that has not yet been used in a copy op
+	 * However trimmed data that has not yet been used in a copy op
 	 * does not require an update.
 	 */
 	if (!msg->sg.size) {
@@ -1117,9 +1117,9 @@ static void sk_psock_strp_data_ready(struct sock *sk)
 		if (tls_sw_has_ctx_rx(sk)) {
 			psock->saved_data_ready(sk);
 		} else {
-			write_lock_bh(&sk->sk_callback_lock);
+			read_lock_bh(&sk->sk_callback_lock);
 			strp_data_ready(&psock->strp);
-			write_unlock_bh(&sk->sk_callback_lock);
+			read_unlock_bh(&sk->sk_callback_lock);
 		}
 	}
 	rcu_read_unlock();

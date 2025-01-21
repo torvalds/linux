@@ -56,187 +56,6 @@ int ksz9477_change_mtu(struct ksz_device *dev, int port, int mtu)
 				  REG_SW_MTU_MASK, frame_size);
 }
 
-/**
- * ksz9477_handle_wake_reason - Handle wake reason on a specified port.
- * @dev: The device structure.
- * @port: The port number.
- *
- * This function reads the PME (Power Management Event) status register of a
- * specified port to determine the wake reason. If there is no wake event, it
- * returns early. Otherwise, it logs the wake reason which could be due to a
- * "Magic Packet", "Link Up", or "Energy Detect" event. The PME status register
- * is then cleared to acknowledge the handling of the wake event.
- *
- * Return: 0 on success, or an error code on failure.
- */
-static int ksz9477_handle_wake_reason(struct ksz_device *dev, int port)
-{
-	u8 pme_status;
-	int ret;
-
-	ret = ksz_pread8(dev, port, REG_PORT_PME_STATUS, &pme_status);
-	if (ret)
-		return ret;
-
-	if (!pme_status)
-		return 0;
-
-	dev_dbg(dev->dev, "Wake event on port %d due to:%s%s%s\n", port,
-		pme_status & PME_WOL_MAGICPKT ? " \"Magic Packet\"" : "",
-		pme_status & PME_WOL_LINKUP ? " \"Link Up\"" : "",
-		pme_status & PME_WOL_ENERGY ? " \"Energy detect\"" : "");
-
-	return ksz_pwrite8(dev, port, REG_PORT_PME_STATUS, pme_status);
-}
-
-/**
- * ksz9477_get_wol - Get Wake-on-LAN settings for a specified port.
- * @dev: The device structure.
- * @port: The port number.
- * @wol: Pointer to ethtool Wake-on-LAN settings structure.
- *
- * This function checks the PME Pin Control Register to see if  PME Pin Output
- * Enable is set, indicating PME is enabled. If enabled, it sets the supported
- * and active WoL flags.
- */
-void ksz9477_get_wol(struct ksz_device *dev, int port,
-		     struct ethtool_wolinfo *wol)
-{
-	u8 pme_ctrl;
-	int ret;
-
-	if (!dev->wakeup_source)
-		return;
-
-	wol->supported = WAKE_PHY;
-
-	/* Check if the current MAC address on this port can be set
-	 * as global for WAKE_MAGIC support. The result may vary
-	 * dynamically based on other ports configurations.
-	 */
-	if (ksz_is_port_mac_global_usable(dev->ds, port))
-		wol->supported |= WAKE_MAGIC;
-
-	ret = ksz_pread8(dev, port, REG_PORT_PME_CTRL, &pme_ctrl);
-	if (ret)
-		return;
-
-	if (pme_ctrl & PME_WOL_MAGICPKT)
-		wol->wolopts |= WAKE_MAGIC;
-	if (pme_ctrl & (PME_WOL_LINKUP | PME_WOL_ENERGY))
-		wol->wolopts |= WAKE_PHY;
-}
-
-/**
- * ksz9477_set_wol - Set Wake-on-LAN settings for a specified port.
- * @dev: The device structure.
- * @port: The port number.
- * @wol: Pointer to ethtool Wake-on-LAN settings structure.
- *
- * This function configures Wake-on-LAN (WoL) settings for a specified port.
- * It validates the provided WoL options, checks if PME is enabled via the
- * switch's PME Pin Control Register, clears any previous wake reasons,
- * and sets the Magic Packet flag in the port's PME control register if
- * specified.
- *
- * Return: 0 on success, or other error codes on failure.
- */
-int ksz9477_set_wol(struct ksz_device *dev, int port,
-		    struct ethtool_wolinfo *wol)
-{
-	u8 pme_ctrl = 0, pme_ctrl_old = 0;
-	bool magic_switched_off;
-	bool magic_switched_on;
-	int ret;
-
-	if (wol->wolopts & ~(WAKE_PHY | WAKE_MAGIC))
-		return -EINVAL;
-
-	if (!dev->wakeup_source)
-		return -EOPNOTSUPP;
-
-	ret = ksz9477_handle_wake_reason(dev, port);
-	if (ret)
-		return ret;
-
-	if (wol->wolopts & WAKE_MAGIC)
-		pme_ctrl |= PME_WOL_MAGICPKT;
-	if (wol->wolopts & WAKE_PHY)
-		pme_ctrl |= PME_WOL_LINKUP | PME_WOL_ENERGY;
-
-	ret = ksz_pread8(dev, port, REG_PORT_PME_CTRL, &pme_ctrl_old);
-	if (ret)
-		return ret;
-
-	if (pme_ctrl_old == pme_ctrl)
-		return 0;
-
-	magic_switched_off = (pme_ctrl_old & PME_WOL_MAGICPKT) &&
-			    !(pme_ctrl & PME_WOL_MAGICPKT);
-	magic_switched_on = !(pme_ctrl_old & PME_WOL_MAGICPKT) &&
-			    (pme_ctrl & PME_WOL_MAGICPKT);
-
-	/* To keep reference count of MAC address, we should do this
-	 * operation only on change of WOL settings.
-	 */
-	if (magic_switched_on) {
-		ret = ksz_switch_macaddr_get(dev->ds, port, NULL);
-		if (ret)
-			return ret;
-	} else if (magic_switched_off) {
-		ksz_switch_macaddr_put(dev->ds);
-	}
-
-	ret = ksz_pwrite8(dev, port, REG_PORT_PME_CTRL, pme_ctrl);
-	if (ret) {
-		if (magic_switched_on)
-			ksz_switch_macaddr_put(dev->ds);
-		return ret;
-	}
-
-	return 0;
-}
-
-/**
- * ksz9477_wol_pre_shutdown - Prepares the switch device for shutdown while
- *                            considering Wake-on-LAN (WoL) settings.
- * @dev: The switch device structure.
- * @wol_enabled: Pointer to a boolean which will be set to true if WoL is
- *               enabled on any port.
- *
- * This function prepares the switch device for a safe shutdown while taking
- * into account the Wake-on-LAN (WoL) settings on the user ports. It updates
- * the wol_enabled flag accordingly to reflect whether WoL is active on any
- * port.
- */
-void ksz9477_wol_pre_shutdown(struct ksz_device *dev, bool *wol_enabled)
-{
-	struct dsa_port *dp;
-	int ret;
-
-	*wol_enabled = false;
-
-	if (!dev->wakeup_source)
-		return;
-
-	dsa_switch_for_each_user_port(dp, dev->ds) {
-		u8 pme_ctrl = 0;
-
-		ret = ksz_pread8(dev, dp->index, REG_PORT_PME_CTRL, &pme_ctrl);
-		if (!ret && pme_ctrl)
-			*wol_enabled = true;
-
-		/* make sure there are no pending wake events which would
-		 * prevent the device from going to sleep/shutdown.
-		 */
-		ksz9477_handle_wake_reason(dev, dp->index);
-	}
-
-	/* Now we are save to enable PME pin. */
-	if (*wol_enabled)
-		ksz_write8(dev, REG_SW_PME_CTRL, PME_ENABLE);
-}
-
 static int ksz9477_wait_vlan_ctrl_ready(struct ksz_device *dev)
 {
 	unsigned int val;
@@ -427,54 +246,70 @@ void ksz9477_freeze_mib(struct ksz_device *dev, int port, bool freeze)
 	mutex_unlock(&p->mib.cnt_mutex);
 }
 
+static int ksz9477_half_duplex_monitor(struct ksz_device *dev, int port,
+				       u64 tx_late_col)
+{
+	u8 lue_ctrl;
+	u32 pmavbc;
+	u16 pqm;
+	int ret;
+
+	/* Errata DS80000754 recommends monitoring potential faults in
+	 * half-duplex mode. The switch might not be able to communicate anymore
+	 * in these states. If you see this message, please read the
+	 * errata-sheet for more information:
+	 * https://ww1.microchip.com/downloads/aemDocuments/documents/UNG/ProductDocuments/Errata/KSZ9477S-Errata-DS80000754.pdf
+	 * To workaround this issue, half-duplex mode should be avoided.
+	 * A software reset could be implemented to recover from this state.
+	 */
+	dev_warn_once(dev->dev,
+		      "Half-duplex detected on port %d, transmission halt may occur\n",
+		      port);
+	if (tx_late_col != 0) {
+		/* Transmission halt with late collisions */
+		dev_crit_once(dev->dev,
+			      "TX late collisions detected, transmission may be halted on port %d\n",
+			      port);
+	}
+	ret = ksz_read8(dev, REG_SW_LUE_CTRL_0, &lue_ctrl);
+	if (ret)
+		return ret;
+	if (lue_ctrl & SW_VLAN_ENABLE) {
+		ret = ksz_pread16(dev, port, REG_PORT_QM_TX_CNT_0__4, &pqm);
+		if (ret)
+			return ret;
+
+		ret = ksz_read32(dev, REG_PMAVBC, &pmavbc);
+		if (ret)
+			return ret;
+
+		if ((FIELD_GET(PMAVBC_MASK, pmavbc) <= PMAVBC_MIN) ||
+		    (FIELD_GET(PORT_QM_TX_CNT_M, pqm) >= PORT_QM_TX_CNT_MAX)) {
+			/* Transmission halt with Half-Duplex and VLAN */
+			dev_crit_once(dev->dev,
+				      "resources out of limits, transmission may be halted\n");
+		}
+	}
+
+	return ret;
+}
+
 int ksz9477_errata_monitor(struct ksz_device *dev, int port,
 			   u64 tx_late_col)
 {
-	u32 pmavbc;
 	u8 status;
-	u16 pqm;
 	int ret;
 
 	ret = ksz_pread8(dev, port, REG_PORT_STATUS_0, &status);
 	if (ret)
 		return ret;
-	if (!(FIELD_GET(PORT_INTF_SPEED_MASK, status) == PORT_INTF_SPEED_NONE) &&
+
+	if (!(FIELD_GET(PORT_INTF_SPEED_MASK, status)
+	      == PORT_INTF_SPEED_NONE) &&
 	    !(status & PORT_INTF_FULL_DUPLEX)) {
-		/* Errata DS80000754 recommends monitoring potential faults in
-		 * half-duplex mode. The switch might not be able to communicate anymore
-		 * in these states.
-		 * If you see this message, please read the errata-sheet for more information:
-		 * https://ww1.microchip.com/downloads/aemDocuments/documents/UNG/ProductDocuments/Errata/KSZ9477S-Errata-DS80000754.pdf
-		 * To workaround this issue, half-duplex mode should be avoided.
-		 * A software reset could be implemented to recover from this state.
-		 */
-		dev_warn_once(dev->dev,
-			      "Half-duplex detected on port %d, transmission halt may occur\n",
-			      port);
-		if (tx_late_col != 0) {
-			/* Transmission halt with late collisions */
-			dev_crit_once(dev->dev,
-				      "TX late collisions detected, transmission may be halted on port %d\n",
-				      port);
-		}
-		ret = ksz_read8(dev, REG_SW_LUE_CTRL_0, &status);
-		if (ret)
-			return ret;
-		if (status & SW_VLAN_ENABLE) {
-			ret = ksz_pread16(dev, port, REG_PORT_QM_TX_CNT_0__4, &pqm);
-			if (ret)
-				return ret;
-			ret = ksz_read32(dev, REG_PMAVBC, &pmavbc);
-			if (ret)
-				return ret;
-			if ((FIELD_GET(PMAVBC_MASK, pmavbc) <= PMAVBC_MIN) ||
-			    (FIELD_GET(PORT_QM_TX_CNT_M, pqm) >= PORT_QM_TX_CNT_MAX)) {
-				/* Transmission halt with Half-Duplex and VLAN */
-				dev_crit_once(dev->dev,
-					      "resources out of limits, transmission may be halted\n");
-			}
-		}
+		ret = ksz9477_half_duplex_monitor(dev, port, tx_late_col);
 	}
+
 	return ret;
 }
 
@@ -1188,6 +1023,7 @@ void ksz9477_port_queue_split(struct ksz_device *dev, int port)
 
 void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 {
+	const u16 *regs = dev->info->regs;
 	struct dsa_switch *ds = dev->ds;
 	u16 data16;
 	u8 member;
@@ -1232,12 +1068,12 @@ void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 	ksz9477_port_acl_init(dev, port);
 
 	/* clear pending wake flags */
-	ksz9477_handle_wake_reason(dev, port);
+	ksz_handle_wake_reason(dev, port);
 
 	/* Disable all WoL options by default. Otherwise
 	 * ksz_switch_macaddr_get/put logic will not work properly.
 	 */
-	ksz_pwrite8(dev, port, REG_PORT_PME_CTRL, 0);
+	ksz_pwrite8(dev, port, regs[REG_PORT_PME_CTRL], 0);
 }
 
 void ksz9477_config_cpu_port(struct dsa_switch *ds)
@@ -1295,6 +1131,10 @@ void ksz9477_config_cpu_port(struct dsa_switch *ds)
 		if (i == dev->cpu_port)
 			continue;
 		ksz_port_stp_state_set(ds, i, BR_STATE_DISABLED);
+
+		/* Power down the internal PHY if port is unused. */
+		if (dsa_is_unused_port(ds, i) && dev->info->internal_phy[i])
+			ksz_pwrite16(dev, i, 0x100, BMCR_PDOWN);
 	}
 }
 
@@ -1334,6 +1174,7 @@ int ksz9477_enable_stp_addr(struct ksz_device *dev)
 int ksz9477_setup(struct dsa_switch *ds)
 {
 	struct ksz_device *dev = ds->priv;
+	const u16 *regs = dev->info->regs;
 	int ret = 0;
 
 	ds->mtu_enforcement_ingress = true;
@@ -1364,13 +1205,11 @@ int ksz9477_setup(struct dsa_switch *ds)
 	/* enable global MIB counter freeze function */
 	ksz_cfg(dev, REG_SW_MAC_CTRL_6, SW_MIB_COUNTER_FREEZE, true);
 
-	/* Make sure PME (WoL) is not enabled. If requested, it will be
-	 * enabled by ksz9477_wol_pre_shutdown(). Otherwise, some PMICs do not
-	 * like PME events changes before shutdown.
+	/* Make sure PME (WoL) is not enabled. If requested, it will
+	 * be enabled by ksz_wol_pre_shutdown(). Otherwise, some PMICs
+	 * do not like PME events changes before shutdown.
 	 */
-	ksz_write8(dev, REG_SW_PME_CTRL, 0);
-
-	return 0;
+	return ksz_write8(dev, regs[REG_SW_PME_CTRL], 0);
 }
 
 u32 ksz9477_get_port_addr(int port, int offset)

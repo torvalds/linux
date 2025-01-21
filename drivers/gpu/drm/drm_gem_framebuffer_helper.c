@@ -18,7 +18,7 @@
 
 #include "drm_internal.h"
 
-MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS("DMA_BUF");
 
 #define AFBC_HEADER_SIZE		16
 #define AFBC_TH_LAYOUT_ALIGNMENT	8

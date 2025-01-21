@@ -22,7 +22,7 @@
 #include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define WAIT_TIMEOUT		msecs_to_jiffies(1000)
 

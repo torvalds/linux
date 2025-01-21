@@ -321,7 +321,7 @@ int __update_load_avg_cfs_rq(u64 now, struct cfs_rq *cfs_rq)
 {
 	if (___update_load_sum(now, &cfs_rq->avg,
 				scale_load_down(cfs_rq->load.weight),
-				cfs_rq->h_nr_running,
+				cfs_rq->h_nr_running - cfs_rq->h_nr_delayed,
 				cfs_rq->curr != NULL)) {
 
 		___update_load_avg(&cfs_rq->avg, 1);
@@ -467,3 +467,23 @@ int update_irq_load_avg(struct rq *rq, u64 running)
 	return ret;
 }
 #endif
+
+/*
+ * Load avg and utiliztion metrics need to be updated periodically and before
+ * consumption. This function updates the metrics for all subsystems except for
+ * the fair class. @rq must be locked and have its clock updated.
+ */
+bool update_other_load_avgs(struct rq *rq)
+{
+	u64 now = rq_clock_pelt(rq);
+	const struct sched_class *curr_class = rq->donor->sched_class;
+	unsigned long hw_pressure = arch_scale_hw_pressure(cpu_of(rq));
+
+	lockdep_assert_rq_held(rq);
+
+	/* hw_pressure doesn't care about invariance */
+	return update_rt_rq_load_avg(now, rq, curr_class == &rt_sched_class) |
+		update_dl_rq_load_avg(now, rq, curr_class == &dl_sched_class) |
+		update_hw_load_avg(rq_clock_task(rq), rq, hw_pressure) |
+		update_irq_load_avg(rq, 0);
+}

@@ -18,7 +18,7 @@ extern const char * const bch2_sb_compat[];
 extern const char * const __bch2_btree_ids[];
 extern const char * const bch2_csum_opts[];
 extern const char * const bch2_compression_opts[];
-extern const char * const bch2_str_hash_types[];
+extern const char * const __bch2_str_hash_types[];
 extern const char * const bch2_str_hash_opts[];
 extern const char * const __bch2_data_types[];
 extern const char * const bch2_member_states[];
@@ -29,6 +29,7 @@ void bch2_prt_fs_usage_type(struct printbuf *,		enum bch_fs_usage_type);
 void bch2_prt_data_type(struct printbuf *,		enum bch_data_type);
 void bch2_prt_csum_type(struct printbuf *,		enum bch_csum_type);
 void bch2_prt_compression_type(struct printbuf *,	enum bch_compression_type);
+void bch2_prt_str_hash_type(struct printbuf *,		enum bch_str_hash_type);
 
 static inline const char *bch2_d_type_str(unsigned d_type)
 {
@@ -53,23 +54,25 @@ void SET_BCH2_NO_SB_OPT(struct bch_sb *, u64);
 
 /* When can be set: */
 enum opt_flags {
-	OPT_FS		= (1 << 0),	/* Filesystem option */
-	OPT_DEVICE	= (1 << 1),	/* Device option */
-	OPT_INODE	= (1 << 2),	/* Inode option */
-	OPT_FORMAT	= (1 << 3),	/* May be specified at format time */
-	OPT_MOUNT	= (1 << 4),	/* May be specified at mount time */
-	OPT_RUNTIME	= (1 << 5),	/* May be specified at runtime */
-	OPT_HUMAN_READABLE = (1 << 6),
-	OPT_MUST_BE_POW_2 = (1 << 7),	/* Must be power of 2 */
-	OPT_SB_FIELD_SECTORS = (1 << 8),/* Superblock field is >> 9 of actual value */
-	OPT_SB_FIELD_ILOG2 = (1 << 9),	/* Superblock field is ilog2 of actual value */
-	OPT_HIDDEN	= (1 << 10),
+	OPT_FS			= BIT(0),	/* Filesystem option */
+	OPT_DEVICE		= BIT(1),	/* Device option */
+	OPT_INODE		= BIT(2),	/* Inode option */
+	OPT_FORMAT		= BIT(3),	/* May be specified at format time */
+	OPT_MOUNT		= BIT(4),	/* May be specified at mount time */
+	OPT_RUNTIME		= BIT(5),	/* May be specified at runtime */
+	OPT_HUMAN_READABLE	= BIT(6),
+	OPT_MUST_BE_POW_2	= BIT(7),	/* Must be power of 2 */
+	OPT_SB_FIELD_SECTORS	= BIT(8),	/* Superblock field is >> 9 of actual value */
+	OPT_SB_FIELD_ILOG2	= BIT(9),	/* Superblock field is ilog2 of actual value */
+	OPT_SB_FIELD_ONE_BIAS	= BIT(10),	/* 0 means default value */
+	OPT_HIDDEN		= BIT(11),
 };
 
 enum opt_type {
 	BCH_OPT_BOOL,
 	BCH_OPT_UINT,
 	BCH_OPT_STR,
+	BCH_OPT_BITFIELD,
 	BCH_OPT_FN,
 };
 
@@ -263,6 +266,11 @@ enum fsck_err_opts {
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		true,				\
 	  NULL,		"Enable inline data extents")			\
+	x(promote_whole_extents,	u8,				\
+	  OPT_FS|OPT_MOUNT|OPT_RUNTIME,					\
+	  OPT_BOOL(),							\
+	  BCH_SB_PROMOTE_WHOLE_EXTENTS,	true,				\
+	  NULL,		"Promote whole extents, instead of just part being read")\
 	x(acl,				u8,				\
 	  OPT_FS|OPT_FORMAT|OPT_MOUNT,					\
 	  OPT_BOOL(),							\
@@ -366,6 +374,16 @@ enum fsck_err_opts {
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		false,				\
 	  NULL,		"Exit recovery immediately prior to journal replay")\
+	x(recovery_passes,		u64,				\
+	  OPT_FS|OPT_MOUNT,						\
+	  OPT_BITFIELD(bch2_recovery_passes),				\
+	  BCH2_NO_SB_OPT,		0,				\
+	  NULL,		"Recovery passes to run explicitly")		\
+	x(recovery_passes_exclude,	u64,				\
+	  OPT_FS|OPT_MOUNT,						\
+	  OPT_BITFIELD(bch2_recovery_passes),				\
+	  BCH2_NO_SB_OPT,		0,				\
+	  NULL,		"Recovery passes to exclude")			\
 	x(recovery_pass_last,		u8,				\
 	  OPT_FS|OPT_MOUNT,						\
 	  OPT_STR_NOLIMIT(bch2_recovery_passes),			\
@@ -472,17 +490,27 @@ enum fsck_err_opts {
 	  BCH2_NO_SB_OPT,		0,				\
 	  "size",	"Size of filesystem on device")			\
 	x(durability,			u8,				\
-	  OPT_DEVICE,							\
+	  OPT_DEVICE|OPT_SB_FIELD_ONE_BIAS,				\
 	  OPT_UINT(0, BCH_REPLICAS_MAX),				\
 	  BCH2_NO_SB_OPT,		1,				\
 	  "n",		"Data written to this device will be considered\n"\
 			"to have already been replicated n times")	\
+	x(data_allowed,			u8,				\
+	  OPT_DEVICE,							\
+	  OPT_BITFIELD(__bch2_data_types),				\
+	  BCH2_NO_SB_OPT,		BIT(BCH_DATA_journal)|BIT(BCH_DATA_btree)|BIT(BCH_DATA_user),\
+	  "types",	"Allowed data types for this device: journal, btree, and/or user")\
 	x(btree_node_prefetch,		u8,				\
 	  OPT_FS|OPT_MOUNT|OPT_RUNTIME,					\
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		true,				\
 	  NULL,		"BTREE_ITER_prefetch casuse btree nodes to be\n"\
 	  " prefetched sequentially")
+
+#define BCH_DEV_OPT_SETTERS()						\
+	x(discard,		BCH_MEMBER_DISCARD)			\
+	x(durability,		BCH_MEMBER_DURABILITY)			\
+	x(data_allowed,		BCH_MEMBER_DATA_ALLOWED)
 
 struct bch_opts {
 #define x(_name, _bits, ...)	unsigned _name##_defined:1;
@@ -563,8 +591,10 @@ void bch2_opt_set_by_id(struct bch_opts *, enum bch_opt_id, u64);
 
 u64 bch2_opt_from_sb(struct bch_sb *, enum bch_opt_id);
 int bch2_opts_from_sb(struct bch_opts *, struct bch_sb *);
-void __bch2_opt_set_sb(struct bch_sb *, const struct bch_option *, u64);
-void bch2_opt_set_sb(struct bch_fs *, const struct bch_option *, u64);
+void __bch2_opt_set_sb(struct bch_sb *, int, const struct bch_option *, u64);
+
+struct bch_dev;
+void bch2_opt_set_sb(struct bch_fs *, struct bch_dev *, const struct bch_option *, u64);
 
 int bch2_opt_lookup(const char *);
 int bch2_opt_validate(const struct bch_option *, u64, struct printbuf *);
@@ -576,6 +606,10 @@ int bch2_opt_parse(struct bch_fs *, const struct bch_option *,
 
 void bch2_opt_to_text(struct printbuf *, struct bch_fs *, struct bch_sb *,
 		      const struct bch_option *, u64, unsigned);
+void bch2_opts_to_text(struct printbuf *,
+		       struct bch_opts,
+		       struct bch_fs *, struct bch_sb *,
+		       unsigned, unsigned, unsigned);
 
 int bch2_opt_check_may_set(struct bch_fs *, int, u64);
 int bch2_opts_check_may_set(struct bch_fs *);

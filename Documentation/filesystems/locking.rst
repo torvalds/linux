@@ -251,10 +251,10 @@ prototypes::
 	void (*readahead)(struct readahead_control *);
 	int (*write_begin)(struct file *, struct address_space *mapping,
 				loff_t pos, unsigned len,
-				struct page **pagep, void **fsdata);
+				struct folio **foliop, void **fsdata);
 	int (*write_end)(struct file *, struct address_space *mapping,
 				loff_t pos, unsigned len, unsigned copied,
-				struct page *page, void *fsdata);
+				struct folio *folio, void *fsdata);
 	sector_t (*bmap)(struct address_space *, sector_t);
 	void (*invalidate_folio) (struct folio *, size_t start, size_t len);
 	bool (*release_folio)(struct folio *, gfp_t);
@@ -280,7 +280,7 @@ read_folio:		yes, unlocks				shared
 writepages:
 dirty_folio:		maybe
 readahead:		yes, unlocks				shared
-write_begin:		locks the page		 exclusive
+write_begin:		locks the folio		 exclusive
 write_end:		yes, unlocks		 exclusive
 bmap:
 invalidate_folio:	yes					exclusive

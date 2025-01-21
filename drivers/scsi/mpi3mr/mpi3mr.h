@@ -31,7 +31,7 @@
 #include <linux/uaccess.h>
 #include <linux/utsname.h>
 #include <linux/workqueue.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_dbg.h>
@@ -57,8 +57,8 @@ extern struct list_head mrioc_list;
 extern int prot_mask;
 extern atomic64_t event_counter;
 
-#define MPI3MR_DRIVER_VERSION	"8.9.1.0.51"
-#define MPI3MR_DRIVER_RELDATE	"29-May-2024"
+#define MPI3MR_DRIVER_VERSION	"8.12.0.3.50"
+#define MPI3MR_DRIVER_RELDATE	"11-November-2024"
 
 #define MPI3MR_DRIVER_NAME	"mpi3mr"
 #define MPI3MR_DRIVER_LICENSE	"GPL"
@@ -134,8 +134,6 @@ extern atomic64_t event_counter;
 
 #define MPI3MR_WATCHDOG_INTERVAL		1000 /* in milli seconds */
 
-#define MPI3MR_DEFAULT_CFG_PAGE_SZ		1024 /* in bytes */
-
 #define MPI3MR_RESET_TOPOLOGY_SETTLE_TIME	10
 
 #define MPI3MR_SCMD_TIMEOUT    (60 * HZ)
@@ -178,7 +176,7 @@ extern atomic64_t event_counter;
 #define MPI3MR_DEFAULT_SDEV_QD	32
 
 /* Definitions for Threaded IRQ poll*/
-#define MPI3MR_IRQ_POLL_SLEEP			2
+#define MPI3MR_IRQ_POLL_SLEEP			20
 #define MPI3MR_IRQ_POLL_TRIGGER_IOCOUNT		8
 
 /* Definitions for the controller security status*/
@@ -213,6 +211,7 @@ extern atomic64_t event_counter;
 #define MPI3MR_HDB_QUERY_ELEMENT_TRIGGER_FORMAT_INDEX   0
 #define MPI3MR_HDB_QUERY_ELEMENT_TRIGGER_FORMAT_DATA    1
 
+#define MPI3MR_THRESHOLD_REPLY_COUNT	100
 
 /* SGE Flag definition */
 #define MPI3MR_SGEFLAGS_SYSTEM_SIMPLE_END_OF_LIST \
@@ -541,8 +540,8 @@ struct mpi3mr_hba_port {
  * @port_list: List of ports belonging to a SAS node
  * @num_phys: Number of phys associated with port
  * @marked_responding: used while refresing the sas ports
- * @lowest_phy: lowest phy ID of current sas port
- * @phy_mask: phy_mask of current sas port
+ * @lowest_phy: lowest phy ID of current sas port, valid for controller port
+ * @phy_mask: phy_mask of current sas port, valid for controller port
  * @hba_port: HBA port entry
  * @remote_identify: Attached device identification
  * @rphy: SAS transport layer rphy object
@@ -1059,7 +1058,6 @@ struct scmd_priv {
  * @sbq_lock: Sense buffer queue lock
  * @sbq_host_index: Sense buffer queuehost index
  * @event_masks: Event mask bitmap
- * @fwevt_worker_name: Firmware event worker thread name
  * @fwevt_worker_thread: Firmware event worker thread
  * @fwevt_lock: Firmware event lock
  * @fwevt_list: Firmware event list
@@ -1090,6 +1088,7 @@ struct scmd_priv {
  * @evtack_cmds_bitmap: Event Ack bitmap
  * @delayed_evtack_cmds_list: Delayed event acknowledgment list
  * @ts_update_counter: Timestamp update counter
+ * @ts_update_interval: Timestamp update interval
  * @reset_in_progress: Reset in progress flag
  * @unrecoverable: Controller unrecoverable flag
  * @prev_reset_result: Result of previous reset
@@ -1132,9 +1131,6 @@ struct scmd_priv {
  * @io_throttle_low: I/O size to stop throttle in 512b blocks
  * @num_io_throttle_group: Maximum number of throttle groups
  * @throttle_groups: Pointer to throttle group info structures
- * @cfg_page: Default memory for configuration pages
- * @cfg_page_dma: Configuration page DMA address
- * @cfg_page_sz: Default configuration page memory size
  * @sas_transport_enabled: SAS transport enabled or not
  * @scsi_device_channel: Channel ID for SCSI devices
  * @transport_cmds: Command tracker for SAS transport commands
@@ -1240,7 +1236,6 @@ struct mpi3mr_ioc {
 	u32 sbq_host_index;
 	u32 event_masks[MPI3_EVENT_NOTIFY_EVENTMASK_WORDS];
 
-	char fwevt_worker_name[MPI3MR_NAME_LENGTH];
 	struct workqueue_struct	*fwevt_worker_thread;
 	spinlock_t fwevt_lock;
 	struct list_head fwevt_list;
@@ -1278,7 +1273,8 @@ struct mpi3mr_ioc {
 	unsigned long *evtack_cmds_bitmap;
 	struct list_head delayed_evtack_cmds_list;
 
-	u32 ts_update_counter;
+	u16 ts_update_counter;
+	u16 ts_update_interval;
 	u8 reset_in_progress;
 	u8 unrecoverable;
 	int prev_reset_result;
@@ -1330,10 +1326,6 @@ struct mpi3mr_ioc {
 	u32 io_throttle_low;
 	u16 num_io_throttle_group;
 	struct mpi3mr_throttle_group_info *throttle_groups;
-
-	void *cfg_page;
-	dma_addr_t cfg_page_dma;
-	u16 cfg_page_sz;
 
 	u8 sas_transport_enabled;
 	u8 scsi_device_channel;

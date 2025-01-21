@@ -260,7 +260,7 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 		return -EINVAL;
 	}
 
-	r = amdgpu_ucode_request(adev, &adev->uvd.fw, fw_name);
+	r = amdgpu_ucode_request(adev, &adev->uvd.fw, "%s", fw_name);
 	if (r) {
 		dev_err(adev->dev, "amdgpu_uvd: Can't validate firmware \"%s\"\n",
 			fw_name);
@@ -551,6 +551,8 @@ static void amdgpu_uvd_force_into_uvd_segment(struct amdgpu_bo *abo)
 	for (i = 0; i < abo->placement.num_placement; ++i) {
 		abo->placements[i].fpfn = 0 >> PAGE_SHIFT;
 		abo->placements[i].lpfn = (256 * 1024 * 1024) >> PAGE_SHIFT;
+		if (abo->placements[i].mem_type == TTM_PL_VRAM)
+			abo->placements[i].flags |= TTM_PL_FLAG_CONTIGUOUS;
 	}
 }
 
@@ -1088,7 +1090,6 @@ int amdgpu_uvd_ring_parse_cs(struct amdgpu_cs_parser *parser,
 	int r;
 
 	job->vm = NULL;
-	ib->gpu_addr = amdgpu_sa_bo_gpu_addr(ib->sa_bo);
 
 	if (ib->length_dw % 16) {
 		DRM_ERROR("UVD IB length (%d) not 16 dwords aligned!\n",

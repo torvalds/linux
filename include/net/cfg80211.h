@@ -1460,7 +1460,6 @@ struct cfg80211_unsol_bcast_probe_resp {
  * @crypto: crypto settings
  * @privacy: the BSS uses privacy
  * @auth_type: Authentication type (algorithm)
- * @smps_mode: SMPS mode
  * @inactivity_timeout: time in seconds to determine station's inactivity.
  * @p2p_ctwindow: P2P CT Window
  * @p2p_opp_ps: P2P opportunistic PS
@@ -1498,7 +1497,6 @@ struct cfg80211_ap_settings {
 	struct cfg80211_crypto_settings crypto;
 	bool privacy;
 	enum nl80211_auth_type auth_type;
-	enum nl80211_smps_mode smps_mode;
 	int inactivity_timeout;
 	u8 p2p_ctwindow;
 	bool p2p_opp_ps;
@@ -2269,6 +2267,7 @@ static inline int cfg80211_get_station(struct net_device *dev,
  * @MONITOR_FLAG_OTHER_BSS: disable BSSID filtering
  * @MONITOR_FLAG_COOK_FRAMES: report frames after processing
  * @MONITOR_FLAG_ACTIVE: active monitor, ACKs frames on its MAC address
+ * @MONITOR_FLAG_SKIP_TX: do not pass locally transmitted frames
  */
 enum monitor_flags {
 	MONITOR_FLAG_CHANGED		= BIT(__NL80211_MNTR_FLAG_INVALID),
@@ -2278,6 +2277,7 @@ enum monitor_flags {
 	MONITOR_FLAG_OTHER_BSS		= BIT(NL80211_MNTR_FLAG_OTHER_BSS),
 	MONITOR_FLAG_COOK_FRAMES	= BIT(NL80211_MNTR_FLAG_COOK_FRAMES),
 	MONITOR_FLAG_ACTIVE		= BIT(NL80211_MNTR_FLAG_ACTIVE),
+	MONITOR_FLAG_SKIP_TX		= BIT(NL80211_MNTR_FLAG_SKIP_TX),
 };
 
 /**
@@ -4696,6 +4696,7 @@ struct cfg80211_ops {
 					     struct ieee80211_channel *chan);
 
 	int	(*set_monitor_channel)(struct wiphy *wiphy,
+				       struct net_device *dev,
 				       struct cfg80211_chan_def *chandef);
 
 	int	(*scan)(struct wiphy *wiphy,
@@ -4837,9 +4838,9 @@ struct cfg80211_ops {
 	int	(*start_radar_detection)(struct wiphy *wiphy,
 					 struct net_device *dev,
 					 struct cfg80211_chan_def *chandef,
-					 u32 cac_time_ms);
+					 u32 cac_time_ms, int link_id);
 	void	(*end_cac)(struct wiphy *wiphy,
-				struct net_device *dev);
+			   struct net_device *dev, unsigned int link_id);
 	int	(*update_ft_ies)(struct wiphy *wiphy, struct net_device *dev,
 				 struct cfg80211_update_ft_ies_params *ftie);
 	int	(*crit_proto_start)(struct wiphy *wiphy,
@@ -5436,6 +5437,8 @@ struct wiphy_radio_freq_range {
  * @iface_combinations: Valid interface combinations array, should not
  *	list single interface types.
  * @n_iface_combinations: number of entries in @iface_combinations array.
+ *
+ * @antenna_mask: bitmask of antennas connected to this radio.
  */
 struct wiphy_radio {
 	const struct wiphy_radio_freq_range *freq_range;
@@ -5443,6 +5446,8 @@ struct wiphy_radio {
 
 	const struct ieee80211_iface_combination *iface_combinations;
 	int n_iface_combinations;
+
+	u32 antenna_mask;
 };
 
 #define CFG80211_HW_TIMESTAMP_ALL_PEERS	0xffff
@@ -6130,6 +6135,50 @@ void wiphy_delayed_work_flush(struct wiphy *wiphy,
 			      struct wiphy_delayed_work *dwork);
 
 /**
+ * wiphy_delayed_work_pending - Find out whether a wiphy delayable
+ * work item is currently pending.
+ *
+ * @wiphy: the wiphy, for debug purposes
+ * @dwork: the delayed work in question
+ *
+ * Return: true if timer is pending, false otherwise
+ *
+ * How wiphy_delayed_work_queue() works is by setting a timer which
+ * when it expires calls wiphy_work_queue() to queue the wiphy work.
+ * Because wiphy_delayed_work_queue() uses mod_timer(), if it is
+ * called twice and the second call happens before the first call
+ * deadline, the work will rescheduled for the second deadline and
+ * won't run before that.
+ *
+ * wiphy_delayed_work_pending() can be used to detect if calling
+ * wiphy_work_delayed_work_queue() would start a new work schedule
+ * or delayed a previous one. As seen below it cannot be used to
+ * detect precisely if the work has finished to execute nor if it
+ * is currently executing.
+ *
+ *      CPU0                                CPU1
+ * wiphy_delayed_work_queue(wk)
+ *  mod_timer(wk->timer)
+ *                                     wiphy_delayed_work_pending(wk) -> true
+ *
+ * [...]
+ * expire_timers(wk->timer)
+ *  detach_timer(wk->timer)
+ *                                     wiphy_delayed_work_pending(wk) -> false
+ *  wk->timer->function()                          |
+ *   wiphy_work_queue(wk)                          | delayed work pending
+ *    list_add_tail()                              | returns false but
+ *    queue_work(cfg80211_wiphy_work)              | wk->func() has not
+ *                                                 | been run yet
+ * [...]                                           |
+ *  cfg80211_wiphy_work()                          |
+ *   wk->func()                                    V
+ *
+ */
+bool wiphy_delayed_work_pending(struct wiphy *wiphy,
+				struct wiphy_delayed_work *dwork);
+
+/**
  * enum ieee80211_ap_reg_power - regulatory power for an Access Point
  *
  * @IEEE80211_REG_UNSET_AP: Access Point has no regulatory power mode
@@ -6194,9 +6243,6 @@ enum ieee80211_ap_reg_power {
  * @address: The address for this device, valid only if @netdev is %NULL
  * @is_running: true if this is a non-netdev device that has been started, e.g.
  *	the P2P Device.
- * @cac_started: true if DFS channel availability check has been started
- * @cac_start_time: timestamp (jiffies) when the dfs state was entered.
- * @cac_time_ms: CAC time in ms
  * @ps: powersave mode is enabled
  * @ps_timeout: dynamic powersave timeout
  * @ap_unexpected_nlportid: (private) netlink port ID of application
@@ -6220,7 +6266,13 @@ enum ieee80211_ap_reg_power {
  *	unprotected beacon report
  * @links: array of %IEEE80211_MLD_MAX_NUM_LINKS elements containing @addr
  *	@ap and @client for each link
+ * @links.cac_started: true if DFS channel availability check has been
+ *	started
+ * @links.cac_start_time: timestamp (jiffies) when the dfs state was
+ *	entered.
+ * @links.cac_time_ms: CAC time in ms
  * @valid_links: bitmap describing what elements of @links are valid
+ * @radio_mask: Bitmask of radios that this interface is allowed to operate on.
  */
 struct wireless_dev {
 	struct wiphy *wiphy;
@@ -6260,11 +6312,6 @@ struct wireless_dev {
 
 	u32 owner_nlportid;
 	bool nl_owner_dead;
-
-	/* FIXME: need to rework radar detection for MLO */
-	bool cac_started;
-	unsigned long cac_start_time;
-	unsigned int cac_time_ms;
 
 #ifdef CONFIG_CFG80211_WEXT
 	/* wext data */
@@ -6332,8 +6379,14 @@ struct wireless_dev {
 				struct cfg80211_internal_bss *current_bss;
 			} client;
 		};
+
+		bool cac_started;
+		unsigned long cac_start_time;
+		unsigned int cac_time_ms;
 	} links[IEEE80211_MLD_MAX_NUM_LINKS];
 	u16 valid_links;
+
+	u32 radio_mask;
 };
 
 static inline const u8 *wdev_address(struct wireless_dev *wdev)
@@ -6518,6 +6571,17 @@ static inline bool cfg80211_channel_is_psc(struct ieee80211_channel *chan)
  */
 bool cfg80211_radio_chandef_valid(const struct wiphy_radio *radio,
 				  const struct cfg80211_chan_def *chandef);
+
+/**
+ * cfg80211_wdev_channel_allowed - Check if the wdev may use the channel
+ *
+ * @wdev: the wireless device
+ * @chan: channel to check
+ *
+ * Return: whether or not the wdev may use the channel
+ */
+bool cfg80211_wdev_channel_allowed(struct wireless_dev *wdev,
+				   struct ieee80211_channel *chan);
 
 /**
  * ieee80211_get_response_rate - get basic rate for a given rate
@@ -8740,6 +8804,7 @@ void cfg80211_sta_opmode_change_notify(struct net_device *dev, const u8 *mac,
  * @chandef: chandef for the current channel
  * @event: type of event
  * @gfp: context flags
+ * @link_id: valid link_id for MLO operation or 0 otherwise.
  *
  * This function is called when a Channel availability check (CAC) is finished
  * or aborted. This must be called to notify the completion of a CAC process,
@@ -8747,7 +8812,8 @@ void cfg80211_sta_opmode_change_notify(struct net_device *dev, const u8 *mac,
  */
 void cfg80211_cac_event(struct net_device *netdev,
 			const struct cfg80211_chan_def *chandef,
-			enum nl80211_radar_event event, gfp_t gfp);
+			enum nl80211_radar_event event, gfp_t gfp,
+			unsigned int link_id);
 
 /**
  * cfg80211_background_cac_abort - Channel Availability Check offchan abort event

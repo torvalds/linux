@@ -1061,7 +1061,7 @@ static struct clk_hw_onecell_data sun50i_a100_hw_clks = {
 	.num = CLK_NUMBER,
 };
 
-static struct ccu_reset_map sun50i_a100_ccu_resets[] = {
+static const struct ccu_reset_map sun50i_a100_ccu_resets[] = {
 	[RST_MBUS]		= { 0x540, BIT(30) },
 
 	[RST_BUS_DE]		= { 0x60c, BIT(16) },
@@ -1276,6 +1276,6 @@ static struct platform_driver sun50i_a100_ccu_driver = {
 };
 module_platform_driver(sun50i_a100_ccu_driver);
 
-MODULE_IMPORT_NS(SUNXI_CCU);
+MODULE_IMPORT_NS("SUNXI_CCU");
 MODULE_DESCRIPTION("Support for the Allwinner A100 CCU");
 MODULE_LICENSE("GPL");

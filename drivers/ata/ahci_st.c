@@ -238,7 +238,7 @@ static struct platform_driver st_ahci_driver = {
 		.of_match_table = st_ahci_match,
 	},
 	.probe = st_ahci_probe,
-	.remove_new = ata_platform_remove_one,
+	.remove = ata_platform_remove_one,
 };
 module_platform_driver(st_ahci_driver);
 

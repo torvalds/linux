@@ -31,6 +31,11 @@
 static int __read_mostly sysctl_hung_task_check_count = PID_MAX_LIMIT;
 
 /*
+ * Total number of tasks detected as hung since boot:
+ */
+static unsigned long __read_mostly sysctl_hung_task_detect_count;
+
+/*
  * Limit number of tasks checked in a batch.
  *
  * This value controls the preemptibility of khungtaskd since preemption
@@ -114,6 +119,12 @@ static void check_hung_task(struct task_struct *t, unsigned long timeout)
 	}
 	if (time_is_after_jiffies(t->last_switch_time + timeout * HZ))
 		return;
+
+	/*
+	 * This counter tracks the total number of tasks detected as hung
+	 * since boot.
+	 */
+	sysctl_hung_task_detect_count++;
 
 	trace_sched_process_hang(t);
 
@@ -313,6 +324,13 @@ static struct ctl_table hung_task_sysctls[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= SYSCTL_NEG_ONE,
+	},
+	{
+		.procname	= "hung_task_detect_count",
+		.data		= &sysctl_hung_task_detect_count,
+		.maxlen		= sizeof(unsigned long),
+		.mode		= 0444,
+		.proc_handler	= proc_doulongvec_minmax,
 	},
 };
 

@@ -122,8 +122,8 @@
 			reg = <0x1e6c0080 0x80>;
 		};
 
-		cvic: copro-interrupt-controller@1e6c2000 {
-			compatible = "aspeed,ast2400-cvic", "aspeed-cvic";
+		cvic: interrupt-controller@1e6c2000 {
+			compatible = "aspeed,ast2400-cvic", "aspeed,cvic";
 			valid-sources = <0x7fffffff>;
 			reg = <0x1e6c2000 0x80>;
 		};
@@ -230,6 +230,9 @@
 			sram: sram@1e720000 {
 				compatible = "mmio-sram";
 				reg = <0x1e720000 0x8000>;	// 32K
+				ranges;
+				#address-cells = <1>;
+				#size-cells = <1>;
 			};
 
 			video: video@1e700000 {

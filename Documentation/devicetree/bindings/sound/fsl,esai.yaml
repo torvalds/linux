@@ -18,11 +18,15 @@ description:
 
 properties:
   compatible:
-    enum:
-      - fsl,imx35-esai
-      - fsl,imx6ull-esai
-      - fsl,imx8qm-esai
-      - fsl,vf610-esai
+    oneOf:
+      - enum:
+          - fsl,imx35-esai
+          - fsl,imx6ull-esai
+          - fsl,vf610-esai
+      - items:
+          - enum:
+              - fsl,imx8qm-esai
+          - const: fsl,imx6ull-esai
 
   reg:
     maxItems: 1
@@ -65,6 +69,9 @@ properties:
       - const: rx
       - const: tx
 
+  power-domains:
+    maxItems: 1
+
   fsl,fifo-depth:
     $ref: /schemas/types.yaml#/definitions/uint32
     default: 64
@@ -101,6 +108,17 @@ unevaluatedProperties: false
 
 allOf:
   - $ref: dai-common.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: fsl,imx8qm-esai
+    then:
+      required:
+        - power-domains
+    else:
+      properties:
+        power-domains: false
 
 examples:
   - |

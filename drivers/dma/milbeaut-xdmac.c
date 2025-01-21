@@ -409,7 +409,7 @@ MODULE_DEVICE_TABLE(of, milbeaut_xdmac_match);
 
 static struct platform_driver milbeaut_xdmac_driver = {
 	.probe = milbeaut_xdmac_probe,
-	.remove_new = milbeaut_xdmac_remove,
+	.remove = milbeaut_xdmac_remove,
 	.driver = {
 		.name = "milbeaut-m10v-xdmac",
 		.of_match_table = milbeaut_xdmac_match,

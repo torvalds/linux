@@ -14,23 +14,24 @@
 #include <linux/memory_hotplug.h>
 #include <linux/kmemleak.h>
 
-void get_page_bootmem(unsigned long info, struct page *page, unsigned long type)
+void get_page_bootmem(unsigned long info, struct page *page,
+		enum bootmem_type type)
 {
-	page->index = type;
+	BUG_ON(type > 0xf);
+	BUG_ON(info > (ULONG_MAX >> 4));
 	SetPagePrivate(page);
-	set_page_private(page, info);
+	set_page_private(page, info << 4 | type);
 	page_ref_inc(page);
 }
 
 void put_page_bootmem(struct page *page)
 {
-	unsigned long type = page->index;
+	enum bootmem_type type = bootmem_type(page);
 
 	BUG_ON(type < MEMORY_HOTPLUG_MIN_BOOTMEM_TYPE ||
 	       type > MEMORY_HOTPLUG_MAX_BOOTMEM_TYPE);
 
 	if (page_ref_dec_return(page) == 1) {
-		page->index = 0;
 		ClearPagePrivate(page);
 		set_page_private(page, 0);
 		INIT_LIST_HEAD(&page->lru);

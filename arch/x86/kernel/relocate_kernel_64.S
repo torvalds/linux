@@ -13,6 +13,7 @@
 #include <asm/pgtable_types.h>
 #include <asm/nospec-branch.h>
 #include <asm/unwind_hints.h>
+#include <asm/asm-offsets.h>
 
 /*
  * Must be relocatable PIC code callable as a C function, in particular
@@ -170,6 +171,7 @@ SYM_CODE_START_LOCAL_NOALIGN(identity_mapped)
 	wbinvd
 .Lsme_off:
 
+	/* Save the preserve_context to %r11 as swap_pages clobbers %rcx. */
 	movq	%rcx, %r11
 	call	swap_pages
 
@@ -241,6 +243,13 @@ SYM_CODE_START_LOCAL_NOALIGN(virtual_mapped)
 	movq	CR0(%r8), %r8
 	movq	%rax, %cr3
 	movq	%r8, %cr0
+
+#ifdef CONFIG_KEXEC_JUMP
+	/* Saved in save_processor_state. */
+	movq    $saved_context, %rax
+	lgdt    saved_context_gdt_desc(%rax)
+#endif
+
 	movq	%rbp, %rax
 
 	popf
@@ -258,7 +267,7 @@ SYM_CODE_END(virtual_mapped)
 	/* Do the copies */
 SYM_CODE_START_LOCAL_NOALIGN(swap_pages)
 	UNWIND_HINT_END_OF_STACK
-	movq	%rdi, %rcx	/* Put the page_list in %rcx */
+	movq	%rdi, %rcx	/* Put the indirection_page in %rcx */
 	xorl	%edi, %edi
 	xorl	%esi, %esi
 	jmp	1f
@@ -289,18 +298,21 @@ SYM_CODE_START_LOCAL_NOALIGN(swap_pages)
 	movq	%rcx,   %rsi  /* For ever source page do a copy */
 	andq	$0xfffffffffffff000, %rsi
 
-	movq	%rdi, %rdx
-	movq	%rsi, %rax
+	movq	%rdi, %rdx    /* Save destination page to %rdx */
+	movq	%rsi, %rax    /* Save source page to %rax */
 
+	/* copy source page to swap page */
 	movq	%r10, %rdi
 	movl	$512, %ecx
 	rep ; movsq
 
+	/* copy destination page to source page */
 	movq	%rax, %rdi
 	movq	%rdx, %rsi
 	movl	$512, %ecx
 	rep ; movsq
 
+	/* copy swap page to destination page */
 	movq	%rdx, %rdi
 	movq	%r10, %rsi
 	movl	$512, %ecx

@@ -284,7 +284,7 @@ echo "b" | \
 			./mptcp_connect -p 10000 -r 0 -t ${timeout_poll} -w 20 \
 				127.0.0.1 >/dev/null &
 wait_connected $ns 10000
-chk_msk_nr 2 "after MPC handshake "
+chk_msk_nr 2 "after MPC handshake"
 chk_last_time_info 10000
 chk_msk_remote_key_nr 2 "....chk remote_key"
 chk_msk_fallback_nr 0 "....chk no fallback"

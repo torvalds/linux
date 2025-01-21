@@ -1396,17 +1396,12 @@ int cap_task_prctl(int option, unsigned long arg2, unsigned long arg3,
  * Determine whether the allocation of a new virtual mapping by the current
  * task is permitted.
  *
- * Return: 1 if permission is granted, 0 if not.
+ * Return: 0 if permission granted, negative error code if not.
  */
 int cap_vm_enough_memory(struct mm_struct *mm, long pages)
 {
-	int cap_sys_admin = 0;
-
-	if (cap_capable(current_cred(), &init_user_ns,
-				CAP_SYS_ADMIN, CAP_OPT_NOAUDIT) == 0)
-		cap_sys_admin = 1;
-
-	return cap_sys_admin;
+	return cap_capable(current_cred(), &init_user_ns, CAP_SYS_ADMIN,
+			   CAP_OPT_NOAUDIT);
 }
 
 /**

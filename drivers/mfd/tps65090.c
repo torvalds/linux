@@ -120,7 +120,7 @@ static const struct regmap_irq tps65090_irqs[] = {
 	},
 };
 
-static struct regmap_irq_chip tps65090_irq_chip = {
+static const struct regmap_irq_chip tps65090_irq_chip = {
 	.name = "tps65090",
 	.irqs = tps65090_irqs,
 	.num_irqs = ARRAY_SIZE(tps65090_irqs),

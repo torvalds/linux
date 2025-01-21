@@ -42,3 +42,13 @@ config ATH12K_TRACING
 
 	  If unsure, say Y to make it easier to debug problems. But if
 	  you want optimal performance choose N.
+
+config ATH12K_COREDUMP
+	bool "ath12k coredump"
+	depends on ATH12K
+	select WANT_DEV_COREDUMP
+	help
+	  Enable ath12k coredump collection
+
+	  If unsure, say Y to make it easier to debug problems. But if
+	  dump collection not required choose N.

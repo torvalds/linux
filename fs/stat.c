@@ -23,8 +23,44 @@
 #include <linux/uaccess.h>
 #include <asm/unistd.h>
 
+#include <trace/events/timestamp.h>
+
 #include "internal.h"
 #include "mount.h"
+
+/**
+ * fill_mg_cmtime - Fill in the mtime and ctime and flag ctime as QUERIED
+ * @stat: where to store the resulting values
+ * @request_mask: STATX_* values requested
+ * @inode: inode from which to grab the c/mtime
+ *
+ * Given @inode, grab the ctime and mtime out if it and store the result
+ * in @stat. When fetching the value, flag it as QUERIED (if not already)
+ * so the next write will record a distinct timestamp.
+ *
+ * NB: The QUERIED flag is tracked in the ctime, but we set it there even
+ * if only the mtime was requested, as that ensures that the next mtime
+ * change will be distinct.
+ */
+void fill_mg_cmtime(struct kstat *stat, u32 request_mask, struct inode *inode)
+{
+	atomic_t *pcn = (atomic_t *)&inode->i_ctime_nsec;
+
+	/* If neither time was requested, then don't report them */
+	if (!(request_mask & (STATX_CTIME|STATX_MTIME))) {
+		stat->result_mask &= ~(STATX_CTIME|STATX_MTIME);
+		return;
+	}
+
+	stat->mtime = inode_get_mtime(inode);
+	stat->ctime.tv_sec = inode->i_ctime_sec;
+	stat->ctime.tv_nsec = (u32)atomic_read(pcn);
+	if (!(stat->ctime.tv_nsec & I_CTIME_QUERIED))
+		stat->ctime.tv_nsec = ((u32)atomic_fetch_or(I_CTIME_QUERIED, pcn));
+	stat->ctime.tv_nsec &= ~I_CTIME_QUERIED;
+	trace_fill_mg_cmtime(inode, &stat->ctime, &stat->mtime);
+}
+EXPORT_SYMBOL(fill_mg_cmtime);
 
 /**
  * generic_fillattr - Fill in the basic attributes from the inode struct
@@ -58,8 +94,14 @@ void generic_fillattr(struct mnt_idmap *idmap, u32 request_mask,
 	stat->rdev = inode->i_rdev;
 	stat->size = i_size_read(inode);
 	stat->atime = inode_get_atime(inode);
-	stat->mtime = inode_get_mtime(inode);
-	stat->ctime = inode_get_ctime(inode);
+
+	if (is_mgtime(inode)) {
+		fill_mg_cmtime(stat, request_mask, inode);
+	} else {
+		stat->ctime = inode_get_ctime(inode);
+		stat->mtime = inode_get_mtime(inode);
+	}
+
 	stat->blksize = i_blocksize(inode);
 	stat->blocks = inode->i_blocks;
 
@@ -165,7 +207,7 @@ int vfs_getattr_nosec(const struct path *path, struct kstat *stat,
 	if (inode->i_op->getattr)
 		return inode->i_op->getattr(idmap, path, stat,
 					    request_mask,
-					    query_flags | AT_GETATTR_NOSEC);
+					    query_flags);
 
 	generic_fillattr(idmap, request_mask, inode, stat);
 	return 0;
@@ -198,9 +240,6 @@ int vfs_getattr(const struct path *path, struct kstat *stat,
 {
 	int retval;
 
-	if (WARN_ON_ONCE(query_flags & AT_GETATTR_NOSEC))
-		return -EPERM;
-
 	retval = security_inode_getattr(path);
 	if (retval)
 		return retval;
@@ -220,18 +259,13 @@ EXPORT_SYMBOL(vfs_getattr);
  */
 int vfs_fstat(int fd, struct kstat *stat)
 {
-	struct fd f;
-	int error;
-
-	f = fdget_raw(fd);
-	if (!f.file)
+	CLASS(fd_raw, f)(fd);
+	if (fd_empty(f))
 		return -EBADF;
-	error = vfs_getattr(&f.file->f_path, stat, STATX_BASIC_STATS, 0);
-	fdput(f);
-	return error;
+	return vfs_getattr(&fd_file(f)->f_path, stat, STATX_BASIC_STATS, 0);
 }
 
-int getname_statx_lookup_flags(int flags)
+static int statx_lookup_flags(int flags)
 {
 	int lookup_flags = 0;
 
@@ -239,8 +273,6 @@ int getname_statx_lookup_flags(int flags)
 		lookup_flags |= LOOKUP_FOLLOW;
 	if (!(flags & AT_NO_AUTOMOUNT))
 		lookup_flags |= LOOKUP_AUTOMOUNT;
-	if (flags & AT_EMPTY_PATH)
-		lookup_flags |= LOOKUP_EMPTY;
 
 	return lookup_flags;
 }
@@ -277,9 +309,9 @@ static int vfs_statx_fd(int fd, int flags, struct kstat *stat,
 			  u32 request_mask)
 {
 	CLASS(fd_raw, f)(fd);
-	if (!f.file)
+	if (fd_empty(f))
 		return -EBADF;
-	return vfs_statx_path(&f.file->f_path, flags, stat, request_mask);
+	return vfs_statx_path(&fd_file(f)->f_path, flags, stat, request_mask);
 }
 
 /**
@@ -301,7 +333,7 @@ static int vfs_statx(int dfd, struct filename *filename, int flags,
 	      struct kstat *stat, u32 request_mask)
 {
 	struct path path;
-	unsigned int lookup_flags = getname_statx_lookup_flags(flags);
+	unsigned int lookup_flags = statx_lookup_flags(flags);
 	int error;
 
 	if (flags & ~(AT_SYMLINK_NOFOLLOW | AT_NO_AUTOMOUNT | AT_EMPTY_PATH |
@@ -326,18 +358,11 @@ int vfs_fstatat(int dfd, const char __user *filename,
 {
 	int ret;
 	int statx_flags = flags | AT_NO_AUTOMOUNT;
-	struct filename *name;
+	struct filename *name = getname_maybe_null(filename, flags);
 
-	/*
-	 * Work around glibc turning fstat() into fstatat(AT_EMPTY_PATH)
-	 *
-	 * If AT_EMPTY_PATH is set, we expect the common case to be that
-	 * empty path, and avoid doing all the extra pathname work.
-	 */
-	if (flags == AT_EMPTY_PATH && vfs_empty_path(dfd, filename))
+	if (!name && dfd >= 0)
 		return vfs_fstat(dfd, stat);
 
-	name = getname_flags(filename, getname_statx_lookup_flags(statx_flags));
 	ret = vfs_statx(dfd, name, statx_flags, stat, STATX_BASIC_STATS);
 	putname(name);
 
@@ -774,24 +799,11 @@ SYSCALL_DEFINE5(statx,
 		struct statx __user *, buffer)
 {
 	int ret;
-	unsigned lflags;
-	struct filename *name;
+	struct filename *name = getname_maybe_null(filename, flags);
 
-	/*
-	 * Short-circuit handling of NULL and "" paths.
-	 *
-	 * For a NULL path we require and accept only the AT_EMPTY_PATH flag
-	 * (possibly |'d with AT_STATX flags).
-	 *
-	 * However, glibc on 32-bit architectures implements fstatat as statx
-	 * with the "" pathname and AT_NO_AUTOMOUNT | AT_EMPTY_PATH flags.
-	 * Supporting this results in the uglification below.
-	 */
-	lflags = flags & ~(AT_NO_AUTOMOUNT | AT_STATX_SYNC_TYPE);
-	if (lflags == AT_EMPTY_PATH && vfs_empty_path(dfd, filename))
+	if (!name && dfd >= 0)
 		return do_statx_fd(dfd, flags & ~AT_NO_AUTOMOUNT, mask, buffer);
 
-	name = getname_flags(filename, getname_statx_lookup_flags(flags));
 	ret = do_statx(dfd, name, flags, mask, buffer);
 	putname(name);
 

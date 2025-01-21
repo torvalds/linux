@@ -198,29 +198,37 @@ static inline struct bch_dev *bch2_dev_locked(struct bch_fs *c, unsigned dev)
 					 lockdep_is_held(&c->state_lock));
 }
 
-static inline struct bch_dev *bch2_dev_rcu(struct bch_fs *c, unsigned dev)
+static inline struct bch_dev *bch2_dev_rcu_noerror(struct bch_fs *c, unsigned dev)
 {
 	return c && dev < c->sb.nr_devices
 		? rcu_dereference(c->devs[dev])
 		: NULL;
 }
 
+void bch2_dev_missing(struct bch_fs *, unsigned);
+
+static inline struct bch_dev *bch2_dev_rcu(struct bch_fs *c, unsigned dev)
+{
+	struct bch_dev *ca = bch2_dev_rcu_noerror(c, dev);
+	if (unlikely(!ca))
+		bch2_dev_missing(c, dev);
+	return ca;
+}
+
 static inline struct bch_dev *bch2_dev_tryget_noerror(struct bch_fs *c, unsigned dev)
 {
 	rcu_read_lock();
-	struct bch_dev *ca = bch2_dev_rcu(c, dev);
+	struct bch_dev *ca = bch2_dev_rcu_noerror(c, dev);
 	if (ca)
 		bch2_dev_get(ca);
 	rcu_read_unlock();
 	return ca;
 }
 
-void bch2_dev_missing(struct bch_fs *, unsigned);
-
 static inline struct bch_dev *bch2_dev_tryget(struct bch_fs *c, unsigned dev)
 {
 	struct bch_dev *ca = bch2_dev_tryget_noerror(c, dev);
-	if (!ca)
+	if (unlikely(!ca))
 		bch2_dev_missing(c, dev);
 	return ca;
 }
@@ -307,6 +315,8 @@ static inline bool bch2_member_exists(struct bch_sb *sb, unsigned dev)
 	return false;
 }
 
+unsigned bch2_sb_nr_devices(const struct bch_sb *);
+
 static inline struct bch_member_cpu bch2_mi_to_cpu(struct bch_member *mi)
 {
 	return (struct bch_member_cpu) {
@@ -351,5 +361,7 @@ static inline bool bch2_dev_btree_bitmap_marked_sectors(struct bch_dev *ca, u64 
 
 bool bch2_dev_btree_bitmap_marked(struct bch_fs *, struct bkey_s_c);
 void bch2_dev_btree_bitmap_mark(struct bch_fs *, struct bkey_s_c);
+
+int bch2_sb_member_alloc(struct bch_fs *);
 
 #endif /* _BCACHEFS_SB_MEMBERS_H */

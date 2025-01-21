@@ -9,14 +9,13 @@ config QUOTA
 	help
 	  If you say Y here, you will be able to set per user limits for disk
 	  usage (also called disk quotas). Currently, it works for the
-	  ext2, ext3, ext4, f2fs, jfs, ocfs2 and reiserfs file systems.
-	  Note that gfs2 and xfs use their own quota system.
-	  Ext3, ext4 and reiserfs also support journaled quotas for which
-	  you don't need to run quotacheck(8) after an unclean shutdown.
-	  For further details, read the Quota mini-HOWTO, available from
-	  <https://www.tldp.org/docs.html#howto>, or the documentation provided
-	  with the quota tools. Probably the quota support is only useful for
-	  multi user systems. If unsure, say N.
+	  ext2, ext3, ext4, f2fs, jfs and ocfs2 file systems. Note that gfs2
+	  and xfs use their own quota system. Ext3 and ext4 also support
+	  journaled quotas for which you don't need to run quotacheck(8) after
+	  an unclean shutdown. For further details, read the Quota mini-HOWTO,
+	  available from <https://www.tldp.org/docs.html#howto>, or the
+	  documentation provided with the quota tools. Probably the quota
+	  support is only useful for multi user systems. If unsure, say N.
 
 config QUOTA_NETLINK_INTERFACE
 	bool "Report quota messages through netlink interface"

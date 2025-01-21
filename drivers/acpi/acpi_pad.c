@@ -136,8 +136,10 @@ static void exit_round_robin(unsigned int tsk_index)
 {
 	struct cpumask *pad_busy_cpus = to_cpumask(pad_busy_cpus_bits);
 
-	cpumask_clear_cpu(tsk_in_cpu[tsk_index], pad_busy_cpus);
-	tsk_in_cpu[tsk_index] = -1;
+	if (tsk_in_cpu[tsk_index] != -1) {
+		cpumask_clear_cpu(tsk_in_cpu[tsk_index], pad_busy_cpus);
+		tsk_in_cpu[tsk_index] = -1;
+	}
 }
 
 static unsigned int idle_pct = 5; /* percentage */
@@ -428,8 +430,8 @@ static int acpi_pad_probe(struct platform_device *pdev)
 	struct acpi_device *adev = ACPI_COMPANION(&pdev->dev);
 	acpi_status status;
 
-	strcpy(acpi_device_name(adev), ACPI_PROCESSOR_AGGREGATOR_DEVICE_NAME);
-	strcpy(acpi_device_class(adev), ACPI_PROCESSOR_AGGREGATOR_CLASS);
+	strscpy(acpi_device_name(adev), ACPI_PROCESSOR_AGGREGATOR_DEVICE_NAME);
+	strscpy(acpi_device_class(adev), ACPI_PROCESSOR_AGGREGATOR_CLASS);
 
 	status = acpi_install_notify_handler(adev->handle,
 		ACPI_DEVICE_NOTIFY, acpi_pad_notify, adev);
@@ -460,7 +462,7 @@ MODULE_DEVICE_TABLE(acpi, pad_device_ids);
 
 static struct platform_driver acpi_pad_driver = {
 	.probe = acpi_pad_probe,
-	.remove_new = acpi_pad_remove,
+	.remove = acpi_pad_remove,
 	.driver = {
 		.dev_groups = acpi_pad_groups,
 		.name = "processor_aggregator",

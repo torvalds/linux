@@ -916,7 +916,8 @@ int amd_uncore_umc_ctx_init(struct amd_uncore *uncore, unsigned int cpu)
 	u8 group_num_pmcs[UNCORE_GROUP_MAX] = { 0 };
 	union amd_uncore_info info;
 	struct amd_uncore_pmu *pmu;
-	int index = 0, gid, i;
+	int gid, i;
+	u16 index = 0;
 
 	if (pmu_version < 2)
 		return 0;
@@ -948,7 +949,7 @@ int amd_uncore_umc_ctx_init(struct amd_uncore *uncore, unsigned int cpu)
 	for_each_set_bit(gid, gmask, UNCORE_GROUP_MAX) {
 		for (i = 0; i < group_num_pmus[gid]; i++) {
 			pmu = &uncore->pmus[index];
-			snprintf(pmu->name, sizeof(pmu->name), "amd_umc_%d", index);
+			snprintf(pmu->name, sizeof(pmu->name), "amd_umc_%hu", index);
 			pmu->num_counters = group_num_pmcs[gid] / group_num_pmus[gid];
 			pmu->msr_base = MSR_F19H_UMC_PERF_CTL + i * pmu->num_counters * 2;
 			pmu->rdpmc_base = -1;

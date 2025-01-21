@@ -13,7 +13,7 @@
 #include <linux/spi/spi.h>
 #include <linux/units.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /* ADMV4420 Register Map */
 #define ADMV4420_SPI_CONFIG_1			0x00

@@ -366,7 +366,7 @@ void __weak freq_inv_set_max_ratio(int cpu, u64 max_rate)
 #ifdef CONFIG_ACPI_CPPC_LIB
 #include <acpi/cppc_acpi.h>
 
-void topology_init_cpu_capacity_cppc(void)
+static inline void topology_init_cpu_capacity_cppc(void)
 {
 	u64 capacity, capacity_scale = 0;
 	struct cppc_perf_caps perf_caps;
@@ -416,6 +416,10 @@ void topology_init_cpu_capacity_cppc(void)
 
 exit:
 	free_raw_capacity();
+}
+void acpi_processor_init_invariance_cppc(void)
+{
+	topology_init_cpu_capacity_cppc();
 }
 #endif
 

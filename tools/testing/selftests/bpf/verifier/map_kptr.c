@@ -153,7 +153,7 @@
 	.result = REJECT,
 	.errstr = "variable untrusted_ptr_ access var_off=(0x0; 0x7) disallowed",
 },
-/* Tests for unreferened PTR_TO_BTF_ID */
+/* Tests for unreferenced PTR_TO_BTF_ID */
 {
 	"map_kptr: unref: reject btf_struct_ids_match == false",
 	.insns = {

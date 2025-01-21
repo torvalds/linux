@@ -896,10 +896,19 @@ Offset/size:	0x260/4
 
   The kernel runtime start address is determined by the following algorithm::
 
-	if (relocatable_kernel)
-	runtime_start = align_up(load_address, kernel_alignment)
-	else
-	runtime_start = pref_address
+   	if (relocatable_kernel) {
+   		if (load_address < pref_address)
+   			load_address = pref_address;
+   		runtime_start = align_up(load_address, kernel_alignment);
+   	} else {
+   		runtime_start = pref_address;
+   	}
+
+Hence the necessary memory window location and size can be estimated by
+a boot loader as::
+
+   	memory_window_start = runtime_start;
+   	memory_window_size = init_size;
 
 ============	===============
 Field name:	handover_offset

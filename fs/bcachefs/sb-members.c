@@ -11,7 +11,8 @@
 
 void bch2_dev_missing(struct bch_fs *c, unsigned dev)
 {
-	bch2_fs_inconsistent(c, "pointer to nonexistent device %u", dev);
+	if (dev != BCH_SB_MEMBER_INVALID)
+		bch2_fs_inconsistent(c, "pointer to nonexistent device %u", dev);
 }
 
 void bch2_dev_bucket_missing(struct bch_fs *c, struct bpos bucket)
@@ -162,6 +163,11 @@ static int validate_member(struct printbuf *err,
 		return -BCH_ERR_invalid_sb_members;
 	}
 
+	if (m.btree_bitmap_shift >= BCH_MI_BTREE_BITMAP_SHIFT_MAX) {
+		prt_printf(err, "device %u: invalid btree_bitmap_shift %u", i, m.btree_bitmap_shift);
+		return -BCH_ERR_invalid_sb_members;
+	}
+
 	return 0;
 }
 
@@ -246,7 +252,10 @@ static void member_to_text(struct printbuf *out,
 	prt_newline(out);
 
 	prt_printf(out, "Btree allocated bitmap blocksize:\t");
-	prt_units_u64(out, 1ULL << m.btree_bitmap_shift);
+	if (m.btree_bitmap_shift < 64)
+		prt_units_u64(out, 1ULL << m.btree_bitmap_shift);
+	else
+		prt_printf(out, "(invalid shift %u)", m.btree_bitmap_shift);
 	prt_newline(out);
 
 	prt_printf(out, "Btree allocated bitmap:\t");
@@ -441,7 +450,7 @@ static void __bch2_dev_btree_bitmap_mark(struct bch_sb_field_members_v2 *mi, uns
 		m->btree_bitmap_shift += resize;
 	}
 
-	BUG_ON(m->btree_bitmap_shift > 57);
+	BUG_ON(m->btree_bitmap_shift >= BCH_MI_BTREE_BITMAP_SHIFT_MAX);
 	BUG_ON(end > 64ULL << m->btree_bitmap_shift);
 
 	for (unsigned bit = start >> m->btree_bitmap_shift;
@@ -463,4 +472,61 @@ void bch2_dev_btree_bitmap_mark(struct bch_fs *c, struct bkey_s_c k)
 
 		__bch2_dev_btree_bitmap_mark(mi, ptr->dev, ptr->offset, btree_sectors(c));
 	}
+}
+
+unsigned bch2_sb_nr_devices(const struct bch_sb *sb)
+{
+	unsigned nr = 0;
+
+	for (unsigned i = 0; i < sb->nr_devices; i++)
+		nr += bch2_member_exists((struct bch_sb *) sb, i);
+	return nr;
+}
+
+int bch2_sb_member_alloc(struct bch_fs *c)
+{
+	unsigned dev_idx = c->sb.nr_devices;
+	struct bch_sb_field_members_v2 *mi;
+	unsigned nr_devices;
+	unsigned u64s;
+	int best = -1;
+	u64 best_last_mount = 0;
+
+	if (dev_idx < BCH_SB_MEMBERS_MAX)
+		goto have_slot;
+
+	for (dev_idx = 0; dev_idx < BCH_SB_MEMBERS_MAX; dev_idx++) {
+		/* eventually BCH_SB_MEMBERS_MAX will be raised */
+		if (dev_idx == BCH_SB_MEMBER_INVALID)
+			continue;
+
+		struct bch_member m = bch2_sb_member_get(c->disk_sb.sb, dev_idx);
+		if (bch2_member_alive(&m))
+			continue;
+
+		u64 last_mount = le64_to_cpu(m.last_mount);
+		if (best < 0 || last_mount < best_last_mount) {
+			best = dev_idx;
+			best_last_mount = last_mount;
+		}
+	}
+	if (best >= 0) {
+		dev_idx = best;
+		goto have_slot;
+	}
+
+	return -BCH_ERR_ENOSPC_sb_members;
+have_slot:
+	nr_devices = max_t(unsigned, dev_idx + 1, c->sb.nr_devices);
+
+	mi = bch2_sb_field_get(c->disk_sb.sb, members_v2);
+	u64s = DIV_ROUND_UP(sizeof(struct bch_sb_field_members_v2) +
+			    le16_to_cpu(mi->member_bytes) * nr_devices, sizeof(u64));
+
+	mi = bch2_sb_field_resize(&c->disk_sb, members_v2, u64s);
+	if (!mi)
+		return -BCH_ERR_ENOSPC_sb_members;
+
+	c->disk_sb.sb->nr_devices = nr_devices;
+	return dev_idx;
 }

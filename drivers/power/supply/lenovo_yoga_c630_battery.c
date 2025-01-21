@@ -353,15 +353,10 @@ static enum power_supply_property yoga_c630_psy_adpt_properties[] = {
 	POWER_SUPPLY_PROP_USB_TYPE,
 };
 
-static const enum power_supply_usb_type yoga_c630_psy_adpt_usb_type[] = {
-	POWER_SUPPLY_USB_TYPE_C,
-};
-
 static const struct power_supply_desc yoga_c630_psy_adpt_psy_desc = {
 	.name = "yoga-c630-adapter",
 	.type = POWER_SUPPLY_TYPE_USB,
-	.usb_types = yoga_c630_psy_adpt_usb_type,
-	.num_usb_types = ARRAY_SIZE(yoga_c630_psy_adpt_usb_type),
+	.usb_types = BIT(POWER_SUPPLY_USB_TYPE_C),
 	.properties = yoga_c630_psy_adpt_properties,
 	.num_properties = ARRAY_SIZE(yoga_c630_psy_adpt_properties),
 	.get_property = yoga_c630_psy_adpt_get_property,
@@ -373,11 +368,12 @@ static int yoga_c630_psy_register_bat_psy(struct yoga_c630_psy *ecbat)
 
 	bat_cfg.drv_data = ecbat;
 	bat_cfg.fwnode = ecbat->fwnode;
-	ecbat->bat_psy = power_supply_register_no_ws(ecbat->dev,
-						     ecbat->unit_mA ?
-						     &yoga_c630_psy_bat_psy_desc_mA :
-						     &yoga_c630_psy_bat_psy_desc_mWh,
-						     &bat_cfg);
+	bat_cfg.no_wakeup_source = true;
+	ecbat->bat_psy = power_supply_register(ecbat->dev,
+					       ecbat->unit_mA ?
+					       &yoga_c630_psy_bat_psy_desc_mA :
+					       &yoga_c630_psy_bat_psy_desc_mWh,
+					       &bat_cfg);
 	if (IS_ERR(ecbat->bat_psy)) {
 		dev_err(ecbat->dev, "failed to register battery supply\n");
 		return PTR_ERR(ecbat->bat_psy);
@@ -447,7 +443,8 @@ static int yoga_c630_psy_probe(struct auxiliary_device *adev,
 	adp_cfg.fwnode = ecbat->fwnode;
 	adp_cfg.supplied_to = (char **)&yoga_c630_psy_bat_psy_desc_mA.name;
 	adp_cfg.num_supplicants = 1;
-	ecbat->adp_psy = devm_power_supply_register_no_ws(dev, &yoga_c630_psy_adpt_psy_desc, &adp_cfg);
+	adp_cfg.no_wakeup_source = true;
+	ecbat->adp_psy = devm_power_supply_register(dev, &yoga_c630_psy_adpt_psy_desc, &adp_cfg);
 	if (IS_ERR(ecbat->adp_psy)) {
 		dev_err(dev, "failed to register AC adapter supply\n");
 		return PTR_ERR(ecbat->adp_psy);

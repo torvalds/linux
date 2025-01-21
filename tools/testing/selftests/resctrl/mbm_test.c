@@ -22,17 +22,13 @@ show_bw_info(unsigned long *bw_imc, unsigned long *bw_resc, size_t span)
 	int runs, ret, avg_diff_per;
 	float avg_diff = 0;
 
-	/*
-	 * Discard the first value which is inaccurate due to monitoring setup
-	 * transition phase.
-	 */
-	for (runs = 1; runs < NUM_OF_RUNS ; runs++) {
+	for (runs = 0; runs < NUM_OF_RUNS; runs++) {
 		sum_bw_imc += bw_imc[runs];
 		sum_bw_resc += bw_resc[runs];
 	}
 
-	avg_bw_imc = sum_bw_imc / 4;
-	avg_bw_resc = sum_bw_resc / 4;
+	avg_bw_imc = sum_bw_imc / NUM_OF_RUNS;
+	avg_bw_resc = sum_bw_resc / NUM_OF_RUNS;
 	avg_diff = (float)labs(avg_bw_resc - avg_bw_imc) / avg_bw_imc;
 	avg_diff_per = (int)(avg_diff * 100);
 
@@ -40,7 +36,8 @@ show_bw_info(unsigned long *bw_imc, unsigned long *bw_resc, size_t span)
 	ksft_print_msg("%s Check MBM diff within %d%%\n",
 		       ret ? "Fail:" : "Pass:", MAX_DIFF_PERCENT);
 	ksft_print_msg("avg_diff_per: %d%%\n", avg_diff_per);
-	ksft_print_msg("Span (MB): %zu\n", span / MB);
+	if (span)
+		ksft_print_msg("Span (MB): %zu\n", span / MB);
 	ksft_print_msg("avg_bw_imc: %lu\n", avg_bw_imc);
 	ksft_print_msg("avg_bw_resc: %lu\n", avg_bw_resc);
 
@@ -90,7 +87,7 @@ static int mbm_init(const struct resctrl_val_param *param, int domain_id)
 {
 	int ret;
 
-	ret = initialize_mem_bw_imc();
+	ret = initialize_read_mem_bw_imc();
 	if (ret)
 		return ret;
 
@@ -121,7 +118,7 @@ static int mbm_setup(const struct resctrl_test *test,
 static int mbm_measure(const struct user_params *uparams,
 		       struct resctrl_val_param *param, pid_t bm_pid)
 {
-	return measure_mem_bw(uparams, param, bm_pid, "reads");
+	return measure_read_mem_bw(uparams, param, bm_pid);
 }
 
 static void mbm_test_cleanup(void)
@@ -138,15 +135,31 @@ static int mbm_run_test(const struct resctrl_test *test, const struct user_param
 		.setup		= mbm_setup,
 		.measure	= mbm_measure,
 	};
+	struct fill_buf_param fill_buf = {};
 	int ret;
 
 	remove(RESULT_FILE_NAME);
 
-	ret = resctrl_val(test, uparams, uparams->benchmark_cmd, &param);
+	if (uparams->fill_buf) {
+		fill_buf.buf_size = uparams->fill_buf->buf_size;
+		fill_buf.memflush = uparams->fill_buf->memflush;
+		param.fill_buf = &fill_buf;
+	} else if (!uparams->benchmark_cmd[0]) {
+		ssize_t buf_size;
+
+		buf_size = get_fill_buf_size(uparams->cpu, "L3");
+		if (buf_size < 0)
+			return buf_size;
+		fill_buf.buf_size = buf_size;
+		fill_buf.memflush = true;
+		param.fill_buf = &fill_buf;
+	}
+
+	ret = resctrl_val(test, uparams, &param);
 	if (ret)
 		return ret;
 
-	ret = check_results(DEFAULT_SPAN);
+	ret = check_results(param.fill_buf ? param.fill_buf->buf_size : 0);
 	if (ret && (get_vendor() == ARCH_INTEL))
 		ksft_print_msg("Intel MBM may be inaccurate when Sub-NUMA Clustering is enabled. Check BIOS configuration.\n");
 

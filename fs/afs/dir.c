@@ -12,6 +12,7 @@
 #include <linux/swap.h>
 #include <linux/ctype.h>
 #include <linux/sched.h>
+#include <linux/iversion.h>
 #include <linux/task_io_accounting_ops.h>
 #include "internal.h"
 #include "afs_fs.h"
@@ -1823,6 +1824,8 @@ error:
 
 static void afs_rename_success(struct afs_operation *op)
 {
+	struct afs_vnode *vnode = AFS_FS_I(d_inode(op->dentry));
+
 	_enter("op=%08x", op->debug_id);
 
 	op->ctime = op->file[0].scb.status.mtime_client;
@@ -1831,6 +1834,22 @@ static void afs_rename_success(struct afs_operation *op)
 	if (op->file[1].vnode != op->file[0].vnode) {
 		op->ctime = op->file[1].scb.status.mtime_client;
 		afs_vnode_commit_status(op, &op->file[1]);
+	}
+
+	/* If we're moving a subdir between dirs, we need to update
+	 * its DV counter too as the ".." will be altered.
+	 */
+	if (S_ISDIR(vnode->netfs.inode.i_mode) &&
+	    op->file[0].vnode != op->file[1].vnode) {
+		u64 new_dv;
+
+		write_seqlock(&vnode->cb_lock);
+
+		new_dv = vnode->status.data_version + 1;
+		vnode->status.data_version = new_dv;
+		inode_set_iversion_raw(&vnode->netfs.inode, new_dv);
+
+		write_sequnlock(&vnode->cb_lock);
 	}
 }
 
@@ -1872,6 +1891,12 @@ static void afs_rename_edit_dir(struct afs_operation *op)
 		afs_edit_dir_add(new_dvnode, &new_dentry->d_name,
 				 &vnode->fid, afs_edit_dir_for_rename_2);
 	}
+
+	if (S_ISDIR(vnode->netfs.inode.i_mode) &&
+	    new_dvnode != orig_dvnode &&
+	    test_bit(AFS_VNODE_DIR_VALID, &vnode->flags))
+		afs_edit_dir_update_dotdot(vnode, new_dvnode,
+					   afs_edit_dir_for_rename_sub);
 
 	new_inode = d_inode(new_dentry);
 	if (new_inode) {

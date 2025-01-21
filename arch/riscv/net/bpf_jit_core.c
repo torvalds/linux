@@ -9,7 +9,7 @@
 #include <linux/bpf.h>
 #include <linux/filter.h>
 #include <linux/memory.h>
-#include <asm/patch.h>
+#include <asm/text-patching.h>
 #include <asm/cfi.h>
 #include "bpf_jit.h"
 

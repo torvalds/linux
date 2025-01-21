@@ -73,6 +73,9 @@ int array_map_alloc_check(union bpf_attr *attr)
 	/* avoid overflow on round_up(map->value_size) */
 	if (attr->value_size > INT_MAX)
 		return -E2BIG;
+	/* percpu map value size is bound by PCPU_MIN_UNIT_SIZE */
+	if (percpu && round_up(attr->value_size, 8) > PCPU_MIN_UNIT_SIZE)
+		return -E2BIG;
 
 	return 0;
 }
@@ -494,7 +497,7 @@ static void array_map_seq_show_elem(struct bpf_map *map, void *key,
 	if (map->btf_key_type_id)
 		seq_printf(m, "%u: ", *(u32 *)key);
 	btf_type_seq_show(map->btf, map->btf_value_type_id, value, m);
-	seq_puts(m, "\n");
+	seq_putc(m, '\n');
 
 	rcu_read_unlock();
 }
@@ -515,7 +518,7 @@ static void percpu_array_map_seq_show_elem(struct bpf_map *map, void *key,
 		seq_printf(m, "\tcpu%d: ", cpu);
 		btf_type_seq_show(map->btf, map->btf_value_type_id,
 				  per_cpu_ptr(pptr, cpu), m);
-		seq_puts(m, "\n");
+		seq_putc(m, '\n');
 	}
 	seq_puts(m, "}\n");
 
@@ -600,7 +603,7 @@ static void *bpf_array_map_seq_start(struct seq_file *seq, loff_t *pos)
 	array = container_of(map, struct bpf_array, map);
 	index = info->index & array->index_mask;
 	if (info->percpu_value_buf)
-	       return array->pptrs[index];
+		return (void *)(uintptr_t)array->pptrs[index];
 	return array_map_elem_ptr(array, index);
 }
 
@@ -619,7 +622,7 @@ static void *bpf_array_map_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	array = container_of(map, struct bpf_array, map);
 	index = info->index & array->index_mask;
 	if (info->percpu_value_buf)
-	       return array->pptrs[index];
+		return (void *)(uintptr_t)array->pptrs[index];
 	return array_map_elem_ptr(array, index);
 }
 
@@ -632,7 +635,7 @@ static int __bpf_array_map_seq_show(struct seq_file *seq, void *v)
 	struct bpf_iter_meta meta;
 	struct bpf_prog *prog;
 	int off = 0, cpu = 0;
-	void __percpu **pptr;
+	void __percpu *pptr;
 	u32 size;
 
 	meta.seq = seq;
@@ -648,7 +651,7 @@ static int __bpf_array_map_seq_show(struct seq_file *seq, void *v)
 		if (!info->percpu_value_buf) {
 			ctx.value = v;
 		} else {
-			pptr = v;
+			pptr = (void __percpu *)(uintptr_t)v;
 			size = array->elem_size;
 			for_each_possible_cpu(cpu) {
 				copy_map_value_long(map, info->percpu_value_buf + off,
@@ -944,13 +947,30 @@ static void *prog_fd_array_get_ptr(struct bpf_map *map,
 				   struct file *map_file, int fd)
 {
 	struct bpf_prog *prog = bpf_prog_get(fd);
+	bool is_extended;
 
 	if (IS_ERR(prog))
 		return prog;
 
-	if (!bpf_prog_map_compatible(map, prog)) {
+	if (prog->type == BPF_PROG_TYPE_EXT ||
+	    !bpf_prog_map_compatible(map, prog)) {
 		bpf_prog_put(prog);
 		return ERR_PTR(-EINVAL);
+	}
+
+	mutex_lock(&prog->aux->ext_mutex);
+	is_extended = prog->aux->is_extended;
+	if (!is_extended)
+		prog->aux->prog_array_member_cnt++;
+	mutex_unlock(&prog->aux->ext_mutex);
+	if (is_extended) {
+		/* Extended prog can not be tail callee. It's to prevent a
+		 * potential infinite loop like:
+		 * tail callee prog entry -> tail callee prog subprog ->
+		 * freplace prog entry --tailcall-> tail callee prog entry.
+		 */
+		bpf_prog_put(prog);
+		return ERR_PTR(-EBUSY);
 	}
 
 	return prog;
@@ -958,8 +978,13 @@ static void *prog_fd_array_get_ptr(struct bpf_map *map,
 
 static void prog_fd_array_put_ptr(struct bpf_map *map, void *ptr, bool need_defer)
 {
+	struct bpf_prog *prog = ptr;
+
+	mutex_lock(&prog->aux->ext_mutex);
+	prog->aux->prog_array_member_cnt--;
+	mutex_unlock(&prog->aux->ext_mutex);
 	/* bpf_prog is freed after one RCU or tasks trace grace period */
-	bpf_prog_put(ptr);
+	bpf_prog_put(prog);
 }
 
 static u32 prog_fd_array_sys_lookup_elem(void *ptr)
@@ -993,7 +1018,7 @@ static void prog_array_map_seq_show_elem(struct bpf_map *map, void *key,
 			prog_id = prog_fd_array_sys_lookup_elem(ptr);
 			btf_type_seq_show(map->btf, map->btf_value_type_id,
 					  &prog_id, m);
-			seq_puts(m, "\n");
+			seq_putc(m, '\n');
 		}
 	}
 

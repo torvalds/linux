@@ -2603,11 +2603,13 @@ static void nfs4_open_release(void *calldata)
 	struct nfs4_opendata *data = calldata;
 	struct nfs4_state *state = NULL;
 
+	/* In case of error, no cleanup! */
+	if (data->rpc_status != 0 || !data->rpc_done) {
+		nfs_release_seqid(data->o_arg.seqid);
+		goto out_free;
+	}
 	/* If this request hasn't been cancelled, do nothing */
 	if (!data->cancelled)
-		goto out_free;
-	/* In case of error, no cleanup! */
-	if (data->rpc_status != 0 || !data->rpc_done)
 		goto out_free;
 	/* In case we need an open_confirm, no cleanup! */
 	if (data->o_res.rflags & NFS4_OPEN_RESULT_CONFIRM)
@@ -3452,6 +3454,10 @@ static int nfs4_do_setattr(struct inode *inode, const struct cred *cred,
 		adjust_flags |= NFS_INO_INVALID_MODE;
 	if (sattr->ia_valid & (ATTR_UID | ATTR_GID))
 		adjust_flags |= NFS_INO_INVALID_OTHER;
+	if (sattr->ia_valid & ATTR_ATIME)
+		adjust_flags |= NFS_INO_INVALID_ATIME;
+	if (sattr->ia_valid & ATTR_MTIME)
+		adjust_flags |= NFS_INO_INVALID_MTIME;
 
 	do {
 		nfs4_bitmap_copy_adjust(bitmask, nfs4_bitmask(server, fattr->label),
@@ -3904,6 +3910,18 @@ static void nfs4_close_context(struct nfs_open_context *ctx, int is_sync)
 #define FATTR4_WORD2_NFS41_MASK (2*FATTR4_WORD2_SUPPATTR_EXCLCREAT - 1UL)
 #define FATTR4_WORD2_NFS42_MASK (2*FATTR4_WORD2_OPEN_ARGUMENTS - 1UL)
 
+#define FATTR4_WORD2_NFS42_TIME_DELEG_MASK \
+	(FATTR4_WORD2_TIME_DELEG_MODIFY|FATTR4_WORD2_TIME_DELEG_ACCESS)
+static bool nfs4_server_delegtime_capable(struct nfs4_server_caps_res *res)
+{
+	u32 share_access_want = res->open_caps.oa_share_access_want[0];
+	u32 attr_bitmask = res->attr_bitmask[2];
+
+	return (share_access_want & NFS4_SHARE_WANT_DELEG_TIMESTAMPS) &&
+	       ((attr_bitmask & FATTR4_WORD2_NFS42_TIME_DELEG_MASK) ==
+					FATTR4_WORD2_NFS42_TIME_DELEG_MASK);
+}
+
 static int _nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *fhandle)
 {
 	u32 minorversion = server->nfs_client->cl_minorversion;
@@ -3982,8 +4000,6 @@ static int _nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *f
 #endif
 		if (res.attr_bitmask[0] & FATTR4_WORD0_FS_LOCATIONS)
 			server->caps |= NFS_CAP_FS_LOCATIONS;
-		if (res.attr_bitmask[2] & FATTR4_WORD2_TIME_DELEG_MODIFY)
-			server->caps |= NFS_CAP_DELEGTIME;
 		if (!(res.attr_bitmask[0] & FATTR4_WORD0_FILEID))
 			server->fattr_valid &= ~NFS_ATTR_FATTR_FILEID;
 		if (!(res.attr_bitmask[1] & FATTR4_WORD1_MODE))
@@ -4011,6 +4027,8 @@ static int _nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *f
 		if (res.open_caps.oa_share_access_want[0] &
 		    NFS4_SHARE_WANT_OPEN_XOR_DELEGATION)
 			server->caps |= NFS_CAP_OPEN_XOR;
+		if (nfs4_server_delegtime_capable(&res))
+			server->caps |= NFS_CAP_DELEGTIME;
 
 		memcpy(server->cache_consistency_bitmask, res.attr_bitmask, sizeof(server->cache_consistency_bitmask));
 		server->cache_consistency_bitmask[0] &= FATTR4_WORD0_CHANGE|FATTR4_WORD0_SIZE;

@@ -269,6 +269,8 @@ int xfrm_dev_state_add(struct net *net, struct xfrm_state *x,
 
 	dev = dev_get_by_index(net, xuo->ifindex);
 	if (!dev) {
+		struct xfrm_dst_lookup_params params;
+
 		if (!(xuo->flags & XFRM_OFFLOAD_INBOUND)) {
 			saddr = &x->props.saddr;
 			daddr = &x->id.daddr;
@@ -277,9 +279,12 @@ int xfrm_dev_state_add(struct net *net, struct xfrm_state *x,
 			daddr = &x->props.saddr;
 		}
 
-		dst = __xfrm_dst_lookup(net, 0, 0, saddr, daddr,
-					x->props.family,
-					xfrm_smark_get(0, x));
+		memset(&params, 0, sizeof(params));
+		params.net = net;
+		params.saddr = saddr;
+		params.daddr = daddr;
+		params.mark = xfrm_smark_get(0, x);
+		dst = __xfrm_dst_lookup(x->props.family, &params);
 		if (IS_ERR(dst))
 			return (is_packet_offload) ? -EINVAL : 0;
 
@@ -328,12 +333,8 @@ int xfrm_dev_state_add(struct net *net, struct xfrm_state *x,
 		/* User explicitly requested packet offload mode and configured
 		 * policy in addition to the XFRM state. So be civil to users,
 		 * and return an error instead of taking fallback path.
-		 *
-		 * This WARN_ON() can be seen as a documentation for driver
-		 * authors to do not return -EOPNOTSUPP in packet offload mode.
 		 */
-		WARN_ON(err == -EOPNOTSUPP && is_packet_offload);
-		if (err != -EOPNOTSUPP || is_packet_offload) {
+		if ((err != -EOPNOTSUPP && !is_packet_offload) || is_packet_offload) {
 			NL_SET_ERR_MSG_WEAK(extack, "Device failed to offload this state");
 			return err;
 		}

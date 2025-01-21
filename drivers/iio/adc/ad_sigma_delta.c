@@ -23,7 +23,7 @@
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/adc/ad_sigma_delta.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 
 #define AD_SD_COMM_CHAN_MASK	0x3
@@ -43,7 +43,7 @@ void ad_sd_set_comm(struct ad_sigma_delta *sigma_delta, uint8_t comm)
 	 * to select the channel */
 	sigma_delta->comm = comm & AD_SD_COMM_CHAN_MASK;
 }
-EXPORT_SYMBOL_NS_GPL(ad_sd_set_comm, IIO_AD_SIGMA_DELTA);
+EXPORT_SYMBOL_NS_GPL(ad_sd_set_comm, "IIO_AD_SIGMA_DELTA");
 
 /**
  * ad_sd_write_reg() - Write a register
@@ -95,7 +95,7 @@ int ad_sd_write_reg(struct ad_sigma_delta *sigma_delta, unsigned int reg,
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(ad_sd_write_reg, IIO_AD_SIGMA_DELTA);
+EXPORT_SYMBOL_NS_GPL(ad_sd_write_reg, "IIO_AD_SIGMA_DELTA");
 
 static int ad_sd_read_reg_raw(struct ad_sigma_delta *sigma_delta,
 	unsigned int reg, unsigned int size, uint8_t *val)
@@ -172,7 +172,7 @@ int ad_sd_read_reg(struct ad_sigma_delta *sigma_delta,
 out:
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(ad_sd_read_reg, IIO_AD_SIGMA_DELTA);
+EXPORT_SYMBOL_NS_GPL(ad_sd_read_reg, "IIO_AD_SIGMA_DELTA");
 
 /**
  * ad_sd_reset() - Reset the serial interface
@@ -200,7 +200,7 @@ int ad_sd_reset(struct ad_sigma_delta *sigma_delta,
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(ad_sd_reset, IIO_AD_SIGMA_DELTA);
+EXPORT_SYMBOL_NS_GPL(ad_sd_reset, "IIO_AD_SIGMA_DELTA");
 
 int ad_sd_calibrate(struct ad_sigma_delta *sigma_delta,
 	unsigned int mode, unsigned int channel)
@@ -239,7 +239,7 @@ out:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(ad_sd_calibrate, IIO_AD_SIGMA_DELTA);
+EXPORT_SYMBOL_NS_GPL(ad_sd_calibrate, "IIO_AD_SIGMA_DELTA");
 
 /**
  * ad_sd_calibrate_all() - Performs channel calibration
@@ -263,7 +263,7 @@ int ad_sd_calibrate_all(struct ad_sigma_delta *sigma_delta,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(ad_sd_calibrate_all, IIO_AD_SIGMA_DELTA);
+EXPORT_SYMBOL_NS_GPL(ad_sd_calibrate_all, "IIO_AD_SIGMA_DELTA");
 
 /**
  * ad_sigma_delta_single_conversion() - Performs a single data conversion
@@ -339,7 +339,7 @@ out:
 
 	return IIO_VAL_INT;
 }
-EXPORT_SYMBOL_NS_GPL(ad_sigma_delta_single_conversion, IIO_AD_SIGMA_DELTA);
+EXPORT_SYMBOL_NS_GPL(ad_sigma_delta_single_conversion, "IIO_AD_SIGMA_DELTA");
 
 static int ad_sd_buffer_postenable(struct iio_dev *indio_dev)
 {
@@ -351,7 +351,7 @@ static int ad_sd_buffer_postenable(struct iio_dev *indio_dev)
 
 	if (sigma_delta->num_slots == 1) {
 		channel = find_first_bit(indio_dev->active_scan_mask,
-					 indio_dev->masklength);
+					 iio_get_masklength(indio_dev));
 		ret = ad_sigma_delta_set_channel(sigma_delta,
 						 indio_dev->channels[channel].address);
 		if (ret)
@@ -364,7 +364,7 @@ static int ad_sd_buffer_postenable(struct iio_dev *indio_dev)
 		 * implementation is mandatory.
 		 */
 		slot = 0;
-		for_each_set_bit(i, indio_dev->active_scan_mask, indio_dev->masklength) {
+		iio_for_each_active_channel(indio_dev, i) {
 			sigma_delta->slots[slot] = indio_dev->channels[i].address;
 			slot++;
 		}
@@ -469,7 +469,7 @@ static irqreturn_t ad_sd_trigger_handler(int irq, void *p)
 		/*
 		 * Data array after transfer will look like (if status is appended):
 		 * data[] = { [0][sample][sample][sample][status] }
-		 * Keeping the first byte 0 shifts the status postion by 1 byte to the right.
+		 * Keeping the first byte 0 shifts the status position by 1 byte to the right.
 		 */
 		status_pos = reg_size + 1;
 
@@ -526,7 +526,7 @@ static bool ad_sd_validate_scan_mask(struct iio_dev *indio_dev, const unsigned l
 {
 	struct ad_sigma_delta *sigma_delta = iio_device_get_drvdata(indio_dev);
 
-	return bitmap_weight(mask, indio_dev->masklength) <= sigma_delta->num_slots;
+	return bitmap_weight(mask, iio_get_masklength(indio_dev)) <= sigma_delta->num_slots;
 }
 
 static const struct iio_buffer_setup_ops ad_sd_buffer_setup_ops = {
@@ -564,12 +564,12 @@ int ad_sd_validate_trigger(struct iio_dev *indio_dev, struct iio_trigger *trig)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(ad_sd_validate_trigger, IIO_AD_SIGMA_DELTA);
+EXPORT_SYMBOL_NS_GPL(ad_sd_validate_trigger, "IIO_AD_SIGMA_DELTA");
 
 static int devm_ad_sd_probe_trigger(struct device *dev, struct iio_dev *indio_dev)
 {
 	struct ad_sigma_delta *sigma_delta = iio_device_get_drvdata(indio_dev);
-	unsigned long irq_flags = irq_get_trigger_type(sigma_delta->spi->irq);
+	unsigned long irq_flags = irq_get_trigger_type(sigma_delta->irq_line);
 	int ret;
 
 	if (dev != &sigma_delta->spi->dev) {
@@ -638,7 +638,7 @@ int devm_ad_sd_setup_buffer_and_trigger(struct device *dev, struct iio_dev *indi
 
 	return devm_ad_sd_probe_trigger(dev, indio_dev);
 }
-EXPORT_SYMBOL_NS_GPL(devm_ad_sd_setup_buffer_and_trigger, IIO_AD_SIGMA_DELTA);
+EXPORT_SYMBOL_NS_GPL(devm_ad_sd_setup_buffer_and_trigger, "IIO_AD_SIGMA_DELTA");
 
 /**
  * ad_sd_init() - Initializes a ad_sigma_delta struct
@@ -656,7 +656,7 @@ int ad_sd_init(struct ad_sigma_delta *sigma_delta, struct iio_dev *indio_dev,
 	sigma_delta->spi = spi;
 	sigma_delta->info = info;
 
-	/* If the field is unset in ad_sigma_delta_info, asume there can only be 1 slot. */
+	/* If the field is unset in ad_sigma_delta_info, assume there can only be 1 slot. */
 	if (!info->num_slots)
 		sigma_delta->num_slots = 1;
 	else
@@ -683,7 +683,7 @@ int ad_sd_init(struct ad_sigma_delta *sigma_delta, struct iio_dev *indio_dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(ad_sd_init, IIO_AD_SIGMA_DELTA);
+EXPORT_SYMBOL_NS_GPL(ad_sd_init, "IIO_AD_SIGMA_DELTA");
 
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
 MODULE_DESCRIPTION("Analog Devices Sigma-Delta ADCs");

@@ -22,6 +22,10 @@
 #include <asm/hwctrset.h>
 #include <asm/debug.h>
 
+/* Perf PMU definitions for the counter facility */
+#define PERF_CPUM_CF_MAX_CTR		0xffffUL  /* Max ctr for ECCTR */
+#define PERF_EVENT_CPUM_CF_DIAG		0xBC000UL /* Event: Counter sets */
+
 enum cpumf_ctr_set {
 	CPUMF_CTR_SET_BASIC   = 0,    /* Basic Counter Set */
 	CPUMF_CTR_SET_USER    = 1,    /* Problem-State Counter Set */
@@ -831,7 +835,7 @@ static int __hw_perf_event_init(struct perf_event *event, unsigned int type)
 	return validate_ctr_version(hwc->config, set);
 }
 
-/* Events CPU_CYLCES and INSTRUCTIONS can be submitted with two different
+/* Events CPU_CYCLES and INSTRUCTIONS can be submitted with two different
  * attribute::type values:
  * - PERF_TYPE_HARDWARE:
  * - pmu->type:
@@ -875,8 +879,8 @@ static int hw_perf_event_reset(struct perf_event *event)
 	u64 prev, new;
 	int err;
 
+	prev = local64_read(&event->hw.prev_count);
 	do {
-		prev = local64_read(&event->hw.prev_count);
 		err = ecctr(event->hw.config, &new);
 		if (err) {
 			if (err != 3)
@@ -888,7 +892,7 @@ static int hw_perf_event_reset(struct perf_event *event)
 			 */
 			new = 0;
 		}
-	} while (local64_cmpxchg(&event->hw.prev_count, prev, new) != prev);
+	} while (!local64_try_cmpxchg(&event->hw.prev_count, &prev, new));
 
 	return err;
 }
@@ -898,12 +902,12 @@ static void hw_perf_event_update(struct perf_event *event)
 	u64 prev, new, delta;
 	int err;
 
+	prev = local64_read(&event->hw.prev_count);
 	do {
-		prev = local64_read(&event->hw.prev_count);
 		err = ecctr(event->hw.config, &new);
 		if (err)
 			return;
-	} while (local64_cmpxchg(&event->hw.prev_count, prev, new) != prev);
+	} while (!local64_try_cmpxchg(&event->hw.prev_count, &prev, new));
 
 	delta = (prev <= new) ? new - prev
 			      : (-1ULL - prev) + new + 1;	 /* overflow */
@@ -1050,7 +1054,7 @@ static void cpumf_pmu_del(struct perf_event *event, int flags)
 	 *
 	 * When a new perf event has been added but not yet started, this can
 	 * clear enable control and resets all counters in a set.  Therefore,
-	 * cpumf_pmu_start() always has to reenable a counter set.
+	 * cpumf_pmu_start() always has to re-enable a counter set.
 	 */
 	for (i = CPUMF_CTR_SET_BASIC; i < CPUMF_CTR_SET_MAX; ++i)
 		if (!atomic_read(&cpuhw->ctr_set[i]))
@@ -1694,7 +1698,6 @@ static const struct file_operations cfset_fops = {
 	.release = cfset_release,
 	.unlocked_ioctl	= cfset_ioctl,
 	.compat_ioctl = cfset_ioctl,
-	.llseek = no_llseek
 };
 
 static struct miscdevice cfset_dev = {
@@ -1860,7 +1863,7 @@ static const struct attribute_group *cfdiag_attr_groups[] = {
 /* Performance monitoring unit for event CF_DIAG. Since this event
  * is also started and stopped via the perf_event_open() system call, use
  * the same event enable/disable call back functions. They do not
- * have a pointer to the perf_event strcture as first parameter.
+ * have a pointer to the perf_event structure as first parameter.
  *
  * The functions XXX_add, XXX_del, XXX_start and XXX_stop are also common.
  * Reuse them and distinguish the event (always first parameter) via

@@ -388,6 +388,6 @@ void intel_soc_dts_iosf_exit(struct intel_soc_dts_sensors *sensors)
 }
 EXPORT_SYMBOL_GPL(intel_soc_dts_iosf_exit);
 
-MODULE_IMPORT_NS(INTEL_TCC);
+MODULE_IMPORT_NS("INTEL_TCC");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("SoC DTS driver using side band interface");

@@ -640,7 +640,7 @@ static int dib3000mb_read_ber(struct dvb_frontend* fe, u32 *ber)
 	return 0;
 }
 
-/* see dib3000-watch dvb-apps for exact calcuations of signal_strength and snr */
+/* see dib3000-watch dvb-apps for exact calculations of signal_strength and snr */
 static int dib3000mb_read_signal_strength(struct dvb_frontend* fe, u16 *strength)
 {
 	struct dib3000_state* state = fe->demodulator_priv;

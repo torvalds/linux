@@ -92,6 +92,7 @@ struct lpspi_config {
 	u8 prescale;
 	u16 mode;
 	u32 speed_hz;
+	u32 effective_speed_hz;
 };
 
 struct fsl_lpspi_data {
@@ -136,7 +137,7 @@ static struct fsl_lpspi_devtype_data imx93_lpspi_devtype_data = {
 };
 
 static struct fsl_lpspi_devtype_data imx7ulp_lpspi_devtype_data = {
-	.prescale_max = 8,
+	.prescale_max = 7,
 };
 
 static const struct of_device_id fsl_lpspi_dt_ids[] = {
@@ -315,9 +316,10 @@ static void fsl_lpspi_set_watermark(struct fsl_lpspi_data *fsl_lpspi)
 static int fsl_lpspi_set_bitrate(struct fsl_lpspi_data *fsl_lpspi)
 {
 	struct lpspi_config config = fsl_lpspi->config;
-	unsigned int perclk_rate, scldiv, div;
+	unsigned int perclk_rate, div;
 	u8 prescale_max;
 	u8 prescale;
+	int scldiv;
 
 	perclk_rate = clk_get_rate(fsl_lpspi->clk_per);
 	prescale_max = fsl_lpspi->devtype_data->prescale_max;
@@ -336,21 +338,24 @@ static int fsl_lpspi_set_bitrate(struct fsl_lpspi_data *fsl_lpspi)
 
 	div = DIV_ROUND_UP(perclk_rate, config.speed_hz);
 
-	for (prescale = 0; prescale < prescale_max; prescale++) {
+	for (prescale = 0; prescale <= prescale_max; prescale++) {
 		scldiv = div / (1 << prescale) - 2;
-		if (scldiv < 256) {
+		if (scldiv >= 0 && scldiv < 256) {
 			fsl_lpspi->config.prescale = prescale;
 			break;
 		}
 	}
 
-	if (scldiv >= 256)
+	if (scldiv < 0 || scldiv >= 256)
 		return -EINVAL;
 
 	writel(scldiv | (scldiv << 8) | ((scldiv >> 1) << 16),
 					fsl_lpspi->base + IMX7ULP_CCR);
 
-	dev_dbg(fsl_lpspi->dev, "perclk=%d, speed=%d, prescale=%d, scldiv=%d\n",
+	fsl_lpspi->config.effective_speed_hz = perclk_rate / (scldiv + 2) *
+					       (1 << prescale);
+
+	dev_dbg(fsl_lpspi->dev, "perclk=%u, speed=%u, prescale=%u, scldiv=%d\n",
 		perclk_rate, config.speed_hz, prescale, scldiv);
 
 	return 0;
@@ -749,6 +754,8 @@ static int fsl_lpspi_transfer_one(struct spi_controller *controller,
 	if (ret < 0)
 		return ret;
 
+	t->effective_speed_hz = fsl_lpspi->config.effective_speed_hz;
+
 	fsl_lpspi_set_cmd(fsl_lpspi);
 	fsl_lpspi->is_first_byte = false;
 
@@ -891,7 +898,7 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = devm_request_irq(&pdev->dev, irq, fsl_lpspi_isr, 0,
+	ret = devm_request_irq(&pdev->dev, irq, fsl_lpspi_isr, IRQF_NO_AUTOEN,
 			       dev_name(&pdev->dev), fsl_lpspi);
 	if (ret) {
 		dev_err(&pdev->dev, "can't get irq%d: %d\n", irq, ret);
@@ -948,14 +955,10 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 	ret = fsl_lpspi_dma_init(&pdev->dev, fsl_lpspi, controller);
 	if (ret == -EPROBE_DEFER)
 		goto out_pm_get;
-	if (ret < 0)
+	if (ret < 0) {
 		dev_warn(&pdev->dev, "dma setup error %d, use pio\n", ret);
-	else
-		/*
-		 * disable LPSPI module IRQ when enable DMA mode successfully,
-		 * to prevent the unexpected LPSPI module IRQ events.
-		 */
-		disable_irq(irq);
+		enable_irq(irq);
+	}
 
 	ret = devm_spi_register_controller(&pdev->dev, controller);
 	if (ret < 0) {
@@ -986,6 +989,7 @@ static void fsl_lpspi_remove(struct platform_device *pdev)
 
 	fsl_lpspi_dma_exit(controller);
 
+	pm_runtime_dont_use_autosuspend(fsl_lpspi->dev);
 	pm_runtime_disable(fsl_lpspi->dev);
 }
 
@@ -1023,7 +1027,7 @@ static struct platform_driver fsl_lpspi_driver = {
 		.pm = pm_ptr(&fsl_lpspi_pm_ops),
 	},
 	.probe = fsl_lpspi_probe,
-	.remove_new = fsl_lpspi_remove,
+	.remove = fsl_lpspi_remove,
 };
 module_platform_driver(fsl_lpspi_driver);
 

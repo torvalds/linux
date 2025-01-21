@@ -40,6 +40,7 @@
 #include "amdgpu_trace.h"
 #include "amdgpu_amdkfd.h"
 #include "amdgpu_vram_mgr.h"
+#include "amdgpu_vm.h"
 
 /**
  * DOC: amdgpu_object
@@ -77,24 +78,6 @@ static void amdgpu_bo_user_destroy(struct ttm_buffer_object *tbo)
 	amdgpu_bo_destroy(tbo);
 }
 
-static void amdgpu_bo_vm_destroy(struct ttm_buffer_object *tbo)
-{
-	struct amdgpu_device *adev = amdgpu_ttm_adev(tbo->bdev);
-	struct amdgpu_bo *shadow_bo = ttm_to_amdgpu_bo(tbo), *bo;
-	struct amdgpu_bo_vm *vmbo;
-
-	bo = shadow_bo->parent;
-	vmbo = to_amdgpu_bo_vm(bo);
-	/* in case amdgpu_device_recover_vram got NULL of bo->parent */
-	if (!list_empty(&vmbo->shadow_list)) {
-		mutex_lock(&adev->shadow_list_lock);
-		list_del_init(&vmbo->shadow_list);
-		mutex_unlock(&adev->shadow_list_lock);
-	}
-
-	amdgpu_bo_destroy(tbo);
-}
-
 /**
  * amdgpu_bo_is_amdgpu_bo - check if the buffer object is an &amdgpu_bo
  * @bo: buffer object to be checked
@@ -108,8 +91,7 @@ static void amdgpu_bo_vm_destroy(struct ttm_buffer_object *tbo)
 bool amdgpu_bo_is_amdgpu_bo(struct ttm_buffer_object *bo)
 {
 	if (bo->destroy == &amdgpu_bo_destroy ||
-	    bo->destroy == &amdgpu_bo_user_destroy ||
-	    bo->destroy == &amdgpu_bo_vm_destroy)
+	    bo->destroy == &amdgpu_bo_user_destroy)
 		return true;
 
 	return false;
@@ -180,7 +162,8 @@ void amdgpu_bo_placement_from_domain(struct amdgpu_bo *abo, u32 domain)
 		 * When GTT is just an alternative to VRAM make sure that we
 		 * only use it as fallback and still try to fill up VRAM first.
 		 */
-		if (domain & abo->preferred_domains & AMDGPU_GEM_DOMAIN_VRAM)
+		if (domain & abo->preferred_domains & AMDGPU_GEM_DOMAIN_VRAM &&
+		    !(adev->flags & AMD_IS_APU))
 			places[c].flags |= TTM_PL_FLAG_FALLBACK;
 		c++;
 	}
@@ -583,6 +566,7 @@ int amdgpu_bo_create(struct amdgpu_device *adev,
 	if (bo == NULL)
 		return -ENOMEM;
 	drm_gem_private_object_init(adev_to_drm(adev), &bo->tbo.base, size);
+	bo->tbo.base.funcs = &amdgpu_gem_object_funcs;
 	bo->vm_bo = NULL;
 	bo->preferred_domains = bp->preferred_domain ? bp->preferred_domain :
 		bp->domain;
@@ -723,52 +707,6 @@ int amdgpu_bo_create_vm(struct amdgpu_device *adev,
 }
 
 /**
- * amdgpu_bo_add_to_shadow_list - add a BO to the shadow list
- *
- * @vmbo: BO that will be inserted into the shadow list
- *
- * Insert a BO to the shadow list.
- */
-void amdgpu_bo_add_to_shadow_list(struct amdgpu_bo_vm *vmbo)
-{
-	struct amdgpu_device *adev = amdgpu_ttm_adev(vmbo->bo.tbo.bdev);
-
-	mutex_lock(&adev->shadow_list_lock);
-	list_add_tail(&vmbo->shadow_list, &adev->shadow_list);
-	vmbo->shadow->parent = amdgpu_bo_ref(&vmbo->bo);
-	vmbo->shadow->tbo.destroy = &amdgpu_bo_vm_destroy;
-	mutex_unlock(&adev->shadow_list_lock);
-}
-
-/**
- * amdgpu_bo_restore_shadow - restore an &amdgpu_bo shadow
- *
- * @shadow: &amdgpu_bo shadow to be restored
- * @fence: dma_fence associated with the operation
- *
- * Copies a buffer object's shadow content back to the object.
- * This is used for recovering a buffer from its shadow in case of a gpu
- * reset where vram context may be lost.
- *
- * Returns:
- * 0 for success or a negative error code on failure.
- */
-int amdgpu_bo_restore_shadow(struct amdgpu_bo *shadow, struct dma_fence **fence)
-
-{
-	struct amdgpu_device *adev = amdgpu_ttm_adev(shadow->tbo.bdev);
-	struct amdgpu_ring *ring = adev->mman.buffer_funcs_ring;
-	uint64_t shadow_addr, parent_addr;
-
-	shadow_addr = amdgpu_bo_gpu_offset(shadow);
-	parent_addr = amdgpu_bo_gpu_offset(shadow->parent);
-
-	return amdgpu_copy_buffer(ring, shadow_addr, parent_addr,
-				  amdgpu_bo_size(shadow), NULL, fence,
-				  true, false, 0);
-}
-
-/**
  * amdgpu_bo_kmap - map an &amdgpu_bo buffer object
  * @bo: &amdgpu_bo buffer object to be mapped
  * @ptr: kernel virtual address to be returned
@@ -851,7 +789,7 @@ struct amdgpu_bo *amdgpu_bo_ref(struct amdgpu_bo *bo)
 	if (bo == NULL)
 		return NULL;
 
-	ttm_bo_get(&bo->tbo);
+	drm_gem_object_get(&bo->tbo.base);
 	return bo;
 }
 
@@ -863,40 +801,30 @@ struct amdgpu_bo *amdgpu_bo_ref(struct amdgpu_bo *bo)
  */
 void amdgpu_bo_unref(struct amdgpu_bo **bo)
 {
-	struct ttm_buffer_object *tbo;
-
 	if ((*bo) == NULL)
 		return;
 
-	tbo = &((*bo)->tbo);
-	ttm_bo_put(tbo);
+	drm_gem_object_put(&(*bo)->tbo.base);
 	*bo = NULL;
 }
 
 /**
- * amdgpu_bo_pin_restricted - pin an &amdgpu_bo buffer object
+ * amdgpu_bo_pin - pin an &amdgpu_bo buffer object
  * @bo: &amdgpu_bo buffer object to be pinned
  * @domain: domain to be pinned to
- * @min_offset: the start of requested address range
- * @max_offset: the end of requested address range
  *
- * Pins the buffer object according to requested domain and address range. If
- * the memory is unbound gart memory, binds the pages into gart table. Adjusts
- * pin_count and pin_size accordingly.
+ * Pins the buffer object according to requested domain. If the memory is
+ * unbound gart memory, binds the pages into gart table. Adjusts pin_count and
+ * pin_size accordingly.
  *
  * Pinning means to lock pages in memory along with keeping them at a fixed
  * offset. It is required when a buffer can not be moved, for example, when
  * a display buffer is being scanned out.
  *
- * Compared with amdgpu_bo_pin(), this function gives more flexibility on
- * where to pin a buffer if there are specific restrictions on where a buffer
- * must be located.
- *
  * Returns:
  * 0 for success or a negative error code on failure.
  */
-int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
-			     u64 min_offset, u64 max_offset)
+int amdgpu_bo_pin(struct amdgpu_bo *bo, u32 domain)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	struct ttm_operation_ctx ctx = { false, false };
@@ -904,9 +832,6 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 
 	if (amdgpu_ttm_tt_get_usermm(bo->tbo.ttm))
 		return -EPERM;
-
-	if (WARN_ON_ONCE(min_offset > max_offset))
-		return -EINVAL;
 
 	/* Check domain to be pinned to against preferred domains */
 	if (bo->preferred_domains & domain)
@@ -933,14 +858,6 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 			return -EINVAL;
 
 		ttm_bo_pin(&bo->tbo);
-
-		if (max_offset != 0) {
-			u64 domain_start = amdgpu_ttm_domain_start(adev,
-								   mem_type);
-			WARN_ON_ONCE(max_offset <
-				     (amdgpu_bo_gpu_offset(bo) - domain_start));
-		}
-
 		return 0;
 	}
 
@@ -957,17 +874,6 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 		bo->flags |= AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
 	amdgpu_bo_placement_from_domain(bo, domain);
 	for (i = 0; i < bo->placement.num_placement; i++) {
-		unsigned int fpfn, lpfn;
-
-		fpfn = min_offset >> PAGE_SHIFT;
-		lpfn = max_offset >> PAGE_SHIFT;
-
-		if (fpfn > bo->placements[i].fpfn)
-			bo->placements[i].fpfn = fpfn;
-		if (!bo->placements[i].lpfn ||
-		    (lpfn && lpfn < bo->placements[i].lpfn))
-			bo->placements[i].lpfn = lpfn;
-
 		if (bo->flags & AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS &&
 		    bo->placements[i].mem_type == TTM_PL_VRAM)
 			bo->placements[i].flags |= TTM_PL_FLAG_CONTIGUOUS;
@@ -991,24 +897,6 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 
 error:
 	return r;
-}
-
-/**
- * amdgpu_bo_pin - pin an &amdgpu_bo buffer object
- * @bo: &amdgpu_bo buffer object to be pinned
- * @domain: domain to be pinned to
- *
- * A simple wrapper to amdgpu_bo_pin_restricted().
- * Provides a simpler API for buffers that do not have any strict restrictions
- * on where a buffer must be located.
- *
- * Returns:
- * 0 for success or a negative error code on failure.
- */
-int amdgpu_bo_pin(struct amdgpu_bo *bo, u32 domain)
-{
-	bo->flags |= AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
-	return amdgpu_bo_pin_restricted(bo, domain, 0, 0);
 }
 
 /**
@@ -1284,54 +1172,71 @@ void amdgpu_bo_move_notify(struct ttm_buffer_object *bo,
 }
 
 void amdgpu_bo_get_memory(struct amdgpu_bo *bo,
-			  struct amdgpu_mem_stats *stats)
+			  struct amdgpu_mem_stats *stats,
+			  unsigned int sz)
 {
+	const unsigned int domain_to_pl[] = {
+		[ilog2(AMDGPU_GEM_DOMAIN_CPU)]	    = TTM_PL_SYSTEM,
+		[ilog2(AMDGPU_GEM_DOMAIN_GTT)]	    = TTM_PL_TT,
+		[ilog2(AMDGPU_GEM_DOMAIN_VRAM)]	    = TTM_PL_VRAM,
+		[ilog2(AMDGPU_GEM_DOMAIN_GDS)]	    = AMDGPU_PL_GDS,
+		[ilog2(AMDGPU_GEM_DOMAIN_GWS)]	    = AMDGPU_PL_GWS,
+		[ilog2(AMDGPU_GEM_DOMAIN_OA)]	    = AMDGPU_PL_OA,
+		[ilog2(AMDGPU_GEM_DOMAIN_DOORBELL)] = AMDGPU_PL_DOORBELL,
+	};
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	struct ttm_resource *res = bo->tbo.resource;
+	struct drm_gem_object *obj = &bo->tbo.base;
 	uint64_t size = amdgpu_bo_size(bo);
-	struct drm_gem_object *obj;
-	bool shared;
+	unsigned int type;
 
-	/* Abort if the BO doesn't currently have a backing store */
-	if (!res)
-		return;
-
-	obj = &bo->tbo.base;
-	shared = drm_gem_object_is_shared_for_memory_stats(obj);
-
-	switch (res->mem_type) {
-	case TTM_PL_VRAM:
-		stats->vram += size;
-		if (amdgpu_res_cpu_visible(adev, res))
-			stats->visible_vram += size;
-		if (shared)
-			stats->vram_shared += size;
-		break;
-	case TTM_PL_TT:
-		stats->gtt += size;
-		if (shared)
-			stats->gtt_shared += size;
-		break;
-	case TTM_PL_SYSTEM:
-	default:
-		stats->cpu += size;
-		if (shared)
-			stats->cpu_shared += size;
-		break;
+	if (!res) {
+		/*
+		 * If no backing store use one of the preferred domain for basic
+		 * stats. We take the MSB since that should give a reasonable
+		 * view.
+		 */
+		BUILD_BUG_ON(TTM_PL_VRAM < TTM_PL_TT ||
+			     TTM_PL_VRAM < TTM_PL_SYSTEM);
+		type = fls(bo->preferred_domains & AMDGPU_GEM_DOMAIN_MASK);
+		if (!type)
+			return;
+		type--;
+		if (drm_WARN_ON_ONCE(&adev->ddev,
+				     type >= ARRAY_SIZE(domain_to_pl)))
+			return;
+		type = domain_to_pl[type];
+	} else {
+		type = res->mem_type;
 	}
 
-	if (bo->preferred_domains & AMDGPU_GEM_DOMAIN_VRAM) {
-		stats->requested_vram += size;
-		if (bo->flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED)
-			stats->requested_visible_vram += size;
+	if (drm_WARN_ON_ONCE(&adev->ddev, type >= sz))
+		return;
 
-		if (res->mem_type != TTM_PL_VRAM) {
-			stats->evicted_vram += size;
-			if (bo->flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED)
-				stats->evicted_visible_vram += size;
-		}
+	/* DRM stats common fields: */
+
+	if (drm_gem_object_is_shared_for_memory_stats(obj))
+		stats[type].drm.shared += size;
+	else
+		stats[type].drm.private += size;
+
+	if (res) {
+		stats[type].drm.resident += size;
+
+		if (!dma_resv_test_signaled(obj->resv, DMA_RESV_USAGE_BOOKKEEP))
+			stats[type].drm.active += size;
+		else if (bo->flags & AMDGPU_GEM_CREATE_DISCARDABLE)
+			stats[type].drm.purgeable += size;
+	}
+
+	/* amdgpu specific stats: */
+
+	if (bo->preferred_domains & AMDGPU_GEM_DOMAIN_VRAM) {
+		stats[TTM_PL_VRAM].requested += size;
+		if (type != TTM_PL_VRAM)
+			stats[TTM_PL_VRAM].evicted += size;
 	} else if (bo->preferred_domains & AMDGPU_GEM_DOMAIN_GTT) {
-		stats->requested_gtt += size;
+		stats[TTM_PL_TT].requested += size;
 	}
 }
 

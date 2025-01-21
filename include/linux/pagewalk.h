@@ -25,12 +25,15 @@ enum page_walk_lock {
  *			this handler is required to be able to handle
  *			pmd_trans_huge() pmds.  They may simply choose to
  *			split_huge_page() instead of handling it explicitly.
- * @pte_entry:		if set, called for each PTE (lowest-level) entry,
- *			including empty ones
+ * @pte_entry:		if set, called for each PTE (lowest-level) entry
+ *			including empty ones, except if @install_pte is set.
+ *			If @install_pte is set, @pte_entry is called only for
+ *			existing PTEs.
  * @pte_hole:		if set, called for each hole at all levels,
  *			depth is -1 if not known, 0:PGD, 1:P4D, 2:PUD, 3:PMD.
  *			Any folded depths (where PTRS_PER_P?D is equal to 1)
- *			are skipped.
+ *			are skipped. If @install_pte is specified, this will
+ *			not trigger for any populated ranges.
  * @hugetlb_entry:	if set, called for each hugetlb entry. This hook
  *			function is called with the vma lock held, in order to
  *			protect against a concurrent freeing of the pte_t* or
@@ -51,6 +54,13 @@ enum page_walk_lock {
  * @pre_vma:            if set, called before starting walk on a non-null vma.
  * @post_vma:           if set, called after a walk on a non-null vma, provided
  *                      that @pre_vma and the vma walk succeeded.
+ * @install_pte:        if set, missing page table entries are installed and
+ *                      thus all levels are always walked in the specified
+ *                      range. This callback is then invoked at the PTE level
+ *                      (having split any THP pages prior), providing the PTE to
+ *                      install. If allocations fail, the walk is aborted. This
+ *                      operation is only available for userland memory. Not
+ *                      usable for hugetlb ranges.
  *
  * p?d_entry callbacks are called even if those levels are folded on a
  * particular architecture/configuration.
@@ -76,6 +86,8 @@ struct mm_walk_ops {
 	int (*pre_vma)(unsigned long start, unsigned long end,
 		       struct mm_walk *walk);
 	void (*post_vma)(struct mm_walk *walk);
+	int (*install_pte)(unsigned long addr, unsigned long next,
+			   pte_t *ptep, struct mm_walk *walk);
 	enum page_walk_lock walk_lock;
 };
 
@@ -129,5 +141,63 @@ int walk_page_vma(struct vm_area_struct *vma, const struct mm_walk_ops *ops,
 int walk_page_mapping(struct address_space *mapping, pgoff_t first_index,
 		      pgoff_t nr, const struct mm_walk_ops *ops,
 		      void *private);
+
+typedef int __bitwise folio_walk_flags_t;
+
+/*
+ * Walk migration entries as well. Careful: a large folio might get split
+ * concurrently.
+ */
+#define FW_MIGRATION			((__force folio_walk_flags_t)BIT(0))
+
+/* Walk shared zeropages (small + huge) as well. */
+#define FW_ZEROPAGE			((__force folio_walk_flags_t)BIT(1))
+
+enum folio_walk_level {
+	FW_LEVEL_PTE,
+	FW_LEVEL_PMD,
+	FW_LEVEL_PUD,
+};
+
+/**
+ * struct folio_walk - folio_walk_start() / folio_walk_end() data
+ * @page:	exact folio page referenced (if applicable)
+ * @level:	page table level identifying the entry type
+ * @pte:	pointer to the page table entry (FW_LEVEL_PTE).
+ * @pmd:	pointer to the page table entry (FW_LEVEL_PMD).
+ * @pud:	pointer to the page table entry (FW_LEVEL_PUD).
+ * @ptl:	pointer to the page table lock.
+ *
+ * (see folio_walk_start() documentation for more details)
+ */
+struct folio_walk {
+	/* public */
+	struct page *page;
+	enum folio_walk_level level;
+	union {
+		pte_t *ptep;
+		pud_t *pudp;
+		pmd_t *pmdp;
+	};
+	union {
+		pte_t pte;
+		pud_t pud;
+		pmd_t pmd;
+	};
+	/* private */
+	struct vm_area_struct *vma;
+	spinlock_t *ptl;
+};
+
+struct folio *folio_walk_start(struct folio_walk *fw,
+		struct vm_area_struct *vma, unsigned long addr,
+		folio_walk_flags_t flags);
+
+#define folio_walk_end(__fw, __vma) do { \
+	spin_unlock((__fw)->ptl); \
+	if (likely((__fw)->level == FW_LEVEL_PTE)) \
+		pte_unmap((__fw)->ptep); \
+	vma_pgtable_walk_end(__vma); \
+} while (0)
 
 #endif /* _LINUX_PAGEWALK_H */

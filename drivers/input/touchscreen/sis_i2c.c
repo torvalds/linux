@@ -15,7 +15,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define SIS_I2C_NAME		"sis_i2c_ts"
 

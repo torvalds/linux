@@ -41,6 +41,7 @@
 #include <linux/limits.h>
 #include <linux/log2.h>
 #include <linux/math.h>
+#include <linux/slab.h>
 #include <linux/types.h>
 
 struct genradix_root;
@@ -48,9 +49,62 @@ struct genradix_root;
 #define GENRADIX_NODE_SHIFT	9
 #define GENRADIX_NODE_SIZE	(1U << GENRADIX_NODE_SHIFT)
 
+#define GENRADIX_ARY		(GENRADIX_NODE_SIZE / sizeof(struct genradix_node *))
+#define GENRADIX_ARY_SHIFT	ilog2(GENRADIX_ARY)
+
+/* depth that's needed for a genradix that can address up to ULONG_MAX: */
+#define GENRADIX_MAX_DEPTH	\
+	DIV_ROUND_UP(BITS_PER_LONG - GENRADIX_NODE_SHIFT, GENRADIX_ARY_SHIFT)
+
+#define GENRADIX_DEPTH_MASK				\
+	((unsigned long) (roundup_pow_of_two(GENRADIX_MAX_DEPTH + 1) - 1))
+
+static inline int genradix_depth_shift(unsigned depth)
+{
+	return GENRADIX_NODE_SHIFT + GENRADIX_ARY_SHIFT * depth;
+}
+
+/*
+ * Returns size (of data, in bytes) that a tree of a given depth holds:
+ */
+static inline size_t genradix_depth_size(unsigned depth)
+{
+	return 1UL << genradix_depth_shift(depth);
+}
+
+static inline unsigned genradix_root_to_depth(struct genradix_root *r)
+{
+	return (unsigned long) r & GENRADIX_DEPTH_MASK;
+}
+
+static inline struct genradix_node *genradix_root_to_node(struct genradix_root *r)
+{
+	return (void *) ((unsigned long) r & ~GENRADIX_DEPTH_MASK);
+}
+
 struct __genradix {
 	struct genradix_root		*root;
 };
+
+struct genradix_node {
+	union {
+		/* Interior node: */
+		struct genradix_node	*children[GENRADIX_ARY];
+
+		/* Leaf: */
+		u8			data[GENRADIX_NODE_SIZE];
+	};
+};
+
+static inline struct genradix_node *genradix_alloc_node(gfp_t gfp_mask)
+{
+	return kzalloc(GENRADIX_NODE_SIZE, gfp_mask);
+}
+
+static inline void genradix_free_node(struct genradix_node *node)
+{
+	kfree(node);
+}
 
 /*
  * NOTE: currently, sizeof(_type) must not be larger than GENRADIX_NODE_SIZE:
@@ -128,6 +182,30 @@ static inline size_t __idx_to_offset(size_t idx, size_t obj_size)
 #define __genradix_idx_to_offset(_radix, _idx)			\
 	__idx_to_offset(_idx, __genradix_obj_size(_radix))
 
+static inline void *__genradix_ptr_inlined(struct __genradix *radix, size_t offset)
+{
+	struct genradix_root *r = READ_ONCE(radix->root);
+	struct genradix_node *n = genradix_root_to_node(r);
+	unsigned level		= genradix_root_to_depth(r);
+	unsigned shift		= genradix_depth_shift(level);
+
+	if (unlikely(ilog2(offset) >= genradix_depth_shift(level)))
+		return NULL;
+
+	while (n && shift > GENRADIX_NODE_SHIFT) {
+		shift -= GENRADIX_ARY_SHIFT;
+		n = n->children[offset >> shift];
+		offset &= (1UL << shift) - 1;
+	}
+
+	return n ? &n->data[offset] : NULL;
+}
+
+#define genradix_ptr_inlined(_radix, _idx)			\
+	(__genradix_cast(_radix)				\
+	 __genradix_ptr_inlined(&(_radix)->tree,		\
+			__genradix_idx_to_offset(_radix, _idx)))
+
 void *__genradix_ptr(struct __genradix *, size_t);
 
 /**
@@ -142,7 +220,24 @@ void *__genradix_ptr(struct __genradix *, size_t);
 	 __genradix_ptr(&(_radix)->tree,			\
 			__genradix_idx_to_offset(_radix, _idx)))
 
-void *__genradix_ptr_alloc(struct __genradix *, size_t, gfp_t);
+void *__genradix_ptr_alloc(struct __genradix *, size_t,
+			   struct genradix_node **, gfp_t);
+
+#define genradix_ptr_alloc_inlined(_radix, _idx, _gfp)			\
+	(__genradix_cast(_radix)					\
+	 (__genradix_ptr_inlined(&(_radix)->tree,			\
+			__genradix_idx_to_offset(_radix, _idx)) ?:	\
+	  __genradix_ptr_alloc(&(_radix)->tree,				\
+			__genradix_idx_to_offset(_radix, _idx),		\
+			NULL, _gfp)))
+
+#define genradix_ptr_alloc_preallocated_inlined(_radix, _idx, _new_node, _gfp)\
+	(__genradix_cast(_radix)					\
+	 (__genradix_ptr_inlined(&(_radix)->tree,			\
+			__genradix_idx_to_offset(_radix, _idx)) ?:	\
+	  __genradix_ptr_alloc(&(_radix)->tree,				\
+			__genradix_idx_to_offset(_radix, _idx),		\
+			_new_node, _gfp)))
 
 /**
  * genradix_ptr_alloc - get a pointer to a genradix entry, allocating it
@@ -157,7 +252,13 @@ void *__genradix_ptr_alloc(struct __genradix *, size_t, gfp_t);
 	(__genradix_cast(_radix)				\
 	 __genradix_ptr_alloc(&(_radix)->tree,			\
 			__genradix_idx_to_offset(_radix, _idx),	\
-			_gfp))
+			NULL, _gfp))
+
+#define genradix_ptr_alloc_preallocated(_radix, _idx, _new_node, _gfp)\
+	(__genradix_cast(_radix)				\
+	 __genradix_ptr_alloc(&(_radix)->tree,			\
+			__genradix_idx_to_offset(_radix, _idx),	\
+			_new_node, _gfp))
 
 struct genradix_iter {
 	size_t			offset;

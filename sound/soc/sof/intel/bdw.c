@@ -684,7 +684,7 @@ static int sof_broadwell_probe(struct platform_device *pdev)
 /* acpi_driver definition */
 static struct platform_driver snd_sof_acpi_intel_bdw_driver = {
 	.probe = sof_broadwell_probe,
-	.remove_new = sof_acpi_remove,
+	.remove = sof_acpi_remove,
 	.driver = {
 		.name = "sof-audio-acpi-intel-bdw",
 		.pm = &sof_acpi_pm,
@@ -695,6 +695,6 @@ module_platform_driver(snd_sof_acpi_intel_bdw_driver);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("SOF support for Broadwell platforms");
-MODULE_IMPORT_NS(SND_SOC_SOF_INTEL_HIFI_EP_IPC);
-MODULE_IMPORT_NS(SND_SOC_SOF_XTENSA);
-MODULE_IMPORT_NS(SND_SOC_SOF_ACPI_DEV);
+MODULE_IMPORT_NS("SND_SOC_SOF_INTEL_HIFI_EP_IPC");
+MODULE_IMPORT_NS("SND_SOC_SOF_XTENSA");
+MODULE_IMPORT_NS("SND_SOC_SOF_ACPI_DEV");

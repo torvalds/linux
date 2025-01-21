@@ -248,7 +248,7 @@
 		>;
 	};
 
-	pinctrl_ecspi1_master: ecspi1grp1 {
+	pinctrl_ecspi1_master: ecspi1-1-grp {
 		fsl,pins = <
 			MX6UL_PAD_LCD_DATA20__ECSPI1_SCLK	0x10b0
 			MX6UL_PAD_LCD_DATA22__ECSPI1_MOSI	0x10b0
@@ -309,7 +309,7 @@
 		>;
 	};
 
-	pinctrl_lcdif_dat0_17: lcdifdatgrp0-17 {
+	pinctrl_lcdif_dat0_17: lcdifdat0-17-grp {
 		fsl,pins = <
 			MX6UL_PAD_LCD_DATA00__LCDIF_DATA00	0x79
 			MX6UL_PAD_LCD_DATA01__LCDIF_DATA01	0x79
@@ -332,14 +332,14 @@
 		>;
 	};
 
-	pinctrl_lcdif_clken: lcdifctrlgrp1 {
+	pinctrl_lcdif_clken: lcdifctrl-1-grp {
 		fsl,pins = <
 			MX6UL_PAD_LCD_CLK__LCDIF_CLK		0x17050
 			MX6UL_PAD_LCD_ENABLE__LCDIF_ENABLE	0x79
 		>;
 	};
 
-	pinctrl_lcdif_hvsync: lcdifctrlgrp2 {
+	pinctrl_lcdif_hvsync: lcdifctrl-2-grp {
 		fsl,pins = <
 			MX6UL_PAD_LCD_HSYNC__LCDIF_HSYNC	0x79
 			MX6UL_PAD_LCD_VSYNC__LCDIF_VSYNC	0x79
@@ -370,7 +370,7 @@
 		>;
 	};
 
-	pinctrl_sai2_sleep: sai2grp-sleep {
+	pinctrl_sai2_sleep: sai2-sleep-grp {
 		fsl,pins = <
 			MX6UL_PAD_JTAG_TRST_B__GPIO1_IO15	0x3000
 			MX6UL_PAD_JTAG_TCK__GPIO1_IO14		0x3000
@@ -381,7 +381,7 @@
 		>;
 	};
 
-	pinctrl_uart2_4wires: uart2grp-4wires {
+	pinctrl_uart2_4wires: uart2-4wires-grp {
 		fsl,pins = <
 			MX6UL_PAD_UART2_TX_DATA__UART2_DCE_TX	0x1b0b1
 			MX6UL_PAD_UART2_RX_DATA__UART2_DCE_RX	0x1b0b1
@@ -390,7 +390,7 @@
 		>;
 	};
 
-	pinctrl_uart3_2wires: uart3grp-2wires {
+	pinctrl_uart3_2wires: uart3-2wires-grp {
 		fsl,pins = <
 			MX6UL_PAD_UART3_TX_DATA__UART3_DCE_TX	0x1b0b1
 			MX6UL_PAD_UART3_RX_DATA__UART3_DCE_RX	0x1b0b1

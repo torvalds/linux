@@ -5,7 +5,6 @@
  *
  ******************************************************************************/
 #include <drv_types.h>
-#include <rtw_debug.h>
 #include <hal_btcoex.h>
 #include <linux/jiffies.h>
 
@@ -383,7 +382,7 @@ int rtw_cmd_thread(void *context)
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 	struct drvextra_cmd_parm *extra_parm = NULL;
 
-	thread_enter("RTW_CMD_THREAD");
+	allow_signal(SIGTERM);
 
 	pcmdbuf = pcmdpriv->cmd_buf;
 
@@ -1259,8 +1258,7 @@ static void dynamic_chk_wk_hdl(struct adapter *padapter)
 
 
 	/* always call rtw_ps_processor() at last one. */
-	if (is_primary_adapter(padapter))
-		rtw_ps_processor(padapter);
+	rtw_ps_processor(padapter);
 }
 
 void lps_ctrl_wk_hdl(struct adapter *padapter, u8 lps_ctrl_type);
@@ -1466,6 +1464,7 @@ u8 rtw_ps_cmd(struct adapter *padapter)
 	struct drvextra_cmd_parm	*pdrvextra_cmd_parm;
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 	u8 res = _SUCCESS;
+
 	ppscmd = rtw_zmalloc(sizeof(struct cmd_obj));
 	if (!ppscmd) {
 		res = _FAIL;
@@ -1883,9 +1882,6 @@ void rtw_createbss_cmd_callback(struct adapter *padapter, struct cmd_obj *pcmd)
 
 		/*  copy pdev_network information to	pmlmepriv->cur_network */
 		memcpy(&tgt_network->network, pnetwork, (get_wlan_bssid_ex_sz(pnetwork)));
-
-		/*  reset ds_config */
-		/* tgt_network->network.configuration.ds_config = (u32)rtw_ch2freq(pnetwork->configuration.ds_config); */
 
 		_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
 

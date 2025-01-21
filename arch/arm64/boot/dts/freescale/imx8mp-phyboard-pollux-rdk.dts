@@ -6,8 +6,10 @@
 
 /dts-v1/;
 
+#include <dt-bindings/phy/phy-imx8-pcie.h>
 #include <dt-bindings/leds/leds-pca9532.h>
 #include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/thermal/thermal.h>
 #include "imx8mp-phycore-som.dtsi"
 
 / {
@@ -31,6 +33,16 @@
 		pwms = <&pwm3 0 50000 0>;
 	};
 
+	fan0: fan {
+		compatible = "gpio-fan";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_fan>;
+		gpio-fan,speed-map = <0     0
+				      13000 1>;
+		gpios = <&gpio5 4 GPIO_ACTIVE_HIGH>;
+		#cooling-cells = <2>;
+	};
+
 	panel1_lvds: panel-lvds {
 		compatible = "edt,etml1010g3dra";
 		backlight = <&backlight_lvds>;
@@ -41,6 +53,15 @@
 				remote-endpoint = <&ldb_lvds_ch1>;
 			};
 		};
+	};
+
+	reg_vcc_5v_sw: regulator-vcc-5v-sw {
+		compatible = "regulator-fixed";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-max-microvolt = <5000000>;
+		regulator-min-microvolt = <5000000>;
+		regulator-name = "VCC_5V_SW";
 	};
 
 	reg_can1_stby: regulator-can1-stby {
@@ -101,6 +122,41 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 	};
+
+	thermal-zones {
+		soc-thermal {
+			trips {
+				active1: trip2 {
+					temperature = <60000>;
+					hysteresis = <2000>;
+					type = "active";
+				};
+			};
+
+			cooling-maps {
+				map1 {
+					trip = <&active1>;
+					cooling-device = <&fan0 1 THERMAL_NO_LIMIT>;
+				};
+			};
+		};
+	};
+};
+
+/* TPM */
+&ecspi1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	cs-gpios = <&gpio5 9 GPIO_ACTIVE_LOW>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi1>;
+	status = "okay";
+
+	tpm: tpm@0 {
+		compatible = "infineon,slb9670", "tcg,tpm_tis-spi";
+		reg = <0>;
+		spi-max-frequency = <38000000>;
+	};
 };
 
 &eqos {
@@ -155,6 +211,7 @@
 		compatible = "atmel,24c02";
 		reg = <0x51>;
 		pagesize = <16>;
+		vcc-supply = <&reg_vcc_3v3_sw>;
 	};
 
 	leds@62 {
@@ -191,7 +248,36 @@
 	};
 };
 
+&media_blk_ctrl {
+	/*
+	 * The LVDS panel on this device uses 72.4 MHz pixel clock,
+	 * set IMX8MP_VIDEO_PLL1 to 72.4 * 7 = 506.8 MHz so the LDB
+	 * serializer and LCDIFv3 scanout engine can reach accurate
+	 * pixel clock of exactly 72.4 MHz.
+	 */
+	assigned-clock-rates = <500000000>, <200000000>,
+			       <0>, <0>, <500000000>,
+			       <506800000>;
+};
+
 &snvs_pwrkey {
+	status = "okay";
+};
+
+&pcie_phy {
+	clocks = <&hsio_blk_ctrl>;
+	clock-names = "ref";
+	fsl,refclk-pad-mode = <IMX8_PCIE_REFCLK_PAD_OUTPUT>;
+	fsl,clkreq-unsupported;
+	status = "okay";
+};
+
+/* Mini PCIe */
+&pcie {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pcie0>;
+	reset-gpio = <&gpio1 8 GPIO_ACTIVE_LOW>;
+	vpcie-supply = <&reg_vcc_3v3_sw>;
 	status = "okay";
 };
 
@@ -206,6 +292,7 @@
 	pinctrl-0 = <&pinctrl_rtc>;
 	interrupt-parent = <&gpio4>;
 	interrupts = <19 IRQ_TYPE_LEVEL_LOW>;
+	aux-voltage-chargeable = <1>;
 	wakeup-source;
 	trickle-resistor-ohms = <3000>;
 };
@@ -234,6 +321,7 @@
 
 /* USB2 4-port USB3.0 HUB */
 &usb3_phy1 {
+	vbus-supply = <&reg_vcc_5v_sw>;
 	status = "okay";
 };
 
@@ -267,22 +355,25 @@
 	pinctrl-1 = <&pinctrl_usdhc2_100mhz>, <&pinctrl_usdhc2_pins>;
 	pinctrl-2 = <&pinctrl_usdhc2_200mhz>, <&pinctrl_usdhc2_pins>;
 	cd-gpios = <&gpio2 12 GPIO_ACTIVE_LOW>;
+	disable-wp;
 	vmmc-supply = <&reg_usdhc2_vmmc>;
+	vqmmc-supply = <&ldo5>;
 	bus-width = <4>;
 	status = "okay";
 };
 
 &gpio1 {
 	gpio-line-names = "", "", "X_PMIC_WDOG_B", "",
-		"PMIC_SD_VSEL", "", "", "", "", "",
-		"", "", "USB1_OTG_PWR", "", "", "X_nETHPHY_INT";
+		"PMIC_SD_VSEL", "", "", "", "PCIe_nPERST", "LVDS1REG_EN",
+		"PCIe_nWAKE", "PCIe_nCLKREQ", "USB1_OTG_PWR", "",
+		"PCIe_nW_DISABLE";
 };
 
 &gpio2 {
 	gpio-line-names = "", "", "", "",
 		"", "", "", "", "", "",
 		"", "", "X_SD2_CD_B", "", "", "",
-		"", "", "", "SD2_RESET_B";
+		"", "", "", "SD2_RESET_B", "LVDS1_BL_EN";
 };
 
 &gpio3 {
@@ -296,10 +387,24 @@
 	gpio-line-names = "", "", "", "",
 		"", "", "", "", "", "",
 		"", "", "", "", "", "",
-		"", "", "X_PMIC_IRQ_B", "", "nENET0_INT_PWDN";
+		"", "", "X_PMIC_IRQ_B", "nRTC_INT", "nENET0_INT_PWDN";
+};
+
+&gpio5 {
+	gpio-line-names = "", "", "", "",
+		"", "", "", "", "", "X_ECSPI1_SSO";
 };
 
 &iomuxc {
+	pinctrl_ecspi1: ecspi1grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_ECSPI1_MISO__ECSPI1_MISO   0x80
+			MX8MP_IOMUXC_ECSPI1_MOSI__ECSPI1_MOSI   0x80
+			MX8MP_IOMUXC_ECSPI1_SCLK__ECSPI1_SCLK   0x80
+			MX8MP_IOMUXC_ECSPI1_SS0__GPIO5_IO09     0x00
+		>;
+	};
+
 	pinctrl_eqos: eqosgrp {
 		fsl,pins = <
 			MX8MP_IOMUXC_ENET_MDC__ENET_QOS_MDC			0x2
@@ -317,6 +422,12 @@
 			MX8MP_IOMUXC_ENET_TX_CTL__ENET_QOS_RGMII_TX_CTL		0x12
 			MX8MP_IOMUXC_ENET_TXC__CCM_ENET_QOS_CLOCK_GENERATE_TX_CLK	0x12
 			MX8MP_IOMUXC_SAI1_MCLK__GPIO4_IO20			0x10
+		>;
+	};
+
+	pinctrl_fan: fan0grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SPDIF_RX__GPIO5_IO04       0x16
 		>;
 	};
 
@@ -363,6 +474,15 @@
 	pinctrl_lvds1: lvds1grp {
 		fsl,pins = <
 			MX8MP_IOMUXC_SD2_WP__GPIO2_IO20		0x12
+		>;
+	};
+
+	pinctrl_pcie0: pcie0grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_GPIO1_IO08__GPIO1_IO08     0x40
+			MX8MP_IOMUXC_GPIO1_IO10__GPIO1_IO10     0x60
+			MX8MP_IOMUXC_GPIO1_IO11__GPIO1_IO11	0x60 /* open drain, pull up */
+			MX8MP_IOMUXC_GPIO1_IO14__GPIO1_IO14     0x40
 		>;
 	};
 

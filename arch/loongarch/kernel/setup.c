@@ -55,6 +55,7 @@
 #define SMBIOS_FREQHIGH_OFFSET		0x17
 #define SMBIOS_FREQLOW_MASK		0xFF
 #define SMBIOS_CORE_PACKAGE_OFFSET	0x23
+#define SMBIOS_THREAD_PACKAGE_OFFSET	0x25
 #define LOONGSON_EFI_ENABLE		(1 << 3)
 
 unsigned long fw_arg0, fw_arg1, fw_arg2;
@@ -125,7 +126,7 @@ static void __init parse_cpu_table(const struct dmi_header *dm)
 	cpu_clock_freq = freq_temp * 1000000;
 
 	loongson_sysconf.cpuname = (void *)dmi_string_parse(dm, dmi_data[16]);
-	loongson_sysconf.cores_per_package = *(dmi_data + SMBIOS_CORE_PACKAGE_OFFSET);
+	loongson_sysconf.cores_per_package = *(dmi_data + SMBIOS_THREAD_PACKAGE_OFFSET);
 
 	pr_info("CpuClock = %llu\n", cpu_clock_freq);
 }
@@ -290,7 +291,7 @@ static void __init fdt_setup(void)
 	if (!fdt_pointer || fdt_check_header(fdt_pointer))
 		return;
 
-	early_init_dt_scan(fdt_pointer);
+	early_init_dt_scan(fdt_pointer, __pa(fdt_pointer));
 	early_init_fdt_reserve_self();
 
 	max_low_pfn = PFN_PHYS(memblock_end_of_DRAM());
@@ -603,6 +604,8 @@ void __init setup_arch(char **cmdline_p)
 	arch_mem_init(cmdline_p);
 
 	resource_init();
+	jump_label_init(); /* Initialise the static keys for paravirtualization */
+
 #ifdef CONFIG_SMP
 	plat_smp_setup();
 	prefill_possible_map();

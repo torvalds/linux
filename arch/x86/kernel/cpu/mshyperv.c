@@ -16,7 +16,6 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/kexec.h>
-#include <linux/i8253.h>
 #include <linux/random.h>
 #include <asm/processor.h>
 #include <asm/hypervisor.h>
@@ -199,8 +198,8 @@ static void hv_machine_shutdown(void)
 	 * Call hv_cpu_die() on all the CPUs, otherwise later the hypervisor
 	 * corrupts the old VP Assist Pages and can crash the kexec kernel.
 	 */
-	if (kexec_in_progress && hyperv_init_cpuhp > 0)
-		cpuhp_remove_state(hyperv_init_cpuhp);
+	if (kexec_in_progress)
+		cpuhp_remove_state(CPUHP_AP_HYPERV_ONLINE);
 
 	/* The function calls stop_other_cpus(). */
 	native_machine_shutdown();
@@ -424,6 +423,7 @@ static void __init ms_hyperv_init_platform(void)
 	    ms_hyperv.misc_features & HV_FEATURE_FREQUENCY_MSRS_AVAILABLE) {
 		x86_platform.calibrate_tsc = hv_get_tsc_khz;
 		x86_platform.calibrate_cpu = hv_get_tsc_khz;
+		setup_force_cpu_cap(X86_FEATURE_TSC_KNOWN_FREQ);
 	}
 
 	if (ms_hyperv.priv_high & HV_ISOLATION) {
@@ -449,8 +449,22 @@ static void __init ms_hyperv_init_platform(void)
 			ms_hyperv.hints &= ~HV_X64_APIC_ACCESS_RECOMMENDED;
 
 			if (!ms_hyperv.paravisor_present) {
-				/* To be supported: more work is required.  */
+				/*
+				 * Mark the Hyper-V TSC page feature as disabled
+				 * in a TDX VM without paravisor so that the
+				 * Invariant TSC, which is a better clocksource
+				 * anyway, is used instead.
+				 */
 				ms_hyperv.features &= ~HV_MSR_REFERENCE_TSC_AVAILABLE;
+
+				/*
+				 * The Invariant TSC is expected to be available
+				 * in a TDX VM without paravisor, but if not,
+				 * print a warning message. The slower Hyper-V MSR-based
+				 * Ref Counter should end up being the clocksource.
+				 */
+				if (!(ms_hyperv.features & HV_ACCESS_TSC_INVARIANT))
+					pr_warn("Hyper-V: Invariant TSC is unavailable\n");
 
 				/* HV_MSR_CRASH_CTL is unsupported. */
 				ms_hyperv.misc_features &= ~HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE;
@@ -521,16 +535,6 @@ static void __init ms_hyperv_init_platform(void)
 	 */
 	if (efi_enabled(EFI_BOOT))
 		x86_platform.get_nmi_reason = hv_get_nmi_reason;
-
-	/*
-	 * Hyper-V VMs have a PIT emulation quirk such that zeroing the
-	 * counter register during PIT shutdown restarts the PIT. So it
-	 * continues to interrupt @18.2 HZ. Setting i8253_clear_counter
-	 * to false tells pit_shutdown() not to zero the counter so that
-	 * the PIT really is shutdown. Generation 2 VMs don't have a PIT,
-	 * and setting this value has no effect.
-	 */
-	i8253_clear_counter_on_shutdown = false;
 
 #if IS_ENABLED(CONFIG_HYPERV)
 	if ((hv_get_isolation_type() == HV_ISOLATION_TYPE_VBS) ||

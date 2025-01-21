@@ -514,46 +514,58 @@ struct rtw89_h2c_dctlinfo_ud_v2 {
 #define DCTLINFO_V2_W7_SEC_ENT7 GENMASK(23, 16)
 #define DCTLINFO_V2_W7_SEC_ENT8 GENMASK(31, 24)
 #define DCTLINFO_V2_W7_ALL GENMASK(31, 0)
-#define DCTLINFO_V2_W8_MLD_SMA_L_V1 GENMASK(31, 0)
+#define DCTLINFO_V2_W8_MLD_SMA_0 GENMASK(7, 0)
+#define DCTLINFO_V2_W8_MLD_SMA_1 GENMASK(15, 8)
+#define DCTLINFO_V2_W8_MLD_SMA_2 GENMASK(23, 16)
+#define DCTLINFO_V2_W8_MLD_SMA_3 GENMASK(31, 24)
 #define DCTLINFO_V2_W8_ALL GENMASK(31, 0)
-#define DCTLINFO_V2_W9_MLD_SMA_H_V1 GENMASK(15, 0)
-#define DCTLINFO_V2_W9_MLD_TMA_L_V1 GENMASK(31, 16)
+#define DCTLINFO_V2_W9_MLD_SMA_4 GENMASK(7, 0)
+#define DCTLINFO_V2_W9_MLD_SMA_5 GENMASK(15, 8)
+#define DCTLINFO_V2_W9_MLD_TMA_0 GENMASK(23, 16)
+#define DCTLINFO_V2_W9_MLD_TMA_1 GENMASK(31, 24)
 #define DCTLINFO_V2_W9_ALL GENMASK(31, 0)
-#define DCTLINFO_V2_W10_MLD_TMA_H_V1 GENMASK(31, 0)
+#define DCTLINFO_V2_W10_MLD_TMA_2 GENMASK(7, 0)
+#define DCTLINFO_V2_W10_MLD_TMA_3 GENMASK(15, 8)
+#define DCTLINFO_V2_W10_MLD_TMA_4 GENMASK(23, 16)
+#define DCTLINFO_V2_W10_MLD_TMA_5 GENMASK(31, 24)
 #define DCTLINFO_V2_W10_ALL GENMASK(31, 0)
-#define DCTLINFO_V2_W11_MLD_TA_BSSID_L_V1 GENMASK(31, 0)
+#define DCTLINFO_V2_W11_MLD_BSSID_0 GENMASK(7, 0)
+#define DCTLINFO_V2_W11_MLD_BSSID_1 GENMASK(15, 8)
+#define DCTLINFO_V2_W11_MLD_BSSID_2 GENMASK(23, 16)
+#define DCTLINFO_V2_W11_MLD_BSSID_3 GENMASK(31, 24)
 #define DCTLINFO_V2_W11_ALL GENMASK(31, 0)
-#define DCTLINFO_V2_W12_MLD_TA_BSSID_H_V1 GENMASK(15, 0)
+#define DCTLINFO_V2_W12_MLD_BSSID_4 GENMASK(7, 0)
+#define DCTLINFO_V2_W12_MLD_BSSID_5 GENMASK(15, 8)
 #define DCTLINFO_V2_W12_ALL GENMASK(15, 0)
 
-int rtw89_cam_init(struct rtw89_dev *rtwdev, struct rtw89_vif *vif);
-void rtw89_cam_deinit(struct rtw89_dev *rtwdev, struct rtw89_vif *vif);
+int rtw89_cam_init(struct rtw89_dev *rtwdev, struct rtw89_vif_link *vif);
+void rtw89_cam_deinit(struct rtw89_dev *rtwdev, struct rtw89_vif_link *vif);
 int rtw89_cam_init_addr_cam(struct rtw89_dev *rtwdev,
 			    struct rtw89_addr_cam_entry *addr_cam,
 			    const struct rtw89_bssid_cam_entry *bssid_cam);
 void rtw89_cam_deinit_addr_cam(struct rtw89_dev *rtwdev,
 			       struct rtw89_addr_cam_entry *addr_cam);
 int rtw89_cam_init_bssid_cam(struct rtw89_dev *rtwdev,
-			     struct rtw89_vif *rtwvif,
+			     struct rtw89_vif_link *rtwvif_link,
 			     struct rtw89_bssid_cam_entry *bssid_cam,
 			     const u8 *bssid);
 void rtw89_cam_deinit_bssid_cam(struct rtw89_dev *rtwdev,
 				struct rtw89_bssid_cam_entry *bssid_cam);
 void rtw89_cam_fill_addr_cam_info(struct rtw89_dev *rtwdev,
-				  struct rtw89_vif *vif,
-				  struct rtw89_sta *rtwsta,
+				  struct rtw89_vif_link *vif,
+				  struct rtw89_sta_link *rtwsta_link,
 				  const u8 *scan_mac_addr, u8 *cmd);
 void rtw89_cam_fill_dctl_sec_cam_info_v1(struct rtw89_dev *rtwdev,
-					 struct rtw89_vif *rtwvif,
-					 struct rtw89_sta *rtwsta,
+					 struct rtw89_vif_link *rtwvif_link,
+					 struct rtw89_sta_link *rtwsta_link,
 					 struct rtw89_h2c_dctlinfo_ud_v1 *h2c);
 void rtw89_cam_fill_dctl_sec_cam_info_v2(struct rtw89_dev *rtwdev,
-					 struct rtw89_vif *rtwvif,
-					 struct rtw89_sta *rtwsta,
+					 struct rtw89_vif_link *rtwvif_link,
+					 struct rtw89_sta_link *rtwsta_link,
 					 struct rtw89_h2c_dctlinfo_ud_v2 *h2c);
 int rtw89_cam_fill_bssid_cam_info(struct rtw89_dev *rtwdev,
-				  struct rtw89_vif *rtwvif,
-				  struct rtw89_sta *rtwsta, u8 *cmd);
+				  struct rtw89_vif_link *rtwvif_link,
+				  struct rtw89_sta_link *rtwsta_link, u8 *cmd);
 int rtw89_cam_sec_key_add(struct rtw89_dev *rtwdev,
 			  struct ieee80211_vif *vif,
 			  struct ieee80211_sta *sta,
@@ -564,6 +576,6 @@ int rtw89_cam_sec_key_del(struct rtw89_dev *rtwdev,
 			  struct ieee80211_key_conf *key,
 			  bool inform_fw);
 void rtw89_cam_bssid_changed(struct rtw89_dev *rtwdev,
-			     struct rtw89_vif *rtwvif);
+			     struct rtw89_vif_link *rtwvif_link);
 void rtw89_cam_reset_keys(struct rtw89_dev *rtwdev);
 #endif

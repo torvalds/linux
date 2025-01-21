@@ -152,7 +152,7 @@ static void i2c_mux_remove(struct platform_device *pdev)
 
 static struct platform_driver i2c_mux_driver = {
 	.probe	= i2c_mux_probe,
-	.remove_new = i2c_mux_remove,
+	.remove = i2c_mux_remove,
 	.driver	= {
 		.name	= "i2c-mux-gpmux",
 		.of_match_table = i2c_mux_of_match,

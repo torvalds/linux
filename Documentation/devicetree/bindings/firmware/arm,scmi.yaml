@@ -22,6 +22,9 @@ description: |
 
   [0] https://developer.arm.com/documentation/den0056/latest
 
+anyOf:
+  - $ref: /schemas/firmware/nxp,imx95-scmi.yaml
+
 properties:
   $nodename:
     const: scmi
@@ -121,6 +124,28 @@ properties:
       atomic mode of operation, even if requested.
     default: 0
 
+  arm,max-rx-timeout-ms:
+    description:
+      An optional time value, expressed in milliseconds, representing the
+      transport maximum timeout value for the receive channel. The value should
+      be a non-zero value if set.
+    minimum: 1
+
+  arm,max-msg-size:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      An optional value, expressed in bytes, representing the maximum size
+      allowed for the payload of messages transmitted on this transport.
+
+  arm,max-msg:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      An optional value representing the maximum number of concurrent in-flight
+      messages allowed by this transport; this number represents the maximum
+      number of concurrently outstanding messages that the server can handle on
+      this platform. If set, the value should be non-zero.
+    minimum: 1
+
   arm,smc-id:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
@@ -144,6 +169,14 @@ properties:
 
     required:
       - '#power-domain-cells'
+
+  protocol@12:
+    $ref: '#/$defs/protocol-node'
+    unevaluatedProperties: false
+
+    properties:
+      reg:
+        const: 0x12
 
   protocol@13:
     $ref: '#/$defs/protocol-node'
@@ -284,7 +317,7 @@ properties:
     required:
       - reg
 
-additionalProperties: false
+unevaluatedProperties: false
 
 $defs:
   protocol-node:

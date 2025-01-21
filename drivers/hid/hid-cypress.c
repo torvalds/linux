@@ -67,7 +67,7 @@ static __u8 *va_logical_boundary_fixup(struct hid_device *hdev, __u8 *rdesc,
 	return rdesc;
 }
 
-static __u8 *cp_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+static const __u8 *cp_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
 	unsigned long quirks = (unsigned long)hid_get_drvdata(hdev);

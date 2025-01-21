@@ -502,7 +502,8 @@ fail:
 static int adux1020_write_event_config(struct iio_dev *indio_dev,
 				       const struct iio_chan_spec *chan,
 				       enum iio_event_type type,
-				       enum iio_event_direction dir, int state)
+				       enum iio_event_direction dir,
+				       bool state)
 {
 	struct adux1020_data *data = iio_priv(indio_dev);
 	int ret, mask;
@@ -526,12 +527,11 @@ static int adux1020_write_event_config(struct iio_dev *indio_dev,
 			mask = ADUX1020_PROX_OFF1_INT;
 
 		if (state)
-			state = 0;
+			ret = regmap_clear_bits(data->regmap,
+						ADUX1020_REG_INT_MASK, mask);
 		else
-			state = mask;
-
-		ret = regmap_update_bits(data->regmap, ADUX1020_REG_INT_MASK,
-					 mask, state);
+			ret = regmap_set_bits(data->regmap,
+					      ADUX1020_REG_INT_MASK, mask);
 		if (ret < 0)
 			goto fail;
 

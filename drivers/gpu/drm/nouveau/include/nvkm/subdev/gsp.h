@@ -210,7 +210,7 @@ struct nvkm_gsp {
 	} *rm;
 
 	struct {
-		struct mutex mutex;;
+		struct mutex mutex;
 		struct idr idr;
 	} client_id;
 

@@ -8,8 +8,7 @@ config HAS_DMA
 	depends on !NO_DMA
 	default y
 
-config DMA_OPS
-	depends on HAS_DMA
+config DMA_OPS_HELPERS
 	bool
 
 #
@@ -109,8 +108,8 @@ config DMA_BOUNCE_UNALIGNED_KMALLOC
 
 config DMA_NEED_SYNC
 	def_bool ARCH_HAS_SYNC_DMA_FOR_DEVICE || ARCH_HAS_SYNC_DMA_FOR_CPU || \
-		 ARCH_HAS_SYNC_DMA_FOR_CPU_ALL || DMA_API_DEBUG || DMA_OPS || \
-		 SWIOTLB
+		 ARCH_HAS_SYNC_DMA_FOR_CPU_ALL || DMA_API_DEBUG || \
+		 ARCH_HAS_DMA_OPS || SWIOTLB
 
 config DMA_RESTRICTED_POOL
 	bool "DMA Restricted Pool"
@@ -258,23 +257,6 @@ config DMA_API_DEBUG
 
 	  This option causes a performance degradation.  Use only if you want to
 	  debug device drivers and dma interactions.
-
-	  If unsure, say N.
-
-config DMA_API_DEBUG_SG
-	bool "Debug DMA scatter-gather usage"
-	default y
-	depends on DMA_API_DEBUG
-	help
-	  Perform extra checking that callers of dma_map_sg() have respected the
-	  appropriate segment length/boundary limits for the given device when
-	  preparing DMA scatterlists.
-
-	  This is particularly likely to have been overlooked in cases where the
-	  dma_map_sg() API is used for general bulk mapping of pages rather than
-	  preparing literal scatter-gather descriptors, where there is a risk of
-	  unexpected behaviour from DMA API implementations if the scatterlist
-	  is technically out-of-spec.
 
 	  If unsure, say N.
 

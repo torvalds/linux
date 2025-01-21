@@ -1314,7 +1314,6 @@ static int smu_release(struct inode *inode, struct file *file)
 
 
 static const struct file_operations smu_device_fops = {
-	.llseek		= no_llseek,
 	.read		= smu_read,
 	.write		= smu_write,
 	.poll		= smu_fpoll,

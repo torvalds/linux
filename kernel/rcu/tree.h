@@ -206,7 +206,7 @@ struct rcu_data {
 	long		blimit;		/* Upper limit on a processed batch */
 
 	/* 3) dynticks interface. */
-	int dynticks_snap;		/* Per-GP tracking for dynticks. */
+	int  watching_snap;		/* Per-GP tracking for dynticks. */
 	bool rcu_need_heavy_qs;		/* GP old, so heavy quiescent state! */
 	bool rcu_urgent_qs;		/* GP old need light quiescent state. */
 	bool rcu_forced_tick;		/* Forced tick to provide QS. */
@@ -215,7 +215,7 @@ struct rcu_data {
 	/* 4) rcu_barrier(), OOM callbacks, and expediting. */
 	unsigned long barrier_seq_snap;	/* Snap of rcu_state.barrier_sequence. */
 	struct rcu_head barrier_head;
-	int exp_dynticks_snap;		/* Double-check need for IPI. */
+	int exp_watching_snap;		/* Double-check need for IPI. */
 
 	/* 5) Callback offloading. */
 #ifdef CONFIG_RCU_NOCB_CPU
@@ -411,7 +411,6 @@ struct rcu_state {
 	arch_spinlock_t ofl_lock ____cacheline_internodealigned_in_smp;
 						/* Synchronize offline with */
 						/*  GP pre-initialization. */
-	int nocb_is_setup;			/* nocb is setup from boot */
 
 	/* synchronize_rcu() part. */
 	struct llist_head srs_next;	/* request a GP users. */
@@ -420,6 +419,11 @@ struct rcu_state {
 	struct sr_wait_node srs_wait_nodes[SR_NORMAL_GP_WAIT_HEAD_MAX];
 	struct work_struct srs_cleanup_work;
 	atomic_t srs_cleanups_pending; /* srs inflight worker cleanups. */
+
+#ifdef CONFIG_RCU_NOCB_CPU
+	struct mutex nocb_mutex;		/* Guards (de-)offloading */
+	int nocb_is_setup;			/* nocb is setup from boot */
+#endif
 };
 
 /* Values for rcu_state structure's gp_flags field. */

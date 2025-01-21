@@ -27,12 +27,8 @@ int fbtft_gamma_parse_str(struct fbtft_par *par, u32 *curves,
 	int curve_counter, value_counter;
 	int _count;
 
-	fbtft_par_dbg(DEBUG_SYSFS, par, "%s() str=\n", __func__);
-
 	if (!str || !curves)
 		return -EINVAL;
-
-	fbtft_par_dbg(DEBUG_SYSFS, par, "%s\n", str);
 
 	tmp = kmemdup(str, size + 1, GFP_KERNEL);
 	if (!tmp)

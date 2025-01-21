@@ -445,6 +445,8 @@ static const struct snd_soc_component_driver acp63_sdw_component = {
 	.trigger	= acp63_sdw_dma_trigger,
 	.pointer	= acp63_sdw_dma_pointer,
 	.pcm_construct	= acp63_sdw_dma_new,
+	.use_dai_pcm_id = true,
+
 };
 
 static int acp63_sdw_platform_probe(struct platform_device *pdev)
@@ -551,7 +553,7 @@ static const struct dev_pm_ops acp63_pm_ops = {
 
 static struct platform_driver acp63_sdw_dma_driver = {
 	.probe = acp63_sdw_platform_probe,
-	.remove_new = acp63_sdw_platform_remove,
+	.remove = acp63_sdw_platform_remove,
 	.driver = {
 		.name = "amd_ps_sdw_dma",
 		.pm = &acp63_pm_ops,

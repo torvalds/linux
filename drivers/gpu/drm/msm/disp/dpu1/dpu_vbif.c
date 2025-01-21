@@ -204,6 +204,11 @@ void dpu_vbif_set_ot_limit(struct dpu_kms *dpu_kms,
 	vbif->ops.set_halt_ctrl(vbif, params->xin_id, false);
 }
 
+/**
+ * dpu_vbif_set_qos_remap - set QoS priority level remap
+ * @dpu_kms:	DPU handler
+ * @params:	Pointer to QoS configuration parameters
+ */
 void dpu_vbif_set_qos_remap(struct dpu_kms *dpu_kms,
 		struct dpu_vbif_set_qos_params *params)
 {
@@ -245,6 +250,10 @@ void dpu_vbif_set_qos_remap(struct dpu_kms *dpu_kms,
 	}
 }
 
+/**
+ * dpu_vbif_clear_errors - clear any vbif errors
+ * @dpu_kms:	DPU handler
+ */
 void dpu_vbif_clear_errors(struct dpu_kms *dpu_kms)
 {
 	struct dpu_hw_vbif *vbif;
@@ -262,6 +271,10 @@ void dpu_vbif_clear_errors(struct dpu_kms *dpu_kms)
 	}
 }
 
+/**
+ * dpu_vbif_init_memtypes - initialize xin memory types for vbif
+ * @dpu_kms:	DPU handler
+ */
 void dpu_vbif_init_memtypes(struct dpu_kms *dpu_kms)
 {
 	struct dpu_hw_vbif *vbif;

@@ -7,6 +7,7 @@
  *	Author: Jacek Anaszewski <j.anaszewski@samsung.com>
  */
 
+#include <linux/cleanup.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/led-class-flash.h>
@@ -215,7 +216,6 @@ static int aat1290_led_parse_dt(struct aat1290_led *led,
 			struct device_node **sub_node)
 {
 	struct device *dev = &led->pdev->dev;
-	struct device_node *child_node;
 #if IS_ENABLED(CONFIG_V4L2_FLASH_LED_CLASS)
 	struct pinctrl *pinctrl;
 #endif
@@ -246,7 +246,8 @@ static int aat1290_led_parse_dt(struct aat1290_led *led,
 	}
 #endif
 
-	child_node = of_get_next_available_child(dev_of_node(dev), NULL);
+	struct device_node *child_node __free(device_node) =
+		of_get_next_available_child(dev_of_node(dev), NULL);
 	if (!child_node) {
 		dev_err(dev, "No DT child node found for connected LED.\n");
 		return -EINVAL;
@@ -267,7 +268,7 @@ static int aat1290_led_parse_dt(struct aat1290_led *led,
 	if (ret < 0) {
 		dev_err(dev,
 			"flash-max-microamp DT property missing\n");
-		goto err_parse_dt;
+		return ret;
 	}
 
 	ret = of_property_read_u32(child_node, "flash-max-timeout-us",
@@ -275,15 +276,12 @@ static int aat1290_led_parse_dt(struct aat1290_led *led,
 	if (ret < 0) {
 		dev_err(dev,
 			"flash-max-timeout-us DT property missing\n");
-		goto err_parse_dt;
+		return ret;
 	}
 
 	*sub_node = child_node;
 
-err_parse_dt:
-	of_node_put(child_node);
-
-	return ret;
+	return 0;
 }
 
 static void aat1290_led_validate_mm_current(struct aat1290_led *led,
@@ -538,7 +536,7 @@ MODULE_DEVICE_TABLE(of, aat1290_led_dt_match);
 
 static struct platform_driver aat1290_led_driver = {
 	.probe		= aat1290_led_probe,
-	.remove_new	= aat1290_led_remove,
+	.remove		= aat1290_led_remove,
 	.driver		= {
 		.name	= "aat1290",
 		.of_match_table = aat1290_led_dt_match,

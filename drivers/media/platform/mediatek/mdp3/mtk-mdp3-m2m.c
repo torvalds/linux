@@ -266,8 +266,6 @@ static void mdp_m2m_buf_queue(struct vb2_buffer *vb)
 
 static const struct vb2_ops mdp_m2m_qops = {
 	.queue_setup	= mdp_m2m_queue_setup,
-	.wait_prepare	= vb2_ops_wait_prepare,
-	.wait_finish	= vb2_ops_wait_finish,
 	.buf_prepare	= mdp_m2m_buf_prepare,
 	.start_streaming = mdp_m2m_start_streaming,
 	.stop_streaming	= mdp_m2m_stop_streaming,

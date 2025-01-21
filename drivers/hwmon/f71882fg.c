@@ -2658,7 +2658,7 @@ static struct platform_driver f71882fg_driver = {
 		.name	= DRVNAME,
 	},
 	.probe		= f71882fg_probe,
-	.remove_new	= f71882fg_remove,
+	.remove		= f71882fg_remove,
 };
 
 static int __init f71882fg_init(void)

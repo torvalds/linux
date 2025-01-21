@@ -285,8 +285,8 @@ static int gti_wdt_probe(struct platform_device *pdev)
 	}
 
 	wdog_dev = &priv->wdev;
-	wdog_dev->info = &gti_wdt_ident,
-	wdog_dev->ops = &gti_wdt_ops,
+	wdog_dev->info = &gti_wdt_ident;
+	wdog_dev->ops = &gti_wdt_ops;
 	wdog_dev->parent = dev;
 	/*
 	 * Watchdog counter is 24 bit where lower 8 bits are zeros

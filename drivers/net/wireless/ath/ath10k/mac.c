@@ -1437,7 +1437,7 @@ static void ath10k_recalc_radar_detection(struct ath10k *ar)
 		 * by indicating that radar was detected.
 		 */
 		ath10k_warn(ar, "failed to start CAC: %d\n", ret);
-		ieee80211_radar_detected(ar->hw);
+		ieee80211_radar_detected(ar->hw, NULL);
 	}
 }
 
@@ -6369,7 +6369,7 @@ static int ath10k_hw_scan(struct ieee80211_hw *hw,
 	struct ath10k *ar = hw->priv;
 	struct ath10k_vif *arvif = (void *)vif->drv_priv;
 	struct cfg80211_scan_request *req = &hw_req->req;
-	struct wmi_start_scan_arg arg;
+	struct wmi_start_scan_arg *arg = NULL;
 	int ret = 0;
 	int i;
 	u32 scan_timeout;
@@ -6402,56 +6402,61 @@ static int ath10k_hw_scan(struct ieee80211_hw *hw,
 	if (ret)
 		goto exit;
 
-	memset(&arg, 0, sizeof(arg));
-	ath10k_wmi_start_scan_init(ar, &arg);
-	arg.vdev_id = arvif->vdev_id;
-	arg.scan_id = ATH10K_SCAN_ID;
+	arg = kzalloc(sizeof(*arg), GFP_KERNEL);
+	if (!arg) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+
+	ath10k_wmi_start_scan_init(ar, arg);
+	arg->vdev_id = arvif->vdev_id;
+	arg->scan_id = ATH10K_SCAN_ID;
 
 	if (req->ie_len) {
-		arg.ie_len = req->ie_len;
-		memcpy(arg.ie, req->ie, arg.ie_len);
+		arg->ie_len = req->ie_len;
+		memcpy(arg->ie, req->ie, arg->ie_len);
 	}
 
 	if (req->n_ssids) {
-		arg.n_ssids = req->n_ssids;
-		for (i = 0; i < arg.n_ssids; i++) {
-			arg.ssids[i].len  = req->ssids[i].ssid_len;
-			arg.ssids[i].ssid = req->ssids[i].ssid;
+		arg->n_ssids = req->n_ssids;
+		for (i = 0; i < arg->n_ssids; i++) {
+			arg->ssids[i].len  = req->ssids[i].ssid_len;
+			arg->ssids[i].ssid = req->ssids[i].ssid;
 		}
 	} else {
-		arg.scan_ctrl_flags |= WMI_SCAN_FLAG_PASSIVE;
+		arg->scan_ctrl_flags |= WMI_SCAN_FLAG_PASSIVE;
 	}
 
 	if (req->flags & NL80211_SCAN_FLAG_RANDOM_ADDR) {
-		arg.scan_ctrl_flags |=  WMI_SCAN_ADD_SPOOFED_MAC_IN_PROBE_REQ;
-		ether_addr_copy(arg.mac_addr.addr, req->mac_addr);
-		ether_addr_copy(arg.mac_mask.addr, req->mac_addr_mask);
+		arg->scan_ctrl_flags |=  WMI_SCAN_ADD_SPOOFED_MAC_IN_PROBE_REQ;
+		ether_addr_copy(arg->mac_addr.addr, req->mac_addr);
+		ether_addr_copy(arg->mac_mask.addr, req->mac_addr_mask);
 	}
 
 	if (req->n_channels) {
-		arg.n_channels = req->n_channels;
-		for (i = 0; i < arg.n_channels; i++)
-			arg.channels[i] = req->channels[i]->center_freq;
+		arg->n_channels = req->n_channels;
+		for (i = 0; i < arg->n_channels; i++)
+			arg->channels[i] = req->channels[i]->center_freq;
 	}
 
 	/* if duration is set, default dwell times will be overwritten */
 	if (req->duration) {
-		arg.dwell_time_active = req->duration;
-		arg.dwell_time_passive = req->duration;
-		arg.burst_duration_ms = req->duration;
+		arg->dwell_time_active = req->duration;
+		arg->dwell_time_passive = req->duration;
+		arg->burst_duration_ms = req->duration;
 
-		scan_timeout = min_t(u32, arg.max_rest_time *
-				(arg.n_channels - 1) + (req->duration +
+		scan_timeout = min_t(u32, arg->max_rest_time *
+				(arg->n_channels - 1) + (req->duration +
 				ATH10K_SCAN_CHANNEL_SWITCH_WMI_EVT_OVERHEAD) *
-				arg.n_channels, arg.max_scan_time);
+				arg->n_channels, arg->max_scan_time);
 	} else {
-		scan_timeout = arg.max_scan_time;
+		scan_timeout = arg->max_scan_time;
 	}
 
 	/* Add a 200ms margin to account for event/command processing */
 	scan_timeout += 200;
 
-	ret = ath10k_start_scan(ar, &arg);
+	ret = ath10k_start_scan(ar, arg);
 	if (ret) {
 		ath10k_warn(ar, "failed to start hw scan: %d\n", ret);
 		spin_lock_bh(&ar->data_lock);
@@ -6463,6 +6468,8 @@ static int ath10k_hw_scan(struct ieee80211_hw *hw,
 				     msecs_to_jiffies(scan_timeout));
 
 exit:
+	kfree(arg);
+
 	mutex_unlock(&ar->conf_mutex);
 	return ret;
 }
@@ -7899,7 +7906,7 @@ static int ath10k_remain_on_channel(struct ieee80211_hw *hw,
 {
 	struct ath10k *ar = hw->priv;
 	struct ath10k_vif *arvif = (void *)vif->drv_priv;
-	struct wmi_start_scan_arg arg;
+	struct wmi_start_scan_arg *arg = NULL;
 	int ret = 0;
 	u32 scan_time_msec;
 
@@ -7936,20 +7943,25 @@ static int ath10k_remain_on_channel(struct ieee80211_hw *hw,
 
 	scan_time_msec = ar->hw->wiphy->max_remain_on_channel_duration * 2;
 
-	memset(&arg, 0, sizeof(arg));
-	ath10k_wmi_start_scan_init(ar, &arg);
-	arg.vdev_id = arvif->vdev_id;
-	arg.scan_id = ATH10K_SCAN_ID;
-	arg.n_channels = 1;
-	arg.channels[0] = chan->center_freq;
-	arg.dwell_time_active = scan_time_msec;
-	arg.dwell_time_passive = scan_time_msec;
-	arg.max_scan_time = scan_time_msec;
-	arg.scan_ctrl_flags |= WMI_SCAN_FLAG_PASSIVE;
-	arg.scan_ctrl_flags |= WMI_SCAN_FILTER_PROBE_REQ;
-	arg.burst_duration_ms = duration;
+	arg = kzalloc(sizeof(*arg), GFP_KERNEL);
+	if (!arg) {
+		ret = -ENOMEM;
+		goto exit;
+	}
 
-	ret = ath10k_start_scan(ar, &arg);
+	ath10k_wmi_start_scan_init(ar, arg);
+	arg->vdev_id = arvif->vdev_id;
+	arg->scan_id = ATH10K_SCAN_ID;
+	arg->n_channels = 1;
+	arg->channels[0] = chan->center_freq;
+	arg->dwell_time_active = scan_time_msec;
+	arg->dwell_time_passive = scan_time_msec;
+	arg->max_scan_time = scan_time_msec;
+	arg->scan_ctrl_flags |= WMI_SCAN_FLAG_PASSIVE;
+	arg->scan_ctrl_flags |= WMI_SCAN_FILTER_PROBE_REQ;
+	arg->burst_duration_ms = duration;
+
+	ret = ath10k_start_scan(ar, arg);
 	if (ret) {
 		ath10k_warn(ar, "failed to start roc scan: %d\n", ret);
 		spin_lock_bh(&ar->data_lock);
@@ -7975,6 +7987,8 @@ static int ath10k_remain_on_channel(struct ieee80211_hw *hw,
 
 	ret = 0;
 exit:
+	kfree(arg);
+
 	mutex_unlock(&ar->conf_mutex);
 	return ret;
 }
@@ -8507,9 +8521,10 @@ exit:
 
 static void ath10k_sta_rc_update(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
-				 struct ieee80211_sta *sta,
+				 struct ieee80211_link_sta *link_sta,
 				 u32 changed)
 {
+	struct ieee80211_sta *sta = link_sta->sta;
 	struct ath10k *ar = hw->priv;
 	struct ath10k_sta *arsta = (struct ath10k_sta *)sta->drv_priv;
 	struct ath10k_vif *arvif = (void *)vif->drv_priv;
@@ -9121,7 +9136,7 @@ static const struct ath10k_index_vht_data_rate_type supported_vht_mcs_rate_nss1[
 	{6,  {2633, 2925}, {1215, 1350}, {585,  650} },
 	{7,  {2925, 3250}, {1350, 1500}, {650,  722} },
 	{8,  {3510, 3900}, {1620, 1800}, {780,  867} },
-	{9,  {3900, 4333}, {1800, 2000}, {780,  867} }
+	{9,  {3900, 4333}, {1800, 2000}, {865,  960} }
 };
 
 /*MCS parameters with Nss = 2 */
@@ -9136,7 +9151,7 @@ static const struct ath10k_index_vht_data_rate_type supported_vht_mcs_rate_nss2[
 	{6,  {5265, 5850}, {2430, 2700}, {1170, 1300} },
 	{7,  {5850, 6500}, {2700, 3000}, {1300, 1444} },
 	{8,  {7020, 7800}, {3240, 3600}, {1560, 1733} },
-	{9,  {7800, 8667}, {3600, 4000}, {1560, 1733} }
+	{9,  {7800, 8667}, {3600, 4000}, {1730, 1920} }
 };
 
 static void ath10k_mac_get_rate_flags_ht(struct ath10k *ar, u32 rate, u8 nss, u8 mcs,
@@ -9450,7 +9465,7 @@ static const struct ieee80211_ops ath10k_ops = {
 	.reconfig_complete		= ath10k_reconfig_complete,
 	.get_survey			= ath10k_get_survey,
 	.set_bitrate_mask		= ath10k_mac_op_set_bitrate_mask,
-	.sta_rc_update			= ath10k_sta_rc_update,
+	.link_sta_rc_update		= ath10k_sta_rc_update,
 	.offset_tsf			= ath10k_offset_tsf,
 	.ampdu_action			= ath10k_ampdu_action,
 	.get_et_sset_count		= ath10k_debug_get_et_sset_count,

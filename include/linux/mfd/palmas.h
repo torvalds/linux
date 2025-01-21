@@ -98,8 +98,8 @@ struct palmas_sleep_requestor_info {
 };
 
 struct palmas_regs_info {
-	char	*name;
-	char	*sname;
+	const char	*name;
+	const char	*sname;
 	u8	vsel_addr;
 	u8	ctrl_addr;
 	u8	tstep_addr;

@@ -2,7 +2,6 @@
 //
 // Copyright 2024 Advanced Micro Devices, Inc.
 
-
 #include "lib_float_math.h"
 
 #define ASSERT(condition)

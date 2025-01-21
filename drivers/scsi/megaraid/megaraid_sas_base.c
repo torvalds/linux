@@ -29,7 +29,7 @@
 #include <linux/uio.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/fs.h>
 #include <linux/compat.h>
 #include <linux/blkdev.h>
@@ -6380,7 +6380,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 				GFP_KERNEL);
 			if (!fusion->stream_detect_by_ld[i]) {
 				dev_err(&instance->pdev->dev,
-					"unable to allocate stream detect by LD\n ");
+					"unable to allocate stream detect by LD\n");
 				for (j = 0; j < i; ++j)
 					kfree(fusion->stream_detect_by_ld[j]);
 				kfree(fusion->stream_detect_by_ld);
@@ -8907,8 +8907,11 @@ megasas_aen_polling(struct work_struct *work)
 						   (ld_target_id / MEGASAS_MAX_DEV_PER_CHANNEL),
 						   (ld_target_id % MEGASAS_MAX_DEV_PER_CHANNEL),
 						   0);
-			if (sdev1)
+			if (sdev1) {
+				mutex_unlock(&instance->reset_mutex);
 				megasas_remove_scsi_device(sdev1);
+				mutex_lock(&instance->reset_mutex);
+			}
 
 			event_type = SCAN_VD_CHANNEL;
 			break;

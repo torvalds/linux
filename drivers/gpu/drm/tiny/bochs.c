@@ -1,21 +1,26 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <linux/bug.h>
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 
-#include <drm/drm_aperture.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_client_setup.h>
+#include <drm/drm_damage_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_edid.h>
-#include <drm/drm_fbdev_ttm.h>
+#include <drm/drm_fbdev_shmem.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
+#include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
-#include <drm/drm_gem_vram_helper.h>
+#include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_module.h>
+#include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/drm_simple_kms_helper.h>
 
 #include <video/vga.h>
 
@@ -71,6 +76,8 @@ enum bochs_types {
 };
 
 struct bochs_device {
+	struct drm_device dev;
+
 	/* hw */
 	void __iomem   *mmio;
 	int            ioports;
@@ -85,22 +92,32 @@ struct bochs_device {
 	u16 yres_virtual;
 	u32 stride;
 	u32 bpp;
-	const struct drm_edid *drm_edid;
 
 	/* drm */
-	struct drm_device *dev;
-	struct drm_simple_display_pipe pipe;
+	struct drm_plane primary_plane;
+	struct drm_crtc crtc;
+	struct drm_encoder encoder;
 	struct drm_connector connector;
 };
 
+static struct bochs_device *to_bochs_device(const struct drm_device *dev)
+{
+	return container_of(dev, struct bochs_device, dev);
+}
+
 /* ---------------------------------------------------------------------- */
+
+static __always_inline bool bochs_uses_mmio(struct bochs_device *bochs)
+{
+	return !IS_ENABLED(CONFIG_HAS_IOPORT) || bochs->mmio;
+}
 
 static void bochs_vga_writeb(struct bochs_device *bochs, u16 ioport, u8 val)
 {
 	if (WARN_ON(ioport < 0x3c0 || ioport > 0x3df))
 		return;
 
-	if (bochs->mmio) {
+	if (bochs_uses_mmio(bochs)) {
 		int offset = ioport - 0x3c0 + 0x400;
 
 		writeb(val, bochs->mmio + offset);
@@ -114,7 +131,7 @@ static u8 bochs_vga_readb(struct bochs_device *bochs, u16 ioport)
 	if (WARN_ON(ioport < 0x3c0 || ioport > 0x3df))
 		return 0xff;
 
-	if (bochs->mmio) {
+	if (bochs_uses_mmio(bochs)) {
 		int offset = ioport - 0x3c0 + 0x400;
 
 		return readb(bochs->mmio + offset);
@@ -127,7 +144,7 @@ static u16 bochs_dispi_read(struct bochs_device *bochs, u16 reg)
 {
 	u16 ret = 0;
 
-	if (bochs->mmio) {
+	if (bochs_uses_mmio(bochs)) {
 		int offset = 0x500 + (reg << 1);
 
 		ret = readw(bochs->mmio + offset);
@@ -140,7 +157,7 @@ static u16 bochs_dispi_read(struct bochs_device *bochs, u16 reg)
 
 static void bochs_dispi_write(struct bochs_device *bochs, u16 reg, u16 val)
 {
-	if (bochs->mmio) {
+	if (bochs_uses_mmio(bochs)) {
 		int offset = 0x500 + (reg << 1);
 
 		writew(val, bochs->mmio + offset);
@@ -172,11 +189,13 @@ static void bochs_hw_set_little_endian(struct bochs_device *bochs)
 #define bochs_hw_set_native_endian(_b) bochs_hw_set_little_endian(_b)
 #endif
 
-static int bochs_get_edid_block(void *data, u8 *buf,
-				unsigned int block, size_t len)
+static int bochs_get_edid_block(void *data, u8 *buf, unsigned int block, size_t len)
 {
 	struct bochs_device *bochs = data;
 	size_t i, start = block * EDID_LENGTH;
+
+	if (!bochs->mmio)
+		return -1;
 
 	if (start + len > 0x400 /* vga register offset */)
 		return -1;
@@ -187,55 +206,53 @@ static int bochs_get_edid_block(void *data, u8 *buf,
 	return 0;
 }
 
-static int bochs_hw_load_edid(struct bochs_device *bochs)
+static const struct drm_edid *bochs_hw_read_edid(struct drm_connector *connector)
 {
+	struct drm_device *dev = connector->dev;
+	struct bochs_device *bochs = to_bochs_device(dev);
 	u8 header[8];
-
-	if (!bochs->mmio)
-		return -1;
 
 	/* check header to detect whenever edid support is enabled in qemu */
 	bochs_get_edid_block(bochs, header, 0, ARRAY_SIZE(header));
 	if (drm_edid_header_is_valid(header) != 8)
-		return -1;
+		return NULL;
 
-	drm_edid_free(bochs->drm_edid);
-	bochs->drm_edid = drm_edid_read_custom(&bochs->connector,
-					       bochs_get_edid_block, bochs);
-	if (!bochs->drm_edid)
-		return -1;
+	drm_dbg(dev, "Found EDID data blob.\n");
 
-	return 0;
+	return drm_edid_read_custom(connector, bochs_get_edid_block, bochs);
 }
 
-static int bochs_hw_init(struct drm_device *dev)
+static int bochs_hw_init(struct bochs_device *bochs)
 {
-	struct bochs_device *bochs = dev->dev_private;
+	struct drm_device *dev = &bochs->dev;
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	unsigned long addr, size, mem, ioaddr, iosize;
 	u16 id;
 
 	if (pdev->resource[2].flags & IORESOURCE_MEM) {
+		ioaddr = pci_resource_start(pdev, 2);
+		iosize = pci_resource_len(pdev, 2);
 		/* mmio bar with vga and bochs registers present */
-		if (pci_request_region(pdev, 2, "bochs-drm") != 0) {
+		if (!devm_request_mem_region(&pdev->dev, ioaddr, iosize, "bochs-drm")) {
 			DRM_ERROR("Cannot request mmio region\n");
 			return -EBUSY;
 		}
-		ioaddr = pci_resource_start(pdev, 2);
-		iosize = pci_resource_len(pdev, 2);
-		bochs->mmio = ioremap(ioaddr, iosize);
+		bochs->mmio = devm_ioremap(&pdev->dev, ioaddr, iosize);
 		if (bochs->mmio == NULL) {
 			DRM_ERROR("Cannot map mmio region\n");
 			return -ENOMEM;
 		}
-	} else {
+	} else if (IS_ENABLED(CONFIG_HAS_IOPORT)) {
 		ioaddr = VBE_DISPI_IOPORT_INDEX;
 		iosize = 2;
-		if (!request_region(ioaddr, iosize, "bochs-drm")) {
+		if (!devm_request_region(&pdev->dev, ioaddr, iosize, "bochs-drm")) {
 			DRM_ERROR("Cannot request ioports\n");
 			return -EBUSY;
 		}
 		bochs->ioports = 1;
+	} else {
+		dev_err(dev->dev, "I/O ports are not supported\n");
+		return -EIO;
 	}
 
 	id = bochs_dispi_read(bochs, VBE_DISPI_INDEX_ID);
@@ -258,10 +275,10 @@ static int bochs_hw_init(struct drm_device *dev)
 		size = min(size, mem);
 	}
 
-	if (pci_request_region(pdev, 0, "bochs-drm") != 0)
+	if (!devm_request_mem_region(&pdev->dev, addr, size, "bochs-drm"))
 		DRM_WARN("Cannot request framebuffer, boot fb still active?\n");
 
-	bochs->fb_map = ioremap(addr, size);
+	bochs->fb_map = devm_ioremap_wc(&pdev->dev, addr, size);
 	if (bochs->fb_map == NULL) {
 		DRM_ERROR("Cannot map framebuffer\n");
 		return -ENOMEM;
@@ -290,22 +307,6 @@ noext:
 	return 0;
 }
 
-static void bochs_hw_fini(struct drm_device *dev)
-{
-	struct bochs_device *bochs = dev->dev_private;
-
-	/* TODO: shot down existing vram mappings */
-
-	if (bochs->mmio)
-		iounmap(bochs->mmio);
-	if (bochs->ioports)
-		release_region(VBE_DISPI_IOPORT_INDEX, 2);
-	if (bochs->fb_map)
-		iounmap(bochs->fb_map);
-	pci_release_regions(to_pci_dev(dev->dev));
-	drm_edid_free(bochs->drm_edid);
-}
-
 static void bochs_hw_blank(struct bochs_device *bochs, bool blank)
 {
 	DRM_DEBUG_DRIVER("hw_blank %d\n", blank);
@@ -321,7 +322,7 @@ static void bochs_hw_setmode(struct bochs_device *bochs, struct drm_display_mode
 {
 	int idx;
 
-	if (!drm_dev_enter(bochs->dev, &idx))
+	if (!drm_dev_enter(&bochs->dev, &idx))
 		return;
 
 	bochs->xres = mode->hdisplay;
@@ -357,7 +358,7 @@ static void bochs_hw_setformat(struct bochs_device *bochs, const struct drm_form
 {
 	int idx;
 
-	if (!drm_dev_enter(bochs->dev, &idx))
+	if (!drm_dev_enter(&bochs->dev, &idx))
 		return;
 
 	DRM_DEBUG_DRIVER("format %c%c%c%c\n",
@@ -388,7 +389,7 @@ static void bochs_hw_setbase(struct bochs_device *bochs, int x, int y, int strid
 	unsigned long offset;
 	unsigned int vx, vy, vwidth, idx;
 
-	if (!drm_dev_enter(bochs->dev, &idx))
+	if (!drm_dev_enter(&bochs->dev, &idx))
 		return;
 
 	bochs->stride = stride;
@@ -410,83 +411,156 @@ static void bochs_hw_setbase(struct bochs_device *bochs, int x, int y, int strid
 
 /* ---------------------------------------------------------------------- */
 
-static const uint32_t bochs_formats[] = {
+static const uint32_t bochs_primary_plane_formats[] = {
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_BGRX8888,
 };
 
-static void bochs_plane_update(struct bochs_device *bochs, struct drm_plane_state *state)
+static int bochs_primary_plane_helper_atomic_check(struct drm_plane *plane,
+						   struct drm_atomic_state *state)
 {
-	struct drm_gem_vram_object *gbo;
-	s64 gpu_addr;
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state, plane);
+	struct drm_crtc *new_crtc = new_plane_state->crtc;
+	struct drm_crtc_state *new_crtc_state = NULL;
+	int ret;
 
-	if (!state->fb || !bochs->stride)
+	if (new_crtc)
+		new_crtc_state = drm_atomic_get_new_crtc_state(state, new_crtc);
+
+	ret = drm_atomic_helper_check_plane_state(new_plane_state, new_crtc_state,
+						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_NO_SCALING,
+						  false, false);
+	if (ret)
+		return ret;
+	else if (!new_plane_state->visible)
+		return 0;
+
+	return 0;
+}
+
+static void bochs_primary_plane_helper_atomic_update(struct drm_plane *plane,
+						     struct drm_atomic_state *state)
+{
+	struct drm_device *dev = plane->dev;
+	struct bochs_device *bochs = to_bochs_device(dev);
+	struct drm_plane_state *plane_state = plane->state;
+	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
+	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
+	struct drm_framebuffer *fb = plane_state->fb;
+	struct drm_atomic_helper_damage_iter iter;
+	struct drm_rect damage;
+
+	if (!fb || !bochs->stride)
 		return;
 
-	gbo = drm_gem_vram_of_gem(state->fb->obj[0]);
-	gpu_addr = drm_gem_vram_offset(gbo);
-	if (WARN_ON_ONCE(gpu_addr < 0))
-		return; /* Bug: we didn't pin the BO to VRAM in prepare_fb. */
+	drm_atomic_helper_damage_iter_init(&iter, old_plane_state, plane_state);
+	drm_atomic_for_each_plane_damage(&iter, &damage) {
+		struct iosys_map dst = IOSYS_MAP_INIT_VADDR_IOMEM(bochs->fb_map);
 
+		iosys_map_incr(&dst, drm_fb_clip_offset(fb->pitches[0], fb->format, &damage));
+		drm_fb_memcpy(&dst, fb->pitches, shadow_plane_state->data, fb, &damage);
+	}
+
+	/* Always scanout image at VRAM offset 0 */
 	bochs_hw_setbase(bochs,
-			 state->crtc_x,
-			 state->crtc_y,
-			 state->fb->pitches[0],
-			 state->fb->offsets[0] + gpu_addr);
-	bochs_hw_setformat(bochs, state->fb->format);
+			 plane_state->crtc_x,
+			 plane_state->crtc_y,
+			 fb->pitches[0],
+			 0);
+	bochs_hw_setformat(bochs, fb->format);
 }
 
-static void bochs_pipe_enable(struct drm_simple_display_pipe *pipe,
-			      struct drm_crtc_state *crtc_state,
-			      struct drm_plane_state *plane_state)
+static const struct drm_plane_helper_funcs bochs_primary_plane_helper_funcs = {
+	DRM_GEM_SHADOW_PLANE_HELPER_FUNCS,
+	.atomic_check = bochs_primary_plane_helper_atomic_check,
+	.atomic_update = bochs_primary_plane_helper_atomic_update,
+};
+
+static const struct drm_plane_funcs bochs_primary_plane_funcs = {
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
+	.destroy = drm_plane_cleanup,
+	DRM_GEM_SHADOW_PLANE_FUNCS
+};
+
+static void bochs_crtc_helper_mode_set_nofb(struct drm_crtc *crtc)
 {
-	struct bochs_device *bochs = pipe->crtc.dev->dev_private;
+	struct bochs_device *bochs = to_bochs_device(crtc->dev);
+	struct drm_crtc_state *crtc_state = crtc->state;
 
 	bochs_hw_setmode(bochs, &crtc_state->mode);
-	bochs_plane_update(bochs, plane_state);
 }
 
-static void bochs_pipe_disable(struct drm_simple_display_pipe *pipe)
+static int bochs_crtc_helper_atomic_check(struct drm_crtc *crtc,
+					  struct drm_atomic_state *state)
 {
-	struct bochs_device *bochs = pipe->crtc.dev->dev_private;
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+
+	if (!crtc_state->enable)
+		return 0;
+
+	return drm_atomic_helper_check_crtc_primary_plane(crtc_state);
+}
+
+static void bochs_crtc_helper_atomic_enable(struct drm_crtc *crtc,
+					    struct drm_atomic_state *state)
+{
+}
+
+static void bochs_crtc_helper_atomic_disable(struct drm_crtc *crtc,
+					     struct drm_atomic_state *crtc_state)
+{
+	struct bochs_device *bochs = to_bochs_device(crtc->dev);
 
 	bochs_hw_blank(bochs, true);
 }
 
-static void bochs_pipe_update(struct drm_simple_display_pipe *pipe,
-			      struct drm_plane_state *old_state)
-{
-	struct bochs_device *bochs = pipe->crtc.dev->dev_private;
-
-	bochs_plane_update(bochs, pipe->plane.state);
-}
-
-static const struct drm_simple_display_pipe_funcs bochs_pipe_funcs = {
-	.enable	    = bochs_pipe_enable,
-	.disable    = bochs_pipe_disable,
-	.update	    = bochs_pipe_update,
-	.prepare_fb = drm_gem_vram_simple_display_pipe_prepare_fb,
-	.cleanup_fb = drm_gem_vram_simple_display_pipe_cleanup_fb,
+static const struct drm_crtc_helper_funcs bochs_crtc_helper_funcs = {
+	.mode_set_nofb = bochs_crtc_helper_mode_set_nofb,
+	.atomic_check = bochs_crtc_helper_atomic_check,
+	.atomic_enable = bochs_crtc_helper_atomic_enable,
+	.atomic_disable = bochs_crtc_helper_atomic_disable,
 };
 
-static int bochs_connector_get_modes(struct drm_connector *connector)
+static const struct drm_crtc_funcs bochs_crtc_funcs = {
+	.reset = drm_atomic_helper_crtc_reset,
+	.destroy = drm_crtc_cleanup,
+	.set_config = drm_atomic_helper_set_config,
+	.page_flip = drm_atomic_helper_page_flip,
+	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+};
+
+static const struct drm_encoder_funcs bochs_encoder_funcs = {
+	.destroy = drm_encoder_cleanup,
+};
+
+static int bochs_connector_helper_get_modes(struct drm_connector *connector)
 {
+	const struct drm_edid *edid;
 	int count;
 
-	count = drm_edid_connector_add_modes(connector);
+	edid = bochs_hw_read_edid(connector);
 
-	if (!count) {
+	if (edid) {
+		drm_edid_connector_update(connector, edid);
+		count = drm_edid_connector_add_modes(connector);
+		drm_edid_free(edid);
+	} else {
+		drm_edid_connector_update(connector, NULL);
 		count = drm_add_modes_noedid(connector, 8192, 8192);
 		drm_set_preferred_mode(connector, defx, defy);
 	}
+
 	return count;
 }
 
-static const struct drm_connector_helper_funcs bochs_connector_connector_helper_funcs = {
-	.get_modes = bochs_connector_get_modes,
+static const struct drm_connector_helper_funcs bochs_connector_helper_funcs = {
+	.get_modes = bochs_connector_helper_get_modes,
 };
 
-static const struct drm_connector_funcs bochs_connector_connector_funcs = {
+static const struct drm_connector_funcs bochs_connector_funcs = {
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = drm_connector_cleanup,
 	.reset = drm_atomic_helper_connector_reset,
@@ -494,68 +568,89 @@ static const struct drm_connector_funcs bochs_connector_connector_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
-static void bochs_connector_init(struct drm_device *dev)
+static enum drm_mode_status bochs_mode_config_mode_valid(struct drm_device *dev,
+							 const struct drm_display_mode *mode)
 {
-	struct bochs_device *bochs = dev->dev_private;
-	struct drm_connector *connector = &bochs->connector;
+	struct bochs_device *bochs = to_bochs_device(dev);
+	const struct drm_format_info *format = drm_format_info(DRM_FORMAT_XRGB8888);
+	u64 pitch;
 
-	drm_connector_init(dev, connector, &bochs_connector_connector_funcs,
-			   DRM_MODE_CONNECTOR_VIRTUAL);
-	drm_connector_helper_add(connector, &bochs_connector_connector_helper_funcs);
+	if (drm_WARN_ON(dev, !format))
+		return MODE_ERROR;
 
-	bochs_hw_load_edid(bochs);
-	if (bochs->drm_edid) {
-		DRM_INFO("Found EDID data blob.\n");
-		drm_connector_attach_edid_property(connector);
-		drm_edid_connector_update(&bochs->connector, bochs->drm_edid);
-	}
+	pitch = drm_format_info_min_pitch(format, 0, mode->hdisplay);
+	if (!pitch)
+		return MODE_BAD_WIDTH;
+	if (mode->vdisplay > DIV_ROUND_DOWN_ULL(bochs->fb_size, pitch))
+		return MODE_MEM;
+
+	return MODE_OK;
 }
 
-static struct drm_framebuffer *
-bochs_gem_fb_create(struct drm_device *dev, struct drm_file *file,
-		    const struct drm_mode_fb_cmd2 *mode_cmd)
-{
-	if (mode_cmd->pixel_format != DRM_FORMAT_XRGB8888 &&
-	    mode_cmd->pixel_format != DRM_FORMAT_BGRX8888)
-		return ERR_PTR(-EINVAL);
-
-	return drm_gem_fb_create(dev, file, mode_cmd);
-}
-
-static const struct drm_mode_config_funcs bochs_mode_funcs = {
-	.fb_create = bochs_gem_fb_create,
-	.mode_valid = drm_vram_helper_mode_valid,
+static const struct drm_mode_config_funcs bochs_mode_config_funcs = {
+	.fb_create = drm_gem_fb_create_with_dirty,
+	.mode_valid = bochs_mode_config_mode_valid,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
 static int bochs_kms_init(struct bochs_device *bochs)
 {
+	struct drm_device *dev = &bochs->dev;
+	struct drm_plane *primary_plane;
+	struct drm_crtc *crtc;
+	struct drm_connector *connector;
+	struct drm_encoder *encoder;
 	int ret;
 
-	ret = drmm_mode_config_init(bochs->dev);
+	ret = drmm_mode_config_init(dev);
 	if (ret)
 		return ret;
 
-	bochs->dev->mode_config.max_width = 8192;
-	bochs->dev->mode_config.max_height = 8192;
+	dev->mode_config.max_width = 8192;
+	dev->mode_config.max_height = 8192;
 
-	bochs->dev->mode_config.preferred_depth = 24;
-	bochs->dev->mode_config.prefer_shadow = 0;
-	bochs->dev->mode_config.quirk_addfb_prefer_host_byte_order = true;
+	dev->mode_config.preferred_depth = 24;
+	dev->mode_config.quirk_addfb_prefer_host_byte_order = true;
 
-	bochs->dev->mode_config.funcs = &bochs_mode_funcs;
+	dev->mode_config.funcs = &bochs_mode_config_funcs;
 
-	bochs_connector_init(bochs->dev);
-	drm_simple_display_pipe_init(bochs->dev,
-				     &bochs->pipe,
-				     &bochs_pipe_funcs,
-				     bochs_formats,
-				     ARRAY_SIZE(bochs_formats),
-				     NULL,
-				     &bochs->connector);
+	primary_plane = &bochs->primary_plane;
+	ret = drm_universal_plane_init(dev, primary_plane, 0,
+				       &bochs_primary_plane_funcs,
+				       bochs_primary_plane_formats,
+				       ARRAY_SIZE(bochs_primary_plane_formats),
+				       NULL,
+				       DRM_PLANE_TYPE_PRIMARY, NULL);
+	if (ret)
+		return ret;
+	drm_plane_helper_add(primary_plane, &bochs_primary_plane_helper_funcs);
+	drm_plane_enable_fb_damage_clips(primary_plane);
 
-	drm_mode_config_reset(bochs->dev);
+	crtc = &bochs->crtc;
+	ret = drm_crtc_init_with_planes(dev, crtc, primary_plane, NULL,
+					&bochs_crtc_funcs, NULL);
+	if (ret)
+		return ret;
+	drm_crtc_helper_add(crtc, &bochs_crtc_helper_funcs);
+
+	encoder = &bochs->encoder;
+	ret = drm_encoder_init(dev, encoder, &bochs_encoder_funcs,
+			       DRM_MODE_ENCODER_VIRTUAL, NULL);
+	if (ret)
+		return ret;
+	encoder->possible_crtcs = drm_crtc_mask(crtc);
+
+	connector = &bochs->connector;
+	ret = drm_connector_init(dev, connector, &bochs_connector_funcs,
+				 DRM_MODE_CONNECTOR_VIRTUAL);
+	if (ret)
+		return ret;
+	drm_connector_helper_add(connector, &bochs_connector_helper_funcs);
+	drm_connector_attach_edid_property(connector);
+	drm_connector_attach_encoder(connector, encoder);
+
+	drm_mode_config_reset(dev);
 
 	return 0;
 }
@@ -563,34 +658,19 @@ static int bochs_kms_init(struct bochs_device *bochs)
 /* ---------------------------------------------------------------------- */
 /* drm interface                                                          */
 
-static int bochs_load(struct drm_device *dev)
+static int bochs_load(struct bochs_device *bochs)
 {
-	struct bochs_device *bochs;
 	int ret;
 
-	bochs = drmm_kzalloc(dev, sizeof(*bochs), GFP_KERNEL);
-	if (bochs == NULL)
-		return -ENOMEM;
-	dev->dev_private = bochs;
-	bochs->dev = dev;
-
-	ret = bochs_hw_init(dev);
+	ret = bochs_hw_init(bochs);
 	if (ret)
 		return ret;
 
-	ret = drmm_vram_helper_init(dev, bochs->fb_base, bochs->fb_size);
-	if (ret)
-		goto err_hw_fini;
-
 	ret = bochs_kms_init(bochs);
 	if (ret)
-		goto err_hw_fini;
+		return ret;
 
 	return 0;
-
-err_hw_fini:
-	bochs_hw_fini(dev);
-	return ret;
 }
 
 DEFINE_DRM_GEM_FOPS(bochs_fops);
@@ -603,7 +683,8 @@ static const struct drm_driver bochs_driver = {
 	.date			= "20130925",
 	.major			= 1,
 	.minor			= 0,
-	DRM_GEM_VRAM_DRIVER,
+	DRM_GEM_SHMEM_DRIVER_OPS,
+	DRM_FBDEV_SHMEM_DRIVER_OPS,
 };
 
 /* ---------------------------------------------------------------------- */
@@ -635,23 +716,18 @@ static const struct dev_pm_ops bochs_pm_ops = {
 
 static int bochs_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
+	struct bochs_device *bochs;
 	struct drm_device *dev;
-	unsigned long fbsize;
 	int ret;
 
-	fbsize = pci_resource_len(pdev, 0);
-	if (fbsize < 4 * 1024 * 1024) {
-		DRM_ERROR("less than 4 MB video memory, ignoring device\n");
-		return -ENOMEM;
-	}
-
-	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, &bochs_driver);
+	ret = aperture_remove_conflicting_pci_devices(pdev, bochs_driver.name);
 	if (ret)
 		return ret;
 
-	dev = drm_dev_alloc(&bochs_driver, &pdev->dev);
-	if (IS_ERR(dev))
-		return PTR_ERR(dev);
+	bochs = devm_drm_dev_alloc(&pdev->dev, &bochs_driver, struct bochs_device, dev);
+	if (IS_ERR(bochs))
+		return PTR_ERR(bochs);
+	dev = &bochs->dev;
 
 	ret = pcim_enable_device(pdev);
 	if (ret)
@@ -659,19 +735,18 @@ static int bochs_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent
 
 	pci_set_drvdata(pdev, dev);
 
-	ret = bochs_load(dev);
+	ret = bochs_load(bochs);
 	if (ret)
 		goto err_free_dev;
 
 	ret = drm_dev_register(dev, 0);
 	if (ret)
-		goto err_hw_fini;
+		goto err_free_dev;
 
-	drm_fbdev_ttm_setup(dev, 32);
+	drm_client_setup(dev, NULL);
+
 	return ret;
 
-err_hw_fini:
-	bochs_hw_fini(dev);
 err_free_dev:
 	drm_dev_put(dev);
 	return ret;
@@ -683,7 +758,6 @@ static void bochs_pci_remove(struct pci_dev *pdev)
 
 	drm_dev_unplug(dev);
 	drm_atomic_helper_shutdown(dev);
-	bochs_hw_fini(dev);
 	drm_dev_put(dev);
 }
 

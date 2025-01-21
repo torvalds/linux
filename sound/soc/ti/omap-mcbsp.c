@@ -1430,7 +1430,7 @@ static struct platform_driver asoc_mcbsp_driver = {
 	},
 
 	.probe = asoc_mcbsp_probe,
-	.remove_new = asoc_mcbsp_remove,
+	.remove = asoc_mcbsp_remove,
 };
 
 module_platform_driver(asoc_mcbsp_driver);

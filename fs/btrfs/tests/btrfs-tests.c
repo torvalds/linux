@@ -29,6 +29,7 @@ const char *test_error[] = {
 	[TEST_ALLOC_BLOCK_GROUP]     = "cannot allocate block group",
 	[TEST_ALLOC_EXTENT_MAP]      = "cannot allocate extent map",
 	[TEST_ALLOC_CHUNK_MAP]       = "cannot allocate chunk map",
+	[TEST_ALLOC_IO_CONTEXT]	     = "cannot allocate io context",
 };
 
 static const struct super_operations btrfs_test_super_ops = {
@@ -289,6 +290,9 @@ int btrfs_run_sanity_tests(void)
 			if (ret)
 				goto out;
 			ret = btrfs_test_free_space_tree(sectorsize, nodesize);
+			if (ret)
+				goto out;
+			ret = btrfs_test_raid_stripe_tree(sectorsize, nodesize);
 			if (ret)
 				goto out;
 		}

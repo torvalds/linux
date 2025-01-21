@@ -234,9 +234,10 @@ do {									\
  */
 #define percpu_add_op(size, qual, var, val)				\
 do {									\
-	const int pao_ID__ = (__builtin_constant_p(val) &&		\
-			      ((val) == 1 || (val) == -1)) ?		\
-				(int)(val) : 0;				\
+	const int pao_ID__ =						\
+		(__builtin_constant_p(val) &&				\
+			((val) == 1 ||					\
+			 (val) == (typeof(val))-1)) ? (int)(val) : 0;	\
 									\
 	if (0) {							\
 		typeof(var) pao_tmp__;					\

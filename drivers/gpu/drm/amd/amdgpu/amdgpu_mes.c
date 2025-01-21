@@ -104,7 +104,7 @@ static int amdgpu_mes_event_log_init(struct amdgpu_device *adev)
 		return 0;
 
 	r = amdgpu_bo_create_kernel(adev, adev->mes.event_log_size, PAGE_SIZE,
-				    AMDGPU_GEM_DOMAIN_GTT,
+				    AMDGPU_GEM_DOMAIN_VRAM,
 				    &adev->mes.event_log_gpu_obj,
 				    &adev->mes.event_log_gpu_addr,
 				    &adev->mes.event_log_cpu_addr);
@@ -192,17 +192,6 @@ int amdgpu_mes_init(struct amdgpu_device *adev)
 			(uint64_t *)&adev->wb.wb[adev->mes.query_status_fence_offs[i]];
 	}
 
-	r = amdgpu_device_wb_get(adev, &adev->mes.read_val_offs);
-	if (r) {
-		dev_err(adev->dev,
-			"(%d) read_val_offs alloc failed\n", r);
-		goto error;
-	}
-	adev->mes.read_val_gpu_addr =
-		adev->wb.gpu_addr + (adev->mes.read_val_offs * 4);
-	adev->mes.read_val_ptr =
-		(uint32_t *)&adev->wb.wb[adev->mes.read_val_offs];
-
 	r = amdgpu_mes_doorbell_init(adev);
 	if (r)
 		goto error;
@@ -223,8 +212,6 @@ error:
 			amdgpu_device_wb_free(adev,
 				      adev->mes.query_status_fence_offs[i]);
 	}
-	if (adev->mes.read_val_ptr)
-		amdgpu_device_wb_free(adev, adev->mes.read_val_offs);
 
 	idr_destroy(&adev->mes.pasid_idr);
 	idr_destroy(&adev->mes.gang_id_idr);
@@ -249,8 +236,6 @@ void amdgpu_mes_fini(struct amdgpu_device *adev)
 			amdgpu_device_wb_free(adev,
 				      adev->mes.query_status_fence_offs[i]);
 	}
-	if (adev->mes.read_val_ptr)
-		amdgpu_device_wb_free(adev, adev->mes.read_val_offs);
 
 	amdgpu_mes_doorbell_free(adev);
 
@@ -501,60 +486,50 @@ int amdgpu_mes_remove_gang(struct amdgpu_device *adev, int gang_id)
 
 int amdgpu_mes_suspend(struct amdgpu_device *adev)
 {
-	struct idr *idp;
-	struct amdgpu_mes_process *process;
-	struct amdgpu_mes_gang *gang;
 	struct mes_suspend_gang_input input;
-	int r, pasid;
+	int r;
+
+	if (!amdgpu_mes_suspend_resume_all_supported(adev))
+		return 0;
+
+	memset(&input, 0x0, sizeof(struct mes_suspend_gang_input));
+	input.suspend_all_gangs = 1;
 
 	/*
 	 * Avoid taking any other locks under MES lock to avoid circular
 	 * lock dependencies.
 	 */
 	amdgpu_mes_lock(&adev->mes);
-
-	idp = &adev->mes.pasid_idr;
-
-	idr_for_each_entry(idp, process, pasid) {
-		list_for_each_entry(gang, &process->gang_list, list) {
-			r = adev->mes.funcs->suspend_gang(&adev->mes, &input);
-			if (r)
-				DRM_ERROR("failed to suspend pasid %d gangid %d",
-					 pasid, gang->gang_id);
-		}
-	}
-
+	r = adev->mes.funcs->suspend_gang(&adev->mes, &input);
 	amdgpu_mes_unlock(&adev->mes);
-	return 0;
+	if (r)
+		DRM_ERROR("failed to suspend all gangs");
+
+	return r;
 }
 
 int amdgpu_mes_resume(struct amdgpu_device *adev)
 {
-	struct idr *idp;
-	struct amdgpu_mes_process *process;
-	struct amdgpu_mes_gang *gang;
 	struct mes_resume_gang_input input;
-	int r, pasid;
+	int r;
+
+	if (!amdgpu_mes_suspend_resume_all_supported(adev))
+		return 0;
+
+	memset(&input, 0x0, sizeof(struct mes_resume_gang_input));
+	input.resume_all_gangs = 1;
 
 	/*
 	 * Avoid taking any other locks under MES lock to avoid circular
 	 * lock dependencies.
 	 */
 	amdgpu_mes_lock(&adev->mes);
-
-	idp = &adev->mes.pasid_idr;
-
-	idr_for_each_entry(idp, process, pasid) {
-		list_for_each_entry(gang, &process->gang_list, list) {
-			r = adev->mes.funcs->resume_gang(&adev->mes, &input);
-			if (r)
-				DRM_ERROR("failed to resume pasid %d gangid %d",
-					 pasid, gang->gang_id);
-		}
-	}
-
+	r = adev->mes.funcs->resume_gang(&adev->mes, &input);
 	amdgpu_mes_unlock(&adev->mes);
-	return 0;
+	if (r)
+		DRM_ERROR("failed to resume all gangs");
+
+	return r;
 }
 
 static int amdgpu_mes_queue_alloc_mqd(struct amdgpu_device *adev,
@@ -793,6 +768,68 @@ int amdgpu_mes_remove_hw_queue(struct amdgpu_device *adev, int queue_id)
 	return 0;
 }
 
+int amdgpu_mes_reset_hw_queue(struct amdgpu_device *adev, int queue_id)
+{
+	unsigned long flags;
+	struct amdgpu_mes_queue *queue;
+	struct amdgpu_mes_gang *gang;
+	struct mes_reset_queue_input queue_input;
+	int r;
+
+	/*
+	 * Avoid taking any other locks under MES lock to avoid circular
+	 * lock dependencies.
+	 */
+	amdgpu_mes_lock(&adev->mes);
+
+	/* remove the mes gang from idr list */
+	spin_lock_irqsave(&adev->mes.queue_id_lock, flags);
+
+	queue = idr_find(&adev->mes.queue_id_idr, queue_id);
+	if (!queue) {
+		spin_unlock_irqrestore(&adev->mes.queue_id_lock, flags);
+		amdgpu_mes_unlock(&adev->mes);
+		DRM_ERROR("queue id %d doesn't exist\n", queue_id);
+		return -EINVAL;
+	}
+	spin_unlock_irqrestore(&adev->mes.queue_id_lock, flags);
+
+	DRM_DEBUG("try to reset queue, doorbell off = 0x%llx\n",
+		  queue->doorbell_off);
+
+	gang = queue->gang;
+	queue_input.doorbell_offset = queue->doorbell_off;
+	queue_input.gang_context_addr = gang->gang_ctx_gpu_addr;
+
+	r = adev->mes.funcs->reset_hw_queue(&adev->mes, &queue_input);
+	if (r)
+		DRM_ERROR("failed to reset hardware queue, queue id = %d\n",
+			  queue_id);
+
+	amdgpu_mes_unlock(&adev->mes);
+
+	return 0;
+}
+
+int amdgpu_mes_reset_hw_queue_mmio(struct amdgpu_device *adev, int queue_type,
+				   int me_id, int pipe_id, int queue_id, int vmid)
+{
+	struct mes_reset_queue_input queue_input;
+	int r;
+
+	queue_input.queue_type = queue_type;
+	queue_input.use_mmio = true;
+	queue_input.me_id = me_id;
+	queue_input.pipe_id = pipe_id;
+	queue_input.queue_id = queue_id;
+	queue_input.vmid = vmid;
+	r = adev->mes.funcs->reset_hw_queue(&adev->mes, &queue_input);
+	if (r)
+		DRM_ERROR("failed to reset hardware queue by mmio, queue id = %d\n",
+			  queue_id);
+	return r;
+}
+
 int amdgpu_mes_map_legacy_queue(struct amdgpu_device *adev,
 				struct amdgpu_ring *ring)
 {
@@ -838,14 +875,50 @@ int amdgpu_mes_unmap_legacy_queue(struct amdgpu_device *adev,
 	return r;
 }
 
+int amdgpu_mes_reset_legacy_queue(struct amdgpu_device *adev,
+				  struct amdgpu_ring *ring,
+				  unsigned int vmid,
+				  bool use_mmio)
+{
+	struct mes_reset_legacy_queue_input queue_input;
+	int r;
+
+	memset(&queue_input, 0, sizeof(queue_input));
+
+	queue_input.queue_type = ring->funcs->type;
+	queue_input.doorbell_offset = ring->doorbell_index;
+	queue_input.me_id = ring->me;
+	queue_input.pipe_id = ring->pipe;
+	queue_input.queue_id = ring->queue;
+	queue_input.mqd_addr = ring->mqd_obj ? amdgpu_bo_gpu_offset(ring->mqd_obj) : 0;
+	queue_input.wptr_addr = ring->wptr_gpu_addr;
+	queue_input.vmid = vmid;
+	queue_input.use_mmio = use_mmio;
+
+	r = adev->mes.funcs->reset_legacy_queue(&adev->mes, &queue_input);
+	if (r)
+		DRM_ERROR("failed to reset legacy queue\n");
+
+	return r;
+}
+
 uint32_t amdgpu_mes_rreg(struct amdgpu_device *adev, uint32_t reg)
 {
 	struct mes_misc_op_input op_input;
 	int r, val = 0;
+	uint32_t addr_offset = 0;
+	uint64_t read_val_gpu_addr;
+	uint32_t *read_val_ptr;
 
+	if (amdgpu_device_wb_get(adev, &addr_offset)) {
+		DRM_ERROR("critical bug! too many mes readers\n");
+		goto error;
+	}
+	read_val_gpu_addr = adev->wb.gpu_addr + (addr_offset * 4);
+	read_val_ptr = (uint32_t *)&adev->wb.wb[addr_offset];
 	op_input.op = MES_MISC_OP_READ_REG;
 	op_input.read_reg.reg_offset = reg;
-	op_input.read_reg.buffer_addr = adev->mes.read_val_gpu_addr;
+	op_input.read_reg.buffer_addr = read_val_gpu_addr;
 
 	if (!adev->mes.funcs->misc_op) {
 		DRM_ERROR("mes rreg is not supported!\n");
@@ -856,9 +929,11 @@ uint32_t amdgpu_mes_rreg(struct amdgpu_device *adev, uint32_t reg)
 	if (r)
 		DRM_ERROR("failed to read reg (0x%x)\n", reg);
 	else
-		val = *(adev->mes.read_val_ptr);
+		val = *(read_val_ptr);
 
 error:
+	if (addr_offset)
+		amdgpu_device_wb_free(adev, addr_offset);
 	return val;
 }
 
@@ -1124,8 +1199,10 @@ int amdgpu_mes_add_ring(struct amdgpu_device *adev, int gang_id,
 
 	r = amdgpu_ring_init(adev, ring, 1024, NULL, 0,
 			     AMDGPU_RING_PRIO_DEFAULT, NULL);
-	if (r)
+	if (r) {
+		amdgpu_mes_unlock(&adev->mes);
 		goto clean_up_memory;
+	}
 
 	amdgpu_mes_ring_to_queue_props(adev, ring, &qprops);
 
@@ -1158,7 +1235,6 @@ clean_up_ring:
 	amdgpu_ring_fini(ring);
 clean_up_memory:
 	kfree(ring);
-	amdgpu_mes_unlock(&adev->mes);
 	return r;
 }
 
@@ -1514,6 +1590,7 @@ int amdgpu_mes_init_microcode(struct amdgpu_device *adev, int pipe)
 	char ucode_prefix[30];
 	char fw_name[50];
 	bool need_retry = false;
+	u32 *ucode_ptr;
 	int r;
 
 	amdgpu_ucode_ip_version_decode(adev, GC_HWIP, ucode_prefix,
@@ -1533,7 +1610,7 @@ int amdgpu_mes_init_microcode(struct amdgpu_device *adev, int pipe)
 			 pipe == AMDGPU_MES_SCHED_PIPE ? "" : "1");
 	}
 
-	r = amdgpu_ucode_request(adev, &adev->mes.fw[pipe], fw_name);
+	r = amdgpu_ucode_request(adev, &adev->mes.fw[pipe], "%s", fw_name);
 	if (r && need_retry && pipe == AMDGPU_MES_SCHED_PIPE) {
 		dev_info(adev->dev, "try to fall back to %s_mes.bin\n", ucode_prefix);
 		r = amdgpu_ucode_request(adev, &adev->mes.fw[pipe],
@@ -1551,6 +1628,10 @@ int amdgpu_mes_init_microcode(struct amdgpu_device *adev, int pipe)
 	adev->mes.data_start_addr[pipe] =
 		le32_to_cpu(mes_hdr->mes_data_start_addr_lo) |
 		((uint64_t)(le32_to_cpu(mes_hdr->mes_data_start_addr_hi)) << 32);
+	ucode_ptr = (u32 *)(adev->mes.fw[pipe]->data +
+			  sizeof(union amdgpu_firmware_header));
+	adev->mes.fw_version[pipe] =
+		le32_to_cpu(ucode_ptr[24]) & AMDGPU_MES_VERSION_MASK;
 
 	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
 		int ucode, ucode_data;
@@ -1581,6 +1662,42 @@ int amdgpu_mes_init_microcode(struct amdgpu_device *adev, int pipe)
 	return 0;
 out:
 	amdgpu_ucode_release(&adev->mes.fw[pipe]);
+	return r;
+}
+
+bool amdgpu_mes_suspend_resume_all_supported(struct amdgpu_device *adev)
+{
+	uint32_t mes_rev = adev->mes.sched_version & AMDGPU_MES_VERSION_MASK;
+	bool is_supported = false;
+
+	if (amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(11, 0, 0) &&
+	    amdgpu_ip_version(adev, GC_HWIP, 0) < IP_VERSION(12, 0, 0) &&
+	    mes_rev >= 0x63)
+		is_supported = true;
+
+	return is_supported;
+}
+
+/* Fix me -- node_id is used to identify the correct MES instances in the future */
+int amdgpu_mes_set_enforce_isolation(struct amdgpu_device *adev, uint32_t node_id, bool enable)
+{
+	struct mes_misc_op_input op_input = {0};
+	int r;
+
+	op_input.op = MES_MISC_OP_CHANGE_CONFIG;
+	op_input.change_config.option.limit_single_process = enable ? 1 : 0;
+
+	if (!adev->mes.funcs->misc_op) {
+		dev_err(adev->dev, "mes change config is not supported!\n");
+		r = -EINVAL;
+		goto error;
+	}
+
+	r = adev->mes.funcs->misc_op(&adev->mes, &op_input);
+	if (r)
+		dev_err(adev->dev, "failed to change_config.\n");
+
+error:
 	return r;
 }
 

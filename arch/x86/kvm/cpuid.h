@@ -2,7 +2,6 @@
 #ifndef ARCH_X86_KVM_CPUID_H
 #define ARCH_X86_KVM_CPUID_H
 
-#include "x86.h"
 #include "reverse_cpuid.h"
 #include <asm/cpu.h>
 #include <asm/processor.h>
@@ -32,6 +31,7 @@ int kvm_vcpu_ioctl_get_cpuid2(struct kvm_vcpu *vcpu,
 bool kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx,
 	       u32 *ecx, u32 *edx, bool exact_only);
 
+void __init kvm_init_xstate_sizes(void);
 u32 xstate_required_size(u64 xstate_bv, bool compacted);
 
 int cpuid_query_maxphyaddr(struct kvm_vcpu *vcpu);

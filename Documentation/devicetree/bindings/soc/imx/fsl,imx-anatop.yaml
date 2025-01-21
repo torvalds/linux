@@ -36,6 +36,7 @@ properties:
       - description: Temperature sensor event
       - description: Brown-out event on either of the support regulators
       - description: Brown-out event on either the core, gpu or soc regulators
+    minItems: 2
 
   tempmon:
     type: object
@@ -43,7 +44,7 @@ properties:
     $ref: /schemas/thermal/imx-thermal.yaml
 
 patternProperties:
-  "regulator-((1p1)|(2p5)|(3p0)|(vddcore)|(vddpu)|(vddsoc))$":
+  "regulator-((1p1)|(2p5)|(3p0)|(vdd1p0d)|(vdd1p2)|(vddcore)|(vddpcie)|(vddpu)|(vddsoc))$":
     type: object
     unevaluatedProperties: false
     $ref: /schemas/regulator/anatop-regulator.yaml
@@ -51,6 +52,23 @@ patternProperties:
 required:
   - compatible
   - reg
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,imx7d-anatop
+    then:
+      properties:
+        interrupts:
+          maxItems: 2
+    else:
+      properties:
+        interrupts:
+          minItems: 3
+          maxItems: 3
 
 additionalProperties: false
 

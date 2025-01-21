@@ -456,6 +456,7 @@ u32 i9xx_hpd_irq_ack(struct drm_i915_private *dev_priv)
 
 void i9xx_hpd_irq_handler(struct drm_i915_private *dev_priv, u32 hotplug_status)
 {
+	struct intel_display *display = &dev_priv->display;
 	u32 pin_mask = 0, long_mask = 0;
 	u32 hotplug_trigger;
 
@@ -477,7 +478,7 @@ void i9xx_hpd_irq_handler(struct drm_i915_private *dev_priv, u32 hotplug_status)
 	if ((IS_G4X(dev_priv) ||
 	     IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
 	    hotplug_status & DP_AUX_CHANNEL_MASK_INT_STATUS_G4X)
-		intel_dp_aux_irq_handler(dev_priv);
+		intel_dp_aux_irq_handler(display);
 }
 
 void ibx_hpd_irq_handler(struct drm_i915_private *dev_priv, u32 hotplug_trigger)
@@ -513,6 +514,7 @@ void ibx_hpd_irq_handler(struct drm_i915_private *dev_priv, u32 hotplug_trigger)
 
 void xelpdp_pica_irq_handler(struct drm_i915_private *i915, u32 iir)
 {
+	struct intel_display *display = &i915->display;
 	enum hpd_pin pin;
 	u32 hotplug_trigger = iir & (XELPDP_DP_ALT_HOTPLUG_MASK | XELPDP_TBT_HOTPLUG_MASK);
 	u32 trigger_aux = iir & XELPDP_AUX_TC_MASK;
@@ -545,7 +547,7 @@ void xelpdp_pica_irq_handler(struct drm_i915_private *i915, u32 iir)
 	}
 
 	if (trigger_aux)
-		intel_dp_aux_irq_handler(i915);
+		intel_dp_aux_irq_handler(display);
 
 	if (!pin_mask && !trigger_aux)
 		drm_err(&i915->drm,
@@ -554,6 +556,7 @@ void xelpdp_pica_irq_handler(struct drm_i915_private *i915, u32 iir)
 
 void icp_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 {
+	struct intel_display *display = &dev_priv->display;
 	u32 ddi_hotplug_trigger = pch_iir & SDE_DDI_HOTPLUG_MASK_ICP;
 	u32 tc_hotplug_trigger = pch_iir & SDE_TC_HOTPLUG_MASK_ICP;
 	u32 pin_mask = 0, long_mask = 0;
@@ -587,11 +590,12 @@ void icp_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 		intel_hpd_irq_handler(dev_priv, pin_mask, long_mask);
 
 	if (pch_iir & SDE_GMBUS_ICP)
-		intel_gmbus_irq_handler(dev_priv);
+		intel_gmbus_irq_handler(display);
 }
 
 void spt_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 {
+	struct intel_display *display = &dev_priv->display;
 	u32 hotplug_trigger = pch_iir & SDE_HOTPLUG_MASK_SPT &
 		~SDE_PORTE_HOTPLUG_SPT;
 	u32 hotplug2_trigger = pch_iir & SDE_PORTE_HOTPLUG_SPT;
@@ -623,7 +627,7 @@ void spt_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 		intel_hpd_irq_handler(dev_priv, pin_mask, long_mask);
 
 	if (pch_iir & SDE_GMBUS_CPT)
-		intel_gmbus_irq_handler(dev_priv);
+		intel_gmbus_irq_handler(display);
 }
 
 void ilk_hpd_irq_handler(struct drm_i915_private *dev_priv, u32 hotplug_trigger)
@@ -847,10 +851,11 @@ static void icp_hpd_irq_setup(struct drm_i915_private *dev_priv)
 	enabled_irqs = intel_hpd_enabled_irqs(dev_priv, dev_priv->display.hotplug.pch_hpd);
 	hotplug_irqs = intel_hpd_hotplug_irqs(dev_priv, dev_priv->display.hotplug.pch_hpd);
 
-	if (INTEL_PCH_TYPE(dev_priv) <= PCH_TGP)
-		intel_uncore_write(&dev_priv->uncore, SHPD_FILTER_CNT, SHPD_FILTER_CNT_500_ADJ);
-	else
-		intel_uncore_write(&dev_priv->uncore, SHPD_FILTER_CNT, SHPD_FILTER_CNT_250);
+	/*
+	 * We reduce the value to 250us to be able to detect SHPD when an external display
+	 * is connected. This is also expected of us as stated in DP1.4a Table 3-4.
+	 */
+	intel_uncore_write(&dev_priv->uncore, SHPD_FILTER_CNT, SHPD_FILTER_CNT_250);
 
 	ibx_display_interrupt_update(dev_priv, hotplug_irqs, enabled_irqs);
 
@@ -1058,6 +1063,10 @@ static void mtp_hpd_irq_setup(struct drm_i915_private *i915)
 	enabled_irqs = intel_hpd_enabled_irqs(i915, i915->display.hotplug.pch_hpd);
 	hotplug_irqs = intel_hpd_hotplug_irqs(i915, i915->display.hotplug.pch_hpd);
 
+	/*
+	 * Use 250us here to align with the DP1.4a(Table 3-4) spec as to what the
+	 * SHPD_FILTER_CNT value should be.
+	 */
 	intel_de_write(i915, SHPD_FILTER_CNT, SHPD_FILTER_CNT_250);
 
 	mtp_hpd_invert(i915);

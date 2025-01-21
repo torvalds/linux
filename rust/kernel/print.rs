@@ -4,7 +4,7 @@
 //!
 //! C header: [`include/linux/printk.h`](srctree/include/linux/printk.h)
 //!
-//! Reference: <https://www.kernel.org/doc/html/latest/core-api/printk-basics.html>
+//! Reference: <https://docs.kernel.org/core-api/printk-basics.html>
 
 use core::{
     ffi::{c_char, c_void},
@@ -14,6 +14,7 @@ use core::{
 use crate::str::RawFormatter;
 
 // Called from `vsprintf` with format specifier `%pA`.
+#[expect(clippy::missing_safety_doc)]
 #[no_mangle]
 unsafe extern "C" fn rust_fmt_argument(
     buf: *mut c_char,
@@ -23,6 +24,7 @@ unsafe extern "C" fn rust_fmt_argument(
     use fmt::Write;
     // SAFETY: The C contract guarantees that `buf` is valid if it's less than `end`.
     let mut w = unsafe { RawFormatter::from_ptrs(buf.cast(), end.cast()) };
+    // SAFETY: TODO.
     let _ = w.write_fmt(unsafe { *(ptr as *const fmt::Arguments<'_>) });
     w.pos().cast()
 }
@@ -102,6 +104,7 @@ pub unsafe fn call_printk(
 ) {
     // `_printk` does not seem to fail in any path.
     #[cfg(CONFIG_PRINTK)]
+    // SAFETY: TODO.
     unsafe {
         bindings::_printk(
             format_string.as_ptr() as _,
@@ -137,7 +140,7 @@ pub fn call_printk_cont(args: fmt::Arguments<'_>) {
 #[doc(hidden)]
 #[cfg(not(testlib))]
 #[macro_export]
-#[allow(clippy::crate_in_macro_def)]
+#[expect(clippy::crate_in_macro_def)]
 macro_rules! print_macro (
     // The non-continuation cases (most of them, e.g. `INFO`).
     ($format_string:path, false, $($arg:tt)+) => (
@@ -197,7 +200,7 @@ macro_rules! print_macro (
 /// Mimics the interface of [`std::print!`]. See [`core::fmt`] and
 /// `alloc::format!` for information about the formatting syntax.
 ///
-/// [`pr_emerg`]: https://www.kernel.org/doc/html/latest/core-api/printk-basics.html#c.pr_emerg
+/// [`pr_emerg`]: https://docs.kernel.org/core-api/printk-basics.html#c.pr_emerg
 /// [`std::print!`]: https://doc.rust-lang.org/std/macro.print.html
 ///
 /// # Examples
@@ -221,7 +224,7 @@ macro_rules! pr_emerg (
 /// Mimics the interface of [`std::print!`]. See [`core::fmt`] and
 /// `alloc::format!` for information about the formatting syntax.
 ///
-/// [`pr_alert`]: https://www.kernel.org/doc/html/latest/core-api/printk-basics.html#c.pr_alert
+/// [`pr_alert`]: https://docs.kernel.org/core-api/printk-basics.html#c.pr_alert
 /// [`std::print!`]: https://doc.rust-lang.org/std/macro.print.html
 ///
 /// # Examples
@@ -245,7 +248,7 @@ macro_rules! pr_alert (
 /// Mimics the interface of [`std::print!`]. See [`core::fmt`] and
 /// `alloc::format!` for information about the formatting syntax.
 ///
-/// [`pr_crit`]: https://www.kernel.org/doc/html/latest/core-api/printk-basics.html#c.pr_crit
+/// [`pr_crit`]: https://docs.kernel.org/core-api/printk-basics.html#c.pr_crit
 /// [`std::print!`]: https://doc.rust-lang.org/std/macro.print.html
 ///
 /// # Examples
@@ -269,7 +272,7 @@ macro_rules! pr_crit (
 /// Mimics the interface of [`std::print!`]. See [`core::fmt`] and
 /// `alloc::format!` for information about the formatting syntax.
 ///
-/// [`pr_err`]: https://www.kernel.org/doc/html/latest/core-api/printk-basics.html#c.pr_err
+/// [`pr_err`]: https://docs.kernel.org/core-api/printk-basics.html#c.pr_err
 /// [`std::print!`]: https://doc.rust-lang.org/std/macro.print.html
 ///
 /// # Examples
@@ -293,7 +296,7 @@ macro_rules! pr_err (
 /// Mimics the interface of [`std::print!`]. See [`core::fmt`] and
 /// `alloc::format!` for information about the formatting syntax.
 ///
-/// [`pr_warn`]: https://www.kernel.org/doc/html/latest/core-api/printk-basics.html#c.pr_warn
+/// [`pr_warn`]: https://docs.kernel.org/core-api/printk-basics.html#c.pr_warn
 /// [`std::print!`]: https://doc.rust-lang.org/std/macro.print.html
 ///
 /// # Examples
@@ -317,7 +320,7 @@ macro_rules! pr_warn (
 /// Mimics the interface of [`std::print!`]. See [`core::fmt`] and
 /// `alloc::format!` for information about the formatting syntax.
 ///
-/// [`pr_notice`]: https://www.kernel.org/doc/html/latest/core-api/printk-basics.html#c.pr_notice
+/// [`pr_notice`]: https://docs.kernel.org/core-api/printk-basics.html#c.pr_notice
 /// [`std::print!`]: https://doc.rust-lang.org/std/macro.print.html
 ///
 /// # Examples
@@ -341,7 +344,7 @@ macro_rules! pr_notice (
 /// Mimics the interface of [`std::print!`]. See [`core::fmt`] and
 /// `alloc::format!` for information about the formatting syntax.
 ///
-/// [`pr_info`]: https://www.kernel.org/doc/html/latest/core-api/printk-basics.html#c.pr_info
+/// [`pr_info`]: https://docs.kernel.org/core-api/printk-basics.html#c.pr_info
 /// [`std::print!`]: https://doc.rust-lang.org/std/macro.print.html
 ///
 /// # Examples
@@ -367,7 +370,7 @@ macro_rules! pr_info (
 /// Mimics the interface of [`std::print!`]. See [`core::fmt`] and
 /// `alloc::format!` for information about the formatting syntax.
 ///
-/// [`pr_debug`]: https://www.kernel.org/doc/html/latest/core-api/printk-basics.html#c.pr_debug
+/// [`pr_debug`]: https://docs.kernel.org/core-api/printk-basics.html#c.pr_debug
 /// [`std::print!`]: https://doc.rust-lang.org/std/macro.print.html
 ///
 /// # Examples
@@ -395,7 +398,7 @@ macro_rules! pr_debug (
 /// `alloc::format!` for information about the formatting syntax.
 ///
 /// [`pr_info!`]: crate::pr_info!
-/// [`pr_cont`]: https://www.kernel.org/doc/html/latest/core-api/printk-basics.html#c.pr_cont
+/// [`pr_cont`]: https://docs.kernel.org/core-api/printk-basics.html#c.pr_cont
 /// [`std::print!`]: https://doc.rust-lang.org/std/macro.print.html
 ///
 /// # Examples

@@ -311,7 +311,7 @@ static struct platform_driver img_prl_out_driver = {
 		.pm = &img_prl_out_pm_ops
 	},
 	.probe = img_prl_out_probe,
-	.remove_new = img_prl_out_dev_remove
+	.remove = img_prl_out_dev_remove
 };
 module_platform_driver(img_prl_out_driver);
 

@@ -393,7 +393,7 @@ static void dell_uart_bl_pdev_remove(struct platform_device *pdev)
 
 static struct platform_driver dell_uart_bl_pdev_driver = {
 	.probe = dell_uart_bl_pdev_probe,
-	.remove_new = dell_uart_bl_pdev_remove,
+	.remove = dell_uart_bl_pdev_remove,
 	.driver = {
 		.name = "dell-uart-backlight",
 	},

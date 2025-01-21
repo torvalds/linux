@@ -27,7 +27,7 @@ struct ceph_fname {
 };
 
 /*
- * Header for the crypted file when truncating the size, this
+ * Header for the encrypted file when truncating the size, this
  * will be sent to MDS, and the MDS will update the encrypted
  * last block and then truncate the size.
  */

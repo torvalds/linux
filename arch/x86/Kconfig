@@ -28,6 +28,7 @@ config X86_64
 	select ARCH_HAS_GIGANTIC_PAGE
 	select ARCH_SUPPORTS_INT128 if CC_HAS_INT128
 	select ARCH_SUPPORTS_PER_VMA_LOCK
+	select ARCH_SUPPORTS_HUGE_PFNMAP if TRANSPARENT_HUGEPAGE
 	select HAVE_ARCH_SOFT_DIRTY
 	select MODULES_USE_ELF_RELA
 	select NEED_DMA_MAP_STATE
@@ -79,8 +80,10 @@ config X86
 	select ARCH_HAS_DEBUG_VIRTUAL
 	select ARCH_HAS_DEBUG_VM_PGTABLE	if !X86_PAE
 	select ARCH_HAS_DEVMEM_IS_ALLOWED
+	select ARCH_HAS_DMA_OPS			if GART_IOMMU || XEN
 	select ARCH_HAS_EARLY_DEBUG		if KGDB
 	select ARCH_HAS_ELF_RANDOMIZE
+	select ARCH_HAS_EXECMEM_ROX		if X86_64
 	select ARCH_HAS_FAST_MULTIPLIER
 	select ARCH_HAS_FORTIFY_SOURCE
 	select ARCH_HAS_GCOV_PROFILE_ALL
@@ -91,6 +94,7 @@ config X86
 	select ARCH_HAS_NMI_SAFE_THIS_CPU_OPS
 	select ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE
 	select ARCH_HAS_PMEM_API		if X86_64
+	select ARCH_HAS_PREEMPT_LAZY
 	select ARCH_HAS_PTE_DEVMAP		if X86_64
 	select ARCH_HAS_PTE_SPECIAL
 	select ARCH_HAS_HW_PTE_YOUNG
@@ -107,6 +111,7 @@ config X86
 	select ARCH_HAS_DEBUG_WX
 	select ARCH_HAS_ZONE_DMA_SET if EXPERT
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
+	select ARCH_HAVE_EXTRA_ELF_NOTES
 	select ARCH_MHP_MEMMAP_ON_MEMORY_ENABLE
 	select ARCH_MIGHT_HAVE_ACPI_PDC		if ACPI
 	select ARCH_MIGHT_HAVE_PC_PARPORT
@@ -122,6 +127,9 @@ config X86
 	select ARCH_USES_CFI_TRAPS		if X86_64 && CFI_CLANG
 	select ARCH_SUPPORTS_LTO_CLANG
 	select ARCH_SUPPORTS_LTO_CLANG_THIN
+	select ARCH_SUPPORTS_RT
+	select ARCH_SUPPORTS_AUTOFDO_CLANG
+	select ARCH_SUPPORTS_PROPELLER_CLANG    if X86_64
 	select ARCH_USE_BUILTIN_BSWAP
 	select ARCH_USE_CMPXCHG_LOCKREF		if X86_CMPXCHG64
 	select ARCH_USE_MEMTEST
@@ -141,7 +149,6 @@ config X86
 	select ARCH_HAS_PARANOID_L1D_FLUSH
 	select BUILDTIME_TABLE_SORT
 	select CLKEVT_I8253
-	select CLOCKSOURCE_VALIDATE_LAST_CYCLE
 	select CLOCKSOURCE_WATCHDOG
 	# Word-size accesses may read uninitialized data past the trailing \0
 	# in strings and cause false KMSAN reports.
@@ -296,6 +303,7 @@ config X86
 	select NEED_PER_CPU_EMBED_FIRST_CHUNK
 	select NEED_PER_CPU_PAGE_FIRST_CHUNK
 	select NEED_SG_DMA_LENGTH
+	select NUMA_MEMBLKS			if NUMA
 	select PCI_DOMAINS			if PCI
 	select PCI_LOCKLESS_CONFIG		if PCI
 	select PERF_EVENTS
@@ -943,7 +951,6 @@ config DMI
 
 config GART_IOMMU
 	bool "Old AMD GART IOMMU support"
-	select DMA_OPS
 	select IOMMU_HELPER
 	select SWIOTLB
 	depends on X86_64 && PCI && AMD_NB
@@ -1599,14 +1606,6 @@ config X86_64_ACPI_NUMA
 	help
 	  Enable ACPI SRAT based node topology detection.
 
-config NUMA_EMU
-	bool "NUMA emulation"
-	depends on NUMA
-	help
-	  Enable NUMA emulation. A flat machine will be split
-	  into virtual nodes when booted with "numa=fake=N", where N is the
-	  number of nodes. This is only useful for debugging.
-
 config NODES_SHIFT
 	int "Maximum NUMA Nodes (as a power of 2)" if !MAXSMP
 	range 1 10
@@ -1806,6 +1805,7 @@ config X86_PAT
 	def_bool y
 	prompt "x86 PAT support" if EXPERT
 	depends on MTRR
+	select ARCH_USES_PG_ARCH_2
 	help
 	  Use PAT attributes to setup page level cache control.
 
@@ -1816,10 +1816,6 @@ config X86_PAT
 	  spontaneous reboots) or a non-working video driver.
 
 	  If unsure, say Y.
-
-config ARCH_USES_PG_UNCACHED
-	def_bool y
-	depends on X86_PAT
 
 config X86_UMIP
 	def_bool y
@@ -1889,6 +1885,10 @@ config X86_INTEL_MEMORY_PROTECTION_KEYS
 
 	  If unsure, say y.
 
+config ARCH_PKEY_BITS
+	int
+	default 4
+
 choice
 	prompt "TSX enable mode"
 	depends on CPU_SUP_INTEL
@@ -1957,6 +1957,7 @@ config X86_USER_SHADOW_STACK
 	depends on AS_WRUSS
 	depends on X86_64
 	select ARCH_USES_HIGH_VMA_FLAGS
+	select ARCH_HAS_USER_SHADOW_STACK
 	select X86_CET
 	help
 	  Shadow stack protection is a hardware feature that detects function
@@ -2086,6 +2087,9 @@ config ARCH_SUPPORTS_KEXEC_JUMP
 
 config ARCH_SUPPORTS_CRASH_DUMP
 	def_bool X86_64 || (X86_32 && HIGHMEM)
+
+config ARCH_DEFAULT_CRASH_DUMP
+	def_bool y
 
 config ARCH_SUPPORTS_CRASH_HOTPLUG
 	def_bool y
@@ -2260,6 +2264,7 @@ config RANDOMIZE_MEMORY_PHYSICAL_PADDING
 config ADDRESS_MASKING
 	bool "Linear Address Masking support"
 	depends on X86_64
+	depends on COMPILE_TEST || !CPU_MITIGATIONS # wait for LASS
 	help
 	  Linear Address Masking (LAM) modifies the checking that is applied
 	  to 64-bit linear addresses, allowing software to use of the
@@ -2426,6 +2431,14 @@ config CFI_AUTO_DEFAULT
 
 source "kernel/livepatch/Kconfig"
 
+config X86_BUS_LOCK_DETECT
+	bool "Split Lock Detect and Bus Lock Detect support"
+	depends on CPU_SUP_INTEL || CPU_SUP_AMD
+	default y
+	help
+	  Enable Split Lock Detect and Bus Lock Detect functionalities.
+	  See <file:Documentation/arch/x86/buslock.rst> for more information.
+
 endmenu
 
 config CC_HAS_NAMED_AS
@@ -2554,15 +2567,14 @@ config MITIGATION_CALL_DEPTH_TRACKING
 	default y
 	help
 	  Compile the kernel with call depth tracking to mitigate the Intel
-	  SKL Return-Speculation-Buffer (RSB) underflow issue. The
-	  mitigation is off by default and needs to be enabled on the
-	  kernel command line via the retbleed=stuff option. For
-	  non-affected systems the overhead of this option is marginal as
-	  the call depth tracking is using run-time generated call thunks
-	  in a compiler generated padding area and call patching. This
-	  increases text size by ~5%. For non affected systems this space
-	  is unused. On affected SKL systems this results in a significant
-	  performance gain over the IBRS mitigation.
+	  SKL Return-Stack-Buffer (RSB) underflow issue. The mitigation is off
+	  by default and needs to be enabled on the kernel command line via the
+	  retbleed=stuff option. For non-affected systems the overhead of this
+	  option is marginal as the call depth tracking is using run-time
+	  generated call thunks in a compiler generated padding area and call
+	  patching. This increases text size by ~5%. For non affected systems
+	  this space is unused. On affected SKL systems this results in a
+	  significant performance gain over the IBRS mitigation.
 
 config CALL_THUNKS_DEBUG
 	bool "Enable call thunks and call depth tracking debugging"
@@ -2610,24 +2622,15 @@ config MITIGATION_SLS
 	  against straight line speculation. The kernel image might be slightly
 	  larger.
 
-config MITIGATION_GDS_FORCE
-	bool "Force GDS Mitigation"
+config MITIGATION_GDS
+	bool "Mitigate Gather Data Sampling"
 	depends on CPU_SUP_INTEL
-	default n
+	default y
 	help
-	  Gather Data Sampling (GDS) is a hardware vulnerability which allows
-	  unprivileged speculative access to data which was previously stored in
-	  vector registers.
-
-	  This option is equivalent to setting gather_data_sampling=force on the
-	  command line. The microcode mitigation is used if present, otherwise
-	  AVX is disabled as a mitigation. On affected systems that are missing
-	  the microcode any userspace code that unconditionally uses AVX will
-	  break with this option set.
-
-	  Setting this option on systems not vulnerable to GDS has no effect.
-
-	  If in doubt, say N.
+	  Enable mitigation for Gather Data Sampling (GDS). GDS is a hardware
+	  vulnerability which allows unprivileged speculative access to data
+	  which was previously stored in vector registers. The attacker uses gather
+	  instructions to infer the stale vector register data.
 
 config MITIGATION_RFDS
 	bool "RFDS Mitigation"
@@ -2649,6 +2652,107 @@ config MITIGATION_SPECTRE_BHI
 	  where the branch history buffer is poisoned to speculatively steer
 	  indirect branches.
 	  See <file:Documentation/admin-guide/hw-vuln/spectre.rst>
+
+config MITIGATION_MDS
+	bool "Mitigate Microarchitectural Data Sampling (MDS) hardware bug"
+	depends on CPU_SUP_INTEL
+	default y
+	help
+	  Enable mitigation for Microarchitectural Data Sampling (MDS). MDS is
+	  a hardware vulnerability which allows unprivileged speculative access
+	  to data which is available in various CPU internal buffers.
+	  See also <file:Documentation/admin-guide/hw-vuln/mds.rst>
+
+config MITIGATION_TAA
+	bool "Mitigate TSX Asynchronous Abort (TAA) hardware bug"
+	depends on CPU_SUP_INTEL
+	default y
+	help
+	  Enable mitigation for TSX Asynchronous Abort (TAA). TAA is a hardware
+	  vulnerability that allows unprivileged speculative access to data
+	  which is available in various CPU internal buffers by using
+	  asynchronous aborts within an Intel TSX transactional region.
+	  See also <file:Documentation/admin-guide/hw-vuln/tsx_async_abort.rst>
+
+config MITIGATION_MMIO_STALE_DATA
+	bool "Mitigate MMIO Stale Data hardware bug"
+	depends on CPU_SUP_INTEL
+	default y
+	help
+	  Enable mitigation for MMIO Stale Data hardware bugs.  Processor MMIO
+	  Stale Data Vulnerabilities are a class of memory-mapped I/O (MMIO)
+	  vulnerabilities that can expose data. The vulnerabilities require the
+	  attacker to have access to MMIO.
+	  See also
+	  <file:Documentation/admin-guide/hw-vuln/processor_mmio_stale_data.rst>
+
+config MITIGATION_L1TF
+	bool "Mitigate L1 Terminal Fault (L1TF) hardware bug"
+	depends on CPU_SUP_INTEL
+	default y
+	help
+	  Mitigate L1 Terminal Fault (L1TF) hardware bug. L1 Terminal Fault is a
+	  hardware vulnerability which allows unprivileged speculative access to data
+	  available in the Level 1 Data Cache.
+	  See <file:Documentation/admin-guide/hw-vuln/l1tf.rst
+
+config MITIGATION_RETBLEED
+	bool "Mitigate RETBleed hardware bug"
+	depends on (CPU_SUP_INTEL && MITIGATION_SPECTRE_V2) || MITIGATION_UNRET_ENTRY || MITIGATION_IBPB_ENTRY
+	default y
+	help
+	  Enable mitigation for RETBleed (Arbitrary Speculative Code Execution
+	  with Return Instructions) vulnerability.  RETBleed is a speculative
+	  execution attack which takes advantage of microarchitectural behavior
+	  in many modern microprocessors, similar to Spectre v2. An
+	  unprivileged attacker can use these flaws to bypass conventional
+	  memory security restrictions to gain read access to privileged memory
+	  that would otherwise be inaccessible.
+
+config MITIGATION_SPECTRE_V1
+	bool "Mitigate SPECTRE V1 hardware bug"
+	default y
+	help
+	  Enable mitigation for Spectre V1 (Bounds Check Bypass). Spectre V1 is a
+	  class of side channel attacks that takes advantage of speculative
+	  execution that bypasses conditional branch instructions used for
+	  memory access bounds check.
+	  See also <file:Documentation/admin-guide/hw-vuln/spectre.rst>
+
+config MITIGATION_SPECTRE_V2
+	bool "Mitigate SPECTRE V2 hardware bug"
+	default y
+	help
+	  Enable mitigation for Spectre V2 (Branch Target Injection). Spectre
+	  V2 is a class of side channel attacks that takes advantage of
+	  indirect branch predictors inside the processor. In Spectre variant 2
+	  attacks, the attacker can steer speculative indirect branches in the
+	  victim to gadget code by poisoning the branch target buffer of a CPU
+	  used for predicting indirect branch addresses.
+	  See also <file:Documentation/admin-guide/hw-vuln/spectre.rst>
+
+config MITIGATION_SRBDS
+	bool "Mitigate Special Register Buffer Data Sampling (SRBDS) hardware bug"
+	depends on CPU_SUP_INTEL
+	default y
+	help
+	  Enable mitigation for Special Register Buffer Data Sampling (SRBDS).
+	  SRBDS is a hardware vulnerability that allows Microarchitectural Data
+	  Sampling (MDS) techniques to infer values returned from special
+	  register accesses. An unprivileged user can extract values returned
+	  from RDRAND and RDSEED executed on another core or sibling thread
+	  using MDS techniques.
+	  See also
+	  <file:Documentation/admin-guide/hw-vuln/special-register-buffer-data-sampling.rst>
+
+config MITIGATION_SSB
+	bool "Mitigate Speculative Store Bypass (SSB) hardware bug"
+	default y
+	help
+	  Enable mitigation for Speculative Store Bypass (SSB). SSB is a
+	  hardware security vulnerability and its exploitation takes advantage
+	  of speculative execution in a similar way to the Meltdown and Spectre
+	  security vulnerabilities.
 
 endif
 
@@ -2979,9 +3083,13 @@ config OLPC_XO15_SCI
 	   - AC adapter status updates
 	   - Battery status updates
 
+config GEODE_COMMON
+	bool
+
 config ALIX
 	bool "PCEngines ALIX System Support (LED setup)"
 	select GPIOLIB
+	select GEODE_COMMON
 	help
 	  This option enables system support for the PCEngines ALIX.
 	  At present this just sets up LEDs for GPIO control on
@@ -2996,12 +3104,14 @@ config ALIX
 config NET5501
 	bool "Soekris Engineering net5501 System Support (LEDS, GPIO, etc)"
 	select GPIOLIB
+	select GEODE_COMMON
 	help
 	  This option enables system support for the Soekris Engineering net5501.
 
 config GEOS
 	bool "Traverse Technologies GEOS System Support (LEDS, GPIO, etc)"
 	select GPIOLIB
+	select GEODE_COMMON
 	depends on DMI
 	help
 	  This option enables system support for the Traverse Technologies GEOS.

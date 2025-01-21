@@ -633,7 +633,7 @@ struct r5conf {
 	 * two caches.
 	 */
 	int			active_name;
-	char			cache_name[2][32];
+	char			cache_name[2][48];
 	struct kmem_cache	*slab_cache; /* for allocating stripes */
 	struct mutex		cache_size_mutex; /* Protect changes to cache size */
 
@@ -668,7 +668,7 @@ struct r5conf {
 	struct llist_head	released_stripes;
 	wait_queue_head_t	wait_for_quiescent;
 	wait_queue_head_t	wait_for_stripe;
-	wait_queue_head_t	wait_for_overlap;
+	wait_queue_head_t	wait_for_reshape;
 	unsigned long		cache_state;
 	struct shrinker		*shrinker;
 	int			pool_size; /* number of disks in stripeheads in pool */

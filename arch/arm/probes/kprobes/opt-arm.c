@@ -14,7 +14,7 @@
 /* for arm_gen_branch */
 #include <asm/insn.h>
 /* for patch_text */
-#include <asm/patch.h>
+#include <asm/text-patching.h>
 
 #include "core.h"
 

@@ -103,6 +103,8 @@ static inline void intel_writew(void __iomem *base, int offset, u16 value)
 
 #define INTEL_MASTER_RESET_ITERATIONS	10
 
+#define SDW_INTEL_DELAYED_ENUMERATION_MS	100
+
 #define SDW_INTEL_CHECK_OPS(sdw, cb)	((sdw) && (sdw)->link_res && (sdw)->link_res->hw_ops && \
 					 (sdw)->link_res->hw_ops->cb)
 #define SDW_INTEL_OPS(sdw, cb)		((sdw)->link_res->hw_ops->cb)
@@ -220,6 +222,13 @@ static inline bool sdw_intel_sync_check_cmdsync_unlocked(struct sdw_intel *sdw)
 	if (SDW_INTEL_CHECK_OPS(sdw, sync_check_cmdsync_unlocked))
 		return SDW_INTEL_OPS(sdw, sync_check_cmdsync_unlocked)(sdw);
 	return false;
+}
+
+static inline int sdw_intel_get_link_count(struct sdw_intel *sdw)
+{
+	if (SDW_INTEL_CHECK_OPS(sdw, get_link_count))
+		return SDW_INTEL_OPS(sdw, get_link_count)(sdw);
+	return 4; /* default on older generations */
 }
 
 /* common bus management */

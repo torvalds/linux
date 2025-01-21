@@ -466,40 +466,40 @@ TRACE_EVENT(rcu_stall_warning,
 /*
  * Tracepoint for dyntick-idle entry/exit events.  These take 2 strings
  * as argument:
- * polarity: "Start", "End", "StillNonIdle" for entering, exiting or still not
- *            being in dyntick-idle mode.
+ * polarity: "Start", "End", "StillWatching" for entering, exiting or still not
+ *            being in EQS mode.
  * context: "USER" or "IDLE" or "IRQ".
- * NMIs nested in IRQs are inferred with dynticks_nesting > 1 in IRQ context.
+ * NMIs nested in IRQs are inferred with nesting > 1 in IRQ context.
  *
  * These events also take a pair of numbers, which indicate the nesting
  * depth before and after the event of interest, and a third number that is
- * the ->dynticks counter.  Note that task-related and interrupt-related
+ * the RCU_WATCHING counter.  Note that task-related and interrupt-related
  * events use two separate counters, and that the "++=" and "--=" events
  * for irq/NMI will change the counter by two, otherwise by one.
  */
-TRACE_EVENT_RCU(rcu_dyntick,
+TRACE_EVENT_RCU(rcu_watching,
 
-	TP_PROTO(const char *polarity, long oldnesting, long newnesting, int dynticks),
+	TP_PROTO(const char *polarity, long oldnesting, long newnesting, int counter),
 
-	TP_ARGS(polarity, oldnesting, newnesting, dynticks),
+	TP_ARGS(polarity, oldnesting, newnesting, counter),
 
 	TP_STRUCT__entry(
 		__field(const char *, polarity)
 		__field(long, oldnesting)
 		__field(long, newnesting)
-		__field(int, dynticks)
+		__field(int, counter)
 	),
 
 	TP_fast_assign(
 		__entry->polarity = polarity;
 		__entry->oldnesting = oldnesting;
 		__entry->newnesting = newnesting;
-		__entry->dynticks = dynticks;
+		__entry->counter = counter;
 	),
 
 	TP_printk("%s %lx %lx %#3x", __entry->polarity,
 		  __entry->oldnesting, __entry->newnesting,
-		  __entry->dynticks & 0xfff)
+		  __entry->counter & 0xfff)
 );
 
 /*

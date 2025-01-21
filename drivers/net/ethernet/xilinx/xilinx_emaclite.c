@@ -7,6 +7,7 @@
  * Copyright (c) 2007 - 2013 Xilinx, Inc.
  */
 
+#include <linux/clk.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
@@ -1091,13 +1092,14 @@ static int xemaclite_of_probe(struct platform_device *ofdev)
 	struct net_device *ndev = NULL;
 	struct net_local *lp = NULL;
 	struct device *dev = &ofdev->dev;
+	struct clk *clkin;
 
 	int rc = 0;
 
 	dev_info(dev, "Device Tree Probing\n");
 
 	/* Create an ethernet device instance */
-	ndev = alloc_etherdev(sizeof(struct net_local));
+	ndev = devm_alloc_etherdev(dev, sizeof(struct net_local));
 	if (!ndev)
 		return -ENOMEM;
 
@@ -1110,15 +1112,13 @@ static int xemaclite_of_probe(struct platform_device *ofdev)
 	/* Get IRQ for the device */
 	rc = platform_get_irq(ofdev, 0);
 	if (rc < 0)
-		goto error;
+		return rc;
 
 	ndev->irq = rc;
 
 	lp->base_addr = devm_platform_get_and_ioremap_resource(ofdev, 0, &res);
-	if (IS_ERR(lp->base_addr)) {
-		rc = PTR_ERR(lp->base_addr);
-		goto error;
-	}
+	if (IS_ERR(lp->base_addr))
+		return PTR_ERR(lp->base_addr);
 
 	ndev->mem_start = res->start;
 	ndev->mem_end = res->end;
@@ -1128,6 +1128,11 @@ static int xemaclite_of_probe(struct platform_device *ofdev)
 	lp->next_rx_buf_to_use = 0x0;
 	lp->tx_ping_pong = get_bool(ofdev, "xlnx,tx-ping-pong");
 	lp->rx_ping_pong = get_bool(ofdev, "xlnx,rx-ping-pong");
+
+	clkin = devm_clk_get_optional_enabled(&ofdev->dev, NULL);
+	if (IS_ERR(clkin))
+		return dev_err_probe(&ofdev->dev, PTR_ERR(clkin),
+				"Failed to get and enable clock from Device Tree\n");
 
 	rc = of_get_ethdev_address(ofdev->dev.of_node, ndev);
 	if (rc) {
@@ -1167,8 +1172,6 @@ static int xemaclite_of_probe(struct platform_device *ofdev)
 
 put_node:
 	of_node_put(lp->phy_node);
-error:
-	free_netdev(ndev);
 	return rc;
 }
 
@@ -1197,8 +1200,6 @@ static void xemaclite_of_remove(struct platform_device *of_dev)
 
 	of_node_put(lp->phy_node);
 	lp->phy_node = NULL;
-
-	free_netdev(ndev);
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -1257,7 +1258,7 @@ static struct platform_driver xemaclite_of_driver = {
 		.of_match_table = xemaclite_of_match,
 	},
 	.probe		= xemaclite_of_probe,
-	.remove_new	= xemaclite_of_remove,
+	.remove		= xemaclite_of_remove,
 };
 
 module_platform_driver(xemaclite_of_driver);

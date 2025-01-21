@@ -139,25 +139,30 @@ static u16 get_max_amsdu_len(u32 bit_rate)
 struct rtw_fw_iter_ra_data {
 	struct rtw_dev *rtwdev;
 	u8 *payload;
+	u8 length;
 };
 
 static void rtw_fw_ra_report_iter(void *data, struct ieee80211_sta *sta)
 {
 	struct rtw_fw_iter_ra_data *ra_data = data;
+	struct rtw_c2h_ra_rpt *ra_rpt = (struct rtw_c2h_ra_rpt *)ra_data->payload;
 	struct rtw_sta_info *si = (struct rtw_sta_info *)sta->drv_priv;
 	u8 mac_id, rate, sgi, bw;
 	u8 mcs, nss;
 	u32 bit_rate;
 
-	mac_id = GET_RA_REPORT_MACID(ra_data->payload);
+	mac_id = ra_rpt->mac_id;
 	if (si->mac_id != mac_id)
 		return;
 
 	si->ra_report.txrate.flags = 0;
 
-	rate = GET_RA_REPORT_RATE(ra_data->payload);
-	sgi = GET_RA_REPORT_SGI(ra_data->payload);
-	bw = GET_RA_REPORT_BW(ra_data->payload);
+	rate = u8_get_bits(ra_rpt->rate_sgi, RTW_C2H_RA_RPT_RATE);
+	sgi = u8_get_bits(ra_rpt->rate_sgi, RTW_C2H_RA_RPT_SGI);
+	if (ra_data->length >= offsetofend(typeof(*ra_rpt), bw))
+		bw = ra_rpt->bw;
+	else
+		bw = si->bw_mode;
 
 	if (rate < DESC_RATEMCS0) {
 		si->ra_report.txrate.legacy = rtw_desc_to_bitrate(rate);
@@ -197,14 +202,18 @@ legacy:
 static void rtw_fw_ra_report_handle(struct rtw_dev *rtwdev, u8 *payload,
 				    u8 length)
 {
+	struct rtw_c2h_ra_rpt *ra_rpt = (struct rtw_c2h_ra_rpt *)payload;
 	struct rtw_fw_iter_ra_data ra_data;
 
-	if (WARN(length < 7, "invalid ra report c2h length\n"))
+	if (WARN(length < rtwdev->chip->c2h_ra_report_size,
+		 "invalid ra report c2h length %d\n", length))
 		return;
 
-	rtwdev->dm_info.tx_rate = GET_RA_REPORT_RATE(payload);
+	rtwdev->dm_info.tx_rate = u8_get_bits(ra_rpt->rate_sgi,
+					      RTW_C2H_RA_RPT_RATE);
 	ra_data.rtwdev = rtwdev;
 	ra_data.payload = payload;
+	ra_data.length = length;
 	rtw_iterate_stas_atomic(rtwdev, rtw_fw_ra_report_iter, &ra_data);
 }
 
@@ -267,7 +276,7 @@ static void rtw_fw_scan_result(struct rtw_dev *rtwdev, u8 *payload,
 static void rtw_fw_adaptivity_result(struct rtw_dev *rtwdev, u8 *payload,
 				     u8 length)
 {
-	struct rtw_hw_reg_offset *edcca_th = rtwdev->chip->edcca_th;
+	const struct rtw_hw_reg_offset *edcca_th = rtwdev->chip->edcca_th;
 	struct rtw_c2h_adaptivity *result = (struct rtw_c2h_adaptivity *)payload;
 
 	rtw_dbg(rtwdev, RTW_DBG_ADAPTIVITY,
@@ -1281,16 +1290,16 @@ static void rtw_fill_rsvd_page_desc(struct rtw_dev *rtwdev, struct sk_buff *skb,
 	rtw_tx_rsvd_page_pkt_info_update(rtwdev, &pkt_info, skb, type);
 	pkt_desc = skb_push(skb, chip->tx_pkt_desc_sz);
 	memset(pkt_desc, 0, chip->tx_pkt_desc_sz);
-	rtw_tx_fill_tx_desc(&pkt_info, skb);
+	rtw_tx_fill_tx_desc(rtwdev, &pkt_info, skb);
 }
 
-static inline u8 rtw_len_to_page(unsigned int len, u8 page_size)
+static inline u8 rtw_len_to_page(unsigned int len, u16 page_size)
 {
 	return DIV_ROUND_UP(len, page_size);
 }
 
-static void rtw_rsvd_page_list_to_buf(struct rtw_dev *rtwdev, u8 page_size,
-				      u8 page_margin, u32 page, u8 *buf,
+static void rtw_rsvd_page_list_to_buf(struct rtw_dev *rtwdev, u16 page_size,
+				      u16 page_margin, u32 page, u8 *buf,
 				      struct rtw_rsvd_page *rsvd_pkt)
 {
 	struct sk_buff *skb = rsvd_pkt->skb;
@@ -1468,10 +1477,12 @@ int rtw_fw_write_data_rsvd_page(struct rtw_dev *rtwdev, u16 pg_addr,
 	val |= BIT_ENSWBCN >> 8;
 	rtw_write8(rtwdev, REG_CR + 1, val);
 
-	val = rtw_read8(rtwdev, REG_FWHW_TXQ_CTRL + 2);
-	bckp[1] = val;
-	val &= ~(BIT_EN_BCNQ_DL >> 16);
-	rtw_write8(rtwdev, REG_FWHW_TXQ_CTRL + 2, val);
+	if (rtw_hci_type(rtwdev) == RTW_HCI_TYPE_PCIE) {
+		val = rtw_read8(rtwdev, REG_FWHW_TXQ_CTRL + 2);
+		bckp[1] = val;
+		val &= ~(BIT_EN_BCNQ_DL >> 16);
+		rtw_write8(rtwdev, REG_FWHW_TXQ_CTRL + 2, val);
+	}
 
 	ret = rtw_hci_write_data_rsvd_page(rtwdev, buf, size);
 	if (ret) {
@@ -1496,7 +1507,8 @@ restore:
 	rsvd_pg_head = rtwdev->fifo.rsvd_boundary;
 	rtw_write16(rtwdev, REG_FIFOPAGE_CTRL_2,
 		    rsvd_pg_head | BIT_BCN_VALID_V1);
-	rtw_write8(rtwdev, REG_FWHW_TXQ_CTRL + 2, bckp[1]);
+	if (rtw_hci_type(rtwdev) == RTW_HCI_TYPE_PCIE)
+		rtw_write8(rtwdev, REG_FWHW_TXQ_CTRL + 2, bckp[1]);
 	rtw_write8(rtwdev, REG_CR + 1, bckp[0]);
 
 	return ret;
@@ -1589,13 +1601,13 @@ static int  __rtw_build_rsvd_page_from_vifs(struct rtw_dev *rtwdev)
 
 static u8 *rtw_build_rsvd_page(struct rtw_dev *rtwdev, u32 *size)
 {
-	struct ieee80211_hw *hw = rtwdev->hw;
 	const struct rtw_chip_info *chip = rtwdev->chip;
-	struct sk_buff *iter;
+	struct ieee80211_hw *hw = rtwdev->hw;
 	struct rtw_rsvd_page *rsvd_pkt;
-	u32 page = 0;
+	struct sk_buff *iter;
+	u16 page_size, page_margin, tx_desc_sz;
 	u8 total_page = 0;
-	u8 page_size, page_margin, tx_desc_sz;
+	u32 page = 0;
 	u8 *buf;
 	int ret;
 
@@ -2001,12 +2013,13 @@ static int _rtw_hw_scan_update_probe_req(struct rtw_dev *rtwdev, u8 num_probes,
 {
 	const struct rtw_chip_info *chip = rtwdev->chip;
 	struct sk_buff *skb, *tmp;
-	u8 page_offset = 1, *buf, page_size = chip->page_size;
 	u16 pg_addr = rtwdev->fifo.rsvd_h2c_info_addr, loc;
-	u16 buf_offset = page_size * page_offset;
 	u8 tx_desc_sz = chip->tx_pkt_desc_sz;
-	u8 page_cnt, pages;
+	u16 page_size = chip->page_size;
+	u8 page_offset = 1, *buf;
+	u16 buf_offset = page_size * page_offset;
 	unsigned int pkt_len;
+	u8 page_cnt, pages;
 	int ret;
 
 	if (rtw_fw_feature_ext_check(&rtwdev->fw, FW_FEATURE_EXT_OLD_PAGE_NUM))

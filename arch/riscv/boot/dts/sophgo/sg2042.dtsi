@@ -44,7 +44,126 @@
 		compatible = "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <2>;
+		interrupt-parent = <&intc>;
 		ranges;
+
+		i2c0: i2c@7030005000 {
+			compatible = "snps,designware-i2c";
+			reg = <0x70 0x30005000 0x0 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&clkgen GATE_CLK_APB_I2C>;
+			clock-names = "ref";
+			clock-frequency = <100000>;
+			interrupts = <101 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&rstgen RST_I2C0>;
+			status = "disabled";
+		};
+
+		i2c1: i2c@7030006000 {
+			compatible = "snps,designware-i2c";
+			reg = <0x70 0x30006000 0x0 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&clkgen GATE_CLK_APB_I2C>;
+			clock-names = "ref";
+			clock-frequency = <100000>;
+			interrupts = <102 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&rstgen RST_I2C1>;
+			status = "disabled";
+		};
+
+		i2c2: i2c@7030007000 {
+			compatible = "snps,designware-i2c";
+			reg = <0x70 0x30007000 0x0 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&clkgen GATE_CLK_APB_I2C>;
+			clock-names = "ref";
+			clock-frequency = <100000>;
+			interrupts = <103 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&rstgen RST_I2C2>;
+			status = "disabled";
+		};
+
+		i2c3: i2c@7030008000 {
+			compatible = "snps,designware-i2c";
+			reg = <0x70 0x30008000 0x0 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&clkgen GATE_CLK_APB_I2C>;
+			clock-names = "ref";
+			clock-frequency = <100000>;
+			interrupts = <104 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&rstgen RST_I2C3>;
+			status = "disabled";
+		};
+
+		gpio0: gpio@7030009000 {
+			compatible = "snps,dw-apb-gpio";
+			reg = <0x70 0x30009000 0x0 0x400>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&clkgen GATE_CLK_APB_GPIO>,
+				 <&clkgen GATE_CLK_GPIO_DB>;
+			clock-names = "bus", "db";
+
+			port0a: gpio-controller@0 {
+				compatible = "snps,dw-apb-gpio-port";
+				gpio-controller;
+				#gpio-cells = <2>;
+				ngpios = <32>;
+				reg = <0>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				interrupt-parent = <&intc>;
+				interrupts = <96 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
+		gpio1: gpio@703000a000 {
+			compatible = "snps,dw-apb-gpio";
+			reg = <0x70 0x3000a000 0x0 0x400>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&clkgen GATE_CLK_APB_GPIO>,
+				 <&clkgen GATE_CLK_GPIO_DB>;
+			clock-names = "bus", "db";
+
+			port1a: gpio-controller@0 {
+				compatible = "snps,dw-apb-gpio-port";
+				gpio-controller;
+				#gpio-cells = <2>;
+				ngpios = <32>;
+				reg = <0>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				interrupt-parent = <&intc>;
+				interrupts = <97 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
+		gpio2: gpio@703000b000 {
+			compatible = "snps,dw-apb-gpio";
+			reg = <0x70 0x3000b000 0x0 0x400>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&clkgen GATE_CLK_APB_GPIO>,
+				 <&clkgen GATE_CLK_GPIO_DB>;
+			clock-names = "bus", "db";
+
+			port2a: gpio-controller@0 {
+				compatible = "snps,dw-apb-gpio-port";
+				gpio-controller;
+				#gpio-cells = <2>;
+				ngpios = <32>;
+				reg = <0>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				interrupt-parent = <&intc>;
+				interrupts = <98 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
 
 		pllclk: clock-controller@70300100c0 {
 			compatible = "sophgo,sg2042-pll";
@@ -388,7 +507,6 @@
 		uart0: serial@7040000000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x00000070 0x40000000 0x00000000 0x00001000>;
-			interrupt-parent = <&intc>;
 			interrupts = <112 IRQ_TYPE_LEVEL_HIGH>;
 			clock-frequency = <500000000>;
 			clocks = <&clkgen GATE_CLK_UART_500M>,
@@ -397,6 +515,34 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			resets = <&rstgen RST_UART0>;
+			status = "disabled";
+		};
+
+		emmc: mmc@704002a000 {
+			compatible = "sophgo,sg2042-dwcmshc";
+			reg = <0x70 0x4002a000 0x0 0x1000>;
+			interrupt-parent = <&intc>;
+			interrupts = <134 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clkgen GATE_CLK_EMMC_100M>,
+				 <&clkgen GATE_CLK_AXI_EMMC>,
+				 <&clkgen GATE_CLK_100K_EMMC>;
+			clock-names = "core",
+				      "bus",
+				      "timer";
+			status = "disabled";
+		};
+
+		sd: mmc@704002b000 {
+			compatible = "sophgo,sg2042-dwcmshc";
+			reg = <0x70 0x4002b000 0x0 0x1000>;
+			interrupt-parent = <&intc>;
+			interrupts = <136 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clkgen GATE_CLK_SD_100M>,
+				 <&clkgen GATE_CLK_AXI_SD>,
+				 <&clkgen GATE_CLK_100K_SD>;
+			clock-names = "core",
+				      "bus",
+				      "timer";
 			status = "disabled";
 		};
 	};

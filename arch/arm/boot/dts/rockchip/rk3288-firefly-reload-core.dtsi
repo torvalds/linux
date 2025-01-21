@@ -21,7 +21,7 @@
 	};
 
 
-	vcc_flash: flash-regulator {
+	vcc_flash: regulator-flash {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_flash";
 		regulator-min-microvolt = <1800000>;

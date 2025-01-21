@@ -342,8 +342,8 @@ static int atmel_tcb_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		return 0;
 	}
 
-	period = state->period < INT_MAX ? state->period : INT_MAX;
-	duty_cycle = state->duty_cycle < INT_MAX ? state->duty_cycle : INT_MAX;
+	period = min(state->period, INT_MAX);
+	duty_cycle = min(state->duty_cycle, INT_MAX);
 
 	ret = atmel_tcb_pwm_config(chip, pwm, duty_cycle, period);
 	if (ret)
@@ -527,7 +527,7 @@ static struct platform_driver atmel_tcb_pwm_driver = {
 		.pm = pm_ptr(&atmel_tcb_pwm_pm_ops),
 	},
 	.probe = atmel_tcb_pwm_probe,
-	.remove_new = atmel_tcb_pwm_remove,
+	.remove = atmel_tcb_pwm_remove,
 };
 module_platform_driver(atmel_tcb_pwm_driver);
 

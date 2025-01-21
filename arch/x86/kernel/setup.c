@@ -1039,7 +1039,12 @@ void __init setup_arch(char **cmdline_p)
 
 	init_mem_mapping();
 
-	idt_setup_early_pf();
+	/*
+	 * init_mem_mapping() relies on the early IDT page fault handling.
+	 * Now either enable FRED or install the real page fault handler
+	 * for 64-bit in the IDT.
+	 */
+	cpu_init_replace_early_idt();
 
 	/*
 	 * Update mmu_cr4_features (and, indirectly, trampoline_cr4_features)

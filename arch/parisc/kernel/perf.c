@@ -466,7 +466,6 @@ static long perf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 }
 
 static const struct file_operations perf_fops = {
-	.llseek = no_llseek,
 	.read = perf_read,
 	.write = perf_write,
 	.unlocked_ioctl = perf_ioctl,

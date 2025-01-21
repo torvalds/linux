@@ -187,7 +187,6 @@ static int regs_dbg_release(struct inode *inode, struct file *file)
 static const struct file_operations queue_dbg_fops = {
 	.owner		= THIS_MODULE,
 	.open		= queue_dbg_open,
-	.llseek		= no_llseek,
 	.read		= queue_dbg_read,
 	.release	= queue_dbg_release,
 };
@@ -2445,7 +2444,7 @@ static SIMPLE_DEV_PM_OPS(usba_udc_pm_ops, usba_udc_suspend, usba_udc_resume);
 
 static struct platform_driver udc_driver = {
 	.probe		= usba_udc_probe,
-	.remove_new	= usba_udc_remove,
+	.remove		= usba_udc_remove,
 	.driver		= {
 		.name		= "atmel_usba_udc",
 		.pm		= &usba_udc_pm_ops,

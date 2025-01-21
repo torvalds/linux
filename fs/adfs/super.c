@@ -6,7 +6,8 @@
  */
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/parser.h>
+#include <linux/fs_parser.h>
+#include <linux/fs_context.h>
 #include <linux/mount.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
@@ -115,87 +116,61 @@ static int adfs_show_options(struct seq_file *seq, struct dentry *root)
 	return 0;
 }
 
-enum {Opt_uid, Opt_gid, Opt_ownmask, Opt_othmask, Opt_ftsuffix, Opt_err};
+enum {Opt_uid, Opt_gid, Opt_ownmask, Opt_othmask, Opt_ftsuffix};
 
-static const match_table_t tokens = {
-	{Opt_uid, "uid=%u"},
-	{Opt_gid, "gid=%u"},
-	{Opt_ownmask, "ownmask=%o"},
-	{Opt_othmask, "othmask=%o"},
-	{Opt_ftsuffix, "ftsuffix=%u"},
-	{Opt_err, NULL}
+static const struct fs_parameter_spec adfs_param_spec[] = {
+	fsparam_uid	("uid",		Opt_uid),
+	fsparam_gid	("gid",		Opt_gid),
+	fsparam_u32oct	("ownmask",	Opt_ownmask),
+	fsparam_u32oct	("othmask",	Opt_othmask),
+	fsparam_u32	("ftsuffix",	Opt_ftsuffix),
+	{}
 };
 
-static int parse_options(struct super_block *sb, struct adfs_sb_info *asb,
-			 char *options)
+static int adfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 {
-	char *p;
-	int option;
+	struct adfs_sb_info *asb = fc->s_fs_info;
+	struct fs_parse_result result;
+	int opt;
 
-	if (!options)
-		return 0;
+	opt = fs_parse(fc, adfs_param_spec, param, &result);
+	if (opt < 0)
+		return opt;
 
-	while ((p = strsep(&options, ",")) != NULL) {
-		substring_t args[MAX_OPT_ARGS];
-		int token;
-		if (!*p)
-			continue;
-
-		token = match_token(p, tokens, args);
-		switch (token) {
-		case Opt_uid:
-			if (match_int(args, &option))
-				return -EINVAL;
-			asb->s_uid = make_kuid(current_user_ns(), option);
-			if (!uid_valid(asb->s_uid))
-				return -EINVAL;
-			break;
-		case Opt_gid:
-			if (match_int(args, &option))
-				return -EINVAL;
-			asb->s_gid = make_kgid(current_user_ns(), option);
-			if (!gid_valid(asb->s_gid))
-				return -EINVAL;
-			break;
-		case Opt_ownmask:
-			if (match_octal(args, &option))
-				return -EINVAL;
-			asb->s_owner_mask = option;
-			break;
-		case Opt_othmask:
-			if (match_octal(args, &option))
-				return -EINVAL;
-			asb->s_other_mask = option;
-			break;
-		case Opt_ftsuffix:
-			if (match_int(args, &option))
-				return -EINVAL;
-			asb->s_ftsuffix = option;
-			break;
-		default:
-			adfs_msg(sb, KERN_ERR,
-				 "unrecognised mount option \"%s\" or missing value",
-				 p);
-			return -EINVAL;
-		}
+	switch (opt) {
+	case Opt_uid:
+		asb->s_uid = result.uid;
+		break;
+	case Opt_gid:
+		asb->s_gid = result.gid;
+		break;
+	case Opt_ownmask:
+		asb->s_owner_mask = result.uint_32;
+		break;
+	case Opt_othmask:
+		asb->s_other_mask = result.uint_32;
+		break;
+	case Opt_ftsuffix:
+		asb->s_ftsuffix = result.uint_32;
+		break;
+	default:
+		return -EINVAL;
 	}
 	return 0;
 }
 
-static int adfs_remount(struct super_block *sb, int *flags, char *data)
+static int adfs_reconfigure(struct fs_context *fc)
 {
-	struct adfs_sb_info temp_asb;
-	int ret;
+	struct adfs_sb_info *new_asb = fc->s_fs_info;
+	struct adfs_sb_info *asb = ADFS_SB(fc->root->d_sb);
 
-	sync_filesystem(sb);
-	*flags |= ADFS_SB_FLAGS;
+	sync_filesystem(fc->root->d_sb);
+	fc->sb_flags |= ADFS_SB_FLAGS;
 
-	temp_asb = *ADFS_SB(sb);
-	ret = parse_options(sb, &temp_asb, data);
-	if (ret == 0)
-		*ADFS_SB(sb) = temp_asb;
+	/* Structure copy newly parsed options */
+	*asb = *new_asb;
 
-	return ret;
+	return 0;
 }
 
 static int adfs_statfs(struct dentry *dentry, struct kstatfs *buf)
@@ -273,7 +248,6 @@ static const struct super_operations adfs_sops = {
 	.write_inode	= adfs_write_inode,
 	.put_super	= adfs_put_super,
 	.statfs		= adfs_statfs,
-	.remount_fs	= adfs_remount,
 	.show_options	= adfs_show_options,
 };
 
@@ -361,33 +335,20 @@ static int adfs_validate_dr0(struct super_block *sb, struct buffer_head *bh,
 	return 0;
 }
 
-static int adfs_fill_super(struct super_block *sb, void *data, int silent)
+static int adfs_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct adfs_discrecord *dr;
 	struct object_info root_obj;
-	struct adfs_sb_info *asb;
+	struct adfs_sb_info *asb = sb->s_fs_info;
 	struct inode *root;
 	int ret = -EINVAL;
+	int silent = fc->sb_flags & SB_SILENT;
 
 	sb->s_flags |= ADFS_SB_FLAGS;
-
-	asb = kzalloc(sizeof(*asb), GFP_KERNEL);
-	if (!asb)
-		return -ENOMEM;
 
 	sb->s_fs_info = asb;
 	sb->s_magic = ADFS_SUPER_MAGIC;
 	sb->s_time_gran = 10000000;
-
-	/* set default options */
-	asb->s_uid = GLOBAL_ROOT_UID;
-	asb->s_gid = GLOBAL_ROOT_GID;
-	asb->s_owner_mask = ADFS_DEFAULT_OWNER_MASK;
-	asb->s_other_mask = ADFS_DEFAULT_OTHER_MASK;
-	asb->s_ftsuffix = 0;
-
-	if (parse_options(sb, asb, data))
-		goto error;
 
 	/* Try to probe the filesystem boot block */
 	ret = adfs_probe(sb, ADFS_DISCRECORD, 1, adfs_validate_bblk);
@@ -453,18 +414,61 @@ error:
 	return ret;
 }
 
-static struct dentry *adfs_mount(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int adfs_get_tree(struct fs_context *fc)
 {
-	return mount_bdev(fs_type, flags, dev_name, data, adfs_fill_super);
+	return get_tree_bdev(fc, adfs_fill_super);
+}
+
+static void adfs_free_fc(struct fs_context *fc)
+{
+	struct adfs_context *asb = fc->s_fs_info;
+
+	kfree(asb);
+}
+
+static const struct fs_context_operations adfs_context_ops = {
+	.parse_param	= adfs_parse_param,
+	.get_tree	= adfs_get_tree,
+	.reconfigure	= adfs_reconfigure,
+	.free		= adfs_free_fc,
+};
+
+static int adfs_init_fs_context(struct fs_context *fc)
+{
+	struct adfs_sb_info *asb;
+
+	asb = kzalloc(sizeof(struct adfs_sb_info), GFP_KERNEL);
+	if (!asb)
+		return -ENOMEM;
+
+	if (fc->purpose == FS_CONTEXT_FOR_RECONFIGURE) {
+		struct super_block *sb = fc->root->d_sb;
+		struct adfs_sb_info *old_asb = ADFS_SB(sb);
+
+		/* structure copy existing options before parsing */
+		*asb = *old_asb;
+	} else {
+		/* set default options */
+		asb->s_uid = GLOBAL_ROOT_UID;
+		asb->s_gid = GLOBAL_ROOT_GID;
+		asb->s_owner_mask = ADFS_DEFAULT_OWNER_MASK;
+		asb->s_other_mask = ADFS_DEFAULT_OTHER_MASK;
+		asb->s_ftsuffix = 0;
+	}
+
+	fc->ops = &adfs_context_ops;
+	fc->s_fs_info = asb;
+
+	return 0;
 }
 
 static struct file_system_type adfs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "adfs",
-	.mount		= adfs_mount,
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
+	.init_fs_context = adfs_init_fs_context,
+	.parameters	= adfs_param_spec,
 };
 MODULE_ALIAS_FS("adfs");
 

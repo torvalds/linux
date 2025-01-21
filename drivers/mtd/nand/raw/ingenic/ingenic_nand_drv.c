@@ -549,7 +549,7 @@ MODULE_DEVICE_TABLE(of, ingenic_nand_dt_match);
 
 static struct platform_driver ingenic_nand_driver = {
 	.probe		= ingenic_nand_probe,
-	.remove_new	= ingenic_nand_remove,
+	.remove		= ingenic_nand_remove,
 	.driver	= {
 		.name	= DRV_NAME,
 		.of_match_table = ingenic_nand_dt_match,

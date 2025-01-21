@@ -35,7 +35,6 @@
 struct mb86s70_gpio_chip {
 	struct gpio_chip gc;
 	void __iomem *base;
-	struct clk *clk;
 	spinlock_t lock;
 };
 
@@ -146,8 +145,6 @@ static int mb86s70_gpio_to_irq(struct gpio_chip *gc, unsigned int offset)
 		irq = platform_get_irq(to_platform_device(gc->parent), index);
 		if (irq < 0)
 			return irq;
-		if (irq == 0)
-			break;
 		if (irq_get_irq_data(irq)->hwirq == offset)
 			return irq;
 	}
@@ -157,6 +154,7 @@ static int mb86s70_gpio_to_irq(struct gpio_chip *gc, unsigned int offset)
 static int mb86s70_gpio_probe(struct platform_device *pdev)
 {
 	struct mb86s70_gpio_chip *gchip;
+	struct clk *clk;
 	int ret;
 
 	gchip = devm_kzalloc(&pdev->dev, sizeof(*gchip), GFP_KERNEL);
@@ -169,13 +167,9 @@ static int mb86s70_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(gchip->base))
 		return PTR_ERR(gchip->base);
 
-	gchip->clk = devm_clk_get_optional(&pdev->dev, NULL);
-	if (IS_ERR(gchip->clk))
-		return PTR_ERR(gchip->clk);
-
-	ret = clk_prepare_enable(gchip->clk);
-	if (ret)
-		return ret;
+	clk = devm_clk_get_optional_enabled(&pdev->dev, NULL);
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
 
 	spin_lock_init(&gchip->lock);
 
@@ -193,11 +187,9 @@ static int mb86s70_gpio_probe(struct platform_device *pdev)
 	gchip->gc.base = -1;
 
 	ret = gpiochip_add_data(&gchip->gc, gchip);
-	if (ret) {
-		dev_err(&pdev->dev, "couldn't register gpio driver\n");
-		clk_disable_unprepare(gchip->clk);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret,
+				     "couldn't register gpio driver\n");
 
 	acpi_gpiochip_request_interrupts(&gchip->gc);
 
@@ -210,7 +202,6 @@ static void mb86s70_gpio_remove(struct platform_device *pdev)
 
 	acpi_gpiochip_free_interrupts(&gchip->gc);
 	gpiochip_remove(&gchip->gc);
-	clk_disable_unprepare(gchip->clk);
 }
 
 static const struct of_device_id mb86s70_gpio_dt_ids[] = {
@@ -234,7 +225,7 @@ static struct platform_driver mb86s70_gpio_driver = {
 		.acpi_match_table = ACPI_PTR(mb86s70_gpio_acpi_ids),
 	},
 	.probe = mb86s70_gpio_probe,
-	.remove_new = mb86s70_gpio_remove,
+	.remove = mb86s70_gpio_remove,
 };
 module_platform_driver(mb86s70_gpio_driver);
 

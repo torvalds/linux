@@ -16,7 +16,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define AD7293_R1B				BIT(16)
 #define AD7293_R2B				BIT(17)

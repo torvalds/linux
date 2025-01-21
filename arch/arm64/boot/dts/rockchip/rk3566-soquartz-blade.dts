@@ -18,7 +18,7 @@
 	};
 
 	/* labeled VCC3V0_SD in schematic to not conflict with PMIC regulator */
-	vcc3v0_sd: vcc3v0-sd-regulator {
+	vcc3v0_sd: regulator-vcc3v0-sd {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v0_sd";
 		regulator-always-on;
@@ -29,7 +29,7 @@
 	};
 
 	/* labeled VCC_SSD in schematic */
-	vcc3v3_pcie_p: vcc3v3-pcie-regulator {
+	vcc3v3_pcie_p: regulator-vcc3v3-pcie {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_pcie_p";
 		regulator-always-on;
@@ -39,7 +39,7 @@
 		vin-supply = <&vbus>;
 	};
 
-	vcc5v_dcin: vcc5v-dcin-regulator {
+	vcc5v_dcin: regulator-vcc5v-dcin {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v_dcin";
 		regulator-always-on;

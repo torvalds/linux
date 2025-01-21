@@ -4,6 +4,7 @@
 #ifndef __SDW_INTEL_H
 #define __SDW_INTEL_H
 
+#include <linux/acpi.h>
 #include <linux/irqreturn.h>
 #include <linux/soundwire/sdw.h>
 
@@ -227,7 +228,7 @@ struct sdw_intel_ops {
 /**
  * struct sdw_intel_acpi_info - Soundwire Intel information found in ACPI tables
  * @handle: ACPI controller handle
- * @count: link count found with "sdw-master-count" property
+ * @count: link count found with "sdw-master-count" or "sdw-manager-list" property
  * @link_mask: bit-wise mask listing links enabled by BIOS menu
  *
  * this structure could be expanded to e.g. provide all the _ADR
@@ -286,31 +287,28 @@ struct hdac_bus;
  * hardware capabilities after all power dependencies are settled.
  * @link_mask: bit-wise mask listing SoundWire links reported by the
  * Controller
- * @num_slaves: total number of devices exposed across all enabled links
  * @handle: ACPI parent handle
  * @ldev: information for each link (controller-specific and kept
  * opaque here)
- * @ids: array of slave_id, representing Slaves exposed across all enabled
- * links
  * @link_list: list to handle interrupts across all links
  * @shim_lock: mutex to handle concurrent rmw access to shared SHIM registers.
  * @shim_mask: flags to track initialization of SHIM shared registers
  * @shim_base: sdw shim base.
  * @alh_base: sdw alh base.
+ * @peripherals: array representing Peripherals exposed across all enabled links
  */
 struct sdw_intel_ctx {
 	int count;
 	void __iomem *mmio_base;
 	u32 link_mask;
-	int num_slaves;
 	acpi_handle handle;
 	struct sdw_intel_link_dev **ldev;
-	struct sdw_extended_slave_id *ids;
 	struct list_head link_list;
 	struct mutex shim_lock; /* lock for access to shared SHIM registers */
 	u32 shim_mask;
 	u32 shim_base;
 	u32 alh_base;
+	struct sdw_peripherals *peripherals;
 };
 
 /**
@@ -388,6 +386,7 @@ struct sdw_intel;
 /* struct intel_sdw_hw_ops - SoundWire ops for Intel platforms.
  * @debugfs_init: initialize all debugfs capabilities
  * @debugfs_exit: close and cleanup debugfs capabilities
+ * @get_link_count: fetch link count from hardware registers
  * @register_dai: read all PDI information and register DAIs
  * @check_clock_stop: throw error message if clock is not stopped.
  * @start_bus: normal start
@@ -411,6 +410,8 @@ struct sdw_intel;
 struct sdw_intel_hw_ops {
 	void (*debugfs_init)(struct sdw_intel *sdw);
 	void (*debugfs_exit)(struct sdw_intel *sdw);
+
+	int (*get_link_count)(struct sdw_intel *sdw);
 
 	int (*register_dai)(struct sdw_intel *sdw);
 
@@ -446,5 +447,10 @@ extern const struct sdw_intel_hw_ops sdw_intel_lnl_hw_ops;
  */
 
 #define SDW_INTEL_DEV_NUM_IDA_MIN           6
+
+/*
+ * Max number of links supported in hardware
+ */
+#define SDW_INTEL_MAX_LINKS                5
 
 #endif

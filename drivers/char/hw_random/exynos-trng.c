@@ -335,7 +335,7 @@ static struct platform_driver exynos_trng_driver = {
 		.of_match_table = exynos_trng_dt_match,
 	},
 	.probe = exynos_trng_probe,
-	.remove_new = exynos_trng_remove,
+	.remove = exynos_trng_remove,
 };
 
 module_platform_driver(exynos_trng_driver);

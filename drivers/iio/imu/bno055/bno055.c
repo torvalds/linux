@@ -292,7 +292,7 @@ const struct regmap_config bno055_regmap_config = {
 	.readable_reg = bno055_regmap_readable,
 	.cache_type = REGCACHE_RBTREE,
 };
-EXPORT_SYMBOL_NS_GPL(bno055_regmap_config, IIO_BNO055);
+EXPORT_SYMBOL_NS_GPL(bno055_regmap_config, "IIO_BNO055");
 
 /* must be called in configuration mode */
 static int bno055_calibration_load(struct bno055_priv *priv, const u8 *data, int len)
@@ -1458,7 +1458,7 @@ static irqreturn_t bno055_trigger_handler(int irq, void *p)
 	 * then we split the transfer, skipping the gap.
 	 */
 	for_each_set_bitrange(start, end, iio_dev->active_scan_mask,
-			      iio_dev->masklength) {
+			      iio_get_masklength(iio_dev)) {
 		/*
 		 * First transfer will start from the beginning of the first
 		 * ones-field in the bitmap
@@ -1678,7 +1678,7 @@ int bno055_probe(struct device *dev, struct regmap *regmap,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(bno055_probe, IIO_BNO055);
+EXPORT_SYMBOL_NS_GPL(bno055_probe, "IIO_BNO055");
 
 MODULE_AUTHOR("Andrea Merello <andrea.merello@iit.it>");
 MODULE_DESCRIPTION("Bosch BNO055 driver");

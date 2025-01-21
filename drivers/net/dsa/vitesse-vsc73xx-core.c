@@ -21,6 +21,7 @@
 #include <linux/of.h>
 #include <linux/of_mdio.h>
 #include <linux/bitops.h>
+#include <linux/bitfield.h>
 #include <linux/if_bridge.h>
 #include <linux/if_vlan.h>
 #include <linux/etherdevice.h>
@@ -36,7 +37,7 @@
 #define VSC73XX_BLOCK_ANALYZER	0x2 /* Only subblock 0 */
 #define VSC73XX_BLOCK_MII	0x3 /* Subblocks 0 and 1 */
 #define VSC73XX_BLOCK_MEMINIT	0x3 /* Only subblock 2 */
-#define VSC73XX_BLOCK_CAPTURE	0x4 /* Only subblock 2 */
+#define VSC73XX_BLOCK_CAPTURE	0x4 /* Subblocks 0-4, 6, 7 */
 #define VSC73XX_BLOCK_ARBITER	0x5 /* Only subblock 0 */
 #define VSC73XX_BLOCK_SYSTEM	0x7 /* Only subblock 0 */
 
@@ -45,6 +46,8 @@
 #define VSC73XX_BLOCK_MII_EXTERNAL	0x1 /* External MDIO subblock */
 
 #define CPU_PORT	6 /* CPU port */
+#define VSC73XX_NUM_FDB_ROWS	2048
+#define VSC73XX_NUM_BUCKETS	4
 
 /* MAC Block registers */
 #define VSC73XX_MAC_CFG		0x00
@@ -196,6 +199,40 @@
 #define VSC73XX_SRCMASKS_MIRROR			BIT(26)
 #define VSC73XX_SRCMASKS_PORTS_MASK		GENMASK(7, 0)
 
+#define VSC73XX_MACHDATA_VID			GENMASK(27, 16)
+#define VSC73XX_MACHDATA_MAC0			GENMASK(15, 8)
+#define VSC73XX_MACHDATA_MAC1			GENMASK(7, 0)
+#define VSC73XX_MACLDATA_MAC2			GENMASK(31, 24)
+#define VSC73XX_MACLDATA_MAC3			GENMASK(23, 16)
+#define VSC73XX_MACLDATA_MAC4			GENMASK(15, 8)
+#define VSC73XX_MACLDATA_MAC5			GENMASK(7, 0)
+
+#define VSC73XX_HASH0_VID_FROM_MASK		GENMASK(5, 0)
+#define VSC73XX_HASH0_MAC0_FROM_MASK		GENMASK(7, 4)
+#define VSC73XX_HASH1_MAC0_FROM_MASK		GENMASK(3, 0)
+#define VSC73XX_HASH1_MAC1_FROM_MASK		GENMASK(7, 1)
+#define VSC73XX_HASH2_MAC1_FROM_MASK		BIT(0)
+#define VSC73XX_HASH2_MAC2_FROM_MASK		GENMASK(7, 0)
+#define VSC73XX_HASH2_MAC3_FROM_MASK		GENMASK(7, 6)
+#define VSC73XX_HASH3_MAC3_FROM_MASK		GENMASK(5, 0)
+#define VSC73XX_HASH3_MAC4_FROM_MASK		GENMASK(7, 3)
+#define VSC73XX_HASH4_MAC4_FROM_MASK		GENMASK(2, 0)
+
+#define VSC73XX_HASH0_VID_TO_MASK		GENMASK(9, 4)
+#define VSC73XX_HASH0_MAC0_TO_MASK		GENMASK(3, 0)
+#define VSC73XX_HASH1_MAC0_TO_MASK		GENMASK(10, 7)
+#define VSC73XX_HASH1_MAC1_TO_MASK		GENMASK(6, 0)
+#define VSC73XX_HASH2_MAC1_TO_MASK		BIT(10)
+#define VSC73XX_HASH2_MAC2_TO_MASK		GENMASK(9, 2)
+#define VSC73XX_HASH2_MAC3_TO_MASK		GENMASK(1, 0)
+#define VSC73XX_HASH3_MAC3_TO_MASK		GENMASK(10, 5)
+#define VSC73XX_HASH3_MAC4_TO_MASK		GENMASK(4, 0)
+#define VSC73XX_HASH4_MAC4_TO_MASK		GENMASK(10, 8)
+
+#define VSC73XX_MACTINDX_SHADOW			BIT(13)
+#define VSC73XX_MACTINDX_BUCKET_MSK		GENMASK(12, 11)
+#define VSC73XX_MACTINDX_INDEX_MSK		GENMASK(10, 0)
+
 #define VSC73XX_MACACCESS_CPU_COPY		BIT(14)
 #define VSC73XX_MACACCESS_FWD_KILL		BIT(13)
 #define VSC73XX_MACACCESS_IGNORE_VLAN		BIT(12)
@@ -225,9 +262,27 @@
 #define VSC73XX_VLANACCESS_VLAN_TBL_CMD_CLEAR_TABLE	3
 
 /* MII block 3 registers */
-#define VSC73XX_MII_STAT	0x0
-#define VSC73XX_MII_CMD		0x1
-#define VSC73XX_MII_DATA	0x2
+#define VSC73XX_MII_STAT		0x0
+#define VSC73XX_MII_CMD			0x1
+#define VSC73XX_MII_DATA		0x2
+#define VSC73XX_MII_MPRES		0x3
+
+#define VSC73XX_MII_STAT_BUSY		BIT(3)
+#define VSC73XX_MII_STAT_READ		BIT(2)
+#define VSC73XX_MII_STAT_WRITE		BIT(1)
+
+#define VSC73XX_MII_CMD_SCAN		BIT(27)
+#define VSC73XX_MII_CMD_OPERATION	BIT(26)
+#define VSC73XX_MII_CMD_PHY_ADDR	GENMASK(25, 21)
+#define VSC73XX_MII_CMD_PHY_REG		GENMASK(20, 16)
+#define VSC73XX_MII_CMD_WRITE_DATA	GENMASK(15, 0)
+
+#define VSC73XX_MII_DATA_FAILURE	BIT(16)
+#define VSC73XX_MII_DATA_READ_DATA	GENMASK(15, 0)
+
+#define VSC73XX_MII_MPRES_NOPREAMBLE	BIT(6)
+#define VSC73XX_MII_MPRES_PRESCALEVAL	GENMASK(5, 0)
+#define VSC73XX_MII_PRESCALEVAL_MIN	3 /* min allowed mdio clock prescaler */
 
 #define VSC73XX_MII_STAT_BUSY	BIT(3)
 
@@ -311,6 +366,13 @@
 struct vsc73xx_counter {
 	u8 counter;
 	const char *name;
+};
+
+struct vsc73xx_fdb {
+	u16 vid;
+	u8 port;
+	u8 mac[ETH_ALEN];
+	bool valid;
 };
 
 /* Counters are named according to the MIB standards where applicable.
@@ -410,10 +472,16 @@ int vsc73xx_is_addr_valid(u8 block, u8 subblock)
 		break;
 
 	case VSC73XX_BLOCK_MII:
-	case VSC73XX_BLOCK_CAPTURE:
 	case VSC73XX_BLOCK_ARBITER:
 		switch (subblock) {
 		case 0 ... 1:
+			return 1;
+		}
+		break;
+	case VSC73XX_BLOCK_CAPTURE:
+		switch (subblock) {
+		case 0 ... 4:
+		case 6 ... 7:
 			return 1;
 		}
 		break;
@@ -562,8 +630,11 @@ static int vsc73xx_phy_read(struct dsa_switch *ds, int phy, int regnum)
 		return ret;
 
 	/* Setting bit 26 means "read" */
-	cmd = BIT(26) | (phy << 21) | (regnum << 16);
-	ret = vsc73xx_write(vsc, VSC73XX_BLOCK_MII, 0, 1, cmd);
+	cmd = VSC73XX_MII_CMD_OPERATION |
+	      FIELD_PREP(VSC73XX_MII_CMD_PHY_ADDR, phy) |
+	      FIELD_PREP(VSC73XX_MII_CMD_PHY_REG, regnum);
+	ret = vsc73xx_write(vsc, VSC73XX_BLOCK_MII, VSC73XX_BLOCK_MII_INTERNAL,
+			    VSC73XX_MII_CMD, cmd);
 	if (ret)
 		return ret;
 
@@ -571,15 +642,16 @@ static int vsc73xx_phy_read(struct dsa_switch *ds, int phy, int regnum)
 	if (ret)
 		return ret;
 
-	ret = vsc73xx_read(vsc, VSC73XX_BLOCK_MII, 0, 2, &val);
+	ret = vsc73xx_read(vsc, VSC73XX_BLOCK_MII, VSC73XX_BLOCK_MII_INTERNAL,
+			   VSC73XX_MII_DATA, &val);
 	if (ret)
 		return ret;
-	if (val & BIT(16)) {
+	if (val & VSC73XX_MII_DATA_FAILURE) {
 		dev_err(vsc->dev, "reading reg %02x from phy%d failed\n",
 			regnum, phy);
 		return -EIO;
 	}
-	val &= 0xFFFFU;
+	val &= VSC73XX_MII_DATA_READ_DATA;
 
 	dev_dbg(vsc->dev, "read reg %02x from phy%d = %04x\n",
 		regnum, phy, val);
@@ -598,8 +670,11 @@ static int vsc73xx_phy_write(struct dsa_switch *ds, int phy, int regnum,
 	if (ret)
 		return ret;
 
-	cmd = (phy << 21) | (regnum << 16) | val;
-	ret = vsc73xx_write(vsc, VSC73XX_BLOCK_MII, 0, 1, cmd);
+	cmd = FIELD_PREP(VSC73XX_MII_CMD_PHY_ADDR, phy) |
+	      FIELD_PREP(VSC73XX_MII_CMD_PHY_REG, regnum) |
+	      FIELD_PREP(VSC73XX_MII_CMD_WRITE_DATA, val);
+	ret = vsc73xx_write(vsc, VSC73XX_BLOCK_MII, VSC73XX_BLOCK_MII_INTERNAL,
+			    VSC73XX_MII_CMD, cmd);
 	if (ret)
 		return ret;
 
@@ -708,15 +783,76 @@ vsc73xx_update_vlan_table(struct vsc73xx *vsc, int port, u16 vid, bool set)
 	return vsc73xx_write_vlan_table_entry(vsc, vid, portmap);
 }
 
+static int vsc73xx_configure_rgmii_port_delay(struct dsa_switch *ds)
+{
+	/* Keep 2.0 ns delay for backward complatibility */
+	u32 tx_delay = VSC73XX_GMIIDELAY_GMII0_GTXDELAY_2_0_NS;
+	u32 rx_delay = VSC73XX_GMIIDELAY_GMII0_RXDELAY_2_0_NS;
+	struct dsa_port *dp = dsa_to_port(ds, CPU_PORT);
+	struct device_node *port_dn = dp->dn;
+	struct vsc73xx *vsc = ds->priv;
+	u32 delay;
+
+	if (!of_property_read_u32(port_dn, "tx-internal-delay-ps", &delay)) {
+		switch (delay) {
+		case 0:
+			tx_delay = VSC73XX_GMIIDELAY_GMII0_GTXDELAY_NONE;
+			break;
+		case 1400:
+			tx_delay = VSC73XX_GMIIDELAY_GMII0_GTXDELAY_1_4_NS;
+			break;
+		case 1700:
+			tx_delay = VSC73XX_GMIIDELAY_GMII0_GTXDELAY_1_7_NS;
+			break;
+		case 2000:
+			break;
+		default:
+			dev_err(vsc->dev,
+				"Unsupported RGMII Transmit Clock Delay\n");
+			return -EINVAL;
+		}
+	} else {
+		dev_dbg(vsc->dev,
+			"RGMII Transmit Clock Delay isn't configured, set to 2.0 ns\n");
+	}
+
+	if (!of_property_read_u32(port_dn, "rx-internal-delay-ps", &delay)) {
+		switch (delay) {
+		case 0:
+			rx_delay = VSC73XX_GMIIDELAY_GMII0_RXDELAY_NONE;
+			break;
+		case 1400:
+			rx_delay = VSC73XX_GMIIDELAY_GMII0_RXDELAY_1_4_NS;
+			break;
+		case 1700:
+			rx_delay = VSC73XX_GMIIDELAY_GMII0_RXDELAY_1_7_NS;
+			break;
+		case 2000:
+			break;
+		default:
+			dev_err(vsc->dev,
+				"Unsupported RGMII Receive Clock Delay value\n");
+			return -EINVAL;
+		}
+	} else {
+		dev_dbg(vsc->dev,
+			"RGMII Receive Clock Delay isn't configured, set to 2.0 ns\n");
+	}
+
+	/* MII delay, set both GTX and RX delay */
+	return vsc73xx_write(vsc, VSC73XX_BLOCK_SYSTEM, 0, VSC73XX_GMIIDELAY,
+			     tx_delay | rx_delay);
+}
+
 static int vsc73xx_setup(struct dsa_switch *ds)
 {
 	struct vsc73xx *vsc = ds->priv;
-	int i, ret;
+	int i, ret, val;
 
 	dev_info(vsc->dev, "set up the switch\n");
 
-	ds->untag_bridge_pvid = true;
 	ds->max_num_bridges = DSA_TAG_8021Q_MAX_NUM_BRIDGES;
+	ds->fdb_isolation = true;
 
 	/* Issue RESET */
 	vsc73xx_write(vsc, VSC73XX_BLOCK_SYSTEM, 0, VSC73XX_GLORESET,
@@ -770,10 +906,11 @@ static int vsc73xx_setup(struct dsa_switch *ds)
 			      VSC73XX_MAC_CFG, VSC73XX_MAC_CFG_RESET);
 	}
 
-	/* MII delay, set both GTX and RX delay to 2 ns */
-	vsc73xx_write(vsc, VSC73XX_BLOCK_SYSTEM, 0, VSC73XX_GMIIDELAY,
-		      VSC73XX_GMIIDELAY_GMII0_GTXDELAY_2_0_NS |
-		      VSC73XX_GMIIDELAY_GMII0_RXDELAY_2_0_NS);
+	/* Configure RGMII delay */
+	ret = vsc73xx_configure_rgmii_port_delay(ds);
+	if (ret)
+		return ret;
+
 	/* Ingess VLAN reception mask (table 145) */
 	vsc73xx_write(vsc, VSC73XX_BLOCK_ANALYZER, 0, VSC73XX_VLANMASK,
 		      0xff);
@@ -782,6 +919,15 @@ static int vsc73xx_setup(struct dsa_switch *ds)
 		      0xff);
 
 	mdelay(50);
+
+	/* Disable preamble and use maximum allowed clock for the internal
+	 * mdio bus, used for communication with internal PHYs only.
+	 */
+	val = VSC73XX_MII_MPRES_NOPREAMBLE |
+	      FIELD_PREP(VSC73XX_MII_MPRES_PRESCALEVAL,
+			 VSC73XX_MII_PRESCALEVAL_MIN);
+	vsc73xx_write(vsc, VSC73XX_BLOCK_MII, VSC73XX_BLOCK_MII_INTERNAL,
+		      VSC73XX_MII_MPRES, val);
 
 	/* Release reset from the internal PHYs */
 	vsc73xx_write(vsc, VSC73XX_BLOCK_SYSTEM, 0, VSC73XX_GLORESET,
@@ -1757,6 +1903,312 @@ static void vsc73xx_port_stp_state_set(struct dsa_switch *ds, int port,
 		vsc73xx_refresh_fwd_map(ds, port, state);
 }
 
+static u16 vsc73xx_calc_hash(const unsigned char *addr, u16 vid)
+{
+	/* VID 5-0, MAC 47-44 */
+	u16 hash = FIELD_PREP(VSC73XX_HASH0_VID_TO_MASK,
+			      FIELD_GET(VSC73XX_HASH0_VID_FROM_MASK, vid)) |
+		   FIELD_PREP(VSC73XX_HASH0_MAC0_TO_MASK,
+			      FIELD_GET(VSC73XX_HASH0_MAC0_FROM_MASK, addr[0]));
+	/* MAC 43-33 */
+	hash ^= FIELD_PREP(VSC73XX_HASH1_MAC0_TO_MASK,
+			   FIELD_GET(VSC73XX_HASH1_MAC0_FROM_MASK, addr[0])) |
+		FIELD_PREP(VSC73XX_HASH1_MAC1_TO_MASK,
+			   FIELD_GET(VSC73XX_HASH1_MAC1_FROM_MASK, addr[1]));
+	/* MAC 32-22 */
+	hash ^= FIELD_PREP(VSC73XX_HASH2_MAC1_TO_MASK,
+			   FIELD_GET(VSC73XX_HASH2_MAC1_FROM_MASK, addr[1])) |
+		FIELD_PREP(VSC73XX_HASH2_MAC2_TO_MASK,
+			   FIELD_GET(VSC73XX_HASH2_MAC2_FROM_MASK, addr[2])) |
+		FIELD_PREP(VSC73XX_HASH2_MAC3_TO_MASK,
+			   FIELD_GET(VSC73XX_HASH2_MAC3_FROM_MASK, addr[3]));
+	/* MAC 21-11 */
+	hash ^= FIELD_PREP(VSC73XX_HASH3_MAC3_TO_MASK,
+			   FIELD_GET(VSC73XX_HASH3_MAC3_FROM_MASK, addr[3])) |
+		FIELD_PREP(VSC73XX_HASH3_MAC4_TO_MASK,
+			   FIELD_GET(VSC73XX_HASH3_MAC4_FROM_MASK, addr[4]));
+	/* MAC 10-0 */
+	hash ^= FIELD_PREP(VSC73XX_HASH4_MAC4_TO_MASK,
+			   FIELD_GET(VSC73XX_HASH4_MAC4_FROM_MASK, addr[4])) |
+		addr[5];
+
+	return hash;
+}
+
+static int
+vsc73xx_port_wait_for_mac_table_cmd(struct vsc73xx *vsc)
+{
+	int ret, err;
+	u32 val;
+
+	ret = read_poll_timeout(vsc73xx_read, err,
+				err < 0 ||
+				((val & VSC73XX_MACACCESS_CMD_MASK) ==
+				 VSC73XX_MACACCESS_CMD_IDLE),
+				VSC73XX_POLL_SLEEP_US, VSC73XX_POLL_TIMEOUT_US,
+				false, vsc, VSC73XX_BLOCK_ANALYZER,
+				0, VSC73XX_MACACCESS, &val);
+	if (ret)
+		return ret;
+	return err;
+}
+
+static int vsc73xx_port_read_mac_table_row(struct vsc73xx *vsc, u16 index,
+					   struct vsc73xx_fdb *fdb)
+{
+	int ret, i;
+	u32 val;
+
+	if (!fdb)
+		return -EINVAL;
+	if (index >= VSC73XX_NUM_FDB_ROWS)
+		return -EINVAL;
+
+	for (i = 0; i < VSC73XX_NUM_BUCKETS; i++) {
+		ret = vsc73xx_write(vsc, VSC73XX_BLOCK_ANALYZER, 0,
+				    VSC73XX_MACTINDX,
+				    (i ? 0 : VSC73XX_MACTINDX_SHADOW) |
+				    FIELD_PREP(VSC73XX_MACTINDX_BUCKET_MSK, i) |
+				    index);
+		if (ret)
+			return ret;
+
+		ret = vsc73xx_port_wait_for_mac_table_cmd(vsc);
+		if (ret)
+			return ret;
+
+		ret = vsc73xx_update_bits(vsc, VSC73XX_BLOCK_ANALYZER, 0,
+					  VSC73XX_MACACCESS,
+					  VSC73XX_MACACCESS_CMD_MASK,
+					  VSC73XX_MACACCESS_CMD_READ_ENTRY);
+		if (ret)
+			return ret;
+
+		ret = vsc73xx_port_wait_for_mac_table_cmd(vsc);
+		if (ret)
+			return ret;
+
+		ret = vsc73xx_read(vsc, VSC73XX_BLOCK_ANALYZER, 0,
+				   VSC73XX_MACACCESS, &val);
+		if (ret)
+			return ret;
+
+		fdb[i].valid = FIELD_GET(VSC73XX_MACACCESS_VALID, val);
+		if (!fdb[i].valid)
+			continue;
+
+		fdb[i].port = FIELD_GET(VSC73XX_MACACCESS_DEST_IDX_MASK, val);
+
+		ret = vsc73xx_read(vsc, VSC73XX_BLOCK_ANALYZER, 0,
+				   VSC73XX_MACHDATA, &val);
+		if (ret)
+			return ret;
+
+		fdb[i].vid = FIELD_GET(VSC73XX_MACHDATA_VID, val);
+		fdb[i].mac[0] = FIELD_GET(VSC73XX_MACHDATA_MAC0, val);
+		fdb[i].mac[1] = FIELD_GET(VSC73XX_MACHDATA_MAC1, val);
+
+		ret = vsc73xx_read(vsc, VSC73XX_BLOCK_ANALYZER, 0,
+				   VSC73XX_MACLDATA, &val);
+		if (ret)
+			return ret;
+
+		fdb[i].mac[2] = FIELD_GET(VSC73XX_MACLDATA_MAC2, val);
+		fdb[i].mac[3] = FIELD_GET(VSC73XX_MACLDATA_MAC3, val);
+		fdb[i].mac[4] = FIELD_GET(VSC73XX_MACLDATA_MAC4, val);
+		fdb[i].mac[5] = FIELD_GET(VSC73XX_MACLDATA_MAC5, val);
+	}
+
+	return ret;
+}
+
+static int
+vsc73xx_fdb_operation(struct vsc73xx *vsc, const unsigned char *addr, u16 vid,
+		      u16 hash, u16 cmd_mask, u16 cmd_val)
+{
+	int ret;
+	u32 val;
+
+	val = FIELD_PREP(VSC73XX_MACHDATA_VID, vid) |
+	      FIELD_PREP(VSC73XX_MACHDATA_MAC0, addr[0]) |
+	      FIELD_PREP(VSC73XX_MACHDATA_MAC1, addr[1]);
+	ret = vsc73xx_write(vsc, VSC73XX_BLOCK_ANALYZER, 0, VSC73XX_MACHDATA,
+			    val);
+	if (ret)
+		return ret;
+
+	val = FIELD_PREP(VSC73XX_MACLDATA_MAC2, addr[2]) |
+	      FIELD_PREP(VSC73XX_MACLDATA_MAC3, addr[3]) |
+	      FIELD_PREP(VSC73XX_MACLDATA_MAC4, addr[4]) |
+	      FIELD_PREP(VSC73XX_MACLDATA_MAC5, addr[5]);
+	ret = vsc73xx_write(vsc, VSC73XX_BLOCK_ANALYZER, 0, VSC73XX_MACLDATA,
+			    val);
+	if (ret)
+		return ret;
+
+	ret = vsc73xx_write(vsc, VSC73XX_BLOCK_ANALYZER, 0, VSC73XX_MACTINDX,
+			    hash);
+	if (ret)
+		return ret;
+
+	ret = vsc73xx_port_wait_for_mac_table_cmd(vsc);
+	if (ret)
+		return ret;
+
+	ret = vsc73xx_update_bits(vsc, VSC73XX_BLOCK_ANALYZER, 0,
+				  VSC73XX_MACACCESS, cmd_mask, cmd_val);
+	if (ret)
+		return ret;
+
+	return vsc73xx_port_wait_for_mac_table_cmd(vsc);
+}
+
+static int vsc73xx_fdb_del_entry(struct vsc73xx *vsc, int port,
+				 const unsigned char *addr, u16 vid)
+{
+	struct vsc73xx_fdb fdb[VSC73XX_NUM_BUCKETS];
+	u16 hash = vsc73xx_calc_hash(addr, vid);
+	int bucket, ret;
+
+	mutex_lock(&vsc->fdb_lock);
+
+	ret = vsc73xx_port_read_mac_table_row(vsc, hash, fdb);
+	if (ret)
+		goto err;
+
+	for (bucket = 0; bucket < VSC73XX_NUM_BUCKETS; bucket++) {
+		if (fdb[bucket].valid && fdb[bucket].port == port &&
+		    ether_addr_equal(addr, fdb[bucket].mac))
+			break;
+	}
+
+	if (bucket == VSC73XX_NUM_BUCKETS) {
+		/* Can't find MAC in MAC table */
+		ret = -ENODATA;
+		goto err;
+	}
+
+	ret = vsc73xx_fdb_operation(vsc, addr, vid, hash,
+				    VSC73XX_MACACCESS_CMD_MASK,
+				    VSC73XX_MACACCESS_CMD_FORGET);
+err:
+	mutex_unlock(&vsc->fdb_lock);
+	return ret;
+}
+
+static int vsc73xx_fdb_add_entry(struct vsc73xx *vsc, int port,
+				 const unsigned char *addr, u16 vid)
+{
+	struct vsc73xx_fdb fdb[VSC73XX_NUM_BUCKETS];
+	u16 hash = vsc73xx_calc_hash(addr, vid);
+	int bucket, ret;
+	u32 val;
+
+	mutex_lock(&vsc->fdb_lock);
+
+	ret = vsc73xx_port_read_mac_table_row(vsc, hash, fdb);
+	if (ret)
+		goto err;
+
+	for (bucket = 0; bucket < VSC73XX_NUM_BUCKETS; bucket++) {
+		if (!fdb[bucket].valid)
+			break;
+	}
+
+	if (bucket == VSC73XX_NUM_BUCKETS) {
+		/* Bucket is full */
+		ret = -EOVERFLOW;
+		goto err;
+	}
+
+	val = VSC73XX_MACACCESS_VALID | VSC73XX_MACACCESS_LOCKED |
+	      FIELD_PREP(VSC73XX_MACACCESS_DEST_IDX_MASK, port) |
+	      VSC73XX_MACACCESS_CMD_LEARN;
+	ret = vsc73xx_fdb_operation(vsc, addr, vid, hash,
+				    VSC73XX_MACACCESS_VALID |
+				    VSC73XX_MACACCESS_LOCKED |
+				    VSC73XX_MACACCESS_DEST_IDX_MASK |
+				    VSC73XX_MACACCESS_CMD_MASK, val);
+err:
+	mutex_unlock(&vsc->fdb_lock);
+	return ret;
+}
+
+static int vsc73xx_fdb_add(struct dsa_switch *ds, int port,
+			   const unsigned char *addr, u16 vid, struct dsa_db db)
+{
+	struct vsc73xx *vsc = ds->priv;
+
+	if (!vid) {
+		switch (db.type) {
+		case DSA_DB_PORT:
+			vid = dsa_tag_8021q_standalone_vid(db.dp);
+			break;
+		case DSA_DB_BRIDGE:
+			vid = dsa_tag_8021q_bridge_vid(db.bridge.num);
+			break;
+		default:
+			return -EOPNOTSUPP;
+		}
+	}
+
+	return vsc73xx_fdb_add_entry(vsc, port, addr, vid);
+}
+
+static int vsc73xx_fdb_del(struct dsa_switch *ds, int port,
+			   const unsigned char *addr, u16 vid, struct dsa_db db)
+{
+	struct vsc73xx *vsc = ds->priv;
+
+	if (!vid) {
+		switch (db.type) {
+		case DSA_DB_PORT:
+			vid = dsa_tag_8021q_standalone_vid(db.dp);
+			break;
+		case DSA_DB_BRIDGE:
+			vid = dsa_tag_8021q_bridge_vid(db.bridge.num);
+			break;
+		default:
+			return -EOPNOTSUPP;
+		}
+	}
+
+	return vsc73xx_fdb_del_entry(vsc, port, addr, vid);
+}
+
+static int vsc73xx_port_fdb_dump(struct dsa_switch *ds,
+				 int port, dsa_fdb_dump_cb_t *cb, void *data)
+{
+	struct vsc73xx_fdb fdb[VSC73XX_NUM_BUCKETS];
+	struct vsc73xx *vsc = ds->priv;
+	u16 i, bucket;
+	int err = 0;
+
+	mutex_lock(&vsc->fdb_lock);
+
+	for (i = 0; i < VSC73XX_NUM_FDB_ROWS; i++) {
+		err = vsc73xx_port_read_mac_table_row(vsc, i, fdb);
+		if (err)
+			goto unlock;
+
+		for (bucket = 0; bucket < VSC73XX_NUM_BUCKETS; bucket++) {
+			if (!fdb[bucket].valid || fdb[bucket].port != port)
+				continue;
+
+			/* We need to hide dsa_8021q VLANs from the user */
+			if (vid_is_dsa_8021q(fdb[bucket].vid))
+				fdb[bucket].vid = 0;
+
+			err = cb(fdb[bucket].mac, fdb[bucket].vid, false, data);
+			if (err)
+				goto unlock;
+		}
+	}
+unlock:
+	mutex_unlock(&vsc->fdb_lock);
+	return err;
+}
+
 static const struct phylink_mac_ops vsc73xx_phylink_mac_ops = {
 	.mac_config = vsc73xx_mac_config,
 	.mac_link_down = vsc73xx_mac_link_down,
@@ -1779,6 +2231,9 @@ static const struct dsa_switch_ops vsc73xx_ds_ops = {
 	.port_bridge_join = dsa_tag_8021q_bridge_join,
 	.port_bridge_leave = dsa_tag_8021q_bridge_leave,
 	.port_change_mtu = vsc73xx_change_mtu,
+	.port_fdb_add = vsc73xx_fdb_add,
+	.port_fdb_del = vsc73xx_fdb_del,
+	.port_fdb_dump = vsc73xx_port_fdb_dump,
 	.port_max_mtu = vsc73xx_get_max_mtu,
 	.port_stp_state_set = vsc73xx_port_stp_state_set,
 	.port_vlan_filtering = vsc73xx_port_vlan_filtering,
@@ -1908,6 +2363,8 @@ int vsc73xx_probe(struct vsc73xx *vsc)
 		dev_err(dev, "no chip found (%d)\n", ret);
 		return -ENODEV;
 	}
+
+	mutex_init(&vsc->fdb_lock);
 
 	eth_random_addr(vsc->addr);
 	dev_info(vsc->dev,

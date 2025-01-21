@@ -495,6 +495,15 @@ struct sof_intel_hda_dev {
 
 	int boot_iteration;
 
+	/*
+	 * DMA buffers for base firmware download. By default the buffers are
+	 * allocated once and kept through the lifetime of the driver.
+	 * See module parameter: persistent_cl_buffer
+	 */
+	struct snd_dma_buffer cl_dmab;
+	bool cl_dmab_contains_basefw;
+	struct snd_dma_buffer iccmax_dmab;
+
 	struct hda_bus hbus;
 
 	/* hw config */
@@ -714,11 +723,12 @@ int hda_cl_copy_fw(struct snd_sof_dev *sdev, struct hdac_ext_stream *hext_stream
 
 struct hdac_ext_stream *hda_cl_prepare(struct device *dev, unsigned int format,
 				       unsigned int size, struct snd_dma_buffer *dmab,
-				       int direction, bool is_iccmax);
+				       bool persistent_buffer, int direction,
+				       bool is_iccmax);
 int hda_cl_trigger(struct device *dev, struct hdac_ext_stream *hext_stream, int cmd);
 
 int hda_cl_cleanup(struct device *dev, struct snd_dma_buffer *dmab,
-		   struct hdac_ext_stream *hext_stream);
+		   bool persistent_buffer, struct hdac_ext_stream *hext_stream);
 int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag, bool imr_boot);
 #define HDA_CL_STREAM_FORMAT 0x40
 
@@ -920,6 +930,7 @@ extern const struct sof_intel_dsp_desc adls_chip_info;
 extern const struct sof_intel_dsp_desc mtl_chip_info;
 extern const struct sof_intel_dsp_desc arl_s_chip_info;
 extern const struct sof_intel_dsp_desc lnl_chip_info;
+extern const struct sof_intel_dsp_desc ptl_chip_info;
 
 /* Probes support */
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_PROBES)

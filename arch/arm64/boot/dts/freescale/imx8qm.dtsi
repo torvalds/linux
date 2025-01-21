@@ -24,6 +24,10 @@
 		serial1 = &lpuart1;
 		serial2 = &lpuart2;
 		serial3 = &lpuart3;
+		spi0 = &lpspi0;
+		spi1 = &lpspi1;
+		spi2 = &lpspi2;
+		spi3 = &lpspi3;
 		vpu-core0 = &vpu_core0;
 		vpu-core1 = &vpu_core1;
 		vpu-core2 = &vpu_core2;
@@ -560,15 +564,67 @@
 		clock-output-names = "spdif1_rx";
 	};
 
+	lvds_ipg_clk: clock-controller-lvds-ipg {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24000000>;
+		clock-output-names = "lvds0_ipg_clk";
+	};
+
+	dsi_ipg_clk: clock-controller-dsi-ipg {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <120000000>;
+		clock-output-names = "dsi_ipg_clk";
+	};
+
+	mipi_pll_div2_clk: clock-controller-mipi-div2-pll {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <432000000>;
+		clock-output-names = "mipi_pll_div2_clk";
+	};
+
+	vpu_subsys_dsp: bus@55000000 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x55000000 0x0 0x55000000 0x1000000>;
+
+		vpu_dsp: dsp@556e8000 {
+			compatible = "fsl,imx8qm-hifi4";
+			reg = <0x556e8000 0x88000>;
+			clocks = <&clk_dummy>,
+				 <&clk_dummy>,
+				 <&clk_dummy>;
+			clock-names = "ipg", "ocram", "core";
+			power-domains = <&pd IMX_SC_R_MU_13B>,
+					<&pd IMX_SC_R_DSP>,
+					<&pd IMX_SC_R_DSP_RAM>,
+					<&pd IMX_SC_R_MU_2A>;
+			mboxes = <&lsio_mu13 0 0>,
+				 <&lsio_mu13 1 0>,
+				 <&lsio_mu13 3 0>;
+			mbox-names = "tx", "rx", "rxdb";
+			firmware-name = "imx/dsp/hifi4.bin";
+			status = "disabled";
+		};
+	};
+
 	/* sorted in register address */
 	#include "imx8-ss-cm41.dtsi"
 	#include "imx8-ss-audio.dtsi"
 	#include "imx8-ss-vpu.dtsi"
 	#include "imx8-ss-gpu0.dtsi"
+	#include "imx8-ss-mipi0.dtsi"
+	#include "imx8-ss-lvds0.dtsi"
+	#include "imx8-ss-mipi1.dtsi"
+	#include "imx8-ss-lvds1.dtsi"
 	#include "imx8-ss-img.dtsi"
 	#include "imx8-ss-dma.dtsi"
 	#include "imx8-ss-conn.dtsi"
 	#include "imx8-ss-lsio.dtsi"
+	#include "imx8-ss-hsio.dtsi"
 };
 
 #include "imx8qm-ss-img.dtsi"
@@ -576,3 +632,8 @@
 #include "imx8qm-ss-conn.dtsi"
 #include "imx8qm-ss-lsio.dtsi"
 #include "imx8qm-ss-audio.dtsi"
+#include "imx8qm-ss-lvds.dtsi"
+#include "imx8qm-ss-mipi.dtsi"
+#include "imx8qm-ss-hsio.dtsi"
+
+/delete-node/ &dsp;

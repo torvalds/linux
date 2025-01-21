@@ -91,6 +91,11 @@ enum nvme_quirks {
 	NVME_QUIRK_NO_DEEPEST_PS		= (1 << 5),
 
 	/*
+	 *  Problems seen with concurrent commands
+	 */
+	NVME_QUIRK_QDEPTH_ONE			= (1 << 6),
+
+	/*
 	 * Set MEDIUM priority on SQ creation
 	 */
 	NVME_QUIRK_MEDIUM_PRIO_SQ		= (1 << 7),
@@ -372,7 +377,7 @@ struct nvme_ctrl {
 	struct nvme_dhchap_key *ctrl_key;
 	u16 transaction;
 #endif
-	struct key *tls_key;
+	key_serial_t tls_pskid;
 
 	/* Power saving configuration */
 	u64 ps_max_latency_us;
@@ -469,6 +474,7 @@ struct nvme_ns_head {
 	struct list_head	entry;
 	struct kref		ref;
 	bool			shared;
+	bool			rotational;
 	bool			passthru_err_log_enabled;
 	struct nvme_effects_log *effects;
 	u64			nuse;
@@ -489,6 +495,7 @@ struct nvme_ns_head {
 	struct bio_list		requeue_list;
 	spinlock_t		requeue_lock;
 	struct work_struct	requeue_work;
+	struct work_struct	partition_scan_work;
 	struct mutex		lock;
 	unsigned long		flags;
 #define NVME_NSHEAD_DISK_LIVE	0
@@ -1116,7 +1123,15 @@ static inline void nvme_start_request(struct request *rq)
 
 static inline bool nvme_ctrl_sgl_supported(struct nvme_ctrl *ctrl)
 {
-	return ctrl->sgls & ((1 << 0) | (1 << 1));
+	return ctrl->sgls & (NVME_CTRL_SGLS_BYTE_ALIGNED |
+			     NVME_CTRL_SGLS_DWORD_ALIGNED);
+}
+
+static inline bool nvme_ctrl_meta_sgl_supported(struct nvme_ctrl *ctrl)
+{
+	if (ctrl->ops->flags & NVME_F_FABRICS)
+		return true;
+	return ctrl->sgls & NVME_CTRL_SGLS_MSDS;
 }
 
 #ifdef CONFIG_NVME_HOST_AUTH

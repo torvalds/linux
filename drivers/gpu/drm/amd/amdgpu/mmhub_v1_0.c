@@ -229,6 +229,52 @@ static void mmhub_v1_0_disable_identity_aperture(struct amdgpu_device *adev)
 		     0);
 }
 
+static void mmhub_v1_0_init_saw(struct amdgpu_device *adev)
+{
+	uint64_t pt_base = amdgpu_gmc_pd_addr(adev->gart.bo);
+	uint32_t tmp;
+
+	/* VM_9_X_REGISTER_VM_L2_SAW_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32 */
+	WREG32_SOC15(MMHUB, 0, mmVM_L2_SAW_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32,
+			    lower_32_bits(pt_base >> 12));
+
+	/* VM_9_X_REGISTER_VM_L2_SAW_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32 */
+	WREG32_SOC15(MMHUB, 0, mmVM_L2_SAW_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32,
+			    upper_32_bits(pt_base >> 12));
+
+	/* VM_9_X_REGISTER_VM_L2_SAW_CONTEXT0_PAGE_TABLE_START_ADDR_LO32 */
+	WREG32_SOC15(MMHUB, 0, mmVM_L2_SAW_CONTEXT0_PAGE_TABLE_START_ADDR_LO32,
+			    (u32)(adev->gmc.gart_start >> 12));
+
+	/* VM_9_X_REGISTER_VM_L2_SAW_CONTEXT0_PAGE_TABLE_START_ADDR_HI32 */
+	WREG32_SOC15(MMHUB, 0, mmVM_L2_SAW_CONTEXT0_PAGE_TABLE_START_ADDR_HI32,
+			    (u32)(adev->gmc.gart_start >> 44));
+
+	/* VM_9_X_REGISTER_VM_L2_SAW_CONTEXT0_PAGE_TABLE_END_ADDR_LO32 */
+	WREG32_SOC15(MMHUB, 0, mmVM_L2_SAW_CONTEXT0_PAGE_TABLE_END_ADDR_LO32,
+			    (u32)(adev->gmc.gart_end >> 12));
+
+	/* VM_9_X_REGISTER_VM_L2_SAW_CONTEXT0_PAGE_TABLE_END_ADDR_HI32 */
+	WREG32_SOC15(MMHUB, 0, mmVM_L2_SAW_CONTEXT0_PAGE_TABLE_END_ADDR_HI32,
+			    (u32)(adev->gmc.gart_end >> 44));
+
+	/* Program SAW CONTEXT0 CNTL */
+	tmp = RREG32_SOC15(MMHUB, 0, mmVM_L2_SAW_CONTEXT0_CNTL);
+	tmp |= 1 << CONTEXT0_CNTL_ENABLE_OFFSET;
+	tmp &= ~(3 << CONTEXT0_CNTL_PAGE_TABLE_DEPTH_OFFSET);
+	WREG32_SOC15(MMHUB, 0, mmVM_L2_SAW_CONTEXT0_CNTL, tmp);
+
+	/* Disable all Contexts except Context0 */
+	tmp = 0xfffe;
+	WREG32_SOC15(MMHUB, 0, mmVM_L2_SAW_CONTEXTS_DISABLE, tmp);
+
+	/* Program SAW CNTL4 */
+	tmp = RREG32_SOC15(MMHUB, 0, mmVM_L2_SAW_CNTL4);
+	tmp |= 1 << VMC_TAP_PDE_REQUEST_SNOOP_OFFSET;
+	tmp |= 1 << VMC_TAP_PTE_REQUEST_SNOOP_OFFSET;
+	WREG32_SOC15(MMHUB, 0, mmVM_L2_SAW_CNTL4, tmp);
+}
+
 static void mmhub_v1_0_setup_vmid_config(struct amdgpu_device *adev)
 {
 	struct amdgpu_vmhub *hub = &adev->vmhub[AMDGPU_MMHUB0(0)];
@@ -283,6 +329,9 @@ static void mmhub_v1_0_setup_vmid_config(struct amdgpu_device *adev)
 				    i * hub->ctx_addr_distance,
 				    upper_32_bits(adev->vm_manager.max_pfn - 1));
 	}
+
+	if (amdgpu_ip_version(adev, ISP_HWIP, 0))
+		mmhub_v1_0_init_saw(adev);
 }
 
 static void mmhub_v1_0_program_invalidation(struct amdgpu_device *adev)

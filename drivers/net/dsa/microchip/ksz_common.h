@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Microchip switch driver common header
  *
- * Copyright (C) 2017-2019 Microchip Technology Inc.
+ * Copyright (C) 2017-2024 Microchip Technology Inc.
  */
 
 #ifndef __KSZ_COMMON_H
@@ -65,6 +65,12 @@ struct ksz_chip_data {
 	u8 num_tx_queues;
 	u8 num_ipms; /* number of Internal Priority Maps */
 	bool tc_cbs_supported;
+
+	/**
+	 * @phy_side_mdio_supported: Indicates if the chip supports an additional
+	 * side MDIO channel for accessing integrated PHYs.
+	 */
+	bool phy_side_mdio_supported;
 	const struct ksz_dev_ops *ops;
 	const struct phylink_mac_ops *phylink_mac_ops;
 	bool phy_errata_9477;
@@ -174,6 +180,7 @@ struct ksz_device {
 	bool synclko_125;
 	bool synclko_disable;
 	bool wakeup_source;
+	bool pme_active_high;
 
 	struct vlan_table *vlan_cache;
 
@@ -190,6 +197,22 @@ struct ksz_device {
 	struct ksz_switch_macaddr *switch_macaddr;
 	struct net_device *hsr_dev;     /* HSR */
 	u8 hsr_ports;
+
+	/**
+	 * @phy_addr_map: Array mapping switch ports to their corresponding PHY
+	 * addresses.
+	 */
+	u8 phy_addr_map[KSZ_MAX_NUM_PORTS];
+
+	/**
+	 * @parent_mdio_bus: Pointer to the external MDIO bus controller.
+	 *
+	 * This points to an external MDIO bus controller that is used to access
+	 * the  PHYs integrated within the switch. Unlike an integrated MDIO
+	 * bus, this external controller provides a direct path for managing
+	 * the switch’s internal PHYs, bypassing the main SPI interface.
+	 */
+	struct mii_bus *parent_mdio_bus;
 };
 
 /* List of supported models */
@@ -199,7 +222,9 @@ enum ksz_model {
 	KSZ8795,
 	KSZ8794,
 	KSZ8765,
-	KSZ8830,
+	KSZ88X3,
+	KSZ8864,
+	KSZ8895,
 	KSZ9477,
 	KSZ9896,
 	KSZ9897,
@@ -211,6 +236,7 @@ enum ksz_model {
 	LAN9372,
 	LAN9373,
 	LAN9374,
+	LAN9646,
 };
 
 enum ksz_regs {
@@ -235,6 +261,9 @@ enum ksz_regs {
 	S_MULTICAST_CTRL,
 	P_XMII_CTRL_0,
 	P_XMII_CTRL_1,
+	REG_SW_PME_CTRL,
+	REG_PORT_PME_STATUS,
+	REG_PORT_PME_CTRL,
 };
 
 enum ksz_masks {
@@ -320,6 +349,43 @@ struct ksz_dev_ops {
 	void (*port_cleanup)(struct ksz_device *dev, int port);
 	void (*port_setup)(struct ksz_device *dev, int port, bool cpu_port);
 	int (*set_ageing_time)(struct ksz_device *dev, unsigned int msecs);
+
+	/**
+	 * @mdio_bus_preinit: Function pointer to pre-initialize the MDIO bus
+	 *                    for accessing PHYs.
+	 * @dev: Pointer to device structure.
+	 * @side_mdio: Boolean indicating if the PHYs are accessed over a side
+	 *             MDIO bus.
+	 *
+	 * This function pointer is used to configure the MDIO bus for PHY
+	 * access before initiating regular PHY operations. It enables either
+	 * SPI/I2C or side MDIO access modes by unlocking necessary registers
+	 * and setting up access permissions for the selected mode.
+	 *
+	 * Return:
+	 *  - 0 on success.
+	 *  - Negative error code on failure.
+	 */
+	int (*mdio_bus_preinit)(struct ksz_device *dev, bool side_mdio);
+
+	/**
+	 * @create_phy_addr_map: Function pointer to create a port-to-PHY
+	 *                       address map.
+	 * @dev: Pointer to device structure.
+	 * @side_mdio: Boolean indicating if the PHYs are accessed over a side
+	 *             MDIO bus.
+	 *
+	 * This function pointer is responsible for mapping switch ports to PHY
+	 * addresses according to the configured access mode (SPI or side MDIO)
+	 * and the device’s strap configuration. The mapping setup may vary
+	 * depending on the chip variant and configuration. Ensures the correct
+	 * address mapping for PHY communication.
+	 *
+	 * Return:
+	 *  - 0 on success.
+	 *  - Negative error code on failure (e.g., invalid configuration).
+	 */
+	int (*create_phy_addr_map)(struct ksz_device *dev, bool side_mdio);
 	int (*r_phy)(struct ksz_device *dev, u16 phy, u16 reg, u16 *val);
 	int (*w_phy)(struct ksz_device *dev, u16 phy, u16 reg, u16 val);
 	void (*r_mib_cnt)(struct ksz_device *dev, int port, u16 addr,
@@ -354,6 +420,11 @@ struct ksz_dev_ops {
 	void (*get_caps)(struct ksz_device *dev, int port,
 			 struct phylink_config *config);
 	int (*change_mtu)(struct ksz_device *dev, int port, int mtu);
+	int (*pme_write8)(struct ksz_device *dev, u32 reg, u8 value);
+	int (*pme_pread8)(struct ksz_device *dev, int port, int offset,
+			  u8 *data);
+	int (*pme_pwrite8)(struct ksz_device *dev, int port, int offset,
+			   u8 data);
 	void (*freeze_mib)(struct ksz_device *dev, int port, bool freeze);
 	void (*port_init_cnt)(struct ksz_device *dev, int port);
 	void (*phylink_mac_link_up)(struct ksz_device *dev, int port,
@@ -363,11 +434,6 @@ struct ksz_dev_ops {
 				    int duplex, bool tx_pause, bool rx_pause);
 	void (*setup_rgmii_delay)(struct ksz_device *dev, int port);
 	int (*tc_cbs_set_cinc)(struct ksz_device *dev, int port, u32 val);
-	void (*get_wol)(struct ksz_device *dev, int port,
-			struct ethtool_wolinfo *wol);
-	int (*set_wol)(struct ksz_device *dev, int port,
-		       struct ethtool_wolinfo *wol);
-	void (*wol_pre_shutdown)(struct ksz_device *dev, bool *wol_enabled);
 	void (*config_cpu_port)(struct dsa_switch *ds);
 	int (*enable_stp_addr)(struct ksz_device *dev);
 	int (*reset)(struct ksz_device *dev);
@@ -391,6 +457,7 @@ int ksz_switch_macaddr_get(struct dsa_switch *ds, int port,
 			   struct netlink_ext_ack *extack);
 void ksz_switch_macaddr_put(struct dsa_switch *ds);
 void ksz_switch_shutdown(struct ksz_device *dev);
+int ksz_handle_wake_reason(struct ksz_device *dev, int port);
 
 /* Common register access functions */
 static inline struct regmap *ksz_regmap_8(struct ksz_device *dev)
@@ -621,12 +688,29 @@ static inline bool ksz_is_ksz87xx(struct ksz_device *dev)
 
 static inline bool ksz_is_ksz88x3(struct ksz_device *dev)
 {
-	return dev->chip_id == KSZ8830_CHIP_ID;
+	return dev->chip_id == KSZ88X3_CHIP_ID;
+}
+
+static inline bool ksz_is_8895_family(struct ksz_device *dev)
+{
+	return dev->chip_id == KSZ8895_CHIP_ID ||
+	       dev->chip_id == KSZ8864_CHIP_ID;
 }
 
 static inline bool is_ksz8(struct ksz_device *dev)
 {
-	return ksz_is_ksz87xx(dev) || ksz_is_ksz88x3(dev);
+	return ksz_is_ksz87xx(dev) || ksz_is_ksz88x3(dev) ||
+	       ksz_is_8895_family(dev);
+}
+
+static inline bool is_ksz88xx(struct ksz_device *dev)
+{
+	return ksz_is_ksz88x3(dev) || ksz_is_8895_family(dev);
+}
+
+static inline bool is_ksz9477(struct ksz_device *dev)
+{
+	return dev->chip_id == KSZ9477_CHIP_ID;
 }
 
 static inline int is_lan937x(struct ksz_device *dev)
@@ -655,6 +739,7 @@ static inline bool is_lan937x_tx_phy(struct ksz_device *dev, int port)
 #define SW_FAMILY_ID_M			GENMASK(15, 8)
 #define KSZ87_FAMILY_ID			0x87
 #define KSZ88_FAMILY_ID			0x88
+#define KSZ8895_FAMILY_ID		0x95
 
 #define KSZ8_PORT_STATUS_0		0x08
 #define KSZ8_PORT_FIBER_MODE		BIT(7)
@@ -663,6 +748,12 @@ static inline bool is_lan937x_tx_phy(struct ksz_device *dev, int port)
 #define KSZ87_CHIP_ID_94		0x6
 #define KSZ87_CHIP_ID_95		0x9
 #define KSZ88_CHIP_ID_63		0x3
+#define KSZ8895_CHIP_ID_95		0x4
+#define KSZ8895_CHIP_ID_95R		0x6
+
+/* KSZ8895 specific register */
+#define REG_KSZ8864_CHIP_ID		0xFE
+#define SW_KSZ8864			BIT(7)
 
 #define SW_REV_ID_M			GENMASK(7, 4)
 
@@ -694,6 +785,17 @@ static inline bool is_lan937x_tx_phy(struct ksz_device *dev, int port)
 #define P_RGMII_ID_EG_ENABLE		BIT(3)
 #define P_MII_MAC_MODE			BIT(2)
 #define P_MII_SEL_M			0x3
+
+/* KSZ9477, KSZ87xx Wake-on-LAN (WoL) masks */
+#define PME_WOL_MAGICPKT		BIT(2)
+#define PME_WOL_LINKUP			BIT(1)
+#define PME_WOL_ENERGY			BIT(0)
+
+#define PME_ENABLE			BIT(1)
+#define PME_POLARITY			BIT(0)
+
+#define KSZ87XX_REG_INT_EN		0x7D
+#define KSZ87XX_INT_PME_MASK		BIT(4)
 
 /* Interrupt */
 #define REG_SW_PORT_INT_STATUS__1	0x001B

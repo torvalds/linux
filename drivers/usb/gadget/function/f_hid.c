@@ -15,12 +15,20 @@
 #include <linux/uaccess.h>
 #include <linux/wait.h>
 #include <linux/sched.h>
+#include <linux/workqueue.h>
+#include <linux/usb/func_utils.h>
 #include <linux/usb/g_hid.h>
+#include <uapi/linux/usb/g_hid.h>
 
-#include "u_f.h"
 #include "u_hid.h"
 
 #define HIDG_MINORS	4
+
+/*
+ * Most operating systems seem to allow for 5000ms timeout, we will allow
+ * userspace half that time to respond before we return an empty report.
+ */
+#define GET_REPORT_TIMEOUT_MS 2500
 
 static int major, minors;
 
@@ -30,6 +38,11 @@ static const struct class hidg_class = {
 
 static DEFINE_IDA(hidg_ida);
 static DEFINE_MUTEX(hidg_ida_lock); /* protects access to hidg_ida */
+
+struct report_entry {
+	struct usb_hidg_report report_data;
+	struct list_head node;
+};
 
 /*-------------------------------------------------------------------------*/
 /*                            HID gadget struct                            */
@@ -74,6 +87,19 @@ struct f_hidg {
 	bool				write_pending;
 	wait_queue_head_t		write_queue;
 	struct usb_request		*req;
+
+	/* get report */
+	struct usb_request		*get_req;
+	struct usb_hidg_report		get_report;
+	bool				get_report_returned;
+	int				get_report_req_report_id;
+	int				get_report_req_report_length;
+	spinlock_t			get_report_spinlock;
+	wait_queue_head_t		get_queue;    /* Waiting for userspace response */
+	wait_queue_head_t		get_id_queue; /* Get ID came in */
+	struct work_struct		work;
+	struct workqueue_struct		*workqueue;
+	struct list_head		report_list;
 
 	struct device			dev;
 	struct cdev			cdev;
@@ -524,6 +550,174 @@ release_write_pending:
 	return status;
 }
 
+static struct report_entry *f_hidg_search_for_report(struct f_hidg *hidg, u8 report_id)
+{
+	struct list_head	*ptr;
+	struct report_entry	*entry;
+
+	list_for_each(ptr, &hidg->report_list) {
+		entry = list_entry(ptr, struct report_entry, node);
+		if (entry->report_data.report_id == report_id)
+			return entry;
+	}
+
+	return NULL;
+}
+
+static void get_report_workqueue_handler(struct work_struct *work)
+{
+	struct f_hidg *hidg = container_of(work, struct f_hidg, work);
+	struct usb_composite_dev *cdev = hidg->func.config->cdev;
+	struct usb_request		*req;
+	struct report_entry *ptr;
+	unsigned long	flags;
+
+	int status = 0;
+
+	spin_lock_irqsave(&hidg->get_report_spinlock, flags);
+	req = hidg->get_req;
+	if (!req) {
+		spin_unlock_irqrestore(&hidg->get_report_spinlock, flags);
+		return;
+	}
+
+	req->zero = 0;
+	req->length = min_t(unsigned int, min_t(unsigned int, hidg->get_report_req_report_length,
+							      hidg->report_length),
+					  MAX_REPORT_LENGTH);
+
+	/* Check if there is a response available for immediate response */
+	ptr = f_hidg_search_for_report(hidg, hidg->get_report_req_report_id);
+	if (ptr && !ptr->report_data.userspace_req) {
+		/* Report exists in list and it is to be used for immediate response */
+		req->buf = ptr->report_data.data;
+		status = usb_ep_queue(cdev->gadget->ep0, req, GFP_ATOMIC);
+		hidg->get_report_returned = true;
+		spin_unlock_irqrestore(&hidg->get_report_spinlock, flags);
+	} else {
+		/*
+		 * Report does not exist in list or should not be immediately sent
+		 * i.e. give userspace time to respond
+		 */
+		hidg->get_report_returned = false;
+		spin_unlock_irqrestore(&hidg->get_report_spinlock, flags);
+		wake_up(&hidg->get_id_queue);
+#define GET_REPORT_COND (!hidg->get_report_returned)
+		/* Wait until userspace has responded or timeout */
+		status = wait_event_interruptible_timeout(hidg->get_queue, !GET_REPORT_COND,
+					msecs_to_jiffies(GET_REPORT_TIMEOUT_MS));
+		spin_lock_irqsave(&hidg->get_report_spinlock, flags);
+		req = hidg->get_req;
+		if (!req) {
+			spin_unlock_irqrestore(&hidg->get_report_spinlock, flags);
+			return;
+		}
+		if (status == 0 && !hidg->get_report_returned) {
+			/* GET_REPORT request was not serviced by userspace within timeout period */
+			VDBG(cdev, "get_report : userspace timeout.\n");
+			hidg->get_report_returned = true;
+		}
+
+		/* Search again for report ID in list and respond to GET_REPORT request */
+		ptr = f_hidg_search_for_report(hidg, hidg->get_report_req_report_id);
+		if (ptr) {
+			/*
+			 * Either get an updated response just serviced by userspace
+			 * or send the latest response in the list
+			 */
+			req->buf = ptr->report_data.data;
+		} else {
+			/* If there are no prevoiusly sent reports send empty report */
+			req->buf = hidg->get_report.data;
+			memset(req->buf, 0x0, req->length);
+		}
+
+		status = usb_ep_queue(cdev->gadget->ep0, req, GFP_ATOMIC);
+		spin_unlock_irqrestore(&hidg->get_report_spinlock, flags);
+	}
+
+	if (status < 0)
+		VDBG(cdev, "usb_ep_queue error on ep0 responding to GET_REPORT\n");
+}
+
+static int f_hidg_get_report_id(struct file *file, __u8 __user *buffer)
+{
+	struct f_hidg			*hidg = file->private_data;
+	int ret = 0;
+
+	ret = put_user(hidg->get_report_req_report_id, buffer);
+
+	return ret;
+}
+
+static int f_hidg_get_report(struct file *file, struct usb_hidg_report __user *buffer)
+{
+	struct f_hidg			*hidg = file->private_data;
+	struct usb_composite_dev	*cdev = hidg->func.config->cdev;
+	unsigned long	flags;
+	struct report_entry *entry;
+	struct report_entry *ptr;
+	__u8 report_id;
+
+	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry)
+		return -ENOMEM;
+
+	if (copy_from_user(&entry->report_data, buffer,
+				sizeof(struct usb_hidg_report))) {
+		ERROR(cdev, "copy_from_user error\n");
+		kfree(entry);
+		return -EINVAL;
+	}
+
+	report_id = entry->report_data.report_id;
+
+	spin_lock_irqsave(&hidg->get_report_spinlock, flags);
+	ptr = f_hidg_search_for_report(hidg, report_id);
+
+	if (ptr) {
+		/* Report already exists in list - update it */
+		if (copy_from_user(&ptr->report_data, buffer,
+				sizeof(struct usb_hidg_report))) {
+			spin_unlock_irqrestore(&hidg->get_report_spinlock, flags);
+			ERROR(cdev, "copy_from_user error\n");
+			kfree(entry);
+			return -EINVAL;
+		}
+		kfree(entry);
+	} else {
+		/* Report does not exist in list - add it */
+		list_add_tail(&entry->node, &hidg->report_list);
+	}
+
+	/* If there is no response pending then do nothing further */
+	if (hidg->get_report_returned) {
+		spin_unlock_irqrestore(&hidg->get_report_spinlock, flags);
+		return 0;
+	}
+
+	/* If this userspace response serves the current pending report */
+	if (hidg->get_report_req_report_id == report_id) {
+		hidg->get_report_returned = true;
+		wake_up(&hidg->get_queue);
+	}
+
+	spin_unlock_irqrestore(&hidg->get_report_spinlock, flags);
+	return 0;
+}
+
+static long f_hidg_ioctl(struct file *file, unsigned int code, unsigned long arg)
+{
+	switch (code) {
+	case GADGET_HID_READ_GET_REPORT_ID:
+		return f_hidg_get_report_id(file, (__u8 __user *)arg);
+	case GADGET_HID_WRITE_GET_REPORT:
+		return f_hidg_get_report(file, (struct usb_hidg_report __user *)arg);
+	default:
+		return -ENOTTY;
+	}
+}
+
 static __poll_t f_hidg_poll(struct file *file, poll_table *wait)
 {
 	struct f_hidg	*hidg  = file->private_data;
@@ -531,6 +725,8 @@ static __poll_t f_hidg_poll(struct file *file, poll_table *wait)
 
 	poll_wait(file, &hidg->read_queue, wait);
 	poll_wait(file, &hidg->write_queue, wait);
+	poll_wait(file, &hidg->get_queue, wait);
+	poll_wait(file, &hidg->get_id_queue, wait);
 
 	if (WRITE_COND)
 		ret |= EPOLLOUT | EPOLLWRNORM;
@@ -543,12 +739,16 @@ static __poll_t f_hidg_poll(struct file *file, poll_table *wait)
 			ret |= EPOLLIN | EPOLLRDNORM;
 	}
 
+	if (GET_REPORT_COND)
+		ret |= EPOLLPRI;
+
 	return ret;
 }
 
 #undef WRITE_COND
 #undef READ_COND_SSREPORT
 #undef READ_COND_INTOUT
+#undef GET_REPORT_COND
 
 static int f_hidg_release(struct inode *inode, struct file *fd)
 {
@@ -641,6 +841,10 @@ static void hidg_ssreport_complete(struct usb_ep *ep, struct usb_request *req)
 	wake_up(&hidg->read_queue);
 }
 
+static void hidg_get_report_complete(struct usb_ep *ep, struct usb_request *req)
+{
+}
+
 static int hidg_setup(struct usb_function *f,
 		const struct usb_ctrlrequest *ctrl)
 {
@@ -649,6 +853,7 @@ static int hidg_setup(struct usb_function *f,
 	struct usb_request		*req  = cdev->req;
 	int status = 0;
 	__u16 value, length;
+	unsigned long	flags;
 
 	value	= __le16_to_cpu(ctrl->wValue);
 	length	= __le16_to_cpu(ctrl->wLength);
@@ -660,14 +865,20 @@ static int hidg_setup(struct usb_function *f,
 	switch ((ctrl->bRequestType << 8) | ctrl->bRequest) {
 	case ((USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE) << 8
 		  | HID_REQ_GET_REPORT):
-		VDBG(cdev, "get_report\n");
+		VDBG(cdev, "get_report | wLength=%d\n", ctrl->wLength);
 
-		/* send an empty report */
-		length = min_t(unsigned, length, hidg->report_length);
-		memset(req->buf, 0x0, length);
+		/*
+		 * Update GET_REPORT ID so that an ioctl can be used to determine what
+		 * GET_REPORT the request was actually for.
+		 */
+		spin_lock_irqsave(&hidg->get_report_spinlock, flags);
+		hidg->get_report_req_report_id = value & 0xff;
+		hidg->get_report_req_report_length = length;
+		spin_unlock_irqrestore(&hidg->get_report_spinlock, flags);
 
-		goto respond;
-		break;
+		queue_work(hidg->workqueue, &hidg->work);
+
+		return status;
 
 	case ((USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE) << 8
 		  | HID_REQ_GET_PROTOCOL):
@@ -793,6 +1004,14 @@ static void hidg_disable(struct usb_function *f)
 		spin_unlock_irqrestore(&hidg->read_spinlock, flags);
 	}
 
+	spin_lock_irqsave(&hidg->get_report_spinlock, flags);
+	if (!hidg->get_report_returned) {
+		usb_ep_free_request(f->config->cdev->gadget->ep0, hidg->get_req);
+		hidg->get_req = NULL;
+		hidg->get_report_returned = true;
+	}
+	spin_unlock_irqrestore(&hidg->get_report_spinlock, flags);
+
 	spin_lock_irqsave(&hidg->write_spinlock, flags);
 	if (!hidg->write_pending) {
 		free_ep_req(hidg->in_ep, hidg->req);
@@ -902,6 +1121,14 @@ fail:
 	return status;
 }
 
+#ifdef CONFIG_COMPAT
+static long f_hidg_compat_ioctl(struct file *file, unsigned int code,
+		unsigned long value)
+{
+	return f_hidg_ioctl(file, code, value);
+}
+#endif
+
 static const struct file_operations f_hidg_fops = {
 	.owner		= THIS_MODULE,
 	.open		= f_hidg_open,
@@ -909,6 +1136,10 @@ static const struct file_operations f_hidg_fops = {
 	.write		= f_hidg_write,
 	.read		= f_hidg_read,
 	.poll		= f_hidg_poll,
+	.unlocked_ioctl	= f_hidg_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = f_hidg_compat_ioctl,
+#endif
 	.llseek		= noop_llseek,
 };
 
@@ -918,6 +1149,15 @@ static int hidg_bind(struct usb_configuration *c, struct usb_function *f)
 	struct f_hidg		*hidg = func_to_hidg(f);
 	struct usb_string	*us;
 	int			status;
+
+	hidg->get_req = usb_ep_alloc_request(c->cdev->gadget->ep0, GFP_ATOMIC);
+	if (!hidg->get_req)
+		return -ENOMEM;
+
+	hidg->get_req->zero = 0;
+	hidg->get_req->complete = hidg_get_report_complete;
+	hidg->get_req->context = hidg;
+	hidg->get_report_returned = true;
 
 	/* maybe allocate device-global string IDs, and patch descriptors */
 	us = usb_gstrings_attach(c->cdev, ct_func_strings,
@@ -1004,9 +1244,24 @@ static int hidg_bind(struct usb_configuration *c, struct usb_function *f)
 	hidg->write_pending = 1;
 	hidg->req = NULL;
 	spin_lock_init(&hidg->read_spinlock);
+	spin_lock_init(&hidg->get_report_spinlock);
 	init_waitqueue_head(&hidg->write_queue);
 	init_waitqueue_head(&hidg->read_queue);
+	init_waitqueue_head(&hidg->get_queue);
+	init_waitqueue_head(&hidg->get_id_queue);
 	INIT_LIST_HEAD(&hidg->completed_out_req);
+	INIT_LIST_HEAD(&hidg->report_list);
+
+	INIT_WORK(&hidg->work, get_report_workqueue_handler);
+	hidg->workqueue = alloc_workqueue("report_work",
+					  WQ_FREEZABLE |
+					  WQ_MEM_RECLAIM,
+					  1);
+
+	if (!hidg->workqueue) {
+		status = -ENOMEM;
+		goto fail;
+	}
 
 	/* create char device */
 	cdev_init(&hidg->cdev, &f_hidg_fops);
@@ -1016,11 +1271,15 @@ static int hidg_bind(struct usb_configuration *c, struct usb_function *f)
 
 	return 0;
 fail_free_descs:
+	destroy_workqueue(hidg->workqueue);
 	usb_free_all_descriptors(f);
 fail:
 	ERROR(f->config->cdev, "hidg_bind FAILED\n");
 	if (hidg->req != NULL)
 		free_ep_req(hidg->in_ep, hidg->req);
+
+	usb_ep_free_request(c->cdev->gadget->ep0, hidg->get_req);
+	hidg->get_req = NULL;
 
 	return status;
 }
@@ -1256,7 +1515,7 @@ static void hidg_unbind(struct usb_configuration *c, struct usb_function *f)
 	struct f_hidg *hidg = func_to_hidg(f);
 
 	cdev_device_del(&hidg->cdev, &hidg->dev);
-
+	destroy_workqueue(hidg->workqueue);
 	usb_free_all_descriptors(f);
 }
 

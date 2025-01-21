@@ -28,7 +28,7 @@
 /* I2C Device ID List */
 static const struct i2c_device_id si470x_i2c_id[] = {
 	/* Generic Entry */
-	{ "si470x", 0 },
+	{ "si470x" },
 	/* Terminating entry */
 	{ }
 };

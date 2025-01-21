@@ -6,7 +6,7 @@
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/ieee80211.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "michael.h"
 

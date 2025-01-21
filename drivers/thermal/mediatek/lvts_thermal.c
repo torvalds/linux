@@ -329,7 +329,7 @@ static int lvts_get_temp(struct thermal_zone_device *tz, int *temp)
 
 static void lvts_update_irq_mask(struct lvts_ctrl *lvts_ctrl)
 {
-	u32 masks[] = {
+	static const u32 masks[] = {
 		LVTS_MONINT_OFFSET_SENSOR0,
 		LVTS_MONINT_OFFSET_SENSOR1,
 		LVTS_MONINT_OFFSET_SENSOR2,
@@ -424,7 +424,7 @@ static irqreturn_t lvts_ctrl_irq_handler(struct lvts_ctrl *lvts_ctrl)
 {
 	irqreturn_t iret = IRQ_NONE;
 	u32 value;
-	u32 masks[] = {
+	static const u32 masks[] = {
 		LVTS_INT_SENSOR0,
 		LVTS_INT_SENSOR1,
 		LVTS_INT_SENSOR2,
@@ -1788,7 +1788,7 @@ static const struct dev_pm_ops lvts_pm_ops = {
 
 static struct platform_driver lvts_driver = {
 	.probe = lvts_probe,
-	.remove_new = lvts_remove,
+	.remove = lvts_remove,
 	.driver = {
 		.name = "mtk-lvts-thermal",
 		.of_match_table = lvts_of_match,

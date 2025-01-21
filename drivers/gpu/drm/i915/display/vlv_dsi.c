@@ -30,6 +30,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_mipi_dsi.h>
+#include <drm/drm_probe_helper.h>
 
 #include "i915_drv.h"
 #include "i915_reg.h"
@@ -43,6 +44,7 @@
 #include "intel_dsi_vbt.h"
 #include "intel_fifo_underrun.h"
 #include "intel_panel.h"
+#include "intel_pfit.h"
 #include "skl_scaler.h"
 #include "vlv_dsi.h"
 #include "vlv_dsi_pll.h"
@@ -1071,7 +1073,7 @@ static void bxt_dsi_get_pipe_config(struct intel_encoder *encoder,
 	hsync = intel_de_read(display, MIPI_HSYNC_PADDING_COUNT(display, port));
 	hbp = intel_de_read(display, MIPI_HBP_COUNT(display, port));
 
-	/* harizontal values are in terms of high speed byte clock */
+	/* horizontal values are in terms of high speed byte clock */
 	hfp = pixels_from_txbyteclkhs(hfp, bpp, lane_count,
 						intel_dsi->burst_mode_ratio);
 	hsync = pixels_from_txbyteclkhs(hsync, bpp, lane_count,
@@ -1879,6 +1881,7 @@ static const struct dmi_system_id vlv_dsi_dmi_quirk_table[] = {
 
 void vlv_dsi_init(struct drm_i915_private *dev_priv)
 {
+	struct intel_display *display = &dev_priv->display;
 	struct intel_dsi *intel_dsi;
 	struct intel_encoder *encoder;
 	struct intel_connector *connector;
@@ -1890,7 +1893,7 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	drm_dbg_kms(&dev_priv->drm, "\n");
 
 	/* There is no detection method for MIPI so rely on VBT */
-	if (!intel_bios_is_dsi_present(dev_priv, &port))
+	if (!intel_bios_is_dsi_present(display, &port))
 		return;
 
 	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
@@ -1945,7 +1948,7 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 
 	intel_dsi->panel_power_off_time = ktime_get_boottime();
 
-	intel_bios_init_panel_late(dev_priv, &connector->panel, NULL, NULL);
+	intel_bios_init_panel_late(display, &connector->panel, NULL, NULL);
 
 	if (connector->panel.vbt.dsi.config->dual_link)
 		intel_dsi->ports = BIT(PORT_A) | BIT(PORT_C);

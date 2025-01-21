@@ -107,19 +107,13 @@
 
 #endif
 
-#ifdef CONFIG_XIP_KERNEL
-#define XIP_OFFSET		SZ_32M
-#define XIP_OFFSET_MASK		(SZ_32M - 1)
-#else
-#define XIP_OFFSET		0
-#endif
-
 #ifndef __ASSEMBLY__
 
 #include <asm/page.h>
 #include <asm/tlbflush.h>
 #include <linux/mm_types.h>
 #include <asm/compat.h>
+#include <asm/cpufeature.h>
 
 #define __page_val_to_pfn(_val)  (((_val) & _PAGE_PFN_MASK) >> _PAGE_PFN_SHIFT)
 
@@ -142,11 +136,14 @@
 
 #ifdef CONFIG_XIP_KERNEL
 #define XIP_FIXUP(addr) ({							\
+	extern char _sdata[], _start[], _end[];					\
+	uintptr_t __rom_start_data = CONFIG_XIP_PHYS_ADDR			\
+				+ (uintptr_t)&_sdata - (uintptr_t)&_start;	\
+	uintptr_t __rom_end_data = CONFIG_XIP_PHYS_ADDR				\
+				+ (uintptr_t)&_end - (uintptr_t)&_start;	\
 	uintptr_t __a = (uintptr_t)(addr);					\
-	(__a >= CONFIG_XIP_PHYS_ADDR && \
-	 __a < CONFIG_XIP_PHYS_ADDR + XIP_OFFSET * 2) ?	\
-		__a - CONFIG_XIP_PHYS_ADDR + CONFIG_PHYS_RAM_BASE - XIP_OFFSET :\
-		__a;								\
+	(__a >= __rom_start_data && __a < __rom_end_data) ?			\
+		__a - __rom_start_data + CONFIG_PHYS_RAM_BASE :	__a;		\
 	})
 #else
 #define XIP_FIXUP(addr)		(addr)
@@ -288,7 +285,6 @@ static inline pte_t pud_pte(pud_t pud)
 }
 
 #ifdef CONFIG_RISCV_ISA_SVNAPOT
-#include <asm/cpufeature.h>
 
 static __always_inline bool has_svnapot(void)
 {
@@ -501,6 +497,9 @@ static inline void update_mmu_cache_range(struct vm_fault *vmf,
 		struct vm_area_struct *vma, unsigned long address,
 		pte_t *ptep, unsigned int nr)
 {
+	asm goto(ALTERNATIVE("nop", "j %l[svvptc]", 0, RISCV_ISA_EXT_SVVPTC, 1)
+		 : : : : svvptc);
+
 	/*
 	 * The kernel assumes that TLBs don't cache invalid entries, but
 	 * in RISC-V, SFENCE.VMA specifies an ordering constraint, not a
@@ -510,6 +509,13 @@ static inline void update_mmu_cache_range(struct vm_fault *vmf,
 	 */
 	while (nr--)
 		local_flush_tlb_page(address + nr * PAGE_SIZE);
+
+svvptc:;
+	/*
+	 * Svvptc guarantees that the new valid pte will be visible within
+	 * a bounded timeframe, so when the uarch does not cache invalid
+	 * entries, we don't have to do anything.
+	 */
 }
 #define update_mmu_cache(vma, addr, ptep) \
 	update_mmu_cache_range(NULL, vma, addr, ptep, 1)
@@ -647,6 +653,17 @@ static inline pgprot_t pgprot_writecombine(pgprot_t _prot)
 	prot |= _PAGE_NOCACHE;
 
 	return __pgprot(prot);
+}
+
+/*
+ * Both Svade and Svadu control the hardware behavior when the PTE A/D bits need to be set. By
+ * default the M-mode firmware enables the hardware updating scheme when only Svadu is present in
+ * DT.
+ */
+#define arch_has_hw_pte_young arch_has_hw_pte_young
+static inline bool arch_has_hw_pte_young(void)
+{
+	return riscv_has_extension_unlikely(RISCV_ISA_EXT_SVADU);
 }
 
 /*
@@ -957,6 +974,25 @@ void misc_mem_init(void);
 extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 #define ZERO_PAGE(vaddr) (virt_to_page(empty_zero_page))
 
+/*
+ * Use set_p*_safe(), and elide TLB flushing, when confident that *no*
+ * TLB flush will be required as a result of the "set". For example, use
+ * in scenarios where it is known ahead of time that the routine is
+ * setting non-present entries, or re-setting an existing entry to the
+ * same value. Otherwise, use the typical "set" helpers and flush the
+ * TLB.
+ */
+#define set_p4d_safe(p4dp, p4d) \
+({ \
+	WARN_ON_ONCE(p4d_present(*p4dp) && !p4d_same(*p4dp, p4d)); \
+	set_p4d(p4dp, p4d); \
+})
+
+#define set_pgd_safe(pgdp, pgd) \
+({ \
+	WARN_ON_ONCE(pgd_present(*pgdp) && !pgd_same(*pgdp, pgd)); \
+	set_pgd(pgdp, pgd); \
+})
 #endif /* !__ASSEMBLY__ */
 
 #endif /* _ASM_RISCV_PGTABLE_H */

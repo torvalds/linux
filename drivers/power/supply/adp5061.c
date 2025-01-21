@@ -590,7 +590,7 @@ static int adp5061_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_VOLTAGE_AVG:
 		/*
 		 * This property is used to set the VWEAK threshold
-		 * bellow this value, weak charge mode is entered
+		 * below this value, weak charge mode is entered
 		 * above this value, fast chargerge mode is entered
 		 */
 		return adp5061_get_vweak_th(st, val);

@@ -1031,14 +1031,15 @@ explains which is which.
   CPU#: The CPU which the process was running on.
 
   irqs-off: 'd' interrupts are disabled. '.' otherwise.
-	.. caution:: If the architecture does not support a way to
-		read the irq flags variable, an 'X' will always
-		be printed here.
 
   need-resched:
+	- 'B' all, TIF_NEED_RESCHED, PREEMPT_NEED_RESCHED and TIF_RESCHED_LAZY is set,
 	- 'N' both TIF_NEED_RESCHED and PREEMPT_NEED_RESCHED is set,
 	- 'n' only TIF_NEED_RESCHED is set,
 	- 'p' only PREEMPT_NEED_RESCHED is set,
+	- 'L' both PREEMPT_NEED_RESCHED and TIF_RESCHED_LAZY is set,
+	- 'b' both TIF_NEED_RESCHED and TIF_RESCHED_LAZY is set,
+	- 'l' only TIF_RESCHED_LAZY is set
 	- '.' otherwise.
 
   hardirq/softirq:
@@ -1185,6 +1186,18 @@ Here are the available options:
 
   trace_printk
 	Can disable trace_printk() from writing into the buffer.
+
+  trace_printk_dest
+	Set to have trace_printk() and similar internal tracing functions
+	write into this instance. Note, only one trace instance can have
+	this set. By setting this flag, it clears the trace_printk_dest flag
+	of the instance that had it set previously. By default, the top
+	level trace has this set, and will get it set again if another
+	instance has it set then clears it.
+
+	This flag cannot be cleared by the top level instance, as it is the
+	default instance. The only way the top level instance has this flag
+	cleared, is by it being set in another instance.
 
   annotate
 	It is sometimes confusing when the CPU buffers are full

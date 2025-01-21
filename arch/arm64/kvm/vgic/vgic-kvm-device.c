@@ -236,7 +236,12 @@ static int vgic_set_common_attr(struct kvm_device *dev,
 
 		mutex_lock(&dev->kvm->arch.config_lock);
 
-		if (vgic_ready(dev->kvm) || dev->kvm->arch.vgic.nr_spis)
+		/*
+		 * Either userspace has already configured NR_IRQS or
+		 * the vgic has already been initialized and vgic_init()
+		 * supplied a default amount of SPIs.
+		 */
+		if (dev->kvm->arch.vgic.nr_spis)
 			ret = -EBUSY;
 		else
 			dev->kvm->arch.vgic.nr_spis =

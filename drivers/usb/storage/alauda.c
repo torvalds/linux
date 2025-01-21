@@ -36,7 +36,7 @@
 MODULE_DESCRIPTION("Driver for Alauda-based card readers");
 MODULE_AUTHOR("Daniel Drake <dsd@gentoo.org>");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(USB_STORAGE);
+MODULE_IMPORT_NS("USB_STORAGE");
 
 /*
  * Status bytes
@@ -132,7 +132,7 @@ static int init_alauda(struct us_data *us);
 { USB_DEVICE_VER(id_vendor, id_product, bcdDeviceMin, bcdDeviceMax), \
   .driver_info = (flags) }
 
-static struct usb_device_id alauda_usb_ids[] = {
+static const struct usb_device_id alauda_usb_ids[] = {
 #	include "unusual_alauda.h"
 	{ }		/* Terminating entry */
 };
@@ -154,7 +154,7 @@ MODULE_DEVICE_TABLE(usb, alauda_usb_ids);
 	.initFunction = init_function,	\
 }
 
-static struct us_unusual_dev alauda_unusual_dev_list[] = {
+static const struct us_unusual_dev alauda_unusual_dev_list[] = {
 #	include "unusual_alauda.h"
 	{ }		/* Terminating entry */
 };

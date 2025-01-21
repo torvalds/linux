@@ -339,7 +339,7 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 			ret = mwifiex_associate(priv, bss_desc);
 		}
 
-		if (bss)
+		if (bss && !priv->adapter->host_mlme_enabled)
 			cfg80211_put_bss(priv->adapter->wiphy, bss);
 	} else {
 		/* Adhoc mode */
@@ -350,8 +350,6 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 			ret = 0;
 			goto done;
 		}
-
-		priv->adhoc_is_link_sensed = false;
 
 		ret = mwifiex_check_network_compatibility(priv, bss_desc);
 
@@ -503,8 +501,7 @@ int mwifiex_enable_hs(struct mwifiex_adapter *adapter)
 	if (disconnect_on_suspend) {
 		for (i = 0; i < adapter->priv_num; i++) {
 			priv = adapter->priv[i];
-			if (priv)
-				mwifiex_deauthenticate(priv, NULL);
+			mwifiex_deauthenticate(priv, NULL);
 		}
 	}
 

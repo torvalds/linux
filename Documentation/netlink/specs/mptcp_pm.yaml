@@ -109,7 +109,6 @@ attribute-sets:
       -
         name: port
         type: u16
-        byte-order: big-endian
       -
         name: flags
         type: u32
@@ -294,7 +293,6 @@ operations:
       doc: Get endpoint information
       attribute-set: attr
       dont-validate: [ strict ]
-      flags: [ uns-admin-perm ]
       do: &get-addr-attrs
         request:
           attributes:

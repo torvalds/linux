@@ -10,8 +10,10 @@
 #include <linux/mii.h>
 #include <linux/ethtool.h>
 #include <linux/phy.h>
+#include <linux/bitfield.h>
 
 /* Vitesse Extended Page Magic Register(s) */
+#define MII_VSC73XX_EXT_PAGE_1E		0x01
 #define MII_VSC82X4_EXT_PAGE_16E	0x10
 #define MII_VSC82X4_EXT_PAGE_17E	0x11
 #define MII_VSC82X4_EXT_PAGE_18E	0x12
@@ -59,6 +61,28 @@
 
 /* Vitesse Extended Page Access Register */
 #define MII_VSC82X4_EXT_PAGE_ACCESS	0x1f
+
+/* Vitesse VSC73XX Extended Control Register */
+#define MII_VSC73XX_PHY_CTRL_EXT3		0x14
+
+#define MII_VSC73XX_PHY_CTRL_EXT3_DOWNSHIFT_EN	BIT(4)
+#define MII_VSC73XX_PHY_CTRL_EXT3_DOWNSHIFT_CNT	GENMASK(3, 2)
+#define MII_VSC73XX_PHY_CTRL_EXT3_DOWNSHIFT_STA	BIT(1)
+#define MII_VSC73XX_DOWNSHIFT_MAX		5
+#define MII_VSC73XX_DOWNSHIFT_INVAL		1
+
+/* VSC73XX PHY_BYPASS_CTRL register*/
+#define MII_VSC73XX_PHY_BYPASS_CTRL		MII_DCOUNTER
+#define MII_VSC73XX_PBC_TX_DIS			BIT(15)
+#define MII_VSC73XX_PBC_FOR_SPD_AUTO_MDIX_DIS	BIT(7)
+#define MII_VSC73XX_PBC_PAIR_SWAP_DIS		BIT(5)
+#define MII_VSC73XX_PBC_POL_INV_DIS		BIT(4)
+#define MII_VSC73XX_PBC_PARALLEL_DET_DIS	BIT(3)
+#define MII_VSC73XX_PBC_AUTO_NP_EXCHANGE_DIS	BIT(1)
+
+/* VSC73XX PHY_AUX_CTRL_STAT register */
+#define MII_VSC73XX_PHY_AUX_CTRL_STAT	MII_NCONFIG
+#define MII_VSC73XX_PACS_NO_MDI_X_IND	BIT(13)
 
 /* Vitesse VSC8601 Extended PHY Control Register 1 */
 #define MII_VSC8601_EPHY_CTL		0x17
@@ -128,6 +152,74 @@ static int vsc73xx_write_page(struct phy_device *phydev, int page)
 	return __phy_write(phydev, VSC73XX_EXT_PAGE_ACCESS, page);
 }
 
+static int vsc73xx_get_downshift(struct phy_device *phydev, u8 *data)
+{
+	int val, enable, cnt;
+
+	val = phy_read_paged(phydev, MII_VSC73XX_EXT_PAGE_1E,
+			     MII_VSC73XX_PHY_CTRL_EXT3);
+	if (val < 0)
+		return val;
+
+	enable = FIELD_GET(MII_VSC73XX_PHY_CTRL_EXT3_DOWNSHIFT_EN, val);
+	cnt = FIELD_GET(MII_VSC73XX_PHY_CTRL_EXT3_DOWNSHIFT_CNT, val) + 2;
+
+	*data = enable ? cnt : DOWNSHIFT_DEV_DISABLE;
+
+	return 0;
+}
+
+static int vsc73xx_set_downshift(struct phy_device *phydev, u8 cnt)
+{
+	u16 mask, val;
+	int ret;
+
+	if (cnt > MII_VSC73XX_DOWNSHIFT_MAX)
+		return -E2BIG;
+	else if (cnt == MII_VSC73XX_DOWNSHIFT_INVAL)
+		return -EINVAL;
+
+	mask = MII_VSC73XX_PHY_CTRL_EXT3_DOWNSHIFT_EN;
+
+	if (!cnt) {
+		val = 0;
+	} else {
+		mask |= MII_VSC73XX_PHY_CTRL_EXT3_DOWNSHIFT_CNT;
+		val = MII_VSC73XX_PHY_CTRL_EXT3_DOWNSHIFT_EN |
+		      FIELD_PREP(MII_VSC73XX_PHY_CTRL_EXT3_DOWNSHIFT_CNT,
+				 cnt - 2);
+	}
+
+	ret = phy_modify_paged(phydev, MII_VSC73XX_EXT_PAGE_1E,
+			       MII_VSC73XX_PHY_CTRL_EXT3, mask, val);
+	if (ret < 0)
+		return ret;
+
+	return genphy_soft_reset(phydev);
+}
+
+static int vsc73xx_get_tunable(struct phy_device *phydev,
+			       struct ethtool_tunable *tuna, void *data)
+{
+	switch (tuna->id) {
+	case ETHTOOL_PHY_DOWNSHIFT:
+		return vsc73xx_get_downshift(phydev, data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int vsc73xx_set_tunable(struct phy_device *phydev,
+			       struct ethtool_tunable *tuna, const void *data)
+{
+	switch (tuna->id) {
+	case ETHTOOL_PHY_DOWNSHIFT:
+		return vsc73xx_set_downshift(phydev, *(const u8 *)data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static void vsc73xx_config_init(struct phy_device *phydev)
 {
 	/* Receiver init */
@@ -137,6 +229,12 @@ static void vsc73xx_config_init(struct phy_device *phydev)
 
 	/* Config LEDs 0x61 */
 	phy_modify(phydev, MII_TPISTATUS, 0xff00, 0x0061);
+
+	/* Enable downshift by default */
+	vsc73xx_set_downshift(phydev, MII_VSC73XX_DOWNSHIFT_MAX);
+
+	/* Set Auto MDI-X by default */
+	phydev->mdix_ctrl = ETH_TP_MDI_AUTO;
 }
 
 static int vsc738x_config_init(struct phy_device *phydev)
@@ -235,6 +333,75 @@ static int vsc739x_config_init(struct phy_device *phydev)
 	vsc73xx_config_init(phydev);
 
 	return 0;
+}
+
+static int vsc73xx_mdix_set(struct phy_device *phydev, u8 mdix)
+{
+	int ret;
+	u16 val;
+
+	val = phy_read(phydev, MII_VSC73XX_PHY_BYPASS_CTRL);
+
+	switch (mdix) {
+	case ETH_TP_MDI:
+		val |= MII_VSC73XX_PBC_FOR_SPD_AUTO_MDIX_DIS |
+		       MII_VSC73XX_PBC_PAIR_SWAP_DIS |
+		       MII_VSC73XX_PBC_POL_INV_DIS;
+		break;
+	case ETH_TP_MDI_X:
+		/* When MDI-X auto configuration is disabled, is possible
+		 * to force only MDI mode. Let's use autoconfig for forced
+		 * MDIX mode.
+		 */
+	case ETH_TP_MDI_AUTO:
+		val &= ~(MII_VSC73XX_PBC_FOR_SPD_AUTO_MDIX_DIS |
+			 MII_VSC73XX_PBC_PAIR_SWAP_DIS |
+			 MII_VSC73XX_PBC_POL_INV_DIS);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ret = phy_write(phydev, MII_VSC73XX_PHY_BYPASS_CTRL, val);
+	if (ret)
+		return ret;
+
+	return genphy_restart_aneg(phydev);
+}
+
+static int vsc73xx_config_aneg(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = vsc73xx_mdix_set(phydev, phydev->mdix_ctrl);
+	if (ret)
+		return ret;
+
+	return genphy_config_aneg(phydev);
+}
+
+static int vsc73xx_mdix_get(struct phy_device *phydev, u8 *mdix)
+{
+	u16 reg_val;
+
+	reg_val = phy_read(phydev, MII_VSC73XX_PHY_AUX_CTRL_STAT);
+	if (reg_val & MII_VSC73XX_PACS_NO_MDI_X_IND)
+		*mdix = ETH_TP_MDI;
+	else
+		*mdix = ETH_TP_MDI_X;
+
+	return 0;
+}
+
+static int vsc73xx_read_status(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = vsc73xx_mdix_get(phydev, &phydev->mdix);
+	if (ret < 0)
+		return ret;
+
+	return genphy_read_status(phydev);
 }
 
 /* This adds a skew for both TX and RX clocks, so the skew should only be
@@ -434,32 +601,48 @@ static struct phy_driver vsc82xx_driver[] = {
 	.phy_id_mask    = 0x000ffff0,
 	/* PHY_GBIT_FEATURES */
 	.config_init    = vsc738x_config_init,
+	.config_aneg    = vsc73xx_config_aneg,
+	.read_status	= vsc73xx_read_status,
 	.read_page      = vsc73xx_read_page,
 	.write_page     = vsc73xx_write_page,
+	.get_tunable    = vsc73xx_get_tunable,
+	.set_tunable    = vsc73xx_set_tunable,
 }, {
 	.phy_id         = PHY_ID_VSC7388,
 	.name           = "Vitesse VSC7388",
 	.phy_id_mask    = 0x000ffff0,
 	/* PHY_GBIT_FEATURES */
 	.config_init    = vsc738x_config_init,
+	.config_aneg    = vsc73xx_config_aneg,
+	.read_status	= vsc73xx_read_status,
 	.read_page      = vsc73xx_read_page,
 	.write_page     = vsc73xx_write_page,
+	.get_tunable    = vsc73xx_get_tunable,
+	.set_tunable    = vsc73xx_set_tunable,
 }, {
 	.phy_id         = PHY_ID_VSC7395,
 	.name           = "Vitesse VSC7395",
 	.phy_id_mask    = 0x000ffff0,
 	/* PHY_GBIT_FEATURES */
 	.config_init    = vsc739x_config_init,
+	.config_aneg    = vsc73xx_config_aneg,
+	.read_status	= vsc73xx_read_status,
 	.read_page      = vsc73xx_read_page,
 	.write_page     = vsc73xx_write_page,
+	.get_tunable    = vsc73xx_get_tunable,
+	.set_tunable    = vsc73xx_set_tunable,
 }, {
 	.phy_id         = PHY_ID_VSC7398,
 	.name           = "Vitesse VSC7398",
 	.phy_id_mask    = 0x000ffff0,
 	/* PHY_GBIT_FEATURES */
 	.config_init    = vsc739x_config_init,
+	.config_aneg    = vsc73xx_config_aneg,
+	.read_status	= vsc73xx_read_status,
 	.read_page      = vsc73xx_read_page,
 	.write_page     = vsc73xx_write_page,
+	.get_tunable    = vsc73xx_get_tunable,
+	.set_tunable    = vsc73xx_set_tunable,
 }, {
 	.phy_id         = PHY_ID_VSC8662,
 	.name           = "Vitesse VSC8662",

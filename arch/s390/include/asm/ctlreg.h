@@ -202,8 +202,9 @@ union ctlreg0 {
 		unsigned long	   : 3;
 		unsigned long ccc  : 1; /* Cryptography counter control */
 		unsigned long pec  : 1; /* PAI extension control */
-		unsigned long	   : 17;
-		unsigned long	   : 3;
+		unsigned long	   : 15;
+		unsigned long wti  : 1; /* Warning-track */
+		unsigned long	   : 4;
 		unsigned long lap  : 1; /* Low-address-protection control */
 		unsigned long	   : 4;
 		unsigned long edat : 1; /* Enhanced-DAT-enablement control */

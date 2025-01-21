@@ -775,7 +775,7 @@ MODULE_DEVICE_TABLE(of, sun8i_mixer_of_table);
 
 static struct platform_driver sun8i_mixer_platform_driver = {
 	.probe		= sun8i_mixer_probe,
-	.remove_new	= sun8i_mixer_remove,
+	.remove		= sun8i_mixer_remove,
 	.driver		= {
 		.name		= "sun8i-mixer",
 		.of_match_table	= sun8i_mixer_of_table,

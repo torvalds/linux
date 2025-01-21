@@ -408,6 +408,14 @@ config SL28CPLD_WATCHDOG
 
 # ARM Architecture
 
+config AIROHA_WATCHDOG
+	tristate "Airoha EN7581 Watchdog"
+	depends on ARCH_AIROHA || COMPILE_TEST
+	select WATCHDOG_CORE
+	help
+	  Watchdog timer embedded into Airoha SoC. This will reboot your
+	  system when the timeout is reached.
+
 config ARM_SP805_WATCHDOG
 	tristate "ARM SP805 Watchdog"
 	depends on (ARM || ARM64 || COMPILE_TEST) && ARM_AMBA
@@ -549,6 +557,7 @@ config S3C2410_WATCHDOG
 	tristate "S3C6410/S5Pv210/Exynos Watchdog"
 	depends on ARCH_S3C64XX || ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
 	select WATCHDOG_CORE
+	select MFD_SYSCON if ARCH_EXYNOS
 	help
 	  Watchdog timer block in the Samsung S3C64xx, S5Pv210 and Exynos
 	  SoCs. This will reboot the system when the timer expires with
@@ -953,6 +962,15 @@ config RENESAS_RZG2LWDT
 	  This driver adds watchdog support for the integrated watchdogs in the
 	  Renesas RZ/G2L SoCs. These watchdogs can be used to reset a system.
 
+config RENESAS_RZV2HWDT
+	tristate "Renesas RZ/V2H(P) WDT Watchdog"
+	depends on ARCH_R9A09G057 || COMPILE_TEST
+	depends on PM || COMPILE_TEST
+	select WATCHDOG_CORE
+	help
+	  This driver adds watchdog support for the integrated watchdogs in the
+	  Renesas RZ/V2H(P) SoCs. These watchdogs can be used to reset a system.
+
 config ASPEED_WATCHDOG
 	tristate "Aspeed BMC watchdog support"
 	depends on ARCH_ASPEED || COMPILE_TEST
@@ -1141,6 +1159,16 @@ config ALIM7101_WDT
 	  module will be called alim7101_wdt.
 
 	  Most people will say N.
+
+config CGBC_WDT
+	tristate "Congatec Board Controller Watchdog Timer"
+	depends on MFD_CGBC
+	select WATCHDOG_CORE
+	help
+	  Enables watchdog timer support for the Congatec Board Controller.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called cgbc_wdt.
 
 config EBC_C384_WDT
 	tristate "WinSystems EBC-C384 Watchdog Timer"
@@ -1500,7 +1528,7 @@ config 60XX_WDT
 
 config SBC8360_WDT
 	tristate "SBC8360 Watchdog Timer"
-	depends on X86_32
+	depends on X86_32 && HAS_IOPORT
 	help
 
 	  This is the driver for the hardware watchdog on the SBC8360 Single
@@ -1513,7 +1541,7 @@ config SBC8360_WDT
 
 config SBC7240_WDT
 	tristate "SBC Nano 7240 Watchdog Timer"
-	depends on X86_32 && !UML
+	depends on X86_32 && HAS_IOPORT
 	help
 	  This is the driver for the hardware watchdog found on the IEI
 	  single board computers EPIC Nano 7240 (and likely others). This
@@ -1523,14 +1551,6 @@ config SBC7240_WDT
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called sbc7240_wdt.
-
-config CPU5_WDT
-	tristate "SMA CPU5 Watchdog"
-	depends on (X86 || COMPILE_TEST) && HAS_IOPORT
-	help
-	  TBD.
-	  To compile this driver as a module, choose M here: the
-	  module will be called cpu5wdt.
 
 config SMSC_SCH311X_WDT
 	tristate "SMSC SCH311X Watchdog Timer"

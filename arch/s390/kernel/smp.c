@@ -574,7 +574,7 @@ int smp_store_status(int cpu)
 
 /*
  * Collect CPU state of the previous, crashed system.
- * There are four cases:
+ * There are three cases:
  * 1) standard zfcp/nvme dump
  *    condition: OLDMEM_BASE == NULL && is_ipl_type_dump() == true
  *    The state for all CPUs except the boot CPU needs to be collected
@@ -587,16 +587,16 @@ int smp_store_status(int cpu)
  *    with sigp stop-and-store-status. The firmware or the boot-loader
  *    stored the registers of the boot CPU in the absolute lowcore in the
  *    memory of the old system.
- * 3) kdump and the old kernel did not store the CPU state,
- *    or stand-alone kdump for DASD
- *    condition: OLDMEM_BASE != NULL && !is_kdump_kernel()
+ * 3) kdump or stand-alone kdump for DASD
+ *    condition: OLDMEM_BASE != NULL && is_ipl_type_dump() == false
  *    The state for all CPUs except the boot CPU needs to be collected
  *    with sigp stop-and-store-status. The kexec code or the boot-loader
  *    stored the registers of the boot CPU in the memory of the old system.
- * 4) kdump and the old kernel stored the CPU state
- *    condition: OLDMEM_BASE != NULL && is_kdump_kernel()
- *    This case does not exist for s390 anymore, setup_arch explicitly
- *    deactivates the elfcorehdr= kernel parameter
+ *
+ * Note that the legacy kdump mode where the old kernel stored the CPU states
+ * does no longer exist: setup_arch() explicitly deactivates the elfcorehdr=
+ * kernel parameter. The is_kdump_kernel() implementation on s390 is independent
+ * of the elfcorehdr= parameter.
  */
 static bool dump_available(void)
 {
@@ -671,6 +671,25 @@ int smp_cpu_get_polarization(int cpu)
 	return per_cpu(pcpu_devices, cpu).polarization;
 }
 
+void smp_cpu_set_capacity(int cpu, unsigned long val)
+{
+	per_cpu(pcpu_devices, cpu).capacity = val;
+}
+
+unsigned long smp_cpu_get_capacity(int cpu)
+{
+	return per_cpu(pcpu_devices, cpu).capacity;
+}
+
+void smp_set_core_capacity(int cpu, unsigned long val)
+{
+	int i;
+
+	cpu = smp_get_base_cpu(cpu);
+	for (i = cpu; (i <= cpu + smp_cpu_mtid) && (i < nr_cpu_ids); i++)
+		smp_cpu_set_capacity(i, val);
+}
+
 int smp_cpu_get_cpu_address(int cpu)
 {
 	return per_cpu(pcpu_devices, cpu).address;
@@ -719,6 +738,7 @@ static int smp_add_core(struct sclp_core_entry *core, cpumask_t *avail,
 		else
 			pcpu->state = CPU_STATE_STANDBY;
 		smp_cpu_set_polarization(cpu, POLARIZATION_UNKNOWN);
+		smp_cpu_set_capacity(cpu, CPU_CAPACITY_HIGH);
 		set_cpu_present(cpu, true);
 		if (!early && arch_register_cpu(cpu))
 			set_cpu_present(cpu, false);
@@ -961,6 +981,7 @@ void __init smp_prepare_boot_cpu(void)
 	ipl_pcpu->state = CPU_STATE_CONFIGURED;
 	lc->pcpu = (unsigned long)ipl_pcpu;
 	smp_cpu_set_polarization(0, POLARIZATION_UNKNOWN);
+	smp_cpu_set_capacity(0, CPU_CAPACITY_HIGH);
 }
 
 void __init smp_setup_processor_id(void)
@@ -990,7 +1011,7 @@ static ssize_t cpu_configure_show(struct device *dev,
 	ssize_t count;
 
 	mutex_lock(&smp_cpu_state_mutex);
-	count = sprintf(buf, "%d\n", per_cpu(pcpu_devices, dev->id).state);
+	count = sysfs_emit(buf, "%d\n", per_cpu(pcpu_devices, dev->id).state);
 	mutex_unlock(&smp_cpu_state_mutex);
 	return count;
 }
@@ -1062,7 +1083,7 @@ static DEVICE_ATTR(configure, 0644, cpu_configure_show, cpu_configure_store);
 static ssize_t show_cpu_address(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", per_cpu(pcpu_devices, dev->id).address);
+	return sysfs_emit(buf, "%d\n", per_cpu(pcpu_devices, dev->id).address);
 }
 static DEVICE_ATTR(address, 0444, show_cpu_address, NULL);
 

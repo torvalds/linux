@@ -13,7 +13,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/jiffies.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "rmi_driver.h"
 #include "rmi_f34.h"

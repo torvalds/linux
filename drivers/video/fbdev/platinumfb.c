@@ -668,7 +668,7 @@ static struct platform_driver platinum_driver =
 		.of_match_table = platinumfb_match,
 	},
 	.probe		= platinumfb_probe,
-	.remove_new	= platinumfb_remove,
+	.remove		= platinumfb_remove,
 };
 
 static int __init platinumfb_init(void)

@@ -254,6 +254,14 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 		DMI_MATCH(DMI_PRODUCT_NAME, "PCG-FRV35"),
 		},
 	},
+	{
+	 .callback = video_detect_force_vendor,
+	 /* Panasonic Toughbook CF-18 */
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Matsushita Electric Industrial"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "CF-18"),
+		},
+	},
 
 	/*
 	 * Toshiba models with Transflective display, these need to use
@@ -543,10 +551,34 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	},
 	{
 	 .callback = video_detect_force_native,
+	 /* Apple MacBook Air 7,2 */
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "MacBookAir7,2"),
+		},
+	},
+	{
+	 .callback = video_detect_force_native,
 	 /* Apple MacBook Air 9,1 */
 	 .matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
 		DMI_MATCH(DMI_PRODUCT_NAME, "MacBookAir9,1"),
+		},
+	},
+	{
+	 .callback = video_detect_force_native,
+	 /* Apple MacBook Pro 9,2 */
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro9,2"),
+		},
+	},
+	{
+	 .callback = video_detect_force_native,
+	 /* Apple MacBook Pro 11,2 */
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro11,2"),
 		},
 	},
 	{
@@ -829,6 +861,15 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	 * which need native backlight control nevertheless.
 	 */
 	{
+	 /* https://github.com/zabbly/linux/issues/26 */
+	 .callback = video_detect_force_native,
+	 /* Dell OptiPlex 5480 AIO */
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "OptiPlex 5480 AIO"),
+		},
+	},
+	{
 	 /* https://bugzilla.redhat.com/show_bug.cgi?id=2303936 */
 	 .callback = video_detect_force_native,
 	 /* Dell OptiPlex 7760 AIO */
@@ -896,7 +937,6 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	 /* Lenovo Yoga Tab 3 Pro YT3-X90F */
 	 .matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
-		DMI_MATCH(DMI_PRODUCT_NAME, "CHERRYVIEW D1 PLATFORM"),
 		DMI_MATCH(DMI_PRODUCT_VERSION, "Blade3-10A-001"),
 		},
 	},

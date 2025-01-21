@@ -2,15 +2,6 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/log2.h>
@@ -108,7 +99,7 @@ compute_coring(int coring)
 	 * factor. Clip to [0, isp_scale-1).
 	 */
 	isp_coring = ((coring * isp_scale) + offset) / host_scale;
-	return min(max(isp_coring, 0), isp_scale - 1);
+	return clamp(isp_coring, 0, isp_scale - 1);
 }
 
 /*
@@ -168,15 +159,15 @@ ia_css_xnr3_encode(
 	to->alpha.y0 = alpha_y0;
 	to->alpha.u0 = alpha_u0;
 	to->alpha.v0 = alpha_v0;
-	to->alpha.ydiff = min(max(alpha_ydiff, min_diff), max_diff);
-	to->alpha.udiff = min(max(alpha_udiff, min_diff), max_diff);
-	to->alpha.vdiff = min(max(alpha_vdiff, min_diff), max_diff);
+	to->alpha.ydiff = clamp(alpha_ydiff, min_diff, max_diff);
+	to->alpha.udiff = clamp(alpha_udiff, min_diff, max_diff);
+	to->alpha.vdiff = clamp(alpha_vdiff, min_diff, max_diff);
 
 	/* coring parameters are expressed in q1.NN format */
 	to->coring.u0 = coring_u0;
 	to->coring.v0 = coring_v0;
-	to->coring.udiff = min(max(coring_udiff, min_diff), max_diff);
-	to->coring.vdiff = min(max(coring_vdiff, min_diff), max_diff);
+	to->coring.udiff = clamp(coring_udiff, min_diff, max_diff);
+	to->coring.vdiff = clamp(coring_vdiff, min_diff, max_diff);
 
 	/* blending strength is expressed in q1.NN format */
 	to->blending.strength = blending;

@@ -586,25 +586,32 @@ retry_deleg:
 }
 EXPORT_SYMBOL_GPL(vfs_removexattr);
 
+int import_xattr_name(struct xattr_name *kname, const char __user *name)
+{
+	int error = strncpy_from_user(kname->name, name,
+					sizeof(kname->name));
+	if (error == 0 || error == sizeof(kname->name))
+		return -ERANGE;
+	if (error < 0)
+		return error;
+	return 0;
+}
+
 /*
  * Extended attribute SET operations
  */
 
-int setxattr_copy(const char __user *name, struct xattr_ctx *ctx)
+int setxattr_copy(const char __user *name, struct kernel_xattr_ctx *ctx)
 {
 	int error;
 
 	if (ctx->flags & ~(XATTR_CREATE|XATTR_REPLACE))
 		return -EINVAL;
 
-	error = strncpy_from_user(ctx->kname->name, name,
-				sizeof(ctx->kname->name));
-	if (error == 0 || error == sizeof(ctx->kname->name))
-		return  -ERANGE;
-	if (error < 0)
+	error = import_xattr_name(ctx->kname, name);
+	if (error)
 		return error;
 
-	error = 0;
 	if (ctx->size) {
 		if (ctx->size > XATTR_SIZE_MAX)
 			return -E2BIG;
@@ -619,8 +626,8 @@ int setxattr_copy(const char __user *name, struct xattr_ctx *ctx)
 	return error;
 }
 
-int do_setxattr(struct mnt_idmap *idmap, struct dentry *dentry,
-		struct xattr_ctx *ctx)
+static int do_setxattr(struct mnt_idmap *idmap, struct dentry *dentry,
+		struct kernel_xattr_ctx *ctx)
 {
 	if (is_posix_acl_xattr(ctx->kname->name))
 		return do_set_acl(idmap, dentry, ctx->kname->name,
@@ -630,32 +637,32 @@ int do_setxattr(struct mnt_idmap *idmap, struct dentry *dentry,
 			ctx->kvalue, ctx->size, ctx->flags);
 }
 
-static int path_setxattr(const char __user *pathname,
-			 const char __user *name, const void __user *value,
-			 size_t size, int flags, unsigned int lookup_flags)
+int file_setxattr(struct file *f, struct kernel_xattr_ctx *ctx)
 {
-	struct xattr_name kname;
-	struct xattr_ctx ctx = {
-		.cvalue   = value,
-		.kvalue   = NULL,
-		.size     = size,
-		.kname    = &kname,
-		.flags    = flags,
-	};
+	int error = mnt_want_write_file(f);
+
+	if (!error) {
+		audit_file(f);
+		error = do_setxattr(file_mnt_idmap(f), f->f_path.dentry, ctx);
+		mnt_drop_write_file(f);
+	}
+	return error;
+}
+
+/* unconditionally consumes filename */
+int filename_setxattr(int dfd, struct filename *filename,
+		      unsigned int lookup_flags, struct kernel_xattr_ctx *ctx)
+{
 	struct path path;
 	int error;
 
-	error = setxattr_copy(name, &ctx);
-	if (error)
-		return error;
-
 retry:
-	error = user_path_at(AT_FDCWD, pathname, lookup_flags, &path);
+	error = filename_lookup(dfd, filename, lookup_flags, &path, NULL);
 	if (error)
 		goto out;
 	error = mnt_want_write(path.mnt);
 	if (!error) {
-		error = do_setxattr(mnt_idmap(path.mnt), path.dentry, &ctx);
+		error = do_setxattr(mnt_idmap(path.mnt), path.dentry, ctx);
 		mnt_drop_write(path.mnt);
 	}
 	path_put(&path);
@@ -665,80 +672,121 @@ retry:
 	}
 
 out:
+	putname(filename);
+	return error;
+}
+
+static int path_setxattrat(int dfd, const char __user *pathname,
+			   unsigned int at_flags, const char __user *name,
+			   const void __user *value, size_t size, int flags)
+{
+	struct xattr_name kname;
+	struct kernel_xattr_ctx ctx = {
+		.cvalue	= value,
+		.kvalue	= NULL,
+		.size	= size,
+		.kname	= &kname,
+		.flags	= flags,
+	};
+	struct filename *filename;
+	unsigned int lookup_flags = 0;
+	int error;
+
+	if ((at_flags & ~(AT_SYMLINK_NOFOLLOW | AT_EMPTY_PATH)) != 0)
+		return -EINVAL;
+
+	if (!(at_flags & AT_SYMLINK_NOFOLLOW))
+		lookup_flags = LOOKUP_FOLLOW;
+
+	error = setxattr_copy(name, &ctx);
+	if (error)
+		return error;
+
+	filename = getname_maybe_null(pathname, at_flags);
+	if (!filename) {
+		CLASS(fd, f)(dfd);
+		if (fd_empty(f))
+			error = -EBADF;
+		else
+			error = file_setxattr(fd_file(f), &ctx);
+	} else {
+		error = filename_setxattr(dfd, filename, lookup_flags, &ctx);
+	}
 	kvfree(ctx.kvalue);
 	return error;
+}
+
+SYSCALL_DEFINE6(setxattrat, int, dfd, const char __user *, pathname, unsigned int, at_flags,
+		const char __user *, name, const struct xattr_args __user *, uargs,
+		size_t, usize)
+{
+	struct xattr_args args = {};
+	int error;
+
+	BUILD_BUG_ON(sizeof(struct xattr_args) < XATTR_ARGS_SIZE_VER0);
+	BUILD_BUG_ON(sizeof(struct xattr_args) != XATTR_ARGS_SIZE_LATEST);
+
+	if (unlikely(usize < XATTR_ARGS_SIZE_VER0))
+		return -EINVAL;
+	if (usize > PAGE_SIZE)
+		return -E2BIG;
+
+	error = copy_struct_from_user(&args, sizeof(args), uargs, usize);
+	if (error)
+		return error;
+
+	return path_setxattrat(dfd, pathname, at_flags, name,
+			       u64_to_user_ptr(args.value), args.size,
+			       args.flags);
 }
 
 SYSCALL_DEFINE5(setxattr, const char __user *, pathname,
 		const char __user *, name, const void __user *, value,
 		size_t, size, int, flags)
 {
-	return path_setxattr(pathname, name, value, size, flags, LOOKUP_FOLLOW);
+	return path_setxattrat(AT_FDCWD, pathname, 0, name, value, size, flags);
 }
 
 SYSCALL_DEFINE5(lsetxattr, const char __user *, pathname,
 		const char __user *, name, const void __user *, value,
 		size_t, size, int, flags)
 {
-	return path_setxattr(pathname, name, value, size, flags, 0);
+	return path_setxattrat(AT_FDCWD, pathname, AT_SYMLINK_NOFOLLOW, name,
+			       value, size, flags);
 }
 
 SYSCALL_DEFINE5(fsetxattr, int, fd, const char __user *, name,
 		const void __user *,value, size_t, size, int, flags)
 {
-	struct xattr_name kname;
-	struct xattr_ctx ctx = {
-		.cvalue   = value,
-		.kvalue   = NULL,
-		.size     = size,
-		.kname    = &kname,
-		.flags    = flags,
-	};
-	int error;
-
-	CLASS(fd, f)(fd);
-	if (!f.file)
-		return -EBADF;
-
-	audit_file(f.file);
-	error = setxattr_copy(name, &ctx);
-	if (error)
-		return error;
-
-	error = mnt_want_write_file(f.file);
-	if (!error) {
-		error = do_setxattr(file_mnt_idmap(f.file),
-				    f.file->f_path.dentry, &ctx);
-		mnt_drop_write_file(f.file);
-	}
-	kvfree(ctx.kvalue);
-	return error;
+	return path_setxattrat(fd, NULL, AT_EMPTY_PATH, name,
+			       value, size, flags);
 }
 
 /*
  * Extended attribute GET operations
  */
-ssize_t
+static ssize_t
 do_getxattr(struct mnt_idmap *idmap, struct dentry *d,
-	struct xattr_ctx *ctx)
+	struct kernel_xattr_ctx *ctx)
 {
 	ssize_t error;
 	char *kname = ctx->kname->name;
+	void *kvalue = NULL;
 
 	if (ctx->size) {
 		if (ctx->size > XATTR_SIZE_MAX)
 			ctx->size = XATTR_SIZE_MAX;
-		ctx->kvalue = kvzalloc(ctx->size, GFP_KERNEL);
-		if (!ctx->kvalue)
+		kvalue = kvzalloc(ctx->size, GFP_KERNEL);
+		if (!kvalue)
 			return -ENOMEM;
 	}
 
-	if (is_posix_acl_xattr(ctx->kname->name))
-		error = do_get_acl(idmap, d, kname, ctx->kvalue, ctx->size);
+	if (is_posix_acl_xattr(kname))
+		error = do_get_acl(idmap, d, kname, kvalue, ctx->size);
 	else
-		error = vfs_getxattr(idmap, d, kname, ctx->kvalue, ctx->size);
+		error = vfs_getxattr(idmap, d, kname, kvalue, ctx->size);
 	if (error > 0) {
-		if (ctx->size && copy_to_user(ctx->value, ctx->kvalue, error))
+		if (ctx->size && copy_to_user(ctx->value, kvalue, error))
 			error = -EFAULT;
 	} else if (error == -ERANGE && ctx->size >= XATTR_SIZE_MAX) {
 		/* The file system tried to returned a value bigger
@@ -746,79 +794,114 @@ do_getxattr(struct mnt_idmap *idmap, struct dentry *d,
 		error = -E2BIG;
 	}
 
+	kvfree(kvalue);
 	return error;
 }
 
-static ssize_t
-getxattr(struct mnt_idmap *idmap, struct dentry *d,
-	 const char __user *name, void __user *value, size_t size)
+ssize_t file_getxattr(struct file *f, struct kernel_xattr_ctx *ctx)
 {
-	ssize_t error;
-	struct xattr_name kname;
-	struct xattr_ctx ctx = {
-		.value    = value,
-		.kvalue   = NULL,
-		.size     = size,
-		.kname    = &kname,
-		.flags    = 0,
-	};
-
-	error = strncpy_from_user(kname.name, name, sizeof(kname.name));
-	if (error == 0 || error == sizeof(kname.name))
-		error = -ERANGE;
-	if (error < 0)
-		return error;
-
-	error =  do_getxattr(idmap, d, &ctx);
-
-	kvfree(ctx.kvalue);
-	return error;
+	audit_file(f);
+	return do_getxattr(file_mnt_idmap(f), f->f_path.dentry, ctx);
 }
 
-static ssize_t path_getxattr(const char __user *pathname,
-			     const char __user *name, void __user *value,
-			     size_t size, unsigned int lookup_flags)
+/* unconditionally consumes filename */
+ssize_t filename_getxattr(int dfd, struct filename *filename,
+			  unsigned int lookup_flags, struct kernel_xattr_ctx *ctx)
 {
 	struct path path;
 	ssize_t error;
 retry:
-	error = user_path_at(AT_FDCWD, pathname, lookup_flags, &path);
+	error = filename_lookup(dfd, filename, lookup_flags, &path, NULL);
 	if (error)
-		return error;
-	error = getxattr(mnt_idmap(path.mnt), path.dentry, name, value, size);
+		goto out;
+	error = do_getxattr(mnt_idmap(path.mnt), path.dentry, ctx);
 	path_put(&path);
 	if (retry_estale(error, lookup_flags)) {
 		lookup_flags |= LOOKUP_REVAL;
 		goto retry;
 	}
+out:
+	putname(filename);
 	return error;
+}
+
+static ssize_t path_getxattrat(int dfd, const char __user *pathname,
+			       unsigned int at_flags, const char __user *name,
+			       void __user *value, size_t size)
+{
+	struct xattr_name kname;
+	struct kernel_xattr_ctx ctx = {
+		.value    = value,
+		.size     = size,
+		.kname    = &kname,
+		.flags    = 0,
+	};
+	struct filename *filename;
+	ssize_t error;
+
+	if ((at_flags & ~(AT_SYMLINK_NOFOLLOW | AT_EMPTY_PATH)) != 0)
+		return -EINVAL;
+
+	error = import_xattr_name(&kname, name);
+	if (error)
+		return error;
+
+	filename = getname_maybe_null(pathname, at_flags);
+	if (!filename) {
+		CLASS(fd, f)(dfd);
+		if (fd_empty(f))
+			return -EBADF;
+		return file_getxattr(fd_file(f), &ctx);
+	} else {
+		int lookup_flags = 0;
+		if (!(at_flags & AT_SYMLINK_NOFOLLOW))
+			lookup_flags = LOOKUP_FOLLOW;
+		return filename_getxattr(dfd, filename, lookup_flags, &ctx);
+	}
+}
+
+SYSCALL_DEFINE6(getxattrat, int, dfd, const char __user *, pathname, unsigned int, at_flags,
+		const char __user *, name, struct xattr_args __user *, uargs, size_t, usize)
+{
+	struct xattr_args args = {};
+	int error;
+
+	BUILD_BUG_ON(sizeof(struct xattr_args) < XATTR_ARGS_SIZE_VER0);
+	BUILD_BUG_ON(sizeof(struct xattr_args) != XATTR_ARGS_SIZE_LATEST);
+
+	if (unlikely(usize < XATTR_ARGS_SIZE_VER0))
+		return -EINVAL;
+	if (usize > PAGE_SIZE)
+		return -E2BIG;
+
+	error = copy_struct_from_user(&args, sizeof(args), uargs, usize);
+	if (error)
+		return error;
+
+	if (args.flags != 0)
+		return -EINVAL;
+
+	return path_getxattrat(dfd, pathname, at_flags, name,
+			       u64_to_user_ptr(args.value), args.size);
 }
 
 SYSCALL_DEFINE4(getxattr, const char __user *, pathname,
 		const char __user *, name, void __user *, value, size_t, size)
 {
-	return path_getxattr(pathname, name, value, size, LOOKUP_FOLLOW);
+	return path_getxattrat(AT_FDCWD, pathname, 0, name, value, size);
 }
 
 SYSCALL_DEFINE4(lgetxattr, const char __user *, pathname,
 		const char __user *, name, void __user *, value, size_t, size)
 {
-	return path_getxattr(pathname, name, value, size, 0);
+	return path_getxattrat(AT_FDCWD, pathname, AT_SYMLINK_NOFOLLOW, name,
+			       value, size);
 }
 
 SYSCALL_DEFINE4(fgetxattr, int, fd, const char __user *, name,
 		void __user *, value, size_t, size)
 {
-	struct fd f = fdget(fd);
-	ssize_t error = -EBADF;
-
-	if (!f.file)
-		return error;
-	audit_file(f.file);
-	error = getxattr(file_mnt_idmap(f.file), f.file->f_path.dentry,
-			 name, value, size);
-	fdput(f);
-	return error;
+	return path_getxattrat(fd, NULL, AT_EMPTY_PATH, name, value, size);
 }
 
 /*
@@ -853,47 +936,80 @@ listxattr(struct dentry *d, char __user *list, size_t size)
 	return error;
 }
 
-static ssize_t path_listxattr(const char __user *pathname, char __user *list,
-			      size_t size, unsigned int lookup_flags)
+static
+ssize_t file_listxattr(struct file *f, char __user *list, size_t size)
+{
+	audit_file(f);
+	return listxattr(f->f_path.dentry, list, size);
+}
+
+/* unconditionally consumes filename */
+static
+ssize_t filename_listxattr(int dfd, struct filename *filename,
+			   unsigned int lookup_flags,
+			   char __user *list, size_t size)
 {
 	struct path path;
 	ssize_t error;
 retry:
-	error = user_path_at(AT_FDCWD, pathname, lookup_flags, &path);
+	error = filename_lookup(dfd, filename, lookup_flags, &path, NULL);
 	if (error)
-		return error;
+		goto out;
 	error = listxattr(path.dentry, list, size);
 	path_put(&path);
 	if (retry_estale(error, lookup_flags)) {
 		lookup_flags |= LOOKUP_REVAL;
 		goto retry;
 	}
+out:
+	putname(filename);
 	return error;
+}
+
+static ssize_t path_listxattrat(int dfd, const char __user *pathname,
+				unsigned int at_flags, char __user *list,
+				size_t size)
+{
+	struct filename *filename;
+	int lookup_flags;
+
+	if ((at_flags & ~(AT_SYMLINK_NOFOLLOW | AT_EMPTY_PATH)) != 0)
+		return -EINVAL;
+
+	filename = getname_maybe_null(pathname, at_flags);
+	if (!filename) {
+		CLASS(fd, f)(dfd);
+		if (fd_empty(f))
+			return -EBADF;
+		return file_listxattr(fd_file(f), list, size);
+	}
+
+	lookup_flags = (at_flags & AT_SYMLINK_NOFOLLOW) ? 0 : LOOKUP_FOLLOW;
+	return filename_listxattr(dfd, filename, lookup_flags, list, size);
+}
+
+SYSCALL_DEFINE5(listxattrat, int, dfd, const char __user *, pathname,
+		unsigned int, at_flags,
+		char __user *, list, size_t, size)
+{
+	return path_listxattrat(dfd, pathname, at_flags, list, size);
 }
 
 SYSCALL_DEFINE3(listxattr, const char __user *, pathname, char __user *, list,
 		size_t, size)
 {
-	return path_listxattr(pathname, list, size, LOOKUP_FOLLOW);
+	return path_listxattrat(AT_FDCWD, pathname, 0, list, size);
 }
 
 SYSCALL_DEFINE3(llistxattr, const char __user *, pathname, char __user *, list,
 		size_t, size)
 {
-	return path_listxattr(pathname, list, size, 0);
+	return path_listxattrat(AT_FDCWD, pathname, AT_SYMLINK_NOFOLLOW, list, size);
 }
 
 SYSCALL_DEFINE3(flistxattr, int, fd, char __user *, list, size_t, size)
 {
-	struct fd f = fdget(fd);
-	ssize_t error = -EBADF;
-
-	if (!f.file)
-		return error;
-	audit_file(f.file);
-	error = listxattr(f.file->f_path.dentry, list, size);
-	fdput(f);
-	return error;
+	return path_listxattrat(fd, NULL, AT_EMPTY_PATH, list, size);
 }
 
 /*
@@ -907,25 +1023,33 @@ removexattr(struct mnt_idmap *idmap, struct dentry *d, const char *name)
 	return vfs_removexattr(idmap, d, name);
 }
 
-static int path_removexattr(const char __user *pathname,
-			    const char __user *name, unsigned int lookup_flags)
+static int file_removexattr(struct file *f, struct xattr_name *kname)
+{
+	int error = mnt_want_write_file(f);
+
+	if (!error) {
+		audit_file(f);
+		error = removexattr(file_mnt_idmap(f),
+				    f->f_path.dentry, kname->name);
+		mnt_drop_write_file(f);
+	}
+	return error;
+}
+
+/* unconditionally consumes filename */
+static int filename_removexattr(int dfd, struct filename *filename,
+				unsigned int lookup_flags, struct xattr_name *kname)
 {
 	struct path path;
 	int error;
-	char kname[XATTR_NAME_MAX + 1];
 
-	error = strncpy_from_user(kname, name, sizeof(kname));
-	if (error == 0 || error == sizeof(kname))
-		error = -ERANGE;
-	if (error < 0)
-		return error;
 retry:
-	error = user_path_at(AT_FDCWD, pathname, lookup_flags, &path);
+	error = filename_lookup(dfd, filename, lookup_flags, &path, NULL);
 	if (error)
-		return error;
+		goto out;
 	error = mnt_want_write(path.mnt);
 	if (!error) {
-		error = removexattr(mnt_idmap(path.mnt), path.dentry, kname);
+		error = removexattr(mnt_idmap(path.mnt), path.dentry, kname->name);
 		mnt_drop_write(path.mnt);
 	}
 	path_put(&path);
@@ -933,45 +1057,58 @@ retry:
 		lookup_flags |= LOOKUP_REVAL;
 		goto retry;
 	}
+out:
+	putname(filename);
 	return error;
+}
+
+static int path_removexattrat(int dfd, const char __user *pathname,
+			      unsigned int at_flags, const char __user *name)
+{
+	struct xattr_name kname;
+	struct filename *filename;
+	unsigned int lookup_flags;
+	int error;
+
+	if ((at_flags & ~(AT_SYMLINK_NOFOLLOW | AT_EMPTY_PATH)) != 0)
+		return -EINVAL;
+
+	error = import_xattr_name(&kname, name);
+	if (error)
+		return error;
+
+	filename = getname_maybe_null(pathname, at_flags);
+	if (!filename) {
+		CLASS(fd, f)(dfd);
+		if (fd_empty(f))
+			return -EBADF;
+		return file_removexattr(fd_file(f), &kname);
+	}
+	lookup_flags = (at_flags & AT_SYMLINK_NOFOLLOW) ? 0 : LOOKUP_FOLLOW;
+	return filename_removexattr(dfd, filename, lookup_flags, &kname);
+}
+
+SYSCALL_DEFINE4(removexattrat, int, dfd, const char __user *, pathname,
+		unsigned int, at_flags, const char __user *, name)
+{
+	return path_removexattrat(dfd, pathname, at_flags, name);
 }
 
 SYSCALL_DEFINE2(removexattr, const char __user *, pathname,
 		const char __user *, name)
 {
-	return path_removexattr(pathname, name, LOOKUP_FOLLOW);
+	return path_removexattrat(AT_FDCWD, pathname, 0, name);
 }
 
 SYSCALL_DEFINE2(lremovexattr, const char __user *, pathname,
 		const char __user *, name)
 {
-	return path_removexattr(pathname, name, 0);
+	return path_removexattrat(AT_FDCWD, pathname, AT_SYMLINK_NOFOLLOW, name);
 }
 
 SYSCALL_DEFINE2(fremovexattr, int, fd, const char __user *, name)
 {
-	struct fd f = fdget(fd);
-	char kname[XATTR_NAME_MAX + 1];
-	int error = -EBADF;
-
-	if (!f.file)
-		return error;
-	audit_file(f.file);
-
-	error = strncpy_from_user(kname, name, sizeof(kname));
-	if (error == 0 || error == sizeof(kname))
-		error = -ERANGE;
-	if (error < 0)
-		return error;
-
-	error = mnt_want_write_file(f.file);
-	if (!error) {
-		error = removexattr(file_mnt_idmap(f.file),
-				    f.file->f_path.dentry, kname);
-		mnt_drop_write_file(f.file);
-	}
-	fdput(f);
-	return error;
+	return path_removexattrat(fd, NULL, AT_EMPTY_PATH, name);
 }
 
 int xattr_list_one(char **buffer, ssize_t *remaining_size, const char *name)
@@ -1005,9 +1142,10 @@ generic_listxattr(struct dentry *dentry, char *buffer, size_t buffer_size)
 {
 	const struct xattr_handler *handler, * const *handlers = dentry->d_sb->s_xattr;
 	ssize_t remaining_size = buffer_size;
-	int err = 0;
 
 	for_each_xattr_handler(handlers, handler) {
+		int err;
+
 		if (!handler->name || (handler->list && !handler->list(dentry)))
 			continue;
 		err = xattr_list_one(&buffer, &remaining_size, handler->name);
@@ -1015,7 +1153,7 @@ generic_listxattr(struct dentry *dentry, char *buffer, size_t buffer_size)
 			return err;
 	}
 
-	return err ? err : buffer_size - remaining_size;
+	return buffer_size - remaining_size;
 }
 EXPORT_SYMBOL(generic_listxattr);
 

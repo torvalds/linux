@@ -2183,7 +2183,7 @@ static int tegra_xusb_enter_elpg(struct tegra_xusb *tegra, bool runtime)
 		goto out;
 	}
 
-	for (i = 0; i < tegra->num_usb_phys; i++) {
+	for (i = 0; i < xhci->usb2_rhub.num_ports; i++) {
 		if (!xhci->usb2_rhub.ports[i])
 			continue;
 		portsc = readl(xhci->usb2_rhub.ports[i]->addr);
@@ -2664,7 +2664,7 @@ MODULE_DEVICE_TABLE(of, tegra_xusb_of_match);
 
 static struct platform_driver tegra_xusb_driver = {
 	.probe = tegra_xusb_probe,
-	.remove_new = tegra_xusb_remove,
+	.remove = tegra_xusb_remove,
 	.shutdown = tegra_xusb_shutdown,
 	.driver = {
 		.name = "tegra-xusb",

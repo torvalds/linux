@@ -7,12 +7,12 @@
 const char * const bch2_sb_error_strs[] = {
 #define x(t, n, ...) [n] = #t,
 	BCH_SB_ERRS()
-	NULL
+#undef x
 };
 
-static void bch2_sb_error_id_to_text(struct printbuf *out, enum bch_sb_error_id id)
+void bch2_sb_error_id_to_text(struct printbuf *out, enum bch_sb_error_id id)
 {
-	if (id < BCH_SB_ERR_MAX)
+	if (id < BCH_FSCK_ERR_MAX)
 		prt_str(out, bch2_sb_error_strs[id]);
 	else
 		prt_printf(out, "(unknown error %u)", id);

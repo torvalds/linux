@@ -530,9 +530,8 @@ void intel_engines_add_sysfs(struct drm_i915_private *i915)
 err_object:
 			kobject_put(kobj);
 err_engine:
-			dev_err(kdev, "Failed to add sysfs engine '%s'\n",
-				engine->name);
-			break;
+			dev_warn(kdev, "Failed to add sysfs engine '%s'\n",
+				 engine->name);
 		}
 	}
 }

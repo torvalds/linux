@@ -1147,6 +1147,8 @@ static int dapm_widget_list_create(struct snd_soc_dapm_widget_list **list,
 	if (*list == NULL)
 		return -ENOMEM;
 
+	(*list)->num_widgets = size;
+
 	list_for_each_entry(w, widgets, work_list)
 		(*list)->widgets[i++] = w;
 
@@ -2254,7 +2256,7 @@ static const struct file_operations dapm_bias_fops = {
 void snd_soc_dapm_debugfs_init(struct snd_soc_dapm_context *dapm,
 	struct dentry *parent)
 {
-	if (!parent || IS_ERR(parent))
+	if (IS_ERR_OR_NULL(parent))
 		return;
 
 	dapm->debugfs_dapm = debugfs_create_dir("dapm", parent);
@@ -2751,8 +2753,7 @@ static int dapm_update_dai_unlocked(struct snd_pcm_substream *substream,
 	if (!w)
 		return 0;
 
-	dev_dbg(dai->dev, "Update DAI routes for %s %s\n", dai->name,
-		dir == SNDRV_PCM_STREAM_PLAYBACK ? "playback" : "capture");
+	dev_dbg(dai->dev, "Update DAI routes for %s %s\n", dai->name, snd_pcm_direction_name(dir));
 
 	snd_soc_dapm_widget_for_each_sink_path(w, p) {
 		ret = dapm_update_dai_chan(p, p->sink, channels);
@@ -2786,10 +2787,10 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_update_dai);
 
 int snd_soc_dapm_widget_name_cmp(struct snd_soc_dapm_widget *widget, const char *s)
 {
-	struct snd_soc_component *component = snd_soc_dapm_to_component(widget->dapm);
+	struct snd_soc_component *component = widget->dapm->component;
 	const char *wname = widget->name;
 
-	if (component->name_prefix)
+	if (component && component->name_prefix)
 		wname += strlen(component->name_prefix) + 1; /* plus space */
 
 	return strcmp(wname, s);
@@ -4057,6 +4058,7 @@ static int snd_soc_dai_link_event(struct snd_soc_dapm_widget *w,
 
 	case SND_SOC_DAPM_POST_PMD:
 		kfree(substream->runtime);
+		substream->runtime = NULL;
 		break;
 
 	default:

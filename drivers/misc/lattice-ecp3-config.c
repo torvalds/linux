@@ -11,7 +11,7 @@
 #include <linux/spi/spi.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define FIRMWARE_NAME	"lattice-ecp3.bit"
 

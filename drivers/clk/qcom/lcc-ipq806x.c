@@ -70,7 +70,7 @@ static const struct clk_parent_data lcc_pxo_pll4[] = {
 	{ .fw_name = "pll4_vote", .name = "pll4_vote" },
 };
 
-static struct freq_tbl clk_tbl_aif_mi2s[] = {
+static const struct freq_tbl clk_tbl_aif_mi2s[] = {
 	{  1024000, P_PLL4, 4,  1,  96 },
 	{  1411200, P_PLL4, 4,  2, 139 },
 	{  1536000, P_PLL4, 4,  1,  64 },
@@ -214,7 +214,7 @@ static struct clk_regmap_mux mi2s_bit_clk = {
 	},
 };
 
-static struct freq_tbl clk_tbl_pcm[] = {
+static const struct freq_tbl clk_tbl_pcm[] = {
 	{   64000, P_PLL4, 4, 1, 1536 },
 	{  128000, P_PLL4, 4, 1,  768 },
 	{  256000, P_PLL4, 4, 1,  384 },
@@ -296,7 +296,7 @@ static struct clk_regmap_mux pcm_clk = {
 	},
 };
 
-static struct freq_tbl clk_tbl_aif_osr[] = {
+static const struct freq_tbl clk_tbl_aif_osr[] = {
 	{  2822400, P_PLL4, 1, 147, 20480 },
 	{  4096000, P_PLL4, 1,   1,    96 },
 	{  5644800, P_PLL4, 1, 147, 10240 },
@@ -360,7 +360,7 @@ static struct clk_branch spdif_clk = {
 	},
 };
 
-static struct freq_tbl clk_tbl_ahbix[] = {
+static const struct freq_tbl clk_tbl_ahbix[] = {
 	{ 131072000, P_PLL4, 1, 1, 3 },
 	{ },
 };

@@ -11,11 +11,13 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/acpi.h>
+#include <linux/device.h>
 #include <linux/dmi.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/machine.h>
 #include <linux/irq.h>
 #include <linux/module.h>
+#include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/serdev.h>
 #include <linux/string.h>
@@ -26,19 +28,19 @@
 static struct platform_device *x86_android_tablet_device;
 
 /*
- * This helper allows getting a gpio_desc *before* the actual device consuming
- * the GPIO has been instantiated. This function _must_ only be used to handle
- * this special case such as e.g. :
+ * This helper allows getting a GPIO descriptor *before* the actual device
+ * consuming it has been instantiated. This function MUST only be used to
+ * handle this special case such as, e.g.:
  *
  * 1. Getting an IRQ from a GPIO for i2c_board_info.irq which is passed to
  * i2c_client_new() to instantiate i2c_client-s; or
- * 2. Calling desc_to_gpio() to get an old style GPIO number for gpio_keys
+ * 2. Calling desc_to_gpio() to get an old style GPIO number for gpio-keys
  * platform_data which still uses old style GPIO numbers.
  *
- * Since the consuming device has not been instatiated yet a dynamic lookup
- * is generated using the special x86_android_tablet dev for dev_id.
+ * Since the consuming device has not been instantiated yet a dynamic lookup
+ * is generated using the special x86_android_tablet device for dev_id.
  *
- * For normal GPIO lookups a standard static gpiod_lookup_table _must_ be used.
+ * For normal GPIO lookups a standard static struct gpiod_lookup_table MUST be used.
  */
 int x86_android_tablet_get_gpiod(const char *chip, int pin, const char *con_id,
 				 bool active_low, enum gpiod_flags dflags,
@@ -87,7 +89,7 @@ int x86_acpi_irq_helper_get(const struct x86_acpi_irq_data *data)
 		/*
 		 * The DSDT may already reference the GSI in a device skipped by
 		 * acpi_quirk_skip_i2c_client_enumeration(). Unregister the GSI
-		 * to avoid EBUSY errors in this case.
+		 * to avoid -EBUSY errors in this case.
 		 */
 		acpi_unregister_gsi(data->index);
 		irq = acpi_register_gsi(NULL, data->index, data->trigger, data->polarity);
@@ -155,26 +157,66 @@ static struct gpiod_lookup_table * const *gpiod_lookup_tables;
 static const struct software_node *bat_swnode;
 static void (*exit_handler)(void);
 
+static struct i2c_adapter *
+get_i2c_adap_by_handle(const struct x86_i2c_client_info *client_info)
+{
+	acpi_handle handle;
+	acpi_status status;
+
+	status = acpi_get_handle(NULL, client_info->adapter_path, &handle);
+	if (ACPI_FAILURE(status)) {
+		pr_err("Error could not get %s handle\n", client_info->adapter_path);
+		return NULL;
+	}
+
+	return i2c_acpi_find_adapter_by_handle(handle);
+}
+
+static __init int match_parent(struct device *dev, const void *data)
+{
+	return dev->parent == data;
+}
+
+static struct i2c_adapter *
+get_i2c_adap_by_pci_parent(const struct x86_i2c_client_info *client_info)
+{
+	struct i2c_adapter *adap = NULL;
+	struct device *pdev, *adap_dev;
+
+	pdev = bus_find_device_by_name(&pci_bus_type, NULL, client_info->adapter_path);
+	if (!pdev) {
+		pr_err("Error could not find %s PCI device\n", client_info->adapter_path);
+		return NULL;
+	}
+
+	adap_dev = bus_find_device(&i2c_bus_type, NULL, pdev, match_parent);
+	if (adap_dev) {
+		adap = i2c_verify_adapter(adap_dev);
+		if (!adap)
+			put_device(adap_dev);
+	}
+
+	put_device(pdev);
+
+	return adap;
+}
+
 static __init int x86_instantiate_i2c_client(const struct x86_dev_info *dev_info,
 					     int idx)
 {
 	const struct x86_i2c_client_info *client_info = &dev_info->i2c_client_info[idx];
 	struct i2c_board_info board_info = client_info->board_info;
 	struct i2c_adapter *adap;
-	acpi_handle handle;
-	acpi_status status;
 
 	board_info.irq = x86_acpi_irq_helper_get(&client_info->irq_data);
 	if (board_info.irq < 0)
 		return board_info.irq;
 
-	status = acpi_get_handle(NULL, client_info->adapter_path, &handle);
-	if (ACPI_FAILURE(status)) {
-		pr_err("Error could not get %s handle\n", client_info->adapter_path);
-		return -ENODEV;
-	}
+	if (dev_info->use_pci_devname)
+		adap = get_i2c_adap_by_pci_parent(client_info);
+	else
+		adap = get_i2c_adap_by_handle(client_info);
 
-	adap = i2c_acpi_find_adapter_by_handle(handle);
 	if (!adap) {
 		pr_err("error could not get %s adapter\n", client_info->adapter_path);
 		return -ENODEV;
@@ -379,7 +421,7 @@ static __init int x86_android_tablet_probe(struct platform_device *pdev)
 		}
 	}
 
-	/* + 1 to make space for (optional) gpio_keys_button pdev */
+	/* + 1 to make space for the (optional) gpio_keys_button platform device */
 	pdevs = kcalloc(dev_info->pdev_count + 1, sizeof(*pdevs), GFP_KERNEL);
 	if (!pdevs) {
 		x86_android_tablet_remove(pdev);
@@ -390,8 +432,9 @@ static __init int x86_android_tablet_probe(struct platform_device *pdev)
 	for (i = 0; i < pdev_count; i++) {
 		pdevs[i] = platform_device_register_full(&dev_info->pdev_info[i]);
 		if (IS_ERR(pdevs[i])) {
+			ret = PTR_ERR(pdevs[i]);
 			x86_android_tablet_remove(pdev);
-			return PTR_ERR(pdevs[i]);
+			return ret;
 		}
 	}
 
@@ -432,7 +475,7 @@ static __init int x86_android_tablet_probe(struct platform_device *pdev)
 
 			buttons[i] = dev_info->gpio_button[i].button;
 			buttons[i].gpio = desc_to_gpio(gpiod);
-			/* Release gpiod so that gpio-keys can request it */
+			/* Release GPIO descriptor so that gpio-keys can request it */
 			devm_gpiod_put(&x86_android_tablet_device->dev, gpiod);
 		}
 
@@ -443,8 +486,9 @@ static __init int x86_android_tablet_probe(struct platform_device *pdev)
 								  PLATFORM_DEVID_AUTO,
 								  &pdata, sizeof(pdata));
 		if (IS_ERR(pdevs[pdev_count])) {
+			ret = PTR_ERR(pdevs[pdev_count]);
 			x86_android_tablet_remove(pdev);
-			return PTR_ERR(pdevs[pdev_count]);
+			return ret;
 		}
 		pdev_count++;
 	}
@@ -456,7 +500,7 @@ static struct platform_driver x86_android_tablet_driver = {
 	.driver = {
 		.name = KBUILD_MODNAME,
 	},
-	.remove_new = x86_android_tablet_remove,
+	.remove = x86_android_tablet_remove,
 };
 
 static int __init x86_android_tablet_init(void)

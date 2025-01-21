@@ -512,7 +512,7 @@ static struct platform_driver sdhci_esdhc_mcf_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = sdhci_esdhc_mcf_probe,
-	.remove_new = sdhci_esdhc_mcf_remove,
+	.remove = sdhci_esdhc_mcf_remove,
 };
 
 module_platform_driver(sdhci_esdhc_mcf_driver);

@@ -95,7 +95,7 @@ MODULE_DEVICE_TABLE(platform, clk_mt8183_mm_id_table);
 
 static struct platform_driver clk_mt8183_mm_drv = {
 	.probe = mtk_clk_pdev_probe,
-	.remove_new = mtk_clk_pdev_remove,
+	.remove = mtk_clk_pdev_remove,
 	.driver = {
 		.name = "clk-mt8183-mm",
 	},

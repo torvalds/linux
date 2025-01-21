@@ -44,6 +44,9 @@ config LED_TRIGGER_PHY
 		<Speed in megabits>Mbps OR <Speed in gigabits>Gbps OR link
 		for any speed known to the PHY.
 
+config OPEN_ALLIANCE_HELPERS
+	bool
+
 config PHYLIB_LEDS
 	def_bool OF
 	depends on LEDS_CLASS=y || LEDS_CLASS=PHYLIB
@@ -108,6 +111,13 @@ config ADIN1100_PHY
 	  Adds support for the Analog Devices Industrial T1L Ethernet PHYs.
 	  Currently supports the:
 	  - ADIN1100 - Robust,Industrial, Low Power 10BASE-T1L Ethernet PHY
+
+config AMCC_QT2025_PHY
+	tristate "AMCC QT2025 PHY"
+	depends on RUST_PHYLIB_ABSTRACTIONS
+	depends on RUST_FW_LOADER_ABSTRACTIONS
+	help
+	  Adds support for the Applied Micro Circuits Corporation QT2025 PHY.
 
 source "drivers/net/phy/aquantia/Kconfig"
 
@@ -256,22 +266,7 @@ config MAXLINEAR_GPHY
 	  Support for the Maxlinear GPY115, GPY211, GPY212, GPY215,
 	  GPY241, GPY245 PHYs.
 
-config MEDIATEK_GE_PHY
-	tristate "MediaTek Gigabit Ethernet PHYs"
-	help
-	  Supports the MediaTek Gigabit Ethernet PHYs.
-
-config MEDIATEK_GE_SOC_PHY
-	tristate "MediaTek SoC Ethernet PHYs"
-	depends on (ARM64 && ARCH_MEDIATEK) || COMPILE_TEST
-	depends on NVMEM_MTK_EFUSE
-	help
-	  Supports MediaTek SoC built-in Gigabit Ethernet PHYs.
-
-	  Include support for built-in Ethernet PHYs which are present in
-	  the MT7981 and MT7988 SoCs. These PHYs need calibration data
-	  present in the SoCs efuse and will dynamically calibrate VCM
-	  (common-mode voltage) during startup.
+source "drivers/net/phy/mediatek/Kconfig"
 
 config MICREL_PHY
 	tristate "Micrel PHYs"
@@ -282,8 +277,8 @@ config MICREL_PHY
 config MICROCHIP_T1S_PHY
 	tristate "Microchip 10BASE-T1S Ethernet PHYs"
 	help
-	  Currently supports the LAN8670/1/2 Rev.B1 and LAN8650/1 Rev.B0 Internal
-	  PHYs.
+	  Currently supports the LAN8670/1/2 Rev.B1/C1/C2 and
+	  LAN8650/1 Rev.B0/B1 Internal PHYs.
 
 config MICROCHIP_PHY
 	tristate "Microchip PHYs"
@@ -414,6 +409,7 @@ config DP83TD510_PHY
 
 config DP83TG720_PHY
 	tristate "Texas Instruments DP83TG720 Ethernet 1000Base-T1 PHY"
+	select OPEN_ALLIANCE_HELPERS
 	help
 	  The DP83TG720S-Q1 is an automotive Ethernet physical layer
 	  transceiver compliant with IEEE 802.3bp and Open Alliance

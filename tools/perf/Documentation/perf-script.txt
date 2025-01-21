@@ -134,7 +134,7 @@ OPTIONS
         srcline, period, iregs, uregs, brstack, brstacksym, flags, bpf-output,
         brstackinsn, brstackinsnlen, brstackdisasm, brstackoff, callindent, insn, disasm,
         insnlen, synth, phys_addr, metric, misc, srccode, ipc, data_page_size,
-        code_page_size, ins_lat, machine_pid, vcpu, cgroup, retire_lat,
+        code_page_size, ins_lat, machine_pid, vcpu, cgroup, retire_lat, brcntr,
 
         Field list can be prepended with the type, trace, sw or hw,
         to indicate to which event type the field list applies.
@@ -368,6 +368,9 @@ OPTIONS
 
 --demangle-kernel::
 	Demangle kernel symbol names to human readable form (for C++ kernels).
+
+--addr2line=<path>::
+	Path to addr2line binary.
 
 --header
 	Show perf.data header.

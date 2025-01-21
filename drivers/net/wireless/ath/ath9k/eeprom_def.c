@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include "hw.h"
 #include "ar9002_phy.h"
 

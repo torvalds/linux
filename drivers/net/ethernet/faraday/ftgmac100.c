@@ -24,6 +24,7 @@
 #include <linux/crc32.h>
 #include <linux/if_vlan.h>
 #include <linux/of_net.h>
+#include <linux/phy_fixed.h>
 #include <net/ip.h>
 #include <net/ncsi.h>
 
@@ -49,6 +50,15 @@
 
 #define FTGMAC_100MHZ		100000000
 #define FTGMAC_25MHZ		25000000
+
+/* For NC-SI to register a fixed-link phy device */
+static struct fixed_phy_status ncsi_phy_status = {
+	.link = 1,
+	.speed = SPEED_100,
+	.duplex = DUPLEX_FULL,
+	.pause = 0,
+	.asym_pause = 0
+};
 
 struct ftgmac100 {
 	/* Registers */
@@ -1541,7 +1551,8 @@ static int ftgmac100_open(struct net_device *netdev)
 	if (netdev->phydev) {
 		/* If we have a PHY, start polling */
 		phy_start(netdev->phydev);
-	} else if (priv->use_ncsi) {
+	}
+	if (priv->use_ncsi) {
 		/* If using NC-SI, set our carrier on and start the stack */
 		netif_carrier_on(netdev);
 
@@ -1554,6 +1565,7 @@ static int ftgmac100_open(struct net_device *netdev)
 	return 0;
 
 err_ncsi:
+	phy_stop(netdev->phydev);
 	napi_disable(&priv->napi);
 	netif_stop_queue(netdev);
 err_alloc:
@@ -1587,7 +1599,7 @@ static int ftgmac100_stop(struct net_device *netdev)
 	netif_napi_del(&priv->napi);
 	if (netdev->phydev)
 		phy_stop(netdev->phydev);
-	else if (priv->use_ncsi)
+	if (priv->use_ncsi)
 		ncsi_stop_dev(priv->ndev);
 
 	ftgmac100_stop_hw(priv);
@@ -1725,6 +1737,9 @@ static void ftgmac100_phy_disconnect(struct net_device *netdev)
 	phy_disconnect(netdev->phydev);
 	if (of_phy_is_fixed_link(priv->dev->of_node))
 		of_phy_deregister_fixed_link(priv->dev->of_node);
+
+	if (priv->use_ncsi)
+		fixed_phy_unregister(netdev->phydev);
 }
 
 static void ftgmac100_destroy_mdio(struct net_device *netdev)
@@ -1802,6 +1817,7 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	struct resource *res;
 	int irq;
 	struct net_device *netdev;
+	struct phy_device *phydev;
 	struct ftgmac100 *priv;
 	struct device_node *np;
 	int err = 0;
@@ -1889,35 +1905,30 @@ static int ftgmac100_probe(struct platform_device *pdev)
 			err = -EINVAL;
 			goto err_phy_connect;
 		}
-	} else if (np && of_phy_is_fixed_link(np)) {
-		struct phy_device *phy;
 
-		err = of_phy_register_fixed_link(np);
+		phydev = fixed_phy_register(PHY_POLL, &ncsi_phy_status, np);
+		if (IS_ERR(phydev)) {
+			dev_err(&pdev->dev, "failed to register fixed PHY device\n");
+			err = PTR_ERR(phydev);
+			goto err_phy_connect;
+		}
+		err = phy_connect_direct(netdev, phydev, ftgmac100_adjust_link,
+					 PHY_INTERFACE_MODE_RMII);
 		if (err) {
-			dev_err(&pdev->dev, "Failed to register fixed PHY\n");
+			dev_err(&pdev->dev, "Connecting PHY failed\n");
 			goto err_phy_connect;
 		}
-
-		phy = of_phy_get_and_connect(priv->netdev, np,
-					     &ftgmac100_adjust_link);
-		if (!phy) {
-			dev_err(&pdev->dev, "Failed to connect to fixed PHY\n");
-			of_phy_deregister_fixed_link(np);
-			err = -EINVAL;
-			goto err_phy_connect;
-		}
-
-		/* Display what we found */
-		phy_attached_info(phy);
-	} else if (np && of_get_property(np, "phy-handle", NULL)) {
+	} else if (np && (of_phy_is_fixed_link(np) ||
+			  of_get_property(np, "phy-handle", NULL))) {
 		struct phy_device *phy;
 
 		/* Support "mdio"/"phy" child nodes for ast2400/2500 with
 		 * an embedded MDIO controller. Automatically scan the DTS for
 		 * available PHYs and register them.
 		 */
-		if (of_device_is_compatible(np, "aspeed,ast2400-mac") ||
-		    of_device_is_compatible(np, "aspeed,ast2500-mac")) {
+		if (of_get_property(np, "phy-handle", NULL) &&
+		    (of_device_is_compatible(np, "aspeed,ast2400-mac") ||
+		     of_device_is_compatible(np, "aspeed,ast2500-mac"))) {
 			err = ftgmac100_setup_mdio(netdev);
 			if (err)
 				goto err_setup_mdio;
@@ -2060,7 +2071,7 @@ MODULE_DEVICE_TABLE(of, ftgmac100_of_match);
 
 static struct platform_driver ftgmac100_driver = {
 	.probe	= ftgmac100_probe,
-	.remove_new = ftgmac100_remove,
+	.remove = ftgmac100_remove,
 	.driver	= {
 		.name		= DRV_NAME,
 		.of_match_table	= ftgmac100_of_match,

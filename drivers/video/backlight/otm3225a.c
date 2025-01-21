@@ -189,7 +189,7 @@ static int otm3225a_set_power(struct lcd_device *ld, int power)
 	if (power == dd->power)
 		return 0;
 
-	if (power > FB_BLANK_UNBLANK)
+	if (power > LCD_POWER_ON)
 		otm3225a_write(dd->spi, display_off, ARRAY_SIZE(display_off));
 	else
 		otm3225a_write(dd->spi, display_on, ARRAY_SIZE(display_on));

@@ -53,7 +53,6 @@ EXPORT_SYMBOL_GPL(nlmsvc_ops);
 static DEFINE_MUTEX(nlmsvc_mutex);
 static unsigned int		nlmsvc_users;
 static struct svc_serv		*nlmsvc_serv;
-unsigned long			nlmsvc_timeout;
 
 static void nlmsvc_request_retry(struct timer_list *tl)
 {
@@ -68,7 +67,7 @@ unsigned int lockd_net_id;
  * and also changed through the sysctl interface.  -- Jamie Lokier, Aug 2003
  */
 static unsigned long		nlm_grace_period;
-static unsigned long		nlm_timeout = LOCKD_DFLT_TIMEO;
+unsigned long			nlm_timeout = LOCKD_DFLT_TIMEO;
 static int			nlm_udpport, nlm_tcpport;
 
 /* RLIM_NOFILE defaults to 1024. That seems like a reasonable default here. */
@@ -124,6 +123,8 @@ lockd(void *vrqstp)
 	struct svc_rqst *rqstp = vrqstp;
 	struct net *net = &init_net;
 	struct lockd_net *ln = net_generic(net, lockd_net_id);
+
+	svc_thread_init_status(rqstp, 0);
 
 	/* try_to_freeze() is called from svc_recv() */
 	set_freezable();
@@ -332,10 +333,6 @@ static int lockd_get(void)
 	if (nlmsvc_users)
 		printk(KERN_WARNING
 			"lockd_up: no pid, %d users??\n", nlmsvc_users);
-
-	if (!nlm_timeout)
-		nlm_timeout = LOCKD_DFLT_TIMEO;
-	nlmsvc_timeout = nlm_timeout * HZ;
 
 	serv = svc_create(&nlmsvc_program, LOCKD_BUFSIZE, lockd);
 	if (!serv) {

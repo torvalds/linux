@@ -211,7 +211,7 @@ static void __iomem *lp_gpio_reg(struct gpio_chip *chip, unsigned int offset,
 				 int reg)
 {
 	struct intel_pinctrl *lg = gpiochip_get_data(chip);
-	struct intel_community *comm;
+	const struct intel_community *comm;
 	int reg_offset;
 
 	comm = intel_get_community(lg, offset);
@@ -859,4 +859,4 @@ MODULE_AUTHOR("Andy Shevchenko (Intel)");
 MODULE_DESCRIPTION("Intel Lynxpoint pinctrl driver");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:lp_gpio");
-MODULE_IMPORT_NS(PINCTRL_INTEL);
+MODULE_IMPORT_NS("PINCTRL_INTEL");

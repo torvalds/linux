@@ -115,4 +115,4 @@ Driver provides the following LEDs for the system "msn2100":
 	- [1,1,1,1] = Blue blink 6Hz
 
 Driver supports HW blinking at 3Hz and 6Hz frequency (50% duty cycle).
-For 3Hz duty cylce is about 167 msec, for 6Hz is about 83 msec.
+For 3Hz duty cycle is about 167 msec, for 6Hz is about 83 msec.

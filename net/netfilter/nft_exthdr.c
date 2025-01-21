@@ -5,7 +5,7 @@
  * Development of this code funded by Astaro AG (http://www.astaro.com/)
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/kernel.h>
 #include <linux/netlink.h>
 #include <linux/netfilter.h>
@@ -588,7 +588,7 @@ static int nft_exthdr_tcp_set_init(const struct nft_ctx *ctx,
 	priv->flags  = flags;
 	priv->op     = op;
 
-	return nft_parse_register_load(tb[NFTA_EXTHDR_SREG], &priv->sreg,
+	return nft_parse_register_load(ctx, tb[NFTA_EXTHDR_SREG], &priv->sreg,
 				       priv->len);
 }
 

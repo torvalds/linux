@@ -156,7 +156,7 @@ EXPORT_SYMBOL_GPL(pci_iomap_wc);
  * the different IOMAP ranges.
  *
  * But if the architecture does not use the generic iomap code, and if
- * it has _not_ defined it's own private pci_iounmap function, we define
+ * it has _not_ defined its own private pci_iounmap function, we define
  * it here.
  *
  * NOTE! This default implementation assumes that if the architecture

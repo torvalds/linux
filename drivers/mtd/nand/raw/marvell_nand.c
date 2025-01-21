@@ -84,7 +84,7 @@
 #include <linux/slab.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
@@ -2771,7 +2771,6 @@ static void marvell_nand_chips_cleanup(struct marvell_nfc *nfc)
 static int marvell_nand_chips_init(struct device *dev, struct marvell_nfc *nfc)
 {
 	struct device_node *np = dev->of_node;
-	struct device_node *nand_np;
 	int max_cs = nfc->caps->max_cs_nb;
 	int nchips;
 	int ret;
@@ -2798,20 +2797,15 @@ static int marvell_nand_chips_init(struct device *dev, struct marvell_nfc *nfc)
 		return ret;
 	}
 
-	for_each_child_of_node(np, nand_np) {
+	for_each_child_of_node_scoped(np, nand_np) {
 		ret = marvell_nand_chip_init(dev, nfc, nand_np);
 		if (ret) {
-			of_node_put(nand_np);
-			goto cleanup_chips;
+			marvell_nand_chips_cleanup(nfc);
+			return ret;
 		}
 	}
 
 	return 0;
-
-cleanup_chips:
-	marvell_nand_chips_cleanup(nfc);
-
-	return ret;
 }
 
 static int marvell_nfc_init_dma(struct marvell_nfc *nfc)
@@ -3189,7 +3183,7 @@ static struct platform_driver marvell_nfc_driver = {
 	},
 	.id_table = marvell_nfc_platform_ids,
 	.probe = marvell_nfc_probe,
-	.remove_new = marvell_nfc_remove,
+	.remove = marvell_nfc_remove,
 };
 module_platform_driver(marvell_nfc_driver);
 

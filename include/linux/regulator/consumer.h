@@ -168,6 +168,29 @@ int devm_regulator_get_enable_read_voltage(struct device *dev, const char *id);
 void regulator_put(struct regulator *regulator);
 void devm_regulator_put(struct regulator *regulator);
 
+#if IS_ENABLED(CONFIG_OF)
+struct regulator *__must_check of_regulator_get_optional(struct device *dev,
+							 struct device_node *node,
+							 const char *id);
+struct regulator *__must_check devm_of_regulator_get_optional(struct device *dev,
+							      struct device_node *node,
+							      const char *id);
+#else
+static inline struct regulator *__must_check of_regulator_get_optional(struct device *dev,
+								       struct device_node *node,
+								       const char *id)
+{
+	return ERR_PTR(-ENODEV);
+}
+
+static inline struct regulator *__must_check devm_of_regulator_get_optional(struct device *dev,
+									    struct device_node *node,
+									    const char *id)
+{
+	return ERR_PTR(-ENODEV);
+}
+#endif
+
 int regulator_register_supply_alias(struct device *dev, const char *id,
 				    struct device *alias_dev,
 				    const char *alias_id);
@@ -350,6 +373,20 @@ devm_regulator_get_optional(struct device *dev, const char *id)
 	return ERR_PTR(-ENODEV);
 }
 
+static inline struct regulator *__must_check of_regulator_get_optional(struct device *dev,
+								       struct device_node *node,
+								       const char *id)
+{
+	return ERR_PTR(-ENODEV);
+}
+
+static inline struct regulator *__must_check devm_of_regulator_get_optional(struct device *dev,
+									    struct device_node *node,
+									    const char *id)
+{
+	return ERR_PTR(-ENODEV);
+}
+
 static inline void regulator_put(struct regulator *regulator)
 {
 }
@@ -448,6 +485,14 @@ static inline int devm_regulator_bulk_get(struct device *dev, int num_consumers,
 
 static inline int of_regulator_bulk_get_all(struct device *dev, struct device_node *np,
 					    struct regulator_bulk_data **consumers)
+{
+	return 0;
+}
+
+static inline int devm_regulator_bulk_get_const(
+	struct device *dev, int num_consumers,
+	const struct regulator_bulk_data *in_consumers,
+	struct regulator_bulk_data **out_consumers)
 {
 	return 0;
 }

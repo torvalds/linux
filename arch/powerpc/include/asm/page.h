@@ -21,8 +21,7 @@
  * page size. When using 64K pages however, whether we are really supporting
  * 64K pages in HW or not is irrelevant to those definitions.
  */
-#define PAGE_SHIFT		CONFIG_PAGE_SHIFT
-#define PAGE_SIZE		(ASM_CONST(1) << PAGE_SHIFT)
+#include <vdso/page.h>
 
 #ifndef __ASSEMBLY__
 #ifndef CONFIG_HUGETLB_PAGE
@@ -40,13 +39,6 @@ extern unsigned int hpage_shift;
 #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
 #define HUGE_MAX_HSTATE		(MMU_PAGE_COUNT-1)
 #endif
-
-/*
- * Subtle: (1 << PAGE_SHIFT) is an int, not an unsigned long. So if we
- * assign PAGE_MASK to a larger type it gets extended the way we want
- * (i.e. with 1s in the high bits)
- */
-#define PAGE_MASK      (~((1 << PAGE_SHIFT) - 1))
 
 /*
  * KERNELBASE is the virtual address of the start of the kernel, it's often

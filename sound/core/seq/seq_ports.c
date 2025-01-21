@@ -362,6 +362,8 @@ int snd_seq_set_port_info(struct snd_seq_client_port * port,
 			port->direction |= SNDRV_SEQ_PORT_DIR_OUTPUT;
 	}
 
+	port->is_midi1 = !!(info->flags & SNDRV_SEQ_PORT_FLG_IS_MIDI1);
+
 	return 0;
 }
 
@@ -398,6 +400,9 @@ int snd_seq_get_port_info(struct snd_seq_client_port * port,
 			info->flags |= SNDRV_SEQ_PORT_FLG_TIME_REAL;
 		info->time_queue = port->time_queue;
 	}
+
+	if (port->is_midi1)
+		info->flags |= SNDRV_SEQ_PORT_FLG_IS_MIDI1;
 
 	/* UMP direction and group */
 	info->direction = port->direction;

@@ -549,7 +549,6 @@ static int usb_pcwd_notify_sys(struct notifier_block *this, unsigned long code,
 
 static const struct file_operations usb_pcwd_fops = {
 	.owner =	THIS_MODULE,
-	.llseek =	no_llseek,
 	.write =	usb_pcwd_write,
 	.unlocked_ioctl = usb_pcwd_ioctl,
 	.compat_ioctl = compat_ptr_ioctl,
@@ -565,7 +564,6 @@ static struct miscdevice usb_pcwd_miscdev = {
 
 static const struct file_operations usb_pcwd_temperature_fops = {
 	.owner =	THIS_MODULE,
-	.llseek =	no_llseek,
 	.read =		usb_pcwd_temperature_read,
 	.open =		usb_pcwd_temperature_open,
 	.release =	usb_pcwd_temperature_release,

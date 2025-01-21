@@ -179,6 +179,9 @@ yet. Bug reports are always welcome at the issue tracker below!
    * - s390
      - Maintained
      - ``LLVM=1`` (LLVM >= 18.1.0), ``CC=clang`` (LLVM < 18.1.0)
+   * - sparc (sparc64 only)
+     - Maintained
+     - ``CC=clang LLVM_IAS=0`` (LLVM >= 20)
    * - um (User Mode)
      - Maintained
      - ``LLVM=1``

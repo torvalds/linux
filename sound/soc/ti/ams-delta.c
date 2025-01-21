@@ -595,7 +595,7 @@ static struct platform_driver ams_delta_driver = {
 		.name = DRV_NAME,
 	},
 	.probe = ams_delta_probe,
-	.remove_new = ams_delta_remove,
+	.remove = ams_delta_remove,
 };
 
 module_platform_driver(ams_delta_driver);

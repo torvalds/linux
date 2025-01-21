@@ -24,19 +24,11 @@ properties:
     maxItems: 1
     description: The DPMAC number
 
-  phy-handle: true
-
-  phy-connection-type: true
-
-  phy-mode: true
-
   pcs-handle:
     maxItems: 1
     description:
       A reference to a node representing a PCS PHY device found on
       the internal MDIO bus.
-
-  managed: true
 
   phys:
     description: A reference to the SerDes lane(s)
@@ -45,7 +37,7 @@ properties:
 required:
   - reg
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

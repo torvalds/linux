@@ -6,6 +6,7 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/uaccess.h>
+#include <linux/regset.h>
 #include <asm/ptrace-abi.h>
 #include <registers.h>
 #include <skas.h>
@@ -168,65 +169,6 @@ int peek_user(struct task_struct *child, long addr, long data)
 	return put_user(tmp, (unsigned long __user *) data);
 }
 
-static int get_fpregs(struct user_i387_struct __user *buf, struct task_struct *child)
-{
-	int err, n, cpu = task_cpu(child);
-	struct user_i387_struct fpregs;
-
-	err = save_i387_registers(userspace_pid[cpu],
-				  (unsigned long *) &fpregs);
-	if (err)
-		return err;
-
-	n = copy_to_user(buf, &fpregs, sizeof(fpregs));
-	if(n > 0)
-		return -EFAULT;
-
-	return n;
-}
-
-static int set_fpregs(struct user_i387_struct __user *buf, struct task_struct *child)
-{
-	int n, cpu = task_cpu(child);
-	struct user_i387_struct fpregs;
-
-	n = copy_from_user(&fpregs, buf, sizeof(fpregs));
-	if (n > 0)
-		return -EFAULT;
-
-	return restore_i387_registers(userspace_pid[cpu],
-				    (unsigned long *) &fpregs);
-}
-
-static int get_fpxregs(struct user_fxsr_struct __user *buf, struct task_struct *child)
-{
-	int err, n, cpu = task_cpu(child);
-	struct user_fxsr_struct fpregs;
-
-	err = save_fpx_registers(userspace_pid[cpu], (unsigned long *) &fpregs);
-	if (err)
-		return err;
-
-	n = copy_to_user(buf, &fpregs, sizeof(fpregs));
-	if(n > 0)
-		return -EFAULT;
-
-	return n;
-}
-
-static int set_fpxregs(struct user_fxsr_struct __user *buf, struct task_struct *child)
-{
-	int n, cpu = task_cpu(child);
-	struct user_fxsr_struct fpregs;
-
-	n = copy_from_user(&fpregs, buf, sizeof(fpregs));
-	if (n > 0)
-		return -EFAULT;
-
-	return restore_fpx_registers(userspace_pid[cpu],
-				     (unsigned long *) &fpregs);
-}
-
 long subarch_ptrace(struct task_struct *child, long request,
 		    unsigned long addr, unsigned long data)
 {
@@ -234,17 +176,25 @@ long subarch_ptrace(struct task_struct *child, long request,
 	void __user *datap = (void __user *) data;
 	switch (request) {
 	case PTRACE_GETFPREGS: /* Get the child FPU state. */
-		ret = get_fpregs(datap, child);
-		break;
+		return copy_regset_to_user(child, task_user_regset_view(child),
+					   REGSET_FP_LEGACY,
+					   0, sizeof(struct user_i387_struct),
+					   datap);
 	case PTRACE_SETFPREGS: /* Set the child FPU state. */
-		ret = set_fpregs(datap, child);
-		break;
+		return copy_regset_from_user(child, task_user_regset_view(child),
+					     REGSET_FP_LEGACY,
+					     0, sizeof(struct user_i387_struct),
+					     datap);
 	case PTRACE_GETFPXREGS: /* Get the child FPU state. */
-		ret = get_fpxregs(datap, child);
-		break;
+		return copy_regset_to_user(child, task_user_regset_view(child),
+					   REGSET_FP,
+					   0, sizeof(struct user_fxsr_struct),
+					   datap);
 	case PTRACE_SETFPXREGS: /* Set the child FPU state. */
-		ret = set_fpxregs(datap, child);
-		break;
+		return copy_regset_from_user(child, task_user_regset_view(child),
+					     REGSET_FP,
+					     0, sizeof(struct user_fxsr_struct),
+					     datap);
 	default:
 		ret = -EIO;
 	}

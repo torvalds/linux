@@ -6,7 +6,14 @@
 #include <kunit/test.h>
 #include <kunit/visibility.h>
 
-#include "tests/xe_bo_test.h"
+#include <linux/iosys-map.h>
+#include <linux/math64.h>
+#include <linux/prandom.h>
+#include <linux/swap.h>
+
+#include <uapi/linux/sysinfo.h>
+
+#include "tests/xe_kunit_helpers.h"
 #include "tests/xe_pci_test.h"
 #include "tests/xe_test.h"
 
@@ -36,7 +43,8 @@ static int ccs_test_migrate(struct xe_tile *tile, struct xe_bo *bo,
 
 	/* Optionally clear bo *and* CCS data in VRAM. */
 	if (clear) {
-		fence = xe_migrate_clear(tile->migrate, bo, bo->ttm.resource);
+		fence = xe_migrate_clear(tile->migrate, bo, bo->ttm.resource,
+					 XE_MIGRATE_CLEAR_FLAG_FULL);
 		if (IS_ERR(fence)) {
 			KUNIT_FAIL(test, "Failed to submit bo clear.\n");
 			return PTR_ERR(fence);
@@ -124,7 +132,7 @@ static void ccs_test_run_tile(struct xe_device *xe, struct xe_tile *tile,
 		kunit_info(test, "Testing system memory\n");
 
 	bo = xe_bo_create_user(xe, NULL, NULL, SZ_1M, DRM_XE_GEM_CPU_CACHING_WC,
-			       ttm_bo_type_device, bo_flags);
+			       bo_flags);
 	if (IS_ERR(bo)) {
 		KUNIT_FAIL(test, "Failed to create bo.\n");
 		return;
@@ -154,12 +162,18 @@ out_unlock:
 
 static int ccs_test_run_device(struct xe_device *xe)
 {
-	struct kunit *test = xe_cur_kunit();
+	struct kunit *test = kunit_get_current_test();
 	struct xe_tile *tile;
 	int id;
 
 	if (!xe_device_has_flat_ccs(xe)) {
-		kunit_info(test, "Skipping non-flat-ccs device.\n");
+		kunit_skip(test, "non-flat-ccs device\n");
+		return 0;
+	}
+
+	/* For xe2+ dgfx, we don't handle ccs metadata */
+	if (GRAPHICS_VER(xe) >= 20 && IS_DGFX(xe)) {
+		kunit_skip(test, "xe2+ dgfx device\n");
 		return 0;
 	}
 
@@ -177,11 +191,12 @@ static int ccs_test_run_device(struct xe_device *xe)
 	return 0;
 }
 
-void xe_ccs_migrate_kunit(struct kunit *test)
+static void xe_ccs_migrate_kunit(struct kunit *test)
 {
-	xe_call_for_each_device(ccs_test_run_device);
+	struct xe_device *xe = test->priv;
+
+	ccs_test_run_device(xe);
 }
-EXPORT_SYMBOL_IF_KUNIT(xe_ccs_migrate_kunit);
 
 static int evict_test_run_tile(struct xe_device *xe, struct xe_tile *tile, struct kunit *test)
 {
@@ -198,7 +213,6 @@ static int evict_test_run_tile(struct xe_device *xe, struct xe_tile *tile, struc
 		xe_vm_lock(vm, false);
 		bo = xe_bo_create_user(xe, NULL, vm, 0x10000,
 				       DRM_XE_GEM_CPU_CACHING_WC,
-				       ttm_bo_type_device,
 				       bo_flags);
 		xe_vm_unlock(vm);
 		if (IS_ERR(bo)) {
@@ -208,7 +222,7 @@ static int evict_test_run_tile(struct xe_device *xe, struct xe_tile *tile, struc
 
 		external = xe_bo_create_user(xe, NULL, NULL, 0x10000,
 					     DRM_XE_GEM_CPU_CACHING_WC,
-					     ttm_bo_type_device, bo_flags);
+					     bo_flags);
 		if (IS_ERR(external)) {
 			KUNIT_FAIL(test, "external bo create err=%pe\n", external);
 			goto cleanup_bo;
@@ -325,13 +339,12 @@ cleanup_bo:
 
 static int evict_test_run_device(struct xe_device *xe)
 {
-	struct kunit *test = xe_cur_kunit();
+	struct kunit *test = kunit_get_current_test();
 	struct xe_tile *tile;
 	int id;
 
 	if (!IS_DGFX(xe)) {
-		kunit_info(test, "Skipping non-discrete device %s.\n",
-			   dev_name(xe->drm.dev));
+		kunit_skip(test, "non-discrete device\n");
 		return 0;
 	}
 
@@ -345,8 +358,256 @@ static int evict_test_run_device(struct xe_device *xe)
 	return 0;
 }
 
-void xe_bo_evict_kunit(struct kunit *test)
+static void xe_bo_evict_kunit(struct kunit *test)
 {
-	xe_call_for_each_device(evict_test_run_device);
+	struct xe_device *xe = test->priv;
+
+	evict_test_run_device(xe);
 }
-EXPORT_SYMBOL_IF_KUNIT(xe_bo_evict_kunit);
+
+struct xe_bo_link {
+	struct list_head link;
+	struct xe_bo *bo;
+	u32 val;
+};
+
+#define XE_BO_SHRINK_SIZE ((unsigned long)SZ_64M)
+
+static int shrink_test_fill_random(struct xe_bo *bo, struct rnd_state *state,
+				   struct xe_bo_link *link)
+{
+	struct iosys_map map;
+	int ret = ttm_bo_vmap(&bo->ttm, &map);
+	size_t __maybe_unused i;
+
+	if (ret)
+		return ret;
+
+	for (i = 0; i < bo->ttm.base.size; i += sizeof(u32)) {
+		u32 val = prandom_u32_state(state);
+
+		iosys_map_wr(&map, i, u32, val);
+		if (i == 0)
+			link->val = val;
+	}
+
+	ttm_bo_vunmap(&bo->ttm, &map);
+	return 0;
+}
+
+static bool shrink_test_verify(struct kunit *test, struct xe_bo *bo,
+			       unsigned int bo_nr, struct rnd_state *state,
+			       struct xe_bo_link *link)
+{
+	struct iosys_map map;
+	int ret = ttm_bo_vmap(&bo->ttm, &map);
+	size_t i;
+	bool failed = false;
+
+	if (ret) {
+		KUNIT_FAIL(test, "Error mapping bo %u for content check.\n", bo_nr);
+		return true;
+	}
+
+	for (i = 0; i < bo->ttm.base.size; i += sizeof(u32)) {
+		u32 val = prandom_u32_state(state);
+
+		if (iosys_map_rd(&map, i, u32) != val) {
+			KUNIT_FAIL(test, "Content not preserved, bo %u offset 0x%016llx",
+				   bo_nr, (unsigned long long)i);
+			kunit_info(test, "Failed value is 0x%08x, recorded 0x%08x\n",
+				   (unsigned int)iosys_map_rd(&map, i, u32), val);
+			if (i == 0 && val != link->val)
+				kunit_info(test, "Looks like PRNG is out of sync.\n");
+			failed = true;
+			break;
+		}
+	}
+
+	ttm_bo_vunmap(&bo->ttm, &map);
+
+	return failed;
+}
+
+/*
+ * Try to create system bos corresponding to twice the amount
+ * of available system memory to test shrinker functionality.
+ * If no swap space is available to accommodate the
+ * memory overcommit, mark bos purgeable.
+ */
+static int shrink_test_run_device(struct xe_device *xe)
+{
+	struct kunit *test = kunit_get_current_test();
+	LIST_HEAD(bos);
+	struct xe_bo_link *link, *next;
+	struct sysinfo si;
+	u64 ram, ram_and_swap, purgeable = 0, alloced, to_alloc, limit;
+	unsigned int interrupted = 0, successful = 0, count = 0;
+	struct rnd_state prng;
+	u64 rand_seed;
+	bool failed = false;
+
+	rand_seed = get_random_u64();
+	prandom_seed_state(&prng, rand_seed);
+	kunit_info(test, "Random seed is 0x%016llx.\n",
+		   (unsigned long long)rand_seed);
+
+	/* Skip if execution time is expected to be too long. */
+
+	limit = SZ_32G;
+	/* IGFX with flat CCS needs to copy when swapping / shrinking */
+	if (!IS_DGFX(xe) && xe_device_has_flat_ccs(xe))
+		limit = SZ_16G;
+
+	si_meminfo(&si);
+	ram = (size_t)si.freeram * si.mem_unit;
+	if (ram > limit) {
+		kunit_skip(test, "Too long expected execution time.\n");
+		return 0;
+	}
+	to_alloc = ram * 2;
+
+	ram_and_swap = ram + get_nr_swap_pages() * PAGE_SIZE;
+	if (to_alloc > ram_and_swap)
+		purgeable = to_alloc - ram_and_swap;
+	purgeable += div64_u64(purgeable, 5);
+
+	kunit_info(test, "Free ram is %lu bytes. Will allocate twice of that.\n",
+		   (unsigned long)ram);
+	for (alloced = 0; alloced < to_alloc; alloced += XE_BO_SHRINK_SIZE) {
+		struct xe_bo *bo;
+		unsigned int mem_type;
+		struct xe_ttm_tt *xe_tt;
+
+		link = kzalloc(sizeof(*link), GFP_KERNEL);
+		if (!link) {
+			KUNIT_FAIL(test, "Unexpected link allocation failure\n");
+			failed = true;
+			break;
+		}
+
+		INIT_LIST_HEAD(&link->link);
+
+		/* We can create bos using WC caching here. But it is slower. */
+		bo = xe_bo_create_user(xe, NULL, NULL, XE_BO_SHRINK_SIZE,
+				       DRM_XE_GEM_CPU_CACHING_WB,
+				       XE_BO_FLAG_SYSTEM);
+		if (IS_ERR(bo)) {
+			if (bo != ERR_PTR(-ENOMEM) && bo != ERR_PTR(-ENOSPC) &&
+			    bo != ERR_PTR(-EINTR) && bo != ERR_PTR(-ERESTARTSYS))
+				KUNIT_FAIL(test, "Error creating bo: %pe\n", bo);
+			kfree(link);
+			failed = true;
+			break;
+		}
+		xe_bo_lock(bo, false);
+		xe_tt = container_of(bo->ttm.ttm, typeof(*xe_tt), ttm);
+
+		/*
+		 * Allocate purgeable bos first, because if we do it the
+		 * other way around, they may not be subject to swapping...
+		 */
+		if (alloced < purgeable) {
+			xe_tt->purgeable = true;
+			bo->ttm.priority = 0;
+		} else {
+			int ret = shrink_test_fill_random(bo, &prng, link);
+
+			if (ret) {
+				xe_bo_unlock(bo);
+				xe_bo_put(bo);
+				KUNIT_FAIL(test, "Error filling bo with random data: %pe\n",
+					   ERR_PTR(ret));
+				kfree(link);
+				failed = true;
+				break;
+			}
+		}
+
+		mem_type = bo->ttm.resource->mem_type;
+		xe_bo_unlock(bo);
+		link->bo = bo;
+		list_add_tail(&link->link, &bos);
+
+		if (mem_type != XE_PL_TT) {
+			KUNIT_FAIL(test, "Bo in incorrect memory type: %u\n",
+				   bo->ttm.resource->mem_type);
+			failed = true;
+		}
+		cond_resched();
+		if (signal_pending(current))
+			break;
+	}
+
+	/*
+	 * Read back and destroy bos. Reset the pseudo-random seed to get an
+	 * identical pseudo-random number sequence for readback.
+	 */
+	prandom_seed_state(&prng, rand_seed);
+	list_for_each_entry_safe(link, next, &bos, link) {
+		static struct ttm_operation_ctx ctx = {.interruptible = true};
+		struct xe_bo *bo = link->bo;
+		struct xe_ttm_tt *xe_tt;
+		int ret;
+
+		count++;
+		if (!signal_pending(current) && !failed) {
+			bool purgeable, intr = false;
+
+			xe_bo_lock(bo, NULL);
+
+			/* xe_tt->purgeable is cleared on validate. */
+			xe_tt = container_of(bo->ttm.ttm, typeof(*xe_tt), ttm);
+			purgeable = xe_tt->purgeable;
+			do {
+				ret = ttm_bo_validate(&bo->ttm, &tt_placement, &ctx);
+				if (ret == -EINTR)
+					intr = true;
+			} while (ret == -EINTR && !signal_pending(current));
+
+			if (!ret && !purgeable)
+				failed = shrink_test_verify(test, bo, count, &prng, link);
+
+			xe_bo_unlock(bo);
+			if (ret) {
+				KUNIT_FAIL(test, "Validation failed: %pe\n",
+					   ERR_PTR(ret));
+				failed = true;
+			} else if (intr) {
+				interrupted++;
+			} else {
+				successful++;
+			}
+		}
+		xe_bo_put(link->bo);
+		list_del(&link->link);
+		kfree(link);
+	}
+	kunit_info(test, "Readbacks interrupted: %u successful: %u\n",
+		   interrupted, successful);
+
+	return 0;
+}
+
+static void xe_bo_shrink_kunit(struct kunit *test)
+{
+	struct xe_device *xe = test->priv;
+
+	shrink_test_run_device(xe);
+}
+
+static struct kunit_case xe_bo_tests[] = {
+	KUNIT_CASE_PARAM(xe_ccs_migrate_kunit, xe_pci_live_device_gen_param),
+	KUNIT_CASE_PARAM(xe_bo_evict_kunit, xe_pci_live_device_gen_param),
+	KUNIT_CASE_PARAM_ATTR(xe_bo_shrink_kunit, xe_pci_live_device_gen_param,
+			      {.speed = KUNIT_SPEED_SLOW}),
+	{}
+};
+
+VISIBLE_IF_KUNIT
+struct kunit_suite xe_bo_test_suite = {
+	.name = "xe_bo",
+	.test_cases = xe_bo_tests,
+	.init = xe_kunit_helper_xe_device_live_test_init,
+};
+EXPORT_SYMBOL_IF_KUNIT(xe_bo_test_suite);

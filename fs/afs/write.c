@@ -89,10 +89,12 @@ static const struct afs_operation_ops afs_store_data_operation = {
  */
 void afs_prepare_write(struct netfs_io_subrequest *subreq)
 {
+	struct netfs_io_stream *stream = &subreq->rreq->io_streams[subreq->stream_nr];
+
 	//if (test_bit(NETFS_SREQ_RETRYING, &subreq->flags))
 	//	subreq->max_len = 512 * 1024;
 	//else
-	subreq->max_len = 256 * 1024 * 1024;
+	stream->sreq_max_len = 256 * 1024 * 1024;
 }
 
 /*

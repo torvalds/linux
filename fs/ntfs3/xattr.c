@@ -705,7 +705,7 @@ int ntfs_init_acl(struct mnt_idmap *idmap, struct inode *inode,
 #endif
 
 /*
- * ntfs_acl_chmod - Helper for ntfs3_setattr().
+ * ntfs_acl_chmod - Helper for ntfs_setattr().
  */
 int ntfs_acl_chmod(struct mnt_idmap *idmap, struct dentry *dentry)
 {

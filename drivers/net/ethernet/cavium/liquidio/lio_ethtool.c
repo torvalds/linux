@@ -2496,37 +2496,31 @@ ret_intrmod:
 	return ret;
 }
 
+#ifdef PTP_HARDWARE_TIMESTAMPING
 static int lio_get_ts_info(struct net_device *netdev,
 			   struct kernel_ethtool_ts_info *info)
 {
 	struct lio *lio = GET_LIO(netdev);
 
 	info->so_timestamping =
-#ifdef PTP_HARDWARE_TIMESTAMPING
 		SOF_TIMESTAMPING_TX_HARDWARE |
 		SOF_TIMESTAMPING_RX_HARDWARE |
 		SOF_TIMESTAMPING_RAW_HARDWARE |
-		SOF_TIMESTAMPING_TX_SOFTWARE |
-#endif
-		SOF_TIMESTAMPING_RX_SOFTWARE |
-		SOF_TIMESTAMPING_SOFTWARE;
+		SOF_TIMESTAMPING_TX_SOFTWARE;
 
 	if (lio->ptp_clock)
 		info->phc_index = ptp_clock_index(lio->ptp_clock);
-	else
-		info->phc_index = -1;
 
-#ifdef PTP_HARDWARE_TIMESTAMPING
 	info->tx_types = (1 << HWTSTAMP_TX_OFF) | (1 << HWTSTAMP_TX_ON);
 
 	info->rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
 			   (1 << HWTSTAMP_FILTER_PTP_V1_L4_EVENT) |
 			   (1 << HWTSTAMP_FILTER_PTP_V2_L2_EVENT) |
 			   (1 << HWTSTAMP_FILTER_PTP_V2_L4_EVENT);
-#endif
 
 	return 0;
 }
+#endif
 
 /* Return register dump len. */
 static int lio_get_regs_len(struct net_device *dev)
@@ -3146,7 +3140,9 @@ static const struct ethtool_ops lio_ethtool_ops = {
 	.set_coalesce		= lio_set_intr_coalesce,
 	.get_priv_flags		= lio_get_priv_flags,
 	.set_priv_flags		= lio_set_priv_flags,
+#ifdef PTP_HARDWARE_TIMESTAMPING
 	.get_ts_info		= lio_get_ts_info,
+#endif
 };
 
 static const struct ethtool_ops lio_vf_ethtool_ops = {
@@ -3169,7 +3165,9 @@ static const struct ethtool_ops lio_vf_ethtool_ops = {
 	.set_coalesce		= lio_set_intr_coalesce,
 	.get_priv_flags		= lio_get_priv_flags,
 	.set_priv_flags		= lio_set_priv_flags,
+#ifdef PTP_HARDWARE_TIMESTAMPING
 	.get_ts_info		= lio_get_ts_info,
+#endif
 };
 
 void liquidio_set_ethtool_ops(struct net_device *netdev)

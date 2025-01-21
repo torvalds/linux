@@ -10,41 +10,59 @@ Authors:
 Description:
 ------------
 
-Handheld devices from One Netbook and Aya Neo provide fan readings and fan
-control through their embedded controllers.
+Handheld devices from OneNetbook, AOKZOE, AYANEO, And OrangePi provide fan
+readings and fan control through their embedded controllers.
 
-Currently only supports AMD boards from One X Player, AOK ZOE, and some Aya
-Neo devices. One X Player Intel boards could be supported if we could figure
-out the EC registers and values to write to since the EC layout and model is
-different. Aya Neo devices preceding the AIR may not be supportable as the EC
-model is different and do not appear to have manual control capabilities.
+Currently supports OneXPlayer devices, AOKZOE, AYANEO, and OrangePi
+handheld devices. AYANEO devices preceding the AIR and OneXPlayer devices
+preceding the Mini A07 are not supportable as the EC model is different
+and do not have manual control capabilities.
 
-Some models have a toggle for changing the behaviour of the "Turbo/Silent"
-button of the device. It will change the key event that it triggers with
-a flip of the `tt_toggle` attribute. See below for boards that support this
-function.
+Some OneXPlayer and AOKZOE models have a toggle for changing the behaviour
+of the "Turbo/Silent" button of the device. It will change the key event
+that it triggers with a flip of the `tt_toggle` attribute. See below for
+boards that support this function.
 
 Supported devices
 -----------------
 
 Currently the driver supports the following handhelds:
 
- - AOK ZOE A1
- - AOK ZOE A1 PRO
- - Aya Neo 2
- - Aya Neo AIR
- - Aya Neo AIR Plus (Mendocino)
- - Aya Neo AIR Pro
- - Aya Neo Geek
+ - AOKZOE A1
+ - AOKZOE A1 PRO
+ - AYANEO 2
+ - AYANEO 2S
+ - AYANEO AIR
+ - AYANEO AIR 1S
+ - AYANEO AIR Plus (Mendocino)
+ - AYANEO AIR Pro
+ - AYANEO Flip DS
+ - AYANEO Flip KB
+ - AYANEO Geek
+ - AYANEO Geek 1S
+ - AYANEO KUN
+ - OneXPlayer 2
+ - OneXPlayer 2 Pro
  - OneXPlayer AMD
  - OneXPlayer mini AMD
  - OneXPlayer mini AMD PRO
+ - OneXPlayer OneXFly
+ - OneXPlayer X1 A
+ - OneXPlayer X1 i
+ - OneXPlayer X1 mini
+ - OrangePi NEO-01
 
 "Turbo/Silent" button behaviour toggle is only supported on:
  - AOK ZOE A1
  - AOK ZOE A1 PRO
+ - OneXPlayer 2
+ - OneXPlayer 2 Pro
  - OneXPlayer mini AMD (only with updated alpha BIOS)
  - OneXPlayer mini AMD PRO
+ - OneXPlayer OneXFly
+ - OneXPlayer X1 A
+ - OneXPlayer X1 i
+ - OneXPlayer X1 mini
 
 Sysfs entries
 -------------
@@ -52,7 +70,7 @@ Sysfs entries
 The following attributes are supported:
 
 fan1_input
-  Read Only. Reads current fan RMP.
+  Read Only. Reads current fan RPM.
 
 pwm1_enable
   Read Write. Enable manual fan control. Write "1" to set to manual, write "0"

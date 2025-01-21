@@ -373,21 +373,21 @@
 	cd-gpios = <&tlmm_pinmux 26 GPIO_ACTIVE_LOW>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&sdcc3_pins>, <&sdcc3_cd_pin_a>;
+	pinctrl-0 = <&sdcc3_default_state>, <&sdcc3_cd_pin_a>;
 
 	status = "okay";
 };
 
 &tlmm_pinmux {
-	gsbi5_uart_pin_a: gsbi5-uart-pin-active {
-		rx {
+	gsbi5_uart_pin_a: gsbi5-uart-pin-active-state {
+		rx-pins {
 			pins = "gpio52";
 			function = "gsbi5";
 			drive-strength = <2>;
 			bias-pull-up;
 		};
 
-		tx {
+		tx-pins {
 			pins = "gpio51";
 			function = "gsbi5";
 			drive-strength = <4>;
@@ -396,7 +396,7 @@
 	};
 
 
-	sdcc3_cd_pin_a: sdcc3-cd-pin-active {
+	sdcc3_cd_pin_a: sdcc3-cd-pin-active-state {
 		pins = "gpio26";
 		function = "gpio";
 

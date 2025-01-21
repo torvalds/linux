@@ -863,7 +863,10 @@ static int iwl_mvm_config_ltr(struct iwl_mvm *mvm)
 int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 {
 	u32 cmd_id = REDUCE_TX_POWER_CMD;
-	struct iwl_dev_tx_power_cmd cmd = {
+	struct iwl_dev_tx_power_cmd_v3_v8 cmd = {
+		.common.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_CHAINS),
+	};
+	struct iwl_dev_tx_power_cmd cmd_v9_v10 = {
 		.common.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_CHAINS),
 	};
 	__le16 *per_chain;
@@ -871,8 +874,19 @@ int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 	u16 len = 0;
 	u32 n_subbands;
 	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id, 3);
+	void *cmd_data = &cmd;
 
-	if (cmd_ver >= 7) {
+	if (cmd_ver == 10) {
+		len = sizeof(cmd_v9_v10.v10);
+		n_subbands = IWL_NUM_SUB_BANDS_V2;
+		per_chain = &cmd_v9_v10.v10.per_chain[0][0][0];
+		cmd_v9_v10.v10.flags =
+			cpu_to_le32(mvm->fwrt.reduced_power_flags);
+	} else if (cmd_ver == 9) {
+		len = sizeof(cmd_v9_v10.v9);
+		n_subbands = IWL_NUM_SUB_BANDS_V1;
+		per_chain = &cmd_v9_v10.v9.per_chain[0][0];
+	} else if (cmd_ver >= 7) {
 		len = sizeof(cmd.v7);
 		n_subbands = IWL_NUM_SUB_BANDS_V2;
 		per_chain = cmd.v7.per_chain[0][0];
@@ -899,8 +913,13 @@ int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 		per_chain = cmd.v3.per_chain[0][0];
 	}
 
-	/* all structs have the same common part, add it */
+	/* all structs have the same common part, add its length */
 	len += sizeof(cmd.common);
+
+	if (cmd_ver < 9)
+		len += sizeof(cmd.per_band);
+	else
+		cmd_data = &cmd_v9_v10;
 
 	ret = iwl_sar_fill_profile(&mvm->fwrt, per_chain,
 				   IWL_NUM_CHAIN_TABLES,
@@ -913,7 +932,7 @@ int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 	iwl_mei_set_power_limit(per_chain);
 
 	IWL_DEBUG_RADIO(mvm, "Sending REDUCE_TX_POWER_CMD per chain\n");
-	return iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0, len, &cmd);
+	return iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0, len, cmd_data);
 }
 
 int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm)
@@ -1288,8 +1307,8 @@ static void iwl_mvm_disconnect_iterator(void *data, u8 *mac,
 void iwl_mvm_send_recovery_cmd(struct iwl_mvm *mvm, u32 flags)
 {
 	u32 error_log_size = mvm->fw->ucode_capa.error_log_size;
+	u32 status = 0;
 	int ret;
-	u32 resp;
 
 	struct iwl_fw_error_recovery_cmd recovery_cmd = {
 		.flags = cpu_to_le32(flags),
@@ -1297,7 +1316,6 @@ void iwl_mvm_send_recovery_cmd(struct iwl_mvm *mvm, u32 flags)
 	};
 	struct iwl_host_cmd host_cmd = {
 		.id = WIDE_ID(SYSTEM_GROUP, FW_ERROR_RECOVERY_CMD),
-		.flags = CMD_WANT_SKB,
 		.data = {&recovery_cmd, },
 		.len = {sizeof(recovery_cmd), },
 	};
@@ -1317,7 +1335,7 @@ void iwl_mvm_send_recovery_cmd(struct iwl_mvm *mvm, u32 flags)
 		recovery_cmd.buf_size = cpu_to_le32(error_log_size);
 	}
 
-	ret = iwl_mvm_send_cmd(mvm, &host_cmd);
+	ret = iwl_mvm_send_cmd_status(mvm, &host_cmd, &status);
 	kfree(mvm->error_recovery_buf);
 	mvm->error_recovery_buf = NULL;
 
@@ -1328,11 +1346,10 @@ void iwl_mvm_send_recovery_cmd(struct iwl_mvm *mvm, u32 flags)
 
 	/* skb respond is only relevant in ERROR_RECOVERY_UPDATE_DB */
 	if (flags & ERROR_RECOVERY_UPDATE_DB) {
-		resp = le32_to_cpu(*(__le32 *)host_cmd.resp_pkt->data);
-		if (resp) {
+		if (status) {
 			IWL_ERR(mvm,
 				"Failed to send recovery cmd blob was invalid %d\n",
-				resp);
+				status);
 
 			ieee80211_iterate_interfaces(mvm->hw, 0,
 						     iwl_mvm_disconnect_iterator,
@@ -1384,6 +1401,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	int ret, i;
 	struct ieee80211_supported_band *sband = NULL;
 
+	lockdep_assert_wiphy(mvm->hw->wiphy);
 	lockdep_assert_held(&mvm->mutex);
 
 	ret = iwl_trans_start_hw(mvm->trans);
@@ -1464,10 +1482,10 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		RCU_INIT_POINTER(mvm->fw_id_to_link_sta[i], NULL);
 	}
 
-	for (i = 0; i < IWL_MVM_FW_MAX_LINK_ID + 1; i++)
+	for (i = 0; i < IWL_FW_MAX_LINK_ID + 1; i++)
 		RCU_INIT_POINTER(mvm->link_id_to_link_conf[i], NULL);
 
-	mvm->tdls_cs.peer.sta_id = IWL_MVM_INVALID_STA;
+	mvm->tdls_cs.peer.sta_id = IWL_INVALID_STA;
 
 	/* reset quota debouncing buffer - 0xff will yield invalid data */
 	memset(&mvm->last_quota_cmd, 0xff, sizeof(mvm->last_quota_cmd));
@@ -1603,6 +1621,7 @@ int iwl_mvm_load_d3_fw(struct iwl_mvm *mvm)
 {
 	int ret, i;
 
+	lockdep_assert_wiphy(mvm->hw->wiphy);
 	lockdep_assert_held(&mvm->mutex);
 
 	ret = iwl_trans_start_hw(mvm->trans);

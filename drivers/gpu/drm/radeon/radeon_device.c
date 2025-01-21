@@ -35,6 +35,7 @@
 #include <linux/vgaarb.h>
 
 #include <drm/drm_cache.h>
+#include <drm/drm_client_event.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_device.h>
 #include <drm/drm_file.h>
@@ -760,7 +761,7 @@ bool radeon_boot_test_post_card(struct radeon_device *rdev)
 		if (rdev->is_atom_bios)
 			atom_asic_init(rdev->mode_info.atom_context);
 		else
-			radeon_combios_asic_init(rdev->ddev);
+			radeon_combios_asic_init(rdev_to_drm(rdev));
 		return true;
 	} else {
 		dev_err(rdev->dev, "Card not posted and no BIOS - ignoring\n");
@@ -980,7 +981,7 @@ int radeon_atombios_init(struct radeon_device *rdev)
 		return -ENOMEM;
 
 	rdev->mode_info.atom_card_info = atom_card_info;
-	atom_card_info->dev = rdev->ddev;
+	atom_card_info->dev = rdev_to_drm(rdev);
 	atom_card_info->reg_read = cail_reg_read;
 	atom_card_info->reg_write = cail_reg_write;
 	/* needed for iio ops */
@@ -1005,7 +1006,7 @@ int radeon_atombios_init(struct radeon_device *rdev)
 
 	mutex_init(&rdev->mode_info.atom_context->mutex);
 	mutex_init(&rdev->mode_info.atom_context->scratch_mutex);
-	radeon_atom_initialize_bios_scratch_regs(rdev->ddev);
+	radeon_atom_initialize_bios_scratch_regs(rdev_to_drm(rdev));
 	atom_allocate_fb_scratch(rdev->mode_info.atom_context);
 	return 0;
 }
@@ -1049,7 +1050,7 @@ void radeon_atombios_fini(struct radeon_device *rdev)
  */
 int radeon_combios_init(struct radeon_device *rdev)
 {
-	radeon_combios_initialize_bios_scratch_regs(rdev->ddev);
+	radeon_combios_initialize_bios_scratch_regs(rdev_to_drm(rdev));
 	return 0;
 }
 
@@ -1285,9 +1286,6 @@ int radeon_device_init(struct radeon_device *rdev,
 	bool runtime = false;
 
 	rdev->shutdown = false;
-	rdev->dev = &pdev->dev;
-	rdev->ddev = ddev;
-	rdev->pdev = pdev;
 	rdev->flags = flags;
 	rdev->family = flags & RADEON_FAMILY_MASK;
 	rdev->is_atom_bios = false;
@@ -1545,7 +1543,7 @@ void radeon_device_fini(struct radeon_device *rdev)
  * Called at driver suspend.
  */
 int radeon_suspend_kms(struct drm_device *dev, bool suspend,
-		       bool fbcon, bool freeze)
+		       bool notify_clients, bool freeze)
 {
 	struct radeon_device *rdev;
 	struct pci_dev *pdev;
@@ -1637,9 +1635,9 @@ int radeon_suspend_kms(struct drm_device *dev, bool suspend,
 		pci_set_power_state(pdev, PCI_D3hot);
 	}
 
-	if (fbcon) {
+	if (notify_clients) {
 		console_lock();
-		radeon_fbdev_set_suspend(rdev, 1);
+		drm_client_dev_suspend(dev, true);
 		console_unlock();
 	}
 	return 0;
@@ -1652,7 +1650,7 @@ int radeon_suspend_kms(struct drm_device *dev, bool suspend,
  * Returns 0 for success or an error on failure.
  * Called at driver resume.
  */
-int radeon_resume_kms(struct drm_device *dev, bool resume, bool fbcon)
+int radeon_resume_kms(struct drm_device *dev, bool resume, bool notify_clients)
 {
 	struct drm_connector *connector;
 	struct radeon_device *rdev = dev->dev_private;
@@ -1663,14 +1661,14 @@ int radeon_resume_kms(struct drm_device *dev, bool resume, bool fbcon)
 	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
-	if (fbcon) {
+	if (notify_clients) {
 		console_lock();
 	}
 	if (resume) {
 		pci_set_power_state(pdev, PCI_D0);
 		pci_restore_state(pdev);
 		if (pci_enable_device(pdev)) {
-			if (fbcon)
+			if (notify_clients)
 				console_unlock();
 			return -1;
 		}
@@ -1733,7 +1731,7 @@ int radeon_resume_kms(struct drm_device *dev, bool resume, bool fbcon)
 	/* reset hpd state */
 	radeon_hpd_init(rdev);
 	/* blat the mode back in */
-	if (fbcon) {
+	if (notify_clients) {
 		drm_helper_resume_force_mode(dev);
 		/* turn on display hw */
 		drm_modeset_lock_all(dev);
@@ -1749,8 +1747,8 @@ int radeon_resume_kms(struct drm_device *dev, bool resume, bool fbcon)
 	if ((rdev->pm.pm_method == PM_METHOD_DPM) && rdev->pm.dpm_enabled)
 		radeon_pm_compute_clocks(rdev);
 
-	if (fbcon) {
-		radeon_fbdev_set_suspend(rdev, 0);
+	if (notify_clients) {
+		drm_client_dev_resume(dev, true);
 		console_unlock();
 	}
 
@@ -1847,7 +1845,7 @@ int radeon_gpu_reset(struct radeon_device *rdev)
 
 	downgrade_write(&rdev->exclusive_lock);
 
-	drm_helper_resume_force_mode(rdev->ddev);
+	drm_helper_resume_force_mode(rdev_to_drm(rdev));
 
 	/* set the power state here in case we are a PX system or headless */
 	if ((rdev->pm.pm_method == PM_METHOD_DPM) && rdev->pm.dpm_enabled)

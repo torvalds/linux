@@ -75,7 +75,7 @@ void dcn32_update_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable);
 
 unsigned int dcn32_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsigned int *k1_div, unsigned int *k2_div);
 
-void dcn32_resync_fifo_dccg_dio(struct dce_hwseq *hws, struct dc *dc, struct dc_state *context);
+void dcn32_resync_fifo_dccg_dio(struct dce_hwseq *hws, struct dc *dc, struct dc_state *context, unsigned int current_pipe_idx);
 
 void dcn32_subvp_pipe_control_lock(struct dc *dc,
 		struct dc_state *context,
@@ -119,11 +119,6 @@ void dcn32_init_blank(
 		struct dc *dc,
 		struct timing_generator *tg);
 
-void dcn32_blank_phantom(struct dc *dc,
-		struct timing_generator *tg,
-		int width,
-		int height);
-
 bool dcn32_is_pipe_topology_transition_seamless(struct dc *dc,
 		const struct dc_state *cur_ctx,
 		const struct dc_state *new_ctx);
@@ -133,4 +128,8 @@ void dcn32_prepare_bandwidth(struct dc *dc,
 
 void dcn32_interdependent_update_lock(struct dc *dc,
 		struct dc_state *context, bool lock);
+
+void dcn32_program_outstanding_updates(struct dc *dc,
+		struct dc_state *context);
+
 #endif /* __DC_HWSS_DCN32_H__ */

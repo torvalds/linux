@@ -106,6 +106,7 @@ static int cypress_nor_sr_ready_and_clear_reg(struct spi_nor *nor, u64 addr)
 	int ret;
 
 	if (nor->reg_proto == SNOR_PROTO_8_8_8_DTR) {
+		op.addr.nbytes = nor->addr_nbytes;
 		op.dummy.nbytes = params->rdsr_dummy;
 		op.data.nbytes = 2;
 	}
@@ -964,6 +965,10 @@ static const struct flash_info spansion_nor_parts[] = {
 	}, {
 		.id = SNOR_ID(0x34, 0x5a, 0x1b),
 		.name = "s28hl01gt",
+		.mfr_flags = USE_CLPEF,
+		.fixups = &s28hx_t_fixups,
+	}, {
+		.id = SNOR_ID(0x34, 0x5b, 0x19),
 		.mfr_flags = USE_CLPEF,
 		.fixups = &s28hx_t_fixups,
 	}, {

@@ -209,8 +209,6 @@ static bool optimize_configuration(struct dml2_context *dml2, struct dml2_wrappe
 				p->cur_display_config->output.OutputEncoder[0], p->cur_mode_support_info->DSCEnabled[0]) - 1;
 
 			if (odms_needed <= unused_dpps) {
-				unused_dpps -= odms_needed;
-
 				if (odms_needed == 1) {
 					p->new_policy->ODMUse[0] = dml_odm_use_policy_combine_2to1;
 					optimization_done = true;
@@ -575,7 +573,7 @@ static bool dml2_validate_and_build_resource(const struct dc *in_dc, struct dc_s
 		unsigned int lowest_state_idx = 0;
 
 		out_clks.p_state_supported = true;
-		out_clks.dispclk_khz = (unsigned int)dml2->v20.dml_core_ctx.states.state_array[lowest_state_idx].dispclk_mhz * 1000;
+		out_clks.dispclk_khz = 0; /* No requirement, and lowest index will generally be maximum dispclk. */
 		out_clks.dcfclk_khz = (unsigned int)dml2->v20.dml_core_ctx.states.state_array[lowest_state_idx].dcfclk_mhz * 1000;
 		out_clks.fclk_khz = (unsigned int)dml2->v20.dml_core_ctx.states.state_array[lowest_state_idx].fabricclk_mhz * 1000;
 		out_clks.uclk_mts = (unsigned int)dml2->v20.dml_core_ctx.states.state_array[lowest_state_idx].dram_speed_mts;

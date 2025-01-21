@@ -1164,7 +1164,7 @@ static struct platform_driver exynos_tmu_driver = {
 		.of_match_table = exynos_tmu_match,
 	},
 	.probe = exynos_tmu_probe,
-	.remove_new = exynos_tmu_remove,
+	.remove = exynos_tmu_remove,
 };
 
 module_platform_driver(exynos_tmu_driver);

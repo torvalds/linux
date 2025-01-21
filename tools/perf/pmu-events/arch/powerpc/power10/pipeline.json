@@ -95,9 +95,19 @@
     "BriefDescription": "Cycles in which the oldest instruction in the pipeline was a lwsync waiting to complete."
   },
   {
+    "EventCode": "0x1F056",
+    "EventName": "PM_DISP_SS0_2_INSTR_CYC",
+    "BriefDescription": "Cycles in which Superslice 0 dispatches either 1 or 2 instructions."
+  },
+  {
     "EventCode": "0x1F058",
     "EventName": "PM_DISP_HELD_CYC",
     "BriefDescription": "Cycles dispatch is held."
+  },
+  {
+    "EventCode": "0x1F05A",
+    "EventName": "PM_DISP_HELD_SYNC_CYC",
+    "BriefDescription": "Cycles dispatch is held because of a synchronizing instruction that requires the ICT to be empty before dispatch."
   },
   {
     "EventCode": "0x10064",
@@ -230,6 +240,16 @@
     "BriefDescription": "Cycles in which the oldest instruction in the pipeline (NTC) finishes. Note that instructions can finish out of order, therefore not all the instructions that finish have a Next-to-complete status."
   },
   {
+    "EventCode": "0x2F054",
+    "EventName": "PM_DISP_SS1_2_INSTR_CYC",
+    "BriefDescription": "Cycles in which Superslice 1 dispatches either 1 or 2 instructions."
+  },
+  {
+    "EventCode": "0x2F056",
+    "EventName": "PM_DISP_SS1_4_INSTR_CYC",
+    "BriefDescription": "Cycles in which Superslice 1 dispatches either 3 or 4 instructions."
+  },
+  {
     "EventCode": "0x20066",
     "EventName": "PM_DISP_HELD_OTHER_CYC",
     "BriefDescription": "Cycles dispatch is held for any other reason."
@@ -328,6 +348,16 @@
     "EventCode": "0x3E052",
     "EventName": "PM_DISP_STALL_IC_L3",
     "BriefDescription": "Cycles when dispatch was stalled while the instruction was fetched from the local L3."
+  },
+  {
+    "EventCode": "0x3F054",
+    "EventName": "PM_DISP_SS0_4_INSTR_CYC",
+    "BriefDescription": "Cycles in which Superslice 0 dispatches either 3 or 4 instructions."
+  },
+  {
+    "EventCode": "0x3F056",
+    "EventName": "PM_DISP_SS0_8_INSTR_CYC",
+    "BriefDescription": "Cycles in which Superslice 0 dispatches either 5, 6, 7 or 8 instructions."
   },
   {
     "EventCode": "0x30060",
@@ -458,5 +488,20 @@
     "EventCode": "0x400F8",
     "EventName": "PM_FLUSH",
     "BriefDescription": "Flush (any type)."
+  },
+  {
+    "EventCode": "0x0B0000016080",
+    "EventName": "PM_L2_TLBIE_SLBIE_START",
+    "BriefDescription": "NCU Master received a TLBIE/SLBIEG/SLBIAG operation from the core. Event count should be multiplied by 2 since the data is coming from a 2:1 clock domain and the data is time sliced across all 4 threads."
+  },
+  {
+    "EventCode": "0x0B0000016880",
+    "EventName": "PM_L2_TLBIE_SLBIE_DELAY",
+    "BriefDescription": "Cycles when a TLBIE/SLBIEG/SLBIAG command was held in a hottemp condition by the NCU Master. Multiply this count by 1000 to obtain the total number of cycles. This can be divided by PM_L2_TLBIE_SLBIE_SENT to obtain the average time a TLBIE/SLBIEG/SLBIAG command was held. Event count should be multiplied by 2 since the data is coming from a 2:1 clock domain and the data is time sliced across all 4 threads."
+  },
+  {
+    "EventCode": "0x0B0000026880",
+    "EventName": "PM_L2_SNP_TLBIE_SLBIE_DELAY",
+    "BriefDescription": "Cycles when a TLBIE/SLBIEG/SLBIAG that targets this thread's LPAR was in flight while in a hottemp condition. Multiply this count by 1000 to obtain the total number of cycles. This can be divided by PM_L2_SNP_TLBIE_SLBIE_START to obtain the overall efficiency. Note: 'inflight' means SnpTLB has been sent to core(ie doesn't include when SnpTLB is in NCU waiting to be launched serially behind different SnpTLB). The NCU Snooper gets in a 'hottemp' delay window when it detects it is above its TLBIE/SLBIE threshold for process SnpTLBIE/SLBIE with this core. Event count should be multiplied by 2 since the data is coming from a 2:1 clock domain and the data is time sliced across all 4 threads."
   }
 ]

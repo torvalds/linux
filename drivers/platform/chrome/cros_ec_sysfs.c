@@ -359,7 +359,7 @@ static struct platform_driver cros_ec_sysfs_driver = {
 		.name = DRV_NAME,
 	},
 	.probe = cros_ec_sysfs_probe,
-	.remove_new = cros_ec_sysfs_remove,
+	.remove = cros_ec_sysfs_remove,
 	.id_table = cros_ec_sysfs_id,
 };
 

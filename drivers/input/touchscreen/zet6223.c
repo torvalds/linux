@@ -11,7 +11,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/regulator/consumer.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define ZET6223_MAX_FINGERS		16
 #define ZET6223_MAX_PKT_SIZE		(3 + 4 * ZET6223_MAX_FINGERS)

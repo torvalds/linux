@@ -70,55 +70,53 @@
 };
 
 &iomuxc {
-	microsom {
-		pinctrl_microsom_brcm_bt: microsom-brcm-bt {
-			fsl,pins = <
-				MX6QDL_PAD_CSI0_DAT14__GPIO6_IO00	0x40013070
-				MX6QDL_PAD_CSI0_DAT15__GPIO6_IO01	0x40013070
-				MX6QDL_PAD_CSI0_DAT18__GPIO6_IO04	0x40013070
-			>;
-		};
+	pinctrl_microsom_brcm_bt: microsom-brcm-btgrp {
+		fsl,pins = <
+			MX6QDL_PAD_CSI0_DAT14__GPIO6_IO00	0x40013070
+			MX6QDL_PAD_CSI0_DAT15__GPIO6_IO01	0x40013070
+			MX6QDL_PAD_CSI0_DAT18__GPIO6_IO04	0x40013070
+		>;
+	};
 
-		pinctrl_microsom_brcm_osc: microsom-brcm-osc {
-			fsl,pins = <
-				MX6QDL_PAD_DISP0_DAT11__GPIO5_IO05	0x40013070
-			>;
-		};
+	pinctrl_microsom_brcm_osc: microsom-brcm-oscgrp {
+		fsl,pins = <
+			MX6QDL_PAD_DISP0_DAT11__GPIO5_IO05	0x40013070
+		>;
+	};
 
-		pinctrl_microsom_brcm_reg: microsom-brcm-reg {
-			fsl,pins = <
-				MX6QDL_PAD_EIM_D19__GPIO3_IO19		0x40013070
-			>;
-		};
+	pinctrl_microsom_brcm_reg: microsom-brcm-reggrp {
+		fsl,pins = <
+			MX6QDL_PAD_EIM_D19__GPIO3_IO19		0x40013070
+		>;
+	};
 
-		pinctrl_microsom_brcm_wifi: microsom-brcm-wifi {
-			fsl,pins = <
-				MX6QDL_PAD_GPIO_8__XTALOSC_REF_CLK_32K	0x1b0b0
-				MX6QDL_PAD_CSI0_DATA_EN__GPIO5_IO20	0x40013070
-				MX6QDL_PAD_CSI0_DAT8__GPIO5_IO26	0x40013070
-				MX6QDL_PAD_CSI0_DAT9__GPIO5_IO27	0x40013070
-			>;
-		};
+	pinctrl_microsom_brcm_wifi: microsom-brcm-wifigrp {
+		fsl,pins = <
+			MX6QDL_PAD_GPIO_8__XTALOSC_REF_CLK_32K	0x1b0b0
+			MX6QDL_PAD_CSI0_DATA_EN__GPIO5_IO20	0x40013070
+			MX6QDL_PAD_CSI0_DAT8__GPIO5_IO26	0x40013070
+			MX6QDL_PAD_CSI0_DAT9__GPIO5_IO27	0x40013070
+		>;
+	};
 
-		pinctrl_microsom_uart4: microsom-uart4 {
-			fsl,pins = <
-				MX6QDL_PAD_CSI0_DAT12__UART4_TX_DATA 0x1b0b1
-				MX6QDL_PAD_CSI0_DAT13__UART4_RX_DATA 0x1b0b1
-				MX6QDL_PAD_CSI0_DAT16__UART4_RTS_B 0x1b0b1
-				MX6QDL_PAD_CSI0_DAT17__UART4_CTS_B 0x1b0b1
-			>;
-		};
+	pinctrl_microsom_uart4: microsom-uart4grp {
+		fsl,pins = <
+			MX6QDL_PAD_CSI0_DAT12__UART4_TX_DATA 0x1b0b1
+			MX6QDL_PAD_CSI0_DAT13__UART4_RX_DATA 0x1b0b1
+			MX6QDL_PAD_CSI0_DAT16__UART4_RTS_B 0x1b0b1
+			MX6QDL_PAD_CSI0_DAT17__UART4_CTS_B 0x1b0b1
+		>;
+	};
 
-		pinctrl_microsom_usdhc1: microsom-usdhc1 {
-			fsl,pins = <
-				MX6QDL_PAD_SD1_CMD__SD1_CMD    0x17059
-				MX6QDL_PAD_SD1_CLK__SD1_CLK    0x10059
-				MX6QDL_PAD_SD1_DAT0__SD1_DATA0 0x17059
-				MX6QDL_PAD_SD1_DAT1__SD1_DATA1 0x17059
-				MX6QDL_PAD_SD1_DAT2__SD1_DATA2 0x17059
-				MX6QDL_PAD_SD1_DAT3__SD1_DATA3 0x17059
-			>;
-		};
+	pinctrl_microsom_usdhc1: microsom-usdhc1grp {
+		fsl,pins = <
+			MX6QDL_PAD_SD1_CMD__SD1_CMD    0x17059
+			MX6QDL_PAD_SD1_CLK__SD1_CLK    0x10059
+			MX6QDL_PAD_SD1_DAT0__SD1_DATA0 0x17059
+			MX6QDL_PAD_SD1_DAT1__SD1_DATA1 0x17059
+			MX6QDL_PAD_SD1_DAT2__SD1_DATA2 0x17059
+			MX6QDL_PAD_SD1_DAT3__SD1_DATA3 0x17059
+		>;
 	};
 };
 

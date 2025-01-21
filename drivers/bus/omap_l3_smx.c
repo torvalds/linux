@@ -273,7 +273,7 @@ static void omap3_l3_remove(struct platform_device *pdev)
 
 static struct platform_driver omap3_l3_driver = {
 	.probe		= omap3_l3_probe,
-	.remove_new     = omap3_l3_remove,
+	.remove         = omap3_l3_remove,
 	.driver         = {
 		.name   = "omap_l3_smx",
 		.of_match_table = of_match_ptr(omap3_l3_match),

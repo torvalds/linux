@@ -593,7 +593,7 @@ static void rproc_virtio_remove(struct platform_device *pdev)
 /* Platform driver */
 static struct platform_driver rproc_virtio_driver = {
 	.probe		= rproc_virtio_probe,
-	.remove_new	= rproc_virtio_remove,
+	.remove		= rproc_virtio_remove,
 	.driver		= {
 		.name	= "rproc-virtio",
 	},

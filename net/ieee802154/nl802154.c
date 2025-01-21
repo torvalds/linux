@@ -1438,22 +1438,18 @@ static int nl802154_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	/* Use current page by default */
-	if (info->attrs[NL802154_ATTR_PAGE])
-		request->page = nla_get_u8(info->attrs[NL802154_ATTR_PAGE]);
-	else
-		request->page = wpan_phy->current_page;
+	request->page = nla_get_u8_default(info->attrs[NL802154_ATTR_PAGE],
+					   wpan_phy->current_page);
 
 	/* Scan all supported channels by default */
-	if (info->attrs[NL802154_ATTR_SCAN_CHANNELS])
-		request->channels = nla_get_u32(info->attrs[NL802154_ATTR_SCAN_CHANNELS]);
-	else
-		request->channels = wpan_phy->supported.channels[request->page];
+	request->channels =
+		nla_get_u32_default(info->attrs[NL802154_ATTR_SCAN_CHANNELS],
+				    wpan_phy->supported.channels[request->page]);
 
 	/* Use maximum duration order by default */
-	if (info->attrs[NL802154_ATTR_SCAN_DURATION])
-		request->duration = nla_get_u8(info->attrs[NL802154_ATTR_SCAN_DURATION]);
-	else
-		request->duration = IEEE802154_MAX_SCAN_DURATION;
+	request->duration =
+		nla_get_u8_default(info->attrs[NL802154_ATTR_SCAN_DURATION],
+				   IEEE802154_MAX_SCAN_DURATION);
 
 	err = rdev_trigger_scan(rdev, request);
 	if (err) {
@@ -1598,10 +1594,8 @@ nl802154_send_beacons(struct sk_buff *skb, struct genl_info *info)
 	request->wpan_phy = wpan_phy;
 
 	/* Use maximum duration order by default */
-	if (info->attrs[NL802154_ATTR_BEACON_INTERVAL])
-		request->interval = nla_get_u8(info->attrs[NL802154_ATTR_BEACON_INTERVAL]);
-	else
-		request->interval = IEEE802154_MAX_SCAN_DURATION;
+	request->interval = nla_get_u8_default(info->attrs[NL802154_ATTR_BEACON_INTERVAL],
+					       IEEE802154_MAX_SCAN_DURATION);
 
 	err = rdev_send_beacons(rdev, request);
 	if (err) {

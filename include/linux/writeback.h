@@ -79,6 +79,9 @@ struct writeback_control {
 	 */
 	struct swap_iocb **swap_plug;
 
+	/* Target list for splitting a large folio */
+	struct list_head *list;
+
 	/* internal fields used by the ->writepages implementation: */
 	struct folio_batch fbatch;
 	pgoff_t index;
@@ -200,7 +203,8 @@ void inode_io_list_del(struct inode *inode);
 /* writeback.h requires fs.h; it, too, is not included from here. */
 static inline void wait_on_inode(struct inode *inode)
 {
-	wait_on_bit(&inode->i_state, __I_NEW, TASK_UNINTERRUPTIBLE);
+	wait_var_event(inode_state_wait_address(inode, __I_NEW),
+		       !(READ_ONCE(inode->i_state) & I_NEW));
 }
 
 #ifdef CONFIG_CGROUP_WRITEBACK
@@ -209,15 +213,12 @@ static inline void wait_on_inode(struct inode *inode)
 #include <linux/bio.h>
 
 void __inode_attach_wb(struct inode *inode, struct folio *folio);
-void wbc_attach_and_unlock_inode(struct writeback_control *wbc,
-				 struct inode *inode)
-	__releases(&inode->i_lock);
 void wbc_detach_inode(struct writeback_control *wbc);
-void wbc_account_cgroup_owner(struct writeback_control *wbc, struct page *page,
+void wbc_account_cgroup_owner(struct writeback_control *wbc, struct folio *folio,
 			      size_t bytes);
 int cgroup_writeback_by_id(u64 bdi_id, int memcg_id,
 			   enum wb_reason reason, struct wb_completion *done);
-void cgroup_writeback_umount(void);
+void cgroup_writeback_umount(struct super_block *sb);
 bool cleanup_offline_cgwb(struct bdi_writeback *wb);
 
 /**
@@ -250,22 +251,8 @@ static inline void inode_detach_wb(struct inode *inode)
 	}
 }
 
-/**
- * wbc_attach_fdatawrite_inode - associate wbc and inode for fdatawrite
- * @wbc: writeback_control of interest
- * @inode: target inode
- *
- * This function is to be used by __filemap_fdatawrite_range(), which is an
- * alternative entry point into writeback code, and first ensures @inode is
- * associated with a bdi_writeback and attaches it to @wbc.
- */
-static inline void wbc_attach_fdatawrite_inode(struct writeback_control *wbc,
-					       struct inode *inode)
-{
-	spin_lock(&inode->i_lock);
-	inode_attach_wb(inode, NULL);
-	wbc_attach_and_unlock_inode(wbc, inode);
-}
+void wbc_attach_fdatawrite_inode(struct writeback_control *wbc,
+		struct inode *inode);
 
 /**
  * wbc_init_bio - writeback specific initializtion of bio
@@ -299,13 +286,6 @@ static inline void inode_detach_wb(struct inode *inode)
 {
 }
 
-static inline void wbc_attach_and_unlock_inode(struct writeback_control *wbc,
-					       struct inode *inode)
-	__releases(&inode->i_lock)
-{
-	spin_unlock(&inode->i_lock);
-}
-
 static inline void wbc_attach_fdatawrite_inode(struct writeback_control *wbc,
 					       struct inode *inode)
 {
@@ -320,11 +300,11 @@ static inline void wbc_init_bio(struct writeback_control *wbc, struct bio *bio)
 }
 
 static inline void wbc_account_cgroup_owner(struct writeback_control *wbc,
-					    struct page *page, size_t bytes)
+					    struct folio *folio, size_t bytes)
 {
 }
 
-static inline void cgroup_writeback_umount(void)
+static inline void cgroup_writeback_umount(struct super_block *sb)
 {
 }
 

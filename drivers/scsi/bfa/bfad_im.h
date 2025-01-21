@@ -134,7 +134,6 @@ struct bfad_fcp_binding {
 struct bfad_im_s {
 	struct bfad_s         *bfad;
 	struct workqueue_struct *drv_workq;
-	char            drv_workq_name[KOBJ_NAME_LEN];
 	struct work_struct	aen_im_notify_work;
 };
 

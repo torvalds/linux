@@ -151,7 +151,7 @@ static void show_leaks(struct drm_mm *mm) { }
 
 INTERVAL_TREE_DEFINE(struct drm_mm_node, rb,
 		     u64, __subtree_last,
-		     START, LAST, static inline, drm_mm_interval_tree)
+		     START, LAST, static inline __maybe_unused, drm_mm_interval_tree)
 
 struct drm_mm_node *
 __drm_mm_interval_first(const struct drm_mm *mm, u64 start, u64 last)
@@ -611,7 +611,7 @@ int drm_mm_insert_node_in_range(struct drm_mm * const mm,
 }
 EXPORT_SYMBOL(drm_mm_insert_node_in_range);
 
-static inline bool drm_mm_node_scanned_block(const struct drm_mm_node *node)
+static inline __maybe_unused bool drm_mm_node_scanned_block(const struct drm_mm_node *node)
 {
 	return test_bit(DRM_MM_NODE_SCANNED_BIT, &node->flags);
 }

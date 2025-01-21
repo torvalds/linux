@@ -127,11 +127,10 @@ do {								\
  */
 #define IDPF_TX_COMPLQ_PENDING(txq)	\
 	(((txq)->num_completions_pending >= (txq)->complq->num_completions ? \
-	0 : U64_MAX) + \
+	0 : U32_MAX) + \
 	(txq)->num_completions_pending - (txq)->complq->num_completions)
 
 #define IDPF_TX_SPLITQ_COMPL_TAG_WIDTH	16
-#define IDPF_SPLITQ_TX_INVAL_COMPL_TAG	-1
 /* Adjust the generation for the completion tag and wrap if necessary */
 #define IDPF_TX_ADJ_COMPL_TAG_GEN(txq) \
 	((++(txq)->compl_tag_cur_gen) >= (txq)->compl_tag_gen_max ? \
@@ -149,47 +148,7 @@ union idpf_tx_flex_desc {
 	struct idpf_flex_tx_sched_desc flow; /* flow based scheduling */
 };
 
-/**
- * struct idpf_tx_buf
- * @next_to_watch: Next descriptor to clean
- * @skb: Pointer to the skb
- * @dma: DMA address
- * @len: DMA length
- * @bytecount: Number of bytes
- * @gso_segs: Number of GSO segments
- * @compl_tag: Splitq only, unique identifier for a buffer. Used to compare
- *	       with completion tag returned in buffer completion event.
- *	       Because the completion tag is expected to be the same in all
- *	       data descriptors for a given packet, and a single packet can
- *	       span multiple buffers, we need this field to track all
- *	       buffers associated with this completion tag independently of
- *	       the buf_id. The tag consists of a N bit buf_id and M upper
- *	       order "generation bits". See compl_tag_bufid_m and
- *	       compl_tag_gen_s in struct idpf_queue. We'll use a value of -1
- *	       to indicate the tag is not valid.
- * @ctx_entry: Singleq only. Used to indicate the corresponding entry
- *	       in the descriptor ring was used for a context descriptor and
- *	       this buffer entry should be skipped.
- */
-struct idpf_tx_buf {
-	void *next_to_watch;
-	struct sk_buff *skb;
-	DEFINE_DMA_UNMAP_ADDR(dma);
-	DEFINE_DMA_UNMAP_LEN(len);
-	unsigned int bytecount;
-	unsigned short gso_segs;
-
-	union {
-		int compl_tag;
-
-		bool ctx_entry;
-	};
-};
-
-struct idpf_tx_stash {
-	struct hlist_node hlist;
-	struct idpf_tx_buf buf;
-};
+#define idpf_tx_buf libeth_sqe
 
 /**
  * struct idpf_buf_lifo - LIFO for managing OOO completions
@@ -390,9 +349,11 @@ struct idpf_vec_regs {
  * struct idpf_intr_reg
  * @dyn_ctl: Dynamic control interrupt register
  * @dyn_ctl_intena_m: Mask for dyn_ctl interrupt enable
+ * @dyn_ctl_intena_msk_m: Mask for dyn_ctl interrupt enable mask
  * @dyn_ctl_itridx_s: Register bit offset for ITR index
  * @dyn_ctl_itridx_m: Mask for ITR index
  * @dyn_ctl_intrvl_s: Register bit offset for ITR interval
+ * @dyn_ctl_wb_on_itr_m: Mask for WB on ITR feature
  * @rx_itr: RX ITR register
  * @tx_itr: TX ITR register
  * @icr_ena: Interrupt cause register offset
@@ -401,9 +362,11 @@ struct idpf_vec_regs {
 struct idpf_intr_reg {
 	void __iomem *dyn_ctl;
 	u32 dyn_ctl_intena_m;
+	u32 dyn_ctl_intena_msk_m;
 	u32 dyn_ctl_itridx_s;
 	u32 dyn_ctl_itridx_m;
 	u32 dyn_ctl_intrvl_s;
+	u32 dyn_ctl_wb_on_itr_m;
 	void __iomem *rx_itr;
 	void __iomem *tx_itr;
 	void __iomem *icr_ena;
@@ -424,6 +387,7 @@ struct idpf_intr_reg {
  * @intr_reg: See struct idpf_intr_reg
  * @napi: napi handler
  * @total_events: Number of interrupts processed
+ * @wb_on_itr: whether WB on ITR is enabled
  * @tx_dim: Data for TX net_dim algorithm
  * @tx_itr_value: TX interrupt throttling rate
  * @tx_intr_mode: Dynamic ITR or not
@@ -454,6 +418,7 @@ struct idpf_q_vector {
 	__cacheline_group_begin_aligned(read_write);
 	struct napi_struct napi;
 	u16 total_events;
+	bool wb_on_itr;
 
 	struct dim tx_dim;
 	u16 tx_itr_value;
@@ -472,8 +437,9 @@ struct idpf_q_vector {
 	cpumask_var_t affinity_mask;
 	__cacheline_group_end_aligned(cold);
 };
-libeth_cacheline_set_assert(struct idpf_q_vector, 104,
-			    424 + 2 * sizeof(struct dim),
+libeth_cacheline_set_assert(struct idpf_q_vector, 112,
+			    24 + sizeof(struct napi_struct) +
+			    2 * sizeof(struct dim),
 			    8 + sizeof(cpumask_var_t));
 
 struct idpf_rx_queue_stats {
@@ -494,11 +460,6 @@ struct idpf_tx_queue_stats {
 	u64_stats_t q_busy;
 	u64_stats_t skb_drops;
 	u64_stats_t dma_map_errs;
-};
-
-struct idpf_cleaned_stats {
-	u32 packets;
-	u32 bytes;
 };
 
 #define IDPF_ITR_DYNAMIC	1
@@ -688,7 +649,7 @@ struct idpf_tx_queue {
 
 		void *desc_ring;
 	};
-	struct idpf_tx_buf *tx_buf;
+	struct libeth_sqe *tx_buf;
 	struct idpf_txq_group *txq_grp;
 	struct device *dev;
 	void __iomem *tail;
@@ -831,7 +792,7 @@ struct idpf_compl_queue {
 	u32 next_to_use;
 	u32 next_to_clean;
 
-	u32 num_completions;
+	aligned_u64 num_completions;
 	__cacheline_group_end_aligned(read_write);
 
 	__cacheline_group_begin_aligned(cold);
@@ -963,7 +924,7 @@ struct idpf_txq_group {
 
 	struct idpf_compl_queue *complq;
 
-	u32 num_completions_pending;
+	aligned_u64 num_completions_pending;
 };
 
 static inline int idpf_q_vector_to_mem(const struct idpf_q_vector *q_vector)
@@ -1033,6 +994,25 @@ static inline void idpf_tx_splitq_build_desc(union idpf_tx_flex_desc *desc,
 		idpf_tx_splitq_build_flow_desc(desc, params, td_cmd, size);
 }
 
+/**
+ * idpf_vport_intr_set_wb_on_itr - enable descriptor writeback on disabled interrupts
+ * @q_vector: pointer to queue vector struct
+ */
+static inline void idpf_vport_intr_set_wb_on_itr(struct idpf_q_vector *q_vector)
+{
+	struct idpf_intr_reg *reg;
+
+	if (q_vector->wb_on_itr)
+		return;
+
+	q_vector->wb_on_itr = true;
+	reg = &q_vector->intr_reg;
+
+	writel(reg->dyn_ctl_wb_on_itr_m | reg->dyn_ctl_intena_msk_m |
+	       (IDPF_NO_ITR_UPDATE_IDX << reg->dyn_ctl_itridx_s),
+	       reg->dyn_ctl);
+}
+
 int idpf_vport_singleq_napi_poll(struct napi_struct *napi, int budget);
 void idpf_vport_init_num_qs(struct idpf_vport *vport,
 			    struct virtchnl2_create_vport *vport_msg);
@@ -1064,7 +1044,6 @@ void idpf_tx_dma_map_error(struct idpf_tx_queue *txq, struct sk_buff *skb,
 			   struct idpf_tx_buf *first, u16 ring_idx);
 unsigned int idpf_tx_desc_count_required(struct idpf_tx_queue *txq,
 					 struct sk_buff *skb);
-int idpf_tx_maybe_stop_common(struct idpf_tx_queue *tx_q, unsigned int size);
 void idpf_tx_timeout(struct net_device *netdev, unsigned int txqueue);
 netdev_tx_t idpf_tx_singleq_frame(struct sk_buff *skb,
 				  struct idpf_tx_queue *tx_q);
@@ -1072,5 +1051,13 @@ netdev_tx_t idpf_tx_start(struct sk_buff *skb, struct net_device *netdev);
 bool idpf_rx_singleq_buf_hw_alloc_all(struct idpf_rx_queue *rxq,
 				      u16 cleaned_count);
 int idpf_tso(struct sk_buff *skb, struct idpf_tx_offload_params *off);
+
+static inline bool idpf_tx_maybe_stop_common(struct idpf_tx_queue *tx_q,
+					     u32 needed)
+{
+	return !netif_subqueue_maybe_stop(tx_q->netdev, tx_q->idx,
+					  IDPF_DESC_UNUSED(tx_q),
+					  needed, needed);
+}
 
 #endif /* !_IDPF_TXRX_H_ */

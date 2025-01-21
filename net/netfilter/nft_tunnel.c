@@ -497,10 +497,7 @@ static int nft_tunnel_obj_init(const struct nft_ctx *ctx,
 	}
 	if (tb[NFTA_TUNNEL_KEY_TOS])
 		info.key.tos = nla_get_u8(tb[NFTA_TUNNEL_KEY_TOS]);
-	if (tb[NFTA_TUNNEL_KEY_TTL])
-		info.key.ttl = nla_get_u8(tb[NFTA_TUNNEL_KEY_TTL]);
-	else
-		info.key.ttl = U8_MAX;
+	info.key.ttl = nla_get_u8_default(tb[NFTA_TUNNEL_KEY_TTL], U8_MAX);
 
 	if (tb[NFTA_TUNNEL_KEY_OPTS]) {
 		err = nft_tunnel_obj_opts_init(ctx, tb[NFTA_TUNNEL_KEY_OPTS],
@@ -509,13 +506,14 @@ static int nft_tunnel_obj_init(const struct nft_ctx *ctx,
 			return err;
 	}
 
-	md = metadata_dst_alloc(priv->opts.len, METADATA_IP_TUNNEL, GFP_KERNEL);
+	md = metadata_dst_alloc(priv->opts.len, METADATA_IP_TUNNEL,
+				GFP_KERNEL_ACCOUNT);
 	if (!md)
 		return -ENOMEM;
 
 	memcpy(&md->u.tun_info, &info, sizeof(info));
 #ifdef CONFIG_DST_CACHE
-	err = dst_cache_init(&md->u.tun_info.dst_cache, GFP_KERNEL);
+	err = dst_cache_init(&md->u.tun_info.dst_cache, GFP_KERNEL_ACCOUNT);
 	if (err < 0) {
 		metadata_dst_free(md);
 		return err;

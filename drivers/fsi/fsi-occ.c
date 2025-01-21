@@ -20,7 +20,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define OCC_SRAM_BYTES		4096
 #define OCC_CMD_DATA_BYTES	4090
@@ -740,7 +740,7 @@ static struct platform_driver occ_driver = {
 		.of_match_table	= occ_match,
 	},
 	.probe	= occ_probe,
-	.remove_new = occ_remove,
+	.remove = occ_remove,
 };
 
 static int occ_init(void)

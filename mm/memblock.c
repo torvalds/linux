@@ -735,7 +735,7 @@ int __init_memblock memblock_add(phys_addr_t base, phys_addr_t size)
 /**
  * memblock_validate_numa_coverage - check if amount of memory with
  * no node ID assigned is less than a threshold
- * @threshold_bytes: maximal number of pages that can have unassigned node
+ * @threshold_bytes: maximal memory size that can have unassigned node
  * ID (in bytes).
  *
  * A buggy firmware may report memory that does not belong to any node.
@@ -755,7 +755,7 @@ bool __init_memblock memblock_validate_numa_coverage(unsigned long threshold_byt
 			nr_pages += end_pfn - start_pfn;
 	}
 
-	if ((nr_pages << PAGE_SHIFT) >= threshold_bytes) {
+	if ((nr_pages << PAGE_SHIFT) > threshold_bytes) {
 		mem_size_mb = memblock_phys_mem_size() >> 20;
 		pr_err("NUMA: no nodes coverage for %luMB of %luMB RAM\n",
 		       (nr_pages << PAGE_SHIFT) >> 20, mem_size_mb);
@@ -1500,7 +1500,7 @@ done:
 	 *
 	 * Accept the memory of the allocated buffer.
 	 */
-	accept_memory(found, found + size);
+	accept_memory(found, size);
 
 	return found;
 }
@@ -1729,6 +1729,23 @@ phys_addr_t __init_memblock memblock_phys_mem_size(void)
 phys_addr_t __init_memblock memblock_reserved_size(void)
 {
 	return memblock.reserved.total_size;
+}
+
+/**
+ * memblock_estimated_nr_free_pages - return estimated number of free pages
+ * from memblock point of view
+ *
+ * During bootup, subsystems might need a rough estimate of the number of free
+ * pages in the whole system, before precise numbers are available from the
+ * buddy. Especially with CONFIG_DEFERRED_STRUCT_PAGE_INIT, the numbers
+ * obtained from the buddy might be very imprecise during bootup.
+ *
+ * Return:
+ * An estimated number of free pages from memblock point of view.
+ */
+unsigned long __init memblock_estimated_nr_free_pages(void)
+{
+	return PHYS_PFN(memblock_phys_mem_size() - memblock_reserved_size());
 }
 
 /* lowest address */

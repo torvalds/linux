@@ -49,6 +49,7 @@ enum nfs_param {
 	Opt_bsize,
 	Opt_clientaddr,
 	Opt_cto,
+	Opt_alignwrite,
 	Opt_fg,
 	Opt_fscache,
 	Opt_fscache_flag,
@@ -149,6 +150,7 @@ static const struct fs_parameter_spec nfs_fs_parameters[] = {
 	fsparam_u32   ("bsize",		Opt_bsize),
 	fsparam_string("clientaddr",	Opt_clientaddr),
 	fsparam_flag_no("cto",		Opt_cto),
+	fsparam_flag_no("alignwrite",	Opt_alignwrite),
 	fsparam_flag  ("fg",		Opt_fg),
 	fsparam_flag_no("fsc",		Opt_fscache_flag),
 	fsparam_string("fsc",		Opt_fscache),
@@ -591,6 +593,12 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 			ctx->flags &= ~NFS_MOUNT_TRUNK_DISCOVERY;
 		else
 			ctx->flags |= NFS_MOUNT_TRUNK_DISCOVERY;
+		break;
+	case Opt_alignwrite:
+		if (result.negated)
+			ctx->flags |= NFS_MOUNT_NO_ALIGNWRITE;
+		else
+			ctx->flags &= ~NFS_MOUNT_NO_ALIGNWRITE;
 		break;
 	case Opt_ac:
 		if (result.negated)
@@ -1459,7 +1467,7 @@ static int nfs_fs_context_validate(struct fs_context *fc)
 
 	/* Load the NFS protocol module if we haven't done so yet */
 	if (!ctx->nfs_mod) {
-		nfs_mod = get_nfs_version(ctx->version);
+		nfs_mod = find_nfs_version(ctx->version);
 		if (IS_ERR(nfs_mod)) {
 			ret = PTR_ERR(nfs_mod);
 			goto out_version_unavailable;
@@ -1533,7 +1541,7 @@ static int nfs_fs_context_dup(struct fs_context *fc, struct fs_context *src_fc)
 	}
 	nfs_copy_fh(ctx->mntfh, src->mntfh);
 
-	__module_get(ctx->nfs_mod->owner);
+	get_nfs_version(ctx->nfs_mod);
 	ctx->client_address		= NULL;
 	ctx->mount_server.hostname	= NULL;
 	ctx->nfs_server.export_path	= NULL;
@@ -1625,7 +1633,7 @@ static int nfs_init_fs_context(struct fs_context *fc)
 		}
 
 		ctx->nfs_mod = nfss->nfs_client->cl_nfs_mod;
-		__module_get(ctx->nfs_mod->owner);
+		get_nfs_version(ctx->nfs_mod);
 	} else {
 		/* defaults */
 		ctx->timeo		= NFS_UNSPEC_TIMEO;

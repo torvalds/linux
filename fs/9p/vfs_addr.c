@@ -68,17 +68,22 @@ static void v9fs_issue_read(struct netfs_io_subrequest *subreq)
 {
 	struct netfs_io_request *rreq = subreq->rreq;
 	struct p9_fid *fid = rreq->netfs_priv;
+	unsigned long long pos = subreq->start + subreq->transferred;
 	int total, err;
 
-	total = p9_client_read(fid, subreq->start + subreq->transferred,
-			       &subreq->io_iter, &err);
+	total = p9_client_read(fid, pos, &subreq->io_iter, &err);
 
 	/* if we just extended the file size, any portion not in
 	 * cache won't be on server and is zeroes */
 	if (subreq->rreq->origin != NETFS_DIO_READ)
 		__set_bit(NETFS_SREQ_CLEAR_TAIL, &subreq->flags);
+	if (pos + total >= i_size_read(rreq->inode))
+		__set_bit(NETFS_SREQ_HIT_EOF, &subreq->flags);
 
-	netfs_subreq_terminated(subreq, err ?: total, false);
+	if (!err)
+		subreq->transferred += total;
+
+	netfs_read_subreq_terminated(subreq, err, false);
 }
 
 /**

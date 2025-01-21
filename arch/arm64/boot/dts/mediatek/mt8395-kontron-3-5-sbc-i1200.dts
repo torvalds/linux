@@ -1111,6 +1111,7 @@
 
 /* USB2.0 M.2 Key-B */
 &xhci1 {
+	phys = <&u2port1 PHY_TYPE_USB2>;
 	vusb33-supply = <&mt6359_vusb_ldo_reg>;
 	mediatek,u3p-dis-msk = <0x01>;
 	status = "okay";

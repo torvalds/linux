@@ -348,12 +348,15 @@ static int regcache_maple_init(struct regmap *map)
 	int ret;
 	int range_start;
 
-	mt = kmalloc(sizeof(*mt), GFP_KERNEL);
+	mt = kmalloc(sizeof(*mt), map->alloc_flags);
 	if (!mt)
 		return -ENOMEM;
 	map->cache = mt;
 
 	mt_init(mt);
+
+	if (!mt_external_lock(mt) && map->lock_key)
+		lockdep_set_class_and_subclass(&mt->ma_lock, map->lock_key, 1);
 
 	if (!map->num_reg_defaults)
 		return 0;

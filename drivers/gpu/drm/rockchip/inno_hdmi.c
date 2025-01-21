@@ -543,7 +543,7 @@ inno_hdmi_encoder_atomic_check(struct drm_encoder *encoder,
 	return 0;
 }
 
-static struct drm_encoder_helper_funcs inno_hdmi_encoder_helper_funcs = {
+static const struct drm_encoder_helper_funcs inno_hdmi_encoder_helper_funcs = {
 	.atomic_check	= inno_hdmi_encoder_atomic_check,
 	.atomic_enable	= inno_hdmi_encoder_enable,
 	.atomic_disable	= inno_hdmi_encoder_disable,
@@ -1017,7 +1017,7 @@ MODULE_DEVICE_TABLE(of, inno_hdmi_dt_ids);
 
 struct platform_driver inno_hdmi_driver = {
 	.probe  = inno_hdmi_probe,
-	.remove_new = inno_hdmi_remove,
+	.remove = inno_hdmi_remove,
 	.driver = {
 		.name = "innohdmi-rockchip",
 		.of_match_table = inno_hdmi_dt_ids,

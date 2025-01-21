@@ -78,7 +78,7 @@ static inline long do_syscall_stub(struct mm_id *mm_idp)
 {
 	struct stub_data *proc_data = (void *)mm_idp->stack;
 	int n, i;
-	int err, pid = mm_idp->u.pid;
+	int err, pid = mm_idp->pid;
 
 	n = ptrace_setregs(pid, syscall_regs);
 	if (n < 0) {
@@ -214,27 +214,6 @@ int unmap(struct mm_id *mm_idp, unsigned long addr, unsigned long len)
 	sc->syscall = STUB_SYSCALL_MUNMAP;
 	sc->mem.addr = addr;
 	sc->mem.length = len;
-
-	return 0;
-}
-
-int protect(struct mm_id *mm_idp, unsigned long addr, unsigned long len,
-	    unsigned int prot)
-{
-	struct stub_syscall *sc;
-
-	/* Compress with previous syscall if that is possible */
-	sc = syscall_stub_get_previous(mm_idp, STUB_SYSCALL_MPROTECT, addr);
-	if (sc && sc->mem.prot == prot) {
-		sc->mem.length += len;
-		return 0;
-	}
-
-	sc = syscall_stub_alloc(mm_idp);
-	sc->syscall = STUB_SYSCALL_MPROTECT;
-	sc->mem.addr = addr;
-	sc->mem.length = len;
-	sc->mem.prot = prot;
 
 	return 0;
 }

@@ -12,7 +12,7 @@
 #include <linux/dmi.h>
 #include <linux/of.h>
 #include <linux/string.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -541,11 +541,10 @@ static const struct bcm_subver_table bcm_usb_subver_table[] = {
 static const char *btbcm_get_board_name(struct device *dev)
 {
 #ifdef CONFIG_OF
-	struct device_node *root;
+	struct device_node *root __free(device_node) = of_find_node_by_path("/");
 	char *board_type;
 	const char *tmp;
 
-	root = of_find_node_by_path("/");
 	if (!root)
 		return NULL;
 
@@ -555,7 +554,6 @@ static const char *btbcm_get_board_name(struct device *dev)
 	/* get rid of any '/' in the compatible string */
 	board_type = devm_kstrdup(dev, tmp, GFP_KERNEL);
 	strreplace(board_type, '/', '-');
-	of_node_put(root);
 
 	return board_type;
 #else

@@ -382,6 +382,15 @@ static int ismt_process_desc(const struct ismt_desc *desc,
 }
 
 /**
+ * ismt_kill_transaction() - kill current transaction
+ * @priv: iSMT private data
+ */
+static void ismt_kill_transaction(struct ismt_priv *priv)
+{
+	writel(ISMT_GCTRL_KILL, priv->smba + ISMT_GR_GCTRL);
+}
+
+/**
  * ismt_access() - process an SMBus command
  * @adap: the i2c host adapter
  * @addr: address of the i2c/SMBus target
@@ -623,6 +632,7 @@ static int ismt_access(struct i2c_adapter *adap, u16 addr,
 		dma_unmap_single(dev, dma_addr, dma_size, dma_direction);
 
 	if (unlikely(!time_left)) {
+		ismt_kill_transaction(priv);
 		ret = -ETIMEDOUT;
 		goto out;
 	}

@@ -467,7 +467,7 @@ static void vidi_remove(struct platform_device *pdev)
 
 struct platform_driver vidi_driver = {
 	.probe		= vidi_probe,
-	.remove_new	= vidi_remove,
+	.remove		= vidi_remove,
 	.driver		= {
 		.name	= "exynos-drm-vidi",
 		.dev_groups = vidi_groups,

@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR MIT)
 /*
  * Spreadtrum SC9836 openphone board DTS file
  *
  * Copyright (C) 2014, Spreadtrum Communications Inc.
- *
- * This file is licensed under a dual GPLv2 or X11 license.
  */
 
 /dts-v1/;

@@ -178,6 +178,9 @@ lx-symbols command."""
 
         self.load_all_symbols()
 
+        if not modules.has_modules():
+            return
+
         if hasattr(gdb, 'Breakpoint'):
             if self.breakpoint is not None:
                 self.breakpoint.delete()

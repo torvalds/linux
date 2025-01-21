@@ -696,14 +696,14 @@ ynl_sock_create(const struct ynl_family *yf, struct ynl_error *yse)
 	addr.nl_family = AF_NETLINK;
 	if (bind(ys->socket, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
 		__perr(yse, "unable to bind to a socket address");
-		goto err_close_sock;;
+		goto err_close_sock;
 	}
 
 	memset(&addr, 0, sizeof(addr));
 	addrlen = sizeof(addr);
 	if (getsockname(ys->socket, (struct sockaddr *)&addr, &addrlen) < 0) {
 		__perr(yse, "unable to read socket address");
-		goto err_close_sock;;
+		goto err_close_sock;
 	}
 	ys->portid = addr.nl_pid;
 	ys->seq = random();

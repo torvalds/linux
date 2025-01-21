@@ -195,6 +195,12 @@ static inline bool selinux_policycap_userspace_initial_context(void)
 		selinux_state.policycap[POLICYDB_CAP_USERSPACE_INITIAL_CONTEXT]);
 }
 
+static inline bool selinux_policycap_netlink_xperm(void)
+{
+	return READ_ONCE(
+		selinux_state.policycap[POLICYDB_CAP_NETLINK_XPERM]);
+}
+
 struct selinux_policy_convert_data;
 
 struct selinux_load_state {

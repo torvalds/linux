@@ -440,7 +440,7 @@ static const struct dev_pm_ops acp6x_pdm_pm_ops = {
 
 static struct platform_driver acp6x_pdm_dma_driver = {
 	.probe = acp6x_pdm_audio_probe,
-	.remove_new = acp6x_pdm_audio_remove,
+	.remove = acp6x_pdm_audio_remove,
 	.driver = {
 		.name = "acp_yc_pdm_dma",
 		.pm = &acp6x_pdm_pm_ops,

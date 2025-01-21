@@ -299,8 +299,8 @@ static void amd_sfh_set_ops(struct amd_mp2_dev *mp2)
 
 	sfh_interface_init(mp2);
 	mp2_ops = mp2->mp2_ops;
-	mp2_ops->clear_intr = amd_sfh_clear_intr_v2,
-	mp2_ops->init_intr = amd_sfh_irq_init_v2,
+	mp2_ops->clear_intr = amd_sfh_clear_intr_v2;
+	mp2_ops->init_intr = amd_sfh_irq_init_v2;
 	mp2_ops->suspend = amd_sfh_suspend;
 	mp2_ops->resume = amd_sfh_resume;
 	mp2_ops->remove = amd_mp2_pci_remove;

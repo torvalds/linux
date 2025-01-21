@@ -253,13 +253,13 @@ static int pcpu_chunk_slot(const struct pcpu_chunk *chunk)
 /* set the pointer to a chunk in a page struct */
 static void pcpu_set_page_chunk(struct page *page, struct pcpu_chunk *pcpu)
 {
-	page->index = (unsigned long)pcpu;
+	page->private = (unsigned long)pcpu;
 }
 
 /* obtain pointer to a chunk from a page struct */
 static struct pcpu_chunk *pcpu_get_page_chunk(struct page *page)
 {
-	return (struct pcpu_chunk *)page->index;
+	return (struct pcpu_chunk *)page->private;
 }
 
 static int __maybe_unused pcpu_page_idx(unsigned int cpu, int page_idx)
@@ -1864,6 +1864,10 @@ restart:
 
 area_found:
 	pcpu_stats_area_alloc(chunk, size);
+
+	if (pcpu_nr_empty_pop_pages < PCPU_EMPTY_POP_PAGES_LOW)
+		pcpu_schedule_balance_work();
+
 	spin_unlock_irqrestore(&pcpu_lock, flags);
 
 	/* populate if not all pages are already there */
@@ -1890,9 +1894,6 @@ area_found:
 
 		mutex_unlock(&pcpu_alloc_mutex);
 	}
-
-	if (pcpu_nr_empty_pop_pages < PCPU_EMPTY_POP_PAGES_LOW)
-		pcpu_schedule_balance_work();
 
 	/* clear the areas and return address relative to base address */
 	for_each_possible_cpu(cpu)
@@ -2214,37 +2215,6 @@ static void pcpu_balance_workfn(struct work_struct *work)
 
 	spin_unlock_irq(&pcpu_lock);
 	mutex_unlock(&pcpu_alloc_mutex);
-}
-
-/**
- * pcpu_alloc_size - the size of the dynamic percpu area
- * @ptr: pointer to the dynamic percpu area
- *
- * Returns the size of the @ptr allocation.  This is undefined for statically
- * defined percpu variables as there is no corresponding chunk->bound_map.
- *
- * RETURNS:
- * The size of the dynamic percpu area.
- *
- * CONTEXT:
- * Can be called from atomic context.
- */
-size_t pcpu_alloc_size(void __percpu *ptr)
-{
-	struct pcpu_chunk *chunk;
-	unsigned long bit_off, end;
-	void *addr;
-
-	if (!ptr)
-		return 0;
-
-	addr = __pcpu_ptr_to_addr(ptr);
-	/* No pcpu_lock here: ptr has not been freed, so chunk is still alive */
-	chunk = pcpu_chunk_addr_search(addr);
-	bit_off = (addr - chunk->base_addr) / PCPU_MIN_ALLOC_SIZE;
-	end = find_next_bit(chunk->bound_map, pcpu_chunk_map_bits(chunk),
-			    bit_off + 1);
-	return (end - bit_off) * PCPU_MIN_ALLOC_SIZE;
 }
 
 /**

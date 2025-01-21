@@ -9,6 +9,7 @@ enum physmem_info_source {
 	MEM_DETECT_NONE = 0,
 	MEM_DETECT_SCLP_STOR_INFO,
 	MEM_DETECT_DIAG260,
+	MEM_DETECT_DIAG500_STOR_LIMIT,
 	MEM_DETECT_SCLP_READ_INFO,
 	MEM_DETECT_BIN_SEARCH
 };
@@ -107,6 +108,8 @@ static inline const char *get_physmem_info_source(void)
 		return "sclp storage info";
 	case MEM_DETECT_DIAG260:
 		return "diag260";
+	case MEM_DETECT_DIAG500_STOR_LIMIT:
+		return "diag500 storage limit";
 	case MEM_DETECT_SCLP_READ_INFO:
 		return "sclp read info";
 	case MEM_DETECT_BIN_SEARCH:

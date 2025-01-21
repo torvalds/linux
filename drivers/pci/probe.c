@@ -543,15 +543,15 @@ void pci_read_bridge_bases(struct pci_bus *child)
 	pci_read_bridge_mmio(child->self, child->resource[1], false);
 	pci_read_bridge_mmio_pref(child->self, child->resource[2], false);
 
-	if (dev->transparent) {
-		pci_bus_for_each_resource(child->parent, res) {
-			if (res && res->flags) {
-				pci_bus_add_resource(child, res,
-						     PCI_SUBTRACTIVE_DECODE);
-				pci_info(dev, "  bridge window %pR (subtractive decode)\n",
-					   res);
-			}
-		}
+	if (!dev->transparent)
+		return;
+
+	pci_bus_for_each_resource(child->parent, res) {
+		if (!res || !res->flags)
+			continue;
+
+		pci_bus_add_resource(child, res);
+		pci_info(dev, "  bridge window %pR (subtractive decode)\n", res);
 	}
 }
 
@@ -742,9 +742,13 @@ const char *pci_speed_string(enum pci_bus_speed speed)
 }
 EXPORT_SYMBOL_GPL(pci_speed_string);
 
-void pcie_update_link_speed(struct pci_bus *bus, u16 linksta)
+void pcie_update_link_speed(struct pci_bus *bus)
 {
-	bus->cur_bus_speed = pcie_link_speed[linksta & PCI_EXP_LNKSTA_CLS];
+	struct pci_dev *bridge = bus->self;
+	u16 linksta;
+
+	pcie_capability_read_word(bridge, PCI_EXP_LNKSTA, &linksta);
+	__pcie_update_link_speed(bus, linksta);
 }
 EXPORT_SYMBOL_GPL(pcie_update_link_speed);
 
@@ -827,13 +831,11 @@ static void pci_set_bus_speed(struct pci_bus *bus)
 
 	if (pci_is_pcie(bridge)) {
 		u32 linkcap;
-		u16 linksta;
 
 		pcie_capability_read_dword(bridge, PCI_EXP_LNKCAP, &linkcap);
 		bus->max_bus_speed = pcie_link_speed[linkcap & PCI_EXP_LNKCAP_SLS];
 
-		pcie_capability_read_word(bridge, PCI_EXP_LNKSTA, &linksta);
-		pcie_update_link_speed(bus, linksta);
+		pcie_update_link_speed(bus);
 	}
 }
 
@@ -1032,7 +1034,7 @@ static int pci_register_host_bridge(struct pci_host_bridge *bridge)
 		if (res->flags & IORESOURCE_BUS)
 			pci_bus_insert_busn_res(bus, bus->number, res->end);
 		else
-			pci_bus_add_resource(bus, res, 0);
+			pci_bus_add_resource(bus, res);
 
 		if (offset) {
 			if (resource_type(res) == IORESOURCE_IO)
@@ -1061,7 +1063,7 @@ unregister:
 
 free:
 #ifdef CONFIG_PCI_DOMAINS_GENERIC
-	pci_bus_release_domain_nr(bus, parent);
+	pci_bus_release_domain_nr(parent, bus->domain_nr);
 #endif
 	kfree(bus);
 	return err;
@@ -1203,15 +1205,17 @@ struct pci_bus *pci_add_new_bus(struct pci_bus *parent, struct pci_dev *dev,
 }
 EXPORT_SYMBOL(pci_add_new_bus);
 
-static void pci_enable_crs(struct pci_dev *pdev)
+static void pci_enable_rrs_sv(struct pci_dev *pdev)
 {
 	u16 root_cap = 0;
 
-	/* Enable CRS Software Visibility if supported */
+	/* Enable Configuration RRS Software Visibility if supported */
 	pcie_capability_read_word(pdev, PCI_EXP_RTCAP, &root_cap);
-	if (root_cap & PCI_EXP_RTCAP_CRSVIS)
+	if (root_cap & PCI_EXP_RTCAP_RRS_SV) {
 		pcie_capability_set_word(pdev, PCI_EXP_RTCTL,
-					 PCI_EXP_RTCTL_CRSSVE);
+					 PCI_EXP_RTCTL_RRS_SVE);
+		pdev->config_rrs_sv = 1;
+	}
 }
 
 static unsigned int pci_scan_child_bus_extend(struct pci_bus *bus,
@@ -1326,7 +1330,7 @@ static int pci_scan_bridge_extend(struct pci_bus *bus, struct pci_dev *dev,
 	pci_write_config_word(dev, PCI_BRIDGE_CONTROL,
 			      bctl & ~PCI_BRIDGE_CTL_MASTER_ABORT);
 
-	pci_enable_crs(dev);
+	pci_enable_rrs_sv(dev);
 
 	if ((secondary || subordinate) && !pcibios_assign_all_busses() &&
 	    !is_cardbus && !broken) {
@@ -1631,23 +1635,33 @@ static void set_pcie_thunderbolt(struct pci_dev *dev)
 
 static void set_pcie_untrusted(struct pci_dev *dev)
 {
-	struct pci_dev *parent;
+	struct pci_dev *parent = pci_upstream_bridge(dev);
 
+	if (!parent)
+		return;
 	/*
-	 * If the upstream bridge is untrusted we treat this device
+	 * If the upstream bridge is untrusted we treat this device as
 	 * untrusted as well.
 	 */
-	parent = pci_upstream_bridge(dev);
-	if (parent && (parent->untrusted || parent->external_facing))
+	if (parent->untrusted) {
 		dev->untrusted = true;
+		return;
+	}
+
+	if (arch_pci_dev_is_removable(dev)) {
+		pci_dbg(dev, "marking as untrusted\n");
+		dev->untrusted = true;
+	}
 }
 
 static void pci_set_removable(struct pci_dev *dev)
 {
 	struct pci_dev *parent = pci_upstream_bridge(dev);
 
+	if (!parent)
+		return;
 	/*
-	 * We (only) consider everything downstream from an external_facing
+	 * We (only) consider everything tunneled below an external_facing
 	 * device to be removable by the user. We're mainly concerned with
 	 * consumer platforms with user accessible thunderbolt ports that are
 	 * vulnerable to DMA attacks, and we expect those ports to be marked by
@@ -1657,9 +1671,15 @@ static void pci_set_removable(struct pci_dev *dev)
 	 * accessible to user / may not be removed by end user, and thus not
 	 * exposed as "removable" to userspace.
 	 */
-	if (parent &&
-	    (parent->external_facing || dev_is_removable(&parent->dev)))
+	if (dev_is_removable(&parent->dev)) {
 		dev_set_removable(&dev->dev, DEVICE_REMOVABLE);
+		return;
+	}
+
+	if (arch_pci_dev_is_removable(dev)) {
+		pci_dbg(dev, "marking as removable\n");
+		dev_set_removable(&dev->dev, DEVICE_REMOVABLE);
+	}
 }
 
 /**
@@ -1944,6 +1964,9 @@ int pci_setup_device(struct pci_dev *dev)
 	set_pcie_thunderbolt(dev);
 
 	set_pcie_untrusted(dev);
+
+	if (pci_is_pcie(dev))
+		dev->supported_speeds = pcie_get_supported_speeds(dev);
 
 	/* "Unknown power state" */
 	dev->current_state = PCI_UNKNOWN;
@@ -2343,28 +2366,23 @@ struct pci_dev *pci_alloc_dev(struct pci_bus *bus)
 }
 EXPORT_SYMBOL(pci_alloc_dev);
 
-static bool pci_bus_crs_vendor_id(u32 l)
-{
-	return (l & 0xffff) == PCI_VENDOR_ID_PCI_SIG;
-}
-
-static bool pci_bus_wait_crs(struct pci_bus *bus, int devfn, u32 *l,
+static bool pci_bus_wait_rrs(struct pci_bus *bus, int devfn, u32 *l,
 			     int timeout)
 {
 	int delay = 1;
 
-	if (!pci_bus_crs_vendor_id(*l))
-		return true;	/* not a CRS completion */
+	if (!pci_bus_rrs_vendor_id(*l))
+		return true;	/* not a Configuration RRS completion */
 
 	if (!timeout)
-		return false;	/* CRS, but caller doesn't want to wait */
+		return false;	/* RRS, but caller doesn't want to wait */
 
 	/*
 	 * We got the reserved Vendor ID that indicates a completion with
-	 * Configuration Request Retry Status (CRS).  Retry until we get a
+	 * Configuration Request Retry Status (RRS).  Retry until we get a
 	 * valid Vendor ID or we time out.
 	 */
-	while (pci_bus_crs_vendor_id(*l)) {
+	while (pci_bus_rrs_vendor_id(*l)) {
 		if (delay > timeout) {
 			pr_warn("pci %04x:%02x:%02x.%d: not ready after %dms; giving up\n",
 				pci_domain_nr(bus), bus->number,
@@ -2403,8 +2421,8 @@ bool pci_bus_generic_read_dev_vendor_id(struct pci_bus *bus, int devfn, u32 *l,
 	    *l == 0x0000ffff || *l == 0xffff0000)
 		return false;
 
-	if (pci_bus_crs_vendor_id(*l))
-		return pci_bus_wait_crs(bus, devfn, l, timeout);
+	if (pci_bus_rrs_vendor_id(*l))
+		return pci_bus_wait_rrs(bus, devfn, l, timeout);
 
 	return true;
 }
@@ -2498,6 +2516,7 @@ static void pci_init_capabilities(struct pci_dev *dev)
 	pci_dpc_init(dev);		/* Downstream Port Containment */
 	pci_rcec_init(dev);		/* Root Complex Event Collector */
 	pci_doe_init(dev);		/* Data Object Exchange */
+	pci_tph_init(dev);		/* TLP Processing Hints */
 
 	pcie_report_downtraining(dev);
 	pci_init_reset_methods(dev);
@@ -2593,6 +2612,8 @@ void pci_device_add(struct pci_dev *dev, struct pci_bus *bus)
 	dev->match_driver = false;
 	ret = device_add(&dev->dev);
 	WARN_ON(ret < 0);
+
+	pci_npem_create(dev);
 }
 
 struct pci_dev *pci_scan_single_device(struct pci_bus *bus, int devfn)
@@ -3106,7 +3127,20 @@ int pci_host_probe(struct pci_host_bridge *bridge)
 	list_for_each_entry(child, &bus->children, node)
 		pcie_bus_configure_settings(child);
 
+	pci_lock_rescan_remove();
 	pci_bus_add_devices(bus);
+	pci_unlock_rescan_remove();
+
+	/*
+	 * Ensure pm_runtime_enable() is called for the controller drivers
+	 * before calling pci_host_probe(). The PM framework expects that
+	 * if the parent device supports runtime PM, it will be enabled
+	 * before child runtime PM is enabled.
+	 */
+	pm_runtime_set_active(&bridge->dev);
+	pm_runtime_no_callbacks(&bridge->dev);
+	devm_pm_runtime_enable(&bridge->dev);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(pci_host_probe);

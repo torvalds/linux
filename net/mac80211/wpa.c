@@ -12,7 +12,7 @@
 #include <linux/compiler.h>
 #include <linux/ieee80211.h>
 #include <linux/gfp.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <net/mac80211.h>
 #include <crypto/aes.h>
 #include <crypto/utils.h>
@@ -598,9 +598,6 @@ static void gcmp_special_blocks(struct sk_buff *skb, u8 *pn, u8 *j_0, u8 *aad,
 
 	memcpy(j_0, hdr->addr2, ETH_ALEN);
 	memcpy(&j_0[ETH_ALEN], pn, IEEE80211_GCMP_PN_LEN);
-	j_0[13] = 0;
-	j_0[14] = 0;
-	j_0[AES_BLOCK_SIZE - 1] = 0x01;
 
 	ccmp_gcmp_aad(skb, aad, spp_amsdu);
 }

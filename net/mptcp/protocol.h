@@ -236,6 +236,12 @@ struct mptcp_pm_data {
 	struct mptcp_rm_list rm_list_rx;
 };
 
+struct mptcp_pm_local {
+	struct mptcp_addr_info	addr;
+	u8			flags;
+	int			ifindex;
+};
+
 struct mptcp_pm_addr_entry {
 	struct list_head	list;
 	struct mptcp_addr_info	addr;
@@ -507,7 +513,6 @@ struct mptcp_subflow_context {
 		request_bkup : 1,
 		mp_capable : 1,	    /* remote is MPTCP capable */
 		mp_join : 1,	    /* remote is JOINing */
-		fully_established : 1,	    /* path validated */
 		pm_notified : 1,    /* PM hook called for established status */
 		conn_finished : 1,
 		map_valid : 1,
@@ -525,9 +530,12 @@ struct mptcp_subflow_context {
 		valid_csum_seen : 1,        /* at least one csum validated */
 		is_mptfo : 1,	    /* subflow is doing TFO */
 		close_event_done : 1,       /* has done the post-closed part */
+		mpc_drop : 1,	    /* the MPC option has been dropped in a rtx */
 		__unused : 9;
 	bool	data_avail;
 	bool	scheduled;
+	bool	pm_listener;	    /* a listener managed by the kernel PM? */
+	bool	fully_established;  /* path validated */
 	u32	remote_nonce;
 	u64	thmac;
 	u32	local_nonce;
@@ -691,6 +699,11 @@ unsigned int mptcp_stale_loss_cnt(const struct net *net);
 unsigned int mptcp_close_timeout(const struct sock *sk);
 int mptcp_get_pm_type(const struct net *net);
 const char *mptcp_get_scheduler(const struct net *net);
+
+void mptcp_active_disable(struct sock *sk);
+bool mptcp_active_should_disable(struct sock *ssk);
+void mptcp_active_enable(struct sock *sk);
+
 void mptcp_get_available_schedulers(char *buf, size_t maxlen);
 void __mptcp_subflow_fully_established(struct mptcp_sock *msk,
 				       struct mptcp_subflow_context *subflow,
@@ -719,7 +732,7 @@ bool mptcp_addresses_equal(const struct mptcp_addr_info *a,
 void mptcp_local_address(const struct sock_common *skc, struct mptcp_addr_info *addr);
 
 /* called with sk socket lock held */
-int __mptcp_subflow_connect(struct sock *sk, const struct mptcp_addr_info *loc,
+int __mptcp_subflow_connect(struct sock *sk, const struct mptcp_pm_local *local,
 			    const struct mptcp_addr_info *remote);
 int mptcp_subflow_create_socket(struct sock *sk, unsigned short family,
 				struct socket **new_sock);
@@ -767,7 +780,7 @@ static inline bool __tcp_can_send(const struct sock *ssk)
 static inline bool __mptcp_subflow_active(struct mptcp_subflow_context *subflow)
 {
 	/* can't send if JOIN hasn't completed yet (i.e. is usable for mptcp) */
-	if (subflow->request_join && !subflow->fully_established)
+	if (subflow->request_join && !READ_ONCE(subflow->fully_established))
 		return false;
 
 	return __tcp_can_send(mptcp_subflow_tcp_sock(subflow));
@@ -1014,14 +1027,6 @@ mptcp_pm_del_add_timer(struct mptcp_sock *msk,
 struct mptcp_pm_add_entry *
 mptcp_lookup_anno_list_by_saddr(const struct mptcp_sock *msk,
 				const struct mptcp_addr_info *addr);
-int mptcp_pm_get_flags_and_ifindex_by_id(struct mptcp_sock *msk,
-					 unsigned int id,
-					 u8 *flags, int *ifindex);
-int mptcp_pm_nl_get_flags_and_ifindex_by_id(struct mptcp_sock *msk, unsigned int id,
-					    u8 *flags, int *ifindex);
-int mptcp_userspace_pm_get_flags_and_ifindex_by_id(struct mptcp_sock *msk,
-						   unsigned int id,
-						   u8 *flags, int *ifindex);
 int mptcp_pm_set_flags(struct sk_buff *skb, struct genl_info *info);
 int mptcp_pm_nl_set_flags(struct sk_buff *skb, struct genl_info *info);
 int mptcp_userspace_pm_set_flags(struct sk_buff *skb, struct genl_info *info);
@@ -1154,7 +1159,6 @@ static inline void mptcp_pm_close_subflow(struct mptcp_sock *msk)
 	spin_unlock_bh(&msk->pm.lock);
 }
 
-void mptcp_sockopt_sync(struct mptcp_sock *msk, struct sock *ssk);
 void mptcp_sockopt_sync_locked(struct mptcp_sock *msk, struct sock *ssk);
 
 static inline struct mptcp_ext *mptcp_get_ext(const struct sk_buff *skb)
@@ -1217,6 +1221,14 @@ static inline void mptcp_do_fallback(struct sock *ssk)
 }
 
 #define pr_fallback(a) pr_debug("%s:fallback to TCP (msk=%p)\n", __func__, a)
+
+static inline void mptcp_subflow_early_fallback(struct mptcp_sock *msk,
+						struct mptcp_subflow_context *subflow)
+{
+	pr_fallback(msk);
+	subflow->request_mptcp = 0;
+	__mptcp_do_fallback(msk);
+}
 
 static inline bool mptcp_check_infinite_map(struct sk_buff *skb)
 {

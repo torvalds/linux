@@ -98,7 +98,10 @@ static u64 get_residency_ms(struct xe_gt_idle *gtidle, u64 cur_residency)
 void xe_gt_idle_enable_pg(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
-	u32 pg_enable;
+	struct xe_gt_idle *gtidle = &gt->gtidle;
+	struct xe_mmio *mmio = &gt->mmio;
+	u32 vcs_mask, vecs_mask;
+	unsigned int fw_ref;
 	int i, j;
 
 	if (IS_SRIOV_VF(xe))
@@ -110,39 +113,136 @@ void xe_gt_idle_enable_pg(struct xe_gt *gt)
 
 	xe_device_assert_mem_access(gt_to_xe(gt));
 
-	pg_enable = RENDER_POWERGATE_ENABLE | MEDIA_POWERGATE_ENABLE;
+	vcs_mask = xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_VIDEO_DECODE);
+	vecs_mask = xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_VIDEO_ENHANCE);
+
+	if (vcs_mask || vecs_mask)
+		gtidle->powergate_enable = MEDIA_POWERGATE_ENABLE;
+
+	if (!xe_gt_is_media_type(gt))
+		gtidle->powergate_enable |= RENDER_POWERGATE_ENABLE;
 
 	for (i = XE_HW_ENGINE_VCS0, j = 0; i <= XE_HW_ENGINE_VCS7; ++i, ++j) {
 		if ((gt->info.engine_mask & BIT(i)))
-			pg_enable |= (VDN_HCP_POWERGATE_ENABLE(j) |
-				      VDN_MFXVDENC_POWERGATE_ENABLE(j));
+			gtidle->powergate_enable |= (VDN_HCP_POWERGATE_ENABLE(j) |
+						     VDN_MFXVDENC_POWERGATE_ENABLE(j));
 	}
 
-	XE_WARN_ON(xe_force_wake_get(gt_to_fw(gt), XE_FW_GT));
+	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
 	if (xe->info.skip_guc_pc) {
 		/*
 		 * GuC sets the hysteresis value when GuC PC is enabled
 		 * else set it to 25 (25 * 1.28us)
 		 */
-		xe_mmio_write32(gt, MEDIA_POWERGATE_IDLE_HYSTERESIS, 25);
-		xe_mmio_write32(gt, RENDER_POWERGATE_IDLE_HYSTERESIS, 25);
+		xe_mmio_write32(mmio, MEDIA_POWERGATE_IDLE_HYSTERESIS, 25);
+		xe_mmio_write32(mmio, RENDER_POWERGATE_IDLE_HYSTERESIS, 25);
 	}
 
-	xe_mmio_write32(gt, POWERGATE_ENABLE, pg_enable);
-	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FW_GT));
+	xe_mmio_write32(mmio, POWERGATE_ENABLE, gtidle->powergate_enable);
+	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 }
 
 void xe_gt_idle_disable_pg(struct xe_gt *gt)
 {
+	struct xe_gt_idle *gtidle = &gt->gtidle;
+	unsigned int fw_ref;
+
 	if (IS_SRIOV_VF(gt_to_xe(gt)))
 		return;
 
 	xe_device_assert_mem_access(gt_to_xe(gt));
-	XE_WARN_ON(xe_force_wake_get(gt_to_fw(gt), XE_FW_GT));
+	gtidle->powergate_enable = 0;
 
-	xe_mmio_write32(gt, POWERGATE_ENABLE, 0);
+	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
+	xe_mmio_write32(&gt->mmio, POWERGATE_ENABLE, gtidle->powergate_enable);
+	xe_force_wake_put(gt_to_fw(gt), fw_ref);
+}
 
-	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FW_GT));
+/**
+ * xe_gt_idle_pg_print - Xe powergating info
+ * @gt: GT object
+ * @p: drm_printer.
+ *
+ * This function prints the powergating information
+ *
+ * Return: 0 on success, negative error code otherwise
+ */
+int xe_gt_idle_pg_print(struct xe_gt *gt, struct drm_printer *p)
+{
+	struct xe_gt_idle *gtidle = &gt->gtidle;
+	struct xe_device *xe = gt_to_xe(gt);
+	enum xe_gt_idle_state state;
+	u32 pg_enabled, pg_status = 0;
+	u32 vcs_mask, vecs_mask;
+	unsigned int fw_ref;
+	int n;
+	/*
+	 * Media Slices
+	 *
+	 * Slice 0: VCS0, VCS1, VECS0
+	 * Slice 1: VCS2, VCS3, VECS1
+	 * Slice 2: VCS4, VCS5, VECS2
+	 * Slice 3: VCS6, VCS7, VECS3
+	 */
+	static const struct {
+		u64 engines;
+		u32 status_bit;
+	} media_slices[] = {
+		{(BIT(XE_HW_ENGINE_VCS0) | BIT(XE_HW_ENGINE_VCS1) |
+		  BIT(XE_HW_ENGINE_VECS0)), MEDIA_SLICE0_AWAKE_STATUS},
+
+		{(BIT(XE_HW_ENGINE_VCS2) | BIT(XE_HW_ENGINE_VCS3) |
+		   BIT(XE_HW_ENGINE_VECS1)), MEDIA_SLICE1_AWAKE_STATUS},
+
+		{(BIT(XE_HW_ENGINE_VCS4) | BIT(XE_HW_ENGINE_VCS5) |
+		   BIT(XE_HW_ENGINE_VECS2)), MEDIA_SLICE2_AWAKE_STATUS},
+
+		{(BIT(XE_HW_ENGINE_VCS6) | BIT(XE_HW_ENGINE_VCS7) |
+		   BIT(XE_HW_ENGINE_VECS3)), MEDIA_SLICE3_AWAKE_STATUS},
+	};
+
+	if (xe->info.platform == XE_PVC) {
+		drm_printf(p, "Power Gating not supported\n");
+		return 0;
+	}
+
+	state = gtidle->idle_status(gtidle_to_pc(gtidle));
+	pg_enabled = gtidle->powergate_enable;
+
+	/* Do not wake the GT to read powergating status */
+	if (state != GT_IDLE_C6) {
+		fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
+		if (!fw_ref)
+			return -ETIMEDOUT;
+
+		pg_enabled = xe_mmio_read32(&gt->mmio, POWERGATE_ENABLE);
+		pg_status = xe_mmio_read32(&gt->mmio, POWERGATE_DOMAIN_STATUS);
+
+		xe_force_wake_put(gt_to_fw(gt), fw_ref);
+	}
+
+	if (gt->info.engine_mask & XE_HW_ENGINE_RCS_MASK) {
+		drm_printf(p, "Render Power Gating Enabled: %s\n",
+			   str_yes_no(pg_enabled & RENDER_POWERGATE_ENABLE));
+
+		drm_printf(p, "Render Power Gate Status: %s\n",
+			   str_up_down(pg_status & RENDER_AWAKE_STATUS));
+	}
+
+	vcs_mask = xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_VIDEO_DECODE);
+	vecs_mask = xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_VIDEO_ENHANCE);
+
+	/* Print media CPG status only if media is present */
+	if (vcs_mask || vecs_mask) {
+		drm_printf(p, "Media Power Gating Enabled: %s\n",
+			   str_yes_no(pg_enabled & MEDIA_POWERGATE_ENABLE));
+
+		for (n = 0; n < ARRAY_SIZE(media_slices); n++)
+			if (gt->info.engine_mask & media_slices[n].engines)
+				drm_printf(p, "Media Slice%d Power Gate Status: %s\n", n,
+					   str_up_down(pg_status & media_slices[n].status_bit));
+	}
+	return 0;
 }
 
 static ssize_t name_show(struct device *dev,
@@ -201,13 +301,14 @@ static void gt_idle_fini(void *arg)
 {
 	struct kobject *kobj = arg;
 	struct xe_gt *gt = kobj_to_gt(kobj->parent);
+	unsigned int fw_ref;
 
 	xe_gt_idle_disable_pg(gt);
 
 	if (gt_to_xe(gt)->info.skip_guc_pc) {
-		XE_WARN_ON(xe_force_wake_get(gt_to_fw(gt), XE_FW_GT));
+		fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
 		xe_gt_idle_disable_c6(gt);
-		xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
+		xe_force_wake_put(gt_to_fw(gt), fw_ref);
 	}
 
 	sysfs_remove_files(kobj, gt_idle_attrs);
@@ -260,9 +361,9 @@ void xe_gt_idle_enable_c6(struct xe_gt *gt)
 		return;
 
 	/* Units of 1280 ns for a total of 5s */
-	xe_mmio_write32(gt, RC_IDLE_HYSTERSIS, 0x3B9ACA);
+	xe_mmio_write32(&gt->mmio, RC_IDLE_HYSTERSIS, 0x3B9ACA);
 	/* Enable RC6 */
-	xe_mmio_write32(gt, RC_CONTROL,
+	xe_mmio_write32(&gt->mmio, RC_CONTROL,
 			RC_CTL_HW_ENABLE | RC_CTL_TO_MODE | RC_CTL_RC6_ENABLE);
 }
 
@@ -274,6 +375,6 @@ void xe_gt_idle_disable_c6(struct xe_gt *gt)
 	if (IS_SRIOV_VF(gt_to_xe(gt)))
 		return;
 
-	xe_mmio_write32(gt, RC_CONTROL, 0);
-	xe_mmio_write32(gt, RC_STATE, 0);
+	xe_mmio_write32(&gt->mmio, RC_CONTROL, 0);
+	xe_mmio_write32(&gt->mmio, RC_STATE, 0);
 }

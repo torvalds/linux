@@ -35,40 +35,184 @@ properties:
 
       - description: Legacy compatibles used on Macintosh devices
         enum:
+          - AAPL,3500
+          - AAPL,7500
+          - AAPL,8500
+          - AAPL,9500
+          - AAPL,accelerometer_1
+          - AAPL,e411
+          - AAPL,Gossamer
+          - AAPL,PowerBook1998
+          - AAPL,ShinerESB
           - adm1030
+          - amd-0137
+          - B5221
           - bmac+
+          - burgundy
+          - cobalt
+          - cy28508
+          - daca
+          - fcu
+          - gatwick
+          - gmac
+          - heathrow
+          - heathrow-ata
           - heathrow-media-bay
+          - i2sbus
+          - i2s-modem
+          - iMac
+          - K2-GMAC
+          - k2-i2c
+          - K2-Keylargo
+          - K2-UATA
+          - kauai-ata
+          - Keylargo
+          - keylargo-ata
           - keylargo-media-bay
           - lm87cimt
           - MAC,adm1030
           - MAC,ds1775
+          - MacRISC
+          - MacRISC2
+          - MacRISC3
+          - MacRISC4
           - max6690
+          - ohare
           - ohare-media-bay
           - ohare-swim3
+          - PowerBook1,1
+          - PowerBook2,1
+          - PowerBook2,2
+          - PowerBook3,1
+          - PowerBook3,2
+          - PowerBook3,3
+          - PowerBook3,4
+          - PowerBook3,5
+          - PowerBook4,1
+          - PowerBook4,2
+          - PowerBook4,3
+          - PowerBook5,1
+          - PowerBook5,2
+          - PowerBook5,3
+          - PowerBook5,4
+          - PowerBook5,5
+          - PowerBook5,6
+          - PowerBook5,7
+          - PowerBook5,8
+          - PowerBook5,9
+          - PowerBook6,3
+          - PowerBook6,5
+          - PowerBook6,7
+          - PowerMac10,1
+          - PowerMac10,2
+          - PowerMac1,1
+          - PowerMac11,2
+          - PowerMac12,1
+          - PowerMac2,1
+          - PowerMac2,2
+          - PowerMac3,1
+          - PowerMac3,4
+          - PowerMac3,5
+          - PowerMac3,6
+          - PowerMac4,1
+          - PowerMac4,2
+          - PowerMac4,4
+          - PowerMac4,5
+          - PowerMac7,2
+          - PowerMac7,3
+          - PowerMac8,1
+          - PowerMac8,2
+          - PowerMac9,1
+          - paddington
+          - RackMac1,1
+          - RackMac1,2
+          - RackMac3,1
+          - screamer
+          - shasta-ata
+          - sms
+          - smu-rpm-fans
           - smu-sat
+          - smu-sensors
+          - snapper
           - swim3
+          - tumbler
+          - u3-agp
+          - u3-dart
+          - u3-ht
+          - u4-dart
+          - u4-pcie
+          - U4-pcie
+          - uni-n-i2c
+          - uni-north
 
       - description: Legacy compatibles used on other PowerPC devices
         enum:
+          - 1682m-gizmo
+          - 1682m-gpio
           - 1682m-rng
+          - 1682m-sdc
+          - amcc,ppc440epx-rng
+          - amcc,ppc460ex-bcsr
+          - amcc,ppc460ex-crypto
+          - amcc,ppc460ex-rng
+          - amcc,ppc460sx-crypto
+          - amcc,ppc4xx-crypto
+          - amcc,sata-460ex
+          - CBEA,platform-open-pic
+          - CBEA,platform-spider-pic
+          - direct-mapped
+          - display
+          - gpio-mdio
+          - hawk-bridge
+          - hawk-pci
+          - IBM,CBEA
           - IBM,lhca
           - IBM,lhea
           - IBM,lhea-ethernet
+          - ibm,axon-msic
+          - Momentum,Apache
+          - Momentum,Maple
+          - mai-logic,articia-s
+          - mpc10x-pci
           - mpc5200b-fec-phy
           - mpc5200-serial
           - mpc5200-sram
+          - nintendo,flipper
+          - nintendo,flipper-exi
+          - nintendo,flipper-pi
+          - nintendo,flipper-pic
+          - nintendo,hollywood
+          - nintendo,hollywood-pic
+          - nintendo,latte-exi
+          - nintendo,latte-srnprot
           - ohci-be
           - ohci-bigendian
           - ohci-le
+          - PA6T-1682M
+          - pasemi,1682m-iob
+          - pasemi,localbus
+          - pasemi,localbus-nand
+          - pasemi,nemo
+          - pasemi,pwrficient
+          - pasemi,pwrficient-rng
+          - pasemi,rootbus
+          - pasemi,sdc
+          - soc
+          - sony,ps3
+          - sti,platform-spider-pic
 
       - description: Legacy compatibles used on SPARC devices
         enum:
           - bq4802
           - ds1287
+          - i2cpcf,8584
           - isa-m5819p
           - isa-m5823p
           - m5819
+          - qcn
           - sab82532
+          - su
+          - sun4v
           - SUNW,bbc-beep
           - SUNW,bbc-i2c
           - SUNW,CS4231
@@ -96,9 +240,13 @@ properties:
           - compat1
           - compat2
           - compat3
+          - gpio-mockup
+          - gpio-simulator
+          - gpio-virtuser
           - linux,spi-loopback-test
           - mailbox-test
           - regulator-virtual-consumer
+          - test-device
 
       - description:
           Devices on MIPS platform, without any DTS users.  These are

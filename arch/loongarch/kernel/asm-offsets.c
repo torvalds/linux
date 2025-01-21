@@ -14,6 +14,7 @@
 #include <asm/ptrace.h>
 #include <asm/processor.h>
 #include <asm/ftrace.h>
+#include <vdso/datapage.h>
 
 static void __used output_ptreg_defines(void)
 {
@@ -319,5 +320,13 @@ static void __used output_kvm_defines(void)
 	OFFSET(KVM_ARCH_HPERCPU, kvm_vcpu_arch, host_percpu);
 
 	OFFSET(KVM_GPGD, kvm, arch.pgd);
+	BLANK();
+}
+
+static void __used output_vdso_defines(void)
+{
+	COMMENT("LoongArch vDSO offsets.");
+
+	DEFINE(__VVAR_PAGES, VVAR_NR_PAGES);
 	BLANK();
 }

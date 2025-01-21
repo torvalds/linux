@@ -183,9 +183,9 @@ void intel_unregister_dsm_handler(void)
 {
 }
 
-void intel_dsm_get_bios_data_funcs_supported(struct drm_i915_private *i915)
+void intel_dsm_get_bios_data_funcs_supported(struct intel_display *display)
 {
-	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
+	struct pci_dev *pdev = to_pci_dev(display->drm->dev);
 	acpi_handle dhandle;
 	union acpi_object *obj;
 
@@ -263,15 +263,14 @@ static u32 acpi_display_type(struct intel_connector *connector)
 	return display_type;
 }
 
-void intel_acpi_device_id_update(struct drm_i915_private *dev_priv)
+void intel_acpi_device_id_update(struct intel_display *display)
 {
-	struct drm_device *drm_dev = &dev_priv->drm;
 	struct intel_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 	u8 display_index[16] = {};
 
 	/* Populate the ACPI IDs for all connectors for a given drm_device */
-	drm_connector_list_iter_begin(drm_dev, &conn_iter);
+	drm_connector_list_iter_begin(display->drm, &conn_iter);
 	for_each_intel_connector_iter(connector, &conn_iter) {
 		u32 device_id, type;
 
@@ -288,10 +287,10 @@ void intel_acpi_device_id_update(struct drm_i915_private *dev_priv)
 }
 
 /* NOTE: The connector order must be final before this is called. */
-void intel_acpi_assign_connector_fwnodes(struct drm_i915_private *i915)
+void intel_acpi_assign_connector_fwnodes(struct intel_display *display)
 {
+	struct drm_device *drm_dev = display->drm;
 	struct drm_connector_list_iter conn_iter;
-	struct drm_device *drm_dev = &i915->drm;
 	struct fwnode_handle *fwnode = NULL;
 	struct drm_connector *connector;
 	struct acpi_device *adev;
@@ -333,7 +332,7 @@ void intel_acpi_assign_connector_fwnodes(struct drm_i915_private *i915)
 	fwnode_handle_put(fwnode);
 }
 
-void intel_acpi_video_register(struct drm_i915_private *i915)
+void intel_acpi_video_register(struct intel_display *display)
 {
 	struct drm_connector_list_iter conn_iter;
 	struct drm_connector *connector;
@@ -347,7 +346,7 @@ void intel_acpi_video_register(struct drm_i915_private *i915)
 	 * a native backlight later and acpi_video_register_backlight() should
 	 * only be called after any native backlights have been registered.
 	 */
-	drm_connector_list_iter_begin(&i915->drm, &conn_iter);
+	drm_connector_list_iter_begin(display->drm, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
 		struct intel_panel *panel = &to_intel_connector(connector)->panel;
 

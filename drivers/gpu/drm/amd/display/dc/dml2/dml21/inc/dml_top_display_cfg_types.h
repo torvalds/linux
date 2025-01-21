@@ -2,7 +2,6 @@
 //
 // Copyright 2024 Advanced Micro Devices, Inc.
 
-
 #ifndef __DML_TOP_DISPLAY_CFG_TYPES_H__
 #define __DML_TOP_DISPLAY_CFG_TYPES_H__
 
@@ -411,7 +410,6 @@ struct dml2_stream_parameters {
 		enum dml2_odm_mode odm_mode;
 		bool disable_dynamic_odm;
 		bool disable_subvp;
-		bool disable_fams2_drr;
 		int minimum_vblank_idle_requirement_us;
 		bool minimize_active_latency_hiding;
 
@@ -478,6 +476,7 @@ struct dml2_display_cfg {
 		bool max_outstanding_when_urgent_expected_disable;
 		bool enable_subvp_implicit_pmo; //enables PMO to switch pipe uclk strategy to subvp, and generate phantom programming
 		unsigned int best_effort_min_active_latency_hiding_us;
+		bool all_streams_blanked;
 	} overrides;
 };
 

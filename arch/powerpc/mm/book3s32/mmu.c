@@ -25,7 +25,7 @@
 
 #include <asm/mmu.h>
 #include <asm/machdep.h>
-#include <asm/code-patching.h>
+#include <asm/text-patching.h>
 #include <asm/sections.h>
 
 #include <mm/mmu_decl.h>
@@ -222,6 +222,8 @@ int mmu_mark_initmem_nx(void)
 		clearibat(i);
 
 	update_bats();
+
+	BUILD_BUG_ON(ALIGN_DOWN(MODULES_VADDR, SZ_256M) < TASK_SIZE);
 
 	for (i = TASK_SIZE >> 28; i < 16; i++) {
 		/* Do not set NX on VM space for modules */

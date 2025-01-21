@@ -27,8 +27,7 @@
 		compatible = "ethernet-phy-id001c.c915",
 			     "ethernet-phy-ieee802.3-c22";
 		reg = <0>;
-		interrupt-parent = <&gpio2>;
-		interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&gpio2 11 IRQ_TYPE_LEVEL_LOW>;
 		reset-gpios = <&gpio2 10 GPIO_ACTIVE_LOW>;
 	};
 };

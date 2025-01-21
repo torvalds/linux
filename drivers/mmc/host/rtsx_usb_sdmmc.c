@@ -21,7 +21,7 @@
 #include <linux/pm_runtime.h>
 
 #include <linux/rtsx_usb.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #if defined(CONFIG_LEDS_CLASS) || (defined(CONFIG_LEDS_CLASS_MODULE) && \
 		defined(CONFIG_MMC_REALTEK_USB_MODULE))
@@ -1453,7 +1453,7 @@ MODULE_DEVICE_TABLE(platform, rtsx_usb_sdmmc_ids);
 
 static struct platform_driver rtsx_usb_sdmmc_driver = {
 	.probe		= rtsx_usb_sdmmc_drv_probe,
-	.remove_new	= rtsx_usb_sdmmc_drv_remove,
+	.remove		= rtsx_usb_sdmmc_drv_remove,
 	.id_table       = rtsx_usb_sdmmc_ids,
 	.driver		= {
 		.name	= "rtsx_usb_sdmmc",

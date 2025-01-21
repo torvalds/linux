@@ -2,7 +2,6 @@
 //
 // Copyright 2024 Advanced Micro Devices, Inc.
 
-
 #include "dml2_mcg_factory.h"
 #include "dml2_mcg_dcn4.h"
 #include "dml2_external_lib_deps.h"

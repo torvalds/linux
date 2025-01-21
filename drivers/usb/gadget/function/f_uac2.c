@@ -95,7 +95,9 @@ enum {
 	STR_CLKSRC_IN,
 	STR_CLKSRC_OUT,
 	STR_USB_IT,
+	STR_USB_IT_CH,
 	STR_IO_IT,
+	STR_IO_IT_CH,
 	STR_USB_OT,
 	STR_IO_OT,
 	STR_FU_IN,
@@ -104,25 +106,10 @@ enum {
 	STR_AS_OUT_ALT1,
 	STR_AS_IN_ALT0,
 	STR_AS_IN_ALT1,
+	NUM_STR_DESCRIPTORS,
 };
 
-static struct usb_string strings_fn[] = {
-	/* [STR_ASSOC].s = DYNAMIC, */
-	[STR_IF_CTRL].s = "Topology Control",
-	[STR_CLKSRC_IN].s = "Input Clock",
-	[STR_CLKSRC_OUT].s = "Output Clock",
-	[STR_USB_IT].s = "USBH Out",
-	[STR_IO_IT].s = "USBD Out",
-	[STR_USB_OT].s = "USBH In",
-	[STR_IO_OT].s = "USBD In",
-	[STR_FU_IN].s = "Capture Volume",
-	[STR_FU_OUT].s = "Playback Volume",
-	[STR_AS_OUT_ALT0].s = "Playback Inactive",
-	[STR_AS_OUT_ALT1].s = "Playback Active",
-	[STR_AS_IN_ALT0].s = "Capture Inactive",
-	[STR_AS_IN_ALT1].s = "Capture Active",
-	{ },
-};
+static struct usb_string strings_fn[NUM_STR_DESCRIPTORS + 1] = {};
 
 static const char *const speed_names[] = {
 	[USB_SPEED_UNKNOWN] = "UNKNOWN",
@@ -1049,6 +1036,23 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 		return ret;
 
 	strings_fn[STR_ASSOC].s = uac2_opts->function_name;
+	strings_fn[STR_IF_CTRL].s = uac2_opts->if_ctrl_name;
+	strings_fn[STR_CLKSRC_IN].s = uac2_opts->clksrc_in_name;
+	strings_fn[STR_CLKSRC_OUT].s = uac2_opts->clksrc_out_name;
+
+	strings_fn[STR_USB_IT].s = uac2_opts->c_it_name;
+	strings_fn[STR_USB_IT_CH].s = uac2_opts->c_it_ch_name;
+	strings_fn[STR_IO_OT].s = uac2_opts->c_ot_name;
+	strings_fn[STR_FU_OUT].s = uac2_opts->c_fu_vol_name;
+	strings_fn[STR_AS_OUT_ALT0].s = "Playback Inactive";
+	strings_fn[STR_AS_OUT_ALT1].s = "Playback Active";
+
+	strings_fn[STR_IO_IT].s = uac2_opts->p_it_name;
+	strings_fn[STR_IO_IT_CH].s = uac2_opts->p_it_ch_name;
+	strings_fn[STR_USB_OT].s = uac2_opts->p_ot_name;
+	strings_fn[STR_FU_IN].s = uac2_opts->p_fu_vol_name;
+	strings_fn[STR_AS_IN_ALT0].s = "Capture Inactive";
+	strings_fn[STR_AS_IN_ALT1].s = "Capture Active";
 
 	us = usb_gstrings_attach(cdev, fn_strings, ARRAY_SIZE(strings_fn));
 	if (IS_ERR(us))
@@ -1072,7 +1076,9 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 	in_clk_src_desc.iClockSource = us[STR_CLKSRC_IN].id;
 	out_clk_src_desc.iClockSource = us[STR_CLKSRC_OUT].id;
 	usb_out_it_desc.iTerminal = us[STR_USB_IT].id;
+	usb_out_it_desc.iChannelNames = us[STR_USB_IT_CH].id;
 	io_in_it_desc.iTerminal = us[STR_IO_IT].id;
+	io_in_it_desc.iChannelNames = us[STR_IO_IT_CH].id;
 	usb_in_ot_desc.iTerminal = us[STR_USB_OT].id;
 	io_out_ot_desc.iTerminal = us[STR_IO_OT].id;
 	std_as_out_if0_desc.iInterface = us[STR_AS_OUT_ALT0].id;
@@ -2055,7 +2061,7 @@ static ssize_t f_uac2_opts_##name##_store(struct config_item *item,	\
 					  const char *page, size_t len)	\
 {									\
 	struct f_uac2_opts *opts = to_f_uac2_opts(item);		\
-	int ret = 0;							\
+	int ret = len;							\
 									\
 	mutex_lock(&opts->lock);					\
 	if (opts->refcnt) {						\
@@ -2066,8 +2072,8 @@ static ssize_t f_uac2_opts_##name##_store(struct config_item *item,	\
 	if (len && page[len - 1] == '\n')				\
 		len--;							\
 									\
-	ret = scnprintf(opts->name, min(sizeof(opts->name), len + 1),	\
-			"%s", page);					\
+	scnprintf(opts->name, min(sizeof(opts->name), len + 1),		\
+		  "%s", page);						\
 									\
 end:									\
 	mutex_unlock(&opts->lock);					\
@@ -2100,9 +2106,23 @@ UAC2_ATTRIBUTE(s16, c_volume_max);
 UAC2_ATTRIBUTE(s16, c_volume_res);
 UAC2_ATTRIBUTE(u32, fb_max);
 UAC2_ATTRIBUTE_STRING(function_name);
+UAC2_ATTRIBUTE_STRING(if_ctrl_name);
+UAC2_ATTRIBUTE_STRING(clksrc_in_name);
+UAC2_ATTRIBUTE_STRING(clksrc_out_name);
+
+UAC2_ATTRIBUTE_STRING(p_it_name);
+UAC2_ATTRIBUTE_STRING(p_it_ch_name);
+UAC2_ATTRIBUTE_STRING(p_ot_name);
+UAC2_ATTRIBUTE_STRING(p_fu_vol_name);
+
+UAC2_ATTRIBUTE_STRING(c_it_name);
+UAC2_ATTRIBUTE_STRING(c_it_ch_name);
+UAC2_ATTRIBUTE_STRING(c_ot_name);
+UAC2_ATTRIBUTE_STRING(c_fu_vol_name);
 
 UAC2_ATTRIBUTE(s16, p_terminal_type);
 UAC2_ATTRIBUTE(s16, c_terminal_type);
+
 
 static struct configfs_attribute *f_uac2_attrs[] = {
 	&f_uac2_opts_attr_p_chmask,
@@ -2130,6 +2150,19 @@ static struct configfs_attribute *f_uac2_attrs[] = {
 	&f_uac2_opts_attr_c_volume_res,
 
 	&f_uac2_opts_attr_function_name,
+	&f_uac2_opts_attr_if_ctrl_name,
+	&f_uac2_opts_attr_clksrc_in_name,
+	&f_uac2_opts_attr_clksrc_out_name,
+
+	&f_uac2_opts_attr_p_it_name,
+	&f_uac2_opts_attr_p_it_ch_name,
+	&f_uac2_opts_attr_p_ot_name,
+	&f_uac2_opts_attr_p_fu_vol_name,
+
+	&f_uac2_opts_attr_c_it_name,
+	&f_uac2_opts_attr_c_it_ch_name,
+	&f_uac2_opts_attr_c_ot_name,
+	&f_uac2_opts_attr_c_fu_vol_name,
 
 	&f_uac2_opts_attr_p_terminal_type,
 	&f_uac2_opts_attr_c_terminal_type,
@@ -2191,6 +2224,19 @@ static struct usb_function_instance *afunc_alloc_inst(void)
 	opts->fb_max = FBACK_FAST_MAX;
 
 	scnprintf(opts->function_name, sizeof(opts->function_name), "Source/Sink");
+	scnprintf(opts->if_ctrl_name, sizeof(opts->if_ctrl_name), "Topology Control");
+	scnprintf(opts->clksrc_in_name, sizeof(opts->clksrc_in_name), "Input Clock");
+	scnprintf(opts->clksrc_out_name, sizeof(opts->clksrc_out_name), "Output Clock");
+
+	scnprintf(opts->p_it_name, sizeof(opts->p_it_name), "USBD Out");
+	scnprintf(opts->p_it_ch_name, sizeof(opts->p_it_ch_name), "Capture Channels");
+	scnprintf(opts->p_ot_name, sizeof(opts->p_ot_name), "USBH In");
+	scnprintf(opts->p_fu_vol_name, sizeof(opts->p_fu_vol_name), "Capture Volume");
+
+	scnprintf(opts->c_it_name, sizeof(opts->c_it_name), "USBH Out");
+	scnprintf(opts->c_it_ch_name, sizeof(opts->c_it_ch_name), "Playback Channels");
+	scnprintf(opts->c_ot_name, sizeof(opts->c_ot_name), "USBD In");
+	scnprintf(opts->c_fu_vol_name, sizeof(opts->c_fu_vol_name), "Playback Volume");
 
 	opts->p_terminal_type = UAC2_DEF_P_TERM_TYPE;
 	opts->c_terminal_type = UAC2_DEF_C_TERM_TYPE;

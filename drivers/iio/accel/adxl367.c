@@ -16,7 +16,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "adxl367.h"
 
@@ -1073,7 +1073,7 @@ static int adxl367_write_event_config(struct iio_dev *indio_dev,
 				      const struct iio_chan_spec *chan,
 				      enum iio_event_type type,
 				      enum iio_event_direction dir,
-				      int state)
+				      bool state)
 {
 	enum adxl367_activity_type act;
 
@@ -1220,7 +1220,7 @@ static int adxl367_update_scan_mode(struct iio_dev *indio_dev,
 		return ret;
 
 	st->fifo_set_size = bitmap_weight(active_scan_mask,
-					  indio_dev->masklength);
+					  iio_get_masklength(indio_dev));
 
 	return 0;
 }
@@ -1475,7 +1475,7 @@ int adxl367_probe(struct device *dev, const struct adxl367_ops *ops,
 
 	return devm_iio_device_register(dev, indio_dev);
 }
-EXPORT_SYMBOL_NS_GPL(adxl367_probe, IIO_ADXL367);
+EXPORT_SYMBOL_NS_GPL(adxl367_probe, "IIO_ADXL367");
 
 MODULE_AUTHOR("Cosmin Tanislav <cosmin.tanislav@analog.com>");
 MODULE_DESCRIPTION("Analog Devices ADXL367 3-axis accelerometer driver");

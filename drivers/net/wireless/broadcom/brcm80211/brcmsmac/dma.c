@@ -1426,15 +1426,6 @@ int dma_txfast(struct brcms_c_info *wlc, struct dma_pub *pub,
 	return -ENOSPC;
 }
 
-void dma_txflush(struct dma_pub *pub)
-{
-	struct dma_info *di = container_of(pub, struct dma_info, dma);
-	struct brcms_ampdu_session *session = &di->ampdu_session;
-
-	if (!skb_queue_empty(&session->skb_list))
-		ampdu_finalize(di);
-}
-
 int dma_txpending(struct dma_pub *pub)
 {
 	struct dma_info *di = container_of(pub, struct dma_info, dma);

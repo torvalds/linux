@@ -15,9 +15,6 @@ maintainers:
   - Chen-Yu Tsai <wens@csie.org>
   - Sebastian Reichel <sre@kernel.org>
 
-allOf:
-  - $ref: power-supply.yaml#
-
 properties:
   compatible:
     oneOf:
@@ -26,13 +23,82 @@ properties:
           - x-powers,axp202-usb-power-supply
           - x-powers,axp221-usb-power-supply
           - x-powers,axp223-usb-power-supply
+          - x-powers,axp717-usb-power-supply
           - x-powers,axp813-usb-power-supply
       - items:
           - const: x-powers,axp803-usb-power-supply
           - const: x-powers,axp813-usb-power-supply
 
+  input-current-limit-microamp:
+    description:
+      Optional value to clamp the maximum input current limit to for
+      the device. If omitted, the programmed value from the EFUSE will
+      be used.
+    minimum: 100000
+    maximum: 4000000
 
 required:
   - compatible
+
+allOf:
+  - $ref: power-supply.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - x-powers,axp192-usb-power-supply
+    then:
+      properties:
+        input-current-limit-microamp:
+          enum: [100000, 500000]
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - x-powers,axp202-usb-power-supply
+              - x-powers,axp223-usb-power-supply
+    then:
+      properties:
+        input-current-limit-microamp:
+          enum: [100000, 500000, 900000]
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - x-powers,axp221-usb-power-supply
+    then:
+      properties:
+        input-current-limit-microamp:
+          enum: [500000, 900000]
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - x-powers,axp717-usb-power-supply
+    then:
+      properties:
+        input-current-limit-microamp:
+          description: Maximum input current in increments of 50000 uA.
+          minimum: 100000
+          maximum: 3250000
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - x-powers,axp813-usb-power-supply
+    then:
+      properties:
+        input-current-limit-microamp:
+          enum: [100000, 500000, 900000, 1500000, 2000000, 2500000,
+                 3000000, 3500000, 4000000]
 
 additionalProperties: false

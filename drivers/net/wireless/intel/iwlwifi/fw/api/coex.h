@@ -95,7 +95,7 @@ enum iwl_bt_ci_compliance {
 }; /* BT_COEX_CI_COMPLIENCE_E_VER_1 */
 
 /**
- * struct iwl_bt_coex_profile_notif - notification about BT coex
+ * struct iwl_bt_coex_prof_old_notif - notification about BT coex
  * @mbox_msg: message from BT to WiFi
  * @msg_idx: the index of the message
  * @bt_ci_compliance: enum %iwl_bt_ci_compliance
@@ -110,7 +110,7 @@ enum iwl_bt_ci_compliance {
  * @wifi_loss_mid_high_rssi: The predicted lost WiFi rate (% of air time that
  *	BT is utilizing) when the RSSI is mid/high (>= -65 dBm)
  */
-struct iwl_bt_coex_profile_notif {
+struct iwl_bt_coex_prof_old_notif {
 	__le32 mbox_msg[4];
 	__le32 msg_idx;
 	__le32 bt_ci_compliance;
@@ -125,5 +125,30 @@ struct iwl_bt_coex_profile_notif {
 } __packed; /* BT_COEX_PROFILE_NTFY_API_S_VER_4
 	     * BT_COEX_PROFILE_NTFY_API_S_VER_5
 	     */
+
+/**
+ * enum iwl_bt_coex_subcmd_ids - coex configuration command IDs
+ */
+enum iwl_bt_coex_subcmd_ids {
+       /**
+	*@PROFILE_NOTIF: &struct iwl_bt_coex_profile_notif
+	*/
+	PROFILE_NOTIF = 0xFF,
+};
+
+#define COEX_NUM_BAND	3
+#define COEX_NUM_CHAINS	2
+
+/**
+ * struct iwl_bt_coex_profile_notif - notification about BT coex
+ * @wifi_loss_low_rssi: The predicted lost WiFi rate (% of air time that BT is
+ *	utilizing) when the RSSI is low (<= -65 dBm)
+ * @wifi_loss_mid_high_rssi: The predicted lost WiFi rate (% of air time that
+ *	BT is utilizing) when the RSSI is mid/high (>= -65 dBm)
+ */
+struct iwl_bt_coex_profile_notif {
+	u8 wifi_loss_low_rssi[COEX_NUM_BAND][COEX_NUM_CHAINS];
+	u8 wifi_loss_mid_high_rssi[COEX_NUM_BAND][COEX_NUM_CHAINS];
+} __packed; /* BT_COEX_BT_PROFILE_NTF_API_S_VER_1 */
 
 #endif /* __iwl_fw_api_coex_h__ */

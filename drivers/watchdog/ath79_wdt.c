@@ -231,7 +231,6 @@ static long ath79_wdt_ioctl(struct file *file, unsigned int cmd,
 
 static const struct file_operations ath79_wdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 	.write		= ath79_wdt_write,
 	.unlocked_ioctl	= ath79_wdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -306,7 +305,7 @@ MODULE_DEVICE_TABLE(of, ath79_wdt_match);
 
 static struct platform_driver ath79_wdt_driver = {
 	.probe		= ath79_wdt_probe,
-	.remove_new	= ath79_wdt_remove,
+	.remove		= ath79_wdt_remove,
 	.shutdown	= ath79_wdt_shutdown,
 	.driver		= {
 		.name	= DRIVER_NAME,

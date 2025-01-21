@@ -25,7 +25,7 @@
 		stdout-path = "serial2:1500000n8";
 	};
 
-	vcc_sys: vsys-regulator {
+	vcc_sys: regulator-vsys {
 		compatible = "regulator-fixed";
 		regulator-name = "vsys";
 		regulator-min-microvolt = <5000000>;
@@ -168,8 +168,8 @@
 	pinctrl-0 = <&spim1_clk &spim1_cs0 &spim1_tx &spim1_rx>;
 	status = "okay";
 
-	dh2228fv: dac@0 {
-		compatible = "rohm,dh2228fv";
+	display: display@0 {
+		compatible = "elgin,jg10309-01";
 		reg = <0>;
 		spi-max-frequency = <24000000>;
 		spi-cpha;

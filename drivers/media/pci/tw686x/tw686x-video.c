@@ -579,8 +579,6 @@ static const struct vb2_ops tw686x_video_qops = {
 	.buf_prepare		= tw686x_buf_prepare,
 	.start_streaming	= tw686x_start_streaming,
 	.stop_streaming		= tw686x_stop_streaming,
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 };
 
 static int tw686x_s_ctrl(struct v4l2_ctrl *ctrl)

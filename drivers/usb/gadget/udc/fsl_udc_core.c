@@ -39,7 +39,7 @@
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <asm/dma.h>
 
 #include "fsl_usb2_udc.h"
@@ -2685,7 +2685,7 @@ MODULE_DEVICE_TABLE(of, fsl_udc_dt_ids);
 
 static struct platform_driver udc_driver = {
 	.probe		= fsl_udc_probe,
-	.remove_new	= fsl_udc_remove,
+	.remove		= fsl_udc_remove,
 	.id_table	= fsl_udc_devtype,
 	/* these suspend and resume are not usb suspend and resume */
 	.suspend	= fsl_udc_suspend,

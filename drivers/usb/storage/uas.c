@@ -927,7 +927,7 @@ static const struct scsi_host_template uas_host_template = {
 { USB_DEVICE_VER(id_vendor, id_product, bcdDeviceMin, bcdDeviceMax), \
 	.driver_info = (flags) }
 
-static struct usb_device_id uas_usb_ids[] = {
+static const struct usb_device_id uas_usb_ids[] = {
 #	include "unusual_uas.h"
 	{ USB_INTERFACE_INFO(USB_CLASS_MASS_STORAGE, USB_SC_SCSI, USB_PR_BULK) },
 	{ USB_INTERFACE_INFO(USB_CLASS_MASS_STORAGE, USB_SC_SCSI, USB_PR_UAS) },
@@ -1289,6 +1289,6 @@ module_exit(uas_exit);
 
 MODULE_DESCRIPTION("USB Attached SCSI driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(USB_STORAGE);
+MODULE_IMPORT_NS("USB_STORAGE");
 MODULE_AUTHOR(
 	"Hans de Goede <hdegoede@redhat.com>, Matthew Wilcox and Sarah Sharp");

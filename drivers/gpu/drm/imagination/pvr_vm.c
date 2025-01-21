@@ -14,6 +14,7 @@
 #include <drm/drm_gem.h>
 #include <drm/drm_gpuvm.h>
 
+#include <linux/bug.h>
 #include <linux/container_of.h>
 #include <linux/err.h>
 #include <linux/errno.h>
@@ -113,6 +114,8 @@ struct pvr_vm_gpuva {
 	/** @base: The wrapped drm_gpuva object. */
 	struct drm_gpuva base;
 };
+
+#define to_pvr_vm_gpuva(va) container_of_const(va, struct pvr_vm_gpuva, base)
 
 enum pvr_vm_bind_type {
 	PVR_VM_BIND_TYPE_MAP,
@@ -386,6 +389,7 @@ pvr_vm_gpuva_unmap(struct drm_gpuva_op *op, void *op_ctx)
 
 	drm_gpuva_unmap(&op->unmap);
 	drm_gpuva_unlink(op->unmap.va);
+	kfree(to_pvr_vm_gpuva(op->unmap.va));
 
 	return 0;
 }
@@ -433,6 +437,7 @@ pvr_vm_gpuva_remap(struct drm_gpuva_op *op, void *op_ctx)
 	}
 
 	drm_gpuva_unlink(op->remap.unmap->va);
+	kfree(to_pvr_vm_gpuva(op->remap.unmap->va));
 
 	return 0;
 }
@@ -593,11 +598,25 @@ err_free:
 }
 
 /**
- * pvr_vm_context_release() - Teardown a VM context.
- * @ref_count: Pointer to reference counter of the VM context.
+ * pvr_vm_unmap_all() - Unmap all mappings associated with a VM context.
+ * @vm_ctx: Target VM context.
  *
  * This function ensures that no mappings are left dangling by unmapping them
  * all in order of ascending device-virtual address.
+ */
+void
+pvr_vm_unmap_all(struct pvr_vm_context *vm_ctx)
+{
+	WARN_ON(pvr_vm_unmap(vm_ctx, vm_ctx->gpuvm_mgr.mm_start,
+			     vm_ctx->gpuvm_mgr.mm_range));
+}
+
+/**
+ * pvr_vm_context_release() - Teardown a VM context.
+ * @ref_count: Pointer to reference counter of the VM context.
+ *
+ * This function also ensures that no mappings are left dangling by calling
+ * pvr_vm_unmap_all.
  */
 static void
 pvr_vm_context_release(struct kref *ref_count)
@@ -608,8 +627,7 @@ pvr_vm_context_release(struct kref *ref_count)
 	if (vm_ctx->fw_mem_ctx_obj)
 		pvr_fw_object_destroy(vm_ctx->fw_mem_ctx_obj);
 
-	WARN_ON(pvr_vm_unmap(vm_ctx, vm_ctx->gpuvm_mgr.mm_start,
-			     vm_ctx->gpuvm_mgr.mm_range));
+	pvr_vm_unmap_all(vm_ctx);
 
 	pvr_mmu_context_destroy(vm_ctx->mmu_ctx);
 	drm_gem_private_object_fini(&vm_ctx->dummy_gem);
@@ -636,9 +654,7 @@ pvr_vm_context_lookup(struct pvr_file *pvr_file, u32 handle)
 
 	xa_lock(&pvr_file->vm_ctx_handles);
 	vm_ctx = xa_load(&pvr_file->vm_ctx_handles, handle);
-	if (vm_ctx)
-		kref_get(&vm_ctx->ref_count);
-
+	pvr_vm_context_get(vm_ctx);
 	xa_unlock(&pvr_file->vm_ctx_handles);
 
 	return vm_ctx;

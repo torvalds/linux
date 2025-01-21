@@ -34,6 +34,7 @@
 
 #include <asm/cmpxchg.h>
 #include <asm/fixmap.h>
+#include <asm/por.h>
 #include <linux/mmdebug.h>
 #include <linux/mm_types.h>
 #include <linux/sched.h>
@@ -149,6 +150,24 @@ static inline pteval_t __phys_to_pte_val(phys_addr_t phys)
 #define pte_accessible(mm, pte)	\
 	(mm_tlb_flush_pending(mm) ? pte_present(pte) : pte_valid(pte))
 
+static inline bool por_el0_allows_pkey(u8 pkey, bool write, bool execute)
+{
+	u64 por;
+
+	if (!system_supports_poe())
+		return true;
+
+	por = read_sysreg_s(SYS_POR_EL0);
+
+	if (write)
+		return por_elx_allows_write(por, pkey);
+
+	if (execute)
+		return por_elx_allows_exec(por, pkey);
+
+	return por_elx_allows_read(por, pkey);
+}
+
 /*
  * p??_access_permitted() is true for valid user mappings (PTE_USER
  * bit set, subject to the write permission check). For execute-only
@@ -156,8 +175,11 @@ static inline pteval_t __phys_to_pte_val(phys_addr_t phys)
  * not set) must return false. PROT_NONE mappings do not have the
  * PTE_VALID bit set.
  */
-#define pte_access_permitted(pte, write) \
+#define pte_access_permitted_no_overlay(pte, write) \
 	(((pte_val(pte) & (PTE_VALID | PTE_USER)) == (PTE_VALID | PTE_USER)) && (!(write) || pte_write(pte)))
+#define pte_access_permitted(pte, write) \
+	(pte_access_permitted_no_overlay(pte, write) && \
+	por_el0_allows_pkey(FIELD_GET(PTE_PO_IDX_MASK, pte_val(pte)), write, false))
 #define pmd_access_permitted(pmd, write) \
 	(pte_access_permitted(pmd_pte(pmd), (write)))
 #define pud_access_permitted(pud, write) \
@@ -243,8 +265,7 @@ static inline pte_t pte_mkspecial(pte_t pte)
 
 static inline pte_t pte_mkcont(pte_t pte)
 {
-	pte = set_pte_bit(pte, __pgprot(PTE_CONT));
-	return set_pte_bit(pte, __pgprot(PTE_TYPE_PAGE));
+	return set_pte_bit(pte, __pgprot(PTE_CONT));
 }
 
 static inline pte_t pte_mknoncont(pte_t pte)
@@ -316,7 +337,7 @@ static inline pte_t __ptep_get(pte_t *ptep)
 }
 
 extern void __sync_icache_dcache(pte_t pteval);
-bool pgattr_change_is_safe(u64 old, u64 new);
+bool pgattr_change_is_safe(pteval_t old, pteval_t new);
 
 /*
  * PTE bits configuration in the presence of hardware Dirty Bit Management
@@ -373,10 +394,11 @@ static inline void __sync_cache_and_tags(pte_t pte, unsigned int nr_pages)
 	/*
 	 * If the PTE would provide user space access to the tags associated
 	 * with it then ensure that the MTE tags are synchronised.  Although
-	 * pte_access_permitted() returns false for exec only mappings, they
-	 * don't expose tags (instruction fetches don't check tags).
+	 * pte_access_permitted_no_overlay() returns false for exec only
+	 * mappings, they don't expose tags (instruction fetches don't check
+	 * tags).
 	 */
-	if (system_supports_mte() && pte_access_permitted(pte, false) &&
+	if (system_supports_mte() && pte_access_permitted_no_overlay(pte, false) &&
 	    !pte_special(pte) && pte_tagged(pte))
 		mte_sync_tags(pte, nr_pages);
 }
@@ -384,6 +406,7 @@ static inline void __sync_cache_and_tags(pte_t pte, unsigned int nr_pages)
 /*
  * Select all bits except the pfn
  */
+#define pte_pgprot pte_pgprot
 static inline pgprot_t pte_pgprot(pte_t pte)
 {
 	unsigned long pfn = pte_pfn(pte);
@@ -413,11 +436,6 @@ static inline void __set_ptes(struct mm_struct *mm,
 		pte = pte_advance_pfn(pte, 1);
 	}
 }
-
-/*
- * Huge pte definitions.
- */
-#define pte_mkhuge(pte)		(__pte(pte_val(pte) & ~PTE_TABLE_BIT))
 
 /*
  * Hugetlb definitions.
@@ -577,6 +595,14 @@ static inline pmd_t pmd_mkdevmap(pmd_t pmd)
 	return pte_pmd(set_pte_bit(pmd_pte(pmd), __pgprot(PTE_DEVMAP)));
 }
 
+#ifdef CONFIG_ARCH_SUPPORTS_PMD_PFNMAP
+#define pmd_special(pte)	(!!((pmd_val(pte) & PTE_SPECIAL)))
+static inline pmd_t pmd_mkspecial(pmd_t pmd)
+{
+	return set_pmd_bit(pmd, __pgprot(PTE_SPECIAL));
+}
+#endif
+
 #define __pmd_to_phys(pmd)	__pte_to_phys(pmd_pte(pmd))
 #define __phys_to_pmd_val(phys)	__phys_to_pte_val(phys)
 #define pmd_pfn(pmd)		((__pmd_to_phys(pmd) & PMD_MASK) >> PAGE_SHIFT)
@@ -593,6 +619,27 @@ static inline pmd_t pmd_mkdevmap(pmd_t pmd)
 #define __phys_to_pud_val(phys)	__phys_to_pte_val(phys)
 #define pud_pfn(pud)		((__pud_to_phys(pud) & PUD_MASK) >> PAGE_SHIFT)
 #define pfn_pud(pfn,prot)	__pud(__phys_to_pud_val((phys_addr_t)(pfn) << PAGE_SHIFT) | pgprot_val(prot))
+
+#ifdef CONFIG_ARCH_SUPPORTS_PUD_PFNMAP
+#define pud_special(pte)	pte_special(pud_pte(pud))
+#define pud_mkspecial(pte)	pte_pud(pte_mkspecial(pud_pte(pud)))
+#endif
+
+#define pmd_pgprot pmd_pgprot
+static inline pgprot_t pmd_pgprot(pmd_t pmd)
+{
+	unsigned long pfn = pmd_pfn(pmd);
+
+	return __pgprot(pmd_val(pfn_pmd(pfn, __pgprot(0))) ^ pmd_val(pmd));
+}
+
+#define pud_pgprot pud_pgprot
+static inline pgprot_t pud_pgprot(pud_t pud)
+{
+	unsigned long pfn = pud_pfn(pud);
+
+	return __pgprot(pud_val(pfn_pud(pfn, __pgprot(0))) ^ pud_val(pud));
+}
 
 static inline void __set_pte_at(struct mm_struct *mm,
 				unsigned long __always_unused addr,
@@ -630,6 +677,11 @@ static inline void set_pud_at(struct mm_struct *mm, unsigned long addr,
 
 #define pgprot_nx(prot) \
 	__pgprot_modify(prot, PTE_MAYBE_GP, PTE_PXN)
+
+#define pgprot_decrypted(prot) \
+	__pgprot_modify(prot, PROT_NS_SHARED, PROT_NS_SHARED)
+#define pgprot_encrypted(prot) \
+	__pgprot_modify(prot, PROT_NS_SHARED, 0)
 
 /*
  * Mark the prot value as uncacheable and unbufferable.
@@ -874,6 +926,9 @@ static inline phys_addr_t p4d_page_paddr(p4d_t p4d)
 
 static inline pud_t *p4d_to_folded_pud(p4d_t *p4dp, unsigned long addr)
 {
+	/* Ensure that 'p4dp' indexes a page table according to 'addr' */
+	VM_BUG_ON(((addr >> P4D_SHIFT) ^ ((u64)p4dp >> 3)) % PTRS_PER_P4D);
+
 	return (pud_t *)PTR_ALIGN_DOWN(p4dp, PAGE_SIZE) + pud_index(addr);
 }
 
@@ -998,6 +1053,9 @@ static inline phys_addr_t pgd_page_paddr(pgd_t pgd)
 
 static inline p4d_t *pgd_to_folded_p4d(pgd_t *pgdp, unsigned long addr)
 {
+	/* Ensure that 'pgdp' indexes a page table according to 'addr' */
+	VM_BUG_ON(((addr >> PGDIR_SHIFT) ^ ((u64)pgdp >> 3)) % PTRS_PER_PGD);
+
 	return (p4d_t *)PTR_ALIGN_DOWN(pgdp, PAGE_SIZE) + p4d_index(addr);
 }
 
@@ -1103,7 +1161,8 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 	 */
 	const pteval_t mask = PTE_USER | PTE_PXN | PTE_UXN | PTE_RDONLY |
 			      PTE_PRESENT_INVALID | PTE_VALID | PTE_WRITE |
-			      PTE_GP | PTE_ATTRINDX_MASK;
+			      PTE_GP | PTE_ATTRINDX_MASK | PTE_PO_IDX_MASK;
+
 	/* preserve the hardware dirty information */
 	if (pte_hw_dirty(pte))
 		pte = set_pte_bit(pte, __pgprot(PTE_DIRTY));
@@ -1205,15 +1264,17 @@ static inline int __ptep_clear_flush_young(struct vm_area_struct *vma,
 	return young;
 }
 
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_ARCH_HAS_NONLEAF_PMD_YOUNG)
 #define __HAVE_ARCH_PMDP_TEST_AND_CLEAR_YOUNG
 static inline int pmdp_test_and_clear_young(struct vm_area_struct *vma,
 					    unsigned long address,
 					    pmd_t *pmdp)
 {
+	/* Operation applies to PMD table entry only if FEAT_HAFT is enabled */
+	VM_WARN_ON(pmd_table(READ_ONCE(*pmdp)) && !system_supports_haft());
 	return __ptep_test_and_clear_young(vma, address, (pte_t *)pmdp);
 }
-#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+#endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_ARCH_HAS_NONLEAF_PMD_YOUNG */
 
 static inline pte_t __ptep_get_and_clear(struct mm_struct *mm,
 				       unsigned long address, pte_t *ptep)
@@ -1447,6 +1508,10 @@ static inline void update_mmu_cache_range(struct vm_fault *vmf,
  * hardware-managed access flag on arm64.
  */
 #define arch_has_hw_pte_young		cpu_has_hw_af
+
+#ifdef CONFIG_ARCH_HAS_NONLEAF_PMD_YOUNG
+#define arch_has_hw_nonleaf_pmd_young	system_supports_haft
+#endif
 
 /*
  * Experimentally, it's cheap to set the access flag in hardware and we

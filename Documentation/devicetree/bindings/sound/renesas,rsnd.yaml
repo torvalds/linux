@@ -112,6 +112,12 @@ properties:
     description: List of necessary clock names.
     # details are defined below
 
+  post-init-providers:
+    description: At least if rsnd is using DPCM connection on Audio-Graph-Card2,
+      fw_devlink might doesn't have enough information to break the cycle. rsnd
+      driver will not be probed in such case. Same problem might occur with
+      Multi-CPU/Codec or Codec2Codec.
+
   # ports is below
   port:
     $ref: audio-graph-port.yaml#/definitions/port-base
@@ -296,7 +302,7 @@ allOf:
         reg-names:
           items:
             enum:
-              - scu
+              - sru
               - ssi
               - adg
   # for Gen2/Gen3

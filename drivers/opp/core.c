@@ -1061,6 +1061,27 @@ static int _set_opp_bw(const struct opp_table *opp_table,
 	return 0;
 }
 
+static int _set_opp_level(struct device *dev, struct dev_pm_opp *opp)
+{
+	unsigned int level = 0;
+	int ret = 0;
+
+	if (opp) {
+		if (opp->level == OPP_LEVEL_UNSET)
+			return 0;
+
+		level = opp->level;
+	}
+
+	/* Request a new performance state through the device's PM domain. */
+	ret = dev_pm_domain_set_performance_state(dev, level);
+	if (ret)
+		dev_err(dev, "Failed to set performance state %u (%d)\n", level,
+			ret);
+
+	return ret;
+}
+
 /* This is only called for PM domain for now */
 static int _set_required_opps(struct device *dev, struct opp_table *opp_table,
 			      struct dev_pm_opp *opp, bool up)
@@ -1091,7 +1112,7 @@ static int _set_required_opps(struct device *dev, struct opp_table *opp_table,
 		if (devs[index]) {
 			required_opp = opp ? opp->required_opps[index] : NULL;
 
-			ret = dev_pm_opp_set_opp(devs[index], required_opp);
+			ret = _set_opp_level(devs[index], required_opp);
 			if (ret)
 				return ret;
 		}
@@ -1100,27 +1121,6 @@ static int _set_required_opps(struct device *dev, struct opp_table *opp_table,
 	}
 
 	return 0;
-}
-
-static int _set_opp_level(struct device *dev, struct dev_pm_opp *opp)
-{
-	unsigned int level = 0;
-	int ret = 0;
-
-	if (opp) {
-		if (opp->level == OPP_LEVEL_UNSET)
-			return 0;
-
-		level = opp->level;
-	}
-
-	/* Request a new performance state through the device's PM domain. */
-	ret = dev_pm_domain_set_performance_state(dev, level);
-	if (ret)
-		dev_err(dev, "Failed to set performance state %u (%d)\n", level,
-			ret);
-
-	return ret;
 }
 
 static void _find_current_opp(struct device *dev, struct opp_table *opp_table)
@@ -2360,48 +2360,13 @@ static void _opp_put_config_regulators_helper(struct opp_table *opp_table)
 		opp_table->config_regulators = NULL;
 }
 
-static void _opp_detach_genpd(struct opp_table *opp_table)
+static int _opp_set_required_dev(struct opp_table *opp_table,
+				 struct device *dev,
+				 struct device *required_dev,
+				 unsigned int index)
 {
-	int index;
-
-	for (index = 0; index < opp_table->required_opp_count; index++) {
-		if (!opp_table->required_devs[index])
-			continue;
-
-		dev_pm_domain_detach(opp_table->required_devs[index], false);
-		opp_table->required_devs[index] = NULL;
-	}
-}
-
-/*
- * Multiple generic power domains for a device are supported with the help of
- * virtual genpd devices, which are created for each consumer device - genpd
- * pair. These are the device structures which are attached to the power domain
- * and are required by the OPP core to set the performance state of the genpd.
- * The same API also works for the case where single genpd is available and so
- * we don't need to support that separately.
- *
- * This helper will normally be called by the consumer driver of the device
- * "dev", as only that has details of the genpd names.
- *
- * This helper needs to be called once with a list of all genpd to attach.
- * Otherwise the original device structure will be used instead by the OPP core.
- *
- * The order of entries in the names array must match the order in which
- * "required-opps" are added in DT.
- */
-static int _opp_attach_genpd(struct opp_table *opp_table, struct device *dev,
-			const char * const *names, struct device ***virt_devs)
-{
-	struct device *virt_dev, *gdev;
-	struct opp_table *genpd_table;
-	int index = 0, ret = -EINVAL;
-	const char * const *name = names;
-
-	if (!opp_table->required_devs) {
-		dev_err(dev, "Required OPPs not available, can't attach genpd\n");
-		return -EINVAL;
-	}
+	struct opp_table *required_table, *pd_table;
+	struct device *gdev;
 
 	/* Genpd core takes care of propagation to parent genpd */
 	if (opp_table->is_genpd) {
@@ -2409,126 +2374,59 @@ static int _opp_attach_genpd(struct opp_table *opp_table, struct device *dev,
 		return -EOPNOTSUPP;
 	}
 
-	/* Checking only the first one is enough ? */
-	if (opp_table->required_devs[0])
-		return 0;
-
-	while (*name) {
-		if (index >= opp_table->required_opp_count) {
-			dev_err(dev, "Index can't be greater than required-opp-count - 1, %s (%d : %d)\n",
-				*name, opp_table->required_opp_count, index);
-			goto err;
-		}
-
-		virt_dev = dev_pm_domain_attach_by_name(dev, *name);
-		if (IS_ERR_OR_NULL(virt_dev)) {
-			ret = virt_dev ? PTR_ERR(virt_dev) : -ENODEV;
-			dev_err(dev, "Couldn't attach to pm_domain: %d\n", ret);
-			goto err;
-		}
-
-		/*
-		 * The required_opp_tables parsing is not perfect, as the OPP
-		 * core does the parsing solely based on the DT node pointers.
-		 * The core sets the required_opp_tables entry to the first OPP
-		 * table in the "opp_tables" list, that matches with the node
-		 * pointer.
-		 *
-		 * If the target DT OPP table is used by multiple devices and
-		 * they all create separate instances of 'struct opp_table' from
-		 * it, then it is possible that the required_opp_tables entry
-		 * may be set to the incorrect sibling device.
-		 *
-		 * Cross check it again and fix if required.
-		 */
-		gdev = dev_to_genpd_dev(virt_dev);
-		if (IS_ERR(gdev)) {
-			ret = PTR_ERR(gdev);
-			goto err;
-		}
-
-		genpd_table = _find_opp_table(gdev);
-		if (!IS_ERR(genpd_table)) {
-			if (genpd_table != opp_table->required_opp_tables[index]) {
-				dev_pm_opp_put_opp_table(opp_table->required_opp_tables[index]);
-				opp_table->required_opp_tables[index] = genpd_table;
-			} else {
-				dev_pm_opp_put_opp_table(genpd_table);
-			}
-		}
-
-		/*
-		 * Add the virtual genpd device as a user of the OPP table, so
-		 * we can call dev_pm_opp_set_opp() on it directly.
-		 *
-		 * This will be automatically removed when the OPP table is
-		 * removed, don't need to handle that here.
-		 */
-		if (!_add_opp_dev(virt_dev, opp_table->required_opp_tables[index])) {
-			ret = -ENOMEM;
-			goto err;
-		}
-
-		opp_table->required_devs[index] = virt_dev;
-		index++;
-		name++;
-	}
-
-	if (virt_devs)
-		*virt_devs = opp_table->required_devs;
-
-	return 0;
-
-err:
-	_opp_detach_genpd(opp_table);
-	return ret;
-
-}
-
-static int _opp_set_required_devs(struct opp_table *opp_table,
-				  struct device *dev,
-				  struct device **required_devs)
-{
-	int i;
-
-	if (!opp_table->required_devs) {
+	if (index >= opp_table->required_opp_count) {
 		dev_err(dev, "Required OPPs not available, can't set required devs\n");
 		return -EINVAL;
 	}
 
-	/* Another device that shares the OPP table has set the required devs ? */
-	if (opp_table->required_devs[0])
-		return 0;
-
-	for (i = 0; i < opp_table->required_opp_count; i++) {
-		/* Genpd core takes care of propagation to parent genpd */
-		if (required_devs[i] && opp_table->is_genpd &&
-		    opp_table->required_opp_tables[i]->is_genpd) {
-			dev_err(dev, "%s: Operation not supported for genpds\n", __func__);
-			return -EOPNOTSUPP;
-		}
-
-		opp_table->required_devs[i] = required_devs[i];
+	required_table = opp_table->required_opp_tables[index];
+	if (IS_ERR(required_table)) {
+		dev_err(dev, "Missing OPP table, unable to set the required devs\n");
+		return -ENODEV;
 	}
 
+	/*
+	 * The required_opp_tables parsing is not perfect, as the OPP core does
+	 * the parsing solely based on the DT node pointers. The core sets the
+	 * required_opp_tables entry to the first OPP table in the "opp_tables"
+	 * list, that matches with the node pointer.
+	 *
+	 * If the target DT OPP table is used by multiple devices and they all
+	 * create separate instances of 'struct opp_table' from it, then it is
+	 * possible that the required_opp_tables entry may be set to the
+	 * incorrect sibling device.
+	 *
+	 * Cross check it again and fix if required.
+	 */
+	gdev = dev_to_genpd_dev(required_dev);
+	if (IS_ERR(gdev))
+		return PTR_ERR(gdev);
+
+	pd_table = _find_opp_table(gdev);
+	if (!IS_ERR(pd_table)) {
+		if (pd_table != required_table) {
+			dev_pm_opp_put_opp_table(required_table);
+			opp_table->required_opp_tables[index] = pd_table;
+		} else {
+			dev_pm_opp_put_opp_table(pd_table);
+		}
+	}
+
+	opp_table->required_devs[index] = required_dev;
 	return 0;
 }
 
-static void _opp_put_required_devs(struct opp_table *opp_table)
+static void _opp_put_required_dev(struct opp_table *opp_table,
+				  unsigned int index)
 {
-	int i;
-
-	for (i = 0; i < opp_table->required_opp_count; i++)
-		opp_table->required_devs[i] = NULL;
+	opp_table->required_devs[index] = NULL;
 }
 
 static void _opp_clear_config(struct opp_config_data *data)
 {
-	if (data->flags & OPP_CONFIG_REQUIRED_DEVS)
-		_opp_put_required_devs(data->opp_table);
-	else if (data->flags & OPP_CONFIG_GENPD)
-		_opp_detach_genpd(data->opp_table);
-
+	if (data->flags & OPP_CONFIG_REQUIRED_DEV)
+		_opp_put_required_dev(data->opp_table,
+				      data->required_dev_index);
 	if (data->flags & OPP_CONFIG_REGULATOR)
 		_opp_put_regulators(data->opp_table);
 	if (data->flags & OPP_CONFIG_SUPPORTED_HW)
@@ -2640,24 +2538,15 @@ int dev_pm_opp_set_config(struct device *dev, struct dev_pm_opp_config *config)
 		data->flags |= OPP_CONFIG_REGULATOR;
 	}
 
-	/* Attach genpds */
-	if (config->genpd_names) {
-		if (config->required_devs)
-			goto err;
-
-		ret = _opp_attach_genpd(opp_table, dev, config->genpd_names,
-					config->virt_devs);
+	if (config->required_dev) {
+		ret = _opp_set_required_dev(opp_table, dev,
+					    config->required_dev,
+					    config->required_dev_index);
 		if (ret)
 			goto err;
 
-		data->flags |= OPP_CONFIG_GENPD;
-	} else if (config->required_devs) {
-		ret = _opp_set_required_devs(opp_table, dev,
-					     config->required_devs);
-		if (ret)
-			goto err;
-
-		data->flags |= OPP_CONFIG_REQUIRED_DEVS;
+		data->required_dev_index = config->required_dev_index;
+		data->flags |= OPP_CONFIG_REQUIRED_DEV;
 	}
 
 	ret = xa_alloc(&opp_configs, &id, data, XA_LIMIT(1, INT_MAX),

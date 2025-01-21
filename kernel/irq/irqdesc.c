@@ -15,6 +15,7 @@
 #include <linux/maple_tree.h>
 #include <linux/irqdomain.h>
 #include <linux/sysfs.h>
+#include <linux/string_choices.h>
 
 #include "internals.h"
 
@@ -138,8 +139,30 @@ static void desc_set_defaults(unsigned int irq, struct irq_desc *desc, int node,
 	desc_smp_init(desc, node, affinity);
 }
 
-int nr_irqs = NR_IRQS;
-EXPORT_SYMBOL_GPL(nr_irqs);
+static unsigned int nr_irqs = NR_IRQS;
+
+/**
+ * irq_get_nr_irqs() - Number of interrupts supported by the system.
+ */
+unsigned int irq_get_nr_irqs(void)
+{
+	return nr_irqs;
+}
+EXPORT_SYMBOL_GPL(irq_get_nr_irqs);
+
+/**
+ * irq_set_nr_irqs() - Set the number of interrupts supported by the system.
+ * @nr: New number of interrupts.
+ *
+ * Return: @nr.
+ */
+unsigned int irq_set_nr_irqs(unsigned int nr)
+{
+	nr_irqs = nr;
+
+	return nr;
+}
+EXPORT_SYMBOL_GPL(irq_set_nr_irqs);
 
 static DEFINE_MUTEX(sparse_irq_lock);
 static struct maple_tree sparse_irqs = MTREE_INIT_EXT(sparse_irqs,
@@ -298,8 +321,7 @@ static ssize_t wakeup_show(struct kobject *kobj,
 	ssize_t ret = 0;
 
 	raw_spin_lock_irq(&desc->lock);
-	ret = sprintf(buf, "%s\n",
-		      irqd_is_wakeup_set(&desc->irq_data) ? "enabled" : "disabled");
+	ret = sprintf(buf, "%s\n", str_enabled_disabled(irqd_is_wakeup_set(&desc->irq_data)));
 	raw_spin_unlock_irq(&desc->lock);
 
 	return ret;

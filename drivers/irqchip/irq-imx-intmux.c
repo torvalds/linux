@@ -361,6 +361,6 @@ static struct platform_driver imx_intmux_driver = {
 		.pm		= &imx_intmux_pm_ops,
 	},
 	.probe		= imx_intmux_probe,
-	.remove_new	= imx_intmux_remove,
+	.remove		= imx_intmux_remove,
 };
 builtin_platform_driver(imx_intmux_driver);

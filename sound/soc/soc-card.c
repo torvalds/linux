@@ -29,16 +29,6 @@ static inline int _soc_card_ret(struct snd_soc_card *card,
 	return ret;
 }
 
-struct snd_kcontrol *snd_soc_card_get_kcontrol_locked(struct snd_soc_card *soc_card,
-						      const char *name)
-{
-	if (unlikely(!name))
-		return NULL;
-
-	return snd_ctl_find_id_mixer_locked(soc_card->snd_card, name);
-}
-EXPORT_SYMBOL_GPL(snd_soc_card_get_kcontrol_locked);
-
 struct snd_kcontrol *snd_soc_card_get_kcontrol(struct snd_soc_card *soc_card,
 					       const char *name)
 {

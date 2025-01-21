@@ -458,7 +458,7 @@ static struct platform_driver raspberrypi_clk_driver = {
 		.of_match_table = raspberrypi_clk_match,
 	},
 	.probe          = raspberrypi_clk_probe,
-	.remove_new	= raspberrypi_clk_remove,
+	.remove		= raspberrypi_clk_remove,
 };
 module_platform_driver(raspberrypi_clk_driver);
 

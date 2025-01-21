@@ -944,34 +944,34 @@ static void unlock_spi_csq_mutexes(struct amdgpu_device *adev)
  *
  * @adev: Handle of device whose registers are to be read
  * @queue_idx: Index of queue in the queue-map bit-field
- * @wave_cnt: Output parameter updated with number of waves in flight
- * @vmid: Output parameter updated with VMID of queue whose wave count
- *        is being collected
+ * @queue_cnt: Stores the wave count and doorbell offset for an active queue
  * @inst: xcc's instance number on a multi-XCC setup
  */
 static void get_wave_count(struct amdgpu_device *adev, int queue_idx,
-		int *wave_cnt, int *vmid, uint32_t inst)
+		struct kfd_cu_occupancy *queue_cnt, uint32_t inst)
 {
 	int pipe_idx;
 	int queue_slot;
 	unsigned int reg_val;
-
+	unsigned int wave_cnt;
 	/*
 	 * Program GRBM with appropriate MEID, PIPEID, QUEUEID and VMID
 	 * parameters to read out waves in flight. Get VMID if there are
 	 * non-zero waves in flight.
 	 */
-	*vmid = 0xFF;
-	*wave_cnt = 0;
 	pipe_idx = queue_idx / adev->gfx.mec.num_queue_per_pipe;
 	queue_slot = queue_idx % adev->gfx.mec.num_queue_per_pipe;
-	soc15_grbm_select(adev, 1, pipe_idx, queue_slot, 0, inst);
-	reg_val = RREG32_SOC15_IP(GC, SOC15_REG_OFFSET(GC, inst, mmSPI_CSQ_WF_ACTIVE_COUNT_0) +
-			 queue_slot);
-	*wave_cnt = reg_val & SPI_CSQ_WF_ACTIVE_COUNT_0__COUNT_MASK;
-	if (*wave_cnt != 0)
-		*vmid = (RREG32_SOC15(GC, inst, mmCP_HQD_VMID) &
-			 CP_HQD_VMID__VMID_MASK) >> CP_HQD_VMID__VMID__SHIFT;
+	soc15_grbm_select(adev, 1, pipe_idx, queue_slot, 0, GET_INST(GC, inst));
+	reg_val = RREG32_SOC15_IP(GC, SOC15_REG_OFFSET(GC, GET_INST(GC, inst),
+				  mmSPI_CSQ_WF_ACTIVE_COUNT_0) + queue_slot);
+	wave_cnt = reg_val & SPI_CSQ_WF_ACTIVE_COUNT_0__COUNT_MASK;
+	if (wave_cnt != 0) {
+		queue_cnt->wave_cnt += wave_cnt;
+		queue_cnt->doorbell_off =
+			(RREG32_SOC15(GC, GET_INST(GC, inst), mmCP_HQD_PQ_DOORBELL_CONTROL) &
+			 CP_HQD_PQ_DOORBELL_CONTROL__DOORBELL_OFFSET_MASK) >>
+			 CP_HQD_PQ_DOORBELL_CONTROL__DOORBELL_OFFSET__SHIFT;
+	}
 }
 
 /**
@@ -981,9 +981,8 @@ static void get_wave_count(struct amdgpu_device *adev, int queue_idx,
  * or more queues running and submitting waves to compute units.
  *
  * @adev: Handle of device from which to get number of waves in flight
- * @pasid: Identifies the process for which this query call is invoked
- * @pasid_wave_cnt: Output parameter updated with number of waves in flight that
- *                  belong to process with given pasid
+ * @cu_occupancy: Array that gets filled with wave_cnt and doorbell offset
+ *		  for comparison later.
  * @max_waves_per_cu: Output parameter updated with maximum number of waves
  *                    possible per Compute Unit
  * @inst: xcc's instance number on a multi-XCC setup
@@ -1011,34 +1010,28 @@ static void get_wave_count(struct amdgpu_device *adev, int queue_idx,
  *    number of waves that are in flight for the queue at specified index. The
  *    index ranges from 0 to 7.
  *
- *    If non-zero waves are in flight, read CP_HQD_VMID register to obtain VMID
- *    of the wave(s).
+ *    If non-zero waves are in flight, store the corresponding doorbell offset
+ *    of the queue, along with the wave count.
  *
- *    Determine if VMID from above step maps to pasid provided as parameter. If
- *    it matches agrregate the wave count. That the VMID will not match pasid is
- *    a normal condition i.e. a device is expected to support multiple queues
- *    from multiple proceses.
+ *    Determine if the queue belongs to the process by comparing the doorbell
+ *    offset against the process's queues. If it matches, aggregate the wave
+ *    count for the process.
  *
  *  Reading registers referenced above involves programming GRBM appropriately
  */
-void kgd_gfx_v9_get_cu_occupancy(struct amdgpu_device *adev, int pasid,
-		int *pasid_wave_cnt, int *max_waves_per_cu, uint32_t inst)
+void kgd_gfx_v9_get_cu_occupancy(struct amdgpu_device *adev,
+				 struct kfd_cu_occupancy *cu_occupancy,
+				 int *max_waves_per_cu, uint32_t inst)
 {
 	int qidx;
-	int vmid;
 	int se_idx;
-	int sh_idx;
 	int se_cnt;
-	int sh_cnt;
-	int wave_cnt;
 	int queue_map;
-	int pasid_tmp;
 	int max_queue_cnt;
-	int vmid_wave_cnt = 0;
 	DECLARE_BITMAP(cp_queue_bitmap, AMDGPU_MAX_QUEUES);
 
 	lock_spi_csq_mutexes(adev);
-	soc15_grbm_select(adev, 1, 0, 0, 0, inst);
+	soc15_grbm_select(adev, 1, 0, 0, 0, GET_INST(GC, inst));
 
 	/*
 	 * Iterate through the shader engines and arrays of the device
@@ -1048,51 +1041,38 @@ void kgd_gfx_v9_get_cu_occupancy(struct amdgpu_device *adev, int pasid,
 			  AMDGPU_MAX_QUEUES);
 	max_queue_cnt = adev->gfx.mec.num_pipe_per_mec *
 			adev->gfx.mec.num_queue_per_pipe;
-	sh_cnt = adev->gfx.config.max_sh_per_se;
 	se_cnt = adev->gfx.config.max_shader_engines;
 	for (se_idx = 0; se_idx < se_cnt; se_idx++) {
-		for (sh_idx = 0; sh_idx < sh_cnt; sh_idx++) {
+		amdgpu_gfx_select_se_sh(adev, se_idx, 0, 0xffffffff, inst);
+		queue_map = RREG32_SOC15(GC, GET_INST(GC, inst), mmSPI_CSQ_WF_ACTIVE_STATUS);
 
-			amdgpu_gfx_select_se_sh(adev, se_idx, sh_idx, 0xffffffff, inst);
-			queue_map = RREG32_SOC15(GC, inst, mmSPI_CSQ_WF_ACTIVE_STATUS);
-
-			/*
-			 * Assumption: queue map encodes following schema: four
-			 * pipes per each micro-engine, with each pipe mapping
-			 * eight queues. This schema is true for GFX9 devices
-			 * and must be verified for newer device families
+		/*
+		 * Assumption: queue map encodes following schema: four
+		 * pipes per each micro-engine, with each pipe mapping
+		 * eight queues. This schema is true for GFX9 devices
+		 * and must be verified for newer device families
+		 */
+		for (qidx = 0; qidx < max_queue_cnt; qidx++) {
+			/* Skip qeueus that are not associated with
+			 * compute functions
 			 */
-			for (qidx = 0; qidx < max_queue_cnt; qidx++) {
+			if (!test_bit(qidx, cp_queue_bitmap))
+				continue;
 
-				/* Skip qeueus that are not associated with
-				 * compute functions
-				 */
-				if (!test_bit(qidx, cp_queue_bitmap))
-					continue;
+			if (!(queue_map & (1 << qidx)))
+				continue;
 
-				if (!(queue_map & (1 << qidx)))
-					continue;
-
-				/* Get number of waves in flight and aggregate them */
-				get_wave_count(adev, qidx, &wave_cnt, &vmid,
-						inst);
-				if (wave_cnt != 0) {
-					pasid_tmp =
-					  RREG32(SOC15_REG_OFFSET(OSSSYS, inst,
-						 mmIH_VMID_0_LUT) + vmid);
-					if (pasid_tmp == pasid)
-						vmid_wave_cnt += wave_cnt;
-				}
-			}
+			/* Get number of waves in flight and aggregate them */
+			get_wave_count(adev, qidx, &cu_occupancy[qidx],
+					inst);
 		}
 	}
 
 	amdgpu_gfx_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff, inst);
-	soc15_grbm_select(adev, 0, 0, 0, 0, inst);
+	soc15_grbm_select(adev, 0, 0, 0, 0, GET_INST(GC, inst));
 	unlock_spi_csq_mutexes(adev);
 
 	/* Update the output parameters and return */
-	*pasid_wave_cnt = vmid_wave_cnt;
 	*max_waves_per_cu = adev->gfx.cu_info.simd_per_cu *
 				adev->gfx.cu_info.max_waves_per_simd;
 }
@@ -1144,6 +1124,105 @@ void kgd_gfx_v9_program_trap_handler_settings(struct amdgpu_device *adev,
 	kgd_gfx_v9_unlock_srbm(adev, inst);
 }
 
+uint64_t kgd_gfx_v9_hqd_get_pq_addr(struct amdgpu_device *adev,
+				    uint32_t pipe_id, uint32_t queue_id,
+				    uint32_t inst)
+{
+	uint32_t low, high;
+	uint64_t queue_addr = 0;
+
+	kgd_gfx_v9_acquire_queue(adev, pipe_id, queue_id, inst);
+	amdgpu_gfx_rlc_enter_safe_mode(adev, inst);
+
+	if (!RREG32_SOC15(GC, GET_INST(GC, inst), mmCP_HQD_ACTIVE))
+		goto unlock_out;
+
+	low = RREG32_SOC15(GC, GET_INST(GC, inst), mmCP_HQD_PQ_BASE);
+	high = RREG32_SOC15(GC, GET_INST(GC, inst), mmCP_HQD_PQ_BASE_HI);
+
+	/* only concerned with user queues. */
+	if (!high)
+		goto unlock_out;
+
+	queue_addr = (((queue_addr | high) << 32) | low) << 8;
+
+unlock_out:
+	amdgpu_gfx_rlc_exit_safe_mode(adev, inst);
+	kgd_gfx_v9_release_queue(adev, inst);
+
+	return queue_addr;
+}
+
+/* assume queue acquired  */
+static int kgd_gfx_v9_hqd_dequeue_wait(struct amdgpu_device *adev, uint32_t inst,
+				       unsigned int utimeout)
+{
+	unsigned long end_jiffies = (utimeout * HZ / 1000) + jiffies;
+
+	while (true) {
+		uint32_t temp = RREG32_SOC15(GC, GET_INST(GC, inst), mmCP_HQD_ACTIVE);
+
+		if (!(temp & CP_HQD_ACTIVE__ACTIVE_MASK))
+			return 0;
+
+		if (time_after(jiffies, end_jiffies))
+			return -ETIME;
+
+		usleep_range(500, 1000);
+	}
+}
+
+uint64_t kgd_gfx_v9_hqd_reset(struct amdgpu_device *adev,
+			      uint32_t pipe_id, uint32_t queue_id,
+			      uint32_t inst, unsigned int utimeout)
+{
+	uint32_t low, high, pipe_reset_data = 0;
+	uint64_t queue_addr = 0;
+
+	kgd_gfx_v9_acquire_queue(adev, pipe_id, queue_id, inst);
+	amdgpu_gfx_rlc_enter_safe_mode(adev, inst);
+
+	if (!RREG32_SOC15(GC, GET_INST(GC, inst), mmCP_HQD_ACTIVE))
+		goto unlock_out;
+
+	low = RREG32_SOC15(GC, GET_INST(GC, inst), mmCP_HQD_PQ_BASE);
+	high = RREG32_SOC15(GC, GET_INST(GC, inst), mmCP_HQD_PQ_BASE_HI);
+
+	/* only concerned with user queues. */
+	if (!high)
+		goto unlock_out;
+
+	queue_addr = (((queue_addr | high) << 32) | low) << 8;
+
+	pr_debug("Attempting queue reset on XCC %i pipe id %i queue id %i\n",
+		 inst, pipe_id, queue_id);
+
+	/* assume previous dequeue request issued will take affect after reset */
+	WREG32_SOC15(GC, GET_INST(GC, inst), mmSPI_COMPUTE_QUEUE_RESET, 0x1);
+
+	if (!kgd_gfx_v9_hqd_dequeue_wait(adev, inst, utimeout))
+		goto unlock_out;
+
+	pr_debug("Attempting pipe reset on XCC %i pipe id %i\n", inst, pipe_id);
+
+	pipe_reset_data = REG_SET_FIELD(pipe_reset_data, CP_MEC_CNTL, MEC_ME1_PIPE0_RESET, 1);
+	pipe_reset_data = pipe_reset_data << pipe_id;
+
+	WREG32_SOC15(GC, GET_INST(GC, inst), mmCP_MEC_CNTL, pipe_reset_data);
+	WREG32_SOC15(GC, GET_INST(GC, inst), mmCP_MEC_CNTL, 0);
+
+	if (kgd_gfx_v9_hqd_dequeue_wait(adev, inst, utimeout))
+		queue_addr = 0;
+
+unlock_out:
+	pr_debug("queue reset on XCC %i pipe id %i queue id %i %s\n",
+		 inst, pipe_id, queue_id, !!queue_addr ? "succeeded!" : "failed!");
+	amdgpu_gfx_rlc_exit_safe_mode(adev, inst);
+	kgd_gfx_v9_release_queue(adev, inst);
+
+	return queue_addr;
+}
+
 const struct kfd2kgd_calls gfx_v9_kfd2kgd = {
 	.program_sh_mem_settings = kgd_gfx_v9_program_sh_mem_settings,
 	.set_pasid_vmid_mapping = kgd_gfx_v9_set_pasid_vmid_mapping,
@@ -1172,4 +1251,6 @@ const struct kfd2kgd_calls gfx_v9_kfd2kgd = {
 	.build_grace_period_packet_info = kgd_gfx_v9_build_grace_period_packet_info,
 	.get_cu_occupancy = kgd_gfx_v9_get_cu_occupancy,
 	.program_trap_handler_settings = kgd_gfx_v9_program_trap_handler_settings,
+	.hqd_get_pq_addr = kgd_gfx_v9_hqd_get_pq_addr,
+	.hqd_reset = kgd_gfx_v9_hqd_reset
 };

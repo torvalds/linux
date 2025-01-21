@@ -368,6 +368,7 @@ static int at91_rtc_probe(struct platform_device *pdev)
 		return ret;
 
 	rtc->gpbr = syscon_node_to_regmap(args.np);
+	of_node_put(args.np);
 	rtc->gpbr_offset = args.args[0];
 	if (IS_ERR(rtc->gpbr)) {
 		dev_err(&pdev->dev, "failed to retrieve gpbr regmap, aborting.\n");
@@ -529,7 +530,7 @@ MODULE_DEVICE_TABLE(of, at91_rtc_dt_ids);
 
 static struct platform_driver at91_rtc_driver = {
 	.probe		= at91_rtc_probe,
-	.remove_new	= at91_rtc_remove,
+	.remove		= at91_rtc_remove,
 	.shutdown	= at91_rtc_shutdown,
 	.driver		= {
 		.name	= "rtc-at91sam9",

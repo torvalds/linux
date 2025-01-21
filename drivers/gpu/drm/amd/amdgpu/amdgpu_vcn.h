@@ -330,6 +330,11 @@ struct amdgpu_vcn {
 	uint16_t inst_mask;
 	uint8_t	num_inst_per_aid;
 	bool using_unified_queue;
+
+	/* IP reg dump */
+	uint32_t		*ip_dump;
+
+	uint32_t		supported_reset;
 };
 
 struct amdgpu_fw_shared_rb_ptrs_struct {
@@ -515,5 +520,8 @@ int amdgpu_vcn_ras_sw_init(struct amdgpu_device *adev);
 
 int amdgpu_vcn_psp_update_sram(struct amdgpu_device *adev, int inst_idx,
 			       enum AMDGPU_UCODE_ID ucode_id);
+int amdgpu_vcn_save_vcpu_bo(struct amdgpu_device *adev);
+int amdgpu_vcn_sysfs_reset_mask_init(struct amdgpu_device *adev);
+void amdgpu_vcn_sysfs_reset_mask_fini(struct amdgpu_device *adev);
 
 #endif

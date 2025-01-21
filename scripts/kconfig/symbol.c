@@ -9,6 +9,8 @@
 #include <string.h>
 #include <regex.h>
 
+#include <hash.h>
+#include <xalloc.h>
 #include "internal.h"
 #include "lkc.h"
 
@@ -69,6 +71,24 @@ const char *sym_type_name(enum symbol_type type)
 }
 
 /**
+ * sym_get_prompt_menu - get the menu entry with a prompt
+ *
+ * @sym: a symbol pointer
+ *
+ * Return: the menu entry with a prompt.
+ */
+struct menu *sym_get_prompt_menu(const struct symbol *sym)
+{
+	struct menu *m;
+
+	list_for_each_entry(m, &sym->menus, link)
+		if (m->prompt)
+			return m;
+
+	return NULL;
+}
+
+/**
  * sym_get_choice_menu - get the parent choice menu if present
  *
  * @sym: a symbol pointer
@@ -78,18 +98,12 @@ const char *sym_type_name(enum symbol_type type)
 struct menu *sym_get_choice_menu(const struct symbol *sym)
 {
 	struct menu *menu = NULL;
-	struct menu *m;
 
 	/*
 	 * Choice members must have a prompt. Find a menu entry with a prompt,
 	 * and assume it resides inside a choice block.
 	 */
-	list_for_each_entry(m, &sym->menus, link)
-		if (m->prompt) {
-			menu = m;
-			break;
-		}
-
+	menu = sym_get_prompt_menu(sym);
 	if (!menu)
 		return NULL;
 
@@ -517,6 +531,7 @@ void sym_clear_all_valid(void)
 
 	for_all_symbols(sym)
 		sym->flags &= ~SYMBOL_VALID;
+	expr_invalidate_all();
 	conf_set_changed(true);
 	sym_calc_value(modules_sym);
 }
@@ -892,7 +907,7 @@ struct symbol *sym_lookup(const char *name, int flags)
 			case 'n': return &symbol_no;
 			}
 		}
-		hash = strhash(name);
+		hash = hash_str(name);
 
 		hash_for_each_possible(sym_hashtable, symbol, node, hash) {
 			if (symbol->name &&
@@ -935,7 +950,7 @@ struct symbol *sym_find(const char *name)
 		case 'n': return &symbol_no;
 		}
 	}
-	hash = strhash(name);
+	hash = hash_str(name);
 
 	hash_for_each_possible(sym_hashtable, symbol, node, hash) {
 		if (symbol->name &&
@@ -1321,8 +1336,6 @@ const char *prop_get_type_name(enum prop_type type)
 		return "imply";
 	case P_RANGE:
 		return "range";
-	case P_SYMBOL:
-		return "symbol";
 	case P_UNKNOWN:
 		break;
 	}

@@ -106,6 +106,8 @@ struct ksmbd_conn {
 	bool				signing_negotiated;
 	__le16				signing_algorithm;
 	bool				binding;
+	atomic_t			refcnt;
+	atomic_t			mux_smb_requests;
 };
 
 struct ksmbd_conn_ops {

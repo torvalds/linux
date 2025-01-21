@@ -128,7 +128,7 @@ static struct imx_usbmisc_data *usbmisc_get_init_data(struct device *dev)
 	 * In case the fsl,usbmisc property is not present this device doesn't
 	 * need usbmisc. Return NULL (which is no error here)
 	 */
-	if (!of_get_property(np, "fsl,usbmisc", NULL))
+	if (!of_property_present(np, "fsl,usbmisc"))
 		return NULL;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
@@ -342,6 +342,7 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 	struct ci_hdrc_platform_data pdata = {
 		.name		= dev_name(&pdev->dev),
 		.capoffset	= DEF_CAPOFFSET,
+		.flags		= CI_HDRC_HAS_SHORT_PKT_LIMIT,
 		.notify_event	= ci_hdrc_imx_notify_event,
 	};
 	int ret;
@@ -675,7 +676,7 @@ static const struct dev_pm_ops ci_hdrc_imx_pm_ops = {
 };
 static struct platform_driver ci_hdrc_imx_driver = {
 	.probe = ci_hdrc_imx_probe,
-	.remove_new = ci_hdrc_imx_remove,
+	.remove = ci_hdrc_imx_remove,
 	.shutdown = ci_hdrc_imx_shutdown,
 	.driver = {
 		.name = "imx_usb",

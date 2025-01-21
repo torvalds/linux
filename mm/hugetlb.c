@@ -56,16 +56,6 @@ struct hstate hstates[HUGE_MAX_HSTATE];
 #ifdef CONFIG_CMA
 static struct cma *hugetlb_cma[MAX_NUMNODES];
 static unsigned long hugetlb_cma_size_in_node[MAX_NUMNODES] __initdata;
-static bool hugetlb_cma_folio(struct folio *folio, unsigned int order)
-{
-	return cma_pages_valid(hugetlb_cma[folio_nid(folio)], &folio->page,
-				1 << order);
-}
-#else
-static bool hugetlb_cma_folio(struct folio *folio, unsigned int order)
-{
-	return false;
-}
 #endif
 static unsigned long hugetlb_cma_size __initdata;
 
@@ -82,14 +72,14 @@ static unsigned int default_hugepages_in_node[MAX_NUMNODES] __initdata;
  * Protects updates to hugepage_freelists, hugepage_activelist, nr_huge_pages,
  * free_huge_pages, and surplus_huge_pages.
  */
-DEFINE_SPINLOCK(hugetlb_lock);
+__cacheline_aligned_in_smp DEFINE_SPINLOCK(hugetlb_lock);
 
 /*
  * Serializes faults on the same logical page.  This is used to
  * prevent spurious OOMs when the hugepage pool is fully utilized.
  */
-static int num_fault_mutexes;
-struct mutex *hugetlb_fault_mutex_table ____cacheline_aligned_in_smp;
+static int num_fault_mutexes __ro_after_init;
+struct mutex *hugetlb_fault_mutex_table __ro_after_init;
 
 /* Forward declaration */
 static int hugetlb_acct_memory(struct hstate *h, long delta);
@@ -99,6 +89,17 @@ static void __hugetlb_vma_unlock_write_free(struct vm_area_struct *vma);
 static void hugetlb_unshare_pmds(struct vm_area_struct *vma,
 		unsigned long start, unsigned long end);
 static struct resv_map *vma_resv_map(struct vm_area_struct *vma);
+
+static void hugetlb_free_folio(struct folio *folio)
+{
+#ifdef CONFIG_CMA
+	int nid = folio_nid(folio);
+
+	if (cma_free_folio(hugetlb_cma[nid], folio))
+		return;
+#endif
+	folio_put(folio);
+}
 
 static inline bool subpool_is_free(struct hugepage_subpool *spool)
 {
@@ -1512,95 +1513,54 @@ static int hstate_next_node_to_free(struct hstate *h, nodemask_t *nodes_allowed)
 		((node = hstate_next_node_to_free(hs, mask)) || 1);	\
 		nr_nodes--)
 
-/* used to demote non-gigantic_huge pages as well */
-static void __destroy_compound_gigantic_folio(struct folio *folio,
-					unsigned int order, bool demote)
-{
-	int i;
-	int nr_pages = 1 << order;
-	struct page *p;
-
-	atomic_set(&folio->_entire_mapcount, 0);
-	atomic_set(&folio->_large_mapcount, 0);
-	atomic_set(&folio->_pincount, 0);
-
-	for (i = 1; i < nr_pages; i++) {
-		p = folio_page(folio, i);
-		p->flags &= ~PAGE_FLAGS_CHECK_AT_FREE;
-		p->mapping = NULL;
-		clear_compound_head(p);
-		if (!demote)
-			set_page_refcounted(p);
-	}
-
-	__folio_clear_head(folio);
-}
-
-static void destroy_compound_hugetlb_folio_for_demote(struct folio *folio,
-					unsigned int order)
-{
-	__destroy_compound_gigantic_folio(folio, order, true);
-}
-
 #ifdef CONFIG_ARCH_HAS_GIGANTIC_PAGE
-static void destroy_compound_gigantic_folio(struct folio *folio,
-					unsigned int order)
-{
-	__destroy_compound_gigantic_folio(folio, order, false);
-}
-
-static void free_gigantic_folio(struct folio *folio, unsigned int order)
-{
-	/*
-	 * If the page isn't allocated using the cma allocator,
-	 * cma_release() returns false.
-	 */
-#ifdef CONFIG_CMA
-	int nid = folio_nid(folio);
-
-	if (cma_release(hugetlb_cma[nid], &folio->page, 1 << order))
-		return;
-#endif
-
-	free_contig_range(folio_pfn(folio), 1 << order);
-}
-
 #ifdef CONFIG_CONTIG_ALLOC
 static struct folio *alloc_gigantic_folio(struct hstate *h, gfp_t gfp_mask,
 		int nid, nodemask_t *nodemask)
 {
-	struct page *page;
-	unsigned long nr_pages = pages_per_huge_page(h);
+	struct folio *folio;
+	int order = huge_page_order(h);
+	bool retried = false;
+
 	if (nid == NUMA_NO_NODE)
 		nid = numa_mem_id();
-
+retry:
+	folio = NULL;
 #ifdef CONFIG_CMA
 	{
 		int node;
 
-		if (hugetlb_cma[nid]) {
-			page = cma_alloc(hugetlb_cma[nid], nr_pages,
-					huge_page_order(h), true);
-			if (page)
-				return page_folio(page);
-		}
+		if (hugetlb_cma[nid])
+			folio = cma_alloc_folio(hugetlb_cma[nid], order, gfp_mask);
 
-		if (!(gfp_mask & __GFP_THISNODE)) {
+		if (!folio && !(gfp_mask & __GFP_THISNODE)) {
 			for_each_node_mask(node, *nodemask) {
 				if (node == nid || !hugetlb_cma[node])
 					continue;
 
-				page = cma_alloc(hugetlb_cma[node], nr_pages,
-						huge_page_order(h), true);
-				if (page)
-					return page_folio(page);
+				folio = cma_alloc_folio(hugetlb_cma[node], order, gfp_mask);
+				if (folio)
+					break;
 			}
 		}
 	}
 #endif
+	if (!folio) {
+		folio = folio_alloc_gigantic(order, gfp_mask, nid, nodemask);
+		if (!folio)
+			return NULL;
+	}
 
-	page = alloc_contig_pages(nr_pages, gfp_mask, nid, nodemask);
-	return page ? page_folio(page) : NULL;
+	if (folio_ref_freeze(folio, 1))
+		return folio;
+
+	pr_warn("HugeTLB: unexpected refcount on PFN %lu\n", folio_pfn(folio));
+	hugetlb_free_folio(folio);
+	if (!retried) {
+		retried = true;
+		goto retry;
+	}
+	return NULL;
 }
 
 #else /* !CONFIG_CONTIG_ALLOC */
@@ -1617,10 +1577,6 @@ static struct folio *alloc_gigantic_folio(struct hstate *h, gfp_t gfp_mask,
 {
 	return NULL;
 }
-static inline void free_gigantic_folio(struct folio *folio,
-						unsigned int order) { }
-static inline void destroy_compound_gigantic_folio(struct folio *folio,
-						unsigned int order) { }
 #endif
 
 /*
@@ -1748,18 +1704,8 @@ static void __update_and_free_hugetlb_folio(struct hstate *h,
 
 	folio_ref_unfreeze(folio, 1);
 
-	/*
-	 * Non-gigantic pages demoted from CMA allocated gigantic pages
-	 * need to be given back to CMA in free_gigantic_folio.
-	 */
-	if (hstate_is_gigantic(h) ||
-	    hugetlb_cma_folio(folio, huge_page_order(h))) {
-		destroy_compound_gigantic_folio(folio, huge_page_order(h));
-		free_gigantic_folio(folio, huge_page_order(h));
-	} else {
-		INIT_LIST_HEAD(&folio->_deferred_list);
-		folio_put(folio);
-	}
+	INIT_LIST_HEAD(&folio->_deferred_list);
+	hugetlb_free_folio(folio);
 }
 
 /*
@@ -1979,6 +1925,7 @@ void free_huge_folio(struct folio *folio)
 				     pages_per_huge_page(h), folio);
 	hugetlb_cgroup_uncharge_folio_rsvd(hstate_index(h),
 					  pages_per_huge_page(h), folio);
+	lruvec_stat_mod_folio(folio, NR_HUGETLB, -pages_per_huge_page(h));
 	mem_cgroup_uncharge(folio);
 	if (restore_reserve)
 		h->resv_huge_pages++;
@@ -2032,95 +1979,6 @@ static void prep_new_hugetlb_folio(struct hstate *h, struct folio *folio, int ni
 	spin_unlock_irq(&hugetlb_lock);
 }
 
-static bool __prep_compound_gigantic_folio(struct folio *folio,
-					unsigned int order, bool demote)
-{
-	int i, j;
-	int nr_pages = 1 << order;
-	struct page *p;
-
-	__folio_clear_reserved(folio);
-	for (i = 0; i < nr_pages; i++) {
-		p = folio_page(folio, i);
-
-		/*
-		 * For gigantic hugepages allocated through bootmem at
-		 * boot, it's safer to be consistent with the not-gigantic
-		 * hugepages and clear the PG_reserved bit from all tail pages
-		 * too.  Otherwise drivers using get_user_pages() to access tail
-		 * pages may get the reference counting wrong if they see
-		 * PG_reserved set on a tail page (despite the head page not
-		 * having PG_reserved set).  Enforcing this consistency between
-		 * head and tail pages allows drivers to optimize away a check
-		 * on the head page when they need know if put_page() is needed
-		 * after get_user_pages().
-		 */
-		if (i != 0)	/* head page cleared above */
-			__ClearPageReserved(p);
-		/*
-		 * Subtle and very unlikely
-		 *
-		 * Gigantic 'page allocators' such as memblock or cma will
-		 * return a set of pages with each page ref counted.  We need
-		 * to turn this set of pages into a compound page with tail
-		 * page ref counts set to zero.  Code such as speculative page
-		 * cache adding could take a ref on a 'to be' tail page.
-		 * We need to respect any increased ref count, and only set
-		 * the ref count to zero if count is currently 1.  If count
-		 * is not 1, we return an error.  An error return indicates
-		 * the set of pages can not be converted to a gigantic page.
-		 * The caller who allocated the pages should then discard the
-		 * pages using the appropriate free interface.
-		 *
-		 * In the case of demote, the ref count will be zero.
-		 */
-		if (!demote) {
-			if (!page_ref_freeze(p, 1)) {
-				pr_warn("HugeTLB page can not be used due to unexpected inflated ref count\n");
-				goto out_error;
-			}
-		} else {
-			VM_BUG_ON_PAGE(page_count(p), p);
-		}
-		if (i != 0)
-			set_compound_head(p, &folio->page);
-	}
-	__folio_set_head(folio);
-	/* we rely on prep_new_hugetlb_folio to set the hugetlb flag */
-	folio_set_order(folio, order);
-	atomic_set(&folio->_entire_mapcount, -1);
-	atomic_set(&folio->_large_mapcount, -1);
-	atomic_set(&folio->_pincount, 0);
-	return true;
-
-out_error:
-	/* undo page modifications made above */
-	for (j = 0; j < i; j++) {
-		p = folio_page(folio, j);
-		if (j != 0)
-			clear_compound_head(p);
-		set_page_refcounted(p);
-	}
-	/* need to clear PG_reserved on remaining tail pages  */
-	for (; j < nr_pages; j++) {
-		p = folio_page(folio, j);
-		__ClearPageReserved(p);
-	}
-	return false;
-}
-
-static bool prep_compound_gigantic_folio(struct folio *folio,
-							unsigned int order)
-{
-	return __prep_compound_gigantic_folio(folio, order, false);
-}
-
-static bool prep_compound_gigantic_folio_for_demote(struct folio *folio,
-							unsigned int order)
-{
-	return __prep_compound_gigantic_folio(folio, order, true);
-}
-
 /*
  * Find and lock address space (mapping) in write mode.
  *
@@ -2159,7 +2017,6 @@ static struct folio *alloc_buddy_hugetlb_folio(struct hstate *h,
 	 */
 	if (node_alloc_noretry && node_isset(nid, *node_alloc_noretry))
 		alloc_try_hard = false;
-	gfp_mask |= __GFP_COMP|__GFP_NOWARN;
 	if (alloc_try_hard)
 		gfp_mask |= __GFP_RETRY_MAYFAIL;
 	if (nid == NUMA_NO_NODE)
@@ -2206,48 +2063,16 @@ retry:
 	return folio;
 }
 
-static struct folio *__alloc_fresh_hugetlb_folio(struct hstate *h,
-				gfp_t gfp_mask, int nid, nodemask_t *nmask,
-				nodemask_t *node_alloc_noretry)
-{
-	struct folio *folio;
-	bool retry = false;
-
-retry:
-	if (hstate_is_gigantic(h))
-		folio = alloc_gigantic_folio(h, gfp_mask, nid, nmask);
-	else
-		folio = alloc_buddy_hugetlb_folio(h, gfp_mask,
-				nid, nmask, node_alloc_noretry);
-	if (!folio)
-		return NULL;
-
-	if (hstate_is_gigantic(h)) {
-		if (!prep_compound_gigantic_folio(folio, huge_page_order(h))) {
-			/*
-			 * Rare failure to convert pages to compound page.
-			 * Free pages and try again - ONCE!
-			 */
-			free_gigantic_folio(folio, huge_page_order(h));
-			if (!retry) {
-				retry = true;
-				goto retry;
-			}
-			return NULL;
-		}
-	}
-
-	return folio;
-}
-
 static struct folio *only_alloc_fresh_hugetlb_folio(struct hstate *h,
 		gfp_t gfp_mask, int nid, nodemask_t *nmask,
 		nodemask_t *node_alloc_noretry)
 {
 	struct folio *folio;
 
-	folio = __alloc_fresh_hugetlb_folio(h, gfp_mask, nid, nmask,
-						node_alloc_noretry);
+	if (hstate_is_gigantic(h))
+		folio = alloc_gigantic_folio(h, gfp_mask, nid, nmask);
+	else
+		folio = alloc_buddy_hugetlb_folio(h, gfp_mask, nid, nmask, node_alloc_noretry);
 	if (folio)
 		init_new_hugetlb_folio(h, folio);
 	return folio;
@@ -2265,7 +2090,10 @@ static struct folio *alloc_fresh_hugetlb_folio(struct hstate *h,
 {
 	struct folio *folio;
 
-	folio = __alloc_fresh_hugetlb_folio(h, gfp_mask, nid, nmask, NULL);
+	if (hstate_is_gigantic(h))
+		folio = alloc_gigantic_folio(h, gfp_mask, nid, nmask);
+	else
+		folio = alloc_buddy_hugetlb_folio(h, gfp_mask, nid, nmask, NULL);
 	if (!folio)
 		return NULL;
 
@@ -2549,9 +2377,8 @@ struct folio *alloc_buddy_hugetlb_folio_with_mpol(struct hstate *h,
 
 	nid = huge_node(vma, addr, gfp_mask, &mpol, &nodemask);
 	if (mpol_is_preferred_many(mpol)) {
-		gfp_t gfp = gfp_mask | __GFP_NOWARN;
+		gfp_t gfp = gfp_mask & ~(__GFP_DIRECT_RECLAIM | __GFP_NOFAIL);
 
-		gfp &=  ~(__GFP_DIRECT_RECLAIM | __GFP_NOFAIL);
 		folio = alloc_surplus_hugetlb_folio(h, gfp, nid, nodemask);
 
 		/* Fallback to all nodes if page==NULL */
@@ -2561,6 +2388,23 @@ struct folio *alloc_buddy_hugetlb_folio_with_mpol(struct hstate *h,
 	if (!folio)
 		folio = alloc_surplus_hugetlb_folio(h, gfp_mask, nid, nodemask);
 	mpol_cond_put(mpol);
+	return folio;
+}
+
+struct folio *alloc_hugetlb_folio_reserve(struct hstate *h, int preferred_nid,
+		nodemask_t *nmask, gfp_t gfp_mask)
+{
+	struct folio *folio;
+
+	spin_lock_irq(&hugetlb_lock);
+	folio = dequeue_hugetlb_folio_nodemask(h, gfp_mask, preferred_nid,
+					       nmask);
+	if (folio) {
+		VM_BUG_ON(!h->resv_huge_pages);
+		h->resv_huge_pages--;
+	}
+
+	spin_unlock_irq(&hugetlb_lock);
 	return folio;
 }
 
@@ -3250,6 +3094,7 @@ struct folio *alloc_hugetlb_folio(struct vm_area_struct *vma,
 
 	if (!memcg_charge_ret)
 		mem_cgroup_commit_charge(folio, memcg);
+	lruvec_stat_mod_folio(folio, NR_HUGETLB, pages_per_huge_page(h));
 	mem_cgroup_put(memcg);
 
 	return folio;
@@ -3333,6 +3178,7 @@ static void __init hugetlb_folio_init_tail_vmemmap(struct folio *folio,
 	for (pfn = head_pfn + start_page_number; pfn < end_pfn; pfn++) {
 		struct page *page = pfn_to_page(pfn);
 
+		__ClearPageReserved(folio_page(folio, pfn - head_pfn));
 		__init_single_page(page, pfn, zone, nid);
 		prep_compound_tail((struct page *)folio, pfn - head_pfn);
 		ret = page_ref_freeze(page, 1);
@@ -3457,6 +3303,7 @@ static void __init hugetlb_hstate_alloc_pages_onenode(struct hstate *h, int nid)
 {
 	unsigned long i;
 	char buf[32];
+	LIST_HEAD(folio_list);
 
 	for (i = 0; i < h->max_huge_pages_node[nid]; ++i) {
 		if (hstate_is_gigantic(h)) {
@@ -3466,14 +3313,18 @@ static void __init hugetlb_hstate_alloc_pages_onenode(struct hstate *h, int nid)
 			struct folio *folio;
 			gfp_t gfp_mask = htlb_alloc_mask(h) | __GFP_THISNODE;
 
-			folio = alloc_fresh_hugetlb_folio(h, gfp_mask, nid,
-					&node_states[N_MEMORY]);
+			folio = only_alloc_fresh_hugetlb_folio(h, gfp_mask, nid,
+					&node_states[N_MEMORY], NULL);
 			if (!folio)
 				break;
-			free_huge_folio(folio); /* free it into the hugepage allocator */
+			list_add(&folio->lru, &folio_list);
 		}
 		cond_resched();
 	}
+
+	if (!list_empty(&folio_list))
+		prep_and_add_allocated_folios(h, &folio_list);
+
 	if (i == h->max_huge_pages_node[nid])
 		return;
 
@@ -3921,100 +3772,119 @@ out:
 	return 0;
 }
 
-static int demote_free_hugetlb_folio(struct hstate *h, struct folio *folio)
+static long demote_free_hugetlb_folios(struct hstate *src, struct hstate *dst,
+				       struct list_head *src_list)
 {
-	int i, nid = folio_nid(folio);
-	struct hstate *target_hstate;
-	struct page *subpage;
-	struct folio *inner_folio;
-	int rc = 0;
+	long rc;
+	struct folio *folio, *next;
+	LIST_HEAD(dst_list);
+	LIST_HEAD(ret_list);
 
-	target_hstate = size_to_hstate(PAGE_SIZE << h->demote_order);
-
-	remove_hugetlb_folio(h, folio, false);
-	spin_unlock_irq(&hugetlb_lock);
-
-	/*
-	 * If vmemmap already existed for folio, the remove routine above would
-	 * have cleared the hugetlb folio flag.  Hence the folio is technically
-	 * no longer a hugetlb folio.  hugetlb_vmemmap_restore_folio can only be
-	 * passed hugetlb folios and will BUG otherwise.
-	 */
-	if (folio_test_hugetlb(folio)) {
-		rc = hugetlb_vmemmap_restore_folio(h, folio);
-		if (rc) {
-			/* Allocation of vmemmmap failed, we can not demote folio */
-			spin_lock_irq(&hugetlb_lock);
-			add_hugetlb_folio(h, folio, false);
-			return rc;
-		}
-	}
-
-	/*
-	 * Use destroy_compound_hugetlb_folio_for_demote for all huge page
-	 * sizes as it will not ref count folios.
-	 */
-	destroy_compound_hugetlb_folio_for_demote(folio, huge_page_order(h));
+	rc = hugetlb_vmemmap_restore_folios(src, src_list, &ret_list);
+	list_splice_init(&ret_list, src_list);
 
 	/*
 	 * Taking target hstate mutex synchronizes with set_max_huge_pages.
 	 * Without the mutex, pages added to target hstate could be marked
 	 * as surplus.
 	 *
-	 * Note that we already hold h->resize_lock.  To prevent deadlock,
+	 * Note that we already hold src->resize_lock.  To prevent deadlock,
 	 * use the convention of always taking larger size hstate mutex first.
 	 */
-	mutex_lock(&target_hstate->resize_lock);
-	for (i = 0; i < pages_per_huge_page(h);
-				i += pages_per_huge_page(target_hstate)) {
-		subpage = folio_page(folio, i);
-		inner_folio = page_folio(subpage);
-		if (hstate_is_gigantic(target_hstate))
-			prep_compound_gigantic_folio_for_demote(inner_folio,
-							target_hstate->order);
-		else
-			prep_compound_page(subpage, target_hstate->order);
-		folio_change_private(inner_folio, NULL);
-		prep_new_hugetlb_folio(target_hstate, inner_folio, nid);
-		free_huge_folio(inner_folio);
-	}
-	mutex_unlock(&target_hstate->resize_lock);
+	mutex_lock(&dst->resize_lock);
 
-	spin_lock_irq(&hugetlb_lock);
+	list_for_each_entry_safe(folio, next, src_list, lru) {
+		int i;
+
+		if (folio_test_hugetlb_vmemmap_optimized(folio))
+			continue;
+
+		list_del(&folio->lru);
+
+		split_page_owner(&folio->page, huge_page_order(src), huge_page_order(dst));
+		pgalloc_tag_split(folio, huge_page_order(src), huge_page_order(dst));
+
+		for (i = 0; i < pages_per_huge_page(src); i += pages_per_huge_page(dst)) {
+			struct page *page = folio_page(folio, i);
+
+			page->mapping = NULL;
+			clear_compound_head(page);
+			prep_compound_page(page, dst->order);
+
+			init_new_hugetlb_folio(dst, page_folio(page));
+			list_add(&page->lru, &dst_list);
+		}
+	}
+
+	prep_and_add_allocated_folios(dst, &dst_list);
+
+	mutex_unlock(&dst->resize_lock);
+
+	return rc;
+}
+
+static long demote_pool_huge_page(struct hstate *src, nodemask_t *nodes_allowed,
+				  unsigned long nr_to_demote)
+	__must_hold(&hugetlb_lock)
+{
+	int nr_nodes, node;
+	struct hstate *dst;
+	long rc = 0;
+	long nr_demoted = 0;
+
+	lockdep_assert_held(&hugetlb_lock);
+
+	/* We should never get here if no demote order */
+	if (!src->demote_order) {
+		pr_warn("HugeTLB: NULL demote order passed to demote_pool_huge_page.\n");
+		return -EINVAL;		/* internal error */
+	}
+	dst = size_to_hstate(PAGE_SIZE << src->demote_order);
+
+	for_each_node_mask_to_free(src, nr_nodes, node, nodes_allowed) {
+		LIST_HEAD(list);
+		struct folio *folio, *next;
+
+		list_for_each_entry_safe(folio, next, &src->hugepage_freelists[node], lru) {
+			if (folio_test_hwpoison(folio))
+				continue;
+
+			remove_hugetlb_folio(src, folio, false);
+			list_add(&folio->lru, &list);
+
+			if (++nr_demoted == nr_to_demote)
+				break;
+		}
+
+		spin_unlock_irq(&hugetlb_lock);
+
+		rc = demote_free_hugetlb_folios(src, dst, &list);
+
+		spin_lock_irq(&hugetlb_lock);
+
+		list_for_each_entry_safe(folio, next, &list, lru) {
+			list_del(&folio->lru);
+			add_hugetlb_folio(src, folio, false);
+
+			nr_demoted--;
+		}
+
+		if (rc < 0 || nr_demoted == nr_to_demote)
+			break;
+	}
 
 	/*
 	 * Not absolutely necessary, but for consistency update max_huge_pages
 	 * based on pool changes for the demoted page.
 	 */
-	h->max_huge_pages--;
-	target_hstate->max_huge_pages +=
-		pages_per_huge_page(h) / pages_per_huge_page(target_hstate);
+	src->max_huge_pages -= nr_demoted;
+	dst->max_huge_pages += nr_demoted << (huge_page_order(src) - huge_page_order(dst));
 
-	return rc;
-}
+	if (rc < 0)
+		return rc;
 
-static int demote_pool_huge_page(struct hstate *h, nodemask_t *nodes_allowed)
-	__must_hold(&hugetlb_lock)
-{
-	int nr_nodes, node;
-	struct folio *folio;
-
-	lockdep_assert_held(&hugetlb_lock);
-
-	/* We should never get here if no demote order */
-	if (!h->demote_order) {
-		pr_warn("HugeTLB: NULL demote order passed to demote_pool_huge_page.\n");
-		return -EINVAL;		/* internal error */
-	}
-
-	for_each_node_mask_to_free(h, nr_nodes, node, nodes_allowed) {
-		list_for_each_entry(folio, &h->hugepage_freelists[node], lru) {
-			if (folio_test_hwpoison(folio))
-				continue;
-			return demote_free_hugetlb_folio(h, folio);
-		}
-	}
-
+	if (nr_demoted)
+		return nr_demoted;
 	/*
 	 * Only way to get here is if all pages on free lists are poisoned.
 	 * Return -EBUSY so that caller will not retry.
@@ -4249,6 +4119,8 @@ static ssize_t demote_store(struct kobject *kobj,
 	spin_lock_irq(&hugetlb_lock);
 
 	while (nr_demote) {
+		long rc;
+
 		/*
 		 * Check for available pages to demote each time thorough the
 		 * loop as demote_pool_huge_page will drop hugetlb_lock.
@@ -4261,11 +4133,13 @@ static ssize_t demote_store(struct kobject *kobj,
 		if (!nr_available)
 			break;
 
-		err = demote_pool_huge_page(h, n_mask);
-		if (err)
+		rc = demote_pool_huge_page(h, n_mask, nr_demote);
+		if (rc < 0) {
+			err = rc;
 			break;
+		}
 
-		nr_demote--;
+		nr_demote -= rc;
 	}
 
 	spin_unlock_irq(&hugetlb_lock);
@@ -6048,7 +5922,7 @@ retry_avoidcopy:
 	 * When the original hugepage is shared one, it does not have
 	 * anon_vma prepared.
 	 */
-	ret = vmf_anon_prepare(vmf);
+	ret = __vmf_anon_prepare(vmf);
 	if (unlikely(ret))
 		goto out_release_all;
 
@@ -6247,7 +6121,7 @@ static vm_fault_t hugetlb_no_page(struct address_space *mapping,
 		}
 
 		if (!(vma->vm_flags & VM_MAYSHARE)) {
-			ret = vmf_anon_prepare(vmf);
+			ret = __vmf_anon_prepare(vmf);
 			if (unlikely(ret))
 				goto out;
 		}
@@ -6378,6 +6252,14 @@ static vm_fault_t hugetlb_no_page(struct address_space *mapping,
 	folio_unlock(folio);
 out:
 	hugetlb_vma_unlock_read(vma);
+
+	/*
+	 * We must check to release the per-VMA lock. __vmf_anon_prepare() is
+	 * the only way ret can be set to VM_FAULT_RETRY.
+	 */
+	if (unlikely(ret & VM_FAULT_RETRY))
+		vma_end_read(vma);
+
 	mutex_unlock(&hugetlb_fault_mutex_table[hash]);
 	return ret;
 
@@ -6472,6 +6354,10 @@ vm_fault_t hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 			if (marker & PTE_MARKER_POISONED) {
 				ret = VM_FAULT_HWPOISON_LARGE |
 				      VM_FAULT_SET_HINDEX(hstate_index(h));
+				goto out_mutex;
+			} else if (WARN_ON_ONCE(marker & PTE_MARKER_GUARD)) {
+				/* This isn't supported in hugetlb. */
+				ret = VM_FAULT_SIGSEGV;
 				goto out_mutex;
 			}
 		}
@@ -6599,6 +6485,14 @@ out_ptl:
 	}
 out_mutex:
 	hugetlb_vma_unlock_read(vma);
+
+	/*
+	 * We must check to release the per-VMA lock. __vmf_anon_prepare() in
+	 * hugetlb_wp() is the only way ret can be set to VM_FAULT_RETRY.
+	 */
+	if (unlikely(ret & VM_FAULT_RETRY))
+		vma_end_read(vma);
+
 	mutex_unlock(&hugetlb_fault_mutex_table[hash]);
 	/*
 	 * Generally it's safe to hold refcount during waiting page lock. But
@@ -7211,7 +7105,7 @@ long hugetlb_unreserve_pages(struct inode *inode, long start, long end,
 	return 0;
 }
 
-#ifdef CONFIG_ARCH_WANT_HUGE_PMD_SHARE
+#ifdef CONFIG_HUGETLB_PMD_PAGE_TABLE_SHARING
 static unsigned long page_table_shareable(struct vm_area_struct *svma,
 				struct vm_area_struct *vma,
 				unsigned long addr, pgoff_t idx)
@@ -7373,7 +7267,7 @@ int huge_pmd_unshare(struct mm_struct *mm, struct vm_area_struct *vma,
 	return 1;
 }
 
-#else /* !CONFIG_ARCH_WANT_HUGE_PMD_SHARE */
+#else /* !CONFIG_HUGETLB_PMD_PAGE_TABLE_SHARING */
 
 pte_t *huge_pmd_share(struct mm_struct *mm, struct vm_area_struct *vma,
 		      unsigned long addr, pud_t *pud)
@@ -7396,7 +7290,7 @@ bool want_pmd_share(struct vm_area_struct *vma, unsigned long addr)
 {
 	return false;
 }
-#endif /* CONFIG_ARCH_WANT_HUGE_PMD_SHARE */
+#endif /* CONFIG_HUGETLB_PMD_PAGE_TABLE_SHARING */
 
 #ifdef CONFIG_ARCH_WANT_GENERAL_HUGETLB
 pte_t *huge_pte_alloc(struct mm_struct *mm, struct vm_area_struct *vma,
@@ -7494,7 +7388,7 @@ unsigned long hugetlb_mask_last_page(struct hstate *h)
 /* See description above.  Architectures can provide their own version. */
 __weak unsigned long hugetlb_mask_last_page(struct hstate *h)
 {
-#ifdef CONFIG_ARCH_WANT_HUGE_PMD_SHARE
+#ifdef CONFIG_HUGETLB_PMD_PAGE_TABLE_SHARING
 	if (huge_page_size(h) == PMD_SIZE)
 		return PUD_SIZE - PMD_SIZE;
 #endif
@@ -7503,10 +7397,6 @@ __weak unsigned long hugetlb_mask_last_page(struct hstate *h)
 
 #endif /* CONFIG_ARCH_WANT_GENERAL_HUGETLB */
 
-/*
- * These functions are overwritable if your architecture needs its own
- * behavior.
- */
 bool isolate_hugetlb(struct folio *folio, struct list_head *list)
 {
 	bool ret = true;

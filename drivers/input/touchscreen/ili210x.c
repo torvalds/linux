@@ -12,7 +12,7 @@
 #include <linux/module.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define ILI2XXX_POLL_PERIOD	15
 

@@ -194,6 +194,13 @@ config PINCTRL_DIGICOLOR
 	select PINMUX
 	select GENERIC_PINCONF
 
+config PINCTRL_EP93XX
+	bool
+	depends on ARCH_EP93XX || COMPILE_TEST
+	select PINMUX
+	select GENERIC_PINCONF
+	select MFD_SYSCON
+
 config PINCTRL_EQUILIBRIUM
 	tristate "Generic pinctrl and GPIO driver for Intel Lightning Mountain SoC"
 	depends on OF && HAS_IOMEM
@@ -212,6 +219,21 @@ config PINCTRL_EQUILIBRIUM
 	  control frameworks. It provides interfaces to setup pin muxing, assign
 	  desired pin functions, configure GPIO attributes for LGM SoC pins.
 	  Pin muxing and pin config settings are retrieved from device tree.
+
+config PINCTRL_EYEQ5
+	bool "Mobileye EyeQ5 pinctrl driver"
+	depends on OF
+	depends on MACH_EYEQ5 || COMPILE_TEST
+	select PINMUX
+	select GENERIC_PINCONF
+	select AUXILIARY_BUS
+	default MACH_EYEQ5
+	help
+	  Pin controller driver for the Mobileye EyeQ5 platform. It does both
+	  pin config & pin muxing. It does not handle GPIO.
+
+	  Pin muxing supports two functions for each pin: first is GPIO, second
+	  is pin-dependent. Pin config is about bias & drive strength.
 
 config PINCTRL_GEMINI
 	bool
@@ -245,6 +267,17 @@ config PINCTRL_K210
 	help
 	  Add support for the Canaan Kendryte K210 RISC-V SOC Field
 	  Programmable IO Array (FPIOA) controller.
+
+config PINCTRL_K230
+	bool "Pinctrl driver for the Canaan Kendryte K230 SoC"
+	depends on OF
+	depends on ARCH_CANAAN || COMPILE_TEST
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GENERIC_PINCONF
+	select REGMAP_MMIO
+	help
+	  Add support for the Canaan Kendryte K230 RISC-V SOC pin controller.
 
 config PINCTRL_KEEMBAY
 	tristate "Pinctrl driver for Intel Keem Bay SoC"
@@ -529,6 +562,20 @@ config PINCTRL_TPS6594
 	  This driver can also be built as a module
 	  called tps6594-pinctrl.
 
+config PINCTRL_TH1520
+	tristate "Pinctrl driver for the T-Head TH1520 SoC"
+	depends on ARCH_THEAD || COMPILE_TEST
+	depends on OF
+	select GENERIC_PINMUX_FUNCTIONS
+	select GENERIC_PINCONF
+	select PINMUX
+	help
+	  This is the driver for the pin controller blocks on the
+	  T-Head TH1520 SoC.
+
+	  This driver is needed for RISC-V development boards like
+	  the BeagleV Ahead and the LicheePi 4A.
+
 config PINCTRL_ZYNQ
 	bool "Pinctrl driver for Xilinx Zynq"
 	depends on ARCH_ZYNQ
@@ -583,6 +630,8 @@ source "drivers/pinctrl/qcom/Kconfig"
 source "drivers/pinctrl/realtek/Kconfig"
 source "drivers/pinctrl/renesas/Kconfig"
 source "drivers/pinctrl/samsung/Kconfig"
+source "drivers/pinctrl/sophgo/Kconfig"
+source "drivers/pinctrl/spacemit/Kconfig"
 source "drivers/pinctrl/spear/Kconfig"
 source "drivers/pinctrl/sprd/Kconfig"
 source "drivers/pinctrl/starfive/Kconfig"

@@ -61,7 +61,8 @@ struct btrfs_delayed_ref_node {
 	/*
 	 * If action is BTRFS_ADD_DELAYED_REF, also link this node to
 	 * ref_head->ref_add_list, then we do not need to iterate the
-	 * whole ref_head->ref_list to find BTRFS_ADD_DELAYED_REF nodes.
+	 * refs rbtree in the corresponding delayed ref head
+	 * (struct btrfs_delayed_ref_head::ref_tree).
 	 */
 	struct list_head add_list;
 
@@ -122,12 +123,6 @@ struct btrfs_delayed_extent_op {
 struct btrfs_delayed_ref_head {
 	u64 bytenr;
 	u64 num_bytes;
-	/*
-	 * For insertion into struct btrfs_delayed_ref_root::href_root.
-	 * Keep it in the same cache line as 'bytenr' for more efficient
-	 * searches in the rbtree.
-	 */
-	struct rb_node href_node;
 	/*
 	 * the mutex is held while running the refs, and it is also
 	 * held when checking the sum of reference modifications.
@@ -191,6 +186,11 @@ struct btrfs_delayed_ref_head {
 	bool is_data;
 	bool is_system;
 	bool processing;
+	/*
+	 * Indicate if it's currently in the data structure that tracks head
+	 * refs (struct btrfs_delayed_ref_root::head_refs).
+	 */
+	bool tracked;
 };
 
 enum btrfs_delayed_ref_flags {
@@ -199,30 +199,52 @@ enum btrfs_delayed_ref_flags {
 };
 
 struct btrfs_delayed_ref_root {
-	/* head ref rbtree */
-	struct rb_root_cached href_root;
+	/*
+	 * Track head references.
+	 * The keys correspond to the logical address of the extent ("bytenr")
+	 * right shifted by fs_info->sectorsize_bits. This is both to get a more
+	 * dense index space (optimizes xarray structure) and because indexes in
+	 * xarrays are of "unsigned long" type, meaning they are 32 bits wide on
+	 * 32 bits platforms, limiting the extent range to 4G which is too low
+	 * and makes it unusable (truncated index values) on 32 bits platforms.
+	 * Protected by the spinlock 'lock' defined below.
+	 */
+	struct xarray head_refs;
 
-	/* dirty extent records */
-	struct rb_root dirty_extent_root;
+	/*
+	 * Track dirty extent records.
+	 * The keys correspond to the logical address of the extent ("bytenr")
+	 * right shifted by fs_info->sectorsize_bits, for same reasons as above.
+	 */
+	struct xarray dirty_extents;
 
-	/* this spin lock protects the rbtree and the entries inside */
+	/*
+	 * Protects the xarray head_refs, its entries and the following fields:
+	 * num_heads, num_heads_ready, pending_csums and run_delayed_start.
+	 */
 	spinlock_t lock;
 
-	/* how many delayed ref updates we've queued, used by the
-	 * throttling code
-	 */
-	atomic_t num_entries;
-
-	/* total number of head nodes in tree */
+	/* Total number of head refs, protected by the spinlock 'lock'. */
 	unsigned long num_heads;
 
-	/* total number of head nodes ready for processing */
+	/*
+	 * Total number of head refs ready for processing, protected by the
+	 * spinlock 'lock'.
+	 */
 	unsigned long num_heads_ready;
 
+	/*
+	 * Track space reserved for deleting csums of data extents.
+	 * Protected by the spinlock 'lock'.
+	 */
 	u64 pending_csums;
 
 	unsigned long flags;
 
+	/*
+	 * Track from which bytenr to start searching ref heads.
+	 * Protected by the spinlock 'lock'.
+	 */
 	u64 run_delayed_start;
 
 	/*
@@ -364,19 +386,22 @@ void btrfs_merge_delayed_refs(struct btrfs_fs_info *fs_info,
 			      struct btrfs_delayed_ref_head *head);
 
 struct btrfs_delayed_ref_head *
-btrfs_find_delayed_ref_head(struct btrfs_delayed_ref_root *delayed_refs,
+btrfs_find_delayed_ref_head(const struct btrfs_fs_info *fs_info,
+			    struct btrfs_delayed_ref_root *delayed_refs,
 			    u64 bytenr);
-int btrfs_delayed_ref_lock(struct btrfs_delayed_ref_root *delayed_refs,
-			   struct btrfs_delayed_ref_head *head);
 static inline void btrfs_delayed_ref_unlock(struct btrfs_delayed_ref_head *head)
 {
 	mutex_unlock(&head->mutex);
 }
-void btrfs_delete_ref_head(struct btrfs_delayed_ref_root *delayed_refs,
+void btrfs_delete_ref_head(const struct btrfs_fs_info *fs_info,
+			   struct btrfs_delayed_ref_root *delayed_refs,
 			   struct btrfs_delayed_ref_head *head);
 
 struct btrfs_delayed_ref_head *btrfs_select_ref_head(
+		const struct btrfs_fs_info *fs_info,
 		struct btrfs_delayed_ref_root *delayed_refs);
+void btrfs_unselect_ref_head(struct btrfs_delayed_ref_root *delayed_refs,
+			     struct btrfs_delayed_ref_head *head);
 
 int btrfs_check_delayed_seq(struct btrfs_fs_info *fs_info, u64 seq);
 
@@ -391,6 +416,7 @@ int btrfs_delayed_refs_rsv_refill(struct btrfs_fs_info *fs_info,
 bool btrfs_check_space_for_delayed_refs(struct btrfs_fs_info *fs_info);
 bool btrfs_find_delayed_tree_ref(struct btrfs_delayed_ref_head *head,
 				 u64 root, u64 parent);
+void btrfs_destroy_delayed_refs(struct btrfs_transaction *trans);
 
 static inline u64 btrfs_delayed_ref_owner(struct btrfs_delayed_ref_node *node)
 {

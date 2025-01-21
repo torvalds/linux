@@ -88,6 +88,8 @@
 				clocks = <&clks IMX6UL_CLK_UART8_IPG>,
 					 <&clks IMX6UL_CLK_UART8_SERIAL>;
 				clock-names = "ipg", "per";
+				dmas = <&sdma 45 4 0>, <&sdma 46 4 0>;
+				dma-names = "rx", "tx";
 				status = "disabled";
 			};
 		};

@@ -8,7 +8,8 @@
 #include <linux/spinlock.h>
 #include <linux/netfilter/nf_conntrack_common.h>
 #include <linux/netfilter/nf_tables.h>
-#include <net/ip.h> /* for ipv4 options. */
+#include <net/ip.h>
+#include <net/inet_dscp.h>
 #include <net/netfilter/nf_tables.h>
 #include <net/netfilter/nf_tables_core.h>
 #include <net/netfilter/nf_conntrack_core.h>
@@ -235,7 +236,7 @@ static int nft_flow_route(const struct nft_pktinfo *pkt,
 		fl.u.ip4.saddr = ct->tuplehash[!dir].tuple.src.u3.ip;
 		fl.u.ip4.flowi4_oif = nft_in(pkt)->ifindex;
 		fl.u.ip4.flowi4_iif = this_dst->dev->ifindex;
-		fl.u.ip4.flowi4_tos = RT_TOS(ip_hdr(pkt->skb)->tos);
+		fl.u.ip4.flowi4_tos = inet_dscp_to_dsfield(ip4h_dscp(ip_hdr(pkt->skb)));
 		fl.u.ip4.flowi4_mark = pkt->skb->mark;
 		fl.u.ip4.flowi4_flags = FLOWI_FLAG_ANYSRC;
 		break;
@@ -380,8 +381,7 @@ out:
 }
 
 static int nft_flow_offload_validate(const struct nft_ctx *ctx,
-				     const struct nft_expr *expr,
-				     const struct nft_data **data)
+				     const struct nft_expr *expr)
 {
 	unsigned int hook_mask = (1 << NF_INET_FORWARD);
 
@@ -409,8 +409,8 @@ static int nft_flow_offload_init(const struct nft_ctx *ctx,
 	if (!tb[NFTA_FLOW_TABLE_NAME])
 		return -EINVAL;
 
-	flowtable = nft_flowtable_lookup(ctx->table, tb[NFTA_FLOW_TABLE_NAME],
-					 genmask);
+	flowtable = nft_flowtable_lookup(ctx->net, ctx->table,
+					 tb[NFTA_FLOW_TABLE_NAME], genmask);
 	if (IS_ERR(flowtable))
 		return PTR_ERR(flowtable);
 

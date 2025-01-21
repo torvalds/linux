@@ -438,18 +438,6 @@ static irqreturn_t rpr0521_drdy_irq_thread(int irq, void *private)
 	return IRQ_NONE;
 }
 
-static irqreturn_t rpr0521_trigger_consumer_store_time(int irq, void *p)
-{
-	struct iio_poll_func *pf = p;
-	struct iio_dev *indio_dev = pf->indio_dev;
-
-	/* Other trigger polls store time here. */
-	if (!iio_trigger_using_own(indio_dev))
-		pf->timestamp = iio_get_time_ns(indio_dev);
-
-	return IRQ_WAKE_THREAD;
-}
-
 static irqreturn_t rpr0521_trigger_consumer_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
@@ -1016,7 +1004,7 @@ static int rpr0521_probe(struct i2c_client *client)
 		/* Trigger consumer setup */
 		ret = devm_iio_triggered_buffer_setup(indio_dev->dev.parent,
 			indio_dev,
-			rpr0521_trigger_consumer_store_time,
+			iio_pollfunc_store_time,
 			rpr0521_trigger_consumer_handler,
 			&rpr0521_buffer_setup_ops);
 		if (ret < 0) {

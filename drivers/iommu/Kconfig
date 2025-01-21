@@ -151,7 +151,7 @@ config OF_IOMMU
 # IOMMU-agnostic DMA-mapping layer
 config IOMMU_DMA
 	def_bool ARM64 || X86 || S390
-	select DMA_OPS
+	select DMA_OPS_HELPERS
 	select IOMMU_API
 	select IOMMU_IOVA
 	select IRQ_MSI_IOMMU
@@ -195,6 +195,7 @@ config MSM_IOMMU
 source "drivers/iommu/amd/Kconfig"
 source "drivers/iommu/intel/Kconfig"
 source "drivers/iommu/iommufd/Kconfig"
+source "drivers/iommu/riscv/Kconfig"
 
 config IRQ_REMAP
 	bool "Support for Interrupt Remapping"
@@ -415,6 +416,15 @@ config ARM_SMMU_V3_SVA
 	  Say Y here if your system supports SVA extensions such as PCIe PASID
 	  and PRI.
 
+config ARM_SMMU_V3_IOMMUFD
+	bool "Enable IOMMUFD features for ARM SMMUv3 (EXPERIMENTAL)"
+	depends on IOMMUFD
+	help
+	  Support for IOMMUFD features intended to support virtual machines
+	  with accelerated virtual IOMMUs.
+
+	  Say Y here if you are doing development and testing on this feature.
+
 config ARM_SMMU_V3_KUNIT_TEST
 	tristate "KUnit tests for arm-smmu-v3 driver"  if !KUNIT_ALL_TESTS
 	depends on KUNIT
@@ -424,6 +434,17 @@ config ARM_SMMU_V3_KUNIT_TEST
 	  Enable this option to unit-test arm-smmu-v3 driver functions.
 
 	  If unsure, say N.
+
+config TEGRA241_CMDQV
+	bool "NVIDIA Tegra241 CMDQ-V extension support for ARM SMMUv3"
+	depends on ACPI
+	help
+	  Support for NVIDIA CMDQ-Virtualization extension for ARM SMMUv3. The
+	  CMDQ-V extension is similar to v3.3 ECMDQ for multi command queues
+	  support, except with virtualization capabilities.
+
+	  Say Y here if your system is NVIDIA Tegra241 (Grace) or it has the same
+	  CMDQ-V extension.
 endif
 
 config S390_IOMMU

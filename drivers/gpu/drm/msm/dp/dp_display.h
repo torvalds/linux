@@ -27,18 +27,18 @@ struct msm_dp {
 
 	hdmi_codec_plugged_cb plugged_cb;
 
-	struct dp_audio *dp_audio;
+	struct msm_dp_audio *msm_dp_audio;
 	bool psr_supported;
 };
 
-int dp_display_set_plugged_cb(struct msm_dp *dp_display,
+int msm_dp_display_set_plugged_cb(struct msm_dp *msm_dp_display,
 		hdmi_codec_plugged_cb fn, struct device *codec_dev);
-int dp_display_get_modes(struct msm_dp *dp_display);
-bool dp_display_check_video_test(struct msm_dp *dp_display);
-int dp_display_get_test_bpp(struct msm_dp *dp_display);
-void dp_display_signal_audio_start(struct msm_dp *dp_display);
-void dp_display_signal_audio_complete(struct msm_dp *dp_display);
-void dp_display_set_psr(struct msm_dp *dp, bool enter);
-void dp_display_debugfs_init(struct msm_dp *dp_display, struct dentry *dentry, bool is_edp);
+int msm_dp_display_get_modes(struct msm_dp *msm_dp_display);
+bool msm_dp_display_check_video_test(struct msm_dp *msm_dp_display);
+int msm_dp_display_get_test_bpp(struct msm_dp *msm_dp_display);
+void msm_dp_display_signal_audio_start(struct msm_dp *msm_dp_display);
+void msm_dp_display_signal_audio_complete(struct msm_dp *msm_dp_display);
+void msm_dp_display_set_psr(struct msm_dp *dp, bool enter);
+void msm_dp_display_debugfs_init(struct msm_dp *msm_dp_display, struct dentry *dentry, bool is_edp);
 
 #endif /* _DP_DISPLAY_H_ */

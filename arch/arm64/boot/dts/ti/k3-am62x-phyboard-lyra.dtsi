@@ -82,8 +82,8 @@
 		};
 
 		sound_master: simple-audio-card,codec {
-				sound-dai = <&audio_codec>;
-				clocks = <&audio_refclk1>;
+			sound-dai = <&audio_codec>;
+			clocks = <&audio_refclk1>;
 		};
 	};
 
@@ -433,8 +433,6 @@
 			0 0 0 0
 			0 0 0 0
 	>;
-	tx-num-evt = <32>;
-	rx-num-evt = <32>;
 	status = "okay";
 };
 

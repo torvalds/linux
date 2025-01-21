@@ -195,23 +195,19 @@ static void xgbe_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 
 	switch (stringset) {
 	case ETH_SS_STATS:
-		for (i = 0; i < XGBE_STATS_COUNT; i++) {
-			memcpy(data, xgbe_gstring_stats[i].stat_string,
-			       ETH_GSTRING_LEN);
-			data += ETH_GSTRING_LEN;
-		}
+		for (i = 0; i < XGBE_STATS_COUNT; i++)
+			ethtool_puts(&data, xgbe_gstring_stats[i].stat_string);
+
 		for (i = 0; i < pdata->tx_ring_count; i++) {
-			sprintf(data, "txq_%u_packets", i);
-			data += ETH_GSTRING_LEN;
-			sprintf(data, "txq_%u_bytes", i);
-			data += ETH_GSTRING_LEN;
+			ethtool_sprintf(&data, "txq_%u_packets", i);
+			ethtool_sprintf(&data, "txq_%u_bytes", i);
 		}
+
 		for (i = 0; i < pdata->rx_ring_count; i++) {
-			sprintf(data, "rxq_%u_packets", i);
-			data += ETH_GSTRING_LEN;
-			sprintf(data, "rxq_%u_bytes", i);
-			data += ETH_GSTRING_LEN;
+			ethtool_sprintf(&data, "rxq_%u_packets", i);
+			ethtool_sprintf(&data, "rxq_%u_bytes", i);
 		}
+
 		break;
 	}
 }
@@ -582,16 +578,12 @@ static int xgbe_get_ts_info(struct net_device *netdev,
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
 
 	ts_info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
-				   SOF_TIMESTAMPING_RX_SOFTWARE |
-				   SOF_TIMESTAMPING_SOFTWARE |
 				   SOF_TIMESTAMPING_TX_HARDWARE |
 				   SOF_TIMESTAMPING_RX_HARDWARE |
 				   SOF_TIMESTAMPING_RAW_HARDWARE;
 
 	if (pdata->ptp_clock)
 		ts_info->phc_index = ptp_clock_index(pdata->ptp_clock);
-	else
-		ts_info->phc_index = -1;
 
 	ts_info->tx_types = (1 << HWTSTAMP_TX_OFF) | (1 << HWTSTAMP_TX_ON);
 	ts_info->rx_filters = (1 << HWTSTAMP_FILTER_NONE) |

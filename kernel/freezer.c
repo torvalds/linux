@@ -72,7 +72,7 @@ bool __refrigerator(bool check_kthr_stop)
 		bool freeze;
 
 		raw_spin_lock_irq(&current->pi_lock);
-		set_current_state(TASK_FROZEN);
+		WRITE_ONCE(current->__state, TASK_FROZEN);
 		/* unstale saved_state so that __thaw_task() will wake us up */
 		current->saved_state = TASK_RUNNING;
 		raw_spin_unlock_irq(&current->pi_lock);
@@ -109,7 +109,12 @@ static int __set_task_frozen(struct task_struct *p, void *arg)
 {
 	unsigned int state = READ_ONCE(p->__state);
 
-	if (p->on_rq)
+	/*
+	 * Allow freezing the sched_delayed tasks; they will not execute until
+	 * ttwu() fixes them up, so it is safe to swap their state now, instead
+	 * of waiting for them to get fully dequeued.
+	 */
+	if (task_is_runnable(p))
 		return 0;
 
 	if (p != current && task_curr(p))

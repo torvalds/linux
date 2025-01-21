@@ -383,6 +383,7 @@ void smc_sk_init(struct net *net, struct sock *sk, int protocol)
 	smc->limit_smc_hs = net->smc.limit_smc_hs;
 	smc->use_fallback = false; /* assume rdma capability first */
 	smc->fallback_rsn = 0;
+	smc_close_init(smc);
 }
 
 static struct sock *smc_sock_alloc(struct net *net, struct socket *sock,
@@ -1299,7 +1300,6 @@ static int smc_connect_rdma(struct smc_sock *smc,
 		goto connect_abort;
 	}
 
-	smc_close_init(smc);
 	smc_rx_init(smc);
 
 	if (ini->first_contact_local) {
@@ -1435,7 +1435,6 @@ static int smc_connect_ism(struct smc_sock *smc,
 			goto connect_abort;
 		}
 	}
-	smc_close_init(smc);
 	smc_rx_init(smc);
 	smc_tx_init(smc);
 
@@ -1466,10 +1465,6 @@ connect_abort:
 static int smc_connect_check_aclc(struct smc_init_info *ini,
 				  struct smc_clc_msg_accept_confirm *aclc)
 {
-	if (aclc->hdr.typev1 != SMC_TYPE_R &&
-	    aclc->hdr.typev1 != SMC_TYPE_D)
-		return SMC_CLC_DECL_MODEUNSUPP;
-
 	if (aclc->hdr.version >= SMC_V2) {
 		if ((aclc->hdr.typev1 == SMC_TYPE_R &&
 		     !smcr_indicated(ini->smc_type_v2)) ||
@@ -1523,10 +1518,6 @@ static int __smc_connect(struct smc_sock *smc)
 		ini->smcd_version &= ~SMC_V1;
 		ini->smcr_version = 0;
 		ini->smc_type_v1 = SMC_TYPE_N;
-		if (!ini->smcd_version) {
-			rc = SMC_CLC_DECL_GETVLANERR;
-			goto fallback;
-		}
 	}
 
 	rc = smc_find_proposal_devices(smc, ini);
@@ -1909,6 +1900,7 @@ static void smc_listen_out(struct smc_sock *new_smc)
 	if (tcp_sk(new_smc->clcsock->sk)->syn_smc)
 		atomic_dec(&lsmc->queued_smc_hs);
 
+	release_sock(newsmcsk); /* lock in smc_listen_work() */
 	if (lsmc->sk.sk_state == SMC_LISTEN) {
 		lock_sock_nested(&lsmc->sk, SINGLE_DEPTH_NESTING);
 		smc_accept_enqueue(&lsmc->sk, newsmcsk);
@@ -2430,6 +2422,7 @@ static void smc_listen_work(struct work_struct *work)
 	u8 accept_version;
 	int rc = 0;
 
+	lock_sock(&new_smc->sk); /* release in smc_listen_out() */
 	if (new_smc->listen_smc->sk.sk_state != SMC_LISTEN)
 		return smc_listen_out_err(new_smc);
 
@@ -2487,7 +2480,6 @@ static void smc_listen_work(struct work_struct *work)
 		goto out_decl;
 
 	mutex_lock(&smc_server_lgr_pending);
-	smc_close_init(new_smc);
 	smc_rx_init(new_smc);
 	smc_tx_init(new_smc);
 
@@ -3367,8 +3359,10 @@ static int __smc_create(struct net *net, struct socket *sock, int protocol,
 	else
 		rc = smc_create_clcsk(net, sk, family);
 
-	if (rc)
+	if (rc) {
 		sk_common_release(sk);
+		sock->sk = NULL;
+	}
 out:
 	return rc;
 }

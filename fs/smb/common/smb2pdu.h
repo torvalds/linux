@@ -6,7 +6,7 @@
  * Note that, due to trying to use names similar to the protocol specifications,
  * there are many mixed case field names in the structures below.  Although
  * this does not match typical Linux kernel style, it is necessary to be
- * able to match against the protocol specfication.
+ * able to match against the protocol specification.
  *
  * SMB2 commands
  * Some commands have minimal (wct=0,bcc=0), or uninteresting, responses
@@ -491,7 +491,7 @@ struct smb2_encryption_neg_context {
 	__le16	ContextType; /* 2 */
 	__le16	DataLength;
 	__le32	Reserved;
-	/* CipherCount usally 2, but can be 3 when AES256-GCM enabled */
+	/* CipherCount usually 2, but can be 3 when AES256-GCM enabled */
 	__le16	CipherCount; /* AES128-GCM and AES128-CCM by default */
 	__le16	Ciphers[];
 } __packed;
@@ -1061,7 +1061,7 @@ struct smb2_server_client_notification {
 #define IL_IMPERSONATION	cpu_to_le32(0x00000002)
 #define IL_DELEGATE		cpu_to_le32(0x00000003)
 
-/* File Attrubutes */
+/* File Attributes */
 #define FILE_ATTRIBUTE_READONLY			0x00000001
 #define FILE_ATTRIBUTE_HIDDEN			0x00000002
 #define FILE_ATTRIBUTE_SYSTEM			0x00000004
@@ -1551,6 +1551,15 @@ struct reparse_symlink_data_buffer {
 } __packed;
 
 /* See MS-FSCC 2.1.2.6 and cifspdu.h for struct reparse_posix_data */
+
+/* For IO_REPARSE_TAG_LX_SYMLINK */
+struct reparse_wsl_symlink_data_buffer {
+	__le32	ReparseTag;
+	__le16	ReparseDataLength;
+	__u16	Reserved;
+	__le32	Flags;
+	__u8	PathBuffer[]; /* Variable Length UTF-8 string without nul-term */
+} __packed;
 
 struct validate_negotiate_info_req {
 	__le32 Capabilities;

@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/watchdog/airoha,en7581-wdt.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Airoha EN7581 Watchdog Timer
+
+maintainers:
+  - Christian Marangi <ansuelsmth@gmail.com>
+
+allOf:
+  - $ref: watchdog.yaml#
+
+properties:
+  compatible:
+    const: airoha,en7581-wdt
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    description: BUS clock (timer ticks at half the BUS clock)
+    maxItems: 1
+
+  clock-names:
+    const: bus
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/en7523-clk.h>
+
+    watchdog@1fbf0100 {
+        compatible = "airoha,en7581-wdt";
+        reg = <0x1fbf0100 0x3c>;
+
+        clocks = <&scuclk EN7523_CLK_BUS>;
+        clock-names = "bus";
+    };

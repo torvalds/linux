@@ -5,7 +5,7 @@
 #include <linux/ceph/ceph_debug.h>
 #include <linux/ceph/osd_client.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/backing-dev.h>
 #include <linux/completion.h>
 #include <linux/exportfs.h>
@@ -60,7 +60,7 @@
 
 /* max size of osd read request, limited by libceph */
 #define CEPH_MAX_READ_SIZE              CEPH_MSG_MAX_DATA_LEN
-/* osd has a configurable limitaion of max write size.
+/* osd has a configurable limitation of max write size.
  * CEPH_MSG_MAX_DATA_LEN should be small enough. */
 #define CEPH_MAX_WRITE_SIZE		CEPH_MSG_MAX_DATA_LEN
 #define CEPH_RASIZE_DEFAULT             (8192*1024)    /* max readahead */
@@ -796,7 +796,6 @@ extern int __ceph_mark_dirty_caps(struct ceph_inode_info *ci, int mask,
 
 extern int __ceph_caps_revoking_other(struct ceph_inode_info *ci,
 				      struct ceph_cap *ocap, int mask);
-extern int ceph_caps_revoking(struct ceph_inode_info *ci, int mask);
 extern int __ceph_caps_used(struct ceph_inode_info *ci);
 
 static inline bool __ceph_is_file_opened(struct ceph_inode_info *ci)
@@ -1056,8 +1055,6 @@ extern int ceph_fill_trace(struct super_block *sb,
 extern int ceph_readdir_prepopulate(struct ceph_mds_request *req,
 				    struct ceph_mds_session *session);
 
-extern int ceph_inode_holds_cap(struct inode *inode, int mask);
-
 extern bool ceph_inode_set_size(struct inode *inode, loff_t size);
 extern void __ceph_do_pending_vmtruncate(struct inode *inode);
 
@@ -1208,10 +1205,6 @@ static inline void ceph_init_inode_acls(struct inode *inode,
 					struct ceph_acl_sec_ctx *as_ctx)
 {
 }
-static inline int ceph_acl_chmod(struct dentry *dentry, struct inode *inode)
-{
-	return 0;
-}
 
 static inline void ceph_forget_all_cached_acls(struct inode *inode)
 {
@@ -1270,6 +1263,7 @@ extern bool __ceph_should_report_size(struct ceph_inode_info *ci);
 extern void ceph_check_caps(struct ceph_inode_info *ci, int flags);
 extern unsigned long ceph_check_delayed_caps(struct ceph_mds_client *mdsc);
 extern void ceph_flush_dirty_caps(struct ceph_mds_client *mdsc);
+extern void ceph_flush_cap_releases(struct ceph_mds_client *mdsc);
 extern int  ceph_drop_caps_for_unlink(struct inode *inode);
 extern int ceph_encode_inode_release(void **p, struct inode *inode,
 				     int mds, int drop, int unless, int force);

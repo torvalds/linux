@@ -379,7 +379,9 @@ properties:
 
       - description: i.MX6Q PHYTEC phyFLEX-i.MX6
         items:
-          - const: phytec,imx6q-pbab01    # PHYTEC phyFLEX carrier board
+          - enum:
+              - comvetia,imx6q-lxr        # Comvetia LXR board
+              - phytec,imx6q-pbab01       # PHYTEC phyFLEX carrier board
           - const: phytec,imx6q-pfla02    # PHYTEC phyFLEX-i.MX6 Quad
           - const: fsl,imx6q
 
@@ -523,9 +525,11 @@ properties:
           - const: dfi,fs700e-m60
           - const: fsl,imx6dl
 
-      - description: i.MX6DL DHCOM PicoITX Board
+      - description: i.MX6DL DHCOM based Boards
         items:
-          - const: dh,imx6dl-dhcom-picoitx
+          - enum:
+              - dh,imx6dl-dhcom-pdk2         # i.MX6DL DHCOM SoM on PDK2 board
+              - dh,imx6dl-dhcom-picoitx      # i.MX6DL DHCOM SoM on PicoITX board
           - const: dh,imx6dl-dhcom-som
           - const: fsl,imx6dl
 
@@ -618,6 +622,14 @@ properties:
               - fsl,imx6sll-evk
               - kobo,clarahd
               - kobo,librah2o
+          - const: fsl,imx6sll
+
+      - description: i.MX6SLL Kobo Clara 2e Rev. A/B
+        items:
+          - enum:
+              - kobo,clara2e-a
+              - kobo,clara2e-b
+          - const: kobo,clara2e
           - const: fsl,imx6sll
 
       - description: i.MX6SX based Boards
@@ -809,19 +821,19 @@ properties:
           - const: kontron,sl-imx6ull   # Kontron SL i.MX6ULL SoM
           - const: fsl,imx6ull
 
-      - description: TQ Systems TQMa6ULLx SoM on MBa6ULx board
+      - description: TQ-Systems TQMa6ULLx SoM on MBa6ULx board
         items:
           - enum:
-              - tq,imx6ull-tqma6ull2-mba6ulx
-          - const: tq,imx6ull-tqma6ull2      # MCIMX6Y2
+              - tq,imx6ull-tqma6ull2-mba6ulx # TQMa6ULL socketable SoM with MCIMX6Y2 on MBa6ULx EVK
+          - const: tq,imx6ull-tqma6ull2      # TQMa6ULL socketable SoM with MCIMX6Y2
           - const: fsl,imx6ull
 
-      - description: TQ Systems TQMa6ULLxL SoM on MBa6ULx[L] board
+      - description: TQ-Systems TQMa6ULLxL SoM on MBa6ULx[L] board
         items:
           - enum:
-              - tq,imx6ull-tqma6ull2l-mba6ulx # using LGA adapter
-              - tq,imx6ull-tqma6ull2l-mba6ulxl
-          - const: tq,imx6ull-tqma6ull2l      # MCIMX6Y2, LGA SoM variant
+              - tq,imx6ull-tqma6ull2l-mba6ulx  # TQMa6ULLxL LGA SoM with socketable Adapter on MBa6ULx EVK
+              - tq,imx6ull-tqma6ull2l-mba6ulxl # TQMa6ULLxL LGA SoM on MBa6ULxL gateway board
+          - const: tq,imx6ull-tqma6ull2l       # TQMa6ULLxL LGA SoM with MCIMX6Y2
           - const: fsl,imx6ull
 
       - description: Seeed Stuido i.MX6ULL SoM on dev boards
@@ -939,8 +951,8 @@ properties:
               - fsl,imx8mm-ddr4-evk       # i.MX8MM DDR4 EVK Board
               - fsl,imx8mm-evk            # i.MX8MM EVK Board
               - fsl,imx8mm-evkb           # i.MX8MM EVKB Board
+              - gateworks,imx8mm-gw75xx-0x # i.MX8MM Gateworks Board
               - gateworks,imx8mm-gw7904
-              - gateworks,imx8mm-gw7905-0x # i.MX8MM Gateworks Board
               - gw,imx8mm-gw71xx-0x       # i.MX8MM Gateworks Development Kit
               - gw,imx8mm-gw72xx-0x       # i.MX8MM Gateworks Development Kit
               - gw,imx8mm-gw73xx-0x       # i.MX8MM Gateworks Development Kit
@@ -953,7 +965,6 @@ properties:
               - toradex,verdin-imx8mm     # Verdin iMX8M Mini Modules
               - toradex,verdin-imx8mm-nonwifi  # Verdin iMX8M Mini Modules without Wi-Fi / BT
               - toradex,verdin-imx8mm-wifi  # Verdin iMX8M Mini Wi-Fi / BT Modules
-              - variscite,var-som-mx8mm   # i.MX8MM Variscite VAR-SOM-MX8MM module
               - prt,prt8mm                # i.MX8MM Protonic PRT8MM Board
           - const: fsl,imx8mm
 
@@ -996,6 +1007,7 @@ properties:
               - menlo,mx8menlo                       # Verdin iMX8M Mini Module on i.MX8MM Menlo board
               - toradex,verdin-imx8mm-nonwifi-dahlia # Verdin iMX8M Mini Module on Dahlia
               - toradex,verdin-imx8mm-nonwifi-dev    # Verdin iMX8M Mini Module on Verdin Development Board
+              - toradex,verdin-imx8mm-nonwifi-ivy    # Verdin iMX8M Mini Module on Ivy
               - toradex,verdin-imx8mm-nonwifi-mallow # Verdin iMX8M Mini Module on Mallow
               - toradex,verdin-imx8mm-nonwifi-yavia  # Verdin iMX8M Mini Module on Yavia
           - const: toradex,verdin-imx8mm-nonwifi     # Verdin iMX8M Mini Module without Wi-Fi / BT
@@ -1007,6 +1019,7 @@ properties:
           - enum:
               - toradex,verdin-imx8mm-wifi-dahlia # Verdin iMX8M Mini Wi-Fi / BT Module on Dahlia
               - toradex,verdin-imx8mm-wifi-dev    # Verdin iMX8M Mini Wi-Fi / BT M. on Verdin Development B.
+              - toradex,verdin-imx8mm-wifi-ivy    # Verdin iMX8M Mini Wi-Fi / BT Module on Ivy
               - toradex,verdin-imx8mm-wifi-mallow # Verdin iMX8M Mini Wi-Fi / BT Module on Mallow
               - toradex,verdin-imx8mm-wifi-yavia  # Verdin iMX8M Mini Wi-Fi / BT Module on Yavia
           - const: toradex,verdin-imx8mm-wifi     # Verdin iMX8M Mini Wi-Fi / BT Module
@@ -1082,13 +1095,15 @@ properties:
               - gateworks,imx8mp-gw72xx-2x # i.MX8MP Gateworks Board
               - gateworks,imx8mp-gw73xx-2x # i.MX8MP Gateworks Board
               - gateworks,imx8mp-gw74xx   # i.MX8MP Gateworks Board
-              - gateworks,imx8mp-gw7905-2x # i.MX8MP Gateworks Board
+              - gateworks,imx8mp-gw75xx-2x # i.MX8MP Gateworks Board
+              - gateworks,imx8mp-gw82xx-2x # i.MX8MP Gateworks Board
               - skov,imx8mp-skov-revb-hdmi # SKOV i.MX8MP climate control without panel
               - skov,imx8mp-skov-revb-lt6 # SKOV i.MX8MP climate control with 7” panel
               - skov,imx8mp-skov-revb-mi1010ait-1cp1 # SKOV i.MX8MP climate control with 10.1" panel
               - toradex,verdin-imx8mp     # Verdin iMX8M Plus Modules
               - toradex,verdin-imx8mp-nonwifi  # Verdin iMX8M Plus Modules without Wi-Fi / BT
               - toradex,verdin-imx8mp-wifi  # Verdin iMX8M Plus Wi-Fi / BT Modules
+              - ysoft,imx8mp-iota2-lumpy  # Y Soft i.MX8MP IOTA2 Lumpy Board
           - const: fsl,imx8mp
 
       - description: Avnet (MSC Branded) Boards with SM2S i.MX8M Plus Modules
@@ -1098,11 +1113,19 @@ properties:
           - const: avnet,sm2s-imx8mp              # SM2S-IMX8PLUS SoM
           - const: fsl,imx8mp
 
+      - description: Boundary Device Nitrogen8MP Universal SMARC Carrier Board
+        items:
+          - const: boundary,imx8mp-nitrogen-smarc-universal-board
+          - const: boundary,imx8mp-nitrogen-smarc-som
+          - const: fsl,imx8mp
+
       - description: i.MX8MP DHCOM based Boards
         items:
           - enum:
+              - dh,imx8mp-dhcom-drc02        # i.MX8MP DHCOM SoM on DRC02 board
               - dh,imx8mp-dhcom-pdk2         # i.MX8MP DHCOM SoM on PDK2 board
               - dh,imx8mp-dhcom-pdk3         # i.MX8MP DHCOM SoM on PDK3 board
+              - dh,imx8mp-dhcom-picoitx      # i.MX8MP DHCOM SoM on PicoITX board
           - const: dh,imx8mp-dhcom-som       # i.MX8MP DHCOM SoM
           - const: fsl,imx8mp
 
@@ -1111,6 +1134,19 @@ properties:
           - enum:
               - engicam,icore-mx8mp-edimm2.2       # i.MX8MP Engicam i.Core MX8M Plus EDIMM2.2 Starter Kit
           - const: engicam,icore-mx8mp             # i.MX8MP Engicam i.Core MX8M Plus SoM
+          - const: fsl,imx8mp
+
+      - description: Kontron i.MX8MP OSM-S SoM based Boards
+        items:
+          - const: kontron,imx8mp-bl-osm-s  # Kontron BL i.MX8MP OSM-S Board
+          - const: kontron,imx8mp-osm-s     # Kontron i.MX8MP OSM-S SoM
+          - const: fsl,imx8mp
+
+      - description: Kontron i.MX8MP SMARC based Boards
+        items:
+          - const: kontron,imx8mp-smarc-eval-carrier  # Kontron i.MX8MP SMARC Eval Carrier
+          - const: kontron,imx8mp-smarc               # Kontron i.MX8MP SMARC Module
+          - const: kontron,imx8mp-osm-s               # Kontron i.MX8MP OSM-S SoM
           - const: fsl,imx8mp
 
       - description: PHYTEC phyCORE-i.MX8MP SoM based boards
@@ -1138,6 +1174,7 @@ properties:
           - enum:
               - toradex,verdin-imx8mp-nonwifi-dahlia # Verdin iMX8M Plus Module on Dahlia
               - toradex,verdin-imx8mp-nonwifi-dev    # Verdin iMX8M Plus Module on Verdin Development Board
+              - toradex,verdin-imx8mp-nonwifi-ivy    # Verdin iMX8M Plus Module on Ivy
               - toradex,verdin-imx8mp-nonwifi-mallow # Verdin iMX8M Plus Module on Mallow
               - toradex,verdin-imx8mp-nonwifi-yavia  # Verdin iMX8M Plus Module on Yavia
           - const: toradex,verdin-imx8mp-nonwifi     # Verdin iMX8M Plus Module without Wi-Fi / BT
@@ -1149,6 +1186,7 @@ properties:
           - enum:
               - toradex,verdin-imx8mp-wifi-dahlia # Verdin iMX8M Plus Wi-Fi / BT Module on Dahlia
               - toradex,verdin-imx8mp-wifi-dev    # Verdin iMX8M Plus Wi-Fi / BT M. on Verdin Development B.
+              - toradex,verdin-imx8mp-wifi-ivy    # Verdin iMX8M Plus Wi-Fi / BT Module on Ivy
               - toradex,verdin-imx8mp-wifi-mallow # Verdin iMX8M Plus Wi-Fi / BT Module on Mallow
               - toradex,verdin-imx8mp-wifi-yavia  # Verdin iMX8M Plus Wi-Fi / BT Module on Yavia
           - const: toradex,verdin-imx8mp-wifi     # Verdin iMX8M Plus Wi-Fi / BT Module
@@ -1166,6 +1204,12 @@ properties:
               - tq,imx8mp-tqma8mpql-mba8mpxl      # TQ-Systems GmbH i.MX8MP TQMa8MPQL SOM on MBa8MPxL
               - tq,imx8mp-tqma8mpql-mba8mp-ras314 # TQ-Systems GmbH i.MX8MP TQMa8MPQL SOM on MBa8MP-RAS314
           - const: tq,imx8mp-tqma8mpql            # TQ-Systems GmbH i.MX8MP TQMa8MPQL SOM
+          - const: fsl,imx8mp
+
+      - description: Variscite VAR-SOM-MX8M Plus based boards
+        items:
+          - const: variscite,var-som-mx8mp-symphony
+          - const: variscite,var-som-mx8mp
           - const: fsl,imx8mp
 
       - description: i.MX8MQ based Boards
@@ -1293,6 +1337,7 @@ properties:
           - enum:
               - fsl,imx93-9x9-qsb         # i.MX93 9x9 QSB Board
               - fsl,imx93-11x11-evk       # i.MX93 11x11 EVK Board
+              - fsl,imx93-14x14-evk       # i.MX93 14x14 EVK Board
           - const: fsl,imx93
 
       - description: i.MX95 based Boards
@@ -1342,6 +1387,12 @@ properties:
         items:
           - const: variscite,var-som-mx93-symphony
           - const: variscite,var-som-mx93
+          - const: fsl,imx93
+
+      - description: Kontron OSM-S i.MX93 SoM based boards
+        items:
+          - const: kontron,imx93-bl-osm-s # Kontron BL i.MX93 OSM-S board
+          - const: kontron,imx93-osm-s    # Kontron OSM-S i.MX93 SoM
           - const: fsl,imx93
 
       - description:
@@ -1522,6 +1573,12 @@ properties:
               - fsl,ls2080a-qds
               - fsl,ls2080a-rdb
           - const: fsl,ls2080a
+
+      - description: LS2081A based Boards
+        items:
+          - enum:
+              - fsl,ls2081a-rdb
+          - const: fsl,ls2081a
 
       - description: LS2088A based Boards
         items:

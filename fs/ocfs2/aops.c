@@ -156,9 +156,8 @@ int ocfs2_get_block(struct inode *inode, sector_t iblock,
 	err = ocfs2_extent_map_get_blocks(inode, iblock, &p_blkno, &count,
 					  &ext_flags);
 	if (err) {
-		mlog(ML_ERROR, "Error %d from get_blocks(0x%p, %llu, 1, "
-		     "%llu, NULL)\n", err, inode, (unsigned long long)iblock,
-		     (unsigned long long)p_blkno);
+		mlog(ML_ERROR, "get_blocks() failed, inode: 0x%p, "
+		     "block: %llu\n", inode, (unsigned long long)iblock);
 		goto bail;
 	}
 
@@ -1187,7 +1186,7 @@ static int ocfs2_write_cluster(struct address_space *mapping,
 
 		/* This is the direct io target page. */
 		if (wc->w_pages[i] == NULL) {
-			p_blkno++;
+			p_blkno += (1 << (PAGE_SHIFT - inode->i_sb->s_blocksize_bits));
 			continue;
 		}
 
@@ -1643,7 +1642,7 @@ static int ocfs2_zero_tail(struct inode *inode, struct buffer_head *di_bh,
 
 int ocfs2_write_begin_nolock(struct address_space *mapping,
 			     loff_t pos, unsigned len, ocfs2_write_type_t type,
-			     struct page **pagep, void **fsdata,
+			     struct folio **foliop, void **fsdata,
 			     struct buffer_head *di_bh, struct page *mmap_page)
 {
 	int ret, cluster_of_pages, credits = OCFS2_INODE_UPDATE_CREDITS;
@@ -1826,8 +1825,8 @@ try_again:
 		ocfs2_free_alloc_context(meta_ac);
 
 success:
-	if (pagep)
-		*pagep = wc->w_target_page;
+	if (foliop)
+		*foliop = page_folio(wc->w_target_page);
 	*fsdata = wc;
 	return 0;
 out_quota:
@@ -1879,7 +1878,7 @@ out:
 
 static int ocfs2_write_begin(struct file *file, struct address_space *mapping,
 			     loff_t pos, unsigned len,
-			     struct page **pagep, void **fsdata)
+			     struct folio **foliop, void **fsdata)
 {
 	int ret;
 	struct buffer_head *di_bh = NULL;
@@ -1901,7 +1900,7 @@ static int ocfs2_write_begin(struct file *file, struct address_space *mapping,
 	down_write(&OCFS2_I(inode)->ip_alloc_sem);
 
 	ret = ocfs2_write_begin_nolock(mapping, pos, len, OCFS2_WRITE_BUFFER,
-				       pagep, fsdata, di_bh, NULL);
+				       foliop, fsdata, di_bh, NULL);
 	if (ret) {
 		mlog_errno(ret);
 		goto out_fail;
@@ -2076,7 +2075,7 @@ out:
 
 static int ocfs2_write_end(struct file *file, struct address_space *mapping,
 			   loff_t pos, unsigned len, unsigned copied,
-			   struct page *page, void *fsdata)
+			   struct folio *folio, void *fsdata)
 {
 	int ret;
 	struct inode *inode = mapping->host;

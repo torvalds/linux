@@ -456,7 +456,6 @@ static int aspeed_pwm_tach_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev, *hwmon;
 	int ret;
-	struct device_node *child;
 	struct aspeed_pwm_tach_data *priv;
 	struct pwm_chip *chip;
 
@@ -498,10 +497,9 @@ static int aspeed_pwm_tach_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to add PWM chip\n");
 
-	for_each_child_of_node(dev->of_node, child) {
+	for_each_child_of_node_scoped(dev->of_node, child) {
 		ret = aspeed_create_fan_monitor(dev, child, priv);
 		if (ret) {
-			of_node_put(child);
 			dev_warn(dev, "Failed to create fan %d", ret);
 			return 0;
 		}
@@ -536,7 +534,7 @@ MODULE_DEVICE_TABLE(of, aspeed_pwm_tach_match);
 
 static struct platform_driver aspeed_pwm_tach_driver = {
 	.probe = aspeed_pwm_tach_probe,
-	.remove_new = aspeed_pwm_tach_remove,
+	.remove = aspeed_pwm_tach_remove,
 	.driver	= {
 		.name = "aspeed-g6-pwm-tach",
 		.of_match_table = aspeed_pwm_tach_match,

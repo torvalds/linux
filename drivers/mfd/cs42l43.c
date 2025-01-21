@@ -264,7 +264,7 @@ const struct reg_default cs42l43_reg_default[CS42L43_N_DEFAULTS] = {
 	{ CS42L43_ASRC_MASK,				0x0000000F },
 	{ CS42L43_HPOUT_MASK,				0x00000003 },
 };
-EXPORT_SYMBOL_NS_GPL(cs42l43_reg_default, MFD_CS42L43);
+EXPORT_SYMBOL_NS_GPL(cs42l43_reg_default, "MFD_CS42L43");
 
 bool cs42l43_readable_register(struct device *dev, unsigned int reg)
 {
@@ -392,7 +392,7 @@ bool cs42l43_readable_register(struct device *dev, unsigned int reg)
 		return false;
 	}
 }
-EXPORT_SYMBOL_NS_GPL(cs42l43_readable_register, MFD_CS42L43);
+EXPORT_SYMBOL_NS_GPL(cs42l43_readable_register, "MFD_CS42L43");
 
 bool cs42l43_precious_register(struct device *dev, unsigned int reg)
 {
@@ -407,7 +407,7 @@ bool cs42l43_precious_register(struct device *dev, unsigned int reg)
 		return false;
 	}
 }
-EXPORT_SYMBOL_NS_GPL(cs42l43_precious_register, MFD_CS42L43);
+EXPORT_SYMBOL_NS_GPL(cs42l43_precious_register, "MFD_CS42L43");
 
 bool cs42l43_volatile_register(struct device *dev, unsigned int reg)
 {
@@ -435,7 +435,7 @@ bool cs42l43_volatile_register(struct device *dev, unsigned int reg)
 		return cs42l43_precious_register(dev, reg);
 	}
 }
-EXPORT_SYMBOL_NS_GPL(cs42l43_volatile_register, MFD_CS42L43);
+EXPORT_SYMBOL_NS_GPL(cs42l43_volatile_register, "MFD_CS42L43");
 
 #define CS42L43_IRQ_OFFSET(reg) ((CS42L43_##reg##_INT) - CS42L43_DECIM_INT)
 
@@ -967,7 +967,6 @@ static void cs42l43_boot_work(struct work_struct *work)
 
 err:
 	pm_runtime_put_sync(cs42l43->dev);
-	cs42l43_dev_remove(cs42l43);
 }
 
 static int cs42l43_power_up(struct cs42l43 *cs42l43)
@@ -1097,27 +1096,52 @@ int cs42l43_dev_probe(struct cs42l43 *cs42l43)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(cs42l43_dev_probe, MFD_CS42L43);
+EXPORT_SYMBOL_NS_GPL(cs42l43_dev_probe, "MFD_CS42L43");
 
 void cs42l43_dev_remove(struct cs42l43 *cs42l43)
 {
+	cancel_work_sync(&cs42l43->boot_work);
+
 	cs42l43_power_down(cs42l43);
 }
-EXPORT_SYMBOL_NS_GPL(cs42l43_dev_remove, MFD_CS42L43);
+EXPORT_SYMBOL_NS_GPL(cs42l43_dev_remove, "MFD_CS42L43");
 
 static int cs42l43_suspend(struct device *dev)
 {
 	struct cs42l43 *cs42l43 = dev_get_drvdata(dev);
+	static const struct reg_sequence mask_all[] = {
+		{ CS42L43_DECIM_MASK,			0xFFFFFFFF, },
+		{ CS42L43_EQ_MIX_MASK,			0xFFFFFFFF, },
+		{ CS42L43_ASP_MASK,			0xFFFFFFFF, },
+		{ CS42L43_PLL_MASK,			0xFFFFFFFF, },
+		{ CS42L43_SOFT_MASK,			0xFFFFFFFF, },
+		{ CS42L43_SWIRE_MASK,			0xFFFFFFFF, },
+		{ CS42L43_MSM_MASK,			0xFFFFFFFF, },
+		{ CS42L43_ACC_DET_MASK,			0xFFFFFFFF, },
+		{ CS42L43_I2C_TGT_MASK,			0xFFFFFFFF, },
+		{ CS42L43_SPI_MSTR_MASK,		0xFFFFFFFF, },
+		{ CS42L43_SW_TO_SPI_BRIDGE_MASK,	0xFFFFFFFF, },
+		{ CS42L43_OTP_MASK,			0xFFFFFFFF, },
+		{ CS42L43_CLASS_D_AMP_MASK,		0xFFFFFFFF, },
+		{ CS42L43_GPIO_INT_MASK,		0xFFFFFFFF, },
+		{ CS42L43_ASRC_MASK,			0xFFFFFFFF, },
+		{ CS42L43_HPOUT_MASK,			0xFFFFFFFF, },
+	};
 	int ret;
 
-	/*
-	 * Don't care about being resumed here, but the driver does want
-	 * force_resume to always trigger an actual resume, so that register
-	 * state for the MCU/GPIOs is returned as soon as possible after system
-	 * resume. force_resume will resume if the reference count is resumed on
-	 * suspend hence the get_noresume.
-	 */
-	pm_runtime_get_noresume(dev);
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret) {
+		dev_err(cs42l43->dev, "Failed to resume for suspend: %d\n", ret);
+		return ret;
+	}
+
+	/* The IRQs will be re-enabled on resume by the cache sync */
+	ret = regmap_multi_reg_write_bypassed(cs42l43->regmap,
+					      mask_all, ARRAY_SIZE(mask_all));
+	if (ret) {
+		dev_err(cs42l43->dev, "Failed to mask IRQs: %d\n", ret);
+		return ret;
+	}
 
 	ret = pm_runtime_force_suspend(dev);
 	if (ret) {
@@ -1132,6 +1156,26 @@ static int cs42l43_suspend(struct device *dev)
 	if (ret)
 		return ret;
 
+	disable_irq(cs42l43->irq);
+
+	return 0;
+}
+
+static int cs42l43_suspend_noirq(struct device *dev)
+{
+	struct cs42l43 *cs42l43 = dev_get_drvdata(dev);
+
+	enable_irq(cs42l43->irq);
+
+	return 0;
+}
+
+static int cs42l43_resume_noirq(struct device *dev)
+{
+	struct cs42l43 *cs42l43 = dev_get_drvdata(dev);
+
+	disable_irq(cs42l43->irq);
+
 	return 0;
 }
 
@@ -1143,6 +1187,8 @@ static int cs42l43_resume(struct device *dev)
 	ret = cs42l43_power_up(cs42l43);
 	if (ret)
 		return ret;
+
+	enable_irq(cs42l43->irq);
 
 	ret = pm_runtime_force_resume(dev);
 	if (ret) {
@@ -1211,6 +1257,7 @@ err:
 
 EXPORT_NS_GPL_DEV_PM_OPS(cs42l43_pm_ops, MFD_CS42L43) = {
 	SYSTEM_SLEEP_PM_OPS(cs42l43_suspend, cs42l43_resume)
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(cs42l43_suspend_noirq, cs42l43_resume_noirq)
 	RUNTIME_PM_OPS(cs42l43_runtime_suspend, cs42l43_runtime_resume, NULL)
 };
 

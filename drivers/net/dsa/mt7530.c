@@ -21,6 +21,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
 #include <net/dsa.h>
+#include <net/pkt_cls.h>
 
 #include "mt7530.h"
 
@@ -1152,7 +1153,8 @@ mt753x_cpu_port_enable(struct dsa_switch *ds, int port)
 	 * the MT7988 SoC. Trapped frames will be forwarded to the CPU port that
 	 * is affine to the inbound user port.
 	 */
-	if (priv->id == ID_MT7531 || priv->id == ID_MT7988)
+	if (priv->id == ID_MT7531 || priv->id == ID_MT7988 ||
+	    priv->id == ID_EN7581)
 		mt7530_set(priv, MT7531_CFC, MT7531_CPU_PMAP(BIT(port)));
 
 	/* CPU port gets connected to all user ports of
@@ -2207,7 +2209,7 @@ mt7530_setup_irq(struct mt7530_priv *priv)
 		return priv->irq ? : -EINVAL;
 	}
 
-	if (priv->id == ID_MT7988)
+	if (priv->id == ID_MT7988 || priv->id == ID_EN7581)
 		priv->irq_domain = irq_domain_add_linear(np, MT7530_NUM_PHYS,
 							 &mt7988_irq_domain_ops,
 							 priv);
@@ -2438,8 +2440,10 @@ mt7530_setup(struct dsa_switch *ds)
 		/* Clear link settings and enable force mode to force link down
 		 * on all ports until they're enabled later.
 		 */
-		mt7530_rmw(priv, MT753X_PMCR_P(i), PMCR_LINK_SETTINGS_MASK |
-			   MT7530_FORCE_MODE, MT7530_FORCE_MODE);
+		mt7530_rmw(priv, MT753X_PMCR_P(i),
+			   PMCR_LINK_SETTINGS_MASK |
+			   MT753X_FORCE_MODE(priv->id),
+			   MT753X_FORCE_MODE(priv->id));
 
 		/* Disable forwarding by default on all ports */
 		mt7530_rmw(priv, MT7530_PCR_P(i), PCR_MATRIX_MASK,
@@ -2550,8 +2554,10 @@ mt7531_setup_common(struct dsa_switch *ds)
 		/* Clear link settings and enable force mode to force link down
 		 * on all ports until they're enabled later.
 		 */
-		mt7530_rmw(priv, MT753X_PMCR_P(i), PMCR_LINK_SETTINGS_MASK |
-			   MT7531_FORCE_MODE_MASK, MT7531_FORCE_MODE_MASK);
+		mt7530_rmw(priv, MT753X_PMCR_P(i),
+			   PMCR_LINK_SETTINGS_MASK |
+			   MT753X_FORCE_MODE(priv->id),
+			   MT753X_FORCE_MODE(priv->id));
 
 		/* Disable forwarding by default on all ports */
 		mt7530_rmw(priv, MT7530_PCR_P(i), PCR_MATRIX_MASK,
@@ -2767,6 +2773,28 @@ static void mt7988_mac_port_get_caps(struct dsa_switch *ds, int port,
 	switch (port) {
 	/* Ports which are connected to switch PHYs. There is no MII pinout. */
 	case 0 ... 3:
+		__set_bit(PHY_INTERFACE_MODE_INTERNAL,
+			  config->supported_interfaces);
+
+		config->mac_capabilities |= MAC_10 | MAC_100 | MAC_1000FD;
+		break;
+
+	/* Port 6 is connected to SoC's XGMII MAC. There is no MII pinout. */
+	case 6:
+		__set_bit(PHY_INTERFACE_MODE_INTERNAL,
+			  config->supported_interfaces);
+
+		config->mac_capabilities |= MAC_10000FD;
+		break;
+	}
+}
+
+static void en7581_mac_port_get_caps(struct dsa_switch *ds, int port,
+				     struct phylink_config *config)
+{
+	switch (port) {
+	/* Ports which are connected to switch PHYs. There is no MII pinout. */
+	case 0 ... 4:
 		__set_bit(PHY_INTERFACE_MODE_INTERNAL,
 			  config->supported_interfaces);
 
@@ -3119,6 +3147,53 @@ mt753x_conduit_state_change(struct dsa_switch *ds,
 	mt7530_rmw(priv, MT753X_MFC, MT7530_CPU_EN | MT7530_CPU_PORT_MASK, val);
 }
 
+static int mt753x_tc_setup_qdisc_tbf(struct dsa_switch *ds, int port,
+				     struct tc_tbf_qopt_offload *qopt)
+{
+	struct tc_tbf_qopt_offload_replace_params *p = &qopt->replace_params;
+	struct mt7530_priv *priv = ds->priv;
+	u32 rate = 0;
+
+	switch (qopt->command) {
+	case TC_TBF_REPLACE:
+		rate = div_u64(p->rate.rate_bytes_ps, 1000) << 3; /* kbps */
+		fallthrough;
+	case TC_TBF_DESTROY: {
+		u32 val, tick;
+
+		mt7530_rmw(priv, MT753X_GERLCR, EGR_BC_MASK,
+			   EGR_BC_CRC_IPG_PREAMBLE);
+
+		/* if rate is greater than 10Mbps tick is 1/32 ms,
+		 * 1ms otherwise
+		 */
+		tick = rate > 10000 ? 2 : 7;
+		val = FIELD_PREP(ERLCR_CIR_MASK, (rate >> 5)) |
+		      FIELD_PREP(ERLCR_EN_MASK, !!rate) |
+		      FIELD_PREP(ERLCR_EXP_MASK, tick) |
+		      ERLCR_TBF_MODE_MASK |
+		      FIELD_PREP(ERLCR_MANT_MASK, 0xf);
+		mt7530_write(priv, MT753X_ERLCR_P(port), val);
+		break;
+	}
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int mt753x_setup_tc(struct dsa_switch *ds, int port,
+			   enum tc_setup_type type, void *type_data)
+{
+	switch (type) {
+	case TC_SETUP_QDISC_TBF:
+		return mt753x_tc_setup_qdisc_tbf(ds, port, type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static int mt7988_setup(struct dsa_switch *ds)
 {
 	struct mt7530_priv *priv = ds->priv;
@@ -3166,6 +3241,7 @@ const struct dsa_switch_ops mt7530_switch_ops = {
 	.get_mac_eee		= mt753x_get_mac_eee,
 	.set_mac_eee		= mt753x_set_mac_eee,
 	.conduit_state_change	= mt753x_conduit_state_change,
+	.port_setup_tc		= mt753x_setup_tc,
 };
 EXPORT_SYMBOL_GPL(mt7530_switch_ops);
 
@@ -3219,6 +3295,16 @@ const struct mt753x_info mt753x_table[] = {
 		.phy_read_c45 = mt7531_ind_c45_phy_read,
 		.phy_write_c45 = mt7531_ind_c45_phy_write,
 		.mac_port_get_caps = mt7988_mac_port_get_caps,
+	},
+	[ID_EN7581] = {
+		.id = ID_EN7581,
+		.pcs_ops = &mt7530_pcs_ops,
+		.sw_setup = mt7988_setup,
+		.phy_read_c22 = mt7531_ind_c22_phy_read,
+		.phy_write_c22 = mt7531_ind_c22_phy_write,
+		.phy_read_c45 = mt7531_ind_c45_phy_read,
+		.phy_write_c45 = mt7531_ind_c45_phy_write,
+		.mac_port_get_caps = en7581_mac_port_get_caps,
 	},
 };
 EXPORT_SYMBOL_GPL(mt753x_table);

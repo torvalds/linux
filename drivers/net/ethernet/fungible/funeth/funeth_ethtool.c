@@ -1042,12 +1042,9 @@ static int fun_set_rxfh(struct net_device *netdev,
 static int fun_get_ts_info(struct net_device *netdev,
 			   struct kernel_ethtool_ts_info *info)
 {
-	info->so_timestamping = SOF_TIMESTAMPING_RX_SOFTWARE |
-				SOF_TIMESTAMPING_RX_HARDWARE |
+	info->so_timestamping = SOF_TIMESTAMPING_RX_HARDWARE |
 				SOF_TIMESTAMPING_TX_SOFTWARE |
-				SOF_TIMESTAMPING_SOFTWARE |
 				SOF_TIMESTAMPING_RAW_HARDWARE;
-	info->phc_index = -1;
 	info->tx_types = BIT(HWTSTAMP_TX_OFF);
 	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) | BIT(HWTSTAMP_FILTER_ALL);
 	return 0;

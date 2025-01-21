@@ -6,7 +6,7 @@
  * Copyright (C) 2021-2022 Maximilian Luz <luzmaximilian@gmail.com>
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_profile.h>

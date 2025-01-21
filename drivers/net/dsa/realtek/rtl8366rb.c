@@ -599,7 +599,7 @@ static int rtl8366rb_setup_cascaded_irq(struct realtek_priv *priv)
 	}
 
 	/* Fetch IRQ edge information from the descriptor */
-	irq_trig = irqd_get_trigger_type(irq_get_irq_data(irq));
+	irq_trig = irq_get_trigger_type(irq);
 	switch (irq_trig) {
 	case IRQF_TRIGGER_RISING:
 	case IRQF_TRIGGER_HIGH:
@@ -1009,8 +1009,8 @@ static int rtl8366rb_setup_all_leds_off(struct realtek_priv *priv)
 
 static int rtl8366rb_setup_leds(struct realtek_priv *priv)
 {
-	struct device_node *leds_np, *led_np;
 	struct dsa_switch *ds = &priv->ds;
+	struct device_node *leds_np;
 	struct dsa_port *dp;
 	int ret = 0;
 
@@ -1025,13 +1025,11 @@ static int rtl8366rb_setup_leds(struct realtek_priv *priv)
 			continue;
 		}
 
-		for_each_child_of_node(leds_np, led_np) {
+		for_each_child_of_node_scoped(leds_np, led_np) {
 			ret = rtl8366rb_setup_led(priv, dp,
 						  of_fwnode_handle(led_np));
-			if (ret) {
-				of_node_put(led_np);
+			if (ret)
 				break;
-			}
 		}
 
 		of_node_put(leds_np);
@@ -2104,7 +2102,7 @@ static struct platform_driver rtl8366rb_smi_driver = {
 		.of_match_table = rtl8366rb_of_match,
 	},
 	.probe  = realtek_smi_probe,
-	.remove_new = realtek_smi_remove,
+	.remove = realtek_smi_remove,
 	.shutdown = realtek_smi_shutdown,
 };
 
@@ -2146,4 +2144,4 @@ module_exit(rtl8366rb_exit);
 MODULE_AUTHOR("Linus Walleij <linus.walleij@linaro.org>");
 MODULE_DESCRIPTION("Driver for RTL8366RB ethernet switch");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(REALTEK_DSA);
+MODULE_IMPORT_NS("REALTEK_DSA");

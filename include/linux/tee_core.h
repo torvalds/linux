@@ -155,6 +155,18 @@ int tee_device_register(struct tee_device *teedev);
 void tee_device_unregister(struct tee_device *teedev);
 
 /**
+ * tee_device_set_dev_groups() - Set device attribute groups
+ * @teedev:	Device to register
+ * @dev_groups: Attribute groups
+ *
+ * Assigns the provided @dev_groups to the @teedev to be registered later
+ * with tee_device_register(). Calling this function is optional, but if
+ * it's called it must be called before tee_device_register().
+ */
+void tee_device_set_dev_groups(struct tee_device *teedev,
+			       const struct attribute_group **dev_groups);
+
+/**
  * tee_session_calc_client_uuid() - Calculates client UUID for session
  * @uuid:		Resulting UUID
  * @connection_method:	Connection method for session (TEE_IOCTL_LOGIN_*)

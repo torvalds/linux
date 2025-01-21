@@ -112,11 +112,7 @@
 		reg = <0x48>;
 		/* IRQ# = 7 */
 		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>; /* IRQ_SYS_1N cascaded to gic */
-
-		twl_power: power {
-			compatible = "ti,twl6030-power";
-			ti,system-power-controller;
-		};
+		system-power-controller;
 	};
 };
 

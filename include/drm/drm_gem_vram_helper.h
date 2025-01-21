@@ -17,7 +17,6 @@
 struct drm_mode_create_dumb;
 struct drm_plane;
 struct drm_plane_state;
-struct drm_simple_display_pipe;
 struct filp;
 struct vm_area_struct;
 
@@ -136,18 +135,6 @@ drm_gem_vram_plane_helper_cleanup_fb(struct drm_plane *plane,
 #define DRM_GEM_VRAM_PLANE_HELPER_FUNCS \
 	.prepare_fb = drm_gem_vram_plane_helper_prepare_fb, \
 	.cleanup_fb = drm_gem_vram_plane_helper_cleanup_fb
-
-/*
- * Helpers for struct drm_simple_display_pipe_funcs
- */
-
-int drm_gem_vram_simple_display_pipe_prepare_fb(
-	struct drm_simple_display_pipe *pipe,
-	struct drm_plane_state *new_state);
-
-void drm_gem_vram_simple_display_pipe_cleanup_fb(
-	struct drm_simple_display_pipe *pipe,
-	struct drm_plane_state *old_state);
 
 /**
  * define DRM_GEM_VRAM_DRIVER - default callback functions for

@@ -11,6 +11,7 @@
 #include "mt7530.h"
 
 static const struct of_device_id mt7988_of_match[] = {
+	{ .compatible = "airoha,en7581-switch", .data = &mt753x_table[ID_EN7581], },
 	{ .compatible = "mediatek,mt7988-switch", .data = &mt753x_table[ID_MT7988], },
 	{ /* sentinel */ },
 };
@@ -85,7 +86,7 @@ static void mt7988_shutdown(struct platform_device *pdev)
 
 static struct platform_driver mt7988_platform_driver = {
 	.probe  = mt7988_probe,
-	.remove_new = mt7988_remove,
+	.remove = mt7988_remove,
 	.shutdown = mt7988_shutdown,
 	.driver = {
 		.name = "mt7530-mmio",

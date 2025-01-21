@@ -3,7 +3,7 @@
  * Copyright (c) 2023 Intel Corporation.
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <linux/acpi.h>
 #include <linux/bitfield.h>
@@ -13,7 +13,6 @@
 
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-event.h>
 #include <media/v4l2-fwnode.h>
 
 #define OV01A10_LINK_FREQ_400MHZ	400000000ULL
@@ -804,8 +803,6 @@ static int ov01a10_get_selection(struct v4l2_subdev *sd,
 
 static const struct v4l2_subdev_core_ops ov01a10_core_ops = {
 	.log_status = v4l2_ctrl_subdev_log_status,
-	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
-	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
 };
 
 static const struct v4l2_subdev_video_ops ov01a10_video_ops = {
@@ -892,8 +889,7 @@ static int ov01a10_probe(struct i2c_client *client)
 	}
 
 	ov01a10->sd.state_lock = ov01a10->ctrl_handler.lock;
-	ov01a10->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
-		V4L2_SUBDEV_FL_HAS_EVENTS;
+	ov01a10->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	ov01a10->sd.entity.ops = &ov01a10_subdev_entity_ops;
 	ov01a10->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	ov01a10->pad.flags = MEDIA_PAD_FL_SOURCE;

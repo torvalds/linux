@@ -754,7 +754,7 @@ MODULE_DEVICE_TABLE(of, meson_mx_mmc_of_match);
 
 static struct platform_driver meson_mx_mmc_driver = {
 	.probe   = meson_mx_mmc_probe,
-	.remove_new = meson_mx_mmc_remove,
+	.remove = meson_mx_mmc_remove,
 	.driver  = {
 		.name = "meson-mx-sdio",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,

@@ -168,7 +168,7 @@ static void sni_82596_driver_remove(struct platform_device *pdev)
 
 static struct platform_driver sni_82596_driver = {
 	.probe	= sni_82596_probe,
-	.remove_new = sni_82596_driver_remove,
+	.remove = sni_82596_driver_remove,
 	.driver	= {
 		.name	= sni_82596_string,
 	},

@@ -355,7 +355,7 @@ MODULE_DEVICE_TABLE(of, ux500_match);
 
 static struct platform_driver ux500_driver = {
 	.probe		= ux500_probe,
-	.remove_new	= ux500_remove,
+	.remove		= ux500_remove,
 	.driver		= {
 		.name	= "musb-ux500",
 		.pm	= &ux500_pm_ops,

@@ -12,7 +12,7 @@
 #include <linux/regmap.h>
 #include <linux/types.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <media/v4l2-cci.h>
 

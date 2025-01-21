@@ -822,7 +822,8 @@ static int __init rdac_init(void)
 	/*
 	 * Create workqueue to handle mode selects for rdac
 	 */
-	kmpath_rdacd = create_singlethread_workqueue("kmpath_rdacd");
+	kmpath_rdacd =
+		alloc_ordered_workqueue("%s", WQ_MEM_RECLAIM, "kmpath_rdacd");
 	if (!kmpath_rdacd) {
 		scsi_unregister_device_handler(&rdac_dh);
 		printk(KERN_ERR "kmpath_rdacd creation failed.\n");

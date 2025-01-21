@@ -21,7 +21,7 @@
 #include <linux/in.h>
 #include <linux/export.h>
 #include <linux/t10-pi.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <net/sock.h>
 #include <net/tcp.h>
 #include <scsi/scsi_common.h>
@@ -691,7 +691,7 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 
 	dev->queues = kcalloc(nr_cpu_ids, sizeof(*dev->queues), GFP_KERNEL);
 	if (!dev->queues) {
-		dev->transport->free_device(dev);
+		hba->backend->ops->free_device(dev);
 		return NULL;
 	}
 

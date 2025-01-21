@@ -53,7 +53,7 @@ static int bma400_regmap_spi_write(void *context, const void *data,
 	return spi_write(spi, data, count);
 }
 
-static struct regmap_bus bma400_regmap_bus = {
+static const struct regmap_bus bma400_regmap_bus = {
 	.read = bma400_regmap_spi_read,
 	.write = bma400_regmap_spi_write,
 	.read_flag_mask = BIT(7),
@@ -112,4 +112,4 @@ module_spi_driver(bma400_spi_driver);
 MODULE_AUTHOR("Dan Robertson <dan@dlrobertson.com>");
 MODULE_DESCRIPTION("Bosch BMA400 triaxial acceleration sensor (SPI)");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(IIO_BMA400);
+MODULE_IMPORT_NS("IIO_BMA400");

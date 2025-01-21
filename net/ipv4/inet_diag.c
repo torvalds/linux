@@ -247,6 +247,7 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 	struct nlmsghdr  *nlh;
 	struct nlattr *attr;
 	void *info = NULL;
+	u8 icsk_pending;
 	int protocol;
 
 	cb_data = cb->data;
@@ -307,14 +308,15 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 		goto out;
 	}
 
-	if (icsk->icsk_pending == ICSK_TIME_RETRANS ||
-	    icsk->icsk_pending == ICSK_TIME_REO_TIMEOUT ||
-	    icsk->icsk_pending == ICSK_TIME_LOSS_PROBE) {
+	icsk_pending = smp_load_acquire(&icsk->icsk_pending);
+	if (icsk_pending == ICSK_TIME_RETRANS ||
+	    icsk_pending == ICSK_TIME_REO_TIMEOUT ||
+	    icsk_pending == ICSK_TIME_LOSS_PROBE) {
 		r->idiag_timer = 1;
 		r->idiag_retrans = icsk->icsk_retransmits;
 		r->idiag_expires =
 			jiffies_delta_to_msecs(icsk->icsk_timeout - jiffies);
-	} else if (icsk->icsk_pending == ICSK_TIME_PROBE0) {
+	} else if (icsk_pending == ICSK_TIME_PROBE0) {
 		r->idiag_timer = 4;
 		r->idiag_retrans = icsk->icsk_probes_out;
 		r->idiag_expires =
@@ -442,7 +444,7 @@ static int inet_twsk_diag_fill(struct sock *sk,
 	inet_diag_msg_common_fill(r, sk);
 	r->idiag_retrans      = 0;
 
-	r->idiag_state	      = tw->tw_substate;
+	r->idiag_state	      = READ_ONCE(tw->tw_substate);
 	r->idiag_timer	      = 3;
 	tmo = tw->tw_timer.expires - jiffies;
 	r->idiag_expires      = jiffies_delta_to_msecs(tmo);
@@ -1209,7 +1211,7 @@ next_chunk:
 			if (num < s_num)
 				goto next_normal;
 			state = (sk->sk_state == TCP_TIME_WAIT) ?
-				inet_twsk(sk)->tw_substate : sk->sk_state;
+				READ_ONCE(inet_twsk(sk)->tw_substate) : sk->sk_state;
 			if (!(idiag_states & (1 << state)))
 				goto next_normal;
 			if (r->sdiag_family != AF_UNSPEC &&

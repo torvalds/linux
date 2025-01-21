@@ -7,6 +7,7 @@
  * http://www.intel.com/content/dam/www/public/us/en/documents/white-papers/fast-crc-computation-paper.pdf
  *
  * Copyright (C) 2012 Intel Corporation.
+ * Copyright 2024 Google LLC
  *
  * Authors:
  *	Wajdi Feghali <wajdi.k.feghali@intel.com>
@@ -44,185 +45,129 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/nospec-branch.h>
 
 ## ISCSI CRC 32 Implementation with crc32 and pclmulqdq Instruction
 
-.macro LABEL prefix n
-.L\prefix\n\():
-.endm
-
-.macro JMPTBL_ENTRY i
-.quad .Lcrc_\i
-.endm
-
-.macro JNC_LESS_THAN j
-	jnc .Lless_than_\j
-.endm
-
-# Define threshold where buffers are considered "small" and routed to more
-# efficient "by-1" code. This "by-1" code only handles up to 255 bytes, so
-# SMALL_SIZE can be no larger than 255.
-
+# Define threshold below which buffers are considered "small" and routed to
+# regular CRC code that does not interleave the CRC instructions.
 #define SMALL_SIZE 200
 
-.if (SMALL_SIZE > 255)
-.error "SMALL_ SIZE must be < 256"
-.endif
-
-# unsigned int crc_pcl(u8 *buffer, int len, unsigned int crc_init);
+# unsigned int crc_pcl(const u8 *buffer, unsigned int len, unsigned int crc_init);
 
 .text
 SYM_FUNC_START(crc_pcl)
-#define    bufp		rdi
-#define    bufp_dw	%edi
-#define    bufp_w	%di
-#define    bufp_b	%dil
-#define    bufptmp	%rcx
-#define    block_0	%rcx
-#define    block_1	%rdx
-#define    block_2	%r11
-#define    len		%rsi
-#define    len_dw	%esi
-#define    len_w	%si
-#define    len_b	%sil
-#define    crc_init_arg %rdx
-#define    tmp		%rbx
-#define    crc_init	%r8
-#define    crc_init_dw	%r8d
-#define    crc1		%r9
-#define    crc2		%r10
+#define    bufp		  %rdi
+#define    bufp_d	  %edi
+#define    len		  %esi
+#define    crc_init	  %edx
+#define    crc_init_q	  %rdx
+#define    n_misaligned	  %ecx /* overlaps chunk_bytes! */
+#define    n_misaligned_q %rcx
+#define    chunk_bytes	  %ecx /* overlaps n_misaligned! */
+#define    chunk_bytes_q  %rcx
+#define    crc1		  %r8
+#define    crc2		  %r9
 
-	pushq   %rbx
-	pushq   %rdi
-	pushq   %rsi
-
-	## Move crc_init for Linux to a different
-	mov     crc_init_arg, crc_init
+	cmp	$SMALL_SIZE, len
+	jb	.Lsmall
 
 	################################################################
 	## 1) ALIGN:
 	################################################################
-
-	mov     %bufp, bufptmp		# rdi = *buf
-	neg     %bufp
-	and     $7, %bufp		# calculate the unalignment amount of
+	mov	bufp_d, n_misaligned
+	neg	n_misaligned
+	and	$7, n_misaligned	# calculate the misalignment amount of
 					# the address
-	je      .Lproc_block		# Skip if aligned
+	je	.Laligned		# Skip if aligned
 
-	## If len is less than 8 and we're unaligned, we need to jump
-	## to special code to avoid reading beyond the end of the buffer
-	cmp     $8, len
-	jae     .Ldo_align
-	# less_than_8 expects length in upper 3 bits of len_dw
-	# less_than_8_post_shl1 expects length = carryflag * 8 + len_dw[31:30]
-	shl     $32-3+1, len_dw
-	jmp     .Lless_than_8_post_shl1
-
+	# Process 1 <= n_misaligned <= 7 bytes individually in order to align
+	# the remaining data to an 8-byte boundary.
 .Ldo_align:
-	#### Calculate CRC of unaligned bytes of the buffer (if any)
-	movq    (bufptmp), tmp		# load a quadward from the buffer
-	add     %bufp, bufptmp		# align buffer pointer for quadword
-					# processing
-	sub     %bufp, len		# update buffer length
+	movq	(bufp), %rax
+	add	n_misaligned_q, bufp
+	sub	n_misaligned, len
 .Lalign_loop:
-	crc32b  %bl, crc_init_dw 	# compute crc32 of 1-byte
-	shr     $8, tmp			# get next byte
-	dec     %bufp
+	crc32b	%al, crc_init		# compute crc32 of 1-byte
+	shr	$8, %rax		# get next byte
+	dec	n_misaligned
 	jne     .Lalign_loop
-
-.Lproc_block:
+.Laligned:
 
 	################################################################
-	## 2) PROCESS  BLOCKS:
+	## 2) PROCESS BLOCK:
 	################################################################
 
-	## compute num of bytes to be processed
-	movq    len, tmp		# save num bytes in tmp
-
-	cmpq    $128*24, len
+	cmp	$128*24, len
 	jae     .Lfull_block
 
-.Lcontinue_block:
-	cmpq    $SMALL_SIZE, len
-	jb      .Lsmall
+.Lpartial_block:
+	# Compute floor(len / 24) to get num qwords to process from each lane.
+	imul	$2731, len, %eax	# 2731 = ceil(2^16 / 24)
+	shr	$16, %eax
+	jmp	.Lcrc_3lanes
 
-	## len < 128*24
-	movq    $2731, %rax		# 2731 = ceil(2^16 / 24)
-	mul     len_dw
-	shrq    $16, %rax
-
-	## eax contains floor(bytes / 24) = num 24-byte chunks to do
-
-	## process rax 24-byte chunks (128 >= rax >= 0)
-
-	## compute end address of each block
-	## block 0 (base addr + RAX * 8)
-	## block 1 (base addr + RAX * 16)
-	## block 2 (base addr + RAX * 24)
-	lea     (bufptmp, %rax, 8), block_0
-	lea     (block_0, %rax, 8), block_1
-	lea     (block_1, %rax, 8), block_2
-
-	xor     crc1, crc1
-	xor     crc2, crc2
-
-	## branch into array
-	leaq	jump_table(%rip), %bufp
-	mov	(%bufp,%rax,8), %bufp
-	JMP_NOSPEC bufp
-
-	################################################################
-	## 2a) PROCESS FULL BLOCKS:
-	################################################################
 .Lfull_block:
-	movl    $128,%eax
-	lea     128*8*2(block_0), block_1
-	lea     128*8*3(block_0), block_2
-	add     $128*8*1, block_0
+	# Processing 128 qwords from each lane.
+	mov	$128, %eax
 
-	xor     crc1,crc1
+	################################################################
+	## 3) CRC each of three lanes:
+	################################################################
+
+.Lcrc_3lanes:
+	xor	crc1,crc1
 	xor     crc2,crc2
+	mov	%eax, chunk_bytes
+	shl	$3, chunk_bytes		# num bytes to process from each lane
+	sub	$5, %eax		# 4 for 4x_loop, 1 for special last iter
+	jl	.Lcrc_3lanes_4x_done
 
-	# Fall through into top of crc array (crc_128)
+	# Unroll the loop by a factor of 4 to reduce the overhead of the loop
+	# bookkeeping instructions, which can compete with crc32q for the ALUs.
+.Lcrc_3lanes_4x_loop:
+	crc32q	(bufp), crc_init_q
+	crc32q	(bufp,chunk_bytes_q), crc1
+	crc32q	(bufp,chunk_bytes_q,2), crc2
+	crc32q	8(bufp), crc_init_q
+	crc32q	8(bufp,chunk_bytes_q), crc1
+	crc32q	8(bufp,chunk_bytes_q,2), crc2
+	crc32q	16(bufp), crc_init_q
+	crc32q	16(bufp,chunk_bytes_q), crc1
+	crc32q	16(bufp,chunk_bytes_q,2), crc2
+	crc32q	24(bufp), crc_init_q
+	crc32q	24(bufp,chunk_bytes_q), crc1
+	crc32q	24(bufp,chunk_bytes_q,2), crc2
+	add	$32, bufp
+	sub	$4, %eax
+	jge	.Lcrc_3lanes_4x_loop
 
-	################################################################
-	## 3) CRC Array:
-	################################################################
+.Lcrc_3lanes_4x_done:
+	add	$4, %eax
+	jz	.Lcrc_3lanes_last_qword
 
-	i=128
-.rept 128-1
-.altmacro
-LABEL crc_ %i
-.noaltmacro
-	ENDBR
-	crc32q   -i*8(block_0), crc_init
-	crc32q   -i*8(block_1), crc1
-	crc32q   -i*8(block_2), crc2
-	i=(i-1)
-.endr
+.Lcrc_3lanes_1x_loop:
+	crc32q	(bufp), crc_init_q
+	crc32q	(bufp,chunk_bytes_q), crc1
+	crc32q	(bufp,chunk_bytes_q,2), crc2
+	add	$8, bufp
+	dec	%eax
+	jnz	.Lcrc_3lanes_1x_loop
 
-.altmacro
-LABEL crc_ %i
-.noaltmacro
-	ENDBR
-	crc32q   -i*8(block_0), crc_init
-	crc32q   -i*8(block_1), crc1
-# SKIP  crc32  -i*8(block_2), crc2 ; Don't do this one yet
-
-	mov     block_2, block_0
+.Lcrc_3lanes_last_qword:
+	crc32q	(bufp), crc_init_q
+	crc32q	(bufp,chunk_bytes_q), crc1
+# SKIP  crc32q	(bufp,chunk_bytes_q,2), crc2	; Don't do this one yet
 
 	################################################################
 	## 4) Combine three results:
 	################################################################
 
-	lea	(K_table-8)(%rip), %bufp		# first entry is for idx 1
-	shlq    $3, %rax			# rax *= 8
-	pmovzxdq (%bufp,%rax), %xmm0		# 2 consts: K1:K2
-	leal	(%eax,%eax,2), %eax		# rax *= 3 (total *24)
-	subq    %rax, tmp			# tmp -= rax*24
+	lea	(K_table-8)(%rip), %rax		# first entry is for idx 1
+	pmovzxdq (%rax,chunk_bytes_q), %xmm0	# 2 consts: K1:K2
+	lea	(chunk_bytes,chunk_bytes,2), %eax # chunk_bytes * 3
+	sub	%eax, len			# len -= chunk_bytes * 3
 
-	movq    crc_init, %xmm1			# CRC for block 1
+	movq	crc_init_q, %xmm1		# CRC for block 1
 	pclmulqdq $0x00, %xmm0, %xmm1		# Multiply by K2
 
 	movq    crc1, %xmm2			# CRC for block 2
@@ -230,103 +175,54 @@ LABEL crc_ %i
 
 	pxor    %xmm2,%xmm1
 	movq    %xmm1, %rax
-	xor     -i*8(block_2), %rax
-	mov     crc2, crc_init
-	crc32   %rax, crc_init
+	xor	(bufp,chunk_bytes_q,2), %rax
+	mov	crc2, crc_init_q
+	crc32	%rax, crc_init_q
+	lea	8(bufp,chunk_bytes_q,2), bufp
 
 	################################################################
-	## 5) Check for end:
+	## 5) If more blocks remain, goto (2):
 	################################################################
 
-LABEL crc_ 0
-	ENDBR
-	mov     tmp, len
-	cmp     $128*24, tmp
-	jae     .Lfull_block
-	cmp     $24, tmp
-	jae     .Lcontinue_block
-
-.Lless_than_24:
-	shl     $32-4, len_dw			# less_than_16 expects length
-						# in upper 4 bits of len_dw
-	jnc     .Lless_than_16
-	crc32q  (bufptmp), crc_init
-	crc32q  8(bufptmp), crc_init
-	jz      .Ldo_return
-	add     $16, bufptmp
-	# len is less than 8 if we got here
-	# less_than_8 expects length in upper 3 bits of len_dw
-	# less_than_8_post_shl1 expects length = carryflag * 8 + len_dw[31:30]
-	shl     $2, len_dw
-	jmp     .Lless_than_8_post_shl1
+	cmp	$128*24, len
+	jae	.Lfull_block
+	cmp	$SMALL_SIZE, len
+	jae	.Lpartial_block
 
 	#######################################################################
-	## 6) LESS THAN 256-bytes REMAIN AT THIS POINT (8-bits of len are full)
+	## 6) Process any remainder without interleaving:
 	#######################################################################
 .Lsmall:
-	shl $32-8, len_dw		# Prepare len_dw for less_than_256
-	j=256
-.rept 5					# j = {256, 128, 64, 32, 16}
-.altmacro
-LABEL less_than_ %j			# less_than_j: Length should be in
-					# upper lg(j) bits of len_dw
-	j=(j/2)
-	shl     $1, len_dw		# Get next MSB
-	JNC_LESS_THAN %j
-.noaltmacro
-	i=0
-.rept (j/8)
-	crc32q  i(bufptmp), crc_init	# Compute crc32 of 8-byte data
-	i=i+8
-.endr
-	jz      .Ldo_return		# Return if remaining length is zero
-	add     $j, bufptmp		# Advance buf
-.endr
-
-.Lless_than_8:				# Length should be stored in
-					# upper 3 bits of len_dw
-	shl     $1, len_dw
-.Lless_than_8_post_shl1:
-	jnc     .Lless_than_4
-	crc32l  (bufptmp), crc_init_dw	# CRC of 4 bytes
-	jz      .Ldo_return		# return if remaining data is zero
-	add     $4, bufptmp
-.Lless_than_4:				# Length should be stored in
-					# upper 2 bits of len_dw
-	shl     $1, len_dw
-	jnc     .Lless_than_2
-	crc32w  (bufptmp), crc_init_dw	# CRC of 2 bytes
-	jz      .Ldo_return		# return if remaining data is zero
-	add     $2, bufptmp
-.Lless_than_2:				# Length should be stored in the MSB
-					# of len_dw
-	shl     $1, len_dw
-	jnc     .Lless_than_1
-	crc32b  (bufptmp), crc_init_dw	# CRC of 1 byte
-.Lless_than_1:				# Length should be zero
-.Ldo_return:
-	movq    crc_init, %rax
-	popq    %rsi
-	popq    %rdi
-	popq    %rbx
+	test	len, len
+	jz	.Ldone
+	mov	len, %eax
+	shr	$3, %eax
+	jz	.Ldo_dword
+.Ldo_qwords:
+	crc32q	(bufp), crc_init_q
+	add	$8, bufp
+	dec	%eax
+	jnz	.Ldo_qwords
+.Ldo_dword:
+	test	$4, len
+	jz	.Ldo_word
+	crc32l	(bufp), crc_init
+	add	$4, bufp
+.Ldo_word:
+	test	$2, len
+	jz	.Ldo_byte
+	crc32w	(bufp), crc_init
+	add	$2, bufp
+.Ldo_byte:
+	test	$1, len
+	jz	.Ldone
+	crc32b	(bufp), crc_init
+.Ldone:
+	mov	crc_init, %eax
         RET
 SYM_FUNC_END(crc_pcl)
 
 .section	.rodata, "a", @progbits
-        ################################################################
-        ## jump table        Table is 129 entries x 2 bytes each
-        ################################################################
-.align 4
-jump_table:
-	i=0
-.rept 129
-.altmacro
-JMPTBL_ENTRY %i
-.noaltmacro
-	i=i+1
-.endr
-
-
 	################################################################
 	## PCLMULQDQ tables
 	## Table is 128 entries x 2 words (8 bytes) each

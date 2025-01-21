@@ -14,7 +14,7 @@
 #include <linux/module.h>
 #include <linux/string.h>
 #include <asm/mipsregs.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <crypto/internal/hash.h>
 
@@ -77,24 +77,26 @@ static u32 crc32_mips_le_hw(u32 crc_, const u8 *p, unsigned int len)
 {
 	u32 crc = crc_;
 
-#ifdef CONFIG_64BIT
-	while (len >= sizeof(u64)) {
-		u64 value = get_unaligned_le64(p);
+	if (IS_ENABLED(CONFIG_64BIT)) {
+		for (; len >= sizeof(u64); p += sizeof(u64), len -= sizeof(u64)) {
+			u64 value = get_unaligned_le64(p);
 
-		CRC32(crc, value, d);
-		p += sizeof(u64);
-		len -= sizeof(u64);
-	}
+			CRC32(crc, value, d);
+		}
 
-	if (len & sizeof(u32)) {
-#else /* !CONFIG_64BIT */
-	while (len >= sizeof(u32)) {
-#endif
-		u32 value = get_unaligned_le32(p);
+		if (len & sizeof(u32)) {
+			u32 value = get_unaligned_le32(p);
 
-		CRC32(crc, value, w);
-		p += sizeof(u32);
-		len -= sizeof(u32);
+			CRC32(crc, value, w);
+			p += sizeof(u32);
+		}
+	} else {
+		for (; len >= sizeof(u32); len -= sizeof(u32)) {
+			u32 value = get_unaligned_le32(p);
+
+			CRC32(crc, value, w);
+			p += sizeof(u32);
+		}
 	}
 
 	if (len & sizeof(u16)) {
@@ -117,24 +119,26 @@ static u32 crc32c_mips_le_hw(u32 crc_, const u8 *p, unsigned int len)
 {
 	u32 crc = crc_;
 
-#ifdef CONFIG_64BIT
-	while (len >= sizeof(u64)) {
-		u64 value = get_unaligned_le64(p);
+	if (IS_ENABLED(CONFIG_64BIT)) {
+		for (; len >= sizeof(u64); p += sizeof(u64), len -= sizeof(u64)) {
+			u64 value = get_unaligned_le64(p);
 
-		CRC32C(crc, value, d);
-		p += sizeof(u64);
-		len -= sizeof(u64);
-	}
+			CRC32C(crc, value, d);
+		}
 
-	if (len & sizeof(u32)) {
-#else /* !CONFIG_64BIT */
-	while (len >= sizeof(u32)) {
-#endif
-		u32 value = get_unaligned_le32(p);
+		if (len & sizeof(u32)) {
+			u32 value = get_unaligned_le32(p);
 
-		CRC32C(crc, value, w);
-		p += sizeof(u32);
-		len -= sizeof(u32);
+			CRC32C(crc, value, w);
+			p += sizeof(u32);
+		}
+	} else {
+		for (; len >= sizeof(u32); len -= sizeof(u32)) {
+			u32 value = get_unaligned_le32(p);
+
+			CRC32C(crc, value, w);
+			p += sizeof(u32);
+		}
 	}
 
 	if (len & sizeof(u16)) {

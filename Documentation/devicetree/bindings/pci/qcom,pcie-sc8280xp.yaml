@@ -58,9 +58,6 @@ properties:
     items:
       - const: pci
 
-  vddpe-3v3-supply:
-    description: A phandle to the PCIe endpoint power supply
-
 required:
   - interconnects
   - interconnect-names

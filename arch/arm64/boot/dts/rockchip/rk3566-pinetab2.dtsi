@@ -121,7 +121,7 @@
 			"Internal Speakers", "Speaker Amplifier OUTR",
 			"Speaker Amplifier INL", "HPOL",
 			"Speaker Amplifier INR", "HPOR";
-		simple-audio-card,hp-det-gpio = <&gpio4 RK_PC6 GPIO_ACTIVE_LOW>;
+		simple-audio-card,hp-det-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_LOW>;
 		simple-audio-card,aux-devs = <&speaker_amp>;
 		simple-audio-card,pin-switches = "Internal Speakers";
 
@@ -143,7 +143,7 @@
 		VCC-supply = <&vcc_bat>;
 	};
 
-	vcc_3v3: vcc-3v3-regulator {
+	vcc_3v3: regulator-vcc-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_3v3";
 		regulator-always-on;
@@ -153,7 +153,7 @@
 		vin-supply = <&vcc3v3_sys>;
 	};
 
-	vcc3v3_minipcie: vcc3v3-minipcie-regulator {
+	vcc3v3_minipcie: regulator-vcc3v3-minipcie {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio4 RK_PC3 GPIO_ACTIVE_HIGH>;
@@ -165,7 +165,7 @@
 		vin-supply = <&vcc_sys>;
 	};
 
-	vcc3v3_sd: vcc3v3-sd-regulator {
+	vcc3v3_sd: regulator-vcc3v3-sd {
 		compatible = "regulator-fixed";
 		gpio = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
@@ -176,7 +176,7 @@
 		vin-supply = <&vcc3v3_sys>;
 	};
 
-	vcc5v0_flashled: vcc5v0-flashled-regulator {
+	vcc5v0_flashled: regulator-vcc5v0-flashled {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
@@ -188,7 +188,7 @@
 		vin-supply = <&vcc5v_midu>;
 	};
 
-	vcc5v0_usb_host0: vcc5v0-usb-host0-regulator {
+	vcc5v0_usb_host0: regulator-vcc5v0-usb-host0 {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio4 RK_PC4 GPIO_ACTIVE_HIGH>;
@@ -200,7 +200,7 @@
 		vin-supply = <&vcc5v_midu>;
 	};
 
-	vcc5v0_usb_host2: vcc5v0-usb-host2-regulator {
+	vcc5v0_usb_host2: regulator-vcc5v0-usb-host2 {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio4 RK_PC5 GPIO_ACTIVE_HIGH>;
@@ -212,14 +212,14 @@
 		vin-supply = <&vcc5v_midu>;
 	};
 
-	vcc_bat: vcc-bat-regulator {
+	vcc_bat: regulator-vcc-bat {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_bat";
 		regulator-always-on;
 		regulator-boot-on;
 	};
 
-	vcc_sys: vcc-sys-regulator {
+	vcc_sys: regulator-vcc-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_sys";
 		regulator-always-on;
@@ -227,7 +227,7 @@
 		vin-supply = <&vcc_bat>;
 	};
 
-	vdd1v2_dvp: vdd1v2-dvp-regulator {
+	vdd1v2_dvp: regulator-vdd1v2-dvp {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd1v2_dvp";
 		regulator-min-microvolt = <1200000>;
@@ -370,7 +370,7 @@
 		#clock-cells = <1>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int_l>, <&i2s1m0_mclk>;
-		rockchip,system-power-controller;
+		system-power-controller;
 		#sound-dai-cells = <0>;
 		wakeup-source;
 

@@ -424,7 +424,7 @@ static void tahvo_usb_remove(struct platform_device *pdev)
 
 static struct platform_driver tahvo_usb_driver = {
 	.probe		= tahvo_usb_probe,
-	.remove_new	= tahvo_usb_remove,
+	.remove		= tahvo_usb_remove,
 	.driver		= {
 		.name	= "tahvo-usb",
 		.dev_groups = tahvo_groups,

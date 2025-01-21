@@ -17,6 +17,7 @@
 #include <linux/atomic.h>
 #include <asm/debug.h>
 #include <asm/qdio.h>
+#include <asm/asm.h>
 #include <asm/ipl.h>
 
 #include "cio.h"
@@ -42,13 +43,12 @@ static inline int do_siga_sync(unsigned long schid,
 		"	lgr	2,%[out]\n"
 		"	lgr	3,%[in]\n"
 		"	siga	0\n"
-		"	ipm	%[cc]\n"
-		"	srl	%[cc],28\n"
-		: [cc] "=&d" (cc)
+		CC_IPM(cc)
+		: CC_OUT(cc, cc)
 		: [fc] "d" (fc), [schid] "d" (schid),
 		  [out] "d" (out_mask), [in] "d" (in_mask)
-		: "cc", "0", "1", "2", "3");
-	return cc;
+		: CC_CLOBBER_LIST("0", "1", "2", "3"));
+	return CC_TRANSFORM(cc);
 }
 
 static inline int do_siga_input(unsigned long schid, unsigned long mask,
@@ -61,12 +61,11 @@ static inline int do_siga_input(unsigned long schid, unsigned long mask,
 		"	lgr	1,%[schid]\n"
 		"	lgr	2,%[mask]\n"
 		"	siga	0\n"
-		"	ipm	%[cc]\n"
-		"	srl	%[cc],28\n"
-		: [cc] "=&d" (cc)
+		CC_IPM(cc)
+		: CC_OUT(cc, cc)
 		: [fc] "d" (fc), [schid] "d" (schid), [mask] "d" (mask)
-		: "cc", "0", "1", "2");
-	return cc;
+		: CC_CLOBBER_LIST("0", "1", "2"));
+	return CC_TRANSFORM(cc);
 }
 
 /**
@@ -93,13 +92,12 @@ static inline int do_siga_output(unsigned long schid, unsigned long mask,
 		"	lgr	3,%[aob]\n"
 		"	siga	0\n"
 		"	lgr	%[fc],0\n"
-		"	ipm	%[cc]\n"
-		"	srl	%[cc],28\n"
-		: [cc] "=&d" (cc), [fc] "+&d" (fc)
+		CC_IPM(cc)
+		: CC_OUT(cc, cc), [fc] "+&d" (fc)
 		: [schid] "d" (schid), [mask] "d" (mask), [aob] "d" (aob)
-		: "cc", "0", "1", "2", "3");
+		: CC_CLOBBER_LIST("0", "1", "2", "3"));
 	*bb = fc >> 31;
-	return cc;
+	return CC_TRANSFORM(cc);
 }
 
 /**

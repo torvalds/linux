@@ -312,10 +312,11 @@ static int af8133j_set_scale(struct af8133j_data *data,
 	 * When suspended, just store the new range to data->range to be
 	 * applied later during power up.
 	 */
-	if (!pm_runtime_status_suspended(dev))
+	if (!pm_runtime_status_suspended(dev)) {
 		scoped_guard(mutex, &data->mutex)
 			ret = regmap_write(data->regmap,
 					   AF8133J_REG_RANGE, range);
+	}
 
 	pm_runtime_enable(dev);
 

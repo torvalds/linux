@@ -40,7 +40,7 @@ struct irq_domain_ops;
 #include <asm/acpi.h>
 
 #ifdef CONFIG_ACPI_TABLE_LIB
-#define EXPORT_SYMBOL_ACPI_LIB(x) EXPORT_SYMBOL_NS_GPL(x, ACPI)
+#define EXPORT_SYMBOL_ACPI_LIB(x) EXPORT_SYMBOL_NS_GPL(x, "ACPI")
 #define __init_or_acpilib
 #define __initdata_or_acpilib
 #else
@@ -107,6 +107,7 @@ enum acpi_irq_model_id {
 	ACPI_IRQ_MODEL_PLATFORM,
 	ACPI_IRQ_MODEL_GIC,
 	ACPI_IRQ_MODEL_LPIC,
+	ACPI_IRQ_MODEL_RINTC,
 	ACPI_IRQ_MODEL_COUNT
 };
 
@@ -362,6 +363,7 @@ void acpi_unregister_gsi (u32 gsi);
 
 struct pci_dev;
 
+struct acpi_prt_entry *acpi_pci_irq_lookup(struct pci_dev *dev, int pin);
 int acpi_pci_irq_enable (struct pci_dev *dev);
 void acpi_penalize_isa_irq(int irq, int active);
 bool acpi_isa_irq_available(int irq);
@@ -386,7 +388,7 @@ extern bool acpi_is_pnp_device(struct acpi_device *);
 
 #if defined(CONFIG_ACPI_WMI) || defined(CONFIG_ACPI_WMI_MODULE)
 
-typedef void (*wmi_notify_handler) (u32 value, void *context);
+typedef void (*wmi_notify_handler) (union acpi_object *data, void *context);
 
 int wmi_instance_count(const char *guid);
 
@@ -401,7 +403,6 @@ extern acpi_status wmi_set_block(const char *guid, u8 instance,
 extern acpi_status wmi_install_notify_handler(const char *guid,
 					wmi_notify_handler handler, void *data);
 extern acpi_status wmi_remove_notify_handler(const char *guid);
-extern acpi_status wmi_get_event_data(u32 event, struct acpi_buffer *out);
 extern bool wmi_has_guid(const char *guid);
 extern char *wmi_get_acpi_device_uid(const char *guid);
 
@@ -1163,8 +1164,6 @@ int acpi_subsys_suspend_noirq(struct device *dev);
 int acpi_subsys_suspend(struct device *dev);
 int acpi_subsys_freeze(struct device *dev);
 int acpi_subsys_poweroff(struct device *dev);
-void acpi_ec_mark_gpe_for_wake(void);
-void acpi_ec_set_gpe_wake_mask(u8 action);
 int acpi_subsys_restore_early(struct device *dev);
 #else
 static inline int acpi_subsys_prepare(struct device *dev) { return 0; }
@@ -1175,6 +1174,12 @@ static inline int acpi_subsys_suspend(struct device *dev) { return 0; }
 static inline int acpi_subsys_freeze(struct device *dev) { return 0; }
 static inline int acpi_subsys_poweroff(struct device *dev) { return 0; }
 static inline int acpi_subsys_restore_early(struct device *dev) { return 0; }
+#endif
+
+#if defined(CONFIG_ACPI_EC) && defined(CONFIG_PM_SLEEP)
+void acpi_ec_mark_gpe_for_wake(void);
+void acpi_ec_set_gpe_wake_mask(u8 action);
+#else
 static inline void acpi_ec_mark_gpe_for_wake(void) {}
 static inline void acpi_ec_set_gpe_wake_mask(u8 action) {}
 #endif
@@ -1342,6 +1347,8 @@ struct acpi_probe_entry {
 	};
 	kernel_ulong_t driver_data;
 };
+
+void arch_sort_irqchip_probe(struct acpi_probe_entry *ap_head, int nr);
 
 #define ACPI_DECLARE_PROBE_ENTRY(table, name, table_id, subtable,	\
 				 valid, data, fn)			\
@@ -1523,11 +1530,7 @@ static inline int find_acpi_cpu_topology_hetero_id(unsigned int cpu)
 }
 #endif
 
-#ifdef CONFIG_ARM64
-void acpi_arm_init(void);
-#else
-static inline void acpi_arm_init(void) { }
-#endif
+void acpi_arch_init(void);
 
 #ifdef CONFIG_ACPI_PCC
 void acpi_init_pcc(void);

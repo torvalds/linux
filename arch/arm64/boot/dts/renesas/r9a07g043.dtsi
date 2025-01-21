@@ -725,6 +725,10 @@
 			power-domains = <&cpg>;
 			#reset-cells = <1>;
 			status = "disabled";
+
+			usb0_vbus_otg: regulator-vbus {
+				regulator-name = "vbus";
+			};
 		};
 
 		ohci0: usb@11c50000 {

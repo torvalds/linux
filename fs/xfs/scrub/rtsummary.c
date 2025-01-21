@@ -18,6 +18,7 @@
 #include "xfs_bmap.h"
 #include "xfs_sb.h"
 #include "xfs_exchmaps.h"
+#include "xfs_rtgroup.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
@@ -46,11 +47,18 @@ xchk_setup_rtsummary(
 	struct xchk_rtsummary	*rts;
 	int			error;
 
+	if (xchk_need_intent_drain(sc))
+		xchk_fsgates_enable(sc, XCHK_FSGATES_DRAIN);
+
 	rts = kvzalloc(struct_size(rts, words, mp->m_blockwsize),
 			XCHK_GFP_FLAGS);
 	if (!rts)
 		return -ENOMEM;
 	sc->buf = rts;
+
+	error = xchk_rtgroup_init(sc, sc->sm->sm_agno, &sc->sr);
+	if (error)
+		return error;
 
 	if (xchk_could_repair(sc)) {
 		error = xrep_setup_rtsummary(sc, rts);
@@ -63,7 +71,8 @@ xchk_setup_rtsummary(
 	 * us to avoid pinning kernel memory for this purpose.
 	 */
 	descr = xchk_xfile_descr(sc, "realtime summary file");
-	error = xfile_create(descr, mp->m_rsumsize, &sc->xfile);
+	error = xfile_create(descr, XFS_FSB_TO_B(mp, mp->m_rsumblocks),
+			&sc->xfile);
 	kfree(descr);
 	if (error)
 		return error;
@@ -72,7 +81,8 @@ xchk_setup_rtsummary(
 	if (error)
 		return error;
 
-	error = xchk_install_live_inode(sc, mp->m_rsumip);
+	error = xchk_install_live_inode(sc,
+			sc->sr.rtg->rtg_inodes[XFS_RTGI_SUMMARY]);
 	if (error)
 		return error;
 
@@ -81,31 +91,23 @@ xchk_setup_rtsummary(
 		return error;
 
 	/*
-	 * Locking order requires us to take the rtbitmap first.  We must be
-	 * careful to unlock it ourselves when we are done with the rtbitmap
-	 * file since the scrub infrastructure won't do that for us.  Only
-	 * then we can lock the rtsummary inode.
-	 */
-	xfs_ilock(mp->m_rbmip, XFS_ILOCK_SHARED | XFS_ILOCK_RTBITMAP);
-	xchk_ilock(sc, XFS_ILOCK_EXCL | XFS_ILOCK_RTSUM);
-
-	/*
 	 * Now that we've locked the rtbitmap and rtsummary, we can't race with
 	 * growfsrt trying to expand the summary or change the size of the rt
 	 * volume.  Hence it is safe to compute and check the geometry values.
+	 *
+	 * Note that there is no strict requirement for an exclusive lock on the
+	 * summary here, but to keep the locking APIs simple we lock both inodes
+	 * exclusively here.  If we ever start caring about running concurrent
+	 * fsmap with scrub this could be changed.
 	 */
+	xchk_rtgroup_lock(&sc->sr, XFS_RTGLOCK_BITMAP);
 	if (mp->m_sb.sb_rblocks) {
-		xfs_filblks_t	rsumblocks;
-		int		rextslog;
-
-		rts->rextents = xfs_rtb_to_rtx(mp, mp->m_sb.sb_rblocks);
-		rextslog = xfs_compute_rextslog(rts->rextents);
-		rts->rsumlevels = rextslog + 1;
-		rts->rbmblocks = xfs_rtbitmap_blockcount(mp, rts->rextents);
-		rsumblocks = xfs_rtsummary_blockcount(mp, rts->rsumlevels,
-				rts->rbmblocks);
-		rts->rsumsize = XFS_FSB_TO_B(mp, rsumblocks);
+		rts->rextents = xfs_blen_to_rtbxlen(mp, mp->m_sb.sb_rblocks);
+		rts->rbmblocks = xfs_rtbitmap_blockcount(mp);
+		rts->rsumblocks =
+			xfs_rtsummary_blockcount(mp, &rts->rsumlevels);
 	}
+
 	return 0;
 }
 
@@ -149,6 +151,11 @@ xchk_rtsum_inc(
 	struct xfs_mount	*mp,
 	union xfs_suminfo_raw	*v)
 {
+	if (xfs_has_rtgroups(mp)) {
+		be32_add_cpu(&v->rtg, 1);
+		return be32_to_cpu(v->rtg);
+	}
+
 	v->old += 1;
 	return v->old;
 }
@@ -156,11 +163,12 @@ xchk_rtsum_inc(
 /* Update the summary file to reflect the free extent that we've accumulated. */
 STATIC int
 xchk_rtsum_record_free(
-	struct xfs_mount		*mp,
+	struct xfs_rtgroup		*rtg,
 	struct xfs_trans		*tp,
 	const struct xfs_rtalloc_rec	*rec,
 	void				*priv)
 {
+	struct xfs_mount		*mp = rtg_mount(rtg);
 	struct xfs_scrub		*sc = priv;
 	xfs_fileoff_t			rbmoff;
 	xfs_rtblock_t			rtbno;
@@ -179,11 +187,12 @@ xchk_rtsum_record_free(
 	lenlog = xfs_highbit64(rec->ar_extcount);
 	offs = xfs_rtsumoffs(mp, lenlog, rbmoff);
 
-	rtbno = xfs_rtx_to_rtb(mp, rec->ar_startext);
-	rtlen = xfs_rtx_to_rtb(mp, rec->ar_extcount);
+	rtbno = xfs_rtx_to_rtb(rtg, rec->ar_startext);
+	rtlen = xfs_rtxlen_to_extlen(mp, rec->ar_extcount);
 
 	if (!xfs_verify_rtbext(mp, rtbno, rtlen)) {
-		xchk_ino_xref_set_corrupt(sc, mp->m_rbmip->i_ino);
+		xchk_ino_xref_set_corrupt(sc,
+				rtg->rtg_inodes[XFS_RTGI_BITMAP]->i_ino);
 		return -EFSCORRUPTED;
 	}
 
@@ -205,15 +214,14 @@ xchk_rtsum_compute(
 	struct xfs_scrub	*sc)
 {
 	struct xfs_mount	*mp = sc->mp;
-	unsigned long long	rtbmp_blocks;
+	struct xfs_rtgroup	*rtg = sc->sr.rtg;
 
 	/* If the bitmap size doesn't match the computed size, bail. */
-	rtbmp_blocks = xfs_rtbitmap_blockcount(mp, mp->m_sb.sb_rextents);
-	if (XFS_FSB_TO_B(mp, rtbmp_blocks) != mp->m_rbmip->i_disk_size)
+	if (XFS_FSB_TO_B(mp, xfs_rtbitmap_blockcount(mp)) !=
+	    rtg->rtg_inodes[XFS_RTGI_BITMAP]->i_disk_size)
 		return -EFSCORRUPTED;
 
-	return xfs_rtalloc_query_all(sc->mp, sc->tp, xchk_rtsum_record_free,
-			sc);
+	return xfs_rtalloc_query_all(rtg, sc->tp, xchk_rtsum_record_free, sc);
 }
 
 /* Compare the rtsummary file against the one we computed. */
@@ -232,8 +240,9 @@ xchk_rtsum_compare(
 	xfs_rtsumoff_t		sumoff = 0;
 	int			error = 0;
 
-	rts->args.mp = sc->mp;
+	rts->args.mp = mp;
 	rts->args.tp = sc->tp;
+	rts->args.rtg = sc->sr.rtg;
 
 	/* Mappings may not cross or lie beyond EOF. */
 	endoff = XFS_B_TO_FSB(mp, ip->i_disk_size);
@@ -300,31 +309,34 @@ xchk_rtsummary(
 	struct xfs_scrub	*sc)
 {
 	struct xfs_mount	*mp = sc->mp;
+	struct xfs_rtgroup	*rtg = sc->sr.rtg;
+	struct xfs_inode	*rbmip = rtg->rtg_inodes[XFS_RTGI_BITMAP];
+	struct xfs_inode	*rsumip = rtg->rtg_inodes[XFS_RTGI_SUMMARY];
 	struct xchk_rtsummary	*rts = sc->buf;
-	int			error = 0;
+	int			error;
 
 	/* Is sb_rextents correct? */
 	if (mp->m_sb.sb_rextents != rts->rextents) {
-		xchk_ino_set_corrupt(sc, mp->m_rbmip->i_ino);
-		goto out_rbm;
+		xchk_ino_set_corrupt(sc, rbmip->i_ino);
+		return 0;
 	}
 
 	/* Is m_rsumlevels correct? */
 	if (mp->m_rsumlevels != rts->rsumlevels) {
-		xchk_ino_set_corrupt(sc, mp->m_rsumip->i_ino);
-		goto out_rbm;
+		xchk_ino_set_corrupt(sc, rsumip->i_ino);
+		return 0;
 	}
 
 	/* Is m_rsumsize correct? */
-	if (mp->m_rsumsize != rts->rsumsize) {
-		xchk_ino_set_corrupt(sc, mp->m_rsumip->i_ino);
-		goto out_rbm;
+	if (mp->m_rsumblocks != rts->rsumblocks) {
+		xchk_ino_set_corrupt(sc, rsumip->i_ino);
+		return 0;
 	}
 
 	/* The summary file length must be aligned to an fsblock. */
-	if (mp->m_rsumip->i_disk_size & mp->m_blockmask) {
-		xchk_ino_set_corrupt(sc, mp->m_rsumip->i_ino);
-		goto out_rbm;
+	if (rsumip->i_disk_size & mp->m_blockmask) {
+		xchk_ino_set_corrupt(sc, rsumip->i_ino);
+		return 0;
 	}
 
 	/*
@@ -332,15 +344,15 @@ xchk_rtsummary(
 	 * growfsrt expands the summary file before updating sb_rextents, so
 	 * the file can be larger than rsumsize.
 	 */
-	if (mp->m_rsumip->i_disk_size < rts->rsumsize) {
-		xchk_ino_set_corrupt(sc, mp->m_rsumip->i_ino);
-		goto out_rbm;
+	if (rsumip->i_disk_size < XFS_FSB_TO_B(mp, rts->rsumblocks)) {
+		xchk_ino_set_corrupt(sc, rsumip->i_ino);
+		return 0;
 	}
 
 	/* Invoke the fork scrubber. */
 	error = xchk_metadata_inode_forks(sc);
 	if (error || (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
-		goto out_rbm;
+		return error;
 
 	/* Construct the new summary file from the rtbitmap. */
 	error = xchk_rtsum_compute(sc);
@@ -349,23 +361,12 @@ xchk_rtsummary(
 		 * EFSCORRUPTED means the rtbitmap is corrupt, which is an xref
 		 * error since we're checking the summary file.
 		 */
-		xchk_ino_xref_set_corrupt(sc, mp->m_rbmip->i_ino);
-		error = 0;
-		goto out_rbm;
+		xchk_ino_set_corrupt(sc, rbmip->i_ino);
+		return 0;
 	}
 	if (error)
-		goto out_rbm;
+		return error;
 
 	/* Does the computed summary file match the actual rtsummary file? */
-	error = xchk_rtsum_compare(sc);
-
-out_rbm:
-	/*
-	 * Unlock the rtbitmap since we're done with it.  All other writers of
-	 * the rt free space metadata grab the bitmap and summary ILOCKs in
-	 * that order, so we're still protected against allocation activities
-	 * even if we continue on to the repair function.
-	 */
-	xfs_iunlock(mp->m_rbmip, XFS_ILOCK_SHARED | XFS_ILOCK_RTBITMAP);
-	return error;
+	return xchk_rtsum_compare(sc);
 }

@@ -24,6 +24,10 @@ properties:
     items:
       - const: mclk
 
+  interrupts:
+    maxItems: 1
+    description: interrupt output for headset detection
+
   "#sound-dai-cells":
     const: 0
 
@@ -32,7 +36,7 @@ properties:
     description: |
       just the value of reg 57. Bit(3) decides whether the jack polarity is inverted.
       Bit(2) decides whether the button on the headset is inverted.
-      Bit(1)/(0) decides the mic properity to be OMTP/CTIA or auto.
+      Bit(1)/(0) decides the mic property to be OMTP/CTIA or auto.
     minimum: 0x00
     maximum: 0x0f
     default: 0x0f

@@ -63,13 +63,13 @@ static void nlmon_setup(struct net_device *dev)
 {
 	dev->type = ARPHRD_NETLINK;
 	dev->priv_flags |= IFF_NO_QUEUE;
+	dev->lltx = true;
 
 	dev->netdev_ops	= &nlmon_ops;
 	dev->ethtool_ops = &nlmon_ethtool_ops;
 	dev->needs_free_netdev = true;
 
-	dev->features = NETIF_F_SG | NETIF_F_FRAGLIST |
-			NETIF_F_HIGHDMA | NETIF_F_LLTX;
+	dev->features = NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA;
 	dev->flags = IFF_NOARP;
 	dev->pcpu_stat_type = NETDEV_PCPU_STAT_LSTATS;
 

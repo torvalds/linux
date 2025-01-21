@@ -1026,9 +1026,7 @@ static int ixp4xx_get_ts_info(struct net_device *dev,
 
 	if (info->phc_index < 0) {
 		info->so_timestamping =
-			SOF_TIMESTAMPING_TX_SOFTWARE |
-			SOF_TIMESTAMPING_RX_SOFTWARE |
-			SOF_TIMESTAMPING_SOFTWARE;
+			SOF_TIMESTAMPING_TX_SOFTWARE;
 		return 0;
 	}
 	info->so_timestamping =
@@ -1621,7 +1619,7 @@ static struct platform_driver ixp4xx_eth_driver = {
 		.of_match_table = of_match_ptr(ixp4xx_eth_of_match),
 	},
 	.probe		= ixp4xx_eth_probe,
-	.remove_new	= ixp4xx_eth_remove,
+	.remove		= ixp4xx_eth_remove,
 };
 module_platform_driver(ixp4xx_eth_driver);
 

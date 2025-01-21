@@ -60,6 +60,8 @@ static const struct rtw89_pci_info rtw8852b_pci_info = {
 	.enable_intr		= rtw89_pci_enable_intr,
 	.disable_intr		= rtw89_pci_disable_intr,
 	.recognize_intrs	= rtw89_pci_recognize_intrs,
+
+	.ssid_quirks		= NULL,
 };
 
 static const struct rtw89_driver_info rtw89_8852be_info = {

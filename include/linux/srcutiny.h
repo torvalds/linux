@@ -81,6 +81,9 @@ static inline void srcu_barrier(struct srcu_struct *ssp)
 	synchronize_srcu(ssp);
 }
 
+#define srcu_check_read_flavor(ssp, read_flavor) do { } while (0)
+#define srcu_check_read_flavor_lite(ssp) do { } while (0)
+
 /* Defined here to avoid size increase for non-torture kernels. */
 static inline void srcu_torture_stats_print(struct srcu_struct *ssp,
 					    char *tt, char *tf)

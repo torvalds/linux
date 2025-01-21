@@ -323,8 +323,8 @@ static const struct of_device_id powernv_led_match[] = {
 MODULE_DEVICE_TABLE(of, powernv_led_match);
 
 static struct platform_driver powernv_led_driver = {
-	.probe	= powernv_led_probe,
-	.remove_new = powernv_led_remove,
+	.probe = powernv_led_probe,
+	.remove = powernv_led_remove,
 	.driver = {
 		.name = "powernv-led-driver",
 		.of_match_table = powernv_led_match,

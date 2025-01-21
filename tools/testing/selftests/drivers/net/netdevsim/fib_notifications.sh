@@ -94,7 +94,7 @@ route_addition_check()
 	sleep 1
 	$IP route add $route dev dummy1
 	sleep 1
-	kill %% && wait %% &> /dev/null
+	kill_process %%
 
 	route_notify_check $outfile $expected_num_notifications $offload_failed
 	rm -f $outfile
@@ -148,7 +148,7 @@ route_deletion_check()
 	sleep 1
 	$IP route del $route dev dummy1
 	sleep 1
-	kill %% && wait %% &> /dev/null
+	kill_process %%
 
 	route_notify_check $outfile $expected_num_notifications
 	rm -f $outfile
@@ -191,7 +191,7 @@ route_replacement_check()
 	sleep 1
 	$IP route replace $route dev dummy2
 	sleep 1
-	kill %% && wait %% &> /dev/null
+	kill_process %%
 
 	route_notify_check $outfile $expected_num_notifications
 	rm -f $outfile

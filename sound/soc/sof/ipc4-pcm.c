@@ -603,6 +603,9 @@ static int sof_ipc4_pcm_dai_link_fixup_rate(struct snd_sof_dev *sdev,
 	unsigned int be_rate;
 	int i;
 
+	if (WARN_ON_ONCE(!num_input_formats))
+		return -EINVAL;
+
 	/*
 	 * Copier does not change sampling rate, so we
 	 * need to only consider the input pin information.

@@ -192,4 +192,11 @@ char *perf_env__find_pmu_cap(struct perf_env *env, const char *pmu_name,
 			     const char *cap);
 
 bool perf_env__has_pmu_mapping(struct perf_env *env, const char *pmu_name);
+void perf_env__find_br_cntr_info(struct perf_env *env,
+				 unsigned int *nr,
+				 unsigned int *width);
+
+bool x86__is_amd_cpu(void);
+bool perf_env__is_x86_amd_cpu(struct perf_env *env);
+
 #endif /* __PERF_ENV_H */

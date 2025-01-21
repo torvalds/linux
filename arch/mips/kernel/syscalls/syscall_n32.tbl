@@ -401,3 +401,7 @@
 460	n32	lsm_set_self_attr		sys_lsm_set_self_attr
 461	n32	lsm_list_modules		sys_lsm_list_modules
 462	n32	mseal				sys_mseal
+463	n32	setxattrat			sys_setxattrat
+464	n32	getxattrat			sys_getxattrat
+465	n32	listxattrat			sys_listxattrat
+466	n32	removexattrat			sys_removexattrat

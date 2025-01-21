@@ -73,7 +73,7 @@ static const struct mfd_cell codec_devs[] = {
 	 },
 };
 
-static struct regmap_irq pm805_irqs[] = {
+static const struct regmap_irq pm805_irqs[] = {
 	/* INT0 */
 	[PM805_IRQ_LDO_OFF] = {
 		.mask = PM805_INT1_HP1_SHRT,
@@ -163,7 +163,7 @@ static void device_irq_exit_805(struct pm80x_chip *chip)
 	regmap_del_irq_chip(chip->irq, chip->irq_data);
 }
 
-static struct regmap_irq_chip pm805_irq_chip = {
+static const struct regmap_irq_chip pm805_irq_chip = {
 	.name = "88pm805",
 	.irqs = pm805_irqs,
 	.num_irqs = ARRAY_SIZE(pm805_irqs),

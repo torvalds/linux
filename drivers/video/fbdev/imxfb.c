@@ -782,16 +782,6 @@ static int imxfb_of_read_mode(struct device *dev, struct device_node *np,
 	return 0;
 }
 
-static int imxfb_lcd_check_fb(struct lcd_device *lcddev, struct fb_info *fi)
-{
-	struct imxfb_info *fbi = dev_get_drvdata(&lcddev->dev);
-
-	if (!fi || fi->par == fbi)
-		return 1;
-
-	return 0;
-}
-
 static int imxfb_lcd_get_contrast(struct lcd_device *lcddev)
 {
 	struct imxfb_info *fbi = dev_get_drvdata(&lcddev->dev);
@@ -824,9 +814,9 @@ static int imxfb_lcd_get_power(struct lcd_device *lcddev)
 
 	if (!IS_ERR(fbi->lcd_pwr) &&
 	    !regulator_is_enabled(fbi->lcd_pwr))
-		return FB_BLANK_POWERDOWN;
+		return LCD_POWER_OFF;
 
-	return FB_BLANK_UNBLANK;
+	return LCD_POWER_ON;
 }
 
 static int imxfb_regulator_set(struct imxfb_info *fbi, int enable)
@@ -852,13 +842,12 @@ static int imxfb_lcd_set_power(struct lcd_device *lcddev, int power)
 	struct imxfb_info *fbi = dev_get_drvdata(&lcddev->dev);
 
 	if (!IS_ERR(fbi->lcd_pwr))
-		return imxfb_regulator_set(fbi, power == FB_BLANK_UNBLANK);
+		return imxfb_regulator_set(fbi, power == LCD_POWER_ON);
 
 	return 0;
 }
 
 static const struct lcd_ops imxfb_lcd_ops = {
-	.check_fb	= imxfb_lcd_check_fb,
 	.get_contrast	= imxfb_lcd_get_contrast,
 	.set_contrast	= imxfb_lcd_set_contrast,
 	.get_power	= imxfb_lcd_get_power,
@@ -1025,11 +1014,6 @@ static int imxfb_probe(struct platform_device *pdev)
 		goto failed_cmap;
 
 	imxfb_set_par(info);
-	ret = register_framebuffer(info);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to register framebuffer\n");
-		goto failed_register;
-	}
 
 	fbi->lcd_pwr = devm_regulator_get(&pdev->dev, "lcd");
 	if (PTR_ERR(fbi->lcd_pwr) == -EPROBE_DEFER) {
@@ -1046,13 +1030,19 @@ static int imxfb_probe(struct platform_device *pdev)
 
 	lcd->props.max_contrast = 0xff;
 
+	info->lcd_dev = lcd;
+
+	ret = register_framebuffer(info);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "failed to register framebuffer\n");
+		goto failed_lcd;
+	}
+
 	imxfb_enable_controller(fbi);
 
 	return 0;
 
 failed_lcd:
-	unregister_framebuffer(info);
-failed_register:
 	fb_dealloc_cmap(&info->cmap);
 failed_cmap:
 	dma_free_wc(&pdev->dev, fbi->map_size, info->screen_buffer,
@@ -1105,7 +1095,7 @@ static struct platform_driver imxfb_driver = {
 		.pm	= pm_sleep_ptr(&imxfb_pm_ops),
 	},
 	.probe		= imxfb_probe,
-	.remove_new	= imxfb_remove,
+	.remove		= imxfb_remove,
 	.id_table	= imxfb_devtype,
 };
 module_platform_driver(imxfb_driver);

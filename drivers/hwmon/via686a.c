@@ -799,7 +799,7 @@ static struct platform_driver via686a_driver = {
 		.name	= DRIVER_NAME,
 	},
 	.probe		= via686a_probe,
-	.remove_new	= via686a_remove,
+	.remove		= via686a_remove,
 };
 
 static const struct pci_device_id via686a_pci_ids[] = {

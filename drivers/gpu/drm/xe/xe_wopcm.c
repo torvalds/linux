@@ -5,6 +5,8 @@
 
 #include "xe_wopcm.h"
 
+#include <linux/fault-inject.h>
+
 #include "regs/xe_guc_regs.h"
 #include "xe_device.h"
 #include "xe_force_wake.h"
@@ -123,8 +125,8 @@ static bool __check_layout(struct xe_device *xe, u32 wopcm_size,
 static bool __wopcm_regs_locked(struct xe_gt *gt,
 				u32 *guc_wopcm_base, u32 *guc_wopcm_size)
 {
-	u32 reg_base = xe_mmio_read32(gt, DMA_GUC_WOPCM_OFFSET);
-	u32 reg_size = xe_mmio_read32(gt, GUC_WOPCM_SIZE);
+	u32 reg_base = xe_mmio_read32(&gt->mmio, DMA_GUC_WOPCM_OFFSET);
+	u32 reg_size = xe_mmio_read32(&gt->mmio, GUC_WOPCM_SIZE);
 
 	if (!(reg_size & GUC_WOPCM_SIZE_LOCKED) ||
 	    !(reg_base & GUC_WOPCM_OFFSET_VALID))
@@ -150,13 +152,13 @@ static int __wopcm_init_regs(struct xe_device *xe, struct xe_gt *gt,
 	XE_WARN_ON(size & ~GUC_WOPCM_SIZE_MASK);
 
 	mask = GUC_WOPCM_SIZE_MASK | GUC_WOPCM_SIZE_LOCKED;
-	err = xe_mmio_write32_and_verify(gt, GUC_WOPCM_SIZE, size, mask,
+	err = xe_mmio_write32_and_verify(&gt->mmio, GUC_WOPCM_SIZE, size, mask,
 					 size | GUC_WOPCM_SIZE_LOCKED);
 	if (err)
 		goto err_out;
 
 	mask = GUC_WOPCM_OFFSET_MASK | GUC_WOPCM_OFFSET_VALID | huc_agent;
-	err = xe_mmio_write32_and_verify(gt, DMA_GUC_WOPCM_OFFSET,
+	err = xe_mmio_write32_and_verify(&gt->mmio, DMA_GUC_WOPCM_OFFSET,
 					 base | huc_agent, mask,
 					 base | huc_agent |
 					 GUC_WOPCM_OFFSET_VALID);
@@ -169,10 +171,10 @@ err_out:
 	drm_notice(&xe->drm, "Failed to init uC WOPCM registers!\n");
 	drm_notice(&xe->drm, "%s(%#x)=%#x\n", "DMA_GUC_WOPCM_OFFSET",
 		   DMA_GUC_WOPCM_OFFSET.addr,
-		   xe_mmio_read32(gt, DMA_GUC_WOPCM_OFFSET));
+		   xe_mmio_read32(&gt->mmio, DMA_GUC_WOPCM_OFFSET));
 	drm_notice(&xe->drm, "%s(%#x)=%#x\n", "GUC_WOPCM_SIZE",
 		   GUC_WOPCM_SIZE.addr,
-		   xe_mmio_read32(gt, GUC_WOPCM_SIZE));
+		   xe_mmio_read32(&gt->mmio, GUC_WOPCM_SIZE));
 
 	return err;
 }
@@ -268,3 +270,4 @@ check:
 
 	return ret;
 }
+ALLOW_ERROR_INJECTION(xe_wopcm_init, ERRNO); /* See xe_pci_probe() */

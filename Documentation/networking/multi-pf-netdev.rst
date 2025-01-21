@@ -111,11 +111,11 @@ The relation between PF, irq, napi, and queue can be observed via netlink spec::
 Here you can clearly observe our channels distribution policy::
 
   $ ls /proc/irq/{36,39,40,41,42}/mlx5* -d -1
-  /proc/irq/36/mlx5_comp1@pci:0000:08:00.0
-  /proc/irq/39/mlx5_comp1@pci:0000:09:00.0
-  /proc/irq/40/mlx5_comp2@pci:0000:08:00.0
-  /proc/irq/41/mlx5_comp2@pci:0000:09:00.0
-  /proc/irq/42/mlx5_comp3@pci:0000:08:00.0
+  /proc/irq/36/mlx5_comp0@pci:0000:08:00.0
+  /proc/irq/39/mlx5_comp0@pci:0000:09:00.0
+  /proc/irq/40/mlx5_comp1@pci:0000:08:00.0
+  /proc/irq/41/mlx5_comp1@pci:0000:09:00.0
+  /proc/irq/42/mlx5_comp2@pci:0000:08:00.0
 
 Steering
 ========

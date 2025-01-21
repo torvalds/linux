@@ -22,15 +22,13 @@ static int __init start_kernel_proc(void *unused)
 {
 	block_signals_trace();
 
-	cpu_tasks[0].task = current;
-
 	start_kernel();
 	return 0;
 }
 
 extern int userspace_pid[];
 
-extern char cpu0_irqstack[];
+static char cpu0_irqstack[THREAD_SIZE] __aligned(THREAD_SIZE);
 
 int __init start_uml(void)
 {
@@ -39,8 +37,8 @@ int __init start_uml(void)
 
 	init_new_thread_signals();
 
-	init_task.thread.request.u.thread.proc = start_kernel_proc;
-	init_task.thread.request.u.thread.arg = NULL;
+	init_task.thread.request.thread.proc = start_kernel_proc;
+	init_task.thread.request.thread.arg = NULL;
 	return start_idle_thread(task_stack_page(&init_task),
 				 &init_task.thread.switch_buf);
 }

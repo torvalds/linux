@@ -49,7 +49,7 @@
 #define regMP1_SMN_IH_SW_INT_CTRL_mp1_14_0_0_BASE_IDX   0
 
 const int decoded_link_speed[5] = {1, 2, 3, 4, 5};
-const int decoded_link_width[7] = {0, 1, 2, 4, 8, 12, 16};
+const int decoded_link_width[8] = {0, 1, 2, 4, 8, 12, 16, 32};
 /*
  * DO NOT use these for err/warn/info/debug messages.
  * Use dev_err, dev_warn, dev_info and dev_dbg instead.
@@ -452,17 +452,26 @@ int smu_v14_0_init_smc_tables(struct smu_context *smu)
 			ret = -ENOMEM;
 			goto err3_out;
 		}
+
+		smu_table->user_overdrive_table =
+			kzalloc(tables[SMU_TABLE_OVERDRIVE].size, GFP_KERNEL);
+		if (!smu_table->user_overdrive_table) {
+			ret = -ENOMEM;
+			goto err4_out;
+		}
 	}
 
 	smu_table->combo_pptable =
 		kzalloc(tables[SMU_TABLE_COMBO_PPTABLE].size, GFP_KERNEL);
 	if (!smu_table->combo_pptable) {
 		ret = -ENOMEM;
-		goto err4_out;
+		goto err5_out;
 	}
 
 	return 0;
 
+err5_out:
+	kfree(smu_table->user_overdrive_table);
 err4_out:
 	kfree(smu_table->boot_overdrive_table);
 err3_out:
@@ -1093,7 +1102,8 @@ failed:
 int smu_v14_0_set_soft_freq_limited_range(struct smu_context *smu,
 					  enum smu_clk_type clk_type,
 					  uint32_t min,
-					  uint32_t max)
+					  uint32_t max,
+					  bool automatic)
 {
 	int ret = 0, clk_id = 0;
 	uint32_t param;
@@ -1108,7 +1118,10 @@ int smu_v14_0_set_soft_freq_limited_range(struct smu_context *smu,
 		return clk_id;
 
 	if (max > 0) {
-		param = (uint32_t)((clk_id << 16) | (max & 0xffff));
+		if (automatic)
+			param = (uint32_t)((clk_id << 16) | 0xffff);
+		else
+			param = (uint32_t)((clk_id << 16) | (max & 0xffff));
 		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMaxByFreq,
 						      param, NULL);
 		if (ret)
@@ -1116,7 +1129,10 @@ int smu_v14_0_set_soft_freq_limited_range(struct smu_context *smu,
 	}
 
 	if (min > 0) {
-		param = (uint32_t)((clk_id << 16) | (min & 0xffff));
+		if (automatic)
+			param = (uint32_t)((clk_id << 16) | 0);
+		else
+			param = (uint32_t)((clk_id << 16) | (min & 0xffff));
 		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMinByFreq,
 						      param, NULL);
 		if (ret)
@@ -1193,6 +1209,7 @@ int smu_v14_0_set_performance_level(struct smu_context *smu,
 	uint32_t dclk_min = 0, dclk_max = 0;
 	uint32_t fclk_min = 0, fclk_max = 0;
 	int ret = 0, i;
+	bool auto_level = false;
 
 	switch (level) {
 	case AMD_DPM_FORCED_LEVEL_HIGH:
@@ -1224,6 +1241,7 @@ int smu_v14_0_set_performance_level(struct smu_context *smu,
 		dclk_max = dclk_table->max;
 		fclk_min = fclk_table->min;
 		fclk_max = fclk_table->max;
+		auto_level = true;
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
 		sclk_min = sclk_max = pstate_table->gfxclk_pstate.standard;
@@ -1259,7 +1277,8 @@ int smu_v14_0_set_performance_level(struct smu_context *smu,
 		ret = smu_v14_0_set_soft_freq_limited_range(smu,
 							    SMU_GFXCLK,
 							    sclk_min,
-							    sclk_max);
+							    sclk_max,
+							    auto_level);
 		if (ret)
 			return ret;
 
@@ -1271,7 +1290,8 @@ int smu_v14_0_set_performance_level(struct smu_context *smu,
 		ret = smu_v14_0_set_soft_freq_limited_range(smu,
 							    SMU_MCLK,
 							    mclk_min,
-							    mclk_max);
+							    mclk_max,
+							    auto_level);
 		if (ret)
 			return ret;
 
@@ -1283,7 +1303,8 @@ int smu_v14_0_set_performance_level(struct smu_context *smu,
 		ret = smu_v14_0_set_soft_freq_limited_range(smu,
 							    SMU_SOCCLK,
 							    socclk_min,
-							    socclk_max);
+							    socclk_max,
+							    auto_level);
 		if (ret)
 			return ret;
 
@@ -1298,7 +1319,8 @@ int smu_v14_0_set_performance_level(struct smu_context *smu,
 			ret = smu_v14_0_set_soft_freq_limited_range(smu,
 								    i ? SMU_VCLK1 : SMU_VCLK,
 								    vclk_min,
-								    vclk_max);
+								    vclk_max,
+								    auto_level);
 			if (ret)
 				return ret;
 		}
@@ -1313,7 +1335,8 @@ int smu_v14_0_set_performance_level(struct smu_context *smu,
 			ret = smu_v14_0_set_soft_freq_limited_range(smu,
 								    i ? SMU_DCLK1 : SMU_DCLK,
 								    dclk_min,
-								    dclk_max);
+								    dclk_max,
+								    auto_level);
 			if (ret)
 				return ret;
 		}
@@ -1325,7 +1348,8 @@ int smu_v14_0_set_performance_level(struct smu_context *smu,
 		ret = smu_v14_0_set_soft_freq_limited_range(smu,
 							    SMU_FCLK,
 							    fclk_min,
-							    fclk_max);
+							    fclk_max,
+							    auto_level);
 		if (ret)
 			return ret;
 
@@ -1483,7 +1507,8 @@ int smu_v14_0_set_single_dpm_table(struct smu_context *smu,
 }
 
 int smu_v14_0_set_vcn_enable(struct smu_context *smu,
-			     bool enable)
+			      bool enable,
+			      int inst)
 {
 	struct amdgpu_device *adev = smu->adev;
 	int i, ret = 0;

@@ -50,12 +50,17 @@
 
 #define ICSSG_MAX_RFLOWS	8	/* per slice */
 
+#define ICSSG_NUM_PA_STATS	4
+#define ICSSG_NUM_MIIG_STATS	60
 /* Number of ICSSG related stats */
-#define ICSSG_NUM_STATS 60
+#define ICSSG_NUM_STATS (ICSSG_NUM_MIIG_STATS + ICSSG_NUM_PA_STATS)
 #define ICSSG_NUM_STANDARD_STATS 31
 #define ICSSG_NUM_ETHTOOL_STATS (ICSSG_NUM_STATS - ICSSG_NUM_STANDARD_STATS)
 
 #define IEP_DEFAULT_CYCLE_TIME_NS	1000000	/* 1 ms */
+
+#define PRUETH_UNDIRECTED_PKT_DST_TAG	0
+#define PRUETH_UNDIRECTED_PKT_TAG_INS	BIT(30)
 
 /* Firmware status codes */
 #define ICSS_HS_FW_READY 0x55555555
@@ -190,7 +195,8 @@ struct prueth_emac {
 	int port_vlan;
 
 	struct delayed_work stats_work;
-	u64 stats[ICSSG_NUM_STATS];
+	u64 stats[ICSSG_NUM_MIIG_STATS];
+	u64 pa_stats[ICSSG_NUM_PA_STATS];
 
 	/* RX IRQ Coalescing Related */
 	struct hrtimer rx_hrtimer;
@@ -230,6 +236,7 @@ struct icssg_firmwares {
  * @registered_netdevs: list of registered netdevs
  * @miig_rt: regmap to mii_g_rt block
  * @mii_rt: regmap to mii_rt block
+ * @pa_stats: regmap to pa_stats block
  * @pru_id: ID for each of the PRUs
  * @pdev: pointer to ICSSG platform device
  * @pdata: pointer to platform data for ICSSG driver
@@ -239,11 +246,14 @@ struct icssg_firmwares {
  * @iep1: pointer to IEP1 device
  * @vlan_tbl: VLAN-FID table pointer
  * @hw_bridge_dev: pointer to HW bridge net device
+ * @hsr_dev: pointer to the HSR net device
  * @br_members: bitmask of bridge member ports
+ * @hsr_members: bitmask of hsr member ports
  * @prueth_netdevice_nb: netdevice notifier block
  * @prueth_switchdev_nb: switchdev notifier block
  * @prueth_switchdev_bl_nb: switchdev blocking notifier block
  * @is_switch_mode: flag to indicate if device is in Switch mode
+ * @is_hsr_offload_mode: flag to indicate if device is in hsr offload mode
  * @is_switchmode_supported: indicates platform support for switch mode
  * @switch_id: ID for mapping switch ports to bridge
  * @default_vlan: Default VLAN for host
@@ -263,6 +273,7 @@ struct prueth {
 	struct net_device *registered_netdevs[PRUETH_NUM_MACS];
 	struct regmap *miig_rt;
 	struct regmap *mii_rt;
+	struct regmap *pa_stats;
 
 	enum pruss_pru_id pru_id[PRUSS_NUM_PRUS];
 	struct platform_device *pdev;
@@ -274,14 +285,19 @@ struct prueth {
 	struct prueth_vlan_tbl *vlan_tbl;
 
 	struct net_device *hw_bridge_dev;
+	struct net_device *hsr_dev;
 	u8 br_members;
+	u8 hsr_members;
 	struct notifier_block prueth_netdevice_nb;
 	struct notifier_block prueth_switchdev_nb;
 	struct notifier_block prueth_switchdev_bl_nb;
 	bool is_switch_mode;
+	bool is_hsr_offload_mode;
 	bool is_switchmode_supported;
 	unsigned char switch_id[MAX_PHYS_ITEM_ID_LEN];
 	int default_vlan;
+	/** @vtbl_lock: Lock for vtbl in shared memory */
+	spinlock_t vtbl_lock;
 };
 
 struct emac_tx_ts_response {
@@ -313,6 +329,18 @@ static inline int prueth_emac_slice(struct prueth_emac *emac)
 
 extern const struct ethtool_ops icssg_ethtool_ops;
 extern const struct dev_pm_ops prueth_dev_pm_ops;
+
+static inline u64 icssg_read_time(const void __iomem *addr)
+{
+	u32 low, high;
+
+	do {
+		high = readl(addr + 4);
+		low = readl(addr);
+	} while (high != readl(addr + 4));
+
+	return low + ((u64)high << 32);
+}
 
 /* Classifier helpers */
 void icssg_class_set_mac_addr(struct regmap *miig_rt, int slice, u8 *mac);

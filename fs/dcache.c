@@ -135,6 +135,7 @@ struct dentry_stat_t {
 static DEFINE_PER_CPU(long, nr_dentry);
 static DEFINE_PER_CPU(long, nr_dentry_unused);
 static DEFINE_PER_CPU(long, nr_dentry_negative);
+static int dentry_negative_policy;
 
 #if defined(CONFIG_SYSCTL) && defined(CONFIG_PROC_FS)
 /* Statistics gathering. */
@@ -198,6 +199,15 @@ static struct ctl_table fs_dcache_sysctls[] = {
 		.maxlen		= 6*sizeof(long),
 		.mode		= 0444,
 		.proc_handler	= proc_nr_dentry,
+	},
+	{
+		.procname	= "dentry-negative",
+		.data		= &dentry_negative_policy,
+		.maxlen		= sizeof(dentry_negative_policy),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
 	},
 };
 
@@ -1089,7 +1099,7 @@ void shrink_dentry_list(struct list_head *list)
 }
 
 static enum lru_status dentry_lru_isolate(struct list_head *item,
-		struct list_lru_one *lru, spinlock_t *lru_lock, void *arg)
+		struct list_lru_one *lru, void *arg)
 {
 	struct list_head *freeable = arg;
 	struct dentry	*dentry = container_of(item, struct dentry, d_lru);
@@ -1170,7 +1180,7 @@ long prune_dcache_sb(struct super_block *sb, struct shrink_control *sc)
 }
 
 static enum lru_status dentry_lru_isolate_shrink(struct list_head *item,
-		struct list_lru_one *lru, spinlock_t *lru_lock, void *arg)
+		struct list_lru_one *lru, void *arg)
 {
 	struct list_head *freeable = arg;
 	struct dentry	*dentry = container_of(item, struct dentry, d_lru);
@@ -1913,8 +1923,13 @@ void d_instantiate_new(struct dentry *entry, struct inode *inode)
 	__d_instantiate(entry, inode);
 	WARN_ON(!(inode->i_state & I_NEW));
 	inode->i_state &= ~I_NEW & ~I_CREATING;
+	/*
+	 * Pairs with the barrier in prepare_to_wait_event() to make sure
+	 * ___wait_var_event() either sees the bit cleared or
+	 * waitqueue_active() check in wake_up_var() sees the waiter.
+	 */
 	smp_mb();
-	wake_up_bit(&inode->i_state, __I_NEW);
+	inode_wake_up_bit(inode, __I_NEW);
 	spin_unlock(&inode->i_lock);
 }
 EXPORT_SYMBOL(d_instantiate_new);
@@ -2034,8 +2049,8 @@ EXPORT_SYMBOL(d_obtain_root);
 
 /**
  * d_add_ci - lookup or allocate new dentry with case-exact name
- * @inode:  the inode case-insensitive lookup has found
  * @dentry: the negative dentry that was passed to the parent's lookup func
+ * @inode:  the inode case-insensitive lookup has found
  * @name:   the case-exact name to be associated with the returned dentry
  *
  * This is to avoid filling the dcache with case-insensitive names to the
@@ -2088,8 +2103,8 @@ EXPORT_SYMBOL(d_add_ci);
 
 /**
  * d_same_name - compare dentry name with case-exact name
- * @parent: parent dentry
  * @dentry: the negative dentry that was passed to the parent's lookup func
+ * @parent: parent dentry
  * @name:   the case-exact name to be associated with the returned dentry
  *
  * Return: true if names are same, or false
@@ -2167,9 +2182,6 @@ seqretry:
  * held, and rcu_read_lock held. The returned dentry must not be stored into
  * without taking d_lock and checking d_seq sequence count against @seq
  * returned here.
- *
- * A refcount may be taken on the found dentry with the d_rcu_to_refcount
- * function.
  *
  * Alternatively, __d_lookup_rcu may be called again to look up the child of
  * the returned dentry, so long as its parent's seqlock is checked after the
@@ -2399,6 +2411,8 @@ void d_delete(struct dentry * dentry)
 	 * Are we the only user?
 	 */
 	if (dentry->d_lockref.count == 1) {
+		if (dentry_negative_policy)
+			__d_drop(dentry);
 		dentry->d_flags &= ~DCACHE_CANT_MOUNT;
 		dentry_unlink_inode(dentry);
 	} else {

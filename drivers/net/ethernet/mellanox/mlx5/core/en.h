@@ -83,6 +83,7 @@ struct page_pool;
 #define MLX5E_SHAMPO_LOG_HEADER_ENTRY_SIZE (8)
 #define MLX5E_SHAMPO_LOG_MAX_HEADER_ENTRY_SIZE (9)
 #define MLX5E_SHAMPO_WQ_HEADER_PER_PAGE (PAGE_SIZE >> MLX5E_SHAMPO_LOG_MAX_HEADER_ENTRY_SIZE)
+#define MLX5E_SHAMPO_LOG_WQ_HEADER_PER_PAGE (PAGE_SHIFT - MLX5E_SHAMPO_LOG_MAX_HEADER_ENTRY_SIZE)
 #define MLX5E_SHAMPO_WQ_BASE_HEAD_ENTRY_SIZE (64)
 #define MLX5E_SHAMPO_WQ_RESRV_SIZE (64 * 1024)
 #define MLX5E_SHAMPO_WQ_BASE_RESRV_SIZE (4096)
@@ -624,16 +625,14 @@ struct mlx5e_dma_info {
 
 struct mlx5e_shampo_hd {
 	u32 mkey;
-	struct mlx5e_dma_info *info;
 	struct mlx5e_frag_page *pages;
-	u16 curr_page_index;
-	u16 hd_per_wq;
+	u32 hd_per_wq;
 	u16 hd_per_wqe;
+	u16 pages_per_wq;
 	unsigned long *bitmap;
 	u16 pi;
 	u16 ci;
 	__be32 key;
-	u64 last_addr;
 };
 
 struct mlx5e_hw_gro_data {
@@ -755,7 +754,7 @@ struct mlx5e_channel {
 	u8                         lag_port;
 
 	/* XDP_REDIRECT */
-	struct mlx5e_xdpsq         xdpsq;
+	struct mlx5e_xdpsq        *xdpsq;
 
 	/* AF_XDP zero-copy */
 	struct mlx5e_rq            xskrq;
@@ -1173,14 +1172,16 @@ void mlx5e_ethtool_get_ringparam(struct mlx5e_priv *priv,
 				 struct ethtool_ringparam *param,
 				 struct kernel_ethtool_ringparam *kernel_param);
 int mlx5e_ethtool_set_ringparam(struct mlx5e_priv *priv,
-				struct ethtool_ringparam *param);
+				struct ethtool_ringparam *param,
+				struct netlink_ext_ack *extack);
 void mlx5e_ethtool_get_channels(struct mlx5e_priv *priv,
 				struct ethtool_channels *ch);
 int mlx5e_ethtool_set_channels(struct mlx5e_priv *priv,
 			       struct ethtool_channels *ch);
 int mlx5e_ethtool_get_coalesce(struct mlx5e_priv *priv,
 			       struct ethtool_coalesce *coal,
-			       struct kernel_ethtool_coalesce *kernel_coal);
+			       struct kernel_ethtool_coalesce *kernel_coal,
+			       struct netlink_ext_ack *extack);
 int mlx5e_ethtool_set_coalesce(struct mlx5e_priv *priv,
 			       struct ethtool_coalesce *coal,
 			       struct kernel_ethtool_coalesce *kernel_coal,

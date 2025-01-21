@@ -21,11 +21,22 @@
  *    - if all enabled ports are in linked
  *    - if all linked ports are in full lane
  *    - CRC error count sum
+ *
+ * - Retrieve all HCCS types used on the platform.
+ *
+ * - Support low power feature for all specified HCCS type ports, and
+ *   provide the following interface:
+ *    - query HCCS types supported increasing and decreasing lane number.
+ *    - decrease lane number of all specified HCCS type ports on idle state.
+ *    - increase lane number of all specified HCCS type ports.
  */
 #include <linux/acpi.h>
+#include <linux/delay.h>
 #include <linux/iopoll.h>
 #include <linux/platform_device.h>
+#include <linux/stringify.h>
 #include <linux/sysfs.h>
+#include <linux/types.h>
 
 #include <acpi/pcc.h>
 
@@ -51,6 +62,42 @@ static struct hccs_die_info *kobj_to_die_info(struct kobject *k)
 static struct hccs_chip_info *kobj_to_chip_info(struct kobject *k)
 {
 	return container_of(k, struct hccs_chip_info, kobj);
+}
+
+static struct hccs_dev *device_kobj_to_hccs_dev(struct kobject *k)
+{
+	struct device *dev = container_of(k, struct device, kobj);
+	struct platform_device *pdev =
+			container_of(dev, struct platform_device, dev);
+
+	return platform_get_drvdata(pdev);
+}
+
+static char *hccs_port_type_to_name(struct hccs_dev *hdev, u8 type)
+{
+	u16 i;
+
+	for (i = 0; i < hdev->used_type_num; i++) {
+		if (hdev->type_name_maps[i].type == type)
+			return hdev->type_name_maps[i].name;
+	}
+
+	return NULL;
+}
+
+static int hccs_name_to_port_type(struct hccs_dev *hdev,
+				  const char *name, u8 *type)
+{
+	u16 i;
+
+	for (i = 0; i < hdev->used_type_num; i++) {
+		if (strcmp(hdev->type_name_maps[i].name, name) == 0) {
+			*type = hdev->type_name_maps[i].type;
+			return 0;
+		}
+	}
+
+	return -EINVAL;
 }
 
 struct hccs_register_ctx {
@@ -144,7 +191,7 @@ static int hccs_register_pcc_channel(struct hccs_dev *hdev)
 
 	pcc_chan = pcc_mbox_request_channel(cl, hdev->chan_id);
 	if (IS_ERR(pcc_chan)) {
-		dev_err(dev, "PPC channel request failed.\n");
+		dev_err(dev, "PCC channel request failed.\n");
 		rc = -ENODEV;
 		goto out;
 	}
@@ -170,15 +217,21 @@ static int hccs_register_pcc_channel(struct hccs_dev *hdev)
 		goto err_mbx_channel_free;
 	}
 
-	if (pcc_chan->shmem_base_addr) {
-		cl_info->pcc_comm_addr = ioremap(pcc_chan->shmem_base_addr,
-						 pcc_chan->shmem_size);
-		if (!cl_info->pcc_comm_addr) {
-			dev_err(dev, "Failed to ioremap PCC communication region for channel-%u.\n",
-				hdev->chan_id);
-			rc = -ENOMEM;
-			goto err_mbx_channel_free;
-		}
+	if (!pcc_chan->shmem_base_addr ||
+	    pcc_chan->shmem_size != HCCS_PCC_SHARE_MEM_BYTES) {
+		dev_err(dev, "The base address or size (%llu) of PCC communication region is invalid.\n",
+			pcc_chan->shmem_size);
+		rc = -EINVAL;
+		goto err_mbx_channel_free;
+	}
+
+	cl_info->pcc_comm_addr = ioremap(pcc_chan->shmem_base_addr,
+					 pcc_chan->shmem_size);
+	if (!cl_info->pcc_comm_addr) {
+		dev_err(dev, "Failed to ioremap PCC communication region for channel-%u.\n",
+			hdev->chan_id);
+		rc = -ENOMEM;
+		goto err_mbx_channel_free;
 	}
 
 	return 0;
@@ -451,6 +504,7 @@ static int hccs_query_all_die_info_on_platform(struct hccs_dev *hdev)
 	struct device *dev = hdev->dev;
 	struct hccs_chip_info *chip;
 	struct hccs_die_info *die;
+	bool has_die_info = false;
 	u8 i, j;
 	int ret;
 
@@ -459,6 +513,7 @@ static int hccs_query_all_die_info_on_platform(struct hccs_dev *hdev)
 		if (!chip->die_num)
 			continue;
 
+		has_die_info = true;
 		chip->dies = devm_kzalloc(hdev->dev,
 				chip->die_num * sizeof(struct hccs_die_info),
 				GFP_KERNEL);
@@ -480,7 +535,7 @@ static int hccs_query_all_die_info_on_platform(struct hccs_dev *hdev)
 		}
 	}
 
-	return 0;
+	return has_die_info ? 0 : -EINVAL;
 }
 
 static int hccs_get_bd_info(struct hccs_dev *hdev, u8 opcode,
@@ -586,7 +641,7 @@ static int hccs_get_all_port_info_on_die(struct hccs_dev *hdev,
 		port = &die->ports[i];
 		port->port_id = attrs[i].port_id;
 		port->port_type = attrs[i].port_type;
-		port->lane_mode = attrs[i].lane_mode;
+		port->max_lane_num = attrs[i].max_lane_num;
 		port->enable = attrs[i].enable;
 		port->die = die;
 	}
@@ -601,6 +656,7 @@ static int hccs_query_all_port_info_on_platform(struct hccs_dev *hdev)
 	struct device *dev = hdev->dev;
 	struct hccs_chip_info *chip;
 	struct hccs_die_info *die;
+	bool has_port_info = false;
 	u8 i, j;
 	int ret;
 
@@ -611,6 +667,7 @@ static int hccs_query_all_port_info_on_platform(struct hccs_dev *hdev)
 			if (!die->port_num)
 				continue;
 
+			has_port_info = true;
 			die->ports = devm_kzalloc(dev,
 				die->port_num * sizeof(struct hccs_port_info),
 				GFP_KERNEL);
@@ -629,7 +686,7 @@ static int hccs_query_all_port_info_on_platform(struct hccs_dev *hdev)
 		}
 	}
 
-	return 0;
+	return has_port_info ? 0 : -EINVAL;
 }
 
 static int hccs_get_hw_info(struct hccs_dev *hdev)
@@ -655,6 +712,55 @@ static int hccs_get_hw_info(struct hccs_dev *hdev)
 		dev_err(hdev->dev, "query all port info on platform failed, ret = %d.\n",
 			ret);
 		return ret;
+	}
+
+	return 0;
+}
+
+static u16 hccs_calc_used_type_num(struct hccs_dev *hdev,
+				   unsigned long *hccs_ver)
+{
+	struct hccs_chip_info *chip;
+	struct hccs_port_info *port;
+	struct hccs_die_info *die;
+	u16 used_type_num = 0;
+	u16 i, j, k;
+
+	for (i = 0; i < hdev->chip_num; i++) {
+		chip = &hdev->chips[i];
+		for (j = 0; j < chip->die_num; j++) {
+			die = &chip->dies[j];
+			for (k = 0; k < die->port_num; k++) {
+				port = &die->ports[k];
+				set_bit(port->port_type, hccs_ver);
+			}
+		}
+	}
+
+	for_each_set_bit(i, hccs_ver, HCCS_IP_MAX + 1)
+		used_type_num++;
+
+	return used_type_num;
+}
+
+static int hccs_init_type_name_maps(struct hccs_dev *hdev)
+{
+	DECLARE_BITMAP(hccs_ver, HCCS_IP_MAX + 1) = {};
+	unsigned int i;
+	u16 idx = 0;
+
+	hdev->used_type_num = hccs_calc_used_type_num(hdev, hccs_ver);
+	hdev->type_name_maps = devm_kcalloc(hdev->dev, hdev->used_type_num,
+					    sizeof(struct hccs_type_name_map),
+					    GFP_KERNEL);
+	if (!hdev->type_name_maps)
+		return -ENOMEM;
+
+	for_each_set_bit(i, hccs_ver, HCCS_IP_MAX + 1) {
+		hdev->type_name_maps[idx].type = i;
+		sprintf(hdev->type_name_maps[idx].name,
+			"%s%u", HCCS_IP_PREFIX, i);
+		idx++;
 	}
 
 	return 0;
@@ -820,7 +926,7 @@ static ssize_t type_show(struct kobject *kobj, struct kobj_attribute *attr,
 {
 	const struct hccs_port_info *port = kobj_to_port_info(kobj);
 
-	return sysfs_emit(buf, "HCCS-v%u\n", port->port_type);
+	return sysfs_emit(buf, "%s%u\n", HCCS_IP_PREFIX, port->port_type);
 }
 static struct kobj_attribute hccs_type_attr = __ATTR_RO(type);
 
@@ -829,7 +935,7 @@ static ssize_t lane_mode_show(struct kobject *kobj, struct kobj_attribute *attr,
 {
 	const struct hccs_port_info *port = kobj_to_port_info(kobj);
 
-	return sysfs_emit(buf, "x%u\n", port->lane_mode);
+	return sysfs_emit(buf, "x%u\n", port->max_lane_num);
 }
 static struct kobj_attribute lane_mode_attr = __ATTR_RO(lane_mode);
 
@@ -1124,6 +1230,372 @@ static const struct kobj_type hccs_chip_type = {
 	.default_groups = hccs_chip_default_groups,
 };
 
+static int hccs_parse_pm_port_type(struct hccs_dev *hdev, const char *buf,
+				   u8 *port_type)
+{
+	char hccs_name[HCCS_NAME_MAX_LEN + 1] = "";
+	u8 type;
+	int ret;
+
+	ret = sscanf(buf, "%" __stringify(HCCS_NAME_MAX_LEN) "s", hccs_name);
+	if (ret != 1)
+		return -EINVAL;
+
+	ret = hccs_name_to_port_type(hdev, hccs_name, &type);
+	if (ret) {
+		dev_dbg(hdev->dev, "input invalid, please get the available types from 'used_types'.\n");
+		return ret;
+	}
+
+	if (type == HCCS_V2 && hdev->caps & HCCS_CAPS_HCCS_V2_PM) {
+		*port_type = type;
+		return 0;
+	}
+
+	dev_dbg(hdev->dev, "%s doesn't support for increasing and decreasing lane.\n",
+		hccs_name);
+
+	return -EOPNOTSUPP;
+}
+
+static int hccs_query_port_idle_status(struct hccs_dev *hdev,
+				       struct hccs_port_info *port, u8 *idle)
+{
+	const struct hccs_die_info *die = port->die;
+	const struct hccs_chip_info *chip = die->chip;
+	struct hccs_port_comm_req_param *req_param;
+	struct hccs_desc desc;
+	int ret;
+
+	hccs_init_req_desc(&desc);
+	req_param = (struct hccs_port_comm_req_param *)desc.req.data;
+	req_param->chip_id = chip->chip_id;
+	req_param->die_id = die->die_id;
+	req_param->port_id = port->port_id;
+	ret = hccs_pcc_cmd_send(hdev, HCCS_GET_PORT_IDLE_STATUS, &desc);
+	if (ret) {
+		dev_err(hdev->dev,
+			"get port idle status failed, ret = %d.\n", ret);
+		return ret;
+	}
+
+	*idle = *((u8 *)desc.rsp.data);
+	return 0;
+}
+
+static int hccs_get_all_spec_port_idle_sta(struct hccs_dev *hdev, u8 port_type,
+					   bool *all_idle)
+{
+	struct hccs_chip_info *chip;
+	struct hccs_port_info *port;
+	struct hccs_die_info *die;
+	int ret = 0;
+	u8 i, j, k;
+	u8 idle;
+
+	*all_idle = false;
+	for (i = 0; i < hdev->chip_num; i++) {
+		chip = &hdev->chips[i];
+		for (j = 0; j < chip->die_num; j++) {
+			die = &chip->dies[j];
+			for (k = 0; k < die->port_num; k++) {
+				port = &die->ports[k];
+				if (port->port_type != port_type)
+					continue;
+				ret = hccs_query_port_idle_status(hdev, port,
+								  &idle);
+				if (ret) {
+					dev_err(hdev->dev,
+						"hccs%u on chip%u/die%u get idle status failed, ret = %d.\n",
+						k, i, j, ret);
+					return ret;
+				} else if (idle == 0) {
+					dev_info(hdev->dev, "hccs%u on chip%u/die%u is busy.\n",
+						k, i, j);
+					return 0;
+				}
+			}
+		}
+	}
+	*all_idle = true;
+
+	return 0;
+}
+
+static int hccs_get_all_spec_port_full_lane_sta(struct hccs_dev *hdev,
+						u8 port_type, bool *full_lane)
+{
+	struct hccs_link_status status = {0};
+	struct hccs_chip_info *chip;
+	struct hccs_port_info *port;
+	struct hccs_die_info *die;
+	u8 i, j, k;
+	int ret;
+
+	*full_lane = false;
+	for (i = 0; i < hdev->chip_num; i++) {
+		chip = &hdev->chips[i];
+		for (j = 0; j < chip->die_num; j++) {
+			die = &chip->dies[j];
+			for (k = 0; k < die->port_num; k++) {
+				port = &die->ports[k];
+				if (port->port_type != port_type)
+					continue;
+				ret = hccs_query_port_link_status(hdev, port,
+								  &status);
+				if (ret)
+					return ret;
+				if (status.lane_num != port->max_lane_num)
+					return 0;
+			}
+		}
+	}
+	*full_lane = true;
+
+	return 0;
+}
+
+static int hccs_prepare_inc_lane(struct hccs_dev *hdev, u8 type)
+{
+	struct hccs_inc_lane_req_param *req_param;
+	struct hccs_desc desc;
+	int ret;
+
+	hccs_init_req_desc(&desc);
+	req_param = (struct hccs_inc_lane_req_param *)desc.req.data;
+	req_param->port_type = type;
+	req_param->opt_type = HCCS_PREPARE_INC_LANE;
+	ret = hccs_pcc_cmd_send(hdev, HCCS_PM_INC_LANE, &desc);
+	if (ret)
+		dev_err(hdev->dev, "prepare for increasing lane failed, ret = %d.\n",
+			ret);
+
+	return ret;
+}
+
+static int hccs_wait_serdes_adapt_completed(struct hccs_dev *hdev, u8 type)
+{
+#define HCCS_MAX_WAIT_CNT_FOR_ADAPT	10
+#define HCCS_QUERY_ADAPT_RES_DELAY_MS	100
+#define HCCS_SERDES_ADAPT_OK		0
+
+	struct hccs_inc_lane_req_param *req_param;
+	u8 wait_cnt = HCCS_MAX_WAIT_CNT_FOR_ADAPT;
+	struct hccs_desc desc;
+	u8 adapt_res;
+	int ret;
+
+	do {
+		hccs_init_req_desc(&desc);
+		req_param = (struct hccs_inc_lane_req_param *)desc.req.data;
+		req_param->port_type = type;
+		req_param->opt_type = HCCS_GET_ADAPT_RES;
+		ret = hccs_pcc_cmd_send(hdev, HCCS_PM_INC_LANE, &desc);
+		if (ret) {
+			dev_err(hdev->dev, "query adapting result failed, ret = %d.\n",
+				ret);
+			return ret;
+		}
+		adapt_res = *((u8 *)&desc.rsp.data);
+		if (adapt_res == HCCS_SERDES_ADAPT_OK)
+			return 0;
+
+		msleep(HCCS_QUERY_ADAPT_RES_DELAY_MS);
+	} while (--wait_cnt);
+
+	dev_err(hdev->dev, "wait for adapting completed timeout.\n");
+
+	return -ETIMEDOUT;
+}
+
+static int hccs_start_hpcs_retraining(struct hccs_dev *hdev, u8 type)
+{
+	struct hccs_inc_lane_req_param *req_param;
+	struct hccs_desc desc;
+	int ret;
+
+	hccs_init_req_desc(&desc);
+	req_param = (struct hccs_inc_lane_req_param *)desc.req.data;
+	req_param->port_type = type;
+	req_param->opt_type = HCCS_START_RETRAINING;
+	ret = hccs_pcc_cmd_send(hdev, HCCS_PM_INC_LANE, &desc);
+	if (ret)
+		dev_err(hdev->dev, "start hpcs retraining failed, ret = %d.\n",
+			ret);
+
+	return ret;
+}
+
+static int hccs_start_inc_lane(struct hccs_dev *hdev, u8 type)
+{
+	int ret;
+
+	ret = hccs_prepare_inc_lane(hdev, type);
+	if (ret)
+		return ret;
+
+	ret = hccs_wait_serdes_adapt_completed(hdev, type);
+	if (ret)
+		return ret;
+
+	return hccs_start_hpcs_retraining(hdev, type);
+}
+
+static int hccs_start_dec_lane(struct hccs_dev *hdev, u8 type)
+{
+	struct hccs_desc desc;
+	u8 *port_type;
+	int ret;
+
+	hccs_init_req_desc(&desc);
+	port_type = (u8 *)desc.req.data;
+	*port_type = type;
+	ret = hccs_pcc_cmd_send(hdev, HCCS_PM_DEC_LANE, &desc);
+	if (ret)
+		dev_err(hdev->dev, "start to decrease lane failed, ret = %d.\n",
+			ret);
+
+	return ret;
+}
+
+static ssize_t dec_lane_of_type_store(struct kobject *kobj, struct kobj_attribute *attr,
+			      const char *buf, size_t count)
+{
+	struct hccs_dev *hdev = device_kobj_to_hccs_dev(kobj);
+	bool all_in_idle;
+	u8 port_type;
+	int ret;
+
+	ret = hccs_parse_pm_port_type(hdev, buf, &port_type);
+	if (ret)
+		return ret;
+
+	mutex_lock(&hdev->lock);
+	ret = hccs_get_all_spec_port_idle_sta(hdev, port_type, &all_in_idle);
+	if (ret)
+		goto out;
+	if (!all_in_idle) {
+		ret = -EBUSY;
+		dev_err(hdev->dev, "please don't decrese lanes on high load with %s, ret = %d.\n",
+			hccs_port_type_to_name(hdev, port_type), ret);
+		goto out;
+	}
+
+	ret = hccs_start_dec_lane(hdev, port_type);
+out:
+	mutex_unlock(&hdev->lock);
+
+	return ret == 0 ? count : ret;
+}
+static struct kobj_attribute dec_lane_of_type_attr =
+		__ATTR(dec_lane_of_type, 0200, NULL, dec_lane_of_type_store);
+
+static ssize_t inc_lane_of_type_store(struct kobject *kobj, struct kobj_attribute *attr,
+			      const char *buf, size_t count)
+{
+	struct hccs_dev *hdev = device_kobj_to_hccs_dev(kobj);
+	bool full_lane;
+	u8 port_type;
+	int ret;
+
+	ret = hccs_parse_pm_port_type(hdev, buf, &port_type);
+	if (ret)
+		return ret;
+
+	mutex_lock(&hdev->lock);
+	ret = hccs_get_all_spec_port_full_lane_sta(hdev, port_type, &full_lane);
+	if (ret || full_lane)
+		goto out;
+
+	ret = hccs_start_inc_lane(hdev, port_type);
+out:
+	mutex_unlock(&hdev->lock);
+	return ret == 0 ? count : ret;
+}
+static struct kobj_attribute inc_lane_of_type_attr =
+		__ATTR(inc_lane_of_type, 0200, NULL, inc_lane_of_type_store);
+
+static ssize_t available_inc_dec_lane_types_show(struct kobject *kobj,
+						 struct kobj_attribute *attr,
+						 char *buf)
+{
+	struct hccs_dev *hdev = device_kobj_to_hccs_dev(kobj);
+
+	if (hdev->caps & HCCS_CAPS_HCCS_V2_PM)
+		return sysfs_emit(buf, "%s\n",
+				  hccs_port_type_to_name(hdev, HCCS_V2));
+
+	return -EINVAL;
+}
+static struct kobj_attribute available_inc_dec_lane_types_attr =
+		__ATTR(available_inc_dec_lane_types, 0444,
+		       available_inc_dec_lane_types_show, NULL);
+
+static ssize_t used_types_show(struct kobject *kobj,
+			       struct kobj_attribute *attr, char *buf)
+{
+	struct hccs_dev *hdev = device_kobj_to_hccs_dev(kobj);
+	int len = 0;
+	u16 i;
+
+	for (i = 0; i < hdev->used_type_num - 1; i++)
+		len += sysfs_emit(&buf[len], "%s ", hdev->type_name_maps[i].name);
+	len += sysfs_emit(&buf[len], "%s\n", hdev->type_name_maps[i].name);
+
+	return len;
+}
+static struct kobj_attribute used_types_attr =
+		__ATTR(used_types, 0444, used_types_show, NULL);
+
+static void hccs_remove_misc_sysfs(struct hccs_dev *hdev)
+{
+	sysfs_remove_file(&hdev->dev->kobj, &used_types_attr.attr);
+
+	if (!(hdev->caps & HCCS_CAPS_HCCS_V2_PM))
+		return;
+
+	sysfs_remove_file(&hdev->dev->kobj,
+			  &available_inc_dec_lane_types_attr.attr);
+	sysfs_remove_file(&hdev->dev->kobj, &dec_lane_of_type_attr.attr);
+	sysfs_remove_file(&hdev->dev->kobj, &inc_lane_of_type_attr.attr);
+}
+
+static int hccs_add_misc_sysfs(struct hccs_dev *hdev)
+{
+	int ret;
+
+	ret = sysfs_create_file(&hdev->dev->kobj, &used_types_attr.attr);
+	if (ret)
+		return ret;
+
+	if (!(hdev->caps & HCCS_CAPS_HCCS_V2_PM))
+		return 0;
+
+	ret = sysfs_create_file(&hdev->dev->kobj,
+				&available_inc_dec_lane_types_attr.attr);
+	if (ret)
+		goto used_types_remove;
+
+	ret = sysfs_create_file(&hdev->dev->kobj, &dec_lane_of_type_attr.attr);
+	if (ret)
+		goto inc_dec_lane_types_remove;
+
+	ret = sysfs_create_file(&hdev->dev->kobj, &inc_lane_of_type_attr.attr);
+	if (ret)
+		goto dec_lane_of_type_remove;
+
+	return 0;
+
+dec_lane_of_type_remove:
+	sysfs_remove_file(&hdev->dev->kobj, &dec_lane_of_type_attr.attr);
+inc_dec_lane_types_remove:
+	sysfs_remove_file(&hdev->dev->kobj,
+			  &available_inc_dec_lane_types_attr.attr);
+used_types_remove:
+	sysfs_remove_file(&hdev->dev->kobj, &used_types_attr.attr);
+	return ret;
+}
+
 static void hccs_remove_die_dir(struct hccs_die_info *die)
 {
 	struct hccs_port_info *port;
@@ -1158,6 +1630,8 @@ static void hccs_remove_topo_dirs(struct hccs_dev *hdev)
 
 	for (i = 0; i < hdev->chip_num; i++)
 		hccs_remove_chip_dir(&hdev->chips[i]);
+
+	hccs_remove_misc_sysfs(hdev);
 }
 
 static int hccs_create_hccs_dir(struct hccs_dev *hdev,
@@ -1253,6 +1727,12 @@ static int hccs_create_topo_dirs(struct hccs_dev *hdev)
 		}
 	}
 
+	ret = hccs_add_misc_sysfs(hdev);
+	if (ret) {
+		dev_err(hdev->dev, "create misc sysfs interface failed, ret = %d\n", ret);
+		goto err;
+	}
+
 	return 0;
 err:
 	for (k = 0; k < id; k++)
@@ -1303,6 +1783,10 @@ static int hccs_probe(struct platform_device *pdev)
 	if (rc)
 		goto unregister_pcc_chan;
 
+	rc = hccs_init_type_name_maps(hdev);
+	if (rc)
+		goto unregister_pcc_chan;
+
 	rc = hccs_create_topo_dirs(hdev);
 	if (rc)
 		goto unregister_pcc_chan;
@@ -1348,7 +1832,7 @@ MODULE_DEVICE_TABLE(acpi, hccs_acpi_match);
 
 static struct platform_driver hccs_driver = {
 	.probe = hccs_probe,
-	.remove_new = hccs_remove,
+	.remove = hccs_remove,
 	.driver = {
 		.name = "kunpeng_hccs",
 		.acpi_match_table = hccs_acpi_match,

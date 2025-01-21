@@ -168,6 +168,15 @@ struct hw_perf_event {
 			struct hw_perf_event_extra extra_reg;
 			struct hw_perf_event_extra branch_reg;
 		};
+		struct { /* aux / Intel-PT */
+			u64		aux_config;
+			/*
+			 * For AUX area events, aux_paused cannot be a state
+			 * flag because it can be updated asynchronously to
+			 * state.
+			 */
+			unsigned int	aux_paused;
+		};
 		struct { /* software */
 			struct hrtimer	hrtimer;
 		};
@@ -291,6 +300,20 @@ struct perf_event_pmu_context;
 #define PERF_PMU_CAP_NO_EXCLUDE			0x0040
 #define PERF_PMU_CAP_AUX_OUTPUT			0x0080
 #define PERF_PMU_CAP_EXTENDED_HW_TYPE		0x0100
+#define PERF_PMU_CAP_AUX_PAUSE			0x0200
+
+/**
+ * pmu::scope
+ */
+enum perf_pmu_scope {
+	PERF_PMU_SCOPE_NONE	= 0,
+	PERF_PMU_SCOPE_CORE,
+	PERF_PMU_SCOPE_DIE,
+	PERF_PMU_SCOPE_CLUSTER,
+	PERF_PMU_SCOPE_PKG,
+	PERF_PMU_SCOPE_SYS_WIDE,
+	PERF_PMU_MAX_SCOPE,
+};
 
 struct perf_output_handle;
 
@@ -314,6 +337,11 @@ struct pmu {
 	 * various common per-pmu feature flags
 	 */
 	int				capabilities;
+
+	/*
+	 * PMU scope
+	 */
+	unsigned int			scope;
 
 	int __percpu			*pmu_disable_count;
 	struct perf_cpu_pmu_context __percpu *cpu_pmu_context;
@@ -363,6 +391,8 @@ struct pmu {
 #define PERF_EF_START	0x01		/* start the counter when adding    */
 #define PERF_EF_RELOAD	0x02		/* reload the counter when starting */
 #define PERF_EF_UPDATE	0x04		/* update the counter when stopping */
+#define PERF_EF_PAUSE	0x08		/* AUX area event, pause tracing */
+#define PERF_EF_RESUME	0x10		/* AUX area event, resume tracing */
 
 	/*
 	 * Adds/Removes a counter to/from the PMU, can be done inside a
@@ -402,6 +432,18 @@ struct pmu {
 	 *
 	 * ->start() with PERF_EF_RELOAD will reprogram the counter
 	 *  value, must be preceded by a ->stop() with PERF_EF_UPDATE.
+	 *
+	 * ->stop() with PERF_EF_PAUSE will stop as simply as possible. Will not
+	 * overlap another ->stop() with PERF_EF_PAUSE nor ->start() with
+	 * PERF_EF_RESUME.
+	 *
+	 * ->start() with PERF_EF_RESUME will start as simply as possible but
+	 * only if the counter is not otherwise stopped. Will not overlap
+	 * another ->start() with PERF_EF_RESUME nor ->stop() with
+	 * PERF_EF_PAUSE.
+	 *
+	 * Notably, PERF_EF_PAUSE/PERF_EF_RESUME *can* be concurrent with other
+	 * ->stop()/->start() invocations, just not itself.
 	 */
 	void (*start)			(struct perf_event *event, int flags);
 	void (*stop)			(struct perf_event *event, int flags);
@@ -615,10 +657,13 @@ typedef void (*perf_overflow_handler_t)(struct perf_event *,
  * PERF_EV_CAP_SIBLING: An event with this flag must be a group sibling and
  * cannot be a group leader. If an event with this flag is detached from the
  * group it is scheduled out and moved into an unrecoverable ERROR state.
+ * PERF_EV_CAP_READ_SCOPE: A CPU event that can be read from any CPU of the
+ * PMU scope where it is active.
  */
 #define PERF_EV_CAP_SOFTWARE		BIT(0)
 #define PERF_EV_CAP_READ_ACTIVE_PKG	BIT(1)
 #define PERF_EV_CAP_SIBLING		BIT(2)
+#define PERF_EV_CAP_READ_SCOPE		BIT(3)
 
 #define SWEVENT_HLIST_BITS		8
 #define SWEVENT_HLIST_SIZE		(1 << SWEVENT_HLIST_BITS)
@@ -963,12 +1008,16 @@ struct perf_event_context {
 	struct rcu_head			rcu_head;
 
 	/*
-	 * Sum (event->pending_work + event->pending_work)
+	 * The count of events for which using the switch-out fast path
+	 * should be avoided.
+	 *
+	 * Sum (event->pending_work + events with
+	 *    (attr->inherit && (attr->sample_type & PERF_SAMPLE_READ)))
 	 *
 	 * The SIGTRAP is targeted at ctx->task, as such it won't do changing
 	 * that until the signal is delivered.
 	 */
-	local_t				nr_pending;
+	local_t				nr_no_switch_fast;
 };
 
 struct perf_cpu_pmu_context {
@@ -1602,13 +1651,7 @@ static inline int perf_is_paranoid(void)
 	return sysctl_perf_event_paranoid > -1;
 }
 
-static inline int perf_allow_kernel(struct perf_event_attr *attr)
-{
-	if (sysctl_perf_event_paranoid > 1 && !perfmon_capable())
-		return -EACCES;
-
-	return security_perf_event_open(attr, PERF_SECURITY_KERNEL);
-}
+int perf_allow_kernel(struct perf_event_attr *attr);
 
 static inline int perf_allow_cpu(struct perf_event_attr *attr)
 {
@@ -1633,13 +1676,33 @@ extern void perf_tp_event(u16 event_type, u64 count, void *record,
 			  struct task_struct *task);
 extern void perf_bp_event(struct perf_event *event, void *data);
 
-#ifndef perf_misc_flags
-# define perf_misc_flags(regs) \
+extern unsigned long perf_misc_flags(struct perf_event *event, struct pt_regs *regs);
+extern unsigned long perf_instruction_pointer(struct perf_event *event,
+					      struct pt_regs *regs);
+
+#ifndef perf_arch_misc_flags
+# define perf_arch_misc_flags(regs) \
 		(user_mode(regs) ? PERF_RECORD_MISC_USER : PERF_RECORD_MISC_KERNEL)
-# define perf_instruction_pointer(regs)	instruction_pointer(regs)
+# define perf_arch_instruction_pointer(regs)	instruction_pointer(regs)
 #endif
 #ifndef perf_arch_bpf_user_pt_regs
 # define perf_arch_bpf_user_pt_regs(regs) regs
+#endif
+
+#ifndef perf_arch_guest_misc_flags
+static inline unsigned long perf_arch_guest_misc_flags(struct pt_regs *regs)
+{
+	unsigned long guest_state = perf_guest_state();
+
+	if (!(guest_state & PERF_GUEST_ACTIVE))
+		return 0;
+
+	if (guest_state & PERF_GUEST_USER)
+		return PERF_RECORD_MISC_GUEST_USER;
+	else
+		return PERF_RECORD_MISC_GUEST_KERNEL;
+}
+# define perf_arch_guest_misc_flags(regs)	perf_arch_guest_misc_flags(regs)
 #endif
 
 static inline bool has_branch_stack(struct perf_event *event)
@@ -1655,6 +1718,13 @@ static inline bool needs_branch_stack(struct perf_event *event)
 static inline bool has_aux(struct perf_event *event)
 {
 	return event->pmu->setup_aux;
+}
+
+static inline bool has_aux_action(struct perf_event *event)
+{
+	return event->attr.aux_sample_size ||
+	       event->attr.aux_pause ||
+	       event->attr.aux_resume;
 }
 
 static inline bool is_write_backward(struct perf_event *event)

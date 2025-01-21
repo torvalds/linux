@@ -444,7 +444,7 @@ static int ksmbd_vfs_stream_write(struct ksmbd_file *fp, char *buf, loff_t *pos,
 	}
 
 	if (v_len < size) {
-		wbuf = kvzalloc(size, GFP_KERNEL);
+		wbuf = kvzalloc(size, KSMBD_DEFAULT_GFP);
 		if (!wbuf) {
 			err = -ENOMEM;
 			goto out;
@@ -496,7 +496,7 @@ int ksmbd_vfs_write(struct ksmbd_work *work, struct ksmbd_file *fp,
 	int err = 0;
 
 	if (work->conn->connection_type) {
-		if (!(fp->daccess & FILE_WRITE_DATA_LE)) {
+		if (!(fp->daccess & (FILE_WRITE_DATA_LE | FILE_APPEND_DATA_LE))) {
 			pr_err("no right to write(%pD)\n", fp->filp);
 			err = -EACCES;
 			goto out;
@@ -865,7 +865,7 @@ ssize_t ksmbd_vfs_listxattr(struct dentry *dentry, char **list)
 	if (size <= 0)
 		return size;
 
-	vlist = kvzalloc(size, GFP_KERNEL);
+	vlist = kvzalloc(size, KSMBD_DEFAULT_GFP);
 	if (!vlist)
 		return -ENOMEM;
 
@@ -907,7 +907,7 @@ ssize_t ksmbd_vfs_getxattr(struct mnt_idmap *idmap,
 	if (xattr_len < 0)
 		return xattr_len;
 
-	buf = kmalloc(xattr_len + 1, GFP_KERNEL);
+	buf = kmalloc(xattr_len + 1, KSMBD_DEFAULT_GFP);
 	if (!buf)
 		return -ENOMEM;
 
@@ -1115,9 +1115,10 @@ static bool __dir_empty(struct dir_context *ctx, const char *name, int namlen,
 	struct ksmbd_readdir_data *buf;
 
 	buf = container_of(ctx, struct ksmbd_readdir_data, ctx);
-	buf->dirent_count++;
+	if (!is_dot_dotdot(name, namlen))
+		buf->dirent_count++;
 
-	return buf->dirent_count <= 2;
+	return !buf->dirent_count;
 }
 
 /**
@@ -1137,7 +1138,7 @@ int ksmbd_vfs_empty_dir(struct ksmbd_file *fp)
 	readdir_data.dirent_count = 0;
 
 	err = iterate_dir(fp->filp, &readdir_data.ctx);
-	if (readdir_data.dirent_count > 2)
+	if (readdir_data.dirent_count)
 		err = -ENOTEMPTY;
 	else
 		err = 0;
@@ -1166,7 +1167,7 @@ static bool __caseless_lookup(struct dir_context *ctx, const char *name,
 	if (cmp < 0)
 		cmp = strncasecmp((char *)buf->private, name, namlen);
 	if (!cmp) {
-		memcpy((char *)buf->private, name, namlen);
+		memcpy((char *)buf->private, name, buf->used);
 		buf->dirent_count = 1;
 		return false;
 	}
@@ -1234,10 +1235,7 @@ int ksmbd_vfs_kern_path_locked(struct ksmbd_work *work, char *name,
 		char *filepath;
 		size_t path_len, remain_len;
 
-		filepath = kstrdup(name, GFP_KERNEL);
-		if (!filepath)
-			return -ENOMEM;
-
+		filepath = name;
 		path_len = strlen(filepath);
 		remain_len = path_len;
 
@@ -1280,10 +1278,9 @@ int ksmbd_vfs_kern_path_locked(struct ksmbd_work *work, char *name,
 		err = -EINVAL;
 out2:
 		path_put(parent_path);
-out1:
-		kfree(filepath);
 	}
 
+out1:
 	if (!err) {
 		err = mnt_want_write(parent_path->mnt);
 		if (err) {
@@ -1414,7 +1411,7 @@ static struct xattr_smb_acl *ksmbd_vfs_make_xattr_posix_acl(struct mnt_idmap *id
 
 	smb_acl = kzalloc(sizeof(struct xattr_smb_acl) +
 			  sizeof(struct xattr_acl_entry) * posix_acls->a_count,
-			  GFP_KERNEL);
+			  KSMBD_DEFAULT_GFP);
 	if (!smb_acl)
 		goto out;
 
@@ -1770,7 +1767,7 @@ int ksmbd_vfs_xattr_stream_name(char *stream_name, char **xattr_stream_name,
 	else
 		type = ":$DATA";
 
-	buf = kasprintf(GFP_KERNEL, "%s%s%s",
+	buf = kasprintf(KSMBD_DEFAULT_GFP, "%s%s%s",
 			XATTR_NAME_STREAM, stream_name,	type);
 	if (!buf)
 		return -ENOMEM;
@@ -1899,7 +1896,7 @@ int ksmbd_vfs_set_init_posix_acl(struct mnt_idmap *idmap,
 		acl_state.group.allow;
 	acl_state.mask.allow = 0x07;
 
-	acls = posix_acl_alloc(6, GFP_KERNEL);
+	acls = posix_acl_alloc(6, KSMBD_DEFAULT_GFP);
 	if (!acls) {
 		free_acl_state(&acl_state);
 		return -ENOMEM;

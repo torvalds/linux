@@ -421,6 +421,12 @@ int contpte_ptep_set_access_flags(struct vm_area_struct *vma,
 		ptep = contpte_align_down(ptep);
 		start_addr = addr = ALIGN_DOWN(addr, CONT_PTE_SIZE);
 
+		/*
+		 * We are not advancing entry because __ptep_set_access_flags()
+		 * only consumes access flags from entry. And since we have checked
+		 * for the whole contpte block and returned early, pte_same()
+		 * within __ptep_set_access_flags() is likely false.
+		 */
 		for (i = 0; i < CONT_PTES; i++, ptep++, addr += PAGE_SIZE)
 			__ptep_set_access_flags(vma, addr, ptep, entry, 0);
 

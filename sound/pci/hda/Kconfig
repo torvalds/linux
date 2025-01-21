@@ -198,7 +198,7 @@ config SND_HDA_SCODEC_TAS2781_I2C
 	depends on SND_SOC
 	select SND_SOC_TAS2781_COMLIB
 	select SND_SOC_TAS2781_FMWLIB
-	select CRC32_SARWATE
+	select CRC32
 	help
 	  Say Y or M here to include TAS2781 I2C HD-audio side codec support
 	  in snd-hda-intel driver, such as ALC287.

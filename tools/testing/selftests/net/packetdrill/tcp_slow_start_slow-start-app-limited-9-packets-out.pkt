@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: GPL-2.0
+// Test of slow start when application-limited: in this case,
+// with IW10, if we don't fully use our cwnd but instead
+// send just 9 packets, then cwnd should grow to twice that
+// value, or 18 packets.
+
+// Set up config.
+`./defaults.sh`
+
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+  +.1 < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 7>
+   +0 > S. 0:0(0) ack 1 <mss 1460,nop,nop,sackOK,nop,wscale 8>
+  +.1 < . 1:1(0) ack 1 win 257
+   +0 accept(3, ..., ...) = 4
+   +0 setsockopt(4, SOL_SOCKET, SO_SNDBUF, [200000], 4) = 0
+
+   +0 write(4, ..., 9000) = 9000
+   +0 > P. 1:9001(9000) ack 1
+   +0 %{ assert tcpi_snd_cwnd == 10, tcpi_snd_cwnd }%
+
++.105 < . 1:1(0) ack 2001 win 257
+   +0 %{ assert tcpi_snd_cwnd == 12, tcpi_snd_cwnd }%
+
++.005 < . 1:1(0) ack 4001 win 257
+   +0 %{ assert tcpi_snd_cwnd == 14, tcpi_snd_cwnd }%
+
++.005 < . 1:1(0) ack 6001 win 257
+   +0 %{ assert tcpi_snd_cwnd == 16, tcpi_snd_cwnd }%
+
++.005 < . 1:1(0) ack 8001 win 257
+   +0 %{ assert tcpi_snd_cwnd == 18, tcpi_snd_cwnd }%
+
++.005 < . 1:1(0) ack 9001 win 257
+   +0 %{ assert tcpi_snd_cwnd == 18, tcpi_snd_cwnd }%

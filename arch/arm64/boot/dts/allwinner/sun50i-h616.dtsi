@@ -630,21 +630,6 @@
 			};
 		};
 
-		spdif: spdif@5093000 {
-			compatible = "allwinner,sun50i-h616-spdif";
-			reg = <0x05093000 0x400>;
-			interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&ccu CLK_BUS_SPDIF>, <&ccu CLK_SPDIF>;
-			clock-names = "apb", "spdif";
-			resets = <&ccu RST_BUS_SPDIF>;
-			dmas = <&dma 2>;
-			dma-names = "tx";
-			pinctrl-names = "default";
-			pinctrl-0 = <&spdif_tx_pin>;
-			#sound-dai-cells = <0>;
-			status = "disabled";
-		};
-
 		gpadc: adc@5070000 {
 			compatible = "allwinner,sun50i-h616-gpadc",
 				     "allwinner,sun20i-d1-gpadc";
@@ -676,6 +661,35 @@
 			interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ccu CLK_BUS_KEYADC>;
 			resets = <&ccu RST_BUS_KEYADC>;
+			status = "disabled";
+		};
+
+		spdif: spdif@5093000 {
+			compatible = "allwinner,sun50i-h616-spdif";
+			reg = <0x05093000 0x400>;
+			interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu CLK_BUS_SPDIF>, <&ccu CLK_SPDIF>;
+			clock-names = "apb", "spdif";
+			resets = <&ccu RST_BUS_SPDIF>;
+			dmas = <&dma 2>;
+			dma-names = "tx";
+			pinctrl-names = "default";
+			pinctrl-0 = <&spdif_tx_pin>;
+			#sound-dai-cells = <0>;
+			status = "disabled";
+		};
+
+		codec: codec@5096000 {
+			#sound-dai-cells = <0>;
+			compatible = "allwinner,sun50i-h616-codec";
+			reg = <0x05096000 0x31c>;
+			interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu CLK_BUS_AUDIO_CODEC>,
+				 <&ccu CLK_AUDIO_CODEC_1X>;
+			clock-names = "apb", "codec";
+			resets = <&ccu RST_BUS_AUDIO_CODEC>;
+			dmas = <&dma 6>;
+			dma-names = "tx";
 			status = "disabled";
 		};
 
@@ -914,6 +928,8 @@
 			dmas = <&dma 48>, <&dma 48>;
 			dma-names = "rx", "tx";
 			resets = <&r_ccu RST_R_APB2_I2C>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&r_i2c_pins>;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;

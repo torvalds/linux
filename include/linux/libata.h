@@ -55,6 +55,46 @@
 /* defines only for the constants which don't work well as enums */
 #define ATA_TAG_POISON		0xfafbfcfdU
 
+/*
+ * Quirk flags bits.
+ * ata_device->quirks is an unsigned int, so __ATA_QUIRK_MAX must not exceed 32.
+ */
+enum ata_quirks {
+	__ATA_QUIRK_DIAGNOSTIC,		/* Failed boot diag */
+	__ATA_QUIRK_NODMA,		/* DMA problems */
+	__ATA_QUIRK_NONCQ,		/* Don't use NCQ */
+	__ATA_QUIRK_MAX_SEC_128,	/* Limit max sects to 128 */
+	__ATA_QUIRK_BROKEN_HPA,		/* Broken HPA */
+	__ATA_QUIRK_DISABLE,		/* Disable it */
+	__ATA_QUIRK_HPA_SIZE,		/* Native size off by one */
+	__ATA_QUIRK_IVB,		/* cbl det validity bit bugs */
+	__ATA_QUIRK_STUCK_ERR,		/* Stuck ERR on next PACKET */
+	__ATA_QUIRK_BRIDGE_OK,		/* No bridge limits */
+	__ATA_QUIRK_ATAPI_MOD16_DMA,	/* Use ATAPI DMA for commands that */
+					/* are not a multiple of 16 bytes */
+	__ATA_QUIRK_FIRMWARE_WARN,	/* Firmware update warning */
+	__ATA_QUIRK_1_5_GBPS,		/* Force 1.5 Gbps */
+	__ATA_QUIRK_NOSETXFER,		/* Skip SETXFER, SATA only */
+	__ATA_QUIRK_BROKEN_FPDMA_AA,	/* Skip AA */
+	__ATA_QUIRK_DUMP_ID,		/* Dump IDENTIFY data */
+	__ATA_QUIRK_MAX_SEC_LBA48,	/* Set max sects to 65535 */
+	__ATA_QUIRK_ATAPI_DMADIR,	/* Device requires dmadir */
+	__ATA_QUIRK_NO_NCQ_TRIM,	/* Do not use queued TRIM */
+	__ATA_QUIRK_NOLPM,		/* Do not use LPM */
+	__ATA_QUIRK_WD_BROKEN_LPM,	/* Some WDs have broken LPM */
+	__ATA_QUIRK_ZERO_AFTER_TRIM,	/* Guarantees zero after trim */
+	__ATA_QUIRK_NO_DMA_LOG,		/* Do not use DMA for log read */
+	__ATA_QUIRK_NOTRIM,		/* Do not use TRIM */
+	__ATA_QUIRK_MAX_SEC_1024,	/* Limit max sects to 1024 */
+	__ATA_QUIRK_MAX_TRIM_128M,	/* Limit max trim size to 128M */
+	__ATA_QUIRK_NO_NCQ_ON_ATI,	/* Disable NCQ on ATI chipset */
+	__ATA_QUIRK_NO_ID_DEV_LOG,	/* Identify device log missing */
+	__ATA_QUIRK_NO_LOG_DIR,		/* Do not read log directory */
+	__ATA_QUIRK_NO_FUA,		/* Do not use FUA */
+
+	__ATA_QUIRK_MAX,
+};
+
 enum {
 	/* various global constants */
 	LIBATA_MAX_PRD		= ATA_MAX_PRD / 2,
@@ -230,9 +270,7 @@ enum {
 
 	/* bits 24:31 of host->flags are reserved for LLD specific flags */
 
-	/* various lengths of time */
-	ATA_TMOUT_BOOT		= 30000,	/* heuristic */
-	ATA_TMOUT_BOOT_QUICK	=  7000,	/* heuristic */
+	/* Various lengths of time */
 	ATA_TMOUT_INTERNAL_QUICK = 5000,
 	ATA_TMOUT_MAX_PARK	= 30000,
 
@@ -338,6 +376,7 @@ enum {
 	ATA_EHI_PRINTINFO	= (1 << 18), /* print configuration info */
 	ATA_EHI_SETMODE		= (1 << 19), /* configure transfer mode */
 	ATA_EHI_POST_SETMODE	= (1 << 20), /* revalidating after setmode */
+	ATA_EHI_DID_PRINT_QUIRKS = (1 << 21), /* already printed quirks info */
 
 	ATA_EHI_DID_RESET	= ATA_EHI_DID_SOFTRESET | ATA_EHI_DID_HARDRESET,
 
@@ -362,43 +401,42 @@ enum {
 	 */
 	ATA_EH_CMD_TIMEOUT_TABLE_SIZE = 8,
 
-	/* Horkage types. May be set by libata or controller on drives
-	   (some horkage may be drive/controller pair dependent */
+	/*
+	 * Quirk flags: may be set by libata or controller drivers on drives.
+	 * Some quirks may be drive/controller pair dependent.
+	 */
+	ATA_QUIRK_DIAGNOSTIC		= (1U << __ATA_QUIRK_DIAGNOSTIC),
+	ATA_QUIRK_NODMA			= (1U << __ATA_QUIRK_NODMA),
+	ATA_QUIRK_NONCQ			= (1U << __ATA_QUIRK_NONCQ),
+	ATA_QUIRK_MAX_SEC_128		= (1U << __ATA_QUIRK_MAX_SEC_128),
+	ATA_QUIRK_BROKEN_HPA		= (1U << __ATA_QUIRK_BROKEN_HPA),
+	ATA_QUIRK_DISABLE		= (1U << __ATA_QUIRK_DISABLE),
+	ATA_QUIRK_HPA_SIZE		= (1U << __ATA_QUIRK_HPA_SIZE),
+	ATA_QUIRK_IVB			= (1U << __ATA_QUIRK_IVB),
+	ATA_QUIRK_STUCK_ERR		= (1U << __ATA_QUIRK_STUCK_ERR),
+	ATA_QUIRK_BRIDGE_OK		= (1U << __ATA_QUIRK_BRIDGE_OK),
+	ATA_QUIRK_ATAPI_MOD16_DMA	= (1U << __ATA_QUIRK_ATAPI_MOD16_DMA),
+	ATA_QUIRK_FIRMWARE_WARN		= (1U << __ATA_QUIRK_FIRMWARE_WARN),
+	ATA_QUIRK_1_5_GBPS		= (1U << __ATA_QUIRK_1_5_GBPS),
+	ATA_QUIRK_NOSETXFER		= (1U << __ATA_QUIRK_NOSETXFER),
+	ATA_QUIRK_BROKEN_FPDMA_AA	= (1U << __ATA_QUIRK_BROKEN_FPDMA_AA),
+	ATA_QUIRK_DUMP_ID		= (1U << __ATA_QUIRK_DUMP_ID),
+	ATA_QUIRK_MAX_SEC_LBA48		= (1U << __ATA_QUIRK_MAX_SEC_LBA48),
+	ATA_QUIRK_ATAPI_DMADIR		= (1U << __ATA_QUIRK_ATAPI_DMADIR),
+	ATA_QUIRK_NO_NCQ_TRIM		= (1U << __ATA_QUIRK_NO_NCQ_TRIM),
+	ATA_QUIRK_NOLPM			= (1U << __ATA_QUIRK_NOLPM),
+	ATA_QUIRK_WD_BROKEN_LPM		= (1U << __ATA_QUIRK_WD_BROKEN_LPM),
+	ATA_QUIRK_ZERO_AFTER_TRIM	= (1U << __ATA_QUIRK_ZERO_AFTER_TRIM),
+	ATA_QUIRK_NO_DMA_LOG		= (1U << __ATA_QUIRK_NO_DMA_LOG),
+	ATA_QUIRK_NOTRIM		= (1U << __ATA_QUIRK_NOTRIM),
+	ATA_QUIRK_MAX_SEC_1024		= (1U << __ATA_QUIRK_MAX_SEC_1024),
+	ATA_QUIRK_MAX_TRIM_128M		= (1U << __ATA_QUIRK_MAX_TRIM_128M),
+	ATA_QUIRK_NO_NCQ_ON_ATI		= (1U << __ATA_QUIRK_NO_NCQ_ON_ATI),
+	ATA_QUIRK_NO_ID_DEV_LOG		= (1U << __ATA_QUIRK_NO_ID_DEV_LOG),
+	ATA_QUIRK_NO_LOG_DIR		= (1U << __ATA_QUIRK_NO_LOG_DIR),
+	ATA_QUIRK_NO_FUA		= (1U << __ATA_QUIRK_NO_FUA),
 
-	ATA_HORKAGE_DIAGNOSTIC	= (1 << 0),	/* Failed boot diag */
-	ATA_HORKAGE_NODMA	= (1 << 1),	/* DMA problems */
-	ATA_HORKAGE_NONCQ	= (1 << 2),	/* Don't use NCQ */
-	ATA_HORKAGE_MAX_SEC_128	= (1 << 3),	/* Limit max sects to 128 */
-	ATA_HORKAGE_BROKEN_HPA	= (1 << 4),	/* Broken HPA */
-	ATA_HORKAGE_DISABLE	= (1 << 5),	/* Disable it */
-	ATA_HORKAGE_HPA_SIZE	= (1 << 6),	/* native size off by one */
-	ATA_HORKAGE_IVB		= (1 << 8),	/* cbl det validity bit bugs */
-	ATA_HORKAGE_STUCK_ERR	= (1 << 9),	/* stuck ERR on next PACKET */
-	ATA_HORKAGE_BRIDGE_OK	= (1 << 10),	/* no bridge limits */
-	ATA_HORKAGE_ATAPI_MOD16_DMA = (1 << 11), /* use ATAPI DMA for commands
-						    not multiple of 16 bytes */
-	ATA_HORKAGE_FIRMWARE_WARN = (1 << 12),	/* firmware update warning */
-	ATA_HORKAGE_1_5_GBPS	= (1 << 13),	/* force 1.5 Gbps */
-	ATA_HORKAGE_NOSETXFER	= (1 << 14),	/* skip SETXFER, SATA only */
-	ATA_HORKAGE_BROKEN_FPDMA_AA	= (1 << 15),	/* skip AA */
-	ATA_HORKAGE_DUMP_ID	= (1 << 16),	/* dump IDENTIFY data */
-	ATA_HORKAGE_MAX_SEC_LBA48 = (1 << 17),	/* Set max sects to 65535 */
-	ATA_HORKAGE_ATAPI_DMADIR = (1 << 18),	/* device requires dmadir */
-	ATA_HORKAGE_NO_NCQ_TRIM	= (1 << 19),	/* don't use queued TRIM */
-	ATA_HORKAGE_NOLPM	= (1 << 20),	/* don't use LPM */
-	ATA_HORKAGE_WD_BROKEN_LPM = (1 << 21),	/* some WDs have broken LPM */
-	ATA_HORKAGE_ZERO_AFTER_TRIM = (1 << 22),/* guarantees zero after trim */
-	ATA_HORKAGE_NO_DMA_LOG	= (1 << 23),	/* don't use DMA for log read */
-	ATA_HORKAGE_NOTRIM	= (1 << 24),	/* don't use TRIM */
-	ATA_HORKAGE_MAX_SEC_1024 = (1 << 25),	/* Limit max sects to 1024 */
-	ATA_HORKAGE_MAX_TRIM_128M = (1 << 26),	/* Limit max trim size to 128M */
-	ATA_HORKAGE_NO_NCQ_ON_ATI = (1 << 27),	/* Disable NCQ on ATI chipset */
-	ATA_HORKAGE_NO_ID_DEV_LOG = (1 << 28),	/* Identify device log missing */
-	ATA_HORKAGE_NO_LOG_DIR	= (1 << 29),	/* Do not read log directory */
-	ATA_HORKAGE_NO_FUA	= (1 << 30),	/* Do not use FUA */
-
-	 /* DMA mask for user DMA control: User visible values; DO NOT
-	    renumber */
+	/* User visible DMA mask for DMA control. DO NOT renumber. */
 	ATA_DMA_MASK_ATA	= (1 << 0),	/* DMA on ATA Disk */
 	ATA_DMA_MASK_ATAPI	= (1 << 1),	/* DMA on ATAPI */
 	ATA_DMA_MASK_CFA	= (1 << 2),	/* DMA on CF Card */
@@ -660,10 +698,25 @@ struct ata_cpr_log {
 	struct ata_cpr		cpr[] __counted_by(nr_cpr);
 };
 
+struct ata_cdl {
+	/*
+	 * Buffer to cache the CDL log page 18h (command duration descriptors)
+	 * for SCSI-ATA translation.
+	 */
+	u8			desc_log_buf[ATA_LOG_CDL_SIZE];
+
+	/*
+	 * Buffer to handle reading the sense data for successful NCQ Commands
+	 * log page for commands using a CDL with one of the limits policy set
+	 * to 0xD (successful completion with sense data available bit set).
+	 */
+	u8			ncq_sense_log_buf[ATA_LOG_SENSE_NCQ_SIZE];
+};
+
 struct ata_device {
 	struct ata_link		*link;
 	unsigned int		devno;		/* 0 or 1 */
-	unsigned int		horkage;	/* List of broken features */
+	unsigned int		quirks;		/* List of broken features */
 	unsigned long		flags;		/* ATA_DFLAG_xxx */
 	struct scsi_device	*sdev;		/* attached SCSI device */
 	void			*private_data;
@@ -722,13 +775,16 @@ struct ata_device {
 	/* Concurrent positioning ranges */
 	struct ata_cpr_log	*cpr_log;
 
-	/* Command Duration Limits log support */
-	u8			cdl[ATA_LOG_CDL_SIZE];
+	/* Command Duration Limits support */
+	struct ata_cdl		*cdl;
 
 	/* error history */
 	int			spdn_cnt;
 	/* ering is CLEAR_END, read comment above CLEAR_END */
 	struct ata_ering	ering;
+
+	/* For EH */
+	u8			sector_buf[ATA_SECT_SIZE] ____cacheline_aligned;
 };
 
 /* Fields between ATA_DEVICE_CLEAR_BEGIN and ATA_DEVICE_CLEAR_END are
@@ -874,9 +930,6 @@ struct ata_port {
 #ifdef CONFIG_ATA_ACPI
 	struct ata_acpi_gtm	__acpi_init_gtm; /* use ata_acpi_init_gtm() */
 #endif
-	/* owned by EH */
-	u8			*ncq_sense_buf;
-	u8			sector_buf[ATA_SECT_SIZE] ____cacheline_aligned;
 };
 
 /* The following initializer overrides a method to NULL whether one of
@@ -1064,8 +1117,6 @@ static inline bool ata_port_is_frozen(const struct ata_port *ap)
 extern int ata_std_prereset(struct ata_link *link, unsigned long deadline);
 extern int ata_wait_after_reset(struct ata_link *link, unsigned long deadline,
 				int (*check_ready)(struct ata_link *link));
-extern int sata_std_hardreset(struct ata_link *link, unsigned int *class,
-			      unsigned long deadline);
 extern void ata_std_postreset(struct ata_link *link, unsigned int *classes);
 
 extern struct ata_host *ata_host_alloc(struct device *dev, int n_ports);
@@ -1129,7 +1180,6 @@ extern int ata_xfer_mode2shift(u8 xfer_mode);
 extern const char *ata_mode_string(unsigned int xfer_mask);
 extern unsigned int ata_id_xfermask(const u16 *id);
 extern int ata_std_qc_defer(struct ata_queued_cmd *qc);
-extern enum ata_completion_errors ata_noop_qc_prep(struct ata_queued_cmd *qc);
 extern void ata_sg_init(struct ata_queued_cmd *qc, struct scatterlist *sg,
 		 unsigned int n_elem);
 extern unsigned int ata_dev_classify(const struct ata_taskfile *tf);
@@ -1190,12 +1240,13 @@ extern int sata_scr_read(struct ata_link *link, int reg, u32 *val);
 extern int sata_scr_write(struct ata_link *link, int reg, u32 val);
 extern int sata_scr_write_flush(struct ata_link *link, int reg, u32 val);
 extern int sata_set_spd(struct ata_link *link);
+int sata_std_hardreset(struct ata_link *link, unsigned int *class,
+		       unsigned long deadline);
 extern int sata_link_hardreset(struct ata_link *link,
 			const unsigned int *timing, unsigned long deadline,
 			bool *online, int (*check_ready)(struct ata_link *));
 extern int sata_link_resume(struct ata_link *link, const unsigned int *params,
 			    unsigned long deadline);
-extern int ata_eh_read_sense_success_ncq_log(struct ata_link *link);
 extern void ata_eh_analyze_ncq_error(struct ata_link *link);
 #else
 static inline const unsigned int *
@@ -1217,6 +1268,11 @@ static inline int sata_scr_write_flush(struct ata_link *link, int reg, u32 val)
 	return -EOPNOTSUPP;
 }
 static inline int sata_set_spd(struct ata_link *link) { return -EOPNOTSUPP; }
+static inline int sata_std_hardreset(struct ata_link *link, unsigned int *class,
+				     unsigned long deadline)
+{
+	return -EOPNOTSUPP;
+}
 static inline int sata_link_hardreset(struct ata_link *link,
 				      const unsigned int *timing,
 				      unsigned long deadline,
@@ -1230,10 +1286,6 @@ static inline int sata_link_hardreset(struct ata_link *link,
 static inline int sata_link_resume(struct ata_link *link,
 				   const unsigned int *params,
 				   unsigned long deadline)
-{
-	return -EOPNOTSUPP;
-}
-static inline int ata_eh_read_sense_success_ncq_log(struct ata_link *link)
 {
 	return -EOPNOTSUPP;
 }
@@ -1967,7 +2019,6 @@ extern unsigned int ata_sff_data_xfer(struct ata_queued_cmd *qc,
 extern unsigned int ata_sff_data_xfer32(struct ata_queued_cmd *qc,
 			unsigned char *buf, unsigned int buflen, int rw);
 extern void ata_sff_irq_on(struct ata_port *ap);
-extern void ata_sff_irq_clear(struct ata_port *ap);
 extern int ata_sff_hsm_move(struct ata_port *ap, struct ata_queued_cmd *qc,
 			    u8 status, int in_wq);
 extern void ata_sff_queue_work(struct work_struct *work);

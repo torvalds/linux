@@ -13,7 +13,7 @@
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define AD5593R_MODE_CONF		(0 << 4)
 #define AD5593R_MODE_DAC_WRITE		(1 << 4)
@@ -147,4 +147,4 @@ module_i2c_driver(ad5593r_driver);
 MODULE_AUTHOR("Paul Cercueil <paul.cercueil@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD5593R multi-channel converters");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(IIO_AD5592R);
+MODULE_IMPORT_NS("IIO_AD5592R");

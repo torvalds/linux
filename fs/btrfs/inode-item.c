@@ -14,7 +14,7 @@
 #include "extent-tree.h"
 #include "file-item.h"
 
-struct btrfs_inode_ref *btrfs_find_name_in_backref(struct extent_buffer *leaf,
+struct btrfs_inode_ref *btrfs_find_name_in_backref(const struct extent_buffer *leaf,
 						   int slot,
 						   const struct fscrypt_str *name)
 {
@@ -42,7 +42,7 @@ struct btrfs_inode_ref *btrfs_find_name_in_backref(struct extent_buffer *leaf,
 }
 
 struct btrfs_inode_extref *btrfs_find_name_in_ext_backref(
-		struct extent_buffer *leaf, int slot, u64 ref_objectid,
+		const struct extent_buffer *leaf, int slot, u64 ref_objectid,
 		const struct fscrypt_str *name)
 {
 	struct btrfs_inode_extref *extref;
@@ -423,9 +423,9 @@ int btrfs_lookup_inode(struct btrfs_trans_handle *trans, struct btrfs_root
 	return ret;
 }
 
-static inline void btrfs_trace_truncate(struct btrfs_inode *inode,
-					struct extent_buffer *leaf,
-					struct btrfs_file_extent_item *fi,
+static inline void btrfs_trace_truncate(const struct btrfs_inode *inode,
+					const struct extent_buffer *leaf,
+					const struct btrfs_file_extent_item *fi,
 					u64 offset, int extent_type, int slot)
 {
 	if (!inode)

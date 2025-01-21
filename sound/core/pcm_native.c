@@ -582,7 +582,7 @@ static int snd_pcm_hw_refine_user(struct snd_pcm_substream *substream,
 
 	params = memdup_user(_params, sizeof(*params));
 	if (IS_ERR(params))
-		return PTR_ERR(no_free_ptr(params));
+		return PTR_ERR(params);
 
 	err = snd_pcm_hw_refine(substream, params);
 	if (err < 0)
@@ -872,7 +872,7 @@ static int snd_pcm_hw_params_user(struct snd_pcm_substream *substream,
 
 	params = memdup_user(_params, sizeof(*params));
 	if (IS_ERR(params))
-		return PTR_ERR(no_free_ptr(params));
+		return PTR_ERR(params);
 
 	err = snd_pcm_hw_params(substream, params);
 	if (err < 0)
@@ -2250,12 +2250,12 @@ static int snd_pcm_link(struct snd_pcm_substream *substream, int fd)
 	bool nonatomic = substream->pcm->nonatomic;
 	CLASS(fd, f)(fd);
 
-	if (!f.file)
+	if (fd_empty(f))
 		return -EBADFD;
-	if (!is_pcm_file(f.file))
+	if (!is_pcm_file(fd_file(f)))
 		return -EBADFD;
 
-	pcm_file = f.file->private_data;
+	pcm_file = fd_file(f)->private_data;
 	substream1 = pcm_file->substream;
 
 	if (substream == substream1)
@@ -2418,13 +2418,17 @@ static int snd_pcm_hw_rule_sample_bits(struct snd_pcm_hw_params *params,
 	return snd_interval_refine(hw_param_interval(params, rule->var), &t);
 }
 
-#if SNDRV_PCM_RATE_5512 != 1 << 0 || SNDRV_PCM_RATE_192000 != 1 << 12
+#if SNDRV_PCM_RATE_5512 != 1 << 0 || SNDRV_PCM_RATE_192000 != 1 << 12 ||\
+	SNDRV_PCM_RATE_128000 != 1 << 19
 #error "Change this table"
 #endif
 
+/* NOTE: the list is unsorted! */
 static const unsigned int rates[] = {
 	5512, 8000, 11025, 16000, 22050, 32000, 44100,
-	48000, 64000, 88200, 96000, 176400, 192000, 352800, 384000, 705600, 768000
+	48000, 64000, 88200, 96000, 176400, 192000, 352800, 384000, 705600, 768000,
+	/* extended */
+	12000, 24000, 128000
 };
 
 const struct snd_pcm_hw_constraint_list snd_pcm_known_rates = {
@@ -3111,7 +3115,7 @@ struct snd_pcm_sync_ptr32 {
 	} c;
 } __packed;
 
-/* recalcuate the boundary within 32bit */
+/* recalculate the boundary within 32bit */
 static snd_pcm_uframes_t recalculate_boundary(struct snd_pcm_runtime *runtime)
 {
 	snd_pcm_uframes_t boundary;
@@ -3243,7 +3247,7 @@ static int snd_pcm_xfern_frames_ioctl(struct snd_pcm_substream *substream,
 
 	bufs = memdup_user(xfern.bufs, sizeof(void *) * runtime->channels);
 	if (IS_ERR(bufs))
-		return PTR_ERR(no_free_ptr(bufs));
+		return PTR_ERR(bufs);
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		result = snd_pcm_lib_writev(substream, bufs, xfern.frames);
 	else
@@ -3770,6 +3774,26 @@ static int snd_pcm_mmap_control(struct snd_pcm_substream *substream, struct file
 #endif /* coherent mmap */
 
 /*
+ * snd_pcm_mmap_data_open - increase the mmap counter
+ */
+static void snd_pcm_mmap_data_open(struct vm_area_struct *area)
+{
+	struct snd_pcm_substream *substream = area->vm_private_data;
+
+	atomic_inc(&substream->mmap_count);
+}
+
+/*
+ * snd_pcm_mmap_data_close - decrease the mmap counter
+ */
+static void snd_pcm_mmap_data_close(struct vm_area_struct *area)
+{
+	struct snd_pcm_substream *substream = area->vm_private_data;
+
+	atomic_dec(&substream->mmap_count);
+}
+
+/*
  * fault callback for mmapping a RAM page
  */
 static vm_fault_t snd_pcm_mmap_data_fault(struct vm_fault *vmf)
@@ -3789,9 +3813,11 @@ static vm_fault_t snd_pcm_mmap_data_fault(struct vm_fault *vmf)
 		return VM_FAULT_SIGBUS;
 	if (substream->ops->page)
 		page = substream->ops->page(substream, offset);
-	else if (!snd_pcm_get_dma_buf(substream))
+	else if (!snd_pcm_get_dma_buf(substream)) {
+		if (WARN_ON_ONCE(!runtime->dma_area))
+			return VM_FAULT_SIGBUS;
 		page = virt_to_page(runtime->dma_area + offset);
-	else
+	} else
 		page = snd_sgbuf_get_page(snd_pcm_get_dma_buf(substream), offset);
 	if (!page)
 		return VM_FAULT_SIGBUS;
@@ -4032,7 +4058,7 @@ static int snd_pcm_hw_refine_old_user(struct snd_pcm_substream *substream,
 
 	oparams = memdup_user(_oparams, sizeof(*oparams));
 	if (IS_ERR(oparams))
-		return PTR_ERR(no_free_ptr(oparams));
+		return PTR_ERR(oparams);
 	snd_pcm_hw_convert_from_old_params(params, oparams);
 	err = snd_pcm_hw_refine(substream, params);
 	if (err < 0)
@@ -4061,7 +4087,7 @@ static int snd_pcm_hw_params_old_user(struct snd_pcm_substream *substream,
 
 	oparams = memdup_user(_oparams, sizeof(*oparams));
 	if (IS_ERR(oparams))
-		return PTR_ERR(no_free_ptr(oparams));
+		return PTR_ERR(oparams);
 
 	snd_pcm_hw_convert_from_old_params(params, oparams);
 	err = snd_pcm_hw_params(substream, params);
@@ -4111,7 +4137,6 @@ const struct file_operations snd_pcm_f_ops[2] = {
 		.write_iter =		snd_pcm_writev,
 		.open =			snd_pcm_playback_open,
 		.release =		snd_pcm_release,
-		.llseek =		no_llseek,
 		.poll =			snd_pcm_poll,
 		.unlocked_ioctl =	snd_pcm_ioctl,
 		.compat_ioctl = 	snd_pcm_ioctl_compat,
@@ -4125,7 +4150,6 @@ const struct file_operations snd_pcm_f_ops[2] = {
 		.read_iter =		snd_pcm_readv,
 		.open =			snd_pcm_capture_open,
 		.release =		snd_pcm_release,
-		.llseek =		no_llseek,
 		.poll =			snd_pcm_poll,
 		.unlocked_ioctl =	snd_pcm_ioctl,
 		.compat_ioctl = 	snd_pcm_ioctl_compat,

@@ -21,7 +21,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/of.h>
 #include <linux/slab.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 struct eeti_ts {
 	struct i2c_client *client;

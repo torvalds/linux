@@ -23,6 +23,9 @@ properties:
   '#pse-cells':
     const: 1
 
+  reset-gpios:
+    maxItems: 1
+
   channels:
     description: each set of 8 ports can be assigned to one physical
       channels or two for PoE4. This parameter describes the configuration

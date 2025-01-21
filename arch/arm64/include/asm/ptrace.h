@@ -98,6 +98,8 @@
 #include <linux/bug.h>
 #include <linux/types.h>
 
+#include <asm/stacktrace/frame.h>
+
 /* sizeof(struct user) for AArch32 */
 #define COMPAT_USER_SZ	296
 
@@ -149,8 +151,7 @@ static inline unsigned long pstate_to_compat_psr(const unsigned long pstate)
 
 /*
  * This struct defines the way the registers are stored on the stack during an
- * exception. Note that sizeof(struct pt_regs) has to be a multiple of 16 (for
- * stack alignment). struct user_pt_regs must form a prefix of struct pt_regs.
+ * exception. struct user_pt_regs must form a prefix of struct pt_regs.
  */
 struct pt_regs {
 	union {
@@ -163,22 +164,19 @@ struct pt_regs {
 		};
 	};
 	u64 orig_x0;
-#ifdef __AARCH64EB__
-	u32 unused2;
 	s32 syscallno;
-#else
-	s32 syscallno;
-	u32 unused2;
-#endif
+	u32 pmr;
+
 	u64 sdei_ttbr1;
-	/* Only valid when ARM64_HAS_GIC_PRIO_MASKING is enabled. */
-	u64 pmr_save;
-	u64 stackframe[2];
+	struct frame_record_meta stackframe;
 
 	/* Only valid for some EL1 exceptions. */
 	u64 lockdep_hardirqs;
 	u64 exit_rcu;
 };
+
+/* For correct stack alignment, pt_regs has to be a multiple of 16 bytes. */
+static_assert(IS_ALIGNED(sizeof(struct pt_regs), 16));
 
 static inline bool in_syscall(struct pt_regs const *regs)
 {
@@ -213,7 +211,7 @@ static inline void forget_syscall(struct pt_regs *regs)
 
 #define irqs_priority_unmasked(regs)					\
 	(system_uses_irq_prio_masking() ?				\
-		(regs)->pmr_save == GIC_PRIO_IRQON :			\
+		(regs)->pmr == GIC_PRIO_IRQON :				\
 		true)
 
 #define interrupts_enabled(regs)			\

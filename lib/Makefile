@@ -14,6 +14,7 @@ KCOV_INSTRUMENT_list_debug.o := n
 KCOV_INSTRUMENT_debugobjects.o := n
 KCOV_INSTRUMENT_dynamic_debug.o := n
 KCOV_INSTRUMENT_fault-inject.o := n
+KCOV_INSTRUMENT_find_bit.o := n
 
 # string.o implements standard library functions like memset/memcpy etc.
 # Use -ffreestanding to ensure that the compiler does not try to "optimize"
@@ -34,10 +35,12 @@ lib-y := ctype.o string.o vsprintf.o cmdline.o \
 	 is_single_threaded.o plist.o decompress.o kobject_uevent.o \
 	 earlycpio.o seq_buf.o siphash.o dec_and_lock.o \
 	 nmi_backtrace.o win_minmax.o memcat_p.o \
-	 buildid.o objpool.o
+	 buildid.o objpool.o iomem_copy.o
 
+lib-$(CONFIG_UNION_FIND) += union_find.o
 lib-$(CONFIG_PRINTK) += dump_stack.o
 lib-$(CONFIG_SMP) += cpumask.o
+lib-$(CONFIG_MIN_HEAP) += min_heap.o
 
 lib-y	+= kobject.o klist.o
 obj-y	+= lockref.o
@@ -95,6 +98,7 @@ obj-$(CONFIG_TEST_XARRAY) += test_xarray.o
 obj-$(CONFIG_TEST_MAPLE_TREE) += test_maple_tree.o
 obj-$(CONFIG_TEST_PARMAN) += test_parman.o
 obj-$(CONFIG_TEST_KMOD) += test_kmod.o
+obj-$(CONFIG_TEST_RUNTIME) += tests/
 obj-$(CONFIG_TEST_DEBUG_VIRTUAL) += test_debug_virtual.o
 obj-$(CONFIG_TEST_MEMCAT_P) += test_memcat_p.o
 obj-$(CONFIG_TEST_OBJAGG) += test_objagg.o
@@ -153,6 +157,7 @@ obj-$(CONFIG_DEBUG_OBJECTS) += debugobjects.o
 obj-$(CONFIG_BITREVERSE) += bitrev.o
 obj-$(CONFIG_LINEAR_RANGES) += linear_ranges.o
 obj-$(CONFIG_PACKING)	+= packing.o
+obj-$(CONFIG_PACKING_KUNIT_TEST) += packing_test.o
 obj-$(CONFIG_CRC_CCITT)	+= crc-ccitt.o
 obj-$(CONFIG_CRC16)	+= crc16.o
 obj-$(CONFIG_CRC_T10DIF)+= crc-t10dif.o
@@ -369,6 +374,7 @@ obj-$(CONFIG_PLDMFW) += pldmfw/
 CFLAGS_bitfield_kunit.o := $(DISABLE_STRUCTLEAK_PLUGIN)
 obj-$(CONFIG_BITFIELD_KUNIT) += bitfield_kunit.o
 obj-$(CONFIG_CHECKSUM_KUNIT) += checksum_kunit.o
+obj-$(CONFIG_UTIL_MACROS_KUNIT) += util_macros_kunit.o
 obj-$(CONFIG_LIST_KUNIT_TEST) += list-test.o
 obj-$(CONFIG_HASHTABLE_KUNIT_TEST) += hashtable_test.o
 obj-$(CONFIG_LINEAR_RANGES_TEST) += test_linear_ranges.o
@@ -388,45 +394,10 @@ CFLAGS_fortify_kunit.o += $(DISABLE_STRUCTLEAK_PLUGIN)
 obj-$(CONFIG_FORTIFY_KUNIT_TEST) += fortify_kunit.o
 obj-$(CONFIG_SIPHASH_KUNIT_TEST) += siphash_kunit.o
 obj-$(CONFIG_USERCOPY_KUNIT_TEST) += usercopy_kunit.o
+obj-$(CONFIG_CRC16_KUNIT_TEST) += crc16_kunit.o
 
 obj-$(CONFIG_GENERIC_LIB_DEVMEM_IS_ALLOWED) += devmem_is_allowed.o
 
 obj-$(CONFIG_FIRMWARE_TABLE) += fw_table.o
 
-# FORTIFY_SOURCE compile-time behavior tests
-TEST_FORTIFY_SRCS = $(wildcard $(src)/test_fortify/*-*.c)
-TEST_FORTIFY_LOGS = $(patsubst $(src)/%.c, %.log, $(TEST_FORTIFY_SRCS))
-TEST_FORTIFY_LOG = test_fortify.log
-
-quiet_cmd_test_fortify = TEST    $@
-      cmd_test_fortify = $(CONFIG_SHELL) $(srctree)/scripts/test_fortify.sh \
-			$< $@ "$(NM)" $(CC) $(c_flags) \
-			$(call cc-disable-warning,fortify-source) \
-			-DKBUILD_EXTRA_WARN1
-
-targets += $(TEST_FORTIFY_LOGS)
-clean-files += $(TEST_FORTIFY_LOGS)
-clean-files += $(addsuffix .o, $(TEST_FORTIFY_LOGS))
-$(obj)/test_fortify/%.log: $(src)/test_fortify/%.c \
-			   $(src)/test_fortify/test_fortify.h \
-			   $(srctree)/include/linux/fortify-string.h \
-			   $(srctree)/scripts/test_fortify.sh \
-			   FORCE
-	$(call if_changed,test_fortify)
-
-quiet_cmd_gen_fortify_log = GEN     $@
-      cmd_gen_fortify_log = cat </dev/null $(filter-out FORCE,$^) 2>/dev/null > $@ || true
-
-targets += $(TEST_FORTIFY_LOG)
-clean-files += $(TEST_FORTIFY_LOG)
-$(obj)/$(TEST_FORTIFY_LOG): $(addprefix $(obj)/, $(TEST_FORTIFY_LOGS)) FORCE
-	$(call if_changed,gen_fortify_log)
-
-# Fake dependency to trigger the fortify tests.
-ifeq ($(CONFIG_FORTIFY_SOURCE),y)
-$(obj)/string.o: $(obj)/$(TEST_FORTIFY_LOG)
-endif
-
-# Some architectures define __NO_FORTIFY if __SANITIZE_ADDRESS__ is undefined.
-# Pass CFLAGS_KASAN to avoid warnings.
-$(foreach x, $(patsubst %.log,%.o,$(TEST_FORTIFY_LOGS)), $(eval KASAN_SANITIZE_$(x) := y))
+subdir-$(CONFIG_FORTIFY_SOURCE) += test_fortify

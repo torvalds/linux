@@ -147,37 +147,6 @@ void dcn35_init_hw(struct dc *dc)
 		hws->funcs.bios_golden_init(dc);
 	}
 
-	if (!dc->debug.disable_clock_gate) {
-		REG_WRITE(DCCG_GATE_DISABLE_CNTL, 0);
-		REG_WRITE(DCCG_GATE_DISABLE_CNTL2,  0);
-
-		/* Disable gating for PHYASYMCLK. This will be enabled in dccg if needed */
-		REG_UPDATE_5(DCCG_GATE_DISABLE_CNTL2, PHYASYMCLK_ROOT_GATE_DISABLE, 1,
-				PHYBSYMCLK_ROOT_GATE_DISABLE, 1,
-				PHYCSYMCLK_ROOT_GATE_DISABLE, 1,
-				PHYDSYMCLK_ROOT_GATE_DISABLE, 1,
-				PHYESYMCLK_ROOT_GATE_DISABLE, 1);
-
-		REG_UPDATE_4(DCCG_GATE_DISABLE_CNTL4,
-				DPIASYMCLK0_GATE_DISABLE, 0,
-				DPIASYMCLK1_GATE_DISABLE, 0,
-				DPIASYMCLK2_GATE_DISABLE, 0,
-				DPIASYMCLK3_GATE_DISABLE, 0);
-
-		REG_WRITE(DCCG_GATE_DISABLE_CNTL5, 0xFFFFFFFF);
-		REG_UPDATE_4(DCCG_GATE_DISABLE_CNTL5,
-				DTBCLK_P0_GATE_DISABLE, 0,
-				DTBCLK_P1_GATE_DISABLE, 0,
-				DTBCLK_P2_GATE_DISABLE, 0,
-				DTBCLK_P3_GATE_DISABLE, 0);
-		REG_UPDATE_4(DCCG_GATE_DISABLE_CNTL5,
-				DPSTREAMCLK0_GATE_DISABLE, 0,
-				DPSTREAMCLK1_GATE_DISABLE, 0,
-				DPSTREAMCLK2_GATE_DISABLE, 0,
-				DPSTREAMCLK3_GATE_DISABLE, 0);
-
-	}
-
 	// Initialize the dccg
 	if (res_pool->dccg->funcs->dccg_init)
 		res_pool->dccg->funcs->dccg_init(res_pool->dccg);
@@ -235,7 +204,7 @@ void dcn35_init_hw(struct dc *dc)
 	if (hws->funcs.enable_power_gating_plane)
 		hws->funcs.enable_power_gating_plane(dc->hwseq, true);
 */
-	if (res_pool->hubbub->funcs->dchubbub_init)
+	if (res_pool->hubbub && res_pool->hubbub->funcs->dchubbub_init)
 		res_pool->hubbub->funcs->dchubbub_init(dc->res_pool->hubbub);
 	/* If taking control over from VBIOS, we may want to optimize our first
 	 * mode set, so we need to skip powering down pipes until we know which
@@ -271,6 +240,10 @@ void dcn35_init_hw(struct dc *dc)
 			dc->res_pool->hubbub->funcs->allow_self_refresh_control(dc->res_pool->hubbub,
 					!dc->res_pool->hubbub->ctx->dc->debug.disable_stutter);
 	}
+	if (res_pool->dccg->funcs->dccg_root_gate_disable_control) {
+		for (i = 0; i < res_pool->pipe_count; i++)
+			res_pool->dccg->funcs->dccg_root_gate_disable_control(res_pool->dccg, i, 0);
+	}
 
 	for (i = 0; i < res_pool->audio_count; i++) {
 		struct audio *audio = res_pool->audios[i];
@@ -305,20 +278,6 @@ void dcn35_init_hw(struct dc *dc)
 
 	if (!dc->debug.disable_clock_gate) {
 		/* enable all DCN clock gating */
-		REG_WRITE(DCCG_GATE_DISABLE_CNTL, 0);
-
-		REG_UPDATE_5(DCCG_GATE_DISABLE_CNTL2, SYMCLKA_FE_GATE_DISABLE, 0,
-				SYMCLKB_FE_GATE_DISABLE, 0,
-				SYMCLKC_FE_GATE_DISABLE, 0,
-				SYMCLKD_FE_GATE_DISABLE, 0,
-				SYMCLKE_FE_GATE_DISABLE, 0);
-		REG_UPDATE(DCCG_GATE_DISABLE_CNTL2, HDMICHARCLK0_GATE_DISABLE, 0);
-		REG_UPDATE_5(DCCG_GATE_DISABLE_CNTL2, SYMCLKA_GATE_DISABLE, 0,
-				SYMCLKB_GATE_DISABLE, 0,
-				SYMCLKC_GATE_DISABLE, 0,
-				SYMCLKD_GATE_DISABLE, 0,
-				SYMCLKE_GATE_DISABLE, 0);
-
 		REG_UPDATE(DCFCLK_CNTL, DCFCLK_GATE_DIS, 0);
 	}
 
@@ -328,10 +287,10 @@ void dcn35_init_hw(struct dc *dc)
 	if (!dcb->funcs->is_accelerated_mode(dcb) && dc->res_pool->hubbub->funcs->init_watermarks)
 		dc->res_pool->hubbub->funcs->init_watermarks(dc->res_pool->hubbub);
 
-	if (dc->clk_mgr->funcs->notify_wm_ranges)
+	if (dc->clk_mgr && dc->clk_mgr->funcs->notify_wm_ranges)
 		dc->clk_mgr->funcs->notify_wm_ranges(dc->clk_mgr);
 
-	if (dc->clk_mgr->funcs->set_hard_max_memclk && !dc->clk_mgr->dc_mode_softmax_enabled)
+	if (dc->clk_mgr && dc->clk_mgr->funcs->set_hard_max_memclk && !dc->clk_mgr->dc_mode_softmax_enabled)
 		dc->clk_mgr->funcs->set_hard_max_memclk(dc->clk_mgr);
 
 
@@ -350,6 +309,7 @@ void dcn35_init_hw(struct dc *dc)
 		dc_dmub_srv_query_caps_cmd(dc->ctx->dmub_srv);
 		dc->caps.dmub_caps.psr = dc->ctx->dmub_srv->dmub->feature_caps.psr;
 		dc->caps.dmub_caps.mclk_sw = dc->ctx->dmub_srv->dmub->feature_caps.fw_assisted_mclk_switch_ver;
+		dc->caps.dmub_caps.aux_backlight_support = dc->ctx->dmub_srv->dmub->feature_caps.abm_aux_backlight_support;
 	}
 
 	if (dc->res_pool->pg_cntl) {
@@ -375,7 +335,20 @@ static void update_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 		struct dsc_config dsc_cfg;
 		struct dsc_optc_config dsc_optc_cfg = {0};
 		enum optc_dsc_mode optc_dsc_mode;
+		struct dcn_dsc_state dsc_state = {0};
 
+		if (!dsc) {
+			DC_LOG_DSC("DSC is NULL for tg instance %d:", pipe_ctx->stream_res.tg->inst);
+			return;
+		}
+
+		if (dsc->funcs->dsc_read_state) {
+			dsc->funcs->dsc_read_state(dsc, &dsc_state);
+			if (!dsc_state.dsc_fw_en) {
+				DC_LOG_DSC("DSC has been disabled for tg instance %d:", pipe_ctx->stream_res.tg->inst);
+				return;
+			}
+		}
 		/* Enable DSC hw block */
 		dsc_cfg.pic_width = (stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right) / opp_cnt;
 		dsc_cfg.pic_height = stream->timing.v_addressable + stream->timing.v_border_top + stream->timing.v_border_bottom;
@@ -629,10 +602,10 @@ void dcn35_power_down_on_boot(struct dc *dc)
 	if (edp_link && edp_link->link_enc->funcs->is_dig_enabled &&
 			edp_link->link_enc->funcs->is_dig_enabled(edp_link->link_enc) &&
 			dc->hwseq->funcs.edp_backlight_control &&
-			dc->hwss.power_down &&
+			dc->hwseq->funcs.power_down &&
 			dc->hwss.edp_power_control) {
 		dc->hwseq->funcs.edp_backlight_control(edp_link, false);
-		dc->hwss.power_down(dc);
+		dc->hwseq->funcs.power_down(dc);
 		dc->hwss.edp_power_control(edp_link, false);
 	} else {
 		for (i = 0; i < dc->link_count; i++) {
@@ -640,8 +613,8 @@ void dcn35_power_down_on_boot(struct dc *dc)
 
 			if (link->link_enc && link->link_enc->funcs->is_dig_enabled &&
 					link->link_enc->funcs->is_dig_enabled(link->link_enc) &&
-					dc->hwss.power_down) {
-				dc->hwss.power_down(dc);
+					dc->hwseq->funcs.power_down) {
+				dc->hwseq->funcs.power_down(dc);
 				break;
 			}
 
@@ -869,6 +842,7 @@ void dcn35_init_pipes(struct dc *dc, struct dc_state *context)
 			uint32_t num_opps = 0;
 			uint32_t opp_id_src0 = OPP_ID_INVALID;
 			uint32_t opp_id_src1 = OPP_ID_INVALID;
+			uint32_t optc_dsc_state = 0;
 
 			// Step 1: To find out which OPTC is running & OPTC DSC is ON
 			// We can't use res_pool->res_cap->num_timing_generator to check
@@ -877,7 +851,6 @@ void dcn35_init_pipes(struct dc *dc, struct dc_state *context)
 			// Some ASICs would be fused display pipes less than the default setting.
 			// In dcnxx_resource_construct function, driver would obatin real information.
 			for (i = 0; i < dc->res_pool->timing_generator_count; i++) {
-				uint32_t optc_dsc_state = 0;
 				struct timing_generator *tg = dc->res_pool->timing_generators[i];
 
 				if (tg->funcs->is_tg_enabled(tg)) {
@@ -892,15 +865,18 @@ void dcn35_init_pipes(struct dc *dc, struct dc_state *context)
 				}
 			}
 
-			// Step 2: To power down DSC but skip DSC  of running OPTC
+			// Step 2: To power down DSC but skip DSC of running OPTC
 			for (i = 0; i < dc->res_pool->res_cap->num_dsc; i++) {
 				struct dcn_dsc_state s  = {0};
 
-				dc->res_pool->dscs[i]->funcs->dsc_read_state(dc->res_pool->dscs[i], &s);
+				/* avoid reading DSC state when it is not in use as it may be power gated */
+				if (optc_dsc_state) {
+					dc->res_pool->dscs[i]->funcs->dsc_read_state(dc->res_pool->dscs[i], &s);
 
-				if ((s.dsc_opp_source == opp_id_src0 || s.dsc_opp_source == opp_id_src1) &&
-					s.dsc_clock_en && s.dsc_fw_en)
-					continue;
+					if ((s.dsc_opp_source == opp_id_src0 || s.dsc_opp_source == opp_id_src1) &&
+						s.dsc_clock_en && s.dsc_fw_en)
+						continue;
+				}
 
 				pg_cntl->funcs->dsc_pg_control(pg_cntl, dc->res_pool->dscs[i]->inst, false);
 			}
@@ -1024,9 +1000,6 @@ void dcn35_calc_blocks_to_gate(struct dc *dc, struct dc_state *context,
 	if (!hpo_frl_stream_enc_acquired && !hpo_dp_stream_enc_acquired)
 		update_state->pg_res_update[PG_HPO] = true;
 
-	if (hpo_frl_stream_enc_acquired)
-		update_state->pg_pipe_res_update[PG_HDMISTREAM][0] = true;
-
 	update_state->pg_res_update[PG_DWB] = true;
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -1041,7 +1014,7 @@ void dcn35_calc_blocks_to_gate(struct dc *dc, struct dc_state *context,
 		if (pipe_ctx->plane_res.hubp)
 			update_state->pg_pipe_res_update[PG_HUBP][pipe_ctx->plane_res.hubp->inst] = false;
 
-		if (pipe_ctx->plane_res.dpp)
+		if (pipe_ctx->plane_res.dpp && pipe_ctx->plane_res.hubp)
 			update_state->pg_pipe_res_update[PG_DPP][pipe_ctx->plane_res.hubp->inst] = false;
 
 		if (pipe_ctx->plane_res.dpp || pipe_ctx->stream_res.opp)
@@ -1462,11 +1435,16 @@ void dcn35_set_drr(struct pipe_ctx **pipe_ctx,
 	params.vertical_total_mid_frame_num = adjust.v_total_mid_frame_num;
 
 	for (i = 0; i < num_pipes; i++) {
-		if ((pipe_ctx[i]->stream_res.tg != NULL) && pipe_ctx[i]->stream_res.tg->funcs) {
-			struct dc_crtc_timing *timing = &pipe_ctx[i]->stream->timing;
-			struct dc *dc = pipe_ctx[i]->stream->ctx->dc;
+		/* dc_state_destruct() might null the stream resources, so fetch tg
+		 * here first to avoid a race condition. The lifetime of the pointee
+		 * itself (the timing_generator object) is not a problem here.
+		 */
+		struct timing_generator *tg = pipe_ctx[i]->stream_res.tg;
 
-			if (dc->debug.static_screen_wait_frames) {
+		if ((tg != NULL) && tg->funcs) {
+			if (pipe_ctx[i]->stream && pipe_ctx[i]->stream->ctx->dc->debug.static_screen_wait_frames) {
+				struct dc_crtc_timing *timing = &pipe_ctx[i]->stream->timing;
+				struct dc *dc = pipe_ctx[i]->stream->ctx->dc;
 				unsigned int frame_rate = timing->pix_clk_100hz / (timing->h_total * timing->v_total);
 
 				if (frame_rate >= 120 && dc->caps.ips_support &&
@@ -1475,14 +1453,12 @@ void dcn35_set_drr(struct pipe_ctx **pipe_ctx,
 					num_frames = 2 * (frame_rate % 60);
 				}
 			}
-			if (pipe_ctx[i]->stream_res.tg->funcs->set_drr)
-				pipe_ctx[i]->stream_res.tg->funcs->set_drr(
-					pipe_ctx[i]->stream_res.tg, &params);
+			if (tg->funcs->set_drr)
+				tg->funcs->set_drr(tg, &params);
 			if (adjust.v_total_max != 0 && adjust.v_total_min != 0)
-				if (pipe_ctx[i]->stream_res.tg->funcs->set_static_screen_control)
-					pipe_ctx[i]->stream_res.tg->funcs->set_static_screen_control(
-						pipe_ctx[i]->stream_res.tg,
-						event_triggers, num_frames);
+				if (tg->funcs->set_static_screen_control)
+					tg->funcs->set_static_screen_control(
+						tg, event_triggers, num_frames);
 		}
 	}
 }

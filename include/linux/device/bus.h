@@ -126,6 +126,9 @@ struct bus_attribute {
 int __must_check bus_create_file(const struct bus_type *bus, struct bus_attribute *attr);
 void bus_remove_file(const struct bus_type *bus, struct bus_attribute *attr);
 
+/* Matching function type for drivers/base APIs to find a specific device */
+typedef int (*device_match_t)(struct device *dev, const void *data);
+
 /* Generic device matching functions that all busses can use to match with */
 int device_match_name(struct device *dev, const void *name);
 int device_match_of_node(struct device *dev, const void *np);
@@ -139,8 +142,7 @@ int device_match_any(struct device *dev, const void *unused);
 int bus_for_each_dev(const struct bus_type *bus, struct device *start, void *data,
 		     int (*fn)(struct device *dev, void *data));
 struct device *bus_find_device(const struct bus_type *bus, struct device *start,
-			       const void *data,
-			       int (*match)(struct device *dev, const void *data));
+			       const void *data, device_match_t match);
 /**
  * bus_find_device_by_name - device iterator for locating a particular device
  * of a specific name.

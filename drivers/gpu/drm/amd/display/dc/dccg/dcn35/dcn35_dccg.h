@@ -241,6 +241,7 @@ struct dccg *dccg35_create(
 void dccg35_init(struct dccg *dccg);
 
 void dccg35_enable_global_fgcg_rep(struct dccg *dccg, bool value);
+void dccg35_root_gate_disable_control(struct dccg *dccg, uint32_t pipe_idx, uint32_t disable_clock_gating);
 
 
 #endif //__DCN35_DCCG_H__

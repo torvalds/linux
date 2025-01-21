@@ -24,7 +24,6 @@
 #include <linux/key.h>
 #include <linux/verification.h>
 #include <linux/namei.h>
-#include <linux/fileattr.h>
 
 #include <net/bpf_sk_storage.h>
 
@@ -798,34 +797,13 @@ const struct bpf_func_proto bpf_task_pt_regs_proto = {
 	.ret_btf_id	= &bpf_task_pt_regs_ids[0],
 };
 
-BPF_CALL_2(bpf_current_task_under_cgroup, struct bpf_map *, map, u32, idx)
-{
-	struct bpf_array *array = container_of(map, struct bpf_array, map);
-	struct cgroup *cgrp;
-
-	if (unlikely(idx >= array->map.max_entries))
-		return -E2BIG;
-
-	cgrp = READ_ONCE(array->ptrs[idx]);
-	if (unlikely(!cgrp))
-		return -EAGAIN;
-
-	return task_under_cgroup_hierarchy(current, cgrp);
-}
-
-static const struct bpf_func_proto bpf_current_task_under_cgroup_proto = {
-	.func           = bpf_current_task_under_cgroup,
-	.gpl_only       = false,
-	.ret_type       = RET_INTEGER,
-	.arg1_type      = ARG_CONST_MAP_PTR,
-	.arg2_type      = ARG_ANYTHING,
-};
-
 struct send_signal_irq_work {
 	struct irq_work irq_work;
 	struct task_struct *task;
 	u32 sig;
 	enum pid_type type;
+	bool has_siginfo;
+	struct kernel_siginfo info;
 };
 
 static DEFINE_PER_CPU(struct send_signal_irq_work, send_signal_work);
@@ -833,27 +811,46 @@ static DEFINE_PER_CPU(struct send_signal_irq_work, send_signal_work);
 static void do_bpf_send_signal(struct irq_work *entry)
 {
 	struct send_signal_irq_work *work;
+	struct kernel_siginfo *siginfo;
 
 	work = container_of(entry, struct send_signal_irq_work, irq_work);
-	group_send_sig_info(work->sig, SEND_SIG_PRIV, work->task, work->type);
+	siginfo = work->has_siginfo ? &work->info : SEND_SIG_PRIV;
+
+	group_send_sig_info(work->sig, siginfo, work->task, work->type);
 	put_task_struct(work->task);
 }
 
-static int bpf_send_signal_common(u32 sig, enum pid_type type)
+static int bpf_send_signal_common(u32 sig, enum pid_type type, struct task_struct *task, u64 value)
 {
 	struct send_signal_irq_work *work = NULL;
+	struct kernel_siginfo info;
+	struct kernel_siginfo *siginfo;
+
+	if (!task) {
+		task = current;
+		siginfo = SEND_SIG_PRIV;
+	} else {
+		clear_siginfo(&info);
+		info.si_signo = sig;
+		info.si_errno = 0;
+		info.si_code = SI_KERNEL;
+		info.si_pid = 0;
+		info.si_uid = 0;
+		info.si_value.sival_ptr = (void *)(unsigned long)value;
+		siginfo = &info;
+	}
 
 	/* Similar to bpf_probe_write_user, task needs to be
 	 * in a sound condition and kernel memory access be
 	 * permitted in order to send signal to the current
 	 * task.
 	 */
-	if (unlikely(current->flags & (PF_KTHREAD | PF_EXITING)))
+	if (unlikely(task->flags & (PF_KTHREAD | PF_EXITING)))
 		return -EPERM;
 	if (unlikely(!nmi_uaccess_okay()))
 		return -EPERM;
 	/* Task should not be pid=1 to avoid kernel panic. */
-	if (unlikely(is_global_init(current)))
+	if (unlikely(is_global_init(task)))
 		return -EPERM;
 
 	if (irqs_disabled()) {
@@ -871,19 +868,22 @@ static int bpf_send_signal_common(u32 sig, enum pid_type type)
 		 * to the irq_work. The current task may change when queued
 		 * irq works get executed.
 		 */
-		work->task = get_task_struct(current);
+		work->task = get_task_struct(task);
+		work->has_siginfo = siginfo == &info;
+		if (work->has_siginfo)
+			copy_siginfo(&work->info, &info);
 		work->sig = sig;
 		work->type = type;
 		irq_work_queue(&work->irq_work);
 		return 0;
 	}
 
-	return group_send_sig_info(sig, SEND_SIG_PRIV, current, type);
+	return group_send_sig_info(sig, siginfo, task, type);
 }
 
 BPF_CALL_1(bpf_send_signal, u32, sig)
 {
-	return bpf_send_signal_common(sig, PIDTYPE_TGID);
+	return bpf_send_signal_common(sig, PIDTYPE_TGID, NULL, 0);
 }
 
 static const struct bpf_func_proto bpf_send_signal_proto = {
@@ -895,7 +895,7 @@ static const struct bpf_func_proto bpf_send_signal_proto = {
 
 BPF_CALL_1(bpf_send_signal_thread, u32, sig)
 {
-	return bpf_send_signal_common(sig, PIDTYPE_PID);
+	return bpf_send_signal_common(sig, PIDTYPE_PID, NULL, 0);
 }
 
 static const struct bpf_func_proto bpf_send_signal_thread_proto = {
@@ -1226,7 +1226,8 @@ static const struct bpf_func_proto bpf_get_func_arg_proto = {
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_ANYTHING,
-	.arg3_type	= ARG_PTR_TO_LONG,
+	.arg3_type	= ARG_PTR_TO_FIXED_SIZE_MEM | MEM_UNINIT | MEM_WRITE | MEM_ALIGNED,
+	.arg3_size	= sizeof(u64),
 };
 
 BPF_CALL_2(get_func_ret, void *, ctx, u64 *, value)
@@ -1242,7 +1243,8 @@ static const struct bpf_func_proto bpf_get_func_ret_proto = {
 	.func		= get_func_ret,
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_CTX,
-	.arg2_type	= ARG_PTR_TO_LONG,
+	.arg2_type	= ARG_PTR_TO_FIXED_SIZE_MEM | MEM_UNINIT | MEM_WRITE | MEM_ALIGNED,
+	.arg2_size	= sizeof(u64),
 };
 
 BPF_CALL_1(get_func_arg_cnt, void *, ctx)
@@ -1439,73 +1441,6 @@ static int __init bpf_key_sig_kfuncs_init(void)
 late_initcall(bpf_key_sig_kfuncs_init);
 #endif /* CONFIG_KEYS */
 
-/* filesystem kfuncs */
-__bpf_kfunc_start_defs();
-
-/**
- * bpf_get_file_xattr - get xattr of a file
- * @file: file to get xattr from
- * @name__str: name of the xattr
- * @value_p: output buffer of the xattr value
- *
- * Get xattr *name__str* of *file* and store the output in *value_ptr*.
- *
- * For security reasons, only *name__str* with prefix "user." is allowed.
- *
- * Return: 0 on success, a negative value on error.
- */
-__bpf_kfunc int bpf_get_file_xattr(struct file *file, const char *name__str,
-				   struct bpf_dynptr *value_p)
-{
-	struct bpf_dynptr_kern *value_ptr = (struct bpf_dynptr_kern *)value_p;
-	struct dentry *dentry;
-	u32 value_len;
-	void *value;
-	int ret;
-
-	if (strncmp(name__str, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN))
-		return -EPERM;
-
-	value_len = __bpf_dynptr_size(value_ptr);
-	value = __bpf_dynptr_data_rw(value_ptr, value_len);
-	if (!value)
-		return -EINVAL;
-
-	dentry = file_dentry(file);
-	ret = inode_permission(&nop_mnt_idmap, dentry->d_inode, MAY_READ);
-	if (ret)
-		return ret;
-	return __vfs_getxattr(dentry, dentry->d_inode, name__str, value, value_len);
-}
-
-__bpf_kfunc_end_defs();
-
-BTF_KFUNCS_START(fs_kfunc_set_ids)
-BTF_ID_FLAGS(func, bpf_get_file_xattr, KF_SLEEPABLE | KF_TRUSTED_ARGS)
-BTF_KFUNCS_END(fs_kfunc_set_ids)
-
-static int bpf_get_file_xattr_filter(const struct bpf_prog *prog, u32 kfunc_id)
-{
-	if (!btf_id_set8_contains(&fs_kfunc_set_ids, kfunc_id))
-		return 0;
-
-	/* Only allow to attach from LSM hooks, to avoid recursion */
-	return prog->type != BPF_PROG_TYPE_LSM ? -EACCES : 0;
-}
-
-static const struct btf_kfunc_id_set bpf_fs_kfunc_set = {
-	.owner = THIS_MODULE,
-	.set = &fs_kfunc_set_ids,
-	.filter = bpf_get_file_xattr_filter,
-};
-
-static int __init bpf_fs_kfuncs_init(void)
-{
-	return register_btf_kfunc_id_set(BPF_PROG_TYPE_LSM, &bpf_fs_kfunc_set);
-}
-
-late_initcall(bpf_fs_kfuncs_init);
-
 static const struct bpf_func_proto *
 bpf_tracing_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
@@ -1548,8 +1483,6 @@ bpf_tracing_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_get_numa_node_id_proto;
 	case BPF_FUNC_perf_event_read:
 		return &bpf_perf_event_read_proto;
-	case BPF_FUNC_current_task_under_cgroup:
-		return &bpf_current_task_under_cgroup_proto;
 	case BPF_FUNC_get_prandom_u32:
 		return &bpf_get_prandom_u32_proto;
 	case BPF_FUNC_probe_write_user:
@@ -1578,6 +1511,8 @@ bpf_tracing_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_cgrp_storage_get_proto;
 	case BPF_FUNC_cgrp_storage_delete:
 		return &bpf_cgrp_storage_delete_proto;
+	case BPF_FUNC_current_task_under_cgroup:
+		return &bpf_current_task_under_cgroup_proto;
 #endif
 	case BPF_FUNC_send_signal:
 		return &bpf_send_signal_proto;
@@ -1598,7 +1533,8 @@ bpf_tracing_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 	case BPF_FUNC_jiffies64:
 		return &bpf_jiffies64_proto;
 	case BPF_FUNC_get_task_stack:
-		return &bpf_get_task_stack_proto;
+		return prog->sleepable ? &bpf_get_task_stack_sleepable_proto
+				       : &bpf_get_task_stack_proto;
 	case BPF_FUNC_copy_from_user:
 		return &bpf_copy_from_user_proto;
 	case BPF_FUNC_copy_from_user_task:
@@ -1645,6 +1581,17 @@ static inline bool is_kprobe_session(const struct bpf_prog *prog)
 	return prog->expected_attach_type == BPF_TRACE_KPROBE_SESSION;
 }
 
+static inline bool is_uprobe_multi(const struct bpf_prog *prog)
+{
+	return prog->expected_attach_type == BPF_TRACE_UPROBE_MULTI ||
+	       prog->expected_attach_type == BPF_TRACE_UPROBE_SESSION;
+}
+
+static inline bool is_uprobe_session(const struct bpf_prog *prog)
+{
+	return prog->expected_attach_type == BPF_TRACE_UPROBE_SESSION;
+}
+
 static const struct bpf_func_proto *
 kprobe_prog_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
@@ -1654,7 +1601,7 @@ kprobe_prog_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 	case BPF_FUNC_get_stackid:
 		return &bpf_get_stackid_proto;
 	case BPF_FUNC_get_stack:
-		return &bpf_get_stack_proto;
+		return prog->sleepable ? &bpf_get_stack_sleepable_proto : &bpf_get_stack_proto;
 #ifdef CONFIG_BPF_KPROBE_OVERRIDE
 	case BPF_FUNC_override_return:
 		return &bpf_override_return_proto;
@@ -1662,13 +1609,13 @@ kprobe_prog_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 	case BPF_FUNC_get_func_ip:
 		if (is_kprobe_multi(prog))
 			return &bpf_get_func_ip_proto_kprobe_multi;
-		if (prog->expected_attach_type == BPF_TRACE_UPROBE_MULTI)
+		if (is_uprobe_multi(prog))
 			return &bpf_get_func_ip_proto_uprobe_multi;
 		return &bpf_get_func_ip_proto_kprobe;
 	case BPF_FUNC_get_attach_cookie:
 		if (is_kprobe_multi(prog))
 			return &bpf_get_attach_cookie_proto_kmulti;
-		if (prog->expected_attach_type == BPF_TRACE_UPROBE_MULTI)
+		if (is_uprobe_multi(prog))
 			return &bpf_get_attach_cookie_proto_umulti;
 		return &bpf_get_attach_cookie_proto_trace;
 	default:
@@ -2303,15 +2250,24 @@ void perf_event_detach_bpf_prog(struct perf_event *event)
 		goto unlock;
 
 	old_array = bpf_event_rcu_dereference(event->tp_event->prog_array);
+	if (!old_array)
+		goto put;
+
 	ret = bpf_prog_array_copy(old_array, event->prog, NULL, 0, &new_array);
-	if (ret == -ENOENT)
-		goto unlock;
 	if (ret < 0) {
 		bpf_prog_array_delete_safe(old_array, event->prog);
 	} else {
 		rcu_assign_pointer(event->tp_event->prog_array, new_array);
 		bpf_prog_array_free_sleepable(old_array);
 	}
+
+put:
+	/*
+	 * It could be that the bpf_prog is not sleepable (and will be freed
+	 * via normal RCU), but is called from a point that supports sleepable
+	 * programs and uses tasks-trace-RCU.
+	 */
+	synchronize_rcu_tasks_trace();
 
 	bpf_prog_put(event->prog);
 	event->prog = NULL;
@@ -3160,7 +3116,9 @@ struct bpf_uprobe {
 	loff_t offset;
 	unsigned long ref_ctr_offset;
 	u64 cookie;
+	struct uprobe *uprobe;
 	struct uprobe_consumer consumer;
+	bool session;
 };
 
 struct bpf_uprobe_multi_link {
@@ -3173,20 +3131,20 @@ struct bpf_uprobe_multi_link {
 };
 
 struct bpf_uprobe_multi_run_ctx {
-	struct bpf_run_ctx run_ctx;
+	struct bpf_session_run_ctx session_ctx;
 	unsigned long entry_ip;
 	struct bpf_uprobe *uprobe;
 };
 
-static void bpf_uprobe_unregister(struct path *path, struct bpf_uprobe *uprobes,
-				  u32 cnt)
+static void bpf_uprobe_unregister(struct bpf_uprobe *uprobes, u32 cnt)
 {
 	u32 i;
 
-	for (i = 0; i < cnt; i++) {
-		uprobe_unregister(d_real_inode(path->dentry), uprobes[i].offset,
-				  &uprobes[i].consumer);
-	}
+	for (i = 0; i < cnt; i++)
+		uprobe_unregister_nosync(uprobes[i].uprobe, &uprobes[i].consumer);
+
+	if (cnt)
+		uprobe_unregister_sync();
 }
 
 static void bpf_uprobe_multi_link_release(struct bpf_link *link)
@@ -3194,7 +3152,7 @@ static void bpf_uprobe_multi_link_release(struct bpf_link *link)
 	struct bpf_uprobe_multi_link *umulti_link;
 
 	umulti_link = container_of(link, struct bpf_uprobe_multi_link, link);
-	bpf_uprobe_unregister(&umulti_link->path, umulti_link->uprobes, umulti_link->cnt);
+	bpf_uprobe_unregister(umulti_link->uprobes, umulti_link->cnt);
 	if (umulti_link->task)
 		put_task_struct(umulti_link->task);
 	path_put(&umulti_link->path);
@@ -3220,7 +3178,8 @@ static int bpf_uprobe_multi_link_fill_link_info(const struct bpf_link *link,
 	struct bpf_uprobe_multi_link *umulti_link;
 	u32 ucount = info->uprobe_multi.count;
 	int err = 0, i;
-	long left;
+	char *p, *buf;
+	long left = 0;
 
 	if (!upath ^ !upath_size)
 		return -EINVAL;
@@ -3234,26 +3193,23 @@ static int bpf_uprobe_multi_link_fill_link_info(const struct bpf_link *link,
 	info->uprobe_multi.pid = umulti_link->task ?
 				 task_pid_nr_ns(umulti_link->task, task_active_pid_ns(current)) : 0;
 
-	if (upath) {
-		char *p, *buf;
-
-		upath_size = min_t(u32, upath_size, PATH_MAX);
-
-		buf = kmalloc(upath_size, GFP_KERNEL);
-		if (!buf)
-			return -ENOMEM;
-		p = d_path(&umulti_link->path, buf, upath_size);
-		if (IS_ERR(p)) {
-			kfree(buf);
-			return PTR_ERR(p);
-		}
-		upath_size = buf + upath_size - p;
-		left = copy_to_user(upath, p, upath_size);
+	upath_size = upath_size ? min_t(u32, upath_size, PATH_MAX) : PATH_MAX;
+	buf = kmalloc(upath_size, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+	p = d_path(&umulti_link->path, buf, upath_size);
+	if (IS_ERR(p)) {
 		kfree(buf);
-		if (left)
-			return -EFAULT;
-		info->uprobe_multi.path_size = upath_size;
+		return PTR_ERR(p);
 	}
+	upath_size = buf + upath_size - p;
+
+	if (upath)
+		left = copy_to_user(upath, p, upath_size);
+	kfree(buf);
+	if (left)
+		return -EFAULT;
+	info->uprobe_multi.path_size = upath_size;
 
 	if (!uoffsets && !ucookies && !uref_ctr_offsets)
 		return 0;
@@ -3286,19 +3242,24 @@ static const struct bpf_link_ops bpf_uprobe_multi_link_lops = {
 
 static int uprobe_prog_run(struct bpf_uprobe *uprobe,
 			   unsigned long entry_ip,
-			   struct pt_regs *regs)
+			   struct pt_regs *regs,
+			   bool is_return, void *data)
 {
 	struct bpf_uprobe_multi_link *link = uprobe->link;
 	struct bpf_uprobe_multi_run_ctx run_ctx = {
+		.session_ctx = {
+			.is_return = is_return,
+			.data = data,
+		},
 		.entry_ip = entry_ip,
 		.uprobe = uprobe,
 	};
 	struct bpf_prog *prog = link->link.prog;
 	bool sleepable = prog->sleepable;
 	struct bpf_run_ctx *old_run_ctx;
-	int err = 0;
+	int err;
 
-	if (link->task && current->mm != link->task->mm)
+	if (link->task && !same_thread_group(current, link->task))
 		return 0;
 
 	if (sleepable)
@@ -3308,7 +3269,7 @@ static int uprobe_prog_run(struct bpf_uprobe *uprobe,
 
 	migrate_disable();
 
-	old_run_ctx = bpf_set_run_ctx(&run_ctx.run_ctx);
+	old_run_ctx = bpf_set_run_ctx(&run_ctx.session_ctx.run_ctx);
 	err = bpf_prog_run(link->link.prog, regs);
 	bpf_reset_run_ctx(old_run_ctx);
 
@@ -3322,8 +3283,7 @@ static int uprobe_prog_run(struct bpf_uprobe *uprobe,
 }
 
 static bool
-uprobe_multi_link_filter(struct uprobe_consumer *con, enum uprobe_filter_ctx ctx,
-			 struct mm_struct *mm)
+uprobe_multi_link_filter(struct uprobe_consumer *con, struct mm_struct *mm)
 {
 	struct bpf_uprobe *uprobe;
 
@@ -3332,28 +3292,36 @@ uprobe_multi_link_filter(struct uprobe_consumer *con, enum uprobe_filter_ctx ctx
 }
 
 static int
-uprobe_multi_link_handler(struct uprobe_consumer *con, struct pt_regs *regs)
+uprobe_multi_link_handler(struct uprobe_consumer *con, struct pt_regs *regs,
+			  __u64 *data)
 {
 	struct bpf_uprobe *uprobe;
+	int ret;
 
 	uprobe = container_of(con, struct bpf_uprobe, consumer);
-	return uprobe_prog_run(uprobe, instruction_pointer(regs), regs);
+	ret = uprobe_prog_run(uprobe, instruction_pointer(regs), regs, false, data);
+	if (uprobe->session)
+		return ret ? UPROBE_HANDLER_IGNORE : 0;
+	return 0;
 }
 
 static int
-uprobe_multi_link_ret_handler(struct uprobe_consumer *con, unsigned long func, struct pt_regs *regs)
+uprobe_multi_link_ret_handler(struct uprobe_consumer *con, unsigned long func, struct pt_regs *regs,
+			      __u64 *data)
 {
 	struct bpf_uprobe *uprobe;
 
 	uprobe = container_of(con, struct bpf_uprobe, consumer);
-	return uprobe_prog_run(uprobe, func, regs);
+	uprobe_prog_run(uprobe, func, regs, true, data);
+	return 0;
 }
 
 static u64 bpf_uprobe_multi_entry_ip(struct bpf_run_ctx *ctx)
 {
 	struct bpf_uprobe_multi_run_ctx *run_ctx;
 
-	run_ctx = container_of(current->bpf_ctx, struct bpf_uprobe_multi_run_ctx, run_ctx);
+	run_ctx = container_of(current->bpf_ctx, struct bpf_uprobe_multi_run_ctx,
+			       session_ctx.run_ctx);
 	return run_ctx->entry_ip;
 }
 
@@ -3361,7 +3329,8 @@ static u64 bpf_uprobe_multi_cookie(struct bpf_run_ctx *ctx)
 {
 	struct bpf_uprobe_multi_run_ctx *run_ctx;
 
-	run_ctx = container_of(current->bpf_ctx, struct bpf_uprobe_multi_run_ctx, run_ctx);
+	run_ctx = container_of(current->bpf_ctx, struct bpf_uprobe_multi_run_ctx,
+			       session_ctx.run_ctx);
 	return run_ctx->uprobe->cookie;
 }
 
@@ -3385,7 +3354,7 @@ int bpf_uprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *pr
 	if (sizeof(u64) != sizeof(void *))
 		return -EOPNOTSUPP;
 
-	if (prog->expected_attach_type != BPF_TRACE_UPROBE_MULTI)
+	if (!is_uprobe_multi(prog))
 		return -EINVAL;
 
 	flags = attr->link_create.uprobe_multi.flags;
@@ -3461,11 +3430,12 @@ int bpf_uprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *pr
 
 		uprobes[i].link = link;
 
-		if (flags & BPF_F_UPROBE_MULTI_RETURN)
-			uprobes[i].consumer.ret_handler = uprobe_multi_link_ret_handler;
-		else
+		if (!(flags & BPF_F_UPROBE_MULTI_RETURN))
 			uprobes[i].consumer.handler = uprobe_multi_link_handler;
-
+		if (flags & BPF_F_UPROBE_MULTI_RETURN || is_uprobe_session(prog))
+			uprobes[i].consumer.ret_handler = uprobe_multi_link_ret_handler;
+		if (is_uprobe_session(prog))
+			uprobes[i].session = true;
 		if (pid)
 			uprobes[i].consumer.filter = uprobe_multi_link_filter;
 	}
@@ -3480,21 +3450,25 @@ int bpf_uprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *pr
 		      &bpf_uprobe_multi_link_lops, prog);
 
 	for (i = 0; i < cnt; i++) {
-		err = uprobe_register_refctr(d_real_inode(link->path.dentry),
-					     uprobes[i].offset,
-					     uprobes[i].ref_ctr_offset,
-					     &uprobes[i].consumer);
-		if (err) {
-			bpf_uprobe_unregister(&path, uprobes, i);
-			goto error_free;
+		uprobes[i].uprobe = uprobe_register(d_real_inode(link->path.dentry),
+						    uprobes[i].offset,
+						    uprobes[i].ref_ctr_offset,
+						    &uprobes[i].consumer);
+		if (IS_ERR(uprobes[i].uprobe)) {
+			err = PTR_ERR(uprobes[i].uprobe);
+			link->cnt = i;
+			goto error_unregister;
 		}
 	}
 
 	err = bpf_link_prime(&link->link, &link_primer);
 	if (err)
-		goto error_free;
+		goto error_unregister;
 
 	return bpf_link_settle(&link_primer);
+
+error_unregister:
+	bpf_uprobe_unregister(uprobes, link->cnt);
 
 error_free:
 	kvfree(uprobes);
@@ -3550,7 +3524,7 @@ static int bpf_kprobe_multi_filter(const struct bpf_prog *prog, u32 kfunc_id)
 	if (!btf_id_set8_contains(&kprobe_multi_kfunc_set_ids, kfunc_id))
 		return 0;
 
-	if (!is_kprobe_session(prog))
+	if (!is_kprobe_session(prog) && !is_uprobe_session(prog))
 		return -EACCES;
 
 	return 0;
@@ -3568,3 +3542,16 @@ static int __init bpf_kprobe_multi_kfuncs_init(void)
 }
 
 late_initcall(bpf_kprobe_multi_kfuncs_init);
+
+__bpf_kfunc_start_defs();
+
+__bpf_kfunc int bpf_send_signal_task(struct task_struct *task, int sig, enum pid_type type,
+				     u64 value)
+{
+	if (type != PIDTYPE_PID && type != PIDTYPE_TGID)
+		return -EINVAL;
+
+	return bpf_send_signal_common(sig, type, task, value);
+}
+
+__bpf_kfunc_end_defs();

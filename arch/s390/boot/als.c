@@ -9,41 +9,7 @@
 #include <asm/sclp.h>
 #include "boot.h"
 
-/*
- * The code within this file will be called very early. It may _not_
- * access anything within the bss section, since that is not cleared
- * yet and may contain data (e.g. initrd) that must be saved by other
- * code.
- * For temporary objects the stack (16k) should be used.
- */
-
 static unsigned long als[] = { FACILITIES_ALS };
-
-static void u16_to_hex(char *str, u16 val)
-{
-	int i, num;
-
-	for (i = 1; i <= 4; i++) {
-		num = (val >> (16 - 4 * i)) & 0xf;
-		if (num >= 10)
-			num += 7;
-		*str++ = '0' + num;
-	}
-	*str = '\0';
-}
-
-static void print_machine_type(void)
-{
-	static char mach_str[80] = "Detected machine-type number: ";
-	char type_str[5];
-	struct cpuid id;
-
-	get_cpu_id(&id);
-	u16_to_hex(type_str, id.machine);
-	strcat(mach_str, type_str);
-	strcat(mach_str, "\n");
-	sclp_early_printk(mach_str);
-}
 
 static void u16_to_decimal(char *str, u16 val)
 {
@@ -80,8 +46,7 @@ void print_missing_facilities(void)
 			 * z/VM adds a four character prefix.
 			 */
 			if (strlen(als_str) > 70) {
-				strcat(als_str, "\n");
-				sclp_early_printk(als_str);
+				boot_printk("%s\n", als_str);
 				*als_str = '\0';
 			}
 			u16_to_decimal(val_str, i * BITS_PER_LONG + j);
@@ -89,16 +54,18 @@ void print_missing_facilities(void)
 			first = 0;
 		}
 	}
-	strcat(als_str, "\n");
-	sclp_early_printk(als_str);
+	boot_printk("%s\n", als_str);
 }
 
 static void facility_mismatch(void)
 {
-	sclp_early_printk("The Linux kernel requires more recent processor hardware\n");
-	print_machine_type();
+	struct cpuid id;
+
+	get_cpu_id(&id);
+	boot_printk("The Linux kernel requires more recent processor hardware\n");
+	boot_printk("Detected machine-type number: %4x\n", id.machine);
 	print_missing_facilities();
-	sclp_early_printk("See Principles of Operations for facility bits\n");
+	boot_printk("See Principles of Operations for facility bits\n");
 	disabled_wait();
 }
 

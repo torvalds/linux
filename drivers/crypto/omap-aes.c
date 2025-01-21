@@ -1305,7 +1305,7 @@ static SIMPLE_DEV_PM_OPS(omap_aes_pm_ops, omap_aes_suspend, omap_aes_resume);
 
 static struct platform_driver omap_aes_driver = {
 	.probe	= omap_aes_probe,
-	.remove_new = omap_aes_remove,
+	.remove = omap_aes_remove,
 	.driver	= {
 		.name	= "omap-aes",
 		.pm	= &omap_aes_pm_ops,

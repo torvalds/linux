@@ -69,7 +69,6 @@ static int set_target(struct cpufreq_policy *policy, unsigned int index)
 static const char *find_supply_name(struct device *dev)
 {
 	struct device_node *np __free(device_node) = of_node_get(dev->of_node);
-	struct property *pp;
 	int cpu = dev->id;
 
 	/* This must be valid for sure */
@@ -77,14 +76,10 @@ static const char *find_supply_name(struct device *dev)
 		return NULL;
 
 	/* Try "cpu0" for older DTs */
-	if (!cpu) {
-		pp = of_find_property(np, "cpu0-supply", NULL);
-		if (pp)
-			return "cpu0";
-	}
+	if (!cpu && of_property_present(np, "cpu0-supply"))
+		return "cpu0";
 
-	pp = of_find_property(np, "cpu-supply", NULL);
-	if (pp)
+	if (of_property_present(np, "cpu-supply"))
 		return "cpu";
 
 	dev_dbg(dev, "no regulator for cpu%d\n", cpu);
@@ -350,7 +345,7 @@ static struct platform_driver dt_cpufreq_platdrv = {
 		.name	= "cpufreq-dt",
 	},
 	.probe		= dt_cpufreq_probe,
-	.remove_new	= dt_cpufreq_remove,
+	.remove		= dt_cpufreq_remove,
 };
 module_platform_driver(dt_cpufreq_platdrv);
 

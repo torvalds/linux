@@ -345,7 +345,7 @@ MODULE_DEVICE_TABLE(of, aiu_of_match);
 
 static struct platform_driver aiu_pdrv = {
 	.probe = aiu_probe,
-	.remove_new = aiu_remove,
+	.remove = aiu_remove,
 	.driver = {
 		.name = "meson-aiu",
 		.of_match_table = aiu_of_match,

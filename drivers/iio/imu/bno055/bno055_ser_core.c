@@ -492,7 +492,7 @@ static const struct serdev_device_ops bno055_ser_serdev_ops = {
 	.write_wakeup = serdev_device_write_wakeup,
 };
 
-static struct regmap_bus bno055_ser_regmap_bus = {
+static const struct regmap_bus bno055_ser_regmap_bus = {
 	.write = bno055_ser_write_reg,
 	.read = bno055_ser_read_reg,
 };
@@ -556,5 +556,5 @@ module_serdev_device_driver(bno055_ser_driver);
 
 MODULE_AUTHOR("Andrea Merello <andrea.merello@iit.it>");
 MODULE_DESCRIPTION("Bosch BNO055 serdev interface");
-MODULE_IMPORT_NS(IIO_BNO055);
+MODULE_IMPORT_NS("IIO_BNO055");
 MODULE_LICENSE("GPL");

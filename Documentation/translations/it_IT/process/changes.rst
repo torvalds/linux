@@ -34,9 +34,9 @@ PC Card, per esempio, probabilmente non dovreste preoccuparvi di pcmciautils.
 ====================== =================  ========================================
 GNU C                  5.1                gcc --version
 Clang/LLVM (optional)  13.0.0             clang --version
-Rust (opzionale)       1.76.0             rustc --version
+Rust (opzionale)       1.78.0             rustc --version
 bindgen (opzionale)    0.65.1             bindgen --version
-GNU make               3.81               make --version
+GNU make               4.0                make --version
 bash                   4.2                bash --version
 binutils               2.25               ld -v
 flex                   2.5.35             flex --version
@@ -65,6 +65,8 @@ Sphinx\ [#f1]_         2.4.4              sphinx-build --version
 cpio                   any                cpio --version
 GNU tar                1.28               tar --version
 gtags (opzionale)      6.6.5              gtags --version
+mkimage (opzionale)    2017.01            mkimage --version
+Python (opzionale)     3.5.x              python3 --version
 ====================== =================  ========================================
 
 .. [#f1] Sphinx è necessario solo per produrre la documentazione del Kernel
@@ -88,10 +90,25 @@ potremmo rimuovere gli espedienti che abbiamo implementato per farli
 funzionare. Per maggiori informazioni
 :ref:`Building Linux with Clang/LLVM <kbuild_llvm>`.
 
+Rust (opzionale)
+----------------
+
+È necessaria una versione recente del compilatore Rust.
+
+Verificate le istruzioni Documentation/rust/quick-start.rst su come soddisfare i
+requisiti per compilare code Rust. In particolare, la regola ``rustavailable``
+nel ``Makefile`` è utile per verificare perché gli strumenti di compilazione non
+vengono trovati.
+
+bindgen (opzionale)
+-------------------
+
+``bindgen`` viene usato per generare il collegamento (binding) da Rust al lato C del kernel. Dipende da ``libclang``.
+
 Make
 ----
 
-Per compilare il kernel vi servirà GNU make 3.81 o successivo.
+Per compilare il kernel vi servirà GNU make 4.0 o successivo.
 
 Bash
 ----
@@ -167,6 +184,16 @@ gtags / GNU GLOBAL (opzionale)
 Il programma GNU GLOBAL versione 6.6.5, o successiva, è necessario quando si
 vuole eseguire ``make gtags`` e generare i relativi indici. Internamente si fa
 uso del parametro gtags ``-C (--directory)`` che compare in questa versione.
+
+mkimage
+-------
+
+Questo strumento viene usato per produrre un *Flat Image Tree* (FIT),
+tipicamente usato su sistemi ARM. Questo strumento è disponibile tramite il
+pacchetto ``u-boot-tools`` oppure può essere compilato dal codice sorgente di
+U-Boot. Consultate le istruzioni
+https://docs.u-boot.org/en/latest/build/tools.html#building-tools-for-linux
+
 
 Strumenti di sistema
 ********************

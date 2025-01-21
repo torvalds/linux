@@ -19,7 +19,7 @@
 #include <scsi/scsi_tcq.h>
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "tcm.h"
 #include "u_tcm.h"

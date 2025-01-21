@@ -6,7 +6,7 @@
 #include <crypto/aes.h>
 #include <linux/crypto.h>
 #include <linux/module.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /*
  * Emit the sbox as volatile const to prevent the compiler from doing

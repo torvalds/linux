@@ -1577,12 +1577,11 @@ static int mtk_tphy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
-	struct device_node *child_np;
 	struct phy_provider *provider;
 	struct resource *sif_res;
 	struct mtk_tphy *tphy;
 	struct resource res;
-	int port, retval;
+	int port;
 
 	tphy = devm_kzalloc(dev, sizeof(*tphy), GFP_KERNEL);
 	if (!tphy)
@@ -1623,25 +1622,23 @@ static int mtk_tphy_probe(struct platform_device *pdev)
 	}
 
 	port = 0;
-	for_each_child_of_node(np, child_np) {
+	for_each_child_of_node_scoped(np, child_np) {
 		struct mtk_phy_instance *instance;
 		struct clk_bulk_data *clks;
 		struct device *subdev;
 		struct phy *phy;
+		int retval;
 
 		instance = devm_kzalloc(dev, sizeof(*instance), GFP_KERNEL);
-		if (!instance) {
-			retval = -ENOMEM;
-			goto put_child;
-		}
+		if (!instance)
+			return -ENOMEM;
 
 		tphy->phys[port] = instance;
 
 		phy = devm_phy_create(dev, child_np, &mtk_tphy_ops);
 		if (IS_ERR(phy)) {
 			dev_err(dev, "failed to create phy\n");
-			retval = PTR_ERR(phy);
-			goto put_child;
+			return PTR_ERR(phy);
 		}
 
 		subdev = &phy->dev;
@@ -1649,14 +1646,12 @@ static int mtk_tphy_probe(struct platform_device *pdev)
 		if (retval) {
 			dev_err(subdev, "failed to get address resource(id-%d)\n",
 				port);
-			goto put_child;
+			return retval;
 		}
 
 		instance->port_base = devm_ioremap_resource(subdev, &res);
-		if (IS_ERR(instance->port_base)) {
-			retval = PTR_ERR(instance->port_base);
-			goto put_child;
-		}
+		if (IS_ERR(instance->port_base))
+			return PTR_ERR(instance->port_base);
 
 		instance->phy = phy;
 		instance->index = port;
@@ -1668,19 +1663,16 @@ static int mtk_tphy_probe(struct platform_device *pdev)
 		clks[1].id = "da_ref";  /* analog clock */
 		retval = devm_clk_bulk_get_optional(subdev, TPHY_CLKS_CNT, clks);
 		if (retval)
-			goto put_child;
+			return retval;
 
 		retval = phy_type_syscon_get(instance, child_np);
 		if (retval)
-			goto put_child;
+			return retval;
 	}
 
 	provider = devm_of_phy_provider_register(dev, mtk_phy_xlate);
 
 	return PTR_ERR_OR_ZERO(provider);
-put_child:
-	of_node_put(child_np);
-	return retval;
 }
 
 static struct platform_driver mtk_tphy_driver = {

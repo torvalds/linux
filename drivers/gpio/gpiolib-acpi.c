@@ -153,8 +153,12 @@ static int acpi_gpiochip_find(struct gpio_chip *gc, const void *data)
  * @path:	ACPI GPIO controller full path name, (e.g. "\\_SB.GPO1")
  * @pin:	ACPI GPIO pin number (0-based, controller-relative)
  *
- * Return: GPIO descriptor to use with Linux generic GPIO API, or ERR_PTR
- * error value. Specifically returns %-EPROBE_DEFER if the referenced GPIO
+ * Returns:
+ * GPIO descriptor to use with Linux generic GPIO API.
+ * If the GPIO cannot be translated or there is an error an ERR_PTR is
+ * returned.
+ *
+ * Specifically returns %-EPROBE_DEFER if the referenced GPIO
  * controller does not have GPIO chip registered at the moment. This is to
  * support probe deferral.
  */
@@ -224,6 +228,9 @@ EXPORT_SYMBOL_GPL(acpi_gpio_get_irq_resource);
  *			       I/O resource or return False if not.
  * @ares:	Pointer to the ACPI resource to fetch
  * @agpio:	Pointer to a &struct acpi_resource_gpio to store the output pointer
+ *
+ * Returns:
+ * %true if GpioIo resource is found, %false otherwise.
  */
 bool acpi_gpio_get_io_resource(struct acpi_resource *ares,
 			       struct acpi_resource_gpio **agpio)
@@ -876,7 +883,9 @@ static int acpi_gpio_property_lookup(struct fwnode_handle *fwnode,
  * that case @index is used to select the GPIO entry in the property value
  * (in case of multiple).
  *
- * If the GPIO cannot be translated or there is an error, an ERR_PTR is
+ * Returns:
+ * GPIO descriptor to use with Linux generic GPIO API.
+ * If the GPIO cannot be translated or there is an error an ERR_PTR is
  * returned.
  *
  * Note: if the GPIO resource has multiple entries in the pin list, this
@@ -924,6 +933,8 @@ static struct gpio_desc *acpi_get_gpiod_by_index(struct acpi_device *adev,
  * resource with the relevant information from a data-only ACPI firmware node
  * and uses that to obtain the GPIO descriptor to return.
  *
+ * Returns:
+ * GPIO descriptor to use with Linux generic GPIO API.
  * If the GPIO cannot be translated or there is an error an ERR_PTR is
  * returned.
  */
@@ -973,18 +984,9 @@ __acpi_find_gpio(struct fwnode_handle *fwnode, const char *con_id, unsigned int 
 	struct acpi_device *adev = to_acpi_device_node(fwnode);
 	struct gpio_desc *desc;
 	char propname[32];
-	int i;
 
 	/* Try first from _DSD */
-	for (i = 0; i < gpio_suffix_count; i++) {
-		if (con_id) {
-			snprintf(propname, sizeof(propname), "%s-%s",
-				 con_id, gpio_suffixes[i]);
-		} else {
-			snprintf(propname, sizeof(propname), "%s",
-				 gpio_suffixes[i]);
-		}
-
+	for_each_gpio_property_name(propname, con_id) {
 		if (adev)
 			desc = acpi_get_gpiod_by_index(adev,
 						       propname, idx, info);
@@ -1051,7 +1053,8 @@ struct gpio_desc *acpi_find_gpio(struct fwnode_handle *fwnode,
  * The GPIO is considered wake capable if the GpioInt resource specifies
  * SharedAndWake or ExclusiveAndWake.
  *
- * Return: Linux IRQ number (> %0) on success, negative errno on failure.
+ * Returns:
+ * Linux IRQ number (> 0) on success, negative errno on failure.
  */
 int acpi_dev_gpio_irq_wake_get_by(struct acpi_device *adev, const char *con_id, int index,
 				  bool *wake_capable)
@@ -1312,9 +1315,8 @@ acpi_gpiochip_parse_own_gpio(struct acpi_gpio_chip *achip,
 static void acpi_gpiochip_scan_gpios(struct acpi_gpio_chip *achip)
 {
 	struct gpio_chip *chip = achip->chip;
-	struct fwnode_handle *fwnode;
 
-	device_for_each_child_node(chip->parent, fwnode) {
+	device_for_each_child_node_scoped(chip->parent, fwnode) {
 		unsigned long lflags;
 		enum gpiod_flags dflags;
 		struct gpio_desc *desc;
@@ -1332,7 +1334,6 @@ static void acpi_gpiochip_scan_gpios(struct acpi_gpio_chip *achip)
 		ret = gpiod_hog(desc, name, lflags, dflags);
 		if (ret) {
 			dev_err(chip->parent, "Failed to hog GPIO\n");
-			fwnode_handle_put(fwnode);
 			return;
 		}
 	}
@@ -1438,7 +1439,7 @@ static int acpi_find_gpio_count(struct acpi_resource *ares, void *data)
  * @fwnode:	firmware node of the GPIO consumer
  * @con_id:	function within the GPIO consumer
  *
- * Return:
+ * Returns:
  * The number of GPIOs associated with a firmware node / function or %-ENOENT,
  * if no GPIO has been assigned to the requested function.
  */
@@ -1450,17 +1451,9 @@ int acpi_gpio_count(const struct fwnode_handle *fwnode, const char *con_id)
 	int count = -ENOENT;
 	int ret;
 	char propname[32];
-	unsigned int i;
 
 	/* Try first from _DSD */
-	for (i = 0; i < gpio_suffix_count; i++) {
-		if (con_id)
-			snprintf(propname, sizeof(propname), "%s-%s",
-				 con_id, gpio_suffixes[i]);
-		else
-			snprintf(propname, sizeof(propname), "%s",
-				 gpio_suffixes[i]);
-
+	for_each_gpio_property_name(propname, con_id) {
 		ret = acpi_dev_get_property(adev, propname, ACPI_TYPE_ANY, &obj);
 		if (ret == 0) {
 			if (obj->type == ACPI_TYPE_LOCAL_REFERENCE)

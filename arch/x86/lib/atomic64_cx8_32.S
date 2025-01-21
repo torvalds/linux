@@ -16,6 +16,11 @@
 	cmpxchg8b (\reg)
 .endm
 
+.macro read64_nonatomic reg
+	movl (\reg), %eax
+	movl 4(\reg), %edx
+.endm
+
 SYM_FUNC_START(atomic64_read_cx8)
 	read64 %ecx
 	RET
@@ -51,7 +56,7 @@ SYM_FUNC_START(atomic64_\func\()_return_cx8)
 	movl %edx, %edi
 	movl %ecx, %ebp
 
-	read64 %ecx
+	read64_nonatomic %ecx
 1:
 	movl %eax, %ebx
 	movl %edx, %ecx
@@ -79,7 +84,7 @@ addsub_return sub sub sbb
 SYM_FUNC_START(atomic64_\func\()_return_cx8)
 	pushl %ebx
 
-	read64 %esi
+	read64_nonatomic %esi
 1:
 	movl %eax, %ebx
 	movl %edx, %ecx

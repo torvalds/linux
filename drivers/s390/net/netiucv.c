@@ -1319,7 +1319,7 @@ static ssize_t user_show(struct device *dev, struct device_attribute *attr,
 	struct netiucv_priv *priv = dev_get_drvdata(dev);
 
 	IUCV_DBF_TEXT(trace, 5, __func__);
-	return sprintf(buf, "%s\n", netiucv_printuser(priv->conn));
+	return sysfs_emit(buf, "%s\n", netiucv_printuser(priv->conn));
 }
 
 static int netiucv_check_user(const char *buf, size_t count, char *username,
@@ -1415,7 +1415,7 @@ static ssize_t buffer_show (struct device *dev, struct device_attribute *attr,
 	struct netiucv_priv *priv = dev_get_drvdata(dev);
 
 	IUCV_DBF_TEXT(trace, 5, __func__);
-	return sprintf(buf, "%d\n", priv->conn->max_buffsize);
+	return sysfs_emit(buf, "%d\n", priv->conn->max_buffsize);
 }
 
 static ssize_t buffer_write (struct device *dev, struct device_attribute *attr,
@@ -1473,7 +1473,7 @@ static ssize_t dev_fsm_show (struct device *dev, struct device_attribute *attr,
 	struct netiucv_priv *priv = dev_get_drvdata(dev);
 
 	IUCV_DBF_TEXT(trace, 5, __func__);
-	return sprintf(buf, "%s\n", fsm_getstate_str(priv->fsm));
+	return sysfs_emit(buf, "%s\n", fsm_getstate_str(priv->fsm));
 }
 
 static DEVICE_ATTR(device_fsm_state, 0444, dev_fsm_show, NULL);
@@ -1484,7 +1484,7 @@ static ssize_t conn_fsm_show (struct device *dev,
 	struct netiucv_priv *priv = dev_get_drvdata(dev);
 
 	IUCV_DBF_TEXT(trace, 5, __func__);
-	return sprintf(buf, "%s\n", fsm_getstate_str(priv->conn->fsm));
+	return sysfs_emit(buf, "%s\n", fsm_getstate_str(priv->conn->fsm));
 }
 
 static DEVICE_ATTR(connection_fsm_state, 0444, conn_fsm_show, NULL);
@@ -1495,7 +1495,7 @@ static ssize_t maxmulti_show (struct device *dev,
 	struct netiucv_priv *priv = dev_get_drvdata(dev);
 
 	IUCV_DBF_TEXT(trace, 5, __func__);
-	return sprintf(buf, "%ld\n", priv->conn->prof.maxmulti);
+	return sysfs_emit(buf, "%ld\n", priv->conn->prof.maxmulti);
 }
 
 static ssize_t maxmulti_write (struct device *dev,
@@ -1517,7 +1517,7 @@ static ssize_t maxcq_show (struct device *dev, struct device_attribute *attr,
 	struct netiucv_priv *priv = dev_get_drvdata(dev);
 
 	IUCV_DBF_TEXT(trace, 5, __func__);
-	return sprintf(buf, "%ld\n", priv->conn->prof.maxcqueue);
+	return sysfs_emit(buf, "%ld\n", priv->conn->prof.maxcqueue);
 }
 
 static ssize_t maxcq_write (struct device *dev, struct device_attribute *attr,
@@ -1538,7 +1538,7 @@ static ssize_t sdoio_show (struct device *dev, struct device_attribute *attr,
 	struct netiucv_priv *priv = dev_get_drvdata(dev);
 
 	IUCV_DBF_TEXT(trace, 5, __func__);
-	return sprintf(buf, "%ld\n", priv->conn->prof.doios_single);
+	return sysfs_emit(buf, "%ld\n", priv->conn->prof.doios_single);
 }
 
 static ssize_t sdoio_write (struct device *dev, struct device_attribute *attr,
@@ -1559,7 +1559,7 @@ static ssize_t mdoio_show (struct device *dev, struct device_attribute *attr,
 	struct netiucv_priv *priv = dev_get_drvdata(dev);
 
 	IUCV_DBF_TEXT(trace, 5, __func__);
-	return sprintf(buf, "%ld\n", priv->conn->prof.doios_multi);
+	return sysfs_emit(buf, "%ld\n", priv->conn->prof.doios_multi);
 }
 
 static ssize_t mdoio_write (struct device *dev, struct device_attribute *attr,
@@ -1580,7 +1580,7 @@ static ssize_t txlen_show (struct device *dev, struct device_attribute *attr,
 	struct netiucv_priv *priv = dev_get_drvdata(dev);
 
 	IUCV_DBF_TEXT(trace, 5, __func__);
-	return sprintf(buf, "%ld\n", priv->conn->prof.txlen);
+	return sysfs_emit(buf, "%ld\n", priv->conn->prof.txlen);
 }
 
 static ssize_t txlen_write (struct device *dev, struct device_attribute *attr,
@@ -1601,7 +1601,7 @@ static ssize_t txtime_show (struct device *dev, struct device_attribute *attr,
 	struct netiucv_priv *priv = dev_get_drvdata(dev);
 
 	IUCV_DBF_TEXT(trace, 5, __func__);
-	return sprintf(buf, "%ld\n", priv->conn->prof.tx_time);
+	return sysfs_emit(buf, "%ld\n", priv->conn->prof.tx_time);
 }
 
 static ssize_t txtime_write (struct device *dev, struct device_attribute *attr,
@@ -1622,7 +1622,7 @@ static ssize_t txpend_show (struct device *dev, struct device_attribute *attr,
 	struct netiucv_priv *priv = dev_get_drvdata(dev);
 
 	IUCV_DBF_TEXT(trace, 5, __func__);
-	return sprintf(buf, "%ld\n", priv->conn->prof.tx_pending);
+	return sysfs_emit(buf, "%ld\n", priv->conn->prof.tx_pending);
 }
 
 static ssize_t txpend_write (struct device *dev, struct device_attribute *attr,
@@ -1643,7 +1643,7 @@ static ssize_t txmpnd_show (struct device *dev, struct device_attribute *attr,
 	struct netiucv_priv *priv = dev_get_drvdata(dev);
 
 	IUCV_DBF_TEXT(trace, 5, __func__);
-	return sprintf(buf, "%ld\n", priv->conn->prof.tx_max_pending);
+	return sysfs_emit(buf, "%ld\n", priv->conn->prof.tx_max_pending);
 }
 
 static ssize_t txmpnd_write (struct device *dev, struct device_attribute *attr,

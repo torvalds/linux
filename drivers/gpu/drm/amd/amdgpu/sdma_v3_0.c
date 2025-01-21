@@ -710,7 +710,7 @@ static int sdma_v3_0_gfx_resume(struct amdgpu_device *adev)
 		       upper_32_bits(wptr_gpu_addr));
 		wptr_poll_cntl = RREG32(mmSDMA0_GFX_RB_WPTR_POLL_CNTL + sdma_offsets[i]);
 		if (ring->use_pollmem) {
-			/*wptr polling is not enogh fast, directly clean the wptr register */
+			/*wptr polling is not enough fast, directly clean the wptr register */
 			WREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[i], 0);
 			wptr_poll_cntl = REG_SET_FIELD(wptr_poll_cntl,
 						       SDMA0_GFX_RB_WPTR_POLL_CNTL,
@@ -1080,9 +1080,9 @@ static void sdma_v3_0_ring_emit_wreg(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, val);
 }
 
-static int sdma_v3_0_early_init(void *handle)
+static int sdma_v3_0_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int r;
 
 	switch (adev->asic_type) {
@@ -1106,11 +1106,11 @@ static int sdma_v3_0_early_init(void *handle)
 	return 0;
 }
 
-static int sdma_v3_0_sw_init(void *handle)
+static int sdma_v3_0_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_ring *ring;
 	int r, i;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	/* SDMA trap event */
 	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, VISLANDS30_IV_SRCID_SDMA_TRAP,
@@ -1152,9 +1152,9 @@ static int sdma_v3_0_sw_init(void *handle)
 	return r;
 }
 
-static int sdma_v3_0_sw_fini(void *handle)
+static int sdma_v3_0_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int i;
 
 	for (i = 0; i < adev->sdma.num_instances; i++)
@@ -1164,10 +1164,10 @@ static int sdma_v3_0_sw_fini(void *handle)
 	return 0;
 }
 
-static int sdma_v3_0_hw_init(void *handle)
+static int sdma_v3_0_hw_init(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	sdma_v3_0_init_golden_registers(adev);
 
@@ -1178,9 +1178,9 @@ static int sdma_v3_0_hw_init(void *handle)
 	return r;
 }
 
-static int sdma_v3_0_hw_fini(void *handle)
+static int sdma_v3_0_hw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	sdma_v3_0_ctx_switch_enable(adev, false);
 	sdma_v3_0_enable(adev, false);
@@ -1188,18 +1188,14 @@ static int sdma_v3_0_hw_fini(void *handle)
 	return 0;
 }
 
-static int sdma_v3_0_suspend(void *handle)
+static int sdma_v3_0_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	return sdma_v3_0_hw_fini(adev);
+	return sdma_v3_0_hw_fini(ip_block);
 }
 
-static int sdma_v3_0_resume(void *handle)
+static int sdma_v3_0_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	return sdma_v3_0_hw_init(adev);
+	return sdma_v3_0_hw_init(ip_block);
 }
 
 static bool sdma_v3_0_is_idle(void *handle)
@@ -1214,11 +1210,11 @@ static bool sdma_v3_0_is_idle(void *handle)
 	return true;
 }
 
-static int sdma_v3_0_wait_for_idle(void *handle)
+static int sdma_v3_0_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
 	unsigned i;
 	u32 tmp;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
 		tmp = RREG32(mmSRBM_STATUS2) & (SRBM_STATUS2__SDMA_BUSY_MASK |
@@ -1231,9 +1227,9 @@ static int sdma_v3_0_wait_for_idle(void *handle)
 	return -ETIMEDOUT;
 }
 
-static bool sdma_v3_0_check_soft_reset(void *handle)
+static bool sdma_v3_0_check_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	u32 srbm_soft_reset = 0;
 	u32 tmp = RREG32(mmSRBM_STATUS2);
 
@@ -1252,9 +1248,9 @@ static bool sdma_v3_0_check_soft_reset(void *handle)
 	}
 }
 
-static int sdma_v3_0_pre_soft_reset(void *handle)
+static int sdma_v3_0_pre_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	u32 srbm_soft_reset = 0;
 
 	if (!adev->sdma.srbm_soft_reset)
@@ -1271,9 +1267,9 @@ static int sdma_v3_0_pre_soft_reset(void *handle)
 	return 0;
 }
 
-static int sdma_v3_0_post_soft_reset(void *handle)
+static int sdma_v3_0_post_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	u32 srbm_soft_reset = 0;
 
 	if (!adev->sdma.srbm_soft_reset)
@@ -1290,9 +1286,9 @@ static int sdma_v3_0_post_soft_reset(void *handle)
 	return 0;
 }
 
-static int sdma_v3_0_soft_reset(void *handle)
+static int sdma_v3_0_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	u32 srbm_soft_reset = 0;
 	u32 tmp;
 
@@ -1538,7 +1534,6 @@ static void sdma_v3_0_get_clockgating_state(void *handle, u64 *flags)
 static const struct amd_ip_funcs sdma_v3_0_ip_funcs = {
 	.name = "sdma_v3_0",
 	.early_init = sdma_v3_0_early_init,
-	.late_init = NULL,
 	.sw_init = sdma_v3_0_sw_init,
 	.sw_fini = sdma_v3_0_sw_fini,
 	.hw_init = sdma_v3_0_hw_init,
@@ -1554,8 +1549,6 @@ static const struct amd_ip_funcs sdma_v3_0_ip_funcs = {
 	.set_clockgating_state = sdma_v3_0_set_clockgating_state,
 	.set_powergating_state = sdma_v3_0_set_powergating_state,
 	.get_clockgating_state = sdma_v3_0_get_clockgating_state,
-	.dump_ip_state = NULL,
-	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_ring_funcs sdma_v3_0_ring_funcs = {

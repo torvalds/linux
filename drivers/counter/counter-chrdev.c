@@ -454,7 +454,6 @@ out_unlock:
 
 static const struct file_operations counter_fops = {
 	.owner = THIS_MODULE,
-	.llseek = no_llseek,
 	.read = counter_chrdev_read,
 	.poll = counter_chrdev_poll,
 	.unlocked_ioctl = counter_chrdev_ioctl,
@@ -673,4 +672,4 @@ exit_early:
 	if (copied)
 		wake_up_poll(&counter->events_wait, EPOLLIN);
 }
-EXPORT_SYMBOL_NS_GPL(counter_push_event, COUNTER);
+EXPORT_SYMBOL_NS_GPL(counter_push_event, "COUNTER");

@@ -12,7 +12,7 @@
 #include <linux/mem_encrypt.h>
 #include <linux/swiotlb.h>
 
-extern unsigned int zone_dma_bits;
+extern u64 zone_dma_limit;
 
 /*
  * Record the mapping of CPU physical to DMA addresses for a given region.

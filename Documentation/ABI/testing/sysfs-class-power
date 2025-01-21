@@ -377,17 +377,33 @@ What:		/sys/class/power_supply/<supply_name>/charge_type
 Date:		July 2009
 Contact:	linux-pm@vger.kernel.org
 Description:
-		Represents the type of charging currently being applied to the
-		battery. "Trickle", "Fast", and "Standard" all mean different
-		charging speeds. "Adaptive" means that the charger uses some
-		algorithm to adjust the charge rate dynamically, without
-		any user configuration required. "Custom" means that the charger
-		uses the charge_control_* properties as configuration for some
-		different algorithm. "Long Life" means the charger reduces its
-		charging rate in order to prolong the battery health. "Bypass"
-		means the charger bypasses the charging path around the
-		integrated converter allowing for a "smart" wall adaptor to
-		perform the power conversion externally.
+		Select the charging algorithm to use for a battery.
+
+		Standard:
+			Fully charge the battery at a moderate rate.
+		Fast:
+			Quickly charge the battery using fast-charge
+			technology. This is typically harder on the battery
+			than standard charging and may lower its lifespan.
+		Trickle:
+			Users who primarily operate the system while
+			plugged into an external power source can extend
+			battery life with this mode. Vendor tooling may
+			call this "Primarily AC Use".
+		Adaptive:
+			Automatically optimize battery charge rate based
+			on typical usage pattern.
+		Custom:
+			Use the charge_control_* properties to determine
+			when to start and stop charging. Advanced users
+			can use this to drastically extend battery life.
+		Long Life:
+			The charger reduces its charging rate in order to
+			prolong the battery health.
+		Bypass:
+			The charger bypasses the charging path around the
+			integrated converter allowing for a "smart" wall
+			adaptor to perform the power conversion externally.
 
 		Access: Read, Write
 
@@ -592,7 +608,12 @@ Description:
 		the supply, for example it can show if USB-PD capable source
 		is attached.
 
-		Access: Read-Only
+		Access: For power-supplies which consume USB power such
+		as battery charger chips, this indicates the type of
+		the connected USB power source and is Read-Only.
+
+		For power-supplies which act as a USB power-source such as
+		e.g. the UCS1002 USB Port Power Controller this is writable.
 
 		Valid values:
 			      "Unknown", "SDP", "DCP", "CDP", "ACA", "C", "PD",

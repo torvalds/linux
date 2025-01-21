@@ -200,7 +200,7 @@ static inline void init_vmcs_control_fields(struct vmx_pages *vmx)
 	if (vmx->eptp_gpa) {
 		uint64_t ept_paddr;
 		struct eptPageTablePointer eptp = {
-			.memory_type = VMX_BASIC_MEM_TYPE_WB,
+			.memory_type = X86_MEMTYPE_WB,
 			.page_walk_length = 3, /* + 1 */
 			.ad_enabled = ept_vpid_cap_supported(VMX_EPT_VPID_CAP_AD_BITS),
 			.address = vmx->eptp_gpa >> PAGE_SHIFT_4K,

@@ -330,7 +330,7 @@ static const struct dev_pm_ops __maybe_unused at91_twi_pm = {
 
 static struct platform_driver at91_twi_driver = {
 	.probe		= at91_twi_probe,
-	.remove_new	= at91_twi_remove,
+	.remove		= at91_twi_remove,
 	.id_table	= at91_twi_devtypes,
 	.driver		= {
 		.name	= "at91_i2c",

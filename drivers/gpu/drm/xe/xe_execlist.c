@@ -44,6 +44,7 @@ static void __start_lrc(struct xe_hw_engine *hwe, struct xe_lrc *lrc,
 			u32 ctx_id)
 {
 	struct xe_gt *gt = hwe->gt;
+	struct xe_mmio *mmio = &gt->mmio;
 	struct xe_device *xe = gt_to_xe(gt);
 	u64 lrc_desc;
 
@@ -58,7 +59,7 @@ static void __start_lrc(struct xe_hw_engine *hwe, struct xe_lrc *lrc,
 	}
 
 	if (hwe->class == XE_ENGINE_CLASS_COMPUTE)
-		xe_mmio_write32(hwe->gt, RCU_MODE,
+		xe_mmio_write32(mmio, RCU_MODE,
 				_MASKED_BIT_ENABLE(RCU_MODE_CCS_ENABLE));
 
 	xe_lrc_write_ctx_reg(lrc, CTX_RING_TAIL, lrc->ring.tail);
@@ -76,17 +77,17 @@ static void __start_lrc(struct xe_hw_engine *hwe, struct xe_lrc *lrc,
 	 */
 	wmb();
 
-	xe_mmio_write32(gt, RING_HWS_PGA(hwe->mmio_base),
+	xe_mmio_write32(mmio, RING_HWS_PGA(hwe->mmio_base),
 			xe_bo_ggtt_addr(hwe->hwsp));
-	xe_mmio_read32(gt, RING_HWS_PGA(hwe->mmio_base));
-	xe_mmio_write32(gt, RING_MODE(hwe->mmio_base),
+	xe_mmio_read32(mmio, RING_HWS_PGA(hwe->mmio_base));
+	xe_mmio_write32(mmio, RING_MODE(hwe->mmio_base),
 			_MASKED_BIT_ENABLE(GFX_DISABLE_LEGACY_MODE));
 
-	xe_mmio_write32(gt, RING_EXECLIST_SQ_CONTENTS_LO(hwe->mmio_base),
+	xe_mmio_write32(mmio, RING_EXECLIST_SQ_CONTENTS_LO(hwe->mmio_base),
 			lower_32_bits(lrc_desc));
-	xe_mmio_write32(gt, RING_EXECLIST_SQ_CONTENTS_HI(hwe->mmio_base),
+	xe_mmio_write32(mmio, RING_EXECLIST_SQ_CONTENTS_HI(hwe->mmio_base),
 			upper_32_bits(lrc_desc));
-	xe_mmio_write32(gt, RING_EXECLIST_CONTROL(hwe->mmio_base),
+	xe_mmio_write32(mmio, RING_EXECLIST_CONTROL(hwe->mmio_base),
 			EL_CTRL_LOAD);
 }
 
@@ -123,8 +124,8 @@ static void __xe_execlist_port_idle(struct xe_execlist_port *port)
 	if (!port->running_exl)
 		return;
 
-	xe_lrc_write_ring(port->hwe->kernel_lrc, noop, sizeof(noop));
-	__start_lrc(port->hwe, port->hwe->kernel_lrc, 0);
+	xe_lrc_write_ring(port->lrc, noop, sizeof(noop));
+	__start_lrc(port->hwe, port->lrc, 0);
 	port->running_exl = NULL;
 }
 
@@ -168,8 +169,8 @@ static u64 read_execlist_status(struct xe_hw_engine *hwe)
 	struct xe_gt *gt = hwe->gt;
 	u32 hi, lo;
 
-	lo = xe_mmio_read32(gt, RING_EXECLIST_STATUS_LO(hwe->mmio_base));
-	hi = xe_mmio_read32(gt, RING_EXECLIST_STATUS_HI(hwe->mmio_base));
+	lo = xe_mmio_read32(&gt->mmio, RING_EXECLIST_STATUS_LO(hwe->mmio_base));
+	hi = xe_mmio_read32(&gt->mmio, RING_EXECLIST_STATUS_HI(hwe->mmio_base));
 
 	return lo | (u64)hi << 32;
 }
@@ -254,13 +255,21 @@ struct xe_execlist_port *xe_execlist_port_create(struct xe_device *xe,
 {
 	struct drm_device *drm = &xe->drm;
 	struct xe_execlist_port *port;
-	int i;
+	int i, err;
 
 	port = drmm_kzalloc(drm, sizeof(*port), GFP_KERNEL);
-	if (!port)
-		return ERR_PTR(-ENOMEM);
+	if (!port) {
+		err = -ENOMEM;
+		goto err;
+	}
 
 	port->hwe = hwe;
+
+	port->lrc = xe_lrc_create(hwe, NULL, SZ_16K);
+	if (IS_ERR(port->lrc)) {
+		err = PTR_ERR(port->lrc);
+		goto err;
+	}
 
 	spin_lock_init(&port->lock);
 	for (i = 0; i < ARRAY_SIZE(port->active); i++)
@@ -277,6 +286,9 @@ struct xe_execlist_port *xe_execlist_port_create(struct xe_device *xe,
 	add_timer(&port->irq_fail);
 
 	return port;
+
+err:
+	return ERR_PTR(err);
 }
 
 void xe_execlist_port_destroy(struct xe_execlist_port *port)
@@ -287,6 +299,8 @@ void xe_execlist_port_destroy(struct xe_execlist_port *port)
 	spin_lock_irq(&gt_to_xe(port->hwe->gt)->irq.lock);
 	port->hwe->irq_handler = NULL;
 	spin_unlock_irq(&gt_to_xe(port->hwe->gt)->irq.lock);
+
+	xe_lrc_put(port->lrc);
 }
 
 static struct dma_fence *
@@ -299,7 +313,7 @@ execlist_run_job(struct drm_sched_job *drm_job)
 	q->ring_ops->emit_job(job);
 	xe_execlist_make_active(exl);
 
-	return dma_fence_get(job->fence);
+	return job->fence;
 }
 
 static void execlist_job_free(struct drm_sched_job *drm_job)
@@ -422,10 +436,11 @@ static int execlist_exec_queue_suspend(struct xe_exec_queue *q)
 	return 0;
 }
 
-static void execlist_exec_queue_suspend_wait(struct xe_exec_queue *q)
+static int execlist_exec_queue_suspend_wait(struct xe_exec_queue *q)
 
 {
 	/* NIY */
+	return 0;
 }
 
 static void execlist_exec_queue_resume(struct xe_exec_queue *q)

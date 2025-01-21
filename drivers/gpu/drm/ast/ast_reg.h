@@ -37,22 +37,29 @@
 #define AST_IO_VGACRCB_HWC_16BPP	BIT(0) /* set: ARGB4444, cleared: 2bpp palette */
 #define AST_IO_VGACRCB_HWC_ENABLED	BIT(1)
 
+#define AST_IO_VGACRD1_MCU_FW_EXECUTING		BIT(5)
+/* Display Transmitter Type */
+#define AST_IO_VGACRD1_TX_TYPE_MASK		GENMASK(3, 1)
+#define AST_IO_VGACRD1_NO_TX			0x00
+#define AST_IO_VGACRD1_TX_ITE66121_VBIOS	0x02
+#define AST_IO_VGACRD1_TX_SIL164_VBIOS		0x04
+#define AST_IO_VGACRD1_TX_CH7003_VBIOS		0x06
+#define AST_IO_VGACRD1_TX_DP501_VBIOS		0x08
+#define AST_IO_VGACRD1_TX_ANX9807_VBIOS		0x0a
+#define AST_IO_VGACRD1_TX_FW_EMBEDDED_FW	0x0c /* special case of DP501 */
+#define AST_IO_VGACRD1_TX_ASTDP			0x0e
+
+#define AST_IO_VGACRD7_EDID_VALID_FLAG	BIT(0)
+#define AST_IO_VGACRDC_LINK_SUCCESS	BIT(0)
+#define AST_IO_VGACRDF_HPD		BIT(0)
+#define AST_IO_VGACRDF_DP_VIDEO_ENABLE	BIT(4) /* mirrors AST_IO_VGACRE3_DP_VIDEO_ENABLE */
+#define AST_IO_VGACRE3_DP_VIDEO_ENABLE	BIT(0)
+#define AST_IO_VGACRE3_DP_PHY_SLEEP	BIT(4)
+#define AST_IO_VGACRE5_EDID_READ_DONE	BIT(0)
+
 #define AST_IO_VGAIR1_R			(0x5A)
 #define AST_IO_VGAIR1_VREFRESH		BIT(3)
 
-/*
- * Display Transmitter Type
- */
-
-#define TX_TYPE_MASK			GENMASK(3, 1)
-#define NO_TX				(0 << 1)
-#define ITE66121_VBIOS_TX		(1 << 1)
-#define SI164_VBIOS_TX			(2 << 1)
-#define CH7003_VBIOS_TX			(3 << 1)
-#define DP501_VBIOS_TX			(4 << 1)
-#define ANX9807_VBIOS_TX		(5 << 1)
-#define TX_FW_EMBEDDED_FW_TX		(6 << 1)
-#define ASTDP_DPMCU_TX			(7 << 1)
 
 #define AST_VRAM_INIT_STATUS_MASK	GENMASK(7, 6)
 //#define AST_VRAM_INIT_BY_BMC		BIT(7)
@@ -61,34 +68,6 @@
 /*
  * AST DisplayPort
  */
-
-/* Define for Soc scratched reg used on ASTDP */
-#define AST_DP_PHY_SLEEP		BIT(4)
-#define AST_DP_VIDEO_ENABLE		BIT(0)
-
-/*
- * CRD1[b5]: DP MCU FW is executing
- * CRDC[b0]: DP link success
- * CRDF[b0]: DP HPD
- * CRE5[b0]: Host reading EDID process is done
- */
-#define ASTDP_MCU_FW_EXECUTING		BIT(5)
-#define ASTDP_LINK_SUCCESS		BIT(0)
-#define ASTDP_HPD			BIT(0)
-#define ASTDP_HOST_EDID_READ_DONE	BIT(0)
-#define ASTDP_HOST_EDID_READ_DONE_MASK	GENMASK(0, 0)
-
-/*
- * CRDF[b4]: Mirror of AST_DP_VIDEO_ENABLE
- * Precondition:	A. ~AST_DP_PHY_SLEEP  &&
- *			B. DP_HPD &&
- *			C. DP_LINK_SUCCESS
- */
-#define ASTDP_MIRROR_VIDEO_ENABLE	BIT(4)
-
-#define ASTDP_EDID_READ_POINTER_MASK	GENMASK(7, 0)
-#define ASTDP_EDID_VALID_FLAG_MASK	GENMASK(0, 0)
-#define ASTDP_EDID_READ_DATA_MASK	GENMASK(7, 0)
 
 /*
  * ASTDP setmode registers:

@@ -864,7 +864,7 @@ MODULE_DEVICE_TABLE(of, vpu_core_dt_match);
 
 static struct platform_driver amphion_vpu_core_driver = {
 	.probe = vpu_core_probe,
-	.remove_new = vpu_core_remove,
+	.remove = vpu_core_remove,
 	.driver = {
 		.name = "amphion-vpu-core",
 		.of_match_table = vpu_core_dt_match,

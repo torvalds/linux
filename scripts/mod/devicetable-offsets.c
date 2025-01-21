@@ -153,6 +153,10 @@ int main(void)
 	DEVID_FIELD(i3c_device_id, part_id);
 	DEVID_FIELD(i3c_device_id, extra_info);
 
+	DEVID(slim_device_id);
+	DEVID_FIELD(slim_device_id, manf_id);
+	DEVID_FIELD(slim_device_id, prod_code);
+
 	DEVID(spi_device_id);
 	DEVID_FIELD(spi_device_id, name);
 

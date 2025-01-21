@@ -129,7 +129,7 @@ static int hps_resume(struct device *dev)
 static DEFINE_RUNTIME_DEV_PM_OPS(hps_pm_ops, hps_suspend, hps_resume, NULL);
 
 static const struct i2c_device_id hps_i2c_id[] = {
-	{ "cros-hps", 0 },
+	{ "cros-hps" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, hps_i2c_id);

@@ -706,7 +706,6 @@ static const struct file_operations lirc_fops = {
 	.poll		= lirc_poll,
 	.open		= lirc_open,
 	.release	= lirc_close,
-	.llseek		= no_llseek,
 };
 
 static void lirc_release_device(struct device *ld)
@@ -816,28 +815,23 @@ void __exit lirc_dev_exit(void)
 
 struct rc_dev *rc_dev_get_from_fd(int fd, bool write)
 {
-	struct fd f = fdget(fd);
+	CLASS(fd, f)(fd);
 	struct lirc_fh *fh;
 	struct rc_dev *dev;
 
-	if (!f.file)
+	if (fd_empty(f))
 		return ERR_PTR(-EBADF);
 
-	if (f.file->f_op != &lirc_fops) {
-		fdput(f);
+	if (fd_file(f)->f_op != &lirc_fops)
 		return ERR_PTR(-EINVAL);
-	}
 
-	if (write && !(f.file->f_mode & FMODE_WRITE)) {
-		fdput(f);
+	if (write && !(fd_file(f)->f_mode & FMODE_WRITE))
 		return ERR_PTR(-EPERM);
-	}
 
-	fh = f.file->private_data;
+	fh = fd_file(f)->private_data;
 	dev = fh->rc;
 
 	get_device(&dev->dev);
-	fdput(f);
 
 	return dev;
 }

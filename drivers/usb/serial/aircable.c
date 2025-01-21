@@ -35,7 +35,7 @@
  *
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/tty.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -138,7 +138,6 @@ static void aircable_process_read_urb(struct urb *urb)
 
 static struct usb_serial_driver aircable_device = {
 	.driver = {
-		.owner =	THIS_MODULE,
 		.name =		"aircable",
 	},
 	.id_table = 		id_table,

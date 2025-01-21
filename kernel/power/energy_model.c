@@ -628,6 +628,8 @@ int em_dev_register_perf_domain(struct device *dev, unsigned int nr_states,
 		goto unlock;
 
 	dev->em_pd->flags |= flags;
+	dev->em_pd->min_perf_state = 0;
+	dev->em_pd->max_perf_state = nr_states - 1;
 
 	em_cpufreq_update_efficiencies(dev, dev->em_pd->em_table->state);
 
@@ -856,3 +858,53 @@ int em_dev_update_chip_binning(struct device *dev)
 	return em_recalc_and_update(dev, pd, em_table);
 }
 EXPORT_SYMBOL_GPL(em_dev_update_chip_binning);
+
+
+/**
+ * em_update_performance_limits() - Update Energy Model with performance
+ *				limits information.
+ * @pd			: Performance Domain with EM that has to be updated.
+ * @freq_min_khz	: New minimum allowed frequency for this device.
+ * @freq_max_khz	: New maximum allowed frequency for this device.
+ *
+ * This function allows to update the EM with information about available
+ * performance levels. It takes the minimum and maximum frequency in kHz
+ * and does internal translation to performance levels.
+ * Returns 0 on success or -EINVAL when failed.
+ */
+int em_update_performance_limits(struct em_perf_domain *pd,
+		unsigned long freq_min_khz, unsigned long freq_max_khz)
+{
+	struct em_perf_state *table;
+	int min_ps = -1;
+	int max_ps = -1;
+	int i;
+
+	if (!pd)
+		return -EINVAL;
+
+	rcu_read_lock();
+	table = em_perf_state_from_pd(pd);
+
+	for (i = 0; i < pd->nr_perf_states; i++) {
+		if (freq_min_khz == table[i].frequency)
+			min_ps = i;
+		if (freq_max_khz == table[i].frequency)
+			max_ps = i;
+	}
+	rcu_read_unlock();
+
+	/* Only update when both are found and sane */
+	if (min_ps < 0 || max_ps < 0 || max_ps < min_ps)
+		return -EINVAL;
+
+
+	/* Guard simultaneous updates and make them atomic */
+	mutex_lock(&em_pd_mutex);
+	pd->min_perf_state = min_ps;
+	pd->max_perf_state = max_ps;
+	mutex_unlock(&em_pd_mutex);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(em_update_performance_limits);

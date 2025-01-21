@@ -15,7 +15,6 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/sched/mm.h>
-#include <linux/sched/coredump.h>
 #include <linux/export.h>
 #include <linux/rmap.h>		/* anon_vma_prepare */
 #include <linux/mmu_notifier.h>
@@ -26,6 +25,9 @@
 #include <linux/task_work.h>
 #include <linux/shmem_fs.h>
 #include <linux/khugepaged.h>
+#include <linux/rcupdate_trace.h>
+#include <linux/workqueue.h>
+#include <linux/srcu.h>
 
 #include <linux/uprobes.h>
 
@@ -40,6 +42,7 @@ static struct rb_root uprobes_tree = RB_ROOT;
 #define no_uprobe_events()	RB_EMPTY_ROOT(&uprobes_tree)
 
 static DEFINE_RWLOCK(uprobes_treelock);	/* serialize rbtree access */
+static seqcount_rwlock_t uprobes_seqcount = SEQCNT_RWLOCK_ZERO(uprobes_seqcount, &uprobes_treelock);
 
 #define UPROBES_HASH_SZ	13
 /* serialize uprobe->pending_list */
@@ -47,6 +50,9 @@ static struct mutex uprobes_mmap_mutex[UPROBES_HASH_SZ];
 #define uprobes_mmap_hash(v)	(&uprobes_mmap_mutex[((unsigned long)(v)) % UPROBES_HASH_SZ])
 
 DEFINE_STATIC_PERCPU_RWSEM(dup_mmap_sem);
+
+/* Covers return_instance's uprobe lifetime. */
+DEFINE_STATIC_SRCU(uretprobes_srcu);
 
 /* Have a copy of original instruction */
 #define UPROBE_COPY_INSN	0
@@ -57,11 +63,15 @@ struct uprobe {
 	struct rw_semaphore	register_rwsem;
 	struct rw_semaphore	consumer_rwsem;
 	struct list_head	pending_list;
-	struct uprobe_consumer	*consumers;
+	struct list_head	consumers;
 	struct inode		*inode;		/* Also hold a ref to inode */
+	union {
+		struct rcu_head		rcu;
+		struct work_struct	work;
+	};
 	loff_t			offset;
 	loff_t			ref_ctr_offset;
-	unsigned long		flags;
+	unsigned long		flags;		/* "unsigned long" so bitops work */
 
 	/*
 	 * The generic code assumes that it has two members of unknown type
@@ -96,11 +106,9 @@ static LIST_HEAD(delayed_uprobe_list);
  */
 struct xol_area {
 	wait_queue_head_t 		wq;		/* if all slots are busy */
-	atomic_t 			slot_count;	/* number of in-use slots */
 	unsigned long 			*bitmap;	/* 0 = free slot */
 
-	struct vm_special_mapping	xol_mapping;
-	struct page 			*pages[2];
+	struct page			*page;
 	/*
 	 * We keep the vma's vm_start rather than a pointer to the vma
 	 * itself.  The probed process or a naughty kernel module could make
@@ -108,6 +116,11 @@ struct xol_area {
 	 */
 	unsigned long 			vaddr;		/* Page(s) of instruction slots */
 };
+
+static void uprobe_warn(struct task_struct *t, const char *msg)
+{
+	pr_warn("uprobe: %s:%d failed to %s\n", current->comm, current->pid, msg);
+}
 
 /*
  * valid_vma: Verify if the specified vma is an executable vma
@@ -453,7 +466,7 @@ static int update_ref_ctr(struct uprobe *uprobe, struct mm_struct *mm,
  * @vaddr: the virtual address to store the opcode.
  * @opcode: opcode to be written at @vaddr.
  *
- * Called with mm->mmap_lock held for write.
+ * Called with mm->mmap_lock held for read or write.
  * Return 0 (success) or a negative errno.
  */
 int uprobe_write_opcode(struct arch_uprobe *auprobe, struct mm_struct *mm,
@@ -587,24 +600,223 @@ set_orig_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, unsigned long v
 			*(uprobe_opcode_t *)&auprobe->insn);
 }
 
+/* uprobe should have guaranteed positive refcount */
 static struct uprobe *get_uprobe(struct uprobe *uprobe)
 {
 	refcount_inc(&uprobe->ref);
 	return uprobe;
 }
 
+/*
+ * uprobe should have guaranteed lifetime, which can be either of:
+ *   - caller already has refcount taken (and wants an extra one);
+ *   - uprobe is RCU protected and won't be freed until after grace period;
+ *   - we are holding uprobes_treelock (for read or write, doesn't matter).
+ */
+static struct uprobe *try_get_uprobe(struct uprobe *uprobe)
+{
+	if (refcount_inc_not_zero(&uprobe->ref))
+		return uprobe;
+	return NULL;
+}
+
+static inline bool uprobe_is_active(struct uprobe *uprobe)
+{
+	return !RB_EMPTY_NODE(&uprobe->rb_node);
+}
+
+static void uprobe_free_rcu_tasks_trace(struct rcu_head *rcu)
+{
+	struct uprobe *uprobe = container_of(rcu, struct uprobe, rcu);
+
+	kfree(uprobe);
+}
+
+static void uprobe_free_srcu(struct rcu_head *rcu)
+{
+	struct uprobe *uprobe = container_of(rcu, struct uprobe, rcu);
+
+	call_rcu_tasks_trace(&uprobe->rcu, uprobe_free_rcu_tasks_trace);
+}
+
+static void uprobe_free_deferred(struct work_struct *work)
+{
+	struct uprobe *uprobe = container_of(work, struct uprobe, work);
+
+	write_lock(&uprobes_treelock);
+
+	if (uprobe_is_active(uprobe)) {
+		write_seqcount_begin(&uprobes_seqcount);
+		rb_erase(&uprobe->rb_node, &uprobes_tree);
+		write_seqcount_end(&uprobes_seqcount);
+	}
+
+	write_unlock(&uprobes_treelock);
+
+	/*
+	 * If application munmap(exec_vma) before uprobe_unregister()
+	 * gets called, we don't get a chance to remove uprobe from
+	 * delayed_uprobe_list from remove_breakpoint(). Do it here.
+	 */
+	mutex_lock(&delayed_uprobe_lock);
+	delayed_uprobe_remove(uprobe, NULL);
+	mutex_unlock(&delayed_uprobe_lock);
+
+	/* start srcu -> rcu_tasks_trace -> kfree chain */
+	call_srcu(&uretprobes_srcu, &uprobe->rcu, uprobe_free_srcu);
+}
+
 static void put_uprobe(struct uprobe *uprobe)
 {
-	if (refcount_dec_and_test(&uprobe->ref)) {
+	if (!refcount_dec_and_test(&uprobe->ref))
+		return;
+
+	INIT_WORK(&uprobe->work, uprobe_free_deferred);
+	schedule_work(&uprobe->work);
+}
+
+/* Initialize hprobe as SRCU-protected "leased" uprobe */
+static void hprobe_init_leased(struct hprobe *hprobe, struct uprobe *uprobe, int srcu_idx)
+{
+	WARN_ON(!uprobe);
+	hprobe->state = HPROBE_LEASED;
+	hprobe->uprobe = uprobe;
+	hprobe->srcu_idx = srcu_idx;
+}
+
+/* Initialize hprobe as refcounted ("stable") uprobe (uprobe can be NULL). */
+static void hprobe_init_stable(struct hprobe *hprobe, struct uprobe *uprobe)
+{
+	hprobe->state = uprobe ? HPROBE_STABLE : HPROBE_GONE;
+	hprobe->uprobe = uprobe;
+	hprobe->srcu_idx = -1;
+}
+
+/*
+ * hprobe_consume() fetches hprobe's underlying uprobe and detects whether
+ * uprobe is SRCU protected or is refcounted. hprobe_consume() can be
+ * used only once for a given hprobe.
+ *
+ * Caller has to call hprobe_finalize() and pass previous hprobe_state, so
+ * that hprobe_finalize() can perform SRCU unlock or put uprobe, whichever
+ * is appropriate.
+ */
+static inline struct uprobe *hprobe_consume(struct hprobe *hprobe, enum hprobe_state *hstate)
+{
+	*hstate = xchg(&hprobe->state, HPROBE_CONSUMED);
+	switch (*hstate) {
+	case HPROBE_LEASED:
+	case HPROBE_STABLE:
+		return hprobe->uprobe;
+	case HPROBE_GONE:	/* uprobe is NULL, no SRCU */
+	case HPROBE_CONSUMED:	/* uprobe was finalized already, do nothing */
+		return NULL;
+	default:
+		WARN(1, "hprobe invalid state %d", *hstate);
+		return NULL;
+	}
+}
+
+/*
+ * Reset hprobe state and, if hprobe was LEASED, release SRCU lock.
+ * hprobe_finalize() can only be used from current context after
+ * hprobe_consume() call (which determines uprobe and hstate value).
+ */
+static void hprobe_finalize(struct hprobe *hprobe, enum hprobe_state hstate)
+{
+	switch (hstate) {
+	case HPROBE_LEASED:
+		__srcu_read_unlock(&uretprobes_srcu, hprobe->srcu_idx);
+		break;
+	case HPROBE_STABLE:
+		put_uprobe(hprobe->uprobe);
+		break;
+	case HPROBE_GONE:
+	case HPROBE_CONSUMED:
+		break;
+	default:
+		WARN(1, "hprobe invalid state %d", hstate);
+		break;
+	}
+}
+
+/*
+ * Attempt to switch (atomically) uprobe from being SRCU protected (LEASED)
+ * to refcounted (STABLE) state. Competes with hprobe_consume(); only one of
+ * them can win the race to perform SRCU unlocking. Whoever wins must perform
+ * SRCU unlock.
+ *
+ * Returns underlying valid uprobe or NULL, if there was no underlying uprobe
+ * to begin with or we failed to bump its refcount and it's going away.
+ *
+ * Returned non-NULL uprobe can be still safely used within an ongoing SRCU
+ * locked region. If `get` is true, it's guaranteed that non-NULL uprobe has
+ * an extra refcount for caller to assume and use. Otherwise, it's not
+ * guaranteed that returned uprobe has a positive refcount, so caller has to
+ * attempt try_get_uprobe(), if it needs to preserve uprobe beyond current
+ * SRCU lock region. See dup_utask().
+ */
+static struct uprobe *hprobe_expire(struct hprobe *hprobe, bool get)
+{
+	enum hprobe_state hstate;
+
+	/*
+	 * return_instance's hprobe is protected by RCU.
+	 * Underlying uprobe is itself protected from reuse by SRCU.
+	 */
+	lockdep_assert(rcu_read_lock_held() && srcu_read_lock_held(&uretprobes_srcu));
+
+	hstate = READ_ONCE(hprobe->state);
+	switch (hstate) {
+	case HPROBE_STABLE:
+		/* uprobe has positive refcount, bump refcount, if necessary */
+		return get ? get_uprobe(hprobe->uprobe) : hprobe->uprobe;
+	case HPROBE_GONE:
 		/*
-		 * If application munmap(exec_vma) before uprobe_unregister()
-		 * gets called, we don't get a chance to remove uprobe from
-		 * delayed_uprobe_list from remove_breakpoint(). Do it here.
+		 * SRCU was unlocked earlier and we didn't manage to take
+		 * uprobe refcnt, so it's effectively NULL
 		 */
-		mutex_lock(&delayed_uprobe_lock);
-		delayed_uprobe_remove(uprobe, NULL);
-		mutex_unlock(&delayed_uprobe_lock);
-		kfree(uprobe);
+		return NULL;
+	case HPROBE_CONSUMED:
+		/*
+		 * uprobe was consumed, so it's effectively NULL as far as
+		 * uretprobe processing logic is concerned
+		 */
+		return NULL;
+	case HPROBE_LEASED: {
+		struct uprobe *uprobe = try_get_uprobe(hprobe->uprobe);
+		/*
+		 * Try to switch hprobe state, guarding against
+		 * hprobe_consume() or another hprobe_expire() racing with us.
+		 * Note, if we failed to get uprobe refcount, we use special
+		 * HPROBE_GONE state to signal that hprobe->uprobe shouldn't
+		 * be used as it will be freed after SRCU is unlocked.
+		 */
+		if (try_cmpxchg(&hprobe->state, &hstate, uprobe ? HPROBE_STABLE : HPROBE_GONE)) {
+			/* We won the race, we are the ones to unlock SRCU */
+			__srcu_read_unlock(&uretprobes_srcu, hprobe->srcu_idx);
+			return get ? get_uprobe(uprobe) : uprobe;
+		}
+
+		/*
+		 * We lost the race, undo refcount bump (if it ever happened),
+		 * unless caller would like an extra refcount anyways.
+		 */
+		if (uprobe && !get)
+			put_uprobe(uprobe);
+		/*
+		 * Even if hprobe_consume() or another hprobe_expire() wins
+		 * the state update race and unlocks SRCU from under us, we
+		 * still have a guarantee that underyling uprobe won't be
+		 * freed due to ongoing caller's SRCU lock region, so we can
+		 * return it regardless. Also, if `get` was true, we also have
+		 * an extra ref for the caller to own. This is used in dup_utask().
+		 */
+		return uprobe;
+	}
+	default:
+		WARN(1, "unknown hprobe state %d", hstate);
+		return NULL;
 	}
 }
 
@@ -647,62 +859,86 @@ static inline int __uprobe_cmp(struct rb_node *a, const struct rb_node *b)
 	return uprobe_cmp(u->inode, u->offset, __node_2_uprobe(b));
 }
 
-static struct uprobe *__find_uprobe(struct inode *inode, loff_t offset)
+/*
+ * Assumes being inside RCU protected region.
+ * No refcount is taken on returned uprobe.
+ */
+static struct uprobe *find_uprobe_rcu(struct inode *inode, loff_t offset)
 {
 	struct __uprobe_key key = {
 		.inode = inode,
 		.offset = offset,
 	};
-	struct rb_node *node = rb_find(&key, &uprobes_tree, __uprobe_cmp_key);
+	struct rb_node *node;
+	unsigned int seq;
 
-	if (node)
-		return get_uprobe(__node_2_uprobe(node));
+	lockdep_assert(rcu_read_lock_trace_held());
+
+	do {
+		seq = read_seqcount_begin(&uprobes_seqcount);
+		node = rb_find_rcu(&key, &uprobes_tree, __uprobe_cmp_key);
+		/*
+		 * Lockless RB-tree lookups can result only in false negatives.
+		 * If the element is found, it is correct and can be returned
+		 * under RCU protection. If we find nothing, we need to
+		 * validate that seqcount didn't change. If it did, we have to
+		 * try again as we might have missed the element (false
+		 * negative). If seqcount is unchanged, search truly failed.
+		 */
+		if (node)
+			return __node_2_uprobe(node);
+	} while (read_seqcount_retry(&uprobes_seqcount, seq));
 
 	return NULL;
 }
 
 /*
- * Find a uprobe corresponding to a given inode:offset
- * Acquires uprobes_treelock
+ * Attempt to insert a new uprobe into uprobes_tree.
+ *
+ * If uprobe already exists (for given inode+offset), we just increment
+ * refcount of previously existing uprobe.
+ *
+ * If not, a provided new instance of uprobe is inserted into the tree (with
+ * assumed initial refcount == 1).
+ *
+ * In any case, we return a uprobe instance that ends up being in uprobes_tree.
+ * Caller has to clean up new uprobe instance, if it ended up not being
+ * inserted into the tree.
+ *
+ * We assume that uprobes_treelock is held for writing.
  */
-static struct uprobe *find_uprobe(struct inode *inode, loff_t offset)
+static struct uprobe *__insert_uprobe(struct uprobe *uprobe)
 {
-	struct uprobe *uprobe;
+	struct rb_node *node;
+again:
+	node = rb_find_add_rcu(&uprobe->rb_node, &uprobes_tree, __uprobe_cmp);
+	if (node) {
+		struct uprobe *u = __node_2_uprobe(node);
 
-	read_lock(&uprobes_treelock);
-	uprobe = __find_uprobe(inode, offset);
-	read_unlock(&uprobes_treelock);
+		if (!try_get_uprobe(u)) {
+			rb_erase(node, &uprobes_tree);
+			RB_CLEAR_NODE(&u->rb_node);
+			goto again;
+		}
+
+		return u;
+	}
 
 	return uprobe;
 }
 
-static struct uprobe *__insert_uprobe(struct uprobe *uprobe)
-{
-	struct rb_node *node;
-
-	node = rb_find_add(&uprobe->rb_node, &uprobes_tree, __uprobe_cmp);
-	if (node)
-		return get_uprobe(__node_2_uprobe(node));
-
-	/* get access + creation ref */
-	refcount_set(&uprobe->ref, 2);
-	return NULL;
-}
-
 /*
- * Acquire uprobes_treelock.
- * Matching uprobe already exists in rbtree;
- *	increment (access refcount) and return the matching uprobe.
- *
- * No matching uprobe; insert the uprobe in rb_tree;
- *	get a double refcount (access + creation) and return NULL.
+ * Acquire uprobes_treelock and insert uprobe into uprobes_tree
+ * (or reuse existing one, see __insert_uprobe() comments above).
  */
 static struct uprobe *insert_uprobe(struct uprobe *uprobe)
 {
 	struct uprobe *u;
 
 	write_lock(&uprobes_treelock);
+	write_seqcount_begin(&uprobes_seqcount);
 	u = __insert_uprobe(uprobe);
+	write_seqcount_end(&uprobes_seqcount);
 	write_unlock(&uprobes_treelock);
 
 	return u;
@@ -725,18 +961,21 @@ static struct uprobe *alloc_uprobe(struct inode *inode, loff_t offset,
 
 	uprobe = kzalloc(sizeof(struct uprobe), GFP_KERNEL);
 	if (!uprobe)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	uprobe->inode = inode;
 	uprobe->offset = offset;
 	uprobe->ref_ctr_offset = ref_ctr_offset;
+	INIT_LIST_HEAD(&uprobe->consumers);
 	init_rwsem(&uprobe->register_rwsem);
 	init_rwsem(&uprobe->consumer_rwsem);
+	RB_CLEAR_NODE(&uprobe->rb_node);
+	refcount_set(&uprobe->ref, 1);
 
 	/* add to uprobes_tree, sorted on inode:offset */
 	cur_uprobe = insert_uprobe(uprobe);
 	/* a uprobe exists for this inode:offset combination */
-	if (cur_uprobe) {
+	if (cur_uprobe != uprobe) {
 		if (cur_uprobe->ref_ctr_offset != uprobe->ref_ctr_offset) {
 			ref_ctr_mismatch_warn(cur_uprobe, uprobe);
 			put_uprobe(cur_uprobe);
@@ -752,33 +991,23 @@ static struct uprobe *alloc_uprobe(struct inode *inode, loff_t offset,
 
 static void consumer_add(struct uprobe *uprobe, struct uprobe_consumer *uc)
 {
+	static atomic64_t id;
+
 	down_write(&uprobe->consumer_rwsem);
-	uc->next = uprobe->consumers;
-	uprobe->consumers = uc;
+	list_add_rcu(&uc->cons_node, &uprobe->consumers);
+	uc->id = (__u64) atomic64_inc_return(&id);
 	up_write(&uprobe->consumer_rwsem);
 }
 
 /*
  * For uprobe @uprobe, delete the consumer @uc.
- * Return true if the @uc is deleted successfully
- * or return false.
+ * Should never be called with consumer that's not part of @uprobe->consumers.
  */
-static bool consumer_del(struct uprobe *uprobe, struct uprobe_consumer *uc)
+static void consumer_del(struct uprobe *uprobe, struct uprobe_consumer *uc)
 {
-	struct uprobe_consumer **con;
-	bool ret = false;
-
 	down_write(&uprobe->consumer_rwsem);
-	for (con = &uprobe->consumers; *con; con = &(*con)->next) {
-		if (*con == uc) {
-			*con = uc->next;
-			ret = true;
-			break;
-		}
-	}
+	list_del_rcu(&uc->cons_node);
 	up_write(&uprobe->consumer_rwsem);
-
-	return ret;
 }
 
 static int __copy_insn(struct address_space *mapping, struct file *filp,
@@ -863,21 +1092,19 @@ static int prepare_uprobe(struct uprobe *uprobe, struct file *file,
 	return ret;
 }
 
-static inline bool consumer_filter(struct uprobe_consumer *uc,
-				   enum uprobe_filter_ctx ctx, struct mm_struct *mm)
+static inline bool consumer_filter(struct uprobe_consumer *uc, struct mm_struct *mm)
 {
-	return !uc->filter || uc->filter(uc, ctx, mm);
+	return !uc->filter || uc->filter(uc, mm);
 }
 
-static bool filter_chain(struct uprobe *uprobe,
-			 enum uprobe_filter_ctx ctx, struct mm_struct *mm)
+static bool filter_chain(struct uprobe *uprobe, struct mm_struct *mm)
 {
 	struct uprobe_consumer *uc;
 	bool ret = false;
 
 	down_read(&uprobe->consumer_rwsem);
-	for (uc = uprobe->consumers; uc; uc = uc->next) {
-		ret = consumer_filter(uc, ctx, mm);
+	list_for_each_entry_rcu(uc, &uprobe->consumers, cons_node, rcu_read_lock_trace_held()) {
+		ret = consumer_filter(uc, mm);
 		if (ret)
 			break;
 	}
@@ -919,27 +1146,6 @@ remove_breakpoint(struct uprobe *uprobe, struct mm_struct *mm, unsigned long vad
 {
 	set_bit(MMF_RECALC_UPROBES, &mm->flags);
 	return set_orig_insn(&uprobe->arch, mm, vaddr);
-}
-
-static inline bool uprobe_is_active(struct uprobe *uprobe)
-{
-	return !RB_EMPTY_NODE(&uprobe->rb_node);
-}
-/*
- * There could be threads that have already hit the breakpoint. They
- * will recheck the current insn and restart if find_uprobe() fails.
- * See find_active_uprobe().
- */
-static void delete_uprobe(struct uprobe *uprobe)
-{
-	if (WARN_ON(!uprobe_is_active(uprobe)))
-		return;
-
-	write_lock(&uprobes_treelock);
-	rb_erase(&uprobe->rb_node, &uprobes_tree);
-	write_unlock(&uprobes_treelock);
-	RB_CLEAR_NODE(&uprobe->rb_node); /* for uprobe_is_active() */
-	put_uprobe(uprobe);
 }
 
 struct map_info {
@@ -1046,7 +1252,13 @@ register_for_each_vma(struct uprobe *uprobe, struct uprobe_consumer *new)
 
 		if (err && is_register)
 			goto free;
-
+		/*
+		 * We take mmap_lock for writing to avoid the race with
+		 * find_active_uprobe_rcu() which takes mmap_lock for reading.
+		 * Thus this install_breakpoint() can not make
+		 * is_trap_at_addr() true right after find_uprobe_rcu()
+		 * returns NULL in find_active_uprobe_rcu().
+		 */
 		mmap_write_lock(mm);
 		vma = find_vma(mm, info->vaddr);
 		if (!vma || !valid_vma(vma, is_register) ||
@@ -1059,12 +1271,10 @@ register_for_each_vma(struct uprobe *uprobe, struct uprobe_consumer *new)
 
 		if (is_register) {
 			/* consult only the "caller", new consumer. */
-			if (consumer_filter(new,
-					UPROBE_FILTER_REGISTER, mm))
+			if (consumer_filter(new, mm))
 				err = install_breakpoint(uprobe, mm, vma, info->vaddr);
 		} else if (test_bit(MMF_HAS_UPROBES, &mm->flags)) {
-			if (!filter_chain(uprobe,
-					UPROBE_FILTER_UNREGISTER, mm))
+			if (!filter_chain(uprobe, mm))
 				err |= remove_breakpoint(uprobe, mm, info->vaddr);
 		}
 
@@ -1079,152 +1289,140 @@ register_for_each_vma(struct uprobe *uprobe, struct uprobe_consumer *new)
 	return err;
 }
 
-static void
-__uprobe_unregister(struct uprobe *uprobe, struct uprobe_consumer *uc)
+/**
+ * uprobe_unregister_nosync - unregister an already registered probe.
+ * @uprobe: uprobe to remove
+ * @uc: identify which probe if multiple probes are colocated.
+ */
+void uprobe_unregister_nosync(struct uprobe *uprobe, struct uprobe_consumer *uc)
 {
 	int err;
 
-	if (WARN_ON(!consumer_del(uprobe, uc)))
-		return;
-
-	err = register_for_each_vma(uprobe, NULL);
-	/* TODO : cant unregister? schedule a worker thread */
-	if (!uprobe->consumers && !err)
-		delete_uprobe(uprobe);
-}
-
-/*
- * uprobe_unregister - unregister an already registered probe.
- * @inode: the file in which the probe has to be removed.
- * @offset: offset from the start of the file.
- * @uc: identify which probe if multiple probes are colocated.
- */
-void uprobe_unregister(struct inode *inode, loff_t offset, struct uprobe_consumer *uc)
-{
-	struct uprobe *uprobe;
-
-	uprobe = find_uprobe(inode, offset);
-	if (WARN_ON(!uprobe))
-		return;
-
 	down_write(&uprobe->register_rwsem);
-	__uprobe_unregister(uprobe, uc);
+	consumer_del(uprobe, uc);
+	err = register_for_each_vma(uprobe, NULL);
 	up_write(&uprobe->register_rwsem);
+
+	/* TODO : cant unregister? schedule a worker thread */
+	if (unlikely(err)) {
+		uprobe_warn(current, "unregister, leaking uprobe");
+		return;
+	}
+
 	put_uprobe(uprobe);
 }
-EXPORT_SYMBOL_GPL(uprobe_unregister);
+EXPORT_SYMBOL_GPL(uprobe_unregister_nosync);
 
-/*
- * __uprobe_register - register a probe
+void uprobe_unregister_sync(void)
+{
+	/*
+	 * Now that handler_chain() and handle_uretprobe_chain() iterate over
+	 * uprobe->consumers list under RCU protection without holding
+	 * uprobe->register_rwsem, we need to wait for RCU grace period to
+	 * make sure that we can't call into just unregistered
+	 * uprobe_consumer's callbacks anymore. If we don't do that, fast and
+	 * unlucky enough caller can free consumer's memory and cause
+	 * handler_chain() or handle_uretprobe_chain() to do an use-after-free.
+	 */
+	synchronize_rcu_tasks_trace();
+	synchronize_srcu(&uretprobes_srcu);
+}
+EXPORT_SYMBOL_GPL(uprobe_unregister_sync);
+
+/**
+ * uprobe_register - register a probe
  * @inode: the file in which the probe has to be placed.
  * @offset: offset from the start of the file.
+ * @ref_ctr_offset: offset of SDT marker / reference counter
  * @uc: information on howto handle the probe..
  *
- * Apart from the access refcount, __uprobe_register() takes a creation
+ * Apart from the access refcount, uprobe_register() takes a creation
  * refcount (thro alloc_uprobe) if and only if this @uprobe is getting
  * inserted into the rbtree (i.e first consumer for a @inode:@offset
  * tuple).  Creation refcount stops uprobe_unregister from freeing the
  * @uprobe even before the register operation is complete. Creation
  * refcount is released when the last @uc for the @uprobe
- * unregisters. Caller of __uprobe_register() is required to keep @inode
+ * unregisters. Caller of uprobe_register() is required to keep @inode
  * (and the containing mount) referenced.
  *
- * Return errno if it cannot successully install probes
- * else return 0 (success)
+ * Return: pointer to the new uprobe on success or an ERR_PTR on failure.
  */
-static int __uprobe_register(struct inode *inode, loff_t offset,
-			     loff_t ref_ctr_offset, struct uprobe_consumer *uc)
+struct uprobe *uprobe_register(struct inode *inode,
+				loff_t offset, loff_t ref_ctr_offset,
+				struct uprobe_consumer *uc)
 {
 	struct uprobe *uprobe;
 	int ret;
 
 	/* Uprobe must have at least one set consumer */
 	if (!uc->handler && !uc->ret_handler)
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 
 	/* copy_insn() uses read_mapping_page() or shmem_read_mapping_page() */
 	if (!inode->i_mapping->a_ops->read_folio &&
 	    !shmem_mapping(inode->i_mapping))
-		return -EIO;
+		return ERR_PTR(-EIO);
 	/* Racy, just to catch the obvious mistakes */
 	if (offset > i_size_read(inode))
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 
 	/*
 	 * This ensures that copy_from_page(), copy_to_page() and
 	 * __update_ref_ctr() can't cross page boundary.
 	 */
 	if (!IS_ALIGNED(offset, UPROBE_SWBP_INSN_SIZE))
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 	if (!IS_ALIGNED(ref_ctr_offset, sizeof(short)))
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 
- retry:
 	uprobe = alloc_uprobe(inode, offset, ref_ctr_offset);
-	if (!uprobe)
-		return -ENOMEM;
 	if (IS_ERR(uprobe))
-		return PTR_ERR(uprobe);
+		return uprobe;
 
-	/*
-	 * We can race with uprobe_unregister()->delete_uprobe().
-	 * Check uprobe_is_active() and retry if it is false.
-	 */
 	down_write(&uprobe->register_rwsem);
-	ret = -EAGAIN;
-	if (likely(uprobe_is_active(uprobe))) {
-		consumer_add(uprobe, uc);
-		ret = register_for_each_vma(uprobe, uc);
-		if (ret)
-			__uprobe_unregister(uprobe, uc);
-	}
+	consumer_add(uprobe, uc);
+	ret = register_for_each_vma(uprobe, uc);
 	up_write(&uprobe->register_rwsem);
-	put_uprobe(uprobe);
 
-	if (unlikely(ret == -EAGAIN))
-		goto retry;
-	return ret;
-}
+	if (ret) {
+		uprobe_unregister_nosync(uprobe, uc);
+		/*
+		 * Registration might have partially succeeded, so we can have
+		 * this consumer being called right at this time. We need to
+		 * sync here. It's ok, it's unlikely slow path.
+		 */
+		uprobe_unregister_sync();
+		return ERR_PTR(ret);
+	}
 
-int uprobe_register(struct inode *inode, loff_t offset,
-		    struct uprobe_consumer *uc)
-{
-	return __uprobe_register(inode, offset, 0, uc);
+	return uprobe;
 }
 EXPORT_SYMBOL_GPL(uprobe_register);
 
-int uprobe_register_refctr(struct inode *inode, loff_t offset,
-			   loff_t ref_ctr_offset, struct uprobe_consumer *uc)
-{
-	return __uprobe_register(inode, offset, ref_ctr_offset, uc);
-}
-EXPORT_SYMBOL_GPL(uprobe_register_refctr);
-
-/*
- * uprobe_apply - unregister an already registered probe.
- * @inode: the file in which the probe has to be removed.
- * @offset: offset from the start of the file.
+/**
+ * uprobe_apply - add or remove the breakpoints according to @uc->filter
+ * @uprobe: uprobe which "owns" the breakpoint
  * @uc: consumer which wants to add more or remove some breakpoints
  * @add: add or remove the breakpoints
+ * Return: 0 on success or negative error code.
  */
-int uprobe_apply(struct inode *inode, loff_t offset,
-			struct uprobe_consumer *uc, bool add)
+int uprobe_apply(struct uprobe *uprobe, struct uprobe_consumer *uc, bool add)
 {
-	struct uprobe *uprobe;
 	struct uprobe_consumer *con;
 	int ret = -ENOENT;
 
-	uprobe = find_uprobe(inode, offset);
-	if (WARN_ON(!uprobe))
-		return ret;
-
 	down_write(&uprobe->register_rwsem);
-	for (con = uprobe->consumers; con && con != uc ; con = con->next)
-		;
-	if (con)
-		ret = register_for_each_vma(uprobe, add ? uc : NULL);
+
+	rcu_read_lock_trace();
+	list_for_each_entry_rcu(con, &uprobe->consumers, cons_node, rcu_read_lock_trace_held()) {
+		if (con == uc) {
+			ret = register_for_each_vma(uprobe, add ? uc : NULL);
+			break;
+		}
+	}
+	rcu_read_unlock_trace();
+
 	up_write(&uprobe->register_rwsem);
-	put_uprobe(uprobe);
 
 	return ret;
 }
@@ -1305,15 +1503,17 @@ static void build_probe_list(struct inode *inode,
 			u = rb_entry(t, struct uprobe, rb_node);
 			if (u->inode != inode || u->offset < min)
 				break;
-			list_add(&u->pending_list, head);
-			get_uprobe(u);
+			/* if uprobe went away, it's safe to ignore it */
+			if (try_get_uprobe(u))
+				list_add(&u->pending_list, head);
 		}
 		for (t = n; (t = rb_next(t)); ) {
 			u = rb_entry(t, struct uprobe, rb_node);
 			if (u->inode != inode || u->offset > max)
 				break;
-			list_add(&u->pending_list, head);
-			get_uprobe(u);
+			/* if uprobe went away, it's safe to ignore it */
+			if (try_get_uprobe(u))
+				list_add(&u->pending_list, head);
 		}
 	}
 	read_unlock(&uprobes_treelock);
@@ -1384,7 +1584,7 @@ int uprobe_mmap(struct vm_area_struct *vma)
 	 */
 	list_for_each_entry_safe(uprobe, u, &tmp_list, pending_list) {
 		if (!fatal_signal_pending(current) &&
-		    filter_chain(uprobe, UPROBE_FILTER_MMAP, vma->vm_mm)) {
+		    filter_chain(uprobe, vma->vm_mm)) {
 			unsigned long vaddr = offset_to_vaddr(vma, uprobe->offset);
 			install_breakpoint(uprobe, vma->vm_mm, vma, vaddr);
 		}
@@ -1433,6 +1633,27 @@ void uprobe_munmap(struct vm_area_struct *vma, unsigned long start, unsigned lon
 		set_bit(MMF_RECALC_UPROBES, &vma->vm_mm->flags);
 }
 
+static vm_fault_t xol_fault(const struct vm_special_mapping *sm,
+			    struct vm_area_struct *vma, struct vm_fault *vmf)
+{
+	struct xol_area *area = vma->vm_mm->uprobes_state.xol_area;
+
+	vmf->page = area->page;
+	get_page(vmf->page);
+	return 0;
+}
+
+static int xol_mremap(const struct vm_special_mapping *sm, struct vm_area_struct *new_vma)
+{
+	return -EPERM;
+}
+
+static const struct vm_special_mapping xol_mapping = {
+	.name = "[uprobes]",
+	.fault = xol_fault,
+	.mremap = xol_mremap,
+};
+
 /* Slot allocation for XOL */
 static int xol_add_vma(struct mm_struct *mm, struct xol_area *area)
 {
@@ -1459,7 +1680,7 @@ static int xol_add_vma(struct mm_struct *mm, struct xol_area *area)
 
 	vma = _install_special_mapping(mm, area->vaddr, PAGE_SIZE,
 				VM_EXEC|VM_MAYEXEC|VM_DONTCOPY|VM_IO,
-				&area->xol_mapping);
+				&xol_mapping);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto fail;
@@ -1489,7 +1710,7 @@ static struct xol_area *__create_xol_area(unsigned long vaddr)
 	struct xol_area *area;
 	void *insns;
 
-	area = kmalloc(sizeof(*area), GFP_KERNEL);
+	area = kzalloc(sizeof(*area), GFP_KERNEL);
 	if (unlikely(!area))
 		goto out;
 
@@ -1498,26 +1719,21 @@ static struct xol_area *__create_xol_area(unsigned long vaddr)
 	if (!area->bitmap)
 		goto free_area;
 
-	area->xol_mapping.name = "[uprobes]";
-	area->xol_mapping.fault = NULL;
-	area->xol_mapping.pages = area->pages;
-	area->pages[0] = alloc_page(GFP_HIGHUSER);
-	if (!area->pages[0])
+	area->page = alloc_page(GFP_HIGHUSER | __GFP_ZERO);
+	if (!area->page)
 		goto free_bitmap;
-	area->pages[1] = NULL;
 
 	area->vaddr = vaddr;
 	init_waitqueue_head(&area->wq);
 	/* Reserve the 1st slot for get_trampoline_vaddr() */
 	set_bit(0, area->bitmap);
-	atomic_set(&area->slot_count, 1);
 	insns = arch_uprobe_trampoline(&insns_size);
-	arch_uprobe_copy_ixol(area->pages[0], 0, insns, insns_size);
+	arch_uprobe_copy_ixol(area->page, 0, insns, insns_size);
 
 	if (!xol_add_vma(mm, area))
 		return area;
 
-	__free_page(area->pages[0]);
+	__free_page(area->page);
  free_bitmap:
 	kfree(area->bitmap);
  free_area:
@@ -1559,7 +1775,7 @@ void uprobe_clear_state(struct mm_struct *mm)
 	if (!area)
 		return;
 
-	put_page(area->pages[0]);
+	put_page(area->page);
 	kfree(area->bitmap);
 	kfree(area);
 }
@@ -1583,92 +1799,57 @@ void uprobe_dup_mmap(struct mm_struct *oldmm, struct mm_struct *newmm)
 	}
 }
 
-/*
- *  - search for a free slot.
- */
-static unsigned long xol_take_insn_slot(struct xol_area *area)
+static unsigned long xol_get_slot_nr(struct xol_area *area)
 {
-	unsigned long slot_addr;
-	int slot_nr;
+	unsigned long slot_nr;
 
-	do {
-		slot_nr = find_first_zero_bit(area->bitmap, UINSNS_PER_PAGE);
-		if (slot_nr < UINSNS_PER_PAGE) {
-			if (!test_and_set_bit(slot_nr, area->bitmap))
-				break;
+	slot_nr = find_first_zero_bit(area->bitmap, UINSNS_PER_PAGE);
+	if (slot_nr < UINSNS_PER_PAGE) {
+		if (!test_and_set_bit(slot_nr, area->bitmap))
+			return slot_nr;
+	}
 
-			slot_nr = UINSNS_PER_PAGE;
-			continue;
-		}
-		wait_event(area->wq, (atomic_read(&area->slot_count) < UINSNS_PER_PAGE));
-	} while (slot_nr >= UINSNS_PER_PAGE);
-
-	slot_addr = area->vaddr + (slot_nr * UPROBE_XOL_SLOT_BYTES);
-	atomic_inc(&area->slot_count);
-
-	return slot_addr;
+	return UINSNS_PER_PAGE;
 }
 
 /*
  * xol_get_insn_slot - allocate a slot for xol.
- * Returns the allocated slot address or 0.
  */
-static unsigned long xol_get_insn_slot(struct uprobe *uprobe)
+static bool xol_get_insn_slot(struct uprobe *uprobe, struct uprobe_task *utask)
 {
-	struct xol_area *area;
-	unsigned long xol_vaddr;
+	struct xol_area *area = get_xol_area();
+	unsigned long slot_nr;
 
-	area = get_xol_area();
 	if (!area)
-		return 0;
+		return false;
 
-	xol_vaddr = xol_take_insn_slot(area);
-	if (unlikely(!xol_vaddr))
-		return 0;
+	wait_event(area->wq, (slot_nr = xol_get_slot_nr(area)) < UINSNS_PER_PAGE);
 
-	arch_uprobe_copy_ixol(area->pages[0], xol_vaddr,
+	utask->xol_vaddr = area->vaddr + slot_nr * UPROBE_XOL_SLOT_BYTES;
+	arch_uprobe_copy_ixol(area->page, utask->xol_vaddr,
 			      &uprobe->arch.ixol, sizeof(uprobe->arch.ixol));
-
-	return xol_vaddr;
+	return true;
 }
 
 /*
- * xol_free_insn_slot - If slot was earlier allocated by
- * @xol_get_insn_slot(), make the slot available for
- * subsequent requests.
+ * xol_free_insn_slot - free the slot allocated by xol_get_insn_slot()
  */
-static void xol_free_insn_slot(struct task_struct *tsk)
+static void xol_free_insn_slot(struct uprobe_task *utask)
 {
-	struct xol_area *area;
-	unsigned long vma_end;
-	unsigned long slot_addr;
+	struct xol_area *area = current->mm->uprobes_state.xol_area;
+	unsigned long offset = utask->xol_vaddr - area->vaddr;
+	unsigned int slot_nr;
 
-	if (!tsk->mm || !tsk->mm->uprobes_state.xol_area || !tsk->utask)
+	utask->xol_vaddr = 0;
+	/* xol_vaddr must fit into [area->vaddr, area->vaddr + PAGE_SIZE) */
+	if (WARN_ON_ONCE(offset >= PAGE_SIZE))
 		return;
 
-	slot_addr = tsk->utask->xol_vaddr;
-	if (unlikely(!slot_addr))
-		return;
-
-	area = tsk->mm->uprobes_state.xol_area;
-	vma_end = area->vaddr + PAGE_SIZE;
-	if (area->vaddr <= slot_addr && slot_addr < vma_end) {
-		unsigned long offset;
-		int slot_nr;
-
-		offset = slot_addr - area->vaddr;
-		slot_nr = offset / UPROBE_XOL_SLOT_BYTES;
-		if (slot_nr >= UINSNS_PER_PAGE)
-			return;
-
-		clear_bit(slot_nr, area->bitmap);
-		atomic_dec(&area->slot_count);
-		smp_mb__after_atomic(); /* pairs with prepare_to_wait() */
-		if (waitqueue_active(&area->wq))
-			wake_up(&area->wq);
-
-		tsk->utask->xol_vaddr = 0;
-	}
+	slot_nr = offset / UPROBE_XOL_SLOT_BYTES;
+	clear_bit(slot_nr, area->bitmap);
+	smp_mb__after_atomic(); /* pairs with prepare_to_wait() */
+	if (waitqueue_active(&area->wq))
+		wake_up(&area->wq);
 }
 
 void __weak arch_uprobe_copy_ixol(struct page *page, unsigned long vaddr,
@@ -1707,11 +1888,18 @@ unsigned long uprobe_get_trap_addr(struct pt_regs *regs)
 	return instruction_pointer(regs);
 }
 
-static struct return_instance *free_ret_instance(struct return_instance *ri)
+static struct return_instance *free_ret_instance(struct return_instance *ri, bool cleanup_hprobe)
 {
 	struct return_instance *next = ri->next;
-	put_uprobe(ri->uprobe);
-	kfree(ri);
+
+	if (cleanup_hprobe) {
+		enum hprobe_state hstate;
+
+		(void)hprobe_consume(&ri->hprobe, &hstate);
+		hprobe_finalize(&ri->hprobe, hstate);
+	}
+
+	kfree_rcu(ri, rcu);
 	return next;
 }
 
@@ -1727,16 +1915,48 @@ void uprobe_free_utask(struct task_struct *t)
 	if (!utask)
 		return;
 
-	if (utask->active_uprobe)
-		put_uprobe(utask->active_uprobe);
+	WARN_ON_ONCE(utask->active_uprobe || utask->xol_vaddr);
+
+	timer_delete_sync(&utask->ri_timer);
 
 	ri = utask->return_instances;
 	while (ri)
-		ri = free_ret_instance(ri);
+		ri = free_ret_instance(ri, true /* cleanup_hprobe */);
 
-	xol_free_insn_slot(t);
 	kfree(utask);
 	t->utask = NULL;
+}
+
+#define RI_TIMER_PERIOD (HZ / 10) /* 100 ms */
+
+#define for_each_ret_instance_rcu(pos, head) \
+	for (pos = rcu_dereference_raw(head); pos; pos = rcu_dereference_raw(pos->next))
+
+static void ri_timer(struct timer_list *timer)
+{
+	struct uprobe_task *utask = container_of(timer, struct uprobe_task, ri_timer);
+	struct return_instance *ri;
+
+	/* SRCU protects uprobe from reuse for the cmpxchg() inside hprobe_expire(). */
+	guard(srcu)(&uretprobes_srcu);
+	/* RCU protects return_instance from freeing. */
+	guard(rcu)();
+
+	for_each_ret_instance_rcu(ri, utask->return_instances)
+		hprobe_expire(&ri->hprobe, false);
+}
+
+static struct uprobe_task *alloc_utask(void)
+{
+	struct uprobe_task *utask;
+
+	utask = kzalloc(sizeof(*utask), GFP_KERNEL);
+	if (!utask)
+		return NULL;
+
+	timer_setup(&utask->ri_timer, ri_timer, 0);
+
+	return utask;
 }
 
 /*
@@ -1750,42 +1970,77 @@ void uprobe_free_utask(struct task_struct *t)
 static struct uprobe_task *get_utask(void)
 {
 	if (!current->utask)
-		current->utask = kzalloc(sizeof(struct uprobe_task), GFP_KERNEL);
+		current->utask = alloc_utask();
 	return current->utask;
+}
+
+static size_t ri_size(int consumers_cnt)
+{
+	struct return_instance *ri;
+
+	return sizeof(*ri) + sizeof(ri->consumers[0]) * consumers_cnt;
+}
+
+#define DEF_CNT 4
+
+static struct return_instance *alloc_return_instance(void)
+{
+	struct return_instance *ri;
+
+	ri = kzalloc(ri_size(DEF_CNT), GFP_KERNEL);
+	if (!ri)
+		return ZERO_SIZE_PTR;
+
+	ri->consumers_cnt = DEF_CNT;
+	return ri;
+}
+
+static struct return_instance *dup_return_instance(struct return_instance *old)
+{
+	size_t size = ri_size(old->consumers_cnt);
+
+	return kmemdup(old, size, GFP_KERNEL);
 }
 
 static int dup_utask(struct task_struct *t, struct uprobe_task *o_utask)
 {
 	struct uprobe_task *n_utask;
 	struct return_instance **p, *o, *n;
+	struct uprobe *uprobe;
 
-	n_utask = kzalloc(sizeof(struct uprobe_task), GFP_KERNEL);
+	n_utask = alloc_utask();
 	if (!n_utask)
 		return -ENOMEM;
 	t->utask = n_utask;
 
+	/* protect uprobes from freeing, we'll need try_get_uprobe() them */
+	guard(srcu)(&uretprobes_srcu);
+
 	p = &n_utask->return_instances;
 	for (o = o_utask->return_instances; o; o = o->next) {
-		n = kmalloc(sizeof(struct return_instance), GFP_KERNEL);
+		n = dup_return_instance(o);
 		if (!n)
 			return -ENOMEM;
 
-		*n = *o;
-		get_uprobe(n->uprobe);
-		n->next = NULL;
+		/* if uprobe is non-NULL, we'll have an extra refcount for uprobe */
+		uprobe = hprobe_expire(&o->hprobe, true);
 
-		*p = n;
+		/*
+		 * New utask will have stable properly refcounted uprobe or
+		 * NULL. Even if we failed to get refcounted uprobe, we still
+		 * need to preserve full set of return_instances for proper
+		 * uretprobe handling and nesting in forked task.
+		 */
+		hprobe_init_stable(&n->hprobe, uprobe);
+
+		n->next = NULL;
+		rcu_assign_pointer(*p, n);
 		p = &n->next;
+
 		n_utask->depth++;
 	}
 
 	return 0;
-}
-
-static void uprobe_warn(struct task_struct *t, const char *msg)
-{
-	pr_warn("uprobe: %s:%d failed to %s\n",
-			current->comm, current->pid, msg);
 }
 
 static void dup_xol_work(struct callback_head *work)
@@ -1857,41 +2112,34 @@ static void cleanup_return_instances(struct uprobe_task *utask, bool chained,
 	enum rp_check ctx = chained ? RP_CHECK_CHAIN_CALL : RP_CHECK_CALL;
 
 	while (ri && !arch_uretprobe_is_alive(ri, ctx, regs)) {
-		ri = free_ret_instance(ri);
+		ri = free_ret_instance(ri, true /* cleanup_hprobe */);
 		utask->depth--;
 	}
-	utask->return_instances = ri;
+	rcu_assign_pointer(utask->return_instances, ri);
 }
 
-static void prepare_uretprobe(struct uprobe *uprobe, struct pt_regs *regs)
+static void prepare_uretprobe(struct uprobe *uprobe, struct pt_regs *regs,
+			      struct return_instance *ri)
 {
-	struct return_instance *ri;
-	struct uprobe_task *utask;
+	struct uprobe_task *utask = current->utask;
 	unsigned long orig_ret_vaddr, trampoline_vaddr;
 	bool chained;
+	int srcu_idx;
 
 	if (!get_xol_area())
-		return;
-
-	utask = get_utask();
-	if (!utask)
-		return;
+		goto free;
 
 	if (utask->depth >= MAX_URETPROBE_DEPTH) {
 		printk_ratelimited(KERN_INFO "uprobe: omit uretprobe due to"
 				" nestedness limit pid/tgid=%d/%d\n",
 				current->pid, current->tgid);
-		return;
+		goto free;
 	}
-
-	ri = kmalloc(sizeof(struct return_instance), GFP_KERNEL);
-	if (!ri)
-		return;
 
 	trampoline_vaddr = uprobe_get_trampoline_vaddr();
 	orig_ret_vaddr = arch_uretprobe_hijack_return_addr(trampoline_vaddr, regs);
 	if (orig_ret_vaddr == -1)
-		goto fail;
+		goto free;
 
 	/* drop the entries invalidated by longjmp() */
 	chained = (orig_ret_vaddr == trampoline_vaddr);
@@ -1909,23 +2157,29 @@ static void prepare_uretprobe(struct uprobe *uprobe, struct pt_regs *regs)
 			 * attack from user-space.
 			 */
 			uprobe_warn(current, "handle tail call");
-			goto fail;
+			goto free;
 		}
 		orig_ret_vaddr = utask->return_instances->orig_ret_vaddr;
 	}
 
-	ri->uprobe = get_uprobe(uprobe);
+	/* __srcu_read_lock() because SRCU lock survives switch to user space */
+	srcu_idx = __srcu_read_lock(&uretprobes_srcu);
+
 	ri->func = instruction_pointer(regs);
 	ri->stack = user_stack_pointer(regs);
 	ri->orig_ret_vaddr = orig_ret_vaddr;
 	ri->chained = chained;
 
 	utask->depth++;
+
+	hprobe_init_leased(&ri->hprobe, uprobe, srcu_idx);
 	ri->next = utask->return_instances;
-	utask->return_instances = ri;
+	rcu_assign_pointer(utask->return_instances, ri);
+
+	mod_timer(&utask->ri_timer, jiffies + RI_TIMER_PERIOD);
 
 	return;
- fail:
+free:
 	kfree(ri);
 }
 
@@ -1933,30 +2187,30 @@ static void prepare_uretprobe(struct uprobe *uprobe, struct pt_regs *regs)
 static int
 pre_ssout(struct uprobe *uprobe, struct pt_regs *regs, unsigned long bp_vaddr)
 {
-	struct uprobe_task *utask;
-	unsigned long xol_vaddr;
+	struct uprobe_task *utask = current->utask;
 	int err;
 
-	utask = get_utask();
-	if (!utask)
-		return -ENOMEM;
+	if (!try_get_uprobe(uprobe))
+		return -EINVAL;
 
-	xol_vaddr = xol_get_insn_slot(uprobe);
-	if (!xol_vaddr)
-		return -ENOMEM;
+	if (!xol_get_insn_slot(uprobe, utask)) {
+		err = -ENOMEM;
+		goto err_out;
+	}
 
-	utask->xol_vaddr = xol_vaddr;
 	utask->vaddr = bp_vaddr;
-
 	err = arch_uprobe_pre_xol(&uprobe->arch, regs);
 	if (unlikely(err)) {
-		xol_free_insn_slot(current);
-		return err;
+		xol_free_insn_slot(utask);
+		goto err_out;
 	}
 
 	utask->active_uprobe = uprobe;
 	utask->state = UTASK_SSTEP;
 	return 0;
+err_out:
+	put_uprobe(uprobe);
+	return err;
 }
 
 /*
@@ -2029,13 +2283,7 @@ static int is_trap_at_addr(struct mm_struct *mm, unsigned long vaddr)
 	if (likely(result == 0))
 		goto out;
 
-	/*
-	 * The NULL 'tsk' here ensures that any faults that occur here
-	 * will not be accounted to the task.  'mm' *is* current->mm,
-	 * but we treat this as a 'remote' access since it is
-	 * essentially a kernel access to the memory.
-	 */
-	result = get_user_pages_remote(mm, vaddr, 1, FOLL_FORCE, &page, NULL);
+	result = get_user_pages(vaddr, 1, FOLL_FORCE, &page);
 	if (result < 0)
 		return result;
 
@@ -2046,7 +2294,8 @@ static int is_trap_at_addr(struct mm_struct *mm, unsigned long vaddr)
 	return is_trap_insn(&opcode);
 }
 
-static struct uprobe *find_active_uprobe(unsigned long bp_vaddr, int *is_swbp)
+/* assumes being inside RCU protected region */
+static struct uprobe *find_active_uprobe_rcu(unsigned long bp_vaddr, int *is_swbp)
 {
 	struct mm_struct *mm = current->mm;
 	struct uprobe *uprobe = NULL;
@@ -2059,7 +2308,7 @@ static struct uprobe *find_active_uprobe(unsigned long bp_vaddr, int *is_swbp)
 			struct inode *inode = file_inode(vma->vm_file);
 			loff_t offset = vaddr_to_offset(vma, bp_vaddr);
 
-			uprobe = find_uprobe(inode, offset);
+			uprobe = find_uprobe_rcu(inode, offset);
 		}
 
 		if (!uprobe)
@@ -2075,50 +2324,126 @@ static struct uprobe *find_active_uprobe(unsigned long bp_vaddr, int *is_swbp)
 	return uprobe;
 }
 
+static struct return_instance*
+push_consumer(struct return_instance *ri, int idx, __u64 id, __u64 cookie)
+{
+	if (unlikely(ri == ZERO_SIZE_PTR))
+		return ri;
+
+	if (unlikely(idx >= ri->consumers_cnt)) {
+		struct return_instance *old_ri = ri;
+
+		ri->consumers_cnt += DEF_CNT;
+		ri = krealloc(old_ri, ri_size(old_ri->consumers_cnt), GFP_KERNEL);
+		if (!ri) {
+			kfree(old_ri);
+			return ZERO_SIZE_PTR;
+		}
+	}
+
+	ri->consumers[idx].id = id;
+	ri->consumers[idx].cookie = cookie;
+	return ri;
+}
+
+static struct return_consumer *
+return_consumer_find(struct return_instance *ri, int *iter, int id)
+{
+	struct return_consumer *ric;
+	int idx = *iter;
+
+	for (ric = &ri->consumers[idx]; idx < ri->consumers_cnt; idx++, ric++) {
+		if (ric->id == id) {
+			*iter = idx + 1;
+			return ric;
+		}
+	}
+	return NULL;
+}
+
+static bool ignore_ret_handler(int rc)
+{
+	return rc == UPROBE_HANDLER_REMOVE || rc == UPROBE_HANDLER_IGNORE;
+}
+
 static void handler_chain(struct uprobe *uprobe, struct pt_regs *regs)
 {
 	struct uprobe_consumer *uc;
-	int remove = UPROBE_HANDLER_REMOVE;
-	bool need_prep = false; /* prepare return uprobe, when needed */
+	bool has_consumers = false, remove = true;
+	struct return_instance *ri = NULL;
+	int push_idx = 0;
 
-	down_read(&uprobe->register_rwsem);
-	for (uc = uprobe->consumers; uc; uc = uc->next) {
+	current->utask->auprobe = &uprobe->arch;
+
+	list_for_each_entry_rcu(uc, &uprobe->consumers, cons_node, rcu_read_lock_trace_held()) {
+		bool session = uc->handler && uc->ret_handler;
+		__u64 cookie = 0;
 		int rc = 0;
 
 		if (uc->handler) {
-			rc = uc->handler(uc, regs);
-			WARN(rc & ~UPROBE_HANDLER_MASK,
+			rc = uc->handler(uc, regs, &cookie);
+			WARN(rc < 0 || rc > 2,
 				"bad rc=0x%x from %ps()\n", rc, uc->handler);
 		}
 
-		if (uc->ret_handler)
-			need_prep = true;
+		remove &= rc == UPROBE_HANDLER_REMOVE;
+		has_consumers = true;
 
-		remove &= rc;
+		if (!uc->ret_handler || ignore_ret_handler(rc))
+			continue;
+
+		if (!ri)
+			ri = alloc_return_instance();
+
+		if (session)
+			ri = push_consumer(ri, push_idx++, uc->id, cookie);
+	}
+	current->utask->auprobe = NULL;
+
+	if (!ZERO_OR_NULL_PTR(ri)) {
+		/*
+		 * The push_idx value has the final number of return consumers,
+		 * and ri->consumers_cnt has number of allocated consumers.
+		 */
+		ri->consumers_cnt = push_idx;
+		prepare_uretprobe(uprobe, regs, ri);
 	}
 
-	if (need_prep && !remove)
-		prepare_uretprobe(uprobe, regs); /* put bp at return */
+	if (remove && has_consumers) {
+		down_read(&uprobe->register_rwsem);
 
-	if (remove && uprobe->consumers) {
-		WARN_ON(!uprobe_is_active(uprobe));
-		unapply_uprobe(uprobe, current->mm);
+		/* re-check that removal is still required, this time under lock */
+		if (!filter_chain(uprobe, current->mm)) {
+			WARN_ON(!uprobe_is_active(uprobe));
+			unapply_uprobe(uprobe, current->mm);
+		}
+
+		up_read(&uprobe->register_rwsem);
 	}
-	up_read(&uprobe->register_rwsem);
 }
 
 static void
-handle_uretprobe_chain(struct return_instance *ri, struct pt_regs *regs)
+handle_uretprobe_chain(struct return_instance *ri, struct uprobe *uprobe, struct pt_regs *regs)
 {
-	struct uprobe *uprobe = ri->uprobe;
+	struct return_consumer *ric;
 	struct uprobe_consumer *uc;
+	int ric_idx = 0;
 
-	down_read(&uprobe->register_rwsem);
-	for (uc = uprobe->consumers; uc; uc = uc->next) {
-		if (uc->ret_handler)
-			uc->ret_handler(uc, ri->func, regs);
+	/* all consumers unsubscribed meanwhile */
+	if (unlikely(!uprobe))
+		return;
+
+	rcu_read_lock_trace();
+	list_for_each_entry_rcu(uc, &uprobe->consumers, cons_node, rcu_read_lock_trace_held()) {
+		bool session = uc->handler && uc->ret_handler;
+
+		if (uc->ret_handler) {
+			ric = return_consumer_find(ri, &ric_idx, uc->id);
+			if (!session || ric)
+				uc->ret_handler(uc, ri->func, regs, ric ? &ric->cookie : NULL);
+		}
 	}
-	up_read(&uprobe->register_rwsem);
+	rcu_read_unlock_trace();
 }
 
 static struct return_instance *find_next_ret_chain(struct return_instance *ri)
@@ -2137,6 +2462,8 @@ void uprobe_handle_trampoline(struct pt_regs *regs)
 {
 	struct uprobe_task *utask;
 	struct return_instance *ri, *next;
+	struct uprobe *uprobe;
+	enum hprobe_state hstate;
 	bool valid;
 
 	utask = current->utask;
@@ -2167,21 +2494,24 @@ void uprobe_handle_trampoline(struct pt_regs *regs)
 			 * trampoline addresses on the stack are replaced with correct
 			 * original return addresses
 			 */
-			utask->return_instances = ri->next;
+			rcu_assign_pointer(utask->return_instances, ri->next);
+
+			uprobe = hprobe_consume(&ri->hprobe, &hstate);
 			if (valid)
-				handle_uretprobe_chain(ri, regs);
-			ri = free_ret_instance(ri);
+				handle_uretprobe_chain(ri, uprobe, regs);
+			hprobe_finalize(&ri->hprobe, hstate);
+
+			/* We already took care of hprobe, no need to waste more time on that. */
+			ri = free_ret_instance(ri, false /* !cleanup_hprobe */);
 			utask->depth--;
 		} while (ri != next);
 	} while (!valid);
 
-	utask->return_instances = ri;
 	return;
 
- sigill:
+sigill:
 	uprobe_warn(current, "handle uretprobe, sending SIGILL.");
 	force_sig(SIGILL);
-
 }
 
 bool __weak arch_uprobe_ignore(struct arch_uprobe *aup, struct pt_regs *regs)
@@ -2209,7 +2539,9 @@ static void handle_swbp(struct pt_regs *regs)
 	if (bp_vaddr == uprobe_get_trampoline_vaddr())
 		return uprobe_handle_trampoline(regs);
 
-	uprobe = find_active_uprobe(bp_vaddr, &is_swbp);
+	rcu_read_lock_trace();
+
+	uprobe = find_active_uprobe_rcu(bp_vaddr, &is_swbp);
 	if (!uprobe) {
 		if (is_swbp > 0) {
 			/* No matching uprobe; signal SIGTRAP. */
@@ -2225,7 +2557,7 @@ static void handle_swbp(struct pt_regs *regs)
 			 */
 			instruction_pointer_set(regs, bp_vaddr);
 		}
-		return;
+		goto out;
 	}
 
 	/* change it in advance for ->handler() and restart */
@@ -2260,12 +2592,12 @@ static void handle_swbp(struct pt_regs *regs)
 	if (arch_uprobe_skip_sstep(&uprobe->arch, regs))
 		goto out;
 
-	if (!pre_ssout(uprobe, regs, bp_vaddr))
-		return;
+	if (pre_ssout(uprobe, regs, bp_vaddr))
+		goto out;
 
-	/* arch_uprobe_skip_sstep() succeeded, or restart if can't singlestep */
 out:
-	put_uprobe(uprobe);
+	/* arch_uprobe_skip_sstep() succeeded, or restart if can't singlestep */
+	rcu_read_unlock_trace();
 }
 
 /*
@@ -2288,7 +2620,7 @@ static void handle_singlestep(struct uprobe_task *utask, struct pt_regs *regs)
 	put_uprobe(uprobe);
 	utask->active_uprobe = NULL;
 	utask->state = UTASK_RUNNING;
-	xol_free_insn_slot(current);
+	xol_free_insn_slot(utask);
 
 	spin_lock_irq(&current->sighand->siglock);
 	recalc_sigpending(); /* see uprobe_deny_signal() */

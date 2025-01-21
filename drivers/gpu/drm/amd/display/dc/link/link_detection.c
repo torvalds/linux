@@ -48,6 +48,9 @@
 #include "dm_helpers.h"
 #include "clk_mgr.h"
 
+ // Offset DPCD 050Eh == 0x5A
+#define MST_HUB_ID_0x5A  0x5A
+
 #define DC_LOGGER \
 	link->ctx->logger
 #define DC_LOGGER_INIT(logger)
@@ -692,6 +695,15 @@ static void apply_dpia_mst_dsc_always_on_wa(struct dc_link *link)
 			link->dpcd_caps.dsc_caps.dsc_basic_caps.fields.dsc_support.DSC_SUPPORT &&
 			!link->dc->debug.dpia_debug.bits.disable_mst_dsc_work_around)
 		link->wa_flags.dpia_mst_dsc_always_on = true;
+
+	if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA &&
+		link->type == dc_connection_mst_branch &&
+		link->dpcd_caps.branch_dev_id == DP_BRANCH_DEVICE_ID_90CC24 &&
+		link->dpcd_caps.branch_vendor_specific_data[2] == MST_HUB_ID_0x5A &&
+		link->dpcd_caps.dsc_caps.dsc_basic_caps.fields.dsc_support.DSC_SUPPORT &&
+		!link->dc->debug.dpia_debug.bits.disable_mst_dsc_work_around) {
+			link->wa_flags.dpia_mst_dsc_always_on = true;
+	}
 }
 
 static void revert_dpia_mst_dsc_always_on_wa(struct dc_link *link)
@@ -863,7 +875,6 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 	struct dc_sink *prev_sink = NULL;
 	struct dpcd_caps prev_dpcd_caps;
 	enum dc_connection_type new_connection_type = dc_connection_none;
-	enum dc_connection_type pre_connection_type = link->type;
 	const uint32_t post_oui_delay = 30; // 30ms
 
 	DC_LOGGER_INIT(link->ctx->logger);
@@ -965,7 +976,6 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 			}
 
 			if (!detect_dp(link, &sink_caps, reason)) {
-				link->type = pre_connection_type;
 
 				if (prev_sink)
 					dc_sink_release(prev_sink);
@@ -1191,8 +1201,7 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 			//sink only can use supported link rate table, we are foreced to enable it
 			if (link->reported_link_cap.link_rate == LINK_RATE_UNKNOWN)
 				link->panel_config.ilr.optimize_edp_link_rate = true;
-			if (edp_is_ilr_optimization_enabled(link))
-				link->reported_link_cap.link_rate = get_max_link_rate_from_ilr_table(link);
+			link->reported_link_cap.link_rate = get_max_edp_link_rate(link);
 		}
 
 	} else {
@@ -1299,8 +1308,7 @@ bool link_detect(struct dc_link *link, enum dc_detect_reason reason)
 			link->dpcd_caps.is_mst_capable)
 		is_delegated_to_mst_top_mgr = discover_dp_mst_topology(link, reason);
 
-	if (is_local_sink_detect_success &&
-			pre_link_type == dc_connection_mst_branch &&
+	if (pre_link_type == dc_connection_mst_branch &&
 			link->type != dc_connection_mst_branch)
 		is_delegated_to_mst_top_mgr = link_reset_cur_dp_mst_topology(link);
 

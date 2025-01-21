@@ -609,7 +609,7 @@ static int rtl2830_pid_filter(struct dvb_frontend *fe, u8 index, u16 pid, int on
 		index, pid, onoff);
 
 	/* skip invalid PIDs (0x2000) */
-	if (pid > 0x1fff || index > 32)
+	if (pid > 0x1fff || index >= 32)
 		return 0;
 
 	if (onoff)
@@ -876,7 +876,7 @@ static void rtl2830_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id rtl2830_id_table[] = {
-	{"rtl2830", 0},
+	{ "rtl2830" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, rtl2830_id_table);

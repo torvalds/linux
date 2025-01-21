@@ -342,9 +342,11 @@ static int qcom_llcc_edac_probe(struct platform_device *pdev)
 	int ecc_irq;
 	int rc;
 
-	rc = qcom_llcc_core_setup(llcc_driv_data, llcc_driv_data->bcast_regmap);
-	if (rc)
-		return rc;
+	if (!llcc_driv_data->ecc_irq_configured) {
+		rc = qcom_llcc_core_setup(llcc_driv_data, llcc_driv_data->bcast_regmap);
+		if (rc)
+			return rc;
+	}
 
 	/* Allocate edac control info */
 	edev_ctl = edac_device_alloc_ctl_info(0, "qcom-llcc", 1, "bank",
@@ -405,7 +407,7 @@ MODULE_DEVICE_TABLE(platform, qcom_llcc_edac_id_table);
 
 static struct platform_driver qcom_llcc_edac_driver = {
 	.probe = qcom_llcc_edac_probe,
-	.remove_new = qcom_llcc_edac_remove,
+	.remove = qcom_llcc_edac_remove,
 	.driver = {
 		.name = "qcom_llcc_edac",
 	},

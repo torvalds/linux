@@ -471,6 +471,9 @@ int mv88e6xxx_g1_vtu_flush(struct mv88e6xxx_chip *chip)
 {
 	int err;
 
+	/* As part of the VTU flush, refresh FID map */
+	bitmap_zero(chip->fid_bitmap, MV88E6XXX_N_FID);
+
 	err = mv88e6xxx_g1_vtu_op_wait(chip);
 	if (err)
 		return err;

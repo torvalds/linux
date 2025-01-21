@@ -385,13 +385,13 @@ static u8 ath12k_hw_qcn9274_rx_desc_get_msdu_pkt_type(struct hal_rx_desc *desc)
 static u8 ath12k_hw_qcn9274_rx_desc_get_msdu_nss(struct hal_rx_desc *desc)
 {
 	return le32_get_bits(desc->u.qcn9274.msdu_end.info12,
-			     RX_MSDU_END_QCN9274_INFO12_MIMO_SS_BITMAP);
+			     RX_MSDU_END_INFO12_MIMO_SS_BITMAP);
 }
 
 static u8 ath12k_hw_qcn9274_rx_desc_get_mpdu_tid(struct hal_rx_desc *desc)
 {
 	return le16_get_bits(desc->u.qcn9274.msdu_end.info5,
-			    RX_MSDU_END_QCN9274_INFO5_TID);
+			    RX_MSDU_END_INFO5_TID);
 }
 
 static u16 ath12k_hw_qcn9274_rx_desc_get_mpdu_peer_id(struct hal_rx_desc *desc)
@@ -846,13 +846,13 @@ static u8 ath12k_hw_qcn9274_compact_rx_desc_get_msdu_pkt_type(struct hal_rx_desc
 static u8 ath12k_hw_qcn9274_compact_rx_desc_get_msdu_nss(struct hal_rx_desc *desc)
 {
 	return le32_get_bits(desc->u.qcn9274_compact.msdu_end.info12,
-			     RX_MSDU_END_QCN9274_INFO12_MIMO_SS_BITMAP);
+			     RX_MSDU_END_INFO12_MIMO_SS_BITMAP);
 }
 
 static u8 ath12k_hw_qcn9274_compact_rx_desc_get_mpdu_tid(struct hal_rx_desc *desc)
 {
 	return le16_get_bits(desc->u.qcn9274_compact.msdu_end.info5,
-			     RX_MSDU_END_QCN9274_INFO5_TID);
+			     RX_MSDU_END_INFO5_TID);
 }
 
 static u16 ath12k_hw_qcn9274_compact_rx_desc_get_mpdu_peer_id(struct hal_rx_desc *desc)
@@ -1198,7 +1198,7 @@ static u8 ath12k_hw_wcn7850_rx_desc_get_msdu_pkt_type(struct hal_rx_desc *desc)
 static u8 ath12k_hw_wcn7850_rx_desc_get_msdu_nss(struct hal_rx_desc *desc)
 {
 	return le32_get_bits(desc->u.wcn7850.msdu_end.info12,
-			     RX_MSDU_END_WCN7850_INFO12_MIMO_SS_BITMAP);
+			     RX_MSDU_END_INFO12_MIMO_SS_BITMAP);
 }
 
 static u8 ath12k_hw_wcn7850_rx_desc_get_mpdu_tid(struct hal_rx_desc *desc)
@@ -1216,7 +1216,7 @@ static void ath12k_hw_wcn7850_rx_desc_copy_end_tlv(struct hal_rx_desc *fdesc,
 						   struct hal_rx_desc *ldesc)
 {
 	memcpy(&fdesc->u.wcn7850.msdu_end, &ldesc->u.wcn7850.msdu_end,
-	       sizeof(struct rx_msdu_end_wcn7850));
+	       sizeof(struct rx_msdu_end_qcn9274));
 }
 
 static u32 ath12k_hw_wcn7850_rx_desc_get_mpdu_start_tag(struct hal_rx_desc *desc)

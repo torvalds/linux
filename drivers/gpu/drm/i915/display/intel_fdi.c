@@ -5,6 +5,8 @@
 
 #include <linux/string_helpers.h>
 
+#include <drm/drm_fixed.h>
+
 #include "i915_reg.h"
 #include "intel_atomic.h"
 #include "intel_crtc.h"
@@ -24,9 +26,10 @@ struct intel_fdi_funcs {
 static void assert_fdi_tx(struct drm_i915_private *dev_priv,
 			  enum pipe pipe, bool state)
 {
+	struct intel_display *display = &dev_priv->display;
 	bool cur_state;
 
-	if (HAS_DDI(dev_priv)) {
+	if (HAS_DDI(display)) {
 		/*
 		 * DDI does not have a specific FDI_TX register.
 		 *
@@ -34,14 +37,14 @@ static void assert_fdi_tx(struct drm_i915_private *dev_priv,
 		 * so pipe->transcoder cast is fine here.
 		 */
 		enum transcoder cpu_transcoder = (enum transcoder)pipe;
-		cur_state = intel_de_read(dev_priv,
-					  TRANS_DDI_FUNC_CTL(dev_priv, cpu_transcoder)) & TRANS_DDI_FUNC_ENABLE;
+		cur_state = intel_de_read(display,
+					  TRANS_DDI_FUNC_CTL(display, cpu_transcoder)) & TRANS_DDI_FUNC_ENABLE;
 	} else {
-		cur_state = intel_de_read(dev_priv, FDI_TX_CTL(pipe)) & FDI_TX_ENABLE;
+		cur_state = intel_de_read(display, FDI_TX_CTL(pipe)) & FDI_TX_ENABLE;
 	}
-	I915_STATE_WARN(dev_priv, cur_state != state,
-			"FDI TX state assertion failure (expected %s, current %s)\n",
-			str_on_off(state), str_on_off(cur_state));
+	INTEL_DISPLAY_STATE_WARN(display, cur_state != state,
+				 "FDI TX state assertion failure (expected %s, current %s)\n",
+				 str_on_off(state), str_on_off(cur_state));
 }
 
 void assert_fdi_tx_enabled(struct drm_i915_private *i915, enum pipe pipe)
@@ -57,12 +60,13 @@ void assert_fdi_tx_disabled(struct drm_i915_private *i915, enum pipe pipe)
 static void assert_fdi_rx(struct drm_i915_private *dev_priv,
 			  enum pipe pipe, bool state)
 {
+	struct intel_display *display = &dev_priv->display;
 	bool cur_state;
 
-	cur_state = intel_de_read(dev_priv, FDI_RX_CTL(pipe)) & FDI_RX_ENABLE;
-	I915_STATE_WARN(dev_priv, cur_state != state,
-			"FDI RX state assertion failure (expected %s, current %s)\n",
-			str_on_off(state), str_on_off(cur_state));
+	cur_state = intel_de_read(display, FDI_RX_CTL(pipe)) & FDI_RX_ENABLE;
+	INTEL_DISPLAY_STATE_WARN(display, cur_state != state,
+				 "FDI RX state assertion failure (expected %s, current %s)\n",
+				 str_on_off(state), str_on_off(cur_state));
 }
 
 void assert_fdi_rx_enabled(struct drm_i915_private *i915, enum pipe pipe)
@@ -78,6 +82,7 @@ void assert_fdi_rx_disabled(struct drm_i915_private *i915, enum pipe pipe)
 void assert_fdi_tx_pll_enabled(struct drm_i915_private *i915,
 			       enum pipe pipe)
 {
+	struct intel_display *display = &i915->display;
 	bool cur_state;
 
 	/* ILK FDI PLL is always enabled */
@@ -85,23 +90,24 @@ void assert_fdi_tx_pll_enabled(struct drm_i915_private *i915,
 		return;
 
 	/* On Haswell, DDI ports are responsible for the FDI PLL setup */
-	if (HAS_DDI(i915))
+	if (HAS_DDI(display))
 		return;
 
-	cur_state = intel_de_read(i915, FDI_TX_CTL(pipe)) & FDI_TX_PLL_ENABLE;
-	I915_STATE_WARN(i915, !cur_state,
-			"FDI TX PLL assertion failure, should be active but is disabled\n");
+	cur_state = intel_de_read(display, FDI_TX_CTL(pipe)) & FDI_TX_PLL_ENABLE;
+	INTEL_DISPLAY_STATE_WARN(display, !cur_state,
+				 "FDI TX PLL assertion failure, should be active but is disabled\n");
 }
 
 static void assert_fdi_rx_pll(struct drm_i915_private *i915,
 			      enum pipe pipe, bool state)
 {
+	struct intel_display *display = &i915->display;
 	bool cur_state;
 
-	cur_state = intel_de_read(i915, FDI_RX_CTL(pipe)) & FDI_RX_PLL_ENABLE;
-	I915_STATE_WARN(i915, cur_state != state,
-			"FDI RX PLL assertion failure (expected %s, current %s)\n",
-			str_on_off(state), str_on_off(cur_state));
+	cur_state = intel_de_read(display, FDI_RX_CTL(pipe)) & FDI_RX_PLL_ENABLE;
+	INTEL_DISPLAY_STATE_WARN(display, cur_state != state,
+				 "FDI RX PLL assertion failure (expected %s, current %s)\n",
+				 str_on_off(state), str_on_off(cur_state));
 }
 
 void assert_fdi_rx_pll_enabled(struct drm_i915_private *i915, enum pipe pipe)
@@ -135,6 +141,7 @@ void intel_fdi_link_train(struct intel_crtc *crtc,
  */
 int intel_fdi_add_affected_crtcs(struct intel_atomic_state *state)
 {
+	struct intel_display *display = to_intel_display(state);
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	const struct intel_crtc_state *old_crtc_state;
 	const struct intel_crtc_state *new_crtc_state;
@@ -143,7 +150,7 @@ int intel_fdi_add_affected_crtcs(struct intel_atomic_state *state)
 	if (!IS_IVYBRIDGE(i915) || INTEL_NUM_PIPES(i915) != 3)
 		return 0;
 
-	crtc = intel_crtc_for_pipe(i915, PIPE_C);
+	crtc = intel_crtc_for_pipe(display, PIPE_C);
 	new_crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
 	if (!new_crtc_state)
 		return 0;
@@ -155,7 +162,7 @@ int intel_fdi_add_affected_crtcs(struct intel_atomic_state *state)
 	if (!old_crtc_state->fdi_lanes)
 		return 0;
 
-	crtc = intel_crtc_for_pipe(i915, PIPE_B);
+	crtc = intel_crtc_for_pipe(display, PIPE_B);
 	new_crtc_state = intel_atomic_get_crtc_state(&state->base, crtc);
 	if (IS_ERR(new_crtc_state))
 		return PTR_ERR(new_crtc_state);
@@ -182,6 +189,7 @@ static int ilk_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
 			       struct intel_crtc_state *pipe_config,
 			       enum pipe *pipe_to_reduce)
 {
+	struct intel_display *display = to_intel_display(dev);
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_atomic_state *state = pipe_config->uapi.state;
 	struct intel_crtc *other_crtc;
@@ -221,7 +229,7 @@ static int ilk_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
 		if (pipe_config->fdi_lanes <= 2)
 			return 0;
 
-		other_crtc = intel_crtc_for_pipe(dev_priv, PIPE_C);
+		other_crtc = intel_crtc_for_pipe(display, PIPE_C);
 		other_crtc_state =
 			intel_atomic_get_crtc_state(state, other_crtc);
 		if (IS_ERR(other_crtc_state))
@@ -242,7 +250,7 @@ static int ilk_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
 			return -EINVAL;
 		}
 
-		other_crtc = intel_crtc_for_pipe(dev_priv, PIPE_B);
+		other_crtc = intel_crtc_for_pipe(display, PIPE_B);
 		other_crtc_state =
 			intel_atomic_get_crtc_state(state, other_crtc);
 		if (IS_ERR(other_crtc_state))
@@ -304,7 +312,7 @@ int intel_fdi_link_freq(struct drm_i915_private *i915,
 bool intel_fdi_compute_pipe_bpp(struct intel_crtc_state *crtc_state)
 {
 	int pipe_bpp = min(crtc_state->pipe_bpp,
-			   to_bpp_int(crtc_state->max_link_bpp_x16));
+			   fxp_q4_to_int(crtc_state->max_link_bpp_x16));
 
 	pipe_bpp = rounddown(pipe_bpp, 2 * 3);
 
@@ -340,7 +348,7 @@ int ilk_fdi_compute_config(struct intel_crtc *crtc,
 
 	pipe_config->fdi_lanes = lane;
 
-	intel_link_compute_m_n(to_bpp_x16(pipe_config->pipe_bpp),
+	intel_link_compute_m_n(fxp_q4_from_int(pipe_config->pipe_bpp),
 			       lane, fdi_dotclock,
 			       link_bw,
 			       intel_dp_bw_fec_overhead(false),

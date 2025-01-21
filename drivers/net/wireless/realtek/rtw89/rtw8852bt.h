@@ -10,4 +10,6 @@
 #define RF_PATH_NUM_8852BT 2
 #define BB_PATH_NUM_8852BT 2
 
+extern const struct rtw89_chip_info rtw8852bt_chip_info;
+
 #endif

@@ -1000,7 +1000,7 @@ static int evm_inode_copy_up_xattr(struct dentry *src, const char *name)
 	case EVM_XATTR_HMAC:
 	case EVM_IMA_XATTR_DIGSIG:
 	default:
-		rc = 1; /* discard */
+		rc = -ECANCELED; /* discard */
 	}
 
 	kfree(xattr_data);
@@ -1084,7 +1084,8 @@ static void evm_file_release(struct file *file)
 	if (!S_ISREG(inode->i_mode) || !(mode & FMODE_WRITE))
 		return;
 
-	if (iint && atomic_read(&inode->i_writecount) == 1)
+	if (iint && iint->flags & EVM_NEW_FILE &&
+	    atomic_read(&inode->i_writecount) == 1)
 		iint->flags &= ~EVM_NEW_FILE;
 }
 

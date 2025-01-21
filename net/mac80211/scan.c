@@ -504,7 +504,7 @@ static void __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 	 * the scan was in progress; if there was none this will
 	 * just be a no-op for the particular interface.
 	 */
-	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
+	list_for_each_entry(sdata, &local->interfaces, list) {
 		if (ieee80211_sdata_running(sdata))
 			wiphy_work_queue(sdata->local->hw.wiphy, &sdata->work);
 	}
@@ -575,6 +575,7 @@ static bool __ieee80211_can_leave_ch(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_sub_if_data *sdata_iter;
+	unsigned int link_id;
 
 	lockdep_assert_wiphy(local->hw.wiphy);
 
@@ -585,8 +586,9 @@ static bool __ieee80211_can_leave_ch(struct ieee80211_sub_if_data *sdata)
 		return false;
 
 	list_for_each_entry(sdata_iter, &local->interfaces, list) {
-		if (sdata_iter->wdev.cac_started)
-			return false;
+		for_each_valid_link(&sdata_iter->wdev, link_id)
+			if (sdata_iter->wdev.links[link_id].cac_started)
+				return false;
 	}
 
 	return true;
@@ -649,7 +651,7 @@ static void ieee80211_send_scan_probe_req(struct ieee80211_sub_if_data *sdata,
 				cpu_to_le16(IEEE80211_SN_TO_SEQ(sn));
 		}
 		IEEE80211_SKB_CB(skb)->flags |= tx_flags;
-		IEEE80211_SKB_CB(skb)->control.flags |= IEEE80211_TX_CTRL_SCAN_TX;
+		IEEE80211_SKB_CB(skb)->control.flags |= IEEE80211_TX_CTRL_DONT_USE_RATE_MASK;
 		ieee80211_tx_skb_tid_band(sdata, skb, 7, channel->band);
 	}
 }
@@ -1013,10 +1015,8 @@ set_channel:
 	 */
 	if ((chan->flags & (IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_RADAR)) ||
 	    !scan_req->n_ssids) {
-		*next_delay = msecs_to_jiffies(scan_req->duration) >
-			      IEEE80211_PASSIVE_CHANNEL_TIME ?
-			      msecs_to_jiffies(scan_req->duration) :
-			      IEEE80211_PASSIVE_CHANNEL_TIME;
+		*next_delay = max(msecs_to_jiffies(scan_req->duration),
+				  IEEE80211_PASSIVE_CHANNEL_TIME);
 		local->next_scan_state = SCAN_DECISION;
 		if (scan_req->n_ssids)
 			set_bit(SCAN_BEACON_WAIT, &local->scanning);
@@ -1176,14 +1176,14 @@ int ieee80211_request_ibss_scan(struct ieee80211_sub_if_data *sdata,
 				unsigned int n_channels)
 {
 	struct ieee80211_local *local = sdata->local;
-	int ret = -EBUSY, i, n_ch = 0;
+	int i, n_ch = 0;
 	enum nl80211_band band;
 
 	lockdep_assert_wiphy(local->hw.wiphy);
 
 	/* busy scanning */
 	if (local->scan_req)
-		goto unlock;
+		return -EBUSY;
 
 	/* fill internal scan request */
 	if (!channels) {
@@ -1200,7 +1200,9 @@ int ieee80211_request_ibss_scan(struct ieee80211_sub_if_data *sdata,
 				    &local->hw.wiphy->bands[band]->channels[i];
 
 				if (tmp_ch->flags & (IEEE80211_CHAN_NO_IR |
-						     IEEE80211_CHAN_DISABLED))
+						     IEEE80211_CHAN_DISABLED) ||
+				    !cfg80211_wdev_channel_allowed(&sdata->wdev,
+								   tmp_ch))
 					continue;
 
 				local->int_scan_req->channels[n_ch] = tmp_ch;
@@ -1209,21 +1211,23 @@ int ieee80211_request_ibss_scan(struct ieee80211_sub_if_data *sdata,
 		}
 
 		if (WARN_ON_ONCE(n_ch == 0))
-			goto unlock;
+			return -EINVAL;
 
 		local->int_scan_req->n_channels = n_ch;
 	} else {
 		for (i = 0; i < n_channels; i++) {
 			if (channels[i]->flags & (IEEE80211_CHAN_NO_IR |
-						  IEEE80211_CHAN_DISABLED))
+						  IEEE80211_CHAN_DISABLED) ||
+			    !cfg80211_wdev_channel_allowed(&sdata->wdev,
+							   channels[i]))
 				continue;
 
 			local->int_scan_req->channels[n_ch] = channels[i];
 			n_ch++;
 		}
 
-		if (WARN_ON_ONCE(n_ch == 0))
-			goto unlock;
+		if (n_ch == 0)
+			return -EINVAL;
 
 		local->int_scan_req->n_channels = n_ch;
 	}
@@ -1233,9 +1237,7 @@ int ieee80211_request_ibss_scan(struct ieee80211_sub_if_data *sdata,
 	memcpy(local->int_scan_req->ssids[0].ssid, ssid, IEEE80211_MAX_SSID_LEN);
 	local->int_scan_req->ssids[0].ssid_len = ssid_len;
 
-	ret = __ieee80211_start_scan(sdata, sdata->local->int_scan_req);
- unlock:
-	return ret;
+	return __ieee80211_start_scan(sdata, sdata->local->int_scan_req);
 }
 
 void ieee80211_scan_cancel(struct ieee80211_local *local)

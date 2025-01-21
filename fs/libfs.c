@@ -77,6 +77,10 @@ struct dentry *simple_lookup(struct inode *dir, struct dentry *dentry, unsigned 
 		return ERR_PTR(-ENAMETOOLONG);
 	if (!dentry->d_sb->s_d_op)
 		d_set_d_op(dentry, &simple_dentry_operations);
+
+	if (IS_ENABLED(CONFIG_UNICODE) && IS_CASEFOLDED(dir))
+		return NULL;
+
 	d_add(dentry, NULL);
 	return NULL;
 }
@@ -914,7 +918,7 @@ static int simple_read_folio(struct file *file, struct folio *folio)
 
 int simple_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len,
-			struct page **pagep, void **fsdata)
+			struct folio **foliop, void **fsdata)
 {
 	struct folio *folio;
 
@@ -923,7 +927,7 @@ int simple_write_begin(struct file *file, struct address_space *mapping,
 	if (IS_ERR(folio))
 		return PTR_ERR(folio);
 
-	*pagep = &folio->page;
+	*foliop = folio;
 
 	if (!folio_test_uptodate(folio) && (len != folio_size(folio))) {
 		size_t from = offset_in_folio(folio, pos);
@@ -942,11 +946,11 @@ EXPORT_SYMBOL(simple_write_begin);
  * @pos: 		"
  * @len: 		"
  * @copied: 		"
- * @page: 		"
+ * @folio: 		"
  * @fsdata: 		"
  *
- * simple_write_end does the minimum needed for updating a page after writing is
- * done. It has the same API signature as the .write_end of
+ * simple_write_end does the minimum needed for updating a folio after
+ * writing is done. It has the same API signature as the .write_end of
  * address_space_operations vector. So it can just be set onto .write_end for
  * FSes that don't need any other processing. i_mutex is assumed to be held.
  * Block based filesystems should use generic_write_end().
@@ -959,9 +963,8 @@ EXPORT_SYMBOL(simple_write_begin);
  */
 static int simple_write_end(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned copied,
-			struct page *page, void *fsdata)
+			struct folio *folio, void *fsdata)
 {
-	struct folio *folio = page_folio(page);
 	struct inode *inode = folio->mapping->host;
 	loff_t last_pos = pos + copied;
 
@@ -1712,15 +1715,6 @@ static struct dentry *empty_dir_lookup(struct inode *dir, struct dentry *dentry,
 	return ERR_PTR(-ENOENT);
 }
 
-static int empty_dir_getattr(struct mnt_idmap *idmap,
-			     const struct path *path, struct kstat *stat,
-			     u32 request_mask, unsigned int query_flags)
-{
-	struct inode *inode = d_inode(path->dentry);
-	generic_fillattr(&nop_mnt_idmap, request_mask, inode, stat);
-	return 0;
-}
-
 static int empty_dir_setattr(struct mnt_idmap *idmap,
 			     struct dentry *dentry, struct iattr *attr)
 {
@@ -1734,9 +1728,7 @@ static ssize_t empty_dir_listxattr(struct dentry *dentry, char *list, size_t siz
 
 static const struct inode_operations empty_dir_inode_operations = {
 	.lookup		= empty_dir_lookup,
-	.permission	= generic_permission,
 	.setattr	= empty_dir_setattr,
-	.getattr	= empty_dir_getattr,
 	.listxattr	= empty_dir_listxattr,
 };
 
@@ -1792,8 +1784,8 @@ bool is_empty_dir_inode(struct inode *inode)
  *
  * Return: 0 if names match, 1 if mismatch, or -ERRNO
  */
-static int generic_ci_d_compare(const struct dentry *dentry, unsigned int len,
-				const char *str, const struct qstr *name)
+int generic_ci_d_compare(const struct dentry *dentry, unsigned int len,
+			 const char *str, const struct qstr *name)
 {
 	const struct dentry *parent;
 	const struct inode *dir;
@@ -1836,6 +1828,7 @@ static int generic_ci_d_compare(const struct dentry *dentry, unsigned int len,
 
 	return utf8_strncasecmp(dentry->d_sb->s_encoding, name, &qstr);
 }
+EXPORT_SYMBOL(generic_ci_d_compare);
 
 /**
  * generic_ci_d_hash - generic d_hash implementation for casefolding filesystems
@@ -1844,7 +1837,7 @@ static int generic_ci_d_compare(const struct dentry *dentry, unsigned int len,
  *
  * Return: 0 if hash was successful or unchanged, and -EINVAL on error
  */
-static int generic_ci_d_hash(const struct dentry *dentry, struct qstr *str)
+int generic_ci_d_hash(const struct dentry *dentry, struct qstr *str)
 {
 	const struct inode *dir = READ_ONCE(dentry->d_inode);
 	struct super_block *sb = dentry->d_sb;
@@ -1859,6 +1852,7 @@ static int generic_ci_d_hash(const struct dentry *dentry, struct qstr *str)
 		return -EINVAL;
 	return 0;
 }
+EXPORT_SYMBOL(generic_ci_d_hash);
 
 static const struct dentry_operations generic_ci_dentry_ops = {
 	.d_hash = generic_ci_d_hash,
@@ -2003,13 +1997,19 @@ bool inode_maybe_inc_iversion(struct inode *inode, bool force)
 	 * information, but the legacy inode_inc_iversion code used a spinlock
 	 * to serialize increments.
 	 *
-	 * Here, we add full memory barriers to ensure that any de-facto
-	 * ordering with other info is preserved.
+	 * We add a full memory barrier to ensure that any de facto ordering
+	 * with other state is preserved (either implicitly coming from cmpxchg
+	 * or explicitly from smp_mb if we don't know upfront if we will execute
+	 * the former).
 	 *
-	 * This barrier pairs with the barrier in inode_query_iversion()
+	 * These barriers pair with inode_query_iversion().
 	 */
-	smp_mb();
 	cur = inode_peek_iversion_raw(inode);
+	if (!force && !(cur & I_VERSION_QUERIED)) {
+		smp_mb();
+		cur = inode_peek_iversion_raw(inode);
+	}
+
 	do {
 		/* If flag is clear then we needn't do anything */
 		if (!force && !(cur & I_VERSION_QUERIED))
@@ -2038,20 +2038,22 @@ EXPORT_SYMBOL(inode_maybe_inc_iversion);
 u64 inode_query_iversion(struct inode *inode)
 {
 	u64 cur, new;
+	bool fenced = false;
 
+	/*
+	 * Memory barriers (implicit in cmpxchg, explicit in smp_mb) pair with
+	 * inode_maybe_inc_iversion(), see that routine for more details.
+	 */
 	cur = inode_peek_iversion_raw(inode);
 	do {
 		/* If flag is already set, then no need to swap */
 		if (cur & I_VERSION_QUERIED) {
-			/*
-			 * This barrier (and the implicit barrier in the
-			 * cmpxchg below) pairs with the barrier in
-			 * inode_maybe_inc_iversion().
-			 */
-			smp_mb();
+			if (!fenced)
+				smp_mb();
 			break;
 		}
 
+		fenced = true;
 		new = cur | I_VERSION_QUERIED;
 	} while (!atomic64_try_cmpxchg(&inode->i_version, &cur, new));
 	return cur >> I_VERSION_QUERIED_SHIFT;
@@ -2117,12 +2119,12 @@ struct timespec64 simple_inode_init_ts(struct inode *inode)
 }
 EXPORT_SYMBOL(simple_inode_init_ts);
 
-static inline struct dentry *get_stashed_dentry(struct dentry *stashed)
+static inline struct dentry *get_stashed_dentry(struct dentry **stashed)
 {
 	struct dentry *dentry;
 
 	guard(rcu)();
-	dentry = READ_ONCE(stashed);
+	dentry = rcu_dereference(*stashed);
 	if (!dentry)
 		return NULL;
 	if (!lockref_get_not_dead(&dentry->d_lockref))
@@ -2219,7 +2221,7 @@ int path_from_stashed(struct dentry **stashed, struct vfsmount *mnt, void *data,
 	const struct stashed_operations *sops = mnt->mnt_sb->s_fs_info;
 
 	/* See if dentry can be reused. */
-	path->dentry = get_stashed_dentry(*stashed);
+	path->dentry = get_stashed_dentry(stashed);
 	if (path->dentry) {
 		sops->put_data(data);
 		goto out_path;

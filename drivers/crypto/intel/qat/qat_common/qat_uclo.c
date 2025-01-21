@@ -58,7 +58,7 @@ static int qat_uclo_free_ae_data(struct icp_qat_uclo_aedata *ae_data)
 	unsigned int i;
 
 	if (!ae_data) {
-		pr_err("QAT: bad argument, ae_data is NULL\n ");
+		pr_err("QAT: bad argument, ae_data is NULL\n");
 		return -EINVAL;
 	}
 

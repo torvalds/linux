@@ -12,6 +12,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/power/qcom-rpmpd.h>
 #include <dt-bindings/reset/qcom,gcc-msm8974.h>
+#include <dt-bindings/thermal/thermal.h>
 
 / {
 	#address-cells = <1>;
@@ -38,47 +39,59 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		CPU0: cpu@0 {
+		cpu0: cpu@0 {
 			compatible = "arm,cortex-a7";
 			enable-method = "qcom,msm8226-smp";
 			device_type = "cpu";
 			reg = <0>;
-			next-level-cache = <&L2>;
+			next-level-cache = <&l2>;
+			clocks = <&apcs>;
+			operating-points-v2 = <&cpu_opp_table>;
 			qcom,acc = <&acc0>;
 			qcom,saw = <&saw0>;
+			#cooling-cells = <2>;
 		};
 
-		CPU1: cpu@1 {
+		cpu1: cpu@1 {
 			compatible = "arm,cortex-a7";
 			enable-method = "qcom,msm8226-smp";
 			device_type = "cpu";
 			reg = <1>;
-			next-level-cache = <&L2>;
+			next-level-cache = <&l2>;
+			clocks = <&apcs>;
+			operating-points-v2 = <&cpu_opp_table>;
 			qcom,acc = <&acc1>;
 			qcom,saw = <&saw1>;
+			#cooling-cells = <2>;
 		};
 
-		CPU2: cpu@2 {
+		cpu2: cpu@2 {
 			compatible = "arm,cortex-a7";
 			enable-method = "qcom,msm8226-smp";
 			device_type = "cpu";
 			reg = <2>;
-			next-level-cache = <&L2>;
+			next-level-cache = <&l2>;
+			clocks = <&apcs>;
+			operating-points-v2 = <&cpu_opp_table>;
 			qcom,acc = <&acc2>;
 			qcom,saw = <&saw2>;
+			#cooling-cells = <2>;
 		};
 
-		CPU3: cpu@3 {
+		cpu3: cpu@3 {
 			compatible = "arm,cortex-a7";
 			enable-method = "qcom,msm8226-smp";
 			device_type = "cpu";
 			reg = <3>;
-			next-level-cache = <&L2>;
+			next-level-cache = <&l2>;
+			clocks = <&apcs>;
+			operating-points-v2 = <&cpu_opp_table>;
 			qcom,acc = <&acc3>;
 			qcom,saw = <&saw3>;
+			#cooling-cells = <2>;
 		};
 
-		L2: l2-cache {
+		l2: l2-cache {
 			compatible = "cache";
 			cache-level = <2>;
 			cache-unified;
@@ -96,6 +109,29 @@
 	memory@0 {
 		device_type = "memory";
 		reg = <0x0 0x0>;
+	};
+
+	cpu_opp_table: opp-table-cpu {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp-300000000 {
+			opp-hz = /bits/ 64 <300000000>;
+		};
+
+		opp-384000000 {
+			opp-hz = /bits/ 64 <384000000>;
+		};
+
+		opp-600000000 {
+			opp-hz = /bits/ 64 <600000000>;
+		};
+
+		opp-787200000 {
+			opp-hz = /bits/ 64 <787200000>;
+		};
+
+		/* Higher CPU frequencies need speedbin support */
 	};
 
 	pmu {
@@ -121,11 +157,11 @@
 
 		smd-edge {
 			interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
-			qcom,ipc = <&apcs 8 0>;
+			mboxes = <&apcs 0>;
 			qcom,smd-edge = <15>;
 
 			rpm_requests: rpm-requests {
-				compatible = "qcom,rpm-msm8226";
+				compatible = "qcom,rpm-msm8226", "qcom,smd-rpm";
 				qcom,smd-channels = "rpm_requests";
 
 				rpmcc: clock-controller {
@@ -199,7 +235,7 @@
 		interrupt-parent = <&intc>;
 		interrupts = <GIC_SPI 158 IRQ_TYPE_EDGE_RISING>;
 
-		qcom,ipc = <&apcs 8 10>;
+		mboxes = <&apcs 10>;
 
 		qcom,local-pid = <0>;
 		qcom,remote-pid = <2>;
@@ -231,9 +267,75 @@
 			#interrupt-cells = <3>;
 		};
 
-		apcs: syscon@f9011000 {
-			compatible = "syscon";
+		apcs: mailbox@f9011000 {
+			compatible = "qcom,msm8226-apcs-kpss-global",
+				     "qcom,msm8916-apcs-kpss-global", "syscon";
 			reg = <0xf9011000 0x1000>;
+			#mbox-cells = <1>;
+			clocks = <&a7pll>, <&gcc GPLL0_VOTE>;
+			clock-names = "pll", "aux";
+			#clock-cells = <0>;
+		};
+
+		a7pll: clock@f9016000 {
+			compatible = "qcom,msm8226-a7pll";
+			reg = <0xf9016000 0x40>;
+			#clock-cells = <0>;
+			clocks = <&xo_board>;
+			clock-names = "xo";
+			operating-points-v2 = <&a7pll_opp_table>;
+
+			a7pll_opp_table: opp-table {
+				compatible = "operating-points-v2";
+
+				opp-768000000 {
+					opp-hz = /bits/ 64 <768000000>;
+				};
+
+				opp-787200000 {
+					opp-hz = /bits/ 64 <787200000>;
+				};
+
+				opp-998400000 {
+					opp-hz = /bits/ 64 <998400000>;
+				};
+
+				opp-1094400000 {
+					opp-hz = /bits/ 64 <1094400000>;
+				};
+
+				opp-1190400000 {
+					opp-hz = /bits/ 64 <1190400000>;
+				};
+
+				opp-1305600000 {
+					opp-hz = /bits/ 64 <1305600000>;
+				};
+
+				opp-1344000000 {
+					opp-hz = /bits/ 64 <1344000000>;
+				};
+
+				opp-1401600000 {
+					opp-hz = /bits/ 64 <1401600000>;
+				};
+
+				opp-1497600000 {
+					opp-hz = /bits/ 64 <1497600000>;
+				};
+
+				opp-1593600000 {
+					opp-hz = /bits/ 64 <1593600000>;
+				};
+
+				opp-1689600000 {
+					opp-hz = /bits/ 64 <1689600000>;
+				};
+
+				opp-1785600000 {
+					opp-hz = /bits/ 64 <1785600000>;
+				};
+			};
 		};
 
 		saw_l2: power-manager@f9012000 {
@@ -571,7 +673,7 @@
 			#reset-cells = <1>;
 			#power-domain-cells = <1>;
 
-			clocks = <&rpmcc RPM_SMD_XO_CLK_SRC>,
+			clocks = <&xo_board>,
 				 <&sleep_clk>;
 			clock-names = "xo",
 				      "sleep_clk";
@@ -1130,7 +1232,7 @@
 			smd-edge {
 				interrupts = <GIC_SPI 156 IRQ_TYPE_EDGE_RISING>;
 
-				qcom,ipc = <&apcs 8 8>;
+				mboxes = <&apcs 8>;
 				qcom,smd-edge = <1>;
 
 				label = "lpass";
@@ -1159,6 +1261,16 @@
 
 			thermal-sensors = <&tsens 5>;
 
+			cooling-maps {
+				map0 {
+					trip = <&cpu_alert0>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
+
 			trips {
 				cpu_alert0: trip0 {
 					temperature = <75000>;
@@ -1179,6 +1291,16 @@
 			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 2>;
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu_alert1>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
 
 			trips {
 				cpu_alert1: trip0 {

@@ -39,8 +39,8 @@ of the box, e.g.::
 Debian
 ******
 
-Debian Unstable (Sid), outside of the freeze period, provides recent Rust
-releases and thus it should generally work out of the box, e.g.::
+Debian Testing and Debian Unstable (Sid), outside of the freeze period, provide
+recent Rust releases and thus they should generally work out of the box, e.g.::
 
 	apt install rustc rust-src bindgen rustfmt rust-clippy
 
@@ -85,6 +85,23 @@ openSUSE Slowroll and openSUSE Tumbleweed provide recent Rust releases and thus
 they should generally work out of the box, e.g.::
 
 	zypper install rust rust1.79-src rust-bindgen clang
+
+
+Ubuntu
+******
+
+Ubuntu LTS and non-LTS (interim) releases provide recent Rust releases and thus
+they should generally work out of the box, e.g.::
+
+	apt install rustc-1.80 rust-1.80-src bindgen-0.65 rustfmt-1.80 rust-1.80-clippy
+
+``RUST_LIB_SRC`` needs to be set when using the versioned packages, e.g.::
+
+	RUST_LIB_SRC=/usr/src/rustc-$(rustc-1.80 --version | cut -d' ' -f2)/library
+
+In addition, ``bindgen-0.65`` is available in newer releases (24.04 LTS and
+24.10), but it may not be available in older ones (20.04 LTS and 22.04 LTS),
+thus ``bindgen`` may need to be built manually (please see below).
 
 
 Requirements: Building
@@ -305,7 +322,7 @@ If GDB/Binutils is used and Rust symbols are not getting demangled, the reason
 is the toolchain does not support Rust's new v0 mangling scheme yet.
 There are a few ways out:
 
-  - Install a newer release (GDB >= 10.2, Binutils >= 2.36).
+- Install a newer release (GDB >= 10.2, Binutils >= 2.36).
 
-  - Some versions of GDB (e.g. vanilla GDB 10.1) are able to use
-    the pre-demangled names embedded in the debug info (``CONFIG_DEBUG_INFO``).
+- Some versions of GDB (e.g. vanilla GDB 10.1) are able to use
+  the pre-demangled names embedded in the debug info (``CONFIG_DEBUG_INFO``).

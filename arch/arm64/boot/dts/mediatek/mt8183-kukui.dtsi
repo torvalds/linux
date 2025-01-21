@@ -24,7 +24,7 @@
 	backlight_lcd0: backlight_lcd0 {
 		compatible = "pwm-backlight";
 		pwms = <&pwm0 0 500000>;
-		power-supply = <&bl_pp5000>;
+		power-supply = <&reg_vsys>;
 		enable-gpios = <&pio 176 0>;
 		brightness-levels = <0 1023>;
 		num-interpolated-steps = <1023>;
@@ -47,42 +47,9 @@
 	it6505_pp18_reg: regulator0 {
 		compatible = "regulator-fixed";
 		regulator-name = "it6505_pp18";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
 		gpio = <&pio 178 0>;
 		enable-active-high;
-	};
-
-	lcd_pp3300: regulator1 {
-		compatible = "regulator-fixed";
-		regulator-name = "lcd_pp3300";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-always-on;
-		regulator-boot-on;
-	};
-
-	bl_pp5000: regulator2 {
-		compatible = "regulator-fixed";
-		regulator-name = "bl_pp5000";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		regulator-always-on;
-		regulator-boot-on;
-	};
-
-	mmc1_fixed_power: regulator3 {
-		compatible = "regulator-fixed";
-		regulator-name = "mmc1_power";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-	};
-
-	mmc1_fixed_io: regulator4 {
-		compatible = "regulator-fixed";
-		regulator-name = "mmc1_io";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
+		vin-supply = <&pp1800_alw>;
 	};
 
 	pp1800_alw: regulator5 {
@@ -92,6 +59,7 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
+		vin-supply = <&reg_vsys>;
 	};
 
 	pp3300_alw: regulator6 {
@@ -101,6 +69,7 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+		vin-supply = <&reg_vsys>;
 	};
 
 	/* system wide semi-regulated power rail from charger */
@@ -300,6 +269,11 @@
 	};
 };
 
+&dpi0 {
+	/* TODO Re-enable after DP to Type-C port muxing can be described */
+	status = "disabled";
+};
+
 &gic {
 	mediatek,broken-save-restore-fw;
 };
@@ -379,8 +353,8 @@
 	pinctrl-names = "default", "state_uhs";
 	pinctrl-0 = <&mmc1_pins_default>;
 	pinctrl-1 = <&mmc1_pins_uhs>;
-	vmmc-supply = <&mmc1_fixed_power>;
-	vqmmc-supply = <&mmc1_fixed_io>;
+	vmmc-supply = <&pp3300_alw>;
+	vqmmc-supply = <&pp1800_alw>;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	bus-width = <4>;
 	max-frequency = <200000000>;
@@ -866,10 +840,6 @@
 
 &mfg {
 	domain-supply = <&mt6358_vgpu_reg>;
-};
-
-&soc_data {
-	status = "okay";
 };
 
 &spi0 {

@@ -208,8 +208,7 @@
 		clocks = <&sn65dsi86_refclk>;
 		clock-names = "refclk";
 
-		interrupt-parent = <&intc_ex>;
-		interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts-extended = <&intc_ex 0 IRQ_TYPE_LEVEL_HIGH>;
 
 		vccio-supply = <&reg_1p8v>;
 		vpll-supply = <&reg_1p8v>;

@@ -5,6 +5,8 @@
 #ifndef __PANTHOR_GPU_H__
 #define __PANTHOR_GPU_H__
 
+#include <linux/types.h>
+
 struct panthor_device;
 
 int panthor_gpu_init(struct panthor_device *ptdev);
@@ -48,5 +50,7 @@ int panthor_gpu_l2_power_on(struct panthor_device *ptdev);
 int panthor_gpu_flush_caches(struct panthor_device *ptdev,
 			     u32 l2, u32 lsc, u32 other);
 int panthor_gpu_soft_reset(struct panthor_device *ptdev);
+u64 panthor_gpu_read_timestamp(struct panthor_device *ptdev);
+u64 panthor_gpu_read_timestamp_offset(struct panthor_device *ptdev);
 
 #endif

@@ -337,6 +337,11 @@ static const struct rtw89_pwr_cfg rtw8852a_pwroff[] = {
 	 PWR_INTF_MSK_PCIE,
 	 PWR_BASE_MAC,
 	 PWR_CMD_WRITE, BIT(0), 0},
+	{0x0092,
+	 PWR_CV_MSK_ALL,
+	 PWR_INTF_MSK_PCIE,
+	 PWR_BASE_MAC,
+	 PWR_CMD_WRITE, BIT(4), BIT(4)},
 	{0x0005,
 	 PWR_CV_MSK_ALL,
 	 PWR_INTF_MSK_PCIE,
@@ -476,6 +481,15 @@ static const struct rtw89_xtal_info rtw8852a_xtal_info = {
 static const struct rtw89_rrsr_cfgs rtw8852a_rrsr_cfgs = {
 	.ref_rate = {R_AX_TRXPTCL_RRSR_CTL_0, B_AX_WMAC_RESP_REF_RATE_SEL, 0},
 	.rsc = {R_AX_TRXPTCL_RRSR_CTL_0, B_AX_WMAC_RESP_RSC_MASK, 2},
+};
+
+static const struct rtw89_rfkill_regs rtw8852a_rfkill_regs = {
+	.pinmux = {R_AX_GPIO8_15_FUNC_SEL,
+		   B_AX_PINMUX_GPIO9_FUNC_SEL_MASK,
+		   0xf},
+	.mode = {R_AX_GPIO_EXT_CTRL + 2,
+		 (B_AX_GPIO_MOD_9 | B_AX_GPIO_IO_SEL_9) >> 16,
+		 0x0},
 };
 
 static const struct rtw89_dig_regs rtw8852a_dig_regs = {
@@ -1332,29 +1346,34 @@ static void rtw8852a_rfk_init(struct rtw89_dev *rtwdev)
 	rtwdev->is_tssi_mode[RF_PATH_B] = false;
 
 	rtw8852a_rck(rtwdev);
-	rtw8852a_dack(rtwdev);
-	rtw8852a_rx_dck(rtwdev, RTW89_PHY_0, true);
+	rtw8852a_dack(rtwdev, RTW89_CHANCTX_0);
+	rtw8852a_rx_dck(rtwdev, RTW89_PHY_0, true, RTW89_CHANCTX_0);
 }
 
-static void rtw8852a_rfk_channel(struct rtw89_dev *rtwdev)
+static void rtw8852a_rfk_channel(struct rtw89_dev *rtwdev,
+				 struct rtw89_vif_link *rtwvif_link)
 {
-	enum rtw89_phy_idx phy_idx = RTW89_PHY_0;
+	enum rtw89_chanctx_idx chanctx_idx = rtwvif_link->chanctx_idx;
+	enum rtw89_phy_idx phy_idx = rtwvif_link->phy_idx;
 
-	rtw8852a_rx_dck(rtwdev, phy_idx, true);
-	rtw8852a_iqk(rtwdev, phy_idx);
-	rtw8852a_tssi(rtwdev, phy_idx);
-	rtw8852a_dpk(rtwdev, phy_idx);
+	rtw8852a_rx_dck(rtwdev, phy_idx, true, chanctx_idx);
+	rtw8852a_iqk(rtwdev, phy_idx, chanctx_idx);
+	rtw8852a_tssi(rtwdev, phy_idx, chanctx_idx);
+	rtw8852a_dpk(rtwdev, phy_idx, chanctx_idx);
 }
 
 static void rtw8852a_rfk_band_changed(struct rtw89_dev *rtwdev,
-				      enum rtw89_phy_idx phy_idx)
+				      enum rtw89_phy_idx phy_idx,
+				      const struct rtw89_chan *chan)
 {
-	rtw8852a_tssi_scan(rtwdev, phy_idx);
+	rtw8852a_tssi_scan(rtwdev, phy_idx, chan);
 }
 
-static void rtw8852a_rfk_scan(struct rtw89_dev *rtwdev, bool start)
+static void rtw8852a_rfk_scan(struct rtw89_dev *rtwdev,
+			      struct rtw89_vif_link *rtwvif_link,
+			      bool start)
 {
-	rtw8852a_wifi_scan_notify(rtwdev, start, RTW89_PHY_0);
+	rtw8852a_wifi_scan_notify(rtwdev, start, rtwvif_link->phy_idx);
 }
 
 static void rtw8852a_rfk_track(struct rtw89_dev *rtwdev)
@@ -1534,10 +1553,8 @@ static void rtw8852a_start_pmac_tx(struct rtw89_dev *rtwdev,
 
 void rtw8852a_bb_set_pmac_tx(struct rtw89_dev *rtwdev,
 			     struct rtw8852a_bb_pmac_info *tx_info,
-			     enum rtw89_phy_idx idx)
+			     enum rtw89_phy_idx idx, const struct rtw89_chan *chan)
 {
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
-
 	if (!tx_info->en_pmac_tx) {
 		rtw8852a_stop_pmac_tx(rtwdev, tx_info, idx);
 		rtw89_phy_write32_idx(rtwdev, R_PD_CTRL, B_PD_HIT_DIS, 0, idx);
@@ -1559,7 +1576,7 @@ void rtw8852a_bb_set_pmac_tx(struct rtw89_dev *rtwdev,
 
 void rtw8852a_bb_set_pmac_pkt_tx(struct rtw89_dev *rtwdev, u8 enable,
 				 u16 tx_cnt, u16 period, u16 tx_time,
-				 enum rtw89_phy_idx idx)
+				 enum rtw89_phy_idx idx, const struct rtw89_chan *chan)
 {
 	struct rtw8852a_bb_pmac_info tx_info = {0};
 
@@ -1569,7 +1586,7 @@ void rtw8852a_bb_set_pmac_pkt_tx(struct rtw89_dev *rtwdev, u8 enable,
 	tx_info.tx_cnt = tx_cnt;
 	tx_info.period = period;
 	tx_info.tx_time = tx_time;
-	rtw8852a_bb_set_pmac_tx(rtwdev, &tx_info, idx);
+	rtw8852a_bb_set_pmac_tx(rtwdev, &tx_info, idx, chan);
 }
 
 void rtw8852a_bb_set_power(struct rtw89_dev *rtwdev, s16 pwr_dbm,
@@ -2098,9 +2115,11 @@ static const struct rtw89_chip_ops rtw8852a_chip_ops = {
 	.get_thermal		= rtw8852a_get_thermal,
 	.ctrl_btg_bt_rx		= rtw8852a_ctrl_btg_bt_rx,
 	.query_ppdu		= rtw8852a_query_ppdu,
+	.convert_rpl_to_rssi	= NULL,
 	.ctrl_nbtg_bt_tx	= rtw8852a_ctrl_nbtg_bt_tx,
 	.cfg_txrx_path		= NULL,
 	.set_txpwr_ul_tb_offset	= rtw8852a_set_txpwr_ul_tb_offset,
+	.digital_pwr_comp	= NULL,
 	.pwr_on_func		= NULL,
 	.pwr_off_func		= NULL,
 	.query_rxdesc		= rtw89_core_query_rxdesc,
@@ -2151,6 +2170,7 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.wde_qempty_acq_grpnum	= 16,
 	.wde_qempty_mgq_grpsel	= 16,
 	.rf_base_addr		= {0xc000, 0xd000},
+	.thermal_th		= {0x32, 0x35},
 	.pwr_on_seq		= pwr_on_seq_8852a,
 	.pwr_off_seq		= pwr_off_seq_8852a,
 	.bb_table		= &rtw89_8852a_phy_bb_table,
@@ -2167,6 +2187,7 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.dig_regs		= &rtw8852a_dig_regs,
 	.tssi_dbw_table		= NULL,
 	.support_macid_num	= RTW89_MAX_MAC_ID_NUM,
+	.support_link_num	= 0,
 	.support_chanctx_num	= 1,
 	.support_rnr		= false,
 	.support_bands		= BIT(NL80211_BAND_2GHZ) |
@@ -2178,6 +2199,7 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.ul_tb_waveform_ctrl	= false,
 	.ul_tb_pwr_diff		= false,
 	.hw_sec_hdr		= false,
+	.hw_mgmt_tx_encrypt	= false,
 	.rf_path_num		= 2,
 	.tx_nss			= 2,
 	.rx_nss			= 2,
@@ -2240,6 +2262,8 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.rrsr_cfgs		= &rtw8852a_rrsr_cfgs,
 	.bss_clr_vld		= {R_BSS_CLR_MAP, B_BSS_CLR_MAP_VLD0},
 	.bss_clr_map_reg	= R_BSS_CLR_MAP,
+	.rfkill_init		= &rtw8852a_rfkill_regs,
+	.rfkill_get		= {R_AX_GPIO_EXT_CTRL, B_AX_GPIO_IN_9},
 	.dma_ch_mask		= 0,
 	.edcca_regs		= &rtw8852a_edcca_regs,
 #ifdef CONFIG_PM

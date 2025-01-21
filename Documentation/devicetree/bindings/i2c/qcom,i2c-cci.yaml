@@ -27,6 +27,7 @@ properties:
           - enum:
               - qcom,sc7280-cci
               - qcom,sc8280xp-cci
+              - qcom,sdm670-cci
               - qcom,sdm845-cci
               - qcom,sm6350-cci
               - qcom,sm8250-cci
@@ -130,6 +131,7 @@ allOf:
     then:
       properties:
         clocks:
+          minItems: 4
           maxItems: 4
         clock-names:
           items:
@@ -137,6 +139,24 @@ allOf:
             - const: cci_ahb
             - const: cci
             - const: camss_ahb
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,sdm670-cci
+    then:
+      properties:
+        clocks:
+          minItems: 4
+          maxItems: 4
+        clock-names:
+          items:
+            - const: camnoc_axi
+            - const: soc_ahb
+            - const: cpas_ahb
+            - const: cci
 
   - if:
       properties:

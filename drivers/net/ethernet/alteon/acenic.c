@@ -1560,9 +1560,9 @@ static void ace_watchdog(struct net_device *data, unsigned int txqueue)
 }
 
 
-static void ace_tasklet(struct tasklet_struct *t)
+static void ace_bh_work(struct work_struct *work)
 {
-	struct ace_private *ap = from_tasklet(ap, t, ace_tasklet);
+	struct ace_private *ap = from_work(ap, work, ace_bh_work);
 	struct net_device *dev = ap->ndev;
 	int cur_size;
 
@@ -1595,7 +1595,7 @@ static void ace_tasklet(struct tasklet_struct *t)
 #endif
 		ace_load_jumbo_rx_ring(dev, RX_JUMBO_SIZE - cur_size);
 	}
-	ap->tasklet_pending = 0;
+	ap->bh_work_pending = 0;
 }
 
 
@@ -1617,7 +1617,7 @@ static void ace_dump_trace(struct ace_private *ap)
  *
  * Loading rings is safe without holding the spin lock since this is
  * done only before the device is enabled, thus no interrupts are
- * generated and by the interrupt handler/tasklet handler.
+ * generated and by the interrupt handler/bh handler.
  */
 static void ace_load_std_rx_ring(struct net_device *dev, int nr_bufs)
 {
@@ -2160,7 +2160,7 @@ static irqreturn_t ace_interrupt(int irq, void *dev_id)
 	 */
 	if (netif_running(dev)) {
 		int cur_size;
-		int run_tasklet = 0;
+		int run_bh_work = 0;
 
 		cur_size = atomic_read(&ap->cur_rx_bufs);
 		if (cur_size < RX_LOW_STD_THRES) {
@@ -2172,7 +2172,7 @@ static irqreturn_t ace_interrupt(int irq, void *dev_id)
 				ace_load_std_rx_ring(dev,
 						     RX_RING_SIZE - cur_size);
 			} else
-				run_tasklet = 1;
+				run_bh_work = 1;
 		}
 
 		if (!ACE_IS_TIGON_I(ap)) {
@@ -2188,7 +2188,7 @@ static irqreturn_t ace_interrupt(int irq, void *dev_id)
 					ace_load_mini_rx_ring(dev,
 							      RX_MINI_SIZE - cur_size);
 				} else
-					run_tasklet = 1;
+					run_bh_work = 1;
 			}
 		}
 
@@ -2205,12 +2205,12 @@ static irqreturn_t ace_interrupt(int irq, void *dev_id)
 					ace_load_jumbo_rx_ring(dev,
 							       RX_JUMBO_SIZE - cur_size);
 				} else
-					run_tasklet = 1;
+					run_bh_work = 1;
 			}
 		}
-		if (run_tasklet && !ap->tasklet_pending) {
-			ap->tasklet_pending = 1;
-			tasklet_schedule(&ap->ace_tasklet);
+		if (run_bh_work && !ap->bh_work_pending) {
+			ap->bh_work_pending = 1;
+			queue_work(system_bh_wq, &ap->ace_bh_work);
 		}
 	}
 
@@ -2267,7 +2267,7 @@ static int ace_open(struct net_device *dev)
 	/*
 	 * Setup the bottom half rx ring refill handler
 	 */
-	tasklet_setup(&ap->ace_tasklet, ace_tasklet);
+	INIT_WORK(&ap->ace_bh_work, ace_bh_work);
 	return 0;
 }
 
@@ -2301,7 +2301,7 @@ static int ace_close(struct net_device *dev)
 	cmd.idx = 0;
 	ace_issue_cmd(regs, &cmd);
 
-	tasklet_kill(&ap->ace_tasklet);
+	cancel_work_sync(&ap->ace_bh_work);
 
 	/*
 	 * Make sure one CPU is not processing packets while

@@ -373,7 +373,7 @@ MODULE_DEVICE_TABLE(of, histb_xhci_of_match);
 
 static struct platform_driver histb_xhci_driver = {
 	.probe	= xhci_histb_probe,
-	.remove_new = xhci_histb_remove,
+	.remove = xhci_histb_remove,
 	.driver	= {
 		.name = "xhci-histb",
 		.pm = DEV_PM_OPS,

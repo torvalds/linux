@@ -272,16 +272,14 @@ static void qede_get_strings_stats_txq(struct qede_dev *edev,
 {
 	int i;
 
-	for (i = 0; i < QEDE_NUM_TQSTATS; i++) {
+	for (i = 0; i < QEDE_NUM_TQSTATS; i++)
 		if (txq->is_xdp)
-			sprintf(*buf, "%d [XDP]: %s",
-				QEDE_TXQ_XDP_TO_IDX(edev, txq),
-				qede_tqstats_arr[i].string);
+			ethtool_sprintf(buf, "%d [XDP]: %s",
+					QEDE_TXQ_XDP_TO_IDX(edev, txq),
+					qede_tqstats_arr[i].string);
 		else
-			sprintf(*buf, "%d_%d: %s", txq->index, txq->cos,
-				qede_tqstats_arr[i].string);
-		*buf += ETH_GSTRING_LEN;
-	}
+			ethtool_sprintf(buf, "%d_%d: %s", txq->index, txq->cos,
+					qede_tqstats_arr[i].string);
 }
 
 static void qede_get_strings_stats_rxq(struct qede_dev *edev,
@@ -289,11 +287,9 @@ static void qede_get_strings_stats_rxq(struct qede_dev *edev,
 {
 	int i;
 
-	for (i = 0; i < QEDE_NUM_RQSTATS; i++) {
-		sprintf(*buf, "%d: %s", rxq->rxq_id,
-			qede_rqstats_arr[i].string);
-		*buf += ETH_GSTRING_LEN;
-	}
+	for (i = 0; i < QEDE_NUM_RQSTATS; i++)
+		ethtool_sprintf(buf, "%d: %s", rxq->rxq_id,
+				qede_rqstats_arr[i].string);
 }
 
 static bool qede_is_irrelevant_stat(struct qede_dev *edev, int stat_index)
@@ -331,26 +327,26 @@ static void qede_get_strings_stats(struct qede_dev *edev, u8 *buf)
 	for (i = 0; i < QEDE_NUM_STATS; i++) {
 		if (qede_is_irrelevant_stat(edev, i))
 			continue;
-		strcpy(buf, qede_stats_arr[i].string);
-		buf += ETH_GSTRING_LEN;
+		ethtool_puts(&buf, qede_stats_arr[i].string);
 	}
 }
 
 static void qede_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 {
 	struct qede_dev *edev = netdev_priv(dev);
+	int i;
 
 	switch (stringset) {
 	case ETH_SS_STATS:
 		qede_get_strings_stats(edev, buf);
 		break;
 	case ETH_SS_PRIV_FLAGS:
-		memcpy(buf, qede_private_arr,
-		       ETH_GSTRING_LEN * QEDE_PRI_FLAG_LEN);
+		for (i = 0; i < QEDE_PRI_FLAG_LEN; i++)
+			ethtool_puts(&buf, qede_private_arr[i]);
 		break;
 	case ETH_SS_TEST:
-		memcpy(buf, qede_tests_str_arr,
-		       ETH_GSTRING_LEN * QEDE_ETHTOOL_TEST_MAX);
+		for (i = 0; i < QEDE_ETHTOOL_TEST_MAX; i++)
+			ethtool_puts(&buf, qede_tests_str_arr[i]);
 		break;
 	default:
 		DP_VERBOSE(edev, QED_MSG_DEBUG,

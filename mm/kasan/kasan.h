@@ -555,6 +555,12 @@ static inline bool kasan_arch_is_ready(void)	{ return true; }
 void kasan_kunit_test_suite_start(void);
 void kasan_kunit_test_suite_end(void);
 
+#ifdef CONFIG_RUST
+char kasan_test_rust_uaf(void);
+#else
+static inline char kasan_test_rust_uaf(void) { return '\0'; }
+#endif
+
 #else /* CONFIG_KASAN_KUNIT_TEST */
 
 static inline void kasan_kunit_test_suite_start(void) { }
@@ -562,7 +568,7 @@ static inline void kasan_kunit_test_suite_end(void) { }
 
 #endif /* CONFIG_KASAN_KUNIT_TEST */
 
-#if IS_ENABLED(CONFIG_KASAN_KUNIT_TEST) || IS_ENABLED(CONFIG_KASAN_MODULE_TEST)
+#if IS_ENABLED(CONFIG_KASAN_KUNIT_TEST)
 
 bool kasan_save_enable_multi_shot(void);
 void kasan_restore_multi_shot(bool enabled);

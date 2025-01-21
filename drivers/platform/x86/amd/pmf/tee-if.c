@@ -160,6 +160,46 @@ static void amd_pmf_apply_policies(struct amd_pmf_dev *dev, struct ta_pmf_enact_
 			dev_dbg(dev->dev, "update SYSTEM_STATE: %s\n",
 				amd_pmf_uevent_as_str(val));
 			break;
+
+		case PMF_POLICY_BIOS_OUTPUT_1:
+			amd_pmf_smartpc_apply_bios_output(dev, val, BIT(0), 0);
+			break;
+
+		case PMF_POLICY_BIOS_OUTPUT_2:
+			amd_pmf_smartpc_apply_bios_output(dev, val, BIT(1), 1);
+			break;
+
+		case PMF_POLICY_BIOS_OUTPUT_3:
+			amd_pmf_smartpc_apply_bios_output(dev, val, BIT(2), 2);
+			break;
+
+		case PMF_POLICY_BIOS_OUTPUT_4:
+			amd_pmf_smartpc_apply_bios_output(dev, val, BIT(3), 3);
+			break;
+
+		case PMF_POLICY_BIOS_OUTPUT_5:
+			amd_pmf_smartpc_apply_bios_output(dev, val, BIT(4), 4);
+			break;
+
+		case PMF_POLICY_BIOS_OUTPUT_6:
+			amd_pmf_smartpc_apply_bios_output(dev, val, BIT(5), 5);
+			break;
+
+		case PMF_POLICY_BIOS_OUTPUT_7:
+			amd_pmf_smartpc_apply_bios_output(dev, val, BIT(6), 6);
+			break;
+
+		case PMF_POLICY_BIOS_OUTPUT_8:
+			amd_pmf_smartpc_apply_bios_output(dev, val, BIT(7), 7);
+			break;
+
+		case PMF_POLICY_BIOS_OUTPUT_9:
+			amd_pmf_smartpc_apply_bios_output(dev, val, BIT(8), 8);
+			break;
+
+		case PMF_POLICY_BIOS_OUTPUT_10:
+			amd_pmf_smartpc_apply_bios_output(dev, val, BIT(9), 9);
+			break;
 		}
 	}
 }
@@ -217,7 +257,7 @@ static int amd_pmf_invoke_cmd_init(struct amd_pmf_dev *dev)
 		return -ENODEV;
 	}
 
-	dev_dbg(dev->dev, "Policy Binary size: %u bytes\n", dev->policy_sz);
+	dev_dbg(dev->dev, "Policy Binary size: %llu bytes\n", (unsigned long long)dev->policy_sz);
 	memset(dev->shbuf, 0, dev->policy_sz);
 	ta_sm = dev->shbuf;
 	in = &ta_sm->pmf_input.init_table;
@@ -472,9 +512,9 @@ int amd_pmf_init_smart_pc(struct amd_pmf_dev *dev)
 	if (ret)
 		goto error;
 
-	dev->policy_base = devm_ioremap(dev->dev, dev->policy_addr, dev->policy_sz);
-	if (!dev->policy_base) {
-		ret = -ENOMEM;
+	dev->policy_base = devm_ioremap_resource(dev->dev, dev->res);
+	if (IS_ERR(dev->policy_base)) {
+		ret = PTR_ERR(dev->policy_base);
 		goto error;
 	}
 

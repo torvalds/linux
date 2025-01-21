@@ -450,8 +450,9 @@ enum v4l2_subdev_pre_streamon_flags {
  *	already started or stopped subdev. Also see call_s_stream wrapper in
  *	v4l2-subdev.c.
  *
- *	New drivers should instead implement &v4l2_subdev_pad_ops.enable_streams
- *	and &v4l2_subdev_pad_ops.disable_streams operations, and use
+ *	This callback is DEPRECATED. New drivers should instead implement
+ *	&v4l2_subdev_pad_ops.enable_streams and
+ *	&v4l2_subdev_pad_ops.disable_streams operations, and use
  *	v4l2_subdev_s_stream_helper for the &v4l2_subdev_video_ops.s_stream
  *	operation to support legacy users.
  *
@@ -833,11 +834,19 @@ struct v4l2_subdev_state {
  *	v4l2_subdev_init_finalize() at initialization time). Do not call
  *	directly, use v4l2_subdev_enable_streams() instead.
  *
+ *	Drivers that support only a single stream without setting the
+ *	V4L2_SUBDEV_CAP_STREAMS sub-device capability flag can ignore the mask
+ *	argument.
+ *
  * @disable_streams: Disable the streams defined in streams_mask on the given
  *	source pad. Subdevs that implement this operation must use the active
  *	state management provided by the subdev core (enabled through a call to
  *	v4l2_subdev_init_finalize() at initialization time). Do not call
  *	directly, use v4l2_subdev_disable_streams() instead.
+ *
+ *	Drivers that support only a single stream without setting the
+ *	V4L2_SUBDEV_CAP_STREAMS sub-device capability flag can ignore the mask
+ *	argument.
  */
 struct v4l2_subdev_pad_ops {
 	int (*enum_mbus_code)(struct v4l2_subdev *sd,
@@ -1250,6 +1259,12 @@ int v4l2_subdev_link_validate_default(struct v4l2_subdev *sd,
  * calls v4l2_subdev_link_validate_default() to ensure that
  * width, height and the media bus pixel code are equal on both
  * source and sink of the link.
+ *
+ * The function can be used as a drop-in &media_entity_ops.link_validate
+ * implementation for v4l2_subdev instances. It supports all links between
+ * subdevs, as well as links between subdevs and video devices, provided that
+ * the video devices also implement their &media_entity_ops.link_validate
+ * operation.
  */
 int v4l2_subdev_link_validate(struct media_link *link);
 
@@ -1670,6 +1685,8 @@ int v4l2_subdev_routing_validate(struct v4l2_subdev *sd,
  * function implements a best-effort compatibility by calling the .s_stream()
  * operation, limited to subdevs that have a single source pad.
  *
+ * Drivers that are not stream-aware shall set @streams_mask to BIT_ULL(0).
+ *
  * Return:
  * * 0: Success
  * * -EALREADY: One of the streams in streams_mask is already enabled
@@ -1699,6 +1716,8 @@ int v4l2_subdev_enable_streams(struct v4l2_subdev *sd, u32 pad,
  * .enable_streams() and .disable_streams() operations. For other subdevs, this
  * function implements a best-effort compatibility by calling the .s_stream()
  * operation, limited to subdevs that have a single source pad.
+ *
+ * Drivers that are not stream-aware shall set @streams_mask to BIT_ULL(0).
  *
  * Return:
  * * 0: Success

@@ -81,12 +81,6 @@ static int rpi_read(struct device *dev, enum hwmon_sensor_types type,
 	return 0;
 }
 
-static umode_t rpi_is_visible(const void *_data, enum hwmon_sensor_types type,
-			      u32 attr, int channel)
-{
-	return 0444;
-}
-
 static const struct hwmon_channel_info * const rpi_info[] = {
 	HWMON_CHANNEL_INFO(in,
 			   HWMON_I_LCRIT_ALARM),
@@ -94,7 +88,7 @@ static const struct hwmon_channel_info * const rpi_info[] = {
 };
 
 static const struct hwmon_ops rpi_hwmon_ops = {
-	.is_visible = rpi_is_visible,
+	.visible = 0444,
 	.read = rpi_read,
 };
 

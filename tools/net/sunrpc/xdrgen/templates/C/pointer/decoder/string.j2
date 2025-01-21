@@ -1,0 +1,6 @@
+{# SPDX-License-Identifier: GPL-2.0 #}
+{% if annotate %}
+	/* member {{ name }} (variable-length string) */
+{% endif %}
+	if (!xdrgen_decode_string(xdr, (string *)ptr, {{ maxsize }}))
+		return false;

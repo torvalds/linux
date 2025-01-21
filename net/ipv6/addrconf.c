@@ -85,14 +85,12 @@
 #include <linux/netconf.h>
 #include <linux/random.h>
 #include <linux/uaccess.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/export.h>
 #include <linux/ioam6.h>
-
-#define	INFINITY_LIFE_TIME	0xFFFFFFFF
 
 #define IPV6_MAX_STRLEN \
 	sizeof("ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255")
@@ -239,6 +237,7 @@ static struct ipv6_devconf ipv6_devconf __read_mostly = {
 	.ioam6_id_wide		= IOAM6_DEFAULT_IF_ID_WIDE,
 	.ndisc_evict_nocarrier	= 1,
 	.ra_honor_pio_life	= 0,
+	.ra_honor_pio_pflag	= 0,
 };
 
 static struct ipv6_devconf ipv6_devconf_dflt __read_mostly = {
@@ -302,6 +301,7 @@ static struct ipv6_devconf ipv6_devconf_dflt __read_mostly = {
 	.ioam6_id_wide		= IOAM6_DEFAULT_IF_ID_WIDE,
 	.ndisc_evict_nocarrier	= 1,
 	.ra_honor_pio_life	= 0,
+	.ra_honor_pio_pflag	= 0,
 };
 
 /* Check if link is ready: is it up and is a valid qdisc available */
@@ -1016,7 +1016,7 @@ ipv6_link_dev_addr(struct inet6_dev *idev, struct inet6_ifaddr *ifp)
 
 static u32 inet6_addr_hash(const struct net *net, const struct in6_addr *addr)
 {
-	u32 val = ipv6_addr_hash(addr) ^ net_hash_mix(net);
+	u32 val = __ipv6_addr_jhash(addr, net_hash_mix(net));
 
 	return hash_32(val, IN6_ADDR_HSIZE_SHIFT);
 }
@@ -2570,6 +2570,24 @@ static struct inet6_dev *addrconf_add_dev(struct net_device *dev)
 	return idev;
 }
 
+static void delete_tempaddrs(struct inet6_dev *idev,
+			     struct inet6_ifaddr *ifp)
+{
+	struct inet6_ifaddr *ift, *tmp;
+
+	write_lock_bh(&idev->lock);
+	list_for_each_entry_safe(ift, tmp, &idev->tempaddr_list, tmp_list) {
+		if (ift->ifpub != ifp)
+			continue;
+
+		in6_ifa_hold(ift);
+		write_unlock_bh(&idev->lock);
+		ipv6_del_addr(ift);
+		write_lock_bh(&idev->lock);
+	}
+	write_unlock_bh(&idev->lock);
+}
+
 static void manage_tempaddrs(struct inet6_dev *idev,
 			     struct inet6_ifaddr *ifp,
 			     __u32 valid_lft, __u32 prefered_lft,
@@ -2762,6 +2780,7 @@ void addrconf_prefix_rcv(struct net_device *dev, u8 *opt, int len, bool sllao)
 	u32 addr_flags = 0;
 	struct inet6_dev *in6_dev;
 	struct net *net = dev_net(dev);
+	bool ignore_autoconf = false;
 
 	pinfo = (struct prefix_info *) opt;
 
@@ -2864,7 +2883,8 @@ void addrconf_prefix_rcv(struct net_device *dev, u8 *opt, int len, bool sllao)
 
 	/* Try to figure out our local address for this prefix */
 
-	if (pinfo->autoconf && in6_dev->cnf.autoconf) {
+	ignore_autoconf = READ_ONCE(in6_dev->cnf.ra_honor_pio_pflag) && pinfo->preferpd;
+	if (pinfo->autoconf && in6_dev->cnf.autoconf && !ignore_autoconf) {
 		struct in6_addr addr;
 		bool tokenized = false, dev_addr_generated = false;
 
@@ -3122,11 +3142,12 @@ static int inet6_addr_del(struct net *net, int ifindex, u32 ifa_flags,
 			in6_ifa_hold(ifp);
 			read_unlock_bh(&idev->lock);
 
-			if (!(ifp->flags & IFA_F_TEMPORARY) &&
-			    (ifa_flags & IFA_F_MANAGETEMPADDR))
-				manage_tempaddrs(idev, ifp, 0, 0, false,
-						 jiffies);
 			ipv6_del_addr(ifp);
+
+			if (!(ifp->flags & IFA_F_TEMPORARY) &&
+			    (ifp->flags & IFA_F_MANAGETEMPADDR))
+				delete_tempaddrs(idev, ifp);
+
 			addrconf_verify_rtnl(net);
 			if (ipv6_addr_is_multicast(pfx)) {
 				ipv6_mc_config(net->ipv6.mc_autojoin_sk,
@@ -4791,7 +4812,7 @@ inet6_rtm_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (!pfx)
 		return -EINVAL;
 
-	ifa_flags = tb[IFA_FLAGS] ? nla_get_u32(tb[IFA_FLAGS]) : ifm->ifa_flags;
+	ifa_flags = nla_get_u32_default(tb[IFA_FLAGS], ifm->ifa_flags);
 
 	/* We ignore other flags so far. */
 	ifa_flags &= IFA_F_MANAGETEMPADDR;
@@ -4800,7 +4821,7 @@ inet6_rtm_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh,
 			      ifm->ifa_prefixlen, extack);
 }
 
-static int modify_prefix_route(struct inet6_ifaddr *ifp,
+static int modify_prefix_route(struct net *net, struct inet6_ifaddr *ifp,
 			       unsigned long expires, u32 flags,
 			       bool modify_peer)
 {
@@ -4824,7 +4845,9 @@ static int modify_prefix_route(struct inet6_ifaddr *ifp,
 				      ifp->prefix_len,
 				      ifp->rt_priority, ifp->idev->dev,
 				      expires, flags, GFP_KERNEL);
-	} else {
+		return 0;
+	}
+	if (f6i != net->ipv6.fib6_null_entry) {
 		table = f6i->fib6_table;
 		spin_lock_bh(&table->tb6_lock);
 
@@ -4837,9 +4860,8 @@ static int modify_prefix_route(struct inet6_ifaddr *ifp,
 		}
 
 		spin_unlock_bh(&table->tb6_lock);
-
-		fib6_info_release(f6i);
 	}
+	fib6_info_release(f6i);
 
 	return 0;
 }
@@ -4918,7 +4940,7 @@ static int inet6_addr_modify(struct net *net, struct inet6_ifaddr *ifp,
 		int rc = -ENOENT;
 
 		if (had_prefixroute)
-			rc = modify_prefix_route(ifp, expires, flags, false);
+			rc = modify_prefix_route(net, ifp, expires, flags, false);
 
 		/* prefix route could have been deleted; if so restore it */
 		if (rc == -ENOENT) {
@@ -4928,7 +4950,7 @@ static int inet6_addr_modify(struct net *net, struct inet6_ifaddr *ifp,
 		}
 
 		if (had_prefixroute && !ipv6_addr_any(&ifp->peer_addr))
-			rc = modify_prefix_route(ifp, expires, flags, true);
+			rc = modify_prefix_route(net, ifp, expires, flags, true);
 
 		if (rc == -ENOENT && !ipv6_addr_any(&ifp->peer_addr)) {
 			addrconf_prefix_route(&ifp->peer_addr, ifp->prefix_len,
@@ -4950,14 +4972,12 @@ static int inet6_addr_modify(struct net *net, struct inet6_ifaddr *ifp,
 	}
 
 	if (was_managetempaddr || ifp->flags & IFA_F_MANAGETEMPADDR) {
-		if (was_managetempaddr &&
-		    !(ifp->flags & IFA_F_MANAGETEMPADDR)) {
-			cfg->valid_lft = 0;
-			cfg->preferred_lft = 0;
-		}
-		manage_tempaddrs(ifp->idev, ifp, cfg->valid_lft,
-				 cfg->preferred_lft, !was_managetempaddr,
-				 jiffies);
+		if (was_managetempaddr && !(ifp->flags & IFA_F_MANAGETEMPADDR))
+			delete_tempaddrs(ifp->idev, ifp);
+		else
+			manage_tempaddrs(ifp->idev, ifp, cfg->valid_lft,
+					 cfg->preferred_lft, !was_managetempaddr,
+					 jiffies);
 	}
 
 	addrconf_verify_rtnl(net);
@@ -5016,10 +5036,7 @@ inet6_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return -ENODEV;
 	}
 
-	if (tb[IFA_FLAGS])
-		cfg.ifa_flags = nla_get_u32(tb[IFA_FLAGS]);
-	else
-		cfg.ifa_flags = ifm->ifa_flags;
+	cfg.ifa_flags = nla_get_u32_default(tb[IFA_FLAGS], ifm->ifa_flags);
 
 	/* We ignore other flags so far. */
 	cfg.ifa_flags &= IFA_F_NODAD | IFA_F_HOMEADDRESS |
@@ -5617,8 +5634,7 @@ static void inet6_ifa_notify(int event, struct inet6_ifaddr *ifa)
 	rtnl_notify(skb, net, 0, RTNLGRP_IPV6_IFADDR, NULL, GFP_ATOMIC);
 	return;
 errout:
-	if (err < 0)
-		rtnl_set_sk_err(net, RTNLGRP_IPV6_IFADDR, err);
+	rtnl_set_sk_err(net, RTNLGRP_IPV6_IFADDR, err);
 }
 
 static void ipv6_store_devconf(const struct ipv6_devconf *cnf,
@@ -6173,8 +6189,7 @@ void inet6_ifinfo_notify(int event, struct inet6_dev *idev)
 	rtnl_notify(skb, net, 0, RTNLGRP_IPV6_IFINFO, NULL, GFP_ATOMIC);
 	return;
 errout:
-	if (err < 0)
-		rtnl_set_sk_err(net, RTNLGRP_IPV6_IFINFO, err);
+	rtnl_set_sk_err(net, RTNLGRP_IPV6_IFINFO, err);
 }
 
 static inline size_t inet6_prefix_nlmsg_size(void)
@@ -6241,8 +6256,7 @@ static void inet6_prefix_notify(int event, struct inet6_dev *idev,
 	rtnl_notify(skb, net, 0, RTNLGRP_IPV6_PREFIX, NULL, GFP_ATOMIC);
 	return;
 errout:
-	if (err < 0)
-		rtnl_set_sk_err(net, RTNLGRP_IPV6_PREFIX, err);
+	rtnl_set_sk_err(net, RTNLGRP_IPV6_PREFIX, err);
 }
 
 static void __ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)
@@ -6926,6 +6940,15 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
 	},
+	{
+		.procname	= "ra_honor_pio_pflag",
+		.data		= &ipv6_devconf.ra_honor_pio_pflag,
+		.maxlen		= sizeof(u8),
+		.mode		= 0644,
+		.proc_handler	= proc_dou8vec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
+	},
 #ifdef CONFIG_IPV6_ROUTER_PREF
 	{
 		.procname	= "accept_ra_rtr_pref",
@@ -7398,6 +7421,27 @@ static struct rtnl_af_ops inet6_ops __read_mostly = {
 	.set_link_af	  = inet6_set_link_af,
 };
 
+static const struct rtnl_msg_handler addrconf_rtnl_msg_handlers[] __initconst_or_module = {
+	{.owner = THIS_MODULE, .protocol = PF_INET6, .msgtype = RTM_GETLINK,
+	 .dumpit = inet6_dump_ifinfo, .flags = RTNL_FLAG_DUMP_UNLOCKED},
+	{.owner = THIS_MODULE, .protocol = PF_INET6, .msgtype = RTM_NEWADDR,
+	 .doit = inet6_rtm_newaddr},
+	{.owner = THIS_MODULE, .protocol = PF_INET6, .msgtype = RTM_DELADDR,
+	 .doit = inet6_rtm_deladdr},
+	{.owner = THIS_MODULE, .protocol = PF_INET6, .msgtype = RTM_GETADDR,
+	 .doit = inet6_rtm_getaddr, .dumpit = inet6_dump_ifaddr,
+	 .flags = RTNL_FLAG_DOIT_UNLOCKED | RTNL_FLAG_DUMP_UNLOCKED},
+	{.owner = THIS_MODULE, .protocol = PF_INET6, .msgtype = RTM_GETMULTICAST,
+	 .dumpit = inet6_dump_ifmcaddr,
+	 .flags = RTNL_FLAG_DUMP_UNLOCKED},
+	{.owner = THIS_MODULE, .protocol = PF_INET6, .msgtype = RTM_GETANYCAST,
+	 .dumpit = inet6_dump_ifacaddr,
+	 .flags = RTNL_FLAG_DUMP_UNLOCKED},
+	{.owner = THIS_MODULE, .protocol = PF_INET6, .msgtype = RTM_GETNETCONF,
+	 .doit = inet6_netconf_get_devconf, .dumpit = inet6_netconf_dump_devconf,
+	 .flags = RTNL_FLAG_DOIT_UNLOCKED | RTNL_FLAG_DUMP_UNLOCKED},
+};
+
 /*
  *	Init / cleanup code
  */
@@ -7439,44 +7483,14 @@ int __init addrconf_init(void)
 
 	addrconf_verify(&init_net);
 
-	rtnl_af_register(&inet6_ops);
+	err = rtnl_af_register(&inet6_ops);
+	if (err)
+		goto erraf;
 
-	err = rtnl_register_module(THIS_MODULE, PF_INET6, RTM_GETLINK,
-				   NULL, inet6_dump_ifinfo, RTNL_FLAG_DUMP_UNLOCKED);
-	if (err < 0)
+	err = rtnl_register_many(addrconf_rtnl_msg_handlers);
+	if (err)
 		goto errout;
 
-	err = rtnl_register_module(THIS_MODULE, PF_INET6, RTM_NEWADDR,
-				   inet6_rtm_newaddr, NULL, 0);
-	if (err < 0)
-		goto errout;
-	err = rtnl_register_module(THIS_MODULE, PF_INET6, RTM_DELADDR,
-				   inet6_rtm_deladdr, NULL, 0);
-	if (err < 0)
-		goto errout;
-	err = rtnl_register_module(THIS_MODULE, PF_INET6, RTM_GETADDR,
-				   inet6_rtm_getaddr, inet6_dump_ifaddr,
-				   RTNL_FLAG_DOIT_UNLOCKED |
-				   RTNL_FLAG_DUMP_UNLOCKED);
-	if (err < 0)
-		goto errout;
-	err = rtnl_register_module(THIS_MODULE, PF_INET6, RTM_GETMULTICAST,
-				   NULL, inet6_dump_ifmcaddr,
-				   RTNL_FLAG_DUMP_UNLOCKED);
-	if (err < 0)
-		goto errout;
-	err = rtnl_register_module(THIS_MODULE, PF_INET6, RTM_GETANYCAST,
-				   NULL, inet6_dump_ifacaddr,
-				   RTNL_FLAG_DUMP_UNLOCKED);
-	if (err < 0)
-		goto errout;
-	err = rtnl_register_module(THIS_MODULE, PF_INET6, RTM_GETNETCONF,
-				   inet6_netconf_get_devconf,
-				   inet6_netconf_dump_devconf,
-				   RTNL_FLAG_DOIT_UNLOCKED |
-				   RTNL_FLAG_DUMP_UNLOCKED);
-	if (err < 0)
-		goto errout;
 	err = ipv6_addr_label_rtnl_register();
 	if (err < 0)
 		goto errout;
@@ -7485,6 +7499,7 @@ int __init addrconf_init(void)
 errout:
 	rtnl_unregister_all(PF_INET6);
 	rtnl_af_unregister(&inet6_ops);
+erraf:
 	unregister_netdevice_notifier(&ipv6_dev_notf);
 errlo:
 	destroy_workqueue(addrconf_wq);

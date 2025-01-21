@@ -782,7 +782,7 @@ static void pvr_queue_start(struct pvr_queue *queue)
 		}
 	}
 
-	drm_sched_start(&queue->scheduler, true);
+	drm_sched_start(&queue->scheduler, 0);
 }
 
 /**
@@ -842,7 +842,7 @@ pvr_queue_timedout_job(struct drm_sched_job *s_job)
 	}
 	mutex_unlock(&pvr_dev->queues.lock);
 
-	drm_sched_start(sched, true);
+	drm_sched_start(sched, 0);
 
 	return DRM_GPU_SCHED_STAT_NOMINAL;
 }

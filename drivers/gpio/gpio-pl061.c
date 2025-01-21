@@ -291,7 +291,7 @@ static void pl061_irq_print_chip(struct irq_data *data, struct seq_file *p)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
 
-	seq_printf(p, dev_name(gc->parent));
+	seq_puts(p, dev_name(gc->parent));
 }
 
 static const struct irq_chip pl061_irq_chip = {

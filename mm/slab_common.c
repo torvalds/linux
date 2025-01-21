@@ -40,11 +40,6 @@ LIST_HEAD(slab_caches);
 DEFINE_MUTEX(slab_mutex);
 struct kmem_cache *kmem_cache;
 
-static LIST_HEAD(slab_caches_to_rcu_destroy);
-static void slab_caches_to_rcu_destroy_workfn(struct work_struct *work);
-static DECLARE_WORK(slab_caches_to_rcu_destroy_work,
-		    slab_caches_to_rcu_destroy_workfn);
-
 /*
  * Set of flags that will prevent slab merging
  */
@@ -88,12 +83,29 @@ unsigned int kmem_cache_size(struct kmem_cache *s)
 EXPORT_SYMBOL(kmem_cache_size);
 
 #ifdef CONFIG_DEBUG_VM
+
+static bool kmem_cache_is_duplicate_name(const char *name)
+{
+	struct kmem_cache *s;
+
+	list_for_each_entry(s, &slab_caches, list) {
+		if (!strcmp(s->name, name))
+			return true;
+	}
+
+	return false;
+}
+
 static int kmem_cache_sanity_check(const char *name, unsigned int size)
 {
 	if (!name || in_interrupt() || size > KMALLOC_MAX_SIZE) {
 		pr_err("kmem_cache_create(%s) integrity check failed\n", name);
 		return -EINVAL;
 	}
+
+	/* Duplicate names will confuse slabtop, et al */
+	WARN(kmem_cache_is_duplicate_name(name),
+			"kmem_cache of name '%s' already exists\n", name);
 
 	WARN_ON(strchr(name, ' '));	/* It confuses parsers */
 	return 0;
@@ -169,13 +181,14 @@ struct kmem_cache *find_mergeable(unsigned int size, unsigned int align,
 	if (ctor)
 		return NULL;
 
-	size = ALIGN(size, sizeof(void *));
-	align = calculate_alignment(flags, align, size);
-	size = ALIGN(size, align);
 	flags = kmem_cache_flags(flags, name);
 
 	if (flags & SLAB_NEVER_MERGE)
 		return NULL;
+
+	size = ALIGN(size, sizeof(void *));
+	align = calculate_alignment(flags, align, size);
+	size = ALIGN(size, align);
 
 	list_for_each_entry_reverse(s, &slab_caches, list) {
 		if (slab_unmergeable(s))
@@ -202,32 +215,26 @@ struct kmem_cache *find_mergeable(unsigned int size, unsigned int align,
 }
 
 static struct kmem_cache *create_cache(const char *name,
-		unsigned int object_size, unsigned int align,
-		slab_flags_t flags, unsigned int useroffset,
-		unsigned int usersize, void (*ctor)(void *),
-		struct kmem_cache *root_cache)
+				       unsigned int object_size,
+				       struct kmem_cache_args *args,
+				       slab_flags_t flags)
 {
 	struct kmem_cache *s;
 	int err;
 
-	if (WARN_ON(useroffset + usersize > object_size))
-		useroffset = usersize = 0;
+	/* If a custom freelist pointer is requested make sure it's sane. */
+	err = -EINVAL;
+	if (args->use_freeptr_offset &&
+	    (args->freeptr_offset >= object_size ||
+	     !(flags & SLAB_TYPESAFE_BY_RCU) ||
+	     !IS_ALIGNED(args->freeptr_offset, __alignof__(freeptr_t))))
+		goto out;
 
 	err = -ENOMEM;
 	s = kmem_cache_zalloc(kmem_cache, GFP_KERNEL);
 	if (!s)
 		goto out;
-
-	s->name = name;
-	s->size = s->object_size = object_size;
-	s->align = align;
-	s->ctor = ctor;
-#ifdef CONFIG_HARDENED_USERCOPY
-	s->useroffset = useroffset;
-	s->usersize = usersize;
-#endif
-
-	err = __kmem_cache_create(s, flags);
+	err = do_kmem_cache_create(s, name, object_size, args, flags);
 	if (err)
 		goto out_free_cache;
 
@@ -242,39 +249,36 @@ out:
 }
 
 /**
- * kmem_cache_create_usercopy - Create a cache with a region suitable
- * for copying to userspace
+ * __kmem_cache_create_args - Create a kmem cache.
  * @name: A string which is used in /proc/slabinfo to identify this cache.
- * @size: The size of objects to be created in this cache.
- * @align: The required alignment for the objects.
- * @flags: SLAB flags
- * @useroffset: Usercopy region offset
- * @usersize: Usercopy region size
- * @ctor: A constructor for the objects.
+ * @object_size: The size of objects to be created in this cache.
+ * @args: Additional arguments for the cache creation (see
+ *        &struct kmem_cache_args).
+ * @flags: See the desriptions of individual flags. The common ones are listed
+ *         in the description below.
  *
- * Cannot be called within a interrupt, but can be interrupted.
- * The @ctor is run when new pages are allocated by the cache.
+ * Not to be called directly, use the kmem_cache_create() wrapper with the same
+ * parameters.
  *
- * The flags are
+ * Commonly used @flags:
  *
- * %SLAB_POISON - Poison the slab with a known test pattern (a5a5a5a5)
- * to catch references to uninitialised memory.
+ * &SLAB_ACCOUNT - Account allocations to memcg.
  *
- * %SLAB_RED_ZONE - Insert `Red` zones around the allocated memory to check
- * for buffer overruns.
+ * &SLAB_HWCACHE_ALIGN - Align objects on cache line boundaries.
  *
- * %SLAB_HWCACHE_ALIGN - Align the objects in this cache to a hardware
- * cacheline.  This can be beneficial if you're counting cycles as closely
- * as davem.
+ * &SLAB_RECLAIM_ACCOUNT - Objects are reclaimable.
+ *
+ * &SLAB_TYPESAFE_BY_RCU - Slab page (not individual objects) freeing delayed
+ * by a grace period - see the full description before using.
+ *
+ * Context: Cannot be called within a interrupt, but can be interrupted.
  *
  * Return: a pointer to the cache on success, NULL on failure.
  */
-struct kmem_cache *
-kmem_cache_create_usercopy(const char *name,
-		  unsigned int size, unsigned int align,
-		  slab_flags_t flags,
-		  unsigned int useroffset, unsigned int usersize,
-		  void (*ctor)(void *))
+struct kmem_cache *__kmem_cache_create_args(const char *name,
+					    unsigned int object_size,
+					    struct kmem_cache_args *args,
+					    slab_flags_t flags)
 {
 	struct kmem_cache *s = NULL;
 	const char *cache_name;
@@ -296,7 +300,7 @@ kmem_cache_create_usercopy(const char *name,
 
 	mutex_lock(&slab_mutex);
 
-	err = kmem_cache_sanity_check(name, size);
+	err = kmem_cache_sanity_check(name, object_size);
 	if (err) {
 		goto out_unlock;
 	}
@@ -317,12 +321,14 @@ kmem_cache_create_usercopy(const char *name,
 
 	/* Fail closed on bad usersize of useroffset values. */
 	if (!IS_ENABLED(CONFIG_HARDENED_USERCOPY) ||
-	    WARN_ON(!usersize && useroffset) ||
-	    WARN_ON(size < usersize || size - usersize < useroffset))
-		usersize = useroffset = 0;
+	    WARN_ON(!args->usersize && args->useroffset) ||
+	    WARN_ON(object_size < args->usersize ||
+		    object_size - args->usersize < args->useroffset))
+		args->usersize = args->useroffset = 0;
 
-	if (!usersize)
-		s = __kmem_cache_alias(name, size, align, flags, ctor);
+	if (!args->usersize)
+		s = __kmem_cache_alias(name, object_size, args->align, flags,
+				       args->ctor);
 	if (s)
 		goto out_unlock;
 
@@ -332,9 +338,8 @@ kmem_cache_create_usercopy(const char *name,
 		goto out_unlock;
 	}
 
-	s = create_cache(cache_name, size,
-			 calculate_alignment(flags, align, size),
-			 flags, useroffset, usersize, ctor, NULL);
+	args->align = calculate_alignment(flags, args->align, object_size);
+	s = create_cache(cache_name, object_size, args, flags);
 	if (IS_ERR(s)) {
 		err = PTR_ERR(s);
 		kfree_const(cache_name);
@@ -356,41 +361,7 @@ out_unlock:
 	}
 	return s;
 }
-EXPORT_SYMBOL(kmem_cache_create_usercopy);
-
-/**
- * kmem_cache_create - Create a cache.
- * @name: A string which is used in /proc/slabinfo to identify this cache.
- * @size: The size of objects to be created in this cache.
- * @align: The required alignment for the objects.
- * @flags: SLAB flags
- * @ctor: A constructor for the objects.
- *
- * Cannot be called within a interrupt, but can be interrupted.
- * The @ctor is run when new pages are allocated by the cache.
- *
- * The flags are
- *
- * %SLAB_POISON - Poison the slab with a known test pattern (a5a5a5a5)
- * to catch references to uninitialised memory.
- *
- * %SLAB_RED_ZONE - Insert `Red` zones around the allocated memory to check
- * for buffer overruns.
- *
- * %SLAB_HWCACHE_ALIGN - Align the objects in this cache to a hardware
- * cacheline.  This can be beneficial if you're counting cycles as closely
- * as davem.
- *
- * Return: a pointer to the cache on success, NULL on failure.
- */
-struct kmem_cache *
-kmem_cache_create(const char *name, unsigned int size, unsigned int align,
-		slab_flags_t flags, void (*ctor)(void *))
-{
-	return kmem_cache_create_usercopy(name, size, align, flags, 0, 0,
-					  ctor);
-}
-EXPORT_SYMBOL(kmem_cache_create);
+EXPORT_SYMBOL(__kmem_cache_create_args);
 
 static struct kmem_cache *kmem_buckets_cache __ro_after_init;
 
@@ -418,8 +389,11 @@ kmem_buckets *kmem_buckets_create(const char *name, slab_flags_t flags,
 				  unsigned int usersize,
 				  void (*ctor)(void *))
 {
+	unsigned long mask = 0;
+	unsigned int idx;
 	kmem_buckets *b;
-	int idx;
+
+	BUILD_BUG_ON(ARRAY_SIZE(kmalloc_caches[KMALLOC_NORMAL]) > BITS_PER_LONG);
 
 	/*
 	 * When the separate buckets API is not built in, just return
@@ -441,7 +415,7 @@ kmem_buckets *kmem_buckets_create(const char *name, slab_flags_t flags,
 	for (idx = 0; idx < ARRAY_SIZE(kmalloc_caches[KMALLOC_NORMAL]); idx++) {
 		char *short_size, *cache_name;
 		unsigned int cache_useroffset, cache_usersize;
-		unsigned int size;
+		unsigned int size, aligned_idx;
 
 		if (!kmalloc_caches[KMALLOC_NORMAL][idx])
 			continue;
@@ -454,10 +428,6 @@ kmem_buckets *kmem_buckets_create(const char *name, slab_flags_t flags,
 		if (WARN_ON(!short_size))
 			goto fail;
 
-		cache_name = kasprintf(GFP_KERNEL, "%s-%s", name, short_size + 1);
-		if (WARN_ON(!cache_name))
-			goto fail;
-
 		if (useroffset >= size) {
 			cache_useroffset = 0;
 			cache_usersize = 0;
@@ -465,100 +435,48 @@ kmem_buckets *kmem_buckets_create(const char *name, slab_flags_t flags,
 			cache_useroffset = useroffset;
 			cache_usersize = min(size - cache_useroffset, usersize);
 		}
-		(*b)[idx] = kmem_cache_create_usercopy(cache_name, size,
+
+		aligned_idx = __kmalloc_index(size, false);
+		if (!(*b)[aligned_idx]) {
+			cache_name = kasprintf(GFP_KERNEL, "%s-%s", name, short_size + 1);
+			if (WARN_ON(!cache_name))
+				goto fail;
+			(*b)[aligned_idx] = kmem_cache_create_usercopy(cache_name, size,
 					0, flags, cache_useroffset,
 					cache_usersize, ctor);
-		kfree(cache_name);
-		if (WARN_ON(!(*b)[idx]))
-			goto fail;
+			kfree(cache_name);
+			if (WARN_ON(!(*b)[aligned_idx]))
+				goto fail;
+			set_bit(aligned_idx, &mask);
+		}
+		if (idx != aligned_idx)
+			(*b)[idx] = (*b)[aligned_idx];
 	}
 
 	return b;
 
 fail:
-	for (idx = 0; idx < ARRAY_SIZE(kmalloc_caches[KMALLOC_NORMAL]); idx++)
+	for_each_set_bit(idx, &mask, ARRAY_SIZE(kmalloc_caches[KMALLOC_NORMAL]))
 		kmem_cache_destroy((*b)[idx]);
-	kfree(b);
+	kmem_cache_free(kmem_buckets_cache, b);
 
 	return NULL;
 }
 EXPORT_SYMBOL(kmem_buckets_create);
 
-#ifdef SLAB_SUPPORTS_SYSFS
 /*
  * For a given kmem_cache, kmem_cache_destroy() should only be called
  * once or there will be a use-after-free problem. The actual deletion
  * and release of the kobject does not need slab_mutex or cpu_hotplug_lock
  * protection. So they are now done without holding those locks.
- *
- * Note that there will be a slight delay in the deletion of sysfs files
- * if kmem_cache_release() is called indrectly from a work function.
  */
 static void kmem_cache_release(struct kmem_cache *s)
 {
-	if (slab_state >= FULL) {
-		sysfs_slab_unlink(s);
+	kfence_shutdown_cache(s);
+	if (__is_defined(SLAB_SUPPORTS_SYSFS) && slab_state >= FULL)
 		sysfs_slab_release(s);
-	} else {
+	else
 		slab_kmem_cache_release(s);
-	}
-}
-#else
-static void kmem_cache_release(struct kmem_cache *s)
-{
-	slab_kmem_cache_release(s);
-}
-#endif
-
-static void slab_caches_to_rcu_destroy_workfn(struct work_struct *work)
-{
-	LIST_HEAD(to_destroy);
-	struct kmem_cache *s, *s2;
-
-	/*
-	 * On destruction, SLAB_TYPESAFE_BY_RCU kmem_caches are put on the
-	 * @slab_caches_to_rcu_destroy list.  The slab pages are freed
-	 * through RCU and the associated kmem_cache are dereferenced
-	 * while freeing the pages, so the kmem_caches should be freed only
-	 * after the pending RCU operations are finished.  As rcu_barrier()
-	 * is a pretty slow operation, we batch all pending destructions
-	 * asynchronously.
-	 */
-	mutex_lock(&slab_mutex);
-	list_splice_init(&slab_caches_to_rcu_destroy, &to_destroy);
-	mutex_unlock(&slab_mutex);
-
-	if (list_empty(&to_destroy))
-		return;
-
-	rcu_barrier();
-
-	list_for_each_entry_safe(s, s2, &to_destroy, list) {
-		debugfs_slab_release(s);
-		kfence_shutdown_cache(s);
-		kmem_cache_release(s);
-	}
-}
-
-static int shutdown_cache(struct kmem_cache *s)
-{
-	/* free asan quarantined objects */
-	kasan_cache_shutdown(s);
-
-	if (__kmem_cache_shutdown(s) != 0)
-		return -EBUSY;
-
-	list_del(&s->list);
-
-	if (s->flags & SLAB_TYPESAFE_BY_RCU) {
-		list_add_tail(&s->list, &slab_caches_to_rcu_destroy);
-		schedule_work(&slab_caches_to_rcu_destroy_work);
-	} else {
-		kfence_shutdown_cache(s);
-		debugfs_slab_release(s);
-	}
-
-	return 0;
 }
 
 void slab_kmem_cache_release(struct kmem_cache *s)
@@ -570,29 +488,64 @@ void slab_kmem_cache_release(struct kmem_cache *s)
 
 void kmem_cache_destroy(struct kmem_cache *s)
 {
-	int err = -EBUSY;
-	bool rcu_set;
+	int err;
 
 	if (unlikely(!s) || !kasan_check_byte(s))
 		return;
 
+	/* in-flight kfree_rcu()'s may include objects from our cache */
+	kvfree_rcu_barrier();
+
+	if (IS_ENABLED(CONFIG_SLUB_RCU_DEBUG) &&
+	    (s->flags & SLAB_TYPESAFE_BY_RCU)) {
+		/*
+		 * Under CONFIG_SLUB_RCU_DEBUG, when objects in a
+		 * SLAB_TYPESAFE_BY_RCU slab are freed, SLUB will internally
+		 * defer their freeing with call_rcu().
+		 * Wait for such call_rcu() invocations here before actually
+		 * destroying the cache.
+		 *
+		 * It doesn't matter that we haven't looked at the slab refcount
+		 * yet - slabs with SLAB_TYPESAFE_BY_RCU can't be merged, so
+		 * the refcount should be 1 here.
+		 */
+		rcu_barrier();
+	}
+
 	cpus_read_lock();
 	mutex_lock(&slab_mutex);
 
-	rcu_set = s->flags & SLAB_TYPESAFE_BY_RCU;
-
 	s->refcount--;
-	if (s->refcount)
-		goto out_unlock;
+	if (s->refcount) {
+		mutex_unlock(&slab_mutex);
+		cpus_read_unlock();
+		return;
+	}
 
-	err = shutdown_cache(s);
-	WARN(err, "%s %s: Slab cache still has objects when called from %pS",
-	     __func__, s->name, (void *)_RET_IP_);
-out_unlock:
+	/* free asan quarantined objects */
+	kasan_cache_shutdown(s);
+
+	err = __kmem_cache_shutdown(s);
+	if (!slab_in_kunit_test())
+		WARN(err, "%s %s: Slab cache still has objects when called from %pS",
+		     __func__, s->name, (void *)_RET_IP_);
+
+	list_del(&s->list);
+
 	mutex_unlock(&slab_mutex);
 	cpus_read_unlock();
-	if (!err && !rcu_set)
-		kmem_cache_release(s);
+
+	if (slab_state >= FULL)
+		sysfs_slab_unlink(s);
+	debugfs_slab_release(s);
+
+	if (err)
+		return;
+
+	if (s->flags & SLAB_TYPESAFE_BY_RCU)
+		rcu_barrier();
+
+	kmem_cache_release(s);
 }
 EXPORT_SYMBOL(kmem_cache_destroy);
 
@@ -704,9 +657,7 @@ void __init create_boot_cache(struct kmem_cache *s, const char *name,
 {
 	int err;
 	unsigned int align = ARCH_KMALLOC_MINALIGN;
-
-	s->name = name;
-	s->size = s->object_size = size;
+	struct kmem_cache_args kmem_args = {};
 
 	/*
 	 * kmalloc caches guarantee alignment of at least the largest
@@ -715,14 +666,14 @@ void __init create_boot_cache(struct kmem_cache *s, const char *name,
 	 */
 	if (flags & SLAB_KMALLOC)
 		align = max(align, 1U << (ffs(size) - 1));
-	s->align = calculate_alignment(flags, align, size);
+	kmem_args.align = calculate_alignment(flags, align, size);
 
 #ifdef CONFIG_HARDENED_USERCOPY
-	s->useroffset = useroffset;
-	s->usersize = usersize;
+	kmem_args.useroffset = useroffset;
+	kmem_args.usersize = usersize;
 #endif
 
-	err = __kmem_cache_create(s, flags);
+	err = do_kmem_cache_create(s, name, size, &kmem_args, flags);
 
 	if (err)
 		panic("Creation of kmalloc slab %s size=%u failed. Reason %d\n",
@@ -1257,67 +1208,6 @@ module_init(slab_proc_init);
 
 #endif /* CONFIG_SLUB_DEBUG */
 
-static __always_inline __realloc_size(2) void *
-__do_krealloc(const void *p, size_t new_size, gfp_t flags)
-{
-	void *ret;
-	size_t ks;
-
-	/* Check for double-free before calling ksize. */
-	if (likely(!ZERO_OR_NULL_PTR(p))) {
-		if (!kasan_check_byte(p))
-			return NULL;
-		ks = ksize(p);
-	} else
-		ks = 0;
-
-	/* If the object still fits, repoison it precisely. */
-	if (ks >= new_size) {
-		p = kasan_krealloc((void *)p, new_size, flags);
-		return (void *)p;
-	}
-
-	ret = kmalloc_node_track_caller_noprof(new_size, flags, NUMA_NO_NODE, _RET_IP_);
-	if (ret && p) {
-		/* Disable KASAN checks as the object's redzone is accessed. */
-		kasan_disable_current();
-		memcpy(ret, kasan_reset_tag(p), ks);
-		kasan_enable_current();
-	}
-
-	return ret;
-}
-
-/**
- * krealloc - reallocate memory. The contents will remain unchanged.
- * @p: object to reallocate memory for.
- * @new_size: how many bytes of memory are required.
- * @flags: the type of memory to allocate.
- *
- * The contents of the object pointed to are preserved up to the
- * lesser of the new and old sizes (__GFP_ZERO flag is effectively ignored).
- * If @p is %NULL, krealloc() behaves exactly like kmalloc().  If @new_size
- * is 0 and @p is not a %NULL pointer, the object pointed to is freed.
- *
- * Return: pointer to the allocated memory or %NULL in case of error
- */
-void *krealloc_noprof(const void *p, size_t new_size, gfp_t flags)
-{
-	void *ret;
-
-	if (unlikely(!new_size)) {
-		kfree(p);
-		return ZERO_SIZE_PTR;
-	}
-
-	ret = __do_krealloc(p, new_size, flags);
-	if (ret && kasan_reset_tag(p) != kasan_reset_tag(ret))
-		kfree(p);
-
-	return ret;
-}
-EXPORT_SYMBOL(krealloc_noprof);
-
 /**
  * kfree_sensitive - Clear sensitive information in memory before freeing
  * @p: object to free memory of
@@ -1366,6 +1256,25 @@ size_t ksize(const void *objp)
 	return kfence_ksize(objp) ?: __ksize(objp);
 }
 EXPORT_SYMBOL(ksize);
+
+#ifdef CONFIG_BPF_SYSCALL
+#include <linux/btf.h>
+
+__bpf_kfunc_start_defs();
+
+__bpf_kfunc struct kmem_cache *bpf_get_kmem_cache(u64 addr)
+{
+	struct slab *slab;
+
+	if (!virt_addr_valid((void *)(long)addr))
+		return NULL;
+
+	slab = virt_to_slab((void *)(long)addr);
+	return slab ? slab->slab_cache : NULL;
+}
+
+__bpf_kfunc_end_defs();
+#endif /* CONFIG_BPF_SYSCALL */
 
 /* Tracepoints definitions. */
 EXPORT_TRACEPOINT_SYMBOL(kmalloc);

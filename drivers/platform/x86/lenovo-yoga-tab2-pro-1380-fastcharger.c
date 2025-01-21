@@ -298,7 +298,7 @@ static void yt2_1380_fc_pdev_remove(struct platform_device *pdev)
 
 static struct platform_driver yt2_1380_fc_pdev_driver = {
 	.probe = yt2_1380_fc_pdev_probe,
-	.remove_new = yt2_1380_fc_pdev_remove,
+	.remove = yt2_1380_fc_pdev_remove,
 	.driver = {
 		.name = YT2_1380_FC_PDEV_NAME,
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,

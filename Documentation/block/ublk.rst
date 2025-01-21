@@ -199,23 +199,35 @@ managing and controlling ublk devices with help of several control commands:
 
 - user recovery feature description
 
-  Two new features are added for user recovery: ``UBLK_F_USER_RECOVERY`` and
-  ``UBLK_F_USER_RECOVERY_REISSUE``.
+  Three new features are added for user recovery: ``UBLK_F_USER_RECOVERY``,
+  ``UBLK_F_USER_RECOVERY_REISSUE``, and ``UBLK_F_USER_RECOVERY_FAIL_IO``. To
+  enable recovery of ublk devices after the ublk server exits, the ublk server
+  should specify the ``UBLK_F_USER_RECOVERY`` flag when creating the device. The
+  ublk server may additionally specify at most one of
+  ``UBLK_F_USER_RECOVERY_REISSUE`` and ``UBLK_F_USER_RECOVERY_FAIL_IO`` to
+  modify how I/O is handled while the ublk server is dying/dead (this is called
+  the ``nosrv`` case in the driver code).
 
-  With ``UBLK_F_USER_RECOVERY`` set, after one ubq_daemon(ublk server's io
+  With just ``UBLK_F_USER_RECOVERY`` set, after one ubq_daemon(ublk server's io
   handler) is dying, ublk does not delete ``/dev/ublkb*`` during the whole
   recovery stage and ublk device ID is kept. It is ublk server's
   responsibility to recover the device context by its own knowledge.
   Requests which have not been issued to userspace are requeued. Requests
   which have been issued to userspace are aborted.
 
-  With ``UBLK_F_USER_RECOVERY_REISSUE`` set, after one ubq_daemon(ublk
-  server's io handler) is dying, contrary to ``UBLK_F_USER_RECOVERY``,
+  With ``UBLK_F_USER_RECOVERY_REISSUE`` additionally set, after one ubq_daemon
+  (ublk server's io handler) is dying, contrary to ``UBLK_F_USER_RECOVERY``,
   requests which have been issued to userspace are requeued and will be
   re-issued to the new process after handling ``UBLK_CMD_END_USER_RECOVERY``.
   ``UBLK_F_USER_RECOVERY_REISSUE`` is designed for backends who tolerate
   double-write since the driver may issue the same I/O request twice. It
   might be useful to a read-only FS or a VM backend.
+
+  With ``UBLK_F_USER_RECOVERY_FAIL_IO`` additionally set, after the ublk server
+  exits, requests which have issued to userspace are failed, as are any
+  subsequently issued requests. Applications continuously issuing I/O against
+  devices with this flag set will see a stream of I/O errors until a new ublk
+  server recovers the device.
 
 Unprivileged ublk device is supported by passing ``UBLK_F_UNPRIVILEGED_DEV``.
 Once the flag is set, all control commands can be sent by unprivileged

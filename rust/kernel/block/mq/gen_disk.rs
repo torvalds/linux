@@ -6,8 +6,8 @@
 //! C header: [`include/linux/blk_mq.h`](srctree/include/linux/blk_mq.h)
 
 use crate::block::mq::{raw_writer::RawWriter, Operations, TagSet};
-use crate::error;
 use crate::{bindings, error::from_err_ptr, error::Result, sync::Arc};
+use crate::{error, static_lock_class};
 use core::fmt::{self, Write};
 
 /// A builder for [`GenDisk`].
@@ -45,7 +45,7 @@ impl GenDiskBuilder {
 
     /// Validate block size by verifying that it is between 512 and `PAGE_SIZE`,
     /// and that it is a power of two.
-    fn validate_block_size(size: u32) -> Result<()> {
+    fn validate_block_size(size: u32) -> Result {
         if !(512..=bindings::PAGE_SIZE as u32).contains(&size) || !size.is_power_of_two() {
             Err(error::code::EINVAL)
         } else {
@@ -93,8 +93,6 @@ impl GenDiskBuilder {
         name: fmt::Arguments<'_>,
         tagset: Arc<TagSet<T>>,
     ) -> Result<GenDisk<T>> {
-        let lock_class_key = crate::sync::LockClassKey::new();
-
         // SAFETY: `bindings::queue_limits` contain only fields that are valid when zeroed.
         let mut lim: bindings::queue_limits = unsafe { core::mem::zeroed() };
 
@@ -110,7 +108,7 @@ impl GenDiskBuilder {
                 tagset.raw_tag_set(),
                 &mut lim,
                 core::ptr::null_mut(),
-                lock_class_key.as_ptr(),
+                static_lock_class!().as_ptr(),
             )
         })?;
 

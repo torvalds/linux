@@ -16,6 +16,7 @@
 #include <asm/diag.h>
 #include <asm/trace/diag.h>
 #include <asm/sections.h>
+#include <asm/asm.h>
 #include "entry.h"
 
 struct diag_stat {
@@ -52,6 +53,7 @@ static const struct diag_desc diag_map[NR_DIAG_STAT] = {
 	[DIAG_STAT_X308] = { .code = 0x308, .name = "List-Directed IPL" },
 	[DIAG_STAT_X318] = { .code = 0x318, .name = "CP Name and Version Codes" },
 	[DIAG_STAT_X320] = { .code = 0x320, .name = "Certificate Store" },
+	[DIAG_STAT_X49C] = { .code = 0x49c, .name = "Warning-Track Interruption" },
 	[DIAG_STAT_X500] = { .code = 0x500, .name = "Virtio Service" },
 };
 
@@ -303,3 +305,18 @@ int diag26c(void *req, void *resp, enum diag26c_sc subcode)
 	return diag_amode31_ops.diag26c(virt_to_phys(req), virt_to_phys(resp), subcode);
 }
 EXPORT_SYMBOL(diag26c);
+
+int diag49c(unsigned long subcode)
+{
+	int cc;
+
+	diag_stat_inc(DIAG_STAT_X49C);
+	asm volatile(
+		"	diag	%[subcode],0,0x49c\n"
+		CC_IPM(cc)
+		: CC_OUT(cc, cc)
+		: [subcode] "d" (subcode)
+		: CC_CLOBBER);
+	return CC_TRANSFORM(cc);
+}
+EXPORT_SYMBOL(diag49c);

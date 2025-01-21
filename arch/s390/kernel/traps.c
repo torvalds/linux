@@ -31,6 +31,7 @@
 #include <asm/asm-extable.h>
 #include <asm/vtime.h>
 #include <asm/fpu.h>
+#include <asm/fault.h>
 #include "entry.h"
 
 static inline void __user *get_trap_ip(struct pt_regs *regs)
@@ -317,9 +318,24 @@ void noinstr __do_pgm_check(struct pt_regs *regs)
 	struct lowcore *lc = get_lowcore();
 	irqentry_state_t state;
 	unsigned int trapnr;
+	union teid teid;
 
+	teid.val = lc->trans_exc_code;
 	regs->int_code = lc->pgm_int_code;
-	regs->int_parm_long = lc->trans_exc_code;
+	regs->int_parm_long = teid.val;
+
+	/*
+	 * In case of a guest fault, short-circuit the fault handler and return.
+	 * This way the sie64a() function will return 0; fault address and
+	 * other relevant bits are saved in current->thread.gmap_teid, and
+	 * the fault number in current->thread.gmap_int_code. KVM will be
+	 * able to use this information to handle the fault.
+	 */
+	if (test_pt_regs_flag(regs, PIF_GUEST_FAULT)) {
+		current->thread.gmap_teid.val = regs->int_parm_long;
+		current->thread.gmap_int_code = regs->int_code & 0xffff;
+		return;
+	}
 
 	state = irqentry_enter(regs);
 
@@ -408,8 +424,8 @@ static void (*pgm_check_table[128])(struct pt_regs *regs) = {
 	[0x3b]		= do_dat_exception,
 	[0x3c]		= default_trap_handler,
 	[0x3d]		= do_secure_storage_access,
-	[0x3e]		= do_non_secure_storage_access,
-	[0x3f]		= do_secure_storage_violation,
+	[0x3e]		= default_trap_handler,
+	[0x3f]		= default_trap_handler,
 	[0x40]		= monitor_event_exception,
 	[0x41 ... 0x7f] = default_trap_handler,
 };
@@ -420,5 +436,3 @@ static void (*pgm_check_table[128])(struct pt_regs *regs) = {
 	__stringify(default_trap_handler))
 
 COND_TRAP(do_secure_storage_access);
-COND_TRAP(do_non_secure_storage_access);
-COND_TRAP(do_secure_storage_violation);

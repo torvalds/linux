@@ -850,7 +850,6 @@ static const struct file_operations wdt_fops = {
 	.write	= wdt_write,
 	.open	= wdt_open,
 	.release = wdt_release,
-	.llseek = no_llseek,
 };
 
 static struct miscdevice wdt_dev = {

@@ -69,127 +69,103 @@ mlxsw_only_on_spectrum 2+ || exit
 h1_create()
 {
 	simple_if_init $h1
+	defer simple_if_fini $h1
 
 	vlan_create $h1 111 v$h1 192.0.2.33/28
+	defer vlan_destroy $h1 111
 	ip link set dev $h1.111 type vlan egress-qos-map 0:1
-}
-
-h1_destroy()
-{
-	vlan_destroy $h1 111
-
-	simple_if_fini $h1
 }
 
 h2_create()
 {
 	simple_if_init $h2
+	defer simple_if_fini $h2
 
 	vlan_create $h2 111 v$h2 192.0.2.34/28
-}
-
-h2_destroy()
-{
-	vlan_destroy $h2 111
-
-	simple_if_fini $h2
+	defer vlan_destroy $h2 111
 }
 
 switch_create()
 {
 	# pools
 	# -----
+	# devlink_pool_size_thtype_restore needs to be done first so that we can
+	# reset the various limits to values that are only valid for the
+	# original static / dynamic setting.
 
 	devlink_pool_size_thtype_save 1
-	devlink_pool_size_thtype_save 6
-
-	devlink_port_pool_th_save $swp1 1
-	devlink_port_pool_th_save $swp2 6
-
-	devlink_tc_bind_pool_th_save $swp1 1 ingress
-	devlink_tc_bind_pool_th_save $swp2 1 egress
-
 	devlink_pool_size_thtype_set 1 dynamic $MAX_POOL_SIZE
+	defer_prio devlink_pool_size_thtype_restore 1
+
+	devlink_pool_size_thtype_save 6
 	devlink_pool_size_thtype_set 6 static $MAX_POOL_SIZE
+	defer_prio devlink_pool_size_thtype_restore 6
 
 	# $swp1
 	# -----
 
 	ip link set dev $swp1 up
+	defer ip link set dev $swp1 down
+
 	vlan_create $swp1 111
+	defer vlan_destroy $swp1 111
 	ip link set dev $swp1.111 type vlan ingress-qos-map 0:0 1:1
 
+	devlink_port_pool_th_save $swp1 1
 	devlink_port_pool_th_set $swp1 1 16
+	defer devlink_tc_bind_pool_th_restore $swp1 1 ingress
+
+	devlink_tc_bind_pool_th_save $swp1 1 ingress
 	devlink_tc_bind_pool_th_set $swp1 1 ingress 1 16
+	defer devlink_port_pool_th_restore $swp1 1
 
 	tc qdisc replace dev $swp1 root handle 1: \
 	   ets bands 8 strict 8 priomap 7 6
+	defer tc qdisc del dev $swp1 root
+
 	dcb buffer set dev $swp1 prio-buffer all:0 1:1
+	defer dcb buffer set dev $swp1 prio-buffer all:0
 
 	# $swp2
 	# -----
 
 	ip link set dev $swp2 up
+	defer ip link set dev $swp2 down
+
 	vlan_create $swp2 111
+	defer vlan_destroy $swp2 111
 	ip link set dev $swp2.111 type vlan egress-qos-map 0:0 1:1
 
+	devlink_port_pool_th_save $swp2 6
 	devlink_port_pool_th_set $swp2 6 $MAX_POOL_SIZE
+	defer devlink_tc_bind_pool_th_restore $swp2 1 egress
+
+	devlink_tc_bind_pool_th_save $swp2 1 egress
 	devlink_tc_bind_pool_th_set $swp2 1 egress 6 $MAX_POOL_SIZE
+	defer devlink_port_pool_th_restore $swp2 6
 
 	tc qdisc replace dev $swp2 root handle 1: tbf rate $SHAPER_RATE \
 		burst 128K limit 500M
+	defer tc qdisc del dev $swp2 root
+
 	tc qdisc replace dev $swp2 parent 1:1 handle 11: \
 		ets bands 8 strict 8 priomap 7 6
+	defer tc qdisc del dev $swp2 parent 1:1 handle 11:
 
 	# bridge
 	# ------
 
 	ip link add name br1 type bridge vlan_filtering 0
+	defer ip link del dev br1
+
 	ip link set dev $swp1.111 master br1
+	defer ip link set dev $swp1.111 nomaster
+
 	ip link set dev br1 up
+	defer ip link set dev br1 down
 
 	ip link set dev $swp2.111 master br1
-}
-
-switch_destroy()
-{
-	# Do this first so that we can reset the limits to values that are only
-	# valid for the original static / dynamic setting.
-	devlink_pool_size_thtype_restore 6
-	devlink_pool_size_thtype_restore 1
-
-	# bridge
-	# ------
-
-	ip link set dev $swp2.111 nomaster
-
-	ip link set dev br1 down
-	ip link set dev $swp1.111 nomaster
-	ip link del dev br1
-
-	# $swp2
-	# -----
-
-	tc qdisc del dev $swp2 parent 1:1 handle 11:
-	tc qdisc del dev $swp2 root
-
-	devlink_tc_bind_pool_th_restore $swp2 1 egress
-	devlink_port_pool_th_restore $swp2 6
-
-	vlan_destroy $swp2 111
-	ip link set dev $swp2 down
-
-	# $swp1
-	# -----
-
-	dcb buffer set dev $swp1 prio-buffer all:0
-	tc qdisc del dev $swp1 root
-
-	devlink_tc_bind_pool_th_restore $swp1 1 ingress
-	devlink_port_pool_th_restore $swp1 1
-
-	vlan_destroy $swp1 111
-	ip link set dev $swp1 down
+	defer ip link set dev $swp2.111 nomaster
 }
 
 setup_prepare()
@@ -203,21 +179,11 @@ setup_prepare()
 	h2mac=$(mac_get $h2)
 
 	vrf_prepare
+	defer vrf_cleanup
 
 	h1_create
 	h2_create
 	switch_create
-}
-
-cleanup()
-{
-	pre_cleanup
-
-	switch_destroy
-	h2_destroy
-	h1_destroy
-
-	vrf_cleanup
 }
 
 ping_ipv4()
@@ -251,6 +217,7 @@ max_descriptors()
 
 	log_info "Send many small packets, packet size = $pktsize bytes"
 	start_traffic_pktsize $pktsize $h1.111 192.0.2.33 192.0.2.34 $h2mac
+	defer stop_traffic $!
 
 	# Sleep to wait for congestion.
 	sleep 5
@@ -267,9 +234,6 @@ max_descriptors()
 
 	check_err $(bc <<< "$perc_used < $exp_perc_used") \
 		"Expected > $exp_perc_used% of descriptors, handle $perc_used%"
-
-	stop_traffic
-	sleep 1
 
 	log_test "Maximum descriptors usage. The percentage used is $perc_used%"
 }

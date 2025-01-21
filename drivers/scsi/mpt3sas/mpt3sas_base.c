@@ -846,8 +846,8 @@ mpt3sas_base_start_watchdog(struct MPT3SAS_ADAPTER *ioc)
 	snprintf(ioc->fault_reset_work_q_name,
 	    sizeof(ioc->fault_reset_work_q_name), "poll_%s%d_status",
 	    ioc->driver_name, ioc->id);
-	ioc->fault_reset_work_q =
-		create_singlethread_workqueue(ioc->fault_reset_work_q_name);
+	ioc->fault_reset_work_q = alloc_ordered_workqueue(
+		"%s", WQ_MEM_RECLAIM, ioc->fault_reset_work_q_name);
 	if (!ioc->fault_reset_work_q) {
 		ioc_err(ioc, "%s: failed (line=%d)\n", __func__, __LINE__);
 		return;
@@ -7041,11 +7041,12 @@ _base_handshake_req_reply_wait(struct MPT3SAS_ADAPTER *ioc, int request_bytes,
 	int i;
 	u8 failed;
 	__le32 *mfp;
+	int ret_val;
 
 	/* make sure doorbell is not in use */
 	if ((ioc->base_readl_ext_retry(&ioc->chip->Doorbell) & MPI2_DOORBELL_USED)) {
 		ioc_err(ioc, "doorbell is in use (line=%d)\n", __LINE__);
-		return -EFAULT;
+		goto doorbell_diag_reset;
 	}
 
 	/* clear pending doorbell interrupts from previous state changes */
@@ -7135,6 +7136,10 @@ _base_handshake_req_reply_wait(struct MPT3SAS_ADAPTER *ioc, int request_bytes,
 			    le32_to_cpu(mfp[i]));
 	}
 	return 0;
+
+doorbell_diag_reset:
+	ret_val = _base_diag_reset(ioc);
+	return ret_val;
 }
 
 /**
@@ -8898,9 +8903,8 @@ _base_check_ioc_facts_changes(struct MPT3SAS_ADAPTER *ioc)
 		    ioc->device_remove_in_progress, pd_handles_sz, GFP_KERNEL);
 		if (!device_remove_in_progress) {
 			ioc_info(ioc,
-			    "Unable to allocate the memory for "
-			    "device_remove_in_progress of sz: %d\n "
-			    , pd_handles_sz);
+			    "Unable to allocate the memory for device_remove_in_progress of sz: %d\n",
+			    pd_handles_sz);
 			return -ENOMEM;
 		}
 		memset(device_remove_in_progress +

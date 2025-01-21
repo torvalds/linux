@@ -21,6 +21,17 @@ struct rk8xx_i2c_platform_data {
 	int variant;
 };
 
+static bool rk806_is_volatile_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case RK806_POWER_EN0 ... RK806_POWER_EN5:
+	case RK806_DVS_START_CTRL ... RK806_INT_MSK1:
+		return true;
+	}
+
+	return false;
+}
+
 static bool rk808_is_volatile_reg(struct device *dev, unsigned int reg)
 {
 	/*
@@ -121,6 +132,14 @@ static const struct regmap_config rk805_regmap_config = {
 	.volatile_reg = rk808_is_volatile_reg,
 };
 
+static const struct regmap_config rk806_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.max_register = RK806_BUCK_RSERVE_REG5,
+	.cache_type = REGCACHE_MAPLE,
+	.volatile_reg = rk806_is_volatile_reg,
+};
+
 static const struct regmap_config rk808_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
@@ -148,6 +167,11 @@ static const struct regmap_config rk817_regmap_config = {
 static const struct rk8xx_i2c_platform_data rk805_data = {
 	.regmap_cfg = &rk805_regmap_config,
 	.variant = RK805_ID,
+};
+
+static const struct rk8xx_i2c_platform_data rk806_data = {
+	.regmap_cfg = &rk806_regmap_config,
+	.variant = RK806_ID,
 };
 
 static const struct rk8xx_i2c_platform_data rk808_data = {
@@ -201,6 +225,7 @@ static SIMPLE_DEV_PM_OPS(rk8xx_i2c_pm_ops, rk8xx_suspend, rk8xx_resume);
 
 static const struct of_device_id rk8xx_i2c_of_match[] = {
 	{ .compatible = "rockchip,rk805", .data = &rk805_data },
+	{ .compatible = "rockchip,rk806", .data = &rk806_data },
 	{ .compatible = "rockchip,rk808", .data = &rk808_data },
 	{ .compatible = "rockchip,rk809", .data = &rk809_data },
 	{ .compatible = "rockchip,rk816", .data = &rk816_data },

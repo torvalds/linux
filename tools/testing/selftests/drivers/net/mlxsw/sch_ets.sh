@@ -21,6 +21,7 @@ switch_create()
 	# Create a bottleneck so that the DWRR process can kick in.
 	tc qdisc replace dev $swp2 root handle 3: tbf rate 1gbit \
 		burst 128K limit 1G
+	defer tc qdisc del dev $swp2 root handle 3:
 
 	ets_switch_create
 
@@ -30,35 +31,32 @@ switch_create()
 	# for the DWRR process.
 	devlink_port_pool_th_save $swp1 0
 	devlink_port_pool_th_set $swp1 0 12
+	defer devlink_port_pool_th_restore $swp1 0
+
 	devlink_tc_bind_pool_th_save $swp1 0 ingress
 	devlink_tc_bind_pool_th_set $swp1 0 ingress 0 12
+	defer devlink_tc_bind_pool_th_restore $swp1 0 ingress
+
 	devlink_port_pool_th_save $swp2 4
 	devlink_port_pool_th_set $swp2 4 12
+	defer devlink_port_pool_th_restore $swp2 4
+
 	devlink_tc_bind_pool_th_save $swp2 7 egress
 	devlink_tc_bind_pool_th_set $swp2 7 egress 4 5
+	defer devlink_tc_bind_pool_th_restore $swp2 7 egress
+
 	devlink_tc_bind_pool_th_save $swp2 6 egress
 	devlink_tc_bind_pool_th_set $swp2 6 egress 4 5
+	defer devlink_tc_bind_pool_th_restore $swp2 6 egress
+
 	devlink_tc_bind_pool_th_save $swp2 5 egress
 	devlink_tc_bind_pool_th_set $swp2 5 egress 4 5
+	defer devlink_tc_bind_pool_th_restore $swp2 5 egress
 
 	# Note: sch_ets_core.sh uses VLAN ingress-qos-map to assign packet
 	# priorities at $swp1 based on their 802.1p headers. ingress-qos-map is
 	# not offloaded by mlxsw as of this writing, but the mapping used is
 	# 1:1, which is the mapping currently hard-coded by the driver.
-}
-
-switch_destroy()
-{
-	devlink_tc_bind_pool_th_restore $swp2 5 egress
-	devlink_tc_bind_pool_th_restore $swp2 6 egress
-	devlink_tc_bind_pool_th_restore $swp2 7 egress
-	devlink_port_pool_th_restore $swp2 4
-	devlink_tc_bind_pool_th_restore $swp1 0 ingress
-	devlink_port_pool_th_restore $swp1 0
-
-	ets_switch_destroy
-
-	tc qdisc del dev $swp2 root handle 3:
 }
 
 # Callback from sch_ets_tests.sh

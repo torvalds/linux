@@ -38,9 +38,21 @@ enum TRI_STATE {
 
 #define COMP_ENTRY_SIZE 64
 
-#define RX_BUFFERS_PER_QUEUE 512
+/* This Max value for RX buffers is derived from __alloc_page()'s max page
+ * allocation calculation. It allows maximum 2^(MAX_ORDER -1) pages. RX buffer
+ * size beyond this value gets rejected by __alloc_page() call.
+ */
+#define MAX_RX_BUFFERS_PER_QUEUE 8192
+#define DEF_RX_BUFFERS_PER_QUEUE 1024
+#define MIN_RX_BUFFERS_PER_QUEUE 128
 
-#define MAX_SEND_BUFFERS_PER_QUEUE 256
+/* This max value for TX buffers is derived as the maximum allocatable
+ * pages supported on host per guest through testing. TX buffer size beyond
+ * this value is rejected by the hardware.
+ */
+#define MAX_TX_BUFFERS_PER_QUEUE 16384
+#define DEF_TX_BUFFERS_PER_QUEUE 256
+#define MIN_TX_BUFFERS_PER_QUEUE 128
 
 #define EQ_SIZE (8 * MANA_PAGE_SIZE)
 
@@ -97,6 +109,8 @@ struct mana_txq {
 	struct netdev_queue *net_txq;
 
 	atomic_t pending_sends;
+
+	bool napi_initialized;
 
 	struct mana_stats_tx stats;
 };
@@ -286,7 +300,7 @@ struct mana_recv_buf_oob {
 	void *buf_va;
 	bool from_pool; /* allocated from a page pool */
 
-	/* SGL of the buffer going to be sent has part of the work request. */
+	/* SGL of the buffer going to be sent as part of the work request. */
 	u32 num_sge;
 	struct gdma_sge sgl[MAX_RX_WQE_SGL_ENTRIES];
 
@@ -336,6 +350,7 @@ struct mana_rxq {
 	int xdp_rc; /* XDP redirect return code */
 
 	struct page_pool *page_pool;
+	struct dentry *mana_rx_debugfs;
 
 	/* MUST BE THE LAST MEMBER:
 	 * Each receive buffer has an associated mana_recv_buf_oob.
@@ -349,6 +364,8 @@ struct mana_tx_qp {
 	struct mana_cq tx_cq;
 
 	mana_handle_t tx_object;
+
+	struct dentry *mana_tx_debugfs;
 };
 
 struct mana_ethtool_stats {
@@ -393,6 +410,7 @@ struct mana_context {
 	u16 num_ports;
 
 	struct mana_eq *eqs;
+	struct dentry *mana_eqs_debugfs;
 
 	struct net_device *ports[MAX_PORTS_IN_MANA_DEV];
 };
@@ -438,6 +456,9 @@ struct mana_port_context {
 	unsigned int max_queues;
 	unsigned int num_queues;
 
+	unsigned int rx_queue_size;
+	unsigned int tx_queue_size;
+
 	mana_handle_t port_handle;
 	mana_handle_t pf_filter_handle;
 
@@ -451,6 +472,9 @@ struct mana_port_context {
 	bool port_st_save; /* Saved port state */
 
 	struct mana_ethtool_stats eth_stats;
+
+	/* Debugfs */
+	struct dentry *mana_port_debugfs;
 };
 
 netdev_tx_t mana_start_xmit(struct sk_buff *skb, struct net_device *ndev);
@@ -473,8 +497,11 @@ struct bpf_prog *mana_xdp_get(struct mana_port_context *apc);
 void mana_chn_setxdp(struct mana_port_context *apc, struct bpf_prog *prog);
 int mana_bpf(struct net_device *ndev, struct netdev_bpf *bpf);
 void mana_query_gf_stats(struct mana_port_context *apc);
+int mana_pre_alloc_rxbufs(struct mana_port_context *apc, int mtu, int num_queues);
+void mana_pre_dealloc_rxbufs(struct mana_port_context *apc);
 
 extern const struct ethtool_ops mana_ethtool_ops;
+extern struct dentry *mana_debugfs_root;
 
 /* A CQ can be created not associated with any EQ */
 #define GDMA_CQ_NO_EQ  0xffff

@@ -333,8 +333,7 @@ static irqreturn_t afe4404_trigger_handler(int irq, void *private)
 	struct afe4404_data *afe = iio_priv(indio_dev);
 	int ret, bit, i = 0;
 
-	for_each_set_bit(bit, indio_dev->active_scan_mask,
-			 indio_dev->masklength) {
+	iio_for_each_active_channel(indio_dev, bit) {
 		ret = regmap_read(afe->regmap, afe4404_channel_values[bit],
 				  &afe->buffer[i++]);
 		if (ret)

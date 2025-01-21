@@ -42,14 +42,6 @@ struct intel_vgpu;
 #define EDID_SIZE		128
 #define EDID_ADDR		0x50 /* Linux hvm EDID addr */
 
-#define GVT_AUX_NATIVE_WRITE			0x8
-#define GVT_AUX_NATIVE_READ			0x9
-#define GVT_AUX_I2C_WRITE			0x0
-#define GVT_AUX_I2C_READ			0x1
-#define GVT_AUX_I2C_STATUS			0x2
-#define GVT_AUX_I2C_MOT				0x4
-#define GVT_AUX_I2C_REPLY_ACK			0x0
-
 struct intel_vgpu_edid_data {
 	bool data_valid;
 	unsigned char edid_block[EDID_SIZE];
@@ -80,7 +72,7 @@ enum gmbus_cycle_type {
  *      R/W Protect
  *      Command and Status.
  *      bit0 is the direction bit: 1 is read; 0 is write.
- *      bit1 - bit7 is slave 7-bit address.
+ *      bit1 - bit7 is target 7-bit address.
  *      bit16 - bit24 total byte count (ignore?)
  *
  * GMBUS2:
@@ -130,7 +122,7 @@ struct intel_vgpu_i2c_edid {
 	enum i2c_state state;
 
 	unsigned int port;
-	bool slave_selected;
+	bool target_selected;
 	bool edid_available;
 	unsigned int current_edid_read;
 

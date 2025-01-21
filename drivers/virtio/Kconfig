@@ -122,7 +122,7 @@ config VIRTIO_BALLOON
 
 config VIRTIO_MEM
 	tristate "Virtio mem driver"
-	depends on X86_64 || ARM64 || RISCV
+	depends on X86_64 || ARM64 || RISCV || S390
 	depends on VIRTIO
 	depends on MEMORY_HOTPLUG
 	depends on MEMORY_HOTREMOVE
@@ -132,11 +132,11 @@ config VIRTIO_MEM
 	 This driver provides access to virtio-mem paravirtualized memory
 	 devices, allowing to hotplug and hotunplug memory.
 
-	 This driver currently only supports x86-64 and arm64. Although it
-	 should compile on other architectures that implement memory
-	 hot(un)plug, architecture-specific and/or common
-	 code changes may be required for virtio-mem, kdump and kexec to work as
-	 expected.
+	 This driver currently supports x86-64, arm64, riscv and s390.
+	 Although it should compile on other architectures that implement
+	 memory hot(un)plug, architecture-specific and/or common
+	 code changes may be required for virtio-mem, kdump and kexec to
+	 work as expected.
 
 	 If unsure, say M.
 

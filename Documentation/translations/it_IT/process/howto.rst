@@ -344,7 +344,7 @@ principale 4.x, sarà necessario un test d'integrazione.
 A tale scopo, esiste un repositorio speciale di test nel quale virtualmente
 tutti i rami dei sottosistemi vengono inclusi su base quotidiana:
 
-	https://git.kernel.org/?p=linux/kernel/git/next/linux-next.git
+	https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
 
 In questo modo, i kernel -next offrono uno sguardo riassuntivo su quello che
 ci si aspetterà essere nel kernel principale nel successivo periodo
@@ -389,12 +389,12 @@ sviluppatori del kernel partecipano alla lista di discussione Linux Kernel.
 I dettagli su come iscriversi e disiscriversi dalla lista possono essere
 trovati al sito:
 
-	http://vger.kernel.org/vger-lists.html#linux-kernel
+	https://subspace.kernel.org/subscribing.html
 
 Ci sono diversi archivi della lista di discussione. Usate un qualsiasi motore
 di ricerca per trovarli. Per esempio:
 
-	https://lore.kernel.org/lkml/
+	https://lore.kernel.org/linux-kernel/
 
 É caldamente consigliata una ricerca in questi archivi sul tema che volete
 sollevare, prima di pubblicarlo sulla lista. Molte cose sono già state
@@ -407,13 +407,13 @@ discussione e il loro uso.
 Molte di queste liste sono gestite su kernel.org. Per informazioni consultate
 la seguente pagina:
 
-	http://vger.kernel.org/vger-lists.html
+	https://subspace.kernel.org
 
 Per favore ricordatevi della buona educazione quando utilizzate queste liste.
 Sebbene sia un pò dozzinale, il seguente URL contiene alcune semplici linee
 guida per interagire con la lista (o con qualsiasi altra lista):
 
-	http://www.albion.com/netiquette/
+	https://subspace.kernel.org/etiquette.html
 
 Se diverse persone rispondo alla vostra mail, la lista dei riceventi (copia
 conoscenza) potrebbe diventare abbastanza lunga. Non cancellate nessuno dalla

@@ -12,9 +12,14 @@
 #include "fbnic_netdev.h"
 #include "fbnic_txrx.h"
 
+enum {
+	FBNIC_XMIT_CB_TS	= 0x01,
+};
+
 struct fbnic_xmit_cb {
 	u32 bytecount;
 	u8 desc_count;
+	u8 flags;
 	int hw_head;
 };
 
@@ -41,6 +46,46 @@ static void fbnic_ring_wr32(struct fbnic_ring *ring, unsigned int csr, u32 val)
 	u32 __iomem *csr_base = fbnic_ring_csr_base(ring);
 
 	writel(val, csr_base + csr);
+}
+
+/**
+ * fbnic_ts40_to_ns() - convert descriptor timestamp to PHC time
+ * @fbn: netdev priv of the FB NIC
+ * @ts40: timestamp read from a descriptor
+ *
+ * Return: u64 value of PHC time in nanoseconds
+ *
+ * Convert truncated 40 bit device timestamp as read from a descriptor
+ * to the full PHC time in nanoseconds.
+ */
+static __maybe_unused u64 fbnic_ts40_to_ns(struct fbnic_net *fbn, u64 ts40)
+{
+	unsigned int s;
+	u64 time_ns;
+	s64 offset;
+	u8 ts_top;
+	u32 high;
+
+	do {
+		s = u64_stats_fetch_begin(&fbn->time_seq);
+		offset = READ_ONCE(fbn->time_offset);
+	} while (u64_stats_fetch_retry(&fbn->time_seq, s));
+
+	high = READ_ONCE(fbn->time_high);
+
+	/* Bits 63..40 from periodic clock reads, 39..0 from ts40 */
+	time_ns = (u64)(high >> 8) << 40 | ts40;
+
+	/* Compare bits 32-39 between periodic reads and ts40,
+	 * see if HW clock may have wrapped since last read. We are sure
+	 * that periodic reads are always at least ~1 minute behind, so
+	 * this logic works perfectly fine.
+	 */
+	ts_top = ts40 >> 32;
+	if (ts_top < (u8)high && (u8)high - ts_top > U8_MAX / 2)
+		time_ns += 1ULL << 40;
+
+	return time_ns + offset;
 }
 
 static unsigned int fbnic_desc_unused(struct fbnic_ring *ring)
@@ -110,10 +155,31 @@ static void fbnic_unmap_page_twd(struct device *dev, __le64 *twd)
 #define FBNIC_TWD_TYPE(_type) \
 	cpu_to_le64(FIELD_PREP(FBNIC_TWD_TYPE_MASK, FBNIC_TWD_TYPE_##_type))
 
+static bool fbnic_tx_tstamp(struct sk_buff *skb)
+{
+	struct fbnic_net *fbn;
+
+	if (!unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP))
+		return false;
+
+	fbn = netdev_priv(skb->dev);
+	if (fbn->hwtstamp_config.tx_type == HWTSTAMP_TX_OFF)
+		return false;
+
+	skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+	FBNIC_XMIT_CB(skb)->flags |= FBNIC_XMIT_CB_TS;
+	FBNIC_XMIT_CB(skb)->hw_head = -1;
+
+	return true;
+}
+
 static bool
 fbnic_tx_offloads(struct fbnic_ring *ring, struct sk_buff *skb, __le64 *meta)
 {
 	unsigned int l2len, i3len;
+
+	if (fbnic_tx_tstamp(skb))
+		*meta |= cpu_to_le64(FBNIC_TWD_FLAG_REQ_TS);
 
 	if (unlikely(skb->ip_summed != CHECKSUM_PARTIAL))
 		return false;
@@ -205,6 +271,9 @@ fbnic_tx_map(struct fbnic_ring *ring, struct sk_buff *skb, __le64 *meta)
 
 	ring->tail = tail;
 
+	/* Record SW timestamp */
+	skb_tx_timestamp(skb);
+
 	/* Verify there is room for another packet */
 	fbnic_maybe_stop_tx(skb->dev, ring, FBNIC_MAX_SKB_DESC);
 
@@ -273,6 +342,9 @@ fbnic_xmit_frame_ring(struct sk_buff *skb, struct fbnic_ring *ring)
 err_free:
 	dev_kfree_skb_any(skb);
 err_count:
+	u64_stats_update_begin(&ring->stats.syncp);
+	ring->stats.dropped++;
+	u64_stats_update_end(&ring->stats.syncp);
 	return NETDEV_TX_OK;
 }
 
@@ -313,7 +385,7 @@ static void fbnic_clean_twq0(struct fbnic_napi_vector *nv, int napi_budget,
 			     struct fbnic_ring *ring, bool discard,
 			     unsigned int hw_head)
 {
-	u64 total_bytes = 0, total_packets = 0;
+	u64 total_bytes = 0, total_packets = 0, ts_lost = 0;
 	unsigned int head = ring->head;
 	struct netdev_queue *txq;
 	unsigned int clean_desc;
@@ -327,6 +399,13 @@ static void fbnic_clean_twq0(struct fbnic_napi_vector *nv, int napi_budget,
 		desc_cnt = FBNIC_XMIT_CB(skb)->desc_count;
 		if (desc_cnt > clean_desc)
 			break;
+
+		if (unlikely(FBNIC_XMIT_CB(skb)->flags & FBNIC_XMIT_CB_TS)) {
+			FBNIC_XMIT_CB(skb)->hw_head = hw_head;
+			if (likely(!discard))
+				break;
+			ts_lost++;
+		}
 
 		ring->tx_buf[head] = NULL;
 
@@ -363,13 +442,73 @@ static void fbnic_clean_twq0(struct fbnic_napi_vector *nv, int napi_budget,
 	txq = txring_txq(nv->napi.dev, ring);
 
 	if (unlikely(discard)) {
+		u64_stats_update_begin(&ring->stats.syncp);
+		ring->stats.dropped += total_packets;
+		ring->stats.ts_lost += ts_lost;
+		u64_stats_update_end(&ring->stats.syncp);
+
 		netdev_tx_completed_queue(txq, total_packets, total_bytes);
 		return;
 	}
 
+	u64_stats_update_begin(&ring->stats.syncp);
+	ring->stats.bytes += total_bytes;
+	ring->stats.packets += total_packets;
+	u64_stats_update_end(&ring->stats.syncp);
+
 	netif_txq_completed_wake(txq, total_packets, total_bytes,
 				 fbnic_desc_unused(ring),
 				 FBNIC_TX_DESC_WAKEUP);
+}
+
+static void fbnic_clean_tsq(struct fbnic_napi_vector *nv,
+			    struct fbnic_ring *ring,
+			    u64 tcd, int *ts_head, int *head0)
+{
+	struct skb_shared_hwtstamps hwtstamp;
+	struct fbnic_net *fbn;
+	struct sk_buff *skb;
+	int head;
+	u64 ns;
+
+	head = (*ts_head < 0) ? ring->head : *ts_head;
+
+	do {
+		unsigned int desc_cnt;
+
+		if (head == ring->tail) {
+			if (unlikely(net_ratelimit()))
+				netdev_err(nv->napi.dev,
+					   "Tx timestamp without matching packet\n");
+			return;
+		}
+
+		skb = ring->tx_buf[head];
+		desc_cnt = FBNIC_XMIT_CB(skb)->desc_count;
+
+		head += desc_cnt;
+		head &= ring->size_mask;
+	} while (!(FBNIC_XMIT_CB(skb)->flags & FBNIC_XMIT_CB_TS));
+
+	fbn = netdev_priv(nv->napi.dev);
+	ns = fbnic_ts40_to_ns(fbn, FIELD_GET(FBNIC_TCD_TYPE1_TS_MASK, tcd));
+
+	memset(&hwtstamp, 0, sizeof(hwtstamp));
+	hwtstamp.hwtstamp = ns_to_ktime(ns);
+
+	*ts_head = head;
+
+	FBNIC_XMIT_CB(skb)->flags &= ~FBNIC_XMIT_CB_TS;
+	if (*head0 < 0) {
+		head = FBNIC_XMIT_CB(skb)->hw_head;
+		if (head >= 0)
+			*head0 = head;
+	}
+
+	skb_tstamp_tx(skb, &hwtstamp);
+	u64_stats_update_begin(&ring->stats.syncp);
+	ring->stats.ts_packets++;
+	u64_stats_update_end(&ring->stats.syncp);
 }
 
 static void fbnic_page_pool_init(struct fbnic_ring *ring, unsigned int idx,
@@ -405,10 +544,12 @@ static void fbnic_page_pool_drain(struct fbnic_ring *ring, unsigned int idx,
 }
 
 static void fbnic_clean_twq(struct fbnic_napi_vector *nv, int napi_budget,
-			    struct fbnic_q_triad *qt, s32 head0)
+			    struct fbnic_q_triad *qt, s32 ts_head, s32 head0)
 {
 	if (head0 >= 0)
 		fbnic_clean_twq0(nv, napi_budget, &qt->sub0, false, head0);
+	else if (ts_head >= 0)
+		fbnic_clean_twq0(nv, napi_budget, &qt->sub0, false, ts_head);
 }
 
 static void
@@ -416,9 +557,9 @@ fbnic_clean_tcq(struct fbnic_napi_vector *nv, struct fbnic_q_triad *qt,
 		int napi_budget)
 {
 	struct fbnic_ring *cmpl = &qt->cmpl;
+	s32 head0 = -1, ts_head = -1;
 	__le64 *raw_tcd, done;
 	u32 head = cmpl->head;
-	s32 head0 = -1;
 
 	done = (head & (cmpl->size_mask + 1)) ? 0 : cpu_to_le64(FBNIC_TCD_DONE);
 	raw_tcd = &cmpl->desc[head & cmpl->size_mask];
@@ -441,6 +582,12 @@ fbnic_clean_tcq(struct fbnic_napi_vector *nv, struct fbnic_q_triad *qt,
 			 * they are skipped for now.
 			 */
 			break;
+		case FBNIC_TCD_TYPE_1:
+			if (WARN_ON_ONCE(tcd & FBNIC_TCD_TWQ1))
+				break;
+
+			fbnic_clean_tsq(nv, &qt->sub0, tcd, &ts_head, &head0);
+			break;
 		default:
 			break;
 		}
@@ -460,7 +607,7 @@ fbnic_clean_tcq(struct fbnic_napi_vector *nv, struct fbnic_q_triad *qt,
 	}
 
 	/* Unmap and free processed buffers */
-	fbnic_clean_twq(nv, napi_budget, qt, head0);
+	fbnic_clean_twq(nv, napi_budget, qt, ts_head, head0);
 }
 
 static void fbnic_clean_bdq(struct fbnic_napi_vector *nv, int napi_budget,
@@ -695,6 +842,10 @@ static struct sk_buff *fbnic_build_skb(struct fbnic_napi_vector *nv,
 	/* Set MAC header specific fields */
 	skb->protocol = eth_type_trans(skb, nv->napi.dev);
 
+	/* Add timestamp if present */
+	if (pkt->hwtstamp)
+		skb_hwtstamps(skb)->hwtstamp = pkt->hwtstamp;
+
 	return skb;
 }
 
@@ -703,6 +854,23 @@ static enum pkt_hash_types fbnic_skb_hash_type(u64 rcd)
 	return (FBNIC_RCD_META_L4_TYPE_MASK & rcd) ? PKT_HASH_TYPE_L4 :
 	       (FBNIC_RCD_META_L3_TYPE_MASK & rcd) ? PKT_HASH_TYPE_L3 :
 						     PKT_HASH_TYPE_L2;
+}
+
+static void fbnic_rx_tstamp(struct fbnic_napi_vector *nv, u64 rcd,
+			    struct fbnic_pkt_buff *pkt)
+{
+	struct fbnic_net *fbn;
+	u64 ns, ts;
+
+	if (!FIELD_GET(FBNIC_RCD_OPT_META_TS, rcd))
+		return;
+
+	fbn = netdev_priv(nv->napi.dev);
+	ts = FIELD_GET(FBNIC_RCD_OPT_META_TS_MASK, rcd);
+	ns = fbnic_ts40_to_ns(fbn, ts);
+
+	/* Add timestamp to shared info */
+	pkt->hwtstamp = ns_to_ktime(ns);
 }
 
 static void fbnic_populate_skb_fields(struct fbnic_napi_vector *nv,
@@ -730,12 +898,12 @@ static bool fbnic_rcd_metadata_err(u64 rcd)
 static int fbnic_clean_rcq(struct fbnic_napi_vector *nv,
 			   struct fbnic_q_triad *qt, int budget)
 {
+	unsigned int packets = 0, bytes = 0, dropped = 0;
 	struct fbnic_ring *rcq = &qt->cmpl;
 	struct fbnic_pkt_buff *pkt;
 	s32 head0 = -1, head1 = -1;
 	__le64 *raw_rcd, done;
 	u32 head = rcq->head;
-	u64 packets = 0;
 
 	done = (head & (rcq->size_mask + 1)) ? cpu_to_le64(FBNIC_RCD_DONE) : 0;
 	raw_rcd = &rcq->desc[head & rcq->size_mask];
@@ -769,6 +937,8 @@ static int fbnic_clean_rcq(struct fbnic_napi_vector *nv,
 			if (FIELD_GET(FBNIC_RCD_OPT_META_TYPE_MASK, rcd))
 				break;
 
+			fbnic_rx_tstamp(nv, rcd, pkt);
+
 			/* We currently ignore the action table index */
 			break;
 		case FBNIC_RCD_TYPE_META:
@@ -780,9 +950,11 @@ static int fbnic_clean_rcq(struct fbnic_napi_vector *nv,
 				fbnic_populate_skb_fields(nv, rcd, skb, qt);
 
 				packets++;
+				bytes += skb->len;
 
 				napi_gro_receive(&nv->napi, skb);
 			} else {
+				dropped++;
 				fbnic_put_pkt_buff(nv, pkt, 1);
 			}
 
@@ -798,6 +970,14 @@ static int fbnic_clean_rcq(struct fbnic_napi_vector *nv,
 			raw_rcd = &rcq->desc[0];
 		}
 	}
+
+	u64_stats_update_begin(&rcq->stats.syncp);
+	rcq->stats.packets += packets;
+	rcq->stats.bytes += bytes;
+	/* Re-add ethernet header length (removed in fbnic_build_skb) */
+	rcq->stats.bytes += ETH_HLEN * packets;
+	rcq->stats.dropped += dropped;
+	u64_stats_update_end(&rcq->stats.syncp);
 
 	/* Unmap and free processed buffers */
 	if (head0 >= 0)
@@ -865,11 +1045,37 @@ static irqreturn_t fbnic_msix_clean_rings(int __always_unused irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static void fbnic_aggregate_ring_rx_counters(struct fbnic_net *fbn,
+					     struct fbnic_ring *rxr)
+{
+	struct fbnic_queue_stats *stats = &rxr->stats;
+
+	/* Capture stats from queues before dissasociating them */
+	fbn->rx_stats.bytes += stats->bytes;
+	fbn->rx_stats.packets += stats->packets;
+	fbn->rx_stats.dropped += stats->dropped;
+}
+
+static void fbnic_aggregate_ring_tx_counters(struct fbnic_net *fbn,
+					     struct fbnic_ring *txr)
+{
+	struct fbnic_queue_stats *stats = &txr->stats;
+
+	/* Capture stats from queues before dissasociating them */
+	fbn->tx_stats.bytes += stats->bytes;
+	fbn->tx_stats.packets += stats->packets;
+	fbn->tx_stats.dropped += stats->dropped;
+	fbn->tx_stats.ts_lost += stats->ts_lost;
+	fbn->tx_stats.ts_packets += stats->ts_packets;
+}
+
 static void fbnic_remove_tx_ring(struct fbnic_net *fbn,
 				 struct fbnic_ring *txr)
 {
 	if (!(txr->flags & FBNIC_RING_F_STATS))
 		return;
+
+	fbnic_aggregate_ring_tx_counters(fbn, txr);
 
 	/* Remove pointer to the Tx ring */
 	WARN_ON(fbn->tx[txr->q_idx] && fbn->tx[txr->q_idx] != txr);
@@ -881,6 +1087,8 @@ static void fbnic_remove_rx_ring(struct fbnic_net *fbn,
 {
 	if (!(rxr->flags & FBNIC_RING_F_STATS))
 		return;
+
+	fbnic_aggregate_ring_rx_counters(fbn, rxr);
 
 	/* Remove pointer to the Rx ring */
 	WARN_ON(fbn->rx[rxr->q_idx] && fbn->rx[rxr->q_idx] != rxr);
@@ -974,6 +1182,7 @@ static int fbnic_alloc_nv_page_pool(struct fbnic_net *fbn,
 static void fbnic_ring_init(struct fbnic_ring *ring, u32 __iomem *doorbell,
 			    int q_idx, u8 flags)
 {
+	u64_stats_init(&ring->stats.syncp);
 	ring->doorbell = doorbell;
 	ring->q_idx = q_idx;
 	ring->flags = flags;
@@ -1012,13 +1221,13 @@ static int fbnic_alloc_napi_vector(struct fbnic_dev *fbd, struct fbnic_net *fbn,
 	nv->fbd = fbd;
 	nv->v_idx = v_idx;
 
-	/* Record IRQ to NAPI struct */
-	netif_napi_set_irq(&nv->napi,
-			   pci_irq_vector(to_pci_dev(fbd->dev), nv->v_idx));
-
 	/* Tie napi to netdev */
 	list_add(&nv->napis, &fbn->napis);
 	netif_napi_add(fbn->netdev, &nv->napi, fbnic_poll);
+
+	/* Record IRQ to NAPI struct */
+	netif_napi_set_irq(&nv->napi,
+			   pci_irq_vector(to_pci_dev(fbd->dev), nv->v_idx));
 
 	/* Tie nv back to PCIe dev */
 	nv->dev = fbd->dev;

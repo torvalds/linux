@@ -509,54 +509,37 @@ static int hns3_get_sset_count(struct net_device *netdev, int stringset)
 	}
 }
 
-static void *hns3_update_strings(u8 *data, const struct hns3_stats *stats,
-		u32 stat_count, u32 num_tqps, const char *prefix)
+static void hns3_update_strings(u8 **data, const struct hns3_stats *stats,
+				u32 stat_count, u32 num_tqps,
+				const char *prefix)
 {
-#define MAX_PREFIX_SIZE (6 + 4)
-	u32 size_left;
 	u32 i, j;
-	u32 n1;
 
-	for (i = 0; i < num_tqps; i++) {
-		for (j = 0; j < stat_count; j++) {
-			data[ETH_GSTRING_LEN - 1] = '\0';
-
-			/* first, prepend the prefix string */
-			n1 = scnprintf(data, MAX_PREFIX_SIZE, "%s%u_",
-				       prefix, i);
-			size_left = (ETH_GSTRING_LEN - 1) - n1;
-
-			/* now, concatenate the stats string to it */
-			strncat(data, stats[j].stats_string, size_left);
-			data += ETH_GSTRING_LEN;
-		}
-	}
-
-	return data;
+	for (i = 0; i < num_tqps; i++)
+		for (j = 0; j < stat_count; j++)
+			ethtool_sprintf(data, "%s%u_%s", prefix, i,
+					stats[j].stats_string);
 }
 
-static u8 *hns3_get_strings_tqps(struct hnae3_handle *handle, u8 *data)
+static void hns3_get_strings_tqps(struct hnae3_handle *handle, u8 **data)
 {
 	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
 	const char tx_prefix[] = "txq";
 	const char rx_prefix[] = "rxq";
 
 	/* get strings for Tx */
-	data = hns3_update_strings(data, hns3_txq_stats, HNS3_TXQ_STATS_COUNT,
-				   kinfo->num_tqps, tx_prefix);
+	hns3_update_strings(data, hns3_txq_stats, HNS3_TXQ_STATS_COUNT,
+			    kinfo->num_tqps, tx_prefix);
 
 	/* get strings for Rx */
-	data = hns3_update_strings(data, hns3_rxq_stats, HNS3_RXQ_STATS_COUNT,
-				   kinfo->num_tqps, rx_prefix);
-
-	return data;
+	hns3_update_strings(data, hns3_rxq_stats, HNS3_RXQ_STATS_COUNT,
+			    kinfo->num_tqps, rx_prefix);
 }
 
 static void hns3_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 	const struct hnae3_ae_ops *ops = h->ae_algo->ops;
-	char *buff = (char *)data;
 	int i;
 
 	if (!ops->get_strings)
@@ -564,18 +547,15 @@ static void hns3_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 
 	switch (stringset) {
 	case ETH_SS_STATS:
-		buff = hns3_get_strings_tqps(h, buff);
-		ops->get_strings(h, stringset, (u8 *)buff);
+		hns3_get_strings_tqps(h, &data);
+		ops->get_strings(h, stringset, &data);
 		break;
 	case ETH_SS_TEST:
-		ops->get_strings(h, stringset, data);
+		ops->get_strings(h, stringset, &data);
 		break;
 	case ETH_SS_PRIV_FLAGS:
-		for (i = 0; i < HNS3_PRIV_FLAGS_LEN; i++) {
-			snprintf(buff, ETH_GSTRING_LEN, "%s",
-				 hns3_priv_flags[i].name);
-			buff += ETH_GSTRING_LEN;
-		}
+		for (i = 0; i < HNS3_PRIV_FLAGS_LEN; i++)
+			ethtool_puts(&data, hns3_priv_flags[i].name);
 		break;
 	default:
 		break;

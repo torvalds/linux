@@ -4,6 +4,7 @@
 #include <linux/mm.h>
 
 #include <xen/hvc-console.h>
+#include <xen/acpi.h>
 
 #include <asm/bootparam.h>
 #include <asm/io_apic.h>
@@ -27,6 +28,28 @@
  */
 bool __ro_after_init xen_pvh;
 EXPORT_SYMBOL_GPL(xen_pvh);
+
+#ifdef CONFIG_XEN_DOM0
+int xen_pvh_setup_gsi(int gsi, int trigger, int polarity)
+{
+	int ret;
+	struct physdev_setup_gsi setup_gsi;
+
+	setup_gsi.gsi = gsi;
+	setup_gsi.triggering = (trigger == ACPI_EDGE_SENSITIVE ? 0 : 1);
+	setup_gsi.polarity = (polarity == ACPI_ACTIVE_HIGH ? 0 : 1);
+
+	ret = HYPERVISOR_physdev_op(PHYSDEVOP_setup_gsi, &setup_gsi);
+	if (ret == -EEXIST) {
+		xen_raw_printk("Already setup the GSI :%d\n", gsi);
+		ret = 0;
+	} else if (ret)
+		xen_raw_printk("Fail to setup GSI (%d)!\n", gsi);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(xen_pvh_setup_gsi);
+#endif
 
 /*
  * Reserve e820 UNUSABLE regions to inflate the memory balloon.

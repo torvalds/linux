@@ -24,3 +24,53 @@
 	groups = "hscif0_data", "hscif0_ctrl";
 	function = "hscif0";
 };
+
+&pfc {
+	tsn0_pins: tsn0 {
+		mux {
+			groups = "tsn0_link", "tsn0_mdio", "tsn0_rgmii",
+				 "tsn0_txcrefclk";
+			function = "tsn0";
+		};
+
+		link {
+			groups = "tsn0_link";
+			bias-disable;
+		};
+
+		mdio {
+			groups = "tsn0_mdio";
+			drive-strength = <24>;
+			bias-disable;
+		};
+
+		rgmii {
+			groups = "tsn0_rgmii";
+			drive-strength = <24>;
+			bias-disable;
+		};
+	};
+};
+
+&tsn0 {
+	pinctrl-0 = <&tsn0_pins>;
+	pinctrl-names = "default";
+	phy-mode = "rgmii";
+	phy-handle = <&phy3>;
+	status = "okay";
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reset-gpios = <&gpio1 23 GPIO_ACTIVE_LOW>;
+		reset-post-delay-us = <4000>;
+
+		phy3: ethernet-phy@0 {
+			compatible = "ethernet-phy-id002b.0980",
+				     "ethernet-phy-ieee802.3-c22";
+			reg = <0>;
+			interrupts-extended = <&gpio4 3 IRQ_TYPE_LEVEL_LOW>;
+		};
+	};
+};

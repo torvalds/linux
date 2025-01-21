@@ -17,7 +17,7 @@
 #include <linux/of.h>
 #include <linux/mfd/rsmu.h>
 #include <linux/mfd/idt8a340_reg.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "ptp_private.h"
 #include "ptp_clockmatrix.h"
@@ -2471,7 +2471,7 @@ static struct platform_driver idtcm_driver = {
 		.name = "8a3400x-phc",
 	},
 	.probe = idtcm_probe,
-	.remove_new = idtcm_remove,
+	.remove = idtcm_remove,
 };
 
 module_platform_driver(idtcm_driver);

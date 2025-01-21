@@ -213,8 +213,8 @@ static int acpi_ac_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ac->device = adev;
-	strcpy(acpi_device_name(adev), ACPI_AC_DEVICE_NAME);
-	strcpy(acpi_device_class(adev), ACPI_AC_CLASS);
+	strscpy(acpi_device_name(adev), ACPI_AC_DEVICE_NAME);
+	strscpy(acpi_device_class(adev), ACPI_AC_CLASS);
 
 	platform_set_drvdata(pdev, ac);
 
@@ -290,7 +290,7 @@ static void acpi_ac_remove(struct platform_device *pdev)
 
 static struct platform_driver acpi_ac_driver = {
 	.probe = acpi_ac_probe,
-	.remove_new = acpi_ac_remove,
+	.remove = acpi_ac_remove,
 	.driver = {
 		.name = "ac",
 		.acpi_match_table = ac_device_ids,

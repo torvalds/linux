@@ -60,11 +60,9 @@ xrep_nlinks_is_orphaned(
 	unsigned int		actual_nlink,
 	const struct xchk_nlink	*obs)
 {
-	struct xfs_mount	*mp = ip->i_mount;
-
 	if (obs->parents != 0)
 		return false;
-	if (ip == mp->m_rootip || ip == sc->orphanage)
+	if (xchk_inode_is_dirtree_root(ip) || ip == sc->orphanage)
 		return false;
 	return actual_nlink != 0;
 }

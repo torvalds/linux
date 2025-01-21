@@ -28,8 +28,9 @@ module_param(ieee80211_default_rc_algo, charp, 0644);
 MODULE_PARM_DESC(ieee80211_default_rc_algo,
 		 "Default rate control algorithm for mac80211 to use");
 
-void rate_control_rate_init(struct sta_info *sta)
+void rate_control_rate_init(struct link_sta_info *link_sta)
 {
+	struct sta_info *sta = link_sta->sta;
 	struct ieee80211_local *local = sta->sdata->local;
 	struct rate_control_ref *ref = sta->rate_ctrl;
 	struct ieee80211_sta *ista = &sta->sta;
@@ -37,9 +38,13 @@ void rate_control_rate_init(struct sta_info *sta)
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 
-	ieee80211_sta_init_nss(&sta->deflink);
+	ieee80211_sta_init_nss(link_sta);
 
 	if (!ref)
+		return;
+
+	/* SW rate control isn't supported with MLO right now */
+	if (WARN_ON(ieee80211_vif_is_mld(&sta->sdata->vif)))
 		return;
 
 	rcu_read_lock();
@@ -65,6 +70,21 @@ void rate_control_rate_init(struct sta_info *sta)
 	spin_unlock_bh(&sta->rate_ctrl_lock);
 	rcu_read_unlock();
 	set_sta_flag(sta, WLAN_STA_RATE_CONTROL);
+}
+
+void rate_control_rate_init_all_links(struct sta_info *sta)
+{
+	int link_id;
+
+	for (link_id = 0; link_id < ARRAY_SIZE(sta->link); link_id++) {
+		struct link_sta_info *link_sta;
+
+		link_sta = sdata_dereference(sta->link[link_id], sta->sdata);
+		if (!link_sta)
+			continue;
+
+		rate_control_rate_init(link_sta);
+	}
 }
 
 void rate_control_tx_status(struct ieee80211_local *local,
@@ -93,15 +113,14 @@ void rate_control_tx_status(struct ieee80211_local *local,
 
 void rate_control_rate_update(struct ieee80211_local *local,
 			      struct ieee80211_supported_band *sband,
-			      struct sta_info *sta, unsigned int link_id,
+			      struct link_sta_info *link_sta,
 			      u32 changed)
 {
 	struct rate_control_ref *ref = local->rate_ctrl;
+	struct sta_info *sta = link_sta->sta;
 	struct ieee80211_sta *ista = &sta->sta;
 	void *priv_sta = sta->rate_ctrl_priv;
 	struct ieee80211_chanctx_conf *chanctx_conf;
-
-	WARN_ON(link_id != 0);
 
 	if (ref && ref->ops->rate_update) {
 		rcu_read_lock();
@@ -120,7 +139,8 @@ void rate_control_rate_update(struct ieee80211_local *local,
 	}
 
 	if (sta->uploaded)
-		drv_sta_rc_update(local, sta->sdata, &sta->sta, changed);
+		drv_link_sta_rc_update(local, sta->sdata, link_sta->pub,
+				       changed);
 }
 
 int ieee80211_rate_control_register(const struct rate_control_ops *ops)
@@ -229,9 +249,8 @@ static ssize_t rcname_read(struct file *file, char __user *userbuf,
 				       ref->ops->name, len);
 }
 
-const struct file_operations rcname_ops = {
+const struct debugfs_short_fops rcname_ops = {
 	.read = rcname_read,
-	.open = simple_open,
 	.llseek = default_llseek,
 };
 #endif
@@ -890,7 +909,7 @@ void ieee80211_get_tx_rates(struct ieee80211_vif *vif,
 	if (ieee80211_is_tx_data(skb))
 		rate_control_apply_mask(sdata, sta, sband, dest, max_rates);
 
-	if (!(info->control.flags & IEEE80211_TX_CTRL_SCAN_TX))
+	if (!(info->control.flags & IEEE80211_TX_CTRL_DONT_USE_RATE_MASK))
 		mask = sdata->rc_rateidx_mask[info->band];
 
 	if (dest[0].idx < 0)

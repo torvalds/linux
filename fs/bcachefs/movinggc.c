@@ -73,6 +73,7 @@ move_bucket_in_flight_add(struct buckets_in_flight *list, struct move_bucket b)
 static int bch2_bucket_is_movable(struct btree_trans *trans,
 				  struct move_bucket *b, u64 time)
 {
+	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bch_alloc_v4 _a;
@@ -90,14 +91,19 @@ static int bch2_bucket_is_movable(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
+	struct bch_dev *ca = bch2_dev_tryget(c, k.k->p.inode);
+	if (!ca)
+		goto out;
+
 	a = bch2_alloc_to_v4(k, &_a);
 	b->k.gen	= a->gen;
 	b->sectors	= bch2_bucket_sectors_dirty(*a);
+	u64 lru_idx	= alloc_lru_idx_fragmentation(*a, ca);
 
-	ret = data_type_movable(a->data_type) &&
-		a->fragmentation_lru &&
-		a->fragmentation_lru <= time;
+	ret = lru_idx && lru_idx <= time;
 
+	bch2_dev_put(ca);
+out:
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }

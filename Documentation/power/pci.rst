@@ -979,18 +979,17 @@ subsections can be defined as a separate function, it often is convenient to
 point two or more members of struct dev_pm_ops to the same routine.  There are
 a few convenience macros that can be used for this purpose.
 
-The SIMPLE_DEV_PM_OPS macro declares a struct dev_pm_ops object with one
+The DEFINE_SIMPLE_DEV_PM_OPS() declares a struct dev_pm_ops object with one
 suspend routine pointed to by the .suspend(), .freeze(), and .poweroff()
 members and one resume routine pointed to by the .resume(), .thaw(), and
 .restore() members.  The other function pointers in this struct dev_pm_ops are
 unset.
 
-The UNIVERSAL_DEV_PM_OPS macro is similar to SIMPLE_DEV_PM_OPS, but it
-additionally sets the .runtime_resume() pointer to the same value as
-.resume() (and .thaw(), and .restore()) and the .runtime_suspend() pointer to
-the same value as .suspend() (and .freeze() and .poweroff()).
+The DEFINE_RUNTIME_DEV_PM_OPS() is similar to DEFINE_SIMPLE_DEV_PM_OPS(), but it
+additionally sets the .runtime_resume() pointer to pm_runtime_force_resume()
+and the .runtime_suspend() pointer to pm_runtime_force_suspend().
 
-The SET_SYSTEM_SLEEP_PM_OPS can be used inside of a declaration of struct
+The SYSTEM_SLEEP_PM_OPS() can be used inside of a declaration of struct
 dev_pm_ops to indicate that one suspend routine is to be pointed to by the
 .suspend(), .freeze(), and .poweroff() members and one resume routine is to
 be pointed to by the .resume(), .thaw(), and .restore() members.

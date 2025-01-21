@@ -364,14 +364,11 @@ static irqreturn_t regmap_irq_thread(int irq, void *d)
 		memset32(data->status_buf, GENMASK(31, 0), chip->num_regs);
 	} else if (chip->num_main_regs) {
 		unsigned int max_main_bits;
-		unsigned long size;
-
-		size = chip->num_regs * sizeof(unsigned int);
 
 		max_main_bits = (chip->num_main_status_bits) ?
 				 chip->num_main_status_bits : chip->num_regs;
 		/* Clear the status buf as we don't read all status regs */
-		memset(data->status_buf, 0, size);
+		memset32(data->status_buf, 0, chip->num_regs);
 
 		/* We could support bulk read for main status registers
 		 * but I don't expect to see devices with really many main
@@ -514,12 +511,16 @@ exit:
 		return IRQ_NONE;
 }
 
+static struct lock_class_key regmap_irq_lock_class;
+static struct lock_class_key regmap_irq_request_class;
+
 static int regmap_irq_map(struct irq_domain *h, unsigned int virq,
 			  irq_hw_number_t hw)
 {
 	struct regmap_irq_chip_data *data = h->host_data;
 
 	irq_set_chip_data(virq, data);
+	irq_set_lockdep_class(virq, &regmap_irq_lock_class, &regmap_irq_request_class);
 	irq_set_chip(virq, &data->irq_chip);
 	irq_set_nested_thread(virq, 1);
 	irq_set_parent(virq, data->irq);
@@ -607,6 +608,30 @@ int regmap_irq_set_type_config_simple(unsigned int **buf, unsigned int type,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(regmap_irq_set_type_config_simple);
+
+static int regmap_irq_create_domain(struct fwnode_handle *fwnode, int irq_base,
+				    const struct regmap_irq_chip *chip,
+				    struct regmap_irq_chip_data *d)
+{
+	struct irq_domain_info info = {
+		.fwnode = fwnode,
+		.size = chip->num_irqs,
+		.hwirq_max = chip->num_irqs,
+		.virq_base = irq_base,
+		.ops = &regmap_domain_ops,
+		.host_data = d,
+		.name_suffix = chip->domain_suffix,
+	};
+
+	d->domain = irq_domain_instantiate(&info);
+	if (IS_ERR(d->domain)) {
+		dev_err(d->map->dev, "Failed to create IRQ domain\n");
+		return PTR_ERR(d->domain);
+	}
+
+	return 0;
+}
+
 
 /**
  * regmap_add_irq_chip_fwnode() - Use standard regmap IRQ controller handling
@@ -856,18 +881,9 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 		}
 	}
 
-	if (irq_base)
-		d->domain = irq_domain_create_legacy(fwnode, chip->num_irqs,
-						     irq_base, 0,
-						     &regmap_domain_ops, d);
-	else
-		d->domain = irq_domain_create_linear(fwnode, chip->num_irqs,
-						     &regmap_domain_ops, d);
-	if (!d->domain) {
-		dev_err(map->dev, "Failed to create IRQ domain\n");
-		ret = -ENOMEM;
+	ret = regmap_irq_create_domain(fwnode, irq_base, chip, d);
+	if (ret)
 		goto err_alloc;
-	}
 
 	ret = request_threaded_irq(irq, NULL, regmap_irq_thread,
 				   irq_flags | IRQF_ONESHOT,

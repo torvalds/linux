@@ -107,49 +107,9 @@ static const int xpcs_2500basex_features[] = {
 	__ETHTOOL_LINK_MODE_MASK_NBITS,
 };
 
-static const phy_interface_t xpcs_usxgmii_interfaces[] = {
-	PHY_INTERFACE_MODE_USXGMII,
-};
-
-static const phy_interface_t xpcs_10gkr_interfaces[] = {
-	PHY_INTERFACE_MODE_10GKR,
-};
-
-static const phy_interface_t xpcs_xlgmii_interfaces[] = {
-	PHY_INTERFACE_MODE_XLGMII,
-};
-
-static const phy_interface_t xpcs_10gbaser_interfaces[] = {
-	PHY_INTERFACE_MODE_10GBASER,
-};
-
-static const phy_interface_t xpcs_sgmii_interfaces[] = {
-	PHY_INTERFACE_MODE_SGMII,
-};
-
-static const phy_interface_t xpcs_1000basex_interfaces[] = {
-	PHY_INTERFACE_MODE_1000BASEX,
-};
-
-static const phy_interface_t xpcs_2500basex_interfaces[] = {
-	PHY_INTERFACE_MODE_2500BASEX,
-};
-
-enum {
-	DW_XPCS_USXGMII,
-	DW_XPCS_10GKR,
-	DW_XPCS_XLGMII,
-	DW_XPCS_10GBASER,
-	DW_XPCS_SGMII,
-	DW_XPCS_1000BASEX,
-	DW_XPCS_2500BASEX,
-	DW_XPCS_INTERFACE_MAX,
-};
-
 struct dw_xpcs_compat {
+	phy_interface_t interface;
 	const int *supported;
-	const phy_interface_t *interface;
-	int num_interfaces;
 	int an_mode;
 	int (*pma_config)(struct dw_xpcs *xpcs);
 };
@@ -161,26 +121,28 @@ struct dw_xpcs_desc {
 };
 
 static const struct dw_xpcs_compat *
-xpcs_find_compat(const struct dw_xpcs_desc *desc, phy_interface_t interface)
+xpcs_find_compat(struct dw_xpcs *xpcs, phy_interface_t interface)
 {
-	int i, j;
+	const struct dw_xpcs_compat *compat;
 
-	for (i = 0; i < DW_XPCS_INTERFACE_MAX; i++) {
-		const struct dw_xpcs_compat *compat = &desc->compat[i];
-
-		for (j = 0; j < compat->num_interfaces; j++)
-			if (compat->interface[j] == interface)
-				return compat;
-	}
+	for (compat = xpcs->desc->compat; compat->supported; compat++)
+		if (compat->interface == interface)
+			return compat;
 
 	return NULL;
 }
+
+struct phylink_pcs *xpcs_to_phylink_pcs(struct dw_xpcs *xpcs)
+{
+	return &xpcs->pcs;
+}
+EXPORT_SYMBOL_GPL(xpcs_to_phylink_pcs);
 
 int xpcs_get_an_mode(struct dw_xpcs *xpcs, phy_interface_t interface)
 {
 	const struct dw_xpcs_compat *compat;
 
-	compat = xpcs_find_compat(xpcs->desc, interface);
+	compat = xpcs_find_compat(xpcs, interface);
 	if (!compat)
 		return -ENODEV;
 
@@ -213,6 +175,11 @@ int xpcs_write(struct dw_xpcs *xpcs, int dev, u32 reg, u16 val)
 	return mdiodev_c45_write(xpcs->mdiodev, dev, reg, val);
 }
 
+int xpcs_modify(struct dw_xpcs *xpcs, int dev, u32 reg, u16 mask, u16 set)
+{
+	return mdiodev_c45_modify(xpcs->mdiodev, dev, reg, mask, set);
+}
+
 static int xpcs_modify_changed(struct dw_xpcs *xpcs, int dev, u32 reg,
 			       u16 mask, u16 set)
 {
@@ -230,6 +197,12 @@ static int xpcs_write_vendor(struct dw_xpcs *xpcs, int dev, int reg,
 	return xpcs_write(xpcs, dev, DW_VENDOR | reg, val);
 }
 
+static int xpcs_modify_vendor(struct dw_xpcs *xpcs, int dev, int reg, u16 mask,
+			      u16 set)
+{
+	return xpcs_modify(xpcs, dev, DW_VENDOR | reg, mask, set);
+}
+
 int xpcs_read_vpcs(struct dw_xpcs *xpcs, int reg)
 {
 	return xpcs_read_vendor(xpcs, MDIO_MMD_PCS, reg);
@@ -240,20 +213,22 @@ int xpcs_write_vpcs(struct dw_xpcs *xpcs, int reg, u16 val)
 	return xpcs_write_vendor(xpcs, MDIO_MMD_PCS, reg, val);
 }
 
+static int xpcs_modify_vpcs(struct dw_xpcs *xpcs, int reg, u16 mask, u16 val)
+{
+	return xpcs_modify_vendor(xpcs, MDIO_MMD_PCS, reg, mask, val);
+}
+
 static int xpcs_poll_reset(struct dw_xpcs *xpcs, int dev)
 {
-	/* Poll until the reset bit clears (50ms per retry == 0.6 sec) */
-	unsigned int retries = 12;
-	int ret;
+	int ret, val;
 
-	do {
-		msleep(50);
-		ret = xpcs_read(xpcs, dev, MDIO_CTRL1);
-		if (ret < 0)
-			return ret;
-	} while (ret & MDIO_CTRL1_RESET && --retries);
+	ret = read_poll_timeout(xpcs_read, val,
+				val < 0 || !(val & BMCR_RESET),
+				50000, 600000, true, xpcs, dev, MII_BMCR);
+	if (val < 0)
+		ret = val;
 
-	return (ret & MDIO_CTRL1_RESET) ? -ETIMEDOUT : 0;
+	return ret;
 }
 
 static int xpcs_soft_reset(struct dw_xpcs *xpcs,
@@ -275,7 +250,7 @@ static int xpcs_soft_reset(struct dw_xpcs *xpcs,
 		return -EINVAL;
 	}
 
-	ret = xpcs_write(xpcs, dev, MDIO_CTRL1, MDIO_CTRL1_RESET);
+	ret = xpcs_write(xpcs, dev, MII_BMCR, BMCR_RESET);
 	if (ret < 0)
 		return ret;
 
@@ -336,7 +311,7 @@ static int xpcs_read_fault_c73(struct dw_xpcs *xpcs,
 	return 0;
 }
 
-static void xpcs_config_usxgmii(struct dw_xpcs *xpcs, int speed)
+static void xpcs_link_up_usxgmii(struct dw_xpcs *xpcs, int speed)
 {
 	int ret, speed_sel;
 
@@ -364,37 +339,25 @@ static void xpcs_config_usxgmii(struct dw_xpcs *xpcs, int speed)
 		return;
 	}
 
-	ret = xpcs_read_vpcs(xpcs, MDIO_CTRL1);
+	ret = xpcs_modify_vpcs(xpcs, MDIO_CTRL1, DW_USXGMII_EN, DW_USXGMII_EN);
 	if (ret < 0)
 		goto out;
 
-	ret = xpcs_write_vpcs(xpcs, MDIO_CTRL1, ret | DW_USXGMII_EN);
+	ret = xpcs_modify(xpcs, MDIO_MMD_VEND2, MII_BMCR, DW_USXGMII_SS_MASK,
+			  speed_sel | DW_USXGMII_FULL);
 	if (ret < 0)
 		goto out;
 
-	ret = xpcs_read(xpcs, MDIO_MMD_VEND2, MDIO_CTRL1);
-	if (ret < 0)
-		goto out;
-
-	ret &= ~DW_USXGMII_SS_MASK;
-	ret |= speed_sel | DW_USXGMII_FULL;
-
-	ret = xpcs_write(xpcs, MDIO_MMD_VEND2, MDIO_CTRL1, ret);
-	if (ret < 0)
-		goto out;
-
-	ret = xpcs_read_vpcs(xpcs, MDIO_CTRL1);
-	if (ret < 0)
-		goto out;
-
-	ret = xpcs_write_vpcs(xpcs, MDIO_CTRL1, ret | DW_USXGMII_RST);
+	ret = xpcs_modify_vpcs(xpcs, MDIO_CTRL1, DW_USXGMII_RST,
+			       DW_USXGMII_RST);
 	if (ret < 0)
 		goto out;
 
 	return;
 
 out:
-	pr_err("%s: XPCS access returned %pe\n", __func__, ERR_PTR(ret));
+	dev_err(&xpcs->mdiodev->dev, "%s: XPCS access returned %pe\n",
+		__func__, ERR_PTR(ret));
 }
 
 static int _xpcs_config_aneg_c73(struct dw_xpcs *xpcs,
@@ -451,13 +414,9 @@ static int xpcs_config_aneg_c73(struct dw_xpcs *xpcs,
 	if (ret < 0)
 		return ret;
 
-	ret = xpcs_read(xpcs, MDIO_MMD_AN, MDIO_CTRL1);
-	if (ret < 0)
-		return ret;
-
-	ret |= MDIO_AN_CTRL1_ENABLE | MDIO_AN_CTRL1_RESTART;
-
-	return xpcs_write(xpcs, MDIO_MMD_AN, MDIO_CTRL1, ret);
+	return xpcs_modify(xpcs, MDIO_MMD_AN, MDIO_CTRL1,
+			   MDIO_AN_CTRL1_ENABLE | MDIO_AN_CTRL1_RESTART,
+			   MDIO_AN_CTRL1_ENABLE | MDIO_AN_CTRL1_RESTART);
 }
 
 static int xpcs_aneg_done_c73(struct dw_xpcs *xpcs,
@@ -592,7 +551,7 @@ static int xpcs_validate(struct phylink_pcs *pcs, unsigned long *supported,
 	int i;
 
 	xpcs = phylink_pcs_to_xpcs(pcs);
-	compat = xpcs_find_compat(xpcs->desc, state->interface);
+	compat = xpcs_find_compat(xpcs, state->interface);
 	if (!compat)
 		return -EINVAL;
 
@@ -610,62 +569,72 @@ static int xpcs_validate(struct phylink_pcs *pcs, unsigned long *supported,
 
 void xpcs_get_interfaces(struct dw_xpcs *xpcs, unsigned long *interfaces)
 {
-	int i, j;
+	const struct dw_xpcs_compat *compat;
 
-	for (i = 0; i < DW_XPCS_INTERFACE_MAX; i++) {
-		const struct dw_xpcs_compat *compat = &xpcs->desc->compat[i];
-
-		for (j = 0; j < compat->num_interfaces; j++)
-			__set_bit(compat->interface[j], interfaces);
-	}
+	for (compat = xpcs->desc->compat; compat->supported; compat++)
+		__set_bit(compat->interface, interfaces);
 }
 EXPORT_SYMBOL_GPL(xpcs_get_interfaces);
 
 int xpcs_config_eee(struct dw_xpcs *xpcs, int mult_fact_100ns, int enable)
 {
+	u16 mask, val;
 	int ret;
 
-	ret = xpcs_read(xpcs, MDIO_MMD_VEND2, DW_VR_MII_EEE_MCTRL0);
-	if (ret < 0)
-		return ret;
-
-	if (enable) {
-	/* Enable EEE */
-		ret = DW_VR_MII_EEE_LTX_EN | DW_VR_MII_EEE_LRX_EN |
-		      DW_VR_MII_EEE_TX_QUIET_EN | DW_VR_MII_EEE_RX_QUIET_EN |
-		      DW_VR_MII_EEE_TX_EN_CTRL | DW_VR_MII_EEE_RX_EN_CTRL |
-		      mult_fact_100ns << DW_VR_MII_EEE_MULT_FACT_100NS_SHIFT;
-	} else {
-		ret &= ~(DW_VR_MII_EEE_LTX_EN | DW_VR_MII_EEE_LRX_EN |
-		       DW_VR_MII_EEE_TX_QUIET_EN | DW_VR_MII_EEE_RX_QUIET_EN |
-		       DW_VR_MII_EEE_TX_EN_CTRL | DW_VR_MII_EEE_RX_EN_CTRL |
-		       DW_VR_MII_EEE_MULT_FACT_100NS);
-	}
-
-	ret = xpcs_write(xpcs, MDIO_MMD_VEND2, DW_VR_MII_EEE_MCTRL0, ret);
-	if (ret < 0)
-		return ret;
-
-	ret = xpcs_read(xpcs, MDIO_MMD_VEND2, DW_VR_MII_EEE_MCTRL1);
-	if (ret < 0)
-		return ret;
+	mask = DW_VR_MII_EEE_LTX_EN | DW_VR_MII_EEE_LRX_EN |
+	       DW_VR_MII_EEE_TX_QUIET_EN | DW_VR_MII_EEE_RX_QUIET_EN |
+	       DW_VR_MII_EEE_TX_EN_CTRL | DW_VR_MII_EEE_RX_EN_CTRL |
+	       DW_VR_MII_EEE_MULT_FACT_100NS;
 
 	if (enable)
-		ret |= DW_VR_MII_EEE_TRN_LPI;
+		val = DW_VR_MII_EEE_LTX_EN | DW_VR_MII_EEE_LRX_EN |
+		      DW_VR_MII_EEE_TX_QUIET_EN | DW_VR_MII_EEE_RX_QUIET_EN |
+		      DW_VR_MII_EEE_TX_EN_CTRL | DW_VR_MII_EEE_RX_EN_CTRL |
+		      FIELD_PREP(DW_VR_MII_EEE_MULT_FACT_100NS,
+				 mult_fact_100ns);
 	else
-		ret &= ~DW_VR_MII_EEE_TRN_LPI;
+		val = 0;
 
-	return xpcs_write(xpcs, MDIO_MMD_VEND2, DW_VR_MII_EEE_MCTRL1, ret);
+	ret = xpcs_modify(xpcs, MDIO_MMD_VEND2, DW_VR_MII_EEE_MCTRL0, mask,
+			  val);
+	if (ret < 0)
+		return ret;
+
+	return xpcs_modify(xpcs, MDIO_MMD_VEND2, DW_VR_MII_EEE_MCTRL1,
+			   DW_VR_MII_EEE_TRN_LPI,
+			   enable ? DW_VR_MII_EEE_TRN_LPI : 0);
 }
 EXPORT_SYMBOL_GPL(xpcs_config_eee);
+
+static void xpcs_pre_config(struct phylink_pcs *pcs, phy_interface_t interface)
+{
+	struct dw_xpcs *xpcs = phylink_pcs_to_xpcs(pcs);
+	const struct dw_xpcs_compat *compat;
+	int ret;
+
+	if (!xpcs->need_reset)
+		return;
+
+	compat = xpcs_find_compat(xpcs, interface);
+	if (!compat) {
+		dev_err(&xpcs->mdiodev->dev, "unsupported interface %s\n",
+			phy_modes(interface));
+		return;
+	}
+
+	ret = xpcs_soft_reset(xpcs, compat);
+	if (ret)
+		dev_err(&xpcs->mdiodev->dev, "soft reset failed: %pe\n",
+			ERR_PTR(ret));
+
+	xpcs->need_reset = false;
+}
 
 static int xpcs_config_aneg_c37_sgmii(struct dw_xpcs *xpcs,
 				      unsigned int neg_mode)
 {
 	int ret, mdio_ctrl, tx_conf;
-
-	if (xpcs->info.pma == WX_TXGBE_XPCS_PMA_10G_ID)
-		xpcs_write_vpcs(xpcs, DW_VR_XS_PCS_DIG_CTRL1, DW_CL37_BP | DW_EN_VSMMD1);
+	u16 mask, val;
 
 	/* For AN for C37 SGMII mode, the settings are :-
 	 * 1) VR_MII_MMD_CTRL Bit(12) [AN_ENABLE] = 0b (Disable SGMII AN in case
@@ -677,63 +646,60 @@ static int xpcs_config_aneg_c37_sgmii(struct dw_xpcs *xpcs,
 	 *    speed/duplex mode change by HW after SGMII AN complete)
 	 * 5) VR_MII_MMD_CTRL Bit(12) [AN_ENABLE] = 1b (Enable SGMII AN)
 	 *
+	 * Note that VR_MII_MMD_CTRL is MII_BMCR.
+	 *
 	 * Note: Since it is MAC side SGMII, there is no need to set
 	 *	 SR_MII_AN_ADV. MAC side SGMII receives AN Tx Config from
 	 *	 PHY about the link state change after C28 AN is completed
 	 *	 between PHY and Link Partner. There is also no need to
 	 *	 trigger AN restart for MAC-side SGMII.
 	 */
-	mdio_ctrl = xpcs_read(xpcs, MDIO_MMD_VEND2, DW_VR_MII_MMD_CTRL);
+	mdio_ctrl = xpcs_read(xpcs, MDIO_MMD_VEND2, MII_BMCR);
 	if (mdio_ctrl < 0)
 		return mdio_ctrl;
 
-	if (mdio_ctrl & AN_CL37_EN) {
-		ret = xpcs_write(xpcs, MDIO_MMD_VEND2, DW_VR_MII_MMD_CTRL,
-				 mdio_ctrl & ~AN_CL37_EN);
+	if (mdio_ctrl & BMCR_ANENABLE) {
+		ret = xpcs_write(xpcs, MDIO_MMD_VEND2, MII_BMCR,
+				 mdio_ctrl & ~BMCR_ANENABLE);
 		if (ret < 0)
 			return ret;
 	}
 
-	ret = xpcs_read(xpcs, MDIO_MMD_VEND2, DW_VR_MII_AN_CTRL);
-	if (ret < 0)
-		return ret;
+	mask = DW_VR_MII_PCS_MODE_MASK | DW_VR_MII_TX_CONFIG_MASK;
+	val = FIELD_PREP(DW_VR_MII_PCS_MODE_MASK,
+			 DW_VR_MII_PCS_MODE_C37_SGMII);
 
-	ret &= ~(DW_VR_MII_PCS_MODE_MASK | DW_VR_MII_TX_CONFIG_MASK);
-	ret |= (DW_VR_MII_PCS_MODE_C37_SGMII <<
-		DW_VR_MII_AN_CTRL_PCS_MODE_SHIFT &
-		DW_VR_MII_PCS_MODE_MASK);
 	if (xpcs->info.pma == WX_TXGBE_XPCS_PMA_10G_ID) {
-		ret |= DW_VR_MII_AN_CTRL_8BIT;
+		mask |= DW_VR_MII_AN_CTRL_8BIT;
+		val |= DW_VR_MII_AN_CTRL_8BIT;
 		/* Hardware requires it to be PHY side SGMII */
 		tx_conf = DW_VR_MII_TX_CONFIG_PHY_SIDE_SGMII;
 	} else {
 		tx_conf = DW_VR_MII_TX_CONFIG_MAC_SIDE_SGMII;
 	}
-	ret |= tx_conf << DW_VR_MII_AN_CTRL_TX_CONFIG_SHIFT &
-		DW_VR_MII_TX_CONFIG_MASK;
-	ret = xpcs_write(xpcs, MDIO_MMD_VEND2, DW_VR_MII_AN_CTRL, ret);
+
+	val |= FIELD_PREP(DW_VR_MII_TX_CONFIG_MASK, tx_conf);
+
+	ret = xpcs_modify(xpcs, MDIO_MMD_VEND2, DW_VR_MII_AN_CTRL, mask, val);
 	if (ret < 0)
 		return ret;
 
-	ret = xpcs_read(xpcs, MDIO_MMD_VEND2, DW_VR_MII_DIG_CTRL1);
+	mask = DW_VR_MII_DIG_CTRL1_MAC_AUTO_SW;
+	if (neg_mode == PHYLINK_PCS_NEG_INBAND_ENABLED)
+		val = DW_VR_MII_DIG_CTRL1_MAC_AUTO_SW;
+
+	if (xpcs->info.pma == WX_TXGBE_XPCS_PMA_10G_ID) {
+		mask |= DW_VR_MII_DIG_CTRL1_PHY_MODE_CTRL;
+		val |= DW_VR_MII_DIG_CTRL1_PHY_MODE_CTRL;
+	}
+
+	ret = xpcs_modify(xpcs, MDIO_MMD_VEND2, DW_VR_MII_DIG_CTRL1, mask, val);
 	if (ret < 0)
 		return ret;
 
 	if (neg_mode == PHYLINK_PCS_NEG_INBAND_ENABLED)
-		ret |= DW_VR_MII_DIG_CTRL1_MAC_AUTO_SW;
-	else
-		ret &= ~DW_VR_MII_DIG_CTRL1_MAC_AUTO_SW;
-
-	if (xpcs->info.pma == WX_TXGBE_XPCS_PMA_10G_ID)
-		ret |= DW_VR_MII_DIG_CTRL1_PHY_MODE_CTRL;
-
-	ret = xpcs_write(xpcs, MDIO_MMD_VEND2, DW_VR_MII_DIG_CTRL1, ret);
-	if (ret < 0)
-		return ret;
-
-	if (neg_mode == PHYLINK_PCS_NEG_INBAND_ENABLED)
-		ret = xpcs_write(xpcs, MDIO_MMD_VEND2, DW_VR_MII_MMD_CTRL,
-				 mdio_ctrl | AN_CL37_EN);
+		ret = xpcs_write(xpcs, MDIO_MMD_VEND2, MII_BMCR,
+				 mdio_ctrl | BMCR_ANENABLE);
 
 	return ret;
 }
@@ -745,34 +711,36 @@ static int xpcs_config_aneg_c37_1000basex(struct dw_xpcs *xpcs,
 	phy_interface_t interface = PHY_INTERFACE_MODE_1000BASEX;
 	int ret, mdio_ctrl, adv;
 	bool changed = 0;
-
-	if (xpcs->info.pma == WX_TXGBE_XPCS_PMA_10G_ID)
-		xpcs_write_vpcs(xpcs, DW_VR_XS_PCS_DIG_CTRL1, DW_CL37_BP | DW_EN_VSMMD1);
+	u16 mask, val;
 
 	/* According to Chap 7.12, to set 1000BASE-X C37 AN, AN must
 	 * be disabled first:-
 	 * 1) VR_MII_MMD_CTRL Bit(12)[AN_ENABLE] = 0b
 	 * 2) VR_MII_AN_CTRL Bit(2:1)[PCS_MODE] = 00b (1000BASE-X C37)
+	 *
+	 * Note that VR_MII_MMD_CTRL is MII_BMCR.
 	 */
-	mdio_ctrl = xpcs_read(xpcs, MDIO_MMD_VEND2, DW_VR_MII_MMD_CTRL);
+	mdio_ctrl = xpcs_read(xpcs, MDIO_MMD_VEND2, MII_BMCR);
 	if (mdio_ctrl < 0)
 		return mdio_ctrl;
 
-	if (mdio_ctrl & AN_CL37_EN) {
-		ret = xpcs_write(xpcs, MDIO_MMD_VEND2, DW_VR_MII_MMD_CTRL,
-				 mdio_ctrl & ~AN_CL37_EN);
+	if (mdio_ctrl & BMCR_ANENABLE) {
+		ret = xpcs_write(xpcs, MDIO_MMD_VEND2, MII_BMCR,
+				 mdio_ctrl & ~BMCR_ANENABLE);
 		if (ret < 0)
 			return ret;
 	}
 
-	ret = xpcs_read(xpcs, MDIO_MMD_VEND2, DW_VR_MII_AN_CTRL);
-	if (ret < 0)
-		return ret;
+	mask = DW_VR_MII_PCS_MODE_MASK;
+	val = FIELD_PREP(DW_VR_MII_PCS_MODE_MASK,
+			 DW_VR_MII_PCS_MODE_C37_1000BASEX);
 
-	ret &= ~DW_VR_MII_PCS_MODE_MASK;
-	if (!xpcs->pcs.poll)
-		ret |= DW_VR_MII_AN_INTR_EN;
-	ret = xpcs_write(xpcs, MDIO_MMD_VEND2, DW_VR_MII_AN_CTRL, ret);
+	if (!xpcs->pcs.poll) {
+		mask |= DW_VR_MII_AN_INTR_EN;
+		val |= DW_VR_MII_AN_INTR_EN;
+	}
+
+	ret = xpcs_modify(xpcs, MDIO_MMD_VEND2, DW_VR_MII_AN_CTRL, mask, val);
 	if (ret < 0)
 		return ret;
 
@@ -796,8 +764,8 @@ static int xpcs_config_aneg_c37_1000basex(struct dw_xpcs *xpcs,
 		return ret;
 
 	if (neg_mode == PHYLINK_PCS_NEG_INBAND_ENABLED) {
-		ret = xpcs_write(xpcs, MDIO_MMD_VEND2, DW_VR_MII_MMD_CTRL,
-				 mdio_ctrl | AN_CL37_EN);
+		ret = xpcs_write(xpcs, MDIO_MMD_VEND2, MII_BMCR,
+				 mdio_ctrl | BMCR_ANENABLE);
 		if (ret < 0)
 			return ret;
 	}
@@ -809,31 +777,26 @@ static int xpcs_config_2500basex(struct dw_xpcs *xpcs)
 {
 	int ret;
 
-	ret = xpcs_read(xpcs, MDIO_MMD_VEND2, DW_VR_MII_DIG_CTRL1);
-	if (ret < 0)
-		return ret;
-	ret |= DW_VR_MII_DIG_CTRL1_2G5_EN;
-	ret &= ~DW_VR_MII_DIG_CTRL1_MAC_AUTO_SW;
-	ret = xpcs_write(xpcs, MDIO_MMD_VEND2, DW_VR_MII_DIG_CTRL1, ret);
+	ret = xpcs_modify(xpcs, MDIO_MMD_VEND2, DW_VR_MII_DIG_CTRL1,
+			  DW_VR_MII_DIG_CTRL1_2G5_EN |
+			  DW_VR_MII_DIG_CTRL1_MAC_AUTO_SW,
+			  DW_VR_MII_DIG_CTRL1_2G5_EN);
 	if (ret < 0)
 		return ret;
 
-	ret = xpcs_read(xpcs, MDIO_MMD_VEND2, DW_VR_MII_MMD_CTRL);
-	if (ret < 0)
-		return ret;
-	ret &= ~AN_CL37_EN;
-	ret |= SGMII_SPEED_SS6;
-	ret &= ~SGMII_SPEED_SS13;
-	return xpcs_write(xpcs, MDIO_MMD_VEND2, DW_VR_MII_MMD_CTRL, ret);
+	return xpcs_modify(xpcs, MDIO_MMD_VEND2, MII_BMCR,
+			   BMCR_ANENABLE | BMCR_SPEED1000 | BMCR_SPEED100,
+			   BMCR_SPEED1000);
 }
 
-int xpcs_do_config(struct dw_xpcs *xpcs, phy_interface_t interface,
-		   const unsigned long *advertising, unsigned int neg_mode)
+static int xpcs_do_config(struct dw_xpcs *xpcs, phy_interface_t interface,
+			  const unsigned long *advertising,
+			  unsigned int neg_mode)
 {
 	const struct dw_xpcs_compat *compat;
 	int ret;
 
-	compat = xpcs_find_compat(xpcs->desc, interface);
+	compat = xpcs_find_compat(xpcs, interface);
 	if (!compat)
 		return -ENODEV;
 
@@ -841,6 +804,14 @@ int xpcs_do_config(struct dw_xpcs *xpcs, phy_interface_t interface,
 		ret = txgbe_xpcs_switch_mode(xpcs, interface);
 		if (ret)
 			return ret;
+
+		/* Wangxun devices need backplane CL37 AN enabled for
+		 * SGMII and 1000base-X
+		 */
+		if (interface == PHY_INTERFACE_MODE_SGMII ||
+		    interface == PHY_INTERFACE_MODE_1000BASEX)
+			xpcs_write_vpcs(xpcs, DW_VR_XS_PCS_DIG_CTRL1,
+					DW_CL37_BP | DW_EN_VSMMD1);
 	}
 
 	switch (compat->an_mode) {
@@ -881,7 +852,6 @@ int xpcs_do_config(struct dw_xpcs *xpcs, phy_interface_t interface,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(xpcs_do_config);
 
 static int xpcs_config(struct phylink_pcs *pcs, unsigned int neg_mode,
 		       phy_interface_t interface,
@@ -989,8 +959,7 @@ static int xpcs_get_state_c37_sgmii(struct dw_xpcs *xpcs,
 
 		state->link = true;
 
-		speed_value = (ret & DW_VR_MII_AN_STS_C37_ANSGM_SP) >>
-			      DW_VR_MII_AN_STS_C37_ANSGM_SP_SHIFT;
+		speed_value = FIELD_GET(DW_VR_MII_AN_STS_C37_ANSGM_SP, ret);
 		if (speed_value == DW_VR_MII_C37_ANSGM_SP_1000)
 			state->speed = SPEED_1000;
 		else if (speed_value == DW_VR_MII_C37_ANSGM_SP_100)
@@ -1007,14 +976,14 @@ static int xpcs_get_state_c37_sgmii(struct dw_xpcs *xpcs,
 
 		state->link = true;
 
-		speed = xpcs_read(xpcs, MDIO_MMD_VEND2, MDIO_CTRL1);
+		speed = xpcs_read(xpcs, MDIO_MMD_VEND2, MII_BMCR);
 		if (speed < 0)
 			return speed;
 
-		speed &= SGMII_SPEED_SS13 | SGMII_SPEED_SS6;
-		if (speed == SGMII_SPEED_SS6)
+		speed &= BMCR_SPEED100 | BMCR_SPEED1000;
+		if (speed == BMCR_SPEED1000)
 			state->speed = SPEED_1000;
-		else if (speed == SGMII_SPEED_SS13)
+		else if (speed == BMCR_SPEED100)
 			state->speed = SPEED_100;
 		else if (speed == 0)
 			state->speed = SPEED_10;
@@ -1023,9 +992,9 @@ static int xpcs_get_state_c37_sgmii(struct dw_xpcs *xpcs,
 		if (duplex < 0)
 			return duplex;
 
-		if (duplex & DW_FULL_DUPLEX)
+		if (duplex & ADVERTISE_1000XFULL)
 			state->duplex = DUPLEX_FULL;
-		else if (duplex & DW_HALF_DUPLEX)
+		else if (duplex & ADVERTISE_1000XHALF)
 			state->duplex = DUPLEX_HALF;
 
 		xpcs_write(xpcs, MDIO_MMD_VEND2, DW_VR_MII_AN_INTR_STS, 0);
@@ -1074,13 +1043,13 @@ static int xpcs_get_state_2500basex(struct dw_xpcs *xpcs,
 {
 	int ret;
 
-	ret = xpcs_read(xpcs, MDIO_MMD_VEND2, DW_VR_MII_MMD_STS);
+	ret = xpcs_read(xpcs, MDIO_MMD_VEND2, MII_BMSR);
 	if (ret < 0) {
 		state->link = 0;
 		return ret;
 	}
 
-	state->link = !!(ret & DW_VR_MII_MMD_STS_LINK_STS);
+	state->link = !!(ret & BMSR_LSTATUS);
 	if (!state->link)
 		return 0;
 
@@ -1098,7 +1067,7 @@ static void xpcs_get_state(struct phylink_pcs *pcs,
 	const struct dw_xpcs_compat *compat;
 	int ret;
 
-	compat = xpcs_find_compat(xpcs->desc, state->interface);
+	compat = xpcs_find_compat(xpcs, state->interface);
 	if (!compat)
 		return;
 
@@ -1108,108 +1077,94 @@ static void xpcs_get_state(struct phylink_pcs *pcs,
 		break;
 	case DW_AN_C73:
 		ret = xpcs_get_state_c73(xpcs, state, compat);
-		if (ret) {
-			pr_err("xpcs_get_state_c73 returned %pe\n",
-			       ERR_PTR(ret));
-			return;
-		}
+		if (ret)
+			dev_err(&xpcs->mdiodev->dev, "%s returned %pe\n",
+				"xpcs_get_state_c73", ERR_PTR(ret));
 		break;
 	case DW_AN_C37_SGMII:
 		ret = xpcs_get_state_c37_sgmii(xpcs, state);
-		if (ret) {
-			pr_err("xpcs_get_state_c37_sgmii returned %pe\n",
-			       ERR_PTR(ret));
-		}
+		if (ret)
+			dev_err(&xpcs->mdiodev->dev, "%s returned %pe\n",
+				"xpcs_get_state_c37_sgmii", ERR_PTR(ret));
 		break;
 	case DW_AN_C37_1000BASEX:
 		ret = xpcs_get_state_c37_1000basex(xpcs, state);
-		if (ret) {
-			pr_err("xpcs_get_state_c37_1000basex returned %pe\n",
-			       ERR_PTR(ret));
-		}
+		if (ret)
+			dev_err(&xpcs->mdiodev->dev, "%s returned %pe\n",
+				"xpcs_get_state_c37_1000basex", ERR_PTR(ret));
 		break;
 	case DW_2500BASEX:
 		ret = xpcs_get_state_2500basex(xpcs, state);
-		if (ret) {
-			pr_err("xpcs_get_state_2500basex returned %pe\n",
-			       ERR_PTR(ret));
+		if (ret)
+			dev_err(&xpcs->mdiodev->dev, "%s returned %pe\n",
+				"xpcs_get_state_2500basex", ERR_PTR(ret));
+		break;
+	default:
+		return;
+	}
+}
+
+static void xpcs_link_up_sgmii_1000basex(struct dw_xpcs *xpcs,
+					 unsigned int neg_mode,
+					 phy_interface_t interface,
+					 int speed, int duplex)
+{
+	int ret;
+
+	if (neg_mode == PHYLINK_PCS_NEG_INBAND_ENABLED)
+		return;
+
+	if (interface == PHY_INTERFACE_MODE_1000BASEX) {
+		if (speed != SPEED_1000) {
+			dev_err(&xpcs->mdiodev->dev,
+				"%s: speed %dMbps not supported\n",
+				__func__, speed);
+			return;
 		}
-		break;
-	default:
-		return;
-	}
-}
 
-static void xpcs_link_up_sgmii(struct dw_xpcs *xpcs, unsigned int neg_mode,
-			       int speed, int duplex)
-{
-	int val, ret;
-
-	if (neg_mode == PHYLINK_PCS_NEG_INBAND_ENABLED)
-		return;
-
-	val = mii_bmcr_encode_fixed(speed, duplex);
-	ret = xpcs_write(xpcs, MDIO_MMD_VEND2, MDIO_CTRL1, val);
-	if (ret)
-		pr_err("%s: xpcs_write returned %pe\n", __func__, ERR_PTR(ret));
-}
-
-static void xpcs_link_up_1000basex(struct dw_xpcs *xpcs, unsigned int neg_mode,
-				   int speed, int duplex)
-{
-	int val, ret;
-
-	if (neg_mode == PHYLINK_PCS_NEG_INBAND_ENABLED)
-		return;
-
-	switch (speed) {
-	case SPEED_1000:
-		val = BMCR_SPEED1000;
-		break;
-	case SPEED_100:
-	case SPEED_10:
-	default:
-		pr_err("%s: speed = %d\n", __func__, speed);
-		return;
+		if (duplex != DUPLEX_FULL)
+			dev_err(&xpcs->mdiodev->dev,
+				"%s: half duplex not supported\n",
+				__func__);
 	}
 
-	if (duplex == DUPLEX_FULL)
-		val |= BMCR_FULLDPLX;
-	else
-		pr_err("%s: half duplex not supported\n", __func__);
-
-	ret = xpcs_write(xpcs, MDIO_MMD_VEND2, MDIO_CTRL1, val);
+	ret = xpcs_write(xpcs, MDIO_MMD_VEND2, MII_BMCR,
+			 mii_bmcr_encode_fixed(speed, duplex));
 	if (ret)
-		pr_err("%s: xpcs_write returned %pe\n", __func__, ERR_PTR(ret));
+		dev_err(&xpcs->mdiodev->dev, "%s: xpcs_write returned %pe\n",
+			__func__, ERR_PTR(ret));
 }
 
-void xpcs_link_up(struct phylink_pcs *pcs, unsigned int neg_mode,
-		  phy_interface_t interface, int speed, int duplex)
+static void xpcs_link_up(struct phylink_pcs *pcs, unsigned int neg_mode,
+			 phy_interface_t interface, int speed, int duplex)
 {
 	struct dw_xpcs *xpcs = phylink_pcs_to_xpcs(pcs);
 
-	if (interface == PHY_INTERFACE_MODE_USXGMII)
-		return xpcs_config_usxgmii(xpcs, speed);
-	if (interface == PHY_INTERFACE_MODE_SGMII)
-		return xpcs_link_up_sgmii(xpcs, neg_mode, speed, duplex);
-	if (interface == PHY_INTERFACE_MODE_1000BASEX)
-		return xpcs_link_up_1000basex(xpcs, neg_mode, speed, duplex);
+	switch (interface) {
+	case PHY_INTERFACE_MODE_USXGMII:
+		xpcs_link_up_usxgmii(xpcs, speed);
+		break;
+
+	case PHY_INTERFACE_MODE_SGMII:
+	case PHY_INTERFACE_MODE_1000BASEX:
+		xpcs_link_up_sgmii_1000basex(xpcs, neg_mode, interface, speed,
+					     duplex);
+		break;
+
+	default:
+		break;
+	}
 }
-EXPORT_SYMBOL_GPL(xpcs_link_up);
 
 static void xpcs_an_restart(struct phylink_pcs *pcs)
 {
 	struct dw_xpcs *xpcs = phylink_pcs_to_xpcs(pcs);
-	int ret;
 
-	ret = xpcs_read(xpcs, MDIO_MMD_VEND2, MDIO_CTRL1);
-	if (ret >= 0) {
-		ret |= BMCR_ANRESTART;
-		xpcs_write(xpcs, MDIO_MMD_VEND2, MDIO_CTRL1, ret);
-	}
+	xpcs_modify(xpcs, MDIO_MMD_VEND2, MII_BMCR, BMCR_ANRESTART,
+		    BMCR_ANRESTART);
 }
 
-static int xpcs_get_id(struct dw_xpcs *xpcs)
+static int xpcs_read_ids(struct dw_xpcs *xpcs)
 {
 	int ret;
 	u32 id;
@@ -1275,76 +1230,62 @@ static int xpcs_get_id(struct dw_xpcs *xpcs)
 	return 0;
 }
 
-static const struct dw_xpcs_compat synopsys_xpcs_compat[DW_XPCS_INTERFACE_MAX] = {
-	[DW_XPCS_USXGMII] = {
+static const struct dw_xpcs_compat synopsys_xpcs_compat[] = {
+	{
+		.interface = PHY_INTERFACE_MODE_USXGMII,
 		.supported = xpcs_usxgmii_features,
-		.interface = xpcs_usxgmii_interfaces,
-		.num_interfaces = ARRAY_SIZE(xpcs_usxgmii_interfaces),
 		.an_mode = DW_AN_C73,
-	},
-	[DW_XPCS_10GKR] = {
+	}, {
+		.interface = PHY_INTERFACE_MODE_10GKR,
 		.supported = xpcs_10gkr_features,
-		.interface = xpcs_10gkr_interfaces,
-		.num_interfaces = ARRAY_SIZE(xpcs_10gkr_interfaces),
 		.an_mode = DW_AN_C73,
-	},
-	[DW_XPCS_XLGMII] = {
+	}, {
+		.interface = PHY_INTERFACE_MODE_XLGMII,
 		.supported = xpcs_xlgmii_features,
-		.interface = xpcs_xlgmii_interfaces,
-		.num_interfaces = ARRAY_SIZE(xpcs_xlgmii_interfaces),
 		.an_mode = DW_AN_C73,
-	},
-	[DW_XPCS_10GBASER] = {
+	}, {
+		.interface = PHY_INTERFACE_MODE_10GBASER,
 		.supported = xpcs_10gbaser_features,
-		.interface = xpcs_10gbaser_interfaces,
-		.num_interfaces = ARRAY_SIZE(xpcs_10gbaser_interfaces),
 		.an_mode = DW_10GBASER,
-	},
-	[DW_XPCS_SGMII] = {
+	}, {
+		.interface = PHY_INTERFACE_MODE_SGMII,
 		.supported = xpcs_sgmii_features,
-		.interface = xpcs_sgmii_interfaces,
-		.num_interfaces = ARRAY_SIZE(xpcs_sgmii_interfaces),
 		.an_mode = DW_AN_C37_SGMII,
-	},
-	[DW_XPCS_1000BASEX] = {
+	}, {
+		.interface = PHY_INTERFACE_MODE_1000BASEX,
 		.supported = xpcs_1000basex_features,
-		.interface = xpcs_1000basex_interfaces,
-		.num_interfaces = ARRAY_SIZE(xpcs_1000basex_interfaces),
 		.an_mode = DW_AN_C37_1000BASEX,
-	},
-	[DW_XPCS_2500BASEX] = {
+	}, {
+		.interface = PHY_INTERFACE_MODE_2500BASEX,
 		.supported = xpcs_2500basex_features,
-		.interface = xpcs_2500basex_interfaces,
-		.num_interfaces = ARRAY_SIZE(xpcs_2500basex_interfaces),
 		.an_mode = DW_2500BASEX,
-	},
+	}, {
+	}
 };
 
-static const struct dw_xpcs_compat nxp_sja1105_xpcs_compat[DW_XPCS_INTERFACE_MAX] = {
-	[DW_XPCS_SGMII] = {
+static const struct dw_xpcs_compat nxp_sja1105_xpcs_compat[] = {
+	{
+		.interface = PHY_INTERFACE_MODE_SGMII,
 		.supported = xpcs_sgmii_features,
-		.interface = xpcs_sgmii_interfaces,
-		.num_interfaces = ARRAY_SIZE(xpcs_sgmii_interfaces),
 		.an_mode = DW_AN_C37_SGMII,
 		.pma_config = nxp_sja1105_sgmii_pma_config,
-	},
+	}, {
+	}
 };
 
-static const struct dw_xpcs_compat nxp_sja1110_xpcs_compat[DW_XPCS_INTERFACE_MAX] = {
-	[DW_XPCS_SGMII] = {
+static const struct dw_xpcs_compat nxp_sja1110_xpcs_compat[] = {
+	{
+		.interface = PHY_INTERFACE_MODE_SGMII,
 		.supported = xpcs_sgmii_features,
-		.interface = xpcs_sgmii_interfaces,
-		.num_interfaces = ARRAY_SIZE(xpcs_sgmii_interfaces),
 		.an_mode = DW_AN_C37_SGMII,
 		.pma_config = nxp_sja1110_sgmii_pma_config,
-	},
-	[DW_XPCS_2500BASEX] = {
+	}, {
+		.interface = PHY_INTERFACE_MODE_2500BASEX,
 		.supported = xpcs_2500basex_features,
-		.interface = xpcs_2500basex_interfaces,
-		.num_interfaces = ARRAY_SIZE(xpcs_2500basex_interfaces),
 		.an_mode = DW_2500BASEX,
 		.pma_config = nxp_sja1110_2500basex_pma_config,
-	},
+	}, {
+	}
 };
 
 static const struct dw_xpcs_desc xpcs_desc_list[] = {
@@ -1365,11 +1306,32 @@ static const struct dw_xpcs_desc xpcs_desc_list[] = {
 
 static const struct phylink_pcs_ops xpcs_phylink_ops = {
 	.pcs_validate = xpcs_validate,
+	.pcs_pre_config = xpcs_pre_config,
 	.pcs_config = xpcs_config,
 	.pcs_get_state = xpcs_get_state,
 	.pcs_an_restart = xpcs_an_restart,
 	.pcs_link_up = xpcs_link_up,
 };
+
+static int xpcs_identify(struct dw_xpcs *xpcs)
+{
+	int i, ret;
+
+	ret = xpcs_read_ids(xpcs);
+	if (ret < 0)
+		return ret;
+
+	for (i = 0; i < ARRAY_SIZE(xpcs_desc_list); i++) {
+		const struct dw_xpcs_desc *entry = &xpcs_desc_list[i];
+
+		if ((xpcs->info.pcs & entry->mask) == entry->id) {
+			xpcs->desc = entry;
+			return 0;
+		}
+	}
+
+	return -ENODEV;
+}
 
 static struct dw_xpcs *xpcs_create_data(struct mdio_device *mdiodev)
 {
@@ -1427,7 +1389,6 @@ static void xpcs_clear_clks(struct dw_xpcs *xpcs)
 static int xpcs_init_id(struct dw_xpcs *xpcs)
 {
 	const struct dw_xpcs_info *info;
-	int i, ret;
 
 	info = dev_get_platdata(&xpcs->mdiodev->dev);
 	if (!info) {
@@ -1437,45 +1398,10 @@ static int xpcs_init_id(struct dw_xpcs *xpcs)
 		xpcs->info = *info;
 	}
 
-	ret = xpcs_get_id(xpcs);
-	if (ret < 0)
-		return ret;
-
-	for (i = 0; i < ARRAY_SIZE(xpcs_desc_list); i++) {
-		const struct dw_xpcs_desc *desc = &xpcs_desc_list[i];
-
-		if ((xpcs->info.pcs & desc->mask) != desc->id)
-			continue;
-
-		xpcs->desc = desc;
-
-		break;
-	}
-
-	if (!xpcs->desc)
-		return -ENODEV;
-
-	return 0;
+	return xpcs_identify(xpcs);
 }
 
-static int xpcs_init_iface(struct dw_xpcs *xpcs, phy_interface_t interface)
-{
-	const struct dw_xpcs_compat *compat;
-
-	compat = xpcs_find_compat(xpcs->desc, interface);
-	if (!compat)
-		return -EINVAL;
-
-	if (xpcs->info.pma == WX_TXGBE_XPCS_PMA_10G_ID) {
-		xpcs->pcs.poll = false;
-		return 0;
-	}
-
-	return xpcs_soft_reset(xpcs, compat);
-}
-
-static struct dw_xpcs *xpcs_create(struct mdio_device *mdiodev,
-				   phy_interface_t interface)
+static struct dw_xpcs *xpcs_create(struct mdio_device *mdiodev)
 {
 	struct dw_xpcs *xpcs;
 	int ret;
@@ -1492,9 +1418,10 @@ static struct dw_xpcs *xpcs_create(struct mdio_device *mdiodev,
 	if (ret)
 		goto out_clear_clks;
 
-	ret = xpcs_init_iface(xpcs, interface);
-	if (ret)
-		goto out_clear_clks;
+	if (xpcs->info.pma == WX_TXGBE_XPCS_PMA_10G_ID)
+		xpcs->pcs.poll = false;
+	else
+		xpcs->need_reset = true;
 
 	return xpcs;
 
@@ -1511,14 +1438,12 @@ out_free_data:
  * xpcs_create_mdiodev() - create a DW xPCS instance with the MDIO @addr
  * @bus: pointer to the MDIO-bus descriptor for the device to be looked at
  * @addr: device MDIO-bus ID
- * @interface: requested PHY interface
  *
  * Return: a pointer to the DW XPCS handle if successful, otherwise -ENODEV if
  * the PCS device couldn't be found on the bus and other negative errno related
  * to the data allocation and MDIO-bus communications.
  */
-struct dw_xpcs *xpcs_create_mdiodev(struct mii_bus *bus, int addr,
-				    phy_interface_t interface)
+struct dw_xpcs *xpcs_create_mdiodev(struct mii_bus *bus, int addr)
 {
 	struct mdio_device *mdiodev;
 	struct dw_xpcs *xpcs;
@@ -1527,7 +1452,7 @@ struct dw_xpcs *xpcs_create_mdiodev(struct mii_bus *bus, int addr,
 	if (IS_ERR(mdiodev))
 		return ERR_CAST(mdiodev);
 
-	xpcs = xpcs_create(mdiodev, interface);
+	xpcs = xpcs_create(mdiodev);
 
 	/* xpcs_create() has taken a refcount on the mdiodev if it was
 	 * successful. If xpcs_create() fails, this will free the mdio
@@ -1541,10 +1466,21 @@ struct dw_xpcs *xpcs_create_mdiodev(struct mii_bus *bus, int addr,
 }
 EXPORT_SYMBOL_GPL(xpcs_create_mdiodev);
 
+struct phylink_pcs *xpcs_create_pcs_mdiodev(struct mii_bus *bus, int addr)
+{
+	struct dw_xpcs *xpcs;
+
+	xpcs = xpcs_create_mdiodev(bus, addr);
+	if (IS_ERR(xpcs))
+		return ERR_CAST(xpcs);
+
+	return &xpcs->pcs;
+}
+EXPORT_SYMBOL_GPL(xpcs_create_pcs_mdiodev);
+
 /**
  * xpcs_create_fwnode() - Create a DW xPCS instance from @fwnode
  * @fwnode: fwnode handle poining to the DW XPCS device
- * @interface: requested PHY interface
  *
  * Return: a pointer to the DW XPCS handle if successful, otherwise -ENODEV if
  * the fwnode device is unavailable or the PCS device couldn't be found on the
@@ -1552,8 +1488,7 @@ EXPORT_SYMBOL_GPL(xpcs_create_mdiodev);
  * other negative errno related to the data allocations and MDIO-bus
  * communications.
  */
-struct dw_xpcs *xpcs_create_fwnode(struct fwnode_handle *fwnode,
-				   phy_interface_t interface)
+struct dw_xpcs *xpcs_create_fwnode(struct fwnode_handle *fwnode)
 {
 	struct mdio_device *mdiodev;
 	struct dw_xpcs *xpcs;
@@ -1565,7 +1500,7 @@ struct dw_xpcs *xpcs_create_fwnode(struct fwnode_handle *fwnode,
 	if (!mdiodev)
 		return ERR_PTR(-EPROBE_DEFER);
 
-	xpcs = xpcs_create(mdiodev, interface);
+	xpcs = xpcs_create(mdiodev);
 
 	/* xpcs_create() has taken a refcount on the mdiodev if it was
 	 * successful. If xpcs_create() fails, this will free the mdio
@@ -1589,6 +1524,12 @@ void xpcs_destroy(struct dw_xpcs *xpcs)
 	xpcs_free_data(xpcs);
 }
 EXPORT_SYMBOL_GPL(xpcs_destroy);
+
+void xpcs_destroy_pcs(struct phylink_pcs *pcs)
+{
+	xpcs_destroy(phylink_pcs_to_xpcs(pcs));
+}
+EXPORT_SYMBOL_GPL(xpcs_destroy_pcs);
 
 MODULE_DESCRIPTION("Synopsys DesignWare XPCS library");
 MODULE_LICENSE("GPL v2");

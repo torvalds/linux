@@ -350,6 +350,7 @@ dasd_proc_init(void)
 	remove_proc_entry("devices", dasd_proc_root_entry);
  out_nodevices:
 	remove_proc_entry("dasd", NULL);
+	dasd_proc_root_entry = NULL;
  out_nodasd:
 	return -ENOENT;
 }
@@ -357,7 +358,11 @@ dasd_proc_init(void)
 void
 dasd_proc_exit(void)
 {
+	if (!dasd_proc_root_entry)
+		return;
+
 	remove_proc_entry("devices", dasd_proc_root_entry);
 	remove_proc_entry("statistics", dasd_proc_root_entry);
 	remove_proc_entry("dasd", NULL);
+	dasd_proc_root_entry = NULL;
 }

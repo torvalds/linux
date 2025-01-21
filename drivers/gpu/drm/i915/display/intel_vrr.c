@@ -17,8 +17,8 @@
 
 bool intel_vrr_is_capable(struct intel_connector *connector)
 {
+	struct intel_display *display = to_intel_display(connector);
 	const struct drm_display_info *info = &connector->base.display_info;
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	struct intel_dp *intel_dp;
 
 	/*
@@ -43,7 +43,7 @@ bool intel_vrr_is_capable(struct intel_connector *connector)
 		return false;
 	}
 
-	return HAS_VRR(i915) &&
+	return HAS_VRR(display) &&
 		info->monitor_range.max_vfreq - info->monitor_range.min_vfreq > 10;
 }
 
@@ -54,6 +54,11 @@ bool intel_vrr_is_in_range(struct intel_connector *connector, int vrefresh)
 	return intel_vrr_is_capable(connector) &&
 		vrefresh >= info->monitor_range.min_vfreq &&
 		vrefresh <= info->monitor_range.max_vfreq;
+}
+
+bool intel_vrr_possible(const struct intel_crtc_state *crtc_state)
+{
+	return crtc_state->vrr.flipline;
 }
 
 void
@@ -89,10 +94,9 @@ intel_vrr_check_modeset(struct intel_atomic_state *state)
  */
 static int intel_vrr_vblank_exit_length(const struct intel_crtc_state *crtc_state)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc_state);
 
-	if (DISPLAY_VER(i915) >= 13)
+	if (DISPLAY_VER(display) >= 13)
 		return crtc_state->vrr.guardband;
 	else
 		/* The hw imposes the extra scanline before frame start */
@@ -113,11 +117,11 @@ int intel_vrr_vmax_vblank_start(const struct intel_crtc_state *crtc_state)
 static bool
 is_cmrr_frac_required(struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	int calculated_refresh_k, actual_refresh_k, pixel_clock_per_line;
 	struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
-	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
 
-	if (!HAS_CMRR(i915))
+	if (!HAS_CMRR(display))
 		return false;
 
 	actual_refresh_k =
@@ -161,8 +165,7 @@ void
 intel_vrr_compute_config(struct intel_crtc_state *crtc_state,
 			 struct drm_connector_state *conn_state)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_connector *connector =
 		to_intel_connector(conn_state->connector);
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
@@ -186,7 +189,7 @@ intel_vrr_compute_config(struct intel_crtc_state *crtc_state,
 	if (!crtc_state->vrr.in_range)
 		return;
 
-	if (HAS_LRR(i915))
+	if (HAS_LRR(display))
 		crtc_state->update_lrr = true;
 
 	vmin = DIV_ROUND_UP(adjusted_mode->crtc_clock * 1000,
@@ -233,8 +236,7 @@ intel_vrr_compute_config(struct intel_crtc_state *crtc_state,
 		crtc_state->mode_flags |= I915_MODE_FLAG_VRR;
 	}
 
-	if (intel_dp_as_sdp_supported(intel_dp) &&
-	    crtc_state->vrr.enable) {
+	if (intel_dp->as_sdp_supported && crtc_state->vrr.enable) {
 		crtc_state->vrr.vsync_start =
 			(crtc_state->hw.adjusted_mode.crtc_vtotal -
 			 crtc_state->hw.adjusted_mode.vsync_start);
@@ -242,12 +244,17 @@ intel_vrr_compute_config(struct intel_crtc_state *crtc_state,
 			(crtc_state->hw.adjusted_mode.crtc_vtotal -
 			 crtc_state->hw.adjusted_mode.vsync_end);
 	}
+}
 
-	/*
-	 * For XE_LPD+, we use guardband and pipeline override
-	 * is deprecated.
-	 */
-	if (DISPLAY_VER(i915) >= 13) {
+void intel_vrr_compute_config_late(struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+	const struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
+
+	if (!intel_vrr_possible(crtc_state))
+		return;
+
+	if (DISPLAY_VER(display) >= 13) {
 		crtc_state->vrr.guardband =
 			crtc_state->vrr.vmin + 1 - adjusted_mode->crtc_vblank_start;
 	} else {
@@ -259,9 +266,9 @@ intel_vrr_compute_config(struct intel_crtc_state *crtc_state,
 
 static u32 trans_vrr_ctl(const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+	struct intel_display *display = to_intel_display(crtc_state);
 
-	if (DISPLAY_VER(i915) >= 13)
+	if (DISPLAY_VER(display) >= 13)
 		return VRR_CTL_IGN_MAX_SHIFT | VRR_CTL_FLIP_LINE_EN |
 			XELPD_VRR_CTL_VRR_GUARDBAND(crtc_state->vrr.guardband);
 	else
@@ -272,7 +279,7 @@ static u32 trans_vrr_ctl(const struct intel_crtc_state *crtc_state)
 
 void intel_vrr_set_transcoder_timings(const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
+	struct intel_display *display = to_intel_display(crtc_state);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 
 	/*
@@ -280,133 +287,130 @@ void intel_vrr_set_transcoder_timings(const struct intel_crtc_state *crtc_state)
 	 * TGL: generate VRR "safe window" for DSB vblank waits
 	 * ADL/DG2: make TRANS_SET_CONTEXT_LATENCY effective with VRR
 	 */
-	if (IS_DISPLAY_VER(dev_priv, 12, 13))
-		intel_de_rmw(dev_priv, CHICKEN_TRANS(cpu_transcoder),
+	if (IS_DISPLAY_VER(display, 12, 13))
+		intel_de_rmw(display, CHICKEN_TRANS(cpu_transcoder),
 			     0, PIPE_VBLANK_WITH_DELAY);
 
-	if (!crtc_state->vrr.flipline) {
-		intel_de_write(dev_priv,
-			       TRANS_VRR_CTL(dev_priv, cpu_transcoder), 0);
+	if (!intel_vrr_possible(crtc_state)) {
+		intel_de_write(display,
+			       TRANS_VRR_CTL(display, cpu_transcoder), 0);
 		return;
 	}
 
 	if (crtc_state->cmrr.enable) {
-		intel_de_write(dev_priv, TRANS_CMRR_M_HI(dev_priv, cpu_transcoder),
+		intel_de_write(display, TRANS_CMRR_M_HI(display, cpu_transcoder),
 			       upper_32_bits(crtc_state->cmrr.cmrr_m));
-		intel_de_write(dev_priv, TRANS_CMRR_M_LO(dev_priv, cpu_transcoder),
+		intel_de_write(display, TRANS_CMRR_M_LO(display, cpu_transcoder),
 			       lower_32_bits(crtc_state->cmrr.cmrr_m));
-		intel_de_write(dev_priv, TRANS_CMRR_N_HI(dev_priv, cpu_transcoder),
+		intel_de_write(display, TRANS_CMRR_N_HI(display, cpu_transcoder),
 			       upper_32_bits(crtc_state->cmrr.cmrr_n));
-		intel_de_write(dev_priv, TRANS_CMRR_N_LO(dev_priv, cpu_transcoder),
+		intel_de_write(display, TRANS_CMRR_N_LO(display, cpu_transcoder),
 			       lower_32_bits(crtc_state->cmrr.cmrr_n));
 	}
 
-	intel_de_write(dev_priv, TRANS_VRR_VMIN(dev_priv, cpu_transcoder),
+	intel_de_write(display, TRANS_VRR_VMIN(display, cpu_transcoder),
 		       crtc_state->vrr.vmin - 1);
-	intel_de_write(dev_priv, TRANS_VRR_VMAX(dev_priv, cpu_transcoder),
+	intel_de_write(display, TRANS_VRR_VMAX(display, cpu_transcoder),
 		       crtc_state->vrr.vmax - 1);
-	intel_de_write(dev_priv, TRANS_VRR_CTL(dev_priv, cpu_transcoder),
+	intel_de_write(display, TRANS_VRR_CTL(display, cpu_transcoder),
 		       trans_vrr_ctl(crtc_state));
-	intel_de_write(dev_priv, TRANS_VRR_FLIPLINE(dev_priv, cpu_transcoder),
+	intel_de_write(display, TRANS_VRR_FLIPLINE(display, cpu_transcoder),
 		       crtc_state->vrr.flipline - 1);
 }
 
 void intel_vrr_send_push(const struct intel_crtc_state *crtc_state)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc_state);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 
 	if (!crtc_state->vrr.enable)
 		return;
 
-	intel_de_write(dev_priv, TRANS_PUSH(dev_priv, cpu_transcoder),
+	intel_de_write(display, TRANS_PUSH(display, cpu_transcoder),
 		       TRANS_PUSH_EN | TRANS_PUSH_SEND);
 }
 
 bool intel_vrr_is_push_sent(const struct intel_crtc_state *crtc_state)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc_state);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 
 	if (!crtc_state->vrr.enable)
 		return false;
 
-	return intel_de_read(dev_priv, TRANS_PUSH(dev_priv, cpu_transcoder)) & TRANS_PUSH_SEND;
+	return intel_de_read(display, TRANS_PUSH(display, cpu_transcoder)) & TRANS_PUSH_SEND;
 }
 
 void intel_vrr_enable(const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
+	struct intel_display *display = to_intel_display(crtc_state);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 
 	if (!crtc_state->vrr.enable)
 		return;
 
-	intel_de_write(dev_priv, TRANS_PUSH(dev_priv, cpu_transcoder),
+	intel_de_write(display, TRANS_PUSH(display, cpu_transcoder),
 		       TRANS_PUSH_EN);
 
-	if (HAS_AS_SDP(dev_priv))
-		intel_de_write(dev_priv,
-			       TRANS_VRR_VSYNC(dev_priv, cpu_transcoder),
+	if (HAS_AS_SDP(display))
+		intel_de_write(display,
+			       TRANS_VRR_VSYNC(display, cpu_transcoder),
 			       VRR_VSYNC_END(crtc_state->vrr.vsync_end) |
 			       VRR_VSYNC_START(crtc_state->vrr.vsync_start));
 
 	if (crtc_state->cmrr.enable) {
-		intel_de_write(dev_priv, TRANS_VRR_CTL(dev_priv, cpu_transcoder),
+		intel_de_write(display, TRANS_VRR_CTL(display, cpu_transcoder),
 			       VRR_CTL_VRR_ENABLE | VRR_CTL_CMRR_ENABLE |
 			       trans_vrr_ctl(crtc_state));
 	} else {
-		intel_de_write(dev_priv, TRANS_VRR_CTL(dev_priv, cpu_transcoder),
+		intel_de_write(display, TRANS_VRR_CTL(display, cpu_transcoder),
 			       VRR_CTL_VRR_ENABLE | trans_vrr_ctl(crtc_state));
 	}
 }
 
 void intel_vrr_disable(const struct intel_crtc_state *old_crtc_state)
 {
-	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(old_crtc_state);
 	enum transcoder cpu_transcoder = old_crtc_state->cpu_transcoder;
 
 	if (!old_crtc_state->vrr.enable)
 		return;
 
-	intel_de_write(dev_priv, TRANS_VRR_CTL(dev_priv, cpu_transcoder),
+	intel_de_write(display, TRANS_VRR_CTL(display, cpu_transcoder),
 		       trans_vrr_ctl(old_crtc_state));
-	intel_de_wait_for_clear(dev_priv,
-				TRANS_VRR_STATUS(dev_priv, cpu_transcoder),
+	intel_de_wait_for_clear(display,
+				TRANS_VRR_STATUS(display, cpu_transcoder),
 				VRR_STATUS_VRR_EN_LIVE, 1000);
-	intel_de_write(dev_priv, TRANS_PUSH(dev_priv, cpu_transcoder), 0);
+	intel_de_write(display, TRANS_PUSH(display, cpu_transcoder), 0);
 
-	if (HAS_AS_SDP(dev_priv))
-		intel_de_write(dev_priv,
-			       TRANS_VRR_VSYNC(dev_priv, cpu_transcoder), 0);
+	if (HAS_AS_SDP(display))
+		intel_de_write(display,
+			       TRANS_VRR_VSYNC(display, cpu_transcoder), 0);
 }
 
 void intel_vrr_get_config(struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
+	struct intel_display *display = to_intel_display(crtc_state);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	u32 trans_vrr_ctl, trans_vrr_vsync;
 
-	trans_vrr_ctl = intel_de_read(dev_priv,
-				      TRANS_VRR_CTL(dev_priv, cpu_transcoder));
+	trans_vrr_ctl = intel_de_read(display,
+				      TRANS_VRR_CTL(display, cpu_transcoder));
 
 	crtc_state->vrr.enable = trans_vrr_ctl & VRR_CTL_VRR_ENABLE;
-	if (HAS_CMRR(dev_priv))
+	if (HAS_CMRR(display))
 		crtc_state->cmrr.enable = (trans_vrr_ctl & VRR_CTL_CMRR_ENABLE);
 
 	if (crtc_state->cmrr.enable) {
 		crtc_state->cmrr.cmrr_n =
-			intel_de_read64_2x32(dev_priv, TRANS_CMRR_N_LO(dev_priv, cpu_transcoder),
-					     TRANS_CMRR_N_HI(dev_priv, cpu_transcoder));
+			intel_de_read64_2x32(display, TRANS_CMRR_N_LO(display, cpu_transcoder),
+					     TRANS_CMRR_N_HI(display, cpu_transcoder));
 		crtc_state->cmrr.cmrr_m =
-			intel_de_read64_2x32(dev_priv, TRANS_CMRR_M_LO(dev_priv, cpu_transcoder),
-					     TRANS_CMRR_M_HI(dev_priv, cpu_transcoder));
+			intel_de_read64_2x32(display, TRANS_CMRR_M_LO(display, cpu_transcoder),
+					     TRANS_CMRR_M_HI(display, cpu_transcoder));
 	}
 
-	if (DISPLAY_VER(dev_priv) >= 13)
+	if (DISPLAY_VER(display) >= 13)
 		crtc_state->vrr.guardband =
 			REG_FIELD_GET(XELPD_VRR_CTL_VRR_GUARDBAND_MASK, trans_vrr_ctl);
 	else
@@ -415,21 +419,21 @@ void intel_vrr_get_config(struct intel_crtc_state *crtc_state)
 				REG_FIELD_GET(VRR_CTL_PIPELINE_FULL_MASK, trans_vrr_ctl);
 
 	if (trans_vrr_ctl & VRR_CTL_FLIP_LINE_EN) {
-		crtc_state->vrr.flipline = intel_de_read(dev_priv,
-							 TRANS_VRR_FLIPLINE(dev_priv, cpu_transcoder)) + 1;
-		crtc_state->vrr.vmax = intel_de_read(dev_priv,
-						     TRANS_VRR_VMAX(dev_priv, cpu_transcoder)) + 1;
-		crtc_state->vrr.vmin = intel_de_read(dev_priv,
-						     TRANS_VRR_VMIN(dev_priv, cpu_transcoder)) + 1;
+		crtc_state->vrr.flipline = intel_de_read(display,
+							 TRANS_VRR_FLIPLINE(display, cpu_transcoder)) + 1;
+		crtc_state->vrr.vmax = intel_de_read(display,
+						     TRANS_VRR_VMAX(display, cpu_transcoder)) + 1;
+		crtc_state->vrr.vmin = intel_de_read(display,
+						     TRANS_VRR_VMIN(display, cpu_transcoder)) + 1;
 	}
 
 	if (crtc_state->vrr.enable) {
 		crtc_state->mode_flags |= I915_MODE_FLAG_VRR;
 
-		if (HAS_AS_SDP(dev_priv)) {
+		if (HAS_AS_SDP(display)) {
 			trans_vrr_vsync =
-				intel_de_read(dev_priv,
-					      TRANS_VRR_VSYNC(dev_priv, cpu_transcoder));
+				intel_de_read(display,
+					      TRANS_VRR_VSYNC(display, cpu_transcoder));
 			crtc_state->vrr.vsync_start =
 				REG_FIELD_GET(VRR_VSYNC_START_MASK, trans_vrr_vsync);
 			crtc_state->vrr.vsync_end =

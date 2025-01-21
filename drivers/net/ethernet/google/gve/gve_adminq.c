@@ -45,6 +45,7 @@ void gve_parse_device_option(struct gve_priv *priv,
 			     struct gve_device_option_dqo_qpl **dev_op_dqo_qpl,
 			     struct gve_device_option_buffer_sizes **dev_op_buffer_sizes,
 			     struct gve_device_option_flow_steering **dev_op_flow_steering,
+			     struct gve_device_option_rss_config **dev_op_rss_config,
 			     struct gve_device_option_modify_ring **dev_op_modify_ring)
 {
 	u32 req_feat_mask = be32_to_cpu(option->required_features_mask);
@@ -207,6 +208,23 @@ void gve_parse_device_option(struct gve_priv *priv,
 				 "Flow Steering");
 		*dev_op_flow_steering = (void *)(option + 1);
 		break;
+	case GVE_DEV_OPT_ID_RSS_CONFIG:
+		if (option_length < sizeof(**dev_op_rss_config) ||
+		    req_feat_mask != GVE_DEV_OPT_REQ_FEAT_MASK_RSS_CONFIG) {
+			dev_warn(&priv->pdev->dev, GVE_DEVICE_OPTION_ERROR_FMT,
+				 "RSS config",
+				 (int)sizeof(**dev_op_rss_config),
+				 GVE_DEV_OPT_REQ_FEAT_MASK_RSS_CONFIG,
+				 option_length, req_feat_mask);
+			break;
+		}
+
+		if (option_length > sizeof(**dev_op_rss_config))
+			dev_warn(&priv->pdev->dev,
+				 GVE_DEVICE_OPTION_TOO_BIG_FMT,
+				 "RSS config");
+		*dev_op_rss_config = (void *)(option + 1);
+		break;
 	default:
 		/* If we don't recognize the option just continue
 		 * without doing anything.
@@ -227,6 +245,7 @@ gve_process_device_options(struct gve_priv *priv,
 			   struct gve_device_option_dqo_qpl **dev_op_dqo_qpl,
 			   struct gve_device_option_buffer_sizes **dev_op_buffer_sizes,
 			   struct gve_device_option_flow_steering **dev_op_flow_steering,
+			   struct gve_device_option_rss_config **dev_op_rss_config,
 			   struct gve_device_option_modify_ring **dev_op_modify_ring)
 {
 	const int num_options = be16_to_cpu(descriptor->num_device_options);
@@ -249,7 +268,8 @@ gve_process_device_options(struct gve_priv *priv,
 					dev_op_gqi_rda, dev_op_gqi_qpl,
 					dev_op_dqo_rda, dev_op_jumbo_frames,
 					dev_op_dqo_qpl, dev_op_buffer_sizes,
-					dev_op_flow_steering, dev_op_modify_ring);
+					dev_op_flow_steering, dev_op_rss_config,
+					dev_op_modify_ring);
 		dev_opt = next_opt;
 	}
 
@@ -289,6 +309,8 @@ int gve_adminq_alloc(struct device *dev, struct gve_priv *priv)
 	priv->adminq_get_ptype_map_cnt = 0;
 	priv->adminq_query_flow_rules_cnt = 0;
 	priv->adminq_cfg_flow_rule_cnt = 0;
+	priv->adminq_cfg_rss_cnt = 0;
+	priv->adminq_query_rss_cnt = 0;
 
 	/* Setup Admin queue with the device */
 	if (priv->pdev->revision < 0x1) {
@@ -533,6 +555,12 @@ static int gve_adminq_issue_cmd(struct gve_priv *priv,
 		break;
 	case GVE_ADMINQ_CONFIGURE_FLOW_RULE:
 		priv->adminq_cfg_flow_rule_cnt++;
+		break;
+	case GVE_ADMINQ_CONFIGURE_RSS:
+		priv->adminq_cfg_rss_cnt++;
+		break;
+	case GVE_ADMINQ_QUERY_RSS:
+		priv->adminq_query_rss_cnt++;
 		break;
 	default:
 		dev_err(&priv->pdev->dev, "unknown AQ command opcode %d\n", opcode);
@@ -867,6 +895,8 @@ static void gve_enable_supported_features(struct gve_priv *priv,
 					  *dev_op_buffer_sizes,
 					  const struct gve_device_option_flow_steering
 					  *dev_op_flow_steering,
+					  const struct gve_device_option_rss_config
+					  *dev_op_rss_config,
 					  const struct gve_device_option_modify_ring
 					  *dev_op_modify_ring)
 {
@@ -931,6 +961,14 @@ static void gve_enable_supported_features(struct gve_priv *priv,
 				 priv->max_flow_rules);
 		}
 	}
+
+	if (dev_op_rss_config &&
+	    (supported_features_mask & GVE_SUP_RSS_CONFIG_MASK)) {
+		priv->rss_key_size =
+			be16_to_cpu(dev_op_rss_config->hash_key_size);
+		priv->rss_lut_size =
+			be16_to_cpu(dev_op_rss_config->hash_lut_size);
+	}
 }
 
 int gve_adminq_describe_device(struct gve_priv *priv)
@@ -939,6 +977,7 @@ int gve_adminq_describe_device(struct gve_priv *priv)
 	struct gve_device_option_buffer_sizes *dev_op_buffer_sizes = NULL;
 	struct gve_device_option_jumbo_frames *dev_op_jumbo_frames = NULL;
 	struct gve_device_option_modify_ring *dev_op_modify_ring = NULL;
+	struct gve_device_option_rss_config *dev_op_rss_config = NULL;
 	struct gve_device_option_gqi_rda *dev_op_gqi_rda = NULL;
 	struct gve_device_option_gqi_qpl *dev_op_gqi_qpl = NULL;
 	struct gve_device_option_dqo_rda *dev_op_dqo_rda = NULL;
@@ -973,6 +1012,7 @@ int gve_adminq_describe_device(struct gve_priv *priv)
 					 &dev_op_jumbo_frames, &dev_op_dqo_qpl,
 					 &dev_op_buffer_sizes,
 					 &dev_op_flow_steering,
+					 &dev_op_rss_config,
 					 &dev_op_modify_ring);
 	if (err)
 		goto free_device_descriptor;
@@ -1035,7 +1075,7 @@ int gve_adminq_describe_device(struct gve_priv *priv)
 	gve_enable_supported_features(priv, supported_features_mask,
 				      dev_op_jumbo_frames, dev_op_dqo_qpl,
 				      dev_op_buffer_sizes, dev_op_flow_steering,
-				      dev_op_modify_ring);
+				      dev_op_rss_config, dev_op_modify_ring);
 
 free_device_descriptor:
 	dma_pool_free(priv->adminq_pool, descriptor, descriptor_bus);
@@ -1208,10 +1248,10 @@ gve_adminq_configure_flow_rule(struct gve_priv *priv,
 			sizeof(struct gve_adminq_configure_flow_rule),
 			flow_rule_cmd);
 
-	if (err) {
+	if (err == -ETIME) {
 		dev_err(&priv->pdev->dev, "Timeout to configure the flow rule, trigger reset");
 		gve_reset(priv, true);
-	} else {
+	} else if (!err) {
 		priv->flow_rules_cache.rules_cache_synced = false;
 	}
 
@@ -1246,6 +1286,81 @@ int gve_adminq_reset_flow_rules(struct gve_priv *priv)
 	};
 
 	return gve_adminq_configure_flow_rule(priv, &flow_rule_cmd);
+}
+
+int gve_adminq_configure_rss(struct gve_priv *priv, struct ethtool_rxfh_param *rxfh)
+{
+	dma_addr_t lut_bus = 0, key_bus = 0;
+	u16 key_size = 0, lut_size = 0;
+	union gve_adminq_command cmd;
+	__be32 *lut = NULL;
+	u8 hash_alg = 0;
+	u8 *key = NULL;
+	int err = 0;
+	u16 i;
+
+	switch (rxfh->hfunc) {
+	case ETH_RSS_HASH_NO_CHANGE:
+		break;
+	case ETH_RSS_HASH_TOP:
+		hash_alg = ETH_RSS_HASH_TOP;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	if (rxfh->indir) {
+		lut_size = priv->rss_lut_size;
+		lut = dma_alloc_coherent(&priv->pdev->dev,
+					 lut_size * sizeof(*lut),
+					 &lut_bus, GFP_KERNEL);
+		if (!lut)
+			return -ENOMEM;
+
+		for (i = 0; i < priv->rss_lut_size; i++)
+			lut[i] = cpu_to_be32(rxfh->indir[i]);
+	}
+
+	if (rxfh->key) {
+		key_size = priv->rss_key_size;
+		key = dma_alloc_coherent(&priv->pdev->dev,
+					 key_size, &key_bus, GFP_KERNEL);
+		if (!key) {
+			err = -ENOMEM;
+			goto out;
+		}
+
+		memcpy(key, rxfh->key, key_size);
+	}
+
+	/* Zero-valued fields in the cmd.configure_rss instruct the device to
+	 * not update those fields.
+	 */
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.opcode = cpu_to_be32(GVE_ADMINQ_CONFIGURE_RSS);
+	cmd.configure_rss = (struct gve_adminq_configure_rss) {
+		.hash_types = cpu_to_be16(BIT(GVE_RSS_HASH_TCPV4) |
+					  BIT(GVE_RSS_HASH_UDPV4) |
+					  BIT(GVE_RSS_HASH_TCPV6) |
+					  BIT(GVE_RSS_HASH_UDPV6)),
+		.hash_alg = hash_alg,
+		.hash_key_size = cpu_to_be16(key_size),
+		.hash_lut_size = cpu_to_be16(lut_size),
+		.hash_key_addr = cpu_to_be64(key_bus),
+		.hash_lut_addr = cpu_to_be64(lut_bus),
+	};
+
+	err = gve_adminq_execute_cmd(priv, &cmd);
+
+out:
+	if (lut)
+		dma_free_coherent(&priv->pdev->dev,
+				  lut_size * sizeof(*lut),
+				  lut, lut_bus);
+	if (key)
+		dma_free_coherent(&priv->pdev->dev,
+				  key_size, key, key_bus);
+	return err;
 }
 
 /* In the dma memory that the driver allocated for the device to query the flow rules, the device
@@ -1320,6 +1435,69 @@ int gve_adminq_query_flow_rules(struct gve_priv *priv, u16 query_opcode, u32 sta
 		goto out;
 
 	err = gve_adminq_process_flow_rules_query(priv, query_opcode, descriptor);
+
+out:
+	dma_pool_free(priv->adminq_pool, descriptor, descriptor_bus);
+	return err;
+}
+
+static int gve_adminq_process_rss_query(struct gve_priv *priv,
+					struct gve_query_rss_descriptor *descriptor,
+					struct ethtool_rxfh_param *rxfh)
+{
+	u32 total_memory_length;
+	u16 hash_lut_length;
+	void *rss_info_addr;
+	__be32 *lut;
+	u16 i;
+
+	total_memory_length = be32_to_cpu(descriptor->total_length);
+	hash_lut_length = priv->rss_lut_size * sizeof(*rxfh->indir);
+
+	if (sizeof(*descriptor) + priv->rss_key_size + hash_lut_length != total_memory_length) {
+		dev_err(&priv->dev->dev,
+			"rss query desc from device has invalid length parameter.\n");
+		return -EINVAL;
+	}
+
+	rxfh->hfunc = descriptor->hash_alg;
+
+	rss_info_addr = (void *)(descriptor + 1);
+	if (rxfh->key)
+		memcpy(rxfh->key, rss_info_addr, priv->rss_key_size);
+
+	rss_info_addr += priv->rss_key_size;
+	lut = (__be32 *)rss_info_addr;
+	if (rxfh->indir) {
+		for (i = 0; i < priv->rss_lut_size; i++)
+			rxfh->indir[i] = be32_to_cpu(lut[i]);
+	}
+
+	return 0;
+}
+
+int gve_adminq_query_rss_config(struct gve_priv *priv, struct ethtool_rxfh_param *rxfh)
+{
+	struct gve_query_rss_descriptor *descriptor;
+	union gve_adminq_command cmd;
+	dma_addr_t descriptor_bus;
+	int err = 0;
+
+	descriptor = dma_pool_alloc(priv->adminq_pool, GFP_KERNEL, &descriptor_bus);
+	if (!descriptor)
+		return -ENOMEM;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.opcode = cpu_to_be32(GVE_ADMINQ_QUERY_RSS);
+	cmd.query_rss = (struct gve_adminq_query_rss) {
+		.available_length = cpu_to_be64(GVE_ADMINQ_BUFFER_SIZE),
+		.rss_descriptor_addr = cpu_to_be64(descriptor_bus),
+	};
+	err = gve_adminq_execute_cmd(priv, &cmd);
+	if (err)
+		goto out;
+
+	err = gve_adminq_process_rss_query(priv, descriptor, rxfh);
 
 out:
 	dma_pool_free(priv->adminq_pool, descriptor, descriptor_bus);

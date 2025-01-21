@@ -210,7 +210,6 @@ static ssize_t at91_wdt_write(struct file *file, const char *data,
 
 static const struct file_operations at91wdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 	.unlocked_ioctl	= at91_wdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= at91_wdt_open,
@@ -296,7 +295,7 @@ MODULE_DEVICE_TABLE(of, at91_wdt_dt_ids);
 
 static struct platform_driver at91wdt_driver = {
 	.probe		= at91wdt_probe,
-	.remove_new	= at91wdt_remove,
+	.remove		= at91wdt_remove,
 	.shutdown	= at91wdt_shutdown,
 	.suspend	= pm_ptr(at91wdt_suspend),
 	.resume		= pm_ptr(at91wdt_resume),

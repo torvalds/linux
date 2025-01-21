@@ -182,6 +182,15 @@
 		regulator-always-on;
 	};
 
+	reg_pcieb: regulator-pcieb {
+		compatible = "regulator-fixed";
+		regulator-max-microvolt = <3300000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-name = "reg_pcieb";
+		gpio = <&pca6416_1 13 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
 	bt_sco_codec: audio-codec-bt {
 		compatible = "linux,bt-sco";
 		#sound-dai-cells = <1>;
@@ -567,6 +576,12 @@
 	status = "okay";
 };
 
+&hsio_phy {
+	fsl,hsio-cfg = "pciea-x2-pcieb";
+	fsl,refclk-pad-mode = "output";
+	status = "okay";
+};
+
 &cm40_intmux {
 	status = "disabled";
 };
@@ -582,6 +597,16 @@
 };
 
 &lsio_gpio5 {
+	status = "okay";
+};
+
+&pcieb {
+	phys = <&hsio_phy 0 PHY_TYPE_PCIE 0>;
+	phy-names = "pcie-phy";
+	pinctrl-0 = <&pinctrl_pcieb>;
+	pinctrl-names = "default";
+	reset-gpio = <&lsio_gpio4 0 GPIO_ACTIVE_LOW>;
+	vpcie-supply = <&reg_pcieb>;
 	status = "okay";
 };
 
@@ -722,12 +747,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_lpspi3>;
 	status = "okay";
-
-	spidev0: spi@0 {
-		reg = <0>;
-		compatible = "rohm,dh2228fv";
-		spi-max-frequency = <30000000>;
-	};
 };
 
 &iomuxc {
@@ -871,6 +890,14 @@
 			IMX8DXL_UART1_RX_ADMA_UART1_RX          0x06000020
 			IMX8DXL_UART1_RTS_B_ADMA_UART1_RTS_B    0x06000020
 			IMX8DXL_UART1_CTS_B_ADMA_UART1_CTS_B    0x06000020
+		>;
+	};
+
+	pinctrl_pcieb: pcieagrp {
+		fsl,pins = <
+			IMX8DXL_PCIE_CTRL0_PERST_B_LSIO_GPIO4_IO00	0x06000021
+			IMX8DXL_PCIE_CTRL0_CLKREQ_B_LSIO_GPIO4_IO01	0x06000021
+			IMX8DXL_PCIE_CTRL0_WAKE_B_LSIO_GPIO4_IO02	0x04000021
 		>;
 	};
 

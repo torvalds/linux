@@ -55,14 +55,15 @@ properties:
     minimum: 0
     maximum: 1
 
-  rohm,charger-sense-resistor-ohms:
-    minimum: 10000000
-    maximum: 50000000
+  rohm,charger-sense-resistor-micro-ohms:
+    minimum: 10000
+    maximum: 50000
+    default: 30000
     description: |
       BD71827 and BD71828 have SAR ADC for measuring charging currents.
       External sense resistor (RSENSE in data sheet) should be used. If some
-      other but 30MOhm resistor is used the resistance value should be given
-      here in Ohms.
+      other but 30mOhm resistor is used the resistance value should be given
+      here in microohms.
 
   regulators:
     $ref: /schemas/regulator/rohm,bd71828-regulator.yaml
@@ -114,7 +115,7 @@ examples:
             #gpio-cells = <2>;
             gpio-reserved-ranges = <0 1>, <2 1>;
 
-            rohm,charger-sense-resistor-ohms = <10000000>;
+            rohm,charger-sense-resistor-micro-ohms = <10000>;
 
             regulators {
                 buck1: BUCK1 {

@@ -275,7 +275,7 @@ void pstore_record_init(struct pstore_record *record,
  * end of the buffer.
  */
 static void pstore_dump(struct kmsg_dumper *dumper,
-			enum kmsg_dump_reason reason)
+			struct kmsg_dump_detail *detail)
 {
 	struct kmsg_dump_iter iter;
 	unsigned long	total = 0;
@@ -285,16 +285,16 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 	int		saved_ret = 0;
 	int		ret;
 
-	why = kmsg_dump_reason_str(reason);
+	why = kmsg_dump_reason_str(detail->reason);
 
-	if (pstore_cannot_block_path(reason)) {
-		if (!spin_trylock_irqsave(&psinfo->buf_lock, flags)) {
+	if (pstore_cannot_block_path(detail->reason)) {
+		if (!raw_spin_trylock_irqsave(&psinfo->buf_lock, flags)) {
 			pr_err("dump skipped in %s path because of concurrent dump\n",
 					in_nmi() ? "NMI" : why);
 			return;
 		}
 	} else {
-		spin_lock_irqsave(&psinfo->buf_lock, flags);
+		raw_spin_lock_irqsave(&psinfo->buf_lock, flags);
 	}
 
 	kmsg_dump_rewind(&iter);
@@ -311,7 +311,7 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 		pstore_record_init(&record, psinfo);
 		record.type = PSTORE_TYPE_DMESG;
 		record.count = oopscount;
-		record.reason = reason;
+		record.reason = detail->reason;
 		record.part = part;
 		record.buf = psinfo->buf;
 
@@ -352,7 +352,7 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 		}
 
 		ret = psinfo->write(&record);
-		if (ret == 0 && reason == KMSG_DUMP_OOPS) {
+		if (ret == 0 && detail->reason == KMSG_DUMP_OOPS) {
 			pstore_new_entry = 1;
 			pstore_timer_kick();
 		} else {
@@ -364,7 +364,7 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 		total += record.size;
 		part++;
 	}
-	spin_unlock_irqrestore(&psinfo->buf_lock, flags);
+	raw_spin_unlock_irqrestore(&psinfo->buf_lock, flags);
 
 	if (saved_ret) {
 		pr_err_once("backend (%s) writing error (%d)\n", psinfo->name,
@@ -503,7 +503,7 @@ int pstore_register(struct pstore_info *psi)
 		psi->write_user = pstore_write_user_compat;
 	psinfo = psi;
 	mutex_init(&psinfo->read_mutex);
-	spin_lock_init(&psinfo->buf_lock);
+	raw_spin_lock_init(&psinfo->buf_lock);
 
 	if (psi->flags & PSTORE_FLAGS_DMESG)
 		allocate_buf_for_compression();

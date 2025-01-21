@@ -5,6 +5,7 @@
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_helpers.h>
 
+#include "../bpf_experimental.h"
 #include "task_kfunc_common.h"
 
 char _license[] SEC("license") = "GPL";
@@ -142,8 +143,9 @@ int BPF_PROG(test_task_acquire_leave_in_map, struct task_struct *task, u64 clone
 SEC("tp_btf/task_newtask")
 int BPF_PROG(test_task_xchg_release, struct task_struct *task, u64 clone_flags)
 {
-	struct task_struct *kptr;
-	struct __tasks_kfunc_map_value *v;
+	struct task_struct *kptr, *acquired;
+	struct __tasks_kfunc_map_value *v, *local;
+	int refcnt, refcnt_after_drop;
 	long status;
 
 	if (!is_test_kfunc_task())
@@ -164,6 +166,56 @@ int BPF_PROG(test_task_xchg_release, struct task_struct *task, u64 clone_flags)
 	kptr = bpf_kptr_xchg(&v->task, NULL);
 	if (!kptr) {
 		err = 3;
+		return 0;
+	}
+
+	local = bpf_obj_new(typeof(*local));
+	if (!local) {
+		err = 4;
+		bpf_task_release(kptr);
+		return 0;
+	}
+
+	kptr = bpf_kptr_xchg(&local->task, kptr);
+	if (kptr) {
+		err = 5;
+		bpf_obj_drop(local);
+		bpf_task_release(kptr);
+		return 0;
+	}
+
+	kptr = bpf_kptr_xchg(&local->task, NULL);
+	if (!kptr) {
+		err = 6;
+		bpf_obj_drop(local);
+		return 0;
+	}
+
+	/* Stash a copy into local kptr and check if it is released recursively */
+	acquired = bpf_task_acquire(kptr);
+	if (!acquired) {
+		err = 7;
+		bpf_obj_drop(local);
+		bpf_task_release(kptr);
+		return 0;
+	}
+	bpf_probe_read_kernel(&refcnt, sizeof(refcnt), &acquired->rcu_users);
+
+	acquired = bpf_kptr_xchg(&local->task, acquired);
+	if (acquired) {
+		err = 8;
+		bpf_obj_drop(local);
+		bpf_task_release(kptr);
+		bpf_task_release(acquired);
+		return 0;
+	}
+
+	bpf_obj_drop(local);
+
+	bpf_probe_read_kernel(&refcnt_after_drop, sizeof(refcnt_after_drop), &kptr->rcu_users);
+	if (refcnt != refcnt_after_drop + 1) {
+		err = 9;
+		bpf_task_release(kptr);
 		return 0;
 	}
 
@@ -312,5 +364,56 @@ int BPF_PROG(task_kfunc_acquire_trusted_walked, struct task_struct *task, u64 cl
 		err = 1;
 
 
+	return 0;
+}
+
+SEC("syscall")
+int test_task_from_vpid_current(const void *ctx)
+{
+	struct task_struct *current, *v_task;
+
+	v_task = bpf_task_from_vpid(1);
+	if (!v_task) {
+		err = 1;
+		return 0;
+	}
+
+	current = bpf_get_current_task_btf();
+
+	/* The current process should be the init process (pid 1) in the new pid namespace. */
+	if (current != v_task)
+		err = 2;
+
+	bpf_task_release(v_task);
+	return 0;
+}
+
+SEC("syscall")
+int test_task_from_vpid_invalid(const void *ctx)
+{
+	struct task_struct *v_task;
+
+	v_task = bpf_task_from_vpid(-1);
+	if (v_task) {
+		err = 1;
+		goto err;
+	}
+
+	/* There should be only one process (current process) in the new pid namespace. */
+	v_task = bpf_task_from_vpid(2);
+	if (v_task) {
+		err = 2;
+		goto err;
+	}
+
+	v_task = bpf_task_from_vpid(9999);
+	if (v_task) {
+		err = 3;
+		goto err;
+	}
+
+	return 0;
+err:
+	bpf_task_release(v_task);
 	return 0;
 }

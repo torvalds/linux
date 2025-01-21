@@ -1103,7 +1103,7 @@ RCU-Tasks-Rude::
 
 	Critical sections	Grace period		Barrier
 
-	N/A			call_rcu_tasks_rude	rcu_barrier_tasks_rude
+	N/A						N/A
 				synchronize_rcu_tasks_rude
 
 

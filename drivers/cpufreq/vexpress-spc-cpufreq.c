@@ -565,7 +565,7 @@ static struct platform_driver ve_spc_cpufreq_platdrv = {
 		.name	= "vexpress-spc-cpufreq",
 	},
 	.probe		= ve_spc_cpufreq_probe,
-	.remove_new	= ve_spc_cpufreq_remove,
+	.remove		= ve_spc_cpufreq_remove,
 };
 module_platform_driver(ve_spc_cpufreq_platdrv);
 

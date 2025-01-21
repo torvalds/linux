@@ -44,6 +44,7 @@
 #include <net/gre.h>
 #include <net/dst_metadata.h>
 #include <net/erspan.h>
+#include <net/inet_dscp.h>
 
 /*
    Problems & solutions
@@ -661,10 +662,10 @@ static netdev_tx_t ipgre_xmit(struct sk_buff *skb,
 		if (skb_cow_head(skb, 0))
 			goto free_skb;
 
-		tnl_params = (const struct iphdr *)skb->data;
-
-		if (!pskb_network_may_pull(skb, pull_len))
+		if (!pskb_may_pull(skb, pull_len))
 			goto free_skb;
+
+		tnl_params = (const struct iphdr *)skb->data;
 
 		/* ip_tunnel_xmit() needs skb->data pointing to gre header. */
 		skb_pull(skb, pull_len);
@@ -930,7 +931,7 @@ static int ipgre_open(struct net_device *dev)
 					 t->parms.iph.daddr,
 					 t->parms.iph.saddr,
 					 t->parms.o_key,
-					 RT_TOS(t->parms.iph.tos),
+					 t->parms.iph.tos & INET_DSCP_MASK,
 					 t->parms.link);
 		if (IS_ERR(rt))
 			return -EADDRNOTAVAIL;
@@ -996,7 +997,7 @@ static void __gre_tunnel_init(struct net_device *dev)
 	tunnel->hlen = tunnel->tun_hlen + tunnel->encap_hlen;
 	dev->needed_headroom = tunnel->hlen + sizeof(tunnel->parms.iph);
 
-	dev->features		|= GRE_FEATURES | NETIF_F_LLTX;
+	dev->features		|= GRE_FEATURES;
 	dev->hw_features	|= GRE_FEATURES;
 
 	/* TCP offload with GRE SEQ is not supported, nor can we support 2
@@ -1010,6 +1011,8 @@ static void __gre_tunnel_init(struct net_device *dev)
 
 	dev->features |= NETIF_F_GSO_SOFTWARE;
 	dev->hw_features |= NETIF_F_GSO_SOFTWARE;
+
+	dev->lltx = true;
 }
 
 static int ipgre_tunnel_init(struct net_device *dev)

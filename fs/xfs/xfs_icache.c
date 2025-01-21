@@ -25,6 +25,9 @@
 #include "xfs_ag.h"
 #include "xfs_log_priv.h"
 #include "xfs_health.h"
+#include "xfs_da_format.h"
+#include "xfs_dir2.h"
+#include "xfs_metafile.h"
 
 #include <linux/iversion.h>
 
@@ -65,6 +68,18 @@ static int xfs_icwalk_ag(struct xfs_perag *pag,
 					 XFS_ICWALK_FLAG_RECLAIM_SICK | \
 					 XFS_ICWALK_FLAG_UNION)
 
+/* Marks for the perag xarray */
+#define XFS_PERAG_RECLAIM_MARK	XA_MARK_0
+#define XFS_PERAG_BLOCKGC_MARK	XA_MARK_1
+
+static inline xa_mark_t ici_tag_to_mark(unsigned int tag)
+{
+	if (tag == XFS_ICI_RECLAIM_TAG)
+		return XFS_PERAG_RECLAIM_MARK;
+	ASSERT(tag == XFS_ICI_BLOCKGC_TAG);
+	return XFS_PERAG_BLOCKGC_MARK;
+}
+
 /*
  * Allocate and initialise an xfs_inode.
  */
@@ -88,7 +103,8 @@ xfs_inode_alloc(
 
 	/* VFS doesn't initialise i_mode! */
 	VFS_I(ip)->i_mode = 0;
-	mapping_set_large_folios(VFS_I(ip)->i_mapping);
+	mapping_set_folio_min_order(VFS_I(ip)->i_mapping,
+				    M_IGEO(mp)->min_folio_order);
 
 	XFS_STATS_INC(mp, vn_active);
 	ASSERT(atomic_read(&ip->i_pincount) == 0);
@@ -191,7 +207,7 @@ xfs_reclaim_work_queue(
 {
 
 	rcu_read_lock();
-	if (radix_tree_tagged(&mp->m_perag_tree, XFS_ICI_RECLAIM_TAG)) {
+	if (xfs_group_marked(mp, XG_TYPE_AG, XFS_PERAG_RECLAIM_MARK)) {
 		queue_delayed_work(mp->m_reclaim_workqueue, &mp->m_reclaim_work,
 			msecs_to_jiffies(xfs_syncd_centisecs / 6 * 10));
 	}
@@ -206,15 +222,14 @@ static inline void
 xfs_blockgc_queue(
 	struct xfs_perag	*pag)
 {
-	struct xfs_mount	*mp = pag->pag_mount;
+	struct xfs_mount	*mp = pag_mount(pag);
 
 	if (!xfs_is_blockgc_enabled(mp))
 		return;
 
 	rcu_read_lock();
 	if (radix_tree_tagged(&pag->pag_ici_root, XFS_ICI_BLOCKGC_TAG))
-		queue_delayed_work(pag->pag_mount->m_blockgc_wq,
-				   &pag->pag_blockgc_work,
+		queue_delayed_work(mp->m_blockgc_wq, &pag->pag_blockgc_work,
 				   msecs_to_jiffies(xfs_blockgc_secs * 1000));
 	rcu_read_unlock();
 }
@@ -226,7 +241,6 @@ xfs_perag_set_inode_tag(
 	xfs_agino_t		agino,
 	unsigned int		tag)
 {
-	struct xfs_mount	*mp = pag->pag_mount;
 	bool			was_tagged;
 
 	lockdep_assert_held(&pag->pag_ici_lock);
@@ -240,15 +254,13 @@ xfs_perag_set_inode_tag(
 	if (was_tagged)
 		return;
 
-	/* propagate the tag up into the perag radix tree */
-	spin_lock(&mp->m_perag_lock);
-	radix_tree_tag_set(&mp->m_perag_tree, pag->pag_agno, tag);
-	spin_unlock(&mp->m_perag_lock);
+	/* propagate the tag up into the pag xarray tree */
+	xfs_group_set_mark(pag_group(pag), ici_tag_to_mark(tag));
 
 	/* start background work */
 	switch (tag) {
 	case XFS_ICI_RECLAIM_TAG:
-		xfs_reclaim_work_queue(mp);
+		xfs_reclaim_work_queue(pag_mount(pag));
 		break;
 	case XFS_ICI_BLOCKGC_TAG:
 		xfs_blockgc_queue(pag);
@@ -265,8 +277,6 @@ xfs_perag_clear_inode_tag(
 	xfs_agino_t		agino,
 	unsigned int		tag)
 {
-	struct xfs_mount	*mp = pag->pag_mount;
-
 	lockdep_assert_held(&pag->pag_ici_lock);
 
 	/*
@@ -284,12 +294,23 @@ xfs_perag_clear_inode_tag(
 	if (radix_tree_tagged(&pag->pag_ici_root, tag))
 		return;
 
-	/* clear the tag from the perag radix tree */
-	spin_lock(&mp->m_perag_lock);
-	radix_tree_tag_clear(&mp->m_perag_tree, pag->pag_agno, tag);
-	spin_unlock(&mp->m_perag_lock);
-
+	/* clear the tag from the pag xarray */
+	xfs_group_clear_mark(pag_group(pag), ici_tag_to_mark(tag));
 	trace_xfs_perag_clear_inode_tag(pag, _RET_IP_);
+}
+
+/*
+ * Find the next AG after @pag, or the first AG if @pag is NULL.
+ */
+static struct xfs_perag *
+xfs_perag_grab_next_tag(
+	struct xfs_mount	*mp,
+	struct xfs_perag	*pag,
+	int			tag)
+{
+	return to_perag(xfs_group_grab_next_mark(mp,
+			pag ? pag_group(pag) : NULL,
+			ici_tag_to_mark(tag), XG_TYPE_AG));
 }
 
 /*
@@ -325,7 +346,8 @@ xfs_reinit_inode(
 	inode->i_uid = uid;
 	inode->i_gid = gid;
 	inode->i_state = state;
-	mapping_set_large_folios(inode->i_mapping);
+	mapping_set_folio_min_order(inode->i_mapping,
+				    M_IGEO(mp)->min_folio_order);
 	return error;
 }
 
@@ -755,7 +777,7 @@ xfs_iget(
 	ASSERT((lock_flags & (XFS_IOLOCK_EXCL | XFS_IOLOCK_SHARED)) == 0);
 
 	/* reject inode numbers outside existing AGs */
-	if (!ino || XFS_INO_TO_AGNO(mp, ino) >= mp->m_sb.sb_agcount)
+	if (!xfs_verify_ino(mp, ino))
 		return -EINVAL;
 
 	XFS_STATS_INC(mp, xs_ig_attempts);
@@ -806,6 +828,77 @@ out_error_or_again:
 		goto again;
 	}
 	xfs_perag_put(pag);
+	return error;
+}
+
+/*
+ * Get a metadata inode.
+ *
+ * The metafile type must match the file mode exactly, and for files in the
+ * metadata directory tree, it must match the inode's metatype exactly.
+ */
+int
+xfs_trans_metafile_iget(
+	struct xfs_trans	*tp,
+	xfs_ino_t		ino,
+	enum xfs_metafile_type	metafile_type,
+	struct xfs_inode	**ipp)
+{
+	struct xfs_mount	*mp = tp->t_mountp;
+	struct xfs_inode	*ip;
+	umode_t			mode;
+	int			error;
+
+	error = xfs_iget(mp, tp, ino, 0, 0, &ip);
+	if (error == -EFSCORRUPTED || error == -EINVAL)
+		goto whine;
+	if (error)
+		return error;
+
+	if (VFS_I(ip)->i_nlink == 0)
+		goto bad_rele;
+
+	if (metafile_type == XFS_METAFILE_DIR)
+		mode = S_IFDIR;
+	else
+		mode = S_IFREG;
+	if (inode_wrong_type(VFS_I(ip), mode))
+		goto bad_rele;
+	if (xfs_has_metadir(mp)) {
+		if (!xfs_is_metadir_inode(ip))
+			goto bad_rele;
+		if (metafile_type != ip->i_metatype)
+			goto bad_rele;
+	}
+
+	*ipp = ip;
+	return 0;
+bad_rele:
+	xfs_irele(ip);
+whine:
+	xfs_err(mp, "metadata inode 0x%llx type %u is corrupt", ino,
+			metafile_type);
+	xfs_fs_mark_sick(mp, XFS_SICK_FS_METADIR);
+	return -EFSCORRUPTED;
+}
+
+/* Grab a metadata file if the caller doesn't already have a transaction. */
+int
+xfs_metafile_iget(
+	struct xfs_mount	*mp,
+	xfs_ino_t		ino,
+	enum xfs_metafile_type	metafile_type,
+	struct xfs_inode	**ipp)
+{
+	struct xfs_trans	*tp;
+	int			error;
+
+	error = xfs_trans_alloc_empty(mp, &tp);
+	if (error)
+		return error;
+
+	error = xfs_trans_metafile_iget(tp, ino, metafile_type, ipp);
+	xfs_trans_cancel(tp);
 	return error;
 }
 
@@ -977,7 +1070,7 @@ xfs_reclaim_inodes(
 	if (xfs_want_reclaim_sick(mp))
 		icw.icw_flags |= XFS_ICWALK_FLAG_RECLAIM_SICK;
 
-	while (radix_tree_tagged(&mp->m_perag_tree, XFS_ICI_RECLAIM_TAG)) {
+	while (xfs_group_marked(mp, XG_TYPE_AG, XFS_PERAG_RECLAIM_MARK)) {
 		xfs_ail_push_all_sync(mp->m_ail);
 		xfs_icwalk(mp, XFS_ICWALK_RECLAIM, &icw);
 	}
@@ -1019,15 +1112,17 @@ long
 xfs_reclaim_inodes_count(
 	struct xfs_mount	*mp)
 {
-	struct xfs_perag	*pag;
-	xfs_agnumber_t		ag = 0;
+	XA_STATE		(xas, &mp->m_groups[XG_TYPE_AG].xa, 0);
 	long			reclaimable = 0;
+	struct xfs_perag	*pag;
 
-	while ((pag = xfs_perag_get_tag(mp, ag, XFS_ICI_RECLAIM_TAG))) {
-		ag = pag->pag_agno + 1;
+	rcu_read_lock();
+	xas_for_each_marked(&xas, pag, ULONG_MAX, XFS_PERAG_RECLAIM_MARK) {
+		trace_xfs_reclaim_inodes_count(pag, _THIS_IP_);
 		reclaimable += pag->pag_ici_reclaimable;
-		xfs_perag_put(pag);
 	}
+	rcu_read_unlock();
+
 	return reclaimable;
 }
 
@@ -1159,7 +1254,7 @@ xfs_inode_free_eofblocks(
 	if (xfs_can_free_eofblocks(ip))
 		return xfs_free_eofblocks(ip);
 
-	/* inode could be preallocated or append-only */
+	/* inode could be preallocated */
 	trace_xfs_inode_free_eofblocks_invalid(ip);
 	xfs_inode_clear_eofblocks_tag(ip);
 	return 0;
@@ -1241,14 +1336,17 @@ xfs_inode_clear_eofblocks_tag(
 }
 
 /*
- * Set ourselves up to free CoW blocks from this file.  If it's already clean
- * then we can bail out quickly, but otherwise we must back off if the file
- * is undergoing some kind of write.
+ * Prepare to free COW fork blocks from an inode.
  */
 static bool
 xfs_prep_free_cowblocks(
-	struct xfs_inode	*ip)
+	struct xfs_inode	*ip,
+	struct xfs_icwalk	*icw)
 {
+	bool			sync;
+
+	sync = icw && (icw->icw_flags & XFS_ICWALK_FLAG_SYNC);
+
 	/*
 	 * Just clear the tag if we have an empty cow fork or none at all. It's
 	 * possible the inode was fully unshared since it was originally tagged.
@@ -1260,16 +1358,22 @@ xfs_prep_free_cowblocks(
 	}
 
 	/*
-	 * If the mapping is dirty or under writeback we cannot touch the
-	 * CoW fork.  Leave it alone if we're in the midst of a directio.
+	 * A cowblocks trim of an inode can have a significant effect on
+	 * fragmentation even when a reasonable COW extent size hint is set.
+	 * Therefore, we prefer to not process cowblocks unless they are clean
+	 * and idle. We can never process a cowblocks inode that is dirty or has
+	 * in-flight I/O under any circumstances, because outstanding writeback
+	 * or dio expects targeted COW fork blocks exist through write
+	 * completion where they can be remapped into the data fork.
+	 *
+	 * Therefore, the heuristic used here is to never process inodes
+	 * currently opened for write from background (i.e. non-sync) scans. For
+	 * sync scans, use the pagecache/dio state of the inode to ensure we
+	 * never free COW fork blocks out from under pending I/O.
 	 */
-	if ((VFS_I(ip)->i_state & I_DIRTY_PAGES) ||
-	    mapping_tagged(VFS_I(ip)->i_mapping, PAGECACHE_TAG_DIRTY) ||
-	    mapping_tagged(VFS_I(ip)->i_mapping, PAGECACHE_TAG_WRITEBACK) ||
-	    atomic_read(&VFS_I(ip)->i_dio_count))
+	if (!sync && inode_is_open_for_write(VFS_I(ip)))
 		return false;
-
-	return true;
+	return xfs_can_free_cowblocks(ip);
 }
 
 /*
@@ -1298,7 +1402,7 @@ xfs_inode_free_cowblocks(
 	if (!xfs_iflags_test(ip, XFS_ICOWBLOCKS))
 		return 0;
 
-	if (!xfs_prep_free_cowblocks(ip))
+	if (!xfs_prep_free_cowblocks(ip, icw))
 		return 0;
 
 	if (!xfs_icwalk_match(ip, icw))
@@ -1327,7 +1431,7 @@ xfs_inode_free_cowblocks(
 	 * Check again, nobody else should be able to dirty blocks or change
 	 * the reflink iflag now that we have the first two locks held.
 	 */
-	if (xfs_prep_free_cowblocks(ip))
+	if (xfs_prep_free_cowblocks(ip, icw))
 		ret = xfs_reflink_cancel_cow_range(ip, 0, NULLFILEOFF, false);
 	return ret;
 }
@@ -1353,13 +1457,12 @@ void
 xfs_blockgc_stop(
 	struct xfs_mount	*mp)
 {
-	struct xfs_perag	*pag;
-	xfs_agnumber_t		agno;
+	struct xfs_perag	*pag = NULL;
 
 	if (!xfs_clear_blockgc_enabled(mp))
 		return;
 
-	for_each_perag(mp, agno, pag)
+	while ((pag = xfs_perag_next(mp, pag)))
 		cancel_delayed_work_sync(&pag->pag_blockgc_work);
 	trace_xfs_blockgc_stop(mp, __return_address);
 }
@@ -1369,14 +1472,13 @@ void
 xfs_blockgc_start(
 	struct xfs_mount	*mp)
 {
-	struct xfs_perag	*pag;
-	xfs_agnumber_t		agno;
+	struct xfs_perag	*pag = NULL;
 
 	if (xfs_set_blockgc_enabled(mp))
 		return;
 
 	trace_xfs_blockgc_start(mp, __return_address);
-	for_each_perag_tag(mp, agno, pag, XFS_ICI_BLOCKGC_TAG)
+	while ((pag = xfs_perag_grab_next_tag(mp, pag, XFS_ICI_BLOCKGC_TAG)))
 		xfs_blockgc_queue(pag);
 }
 
@@ -1452,7 +1554,7 @@ xfs_blockgc_worker(
 {
 	struct xfs_perag	*pag = container_of(to_delayed_work(work),
 					struct xfs_perag, pag_blockgc_work);
-	struct xfs_mount	*mp = pag->pag_mount;
+	struct xfs_mount	*mp = pag_mount(pag);
 	int			error;
 
 	trace_xfs_blockgc_worker(mp, __return_address);
@@ -1460,7 +1562,7 @@ xfs_blockgc_worker(
 	error = xfs_icwalk_ag(pag, XFS_ICWALK_BLOCKGC, NULL);
 	if (error)
 		xfs_info(mp, "AG %u preallocation gc worker failed, err=%d",
-				pag->pag_agno, error);
+				pag_agno(pag), error);
 	xfs_blockgc_queue(pag);
 }
 
@@ -1492,21 +1594,18 @@ int
 xfs_blockgc_flush_all(
 	struct xfs_mount	*mp)
 {
-	struct xfs_perag	*pag;
-	xfs_agnumber_t		agno;
+	struct xfs_perag	*pag = NULL;
 
 	trace_xfs_blockgc_flush_all(mp, __return_address);
 
 	/*
-	 * For each blockgc worker, move its queue time up to now.  If it
-	 * wasn't queued, it will not be requeued.  Then flush whatever's
-	 * left.
+	 * For each blockgc worker, move its queue time up to now.  If it wasn't
+	 * queued, it will not be requeued.  Then flush whatever is left.
 	 */
-	for_each_perag_tag(mp, agno, pag, XFS_ICI_BLOCKGC_TAG)
-		mod_delayed_work(pag->pag_mount->m_blockgc_wq,
-				&pag->pag_blockgc_work, 0);
+	while ((pag = xfs_perag_grab_next_tag(mp, pag, XFS_ICI_BLOCKGC_TAG)))
+		mod_delayed_work(mp->m_blockgc_wq, &pag->pag_blockgc_work, 0);
 
-	for_each_perag_tag(mp, agno, pag, XFS_ICI_BLOCKGC_TAG)
+	while ((pag = xfs_perag_grab_next_tag(mp, pag, XFS_ICI_BLOCKGC_TAG)))
 		flush_delayed_work(&pag->pag_blockgc_work);
 
 	return xfs_inodegc_flush(mp);
@@ -1643,7 +1742,7 @@ xfs_icwalk_ag(
 	enum xfs_icwalk_goal	goal,
 	struct xfs_icwalk	*icw)
 {
-	struct xfs_mount	*mp = pag->pag_mount;
+	struct xfs_mount	*mp = pag_mount(pag);
 	uint32_t		first_index;
 	int			last_error = 0;
 	int			skipped;
@@ -1696,7 +1795,7 @@ restart:
 			 * us to see this inode, so another lookup from the
 			 * same index will not find it again.
 			 */
-			if (XFS_INO_TO_AGNO(mp, ip->i_ino) != pag->pag_agno)
+			if (XFS_INO_TO_AGNO(mp, ip->i_ino) != pag_agno(pag))
 				continue;
 			first_index = XFS_INO_TO_AGINO(mp, ip->i_ino + 1);
 			if (first_index < XFS_INO_TO_AGINO(mp, ip->i_ino))
@@ -1752,12 +1851,11 @@ xfs_icwalk(
 	enum xfs_icwalk_goal	goal,
 	struct xfs_icwalk	*icw)
 {
-	struct xfs_perag	*pag;
+	struct xfs_perag	*pag = NULL;
 	int			error = 0;
 	int			last_error = 0;
-	xfs_agnumber_t		agno;
 
-	for_each_perag_tag(mp, agno, pag, goal) {
+	while ((pag = xfs_perag_grab_next_tag(mp, pag, goal))) {
 		error = xfs_icwalk_ag(pag, goal, icw);
 		if (error) {
 			last_error = error;

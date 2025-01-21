@@ -120,13 +120,14 @@ int aqr_phy_led_hw_control_set(struct phy_device *phydev, u8 index,
 int aqr_phy_led_active_low_set(struct phy_device *phydev, int index, bool enable)
 {
 	return phy_modify_mmd(phydev, MDIO_MMD_VEND1, AQR_LED_DRIVE(index),
-			      VEND1_GLOBAL_LED_DRIVE_VDD, enable);
+			      VEND1_GLOBAL_LED_DRIVE_VDD,
+			      enable ? 0 : VEND1_GLOBAL_LED_DRIVE_VDD);
 }
 
 int aqr_phy_led_polarity_set(struct phy_device *phydev, int index, unsigned long modes)
 {
+	bool force_active_low = false, force_active_high = false;
 	struct aqr107_priv *priv = phydev->priv;
-	bool active_low = false;
 	u32 mode;
 
 	if (index >= AQR_MAX_LEDS)
@@ -135,7 +136,10 @@ int aqr_phy_led_polarity_set(struct phy_device *phydev, int index, unsigned long
 	for_each_set_bit(mode, &modes, __PHY_LED_MODES_NUM) {
 		switch (mode) {
 		case PHY_LED_ACTIVE_LOW:
-			active_low = true;
+			force_active_low = true;
+			break;
+		case PHY_LED_ACTIVE_HIGH:
+			force_active_high = true;
 			break;
 		default:
 			return -EINVAL;
@@ -143,8 +147,14 @@ int aqr_phy_led_polarity_set(struct phy_device *phydev, int index, unsigned long
 	}
 
 	/* Save LED driver vdd state to restore on SW reset */
-	if (active_low)
+	if (force_active_low)
 		priv->leds_active_low |= BIT(index);
 
-	return aqr_phy_led_active_low_set(phydev, index, active_low);
+	if (force_active_high)
+		priv->leds_active_high |= BIT(index);
+
+	if (force_active_high || force_active_low)
+		return aqr_phy_led_active_low_set(phydev, index, force_active_low);
+
+	unreachable();
 }

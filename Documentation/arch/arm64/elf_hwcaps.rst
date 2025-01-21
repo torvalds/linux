@@ -16,9 +16,9 @@ architected discovery mechanism available to userspace code at EL0. The
 kernel exposes the presence of these features to userspace through a set
 of flags called hwcaps, exposed in the auxiliary vector.
 
-Userspace software can test for features by acquiring the AT_HWCAP or
-AT_HWCAP2 entry of the auxiliary vector, and testing whether the relevant
-flags are set, e.g.::
+Userspace software can test for features by acquiring the AT_HWCAP,
+AT_HWCAP2 or AT_HWCAP3 entry of the auxiliary vector, and testing
+whether the relevant flags are set, e.g.::
 
 	bool floating_point_is_present(void)
 	{
@@ -169,6 +169,10 @@ HWCAP_PACG
     Functionality implied by ID_AA64ISAR1_EL1.GPA == 0b0001 or
     ID_AA64ISAR1_EL1.GPI == 0b0001, as described by
     Documentation/arch/arm64/pointer-authentication.rst.
+
+HWCAP_GCS
+    Functionality implied by ID_AA64PFR1_EL1.GCS == 0b1, as
+    described by Documentation/arch/arm64/gcs.rst.
 
 HWCAP2_DCPODP
     Functionality implied by ID_AA64ISAR1_EL1.DPB == 0b0010.
@@ -365,6 +369,8 @@ HWCAP2_SME_SF8DP2
 HWCAP2_SME_SF8DP4
     Functionality implied by ID_AA64SMFR0_EL1.SF8DP4 == 0b1.
 
+HWCAP2_POE
+    Functionality implied by ID_AA64MMFR3_EL1.S1POE == 0b0001.
 
 4. Unused AT_HWCAP bits
 -----------------------

@@ -128,6 +128,9 @@ TEST(correct_lsm_list_modules)
 		case LSM_ID_EVM:
 			name = "evm";
 			break;
+		case LSM_ID_IPE:
+			name = "ipe";
+			break;
 		default:
 			name = "INVALID";
 			break;

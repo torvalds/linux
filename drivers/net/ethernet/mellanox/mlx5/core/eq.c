@@ -114,14 +114,10 @@ static int mlx5_eq_comp_int(struct notifier_block *nb,
 	struct mlx5_eq *eq = &eq_comp->core;
 	struct mlx5_eqe *eqe;
 	int num_eqes = 0;
-	u32 cqn = -1;
 
-	eqe = next_eqe_sw(eq);
-	if (!eqe)
-		goto out;
-
-	do {
+	while ((eqe = next_eqe_sw(eq))) {
 		struct mlx5_core_cq *cq;
+		u32 cqn;
 
 		/* Make sure we read EQ entry contents after we've
 		 * checked the ownership bit.
@@ -142,13 +138,11 @@ static int mlx5_eq_comp_int(struct notifier_block *nb,
 
 		++eq->cons_index;
 
-	} while ((++num_eqes < MLX5_EQ_POLLING_BUDGET) && (eqe = next_eqe_sw(eq)));
+		if (++num_eqes >= MLX5_EQ_POLLING_BUDGET)
+			break;
+	}
 
-out:
 	eq_update_ci(eq, 1);
-
-	if (cqn != -1)
-		tasklet_schedule(&eq_comp->tasklet_ctx.task);
 
 	return 0;
 }
@@ -215,11 +209,7 @@ static int mlx5_eq_async_int(struct notifier_block *nb,
 	recovery = action == ASYNC_EQ_RECOVER;
 	mlx5_eq_async_int_lock(eq_async, recovery, &flags);
 
-	eqe = next_eqe_sw(eq);
-	if (!eqe)
-		goto out;
-
-	do {
+	while ((eqe = next_eqe_sw(eq))) {
 		/*
 		 * Make sure we read EQ entry contents after we've
 		 * checked the ownership bit.
@@ -231,9 +221,10 @@ static int mlx5_eq_async_int(struct notifier_block *nb,
 
 		++eq->cons_index;
 
-	} while ((++num_eqes < MLX5_EQ_POLLING_BUDGET) && (eqe = next_eqe_sw(eq)));
+		if (++num_eqes >= MLX5_EQ_POLLING_BUDGET)
+			break;
+	}
 
-out:
 	eq_update_ci(eq, 1);
 	mlx5_eq_async_int_unlock(eq_async, recovery, &flags);
 
@@ -810,15 +801,8 @@ EXPORT_SYMBOL(mlx5_eq_get_eqe);
 
 void mlx5_eq_update_ci(struct mlx5_eq *eq, u32 cc, bool arm)
 {
-	__be32 __iomem *addr = eq->doorbell + (arm ? 0 : 2);
-	u32 val;
-
 	eq->cons_index += cc;
-	val = (eq->cons_index & 0xffffff) | (eq->eqn << 24);
-
-	__raw_writel((__force u32)cpu_to_be32(val), addr);
-	/* We still want ordering, just not swabbing, so add a barrier */
-	wmb();
+	eq_update_ci(eq, arm);
 }
 EXPORT_SYMBOL(mlx5_eq_update_ci);
 
@@ -835,28 +819,9 @@ static void comp_irq_release_pci(struct mlx5_core_dev *dev, u16 vecidx)
 	mlx5_irq_release_vector(irq);
 }
 
-static int mlx5_cpumask_default_spread(int numa_node, int index)
+static int mlx5_cpumask_default_spread(struct mlx5_core_dev *dev, int index)
 {
-	const struct cpumask *prev = cpu_none_mask;
-	const struct cpumask *mask;
-	int found_cpu = 0;
-	int i = 0;
-	int cpu;
-
-	rcu_read_lock();
-	for_each_numa_hop_mask(mask, numa_node) {
-		for_each_cpu_andnot(cpu, mask, prev) {
-			if (i++ == index) {
-				found_cpu = cpu;
-				goto spread_done;
-			}
-		}
-		prev = mask;
-	}
-
-spread_done:
-	rcu_read_unlock();
-	return found_cpu;
+	return cpumask_local_spread(index, dev->priv.numa_node);
 }
 
 static struct cpu_rmap *mlx5_eq_table_get_pci_rmap(struct mlx5_core_dev *dev)
@@ -880,7 +845,7 @@ static int comp_irq_request_pci(struct mlx5_core_dev *dev, u16 vecidx)
 	int cpu;
 
 	rmap = mlx5_eq_table_get_pci_rmap(dev);
-	cpu = mlx5_cpumask_default_spread(dev->priv.numa_node, vecidx);
+	cpu = mlx5_cpumask_default_spread(dev, vecidx);
 	irq = mlx5_irq_request_vector(dev, cpu, vecidx, &rmap);
 	if (IS_ERR(irq))
 		return PTR_ERR(irq);
@@ -915,7 +880,7 @@ static int comp_irq_request_sf(struct mlx5_core_dev *dev, u16 vecidx)
 	if (!mlx5_irq_pool_is_sf_pool(pool))
 		return comp_irq_request_pci(dev, vecidx);
 
-	af_desc.is_managed = 1;
+	af_desc.is_managed = false;
 	cpumask_copy(&af_desc.mask, cpu_online_mask);
 	cpumask_andnot(&af_desc.mask, &af_desc.mask, &table->used_cpus);
 	irq = mlx5_irq_affinity_request(dev, pool, &af_desc);
@@ -1080,6 +1045,12 @@ int mlx5_comp_eqn_get(struct mlx5_core_dev *dev, u16 vecidx, int *eqn)
 	struct mlx5_eq_comp *eq;
 	int ret = 0;
 
+	if (vecidx >= table->max_comp_eqs) {
+		mlx5_core_dbg(dev, "Requested vector index %u should be less than %u",
+			      vecidx, table->max_comp_eqs);
+		return -EINVAL;
+	}
+
 	mutex_lock(&table->comp_lock);
 	eq = xa_load(&table->comp_eqs, vecidx);
 	if (eq) {
@@ -1145,7 +1116,7 @@ int mlx5_comp_vector_get_cpu(struct mlx5_core_dev *dev, int vector)
 	if (mask)
 		cpu = cpumask_first(mask);
 	else
-		cpu = mlx5_cpumask_default_spread(dev->priv.numa_node, vector);
+		cpu = mlx5_cpumask_default_spread(dev, vector);
 
 	return cpu;
 }

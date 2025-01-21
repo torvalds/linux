@@ -27,8 +27,8 @@ static enum rtw89_sar_subband rtw89_sar_get_subband(struct rtw89_dev *rtwdev,
 		return RTW89_SAR_5GHZ_SUBBAND_1_2;
 	case 5500 ... 5720:
 		return RTW89_SAR_5GHZ_SUBBAND_2_E;
-	case 5745 ... 5825:
-		return RTW89_SAR_5GHZ_SUBBAND_3;
+	case 5745 ... 5885:
+		return RTW89_SAR_5GHZ_SUBBAND_3_4;
 	case 5955 ... 6155:
 		return RTW89_SAR_6GHZ_SUBBAND_5_L;
 	case 6175 ... 6415:
@@ -295,7 +295,7 @@ static const struct cfg80211_sar_freq_ranges rtw89_common_sar_freq_ranges[] = {
 	{ .start_freq = 2412, .end_freq = 2484, },
 	{ .start_freq = 5180, .end_freq = 5320, },
 	{ .start_freq = 5500, .end_freq = 5720, },
-	{ .start_freq = 5745, .end_freq = 5825, },
+	{ .start_freq = 5745, .end_freq = 5885, },
 	{ .start_freq = 5955, .end_freq = 6155, },
 	{ .start_freq = 6175, .end_freq = 6415, },
 	{ .start_freq = 6435, .end_freq = 6515, },
@@ -366,7 +366,7 @@ static void rtw89_tas_state_update(struct rtw89_dev *rtwdev)
 	if (src == RTW89_SAR_SOURCE_NONE)
 		return;
 
-	chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
 	ret = sar_hdl->query_sar_config(rtwdev, chan->freq, &cfg);
 	if (ret)
 		return;

@@ -890,8 +890,14 @@ static int cdns_update_slave_status(struct sdw_cdns *cdns,
 		}
 	}
 
-	if (is_slave)
-		return sdw_handle_slave_status(&cdns->bus, status);
+	if (is_slave) {
+		int ret;
+
+		mutex_lock(&cdns->status_update_lock);
+		ret = sdw_handle_slave_status(&cdns->bus, status);
+		mutex_unlock(&cdns->status_update_lock);
+		return ret;
+	}
 
 	return 0;
 }
@@ -987,6 +993,31 @@ irqreturn_t sdw_cdns_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 EXPORT_SYMBOL(sdw_cdns_irq);
+
+static void cdns_check_attached_status_dwork(struct work_struct *work)
+{
+	struct sdw_cdns *cdns =
+		container_of(work, struct sdw_cdns, attach_dwork.work);
+	enum sdw_slave_status status[SDW_MAX_DEVICES + 1];
+	u32 val;
+	int ret;
+	int i;
+
+	val = cdns_readl(cdns, CDNS_MCP_SLAVE_STAT);
+
+	for (i = 0; i <= SDW_MAX_DEVICES; i++) {
+		status[i] = val & 0x3;
+		if (status[i])
+			dev_dbg(cdns->dev, "Peripheral %d status: %d\n", i, status[i]);
+		val >>= 2;
+	}
+
+	mutex_lock(&cdns->status_update_lock);
+	ret = sdw_handle_slave_status(&cdns->bus, status);
+	mutex_unlock(&cdns->status_update_lock);
+	if (ret < 0)
+		dev_err(cdns->dev, "%s: sdw_handle_slave_status failed: %d\n", __func__, ret);
+}
 
 /**
  * cdns_update_slave_status_work - update slave status in a work since we will need to handle
@@ -1347,6 +1378,31 @@ static void cdns_init_clock_ctrl(struct sdw_cdns *cdns)
 }
 
 /**
+ * sdw_cdns_soft_reset() - Cadence soft-reset
+ * @cdns: Cadence instance
+ */
+int sdw_cdns_soft_reset(struct sdw_cdns *cdns)
+{
+	int ret;
+
+	cdns_updatel(cdns, CDNS_MCP_CONTROL, CDNS_MCP_CONTROL_SOFT_RST,
+		     CDNS_MCP_CONTROL_SOFT_RST);
+
+	ret = cdns_config_update(cdns);
+	if (ret < 0) {
+		dev_err(cdns->dev, "%s: config update failed\n", __func__);
+		return ret;
+	}
+
+	ret = cdns_set_wait(cdns, CDNS_MCP_CONTROL, CDNS_MCP_CONTROL_SOFT_RST, 0);
+	if (ret < 0)
+		dev_err(cdns->dev, "%s: Soft Reset timed out\n", __func__);
+
+	return ret;
+}
+EXPORT_SYMBOL(sdw_cdns_soft_reset);
+
+/**
  * sdw_cdns_init() - Cadence initialization
  * @cdns: Cadence instance
  */
@@ -1368,6 +1424,11 @@ int sdw_cdns_init(struct sdw_cdns *cdns)
 	/* Set cmd accept mode */
 	cdns_ip_updatel(cdns, CDNS_IP_MCP_CONTROL, CDNS_IP_MCP_CONTROL_CMD_ACCEPT,
 			CDNS_IP_MCP_CONTROL_CMD_ACCEPT);
+
+	/* disable wakeup */
+	cdns_ip_updatel(cdns, CDNS_IP_MCP_CONTROL,
+			CDNS_IP_MCP_CONTROL_BLOCK_WAKEUP,
+			0);
 
 	/* Configure mcp config */
 	val = cdns_readl(cdns, CDNS_MCP_CONFIG);
@@ -1740,7 +1801,11 @@ int sdw_cdns_probe(struct sdw_cdns *cdns)
 	init_completion(&cdns->tx_complete);
 	cdns->bus.port_ops = &cdns_port_ops;
 
+	mutex_init(&cdns->status_update_lock);
+
 	INIT_WORK(&cdns->work, cdns_update_slave_status_work);
+	INIT_DELAYED_WORK(&cdns->attach_dwork, cdns_check_attached_status_dwork);
+
 	return 0;
 }
 EXPORT_SYMBOL(sdw_cdns_probe);

@@ -115,7 +115,7 @@ snd_emux_open_seq_oss(struct snd_seq_oss_arg *arg, void *closure)
 	p = snd_emux_create_port(emu, tmpname, 32,
 				 1, &callback);
 	if (p == NULL) {
-		snd_printk(KERN_ERR "can't create port\n");
+		dev_err(emu->card->dev, "can't create port\n");
 		snd_emux_dec_count(emu);
 		return -ENOMEM;
 	}
@@ -205,7 +205,7 @@ snd_emux_load_patch_seq_oss(struct snd_seq_oss_arg *arg, int format,
 		return -ENXIO;
 
 	if (format == GUS_PATCH)
-		rc = snd_soundfont_load_guspatch(emu->sflist, buf, count);
+		rc = snd_soundfont_load_guspatch(emu->card, emu->sflist, buf, count);
 	else if (format == SNDRV_OSS_SOUNDFONT_PATCH) {
 		struct soundfont_patch_info patch;
 		if (count < (int)sizeof(patch))
@@ -214,10 +214,13 @@ snd_emux_load_patch_seq_oss(struct snd_seq_oss_arg *arg, int format,
 			return -EFAULT;
 		if (patch.type >= SNDRV_SFNT_LOAD_INFO &&
 		    patch.type <= SNDRV_SFNT_PROBE_DATA)
-			rc = snd_soundfont_load(emu->sflist, buf, count, SF_CLIENT_NO(p->chset.port));
+			rc = snd_soundfont_load(emu->card, emu->sflist, buf,
+						count,
+						SF_CLIENT_NO(p->chset.port));
 		else {
 			if (emu->ops.load_fx)
-				rc = emu->ops.load_fx(emu, patch.type, patch.optarg, buf, count);
+				rc = emu->ops.load_fx(emu, patch.type,
+						      patch.optarg, buf, count);
 			else
 				rc = -EINVAL;
 		}

@@ -18,6 +18,8 @@
 
 	aliases {
 		ethernet0 = &fec1;
+		rtc0 = &gsc_rtc;
+		rtc1 = &snvs_rtc;
 		usb0 = &usbotg1;
 	};
 
@@ -280,6 +282,8 @@
 		interrupts = <26 IRQ_TYPE_EDGE_FALLING>;
 		interrupt-controller;
 		#interrupt-cells = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 
 		adc {
 			compatible = "gw,gsc-adc";
@@ -392,7 +396,7 @@
 		pagesize = <16>;
 	};
 
-	rtc@68 {
+	gsc_rtc: rtc@68 {
 		compatible = "dallas,ds1672";
 		reg = <0x68>;
 	};

@@ -1469,6 +1469,6 @@ static void __exit mbochs_dev_exit(void)
 	class_unregister(&mbochs_class);
 }
 
-MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS("DMA_BUF");
 module_init(mbochs_dev_init)
 module_exit(mbochs_dev_exit)

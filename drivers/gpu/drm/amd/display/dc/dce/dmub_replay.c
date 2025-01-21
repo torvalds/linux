@@ -12,6 +12,8 @@
 
 #define MAX_PIPES 6
 
+#define GPINT_RETRY_NUM 20
+
 static const uint8_t DP_SINK_DEVICE_STR_ID_1[] = {7, 1, 8, 7, 3};
 static const uint8_t DP_SINK_DEVICE_STR_ID_2[] = {7, 1, 8, 7, 5};
 
@@ -167,6 +169,8 @@ static bool dmub_replay_copy_settings(struct dmub_replay *dmub,
 	copy_settings_data->smu_optimizations_en		= link->replay_settings.replay_smu_opt_enable;
 	copy_settings_data->replay_timing_sync_supported = link->replay_settings.config.replay_timing_sync_supported;
 
+	copy_settings_data->debug.bitfields.enable_ips_visual_confirm = dc->dc->debug.enable_ips_visual_confirm;
+
 	copy_settings_data->flags.u32All = 0;
 	copy_settings_data->flags.bitfields.fec_enable_status = (link->fec_state == dc_link_fec_enabled);
 	copy_settings_data->flags.bitfields.dsc_enable_status = (pipe_ctx->stream->timing.flags.DSC == 1);
@@ -220,6 +224,7 @@ static void dmub_replay_residency(struct dmub_replay *dmub, uint8_t panel_inst,
 	uint32_t *residency, const bool is_start, enum pr_residency_mode mode)
 {
 	uint16_t param = (uint16_t)(panel_inst << 8);
+	uint32_t i = 0;
 
 	switch (mode) {
 	case PR_RESIDENCY_MODE_PHY:
@@ -247,10 +252,17 @@ static void dmub_replay_residency(struct dmub_replay *dmub, uint8_t panel_inst,
 	if (is_start)
 		param |= REPLAY_RESIDENCY_ENABLE;
 
-	// Send gpint command and wait for ack
-	if (!dc_wake_and_execute_gpint(dmub->ctx, DMUB_GPINT__REPLAY_RESIDENCY, param,
-				       residency, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
-		*residency = 0;
+	for (i = 0; i < GPINT_RETRY_NUM; i++) {
+		// Send gpint command and wait for ack
+		if (dc_wake_and_execute_gpint(dmub->ctx, DMUB_GPINT__REPLAY_RESIDENCY, param,
+			residency, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
+			return;
+
+		udelay(100);
+	}
+
+	// it means gpint retry many times
+	*residency = 0;
 }
 
 /*

@@ -32,7 +32,7 @@ static struct gpio_desc *gpiod_ndisp;
 
 static int ams_delta_lcd_set_power(struct lcd_device *dev, int power)
 {
-	if (power == FB_BLANK_UNBLANK) {
+	if (power == LCD_POWER_ON) {
 		if (!(ams_delta_lcd & AMS_DELTA_LCD_POWER)) {
 			omap_writeb(ams_delta_lcd & AMS_DELTA_MAX_CONTRAST,
 					OMAP_PWL_ENABLE);
@@ -63,9 +63,9 @@ static int ams_delta_lcd_set_contrast(struct lcd_device *dev, int value)
 static int ams_delta_lcd_get_power(struct lcd_device *dev)
 {
 	if (ams_delta_lcd & AMS_DELTA_LCD_POWER)
-		return FB_BLANK_UNBLANK;
+		return LCD_POWER_ON;
 	else
-		return FB_BLANK_POWERDOWN;
+		return LCD_POWER_OFF;
 }
 
 static int ams_delta_lcd_get_contrast(struct lcd_device *dev)
@@ -155,7 +155,7 @@ static int ams_delta_panel_probe(struct platform_device *pdev)
 #endif
 
 	ams_delta_lcd_set_contrast(lcd_device, AMS_DELTA_DEFAULT_CONTRAST);
-	ams_delta_lcd_set_power(lcd_device, FB_BLANK_UNBLANK);
+	ams_delta_lcd_set_power(lcd_device, LCD_POWER_ON);
 
 	omapfb_register_panel(&ams_delta_panel);
 	return 0;

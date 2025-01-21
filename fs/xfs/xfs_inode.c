@@ -43,6 +43,7 @@
 #include "xfs_parent.h"
 #include "xfs_xattr.h"
 #include "xfs_inode_util.h"
+#include "xfs_metafile.h"
 
 struct kmem_cache *xfs_inode_cache;
 
@@ -341,8 +342,7 @@ xfs_lock_inumorder(
 {
 	uint	class = 0;
 
-	ASSERT(!(lock_mode & (XFS_ILOCK_PARENT | XFS_ILOCK_RTBITMAP |
-			      XFS_ILOCK_RTSUM)));
+	ASSERT(!(lock_mode & XFS_ILOCK_PARENT));
 	ASSERT(xfs_lockdep_subclass_ok(subclass));
 
 	if (lock_mode & (XFS_IOLOCK_SHARED|XFS_IOLOCK_EXCL)) {
@@ -554,8 +554,20 @@ xfs_lookup(
 	if (error)
 		goto out_free_name;
 
+	/*
+	 * Fail if a directory entry in the regular directory tree points to
+	 * a metadata file.
+	 */
+	if (XFS_IS_CORRUPT(dp->i_mount, xfs_is_metadir_inode(*ipp))) {
+		xfs_fs_mark_sick(dp->i_mount, XFS_SICK_FS_METADIR);
+		error = -EFSCORRUPTED;
+		goto out_irele;
+	}
+
 	return 0;
 
+out_irele:
+	xfs_irele(*ipp);
 out_free_name:
 	if (ci_name)
 		kfree(ci_name->name);
@@ -704,7 +716,7 @@ xfs_create(
 	 * entry pointing to them, but a directory also the "." entry
 	 * pointing to itself.
 	 */
-	error = xfs_dialloc(&tp, dp->i_ino, args->mode, &ino);
+	error = xfs_dialloc(&tp, args, &ino);
 	if (!error)
 		error = xfs_icreate(tp, ino, args, &du.ip);
 	if (error)
@@ -812,7 +824,7 @@ xfs_create_tmpfile(
 	if (error)
 		goto out_release_dquots;
 
-	error = xfs_dialloc(&tp, dp->i_ino, args->mode, &ino);
+	error = xfs_dialloc(&tp, args, &ino);
 	if (!error)
 		error = xfs_icreate(tp, ino, args, &ip);
 	if (error)
@@ -1079,88 +1091,6 @@ out:
 	return error;
 }
 
-int
-xfs_release(
-	xfs_inode_t	*ip)
-{
-	xfs_mount_t	*mp = ip->i_mount;
-	int		error = 0;
-
-	if (!S_ISREG(VFS_I(ip)->i_mode) || (VFS_I(ip)->i_mode == 0))
-		return 0;
-
-	/* If this is a read-only mount, don't do this (would generate I/O) */
-	if (xfs_is_readonly(mp))
-		return 0;
-
-	if (!xfs_is_shutdown(mp)) {
-		int truncated;
-
-		/*
-		 * If we previously truncated this file and removed old data
-		 * in the process, we want to initiate "early" writeout on
-		 * the last close.  This is an attempt to combat the notorious
-		 * NULL files problem which is particularly noticeable from a
-		 * truncate down, buffered (re-)write (delalloc), followed by
-		 * a crash.  What we are effectively doing here is
-		 * significantly reducing the time window where we'd otherwise
-		 * be exposed to that problem.
-		 */
-		truncated = xfs_iflags_test_and_clear(ip, XFS_ITRUNCATED);
-		if (truncated) {
-			xfs_iflags_clear(ip, XFS_IDIRTY_RELEASE);
-			if (ip->i_delayed_blks > 0) {
-				error = filemap_flush(VFS_I(ip)->i_mapping);
-				if (error)
-					return error;
-			}
-		}
-	}
-
-	if (VFS_I(ip)->i_nlink == 0)
-		return 0;
-
-	/*
-	 * If we can't get the iolock just skip truncating the blocks past EOF
-	 * because we could deadlock with the mmap_lock otherwise. We'll get
-	 * another chance to drop them once the last reference to the inode is
-	 * dropped, so we'll never leak blocks permanently.
-	 */
-	if (!xfs_ilock_nowait(ip, XFS_IOLOCK_EXCL))
-		return 0;
-
-	if (xfs_can_free_eofblocks(ip)) {
-		/*
-		 * Check if the inode is being opened, written and closed
-		 * frequently and we have delayed allocation blocks outstanding
-		 * (e.g. streaming writes from the NFS server), truncating the
-		 * blocks past EOF will cause fragmentation to occur.
-		 *
-		 * In this case don't do the truncation, but we have to be
-		 * careful how we detect this case. Blocks beyond EOF show up as
-		 * i_delayed_blks even when the inode is clean, so we need to
-		 * truncate them away first before checking for a dirty release.
-		 * Hence on the first dirty close we will still remove the
-		 * speculative allocation, but after that we will leave it in
-		 * place.
-		 */
-		if (xfs_iflags_test(ip, XFS_IDIRTY_RELEASE))
-			goto out_unlock;
-
-		error = xfs_free_eofblocks(ip);
-		if (error)
-			goto out_unlock;
-
-		/* delalloc blocks after truncation means it really is dirty */
-		if (ip->i_delayed_blks)
-			xfs_iflags_set(ip, XFS_IDIRTY_RELEASE);
-	}
-
-out_unlock:
-	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
-	return error;
-}
-
 /*
  * Mark all the buffers attached to this directory stale.  In theory we should
  * never be freeing a directory with any blocks at all, but this covers the
@@ -1377,7 +1307,7 @@ xfs_inode_needs_inactive(
 		return false;
 
 	/* Metadata inodes require explicit resource cleanup. */
-	if (xfs_is_metadata_inode(ip))
+	if (xfs_is_internal_inode(ip))
 		return false;
 
 	/* Want to clean out the cow blocks if there are any. */
@@ -1470,7 +1400,7 @@ xfs_inactive(
 		goto out;
 
 	/* Metadata inodes require explicit resource cleanup. */
-	if (xfs_is_metadata_inode(ip))
+	if (xfs_is_internal_inode(ip))
 		goto out;
 
 	/* Try to clean out the cow blocks if there are any. */
@@ -1491,7 +1421,7 @@ xfs_inactive(
 
 	if (S_ISREG(VFS_I(ip)->i_mode) &&
 	    (ip->i_disk_size != 0 || XFS_ISIZE(ip) != 0 ||
-	     ip->i_df.if_nextents > 0 || ip->i_delayed_blks > 0))
+	     xfs_inode_has_filedata(ip)))
 		truncate = 1;
 
 	if (xfs_iflags_test(ip, XFS_IQUOTAUNCHECKED)) {
@@ -1596,9 +1526,8 @@ xfs_iunlink_reload_next(
 	xfs_agino_t		next_agino)
 {
 	struct xfs_perag	*pag = agibp->b_pag;
-	struct xfs_mount	*mp = pag->pag_mount;
+	struct xfs_mount	*mp = pag_mount(pag);
 	struct xfs_inode	*next_ip = NULL;
-	xfs_ino_t		ino;
 	int			error;
 
 	ASSERT(next_agino != NULLAGINO);
@@ -1612,7 +1541,7 @@ xfs_iunlink_reload_next(
 
 	xfs_info_ratelimited(mp,
  "Found unrecovered unlinked inode 0x%x in AG 0x%x.  Initiating recovery.",
-			next_agino, pag->pag_agno);
+			next_agino, pag_agno(pag));
 
 	/*
 	 * Use an untrusted lookup just to be cautious in case the AGI has been
@@ -1620,8 +1549,8 @@ xfs_iunlink_reload_next(
 	 * but we'd rather shut down now since we're already running in a weird
 	 * situation.
 	 */
-	ino = XFS_AGINO_TO_INO(mp, pag->pag_agno, next_agino);
-	error = xfs_iget(mp, tp, ino, XFS_IGET_UNTRUSTED, 0, &next_ip);
+	error = xfs_iget(mp, tp, xfs_agino_to_ino(pag, next_agino),
+			XFS_IGET_UNTRUSTED, 0, &next_ip);
 	if (error) {
 		xfs_ag_mark_sick(pag, XFS_SICK_AG_AGI);
 		return error;
@@ -1655,7 +1584,7 @@ xfs_ifree_mark_inode_stale(
 	struct xfs_inode	*free_ip,
 	xfs_ino_t		inum)
 {
-	struct xfs_mount	*mp = pag->pag_mount;
+	struct xfs_mount	*mp = pag_mount(pag);
 	struct xfs_inode_log_item *iip;
 	struct xfs_inode	*ip;
 
@@ -3123,7 +3052,7 @@ xfs_inode_alloc_unitsize(
 /* Should we always be using copy on write for file writes? */
 bool
 xfs_is_always_cow_inode(
-	struct xfs_inode	*ip)
+	const struct xfs_inode	*ip)
 {
 	return ip->i_mount->m_always_cow && xfs_has_reflink(ip->i_mount);
 }

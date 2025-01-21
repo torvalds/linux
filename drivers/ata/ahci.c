@@ -1370,7 +1370,7 @@ static bool ahci_broken_suspend(struct pci_dev *pdev)
 		 * V1.03 is known to be broken.  V3.04 is known to
 		 * work.  Between, there are V1.06, V2.06 and V3.03
 		 * that we don't have much idea about.  For now,
-		 * blacklist anything older than V3.04.
+		 * assume that anything older than V3.04 is broken.
 		 *
 		 * http://bugzilla.kernel.org/show_bug.cgi?id=15104
 		 */
@@ -1676,7 +1676,7 @@ static int ahci_init_msi(struct pci_dev *pdev, unsigned int n_ports,
 	/*
 	 * If number of MSIs is less than number of ports then Sharing Last
 	 * Message mode could be enforced. In this case assume that advantage
-	 * of multipe MSIs is negated and use single MSI mode instead.
+	 * of multiple MSIs is negated and use single MSI mode instead.
 	 */
 	if (n_ports > 1) {
 		nvec = pci_alloc_irq_vectors(pdev, n_ports, INT_MAX,
@@ -1869,7 +1869,7 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* AHCI controllers often implement SFF compatible interface.
 	 * Grab all PCI BARs just in case.
 	 */
-	rc = pcim_iomap_regions_request_all(pdev, 1 << ahci_pci_bar, DRV_NAME);
+	rc = pcim_request_all_regions(pdev, DRV_NAME);
 	if (rc == -EBUSY)
 		pcim_pin_device(pdev);
 	if (rc)
@@ -1893,7 +1893,9 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ahci_sb600_enable_64bit(pdev))
 		hpriv->flags &= ~AHCI_HFLAG_32BIT_ONLY;
 
-	hpriv->mmio = pcim_iomap_table(pdev)[ahci_pci_bar];
+	hpriv->mmio = pcim_iomap(pdev, ahci_pci_bar, 0);
+	if (!hpriv->mmio)
+		return -ENOMEM;
 
 	/* detect remapped nvme devices */
 	ahci_remap_check(pdev, ahci_pci_bar, hpriv);

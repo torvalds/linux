@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # perf annotate basic tests
 # SPDX-License-Identifier: GPL-2.0
 
@@ -28,6 +28,7 @@ cleanup() {
 }
 
 trap_cleanup() {
+  echo "Unexpected signal in ${FUNCNAME[1]}"
   cleanup
   exit 1
 }
@@ -43,7 +44,7 @@ test_basic() {
   fi
 
   # Generate the annotated output file
-  perf annotate -i "${perfdata}" --stdio 2> /dev/null > "${perfout}"
+  perf annotate --no-demangle -i "${perfdata}" --stdio 2> /dev/null | head -250 > "${perfout}"
 
   # check if it has the target symbol
   if ! grep "${testsym}" "${perfout}"
@@ -62,8 +63,8 @@ test_basic() {
   fi
 
   # check again with a target symbol name
-  if ! perf annotate -i "${perfdata}" "${testsym}" 2> /dev/null | \
-	  grep -m 3 "${disasm_regex}"
+  if ! perf annotate --no-demangle -i "${perfdata}" "${testsym}" 2> /dev/null | \
+	  head -250 | grep -m 3 "${disasm_regex}"
   then
     echo "Basic annotate [Failed: missing disasm output when specifying the target symbol]"
     err=1
@@ -71,8 +72,8 @@ test_basic() {
   fi
 
   # check one more with external objdump tool (forced by --objdump option)
-  if ! perf annotate -i "${perfdata}" --objdump=objdump 2> /dev/null | \
-	  grep -m 3 "${disasm_regex}"
+  if ! perf annotate --no-demangle -i "${perfdata}" --objdump=objdump 2> /dev/null | \
+	  head -250 | grep -m 3 "${disasm_regex}"
   then
     echo "Basic annotate [Failed: missing disasm output from non default disassembler (using --objdump)]"
     err=1

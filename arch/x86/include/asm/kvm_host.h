@@ -26,6 +26,7 @@
 #include <linux/irqbypass.h>
 #include <linux/hyperv.h>
 #include <linux/kfifo.h>
+#include <linux/sched/vhost_task.h>
 
 #include <asm/apic.h>
 #include <asm/pvclock-abi.h>
@@ -36,6 +37,7 @@
 #include <asm/kvm_page_track.h>
 #include <asm/kvm_vcpu_regs.h>
 #include <asm/hyperv-tlfs.h>
+#include <asm/reboot.h>
 
 #define __KVM_HAVE_ARCH_VCPU_DEBUGFS
 
@@ -211,6 +213,7 @@ enum exit_fastpath_completion {
 	EXIT_FASTPATH_NONE,
 	EXIT_FASTPATH_REENTER_GUEST,
 	EXIT_FASTPATH_EXIT_HANDLED,
+	EXIT_FASTPATH_EXIT_USERSPACE,
 };
 typedef enum exit_fastpath_completion fastpath_t;
 
@@ -279,10 +282,6 @@ enum x86_intercept_stage;
  */
 #define PFERR_PRIVATE_ACCESS   BIT_ULL(49)
 #define PFERR_SYNTHETIC_MASK   (PFERR_IMPLICIT_ACCESS | PFERR_PRIVATE_ACCESS)
-
-#define PFERR_NESTED_GUEST_PAGE (PFERR_GUEST_PAGE_MASK |	\
-				 PFERR_WRITE_MASK |		\
-				 PFERR_PRESENT_MASK)
 
 /* apic attention bits */
 #define KVM_APIC_CHECK_VAPIC	0
@@ -1308,7 +1307,6 @@ struct kvm_arch {
 	bool pre_fault_allowed;
 	struct hlist_head mmu_page_hash[KVM_NUM_MMU_PAGES];
 	struct list_head active_mmu_pages;
-	struct list_head zapped_obsolete_pages;
 	/*
 	 * A list of kvm_mmu_page structs that, if zapped, could possibly be
 	 * replaced by an NX huge page.  A shadow page is on this list if its
@@ -1445,7 +1443,8 @@ struct kvm_arch {
 	bool sgx_provisioning_allowed;
 
 	struct kvm_x86_pmu_event_filter __rcu *pmu_event_filter;
-	struct task_struct *nx_huge_page_recovery_thread;
+	struct vhost_task *nx_huge_page_recovery_thread;
+	u64 nx_huge_page_last;
 
 #ifdef CONFIG_X86_64
 	/* The number of TDP MMU pages across all roots. */
@@ -1629,8 +1628,10 @@ struct kvm_x86_ops {
 
 	int (*check_processor_compatibility)(void);
 
-	int (*hardware_enable)(void);
-	void (*hardware_disable)(void);
+	int (*enable_virtualization_cpu)(void);
+	void (*disable_virtualization_cpu)(void);
+	cpu_emergency_virt_cb *emergency_disable_virtualization_cpu;
+
 	void (*hardware_unsetup)(void);
 	bool (*has_emulated_msr)(struct kvm *kvm, u32 index);
 	void (*vcpu_after_set_cpuid)(struct kvm_vcpu *vcpu);
@@ -1656,6 +1657,7 @@ struct kvm_x86_ops {
 	void (*get_segment)(struct kvm_vcpu *vcpu,
 			    struct kvm_segment *var, int seg);
 	int (*get_cpl)(struct kvm_vcpu *vcpu);
+	int (*get_cpl_no_cache)(struct kvm_vcpu *vcpu);
 	void (*set_segment)(struct kvm_vcpu *vcpu,
 			    struct kvm_segment *var, int seg);
 	void (*get_cs_db_l_bits)(struct kvm_vcpu *vcpu, int *db, int *l);
@@ -1727,6 +1729,8 @@ struct kvm_x86_ops {
 	void (*enable_nmi_window)(struct kvm_vcpu *vcpu);
 	void (*enable_irq_window)(struct kvm_vcpu *vcpu);
 	void (*update_cr8_intercept)(struct kvm_vcpu *vcpu, int tpr, int irr);
+
+	const bool x2apic_icr_is_split;
 	const unsigned long required_apicv_inhibits;
 	bool allow_apicv_in_x2apic_without_x2apic_virtualization;
 	void (*refresh_apicv_exec_ctrl)(struct kvm_vcpu *vcpu);
@@ -1806,7 +1810,7 @@ struct kvm_x86_ops {
 	int (*vm_move_enc_context_from)(struct kvm *kvm, unsigned int source_fd);
 	void (*guest_memory_reclaimed)(struct kvm *kvm);
 
-	int (*get_msr_feature)(struct kvm_msr_entry *entry);
+	int (*get_feature_msr)(u32 msr, u64 *data);
 
 	int (*check_emulate_instruction)(struct kvm_vcpu *vcpu, int emul_type,
 					 void *insn, int insn_len);
@@ -1953,8 +1957,8 @@ void kvm_mmu_try_split_huge_pages(struct kvm *kvm,
 				  const struct kvm_memory_slot *memslot,
 				  u64 start, u64 end,
 				  int target_level);
-void kvm_mmu_zap_collapsible_sptes(struct kvm *kvm,
-				   const struct kvm_memory_slot *memslot);
+void kvm_mmu_recover_huge_pages(struct kvm *kvm,
+				const struct kvm_memory_slot *memslot);
 void kvm_mmu_slot_leaf_clear_dirty(struct kvm *kvm,
 				   const struct kvm_memory_slot *memslot);
 void kvm_mmu_invalidate_mmio_sptes(struct kvm *kvm, u64 gen);
@@ -2060,6 +2064,8 @@ void kvm_prepare_emulation_failure_exit(struct kvm_vcpu *vcpu);
 
 void kvm_enable_efer_bits(u64);
 bool kvm_valid_efer(struct kvm_vcpu *vcpu, u64 efer);
+int kvm_get_msr_with_filter(struct kvm_vcpu *vcpu, u32 index, u64 *data);
+int kvm_set_msr_with_filter(struct kvm_vcpu *vcpu, u32 index, u64 data);
 int __kvm_get_msr(struct kvm_vcpu *vcpu, u32 index, u64 *data, bool host_initiated);
 int kvm_get_msr(struct kvm_vcpu *vcpu, u32 index, u64 *data);
 int kvm_set_msr(struct kvm_vcpu *vcpu, u32 index, u64 data);
@@ -2136,7 +2142,15 @@ int kvm_get_nr_pending_nmis(struct kvm_vcpu *vcpu);
 
 void kvm_update_dr7(struct kvm_vcpu *vcpu);
 
-int kvm_mmu_unprotect_page(struct kvm *kvm, gfn_t gfn);
+bool __kvm_mmu_unprotect_gfn_and_retry(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
+				       bool always_retry);
+
+static inline bool kvm_mmu_unprotect_gfn_and_retry(struct kvm_vcpu *vcpu,
+						   gpa_t cr2_or_gpa)
+{
+	return __kvm_mmu_unprotect_gfn_and_retry(vcpu, cr2_or_gpa, false);
+}
+
 void kvm_mmu_free_roots(struct kvm *kvm, struct kvm_mmu *mmu,
 			ulong roots_to_free);
 void kvm_mmu_free_guest_mode_roots(struct kvm *kvm, struct kvm_mmu *mmu);
@@ -2254,6 +2268,7 @@ int kvm_cpu_has_injectable_intr(struct kvm_vcpu *v);
 int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu);
 int kvm_cpu_has_extint(struct kvm_vcpu *v);
 int kvm_arch_interrupt_allowed(struct kvm_vcpu *vcpu);
+int kvm_cpu_get_extint(struct kvm_vcpu *v);
 int kvm_cpu_get_interrupt(struct kvm_vcpu *v);
 void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event);
 
@@ -2345,7 +2360,9 @@ int memslot_rmap_alloc(struct kvm_memory_slot *slot, unsigned long npages);
 	 KVM_X86_QUIRK_OUT_7E_INC_RIP |		\
 	 KVM_X86_QUIRK_MISC_ENABLE_NO_MWAIT |	\
 	 KVM_X86_QUIRK_FIX_HYPERCALL_INSN |	\
-	 KVM_X86_QUIRK_MWAIT_NEVER_UD_FAULTS)
+	 KVM_X86_QUIRK_MWAIT_NEVER_UD_FAULTS |	\
+	 KVM_X86_QUIRK_SLOT_ZAP_ALL |		\
+	 KVM_X86_QUIRK_STUFF_FEATURE_MSRS)
 
 /*
  * KVM previously used a u32 field in kvm_run to indicate the hypercall was

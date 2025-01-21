@@ -15,6 +15,7 @@
 #include <linux/overflow.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
+#include <trace/events/spi.h>
 
 #define SPI_ENGINE_REG_RESET			0x40
 
@@ -41,6 +42,7 @@
 #define SPI_ENGINE_CONFIG_CPHA			BIT(0)
 #define SPI_ENGINE_CONFIG_CPOL			BIT(1)
 #define SPI_ENGINE_CONFIG_3WIRE			BIT(2)
+#define SPI_ENGINE_CONFIG_SDO_IDLE_HIGH		BIT(3)
 
 #define SPI_ENGINE_INST_TRANSFER		0x0
 #define SPI_ENGINE_INST_ASSERT			0x1
@@ -137,6 +139,10 @@ static unsigned int spi_engine_get_config(struct spi_device *spi)
 		config |= SPI_ENGINE_CONFIG_CPHA;
 	if (spi->mode & SPI_3WIRE)
 		config |= SPI_ENGINE_CONFIG_3WIRE;
+	if (spi->mode & SPI_MOSI_IDLE_HIGH)
+		config |= SPI_ENGINE_CONFIG_SDO_IDLE_HIGH;
+	if (spi->mode & SPI_MOSI_IDLE_LOW)
+		config &= ~SPI_ENGINE_CONFIG_SDO_IDLE_HIGH;
 
 	return config;
 }
@@ -258,7 +264,7 @@ static void spi_engine_compile_message(struct spi_message *msg, bool dry,
 					clk_div - 1));
 		}
 
-		if (bits_per_word != xfer->bits_per_word) {
+		if (bits_per_word != xfer->bits_per_word && xfer->len) {
 			bits_per_word = xfer->bits_per_word;
 			spi_engine_program_add_cmd(p, dry,
 				SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_XFER_BITS,
@@ -585,6 +591,13 @@ static int spi_engine_transfer_one_message(struct spi_controller *host,
 
 	reinit_completion(&spi_engine->msg_complete);
 
+	if (trace_spi_transfer_start_enabled()) {
+		struct spi_transfer *xfer;
+
+		list_for_each_entry(xfer, &msg->transfers, transfer_list)
+			trace_spi_transfer_start(msg, xfer);
+	}
+
 	spin_lock_irqsave(&spi_engine->lock, flags);
 
 	if (spi_engine_write_cmd_fifo(spi_engine, msg))
@@ -610,6 +623,13 @@ static int spi_engine_transfer_one_message(struct spi_controller *host,
 		dev_err(&host->dev,
 			"Timeout occurred while waiting for transfer to complete. Hardware is probably broken.\n");
 		msg->status = -ETIMEDOUT;
+	}
+
+	if (trace_spi_transfer_stop_enabled()) {
+		struct spi_transfer *xfer;
+
+		list_for_each_entry(xfer, &msg->transfers, transfer_list)
+			trace_spi_transfer_stop(msg, xfer);
 	}
 
 	spi_finalize_current_message(host);
@@ -692,9 +712,13 @@ static int spi_engine_probe(struct platform_device *pdev)
 	host->num_chipselect = 8;
 
 	/* Some features depend of the IP core version. */
-	if (ADI_AXI_PCORE_VER_MINOR(version) >= 2) {
-		host->mode_bits |= SPI_CS_HIGH;
-		host->setup = spi_engine_setup;
+	if (ADI_AXI_PCORE_VER_MAJOR(version) >= 1) {
+		if (ADI_AXI_PCORE_VER_MINOR(version) >= 2) {
+			host->mode_bits |= SPI_CS_HIGH;
+			host->setup = spi_engine_setup;
+		}
+		if (ADI_AXI_PCORE_VER_MINOR(version) >= 3)
+			host->mode_bits |= SPI_MOSI_IDLE_LOW | SPI_MOSI_IDLE_HIGH;
 	}
 
 	if (host->max_speed_hz == 0)

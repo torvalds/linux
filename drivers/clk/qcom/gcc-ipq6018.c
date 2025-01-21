@@ -2684,7 +2684,7 @@ static struct clk_rcg2 lpass_q6_axim_clk_src = {
 	},
 };
 
-static struct freq_tbl ftbl_rbcpr_wcss_clk_src[] = {
+static const struct freq_tbl ftbl_rbcpr_wcss_clk_src[] = {
 	F(24000000, P_XO, 1, 0, 0),
 	F(50000000, P_GPLL0, 16, 0, 0),
 	{ }

@@ -58,7 +58,6 @@
 #include <linux/init.h>
 #include <linux/capability.h>
 #include <linux/file.h>
-#include <linux/fdtable.h>
 #include <linux/generic-radix-tree.h>
 #include <linux/string.h>
 #include <linux/seq_file.h>
@@ -85,6 +84,7 @@
 #include <linux/elf.h>
 #include <linux/pid_namespace.h>
 #include <linux/user_namespace.h>
+#include <linux/fs_parser.h>
 #include <linux/fs_struct.h>
 #include <linux/slab.h>
 #include <linux/sched/autogroup.h>
@@ -116,6 +116,40 @@
 
 static u8 nlink_tid __ro_after_init;
 static u8 nlink_tgid __ro_after_init;
+
+enum proc_mem_force {
+	PROC_MEM_FORCE_ALWAYS,
+	PROC_MEM_FORCE_PTRACE,
+	PROC_MEM_FORCE_NEVER
+};
+
+static enum proc_mem_force proc_mem_force_override __ro_after_init =
+	IS_ENABLED(CONFIG_PROC_MEM_NO_FORCE) ? PROC_MEM_FORCE_NEVER :
+	IS_ENABLED(CONFIG_PROC_MEM_FORCE_PTRACE) ? PROC_MEM_FORCE_PTRACE :
+	PROC_MEM_FORCE_ALWAYS;
+
+static const struct constant_table proc_mem_force_table[] __initconst = {
+	{ "always", PROC_MEM_FORCE_ALWAYS },
+	{ "ptrace", PROC_MEM_FORCE_PTRACE },
+	{ "never", PROC_MEM_FORCE_NEVER },
+	{ }
+};
+
+static int __init early_proc_mem_force_override(char *buf)
+{
+	if (!buf)
+		return -EINVAL;
+
+	/*
+	 * lookup_constant() defaults to proc_mem_force_override to preseve
+	 * the initial Kconfig choice in case an invalid param gets passed.
+	 */
+	proc_mem_force_override = lookup_constant(proc_mem_force_table,
+						  buf, proc_mem_force_override);
+
+	return 0;
+}
+early_param("proc_mem.force_override", early_proc_mem_force_override);
 
 struct pid_entry {
 	const char *name;
@@ -797,19 +831,21 @@ static const struct file_operations proc_single_file_operations = {
 struct mm_struct *proc_mem_open(struct inode *inode, unsigned int mode)
 {
 	struct task_struct *task = get_proc_task(inode);
-	struct mm_struct *mm = ERR_PTR(-ESRCH);
+	struct mm_struct *mm;
 
-	if (task) {
-		mm = mm_access(task, mode | PTRACE_MODE_FSCREDS);
-		put_task_struct(task);
+	if (!task)
+		return ERR_PTR(-ESRCH);
 
-		if (!IS_ERR_OR_NULL(mm)) {
-			/* ensure this mm_struct can't be freed */
-			mmgrab(mm);
-			/* but do not pin its memory */
-			mmput(mm);
-		}
-	}
+	mm = mm_access(task, mode | PTRACE_MODE_FSCREDS);
+	put_task_struct(task);
+
+	if (IS_ERR(mm))
+		return mm == ERR_PTR(-ESRCH) ? NULL : mm;
+
+	/* ensure this mm_struct can't be freed */
+	mmgrab(mm);
+	/* but do not pin its memory */
+	mmput(mm);
 
 	return mm;
 }
@@ -827,12 +863,31 @@ static int __mem_open(struct inode *inode, struct file *file, unsigned int mode)
 
 static int mem_open(struct inode *inode, struct file *file)
 {
-	int ret = __mem_open(inode, file, PTRACE_MODE_ATTACH);
+	if (WARN_ON_ONCE(!(file->f_op->fop_flags & FOP_UNSIGNED_OFFSET)))
+		return -EINVAL;
+	return __mem_open(inode, file, PTRACE_MODE_ATTACH);
+}
 
-	/* OK to pass negative loff_t, we can catch out-of-range */
-	file->f_mode |= FMODE_UNSIGNED_OFFSET;
+static bool proc_mem_foll_force(struct file *file, struct mm_struct *mm)
+{
+	struct task_struct *task;
+	bool ptrace_active = false;
 
-	return ret;
+	switch (proc_mem_force_override) {
+	case PROC_MEM_FORCE_NEVER:
+		return false;
+	case PROC_MEM_FORCE_PTRACE:
+		task = get_proc_task(file_inode(file));
+		if (task) {
+			ptrace_active =	READ_ONCE(task->ptrace) &&
+					READ_ONCE(task->mm) == mm &&
+					READ_ONCE(task->parent) == current;
+			put_task_struct(task);
+		}
+		return ptrace_active;
+	default:
+		return true;
+	}
 }
 
 static ssize_t mem_rw(struct file *file, char __user *buf,
@@ -855,7 +910,9 @@ static ssize_t mem_rw(struct file *file, char __user *buf,
 	if (!mmget_not_zero(mm))
 		goto free;
 
-	flags = FOLL_FORCE | (write ? FOLL_WRITE : 0);
+	flags = write ? FOLL_WRITE : 0;
+	if (proc_mem_foll_force(file, mm))
+		flags |= FOLL_FORCE;
 
 	while (count > 0) {
 		size_t this_len = min_t(size_t, count, PAGE_SIZE);
@@ -932,6 +989,7 @@ static const struct file_operations proc_mem_operations = {
 	.write		= mem_write,
 	.open		= mem_open,
 	.release	= mem_release,
+	.fop_flags	= FOP_UNSIGNED_OFFSET,
 };
 
 static int environ_open(struct inode *inode, struct file *file)
@@ -2151,7 +2209,7 @@ static int map_files_d_revalidate(struct dentry *dentry, unsigned int flags)
 		goto out_notask;
 
 	mm = mm_access(task, PTRACE_MODE_READ_FSCREDS);
-	if (IS_ERR_OR_NULL(mm))
+	if (IS_ERR(mm))
 		goto out;
 
 	if (!dname_to_vma_addr(dentry, &vm_start, &vm_end)) {
@@ -2276,8 +2334,8 @@ proc_map_files_instantiate(struct dentry *dentry,
 	inode->i_op = &proc_map_files_link_inode_operations;
 	inode->i_size = 64;
 
-	d_set_d_op(dentry, &tid_map_files_dentry_operations);
-	return d_splice_alias(inode, dentry);
+	return proc_splice_unmountable(inode, dentry,
+				       &tid_map_files_dentry_operations);
 }
 
 static struct dentry *proc_map_files_lookup(struct inode *dir,
@@ -2456,13 +2514,13 @@ static void *timers_start(struct seq_file *m, loff_t *pos)
 	if (!tp->sighand)
 		return ERR_PTR(-ESRCH);
 
-	return seq_list_start(&tp->task->signal->posix_timers, *pos);
+	return seq_hlist_start(&tp->task->signal->posix_timers, *pos);
 }
 
 static void *timers_next(struct seq_file *m, void *v, loff_t *pos)
 {
 	struct timers_private *tp = m->private;
-	return seq_list_next(v, &tp->task->signal->posix_timers, pos);
+	return seq_hlist_next(v, &tp->task->signal->posix_timers, pos);
 }
 
 static void timers_stop(struct seq_file *m, void *v)
@@ -2491,13 +2549,13 @@ static int show_timer(struct seq_file *m, void *v)
 		[SIGEV_THREAD] = "thread",
 	};
 
-	timer = list_entry((struct list_head *)v, struct k_itimer, list);
+	timer = hlist_entry((struct hlist_node *)v, struct k_itimer, list);
 	notify = timer->it_sigev_notify;
 
 	seq_printf(m, "ID: %d\n", timer->it_id);
 	seq_printf(m, "signal: %d/%px\n",
-		   timer->sigq->info.si_signo,
-		   timer->sigq->info.si_value.sival_ptr);
+		   timer->sigq.info.si_signo,
+		   timer->sigq.info.si_value.sival_ptr);
 	seq_printf(m, "notify: %s/%s.%d\n",
 		   nstr[notify & ~SIGEV_THREAD_ID],
 		   (notify & SIGEV_THREAD_ID) ? "tid" : "pid",
@@ -2569,10 +2627,11 @@ static ssize_t timerslack_ns_write(struct file *file, const char __user *buf,
 	}
 
 	task_lock(p);
-	if (slack_ns == 0)
-		p->timer_slack_ns = p->default_timer_slack_ns;
-	else
-		p->timer_slack_ns = slack_ns;
+	if (rt_or_dl_task_policy(p))
+		slack_ns = 0;
+	else if (slack_ns == 0)
+		slack_ns = p->default_timer_slack_ns;
+	p->timer_slack_ns = slack_ns;
 	task_unlock(p);
 
 out:
@@ -3870,12 +3929,12 @@ static int proc_task_readdir(struct file *file, struct dir_context *ctx)
 	if (!dir_emit_dots(file, ctx))
 		return 0;
 
-	/* f_version caches the tgid value that the last readdir call couldn't
-	 * return. lseek aka telldir automagically resets f_version to 0.
+	/* We cache the tgid value that the last readdir call couldn't
+	 * return and lseek resets it to 0.
 	 */
 	ns = proc_pid_ns(inode->i_sb);
-	tid = (int)file->f_version;
-	file->f_version = 0;
+	tid = (int)(intptr_t)file->private_data;
+	file->private_data = NULL;
 	for (task = first_tid(proc_pid(inode), tid, ctx->pos - 2, ns);
 	     task;
 	     task = next_tid(task), ctx->pos++) {
@@ -3890,7 +3949,7 @@ static int proc_task_readdir(struct file *file, struct dir_context *ctx)
 				proc_task_instantiate, task, NULL)) {
 			/* returning this tgid failed, save it as the first
 			 * pid for the next readir call */
-			file->f_version = (u64)tid;
+			file->private_data = (void *)(intptr_t)tid;
 			put_task_struct(task);
 			break;
 		}
@@ -3915,6 +3974,24 @@ static int proc_task_getattr(struct mnt_idmap *idmap,
 	return 0;
 }
 
+/*
+ * proc_task_readdir() set @file->private_data to a positive integer
+ * value, so casting that to u64 is safe. generic_llseek_cookie() will
+ * set @cookie to 0, so casting to an int is safe. The WARN_ON_ONCE() is
+ * here to catch any unexpected change in behavior either in
+ * proc_task_readdir() or generic_llseek_cookie().
+ */
+static loff_t proc_dir_llseek(struct file *file, loff_t offset, int whence)
+{
+	u64 cookie = (u64)(intptr_t)file->private_data;
+	loff_t off;
+
+	off = generic_llseek_cookie(file, offset, whence, &cookie);
+	WARN_ON_ONCE(cookie > INT_MAX);
+	file->private_data = (void *)(intptr_t)cookie; /* serialized by f_pos_lock */
+	return off;
+}
+
 static const struct inode_operations proc_task_inode_operations = {
 	.lookup		= proc_task_lookup,
 	.getattr	= proc_task_getattr,
@@ -3925,7 +4002,7 @@ static const struct inode_operations proc_task_inode_operations = {
 static const struct file_operations proc_task_operations = {
 	.read		= generic_read_dir,
 	.iterate_shared	= proc_task_readdir,
-	.llseek		= generic_file_llseek,
+	.llseek		= proc_dir_llseek,
 };
 
 void __init set_proc_pid_nlink(void)

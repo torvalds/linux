@@ -38,32 +38,14 @@ struct dpu_vbif_set_qos_params {
 	bool is_rt;
 };
 
-/**
- * dpu_vbif_set_ot_limit - set OT limit for vbif client
- * @dpu_kms:	DPU handler
- * @params:	Pointer to OT configuration parameters
- */
 void dpu_vbif_set_ot_limit(struct dpu_kms *dpu_kms,
 		struct dpu_vbif_set_ot_params *params);
 
-/**
- * dpu_vbif_set_qos_remap - set QoS priority level remap
- * @dpu_kms:	DPU handler
- * @params:	Pointer to QoS configuration parameters
- */
 void dpu_vbif_set_qos_remap(struct dpu_kms *dpu_kms,
 		struct dpu_vbif_set_qos_params *params);
 
-/**
- * dpu_vbif_clear_errors - clear any vbif errors
- * @dpu_kms:	DPU handler
- */
 void dpu_vbif_clear_errors(struct dpu_kms *dpu_kms);
 
-/**
- * dpu_vbif_init_memtypes - initialize xin memory types for vbif
- * @dpu_kms:	DPU handler
- */
 void dpu_vbif_init_memtypes(struct dpu_kms *dpu_kms);
 
 void dpu_debugfs_vbif_init(struct dpu_kms *dpu_kms, struct dentry *debugfs_root);

@@ -90,8 +90,8 @@ static const struct amd_ip_funcs soc15_common_ip_funcs;
 /* Vega, Raven, Arcturus */
 static const struct amdgpu_video_codec_info vega_video_codecs_encode_array[] =
 {
-	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC, 4096, 2304, 0)},
-	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_HEVC, 4096, 2304, 0)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC, 4096, 4096, 0)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_HEVC, 4096, 4096, 0)},
 };
 
 static const struct amdgpu_video_codecs vega_video_codecs_encode =
@@ -578,20 +578,16 @@ soc15_asic_reset_method(struct amdgpu_device *adev)
 
 static bool soc15_need_reset_on_resume(struct amdgpu_device *adev)
 {
-	u32 sol_reg;
-
-	sol_reg = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_81);
-
 	/* Will reset for the following suspend abort cases.
-	 * 1) Only reset limit on APU side, dGPU hasn't checked yet.
-	 * 2) S3 suspend abort and TOS already launched.
+	 * 1) Only reset on APU side, dGPU hasn't checked yet.
+	 * 2) S3 suspend aborted in the normal S3 suspend or
+	 *    performing pm core test.
 	 */
 	if (adev->flags & AMD_IS_APU && adev->in_s3 &&
-			!adev->suspend_complete &&
-			sol_reg)
+			!pm_resume_via_firmware())
 		return true;
-
-	return false;
+	else
+		return false;
 }
 
 static int soc15_asic_reset(struct amdgpu_device *adev)
@@ -601,11 +597,17 @@ static int soc15_asic_reset(struct amdgpu_device *adev)
 	 * successfully. So now, temporarily enable it for the
 	 * S3 suspend abort case.
 	 */
-	if (((adev->apu_flags & AMD_APU_IS_RAVEN) ||
-	    (adev->apu_flags & AMD_APU_IS_RAVEN2)) &&
-		!soc15_need_reset_on_resume(adev))
+
+	if ((adev->apu_flags & AMD_APU_IS_PICASSO ||
+			!(adev->apu_flags & AMD_APU_IS_RAVEN)) &&
+			soc15_need_reset_on_resume(adev))
+		goto asic_reset;
+
+	if ((adev->apu_flags & AMD_APU_IS_RAVEN) ||
+			(adev->apu_flags & AMD_APU_IS_RAVEN2))
 		return 0;
 
+asic_reset:
 	switch (soc15_asic_reset_method(adev)) {
 	case AMD_RESET_METHOD_PCI:
 		dev_info(adev->dev, "PCI reset\n");
@@ -829,6 +831,10 @@ static bool soc15_need_reset_on_init(struct amdgpu_device *adev)
 	if (adev->asic_type == CHIP_RENOIR)
 		return true;
 
+	if (amdgpu_gmc_need_reset_on_init(adev))
+		return true;
+	if (amdgpu_psp_tos_reload_needed(adev))
+		return true;
 	/* Just return false for soc15 GPUs.  Reset does not seem to
 	 * be necessary.
 	 */
@@ -929,9 +935,9 @@ static const struct amdgpu_asic_funcs aqua_vanjaram_asic_funcs =
 	.get_reg_state = &aqua_vanjaram_get_reg_state,
 };
 
-static int soc15_common_early_init(void *handle)
+static int soc15_common_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	adev->nbio.funcs->set_reg_remap(adev);
 	adev->smc_rreg = NULL;
@@ -1198,9 +1204,9 @@ static int soc15_common_early_init(void *handle)
 	return 0;
 }
 
-static int soc15_common_late_init(void *handle)
+static int soc15_common_late_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (amdgpu_sriov_vf(adev))
 		xgpu_ai_mailbox_get_irq(adev);
@@ -1213,9 +1219,9 @@ static int soc15_common_late_init(void *handle)
 	return 0;
 }
 
-static int soc15_common_sw_init(void *handle)
+static int soc15_common_sw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (amdgpu_sriov_vf(adev))
 		xgpu_ai_mailbox_add_irq_id(adev);
@@ -1227,9 +1233,9 @@ static int soc15_common_sw_init(void *handle)
 	return 0;
 }
 
-static int soc15_common_sw_fini(void *handle)
+static int soc15_common_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (adev->df.funcs &&
 	    adev->df.funcs->sw_fini)
@@ -1251,9 +1257,9 @@ static void soc15_sdma_doorbell_range_init(struct amdgpu_device *adev)
 	}
 }
 
-static int soc15_common_hw_init(void *handle)
+static int soc15_common_hw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	/* enable aspm */
 	soc15_program_aspm(adev);
@@ -1280,9 +1286,9 @@ static int soc15_common_hw_init(void *handle)
 	return 0;
 }
 
-static int soc15_common_hw_fini(void *handle)
+static int soc15_common_hw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	/* Disable the doorbell aperture and selfring doorbell aperture
 	 * separately in hw_fini because soc15_enable_doorbell_aperture
@@ -1295,7 +1301,12 @@ static int soc15_common_hw_fini(void *handle)
 	if (amdgpu_sriov_vf(adev))
 		xgpu_ai_mailbox_put_irq(adev);
 
+	/*
+	 * For minimal init, late_init is not called, hence RAS irqs are not
+	 * enabled.
+	 */
 	if ((!amdgpu_sriov_vf(adev)) &&
+	    (adev->init_lvl->level != AMDGPU_INIT_LEVEL_MINIMAL_XGMI) &&
 	    adev->nbio.ras_if &&
 	    amdgpu_ras_is_supported(adev, adev->nbio.ras_if->block)) {
 		if (adev->nbio.ras &&
@@ -1309,37 +1320,25 @@ static int soc15_common_hw_fini(void *handle)
 	return 0;
 }
 
-static int soc15_common_suspend(void *handle)
+static int soc15_common_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	return soc15_common_hw_fini(adev);
+	return soc15_common_hw_fini(ip_block);
 }
 
-static int soc15_common_resume(void *handle)
+static int soc15_common_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (soc15_need_reset_on_resume(adev)) {
 		dev_info(adev->dev, "S3 suspend abort case, let's reset ASIC.\n");
 		soc15_asic_reset(adev);
 	}
-	return soc15_common_hw_init(adev);
+	return soc15_common_hw_init(ip_block);
 }
 
 static bool soc15_common_is_idle(void *handle)
 {
 	return true;
-}
-
-static int soc15_common_wait_for_idle(void *handle)
-{
-	return 0;
-}
-
-static int soc15_common_soft_reset(void *handle)
-{
-	return 0;
 }
 
 static void soc15_update_drm_clock_gating(struct amdgpu_device *adev, bool enable)
@@ -1492,11 +1491,7 @@ static const struct amd_ip_funcs soc15_common_ip_funcs = {
 	.suspend = soc15_common_suspend,
 	.resume = soc15_common_resume,
 	.is_idle = soc15_common_is_idle,
-	.wait_for_idle = soc15_common_wait_for_idle,
-	.soft_reset = soc15_common_soft_reset,
 	.set_clockgating_state = soc15_common_set_clockgating_state,
 	.set_powergating_state = soc15_common_set_powergating_state,
 	.get_clockgating_state= soc15_common_get_clockgating_state,
-	.dump_ip_state = NULL,
-	.print_ip_state = NULL,
 };

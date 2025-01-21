@@ -158,7 +158,7 @@ MODULE_DEVICE_TABLE(acpi, pch_fivr_device_ids);
 
 static struct platform_driver pch_fivr_driver = {
 	.probe = pch_fivr_add,
-	.remove_new = pch_fivr_remove,
+	.remove = pch_fivr_remove,
 	.driver = {
 		.name = "dptf_pch_fivr",
 		.acpi_match_table = pch_fivr_device_ids,

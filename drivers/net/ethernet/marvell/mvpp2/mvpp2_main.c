@@ -1985,45 +1985,32 @@ static void mvpp2_ethtool_get_strings(struct net_device *netdev, u32 sset,
 				      u8 *data)
 {
 	struct mvpp2_port *port = netdev_priv(netdev);
+	const char *str;
 	int i, q;
 
 	if (sset != ETH_SS_STATS)
 		return;
 
-	for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_mib_regs); i++) {
-		strscpy(data, mvpp2_ethtool_mib_regs[i].string,
-			ETH_GSTRING_LEN);
-		data += ETH_GSTRING_LEN;
-	}
+	for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_mib_regs); i++)
+		ethtool_puts(&data, mvpp2_ethtool_mib_regs[i].string);
 
-	for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_port_regs); i++) {
-		strscpy(data, mvpp2_ethtool_port_regs[i].string,
-			ETH_GSTRING_LEN);
-		data += ETH_GSTRING_LEN;
-	}
+	for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_port_regs); i++)
+		ethtool_puts(&data, mvpp2_ethtool_port_regs[i].string);
 
-	for (q = 0; q < port->ntxqs; q++) {
+	for (q = 0; q < port->ntxqs; q++)
 		for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_txq_regs); i++) {
-			snprintf(data, ETH_GSTRING_LEN,
-				 mvpp2_ethtool_txq_regs[i].string, q);
-			data += ETH_GSTRING_LEN;
+			str = mvpp2_ethtool_txq_regs[i].string;
+			ethtool_sprintf(&data, str, q);
 		}
-	}
 
-	for (q = 0; q < port->nrxqs; q++) {
+	for (q = 0; q < port->nrxqs; q++)
 		for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_rxq_regs); i++) {
-			snprintf(data, ETH_GSTRING_LEN,
-				 mvpp2_ethtool_rxq_regs[i].string,
-				 q);
-			data += ETH_GSTRING_LEN;
+			str = mvpp2_ethtool_rxq_regs[i].string;
+			ethtool_sprintf(&data, str, q);
 		}
-	}
 
-	for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_xdp); i++) {
-		strscpy(data, mvpp2_ethtool_xdp[i].string,
-			ETH_GSTRING_LEN);
-		data += ETH_GSTRING_LEN;
-	}
+	for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_xdp); i++)
+		ethtool_puts(&data, mvpp2_ethtool_xdp[i].string);
 }
 
 static void
@@ -5268,8 +5255,6 @@ static int mvpp2_ethtool_get_ts_info(struct net_device *dev,
 
 	info->phc_index = mvpp22_tai_ptp_clock_index(port->priv->tai);
 	info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
-				SOF_TIMESTAMPING_RX_SOFTWARE |
-				SOF_TIMESTAMPING_SOFTWARE |
 				SOF_TIMESTAMPING_TX_HARDWARE |
 				SOF_TIMESTAMPING_RX_HARDWARE |
 				SOF_TIMESTAMPING_RAW_HARDWARE;
@@ -5696,38 +5681,80 @@ static int mvpp2_ethtool_get_rxfh(struct net_device *dev,
 	return ret;
 }
 
+static bool mvpp2_ethtool_rxfh_okay(struct mvpp2_port *port,
+				    const struct ethtool_rxfh_param *rxfh)
+{
+	if (!mvpp22_rss_is_supported(port))
+		return false;
+
+	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	    rxfh->hfunc != ETH_RSS_HASH_CRC32)
+		return false;
+
+	if (rxfh->key)
+		return false;
+
+	return true;
+}
+
+static int mvpp2_create_rxfh_context(struct net_device *dev,
+				     struct ethtool_rxfh_context *ctx,
+				     const struct ethtool_rxfh_param *rxfh,
+				     struct netlink_ext_ack *extack)
+{
+	struct mvpp2_port *port = netdev_priv(dev);
+	int ret = 0;
+
+	if (!mvpp2_ethtool_rxfh_okay(port, rxfh))
+		return -EOPNOTSUPP;
+
+	ctx->hfunc = ETH_RSS_HASH_CRC32;
+
+	ret = mvpp22_port_rss_ctx_create(port, rxfh->rss_context);
+	if (ret)
+		return ret;
+
+	if (!rxfh->indir)
+		ret = mvpp22_port_rss_ctx_indir_get(port, rxfh->rss_context,
+						    ethtool_rxfh_context_indir(ctx));
+	else
+		ret = mvpp22_port_rss_ctx_indir_set(port, rxfh->rss_context,
+						    rxfh->indir);
+	return ret;
+}
+
+static int mvpp2_modify_rxfh_context(struct net_device *dev,
+				     struct ethtool_rxfh_context *ctx,
+				     const struct ethtool_rxfh_param *rxfh,
+				     struct netlink_ext_ack *extack)
+{
+	struct mvpp2_port *port = netdev_priv(dev);
+	int ret = 0;
+
+	if (!mvpp2_ethtool_rxfh_okay(port, rxfh))
+		return -EOPNOTSUPP;
+
+	if (rxfh->indir)
+		ret = mvpp22_port_rss_ctx_indir_set(port, rxfh->rss_context,
+						    rxfh->indir);
+	return ret;
+}
+
+static int mvpp2_remove_rxfh_context(struct net_device *dev,
+				     struct ethtool_rxfh_context *ctx,
+				     u32 rss_context,
+				     struct netlink_ext_ack *extack)
+{
+	struct mvpp2_port *port = netdev_priv(dev);
+
+	return mvpp22_port_rss_ctx_delete(port, rss_context);
+}
+
 static int mvpp2_ethtool_set_rxfh(struct net_device *dev,
 				  struct ethtool_rxfh_param *rxfh,
 				  struct netlink_ext_ack *extack)
 {
-	struct mvpp2_port *port = netdev_priv(dev);
-	u32 *rss_context = &rxfh->rss_context;
-	int ret = 0;
-
-	if (!mvpp22_rss_is_supported(port))
-		return -EOPNOTSUPP;
-
-	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
-	    rxfh->hfunc != ETH_RSS_HASH_CRC32)
-		return -EOPNOTSUPP;
-
-	if (rxfh->key)
-		return -EOPNOTSUPP;
-
-	if (*rss_context && rxfh->rss_delete)
-		return mvpp22_port_rss_ctx_delete(port, *rss_context);
-
-	if (*rss_context == ETH_RXFH_CONTEXT_ALLOC) {
-		ret = mvpp22_port_rss_ctx_create(port, rss_context);
-		if (ret)
-			return ret;
-	}
-
-	if (rxfh->indir)
-		ret = mvpp22_port_rss_ctx_indir_set(port, *rss_context,
-						    rxfh->indir);
-
-	return ret;
+	return mvpp2_modify_rxfh_context(dev, NULL, rxfh, extack);
 }
 
 /* Device ops */
@@ -5749,7 +5776,7 @@ static const struct net_device_ops mvpp2_netdev_ops = {
 };
 
 static const struct ethtool_ops mvpp2_eth_tool_ops = {
-	.cap_rss_ctx_supported	= true,
+	.rxfh_max_num_contexts	= MVPP22_N_RSS_TABLES,
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_MAX_FRAMES,
 	.nway_reset		= mvpp2_ethtool_nway_reset,
@@ -5772,6 +5799,9 @@ static const struct ethtool_ops mvpp2_eth_tool_ops = {
 	.get_rxfh_indir_size	= mvpp2_ethtool_get_rxfh_indir_size,
 	.get_rxfh		= mvpp2_ethtool_get_rxfh,
 	.set_rxfh		= mvpp2_ethtool_set_rxfh,
+	.create_rxfh_context	= mvpp2_create_rxfh_context,
+	.modify_rxfh_context	= mvpp2_modify_rxfh_context,
+	.remove_rxfh_context	= mvpp2_remove_rxfh_context,
 };
 
 /* Used for PPv2.1, or PPv2.2 with the old Device Tree binding that
@@ -7417,8 +7447,6 @@ static int mvpp2_get_sram(struct platform_device *pdev,
 
 static int mvpp2_probe(struct platform_device *pdev)
 {
-	struct fwnode_handle *fwnode = pdev->dev.fwnode;
-	struct fwnode_handle *port_fwnode;
 	struct mvpp2 *priv;
 	struct resource *res;
 	void __iomem *base;
@@ -7591,7 +7619,7 @@ static int mvpp2_probe(struct platform_device *pdev)
 	}
 
 	/* Map DTS-active ports. Should be done before FIFO mvpp2_init */
-	fwnode_for_each_available_child_node(fwnode, port_fwnode) {
+	device_for_each_child_node_scoped(&pdev->dev, port_fwnode) {
 		if (!fwnode_property_read_u32(port_fwnode, "port-id", &i))
 			priv->port_map |= BIT(i);
 	}
@@ -7614,7 +7642,7 @@ static int mvpp2_probe(struct platform_device *pdev)
 		goto err_axi_clk;
 
 	/* Initialize ports */
-	fwnode_for_each_available_child_node(fwnode, port_fwnode) {
+	device_for_each_child_node_scoped(&pdev->dev, port_fwnode) {
 		err = mvpp2_port_probe(pdev, port_fwnode, priv);
 		if (err < 0)
 			goto err_port_probe;
@@ -7653,14 +7681,8 @@ static int mvpp2_probe(struct platform_device *pdev)
 	return 0;
 
 err_port_probe:
-	fwnode_handle_put(port_fwnode);
-
-	i = 0;
-	fwnode_for_each_available_child_node(fwnode, port_fwnode) {
-		if (priv->port_list[i])
-			mvpp2_port_remove(priv->port_list[i]);
-		i++;
-	}
+	for (i = 0; i < priv->port_count; i++)
+		mvpp2_port_remove(priv->port_list[i]);
 err_axi_clk:
 	clk_disable_unprepare(priv->axi_clk);
 err_mg_core_clk:
@@ -7677,18 +7699,13 @@ err_pp_clk:
 static void mvpp2_remove(struct platform_device *pdev)
 {
 	struct mvpp2 *priv = platform_get_drvdata(pdev);
-	struct fwnode_handle *fwnode = pdev->dev.fwnode;
-	int i = 0, poolnum = MVPP2_BM_POOLS_NUM;
-	struct fwnode_handle *port_fwnode;
+	int i, poolnum = MVPP2_BM_POOLS_NUM;
 
 	mvpp2_dbgfs_cleanup(priv);
 
-	fwnode_for_each_available_child_node(fwnode, port_fwnode) {
-		if (priv->port_list[i]) {
-			mutex_destroy(&priv->port_list[i]->gather_stats_lock);
-			mvpp2_port_remove(priv->port_list[i]);
-		}
-		i++;
+	for (i = 0; i < priv->port_count; i++) {
+		mutex_destroy(&priv->port_list[i]->gather_stats_lock);
+		mvpp2_port_remove(priv->port_list[i]);
 	}
 
 	destroy_workqueue(priv->stats_queue);
@@ -7711,7 +7728,7 @@ static void mvpp2_remove(struct platform_device *pdev)
 				  aggr_txq->descs_dma);
 	}
 
-	if (is_acpi_node(port_fwnode))
+	if (!dev_of_node(&pdev->dev))
 		return;
 
 	clk_disable_unprepare(priv->axi_clk);
@@ -7744,7 +7761,7 @@ MODULE_DEVICE_TABLE(acpi, mvpp2_acpi_match);
 
 static struct platform_driver mvpp2_driver = {
 	.probe = mvpp2_probe,
-	.remove_new = mvpp2_remove,
+	.remove = mvpp2_remove,
 	.driver = {
 		.name = MVPP2_DRIVER_NAME,
 		.of_match_table = mvpp2_match,

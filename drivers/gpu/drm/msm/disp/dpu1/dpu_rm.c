@@ -34,6 +34,16 @@ struct dpu_rm_requirements {
 	struct msm_display_topology topology;
 };
 
+/**
+ * dpu_rm_init - Read hardware catalog and create reservation tracking objects
+ *	for all HW blocks.
+ * @dev:  Corresponding device for devres management
+ * @rm: DPU Resource Manager handle
+ * @cat: Pointer to hardware catalog
+ * @mdss_data: Pointer to MDSS / UBWC configuration
+ * @mmio: mapped register io address of MDP
+ * @return: 0 on Success otherwise -ERROR
+ */
 int dpu_rm_init(struct drm_device *dev,
 		struct dpu_rm *rm,
 		const struct dpu_mdss_cfg *cat,
@@ -641,6 +651,13 @@ static void _dpu_rm_clear_mapping(uint32_t *res_mapping, int cnt,
 	}
 }
 
+/**
+ * dpu_rm_release - Given the encoder for the display chain, release any
+ *	HW blocks previously reserved for that use case.
+ * @global_state: resources shared across multiple kms objects
+ * @enc: DRM Encoder handle
+ * @return: 0 on Success otherwise -ERROR
+ */
 void dpu_rm_release(struct dpu_global_state *global_state,
 		    struct drm_encoder *enc)
 {
@@ -657,6 +674,20 @@ void dpu_rm_release(struct dpu_global_state *global_state,
 	_dpu_rm_clear_mapping(&global_state->cdm_to_enc_id, 1, enc->base.id);
 }
 
+/**
+ * dpu_rm_reserve - Given a CRTC->Encoder->Connector display chain, analyze
+ *	the use connections and user requirements, specified through related
+ *	topology control properties, and reserve hardware blocks to that
+ *	display chain.
+ *	HW blocks can then be accessed through dpu_rm_get_* functions.
+ *	HW Reservations should be released via dpu_rm_release_hw.
+ * @rm: DPU Resource Manager handle
+ * @global_state: resources shared across multiple kms objects
+ * @enc: DRM Encoder handle
+ * @crtc_state: Proposed Atomic DRM CRTC State handle
+ * @topology: Pointer to topology info for the display
+ * @return: 0 on Success otherwise -ERROR
+ */
 int dpu_rm_reserve(
 		struct dpu_rm *rm,
 		struct dpu_global_state *global_state,
@@ -694,6 +725,16 @@ int dpu_rm_reserve(
 	return ret;
 }
 
+/**
+ * dpu_rm_get_assigned_resources - Get hw resources of the given type that are
+ *     assigned to this encoder
+ * @rm: DPU Resource Manager handle
+ * @global_state: resources shared across multiple kms objects
+ * @enc_id: encoder id requesting for allocation
+ * @type: resource type to return data for
+ * @blks: pointer to the array to be filled by HW resources
+ * @blks_size: size of the @blks array
+ */
 int dpu_rm_get_assigned_resources(struct dpu_rm *rm,
 	struct dpu_global_state *global_state, uint32_t enc_id,
 	enum dpu_hw_blk_type type, struct dpu_hw_blk **blks, int blks_size)
@@ -772,6 +813,11 @@ static void dpu_rm_print_state_helper(struct drm_printer *p,
 }
 
 
+/**
+ * dpu_rm_print_state - output the RM private state
+ * @p: DRM printer
+ * @global_state: global state
+ */
 void dpu_rm_print_state(struct drm_printer *p,
 			const struct dpu_global_state *global_state)
 {

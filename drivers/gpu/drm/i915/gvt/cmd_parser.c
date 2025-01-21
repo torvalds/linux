@@ -50,7 +50,6 @@
 #include "trace.h"
 
 #include "display/i9xx_plane_regs.h"
-#include "display/intel_display.h"
 #include "display/intel_sprite_regs.h"
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_pm.h"

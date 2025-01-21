@@ -1010,7 +1010,7 @@ static struct platform_driver tx2_uncore_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe = tx2_uncore_probe,
-	.remove_new = tx2_uncore_remove,
+	.remove = tx2_uncore_remove,
 };
 
 static int __init tx2_uncore_driver_init(void)

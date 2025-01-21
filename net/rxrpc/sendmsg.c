@@ -29,6 +29,7 @@ bool rxrpc_propose_abort(struct rxrpc_call *call, s32 abort_code, int error,
 		call->send_abort_why = why;
 		call->send_abort_err = error;
 		call->send_abort_seq = 0;
+		trace_rxrpc_abort_call(call, abort_code);
 		/* Request abort locklessly vs rxrpc_input_call_event(). */
 		smp_store_release(&call->send_abort, abort_code);
 		rxrpc_poke_call(call, rxrpc_call_poke_abort);
@@ -303,6 +304,11 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 	sk_clear_bit(SOCKWQ_ASYNC_NOSPACE, sk);
 
 reload:
+	txb = call->tx_pending;
+	call->tx_pending = NULL;
+	if (txb)
+		rxrpc_see_txbuf(txb, rxrpc_txbuf_see_send_more);
+
 	ret = -EPIPE;
 	if (sk->sk_shutdown & SEND_SHUTDOWN)
 		goto maybe_error;
@@ -328,11 +334,6 @@ reload:
 		if (!more && len - copied != call->tx_total_len)
 			goto maybe_error;
 	}
-
-	txb = call->tx_pending;
-	call->tx_pending = NULL;
-	if (txb)
-		rxrpc_see_txbuf(txb, rxrpc_txbuf_see_send_more);
 
 	do {
 		if (!txb) {

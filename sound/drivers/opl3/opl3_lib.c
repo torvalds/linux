@@ -92,7 +92,7 @@ static int snd_opl3_detect(struct snd_opl3 * opl3)
 	opl3->command(opl3, OPL3_LEFT | OPL3_REG_TIMER_CONTROL, OPL3_IRQ_RESET);
 	signature = stat1 = inb(opl3->l_port);	/* Status register */
 	if ((stat1 & 0xe0) != 0x00) {	/* Should be 0x00 */
-		snd_printd("OPL3: stat1 = 0x%x\n", stat1);
+		dev_dbg(opl3->card->dev, "OPL3: stat1 = 0x%x\n", stat1);
 		return -ENODEV;
 	}
 	/* Set timer1 to 0xff */
@@ -108,7 +108,7 @@ static int snd_opl3_detect(struct snd_opl3 * opl3)
 	/* Reset the IRQ of the FM chip */
 	opl3->command(opl3, OPL3_LEFT | OPL3_REG_TIMER_CONTROL, OPL3_IRQ_RESET);
 	if ((stat2 & 0xe0) != 0xc0) {	/* There is no YM3812 */
-		snd_printd("OPL3: stat2 = 0x%x\n", stat2);
+		dev_dbg(opl3->card->dev, "OPL3: stat2 = 0x%x\n", stat2);
 		return -ENODEV;
 	}
 
@@ -289,9 +289,6 @@ void snd_opl3_interrupt(struct snd_hwdep * hw)
 
 	opl3 = hw->private_data;
 	status = inb(opl3->l_port);
-#if 0
-	snd_printk(KERN_DEBUG "AdLib IRQ status = 0x%x\n", status);
-#endif
 	if (!(status & 0x80))
 		return;
 
@@ -365,7 +362,8 @@ EXPORT_SYMBOL(snd_opl3_new);
 int snd_opl3_init(struct snd_opl3 *opl3)
 {
 	if (! opl3->command) {
-		printk(KERN_ERR "snd_opl3_init: command not defined!\n");
+		dev_err(opl3->card->dev,
+			"snd_opl3_init: command not defined!\n");
 		return -EINVAL;
 	}
 
@@ -405,14 +403,14 @@ int snd_opl3_create(struct snd_card *card,
 	if (! integrated) {
 		opl3->res_l_port = request_region(l_port, 2, "OPL2/3 (left)");
 		if (!opl3->res_l_port) {
-			snd_printk(KERN_ERR "opl3: can't grab left port 0x%lx\n", l_port);
+			dev_err(card->dev, "opl3: can't grab left port 0x%lx\n", l_port);
 			snd_device_free(card, opl3);
 			return -EBUSY;
 		}
 		if (r_port != 0) {
 			opl3->res_r_port = request_region(r_port, 2, "OPL2/3 (right)");
 			if (!opl3->res_r_port) {
-				snd_printk(KERN_ERR "opl3: can't grab right port 0x%lx\n", r_port);
+				dev_err(card->dev, "opl3: can't grab right port 0x%lx\n", r_port);
 				snd_device_free(card, opl3);
 				return -EBUSY;
 			}
@@ -432,8 +430,8 @@ int snd_opl3_create(struct snd_card *card,
 		opl3->command = &snd_opl2_command;
 		err = snd_opl3_detect(opl3);
 		if (err < 0) {
-			snd_printd("OPL2/3 chip not detected at 0x%lx/0x%lx\n",
-				   opl3->l_port, opl3->r_port);
+			dev_dbg(card->dev, "OPL2/3 chip not detected at 0x%lx/0x%lx\n",
+				opl3->l_port, opl3->r_port);
 			snd_device_free(card, opl3);
 			return err;
 		}

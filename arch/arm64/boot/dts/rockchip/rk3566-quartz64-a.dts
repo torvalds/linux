@@ -117,7 +117,7 @@
 		};
 	};
 
-	vcc12v_dcin: vcc12v_dcin {
+	vcc12v_dcin: regulator-vcc12v-dcin {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc12v_dcin";
 		regulator-always-on;
@@ -130,7 +130,7 @@
 	 * With no battery attached, also feeds vcc_bat+
 	 * via ON/OFF_BAT jumper
 	 */
-	vbus: vbus {
+	vbus: regulator-vbus {
 		compatible = "regulator-fixed";
 		regulator-name = "vbus";
 		regulator-always-on;
@@ -140,7 +140,7 @@
 		vin-supply = <&vcc12v_dcin>;
 	};
 
-	vcc3v3_pcie_p: vcc3v3-pcie-p-regulator {
+	vcc3v3_pcie_p: regulator-vcc3v3-pcie-p {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio0 RK_PC6 GPIO_ACTIVE_HIGH>;
@@ -152,7 +152,7 @@
 		vin-supply = <&vcc_3v3>;
 	};
 
-	vcc5v0_usb: vcc5v0_usb {
+	vcc5v0_usb: regulator-vcc5v0-usb {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_usb";
 		regulator-always-on;
@@ -166,7 +166,7 @@
 	 * the host ports are sourced from vcc5v0_usb
 	 * the otg port is sourced from vcc5v0_midu
 	 */
-	vcc5v0_usb20_host: vcc5v0_usb20_host {
+	vcc5v0_usb20_host: regulator-vcc5v0-usb20-host {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio4 RK_PB5 GPIO_ACTIVE_HIGH>;
@@ -178,7 +178,7 @@
 		vin-supply = <&vcc5v0_usb>;
 	};
 
-	vcc5v0_usb20_otg: vcc5v0_usb20_otg {
+	vcc5v0_usb20_otg: regulator-vcc5v0-usb20-otg {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio4 RK_PB5 GPIO_ACTIVE_HIGH>;
@@ -188,7 +188,7 @@
 		vin-supply = <&dcdc_boost>;
 	};
 
-	vcc3v3_sd: vcc3v3_sd {
+	vcc3v3_sd: regulator-vcc3v3-sd {
 		compatible = "regulator-fixed";
 		gpio = <&gpio0 RK_PA5 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
@@ -201,7 +201,7 @@
 	};
 
 	/* sourced from vbus and vcc_bat+ via rk817 sw5 */
-	vcc_sys: vcc_sys {
+	vcc_sys: regulator-vcc-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_sys";
 		regulator-always-on;
@@ -212,7 +212,7 @@
 	};
 
 	/* sourced from vcc_sys, sdio module operates internally at 3.3v */
-	vcc_wl: vcc_wl {
+	vcc_wl: regulator-vcc-wl {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_wl";
 		regulator-always-on;
@@ -347,7 +347,7 @@
 		#clock-cells = <1>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int_l>, <&i2s1m0_mclk>;
-		rockchip,system-power-controller;
+		system-power-controller;
 		#sound-dai-cells = <0>;
 		wakeup-source;
 

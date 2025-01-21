@@ -825,6 +825,14 @@ config LEDS_BLINKM
 	  This option enables support for the BlinkM RGB LED connected
 	  through I2C. Say Y to enable support for the BlinkM LED.
 
+config LEDS_BLINKM_MULTICOLOR
+	bool "Enable multicolor support for BlinkM I2C RGB LED"
+	depends on LEDS_BLINKM
+	depends on LEDS_CLASS_MULTICOLOR=y || LEDS_CLASS_MULTICOLOR=LEDS_BLINKM
+	help
+	  This option enables multicolor sysfs class support for BlinkM LED and
+	  disables the older, separated sysfs interface
+
 config LEDS_POWERNV
 	tristate "LED support for PowerNV Platform"
 	depends on LEDS_CLASS

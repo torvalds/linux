@@ -43,18 +43,21 @@ struct rtw89_entity_weight {
 	unsigned int active_roles;
 };
 
-static inline bool rtw89_get_entity_state(struct rtw89_dev *rtwdev)
+static inline bool rtw89_get_entity_state(struct rtw89_dev *rtwdev,
+					  enum rtw89_phy_idx phy_idx)
 {
 	struct rtw89_hal *hal = &rtwdev->hal;
 
-	return READ_ONCE(hal->entity_active);
+	return READ_ONCE(hal->entity_active[phy_idx]);
 }
 
-static inline void rtw89_set_entity_state(struct rtw89_dev *rtwdev, bool active)
+static inline void rtw89_set_entity_state(struct rtw89_dev *rtwdev,
+					  enum rtw89_phy_idx phy_idx,
+					  bool active)
 {
 	struct rtw89_hal *hal = &rtwdev->hal;
 
-	WRITE_ONCE(hal->entity_active, active);
+	WRITE_ONCE(hal->entity_active[phy_idx], active);
 }
 
 static inline
@@ -76,17 +79,17 @@ static inline void rtw89_set_entity_mode(struct rtw89_dev *rtwdev,
 void rtw89_chan_create(struct rtw89_chan *chan, u8 center_chan, u8 primary_chan,
 		       enum rtw89_band band, enum rtw89_bandwidth bandwidth);
 bool rtw89_assign_entity_chan(struct rtw89_dev *rtwdev,
-			      enum rtw89_sub_entity_idx idx,
+			      enum rtw89_chanctx_idx idx,
 			      const struct rtw89_chan *new);
 int rtw89_iterate_entity_chan(struct rtw89_dev *rtwdev,
 			      int (*iterator)(const struct rtw89_chan *chan,
 					      void *data),
 			      void *data);
 void rtw89_config_entity_chandef(struct rtw89_dev *rtwdev,
-				 enum rtw89_sub_entity_idx idx,
+				 enum rtw89_chanctx_idx idx,
 				 const struct cfg80211_chan_def *chandef);
 void rtw89_config_roc_chandef(struct rtw89_dev *rtwdev,
-			      enum rtw89_sub_entity_idx idx,
+			      enum rtw89_chanctx_idx idx,
 			      const struct cfg80211_chan_def *chandef);
 void rtw89_entity_init(struct rtw89_dev *rtwdev);
 enum rtw89_entity_mode rtw89_entity_recalc(struct rtw89_dev *rtwdev);
@@ -98,6 +101,14 @@ void rtw89_chanctx_track(struct rtw89_dev *rtwdev);
 void rtw89_chanctx_pause(struct rtw89_dev *rtwdev,
 			 enum rtw89_chanctx_pause_reasons rsn);
 void rtw89_chanctx_proceed(struct rtw89_dev *rtwdev);
+
+const struct rtw89_chan *__rtw89_mgnt_chan_get(struct rtw89_dev *rtwdev,
+					       const char *caller_message,
+					       u8 link_index);
+
+#define rtw89_mgnt_chan_get(rtwdev, link_index) \
+	__rtw89_mgnt_chan_get(rtwdev, __func__, link_index)
+
 int rtw89_chanctx_ops_add(struct rtw89_dev *rtwdev,
 			  struct ieee80211_chanctx_conf *ctx);
 void rtw89_chanctx_ops_remove(struct rtw89_dev *rtwdev,
@@ -106,10 +117,10 @@ void rtw89_chanctx_ops_change(struct rtw89_dev *rtwdev,
 			      struct ieee80211_chanctx_conf *ctx,
 			      u32 changed);
 int rtw89_chanctx_ops_assign_vif(struct rtw89_dev *rtwdev,
-				 struct rtw89_vif *rtwvif,
+				 struct rtw89_vif_link *rtwvif_link,
 				 struct ieee80211_chanctx_conf *ctx);
 void rtw89_chanctx_ops_unassign_vif(struct rtw89_dev *rtwdev,
-				    struct rtw89_vif *rtwvif,
+				    struct rtw89_vif_link *rtwvif_link,
 				    struct ieee80211_chanctx_conf *ctx);
 
 #endif

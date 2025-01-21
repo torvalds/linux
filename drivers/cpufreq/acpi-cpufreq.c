@@ -73,20 +73,17 @@ static unsigned int acpi_pstate_strict;
 
 static bool boost_state(unsigned int cpu)
 {
-	u32 lo, hi;
 	u64 msr;
 
 	switch (boot_cpu_data.x86_vendor) {
 	case X86_VENDOR_INTEL:
 	case X86_VENDOR_CENTAUR:
 	case X86_VENDOR_ZHAOXIN:
-		rdmsr_on_cpu(cpu, MSR_IA32_MISC_ENABLE, &lo, &hi);
-		msr = lo | ((u64)hi << 32);
+		rdmsrl_on_cpu(cpu, MSR_IA32_MISC_ENABLE, &msr);
 		return !(msr & MSR_IA32_MISC_ENABLE_TURBO_DISABLE);
 	case X86_VENDOR_HYGON:
 	case X86_VENDOR_AMD:
-		rdmsr_on_cpu(cpu, MSR_K7_HWCR, &lo, &hi);
-		msr = lo | ((u64)hi << 32);
+		rdmsrl_on_cpu(cpu, MSR_K7_HWCR, &msr);
 		return !(msr & MSR_K7_HWCR_CPB_DIS);
 	}
 	return false;
@@ -642,10 +639,16 @@ static u64 get_max_boost_ratio(unsigned int cpu)
 		return 0;
 	}
 
-	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
-		highest_perf = amd_get_highest_perf();
-	else
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD) {
+		ret = amd_get_boost_ratio_numerator(cpu, &highest_perf);
+		if (ret) {
+			pr_debug("CPU%d: Unable to get boost ratio numerator (%d)\n",
+				 cpu, ret);
+			return 0;
+		}
+	} else {
 		highest_perf = perf_caps.highest_perf;
+	}
 
 	nominal_perf = perf_caps.nominal_perf;
 
@@ -1022,7 +1025,7 @@ static struct platform_driver acpi_cpufreq_platdrv = {
 	.driver = {
 		.name	= "acpi-cpufreq",
 	},
-	.remove_new	= acpi_cpufreq_remove,
+	.remove = acpi_cpufreq_remove,
 };
 
 static int __init acpi_cpufreq_init(void)

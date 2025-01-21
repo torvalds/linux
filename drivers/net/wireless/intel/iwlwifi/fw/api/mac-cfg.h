@@ -42,7 +42,7 @@ enum iwl_mac_conf_subcmd_ids {
 	 */
 	LINK_CONFIG_CMD = 0x9,
 	/**
-	 * @STA_CONFIG_CMD: &struct iwl_mvm_sta_cfg_cmd
+	 * @STA_CONFIG_CMD: &struct iwl_sta_cfg_cmd
 	 */
 	STA_CONFIG_CMD = 0xA,
 	/**
@@ -50,7 +50,7 @@ enum iwl_mac_conf_subcmd_ids {
 	 */
 	AUX_STA_CMD = 0xB,
 	/**
-	 * @STA_REMOVE_CMD: &struct iwl_mvm_remove_sta_cmd
+	 * @STA_REMOVE_CMD: &struct iwl_remove_sta_cmd
 	 */
 	STA_REMOVE_CMD = 0xC,
 	/**
@@ -61,6 +61,14 @@ enum iwl_mac_conf_subcmd_ids {
 	 * @ROC_CMD: &struct iwl_roc_req
 	 */
 	ROC_CMD = 0xE,
+	/**
+	 * @MISSED_BEACONS_NOTIF: &struct iwl_missed_beacons_notif
+	 */
+	MISSED_BEACONS_NOTIF = 0xF6,
+	/**
+	 * @EMLSR_TRANS_FAIL_NOTIF: &struct iwl_esr_trans_fail_notif
+	 */
+	EMLSR_TRANS_FAIL_NOTIF = 0xF7,
 	/**
 	 * @ROC_NOTIF: &struct iwl_roc_notif
 	 */
@@ -374,6 +382,8 @@ struct iwl_mac_config_cmd {
  * @LINK_CONTEXT_MODIFY_EHT_PARAMS: covers iwl_link_ctx_cfg_cmd::puncture_mask.
  *	This flag can be set only if the MAC that this link relates to has
  *	eht_support set to true. No longer used since _VER_3 of this command.
+ * @LINK_CONTEXT_MODIFY_BANDWIDTH: Covers iwl_link_ctx_cfg_cmd::modify_bandwidth.
+ *	Request RX OMI to the AP to modify bandwidth of this link.
  * @LINK_CONTEXT_MODIFY_ALL: set all above flags
  */
 enum iwl_link_ctx_modify_flags {
@@ -385,6 +395,7 @@ enum iwl_link_ctx_modify_flags {
 	LINK_CONTEXT_MODIFY_HE_PARAMS		= BIT(5),
 	LINK_CONTEXT_MODIFY_BSS_COLOR_DISABLE	= BIT(6),
 	LINK_CONTEXT_MODIFY_EHT_PARAMS		= BIT(7),
+	LINK_CONTEXT_MODIFY_BANDWIDTH		= BIT(8),
 	LINK_CONTEXT_MODIFY_ALL			= 0xff,
 }; /* LINK_CONTEXT_MODIFY_MASK_E_VER_1 */
 
@@ -426,6 +437,22 @@ enum iwl_link_ctx_flags {
 }; /* LINK_CONTEXT_FLAG_E_VER_1 */
 
 /**
+ * enum iwl_link_modify_bandwidth - link modify (RX OMI) bandwidth
+ * @IWL_LINK_MODIFY_BW_20: request 20 MHz
+ * @IWL_LINK_MODIFY_BW_40: request 40 MHz
+ * @IWL_LINK_MODIFY_BW_80: request 80 MHz
+ * @IWL_LINK_MODIFY_BW_160: request 160 MHz
+ * @IWL_LINK_MODIFY_BW_320: request 320 MHz
+ */
+enum iwl_link_modify_bandwidth {
+	IWL_LINK_MODIFY_BW_20,
+	IWL_LINK_MODIFY_BW_40,
+	IWL_LINK_MODIFY_BW_80,
+	IWL_LINK_MODIFY_BW_160,
+	IWL_LINK_MODIFY_BW_320,
+};
+
+/**
  * struct iwl_link_config_cmd - command structure to configure the LINK context
  *	in MLD API
  * ( LINK_CONFIG_CMD =0x9 )
@@ -446,6 +473,11 @@ enum iwl_link_ctx_flags {
  * @listen_lmac: indicates whether the link should be allocated on the Listen
  *	Lmac or on the Main Lmac. Cannot be changed on an active Link.
  *	Relevant only for eSR.
+ * @block_tx: tell the firmware that this link can't Tx. This should be used
+ *	only when a link is de-activated because of CSA with mode = 1.
+ *	Available since version 5.
+ * @modify_bandwidth: bandwidth request value for RX OMI (see also
+ *	%LINK_CONTEXT_MODIFY_BANDWIDTH), from &enum iwl_link_modify_bandwidth.
  * @reserved1: in version 2, listen_lmac became reserved
  * @cck_rates: basic rates available for CCK
  * @ofdm_rates: basic rates available for OFDM
@@ -472,7 +504,9 @@ enum iwl_link_ctx_flags {
  * @bssid_index: index of the associated VAP
  * @bss_color: 11ax AP ID that is used in the HE SIG-A to mark inter BSS frame
  * @spec_link_id: link_id as the AP knows it
- * @reserved2: alignment
+ * @ul_mu_data_disable: OM Control UL MU Data Disable RX Support (bit 44) in
+ *	HE MAC Capabilities information field as defined in figure 9-897 in
+ *	IEEE802.11REVme-D5.0
  * @ibss_bssid_addr: bssid for ibss
  * @reserved_for_ibss_bssid_addr: reserved
  * @reserved3: reserved for future use
@@ -487,8 +521,12 @@ struct iwl_link_config_cmd {
 	__le32 modify_mask;
 	__le32 active;
 	union {
-		__le32 listen_lmac;
-		__le32 reserved1;
+		__le32 listen_lmac; /* only _VER_1 */
+		struct {
+			u8 block_tx; /* since _VER_5 */
+			u8 modify_bandwidth; /* since _VER_6 */
+			u8 reserved1[2];
+		};
 	};
 	__le32 cck_rates;
 	__le32 ofdm_rates;
@@ -508,24 +546,24 @@ struct iwl_link_config_cmd {
 	__le16 puncture_mask; /* removed in _VER_3 */
 	__le16 frame_time_rts_th;
 	__le32 flags;
-	__le32 flags_mask;
+	__le32 flags_mask; /* removed in _VER_6 */
 	/* The below fields are for multi-bssid */
 	u8 ref_bssid_addr[6];
 	__le16 reserved_for_ref_bssid_addr;
 	u8 bssid_index;
 	u8 bss_color;
 	u8 spec_link_id;
-	u8 reserved2;
+	u8 ul_mu_data_disable;
 	u8 ibss_bssid_addr[6];
 	__le16 reserved_for_ibss_bssid_addr;
 	__le32 reserved3[8];
-} __packed; /* LINK_CONTEXT_CONFIG_CMD_API_S_VER_1, _VER_2, _VER_3 */
+} __packed; /* LINK_CONTEXT_CONFIG_CMD_API_S_VER_1, _VER_2, _VER_3, _VER_4, _VER_5, _VER_6 */
 
 /* Currently FW supports link ids in the range 0-3 and can have
  * at most two active links for each vif.
  */
-#define IWL_MVM_FW_MAX_ACTIVE_LINKS_NUM 2
-#define IWL_MVM_FW_MAX_LINK_ID 3
+#define IWL_FW_MAX_ACTIVE_LINKS_NUM 2
+#define IWL_FW_MAX_LINK_ID 3
 
 /**
  * enum iwl_fw_sta_type - FW station types
@@ -547,7 +585,7 @@ enum iwl_fw_sta_type {
 }; /* STATION_TYPE_E_VER_1 */
 
 /**
- * struct iwl_mvm_sta_cfg_cmd - cmd structure to add a peer sta to the uCode's
+ * struct iwl_sta_cfg_cmd - cmd structure to add a peer sta to the uCode's
  *	station table
  * ( STA_CONFIG_CMD = 0xA )
  *
@@ -579,7 +617,7 @@ enum iwl_fw_sta_type {
  *	capa
  * @htc_flags: which features are supported in HTC
  */
-struct iwl_mvm_sta_cfg_cmd {
+struct iwl_sta_cfg_cmd {
 	__le32 sta_id;
 	__le32 link_id;
 	u8 peer_mld_address[ETH_ALEN];
@@ -620,13 +658,13 @@ struct iwl_mvm_aux_sta_cmd {
 } __packed; /* AUX_STA_CMD_API_S_VER_1 */
 
 /**
- * struct iwl_mvm_remove_sta_cmd - a cmd structure to remove a sta added by
+ * struct iwl_remove_sta_cmd - a cmd structure to remove a sta added by
  *	STA_CONFIG_CMD or AUX_STA_CONFIG_CMD
  * ( STA_REMOVE_CMD = 0xC )
  *
  * @sta_id: index of station to remove
  */
-struct iwl_mvm_remove_sta_cmd {
+struct iwl_remove_sta_cmd {
 	__le32 sta_id;
 } __packed; /* REMOVE_STA_API_S_VER_1 */
 
@@ -662,5 +700,52 @@ enum iwl_mvm_fw_esr_recommendation {
 struct iwl_mvm_esr_mode_notif {
 	__le32 action;
 } __packed; /* ESR_MODE_RECOMMENDATION_NTFY_API_S_VER_1 */
+
+/**
+ * struct iwl_missed_beacons_notif - sent when by the firmware upon beacon loss
+ *  ( MISSED_BEACONS_NOTIF = 0xF6 )
+ * @link_id: fw link ID
+ * @consec_missed_beacons_since_last_rx: number of consecutive missed
+ *	beacons since last RX.
+ * @consec_missed_beacons: number of consecutive missed beacons
+ * @other_link_id: used in EMLSR only. The fw link ID for
+ *	&consec_missed_beacons_other_link. IWL_MVM_FW_LINK_ID_INVALID (0xff) if
+ *	invalid.
+ * @consec_missed_beacons_other_link: number of consecutive missed beacons on
+ *	&other_link_id.
+ */
+struct iwl_missed_beacons_notif {
+	__le32 link_id;
+	__le32 consec_missed_beacons_since_last_rx;
+	__le32 consec_missed_beacons;
+	__le32 other_link_id;
+	__le32 consec_missed_beacons_other_link;
+} __packed; /* MISSED_BEACON_NTFY_API_S_VER_5 */
+
+/*
+ * enum iwl_esr_trans_fail_code: to be used to parse the notif below
+ *
+ * @ESR_TRANS_FAILED_TX_STATUS_ERROR: failed to TX EML OMN frame
+ * @ESR_TRANSITION_FAILED_TX_TIMEOUT: timeout on the EML OMN frame
+ * @ESR_TRANSITION_FAILED_BEACONS_NOT_HEARD: can't get a beacon on the new link
+ */
+enum iwl_esr_trans_fail_code {
+	ESR_TRANS_FAILED_TX_STATUS_ERROR,
+	ESR_TRANSITION_FAILED_TX_TIMEOUT,
+	ESR_TRANSITION_FAILED_BEACONS_NOT_HEARD,
+};
+
+/**
+ * struct iwl_esr_trans_fail_notif - FW reports a failure in EMLSR transition
+ *
+ * @link_id: the link_id that still works after the failure
+ * @activation: true if the link was activated, false otherwise
+ * @err_code: see &enum iwl_esr_trans_fail_code
+ */
+struct iwl_esr_trans_fail_notif {
+	__le32 link_id;
+	__le32 activation;
+	__le32 err_code;
+} __packed; /* ESR_TRANSITION_FAILED_NTFY_API_S_VER_1 */
 
 #endif /* __iwl_fw_api_mac_cfg_h__ */

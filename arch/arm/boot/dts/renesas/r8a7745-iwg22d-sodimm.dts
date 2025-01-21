@@ -185,8 +185,7 @@
 	port-expander@44 {
 		compatible = "st,stmpe811";
 		reg = <0x44>;
-		interrupt-parent = <&gpio4>;
-		interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&gpio4 4 IRQ_TYPE_LEVEL_LOW>;
 
 		/* 3.25 MHz ADC clock speed */
 		st,adc-freq = <1>;

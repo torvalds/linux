@@ -15,14 +15,12 @@ description:
   such as the HannStar HSD060BHW4 720x1440 TFT LCD panel connected with
   a MIPI-DSI video interface.
 
-allOf:
-  - $ref: panel-common.yaml#
-
 properties:
   compatible:
     items:
       - enum:
           - hannstar,hsd060bhw4
+          - microchip,ac40t08a-mipi-panel
           - powkiddy,x55-panel
       - const: himax,hx8394
 
@@ -46,13 +44,24 @@ properties:
 required:
   - compatible
   - reg
-  - reset-gpios
   - backlight
   - port
   - vcc-supply
   - iovcc-supply
 
 additionalProperties: false
+
+allOf:
+  - $ref: panel-common.yaml#
+  - if:
+      not:
+        properties:
+          compatible:
+            enum:
+              - microchip,ac40t08a-mipi-panel
+    then:
+      required:
+        - reset-gpios
 
 examples:
   - |

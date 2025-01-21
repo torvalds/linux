@@ -895,8 +895,8 @@ static void tmio_mmc_power_on(struct tmio_mmc_host *host, unsigned short vdd)
 	 * It seems, VccQ should be switched on after Vcc, this is also what the
 	 * omap_hsmmc.c driver does.
 	 */
-	if (!IS_ERR(mmc->supply.vqmmc) && !ret) {
-		ret = regulator_enable(mmc->supply.vqmmc);
+	if (!ret) {
+		ret = mmc_regulator_enable_vqmmc(mmc);
 		usleep_range(200, 300);
 	}
 
@@ -909,8 +909,7 @@ static void tmio_mmc_power_off(struct tmio_mmc_host *host)
 {
 	struct mmc_host *mmc = host->mmc;
 
-	if (!IS_ERR(mmc->supply.vqmmc))
-		regulator_disable(mmc->supply.vqmmc);
+	mmc_regulator_disable_vqmmc(mmc);
 
 	if (!IS_ERR(mmc->supply.vmmc))
 		mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, 0);

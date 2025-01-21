@@ -416,7 +416,8 @@ static int i9xx_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
 	return DIV_ROUND_UP(pixel_rate * num, den);
 }
 
-static void i9xx_plane_update_noarm(struct intel_plane *plane,
+static void i9xx_plane_update_noarm(struct intel_dsb *dsb,
+				    struct intel_plane *plane,
 				    const struct intel_crtc_state *crtc_state,
 				    const struct intel_plane_state *plane_state)
 {
@@ -444,7 +445,8 @@ static void i9xx_plane_update_noarm(struct intel_plane *plane,
 	}
 }
 
-static void i9xx_plane_update_arm(struct intel_plane *plane,
+static void i9xx_plane_update_arm(struct intel_dsb *dsb,
+				  struct intel_plane *plane,
 				  const struct intel_crtc_state *crtc_state,
 				  const struct intel_plane_state *plane_state)
 {
@@ -507,7 +509,8 @@ static void i9xx_plane_update_arm(struct intel_plane *plane,
 				  intel_plane_ggtt_offset(plane_state) + dspaddr_offset);
 }
 
-static void i830_plane_update_arm(struct intel_plane *plane,
+static void i830_plane_update_arm(struct intel_dsb *dsb,
+				  struct intel_plane *plane,
 				  const struct intel_crtc_state *crtc_state,
 				  const struct intel_plane_state *plane_state)
 {
@@ -517,11 +520,12 @@ static void i830_plane_update_arm(struct intel_plane *plane,
 	 * Additional breakage on i830 causes register reads to return
 	 * the last latched value instead of the last written value [ALM026].
 	 */
-	i9xx_plane_update_noarm(plane, crtc_state, plane_state);
-	i9xx_plane_update_arm(plane, crtc_state, plane_state);
+	i9xx_plane_update_noarm(dsb, plane, crtc_state, plane_state);
+	i9xx_plane_update_arm(dsb, plane, crtc_state, plane_state);
 }
 
-static void i9xx_plane_disable_arm(struct intel_plane *plane,
+static void i9xx_plane_disable_arm(struct intel_dsb *dsb,
+				   struct intel_plane *plane,
 				   const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
@@ -549,7 +553,8 @@ static void i9xx_plane_disable_arm(struct intel_plane *plane,
 }
 
 static void
-g4x_primary_async_flip(struct intel_plane *plane,
+g4x_primary_async_flip(struct intel_dsb *dsb,
+		       struct intel_plane *plane,
 		       const struct intel_crtc_state *crtc_state,
 		       const struct intel_plane_state *plane_state,
 		       bool async_flip)
@@ -569,7 +574,8 @@ g4x_primary_async_flip(struct intel_plane *plane,
 }
 
 static void
-vlv_primary_async_flip(struct intel_plane *plane,
+vlv_primary_async_flip(struct intel_dsb *dsb,
+		       struct intel_plane *plane,
 		       const struct intel_crtc_state *crtc_state,
 		       const struct intel_plane_state *plane_state,
 		       bool async_flip)

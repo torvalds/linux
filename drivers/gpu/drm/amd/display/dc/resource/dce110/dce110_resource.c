@@ -668,7 +668,7 @@ static struct link_encoder *dce110_link_encoder_create(
 		kzalloc(sizeof(struct dce110_link_encoder), GFP_KERNEL);
 	int link_regs_id;
 
-	if (!enc110)
+	if (!enc110 || enc_init_data->hpd_source >= ARRAY_SIZE(link_enc_hpd_regs))
 		return NULL;
 
 	link_regs_id =
@@ -1159,6 +1159,7 @@ static struct pipe_ctx *dce110_acquire_underlay(
 
 		pipe_ctx->stream_res.tg->funcs->program_timing(pipe_ctx->stream_res.tg,
 				&stream->timing,
+				0,
 				0,
 				0,
 				0,

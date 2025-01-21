@@ -169,7 +169,7 @@ static const struct of_device_id wmt_i2c_dt_ids[] = {
 
 static struct platform_driver wmt_i2c_driver = {
 	.probe		= wmt_i2c_probe,
-	.remove_new	= wmt_i2c_remove,
+	.remove		= wmt_i2c_remove,
 	.driver		= {
 		.name	= "wmt-i2c",
 		.of_match_table = wmt_i2c_dt_ids,

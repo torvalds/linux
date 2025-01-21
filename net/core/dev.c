@@ -158,8 +158,10 @@
 #include <net/page_pool/types.h>
 #include <net/page_pool/helpers.h>
 #include <net/rps.h>
+#include <linux/phy_link_topology.h>
 
 #include "dev.h"
+#include "devmem.h"
 #include "net-sysfs.h"
 
 static DEFINE_SPINLOCK(ptype_lock);
@@ -2947,6 +2949,8 @@ int netif_set_real_num_tx_queues(struct net_device *dev, unsigned int txq)
 		if (dev->num_tc)
 			netif_setup_tc(dev, txq);
 
+		net_shaper_set_real_num_tx_queues(dev, txq);
+
 		dev_qdisc_change_real_num_tx(dev, txq);
 
 		dev->real_num_tx_queues = txq;
@@ -3310,6 +3314,10 @@ int skb_checksum_help(struct sk_buff *skb)
 		return -EINVAL;
 	}
 
+	if (!skb_frags_readable(skb)) {
+		return -EFAULT;
+	}
+
 	/* Before computing a checksum, we should make sure no frag could
 	 * be modified by an external entity : checksum could be wrong.
 	 */
@@ -3386,6 +3394,7 @@ int skb_crc32c_csum_help(struct sk_buff *skb)
 out:
 	return ret;
 }
+EXPORT_SYMBOL(skb_crc32c_csum_help);
 
 __be16 skb_network_protocol(struct sk_buff *skb, int *depth)
 {
@@ -3431,8 +3440,9 @@ static int illegal_highdma(struct net_device *dev, struct sk_buff *skb)
 	if (!(dev->features & NETIF_F_HIGHDMA)) {
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+			struct page *page = skb_frag_page(frag);
 
-			if (PageHighMem(skb_frag_page(frag)))
+			if (page && PageHighMem(page))
 				return 1;
 		}
 	}
@@ -3504,7 +3514,7 @@ static netdev_features_t gso_features_check(const struct sk_buff *skb,
 	if (gso_segs > READ_ONCE(dev->gso_max_segs))
 		return features & ~NETIF_F_GSO_MASK;
 
-	if (unlikely(skb->len >= READ_ONCE(dev->gso_max_size)))
+	if (unlikely(skb->len >= netif_get_gso_max_size(dev, skb)))
 		return features & ~NETIF_F_GSO_MASK;
 
 	if (!skb_shinfo(skb)->gso_type) {
@@ -3631,6 +3641,9 @@ int skb_csum_hwoffload_help(struct sk_buff *skb,
 		return 0;
 
 	if (features & (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM)) {
+		if (vlan_get_protocol(skb) == htons(ETH_P_IPV6) &&
+		    skb_network_header_len(skb) != sizeof(struct ipv6hdr))
+			goto sw_checksum;
 		switch (skb->csum_offset) {
 		case offsetof(struct tcphdr, check):
 		case offsetof(struct udphdr, check):
@@ -3638,6 +3651,7 @@ int skb_csum_hwoffload_help(struct sk_buff *skb,
 		}
 	}
 
+sw_checksum:
 	return skb_checksum_help(skb);
 }
 EXPORT_SYMBOL(skb_csum_hwoffload_help);
@@ -3705,7 +3719,7 @@ struct sk_buff *validate_xmit_skb_list(struct sk_buff *skb, struct net_device *d
 		next = skb->next;
 		skb_mark_not_on_list(skb);
 
-		/* in case skb wont be segmented, point to itself */
+		/* in case skb won't be segmented, point to itself */
 		skb->prev = skb;
 
 		skb = validate_xmit_skb(skb, dev, again);
@@ -3750,7 +3764,7 @@ static void qdisc_pkt_len_init(struct sk_buff *skb)
 						sizeof(_tcphdr), &_tcphdr);
 			if (likely(th))
 				hdr_len += __tcp_hdrlen(th);
-		} else {
+		} else if (shinfo->gso_type & SKB_GSO_UDP_L4) {
 			struct udphdr _udphdr;
 
 			if (skb_header_pointer(skb, hdr_len,
@@ -3758,10 +3772,14 @@ static void qdisc_pkt_len_init(struct sk_buff *skb)
 				hdr_len += sizeof(struct udphdr);
 		}
 
-		if (shinfo->gso_type & SKB_GSO_DODGY)
-			gso_segs = DIV_ROUND_UP(skb->len - hdr_len,
-						shinfo->gso_size);
+		if (unlikely(shinfo->gso_type & SKB_GSO_DODGY)) {
+			int payload = skb->len - hdr_len;
 
+			/* Malicious packet. */
+			if (payload <= 0)
+				return;
+			gso_segs = DIV_ROUND_UP(payload, shinfo->gso_size);
+		}
 		qdisc_skb_cb(skb)->pkt_len += (gso_segs - 1) * hdr_len;
 	}
 }
@@ -4244,13 +4262,6 @@ u16 dev_pick_tx_zero(struct net_device *dev, struct sk_buff *skb,
 	return 0;
 }
 EXPORT_SYMBOL(dev_pick_tx_zero);
-
-u16 dev_pick_tx_cpu_id(struct net_device *dev, struct sk_buff *skb,
-		       struct net_device *sb_dev)
-{
-	return (u16)raw_smp_processor_id() % dev->real_num_tx_queues;
-}
-EXPORT_SYMBOL(dev_pick_tx_cpu_id);
 
 u16 netdev_pick_tx(struct net_device *dev, struct sk_buff *skb,
 		     struct net_device *sb_dev)
@@ -5248,7 +5259,7 @@ int netif_rx(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(netif_rx);
 
-static __latent_entropy void net_tx_action(struct softirq_action *h)
+static __latent_entropy void net_tx_action(void)
 {
 	struct softnet_data *sd = this_cpu_ptr(&softnet_data);
 
@@ -5725,10 +5736,9 @@ static void __netif_receive_skb_list_core(struct list_head *head, bool pfmemallo
 	struct packet_type *pt_curr = NULL;
 	/* Current (common) orig_dev of sublist */
 	struct net_device *od_curr = NULL;
-	struct list_head sublist;
 	struct sk_buff *skb, *next;
+	LIST_HEAD(sublist);
 
-	INIT_LIST_HEAD(&sublist);
 	list_for_each_entry_safe(skb, next, head, list) {
 		struct net_device *orig_dev = skb->dev;
 		struct packet_type *pt_prev = NULL;
@@ -5866,9 +5876,8 @@ static int netif_receive_skb_internal(struct sk_buff *skb)
 void netif_receive_skb_list_internal(struct list_head *head)
 {
 	struct sk_buff *skb, *next;
-	struct list_head sublist;
+	LIST_HEAD(sublist);
 
-	INIT_LIST_HEAD(&sublist);
 	list_for_each_entry_safe(skb, next, head, list) {
 		net_timestamp_check(READ_ONCE(net_hotdata.tstamp_prequeue),
 				    skb);
@@ -6227,12 +6236,12 @@ bool napi_complete_done(struct napi_struct *n, int work_done)
 
 	if (work_done) {
 		if (n->gro_bitmask)
-			timeout = READ_ONCE(n->dev->gro_flush_timeout);
-		n->defer_hard_irqs_count = READ_ONCE(n->dev->napi_defer_hard_irqs);
+			timeout = napi_get_gro_flush_timeout(n);
+		n->defer_hard_irqs_count = napi_get_defer_hard_irqs(n);
 	}
 	if (n->defer_hard_irqs_count > 0) {
 		n->defer_hard_irqs_count--;
-		timeout = READ_ONCE(n->dev->gro_flush_timeout);
+		timeout = napi_get_gro_flush_timeout(n);
 		if (timeout)
 			ret = false;
 	}
@@ -6366,8 +6375,8 @@ static void busy_poll_stop(struct napi_struct *napi, void *have_poll_lock,
 	bpf_net_ctx = bpf_net_ctx_set(&__bpf_net_ctx);
 
 	if (flags & NAPI_F_PREFER_BUSY_POLL) {
-		napi->defer_hard_irqs_count = READ_ONCE(napi->dev->napi_defer_hard_irqs);
-		timeout = READ_ONCE(napi->dev->gro_flush_timeout);
+		napi->defer_hard_irqs_count = napi_get_defer_hard_irqs(napi);
+		timeout = napi_get_gro_flush_timeout(napi);
 		if (napi->defer_hard_irqs_count && timeout) {
 			hrtimer_start(&napi->timer, ns_to_ktime(timeout), HRTIMER_MODE_REL_PINNED);
 			skip_schedule = true;
@@ -6498,26 +6507,82 @@ void napi_busy_loop(unsigned int napi_id,
 }
 EXPORT_SYMBOL(napi_busy_loop);
 
+void napi_suspend_irqs(unsigned int napi_id)
+{
+	struct napi_struct *napi;
+
+	rcu_read_lock();
+	napi = napi_by_id(napi_id);
+	if (napi) {
+		unsigned long timeout = napi_get_irq_suspend_timeout(napi);
+
+		if (timeout)
+			hrtimer_start(&napi->timer, ns_to_ktime(timeout),
+				      HRTIMER_MODE_REL_PINNED);
+	}
+	rcu_read_unlock();
+}
+
+void napi_resume_irqs(unsigned int napi_id)
+{
+	struct napi_struct *napi;
+
+	rcu_read_lock();
+	napi = napi_by_id(napi_id);
+	if (napi) {
+		/* If irq_suspend_timeout is set to 0 between the call to
+		 * napi_suspend_irqs and now, the original value still
+		 * determines the safety timeout as intended and napi_watchdog
+		 * will resume irq processing.
+		 */
+		if (napi_get_irq_suspend_timeout(napi)) {
+			local_bh_disable();
+			napi_schedule(napi);
+			local_bh_enable();
+		}
+	}
+	rcu_read_unlock();
+}
+
 #endif /* CONFIG_NET_RX_BUSY_POLL */
+
+static void __napi_hash_add_with_id(struct napi_struct *napi,
+				    unsigned int napi_id)
+{
+	napi->napi_id = napi_id;
+	hlist_add_head_rcu(&napi->napi_hash_node,
+			   &napi_hash[napi->napi_id % HASH_SIZE(napi_hash)]);
+}
+
+static void napi_hash_add_with_id(struct napi_struct *napi,
+				  unsigned int napi_id)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&napi_hash_lock, flags);
+	WARN_ON_ONCE(napi_by_id(napi_id));
+	__napi_hash_add_with_id(napi, napi_id);
+	spin_unlock_irqrestore(&napi_hash_lock, flags);
+}
 
 static void napi_hash_add(struct napi_struct *napi)
 {
+	unsigned long flags;
+
 	if (test_bit(NAPI_STATE_NO_BUSY_POLL, &napi->state))
 		return;
 
-	spin_lock(&napi_hash_lock);
+	spin_lock_irqsave(&napi_hash_lock, flags);
 
 	/* 0..NR_CPUS range is reserved for sender_cpu use */
 	do {
 		if (unlikely(++napi_gen_id < MIN_NAPI_ID))
 			napi_gen_id = MIN_NAPI_ID;
 	} while (napi_by_id(napi_gen_id));
-	napi->napi_id = napi_gen_id;
 
-	hlist_add_head_rcu(&napi->napi_hash_node,
-			   &napi_hash[napi->napi_id % HASH_SIZE(napi_hash)]);
+	__napi_hash_add_with_id(napi, napi_gen_id);
 
-	spin_unlock(&napi_hash_lock);
+	spin_unlock_irqrestore(&napi_hash_lock, flags);
 }
 
 /* Warning : caller is responsible to make sure rcu grace period
@@ -6525,11 +6590,13 @@ static void napi_hash_add(struct napi_struct *napi)
  */
 static void napi_hash_del(struct napi_struct *napi)
 {
-	spin_lock(&napi_hash_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&napi_hash_lock, flags);
 
 	hlist_del_init_rcu(&napi->napi_hash_node);
 
-	spin_unlock(&napi_hash_lock);
+	spin_unlock_irqrestore(&napi_hash_lock, flags);
 }
 
 static enum hrtimer_restart napi_watchdog(struct hrtimer *timer)
@@ -6638,6 +6705,30 @@ void netif_queue_set_napi(struct net_device *dev, unsigned int queue_index,
 }
 EXPORT_SYMBOL(netif_queue_set_napi);
 
+static void napi_restore_config(struct napi_struct *n)
+{
+	n->defer_hard_irqs = n->config->defer_hard_irqs;
+	n->gro_flush_timeout = n->config->gro_flush_timeout;
+	n->irq_suspend_timeout = n->config->irq_suspend_timeout;
+	/* a NAPI ID might be stored in the config, if so use it. if not, use
+	 * napi_hash_add to generate one for us. It will be saved to the config
+	 * in napi_disable.
+	 */
+	if (n->config->napi_id)
+		napi_hash_add_with_id(n, n->config->napi_id);
+	else
+		napi_hash_add(n);
+}
+
+static void napi_save_config(struct napi_struct *n)
+{
+	n->config->defer_hard_irqs = n->defer_hard_irqs;
+	n->config->gro_flush_timeout = n->gro_flush_timeout;
+	n->config->irq_suspend_timeout = n->irq_suspend_timeout;
+	n->config->napi_id = n->napi_id;
+	napi_hash_del(n);
+}
+
 void netif_napi_add_weight(struct net_device *dev, struct napi_struct *napi,
 			   int (*poll)(struct napi_struct *, int), int weight)
 {
@@ -6665,7 +6756,13 @@ void netif_napi_add_weight(struct net_device *dev, struct napi_struct *napi,
 	set_bit(NAPI_STATE_SCHED, &napi->state);
 	set_bit(NAPI_STATE_NPSVC, &napi->state);
 	list_add_rcu(&napi->dev_list, &dev->napi_list);
-	napi_hash_add(napi);
+
+	/* default settings from sysfs are applied to all NAPIs. any per-NAPI
+	 * configuration will be loaded in napi_enable
+	 */
+	napi_set_defer_hard_irqs(napi, READ_ONCE(dev->napi_defer_hard_irqs));
+	napi_set_gro_flush_timeout(napi, READ_ONCE(dev->gro_flush_timeout));
+
 	napi_get_frags_check(napi);
 	/* Create kthread for this napi if dev->threaded is set.
 	 * Clear dev->threaded if kthread creation failed so that
@@ -6697,6 +6794,11 @@ void napi_disable(struct napi_struct *n)
 
 	hrtimer_cancel(&n->timer);
 
+	if (n->config)
+		napi_save_config(n);
+	else
+		napi_hash_del(n);
+
 	clear_bit(NAPI_STATE_DISABLE, &n->state);
 }
 EXPORT_SYMBOL(napi_disable);
@@ -6711,6 +6813,11 @@ EXPORT_SYMBOL(napi_disable);
 void napi_enable(struct napi_struct *n)
 {
 	unsigned long new, val = READ_ONCE(n->state);
+
+	if (n->config)
+		napi_restore_config(n);
+	else
+		napi_hash_add(n);
 
 	do {
 		BUG_ON(!test_bit(NAPI_STATE_SCHED, &val));
@@ -6741,7 +6848,11 @@ void __netif_napi_del(struct napi_struct *napi)
 	if (!test_and_clear_bit(NAPI_STATE_LISTED, &napi->state))
 		return;
 
-	napi_hash_del(napi);
+	if (napi->config) {
+		napi->index = -1;
+		napi->config = NULL;
+	}
+
 	list_del_rcu(&napi->dev_list);
 	napi_free_frags(napi);
 
@@ -6921,7 +7032,7 @@ static int napi_threaded_poll(void *data)
 	return 0;
 }
 
-static __latent_entropy void net_rx_action(struct softirq_action *h)
+static __latent_entropy void net_rx_action(void)
 {
 	struct softnet_data *sd = this_cpu_ptr(&softnet_data);
 	unsigned long time_limit = jiffies +
@@ -9272,7 +9383,7 @@ EXPORT_SYMBOL(netdev_port_same_parent_id);
  */
 int dev_change_proto_down(struct net_device *dev, bool proto_down)
 {
-	if (!(dev->priv_flags & IFF_CHANGE_PROTO_DOWN))
+	if (!dev->change_proto_down)
 		return -EOPNOTSUPP;
 	if (!netif_device_present(dev))
 		return -ENODEV;
@@ -9369,6 +9480,20 @@ u8 dev_xdp_prog_count(struct net_device *dev)
 }
 EXPORT_SYMBOL_GPL(dev_xdp_prog_count);
 
+int dev_xdp_propagate(struct net_device *dev, struct netdev_bpf *bpf)
+{
+	if (!dev->netdev_ops->ndo_bpf)
+		return -EOPNOTSUPP;
+
+	if (dev_get_min_mp_channel_count(dev)) {
+		NL_SET_ERR_MSG(bpf->extack, "unable to propagate XDP to device using memory provider");
+		return -EBUSY;
+	}
+
+	return dev->netdev_ops->ndo_bpf(dev, bpf);
+}
+EXPORT_SYMBOL_GPL(dev_xdp_propagate);
+
 u32 dev_xdp_prog_id(struct net_device *dev, enum bpf_xdp_mode mode)
 {
 	struct bpf_prog *prog = dev_xdp_prog(dev, mode);
@@ -9396,6 +9521,11 @@ static int dev_xdp_install(struct net_device *dev, enum bpf_xdp_mode mode,
 {
 	struct netdev_bpf xdp;
 	int err;
+
+	if (dev_get_min_mp_channel_count(dev)) {
+		NL_SET_ERR_MSG(extack, "unable to install XDP to device using memory provider");
+		return -EBUSY;
+	}
 
 	memset(&xdp, 0, sizeof(xdp));
 	xdp.command = mode == XDP_MODE_HW ? XDP_SETUP_PROG_HW : XDP_SETUP_PROG;
@@ -9819,6 +9949,20 @@ err_out:
 	if (old_prog)
 		bpf_prog_put(old_prog);
 	return err;
+}
+
+u32 dev_get_min_mp_channel_count(const struct net_device *dev)
+{
+	int i;
+
+	ASSERT_RTNL();
+
+	for (i = dev->real_num_rx_queues - 1; i >= 0; i--)
+		if (dev->_rx[i].mp_params.mp_priv)
+			/* The channel count is the idx plus 1. */
+			return i + 1;
+
+	return 0;
 }
 
 /**
@@ -10318,6 +10462,17 @@ static void netdev_do_free_pcpu_stats(struct net_device *dev)
 	case NETDEV_PCPU_STAT_DSTATS:
 		free_percpu(dev->dstats);
 		break;
+	}
+}
+
+static void netdev_free_phy_link_topology(struct net_device *dev)
+{
+	struct phy_link_topology *topo = dev->link_topo;
+
+	if (IS_ENABLED(CONFIG_PHYLIB) && topo) {
+		xa_destroy(&topo->phys);
+		kfree(topo);
+		dev->link_topo = NULL;
 	}
 }
 
@@ -10868,7 +11023,7 @@ noinline void netdev_core_stats_inc(struct net_device *dev, u32 offset)
 			return;
 	}
 
-	field = (__force unsigned long __percpu *)((__force void *)p + offset);
+	field = (unsigned long __percpu *)((void __percpu *)p + offset);
 	this_cpu_inc(*field);
 }
 EXPORT_SYMBOL_GPL(netdev_core_stats_inc);
@@ -11009,8 +11164,8 @@ void netdev_sw_irq_coalesce_default_on(struct net_device *dev)
 	WARN_ON(dev->reg_state == NETREG_REGISTERED);
 
 	if (!IS_ENABLED(CONFIG_PREEMPT_RT)) {
-		dev->gro_flush_timeout = 20000;
-		dev->napi_defer_hard_irqs = 1;
+		netdev_set_gro_flush_timeout(dev, 20000);
+		netdev_set_defer_hard_irqs(dev, 1);
 	}
 }
 EXPORT_SYMBOL_GPL(netdev_sw_irq_coalesce_default_on);
@@ -11034,6 +11189,8 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 		unsigned int txqs, unsigned int rxqs)
 {
 	struct net_device *dev;
+	size_t napi_config_sz;
+	unsigned int maxqs;
 
 	BUG_ON(strlen(name) >= sizeof(dev->name));
 
@@ -11046,6 +11203,8 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 		pr_err("alloc_netdev: Unable to allocate device with zero RX queues\n");
 		return NULL;
 	}
+
+	maxqs = max(txqs, rxqs);
 
 	dev = kvzalloc(struct_size(dev, priv, sizeof_priv),
 		       GFP_KERNEL_ACCOUNT | __GFP_RETRY_MAYFAIL);
@@ -11099,6 +11258,9 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 #ifdef CONFIG_NET_SCHED
 	hash_init(dev->qdisc_hash);
 #endif
+
+	mutex_init(&dev->lock);
+
 	dev->priv_flags = IFF_XMIT_DST_RELEASE | IFF_XMIT_DST_RELEASE_PERM;
 	setup(dev);
 
@@ -11120,7 +11282,12 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 	if (!dev->ethtool)
 		goto free_all;
 
-	strcpy(dev->name, name);
+	napi_config_sz = array_size(maxqs, sizeof(*dev->napi_config));
+	dev->napi_config = kvzalloc(napi_config_sz, GFP_KERNEL_ACCOUNT);
+	if (!dev->napi_config)
+		goto free_all;
+
+	strscpy(dev->name, name);
 	dev->name_assign_type = name_assign_type;
 	dev->group = INIT_NETDEV_GROUP;
 	if (!dev->ethtool_ops)
@@ -11169,6 +11336,8 @@ void free_netdev(struct net_device *dev)
 		return;
 	}
 
+	mutex_destroy(&dev->lock);
+
 	kfree(dev->ethtool);
 	netif_free_tx_queues(dev);
 	netif_free_rx_queues(dev);
@@ -11181,6 +11350,8 @@ void free_netdev(struct net_device *dev)
 	list_for_each_entry_safe(p, n, &dev->napi_list, dev_list)
 		netif_napi_del(p);
 
+	kvfree(dev->napi_config);
+
 	ref_tracker_dir_exit(&dev->refcnt_tracker);
 #ifdef CONFIG_PCPU_DEV_REFCNT
 	free_percpu(dev->pcpu_refcnt);
@@ -11190,6 +11361,8 @@ void free_netdev(struct net_device *dev)
 	dev->core_stats = NULL;
 	free_percpu(dev->xdp_bulkq);
 	dev->xdp_bulkq = NULL;
+
+	netdev_free_phy_link_topology(dev);
 
 	/*  Compatibility with error handling in drivers */
 	if (dev->reg_state == NETREG_UNINITIALIZED ||
@@ -11343,6 +11516,7 @@ void unregister_netdevice_many_notify(struct list_head *head,
 		dev_tcx_uninstall(dev);
 		dev_xdp_uninstall(dev);
 		bpf_dev_bound_netdev_unregister(dev);
+		dev_dmabuf_uninstall(dev);
 
 		netdev_offload_xstats_disable_all(dev);
 
@@ -11374,6 +11548,8 @@ void unregister_netdevice_many_notify(struct list_head *head,
 			dev->netdev_ops->ndo_uninit(dev);
 
 		mutex_destroy(&dev->ethtool->rss_lock);
+
+		net_shaper_flush_netdev(dev);
 
 		if (skb)
 			rtmsg_ifinfo_send(skb, dev, GFP_KERNEL, portid, nlh);
@@ -11407,7 +11583,7 @@ void unregister_netdevice_many_notify(struct list_head *head,
  *	@head: list of devices
  *
  *  Note: As most callers use a stack allocated list_head,
- *  we force a list_del() to make sure stack wont be corrupted later.
+ *  we force a list_del() to make sure stack won't be corrupted later.
  */
 void unregister_netdevice_many(struct list_head *head)
 {
@@ -11462,10 +11638,10 @@ int __dev_change_net_namespace(struct net_device *dev, struct net *net,
 
 	/* Don't allow namespace local devices to be moved. */
 	err = -EINVAL;
-	if (dev->features & NETIF_F_NETNS_LOCAL)
+	if (dev->netns_local)
 		goto out;
 
-	/* Ensure the device has been registrered */
+	/* Ensure the device has been registered */
 	if (dev->reg_state != NETREG_REGISTERED)
 		goto out;
 
@@ -11844,7 +12020,7 @@ static void __net_exit default_device_exit_net(struct net *net)
 		char fb_name[IFNAMSIZ];
 
 		/* Ignore unmoveable devices (i.e. loopback) */
-		if (dev->features & NETIF_F_NETNS_LOCAL)
+		if (dev->netns_local)
 			continue;
 
 		/* Leave virtual devices for the generic cleanup */
@@ -11905,7 +12081,7 @@ static struct pernet_operations __net_initdata default_device_ops = {
 static void __init net_dev_struct_check(void)
 {
 	/* TX read-mostly hotpath */
-	CACHELINE_ASSERT_GROUP_MEMBER(struct net_device, net_device_read_tx, priv_flags);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct net_device, net_device_read_tx, priv_flags_fast);
 	CACHELINE_ASSERT_GROUP_MEMBER(struct net_device, net_device_read_tx, netdev_ops);
 	CACHELINE_ASSERT_GROUP_MEMBER(struct net_device, net_device_read_tx, header_ops);
 	CACHELINE_ASSERT_GROUP_MEMBER(struct net_device, net_device_read_tx, _tx);
@@ -11943,8 +12119,6 @@ static void __init net_dev_struct_check(void)
 	CACHELINE_ASSERT_GROUP_MEMBER(struct net_device, net_device_read_rx, ifindex);
 	CACHELINE_ASSERT_GROUP_MEMBER(struct net_device, net_device_read_rx, real_num_rx_queues);
 	CACHELINE_ASSERT_GROUP_MEMBER(struct net_device, net_device_read_rx, _rx);
-	CACHELINE_ASSERT_GROUP_MEMBER(struct net_device, net_device_read_rx, gro_flush_timeout);
-	CACHELINE_ASSERT_GROUP_MEMBER(struct net_device, net_device_read_rx, napi_defer_hard_irqs);
 	CACHELINE_ASSERT_GROUP_MEMBER(struct net_device, net_device_read_rx, gro_max_size);
 	CACHELINE_ASSERT_GROUP_MEMBER(struct net_device, net_device_read_rx, gro_ipv4_max_size);
 	CACHELINE_ASSERT_GROUP_MEMBER(struct net_device, net_device_read_rx, rx_handler);
@@ -11956,7 +12130,7 @@ static void __init net_dev_struct_check(void)
 #ifdef CONFIG_NET_XGRESS
 	CACHELINE_ASSERT_GROUP_MEMBER(struct net_device, net_device_read_rx, tcx_ingress);
 #endif
-	CACHELINE_ASSERT_GROUP_SIZE(struct net_device, net_device_read_rx, 104);
+	CACHELINE_ASSERT_GROUP_SIZE(struct net_device, net_device_read_rx, 92);
 }
 
 /*

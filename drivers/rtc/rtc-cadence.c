@@ -402,7 +402,7 @@ static struct platform_driver cdns_rtc_driver = {
 		.pm = &cdns_rtc_pm_ops,
 	},
 	.probe = cdns_rtc_probe,
-	.remove_new = cdns_rtc_remove,
+	.remove = cdns_rtc_remove,
 };
 module_platform_driver(cdns_rtc_driver);
 

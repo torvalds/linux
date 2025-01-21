@@ -412,7 +412,7 @@ enum wq_flags {
 };
 
 enum wq_consts {
-	WQ_MAX_ACTIVE		= 512,	  /* I like 512, better ideas? */
+	WQ_MAX_ACTIVE		= 2048,	  /* I like 2048, better ideas? */
 	WQ_UNBOUND_MAX_ACTIVE	= WQ_MAX_ACTIVE,
 	WQ_DFL_ACTIVE		= WQ_MAX_ACTIVE / 2,
 
@@ -506,6 +506,47 @@ void workqueue_softirq_dead(unsigned int cpu);
  */
 __printf(1, 4) struct workqueue_struct *
 alloc_workqueue(const char *fmt, unsigned int flags, int max_active, ...);
+
+#ifdef CONFIG_LOCKDEP
+/**
+ * alloc_workqueue_lockdep_map - allocate a workqueue with user-defined lockdep_map
+ * @fmt: printf format for the name of the workqueue
+ * @flags: WQ_* flags
+ * @max_active: max in-flight work items, 0 for default
+ * @lockdep_map: user-defined lockdep_map
+ * @...: args for @fmt
+ *
+ * Same as alloc_workqueue but with the a user-define lockdep_map. Useful for
+ * workqueues created with the same purpose and to avoid leaking a lockdep_map
+ * on each workqueue creation.
+ *
+ * RETURNS:
+ * Pointer to the allocated workqueue on success, %NULL on failure.
+ */
+__printf(1, 5) struct workqueue_struct *
+alloc_workqueue_lockdep_map(const char *fmt, unsigned int flags, int max_active,
+			    struct lockdep_map *lockdep_map, ...);
+
+/**
+ * alloc_ordered_workqueue_lockdep_map - allocate an ordered workqueue with
+ * user-defined lockdep_map
+ *
+ * @fmt: printf format for the name of the workqueue
+ * @flags: WQ_* flags (only WQ_FREEZABLE and WQ_MEM_RECLAIM are meaningful)
+ * @lockdep_map: user-defined lockdep_map
+ * @args: args for @fmt
+ *
+ * Same as alloc_ordered_workqueue but with the a user-define lockdep_map.
+ * Useful for workqueues created with the same purpose and to avoid leaking a
+ * lockdep_map on each workqueue creation.
+ *
+ * RETURNS:
+ * Pointer to the allocated workqueue on success, %NULL on failure.
+ */
+#define alloc_ordered_workqueue_lockdep_map(fmt, flags, lockdep_map, args...)	\
+	alloc_workqueue_lockdep_map(fmt, WQ_UNBOUND | __WQ_ORDERED | (flags),	\
+				    1, lockdep_map, ##args)
+#endif
 
 /**
  * alloc_ordered_workqueue - allocate an ordered workqueue

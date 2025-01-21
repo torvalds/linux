@@ -659,7 +659,8 @@ nfs4_reset_recoverydir(char *recdir)
 		return status;
 	status = -ENOTDIR;
 	if (d_is_dir(path.dentry)) {
-		strcpy(user_recovery_dirname, recdir);
+		strscpy(user_recovery_dirname, recdir,
+			sizeof(user_recovery_dirname));
 		status = 0;
 	}
 	path_put(&path);
@@ -809,6 +810,10 @@ __cld_pipe_inprogress_downcall(const struct cld_msg_v2 __user *cmsg,
 			ci = &cmsg->cm_u.cm_clntinfo;
 			if (get_user(namelen, &ci->cc_name.cn_len))
 				return -EFAULT;
+			if (namelen == 0 || namelen > NFS4_OPAQUE_LIMIT) {
+				dprintk("%s: invalid namelen (%u)", __func__, namelen);
+				return -EINVAL;
+			}
 			name.data = memdup_user(&ci->cc_name.cn_id, namelen);
 			if (IS_ERR(name.data))
 				return PTR_ERR(name.data);
@@ -831,6 +836,10 @@ __cld_pipe_inprogress_downcall(const struct cld_msg_v2 __user *cmsg,
 			cnm = &cmsg->cm_u.cm_name;
 			if (get_user(namelen, &cnm->cn_len))
 				return -EFAULT;
+			if (namelen == 0 || namelen > NFS4_OPAQUE_LIMIT) {
+				dprintk("%s: invalid namelen (%u)", __func__, namelen);
+				return -EINVAL;
+			}
 			name.data = memdup_user(&cnm->cn_id, namelen);
 			if (IS_ERR(name.data))
 				return PTR_ERR(name.data);
@@ -1895,10 +1904,7 @@ nfsd4_cltrack_upcall_lock(struct nfs4_client *clp)
 static void
 nfsd4_cltrack_upcall_unlock(struct nfs4_client *clp)
 {
-	smp_mb__before_atomic();
-	clear_bit(NFSD4_CLIENT_UPCALL_LOCK, &clp->cl_flags);
-	smp_mb__after_atomic();
-	wake_up_bit(&clp->cl_flags, NFSD4_CLIENT_UPCALL_LOCK);
+	clear_and_wake_up_bit(NFSD4_CLIENT_UPCALL_LOCK, &clp->cl_flags);
 }
 
 static void

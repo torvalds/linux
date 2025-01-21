@@ -93,13 +93,9 @@ static int __init ingenic_ost_probe(struct platform_device *pdev)
 		return PTR_ERR(map);
 	}
 
-	ost->clk = devm_clk_get(dev, "ost");
+	ost->clk = devm_clk_get_enabled(dev, "ost");
 	if (IS_ERR(ost->clk))
 		return PTR_ERR(ost->clk);
-
-	err = clk_prepare_enable(ost->clk);
-	if (err)
-		return err;
 
 	/* Clear counter high/low registers */
 	if (soc_info->is64bit)
@@ -129,7 +125,6 @@ static int __init ingenic_ost_probe(struct platform_device *pdev)
 	err = clocksource_register_hz(cs, rate);
 	if (err) {
 		dev_err(dev, "clocksource registration failed");
-		clk_disable_unprepare(ost->clk);
 		return err;
 	}
 

@@ -19,7 +19,7 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "aux.h"
+#include "auxch.h"
 
 static const struct nvkm_i2c_aux_func
 gf119_i2c_aux = {

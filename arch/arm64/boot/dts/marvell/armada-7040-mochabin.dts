@@ -433,13 +433,11 @@
 	/* 7 + 12 SATA connector (J24) */
 	sata-port@0 {
 		phys = <&cp0_comphy2 0>;
-		phy-names = "cp0-sata0-0-phy";
 	};
 
 	/* M.2-2250 B-key (J39) */
 	sata-port@1 {
 		phys = <&cp0_comphy3 1>;
-		phy-names = "cp0-sata0-1-phy";
 	};
 };
 

@@ -729,8 +729,6 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	bool last_subframe =
 		desc->amsdu_info & IWL_RX_MPDU_AMSDU_LAST_SUBFRAME;
 	u8 tid = ieee80211_get_tid(hdr);
-	u8 sub_frame_idx = desc->amsdu_info &
-			   IWL_RX_MPDU_AMSDU_SUBFRAME_IDX_MASK;
 	struct iwl_mvm_reorder_buf_entry *entries;
 	u32 sta_mask;
 	int index;
@@ -775,9 +773,7 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 		return false;
 	}
 
-	rcu_read_lock();
 	sta_mask = iwl_mvm_sta_fw_id_mask(mvm, sta, -1);
-	rcu_read_unlock();
 
 	if (IWL_FW_CHECK(mvm,
 			 tid != baid_data->tid ||
@@ -816,7 +812,7 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	if (!buffer->num_stored && ieee80211_sn_less(sn, nssn)) {
 		if (!amsdu || last_subframe)
 			buffer->head_sn = nssn;
-		/* No need to update AMSDU last SN - we are moving the head */
+
 		spin_unlock_bh(&buffer->lock);
 		return false;
 	}
@@ -833,7 +829,6 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 		if (!amsdu || last_subframe)
 			buffer->head_sn = ieee80211_sn_inc(buffer->head_sn);
 
-		/* No need to update AMSDU last SN - we are moving the head */
 		spin_unlock_bh(&buffer->lock);
 		return false;
 	}
@@ -842,11 +837,6 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	index = sn % baid_data->buf_size;
 	__skb_queue_tail(&entries[index].frames, skb);
 	buffer->num_stored++;
-
-	if (amsdu) {
-		buffer->last_amsdu = sn;
-		buffer->last_sub_index = sub_frame_idx;
-	}
 
 	/*
 	 * We cannot trust NSSN for AMSDU sub-frames that are not the last.
@@ -2542,7 +2532,7 @@ void iwl_mvm_rx_bar_frame_release(struct iwl_mvm *mvm, struct napi_struct *napi,
 		goto out;
 	}
 
-	if (WARN(tid != baid_data->tid || sta_id > IWL_MVM_STATION_COUNT_MAX ||
+	if (WARN(tid != baid_data->tid || sta_id > IWL_STATION_COUNT_MAX ||
 		 !(baid_data->sta_mask & BIT(sta_id)),
 		 "baid 0x%x is mapped to sta_mask:0x%x tid:%d, but BAR release received for sta:%d tid:%d\n",
 		 baid, baid_data->sta_mask, baid_data->tid, sta_id,

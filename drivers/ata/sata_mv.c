@@ -4255,7 +4255,7 @@ MODULE_DEVICE_TABLE(of, mv_sata_dt_ids);
 
 static struct platform_driver mv_platform_driver = {
 	.probe		= mv_platform_probe,
-	.remove_new	= mv_platform_remove,
+	.remove		= mv_platform_remove,
 	.suspend	= mv_platform_suspend,
 	.resume		= mv_platform_resume,
 	.driver		= {

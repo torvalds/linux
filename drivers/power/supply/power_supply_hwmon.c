@@ -7,6 +7,7 @@
 #include <linux/hwmon.h>
 #include <linux/power_supply.h>
 #include <linux/slab.h>
+#include "power_supply.h"
 
 struct power_supply_hwmon {
 	struct power_supply *psy;
@@ -318,7 +319,8 @@ static const struct hwmon_channel_info * const power_supply_hwmon_info[] = {
 			   HWMON_T_INPUT     |
 			   HWMON_T_MAX       |
 			   HWMON_T_MIN       |
-			   HWMON_T_MIN_ALARM,
+			   HWMON_T_MIN_ALARM |
+			   HWMON_T_MAX_ALARM,
 
 			   HWMON_T_LABEL     |
 			   HWMON_T_INPUT     |

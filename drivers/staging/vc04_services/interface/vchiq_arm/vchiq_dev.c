@@ -288,7 +288,7 @@ static int vchiq_irq_queue_bulk_tx_rx(struct vchiq_instance *instance,
 {
 	struct vchiq_service *service;
 	struct bulk_waiter_node *waiter = NULL, *iter;
-	void *userdata;
+	struct vchiq_bulk bulk_params = {};
 	int status = 0;
 	int ret;
 
@@ -303,7 +303,14 @@ static int vchiq_irq_queue_bulk_tx_rx(struct vchiq_instance *instance,
 			goto out;
 		}
 
-		userdata = &waiter->bulk_waiter;
+		bulk_params.uoffset = args->data;
+		bulk_params.mode = args->mode;
+		bulk_params.size = args->size;
+		bulk_params.dir = dir;
+		bulk_params.waiter = &waiter->bulk_waiter;
+
+		status = vchiq_bulk_xfer_blocking(instance, args->handle,
+						  &bulk_params);
 	} else if (args->mode == VCHIQ_BULK_MODE_WAITING) {
 		mutex_lock(&instance->bulk_waiter_list_mutex);
 		list_for_each_entry(iter, &instance->bulk_waiter_list,
@@ -323,13 +330,19 @@ static int vchiq_irq_queue_bulk_tx_rx(struct vchiq_instance *instance,
 		}
 		dev_dbg(service->state->dev, "arm: found bulk_waiter %pK for pid %d\n",
 			waiter, current->pid);
-		userdata = &waiter->bulk_waiter;
-	} else {
-		userdata = args->userdata;
-	}
 
-	status = vchiq_bulk_transfer(instance, args->handle, NULL, args->data, args->size,
-				     userdata, args->mode, dir);
+		status = vchiq_bulk_xfer_waiting(instance, args->handle,
+						 &waiter->bulk_waiter);
+	} else {
+		bulk_params.uoffset = args->data;
+		bulk_params.mode = args->mode;
+		bulk_params.size = args->size;
+		bulk_params.dir = dir;
+		bulk_params.cb_userdata = args->userdata;
+
+		status = vchiq_bulk_xfer_callback(instance, args->handle,
+						  &bulk_params);
+	}
 
 	if (!waiter) {
 		ret = 0;
@@ -341,7 +354,7 @@ static int vchiq_irq_queue_bulk_tx_rx(struct vchiq_instance *instance,
 		if (waiter->bulk_waiter.bulk) {
 			/* Cancel the signal when the transfer completes. */
 			spin_lock(&service->state->bulk_waiter_spinlock);
-			waiter->bulk_waiter.bulk->userdata = NULL;
+			waiter->bulk_waiter.bulk->waiter = NULL;
 			spin_unlock(&service->state->bulk_waiter_spinlock);
 		}
 		kfree(waiter);
@@ -401,7 +414,7 @@ struct vchiq_completion_data32 {
 	enum vchiq_reason reason;
 	compat_uptr_t header;
 	compat_uptr_t service_userdata;
-	compat_uptr_t bulk_userdata;
+	compat_uptr_t cb_data;
 };
 
 static int vchiq_put_completion(struct vchiq_completion_data __user *buf,
@@ -415,7 +428,7 @@ static int vchiq_put_completion(struct vchiq_completion_data __user *buf,
 			.reason		  = completion->reason,
 			.header		  = ptr_to_compat(completion->header),
 			.service_userdata = ptr_to_compat(completion->service_userdata),
-			.bulk_userdata	  = ptr_to_compat(completion->bulk_userdata),
+			.cb_data	  = ptr_to_compat(completion->cb_userdata),
 		};
 		if (copy_to_user(&buf32[index], &tmp, sizeof(tmp)))
 			return -EFAULT;
@@ -536,11 +549,7 @@ static int vchiq_ioc_await_completion(struct vchiq_instance *instance,
 		    !instance->use_close_delivered)
 			vchiq_service_put(service);
 
-		/*
-		 * FIXME: address space mismatch, does bulk_userdata
-		 * actually point to user or kernel memory?
-		 */
-		user_completion.bulk_userdata = completion->bulk_userdata;
+		user_completion.cb_userdata = completion->cb_userdata;
 
 		if (vchiq_put_completion(args->buf, &user_completion, ret)) {
 			if (ret == 0)

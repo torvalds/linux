@@ -142,7 +142,7 @@ MODULE_DEVICE_TABLE(of, clk_pwm_dt_ids);
 
 static struct platform_driver clk_pwm_driver = {
 	.probe = clk_pwm_probe,
-	.remove_new = clk_pwm_remove,
+	.remove = clk_pwm_remove,
 	.driver = {
 		.name = "pwm-clock",
 		.of_match_table = clk_pwm_dt_ids,

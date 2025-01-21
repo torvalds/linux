@@ -29,8 +29,10 @@ enum loongson2_clk_type {
 struct loongson2_clk_provider {
 	void __iomem *base;
 	struct device *dev;
-	struct clk_hw_onecell_data clk_data;
 	spinlock_t clk_lock;	/* protect access to DIV registers */
+
+	/* Must be last --ends in a flexible-array member. */
+	struct clk_hw_onecell_data clk_data;
 };
 
 struct loongson2_clk_data {
@@ -304,7 +306,7 @@ static int loongson2_clk_probe(struct platform_device *pdev)
 		return PTR_ERR(clp->base);
 
 	spin_lock_init(&clp->clk_lock);
-	clp->clk_data.num = clks_num + 1;
+	clp->clk_data.num = clks_num;
 	clp->dev = dev;
 
 	for (i = 0; i < clks_num; i++) {

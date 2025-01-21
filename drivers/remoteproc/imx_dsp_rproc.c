@@ -509,7 +509,7 @@ static int imx_dsp_rproc_mbox_alloc(struct imx_dsp_rproc *priv)
 	struct mbox_client *cl;
 	int ret;
 
-	if (!of_get_property(dev->of_node, "mbox-names", NULL))
+	if (!of_property_present(dev->of_node, "mbox-names"))
 		return 0;
 
 	cl = &priv->cl;
@@ -1258,7 +1258,7 @@ MODULE_DEVICE_TABLE(of, imx_dsp_rproc_of_match);
 
 static struct platform_driver imx_dsp_rproc_driver = {
 	.probe = imx_dsp_rproc_probe,
-	.remove_new = imx_dsp_rproc_remove,
+	.remove = imx_dsp_rproc_remove,
 	.driver = {
 		.name = "imx-dsp-rproc",
 		.of_match_table = imx_dsp_rproc_of_match,

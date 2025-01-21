@@ -666,7 +666,7 @@ static int spidev_release(struct inode *inode, struct file *filp)
 	}
 #ifdef CONFIG_SPI_SLAVE
 	if (!dofree)
-		spi_slave_abort(spidev->spi);
+		spi_target_abort(spidev->spi);
 #endif
 	mutex_unlock(&device_list_lock);
 
@@ -685,7 +685,6 @@ static const struct file_operations spidev_fops = {
 	.compat_ioctl = spidev_compat_ioctl,
 	.open =		spidev_open,
 	.release =	spidev_release,
-	.llseek =	no_llseek,
 };
 
 /*-------------------------------------------------------------------------*/
@@ -702,6 +701,7 @@ static const struct class spidev_class = {
 static const struct spi_device_id spidev_spi_ids[] = {
 	{ .name = "bh2228fv" },
 	{ .name = "dh2228fv" },
+	{ .name = "jg10309-01" },
 	{ .name = "ltc2488" },
 	{ .name = "sx1301" },
 	{ .name = "bk4" },
@@ -731,6 +731,7 @@ static int spidev_of_check(struct device *dev)
 static const struct of_device_id spidev_dt_ids[] = {
 	{ .compatible = "cisco,spi-petra", .data = &spidev_of_check },
 	{ .compatible = "dh,dhcom-board", .data = &spidev_of_check },
+	{ .compatible = "elgin,jg10309-01", .data = &spidev_of_check },
 	{ .compatible = "lineartechnology,ltc2488", .data = &spidev_of_check },
 	{ .compatible = "lwn,bk4", .data = &spidev_of_check },
 	{ .compatible = "menlo,m53cpld", .data = &spidev_of_check },

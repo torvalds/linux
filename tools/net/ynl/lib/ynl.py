@@ -12,6 +12,9 @@ import sys
 import yaml
 import ipaddress
 import uuid
+import queue
+import selectors
+import time
 
 from .nlspec import SpecFamily
 
@@ -388,6 +391,8 @@ class NetlinkProtocol:
 
     def decode(self, ynl, nl_msg, op):
         msg = self._decode(nl_msg)
+        if op is None:
+            op = ynl.rsp_by_value[msg.cmd()]
         fixed_header_size = ynl._struct_size(op.fixed_header)
         msg.raw_attrs = NlAttrs(msg.raw, fixed_header_size)
         return msg
@@ -487,7 +492,7 @@ class YnlFamily(SpecFamily):
         self.sock.setsockopt(Netlink.SOL_NETLINK, Netlink.NETLINK_GET_STRICT_CHK, 1)
 
         self.async_msg_ids = set()
-        self.async_msg_queue = []
+        self.async_msg_queue = queue.Queue()
 
         for msg in self.msgs.values():
             if msg.is_async:
@@ -901,7 +906,7 @@ class YnlFamily(SpecFamily):
 
         msg['name'] = op['name']
         msg['msg'] = attrs
-        self.async_msg_queue.append(msg)
+        self.async_msg_queue.put(msg)
 
     def check_ntf(self):
         while True:
@@ -921,13 +926,31 @@ class YnlFamily(SpecFamily):
                     print("Netlink done while checking for ntf!?")
                     continue
 
-                op = self.rsp_by_value[nl_msg.cmd()]
-                decoded = self.nlproto.decode(self, nl_msg, op)
+                decoded = self.nlproto.decode(self, nl_msg, None)
                 if decoded.cmd() not in self.async_msg_ids:
-                    print("Unexpected msg id done while checking for ntf", decoded)
+                    print("Unexpected msg id while checking for ntf", decoded)
                     continue
 
                 self.handle_ntf(decoded)
+
+    def poll_ntf(self, duration=None):
+        start_time = time.time()
+        selector = selectors.DefaultSelector()
+        selector.register(self.sock, selectors.EVENT_READ)
+
+        while True:
+            try:
+                yield self.async_msg_queue.get_nowait()
+            except queue.Empty:
+                if duration is not None:
+                    timeout = start_time + duration - time.time()
+                    if timeout <= 0:
+                        return
+                else:
+                    timeout = None
+                events = selector.select(timeout)
+                if events:
+                    self.check_ntf()
 
     def operation_do_attributes(self, name):
       """
@@ -980,7 +1003,7 @@ class YnlFamily(SpecFamily):
                     if nl_msg.extack:
                         self._decode_extack(req_msg, op, nl_msg.extack)
                 else:
-                    op = self.rsp_by_value[nl_msg.cmd()]
+                    op = None
                     req_flags = []
 
                 if nl_msg.error:

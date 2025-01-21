@@ -88,6 +88,14 @@
 		reg = <0x60000000 0x20000000>;
 	};
 
+	reg_5v: regulator-5v {
+		compatible = "regulator-fixed";
+		regulator-name = "5V_MAIN";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+	};
+
 	sound: sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "sama7g5ek audio";
@@ -236,9 +244,45 @@
 		i2c-digital-filter-width-ns = <35>;
 		status = "okay";
 
-		mcp16502@5b {
+		power-monitor@10 {
+			compatible = "microchip,pac1934";
+			reg = <0x10>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			channel@1 {
+				reg = <0x1>;
+				shunt-resistor-micro-ohms = <10000>;
+				label = "VDD3V3";
+			};
+
+			channel@2 {
+				reg = <0x2>;
+				shunt-resistor-micro-ohms = <10000>;
+				label = "VDDIODDR";
+			};
+
+			channel@3 {
+				reg = <0x3>;
+				shunt-resistor-micro-ohms = <10000>;
+				label = "VDDCORE";
+			};
+
+			channel@4 {
+				reg = <0x4>;
+				shunt-resistor-micro-ohms = <10000>;
+				label = "VDDCPU";
+			};
+		};
+
+		pmic@5b {
 			compatible = "microchip,mcp16502";
 			reg = <0x5b>;
+			lvin-supply = <&reg_5v>;
+			pvin1-supply = <&reg_5v>;
+			pvin2-supply = <&reg_5v>;
+			pvin3-supply = <&reg_5v>;
+			pvin4-supply = <&reg_5v>;
 			status = "okay";
 
 			regulators {
@@ -403,6 +447,42 @@
 		i2c-digital-filter;
 		i2c-digital-filter-width-ns = <35>;
 		status = "okay";
+
+		eeprom0: eeprom@52 {
+			compatible = "microchip,24aa025e48";
+			reg = <0x52>;
+			size = <256>;
+			pagesize = <16>;
+			vcc-supply = <&vdd_3v3>;
+
+			nvmem-layout {
+				compatible = "fixed-layout";
+				#address-cells = <1>;
+				#size-cells = <1>;
+
+				eeprom0_eui48: eui48@fa {
+					reg = <0xfa 0x6>;
+				};
+			};
+		};
+
+		eeprom1: eeprom@53 {
+			compatible = "microchip,24aa025e48";
+			reg = <0x53>;
+			size = <256>;
+			pagesize = <16>;
+			vcc-supply = <&vdd_3v3>;
+
+			nvmem-layout {
+				compatible = "fixed-layout";
+				#address-cells = <1>;
+				#size-cells = <1>;
+
+				eeprom1_eui48: eui48@fa {
+					reg = <0xfa 0x6>;
+				};
+			};
+		};
 	};
 };
 
@@ -440,6 +520,8 @@
 		     &pinctrl_gmac0_txck_default
 		     &pinctrl_gmac0_phy_irq>;
 	phy-mode = "rgmii-id";
+	nvmem-cells = <&eeprom0_eui48>;
+	nvmem-cell-names = "mac-address";
 	status = "okay";
 
 	ethernet-phy@7 {
@@ -457,6 +539,8 @@
 		     &pinctrl_gmac1_mdio_default
 		     &pinctrl_gmac1_phy_irq>;
 	phy-mode = "rmii";
+	nvmem-cells = <&eeprom1_eui48>;
+	nvmem-cell-names = "mac-address";
 	status = "okay"; /* Conflict with pdmc0. */
 
 	ethernet-phy@0 {

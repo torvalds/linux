@@ -1138,7 +1138,7 @@
 			reg = <6>;
 
 			temperature-sensor@4c {
-				compatible = "ti,tmp423";
+				compatible = "ti,tmp432";
 				reg = <0x4c>;
 			};
 		};
@@ -1599,7 +1599,7 @@
 			reg = <6>;
 
 			temperature-sensor@4c {
-				compatible = "ti,tmp423";
+				compatible = "ti,tmp432";
 				reg = <0x4c>;
 			};
 		};
@@ -1615,7 +1615,7 @@
 			};
 
 			temperature-sensor@4c {
-				compatible = "ti,tmp423";
+				compatible = "ti,tmp432";
 				reg = <0x4c>;
 			};
 		};

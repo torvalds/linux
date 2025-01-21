@@ -181,14 +181,6 @@ static int test_dai_trigger(struct snd_pcm_substream *substream, int cmd, struct
 	return 0;
 }
 
-static int test_dai_bespoke_trigger(struct snd_pcm_substream *substream,
-				    int cmd, struct snd_soc_dai *dai)
-{
-	mile_stone(dai);
-
-	return 0;
-}
-
 static const u64 test_dai_formats =
 	/*
 	 * Select below from Sound Card, not auto
@@ -228,12 +220,11 @@ static const struct snd_soc_dai_ops test_verbose_ops = {
 	.hw_params		= test_dai_hw_params,
 	.hw_free		= test_dai_hw_free,
 	.trigger		= test_dai_trigger,
-	.bespoke_trigger	= test_dai_bespoke_trigger,
 	.auto_selectable_formats	= &test_dai_formats,
 	.num_auto_selectable_formats	= 1,
 };
 
-#define STUB_RATES	SNDRV_PCM_RATE_8000_384000
+#define STUB_RATES	SNDRV_PCM_RATE_CONTINUOUS
 #define STUB_FORMATS	(SNDRV_PCM_FMTBIT_S8		| \
 			 SNDRV_PCM_FMTBIT_U8		| \
 			 SNDRV_PCM_FMTBIT_S16_LE	| \
@@ -530,7 +521,6 @@ static int test_driver_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node;
-	struct device_node *ep;
 	const struct test_adata *adata = of_device_get_match_data(&pdev->dev);
 	struct snd_soc_component_driver *cdriv;
 	struct snd_soc_dai_driver *ddriv;
@@ -600,7 +590,7 @@ static int test_driver_probe(struct platform_device *pdev)
 	}
 
 	i = 0;
-	for_each_endpoint_of_node(node, ep) {
+	for_each_of_graph_port(node, port) {
 		snprintf(dname[i].name, TEST_NAME_LEN, "%s.%d", node->name, i);
 		ddriv[i].name = dname[i].name;
 
@@ -646,7 +636,7 @@ static struct platform_driver test_driver = {
 		.of_match_table = test_of_match,
 	},
 	.probe  = test_driver_probe,
-	.remove_new = test_driver_remove,
+	.remove = test_driver_remove,
 };
 module_platform_driver(test_driver);
 

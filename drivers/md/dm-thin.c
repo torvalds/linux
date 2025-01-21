@@ -2484,6 +2484,7 @@ static void pool_work_wait(struct pool_work *pw, struct pool *pool,
 	init_completion(&pw->complete);
 	queue_work(pool->wq, &pw->worker);
 	wait_for_completion(&pw->complete);
+	destroy_work_on_stack(&pw->worker);
 }
 
 /*----------------------------------------------------------------*/
@@ -2842,7 +2843,7 @@ static void disable_discard_passdown_if_not_supported(struct pool_c *pt)
 {
 	struct pool *pool = pt->pool;
 	struct block_device *data_bdev = pt->data_dev->bdev;
-	struct queue_limits *data_limits = &bdev_get_queue(data_bdev)->limits;
+	struct queue_limits *data_limits = bdev_limits(data_bdev);
 	const char *reason = NULL;
 
 	if (!pt->adjusted_pf.discard_passdown)
@@ -2948,7 +2949,7 @@ static struct pool *pool_create(struct mapped_device *pool_md,
 	pmd = dm_pool_metadata_open(metadata_dev, block_size, format_device);
 	if (IS_ERR(pmd)) {
 		*error = "Error creating metadata object";
-		return (struct pool *)pmd;
+		return ERR_CAST(pmd);
 	}
 
 	pool = kzalloc(sizeof(*pool), GFP_KERNEL);

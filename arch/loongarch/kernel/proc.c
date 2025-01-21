@@ -31,6 +31,7 @@ int proc_cpuinfo_notifier_call_chain(unsigned long val, void *v)
 static int show_cpuinfo(struct seq_file *m, void *v)
 {
 	unsigned long n = (unsigned long) v - 1;
+	unsigned int isa = cpu_data[n].isa_level;
 	unsigned int version = cpu_data[n].processor_id & 0xff;
 	unsigned int fp_version = cpu_data[n].fpu_vers;
 	struct proc_cpuinfo_notifier_args proc_cpuinfo_notifier_args;
@@ -64,9 +65,11 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		      cpu_pabits + 1, cpu_vabits + 1);
 
 	seq_printf(m, "ISA\t\t\t:");
-	if (cpu_has_loongarch32)
-		seq_printf(m, " loongarch32");
-	if (cpu_has_loongarch64)
+	if (isa & LOONGARCH_CPU_ISA_LA32R)
+		seq_printf(m, " loongarch32r");
+	if (isa & LOONGARCH_CPU_ISA_LA32S)
+		seq_printf(m, " loongarch32s");
+	if (isa & LOONGARCH_CPU_ISA_LA64)
 		seq_printf(m, " loongarch64");
 	seq_printf(m, "\n");
 
@@ -81,6 +84,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	if (cpu_has_complex)	seq_printf(m, " complex");
 	if (cpu_has_crypto)	seq_printf(m, " crypto");
 	if (cpu_has_ptw)	seq_printf(m, " ptw");
+	if (cpu_has_lspw)	seq_printf(m, " lspw");
 	if (cpu_has_lvz)	seq_printf(m, " lvz");
 	if (cpu_has_lbt_x86)	seq_printf(m, " lbt_x86");
 	if (cpu_has_lbt_arm)	seq_printf(m, " lbt_arm");

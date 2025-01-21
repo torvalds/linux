@@ -44,8 +44,6 @@ static DEFINE_MUTEX(zones_mutex);
 struct zones_ht_key {
 	struct net *net;
 	u16 zone;
-	/* Note : pad[] must be the last field. */
-	u8  pad[];
 };
 
 struct tcf_ct_flow_table {
@@ -62,7 +60,7 @@ struct tcf_ct_flow_table {
 static const struct rhashtable_params zones_params = {
 	.head_offset = offsetof(struct tcf_ct_flow_table, node),
 	.key_offset = offsetof(struct tcf_ct_flow_table, key),
-	.key_len = offsetof(struct zones_ht_key, pad),
+	.key_len = offsetofend(struct zones_ht_key, zone),
 	.automatic_shrinking = true,
 };
 
@@ -1185,9 +1183,8 @@ static int tcf_ct_fill_params_nat(struct tcf_ct_params *p,
 		range->min_addr.ip =
 			nla_get_in_addr(tb[TCA_CT_NAT_IPV4_MIN]);
 
-		range->max_addr.ip = max_attr ?
-				     nla_get_in_addr(max_attr) :
-				     range->min_addr.ip;
+		range->max_addr.ip =
+			nla_get_in_addr_default(max_attr, range->min_addr.ip);
 	} else if (tb[TCA_CT_NAT_IPV6_MIN]) {
 		struct nlattr *max_attr = tb[TCA_CT_NAT_IPV6_MAX];
 
@@ -1316,8 +1313,9 @@ static int tcf_ct_fill_params(struct net *net,
 			err = -EINVAL;
 			goto err;
 		}
-		family = tb[TCA_CT_HELPER_FAMILY] ? nla_get_u8(tb[TCA_CT_HELPER_FAMILY]) : AF_INET;
-		proto = tb[TCA_CT_HELPER_PROTO] ? nla_get_u8(tb[TCA_CT_HELPER_PROTO]) : IPPROTO_TCP;
+		family = nla_get_u8_default(tb[TCA_CT_HELPER_FAMILY], AF_INET);
+		proto = nla_get_u8_default(tb[TCA_CT_HELPER_PROTO],
+					   IPPROTO_TCP);
 		err = nf_ct_add_helper(tmpl, name, family, proto,
 				       p->ct_action & TCA_CT_ACT_NAT, &p->helper);
 		if (err) {

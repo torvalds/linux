@@ -30,8 +30,13 @@ properties:
   reg:
     maxItems: 1
 
-  clocks: true
-  clock-names: true
+  clocks:
+    minItems: 2
+    maxItems: 24
+
+  clock-names:
+    minItems: 2
+    maxItems: 24
 
   interrupts:
     minItems: 1
@@ -127,6 +132,7 @@ allOf:
     then:
       properties:
         interrupts:
+          minItems: 3
           maxItems: 3
 
         clocks:
@@ -183,6 +189,7 @@ allOf:
     then:
       properties:
         interrupts:
+          minItems: 3
           maxItems: 3
 
         clocks:
@@ -222,6 +229,7 @@ allOf:
     then:
       properties:
         interrupts:
+          minItems: 3
           maxItems: 3
 
         clocks:

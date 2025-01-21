@@ -357,7 +357,7 @@ static int status_show(struct seq_file *s, void *p)
 
 	seq_printf(s, "instance: %s.%lld %s/%u\n", ENTITY_NAME(inst->name),
 		   ceph_pr_addr(client_addr), le32_to_cpu(client_addr->nonce));
-	seq_printf(s, "blocklisted: %s\n", fsc->blocklisted ? "true" : "false");
+	seq_printf(s, "blocklisted: %s\n", str_true_false(fsc->blocklisted));
 
 	return 0;
 }

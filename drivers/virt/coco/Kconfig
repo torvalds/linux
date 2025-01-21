@@ -9,6 +9,10 @@ config TSM_REPORTS
 
 source "drivers/virt/coco/efi_secret/Kconfig"
 
+source "drivers/virt/coco/pkvm-guest/Kconfig"
+
 source "drivers/virt/coco/sev-guest/Kconfig"
 
 source "drivers/virt/coco/tdx-guest/Kconfig"
+
+source "drivers/virt/coco/arm-cca-guest/Kconfig"

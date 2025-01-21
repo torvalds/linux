@@ -897,7 +897,7 @@ static int nbpf_config(struct dma_chan *dchan,
 	/*
 	 * We could check config->slave_id to match chan->terminal here,
 	 * but with DT they would be coming from the same source, so
-	 * such a check would be superflous
+	 * such a check would be superfluous
 	 */
 
 	chan->slave_dst_addr = config->dst_addr;
@@ -1515,7 +1515,7 @@ static struct platform_driver nbpf_driver = {
 	},
 	.id_table = nbpf_ids,
 	.probe = nbpf_probe,
-	.remove_new = nbpf_remove,
+	.remove = nbpf_remove,
 };
 
 module_platform_driver(nbpf_driver);

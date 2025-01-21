@@ -44,13 +44,13 @@
 
 static void ieee80211_iface_work(struct wiphy *wiphy, struct wiphy_work *work);
 
-bool __ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata)
+bool __ieee80211_recalc_txpower(struct ieee80211_link_data *link)
 {
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	int power;
 
 	rcu_read_lock();
-	chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
+	chanctx_conf = rcu_dereference(link->conf->chanctx_conf);
 	if (!chanctx_conf) {
 		rcu_read_unlock();
 		return false;
@@ -59,27 +59,26 @@ bool __ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata)
 	power = ieee80211_chandef_max_power(&chanctx_conf->def);
 	rcu_read_unlock();
 
-	if (sdata->deflink.user_power_level != IEEE80211_UNSET_POWER_LEVEL)
-		power = min(power, sdata->deflink.user_power_level);
+	if (link->user_power_level != IEEE80211_UNSET_POWER_LEVEL)
+		power = min(power, link->user_power_level);
 
-	if (sdata->deflink.ap_power_level != IEEE80211_UNSET_POWER_LEVEL)
-		power = min(power, sdata->deflink.ap_power_level);
+	if (link->ap_power_level != IEEE80211_UNSET_POWER_LEVEL)
+		power = min(power, link->ap_power_level);
 
-	if (power != sdata->vif.bss_conf.txpower) {
-		sdata->vif.bss_conf.txpower = power;
-		ieee80211_hw_config(sdata->local, 0);
+	if (power != link->conf->txpower) {
+		link->conf->txpower = power;
 		return true;
 	}
 
 	return false;
 }
 
-void ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata,
+void ieee80211_recalc_txpower(struct ieee80211_link_data *link,
 			      bool update_bss)
 {
-	if (__ieee80211_recalc_txpower(sdata) ||
-	    (update_bss && ieee80211_sdata_running(sdata)))
-		ieee80211_link_info_change_notify(sdata, &sdata->deflink,
+	if (__ieee80211_recalc_txpower(link) ||
+	    (update_bss && ieee80211_sdata_running(link->sdata)))
+		ieee80211_link_info_change_notify(link->sdata, link,
 						  BSS_CHANGED_TXPOWER);
 }
 
@@ -462,6 +461,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 {
 	struct ieee80211_local *local = sdata->local;
 	unsigned long flags;
+	struct sk_buff_head freeq;
 	struct sk_buff *skb, *tmp;
 	u32 hw_reconf_flags = 0;
 	int i, flushed;
@@ -550,15 +550,15 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 	wiphy_work_cancel(local->hw.wiphy,
 			  &sdata->deflink.color_change_finalize_work);
 	wiphy_delayed_work_cancel(local->hw.wiphy,
-				  &sdata->dfs_cac_timer_work);
+				  &sdata->deflink.dfs_cac_timer_work);
 
-	if (sdata->wdev.cac_started) {
+	if (sdata->wdev.links[0].cac_started) {
 		chandef = sdata->vif.bss_conf.chanreq.oper;
 		WARN_ON(local->suspended);
 		ieee80211_link_release_channel(&sdata->deflink);
 		cfg80211_cac_event(sdata->dev, &chandef,
 				   NL80211_RADAR_CAC_ABORTED,
-				   GFP_KERNEL);
+				   GFP_KERNEL, 0);
 	}
 
 	if (sdata->vif.type == NL80211_IFTYPE_AP) {
@@ -637,17 +637,31 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 		skb_queue_purge(&sdata->status_queue);
 	}
 
+	/*
+	 * Since ieee80211_free_txskb() may issue __dev_queue_xmit()
+	 * which should be called with interrupts enabled, reclamation
+	 * is done in two phases:
+	 */
+	__skb_queue_head_init(&freeq);
+
+	/* unlink from local queues... */
 	spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
 	for (i = 0; i < IEEE80211_MAX_QUEUES; i++) {
 		skb_queue_walk_safe(&local->pending[i], skb, tmp) {
 			struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 			if (info->control.vif == &sdata->vif) {
 				__skb_unlink(skb, &local->pending[i]);
-				ieee80211_free_txskb(&local->hw, skb);
+				__skb_queue_tail(&freeq, skb);
 			}
 		}
 	}
 	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
+
+	/* ... and perform actual reclamation with interrupts enabled. */
+	skb_queue_walk_safe(&freeq, skb, tmp) {
+		__skb_unlink(skb, &freeq);
+		ieee80211_free_txskb(&local->hw, skb);
+	}
 
 	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 		ieee80211_txq_remove_vlan(local, sdata);
@@ -684,9 +698,11 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 		ieee80211_recalc_idle(local);
 		ieee80211_recalc_offload(local);
 
-		if (!(sdata->u.mntr.flags & MONITOR_FLAG_ACTIVE))
+		if (!(sdata->u.mntr.flags & MONITOR_FLAG_ACTIVE) &&
+		    !ieee80211_hw_check(&local->hw, NO_VIRTUAL_MONITOR))
 			break;
 
+		ieee80211_link_release_channel(&sdata->deflink);
 		fallthrough;
 	default:
 		if (!going_down)
@@ -1072,6 +1088,8 @@ void ieee80211_adjust_monitor_flags(struct ieee80211_sub_if_data *sdata,
 	ADJUST(CONTROL, control);
 	ADJUST(CONTROL, pspoll);
 	ADJUST(OTHER_BSS, other_bss);
+	if (!(flags & MONITOR_FLAG_SKIP_TX))
+		local->tx_mntrs += offset;
 
 #undef ADJUST
 }
@@ -1116,7 +1134,8 @@ int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
 	ASSERT_RTNL();
 	lockdep_assert_wiphy(local->hw.wiphy);
 
-	if (local->monitor_sdata)
+	if (local->monitor_sdata ||
+	    ieee80211_hw_check(&local->hw, NO_VIRTUAL_MONITOR))
 		return 0;
 
 	sdata = kzalloc(sizeof(*sdata) + local->hw.vif_data_size, GFP_KERNEL);
@@ -1177,6 +1196,9 @@ int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
 void ieee80211_del_virtual_monitor(struct ieee80211_local *local)
 {
 	struct ieee80211_sub_if_data *sdata;
+
+	if (ieee80211_hw_check(&local->hw, NO_VIRTUAL_MONITOR))
+		return;
 
 	ASSERT_RTNL();
 	lockdep_assert_wiphy(local->hw.wiphy);
@@ -1296,6 +1318,8 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 		}
 	}
 
+	sdata->vif.addr_valid = sdata->vif.type != NL80211_IFTYPE_MONITOR ||
+				(sdata->u.mntr.flags & MONITOR_FLAG_ACTIVE);
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_AP_VLAN:
 		/* no need to tell driver, but set carrier and chanctx */
@@ -1313,7 +1337,8 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 			break;
 		}
 
-		if (sdata->u.mntr.flags & MONITOR_FLAG_ACTIVE) {
+		if ((sdata->u.mntr.flags & MONITOR_FLAG_ACTIVE) ||
+		    ieee80211_hw_check(&local->hw, NO_VIRTUAL_MONITOR)) {
 			res = drv_add_interface(local, sdata);
 			if (res)
 				goto err_stop;
@@ -1729,8 +1754,6 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 	wiphy_work_init(&sdata->work, ieee80211_iface_work);
 	wiphy_work_init(&sdata->activate_links_work,
 			ieee80211_activate_links_work);
-	wiphy_delayed_work_init(&sdata->dfs_cac_timer_work,
-				ieee80211_dfs_cac_timer_work);
 
 	switch (type) {
 	case NL80211_IFTYPE_P2P_GO:
@@ -2163,9 +2186,6 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 
 	ieee80211_set_default_queues(sdata);
 
-	sdata->deflink.ap_power_level = IEEE80211_UNSET_POWER_LEVEL;
-	sdata->deflink.user_power_level = local->user_power_level;
-
 	/* setup type-dependent data */
 	ieee80211_setup_sdata(sdata, type);
 
@@ -2351,18 +2371,14 @@ void ieee80211_vif_block_queues_csa(struct ieee80211_sub_if_data *sdata)
 	if (ieee80211_hw_check(&local->hw, HANDLES_QUIET_CSA))
 		return;
 
-	ieee80211_stop_vif_queues(local, sdata,
-				  IEEE80211_QUEUE_STOP_REASON_CSA);
-	sdata->csa_blocked_queues = true;
+	ieee80211_stop_vif_queues_norefcount(local, sdata,
+					     IEEE80211_QUEUE_STOP_REASON_CSA);
 }
 
 void ieee80211_vif_unblock_queues_csa(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
 
-	if (sdata->csa_blocked_queues) {
-		ieee80211_wake_vif_queues(local, sdata,
-					  IEEE80211_QUEUE_STOP_REASON_CSA);
-		sdata->csa_blocked_queues = false;
-	}
+	ieee80211_wake_vif_queues_norefcount(local, sdata,
+					     IEEE80211_QUEUE_STOP_REASON_CSA);
 }

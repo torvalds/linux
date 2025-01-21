@@ -27,7 +27,7 @@
 			enable-method = "qcom,kpss-acc-v1";
 			device_type = "cpu";
 			reg = <0>;
-			next-level-cache = <&L2>;
+			next-level-cache = <&l2>;
 			qcom,acc = <&acc0>;
 			qcom,saw = <&saw0>;
 		};
@@ -37,12 +37,12 @@
 			enable-method = "qcom,kpss-acc-v1";
 			device_type = "cpu";
 			reg = <1>;
-			next-level-cache = <&L2>;
+			next-level-cache = <&l2>;
 			qcom,acc = <&acc1>;
 			qcom,saw = <&saw1>;
 		};
 
-		L2: l2-cache {
+		l2: l2-cache {
 			compatible = "cache";
 			cache-level = <2>;
 			cache-unified;
@@ -383,7 +383,7 @@
 			tsens_calib: calib@400 {
 				reg = <0x400 0xb>;
 			};
-			tsens_calib_backup: calib_backup@410 {
+			tsens_calib_backup: calib-backup@410 {
 				reg = <0x410 0xb>;
 			};
 		};
@@ -399,70 +399,58 @@
 			#interrupt-cells = <2>;
 			interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
 
-			pcie0_pins: pcie0_pinmux {
-				mux {
-					pins = "gpio3";
-					function = "pcie1_rst";
-					drive-strength = <12>;
-					bias-disable;
-				};
+			pcie0_pins: pcie0-state {
+				pins = "gpio3";
+				function = "pcie1_rst";
+				drive-strength = <12>;
+				bias-disable;
 			};
 
-			pcie1_pins: pcie1_pinmux {
-				mux {
-					pins = "gpio48";
-					function = "pcie2_rst";
-					drive-strength = <12>;
-					bias-disable;
-				};
+			pcie1_pins: pcie1-state {
+				pins = "gpio48";
+				function = "pcie2_rst";
+				drive-strength = <12>;
+				bias-disable;
 			};
 
-			pcie2_pins: pcie2_pinmux {
-				mux {
-					pins = "gpio63";
-					function = "pcie3_rst";
-					drive-strength = <12>;
-					bias-disable;
-				};
+			pcie2_pins: pcie2-state {
+				pins = "gpio63";
+				function = "pcie3_rst";
+				drive-strength = <12>;
+				bias-disable;
 			};
 
-			i2c4_pins: i2c4-default {
+			i2c4_pins: i2c4-state {
 				pins = "gpio12", "gpio13";
 				function = "gsbi4";
 				drive-strength = <12>;
 				bias-disable;
 			};
 
-			spi_pins: spi_pins {
-				mux {
-					pins = "gpio18", "gpio19", "gpio21";
-					function = "gsbi5";
-					drive-strength = <10>;
-					bias-none;
-				};
+			spi_pins: spi-state {
+				pins = "gpio18", "gpio19", "gpio21";
+				function = "gsbi5";
+				drive-strength = <10>;
+				bias-disable;
 			};
 
-			leds_pins: leds_pins {
-				mux {
-					pins = "gpio7", "gpio8", "gpio9",
-					       "gpio26", "gpio53";
-					function = "gpio";
-					drive-strength = <2>;
-					bias-pull-down;
-					output-low;
-				};
+			leds_pins: leds-state {
+				pins = "gpio7", "gpio8", "gpio9",
+					"gpio26", "gpio53";
+				function = "gpio";
+				drive-strength = <2>;
+				bias-pull-down;
+				output-low;
 			};
 
-			buttons_pins: buttons_pins {
-				mux {
-					pins = "gpio54";
-					drive-strength = <2>;
-					bias-pull-up;
-				};
+			buttons_pins: buttons-state {
+				pins = "gpio54";
+				drive-strength = <2>;
+				bias-pull-up;
 			};
 
-			nand_pins: nand_pins {
-				mux {
+			nand_pins: nand-state {
+				nand-pins {
 					pins = "gpio34", "gpio35", "gpio36",
 					       "gpio37", "gpio38", "gpio39",
 					       "gpio40", "gpio41", "gpio42",
@@ -473,14 +461,14 @@
 					bias-disable;
 				};
 
-				pullups {
+				nand-pullup-pins {
 					pins = "gpio39";
 					function = "nand";
 					drive-strength = <10>;
 					bias-pull-up;
 				};
 
-				hold {
+				nand-hold-pins {
 					pins = "gpio40", "gpio41", "gpio42",
 					       "gpio43", "gpio44", "gpio45",
 					       "gpio46", "gpio47";
@@ -490,25 +478,21 @@
 				};
 			};
 
-			mdio0_pins: mdio0-pins {
-				mux {
-					pins = "gpio0", "gpio1";
-					function = "mdio";
-					drive-strength = <8>;
-					bias-disable;
-				};
+			mdio0_pins: mdio0-state {
+				pins = "gpio0", "gpio1";
+				function = "mdio";
+				drive-strength = <8>;
+				bias-disable;
 			};
 
-			rgmii2_pins: rgmii2-pins {
-				mux {
-					pins = "gpio27", "gpio28", "gpio29",
-					       "gpio30", "gpio31", "gpio32",
-					       "gpio51", "gpio52", "gpio59",
-					       "gpio60", "gpio61", "gpio62";
-					function = "rgmii2";
-					drive-strength = <8>;
-					bias-disable;
-				};
+			rgmii2_pins: rgmii2-state {
+				pins = "gpio27", "gpio28", "gpio29",
+					"gpio30", "gpio31", "gpio32",
+					"gpio51", "gpio52", "gpio59",
+					"gpio60", "gpio61", "gpio62";
+				function = "rgmii2";
+				drive-strength = <8>;
+				bias-disable;
 			};
 		};
 
@@ -1292,7 +1276,7 @@
 				 <&gcc SATA_A_CLK>,
 				 <&gcc SATA_RXOOB_CLK>,
 				 <&gcc SATA_PMALIVE_CLK>;
-			clock-names = "slave_face", "iface", "core",
+			clock-names = "slave_iface", "iface", "core",
 					"rxoob", "pmalive";
 
 			assigned-clocks = <&gcc SATA_RXOOB_CLK>, <&gcc SATA_PMALIVE_CLK>;

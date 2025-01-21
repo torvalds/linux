@@ -62,7 +62,6 @@ static inline struct snd_soc_acpi_mach *snd_soc_acpi_codec_list(void *arg)
  * @platform: string used for HDAudio codec support
  * @codec_mask: used for HDAudio support
  * @dmic_num: number of SoC- or chipset-attached PDM digital microphones
- * @common_hdmi_codec_drv: use commom HDAudio HDMI codec driver
  * @link_mask: SoundWire links enabled on the board
  * @links: array of SoundWire link _ADR descriptors, null terminated
  * @i2s_link_mask: I2S/TDM links enabled on the board
@@ -70,15 +69,16 @@ static inline struct snd_soc_acpi_mach *snd_soc_acpi_codec_list(void *arg)
  * @dai_drivers: pointer to dai_drivers, used e.g. in nocodec mode
  * @subsystem_vendor: optional PCI SSID vendor value
  * @subsystem_device: optional PCI SSID device value
+ * @subsystem_rev: optional PCI SSID revision value
  * @subsystem_id_set: true if a value has been written to
  *		      subsystem_vendor and subsystem_device.
+ * @bt_link_mask: BT offload link enabled on the board
  */
 struct snd_soc_acpi_mach_params {
 	u32 acpi_ipc_irq_index;
 	const char *platform;
 	u32 codec_mask;
 	u32 dmic_num;
-	bool common_hdmi_codec_drv;
 	u32 link_mask;
 	const struct snd_soc_acpi_link_adr *links;
 	u32 i2s_link_mask;
@@ -86,7 +86,9 @@ struct snd_soc_acpi_mach_params {
 	struct snd_soc_dai_driver *dai_drivers;
 	unsigned short subsystem_vendor;
 	unsigned short subsystem_device;
+	unsigned short subsystem_rev;
 	bool subsystem_id_set;
+	u32 bt_link_mask;
 };
 
 /**
@@ -183,6 +185,10 @@ struct snd_soc_acpi_link_adr {
  * ACPI ID alone is not sufficient, wrong or misleading
  * @quirk_data: data used to uniquely identify a machine, usually a list of
  * audio codecs whose presence if checked with ACPI
+ * @machine_check: pointer to quirk function. The functionality is similar to
+ * the use of @machine_quirk, except that the return value is a boolean: the intent
+ * is to skip a machine if the additional hardware/firmware verification invalidates
+ * the initial selection in the snd_soc_acpi_mach table.
  * @pdata: intended for platform data or machine specific-ops. This structure
  *  is not constant since this field may be updated at run-time
  * @sof_tplg_filename: Sound Open Firmware topology file name, if enabled
@@ -201,6 +207,7 @@ struct snd_soc_acpi_mach {
 	const char *board;
 	struct snd_soc_acpi_mach * (*machine_quirk)(void *arg);
 	const void *quirk_data;
+	bool (*machine_check)(void *arg);
 	void *pdata;
 	struct snd_soc_acpi_mach_params mach_params;
 	const char *sof_tplg_filename;
@@ -231,7 +238,6 @@ static inline bool snd_soc_acpi_sof_parent(struct device *dev)
 
 bool snd_soc_acpi_sdw_link_slaves_found(struct device *dev,
 					const struct snd_soc_acpi_link_adr *link,
-					struct sdw_extended_slave_id *ids,
-					int num_slaves);
+					struct sdw_peripherals *peripherals);
 
 #endif

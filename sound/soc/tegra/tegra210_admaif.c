@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
+// SPDX-FileCopyrightText: Copyright (c) 2020-2024 NVIDIA CORPORATION & AFFILIATES.
+// All rights reserved.
 //
 // tegra210_admaif.c - Tegra ADMAIF driver
-//
-// Copyright (c) 2020 NVIDIA CORPORATION.  All rights reserved.
 
 #include <linux/clk.h>
 #include <linux/device.h>
@@ -285,6 +285,11 @@ static int tegra_admaif_hw_params(struct snd_pcm_substream *substream,
 		cif_conf.client_bits = TEGRA_ACIF_BITS_16;
 		valid_bit = DATA_16BIT;
 		break;
+	case SNDRV_PCM_FORMAT_S24_LE:
+		cif_conf.audio_bits = TEGRA_ACIF_BITS_32;
+		cif_conf.client_bits = TEGRA_ACIF_BITS_24;
+		valid_bit = DATA_32BIT;
+		break;
 	case SNDRV_PCM_FORMAT_S32_LE:
 		cif_conf.audio_bits = TEGRA_ACIF_BITS_32;
 		cif_conf.client_bits = TEGRA_ACIF_BITS_32;
@@ -561,6 +566,7 @@ static const struct snd_soc_dai_ops tegra_admaif_dai_ops = {
 			.rates = SNDRV_PCM_RATE_8000_192000,	\
 			.formats = SNDRV_PCM_FMTBIT_S8 |	\
 				SNDRV_PCM_FMTBIT_S16_LE |	\
+				SNDRV_PCM_FMTBIT_S24_LE |	\
 				SNDRV_PCM_FMTBIT_S32_LE,	\
 		},						\
 		.capture = {					\
@@ -570,6 +576,7 @@ static const struct snd_soc_dai_ops tegra_admaif_dai_ops = {
 			.rates = SNDRV_PCM_RATE_8000_192000,	\
 			.formats = SNDRV_PCM_FMTBIT_S8 |	\
 				SNDRV_PCM_FMTBIT_S16_LE |	\
+				SNDRV_PCM_FMTBIT_S24_LE |	\
 				SNDRV_PCM_FMTBIT_S32_LE,	\
 		},						\
 		.ops = &tegra_admaif_dai_ops,			\
@@ -856,7 +863,7 @@ static const struct dev_pm_ops tegra_admaif_pm_ops = {
 
 static struct platform_driver tegra_admaif_driver = {
 	.probe = tegra_admaif_probe,
-	.remove_new = tegra_admaif_remove,
+	.remove = tegra_admaif_remove,
 	.driver = {
 		.name = "tegra210-admaif",
 		.of_match_table = tegra_admaif_of_match,

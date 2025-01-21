@@ -712,19 +712,13 @@ void kvm_vm_release(struct kvm_vm *vmp)
 }
 
 static void __vm_mem_region_delete(struct kvm_vm *vm,
-				   struct userspace_mem_region *region,
-				   bool unlink)
+				   struct userspace_mem_region *region)
 {
 	int ret;
 
-	if (unlink) {
-		rb_erase(&region->gpa_node, &vm->regions.gpa_tree);
-		rb_erase(&region->hva_node, &vm->regions.hva_tree);
-		hash_del(&region->slot_node);
-	}
-
-	region->region.memory_size = 0;
-	vm_ioctl(vm, KVM_SET_USER_MEMORY_REGION2, &region->region);
+	rb_erase(&region->gpa_node, &vm->regions.gpa_tree);
+	rb_erase(&region->hva_node, &vm->regions.hva_tree);
+	hash_del(&region->slot_node);
 
 	sparsebit_free(&region->unused_phy_pages);
 	sparsebit_free(&region->protected_phy_pages);
@@ -762,7 +756,7 @@ void kvm_vm_free(struct kvm_vm *vmp)
 
 	/* Free userspace_mem_regions. */
 	hash_for_each_safe(vmp->regions.slot_hash, ctr, node, region, slot_node)
-		__vm_mem_region_delete(vmp, region, false);
+		__vm_mem_region_delete(vmp, region);
 
 	/* Free sparsebit arrays. */
 	sparsebit_free(&vmp->vpages_valid);
@@ -792,76 +786,6 @@ int kvm_memfd_alloc(size_t size, bool hugepages)
 	TEST_ASSERT(!r, __KVM_SYSCALL_ERROR("fallocate()", r));
 
 	return fd;
-}
-
-/*
- * Memory Compare, host virtual to guest virtual
- *
- * Input Args:
- *   hva - Starting host virtual address
- *   vm - Virtual Machine
- *   gva - Starting guest virtual address
- *   len - number of bytes to compare
- *
- * Output Args: None
- *
- * Input/Output Args: None
- *
- * Return:
- *   Returns 0 if the bytes starting at hva for a length of len
- *   are equal the guest virtual bytes starting at gva.  Returns
- *   a value < 0, if bytes at hva are less than those at gva.
- *   Otherwise a value > 0 is returned.
- *
- * Compares the bytes starting at the host virtual address hva, for
- * a length of len, to the guest bytes starting at the guest virtual
- * address given by gva.
- */
-int kvm_memcmp_hva_gva(void *hva, struct kvm_vm *vm, vm_vaddr_t gva, size_t len)
-{
-	size_t amt;
-
-	/*
-	 * Compare a batch of bytes until either a match is found
-	 * or all the bytes have been compared.
-	 */
-	for (uintptr_t offset = 0; offset < len; offset += amt) {
-		uintptr_t ptr1 = (uintptr_t)hva + offset;
-
-		/*
-		 * Determine host address for guest virtual address
-		 * at offset.
-		 */
-		uintptr_t ptr2 = (uintptr_t)addr_gva2hva(vm, gva + offset);
-
-		/*
-		 * Determine amount to compare on this pass.
-		 * Don't allow the comparsion to cross a page boundary.
-		 */
-		amt = len - offset;
-		if ((ptr1 >> vm->page_shift) != ((ptr1 + amt) >> vm->page_shift))
-			amt = vm->page_size - (ptr1 % vm->page_size);
-		if ((ptr2 >> vm->page_shift) != ((ptr2 + amt) >> vm->page_shift))
-			amt = vm->page_size - (ptr2 % vm->page_size);
-
-		assert((ptr1 >> vm->page_shift) == ((ptr1 + amt - 1) >> vm->page_shift));
-		assert((ptr2 >> vm->page_shift) == ((ptr2 + amt - 1) >> vm->page_shift));
-
-		/*
-		 * Perform the comparison.  If there is a difference
-		 * return that result to the caller, otherwise need
-		 * to continue on looking for a mismatch.
-		 */
-		int ret = memcmp((void *)ptr1, (void *)ptr2, amt);
-		if (ret != 0)
-			return ret;
-	}
-
-	/*
-	 * No mismatch found.  Let the caller know the two memory
-	 * areas are equal.
-	 */
-	return 0;
 }
 
 static void vm_userspace_mem_region_gpa_insert(struct rb_root *gpa_tree,
@@ -1270,7 +1194,12 @@ void vm_mem_region_move(struct kvm_vm *vm, uint32_t slot, uint64_t new_gpa)
  */
 void vm_mem_region_delete(struct kvm_vm *vm, uint32_t slot)
 {
-	__vm_mem_region_delete(vm, memslot2region(vm, slot), true);
+	struct userspace_mem_region *region = memslot2region(vm, slot);
+
+	region->region.memory_size = 0;
+	vm_ioctl(vm, KVM_SET_USER_MEMORY_REGION2, &region->region);
+
+	__vm_mem_region_delete(vm, region);
 }
 
 void vm_guest_mem_fallocate(struct kvm_vm *vm, uint64_t base, uint64_t size,

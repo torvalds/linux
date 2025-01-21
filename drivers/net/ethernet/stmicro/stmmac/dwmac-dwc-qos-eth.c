@@ -479,7 +479,7 @@ MODULE_DEVICE_TABLE(of, dwc_eth_dwmac_match);
 
 static struct platform_driver dwc_eth_dwmac_driver = {
 	.probe  = dwc_eth_dwmac_probe,
-	.remove_new = dwc_eth_dwmac_remove,
+	.remove = dwc_eth_dwmac_remove,
 	.driver = {
 		.name           = "dwc-eth-dwmac",
 		.pm             = &stmmac_pltfr_pm_ops,

@@ -308,7 +308,7 @@ static void sar_remove(struct platform_device *device)
 
 static struct platform_driver sar_driver = {
 	.probe = sar_probe,
-	.remove_new = sar_remove,
+	.remove = sar_remove,
 	.driver = {
 		.name = DRVNAME,
 		.acpi_match_table = ACPI_PTR(sar_device_ids)

@@ -1868,9 +1868,7 @@ static int rcar_dmac_probe(struct platform_device *pdev)
 
 	dmac->dev = &pdev->dev;
 	platform_set_drvdata(pdev, dmac);
-	ret = dma_set_max_seg_size(dmac->dev, RCAR_DMATCR_MASK);
-	if (ret)
-		return ret;
+	dma_set_max_seg_size(dmac->dev, RCAR_DMATCR_MASK);
 
 	ret = dma_set_mask_and_coherent(dmac->dev, DMA_BIT_MASK(40));
 	if (ret)
@@ -2039,7 +2037,7 @@ static struct platform_driver rcar_dmac_driver = {
 		.of_match_table = rcar_dmac_of_ids,
 	},
 	.probe		= rcar_dmac_probe,
-	.remove_new	= rcar_dmac_remove,
+	.remove		= rcar_dmac_remove,
 	.shutdown	= rcar_dmac_shutdown,
 };
 

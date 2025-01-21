@@ -135,13 +135,13 @@ int acp_probes_register(struct snd_sof_dev *sdev)
 	return sof_client_dev_register(sdev, "acp-probes", 0, &acp_probes_ops,
 				       sizeof(acp_probes_ops));
 }
-EXPORT_SYMBOL_NS(acp_probes_register, SND_SOC_SOF_AMD_COMMON);
+EXPORT_SYMBOL_NS(acp_probes_register, "SND_SOC_SOF_AMD_COMMON");
 
 void acp_probes_unregister(struct snd_sof_dev *sdev)
 {
 	sof_client_dev_unregister(sdev, "acp-probes", 0);
 }
-EXPORT_SYMBOL_NS(acp_probes_unregister, SND_SOC_SOF_AMD_COMMON);
+EXPORT_SYMBOL_NS(acp_probes_unregister, "SND_SOC_SOF_AMD_COMMON");
 
-MODULE_IMPORT_NS(SND_SOC_SOF_CLIENT);
+MODULE_IMPORT_NS("SND_SOC_SOF_CLIENT");
 

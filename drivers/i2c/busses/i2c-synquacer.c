@@ -550,12 +550,13 @@ static int synquacer_i2c_probe(struct platform_device *pdev)
 	device_property_read_u32(&pdev->dev, "socionext,pclk-rate",
 				 &i2c->pclkrate);
 
-	pclk = devm_clk_get_enabled(&pdev->dev, "pclk");
+	pclk = devm_clk_get_optional_enabled(&pdev->dev, "pclk");
 	if (IS_ERR(pclk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(pclk),
 				     "failed to get and enable clock\n");
 
-	i2c->pclkrate = clk_get_rate(pclk);
+	if (pclk)
+		i2c->pclkrate = clk_get_rate(pclk);
 
 	if (i2c->pclkrate < SYNQUACER_I2C_MIN_CLK_RATE ||
 	    i2c->pclkrate > SYNQUACER_I2C_MAX_CLK_RATE)
@@ -628,7 +629,7 @@ MODULE_DEVICE_TABLE(acpi, synquacer_i2c_acpi_ids);
 
 static struct platform_driver synquacer_i2c_driver = {
 	.probe	= synquacer_i2c_probe,
-	.remove_new = synquacer_i2c_remove,
+	.remove = synquacer_i2c_remove,
 	.driver	= {
 		.name = "synquacer_i2c",
 		.of_match_table = of_match_ptr(synquacer_i2c_dt_ids),

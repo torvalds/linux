@@ -282,11 +282,11 @@ struct iio_chan_spec {
 	const struct iio_chan_spec_ext_info *ext_info;
 	const char		*extend_name;
 	const char		*datasheet_name;
-	unsigned		modified:1;
-	unsigned		indexed:1;
-	unsigned		output:1;
-	unsigned		differential:1;
-	unsigned		has_ext_scan_type:1;
+	unsigned int		modified:1;
+	unsigned int		indexed:1;
+	unsigned int		output:1;
+	unsigned int		differential:1;
+	unsigned int		has_ext_scan_type:1;
 };
 
 
@@ -514,7 +514,7 @@ struct iio_info {
 				  const struct iio_chan_spec *chan,
 				  enum iio_event_type type,
 				  enum iio_event_direction dir,
-				  int state);
+				  bool state);
 
 	int (*read_event_value)(struct iio_dev *indio_dev,
 				const struct iio_chan_spec *chan,
@@ -541,13 +541,13 @@ struct iio_info {
 	int (*update_scan_mode)(struct iio_dev *indio_dev,
 				const unsigned long *scan_mask);
 	int (*debugfs_reg_access)(struct iio_dev *indio_dev,
-				  unsigned reg, unsigned writeval,
-				  unsigned *readval);
+				  unsigned int reg, unsigned int writeval,
+				  unsigned int *readval);
 	int (*fwnode_xlate)(struct iio_dev *indio_dev,
 			    const struct fwnode_reference_args *iiospec);
-	int (*hwfifo_set_watermark)(struct iio_dev *indio_dev, unsigned val);
+	int (*hwfifo_set_watermark)(struct iio_dev *indio_dev, unsigned int val);
 	int (*hwfifo_flush_to_buffer)(struct iio_dev *indio_dev,
-				      unsigned count);
+				      unsigned int count);
 };
 
 /**
@@ -609,7 +609,7 @@ struct iio_dev {
 	int				scan_bytes;
 
 	const unsigned long		*available_scan_masks;
-	unsigned			masklength;
+	unsigned int			__private masklength;
 	const unsigned long		*active_scan_mask;
 	bool				scan_timestamp;
 	struct iio_trigger		*trig;
@@ -624,7 +624,7 @@ struct iio_dev {
 	const struct iio_info		*info;
 	const struct iio_buffer_setup_ops	*setup_ops;
 
-	void				*priv;
+	void				*__private priv;
 };
 
 int iio_device_id(struct iio_dev *indio_dev);
@@ -785,7 +785,7 @@ struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv);
 /* The information at the returned address is guaranteed to be cacheline aligned */
 static inline void *iio_priv(const struct iio_dev *indio_dev)
 {
-	return indio_dev->priv;
+	return ACCESS_PRIVATE(indio_dev, priv);
 }
 
 void iio_device_free(struct iio_dev *indio_dev);
@@ -810,10 +810,28 @@ static inline struct dentry *iio_get_debugfs_dentry(struct iio_dev *indio_dev)
 }
 #endif
 
+/**
+ * iio_device_suspend_triggering() - suspend trigger attached to an iio_dev
+ * @indio_dev: iio_dev associated with the device that will have triggers suspended
+ *
+ * Return 0 if successful, negative otherwise
+ **/
+int iio_device_suspend_triggering(struct iio_dev *indio_dev);
+
+/**
+ * iio_device_resume_triggering() - resume trigger attached to an iio_dev
+ *	that was previously suspended with iio_device_suspend_triggering()
+ * @indio_dev: iio_dev associated with the device that will have triggers resumed
+ *
+ * Return 0 if successful, negative otherwise
+ **/
+int iio_device_resume_triggering(struct iio_dev *indio_dev);
+
 #ifdef CONFIG_ACPI
 bool iio_read_acpi_mount_matrix(struct device *dev,
 				struct iio_mount_matrix *orientation,
 				char *acpi_method);
+const char *iio_get_acpi_device_name_and_data(struct device *dev, const void **data);
 #else
 static inline bool iio_read_acpi_mount_matrix(struct device *dev,
 					      struct iio_mount_matrix *orientation,
@@ -821,7 +839,16 @@ static inline bool iio_read_acpi_mount_matrix(struct device *dev,
 {
 	return false;
 }
+static inline const char *
+iio_get_acpi_device_name_and_data(struct device *dev, const void **data)
+{
+	return NULL;
+}
 #endif
+static inline const char *iio_get_acpi_device_name(struct device *dev)
+{
+	return iio_get_acpi_device_name_and_data(dev, NULL);
+}
 
 /**
  * iio_get_current_scan_type - Get the current scan type for a channel
@@ -854,6 +881,26 @@ static inline const struct iio_scan_type
 
 	return &chan->scan_type;
 }
+
+/**
+ * iio_get_masklength - Get length of the channels mask
+ * @indio_dev: the IIO device to get the masklength for
+ */
+static inline unsigned int iio_get_masklength(const struct iio_dev *indio_dev)
+{
+	return ACCESS_PRIVATE(indio_dev, masklength);
+}
+
+int iio_active_scan_mask_index(struct iio_dev *indio_dev);
+
+/**
+ * iio_for_each_active_channel - Iterated over active channels
+ * @indio_dev: the IIO device
+ * @chan: Holds the index of the enabled channel
+ */
+#define iio_for_each_active_channel(indio_dev, chan) \
+	for_each_set_bit((chan), (indio_dev)->active_scan_mask, \
+			 iio_get_masklength(indio_dev))
 
 ssize_t iio_format_value(char *buf, unsigned int type, int size, int *vals);
 

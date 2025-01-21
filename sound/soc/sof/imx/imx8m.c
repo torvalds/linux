@@ -505,7 +505,7 @@ MODULE_DEVICE_TABLE(of, sof_of_imx8m_ids);
 /* DT driver definition */
 static struct platform_driver snd_sof_of_imx8m_driver = {
 	.probe = sof_of_probe,
-	.remove_new = sof_of_remove,
+	.remove = sof_of_remove,
 	.driver = {
 		.name = "sof-audio-of-imx8m",
 		.pm = &sof_of_pm,
@@ -516,4 +516,4 @@ module_platform_driver(snd_sof_of_imx8m_driver);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("SOF support for IMX8M platforms");
-MODULE_IMPORT_NS(SND_SOC_SOF_XTENSA);
+MODULE_IMPORT_NS("SND_SOC_SOF_XTENSA");

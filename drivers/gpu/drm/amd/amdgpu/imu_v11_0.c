@@ -153,7 +153,7 @@ static void imu_v11_0_setup(struct amdgpu_device *adev)
 		WREG32_SOC15(GC, 0, regGFX_IMU_C2PMSG_16, imu_reg_val);
 	}
 
-	//disble imu Rtavfs, SmsRepair, DfllBTC, and ClkB
+	//disable imu Rtavfs, SmsRepair, DfllBTC, and ClkB
 	imu_reg_val = RREG32_SOC15(GC, 0, regGFX_IMU_SCRATCH_10);
 	imu_reg_val |= 0x10007;
 	WREG32_SOC15(GC, 0, regGFX_IMU_SCRATCH_10, imu_reg_val);

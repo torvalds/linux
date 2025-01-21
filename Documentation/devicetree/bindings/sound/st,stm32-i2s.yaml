@@ -13,13 +13,11 @@ description:
   The SPI/I2S block supports I2S/PCM protocols when configured on I2S mode.
   Only some SPI instances support I2S.
 
-allOf:
-  - $ref: dai-common.yaml#
-
 properties:
   compatible:
     enum:
       - st,stm32h7-i2s
+      - st,stm32mp25-i2s
 
   "#sound-dai-cells":
     const: 0
@@ -33,6 +31,7 @@ properties:
       - description: clock feeding the internal clock generator.
       - description: I2S parent clock for sampling rates multiple of 8kHz.
       - description: I2S parent clock for sampling rates multiple of 11.025kHz.
+    minItems: 2
 
   clock-names:
     items:
@@ -40,6 +39,7 @@ properties:
       - const: i2sclk
       - const: x8k
       - const: x11k
+    minItems: 2
 
   interrupts:
     maxItems: 1
@@ -78,6 +78,36 @@ required:
   - interrupts
   - dmas
   - dma-names
+
+allOf:
+  - $ref: dai-common.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: st,stm32h7-i2s
+
+    then:
+      properties:
+        clocks:
+          minItems: 4
+
+        clock-names:
+          minItems: 4
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: st,stm32mp25-i2s
+
+    then:
+      properties:
+        clocks:
+          maxItems: 2
+
+        clock-names:
+          maxItems: 2
 
 unevaluatedProperties: false
 

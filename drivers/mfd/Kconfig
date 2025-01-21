@@ -20,6 +20,18 @@ config MFD_CS5535
 	  This is the core driver for CS5535/CS5536 MFD functions.  This is
 	  necessary for using the board's GPIO and MFGPT functionality.
 
+config MFD_ADP5585
+	tristate "Analog Devices ADP5585 keypad decoder and I/O expander driver"
+	select MFD_CORE
+	select REGMAP_I2C
+	depends on I2C
+	depends on OF
+	help
+	  Say yes here to add support for the Analog Devices ADP5585 GPIO
+	  expander, PWM and keypad controller. This includes the I2C driver and
+	  the core APIs _only_, you have to select individual components like
+	  the GPIO and PWM functions under the corresponding menus.
+
 config MFD_ALTERA_A10SR
 	bool "Altera Arria10 DevKit System Resource chip"
 	depends on ARCH_INTEL_SOCFPGA && SPI_MASTER=y && OF
@@ -223,6 +235,18 @@ config MFD_AXP20X_RSB
 	  This driver include only the core APIs. You have to select individual
 	  components like regulators or the PEK (Power Enable Key) under the
 	  corresponding menus.
+
+config MFD_CGBC
+	tristate "Congatec Board Controller"
+	select MFD_CORE
+	depends on X86
+	help
+	  This is the core driver of the Board Controller found on some Congatec
+	  SMARC modules. The Board Controller provides functions like watchdog,
+	  I2C busses, and GPIO controller.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called cgbc-core.
 
 config MFD_CROS_EC_DEV
 	tristate "ChromeOS Embedded Controller multifunction device"

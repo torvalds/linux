@@ -8,11 +8,12 @@
 
 #include <linux/iosys-map.h>
 
-#include <drm/drm_mm.h>
 #include <drm/ttm/ttm_bo.h>
 #include <drm/ttm/ttm_device.h>
 #include <drm/ttm/ttm_execbuf_util.h>
 #include <drm/ttm/ttm_placement.h>
+
+#include "xe_ggtt_types.h"
 
 struct xe_device;
 struct xe_vm;
@@ -39,7 +40,7 @@ struct xe_bo {
 	/** @placement: current placement for this BO */
 	struct ttm_placement placement;
 	/** @ggtt_node: GGTT node if this BO is mapped in the GGTT */
-	struct drm_mm_node ggtt_node;
+	struct xe_ggtt_node *ggtt_node;
 	/** @vmap: iosys map of this buffer */
 	struct iosys_map vmap;
 	/** @ttm_kmap: TTM bo kmap object for internal use only. Keep off. */
@@ -58,6 +59,8 @@ struct xe_bo {
 #endif
 	/** @freed: List node for delayed put. */
 	struct llist_node freed;
+	/** @update_index: Update index if PT BO */
+	int update_index;
 	/** @created: Whether the bo has passed initial creation */
 	bool created;
 
@@ -73,9 +76,11 @@ struct xe_bo {
 
 	/** @vram_userfault_link: Link into @mem_access.vram_userfault.list */
 		struct list_head vram_userfault_link;
-};
 
-#define intel_bo_to_drm_bo(bo) (&(bo)->ttm.base)
-#define intel_bo_to_i915(bo) to_i915(intel_bo_to_drm_bo(bo)->dev)
+	/** @min_align: minimum alignment needed for this BO if different
+	 * from default
+	 */
+	u64 min_align;
+};
 
 #endif

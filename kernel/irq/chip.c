@@ -198,7 +198,7 @@ __irq_startup_managed(struct irq_desc *desc, const struct cpumask *aff,
 
 	irqd_clr_managed_shutdown(d);
 
-	if (cpumask_any_and(aff, cpu_online_mask) >= nr_cpu_ids) {
+	if (!cpumask_intersects(aff, cpu_online_mask)) {
 		/*
 		 * Catch code which fiddles with enable_irq() on a managed
 		 * and potentially shutdown IRQ. Chained interrupt

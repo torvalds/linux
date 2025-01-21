@@ -14,6 +14,11 @@ static void intel_set_quirk(struct intel_display *display, enum intel_quirk_id q
 	display->quirks.mask |= BIT(quirk);
 }
 
+static void intel_set_dpcd_quirk(struct intel_dp *intel_dp, enum intel_quirk_id quirk)
+{
+	intel_dp->quirks.mask |= BIT(quirk);
+}
+
 /*
  * Some machines (Lenovo U160) do not work with SSC on LVDS for some reason
  */
@@ -65,12 +70,35 @@ static void quirk_no_pps_backlight_power_hook(struct intel_display *display)
 	drm_info(display->drm, "Applying no pps backlight power quirk\n");
 }
 
+static void quirk_fw_sync_len(struct intel_dp *intel_dp)
+{
+	struct intel_display *display = to_intel_display(intel_dp);
+
+	intel_set_dpcd_quirk(intel_dp, QUIRK_FW_SYNC_LEN);
+	drm_info(display->drm, "Applying Fast Wake sync pulse count quirk\n");
+}
+
 struct intel_quirk {
 	int device;
 	int subsystem_vendor;
 	int subsystem_device;
 	void (*hook)(struct intel_display *display);
 };
+
+struct intel_dpcd_quirk {
+	int device;
+	int subsystem_vendor;
+	int subsystem_device;
+	u8 sink_oui[3];
+	u8 sink_device_id[6];
+	void (*hook)(struct intel_dp *intel_dp);
+};
+
+#define SINK_OUI(first, second, third) { (first), (second), (third) }
+#define SINK_DEVICE_ID(first, second, third, fourth, fifth, sixth) \
+	{ (first), (second), (third), (fourth), (fifth), (sixth) }
+
+#define SINK_DEVICE_ID_ANY	SINK_DEVICE_ID(0, 0, 0, 0, 0, 0)
 
 /* For systems that don't have a meaningful PCI subdevice/subvendor ID */
 struct intel_dmi_quirk {
@@ -203,6 +231,18 @@ static struct intel_quirk intel_quirks[] = {
 	{ 0x0f31, 0x103c, 0x220f, quirk_invert_brightness },
 };
 
+static const struct intel_dpcd_quirk intel_dpcd_quirks[] = {
+	/* Dell Precision 5490 */
+	{
+		.device = 0x7d55,
+		.subsystem_vendor = 0x1028,
+		.subsystem_device = 0x0cc7,
+		.sink_oui = SINK_OUI(0x38, 0xec, 0x11),
+		.hook = quirk_fw_sync_len,
+	},
+
+};
+
 void intel_init_quirks(struct intel_display *display)
 {
 	struct pci_dev *d = to_pci_dev(display->drm->dev);
@@ -224,7 +264,35 @@ void intel_init_quirks(struct intel_display *display)
 	}
 }
 
+void intel_init_dpcd_quirks(struct intel_dp *intel_dp,
+			    const struct drm_dp_dpcd_ident *ident)
+{
+	struct intel_display *display = to_intel_display(intel_dp);
+	struct pci_dev *d = to_pci_dev(display->drm->dev);
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(intel_dpcd_quirks); i++) {
+		const struct intel_dpcd_quirk *q = &intel_dpcd_quirks[i];
+
+		if (d->device == q->device &&
+		    (d->subsystem_vendor == q->subsystem_vendor ||
+		     q->subsystem_vendor == PCI_ANY_ID) &&
+		    (d->subsystem_device == q->subsystem_device ||
+		     q->subsystem_device == PCI_ANY_ID) &&
+		    !memcmp(q->sink_oui, ident->oui, sizeof(ident->oui)) &&
+		    (!memcmp(q->sink_device_id, ident->device_id,
+			    sizeof(ident->device_id)) ||
+		     mem_is_zero(q->sink_device_id, sizeof(q->sink_device_id))))
+			q->hook(intel_dp);
+	}
+}
+
 bool intel_has_quirk(struct intel_display *display, enum intel_quirk_id quirk)
 {
 	return display->quirks.mask & BIT(quirk);
+}
+
+bool intel_has_dpcd_quirk(struct intel_dp *intel_dp, enum intel_quirk_id quirk)
+{
+	return intel_dp->quirks.mask & BIT(quirk);
 }

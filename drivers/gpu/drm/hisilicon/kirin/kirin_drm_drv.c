@@ -18,8 +18,8 @@
 #include <linux/platform_device.h>
 
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_client_setup.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fbdev_dma.h>
 #include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_module.h>
@@ -237,7 +237,7 @@ static int kirin_drm_bind(struct device *dev)
 	if (ret)
 		goto err_kms_cleanup;
 
-	drm_fbdev_dma_setup(drm_dev, 32);
+	drm_client_setup(drm_dev, NULL);
 
 	return 0;
 
@@ -302,7 +302,7 @@ MODULE_DEVICE_TABLE(of, kirin_drm_dt_ids);
 
 static struct platform_driver kirin_drm_platform_driver = {
 	.probe = kirin_drm_platform_probe,
-	.remove_new = kirin_drm_platform_remove,
+	.remove = kirin_drm_platform_remove,
 	.shutdown = kirin_drm_platform_shutdown,
 	.driver = {
 		.name = "kirin-drm",

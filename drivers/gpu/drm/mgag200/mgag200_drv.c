@@ -6,14 +6,16 @@
  *          Dave Airlie
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 
-#include <drm/drm_aperture.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_client_setup.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_shmem.h>
 #include <drm/drm_file.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_module.h>
@@ -100,6 +102,7 @@ static const struct drm_driver mgag200_driver = {
 	.minor = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 	DRM_GEM_SHMEM_DRIVER_OPS,
+	DRM_FBDEV_SHMEM_DRIVER_OPS,
 };
 
 /*
@@ -192,6 +195,8 @@ int mgag200_device_init(struct mga_device *mdev,
 
 	mutex_unlock(&mdev->rmmio_lock);
 
+	WREG32(MGAREG_IEN, 0);
+
 	return 0;
 }
 
@@ -223,7 +228,7 @@ mgag200_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct drm_device *dev;
 	int ret;
 
-	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, &mgag200_driver);
+	ret = aperture_remove_conflicting_pci_devices(pdev, mgag200_driver.name);
 	if (ret)
 		return ret;
 
@@ -274,7 +279,7 @@ mgag200_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * FIXME: A 24-bit color depth does not work with 24 bpp on
 	 * G200ER. Force 32 bpp.
 	 */
-	drm_fbdev_shmem_setup(dev, 32);
+	drm_client_setup_with_fourcc(dev, DRM_FORMAT_XRGB8888);
 
 	return 0;
 }

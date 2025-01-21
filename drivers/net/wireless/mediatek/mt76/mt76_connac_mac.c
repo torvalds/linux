@@ -391,6 +391,7 @@ mt76_connac2_mac_write_txwi_80211(struct mt76_dev *dev, __le32 *txwi,
 	bool multicast = is_multicast_ether_addr(hdr->addr1);
 	u8 tid = skb->priority & IEEE80211_QOS_CTL_TID_MASK;
 	__le16 fc = hdr->frame_control;
+	__le16 sc = hdr->seq_ctrl;
 	u8 fc_type, fc_stype;
 	u32 val;
 
@@ -432,6 +433,13 @@ mt76_connac2_mac_write_txwi_80211(struct mt76_dev *dev, __le32 *txwi,
 	    info->flags & IEEE80211_TX_CTL_USE_MINRATE)
 		val |= MT_TXD2_FIX_RATE;
 
+	if (ieee80211_has_morefrags(fc) && ieee80211_is_first_frag(sc))
+		val |= FIELD_PREP(MT_TXD2_FRAG, MT_TX_FRAG_FIRST);
+	else if (ieee80211_has_morefrags(fc) && !ieee80211_is_first_frag(sc))
+		val |= FIELD_PREP(MT_TXD2_FRAG, MT_TX_FRAG_MID);
+	else if (!ieee80211_has_morefrags(fc) && !ieee80211_is_first_frag(sc))
+		val |= FIELD_PREP(MT_TXD2_FRAG, MT_TX_FRAG_LAST);
+
 	txwi[2] |= cpu_to_le32(val);
 
 	if (ieee80211_is_beacon(fc)) {
@@ -440,7 +448,7 @@ mt76_connac2_mac_write_txwi_80211(struct mt76_dev *dev, __le32 *txwi,
 	}
 
 	if (info->flags & IEEE80211_TX_CTL_INJECTED) {
-		u16 seqno = le16_to_cpu(hdr->seq_ctrl);
+		u16 seqno = le16_to_cpu(sc);
 
 		if (ieee80211_is_back_req(hdr->frame_control)) {
 			struct ieee80211_bar *bar;

@@ -105,6 +105,11 @@
     "BriefDescription": "Processor cycles gated by the run latch."
   },
   {
+    "EventCode": "0x200F8",
+    "EventName": "PM_EXT_INT",
+    "BriefDescription": "Cycles an external interrupt was active."
+  },
+  {
     "EventCode": "0x30010",
     "EventName": "PM_PMC2_OVERFLOW",
     "BriefDescription": "The event selected for PMC2 caused the event counter to overflow."
@@ -123,6 +128,11 @@
     "EventCode": "0x30024",
     "EventName": "PM_PMC6_OVERFLOW",
     "BriefDescription": "The event selected for PMC6 caused the event counter to overflow."
+  },
+  {
+    "EventCode": "0x3405A",
+    "EventName": "PM_PRIVILEGED_INST_CMPL",
+    "BriefDescription": "PowerPC instruction completed while the thread was in Privileged state."
   },
   {
     "EventCode": "0x3006C",

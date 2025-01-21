@@ -215,7 +215,7 @@ xrep_refc_rmap_shareable(
 		return false;
 
 	/* Metadata in files are never shareable */
-	if (xfs_internal_inum(mp, rmap->rm_owner))
+	if (xfs_is_sb_inum(mp, rmap->rm_owner))
 		return false;
 
 	/* Metadata and unwritten file blocks are not shareable. */
@@ -590,7 +590,6 @@ xrep_refc_build_new_tree(
 	struct xfs_scrub	*sc = rr->sc;
 	struct xfs_btree_cur	*refc_cur;
 	struct xfs_perag	*pag = sc->sa.pag;
-	xfs_fsblock_t		fsbno;
 	int			error;
 
 	error = xrep_refc_sort_records(rr);
@@ -603,8 +602,8 @@ xrep_refc_build_new_tree(
 	 * to root the new btree while it's under construction and before we
 	 * attach it to the AG header.
 	 */
-	fsbno = XFS_AGB_TO_FSB(sc->mp, pag->pag_agno, xfs_refc_block(sc->mp));
-	xrep_newbt_init_ag(&rr->new_btree, sc, &XFS_RMAP_OINFO_REFC, fsbno,
+	xrep_newbt_init_ag(&rr->new_btree, sc, &XFS_RMAP_OINFO_REFC,
+			xfs_agbno_to_fsb(pag, xfs_refc_block(sc->mp)),
 			XFS_AG_RESV_METADATA);
 	rr->new_btree.bload.get_records = xrep_refc_get_records;
 	rr->new_btree.bload.claim_block = xrep_refc_claim_block;

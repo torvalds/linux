@@ -335,7 +335,8 @@ static int shadow_crycb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	/* we may only allow it if enabled for guest 2 */
 	ecb3_flags = scb_o->ecb3 & vcpu->arch.sie_block->ecb3 &
 		     (ECB3_AES | ECB3_DEA);
-	ecd_flags = scb_o->ecd & vcpu->arch.sie_block->ecd & ECD_ECC;
+	ecd_flags = scb_o->ecd & vcpu->arch.sie_block->ecd &
+		     (ECD_ECC | ECD_HMAC);
 	if (!ecb3_flags && !ecd_flags)
 		goto end;
 
@@ -661,7 +662,7 @@ static int pin_guest_page(struct kvm *kvm, gpa_t gpa, hpa_t *hpa)
 	struct page *page;
 
 	page = gfn_to_page(kvm, gpa_to_gfn(gpa));
-	if (is_error_page(page))
+	if (!page)
 		return -EINVAL;
 	*hpa = (hpa_t)page_to_phys(page) + (gpa & ~PAGE_MASK);
 	return 0;
@@ -670,7 +671,7 @@ static int pin_guest_page(struct kvm *kvm, gpa_t gpa, hpa_t *hpa)
 /* Unpins a page previously pinned via pin_guest_page, marking it as dirty. */
 static void unpin_guest_page(struct kvm *kvm, gpa_t gpa, hpa_t hpa)
 {
-	kvm_release_pfn_dirty(hpa >> PAGE_SHIFT);
+	kvm_release_page_dirty(pfn_to_page(hpa >> PAGE_SHIFT));
 	/* mark the page always as dirty for migration */
 	mark_page_dirty(kvm, gpa_to_gfn(gpa));
 }
@@ -922,19 +923,19 @@ static int handle_fault(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 {
 	int rc;
 
-	if (current->thread.gmap_int_code == PGM_PROTECTION)
+	if ((current->thread.gmap_int_code & PGM_INT_CODE_MASK) == PGM_PROTECTION)
 		/* we can directly forward all protection exceptions */
 		return inject_fault(vcpu, PGM_PROTECTION,
-				    current->thread.gmap_addr, 1);
+				    current->thread.gmap_teid.addr * PAGE_SIZE, 1);
 
 	rc = kvm_s390_shadow_fault(vcpu, vsie_page->gmap,
-				   current->thread.gmap_addr, NULL);
+				   current->thread.gmap_teid.addr * PAGE_SIZE, NULL);
 	if (rc > 0) {
 		rc = inject_fault(vcpu, rc,
-				  current->thread.gmap_addr,
-				  current->thread.gmap_write_flag);
+				  current->thread.gmap_teid.addr * PAGE_SIZE,
+				  kvm_s390_cur_gmap_fault_is_write());
 		if (rc >= 0)
-			vsie_page->fault_addr = current->thread.gmap_addr;
+			vsie_page->fault_addr = current->thread.gmap_teid.addr * PAGE_SIZE;
 	}
 	return rc;
 }
@@ -1148,9 +1149,10 @@ static int do_vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	 * also kick the vSIE.
 	 */
 	vcpu->arch.sie_block->prog0c |= PROG_IN_SIE;
+	current->thread.gmap_int_code = 0;
 	barrier();
 	if (!kvm_s390_vcpu_sie_inhibited(vcpu))
-		rc = sie64a(scb_s, vcpu->run->s.regs.gprs, gmap_get_enabled()->asce);
+		rc = sie64a(scb_s, vcpu->run->s.regs.gprs, vsie_page->gmap->asce);
 	barrier();
 	vcpu->arch.sie_block->prog0c &= ~PROG_IN_SIE;
 
@@ -1172,7 +1174,7 @@ static int do_vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 
 	if (rc > 0)
 		rc = 0; /* we could still have an icpt */
-	else if (rc == -EFAULT)
+	else if (current->thread.gmap_int_code)
 		return handle_fault(vcpu, vsie_page);
 
 	switch (scb_s->icptcode) {
@@ -1295,10 +1297,8 @@ static int vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		if (!rc)
 			rc = map_prefix(vcpu, vsie_page);
 		if (!rc) {
-			gmap_enable(vsie_page->gmap);
 			update_intervention_requests(vsie_page);
 			rc = do_vsie_run(vcpu, vsie_page);
-			gmap_enable(vcpu->arch.gmap);
 		}
 		atomic_andnot(PROG_BLOCK_SIE, &scb_s->prog20);
 

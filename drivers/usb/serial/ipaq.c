@@ -496,7 +496,6 @@ MODULE_DEVICE_TABLE(usb, ipaq_id_table);
 /* All of the device info needed for the Compaq iPAQ */
 static struct usb_serial_driver ipaq_device = {
 	.driver = {
-		.owner =	THIS_MODULE,
 		.name =		"ipaq",
 	},
 	.description =		"PocketPC PDA",

@@ -314,7 +314,7 @@ static struct platform_driver i2c_demux_pinctrl_driver = {
 		.of_match_table = i2c_demux_pinctrl_of_match,
 	},
 	.probe	= i2c_demux_pinctrl_probe,
-	.remove_new = i2c_demux_pinctrl_remove,
+	.remove = i2c_demux_pinctrl_remove,
 };
 module_platform_driver(i2c_demux_pinctrl_driver);
 

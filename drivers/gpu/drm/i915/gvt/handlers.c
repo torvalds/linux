@@ -36,6 +36,8 @@
 
  */
 
+#include <drm/display/drm_dp.h>
+
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "gvt.h"
@@ -1129,29 +1131,36 @@ static int dp_aux_ch_ctl_trans_done(struct intel_vgpu *vgpu, u32 value,
 static void dp_aux_ch_ctl_link_training(struct intel_vgpu_dpcd_data *dpcd,
 		u8 t)
 {
-	if ((t & DPCD_TRAINING_PATTERN_SET_MASK) == DPCD_TRAINING_PATTERN_1) {
+	if ((t & DP_TRAINING_PATTERN_MASK) == DP_TRAINING_PATTERN_1) {
 		/* training pattern 1 for CR */
 		/* set LANE0_CR_DONE, LANE1_CR_DONE */
-		dpcd->data[DPCD_LANE0_1_STATUS] |= DPCD_LANES_CR_DONE;
+		dpcd->data[DP_LANE0_1_STATUS] |= DP_LANE_CR_DONE |
+			DP_LANE_CR_DONE << 4;
 		/* set LANE2_CR_DONE, LANE3_CR_DONE */
-		dpcd->data[DPCD_LANE2_3_STATUS] |= DPCD_LANES_CR_DONE;
-	} else if ((t & DPCD_TRAINING_PATTERN_SET_MASK) ==
-			DPCD_TRAINING_PATTERN_2) {
+		dpcd->data[DP_LANE2_3_STATUS] |= DP_LANE_CR_DONE |
+			DP_LANE_CR_DONE << 4;
+	} else if ((t & DP_TRAINING_PATTERN_MASK) ==
+			DP_TRAINING_PATTERN_2) {
 		/* training pattern 2 for EQ */
 		/* Set CHANNEL_EQ_DONE and  SYMBOL_LOCKED for Lane0_1 */
-		dpcd->data[DPCD_LANE0_1_STATUS] |= DPCD_LANES_EQ_DONE;
-		dpcd->data[DPCD_LANE0_1_STATUS] |= DPCD_SYMBOL_LOCKED;
+		dpcd->data[DP_LANE0_1_STATUS] |= DP_LANE_CHANNEL_EQ_DONE |
+			DP_LANE_CHANNEL_EQ_DONE << 4;
+		dpcd->data[DP_LANE0_1_STATUS] |= DP_LANE_SYMBOL_LOCKED |
+			DP_LANE_SYMBOL_LOCKED << 4;
 		/* Set CHANNEL_EQ_DONE and  SYMBOL_LOCKED for Lane2_3 */
-		dpcd->data[DPCD_LANE2_3_STATUS] |= DPCD_LANES_EQ_DONE;
-		dpcd->data[DPCD_LANE2_3_STATUS] |= DPCD_SYMBOL_LOCKED;
+		dpcd->data[DP_LANE2_3_STATUS] |= DP_LANE_CHANNEL_EQ_DONE |
+			DP_LANE_CHANNEL_EQ_DONE << 4;
+		dpcd->data[DP_LANE2_3_STATUS] |= DP_LANE_SYMBOL_LOCKED |
+			DP_LANE_SYMBOL_LOCKED << 4;
 		/* set INTERLANE_ALIGN_DONE */
-		dpcd->data[DPCD_LANE_ALIGN_STATUS_UPDATED] |=
-			DPCD_INTERLANE_ALIGN_DONE;
-	} else if ((t & DPCD_TRAINING_PATTERN_SET_MASK) ==
-			DPCD_LINK_TRAINING_DISABLED) {
+		dpcd->data[DP_LANE_ALIGN_STATUS_UPDATED] |=
+			DP_INTERLANE_ALIGN_DONE;
+	} else if ((t & DP_TRAINING_PATTERN_MASK) ==
+			DP_TRAINING_PATTERN_DISABLE) {
 		/* finish link training */
 		/* set sink status as synchronized */
-		dpcd->data[DPCD_SINK_STATUS] = DPCD_SINK_IN_SYNC;
+		dpcd->data[DP_SINK_STATUS] = DP_RECEIVE_PORT_0_STATUS |
+			DP_RECEIVE_PORT_1_STATUS;
 	}
 }
 
@@ -1206,7 +1215,7 @@ static int dp_aux_ch_ctl_mmio_write(struct intel_vgpu *vgpu,
 	len = msg & 0xff;
 	op = ctrl >> 4;
 
-	if (op == GVT_AUX_NATIVE_WRITE) {
+	if (op == DP_AUX_NATIVE_WRITE) {
 		int t;
 		u8 buf[16];
 
@@ -1252,7 +1261,7 @@ static int dp_aux_ch_ctl_mmio_write(struct intel_vgpu *vgpu,
 
 				dpcd->data[p] = buf[t];
 				/* check for link training */
-				if (p == DPCD_TRAINING_PATTERN_SET)
+				if (p == DP_TRAINING_PATTERN_SET)
 					dp_aux_ch_ctl_link_training(dpcd,
 							buf[t]);
 			}
@@ -1265,7 +1274,7 @@ static int dp_aux_ch_ctl_mmio_write(struct intel_vgpu *vgpu,
 		return 0;
 	}
 
-	if (op == GVT_AUX_NATIVE_READ) {
+	if (op == DP_AUX_NATIVE_READ) {
 		int idx, i, ret = 0;
 
 		if ((addr + len + 1) >= DPCD_SIZE) {

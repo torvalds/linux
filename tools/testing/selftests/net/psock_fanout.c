@@ -48,6 +48,7 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
+#include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -58,6 +59,33 @@
 #define RING_NUM_FRAMES			20
 
 static uint32_t cfg_max_num_members;
+
+static void loopback_set_up_down(int state_up)
+{
+	struct ifreq ifreq = {};
+	int fd, err;
+
+	fd = socket(AF_PACKET, SOCK_RAW, 0);
+	if (fd < 0) {
+		perror("socket loopback");
+		exit(1);
+	}
+	strcpy(ifreq.ifr_name, "lo");
+	err = ioctl(fd, SIOCGIFFLAGS, &ifreq);
+	if (err) {
+		perror("SIOCGIFFLAGS");
+		exit(1);
+	}
+	if (state_up != !!(ifreq.ifr_flags & IFF_UP)) {
+		ifreq.ifr_flags ^= IFF_UP;
+		err = ioctl(fd, SIOCSIFFLAGS, &ifreq);
+		if (err) {
+			perror("SIOCSIFFLAGS");
+			exit(1);
+		}
+	}
+	close(fd);
+}
 
 /* Open a socket in a given fanout mode.
  * @return -1 if mode is bad, a valid socket otherwise */
@@ -165,9 +193,9 @@ static void sock_fanout_set_ebpf(int fd)
 	attr.insns = (unsigned long) prog;
 	attr.insn_cnt = ARRAY_SIZE(prog);
 	attr.license = (unsigned long) "GPL";
-	attr.log_buf = (unsigned long) log_buf,
-	attr.log_size = sizeof(log_buf),
-	attr.log_level = 1,
+	attr.log_buf = (unsigned long) log_buf;
+	attr.log_size = sizeof(log_buf);
+	attr.log_level = 1;
 
 	pfd = syscall(__NR_bpf, BPF_PROG_LOAD, &attr, sizeof(attr));
 	if (pfd < 0) {
@@ -251,6 +279,41 @@ static int sock_fanout_read(int fds[], char *rings[], const int expect[])
 	return 0;
 }
 
+/* Test that creating/joining a fanout group fails for unbound socket without
+ * a specified protocol
+ */
+static void test_unbound_fanout(void)
+{
+	int val, fd0, fd1, err;
+
+	fprintf(stderr, "test: unbound fanout\n");
+	fd0 = socket(PF_PACKET, SOCK_RAW, 0);
+	if (fd0 < 0) {
+		perror("socket packet");
+		exit(1);
+	}
+	/* Try to create a new fanout group. Should fail. */
+	val = (PACKET_FANOUT_HASH << 16) | 1;
+	err = setsockopt(fd0, SOL_PACKET, PACKET_FANOUT, &val, sizeof(val));
+	if (!err) {
+		fprintf(stderr, "ERROR: unbound socket fanout create\n");
+		exit(1);
+	}
+	fd1 = sock_fanout_open(PACKET_FANOUT_HASH, 1);
+	if (fd1 == -1) {
+		fprintf(stderr, "ERROR: failed to open HASH socket\n");
+		exit(1);
+	}
+	/* Try to join an existing fanout group. Should fail. */
+	err = setsockopt(fd0, SOL_PACKET, PACKET_FANOUT, &val, sizeof(val));
+	if (!err) {
+		fprintf(stderr, "ERROR: unbound socket fanout join\n");
+		exit(1);
+	}
+	close(fd0);
+	close(fd1);
+}
+
 /* Test illegal mode + flag combination */
 static void test_control_single(void)
 {
@@ -264,17 +327,22 @@ static void test_control_single(void)
 }
 
 /* Test illegal group with different modes or flags */
-static void test_control_group(void)
+static void test_control_group(int toggle)
 {
 	int fds[2];
 
-	fprintf(stderr, "test: control multiple sockets\n");
+	if (toggle)
+		fprintf(stderr, "test: control multiple sockets with link down toggle\n");
+	else
+		fprintf(stderr, "test: control multiple sockets\n");
 
 	fds[0] = sock_fanout_open(PACKET_FANOUT_HASH, 0);
 	if (fds[0] == -1) {
 		fprintf(stderr, "ERROR: failed to open HASH socket\n");
 		exit(1);
 	}
+	if (toggle)
+		loopback_set_up_down(0);
 	if (sock_fanout_open(PACKET_FANOUT_HASH |
 			       PACKET_FANOUT_FLAG_DEFRAG, 0) != -1) {
 		fprintf(stderr, "ERROR: joined group with wrong flag defrag\n");
@@ -294,6 +362,8 @@ static void test_control_group(void)
 		fprintf(stderr, "ERROR: failed to join group\n");
 		exit(1);
 	}
+	if (toggle)
+		loopback_set_up_down(1);
 	if (close(fds[1]) || close(fds[0])) {
 		fprintf(stderr, "ERROR: closing sockets\n");
 		exit(1);
@@ -488,8 +558,10 @@ int main(int argc, char **argv)
 	const int expect_uniqueid[2][2] = { { 20, 20},  { 20, 20 } };
 	int port_off = 2, tries = 20, ret;
 
+	test_unbound_fanout();
 	test_control_single();
-	test_control_group();
+	test_control_group(0);
+	test_control_group(1);
 	test_control_group_max_num_members();
 	test_unique_fanout_group_ids();
 

@@ -156,7 +156,7 @@ static struct platform_driver cros_usbpd_notify_acpi_driver = {
 		.acpi_match_table = cros_usbpd_notify_acpi_device_ids,
 	},
 	.probe = cros_usbpd_notify_probe_acpi,
-	.remove_new = cros_usbpd_notify_remove_acpi,
+	.remove = cros_usbpd_notify_remove_acpi,
 };
 
 #endif /* CONFIG_ACPI */
@@ -230,7 +230,7 @@ static struct platform_driver cros_usbpd_notify_plat_driver = {
 		.name = DRV_NAME,
 	},
 	.probe = cros_usbpd_notify_probe_plat,
-	.remove_new = cros_usbpd_notify_remove_plat,
+	.remove = cros_usbpd_notify_remove_plat,
 	.id_table = cros_usbpd_notify_id,
 };
 

@@ -44,6 +44,7 @@ Contents:
    marvell/octeon_ep
    marvell/octeon_ep_vf
    mellanox/mlx5/index
+   meta/fbnic
    microsoft/netvsc
    neterion/s2io
    netronome/nfp

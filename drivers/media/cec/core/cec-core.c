@@ -51,35 +51,6 @@ static struct dentry *top_cec_dir;
 /* dev to cec_devnode */
 #define to_cec_devnode(cd) container_of(cd, struct cec_devnode, dev)
 
-int cec_get_device(struct cec_devnode *devnode)
-{
-	/*
-	 * Check if the cec device is available. This needs to be done with
-	 * the devnode->lock held to prevent an open/unregister race:
-	 * without the lock, the device could be unregistered and freed between
-	 * the devnode->registered check and get_device() calls, leading to
-	 * a crash.
-	 */
-	mutex_lock(&devnode->lock);
-	/*
-	 * return ENODEV if the cec device has been removed
-	 * already or if it is not registered anymore.
-	 */
-	if (!devnode->registered) {
-		mutex_unlock(&devnode->lock);
-		return -ENODEV;
-	}
-	/* and increase the device refcount */
-	get_device(&devnode->dev);
-	mutex_unlock(&devnode->lock);
-	return 0;
-}
-
-void cec_put_device(struct cec_devnode *devnode)
-{
-	put_device(&devnode->dev);
-}
-
 /* Called when the last user of the cec device exits. */
 static void cec_devnode_release(struct device *cd)
 {
@@ -273,7 +244,7 @@ struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 	adap->cec_pin_is_high = true;
 	adap->log_addrs.cec_version = CEC_OP_CEC_VERSION_2_0;
 	adap->log_addrs.vendor_id = CEC_VENDOR_ID_NONE;
-	adap->capabilities = caps;
+	adap->capabilities = caps | CEC_CAP_REPLY_VENDOR_ID;
 	if (debug_phys_addr)
 		adap->capabilities |= CEC_CAP_PHYS_ADDR;
 	adap->needs_hpd = caps & CEC_CAP_NEEDS_HPD;
@@ -467,6 +438,6 @@ static void __exit cec_devnode_exit(void)
 subsys_initcall(cec_devnode_init);
 module_exit(cec_devnode_exit)
 
-MODULE_AUTHOR("Hans Verkuil <hans.verkuil@cisco.com>");
+MODULE_AUTHOR("Hans Verkuil <hansverk@cisco.com>");
 MODULE_DESCRIPTION("Device node registration for cec drivers");
 MODULE_LICENSE("GPL");

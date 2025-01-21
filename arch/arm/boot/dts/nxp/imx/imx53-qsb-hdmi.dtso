@@ -34,9 +34,7 @@
 
 &display0 {
 	status = "okay";
-};
 
-&display0 {
 	port@1 {
 		display0_out: endpoint {
 			remote-endpoint = <&sii9022_in>;
@@ -81,9 +79,5 @@
 };
 
 &panel_dpi {
-	status = "disabled";
-};
-
-&tve {
 	status = "disabled";
 };

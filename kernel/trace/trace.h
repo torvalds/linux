@@ -46,6 +46,7 @@ enum trace_type {
 	TRACE_BRANCH,
 	TRACE_GRAPH_RET,
 	TRACE_GRAPH_ENT,
+	TRACE_GRAPH_RETADDR_ENT,
 	TRACE_USER_STACK,
 	TRACE_BLK,
 	TRACE_BPUTS,
@@ -336,7 +337,6 @@ struct trace_array {
 	bool			allocated_snapshot;
 	spinlock_t		snapshot_trigger_lock;
 	unsigned int		snapshot;
-	unsigned int		mapped;
 	unsigned long		max_latency;
 #ifdef CONFIG_FSNOTIFY
 	struct dentry		*d_max_latency;
@@ -344,6 +344,13 @@ struct trace_array {
 	struct irq_work		fsnotify_irqwork;
 #endif
 #endif
+	/* The below is for memory mapped ring buffer */
+	unsigned int		mapped;
+	unsigned long		range_addr_start;
+	unsigned long		range_addr_size;
+	long			text_delta;
+	long			data_delta;
+
 	struct trace_pid_list	__rcu *filtered_pids;
 	struct trace_pid_list	__rcu *filtered_no_pids;
 	/*
@@ -423,7 +430,8 @@ struct trace_array {
 };
 
 enum {
-	TRACE_ARRAY_FL_GLOBAL	= (1 << 0)
+	TRACE_ARRAY_FL_GLOBAL	= BIT(0),
+	TRACE_ARRAY_FL_BOOT	= BIT(1),
 };
 
 extern struct list_head ftrace_trace_arrays;
@@ -505,6 +513,8 @@ extern void __ftrace_bad_type(void);
 		IF_ASSIGN(var, ent, struct trace_branch, TRACE_BRANCH); \
 		IF_ASSIGN(var, ent, struct ftrace_graph_ent_entry,	\
 			  TRACE_GRAPH_ENT);		\
+		IF_ASSIGN(var, ent, struct fgraph_retaddr_ent_entry,\
+			  TRACE_GRAPH_RETADDR_ENT);		\
 		IF_ASSIGN(var, ent, struct ftrace_graph_ret_entry,	\
 			  TRACE_GRAPH_RET);		\
 		IF_ASSIGN(var, ent, struct func_repeats_entry,		\
@@ -644,6 +654,8 @@ trace_buffer_lock_reserve(struct trace_buffer *buffer,
 			  unsigned long len,
 			  unsigned int trace_ctx);
 
+int ring_buffer_meta_seq_init(struct file *file, struct trace_buffer *buffer, int cpu);
+
 struct trace_entry *tracing_get_trace_entry(struct trace_array *tr,
 						struct trace_array_cpu *data);
 
@@ -763,6 +775,8 @@ extern void trace_event_follow_fork(struct trace_array *tr, bool enable);
 extern unsigned long ftrace_update_tot_cnt;
 extern unsigned long ftrace_number_of_pages;
 extern unsigned long ftrace_number_of_groups;
+extern u64 ftrace_update_time;
+extern u64 ftrace_total_mod_time;
 void ftrace_init_trace_array(struct trace_array *tr);
 #else
 static inline void ftrace_init_trace_array(struct trace_array *tr) { }
@@ -870,6 +884,7 @@ static __always_inline bool ftrace_hash_empty(struct ftrace_hash *hash)
 #define TRACE_GRAPH_GRAPH_TIME          0x400
 #define TRACE_GRAPH_PRINT_RETVAL        0x800
 #define TRACE_GRAPH_PRINT_RETVAL_HEX    0x1000
+#define TRACE_GRAPH_PRINT_RETADDR       0x2000
 #define TRACE_GRAPH_PRINT_FILL_SHIFT	28
 #define TRACE_GRAPH_PRINT_FILL_MASK	(0x3 << TRACE_GRAPH_PRINT_FILL_SHIFT)
 
@@ -891,6 +906,10 @@ extern void graph_trace_close(struct trace_iterator *iter);
 extern int __trace_graph_entry(struct trace_array *tr,
 			       struct ftrace_graph_ent *trace,
 			       unsigned int trace_ctx);
+extern int __trace_graph_retaddr_entry(struct trace_array *tr,
+				struct ftrace_graph_ent *trace,
+				unsigned int trace_ctx,
+				unsigned long retaddr);
 extern void __trace_graph_return(struct trace_array *tr,
 				 struct ftrace_graph_ret *trace,
 				 unsigned int trace_ctx);
@@ -1039,6 +1058,7 @@ static inline void ftrace_graph_addr_finish(struct fgraph_ops *gops, struct ftra
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
 extern unsigned int fgraph_max_depth;
+extern bool fgraph_sleep_time;
 
 static inline bool
 ftrace_graph_ignore_func(struct fgraph_ops *gops, struct ftrace_graph_ent *trace)
@@ -1312,6 +1332,7 @@ extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 		C(IRQ_INFO,		"irq-info"),		\
 		C(MARKERS,		"markers"),		\
 		C(EVENT_FORK,		"event-fork"),		\
+		C(TRACE_PRINTK,		"trace_printk_dest"),	\
 		C(PAUSE_ON_TRACE,	"pause-on-trace"),	\
 		C(HASH_PTR,		"hash-ptr"),	/* Print hashed pointer */ \
 		FUNCTION_FLAGS					\
@@ -1418,10 +1439,6 @@ struct trace_subsystem_dir {
 	int				ref_count;
 	int				nr_events;
 };
-
-extern int call_filter_check_discard(struct trace_event_call *call, void *rec,
-				     struct trace_buffer *buffer,
-				     struct ring_buffer_event *event);
 
 void trace_buffer_unlock_commit_regs(struct trace_array *tr,
 				     struct trace_buffer *buffer,
@@ -2165,5 +2182,12 @@ static inline int rv_init_interface(void)
 	return 0;
 }
 #endif
+
+/*
+ * This is used only to distinguish
+ * function address from trampoline code.
+ * So this value has no meaning.
+ */
+#define FTRACE_TRAMPOLINE_MARKER  ((unsigned long) INT_MAX)
 
 #endif /* _LINUX_KERNEL_TRACE_H */

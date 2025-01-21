@@ -8,6 +8,9 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/acpi.h>
+#include <linux/bits.h>
+#include <linux/device.h>
+#include <linux/dev_printk.h>
 #include <linux/dmi.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
@@ -30,6 +33,26 @@
 MODULE_AUTHOR("Matan Ziv-Av");
 MODULE_DESCRIPTION("LG WMI Hotkey Driver");
 MODULE_LICENSE("GPL");
+
+static bool fw_debug;
+module_param(fw_debug, bool, 0);
+MODULE_PARM_DESC(fw_debug, "Enable printing of firmware debug messages");
+
+#define LG_ADDRESS_SPACE_ID			0x8F
+
+#define LG_ADDRESS_SPACE_DEBUG_FLAG_ADR		0x00
+#define LG_ADDRESS_SPACE_FAN_MODE_ADR		0x03
+
+#define LG_ADDRESS_SPACE_DTTM_FLAG_ADR		0x20
+#define LG_ADDRESS_SPACE_CPU_TEMP_ADR		0x21
+#define LG_ADDRESS_SPACE_CPU_TRIP_LOW_ADR	0x22
+#define LG_ADDRESS_SPACE_CPU_TRIP_HIGH_ADR	0x23
+#define LG_ADDRESS_SPACE_MB_TEMP_ADR		0x24
+#define LG_ADDRESS_SPACE_MB_TRIP_LOW_ADR	0x25
+#define LG_ADDRESS_SPACE_MB_TRIP_HIGH_ADR	0x26
+
+#define LG_ADDRESS_SPACE_DEBUG_MSG_START_ADR	0x3E8
+#define LG_ADDRESS_SPACE_DEBUG_MSG_END_ADR	0x5E8
 
 #define WMI_EVENT_GUID0	"E4FB94F9-7F2B-4173-AD1A-CD1D95086248"
 #define WMI_EVENT_GUID1	"023B133E-49D1-4E10-B313-698220140DC2"
@@ -182,21 +205,11 @@ static union acpi_object *lg_wmbb(struct device *dev, u32 method_id, u32 arg1, u
 	return (union acpi_object *)buffer.pointer;
 }
 
-static void wmi_notify(u32 value, void *context)
+static void wmi_notify(union acpi_object *obj, void *context)
 {
-	struct acpi_buffer response = { ACPI_ALLOCATE_BUFFER, NULL };
-	union acpi_object *obj;
-	acpi_status status;
 	long data = (long)context;
 
 	pr_debug("event guid %li\n", data);
-	status = wmi_get_event_data(value, &response);
-	if (ACPI_FAILURE(status)) {
-		pr_err("Bad event status 0x%x\n", status);
-		return;
-	}
-
-	obj = (union acpi_object *)response.pointer;
 	if (!obj)
 		return;
 
@@ -218,7 +231,6 @@ static void wmi_notify(u32 value, void *context)
 
 	pr_debug("Type: %i    Eventcode: 0x%llx\n", obj->type,
 		 obj->integer.value);
-	kfree(response.pointer);
 }
 
 static void wmi_input_setup(void)
@@ -646,6 +658,107 @@ static struct platform_driver pf_driver = {
 	}
 };
 
+static acpi_status lg_laptop_address_space_write(struct device *dev, acpi_physical_address address,
+						 size_t size, u64 value)
+{
+	u8 byte;
+
+	/* Ignore any debug messages */
+	if (address >= LG_ADDRESS_SPACE_DEBUG_MSG_START_ADR &&
+	    address <= LG_ADDRESS_SPACE_DEBUG_MSG_END_ADR)
+		return AE_OK;
+
+	if (size != sizeof(byte))
+		return AE_BAD_PARAMETER;
+
+	byte = value & 0xFF;
+
+	switch (address) {
+	case LG_ADDRESS_SPACE_FAN_MODE_ADR:
+		/*
+		 * The fan mode field is not affected by the DTTM flag, so we
+		 * have to manually check fw_debug.
+		 */
+		if (fw_debug)
+			dev_dbg(dev, "Fan mode set to mode %u\n", byte);
+
+		return AE_OK;
+	case LG_ADDRESS_SPACE_CPU_TEMP_ADR:
+		dev_dbg(dev, "CPU temperature is %u °C\n", byte);
+		return AE_OK;
+	case LG_ADDRESS_SPACE_CPU_TRIP_LOW_ADR:
+		dev_dbg(dev, "CPU lower trip point set to %u °C\n", byte);
+		return AE_OK;
+	case LG_ADDRESS_SPACE_CPU_TRIP_HIGH_ADR:
+		dev_dbg(dev, "CPU higher trip point set to %u °C\n", byte);
+		return AE_OK;
+	case LG_ADDRESS_SPACE_MB_TEMP_ADR:
+		dev_dbg(dev, "Motherboard temperature is %u °C\n", byte);
+		return AE_OK;
+	case LG_ADDRESS_SPACE_MB_TRIP_LOW_ADR:
+		dev_dbg(dev, "Motherboard lower trip point set to %u °C\n", byte);
+		return AE_OK;
+	case LG_ADDRESS_SPACE_MB_TRIP_HIGH_ADR:
+		dev_dbg(dev, "Motherboard higher trip point set to %u °C\n", byte);
+		return AE_OK;
+	default:
+		dev_notice_ratelimited(dev, "Ignoring write to unknown opregion address %llu\n",
+				       address);
+		return AE_OK;
+	}
+}
+
+static acpi_status lg_laptop_address_space_read(struct device *dev, acpi_physical_address address,
+						size_t size, u64 *value)
+{
+	if (size != 1)
+		return AE_BAD_PARAMETER;
+
+	switch (address) {
+	case LG_ADDRESS_SPACE_DEBUG_FLAG_ADR:
+		/* Debug messages are already printed using the standard ACPI Debug object */
+		*value = 0x00;
+		return AE_OK;
+	case LG_ADDRESS_SPACE_DTTM_FLAG_ADR:
+		*value = fw_debug;
+		return AE_OK;
+	default:
+		dev_notice_ratelimited(dev, "Attempt to read unknown opregion address %llu\n",
+				       address);
+		return AE_BAD_PARAMETER;
+	}
+}
+
+static acpi_status lg_laptop_address_space_handler(u32 function, acpi_physical_address address,
+						   u32 bits, u64 *value, void *handler_context,
+						   void *region_context)
+{
+	struct device *dev = handler_context;
+	size_t size;
+
+	if (bits % BITS_PER_BYTE)
+		return AE_BAD_PARAMETER;
+
+	size = bits / BITS_PER_BYTE;
+
+	switch (function) {
+	case ACPI_READ:
+		return lg_laptop_address_space_read(dev, address, size, value);
+	case ACPI_WRITE:
+		return lg_laptop_address_space_write(dev, address, size, *value);
+	default:
+		return AE_BAD_PARAMETER;
+	}
+}
+
+static void lg_laptop_remove_address_space_handler(void *data)
+{
+	struct acpi_device *device = data;
+
+	acpi_remove_address_space_handler(device->handle, LG_ADDRESS_SPACE_ID,
+					  &lg_laptop_address_space_handler);
+}
+
 static int acpi_add(struct acpi_device *device)
 {
 	struct platform_device_info pdev_info = {
@@ -653,12 +766,24 @@ static int acpi_add(struct acpi_device *device)
 		.name = PLATFORM_NAME,
 		.id = PLATFORM_DEVID_NONE,
 	};
+	acpi_status status;
 	int ret;
 	const char *product;
 	int year = 2017;
 
 	if (pf_device)
 		return 0;
+
+	status = acpi_install_address_space_handler(device->handle, LG_ADDRESS_SPACE_ID,
+						    &lg_laptop_address_space_handler,
+						    NULL, &device->dev);
+	if (ACPI_FAILURE(status))
+		return -ENODEV;
+
+	ret = devm_add_action_or_reset(&device->dev, lg_laptop_remove_address_space_handler,
+				       device);
+	if (ret < 0)
+		return ret;
 
 	ret = platform_driver_register(&pf_driver);
 	if (ret)

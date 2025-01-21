@@ -1483,7 +1483,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(meson_sar_adc_pm_ops,
 
 static struct platform_driver meson_sar_adc_driver = {
 	.probe		= meson_sar_adc_probe,
-	.remove_new	= meson_sar_adc_remove,
+	.remove		= meson_sar_adc_remove,
 	.driver		= {
 		.name	= "meson-saradc",
 		.of_match_table = meson_sar_adc_of_match,

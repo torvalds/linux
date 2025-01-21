@@ -514,6 +514,7 @@ void etnaviv_gem_free_object(struct drm_gem_object *obj)
 	etnaviv_obj->ops->release(etnaviv_obj);
 	drm_gem_object_release(obj);
 
+	mutex_destroy(&etnaviv_obj->lock);
 	kfree(etnaviv_obj);
 }
 
@@ -543,7 +544,7 @@ static const struct drm_gem_object_funcs etnaviv_gem_object_funcs = {
 	.vm_ops = &vm_ops,
 };
 
-static int etnaviv_gem_new_impl(struct drm_device *dev, u32 flags,
+static int etnaviv_gem_new_impl(struct drm_device *dev, u32 size, u32 flags,
 	const struct etnaviv_gem_ops *ops, struct drm_gem_object **obj)
 {
 	struct etnaviv_gem_object *etnaviv_obj;
@@ -570,6 +571,7 @@ static int etnaviv_gem_new_impl(struct drm_device *dev, u32 flags,
 	if (!etnaviv_obj)
 		return -ENOMEM;
 
+	etnaviv_obj->size = ALIGN(size, SZ_4K);
 	etnaviv_obj->flags = flags;
 	etnaviv_obj->ops = ops;
 
@@ -590,15 +592,13 @@ int etnaviv_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 	struct drm_gem_object *obj = NULL;
 	int ret;
 
-	size = PAGE_ALIGN(size);
-
-	ret = etnaviv_gem_new_impl(dev, flags, &etnaviv_gem_shmem_ops, &obj);
+	ret = etnaviv_gem_new_impl(dev, size, flags, &etnaviv_gem_shmem_ops, &obj);
 	if (ret)
 		goto fail;
 
 	lockdep_set_class(&to_etnaviv_bo(obj)->lock, &etnaviv_shm_lock_class);
 
-	ret = drm_gem_object_init(dev, obj, size);
+	ret = drm_gem_object_init(dev, obj, PAGE_ALIGN(size));
 	if (ret)
 		goto fail;
 
@@ -627,7 +627,7 @@ int etnaviv_gem_new_private(struct drm_device *dev, size_t size, u32 flags,
 	struct drm_gem_object *obj;
 	int ret;
 
-	ret = etnaviv_gem_new_impl(dev, flags, ops, &obj);
+	ret = etnaviv_gem_new_impl(dev, size, flags, ops, &obj);
 	if (ret)
 		return ret;
 
@@ -686,7 +686,7 @@ static void etnaviv_gem_userptr_release(struct etnaviv_gem_object *etnaviv_obj)
 		kfree(etnaviv_obj->sgt);
 	}
 	if (etnaviv_obj->pages) {
-		int npages = etnaviv_obj->base.size >> PAGE_SHIFT;
+		unsigned int npages = etnaviv_obj->base.size >> PAGE_SHIFT;
 
 		unpin_user_pages(etnaviv_obj->pages, npages);
 		kvfree(etnaviv_obj->pages);

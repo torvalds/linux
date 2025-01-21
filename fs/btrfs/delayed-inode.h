@@ -64,9 +64,9 @@ struct btrfs_delayed_node {
 	struct mutex mutex;
 	struct btrfs_inode_item inode_item;
 	refcount_t refs;
+	int count;
 	u64 index_cnt;
 	unsigned long flags;
-	int count;
 	/*
 	 * The size of the next batch of dir index items to insert (if this
 	 * node is from a directory inode). Protected by @mutex.

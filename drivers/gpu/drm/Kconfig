@@ -9,9 +9,6 @@ menuconfig DRM
 	tristate "Direct Rendering Manager (XFree86 4.1.0 and higher DRI support)"
 	depends on (AGP || AGP=n) && !EMULATED_CMPXCHG && HAS_DMA
 	select DRM_PANEL_ORIENTATION_QUIRKS
-	select DRM_KMS_HELPER if DRM_FBDEV_EMULATION
-	select FB_CORE if DRM_FBDEV_EMULATION
-	select FB_SYSMEM_HELPERS_DEFERRED if DRM_FBDEV_EMULATION
 	select HDMI
 	select I2C
 	select DMA_SHARED_BUFFER
@@ -107,7 +104,7 @@ config DRM_KMS_HELPER
 
 config DRM_PANIC
 	bool "Display a user-friendly message when a kernel panic occurs"
-	depends on DRM && !(FRAMEBUFFER_CONSOLE && VT_CONSOLE)
+	depends on DRM
 	select FONT_SUPPORT
 	help
 	  Enable a drm panic handler, which will display a user-friendly message
@@ -149,6 +146,38 @@ config DRM_PANIC_SCREEN
 	  or by writing to /sys/module/drm/parameters/panic_screen sysfs entry
 	  Default is "user"
 
+config DRM_PANIC_SCREEN_QR_CODE
+	bool "Add a panic screen with a QR code"
+	depends on DRM_PANIC && RUST
+	select ZLIB_DEFLATE
+	help
+	  This option adds a QR code generator, and a panic screen with a QR
+	  code. The QR code will contain the last lines of kmsg and other debug
+	  information. This should be easier for the user to report a kernel
+	  panic, with all debug information available.
+	  To use this panic screen, also set DRM_PANIC_SCREEN to "qr_code"
+
+config DRM_PANIC_SCREEN_QR_CODE_URL
+	string "Base URL of the QR code in the panic screen"
+	depends on DRM_PANIC_SCREEN_QR_CODE
+	help
+	  This option sets the base URL to report the kernel panic. If it's set
+	  the QR code will contain the URL and the kmsg compressed with zlib as
+	  a URL parameter. If it's empty, the QR code will contain the kmsg as
+	  uncompressed text only.
+	  There is a demo code in javascript, to decode and uncompress the kmsg
+	  data from the URL parameter at https://github.com/kdj0c/panic_report
+
+config DRM_PANIC_SCREEN_QR_VERSION
+	int "Maximum version (size) of the QR code."
+	depends on DRM_PANIC_SCREEN_QR_CODE
+	default 40
+	help
+	  This option limits the version (or size) of the QR code. QR code
+	  version ranges from Version 1 (21x21) to Version 40 (177x177).
+	  Smaller QR code are easier to read, but will contain less debugging
+	  data. Default is 40.
+
 config DRM_DEBUG_DP_MST_TOPOLOGY_REFS
         bool "Enable refcount backtrace history in the DP MST helpers"
 	depends on STACKTRACE_SUPPORT
@@ -179,9 +208,47 @@ config DRM_DEBUG_MODESET_LOCK
 
 	  If in doubt, say "N".
 
+config DRM_CLIENT
+	bool
+	depends on DRM
+	help
+	  Enables support for DRM clients. DRM drivers that need
+	  struct drm_client_dev and its interfaces should select this
+	  option. Drivers that support the default clients should
+	  select DRM_CLIENT_SELECTION instead.
+
+config DRM_CLIENT_LIB
+	tristate
+	depends on DRM
+	select DRM_KMS_HELPER if DRM_FBDEV_EMULATION
+	select FB_CORE if DRM_FBDEV_EMULATION
+	help
+	  This option enables the DRM client library and selects all
+	  modules and components according to the enabled clients.
+
+config DRM_CLIENT_SELECTION
+	tristate
+	depends on DRM
+	select DRM_CLIENT_LIB if DRM_FBDEV_EMULATION
+	help
+	  Drivers that support in-kernel DRM clients have to select this
+	  option.
+
+config DRM_CLIENT_SETUP
+	bool
+	depends on DRM_CLIENT_SELECTION
+	help
+	  Enables the DRM client selection. DRM drivers that support the
+	  default clients should select DRM_CLIENT_SELECTION instead.
+
+menu "Supported DRM clients"
+	depends on DRM_CLIENT_SELECTION
+
 config DRM_FBDEV_EMULATION
 	bool "Enable legacy fbdev support for your modesetting driver"
-	depends on DRM
+	depends on DRM_CLIENT_SELECTION
+	select DRM_CLIENT
+	select DRM_CLIENT_SETUP
 	select FRAMEBUFFER_CONSOLE_DETECT_PRIMARY if FRAMEBUFFER_CONSOLE
 	default FB
 	help
@@ -219,6 +286,8 @@ config DRM_FBDEV_LEAK_PHYS_SMEM
 
 	  If in doubt, say "N" or spread the word to your closed source
 	  library vendor.
+
+endmenu
 
 config DRM_LOAD_EDID_FIRMWARE
 	bool "Allow to specify an EDID data set instead of probing for it"
@@ -289,19 +358,21 @@ config DRM_TTM_HELPER
 	tristate
 	depends on DRM
 	select DRM_TTM
+	select FB_SYSMEM_HELPERS_DEFERRED if DRM_FBDEV_EMULATION
 	help
 	  Helpers for ttm-based gem objects
 
 config DRM_GEM_DMA_HELPER
 	tristate
 	depends on DRM
-	select FB_DMAMEM_HELPERS if DRM_FBDEV_EMULATION
+	select FB_DMAMEM_HELPERS_DEFERRED if DRM_FBDEV_EMULATION
 	help
 	  Choose this if you need the GEM DMA helper functions
 
 config DRM_GEM_SHMEM_HELPER
 	tristate
 	depends on DRM && MMU
+	select FB_SYSMEM_HELPERS_DEFERRED if DRM_FBDEV_EMULATION
 	help
 	  Choose this if you need the GEM shmem helper functions
 
@@ -441,6 +512,7 @@ source "drivers/gpu/drm/imagination/Kconfig"
 config DRM_HYPERV
 	tristate "DRM Support for Hyper-V synthetic video device"
 	depends on DRM && PCI && MMU && HYPERV
+	select DRM_CLIENT_SELECTION
 	select DRM_KMS_HELPER
 	select DRM_GEM_SHMEM_HELPER
 	help

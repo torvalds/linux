@@ -25,13 +25,13 @@ properties:
           - enum:
               - qcom,sm8550-sndcard
               - qcom,sm8650-sndcard
+              - qcom,sm8750-sndcard
           - const: qcom,sm8450-sndcard
       - enum:
-          - qcom,apq8016-sbc-sndcard
           - qcom,apq8096-sndcard
-          - qcom,msm8916-qdsp6-sndcard
           - qcom,qcm6490-idp-sndcard
           - qcom,qcs6490-rb3gen2-sndcard
+          - qcom,qrb4210-rb2-sndcard
           - qcom,qrb5165-rb5-sndcard
           - qcom,sc7180-qdsp6-sndcard
           - qcom,sc8280xp-sndcard
@@ -57,18 +57,6 @@ properties:
   model:
     $ref: /schemas/types.yaml#/definitions/string
     description: User visible long sound card name
-
-  pin-switches:
-    description: List of widget names for which pin switches should be created.
-    $ref: /schemas/types.yaml#/definitions/string-array
-
-  widgets:
-    description: User specified audio sound widgets.
-    $ref: /schemas/types.yaml#/definitions/non-unique-string-array
-
-  # Only valid for some compatibles (see allOf if below)
-  reg: true
-  reg-names: true
 
 patternProperties:
   ".*-dai-link$":
@@ -121,34 +109,6 @@ patternProperties:
 required:
   - compatible
   - model
-
-allOf:
-  - if:
-      properties:
-        compatible:
-          contains:
-            enum:
-              - qcom,apq8016-sbc-sndcard
-              - qcom,msm8916-qdsp6-sndcard
-    then:
-      properties:
-        reg:
-          items:
-            - description: Microphone I/O mux register address
-            - description: Speaker I/O mux register address
-        reg-names:
-          items:
-            - const: mic-iomux
-            - const: spkr-iomux
-      required:
-        - compatible
-        - model
-        - reg
-        - reg-names
-    else:
-      properties:
-        reg: false
-        reg-names: false
 
 additionalProperties: false
 
@@ -228,101 +188,6 @@ examples:
 
             codec {
                 sound-dai = <&vamacro 0>;
-            };
-        };
-    };
-
-  - |
-    #include <dt-bindings/sound/qcom,lpass.h>
-    sound@7702000 {
-        compatible = "qcom,apq8016-sbc-sndcard";
-        reg = <0x07702000 0x4>, <0x07702004 0x4>;
-        reg-names = "mic-iomux", "spkr-iomux";
-
-        model = "DB410c";
-        audio-routing =
-            "AMIC2", "MIC BIAS Internal2",
-            "AMIC3", "MIC BIAS External1";
-
-        pinctrl-0 = <&cdc_pdm_lines_act &ext_sec_tlmm_lines_act &ext_mclk_tlmm_lines_act>;
-        pinctrl-1 = <&cdc_pdm_lines_sus &ext_sec_tlmm_lines_sus &ext_mclk_tlmm_lines_sus>;
-        pinctrl-names = "default", "sleep";
-
-        quaternary-dai-link {
-            link-name = "ADV7533";
-            cpu {
-                sound-dai = <&lpass MI2S_QUATERNARY>;
-            };
-            codec {
-                sound-dai = <&adv_bridge 0>;
-            };
-        };
-
-        primary-dai-link {
-            link-name = "WCD";
-            cpu {
-                sound-dai = <&lpass MI2S_PRIMARY>;
-            };
-            codec {
-                sound-dai = <&lpass_codec 0>, <&wcd_codec 0>;
-            };
-        };
-
-        tertiary-dai-link {
-            link-name = "WCD-Capture";
-            cpu {
-                sound-dai = <&lpass MI2S_TERTIARY>;
-            };
-            codec {
-                sound-dai = <&lpass_codec 1>, <&wcd_codec 1>;
-            };
-        };
-    };
-
-  - |
-    #include <dt-bindings/sound/qcom,q6afe.h>
-    #include <dt-bindings/sound/qcom,q6asm.h>
-    sound@7702000 {
-        compatible = "qcom,msm8916-qdsp6-sndcard";
-        reg = <0x07702000 0x4>, <0x07702004 0x4>;
-        reg-names = "mic-iomux", "spkr-iomux";
-
-        model = "msm8916";
-        widgets =
-            "Speaker", "Speaker",
-            "Headphone", "Headphones";
-        pin-switches = "Speaker";
-        audio-routing =
-            "Speaker", "Speaker Amp OUT",
-            "Speaker Amp IN", "HPH_R",
-            "Headphones", "HPH_L",
-            "Headphones", "HPH_R",
-            "AMIC1", "MIC BIAS Internal1",
-            "AMIC2", "MIC BIAS Internal2",
-            "AMIC3", "MIC BIAS Internal3";
-        aux-devs = <&speaker_amp>;
-
-        pinctrl-names = "default", "sleep";
-        pinctrl-0 = <&cdc_pdm_lines_act>;
-        pinctrl-1 = <&cdc_pdm_lines_sus>;
-
-        mm1-dai-link {
-            link-name = "MultiMedia1";
-            cpu {
-                sound-dai = <&q6asmdai MSM_FRONTEND_DAI_MULTIMEDIA1>;
-            };
-        };
-
-        primary-dai-link {
-            link-name = "Primary MI2S";
-            cpu {
-                sound-dai = <&q6afedai PRIMARY_MI2S_RX>;
-            };
-            platform {
-                sound-dai = <&q6routing>;
-            };
-            codec {
-                sound-dai = <&lpass_codec 0>, <&wcd_codec 0>;
             };
         };
     };

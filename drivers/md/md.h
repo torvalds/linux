@@ -535,7 +535,8 @@ struct mddev {
 	struct percpu_ref		writes_pending;
 	int				sync_checkers;	/* # of threads checking writes_pending */
 
-	struct bitmap			*bitmap; /* the bitmap for the device */
+	void				*bitmap; /* the bitmap for the device */
+	struct bitmap_operations	*bitmap_ops;
 	struct {
 		struct file		*file; /* the bitmap file */
 		loff_t			offset; /* offset from superblock of
@@ -571,16 +572,6 @@ struct mddev {
 						   */
 	struct bio_set			io_clone_set;
 
-	/* Generic flush handling.
-	 * The last to finish preflush schedules a worker to submit
-	 * the rest of the request (without the REQ_PREFLUSH flag).
-	 */
-	struct bio *flush_bio;
-	atomic_t flush_pending;
-	ktime_t start_flush, prev_flush_start; /* prev_flush_start is when the previous completed
-						* flush was started.
-						*/
-	struct work_struct flush_work;
 	struct work_struct event_work;	/* used by dm to report failure event */
 	mempool_t *serial_info_pool;
 	void (*sync_super)(struct mddev *mddev, struct md_rdev *rdev);
@@ -1009,6 +1000,30 @@ static inline void mddev_trace_remap(struct mddev *mddev, struct bio *bio,
 {
 	if (!mddev_is_dm(mddev))
 		trace_block_bio_remap(bio, disk_devt(mddev->gendisk), sector);
+}
+
+static inline bool rdev_blocked(struct md_rdev *rdev)
+{
+	/*
+	 * Blocked will be set by error handler and cleared by daemon after
+	 * updating superblock, meanwhile write IO should be blocked to prevent
+	 * reading old data after power failure.
+	 */
+	if (test_bit(Blocked, &rdev->flags))
+		return true;
+
+	/*
+	 * Faulty device should not be accessed anymore, there is no need to
+	 * wait for bad block to be acknowledged.
+	 */
+	if (test_bit(Faulty, &rdev->flags))
+		return false;
+
+	/* rdev is blocked by badblocks. */
+	if (test_bit(BlockedBadBlocks, &rdev->flags))
+		return true;
+
+	return false;
 }
 
 #define mddev_add_trace_msg(mddev, fmt, args...)			\

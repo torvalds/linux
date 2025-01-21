@@ -117,7 +117,7 @@ struct ov7740 {
 	struct v4l2_ctrl *brightness;
 	struct v4l2_ctrl *contrast;
 
-	struct mutex mutex;	/* To serialize asynchronus callbacks */
+	struct mutex mutex;	/* To serialize asynchronous callbacks */
 
 	struct gpio_desc *resetb_gpio;
 	struct gpio_desc *pwdn_gpio;
@@ -1152,7 +1152,7 @@ static int __maybe_unused ov7740_runtime_resume(struct device *dev)
 }
 
 static const struct i2c_device_id ov7740_id[] = {
-	{ "ov7740", 0 },
+	{ "ov7740" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, ov7740_id);

@@ -569,7 +569,7 @@ static void __init imr_fixup_memmap(struct imr_device *idev)
 }
 
 static const struct x86_cpu_id imr_ids[] __initconst = {
-	X86_MATCH_VENDOR_FAM_MODEL(INTEL, 5, INTEL_FAM5_QUARK_X1000, NULL),
+	X86_MATCH_VFM(INTEL_QUARK_X1000, NULL),
 	{}
 };
 

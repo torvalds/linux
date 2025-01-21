@@ -447,7 +447,7 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 		ret = devm_request_irq(dev, irq, rcar_thermal_irq,
 				       IRQF_SHARED, dev_name(dev), common);
 		if (ret) {
-			dev_err(dev, "irq request failed\n ");
+			dev_err(dev, "irq request failed\n");
 			goto error_unregister;
 		}
 
@@ -579,7 +579,7 @@ static struct platform_driver rcar_thermal_driver = {
 		.of_match_table = rcar_thermal_dt_ids,
 	},
 	.probe		= rcar_thermal_probe,
-	.remove_new	= rcar_thermal_remove,
+	.remove		= rcar_thermal_remove,
 };
 module_platform_driver(rcar_thermal_driver);
 

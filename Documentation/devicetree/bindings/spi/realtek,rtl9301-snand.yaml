@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/spi/realtek,rtl9301-snand.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: SPI-NAND Flash Controller for Realtek RTL9300 SoCs
+
+maintainers:
+  - Chris Packham <chris.packham@alliedtelesis.co.nz>
+
+description:
+  The Realtek RTL9300 SoCs have a built in SPI-NAND controller. It supports
+  typical SPI-NAND page cache operations in single, dual or quad IO mode.
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - realtek,rtl9302b-snand
+              - realtek,rtl9302c-snand
+              - realtek,rtl9303-snand
+          - const: realtek,rtl9301-snand
+      - const: realtek,rtl9301-snand
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+
+allOf:
+  - $ref: /schemas/spi/spi-controller.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    spi@1a400 {
+      compatible = "realtek,rtl9302c-snand", "realtek,rtl9301-snand";
+      reg = <0x1a400 0x44>;
+      interrupt-parent = <&intc>;
+      interrupts = <19>;
+      clocks = <&lx_clk>;
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      flash@0 {
+        compatible = "spi-nand";
+        reg = <0>;
+      };
+    };

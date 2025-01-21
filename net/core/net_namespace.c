@@ -56,7 +56,6 @@ static bool init_net_initialized;
  * outside.
  */
 DECLARE_RWSEM(pernet_ops_rwsem);
-EXPORT_SYMBOL_GPL(pernet_ops_rwsem);
 
 #define MIN_PERNET_OPS_ID	\
 	((sizeof(struct net_generic) + sizeof(void *) - 1) / sizeof(void *))
@@ -125,7 +124,7 @@ static int ops_init(const struct pernet_operations *ops, struct net *net)
 	int err = -ENOMEM;
 	void *data = NULL;
 
-	if (ops->id && ops->size) {
+	if (ops->id) {
 		data = kzalloc(ops->size, GFP_KERNEL);
 		if (!data)
 			goto out;
@@ -140,7 +139,7 @@ static int ops_init(const struct pernet_operations *ops, struct net *net)
 	if (!err)
 		return 0;
 
-	if (ops->id && ops->size) {
+	if (ops->id) {
 		ng = rcu_dereference_protected(net->gen,
 					       lockdep_is_held(&pernet_ops_rwsem));
 		ng->ptr[*ops->id] = NULL;
@@ -182,7 +181,8 @@ static void ops_free_list(const struct pernet_operations *ops,
 			  struct list_head *net_exit_list)
 {
 	struct net *net;
-	if (ops->size && ops->id) {
+
+	if (ops->id) {
 		list_for_each_entry(net, net_exit_list, exit_list)
 			kfree(net_generic(net, *ops->id));
 	}
@@ -308,16 +308,45 @@ struct net *get_net_ns_by_id(const struct net *net, int id)
 }
 EXPORT_SYMBOL_GPL(get_net_ns_by_id);
 
-/* init code that must occur even if setup_net() is not called. */
-static __net_init void preinit_net(struct net *net)
+static __net_init void preinit_net_sysctl(struct net *net)
 {
+	net->core.sysctl_somaxconn = SOMAXCONN;
+	/* Limits per socket sk_omem_alloc usage.
+	 * TCP zerocopy regular usage needs 128 KB.
+	 */
+	net->core.sysctl_optmem_max = 128 * 1024;
+	net->core.sysctl_txrehash = SOCK_TXREHASH_ENABLED;
+	net->core.sysctl_tstamp_allow_data = 1;
+}
+
+/* init code that must occur even if setup_net() is not called. */
+static __net_init void preinit_net(struct net *net, struct user_namespace *user_ns)
+{
+	refcount_set(&net->passive, 1);
+	refcount_set(&net->ns.count, 1);
+	ref_tracker_dir_init(&net->refcnt_tracker, 128, "net refcnt");
 	ref_tracker_dir_init(&net->notrefcnt_tracker, 128, "net notrefcnt");
+
+	get_random_bytes(&net->hash_mix, sizeof(u32));
+	net->dev_base_seq = 1;
+	net->user_ns = user_ns;
+
+	idr_init(&net->netns_ids);
+	spin_lock_init(&net->nsid_lock);
+	mutex_init(&net->ipv4.ra_mutex);
+
+#ifdef CONFIG_DEBUG_NET_SMALL_RTNL
+	mutex_init(&net->rtnl_mutex);
+	lock_set_cmp_fn(&net->rtnl_mutex, rtnl_net_lock_cmp_fn, NULL);
+#endif
+
+	preinit_net_sysctl(net);
 }
 
 /*
  * setup_net runs the initializers for the network namespace object.
  */
-static __net_init int setup_net(struct net *net, struct user_namespace *user_ns)
+static __net_init int setup_net(struct net *net)
 {
 	/* Must be called with pernet_ops_rwsem held */
 	const struct pernet_operations *ops, *saved_ops;
@@ -325,19 +354,9 @@ static __net_init int setup_net(struct net *net, struct user_namespace *user_ns)
 	LIST_HEAD(dev_kill_list);
 	int error = 0;
 
-	refcount_set(&net->ns.count, 1);
-	ref_tracker_dir_init(&net->refcnt_tracker, 128, "net refcnt");
-
-	refcount_set(&net->passive, 1);
-	get_random_bytes(&net->hash_mix, sizeof(u32));
 	preempt_disable();
 	net->net_cookie = gen_cookie_next(&net_cookie);
 	preempt_enable();
-	net->dev_base_seq = 1;
-	net->user_ns = user_ns;
-	idr_init(&net->netns_ids);
-	spin_lock_init(&net->nsid_lock);
-	mutex_init(&net->ipv4.ra_mutex);
 
 	list_for_each_entry(ops, &pernet_list, list) {
 		error = ops_init(ops, net);
@@ -381,32 +400,6 @@ out_undo:
 	rcu_barrier();
 	goto out;
 }
-
-static int __net_init net_defaults_init_net(struct net *net)
-{
-	net->core.sysctl_somaxconn = SOMAXCONN;
-	/* Limits per socket sk_omem_alloc usage.
-	 * TCP zerocopy regular usage needs 128 KB.
-	 */
-	net->core.sysctl_optmem_max = 128 * 1024;
-	net->core.sysctl_txrehash = SOCK_TXREHASH_ENABLED;
-
-	return 0;
-}
-
-static struct pernet_operations net_defaults_ops = {
-	.init = net_defaults_init_net,
-};
-
-static __init int net_defaults_init(void)
-{
-	if (register_pernet_subsys(&net_defaults_ops))
-		panic("Cannot initialize net default settings");
-
-	return 0;
-}
-
-core_initcall(net_defaults_init);
 
 #ifdef CONFIG_NET_NS
 static struct ucounts *inc_net_namespaces(struct user_namespace *ns)
@@ -456,6 +449,21 @@ out_free:
 	goto out;
 }
 
+static LLIST_HEAD(defer_free_list);
+
+static void net_complete_free(void)
+{
+	struct llist_node *kill_list;
+	struct net *net, *next;
+
+	/* Get the list of namespaces to free from last round. */
+	kill_list = llist_del_all(&defer_free_list);
+
+	llist_for_each_entry_safe(net, next, kill_list, defer_free_list)
+		kmem_cache_free(net_cachep, net);
+
+}
+
 static void net_free(struct net *net)
 {
 	if (refcount_dec_and_test(&net->passive)) {
@@ -464,7 +472,8 @@ static void net_free(struct net *net)
 		/* There should not be any trackers left there. */
 		ref_tracker_dir_exit(&net->notrefcnt_tracker);
 
-		kmem_cache_free(net_cachep, net);
+		/* Wait for an extra rcu_barrier() before final free. */
+		llist_add(&net->defer_free_list, &defer_free_list);
 	}
 }
 
@@ -496,8 +505,7 @@ struct net *copy_net_ns(unsigned long flags,
 		goto dec_ucounts;
 	}
 
-	preinit_net(net);
-	refcount_set(&net->passive, 1);
+	preinit_net(net, user_ns);
 	net->ucounts = ucounts;
 	get_user_ns(user_ns);
 
@@ -505,7 +513,7 @@ struct net *copy_net_ns(unsigned long flags,
 	if (rv < 0)
 		goto put_userns;
 
-	rv = setup_net(net, user_ns);
+	rv = setup_net(net);
 
 	up_read(&pernet_ops_rwsem);
 
@@ -650,6 +658,8 @@ static void cleanup_net(struct work_struct *work)
 	 */
 	rcu_barrier();
 
+	net_complete_free();
+
 	/* Finally it is safe to free my network namespace structure */
 	list_for_each_entry_safe(net, tmp, &net_exit_list, exit_list) {
 		list_del_init(&net->exit_list);
@@ -708,20 +718,18 @@ EXPORT_SYMBOL_GPL(get_net_ns);
 
 struct net *get_net_ns_by_fd(int fd)
 {
-	struct fd f = fdget(fd);
-	struct net *net = ERR_PTR(-EINVAL);
+	CLASS(fd, f)(fd);
 
-	if (!f.file)
+	if (fd_empty(f))
 		return ERR_PTR(-EBADF);
 
-	if (proc_ns_file(f.file)) {
-		struct ns_common *ns = get_proc_ns(file_inode(f.file));
+	if (proc_ns_file(fd_file(f))) {
+		struct ns_common *ns = get_proc_ns(file_inode(fd_file(f)));
 		if (ns->ops == &netns_operations)
-			net = get_net(container_of(ns, struct net, ns));
+			return get_net(container_of(ns, struct net, ns));
 	}
-	fdput(f);
 
-	return net;
+	return ERR_PTR(-EINVAL);
 }
 EXPORT_SYMBOL_GPL(get_net_ns_by_fd);
 #endif
@@ -1167,12 +1175,22 @@ static void __init netns_ipv4_struct_check(void)
 	CACHELINE_ASSERT_GROUP_MEMBER(struct netns_ipv4, netns_ipv4_read_rx,
 				      sysctl_tcp_early_demux);
 	CACHELINE_ASSERT_GROUP_MEMBER(struct netns_ipv4, netns_ipv4_read_rx,
+				      sysctl_tcp_l3mdev_accept);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct netns_ipv4, netns_ipv4_read_rx,
 				      sysctl_tcp_reordering);
 	CACHELINE_ASSERT_GROUP_MEMBER(struct netns_ipv4, netns_ipv4_read_rx,
 				      sysctl_tcp_rmem);
-	CACHELINE_ASSERT_GROUP_SIZE(struct netns_ipv4, netns_ipv4_read_rx, 18);
+	CACHELINE_ASSERT_GROUP_SIZE(struct netns_ipv4, netns_ipv4_read_rx, 22);
 }
 #endif
+
+static const struct rtnl_msg_handler net_ns_rtnl_msg_handlers[] __initconst = {
+	{.msgtype = RTM_NEWNSID, .doit = rtnl_net_newid,
+	 .flags = RTNL_FLAG_DOIT_UNLOCKED},
+	{.msgtype = RTM_GETNSID, .doit = rtnl_net_getid,
+	 .dumpit = rtnl_net_dumpid,
+	 .flags = RTNL_FLAG_DOIT_UNLOCKED | RTNL_FLAG_DUMP_UNLOCKED},
+};
 
 void __init net_ns_init(void)
 {
@@ -1199,9 +1217,10 @@ void __init net_ns_init(void)
 #ifdef CONFIG_KEYS
 	init_net.key_domain = &init_net_key_domain;
 #endif
+	preinit_net(&init_net, &init_user_ns);
+
 	down_write(&pernet_ops_rwsem);
-	preinit_net(&init_net);
-	if (setup_net(&init_net, &init_user_ns))
+	if (setup_net(&init_net))
 		panic("Could not setup the initial network namespace");
 
 	init_net_initialized = true;
@@ -1210,11 +1229,7 @@ void __init net_ns_init(void)
 	if (register_pernet_subsys(&net_ns_ops))
 		panic("Could not register network namespace subsystems");
 
-	rtnl_register(PF_UNSPEC, RTM_NEWNSID, rtnl_net_newid, NULL,
-		      RTNL_FLAG_DOIT_UNLOCKED);
-	rtnl_register(PF_UNSPEC, RTM_GETNSID, rtnl_net_getid, rtnl_net_dumpid,
-		      RTNL_FLAG_DOIT_UNLOCKED |
-		      RTNL_FLAG_DUMP_UNLOCKED);
+	rtnl_register_many(net_ns_rtnl_msg_handlers);
 }
 
 static void free_exit_list(struct pernet_operations *ops, struct list_head *net_exit_list)
@@ -1244,7 +1259,7 @@ static int __register_pernet_operations(struct list_head *list,
 	LIST_HEAD(net_exit_list);
 
 	list_add_tail(&ops->list, list);
-	if (ops->init || (ops->id && ops->size)) {
+	if (ops->init || ops->id) {
 		/* We held write locked pernet_ops_rwsem, and parallel
 		 * setup_net() and cleanup_net() are not possible.
 		 */
@@ -1309,6 +1324,9 @@ static int register_pernet_operations(struct list_head *list,
 				      struct pernet_operations *ops)
 {
 	int error;
+
+	if (WARN_ON(!!ops->id ^ !!ops->size))
+		return -EINVAL;
 
 	if (ops->id) {
 		error = ida_alloc_min(&net_generic_ids, MIN_PERNET_OPS_ID,

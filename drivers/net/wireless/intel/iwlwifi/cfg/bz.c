@@ -10,10 +10,10 @@
 #include "fw/api/txq.h"
 
 /* Highest firmware API version supported */
-#define IWL_BZ_UCODE_API_MAX	92
+#define IWL_BZ_UCODE_API_MAX	94
 
 /* Lowest firmware API version supported */
-#define IWL_BZ_UCODE_API_MIN	90
+#define IWL_BZ_UCODE_API_MIN	92
 
 /* NVM versions */
 #define IWL_BZ_NVM_VERSION		0x0a1d
@@ -146,6 +146,17 @@ const struct iwl_cfg_trans_params iwl_bz_trans_cfg = {
 	.xtal_latency = 12000,
 	.low_latency_xtal = true,
 	.ltr_delay = IWL_CFG_TRANS_LTR_DELAY_2500US,
+};
+
+const struct iwl_cfg_trans_params iwl_gl_trans_cfg = {
+	.device_family = IWL_DEVICE_FAMILY_BZ,
+	.base_params = &iwl_bz_base_params,
+	.mq_rx_supported = true,
+	.rf_id = true,
+	.gen2 = true,
+	.umac_prph_offset = 0x300000,
+	.xtal_latency = 12000,
+	.low_latency_xtal = true,
 };
 
 const char iwl_bz_name[] = "Intel(R) TBD Bz device";
