@@ -4,7 +4,6 @@
 
 #include <linux/ioport.h>
 #include <linux/pci.h>
-#include <linux/refcount.h>
 
 struct amd_nb_bus_dev_range {
 	u8 bus;
@@ -29,41 +28,11 @@ struct amd_l3_cache {
 	u8	 subcaches[4];
 };
 
-struct threshold_block {
-	unsigned int	 block;			/* Number within bank */
-	unsigned int	 bank;			/* MCA bank the block belongs to */
-	unsigned int	 cpu;			/* CPU which controls MCA bank */
-	u32		 address;		/* MSR address for the block */
-	u16		 interrupt_enable;	/* Enable/Disable APIC interrupt */
-	bool		 interrupt_capable;	/* Bank can generate an interrupt. */
-
-	u16		 threshold_limit;	/*
-						 * Value upon which threshold
-						 * interrupt is generated.
-						 */
-
-	struct kobject	 kobj;			/* sysfs object */
-	struct list_head miscj;			/*
-						 * List of threshold blocks
-						 * within a bank.
-						 */
-};
-
-struct threshold_bank {
-	struct kobject		*kobj;
-	struct threshold_block	*blocks;
-
-	/* initialized to the number of CPUs on the node sharing this bank */
-	refcount_t		cpus;
-	unsigned int		shared;
-};
-
 struct amd_northbridge {
 	struct pci_dev *root;
 	struct pci_dev *misc;
 	struct pci_dev *link;
 	struct amd_l3_cache l3_cache;
-	struct threshold_bank *bank4;
 };
 
 struct amd_northbridge_info {
