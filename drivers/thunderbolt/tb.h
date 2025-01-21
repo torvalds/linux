@@ -804,6 +804,19 @@ static inline void tb_domain_put(struct tb *tb)
 	put_device(&tb->dev);
 }
 
+/**
+ * tb_domain_event() - Notify userspace about an event in domain
+ * @tb: Domain where event occurred
+ * @envp: Array of uevent environment strings (can be %NULL)
+ *
+ * This function provides a way to notify userspace about any events
+ * that take place in the domain.
+ */
+static inline void tb_domain_event(struct tb *tb, char *envp[])
+{
+	kobject_uevent_env(&tb->dev.kobj, KOBJ_CHANGE, envp);
+}
+
 struct tb_nvm *tb_nvm_alloc(struct device *dev);
 int tb_nvm_read_version(struct tb_nvm *nvm);
 int tb_nvm_validate(struct tb_nvm *nvm);
