@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/device.h>
 #include <linux/err.h>
@@ -15,7 +15,7 @@ static DEFINE_SPINLOCK(repeater_lock);
 
 void usb_put_repeater(struct usb_repeater *r)
 {
-	if (r) {
+	if (r && r->dev) {
 		put_device(r->dev);
 		if (r->dev->driver && r->dev->driver->owner)
 			module_put(r->dev->driver->owner);
