@@ -1588,7 +1588,7 @@ static void *s_start(struct seq_file *m, loff_t *pos)
 	struct set_event_iter *iter;
 	loff_t l;
 
-	iter = kzalloc(sizeof(iter), GFP_KERNEL);
+	iter = kzalloc(sizeof(*iter), GFP_KERNEL);
 	if (!iter)
 		return NULL;
 
