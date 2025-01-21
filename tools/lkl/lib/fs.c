@@ -275,7 +275,7 @@ long lkl_mount_dev(unsigned int disk_id, unsigned int part,
 long lkl_umount_timeout(char *path, int flags, long timeout_ms)
 {
 	long incr = 10000000; /* 10 ms */
-	struct lkl_timespec ts = {
+	struct __lkl__kernel_timespec ts = {
 		.tv_sec = 0,
 		.tv_nsec = incr,
 	};
@@ -284,8 +284,7 @@ long lkl_umount_timeout(char *path, int flags, long timeout_ms)
 	do {
 		err = lkl_sys_umount(path, flags);
 		if (err == -LKL_EBUSY) {
-			lkl_sys_nanosleep((struct __lkl__kernel_timespec *)&ts,
-					  NULL);
+			lkl_sys_nanosleep(&ts, NULL);
 			timeout_ms -= incr / 1000000;
 		}
 	} while (err == -LKL_EBUSY && timeout_ms > 0);

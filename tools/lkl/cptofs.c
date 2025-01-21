@@ -684,11 +684,11 @@ int main(int argc, char **argv)
 		if (ret == 0)
 			break;
 		if (ret == -EBUSY) {
-			struct lkl_timespec ts = {
+			struct __lkl__kernel_timespec ts = {
 				.tv_sec = 1,
 				.tv_nsec = 0,
 			};
-			lkl_sys_nanosleep((struct __lkl__kernel_timespec *)&ts, NULL);
+			lkl_sys_nanosleep(&ts, NULL);
 			continue;
 		} else if (ret < 0) {
 			fprintf(stderr, "cannot remount mount disk read-only: %s\n", lkl_strerror(ret));

@@ -64,13 +64,12 @@ static inline int lkl_sys_fstatfs(unsigned int fd, struct lkl_statfs *buf)
 	return lkl_sys_fstatfs64(fd, sizeof(*buf), buf);
 }
 
-#define lkl_sys_nanosleep lkl_sys_nanosleep_time32
-static inline int lkl_sys_nanosleep_time32(struct lkl_timespec *rqtp,
-					   struct lkl_timespec *rmtp)
+static inline int lkl_sys_nanosleep(struct __lkl__kernel_timespec *rqtp,
+				    struct __lkl__kernel_timespec *rmtp)
 {
-	long p[6] = {(long)rqtp, (long)rmtp, 0, 0, 0, 0};
+	long p[6] = {LKL_CLOCK_MONOTONIC, 0, (long)rqtp, (long)rmtp, 0};
 
-	return lkl_syscall(__lkl__NR_nanosleep, p);
+	return lkl_syscall(__lkl__NR_clock_nanosleep_time64, p);
 }
 
 #endif
