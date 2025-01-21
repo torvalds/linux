@@ -10,6 +10,7 @@ space := $(empty) $(empty)
 
 # The source package name will be the first token from $(DEBIAN)/changelog
 DEB_SOURCE := $(shell dpkg-parsechangelog -l$(DEBIAN)/changelog -S source)
+src_pkg_name=$(DEB_SOURCE)
 
 # Get the series
 DEB_DISTRIBUTION := $(shell dpkg-parsechangelog -l$(DEBIAN)/changelog -S distribution | sed -e 's/-\(security\|updates\|proposed\)$$//')
