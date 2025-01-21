@@ -4,6 +4,7 @@
 
 #include <linux/ioport.h>
 #include <linux/pci.h>
+#include <asm/amd_node.h>
 
 struct amd_nb_bus_dev_range {
 	u8 bus;
@@ -19,9 +20,6 @@ extern void amd_flush_garts(void);
 extern int amd_numa_init(void);
 extern int amd_get_subcaches(int);
 extern int amd_set_subcaches(int, unsigned long);
-
-int __must_check amd_smn_read(u16 node, u32 address, u32 *value);
-int __must_check amd_smn_write(u16 node, u32 address, u32 value);
 
 struct amd_l3_cache {
 	unsigned indices;
@@ -50,23 +48,6 @@ struct amd_northbridge_info {
 u16 amd_nb_num(void);
 bool amd_nb_has_feature(unsigned int feature);
 struct amd_northbridge *node_to_amd_nb(int node);
-
-static inline u16 amd_pci_dev_to_node_id(struct pci_dev *pdev)
-{
-	struct pci_dev *misc;
-	int i;
-
-	for (i = 0; i != amd_nb_num(); i++) {
-		misc = node_to_amd_nb(i)->misc;
-
-		if (pci_domain_nr(misc->bus) == pci_domain_nr(pdev->bus) &&
-		    PCI_SLOT(misc->devfn) == PCI_SLOT(pdev->devfn))
-			return i;
-	}
-
-	WARN(1, "Unable to find AMD Northbridge id for %s\n", pci_name(pdev));
-	return 0;
-}
 
 static inline bool amd_gart_present(void)
 {
