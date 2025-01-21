@@ -100,7 +100,7 @@ struct fcp_data {
 
 	u8                   num_meter_slots;
 	s16                 *meter_level_map;
-	u32                 *meter_levels;
+	__le32              *meter_levels;
 	struct snd_kcontrol *meter_ctl;
 
 	unsigned int *meter_labels_tlv;
@@ -383,7 +383,7 @@ static int fcp_meter_ctl_get(struct snd_kcontrol *kctl,
 	struct usb_mixer_interface *mixer = elem->head.mixer;
 	struct fcp_data *private = mixer->private_data;
 	int num_meter_slots, resp_size;
-	u32 *resp = private->meter_levels;
+	__le32 *resp = private->meter_levels;
 	int i, err = 0;
 
 	struct {
@@ -655,7 +655,7 @@ static int fcp_ioctl_set_meter_map(struct usb_mixer_interface *mixer,
 	/* If the control doesn't exist, create it */
 	if (!private->meter_ctl) {
 		s16 *new_map __free(kfree) = NULL;
-		u32 *meter_levels __free(kfree) = NULL;
+		__le32 *meter_levels __free(kfree) = NULL;
 
 		/* Allocate buffer for the map */
 		new_map = kmalloc_array(map.map_size, sizeof(s16), GFP_KERNEL);
@@ -663,7 +663,7 @@ static int fcp_ioctl_set_meter_map(struct usb_mixer_interface *mixer,
 			return -ENOMEM;
 
 		/* Allocate buffer for reading meter levels */
-		meter_levels = kmalloc_array(map.meter_slots, sizeof(u32),
+		meter_levels = kmalloc_array(map.meter_slots, sizeof(__le32),
 					     GFP_KERNEL);
 		if (!meter_levels)
 			return -ENOMEM;
