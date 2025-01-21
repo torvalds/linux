@@ -129,6 +129,7 @@ typedef enum {
 
 #define SMU_METRICS_TABLE_VERSION 0xF
 
+// Unified metrics table for smu_v13_0_6
 typedef struct __attribute__((packed, aligned(4))) {
   uint32_t AccumulationCounter;
 
@@ -241,8 +242,9 @@ typedef struct __attribute__((packed, aligned(4))) {
 
   //Total App Clock Counter
   uint64_t GfxclkBelowHostLimitAcc[8];
-} MetricsTableX_t;
+} MetricsTableV0_t;
 
+// Metrics table for smu_v13_0_6 APUS
 typedef struct __attribute__((packed, aligned(4))) {
   uint32_t AccumulationCounter;
 
@@ -333,7 +335,7 @@ typedef struct __attribute__((packed, aligned(4))) {
   // VCN/JPEG ACTIVITY
   uint32_t VcnBusy[4];
   uint32_t JpegBusy[32];
-} MetricsTableA_t;
+} MetricsTableV1_t;
 
 #define SMU_VF_METRICS_TABLE_VERSION 0x5
 

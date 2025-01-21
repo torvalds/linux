@@ -273,7 +273,7 @@ struct PPTable_t {
 #define SMUQ10_FRAC(x) ((x) & 0x3ff)
 #define SMUQ10_ROUND(x) ((SMUQ10_TO_UINT(x)) + ((SMUQ10_FRAC(x)) >= 0x200))
 #define GET_METRIC_FIELD(field, flag) ((flag) ?\
-		(metrics_a->field) : (metrics_x->field))
+		(metrics_v1->field) : (metrics_v0->field))
 
 struct smu_v13_0_6_dpm_map {
 	enum smu_clk_type clk_type;
@@ -514,7 +514,7 @@ static int smu_v13_0_6_tables_init(struct smu_context *smu)
 			       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 
 	SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS,
-		       max(sizeof(MetricsTableX_t), sizeof(MetricsTableA_t)),
+		       max(sizeof(MetricsTableV0_t), sizeof(MetricsTableV1_t)),
 		       PAGE_SIZE,
 		       AMDGPU_GEM_DOMAIN_VRAM | AMDGPU_GEM_DOMAIN_GTT);
 
@@ -522,8 +522,8 @@ static int smu_v13_0_6_tables_init(struct smu_context *smu)
 		       PAGE_SIZE,
 		       AMDGPU_GEM_DOMAIN_VRAM | AMDGPU_GEM_DOMAIN_GTT);
 
-	smu_table->metrics_table = kzalloc(max(sizeof(MetricsTableX_t),
-		       sizeof(MetricsTableA_t)), GFP_KERNEL);
+	smu_table->metrics_table = kzalloc(max(sizeof(MetricsTableV0_t),
+					       sizeof(MetricsTableV1_t)), GFP_KERNEL);
 	if (!smu_table->metrics_table)
 		return -ENOMEM;
 	smu_table->metrics_time = 0;
@@ -753,8 +753,8 @@ static ssize_t smu_v13_0_6_get_pm_metrics(struct smu_context *smu,
 static int smu_v13_0_6_setup_driver_pptable(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
-	MetricsTableX_t *metrics_x = (MetricsTableX_t *)smu_table->metrics_table;
-	MetricsTableA_t *metrics_a = (MetricsTableA_t *)smu_table->metrics_table;
+	MetricsTableV0_t *metrics_v0 = (MetricsTableV0_t *)smu_table->metrics_table;
+	MetricsTableV1_t *metrics_v1 = (MetricsTableV1_t *)smu_table->metrics_table;
 	struct PPTable_t *pptable =
 		(struct PPTable_t *)smu_table->driver_pptable;
 	bool flag = !smu_v13_0_6_cap_supported(smu, SMU_CAP(UNI_METRICS));
@@ -1128,8 +1128,8 @@ static int smu_v13_0_6_get_smu_metrics_data(struct smu_context *smu,
 					    uint32_t *value)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
-	MetricsTableX_t *metrics_x = (MetricsTableX_t *)smu_table->metrics_table;
-	MetricsTableA_t *metrics_a = (MetricsTableA_t *)smu_table->metrics_table;
+	MetricsTableV0_t *metrics_v0 = (MetricsTableV0_t *)smu_table->metrics_table;
+	MetricsTableV1_t *metrics_v1 = (MetricsTableV1_t *)smu_table->metrics_table;
 	bool flag = !smu_v13_0_6_cap_supported(smu, SMU_CAP(UNI_METRICS));
 	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
@@ -2479,21 +2479,21 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 	bool flag = !smu_v13_0_6_cap_supported(smu, SMU_CAP(UNI_METRICS));
 	int ret = 0, xcc_id, inst, i, j, k, idx;
 	struct amdgpu_device *adev = smu->adev;
-	MetricsTableX_t *metrics_x;
-	MetricsTableA_t *metrics_a;
+	MetricsTableV0_t *metrics_v0;
+	MetricsTableV1_t *metrics_v1;
 	struct amdgpu_xcp *xcp;
 	u16 link_width_level;
 	u32 inst_mask;
 	bool per_inst;
 
-	metrics_x = kzalloc(max(sizeof(MetricsTableX_t), sizeof(MetricsTableA_t)), GFP_KERNEL);
-	ret = smu_v13_0_6_get_metrics_table(smu, metrics_x, true);
+	metrics_v0 = kzalloc(max(sizeof(MetricsTableV0_t), sizeof(MetricsTableV1_t)), GFP_KERNEL);
+	ret = smu_v13_0_6_get_metrics_table(smu, metrics_v0, true);
 	if (ret) {
-		kfree(metrics_x);
+		kfree(metrics_v0);
 		return ret;
 	}
 
-	metrics_a = (MetricsTableA_t *)metrics_x;
+	metrics_v1 = (MetricsTableV1_t *)metrics_v0;
 
 	smu_cmn_init_soft_gpu_metrics(gpu_metrics, 1, 7);
 
@@ -2559,9 +2559,9 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 		 * for pf from registers
 		 */
 		if (smu_v13_0_6_cap_supported(smu, SMU_CAP(PCIE_METRICS))) {
-			gpu_metrics->pcie_link_width = metrics_x->PCIeLinkWidth;
+			gpu_metrics->pcie_link_width = metrics_v0->PCIeLinkWidth;
 			gpu_metrics->pcie_link_speed =
-				pcie_gen_to_speed(metrics_x->PCIeLinkSpeed);
+				pcie_gen_to_speed(metrics_v0->PCIeLinkSpeed);
 		} else if (!amdgpu_sriov_vf(adev)) {
 			link_width_level = smu_v13_0_6_get_current_pcie_link_width_level(smu);
 			if (link_width_level > MAX_LINK_WIDTH)
@@ -2574,22 +2574,22 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 		}
 
 		gpu_metrics->pcie_bandwidth_acc =
-				SMUQ10_ROUND(metrics_x->PcieBandwidthAcc[0]);
+				SMUQ10_ROUND(metrics_v0->PcieBandwidthAcc[0]);
 		gpu_metrics->pcie_bandwidth_inst =
-				SMUQ10_ROUND(metrics_x->PcieBandwidth[0]);
+				SMUQ10_ROUND(metrics_v0->PcieBandwidth[0]);
 		gpu_metrics->pcie_l0_to_recov_count_acc =
-				metrics_x->PCIeL0ToRecoveryCountAcc;
+				metrics_v0->PCIeL0ToRecoveryCountAcc;
 		gpu_metrics->pcie_replay_count_acc =
-				metrics_x->PCIenReplayAAcc;
+				metrics_v0->PCIenReplayAAcc;
 		gpu_metrics->pcie_replay_rover_count_acc =
-				metrics_x->PCIenReplayARolloverCountAcc;
+				metrics_v0->PCIenReplayARolloverCountAcc;
 		gpu_metrics->pcie_nak_sent_count_acc =
-				metrics_x->PCIeNAKSentCountAcc;
+				metrics_v0->PCIeNAKSentCountAcc;
 		gpu_metrics->pcie_nak_rcvd_count_acc =
-				metrics_x->PCIeNAKReceivedCountAcc;
+				metrics_v0->PCIeNAKReceivedCountAcc;
 		if (smu_v13_0_6_cap_supported(smu, SMU_CAP(OTHER_END_METRICS)))
 			gpu_metrics->pcie_lc_perf_other_end_recovery =
-				metrics_x->PCIeOtherEndRecoveryAcc;
+				metrics_v0->PCIeOtherEndRecoveryAcc;
 
 	}
 
@@ -2639,14 +2639,14 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 			for_each_inst(k, inst_mask) {
 				inst = GET_INST(GC, k);
 				gpu_metrics->xcp_stats[i].gfx_busy_inst[idx] =
-					SMUQ10_ROUND(metrics_x->GfxBusy[inst]);
+					SMUQ10_ROUND(metrics_v0->GfxBusy[inst]);
 				gpu_metrics->xcp_stats[i].gfx_busy_acc[idx] =
-					SMUQ10_ROUND(metrics_x->GfxBusyAcc[inst]);
+					SMUQ10_ROUND(metrics_v0->GfxBusyAcc[inst]);
 
 				if (smu_v13_0_6_cap_supported(
 					    smu, SMU_CAP(HST_LIMIT_METRICS)))
 					gpu_metrics->xcp_stats[i].gfx_below_host_limit_acc[idx] =
-						SMUQ10_ROUND(metrics_x->GfxclkBelowHostLimitAcc
+						SMUQ10_ROUND(metrics_v0->GfxclkBelowHostLimitAcc
 								[inst]);
 				idx++;
 			}
@@ -2659,7 +2659,7 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 	gpu_metrics->firmware_timestamp = GET_METRIC_FIELD(Timestamp, flag);
 
 	*table = (void *)gpu_metrics;
-	kfree(metrics_x);
+	kfree(metrics_v0);
 
 	return sizeof(*gpu_metrics);
 }
