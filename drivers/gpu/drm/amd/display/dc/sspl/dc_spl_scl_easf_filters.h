@@ -13,14 +13,9 @@ struct scale_ratio_to_reg_value_lookup {
 	const uint32_t reg_value;
 };
 
-const uint16_t *spl_get_easf_filter_3tap_64p(struct spl_fixed31_32 ratio);
-const uint16_t *spl_get_easf_filter_4tap_64p(struct spl_fixed31_32 ratio);
-const uint16_t *spl_get_easf_filter_6tap_64p(struct spl_fixed31_32 ratio);
 void spl_set_filters_data(struct dscl_prog_data *dscl_prog_data,
 	const struct spl_scaler_data *data, bool enable_easf_v,
 	bool enable_easf_h);
-const uint16_t *spl_dscl_get_easf_filter_coeffs_64p(int taps, struct spl_fixed31_32 ratio);
-const uint16_t *spl_dscl_get_easf_filter_coeffs_64p_s1_10(int taps, struct spl_fixed31_32 ratio);
 
 uint32_t spl_get_v_bf3_mode(struct spl_fixed31_32 ratio);
 uint32_t spl_get_h_bf3_mode(struct spl_fixed31_32 ratio);
@@ -34,5 +29,9 @@ uint32_t spl_get_3tap_dntilt_slope(int taps, struct spl_fixed31_32 ratio);
 uint32_t spl_get_3tap_uptilt1_slope(int taps, struct spl_fixed31_32 ratio);
 uint32_t spl_get_3tap_uptilt2_slope(int taps, struct spl_fixed31_32 ratio);
 uint32_t spl_get_3tap_uptilt2_offset(int taps, struct spl_fixed31_32 ratio);
+
+/* public API */
+const uint16_t *spl_dscl_get_easf_filter_coeffs_64p(int taps, struct spl_fixed31_32 ratio);
+const uint16_t *spl_dscl_get_easf_filter_coeffs_64p_s1_10(int taps, struct spl_fixed31_32 ratio);
 
 #endif /* __DC_SPL_SCL_EASF_FILTERS_H__ */

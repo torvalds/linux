@@ -1136,7 +1136,6 @@ static const uint16_t easf_filter_6tap_64p_ratio_1_00[198] = {
 };
 
 /* Converted scaler coeff tables from S1.10 to S1.12 */
-
 static const uint16_t easf_filter_3tap_64p_ratio_0_30_s1_12[99] = {
 0x0800, 0x0800, 0x0000,
 0x07d8, 0x0818, 0x0010,
@@ -2001,7 +2000,7 @@ static const uint16_t easf_filter_6tap_64p_ratio_1_00_s1_12[198] = {
 0x0064, 0x3dd4, 0x09c8, 0x09c8, 0x3dd4, 0x0064,
 };
 
-struct scale_ratio_to_reg_value_lookup easf_v_bf3_mode_lookup[] = {
+static struct scale_ratio_to_reg_value_lookup easf_v_bf3_mode_lookup[] = {
 	{3, 10, 0x0000},
 	{4, 10, 0x0000},
 	{5, 10, 0x0000},
@@ -2013,7 +2012,7 @@ struct scale_ratio_to_reg_value_lookup easf_v_bf3_mode_lookup[] = {
 	{-1, -1, 0x0002},
 };
 
-struct scale_ratio_to_reg_value_lookup easf_h_bf3_mode_lookup[] = {
+static struct scale_ratio_to_reg_value_lookup easf_h_bf3_mode_lookup[] = {
 	{3, 10, 0x0000},
 	{4, 10, 0x0000},
 	{5, 10, 0x0000},
@@ -2025,7 +2024,7 @@ struct scale_ratio_to_reg_value_lookup easf_h_bf3_mode_lookup[] = {
 	{-1, -1, 0x0002},
 };
 
-struct scale_ratio_to_reg_value_lookup easf_reducer_gain6_6tap_lookup[] = {
+static struct scale_ratio_to_reg_value_lookup easf_reducer_gain6_6tap_lookup[] = {
 	{3, 10, 0x4100},
 	{4, 10, 0x4100},
 	{5, 10, 0x4100},
@@ -2037,7 +2036,7 @@ struct scale_ratio_to_reg_value_lookup easf_reducer_gain6_6tap_lookup[] = {
 	{-1, -1, 0x4100},
 };
 
-struct scale_ratio_to_reg_value_lookup easf_reducer_gain4_6tap_lookup[] = {
+static struct scale_ratio_to_reg_value_lookup easf_reducer_gain4_6tap_lookup[] = {
 	{3, 10, 0x4000},
 	{4, 10, 0x4000},
 	{5, 10, 0x4000},
@@ -2049,7 +2048,7 @@ struct scale_ratio_to_reg_value_lookup easf_reducer_gain4_6tap_lookup[] = {
 	{-1, -1, 0x4000},
 };
 
-struct scale_ratio_to_reg_value_lookup easf_gain_ring6_6tap_lookup[] = {
+static struct scale_ratio_to_reg_value_lookup easf_gain_ring6_6tap_lookup[] = {
 	{3, 10, 0x0000},
 	{4, 10, 0x251F},
 	{5, 10, 0x291F},
@@ -2061,7 +2060,7 @@ struct scale_ratio_to_reg_value_lookup easf_gain_ring6_6tap_lookup[] = {
 	{-1, -1, 0xA640},
 };
 
-struct scale_ratio_to_reg_value_lookup easf_gain_ring4_6tap_lookup[] = {
+static struct scale_ratio_to_reg_value_lookup easf_gain_ring4_6tap_lookup[] = {
 	{3, 10, 0x0000},
 	{4, 10, 0x9600},
 	{5, 10, 0xA460},
@@ -2073,7 +2072,7 @@ struct scale_ratio_to_reg_value_lookup easf_gain_ring4_6tap_lookup[] = {
 	{-1, -1, 0xB058},
 };
 
-struct scale_ratio_to_reg_value_lookup easf_reducer_gain6_4tap_lookup[] = {
+static struct scale_ratio_to_reg_value_lookup easf_reducer_gain6_4tap_lookup[] = {
 	{3, 10, 0x4100},
 	{4, 10, 0x4100},
 	{5, 10, 0x4100},
@@ -2085,7 +2084,7 @@ struct scale_ratio_to_reg_value_lookup easf_reducer_gain6_4tap_lookup[] = {
 	{-1, -1, 0x4100},
 };
 
-struct scale_ratio_to_reg_value_lookup easf_reducer_gain4_4tap_lookup[] = {
+static struct scale_ratio_to_reg_value_lookup easf_reducer_gain4_4tap_lookup[] = {
 	{3, 10, 0x4000},
 	{4, 10, 0x4000},
 	{5, 10, 0x4000},
@@ -2097,7 +2096,7 @@ struct scale_ratio_to_reg_value_lookup easf_reducer_gain4_4tap_lookup[] = {
 	{-1, -1, 0x4000},
 };
 
-struct scale_ratio_to_reg_value_lookup easf_gain_ring6_4tap_lookup[] = {
+static struct scale_ratio_to_reg_value_lookup easf_gain_ring6_4tap_lookup[] = {
 	{3, 10, 0x0000},
 	{4, 10, 0x0000},
 	{5, 10, 0x0000},
@@ -2109,7 +2108,7 @@ struct scale_ratio_to_reg_value_lookup easf_gain_ring6_4tap_lookup[] = {
 	{-1, -1, 0x0000},
 };
 
-struct scale_ratio_to_reg_value_lookup easf_gain_ring4_4tap_lookup[] = {
+static struct scale_ratio_to_reg_value_lookup easf_gain_ring4_4tap_lookup[] = {
 	{3, 10, 0x0000},
 	{4, 10, 0x0000},
 	{5, 10, 0x0000},
@@ -2121,7 +2120,7 @@ struct scale_ratio_to_reg_value_lookup easf_gain_ring4_4tap_lookup[] = {
 	{-1, -1, 0xAC00},
 };
 
-struct scale_ratio_to_reg_value_lookup easf_3tap_dntilt_uptilt_offset_lookup[] = {
+static struct scale_ratio_to_reg_value_lookup easf_3tap_dntilt_uptilt_offset_lookup[] = {
 	{3, 10, 0x0000},
 	{4, 10, 0x0000},
 	{5, 10, 0x0000},
@@ -2133,7 +2132,7 @@ struct scale_ratio_to_reg_value_lookup easf_3tap_dntilt_uptilt_offset_lookup[] =
 	{-1, -1, 0xA8D8},
 };
 
-struct scale_ratio_to_reg_value_lookup easf_3tap_uptilt_maxval_lookup[] = {
+static struct scale_ratio_to_reg_value_lookup easf_3tap_uptilt_maxval_lookup[] = {
 	{3, 10, 0x0000},
 	{4, 10, 0x0000},
 	{5, 10, 0x0000},
@@ -2145,7 +2144,7 @@ struct scale_ratio_to_reg_value_lookup easf_3tap_uptilt_maxval_lookup[] = {
 	{-1, -1, 0x3ADB},
 };
 
-struct scale_ratio_to_reg_value_lookup easf_3tap_dntilt_slope_lookup[] = {
+static struct scale_ratio_to_reg_value_lookup easf_3tap_dntilt_slope_lookup[] = {
 	{3, 10, 0x3800},
 	{4, 10, 0x3800},
 	{5, 10, 0x3800},
@@ -2157,7 +2156,7 @@ struct scale_ratio_to_reg_value_lookup easf_3tap_dntilt_slope_lookup[] = {
 	{-1, -1, 0x3B66},
 };
 
-struct scale_ratio_to_reg_value_lookup easf_3tap_uptilt1_slope_lookup[] = {
+static struct scale_ratio_to_reg_value_lookup easf_3tap_uptilt1_slope_lookup[] = {
 	{3, 10, 0x3800},
 	{4, 10, 0x3800},
 	{5, 10, 0x3800},
@@ -2169,7 +2168,7 @@ struct scale_ratio_to_reg_value_lookup easf_3tap_uptilt1_slope_lookup[] = {
 	{-1, -1, 0x2F20},
 };
 
-struct scale_ratio_to_reg_value_lookup easf_3tap_uptilt2_slope_lookup[] = {
+static struct scale_ratio_to_reg_value_lookup easf_3tap_uptilt2_slope_lookup[] = {
 	{3, 10, 0x0000},
 	{4, 10, 0x0000},
 	{5, 10, 0x0000},
@@ -2181,7 +2180,7 @@ struct scale_ratio_to_reg_value_lookup easf_3tap_uptilt2_slope_lookup[] = {
 	{-1, -1, 0x1F00},
 };
 
-struct scale_ratio_to_reg_value_lookup easf_3tap_uptilt2_offset_lookup[] = {
+static struct scale_ratio_to_reg_value_lookup easf_3tap_uptilt2_offset_lookup[] = {
 	{3, 10, 0x0000},
 	{4, 10, 0x0000},
 	{5, 10, 0x0000},
@@ -2193,7 +2192,7 @@ struct scale_ratio_to_reg_value_lookup easf_3tap_uptilt2_offset_lookup[] = {
 	{-1, -1, 0x9E00},
 };
 
-const uint16_t *spl_get_easf_filter_3tap_64p(struct spl_fixed31_32 ratio)
+static const uint16_t *spl_get_easf_filter_3tap_64p(struct spl_fixed31_32 ratio)
 {
 	if (ratio.value < spl_fixpt_from_fraction(3, 10).value)
 		return easf_filter_3tap_64p_ratio_0_30_s1_12;
@@ -2213,7 +2212,7 @@ const uint16_t *spl_get_easf_filter_3tap_64p(struct spl_fixed31_32 ratio)
 		return easf_filter_3tap_64p_ratio_1_00_s1_12;
 }
 
-const uint16_t *spl_get_easf_filter_4tap_64p(struct spl_fixed31_32 ratio)
+static const uint16_t *spl_get_easf_filter_4tap_64p(struct spl_fixed31_32 ratio)
 {
 	if (ratio.value < spl_fixpt_from_fraction(3, 10).value)
 		return easf_filter_4tap_64p_ratio_0_30_s1_12;
@@ -2233,7 +2232,7 @@ const uint16_t *spl_get_easf_filter_4tap_64p(struct spl_fixed31_32 ratio)
 		return easf_filter_4tap_64p_ratio_1_00_s1_12;
 }
 
-const uint16_t *spl_get_easf_filter_6tap_64p(struct spl_fixed31_32 ratio)
+static const uint16_t *spl_get_easf_filter_6tap_64p(struct spl_fixed31_32 ratio)
 {
 	if (ratio.value < spl_fixpt_from_fraction(3, 10).value)
 		return easf_filter_6tap_64p_ratio_0_30_s1_12;

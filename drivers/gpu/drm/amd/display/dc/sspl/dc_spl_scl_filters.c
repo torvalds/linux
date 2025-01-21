@@ -4,194 +4,6 @@
 
 #include "spl_debug.h"
 #include "dc_spl_scl_filters.h"
-//=========================================
-// <num_taps>    = 2
-// <num_phases>  = 16
-// <scale_ratio> = 0.833333 (input/output)
-// <sharpness>   = 0
-// <CoefType>    = ModifiedLanczos
-// <CoefQuant>   = s1.10
-// <CoefOut>     = s1.12
-//=========================================
-static const uint16_t filter_2tap_16p[18] = {
-		0x1000, 0x0000,
-		0x0FF0, 0x0010,
-		0x0FB0, 0x0050,
-		0x0F34, 0x00CC,
-		0x0E68, 0x0198,
-		0x0D44, 0x02BC,
-		0x0BC4, 0x043C,
-		0x09FC, 0x0604,
-		0x0800, 0x0800
-};
-
-//=========================================
-// <num_taps>    = 3
-// <num_phases>  = 16
-// <scale_ratio> = 0.83333 (input/output)
-// <sharpness>   = 0
-// <CoefType>    = ModifiedLanczos
-// <CoefQuant>   = 1.10
-// <CoefOut>     = 1.12
-//=========================================
-static const uint16_t filter_3tap_16p_upscale[27] = {
-		0x0804, 0x07FC, 0x0000,
-		0x06AC, 0x0978, 0x3FDC,
-		0x055C, 0x0AF0, 0x3FB4,
-		0x0420, 0x0C50, 0x3F90,
-		0x0300, 0x0D88, 0x3F78,
-		0x0200, 0x0E90, 0x3F70,
-		0x0128, 0x0F5C, 0x3F7C,
-		0x007C, 0x0FD8, 0x3FAC,
-		0x0000, 0x1000, 0x0000
-};
-
-//=========================================
-// <num_taps>    = 3
-// <num_phases>  = 16
-// <scale_ratio> = 1.16666 (input/output)
-// <sharpness>   = 0
-// <CoefType>    = ModifiedLanczos
-// <CoefQuant>   = 1.10
-// <CoefOut>     = 1.12
-//=========================================
-static const uint16_t filter_3tap_16p_116[27] = {
-		0x0804, 0x07FC, 0x0000,
-		0x0700, 0x0914, 0x3FEC,
-		0x0604, 0x0A1C, 0x3FE0,
-		0x050C, 0x0B14, 0x3FE0,
-		0x041C, 0x0BF4, 0x3FF0,
-		0x0340, 0x0CB0, 0x0010,
-		0x0274, 0x0D3C, 0x0050,
-		0x01C0, 0x0D94, 0x00AC,
-		0x0128, 0x0DB4, 0x0124
-};
-
-//=========================================
-// <num_taps>    = 3
-// <num_phases>  = 16
-// <scale_ratio> = 1.49999 (input/output)
-// <sharpness>   = 0
-// <CoefType>    = ModifiedLanczos
-// <CoefQuant>   = 1.10
-// <CoefOut>     = 1.12
-//=========================================
-static const uint16_t filter_3tap_16p_149[27] = {
-		0x0804, 0x07FC, 0x0000,
-		0x0730, 0x08CC, 0x0004,
-		0x0660, 0x098C, 0x0014,
-		0x0590, 0x0A3C, 0x0034,
-		0x04C4, 0x0AD4, 0x0068,
-		0x0400, 0x0B54, 0x00AC,
-		0x0348, 0x0BB0, 0x0108,
-		0x029C, 0x0BEC, 0x0178,
-		0x0200, 0x0C00, 0x0200
-};
-
-//=========================================
-// <num_taps>    = 3
-// <num_phases>  = 16
-// <scale_ratio> = 1.83332 (input/output)
-// <sharpness>   = 0
-// <CoefType>    = ModifiedLanczos
-// <CoefQuant>   = 1.10
-// <CoefOut>     = 1.12
-//=========================================
-static const uint16_t filter_3tap_16p_183[27] = {
-		0x0804, 0x07FC, 0x0000,
-		0x0754, 0x0880, 0x002C,
-		0x06A8, 0x08F0, 0x0068,
-		0x05FC, 0x0954, 0x00B0,
-		0x0550, 0x09AC, 0x0104,
-		0x04A8, 0x09F0, 0x0168,
-		0x0408, 0x0A20, 0x01D8,
-		0x036C, 0x0A40, 0x0254,
-		0x02DC, 0x0A48, 0x02DC
-};
-
-//=========================================
-// <num_taps>    = 4
-// <num_phases>  = 16
-// <scale_ratio> = 0.83333 (input/output)
-// <sharpness>   = 0
-// <CoefType>    = ModifiedLanczos
-// <CoefQuant>   = 1.10
-// <CoefOut>     = 1.12
-//=========================================
-static const uint16_t filter_4tap_16p_upscale[36] = {
-		0x0000, 0x1000, 0x0000, 0x0000,
-		0x3F74, 0x0FDC, 0x00B4, 0x3FFC,
-		0x3F0C, 0x0F70, 0x0194, 0x3FF0,
-		0x3ECC, 0x0EC4, 0x0298, 0x3FD8,
-		0x3EAC, 0x0DE4, 0x03B8, 0x3FB8,
-		0x3EA4, 0x0CD8, 0x04F4, 0x3F90,
-		0x3EB8, 0x0BA0, 0x0644, 0x3F64,
-		0x3ED8, 0x0A54, 0x07A0, 0x3F34,
-		0x3F00, 0x08FC, 0x0900, 0x3F04
-};
-
-//=========================================
-// <num_taps>    = 4
-// <num_phases>  = 16
-// <scale_ratio> = 1.16666 (input/output)
-// <sharpness>   = 0
-// <CoefType>    = ModifiedLanczos
-// <CoefQuant>   = 1.10
-// <CoefOut>     = 1.12
-//=========================================
-static const uint16_t filter_4tap_16p_116[36] = {
-		0x01A8, 0x0CB4, 0x01A4, 0x0000,
-		0x0110, 0x0CB0, 0x0254, 0x3FEC,
-		0x0090, 0x0C80, 0x031C, 0x3FD4,
-		0x0024, 0x0C2C, 0x03F4, 0x3FBC,
-		0x3FD8, 0x0BAC, 0x04DC, 0x3FA0,
-		0x3F9C, 0x0B14, 0x05CC, 0x3F84,
-		0x3F70, 0x0A60, 0x06C4, 0x3F6C,
-		0x3F5C, 0x098C, 0x07BC, 0x3F5C,
-		0x3F54, 0x08AC, 0x08AC, 0x3F54
-};
-
-//=========================================
-// <num_taps>    = 4
-// <num_phases>  = 16
-// <scale_ratio> = 1.49999 (input/output)
-// <sharpness>   = 0
-// <CoefType>    = ModifiedLanczos
-// <CoefQuant>   = 1.10
-// <CoefOut>     = 1.12
-//=========================================
-static const uint16_t filter_4tap_16p_149[36] = {
-		0x02B8, 0x0A90, 0x02B8, 0x0000,
-		0x0230, 0x0A90, 0x0350, 0x3FF0,
-		0x01B8, 0x0A78, 0x03F0, 0x3FE0,
-		0x0148, 0x0A48, 0x049C, 0x3FD4,
-		0x00E8, 0x0A00, 0x054C, 0x3FCC,
-		0x0098, 0x09A0, 0x0600, 0x3FC8,
-		0x0054, 0x0928, 0x06B4, 0x3FD0,
-		0x001C, 0x08A4, 0x0760, 0x3FE0,
-		0x3FFC, 0x0804, 0x0804, 0x3FFC
-};
-
-//=========================================
-// <num_taps>    = 4
-// <num_phases>  = 16
-// <scale_ratio> = 1.83332 (input/output)
-// <sharpness>   = 0
-// <CoefType>    = ModifiedLanczos
-// <CoefQuant>   = 1.10
-// <CoefOut>     = 1.12
-//=========================================
-static const uint16_t filter_4tap_16p_183[36] = {
-		0x03B0, 0x08A0, 0x03B0, 0x0000,
-		0x0348, 0x0898, 0x041C, 0x0004,
-		0x02DC, 0x0884, 0x0490, 0x0010,
-		0x0278, 0x0864, 0x0500, 0x0024,
-		0x021C, 0x0838, 0x0570, 0x003C,
-		0x01C8, 0x07FC, 0x05E0, 0x005C,
-		0x0178, 0x07B8, 0x064C, 0x0084,
-		0x0130, 0x076C, 0x06B0, 0x00B4,
-		0x00F0, 0x0714, 0x0710, 0x00EC
-};
 
 //=========================================
 // <num_taps>    = 2
@@ -1318,19 +1130,7 @@ static const uint16_t filter_8tap_64p_183[264] = {
 		0x3FD4, 0x3F84, 0x0214, 0x0694, 0x0694, 0x0214, 0x3F84, 0x3FD4
 };
 
-const uint16_t *spl_get_filter_3tap_16p(struct spl_fixed31_32 ratio)
-{
-	if (ratio.value < spl_fixpt_one.value)
-		return filter_3tap_16p_upscale;
-	else if (ratio.value < spl_fixpt_from_fraction(4, 3).value)
-		return filter_3tap_16p_116;
-	else if (ratio.value < spl_fixpt_from_fraction(5, 3).value)
-		return filter_3tap_16p_149;
-	else
-		return filter_3tap_16p_183;
-}
-
-const uint16_t *spl_get_filter_3tap_64p(struct spl_fixed31_32 ratio)
+static const uint16_t *spl_get_filter_3tap_64p(struct spl_fixed31_32 ratio)
 {
 	if (ratio.value < spl_fixpt_one.value)
 		return filter_3tap_64p_upscale;
@@ -1342,19 +1142,7 @@ const uint16_t *spl_get_filter_3tap_64p(struct spl_fixed31_32 ratio)
 		return filter_3tap_64p_183;
 }
 
-const uint16_t *spl_get_filter_4tap_16p(struct spl_fixed31_32 ratio)
-{
-	if (ratio.value < spl_fixpt_one.value)
-		return filter_4tap_16p_upscale;
-	else if (ratio.value < spl_fixpt_from_fraction(4, 3).value)
-		return filter_4tap_16p_116;
-	else if (ratio.value < spl_fixpt_from_fraction(5, 3).value)
-		return filter_4tap_16p_149;
-	else
-		return filter_4tap_16p_183;
-}
-
-const uint16_t *spl_get_filter_4tap_64p(struct spl_fixed31_32 ratio)
+static const uint16_t *spl_get_filter_4tap_64p(struct spl_fixed31_32 ratio)
 {
 	if (ratio.value < spl_fixpt_one.value)
 		return filter_4tap_64p_upscale;
@@ -1366,7 +1154,7 @@ const uint16_t *spl_get_filter_4tap_64p(struct spl_fixed31_32 ratio)
 		return filter_4tap_64p_183;
 }
 
-const uint16_t *spl_get_filter_5tap_64p(struct spl_fixed31_32 ratio)
+static const uint16_t *spl_get_filter_5tap_64p(struct spl_fixed31_32 ratio)
 {
 	if (ratio.value < spl_fixpt_one.value)
 		return filter_5tap_64p_upscale;
@@ -1378,7 +1166,7 @@ const uint16_t *spl_get_filter_5tap_64p(struct spl_fixed31_32 ratio)
 		return filter_5tap_64p_183;
 }
 
-const uint16_t *spl_get_filter_6tap_64p(struct spl_fixed31_32 ratio)
+static const uint16_t *spl_get_filter_6tap_64p(struct spl_fixed31_32 ratio)
 {
 	if (ratio.value < spl_fixpt_one.value)
 		return filter_6tap_64p_upscale;
@@ -1390,7 +1178,7 @@ const uint16_t *spl_get_filter_6tap_64p(struct spl_fixed31_32 ratio)
 		return filter_6tap_64p_183;
 }
 
-const uint16_t *spl_get_filter_7tap_64p(struct spl_fixed31_32 ratio)
+static const uint16_t *spl_get_filter_7tap_64p(struct spl_fixed31_32 ratio)
 {
 	if (ratio.value < spl_fixpt_one.value)
 		return filter_7tap_64p_upscale;
@@ -1402,7 +1190,7 @@ const uint16_t *spl_get_filter_7tap_64p(struct spl_fixed31_32 ratio)
 		return filter_7tap_64p_183;
 }
 
-const uint16_t *spl_get_filter_8tap_64p(struct spl_fixed31_32 ratio)
+static const uint16_t *spl_get_filter_8tap_64p(struct spl_fixed31_32 ratio)
 {
 	if (ratio.value < spl_fixpt_one.value)
 		return filter_8tap_64p_upscale;
@@ -1414,12 +1202,7 @@ const uint16_t *spl_get_filter_8tap_64p(struct spl_fixed31_32 ratio)
 		return filter_8tap_64p_183;
 }
 
-const uint16_t *spl_get_filter_2tap_16p(void)
-{
-	return filter_2tap_16p;
-}
-
-const uint16_t *spl_get_filter_2tap_64p(void)
+static const uint16_t *spl_get_filter_2tap_64p(void)
 {
 	return filter_2tap_64p;
 }
@@ -1448,4 +1231,3 @@ const uint16_t *spl_dscl_get_filter_coeffs_64p(int taps, struct spl_fixed31_32 r
 		return NULL;
 	}
 }
-
