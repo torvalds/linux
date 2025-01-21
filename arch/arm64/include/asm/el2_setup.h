@@ -154,7 +154,7 @@
 /* Coprocessor traps */
 .macro __init_el2_cptr
 	__check_hvhe .LnVHE_\@, x1
-	mov	x0, #CPACR_ELx_FPEN
+	mov	x0, #CPACR_EL1_FPEN
 	msr	cpacr_el1, x0
 	b	.Lskip_set_cptr_\@
 .LnVHE_\@:
@@ -332,7 +332,7 @@
 
 	// (h)VHE case
 	mrs	x0, cpacr_el1			// Disable SVE traps
-	orr	x0, x0, #CPACR_ELx_ZEN
+	orr	x0, x0, #CPACR_EL1_ZEN
 	msr	cpacr_el1, x0
 	b	.Lskip_set_cptr_\@
 
@@ -353,7 +353,7 @@
 
 	// (h)VHE case
 	mrs	x0, cpacr_el1			// Disable SME traps
-	orr	x0, x0, #CPACR_ELx_SMEN
+	orr	x0, x0, #CPACR_EL1_SMEN
 	msr	cpacr_el1, x0
 	b	.Lskip_set_cptr_sme_\@
 

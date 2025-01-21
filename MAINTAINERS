@@ -1918,6 +1918,7 @@ ARM PMU PROFILING AND DEBUGGING
 M:	Will Deacon <will@kernel.org>
 M:	Mark Rutland <mark.rutland@arm.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+L:	linux-perf-users@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/arm/pmu.yaml
 F:	Documentation/devicetree/bindings/perf/

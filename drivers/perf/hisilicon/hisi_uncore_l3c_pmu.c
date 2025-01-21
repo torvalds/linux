@@ -355,18 +355,18 @@ MODULE_DEVICE_TABLE(acpi, hisi_l3c_pmu_acpi_match);
 static int hisi_l3c_pmu_init_data(struct platform_device *pdev,
 				  struct hisi_pmu *l3c_pmu)
 {
+	hisi_uncore_pmu_init_topology(l3c_pmu, &pdev->dev);
+
 	/*
 	 * Use the SCCL_ID and CCL_ID to identify the L3C PMU, while
 	 * SCCL_ID is in MPIDR[aff2] and CCL_ID is in MPIDR[aff1].
 	 */
-	if (device_property_read_u32(&pdev->dev, "hisilicon,scl-id",
-				     &l3c_pmu->sccl_id)) {
+	if (l3c_pmu->topo.sccl_id < 0) {
 		dev_err(&pdev->dev, "Can not read l3c sccl-id!\n");
 		return -EINVAL;
 	}
 
-	if (device_property_read_u32(&pdev->dev, "hisilicon,ccl-id",
-				     &l3c_pmu->ccl_id)) {
+	if (l3c_pmu->topo.ccl_id < 0) {
 		dev_err(&pdev->dev, "Can not read l3c ccl-id!\n");
 		return -EINVAL;
 	}
@@ -441,42 +441,19 @@ static const struct attribute_group hisi_l3c_pmu_v2_events_group = {
 	.attrs = hisi_l3c_pmu_v2_events_attr,
 };
 
-static DEVICE_ATTR(cpumask, 0444, hisi_cpumask_sysfs_show, NULL);
-
-static struct attribute *hisi_l3c_pmu_cpumask_attrs[] = {
-	&dev_attr_cpumask.attr,
-	NULL,
-};
-
-static const struct attribute_group hisi_l3c_pmu_cpumask_attr_group = {
-	.attrs = hisi_l3c_pmu_cpumask_attrs,
-};
-
-static struct device_attribute hisi_l3c_pmu_identifier_attr =
-	__ATTR(identifier, 0444, hisi_uncore_pmu_identifier_attr_show, NULL);
-
-static struct attribute *hisi_l3c_pmu_identifier_attrs[] = {
-	&hisi_l3c_pmu_identifier_attr.attr,
-	NULL
-};
-
-static const struct attribute_group hisi_l3c_pmu_identifier_group = {
-	.attrs = hisi_l3c_pmu_identifier_attrs,
-};
-
 static const struct attribute_group *hisi_l3c_pmu_v1_attr_groups[] = {
 	&hisi_l3c_pmu_v1_format_group,
 	&hisi_l3c_pmu_v1_events_group,
-	&hisi_l3c_pmu_cpumask_attr_group,
-	&hisi_l3c_pmu_identifier_group,
+	&hisi_pmu_cpumask_attr_group,
+	&hisi_pmu_identifier_group,
 	NULL,
 };
 
 static const struct attribute_group *hisi_l3c_pmu_v2_attr_groups[] = {
 	&hisi_l3c_pmu_v2_format_group,
 	&hisi_l3c_pmu_v2_events_group,
-	&hisi_l3c_pmu_cpumask_attr_group,
-	&hisi_l3c_pmu_identifier_group,
+	&hisi_pmu_cpumask_attr_group,
+	&hisi_pmu_identifier_group,
 	NULL
 };
 
@@ -544,8 +521,8 @@ static int hisi_l3c_pmu_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "hisi_sccl%u_l3c%u",
-			      l3c_pmu->sccl_id, l3c_pmu->ccl_id);
+	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "hisi_sccl%d_l3c%d",
+			      l3c_pmu->topo.sccl_id, l3c_pmu->topo.ccl_id);
 	if (!name)
 		return -ENOMEM;
 
@@ -615,6 +592,7 @@ static void __exit hisi_l3c_pmu_module_exit(void)
 }
 module_exit(hisi_l3c_pmu_module_exit);
 
+MODULE_IMPORT_NS("HISI_PMU");
 MODULE_DESCRIPTION("HiSilicon SoC L3C uncore PMU driver");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Anurup M <anurup.m@huawei.com>");

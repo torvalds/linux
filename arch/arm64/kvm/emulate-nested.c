@@ -494,7 +494,7 @@ static enum trap_behaviour check_cptr_tta(struct kvm_vcpu *vcpu)
 	if (!vcpu_el2_e2h_is_set(vcpu))
 		val = translate_cptr_el2_to_cpacr_el1(val);
 
-	if (val & CPACR_ELx_TTA)
+	if (val & CPACR_EL1_TTA)
 		return BEHAVE_FORWARD_RW;
 
 	return BEHAVE_HANDLE_LOCALLY;

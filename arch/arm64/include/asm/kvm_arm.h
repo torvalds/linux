@@ -391,8 +391,6 @@
 	ECN(SOFTSTP_CUR), ECN(WATCHPT_LOW), ECN(WATCHPT_CUR), \
 	ECN(BKPT32), ECN(VECTOR32), ECN(BRK64), ECN(ERET)
 
-#define CPACR_EL1_TTA		(1 << 28)
-
 #define kvm_mode_names				\
 	{ PSR_MODE_EL0t,	"EL0t" },	\
 	{ PSR_MODE_EL1t,	"EL1t" },	\
