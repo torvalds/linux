@@ -2,6 +2,7 @@
 #ifndef _ASM_S390_FUTEX_H
 #define _ASM_S390_FUTEX_H
 
+#include <linux/instrumented.h>
 #include <linux/uaccess.h>
 #include <linux/futex.h>
 #include <asm/asm-extable.h>
@@ -9,11 +10,12 @@
 #include <asm/errno.h>
 
 #define FUTEX_OP_FUNC(name, insn)						\
-static inline int								\
+static uaccess_kmsan_or_inline int						\
 __futex_atomic_##name(int oparg, int *old, u32 __user *uaddr)			\
 {										\
 	int rc, new;								\
 										\
+	instrument_copy_from_user_before(old, uaddr, sizeof(*old));		\
 	asm_inline volatile(							\
 		"	sacf	256\n"						\
 		"0:	l	%[old],%[uaddr]\n"				\
@@ -30,6 +32,8 @@ __futex_atomic_##name(int oparg, int *old, u32 __user *uaddr)			\
 		  [new] "=&d" (new), [uaddr] "+Q" (*uaddr)			\
 		: [oparg] "d" (oparg)						\
 		: "cc");							\
+	if (!rc)								\
+		instrument_copy_from_user_after(old, uaddr, sizeof(*old), 0);	\
 	return rc;								\
 }
 
@@ -68,11 +72,12 @@ int arch_futex_atomic_op_inuser(int op, int oparg, int *oval, u32 __user *uaddr)
 	return rc;
 }
 
-static inline int futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
-						u32 oldval, u32 newval)
+static uaccess_kmsan_or_inline
+int futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr, u32 oldval, u32 newval)
 {
 	int rc;
 
+	instrument_copy_from_user_before(uval, uaddr, sizeof(*uval));
 	asm_inline volatile(
 		"	sacf	256\n"
 		"0:	cs	%[old],%[new],%[uaddr]\n"
@@ -84,6 +89,7 @@ static inline int futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 		: [new] "d" (newval)
 		: "cc", "memory");
 	*uval = oldval;
+	instrument_copy_from_user_after(uval, uaddr, sizeof(*uval), 0);
 	return rc;
 }
 
