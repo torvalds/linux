@@ -599,11 +599,6 @@ static void init_intel(struct cpuinfo_x86 *c)
 		if (p)
 			strcpy(c->x86_model_id, p);
 	}
-
-	if (c->x86 == 15)
-		set_cpu_cap(c, X86_FEATURE_P4);
-	if (c->x86 == 6)
-		set_cpu_cap(c, X86_FEATURE_P3);
 #endif
 
 	/* Work around errata */

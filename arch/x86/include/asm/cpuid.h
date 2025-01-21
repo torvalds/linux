@@ -21,6 +21,13 @@ enum cpuid_regs_idx {
 	CPUID_EDX,
 };
 
+#define CPUID_LEAF_MWAIT	0x5
+#define CPUID_LEAF_DCA		0x9
+#define CPUID_LEAF_XSTATE	0x0d
+#define CPUID_LEAF_TSC		0x15
+#define CPUID_LEAF_FREQ		0x16
+#define CPUID_LEAF_TILE		0x1d
+
 #ifdef CONFIG_X86_32
 bool have_cpuid_p(void);
 #else
