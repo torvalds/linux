@@ -72,7 +72,7 @@ bool btrfs_is_subpage(const struct btrfs_fs_info *fs_info, struct address_space 
 
 	/*
 	 * Only data pages (either through DIO or compression) can have no
-	 * mapping. And if page->mapping->host is data inode, it's subpage.
+	 * mapping. And if mapping->host is data inode, it's subpage.
 	 * As we have ruled our sectorsize >= PAGE_SIZE case already.
 	 */
 	if (!mapping || !mapping->host || is_data_inode(BTRFS_I(mapping->host)))

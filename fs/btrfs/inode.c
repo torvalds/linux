@@ -2896,7 +2896,7 @@ int btrfs_writepage_cow_fixup(struct folio *folio)
 	 * We are already holding a reference to this inode from
 	 * write_cache_pages.  We need to hold it because the space reservation
 	 * takes place outside of the folio lock, and we can't trust
-	 * page->mapping outside of the folio lock.
+	 * folio->mapping outside of the folio lock.
 	 */
 	ihold(inode);
 	btrfs_folio_set_checked(fs_info, folio, folio_pos(folio), folio_size(folio));
