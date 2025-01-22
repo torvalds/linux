@@ -842,6 +842,7 @@ static gpib_interface_t agilent_82350b_unaccel_interface = {
 	.primary_address = agilent_82350b_primary_address,
 	.secondary_address = agilent_82350b_secondary_address,
 	.serial_poll_response = agilent_82350b_serial_poll_response,
+	.serial_poll_status = agilent_82350b_serial_poll_status,
 	.t1_delay = agilent_82350b_t1_delay,
 	.return_to_local = agilent_82350b_return_to_local,
 };
@@ -869,6 +870,7 @@ static gpib_interface_t agilent_82350b_interface = {
 	.primary_address = agilent_82350b_primary_address,
 	.secondary_address = agilent_82350b_secondary_address,
 	.serial_poll_response = agilent_82350b_serial_poll_response,
+	.serial_poll_status = agilent_82350b_serial_poll_status,
 	.t1_delay = agilent_82350b_t1_delay,
 	.return_to_local = agilent_82350b_return_to_local,
 };
