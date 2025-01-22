@@ -5770,10 +5770,6 @@ static void ext4_init_journal_params(struct super_block *sb, journal_t *journal)
 		journal->j_flags |= JBD2_BARRIER;
 	else
 		journal->j_flags &= ~JBD2_BARRIER;
-	if (test_opt(sb, DATA_ERR_ABORT))
-		journal->j_flags |= JBD2_ABORT_ON_SYNCDATA_ERR;
-	else
-		journal->j_flags &= ~JBD2_ABORT_ON_SYNCDATA_ERR;
 	/*
 	 * Always enable journal cycle record option, letting the journal
 	 * records log transactions continuously between each mount.

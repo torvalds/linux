@@ -1382,9 +1382,6 @@ JBD2_FEATURE_INCOMPAT_FUNCS(fast_commit,	FAST_COMMIT)
 #define JBD2_FLUSHED	0x008	/* The journal superblock has been flushed */
 #define JBD2_LOADED	0x010	/* The journal superblock has been loaded */
 #define JBD2_BARRIER	0x020	/* Use IDE barriers */
-#define JBD2_ABORT_ON_SYNCDATA_ERR	0x040	/* Abort the journal on file
-						 * data write error in ordered
-						 * mode */
 #define JBD2_CYCLE_RECORD		0x080	/* Journal cycled record log on
 						 * clean and empty filesystem
 						 * logging area */
