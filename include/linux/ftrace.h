@@ -1151,8 +1151,6 @@ struct ftrace_graph_ret {
 	int depth;
 	/* Number of functions that overran the depth limit for current task */
 	unsigned int overrun;
-	unsigned long long calltime;
-	unsigned long long rettime;
 } __packed;
 
 struct fgraph_ops;

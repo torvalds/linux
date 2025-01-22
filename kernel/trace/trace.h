@@ -912,7 +912,9 @@ extern int __trace_graph_retaddr_entry(struct trace_array *tr,
 				unsigned long retaddr);
 extern void __trace_graph_return(struct trace_array *tr,
 				 struct ftrace_graph_ret *trace,
-				 unsigned int trace_ctx);
+				 unsigned int trace_ctx,
+				 u64 calltime, u64 rettime);
+
 extern void init_array_fgraph_ops(struct trace_array *tr, struct ftrace_ops *ops);
 extern int allocate_fgraph_ops(struct trace_array *tr, struct ftrace_ops *ops);
 extern void free_fgraph_ops(struct trace_array *tr);
