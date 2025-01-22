@@ -91,7 +91,6 @@ static struct cpufreq_driver loongson2_cpufreq_driver = {
 	.verify = cpufreq_generic_frequency_table_verify,
 	.target_index = loongson2_cpufreq_target,
 	.get = cpufreq_generic_get,
-	.attr = cpufreq_generic_attr,
 };
 
 static const struct platform_device_id platform_device_ids[] = {
