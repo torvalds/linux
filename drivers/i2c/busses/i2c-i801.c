@@ -1252,6 +1252,7 @@ static const struct {
 	 */
 	{ "Latitude 5480",      0x29 },
 	{ "Precision 3540",     0x29 },
+	{ "Precision M6800",    0x29 },
 	{ "Vostro V131",        0x1d },
 	{ "Vostro 5568",        0x29 },
 	{ "XPS 15 7590",        0x29 },
@@ -1682,13 +1683,16 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (!(priv->features & FEATURE_BLOCK_BUFFER))
 		priv->features &= ~FEATURE_BLOCK_PROC;
 
-	err = pcim_enable_device(dev);
+	/*
+	 * Do not call pcim_enable_device(), because the device has to remain
+	 * enabled on driver detach. See i801_remove() for the reasoning.
+	 */
+	err = pci_enable_device(dev);
 	if (err) {
 		dev_err(&dev->dev, "Failed to enable SMBus PCI device (%d)\n",
 			err);
 		return err;
 	}
-	pcim_pin_device(dev);
 
 	/* Determine the address of the SMBus area */
 	priv->smba = pci_resource_start(dev, SMBBAR);
