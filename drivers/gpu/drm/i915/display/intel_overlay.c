@@ -778,7 +778,7 @@ static struct i915_vma *intel_overlay_pin_fb(struct drm_i915_gem_object *new_bo)
 retry:
 	ret = i915_gem_object_lock(new_bo, &ww);
 	if (!ret) {
-		vma = i915_gem_object_pin_to_display_plane(new_bo, &ww, 0,
+		vma = i915_gem_object_pin_to_display_plane(new_bo, &ww, 0, 0,
 							   NULL, PIN_MAPPABLE);
 		ret = PTR_ERR_OR_ZERO(vma);
 	}

@@ -107,6 +107,7 @@ intel_fb_pin_to_ggtt(const struct drm_framebuffer *fb,
 		     const struct i915_gtt_view *view,
 		     unsigned int alignment,
 		     unsigned int phys_alignment,
+		     unsigned int vtd_guard,
 		     bool uses_fence,
 		     unsigned long *out_flags)
 {
@@ -162,7 +163,7 @@ retry:
 		goto err;
 
 	vma = i915_gem_object_pin_to_display_plane(obj, &ww, alignment,
-						   view, pinctl);
+						   vtd_guard, view, pinctl);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto err_unpin;
@@ -244,6 +245,14 @@ intel_plane_fb_min_phys_alignment(const struct intel_plane_state *plane_state)
 	return plane->min_alignment(plane, fb, 0);
 }
 
+static unsigned int
+intel_plane_fb_vtd_guard(const struct intel_plane_state *plane_state)
+{
+	return intel_fb_view_vtd_guard(plane_state->hw.fb,
+				       &plane_state->view,
+				       plane_state->hw.rotation);
+}
+
 int intel_plane_pin_fb(struct intel_plane_state *plane_state,
 		       const struct intel_plane_state *old_plane_state)
 {
@@ -256,6 +265,7 @@ int intel_plane_pin_fb(struct intel_plane_state *plane_state,
 		vma = intel_fb_pin_to_ggtt(&fb->base, &plane_state->view.gtt,
 					   intel_plane_fb_min_alignment(plane_state),
 					   intel_plane_fb_min_phys_alignment(plane_state),
+					   intel_plane_fb_vtd_guard(plane_state),
 					   intel_plane_uses_fence(plane_state),
 					   &plane_state->flags);
 		if (IS_ERR(vma))

@@ -228,6 +228,8 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	 */
 	vma = intel_fb_pin_to_ggtt(&fb->base, &view,
 				   fb->min_alignment, 0,
+				   intel_fb_view_vtd_guard(&fb->base, &fb->normal_view,
+							   DRM_MODE_ROTATE_0),
 				   false, &flags);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);

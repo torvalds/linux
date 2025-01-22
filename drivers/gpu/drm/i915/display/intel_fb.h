@@ -83,6 +83,9 @@ bool intel_fb_supports_90_270_rotation(const struct intel_framebuffer *fb);
 int intel_fill_fb_info(struct drm_i915_private *i915, struct intel_framebuffer *fb);
 void intel_fb_fill_view(const struct intel_framebuffer *fb, unsigned int rotation,
 			struct intel_fb_view *view);
+unsigned int intel_fb_view_vtd_guard(const struct drm_framebuffer *fb,
+				     const struct intel_fb_view *view,
+				     unsigned int rotation);
 int intel_plane_compute_gtt(struct intel_plane_state *plane_state);
 
 int intel_framebuffer_init(struct intel_framebuffer *ifb,

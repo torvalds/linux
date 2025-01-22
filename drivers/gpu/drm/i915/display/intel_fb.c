@@ -1761,6 +1761,39 @@ int intel_fill_fb_info(struct drm_i915_private *i915, struct intel_framebuffer *
 	return 0;
 }
 
+unsigned int intel_fb_view_vtd_guard(const struct drm_framebuffer *fb,
+				     const struct intel_fb_view *view,
+				     unsigned int rotation)
+{
+	struct drm_i915_private *i915 = to_i915(fb->dev);
+	unsigned int vtd_guard;
+	int color_plane;
+
+	if (!intel_scanout_needs_vtd_wa(i915))
+		return 0;
+
+	vtd_guard = 168;
+
+	for (color_plane = 0; color_plane < fb->format->num_planes; color_plane++) {
+		unsigned int stride, tile;
+
+		if (intel_fb_is_ccs_aux_plane(fb, color_plane) ||
+		    is_gen12_ccs_cc_plane(fb, color_plane))
+			continue;
+
+		stride = view->color_plane[color_plane].mapping_stride;
+
+		if (drm_rotation_90_or_270(rotation))
+			tile = intel_tile_height(fb, color_plane);
+		else
+			tile = intel_tile_width_bytes(fb, color_plane);
+
+		vtd_guard = max(vtd_guard, DIV_ROUND_UP(stride, tile));
+	}
+
+	return vtd_guard;
+}
+
 static void intel_plane_remap_gtt(struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *i915 =

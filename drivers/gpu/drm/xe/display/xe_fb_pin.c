@@ -369,6 +369,7 @@ intel_fb_pin_to_ggtt(const struct drm_framebuffer *fb,
 		     const struct i915_gtt_view *view,
 		     unsigned int alignment,
 		     unsigned int phys_alignment,
+		     unsigned int vtd_guard,
 		     bool uses_fence,
 		     unsigned long *out_flags)
 {
