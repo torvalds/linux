@@ -39,8 +39,9 @@ do
 	shift
 done
 
-err=
 nerrs=0
+
+# Test lockdep's handling of deadlocks.
 for d in 0 1
 do
 	for t in 0 1 2
@@ -52,6 +53,12 @@ do
 			tools/testing/selftests/rcutorture/bin/kvm.sh --allcpus --duration 5s --configs "SRCU-P" --kconfig "CONFIG_FORCE_NEED_SRCU_NMI_SAFE=y" --bootargs "rcutorture.test_srcu_lockdep=$val rcutorture.reader_flavor=0x2" --trust-make --datestamp "$ds/$val" > "$T/kvm.sh.out" 2>&1
 			ret=$?
 			mv "$T/kvm.sh.out" "$RCUTORTURE/res/$ds/$val"
+			if ! grep -q '^CONFIG_PROVE_LOCKING=y' .config
+			then
+				echo "rcu_torture_init_srcu_lockdep:Error: CONFIG_PROVE_LOCKING disabled in rcutorture SRCU-P scenario"
+				nerrs=$((nerrs+1))
+				err=1
+			fi
 			if test "$d" -ne 0 && test "$ret" -eq 0
 			then
 				err=1
@@ -71,6 +78,8 @@ do
 		done
 	done
 done
+
+# Set up exit code.
 if test "$nerrs" -ne 0
 then
 	exit 1
