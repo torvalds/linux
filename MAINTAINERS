@@ -19158,6 +19158,15 @@ L:	linux-media@vger.kernel.org
 S:	Odd Fixes
 F:	drivers/media/tuners/qm1d1c0042*
 
+QNAP MCU DRIVER
+M:	Heiko Stuebner <heiko@sntech.de>
+S:	Maintained
+F:	drivers/hwmon/qnap-mcu-hwmon.c
+F:	drivers/input/misc/qnap-mcu-input.c
+F:	drivers/leds/leds-qnap-mcu.c
+F:	drivers/mfd/qnap-mcu.c
+F:	include/linux/mfd/qnap-mcu.h
+
 QNX4 FILESYSTEM
 M:	Anders Larsen <al@alarsen.net>
 S:	Maintained
