@@ -150,7 +150,6 @@ static struct cpufreq_driver bmips_cpufreq_driver = {
 	.get		= bmips_cpufreq_get,
 	.init		= bmips_cpufreq_init,
 	.exit		= bmips_cpufreq_exit,
-	.attr		= cpufreq_generic_attr,
 	.name		= BMIPS_CPUFREQ_PREFIX,
 };
 
