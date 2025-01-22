@@ -147,7 +147,6 @@ static struct cpufreq_driver omap_driver = {
 	.exit		= omap_cpu_exit,
 	.register_em	= cpufreq_register_em_with_opp,
 	.name		= "omap",
-	.attr		= cpufreq_generic_attr,
 };
 
 static int omap_cpufreq_probe(struct platform_device *pdev)
