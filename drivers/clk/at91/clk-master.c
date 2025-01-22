@@ -20,7 +20,7 @@
 
 #define PMC_MCR_CSS_SHIFT	(16)
 
-#define MASTER_MAX_ID		4
+#define MASTER_MAX_ID		9
 
 #define to_clk_master(hw) container_of(hw, struct clk_master, hw)
 
