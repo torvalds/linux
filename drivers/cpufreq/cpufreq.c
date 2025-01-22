@@ -1059,9 +1059,31 @@ static int cpufreq_add_dev_interface(struct cpufreq_policy *policy)
 	struct freq_attr **drv_attr;
 	int ret = 0;
 
+	/* Attributes that need freq_table */
+	if (policy->freq_table) {
+		ret = sysfs_create_file(&policy->kobj,
+				&cpufreq_freq_attr_scaling_available_freqs.attr);
+		if (ret)
+			return ret;
+
+		if (cpufreq_boost_supported()) {
+			ret = sysfs_create_file(&policy->kobj,
+				&cpufreq_freq_attr_scaling_boost_freqs.attr);
+			if (ret)
+				return ret;
+		}
+	}
+
 	/* set up files for this cpu device */
 	drv_attr = cpufreq_driver->attr;
 	while (drv_attr && *drv_attr) {
+		/* These are already added, skip them */
+		if (*drv_attr == &cpufreq_freq_attr_scaling_available_freqs ||
+		    *drv_attr == &cpufreq_freq_attr_scaling_boost_freqs) {
+			drv_attr++;
+			continue;
+		}
+
 		ret = sysfs_create_file(&policy->kobj, &((*drv_attr)->attr));
 		if (ret)
 			return ret;
