@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/regmap.h>
 #include <linux/platform_device.h>
+#include <linux/regulator/consumer.h>
 #include <linux/mfd/motorola-cpcap.h>
 #include <sound/core.h>
 #include <sound/soc.h>
@@ -260,6 +261,7 @@ struct cpcap_audio {
 	int codec_clk_id;
 	int codec_freq;
 	int codec_format;
+	struct regulator *vaudio;
 };
 
 static int cpcap_st_workaround(struct snd_soc_dapm_widget *w,
@@ -1637,6 +1639,11 @@ static int cpcap_soc_probe(struct snd_soc_component *component)
 	snd_soc_component_set_drvdata(component, cpcap);
 	cpcap->component = component;
 
+	cpcap->vaudio = devm_regulator_get(component->dev, "VAUDIO");
+	if (IS_ERR(cpcap->vaudio))
+		return dev_err_probe(component->dev, PTR_ERR(cpcap->vaudio),
+				     "Cannot get VAUDIO regulator\n");
+
 	cpcap->regmap = dev_get_regmap(component->dev->parent, NULL);
 	if (!cpcap->regmap)
 		return -ENODEV;
@@ -1649,6 +1656,27 @@ static int cpcap_soc_probe(struct snd_soc_component *component)
 	return cpcap_audio_reset(component, false);
 }
 
+static int cpcap_set_bias_level(struct snd_soc_component *component,
+		enum snd_soc_bias_level level)
+{
+	struct cpcap_audio *cpcap = snd_soc_component_get_drvdata(component);
+
+	switch (level) {
+	case SND_SOC_BIAS_OFF:
+		break;
+	case SND_SOC_BIAS_PREPARE:
+		regulator_set_mode(cpcap->vaudio, REGULATOR_MODE_NORMAL);
+		break;
+	case SND_SOC_BIAS_STANDBY:
+		regulator_set_mode(cpcap->vaudio, REGULATOR_MODE_STANDBY);
+		break;
+	case SND_SOC_BIAS_ON:
+		break;
+	}
+
+	return 0;
+}
+
 static const struct snd_soc_component_driver soc_codec_dev_cpcap = {
 	.probe			= cpcap_soc_probe,
 	.controls		= cpcap_snd_controls,
@@ -1657,6 +1685,7 @@ static const struct snd_soc_component_driver soc_codec_dev_cpcap = {
 	.num_dapm_widgets	= ARRAY_SIZE(cpcap_dapm_widgets),
 	.dapm_routes		= intercon,
 	.num_dapm_routes	= ARRAY_SIZE(intercon),
+	.set_bias_level		= cpcap_set_bias_level,
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
