@@ -295,7 +295,51 @@ static struct snd_soc_dai_driver imx8m_dai[] = {
 	},
 },
 {
+	.name = "sai2",
+	.playback = {
+		.channels_min = 1,
+		.channels_max = 32,
+	},
+	.capture = {
+		.channels_min = 1,
+		.channels_max = 32,
+	},
+},
+{
 	.name = "sai3",
+	.playback = {
+		.channels_min = 1,
+		.channels_max = 32,
+	},
+	.capture = {
+		.channels_min = 1,
+		.channels_max = 32,
+	},
+},
+{
+	.name = "sai5",
+	.playback = {
+		.channels_min = 1,
+		.channels_max = 32,
+	},
+	.capture = {
+		.channels_min = 1,
+		.channels_max = 32,
+	},
+},
+{
+	.name = "sai6",
+	.playback = {
+		.channels_min = 1,
+		.channels_max = 32,
+	},
+	.capture = {
+		.channels_min = 1,
+		.channels_max = 32,
+	},
+},
+{
+	.name = "sai7",
 	.playback = {
 		.channels_min = 1,
 		.channels_max = 32,
