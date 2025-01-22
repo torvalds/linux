@@ -5277,9 +5277,10 @@ static void scx_dump_task(struct seq_buf *s, struct scx_dump_ctx *dctx,
 		  scx_get_task_state(p), p->scx.flags & ~SCX_TASK_STATE_MASK,
 		  p->scx.dsq_flags, ops_state & SCX_OPSS_STATE_MASK,
 		  ops_state >> SCX_OPSS_QSEQ_SHIFT);
-	dump_line(s, "      sticky/holding_cpu=%d/%d dsq_id=%s dsq_vtime=%llu slice=%llu",
-		  p->scx.sticky_cpu, p->scx.holding_cpu, dsq_id_buf,
-		  p->scx.dsq_vtime, p->scx.slice);
+	dump_line(s, "      sticky/holding_cpu=%d/%d dsq_id=%s",
+		  p->scx.sticky_cpu, p->scx.holding_cpu, dsq_id_buf);
+	dump_line(s, "      dsq_vtime=%llu slice=%llu weight=%u",
+		  p->scx.dsq_vtime, p->scx.slice, p->scx.weight);
 	dump_line(s, "      cpus=%*pb", cpumask_pr_args(p->cpus_ptr));
 
 	if (SCX_HAS_OP(dump_task)) {
