@@ -3032,6 +3032,9 @@ static int _ext4_show_options(struct seq_file *seq, struct super_block *sb,
 	if (ext4_emergency_ro(sb))
 		SEQ_OPTS_PUTS("emergency_ro");
 
+	if (ext4_forced_shutdown(sb))
+		SEQ_OPTS_PUTS("shutdown");
+
 	ext4_show_quota_options(seq, sb);
 	return 0;
 }
