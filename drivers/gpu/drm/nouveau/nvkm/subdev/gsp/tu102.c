@@ -22,10 +22,42 @@
 #include "priv.h"
 
 #include <subdev/fb.h>
+#include <engine/sec2.h>
 
 #include <nvfw/flcn.h>
 #include <nvfw/fw.h>
 #include <nvfw/hs.h>
+
+static int
+tu102_gsp_booter_unload(struct nvkm_gsp *gsp, u32 mbox0, u32 mbox1)
+{
+	struct nvkm_subdev *subdev = &gsp->subdev;
+	struct nvkm_device *device = subdev->device;
+	u32 wpr2_hi;
+	int ret;
+
+	wpr2_hi = nvkm_rd32(device, 0x1fa828);
+	if (!wpr2_hi) {
+		nvkm_debug(subdev, "WPR2 not set - skipping booter unload\n");
+		return 0;
+	}
+
+	ret = nvkm_falcon_fw_boot(&gsp->booter.unload, &gsp->subdev, true, &mbox0, &mbox1, 0, 0);
+	if (WARN_ON(ret))
+		return ret;
+
+	wpr2_hi = nvkm_rd32(device, 0x1fa828);
+	if (WARN_ON(wpr2_hi))
+		return -EIO;
+
+	return 0;
+}
+
+static int
+tu102_gsp_booter_load(struct nvkm_gsp *gsp, u32 mbox0, u32 mbox1)
+{
+	return nvkm_falcon_fw_boot(&gsp->booter.load, &gsp->subdev, true, &mbox0, &mbox1, 0, 0);
+}
 
 int
 tu102_gsp_booter_ctor(struct nvkm_gsp *gsp, const char *name, const struct firmware *blob,
@@ -114,6 +146,55 @@ tu102_gsp_reset(struct nvkm_gsp *gsp)
 	return gsp->falcon.func->reset_eng(&gsp->falcon);
 }
 
+int
+tu102_gsp_fini(struct nvkm_gsp *gsp, bool suspend)
+{
+	u32 mbox0 = 0xff, mbox1 = 0xff;
+	int ret;
+
+	ret = r535_gsp_fini(gsp, suspend);
+	if (ret && suspend)
+		return ret;
+
+	nvkm_falcon_reset(&gsp->falcon);
+
+	ret = nvkm_gsp_fwsec_sb(gsp);
+	WARN_ON(ret);
+
+	if (suspend) {
+		mbox0 = lower_32_bits(gsp->sr.meta.addr);
+		mbox1 = upper_32_bits(gsp->sr.meta.addr);
+	}
+
+	ret = tu102_gsp_booter_unload(gsp, mbox0, mbox1);
+	WARN_ON(ret);
+	return 0;
+}
+
+int
+tu102_gsp_init(struct nvkm_gsp *gsp)
+{
+	u32 mbox0, mbox1;
+	int ret;
+
+	if (!gsp->sr.meta.data) {
+		mbox0 = lower_32_bits(gsp->wpr_meta.addr);
+		mbox1 = upper_32_bits(gsp->wpr_meta.addr);
+	} else {
+		r535_gsp_rmargs_init(gsp, true);
+
+		mbox0 = lower_32_bits(gsp->sr.meta.addr);
+		mbox1 = upper_32_bits(gsp->sr.meta.addr);
+	}
+
+	/* Execute booter to handle (eventually...) booting GSP-RM. */
+	ret = tu102_gsp_booter_load(gsp, mbox0, mbox1);
+	if (WARN_ON(ret))
+		return ret;
+
+	return r535_gsp_init(gsp);
+}
+
 static u64
 tu102_gsp_vga_workspace_addr(struct nvkm_gsp *gsp, u64 fb_size)
 {
@@ -136,14 +217,38 @@ tu102_gsp_vga_workspace_addr(struct nvkm_gsp *gsp, u64 fb_size)
 int
 tu102_gsp_oneinit(struct nvkm_gsp *gsp)
 {
-	gsp->fb.size = nvkm_fb_vidmem_size(gsp->subdev.device);
+	struct nvkm_device *device = gsp->subdev.device;
+	int ret;
+
+	gsp->fb.size = nvkm_fb_vidmem_size(device);
 
 	gsp->fb.bios.vga_workspace.addr = tu102_gsp_vga_workspace_addr(gsp, gsp->fb.size);
 	gsp->fb.bios.vga_workspace.size = gsp->fb.size - gsp->fb.bios.vga_workspace.addr;
 	gsp->fb.bios.addr = gsp->fb.bios.vga_workspace.addr;
 	gsp->fb.bios.size = gsp->fb.bios.vga_workspace.size;
 
-	return r535_gsp_oneinit(gsp);
+	ret = gsp->func->booter.ctor(gsp, "booter-load", gsp->fws.booter.load,
+				     &device->sec2->falcon, &gsp->booter.load);
+	if (ret)
+		return ret;
+
+	ret = gsp->func->booter.ctor(gsp, "booter-unload", gsp->fws.booter.unload,
+				     &device->sec2->falcon, &gsp->booter.unload);
+	if (ret)
+		return ret;
+
+	ret = r535_gsp_oneinit(gsp);
+	if (ret)
+		return ret;
+
+	/* Reset GSP into RISC-V mode. */
+	ret = gsp->func->reset(gsp);
+	if (ret)
+		return ret;
+
+	nvkm_falcon_wr32(&gsp->falcon, 0x040, lower_32_bits(gsp->libos.addr));
+	nvkm_falcon_wr32(&gsp->falcon, 0x044, upper_32_bits(gsp->libos.addr));
+	return 0;
 }
 
 const struct nvkm_falcon_func
@@ -176,8 +281,8 @@ tu102_gsp_r535_113_01 = {
 
 	.dtor = r535_gsp_dtor,
 	.oneinit = tu102_gsp_oneinit,
-	.init = r535_gsp_init,
-	.fini = r535_gsp_fini,
+	.init = tu102_gsp_init,
+	.fini = tu102_gsp_fini,
 	.reset = tu102_gsp_reset,
 
 	.rm = &r535_gsp_rm,

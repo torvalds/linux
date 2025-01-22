@@ -1146,48 +1146,6 @@ r535_gsp_msg_run_cpu_sequencer(void *priv, u32 fn, void *repv, u32 repc)
 }
 
 static int
-r535_gsp_booter_unload(struct nvkm_gsp *gsp, u32 mbox0, u32 mbox1)
-{
-	struct nvkm_subdev *subdev = &gsp->subdev;
-	struct nvkm_device *device = subdev->device;
-	u32 wpr2_hi;
-	int ret;
-
-	wpr2_hi = nvkm_rd32(device, 0x1fa828);
-	if (!wpr2_hi) {
-		nvkm_debug(subdev, "WPR2 not set - skipping booter unload\n");
-		return 0;
-	}
-
-	ret = nvkm_falcon_fw_boot(&gsp->booter.unload, &gsp->subdev, true, &mbox0, &mbox1, 0, 0);
-	if (WARN_ON(ret))
-		return ret;
-
-	wpr2_hi = nvkm_rd32(device, 0x1fa828);
-	if (WARN_ON(wpr2_hi))
-		return -EIO;
-
-	return 0;
-}
-
-static int
-r535_gsp_booter_load(struct nvkm_gsp *gsp, u32 mbox0, u32 mbox1)
-{
-	int ret;
-
-	ret = nvkm_falcon_fw_boot(&gsp->booter.load, &gsp->subdev, true, &mbox0, &mbox1, 0, 0);
-	if (ret)
-		return ret;
-
-	nvkm_falcon_wr32(&gsp->falcon, 0x080, gsp->boot.app_version);
-
-	if (WARN_ON(!nvkm_falcon_riscv_active(&gsp->falcon)))
-		return -EIO;
-
-	return 0;
-}
-
-static int
 r535_gsp_wpr_meta_init(struct nvkm_gsp *gsp)
 {
 	GspFwWprMeta *meta;
@@ -1287,7 +1245,7 @@ r535_gsp_shared_init(struct nvkm_gsp *gsp)
 	return 0;
 }
 
-static int
+int
 r535_gsp_rmargs_init(struct nvkm_gsp *gsp, bool resume)
 {
 	GSP_ARGUMENTS_CACHED *args;
@@ -1816,11 +1774,7 @@ lvl1_fail:
 int
 r535_gsp_fini(struct nvkm_gsp *gsp, bool suspend)
 {
-	u32 mbox0 = 0xff, mbox1 = 0xff;
 	int ret;
-
-	if (!gsp->running)
-		return 0;
 
 	if (suspend) {
 		GspFwWprMeta *meta = gsp->wpr_meta.data;
@@ -1844,9 +1798,6 @@ r535_gsp_fini(struct nvkm_gsp *gsp, bool suspend)
 		sr->revision = GSP_FW_SR_META_REVISION;
 		sr->sysmemAddrOfSuspendResumeData = gsp->sr.radix3.lvl0.addr;
 		sr->sizeOfSuspendResumeData = len;
-
-		mbox0 = lower_32_bits(gsp->sr.meta.addr);
-		mbox1 = upper_32_bits(gsp->sr.meta.addr);
 	}
 
 	ret = r535_gsp_rpc_unloading_guest_driver(gsp, suspend);
@@ -1858,14 +1809,6 @@ r535_gsp_fini(struct nvkm_gsp *gsp, bool suspend)
 			break;
 	);
 
-	nvkm_falcon_reset(&gsp->falcon);
-
-	ret = nvkm_gsp_fwsec_sb(gsp);
-	WARN_ON(ret);
-
-	ret = r535_gsp_booter_unload(gsp, mbox0, mbox1);
-	WARN_ON(ret);
-
 	gsp->running = false;
 	return 0;
 }
@@ -1873,23 +1816,12 @@ r535_gsp_fini(struct nvkm_gsp *gsp, bool suspend)
 int
 r535_gsp_init(struct nvkm_gsp *gsp)
 {
-	u32 mbox0, mbox1;
 	int ret;
 
-	if (!gsp->sr.meta.data) {
-		mbox0 = lower_32_bits(gsp->wpr_meta.addr);
-		mbox1 = upper_32_bits(gsp->wpr_meta.addr);
-	} else {
-		r535_gsp_rmargs_init(gsp, true);
+	nvkm_falcon_wr32(&gsp->falcon, 0x080, gsp->boot.app_version);
 
-		mbox0 = lower_32_bits(gsp->sr.meta.addr);
-		mbox1 = upper_32_bits(gsp->sr.meta.addr);
-	}
-
-	/* Execute booter to handle (eventually...) booting GSP-RM. */
-	ret = r535_gsp_booter_load(gsp, mbox0, mbox1);
-	if (WARN_ON(ret))
-		goto done;
+	if (WARN_ON(!nvkm_falcon_riscv_active(&gsp->falcon)))
+		return -EIO;
 
 	ret = r535_gsp_rpc_poll(gsp, NV_VGPU_MSG_EVENT_GSP_INIT_DONE);
 	if (ret)
@@ -2220,16 +2152,6 @@ r535_gsp_oneinit(struct nvkm_gsp *gsp)
 	mutex_init(&gsp->cmdq.mutex);
 	mutex_init(&gsp->msgq.mutex);
 
-	ret = gsp->func->booter.ctor(gsp, "booter-load", gsp->fws.booter.load,
-				     &device->sec2->falcon, &gsp->booter.load);
-	if (ret)
-		return ret;
-
-	ret = gsp->func->booter.ctor(gsp, "booter-unload", gsp->fws.booter.unload,
-				     &device->sec2->falcon, &gsp->booter.unload);
-	if (ret)
-		return ret;
-
 	/* Load GSP firmware from ELF image into DMA-accessible memory. */
 	ret = r535_gsp_elf_section(gsp, ".fwimage", &data, &size);
 	if (ret)
@@ -2323,14 +2245,6 @@ r535_gsp_oneinit(struct nvkm_gsp *gsp)
 	ret = r535_gsp_rpc_set_registry(gsp);
 	if (WARN_ON(ret))
 		return ret;
-
-	/* Reset GSP into RISC-V mode. */
-	ret = gsp->func->reset(gsp);
-	if (WARN_ON(ret))
-		return ret;
-
-	nvkm_falcon_wr32(&gsp->falcon, 0x040, lower_32_bits(gsp->libos.addr));
-	nvkm_falcon_wr32(&gsp->falcon, 0x044, upper_32_bits(gsp->libos.addr));
 
 	mutex_init(&gsp->client_id.mutex);
 	idr_init(&gsp->client_id.idr);

@@ -52,7 +52,7 @@ nvkm_gsp_fini(struct nvkm_subdev *subdev, bool suspend)
 {
 	struct nvkm_gsp *gsp = nvkm_gsp(subdev);
 
-	if (!gsp->func->fini)
+	if (!gsp->func->fini || !gsp->running)
 		return 0;
 
 	return gsp->func->fini(gsp, suspend);
