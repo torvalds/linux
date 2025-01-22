@@ -299,18 +299,13 @@ void ext4_put_io_end_defer(ext4_io_end_t *io_end)
 
 int ext4_put_io_end(ext4_io_end_t *io_end)
 {
-	int err = 0;
-
 	if (refcount_dec_and_test(&io_end->count)) {
-		if (io_end->flag & EXT4_IO_END_UNWRITTEN) {
-			err = ext4_convert_unwritten_io_end_vec(io_end->handle,
-								io_end);
-			io_end->handle = NULL;
-			ext4_clear_io_unwritten_flag(io_end);
-		}
+		if (io_end->flag & EXT4_IO_END_UNWRITTEN)
+			return ext4_end_io_end(io_end);
+
 		ext4_release_io_end(io_end);
 	}
-	return err;
+	return 0;
 }
 
 ext4_io_end_t *ext4_get_io_end(ext4_io_end_t *io_end)
