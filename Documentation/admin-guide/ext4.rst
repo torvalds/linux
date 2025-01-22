@@ -238,11 +238,10 @@ When mounting an ext4 filesystem, the following option are accepted:
         configured using tune2fs)
 
   data_err=ignore(*)
-        Just print an error message if an error occurs in a file data buffer in
-        ordered mode.
+        Just print an error message if an error occurs in a file data buffer.
+
   data_err=abort
-        Abort the journal if an error occurs in a file data buffer in ordered
-        mode.
+        Abort the journal if an error occurs in a file data buffer.
 
   grpid | bsdgroups
         New objects have the group ID of their parent.
