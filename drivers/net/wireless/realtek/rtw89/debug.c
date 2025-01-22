@@ -954,7 +954,7 @@ ssize_t rtw89_debug_priv_txpwr_table_get(struct rtw89_dev *rtwdev,
 	char *p = buf, *end = buf + bufsz;
 	ssize_t n;
 
-	mutex_lock(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 	rtw89_leave_ps_mode(rtwdev);
 	chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
 
@@ -993,12 +993,9 @@ ssize_t rtw89_debug_priv_txpwr_table_get(struct rtw89_dev *rtwdev,
 		goto err;
 	p += n;
 
-	mutex_unlock(&rtwdev->mutex);
-
 	return p - buf;
 
 err:
-	mutex_unlock(&rtwdev->mutex);
 
 	return n;
 }
@@ -1201,7 +1198,7 @@ rtw89_debug_priv_mac_mem_dump_get(struct rtw89_dev *rtwdev,
 		}
 	}
 
-	mutex_lock(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 	rtw89_leave_ps_mode(rtwdev);
 	if (grant_read)
 		rtw89_write32_set(rtwdev, R_AX_TCR1, B_AX_TCR_FORCE_READ_TXDFIFO);
@@ -1211,7 +1208,6 @@ rtw89_debug_priv_mac_mem_dump_get(struct rtw89_dev *rtwdev,
 				      debugfs_priv->mac_mem.len);
 	if (grant_read)
 		rtw89_write32_clr(rtwdev, R_AX_TCR1, B_AX_TCR_FORCE_READ_TXDFIFO);
-	mutex_unlock(&rtwdev->mutex);
 
 	return p - buf;
 }
@@ -3518,11 +3514,10 @@ rtw89_debug_priv_early_h2c_get(struct rtw89_dev *rtwdev,
 	char *p = buf, *end = buf + bufsz;
 	int seq = 0;
 
-	mutex_lock(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 	list_for_each_entry(early_h2c, &rtwdev->early_h2c_list, list)
 		p += scnprintf(p, end - p, "%d: %*ph\n", ++seq,
 			       early_h2c->h2c_len, early_h2c->h2c);
-	mutex_unlock(&rtwdev->mutex);
 
 	return p - buf;
 }
@@ -3555,9 +3550,8 @@ rtw89_debug_priv_early_h2c_set(struct rtw89_dev *rtwdev,
 	early_h2c->h2c = h2c;
 	early_h2c->h2c_len = h2c_len;
 
-	mutex_lock(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 	list_add_tail(&early_h2c->list, &rtwdev->early_h2c_list);
-	mutex_unlock(&rtwdev->mutex);
 
 out:
 	return count;
@@ -3633,10 +3627,9 @@ rtw89_debug_priv_fw_crash_set(struct rtw89_dev *rtwdev,
 		return -EINVAL;
 	}
 
-	mutex_lock(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 	set_bit(RTW89_FLAG_CRASH_SIMULATING, rtwdev->flags);
 	ret = sim(rtwdev);
-	mutex_unlock(&rtwdev->mutex);
 
 	if (ret)
 		return ret;
@@ -3681,12 +3674,11 @@ static ssize_t rtw89_debug_priv_fw_log_manual_set(struct rtw89_dev *rtwdev,
 	if (kstrtobool(buf, &fw_log_manual))
 		goto out;
 
-	mutex_lock(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 	log->enable = fw_log_manual;
 	if (log->enable)
 		rtw89_fw_log_prepare(rtwdev);
 	rtw89_fw_h2c_fw_log(rtwdev, fw_log_manual);
-	mutex_unlock(&rtwdev->mutex);
 out:
 	return count;
 }
@@ -4113,7 +4105,7 @@ static ssize_t rtw89_debug_priv_stations_get(struct rtw89_dev *rtwdev,
 	char *p = buf, *end = buf + bufsz;
 	u8 idx;
 
-	mutex_lock(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	p += scnprintf(p, end - p, "map:\n");
 	p += scnprintf(p, end - p, "\tmac_id:    %*ph\n",
@@ -4150,8 +4142,6 @@ static ssize_t rtw89_debug_priv_stations_get(struct rtw89_dev *rtwdev,
 	rtw89_debugfs_iter_data_setup(&iter_data, p, end - p);
 	ieee80211_iterate_stations_atomic(rtwdev->hw, rtw89_sta_ids_get_iter, &iter_data);
 	p += iter_data.written_sz;
-
-	mutex_unlock(&rtwdev->mutex);
 
 	return p - buf;
 }

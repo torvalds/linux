@@ -113,7 +113,7 @@ static void __rtw89_leave_lps(struct rtw89_dev *rtwdev,
 
 void rtw89_leave_ps_mode(struct rtw89_dev *rtwdev)
 {
-	lockdep_assert_held(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	__rtw89_leave_ps_mode(rtwdev);
 }
@@ -125,7 +125,7 @@ void rtw89_enter_lps(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 	bool can_ps_mode = true;
 	unsigned int link_id;
 
-	lockdep_assert_held(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	if (test_and_set_bit(RTW89_FLAG_LEISURE_PS, rtwdev->flags))
 		return;
@@ -162,7 +162,7 @@ void rtw89_leave_lps(struct rtw89_dev *rtwdev)
 	struct rtw89_vif *rtwvif;
 	unsigned int link_id;
 
-	lockdep_assert_held(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	if (!test_and_clear_bit(RTW89_FLAG_LEISURE_PS, rtwdev->flags))
 		return;

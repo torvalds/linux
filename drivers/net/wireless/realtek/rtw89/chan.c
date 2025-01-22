@@ -155,7 +155,7 @@ int rtw89_iterate_entity_chan(struct rtw89_dev *rtwdev,
 	int ret;
 	u8 idx;
 
-	lockdep_assert_held(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	for_each_set_bit(idx,  hal->entity_map, NUM_OF_RTW89_CHANCTX) {
 		chan = rtw89_chan_get(rtwdev, idx);
@@ -310,7 +310,7 @@ const struct rtw89_chan *__rtw89_mgnt_chan_get(struct rtw89_dev *rtwdev,
 	enum rtw89_entity_mode mode;
 	u8 role_index;
 
-	lockdep_assert_held(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	if (unlikely(link_index >= __RTW89_MLD_MAX_LINK_NUM)) {
 		WARN(1, "link index %u is invalid (max link inst num: %d)\n",
@@ -366,7 +366,7 @@ static void rtw89_entity_recalc_mgnt_roles(struct rtw89_dev *rtwdev)
 	u8 pos = 0;
 	int i, j;
 
-	lockdep_assert_held(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	for (i = 0; i < RTW89_MAX_INTERFACE_NUM; i++)
 		mgnt->active_roles[i] = NULL;
@@ -427,7 +427,7 @@ enum rtw89_entity_mode rtw89_entity_recalc(struct rtw89_dev *rtwdev)
 	struct rtw89_chan chan;
 	u8 idx;
 
-	lockdep_assert_held(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	bitmap_copy(recalc_map, hal->entity_map, NUM_OF_RTW89_CHANCTX);
 
@@ -2401,10 +2401,9 @@ void rtw89_chanctx_work(struct wiphy *wiphy, struct wiphy_work *work)
 	int ret;
 	int i;
 
-	mutex_lock(&rtwdev->mutex);
+	lockdep_assert_wiphy(wiphy);
 
 	if (hal->entity_pause) {
-		mutex_unlock(&rtwdev->mutex);
 		return;
 	}
 
@@ -2445,8 +2444,6 @@ void rtw89_chanctx_work(struct wiphy *wiphy, struct wiphy_work *work)
 	default:
 		break;
 	}
-
-	mutex_unlock(&rtwdev->mutex);
 }
 
 void rtw89_queue_chanctx_change(struct rtw89_dev *rtwdev,
@@ -2491,7 +2488,7 @@ void rtw89_chanctx_track(struct rtw89_dev *rtwdev)
 	struct rtw89_hal *hal = &rtwdev->hal;
 	enum rtw89_entity_mode mode;
 
-	lockdep_assert_held(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	if (hal->entity_pause)
 		return;
@@ -2512,7 +2509,7 @@ void rtw89_chanctx_pause(struct rtw89_dev *rtwdev,
 	struct rtw89_hal *hal = &rtwdev->hal;
 	enum rtw89_entity_mode mode;
 
-	lockdep_assert_held(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	if (hal->entity_pause)
 		return;
@@ -2555,7 +2552,7 @@ void rtw89_chanctx_proceed(struct rtw89_dev *rtwdev,
 	enum rtw89_entity_mode mode;
 	int ret;
 
-	lockdep_assert_held(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	if (unlikely(!hal->entity_pause)) {
 		rtw89_chanctx_proceed_cb(rtwdev, cb_parm);

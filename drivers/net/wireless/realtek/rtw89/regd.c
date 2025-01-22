@@ -745,7 +745,7 @@ void rtw89_regd_notifier(struct wiphy *wiphy, struct regulatory_request *request
 	struct rtw89_dev *rtwdev = hw->priv;
 
 	wiphy_lock(wiphy);
-	mutex_lock(&rtwdev->mutex);
+	lockdep_assert_wiphy(wiphy);
 	rtw89_leave_ps_mode(rtwdev);
 
 	if (wiphy->regd) {
@@ -761,7 +761,6 @@ void rtw89_regd_notifier(struct wiphy *wiphy, struct regulatory_request *request
 	rtw89_core_set_chip_txpwr(rtwdev);
 
 exit:
-	mutex_unlock(&rtwdev->mutex);
 	wiphy_unlock(wiphy);
 }
 
@@ -1012,7 +1011,7 @@ int rtw89_reg_6ghz_recalc(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvi
 	unsigned int changed = 0;
 	int ret;
 
-	lockdep_assert_held(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	/* The result of reg_6ghz_tpe may depend on reg_6ghz_power type,
 	 * so must do reg_6ghz_tpe_recalc() after reg_6ghz_power_recalc().

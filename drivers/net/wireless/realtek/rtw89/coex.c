@@ -6721,7 +6721,7 @@ void rtw89_coex_act1_work(struct wiphy *wiphy, struct wiphy_work *work)
 	struct rtw89_btc_cx *cx = &btc->cx;
 	struct rtw89_btc_wl_info *wl = &cx->wl;
 
-	mutex_lock(&rtwdev->mutex);
+	lockdep_assert_wiphy(wiphy);
 	rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], %s(): enter\n", __func__);
 	dm->cnt_notify[BTC_NCNT_TIMER]++;
 	if (wl->status.map._4way)
@@ -6730,7 +6730,6 @@ void rtw89_coex_act1_work(struct wiphy *wiphy, struct wiphy_work *work)
 		wl->status.map.connecting = false;
 
 	_run_coex(rtwdev, BTC_RSN_ACT1_WORK);
-	mutex_unlock(&rtwdev->mutex);
 }
 
 void rtw89_coex_bt_devinfo_work(struct wiphy *wiphy, struct wiphy_work *work)
@@ -6741,12 +6740,11 @@ void rtw89_coex_bt_devinfo_work(struct wiphy *wiphy, struct wiphy_work *work)
 	struct rtw89_btc_dm *dm = &rtwdev->btc.dm;
 	struct rtw89_btc_bt_a2dp_desc *a2dp = &btc->cx.bt.link_info.a2dp_desc;
 
-	mutex_lock(&rtwdev->mutex);
+	lockdep_assert_wiphy(wiphy);
 	rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], %s(): enter\n", __func__);
 	dm->cnt_notify[BTC_NCNT_TIMER]++;
 	a2dp->play_latency = 0;
 	_run_coex(rtwdev, BTC_RSN_BT_DEVINFO_WORK);
-	mutex_unlock(&rtwdev->mutex);
 }
 
 void rtw89_coex_rfk_chk_work(struct wiphy *wiphy, struct wiphy_work *work)
@@ -6758,7 +6756,7 @@ void rtw89_coex_rfk_chk_work(struct wiphy *wiphy, struct wiphy_work *work)
 	struct rtw89_btc_cx *cx = &btc->cx;
 	struct rtw89_btc_wl_info *wl = &cx->wl;
 
-	mutex_lock(&rtwdev->mutex);
+	lockdep_assert_wiphy(wiphy);
 	rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], %s(): enter\n", __func__);
 	dm->cnt_notify[BTC_NCNT_TIMER]++;
 	if (wl->rfk_info.state != BTC_WRFK_STOP) {
@@ -6770,7 +6768,6 @@ void rtw89_coex_rfk_chk_work(struct wiphy *wiphy, struct wiphy_work *work)
 		_write_scbd(rtwdev, BTC_WSCB_WLRFK, false);
 		_run_coex(rtwdev, BTC_RSN_RFK_CHK_WORK);
 	}
-	mutex_unlock(&rtwdev->mutex);
 }
 
 static void _update_bt_scbd(struct rtw89_dev *rtwdev, bool only_update)
@@ -6874,7 +6871,7 @@ void _run_coex(struct rtw89_dev *rtwdev, enum btc_reason_and_action reason)
 	struct rtw89_btc_wl_role_info_v8 *wl_rinfo_v8 = &wl->role_info_v8;
 	u8 mode, igno_bt, always_freerun;
 
-	lockdep_assert_held(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	dm->run_reason = reason;
 	_update_dm_step(rtwdev, reason);
@@ -7311,10 +7308,9 @@ void rtw89_btc_ntfy_eapol_packet_work(struct wiphy *wiphy, struct wiphy_work *wo
 	struct rtw89_dev *rtwdev = container_of(work, struct rtw89_dev,
 						btc.eapol_notify_work);
 
-	mutex_lock(&rtwdev->mutex);
+	lockdep_assert_wiphy(wiphy);
 	rtw89_leave_ps_mode(rtwdev);
 	rtw89_btc_ntfy_specific_packet(rtwdev, PACKET_EAPOL);
-	mutex_unlock(&rtwdev->mutex);
 }
 
 void rtw89_btc_ntfy_arp_packet_work(struct wiphy *wiphy, struct wiphy_work *work)
@@ -7322,9 +7318,8 @@ void rtw89_btc_ntfy_arp_packet_work(struct wiphy *wiphy, struct wiphy_work *work
 	struct rtw89_dev *rtwdev = container_of(work, struct rtw89_dev,
 						btc.arp_notify_work);
 
-	mutex_lock(&rtwdev->mutex);
+	lockdep_assert_wiphy(wiphy);
 	rtw89_btc_ntfy_specific_packet(rtwdev, PACKET_ARP);
-	mutex_unlock(&rtwdev->mutex);
 }
 
 void rtw89_btc_ntfy_dhcp_packet_work(struct wiphy *wiphy, struct wiphy_work *work)
@@ -7332,10 +7327,9 @@ void rtw89_btc_ntfy_dhcp_packet_work(struct wiphy *wiphy, struct wiphy_work *wor
 	struct rtw89_dev *rtwdev = container_of(work, struct rtw89_dev,
 						btc.dhcp_notify_work);
 
-	mutex_lock(&rtwdev->mutex);
+	lockdep_assert_wiphy(wiphy);
 	rtw89_leave_ps_mode(rtwdev);
 	rtw89_btc_ntfy_specific_packet(rtwdev, PACKET_DHCP);
-	mutex_unlock(&rtwdev->mutex);
 }
 
 void rtw89_btc_ntfy_icmp_packet_work(struct wiphy *wiphy, struct wiphy_work *work)
@@ -7343,10 +7337,9 @@ void rtw89_btc_ntfy_icmp_packet_work(struct wiphy *wiphy, struct wiphy_work *wor
 	struct rtw89_dev *rtwdev = container_of(work, struct rtw89_dev,
 						btc.icmp_notify_work);
 
-	mutex_lock(&rtwdev->mutex);
+	lockdep_assert_wiphy(wiphy);
 	rtw89_leave_ps_mode(rtwdev);
 	rtw89_btc_ntfy_specific_packet(rtwdev, PACKET_ICMP);
-	mutex_unlock(&rtwdev->mutex);
 }
 
 static u8 _update_bt_rssi_level(struct rtw89_dev *rtwdev, u8 rssi)

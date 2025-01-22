@@ -25,7 +25,7 @@ static inline bool rtw89_rtwvif_in_list(struct rtw89_dev *rtwdev,
 {
 	struct rtw89_vif *rtwvif;
 
-	lockdep_assert_held(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	rtw89_for_each_rtwvif(rtwdev, rtwvif)
 		if (rtwvif == new)

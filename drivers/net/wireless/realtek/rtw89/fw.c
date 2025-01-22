@@ -6096,7 +6096,7 @@ void rtw89_fw_send_all_early_h2c(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_early_h2c *early_h2c;
 
-	lockdep_assert_held(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	list_for_each_entry(early_h2c, &rtwdev->early_h2c_list, list) {
 		rtw89_fw_h2c_raw(rtwdev, early_h2c->h2c, early_h2c->h2c_len);
@@ -6203,9 +6203,8 @@ void rtw89_fw_c2h_work(struct wiphy *wiphy, struct wiphy_work *work)
 
 	skb_queue_walk_safe(&rtwdev->c2h_queue, skb, tmp) {
 		skb_unlink(skb, &rtwdev->c2h_queue);
-		mutex_lock(&rtwdev->mutex);
+		lockdep_assert_wiphy(rtwdev->hw->wiphy);
 		rtw89_fw_c2h_cmd_handle(rtwdev, skb);
-		mutex_unlock(&rtwdev->mutex);
 		dev_kfree_skb_any(skb);
 	}
 }
@@ -6286,7 +6285,7 @@ int rtw89_fw_msg_reg(struct rtw89_dev *rtwdev,
 	u32 ret;
 
 	if (h2c_info && h2c_info->id != RTW89_FWCMD_H2CREG_FUNC_GET_FEATURE)
-		lockdep_assert_held(&rtwdev->mutex);
+		lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	if (!h2c_info && !c2h_info)
 		return -EINVAL;

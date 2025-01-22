@@ -4661,7 +4661,7 @@ void rtw89_phy_cfo_track_work(struct wiphy *wiphy, struct wiphy_work *work)
 						cfo_track_work.work);
 	struct rtw89_cfo_tracking_info *cfo = &rtwdev->cfo_tracking;
 
-	mutex_lock(&rtwdev->mutex);
+	lockdep_assert_wiphy(wiphy);
 	if (!cfo->cfo_trig_by_timer_en)
 		goto out;
 	rtw89_leave_ps_mode(rtwdev);
@@ -4669,7 +4669,6 @@ void rtw89_phy_cfo_track_work(struct wiphy *wiphy, struct wiphy_work *work)
 	wiphy_delayed_work_queue(wiphy, &rtwdev->cfo_track_work,
 				 msecs_to_jiffies(cfo->cfo_timer_ms));
 out:
-	mutex_unlock(&rtwdev->mutex);
 }
 
 static void rtw89_phy_cfo_start_work(struct rtw89_dev *rtwdev)
@@ -6537,7 +6536,7 @@ void rtw89_phy_antdiv_work(struct wiphy *wiphy, struct wiphy_work *work)
 						antdiv_work.work);
 	struct rtw89_antdiv_info *antdiv = &rtwdev->antdiv;
 
-	mutex_lock(&rtwdev->mutex);
+	lockdep_assert_wiphy(wiphy);
 
 	if (antdiv->training_count <= ANTDIV_TRAINNING_CNT) {
 		rtw89_phy_antdiv_training_state(rtwdev);
@@ -6545,8 +6544,6 @@ void rtw89_phy_antdiv_work(struct wiphy *wiphy, struct wiphy_work *work)
 		rtw89_phy_antdiv_decision_state(rtwdev);
 		rtw89_phy_antdiv_set_ant(rtwdev);
 	}
-
-	mutex_unlock(&rtwdev->mutex);
 }
 
 void rtw89_phy_antdiv_track(struct rtw89_dev *rtwdev)

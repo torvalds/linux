@@ -150,7 +150,7 @@ s8 rtw89_query_sar(struct rtw89_dev *rtwdev, u32 center_freq)
 	s32 cfg;
 	u8 fct;
 
-	lockdep_assert_held(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	if (src == RTW89_SAR_SOURCE_NONE)
 		return RTW89_SAR_TXPWR_MAC_MAX;
@@ -190,7 +190,7 @@ int rtw89_print_sar(struct rtw89_dev *rtwdev, char *buf, size_t bufsz,
 	s32 cfg;
 	u8 fct;
 
-	lockdep_assert_held(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	if (src == RTW89_SAR_SOURCE_NONE) {
 		p += scnprintf(p, end - p, "no SAR is applied\n");
@@ -241,7 +241,7 @@ static int rtw89_apply_sar_common(struct rtw89_dev *rtwdev,
 	enum rtw89_sar_sources src;
 	int ret = 0;
 
-	mutex_lock(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	src = rtwdev->sar.src;
 	if (src != RTW89_SAR_SOURCE_NONE && src != RTW89_SAR_SOURCE_COMMON) {
@@ -254,7 +254,6 @@ static int rtw89_apply_sar_common(struct rtw89_dev *rtwdev,
 	rtw89_core_set_chip_txpwr(rtwdev);
 
 exit:
-	mutex_unlock(&rtwdev->mutex);
 	return ret;
 }
 
@@ -328,7 +327,7 @@ static void rtw89_tas_state_update(struct rtw89_dev *rtwdev)
 	const struct rtw89_chan *chan;
 	int ret;
 
-	lockdep_assert_held(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	if (src == RTW89_SAR_SOURCE_NONE)
 		return;

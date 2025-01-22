@@ -619,12 +619,11 @@ static struct ieee80211_key_conf *rtw89_wow_gtk_rekey(struct rtw89_dev *rtwdev,
 	/* ieee80211_gtk_rekey_add() will call set_key(), therefore we
 	 * need to unlock mutex
 	 */
-	mutex_unlock(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 	if (ieee80211_vif_is_mld(wow_vif))
 		key = ieee80211_gtk_rekey_add(wow_vif, rekey_conf, rtwvif_link->link_id);
 	else
 		key = ieee80211_gtk_rekey_add(wow_vif, rekey_conf, -1);
-	mutex_lock(&rtwdev->mutex);
 
 	kfree(rekey_conf);
 	if (IS_ERR(key)) {
