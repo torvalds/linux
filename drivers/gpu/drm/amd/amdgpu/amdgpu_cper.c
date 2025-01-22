@@ -178,7 +178,7 @@ int amdgpu_cper_entry_fill_runtime_section(struct amdgpu_device *adev,
 					    sev, RUNTIME, NONSTD_SEC_LEN,
 					    NONSTD_SEC_OFFSET(hdr->sec_cnt, idx));
 
-	reg_count = min(reg_count, CPER_ACA_REG_COUNT);
+	reg_count = umin(reg_count, CPER_ACA_REG_COUNT);
 
 	section->hdr.valid_bits.err_info_cnt = 1;
 	section->hdr.valid_bits.err_context_cnt = 1;
@@ -380,6 +380,99 @@ int amdgpu_cper_generate_ce_records(struct amdgpu_device *adev,
 	/*TODO: commit the cper entry to cper ring */
 
 	return 0;
+}
+
+static bool amdgpu_cper_is_hdr(struct amdgpu_ring *ring, u64 pos)
+{
+	struct cper_hdr *chdr;
+
+	chdr = (struct cper_hdr *)&(ring->ring[pos]);
+	return strcmp(chdr->signature, "CPER") ? false : true;
+}
+
+static u32 amdgpu_cper_ring_get_ent_sz(struct amdgpu_ring *ring, u64 pos)
+{
+	struct cper_hdr *chdr;
+	u64 p;
+	u32 chunk, rec_len = 0;
+
+	chdr = (struct cper_hdr *)&(ring->ring[pos]);
+	chunk = ring->ring_size - (pos << 2);
+
+	if (!strcmp(chdr->signature, "CPER")) {
+		rec_len = chdr->record_length;
+		goto calc;
+	}
+
+	/* ring buffer is not full, no cper data after ring->wptr */
+	if (ring->count_dw)
+		goto calc;
+
+	for (p = pos + 1; p <= ring->buf_mask; p++) {
+		chdr = (struct cper_hdr *)&(ring->ring[p]);
+		if (!strcmp(chdr->signature, "CPER")) {
+			rec_len = (p - pos) << 2;
+			goto calc;
+		}
+	}
+
+calc:
+	if (!rec_len)
+		return chunk;
+	else
+		return umin(rec_len, chunk);
+}
+
+void amdgpu_cper_ring_write(struct amdgpu_ring *ring,
+					      void *src, int count)
+{
+	u64 pos, wptr_old, rptr = *ring->rptr_cpu_addr & ring->ptr_mask;
+	u32 chunk, ent_sz;
+	u8 *s = (u8 *)src;
+
+	if (count >= ring->ring_size - 4) {
+		dev_err(ring->adev->dev,
+			"CPER data size(%d) is larger than ring size(%d)\n",
+			count, ring->ring_size - 4);
+
+		return;
+	}
+
+	wptr_old = ring->wptr;
+
+	while (count) {
+		ent_sz = amdgpu_cper_ring_get_ent_sz(ring, ring->wptr);
+		chunk = umin(ent_sz, count);
+
+		memcpy(&ring->ring[ring->wptr], s, chunk);
+
+		ring->wptr += (chunk >> 2);
+		ring->wptr &= ring->ptr_mask;
+		count -= chunk;
+		s += chunk;
+	}
+
+	/* the buffer is overflow, adjust rptr */
+	if (((wptr_old < rptr) && (rptr <= ring->wptr)) ||
+	    ((ring->wptr < wptr_old) && (wptr_old < rptr)) ||
+	    ((rptr <= ring->wptr) && (ring->wptr < wptr_old))) {
+		pos = (ring->wptr + 1) & ring->ptr_mask;
+
+		do {
+			ent_sz = amdgpu_cper_ring_get_ent_sz(ring, pos);
+
+			rptr += (ent_sz >> 2);
+			rptr &= ring->ptr_mask;
+			*ring->rptr_cpu_addr = rptr;
+
+			pos = rptr;
+		} while (!amdgpu_cper_is_hdr(ring, rptr));
+	}
+
+	if (ring->count_dw >= (count >> 2))
+		ring->count_dw -= (count >> 2);
+	else
+		ring->count_dw = 0;
 }
 
 static u64 amdgpu_cper_ring_get_rptr(struct amdgpu_ring *ring)
