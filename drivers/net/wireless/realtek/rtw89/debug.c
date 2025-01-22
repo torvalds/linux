@@ -217,25 +217,19 @@ static ssize_t rtw89_debugfs_file_write(struct file *file,
 	return debugfs_priv->cb_write(rtwdev, debugfs_priv, buf, count);
 }
 
-static const struct file_operations file_ops_single_r = {
-	.owner = THIS_MODULE,
+static const struct debugfs_short_fops file_ops_single_r = {
 	.read = rtw89_debugfs_file_read,
-	.open = simple_open,
 	.llseek = generic_file_llseek,
 };
 
-static const struct file_operations file_ops_common_rw = {
-	.owner = THIS_MODULE,
+static const struct debugfs_short_fops file_ops_common_rw = {
 	.read = rtw89_debugfs_file_read,
 	.write = rtw89_debugfs_file_write,
-	.open = simple_open,
 	.llseek = generic_file_llseek,
 };
 
-static const struct file_operations file_ops_single_w = {
-	.owner = THIS_MODULE,
+static const struct debugfs_short_fops file_ops_single_w = {
 	.write = rtw89_debugfs_file_write,
-	.open = simple_open,
 	.llseek = generic_file_llseek,
 };
 
