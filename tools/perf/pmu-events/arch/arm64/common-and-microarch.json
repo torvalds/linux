@@ -547,6 +547,11 @@
         "BriefDescription": "Instruction architecturally executed, SVE."
     },
     {
+        "EventCode": "0x8004",
+        "EventName": "SIMD_INST_SPEC",
+        "BriefDescription": "Operation speculatively executed, SIMD"
+    },
+    {
         "PublicDescription": "ASE operations speculatively executed",
         "EventCode": "0x8005",
         "EventName": "ASE_INST_SPEC",
@@ -1285,6 +1290,26 @@
         "BriefDescription": "Branch instruction architecturally executed, mispredicted indirect excluding procedure return"
     },
     {
+        "EventCode": "0x8118",
+        "EventName": "BR_TAKEN_PRED_RETIRED",
+        "BriefDescription": "Branch instruction architecturally executed, predicted branch, taken"
+    },
+    {
+        "EventCode": "0x8119",
+        "EventName": "BR_TAKEN_MIS_PRED_RETIRED",
+        "BriefDescription": "Branch instruction architecturally executed, mispredicted branch, taken"
+    },
+    {
+        "EventCode": "0x811A",
+        "EventName": "BR_SKIP_PRED_RETIRED",
+        "BriefDescription": "Branch instruction architecturally executed, predicted branch, not taken"
+    },
+    {
+        "EventCode": "0x811B",
+        "EventName": "BR_SKIP_MIS_PRED_RETIRED",
+        "BriefDescription": "Branch instruction architecturally executed, mispredicted branch, not taken"
+    },
+    {
         "EventCode": "0x811C",
         "EventName": "BR_PRED_RETIRED",
         "BriefDescription": "Branch instruction architecturally executed, predicted branch"
@@ -1293,6 +1318,11 @@
         "EventCode": "0x811D",
         "EventName": "BR_IND_RETIRED",
         "BriefDescription": "Instruction architecturally executed, indirect branch"
+    },
+    {
+        "EventCode": "0x811F",
+        "EventName": "BRB_FILTRATE",
+        "BriefDescription": "Branch Record captured"
     },
     {
         "EventCode": "0x8120",
@@ -1350,6 +1380,26 @@
         "BriefDescription": "Statisical Profiling sample taken, exceeding minimum latency"
     },
     {
+        "EventCode": "0x8130",
+        "EventName": "L1D_TLB_RW",
+        "BriefDescription": "Level 1 data TLB demand access"
+    },
+    {
+        "EventCode": "0x8131",
+        "EventName": "L1I_TLB_RD",
+        "BriefDescription": "Level 1 instruction TLB demand access"
+    },
+    {
+        "EventCode": "0x8132",
+        "EventName": "L1D_TLB_PRFM",
+        "BriefDescription": "Level 1 data TLB software preload"
+    },
+    {
+        "EventCode": "0x8133",
+        "EventName": "L1I_TLB_PRFM",
+        "BriefDescription": "Level 1 instruction TLB software preload"
+    },
+    {
         "EventCode": "0x8134",
         "EventName": "DTLB_HWUPD",
         "BriefDescription": "Data TLB hardware update of translation table"
@@ -1390,9 +1440,44 @@
         "BriefDescription": "Instruction TLB small page translation table walk."
     },
     {
+        "EventCode": "0x813C",
+        "EventName": "DTLB_WALK_RW",
+        "BriefDescription": "Data TLB demand access with at least one translation table walk"
+    },
+    {
+        "EventCode": "0x813D",
+        "EventName": "ITLB_WALK_RD",
+        "BriefDescription": "Instruction TLB demand access with at least one translation table walk"
+    },
+    {
+        "EventCode": "0x813E",
+        "EventName": "DTLB_WALK_PRFM",
+        "BriefDescription": "Data TLB software preload access with at least one translation table walk"
+    },
+    {
+        "EventCode": "0x813F",
+        "EventName": "ITLB_WALK_PRFM",
+        "BriefDescription": "Instruction TLB software preload access with at least one translation table walk"
+    },
+    {
         "EventCode": "0x8140",
         "EventName": "L1D_CACHE_RW",
         "BriefDescription": "Level 1 data cache demand access"
+    },
+    {
+        "EventCode": "0x8141",
+        "EventName": "L1I_CACHE_RD",
+        "BriefDescription": "Level 1 instruction cache demand fetch"
+    },
+    {
+        "EventCode": "0x8142",
+        "EventName": "L1D_CACHE_PRFM",
+        "BriefDescription": "Level 1 data cache software preload"
+    },
+    {
+        "EventCode": "0x8143",
+        "EventName": "L1I_CACHE_PRFM",
+        "BriefDescription": "Level 1 instruction cache software preload"
     },
     {
         "EventCode": "0x8144",
@@ -1405,6 +1490,16 @@
         "BriefDescription": "Level 1 instruction cache hardware prefetch."
     },
     {
+        "EventCode": "0x8146",
+        "EventName": "L1D_CACHE_REFILL_PRFM",
+        "BriefDescription": "Level 1 data cache refill, software preload"
+    },
+    {
+        "EventCode": "0x8147",
+        "EventName": "L1I_CACHE_REFILL_PRFM",
+        "BriefDescription": "Level 1 instruction cache refill, software preload"
+    },
+    {
         "EventCode": "0x8148",
         "EventName": "L2D_CACHE_RW",
         "BriefDescription": "Level 2 data cache demand access"
@@ -1415,9 +1510,19 @@
         "BriefDescription": "Level 2 instruction cache demand fetch"
     },
     {
+        "EventCode": "0x814A",
+        "EventName": "L2D_CACHE_PRFM",
+        "BriefDescription": "Level 2 data cache software preload"
+    },
+    {
         "EventCode": "0x814C",
         "EventName": "L2D_CACHE_MISS",
         "BriefDescription": "Level 2 data cache demand access miss."
+    },
+    {
+        "EventCode": "0x814E",
+        "EventName": "L2D_CACHE_REFILL_PRFM",
+        "BriefDescription": "Level 2 data cache refill, software preload"
     },
     {
         "EventCode": "0x8152",
@@ -1615,6 +1720,16 @@
         "BriefDescription": "Level 2 data cache demand access hit, write."
     },
     {
+        "EventCode": "0x81D0",
+        "EventName": "L1I_CACHE_HIT_RD_FPRFM",
+        "BriefDescription": "Level 1 instruction cache demand fetch first hit, fetched by software preload"
+    },
+    {
+        "EventCode": "0x81E0",
+        "EventName": "L1I_CACHE_HIT_RD_FHWPRF",
+        "BriefDescription": "Level 1 instruction cache demand fetch first hit, fetched by hardware prefetcher"
+    },
+    {
         "EventCode": "0x8200",
         "EventName": "L1I_CACHE_HIT",
         "BriefDescription": "Level 1 instruction cache hit."
@@ -1628,6 +1743,11 @@
         "EventCode": "0x8205",
         "EventName": "L2D_CACHE_HIT",
         "BriefDescription": "Level 2 data cache hit."
+    },
+    {
+        "EventCode": "0x8208",
+        "EventName": "L1I_CACHE_HIT_PRFM",
+        "BriefDescription": "Level 1 instruction cache software preload hit"
     },
     {
         "EventCode": "0x8240",
@@ -1653,6 +1773,16 @@
         "EventCode": "0x8249",
         "EventName": "L2D_LFB_HIT_WR",
         "BriefDescription": "Level 2 data cache demand access line-fill buffer hit, write."
+    },
+    {
+        "EventCode": "0x8250",
+        "EventName": "L1I_LFB_HIT_RD_FPRFM",
+        "BriefDescription": "Level 1 instruction cache demand fetch line-fill buffer first hit, recently fetched by software preload"
+    },
+    {
+        "EventCode": "0x8260",
+        "EventName": "L1I_LFB_HIT_RD_FHWPRF",
+        "BriefDescription": "Level 1 instruction cache demand fetch line-fill buffer first hit, recently fetched by hardware prefetcher"
     },
     {
         "EventCode": "0x8280",
