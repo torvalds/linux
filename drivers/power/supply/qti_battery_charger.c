@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt)	"BATTERY_CHG: %s: " fmt, __func__
@@ -1086,6 +1086,9 @@ static int usb_psy_set_icl(struct battery_chg_dev *bcdev,
 {
 	u32 temp;
 	int rc;
+
+	if (!pst->psy)
+		return -ENODEV;
 
 	rc = read_property_id(bcdev, pst, USB_ADAP_TYPE);
 	if (rc < 0) {
