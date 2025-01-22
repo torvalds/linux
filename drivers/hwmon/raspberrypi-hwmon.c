@@ -128,10 +128,32 @@ static int rpi_hwmon_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int rpi_hwmon_suspend(struct device *dev)
+{
+	struct rpi_hwmon_data *data = dev_get_drvdata(dev);
+
+	cancel_delayed_work_sync(&data->get_values_poll_work);
+
+	return 0;
+}
+
+static int rpi_hwmon_resume(struct device *dev)
+{
+	struct rpi_hwmon_data *data = dev_get_drvdata(dev);
+
+	get_values_poll(&data->get_values_poll_work.work);
+
+	return 0;
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(rpi_hwmon_pm_ops, rpi_hwmon_suspend,
+				rpi_hwmon_resume);
+
 static struct platform_driver rpi_hwmon_driver = {
 	.probe = rpi_hwmon_probe,
 	.driver = {
 		.name = "raspberrypi-hwmon",
+		.pm = pm_ptr(&rpi_hwmon_pm_ops),
 	},
 };
 module_platform_driver(rpi_hwmon_driver);
