@@ -459,6 +459,64 @@ void drm_dp_lttpr_link_train_channel_eq_delay(const struct drm_dp_aux *aux,
 }
 EXPORT_SYMBOL(drm_dp_lttpr_link_train_channel_eq_delay);
 
+/**
+ * drm_dp_lttpr_wake_timeout_setup() - Grant extended time for sink to wake up
+ * @aux: The DP AUX channel to use
+ * @transparent_mode: This is true if lttpr is in transparent mode
+ *
+ * This function checks if the sink needs any extended wake time, if it does
+ * it grants this request. Post this setup the source device can keep trying
+ * the Aux transaction till the granted wake timeout.
+ * If this function is not called all Aux transactions are expected to take
+ * a default of 1ms before they throw an error.
+ */
+void drm_dp_lttpr_wake_timeout_setup(struct drm_dp_aux *aux, bool transparent_mode)
+{
+	u8 val = 1;
+	int ret;
+
+	if (transparent_mode) {
+		static const u8 timeout_mapping[] = {
+			[DP_DPRX_SLEEP_WAKE_TIMEOUT_PERIOD_1_MS] = 1,
+			[DP_DPRX_SLEEP_WAKE_TIMEOUT_PERIOD_20_MS] = 20,
+			[DP_DPRX_SLEEP_WAKE_TIMEOUT_PERIOD_40_MS] = 40,
+			[DP_DPRX_SLEEP_WAKE_TIMEOUT_PERIOD_60_MS] = 60,
+			[DP_DPRX_SLEEP_WAKE_TIMEOUT_PERIOD_80_MS] = 80,
+			[DP_DPRX_SLEEP_WAKE_TIMEOUT_PERIOD_100_MS] = 100,
+		};
+
+		ret = drm_dp_dpcd_readb(aux, DP_EXTENDED_DPRX_SLEEP_WAKE_TIMEOUT_REQUEST, &val);
+		if (ret != 1) {
+			drm_dbg_kms(aux->drm_dev,
+				    "Failed to read Extended sleep wake timeout request\n");
+			return;
+		}
+
+		val = (val < sizeof(timeout_mapping) && timeout_mapping[val]) ?
+			timeout_mapping[val] : 1;
+
+		if (val > 1)
+			drm_dp_dpcd_writeb(aux,
+					   DP_EXTENDED_DPRX_SLEEP_WAKE_TIMEOUT_GRANT,
+					   DP_DPRX_SLEEP_WAKE_TIMEOUT_PERIOD_GRANTED);
+	} else {
+		ret = drm_dp_dpcd_readb(aux, DP_PHY_REPEATER_EXTENDED_WAIT_TIMEOUT, &val);
+		if (ret != 1) {
+			drm_dbg_kms(aux->drm_dev,
+				    "Failed to read Extended sleep wake timeout request\n");
+			return;
+		}
+
+		val = (val & DP_EXTENDED_WAKE_TIMEOUT_REQUEST_MASK) ?
+			(val & DP_EXTENDED_WAKE_TIMEOUT_REQUEST_MASK) * 10 : 1;
+
+		if (val > 1)
+			drm_dp_dpcd_writeb(aux, DP_PHY_REPEATER_EXTENDED_WAIT_TIMEOUT,
+					   DP_EXTENDED_WAKE_TIMEOUT_GRANT);
+	}
+}
+EXPORT_SYMBOL(drm_dp_lttpr_wake_timeout_setup);
+
 u8 drm_dp_link_rate_to_bw_code(int link_rate)
 {
 	switch (link_rate) {
