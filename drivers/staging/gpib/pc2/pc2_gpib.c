@@ -505,7 +505,7 @@ static int pc2a_common_attach(gpib_board_t *board, const gpib_board_config_t *co
 	case 0x62e1:
 		break;
 	default:
-		pr_err("PCIIa base range invalid, must be one of 0x[0246]2e1, but is 0x%d\n",
+		pr_err("PCIIa base range invalid, must be one of 0x[0246]2e1, but is 0x%x\n",
 		       config->ibbase);
 		return -1;
 	}
