@@ -780,7 +780,12 @@ unsigned int vlv_plane_min_alignment(struct intel_plane *plane,
 				     const struct drm_framebuffer *fb,
 				     int color_plane)
 {
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+
 	if (intel_plane_can_async_flip(plane, fb->modifier))
+		return 256 * 1024;
+
+	if (intel_scanout_needs_vtd_wa(i915))
 		return 256 * 1024;
 
 	switch (fb->modifier) {
@@ -798,7 +803,12 @@ static unsigned int g4x_primary_min_alignment(struct intel_plane *plane,
 					      const struct drm_framebuffer *fb,
 					      int color_plane)
 {
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+
 	if (intel_plane_can_async_flip(plane, fb->modifier))
+		return 256 * 1024;
+
+	if (intel_scanout_needs_vtd_wa(i915))
 		return 256 * 1024;
 
 	switch (fb->modifier) {

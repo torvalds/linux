@@ -126,14 +126,6 @@ intel_fb_pin_to_ggtt(const struct drm_framebuffer *fb,
 	if (drm_WARN_ON(dev, alignment && !is_power_of_2(alignment)))
 		return ERR_PTR(-EINVAL);
 
-	/* Note that the w/a also requires 64 PTE of padding following the
-	 * bo. We currently fill all unused PTE with the shadow page and so
-	 * we should always have valid PTE following the scanout preventing
-	 * the VT-d warning.
-	 */
-	if (intel_scanout_needs_vtd_wa(dev_priv) && alignment < 256 * 1024)
-		alignment = 256 * 1024;
-
 	/*
 	 * Global gtt pte registers are special registers which actually forward
 	 * writes to a chunk of system memory. Which means that there is no risk

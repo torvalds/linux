@@ -645,6 +645,10 @@ static u32 skl_plane_min_alignment(struct intel_plane *plane,
 	if (color_plane != 0)
 		return 4 * 1024;
 
+	/*
+	 * VT-d needs at least 256k alignment,
+	 * but that's already covered below.
+	 */
 	switch (fb->modifier) {
 	case DRM_FORMAT_MOD_LINEAR:
 	case I915_FORMAT_MOD_X_TILED:
