@@ -140,6 +140,33 @@ void fuse_uring_abort_end_requests(struct fuse_ring *ring)
 	}
 }
 
+bool fuse_uring_request_expired(struct fuse_conn *fc)
+{
+	struct fuse_ring *ring = fc->ring;
+	struct fuse_ring_queue *queue;
+	int qid;
+
+	if (!ring)
+		return false;
+
+	for (qid = 0; qid < ring->nr_queues; qid++) {
+		queue = READ_ONCE(ring->queues[qid]);
+		if (!queue)
+			continue;
+
+		spin_lock(&queue->lock);
+		if (fuse_request_expired(fc, &queue->fuse_req_queue) ||
+		    fuse_request_expired(fc, &queue->fuse_req_bg_queue) ||
+		    fuse_fpq_processing_expired(fc, queue->fpq.processing)) {
+			spin_unlock(&queue->lock);
+			return true;
+		}
+		spin_unlock(&queue->lock);
+	}
+
+	return false;
+}
+
 void fuse_uring_destruct(struct fuse_conn *fc)
 {
 	struct fuse_ring *ring = fc->ring;

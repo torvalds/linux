@@ -63,5 +63,8 @@ void fuse_dev_queue_forget(struct fuse_iqueue *fiq,
 void fuse_dev_queue_interrupt(struct fuse_iqueue *fiq, struct fuse_req *req);
 bool fuse_remove_pending_req(struct fuse_req *req, spinlock_t *lock);
 
+bool fuse_request_expired(struct fuse_conn *fc, struct list_head *list);
+bool fuse_fpq_processing_expired(struct fuse_conn *fc, struct list_head *processing);
+
 #endif
 
