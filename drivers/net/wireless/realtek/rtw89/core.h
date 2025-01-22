@@ -5653,8 +5653,6 @@ struct rtw89_dev {
 	struct rtw89_sta_link __rcu *assoc_link_on_macid[RTW89_MAX_MAC_ID_NUM];
 	refcount_t refcount_ap_info;
 
-	/* ensures exclusive access from mac80211 callbacks */
-	struct mutex mutex;
 	struct list_head rtwvifs_list;
 	/* used to protect rf read write */
 	struct mutex rf_mutex;
