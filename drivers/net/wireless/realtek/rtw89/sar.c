@@ -178,12 +178,14 @@ s8 rtw89_query_sar(struct rtw89_dev *rtwdev, u32 center_freq)
 	return rtw89_txpwr_sar_to_mac(rtwdev, fct, cfg);
 }
 
-void rtw89_print_sar(struct seq_file *m, struct rtw89_dev *rtwdev, u32 center_freq)
+int rtw89_print_sar(struct rtw89_dev *rtwdev, char *buf, size_t bufsz,
+		    u32 center_freq)
 {
 	const enum rtw89_sar_sources src = rtwdev->sar.src;
 	/* its members are protected by rtw89_sar_set_src() */
 	const struct rtw89_sar_handler *sar_hdl = &rtw89_sar_handlers[src];
 	const u8 fct_mac = rtwdev->chip->txpwr_factor_mac;
+	char *p = buf, *end = buf + bufsz;
 	int ret;
 	s32 cfg;
 	u8 fct;
@@ -191,36 +193,46 @@ void rtw89_print_sar(struct seq_file *m, struct rtw89_dev *rtwdev, u32 center_fr
 	lockdep_assert_held(&rtwdev->mutex);
 
 	if (src == RTW89_SAR_SOURCE_NONE) {
-		seq_puts(m, "no SAR is applied\n");
-		return;
+		p += scnprintf(p, end - p, "no SAR is applied\n");
+		goto out;
 	}
 
-	seq_printf(m, "source: %d (%s)\n", src, sar_hdl->descr_sar_source);
+	p += scnprintf(p, end - p, "source: %d (%s)\n", src,
+		       sar_hdl->descr_sar_source);
 
 	ret = sar_hdl->query_sar_config(rtwdev, center_freq, &cfg);
 	if (ret) {
-		seq_printf(m, "config: return code: %d\n", ret);
-		seq_printf(m, "assign: max setting: %d (unit: 1/%lu dBm)\n",
-			   RTW89_SAR_TXPWR_MAC_MAX, BIT(fct_mac));
-		return;
+		p += scnprintf(p, end - p, "config: return code: %d\n", ret);
+		p += scnprintf(p, end - p,
+			       "assign: max setting: %d (unit: 1/%lu dBm)\n",
+			       RTW89_SAR_TXPWR_MAC_MAX, BIT(fct_mac));
+		goto out;
 	}
 
 	fct = sar_hdl->txpwr_factor_sar;
 
-	seq_printf(m, "config: %d (unit: 1/%lu dBm)\n", cfg, BIT(fct));
+	p += scnprintf(p, end - p, "config: %d (unit: 1/%lu dBm)\n", cfg,
+		       BIT(fct));
+
+out:
+	return p - buf;
 }
 
-void rtw89_print_tas(struct seq_file *m, struct rtw89_dev *rtwdev)
+int rtw89_print_tas(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 {
 	struct rtw89_tas_info *tas = &rtwdev->tas;
+	char *p = buf, *end = buf + bufsz;
 
 	if (!tas->enable) {
-		seq_puts(m, "no TAS is applied\n");
-		return;
+		p += scnprintf(p, end - p, "no TAS is applied\n");
+		goto out;
 	}
 
-	seq_printf(m, "DPR gap: %d\n", tas->dpr_gap);
-	seq_printf(m, "TAS delta: %d\n", tas->delta);
+	p += scnprintf(p, end - p, "DPR gap: %d\n", tas->dpr_gap);
+	p += scnprintf(p, end - p, "TAS delta: %d\n", tas->delta);
+
+out:
+	return p - buf;
 }
 
 static int rtw89_apply_sar_common(struct rtw89_dev *rtwdev,

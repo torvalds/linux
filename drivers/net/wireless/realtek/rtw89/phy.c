@@ -2070,24 +2070,28 @@ s16 rtw89_phy_ant_gain_pwr_offset(struct rtw89_dev *rtwdev,
 }
 EXPORT_SYMBOL(rtw89_phy_ant_gain_pwr_offset);
 
-void rtw89_print_ant_gain(struct seq_file *m, struct rtw89_dev *rtwdev,
-			  const struct rtw89_chan *chan)
+int rtw89_print_ant_gain(struct rtw89_dev *rtwdev, char *buf, size_t bufsz,
+			 const struct rtw89_chan *chan)
 {
 	struct rtw89_ant_gain_info *ant_gain = &rtwdev->ant_gain;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	u8 regd = rtw89_regd_get(rtwdev, chan->band_type);
+	char *p = buf, *end = buf + bufsz;
 	s8 offset_patha, offset_pathb;
 
 	if (!chip->support_ant_gain || !(ant_gain->regd_enabled & BIT(regd))) {
-		seq_puts(m, "no DAG is applied\n");
-		return;
+		p += scnprintf(p, end - p, "no DAG is applied\n");
+		goto out;
 	}
 
 	offset_patha = rtw89_phy_ant_gain_query(rtwdev, RF_PATH_A, chan->freq);
 	offset_pathb = rtw89_phy_ant_gain_query(rtwdev, RF_PATH_B, chan->freq);
 
-	seq_printf(m, "ChainA offset: %d dBm\n", offset_patha);
-	seq_printf(m, "ChainB offset: %d dBm\n", offset_pathb);
+	p += scnprintf(p, end - p, "ChainA offset: %d dBm\n", offset_patha);
+	p += scnprintf(p, end - p, "ChainB offset: %d dBm\n", offset_pathb);
+
+out:
+	return p - buf;
 }
 
 static const u8 rtw89_rs_idx_num_ax[] = {

@@ -77,5 +77,6 @@ static inline void ether_addr_copy_mask(u8 *dst, const u8 *src, u8 mask)
 
 u32 rtw89_linear_2_db(u64 linear);
 u64 rtw89_db_2_linear(u32 db);
+void rtw89_might_trailing_ellipsis(char *buf, size_t size, ssize_t used);
 
 #endif
