@@ -1,6 +1,6 @@
-load(":target_variants.bzl", "la_variants")
-load(":msm_kernel_la.bzl", "define_msm_la")
 load(":image_opts.bzl", "boot_image_opts")
+load(":msm_kernel_la.bzl", "define_msm_la")
+load(":target_variants.bzl", "la_variants")
 
 target_name = "sdmsteppeauto"
 
@@ -75,6 +75,7 @@ def define_sdmsteppeauto():
         "drivers/mailbox/qcom-apcs-ipc-mailbox.ko",
         "drivers/md/dm-bow.ko",
         "drivers/mfd/qcom-spmi-pmic.ko",
+        "drivers/misc/bootmarker_proxy.ko",
         "drivers/misc/qseecom_proxy.ko",
         "drivers/mmc/host/cqhci.ko",
         "drivers/mmc/host/sdhci-msm.ko",
