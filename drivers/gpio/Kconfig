@@ -529,9 +529,9 @@ config GPIO_OCTEON
 	  family of SOCs.
 
 config GPIO_OMAP
-	tristate "TI OMAP GPIO support" if ARCH_OMAP2PLUS || COMPILE_TEST
+	tristate "TI OMAP GPIO support"
+	depends on ARCH_OMAP || COMPILE_TEST
 	default y if ARCH_OMAP
-	depends on ARM
 	select GENERIC_IRQ_CHIP
 	select GPIOLIB_IRQCHIP
 	help
