@@ -2235,9 +2235,11 @@ extern int ext4_feature_set_ok(struct super_block *sb, int readonly);
 /*
  * Superblock flags
  */
-#define EXT4_FLAGS_RESIZING	0
-#define EXT4_FLAGS_SHUTDOWN	1
-#define EXT4_FLAGS_BDEV_IS_DAX	2
+enum {
+	EXT4_FLAGS_RESIZING,	/* Avoid superblock update and resize race */
+	EXT4_FLAGS_SHUTDOWN,	/* Prevent access to the file system */
+	EXT4_FLAGS_BDEV_IS_DAX,	/* Current block device support DAX */
+};
 
 static inline int ext4_forced_shutdown(struct super_block *sb)
 {
