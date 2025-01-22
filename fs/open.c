@@ -67,11 +67,11 @@ int do_truncate(struct mnt_idmap *idmap, struct dentry *dentry,
 	return ret;
 }
 
-long vfs_truncate(const struct path *path, loff_t length)
+int vfs_truncate(const struct path *path, loff_t length)
 {
 	struct mnt_idmap *idmap;
 	struct inode *inode;
-	long error;
+	int error;
 
 	inode = path->dentry->d_inode;
 
@@ -123,7 +123,7 @@ mnt_drop_write_and_out:
 }
 EXPORT_SYMBOL_GPL(vfs_truncate);
 
-long do_sys_truncate(const char __user *pathname, loff_t length)
+int do_sys_truncate(const char __user *pathname, loff_t length)
 {
 	unsigned int lookup_flags = LOOKUP_FOLLOW;
 	struct path path;
@@ -157,7 +157,7 @@ COMPAT_SYSCALL_DEFINE2(truncate, const char __user *, path, compat_off_t, length
 }
 #endif
 
-long do_ftruncate(struct file *file, loff_t length, int small)
+int do_ftruncate(struct file *file, loff_t length, int small)
 {
 	struct inode *inode;
 	struct dentry *dentry;
@@ -196,7 +196,7 @@ long do_ftruncate(struct file *file, loff_t length, int small)
 	return error;
 }
 
-long do_sys_ftruncate(unsigned int fd, loff_t length, int small)
+int do_sys_ftruncate(unsigned int fd, loff_t length, int small)
 {
 	if (length < 0)
 		return -EINVAL;
@@ -251,7 +251,7 @@ COMPAT_SYSCALL_DEFINE3(ftruncate64, unsigned int, fd,
 int vfs_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 {
 	struct inode *inode = file_inode(file);
-	long ret;
+	int ret;
 	loff_t sum;
 
 	if (offset < 0 || len <= 0)
@@ -460,7 +460,7 @@ static const struct cred *access_override_creds(void)
 	return override_creds(override_cred);
 }
 
-static long do_faccessat(int dfd, const char __user *filename, int mode, int flags)
+static int do_faccessat(int dfd, const char __user *filename, int mode, int flags)
 {
 	struct path path;
 	struct inode *inode;
@@ -1408,8 +1408,8 @@ struct file *file_open_root(const struct path *root,
 }
 EXPORT_SYMBOL(file_open_root);
 
-static long do_sys_openat2(int dfd, const char __user *filename,
-			   struct open_how *how)
+static int do_sys_openat2(int dfd, const char __user *filename,
+			  struct open_how *how)
 {
 	struct open_flags op;
 	int fd = build_open_flags(how, &op);
@@ -1436,7 +1436,7 @@ static long do_sys_openat2(int dfd, const char __user *filename,
 	return fd;
 }
 
-long do_sys_open(int dfd, const char __user *filename, int flags, umode_t mode)
+int do_sys_open(int dfd, const char __user *filename, int flags, umode_t mode)
 {
 	struct open_how how = build_open_how(flags, mode);
 	return do_sys_openat2(dfd, filename, &how);
