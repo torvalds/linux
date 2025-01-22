@@ -978,7 +978,7 @@ void rtw89_phy_rfk_tssi_fill_fwcmd_tmeter_tbl(struct rtw89_dev *rtwdev,
 					      const struct rtw89_chan *chan,
 					      struct rtw89_h2c_rf_tssi *h2c);
 void rtw89_phy_cfo_track(struct rtw89_dev *rtwdev);
-void rtw89_phy_cfo_track_work(struct work_struct *work);
+void rtw89_phy_cfo_track_work(struct wiphy *wiphy, struct wiphy_work *work);
 void rtw89_phy_cfo_parse(struct rtw89_dev *rtwdev, s16 cfo_val,
 			 struct rtw89_rx_phy_ppdu *phy_ppdu);
 void rtw89_phy_stat_track(struct rtw89_dev *rtwdev);
@@ -991,7 +991,7 @@ void rtw89_phy_tx_path_div_track(struct rtw89_dev *rtwdev);
 void rtw89_phy_antdiv_parse(struct rtw89_dev *rtwdev,
 			    struct rtw89_rx_phy_ppdu *phy_ppdu);
 void rtw89_phy_antdiv_track(struct rtw89_dev *rtwdev);
-void rtw89_phy_antdiv_work(struct work_struct *work);
+void rtw89_phy_antdiv_work(struct wiphy *wiphy, struct wiphy_work *work);
 void rtw89_phy_set_bss_color(struct rtw89_dev *rtwdev,
 			     struct rtw89_vif_link *rtwvif_link);
 void rtw89_phy_tssi_ctrl_set_bandedge_cfg(struct rtw89_dev *rtwdev,

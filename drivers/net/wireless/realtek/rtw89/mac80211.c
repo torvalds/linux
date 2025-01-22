@@ -80,7 +80,7 @@ static int rtw89_ops_config(struct ieee80211_hw *hw, u32 changed)
 	struct rtw89_dev *rtwdev = hw->priv;
 
 	/* let previous ips work finish to ensure we don't leave ips twice */
-	cancel_work_sync(&rtwdev->ips_work);
+	wiphy_work_cancel(hw->wiphy, &rtwdev->ips_work);
 
 	mutex_lock(&rtwdev->mutex);
 	rtw89_leave_ps_mode(rtwdev);
@@ -115,7 +115,7 @@ static int __rtw89_ops_add_iface_link(struct rtw89_dev *rtwdev,
 
 	rtw89_vif_type_mapping(rtwvif_link, false);
 
-	INIT_WORK(&rtwvif_link->update_beacon_work, rtw89_core_update_beacon_work);
+	wiphy_work_init(&rtwvif_link->update_beacon_work, rtw89_core_update_beacon_work);
 	INIT_LIST_HEAD(&rtwvif_link->general_pkt_list);
 
 	rtwvif_link->hit_rule = 0;
@@ -143,7 +143,7 @@ static void __rtw89_ops_remove_iface_link(struct rtw89_dev *rtwdev,
 					  struct rtw89_vif_link *rtwvif_link)
 {
 	mutex_unlock(&rtwdev->mutex);
-	cancel_work_sync(&rtwvif_link->update_beacon_work);
+	wiphy_work_cancel(rtwdev->hw->wiphy, &rtwvif_link->update_beacon_work);
 	mutex_lock(&rtwdev->mutex);
 
 	rtw89_leave_ps_mode(rtwdev);
@@ -198,7 +198,7 @@ static int rtw89_ops_add_interface(struct ieee80211_hw *hw,
 
 	rtwvif->offchan = false;
 	rtwvif->roc.state = RTW89_ROC_IDLE;
-	INIT_DELAYED_WORK(&rtwvif->roc.roc_work, rtw89_roc_work);
+	wiphy_delayed_work_init(&rtwvif->roc.roc_work, rtw89_roc_work);
 
 	rtw89_traffic_stats_init(rtwdev, &rtwvif->stats);
 
@@ -242,7 +242,7 @@ static void rtw89_ops_remove_interface(struct ieee80211_hw *hw,
 	rtw89_debug(rtwdev, RTW89_DBG_STATE, "remove vif %pM type %d p2p %d\n",
 		    vif->addr, vif->type, vif->p2p);
 
-	cancel_delayed_work_sync(&rtwvif->roc.roc_work);
+	wiphy_delayed_work_cancel(hw->wiphy, &rtwvif->roc.roc_work);
 
 	mutex_lock(&rtwdev->mutex);
 
@@ -853,14 +853,13 @@ out:
 static int rtw89_ops_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 			     bool set)
 {
-	struct rtw89_dev *rtwdev = hw->priv;
 	struct rtw89_sta *rtwsta = sta_to_rtwsta(sta);
 	struct rtw89_vif *rtwvif = rtwsta->rtwvif;
 	struct rtw89_vif_link *rtwvif_link;
 	unsigned int link_id;
 
 	rtw89_vif_for_each_link(rtwvif, rtwvif_link, link_id)
-		ieee80211_queue_work(rtwdev->hw, &rtwvif_link->update_beacon_work);
+		wiphy_work_queue(hw->wiphy, &rtwvif_link->update_beacon_work);
 
 	return 0;
 }
@@ -1453,7 +1452,7 @@ static int rtw89_ops_cancel_remain_on_channel(struct ieee80211_hw *hw,
 	if (!rtwvif)
 		return -EINVAL;
 
-	cancel_delayed_work_sync(&rtwvif->roc.roc_work);
+	wiphy_delayed_work_cancel(hw->wiphy, &rtwvif->roc.roc_work);
 
 	mutex_lock(&rtwdev->mutex);
 	rtw89_roc_end(rtwdev, rtwvif);
@@ -1751,7 +1750,7 @@ static int rtw89_ops_suspend(struct ieee80211_hw *hw,
 	int ret;
 
 	set_bit(RTW89_FLAG_FORBIDDEN_TRACK_WROK, rtwdev->flags);
-	cancel_delayed_work_sync(&rtwdev->track_work);
+	wiphy_delayed_work_cancel(hw->wiphy, &rtwdev->track_work);
 
 	mutex_lock(&rtwdev->mutex);
 	ret = rtw89_wow_suspend(rtwdev, wowlan);
@@ -1778,8 +1777,8 @@ static int rtw89_ops_resume(struct ieee80211_hw *hw)
 	mutex_unlock(&rtwdev->mutex);
 
 	clear_bit(RTW89_FLAG_FORBIDDEN_TRACK_WROK, rtwdev->flags);
-	ieee80211_queue_delayed_work(rtwdev->hw, &rtwdev->track_work,
-				     RTW89_TRACK_WORK_PERIOD);
+	wiphy_delayed_work_queue(hw->wiphy, &rtwdev->track_work,
+				 RTW89_TRACK_WORK_PERIOD);
 
 	return ret ? 1 : 0;
 }

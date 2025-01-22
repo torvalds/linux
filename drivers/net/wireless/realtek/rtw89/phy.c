@@ -4651,7 +4651,7 @@ static void rtw89_phy_cfo_dm(struct rtw89_dev *rtwdev)
 	rtw89_phy_cfo_statistics_reset(rtwdev);
 }
 
-void rtw89_phy_cfo_track_work(struct work_struct *work)
+void rtw89_phy_cfo_track_work(struct wiphy *wiphy, struct wiphy_work *work)
 {
 	struct rtw89_dev *rtwdev = container_of(work, struct rtw89_dev,
 						cfo_track_work.work);
@@ -4662,8 +4662,8 @@ void rtw89_phy_cfo_track_work(struct work_struct *work)
 		goto out;
 	rtw89_leave_ps_mode(rtwdev);
 	rtw89_phy_cfo_dm(rtwdev);
-	ieee80211_queue_delayed_work(rtwdev->hw, &rtwdev->cfo_track_work,
-				     msecs_to_jiffies(cfo->cfo_timer_ms));
+	wiphy_delayed_work_queue(wiphy, &rtwdev->cfo_track_work,
+				 msecs_to_jiffies(cfo->cfo_timer_ms));
 out:
 	mutex_unlock(&rtwdev->mutex);
 }
@@ -4672,8 +4672,8 @@ static void rtw89_phy_cfo_start_work(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_cfo_tracking_info *cfo = &rtwdev->cfo_tracking;
 
-	ieee80211_queue_delayed_work(rtwdev->hw, &rtwdev->cfo_track_work,
-				     msecs_to_jiffies(cfo->cfo_timer_ms));
+	wiphy_delayed_work_queue(rtwdev->hw->wiphy, &rtwdev->cfo_track_work,
+				 msecs_to_jiffies(cfo->cfo_timer_ms));
 }
 
 void rtw89_phy_cfo_track(struct rtw89_dev *rtwdev)
@@ -6523,11 +6523,11 @@ static void rtw89_phy_antdiv_training_state(struct rtw89_dev *rtwdev)
 	}
 
 	antdiv->training_count++;
-	ieee80211_queue_delayed_work(rtwdev->hw, &rtwdev->antdiv_work,
-				     state_period);
+	wiphy_delayed_work_queue(rtwdev->hw->wiphy, &rtwdev->antdiv_work,
+				 state_period);
 }
 
-void rtw89_phy_antdiv_work(struct work_struct *work)
+void rtw89_phy_antdiv_work(struct wiphy *wiphy, struct wiphy_work *work)
 {
 	struct rtw89_dev *rtwdev = container_of(work, struct rtw89_dev,
 						antdiv_work.work);
@@ -6563,7 +6563,7 @@ void rtw89_phy_antdiv_track(struct rtw89_dev *rtwdev)
 		return;
 
 	antdiv->training_count = 0;
-	ieee80211_queue_delayed_work(rtwdev->hw, &rtwdev->antdiv_work, 0);
+	wiphy_delayed_work_queue(rtwdev->hw->wiphy, &rtwdev->antdiv_work, 0);
 }
 
 static void __rtw89_phy_env_monitor_init(struct rtw89_dev *rtwdev,

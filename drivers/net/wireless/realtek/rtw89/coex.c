@@ -6712,7 +6712,7 @@ static void _update_wl_info_v8(struct rtw89_dev *rtwdev, u8 role_id, u8 rlink_id
 	_fw_set_drv_info(rtwdev, CXDRVINFO_ROLE);
 }
 
-void rtw89_coex_act1_work(struct work_struct *work)
+void rtw89_coex_act1_work(struct wiphy *wiphy, struct wiphy_work *work)
 {
 	struct rtw89_dev *rtwdev = container_of(work, struct rtw89_dev,
 						coex_act1_work.work);
@@ -6733,7 +6733,7 @@ void rtw89_coex_act1_work(struct work_struct *work)
 	mutex_unlock(&rtwdev->mutex);
 }
 
-void rtw89_coex_bt_devinfo_work(struct work_struct *work)
+void rtw89_coex_bt_devinfo_work(struct wiphy *wiphy, struct wiphy_work *work)
 {
 	struct rtw89_dev *rtwdev = container_of(work, struct rtw89_dev,
 						coex_bt_devinfo_work.work);
@@ -6749,7 +6749,7 @@ void rtw89_coex_bt_devinfo_work(struct work_struct *work)
 	mutex_unlock(&rtwdev->mutex);
 }
 
-void rtw89_coex_rfk_chk_work(struct work_struct *work)
+void rtw89_coex_rfk_chk_work(struct wiphy *wiphy, struct wiphy_work *work)
 {
 	struct rtw89_dev *rtwdev = container_of(work, struct rtw89_dev,
 						coex_rfk_chk_work.work);
@@ -7278,7 +7278,7 @@ void rtw89_btc_ntfy_specific_packet(struct rtw89_dev *rtwdev,
 			    "[BTC], %s(): EAPOL_End cnt=%d\n",
 			    __func__, cnt);
 		wl->status.map._4way = false;
-		cancel_delayed_work(&rtwdev->coex_act1_work);
+		wiphy_delayed_work_cancel(rtwdev->hw->wiphy, &rtwdev->coex_act1_work);
 		break;
 	case PACKET_ARP:
 		cnt = ++cx->cnt_wl[BTC_WCNT_ARP];
@@ -7297,16 +7297,16 @@ void rtw89_btc_ntfy_specific_packet(struct rtw89_dev *rtwdev,
 	}
 
 	if (delay_work) {
-		cancel_delayed_work(&rtwdev->coex_act1_work);
-		ieee80211_queue_delayed_work(rtwdev->hw,
-					     &rtwdev->coex_act1_work, delay);
+		wiphy_delayed_work_cancel(rtwdev->hw->wiphy, &rtwdev->coex_act1_work);
+		wiphy_delayed_work_queue(rtwdev->hw->wiphy,
+					 &rtwdev->coex_act1_work, delay);
 	}
 
 	btc->dm.cnt_notify[BTC_NCNT_SPECIAL_PACKET]++;
 	_run_coex(rtwdev, BTC_RSN_NTFY_SPECIFIC_PACKET);
 }
 
-void rtw89_btc_ntfy_eapol_packet_work(struct work_struct *work)
+void rtw89_btc_ntfy_eapol_packet_work(struct wiphy *wiphy, struct wiphy_work *work)
 {
 	struct rtw89_dev *rtwdev = container_of(work, struct rtw89_dev,
 						btc.eapol_notify_work);
@@ -7317,7 +7317,7 @@ void rtw89_btc_ntfy_eapol_packet_work(struct work_struct *work)
 	mutex_unlock(&rtwdev->mutex);
 }
 
-void rtw89_btc_ntfy_arp_packet_work(struct work_struct *work)
+void rtw89_btc_ntfy_arp_packet_work(struct wiphy *wiphy, struct wiphy_work *work)
 {
 	struct rtw89_dev *rtwdev = container_of(work, struct rtw89_dev,
 						btc.arp_notify_work);
@@ -7327,7 +7327,7 @@ void rtw89_btc_ntfy_arp_packet_work(struct work_struct *work)
 	mutex_unlock(&rtwdev->mutex);
 }
 
-void rtw89_btc_ntfy_dhcp_packet_work(struct work_struct *work)
+void rtw89_btc_ntfy_dhcp_packet_work(struct wiphy *wiphy, struct wiphy_work *work)
 {
 	struct rtw89_dev *rtwdev = container_of(work, struct rtw89_dev,
 						btc.dhcp_notify_work);
@@ -7338,7 +7338,7 @@ void rtw89_btc_ntfy_dhcp_packet_work(struct work_struct *work)
 	mutex_unlock(&rtwdev->mutex);
 }
 
-void rtw89_btc_ntfy_icmp_packet_work(struct work_struct *work)
+void rtw89_btc_ntfy_icmp_packet_work(struct wiphy *wiphy, struct wiphy_work *work)
 {
 	struct rtw89_dev *rtwdev = container_of(work, struct rtw89_dev,
 						btc.icmp_notify_work);
@@ -7525,9 +7525,9 @@ static void _update_bt_info(struct rtw89_dev *rtwdev, u8 *buf, u32 len)
 		a2dp->vendor_id = 0;
 		a2dp->flush_time = 0;
 		a2dp->play_latency = 1;
-		ieee80211_queue_delayed_work(rtwdev->hw,
-					     &rtwdev->coex_bt_devinfo_work,
-					     RTW89_COEX_BT_DEVINFO_WORK_PERIOD);
+		wiphy_delayed_work_queue(rtwdev->hw->wiphy,
+					 &rtwdev->coex_bt_devinfo_work,
+					 RTW89_COEX_BT_DEVINFO_WORK_PERIOD);
 	}
 
 	_run_coex(rtwdev, BTC_RSN_UPDATE_BT_INFO);
@@ -7776,7 +7776,7 @@ static bool _ntfy_wl_rfk(struct rtw89_dev *rtwdev, u8 phy_path,
 		wl->rfk_info.state = BTC_WRFK_STOP;
 
 		_write_scbd(rtwdev, BTC_WSCB_WLRFK, false);
-		cancel_delayed_work(&rtwdev->coex_rfk_chk_work);
+		wiphy_delayed_work_cancel(rtwdev->hw->wiphy, &rtwdev->coex_rfk_chk_work);
 		break;
 	default:
 		rtw89_debug(rtwdev, RTW89_DBG_BTC,
@@ -7790,9 +7790,9 @@ static bool _ntfy_wl_rfk(struct rtw89_dev *rtwdev, u8 phy_path,
 			_run_coex(rtwdev, BTC_RSN_NTFY_WL_RFK);
 
 		if (wl->rfk_info.state == BTC_WRFK_START)
-			ieee80211_queue_delayed_work(rtwdev->hw,
-						     &rtwdev->coex_rfk_chk_work,
-						     RTW89_COEX_RFK_CHK_WORK_PERIOD);
+			wiphy_delayed_work_queue(rtwdev->hw->wiphy,
+						 &rtwdev->coex_rfk_chk_work,
+						 RTW89_COEX_RFK_CHK_WORK_PERIOD);
 	}
 
 	rtw89_debug(rtwdev, RTW89_DBG_BTC,
@@ -7809,6 +7809,8 @@ void rtw89_btc_ntfy_wl_rfk(struct rtw89_dev *rtwdev, u8 phy_map,
 	u8 band;
 	bool allow;
 	int ret;
+
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	band = FIELD_GET(BTC_RFK_BAND_MAP, phy_map);
 

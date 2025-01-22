@@ -2390,7 +2390,7 @@ static void rtw89_mcc_update_limit(struct rtw89_dev *rtwdev)
 	rtw89_iterate_mcc_roles(rtwdev, rtw89_mcc_upd_lmt_iterator, NULL);
 }
 
-void rtw89_chanctx_work(struct work_struct *work)
+void rtw89_chanctx_work(struct wiphy *wiphy, struct wiphy_work *work)
 {
 	struct rtw89_dev *rtwdev = container_of(work, struct rtw89_dev,
 						chanctx_work.work);
@@ -2477,8 +2477,8 @@ void rtw89_queue_chanctx_change(struct rtw89_dev *rtwdev,
 	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
 		    "queue chanctx work for mode %d with delay %d us\n",
 		    mode, delay);
-	ieee80211_queue_delayed_work(rtwdev->hw, &rtwdev->chanctx_work,
-				     usecs_to_jiffies(delay));
+	wiphy_delayed_work_queue(rtwdev->hw->wiphy, &rtwdev->chanctx_work,
+				 usecs_to_jiffies(delay));
 }
 
 void rtw89_queue_chanctx_work(struct rtw89_dev *rtwdev)
