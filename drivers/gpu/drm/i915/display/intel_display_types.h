@@ -144,6 +144,7 @@ struct intel_framebuffer {
 	struct i915_address_space *dpt_vm;
 
 	unsigned int min_alignment;
+	unsigned int vtd_guard;
 };
 
 enum intel_hotplug_state {
@@ -1448,6 +1449,7 @@ struct intel_plane {
 	enum plane_id id;
 	enum pipe pipe;
 	bool need_async_flip_toggle_wa;
+	u8 vtd_guard;
 	u32 frontbuffer_bit;
 
 	struct {

@@ -958,6 +958,10 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 	else
 		plane->min_alignment = i9xx_plane_min_alignment;
 
+	/* FIXME undocumented for VLV/CHV so not sure what's actually needed */
+	if (intel_scanout_needs_vtd_wa(dev_priv))
+		plane->vtd_guard = 128;
+
 	if (IS_I830(dev_priv) || IS_I845G(dev_priv)) {
 		plane->update_arm = i830_plane_update_arm;
 	} else {

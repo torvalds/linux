@@ -2750,6 +2750,9 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 	else
 		plane->min_alignment = skl_plane_min_alignment;
 
+	if (intel_scanout_needs_vtd_wa(dev_priv))
+		plane->vtd_guard = DISPLAY_VER(dev_priv) >= 10 ? 168 : 136;
+
 	if (DISPLAY_VER(dev_priv) >= 11) {
 		plane->update_noarm = icl_plane_update_noarm;
 		plane->update_arm = icl_plane_update_arm;

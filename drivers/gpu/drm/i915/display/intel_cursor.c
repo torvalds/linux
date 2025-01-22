@@ -1019,6 +1019,9 @@ intel_cursor_plane_create(struct drm_i915_private *dev_priv,
 		else
 			cursor->min_alignment = i9xx_cursor_min_alignment;
 
+		if (intel_scanout_needs_vtd_wa(dev_priv))
+			cursor->vtd_guard = 2;
+
 		cursor->update_arm = i9xx_cursor_update_arm;
 		cursor->disable_arm = i9xx_cursor_disable_arm;
 		cursor->get_hw_state = i9xx_cursor_get_hw_state;

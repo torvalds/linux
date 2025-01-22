@@ -1609,6 +1609,10 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		plane->min_alignment = vlv_plane_min_alignment;
 		plane->min_cdclk = vlv_plane_min_cdclk;
 
+		/* FIXME undocumented for VLV/CHV so not sure what's actually needed */
+		if (intel_scanout_needs_vtd_wa(dev_priv))
+			plane->vtd_guard = 128;
+
 		if (IS_CHERRYVIEW(dev_priv) && pipe == PIPE_B) {
 			formats = chv_pipe_b_sprite_formats;
 			num_formats = ARRAY_SIZE(chv_pipe_b_sprite_formats);
@@ -1635,6 +1639,9 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 
 		plane->min_alignment = g4x_sprite_min_alignment;
 
+		if (intel_scanout_needs_vtd_wa(dev_priv))
+			plane->vtd_guard = 64;
+
 		formats = snb_sprite_formats;
 		num_formats = ARRAY_SIZE(snb_sprite_formats);
 
@@ -1648,6 +1655,9 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		plane->max_stride = g4x_sprite_max_stride;
 		plane->min_alignment = g4x_sprite_min_alignment;
 		plane->min_cdclk = g4x_sprite_min_cdclk;
+
+		if (intel_scanout_needs_vtd_wa(dev_priv))
+			plane->vtd_guard = 64;
 
 		if (IS_SANDYBRIDGE(dev_priv)) {
 			formats = snb_sprite_formats;

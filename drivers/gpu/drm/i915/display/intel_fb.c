@@ -1660,6 +1660,22 @@ static unsigned int intel_fb_min_alignment(const struct drm_framebuffer *fb)
 	return min_alignment;
 }
 
+static unsigned int intel_fb_vtd_guard(const struct drm_framebuffer *fb)
+{
+	struct drm_i915_private *i915 = to_i915(fb->dev);
+	struct intel_plane *plane;
+	unsigned int vtd_guard = 0;
+
+	for_each_intel_plane(&i915->drm, plane) {
+		if (!drm_plane_has_format(&plane->base, fb->format->format, fb->modifier))
+			continue;
+
+		vtd_guard = max_t(unsigned int, vtd_guard, plane->vtd_guard);
+	}
+
+	return vtd_guard;
+}
+
 int intel_fill_fb_info(struct drm_i915_private *i915, struct intel_framebuffer *fb)
 {
 	struct drm_gem_object *obj = intel_fb_bo(&fb->base);
@@ -1757,6 +1773,7 @@ int intel_fill_fb_info(struct drm_i915_private *i915, struct intel_framebuffer *
 	}
 
 	fb->min_alignment = intel_fb_min_alignment(&fb->base);
+	fb->vtd_guard = intel_fb_vtd_guard(&fb->base);
 
 	return 0;
 }
@@ -1765,14 +1782,12 @@ unsigned int intel_fb_view_vtd_guard(const struct drm_framebuffer *fb,
 				     const struct intel_fb_view *view,
 				     unsigned int rotation)
 {
-	struct drm_i915_private *i915 = to_i915(fb->dev);
 	unsigned int vtd_guard;
 	int color_plane;
 
-	if (!intel_scanout_needs_vtd_wa(i915))
+	vtd_guard = to_intel_framebuffer(fb)->vtd_guard;
+	if (!vtd_guard)
 		return 0;
-
-	vtd_guard = 168;
 
 	for (color_plane = 0; color_plane < fb->format->num_planes; color_plane++) {
 		unsigned int stride, tile;
