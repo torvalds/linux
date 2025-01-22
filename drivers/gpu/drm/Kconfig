@@ -494,6 +494,17 @@ config DRM_WERROR
 
 	  If in doubt, say N.
 
+config DRM_HEADER_TEST
+	bool "Ensure DRM headers are self-contained and pass kernel-doc"
+	depends on DRM && EXPERT
+	default n
+	help
+	  Ensure the DRM subsystem headers both under drivers/gpu/drm and
+	  include/drm compile, are self-contained, have header guards, and have
+	  no kernel-doc warnings.
+
+	  If in doubt, say N.
+
 endif
 
 # Separate option because drm_panel_orientation_quirks.c is shared with fbdev
