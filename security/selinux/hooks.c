@@ -407,7 +407,7 @@ static const struct {
 
 static int match_opt_prefix(char *s, int l, char **arg)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(tokens); i++) {
 		size_t len = tokens[i].len;
@@ -3135,7 +3135,7 @@ static int selinux_inode_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 	const struct cred *cred = current_cred();
 	struct inode *inode = d_backing_inode(dentry);
 	unsigned int ia_valid = iattr->ia_valid;
-	__u32 av = FILE__WRITE;
+	u32 av = FILE__WRITE;
 
 	/* ATTR_FORCE is just used for ATTR_KILL_S[UG]ID. */
 	if (ia_valid & ATTR_FORCE) {
@@ -4835,7 +4835,7 @@ out:
 	return err;
 err_af:
 	/* Note that SCTP services expect -EINVAL, others -EAFNOSUPPORT. */
-	if (sksec->sclass == SECCLASS_SCTP_SOCKET)
+	if (sk->sk_protocol == IPPROTO_SCTP)
 		return -EINVAL;
 	return -EAFNOSUPPORT;
 }
@@ -5939,14 +5939,14 @@ static int nlmsg_sock_has_extended_perms(struct sock *sk, u32 perms, u16 nlmsg_t
 {
 	struct sk_security_struct *sksec = sk->sk_security;
 	struct common_audit_data ad;
-	struct lsm_network_audit net;
 	u8 driver;
 	u8 xperm;
 
 	if (sock_skip_has_perm(sksec->sid))
 		return 0;
 
-	ad_net_init_from_sk(&ad, &net, sk);
+	ad.type = LSM_AUDIT_DATA_NLMSGTYPE;
+	ad.u.nlmsg_type = nlmsg_type;
 
 	driver = nlmsg_type >> 8;
 	xperm = nlmsg_type & 0xff;
