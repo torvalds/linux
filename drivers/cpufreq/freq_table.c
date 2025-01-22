@@ -276,7 +276,6 @@ static ssize_t scaling_available_frequencies_show(struct cpufreq_policy *policy,
 	return show_available_freqs(policy, buf, false);
 }
 cpufreq_attr_available_freq(scaling_available);
-EXPORT_SYMBOL_GPL(cpufreq_freq_attr_scaling_available_freqs);
 
 /*
  * scaling_boost_frequencies_show - show available boost frequencies for
@@ -288,13 +287,6 @@ static ssize_t scaling_boost_frequencies_show(struct cpufreq_policy *policy,
 	return show_available_freqs(policy, buf, true);
 }
 cpufreq_attr_available_freq(scaling_boost);
-EXPORT_SYMBOL_GPL(cpufreq_freq_attr_scaling_boost_freqs);
-
-struct freq_attr *cpufreq_generic_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
-EXPORT_SYMBOL_GPL(cpufreq_generic_attr);
 
 static int set_freq_table_sorted(struct cpufreq_policy *policy)
 {
