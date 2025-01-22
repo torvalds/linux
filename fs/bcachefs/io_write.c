@@ -587,7 +587,15 @@ err:
 static inline void __wp_update_state(struct write_point *wp, enum write_point_state state)
 {
 	if (state != wp->state) {
+		struct task_struct *p = current;
 		u64 now = ktime_get_ns();
+		u64 runtime = p->se.sum_exec_runtime +
+			(now - p->se.exec_start);
+
+		if (state == WRITE_POINT_runnable)
+			wp->last_runtime = runtime;
+		else if (wp->state == WRITE_POINT_runnable)
+			wp->time[WRITE_POINT_running] += runtime - wp->last_runtime;
 
 		if (wp->last_state_change &&
 		    time_after64(now, wp->last_state_change))
@@ -601,7 +609,7 @@ static inline void wp_update_state(struct write_point *wp, bool running)
 {
 	enum write_point_state state;
 
-	state = running			 ? WRITE_POINT_running :
+	state = running			 ? WRITE_POINT_runnable:
 		!list_empty(&wp->writes) ? WRITE_POINT_waiting_io
 					 : WRITE_POINT_stopped;
 
