@@ -209,6 +209,28 @@ static int intel_dp_mst_dsc_get_slice_count(const struct intel_connector *connec
 					    num_joined_pipes);
 }
 
+static void intel_dp_mst_compute_min_hblank(struct intel_crtc_state *crtc_state,
+					    struct intel_connector *connector,
+					    int bpp_x16)
+{
+	struct intel_encoder *encoder = connector->encoder;
+	struct intel_display *display = to_intel_display(encoder);
+	const struct drm_display_mode *adjusted_mode =
+					&crtc_state->hw.adjusted_mode;
+	int symbol_size = intel_dp_is_uhbr(crtc_state) ? 32 : 8;
+	int hblank;
+
+	if (DISPLAY_VER(display) < 20)
+		return;
+
+	/* Calculate min Hblank Link Layer Symbol Cycle Count for 8b/10b MST & 128b/132b */
+	hblank = DIV_ROUND_UP((DIV_ROUND_UP
+			       (adjusted_mode->htotal - adjusted_mode->hdisplay, 4) * bpp_x16),
+			      symbol_size);
+
+	crtc_state->min_hblank = hblank;
+}
+
 int intel_dp_mtp_tu_compute_config(struct intel_dp *intel_dp,
 				   struct intel_crtc_state *crtc_state,
 				   struct drm_connector_state *conn_state,
@@ -278,6 +300,9 @@ int intel_dp_mtp_tu_compute_config(struct intel_dp *intel_dp,
 
 		local_bw_overhead = intel_dp_mst_bw_overhead(crtc_state,
 							     false, dsc_slice_count, link_bpp_x16);
+
+		intel_dp_mst_compute_min_hblank(crtc_state, connector, link_bpp_x16);
+
 		intel_dp_mst_compute_m_n(crtc_state,
 					 local_bw_overhead,
 					 link_bpp_x16,
@@ -967,6 +992,7 @@ static void mst_stream_disable(struct intel_atomic_state *state,
 	struct intel_dp *intel_dp = to_primary_dp(encoder);
 	struct intel_connector *connector =
 		to_intel_connector(old_conn_state->connector);
+	enum transcoder trans = old_crtc_state->cpu_transcoder;
 
 	drm_dbg_kms(display->drm, "active links %d\n",
 		    intel_dp->active_mst_links);
@@ -977,6 +1003,8 @@ static void mst_stream_disable(struct intel_atomic_state *state,
 	intel_hdcp_disable(intel_mst->connector);
 
 	intel_dp_sink_disable_decompression(state, connector, old_crtc_state);
+
+	intel_de_write(display, DP_MIN_HBLANK_CTL(trans), 0x00);
 }
 
 static void mst_stream_post_disable(struct intel_atomic_state *state,
@@ -1249,7 +1277,7 @@ static void mst_stream_enable(struct intel_atomic_state *state,
 	enum transcoder trans = pipe_config->cpu_transcoder;
 	bool first_mst_stream = intel_dp->active_mst_links == 1;
 	struct intel_crtc *pipe_crtc;
-	int ret, i;
+	int ret, i, min_hblank;
 
 	drm_WARN_ON(display->drm, pipe_config->has_pch_encoder);
 
@@ -1262,6 +1290,29 @@ static void mst_stream_enable(struct intel_atomic_state *state,
 			       TRANS_DP2_VFREQ_PIXEL_CLOCK(crtc_clock_hz >> 24));
 		intel_de_write(display, TRANS_DP2_VFREQLOW(pipe_config->cpu_transcoder),
 			       TRANS_DP2_VFREQ_PIXEL_CLOCK(crtc_clock_hz & 0xffffff));
+	}
+
+	if (DISPLAY_VER(display) >= 20) {
+		/*
+		 * adjust the BlankingStart/BlankingEnd framing control from
+		 * the calculated value
+		 */
+		min_hblank = pipe_config->min_hblank - 2;
+
+		/* Maximum value to be programmed is limited to 0x10 */
+		min_hblank = min(0x10, min_hblank);
+
+		/*
+		 * Minimum hblank accepted for 128b/132b would be 5 and for
+		 * 8b/10b would be 3 symbol count
+		 */
+		if (intel_dp_is_uhbr(pipe_config))
+			min_hblank = max(min_hblank, 5);
+		else
+			min_hblank = max(min_hblank, 3);
+
+		intel_de_write(display, DP_MIN_HBLANK_CTL(trans),
+			       min_hblank);
 	}
 
 	enable_bs_jitter_was(pipe_config);
