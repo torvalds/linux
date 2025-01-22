@@ -23,6 +23,10 @@ MODULE_PARM_DESC(debug_mask, "Debugging mask");
 #endif
 
 #ifdef CONFIG_RTW89_DEBUGFS
+struct rtw89_debugfs_priv_opt {
+	size_t rsize;
+};
+
 struct rtw89_debugfs_priv {
 	struct rtw89_dev *rtwdev;
 	ssize_t (*cb_read)(struct rtw89_dev *rtwdev,
@@ -31,6 +35,7 @@ struct rtw89_debugfs_priv {
 	ssize_t (*cb_write)(struct rtw89_dev *rtwdev,
 			    struct rtw89_debugfs_priv *debugfs_priv,
 			    const char *buf, size_t count);
+	struct rtw89_debugfs_priv_opt opt;
 	union {
 		u32 cb_data;
 		struct {
@@ -55,6 +60,8 @@ struct rtw89_debugfs_priv {
 			u8 sel;
 		} mac_mem;
 	};
+	ssize_t rused;
+	char *rbuf;
 };
 
 struct rtw89_debugfs {
@@ -120,23 +127,31 @@ static ssize_t rtw89_debugfs_file_read(struct file *file, char __user *userbuf,
 				       size_t count, loff_t *ppos)
 {
 	struct rtw89_debugfs_priv *debugfs_priv = file->private_data;
+	struct rtw89_debugfs_priv_opt *opt = &debugfs_priv->opt;
 	struct rtw89_dev *rtwdev = debugfs_priv->rtwdev;
-	size_t bufsz = PAGE_SIZE;
+	size_t bufsz = opt->rsize ? opt->rsize : PAGE_SIZE;
 	char *buf;
 	ssize_t n;
 
-	buf = kvmalloc(bufsz, GFP_KERNEL);
+	if (!debugfs_priv->rbuf)
+		debugfs_priv->rbuf = devm_kzalloc(rtwdev->dev, bufsz, GFP_KERNEL);
+
+	buf = debugfs_priv->rbuf;
 	if (!buf)
-		return 0;
+		return -ENOMEM;
+
+	if (*ppos) {
+		n = debugfs_priv->rused;
+		goto out;
+	}
 
 	n = debugfs_priv->cb_read(rtwdev, debugfs_priv, buf, bufsz);
 	rtw89_might_trailing_ellipsis(buf, bufsz, n);
 
-	n = simple_read_from_buffer(userbuf, count, ppos, buf, n);
+	debugfs_priv->rused = n;
 
-	kvfree(buf);
-
-	return n;
+out:
+	return simple_read_from_buffer(userbuf, count, ppos, buf, n);
 }
 
 static ssize_t rtw89_debugfs_file_write(struct file *file,
@@ -4157,42 +4172,55 @@ rtw89_debug_priv_disable_dm_set(struct rtw89_dev *rtwdev,
 	return count;
 }
 
-#define rtw89_debug_priv_get(name)				\
+#define rtw89_debug_priv_get(name, opts...)			\
 {								\
 	.cb_read = rtw89_debug_priv_ ##name## _get,		\
+	.opt = { opts },					\
 }
 
-#define rtw89_debug_priv_set(name)				\
+#define rtw89_debug_priv_set(name, opts...)			\
 {								\
 	.cb_write = rtw89_debug_priv_ ##name## _set,		\
+	.opt = { opts },					\
 }
 
-#define rtw89_debug_priv_select_and_get(name)			\
+#define rtw89_debug_priv_select_and_get(name, opts...)		\
 {								\
 	.cb_write = rtw89_debug_priv_ ##name## _select,		\
 	.cb_read = rtw89_debug_priv_ ##name## _get,		\
+	.opt = { opts },					\
 }
 
-#define rtw89_debug_priv_set_and_get(name)			\
+#define rtw89_debug_priv_set_and_get(name, opts...)		\
 {								\
 	.cb_write = rtw89_debug_priv_ ##name## _set,		\
 	.cb_read = rtw89_debug_priv_ ##name## _get,		\
+	.opt = { opts },					\
 }
+
+#define RSIZE_8K .rsize = 0x2000
+#define RSIZE_12K .rsize = 0x3000
+#define RSIZE_16K .rsize = 0x4000
+#define RSIZE_20K .rsize = 0x5000
+#define RSIZE_32K .rsize = 0x8000
+#define RSIZE_64K .rsize = 0x10000
+#define RSIZE_128K .rsize = 0x20000
+#define RSIZE_1M .rsize = 0x100000
 
 static const struct rtw89_debugfs rtw89_debugfs_templ = {
 	.read_reg = rtw89_debug_priv_select_and_get(read_reg),
 	.write_reg = rtw89_debug_priv_set(write_reg),
 	.read_rf = rtw89_debug_priv_select_and_get(read_rf),
 	.write_rf = rtw89_debug_priv_set(write_rf),
-	.rf_reg_dump = rtw89_debug_priv_get(rf_reg_dump),
-	.txpwr_table = rtw89_debug_priv_get(txpwr_table),
-	.mac_reg_dump = rtw89_debug_priv_select_and_get(mac_reg_dump),
-	.mac_mem_dump = rtw89_debug_priv_select_and_get(mac_mem_dump),
-	.mac_dbg_port_dump = rtw89_debug_priv_select_and_get(mac_dbg_port_dump),
+	.rf_reg_dump = rtw89_debug_priv_get(rf_reg_dump, RSIZE_8K),
+	.txpwr_table = rtw89_debug_priv_get(txpwr_table, RSIZE_20K),
+	.mac_reg_dump = rtw89_debug_priv_select_and_get(mac_reg_dump, RSIZE_128K),
+	.mac_mem_dump = rtw89_debug_priv_select_and_get(mac_mem_dump, RSIZE_16K),
+	.mac_dbg_port_dump = rtw89_debug_priv_select_and_get(mac_dbg_port_dump, RSIZE_1M),
 	.send_h2c = rtw89_debug_priv_set(send_h2c),
 	.early_h2c = rtw89_debug_priv_set_and_get(early_h2c),
 	.fw_crash = rtw89_debug_priv_set_and_get(fw_crash),
-	.btc_info = rtw89_debug_priv_get(btc_info),
+	.btc_info = rtw89_debug_priv_get(btc_info, RSIZE_12K),
 	.btc_manual = rtw89_debug_priv_set(btc_manual),
 	.fw_log_manual = rtw89_debug_priv_set(fw_log_manual),
 	.phy_info = rtw89_debug_priv_get(phy_info),
