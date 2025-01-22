@@ -281,6 +281,8 @@ struct ext4_system_blocks {
 #define EXT4_IO_END_UNWRITTEN	0x0001
 #define EXT4_IO_END_FAILED	0x0002
 
+#define EXT4_IO_END_DEFER_COMPLETION (EXT4_IO_END_UNWRITTEN | EXT4_IO_END_FAILED)
+
 struct ext4_io_end_vec {
 	struct list_head list;		/* list of io_end_vec */
 	loff_t offset;			/* offset in the file */
