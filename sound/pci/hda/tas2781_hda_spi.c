@@ -1101,7 +1101,7 @@ static int tas2781_hda_spi_probe(struct spi_device *spi)
 
 	tas_priv = devm_kzalloc(&spi->dev, sizeof(*tas_priv), GFP_KERNEL);
 	if (!tas_priv)
-		goto err;
+		return -ENOMEM;
 	tas_priv->dev = &spi->dev;
 	tas_hda->priv = tas_priv;
 	tas_priv->regmap = devm_regmap_init_spi(spi, &tasdevice_regmap);
@@ -1109,14 +1109,16 @@ static int tas2781_hda_spi_probe(struct spi_device *spi)
 		ret = PTR_ERR(tas_priv->regmap);
 		dev_err(tas_priv->dev, "Failed to allocate regmap: %d\n",
 			ret);
-		goto err;
+		return ret;
 	}
 	if (strstr(dev_name(&spi->dev), "TXNW2781")) {
 		device_name = "TXNW2781";
 		tas_priv->save_calibration = tas2781_save_calibration;
 		tas_priv->apply_calibration = tas2781_apply_calib;
 	} else {
-		goto err;
+		dev_err(tas_priv->dev, "Unmatched spi dev %s\n",
+			dev_name(&spi->dev));
+		return -ENODEV;
 	}
 
 	tas_priv->irq = spi->irq;
@@ -1129,6 +1131,12 @@ static int tas2781_hda_spi_probe(struct spi_device *spi)
 
 	tasdevice_spi_init(tas_priv);
 
+	ret = component_add(tas_priv->dev, &tas2781_hda_comp_ops);
+	if (ret) {
+		dev_err(tas_priv->dev, "Register component fail: %d\n", ret);
+		return ret;
+	}
+
 	pm_runtime_set_autosuspend_delay(tas_priv->dev, 3000);
 	pm_runtime_use_autosuspend(tas_priv->dev);
 	pm_runtime_mark_last_busy(tas_priv->dev);
@@ -1138,17 +1146,7 @@ static int tas2781_hda_spi_probe(struct spi_device *spi)
 
 	pm_runtime_put_autosuspend(tas_priv->dev);
 
-	ret = component_add(tas_priv->dev, &tas2781_hda_comp_ops);
-	if (ret) {
-		dev_err(tas_priv->dev, "Register component fail: %d\n", ret);
-		pm_runtime_disable(tas_priv->dev);
-	}
-
-err:
-	if (ret)
-		tas2781_hda_remove(&spi->dev);
-
-	return ret;
+	return 0;
 }
 
 static void tas2781_hda_spi_remove(struct spi_device *spi)
