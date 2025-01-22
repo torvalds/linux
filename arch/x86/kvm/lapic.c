@@ -221,13 +221,6 @@ static inline bool kvm_apic_map_get_logical_dest(struct kvm_apic_map *map,
 	}
 }
 
-static void kvm_apic_map_free(struct rcu_head *rcu)
-{
-	struct kvm_apic_map *map = container_of(rcu, struct kvm_apic_map, rcu);
-
-	kvfree(map);
-}
-
 static int kvm_recalculate_phys_map(struct kvm_apic_map *new,
 				    struct kvm_vcpu *vcpu,
 				    bool *xapic_id_mismatch)
@@ -489,7 +482,7 @@ out:
 	mutex_unlock(&kvm->arch.apic_map_lock);
 
 	if (old)
-		call_rcu(&old->rcu, kvm_apic_map_free);
+		kvfree_rcu(old, rcu);
 
 	kvm_make_scan_ioapic_request(kvm);
 }
