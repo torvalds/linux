@@ -1064,6 +1064,8 @@ struct ext4_inode_info {
 	/* Number of ongoing updates on this inode */
 	atomic_t  i_fc_updates;
 
+	spinlock_t i_raw_lock;	/* protects updates to the raw inode */
+
 	/* Fast commit wait queue for this inode */
 	wait_queue_head_t i_fc_wait;
 
@@ -1100,8 +1102,6 @@ struct ext4_inode_info {
 	struct rw_semaphore i_data_sem;
 	struct inode vfs_inode;
 	struct jbd2_inode *jinode;
-
-	spinlock_t i_raw_lock;	/* protects updates to the raw inode */
 
 	/*
 	 * File creation time. Its function is same as that of
@@ -1145,6 +1145,7 @@ struct ext4_inode_info {
 	/* quota space reservation, managed internally by quota code */
 	qsize_t i_reserved_quota;
 #endif
+	spinlock_t i_block_reservation_lock;
 
 	/* Lock protecting lists below */
 	spinlock_t i_completed_io_lock;
@@ -1154,8 +1155,6 @@ struct ext4_inode_info {
 	 */
 	struct list_head i_rsv_conversion_list;
 	struct work_struct i_rsv_conversion_work;
-
-	spinlock_t i_block_reservation_lock;
 
 	/*
 	 * Transactions that contain inode's metadata needed to complete
