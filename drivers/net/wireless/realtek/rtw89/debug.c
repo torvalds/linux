@@ -24,6 +24,8 @@ MODULE_PARM_DESC(debug_mask, "Debugging mask");
 
 #ifdef CONFIG_RTW89_DEBUGFS
 struct rtw89_debugfs_priv_opt {
+	bool rlock:1;
+	bool wlock:1;
 	size_t rsize;
 };
 
@@ -123,6 +125,19 @@ static u16 rtw89_rate_info_bw_to_mhz(enum rate_info_bw bw)
 	return 0;
 }
 
+static ssize_t rtw89_debugfs_file_read_helper(struct wiphy *wiphy, struct file *file,
+					      char *buf, size_t bufsz, void *data)
+{
+	struct rtw89_debugfs_priv *debugfs_priv = data;
+	struct rtw89_dev *rtwdev = debugfs_priv->rtwdev;
+	ssize_t n;
+
+	n = debugfs_priv->cb_read(rtwdev, debugfs_priv, buf, bufsz);
+	rtw89_might_trailing_ellipsis(buf, bufsz, n);
+
+	return n;
+}
+
 static ssize_t rtw89_debugfs_file_read(struct file *file, char __user *userbuf,
 				       size_t count, loff_t *ppos)
 {
@@ -145,13 +160,31 @@ static ssize_t rtw89_debugfs_file_read(struct file *file, char __user *userbuf,
 		goto out;
 	}
 
-	n = debugfs_priv->cb_read(rtwdev, debugfs_priv, buf, bufsz);
-	rtw89_might_trailing_ellipsis(buf, bufsz, n);
+	if (opt->rlock) {
+		n = wiphy_locked_debugfs_read(rtwdev->hw->wiphy, file, buf, bufsz,
+					      userbuf, count, ppos,
+					      rtw89_debugfs_file_read_helper,
+					      debugfs_priv);
+		debugfs_priv->rused = n;
 
+		return n;
+	}
+
+	n = rtw89_debugfs_file_read_helper(rtwdev->hw->wiphy, file, buf, bufsz,
+					   debugfs_priv);
 	debugfs_priv->rused = n;
 
 out:
 	return simple_read_from_buffer(userbuf, count, ppos, buf, n);
+}
+
+static ssize_t rtw89_debugfs_file_write_helper(struct wiphy *wiphy, struct file *file,
+					       char *buf, size_t count, void *data)
+{
+	struct rtw89_debugfs_priv *debugfs_priv = data;
+	struct rtw89_dev *rtwdev = debugfs_priv->rtwdev;
+
+	return debugfs_priv->cb_write(rtwdev, debugfs_priv, buf, count);
 }
 
 static ssize_t rtw89_debugfs_file_write(struct file *file,
@@ -159,11 +192,22 @@ static ssize_t rtw89_debugfs_file_write(struct file *file,
 					size_t count, loff_t *loff)
 {
 	struct rtw89_debugfs_priv *debugfs_priv = file->private_data;
+	struct rtw89_debugfs_priv_opt *opt = &debugfs_priv->opt;
 	struct rtw89_dev *rtwdev = debugfs_priv->rtwdev;
 	char *buf __free(kfree) = kmalloc(count + 1, GFP_KERNEL);
+	ssize_t n;
 
 	if (!buf)
 		return -ENOMEM;
+
+	if (opt->wlock) {
+		n = wiphy_locked_debugfs_write(rtwdev->hw->wiphy,
+					       file, buf, count + 1,
+					       userbuf, count,
+					       rtw89_debugfs_file_write_helper,
+					       debugfs_priv);
+		return n;
+	}
 
 	if (copy_from_user(buf, userbuf, count))
 		return -EFAULT;
@@ -4206,6 +4250,9 @@ rtw89_debug_priv_disable_dm_set(struct rtw89_dev *rtwdev,
 #define RSIZE_64K .rsize = 0x10000
 #define RSIZE_128K .rsize = 0x20000
 #define RSIZE_1M .rsize = 0x100000
+#define RLOCK .rlock = 1
+#define WLOCK .wlock = 1
+#define RWLOCK RLOCK, WLOCK
 
 static const struct rtw89_debugfs rtw89_debugfs_templ = {
 	.read_reg = rtw89_debug_priv_select_and_get(read_reg),
@@ -4213,18 +4260,18 @@ static const struct rtw89_debugfs rtw89_debugfs_templ = {
 	.read_rf = rtw89_debug_priv_select_and_get(read_rf),
 	.write_rf = rtw89_debug_priv_set(write_rf),
 	.rf_reg_dump = rtw89_debug_priv_get(rf_reg_dump, RSIZE_8K),
-	.txpwr_table = rtw89_debug_priv_get(txpwr_table, RSIZE_20K),
+	.txpwr_table = rtw89_debug_priv_get(txpwr_table, RSIZE_20K, RLOCK),
 	.mac_reg_dump = rtw89_debug_priv_select_and_get(mac_reg_dump, RSIZE_128K),
-	.mac_mem_dump = rtw89_debug_priv_select_and_get(mac_mem_dump, RSIZE_16K),
+	.mac_mem_dump = rtw89_debug_priv_select_and_get(mac_mem_dump, RSIZE_16K, RLOCK),
 	.mac_dbg_port_dump = rtw89_debug_priv_select_and_get(mac_dbg_port_dump, RSIZE_1M),
 	.send_h2c = rtw89_debug_priv_set(send_h2c),
-	.early_h2c = rtw89_debug_priv_set_and_get(early_h2c),
-	.fw_crash = rtw89_debug_priv_set_and_get(fw_crash),
+	.early_h2c = rtw89_debug_priv_set_and_get(early_h2c, RWLOCK),
+	.fw_crash = rtw89_debug_priv_set_and_get(fw_crash, WLOCK),
 	.btc_info = rtw89_debug_priv_get(btc_info, RSIZE_12K),
 	.btc_manual = rtw89_debug_priv_set(btc_manual),
-	.fw_log_manual = rtw89_debug_priv_set(fw_log_manual),
+	.fw_log_manual = rtw89_debug_priv_set(fw_log_manual, WLOCK),
 	.phy_info = rtw89_debug_priv_get(phy_info),
-	.stations = rtw89_debug_priv_get(stations),
+	.stations = rtw89_debug_priv_get(stations, RLOCK),
 	.disable_dm = rtw89_debug_priv_set_and_get(disable_dm),
 };
 
