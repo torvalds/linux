@@ -2403,9 +2403,8 @@ void rtw89_chanctx_work(struct wiphy *wiphy, struct wiphy_work *work)
 
 	lockdep_assert_wiphy(wiphy);
 
-	if (hal->entity_pause) {
+	if (hal->entity_pause)
 		return;
-	}
 
 	for (i = 0; i < NUM_OF_RTW89_CHANCTX_CHANGES; i++) {
 		if (test_and_clear_bit(i, hal->changes))

@@ -2082,7 +2082,7 @@ static void rtw89_cancel_6ghz_probe_work(struct wiphy *wiphy, struct wiphy_work 
 	lockdep_assert_wiphy(wiphy);
 
 	if (!rtwdev->scanning)
-		goto out;
+		return;
 
 	list_for_each_entry(info, &pkt_list[NL80211_BAND_6GHZ], list) {
 		if (!info->cancel || !test_bit(info->id, rtwdev->pkt_offload))
@@ -2095,8 +2095,6 @@ static void rtw89_cancel_6ghz_probe_work(struct wiphy *wiphy, struct wiphy_work 
 		 * since if during scanning, pkt_list is accessed in bottom half.
 		 */
 	}
-
-out:
 }
 
 static void rtw89_core_cancel_6ghz_probe_tx(struct rtw89_dev *rtwdev,
@@ -3147,7 +3145,9 @@ static void rtw89_ips_work(struct wiphy *wiphy, struct wiphy_work *work)
 {
 	struct rtw89_dev *rtwdev = container_of(work, struct rtw89_dev,
 						ips_work);
+
 	lockdep_assert_wiphy(wiphy);
+
 	rtw89_enter_ips_by_hwflags(rtwdev);
 }
 
@@ -3536,20 +3536,20 @@ static void rtw89_track_work(struct wiphy *wiphy, struct wiphy_work *work)
 						track_work.work);
 	bool tfc_changed;
 
+	lockdep_assert_wiphy(wiphy);
+
 	if (test_bit(RTW89_FLAG_FORBIDDEN_TRACK_WROK, rtwdev->flags))
 		return;
 
-	lockdep_assert_wiphy(wiphy);
-
 	if (!test_bit(RTW89_FLAG_RUNNING, rtwdev->flags))
-		goto out;
+		return;
 
 	wiphy_delayed_work_queue(wiphy, &rtwdev->track_work,
 				 RTW89_TRACK_WORK_PERIOD);
 
 	tfc_changed = rtw89_traffic_stats_track(rtwdev);
 	if (rtwdev->scanning)
-		goto out;
+		return;
 
 	rtw89_leave_lps(rtwdev);
 
@@ -3574,8 +3574,6 @@ static void rtw89_track_work(struct wiphy *wiphy, struct wiphy_work *work)
 
 	if (rtwdev->lps_enabled && !rtwdev->btc.lps)
 		rtw89_enter_lps_track(rtwdev);
-
-out:
 }
 
 u8 rtw89_core_acquire_bit_map(unsigned long *addr, unsigned long size)
@@ -4440,12 +4438,13 @@ void rtw89_core_update_beacon_work(struct wiphy *wiphy, struct wiphy_work *work)
 	struct rtw89_vif_link *rtwvif_link = container_of(work, struct rtw89_vif_link,
 							  update_beacon_work);
 
+	lockdep_assert_wiphy(wiphy);
+
 	if (rtwvif_link->net_type != RTW89_NET_TYPE_AP_MODE)
 		return;
 
 	rtwdev = rtwvif_link->rtwvif->rtwdev;
 
-	lockdep_assert_wiphy(wiphy);
 	rtw89_chip_h2c_update_beacon(rtwdev, rtwvif_link);
 }
 
@@ -4581,6 +4580,8 @@ void rtw89_core_stop(struct rtw89_dev *rtwdev)
 	struct wiphy *wiphy = rtwdev->hw->wiphy;
 	struct rtw89_btc *btc = &rtwdev->btc;
 
+	lockdep_assert_wiphy(wiphy);
+
 	/* Prvent to stop twice; enter_ips and ops_stop */
 	if (!test_bit(RTW89_FLAG_RUNNING, rtwdev->flags))
 		return;
@@ -4588,8 +4589,6 @@ void rtw89_core_stop(struct rtw89_dev *rtwdev)
 	rtw89_btc_ntfy_radio_state(rtwdev, BTC_RFCTRL_WL_OFF);
 
 	clear_bit(RTW89_FLAG_RUNNING, rtwdev->flags);
-
-	lockdep_assert_wiphy(wiphy);
 
 	wiphy_work_cancel(wiphy, &rtwdev->c2h_work);
 	wiphy_work_cancel(wiphy, &rtwdev->cancel_6ghz_probe_work);

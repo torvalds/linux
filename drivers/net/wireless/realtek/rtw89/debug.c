@@ -955,6 +955,7 @@ ssize_t rtw89_debug_priv_txpwr_table_get(struct rtw89_dev *rtwdev,
 	ssize_t n;
 
 	lockdep_assert_wiphy(rtwdev->hw->wiphy);
+
 	rtw89_leave_ps_mode(rtwdev);
 	chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
 
@@ -970,34 +971,28 @@ ssize_t rtw89_debug_priv_txpwr_table_get(struct rtw89_dev *rtwdev,
 	p += rtw89_print_ant_gain(rtwdev, p, end - p, chan);
 
 	tbl = dbgfs_txpwr_tables[chip_gen];
-	if (!tbl) {
-		n = -EOPNOTSUPP;
-		goto err;
-	}
+	if (!tbl)
+		return -EOPNOTSUPP;
 
 	p += scnprintf(p, end - p, "\n[TX power byrate]\n");
 	n = __print_txpwr_map(rtwdev, p, end - p, tbl->byr);
 	if (n < 0)
-		goto err;
+		return n;
 	p += n;
 
 	p += scnprintf(p, end - p, "\n[TX power limit]\n");
 	n = __print_txpwr_map(rtwdev, p, end - p, tbl->lmt);
 	if (n < 0)
-		goto err;
+		return n;
 	p += n;
 
 	p += scnprintf(p, end - p, "\n[TX power limit_ru]\n");
 	n = __print_txpwr_map(rtwdev, p, end - p, tbl->lmt_ru);
 	if (n < 0)
-		goto err;
+		return n;
 	p += n;
 
 	return p - buf;
-
-err:
-
-	return n;
 }
 
 static ssize_t
@@ -1182,6 +1177,8 @@ rtw89_debug_priv_mac_mem_dump_get(struct rtw89_dev *rtwdev,
 	char *p = buf, *end = buf + bufsz;
 	bool grant_read = false;
 
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
+
 	if (debugfs_priv->mac_mem.sel >= RTW89_MAC_MEM_NUM)
 		return -ENOENT;
 
@@ -1198,7 +1195,6 @@ rtw89_debug_priv_mac_mem_dump_get(struct rtw89_dev *rtwdev,
 		}
 	}
 
-	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 	rtw89_leave_ps_mode(rtwdev);
 	if (grant_read)
 		rtw89_write32_set(rtwdev, R_AX_TCR1, B_AX_TCR_FORCE_READ_TXDFIFO);
@@ -3515,6 +3511,7 @@ rtw89_debug_priv_early_h2c_get(struct rtw89_dev *rtwdev,
 	int seq = 0;
 
 	lockdep_assert_wiphy(rtwdev->hw->wiphy);
+
 	list_for_each_entry(early_h2c, &rtwdev->early_h2c_list, list)
 		p += scnprintf(p, end - p, "%d: %*ph\n", ++seq,
 			       early_h2c->h2c_len, early_h2c->h2c);
@@ -3530,6 +3527,8 @@ rtw89_debug_priv_early_h2c_set(struct rtw89_dev *rtwdev,
 	struct rtw89_early_h2c *early_h2c;
 	u8 *h2c;
 	u16 h2c_len = count / 2;
+
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	h2c = rtw89_hex2bin(rtwdev, buf, count);
 	if (IS_ERR(h2c))
@@ -3550,7 +3549,6 @@ rtw89_debug_priv_early_h2c_set(struct rtw89_dev *rtwdev,
 	early_h2c->h2c = h2c;
 	early_h2c->h2c_len = h2c_len;
 
-	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 	list_add_tail(&early_h2c->list, &rtwdev->early_h2c_list);
 
 out:
@@ -3610,6 +3608,8 @@ rtw89_debug_priv_fw_crash_set(struct rtw89_dev *rtwdev,
 	u8 crash_type;
 	int ret;
 
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
+
 	ret = kstrtou8(buf, 0, &crash_type);
 	if (ret)
 		return -EINVAL;
@@ -3627,7 +3627,6 @@ rtw89_debug_priv_fw_crash_set(struct rtw89_dev *rtwdev,
 		return -EINVAL;
 	}
 
-	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 	set_bit(RTW89_FLAG_CRASH_SIMULATING, rtwdev->flags);
 	ret = sim(rtwdev);
 
@@ -3671,10 +3670,11 @@ static ssize_t rtw89_debug_priv_fw_log_manual_set(struct rtw89_dev *rtwdev,
 	struct rtw89_fw_log *log = &rtwdev->fw.log;
 	bool fw_log_manual;
 
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
+
 	if (kstrtobool(buf, &fw_log_manual))
 		goto out;
 
-	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 	log->enable = fw_log_manual;
 	if (log->enable)
 		rtw89_fw_log_prepare(rtwdev);

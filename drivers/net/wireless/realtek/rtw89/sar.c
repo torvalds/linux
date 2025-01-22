@@ -99,7 +99,7 @@ struct rtw89_sar_handler rtw89_sar_handlers[RTW89_SAR_SOURCE_NR] = {
 		typeof(_dev) _d = (_dev);				\
 		BUILD_BUG_ON(!rtw89_sar_handlers[_s].descr_sar_source);	\
 		BUILD_BUG_ON(!rtw89_sar_handlers[_s].query_sar_config);	\
-		lockdep_assert_held(&_d->mutex);			\
+		lockdep_assert_wiphy(_d->hw->wiphy);			\
 		_d->sar._cfg_name = *(_cfg_data);			\
 		_d->sar.src = _s;					\
 	} while (0)
@@ -239,22 +239,19 @@ static int rtw89_apply_sar_common(struct rtw89_dev *rtwdev,
 				  const struct rtw89_sar_cfg_common *sar)
 {
 	enum rtw89_sar_sources src;
-	int ret = 0;
 
 	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	src = rtwdev->sar.src;
 	if (src != RTW89_SAR_SOURCE_NONE && src != RTW89_SAR_SOURCE_COMMON) {
 		rtw89_warn(rtwdev, "SAR source: %d is in use", src);
-		ret = -EBUSY;
-		goto exit;
+		return -EBUSY;
 	}
 
 	rtw89_sar_set_src(rtwdev, RTW89_SAR_SOURCE_COMMON, cfg_common, sar);
 	rtw89_core_set_chip_txpwr(rtwdev);
 
-exit:
-	return ret;
+	return 0;
 }
 
 static const struct cfg80211_sar_freq_ranges rtw89_common_sar_freq_ranges[] = {
@@ -289,6 +286,8 @@ int rtw89_ops_set_sar_specs(struct ieee80211_hw *hw,
 	u32 freq_end;
 	s32 power;
 	u32 i, idx;
+
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	if (sar->type != NL80211_SAR_TYPE_POWER)
 		return -EINVAL;

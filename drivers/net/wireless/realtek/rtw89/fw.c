@@ -6107,13 +6107,13 @@ void rtw89_fw_free_all_early_h2c(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_early_h2c *early_h2c, *tmp;
 
-	mutex_lock(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
+
 	list_for_each_entry_safe(early_h2c, tmp, &rtwdev->early_h2c_list, list) {
 		list_del(&early_h2c->list);
 		kfree(early_h2c->h2c);
 		kfree(early_h2c);
 	}
-	mutex_unlock(&rtwdev->mutex);
 }
 
 static void rtw89_fw_c2h_parse_attr(struct sk_buff *c2h)
@@ -6201,9 +6201,10 @@ void rtw89_fw_c2h_work(struct wiphy *wiphy, struct wiphy_work *work)
 						c2h_work);
 	struct sk_buff *skb, *tmp;
 
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
+
 	skb_queue_walk_safe(&rtwdev->c2h_queue, skb, tmp) {
 		skb_unlink(skb, &rtwdev->c2h_queue);
-		lockdep_assert_wiphy(rtwdev->hw->wiphy);
 		rtw89_fw_c2h_cmd_handle(rtwdev, skb);
 		dev_kfree_skb_any(skb);
 	}

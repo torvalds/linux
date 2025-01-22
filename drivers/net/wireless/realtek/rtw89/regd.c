@@ -745,7 +745,6 @@ void rtw89_regd_notifier(struct wiphy *wiphy, struct regulatory_request *request
 	struct rtw89_dev *rtwdev = hw->priv;
 
 	wiphy_lock(wiphy);
-	lockdep_assert_wiphy(wiphy);
 	rtw89_leave_ps_mode(rtwdev);
 
 	if (wiphy->regd) {

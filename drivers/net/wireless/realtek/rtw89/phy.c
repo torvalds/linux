@@ -4662,13 +4662,13 @@ void rtw89_phy_cfo_track_work(struct wiphy *wiphy, struct wiphy_work *work)
 	struct rtw89_cfo_tracking_info *cfo = &rtwdev->cfo_tracking;
 
 	lockdep_assert_wiphy(wiphy);
+
 	if (!cfo->cfo_trig_by_timer_en)
-		goto out;
+		return;
 	rtw89_leave_ps_mode(rtwdev);
 	rtw89_phy_cfo_dm(rtwdev);
 	wiphy_delayed_work_queue(wiphy, &rtwdev->cfo_track_work,
 				 msecs_to_jiffies(cfo->cfo_timer_ms));
-out:
 }
 
 static void rtw89_phy_cfo_start_work(struct rtw89_dev *rtwdev)

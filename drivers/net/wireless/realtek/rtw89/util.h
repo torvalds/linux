@@ -12,7 +12,7 @@
 	ieee80211_iterate_active_interfaces_atomic((rtwdev)->hw,               \
 			IEEE80211_IFACE_ITER_NORMAL, iterator, data)
 
-/* call this function with rtwdev->mutex is held */
+/* call this function with wiphy mutex is held */
 #define rtw89_for_each_rtwvif(rtwdev, rtwvif)				       \
 	list_for_each_entry(rtwvif, &(rtwdev)->rtwvifs_list, list)
 

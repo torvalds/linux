@@ -6722,6 +6722,7 @@ void rtw89_coex_act1_work(struct wiphy *wiphy, struct wiphy_work *work)
 	struct rtw89_btc_wl_info *wl = &cx->wl;
 
 	lockdep_assert_wiphy(wiphy);
+
 	rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], %s(): enter\n", __func__);
 	dm->cnt_notify[BTC_NCNT_TIMER]++;
 	if (wl->status.map._4way)
@@ -6741,6 +6742,7 @@ void rtw89_coex_bt_devinfo_work(struct wiphy *wiphy, struct wiphy_work *work)
 	struct rtw89_btc_bt_a2dp_desc *a2dp = &btc->cx.bt.link_info.a2dp_desc;
 
 	lockdep_assert_wiphy(wiphy);
+
 	rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], %s(): enter\n", __func__);
 	dm->cnt_notify[BTC_NCNT_TIMER]++;
 	a2dp->play_latency = 0;
@@ -6757,6 +6759,7 @@ void rtw89_coex_rfk_chk_work(struct wiphy *wiphy, struct wiphy_work *work)
 	struct rtw89_btc_wl_info *wl = &cx->wl;
 
 	lockdep_assert_wiphy(wiphy);
+
 	rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], %s(): enter\n", __func__);
 	dm->cnt_notify[BTC_NCNT_TIMER]++;
 	if (wl->rfk_info.state != BTC_WRFK_STOP) {
@@ -7309,6 +7312,7 @@ void rtw89_btc_ntfy_eapol_packet_work(struct wiphy *wiphy, struct wiphy_work *wo
 						btc.eapol_notify_work);
 
 	lockdep_assert_wiphy(wiphy);
+
 	rtw89_leave_ps_mode(rtwdev);
 	rtw89_btc_ntfy_specific_packet(rtwdev, PACKET_EAPOL);
 }
@@ -7319,6 +7323,7 @@ void rtw89_btc_ntfy_arp_packet_work(struct wiphy *wiphy, struct wiphy_work *work
 						btc.arp_notify_work);
 
 	lockdep_assert_wiphy(wiphy);
+
 	rtw89_btc_ntfy_specific_packet(rtwdev, PACKET_ARP);
 }
 
@@ -7328,6 +7333,7 @@ void rtw89_btc_ntfy_dhcp_packet_work(struct wiphy *wiphy, struct wiphy_work *wor
 						btc.dhcp_notify_work);
 
 	lockdep_assert_wiphy(wiphy);
+
 	rtw89_leave_ps_mode(rtwdev);
 	rtw89_btc_ntfy_specific_packet(rtwdev, PACKET_DHCP);
 }
@@ -7338,6 +7344,7 @@ void rtw89_btc_ntfy_icmp_packet_work(struct wiphy *wiphy, struct wiphy_work *wor
 						btc.icmp_notify_work);
 
 	lockdep_assert_wiphy(wiphy);
+
 	rtw89_leave_ps_mode(rtwdev);
 	rtw89_btc_ntfy_specific_packet(rtwdev, PACKET_ICMP);
 }
