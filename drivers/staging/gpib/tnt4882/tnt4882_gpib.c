@@ -47,49 +47,7 @@ struct tnt4882_priv {
 	unsigned short auxg_bits;	// bits written to auxiliary register G
 };
 
-// interface functions
-static int tnt4882_read(gpib_board_t *board, uint8_t *buffer, size_t length,
-			int *end, size_t *bytes_read);
-static int tnt4882_accel_read(gpib_board_t *board, uint8_t *buffer, size_t length,
-			      int *end, size_t *bytes_read);
-static int tnt4882_write(gpib_board_t *board, uint8_t *buffer, size_t length,
-			 int send_eoi, size_t *bytes_written);
-static int tnt4882_accel_write(gpib_board_t *board, uint8_t *buffer, size_t length,
-			       int send_eoi, size_t *bytes_written);
-static int tnt4882_command(gpib_board_t *board, uint8_t *buffer, size_t length,
-			   size_t *bytes_written);
-static int tnt4882_command_unaccel(gpib_board_t *board, uint8_t *buffer,
-				   size_t length, size_t *bytes_written);
-static int tnt4882_take_control(gpib_board_t *board, int synchronous);
-static int tnt4882_go_to_standby(gpib_board_t *board);
-static void tnt4882_request_system_control(gpib_board_t *board, int request_control);
-static void tnt4882_interface_clear(gpib_board_t *board, int assert);
-static void tnt4882_remote_enable(gpib_board_t *board, int enable);
-static int tnt4882_enable_eos(gpib_board_t *board, uint8_t eos_byte, int
-			      compare_8_bits);
-static void tnt4882_disable_eos(gpib_board_t *board);
-static unsigned int tnt4882_update_status(gpib_board_t *board, unsigned int clear_mask);
-static int tnt4882_primary_address(gpib_board_t *board, unsigned int address);
-static int tnt4882_secondary_address(gpib_board_t *board, unsigned int address,
-				     int enable);
-static int tnt4882_parallel_poll(gpib_board_t *board, uint8_t *result);
-static void tnt4882_parallel_poll_configure(gpib_board_t *board, uint8_t config);
-static void tnt4882_parallel_poll_response(gpib_board_t *board, int ist);
-static void tnt4882_serial_poll_response(gpib_board_t *board, uint8_t status);
-static uint8_t tnt4882_serial_poll_status(gpib_board_t *board);
-static int tnt4882_line_status(const gpib_board_t *board);
-static unsigned int tnt4882_t1_delay(gpib_board_t *board, unsigned int nano_sec);
-static void tnt4882_return_to_local(gpib_board_t *board);
-
-// interrupt service routines
 static irqreturn_t tnt4882_internal_interrupt(gpib_board_t *board);
-static irqreturn_t tnt4882_interrupt(int irq, void *arg);
-
-// utility functions
-static int tnt4882_allocate_private(gpib_board_t *board);
-static void tnt4882_free_private(gpib_board_t *board);
-static void tnt4882_init(struct tnt4882_priv *tnt_priv, const gpib_board_t *board);
-static void tnt4882_board_reset(struct tnt4882_priv *tnt_priv, gpib_board_t *board);
 
 // register offset for nec7210 compatible registers
 static const int atgpib_reg_offset = 2;
@@ -188,7 +146,7 @@ static inline void tnt_writeb(struct tnt4882_priv *priv, unsigned short value, u
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("GPIB driver for National Instruments boards using tnt4882 or compatible chips");
 
-int tnt4882_line_status(const gpib_board_t *board)
+static int tnt4882_line_status(const gpib_board_t *board)
 {
 	int status = ValidALL;
 	int bcsr_bits;
@@ -218,7 +176,7 @@ int tnt4882_line_status(const gpib_board_t *board)
 	return status;
 }
 
-unsigned int tnt4882_t1_delay(gpib_board_t *board, unsigned int nano_sec)
+static unsigned int tnt4882_t1_delay(gpib_board_t *board, unsigned int nano_sec)
 {
 	struct tnt4882_priv *tnt_priv = board->private_data;
 	struct nec7210_priv *nec_priv = &tnt_priv->nec7210_priv;
@@ -314,8 +272,8 @@ static void tnt4882_release_holdoff(gpib_board_t *board, struct tnt4882_priv *tn
 	}
 }
 
-int tnt4882_accel_read(gpib_board_t *board, uint8_t *buffer, size_t length, int *end,
-		       size_t *bytes_read)
+static int tnt4882_accel_read(gpib_board_t *board, uint8_t *buffer, size_t length, int *end,
+			      size_t *bytes_read)
 {
 	size_t count = 0;
 	ssize_t retval = 0;
@@ -596,18 +554,19 @@ static int generic_write(gpib_board_t *board, uint8_t *buffer, size_t length,
 	return retval;
 }
 
-int tnt4882_accel_write(gpib_board_t *board, uint8_t *buffer, size_t length, int send_eoi,
-			size_t *bytes_written)
+static int tnt4882_accel_write(gpib_board_t *board, uint8_t *buffer, size_t length, int send_eoi,
+			       size_t *bytes_written)
 {
 	return generic_write(board, buffer, length, send_eoi, 0, bytes_written);
 }
 
-int tnt4882_command(gpib_board_t *board, uint8_t *buffer, size_t length, size_t *bytes_written)
+static int tnt4882_command(gpib_board_t *board, uint8_t *buffer, size_t length,
+			   size_t *bytes_written)
 {
 	return generic_write(board, buffer, length, 0, 1, bytes_written);
 }
 
-irqreturn_t tnt4882_internal_interrupt(gpib_board_t *board)
+static irqreturn_t tnt4882_internal_interrupt(gpib_board_t *board)
 {
 	struct tnt4882_priv *priv = board->private_data;
 	int isr0_bits, isr3_bits, imr3_bits;
@@ -642,28 +601,14 @@ irqreturn_t tnt4882_internal_interrupt(gpib_board_t *board)
 	return IRQ_HANDLED;
 }
 
-irqreturn_t tnt4882_interrupt(int irq, void *arg)
+static irqreturn_t tnt4882_interrupt(int irq, void *arg)
 {
 	return tnt4882_internal_interrupt(arg);
 }
 
-static int ni_tnt_isa_attach(gpib_board_t *board, const gpib_board_config_t *config);
-static int ni_nat4882_isa_attach(gpib_board_t *board, const gpib_board_config_t *config);
-static int ni_nec_isa_attach(gpib_board_t *board, const gpib_board_config_t *config);
-static int ni_pci_attach(gpib_board_t *board, const gpib_board_config_t *config);
-
-static void ni_isa_detach(gpib_board_t *board);
-static void ni_pci_detach(gpib_board_t *board);
-
-#ifdef GPIB_PCMCIA
-static int ni_pcmcia_attach(gpib_board_t *board, const gpib_board_config_t *config);
-static void ni_pcmcia_detach(gpib_board_t *board);
-static int init_ni_gpib_cs(void);
-static void __exit exit_ni_gpib_cs(void);
-#endif
-
 // wrappers for interface functions
-int tnt4882_read(gpib_board_t *board, uint8_t *buffer, size_t length, int *end, size_t *bytes_read)
+static int tnt4882_read(gpib_board_t *board, uint8_t *buffer, size_t length, int *end,
+			size_t *bytes_read)
 {
 	struct tnt4882_priv *priv = board->private_data;
 	struct nec7210_priv *nec_priv = &priv->nec7210_priv;
@@ -682,37 +627,37 @@ int tnt4882_read(gpib_board_t *board, uint8_t *buffer, size_t length, int *end, 
 	return retval;
 }
 
-int tnt4882_write(gpib_board_t *board, uint8_t *buffer, size_t length, int send_eoi,
-		  size_t *bytes_written)
+static int tnt4882_write(gpib_board_t *board, uint8_t *buffer, size_t length, int send_eoi,
+			 size_t *bytes_written)
 {
 	struct tnt4882_priv *priv = board->private_data;
 
 	return nec7210_write(board, &priv->nec7210_priv, buffer, length, send_eoi, bytes_written);
 }
 
-int tnt4882_command_unaccel(gpib_board_t *board, uint8_t *buffer,
-			    size_t length, size_t *bytes_written)
+static int tnt4882_command_unaccel(gpib_board_t *board, uint8_t *buffer,
+				   size_t length, size_t *bytes_written)
 {
 	struct tnt4882_priv *priv = board->private_data;
 
 	return nec7210_command(board, &priv->nec7210_priv, buffer, length, bytes_written);
 }
 
-int tnt4882_take_control(gpib_board_t *board, int synchronous)
+static int tnt4882_take_control(gpib_board_t *board, int synchronous)
 {
 	struct tnt4882_priv *priv = board->private_data;
 
 	return nec7210_take_control(board, &priv->nec7210_priv, synchronous);
 }
 
-int tnt4882_go_to_standby(gpib_board_t *board)
+static int tnt4882_go_to_standby(gpib_board_t *board)
 {
 	struct tnt4882_priv *priv = board->private_data;
 
 	return nec7210_go_to_standby(board, &priv->nec7210_priv);
 }
 
-void tnt4882_request_system_control(gpib_board_t *board, int request_control)
+static void tnt4882_request_system_control(gpib_board_t *board, int request_control)
 {
 	struct tnt4882_priv *priv = board->private_data;
 
@@ -727,35 +672,35 @@ void tnt4882_request_system_control(gpib_board_t *board, int request_control)
 	}
 }
 
-void tnt4882_interface_clear(gpib_board_t *board, int assert)
+static void tnt4882_interface_clear(gpib_board_t *board, int assert)
 {
 	struct tnt4882_priv *priv = board->private_data;
 
 	nec7210_interface_clear(board, &priv->nec7210_priv, assert);
 }
 
-void tnt4882_remote_enable(gpib_board_t *board, int enable)
+static void tnt4882_remote_enable(gpib_board_t *board, int enable)
 {
 	struct tnt4882_priv *priv = board->private_data;
 
 	nec7210_remote_enable(board, &priv->nec7210_priv, enable);
 }
 
-int tnt4882_enable_eos(gpib_board_t *board, uint8_t eos_byte, int compare_8_bits)
+static int tnt4882_enable_eos(gpib_board_t *board, uint8_t eos_byte, int compare_8_bits)
 {
 	struct tnt4882_priv *priv = board->private_data;
 
 	return nec7210_enable_eos(board, &priv->nec7210_priv, eos_byte, compare_8_bits);
 }
 
-void tnt4882_disable_eos(gpib_board_t *board)
+static void tnt4882_disable_eos(gpib_board_t *board)
 {
 	struct tnt4882_priv *priv = board->private_data;
 
 	nec7210_disable_eos(board, &priv->nec7210_priv);
 }
 
-unsigned int tnt4882_update_status(gpib_board_t *board, unsigned int clear_mask)
+static unsigned int tnt4882_update_status(gpib_board_t *board, unsigned int clear_mask)
 {
 	unsigned long flags;
 	u8 line_status;
@@ -775,22 +720,21 @@ unsigned int tnt4882_update_status(gpib_board_t *board, unsigned int clear_mask)
 	return board->status;
 }
 
-int tnt4882_primary_address(gpib_board_t *board, unsigned int address)
+static int tnt4882_primary_address(gpib_board_t *board, unsigned int address)
 {
 	struct tnt4882_priv *priv = board->private_data;
 
 	return nec7210_primary_address(board, &priv->nec7210_priv, address);
 }
 
-int tnt4882_secondary_address(gpib_board_t *board, unsigned int address, int enable)
+static int tnt4882_secondary_address(gpib_board_t *board, unsigned int address, int enable)
 {
 	struct tnt4882_priv *priv = board->private_data;
 
 	return nec7210_secondary_address(board, &priv->nec7210_priv, address, enable);
 }
 
-int tnt4882_parallel_poll(gpib_board_t *board, uint8_t *result)
-
+static int tnt4882_parallel_poll(gpib_board_t *board, uint8_t *result)
 {
 	struct tnt4882_priv *tnt_priv = board->private_data;
 
@@ -807,7 +751,7 @@ int tnt4882_parallel_poll(gpib_board_t *board, uint8_t *result)
 	}
 }
 
-void tnt4882_parallel_poll_configure(gpib_board_t *board, uint8_t config)
+static void tnt4882_parallel_poll_configure(gpib_board_t *board, uint8_t config)
 {
 	struct tnt4882_priv *priv = board->private_data;
 
@@ -825,7 +769,7 @@ void tnt4882_parallel_poll_configure(gpib_board_t *board, uint8_t config)
 	}
 }
 
-void tnt4882_parallel_poll_response(gpib_board_t *board, int ist)
+static void tnt4882_parallel_poll_response(gpib_board_t *board, int ist)
 {
 	struct tnt4882_priv *priv = board->private_data;
 
@@ -835,7 +779,7 @@ void tnt4882_parallel_poll_response(gpib_board_t *board, int ist)
 /* this is just used by the old nec7210 isa interfaces, the newer
  * boards use tnt4882_serial_poll_response2
  */
-void tnt4882_serial_poll_response(gpib_board_t *board, uint8_t status)
+static void tnt4882_serial_poll_response(gpib_board_t *board, uint8_t status)
 {
 	struct tnt4882_priv *priv = board->private_data;
 
@@ -876,18 +820,329 @@ static void tnt4882_serial_poll_response2(gpib_board_t *board, uint8_t status,
 	spin_unlock_irqrestore(&board->spinlock, flags);
 }
 
-uint8_t tnt4882_serial_poll_status(gpib_board_t *board)
+static uint8_t tnt4882_serial_poll_status(gpib_board_t *board)
 {
 	struct tnt4882_priv *priv = board->private_data;
 
 	return nec7210_serial_poll_status(board, &priv->nec7210_priv);
 }
 
-void tnt4882_return_to_local(gpib_board_t *board)
+static void tnt4882_return_to_local(gpib_board_t *board)
 {
 	struct tnt4882_priv *priv = board->private_data;
 
 	nec7210_return_to_local(board, &priv->nec7210_priv);
+}
+
+static void tnt4882_board_reset(struct tnt4882_priv *tnt_priv, gpib_board_t *board)
+{
+	struct nec7210_priv *nec_priv = &tnt_priv->nec7210_priv;
+
+	tnt_priv->imr0_bits = 0;
+	tnt_writeb(tnt_priv, tnt_priv->imr0_bits, IMR0);
+	tnt_priv->imr3_bits = 0;
+	tnt_writeb(tnt_priv, tnt_priv->imr3_bits, IMR3);
+	tnt_readb(tnt_priv, IMR0);
+	tnt_readb(tnt_priv, IMR3);
+	nec7210_board_reset(nec_priv, board);
+}
+
+static int tnt4882_allocate_private(gpib_board_t *board)
+{
+	struct tnt4882_priv *tnt_priv;
+
+	board->private_data = kmalloc(sizeof(struct tnt4882_priv), GFP_KERNEL);
+	if (!board->private_data)
+		return -1;
+	tnt_priv = board->private_data;
+	memset(tnt_priv, 0, sizeof(struct tnt4882_priv));
+	init_nec7210_private(&tnt_priv->nec7210_priv);
+	return 0;
+}
+
+static void tnt4882_free_private(gpib_board_t *board)
+{
+	kfree(board->private_data);
+	board->private_data = NULL;
+}
+
+static void tnt4882_init(struct tnt4882_priv *tnt_priv, const gpib_board_t *board)
+{
+	struct nec7210_priv *nec_priv = &tnt_priv->nec7210_priv;
+
+	/* Turbo488 software reset */
+	tnt_writeb(tnt_priv, SOFT_RESET, CMDR);
+	udelay(1);
+
+	// turn off one-chip mode
+	tnt_writeb(tnt_priv, NODMA, HSSEL);
+	tnt_writeb(tnt_priv, 0, ACCWR);
+	// make sure we are in 7210 mode
+	tnt_writeb(tnt_priv, AUX_7210, AUXCR);
+	udelay(1);
+	// registers might be swapped, so write it to the swapped address too
+	tnt_writeb(tnt_priv, AUX_7210, SWAPPED_AUXCR);
+	udelay(1);
+	// turn on one-chip mode
+	if (nec_priv->type == TNT4882 || nec_priv->type == TNT5004)
+		tnt_writeb(tnt_priv, NODMA | TNT_ONE_CHIP_BIT, HSSEL);
+	else
+		tnt_writeb(tnt_priv, NODMA, HSSEL);
+
+	nec7210_board_reset(nec_priv, board);
+	// read-clear isr0
+	tnt_readb(tnt_priv, ISR0);
+
+	// enable passing of nat4882 interrupts
+	tnt_priv->imr3_bits = HR_TLCI;
+	tnt_writeb(tnt_priv, tnt_priv->imr3_bits, IMR3);
+
+	// enable interrupt
+	tnt_writeb(tnt_priv, 0x1, INTRT);
+
+	// force immediate holdoff
+	write_byte(&tnt_priv->nec7210_priv, AUX_HLDI, AUXMR);
+
+	set_bit(RFD_HOLDOFF_BN, &nec_priv->state);
+
+	tnt_priv->auxg_bits = AUXRG | NTNL_BIT;
+	write_byte(&tnt_priv->nec7210_priv, tnt_priv->auxg_bits, AUXMR);
+
+	nec7210_board_online(nec_priv, board);
+	// enable interface clear interrupt for event queue
+	tnt_priv->imr0_bits = TNT_IMR0_ALWAYS_BITS | TNT_ATNI_BIT | TNT_IFCIE_BIT;
+	tnt_writeb(tnt_priv, tnt_priv->imr0_bits, IMR0);
+}
+
+static int ni_pci_attach(gpib_board_t *board, const gpib_board_config_t *config)
+{
+	struct tnt4882_priv *tnt_priv;
+	struct nec7210_priv *nec_priv;
+	int isr_flags = IRQF_SHARED;
+	int retval;
+	struct mite_struct *mite;
+
+	board->status = 0;
+
+	if (tnt4882_allocate_private(board))
+		return -ENOMEM;
+	tnt_priv = board->private_data;
+	nec_priv = &tnt_priv->nec7210_priv;
+	nec_priv->type = TNT4882;
+	nec_priv->read_byte = nec7210_locking_iomem_read_byte;
+	nec_priv->write_byte = nec7210_locking_iomem_write_byte;
+	nec_priv->offset = atgpib_reg_offset;
+
+	if (!mite_devices) {
+		pr_err("no National Instruments PCI boards found\n");
+		return -1;
+	}
+
+	for (mite = mite_devices; mite; mite = mite->next) {
+		short found_board;
+
+		if (mite->used)
+			continue;
+		if (config->pci_bus >= 0 && config->pci_bus != mite->pcidev->bus->number)
+			continue;
+		if (config->pci_slot >= 0 && config->pci_slot != PCI_SLOT(mite->pcidev->devfn))
+			continue;
+		switch (mite_device_id(mite)) {
+		case PCI_DEVICE_ID_NI_GPIB:
+		case PCI_DEVICE_ID_NI_GPIB_PLUS:
+		case PCI_DEVICE_ID_NI_GPIB_PLUS2:
+		case PCI_DEVICE_ID_NI_PXIGPIB:
+		case PCI_DEVICE_ID_NI_PMCGPIB:
+		case PCI_DEVICE_ID_NI_PCIEGPIB:
+		case PCI_DEVICE_ID_NI_PCIE2GPIB:
+// support for Measurement Computing PCI-488
+		case PCI_DEVICE_ID_MC_PCI488:
+		case PCI_DEVICE_ID_CEC_NI_GPIB:
+			found_board = 1;
+			break;
+		default:
+			found_board = 0;
+			break;
+		}
+		if (found_board)
+			break;
+	}
+	if (!mite) {
+		pr_err("no NI PCI-GPIB boards found\n");
+		return -1;
+	}
+	tnt_priv->mite = mite;
+	retval = mite_setup(tnt_priv->mite);
+	if (retval < 0)	{
+		pr_err("tnt4882: error setting up mite.\n");
+		return retval;
+	}
+
+	nec_priv->mmiobase = tnt_priv->mite->daq_io_addr;
+
+	// get irq
+	if (request_irq(mite_irq(tnt_priv->mite), tnt4882_interrupt, isr_flags,
+			"ni-pci-gpib", board)) {
+		pr_err("gpib: can't request IRQ %d\n", mite_irq(tnt_priv->mite));
+		return -1;
+	}
+	tnt_priv->irq = mite_irq(tnt_priv->mite);
+	pr_info("tnt4882: irq %i\n", tnt_priv->irq);
+
+	// TNT5004 detection
+	switch (tnt_readb(tnt_priv, CSR) & 0xf0) {
+	case 0x30:
+		nec_priv->type = TNT4882;
+		pr_info("tnt4882: TNT4882 chipset detected\n");
+		break;
+	case 0x40:
+		nec_priv->type = TNT5004;
+		pr_info("tnt4882: TNT5004 chipset detected\n");
+		break;
+	}
+	tnt4882_init(tnt_priv, board);
+
+	return 0;
+}
+
+static void ni_pci_detach(gpib_board_t *board)
+{
+	struct tnt4882_priv *tnt_priv = board->private_data;
+	struct nec7210_priv *nec_priv;
+
+	if (tnt_priv) {
+		nec_priv = &tnt_priv->nec7210_priv;
+
+		if (nec_priv->mmiobase)
+			tnt4882_board_reset(tnt_priv, board);
+		if (tnt_priv->irq)
+			free_irq(tnt_priv->irq, board);
+		if (tnt_priv->mite)
+			mite_unsetup(tnt_priv->mite);
+	}
+	tnt4882_free_private(board);
+}
+
+static int ni_isapnp_find(struct pnp_dev **dev)
+{
+	*dev = pnp_find_dev(NULL, ISAPNP_VENDOR_ID_NI,
+			    ISAPNP_FUNCTION(ISAPNP_ID_NI_ATGPIB_TNT), NULL);
+	if (!*dev || !(*dev)->card) {
+		pr_err("tnt4882: failed to find isapnp board\n");
+		return -ENODEV;
+	}
+	if (pnp_device_attach(*dev) < 0) {
+		pr_err("tnt4882: atgpib/tnt board already active, skipping\n");
+		return -EBUSY;
+	}
+	if (pnp_activate_dev(*dev) < 0)	{
+		pnp_device_detach(*dev);
+		pr_err("tnt4882: failed to activate() atgpib/tnt, aborting\n");
+		return -EAGAIN;
+	}
+	if (!pnp_port_valid(*dev, 0) || !pnp_irq_valid(*dev, 0)) {
+		pnp_device_detach(*dev);
+		pr_err("tnt4882: invalid port or irq for atgpib/tnt, aborting\n");
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+static int ni_isa_attach_common(gpib_board_t *board, const gpib_board_config_t *config,
+				enum nec7210_chipset chipset)
+{
+	struct tnt4882_priv *tnt_priv;
+	struct nec7210_priv *nec_priv;
+	int isr_flags = 0;
+	u32 iobase;
+	int irq;
+
+	board->status = 0;
+
+	if (tnt4882_allocate_private(board))
+		return -ENOMEM;
+	tnt_priv = board->private_data;
+	nec_priv = &tnt_priv->nec7210_priv;
+	nec_priv->type = chipset;
+	nec_priv->read_byte = nec7210_locking_ioport_read_byte;
+	nec_priv->write_byte = nec7210_locking_ioport_write_byte;
+	nec_priv->offset = atgpib_reg_offset;
+
+	// look for plug-n-play board
+	if (config->ibbase == 0) {
+		struct pnp_dev *dev;
+		int retval;
+
+		retval = ni_isapnp_find(&dev);
+		if (retval < 0)
+			return retval;
+		tnt_priv->pnp_dev = dev;
+		iobase = pnp_port_start(dev, 0);
+		irq = pnp_irq(dev, 0);
+	} else {
+		iobase = config->ibbase;
+		irq = config->ibirq;
+	}
+	// allocate ioports
+	if (!request_region(iobase, atgpib_iosize, "atgpib")) {
+		pr_err("tnt4882: failed to allocate ioports\n");
+		return -1;
+	}
+	nec_priv->mmiobase = ioport_map(iobase, atgpib_iosize);
+	if (!nec_priv->mmiobase)
+		return -1;
+
+	// get irq
+	if (request_irq(irq, tnt4882_interrupt, isr_flags, "atgpib", board)) {
+		pr_err("gpib: can't request IRQ %d\n", irq);
+		return -1;
+	}
+	tnt_priv->irq = irq;
+
+	tnt4882_init(tnt_priv, board);
+
+	return 0;
+}
+
+static int ni_tnt_isa_attach(gpib_board_t *board, const gpib_board_config_t *config)
+{
+	return ni_isa_attach_common(board, config, TNT4882);
+}
+
+static int ni_nat4882_isa_attach(gpib_board_t *board, const gpib_board_config_t *config)
+{
+	return ni_isa_attach_common(board, config, NAT4882);
+}
+
+static int ni_nec_isa_attach(gpib_board_t *board, const gpib_board_config_t *config)
+{
+	return ni_isa_attach_common(board, config, NEC7210);
+}
+
+static void ni_isa_detach(gpib_board_t *board)
+{
+	struct tnt4882_priv *tnt_priv = board->private_data;
+	struct nec7210_priv *nec_priv;
+
+	if (tnt_priv) {
+		nec_priv = &tnt_priv->nec7210_priv;
+		if (nec_priv->iobase)
+			tnt4882_board_reset(tnt_priv, board);
+		if (tnt_priv->irq)
+			free_irq(tnt_priv->irq, board);
+		if (nec_priv->mmiobase)
+			ioport_unmap(nec_priv->mmiobase);
+		if (nec_priv->iobase)
+			release_region(nec_priv->iobase, atgpib_iosize);
+		if (tnt_priv->pnp_dev)
+			pnp_device_detach(tnt_priv->pnp_dev);
+	}
+	tnt4882_free_private(board);
+}
+
+static int tnt4882_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
+{
+	return 0;
 }
 
 static gpib_interface_t ni_pci_interface = {
@@ -1114,375 +1369,6 @@ static gpib_interface_t ni_nec_isa_accel_interface = {
 	.return_to_local = tnt4882_return_to_local,
 };
 
-#ifdef GPIB_PCMCIA
-static gpib_interface_t ni_pcmcia_interface = {
-	.name = "ni_pcmcia",
-	.attach = ni_pcmcia_attach,
-	.detach = ni_pcmcia_detach,
-	.read = tnt4882_accel_read,
-	.write = tnt4882_accel_write,
-	.command = tnt4882_command,
-	.take_control = tnt4882_take_control,
-	.go_to_standby = tnt4882_go_to_standby,
-	.request_system_control = tnt4882_request_system_control,
-	.interface_clear = tnt4882_interface_clear,
-	.remote_enable = tnt4882_remote_enable,
-	.enable_eos = tnt4882_enable_eos,
-	.disable_eos = tnt4882_disable_eos,
-	.parallel_poll = tnt4882_parallel_poll,
-	.parallel_poll_configure = tnt4882_parallel_poll_configure,
-	.parallel_poll_response = tnt4882_parallel_poll_response,
-	.local_parallel_poll_mode = NULL, // XXX
-	.line_status = tnt4882_line_status,
-	.update_status = tnt4882_update_status,
-	.primary_address = tnt4882_primary_address,
-	.secondary_address = tnt4882_secondary_address,
-	.serial_poll_response = tnt4882_serial_poll_response,
-	.serial_poll_status = tnt4882_serial_poll_status,
-	.t1_delay = tnt4882_t1_delay,
-	.return_to_local = tnt4882_return_to_local,
-};
-
-static gpib_interface_t ni_pcmcia_accel_interface = {
-	.name = "ni_pcmcia_accel",
-	.attach = ni_pcmcia_attach,
-	.detach = ni_pcmcia_detach,
-	.read = tnt4882_accel_read,
-	.write = tnt4882_accel_write,
-	.command = tnt4882_command,
-	.take_control = tnt4882_take_control,
-	.go_to_standby = tnt4882_go_to_standby,
-	.request_system_control = tnt4882_request_system_control,
-	.interface_clear = tnt4882_interface_clear,
-	.remote_enable = tnt4882_remote_enable,
-	.enable_eos = tnt4882_enable_eos,
-	.disable_eos = tnt4882_disable_eos,
-	.parallel_poll = tnt4882_parallel_poll,
-	.parallel_poll_configure = tnt4882_parallel_poll_configure,
-	.parallel_poll_response = tnt4882_parallel_poll_response,
-	.local_parallel_poll_mode = NULL, // XXX
-	.line_status = tnt4882_line_status,
-	.update_status = tnt4882_update_status,
-	.primary_address = tnt4882_primary_address,
-	.secondary_address = tnt4882_secondary_address,
-	.serial_poll_response = tnt4882_serial_poll_response,
-	.serial_poll_status = tnt4882_serial_poll_status,
-	.t1_delay = tnt4882_t1_delay,
-	.return_to_local = tnt4882_return_to_local,
-};
-#endif
-
-void tnt4882_board_reset(struct tnt4882_priv *tnt_priv, gpib_board_t *board)
-{
-	struct nec7210_priv *nec_priv = &tnt_priv->nec7210_priv;
-
-	tnt_priv->imr0_bits = 0;
-	tnt_writeb(tnt_priv, tnt_priv->imr0_bits, IMR0);
-	tnt_priv->imr3_bits = 0;
-	tnt_writeb(tnt_priv, tnt_priv->imr3_bits, IMR3);
-	tnt_readb(tnt_priv, IMR0);
-	tnt_readb(tnt_priv, IMR3);
-	nec7210_board_reset(nec_priv, board);
-}
-
-int tnt4882_allocate_private(gpib_board_t *board)
-{
-	struct tnt4882_priv *tnt_priv;
-
-	board->private_data = kmalloc(sizeof(struct tnt4882_priv), GFP_KERNEL);
-	if (!board->private_data)
-		return -1;
-	tnt_priv = board->private_data;
-	memset(tnt_priv, 0, sizeof(struct tnt4882_priv));
-	init_nec7210_private(&tnt_priv->nec7210_priv);
-	return 0;
-}
-
-void tnt4882_free_private(gpib_board_t *board)
-{
-	kfree(board->private_data);
-	board->private_data = NULL;
-}
-
-void tnt4882_init(struct tnt4882_priv *tnt_priv, const gpib_board_t *board)
-{
-	struct nec7210_priv *nec_priv = &tnt_priv->nec7210_priv;
-
-	/* Turbo488 software reset */
-	tnt_writeb(tnt_priv, SOFT_RESET, CMDR);
-	udelay(1);
-
-	// turn off one-chip mode
-	tnt_writeb(tnt_priv, NODMA, HSSEL);
-	tnt_writeb(tnt_priv, 0, ACCWR);
-	// make sure we are in 7210 mode
-	tnt_writeb(tnt_priv, AUX_7210, AUXCR);
-	udelay(1);
-	// registers might be swapped, so write it to the swapped address too
-	tnt_writeb(tnt_priv, AUX_7210, SWAPPED_AUXCR);
-	udelay(1);
-	// turn on one-chip mode
-	if (nec_priv->type == TNT4882 || nec_priv->type == TNT5004)
-		tnt_writeb(tnt_priv, NODMA | TNT_ONE_CHIP_BIT, HSSEL);
-	else
-		tnt_writeb(tnt_priv, NODMA, HSSEL);
-
-	nec7210_board_reset(nec_priv, board);
-	// read-clear isr0
-	tnt_readb(tnt_priv, ISR0);
-
-	// enable passing of nat4882 interrupts
-	tnt_priv->imr3_bits = HR_TLCI;
-	tnt_writeb(tnt_priv, tnt_priv->imr3_bits, IMR3);
-
-	// enable interrupt
-	tnt_writeb(tnt_priv, 0x1, INTRT);
-
-	// force immediate holdoff
-	write_byte(&tnt_priv->nec7210_priv, AUX_HLDI, AUXMR);
-
-	set_bit(RFD_HOLDOFF_BN, &nec_priv->state);
-
-	tnt_priv->auxg_bits = AUXRG | NTNL_BIT;
-	write_byte(&tnt_priv->nec7210_priv, tnt_priv->auxg_bits, AUXMR);
-
-	nec7210_board_online(nec_priv, board);
-	// enable interface clear interrupt for event queue
-	tnt_priv->imr0_bits = TNT_IMR0_ALWAYS_BITS | TNT_ATNI_BIT | TNT_IFCIE_BIT;
-	tnt_writeb(tnt_priv, tnt_priv->imr0_bits, IMR0);
-}
-
-int ni_pci_attach(gpib_board_t *board, const gpib_board_config_t *config)
-{
-	struct tnt4882_priv *tnt_priv;
-	struct nec7210_priv *nec_priv;
-	int isr_flags = IRQF_SHARED;
-	int retval;
-	struct mite_struct *mite;
-
-	board->status = 0;
-
-	if (tnt4882_allocate_private(board))
-		return -ENOMEM;
-	tnt_priv = board->private_data;
-	nec_priv = &tnt_priv->nec7210_priv;
-	nec_priv->type = TNT4882;
-	nec_priv->read_byte = nec7210_locking_iomem_read_byte;
-	nec_priv->write_byte = nec7210_locking_iomem_write_byte;
-	nec_priv->offset = atgpib_reg_offset;
-
-	if (!mite_devices) {
-		pr_err("no National Instruments PCI boards found\n");
-		return -1;
-	}
-
-	for (mite = mite_devices; mite; mite = mite->next) {
-		short found_board;
-
-		if (mite->used)
-			continue;
-		if (config->pci_bus >= 0 && config->pci_bus != mite->pcidev->bus->number)
-			continue;
-		if (config->pci_slot >= 0 && config->pci_slot != PCI_SLOT(mite->pcidev->devfn))
-			continue;
-		switch (mite_device_id(mite)) {
-		case PCI_DEVICE_ID_NI_GPIB:
-		case PCI_DEVICE_ID_NI_GPIB_PLUS:
-		case PCI_DEVICE_ID_NI_GPIB_PLUS2:
-		case PCI_DEVICE_ID_NI_PXIGPIB:
-		case PCI_DEVICE_ID_NI_PMCGPIB:
-		case PCI_DEVICE_ID_NI_PCIEGPIB:
-		case PCI_DEVICE_ID_NI_PCIE2GPIB:
-// support for Measurement Computing PCI-488
-		case PCI_DEVICE_ID_MC_PCI488:
-		case PCI_DEVICE_ID_CEC_NI_GPIB:
-			found_board = 1;
-			break;
-		default:
-			found_board = 0;
-			break;
-		}
-		if (found_board)
-			break;
-	}
-	if (!mite) {
-		pr_err("no NI PCI-GPIB boards found\n");
-		return -1;
-	}
-	tnt_priv->mite = mite;
-	retval = mite_setup(tnt_priv->mite);
-	if (retval < 0)	{
-		pr_err("tnt4882: error setting up mite.\n");
-		return retval;
-	}
-
-	nec_priv->mmiobase = tnt_priv->mite->daq_io_addr;
-
-	// get irq
-	if (request_irq(mite_irq(tnt_priv->mite), tnt4882_interrupt, isr_flags,
-			"ni-pci-gpib", board)) {
-		pr_err("gpib: can't request IRQ %d\n", mite_irq(tnt_priv->mite));
-		return -1;
-	}
-	tnt_priv->irq = mite_irq(tnt_priv->mite);
-	pr_info("tnt4882: irq %i\n", tnt_priv->irq);
-
-	// TNT5004 detection
-	switch (tnt_readb(tnt_priv, CSR) & 0xf0) {
-	case 0x30:
-		nec_priv->type = TNT4882;
-		pr_info("tnt4882: TNT4882 chipset detected\n");
-		break;
-	case 0x40:
-		nec_priv->type = TNT5004;
-		pr_info("tnt4882: TNT5004 chipset detected\n");
-		break;
-	}
-	tnt4882_init(tnt_priv, board);
-
-	return 0;
-}
-
-void ni_pci_detach(gpib_board_t *board)
-{
-	struct tnt4882_priv *tnt_priv = board->private_data;
-	struct nec7210_priv *nec_priv;
-
-	if (tnt_priv) {
-		nec_priv = &tnt_priv->nec7210_priv;
-
-		if (nec_priv->mmiobase)
-			tnt4882_board_reset(tnt_priv, board);
-		if (tnt_priv->irq)
-			free_irq(tnt_priv->irq, board);
-		if (tnt_priv->mite)
-			mite_unsetup(tnt_priv->mite);
-	}
-	tnt4882_free_private(board);
-}
-
-static int ni_isapnp_find(struct pnp_dev **dev)
-{
-	*dev = pnp_find_dev(NULL, ISAPNP_VENDOR_ID_NI,
-			    ISAPNP_FUNCTION(ISAPNP_ID_NI_ATGPIB_TNT), NULL);
-	if (!*dev || !(*dev)->card) {
-		pr_err("tnt4882: failed to find isapnp board\n");
-		return -ENODEV;
-	}
-	if (pnp_device_attach(*dev) < 0) {
-		pr_err("tnt4882: atgpib/tnt board already active, skipping\n");
-		return -EBUSY;
-	}
-	if (pnp_activate_dev(*dev) < 0)	{
-		pnp_device_detach(*dev);
-		pr_err("tnt4882: failed to activate() atgpib/tnt, aborting\n");
-		return -EAGAIN;
-	}
-	if (!pnp_port_valid(*dev, 0) || !pnp_irq_valid(*dev, 0)) {
-		pnp_device_detach(*dev);
-		pr_err("tnt4882: invalid port or irq for atgpib/tnt, aborting\n");
-		return -ENOMEM;
-	}
-	return 0;
-}
-
-static int ni_isa_attach_common(gpib_board_t *board, const gpib_board_config_t *config,
-				enum nec7210_chipset chipset)
-{
-	struct tnt4882_priv *tnt_priv;
-	struct nec7210_priv *nec_priv;
-	int isr_flags = 0;
-	u32 iobase;
-	int irq;
-
-	board->status = 0;
-
-	if (tnt4882_allocate_private(board))
-		return -ENOMEM;
-	tnt_priv = board->private_data;
-	nec_priv = &tnt_priv->nec7210_priv;
-	nec_priv->type = chipset;
-	nec_priv->read_byte = nec7210_locking_ioport_read_byte;
-	nec_priv->write_byte = nec7210_locking_ioport_write_byte;
-	nec_priv->offset = atgpib_reg_offset;
-
-	// look for plug-n-play board
-	if (config->ibbase == 0) {
-		struct pnp_dev *dev;
-		int retval;
-
-		retval = ni_isapnp_find(&dev);
-		if (retval < 0)
-			return retval;
-		tnt_priv->pnp_dev = dev;
-		iobase = pnp_port_start(dev, 0);
-		irq = pnp_irq(dev, 0);
-	} else {
-		iobase = config->ibbase;
-		irq = config->ibirq;
-	}
-	// allocate ioports
-	if (!request_region(iobase, atgpib_iosize, "atgpib")) {
-		pr_err("tnt4882: failed to allocate ioports\n");
-		return -1;
-	}
-	nec_priv->mmiobase = ioport_map(iobase, atgpib_iosize);
-	if (!nec_priv->mmiobase)
-		return -1;
-
-	// get irq
-	if (request_irq(irq, tnt4882_interrupt, isr_flags, "atgpib", board)) {
-		pr_err("gpib: can't request IRQ %d\n", irq);
-		return -1;
-	}
-	tnt_priv->irq = irq;
-
-	tnt4882_init(tnt_priv, board);
-
-	return 0;
-}
-
-int ni_tnt_isa_attach(gpib_board_t *board, const gpib_board_config_t *config)
-{
-	return ni_isa_attach_common(board, config, TNT4882);
-}
-
-int ni_nat4882_isa_attach(gpib_board_t *board, const gpib_board_config_t *config)
-{
-	return ni_isa_attach_common(board, config, NAT4882);
-}
-
-int ni_nec_isa_attach(gpib_board_t *board, const gpib_board_config_t *config)
-{
-	return ni_isa_attach_common(board, config, NEC7210);
-}
-
-void ni_isa_detach(gpib_board_t *board)
-{
-	struct tnt4882_priv *tnt_priv = board->private_data;
-	struct nec7210_priv *nec_priv;
-
-	if (tnt_priv) {
-		nec_priv = &tnt_priv->nec7210_priv;
-		if (nec_priv->iobase)
-			tnt4882_board_reset(tnt_priv, board);
-		if (tnt_priv->irq)
-			free_irq(tnt_priv->irq, board);
-		if (nec_priv->mmiobase)
-			ioport_unmap(nec_priv->mmiobase);
-		if (nec_priv->iobase)
-			release_region(nec_priv->iobase, atgpib_iosize);
-		if (tnt_priv->pnp_dev)
-			pnp_device_detach(tnt_priv->pnp_dev);
-	}
-	tnt4882_free_private(board);
-}
-
-static int tnt4882_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
-{
-	return 0;
-}
-
 static const struct pci_device_id tnt4882_pci_table[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_NATINST, PCI_DEVICE_ID_NI_GPIB)},
 	{PCI_DEVICE(PCI_VENDOR_ID_NATINST, PCI_DEVICE_ID_NI_GPIB_PLUS)},
@@ -1509,6 +1395,13 @@ static const struct pnp_device_id tnt4882_pnp_table[] = {
 	{.id = ""}
 };
 MODULE_DEVICE_TABLE(pnp, tnt4882_pnp_table);
+
+#ifdef GPIB_PCMCIA
+static gpib_interface_t ni_pcmcia_interface;
+static gpib_interface_t ni_pcmcia_accel_interface;
+static int __init init_ni_gpib_cs(void);
+static void __exit exit_ni_gpib_cs(void);
+#endif
 
 static int __init tnt4882_init_module(void)
 {
@@ -1676,7 +1569,6 @@ module_param(pc_debug, int, 0);
 
 static int ni_gpib_config(struct pcmcia_device  *link);
 static void ni_gpib_release(struct pcmcia_device *link);
-static int ni_pcmcia_attach(gpib_board_t *board, const gpib_board_config_t *config);
 static void ni_pcmcia_detach(gpib_board_t *board);
 
 /*
@@ -1854,12 +1746,12 @@ static struct pcmcia_driver ni_gpib_cs_driver = {
 	.resume		= ni_gpib_resume,
 };
 
-int __init init_ni_gpib_cs(void)
+static int __init init_ni_gpib_cs(void)
 {
 	return pcmcia_register_driver(&ni_gpib_cs_driver);
 }
 
-void __exit exit_ni_gpib_cs(void)
+static void __exit exit_ni_gpib_cs(void)
 {
 	DEBUG(0, "ni_gpib_cs: unloading\n");
 	pcmcia_unregister_driver(&ni_gpib_cs_driver);
@@ -1867,7 +1759,7 @@ void __exit exit_ni_gpib_cs(void)
 
 static const int pcmcia_gpib_iosize = 32;
 
-int ni_pcmcia_attach(gpib_board_t *board, const gpib_board_config_t *config)
+static int ni_pcmcia_attach(gpib_board_t *board, const gpib_board_config_t *config)
 {
 	struct local_info_t *info;
 	struct tnt4882_priv *tnt_priv;
@@ -1920,7 +1812,7 @@ int ni_pcmcia_attach(gpib_board_t *board, const gpib_board_config_t *config)
 	return 0;
 }
 
-void ni_pcmcia_detach(gpib_board_t *board)
+static void ni_pcmcia_detach(gpib_board_t *board)
 {
 	struct tnt4882_priv *tnt_priv = board->private_data;
 	struct nec7210_priv *nec_priv;
@@ -1940,6 +1832,62 @@ void ni_pcmcia_detach(gpib_board_t *board)
 	}
 	tnt4882_free_private(board);
 }
+
+static gpib_interface_t ni_pcmcia_interface = {
+	.name = "ni_pcmcia",
+	.attach = ni_pcmcia_attach,
+	.detach = ni_pcmcia_detach,
+	.read = tnt4882_accel_read,
+	.write = tnt4882_accel_write,
+	.command = tnt4882_command,
+	.take_control = tnt4882_take_control,
+	.go_to_standby = tnt4882_go_to_standby,
+	.request_system_control = tnt4882_request_system_control,
+	.interface_clear = tnt4882_interface_clear,
+	.remote_enable = tnt4882_remote_enable,
+	.enable_eos = tnt4882_enable_eos,
+	.disable_eos = tnt4882_disable_eos,
+	.parallel_poll = tnt4882_parallel_poll,
+	.parallel_poll_configure = tnt4882_parallel_poll_configure,
+	.parallel_poll_response = tnt4882_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = tnt4882_line_status,
+	.update_status = tnt4882_update_status,
+	.primary_address = tnt4882_primary_address,
+	.secondary_address = tnt4882_secondary_address,
+	.serial_poll_response = tnt4882_serial_poll_response,
+	.serial_poll_status = tnt4882_serial_poll_status,
+	.t1_delay = tnt4882_t1_delay,
+	.return_to_local = tnt4882_return_to_local,
+};
+
+static gpib_interface_t ni_pcmcia_accel_interface = {
+	.name = "ni_pcmcia_accel",
+	.attach = ni_pcmcia_attach,
+	.detach = ni_pcmcia_detach,
+	.read = tnt4882_accel_read,
+	.write = tnt4882_accel_write,
+	.command = tnt4882_command,
+	.take_control = tnt4882_take_control,
+	.go_to_standby = tnt4882_go_to_standby,
+	.request_system_control = tnt4882_request_system_control,
+	.interface_clear = tnt4882_interface_clear,
+	.remote_enable = tnt4882_remote_enable,
+	.enable_eos = tnt4882_enable_eos,
+	.disable_eos = tnt4882_disable_eos,
+	.parallel_poll = tnt4882_parallel_poll,
+	.parallel_poll_configure = tnt4882_parallel_poll_configure,
+	.parallel_poll_response = tnt4882_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = tnt4882_line_status,
+	.update_status = tnt4882_update_status,
+	.primary_address = tnt4882_primary_address,
+	.secondary_address = tnt4882_secondary_address,
+	.serial_poll_response = tnt4882_serial_poll_response,
+	.serial_poll_status = tnt4882_serial_poll_status,
+	.t1_delay = tnt4882_t1_delay,
+	.return_to_local = tnt4882_return_to_local,
+};
 
 #endif	// GPIB_PCMCIA
 

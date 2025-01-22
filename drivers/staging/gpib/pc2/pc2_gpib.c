@@ -49,15 +49,6 @@ static inline unsigned int CLEAR_INTR_REG(unsigned int irq)
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("GPIB driver for PC2/PC2a and compatible devices");
 
-static int pc2_attach(gpib_board_t *board, const gpib_board_config_t *config);
-static int pc2a_attach(gpib_board_t *board, const gpib_board_config_t *config);
-static int pc2a_cb7210_attach(gpib_board_t *board, const gpib_board_config_t *config);
-static int pc2_2a_attach(gpib_board_t *board, const gpib_board_config_t *config);
-
-static void pc2_detach(gpib_board_t *board);
-static void pc2a_detach(gpib_board_t *board);
-static void pc2_2a_detach(gpib_board_t *board);
-
 /*
  * GPIB interrupt service routines
  */
@@ -238,118 +229,6 @@ static void pc2_return_to_local(gpib_board_t *board)
 	nec7210_return_to_local(board, &priv->nec7210_priv);
 }
 
-static gpib_interface_t pc2_interface = {
-	.name =	"pcII",
-	.attach =	pc2_attach,
-	.detach =	pc2_detach,
-	.read =	pc2_read,
-	.write =	pc2_write,
-	.command =	pc2_command,
-	.take_control =	pc2_take_control,
-	.go_to_standby =	pc2_go_to_standby,
-	.request_system_control =	pc2_request_system_control,
-	.interface_clear =	pc2_interface_clear,
-	.remote_enable =	pc2_remote_enable,
-	.enable_eos =	pc2_enable_eos,
-	.disable_eos =	pc2_disable_eos,
-	.parallel_poll =	pc2_parallel_poll,
-	.parallel_poll_configure =	pc2_parallel_poll_configure,
-	.parallel_poll_response =	pc2_parallel_poll_response,
-	.local_parallel_poll_mode = NULL, // XXX
-	.line_status =	NULL,
-	.update_status =	pc2_update_status,
-	.primary_address =	pc2_primary_address,
-	.secondary_address =	pc2_secondary_address,
-	.serial_poll_response =	pc2_serial_poll_response,
-	.serial_poll_status =	pc2_serial_poll_status,
-	.t1_delay = pc2_t1_delay,
-	.return_to_local = pc2_return_to_local,
-};
-
-static gpib_interface_t pc2a_interface = {
-	.name =	"pcIIa",
-	.attach =	pc2a_attach,
-	.detach =	pc2a_detach,
-	.read =	pc2_read,
-	.write =	pc2_write,
-	.command =	pc2_command,
-	.take_control =	pc2_take_control,
-	.go_to_standby =	pc2_go_to_standby,
-	.request_system_control =	pc2_request_system_control,
-	.interface_clear =	pc2_interface_clear,
-	.remote_enable =	pc2_remote_enable,
-	.enable_eos =	pc2_enable_eos,
-	.disable_eos =	pc2_disable_eos,
-	.parallel_poll =	pc2_parallel_poll,
-	.parallel_poll_configure =	pc2_parallel_poll_configure,
-	.parallel_poll_response =	pc2_parallel_poll_response,
-	.local_parallel_poll_mode = NULL, // XXX
-	.line_status =	NULL,
-	.update_status =	pc2_update_status,
-	.primary_address =	pc2_primary_address,
-	.secondary_address =	pc2_secondary_address,
-	.serial_poll_response =	pc2_serial_poll_response,
-	.serial_poll_status =	pc2_serial_poll_status,
-	.t1_delay = pc2_t1_delay,
-	.return_to_local = pc2_return_to_local,
-};
-
-static gpib_interface_t pc2a_cb7210_interface = {
-	.name =	"pcIIa_cb7210",
-	.attach =	pc2a_cb7210_attach,
-	.detach =	pc2a_detach,
-	.read =	pc2_read,
-	.write =	pc2_write,
-	.command =	pc2_command,
-	.take_control =	pc2_take_control,
-	.go_to_standby =	pc2_go_to_standby,
-	.request_system_control =	pc2_request_system_control,
-	.interface_clear =	pc2_interface_clear,
-	.remote_enable =	pc2_remote_enable,
-	.enable_eos =	pc2_enable_eos,
-	.disable_eos =	pc2_disable_eos,
-	.parallel_poll =	pc2_parallel_poll,
-	.parallel_poll_configure =	pc2_parallel_poll_configure,
-	.parallel_poll_response =	pc2_parallel_poll_response,
-	.local_parallel_poll_mode = NULL, // XXX
-	.line_status =	NULL, //XXX
-	.update_status =	pc2_update_status,
-	.primary_address =	pc2_primary_address,
-	.secondary_address =	pc2_secondary_address,
-	.serial_poll_response =	pc2_serial_poll_response,
-	.serial_poll_status =	pc2_serial_poll_status,
-	.t1_delay = pc2_t1_delay,
-	.return_to_local = pc2_return_to_local,
-};
-
-static gpib_interface_t pc2_2a_interface = {
-	.name =	"pcII_IIa",
-	.attach =	pc2_2a_attach,
-	.detach =	pc2_2a_detach,
-	.read =	pc2_read,
-	.write =	pc2_write,
-	.command =	pc2_command,
-	.take_control =	pc2_take_control,
-	.go_to_standby =	pc2_go_to_standby,
-	.request_system_control =	pc2_request_system_control,
-	.interface_clear =	pc2_interface_clear,
-	.remote_enable =	pc2_remote_enable,
-	.enable_eos =	pc2_enable_eos,
-	.disable_eos =	pc2_disable_eos,
-	.parallel_poll =	pc2_parallel_poll,
-	.parallel_poll_configure =	pc2_parallel_poll_configure,
-	.parallel_poll_response =	pc2_parallel_poll_response,
-	.local_parallel_poll_mode = NULL, // XXX
-	.line_status =	NULL,
-	.update_status =	pc2_update_status,
-	.primary_address =	pc2_primary_address,
-	.secondary_address =	pc2_secondary_address,
-	.serial_poll_response =	pc2_serial_poll_response,
-	.serial_poll_status =	pc2_serial_poll_status,
-	.t1_delay = pc2_t1_delay,
-	.return_to_local = pc2_return_to_local,
-};
-
 static int allocate_private(gpib_board_t *board)
 {
 	struct pc2_priv *priv;
@@ -411,7 +290,7 @@ static int pc2_generic_attach(gpib_board_t *board, const gpib_board_config_t *co
 	return 0;
 }
 
-int pc2_attach(gpib_board_t *board, const gpib_board_config_t *config)
+static int pc2_attach(gpib_board_t *board, const gpib_board_config_t *config)
 {
 	int isr_flags = 0;
 	struct pc2_priv *pc2_priv;
@@ -455,7 +334,7 @@ int pc2_attach(gpib_board_t *board, const gpib_board_config_t *config)
 	return 0;
 }
 
-void pc2_detach(gpib_board_t *board)
+static void pc2_detach(gpib_board_t *board)
 {
 	struct pc2_priv *pc2_priv = board->private_data;
 	struct nec7210_priv *nec_priv;
@@ -575,17 +454,17 @@ static int pc2a_common_attach(gpib_board_t *board, const gpib_board_config_t *co
 	return 0;
 }
 
-int pc2a_attach(gpib_board_t *board, const gpib_board_config_t *config)
+static int pc2a_attach(gpib_board_t *board, const gpib_board_config_t *config)
 {
 	return pc2a_common_attach(board, config, pc2a_iosize, NEC7210);
 }
 
-int pc2a_cb7210_attach(gpib_board_t *board, const gpib_board_config_t *config)
+static int pc2a_cb7210_attach(gpib_board_t *board, const gpib_board_config_t *config)
 {
 	return pc2a_common_attach(board, config, pc2a_iosize, CB7210);
 }
 
-int pc2_2a_attach(gpib_board_t *board, const gpib_board_config_t *config)
+static int pc2_2a_attach(gpib_board_t *board, const gpib_board_config_t *config)
 {
 	return pc2a_common_attach(board, config, pc2_2a_iosize, NAT4882);
 }
@@ -623,15 +502,127 @@ static void pc2a_common_detach(gpib_board_t *board, unsigned int num_registers)
 	free_private(board);
 }
 
-void pc2a_detach(gpib_board_t *board)
+static void pc2a_detach(gpib_board_t *board)
 {
 	pc2a_common_detach(board, pc2a_iosize);
 }
 
-void pc2_2a_detach(gpib_board_t *board)
+static void pc2_2a_detach(gpib_board_t *board)
 {
 	pc2a_common_detach(board, pc2_2a_iosize);
 }
+
+static gpib_interface_t pc2_interface = {
+	.name =	"pcII",
+	.attach =	pc2_attach,
+	.detach =	pc2_detach,
+	.read =	pc2_read,
+	.write =	pc2_write,
+	.command =	pc2_command,
+	.take_control =	pc2_take_control,
+	.go_to_standby =	pc2_go_to_standby,
+	.request_system_control =	pc2_request_system_control,
+	.interface_clear =	pc2_interface_clear,
+	.remote_enable =	pc2_remote_enable,
+	.enable_eos =	pc2_enable_eos,
+	.disable_eos =	pc2_disable_eos,
+	.parallel_poll =	pc2_parallel_poll,
+	.parallel_poll_configure =	pc2_parallel_poll_configure,
+	.parallel_poll_response =	pc2_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status =	NULL,
+	.update_status =	pc2_update_status,
+	.primary_address =	pc2_primary_address,
+	.secondary_address =	pc2_secondary_address,
+	.serial_poll_response =	pc2_serial_poll_response,
+	.serial_poll_status =	pc2_serial_poll_status,
+	.t1_delay = pc2_t1_delay,
+	.return_to_local = pc2_return_to_local,
+};
+
+static gpib_interface_t pc2a_interface = {
+	.name =	"pcIIa",
+	.attach =	pc2a_attach,
+	.detach =	pc2a_detach,
+	.read =	pc2_read,
+	.write =	pc2_write,
+	.command =	pc2_command,
+	.take_control =	pc2_take_control,
+	.go_to_standby =	pc2_go_to_standby,
+	.request_system_control =	pc2_request_system_control,
+	.interface_clear =	pc2_interface_clear,
+	.remote_enable =	pc2_remote_enable,
+	.enable_eos =	pc2_enable_eos,
+	.disable_eos =	pc2_disable_eos,
+	.parallel_poll =	pc2_parallel_poll,
+	.parallel_poll_configure =	pc2_parallel_poll_configure,
+	.parallel_poll_response =	pc2_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status =	NULL,
+	.update_status =	pc2_update_status,
+	.primary_address =	pc2_primary_address,
+	.secondary_address =	pc2_secondary_address,
+	.serial_poll_response =	pc2_serial_poll_response,
+	.serial_poll_status =	pc2_serial_poll_status,
+	.t1_delay = pc2_t1_delay,
+	.return_to_local = pc2_return_to_local,
+};
+
+static gpib_interface_t pc2a_cb7210_interface = {
+	.name =	"pcIIa_cb7210",
+	.attach =	pc2a_cb7210_attach,
+	.detach =	pc2a_detach,
+	.read =	pc2_read,
+	.write =	pc2_write,
+	.command =	pc2_command,
+	.take_control =	pc2_take_control,
+	.go_to_standby =	pc2_go_to_standby,
+	.request_system_control =	pc2_request_system_control,
+	.interface_clear =	pc2_interface_clear,
+	.remote_enable =	pc2_remote_enable,
+	.enable_eos =	pc2_enable_eos,
+	.disable_eos =	pc2_disable_eos,
+	.parallel_poll =	pc2_parallel_poll,
+	.parallel_poll_configure =	pc2_parallel_poll_configure,
+	.parallel_poll_response =	pc2_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status =	NULL, //XXX
+	.update_status =	pc2_update_status,
+	.primary_address =	pc2_primary_address,
+	.secondary_address =	pc2_secondary_address,
+	.serial_poll_response =	pc2_serial_poll_response,
+	.serial_poll_status =	pc2_serial_poll_status,
+	.t1_delay = pc2_t1_delay,
+	.return_to_local = pc2_return_to_local,
+};
+
+static gpib_interface_t pc2_2a_interface = {
+	.name =	"pcII_IIa",
+	.attach =	pc2_2a_attach,
+	.detach =	pc2_2a_detach,
+	.read =	pc2_read,
+	.write =	pc2_write,
+	.command =	pc2_command,
+	.take_control =	pc2_take_control,
+	.go_to_standby =	pc2_go_to_standby,
+	.request_system_control =	pc2_request_system_control,
+	.interface_clear =	pc2_interface_clear,
+	.remote_enable =	pc2_remote_enable,
+	.enable_eos =	pc2_enable_eos,
+	.disable_eos =	pc2_disable_eos,
+	.parallel_poll =	pc2_parallel_poll,
+	.parallel_poll_configure =	pc2_parallel_poll_configure,
+	.parallel_poll_response =	pc2_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status =	NULL,
+	.update_status =	pc2_update_status,
+	.primary_address =	pc2_primary_address,
+	.secondary_address =	pc2_secondary_address,
+	.serial_poll_response =	pc2_serial_poll_response,
+	.serial_poll_status =	pc2_serial_poll_status,
+	.t1_delay = pc2_t1_delay,
+	.return_to_local = pc2_return_to_local,
+};
 
 static int __init pc2_init_module(void)
 {

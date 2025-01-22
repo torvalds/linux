@@ -21,124 +21,126 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("GPIB driver for HP 82335 interface cards");
 
 static int hp82335_attach(gpib_board_t *board, const gpib_board_config_t *config);
-
 static void hp82335_detach(gpib_board_t *board);
+static irqreturn_t hp82335_interrupt(int irq, void *arg);
 
 // wrappers for interface functions
-int hp82335_read(gpib_board_t *board, uint8_t *buffer, size_t length, int *end, size_t *bytes_read)
+static int hp82335_read(gpib_board_t *board, uint8_t *buffer, size_t length,
+			int *end, size_t *bytes_read)
 {
 	struct hp82335_priv *priv = board->private_data;
 
 	return tms9914_read(board, &priv->tms9914_priv, buffer, length, end, bytes_read);
 }
 
-int hp82335_write(gpib_board_t *board, uint8_t *buffer, size_t length, int send_eoi,
-		  size_t *bytes_written)
+static int hp82335_write(gpib_board_t *board, uint8_t *buffer, size_t length, int send_eoi,
+			 size_t *bytes_written)
 {
 	struct hp82335_priv *priv = board->private_data;
 
 	return tms9914_write(board, &priv->tms9914_priv, buffer, length, send_eoi, bytes_written);
 }
 
-int hp82335_command(gpib_board_t *board, uint8_t *buffer, size_t length, size_t *bytes_written)
+static int hp82335_command(gpib_board_t *board, uint8_t *buffer, size_t length,
+			   size_t *bytes_written)
 {
 	struct hp82335_priv *priv = board->private_data;
 
 	return tms9914_command(board, &priv->tms9914_priv, buffer, length, bytes_written);
 }
 
-int hp82335_take_control(gpib_board_t *board, int synchronous)
+static int hp82335_take_control(gpib_board_t *board, int synchronous)
 {
 	struct hp82335_priv *priv = board->private_data;
 
 	return tms9914_take_control(board, &priv->tms9914_priv, synchronous);
 }
 
-int hp82335_go_to_standby(gpib_board_t *board)
+static int hp82335_go_to_standby(gpib_board_t *board)
 {
 	struct hp82335_priv *priv = board->private_data;
 
 	return tms9914_go_to_standby(board, &priv->tms9914_priv);
 }
 
-void hp82335_request_system_control(gpib_board_t *board, int request_control)
+static void hp82335_request_system_control(gpib_board_t *board, int request_control)
 {
 	struct hp82335_priv *priv = board->private_data;
 
 	tms9914_request_system_control(board, &priv->tms9914_priv, request_control);
 }
 
-void hp82335_interface_clear(gpib_board_t *board, int assert)
+static void hp82335_interface_clear(gpib_board_t *board, int assert)
 {
 	struct hp82335_priv *priv = board->private_data;
 
 	tms9914_interface_clear(board, &priv->tms9914_priv, assert);
 }
 
-void hp82335_remote_enable(gpib_board_t *board, int enable)
+static void hp82335_remote_enable(gpib_board_t *board, int enable)
 {
 	struct hp82335_priv *priv = board->private_data;
 
 	tms9914_remote_enable(board, &priv->tms9914_priv, enable);
 }
 
-int hp82335_enable_eos(gpib_board_t *board, uint8_t eos_byte, int compare_8_bits)
+static int hp82335_enable_eos(gpib_board_t *board, uint8_t eos_byte, int compare_8_bits)
 {
 	struct hp82335_priv *priv = board->private_data;
 
 	return tms9914_enable_eos(board, &priv->tms9914_priv, eos_byte, compare_8_bits);
 }
 
-void hp82335_disable_eos(gpib_board_t *board)
+static void hp82335_disable_eos(gpib_board_t *board)
 {
 	struct hp82335_priv *priv = board->private_data;
 
 	tms9914_disable_eos(board, &priv->tms9914_priv);
 }
 
-unsigned int hp82335_update_status(gpib_board_t *board, unsigned int clear_mask)
+static unsigned int hp82335_update_status(gpib_board_t *board, unsigned int clear_mask)
 {
 	struct hp82335_priv *priv = board->private_data;
 
 	return tms9914_update_status(board, &priv->tms9914_priv, clear_mask);
 }
 
-int hp82335_primary_address(gpib_board_t *board, unsigned int address)
+static int hp82335_primary_address(gpib_board_t *board, unsigned int address)
 {
 	struct hp82335_priv *priv = board->private_data;
 
 	return tms9914_primary_address(board, &priv->tms9914_priv, address);
 }
 
-int hp82335_secondary_address(gpib_board_t *board, unsigned int address, int enable)
+static int hp82335_secondary_address(gpib_board_t *board, unsigned int address, int enable)
 {
 	struct hp82335_priv *priv = board->private_data;
 
 	return tms9914_secondary_address(board, &priv->tms9914_priv, address, enable);
 }
 
-int hp82335_parallel_poll(gpib_board_t *board, uint8_t *result)
+static int hp82335_parallel_poll(gpib_board_t *board, uint8_t *result)
 {
 	struct hp82335_priv *priv = board->private_data;
 
 	return tms9914_parallel_poll(board, &priv->tms9914_priv, result);
 }
 
-void hp82335_parallel_poll_configure(gpib_board_t *board, uint8_t config)
+static void hp82335_parallel_poll_configure(gpib_board_t *board, uint8_t config)
 {
 	struct hp82335_priv *priv = board->private_data;
 
 	tms9914_parallel_poll_configure(board, &priv->tms9914_priv, config);
 }
 
-void hp82335_parallel_poll_response(gpib_board_t *board, int ist)
+static void hp82335_parallel_poll_response(gpib_board_t *board, int ist)
 {
 	struct hp82335_priv *priv = board->private_data;
 
 	tms9914_parallel_poll_response(board, &priv->tms9914_priv, ist);
 }
 
-void hp82335_serial_poll_response(gpib_board_t *board, uint8_t status)
+static void hp82335_serial_poll_response(gpib_board_t *board, uint8_t status)
 {
 	struct hp82335_priv *priv = board->private_data;
 
@@ -166,7 +168,7 @@ static unsigned int hp82335_t1_delay(gpib_board_t *board, unsigned int nano_sec)
 	return tms9914_t1_delay(board, &priv->tms9914_priv, nano_sec);
 }
 
-void hp82335_return_to_local(gpib_board_t *board)
+static void hp82335_return_to_local(gpib_board_t *board)
 {
 	struct hp82335_priv *priv = board->private_data;
 
@@ -201,7 +203,7 @@ static gpib_interface_t hp82335_interface = {
 	.return_to_local = hp82335_return_to_local,
 };
 
-int hp82335_allocate_private(gpib_board_t *board)
+static int hp82335_allocate_private(gpib_board_t *board)
 {
 	board->private_data = kzalloc(sizeof(struct hp82335_priv), GFP_KERNEL);
 	if (!board->private_data)
@@ -209,7 +211,7 @@ int hp82335_allocate_private(gpib_board_t *board)
 	return 0;
 }
 
-void hp82335_free_private(gpib_board_t *board)
+static void hp82335_free_private(gpib_board_t *board)
 {
 	kfree(board->private_data);
 	board->private_data = NULL;
@@ -237,7 +239,7 @@ static void hp82335_clear_interrupt(struct hp82335_priv *hp_priv)
 	writeb(0, tms_priv->mmiobase + HPREG_INTR_CLEAR);
 }
 
-int hp82335_attach(gpib_board_t *board, const gpib_board_config_t *config)
+static int hp82335_attach(gpib_board_t *board, const gpib_board_config_t *config)
 {
 	struct hp82335_priv *hp_priv;
 	struct tms9914_priv *tms_priv;
@@ -304,7 +306,7 @@ int hp82335_attach(gpib_board_t *board, const gpib_board_config_t *config)
 	return 0;
 }
 
-void hp82335_detach(gpib_board_t *board)
+static void hp82335_detach(gpib_board_t *board)
 {
 	struct hp82335_priv *hp_priv = board->private_data;
 	struct tms9914_priv *tms_priv;
@@ -348,7 +350,7 @@ module_exit(hp82335_exit_module);
  * GPIB interrupt service routines
  */
 
-irqreturn_t hp82335_interrupt(int irq, void *arg)
+static irqreturn_t hp82335_interrupt(int irq, void *arg)
 {
 	int status1, status2;
 	gpib_board_t *board = arg;
