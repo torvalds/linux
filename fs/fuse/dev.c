@@ -32,9 +32,6 @@ MODULE_ALIAS("devname:fuse");
 
 static struct kmem_cache *fuse_req_cachep;
 
-/* Frequency (in seconds) of request timeout checks, if opted into */
-#define FUSE_TIMEOUT_TIMER_FREQ 15
-
 const unsigned long fuse_timeout_timer_freq =
 	secs_to_jiffies(FUSE_TIMEOUT_TIMER_FREQ);
 
