@@ -500,6 +500,7 @@ static ssize_t amdgpu_debugfs_ring_read(struct file *f, char __user *buf,
 {
 	struct amdgpu_ring *ring = file_inode(f)->i_private;
 	uint32_t value, result, early[3];
+	uint64_t p;
 	loff_t i;
 	int r;
 
@@ -523,18 +524,42 @@ static ssize_t amdgpu_debugfs_ring_read(struct file *f, char __user *buf,
 		}
 	}
 
-	while (size) {
-		if (*pos >= (ring->ring_size + 12))
-			return result;
+	if (ring->funcs->type != AMDGPU_RING_TYPE_CPER) {
+		while (size) {
+			if (*pos >= (ring->ring_size + 12))
+				return result;
 
-		value = ring->ring[(*pos - 12)/4];
-		r = put_user(value, (uint32_t *)buf);
-		if (r)
-			return r;
-		buf += 4;
-		result += 4;
-		size -= 4;
-		*pos += 4;
+			value = ring->ring[(*pos - 12)/4];
+			r = put_user(value, (uint32_t *)buf);
+			if (r)
+				return r;
+			buf += 4;
+			result += 4;
+			size -= 4;
+			*pos += 4;
+		}
+	} else {
+		p = early[0];
+		if (early[0] <= early[1])
+			size = (early[1] - early[0]);
+		else
+			size = ring->ring_size - (early[0] - early[1]);
+
+		while (size) {
+			if (p == early[1])
+				return result;
+
+			value = ring->ring[p];
+			r = put_user(value, (uint32_t *)buf);
+			if (r)
+				return r;
+
+			buf += 4;
+			result += 4;
+			size--;
+			p++;
+			p &= ring->ptr_mask;
+		}
 	}
 
 	return result;
