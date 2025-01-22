@@ -293,7 +293,6 @@ static struct cpufreq_driver cpufreq_mtk_hw_driver = {
 	.register_em	= mtk_cpufreq_register_em,
 	.fast_switch	= mtk_cpufreq_hw_fast_switch,
 	.name		= "mtk-cpufreq-hw",
-	.attr		= cpufreq_generic_attr,
 };
 
 static int mtk_cpufreq_hw_driver_probe(struct platform_device *pdev)

@@ -618,7 +618,6 @@ static struct cpufreq_driver mtk_cpufreq_driver = {
 	.exit = mtk_cpufreq_exit,
 	.register_em = cpufreq_register_em_with_opp,
 	.name = "mtk-cpufreq",
-	.attr = cpufreq_generic_attr,
 };
 
 static int mtk_cpufreq_probe(struct platform_device *pdev)
