@@ -983,7 +983,7 @@ static unsigned int g4x_sprite_min_alignment(struct intel_plane *plane,
 	struct drm_i915_private *i915 = to_i915(plane->base.dev);
 
 	if (intel_scanout_needs_vtd_wa(i915))
-		return 256 * 1024;
+		return 128 * 1024;
 
 	return 4 * 1024;
 }
