@@ -118,5 +118,9 @@ ktap_finished() {
 }
 
 ktap_print_totals() {
+	if [ "$KTAP_CNT_SKIP" -gt 0 ]; then
+		echo "# $KTAP_CNT_SKIP skipped test(s) detected. " \
+			"Consider enabling relevant config options to improve coverage."
+	fi
 	echo "# Totals: pass:$KTAP_CNT_PASS fail:$KTAP_CNT_FAIL xfail:$KTAP_CNT_XFAIL xpass:0 skip:$KTAP_CNT_SKIP error:0"
 }
