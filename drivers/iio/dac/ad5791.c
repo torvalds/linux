@@ -294,7 +294,7 @@ static const struct ad5791_chip_info _name##_chip_info = {		\
 			.scan_type = {					\
 				.sign = 'u',				\
 				.realbits = (bits),			\
-				.storagebits = 24,			\
+				.storagebits = 32,			\
 				.shift = (_shift),			\
 			},						\
 			.ext_info = ad5791_ext_info,			\
