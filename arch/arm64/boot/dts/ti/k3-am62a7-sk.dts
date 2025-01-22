@@ -655,6 +655,7 @@
 };
 
 &usb0 {
+	bootph-all;
 	usb-role-switch;
 
 	port {
