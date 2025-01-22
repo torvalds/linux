@@ -447,6 +447,7 @@ static int tas2781_read_acpi(struct tas2781_hda *tas_hda,
 		p->reset = devm_gpiod_get_index_optional(physdev, "reset",
 			p->index, GPIOD_OUT_LOW);
 		if (IS_ERR(p->reset)) {
+			ret = PTR_ERR(p->reset);
 			dev_err_probe(p->dev, ret, "Failed on reset GPIO\n");
 			goto err;
 		}
