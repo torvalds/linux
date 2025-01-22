@@ -588,6 +588,8 @@ static void unhash_nsid(struct net *net, struct net *last)
 
 static LLIST_HEAD(cleanup_list);
 
+struct task_struct *cleanup_net_task;
+
 static void cleanup_net(struct work_struct *work)
 {
 	const struct pernet_operations *ops;
@@ -595,6 +597,8 @@ static void cleanup_net(struct work_struct *work)
 	struct llist_node *net_kill_list;
 	LIST_HEAD(net_exit_list);
 	LIST_HEAD(dev_kill_list);
+
+	cleanup_net_task = current;
 
 	/* Atomically snapshot the list of namespaces to cleanup */
 	net_kill_list = llist_del_all(&cleanup_list);
@@ -670,6 +674,7 @@ static void cleanup_net(struct work_struct *work)
 		put_user_ns(net->user_ns);
 		net_free(net);
 	}
+	cleanup_net_task = NULL;
 }
 
 /**

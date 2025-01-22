@@ -94,25 +94,14 @@ static bool mlx5e_ipsec_update_esn_state(struct mlx5e_ipsec_sa_entry *sa_entry)
 	u32 esn, esn_msb;
 	u8 overlap;
 
-	switch (x->xso.type) {
-	case XFRM_DEV_OFFLOAD_PACKET:
-		switch (x->xso.dir) {
-		case XFRM_DEV_OFFLOAD_IN:
-			esn = x->replay_esn->seq;
-			esn_msb = x->replay_esn->seq_hi;
-			break;
-		case XFRM_DEV_OFFLOAD_OUT:
-			esn = x->replay_esn->oseq;
-			esn_msb = x->replay_esn->oseq_hi;
-			break;
-		default:
-			WARN_ON(true);
-			return false;
-		}
-		break;
-	case XFRM_DEV_OFFLOAD_CRYPTO:
-		/* Already parsed by XFRM core */
+	switch (x->xso.dir) {
+	case XFRM_DEV_OFFLOAD_IN:
 		esn = x->replay_esn->seq;
+		esn_msb = x->replay_esn->seq_hi;
+		break;
+	case XFRM_DEV_OFFLOAD_OUT:
+		esn = x->replay_esn->oseq;
+		esn_msb = x->replay_esn->oseq_hi;
 		break;
 	default:
 		WARN_ON(true);
@@ -121,11 +110,15 @@ static bool mlx5e_ipsec_update_esn_state(struct mlx5e_ipsec_sa_entry *sa_entry)
 
 	overlap = sa_entry->esn_state.overlap;
 
-	if (esn >= x->replay_esn->replay_window)
-		seq_bottom = esn - x->replay_esn->replay_window + 1;
+	if (!x->replay_esn->replay_window) {
+		seq_bottom = esn;
+	} else {
+		if (esn >= x->replay_esn->replay_window)
+			seq_bottom = esn - x->replay_esn->replay_window + 1;
 
-	if (x->xso.type == XFRM_DEV_OFFLOAD_CRYPTO)
-		esn_msb = xfrm_replay_seqhi(x, htonl(seq_bottom));
+		if (x->xso.type == XFRM_DEV_OFFLOAD_CRYPTO)
+			esn_msb = xfrm_replay_seqhi(x, htonl(seq_bottom));
+	}
 
 	if (sa_entry->esn_state.esn_msb)
 		sa_entry->esn_state.esn = esn;

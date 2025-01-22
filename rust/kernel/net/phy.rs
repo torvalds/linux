@@ -837,7 +837,7 @@ impl DeviceMask {
 ///         [::kernel::net::phy::create_phy_driver::<PhySample>()];
 ///
 ///     impl ::kernel::Module for Module {
-///         fn init(module: &'static ThisModule) -> Result<Self> {
+///         fn init(module: &'static ::kernel::ThisModule) -> Result<Self> {
 ///             let drivers = unsafe { &mut DRIVERS };
 ///             let mut reg = ::kernel::net::phy::Registration::register(
 ///                 module,
@@ -903,7 +903,7 @@ macro_rules! module_phy_driver {
                 [$($crate::net::phy::create_phy_driver::<$driver>()),+];
 
             impl $crate::Module for Module {
-                fn init(module: &'static ThisModule) -> Result<Self> {
+                fn init(module: &'static $crate::ThisModule) -> Result<Self> {
                     // SAFETY: The anonymous constant guarantees that nobody else can access
                     // the `DRIVERS` static. The array is used only in the C side.
                     let drivers = unsafe { &mut DRIVERS };

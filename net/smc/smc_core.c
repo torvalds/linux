@@ -795,9 +795,14 @@ int smcr_link_init(struct smc_link_group *lgr, struct smc_link *lnk,
 	if (lgr->smc_version == SMC_V2) {
 		lnk->smcibdev = ini->smcrv2.ib_dev_v2;
 		lnk->ibport = ini->smcrv2.ib_port_v2;
+		lnk->wr_rx_sge_cnt = lnk->smcibdev->ibdev->attrs.max_recv_sge < 2 ? 1 : 2;
+		lnk->wr_rx_buflen = smc_link_shared_v2_rxbuf(lnk) ?
+			SMC_WR_BUF_SIZE : SMC_WR_BUF_V2_SIZE;
 	} else {
 		lnk->smcibdev = ini->ib_dev;
 		lnk->ibport = ini->ib_port;
+		lnk->wr_rx_sge_cnt = 1;
+		lnk->wr_rx_buflen = SMC_WR_BUF_SIZE;
 	}
 	get_device(&lnk->smcibdev->ibdev->dev);
 	atomic_inc(&lnk->smcibdev->lnk_cnt);
@@ -2150,7 +2155,7 @@ static int smcr_buf_map_link(struct smc_buf_desc *buf_desc, bool is_rmb,
 		for_each_sg(buf_desc->sgt[lnk->link_idx].sgl, sg, nents, i) {
 			size = min_t(int, PAGE_SIZE - offset, buf_size);
 			sg_set_page(sg, vmalloc_to_page(buf), size, offset);
-			buf += size / sizeof(*buf);
+			buf += size;
 			buf_size -= size;
 			offset = 0;
 		}

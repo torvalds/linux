@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: GPL-2.0
+// Test that we send FIN packet with correct TSval
+--tcp_ts_tick_usecs=1000
+--tolerance_usecs=7000
+
+`./defaults.sh`
+
+// Create a socket.
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+// Establish a connection.
+   +0 < S 0:0(0) win 20000 <mss 1000,sackOK,TS val 100 ecr 0>
+   +0 > S. 0:0(0) ack 1 <mss 1460,sackOK,TS val 100 ecr 100>
+  +.1 < . 1:1(0) ack 1 win 20000 <nop,nop,TS val 200 ecr 100>
+   +0 accept(3, ..., ...) = 4
+
+   +1 close(4) = 0
+// Check that FIN TSval is updated properly, one second has passed since last sent packet.
+   +0 > F. 1:1(0) ack 1 <nop,nop,TS val 1200 ecr 200>

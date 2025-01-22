@@ -68,6 +68,8 @@ enum {
 	FRA_SPORT_RANGE, /* sport */
 	FRA_DPORT_RANGE, /* dport */
 	FRA_DSCP,	/* dscp */
+	FRA_FLOWLABEL,	/* flowlabel */
+	FRA_FLOWLABEL_MASK,	/* flowlabel mask */
 	__FRA_MAX
 };
 

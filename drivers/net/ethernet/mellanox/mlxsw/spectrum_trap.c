@@ -173,7 +173,7 @@ static void mlxsw_sp_rx_no_mark_listener(struct sk_buff *skb, u16 local_port,
 	if (err)
 		return;
 
-	netif_receive_skb(skb);
+	napi_gro_receive(mlxsw_skb_cb(skb)->rx_md_info.napi, skb);
 }
 
 static void mlxsw_sp_rx_mark_listener(struct sk_buff *skb, u16 local_port,

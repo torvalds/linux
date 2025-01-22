@@ -199,17 +199,18 @@ static inline int skb_array_resize(struct skb_array *a, int size, gfp_t gfp)
 	return ptr_ring_resize(&a->ring, size, gfp, __skb_array_destroy_skb);
 }
 
-static inline int skb_array_resize_multiple_noprof(struct skb_array **rings,
-						   int nrings, unsigned int size,
-						   gfp_t gfp)
+static inline int skb_array_resize_multiple_bh_noprof(struct skb_array **rings,
+						      int nrings,
+						      unsigned int size,
+						      gfp_t gfp)
 {
 	BUILD_BUG_ON(offsetof(struct skb_array, ring));
-	return ptr_ring_resize_multiple_noprof((struct ptr_ring **)rings,
-					       nrings, size, gfp,
-					       __skb_array_destroy_skb);
+	return ptr_ring_resize_multiple_bh_noprof((struct ptr_ring **)rings,
+					          nrings, size, gfp,
+					          __skb_array_destroy_skb);
 }
-#define skb_array_resize_multiple(...)	\
-		alloc_hooks(skb_array_resize_multiple_noprof(__VA_ARGS__))
+#define skb_array_resize_multiple_bh(...)	\
+		alloc_hooks(skb_array_resize_multiple_bh_noprof(__VA_ARGS__))
 
 static inline void skb_array_cleanup(struct skb_array *a)
 {

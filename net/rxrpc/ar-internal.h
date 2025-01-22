@@ -30,6 +30,7 @@ struct rxrpc_crypt {
 struct key_preparsed_payload;
 struct rxrpc_connection;
 struct rxrpc_txbuf;
+struct rxrpc_txqueue;
 
 /*
  * Mark applied to socket buffers in skb->mark.  skb->priority is used
@@ -98,6 +99,7 @@ struct rxrpc_net {
 	atomic_t		stat_tx_data_send;
 	atomic_t		stat_tx_data_send_frag;
 	atomic_t		stat_tx_data_send_fail;
+	atomic_t		stat_tx_data_send_msgsize;
 	atomic_t		stat_tx_data_underflow;
 	atomic_t		stat_tx_data_cwnd_reset;
 	atomic_t		stat_rx_data;
@@ -109,6 +111,8 @@ struct rxrpc_net {
 	atomic_t		stat_tx_ack_skip;
 	atomic_t		stat_tx_acks[256];
 	atomic_t		stat_rx_acks[256];
+	atomic_t		stat_tx_jumbo[10];
+	atomic_t		stat_rx_jumbo[10];
 
 	atomic_t		stat_why_req_ack[8];
 
@@ -210,9 +214,8 @@ struct rxrpc_skb_priv {
 			rxrpc_seq_t	first_ack;	/* First packet in acks table */
 			rxrpc_seq_t	prev_ack;	/* Highest seq seen */
 			rxrpc_serial_t	acked_serial;	/* Packet in response to (or 0) */
+			u16		nr_acks;	/* Number of acks+nacks */
 			u8		reason;		/* Reason for ack */
-			u8		nr_acks;	/* Number of acks+nacks */
-			u8		nr_nacks;	/* Number of nacks */
 		} ack;
 	};
 	struct rxrpc_host_header hdr;	/* RxRPC packet header from this packet */
@@ -320,6 +323,12 @@ struct rxrpc_local {
 	struct list_head	new_client_calls; /* Newly created client calls need connection */
 	spinlock_t		client_call_lock; /* Lock for ->new_client_calls */
 	struct sockaddr_rxrpc	srx;		/* local address */
+	/* Provide a kvec table sufficiently large to manage either a DATA
+	 * packet with a maximum set of jumbo subpackets or a PING ACK padded
+	 * out to 64K with zeropages for PMTUD.
+	 */
+	struct kvec		kvec[RXRPC_MAX_NR_JUMBO > 3 + 16 ?
+				     RXRPC_MAX_NR_JUMBO : 3 + 16];
 };
 
 /*
@@ -338,25 +347,28 @@ struct rxrpc_peer {
 	time64_t		last_tx_at;	/* Last time packet sent here */
 	seqlock_t		service_conn_lock;
 	spinlock_t		lock;		/* access lock */
-	unsigned int		if_mtu;		/* interface MTU for this peer */
-	unsigned int		mtu;		/* network MTU for this peer */
-	unsigned int		maxdata;	/* data size (MTU - hdrsize) */
-	unsigned short		hdrsize;	/* header size (IP + UDP + RxRPC) */
 	int			debug_id;	/* debug ID for printks */
 	struct sockaddr_rxrpc	srx;		/* remote address */
 
-	/* calculated RTT cache */
-#define RXRPC_RTT_CACHE_SIZE 32
-	spinlock_t		rtt_input_lock;	/* RTT lock for input routine */
-	ktime_t			rtt_last_req;	/* Time of last RTT request */
-	unsigned int		rtt_count;	/* Number of samples we've got */
+	/* Path MTU discovery [RFC8899] */
+	unsigned int		pmtud_trial;	/* Current MTU probe size */
+	unsigned int		pmtud_good;	/* Largest working MTU probe we've tried */
+	unsigned int		pmtud_bad;	/* Smallest non-working MTU probe we've tried */
+	bool			pmtud_lost;	/* T if MTU probe was lost */
+	bool			pmtud_probing;	/* T if we have an active probe outstanding */
+	bool			pmtud_pending;	/* T if a call to this peer should send a probe */
+	u8			pmtud_jumbo;	/* Max jumbo packets for the MTU */
+	bool			ackr_adv_pmtud;	/* T if the peer advertises path-MTU */
+	unsigned int		ackr_max_data;	/* Maximum data advertised by peer */
+	seqcount_t		mtu_lock;	/* Lockless MTU access management */
+	unsigned int		if_mtu;		/* Local interface MTU (- hdrsize) for this peer */
+	unsigned int		max_data;	/* Maximum packet data capacity for this peer */
+	unsigned short		hdrsize;	/* header size (IP + UDP + RxRPC) */
+	unsigned short		tx_seg_max;	/* Maximum number of transmissable segments */
 
-	u32			srtt_us;	/* smoothed round trip time << 3 in usecs */
-	u32			mdev_us;	/* medium deviation			*/
-	u32			mdev_max_us;	/* maximal mdev for the last rtt period	*/
-	u32			rttvar_us;	/* smoothed mdev_max			*/
-	u32			rto_us;		/* Retransmission timeout in usec */
-	u8			backoff;	/* Backoff timeout (as shift) */
+	/* Calculated RTT cache */
+	unsigned int		recent_srtt_us;
+	unsigned int		recent_rto_us;
 
 	u8			cong_ssthresh;	/* Congestion slow-start threshold */
 };
@@ -525,6 +537,8 @@ struct rxrpc_connection {
 	int			debug_id;	/* debug ID for printks */
 	rxrpc_serial_t		tx_serial;	/* Outgoing packet serial number counter */
 	unsigned int		hi_serial;	/* highest serial number received */
+	rxrpc_serial_t		pmtud_probe;	/* Serial of MTU probe (or 0) */
+	unsigned int		pmtud_call;	/* ID of call used for probe */
 	u32			service_id;	/* Service ID, possibly upgraded */
 	u32			security_level;	/* Security level selected */
 	u8			security_ix;	/* security type */
@@ -557,6 +571,7 @@ enum rxrpc_call_flag {
 	RXRPC_CALL_RX_LAST,		/* Received the last packet (at rxtx_top) */
 	RXRPC_CALL_TX_LAST,		/* Last packet in Tx buffer (at rxtx_top) */
 	RXRPC_CALL_TX_ALL_ACKED,	/* Last packet has been hard-acked */
+	RXRPC_CALL_TX_NO_MORE,		/* No more data to transmit (MSG_MORE deasserted) */
 	RXRPC_CALL_SEND_PING,		/* A ping will need to be sent */
 	RXRPC_CALL_RETRANS_TIMEOUT,	/* Retransmission due to timeout occurred */
 	RXRPC_CALL_BEGAN_RX_TIMER,	/* We began the expect_rx_by timer */
@@ -599,13 +614,25 @@ enum rxrpc_call_state {
 /*
  * Call Tx congestion management modes.
  */
-enum rxrpc_congest_mode {
-	RXRPC_CALL_SLOW_START,
-	RXRPC_CALL_CONGEST_AVOIDANCE,
-	RXRPC_CALL_PACKET_LOSS,
-	RXRPC_CALL_FAST_RETRANSMIT,
-	NR__RXRPC_CONGEST_MODES
-};
+enum rxrpc_ca_state {
+	RXRPC_CA_SLOW_START,
+	RXRPC_CA_CONGEST_AVOIDANCE,
+	RXRPC_CA_PACKET_LOSS,
+	RXRPC_CA_FAST_RETRANSMIT,
+	NR__RXRPC_CA_STATES
+} __mode(byte);
+
+/*
+ * Current purpose of call RACK timer.  According to the RACK-TLP protocol
+ * [RFC8985], the transmission timer (call->rack_timo_at) may only be used for
+ * one of these at once.
+ */
+enum rxrpc_rack_timer_mode {
+	RXRPC_CALL_RACKTIMER_OFF,		/* Timer not running */
+	RXRPC_CALL_RACKTIMER_RACK_REORDER,	/* RACK reordering timer */
+	RXRPC_CALL_RACKTIMER_TLP_PTO,		/* TLP timeout */
+	RXRPC_CALL_RACKTIMER_RTO,		/* Retransmission timeout */
+} __mode(byte);
 
 /*
  * RxRPC call definition
@@ -624,8 +651,7 @@ struct rxrpc_call {
 	struct mutex		user_mutex;	/* User access mutex */
 	struct sockaddr_rxrpc	dest_srx;	/* Destination address */
 	ktime_t			delay_ack_at;	/* When DELAY ACK needs to happen */
-	ktime_t			ack_lost_at;	/* When ACK is figured as lost */
-	ktime_t			resend_at;	/* When next resend needs to happen */
+	ktime_t			rack_timo_at;	/* When ACK is figured as lost */
 	ktime_t			ping_at;	/* When next to send a ping */
 	ktime_t			keepalive_at;	/* When next to send a keepalive ping */
 	ktime_t			expect_rx_by;	/* When we expect to get a packet by */
@@ -670,21 +696,30 @@ struct rxrpc_call {
 	unsigned short		rx_pkt_offset;	/* Current recvmsg packet offset */
 	unsigned short		rx_pkt_len;	/* Current recvmsg packet len */
 
+	/* Sendmsg data tracking. */
+	rxrpc_seq_t		send_top;	/* Highest Tx slot filled by sendmsg. */
+	struct rxrpc_txqueue	*send_queue;	/* Queue that sendmsg is writing into */
+
 	/* Transmitted data tracking. */
-	spinlock_t		tx_lock;	/* Transmit queue lock */
-	struct list_head	tx_sendmsg;	/* Sendmsg prepared packets */
-	struct list_head	tx_buffer;	/* Buffer of transmissible packets */
+	struct rxrpc_txqueue	*tx_queue;	/* Start of transmission buffers */
+	struct rxrpc_txqueue	*tx_qtail;	/* End of transmission buffers */
+	rxrpc_seq_t		tx_qbase;	/* First slot in tx_queue */
 	rxrpc_seq_t		tx_bottom;	/* First packet in buffer */
 	rxrpc_seq_t		tx_transmitted;	/* Highest packet transmitted */
-	rxrpc_seq_t		tx_prepared;	/* Highest Tx slot prepared. */
 	rxrpc_seq_t		tx_top;		/* Highest Tx slot allocated. */
+	rxrpc_serial_t		tx_last_serial;	/* Serial of last DATA transmitted */
 	u16			tx_backoff;	/* Delay to insert due to Tx failure (ms) */
-	u8			tx_winsize;	/* Maximum size of Tx window */
+	u16			tx_nr_sent;	/* Number of packets sent, but unacked */
+	u16			tx_nr_lost;	/* Number of packets marked lost */
+	u16			tx_nr_resent;	/* Number of packets resent, but unacked */
+	u16			tx_winsize;	/* Maximum size of Tx window */
 #define RXRPC_TX_MAX_WINDOW	128
+	u8			tx_jumbo_max;	/* Maximum subpkts peer will accept */
 	ktime_t			tx_last_sent;	/* Last time a transmission occurred */
 
 	/* Received data tracking */
 	struct sk_buff_head	recvmsg_queue;	/* Queue of packets ready for recvmsg() */
+	struct sk_buff_head	rx_queue;	/* Queue of packets for this call to receive */
 	struct sk_buff_head	rx_oos_queue;	/* Queue of out of sequence packets */
 
 	rxrpc_seq_t		rx_highest_seq;	/* Higest sequence number received */
@@ -698,14 +733,32 @@ struct rxrpc_call {
 	 */
 #define RXRPC_TX_SMSS		RXRPC_JUMBO_DATALEN
 #define RXRPC_MIN_CWND		4
-	u8			cong_cwnd;	/* Congestion window size */
+	enum rxrpc_ca_state	cong_ca_state;	/* Congestion control state */
 	u8			cong_extra;	/* Extra to send for congestion management */
-	u8			cong_ssthresh;	/* Slow-start threshold */
-	enum rxrpc_congest_mode	cong_mode:8;	/* Congestion management mode */
-	u8			cong_dup_acks;	/* Count of ACKs showing missing packets */
-	u8			cong_cumul_acks; /* Cumulative ACK count */
+	u16			cong_cwnd;	/* Congestion window size */
+	u16			cong_ssthresh;	/* Slow-start threshold */
+	u16			cong_dup_acks;	/* Count of ACKs showing missing packets */
+	u16			cong_cumul_acks; /* Cumulative ACK count */
 	ktime_t			cong_tstamp;	/* Last time cwnd was changed */
-	struct sk_buff		*cong_last_nack; /* Last ACK with nacks received */
+
+	/* RACK-TLP [RFC8985] state. */
+	ktime_t			rack_xmit_ts;	/* Latest transmission timestamp */
+	ktime_t			rack_rtt;	/* RTT of most recently ACK'd segment */
+	ktime_t			rack_rtt_ts;	/* Timestamp of rack_rtt */
+	ktime_t			rack_reo_wnd;	/* Reordering window */
+	unsigned int		rack_reo_wnd_mult; /* Multiplier applied to rack_reo_wnd */
+	int			rack_reo_wnd_persist; /* Num loss recoveries before reset reo_wnd */
+	rxrpc_seq_t		rack_fack;	/* Highest sequence so far ACK'd */
+	rxrpc_seq_t		rack_end_seq;	/* Highest sequence seen */
+	rxrpc_seq_t		rack_dsack_round; /* DSACK opt recv'd in latest roundtrip */
+	bool			rack_dsack_round_none; /* T if dsack_round is "None" */
+	bool			rack_reordering_seen; /* T if detected reordering event */
+	enum rxrpc_rack_timer_mode rack_timer_mode; /* Current mode of RACK timer */
+	bool			tlp_is_retrans;	/* T if unacked TLP retransmission */
+	rxrpc_serial_t		tlp_serial;	/* Serial of TLP probe (or 0 if none in progress) */
+	rxrpc_seq_t		tlp_seq;	/* Sequence of TLP probe */
+	unsigned int		tlp_rtt_taken;	/* Last time RTT taken */
+	ktime_t			tlp_max_ack_delay; /* Sender budget for max delayed ACK interval */
 
 	/* Receive-phase ACK management (ACKs we send). */
 	u8			ackr_reason;	/* reason to ACK */
@@ -730,32 +783,45 @@ struct rxrpc_call {
 
 	/* Transmission-phase ACK management (ACKs we've received). */
 	ktime_t			acks_latest_ts;	/* Timestamp of latest ACK received */
-	rxrpc_seq_t		acks_first_seq;	/* first sequence number received */
+	rxrpc_seq_t		acks_hard_ack;	/* Highest sequence hard acked */
 	rxrpc_seq_t		acks_prev_seq;	/* Highest previousPacket received */
-	rxrpc_seq_t		acks_hard_ack;	/* Latest hard-ack point */
 	rxrpc_seq_t		acks_lowest_nak; /* Lowest NACK in the buffer (or ==tx_hard_ack) */
 	rxrpc_serial_t		acks_highest_serial; /* Highest serial number ACK'd */
+	unsigned short		acks_nr_sacks;	/* Number of soft acks recorded */
+	unsigned short		acks_nr_snacks;	/* Number of soft nacks recorded */
+
+	/* Calculated RTT cache */
+	ktime_t			rtt_last_req;	/* Time of last RTT request */
+	unsigned int		rtt_count;	/* Number of samples we've got */
+	unsigned int		rtt_taken;	/* Number of samples taken (wrapping) */
+	struct minmax		min_rtt;	/* Estimated minimum RTT */
+	u32			srtt_us;	/* smoothed round trip time << 3 in usecs */
+	u32			mdev_us;	/* medium deviation			*/
+	u32			mdev_max_us;	/* maximal mdev for the last rtt period	*/
+	u32			rttvar_us;	/* smoothed mdev_max			*/
+	u32			rto_us;		/* Retransmission timeout in usec */
+	u8			backoff;	/* Backoff timeout (as shift) */
 };
 
 /*
  * Summary of a new ACK and the changes it made to the Tx buffer packet states.
  */
 struct rxrpc_ack_summary {
-	u16			nr_acks;		/* Number of ACKs in packet */
-	u16			nr_new_acks;		/* Number of new ACKs in packet */
-	u16			nr_new_nacks;		/* Number of new nacks in packet */
-	u16			nr_retained_nacks;	/* Number of nacks retained between ACKs */
-	u8			ack_reason;
-	bool			saw_nacks;		/* Saw NACKs in packet */
-	bool			new_low_nack;		/* T if new low NACK found */
-	bool			retrans_timeo;		/* T if reTx due to timeout happened */
-	u8			flight_size;		/* Number of unreceived transmissions */
-	/* Place to stash values for tracing */
-	enum rxrpc_congest_mode	mode:8;
-	u8			cwnd;
-	u8			ssthresh;
-	u8			dup_acks;
-	u8			cumulative_acks;
+	rxrpc_serial_t	ack_serial;		/* Serial number of ACK */
+	rxrpc_serial_t	acked_serial;		/* Serial number ACK'd */
+	u16		in_flight;		/* Number of unreceived transmissions */
+	u16		nr_new_hacks;		/* Number of rotated new ACKs */
+	u16		nr_new_sacks;		/* Number of new soft ACKs in packet */
+	u16		nr_new_snacks;		/* Number of new soft nacks in packet */
+	u8		ack_reason;
+	bool		new_low_snack:1;	/* T if new low soft NACK found */
+	bool		retrans_timeo:1;	/* T if reTx due to timeout happened */
+	bool		need_retransmit:1;	/* T if we need transmission */
+	bool		rtt_sample_avail:1;	/* T if RTT sample available */
+	bool		in_fast_or_rto_recovery:1;
+	bool		exiting_fast_or_rto_recovery:1;
+	bool		tlp_probe_acked:1;	/* T if the TLP probe seq was acked */
+	u8 /*enum rxrpc_congest_change*/ change;
 };
 
 /*
@@ -793,25 +859,23 @@ struct rxrpc_send_params {
  * Buffer of data to be output as a packet.
  */
 struct rxrpc_txbuf {
-	struct list_head	call_link;	/* Link in call->tx_sendmsg/tx_buffer */
-	struct list_head	tx_link;	/* Link in live Enc queue or Tx queue */
-	ktime_t			last_sent;	/* Time at which last transmitted */
 	refcount_t		ref;
 	rxrpc_seq_t		seq;		/* Sequence number of this packet */
 	rxrpc_serial_t		serial;		/* Last serial number transmitted with */
 	unsigned int		call_debug_id;
 	unsigned int		debug_id;
-	unsigned int		len;		/* Amount of data in buffer */
-	unsigned int		space;		/* Remaining data space */
-	unsigned int		offset;		/* Offset of fill point */
+	unsigned short		len;		/* Amount of data in buffer */
+	unsigned short		space;		/* Remaining data space */
+	unsigned short		offset;		/* Offset of fill point */
+	unsigned short		pkt_len;	/* Size of packet content */
+	unsigned short		alloc_size;	/* Amount of bufferage allocated */
 	unsigned int		flags;
 #define RXRPC_TXBUF_WIRE_FLAGS	0xff		/* The wire protocol flags */
 #define RXRPC_TXBUF_RESENT	0x100		/* Set if has been resent */
 	__be16			cksum;		/* Checksum to go in header */
-	unsigned short		ack_rwind;	/* ACK receive window */
-	u8 /*enum rxrpc_propose_ack_trace*/ ack_why;	/* If ack, why */
+	bool			jumboable;	/* Can be non-terminal jumbo subpacket */
 	u8			nr_kvec;	/* Amount of kvec[] used */
-	struct kvec		kvec[3];
+	struct kvec		kvec[1];
 };
 
 static inline bool rxrpc_sending_to_server(const struct rxrpc_txbuf *txb)
@@ -823,6 +887,46 @@ static inline bool rxrpc_sending_to_client(const struct rxrpc_txbuf *txb)
 {
 	return !rxrpc_sending_to_server(txb);
 }
+
+/*
+ * Transmit queue element, including RACK [RFC8985] per-segment metadata.  The
+ * transmission timestamp is in usec from the base.
+ */
+struct rxrpc_txqueue {
+	/* Start with the members we want to prefetch. */
+	struct rxrpc_txqueue	*next;
+	ktime_t			xmit_ts_base;
+	rxrpc_seq_t		qbase;
+	u8			nr_reported_acks; /* Number of segments explicitly acked/nacked */
+	unsigned long		segment_acked;	/* Bit-per-buf: Set if ACK'd */
+	unsigned long		segment_lost;	/* Bit-per-buf: Set if declared lost */
+	unsigned long		segment_retransmitted; /* Bit-per-buf: Set if retransmitted */
+	unsigned long		rtt_samples;	/* Bit-per-buf: Set if available for RTT */
+	unsigned long		ever_retransmitted; /* Bit-per-buf: Set if ever retransmitted */
+
+	/* The arrays we want to pack into as few cache lines as possible. */
+	struct {
+#define RXRPC_NR_TXQUEUE BITS_PER_LONG
+#define RXRPC_TXQ_MASK (RXRPC_NR_TXQUEUE - 1)
+		struct rxrpc_txbuf *bufs[RXRPC_NR_TXQUEUE];
+		unsigned int	segment_serial[RXRPC_NR_TXQUEUE];
+		unsigned int	segment_xmit_ts[RXRPC_NR_TXQUEUE];
+	} ____cacheline_aligned;
+};
+
+/*
+ * Data transmission request.
+ */
+struct rxrpc_send_data_req {
+	ktime_t			now;		/* Current time */
+	struct rxrpc_txqueue	*tq;		/* Tx queue segment holding first DATA */
+	rxrpc_seq_t		seq;		/* Sequence of first data */
+	int			n;		/* Number of DATA packets to glue into jumbo */
+	bool			retrans;	/* T if this is a retransmission */
+	bool			did_send;	/* T if did actually send */
+	bool			tlp_probe;	/* T if this is a TLP probe */
+	int /* enum rxrpc_txdata_trace */ trace;
+};
 
 #include <trace/events/rxrpc.h>
 
@@ -837,6 +941,21 @@ static inline rxrpc_serial_t rxrpc_get_next_serial(struct rxrpc_connection *conn
 	if (serial == 0)
 		serial = 1;
 	conn->tx_serial = serial + 1;
+	return serial;
+}
+
+/*
+ * Allocate the next serial n numbers on a connection.  0 must be skipped.
+ */
+static inline rxrpc_serial_t rxrpc_get_next_serials(struct rxrpc_connection *conn,
+						    unsigned int n)
+{
+	rxrpc_serial_t serial;
+
+	serial = conn->tx_serial;
+	if (serial + n <= n)
+		serial = 1;
+	conn->tx_serial = serial + n;
 	return serial;
 }
 
@@ -865,10 +984,10 @@ void rxrpc_propose_ping(struct rxrpc_call *call, u32 serial,
 			enum rxrpc_propose_ack_trace why);
 void rxrpc_propose_delay_ACK(struct rxrpc_call *, rxrpc_serial_t,
 			     enum rxrpc_propose_ack_trace);
-void rxrpc_shrink_call_tx_buffer(struct rxrpc_call *);
-void rxrpc_resend(struct rxrpc_call *call, struct sk_buff *ack_skb);
-
-bool rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb);
+void rxrpc_resend_tlp(struct rxrpc_call *call);
+void rxrpc_transmit_some_data(struct rxrpc_call *call, unsigned int limit,
+			      enum rxrpc_txdata_trace trace);
+bool rxrpc_input_call_event(struct rxrpc_call *call);
 
 /*
  * call_object.c
@@ -1047,6 +1166,32 @@ void rxrpc_input_call_packet(struct rxrpc_call *, struct sk_buff *);
 void rxrpc_implicit_end_call(struct rxrpc_call *, struct sk_buff *);
 
 /*
+ * input_rack.c
+ */
+void rxrpc_input_rack_one(struct rxrpc_call *call,
+			  struct rxrpc_ack_summary *summary,
+			  struct rxrpc_txqueue *tq,
+			  unsigned int ix);
+void rxrpc_input_rack(struct rxrpc_call *call,
+		      struct rxrpc_ack_summary *summary,
+		      struct rxrpc_txqueue *tq,
+		      unsigned long new_acks);
+void rxrpc_rack_detect_loss_and_arm_timer(struct rxrpc_call *call,
+					  struct rxrpc_ack_summary *summary);
+ktime_t rxrpc_tlp_calc_pto(struct rxrpc_call *call, ktime_t now);
+void rxrpc_tlp_send_probe(struct rxrpc_call *call);
+void rxrpc_tlp_process_ack(struct rxrpc_call *call, struct rxrpc_ack_summary *summary);
+void rxrpc_rack_timer_expired(struct rxrpc_call *call, ktime_t overran_by);
+
+/* Initialise TLP state [RFC8958 7.1]. */
+static inline void rxrpc_tlp_init(struct rxrpc_call *call)
+{
+	call->tlp_serial = 0;
+	call->tlp_seq = call->acks_hard_ack;
+	call->tlp_is_retrans = false;
+}
+
+/*
  * io_thread.c
  */
 int rxrpc_encap_rcv(struct sock *, struct sk_buff *);
@@ -1149,17 +1294,20 @@ static inline struct rxrpc_net *rxrpc_net(struct net *net)
  */
 void rxrpc_send_ACK(struct rxrpc_call *call, u8 ack_reason,
 		    rxrpc_serial_t serial, enum rxrpc_propose_ack_trace why);
+void rxrpc_send_probe_for_pmtud(struct rxrpc_call *call);
 int rxrpc_send_abort_packet(struct rxrpc_call *);
+void rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_send_data_req *req);
 void rxrpc_send_conn_abort(struct rxrpc_connection *conn);
 void rxrpc_reject_packet(struct rxrpc_local *local, struct sk_buff *skb);
 void rxrpc_send_keepalive(struct rxrpc_peer *);
-void rxrpc_transmit_one(struct rxrpc_call *call, struct rxrpc_txbuf *txb);
 
 /*
  * peer_event.c
  */
 void rxrpc_input_error(struct rxrpc_local *, struct sk_buff *);
 void rxrpc_peer_keepalive_worker(struct work_struct *);
+void rxrpc_input_probe_for_pmtud(struct rxrpc_connection *conn, rxrpc_serial_t acked_serial,
+				 bool sendmsg_fail);
 
 /*
  * peer_object.c
@@ -1208,10 +1356,12 @@ static inline int rxrpc_abort_eproto(struct rxrpc_call *call,
 /*
  * rtt.c
  */
-void rxrpc_peer_add_rtt(struct rxrpc_call *, enum rxrpc_rtt_rx_trace, int,
-			rxrpc_serial_t, rxrpc_serial_t, ktime_t, ktime_t);
-ktime_t rxrpc_get_rto_backoff(struct rxrpc_peer *peer, bool retrans);
-void rxrpc_peer_init_rtt(struct rxrpc_peer *);
+void rxrpc_call_add_rtt(struct rxrpc_call *call, enum rxrpc_rtt_rx_trace why,
+			int rtt_slot,
+			rxrpc_serial_t send_serial, rxrpc_serial_t resp_serial,
+			ktime_t send_time, ktime_t resp_time);
+ktime_t rxrpc_get_rto_backoff(struct rxrpc_call *call, bool retrans);
+void rxrpc_call_init_rtt(struct rxrpc_call *call);
 
 /*
  * rxkad.c
@@ -1284,7 +1434,6 @@ static inline void rxrpc_sysctl_exit(void) {}
 extern atomic_t rxrpc_nr_txbuf;
 struct rxrpc_txbuf *rxrpc_alloc_data_txbuf(struct rxrpc_call *call, size_t data_size,
 					   size_t data_align, gfp_t gfp);
-struct rxrpc_txbuf *rxrpc_alloc_ack_txbuf(struct rxrpc_call *call, size_t sack_size);
 void rxrpc_get_txbuf(struct rxrpc_txbuf *txb, enum rxrpc_txbuf_trace what);
 void rxrpc_see_txbuf(struct rxrpc_txbuf *txb, enum rxrpc_txbuf_trace what);
 void rxrpc_put_txbuf(struct rxrpc_txbuf *txb, enum rxrpc_txbuf_trace what);
@@ -1309,6 +1458,53 @@ static inline bool after(u32 seq1, u32 seq2)
 static inline bool after_eq(u32 seq1, u32 seq2)
 {
         return (s32)(seq1 - seq2) >= 0;
+}
+
+static inline u32 earliest(u32 seq1, u32 seq2)
+{
+	return before(seq1, seq2) ? seq1 : seq2;
+}
+
+static inline u32 latest(u32 seq1, u32 seq2)
+{
+	return after(seq1, seq2) ? seq1 : seq2;
+}
+
+static inline bool rxrpc_seq_in_txq(const struct rxrpc_txqueue *tq, rxrpc_seq_t seq)
+{
+	return (seq & (RXRPC_NR_TXQUEUE - 1)) == tq->qbase;
+}
+
+static inline void rxrpc_queue_rx_call_packet(struct rxrpc_call *call, struct sk_buff *skb)
+{
+	rxrpc_get_skb(skb, rxrpc_skb_get_call_rx);
+	__skb_queue_tail(&call->rx_queue, skb);
+	rxrpc_poke_call(call, rxrpc_call_poke_rx_packet);
+}
+
+/*
+ * Calculate how much space there is for transmitting more DATA packets.
+ */
+static inline unsigned int rxrpc_tx_window_space(const struct rxrpc_call *call)
+{
+	int winsize = umin(call->tx_winsize, call->cong_cwnd + call->cong_extra);
+	int transmitted = call->tx_top - call->tx_bottom;
+
+	return max(winsize - transmitted, 0);
+}
+
+static inline unsigned int rxrpc_left_out(const struct rxrpc_call *call)
+{
+	return call->acks_nr_sacks + call->tx_nr_lost;
+}
+
+/*
+ * Calculate the number of transmitted DATA packets assumed to be in flight
+ * [approx RFC6675].
+ */
+static inline unsigned int rxrpc_tx_in_flight(const struct rxrpc_call *call)
+{
+	return call->tx_nr_sent - rxrpc_left_out(call) + call->tx_nr_resent;
 }
 
 /*

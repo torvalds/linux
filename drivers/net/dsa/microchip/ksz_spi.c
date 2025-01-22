@@ -239,10 +239,14 @@ static const struct spi_device_id ksz_spi_ids[] = {
 };
 MODULE_DEVICE_TABLE(spi, ksz_spi_ids);
 
+static DEFINE_SIMPLE_DEV_PM_OPS(ksz_spi_pm_ops,
+				ksz_switch_suspend, ksz_switch_resume);
+
 static struct spi_driver ksz_spi_driver = {
 	.driver = {
 		.name	= "ksz-switch",
 		.of_match_table = ksz_dt_ids,
+		.pm = &ksz_spi_pm_ops,
 	},
 	.id_table = ksz_spi_ids,
 	.probe	= ksz_spi_probe,

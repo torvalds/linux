@@ -658,6 +658,7 @@ static void del_sw_hw_rule(struct fs_node *node)
 			BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_ACTION) |
 			BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_FLOW_COUNTERS);
 		fte->act_dests.action.action &= ~MLX5_FLOW_CONTEXT_ACTION_COUNT;
+		mlx5_fc_local_destroy(rule->dest_attr.counter);
 		goto out;
 	}
 
@@ -820,11 +821,17 @@ static int insert_fte(struct mlx5_flow_group *fg, struct fs_fte *fte)
 		return index;
 
 	fte->index = index + fg->start_index;
+retry_insert:
 	ret = rhashtable_insert_fast(&fg->ftes_hash,
 				     &fte->hash,
 				     rhash_fte);
-	if (ret)
+	if (ret) {
+		if (ret == -EBUSY) {
+			cond_resched();
+			goto retry_insert;
+		}
 		goto err_ida_remove;
+	}
 
 	tree_add_node(&fte->node, &fg->node);
 	list_add_tail(&fte->node.list, &fg->node.children);
@@ -3529,35 +3536,42 @@ static int mlx5_fs_mode_validate(struct devlink *devlink, u32 id,
 {
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 	char *value = val.vstr;
-	int err = 0;
+	u8 eswitch_mode;
 
-	if (!strcmp(value, "dmfs")) {
+	if (!strcmp(value, "dmfs"))
 		return 0;
-	} else if (!strcmp(value, "smfs")) {
-		u8 eswitch_mode;
-		bool smfs_cap;
 
-		eswitch_mode = mlx5_eswitch_mode(dev);
-		smfs_cap = mlx5_fs_dr_is_supported(dev);
+	if (!strcmp(value, "smfs")) {
+		bool smfs_cap = mlx5_fs_dr_is_supported(dev);
 
 		if (!smfs_cap) {
-			err = -EOPNOTSUPP;
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Software managed steering is not supported by current device");
+			return -EOPNOTSUPP;
 		}
+	} else if (!strcmp(value, "hmfs")) {
+		bool hmfs_cap = mlx5_fs_hws_is_supported(dev);
 
-		else if (eswitch_mode == MLX5_ESWITCH_OFFLOADS) {
+		if (!hmfs_cap) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Software managed steering is not supported when eswitch offloads enabled.");
-			err = -EOPNOTSUPP;
+					   "Hardware steering is not supported by current device");
+			return -EOPNOTSUPP;
 		}
 	} else {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Bad parameter: supported values are [\"dmfs\", \"smfs\"]");
-		err = -EINVAL;
+				   "Bad parameter: supported values are [\"dmfs\", \"smfs\", \"hmfs\"]");
+		return -EINVAL;
 	}
 
-	return err;
+	eswitch_mode = mlx5_eswitch_mode(dev);
+	if (eswitch_mode == MLX5_ESWITCH_OFFLOADS) {
+		NL_SET_ERR_MSG_FMT_MOD(extack,
+				       "Moving to %s is not supported when eswitch offloads enabled.",
+				       value);
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
 }
 
 static int mlx5_fs_mode_set(struct devlink *devlink, u32 id,
@@ -3569,6 +3583,8 @@ static int mlx5_fs_mode_set(struct devlink *devlink, u32 id,
 
 	if (!strcmp(ctx->val.vstr, "smfs"))
 		mode = MLX5_FLOW_STEERING_MODE_SMFS;
+	else if (!strcmp(ctx->val.vstr, "hmfs"))
+		mode = MLX5_FLOW_STEERING_MODE_HMFS;
 	else
 		mode = MLX5_FLOW_STEERING_MODE_DMFS;
 	dev->priv.steering->mode = mode;
@@ -3581,10 +3597,17 @@ static int mlx5_fs_mode_get(struct devlink *devlink, u32 id,
 {
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 
-	if (dev->priv.steering->mode == MLX5_FLOW_STEERING_MODE_SMFS)
+	switch (dev->priv.steering->mode) {
+	case MLX5_FLOW_STEERING_MODE_SMFS:
 		strscpy(ctx->val.vstr, "smfs", sizeof(ctx->val.vstr));
-	else
+		break;
+	case MLX5_FLOW_STEERING_MODE_HMFS:
+		strscpy(ctx->val.vstr, "hmfs", sizeof(ctx->val.vstr));
+		break;
+	default:
 		strscpy(ctx->val.vstr, "dmfs", sizeof(ctx->val.vstr));
+	}
+
 	return 0;
 }
 
@@ -3659,8 +3682,7 @@ int mlx5_fs_core_init(struct mlx5_core_dev *dev)
 			goto err;
 	}
 
-	if (MLX5_CAP_FLOWTABLE_RDMA_RX(dev, ft_support) &&
-	    MLX5_CAP_FLOWTABLE_RDMA_RX(dev, table_miss_action_domain)) {
+	if (MLX5_CAP_FLOWTABLE_RDMA_RX(dev, ft_support)) {
 		err = init_rdma_rx_root_ns(steering);
 		if (err)
 			goto err;
@@ -4004,6 +4026,8 @@ int mlx5_flow_namespace_set_mode(struct mlx5_flow_namespace *ns,
 
 	if (mode == MLX5_FLOW_STEERING_MODE_SMFS)
 		cmds = mlx5_fs_cmd_get_dr_cmds();
+	else if (mode == MLX5_FLOW_STEERING_MODE_HMFS)
+		cmds = mlx5_fs_cmd_get_hws_cmds();
 	else
 		cmds = mlx5_fs_cmd_get_fw_cmds();
 	if (!cmds)

@@ -2,6 +2,7 @@
 #ifndef _NET_CORE_DEV_H
 #define _NET_CORE_DEV_H
 
+#include <linux/cleanup.h>
 #include <linux/types.h>
 #include <linux/rwsem.h>
 #include <linux/netdevice.h>
@@ -22,7 +23,22 @@ struct sd_flow_limit {
 
 extern int netdev_flow_limit_table_len;
 
-struct napi_struct *netdev_napi_by_id(struct net *net, unsigned int napi_id);
+struct napi_struct *
+netdev_napi_by_id_lock(struct net *net, unsigned int napi_id);
+struct net_device *dev_get_by_napi_id(unsigned int napi_id);
+
+struct net_device *netdev_get_by_index_lock(struct net *net, int ifindex);
+struct net_device *__netdev_put_lock(struct net_device *dev);
+struct net_device *
+netdev_xa_find_lock(struct net *net, struct net_device *dev,
+		    unsigned long *index);
+
+DEFINE_FREE(netdev_unlock, struct net_device *, if (_T) netdev_unlock(_T));
+
+#define for_each_netdev_lock_scoped(net, var_name, ifindex)		\
+	for (struct net_device *var_name __free(netdev_unlock) = NULL;	\
+	     (var_name = netdev_xa_find_lock(net, var_name, &ifindex)); \
+	     ifindex++)
 
 #ifdef CONFIG_PROC_FS
 int __init dev_proc_init(void);
@@ -110,6 +126,18 @@ void __dev_notify_flags(struct net_device *dev, unsigned int old_flags,
 
 void unregister_netdevice_many_notify(struct list_head *head,
 				      u32 portid, const struct nlmsghdr *nlh);
+
+static inline void netif_set_up(struct net_device *dev, bool value)
+{
+	if (value)
+		dev->flags |= IFF_UP;
+	else
+		dev->flags &= ~IFF_UP;
+
+	netdev_lock(dev);
+	dev->up = value;
+	netdev_unlock(dev);
+}
 
 static inline void netif_set_gso_max_size(struct net_device *dev,
 					  unsigned int size)
@@ -311,5 +339,8 @@ static inline void dev_xmit_recursion_dec(void)
 int dev_set_hwtstamp_phylib(struct net_device *dev,
 			    struct kernel_hwtstamp_config *cfg,
 			    struct netlink_ext_ack *extack);
+int dev_get_hwtstamp_phylib(struct net_device *dev,
+			    struct kernel_hwtstamp_config *cfg);
+int net_hwtstamp_validate(const struct kernel_hwtstamp_config *cfg);
 
 #endif

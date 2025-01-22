@@ -24,7 +24,7 @@ void iwl_mvm_teardown_tdls_peers(struct iwl_mvm *mvm)
 	for (i = 0; i < mvm->fw->ucode_capa.num_stations; i++) {
 		sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[i],
 						lockdep_is_held(&mvm->mutex));
-		if (!sta || IS_ERR(sta) || !sta->tdls)
+		if (IS_ERR_OR_NULL(sta) || !sta->tdls)
 			continue;
 
 		mvmsta = iwl_mvm_sta_from_mac80211(sta);
@@ -47,7 +47,7 @@ int iwl_mvm_tdls_sta_count(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	for (i = 0; i < mvm->fw->ucode_capa.num_stations; i++) {
 		sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[i],
 						lockdep_is_held(&mvm->mutex));
-		if (!sta || IS_ERR(sta) || !sta->tdls)
+		if (IS_ERR_OR_NULL(sta) || !sta->tdls)
 			continue;
 
 		if (vif) {
@@ -472,7 +472,7 @@ void iwl_mvm_tdls_ch_switch_work(struct work_struct *work)
 				mvm->fw_id_to_mac_id[mvm->tdls_cs.peer.sta_id],
 				lockdep_is_held(&mvm->mutex));
 	/* the station may not be here, but if it is, it must be a TDLS peer */
-	if (!sta || IS_ERR(sta) || WARN_ON(!sta->tdls))
+	if (IS_ERR_OR_NULL(sta) || WARN_ON(!sta->tdls))
 		return;
 
 	mvmsta = iwl_mvm_sta_from_mac80211(sta);

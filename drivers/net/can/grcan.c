@@ -1073,9 +1073,10 @@ static int grcan_open(struct net_device *dev)
 	if (err)
 		goto exit_close_candev;
 
+	napi_enable(&priv->napi);
+
 	spin_lock_irqsave(&priv->lock, flags);
 
-	napi_enable(&priv->napi);
 	grcan_start(dev);
 	if (!(priv->can.ctrlmode & CAN_CTRLMODE_LISTENONLY))
 		netif_start_queue(dev);

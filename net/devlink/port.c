@@ -1376,7 +1376,7 @@ EXPORT_SYMBOL_GPL(devlink_port_attrs_set);
  *
  *	@devlink_port: devlink port
  *	@controller: associated controller number for the devlink port instance
- *	@pf: associated PF for the devlink port instance
+ *	@pf: associated PCI function number for the devlink port instance
  *	@external: indicates if the port is for an external controller
  */
 void devlink_port_attrs_pci_pf_set(struct devlink_port *devlink_port, u32 controller,
@@ -1402,8 +1402,9 @@ EXPORT_SYMBOL_GPL(devlink_port_attrs_pci_pf_set);
  *
  *	@devlink_port: devlink port
  *	@controller: associated controller number for the devlink port instance
- *	@pf: associated PF for the devlink port instance
- *	@vf: associated VF of a PF for the devlink port instance
+ *	@pf: associated PCI function number for the devlink port instance
+ *	@vf: associated PCI VF number of a PF for the devlink port instance;
+ *	     VF number starts from 0 for the first PCI virtual function
  *	@external: indicates if the port is for an external controller
  */
 void devlink_port_attrs_pci_vf_set(struct devlink_port *devlink_port, u32 controller,
@@ -1430,8 +1431,8 @@ EXPORT_SYMBOL_GPL(devlink_port_attrs_pci_vf_set);
  *
  *	@devlink_port: devlink port
  *	@controller: associated controller number for the devlink port instance
- *	@pf: associated PF for the devlink port instance
- *	@sf: associated SF of a PF for the devlink port instance
+ *	@pf: associated PCI function number for the devlink port instance
+ *	@sf: associated SF number of a PF for the devlink port instance
  *	@external: indicates if the port is for an external controller
  */
 void devlink_port_attrs_pci_sf_set(struct devlink_port *devlink_port, u32 controller,
