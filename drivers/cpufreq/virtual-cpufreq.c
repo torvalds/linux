@@ -265,7 +265,6 @@ static struct cpufreq_driver cpufreq_virt_driver = {
 	.verify		= virt_cpufreq_verify_policy,
 	.target		= virt_cpufreq_target,
 	.fast_switch	= virt_cpufreq_fast_switch,
-	.attr		= cpufreq_generic_attr,
 };
 
 static int virt_cpufreq_driver_probe(struct platform_device *pdev)
