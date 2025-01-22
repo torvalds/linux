@@ -274,13 +274,9 @@ static int tascodec_spi_init(struct tasdevice_priv *tas_priv,
 	 */
 	guard(mutex)(&tas_priv->codec_lock);
 
-	ret = scnprintf(tas_priv->rca_binaryname,
+	scnprintf(tas_priv->rca_binaryname,
 		sizeof(tas_priv->rca_binaryname), "%sRCA%d.bin",
 		tas_priv->dev_name, tas_priv->index);
-	if (ret <= 0) {
-		dev_err(tas_priv->dev, "rca name err:0x%08x\n", ret);
-		return ret;
-	}
 	crc8_populate_msb(tas_priv->crc8_lkp_tbl, TASDEVICE_CRC8_POLYNOMIAL);
 	tas_priv->codec = codec;
 	ret = request_firmware_nowait(module, FW_ACTION_UEVENT,
@@ -451,6 +447,7 @@ static int tas2781_read_acpi(struct tas2781_hda *tas_hda,
 		p->reset = devm_gpiod_get_index_optional(physdev, "reset",
 			p->index, GPIOD_OUT_LOW);
 		if (IS_ERR(p->reset)) {
+			ret = PTR_ERR(p->reset);
 			dev_err_probe(p->dev, ret, "Failed on reset GPIO\n");
 			goto err;
 		}
