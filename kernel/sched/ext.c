@@ -5399,7 +5399,7 @@ static struct kthread_worker *scx_create_rt_helper(const char *name)
 {
 	struct kthread_worker *helper;
 
-	helper = kthread_create_worker(0, name);
+	helper = kthread_run_worker(0, name);
 	if (helper)
 		sched_set_fifo(helper->task);
 	return helper;

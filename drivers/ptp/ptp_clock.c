@@ -296,7 +296,7 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 
 	if (ptp->info->do_aux_work) {
 		kthread_init_delayed_work(&ptp->aux_work, ptp_aux_kworker);
-		ptp->kworker = kthread_create_worker(0, "ptp%d", ptp->index);
+		ptp->kworker = kthread_run_worker(0, "ptp%d", ptp->index);
 		if (IS_ERR(ptp->kworker)) {
 			err = PTR_ERR(ptp->kworker);
 			pr_err("failed to create ptp aux_worker %d\n", err);
