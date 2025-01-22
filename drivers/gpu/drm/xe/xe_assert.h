@@ -14,7 +14,7 @@
 #include "xe_step.h"
 
 /**
- * DOC: Xe ASSERTs
+ * DOC: Xe Asserts
  *
  * While Xe driver aims to be simpler than legacy i915 driver it is still
  * complex enough that some changes introduced while adding new functionality
@@ -103,7 +103,7 @@
  * (&CONFIG_DRM_XE_DEBUG must be enabled) and cannot be used in expressions
  * or as a condition.
  *
- * See `Xe ASSERTs`_ for general usage guidelines.
+ * See `Xe Asserts`_ for general usage guidelines.
  */
 #define xe_assert(xe, condition) xe_assert_msg((xe), condition, "")
 #define xe_assert_msg(xe, condition, msg, arg...) ({						\
@@ -138,7 +138,7 @@
  * (&CONFIG_DRM_XE_DEBUG must be enabled) and cannot be used in expressions
  * or as a condition.
  *
- * See `Xe ASSERTs`_ for general usage guidelines.
+ * See `Xe Asserts`_ for general usage guidelines.
  */
 #define xe_tile_assert(tile, condition) xe_tile_assert_msg((tile), condition, "")
 #define xe_tile_assert_msg(tile, condition, msg, arg...) ({					\
@@ -162,7 +162,7 @@
  * (&CONFIG_DRM_XE_DEBUG must be enabled) and cannot be used in expressions
  * or as a condition.
  *
- * See `Xe ASSERTs`_ for general usage guidelines.
+ * See `Xe Asserts`_ for general usage guidelines.
  */
 #define xe_gt_assert(gt, condition) xe_gt_assert_msg((gt), condition, "")
 #define xe_gt_assert_msg(gt, condition, msg, arg...) ({						\

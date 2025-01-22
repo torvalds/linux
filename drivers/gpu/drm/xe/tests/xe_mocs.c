@@ -58,7 +58,7 @@ static void read_l3cc_table(struct xe_gt *gt,
 
 			mocs_dbg(gt, "reg_val=0x%x\n", reg_val);
 		} else {
-			/* Just re-use value read on previous iteration */
+			/* Just reuse value read on previous iteration */
 			reg_val >>= 16;
 		}
 

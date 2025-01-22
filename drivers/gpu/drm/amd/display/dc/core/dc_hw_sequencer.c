@@ -425,6 +425,44 @@ void get_hdr_visual_confirm_color(
 	}
 }
 
+/* Visual Confirm color definition for VABC */
+void get_vabc_visual_confirm_color(
+	struct pipe_ctx *pipe_ctx,
+	struct tg_color *color)
+{
+	uint32_t color_value = MAX_TG_COLOR_VALUE;
+	struct dc_link *edp_link = NULL;
+
+	if (pipe_ctx && pipe_ctx->stream && pipe_ctx->stream->link) {
+		if (pipe_ctx->stream->link->connector_signal == SIGNAL_TYPE_EDP)
+			edp_link = pipe_ctx->stream->link;
+	}
+
+	if (edp_link) {
+		switch (edp_link->backlight_control_type) {
+		case BACKLIGHT_CONTROL_PWM:
+			color->color_r_cr = color_value;
+			color->color_g_y = 0;
+			color->color_b_cb = 0;
+			break;
+		case BACKLIGHT_CONTROL_AMD_AUX:
+			color->color_r_cr = 0;
+			color->color_g_y = color_value;
+			color->color_b_cb = 0;
+			break;
+		case BACKLIGHT_CONTROL_VESA_AUX:
+			color->color_r_cr = 0;
+			color->color_g_y = 0;
+			color->color_b_cb = color_value;
+			break;
+		}
+	} else {
+		color->color_r_cr = 0;
+		color->color_g_y = 0;
+		color->color_b_cb = 0;
+	}
+}
+
 void get_subvp_visual_confirm_color(
 		struct pipe_ctx *pipe_ctx,
 		struct tg_color *color)

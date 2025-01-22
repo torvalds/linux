@@ -39,7 +39,9 @@ struct dm_irq_params {
 #ifdef CONFIG_DEBUG_FS
 	enum amdgpu_dm_pipe_crc_source crc_src;
 #ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
-	struct crc_window_param window_param;
+	struct crc_window_param window_param[MAX_CRC_WINDOW_NUM];
+	/* At least one CRC window is activated or not*/
+	bool crc_window_activated;
 #endif
 #endif
 };

@@ -64,7 +64,7 @@ struct qaic_manage_trans_hdr {
 /**
  * struct qaic_manage_trans_passthrough - Defines a passthrough transaction.
  * @hdr: In. Header to identify this transaction.
- * @data: In. Payload of this ransaction. Opaque to the driver. Userspace must
+ * @data: In. Payload of this transaction. Opaque to the driver. Userspace must
  *	  encode in little endian and align/pad to 64-bit.
  */
 struct qaic_manage_trans_passthrough {

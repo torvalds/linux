@@ -89,16 +89,14 @@ int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 /**
  * amdgpu_ib_free - free an IB (Indirect Buffer)
  *
- * @adev: amdgpu_device pointer
  * @ib: IB object to free
  * @f: the fence SA bo need wait on for the ib alloation
  *
  * Free an IB (all asics).
  */
-void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib,
-		    struct dma_fence *f)
+void amdgpu_ib_free(struct amdgpu_ib *ib, struct dma_fence *f)
 {
-	amdgpu_sa_bo_free(adev, &ib->sa_bo, f);
+	amdgpu_sa_bo_free(&ib->sa_bo, f);
 }
 
 /**

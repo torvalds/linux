@@ -515,7 +515,7 @@ int amdgpu_gfx_disable_kcq(struct amdgpu_device *adev, int xcc_id)
 	if (!kiq->pmf || !kiq->pmf->kiq_unmap_queues)
 		return -EINVAL;
 
-	if (!kiq_ring->sched.ready || adev->job_hang || amdgpu_in_reset(adev))
+	if (!kiq_ring->sched.ready || amdgpu_in_reset(adev))
 		return 0;
 
 	spin_lock(&kiq->ring_lock);
@@ -567,7 +567,7 @@ int amdgpu_gfx_disable_kgq(struct amdgpu_device *adev, int xcc_id)
 	if (!kiq->pmf || !kiq->pmf->kiq_unmap_queues)
 		return -EINVAL;
 
-	if (!adev->gfx.kiq[0].ring.sched.ready || adev->job_hang)
+	if (!adev->gfx.kiq[0].ring.sched.ready || amdgpu_in_reset(adev))
 		return 0;
 
 	if (amdgpu_gfx_is_master_xcc(adev, xcc_id)) {
@@ -806,7 +806,7 @@ void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable)
 			/* If going to s2idle, no need to wait */
 			if (adev->in_s0ix) {
 				if (!amdgpu_dpm_set_powergating_by_smu(adev,
-						AMD_IP_BLOCK_TYPE_GFX, true))
+						AMD_IP_BLOCK_TYPE_GFX, true, 0))
 					adev->gfx.gfx_off_state = true;
 			} else {
 				schedule_delayed_work(&adev->gfx.gfx_off_delay_work,
@@ -818,7 +818,7 @@ void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable)
 			cancel_delayed_work_sync(&adev->gfx.gfx_off_delay_work);
 
 			if (adev->gfx.gfx_off_state &&
-			    !amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_GFX, false)) {
+			    !amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_GFX, false, 0)) {
 				adev->gfx.gfx_off_state = false;
 
 				if (adev->gfx.funcs->init_spm_golden) {
@@ -1484,6 +1484,24 @@ static int amdgpu_gfx_run_cleaner_shader(struct amdgpu_device *adev, int xcp_id)
 	return 0;
 }
 
+/**
+ * amdgpu_gfx_set_run_cleaner_shader - Execute the AMDGPU GFX Cleaner Shader
+ * @dev: The device structure
+ * @attr: The device attribute structure
+ * @buf: The buffer containing the input data
+ * @count: The size of the input data
+ *
+ * Provides the sysfs interface to manually run a cleaner shader, which is
+ * used to clear the GPU state between different tasks. Writing a value to the
+ * 'run_cleaner_shader' sysfs file triggers the cleaner shader execution.
+ * The value written corresponds to the partition index on multi-partition
+ * devices. On single-partition devices, the value should be '0'.
+ *
+ * The cleaner shader clears the Local Data Store (LDS) and General Purpose
+ * Registers (GPRs) to ensure data isolation between GPU workloads.
+ *
+ * Return: The number of bytes written to the sysfs file.
+ */
 static ssize_t amdgpu_gfx_set_run_cleaner_shader(struct device *dev,
 						 struct device_attribute *attr,
 						 const char *buf,
@@ -1532,6 +1550,19 @@ static ssize_t amdgpu_gfx_set_run_cleaner_shader(struct device *dev,
 	return count;
 }
 
+/**
+ * amdgpu_gfx_get_enforce_isolation - Query AMDGPU GFX Enforce Isolation Settings
+ * @dev: The device structure
+ * @attr: The device attribute structure
+ * @buf: The buffer to store the output data
+ *
+ * Provides the sysfs read interface to get the current settings of the 'enforce_isolation'
+ * feature for each GPU partition. Reading from the 'enforce_isolation'
+ * sysfs file returns the isolation settings for all partitions, where '0'
+ * indicates disabled and '1' indicates enabled.
+ *
+ * Return: The number of bytes read from the sysfs file.
+ */
 static ssize_t amdgpu_gfx_get_enforce_isolation(struct device *dev,
 						struct device_attribute *attr,
 						char *buf)
@@ -1555,6 +1586,20 @@ static ssize_t amdgpu_gfx_get_enforce_isolation(struct device *dev,
 	return size;
 }
 
+/**
+ * amdgpu_gfx_set_enforce_isolation - Control AMDGPU GFX Enforce Isolation
+ * @dev: The device structure
+ * @attr: The device attribute structure
+ * @buf: The buffer containing the input data
+ * @count: The size of the input data
+ *
+ * This function allows control over the 'enforce_isolation' feature, which
+ * serializes access to the graphics engine. Writing '1' or '0' to the
+ * 'enforce_isolation' sysfs file enables or disables process isolation for
+ * each partition. The input should specify the setting for all partitions.
+ *
+ * Return: The number of bytes written to the sysfs file.
+ */
 static ssize_t amdgpu_gfx_set_enforce_isolation(struct device *dev,
 						struct device_attribute *attr,
 						const char *buf, size_t count)
@@ -1940,6 +1985,17 @@ void amdgpu_gfx_enforce_isolation_handler(struct work_struct *work)
 	mutex_unlock(&adev->enforce_isolation_mutex);
 }
 
+/**
+ * amdgpu_gfx_enforce_isolation_wait_for_kfd - Manage KFD wait period for process isolation
+ * @adev: amdgpu_device pointer
+ * @idx: Index of the GPU partition
+ *
+ * When kernel submissions come in, the jobs are given a time slice and once
+ * that time slice is up, if there are KFD user queues active, kernel
+ * submissions are blocked until KFD has had its time slice. Once the KFD time
+ * slice is up, KFD user queues are preempted and kernel submissions are
+ * unblocked and allowed to run again.
+ */
 static void
 amdgpu_gfx_enforce_isolation_wait_for_kfd(struct amdgpu_device *adev,
 					  u32 idx)
@@ -1985,6 +2041,15 @@ amdgpu_gfx_enforce_isolation_wait_for_kfd(struct amdgpu_device *adev,
 		msleep(GFX_SLICE_PERIOD_MS);
 }
 
+/**
+ * amdgpu_gfx_enforce_isolation_ring_begin_use - Begin use of a ring with enforced isolation
+ * @ring: Pointer to the amdgpu_ring structure
+ *
+ * Ring begin_use helper implementation for gfx which serializes access to the
+ * gfx IP between kernel submission IOCTLs and KFD user queues when isolation
+ * enforcement is enabled. The kernel submission IOCTLs and KFD user queues
+ * each get a time slice when both are active.
+ */
 void amdgpu_gfx_enforce_isolation_ring_begin_use(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
@@ -2016,6 +2081,15 @@ void amdgpu_gfx_enforce_isolation_ring_begin_use(struct amdgpu_ring *ring)
 		amdgpu_gfx_kfd_sch_ctrl(adev, idx, false);
 }
 
+/**
+ * amdgpu_gfx_enforce_isolation_ring_end_use - End use of a ring with enforced isolation
+ * @ring: Pointer to the amdgpu_ring structure
+ *
+ * Ring end_use helper implementation for gfx which serializes access to the
+ * gfx IP between kernel submission IOCTLs and KFD user queues when isolation
+ * enforcement is enabled. The kernel submission IOCTLs and KFD user queues
+ * each get a time slice when both are active.
+ */
 void amdgpu_gfx_enforce_isolation_ring_end_use(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
@@ -2058,7 +2132,7 @@ static int amdgpu_debugfs_gfx_sched_mask_set(void *data, u64 val)
 	if (!adev)
 		return -ENODEV;
 
-	mask = (1 << adev->gfx.num_gfx_rings) - 1;
+	mask = (1ULL << adev->gfx.num_gfx_rings) - 1;
 	if ((val & mask) == 0)
 		return -EINVAL;
 
@@ -2086,7 +2160,7 @@ static int amdgpu_debugfs_gfx_sched_mask_get(void *data, u64 *val)
 	for (i = 0; i < adev->gfx.num_gfx_rings; ++i) {
 		ring = &adev->gfx.gfx_ring[i];
 		if (ring->sched.ready)
-			mask |= 1 << i;
+			mask |= 1ULL << i;
 	}
 
 	*val = mask;
@@ -2128,7 +2202,7 @@ static int amdgpu_debugfs_compute_sched_mask_set(void *data, u64 val)
 	if (!adev)
 		return -ENODEV;
 
-	mask = (1 << adev->gfx.num_compute_rings) - 1;
+	mask = (1ULL << adev->gfx.num_compute_rings) - 1;
 	if ((val & mask) == 0)
 		return -EINVAL;
 
@@ -2157,7 +2231,7 @@ static int amdgpu_debugfs_compute_sched_mask_get(void *data, u64 *val)
 	for (i = 0; i < adev->gfx.num_compute_rings; ++i) {
 		ring = &adev->gfx.compute_ring[i];
 		if (ring->sched.ready)
-			mask |= 1 << i;
+			mask |= 1ULL << i;
 	}
 
 	*val = mask;

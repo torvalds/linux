@@ -785,7 +785,7 @@ static struct mipi_dsi_driver chipone_dsi_driver = {
 	},
 };
 
-static struct i2c_device_id chipone_i2c_id[] = {
+static const struct i2c_device_id chipone_i2c_id[] = {
 	{ "chipone,icn6211" },
 	{},
 };

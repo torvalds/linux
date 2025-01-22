@@ -55,7 +55,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.310"
+#define DC_VER "3.2.316"
 
 #define MAX_SURFACES 4
 #define MAX_PLANES 6
@@ -463,6 +463,7 @@ struct dc_config {
 	bool enable_auto_dpm_test_logs;
 	unsigned int disable_ips;
 	unsigned int disable_ips_in_vpb;
+	bool disable_ips_in_dpms_off;
 	bool usb4_bw_alloc_support;
 	bool allow_0_dtb_clk;
 	bool use_assr_psp_message;
@@ -471,6 +472,7 @@ struct dc_config {
 	bool disable_hbr_audio_dp2;
 	bool consolidated_dpia_dp_lt;
 	bool set_pipe_unlock_order;
+	bool enable_dpia_pre_training;
 };
 
 enum visual_confirm {
@@ -487,6 +489,7 @@ enum visual_confirm {
 	VISUAL_CONFIRM_MCLK_SWITCH = 16,
 	VISUAL_CONFIRM_FAMS2 = 19,
 	VISUAL_CONFIRM_HW_CURSOR = 20,
+	VISUAL_CONFIRM_VABC = 21,
 };
 
 enum dc_psr_power_opts {
@@ -628,6 +631,8 @@ struct dc_clocks {
 	int bw_dispclk_khz;
 	int idle_dramclk_khz;
 	int idle_fclk_khz;
+	int subvp_prefetch_dramclk_khz;
+	int subvp_prefetch_fclk_khz;
 };
 
 struct dc_bw_validation_profile {
@@ -772,7 +777,8 @@ union dpia_debug_options {
 		uint32_t enable_force_tbt3_work_around:1; /* bit 4 */
 		uint32_t disable_usb4_pm_support:1; /* bit 5 */
 		uint32_t enable_consolidated_dpia_dp_lt:1; /* bit 6 */
-		uint32_t reserved:25;
+		uint32_t enable_dpia_pre_training:1; /* bit 7 */
+		uint32_t reserved:24;
 	} bits;
 	uint32_t raw;
 };
@@ -1055,8 +1061,8 @@ struct dc_debug_options {
 	bool dml21_force_pstate_method;
 	uint32_t dml21_force_pstate_method_values[MAX_PIPES];
 	uint32_t dml21_disable_pstate_method_mask;
+	union fw_assisted_mclk_switch_version fams_version;
 	union dmub_fams2_global_feature_config fams2_config;
-	bool enable_legacy_clock_update;
 	unsigned int force_cositing;
 	unsigned int disable_spl;
 	unsigned int force_easf;
@@ -1070,6 +1076,7 @@ struct dc_debug_options {
 	bool skip_full_updated_if_possible;
 	unsigned int enable_oled_edp_power_up_opt;
 	bool enable_hblank_borrow;
+	bool force_subvp_df_throttle;
 };
 
 
@@ -1300,7 +1307,7 @@ struct dc_plane_state {
 	struct rect clip_rect;
 
 	struct plane_size plane_size;
-	union dc_tiling_info tiling_info;
+	struct dc_tiling_info tiling_info;
 
 	struct dc_plane_dcc_param dcc;
 
@@ -1371,7 +1378,7 @@ struct dc_plane_state {
 
 struct dc_plane_info {
 	struct plane_size plane_size;
-	union dc_tiling_info tiling_info;
+	struct dc_tiling_info tiling_info;
 	struct dc_plane_dcc_param dcc;
 	enum surface_pixel_format format;
 	enum dc_rotation_angle rotation;
@@ -1526,6 +1533,7 @@ struct dc_surface_update {
 	const struct dc_cm2_parameters *cm2_params;
 	const struct dc_csc_transform *cursor_csc_color_matrix;
 	unsigned int sdr_white_level_nits;
+	struct dc_bias_and_scale bias_and_scale;
 };
 
 /*
@@ -2019,6 +2027,24 @@ uint32_t dc_link_bandwidth_kbps(
 	const struct dc_link *link,
 	const struct dc_link_settings *link_setting);
 
+struct dp_audio_bandwidth_params {
+	const struct dc_crtc_timing *crtc_timing;
+	enum dp_link_encoding link_encoding;
+	uint32_t channel_count;
+	uint32_t sample_rate_hz;
+};
+
+/* The function calculates the minimum size of hblank (in bytes) needed to
+ * support the specified channel count and sample rate combination, given the
+ * link encoding and timing to be used. This calculation is not supported
+ * for 8b/10b SST.
+ *
+ * return - min hblank size in bytes, 0 if 8b/10b SST.
+ */
+uint32_t dc_link_required_hblank_size_bytes(
+	const struct dc_link *link,
+	struct dp_audio_bandwidth_params *audio_params);
+
 /* The function takes a snapshot of current link resource allocation state
  * @dc: pointer to dc of the dm calling this
  * @map: a dc link resource snapshot defined internally to dc.
@@ -2378,6 +2404,13 @@ struct dc_sink_dsc_caps {
 	struct dsc_dec_dpcd_caps dsc_dec_caps;
 };
 
+struct dc_sink_hblank_expansion_caps {
+	// 'true' if these are virtual DPCD's HBlank expansion caps (immediately upstream of sink in MST topology),
+	// 'false' if they are sink's HBlank expansion caps
+	bool is_virtual_dpcd_hblank_expansion;
+	struct hblank_expansion_dpcd_caps dpcd_caps;
+};
+
 struct dc_sink_fec_caps {
 	bool is_rx_fec_supported;
 	bool is_topology_fec_supported;
@@ -2404,6 +2437,7 @@ struct dc_sink {
 	struct scdc_caps scdc_caps;
 	struct dc_sink_dsc_caps dsc_caps;
 	struct dc_sink_fec_caps fec_caps;
+	struct dc_sink_hblank_expansion_caps hblank_expansion_caps;
 
 	bool is_vsc_sdp_colorimetry_supported;
 

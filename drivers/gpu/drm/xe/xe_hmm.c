@@ -159,7 +159,7 @@ void xe_hmm_userptr_free_sg(struct xe_userptr_vma *uvma)
  * This function allocates the storage of the userptr sg table.
  * It is caller's responsibility to free it calling sg_free_table.
  *
- * returns: 0 for succuss; negative error no on failure
+ * returns: 0 for success; negative error no on failure
  */
 int xe_hmm_userptr_populate_range(struct xe_userptr_vma *uvma,
 				  bool is_mm_mmap_locked)

@@ -690,12 +690,12 @@ __DML_DLL_EXPORT__ void dml_print_clk_cfg(const struct dml_clk_cfg_st *clk_cfg)
 	dml_print("DML: clk_cfg: dcfclk_option = %d\n", clk_cfg->dcfclk_option);
 	dml_print("DML: clk_cfg: dispclk_option = %d\n", clk_cfg->dispclk_option);
 
-	dml_print("DML: clk_cfg: dcfclk_freq_mhz = %f\n", clk_cfg->dcfclk_freq_mhz);
-	dml_print("DML: clk_cfg: dispclk_freq_mhz = %f\n", clk_cfg->dispclk_freq_mhz);
+	dml_print("DML: clk_cfg: dcfclk_mhz = %f\n", clk_cfg->dcfclk_mhz);
+	dml_print("DML: clk_cfg: dispclk_mhz = %f\n", clk_cfg->dispclk_mhz);
 
 	for (dml_uint_t i = 0; i < DCN_DML__NUM_PLANE; i++) {
 		dml_print("DML: clk_cfg: i=%d, dppclk_option = %d\n", i, clk_cfg->dppclk_option[i]);
-		dml_print("DML: clk_cfg: i=%d, dppclk_freq_mhz = %f\n", i, clk_cfg->dppclk_freq_mhz[i]);
+		dml_print("DML: clk_cfg: i=%d, dppclk_mhz = %f\n", i, clk_cfg->dppclk_mhz[i]);
 	}
 }
 

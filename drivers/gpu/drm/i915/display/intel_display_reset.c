@@ -114,11 +114,11 @@ void intel_display_reset_finish(struct drm_i915_private *i915)
 		 * so need a full re-initialization.
 		 */
 		intel_pps_unlock_regs_wa(display);
-		intel_display_driver_init_hw(i915);
+		intel_display_driver_init_hw(display);
 		intel_clock_gating_init(i915);
 		intel_hpd_init(i915);
 
-		ret = __intel_display_driver_resume(i915, state, ctx);
+		ret = __intel_display_driver_resume(display, state, ctx);
 		if (ret)
 			drm_err(&i915->drm,
 				"Restoring old state failed with %i\n", ret);

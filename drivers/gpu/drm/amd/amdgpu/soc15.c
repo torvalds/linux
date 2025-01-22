@@ -171,6 +171,24 @@ static const struct amdgpu_video_codecs vcn_4_0_3_video_codecs_encode = {
 	.codec_array = NULL,
 };
 
+static const struct amdgpu_video_codecs vcn_5_0_1_video_codecs_encode_vcn0 = {
+	.codec_count = 0,
+	.codec_array = NULL,
+};
+
+static const struct amdgpu_video_codec_info vcn_5_0_1_video_codecs_decode_array_vcn0[] = {
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC, 4096, 4096, 52)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_HEVC, 8192, 4352, 186)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_JPEG, 16384, 16384, 0)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_VP9, 8192, 4352, 0)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_AV1, 8192, 4352, 0)},
+};
+
+static const struct amdgpu_video_codecs vcn_5_0_1_video_codecs_decode_vcn0 = {
+	.codec_count = ARRAY_SIZE(vcn_5_0_1_video_codecs_decode_array_vcn0),
+	.codec_array = vcn_5_0_1_video_codecs_decode_array_vcn0,
+};
+
 static int soc15_query_video_codecs(struct amdgpu_device *adev, bool encode,
 				    const struct amdgpu_video_codecs **codecs)
 {
@@ -208,6 +226,12 @@ static int soc15_query_video_codecs(struct amdgpu_device *adev, bool encode,
 				*codecs = &vcn_4_0_3_video_codecs_encode;
 			else
 				*codecs = &vcn_4_0_3_video_codecs_decode;
+			return 0;
+		case IP_VERSION(5, 0, 1):
+			if (encode)
+				*codecs = &vcn_5_0_1_video_codecs_encode_vcn0;
+			else
+				*codecs = &vcn_5_0_1_video_codecs_decode_vcn0;
 			return 0;
 		default:
 			return -EINVAL;
@@ -327,6 +351,7 @@ static u32 soc15_get_xclk(struct amdgpu_device *adev)
 	if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(12, 0, 0) ||
 	    amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(12, 0, 1) ||
 	    amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 6) ||
+	    amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 12) ||
 	    amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 14))
 		return 10000;
 	if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(10, 0, 0) ||
@@ -556,6 +581,7 @@ soc15_asic_reset_method(struct amdgpu_device *adev)
 		break;
 	case IP_VERSION(13, 0, 6):
 	case IP_VERSION(13, 0, 14):
+	case IP_VERSION(13, 0, 12):
 		/* Use gpu_recovery param to target a reset method.
 		 * Enable triggering of GPU reset only if specified
 		 * by module parameter.
@@ -1177,6 +1203,7 @@ static int soc15_common_early_init(struct amdgpu_ip_block *ip_block)
 		break;
 	case IP_VERSION(9, 4, 3):
 	case IP_VERSION(9, 4, 4):
+	case IP_VERSION(9, 5, 0):
 		adev->asic_funcs = &aqua_vanjaram_asic_funcs;
 		adev->cg_flags =
 			AMD_CG_SUPPORT_GFX_MGCG | AMD_CG_SUPPORT_GFX_CGCG |
@@ -1385,10 +1412,10 @@ static void soc15_update_drm_light_sleep(struct amdgpu_device *adev, bool enable
 		WREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_MISC_LIGHT_SLEEP_CTRL), data);
 }
 
-static int soc15_common_set_clockgating_state(void *handle,
+static int soc15_common_set_clockgating_state(struct amdgpu_ip_block *ip_block,
 					    enum amd_clockgating_state state)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (amdgpu_sriov_vf(adev))
 		return 0;
@@ -1453,6 +1480,7 @@ static void soc15_common_get_clockgating_state(void *handle, u64 *flags)
 
 	if ((amdgpu_ip_version(adev, MP0_HWIP, 0) != IP_VERSION(13, 0, 2)) &&
 	    (amdgpu_ip_version(adev, MP0_HWIP, 0) != IP_VERSION(13, 0, 6)) &&
+	    (amdgpu_ip_version(adev, MP0_HWIP, 0) != IP_VERSION(13, 0, 12)) &&
 	    (amdgpu_ip_version(adev, MP0_HWIP, 0) != IP_VERSION(13, 0, 14))) {
 		/* AMD_CG_SUPPORT_DRM_MGCG */
 		data = RREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_MISC_CGTT_CTRL0));
@@ -1473,7 +1501,7 @@ static void soc15_common_get_clockgating_state(void *handle, u64 *flags)
 		adev->df.funcs->get_clockgating_state(adev, flags);
 }
 
-static int soc15_common_set_powergating_state(void *handle,
+static int soc15_common_set_powergating_state(struct amdgpu_ip_block *ip_block,
 					    enum amd_powergating_state state)
 {
 	/* todo */
