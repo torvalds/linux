@@ -2252,6 +2252,15 @@ static inline int ext4_emergency_ro(struct super_block *sb)
 	return test_bit(EXT4_FLAGS_EMERGENCY_RO, &EXT4_SB(sb)->s_ext4_flags);
 }
 
+static inline int ext4_emergency_state(struct super_block *sb)
+{
+	if (unlikely(ext4_forced_shutdown(sb)))
+		return -EIO;
+	if (unlikely(ext4_emergency_ro(sb)))
+		return -EROFS;
+	return 0;
+}
+
 /*
  * Default values for user and/or group using reserved blocks
  */

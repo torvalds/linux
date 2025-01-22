@@ -5653,7 +5653,7 @@ static inline void ext4_mb_show_pa(struct super_block *sb)
 {
 	ext4_group_t i, ngroups;
 
-	if (ext4_forced_shutdown(sb))
+	if (ext4_emergency_state(sb))
 		return;
 
 	ngroups = ext4_get_groups_count(sb);
@@ -5687,7 +5687,7 @@ static void ext4_mb_show_ac(struct ext4_allocation_context *ac)
 {
 	struct super_block *sb = ac->ac_sb;
 
-	if (ext4_forced_shutdown(sb))
+	if (ext4_emergency_state(sb))
 		return;
 
 	mb_debug(sb, "Can't allocate:"

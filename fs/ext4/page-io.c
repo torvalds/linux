@@ -198,7 +198,7 @@ static int ext4_end_io_end(ext4_io_end_t *io_end)
 	} else {
 		ret = ext4_convert_unwritten_io_end_vec(handle, io_end);
 	}
-	if (ret < 0 && !ext4_forced_shutdown(sb) &&
+	if (ret < 0 && !ext4_emergency_state(sb) &&
 	    io_end->flag & EXT4_IO_END_UNWRITTEN) {
 		ext4_msg(sb, KERN_EMERG,
 			 "failed to convert unwritten extents to written "
