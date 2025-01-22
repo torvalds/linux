@@ -4665,6 +4665,7 @@ int rtw89_fw_h2c_raw_with_hdr(struct rtw89_dev *rtwdev,
 			      bool rack, bool dack);
 int rtw89_fw_h2c_raw(struct rtw89_dev *rtwdev, const u8 *buf, u16 len);
 void rtw89_fw_send_all_early_h2c(struct rtw89_dev *rtwdev);
+void __rtw89_fw_free_all_early_h2c(struct rtw89_dev *rtwdev);
 void rtw89_fw_free_all_early_h2c(struct rtw89_dev *rtwdev);
 int rtw89_fw_h2c_general_pkt(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link,
 			     u8 macid);

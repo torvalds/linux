@@ -4885,7 +4885,7 @@ void rtw89_core_deinit(struct rtw89_dev *rtwdev)
 {
 	rtw89_ser_deinit(rtwdev);
 	rtw89_unload_firmware(rtwdev);
-	rtw89_fw_free_all_early_h2c(rtwdev);
+	__rtw89_fw_free_all_early_h2c(rtwdev);
 
 	destroy_workqueue(rtwdev->txq_wq);
 	mutex_destroy(&rtwdev->rf_mutex);

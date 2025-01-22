@@ -6103,17 +6103,22 @@ void rtw89_fw_send_all_early_h2c(struct rtw89_dev *rtwdev)
 	}
 }
 
-void rtw89_fw_free_all_early_h2c(struct rtw89_dev *rtwdev)
+void __rtw89_fw_free_all_early_h2c(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_early_h2c *early_h2c, *tmp;
-
-	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	list_for_each_entry_safe(early_h2c, tmp, &rtwdev->early_h2c_list, list) {
 		list_del(&early_h2c->list);
 		kfree(early_h2c->h2c);
 		kfree(early_h2c);
 	}
+}
+
+void rtw89_fw_free_all_early_h2c(struct rtw89_dev *rtwdev)
+{
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
+
+	__rtw89_fw_free_all_early_h2c(rtwdev);
 }
 
 static void rtw89_fw_c2h_parse_attr(struct sk_buff *c2h)
