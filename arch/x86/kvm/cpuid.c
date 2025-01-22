@@ -82,17 +82,8 @@ u32 xstate_required_size(u64 xstate_bv, bool compacted)
 	return ret;
 }
 
-/*
- * Magic value used by KVM when querying userspace-provided CPUID entries and
- * doesn't care about the CPIUD index because the index of the function in
- * question is not significant.  Note, this magic value must have at least one
- * bit set in bits[63:32] and must be consumed as a u64 by cpuid_entry2_find()
- * to avoid false positives when processing guest CPUID input.
- */
-#define KVM_CPUID_INDEX_NOT_SIGNIFICANT -1ull
-
-static struct kvm_cpuid_entry2 *cpuid_entry2_find(struct kvm_vcpu *vcpu,
-						  u32 function, u64 index)
+struct kvm_cpuid_entry2 *kvm_find_cpuid_entry2(
+	struct kvm_cpuid_entry2 *entries, int nent, u32 function, u64 index)
 {
 	struct kvm_cpuid_entry2 *e;
 	int i;
@@ -109,8 +100,8 @@ static struct kvm_cpuid_entry2 *cpuid_entry2_find(struct kvm_vcpu *vcpu,
 	 */
 	lockdep_assert_irqs_enabled();
 
-	for (i = 0; i < vcpu->arch.cpuid_nent; i++) {
-		e = &vcpu->arch.cpuid_entries[i];
+	for (i = 0; i < nent; i++) {
+		e = &entries[i];
 
 		if (e->function != function)
 			continue;
@@ -141,26 +132,7 @@ static struct kvm_cpuid_entry2 *cpuid_entry2_find(struct kvm_vcpu *vcpu,
 
 	return NULL;
 }
-
-struct kvm_cpuid_entry2 *kvm_find_cpuid_entry_index(struct kvm_vcpu *vcpu,
-						    u32 function, u32 index)
-{
-	return cpuid_entry2_find(vcpu, function, index);
-}
-EXPORT_SYMBOL_GPL(kvm_find_cpuid_entry_index);
-
-struct kvm_cpuid_entry2 *kvm_find_cpuid_entry(struct kvm_vcpu *vcpu,
-					      u32 function)
-{
-	return cpuid_entry2_find(vcpu, function, KVM_CPUID_INDEX_NOT_SIGNIFICANT);
-}
-EXPORT_SYMBOL_GPL(kvm_find_cpuid_entry);
-
-/*
- * cpuid_entry2_find() and KVM_CPUID_INDEX_NOT_SIGNIFICANT should never be used
- * directly outside of kvm_find_cpuid_entry() and kvm_find_cpuid_entry_index().
- */
-#undef KVM_CPUID_INDEX_NOT_SIGNIFICANT
+EXPORT_SYMBOL_GPL(kvm_find_cpuid_entry2);
 
 static int kvm_check_cpuid(struct kvm_vcpu *vcpu)
 {
