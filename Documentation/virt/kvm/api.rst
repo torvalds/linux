@@ -5577,7 +5577,7 @@ KVM_XEN_ATTR_TYPE_SHARED_INFO_HVA
   in guest physical address space. This attribute should be used in
   preference to KVM_XEN_ATTR_TYPE_SHARED_INFO as it avoids
   unnecessary invalidation of an internal cache when the page is
-  re-mapped in guest physcial address space.
+  re-mapped in guest physical address space.
 
   Setting the hva to zero will disable the shared_info page.
 

@@ -1544,6 +1544,13 @@ constant ``FUTEX_TID_MASK`` (0x3fffffff).
 If a value outside of this range is written to ``threads-max`` an
 ``EINVAL`` error occurs.
 
+timer_migration
+===============
+
+When set to a non-zero value, attempt to migrate timers away from idle cpus to
+allow them to remain in low power states longer.
+
+Default is set (1).
 
 traceoff_on_warning
 ===================

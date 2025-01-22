@@ -7777,7 +7777,7 @@
 	vt.cur_default=	[VT] Default cursor shape.
 			Format: 0xCCBBAA, where AA, BB, and CC are the same as
 			the parameters of the <Esc>[?A;B;Cc escape sequence;
-			see VGA-softcursor.txt. Default: 2 = underline.
+			see vga-softcursor.rst. Default: 2 = underline.
 
 	vt.default_blu=	[VT]
 			Format: <blue0>,<blue1>,<blue2>,...,<blue15>

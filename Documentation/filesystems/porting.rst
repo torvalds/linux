@@ -313,7 +313,7 @@ done.
 
 **mandatory**
 
-block truncatation on error exit from ->write_begin, and ->direct_IO
+block truncation on error exit from ->write_begin, and ->direct_IO
 moved from generic methods (block_write_begin, cont_write_begin,
 nobh_write_begin, blockdev_direct_IO*) to callers.  Take a look at
 ext2_write_failed and callers for an example.
