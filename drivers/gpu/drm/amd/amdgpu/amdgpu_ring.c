@@ -324,20 +324,27 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 	/* always set cond_exec_polling to CONTINUE */
 	*ring->cond_exe_cpu_addr = 1;
 
-	r = amdgpu_fence_driver_start_ring(ring, irq_src, irq_type);
-	if (r) {
-		dev_err(adev->dev, "failed initializing fences (%d).\n", r);
-		return r;
+	if (ring->funcs->type != AMDGPU_RING_TYPE_CPER) {
+		r = amdgpu_fence_driver_start_ring(ring, irq_src, irq_type);
+		if (r) {
+			dev_err(adev->dev, "failed initializing fences (%d).\n", r);
+			return r;
+		}
+
+		max_ibs_dw = ring->funcs->emit_frame_size +
+			     amdgpu_ring_max_ibs(ring->funcs->type) * ring->funcs->emit_ib_size;
+		max_ibs_dw = (max_ibs_dw + ring->funcs->align_mask) & ~ring->funcs->align_mask;
+
+		if (WARN_ON(max_ibs_dw > max_dw))
+			max_dw = max_ibs_dw;
+
+		ring->ring_size = roundup_pow_of_two(max_dw * 4 * sched_hw_submission);
+	} else {
+		ring->ring_size = roundup_pow_of_two(max_dw * 4);
+		ring->count_dw = (ring->ring_size - 4) >> 2;
+		/* ring buffer is empty now */
+		ring->wptr = *ring->rptr_cpu_addr = 0;
 	}
-
-	max_ibs_dw = ring->funcs->emit_frame_size +
-		     amdgpu_ring_max_ibs(ring->funcs->type) * ring->funcs->emit_ib_size;
-	max_ibs_dw = (max_ibs_dw + ring->funcs->align_mask) & ~ring->funcs->align_mask;
-
-	if (WARN_ON(max_ibs_dw > max_dw))
-		max_dw = max_ibs_dw;
-
-	ring->ring_size = roundup_pow_of_two(max_dw * 4 * sched_hw_submission);
 
 	ring->buf_mask = (ring->ring_size / 4) - 1;
 	ring->ptr_mask = ring->funcs->support_64bit_ptrs ?

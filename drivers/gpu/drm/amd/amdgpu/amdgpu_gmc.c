@@ -591,7 +591,8 @@ int amdgpu_gmc_allocate_vm_inv_eng(struct amdgpu_device *adev)
 
 		if (ring == &adev->mes.ring[0] ||
 		    ring == &adev->mes.ring[1] ||
-		    ring == &adev->umsch_mm.ring)
+		    ring == &adev->umsch_mm.ring ||
+		    ring == &adev->cper.ring_buf)
 			continue;
 
 		inv_eng = ffs(vm_inv_engs[vmhub]);

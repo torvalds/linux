@@ -382,6 +382,39 @@ int amdgpu_cper_generate_ce_records(struct amdgpu_device *adev,
 	return 0;
 }
 
+static u64 amdgpu_cper_ring_get_rptr(struct amdgpu_ring *ring)
+{
+	return *(ring->rptr_cpu_addr);
+}
+
+static u64 amdgpu_cper_ring_get_wptr(struct amdgpu_ring *ring)
+{
+	return ring->wptr;
+}
+
+static const struct amdgpu_ring_funcs cper_ring_funcs = {
+	.type = AMDGPU_RING_TYPE_CPER,
+	.align_mask = 0xff,
+	.support_64bit_ptrs = false,
+	.get_rptr = amdgpu_cper_ring_get_rptr,
+	.get_wptr = amdgpu_cper_ring_get_wptr,
+};
+
+static int amdgpu_cper_ring_init(struct amdgpu_device *adev)
+{
+	struct amdgpu_ring *ring = &(adev->cper.ring_buf);
+
+	ring->adev = NULL;
+	ring->ring_obj = NULL;
+	ring->use_doorbell = false;
+	ring->no_scheduler = true;
+	ring->funcs = &cper_ring_funcs;
+
+	sprintf(ring->name, "cper");
+	return amdgpu_ring_init(adev, ring, CPER_MAX_RING_SIZE, NULL, 0,
+				AMDGPU_RING_PRIO_DEFAULT, NULL);
+}
+
 int amdgpu_cper_init(struct amdgpu_device *adev)
 {
 	mutex_init(&adev->cper.cper_lock);
@@ -389,16 +422,14 @@ int amdgpu_cper_init(struct amdgpu_device *adev)
 	adev->cper.enabled = true;
 	adev->cper.max_count = CPER_MAX_ALLOWED_COUNT;
 
-	/*TODO: initialize cper ring*/
-
-	return 0;
+	return amdgpu_cper_ring_init(adev);
 }
 
 int amdgpu_cper_fini(struct amdgpu_device *adev)
 {
 	adev->cper.enabled = false;
 
-	/*TODO: free cper ring */
+	amdgpu_ring_fini(&(adev->cper.ring_buf));
 	adev->cper.count = 0;
 	adev->cper.wptr = 0;
 

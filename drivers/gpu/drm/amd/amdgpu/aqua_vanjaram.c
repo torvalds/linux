@@ -77,7 +77,8 @@ static void aqua_vanjaram_set_xcp_id(struct amdgpu_device *adev,
 	ring->xcp_id = AMDGPU_XCP_NO_PARTITION;
 	if (ring->funcs->type == AMDGPU_RING_TYPE_COMPUTE)
 		adev->gfx.enforce_isolation[0].xcp_id = ring->xcp_id;
-	if (adev->xcp_mgr->mode == AMDGPU_XCP_MODE_NONE)
+	if ((adev->xcp_mgr->mode == AMDGPU_XCP_MODE_NONE) ||
+	    (ring->funcs->type == AMDGPU_RING_TYPE_CPER))
 		return;
 
 	inst_mask = 1 << inst_idx;

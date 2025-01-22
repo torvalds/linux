@@ -29,6 +29,7 @@
 #include "amdgpu_aca.h"
 
 #define CPER_MAX_ALLOWED_COUNT		0x1000
+#define CPER_MAX_RING_SIZE		0X100000
 #define HDR_LEN				(sizeof(struct cper_hdr))
 #define SEC_DESC_LEN			(sizeof(struct cper_sec_desc))
 
@@ -62,6 +63,7 @@ struct amdgpu_cper {
 	uint32_t wptr;
 
 	void *ring[CPER_MAX_ALLOWED_COUNT];
+	struct amdgpu_ring ring_buf;
 };
 
 void amdgpu_cper_entry_fill_hdr(struct amdgpu_device *adev,
