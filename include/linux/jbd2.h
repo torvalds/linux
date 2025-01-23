@@ -459,7 +459,6 @@ struct jbd2_revoke_table_s;
  * @h_ref: Reference count on this handle.
  * @h_err: Field for caller's use to track errors through large fs operations.
  * @h_sync: Flag for sync-on-close.
- * @h_jdata: Flag to force data journaling.
  * @h_reserved: Flag for handle for reserved credits.
  * @h_aborted: Flag indicating fatal error on handle.
  * @h_type: For handle statistics.
@@ -491,7 +490,6 @@ struct jbd2_journal_handle
 
 	/* Flags [no locking] */
 	unsigned int	h_sync:		1;
-	unsigned int	h_jdata:	1;
 	unsigned int	h_reserved:	1;
 	unsigned int	h_aborted:	1;
 	unsigned int	h_type:		8;
