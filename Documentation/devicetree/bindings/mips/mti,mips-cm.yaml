@@ -19,7 +19,12 @@ maintainers:
 
 properties:
   compatible:
-    const: mti,mips-cm
+    oneOf:
+      - const: mti,mips-cm
+      - const: mobileye,eyeq6-cm
+        description:
+          On EyeQ6 the HCI (Hardware Cache Initialization) information for
+          the L2 cache in multi-cluster configuration is broken.
 
   reg:
     description:
@@ -43,5 +48,10 @@ examples:
     coherency-manager@1fbf8000 {
       compatible = "mti,mips-cm";
       reg = <0x1bde8000 0x8000>;
+    };
+
+  - |
+    coherency-manager {
+      compatible = "mobileye,eyeq6-cm";
     };
 ...
