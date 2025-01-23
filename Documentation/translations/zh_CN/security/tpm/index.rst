@@ -12,9 +12,9 @@
 
 .. toctree::
 
+   tpm_event_log
 
 TODOLIST:
-*   tpm_event_log
 *   tpm-security
 *   tpm_tis
 *   tpm_vtpm_proxy
