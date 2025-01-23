@@ -2877,21 +2877,6 @@ static void remove_boost_sysfs_file(void)
 		sysfs_remove_file(cpufreq_global_kobject, &boost.attr);
 }
 
-int cpufreq_enable_boost_support(void)
-{
-	if (!cpufreq_driver)
-		return -EINVAL;
-
-	if (cpufreq_boost_supported())
-		return 0;
-
-	cpufreq_driver->set_boost = cpufreq_boost_set_sw;
-
-	/* This will get removed on driver unregister */
-	return create_boost_sysfs_file();
-}
-EXPORT_SYMBOL_GPL(cpufreq_enable_boost_support);
-
 bool cpufreq_boost_enabled(void)
 {
 	return cpufreq_driver->boost_enabled;
