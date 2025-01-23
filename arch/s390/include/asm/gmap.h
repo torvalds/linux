@@ -149,6 +149,7 @@ int s390_replace_asce(struct gmap *gmap);
 void s390_uv_destroy_pfns(unsigned long count, unsigned long *pfns);
 int __s390_uv_destroy_range(struct mm_struct *mm, unsigned long start,
 			    unsigned long end, bool interruptible);
+int kvm_s390_wiggle_split_folio(struct mm_struct *mm, struct folio *folio, bool split);
 
 /**
  * s390_uv_destroy_range - Destroy a range of pages in the given mm.

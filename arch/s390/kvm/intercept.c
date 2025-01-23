@@ -21,6 +21,7 @@
 #include "gaccess.h"
 #include "trace.h"
 #include "trace-s390.h"
+#include "gmap.h"
 
 u8 kvm_s390_get_ilen(struct kvm_vcpu *vcpu)
 {
@@ -549,7 +550,7 @@ static int handle_pv_uvc(struct kvm_vcpu *vcpu)
 	 * If the unpin did not succeed, the guest will exit again for the UVC
 	 * and we will retry the unpin.
 	 */
-	if (rc == -EINVAL)
+	if (rc == -EINVAL || rc == -ENXIO)
 		return 0;
 	/*
 	 * If we got -EAGAIN here, we simply return it. It will eventually
