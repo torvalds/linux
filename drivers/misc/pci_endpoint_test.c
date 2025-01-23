@@ -910,7 +910,7 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 {
 	int ret;
 	int id;
-	char name[24];
+	char name[29];
 	enum pci_barno bar;
 	void __iomem *base;
 	struct device *dev = &pdev->dev;
