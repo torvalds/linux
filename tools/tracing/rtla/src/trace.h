@@ -18,6 +18,7 @@ struct trace_instance {
 	struct tep_handle		*tep;
 	struct trace_seq		*seq;
 	unsigned long long		missed_events;
+	unsigned long long		processed_events;
 };
 
 int trace_instance_init(struct trace_instance *trace, char *tool_name);

@@ -118,6 +118,8 @@ collect_registered_events(struct tep_event *event, struct tep_record *record,
 	struct trace_instance *trace = context;
 	struct trace_seq *s = trace->seq;
 
+	trace->processed_events++;
+
 	if (!event->handler)
 		return 0;
 
@@ -214,6 +216,8 @@ int trace_instance_init(struct trace_instance *trace, char *tool_name)
 	tracefs_follow_missed_events(trace->inst,
 				     collect_missed_events,
 				     trace);
+
+	trace->processed_events = 0;
 
 	return 0;
 
