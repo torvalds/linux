@@ -140,12 +140,10 @@ enum yfs_cm_operation {
 	EM(afs_server_trace_see_expired,	"SEE expd ") \
 	EM(afs_server_trace_unuse_call,		"UNU call ") \
 	EM(afs_server_trace_unuse_create_fail,	"UNU cfail") \
-	EM(afs_server_trace_unuse_find_rsq,	"UNU f-rsq") \
 	EM(afs_server_trace_unuse_slist,	"UNU slist") \
 	EM(afs_server_trace_unuse_slist_isort,	"UNU isort") \
 	EM(afs_server_trace_unuse_uuid_rsq,	"PUT u-req") \
 	EM(afs_server_trace_update,		"UPDATE   ") \
-	EM(afs_server_trace_use_by_addr,	"USE addr ") \
 	EM(afs_server_trace_use_by_uuid,	"USE uuid ") \
 	EM(afs_server_trace_use_cm_call,	"USE cm-cl") \
 	EM(afs_server_trace_use_get_caps,	"USE gcaps") \
@@ -1281,7 +1279,7 @@ TRACE_EVENT(afs_bulkstat_error,
 	    );
 
 TRACE_EVENT(afs_cm_no_server,
-	    TP_PROTO(struct afs_call *call, struct sockaddr_rxrpc *srx),
+	    TP_PROTO(struct afs_call *call, const struct sockaddr_rxrpc *srx),
 
 	    TP_ARGS(call, srx),
 

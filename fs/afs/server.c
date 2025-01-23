@@ -21,42 +21,13 @@ static void __afs_put_server(struct afs_net *, struct afs_server *);
 /*
  * Find a server by one of its addresses.
  */
-struct afs_server *afs_find_server(struct afs_net *net, const struct rxrpc_peer *peer)
+struct afs_server *afs_find_server(const struct rxrpc_peer *peer)
 {
-	const struct afs_endpoint_state *estate;
-	const struct afs_addr_list *alist;
-	struct afs_server *server = NULL;
-	unsigned int i;
-	int seq = 1;
+	struct afs_server *server = (struct afs_server *)rxrpc_kernel_get_peer_data(peer);
 
-	rcu_read_lock();
-
-	do {
-		if (server)
-			afs_unuse_server_notime(net, server, afs_server_trace_unuse_find_rsq);
-		server = NULL;
-		seq++; /* 2 on the 1st/lockless path, otherwise odd */
-		read_seqbegin_or_lock(&net->fs_addr_lock, &seq);
-
-		hlist_for_each_entry_rcu(server, &net->fs_addresses, addr_link) {
-			estate = rcu_dereference(server->endpoint_state);
-			alist = estate->addresses;
-			for (i = 0; i < alist->nr_addrs; i++)
-				if (alist->addrs[i].peer == peer)
-					goto found;
-		}
-
-		server = NULL;
-		continue;
-	found:
-		server = afs_maybe_use_server(server, afs_server_trace_use_by_addr);
-
-	} while (need_seqretry(&net->fs_addr_lock, seq));
-
-	done_seqretry(&net->fs_addr_lock, seq);
-
-	rcu_read_unlock();
-	return server;
+	if (!server)
+		return NULL;
+	return afs_maybe_use_server(server, afs_server_trace_use_cm_call);
 }
 
 /*
@@ -468,8 +439,15 @@ static void afs_give_up_callbacks(struct afs_net *net, struct afs_server *server
  */
 static void afs_destroy_server(struct afs_net *net, struct afs_server *server)
 {
+	struct afs_endpoint_state *estate;
+
 	if (test_bit(AFS_SERVER_FL_MAY_HAVE_CB, &server->flags))
 		afs_give_up_callbacks(net, server);
+
+	/* Unbind the rxrpc_peer records from the server. */
+	estate = rcu_access_pointer(server->endpoint_state);
+	if (estate)
+		afs_set_peer_appdata(server, estate->addresses, NULL);
 
 	afs_put_server(net, server, afs_server_trace_destroy);
 }

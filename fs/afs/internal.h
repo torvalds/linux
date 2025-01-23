@@ -1010,6 +1010,9 @@ extern int afs_merge_fs_addr4(struct afs_net *net, struct afs_addr_list *addr,
 			      __be32 xdr, u16 port);
 extern int afs_merge_fs_addr6(struct afs_net *net, struct afs_addr_list *addr,
 			      __be32 *xdr, u16 port);
+void afs_set_peer_appdata(struct afs_server *server,
+			  struct afs_addr_list *old_alist,
+			  struct afs_addr_list *new_alist);
 
 /*
  * addr_prefs.c
@@ -1207,8 +1210,8 @@ struct afs_endpoint_state *afs_get_endpoint_state(struct afs_endpoint_state *est
 						  enum afs_estate_trace where);
 void afs_put_endpoint_state(struct afs_endpoint_state *estate, enum afs_estate_trace where);
 extern void afs_fileserver_probe_result(struct afs_call *);
-void afs_fs_probe_fileserver(struct afs_net *net, struct afs_server *server,
-			     struct afs_addr_list *new_addrs, struct key *key);
+int afs_fs_probe_fileserver(struct afs_net *net, struct afs_server *server,
+			    struct afs_addr_list *new_alist, struct key *key);
 int afs_wait_for_fs_probes(struct afs_operation *op, struct afs_server_state *states, bool intr);
 extern void afs_probe_fileserver(struct afs_net *, struct afs_server *);
 extern void afs_fs_probe_dispatcher(struct work_struct *);
@@ -1509,7 +1512,7 @@ extern void __exit afs_clean_up_permit_cache(void);
  */
 extern spinlock_t afs_server_peer_lock;
 
-extern struct afs_server *afs_find_server(struct afs_net *, const struct rxrpc_peer *);
+struct afs_server *afs_find_server(const struct rxrpc_peer *peer);
 extern struct afs_server *afs_find_server_by_uuid(struct afs_net *, const uuid_t *);
 extern struct afs_server *afs_lookup_server(struct afs_cell *, struct key *, const uuid_t *, u32);
 extern struct afs_server *afs_get_server(struct afs_server *, enum afs_server_trace);

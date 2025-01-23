@@ -461,7 +461,7 @@ void rxrpc_destroy_all_peers(struct rxrpc_net *rxnet)
 			continue;
 
 		hlist_for_each_entry(peer, &rxnet->peer_hash[i], hash_link) {
-			pr_err("Leaked peer %u {%u} %pISp\n",
+			pr_err("Leaked peer %x {%u} %pISp\n",
 			       peer->debug_id,
 			       refcount_read(&peer->ref),
 			       &peer->srx.transport);
@@ -478,7 +478,7 @@ void rxrpc_destroy_all_peers(struct rxrpc_net *rxnet)
  */
 struct rxrpc_peer *rxrpc_kernel_get_call_peer(struct socket *sock, struct rxrpc_call *call)
 {
-	return call->peer;
+	return rxrpc_get_peer(call->peer, rxrpc_peer_get_application);
 }
 EXPORT_SYMBOL(rxrpc_kernel_get_call_peer);
 
