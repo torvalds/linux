@@ -1077,13 +1077,6 @@ static int cpufreq_add_dev_interface(struct cpufreq_policy *policy)
 	/* set up files for this cpu device */
 	drv_attr = cpufreq_driver->attr;
 	while (drv_attr && *drv_attr) {
-		/* These are already added, skip them */
-		if (*drv_attr == &cpufreq_freq_attr_scaling_available_freqs ||
-		    *drv_attr == &cpufreq_freq_attr_scaling_boost_freqs) {
-			drv_attr++;
-			continue;
-		}
-
 		ret = sysfs_create_file(&policy->kobj, &((*drv_attr)->attr));
 		if (ret)
 			return ret;
