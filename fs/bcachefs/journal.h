@@ -121,11 +121,6 @@ static inline void journal_wake(struct journal *j)
 	closure_wake_up(&j->async_wait);
 }
 
-static inline struct journal_buf *journal_cur_buf(struct journal *j)
-{
-	return j->buf + j->reservations.idx;
-}
-
 /* Sequence number of oldest dirty journal entry */
 
 static inline u64 journal_last_seq(struct journal *j)
@@ -143,6 +138,15 @@ static inline u64 journal_last_unwritten_seq(struct journal *j)
 	return j->seq_ondisk + 1;
 }
 
+static inline struct journal_buf *journal_cur_buf(struct journal *j)
+{
+	unsigned idx = (journal_cur_seq(j) &
+			JOURNAL_BUF_MASK &
+			~JOURNAL_STATE_BUF_MASK) + j->reservations.idx;
+
+	return j->buf + idx;
+}
+
 static inline int journal_state_count(union journal_res_state s, int idx)
 {
 	switch (idx) {
@@ -152,6 +156,15 @@ static inline int journal_state_count(union journal_res_state s, int idx)
 	case 3: return s.buf3_count;
 	}
 	BUG();
+}
+
+static inline int journal_state_seq_count(struct journal *j,
+					  union journal_res_state s, u64 seq)
+{
+	if (journal_cur_seq(j) - seq <= JOURNAL_STATE_BUF_NR)
+		return journal_state_count(s, seq & JOURNAL_STATE_BUF_MASK);
+	else
+		return 0;
 }
 
 static inline void journal_state_inc(union journal_res_state *s)
@@ -269,7 +282,7 @@ void bch2_journal_buf_put_final(struct journal *, u64);
 
 static inline void __bch2_journal_buf_put(struct journal *j, u64 seq)
 {
-	unsigned idx = seq & JOURNAL_BUF_MASK;
+	unsigned idx = seq & JOURNAL_STATE_BUF_MASK;
 	union journal_res_state s;
 
 	s = journal_state_buf_put(j, idx);
@@ -279,7 +292,7 @@ static inline void __bch2_journal_buf_put(struct journal *j, u64 seq)
 
 static inline void bch2_journal_buf_put(struct journal *j, u64 seq)
 {
-	unsigned idx = seq & JOURNAL_BUF_MASK;
+	unsigned idx = seq & JOURNAL_STATE_BUF_MASK;
 	union journal_res_state s;
 
 	s = journal_state_buf_put(j, idx);
@@ -365,9 +378,7 @@ static inline int journal_res_get_fast(struct journal *j,
 	res->ref	= true;
 	res->offset	= old.cur_entry_offset;
 	res->seq	= journal_cur_seq(j);
-	res->seq -= (res->seq - old.idx) & JOURNAL_BUF_MASK;
-
-	EBUG_ON(res->seq != le64_to_cpu(j->buf[old.idx].data->seq));
+	res->seq -= (res->seq - old.idx) & JOURNAL_STATE_BUF_MASK;
 	return 1;
 }
 
@@ -394,6 +405,7 @@ out:
 				    (flags & JOURNAL_RES_GET_NONBLOCK) != 0,
 				    NULL, _THIS_IP_);
 		EBUG_ON(!res->ref);
+		BUG_ON(!res->seq);
 	}
 	return 0;
 }

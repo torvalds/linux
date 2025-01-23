@@ -56,7 +56,12 @@ static void bch2_journal_buf_to_text(struct printbuf *out, struct journal *j, u6
 	prt_printf(out, "seq:\t%llu\n", seq);
 	printbuf_indent_add(out, 2);
 
-	prt_printf(out, "refcount:\t%u\n", journal_state_count(s, i));
+	if (!buf->write_started)
+		prt_printf(out, "refcount:\t%u\n", journal_state_count(s, i & JOURNAL_STATE_BUF_MASK));
+
+	struct closure *cl = &buf->io;
+	int r = atomic_read(&cl->remaining);
+	prt_printf(out, "io:\t%pS r %i\n", cl->fn, r & CLOSURE_REMAINING_MASK);
 
 	if (buf->data) {
 		prt_printf(out, "size:\t");
@@ -200,7 +205,8 @@ void bch2_journal_do_writes(struct journal *j)
 		if (w->write_started)
 			continue;
 
-		if (!journal_state_count(j->reservations, idx)) {
+		if (!journal_state_seq_count(j, j->reservations, seq)) {
+			j->seq_write_started = seq;
 			w->write_started = true;
 			closure_call(&w->io, bch2_journal_write, j->wq, NULL);
 		}
@@ -396,6 +402,9 @@ static int journal_entry_open(struct journal *j)
 	if (nr_unwritten_journal_entries(j) == ARRAY_SIZE(j->buf))
 		return JOURNAL_ERR_max_in_flight;
 
+	if (atomic64_read(&j->seq) - j->seq_write_started == JOURNAL_STATE_BUF_NR)
+		return JOURNAL_ERR_max_open;
+
 	if (journal_cur_seq(j) >= JOURNAL_SEQ_MAX) {
 		bch_err(c, "cannot start: journal seq overflow");
 		if (bch2_fs_emergency_read_only_locked(c))
@@ -477,7 +486,7 @@ static int journal_entry_open(struct journal *j)
 
 		new.idx++;
 		BUG_ON(journal_state_count(new, new.idx));
-		BUG_ON(new.idx != (journal_cur_seq(j) & JOURNAL_BUF_MASK));
+		BUG_ON(new.idx != (journal_cur_seq(j) & JOURNAL_STATE_BUF_MASK));
 
 		journal_state_inc(&new);
 
@@ -623,6 +632,23 @@ out:
 
 	if (ret == JOURNAL_ERR_max_in_flight &&
 	    track_event_change(&c->times[BCH_TIME_blocked_journal_max_in_flight], true) &&
+	    trace_journal_entry_full_enabled()) {
+		struct printbuf buf = PRINTBUF;
+
+		bch2_printbuf_make_room(&buf, 4096);
+
+		spin_lock(&j->lock);
+		prt_printf(&buf, "seq %llu\n", journal_cur_seq(j));
+		bch2_journal_bufs_to_text(&buf, j);
+		spin_unlock(&j->lock);
+
+		trace_journal_entry_full(c, buf.buf);
+		printbuf_exit(&buf);
+		count_event(c, journal_entry_full);
+	}
+
+	if (ret == JOURNAL_ERR_max_open &&
+	    track_event_change(&c->times[BCH_TIME_blocked_journal_max_open], true) &&
 	    trace_journal_entry_full_enabled()) {
 		struct printbuf buf = PRINTBUF;
 
@@ -1041,7 +1067,7 @@ static struct journal_buf *__bch2_next_write_buffer_flush_journal_buf(struct jou
 				*blocked = true;
 			}
 
-			ret = journal_state_count(s, idx) > open
+			ret = journal_state_count(s, idx & JOURNAL_STATE_BUF_MASK) > open
 				? ERR_PTR(-EAGAIN)
 				: buf;
 			break;
@@ -1398,6 +1424,7 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq)
 	j->replay_journal_seq_end = cur_seq;
 	j->last_seq_ondisk	= last_seq;
 	j->flushed_seq_ondisk	= cur_seq - 1;
+	j->seq_write_started	= cur_seq - 1;
 	j->seq_ondisk		= cur_seq - 1;
 	j->pin.front		= last_seq;
 	j->pin.back		= cur_seq;
