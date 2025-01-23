@@ -18,6 +18,7 @@
    lsm
    sak
    siphash
+   tpm/index
    digsig
    landlock
 
@@ -29,6 +30,5 @@ TODOLIST:
 * lsm-development
 * SCTP
 * self-protection
-* tpm/index
 * secrets/index
 * ipe
