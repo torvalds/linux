@@ -189,7 +189,6 @@ config CRC32
 	tristate "CRC32/CRC32c functions"
 	default y
 	select BITREVERSE
-	select CRC32_SARWATE
 	help
 	  This option is provided for the case where no in-kernel-tree
 	  modules require CRC32/CRC32c functions, but a module built outside
@@ -202,9 +201,6 @@ config ARCH_HAS_CRC32
 config CRC32_ARCH
 	tristate
 	default CRC32 if ARCH_HAS_CRC32 && CRC_OPTIMIZATIONS
-
-config CRC32_SARWATE
-	bool
 
 config CRC64
 	tristate "CRC64 functions"
