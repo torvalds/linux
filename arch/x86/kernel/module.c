@@ -19,6 +19,7 @@
 #include <linux/jump_label.h>
 #include <linux/random.h>
 #include <linux/memory.h>
+#include <linux/stackprotector.h>
 
 #include <asm/text-patching.h>
 #include <asm/page.h>
@@ -130,6 +131,20 @@ static int __write_relocate_add(Elf64_Shdr *sechdrs,
 				goto overflow;
 			size = 4;
 			break;
+#if defined(CONFIG_STACKPROTECTOR) && \
+    defined(CONFIG_CC_IS_CLANG) && CONFIG_CLANG_VERSION < 170000
+		case R_X86_64_REX_GOTPCRELX: {
+			static unsigned long __percpu *const addr = &__stack_chk_guard;
+
+			if (sym->st_value != (u64)addr) {
+				pr_err("%s: Unsupported GOTPCREL relocation\n", me->name);
+				return -ENOEXEC;
+			}
+
+			val = (u64)&addr + rel[i].r_addend;
+			fallthrough;
+		}
+#endif
 		case R_X86_64_PC32:
 		case R_X86_64_PLT32:
 			val -= (u64)loc;
