@@ -1341,6 +1341,7 @@ config X86_REBOOTFIXUPS
 config MICROCODE
 	def_bool y
 	depends on CPU_SUP_AMD || CPU_SUP_INTEL
+	select CRYPTO_LIB_SHA256 if CPU_SUP_AMD
 
 config MICROCODE_INITRD32
 	def_bool y
