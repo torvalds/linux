@@ -13,9 +13,9 @@
 .. toctree::
 
    tpm_event_log
+   tpm-security
 
 TODOLIST:
-*   tpm-security
 *   tpm_tis
 *   tpm_vtpm_proxy
 *   xen-tpmfront
