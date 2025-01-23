@@ -9,7 +9,6 @@
 
 #include <linux/cper.h>
 #include <cxl/event.h>
-#include "cper_cxl.h"
 
 static const char * const prot_err_agent_type_strs[] = {
 	"Restricted CXL Device",
