@@ -234,6 +234,11 @@ enum bch_data_event {
 	BCH_DATA_EVENT_NR	= 1,
 };
 
+enum data_progress_data_type_special {
+	DATA_PROGRESS_DATA_TYPE_phys	= 254,
+	DATA_PROGRESS_DATA_TYPE_done	= 255,
+};
+
 struct bch_ioctl_data_progress {
 	__u8			data_type;
 	__u8			btree_id;

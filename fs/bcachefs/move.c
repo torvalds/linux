@@ -859,6 +859,7 @@ static int bch2_move_data_phys(struct bch_fs *c,
 
 	bch2_moving_ctxt_init(&ctxt, c, rate, stats, wp, wait_on_copygc);
 	ctxt.stats->phys = true;
+	ctxt.stats->data_type = (int) DATA_PROGRESS_DATA_TYPE_phys;
 
 	int ret = __bch2_move_data_phys(&ctxt, NULL, dev, start, end, data_types, pred, arg);
 	bch2_moving_ctxt_exit(&ctxt);
@@ -1048,14 +1049,6 @@ static bool rereplicate_btree_pred(struct bch_fs *c, void *arg,
 	return rereplicate_pred(c, arg, bkey_i_to_s_c(&b->key), io_opts, data_opts);
 }
 
-static bool migrate_btree_pred(struct bch_fs *c, void *arg,
-			       struct btree *b,
-			       struct bch_io_opts *io_opts,
-			       struct data_update_opts *data_opts)
-{
-	return migrate_pred(c, arg, bkey_i_to_s_c(&b->key), io_opts, data_opts);
-}
-
 /*
  * Ancient versions of bcachefs produced packed formats which could represent
  * keys that the in memory format cannot represent; this checks for those
@@ -1218,14 +1211,14 @@ int bch2_data_job(struct bch_fs *c,
 
 		stats->data_type = BCH_DATA_journal;
 		ret = bch2_journal_flush_device_pins(&c->journal, op.migrate.dev);
-		ret = bch2_move_btree(c, start, end,
-				      migrate_btree_pred, &op, stats) ?: ret;
-		ret = bch2_move_data(c, start, end,
-				     NULL,
-				     stats,
-				     writepoint_hashed((unsigned long) current),
-				     true,
-				     migrate_pred, &op) ?: ret;
+		ret = bch2_move_data_phys(c, op.migrate.dev, 0, U64_MAX,
+					  ~0,
+					  NULL,
+					  stats,
+					  writepoint_hashed((unsigned long) current),
+					  true,
+					  migrate_pred, &op) ?: ret;
+		bch2_btree_interior_updates_flush(c);
 		ret = bch2_replicas_gc2(c) ?: ret;
 		break;
 	case BCH_DATA_OP_rewrite_old_nodes:

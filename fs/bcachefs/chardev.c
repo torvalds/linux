@@ -315,8 +315,10 @@ static int bch2_data_thread(void *arg)
 	ctx->thr.ret = bch2_data_job(ctx->c, &ctx->stats, ctx->arg);
 	if (ctx->thr.ret == -BCH_ERR_device_offline)
 		ctx->stats.ret = BCH_IOCTL_DATA_EVENT_RET_device_offline;
-	else
+	else {
 		ctx->stats.ret = BCH_IOCTL_DATA_EVENT_RET_done;
+		ctx->stats.data_type = (int) DATA_PROGRESS_DATA_TYPE_done;
+	}
 	return 0;
 }
 
