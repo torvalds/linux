@@ -807,6 +807,12 @@ static inline void update_mmu_tlb(struct vm_area_struct *vma,
 	update_mmu_tlb_range(vma, address, ptep, 1);
 }
 
+#ifndef update_mmu_cache_pmd_range
+#define update_mmu_cache_pmd_range(vma, address, pmd, nr_pmds) \
+	do {                                                   \
+        } while (0)
+#endif
+
 /*
  * Some architectures may be able to avoid expensive synchronization
  * primitives when modifications are made to PTE's which are already
