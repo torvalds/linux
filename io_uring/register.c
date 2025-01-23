@@ -405,8 +405,8 @@ static int io_register_resize_rings(struct io_ring_ctx *ctx, void __user *arg)
 {
 	struct io_ring_ctx_rings o = { }, n = { }, *to_free = NULL;
 	size_t size, sq_array_offset;
+	unsigned i, tail, old_head;
 	struct io_uring_params p;
-	unsigned i, tail;
 	void *ptr;
 	int ret;
 
@@ -449,10 +449,18 @@ static int io_register_resize_rings(struct io_ring_ctx *ctx, void __user *arg)
 	if (IS_ERR(n.rings))
 		return PTR_ERR(n.rings);
 
-	n.rings->sq_ring_mask = p.sq_entries - 1;
-	n.rings->cq_ring_mask = p.cq_entries - 1;
-	n.rings->sq_ring_entries = p.sq_entries;
-	n.rings->cq_ring_entries = p.cq_entries;
+	/*
+	 * At this point n.rings is shared with userspace, just like o.rings
+	 * is as well. While we don't expect userspace to modify it while
+	 * a resize is in progress, and it's most likely that userspace will
+	 * shoot itself in the foot if it does, we can't always assume good
+	 * intent... Use read/write once helpers from here on to indicate the
+	 * shared nature of it.
+	 */
+	WRITE_ONCE(n.rings->sq_ring_mask, p.sq_entries - 1);
+	WRITE_ONCE(n.rings->cq_ring_mask, p.cq_entries - 1);
+	WRITE_ONCE(n.rings->sq_ring_entries, p.sq_entries);
+	WRITE_ONCE(n.rings->cq_ring_entries, p.cq_entries);
 
 	if (copy_to_user(arg, &p, sizeof(p))) {
 		io_register_free_rings(&p, &n);
@@ -509,20 +517,22 @@ static int io_register_resize_rings(struct io_ring_ctx *ctx, void __user *arg)
 	 * rings can't hold what is already there, then fail the operation.
 	 */
 	n.sq_sqes = ptr;
-	tail = o.rings->sq.tail;
-	if (tail - o.rings->sq.head > p.sq_entries)
+	tail = READ_ONCE(o.rings->sq.tail);
+	old_head = READ_ONCE(o.rings->sq.head);
+	if (tail - old_head > p.sq_entries)
 		goto overflow;
-	for (i = o.rings->sq.head; i < tail; i++) {
+	for (i = old_head; i < tail; i++) {
 		unsigned src_head = i & (ctx->sq_entries - 1);
-		unsigned dst_head = i & n.rings->sq_ring_mask;
+		unsigned dst_head = i & (p.sq_entries - 1);
 
 		n.sq_sqes[dst_head] = o.sq_sqes[src_head];
 	}
-	n.rings->sq.head = o.rings->sq.head;
-	n.rings->sq.tail = o.rings->sq.tail;
+	WRITE_ONCE(n.rings->sq.head, READ_ONCE(o.rings->sq.head));
+	WRITE_ONCE(n.rings->sq.tail, READ_ONCE(o.rings->sq.tail));
 
-	tail = o.rings->cq.tail;
-	if (tail - o.rings->cq.head > p.cq_entries) {
+	tail = READ_ONCE(o.rings->cq.tail);
+	old_head = READ_ONCE(o.rings->cq.head);
+	if (tail - old_head > p.cq_entries) {
 overflow:
 		/* restore old rings, and return -EOVERFLOW via cleanup path */
 		ctx->rings = o.rings;
@@ -531,21 +541,21 @@ overflow:
 		ret = -EOVERFLOW;
 		goto out;
 	}
-	for (i = o.rings->cq.head; i < tail; i++) {
+	for (i = old_head; i < tail; i++) {
 		unsigned src_head = i & (ctx->cq_entries - 1);
-		unsigned dst_head = i & n.rings->cq_ring_mask;
+		unsigned dst_head = i & (p.cq_entries - 1);
 
 		n.rings->cqes[dst_head] = o.rings->cqes[src_head];
 	}
-	n.rings->cq.head = o.rings->cq.head;
-	n.rings->cq.tail = o.rings->cq.tail;
+	WRITE_ONCE(n.rings->cq.head, READ_ONCE(o.rings->cq.head));
+	WRITE_ONCE(n.rings->cq.tail, READ_ONCE(o.rings->cq.tail));
 	/* invalidate cached cqe refill */
 	ctx->cqe_cached = ctx->cqe_sentinel = NULL;
 
-	n.rings->sq_dropped = o.rings->sq_dropped;
-	n.rings->sq_flags = o.rings->sq_flags;
-	n.rings->cq_flags = o.rings->cq_flags;
-	n.rings->cq_overflow = o.rings->cq_overflow;
+	WRITE_ONCE(n.rings->sq_dropped, READ_ONCE(o.rings->sq_dropped));
+	WRITE_ONCE(n.rings->sq_flags, READ_ONCE(o.rings->sq_flags));
+	WRITE_ONCE(n.rings->cq_flags, READ_ONCE(o.rings->cq_flags));
+	WRITE_ONCE(n.rings->cq_overflow, READ_ONCE(o.rings->cq_overflow));
 
 	/* all done, store old pointers and assign new ones */
 	if (!(ctx->flags & IORING_SETUP_NO_SQARRAY))

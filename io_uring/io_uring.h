@@ -125,6 +125,9 @@ static inline void io_lockdep_assert_cq_locked(struct io_ring_ctx *ctx)
 #if defined(CONFIG_PROVE_LOCKING)
 	lockdep_assert(in_task());
 
+	if (ctx->flags & IORING_SETUP_DEFER_TASKRUN)
+		lockdep_assert_held(&ctx->uring_lock);
+
 	if (ctx->flags & IORING_SETUP_IOPOLL) {
 		lockdep_assert_held(&ctx->uring_lock);
 	} else if (!ctx->task_complete) {
@@ -136,9 +139,7 @@ static inline void io_lockdep_assert_cq_locked(struct io_ring_ctx *ctx)
 		 * Not from an SQE, as those cannot be submitted, but via
 		 * updating tagged resources.
 		 */
-		if (percpu_ref_is_dying(&ctx->refs))
-			lockdep_assert(current_work());
-		else
+		if (!percpu_ref_is_dying(&ctx->refs))
 			lockdep_assert(current == ctx->submitter_task);
 	}
 #endif

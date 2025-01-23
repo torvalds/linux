@@ -582,7 +582,7 @@ static void type_attribute_bounds_av(struct policydb *policydb,
 }
 
 /*
- * Flag which drivers have permissions.
+ * Flag which drivers have permissions and which base permissions are covered.
  */
 void services_compute_xperms_drivers(
 		struct extended_perms *xperms,
@@ -592,12 +592,19 @@ void services_compute_xperms_drivers(
 
 	switch (node->datum.u.xperms->specified) {
 	case AVTAB_XPERMS_IOCTLDRIVER:
+		xperms->base_perms |= AVC_EXT_IOCTL;
 		/* if one or more driver has all permissions allowed */
 		for (i = 0; i < ARRAY_SIZE(xperms->drivers.p); i++)
 			xperms->drivers.p[i] |= node->datum.u.xperms->perms.p[i];
 		break;
 	case AVTAB_XPERMS_IOCTLFUNCTION:
+		xperms->base_perms |= AVC_EXT_IOCTL;
+		/* if allowing permissions within a driver */
+		security_xperm_set(xperms->drivers.p,
+					node->datum.u.xperms->driver);
+		break;
 	case AVTAB_XPERMS_NLMSG:
+		xperms->base_perms |= AVC_EXT_NLMSG;
 		/* if allowing permissions within a driver */
 		security_xperm_set(xperms->drivers.p,
 					node->datum.u.xperms->driver);
@@ -631,8 +638,7 @@ static void context_struct_compute_av(struct policydb *policydb,
 	avd->auditallow = 0;
 	avd->auditdeny = 0xffffffff;
 	if (xperms) {
-		memset(&xperms->drivers, 0, sizeof(xperms->drivers));
-		xperms->len = 0;
+		memset(xperms, 0, sizeof(*xperms));
 	}
 
 	if (unlikely(!tclass || tclass > policydb->p_classes.nprim)) {
@@ -969,13 +975,19 @@ void services_compute_xperms_decision(struct extended_perms_decision *xpermd,
 {
 	switch (node->datum.u.xperms->specified) {
 	case AVTAB_XPERMS_IOCTLFUNCTION:
-	case AVTAB_XPERMS_NLMSG:
-		if (xpermd->driver != node->datum.u.xperms->driver)
+		if (xpermd->base_perm != AVC_EXT_IOCTL ||
+		    xpermd->driver != node->datum.u.xperms->driver)
 			return;
 		break;
 	case AVTAB_XPERMS_IOCTLDRIVER:
-		if (!security_xperm_test(node->datum.u.xperms->perms.p,
-					xpermd->driver))
+		if (xpermd->base_perm != AVC_EXT_IOCTL ||
+		    !security_xperm_test(node->datum.u.xperms->perms.p,
+					 xpermd->driver))
+			return;
+		break;
+	case AVTAB_XPERMS_NLMSG:
+		if (xpermd->base_perm != AVC_EXT_NLMSG ||
+		    xpermd->driver != node->datum.u.xperms->driver)
 			return;
 		break;
 	default:
@@ -1010,6 +1022,7 @@ void security_compute_xperms_decision(u32 ssid,
 				      u32 tsid,
 				      u16 orig_tclass,
 				      u8 driver,
+				      u8 base_perm,
 				      struct extended_perms_decision *xpermd)
 {
 	struct selinux_policy *policy;
@@ -1023,6 +1036,7 @@ void security_compute_xperms_decision(u32 ssid,
 	struct ebitmap_node *snode, *tnode;
 	unsigned int i, j;
 
+	xpermd->base_perm = base_perm;
 	xpermd->driver = driver;
 	xpermd->used = 0;
 	memset(xpermd->allowed->p, 0, sizeof(xpermd->allowed->p));

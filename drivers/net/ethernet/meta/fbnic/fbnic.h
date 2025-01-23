@@ -20,7 +20,6 @@ struct fbnic_dev {
 	struct device *dev;
 	struct net_device *netdev;
 	struct dentry *dbg_fbd;
-	struct device *hwmon;
 
 	u32 __iomem *uc_addr0;
 	u32 __iomem *uc_addr4;
@@ -33,7 +32,6 @@ struct fbnic_dev {
 
 	struct fbnic_fw_mbx mbx[FBNIC_IPC_MBX_INDICES];
 	struct fbnic_fw_cap fw_cap;
-	struct fbnic_fw_completion *cmpl_data;
 	/* Lock protecting Tx Mailbox queue to prevent possible races */
 	spinlock_t fw_tx_lock;
 
@@ -141,9 +139,6 @@ void fbnic_devlink_unregister(struct fbnic_dev *fbd);
 
 int fbnic_fw_enable_mbx(struct fbnic_dev *fbd);
 void fbnic_fw_disable_mbx(struct fbnic_dev *fbd);
-
-void fbnic_hwmon_register(struct fbnic_dev *fbd);
-void fbnic_hwmon_unregister(struct fbnic_dev *fbd);
 
 int fbnic_pcs_irq_enable(struct fbnic_dev *fbd);
 void fbnic_pcs_irq_disable(struct fbnic_dev *fbd);

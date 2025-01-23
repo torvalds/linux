@@ -4368,7 +4368,7 @@ static int shmem_parse_opt_casefold(struct fs_context *fc, struct fs_parameter *
 				    bool latest_version)
 {
 	struct shmem_options *ctx = fc->fs_private;
-	unsigned int version = UTF8_LATEST;
+	int version = UTF8_LATEST;
 	struct unicode_map *encoding;
 	char *version_str = param->string + 5;
 

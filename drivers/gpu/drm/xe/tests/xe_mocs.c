@@ -162,8 +162,7 @@ static int mocs_reset_test_run_device(struct xe_device *xe)
 		if (flags & HAS_LNCF_MOCS)
 			read_l3cc_table(gt, &mocs.table);
 
-		xe_gt_reset_async(gt);
-		flush_work(&gt->reset.worker);
+		xe_gt_reset(gt);
 
 		kunit_info(test, "mocs_reset_test after reset\n");
 		if (flags & HAS_GLOBAL_MOCS)

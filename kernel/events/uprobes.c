@@ -1915,6 +1915,7 @@ void uprobe_free_utask(struct task_struct *t)
 	if (!utask)
 		return;
 
+	t->utask = NULL;
 	WARN_ON_ONCE(utask->active_uprobe || utask->xol_vaddr);
 
 	timer_delete_sync(&utask->ri_timer);
@@ -1924,7 +1925,6 @@ void uprobe_free_utask(struct task_struct *t)
 		ri = free_ret_instance(ri, true /* cleanup_hprobe */);
 
 	kfree(utask);
-	t->utask = NULL;
 }
 
 #define RI_TIMER_PERIOD (HZ / 10) /* 100 ms */
