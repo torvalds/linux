@@ -364,7 +364,10 @@ static inline int journal_res_get_fast(struct journal *j,
 
 	res->ref	= true;
 	res->offset	= old.cur_entry_offset;
-	res->seq	= le64_to_cpu(j->buf[old.idx].data->seq);
+	res->seq	= journal_cur_seq(j);
+	res->seq -= (res->seq - old.idx) & JOURNAL_BUF_MASK;
+
+	EBUG_ON(res->seq != le64_to_cpu(j->buf[old.idx].data->seq));
 	return 1;
 }
 
