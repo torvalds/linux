@@ -57,6 +57,7 @@
 	phy-handle = <&u101>;
 	phy-mode = "sgmii";
 	phys = <&eth_serdes 0>;
+	status = "okay";
 
 	mdio {
 		#address-cells = <1>;
@@ -75,6 +76,7 @@
 	phy-handle = <&u201>;
 	phy-mode = "sgmii";
 	phys = <&eth_serdes 1>;
+	status = "okay";
 
 	mdio {
 		#address-cells = <1>;
@@ -93,6 +95,7 @@
 	phy-handle = <&u301>;
 	phy-mode = "sgmii";
 	phys = <&eth_serdes 2>;
+	status = "okay";
 
 	mdio {
 		#address-cells = <1>;

@@ -187,6 +187,7 @@
 	phy-handle = <&ic99>;
 	phy-mode = "sgmii";
 	phys = <&eth_serdes 0>;
+	status = "okay";
 
 	mdio {
 		#address-cells = <1>;
@@ -205,6 +206,7 @@
 	phy-handle = <&ic102>;
 	phy-mode = "sgmii";
 	phys = <&eth_serdes 1>;
+	status = "okay";
 
 	mdio {
 		#address-cells = <1>;
@@ -216,10 +218,6 @@
 			interrupts-extended = <&gpio3 11 IRQ_TYPE_LEVEL_LOW>;
 		};
 	};
-};
-
-&rswitch_port2 {
-	status = "disabled";
 };
 
 &rwdt {
