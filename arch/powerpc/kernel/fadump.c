@@ -33,6 +33,7 @@
 #include <asm/fadump-internal.h>
 #include <asm/setup.h>
 #include <asm/interrupt.h>
+#include <asm/prom.h>
 
 /*
  * The CPU who acquired the lock to trigger the fadump crash should
@@ -1764,19 +1765,19 @@ void __init fadump_setup_param_area(void)
 		range_end = memblock_end_of_DRAM();
 	} else {
 		/*
-		 * Passing additional parameters is supported for hash MMU only
-		 * if the first memory block size is 768MB or higher.
+		 * Memory range for passing additional parameters for HASH MMU
+		 * must meet the following conditions:
+		 * 1. The first memory block size must be higher than the
+		 *    minimum RMA (MIN_RMA) size. Bootloader can use memory
+		 *    upto RMA size. So it should be avoided.
+		 * 2. The range should be between MIN_RMA and RMA size (ppc64_rma_size)
+		 * 3. It must not overlap with the fadump reserved area.
 		 */
-		if (ppc64_rma_size < 0x30000000)
+		if (ppc64_rma_size < MIN_RMA*1024*1024)
 			return;
 
-		/*
-		 * 640 MB to 768 MB is not used by PFW/bootloader. So, try reserving
-		 * memory for passing additional parameters in this range to avoid
-		 * being stomped on by PFW/bootloader.
-		 */
-		range_start = 0x2A000000;
-		range_end = range_start + 0x4000000;
+		range_start = MIN_RMA * 1024 * 1024;
+		range_end = min(ppc64_rma_size, fw_dump.boot_mem_top);
 	}
 
 	fw_dump.param_area = memblock_phys_alloc_range(COMMAND_LINE_SIZE,
