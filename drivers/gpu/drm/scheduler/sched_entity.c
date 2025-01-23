@@ -91,7 +91,7 @@ int drm_sched_entity_init(struct drm_sched_entity *entity,
 		 * the lowest priority available.
 		 */
 		if (entity->priority >= sched_list[0]->num_rqs) {
-			drm_err(sched_list[0], "entity with out-of-bounds priority:%u num_rqs:%u\n",
+			dev_err(sched_list[0]->dev, "entity has out-of-bounds priority: %u. num_rqs: %u\n",
 				entity->priority, sched_list[0]->num_rqs);
 			entity->priority = max_t(s32, (s32) sched_list[0]->num_rqs - 1,
 						 (s32) DRM_SCHED_PRIORITY_KERNEL);
