@@ -443,7 +443,6 @@
 				     <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "lpm_int", "ca55stbydone_int",
 					  "cm33stbyr_int", "ca55_deny";
-			status = "disabled";
 		};
 
 		pinctrl: pinctrl@11030000 {
