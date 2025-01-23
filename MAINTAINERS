@@ -16189,6 +16189,7 @@ F:	drivers/scsi/sun3_scsi_vme.c
 
 NCSI LIBRARY
 M:	Samuel Mendoza-Jonas <sam@mendozajonas.com>
+R:	Paul Fertser <fercerpav@gmail.com>
 S:	Maintained
 F:	net/ncsi/
 
