@@ -300,6 +300,44 @@ static inline void set_ptes(struct mm_struct *mm, unsigned long addr,
 #endif
 #define set_pte_at(mm, addr, ptep, pte) set_ptes(mm, addr, ptep, pte, 1)
 
+#ifndef set_pmd_ptes
+/**
+ * set_pmd_ptes - Map consecutive pmd-hugepages to a contiguous range of addresses.
+ * @mm: Address space to map the pages into.
+ * @addr: Address to map the first pmd-hugepage at.
+ * @pmdp: Page table pointer for the first pmd entry.
+ * @pmd: Page table entry for the first pmd-hugepage.
+ * @nr: Number of pmd-hugepages to map.
+ *
+ * When nr==1, initial state of pmd may be present or not present, and new state
+ * may be present or not present. When nr>1, initial state of all ptes must be
+ * not present, and new state must be present.
+ *
+ * May be overridden by the architecture, or the architecture can define
+ * set_pmd_at() and PFN_PTE_SHIFT.
+ *
+ * Context: The caller holds the page table lock.  The pages all belong
+ * to the same folio.  The PTEs are all in the same PMD.
+ */
+static inline void set_pmd_ptes(struct mm_struct *mm, unsigned long addr,
+				pmd_t *pmdp, pmd_t pmd, int nr_pmds)
+{
+	pte_t pte;
+
+	page_table_check_pmds_set(mm, pmdp, pmd, nr_pmds);
+	for (;;) {
+		set_pmd_at(mm, addr, pmdp, pmd);
+		if (--nr_pmds == 0)
+			break;
+		pmdp++;
+		pte = __pte(pmd_val(pmd));
+		pte = pte_advance_pfn(pte, PMD_SIZE >> PAGE_SHIFT);
+		pmd = __pmd(pte_val(pte));
+	}
+}
+
+#endif
+
 #ifndef __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
 extern int ptep_set_access_flags(struct vm_area_struct *vma,
 				 unsigned long address, pte_t *ptep,

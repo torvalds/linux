@@ -420,9 +420,10 @@ static inline pte_t pte_advance_pfn(pte_t pte, unsigned long nr)
 	return pfn_pte(pte_pfn(pte) + nr, pte_pgprot(pte));
 }
 
-static inline void __set_ptes(struct mm_struct *mm,
-			      unsigned long __always_unused addr,
-			      pte_t *ptep, pte_t pte, unsigned int nr)
+static inline void __set_level_ptes(struct mm_struct *mm,
+				    unsigned long __always_unused addr,
+				    pte_t *ptep, pte_t pte, unsigned int nr,
+				    unsigned long pfns_per_pte)
 {
 	page_table_check_ptes_set(mm, ptep, pte, nr);
 	__sync_cache_and_tags(pte, nr);
@@ -433,9 +434,14 @@ static inline void __set_ptes(struct mm_struct *mm,
 		if (--nr == 0)
 			break;
 		ptep++;
-		pte = pte_advance_pfn(pte, 1);
+		pte = pte_advance_pfn(pte, pfns_per_pte);
 	}
 }
+
+#define __set_ptes(mm, addr, ptep, pte, nr) \
+	__set_level_ptes(mm, addr, ptep, pte, nr, 1)
+#define __set_pmd_ptes(mm, addr, pmdp, pmd, nr) \
+	__set_level_ptes(mm, addr, (pte_t *)pmdp, pmd_pte(pmd), nr, (PMD_SIZE >> PAGE_SHIFT))
 
 /*
  * Hugetlb definitions.
@@ -656,6 +662,14 @@ static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 	page_table_check_pmd_set(mm, pmdp, pmd);
 	return __set_pte_at(mm, addr, (pte_t *)pmdp, pmd_pte(pmd),
 						PMD_SIZE >> PAGE_SHIFT);
+}
+
+#define set_pmd_ptes set_pmd_ptes
+static inline void set_pmd_ptes(struct mm_struct *mm, unsigned long addr,
+				pmd_t *pmdp, pmd_t pmd, unsigned int nr_pmds)
+{
+	page_table_check_pmds_set(mm, pmdp, pmd, nr_pmds);
+	return __set_pmd_ptes(mm, addr, pmdp, pmd, nr_pmds);
 }
 
 static inline void set_pud_at(struct mm_struct *mm, unsigned long addr,
