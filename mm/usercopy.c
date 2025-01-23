@@ -255,7 +255,8 @@ void __check_object_size(const void *ptr, unsigned long n, bool to_user)
 }
 EXPORT_SYMBOL(__check_object_size);
 
-static bool enable_checks __initdata = true;
+static bool enable_checks __initdata =
+		IS_ENABLED(CONFIG_HARDENED_USERCOPY_DEFAULT_ON);
 
 static int __init parse_hardened_usercopy(char *str)
 {

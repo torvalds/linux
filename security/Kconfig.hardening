@@ -294,6 +294,14 @@ config HARDENED_USERCOPY
 	  or are part of the kernel text. This prevents entire classes
 	  of heap overflow exploits and similar kernel memory exposures.
 
+config HARDENED_USERCOPY_DEFAULT_ON
+	bool "Harden memory copies by default"
+	depends on HARDENED_USERCOPY
+	default HARDENED_USERCOPY
+	help
+	  This has the effect of setting "hardened_usercopy=on" on the kernel
+	  command line. This can be disabled with "hardened_usercopy=off".
+
 endmenu
 
 menu "Hardening of kernel data structures"
