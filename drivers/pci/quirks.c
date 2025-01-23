@@ -12,6 +12,7 @@
  * file, where their drivers can use them.
  */
 
+#include <linux/aer.h>
 #include <linux/align.h>
 #include <linux/bitfield.h>
 #include <linux/types.h>
@@ -6233,8 +6234,9 @@ static void dpc_log_size(struct pci_dev *dev)
 		return;
 
 	if (FIELD_GET(PCI_EXP_DPC_RP_PIO_LOG_SIZE, val) == 0) {
-		pci_info(dev, "Overriding RP PIO Log Size to 4\n");
-		dev->dpc_rp_log_size = 4;
+		pci_info(dev, "Overriding RP PIO Log Size to %d\n",
+			 PCIE_STD_NUM_TLP_HEADERLOG);
+		dev->dpc_rp_log_size = PCIE_STD_NUM_TLP_HEADERLOG;
 	}
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x461f, dpc_log_size);
