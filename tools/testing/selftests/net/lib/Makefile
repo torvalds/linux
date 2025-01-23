@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
-CFLAGS =  -Wall -Wl,--no-as-needed -O2 -g
+CFLAGS += -Wall -Wl,--no-as-needed -O2 -g
 CFLAGS += -I../../../../../usr/include/ $(KHDR_INCLUDES)
 # Additional include paths needed by kselftest.h
 CFLAGS += -I../../
