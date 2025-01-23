@@ -65,9 +65,8 @@ static void journal_brelse_array(struct buffer_head *b[], int n)
  */
 
 #define MAXBUF 8
-static int do_readahead(journal_t *journal, unsigned int start)
+static void do_readahead(journal_t *journal, unsigned int start)
 {
-	int err;
 	unsigned int max, nbufs, next;
 	unsigned long long blocknr;
 	struct buffer_head *bh;
@@ -85,7 +84,7 @@ static int do_readahead(journal_t *journal, unsigned int start)
 	nbufs = 0;
 
 	for (next = start; next < max; next++) {
-		err = jbd2_journal_bmap(journal, next, &blocknr);
+		int err = jbd2_journal_bmap(journal, next, &blocknr);
 
 		if (err) {
 			printk(KERN_ERR "JBD2: bad block at offset %u\n",
@@ -94,10 +93,8 @@ static int do_readahead(journal_t *journal, unsigned int start)
 		}
 
 		bh = __getblk(journal->j_dev, blocknr, journal->j_blocksize);
-		if (!bh) {
-			err = -ENOMEM;
+		if (!bh)
 			goto failed;
-		}
 
 		if (!buffer_uptodate(bh) && !buffer_locked(bh)) {
 			bufs[nbufs++] = bh;
@@ -112,12 +109,10 @@ static int do_readahead(journal_t *journal, unsigned int start)
 
 	if (nbufs)
 		bh_readahead_batch(nbufs, bufs, 0);
-	err = 0;
 
 failed:
 	if (nbufs)
 		journal_brelse_array(bufs, nbufs);
-	return err;
 }
 
 #endif /* __KERNEL__ */
