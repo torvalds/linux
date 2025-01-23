@@ -420,12 +420,11 @@ int jbd2_journal_revoke(handle_t *handle, unsigned long long blocknr,
  * do not trust the Revoked bit on buffers unless RevokeValid is also
  * set.
  */
-int jbd2_journal_cancel_revoke(handle_t *handle, struct journal_head *jh)
+void jbd2_journal_cancel_revoke(handle_t *handle, struct journal_head *jh)
 {
 	struct jbd2_revoke_record_s *record;
 	journal_t *journal = handle->h_transaction->t_journal;
 	int need_cancel;
-	int did_revoke = 0;	/* akpm: debug */
 	struct buffer_head *bh = jh2bh(jh);
 
 	jbd2_debug(4, "journal_head %p, cancelling revoke\n", jh);
@@ -450,7 +449,6 @@ int jbd2_journal_cancel_revoke(handle_t *handle, struct journal_head *jh)
 			list_del(&record->hash);
 			spin_unlock(&journal->j_revoke_lock);
 			kmem_cache_free(jbd2_revoke_record_cache, record);
-			did_revoke = 1;
 		}
 	}
 
@@ -473,7 +471,6 @@ int jbd2_journal_cancel_revoke(handle_t *handle, struct journal_head *jh)
 			__brelse(bh2);
 		}
 	}
-	return did_revoke;
 }
 
 /*

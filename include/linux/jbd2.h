@@ -1621,7 +1621,7 @@ void jbd2_journal_destroy_revoke_table(struct jbd2_revoke_table_s *table);
 
 extern void	   jbd2_journal_destroy_revoke(journal_t *);
 extern int	   jbd2_journal_revoke (handle_t *, unsigned long long, struct buffer_head *);
-extern int	   jbd2_journal_cancel_revoke(handle_t *, struct journal_head *);
+extern void	   jbd2_journal_cancel_revoke(handle_t *, struct journal_head *);
 extern void	   jbd2_journal_write_revoke_records(transaction_t *transaction,
 						     struct list_head *log_bufs);
 
