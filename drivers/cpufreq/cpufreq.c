@@ -632,6 +632,9 @@ static ssize_t store_local_boost(struct cpufreq_policy *policy,
 	if (!cpufreq_driver->boost_enabled)
 		return -EINVAL;
 
+	if (!policy->boost_supported)
+		return -EINVAL;
+
 	if (policy->boost_enabled == enable)
 		return count;
 
@@ -1587,7 +1590,7 @@ static int cpufreq_online(unsigned int cpu)
 		policy->cdev = of_cpufreq_cooling_register(policy);
 
 	/* Let the per-policy boost flag mirror the cpufreq_driver boost during init */
-	if (cpufreq_driver->set_boost &&
+	if (cpufreq_driver->set_boost && policy->boost_supported &&
 	    policy->boost_enabled != cpufreq_boost_enabled()) {
 		policy->boost_enabled = cpufreq_boost_enabled();
 		ret = cpufreq_driver->set_boost(policy, policy->boost_enabled);
@@ -2824,6 +2827,9 @@ static int cpufreq_boost_trigger_state(int state)
 
 	cpus_read_lock();
 	for_each_active_policy(policy) {
+		if (!policy->boost_supported)
+			continue;
+
 		policy->boost_enabled = state;
 		ret = cpufreq_driver->set_boost(policy, state);
 		if (ret) {
