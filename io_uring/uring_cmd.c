@@ -168,23 +168,16 @@ void io_uring_cmd_done(struct io_uring_cmd *ioucmd, ssize_t ret, u64 res2,
 }
 EXPORT_SYMBOL_GPL(io_uring_cmd_done);
 
-static void io_uring_cmd_init_once(void *obj)
-{
-	struct io_uring_cmd_data *data = obj;
-
-	data->op_data = NULL;
-}	
-
 static int io_uring_cmd_prep_setup(struct io_kiocb *req,
 				   const struct io_uring_sqe *sqe)
 {
 	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req, struct io_uring_cmd);
 	struct io_uring_cmd_data *cache;
 
-	cache = io_uring_alloc_async_data(&req->ctx->uring_cache, req,
-			io_uring_cmd_init_once);
+	cache = io_uring_alloc_async_data(&req->ctx->uring_cache, req);
 	if (!cache)
 		return -ENOMEM;
+	cache->op_data = NULL;
 
 	if (!(req->flags & REQ_F_FORCE_ASYNC)) {
 		/* defer memcpy until we need it */

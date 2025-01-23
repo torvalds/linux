@@ -650,7 +650,7 @@ static struct async_poll *io_req_alloc_apoll(struct io_kiocb *req,
 		kfree(apoll->double_poll);
 	} else {
 		if (!(issue_flags & IO_URING_F_UNLOCKED))
-			apoll = io_cache_alloc(&ctx->apoll_cache, GFP_ATOMIC, NULL);
+			apoll = io_cache_alloc(&ctx->apoll_cache, GFP_ATOMIC);
 		else
 			apoll = kmalloc(sizeof(*apoll), GFP_ATOMIC);
 		if (!apoll)

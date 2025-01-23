@@ -315,16 +315,18 @@ static __cold struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	INIT_LIST_HEAD(&ctx->cq_overflow_list);
 	INIT_LIST_HEAD(&ctx->io_buffers_cache);
 	ret = io_alloc_cache_init(&ctx->apoll_cache, IO_POLL_ALLOC_CACHE_MAX,
-			    sizeof(struct async_poll));
+			    sizeof(struct async_poll), 0);
 	ret |= io_alloc_cache_init(&ctx->netmsg_cache, IO_ALLOC_CACHE_MAX,
-			    sizeof(struct io_async_msghdr));
+			    sizeof(struct io_async_msghdr),
+			    offsetof(struct io_async_msghdr, clear));
 	ret |= io_alloc_cache_init(&ctx->rw_cache, IO_ALLOC_CACHE_MAX,
-			    sizeof(struct io_async_rw));
+			    sizeof(struct io_async_rw),
+			    offsetof(struct io_async_rw, clear));
 	ret |= io_alloc_cache_init(&ctx->uring_cache, IO_ALLOC_CACHE_MAX,
-			    sizeof(struct io_uring_cmd_data));
+			    sizeof(struct io_uring_cmd_data), 0);
 	spin_lock_init(&ctx->msg_lock);
 	ret |= io_alloc_cache_init(&ctx->msg_cache, IO_ALLOC_CACHE_MAX,
-			    sizeof(struct io_kiocb));
+			    sizeof(struct io_kiocb), 0);
 	ret |= io_futex_cache_init(ctx);
 	if (ret)
 		goto free_ref;

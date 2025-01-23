@@ -226,10 +226,9 @@ static inline void io_req_set_res(struct io_kiocb *req, s32 res, u32 cflags)
 }
 
 static inline void *io_uring_alloc_async_data(struct io_alloc_cache *cache,
-					      struct io_kiocb *req,
-					      void (*init_once)(void *obj))
+					      struct io_kiocb *req)
 {
-	req->async_data = io_cache_alloc(cache, GFP_KERNEL, init_once);
+	req->async_data = io_cache_alloc(cache, GFP_KERNEL);
 	if (req->async_data)
 		req->flags |= REQ_F_ASYNC_DATA;
 	return req->async_data;
