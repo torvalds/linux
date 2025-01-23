@@ -291,36 +291,6 @@ struct dx_tail {
 	__le32 dt_checksum;	/* crc32c(uuid+inum+dirblock) */
 };
 
-static inline ext4_lblk_t dx_get_block(struct dx_entry *entry);
-static void dx_set_block(struct dx_entry *entry, ext4_lblk_t value);
-static inline unsigned dx_get_hash(struct dx_entry *entry);
-static void dx_set_hash(struct dx_entry *entry, unsigned value);
-static unsigned dx_get_count(struct dx_entry *entries);
-static unsigned dx_get_limit(struct dx_entry *entries);
-static void dx_set_count(struct dx_entry *entries, unsigned value);
-static void dx_set_limit(struct dx_entry *entries, unsigned value);
-static unsigned dx_root_limit(struct inode *dir, unsigned infosize);
-static unsigned dx_node_limit(struct inode *dir);
-static struct dx_frame *dx_probe(struct ext4_filename *fname,
-				 struct inode *dir,
-				 struct dx_hash_info *hinfo,
-				 struct dx_frame *frame);
-static void dx_release(struct dx_frame *frames);
-static int dx_make_map(struct inode *dir, struct buffer_head *bh,
-		       struct dx_hash_info *hinfo,
-		       struct dx_map_entry *map_tail);
-static void dx_sort_map(struct dx_map_entry *map, unsigned count);
-static struct ext4_dir_entry_2 *dx_move_dirents(struct inode *dir, char *from,
-					char *to, struct dx_map_entry *offsets,
-					int count, unsigned int blocksize);
-static struct ext4_dir_entry_2 *dx_pack_dirents(struct inode *dir, char *base,
-						unsigned int blocksize);
-static void dx_insert_block(struct dx_frame *frame,
-					u32 hash, ext4_lblk_t block);
-static int ext4_htree_next_block(struct inode *dir, __u32 hash,
-				 struct dx_frame *frame,
-				 struct dx_frame *frames,
-				 __u32 *start_hash);
 static struct buffer_head * ext4_dx_find_entry(struct inode *dir,
 		struct ext4_filename *fname,
 		struct ext4_dir_entry_2 **res_dir);
