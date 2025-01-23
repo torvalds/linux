@@ -16,7 +16,7 @@
    tpm-security
    tpm_tis
    tpm_vtpm_proxy
+   xen-tpmfront
 
 TODOLIST:
-*   xen-tpmfront
 *   tpm_ftpm_tee
