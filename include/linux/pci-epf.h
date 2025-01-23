@@ -157,7 +157,7 @@ struct pci_epf {
 	struct device		dev;
 	const char		*name;
 	struct pci_epf_header	*header;
-	struct pci_epf_bar	bar[6];
+	struct pci_epf_bar	bar[PCI_STD_NUM_BARS];
 	u8			msi_interrupts;
 	u16			msix_interrupts;
 	u8			func_no;
@@ -174,7 +174,7 @@ struct pci_epf {
 	/* Below members are to attach secondary EPC to an endpoint function */
 	struct pci_epc		*sec_epc;
 	struct list_head	sec_epc_list;
-	struct pci_epf_bar	sec_epc_bar[6];
+	struct pci_epf_bar	sec_epc_bar[PCI_STD_NUM_BARS];
 	u8			sec_epc_func_no;
 	struct config_group	*group;
 	unsigned int		is_bound;
