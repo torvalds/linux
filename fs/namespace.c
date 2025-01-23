@@ -2369,6 +2369,28 @@ bool has_locked_children(struct mount *mnt, struct dentry *dentry)
 	return false;
 }
 
+/*
+ * Check that there aren't references to earlier/same mount namespaces in the
+ * specified subtree.  Such references can act as pins for mount namespaces
+ * that aren't checked by the mount-cycle checking code, thereby allowing
+ * cycles to be made.
+ */
+static bool check_for_nsfs_mounts(struct mount *subtree)
+{
+	struct mount *p;
+	bool ret = false;
+
+	lock_mount_hash();
+	for (p = subtree; p; p = next_mnt(p, subtree))
+		if (mnt_ns_loop(p->mnt.mnt_root))
+			goto out;
+
+	ret = true;
+out:
+	unlock_mount_hash();
+	return ret;
+}
+
 /**
  * clone_private_mount - create a private clone of a path
  * @path: path to clone
@@ -2377,6 +2399,8 @@ bool has_locked_children(struct mount *mnt, struct dentry *dentry)
  * will not be attached anywhere in the namespace and will be private (i.e.
  * changes to the originating mount won't be propagated into this).
  *
+ * This assumes caller has called or done the equivalent of may_mount().
+ *
  * Release with mntput().
  */
 struct vfsmount *clone_private_mount(const struct path *path)
@@ -2384,30 +2408,36 @@ struct vfsmount *clone_private_mount(const struct path *path)
 	struct mount *old_mnt = real_mount(path->mnt);
 	struct mount *new_mnt;
 
-	down_read(&namespace_sem);
+	scoped_guard(rwsem_read, &namespace_sem)
 	if (IS_MNT_UNBINDABLE(old_mnt))
-		goto invalid;
+		return ERR_PTR(-EINVAL);
 
-	if (!check_mnt(old_mnt))
-		goto invalid;
+	if (mnt_has_parent(old_mnt)) {
+		if (!check_mnt(old_mnt))
+			return ERR_PTR(-EINVAL);
+	} else {
+		if (!is_mounted(&old_mnt->mnt))
+			return ERR_PTR(-EINVAL);
+
+		/* Make sure this isn't something purely kernel internal. */
+		if (!is_anon_ns(old_mnt->mnt_ns))
+			return ERR_PTR(-EINVAL);
+
+		/* Make sure we don't create mount namespace loops. */
+		if (!check_for_nsfs_mounts(old_mnt))
+			return ERR_PTR(-EINVAL);
+	}
 
 	if (has_locked_children(old_mnt, path->dentry))
-		goto invalid;
+		return ERR_PTR(-EINVAL);
 
 	new_mnt = clone_mnt(old_mnt, path->dentry, CL_PRIVATE);
-	up_read(&namespace_sem);
-
 	if (IS_ERR(new_mnt))
-		return ERR_CAST(new_mnt);
+		return ERR_PTR(-EINVAL);
 
 	/* Longterm mount to be removed by kern_unmount*() */
 	new_mnt->mnt_ns = MNT_NS_INTERNAL;
-
 	return &new_mnt->mnt;
-
-invalid:
-	up_read(&namespace_sem);
-	return ERR_PTR(-EINVAL);
 }
 EXPORT_SYMBOL_GPL(clone_private_mount);
 
@@ -3204,28 +3234,6 @@ static inline int tree_contains_unbindable(struct mount *mnt)
 			return 1;
 	}
 	return 0;
-}
-
-/*
- * Check that there aren't references to earlier/same mount namespaces in the
- * specified subtree.  Such references can act as pins for mount namespaces
- * that aren't checked by the mount-cycle checking code, thereby allowing
- * cycles to be made.
- */
-static bool check_for_nsfs_mounts(struct mount *subtree)
-{
-	struct mount *p;
-	bool ret = false;
-
-	lock_mount_hash();
-	for (p = subtree; p; p = next_mnt(p, subtree))
-		if (mnt_ns_loop(p->mnt.mnt_root))
-			goto out;
-
-	ret = true;
-out:
-	unlock_mount_hash();
-	return ret;
 }
 
 static int do_set_group(struct path *from_path, struct path *to_path)
