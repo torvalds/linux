@@ -23,7 +23,6 @@
 /**
  * struct gmap_struct - guest address space
  * @list: list head for the mm->context gmap list
- * @crst_list: list of all crst tables used in the guest address space
  * @mm: pointer to the parent mm_struct
  * @guest_to_host: radix tree with guest to host address translation
  * @host_to_guest: radix tree with pointer to segment table entries
@@ -35,7 +34,6 @@
  * @guest_handle: protected virtual machine handle for the ultravisor
  * @host_to_rmap: radix tree with gmap_rmap lists
  * @children: list of shadow gmap structures
- * @pt_list: list of all page tables used in the shadow guest address space
  * @shadow_lock: spinlock to protect the shadow gmap list
  * @parent: pointer to the parent gmap for shadow guest address spaces
  * @orig_asce: ASCE for which the shadow page table has been created
@@ -45,7 +43,6 @@
  */
 struct gmap {
 	struct list_head list;
-	struct list_head crst_list;
 	struct mm_struct *mm;
 	struct radix_tree_root guest_to_host;
 	struct radix_tree_root host_to_guest;
@@ -61,7 +58,6 @@ struct gmap {
 	/* Additional data for shadow guest address spaces */
 	struct radix_tree_root host_to_rmap;
 	struct list_head children;
-	struct list_head pt_list;
 	spinlock_t shadow_lock;
 	struct gmap *parent;
 	unsigned long orig_asce;
@@ -141,7 +137,6 @@ int gmap_protect_one(struct gmap *gmap, unsigned long gaddr, int prot, unsigned 
 void gmap_sync_dirty_log_pmd(struct gmap *gmap, unsigned long dirty_bitmap[4],
 			     unsigned long gaddr, unsigned long vmaddr);
 int s390_disable_cow_sharing(void);
-void s390_unlist_old_asce(struct gmap *gmap);
 int s390_replace_asce(struct gmap *gmap);
 void s390_uv_destroy_pfns(unsigned long count, unsigned long *pfns);
 int __s390_uv_destroy_range(struct mm_struct *mm, unsigned long start,
