@@ -947,7 +947,7 @@ static int ext4_add_dirent_to_inline(handle_t *handle,
 	int		err;
 	struct ext4_dir_entry_2 *de;
 
-	err = ext4_find_dest_de(dir, inode, iloc->bh, inline_start,
+	err = ext4_find_dest_de(dir, iloc->bh, inline_start,
 				inline_size, fname, &de);
 	if (err)
 		return err;
