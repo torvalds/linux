@@ -22,7 +22,10 @@ description: |
 
 properties:
   compatible:
-    const: renesas,r9a09g057-sys
+    items:
+      - enum:
+          - renesas,r9a09g047-sys # RZ/G3E
+          - renesas,r9a09g057-sys # RZ/V2H
 
   reg:
     maxItems: 1
