@@ -440,6 +440,7 @@ osnoise_print_stats(struct osnoise_hist_params *params, struct osnoise_tool *too
 	trace_seq_reset(trace->seq);
 
 	osnoise_print_summary(params, trace, data);
+	osnoise_report_missed_events(tool);
 }
 
 /*

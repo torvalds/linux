@@ -641,6 +641,7 @@ timerlat_print_stats(struct timerlat_hist_params *params, struct osnoise_tool *t
 
 	timerlat_print_summary(params, trace, data);
 	timerlat_print_stats_all(params, trace, data);
+	osnoise_report_missed_events(tool);
 }
 
 /*
