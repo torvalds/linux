@@ -517,7 +517,7 @@ static bool __apply_microcode_amd(struct microcode_amd *mc, unsigned int psize)
  * patch container file in initrd, traverse equivalent cpu table, look for a
  * matching microcode patch, and update, all in initrd memory in place.
  * When vmalloc() is available for use later -- on 64-bit during first AP load,
- * and on 32-bit during save_microcode_in_initrd_amd() -- we can call
+ * and on 32-bit during save_microcode_in_initrd() -- we can call
  * load_microcode_amd() to save equivalent cpu table and microcode patches in
  * kernel heap memory.
  *
