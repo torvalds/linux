@@ -43,6 +43,8 @@
 #endif
 #endif
 
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 #include "nolibc-test-linkage.h"
 
 /* for the type of int_fast16_t and int_fast32_t, musl differs from glibc and nolibc */
