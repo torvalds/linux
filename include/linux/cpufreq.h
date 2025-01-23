@@ -781,6 +781,7 @@ ssize_t cpufreq_show_cpus(const struct cpumask *mask, char *buf);
 bool cpufreq_boost_enabled(void);
 int cpufreq_enable_boost_support(void);
 bool policy_has_boost_freq(struct cpufreq_policy *policy);
+int cpufreq_boost_set_sw(struct cpufreq_policy *policy, int state);
 
 /* Find lowest freq at or above target in a table in ascending order */
 static inline int cpufreq_table_find_index_al(struct cpufreq_policy *policy,
@@ -1162,6 +1163,11 @@ static inline int cpufreq_enable_boost_support(void)
 static inline bool policy_has_boost_freq(struct cpufreq_policy *policy)
 {
 	return false;
+}
+
+static inline int cpufreq_boost_set_sw(struct cpufreq_policy *policy, int state)
+{
+	return -EOPNOTSUPP;
 }
 
 static inline int
