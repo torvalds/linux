@@ -17,6 +17,4 @@
    tpm_tis
    tpm_vtpm_proxy
    xen-tpmfront
-
-TODOLIST:
-*   tpm_ftpm_tee
+   tpm_ftpm_tee
