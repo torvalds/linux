@@ -1681,6 +1681,8 @@ static int fuse_dir_open(struct inode *inode, struct file *file)
 		 */
 		if (ff->open_flags & (FOPEN_STREAM | FOPEN_NONSEEKABLE))
 			nonseekable_open(inode, file);
+		if (!(ff->open_flags & FOPEN_KEEP_CACHE))
+			invalidate_inode_pages2(inode->i_mapping);
 	}
 
 	return err;

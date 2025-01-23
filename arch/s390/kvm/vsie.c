@@ -854,7 +854,7 @@ unpin:
 static void unpin_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page,
 		      gpa_t gpa)
 {
-	hpa_t hpa = (hpa_t) vsie_page->scb_o;
+	hpa_t hpa = virt_to_phys(vsie_page->scb_o);
 
 	if (hpa)
 		unpin_guest_page(vcpu->kvm, gpa, hpa);

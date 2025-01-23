@@ -997,7 +997,7 @@ static int io_clone_buffers(struct io_ring_ctx *ctx, struct io_ring_ctx *src_ctx
 			dst_node = io_rsrc_node_alloc(ctx, IORING_RSRC_BUFFER);
 			if (!dst_node) {
 				ret = -ENOMEM;
-				goto out_put_free;
+				goto out_unlock;
 			}
 
 			refcount_inc(&src_node->buf->refs);
@@ -1033,14 +1033,6 @@ static int io_clone_buffers(struct io_ring_ctx *ctx, struct io_ring_ctx *src_ctx
 	mutex_lock(&src_ctx->uring_lock);
 	/* someone raced setting up buffers, dump ours */
 	ret = -EBUSY;
-out_put_free:
-	i = data.nr;
-	while (i--) {
-		if (data.nodes[i]) {
-			io_buffer_unmap(src_ctx, data.nodes[i]);
-			kfree(data.nodes[i]);
-		}
-	}
 out_unlock:
 	io_rsrc_data_free(ctx, &data);
 	mutex_unlock(&src_ctx->uring_lock);

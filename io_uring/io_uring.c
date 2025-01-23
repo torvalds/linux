@@ -320,7 +320,7 @@ static __cold struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	ret |= io_alloc_cache_init(&ctx->rw_cache, IO_ALLOC_CACHE_MAX,
 			    sizeof(struct io_async_rw));
 	ret |= io_alloc_cache_init(&ctx->uring_cache, IO_ALLOC_CACHE_MAX,
-			    sizeof(struct uring_cache));
+			    sizeof(struct io_uring_cmd_data));
 	spin_lock_init(&ctx->msg_lock);
 	ret |= io_alloc_cache_init(&ctx->msg_cache, IO_ALLOC_CACHE_MAX,
 			    sizeof(struct io_kiocb));
@@ -1226,10 +1226,7 @@ static void io_req_normal_work_add(struct io_kiocb *req)
 
 	/* SQPOLL doesn't need the task_work added, it'll run it itself */
 	if (ctx->flags & IORING_SETUP_SQPOLL) {
-		struct io_sq_data *sqd = ctx->sq_data;
-
-		if (sqd->thread)
-			__set_notify_signal(sqd->thread);
+		__set_notify_signal(tctx->task);
 		return;
 	}
 
@@ -2813,13 +2810,12 @@ static __poll_t io_uring_poll(struct file *file, poll_table *wait)
 
 	if (unlikely(!ctx->poll_activated))
 		io_activate_pollwq(ctx);
-
-	poll_wait(file, &ctx->poll_wq, wait);
 	/*
-	 * synchronizes with barrier from wq_has_sleeper call in
-	 * io_commit_cqring
+	 * provides mb() which pairs with barrier from wq_has_sleeper
+	 * call in io_commit_cqring
 	 */
-	smp_rmb();
+	poll_wait(file, &ctx->poll_wq, wait);
+
 	if (!io_sqring_full(ctx))
 		mask |= EPOLLOUT | EPOLLWRNORM;
 

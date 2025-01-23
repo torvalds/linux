@@ -20,6 +20,10 @@ N: Thomas Abraham
 E: thomas.ab@samsung.com
 D: Samsung pin controller driver
 
+N: Jose Abreu
+E: jose.abreu@synopsys.com
+D: Synopsys DesignWare XPCS MDIO/PCS driver.
+
 N: Dragos Acostachioaie
 E: dragos@iname.com
 W: http://www.arbornet.org/~dragos
@@ -1428,6 +1432,10 @@ S: 8124 Constitution Apt. 7
 S: Sterling Heights, Michigan 48313
 S: USA
 
+N: Andy Gospodarek
+E: andy@greyhouse.net
+D: Maintenance and contributions to the network interface bonding driver.
+
 N: Wolfgang Grandegger
 E: wg@grandegger.com
 D: Controller Area Network (device drivers)
@@ -1811,6 +1819,10 @@ D: Pentium III FXSR, SSE support
 D: Author/maintainer of most DRM drivers (especially ATI, MGA)
 D: Core DRM templates, general DRM and 3D-related hacking
 S: No fixed address
+
+N: Woojung Huh
+E: woojung.huh@microchip.com
+D: Microchip LAN78XX USB Ethernet driver
 
 N: Kenn Humborg
 E: kenn@wombat.ie
