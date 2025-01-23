@@ -259,9 +259,7 @@ void range_tree_destroy(struct range_tree *rt)
 
 	while ((rn = range_it_iter_first(rt, 0, -1U))) {
 		range_it_remove(rn, rt);
-		migrate_disable();
 		bpf_mem_free(&bpf_global_ma, rn);
-		migrate_enable();
 	}
 }
 
