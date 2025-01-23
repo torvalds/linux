@@ -32,6 +32,11 @@ static struct relocs		relocs32;
 static struct relocs		relocs32neg;
 static struct relocs		relocs64;
 # define FMT PRIu64
+
+#ifndef R_X86_64_REX_GOTPCRELX
+# define R_X86_64_REX_GOTPCRELX 42
+#endif
+
 #else
 # define FMT PRIu32
 #endif
@@ -227,6 +232,7 @@ static const char *rel_type(unsigned type)
 		REL_TYPE(R_X86_64_PC16),
 		REL_TYPE(R_X86_64_8),
 		REL_TYPE(R_X86_64_PC8),
+		REL_TYPE(R_X86_64_REX_GOTPCRELX),
 #else
 		REL_TYPE(R_386_NONE),
 		REL_TYPE(R_386_32),
@@ -861,6 +867,7 @@ static int do_reloc64(struct section *sec, Elf_Rel *rel, ElfW(Sym) *sym,
 
 	case R_X86_64_PC32:
 	case R_X86_64_PLT32:
+	case R_X86_64_REX_GOTPCRELX:
 		/*
 		 * PC relative relocations don't need to be adjusted unless
 		 * referencing a percpu symbol.
