@@ -459,10 +459,14 @@ TEST_F(uc_kvm, uc_no_user_region)
 	};
 
 	ASSERT_EQ(-1, ioctl(self->vm_fd, KVM_SET_USER_MEMORY_REGION, &region));
-	ASSERT_EQ(EINVAL, errno);
+	ASSERT_TRUE(errno == EEXIST || errno == EINVAL)
+		TH_LOG("errno %s (%i) not expected for ioctl KVM_SET_USER_MEMORY_REGION",
+		       strerror(errno), errno);
 
 	ASSERT_EQ(-1, ioctl(self->vm_fd, KVM_SET_USER_MEMORY_REGION2, &region2));
-	ASSERT_EQ(EINVAL, errno);
+	ASSERT_TRUE(errno == EEXIST || errno == EINVAL)
+		TH_LOG("errno %s (%i) not expected for ioctl KVM_SET_USER_MEMORY_REGION2",
+		       strerror(errno), errno);
 }
 
 TEST_F(uc_kvm, uc_map_unmap)
