@@ -566,12 +566,6 @@ static int qcom_cpufreq_hw_cpu_init(struct cpufreq_policy *policy)
 		return -ENODEV;
 	}
 
-	if (policy_has_boost_freq(policy)) {
-		ret = cpufreq_enable_boost_support();
-		if (ret)
-			dev_warn(cpu_dev, "failed to enable boost: %d\n", ret);
-	}
-
 	return qcom_cpufreq_hw_lmh_init(policy, index);
 }
 
@@ -610,6 +604,7 @@ static struct cpufreq_driver cpufreq_qcom_hw_driver = {
 	.fast_switch    = qcom_cpufreq_hw_fast_switch,
 	.name		= "qcom-cpufreq-hw",
 	.ready		= qcom_cpufreq_ready,
+	.set_boost	= cpufreq_boost_set_sw,
 };
 
 static unsigned long qcom_cpufreq_hw_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
