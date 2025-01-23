@@ -58,7 +58,12 @@
 	{(1UL << GLF_HAVE_FROZEN_REPLY),	"F" },		\
 	{(1UL << GLF_LRU),			"L" },		\
 	{(1UL << GLF_OBJECT),			"o" },		\
-	{(1UL << GLF_BLOCKING),			"b" })
+	{(1UL << GLF_BLOCKING),			"b" },		\
+	{(1UL << GLF_UNLOCKED),			"x" },		\
+	{(1UL << GLF_INSTANTIATE_NEEDED),	"n" },		\
+	{(1UL << GLF_INSTANTIATE_IN_PROG),	"N" },		\
+	{(1UL << GLF_TRY_TO_EVICT),		"e" },		\
+	{(1UL << GLF_VERIFY_DELETE),		"E" })
 
 #ifndef NUMPTY
 #define NUMPTY
