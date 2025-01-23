@@ -515,6 +515,11 @@ static const struct snd_sof_dsp_ops sof_imx8m_ops = {
 
 static struct snd_sof_of_mach sof_imx8mp_machs[] = {
 	{
+		.compatible = "fsl,imx8mp-evk-revb4",
+		.sof_tplg_filename = "sof-imx8mp-wm8962.tplg",
+		.drv_name = "asoc-audio-graph-card2",
+	},
+	{
 		.compatible = "fsl,imx8mp-evk",
 		.sof_tplg_filename = "sof-imx8mp-wm8960.tplg",
 		.drv_name = "asoc-audio-graph-card2",
