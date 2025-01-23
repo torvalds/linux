@@ -1389,8 +1389,7 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq)
 	set_bit(JOURNAL_running, &j->flags);
 	j->last_flush_write = jiffies;
 
-	j->reservations.idx = j->reservations.unwritten_idx = journal_cur_seq(j);
-	j->reservations.unwritten_idx++;
+	j->reservations.idx = journal_cur_seq(j);
 
 	c->last_bucket_seq_cleanup = journal_cur_seq(j);
 
