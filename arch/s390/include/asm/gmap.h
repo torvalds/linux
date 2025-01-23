@@ -106,6 +106,8 @@ struct gmap *gmap_create(struct mm_struct *mm, unsigned long limit);
 void gmap_remove(struct gmap *gmap);
 struct gmap *gmap_get(struct gmap *gmap);
 void gmap_put(struct gmap *gmap);
+void gmap_free(struct gmap *gmap);
+struct gmap *gmap_alloc(unsigned long limit);
 
 int gmap_map_segment(struct gmap *gmap, unsigned long from,
 		     unsigned long to, unsigned long len);
@@ -118,9 +120,7 @@ void gmap_unlink(struct mm_struct *, unsigned long *table, unsigned long vmaddr)
 
 int gmap_read_table(struct gmap *gmap, unsigned long gaddr, unsigned long *val);
 
-struct gmap *gmap_shadow(struct gmap *parent, unsigned long asce,
-			 int edat_level);
-int gmap_shadow_valid(struct gmap *sg, unsigned long asce, int edat_level);
+void gmap_unshadow(struct gmap *sg);
 int gmap_shadow_r2t(struct gmap *sg, unsigned long saddr, unsigned long r2t,
 		    int fake);
 int gmap_shadow_r3t(struct gmap *sg, unsigned long saddr, unsigned long r3t,
@@ -136,8 +136,7 @@ int gmap_shadow_page(struct gmap *sg, unsigned long saddr, pte_t pte);
 void gmap_register_pte_notifier(struct gmap_notifier *);
 void gmap_unregister_pte_notifier(struct gmap_notifier *);
 
-int gmap_mprotect_notify(struct gmap *, unsigned long start,
-			 unsigned long len, int prot);
+int gmap_protect_one(struct gmap *gmap, unsigned long gaddr, int prot, unsigned long bits);
 
 void gmap_sync_dirty_log_pmd(struct gmap *gmap, unsigned long dirty_bitmap[4],
 			     unsigned long gaddr, unsigned long vmaddr);

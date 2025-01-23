@@ -43,7 +43,7 @@ static struct page *gmap_alloc_crst(void)
  *
  * Returns a guest address space structure.
  */
-static struct gmap *gmap_alloc(unsigned long limit)
+struct gmap *gmap_alloc(unsigned long limit)
 {
 	struct gmap *gmap;
 	struct page *page;
@@ -97,6 +97,7 @@ out_free:
 out:
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(gmap_alloc);
 
 /**
  * gmap_create - create a guest address space
@@ -191,7 +192,7 @@ static void gmap_rmap_radix_tree_free(struct radix_tree_root *root)
  *
  * No locks required. There are no references to this gmap anymore.
  */
-static void gmap_free(struct gmap *gmap)
+void gmap_free(struct gmap *gmap)
 {
 	struct page *page, *next;
 
@@ -218,6 +219,7 @@ static void gmap_free(struct gmap *gmap)
 
 	kfree(gmap);
 }
+EXPORT_SYMBOL_GPL(gmap_free);
 
 /**
  * gmap_get - increase reference counter for guest address space
@@ -958,86 +960,40 @@ static int gmap_protect_pte(struct gmap *gmap, unsigned long gaddr,
  * @prot: indicates access rights: PROT_NONE, PROT_READ or PROT_WRITE
  * @bits: pgste notification bits to set
  *
- * Returns 0 if successfully protected, -ENOMEM if out of memory and
- * -EFAULT if gaddr is invalid (or mapping for shadows is missing).
+ * Returns:
+ *   PAGE_SIZE if a small page was successfully protected;
+ *   HPAGE_SIZE if a large page was successfully protected;
+ *   -ENOMEM if out of memory;
+ *   -EFAULT if gaddr is invalid (or mapping for shadows is missing);
+ *   -EAGAIN if the guest mapping is missing and should be fixed by the caller.
  *
- * Called with sg->mm->mmap_lock in read.
+ * Context: Called with sg->mm->mmap_lock in read.
  */
-static int gmap_protect_range(struct gmap *gmap, unsigned long gaddr,
-			      unsigned long len, int prot, unsigned long bits)
+int gmap_protect_one(struct gmap *gmap, unsigned long gaddr, int prot, unsigned long bits)
 {
-	unsigned long vmaddr, dist;
 	pmd_t *pmdp;
-	int rc;
+	int rc = 0;
 
 	BUG_ON(gmap_is_shadow(gmap));
-	while (len) {
-		rc = -EAGAIN;
-		pmdp = gmap_pmd_op_walk(gmap, gaddr);
-		if (pmdp) {
-			if (!pmd_leaf(*pmdp)) {
-				rc = gmap_protect_pte(gmap, gaddr, pmdp, prot,
-						      bits);
-				if (!rc) {
-					len -= PAGE_SIZE;
-					gaddr += PAGE_SIZE;
-				}
-			} else {
-				rc = gmap_protect_pmd(gmap, gaddr, pmdp, prot,
-						      bits);
-				if (!rc) {
-					dist = HPAGE_SIZE - (gaddr & ~HPAGE_MASK);
-					len = len < dist ? 0 : len - dist;
-					gaddr = (gaddr & HPAGE_MASK) + HPAGE_SIZE;
-				}
-			}
-			gmap_pmd_op_end(gmap, pmdp);
-		}
-		if (rc) {
-			if (rc == -EINVAL)
-				return rc;
 
-			/* -EAGAIN, fixup of userspace mm and gmap */
-			vmaddr = __gmap_translate(gmap, gaddr);
-			if (IS_ERR_VALUE(vmaddr))
-				return vmaddr;
-			rc = gmap_pte_op_fixup(gmap, gaddr, vmaddr, prot);
-			if (rc)
-				return rc;
-		}
+	pmdp = gmap_pmd_op_walk(gmap, gaddr);
+	if (!pmdp)
+		return -EAGAIN;
+
+	if (!pmd_leaf(*pmdp)) {
+		rc = gmap_protect_pte(gmap, gaddr, pmdp, prot, bits);
+		if (!rc)
+			rc = PAGE_SIZE;
+	} else {
+		rc = gmap_protect_pmd(gmap, gaddr, pmdp, prot, bits);
+		if (!rc)
+			rc = HPAGE_SIZE;
 	}
-	return 0;
-}
+	gmap_pmd_op_end(gmap, pmdp);
 
-/**
- * gmap_mprotect_notify - change access rights for a range of ptes and
- *                        call the notifier if any pte changes again
- * @gmap: pointer to guest mapping meta data structure
- * @gaddr: virtual address in the guest address space
- * @len: size of area
- * @prot: indicates access rights: PROT_NONE, PROT_READ or PROT_WRITE
- *
- * Returns 0 if for each page in the given range a gmap mapping exists,
- * the new access rights could be set and the notifier could be armed.
- * If the gmap mapping is missing for one or more pages -EFAULT is
- * returned. If no memory could be allocated -ENOMEM is returned.
- * This function establishes missing page table entries.
- */
-int gmap_mprotect_notify(struct gmap *gmap, unsigned long gaddr,
-			 unsigned long len, int prot)
-{
-	int rc;
-
-	if ((gaddr & ~PAGE_MASK) || (len & ~PAGE_MASK) || gmap_is_shadow(gmap))
-		return -EINVAL;
-	if (!MACHINE_HAS_ESOP && prot == PROT_READ)
-		return -EINVAL;
-	mmap_read_lock(gmap->mm);
-	rc = gmap_protect_range(gmap, gaddr, len, prot, GMAP_NOTIFY_MPROT);
-	mmap_read_unlock(gmap->mm);
 	return rc;
 }
-EXPORT_SYMBOL_GPL(gmap_mprotect_notify);
+EXPORT_SYMBOL_GPL(gmap_protect_one);
 
 /**
  * gmap_read_table - get an unsigned long value from a guest page table using
@@ -1488,7 +1444,7 @@ static void __gmap_unshadow_r1t(struct gmap *sg, unsigned long raddr,
  *
  * Called with sg->guest_table_lock
  */
-static void gmap_unshadow(struct gmap *sg)
+void gmap_unshadow(struct gmap *sg)
 {
 	unsigned long *table;
 
@@ -1514,143 +1470,7 @@ static void gmap_unshadow(struct gmap *sg)
 		break;
 	}
 }
-
-/**
- * gmap_find_shadow - find a specific asce in the list of shadow tables
- * @parent: pointer to the parent gmap
- * @asce: ASCE for which the shadow table is created
- * @edat_level: edat level to be used for the shadow translation
- *
- * Returns the pointer to a gmap if a shadow table with the given asce is
- * already available, ERR_PTR(-EAGAIN) if another one is just being created,
- * otherwise NULL
- */
-static struct gmap *gmap_find_shadow(struct gmap *parent, unsigned long asce,
-				     int edat_level)
-{
-	struct gmap *sg;
-
-	list_for_each_entry(sg, &parent->children, list) {
-		if (sg->orig_asce != asce || sg->edat_level != edat_level ||
-		    sg->removed)
-			continue;
-		if (!sg->initialized)
-			return ERR_PTR(-EAGAIN);
-		refcount_inc(&sg->ref_count);
-		return sg;
-	}
-	return NULL;
-}
-
-/**
- * gmap_shadow_valid - check if a shadow guest address space matches the
- *                     given properties and is still valid
- * @sg: pointer to the shadow guest address space structure
- * @asce: ASCE for which the shadow table is requested
- * @edat_level: edat level to be used for the shadow translation
- *
- * Returns 1 if the gmap shadow is still valid and matches the given
- * properties, the caller can continue using it. Returns 0 otherwise, the
- * caller has to request a new shadow gmap in this case.
- *
- */
-int gmap_shadow_valid(struct gmap *sg, unsigned long asce, int edat_level)
-{
-	if (sg->removed)
-		return 0;
-	return sg->orig_asce == asce && sg->edat_level == edat_level;
-}
-EXPORT_SYMBOL_GPL(gmap_shadow_valid);
-
-/**
- * gmap_shadow - create/find a shadow guest address space
- * @parent: pointer to the parent gmap
- * @asce: ASCE for which the shadow table is created
- * @edat_level: edat level to be used for the shadow translation
- *
- * The pages of the top level page table referred by the asce parameter
- * will be set to read-only and marked in the PGSTEs of the kvm process.
- * The shadow table will be removed automatically on any change to the
- * PTE mapping for the source table.
- *
- * Returns a guest address space structure, ERR_PTR(-ENOMEM) if out of memory,
- * ERR_PTR(-EAGAIN) if the caller has to retry and ERR_PTR(-EFAULT) if the
- * parent gmap table could not be protected.
- */
-struct gmap *gmap_shadow(struct gmap *parent, unsigned long asce,
-			 int edat_level)
-{
-	struct gmap *sg, *new;
-	unsigned long limit;
-	int rc;
-
-	BUG_ON(parent->mm->context.allow_gmap_hpage_1m);
-	BUG_ON(gmap_is_shadow(parent));
-	spin_lock(&parent->shadow_lock);
-	sg = gmap_find_shadow(parent, asce, edat_level);
-	spin_unlock(&parent->shadow_lock);
-	if (sg)
-		return sg;
-	/* Create a new shadow gmap */
-	limit = -1UL >> (33 - (((asce & _ASCE_TYPE_MASK) >> 2) * 11));
-	if (asce & _ASCE_REAL_SPACE)
-		limit = -1UL;
-	new = gmap_alloc(limit);
-	if (!new)
-		return ERR_PTR(-ENOMEM);
-	new->mm = parent->mm;
-	new->parent = gmap_get(parent);
-	new->private = parent->private;
-	new->orig_asce = asce;
-	new->edat_level = edat_level;
-	new->initialized = false;
-	spin_lock(&parent->shadow_lock);
-	/* Recheck if another CPU created the same shadow */
-	sg = gmap_find_shadow(parent, asce, edat_level);
-	if (sg) {
-		spin_unlock(&parent->shadow_lock);
-		gmap_free(new);
-		return sg;
-	}
-	if (asce & _ASCE_REAL_SPACE) {
-		/* only allow one real-space gmap shadow */
-		list_for_each_entry(sg, &parent->children, list) {
-			if (sg->orig_asce & _ASCE_REAL_SPACE) {
-				spin_lock(&sg->guest_table_lock);
-				gmap_unshadow(sg);
-				spin_unlock(&sg->guest_table_lock);
-				list_del(&sg->list);
-				gmap_put(sg);
-				break;
-			}
-		}
-	}
-	refcount_set(&new->ref_count, 2);
-	list_add(&new->list, &parent->children);
-	if (asce & _ASCE_REAL_SPACE) {
-		/* nothing to protect, return right away */
-		new->initialized = true;
-		spin_unlock(&parent->shadow_lock);
-		return new;
-	}
-	spin_unlock(&parent->shadow_lock);
-	/* protect after insertion, so it will get properly invalidated */
-	mmap_read_lock(parent->mm);
-	rc = gmap_protect_range(parent, asce & _ASCE_ORIGIN,
-				((asce & _ASCE_TABLE_LENGTH) + 1) * PAGE_SIZE,
-				PROT_READ, GMAP_NOTIFY_SHADOW);
-	mmap_read_unlock(parent->mm);
-	spin_lock(&parent->shadow_lock);
-	new->initialized = true;
-	if (rc) {
-		list_del(&new->list);
-		gmap_free(new);
-		new = ERR_PTR(rc);
-	}
-	spin_unlock(&parent->shadow_lock);
-	return new;
-}
-EXPORT_SYMBOL_GPL(gmap_shadow);
+EXPORT_SYMBOL(gmap_unshadow);
 
 /**
  * gmap_shadow_r2t - create an empty shadow region 2 table

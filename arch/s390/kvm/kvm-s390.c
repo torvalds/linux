@@ -4511,6 +4511,75 @@ static bool ibs_enabled(struct kvm_vcpu *vcpu)
 	return kvm_s390_test_cpuflags(vcpu, CPUSTAT_IBS);
 }
 
+static int __kvm_s390_fixup_fault_sync(struct gmap *gmap, gpa_t gaddr, unsigned int flags)
+{
+	struct kvm *kvm = gmap->private;
+	gfn_t gfn = gpa_to_gfn(gaddr);
+	bool unlocked;
+	hva_t vmaddr;
+	gpa_t tmp;
+	int rc;
+
+	if (kvm_is_ucontrol(kvm)) {
+		tmp = __gmap_translate(gmap, gaddr);
+		gfn = gpa_to_gfn(tmp);
+	}
+
+	vmaddr = gfn_to_hva(kvm, gfn);
+	rc = fixup_user_fault(gmap->mm, vmaddr, FAULT_FLAG_WRITE, &unlocked);
+	if (!rc)
+		rc = __gmap_link(gmap, gaddr, vmaddr);
+	return rc;
+}
+
+/**
+ * __kvm_s390_mprotect_many() - Apply specified protection to guest pages
+ * @gmap: the gmap of the guest
+ * @gpa: the starting guest address
+ * @npages: how many pages to protect
+ * @prot: indicates access rights: PROT_NONE, PROT_READ or PROT_WRITE
+ * @bits: pgste notification bits to set
+ *
+ * Returns: 0 in case of success, < 0 in case of error - see gmap_protect_one()
+ *
+ * Context: kvm->srcu and gmap->mm need to be held in read mode
+ */
+int __kvm_s390_mprotect_many(struct gmap *gmap, gpa_t gpa, u8 npages, unsigned int prot,
+			     unsigned long bits)
+{
+	unsigned int fault_flag = (prot & PROT_WRITE) ? FAULT_FLAG_WRITE : 0;
+	gpa_t end = gpa + npages * PAGE_SIZE;
+	int rc;
+
+	for (; gpa < end; gpa = ALIGN(gpa + 1, rc)) {
+		rc = gmap_protect_one(gmap, gpa, prot, bits);
+		if (rc == -EAGAIN) {
+			__kvm_s390_fixup_fault_sync(gmap, gpa, fault_flag);
+			rc = gmap_protect_one(gmap, gpa, prot, bits);
+		}
+		if (rc < 0)
+			return rc;
+	}
+
+	return 0;
+}
+
+static int kvm_s390_mprotect_notify_prefix(struct kvm_vcpu *vcpu)
+{
+	gpa_t gaddr = kvm_s390_get_prefix(vcpu);
+	int idx, rc;
+
+	idx = srcu_read_lock(&vcpu->kvm->srcu);
+	mmap_read_lock(vcpu->arch.gmap->mm);
+
+	rc = __kvm_s390_mprotect_many(vcpu->arch.gmap, gaddr, 2, PROT_WRITE, GMAP_NOTIFY_MPROT);
+
+	mmap_read_unlock(vcpu->arch.gmap->mm);
+	srcu_read_unlock(&vcpu->kvm->srcu, idx);
+
+	return rc;
+}
+
 static int kvm_s390_handle_requests(struct kvm_vcpu *vcpu)
 {
 retry:
@@ -4526,9 +4595,8 @@ retry:
 	 */
 	if (kvm_check_request(KVM_REQ_REFRESH_GUEST_PREFIX, vcpu)) {
 		int rc;
-		rc = gmap_mprotect_notify(vcpu->arch.gmap,
-					  kvm_s390_get_prefix(vcpu),
-					  PAGE_SIZE * 2, PROT_WRITE);
+
+		rc = kvm_s390_mprotect_notify_prefix(vcpu);
 		if (rc) {
 			kvm_make_request(KVM_REQ_REFRESH_GUEST_PREFIX, vcpu);
 			return rc;
