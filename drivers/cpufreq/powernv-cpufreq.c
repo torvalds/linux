@@ -1124,16 +1124,13 @@ static int __init powernv_cpufreq_init(void)
 		goto out;
 
 	if (powernv_pstate_info.wof_enabled)
-		powernv_cpufreq_driver.boost_enabled = true;
+		powernv_cpufreq_driver.set_boost = cpufreq_boost_set_sw;
 
 	rc = cpufreq_register_driver(&powernv_cpufreq_driver);
 	if (rc) {
 		pr_info("Failed to register the cpufreq driver (%d)\n", rc);
 		goto cleanup;
 	}
-
-	if (powernv_pstate_info.wof_enabled)
-		cpufreq_enable_boost_support();
 
 	register_reboot_notifier(&powernv_cpufreq_reboot_nb);
 	opal_message_notifier_register(OPAL_MSG_OCC, &powernv_cpufreq_opal_nb);
