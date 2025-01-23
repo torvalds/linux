@@ -1095,6 +1095,26 @@ bool osnoise_trace_is_off(struct osnoise_tool *tool, struct osnoise_tool *record
 	return record && !tracefs_trace_is_on(record->trace.inst);
 }
 
+/*
+ * osnoise_report_missed_events - report number of events dropped by trace
+ * buffer
+ */
+void
+osnoise_report_missed_events(struct osnoise_tool *tool)
+{
+	unsigned long long total_events;
+
+	if (tool->trace.missed_events == UINT64_MAX)
+		printf("unknown number of events missed, results might not be accurate\n");
+	else if (tool->trace.missed_events > 0) {
+		total_events = tool->trace.processed_events + tool->trace.missed_events;
+
+		printf("%lld (%.2f%%) events missed, results might not be accurate\n",
+		       tool->trace.missed_events,
+		       (double) tool->trace.missed_events / total_events * 100.0);
+	}
+}
+
 static void osnoise_usage(int err)
 {
 	int i;
