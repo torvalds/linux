@@ -306,7 +306,7 @@ static void __journal_entry_close(struct journal *j, unsigned closed_val, bool t
 
 	bch2_journal_space_available(j);
 
-	__bch2_journal_buf_put(j, old.idx, le64_to_cpu(buf->data->seq));
+	__bch2_journal_buf_put(j, le64_to_cpu(buf->data->seq));
 }
 
 void bch2_journal_halt(struct journal *j)

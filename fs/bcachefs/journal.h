@@ -193,7 +193,7 @@ bch2_journal_add_entry_noreservation(struct journal_buf *buf, size_t u64s)
 static inline struct jset_entry *
 journal_res_entry(struct journal *j, struct journal_res *res)
 {
-	return vstruct_idx(j->buf[res->idx].data, res->offset);
+	return vstruct_idx(j->buf[res->seq & JOURNAL_BUF_MASK].data, res->offset);
 }
 
 static inline unsigned journal_entry_init(struct jset_entry *entry, unsigned type,
@@ -267,8 +267,9 @@ bool bch2_journal_entry_close(struct journal *);
 void bch2_journal_do_writes(struct journal *);
 void bch2_journal_buf_put_final(struct journal *, u64);
 
-static inline void __bch2_journal_buf_put(struct journal *j, unsigned idx, u64 seq)
+static inline void __bch2_journal_buf_put(struct journal *j, u64 seq)
 {
+	unsigned idx = seq & JOURNAL_BUF_MASK;
 	union journal_res_state s;
 
 	s = journal_state_buf_put(j, idx);
@@ -276,8 +277,9 @@ static inline void __bch2_journal_buf_put(struct journal *j, unsigned idx, u64 s
 		bch2_journal_buf_put_final(j, seq);
 }
 
-static inline void bch2_journal_buf_put(struct journal *j, unsigned idx, u64 seq)
+static inline void bch2_journal_buf_put(struct journal *j, u64 seq)
 {
+	unsigned idx = seq & JOURNAL_BUF_MASK;
 	union journal_res_state s;
 
 	s = journal_state_buf_put(j, idx);
@@ -306,7 +308,7 @@ static inline void bch2_journal_res_put(struct journal *j,
 				       BCH_JSET_ENTRY_btree_keys,
 				       0, 0, 0);
 
-	bch2_journal_buf_put(j, res->idx, res->seq);
+	bch2_journal_buf_put(j, res->seq);
 
 	res->ref = 0;
 }
@@ -361,7 +363,6 @@ static inline int journal_res_get_fast(struct journal *j,
 				       &old.v, new.v));
 
 	res->ref	= true;
-	res->idx	= old.idx;
 	res->offset	= old.cur_entry_offset;
 	res->seq	= le64_to_cpu(j->buf[old.idx].data->seq);
 	return 1;
