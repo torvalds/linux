@@ -57,8 +57,8 @@ static void journal_end_buffer_io_sync(struct buffer_head *bh, int uptodate)
  * So here, we have a buffer which has just come off the forget list.  Look to
  * see if we can strip all buffers from the backing page.
  *
- * Called under lock_journal(), and possibly under journal_datalist_lock.  The
- * caller provided us with a ref against the buffer, and we drop that here.
+ * Called under j_list_lock. The caller provided us with a ref against the
+ * buffer, and we drop that here.
  */
 static void release_buffer_page(struct buffer_head *bh)
 {
