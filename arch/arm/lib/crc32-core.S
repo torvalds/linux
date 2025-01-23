@@ -48,7 +48,6 @@
  */
 
 #include <linux/linkage.h>
-#include <linux/cfi_types.h>
 #include <asm/assembler.h>
 
 	.text
@@ -297,11 +296,11 @@ ARM_BE8(rev16		r3, r3		)
 	.endm
 
 	.align		5
-SYM_TYPED_FUNC_START(crc32_armv8_le)
+SYM_FUNC_START(crc32_armv8_le)
 	__crc32
 SYM_FUNC_END(crc32_armv8_le)
 
 	.align		5
-SYM_TYPED_FUNC_START(crc32c_armv8_le)
+SYM_FUNC_START(crc32c_armv8_le)
 	__crc32		c
 SYM_FUNC_END(crc32c_armv8_le)

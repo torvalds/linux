@@ -156,12 +156,42 @@ config CRC16
 
 config CRC_T10DIF
 	tristate "CRC calculation for the T10 Data Integrity Field"
-	select CRYPTO
-	select CRYPTO_CRCT10DIF
 	help
 	  This option is only needed if a module that's not in the
 	  kernel tree needs to calculate CRC checks for use with the
 	  SCSI data integrity subsystem.
+
+config ARCH_HAS_CRC_T10DIF
+	bool
+
+choice
+	prompt "CRC-T10DIF implementation"
+	depends on CRC_T10DIF
+	default CRC_T10DIF_IMPL_ARCH if ARCH_HAS_CRC_T10DIF
+	default CRC_T10DIF_IMPL_GENERIC if !ARCH_HAS_CRC_T10DIF
+	help
+	  This option allows you to override the default choice of CRC-T10DIF
+	  implementation.
+
+config CRC_T10DIF_IMPL_ARCH
+	bool "Architecture-optimized" if ARCH_HAS_CRC_T10DIF
+	help
+	  Use the optimized implementation of CRC-T10DIF for the selected
+	  architecture.  It is recommended to keep this enabled, as it can
+	  greatly improve CRC-T10DIF performance.
+
+config CRC_T10DIF_IMPL_GENERIC
+	bool "Generic implementation"
+	help
+	  Use the generic table-based implementation of CRC-T10DIF.  Selecting
+	  this will reduce code size slightly but can greatly reduce CRC-T10DIF
+	  performance.
+
+endchoice
+
+config CRC_T10DIF_ARCH
+	tristate
+	default CRC_T10DIF if CRC_T10DIF_IMPL_ARCH
 
 config CRC64_ROCKSOFT
 	tristate "CRC calculation for the Rocksoft model CRC64"
@@ -190,36 +220,45 @@ config CRC32
 	  the kernel tree does. Such modules that use library CRC32/CRC32c
 	  functions require M here.
 
-config CRC32_SELFTEST
-	tristate "CRC32 perform self test on init"
-	depends on CRC32
-	help
-	  This option enables the CRC32 library functions to perform a
-	  self test on initialization. The self test computes crc32_le
-	  and crc32_be over byte strings with random alignment and length
-	  and computes the total elapsed time and number of bytes processed.
+config ARCH_HAS_CRC32
+	bool
 
 choice
 	prompt "CRC32 implementation"
 	depends on CRC32
-	default CRC32_SLICEBY8
+	default CRC32_IMPL_ARCH_PLUS_SLICEBY8 if ARCH_HAS_CRC32
+	default CRC32_IMPL_SLICEBY8 if !ARCH_HAS_CRC32
 	help
-	  This option allows a kernel builder to override the default choice
-	  of CRC32 algorithm.  Choose the default ("slice by 8") unless you
-	  know that you need one of the others.
+	  This option allows you to override the default choice of CRC32
+	  implementation.  Choose the default unless you know that you need one
+	  of the others.
 
-config CRC32_SLICEBY8
+config CRC32_IMPL_ARCH_PLUS_SLICEBY8
+	bool "Arch-optimized, with fallback to slice-by-8" if ARCH_HAS_CRC32
+	help
+	  Use architecture-optimized implementation of CRC32.  Fall back to
+	  slice-by-8 in cases where the arch-optimized implementation cannot be
+	  used, e.g. if the CPU lacks support for the needed instructions.
+
+	  This is the default when an arch-optimized implementation exists.
+
+config CRC32_IMPL_ARCH_PLUS_SLICEBY1
+	bool "Arch-optimized, with fallback to slice-by-1" if ARCH_HAS_CRC32
+	help
+	  Use architecture-optimized implementation of CRC32, but fall back to
+	  slice-by-1 instead of slice-by-8 in order to reduce the binary size.
+
+config CRC32_IMPL_SLICEBY8
 	bool "Slice by 8 bytes"
 	help
 	  Calculate checksum 8 bytes at a time with a clever slicing algorithm.
-	  This is the fastest algorithm, but comes with a 8KiB lookup table.
-	  Most modern processors have enough cache to hold this table without
-	  thrashing the cache.
+	  This is much slower than the architecture-optimized implementation of
+	  CRC32 (if the selected arch has one), but it is portable and is the
+	  fastest implementation when no arch-optimized implementation is
+	  available.  It uses an 8KiB lookup table.  Most modern processors have
+	  enough cache to hold this table without thrashing the cache.
 
-	  This is the default implementation choice.  Choose this one unless
-	  you have a good reason not to.
-
-config CRC32_SLICEBY4
+config CRC32_IMPL_SLICEBY4
 	bool "Slice by 4 bytes"
 	help
 	  Calculate checksum 4 bytes at a time with a clever slicing algorithm.
@@ -228,15 +267,15 @@ config CRC32_SLICEBY4
 
 	  Only choose this option if you know what you are doing.
 
-config CRC32_SARWATE
-	bool "Sarwate's Algorithm (one byte at a time)"
+config CRC32_IMPL_SLICEBY1
+	bool "Slice by 1 byte (Sarwate's algorithm)"
 	help
 	  Calculate checksum a byte at a time using Sarwate's algorithm.  This
-	  is not particularly fast, but has a small 256 byte lookup table.
+	  is not particularly fast, but has a small 1KiB lookup table.
 
 	  Only choose this option if you know what you are doing.
 
-config CRC32_BIT
+config CRC32_IMPL_BIT
 	bool "Classic Algorithm (one bit at a time)"
 	help
 	  Calculate checksum one bit at a time.  This is VERY slow, but has
@@ -245,6 +284,26 @@ config CRC32_BIT
 	  Only choose this option if you are debugging crc32.
 
 endchoice
+
+config CRC32_ARCH
+	tristate
+	default CRC32 if CRC32_IMPL_ARCH_PLUS_SLICEBY8 || CRC32_IMPL_ARCH_PLUS_SLICEBY1
+
+config CRC32_SLICEBY8
+	bool
+	default y if CRC32_IMPL_SLICEBY8 || CRC32_IMPL_ARCH_PLUS_SLICEBY8
+
+config CRC32_SLICEBY4
+	bool
+	default y if CRC32_IMPL_SLICEBY4
+
+config CRC32_SARWATE
+	bool
+	default y if CRC32_IMPL_SLICEBY1 || CRC32_IMPL_ARCH_PLUS_SLICEBY1
+
+config CRC32_BIT
+	bool
+	default y if CRC32_IMPL_BIT
 
 config CRC64
 	tristate "CRC64 functions"
@@ -272,14 +331,10 @@ config CRC7
 
 config LIBCRC32C
 	tristate "CRC32c (Castagnoli, et al) Cyclic Redundancy-Check"
-	select CRYPTO
-	select CRYPTO_CRC32C
+	select CRC32
 	help
-	  This option is provided for the case where no in-kernel-tree
-	  modules require CRC32c functions, but a module built outside the
-	  kernel tree does. Such modules that use library CRC32c functions
-	  require M here.  See Castagnoli93.
-	  Module will be libcrc32c.
+	  This option just selects CRC32 and is provided for compatibility
+	  purposes until the users are updated to select CRC32 directly.
 
 config CRC8
 	tristate "CRC8 function"

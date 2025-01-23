@@ -14,6 +14,7 @@
 #include <linux/crc32poly.h>
 #include <linux/crc32.h>
 #include <linux/byteorder/generic.h>
+#include <linux/module.h>
 
 /*
  * Refer to https://www.corsix.org/content/barrett-reduction-polynomials for
@@ -217,17 +218,19 @@ legacy:
 	return crc_fb(crc, p, len);
 }
 
-u32 __pure crc32_le(u32 crc, unsigned char const *p, size_t len)
+u32 __pure crc32_le_arch(u32 crc, const u8 *p, size_t len)
 {
 	return crc32_le_generic(crc, p, len, CRC32_POLY_LE, CRC32_POLY_QT_LE,
 				crc32_le_base);
 }
+EXPORT_SYMBOL(crc32_le_arch);
 
-u32 __pure __crc32c_le(u32 crc, unsigned char const *p, size_t len)
+u32 __pure crc32c_le_arch(u32 crc, const u8 *p, size_t len)
 {
 	return crc32_le_generic(crc, p, len, CRC32C_POLY_LE,
-				CRC32C_POLY_QT_LE, __crc32c_le_base);
+				CRC32C_POLY_QT_LE, crc32c_le_base);
 }
+EXPORT_SYMBOL(crc32c_le_arch);
 
 static inline u32 crc32_be_unaligned(u32 crc, unsigned char const *p,
 				     size_t len)
@@ -253,7 +256,7 @@ static inline u32 crc32_be_unaligned(u32 crc, unsigned char const *p,
 	return crc;
 }
 
-u32 __pure crc32_be(u32 crc, unsigned char const *p, size_t len)
+u32 __pure crc32_be_arch(u32 crc, const u8 *p, size_t len)
 {
 	size_t offset, head_len, tail_len;
 	unsigned long const *p_ul;
@@ -292,3 +295,17 @@ u32 __pure crc32_be(u32 crc, unsigned char const *p, size_t len)
 legacy:
 	return crc32_be_base(crc, p, len);
 }
+EXPORT_SYMBOL(crc32_be_arch);
+
+u32 crc32_optimizations(void)
+{
+	if (riscv_has_extension_likely(RISCV_ISA_EXT_ZBC))
+		return CRC32_LE_OPTIMIZATION |
+		       CRC32_BE_OPTIMIZATION |
+		       CRC32C_OPTIMIZATION;
+	return 0;
+}
+EXPORT_SYMBOL(crc32_optimizations);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Accelerated CRC32 implementation with Zbc extension");
