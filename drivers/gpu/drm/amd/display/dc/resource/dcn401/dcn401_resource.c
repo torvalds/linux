@@ -76,8 +76,8 @@
 
 #include "dml2/dml2_wrapper.h"
 
-#include "spl/dc_spl_scl_easf_filters.h"
-#include "spl/dc_spl_isharp_filters.h"
+#include "sspl/dc_spl_scl_easf_filters.h"
+#include "sspl/dc_spl_isharp_filters.h"
 
 #define DC_LOGGER_INIT(logger)
 
