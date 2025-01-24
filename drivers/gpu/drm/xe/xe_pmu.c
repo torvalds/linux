@@ -7,6 +7,7 @@
 #include <linux/device.h>
 
 #include "xe_device.h"
+#include "xe_gt_idle.h"
 #include "xe_pm.h"
 #include "xe_pmu.h"
 
@@ -46,6 +47,8 @@ static unsigned int config_to_gt_id(u64 config)
 {
 	return FIELD_GET(XE_PMU_EVENT_GT_MASK, config);
 }
+
+#define XE_PMU_EVENT_GT_C6_RESIDENCY	0x01
 
 static struct xe_gt *event_to_gt(struct perf_event *event)
 {
@@ -113,12 +116,16 @@ static int xe_pmu_event_init(struct perf_event *event)
 static u64 __xe_pmu_event_read(struct perf_event *event)
 {
 	struct xe_gt *gt = event_to_gt(event);
-	u64 val = 0;
 
 	if (!gt)
 		return 0;
 
-	return val;
+	switch (config_to_event_id(event->attr.config)) {
+	case XE_PMU_EVENT_GT_C6_RESIDENCY:
+		return xe_gt_idle_residency_msec(&gt->gtidle);
+	}
+
+	return 0;
 }
 
 static void xe_pmu_event_update(struct perf_event *event)
@@ -214,8 +221,8 @@ static const struct attribute_group pmu_format_attr_group = {
 	.attrs = pmu_format_attrs,
 };
 
-__maybe_unused static ssize_t event_attr_show(struct device *dev,
-					      struct device_attribute *attr, char *buf)
+static ssize_t event_attr_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
 {
 	struct perf_pmu_events_attr *pmu_attr =
 		container_of(attr, struct perf_pmu_events_attr, attr);
@@ -262,6 +269,8 @@ __maybe_unused static ssize_t event_attr_show(struct device *dev,
 	XE_EVENT_ATTR(name_, v_, id_)					\
 	XE_EVENT_ATTR_GROUP(v_, id_, &pmu_event_ ##v_.attr.attr)
 
+XE_EVENT_ATTR_SIMPLE(gt-c6-residency, gt_c6_residency, XE_PMU_EVENT_GT_C6_RESIDENCY, "ms");
+
 static struct attribute *pmu_empty_event_attrs[] = {
 	/* Empty - all events are added as groups with .attr_update() */
 	NULL,
@@ -273,12 +282,16 @@ static const struct attribute_group pmu_events_attr_group = {
 };
 
 static const struct attribute_group *pmu_events_attr_update[] = {
-	/* No events yet */
+	&pmu_group_gt_c6_residency,
 	NULL,
 };
 
 static void set_supported_events(struct xe_pmu *pmu)
 {
+	struct xe_device *xe = container_of(pmu, typeof(*xe), pmu);
+
+	if (!xe->info.skip_guc_pc)
+		pmu->supported_events |= BIT_ULL(XE_PMU_EVENT_GT_C6_RESIDENCY);
 }
 
 /**
