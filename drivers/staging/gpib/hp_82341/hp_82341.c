@@ -727,7 +727,7 @@ static int hp_82341_attach(gpib_board_t *board, const gpib_board_config_t *confi
 	for (i = 0; i < hp_82341_num_io_regions; ++i) {
 		start_addr = iobase + i * hp_priv->io_region_offset;
 		if (!request_region(start_addr, hp_82341_region_iosize, "hp_82341")) {
-			pr_err("hp_82341: failed to allocate io ports 0x%lx-0x%lx\n",
+			pr_err("hp_82341: failed to allocate io ports 0x%x-0x%x\n",
 			       start_addr,
 			       start_addr + hp_82341_region_iosize - 1);
 			return -EIO;
