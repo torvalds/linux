@@ -218,10 +218,10 @@ r535_gsp_msgq_recv(struct nvkm_gsp *gsp, u32 gsp_rpc_len, int *ptime)
 static int
 r535_gsp_cmdq_push(struct nvkm_gsp *gsp, void *rpc)
 {
-	struct r535_gsp_msg *cmd = to_gsp_hdr(rpc, cmd);
+	struct r535_gsp_msg *msg = to_gsp_hdr(rpc, msg);
 	struct r535_gsp_msg *cqe;
-	u32 gsp_rpc_len = cmd->checksum;
-	u64 *ptr = (void *)cmd;
+	u32 gsp_rpc_len = msg->checksum;
+	u64 *ptr = (void *)msg;
 	u64 *end;
 	u64 csum = 0;
 	int free, time = 1000000;
@@ -231,15 +231,15 @@ r535_gsp_cmdq_push(struct nvkm_gsp *gsp, void *rpc)
 	len = ALIGN(GSP_MSG_HDR_SIZE + gsp_rpc_len, GSP_PAGE_SIZE);
 
 	end = (u64 *)((char *)ptr + len);
-	cmd->pad = 0;
-	cmd->checksum = 0;
-	cmd->sequence = gsp->cmdq.seq++;
-	cmd->elem_count = DIV_ROUND_UP(len, 0x1000);
+	msg->pad = 0;
+	msg->checksum = 0;
+	msg->sequence = gsp->cmdq.seq++;
+	msg->elem_count = DIV_ROUND_UP(len, 0x1000);
 
 	while (ptr < end)
 		csum ^= *ptr++;
 
-	cmd->checksum = upper_32_bits(csum) ^ lower_32_bits(csum);
+	msg->checksum = upper_32_bits(csum) ^ lower_32_bits(csum);
 
 	wptr = *gsp->cmdq.wptr;
 	do {
@@ -254,7 +254,7 @@ r535_gsp_cmdq_push(struct nvkm_gsp *gsp, void *rpc)
 		} while(--time);
 
 		if (WARN_ON(!time)) {
-			kvfree(cmd);
+			kvfree(msg);
 			return -ETIMEDOUT;
 		}
 
@@ -262,7 +262,7 @@ r535_gsp_cmdq_push(struct nvkm_gsp *gsp, void *rpc)
 		step = min_t(u32, free, (gsp->cmdq.cnt - wptr));
 		size = min_t(u32, len, step * GSP_PAGE_SIZE);
 
-		memcpy(cqe, (u8 *)cmd + off, size);
+		memcpy(cqe, (u8 *)msg + off, size);
 
 		wptr += DIV_ROUND_UP(size, 0x1000);
 		if (wptr == gsp->cmdq.cnt)
@@ -279,23 +279,23 @@ r535_gsp_cmdq_push(struct nvkm_gsp *gsp, void *rpc)
 
 	nvkm_falcon_wr32(&gsp->falcon, 0xc00, 0x00000000);
 
-	kvfree(cmd);
+	kvfree(msg);
 	return 0;
 }
 
 static void *
 r535_gsp_cmdq_get(struct nvkm_gsp *gsp, u32 gsp_rpc_len)
 {
-	struct r535_gsp_msg *cmd;
+	struct r535_gsp_msg *msg;
 	u32 size = GSP_MSG_HDR_SIZE + gsp_rpc_len;
 
 	size = ALIGN(size, GSP_MSG_MIN_SIZE);
-	cmd = kvzalloc(size, GFP_KERNEL);
-	if (!cmd)
+	msg = kvzalloc(size, GFP_KERNEL);
+	if (!msg)
 		return ERR_PTR(-ENOMEM);
 
-	cmd->checksum = gsp_rpc_len;
-	return cmd->data;
+	msg->checksum = gsp_rpc_len;
+	return msg->data;
 }
 
 struct nvfw_gsp_rpc {
