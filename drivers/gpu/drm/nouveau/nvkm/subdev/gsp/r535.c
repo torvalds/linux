@@ -109,6 +109,8 @@ extern struct dentry *nouveau_debugfs_root;
  * Terminology:
  *
  * - gsp_rpc_len: size of (GSP RPC header + payload)
+ * - params_size: size of params in the payload
+ * - payload_size: size of (header if exists + params) in the payload
  */
 
 struct r535_gsp_msg {
@@ -215,21 +217,21 @@ r535_gsp_cmdq_push(struct nvkm_gsp *gsp, void *rpc)
 {
 	struct r535_gsp_msg *cmd = to_gsp_hdr(rpc, cmd);
 	struct r535_gsp_msg *cqe;
-	u32 argc = cmd->checksum;
+	u32 gsp_rpc_len = cmd->checksum;
 	u64 *ptr = (void *)cmd;
 	u64 *end;
 	u64 csum = 0;
 	int free, time = 1000000;
-	u32 wptr, size, step;
+	u32 wptr, size, step, len;
 	u32 off = 0;
 
-	argc = ALIGN(GSP_MSG_HDR_SIZE + argc, GSP_PAGE_SIZE);
+	len = ALIGN(GSP_MSG_HDR_SIZE + gsp_rpc_len, GSP_PAGE_SIZE);
 
-	end = (u64 *)((char *)ptr + argc);
+	end = (u64 *)((char *)ptr + len);
 	cmd->pad = 0;
 	cmd->checksum = 0;
 	cmd->sequence = gsp->cmdq.seq++;
-	cmd->elem_count = DIV_ROUND_UP(argc, 0x1000);
+	cmd->elem_count = DIV_ROUND_UP(len, 0x1000);
 
 	while (ptr < end)
 		csum ^= *ptr++;
@@ -255,7 +257,7 @@ r535_gsp_cmdq_push(struct nvkm_gsp *gsp, void *rpc)
 
 		cqe = (void *)((u8 *)gsp->shm.cmdq.ptr + 0x1000 + wptr * 0x1000);
 		step = min_t(u32, free, (gsp->cmdq.cnt - wptr));
-		size = min_t(u32, argc, step * GSP_PAGE_SIZE);
+		size = min_t(u32, len, step * GSP_PAGE_SIZE);
 
 		memcpy(cqe, (u8 *)cmd + off, size);
 
@@ -264,8 +266,8 @@ r535_gsp_cmdq_push(struct nvkm_gsp *gsp, void *rpc)
 			wptr = 0;
 
 		off  += size;
-		argc -= size;
-	} while(argc);
+		len -= size;
+	} while (len);
 
 	nvkm_trace(&gsp->subdev, "cmdq: wptr %d\n", wptr);
 	wmb();
@@ -279,17 +281,17 @@ r535_gsp_cmdq_push(struct nvkm_gsp *gsp, void *rpc)
 }
 
 static void *
-r535_gsp_cmdq_get(struct nvkm_gsp *gsp, u32 argc)
+r535_gsp_cmdq_get(struct nvkm_gsp *gsp, u32 gsp_rpc_len)
 {
 	struct r535_gsp_msg *cmd;
-	u32 size = GSP_MSG_HDR_SIZE + argc;
+	u32 size = GSP_MSG_HDR_SIZE + gsp_rpc_len;
 
 	size = ALIGN(size, GSP_MSG_MIN_SIZE);
 	cmd = kvzalloc(size, GFP_KERNEL);
 	if (!cmd)
 		return ERR_PTR(-ENOMEM);
 
-	cmd->checksum = argc;
+	cmd->checksum = gsp_rpc_len;
 	return cmd->data;
 }
 
@@ -672,16 +674,22 @@ r535_gsp_rpc_rm_alloc_push(struct nvkm_gsp_object *object, void *params)
 }
 
 static void *
-r535_gsp_rpc_rm_alloc_get(struct nvkm_gsp_object *object, u32 oclass, u32 argc)
+r535_gsp_rpc_rm_alloc_get(struct nvkm_gsp_object *object, u32 oclass,
+			  u32 params_size)
 {
 	struct nvkm_gsp_client *client = object->client;
 	struct nvkm_gsp *gsp = client->gsp;
 	rpc_gsp_rm_alloc_v03_00 *rpc;
 
-	nvkm_debug(&gsp->subdev, "cli:0x%08x obj:0x%08x new obj:0x%08x cls:0x%08x argc:%d\n",
-		   client->object.handle, object->parent->handle, object->handle, oclass, argc);
+	nvkm_debug(&gsp->subdev, "cli:0x%08x obj:0x%08x new obj:0x%08x\n",
+		   client->object.handle, object->parent->handle,
+		   object->handle);
 
-	rpc = nvkm_gsp_rpc_get(gsp, NV_VGPU_MSG_FUNCTION_GSP_RM_ALLOC, sizeof(*rpc) + argc);
+	nvkm_debug(&gsp->subdev, "cls:0x%08x params_size:%d\n", oclass,
+		   params_size);
+
+	rpc = nvkm_gsp_rpc_get(gsp, NV_VGPU_MSG_FUNCTION_GSP_RM_ALLOC,
+			       sizeof(*rpc) + params_size);
 	if (IS_ERR(rpc))
 		return rpc;
 
@@ -690,7 +698,7 @@ r535_gsp_rpc_rm_alloc_get(struct nvkm_gsp_object *object, u32 oclass, u32 argc)
 	rpc->hObject = object->handle;
 	rpc->hClass = oclass;
 	rpc->status = 0;
-	rpc->paramsSize = argc;
+	rpc->paramsSize = params_size;
 	return rpc->params;
 }
 
@@ -733,16 +741,17 @@ r535_gsp_rpc_rm_ctrl_push(struct nvkm_gsp_object *object, void **params, u32 rep
 }
 
 static void *
-r535_gsp_rpc_rm_ctrl_get(struct nvkm_gsp_object *object, u32 cmd, u32 argc)
+r535_gsp_rpc_rm_ctrl_get(struct nvkm_gsp_object *object, u32 cmd, u32 params_size)
 {
 	struct nvkm_gsp_client *client = object->client;
 	struct nvkm_gsp *gsp = client->gsp;
 	rpc_gsp_rm_control_v03_00 *rpc;
 
-	nvkm_debug(&gsp->subdev, "cli:0x%08x obj:0x%08x ctrl cmd:0x%08x argc:%d\n",
-		   client->object.handle, object->handle, cmd, argc);
+	nvkm_debug(&gsp->subdev, "cli:0x%08x obj:0x%08x ctrl cmd:0x%08x params_size:%d\n",
+		   client->object.handle, object->handle, cmd, params_size);
 
-	rpc = nvkm_gsp_rpc_get(gsp, NV_VGPU_MSG_FUNCTION_GSP_RM_CONTROL, sizeof(*rpc) + argc);
+	rpc = nvkm_gsp_rpc_get(gsp, NV_VGPU_MSG_FUNCTION_GSP_RM_CONTROL,
+			       sizeof(*rpc) + params_size);
 	if (IS_ERR(rpc))
 		return rpc;
 
@@ -750,7 +759,7 @@ r535_gsp_rpc_rm_ctrl_get(struct nvkm_gsp_object *object, u32 cmd, u32 argc)
 	rpc->hObject    = object->handle;
 	rpc->cmd	= cmd;
 	rpc->status     = 0;
-	rpc->paramsSize = argc;
+	rpc->paramsSize = params_size;
 	return rpc->params;
 }
 
@@ -763,11 +772,12 @@ r535_gsp_rpc_done(struct nvkm_gsp *gsp, void *repv)
 }
 
 static void *
-r535_gsp_rpc_get(struct nvkm_gsp *gsp, u32 fn, u32 argc)
+r535_gsp_rpc_get(struct nvkm_gsp *gsp, u32 fn, u32 payload_size)
 {
 	struct nvfw_gsp_rpc *rpc;
 
-	rpc = r535_gsp_cmdq_get(gsp, ALIGN(sizeof(*rpc) + argc, sizeof(u64)));
+	rpc = r535_gsp_cmdq_get(gsp, ALIGN(sizeof(*rpc) + payload_size,
+					   sizeof(u64)));
 	if (IS_ERR(rpc))
 		return ERR_CAST(rpc);
 
@@ -776,7 +786,7 @@ r535_gsp_rpc_get(struct nvkm_gsp *gsp, u32 fn, u32 argc)
 	rpc->function = fn;
 	rpc->rpc_result = 0xffffffff;
 	rpc->rpc_result_private = 0xffffffff;
-	rpc->length = sizeof(*rpc) + argc;
+	rpc->length = sizeof(*rpc) + payload_size;
 	return rpc->data;
 }
 
