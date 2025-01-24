@@ -1342,6 +1342,8 @@ patternProperties:
     description: Siemens AG
   "^sifive,.*":
     description: SiFive, Inc.
+  "^siflower,.*":
+    description: Shanghai Siflower Communication Co.
   "^sigma,.*":
     description: Sigma Designs, Inc.
   "^sii,.*":
