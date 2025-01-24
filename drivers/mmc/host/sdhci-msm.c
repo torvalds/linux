@@ -3,7 +3,7 @@
  * drivers/mmc/host/sdhci-msm.c - Qualcomm SDHCI Platform driver
  *
  * Copyright (c) 2013-2014,2020. The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024, 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -5767,11 +5767,12 @@ static __maybe_unused int sdhci_msm_runtime_resume(struct device *dev)
 	}
 
 	if (!qos_req)
-		return 0;
+		goto skip_qos;
 
 	sdhci_msm_vote_pmqos(msm_host->mmc,
 			msm_host->sdhci_qos->active_mask);
 
+skip_qos:
 	ret = sdhci_msm_ice_resume(msm_host);
 	if (ret)
 		return ret;
