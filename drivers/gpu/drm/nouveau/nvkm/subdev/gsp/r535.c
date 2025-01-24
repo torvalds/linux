@@ -106,6 +106,9 @@ extern struct dentry *nouveau_debugfs_root;
  *    |        params          |
  *    +------------------------+
  *
+ * Terminology:
+ *
+ * - gsp_rpc_len: size of (GSP RPC header + payload)
  */
 
 struct r535_gsp_msg {
@@ -135,7 +138,8 @@ r535_rpc_status_to_errno(uint32_t rpc_status)
 }
 
 static void *
-r535_gsp_msgq_wait(struct nvkm_gsp *gsp, u32 repc, u32 *prepc, int *ptime)
+r535_gsp_msgq_wait(struct nvkm_gsp *gsp, u32 gsp_rpc_len, u32 *prepc,
+		   int *ptime)
 {
 	struct r535_gsp_msg *mqe;
 	u32 size, rptr = *gsp->msgq.rptr;
@@ -143,7 +147,8 @@ r535_gsp_msgq_wait(struct nvkm_gsp *gsp, u32 repc, u32 *prepc, int *ptime)
 	u8 *msg;
 	u32 len;
 
-	size = DIV_ROUND_UP(GSP_MSG_HDR_SIZE + repc, GSP_PAGE_SIZE);
+	size = DIV_ROUND_UP(GSP_MSG_HDR_SIZE + gsp_rpc_len,
+			    GSP_PAGE_SIZE);
 	if (WARN_ON(!size || size >= gsp->msgq.cnt))
 		return ERR_PTR(-EINVAL);
 
@@ -169,21 +174,21 @@ r535_gsp_msgq_wait(struct nvkm_gsp *gsp, u32 repc, u32 *prepc, int *ptime)
 		return mqe->data;
 	}
 
-	size = ALIGN(repc + GSP_MSG_HDR_SIZE, GSP_PAGE_SIZE);
+	size = ALIGN(gsp_rpc_len + GSP_MSG_HDR_SIZE, GSP_PAGE_SIZE);
 
-	msg = kvmalloc(repc, GFP_KERNEL);
+	msg = kvmalloc(gsp_rpc_len, GFP_KERNEL);
 	if (!msg)
 		return ERR_PTR(-ENOMEM);
 
 	len = ((gsp->msgq.cnt - rptr) * GSP_PAGE_SIZE) - sizeof(*mqe);
-	len = min_t(u32, repc, len);
+	len = min_t(u32, gsp_rpc_len, len);
 	memcpy(msg, mqe->data, len);
 
-	repc -= len;
+	gsp_rpc_len -= len;
 
-	if (repc) {
+	if (gsp_rpc_len) {
 		mqe = (void *)((u8 *)gsp->shm.msgq.ptr + 0x1000 + 0 * 0x1000);
-		memcpy(msg + len, mqe, repc);
+		memcpy(msg + len, mqe, gsp_rpc_len);
 	}
 
 	rptr = (rptr + DIV_ROUND_UP(size, GSP_PAGE_SIZE)) % gsp->msgq.cnt;
@@ -194,9 +199,9 @@ r535_gsp_msgq_wait(struct nvkm_gsp *gsp, u32 repc, u32 *prepc, int *ptime)
 }
 
 static void *
-r535_gsp_msgq_recv(struct nvkm_gsp *gsp, u32 repc, int *ptime)
+r535_gsp_msgq_recv(struct nvkm_gsp *gsp, u32 gsp_rpc_len, int *ptime)
 {
-	return r535_gsp_msgq_wait(gsp, repc, NULL, ptime);
+	return r535_gsp_msgq_wait(gsp, gsp_rpc_len, NULL, ptime);
 }
 
 static int
@@ -317,7 +322,7 @@ r535_gsp_msg_dump(struct nvkm_gsp *gsp, struct nvfw_gsp_rpc *msg, int lvl)
 }
 
 static struct nvfw_gsp_rpc *
-r535_gsp_msg_recv(struct nvkm_gsp *gsp, int fn, u32 repc)
+r535_gsp_msg_recv(struct nvkm_gsp *gsp, int fn, u32 gsp_rpc_len)
 {
 	struct nvkm_subdev *subdev = &gsp->subdev;
 	struct nvfw_gsp_rpc *msg;
@@ -342,10 +347,11 @@ retry:
 	r535_gsp_msg_dump(gsp, msg, NV_DBG_TRACE);
 
 	if (fn && msg->function == fn) {
-		if (repc) {
-			if (msg->length < sizeof(*msg) + repc) {
+		if (gsp_rpc_len) {
+			if (msg->length < sizeof(*msg) + gsp_rpc_len) {
 				nvkm_error(subdev, "msg len %d < %zd\n",
-					   msg->length, sizeof(*msg) + repc);
+					   msg->length, sizeof(*msg) +
+					   gsp_rpc_len);
 				r535_gsp_msg_dump(gsp, msg, NV_DBG_ERROR);
 				r535_gsp_msg_done(gsp, msg);
 				return ERR_PTR(-EIO);
@@ -414,7 +420,8 @@ r535_gsp_rpc_poll(struct nvkm_gsp *gsp, u32 fn)
 }
 
 static void *
-r535_gsp_rpc_send(struct nvkm_gsp *gsp, void *argv, bool wait, u32 repc)
+r535_gsp_rpc_send(struct nvkm_gsp *gsp, void *argv, bool wait,
+		  u32 gsp_rpc_len)
 {
 	struct nvfw_gsp_rpc *rpc = container_of(argv, typeof(*rpc), data);
 	struct nvfw_gsp_rpc *msg;
@@ -434,7 +441,7 @@ r535_gsp_rpc_send(struct nvkm_gsp *gsp, void *argv, bool wait, u32 repc)
 		return ERR_PTR(ret);
 
 	if (wait) {
-		msg = r535_gsp_msg_recv(gsp, fn, repc);
+		msg = r535_gsp_msg_recv(gsp, fn, gsp_rpc_len);
 		if (!IS_ERR_OR_NULL(msg))
 			repv = msg->data;
 		else
@@ -770,7 +777,8 @@ r535_gsp_rpc_get(struct nvkm_gsp *gsp, u32 fn, u32 argc)
 }
 
 static void *
-r535_gsp_rpc_push(struct nvkm_gsp *gsp, void *argv, bool wait, u32 repc)
+r535_gsp_rpc_push(struct nvkm_gsp *gsp, void *argv, bool wait,
+		  u32 gsp_rpc_len)
 {
 	struct nvfw_gsp_rpc *rpc = container_of(argv, typeof(*rpc), data);
 	struct r535_gsp_msg *cmd = container_of((void *)rpc, typeof(*cmd), data);
@@ -817,7 +825,7 @@ r535_gsp_rpc_push(struct nvkm_gsp *gsp, void *argv, bool wait, u32 repc)
 
 		/* Wait for reply. */
 		if (wait) {
-			rpc = r535_gsp_msg_recv(gsp, fn, repc);
+			rpc = r535_gsp_msg_recv(gsp, fn, gsp_rpc_len);
 			if (!IS_ERR_OR_NULL(rpc))
 				repv = rpc->data;
 			else
@@ -826,7 +834,7 @@ r535_gsp_rpc_push(struct nvkm_gsp *gsp, void *argv, bool wait, u32 repc)
 			repv = NULL;
 		}
 	} else {
-		repv = r535_gsp_rpc_send(gsp, argv, wait, repc);
+		repv = r535_gsp_rpc_send(gsp, argv, wait, gsp_rpc_len);
 	}
 
 done:
