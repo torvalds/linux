@@ -7,21 +7,6 @@
 
 /* Cgroup v1 and v2 common declarations */
 
-int try_charge_memcg(struct mem_cgroup *memcg, gfp_t gfp_mask,
-		     unsigned int nr_pages);
-
-static inline int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
-			     unsigned int nr_pages)
-{
-	if (mem_cgroup_is_root(memcg))
-		return 0;
-
-	return try_charge_memcg(memcg, gfp_mask, nr_pages);
-}
-
-void mem_cgroup_id_get_many(struct mem_cgroup *memcg, unsigned int n);
-void mem_cgroup_id_put_many(struct mem_cgroup *memcg, unsigned int n);
-
 /*
  * Iteration constructs for visiting all cgroups (under a tree).  If
  * loops are exited prematurely (break), mem_cgroup_iter_break() must
