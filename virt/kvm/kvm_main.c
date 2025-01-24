@@ -1071,15 +1071,6 @@ out_err:
 }
 
 /*
- * Called after the VM is otherwise initialized, but just before adding it to
- * the vm_list.
- */
-int __weak kvm_arch_post_init_vm(struct kvm *kvm)
-{
-	return 0;
-}
-
-/*
  * Called just after removing the VM from the vm_list, but before doing any
  * other destruction.
  */
@@ -1199,10 +1190,6 @@ static struct kvm *kvm_create_vm(unsigned long type, const char *fdname)
 	if (r)
 		goto out_err_no_debugfs;
 
-	r = kvm_arch_post_init_vm(kvm);
-	if (r)
-		goto out_err;
-
 	mutex_lock(&kvm_lock);
 	list_add(&kvm->vm_list, &vm_list);
 	mutex_unlock(&kvm_lock);
@@ -1212,8 +1199,6 @@ static struct kvm *kvm_create_vm(unsigned long type, const char *fdname)
 
 	return kvm;
 
-out_err:
-	kvm_destroy_vm_debugfs(kvm);
 out_err_no_debugfs:
 	kvm_coalesced_mmio_free(kvm);
 out_no_coalesced_mmio:
