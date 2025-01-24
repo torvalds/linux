@@ -1220,6 +1220,8 @@ struct dpcd_caps {
 	struct replay_info pr_info;
 	uint16_t edp_oled_emission_rate;
 	union dp_receive_port0_cap receive_port0_cap;
+	/* Indicates the number of SST links supported by MSO (Multi-Stream Output) */
+	uint8_t mso_cap_sst_links_supported;
 };
 
 union dpcd_sink_ext_caps {

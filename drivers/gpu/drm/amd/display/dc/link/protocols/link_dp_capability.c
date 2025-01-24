@@ -2100,6 +2100,17 @@ void detect_edp_sink_caps(struct dc_link *link)
 		core_link_read_dpcd(link, DP_SINK_EMISSION_RATE,
 				(uint8_t *)&link->dpcd_caps.edp_oled_emission_rate,
 				sizeof(link->dpcd_caps.edp_oled_emission_rate));
+
+	/*
+	 * Read Multi-SST (Single Stream Transport) capability
+	 * for eDP version 1.4 or higher.
+	 */
+	if (link->dpcd_caps.dpcd_rev.raw >= DP_EDP_14)
+		core_link_read_dpcd(
+			link,
+			DP_EDP_MSO_LINK_CAPABILITIES,
+			(uint8_t *)&link->dpcd_caps.mso_cap_sst_links_supported,
+			sizeof(link->dpcd_caps.mso_cap_sst_links_supported));
 }
 
 bool dp_get_max_link_enc_cap(const struct dc_link *link, struct dc_link_settings *max_link_enc_cap)
