@@ -37,7 +37,7 @@ intended to be exhaustive.
   shadow stacks rather than GCS.
 
 * Support for GCS is reported to userspace via HWCAP_GCS in the aux vector
-  AT_HWCAP2 entry.
+  AT_HWCAP entry.
 
 * GCS is enabled per thread.  While there is support for disabling GCS
   at runtime this should be done with great care.
