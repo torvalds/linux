@@ -169,7 +169,6 @@ config GPIB_HP82341
        tristate "HP82341x"
        select GPIB_COMMON
        select GPIB_TMS9914
-       depends on BROKEN
        depends on ISA_BUS || EISA
        help
          GPIB driver for HP82341 A/B/C/D boards
