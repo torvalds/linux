@@ -122,6 +122,8 @@ xe-$(CONFIG_HMM_MIRROR) += xe_hmm.o
 # graphics hardware monitoring (HWMON) support
 xe-$(CONFIG_HWMON) += xe_hwmon.o
 
+xe-$(CONFIG_PERF_EVENTS) += xe_pmu.o
+
 # graphics virtualization (SR-IOV) support
 xe-y += \
 	xe_gt_sriov_vf.o \

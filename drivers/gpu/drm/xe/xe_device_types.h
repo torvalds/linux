@@ -18,6 +18,7 @@
 #include "xe_memirq_types.h"
 #include "xe_oa_types.h"
 #include "xe_platform_types.h"
+#include "xe_pmu_types.h"
 #include "xe_pt_types.h"
 #include "xe_sriov_types.h"
 #include "xe_step_types.h"
@@ -513,6 +514,9 @@ struct xe_device {
 		/** @wedged.mode: Mode controlled by kernel parameter and debugfs */
 		int mode;
 	} wedged;
+
+	/** @pmu: performance monitoring unit */
+	struct xe_pmu pmu;
 
 #ifdef TEST_VM_OPS_ERROR
 	/**
