@@ -123,6 +123,9 @@ struct r535_gsp_msg {
 
 #define GSP_MSG_HDR_SIZE offsetof(struct r535_gsp_msg, data)
 
+#define to_gsp_hdr(p, header) \
+	container_of((void *)p, typeof(*header), data)
+
 static int
 r535_rpc_status_to_errno(uint32_t rpc_status)
 {
@@ -205,9 +208,9 @@ r535_gsp_msgq_recv(struct nvkm_gsp *gsp, u32 gsp_rpc_len, int *ptime)
 }
 
 static int
-r535_gsp_cmdq_push(struct nvkm_gsp *gsp, void *argv)
+r535_gsp_cmdq_push(struct nvkm_gsp *gsp, void *rpc)
 {
-	struct r535_gsp_msg *cmd = container_of(argv, typeof(*cmd), data);
+	struct r535_gsp_msg *cmd = to_gsp_hdr(rpc, cmd);
 	struct r535_gsp_msg *cqe;
 	u32 argc = cmd->checksum;
 	u64 *ptr = (void *)cmd;
@@ -420,10 +423,10 @@ r535_gsp_rpc_poll(struct nvkm_gsp *gsp, u32 fn)
 }
 
 static void *
-r535_gsp_rpc_send(struct nvkm_gsp *gsp, void *argv, bool wait,
+r535_gsp_rpc_send(struct nvkm_gsp *gsp, void *payload, bool wait,
 		  u32 gsp_rpc_len)
 {
-	struct nvfw_gsp_rpc *rpc = container_of(argv, typeof(*rpc), data);
+	struct nvfw_gsp_rpc *rpc = to_gsp_hdr(payload, rpc);
 	struct nvfw_gsp_rpc *msg;
 	u32 fn = rpc->function;
 	void *repv = NULL;
@@ -777,11 +780,11 @@ r535_gsp_rpc_get(struct nvkm_gsp *gsp, u32 fn, u32 argc)
 }
 
 static void *
-r535_gsp_rpc_push(struct nvkm_gsp *gsp, void *argv, bool wait,
+r535_gsp_rpc_push(struct nvkm_gsp *gsp, void *payload, bool wait,
 		  u32 gsp_rpc_len)
 {
-	struct nvfw_gsp_rpc *rpc = container_of(argv, typeof(*rpc), data);
-	struct r535_gsp_msg *cmd = container_of((void *)rpc, typeof(*cmd), data);
+	struct nvfw_gsp_rpc *rpc = to_gsp_hdr(payload, rpc);
+	struct r535_gsp_msg *cmd = to_gsp_hdr(rpc, cmd);
 	const u32 max_msg_size = (16 * 0x1000) - sizeof(struct r535_gsp_msg);
 	const u32 max_rpc_size = max_msg_size - sizeof(*rpc);
 	u32 rpc_size = rpc->length - sizeof(*rpc);
@@ -795,11 +798,11 @@ r535_gsp_rpc_push(struct nvkm_gsp *gsp, void *argv, bool wait,
 		rpc->length = sizeof(*rpc) + max_rpc_size;
 		cmd->checksum = rpc->length;
 
-		repv = r535_gsp_rpc_send(gsp, argv, false, 0);
+		repv = r535_gsp_rpc_send(gsp, payload, false, 0);
 		if (IS_ERR(repv))
 			goto done;
 
-		argv += max_rpc_size;
+		payload += max_rpc_size;
 		rpc_size -= max_rpc_size;
 
 		/* Remaining chunks sent as CONTINUATION_RECORD RPCs. */
@@ -813,13 +816,13 @@ r535_gsp_rpc_push(struct nvkm_gsp *gsp, void *argv, bool wait,
 				goto done;
 			}
 
-			memcpy(next, argv, size);
+			memcpy(next, payload, size);
 
 			repv = r535_gsp_rpc_send(gsp, next, false, 0);
 			if (IS_ERR(repv))
 				goto done;
 
-			argv += size;
+			payload += size;
 			rpc_size -= size;
 		}
 
@@ -834,7 +837,7 @@ r535_gsp_rpc_push(struct nvkm_gsp *gsp, void *argv, bool wait,
 			repv = NULL;
 		}
 	} else {
-		repv = r535_gsp_rpc_send(gsp, argv, wait, gsp_rpc_len);
+		repv = r535_gsp_rpc_send(gsp, payload, wait, gsp_rpc_len);
 	}
 
 done:
