@@ -91,6 +91,7 @@ static const char * const mlxbf_rsh_log_level[] = {
 static DEFINE_MUTEX(icm_ops_lock);
 static DEFINE_MUTEX(os_up_lock);
 static DEFINE_MUTEX(mfg_ops_lock);
+static DEFINE_MUTEX(rtc_ops_lock);
 
 /*
  * Objects are stored within the MFG partition per type.
@@ -487,6 +488,23 @@ static ssize_t large_icm_store(struct device *dev,
 	mutex_unlock(&icm_ops_lock);
 
 	return res.a0 ? -EPERM : count;
+}
+
+static ssize_t rtc_battery_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct arm_smccc_res res;
+
+	mutex_lock(&rtc_ops_lock);
+	arm_smccc_smc(MLNX_HANDLE_GET_RTC_LOW_BATT, 0, 0, 0, 0,
+		      0, 0, 0, &res);
+	mutex_unlock(&rtc_ops_lock);
+
+	if (res.a0)
+		return -EPERM;
+
+	return sysfs_emit(buf, "0x%lx\n", res.a1);
 }
 
 static ssize_t os_up_store(struct device *dev,
@@ -906,6 +924,7 @@ static DEVICE_ATTR_RW(sn);
 static DEVICE_ATTR_RW(uuid);
 static DEVICE_ATTR_RW(rev);
 static DEVICE_ATTR_WO(mfg_lock);
+static DEVICE_ATTR_RO(rtc_battery);
 
 static struct attribute *mlxbf_bootctl_attrs[] = {
 	&dev_attr_post_reset_wdog.attr,
@@ -925,6 +944,7 @@ static struct attribute *mlxbf_bootctl_attrs[] = {
 	&dev_attr_uuid.attr,
 	&dev_attr_rev.attr,
 	&dev_attr_mfg_lock.attr,
+	&dev_attr_rtc_battery.attr,
 	NULL
 };
 
