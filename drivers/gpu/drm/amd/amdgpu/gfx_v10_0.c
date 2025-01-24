@@ -4794,6 +4794,8 @@ static int gfx_v10_0_sw_init(struct amdgpu_ip_block *ip_block)
 	}
 	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(10, 1, 10):
+	case IP_VERSION(10, 1, 1):
+	case IP_VERSION(10, 1, 2):
 		adev->gfx.cleaner_shader_ptr = gfx_10_1_10_cleaner_shader_hex;
 		adev->gfx.cleaner_shader_size = sizeof(gfx_10_1_10_cleaner_shader_hex);
 		if (adev->gfx.me_fw_version >= 101 &&
