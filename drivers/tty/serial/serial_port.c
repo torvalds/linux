@@ -229,12 +229,13 @@ static int __uart_read_properties(struct uart_port *port, bool use_defaults)
 			break;
 		default:
 			port->iotype = UPIO_UNKNOWN;
-			if (!use_defaults) {
-				dev_err(dev, "Unsupported reg-io-width (%u)\n", value);
-				return -EINVAL;
-			}
 			break;
 		}
+	}
+
+	if (!use_defaults && port->iotype == UPIO_UNKNOWN) {
+		dev_err(dev, "Unsupported reg-io-width (%u)\n", value);
+		return -EINVAL;
 	}
 
 	/* Read the address mapping base offset (default: no offset) */
