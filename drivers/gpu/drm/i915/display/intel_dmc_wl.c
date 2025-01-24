@@ -10,7 +10,6 @@
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_de.h"
-#include "intel_dmc.h"
 #include "intel_dmc_regs.h"
 #include "intel_dmc_wl.h"
 
@@ -283,7 +282,7 @@ static bool intel_dmc_wl_check_range(struct intel_display *display,
 
 static bool __intel_dmc_wl_supported(struct intel_display *display)
 {
-	return display->params.enable_dmc_wl && intel_dmc_has_payload(display);
+	return display->params.enable_dmc_wl;
 }
 
 static void intel_dmc_wl_sanitize_param(struct intel_display *display)
