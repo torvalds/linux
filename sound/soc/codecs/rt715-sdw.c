@@ -372,47 +372,6 @@ static const struct regmap_config rt715_sdw_regmap = {
 	.use_single_write = true,
 };
 
-int hda_to_sdw(unsigned int nid, unsigned int verb, unsigned int payload,
-	       unsigned int *sdw_addr_h, unsigned int *sdw_data_h,
-	       unsigned int *sdw_addr_l, unsigned int *sdw_data_l)
-{
-	unsigned int offset_h, offset_l, e_verb;
-
-	if (((verb & 0xff) != 0) || verb == 0xf00) { /* 12 bits command */
-		if (verb == 0x7ff) /* special case */
-			offset_h = 0;
-		else
-			offset_h = 0x3000;
-
-		if (verb & 0x800) /* get command */
-			e_verb = (verb - 0xf00) | 0x80;
-		else /* set command */
-			e_verb = (verb - 0x700);
-
-		*sdw_data_h = payload; /* 7 bits payload */
-		*sdw_addr_l = *sdw_data_l = 0;
-	} else { /* 4 bits command */
-		if ((verb & 0x800) == 0x800) { /* read */
-			offset_h = 0x9000;
-			offset_l = 0xa000;
-		} else { /* write */
-			offset_h = 0x7000;
-			offset_l = 0x8000;
-		}
-		e_verb = verb >> 8;
-		*sdw_data_h = (payload >> 8); /* 16 bits payload [15:8] */
-		*sdw_addr_l = (e_verb << 8) | nid | 0x80; /* 0x80: valid bit */
-		*sdw_addr_l += offset_l;
-		*sdw_data_l = payload & 0xff;
-	}
-
-	*sdw_addr_h = (e_verb << 8) | nid;
-	*sdw_addr_h += offset_h;
-
-	return 0;
-}
-EXPORT_SYMBOL(hda_to_sdw);
-
 static int rt715_update_status(struct sdw_slave *slave,
 				enum sdw_slave_status status)
 {

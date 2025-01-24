@@ -37,6 +37,11 @@ static bool hda_disable_rewinds;
 module_param_named(disable_rewinds, hda_disable_rewinds, bool, 0444);
 MODULE_PARM_DESC(disable_rewinds, "SOF HDA disable rewinds");
 
+static int hda_force_pause_support = -1;
+module_param_named(force_pause_support, hda_force_pause_support, int, 0444);
+MODULE_PARM_DESC(force_pause_support,
+		 "Pause support: -1: Use default, 0: Disable, 1: Enable (default -1)");
+
 u32 hda_dsp_get_mult_div(struct snd_sof_dev *sdev, int rate)
 {
 	switch (rate) {
@@ -238,6 +243,16 @@ int hda_dsp_pcm_open(struct snd_sof_dev *sdev,
 	 * pause push/release to be disabled
 	 */
 	if (hda_always_enable_dmi_l1 && direction == SNDRV_PCM_STREAM_CAPTURE)
+		runtime->hw.info &= ~SNDRV_PCM_INFO_PAUSE;
+
+	/*
+	 * Do not advertise the PAUSE support if it is forced to be disabled via
+	 * module parameter or if the pause_supported is false for the PCM
+	 * device
+	 */
+	if (hda_force_pause_support == 0 ||
+	    (hda_force_pause_support == -1 &&
+	     !spcm->stream[substream->stream].pause_supported))
 		runtime->hw.info &= ~SNDRV_PCM_INFO_PAUSE;
 
 	if (hda_always_enable_dmi_l1 ||
