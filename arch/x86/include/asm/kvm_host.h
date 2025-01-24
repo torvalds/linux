@@ -1353,8 +1353,6 @@ struct kvm_arch {
 
 	u64 shadow_mmio_value;
 
-	struct iommu_domain *iommu_domain;
-	bool iommu_noncoherent;
 #define __KVM_HAVE_ARCH_NONCOHERENT_DMA
 	atomic_t noncoherent_dma_count;
 #define __KVM_HAVE_ARCH_ASSIGNED_DEVICE
