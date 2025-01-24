@@ -178,8 +178,8 @@ static const struct platform_device_info lenovo_yb1_x90_pdevs[] __initconst = {
  */
 static const struct x86_serdev_info lenovo_yb1_x90_serdevs[] __initconst = {
 	{
-		.ctrl_hid = "8086228A",
-		.ctrl_uid = "1",
+		.ctrl.acpi.hid = "8086228A",
+		.ctrl.acpi.uid = "1",
 		.ctrl_devname = "serial0",
 		.serdev_hid = "BCM2E1A",
 	},
@@ -601,7 +601,7 @@ static const struct regulator_init_data lenovo_yoga_tab2_1380_bq24190_vbus_init_
 	.num_consumer_supplies = 1,
 };
 
-struct bq24190_platform_data lenovo_yoga_tab2_1380_bq24190_pdata = {
+static struct bq24190_platform_data lenovo_yoga_tab2_1380_bq24190_pdata = {
 	.regulator_init_data = &lenovo_yoga_tab2_1380_bq24190_vbus_init_data,
 };
 
@@ -726,7 +726,7 @@ static const struct platform_device_info lenovo_yoga_tab2_1380_pdevs[] __initcon
 	},
 };
 
-const char * const lenovo_yoga_tab2_1380_modules[] __initconst = {
+static const char * const lenovo_yoga_tab2_1380_modules[] __initconst = {
 	"bq24190_charger",            /* For the Vbus regulator for lc824206xa */
 	NULL
 };

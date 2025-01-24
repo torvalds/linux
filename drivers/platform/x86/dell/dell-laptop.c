@@ -725,8 +725,8 @@ static void dell_update_rfkill(struct work_struct *ignored)
 }
 static DECLARE_DELAYED_WORK(dell_rfkill_work, dell_update_rfkill);
 
-static bool dell_laptop_i8042_filter(unsigned char data, unsigned char str,
-			      struct serio *port)
+static bool dell_laptop_i8042_filter(unsigned char data, unsigned char str, struct serio *port,
+				     void *context)
 {
 	static bool extended;
 
@@ -884,7 +884,7 @@ static int __init dell_setup_rfkill(void)
 		pr_warn("Unable to register dell rbtn notifier\n");
 		goto err_filter;
 	} else {
-		ret = i8042_install_filter(dell_laptop_i8042_filter);
+		ret = i8042_install_filter(dell_laptop_i8042_filter, NULL);
 		if (ret) {
 			pr_warn("Unable to install key filter\n");
 			goto err_filter;
