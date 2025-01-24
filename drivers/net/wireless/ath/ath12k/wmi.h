@@ -5665,6 +5665,7 @@ struct wmi_stats_event {
 } __packed;
 
 enum wmi_stats_id {
+	WMI_REQUEST_PDEV_STAT	= BIT(2),
 	WMI_REQUEST_VDEV_STAT	= BIT(3),
 	WMI_REQUEST_BCN_STAT	= BIT(11),
 };
@@ -5701,6 +5702,65 @@ struct ath12k_wmi_bcn_stats_params {
 	__le32 vdev_id;
 	__le32 tx_bcn_succ_cnt;
 	__le32 tx_bcn_outage_cnt;
+} __packed;
+
+struct ath12k_wmi_pdev_base_stats_params {
+	a_sle32 chan_nf;
+	__le32 tx_frame_count; /* Cycles spent transmitting frames */
+	__le32 rx_frame_count; /* Cycles spent receiving frames */
+	__le32 rx_clear_count; /* Total channel busy time, evidently */
+	__le32 cycle_count; /* Total on-channel time */
+	__le32 phy_err_count;
+	__le32 chan_tx_pwr;
+} __packed;
+
+struct ath12k_wmi_pdev_tx_stats_params {
+	a_sle32 comp_queued;
+	a_sle32 comp_delivered;
+	a_sle32 msdu_enqued;
+	a_sle32 mpdu_enqued;
+	a_sle32 wmm_drop;
+	a_sle32 local_enqued;
+	a_sle32 local_freed;
+	a_sle32 hw_queued;
+	a_sle32 hw_reaped;
+	a_sle32 underrun;
+	a_sle32 tx_abort;
+	a_sle32 mpdus_requed;
+	__le32 tx_ko;
+	__le32 data_rc;
+	__le32 self_triggers;
+	__le32 sw_retry_failure;
+	__le32 illgl_rate_phy_err;
+	__le32 pdev_cont_xretry;
+	__le32 pdev_tx_timeout;
+	__le32 pdev_resets;
+	__le32 stateless_tid_alloc_failure;
+	__le32 phy_underrun;
+	__le32 txop_ovf;
+} __packed;
+
+struct ath12k_wmi_pdev_rx_stats_params {
+	a_sle32 mid_ppdu_route_change;
+	a_sle32 status_rcvd;
+	a_sle32 r0_frags;
+	a_sle32 r1_frags;
+	a_sle32 r2_frags;
+	a_sle32 r3_frags;
+	a_sle32 htt_msdus;
+	a_sle32 htt_mpdus;
+	a_sle32 loc_msdus;
+	a_sle32 loc_mpdus;
+	a_sle32 oversize_amsdu;
+	a_sle32 phy_errs;
+	a_sle32 phy_err_drop;
+	a_sle32 mpdu_errs;
+} __packed;
+
+struct ath12k_wmi_pdev_stats_params {
+	struct ath12k_wmi_pdev_base_stats_params base;
+	struct ath12k_wmi_pdev_tx_stats_params tx;
+	struct ath12k_wmi_pdev_rx_stats_params rx;
 } __packed;
 
 struct ath12k_fw_stats_req_params {

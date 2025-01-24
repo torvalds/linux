@@ -6972,6 +6972,170 @@ ath12k_wmi_fw_bcn_stats_dump(struct ath12k *ar,
 	}
 }
 
+static void
+ath12k_wmi_fw_pdev_base_stats_dump(const struct ath12k_fw_stats_pdev *pdev,
+				   char *buf, u32 *length, u64 fw_soc_drop_cnt)
+{
+	u32 len = *length;
+	u32 buf_len = ATH12K_FW_STATS_BUF_SIZE;
+
+	len = scnprintf(buf + len, buf_len - len, "\n");
+	len += scnprintf(buf + len, buf_len - len, "%30s\n",
+			"ath12k PDEV stats");
+	len += scnprintf(buf + len, buf_len - len, "%30s\n\n",
+			"=================");
+
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			"Channel noise floor", pdev->ch_noise_floor);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			"Channel TX power", pdev->chan_tx_power);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			"TX frame count", pdev->tx_frame_count);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			"RX frame count", pdev->rx_frame_count);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			"RX clear count", pdev->rx_clear_count);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			"Cycle count", pdev->cycle_count);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			"PHY error count", pdev->phy_err_count);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10llu\n",
+			"soc drop count", fw_soc_drop_cnt);
+
+	*length = len;
+}
+
+static void
+ath12k_wmi_fw_pdev_tx_stats_dump(const struct ath12k_fw_stats_pdev *pdev,
+				 char *buf, u32 *length)
+{
+	u32 len = *length;
+	u32 buf_len = ATH12K_FW_STATS_BUF_SIZE;
+
+	len += scnprintf(buf + len, buf_len - len, "\n%30s\n",
+			 "ath12k PDEV TX stats");
+	len += scnprintf(buf + len, buf_len - len, "%30s\n\n",
+			 "====================");
+
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			 "HTT cookies queued", pdev->comp_queued);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			 "HTT cookies disp.", pdev->comp_delivered);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			 "MSDU queued", pdev->msdu_enqued);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			 "MPDU queued", pdev->mpdu_enqued);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			 "MSDUs dropped", pdev->wmm_drop);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			 "Local enqued", pdev->local_enqued);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			 "Local freed", pdev->local_freed);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			 "HW queued", pdev->hw_queued);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			 "PPDUs reaped", pdev->hw_reaped);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			 "Num underruns", pdev->underrun);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			 "PPDUs cleaned", pdev->tx_abort);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			 "MPDUs requeued", pdev->mpdus_requed);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			 "Excessive retries", pdev->tx_ko);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			 "HW rate", pdev->data_rc);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			 "Sched self triggers", pdev->self_triggers);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			 "Dropped due to SW retries",
+			 pdev->sw_retry_failure);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			 "Illegal rate phy errors",
+			 pdev->illgl_rate_phy_err);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			 "PDEV continuous xretry", pdev->pdev_cont_xretry);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			 "TX timeout", pdev->pdev_tx_timeout);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			 "PDEV resets", pdev->pdev_resets);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			 "Stateless TIDs alloc failures",
+			 pdev->stateless_tid_alloc_failure);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			 "PHY underrun", pdev->phy_underrun);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			 "MPDU is more than txop limit", pdev->txop_ovf);
+	*length = len;
+}
+
+static void
+ath12k_wmi_fw_pdev_rx_stats_dump(const struct ath12k_fw_stats_pdev *pdev,
+				 char *buf, u32 *length)
+{
+	u32 len = *length;
+	u32 buf_len = ATH12K_FW_STATS_BUF_SIZE;
+
+	len += scnprintf(buf + len, buf_len - len, "\n%30s\n",
+			 "ath12k PDEV RX stats");
+	len += scnprintf(buf + len, buf_len - len, "%30s\n\n",
+			 "====================");
+
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			 "Mid PPDU route change",
+			 pdev->mid_ppdu_route_change);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			 "Tot. number of statuses", pdev->status_rcvd);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			 "Extra frags on rings 0", pdev->r0_frags);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			 "Extra frags on rings 1", pdev->r1_frags);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			 "Extra frags on rings 2", pdev->r2_frags);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			 "Extra frags on rings 3", pdev->r3_frags);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			 "MSDUs delivered to HTT", pdev->htt_msdus);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			 "MPDUs delivered to HTT", pdev->htt_mpdus);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			 "MSDUs delivered to stack", pdev->loc_msdus);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			 "MPDUs delivered to stack", pdev->loc_mpdus);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			 "Oversized AMSUs", pdev->oversize_amsdu);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			 "PHY errors", pdev->phy_errs);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			 "PHY errors drops", pdev->phy_err_drop);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			 "MPDU errors (FCS, MIC, ENC)", pdev->mpdu_errs);
+	*length = len;
+}
+
+static void
+ath12k_wmi_fw_pdev_stats_dump(struct ath12k *ar,
+			      struct ath12k_fw_stats *fw_stats,
+			      char *buf, u32 *length)
+{
+	const struct ath12k_fw_stats_pdev *pdev;
+	u32 len = *length;
+
+	pdev = list_first_entry_or_null(&fw_stats->pdevs,
+					struct ath12k_fw_stats_pdev, list);
+	if (!pdev) {
+		ath12k_warn(ar->ab, "failed to get pdev stats\n");
+		return;
+	}
+
+	ath12k_wmi_fw_pdev_base_stats_dump(pdev, buf, &len,
+					   ar->ab->fw_soc_drop_count);
+	ath12k_wmi_fw_pdev_tx_stats_dump(pdev, buf, &len);
+	ath12k_wmi_fw_pdev_rx_stats_dump(pdev, buf, &len);
+
+	*length = len;
+}
+
 void ath12k_wmi_fw_stats_dump(struct ath12k *ar,
 			      struct ath12k_fw_stats *fw_stats,
 			      u32 stats_id, char *buf)
@@ -6987,6 +7151,9 @@ void ath12k_wmi_fw_stats_dump(struct ath12k *ar,
 		break;
 	case WMI_REQUEST_BCN_STAT:
 		ath12k_wmi_fw_bcn_stats_dump(ar, fw_stats, buf, &len);
+		break;
+	case WMI_REQUEST_PDEV_STAT:
+		ath12k_wmi_fw_pdev_stats_dump(ar, fw_stats, buf, &len);
 		break;
 	default:
 		break;
@@ -7048,6 +7215,70 @@ ath12k_wmi_pull_bcn_stats(const struct ath12k_wmi_bcn_stats_params *src,
 	dst->tx_bcn_outage_cnt = le32_to_cpu(src->tx_bcn_outage_cnt);
 }
 
+static void
+ath12k_wmi_pull_pdev_stats_base(const struct ath12k_wmi_pdev_base_stats_params *src,
+				struct ath12k_fw_stats_pdev *dst)
+{
+	dst->ch_noise_floor = a_sle32_to_cpu(src->chan_nf);
+	dst->tx_frame_count = __le32_to_cpu(src->tx_frame_count);
+	dst->rx_frame_count = __le32_to_cpu(src->rx_frame_count);
+	dst->rx_clear_count = __le32_to_cpu(src->rx_clear_count);
+	dst->cycle_count = __le32_to_cpu(src->cycle_count);
+	dst->phy_err_count = __le32_to_cpu(src->phy_err_count);
+	dst->chan_tx_power = __le32_to_cpu(src->chan_tx_pwr);
+}
+
+static void
+ath12k_wmi_pull_pdev_stats_tx(const struct ath12k_wmi_pdev_tx_stats_params *src,
+			      struct ath12k_fw_stats_pdev *dst)
+{
+	dst->comp_queued = a_sle32_to_cpu(src->comp_queued);
+	dst->comp_delivered = a_sle32_to_cpu(src->comp_delivered);
+	dst->msdu_enqued = a_sle32_to_cpu(src->msdu_enqued);
+	dst->mpdu_enqued = a_sle32_to_cpu(src->mpdu_enqued);
+	dst->wmm_drop = a_sle32_to_cpu(src->wmm_drop);
+	dst->local_enqued = a_sle32_to_cpu(src->local_enqued);
+	dst->local_freed = a_sle32_to_cpu(src->local_freed);
+	dst->hw_queued = a_sle32_to_cpu(src->hw_queued);
+	dst->hw_reaped = a_sle32_to_cpu(src->hw_reaped);
+	dst->underrun = a_sle32_to_cpu(src->underrun);
+	dst->tx_abort = a_sle32_to_cpu(src->tx_abort);
+	dst->mpdus_requed = a_sle32_to_cpu(src->mpdus_requed);
+	dst->tx_ko = __le32_to_cpu(src->tx_ko);
+	dst->data_rc = __le32_to_cpu(src->data_rc);
+	dst->self_triggers = __le32_to_cpu(src->self_triggers);
+	dst->sw_retry_failure = __le32_to_cpu(src->sw_retry_failure);
+	dst->illgl_rate_phy_err = __le32_to_cpu(src->illgl_rate_phy_err);
+	dst->pdev_cont_xretry = __le32_to_cpu(src->pdev_cont_xretry);
+	dst->pdev_tx_timeout = __le32_to_cpu(src->pdev_tx_timeout);
+	dst->pdev_resets = __le32_to_cpu(src->pdev_resets);
+	dst->stateless_tid_alloc_failure =
+		__le32_to_cpu(src->stateless_tid_alloc_failure);
+	dst->phy_underrun = __le32_to_cpu(src->phy_underrun);
+	dst->txop_ovf = __le32_to_cpu(src->txop_ovf);
+}
+
+static void
+ath12k_wmi_pull_pdev_stats_rx(const struct ath12k_wmi_pdev_rx_stats_params *src,
+			      struct ath12k_fw_stats_pdev *dst)
+{
+	dst->mid_ppdu_route_change =
+		a_sle32_to_cpu(src->mid_ppdu_route_change);
+	dst->status_rcvd = a_sle32_to_cpu(src->status_rcvd);
+	dst->r0_frags = a_sle32_to_cpu(src->r0_frags);
+	dst->r1_frags = a_sle32_to_cpu(src->r1_frags);
+	dst->r2_frags = a_sle32_to_cpu(src->r2_frags);
+	dst->r3_frags = a_sle32_to_cpu(src->r3_frags);
+	dst->htt_msdus = a_sle32_to_cpu(src->htt_msdus);
+	dst->htt_mpdus = a_sle32_to_cpu(src->htt_mpdus);
+	dst->loc_msdus = a_sle32_to_cpu(src->loc_msdus);
+	dst->loc_mpdus = a_sle32_to_cpu(src->loc_mpdus);
+	dst->oversize_amsdu = a_sle32_to_cpu(src->oversize_amsdu);
+	dst->phy_errs = a_sle32_to_cpu(src->phy_errs);
+	dst->phy_err_drop = a_sle32_to_cpu(src->phy_err_drop);
+	dst->mpdu_errs = a_sle32_to_cpu(src->mpdu_errs);
+}
+
 static int ath12k_wmi_tlv_fw_stats_data_parse(struct ath12k_base *ab,
 					      struct wmi_tlv_fw_stats_parse *parse,
 					      const void *ptr,
@@ -7065,6 +7296,7 @@ static int ath12k_wmi_tlv_fw_stats_data_parse(struct ath12k_base *ab,
 
 	INIT_LIST_HEAD(&stats.vdevs);
 	INIT_LIST_HEAD(&stats.bcn);
+	INIT_LIST_HEAD(&stats.pdevs);
 
 	if (!ev) {
 		ath12k_warn(ab, "failed to fetch update stats ev");
@@ -7137,6 +7369,30 @@ static int ath12k_wmi_tlv_fw_stats_data_parse(struct ath12k_base *ab,
 		ath12k_wmi_pull_bcn_stats(src, dst);
 		stats.stats_id = WMI_REQUEST_BCN_STAT;
 		list_add_tail(&dst->list, &stats.bcn);
+	}
+	for (i = 0; i < le32_to_cpu(ev->num_pdev_stats); i++) {
+		const struct ath12k_wmi_pdev_stats_params *src;
+		struct ath12k_fw_stats_pdev *dst;
+
+		src = data;
+		if (len < sizeof(*src)) {
+			ret = -EPROTO;
+			goto exit;
+		}
+
+		stats.stats_id = WMI_REQUEST_PDEV_STAT;
+
+		data += sizeof(*src);
+		len -= sizeof(*src);
+
+		dst = kzalloc(sizeof(*dst), GFP_ATOMIC);
+		if (!dst)
+			continue;
+
+		ath12k_wmi_pull_pdev_stats_base(&src->base, dst);
+		ath12k_wmi_pull_pdev_stats_tx(&src->tx, dst);
+		ath12k_wmi_pull_pdev_stats_rx(&src->rx, dst);
+		list_add_tail(&dst->list, &stats.pdevs);
 	}
 
 	complete(&ar->fw_stats_complete);
