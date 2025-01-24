@@ -111,6 +111,7 @@ extern struct dentry *nouveau_debugfs_root;
  * - gsp_msg(msg): GSP message element (element header + GSP RPC header +
  *   payload)
  * - gsp_rpc(rpc): GSP RPC (RPC header + payload)
+ * - gsp_rpc_buf: buffer for (GSP RPC header + payload)
  * - gsp_rpc_len: size of (GSP RPC header + payload)
  * - params_size: size of params in the payload
  * - payload_size: size of (header if exists + params) in the payload
@@ -197,13 +198,16 @@ r535_gsp_msgq_get_entry(struct nvkm_gsp *gsp)
  *   Peek the first page of the element to determine the total size of the
  *   message before allocating the proper memory.
  *
- * - Allocate memory and receive the message: r535_gsp_msgq_recv().
+ * - Allocate memory for the message.
  *   Once the total size of the message is determined from the GSP message
- *   queue element, allocate memory and copy the pages of the message
- *   into the allocated memory.
+ *   queue element, the caller of r535_gsp_msgq_recv() allocates the
+ *   required memory.
  *
- * - Free the allocated memory after processing the GSP message.
- *   The caller is responsible for freeing the memory allocated for the GSP
+ * - Receive the message: r535_gsp_msgq_recv().
+ *   Copy the message into the allocated memory. Advance the read pointer.
+ *
+ * - Free the allocated memory: r535_gsp_msg_done().
+ *   The user is responsible for freeing the memory allocated for the GSP
  *   message pages after they have been processed.
  */
 static void *
@@ -221,42 +225,70 @@ r535_gsp_msgq_peek(struct nvkm_gsp *gsp, u32 gsp_rpc_len, int *retries)
 	return mqe->data;
 }
 
+struct r535_gsp_msg_info {
+	int *retries;
+	u32 gsp_rpc_len;
+	void *gsp_rpc_buf;
+};
+
 static void *
-r535_gsp_msgq_recv(struct nvkm_gsp *gsp, u32 gsp_rpc_len, int *retries)
+r535_gsp_msgq_recv_one_elem(struct nvkm_gsp *gsp,
+			    struct r535_gsp_msg_info *info)
 {
+	u8 *buf = info->gsp_rpc_buf;
 	u32 rptr = *gsp->msgq.rptr;
 	struct r535_gsp_msg *mqe;
-	u32 size, len;
-	u8 *msg;
+	u32 size, expected, len;
 	int ret;
 
-	ret = r535_gsp_msgq_wait(gsp, gsp_rpc_len, retries);
+	expected = info->gsp_rpc_len;
+
+	ret = r535_gsp_msgq_wait(gsp, expected, info->retries);
 	if (ret < 0)
 		return ERR_PTR(ret);
 
 	mqe = r535_gsp_msgq_get_entry(gsp);
-	size = ALIGN(gsp_rpc_len + GSP_MSG_HDR_SIZE, GSP_PAGE_SIZE);
-
-	msg = kvmalloc(gsp_rpc_len, GFP_KERNEL);
-	if (!msg)
-		return ERR_PTR(-ENOMEM);
+	size = ALIGN(expected + GSP_MSG_HDR_SIZE, GSP_PAGE_SIZE);
 
 	len = ((gsp->msgq.cnt - rptr) * GSP_PAGE_SIZE) - sizeof(*mqe);
-	len = min_t(u32, gsp_rpc_len, len);
-	memcpy(msg, mqe->data, len);
+	len = min_t(u32, expected, len);
+	memcpy(buf, mqe->data, len);
 
-	gsp_rpc_len -= len;
+	expected -= len;
 
-	if (gsp_rpc_len) {
+	if (expected) {
 		mqe = (void *)((u8 *)gsp->shm.msgq.ptr + 0x1000 + 0 * 0x1000);
-		memcpy(msg + len, mqe, gsp_rpc_len);
+		memcpy(buf + len, mqe, expected);
 	}
 
 	rptr = (rptr + DIV_ROUND_UP(size, GSP_PAGE_SIZE)) % gsp->msgq.cnt;
 
 	mb();
 	(*gsp->msgq.rptr) = rptr;
-	return msg;
+	return buf;
+}
+
+static void *
+r535_gsp_msgq_recv(struct nvkm_gsp *gsp, u32 gsp_rpc_len, int *retries)
+{
+	struct r535_gsp_msg_info info = {0};
+	void *buf;
+
+	buf = kvmalloc(gsp_rpc_len, GFP_KERNEL);
+	if (!buf)
+		return ERR_PTR(-ENOMEM);
+
+	info.gsp_rpc_buf = buf;
+	info.retries = retries;
+	info.gsp_rpc_len = gsp_rpc_len;
+
+	buf = r535_gsp_msgq_recv_one_elem(gsp, &info);
+	if (IS_ERR(buf)) {
+		kvfree(info.gsp_rpc_buf);
+		info.gsp_rpc_buf = NULL;
+	}
+
+	return buf;
 }
 
 static int
