@@ -2017,7 +2017,7 @@ static struct folio *shmem_swap_alloc_folio(struct inode *inode,
 	__folio_set_swapbacked(new);
 	new->swap = entry;
 
-	mem_cgroup_swapin_uncharge_swap(entry, nr_pages);
+	memcg1_swapin(entry, nr_pages);
 	shadow = get_shadow_from_swap_cache(entry);
 	if (shadow)
 		workingset_refault(new, shadow);

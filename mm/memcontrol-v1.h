@@ -36,6 +36,9 @@ unsigned long memcg_events(struct mem_cgroup *memcg, int event);
 unsigned long memcg_page_state_output(struct mem_cgroup *memcg, int item);
 int memory_stat_show(struct seq_file *m, void *v);
 
+void mem_cgroup_id_get_many(struct mem_cgroup *memcg, unsigned int n);
+struct mem_cgroup *mem_cgroup_id_get_online(struct mem_cgroup *memcg);
+
 /* Cgroup v1-specific declarations */
 #ifdef CONFIG_MEMCG_V1
 
@@ -69,7 +72,6 @@ void memcg1_oom_finish(struct mem_cgroup *memcg, bool locked);
 void memcg1_oom_recover(struct mem_cgroup *memcg);
 
 void memcg1_commit_charge(struct folio *folio, struct mem_cgroup *memcg);
-void memcg1_swapout(struct folio *folio, struct mem_cgroup *memcg);
 void memcg1_uncharge_batch(struct mem_cgroup *memcg, unsigned long pgpgout,
 			   unsigned long nr_memory, int nid);
 
@@ -106,8 +108,6 @@ static inline void memcg1_oom_recover(struct mem_cgroup *memcg) {}
 
 static inline void memcg1_commit_charge(struct folio *folio,
 					struct mem_cgroup *memcg) {}
-
-static inline void memcg1_swapout(struct folio *folio, struct mem_cgroup *memcg) {}
 
 static inline void memcg1_uncharge_batch(struct mem_cgroup *memcg,
 					 unsigned long pgpgout,
