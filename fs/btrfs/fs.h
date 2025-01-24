@@ -709,7 +709,6 @@ struct btrfs_fs_info {
 	 * running.
 	 */
 	refcount_t scrub_workers_refcnt;
-	u32 sectors_per_page;
 	struct workqueue_struct *scrub_workers;
 
 	struct btrfs_discard_ctl discard_ctl;
@@ -979,6 +978,12 @@ static inline u32 count_max_extents(const struct btrfs_fs_info *fs_info, u64 siz
 #endif
 
 	return div_u64(size + fs_info->max_extent_size - 1, fs_info->max_extent_size);
+}
+
+static inline unsigned int btrfs_blocks_per_folio(const struct btrfs_fs_info *fs_info,
+						  const struct folio *folio)
+{
+	return folio_size(folio) >> fs_info->sectorsize_bits;
 }
 
 bool btrfs_exclop_start(struct btrfs_fs_info *fs_info,

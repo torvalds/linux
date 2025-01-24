@@ -1120,7 +1120,7 @@ static bool find_next_delalloc_bitmap(struct folio *folio,
 {
 	struct btrfs_fs_info *fs_info = folio_to_fs_info(folio);
 	const u64 folio_start = folio_pos(folio);
-	const unsigned int bitmap_size = fs_info->sectors_per_page;
+	const unsigned int bitmap_size = btrfs_blocks_per_folio(fs_info, folio);
 	unsigned int start_bit;
 	unsigned int first_zero;
 	unsigned int first_set;
@@ -1162,6 +1162,7 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 	const bool is_subpage = btrfs_is_subpage(fs_info, folio->mapping);
 	const u64 page_start = folio_pos(folio);
 	const u64 page_end = page_start + folio_size(folio) - 1;
+	const unsigned int blocks_per_folio = btrfs_blocks_per_folio(fs_info, folio);
 	unsigned long delalloc_bitmap = 0;
 	/*
 	 * Save the last found delalloc end. As the delalloc end can go beyond
@@ -1187,13 +1188,13 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 
 	/* Save the dirty bitmap as our submission bitmap will be a subset of it. */
 	if (btrfs_is_subpage(fs_info, inode->vfs_inode.i_mapping)) {
-		ASSERT(fs_info->sectors_per_page > 1);
+		ASSERT(blocks_per_folio > 1);
 		btrfs_get_subpage_dirty_bitmap(fs_info, folio, &bio_ctrl->submit_bitmap);
 	} else {
 		bio_ctrl->submit_bitmap = 1;
 	}
 
-	for_each_set_bit(bit, &bio_ctrl->submit_bitmap, fs_info->sectors_per_page) {
+	for_each_set_bit(bit, &bio_ctrl->submit_bitmap, blocks_per_folio) {
 		u64 start = page_start + (bit << fs_info->sectorsize_bits);
 
 		btrfs_folio_set_lock(fs_info, folio, start, fs_info->sectorsize);
@@ -1266,7 +1267,7 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 					     btrfs_root_id(inode->root),
 					     btrfs_ino(inode),
 					     folio_pos(folio),
-					     fs_info->sectors_per_page,
+					     blocks_per_folio,
 					     &bio_ctrl->submit_bitmap,
 					     found_start, found_len, ret);
 		} else {
@@ -1311,7 +1312,7 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 		unsigned int bitmap_size = min(
 				(last_finished_delalloc_end - page_start) >>
 				fs_info->sectorsize_bits,
-				fs_info->sectors_per_page);
+				blocks_per_folio);
 
 		for_each_set_bit(bit, &bio_ctrl->submit_bitmap, bitmap_size)
 			btrfs_mark_ordered_io_finished(inode, folio,
@@ -1335,7 +1336,7 @@ out:
 	 * If all ranges are submitted asynchronously, we just need to account
 	 * for them here.
 	 */
-	if (bitmap_empty(&bio_ctrl->submit_bitmap, fs_info->sectors_per_page)) {
+	if (bitmap_empty(&bio_ctrl->submit_bitmap, blocks_per_folio)) {
 		wbc->nr_to_write -= delalloc_to_write;
 		return 1;
 	}
@@ -1436,6 +1437,7 @@ static noinline_for_stack int extent_writepage_io(struct btrfs_inode *inode,
 	bool submitted_io = false;
 	bool error = false;
 	const u64 folio_start = folio_pos(folio);
+	const unsigned int blocks_per_folio = btrfs_blocks_per_folio(fs_info, folio);
 	u64 cur;
 	int bit;
 	int ret = 0;
@@ -1454,11 +1456,11 @@ static noinline_for_stack int extent_writepage_io(struct btrfs_inode *inode,
 	for (cur = start; cur < start + len; cur += fs_info->sectorsize)
 		set_bit((cur - folio_start) >> fs_info->sectorsize_bits, &range_bitmap);
 	bitmap_and(&bio_ctrl->submit_bitmap, &bio_ctrl->submit_bitmap, &range_bitmap,
-		   fs_info->sectors_per_page);
+		   blocks_per_folio);
 
 	bio_ctrl->end_io_func = end_bbio_data_write;
 
-	for_each_set_bit(bit, &bio_ctrl->submit_bitmap, fs_info->sectors_per_page) {
+	for_each_set_bit(bit, &bio_ctrl->submit_bitmap, blocks_per_folio) {
 		cur = folio_pos(folio) + (bit << fs_info->sectorsize_bits);
 
 		if (cur >= i_size) {
@@ -1532,6 +1534,7 @@ static int extent_writepage(struct folio *folio, struct btrfs_bio_ctrl *bio_ctrl
 	size_t pg_offset;
 	loff_t i_size = i_size_read(&inode->vfs_inode);
 	unsigned long end_index = i_size >> PAGE_SHIFT;
+	const unsigned int blocks_per_folio = btrfs_blocks_per_folio(fs_info, folio);
 
 	trace_extent_writepage(folio, &inode->vfs_inode, bio_ctrl->wbc);
 
@@ -1571,7 +1574,7 @@ static int extent_writepage(struct folio *folio, struct btrfs_bio_ctrl *bio_ctrl
 		btrfs_err_rl(fs_info,
 "failed to submit blocks, root=%lld inode=%llu folio=%llu submit_bitmap=%*pbl: %d",
 			     btrfs_root_id(inode->root), btrfs_ino(inode),
-			     folio_pos(folio), fs_info->sectors_per_page,
+			     folio_pos(folio), blocks_per_folio,
 			     &bio_ctrl->submit_bitmap, ret);
 
 	bio_ctrl->wbc->nr_to_write--;
@@ -1851,9 +1854,10 @@ static int submit_eb_subpage(struct folio *folio, struct writeback_control *wbc)
 	u64 folio_start = folio_pos(folio);
 	int bit_start = 0;
 	int sectors_per_node = fs_info->nodesize >> fs_info->sectorsize_bits;
+	const unsigned int blocks_per_folio = btrfs_blocks_per_folio(fs_info, folio);
 
 	/* Lock and write each dirty extent buffers in the range */
-	while (bit_start < fs_info->sectors_per_page) {
+	while (bit_start < blocks_per_folio) {
 		struct btrfs_subpage *subpage = folio_get_private(folio);
 		struct extent_buffer *eb;
 		unsigned long flags;
@@ -1869,7 +1873,7 @@ static int submit_eb_subpage(struct folio *folio, struct writeback_control *wbc)
 			break;
 		}
 		spin_lock_irqsave(&subpage->lock, flags);
-		if (!test_bit(bit_start + btrfs_bitmap_nr_dirty * fs_info->sectors_per_page,
+		if (!test_bit(bit_start + btrfs_bitmap_nr_dirty * blocks_per_folio,
 			      subpage->bitmaps)) {
 			spin_unlock_irqrestore(&subpage->lock, flags);
 			spin_unlock(&folio->mapping->i_private_lock);
