@@ -79,17 +79,12 @@ MODULE_LICENSE("Dual BSD/GPL");
 /* globals */
 static DEFINE_MUTEX(bnxt_re_mutex);
 
-static void bnxt_re_stop_irq(void *handle);
-static void bnxt_re_dev_stop(struct bnxt_re_dev *rdev);
-static int bnxt_re_netdev_event(struct notifier_block *notifier,
-				unsigned long event, void *ptr);
-static struct bnxt_re_dev *bnxt_re_from_netdev(struct net_device *netdev);
-static void bnxt_re_dev_uninit(struct bnxt_re_dev *rdev, u8 op_type);
 static int bnxt_re_hwrm_qcaps(struct bnxt_re_dev *rdev);
 
 static int bnxt_re_hwrm_qcfg(struct bnxt_re_dev *rdev, u32 *db_len,
 			     u32 *offset);
-static void bnxt_re_setup_cc(struct bnxt_re_dev *rdev, bool enable);
+static void bnxt_re_dispatch_event(struct ib_device *ibdev, struct ib_qp *qp,
+				   u8 port_num, enum ib_event_type event);
 static void bnxt_re_set_db_offset(struct bnxt_re_dev *rdev)
 {
 	struct bnxt_qplib_chip_ctx *cctx;
@@ -153,6 +148,10 @@ static void bnxt_re_destroy_chip_ctx(struct bnxt_re_dev *rdev)
 
 	if (!rdev->chip_ctx)
 		return;
+
+	kfree(rdev->dev_attr);
+	rdev->dev_attr = NULL;
+
 	chip_ctx = rdev->chip_ctx;
 	rdev->chip_ctx = NULL;
 	rdev->rcfw.res = NULL;
@@ -166,7 +165,7 @@ static int bnxt_re_setup_chip_ctx(struct bnxt_re_dev *rdev)
 {
 	struct bnxt_qplib_chip_ctx *chip_ctx;
 	struct bnxt_en_dev *en_dev;
-	int rc;
+	int rc = -ENOMEM;
 
 	en_dev = rdev->en_dev;
 
@@ -182,7 +181,10 @@ static int bnxt_re_setup_chip_ctx(struct bnxt_re_dev *rdev)
 
 	rdev->qplib_res.cctx = rdev->chip_ctx;
 	rdev->rcfw.res = &rdev->qplib_res;
-	rdev->qplib_res.dattr = &rdev->dev_attr;
+	rdev->dev_attr = kzalloc(sizeof(*rdev->dev_attr), GFP_KERNEL);
+	if (!rdev->dev_attr)
+		goto free_chip_ctx;
+	rdev->qplib_res.dattr = rdev->dev_attr;
 	rdev->qplib_res.is_vf = BNXT_EN_VF(en_dev);
 	rdev->qplib_res.en_dev = en_dev;
 
@@ -190,16 +192,20 @@ static int bnxt_re_setup_chip_ctx(struct bnxt_re_dev *rdev)
 
 	bnxt_re_set_db_offset(rdev);
 	rc = bnxt_qplib_map_db_bar(&rdev->qplib_res);
-	if (rc) {
-		kfree(rdev->chip_ctx);
-		rdev->chip_ctx = NULL;
-		return rc;
-	}
+	if (rc)
+		goto free_dev_attr;
 
 	if (bnxt_qplib_determine_atomics(en_dev->pdev))
 		ibdev_info(&rdev->ibdev,
 			   "platform doesn't support global atomics.");
 	return 0;
+free_dev_attr:
+	kfree(rdev->dev_attr);
+	rdev->dev_attr = NULL;
+free_chip_ctx:
+	kfree(rdev->chip_ctx);
+	rdev->chip_ctx = NULL;
+	return rc;
 }
 
 /* SR-IOV helper functions */
@@ -221,7 +227,7 @@ static void bnxt_re_limit_pf_res(struct bnxt_re_dev *rdev)
 	struct bnxt_qplib_ctx *ctx;
 	int i;
 
-	attr = &rdev->dev_attr;
+	attr = rdev->dev_attr;
 	ctx = &rdev->qplib_ctx;
 
 	ctx->qpc_count = min_t(u32, BNXT_RE_MAX_QPC_COUNT,
@@ -235,7 +241,7 @@ static void bnxt_re_limit_pf_res(struct bnxt_re_dev *rdev)
 	if (!bnxt_qplib_is_chip_gen_p5_p7(rdev->chip_ctx))
 		for (i = 0; i < MAX_TQM_ALLOC_REQ; i++)
 			rdev->qplib_ctx.tqm_ctx.qcount[i] =
-			rdev->dev_attr.tqm_alloc_reqs[i];
+			rdev->dev_attr->tqm_alloc_reqs[i];
 }
 
 static void bnxt_re_limit_vf_res(struct bnxt_qplib_ctx *qplib_ctx, u32 num_vf)
@@ -302,17 +308,123 @@ static void bnxt_re_vf_res_config(struct bnxt_re_dev *rdev)
 				      &rdev->qplib_ctx);
 }
 
-static void bnxt_re_shutdown(struct auxiliary_device *adev)
-{
-	struct bnxt_re_en_dev_info *en_info = auxiliary_get_drvdata(adev);
+struct bnxt_re_dcb_work {
+	struct work_struct work;
 	struct bnxt_re_dev *rdev;
+	struct hwrm_async_event_cmpl cmpl;
+};
 
-	rdev = en_info->rdev;
-	ib_unregister_device(&rdev->ibdev);
-	bnxt_re_dev_uninit(rdev, BNXT_RE_COMPLETE_REMOVE);
+static bool bnxt_re_is_qp1_qp(struct bnxt_re_qp *qp)
+{
+	return qp->ib_qp.qp_type == IB_QPT_GSI;
 }
 
-static void bnxt_re_stop_irq(void *handle)
+static struct bnxt_re_qp *bnxt_re_get_qp1_qp(struct bnxt_re_dev *rdev)
+{
+	struct bnxt_re_qp *qp;
+
+	mutex_lock(&rdev->qp_lock);
+	list_for_each_entry(qp, &rdev->qp_list, list) {
+		if (bnxt_re_is_qp1_qp(qp)) {
+			mutex_unlock(&rdev->qp_lock);
+			return qp;
+		}
+	}
+	mutex_unlock(&rdev->qp_lock);
+	return NULL;
+}
+
+static int bnxt_re_update_qp1_tos_dscp(struct bnxt_re_dev *rdev)
+{
+	struct bnxt_re_qp *qp;
+
+	if (!bnxt_qplib_is_chip_gen_p5_p7(rdev->chip_ctx))
+		return 0;
+
+	qp = bnxt_re_get_qp1_qp(rdev);
+	if (!qp)
+		return 0;
+
+	qp->qplib_qp.modify_flags = CMDQ_MODIFY_QP_MODIFY_MASK_TOS_DSCP;
+	qp->qplib_qp.tos_dscp = rdev->cc_param.qp1_tos_dscp;
+
+	return bnxt_qplib_modify_qp(&rdev->qplib_res, &qp->qplib_qp);
+}
+
+static void bnxt_re_init_dcb_wq(struct bnxt_re_dev *rdev)
+{
+	rdev->dcb_wq = create_singlethread_workqueue("bnxt_re_dcb_wq");
+}
+
+static void bnxt_re_uninit_dcb_wq(struct bnxt_re_dev *rdev)
+{
+	if (!rdev->dcb_wq)
+		return;
+	destroy_workqueue(rdev->dcb_wq);
+}
+
+static void bnxt_re_dcb_wq_task(struct work_struct *work)
+{
+	struct bnxt_re_dcb_work *dcb_work =
+		container_of(work, struct bnxt_re_dcb_work, work);
+	struct bnxt_re_dev *rdev = dcb_work->rdev;
+	struct bnxt_qplib_cc_param *cc_param;
+	int rc;
+
+	if (!rdev)
+		goto free_dcb;
+
+	cc_param = &rdev->cc_param;
+	rc = bnxt_qplib_query_cc_param(&rdev->qplib_res, cc_param);
+	if (rc) {
+		ibdev_dbg(&rdev->ibdev, "Failed to query ccparam rc:%d", rc);
+		goto free_dcb;
+	}
+	if (cc_param->qp1_tos_dscp != cc_param->tos_dscp) {
+		cc_param->qp1_tos_dscp = cc_param->tos_dscp;
+		rc = bnxt_re_update_qp1_tos_dscp(rdev);
+		if (rc) {
+			ibdev_dbg(&rdev->ibdev, "%s: Failed to modify QP1 rc:%d",
+				  __func__, rc);
+			goto free_dcb;
+		}
+	}
+
+free_dcb:
+	kfree(dcb_work);
+}
+
+static void bnxt_re_async_notifier(void *handle, struct hwrm_async_event_cmpl *cmpl)
+{
+	struct bnxt_re_dev *rdev = (struct bnxt_re_dev *)handle;
+	struct bnxt_re_dcb_work *dcb_work;
+	u32 data1, data2;
+	u16 event_id;
+
+	event_id = le16_to_cpu(cmpl->event_id);
+	data1 = le32_to_cpu(cmpl->event_data1);
+	data2 = le32_to_cpu(cmpl->event_data2);
+
+	ibdev_dbg(&rdev->ibdev, "Async event_id = %d data1 = %d data2 = %d",
+		  event_id, data1, data2);
+
+	switch (event_id) {
+	case ASYNC_EVENT_CMPL_EVENT_ID_DCB_CONFIG_CHANGE:
+		dcb_work = kzalloc(sizeof(*dcb_work), GFP_ATOMIC);
+		if (!dcb_work)
+			break;
+
+		dcb_work->rdev = rdev;
+		memcpy(&dcb_work->cmpl, cmpl, sizeof(*cmpl));
+		INIT_WORK(&dcb_work->work, bnxt_re_dcb_wq_task);
+		queue_work(rdev->dcb_wq, &dcb_work->work);
+		break;
+	default:
+		break;
+	}
+}
+
+static void bnxt_re_stop_irq(void *handle, bool reset)
 {
 	struct bnxt_re_en_dev_info *en_info = auxiliary_get_drvdata(handle);
 	struct bnxt_qplib_rcfw *rcfw;
@@ -322,6 +434,14 @@ static void bnxt_re_stop_irq(void *handle)
 
 	rdev = en_info->rdev;
 	rcfw = &rdev->rcfw;
+
+	if (reset) {
+		set_bit(ERR_DEVICE_DETACHED, &rdev->rcfw.cmdq.flags);
+		set_bit(BNXT_RE_FLAG_ERR_DEVICE_DETACHED, &rdev->flags);
+		wake_up_all(&rdev->rcfw.cmdq.waitq);
+		bnxt_re_dispatch_event(&rdev->ibdev, NULL, 1,
+				       IB_EVENT_DEVICE_FATAL);
+	}
 
 	for (indx = BNXT_RE_NQ_IDX; indx < rdev->nqr->num_msix; indx++) {
 		nq = &rdev->nqr->nq[indx - 1];
@@ -378,6 +498,7 @@ static void bnxt_re_start_irq(void *handle, struct bnxt_msix_entry *ent)
 }
 
 static struct bnxt_ulp_ops bnxt_re_ulp_ops = {
+	.ulp_async_notifier = bnxt_re_async_notifier,
 	.ulp_irq_stop = bnxt_re_stop_irq,
 	.ulp_irq_restart = bnxt_re_start_irq
 };
@@ -839,17 +960,6 @@ static void bnxt_re_disassociate_ucontext(struct ib_ucontext *ibcontext)
 }
 
 /* Device */
-
-static struct bnxt_re_dev *bnxt_re_from_netdev(struct net_device *netdev)
-{
-	struct ib_device *ibdev =
-		ib_device_get_by_netdev(netdev, RDMA_DRIVER_BNXT_RE);
-	if (!ibdev)
-		return NULL;
-
-	return container_of(ibdev, struct bnxt_re_dev, ibdev);
-}
-
 static ssize_t hw_rev_show(struct device *device, struct device_attribute *attr,
 			   char *buf)
 {
@@ -1627,12 +1737,11 @@ static int bnxt_re_alloc_res(struct bnxt_re_dev *rdev)
 
 	/* Configure and allocate resources for qplib */
 	rdev->qplib_res.rcfw = &rdev->rcfw;
-	rc = bnxt_qplib_get_dev_attr(&rdev->rcfw, &rdev->dev_attr);
+	rc = bnxt_qplib_get_dev_attr(&rdev->rcfw);
 	if (rc)
 		goto fail;
 
-	rc = bnxt_qplib_alloc_res(&rdev->qplib_res, rdev->en_dev->pdev,
-				  rdev->netdev, &rdev->dev_attr);
+	rc = bnxt_qplib_alloc_res(&rdev->qplib_res, rdev->netdev);
 	if (rc)
 		goto fail;
 
@@ -1807,6 +1916,26 @@ static int bnxt_re_setup_qos(struct bnxt_re_dev *rdev)
 	return 0;
 }
 
+static void bnxt_re_net_unregister_async_event(struct bnxt_re_dev *rdev)
+{
+	if (rdev->is_virtfn)
+		return;
+
+	memset(&rdev->event_bitmap, 0, sizeof(rdev->event_bitmap));
+	bnxt_register_async_events(rdev->en_dev, &rdev->event_bitmap,
+				   ASYNC_EVENT_CMPL_EVENT_ID_DCB_CONFIG_CHANGE);
+}
+
+static void bnxt_re_net_register_async_event(struct bnxt_re_dev *rdev)
+{
+	if (rdev->is_virtfn)
+		return;
+
+	rdev->event_bitmap |= (1 << ASYNC_EVENT_CMPL_EVENT_ID_DCB_CONFIG_CHANGE);
+	bnxt_register_async_events(rdev->en_dev, &rdev->event_bitmap,
+				   ASYNC_EVENT_CMPL_EVENT_ID_DCB_CONFIG_CHANGE);
+}
+
 static void bnxt_re_query_hwrm_intf_version(struct bnxt_re_dev *rdev)
 {
 	struct bnxt_en_dev *en_dev = rdev->en_dev;
@@ -1885,6 +2014,9 @@ static void bnxt_re_dev_uninit(struct bnxt_re_dev *rdev, u8 op_type)
 	int rc;
 
 	bnxt_re_debugfs_rem_pdev(rdev);
+
+	bnxt_re_net_unregister_async_event(rdev);
+	bnxt_re_uninit_dcb_wq(rdev);
 
 	if (test_and_clear_bit(BNXT_RE_FLAG_QOS_WORK_REG, &rdev->flags))
 		cancel_delayed_work_sync(&rdev->worker);
@@ -2032,7 +2164,7 @@ static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 op_type)
 			rdev->pacing.dbr_pacing = false;
 		}
 	}
-	rc = bnxt_qplib_get_dev_attr(&rdev->rcfw, &rdev->dev_attr);
+	rc = bnxt_qplib_get_dev_attr(&rdev->rcfw);
 	if (rc)
 		goto disable_rcfw;
 
@@ -2081,6 +2213,11 @@ static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 op_type)
 	set_bit(BNXT_RE_FLAG_RESOURCES_INITIALIZED, &rdev->flags);
 
 	if (!rdev->is_virtfn) {
+		/* Query f/w defaults of CC params */
+		rc = bnxt_qplib_query_cc_param(&rdev->qplib_res, &rdev->cc_param);
+		if (rc)
+			ibdev_warn(&rdev->ibdev, "Failed to query CC defaults\n");
+
 		rc = bnxt_re_setup_qos(rdev);
 		if (rc)
 			ibdev_info(&rdev->ibdev,
@@ -2099,6 +2236,9 @@ static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 op_type)
 
 	bnxt_re_debugfs_add_pdev(rdev);
 
+	bnxt_re_init_dcb_wq(rdev);
+	bnxt_re_net_register_async_event(rdev);
+
 	return 0;
 free_sctx:
 	bnxt_re_net_stats_ctx_free(rdev, rdev->qplib_ctx.stats.fw_id);
@@ -2115,6 +2255,30 @@ fail:
 	bnxt_re_dev_uninit(rdev, BNXT_RE_COMPLETE_REMOVE);
 
 	return rc;
+}
+
+static void bnxt_re_setup_cc(struct bnxt_re_dev *rdev, bool enable)
+{
+	struct bnxt_qplib_cc_param cc_param = {};
+
+	/* Do not enable congestion control on VFs */
+	if (rdev->is_virtfn)
+		return;
+
+	/* Currently enabling only for GenP5 adapters */
+	if (!bnxt_qplib_is_chip_gen_p5_p7(rdev->chip_ctx))
+		return;
+
+	if (enable) {
+		cc_param.enable  = 1;
+		cc_param.tos_ecn = 1;
+	}
+
+	cc_param.mask = (CMDQ_MODIFY_ROCE_CC_MODIFY_MASK_ENABLE_CC |
+			 CMDQ_MODIFY_ROCE_CC_MODIFY_MASK_TOS_ECN);
+
+	if (bnxt_qplib_modify_cc(&rdev->qplib_res, &cc_param))
+		ibdev_err(&rdev->ibdev, "Failed to setup CC enable = %d\n", enable);
 }
 
 static void bnxt_re_update_en_info_rdev(struct bnxt_re_dev *rdev,
@@ -2163,20 +2327,10 @@ static int bnxt_re_add_device(struct auxiliary_device *adev, u8 op_type)
 		goto re_dev_uninit;
 	}
 
-	rdev->nb.notifier_call = bnxt_re_netdev_event;
-	rc = register_netdevice_notifier(&rdev->nb);
-	if (rc) {
-		rdev->nb.notifier_call = NULL;
-		pr_err("%s: Cannot register to netdevice_notifier",
-		       ROCE_DRV_MODULE_NAME);
-		goto re_dev_unreg;
-	}
 	bnxt_re_setup_cc(rdev, true);
 
 	return 0;
 
-re_dev_unreg:
-	ib_unregister_device(&rdev->ibdev);
 re_dev_uninit:
 	bnxt_re_update_en_info_rdev(NULL, en_info, adev);
 	bnxt_re_dev_uninit(rdev, BNXT_RE_COMPLETE_REMOVE);
@@ -2184,79 +2338,6 @@ re_dev_dealloc:
 	ib_dealloc_device(&rdev->ibdev);
 exit:
 	return rc;
-}
-
-static void bnxt_re_setup_cc(struct bnxt_re_dev *rdev, bool enable)
-{
-	struct bnxt_qplib_cc_param cc_param = {};
-
-	/* Do not enable congestion control on VFs */
-	if (rdev->is_virtfn)
-		return;
-
-	/* Currently enabling only for GenP5 adapters */
-	if (!bnxt_qplib_is_chip_gen_p5_p7(rdev->chip_ctx))
-		return;
-
-	if (enable) {
-		cc_param.enable  = 1;
-		cc_param.tos_ecn = 1;
-	}
-
-	cc_param.mask = (CMDQ_MODIFY_ROCE_CC_MODIFY_MASK_ENABLE_CC |
-			 CMDQ_MODIFY_ROCE_CC_MODIFY_MASK_TOS_ECN);
-
-	if (bnxt_qplib_modify_cc(&rdev->qplib_res, &cc_param))
-		ibdev_err(&rdev->ibdev, "Failed to setup CC enable = %d\n", enable);
-}
-
-/*
- * "Notifier chain callback can be invoked for the same chain from
- * different CPUs at the same time".
- *
- * For cases when the netdev is already present, our call to the
- * register_netdevice_notifier() will actually get the rtnl_lock()
- * before sending NETDEV_REGISTER and (if up) NETDEV_UP
- * events.
- *
- * But for cases when the netdev is not already present, the notifier
- * chain is subjected to be invoked from different CPUs simultaneously.
- *
- * This is protected by the netdev_mutex.
- */
-static int bnxt_re_netdev_event(struct notifier_block *notifier,
-				unsigned long event, void *ptr)
-{
-	struct net_device *real_dev, *netdev = netdev_notifier_info_to_dev(ptr);
-	struct bnxt_re_dev *rdev;
-
-	real_dev = rdma_vlan_dev_real_dev(netdev);
-	if (!real_dev)
-		real_dev = netdev;
-
-	if (real_dev != netdev)
-		goto exit;
-
-	rdev = bnxt_re_from_netdev(real_dev);
-	if (!rdev)
-		return NOTIFY_DONE;
-
-
-	switch (event) {
-	case NETDEV_UP:
-	case NETDEV_DOWN:
-	case NETDEV_CHANGE:
-		bnxt_re_dispatch_event(&rdev->ibdev, NULL, 1,
-					netif_carrier_ok(real_dev) ?
-					IB_EVENT_PORT_ACTIVE :
-					IB_EVENT_PORT_ERR);
-		break;
-	default:
-		break;
-	}
-	ib_device_put(&rdev->ibdev);
-exit:
-	return NOTIFY_DONE;
 }
 
 #define BNXT_ADEV_NAME "bnxt_en"
@@ -2316,13 +2397,9 @@ static int bnxt_re_probe(struct auxiliary_device *adev,
 
 	rc = bnxt_re_add_device(adev, BNXT_RE_COMPLETE_INIT);
 	if (rc)
-		goto err;
-	mutex_unlock(&bnxt_re_mutex);
-	return 0;
+		kfree(en_info);
 
-err:
 	mutex_unlock(&bnxt_re_mutex);
-	kfree(en_info);
 
 	return rc;
 }
@@ -2373,6 +2450,16 @@ static int bnxt_re_resume(struct auxiliary_device *adev)
 	mutex_unlock(&bnxt_re_mutex);
 
 	return 0;
+}
+
+static void bnxt_re_shutdown(struct auxiliary_device *adev)
+{
+	struct bnxt_re_en_dev_info *en_info = auxiliary_get_drvdata(adev);
+	struct bnxt_re_dev *rdev;
+
+	rdev = en_info->rdev;
+	ib_unregister_device(&rdev->ibdev);
+	bnxt_re_dev_uninit(rdev, BNXT_RE_COMPLETE_REMOVE);
 }
 
 static const struct auxiliary_device_id bnxt_re_id_table[] = {

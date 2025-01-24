@@ -7185,9 +7185,22 @@ static int hns_roce_hw_v2_reset_notify(struct hnae3_handle *handle,
 	return ret;
 }
 
+static void hns_roce_hw_v2_link_status_change(struct hnae3_handle *handle,
+					      bool linkup)
+{
+	struct hns_roce_dev *hr_dev = (struct hns_roce_dev *)handle->priv;
+	struct net_device *netdev = handle->rinfo.netdev;
+
+	if (linkup || !hr_dev)
+		return;
+
+	ib_dispatch_port_state_event(&hr_dev->ib_dev, netdev);
+}
+
 static const struct hnae3_client_ops hns_roce_hw_v2_ops = {
 	.init_instance = hns_roce_hw_v2_init_instance,
 	.uninit_instance = hns_roce_hw_v2_uninit_instance,
+	.link_status_change = hns_roce_hw_v2_link_status_change,
 	.reset_notify = hns_roce_hw_v2_reset_notify,
 };
 

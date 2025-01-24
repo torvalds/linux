@@ -30,7 +30,9 @@ struct bnxt_msix_entry {
 };
 
 struct bnxt_ulp_ops {
-	void (*ulp_irq_stop)(void *);
+	/* async_notifier() cannot sleep (in BH context) */
+	void (*ulp_async_notifier)(void *, struct hwrm_async_event_cmpl *);
+	void (*ulp_irq_stop)(void *, bool);
 	void (*ulp_irq_restart)(void *, struct bnxt_msix_entry *);
 };
 
@@ -126,6 +128,6 @@ int bnxt_register_dev(struct bnxt_en_dev *edev, struct bnxt_ulp_ops *ulp_ops,
 		      void *handle);
 void bnxt_unregister_dev(struct bnxt_en_dev *edev);
 int bnxt_send_msg(struct bnxt_en_dev *edev, struct bnxt_fw_msg *fw_msg);
-int bnxt_register_async_events(struct bnxt_en_dev *edev,
-			       unsigned long *events_bmap, u16 max_id);
+void bnxt_register_async_events(struct bnxt_en_dev *edev,
+				unsigned long *events_bmap, u16 max_id);
 #endif

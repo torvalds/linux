@@ -96,9 +96,18 @@ static int fill_stat_mr_entry(struct sk_buff *msg, struct ib_mr *ibmr)
 					 atomic64_read(&mr->odp_stats.faults)))
 		goto err_table;
 	if (rdma_nl_stat_hwcounter_entry(
+		    msg, "page_faults_handled",
+		    atomic64_read(&mr->odp_stats.faults_handled)))
+		goto err_table;
+	if (rdma_nl_stat_hwcounter_entry(
 		    msg, "page_invalidations",
 		    atomic64_read(&mr->odp_stats.invalidations)))
 		goto err_table;
+	if (rdma_nl_stat_hwcounter_entry(
+		    msg, "page_invalidations_handled",
+		    atomic64_read(&mr->odp_stats.invalidations_handled)))
+		goto err_table;
+
 	if (rdma_nl_stat_hwcounter_entry(msg, "page_prefetch",
 					 atomic64_read(&mr->odp_stats.prefetch)))
 		goto err_table;
