@@ -1067,6 +1067,7 @@ static void nvme_execute_identify_ns_nvm(struct nvmet_req *req)
 		goto out;
 	}
 	status = nvmet_copy_to_sgl(req, 0, id, sizeof(*id));
+	kfree(id);
 out:
 	nvmet_req_complete(req, status);
 }
