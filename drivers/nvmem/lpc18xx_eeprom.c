@@ -264,7 +264,7 @@ MODULE_DEVICE_TABLE(of, lpc18xx_eeprom_of_match);
 
 static struct platform_driver lpc18xx_eeprom_driver = {
 	.probe = lpc18xx_eeprom_probe,
-	.remove_new = lpc18xx_eeprom_remove,
+	.remove = lpc18xx_eeprom_remove,
 	.driver = {
 		.name = "lpc18xx-eeprom",
 		.of_match_table = lpc18xx_eeprom_of_match,

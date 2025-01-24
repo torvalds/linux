@@ -462,7 +462,7 @@ static struct platform_driver cs42l43_spi_driver = {
 };
 module_platform_driver(cs42l43_spi_driver);
 
-MODULE_IMPORT_NS(GPIO_SWNODE);
+MODULE_IMPORT_NS("GPIO_SWNODE");
 MODULE_DESCRIPTION("CS42L43 SPI Driver");
 MODULE_AUTHOR("Lucas Tanure <tanureal@opensource.cirrus.com>");
 MODULE_AUTHOR("Maciej Strozek <mstrozek@opensource.cirrus.com>");

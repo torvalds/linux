@@ -171,11 +171,8 @@ xlog_cil_insert_pcp_aggregate(
 	 */
 	for_each_cpu(cpu, &ctx->cil_pcpmask) {
 		struct xlog_cil_pcp	*cilpcp = per_cpu_ptr(cil->xc_pcp, cpu);
-		int			old = READ_ONCE(cilpcp->space_used);
 
-		while (!try_cmpxchg(&cilpcp->space_used, &old, 0))
-			;
-		count += old;
+		count += xchg(&cilpcp->space_used, 0);
 	}
 	atomic_add(count, &ctx->space_used);
 }

@@ -754,6 +754,7 @@ static int io_recvmsg_prep_setup(struct io_kiocb *req)
 	if (req->opcode == IORING_OP_RECV) {
 		kmsg->msg.msg_name = NULL;
 		kmsg->msg.msg_namelen = 0;
+		kmsg->msg.msg_inq = 0;
 		kmsg->msg.msg_control = NULL;
 		kmsg->msg.msg_get_inq = 1;
 		kmsg->msg.msg_controllen = 0;

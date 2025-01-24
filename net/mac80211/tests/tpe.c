@@ -7,7 +7,7 @@
 #include <kunit/test.h>
 #include "../ieee80211_i.h"
 
-MODULE_IMPORT_NS(EXPORTED_FOR_KUNIT_TESTING);
+MODULE_IMPORT_NS("EXPORTED_FOR_KUNIT_TESTING");
 
 static struct ieee80211_channel chan6g_1 = {
 	.band = NL80211_BAND_6GHZ,

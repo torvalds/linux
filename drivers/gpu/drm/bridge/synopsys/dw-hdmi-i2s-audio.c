@@ -225,7 +225,7 @@ static void snd_dw_hdmi_remove(struct platform_device *pdev)
 
 static struct platform_driver snd_dw_hdmi_driver = {
 	.probe	= snd_dw_hdmi_probe,
-	.remove_new = snd_dw_hdmi_remove,
+	.remove = snd_dw_hdmi_remove,
 	.driver	= {
 		.name = DRIVER_NAME,
 	},

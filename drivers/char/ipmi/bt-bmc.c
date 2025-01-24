@@ -481,7 +481,7 @@ static struct platform_driver bt_bmc_driver = {
 		.of_match_table = bt_bmc_match,
 	},
 	.probe = bt_bmc_probe,
-	.remove_new = bt_bmc_remove,
+	.remove = bt_bmc_remove,
 };
 
 module_platform_driver(bt_bmc_driver);

@@ -339,11 +339,22 @@ void dml21_apply_soc_bb_overrides(struct dml2_initialize_instance_in_out *dml_in
 	// }
 }
 
+static unsigned int calc_max_hardware_v_total(const struct dc_stream_state *stream)
+{
+	unsigned int max_hw_v_total = stream->ctx->dc->caps.max_v_total;
+
+	if (stream->ctx->dc->caps.vtotal_limited_by_fp2) {
+		max_hw_v_total -= stream->timing.v_front_porch + 1;
+	}
+
+	return max_hw_v_total;
+}
+
 static void populate_dml21_timing_config_from_stream_state(struct dml2_timing_cfg *timing,
 		struct dc_stream_state *stream,
 		struct dml2_context *dml_ctx)
 {
-	unsigned int hblank_start, vblank_start;
+	unsigned int hblank_start, vblank_start, min_hardware_refresh_in_uhz;
 
 	timing->h_active = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right;
 	timing->v_active = stream->timing.v_addressable + stream->timing.v_border_bottom + stream->timing.v_border_top;
@@ -371,10 +382,22 @@ static void populate_dml21_timing_config_from_stream_state(struct dml2_timing_cf
 		- stream->timing.v_border_top - stream->timing.v_border_bottom;
 
 	timing->drr_config.enabled = stream->ignore_msa_timing_param;
-	timing->drr_config.min_refresh_uhz = stream->timing.min_refresh_in_uhz;
 	timing->drr_config.drr_active_variable = stream->vrr_active_variable;
 	timing->drr_config.drr_active_fixed = stream->vrr_active_fixed;
 	timing->drr_config.disallowed = !stream->allow_freesync;
+
+	/* limit min refresh rate to DC cap */
+	min_hardware_refresh_in_uhz = stream->timing.min_refresh_in_uhz;
+	if (stream->ctx->dc->caps.max_v_total != 0) {
+		min_hardware_refresh_in_uhz = div64_u64((stream->timing.pix_clk_100hz * 100000000ULL),
+				(stream->timing.h_total * (long long)calc_max_hardware_v_total(stream)));
+	}
+
+	if (stream->timing.min_refresh_in_uhz > min_hardware_refresh_in_uhz) {
+		timing->drr_config.min_refresh_uhz = stream->timing.min_refresh_in_uhz;
+	} else {
+		timing->drr_config.min_refresh_uhz = min_hardware_refresh_in_uhz;
+	}
 
 	if (dml_ctx->config.callbacks.get_max_flickerless_instant_vtotal_increase &&
 			stream->ctx->dc->config.enable_fpo_flicker_detection == 1)
@@ -420,6 +443,21 @@ static void populate_dml21_timing_config_from_stream_state(struct dml2_timing_cf
 	}
 
 	timing->vblank_nom = timing->v_total - timing->v_active;
+}
+
+/**
+ * adjust_dml21_hblank_timing_config_from_pipe_ctx - Adjusts the horizontal blanking timing configuration
+ *                                                   based on the pipe context.
+ * @timing: Pointer to the dml2_timing_cfg structure to be adjusted.
+ * @pipe: Pointer to the pipe_ctx structure containing the horizontal blanking borrow value.
+ *
+ * This function modifies the horizontal active and blank end timings by adding and subtracting
+ * the horizontal blanking borrow value from the pipe context, respectively.
+ */
+static void adjust_dml21_hblank_timing_config_from_pipe_ctx(struct dml2_timing_cfg *timing, struct pipe_ctx *pipe)
+{
+	timing->h_active += pipe->hblank_borrow;
+	timing->h_blank_end -= pipe->hblank_borrow;
 }
 
 static void populate_dml21_output_config_from_stream_state(struct dml2_link_output_cfg *output,
@@ -709,6 +747,7 @@ static const struct scaler_data *get_scaler_data_for_plane(
 			temp_pipe->plane_state = pipe->plane_state;
 			temp_pipe->plane_res.scl_data.taps = pipe->plane_res.scl_data.taps;
 			temp_pipe->stream_res = pipe->stream_res;
+			temp_pipe->hblank_borrow = pipe->hblank_borrow;
 			dml_ctx->config.callbacks.build_scaling_params(temp_pipe);
 			break;
 		}
@@ -973,6 +1012,7 @@ bool dml21_map_dc_state_into_dml_display_cfg(const struct dc *in_dc, struct dc_s
 
 		ASSERT(disp_cfg_stream_location >= 0 && disp_cfg_stream_location <= __DML2_WRAPPER_MAX_STREAMS_PLANES__);
 		populate_dml21_timing_config_from_stream_state(&dml_dispcfg->stream_descriptors[disp_cfg_stream_location].timing, context->streams[stream_index], dml_ctx);
+		adjust_dml21_hblank_timing_config_from_pipe_ctx(&dml_dispcfg->stream_descriptors[disp_cfg_stream_location].timing, &context->res_ctx.pipe_ctx[stream_index]);
 		populate_dml21_output_config_from_stream_state(&dml_dispcfg->stream_descriptors[disp_cfg_stream_location].output, context->streams[stream_index], &context->res_ctx.pipe_ctx[stream_index]);
 		populate_dml21_stream_overrides_from_stream_state(&dml_dispcfg->stream_descriptors[disp_cfg_stream_location], context->streams[stream_index]);
 
@@ -1111,12 +1151,12 @@ void dml21_populate_pipe_ctx_dlg_params(struct dml2_context *dml_ctx, struct dc_
 	struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
 	union dml2_global_sync_programming *global_sync = &stream_programming->global_sync;
 
-	hactive = timing->h_addressable + timing->h_border_left + timing->h_border_right;
+	hactive = timing->h_addressable + timing->h_border_left + timing->h_border_right + pipe_ctx->hblank_borrow;
 	vactive = timing->v_addressable + timing->v_border_bottom + timing->v_border_top;
 	hblank_start = pipe_ctx->stream->timing.h_total - pipe_ctx->stream->timing.h_front_porch;
 	vblank_start = pipe_ctx->stream->timing.v_total - pipe_ctx->stream->timing.v_front_porch;
 
-	hblank_end = hblank_start - timing->h_addressable - timing->h_border_left - timing->h_border_right;
+	hblank_end = hblank_start - timing->h_addressable - timing->h_border_left - timing->h_border_right - pipe_ctx->hblank_borrow;
 	vblank_end = vblank_start - timing->v_addressable - timing->v_border_top - timing->v_border_bottom;
 
 	if (dml_ctx->config.svp_pstate.callbacks.get_pipe_subvp_type(context, pipe_ctx) == SUBVP_PHANTOM) {

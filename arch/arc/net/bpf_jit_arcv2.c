@@ -2916,7 +2916,7 @@ bool check_jmp_32(u32 curr_off, u32 targ_off, u8 cond)
 	addendum = (cond == ARC_CC_AL) ? 0 : INSN_len_normal;
 	disp = get_displacement(curr_off + addendum, targ_off);
 
-	if (ARC_CC_AL)
+	if (cond == ARC_CC_AL)
 		return is_valid_far_disp(disp);
 	else
 		return is_valid_near_disp(disp);

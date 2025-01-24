@@ -40,7 +40,7 @@ struct irq_domain_ops;
 #include <asm/acpi.h>
 
 #ifdef CONFIG_ACPI_TABLE_LIB
-#define EXPORT_SYMBOL_ACPI_LIB(x) EXPORT_SYMBOL_NS_GPL(x, ACPI)
+#define EXPORT_SYMBOL_ACPI_LIB(x) EXPORT_SYMBOL_NS_GPL(x, "ACPI")
 #define __init_or_acpilib
 #define __initdata_or_acpilib
 #else

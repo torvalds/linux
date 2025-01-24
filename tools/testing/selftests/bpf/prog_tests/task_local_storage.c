@@ -197,7 +197,7 @@ static void test_nodeadlock(void)
 	/* Unnecessary recursion and deadlock detection are reproducible
 	 * in the preemptible kernel.
 	 */
-	if (!skel->kconfig->CONFIG_PREEMPT) {
+	if (!skel->kconfig->CONFIG_PREEMPTION) {
 		test__skip();
 		goto done;
 	}

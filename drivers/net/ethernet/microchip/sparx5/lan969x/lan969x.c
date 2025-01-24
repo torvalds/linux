@@ -273,9 +273,9 @@ static irqreturn_t lan969x_ptp_irq_handler(int irq, void *args)
 		if (WARN_ON(!skb_match))
 			continue;
 
-		spin_lock(&sparx5->ptp_ts_id_lock);
+		spin_lock_irqsave(&sparx5->ptp_ts_id_lock, flags);
 		sparx5->ptp_skbs--;
-		spin_unlock(&sparx5->ptp_ts_id_lock);
+		spin_unlock_irqrestore(&sparx5->ptp_ts_id_lock, flags);
 
 		/* Get the h/w timestamp */
 		sparx5_get_hwtimestamp(sparx5, &ts, delay);
@@ -346,8 +346,3 @@ const struct sparx5_match_data lan969x_desc = {
 	.consts     = &lan969x_consts,
 	.ops        = &lan969x_ops,
 };
-EXPORT_SYMBOL_GPL(lan969x_desc);
-
-MODULE_DESCRIPTION("Microchip lan969x switch driver");
-MODULE_AUTHOR("Daniel Machon <daniel.machon@microchip.com>");
-MODULE_LICENSE("Dual MIT/GPL");

@@ -4822,6 +4822,11 @@
 			       can be preempted anytime.  Tasks will also yield
 			       contended spinlocks (if the critical section isn't
 			       explicitly preempt disabled beyond the lock itself).
+			lazy - Scheduler controlled. Similar to full but instead
+			       of preempting the task immediately, the task gets
+			       one HZ tick time to yield itself before the
+			       preemption will be forced. One preemption is when the
+			       task returns to user space.
 
 	print-fatal-signals=
 			[KNL] debug: print fatal signals

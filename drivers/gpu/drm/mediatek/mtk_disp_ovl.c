@@ -746,7 +746,7 @@ MODULE_DEVICE_TABLE(of, mtk_disp_ovl_driver_dt_match);
 
 struct platform_driver mtk_disp_ovl_driver = {
 	.probe		= mtk_disp_ovl_probe,
-	.remove_new	= mtk_disp_ovl_remove,
+	.remove		= mtk_disp_ovl_remove,
 	.driver		= {
 		.name	= "mediatek-disp-ovl",
 		.of_match_table = mtk_disp_ovl_driver_dt_match,

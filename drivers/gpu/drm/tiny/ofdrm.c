@@ -1398,7 +1398,7 @@ static struct platform_driver ofdrm_platform_driver = {
 		.of_match_table = ofdrm_of_match_display,
 	},
 	.probe = ofdrm_probe,
-	.remove_new = ofdrm_remove,
+	.remove = ofdrm_remove,
 };
 
 module_platform_driver(ofdrm_platform_driver);

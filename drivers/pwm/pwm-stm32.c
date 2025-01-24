@@ -84,7 +84,7 @@ static int stm32_pwm_round_waveform_tohw(struct pwm_chip *chip,
 
 	wfhw->ccer = TIM_CCER_CCxE(ch + 1);
 	if (priv->have_complementary_output)
-		wfhw->ccer = TIM_CCER_CCxNE(ch + 1);
+		wfhw->ccer |= TIM_CCER_CCxNE(ch + 1);
 
 	rate = clk_get_rate(priv->clk);
 

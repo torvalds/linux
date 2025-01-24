@@ -597,4 +597,4 @@ module_i2c_driver(mp2891_driver);
 MODULE_AUTHOR("Noah Wang <noahwang.wang@outlook.com>");
 MODULE_DESCRIPTION("PMBus driver for MPS MP2891");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(PMBUS);
+MODULE_IMPORT_NS("PMBUS");

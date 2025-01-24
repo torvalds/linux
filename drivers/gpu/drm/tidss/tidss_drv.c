@@ -252,7 +252,7 @@ MODULE_DEVICE_TABLE(of, tidss_of_table);
 
 static struct platform_driver tidss_platform_driver = {
 	.probe		= tidss_probe,
-	.remove_new	= tidss_remove,
+	.remove		= tidss_remove,
 	.shutdown	= tidss_shutdown,
 	.driver		= {
 		.name	= "tidss",

@@ -857,7 +857,7 @@ static struct platform_driver pdev = {
 		.pm = &omapdrm_pm_ops,
 	},
 	.probe = pdev_probe,
-	.remove_new = pdev_remove,
+	.remove = pdev_remove,
 	.shutdown = pdev_shutdown,
 };
 

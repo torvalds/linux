@@ -1632,7 +1632,7 @@ static struct platform_driver ingenic_drm_driver = {
 		.of_match_table = of_match_ptr(ingenic_drm_of_match),
 	},
 	.probe = ingenic_drm_probe,
-	.remove_new = ingenic_drm_remove,
+	.remove = ingenic_drm_remove,
 	.shutdown = ingenic_drm_shutdown,
 };
 

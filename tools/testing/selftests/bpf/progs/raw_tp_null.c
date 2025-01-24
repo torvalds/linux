@@ -3,6 +3,7 @@
 
 #include <vmlinux.h>
 #include <bpf/bpf_tracing.h>
+#include "bpf_misc.h"
 
 char _license[] SEC("license") = "GPL";
 
@@ -17,16 +18,14 @@ int BPF_PROG(test_raw_tp_null, struct sk_buff *skb)
 	if (task->pid != tid)
 		return 0;
 
-	i = i + skb->mark + 1;
-	/* The compiler may move the NULL check before this deref, which causes
-	 * the load to fail as deref of scalar. Prevent that by using a barrier.
+	/* If dead code elimination kicks in, the increment +=2 will be
+	 * removed. For raw_tp programs attaching to tracepoints in kernel
+	 * modules, we mark input arguments as PTR_MAYBE_NULL, so branch
+	 * prediction should never kick in.
 	 */
-	barrier();
-	/* If dead code elimination kicks in, the increment below will
-	 * be removed. For raw_tp programs, we mark input arguments as
-	 * PTR_MAYBE_NULL, so branch prediction should never kick in.
-	 */
-	if (!skb)
-		i += 2;
+	asm volatile ("%[i] += 1; if %[ctx] != 0 goto +1; %[i] += 2;"
+			: [i]"+r"(i)
+			: [ctx]"r"(skb)
+			: "memory");
 	return 0;
 }

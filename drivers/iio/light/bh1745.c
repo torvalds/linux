@@ -899,4 +899,4 @@ module_i2c_driver(bh1745_driver);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mudit Sharma <muditsharma.info@gmail.com>");
 MODULE_DESCRIPTION("BH1745 colour sensor driver");
-MODULE_IMPORT_NS(IIO_GTS_HELPER);
+MODULE_IMPORT_NS("IIO_GTS_HELPER");

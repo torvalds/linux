@@ -231,7 +231,7 @@ int pcie_aer_is_native(struct pci_dev *dev)
 
 	return pcie_ports_native || host->native_aer;
 }
-EXPORT_SYMBOL_NS_GPL(pcie_aer_is_native, CXL);
+EXPORT_SYMBOL_NS_GPL(pcie_aer_is_native, "CXL");
 
 static int pci_enable_pcie_error_reporting(struct pci_dev *dev)
 {
@@ -802,7 +802,7 @@ void pci_print_aer(struct pci_dev *dev, int aer_severity,
 	trace_aer_event(dev_name(&dev->dev), (status & ~mask),
 			aer_severity, tlp_header_valid, &aer->header_log);
 }
-EXPORT_SYMBOL_NS_GPL(pci_print_aer, CXL);
+EXPORT_SYMBOL_NS_GPL(pci_print_aer, "CXL");
 
 /**
  * add_error_device - list device to be handled

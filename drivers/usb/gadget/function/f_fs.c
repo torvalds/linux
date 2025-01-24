@@ -49,7 +49,7 @@
 
 #define DMABUF_ENQUEUE_TIMEOUT_MS 5000
 
-MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS("DMA_BUF");
 
 /* Reference counter handling */
 static void ffs_data_get(struct ffs_data *ffs);

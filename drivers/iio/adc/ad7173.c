@@ -1509,7 +1509,7 @@ static struct spi_driver ad7173_driver = {
 };
 module_spi_driver(ad7173_driver);
 
-MODULE_IMPORT_NS(IIO_AD_SIGMA_DELTA);
+MODULE_IMPORT_NS("IIO_AD_SIGMA_DELTA");
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafo.de>");
 MODULE_AUTHOR("Dumitru Ceclan <dumitru.ceclan@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD7173 and similar ADC driver");

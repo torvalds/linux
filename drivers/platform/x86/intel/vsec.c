@@ -137,7 +137,7 @@ int intel_vsec_add_aux(struct pci_dev *pdev, struct device *parent,
 	return devm_add_action_or_reset(parent, intel_vsec_remove_aux,
 				       auxdev);
 }
-EXPORT_SYMBOL_NS_GPL(intel_vsec_add_aux, INTEL_VSEC);
+EXPORT_SYMBOL_NS_GPL(intel_vsec_add_aux, "INTEL_VSEC");
 
 static int intel_vsec_add_dev(struct pci_dev *pdev, struct intel_vsec_header *header,
 			      struct intel_vsec_platform_info *info)
@@ -340,7 +340,7 @@ void intel_vsec_register(struct pci_dev *pdev,
 
 	intel_vsec_walk_header(pdev, info);
 }
-EXPORT_SYMBOL_NS_GPL(intel_vsec_register, INTEL_VSEC);
+EXPORT_SYMBOL_NS_GPL(intel_vsec_register, "INTEL_VSEC");
 
 static int intel_vsec_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
@@ -423,6 +423,7 @@ static const struct intel_vsec_platform_info lnl_info = {
 #define PCI_DEVICE_ID_INTEL_VSEC_RPL		0xa77d
 #define PCI_DEVICE_ID_INTEL_VSEC_TGL		0x9a0d
 #define PCI_DEVICE_ID_INTEL_VSEC_LNL_M		0x647d
+#define PCI_DEVICE_ID_INTEL_VSEC_PTL		0xb07d
 static const struct pci_device_id intel_vsec_pci_ids[] = {
 	{ PCI_DEVICE_DATA(INTEL, VSEC_ADL, &tgl_info) },
 	{ PCI_DEVICE_DATA(INTEL, VSEC_DG1, &dg1_info) },
@@ -432,6 +433,7 @@ static const struct pci_device_id intel_vsec_pci_ids[] = {
 	{ PCI_DEVICE_DATA(INTEL, VSEC_RPL, &tgl_info) },
 	{ PCI_DEVICE_DATA(INTEL, VSEC_TGL, &tgl_info) },
 	{ PCI_DEVICE_DATA(INTEL, VSEC_LNL_M, &lnl_info) },
+	{ PCI_DEVICE_DATA(INTEL, VSEC_PTL, &mtl_info) },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, intel_vsec_pci_ids);

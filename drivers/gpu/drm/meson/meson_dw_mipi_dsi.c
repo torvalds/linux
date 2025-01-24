@@ -345,7 +345,7 @@ MODULE_DEVICE_TABLE(of, meson_dw_mipi_dsi_of_table);
 
 static struct platform_driver meson_dw_mipi_dsi_platform_driver = {
 	.probe		= meson_dw_mipi_dsi_probe,
-	.remove_new	= meson_dw_mipi_dsi_remove,
+	.remove		= meson_dw_mipi_dsi_remove,
 	.driver		= {
 		.name		= DRIVER_NAME,
 		.of_match_table	= meson_dw_mipi_dsi_of_table,

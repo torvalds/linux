@@ -22,7 +22,7 @@
 #include <linux/regmap.h>
 #include <linux/reset.h>
 
-#define DEFAULT_SYMBOL_NAMESPACE	I2C_DW
+#define DEFAULT_SYMBOL_NAMESPACE	"I2C_DW"
 
 #include "i2c-designware-core.h"
 
@@ -1094,4 +1094,4 @@ EXPORT_SYMBOL_GPL(i2c_dw_probe_master);
 
 MODULE_DESCRIPTION("Synopsys DesignWare I2C bus master adapter");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(I2C_DW_COMMON);
+MODULE_IMPORT_NS("I2C_DW_COMMON");

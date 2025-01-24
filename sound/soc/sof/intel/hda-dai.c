@@ -54,7 +54,7 @@ int hda_dai_config(struct snd_soc_dapm_widget *w, unsigned int flags,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(hda_dai_config, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dai_config, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_LINK)
 
@@ -103,8 +103,10 @@ hda_dai_get_ops(struct snd_pcm_substream *substream, struct snd_soc_dai *cpu_dai
 	return sdai->platform_private;
 }
 
-int hda_link_dma_cleanup(struct snd_pcm_substream *substream, struct hdac_ext_stream *hext_stream,
-			 struct snd_soc_dai *cpu_dai)
+static int
+hda_link_dma_cleanup(struct snd_pcm_substream *substream,
+		     struct hdac_ext_stream *hext_stream,
+		     struct snd_soc_dai *cpu_dai, bool release)
 {
 	const struct hda_dai_widget_dma_ops *ops = hda_dai_get_ops(substream, cpu_dai);
 	struct sof_intel_hda_stream *hda_stream;
@@ -126,6 +128,17 @@ int hda_link_dma_cleanup(struct snd_pcm_substream *substream, struct hdac_ext_st
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		stream_tag = hdac_stream(hext_stream)->stream_tag;
 		snd_hdac_ext_bus_link_clear_stream_id(hlink, stream_tag);
+	}
+
+	if (!release) {
+		/*
+		 * Force stream reconfiguration without releasing the channel on
+		 * subsequent stream restart (without free), including LinkDMA
+		 * reset.
+		 * The stream is released via hda_dai_hw_free()
+		 */
+		hext_stream->link_prepared = 0;
+		return 0;
 	}
 
 	if (ops->release_hext_stream)
@@ -211,7 +224,7 @@ static int __maybe_unused hda_dai_hw_free(struct snd_pcm_substream *substream,
 	if (!hext_stream)
 		return 0;
 
-	return hda_link_dma_cleanup(substream, hext_stream, cpu_dai);
+	return hda_link_dma_cleanup(substream, hext_stream, cpu_dai, true);
 }
 
 static int __maybe_unused hda_dai_hw_params_data(struct snd_pcm_substream *substream,
@@ -304,7 +317,8 @@ static int __maybe_unused hda_dai_trigger(struct snd_pcm_substream *substream, i
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
-		ret = hda_link_dma_cleanup(substream, hext_stream, dai);
+		ret = hda_link_dma_cleanup(substream, hext_stream, dai,
+					   cmd == SNDRV_PCM_TRIGGER_STOP ? false : true);
 		if (ret < 0) {
 			dev_err(sdev->dev, "%s: failed to clean up link DMA\n", __func__);
 			return ret;
@@ -574,7 +588,7 @@ int sdw_hda_dai_hw_params(struct snd_pcm_substream *substream,
 	}
 	return 0;
 }
-EXPORT_SYMBOL_NS(sdw_hda_dai_hw_params, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(sdw_hda_dai_hw_params, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 int sdw_hda_dai_hw_free(struct snd_pcm_substream *substream,
 			struct snd_soc_dai *cpu_dai,
@@ -603,14 +617,14 @@ int sdw_hda_dai_hw_free(struct snd_pcm_substream *substream,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(sdw_hda_dai_hw_free, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(sdw_hda_dai_hw_free, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 int sdw_hda_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 			struct snd_soc_dai *cpu_dai)
 {
 	return hda_dai_trigger(substream, cmd, cpu_dai);
 }
-EXPORT_SYMBOL_NS(sdw_hda_dai_trigger, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(sdw_hda_dai_trigger, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 static int hda_dai_suspend(struct hdac_bus *bus)
 {
@@ -660,8 +674,7 @@ static int hda_dai_suspend(struct hdac_bus *bus)
 			}
 
 			ret = hda_link_dma_cleanup(hext_stream->link_substream,
-						   hext_stream,
-						   cpu_dai);
+						   hext_stream, cpu_dai, true);
 			if (ret < 0)
 				return ret;
 		}
@@ -729,7 +742,7 @@ void hda_set_dai_drv_ops(struct snd_sof_dev *sdev, struct snd_sof_dsp_ops *ops)
 		ipc4_data->nhlt = intel_nhlt_init(sdev->dev);
 	}
 }
-EXPORT_SYMBOL_NS(hda_set_dai_drv_ops, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_set_dai_drv_ops, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 void hda_ops_free(struct snd_sof_dev *sdev)
 {
@@ -743,7 +756,7 @@ void hda_ops_free(struct snd_sof_dev *sdev)
 		sdev->private = NULL;
 	}
 }
-EXPORT_SYMBOL_NS(hda_ops_free, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_ops_free, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 /*
  * common dai driver for skl+ platforms.
@@ -895,7 +908,7 @@ struct snd_soc_dai_driver skl_dai[] = {
 },
 #endif
 };
-EXPORT_SYMBOL_NS(skl_dai, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(skl_dai, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 int hda_dsp_dais_suspend(struct snd_sof_dev *sdev)
 {

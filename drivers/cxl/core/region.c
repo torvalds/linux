@@ -1295,6 +1295,7 @@ static int cxl_port_setup_targets(struct cxl_port *port,
 	struct cxl_region_params *p = &cxlr->params;
 	struct cxl_decoder *cxld = cxl_rr->decoder;
 	struct cxl_switch_decoder *cxlsd;
+	struct cxl_port *iter = port;
 	u16 eig, peig;
 	u8 eiw, peiw;
 
@@ -1311,16 +1312,26 @@ static int cxl_port_setup_targets(struct cxl_port *port,
 
 	cxlsd = to_cxl_switch_decoder(&cxld->dev);
 	if (cxl_rr->nr_targets_set) {
-		int i, distance;
+		int i, distance = 1;
+		struct cxl_region_ref *cxl_rr_iter;
 
 		/*
-		 * Passthrough decoders impose no distance requirements between
-		 * peers
+		 * The "distance" between peer downstream ports represents which
+		 * endpoint positions in the region interleave a given port can
+		 * host.
+		 *
+		 * For example, at the root of a hierarchy the distance is
+		 * always 1 as every index targets a different host-bridge. At
+		 * each subsequent switch level those ports map every Nth region
+		 * position where N is the width of the switch == distance.
 		 */
-		if (cxl_rr->nr_targets == 1)
-			distance = 0;
-		else
-			distance = p->nr_targets / cxl_rr->nr_targets;
+		do {
+			cxl_rr_iter = cxl_rr_load(iter, cxlr);
+			distance *= cxl_rr_iter->nr_targets;
+			iter = to_cxl_port(iter->dev.parent);
+		} while (!is_cxl_root(iter));
+		distance *= cxlrd->cxlsd.cxld.interleave_ways;
+
 		for (i = 0; i < cxl_rr->nr_targets_set; i++)
 			if (ep->dport == cxlsd->target[i]) {
 				rc = check_last_peer(cxled, ep, cxl_rr,
@@ -2299,7 +2310,7 @@ bool is_cxl_region(struct device *dev)
 {
 	return dev->type == &cxl_region_type;
 }
-EXPORT_SYMBOL_NS_GPL(is_cxl_region, CXL);
+EXPORT_SYMBOL_NS_GPL(is_cxl_region, "CXL");
 
 static struct cxl_region *to_cxl_region(struct device *dev)
 {
@@ -2652,7 +2663,7 @@ bool is_cxl_pmem_region(struct device *dev)
 {
 	return dev->type == &cxl_pmem_region_type;
 }
-EXPORT_SYMBOL_NS_GPL(is_cxl_pmem_region, CXL);
+EXPORT_SYMBOL_NS_GPL(is_cxl_pmem_region, "CXL");
 
 struct cxl_pmem_region *to_cxl_pmem_region(struct device *dev)
 {
@@ -2661,7 +2672,7 @@ struct cxl_pmem_region *to_cxl_pmem_region(struct device *dev)
 		return NULL;
 	return container_of(dev, struct cxl_pmem_region, dev);
 }
-EXPORT_SYMBOL_NS_GPL(to_cxl_pmem_region, CXL);
+EXPORT_SYMBOL_NS_GPL(to_cxl_pmem_region, "CXL");
 
 struct cxl_poison_context {
 	struct cxl_port *port;
@@ -3015,7 +3026,7 @@ struct cxl_dax_region *to_cxl_dax_region(struct device *dev)
 		return NULL;
 	return container_of(dev, struct cxl_dax_region, dev);
 }
-EXPORT_SYMBOL_NS_GPL(to_cxl_dax_region, CXL);
+EXPORT_SYMBOL_NS_GPL(to_cxl_dax_region, "CXL");
 
 static struct lock_class_key cxl_dax_region_key;
 
@@ -3359,7 +3370,7 @@ out:
 	put_device(cxlrd_dev);
 	return rc;
 }
-EXPORT_SYMBOL_NS_GPL(cxl_add_to_region, CXL);
+EXPORT_SYMBOL_NS_GPL(cxl_add_to_region, "CXL");
 
 static int is_system_ram(struct resource *res, void *arg)
 {
@@ -3462,6 +3473,6 @@ void cxl_region_exit(void)
 	cxl_driver_unregister(&cxl_region_driver);
 }
 
-MODULE_IMPORT_NS(CXL);
-MODULE_IMPORT_NS(DEVMEM);
+MODULE_IMPORT_NS("CXL");
+MODULE_IMPORT_NS("DEVMEM");
 MODULE_ALIAS_CXL(CXL_DEVICE_REGION);

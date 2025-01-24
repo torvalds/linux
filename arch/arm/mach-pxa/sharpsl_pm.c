@@ -919,7 +919,7 @@ static void sharpsl_pm_remove(struct platform_device *pdev)
 
 static struct platform_driver sharpsl_pm_driver = {
 	.probe		= sharpsl_pm_probe,
-	.remove_new	= sharpsl_pm_remove,
+	.remove		= sharpsl_pm_remove,
 	.suspend	= sharpsl_pm_suspend,
 	.resume		= sharpsl_pm_resume,
 	.driver		= {

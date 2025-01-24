@@ -632,7 +632,7 @@ static void imx_ldb_remove(struct platform_device *pdev)
 
 static struct platform_driver imx_ldb_driver = {
 	.probe		= imx_ldb_probe,
-	.remove_new	= imx_ldb_remove,
+	.remove		= imx_ldb_remove,
 	.driver		= {
 		.of_match_table = imx_ldb_dt_ids,
 		.name	= DRIVER_NAME,

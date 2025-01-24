@@ -427,7 +427,7 @@ MODULE_DEVICE_TABLE(of, imx8qxp_pc_dt_ids);
 
 static struct platform_driver imx8qxp_pc_bridge_driver = {
 	.probe	= imx8qxp_pc_bridge_probe,
-	.remove_new = imx8qxp_pc_bridge_remove,
+	.remove = imx8qxp_pc_bridge_remove,
 	.driver	= {
 		.pm = pm_ptr(&imx8qxp_pc_pm_ops),
 		.name = DRIVER_NAME,

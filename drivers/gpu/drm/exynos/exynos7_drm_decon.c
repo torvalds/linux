@@ -874,7 +874,7 @@ static DEFINE_RUNTIME_DEV_PM_OPS(exynos7_decon_pm_ops, exynos7_decon_suspend,
 
 struct platform_driver decon_driver = {
 	.probe		= decon_probe,
-	.remove_new	= decon_remove,
+	.remove		= decon_remove,
 	.driver		= {
 		.name	= "exynos-decon",
 		.pm	= pm_ptr(&exynos7_decon_pm_ops),

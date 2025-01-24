@@ -1355,4 +1355,4 @@ module_i2c_driver(apds9306_driver);
 MODULE_AUTHOR("Subhajit Ghosh <subhajit.ghosh@tweaklogic.com>");
 MODULE_DESCRIPTION("APDS9306 Ambient Light Sensor driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(IIO_GTS_HELPER);
+MODULE_IMPORT_NS("IIO_GTS_HELPER");

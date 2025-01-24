@@ -283,14 +283,14 @@ void max_98373_dai_link(struct device *dev, struct snd_soc_dai_link *link)
 	link->init = max_98373_spk_codec_init;
 	link->ops = &max_98373_ops;
 }
-EXPORT_SYMBOL_NS(max_98373_dai_link, SND_SOC_INTEL_SOF_MAXIM_COMMON);
+EXPORT_SYMBOL_NS(max_98373_dai_link, "SND_SOC_INTEL_SOF_MAXIM_COMMON");
 
 void max_98373_set_codec_conf(struct snd_soc_card *card)
 {
 	card->codec_conf = max_98373_codec_conf;
 	card->num_configs = ARRAY_SIZE(max_98373_codec_conf);
 }
-EXPORT_SYMBOL_NS(max_98373_set_codec_conf, SND_SOC_INTEL_SOF_MAXIM_COMMON);
+EXPORT_SYMBOL_NS(max_98373_set_codec_conf, "SND_SOC_INTEL_SOF_MAXIM_COMMON");
 
 /*
  * Maxim MAX98390
@@ -506,7 +506,7 @@ void max_98390_dai_link(struct device *dev, struct snd_soc_dai_link *link)
 	link->init = max_98390_init;
 	link->ops = &max_98390_ops;
 }
-EXPORT_SYMBOL_NS(max_98390_dai_link, SND_SOC_INTEL_SOF_MAXIM_COMMON);
+EXPORT_SYMBOL_NS(max_98390_dai_link, "SND_SOC_INTEL_SOF_MAXIM_COMMON");
 
 void max_98390_set_codec_conf(struct device *dev, struct snd_soc_card *card)
 {
@@ -529,7 +529,7 @@ void max_98390_set_codec_conf(struct device *dev, struct snd_soc_card *card)
 		break;
 	}
 }
-EXPORT_SYMBOL_NS(max_98390_set_codec_conf, SND_SOC_INTEL_SOF_MAXIM_COMMON);
+EXPORT_SYMBOL_NS(max_98390_set_codec_conf, "SND_SOC_INTEL_SOF_MAXIM_COMMON");
 
 /*
  * Maxim MAX98357A/MAX98360A
@@ -596,7 +596,7 @@ void max_98357a_dai_link(struct snd_soc_dai_link *link)
 	link->num_codecs = ARRAY_SIZE(max_98357a_components);
 	link->init = max_98357a_init;
 }
-EXPORT_SYMBOL_NS(max_98357a_dai_link, SND_SOC_INTEL_SOF_MAXIM_COMMON);
+EXPORT_SYMBOL_NS(max_98357a_dai_link, "SND_SOC_INTEL_SOF_MAXIM_COMMON");
 
 void max_98360a_dai_link(struct snd_soc_dai_link *link)
 {
@@ -604,7 +604,7 @@ void max_98360a_dai_link(struct snd_soc_dai_link *link)
 	link->num_codecs = ARRAY_SIZE(max_98360a_components);
 	link->init = max_98357a_init;
 }
-EXPORT_SYMBOL_NS(max_98360a_dai_link, SND_SOC_INTEL_SOF_MAXIM_COMMON);
+EXPORT_SYMBOL_NS(max_98360a_dai_link, "SND_SOC_INTEL_SOF_MAXIM_COMMON");
 
 MODULE_DESCRIPTION("ASoC Intel SOF Maxim helpers");
 MODULE_LICENSE("GPL");

@@ -352,7 +352,7 @@ static int riic_init_hw(struct riic_dev *riic)
 		if (brl <= (0x1F + 3))
 			break;
 
-		total_ticks /= 2;
+		total_ticks = DIV_ROUND_UP(total_ticks, 2);
 		rate /= 2;
 	}
 

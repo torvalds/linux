@@ -1173,6 +1173,8 @@ EXPORT_SYMBOL(ceph_osdc_new_request);
 
 int __ceph_alloc_sparse_ext_map(struct ceph_osd_req_op *op, int cnt)
 {
+	WARN_ON(op->op != CEPH_OSD_OP_SPARSE_READ);
+
 	op->extent.sparse_ext_cnt = cnt;
 	op->extent.sparse_ext = kmalloc_array(cnt,
 					      sizeof(*op->extent.sparse_ext),

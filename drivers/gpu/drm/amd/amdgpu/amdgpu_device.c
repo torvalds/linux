@@ -145,7 +145,7 @@ const char *amdgpu_asic_name[] = {
 	"LAST",
 };
 
-#define AMDGPU_IP_BLK_MASK_ALL GENMASK(AMDGPU_MAX_IP_NUM - 1, 0)
+#define AMDGPU_IP_BLK_MASK_ALL GENMASK(AMD_IP_BLOCK_TYPE_NUM  - 1, 0)
 /*
  * Default init level where all blocks are expected to be initialized. This is
  * the level of initialization expected by default and also after a full reset
@@ -416,6 +416,9 @@ bool amdgpu_device_supports_px(struct drm_device *dev)
 bool amdgpu_device_supports_boco(struct drm_device *dev)
 {
 	struct amdgpu_device *adev = drm_to_adev(dev);
+
+	if (!IS_ENABLED(CONFIG_HOTPLUG_PCI_PCIE))
+		return false;
 
 	if (adev->has_pr3 ||
 	    ((adev->flags & AMD_IS_PX) && amdgpu_is_atpx_hybrid()))
@@ -3670,9 +3673,11 @@ static int amdgpu_device_ip_reinit_early_sriov(struct amdgpu_device *adev)
 				continue;
 
 			r = block->version->funcs->hw_init(&adev->ip_blocks[i]);
-			DRM_INFO("RE-INIT-early: %s %s\n", block->version->funcs->name, r?"failed":"succeeded");
-			if (r)
+			if (r) {
+				dev_err(adev->dev, "RE-INIT-early: %s failed\n",
+					 block->version->funcs->name);
 				return r;
+			}
 			block->status.hw = true;
 		}
 	}
@@ -3682,7 +3687,8 @@ static int amdgpu_device_ip_reinit_early_sriov(struct amdgpu_device *adev)
 
 static int amdgpu_device_ip_reinit_late_sriov(struct amdgpu_device *adev)
 {
-	int i, r;
+	struct amdgpu_ip_block *block;
+	int i, r = 0;
 
 	static enum amd_ip_block_type ip_order[] = {
 		AMD_IP_BLOCK_TYPE_SMC,
@@ -3697,34 +3703,28 @@ static int amdgpu_device_ip_reinit_late_sriov(struct amdgpu_device *adev)
 	};
 
 	for (i = 0; i < ARRAY_SIZE(ip_order); i++) {
-		int j;
-		struct amdgpu_ip_block *block;
+		block = amdgpu_device_ip_get_ip_block(adev, ip_order[i]);
 
-		for (j = 0; j < adev->num_ip_blocks; j++) {
-			block = &adev->ip_blocks[j];
+		if (!block)
+			continue;
 
-			if (block->version->type != ip_order[i] ||
-				!block->status.valid ||
-				block->status.hw)
-				continue;
-
+		if (block->status.valid && !block->status.hw) {
 			if (block->version->type == AMD_IP_BLOCK_TYPE_SMC) {
-				r = amdgpu_ip_block_resume(&adev->ip_blocks[i]);
-				if (r)
-					return r;
+				r = amdgpu_ip_block_resume(block);
 			} else {
-				r = block->version->funcs->hw_init(&adev->ip_blocks[i]);
-				if (r) {
-					DRM_ERROR("hw_init of IP block <%s> failed %d\n",
-						  adev->ip_blocks[i].version->funcs->name, r);
-					return r;
-				}
-				block->status.hw = true;
+				r = block->version->funcs->hw_init(block);
 			}
+
+			if (r) {
+				dev_err(adev->dev, "RE-INIT-late: %s failed\n",
+					 block->version->funcs->name);
+				break;
+			}
+			block->status.hw = true;
 		}
 	}
 
-	return 0;
+	return r;
 }
 
 /**
@@ -3765,7 +3765,7 @@ static int amdgpu_device_ip_resume_phase1(struct amdgpu_device *adev)
  *
  * @adev: amdgpu_device pointer
  *
- * First resume function for hardware IPs.  The list of all the hardware
+ * Second resume function for hardware IPs.  The list of all the hardware
  * IPs that make up the asic is walked and the resume callbacks are run for
  * all blocks except COMMON, GMC, and IH.  resume puts the hardware into a
  * functional state after a suspend and updates the software state as
@@ -3783,11 +3783,42 @@ static int amdgpu_device_ip_resume_phase2(struct amdgpu_device *adev)
 		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_COMMON ||
 		    adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_GMC ||
 		    adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_IH ||
+		    adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_DCE ||
 		    adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_PSP)
 			continue;
 		r = amdgpu_ip_block_resume(&adev->ip_blocks[i]);
 		if (r)
 			return r;
+	}
+
+	return 0;
+}
+
+/**
+ * amdgpu_device_ip_resume_phase3 - run resume for hardware IPs
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Third resume function for hardware IPs.  The list of all the hardware
+ * IPs that make up the asic is walked and the resume callbacks are run for
+ * all DCE.  resume puts the hardware into a functional state after a suspend
+ * and updates the software state as necessary.  This function is also used
+ * for restoring the GPU after a GPU reset.
+ *
+ * Returns 0 on success, negative error code on failure.
+ */
+static int amdgpu_device_ip_resume_phase3(struct amdgpu_device *adev)
+{
+	int i, r;
+
+	for (i = 0; i < adev->num_ip_blocks; i++) {
+		if (!adev->ip_blocks[i].status.valid || adev->ip_blocks[i].status.hw)
+			continue;
+		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_DCE) {
+			r = amdgpu_ip_block_resume(&adev->ip_blocks[i]);
+			if (r)
+				return r;
+		}
 	}
 
 	return 0;
@@ -3821,6 +3852,13 @@ static int amdgpu_device_ip_resume(struct amdgpu_device *adev)
 
 	if (adev->mman.buffer_funcs_ring->sched.ready)
 		amdgpu_ttm_set_buffer_funcs_status(adev, true);
+
+	if (r)
+		return r;
+
+	amdgpu_fence_driver_hw_init(adev);
+
+	r = amdgpu_device_ip_resume_phase3(adev);
 
 	return r;
 }
@@ -4902,7 +4940,6 @@ int amdgpu_device_resume(struct drm_device *dev, bool notify_clients)
 		dev_err(adev->dev, "amdgpu_device_ip_resume failed (%d).\n", r);
 		goto exit;
 	}
-	amdgpu_fence_driver_hw_init(adev);
 
 	if (!adev->in_s0ix) {
 		r = amdgpu_amdkfd_resume(adev, adev->in_runpm);
@@ -5486,6 +5523,10 @@ int amdgpu_device_reinit_after_reset(struct amdgpu_reset_context *reset_context)
 
 				if (tmp_adev->mman.buffer_funcs_ring->sched.ready)
 					amdgpu_ttm_set_buffer_funcs_status(tmp_adev, true);
+
+				r = amdgpu_device_ip_resume_phase3(tmp_adev);
+				if (r)
+					goto out;
 
 				if (vram_lost)
 					amdgpu_device_fill_reset_magic(tmp_adev);

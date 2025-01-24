@@ -847,8 +847,7 @@ static inline bool system_supports_poe(void)
 
 static inline bool system_supports_gcs(void)
 {
-	return IS_ENABLED(CONFIG_ARM64_GCS) &&
-		alternative_has_cap_unlikely(ARM64_HAS_GCS);
+	return alternative_has_cap_unlikely(ARM64_HAS_GCS);
 }
 
 static inline bool system_supports_haft(void)

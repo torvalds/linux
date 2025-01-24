@@ -327,7 +327,7 @@ static int netkit_validate(struct nlattr *tb[], struct nlattr *data[],
 
 static struct rtnl_link_ops netkit_link_ops;
 
-static int netkit_new_link(struct net *src_net, struct net_device *dev,
+static int netkit_new_link(struct net *peer_net, struct net_device *dev,
 			   struct nlattr *tb[], struct nlattr *data[],
 			   struct netlink_ext_ack *extack)
 {
@@ -342,7 +342,6 @@ static int netkit_new_link(struct net *src_net, struct net_device *dev,
 	struct net_device *peer;
 	char ifname[IFNAMSIZ];
 	struct netkit *nk;
-	struct net *net;
 	int err;
 
 	if (data) {
@@ -385,13 +384,10 @@ static int netkit_new_link(struct net *src_net, struct net_device *dev,
 	    (tb[IFLA_ADDRESS] || tbp[IFLA_ADDRESS]))
 		return -EOPNOTSUPP;
 
-	net = rtnl_link_get_net(src_net, tbp);
-	peer = rtnl_create_link(net, ifname, ifname_assign_type,
+	peer = rtnl_create_link(peer_net, ifname, ifname_assign_type,
 				&netkit_link_ops, tbp, extack);
-	if (IS_ERR(peer)) {
-		put_net(net);
+	if (IS_ERR(peer))
 		return PTR_ERR(peer);
-	}
 
 	netif_inherit_tso_max(peer, dev);
 
@@ -408,7 +404,6 @@ static int netkit_new_link(struct net *src_net, struct net_device *dev,
 	bpf_mprog_bundle_init(&nk->bundle);
 
 	err = register_netdevice(peer);
-	put_net(net);
 	if (err < 0)
 		goto err_register_peer;
 	netif_carrier_off(peer);

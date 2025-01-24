@@ -128,7 +128,7 @@ int peci_request_status(struct peci_request *req)
 
 	return -EIO;
 }
-EXPORT_SYMBOL_NS_GPL(peci_request_status, PECI);
+EXPORT_SYMBOL_NS_GPL(peci_request_status, "PECI");
 
 static int peci_request_xfer(struct peci_request *req)
 {
@@ -213,7 +213,7 @@ struct peci_request *peci_request_alloc(struct peci_device *device, u8 tx_len, u
 
 	return req;
 }
-EXPORT_SYMBOL_NS_GPL(peci_request_alloc, PECI);
+EXPORT_SYMBOL_NS_GPL(peci_request_alloc, "PECI");
 
 /**
  * peci_request_free() - free peci_request
@@ -223,7 +223,7 @@ void peci_request_free(struct peci_request *req)
 {
 	kfree(req);
 }
-EXPORT_SYMBOL_NS_GPL(peci_request_free, PECI);
+EXPORT_SYMBOL_NS_GPL(peci_request_free, "PECI");
 
 struct peci_request *peci_xfer_get_dib(struct peci_device *device)
 {
@@ -244,7 +244,7 @@ struct peci_request *peci_xfer_get_dib(struct peci_device *device)
 
 	return req;
 }
-EXPORT_SYMBOL_NS_GPL(peci_xfer_get_dib, PECI);
+EXPORT_SYMBOL_NS_GPL(peci_xfer_get_dib, "PECI");
 
 struct peci_request *peci_xfer_get_temp(struct peci_device *device)
 {
@@ -265,7 +265,7 @@ struct peci_request *peci_xfer_get_temp(struct peci_device *device)
 
 	return req;
 }
-EXPORT_SYMBOL_NS_GPL(peci_xfer_get_temp, PECI);
+EXPORT_SYMBOL_NS_GPL(peci_xfer_get_temp, "PECI");
 
 static struct peci_request *
 __pkg_cfg_read(struct peci_device *device, u8 index, u16 param, u8 len)
@@ -397,44 +397,44 @@ u8 peci_request_data_readb(struct peci_request *req)
 {
 	return req->rx.buf[1];
 }
-EXPORT_SYMBOL_NS_GPL(peci_request_data_readb, PECI);
+EXPORT_SYMBOL_NS_GPL(peci_request_data_readb, "PECI");
 
 u16 peci_request_data_readw(struct peci_request *req)
 {
 	return get_unaligned_le16(&req->rx.buf[1]);
 }
-EXPORT_SYMBOL_NS_GPL(peci_request_data_readw, PECI);
+EXPORT_SYMBOL_NS_GPL(peci_request_data_readw, "PECI");
 
 u32 peci_request_data_readl(struct peci_request *req)
 {
 	return get_unaligned_le32(&req->rx.buf[1]);
 }
-EXPORT_SYMBOL_NS_GPL(peci_request_data_readl, PECI);
+EXPORT_SYMBOL_NS_GPL(peci_request_data_readl, "PECI");
 
 u64 peci_request_data_readq(struct peci_request *req)
 {
 	return get_unaligned_le64(&req->rx.buf[1]);
 }
-EXPORT_SYMBOL_NS_GPL(peci_request_data_readq, PECI);
+EXPORT_SYMBOL_NS_GPL(peci_request_data_readq, "PECI");
 
 u64 peci_request_dib_read(struct peci_request *req)
 {
 	return get_unaligned_le64(&req->rx.buf[0]);
 }
-EXPORT_SYMBOL_NS_GPL(peci_request_dib_read, PECI);
+EXPORT_SYMBOL_NS_GPL(peci_request_dib_read, "PECI");
 
 s16 peci_request_temp_read(struct peci_request *req)
 {
 	return get_unaligned_le16(&req->rx.buf[0]);
 }
-EXPORT_SYMBOL_NS_GPL(peci_request_temp_read, PECI);
+EXPORT_SYMBOL_NS_GPL(peci_request_temp_read, "PECI");
 
 #define __read_pkg_config(x, type) \
 struct peci_request *peci_xfer_pkg_cfg_##x(struct peci_device *device, u8 index, u16 param) \
 { \
 	return __pkg_cfg_read(device, index, param, sizeof(type)); \
 } \
-EXPORT_SYMBOL_NS_GPL(peci_xfer_pkg_cfg_##x, PECI)
+EXPORT_SYMBOL_NS_GPL(peci_xfer_pkg_cfg_##x, "PECI")
 
 __read_pkg_config(readb, u8);
 __read_pkg_config(readw, u16);
@@ -447,7 +447,7 @@ peci_xfer_pci_cfg_local_##x(struct peci_device *device, u8 bus, u8 dev, u8 func,
 { \
 	return __pci_cfg_local_read(device, bus, dev, func, reg, sizeof(type)); \
 } \
-EXPORT_SYMBOL_NS_GPL(peci_xfer_pci_cfg_local_##x, PECI)
+EXPORT_SYMBOL_NS_GPL(peci_xfer_pci_cfg_local_##x, "PECI")
 
 __read_pci_config_local(readb, u8);
 __read_pci_config_local(readw, u16);
@@ -459,7 +459,7 @@ peci_xfer_ep_pci_cfg_##x(struct peci_device *device, u8 seg, u8 bus, u8 dev, u8 
 { \
 	return __ep_pci_cfg_read(device, msg_type, seg, bus, dev, func, reg, sizeof(type)); \
 } \
-EXPORT_SYMBOL_NS_GPL(peci_xfer_ep_pci_cfg_##x, PECI)
+EXPORT_SYMBOL_NS_GPL(peci_xfer_ep_pci_cfg_##x, "PECI")
 
 __read_ep_pci_config(local_readb, PECI_ENDPTCFG_TYPE_LOCAL_PCI, u8);
 __read_ep_pci_config(local_readw, PECI_ENDPTCFG_TYPE_LOCAL_PCI, u16);
@@ -476,7 +476,7 @@ struct peci_request *peci_xfer_ep_mmio##y##_##x(struct peci_device *device, u8 b
 			      offset, PECI_RDENDPTCFG_MMIO_WR_LEN_BASE + sizeof(type1), \
 			      sizeof(type2)); \
 } \
-EXPORT_SYMBOL_NS_GPL(peci_xfer_ep_mmio##y##_##x, PECI)
+EXPORT_SYMBOL_NS_GPL(peci_xfer_ep_mmio##y##_##x, "PECI")
 
 __read_ep_mmio(readl, 32, PECI_ENDPTCFG_ADDR_TYPE_MMIO_D, u32, u32);
 __read_ep_mmio(readl, 64, PECI_ENDPTCFG_ADDR_TYPE_MMIO_Q, u64, u32);

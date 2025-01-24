@@ -22,7 +22,7 @@
 
 #include "gpio-i8255.h"
 
-MODULE_IMPORT_NS(I8255);
+MODULE_IMPORT_NS("I8255");
 
 #define DIO48E_EXTENT 16
 #define MAX_NUM_DIO48E max_num_isa_dev(DIO48E_EXTENT)
@@ -339,4 +339,4 @@ module_isa_driver_with_irq(dio48e_driver, num_dio48e, num_irq);
 MODULE_AUTHOR("William Breathitt Gray <vilhelm.gray@gmail.com>");
 MODULE_DESCRIPTION("ACCES 104-DIO-48E GPIO driver");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(I8254);
+MODULE_IMPORT_NS("I8254");

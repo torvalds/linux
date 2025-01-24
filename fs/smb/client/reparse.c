@@ -676,7 +676,7 @@ static int parse_reparse_wsl_symlink(struct reparse_wsl_symlink_data_buffer *buf
 		return -ENOMEM;
 	symname_utf16_len = utf8s_to_utf16s(buf->PathBuffer, symname_utf8_len,
 					    UTF16_LITTLE_ENDIAN,
-					    symname_utf16, symname_utf8_len * 2);
+					    (wchar_t *) symname_utf16, symname_utf8_len * 2);
 	if (symname_utf16_len < 0) {
 		kfree(symname_utf16);
 		return symname_utf16_len;
@@ -803,44 +803,60 @@ out:
 	fattr->cf_dtype = S_DT(fattr->cf_mode);
 }
 
+static bool posix_reparse_to_fattr(struct cifs_sb_info *cifs_sb,
+				   struct cifs_fattr *fattr,
+				   struct cifs_open_info_data *data)
+{
+	struct reparse_posix_data *buf = data->reparse.posix;
+
+
+	if (buf == NULL)
+		return true;
+
+	if (le16_to_cpu(buf->ReparseDataLength) < sizeof(buf->InodeType)) {
+		WARN_ON_ONCE(1);
+		return false;
+	}
+
+	switch (le64_to_cpu(buf->InodeType)) {
+	case NFS_SPECFILE_CHR:
+		if (le16_to_cpu(buf->ReparseDataLength) != sizeof(buf->InodeType) + 8) {
+			WARN_ON_ONCE(1);
+			return false;
+		}
+		fattr->cf_mode |= S_IFCHR;
+		fattr->cf_rdev = reparse_mkdev(buf->DataBuffer);
+		break;
+	case NFS_SPECFILE_BLK:
+		if (le16_to_cpu(buf->ReparseDataLength) != sizeof(buf->InodeType) + 8) {
+			WARN_ON_ONCE(1);
+			return false;
+		}
+		fattr->cf_mode |= S_IFBLK;
+		fattr->cf_rdev = reparse_mkdev(buf->DataBuffer);
+		break;
+	case NFS_SPECFILE_FIFO:
+		fattr->cf_mode |= S_IFIFO;
+		break;
+	case NFS_SPECFILE_SOCK:
+		fattr->cf_mode |= S_IFSOCK;
+		break;
+	case NFS_SPECFILE_LNK:
+		fattr->cf_mode |= S_IFLNK;
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		return false;
+	}
+	return true;
+}
+
 bool cifs_reparse_point_to_fattr(struct cifs_sb_info *cifs_sb,
 				 struct cifs_fattr *fattr,
 				 struct cifs_open_info_data *data)
 {
-	struct reparse_posix_data *buf = data->reparse.posix;
 	u32 tag = data->reparse.tag;
-
-	if (tag == IO_REPARSE_TAG_NFS && buf) {
-		if (le16_to_cpu(buf->ReparseDataLength) < sizeof(buf->InodeType))
-			return false;
-		switch (le64_to_cpu(buf->InodeType)) {
-		case NFS_SPECFILE_CHR:
-			if (le16_to_cpu(buf->ReparseDataLength) != sizeof(buf->InodeType) + 8)
-				return false;
-			fattr->cf_mode |= S_IFCHR;
-			fattr->cf_rdev = reparse_mkdev(buf->DataBuffer);
-			break;
-		case NFS_SPECFILE_BLK:
-			if (le16_to_cpu(buf->ReparseDataLength) != sizeof(buf->InodeType) + 8)
-				return false;
-			fattr->cf_mode |= S_IFBLK;
-			fattr->cf_rdev = reparse_mkdev(buf->DataBuffer);
-			break;
-		case NFS_SPECFILE_FIFO:
-			fattr->cf_mode |= S_IFIFO;
-			break;
-		case NFS_SPECFILE_SOCK:
-			fattr->cf_mode |= S_IFSOCK;
-			break;
-		case NFS_SPECFILE_LNK:
-			fattr->cf_mode |= S_IFLNK;
-			break;
-		default:
-			WARN_ON_ONCE(1);
-			return false;
-		}
-		goto out;
-	}
+	bool ok;
 
 	switch (tag) {
 	case IO_REPARSE_TAG_INTERNAL:
@@ -860,15 +876,19 @@ bool cifs_reparse_point_to_fattr(struct cifs_sb_info *cifs_sb,
 	case IO_REPARSE_TAG_LX_BLK:
 		wsl_to_fattr(data, cifs_sb, tag, fattr);
 		break;
+	case IO_REPARSE_TAG_NFS:
+		ok = posix_reparse_to_fattr(cifs_sb, fattr, data);
+		if (!ok)
+			return false;
+		break;
 	case 0: /* SMB1 symlink */
 	case IO_REPARSE_TAG_SYMLINK:
-	case IO_REPARSE_TAG_NFS:
 		fattr->cf_mode |= S_IFLNK;
 		break;
 	default:
 		return false;
 	}
-out:
+
 	fattr->cf_dtype = S_DT(fattr->cf_mode);
 	return true;
 }

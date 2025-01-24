@@ -46,7 +46,7 @@ int st_sensors_debugfs_reg_access(struct iio_dev *indio_dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(st_sensors_debugfs_reg_access, IIO_ST_SENSORS);
+EXPORT_SYMBOL_NS(st_sensors_debugfs_reg_access, "IIO_ST_SENSORS");
 
 static int st_sensors_match_odr(struct st_sensor_settings *sensor_settings,
 			unsigned int odr, struct st_sensor_odr_avl *odr_out)
@@ -110,7 +110,7 @@ unlock_mutex:
 
 	return err;
 }
-EXPORT_SYMBOL_NS(st_sensors_set_odr, IIO_ST_SENSORS);
+EXPORT_SYMBOL_NS(st_sensors_set_odr, "IIO_ST_SENSORS");
 
 static int st_sensors_match_fs(struct st_sensor_settings *sensor_settings,
 					unsigned int fs, int *index_fs_avl)
@@ -203,7 +203,7 @@ int st_sensors_set_enable(struct iio_dev *indio_dev, bool enable)
 set_enable_error:
 	return err;
 }
-EXPORT_SYMBOL_NS(st_sensors_set_enable, IIO_ST_SENSORS);
+EXPORT_SYMBOL_NS(st_sensors_set_enable, "IIO_ST_SENSORS");
 
 int st_sensors_set_axis_enable(struct iio_dev *indio_dev, u8 axis_enable)
 {
@@ -217,7 +217,7 @@ int st_sensors_set_axis_enable(struct iio_dev *indio_dev, u8 axis_enable)
 				axis_enable);
 	return err;
 }
-EXPORT_SYMBOL_NS(st_sensors_set_axis_enable, IIO_ST_SENSORS);
+EXPORT_SYMBOL_NS(st_sensors_set_axis_enable, "IIO_ST_SENSORS");
 
 
 int st_sensors_power_enable(struct iio_dev *indio_dev)
@@ -236,7 +236,7 @@ int st_sensors_power_enable(struct iio_dev *indio_dev)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(st_sensors_power_enable, IIO_ST_SENSORS);
+EXPORT_SYMBOL_NS(st_sensors_power_enable, "IIO_ST_SENSORS");
 
 static int st_sensors_set_drdy_int_pin(struct iio_dev *indio_dev,
 					struct st_sensors_platform_data *pdata)
@@ -331,7 +331,7 @@ void st_sensors_dev_name_probe(struct device *dev, char *name, int len)
 	/* The name from the match takes precedence if present */
 	strscpy(name, match, len);
 }
-EXPORT_SYMBOL_NS(st_sensors_dev_name_probe, IIO_ST_SENSORS);
+EXPORT_SYMBOL_NS(st_sensors_dev_name_probe, "IIO_ST_SENSORS");
 
 int st_sensors_init_sensor(struct iio_dev *indio_dev,
 					struct st_sensors_platform_data *pdata)
@@ -418,7 +418,7 @@ int st_sensors_init_sensor(struct iio_dev *indio_dev,
 
 	return err;
 }
-EXPORT_SYMBOL_NS(st_sensors_init_sensor, IIO_ST_SENSORS);
+EXPORT_SYMBOL_NS(st_sensors_init_sensor, "IIO_ST_SENSORS");
 
 int st_sensors_set_dataready_irq(struct iio_dev *indio_dev, bool enable)
 {
@@ -467,7 +467,7 @@ int st_sensors_set_dataready_irq(struct iio_dev *indio_dev, bool enable)
 st_accel_set_dataready_irq_error:
 	return err;
 }
-EXPORT_SYMBOL_NS(st_sensors_set_dataready_irq, IIO_ST_SENSORS);
+EXPORT_SYMBOL_NS(st_sensors_set_dataready_irq, "IIO_ST_SENSORS");
 
 int st_sensors_set_fullscale_by_gain(struct iio_dev *indio_dev, int scale)
 {
@@ -490,7 +490,7 @@ int st_sensors_set_fullscale_by_gain(struct iio_dev *indio_dev, int scale)
 st_sensors_match_scale_error:
 	return err;
 }
-EXPORT_SYMBOL_NS(st_sensors_set_fullscale_by_gain, IIO_ST_SENSORS);
+EXPORT_SYMBOL_NS(st_sensors_set_fullscale_by_gain, "IIO_ST_SENSORS");
 
 static int st_sensors_read_axis_data(struct iio_dev *indio_dev,
 				     struct iio_chan_spec const *ch, int *data)
@@ -555,7 +555,7 @@ out:
 
 	return err;
 }
-EXPORT_SYMBOL_NS(st_sensors_read_info_raw, IIO_ST_SENSORS);
+EXPORT_SYMBOL_NS(st_sensors_read_info_raw, "IIO_ST_SENSORS");
 
 /*
  * st_sensors_get_settings_index() - get index of the sensor settings for a
@@ -582,7 +582,7 @@ int st_sensors_get_settings_index(const char *name,
 
 	return -ENODEV;
 }
-EXPORT_SYMBOL_NS(st_sensors_get_settings_index, IIO_ST_SENSORS);
+EXPORT_SYMBOL_NS(st_sensors_get_settings_index, "IIO_ST_SENSORS");
 
 /*
  * st_sensors_verify_id() - verify sensor ID (WhoAmI) is matching with the
@@ -614,7 +614,7 @@ int st_sensors_verify_id(struct iio_dev *indio_dev)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(st_sensors_verify_id, IIO_ST_SENSORS);
+EXPORT_SYMBOL_NS(st_sensors_verify_id, "IIO_ST_SENSORS");
 
 ssize_t st_sensors_sysfs_sampling_frequency_avail(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -634,7 +634,7 @@ ssize_t st_sensors_sysfs_sampling_frequency_avail(struct device *dev,
 
 	return len;
 }
-EXPORT_SYMBOL_NS(st_sensors_sysfs_sampling_frequency_avail, IIO_ST_SENSORS);
+EXPORT_SYMBOL_NS(st_sensors_sysfs_sampling_frequency_avail, "IIO_ST_SENSORS");
 
 ssize_t st_sensors_sysfs_scale_avail(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -656,7 +656,7 @@ ssize_t st_sensors_sysfs_scale_avail(struct device *dev,
 
 	return len;
 }
-EXPORT_SYMBOL_NS(st_sensors_sysfs_scale_avail, IIO_ST_SENSORS);
+EXPORT_SYMBOL_NS(st_sensors_sysfs_scale_avail, "IIO_ST_SENSORS");
 
 MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");
 MODULE_DESCRIPTION("STMicroelectronics ST-sensors core");
