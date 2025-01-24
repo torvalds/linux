@@ -1973,6 +1973,7 @@ int ath12k_wmi_bcn_tmpl(struct ath12k_link_vif *arvif,
 		cmd->ext_csa_switch_count_offset =
 				cpu_to_le32(offs->cntdwn_counter_offs[1]);
 		cmd->csa_event_bitmap = cpu_to_le32(0xFFFFFFFF);
+		arvif->current_cntdown_counter = bcn->data[offs->cntdwn_counter_offs[0]];
 	}
 
 	cmd->buf_len = cpu_to_le32(bcn->len);
@@ -7532,10 +7533,22 @@ ath12k_wmi_process_csa_switch_count_event(struct ath12k_base *ab,
 			continue;
 
 		/* Finish CSA when counter reaches zero */
-		if (!current_switch_count)
+		if (!current_switch_count) {
 			ieee80211_csa_finish(ahvif->vif, arvif->link_id);
-		else if (current_switch_count > 1)
-			ieee80211_beacon_update_cntdwn(ahvif->vif, arvif->link_id);
+			arvif->current_cntdown_counter = 0;
+		} else if (current_switch_count > 1) {
+			/* If the count in event is not what we expect, don't update the
+			 * mac80211 count. Since during beacon Tx failure, count in the
+			 * firmware will not decrement and this event will come with the
+			 * previous count value again
+			 */
+			if (current_switch_count != arvif->current_cntdown_counter)
+				continue;
+
+			arvif->current_cntdown_counter =
+				ieee80211_beacon_update_cntdwn(ahvif->vif,
+							       arvif->link_id);
+		}
 	}
 	rcu_read_unlock();
 }
