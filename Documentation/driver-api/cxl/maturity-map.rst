@@ -130,7 +130,7 @@ Mailbox commands
 * [0] Switch CCI
 * [3] Timestamp
 * [1] PMEM labels
-* [0] PMEM GPF / Dirty Shutdown
+* [1] PMEM GPF / Dirty Shutdown
 * [0] Scan Media
 
 PMU
