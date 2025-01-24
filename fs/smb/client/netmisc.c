@@ -775,10 +775,10 @@ cifs_print_status(__u32 status_code)
 	int idx = 0;
 
 	while (nt_errs[idx].nt_errstr != NULL) {
-		if (((nt_errs[idx].nt_errcode) & 0xFFFFFF) ==
-		    (status_code & 0xFFFFFF)) {
+		if (nt_errs[idx].nt_errcode == status_code) {
 			pr_notice("Status code returned 0x%08x %s\n",
 				  status_code, nt_errs[idx].nt_errstr);
+			return;
 		}
 		idx++;
 	}

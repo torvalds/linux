@@ -2392,6 +2392,13 @@ cifs_do_rename(const unsigned int xid, struct dentry *from_dentry,
 	if (to_dentry->d_parent != from_dentry->d_parent)
 		goto do_rename_exit;
 
+	/*
+	 * CIFSSMBRenameOpenFile() uses SMB_SET_FILE_RENAME_INFORMATION
+	 * which is SMB PASSTHROUGH level.
+	 */
+	if (!(tcon->ses->capabilities & CAP_INFOLEVEL_PASSTHRU))
+		goto do_rename_exit;
+
 	oparms = (struct cifs_open_parms) {
 		.tcon = tcon,
 		.cifs_sb = cifs_sb,

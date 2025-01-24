@@ -811,23 +811,15 @@ struct TCP_Server_Info {
 	bool use_swn_dstaddr;
 	struct sockaddr_storage swn_dstaddr;
 #endif
-	struct mutex refpath_lock; /* protects leaf_fullpath */
 	/*
-	 * leaf_fullpath: Canonical DFS referral path related to this
-	 *                connection.
-	 *                It is used in DFS cache refresher, reconnect and may
-	 *                change due to nested DFS links.
-	 *
-	 * Protected by @refpath_lock and @srv_lock.  The @refpath_lock is
-	 * mostly used for not requiring a copy of @leaf_fullpath when getting
-	 * cached or new DFS referrals (which might also sleep during I/O).
-	 * While @srv_lock is held for making string and NULL comparisons against
-	 * both fields as in mount(2) and cache refresh.
+	 * Canonical DFS referral path used in cifs_reconnect() for failover as
+	 * well as in DFS cache refresher.
 	 *
 	 * format: \\HOST\SHARE[\OPTIONAL PATH]
 	 */
 	char *leaf_fullpath;
 	bool dfs_conn:1;
+	char dns_dom[CIFS_MAX_DOMAINNAME_LEN + 1];
 };
 
 static inline bool is_smb1(struct TCP_Server_Info *server)
@@ -1154,6 +1146,7 @@ struct cifs_ses {
 	/* ========= end: protected by chan_lock ======== */
 	struct cifs_ses *dfs_root_ses;
 	struct nls_table *local_nls;
+	char *dns_dom; /* FQDN of the domain */
 };
 
 static inline bool
@@ -2308,6 +2301,26 @@ static inline bool cifs_ses_exiting(struct cifs_ses *ses)
 	spin_lock(&ses->ses_lock);
 	ret = ses->ses_status == SES_EXITING;
 	spin_unlock(&ses->ses_lock);
+	return ret;
+}
+
+static inline bool cifs_netbios_name(const char *name, size_t namelen)
+{
+	bool ret = false;
+	size_t i;
+
+	if (namelen >= 1 && namelen <= RFC1001_NAME_LEN) {
+		for (i = 0; i < namelen; i++) {
+			const unsigned char c = name[i];
+
+			if (c == '\\' || c == '/' || c == ':' || c == '*' ||
+			    c == '?' || c == '"' || c == '<' || c == '>' ||
+			    c == '|' || c == '.')
+				return false;
+			if (!ret && isalpha(c))
+				ret = true;
+		}
+	}
 	return ret;
 }
 

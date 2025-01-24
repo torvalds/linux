@@ -295,6 +295,7 @@ struct smb3_fs_context {
 	bool dfs_automount:1; /* set for dfs automount only */
 	enum cifs_reparse_type reparse_type;
 	bool dfs_conn:1; /* set for dfs mounts */
+	char *dns_dom;
 };
 
 extern const struct fs_parameter_spec smb3_fs_parameters[];
