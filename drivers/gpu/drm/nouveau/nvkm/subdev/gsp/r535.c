@@ -63,6 +63,51 @@ extern struct dentry *nouveau_debugfs_root;
 #define GSP_MSG_MIN_SIZE GSP_PAGE_SIZE
 #define GSP_MSG_MAX_SIZE GSP_PAGE_MIN_SIZE * 16
 
+/**
+ * DOC: GSP message queue element
+ *
+ * https://github.com/NVIDIA/open-gpu-kernel-modules/blob/535/src/nvidia/inc/kernel/gpu/gsp/message_queue_priv.h
+ *
+ * The GSP command queue and status queue are message queues for the
+ * communication between software and GSP. The software submits the GSP
+ * RPC via the GSP command queue, GSP writes the status of the submitted
+ * RPC in the status queue.
+ *
+ * A GSP message queue element consists of three parts:
+ *
+ * - message element header (struct r535_gsp_msg), which mostly maintains
+ *   the metadata for queuing the element.
+ *
+ * - RPC message header (struct nvfw_gsp_rpc), which maintains the info
+ *   of the RPC. E.g., the RPC function number.
+ *
+ * - The payload, where the RPC message stays. E.g. the params of a
+ *   specific RPC function. Some RPC functions also have their headers
+ *   in the payload. E.g. rm_alloc, rm_control.
+ *
+ * The memory layout of a GSP message element can be illustrated below::
+ *
+ *    +------------------------+
+ *    | Message Element Header |
+ *    |    (r535_gsp_msg)      |
+ *    |                        |
+ *    | (r535_gsp_msg.data)    |
+ *    |          |             |
+ *    |----------V-------------|
+ *    |    GSP RPC Header      |
+ *    |    (nvfw_gsp_rpc)      |
+ *    |                        |
+ *    | (nvfw_gsp_rpc.data)    |
+ *    |          |             |
+ *    |----------V-------------|
+ *    |       Payload          |
+ *    |                        |
+ *    |   header(optional)     |
+ *    |        params          |
+ *    +------------------------+
+ *
+ */
+
 struct r535_gsp_msg {
 	u8 auth_tag_buffer[16];
 	u8 aad_buffer[16];
