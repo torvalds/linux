@@ -26,8 +26,8 @@ enum chips {
 	ltc3880, ltc3882, ltc3883, ltc3884, ltc3886, ltc3887, ltc3889, ltc7132,
 	ltc7841, ltc7880,
 	/* Modules */
-	ltm2987, ltm4664, ltm4675, ltm4676, ltm4677, ltm4678, ltm4680, ltm4686,
-	ltm4700,
+	ltm2987, ltm4664, ltm4673, ltm4675, ltm4676, ltm4677, ltm4678, ltm4680,
+	ltm4686, ltm4700,
 };
 
 /* Common for all chips */
@@ -86,6 +86,8 @@ enum chips {
 #define LTM2987_ID_A			0x8010	/* A/B for two die IDs */
 #define LTM2987_ID_B			0x8020
 #define LTM4664_ID			0x4120
+#define LTM4673_ID_REV1			0x0230
+#define LTM4673_ID			0x4480
 #define LTM4675_ID			0x47a0
 #define LTM4676_ID_REV1			0x4400
 #define LTM4676_ID_REV2			0x4480
@@ -554,6 +556,7 @@ static const struct i2c_device_id ltc2978_id[] = {
 	{"ltc7880", ltc7880},
 	{"ltm2987", ltm2987},
 	{"ltm4664", ltm4664},
+	{"ltm4673", ltm4673},
 	{"ltm4675", ltm4675},
 	{"ltm4676", ltm4676},
 	{"ltm4677", ltm4677},
@@ -665,6 +668,8 @@ static int ltc2978_get_id(struct i2c_client *client)
 		return ltm2987;
 	else if (chip_id == LTM4664_ID)
 		return ltm4664;
+	else if (chip_id == LTM4673_ID || chip_id == LTM4673_ID_REV1)
+		return ltm4673;
 	else if (chip_id == LTM4675_ID)
 		return ltm4675;
 	else if (chip_id == LTM4676_ID_REV1 || chip_id == LTM4676_ID_REV2 ||
@@ -869,6 +874,21 @@ static int ltc2978_probe(struct i2c_client *client)
 		  | PMBUS_HAVE_IOUT
 		  | PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP;
 		break;
+	case ltm4673:
+		data->features |= FEAT_NEEDS_POLLING;
+		info->read_word_data = ltc2975_read_word_data;
+		info->pages = LTC2974_NUM_PAGES;
+		info->func[0] = PMBUS_HAVE_VIN | PMBUS_HAVE_STATUS_INPUT
+		  | PMBUS_HAVE_TEMP2;
+		for (i = 0; i < info->pages; i++) {
+			info->func[i] |= PMBUS_HAVE_IIN
+			  | PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT
+			  | PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT
+			  | PMBUS_HAVE_PIN
+			  | PMBUS_HAVE_POUT
+			  | PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP;
+		}
+		break;
 	default:
 		return -ENODEV;
 	}
@@ -926,6 +946,7 @@ static const struct of_device_id ltc2978_of_match[] = {
 	{ .compatible = "lltc,ltc7880" },
 	{ .compatible = "lltc,ltm2987" },
 	{ .compatible = "lltc,ltm4664" },
+	{ .compatible = "lltc,ltm4673" },
 	{ .compatible = "lltc,ltm4675" },
 	{ .compatible = "lltc,ltm4676" },
 	{ .compatible = "lltc,ltm4677" },

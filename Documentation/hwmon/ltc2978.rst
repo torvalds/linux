@@ -151,6 +151,14 @@ Supported chips:
 
     Datasheet: https://www.analog.com/en/products/ltm4644
 
+   * Linear Technology LTM4673
+
+    Prefix: 'ltm4673'
+
+    Addresses scanned: -
+
+    Datasheet: https://www.analog.com/en/products/ltm4673
+
    * Linear Technology LTM4675
 
     Prefix: 'ltm4675'
