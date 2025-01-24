@@ -796,7 +796,7 @@ r535_gsp_rpc_push(struct nvkm_gsp *gsp, void *payload, bool wait,
 {
 	struct nvfw_gsp_rpc *rpc = to_gsp_hdr(payload, rpc);
 	struct r535_gsp_msg *cmd = to_gsp_hdr(rpc, cmd);
-	const u32 max_msg_size = (16 * 0x1000) - sizeof(struct r535_gsp_msg);
+	const u32 max_msg_size = GSP_MSG_MAX_SIZE - sizeof(*cmd);
 	const u32 max_rpc_size = max_msg_size - sizeof(*rpc);
 	u32 rpc_size = rpc->length - sizeof(*rpc);
 	void *repv;
