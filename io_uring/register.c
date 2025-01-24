@@ -552,7 +552,7 @@ overflow:
 	ctx->cqe_cached = ctx->cqe_sentinel = NULL;
 
 	WRITE_ONCE(n.rings->sq_dropped, READ_ONCE(o.rings->sq_dropped));
-	WRITE_ONCE(n.rings->sq_flags, READ_ONCE(o.rings->sq_flags));
+	atomic_set(&n.rings->sq_flags, atomic_read(&o.rings->sq_flags));
 	WRITE_ONCE(n.rings->cq_flags, READ_ONCE(o.rings->cq_flags));
 	WRITE_ONCE(n.rings->cq_overflow, READ_ONCE(o.rings->cq_overflow));
 
