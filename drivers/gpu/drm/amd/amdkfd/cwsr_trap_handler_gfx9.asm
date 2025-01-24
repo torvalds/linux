@@ -447,7 +447,9 @@ L_SAVE:
     s_getreg_b32    s_save_m0, hwreg(HW_REG_MODE)						    //MODE
     write_hwreg_to_mem(s_save_m0, s_save_buf_rsrc0, s_save_mem_offset)
 
-
+    // Clear VSKIP state now that MODE.VSKIP has been saved.
+    // If user shader set it then vector instructions would be skipped.
+    s_setvskip	0,0
 
     /*	    the first wave in the threadgroup	 */
     s_and_b32	    s_save_tmp, s_save_spi_init_hi, S_SAVE_SPI_INIT_FIRST_WAVE_MASK	// extract fisrt wave bit

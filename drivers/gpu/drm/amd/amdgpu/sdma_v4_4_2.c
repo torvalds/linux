@@ -1406,6 +1406,12 @@ static int sdma_v4_4_2_sw_init(struct amdgpu_ip_block *ip_block)
 				      &adev->sdma.srbm_write_irq);
 		if (r)
 			return r;
+
+		r = amdgpu_irq_add_id(adev, sdma_v4_4_2_seq_to_irq_id(i),
+				      SDMA0_4_0__SRCID__SDMA_CTXEMPTY,
+				      &adev->sdma.ctxt_empty_irq);
+		if (r)
+			return r;
 	}
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
@@ -1814,6 +1820,16 @@ static int sdma_v4_4_2_process_srbm_write_irq(struct amdgpu_device *adev,
 	return 0;
 }
 
+static int sdma_v4_4_2_process_ctxt_empty_irq(struct amdgpu_device *adev,
+					      struct amdgpu_irq_src *source,
+					      struct amdgpu_iv_entry *entry)
+{
+	/* There is nothing useful to be done here, only kept for debug */
+	dev_dbg_ratelimited(adev->dev, "SDMA context empty interrupt");
+	sdma_v4_4_2_print_iv_entry(adev, entry);
+	return 0;
+}
+
 static void sdma_v4_4_2_inst_update_medium_grain_light_sleep(
 	struct amdgpu_device *adev, bool enable, uint32_t inst_mask)
 {
@@ -2096,6 +2112,10 @@ static const struct amdgpu_irq_src_funcs sdma_v4_4_2_srbm_write_irq_funcs = {
 	.process = sdma_v4_4_2_process_srbm_write_irq,
 };
 
+static const struct amdgpu_irq_src_funcs sdma_v4_4_2_ctxt_empty_irq_funcs = {
+	.process = sdma_v4_4_2_process_ctxt_empty_irq,
+};
+
 static void sdma_v4_4_2_set_irq_funcs(struct amdgpu_device *adev)
 {
 	adev->sdma.trap_irq.num_types = adev->sdma.num_instances;
@@ -2104,6 +2124,7 @@ static void sdma_v4_4_2_set_irq_funcs(struct amdgpu_device *adev)
 	adev->sdma.doorbell_invalid_irq.num_types = adev->sdma.num_instances;
 	adev->sdma.pool_timeout_irq.num_types = adev->sdma.num_instances;
 	adev->sdma.srbm_write_irq.num_types = adev->sdma.num_instances;
+	adev->sdma.ctxt_empty_irq.num_types = adev->sdma.num_instances;
 
 	adev->sdma.trap_irq.funcs = &sdma_v4_4_2_trap_irq_funcs;
 	adev->sdma.illegal_inst_irq.funcs = &sdma_v4_4_2_illegal_inst_irq_funcs;
@@ -2112,6 +2133,7 @@ static void sdma_v4_4_2_set_irq_funcs(struct amdgpu_device *adev)
 	adev->sdma.doorbell_invalid_irq.funcs = &sdma_v4_4_2_doorbell_invalid_irq_funcs;
 	adev->sdma.pool_timeout_irq.funcs = &sdma_v4_4_2_pool_timeout_irq_funcs;
 	adev->sdma.srbm_write_irq.funcs = &sdma_v4_4_2_srbm_write_irq_funcs;
+	adev->sdma.ctxt_empty_irq.funcs = &sdma_v4_4_2_ctxt_empty_irq_funcs;
 }
 
 /**

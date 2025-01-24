@@ -107,6 +107,7 @@ struct smu_13_0_dpm_context {
 	struct smu_13_0_dpm_tables  dpm_tables;
 	uint32_t                    workload_policy_mask;
 	uint32_t                    dcef_min_ds_clk;
+	uint64_t                    caps;
 };
 
 enum smu_13_0_power_state {
