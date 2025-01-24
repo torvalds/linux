@@ -336,59 +336,60 @@ static struct nvfw_gsp_rpc *
 r535_gsp_msg_recv(struct nvkm_gsp *gsp, int fn, u32 gsp_rpc_len)
 {
 	struct nvkm_subdev *subdev = &gsp->subdev;
-	struct nvfw_gsp_rpc *msg;
+	struct nvfw_gsp_rpc *rpc;
 	int time = 4000000, i;
 	u32 size;
 
 retry:
-	msg = r535_gsp_msgq_wait(gsp, sizeof(*msg), &size, &time);
-	if (IS_ERR_OR_NULL(msg))
-		return msg;
+	rpc = r535_gsp_msgq_wait(gsp, sizeof(*rpc), &size, &time);
+	if (IS_ERR_OR_NULL(rpc))
+		return rpc;
 
-	msg = r535_gsp_msgq_recv(gsp, msg->length, &time);
-	if (IS_ERR_OR_NULL(msg))
-		return msg;
+	rpc = r535_gsp_msgq_recv(gsp, rpc->length, &time);
+	if (IS_ERR_OR_NULL(rpc))
+		return rpc;
 
-	if (msg->rpc_result) {
-		r535_gsp_msg_dump(gsp, msg, NV_DBG_ERROR);
-		r535_gsp_msg_done(gsp, msg);
+	if (rpc->rpc_result) {
+		r535_gsp_msg_dump(gsp, rpc, NV_DBG_ERROR);
+		r535_gsp_msg_done(gsp, rpc);
 		return ERR_PTR(-EINVAL);
 	}
 
-	r535_gsp_msg_dump(gsp, msg, NV_DBG_TRACE);
+	r535_gsp_msg_dump(gsp, rpc, NV_DBG_TRACE);
 
-	if (fn && msg->function == fn) {
+	if (fn && rpc->function == fn) {
 		if (gsp_rpc_len) {
-			if (msg->length < sizeof(*msg) + gsp_rpc_len) {
-				nvkm_error(subdev, "msg len %d < %zd\n",
-					   msg->length, sizeof(*msg) +
+			if (rpc->length < sizeof(*rpc) + gsp_rpc_len) {
+				nvkm_error(subdev, "rpc len %d < %zd\n",
+					   rpc->length, sizeof(*rpc) +
 					   gsp_rpc_len);
-				r535_gsp_msg_dump(gsp, msg, NV_DBG_ERROR);
-				r535_gsp_msg_done(gsp, msg);
+				r535_gsp_msg_dump(gsp, rpc, NV_DBG_ERROR);
+				r535_gsp_msg_done(gsp, rpc);
 				return ERR_PTR(-EIO);
 			}
 
-			return msg;
+			return rpc;
 		}
 
-		r535_gsp_msg_done(gsp, msg);
+		r535_gsp_msg_done(gsp, rpc);
 		return NULL;
 	}
 
 	for (i = 0; i < gsp->msgq.ntfy_nr; i++) {
 		struct nvkm_gsp_msgq_ntfy *ntfy = &gsp->msgq.ntfy[i];
 
-		if (ntfy->fn == msg->function) {
+		if (ntfy->fn == rpc->function) {
 			if (ntfy->func)
-				ntfy->func(ntfy->priv, ntfy->fn, msg->data, msg->length - sizeof(*msg));
+				ntfy->func(ntfy->priv, ntfy->fn, rpc->data,
+					   rpc->length - sizeof(*rpc));
 			break;
 		}
 	}
 
 	if (i == gsp->msgq.ntfy_nr)
-		r535_gsp_msg_dump(gsp, msg, NV_DBG_WARN);
+		r535_gsp_msg_dump(gsp, rpc, NV_DBG_WARN);
 
-	r535_gsp_msg_done(gsp, msg);
+	r535_gsp_msg_done(gsp, rpc);
 	if (fn)
 		goto retry;
 
