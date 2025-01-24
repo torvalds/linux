@@ -647,13 +647,13 @@ r535_gsp_rpc_rm_alloc_done(struct nvkm_gsp_object *object, void *repv)
 }
 
 static void *
-r535_gsp_rpc_rm_alloc_push(struct nvkm_gsp_object *object, void *argv, u32 repc)
+r535_gsp_rpc_rm_alloc_push(struct nvkm_gsp_object *object, void *argv)
 {
 	rpc_gsp_rm_alloc_v03_00 *rpc = container_of(argv, typeof(*rpc), params);
 	struct nvkm_gsp *gsp = object->client->gsp;
-	void *ret;
+	void *ret = NULL;
 
-	rpc = nvkm_gsp_rpc_push(gsp, rpc, true, sizeof(*rpc) + repc);
+	rpc = nvkm_gsp_rpc_push(gsp, rpc, true, sizeof(*rpc));
 	if (IS_ERR_OR_NULL(rpc))
 		return rpc;
 
@@ -661,8 +661,6 @@ r535_gsp_rpc_rm_alloc_push(struct nvkm_gsp_object *object, void *argv, u32 repc)
 		ret = ERR_PTR(r535_rpc_status_to_errno(rpc->status));
 		if (PTR_ERR(ret) != -EAGAIN && PTR_ERR(ret) != -EBUSY)
 			nvkm_error(&gsp->subdev, "RM_ALLOC: 0x%x\n", rpc->status);
-	} else {
-		ret = repc ? rpc->params : NULL;
 	}
 
 	nvkm_gsp_rpc_done(gsp, rpc);
