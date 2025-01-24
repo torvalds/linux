@@ -351,10 +351,10 @@ static bool tbt_ready(struct typec_altmode *alt)
 	 */
 	for (int i = 0; i < TYPEC_PLUG_SOP_PP + 1; i++) {
 		plug = typec_altmode_get_plug(tbt->alt, i);
-		if (IS_ERR(plug))
+		if (!plug)
 			continue;
 
-		if (!plug || plug->svid != USB_TYPEC_TBT_SID)
+		if (plug->svid != USB_TYPEC_TBT_SID)
 			break;
 
 		plug->desc = "Thunderbolt3";
