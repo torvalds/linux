@@ -5385,8 +5385,6 @@ static int ath11k_mac_set_txbf_conf(struct ath11k_vif *arvif)
 	if (vht_cap & (IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE)) {
 		nsts = vht_cap & IEEE80211_VHT_CAP_BEAMFORMEE_STS_MASK;
 		nsts >>= IEEE80211_VHT_CAP_BEAMFORMEE_STS_SHIFT;
-		if (nsts > (ar->num_rx_chains - 1))
-			nsts = ar->num_rx_chains - 1;
 		value |= SM(nsts, WMI_TXBF_STS_CAP_OFFSET);
 	}
 
@@ -5470,9 +5468,6 @@ static void ath11k_set_vht_txbf_cap(struct ath11k *ar, u32 *vht_cap)
 
 	/* Enable Beamformee STS Field only if SU BF is enabled */
 	if (subfee) {
-		if (nsts > (ar->num_rx_chains - 1))
-			nsts = ar->num_rx_chains - 1;
-
 		nsts <<= IEEE80211_VHT_CAP_BEAMFORMEE_STS_SHIFT;
 		nsts &=  IEEE80211_VHT_CAP_BEAMFORMEE_STS_MASK;
 		*vht_cap |= nsts;
