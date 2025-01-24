@@ -61,7 +61,8 @@ static bool event_supported(struct xe_pmu *pmu, unsigned int gt,
 	if (gt >= XE_MAX_GT_PER_TILE)
 		return false;
 
-	return false;
+	return id < sizeof(pmu->supported_events) * BITS_PER_BYTE &&
+		pmu->supported_events & BIT_ULL(id);
 }
 
 static void xe_pmu_event_destroy(struct perf_event *event)
@@ -213,15 +214,72 @@ static const struct attribute_group pmu_format_attr_group = {
 	.attrs = pmu_format_attrs,
 };
 
-static struct attribute *pmu_event_attrs[] = {
-	/* No events yet */
+__maybe_unused static ssize_t event_attr_show(struct device *dev,
+					      struct device_attribute *attr, char *buf)
+{
+	struct perf_pmu_events_attr *pmu_attr =
+		container_of(attr, struct perf_pmu_events_attr, attr);
+
+	return sprintf(buf, "event=%#04llx\n", pmu_attr->id);
+}
+
+#define XE_EVENT_ATTR(name_, v_, id_)					\
+	PMU_EVENT_ATTR(name_, pmu_event_ ## v_, id_, event_attr_show)
+
+#define XE_EVENT_ATTR_UNIT(name_, v_, unit_)				\
+	PMU_EVENT_ATTR_STRING(name_.unit, pmu_event_unit_ ## v_, unit_)
+
+#define XE_EVENT_ATTR_GROUP(v_, id_, ...)				\
+	static struct attribute *pmu_attr_ ##v_[] = {			\
+		__VA_ARGS__,						\
+		NULL							\
+	};								\
+	static umode_t is_visible_##v_(struct kobject *kobj,		\
+				       struct attribute *attr, int idx) \
+	{								\
+		struct perf_pmu_events_attr *pmu_attr;			\
+		struct xe_pmu *pmu;					\
+									\
+		pmu_attr = container_of(attr, typeof(*pmu_attr), attr.attr); \
+		pmu = container_of(dev_get_drvdata(kobj_to_dev(kobj)),	\
+				   typeof(*pmu), base);			\
+									\
+		return event_supported(pmu, 0, id_) ? attr->mode : 0;	\
+	}								\
+	static const struct attribute_group pmu_group_ ##v_ = {		\
+		.name = "events",					\
+		.attrs = pmu_attr_ ## v_,				\
+		.is_visible = is_visible_ ## v_,			\
+	}
+
+#define XE_EVENT_ATTR_SIMPLE(name_, v_, id_, unit_)			\
+	XE_EVENT_ATTR(name_, v_, id_)					\
+	XE_EVENT_ATTR_UNIT(name_, v_, unit_)				\
+	XE_EVENT_ATTR_GROUP(v_, id_, &pmu_event_ ##v_.attr.attr,	\
+			    &pmu_event_unit_ ##v_.attr.attr)
+
+#define XE_EVENT_ATTR_NOUNIT(name_, v_, id_)				\
+	XE_EVENT_ATTR(name_, v_, id_)					\
+	XE_EVENT_ATTR_GROUP(v_, id_, &pmu_event_ ##v_.attr.attr)
+
+static struct attribute *pmu_empty_event_attrs[] = {
+	/* Empty - all events are added as groups with .attr_update() */
 	NULL,
 };
 
 static const struct attribute_group pmu_events_attr_group = {
 	.name = "events",
-	.attrs = pmu_event_attrs,
+	.attrs = pmu_empty_event_attrs,
 };
+
+static const struct attribute_group *pmu_events_attr_update[] = {
+	/* No events yet */
+	NULL,
+};
+
+static void set_supported_events(struct xe_pmu *pmu)
+{
+}
 
 /**
  * xe_pmu_unregister() - Remove/cleanup PMU registration
@@ -273,6 +331,7 @@ int xe_pmu_register(struct xe_pmu *pmu)
 
 	pmu->name		= name;
 	pmu->base.attr_groups	= attr_groups;
+	pmu->base.attr_update	= pmu_events_attr_update;
 	pmu->base.scope		= PERF_PMU_SCOPE_SYS_WIDE;
 	pmu->base.module	= THIS_MODULE;
 	pmu->base.task_ctx_nr	= perf_invalid_context;
@@ -282,6 +341,8 @@ int xe_pmu_register(struct xe_pmu *pmu)
 	pmu->base.start		= xe_pmu_event_start;
 	pmu->base.stop		= xe_pmu_event_stop;
 	pmu->base.read		= xe_pmu_event_read;
+
+	set_supported_events(pmu);
 
 	ret = perf_pmu_register(&pmu->base, pmu->name, -1);
 	if (ret)
