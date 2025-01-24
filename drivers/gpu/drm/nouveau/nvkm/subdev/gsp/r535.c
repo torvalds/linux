@@ -106,6 +106,17 @@ extern struct dentry *nouveau_debugfs_root;
  *    |        params          |
  *    +------------------------+
  *
+ * The max size of a message queue element is 16 pages (including the
+ * headers). When a GSP message to be sent is larger than 16 pages, the
+ * message should be split into multiple elements and sent accordingly.
+ *
+ * In the bunch of the split elements, the first element has the expected
+ * function number, while the rest of the elements are sent with the
+ * function number NV_VGPU_MSG_FUNCTION_CONTINUATION_RECORD.
+ *
+ * GSP consumes the elements from the cmdq and always writes the result
+ * back to the msgq. The result is also formed as split elements.
+ *
  * Terminology:
  *
  * - gsp_msg(msg): GSP message element (element header + GSP RPC header +
@@ -124,6 +135,21 @@ struct r535_gsp_msg {
 	u32 sequence;
 	u32 elem_count;
 	u32 pad;
+	u8  data[];
+};
+
+struct nvfw_gsp_rpc {
+	u32 header_version;
+	u32 signature;
+	u32 length;
+	u32 function;
+	u32 rpc_result;
+	u32 rpc_result_private;
+	u32 sequence;
+	union {
+		u32 spare;
+		u32 cpuRmGfid;
+	};
 	u8  data[];
 };
 
@@ -205,6 +231,11 @@ r535_gsp_msgq_get_entry(struct nvkm_gsp *gsp)
  *
  * - Receive the message: r535_gsp_msgq_recv().
  *   Copy the message into the allocated memory. Advance the read pointer.
+ *   If the message is a large GSP message, r535_gsp_msgq_recv() calls
+ *   r535_gsp_msgq_recv_one_elem() repeatedly to receive continuation parts
+ *   until the complete message is received.
+ *   r535_gsp_msgq_recv() assembles the payloads of cotinuation parts into
+ *   the return of the large GSP message.
  *
  * - Free the allocated memory: r535_gsp_msg_done().
  *   The user is responsible for freeing the memory allocated for the GSP
@@ -229,7 +260,11 @@ struct r535_gsp_msg_info {
 	int *retries;
 	u32 gsp_rpc_len;
 	void *gsp_rpc_buf;
+	bool continuation;
 };
+
+static void
+r535_gsp_msg_dump(struct nvkm_gsp *gsp, struct nvfw_gsp_rpc *msg, int lvl);
 
 static void *
 r535_gsp_msgq_recv_one_elem(struct nvkm_gsp *gsp,
@@ -248,11 +283,28 @@ r535_gsp_msgq_recv_one_elem(struct nvkm_gsp *gsp,
 		return ERR_PTR(ret);
 
 	mqe = r535_gsp_msgq_get_entry(gsp);
+
+	if (info->continuation) {
+		struct nvfw_gsp_rpc *rpc = (struct nvfw_gsp_rpc *)mqe->data;
+
+		if (rpc->function != NV_VGPU_MSG_FUNCTION_CONTINUATION_RECORD) {
+			nvkm_error(&gsp->subdev,
+				   "Not a continuation of a large RPC\n");
+			r535_gsp_msg_dump(gsp, rpc, NV_DBG_ERROR);
+			return ERR_PTR(-EIO);
+		}
+	}
+
 	size = ALIGN(expected + GSP_MSG_HDR_SIZE, GSP_PAGE_SIZE);
 
 	len = ((gsp->msgq.cnt - rptr) * GSP_PAGE_SIZE) - sizeof(*mqe);
 	len = min_t(u32, expected, len);
-	memcpy(buf, mqe->data, len);
+
+	if (info->continuation)
+		memcpy(buf, mqe->data + sizeof(struct nvfw_gsp_rpc),
+		       len - sizeof(struct nvfw_gsp_rpc));
+	else
+		memcpy(buf, mqe->data, len);
 
 	expected -= len;
 
@@ -271,16 +323,26 @@ r535_gsp_msgq_recv_one_elem(struct nvkm_gsp *gsp,
 static void *
 r535_gsp_msgq_recv(struct nvkm_gsp *gsp, u32 gsp_rpc_len, int *retries)
 {
+	struct r535_gsp_msg *mqe;
+	const u32 max_rpc_size = GSP_MSG_MAX_SIZE - sizeof(*mqe);
+	struct nvfw_gsp_rpc *rpc;
 	struct r535_gsp_msg_info info = {0};
+	u32 expected = gsp_rpc_len;
 	void *buf;
 
-	buf = kvmalloc(gsp_rpc_len, GFP_KERNEL);
+	mqe = r535_gsp_msgq_get_entry(gsp);
+	rpc = (struct nvfw_gsp_rpc *)mqe->data;
+
+	if (WARN_ON(rpc->length > max_rpc_size))
+		return NULL;
+
+	buf = kvmalloc(max_t(u32, rpc->length, expected), GFP_KERNEL);
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
 
 	info.gsp_rpc_buf = buf;
 	info.retries = retries;
-	info.gsp_rpc_len = gsp_rpc_len;
+	info.gsp_rpc_len = rpc->length;
 
 	buf = r535_gsp_msgq_recv_one_elem(gsp, &info);
 	if (IS_ERR(buf)) {
@@ -288,6 +350,37 @@ r535_gsp_msgq_recv(struct nvkm_gsp *gsp, u32 gsp_rpc_len, int *retries)
 		info.gsp_rpc_buf = NULL;
 	}
 
+	if (expected <= max_rpc_size)
+		return buf;
+
+	info.gsp_rpc_buf += info.gsp_rpc_len;
+	expected -= info.gsp_rpc_len;
+
+	while (expected) {
+		u32 size;
+
+		rpc = r535_gsp_msgq_peek(gsp, sizeof(*rpc), info.retries);
+		if (IS_ERR_OR_NULL(rpc)) {
+			kfree(buf);
+			return rpc;
+		}
+
+		info.gsp_rpc_len = rpc->length;
+		info.continuation = true;
+
+		rpc = r535_gsp_msgq_recv_one_elem(gsp, &info);
+		if (IS_ERR_OR_NULL(rpc)) {
+			kfree(buf);
+			return rpc;
+		}
+
+		size = info.gsp_rpc_len - sizeof(*rpc);
+		expected -= size;
+		info.gsp_rpc_buf += size;
+	}
+
+	rpc = buf;
+	rpc->length = gsp_rpc_len;
 	return buf;
 }
 
@@ -374,21 +467,6 @@ r535_gsp_cmdq_get(struct nvkm_gsp *gsp, u32 gsp_rpc_len)
 	return msg->data;
 }
 
-struct nvfw_gsp_rpc {
-	u32 header_version;
-	u32 signature;
-	u32 length;
-	u32 function;
-	u32 rpc_result;
-	u32 rpc_result_private;
-	u32 sequence;
-	union {
-		u32 spare;
-		u32 cpuRmGfid;
-	};
-	u8  data[];
-};
-
 static void
 r535_gsp_msg_done(struct nvkm_gsp *gsp, struct nvfw_gsp_rpc *msg)
 {
@@ -420,7 +498,7 @@ retry:
 	if (IS_ERR_OR_NULL(rpc))
 		return rpc;
 
-	rpc = r535_gsp_msgq_recv(gsp, rpc->length, &retries);
+	rpc = r535_gsp_msgq_recv(gsp, gsp_rpc_len, &retries);
 	if (IS_ERR_OR_NULL(rpc))
 		return rpc;
 
