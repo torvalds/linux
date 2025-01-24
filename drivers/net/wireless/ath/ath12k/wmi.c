@@ -15,6 +15,7 @@
 #include <linux/time.h>
 #include <linux/of.h>
 #include "core.h"
+#include "debugfs.h"
 #include "debug.h"
 #include "mac.h"
 #include "hw.h"
@@ -6853,12 +6854,156 @@ static void ath12k_peer_assoc_conf_event(struct ath12k_base *ab, struct sk_buff 
 	rcu_read_unlock();
 }
 
+static void
+ath12k_wmi_fw_vdev_stats_dump(struct ath12k *ar,
+			      struct ath12k_fw_stats *fw_stats,
+			      char *buf, u32 *length)
+{
+	const struct ath12k_fw_stats_vdev *vdev;
+	u32 buf_len = ATH12K_FW_STATS_BUF_SIZE;
+	struct ath12k_link_vif *arvif;
+	u32 len = *length;
+	u8 *vif_macaddr;
+	int i;
+
+	len += scnprintf(buf + len, buf_len - len, "\n");
+	len += scnprintf(buf + len, buf_len - len, "%30s\n",
+			 "ath12k VDEV stats");
+	len += scnprintf(buf + len, buf_len - len, "%30s\n\n",
+			 "=================");
+
+	list_for_each_entry(vdev, &fw_stats->vdevs, list) {
+		arvif = ath12k_mac_get_arvif(ar, vdev->vdev_id);
+		if (!arvif)
+			continue;
+		vif_macaddr = arvif->ahvif->vif->addr;
+
+		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+				 "VDEV ID", vdev->vdev_id);
+		len += scnprintf(buf + len, buf_len - len, "%30s %pM\n",
+				 "VDEV MAC address", vif_macaddr);
+		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+				 "beacon snr", vdev->beacon_snr);
+		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+				 "data snr", vdev->data_snr);
+		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+				 "num rx frames", vdev->num_rx_frames);
+		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+				 "num rts fail", vdev->num_rts_fail);
+		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+				 "num rts success", vdev->num_rts_success);
+		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+				 "num rx err", vdev->num_rx_err);
+		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+				 "num rx discard", vdev->num_rx_discard);
+		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+				 "num tx not acked", vdev->num_tx_not_acked);
+
+		for (i = 0 ; i < WLAN_MAX_AC; i++)
+			len += scnprintf(buf + len, buf_len - len,
+					"%25s [%02d] %u\n",
+					"num tx frames", i,
+					vdev->num_tx_frames[i]);
+
+		for (i = 0 ; i < WLAN_MAX_AC; i++)
+			len += scnprintf(buf + len, buf_len - len,
+					"%25s [%02d] %u\n",
+					"num tx frames retries", i,
+					vdev->num_tx_frames_retries[i]);
+
+		for (i = 0 ; i < WLAN_MAX_AC; i++)
+			len += scnprintf(buf + len, buf_len - len,
+					"%25s [%02d] %u\n",
+					"num tx frames failures", i,
+					vdev->num_tx_frames_failures[i]);
+
+		for (i = 0 ; i < MAX_TX_RATE_VALUES; i++)
+			len += scnprintf(buf + len, buf_len - len,
+					"%25s [%02d] 0x%08x\n",
+					"tx rate history", i,
+					vdev->tx_rate_history[i]);
+		for (i = 0 ; i < MAX_TX_RATE_VALUES; i++)
+			len += scnprintf(buf + len, buf_len - len,
+					"%25s [%02d] %u\n",
+					"beacon rssi history", i,
+					vdev->beacon_rssi_history[i]);
+
+		len += scnprintf(buf + len, buf_len - len, "\n");
+		*length = len;
+	}
+}
+
+void ath12k_wmi_fw_stats_dump(struct ath12k *ar,
+			      struct ath12k_fw_stats *fw_stats,
+			      u32 stats_id, char *buf)
+{
+	u32 len = 0;
+	u32 buf_len = ATH12K_FW_STATS_BUF_SIZE;
+
+	spin_lock_bh(&ar->data_lock);
+
+	switch (stats_id) {
+	case WMI_REQUEST_VDEV_STAT:
+		ath12k_wmi_fw_vdev_stats_dump(ar, fw_stats, buf, &len);
+		break;
+	default:
+		break;
+	}
+
+	spin_unlock_bh(&ar->data_lock);
+
+	if (len >= buf_len)
+		buf[len - 1] = 0;
+	else
+		buf[len] = 0;
+
+	ath12k_debugfs_fw_stats_reset(ar);
+}
+
+static void
+ath12k_wmi_pull_vdev_stats(const struct wmi_vdev_stats_params *src,
+			   struct ath12k_fw_stats_vdev *dst)
+{
+	int i;
+
+	dst->vdev_id = le32_to_cpu(src->vdev_id);
+	dst->beacon_snr = le32_to_cpu(src->beacon_snr);
+	dst->data_snr = le32_to_cpu(src->data_snr);
+	dst->num_rx_frames = le32_to_cpu(src->num_rx_frames);
+	dst->num_rts_fail = le32_to_cpu(src->num_rts_fail);
+	dst->num_rts_success = le32_to_cpu(src->num_rts_success);
+	dst->num_rx_err = le32_to_cpu(src->num_rx_err);
+	dst->num_rx_discard = le32_to_cpu(src->num_rx_discard);
+	dst->num_tx_not_acked = le32_to_cpu(src->num_tx_not_acked);
+
+	for (i = 0; i < WLAN_MAX_AC; i++)
+		dst->num_tx_frames[i] =
+			le32_to_cpu(src->num_tx_frames[i]);
+
+	for (i = 0; i < WLAN_MAX_AC; i++)
+		dst->num_tx_frames_retries[i] =
+			le32_to_cpu(src->num_tx_frames_retries[i]);
+
+	for (i = 0; i < WLAN_MAX_AC; i++)
+		dst->num_tx_frames_failures[i] =
+			le32_to_cpu(src->num_tx_frames_failures[i]);
+
+	for (i = 0; i < MAX_TX_RATE_VALUES; i++)
+		dst->tx_rate_history[i] =
+			le32_to_cpu(src->tx_rate_history[i]);
+
+	for (i = 0; i < MAX_TX_RATE_VALUES; i++)
+		dst->beacon_rssi_history[i] =
+			le32_to_cpu(src->beacon_rssi_history[i]);
+}
+
 static int ath12k_wmi_tlv_fw_stats_data_parse(struct ath12k_base *ab,
 					      struct wmi_tlv_fw_stats_parse *parse,
 					      const void *ptr,
 					      u16 len)
 {
 	const struct wmi_stats_event *ev = parse->ev;
+	struct ath12k_fw_stats stats = {0};
 	struct ath12k *ar;
 	struct ath12k_link_vif *arvif;
 	struct ieee80211_sta *sta;
@@ -6866,6 +7011,8 @@ static int ath12k_wmi_tlv_fw_stats_data_parse(struct ath12k_base *ab,
 	struct ath12k_link_sta *arsta;
 	int i, ret = 0;
 	const void *data = ptr;
+
+	INIT_LIST_HEAD(&stats.vdevs);
 
 	if (!ev) {
 		ath12k_warn(ab, "failed to fetch update stats ev");
@@ -6884,6 +7031,7 @@ static int ath12k_wmi_tlv_fw_stats_data_parse(struct ath12k_base *ab,
 
 	for (i = 0; i < le32_to_cpu(ev->num_vdev_stats); i++) {
 		const struct wmi_vdev_stats_params *src;
+		struct ath12k_fw_stats_vdev *dst;
 
 		src = data;
 		if (len < sizeof(*src)) {
@@ -6912,9 +7060,16 @@ static int ath12k_wmi_tlv_fw_stats_data_parse(struct ath12k_base *ab,
 
 		data += sizeof(*src);
 		len -= sizeof(*src);
+		dst = kzalloc(sizeof(*dst), GFP_ATOMIC);
+		if (!dst)
+			continue;
+		ath12k_wmi_pull_vdev_stats(src, dst);
+		stats.stats_id = WMI_REQUEST_VDEV_STAT;
+		list_add_tail(&dst->list, &stats.vdevs);
 	}
 
 	complete(&ar->fw_stats_complete);
+	ath12k_debugfs_fw_stats_process(ar, &stats);
 exit:
 	rcu_read_unlock();
 	return ret;

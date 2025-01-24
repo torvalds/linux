@@ -557,6 +557,7 @@ struct ath12k_fw_stats {
 	struct list_head pdevs;
 	struct list_head vdevs;
 	struct list_head bcn;
+	bool fw_stats_done;
 };
 
 struct ath12k_dbg_htt_stats {
@@ -728,6 +729,7 @@ struct ath12k {
 	struct completion mlo_setup_done;
 	u32 mlo_setup_status;
 	u8 ftm_msgref;
+	struct ath12k_fw_stats fw_stats;
 };
 
 struct ath12k_hw {
@@ -1076,6 +1078,25 @@ struct ath12k_base {
 struct ath12k_pdev_map {
 	struct ath12k_base *ab;
 	u8 pdev_idx;
+};
+
+struct ath12k_fw_stats_vdev {
+	struct list_head list;
+
+	u32 vdev_id;
+	u32 beacon_snr;
+	u32 data_snr;
+	u32 num_tx_frames[WLAN_MAX_AC];
+	u32 num_rx_frames;
+	u32 num_tx_frames_retries[WLAN_MAX_AC];
+	u32 num_tx_frames_failures[WLAN_MAX_AC];
+	u32 num_rts_fail;
+	u32 num_rts_success;
+	u32 num_rx_err;
+	u32 num_rx_discard;
+	u32 num_tx_not_acked;
+	u32 tx_rate_history[MAX_TX_RATE_VALUES];
+	u32 beacon_rssi_history[MAX_TX_RATE_VALUES];
 };
 
 int ath12k_core_qmi_firmware_ready(struct ath12k_base *ab);

@@ -25,6 +25,7 @@
 struct ath12k_base;
 struct ath12k;
 struct ath12k_link_vif;
+struct ath12k_fw_stats;
 
 /* There is no signed version of __le32, so for a temporary solution come
  * up with our own version. The idea is from fs/ntfs/endian.h.
@@ -5695,6 +5696,12 @@ struct wmi_vdev_stats_params {
 	__le32 beacon_rssi_history[MAX_TX_RATE_VALUES];
 } __packed;
 
+struct ath12k_fw_stats_req_params {
+	u32 stats_id;
+	u32 vdev_id;
+	u32 pdev_id;
+};
+
 void ath12k_wmi_init_qcn9274(struct ath12k_base *ab,
 			     struct ath12k_wmi_resource_config_arg *config);
 void ath12k_wmi_init_wcn7850(struct ath12k_base *ab,
@@ -5876,5 +5883,8 @@ int ath12k_wmi_sta_keepalive(struct ath12k *ar,
 int ath12k_wmi_mlo_setup(struct ath12k *ar, struct wmi_mlo_setup_arg *mlo_params);
 int ath12k_wmi_mlo_ready(struct ath12k *ar);
 int ath12k_wmi_mlo_teardown(struct ath12k *ar);
+void ath12k_wmi_fw_stats_dump(struct ath12k *ar,
+			      struct ath12k_fw_stats *fw_stats, u32 stats_id,
+			      char *buf);
 
 #endif
