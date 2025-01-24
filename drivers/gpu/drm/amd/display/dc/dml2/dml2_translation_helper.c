@@ -557,6 +557,7 @@ void dml2_init_soc_states(struct dml2_context *dml2, const struct dc *in_dc,
 	}
 
 	if (dml2->v20.dml_core_ctx.project == dml_project_dcn35 ||
+	    dml2->v20.dml_core_ctx.project == dml_project_dcn36 ||
 	    dml2->v20.dml_core_ctx.project == dml_project_dcn351) {
 		int max_dcfclk_mhz = 0, max_dispclk_mhz = 0, max_dppclk_mhz = 0, max_phyclk_mhz = 0,
 			max_dtbclk_mhz = 0, max_fclk_mhz = 0, max_uclk_mhz = 0, max_socclk_mhz = 0;
