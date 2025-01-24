@@ -5666,6 +5666,7 @@ struct wmi_stats_event {
 
 enum wmi_stats_id {
 	WMI_REQUEST_VDEV_STAT	= BIT(3),
+	WMI_REQUEST_BCN_STAT	= BIT(11),
 };
 
 struct wmi_request_stats_cmd {
@@ -5694,6 +5695,12 @@ struct wmi_vdev_stats_params {
 	__le32 num_tx_not_acked;
 	__le32 tx_rate_history[MAX_TX_RATE_VALUES];
 	__le32 beacon_rssi_history[MAX_TX_RATE_VALUES];
+} __packed;
+
+struct ath12k_wmi_bcn_stats_params {
+	__le32 vdev_id;
+	__le32 tx_bcn_succ_cnt;
+	__le32 tx_bcn_outage_cnt;
 } __packed;
 
 struct ath12k_fw_stats_req_params {

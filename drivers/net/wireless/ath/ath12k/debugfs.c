@@ -69,6 +69,16 @@ void ath12k_debugfs_soc_destroy(struct ath12k_base *ab)
 	 */
 }
 
+static void ath12k_fw_stats_bcn_free(struct list_head *head)
+{
+	struct ath12k_fw_stats_bcn *i, *tmp;
+
+	list_for_each_entry_safe(i, tmp, head, list) {
+		list_del(&i->list);
+		kfree(i);
+	}
+}
+
 static void ath12k_fw_stats_vdevs_free(struct list_head *head)
 {
 	struct ath12k_fw_stats_vdev *i, *tmp;
@@ -84,6 +94,7 @@ void ath12k_debugfs_fw_stats_reset(struct ath12k *ar)
 	spin_lock_bh(&ar->data_lock);
 	ar->fw_stats.fw_stats_done = false;
 	ath12k_fw_stats_vdevs_free(&ar->fw_stats.vdevs);
+	ath12k_fw_stats_bcn_free(&ar->fw_stats.bcn);
 	spin_unlock_bh(&ar->data_lock);
 }
 
@@ -150,7 +161,7 @@ ath12k_debugfs_fw_stats_process(struct ath12k *ar,
 	struct ath12k_base *ab = ar->ab;
 	struct ath12k_pdev *pdev;
 	bool is_end;
-	static unsigned int num_vdev;
+	static unsigned int num_vdev, num_bcn;
 	size_t total_vdevs_started = 0;
 	int i;
 
@@ -180,6 +191,24 @@ ath12k_debugfs_fw_stats_process(struct ath12k *ar,
 			num_vdev = 0;
 		}
 		return;
+	}
+	if (stats->stats_id == WMI_REQUEST_BCN_STAT) {
+		if (list_empty(&stats->bcn)) {
+			ath12k_warn(ab, "empty beacon stats");
+			return;
+		}
+		/* Mark end until we reached the count of all started VDEVs
+		 * within the PDEV
+		 */
+		is_end = ((++num_bcn) == ar->num_started_vdevs);
+
+		list_splice_tail_init(&stats->bcn,
+				      &ar->fw_stats.bcn);
+
+		if (is_end) {
+			ar->fw_stats.fw_stats_done = true;
+			num_bcn = 0;
+		}
 	}
 }
 
@@ -246,6 +275,78 @@ static const struct file_operations fops_vdev_stats = {
 	.llseek = default_llseek,
 };
 
+static int ath12k_open_bcn_stats(struct inode *inode, struct file *file)
+{
+	struct ath12k *ar = inode->i_private;
+	struct ath12k_link_vif *arvif;
+	struct ath12k_fw_stats_req_params param;
+	struct ath12k_hw *ah = ath12k_ar_to_ah(ar);
+	int ret;
+
+	guard(wiphy)(ath12k_ar_to_hw(ar)->wiphy);
+
+	if (ah && ah->state != ATH12K_HW_STATE_ON)
+		return -ENETDOWN;
+
+	void *buf __free(kfree) = kzalloc(ATH12K_FW_STATS_BUF_SIZE, GFP_ATOMIC);
+	if (!buf)
+		return -ENOMEM;
+
+	param.pdev_id = ath12k_mac_get_target_pdev_id(ar);
+	param.stats_id = WMI_REQUEST_BCN_STAT;
+
+	/* loop all active VDEVs for bcn stats */
+	list_for_each_entry(arvif, &ar->arvifs, list) {
+		if (!arvif->is_up)
+			continue;
+
+		param.vdev_id = arvif->vdev_id;
+		ret = ath12k_debugfs_fw_stats_request(ar, &param);
+		if (ret) {
+			ath12k_warn(ar->ab, "failed to request fw bcn stats: %d\n", ret);
+			return ret;
+		}
+	}
+
+	ath12k_wmi_fw_stats_dump(ar, &ar->fw_stats, param.stats_id,
+				 buf);
+	/* since beacon stats request is looped for all active VDEVs, saved fw
+	 * stats is not freed for each request until done for all active VDEVs
+	 */
+	spin_lock_bh(&ar->data_lock);
+	ath12k_fw_stats_bcn_free(&ar->fw_stats.bcn);
+	spin_unlock_bh(&ar->data_lock);
+
+	file->private_data = no_free_ptr(buf);
+
+	return 0;
+}
+
+static int ath12k_release_bcn_stats(struct inode *inode, struct file *file)
+{
+	kfree(file->private_data);
+
+	return 0;
+}
+
+static ssize_t ath12k_read_bcn_stats(struct file *file,
+				     char __user *user_buf,
+				     size_t count, loff_t *ppos)
+{
+	const char *buf = file->private_data;
+	size_t len = strlen(buf);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static const struct file_operations fops_bcn_stats = {
+	.open = ath12k_open_bcn_stats,
+	.release = ath12k_release_bcn_stats,
+	.read = ath12k_read_bcn_stats,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 static
 void ath12k_debugfs_fw_stats_register(struct ath12k *ar)
 {
@@ -257,8 +358,11 @@ void ath12k_debugfs_fw_stats_register(struct ath12k *ar)
 	 */
 	debugfs_create_file("vdev_stats", 0600, fwstats_dir, ar,
 			    &fops_vdev_stats);
+	debugfs_create_file("beacon_stats", 0600, fwstats_dir, ar,
+			    &fops_bcn_stats);
 
 	INIT_LIST_HEAD(&ar->fw_stats.vdevs);
+	INIT_LIST_HEAD(&ar->fw_stats.bcn);
 	init_completion(&ar->fw_stats_complete);
 }
 

@@ -1099,6 +1099,14 @@ struct ath12k_fw_stats_vdev {
 	u32 beacon_rssi_history[MAX_TX_RATE_VALUES];
 };
 
+struct ath12k_fw_stats_bcn {
+	struct list_head list;
+
+	u32 vdev_id;
+	u32 tx_bcn_succ_cnt;
+	u32 tx_bcn_outage_cnt;
+};
+
 int ath12k_core_qmi_firmware_ready(struct ath12k_base *ab);
 int ath12k_core_pre_init(struct ath12k_base *ab);
 int ath12k_core_init(struct ath12k_base *ath12k);

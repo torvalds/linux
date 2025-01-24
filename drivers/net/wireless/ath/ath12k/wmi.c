@@ -6933,6 +6933,45 @@ ath12k_wmi_fw_vdev_stats_dump(struct ath12k *ar,
 	}
 }
 
+static void
+ath12k_wmi_fw_bcn_stats_dump(struct ath12k *ar,
+			     struct ath12k_fw_stats *fw_stats,
+			     char *buf, u32 *length)
+{
+	const struct ath12k_fw_stats_bcn *bcn;
+	u32 buf_len = ATH12K_FW_STATS_BUF_SIZE;
+	struct ath12k_link_vif *arvif;
+	u32 len = *length;
+	size_t num_bcn;
+
+	num_bcn = list_count_nodes(&fw_stats->bcn);
+
+	len += scnprintf(buf + len, buf_len - len, "\n");
+	len += scnprintf(buf + len, buf_len - len, "%30s (%zu)\n",
+			 "ath12k Beacon stats", num_bcn);
+	len += scnprintf(buf + len, buf_len - len, "%30s\n\n",
+			 "===================");
+
+	list_for_each_entry(bcn, &fw_stats->bcn, list) {
+		arvif = ath12k_mac_get_arvif(ar, bcn->vdev_id);
+		if (!arvif)
+			continue;
+		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+				 "VDEV ID", bcn->vdev_id);
+		len += scnprintf(buf + len, buf_len - len, "%30s %pM\n",
+				 "VDEV MAC address", arvif->ahvif->vif->addr);
+		len += scnprintf(buf + len, buf_len - len, "%30s\n\n",
+				 "================");
+		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+				 "Num of beacon tx success", bcn->tx_bcn_succ_cnt);
+		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+				 "Num of beacon tx failures", bcn->tx_bcn_outage_cnt);
+
+		len += scnprintf(buf + len, buf_len - len, "\n");
+		*length = len;
+	}
+}
+
 void ath12k_wmi_fw_stats_dump(struct ath12k *ar,
 			      struct ath12k_fw_stats *fw_stats,
 			      u32 stats_id, char *buf)
@@ -6945,6 +6984,9 @@ void ath12k_wmi_fw_stats_dump(struct ath12k *ar,
 	switch (stats_id) {
 	case WMI_REQUEST_VDEV_STAT:
 		ath12k_wmi_fw_vdev_stats_dump(ar, fw_stats, buf, &len);
+		break;
+	case WMI_REQUEST_BCN_STAT:
+		ath12k_wmi_fw_bcn_stats_dump(ar, fw_stats, buf, &len);
 		break;
 	default:
 		break;
@@ -6997,6 +7039,15 @@ ath12k_wmi_pull_vdev_stats(const struct wmi_vdev_stats_params *src,
 			le32_to_cpu(src->beacon_rssi_history[i]);
 }
 
+static void
+ath12k_wmi_pull_bcn_stats(const struct ath12k_wmi_bcn_stats_params *src,
+			  struct ath12k_fw_stats_bcn *dst)
+{
+	dst->vdev_id = le32_to_cpu(src->vdev_id);
+	dst->tx_bcn_succ_cnt = le32_to_cpu(src->tx_bcn_succ_cnt);
+	dst->tx_bcn_outage_cnt = le32_to_cpu(src->tx_bcn_outage_cnt);
+}
+
 static int ath12k_wmi_tlv_fw_stats_data_parse(struct ath12k_base *ab,
 					      struct wmi_tlv_fw_stats_parse *parse,
 					      const void *ptr,
@@ -7013,6 +7064,7 @@ static int ath12k_wmi_tlv_fw_stats_data_parse(struct ath12k_base *ab,
 	const void *data = ptr;
 
 	INIT_LIST_HEAD(&stats.vdevs);
+	INIT_LIST_HEAD(&stats.bcn);
 
 	if (!ev) {
 		ath12k_warn(ab, "failed to fetch update stats ev");
@@ -7066,6 +7118,25 @@ static int ath12k_wmi_tlv_fw_stats_data_parse(struct ath12k_base *ab,
 		ath12k_wmi_pull_vdev_stats(src, dst);
 		stats.stats_id = WMI_REQUEST_VDEV_STAT;
 		list_add_tail(&dst->list, &stats.vdevs);
+	}
+	for (i = 0; i < le32_to_cpu(ev->num_bcn_stats); i++) {
+		const struct ath12k_wmi_bcn_stats_params *src;
+		struct ath12k_fw_stats_bcn *dst;
+
+		src = data;
+		if (len < sizeof(*src)) {
+			ret = -EPROTO;
+			goto exit;
+		}
+
+		data += sizeof(*src);
+		len -= sizeof(*src);
+		dst = kzalloc(sizeof(*dst), GFP_ATOMIC);
+		if (!dst)
+			continue;
+		ath12k_wmi_pull_bcn_stats(src, dst);
+		stats.stats_id = WMI_REQUEST_BCN_STAT;
+		list_add_tail(&dst->list, &stats.bcn);
 	}
 
 	complete(&ar->fw_stats_complete);
