@@ -15,6 +15,7 @@
 #include "i9xx_wm.h"
 #include "intel_atomic.h"
 #include "intel_bw.h"
+#include "intel_cmtg.h"
 #include "intel_color.h"
 #include "intel_crtc.h"
 #include "intel_crtc_state_dump.h"
@@ -977,6 +978,8 @@ void intel_modeset_setup_hw_state(struct drm_i915_private *i915,
 	get_encoder_power_domains(i915);
 
 	intel_pch_sanitize(i915);
+
+	intel_cmtg_sanitize(display);
 
 	/*
 	 * intel_sanitize_plane_mapping() may need to do vblank
