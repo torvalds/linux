@@ -512,10 +512,9 @@ retry:
 
 	if (fn && rpc->function == fn) {
 		if (gsp_rpc_len) {
-			if (rpc->length < sizeof(*rpc) + gsp_rpc_len) {
-				nvkm_error(subdev, "rpc len %d < %zd\n",
-					   rpc->length, sizeof(*rpc) +
-					   gsp_rpc_len);
+			if (rpc->length < gsp_rpc_len) {
+				nvkm_error(subdev, "rpc len %d < %d\n",
+					   rpc->length, gsp_rpc_len);
 				r535_gsp_msg_dump(gsp, rpc, NV_DBG_ERROR);
 				r535_gsp_msg_done(gsp, rpc);
 				return ERR_PTR(-EIO);
@@ -961,6 +960,7 @@ r535_gsp_rpc_push(struct nvkm_gsp *gsp, void *payload, bool wait,
 	mutex_lock(&gsp->cmdq.mutex);
 	if (payload_size > max_payload_size) {
 		const u32 fn = rpc->function;
+		u32 remain_payload_size = payload_size;
 
 		/* Adjust length, and send initial RPC. */
 		rpc->length = sizeof(*rpc) + max_payload_size;
@@ -971,11 +971,12 @@ r535_gsp_rpc_push(struct nvkm_gsp *gsp, void *payload, bool wait,
 			goto done;
 
 		payload += max_payload_size;
-		payload_size -= max_payload_size;
+		remain_payload_size -= max_payload_size;
 
 		/* Remaining chunks sent as CONTINUATION_RECORD RPCs. */
-		while (payload_size) {
-			u32 size = min(payload_size, max_payload_size);
+		while (remain_payload_size) {
+			u32 size = min(remain_payload_size,
+				       max_payload_size);
 			void *next;
 
 			next = r535_gsp_rpc_get(gsp, NV_VGPU_MSG_FUNCTION_CONTINUATION_RECORD, size);
@@ -991,18 +992,21 @@ r535_gsp_rpc_push(struct nvkm_gsp *gsp, void *payload, bool wait,
 				goto done;
 
 			payload += size;
-			payload_size -= size;
+			remain_payload_size -= size;
 		}
 
 		/* Wait for reply. */
-		if (wait) {
-			rpc = r535_gsp_msg_recv(gsp, fn, gsp_rpc_len);
-			if (!IS_ERR_OR_NULL(rpc))
+		rpc = r535_gsp_msg_recv(gsp, fn, payload_size +
+					sizeof(*rpc));
+		if (!IS_ERR_OR_NULL(rpc)) {
+			if (wait) {
 				repv = rpc->data;
-			else
-				repv = rpc;
+			} else {
+				nvkm_gsp_rpc_done(gsp, rpc);
+				repv = NULL;
+			}
 		} else {
-			repv = NULL;
+			repv = wait ? rpc : NULL;
 		}
 	} else {
 		repv = r535_gsp_rpc_send(gsp, payload, wait, gsp_rpc_len);
