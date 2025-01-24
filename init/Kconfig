@@ -1128,7 +1128,6 @@ config CGROUP_PIDS
 
 config CGROUP_RDMA
 	bool "RDMA controller"
-	select PAGE_COUNTER
 	help
 	  Provides enforcement of RDMA resources defined by IB stack.
 	  It is fairly easy for consumers to exhaust RDMA resources, which
