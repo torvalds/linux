@@ -4,6 +4,7 @@
 #include "compress.h"
 #include "error.h"
 #include "extents.h"
+#include "io_write.h"
 #include "opts.h"
 #include "super-io.h"
 
@@ -254,11 +255,14 @@ err:
 	goto out;
 }
 
-int bch2_bio_uncompress_inplace(struct bch_fs *c, struct bio *bio,
-				struct bch_extent_crc_unpacked *crc)
+int bch2_bio_uncompress_inplace(struct bch_write_op *op,
+				struct bio *bio)
 {
+	struct bch_fs *c = op->c;
+	struct bch_extent_crc_unpacked *crc = &op->crc;
 	struct bbuf data = { NULL };
 	size_t dst_len = crc->uncompressed_size << 9;
+	int ret = 0;
 
 	/* bio must own its pages: */
 	BUG_ON(!bio->bi_vcnt);
@@ -266,17 +270,26 @@ int bch2_bio_uncompress_inplace(struct bch_fs *c, struct bio *bio,
 
 	if (crc->uncompressed_size << 9	> c->opts.encoded_extent_max ||
 	    crc->compressed_size << 9	> c->opts.encoded_extent_max) {
-		bch_err(c, "error rewriting existing data: extent too big");
+		struct printbuf buf = PRINTBUF;
+		bch2_write_op_error(&buf, op);
+		prt_printf(&buf, "error rewriting existing data: extent too big");
+		bch_err_ratelimited(c, "%s", buf.buf);
+		printbuf_exit(&buf);
 		return -EIO;
 	}
 
 	data = __bounce_alloc(c, dst_len, WRITE);
 
 	if (__bio_uncompress(c, bio, data.b, *crc)) {
-		if (!c->opts.no_data_io)
-			bch_err(c, "error rewriting existing data: decompression error");
-		bio_unmap_or_unbounce(c, data);
-		return -EIO;
+		if (!c->opts.no_data_io) {
+			struct printbuf buf = PRINTBUF;
+			bch2_write_op_error(&buf, op);
+			prt_printf(&buf, "error rewriting existing data: decompression error");
+			bch_err_ratelimited(c, "%s", buf.buf);
+			printbuf_exit(&buf);
+		}
+		ret = -EIO;
+		goto err;
 	}
 
 	/*
@@ -293,9 +306,9 @@ int bch2_bio_uncompress_inplace(struct bch_fs *c, struct bio *bio,
 	crc->uncompressed_size	= crc->live_size;
 	crc->offset		= 0;
 	crc->csum		= (struct bch_csum) { 0, 0 };
-
+err:
 	bio_unmap_or_unbounce(c, data);
-	return 0;
+	return ret;
 }
 
 int bch2_bio_uncompress(struct bch_fs *c, struct bio *src,
