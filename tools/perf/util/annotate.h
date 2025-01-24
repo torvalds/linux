@@ -15,6 +15,7 @@
 #include "hashmap.h"
 #include "disasm.h"
 #include "branch.h"
+#include "evsel.h"
 
 struct hist_browser_timer;
 struct hist_entry;
@@ -23,7 +24,6 @@ struct map_symbol;
 struct addr_map_symbol;
 struct option;
 struct perf_sample;
-struct evsel;
 struct symbol;
 struct annotated_data_type;
 
@@ -373,21 +373,23 @@ static inline u8 annotation__br_cntr_width(void)
 void annotation__update_column_widths(struct annotation *notes);
 void annotation__toggle_full_addr(struct annotation *notes, struct map_symbol *ms);
 
-static inline struct sym_hist *annotated_source__histogram(struct annotated_source *src, int idx)
+static inline struct sym_hist *annotated_source__histogram(struct annotated_source *src,
+							   const struct evsel *evsel)
 {
-	return &src->histograms[idx];
+	return &src->histograms[evsel->core.idx];
 }
 
-static inline struct sym_hist *annotation__histogram(struct annotation *notes, int idx)
+static inline struct sym_hist *annotation__histogram(struct annotation *notes,
+						     const struct evsel *evsel)
 {
-	return annotated_source__histogram(notes->src, idx);
+	return annotated_source__histogram(notes->src, evsel);
 }
 
 static inline struct sym_hist_entry *
-annotated_source__hist_entry(struct annotated_source *src, int idx, u64 offset)
+annotated_source__hist_entry(struct annotated_source *src, const struct evsel *evsel, u64 offset)
 {
 	struct sym_hist_entry *entry;
-	long key = offset << 16 | idx;
+	long key = offset << 16 | evsel->core.idx;
 
 	if (!hashmap__find(src->samples, key, &entry))
 		return NULL;
@@ -441,6 +443,7 @@ enum symbol_disassemble_errno {
 	SYMBOL_ANNOTATE_ERRNO__ARCH_INIT_REGEXP,
 	SYMBOL_ANNOTATE_ERRNO__BPF_INVALID_FILE,
 	SYMBOL_ANNOTATE_ERRNO__BPF_MISSING_BTF,
+	SYMBOL_ANNOTATE_ERRNO__COULDNT_DETERMINE_FILE_TYPE,
 
 	__SYMBOL_ANNOTATE_ERRNO__END,
 };
@@ -448,8 +451,8 @@ enum symbol_disassemble_errno {
 int symbol__strerror_disassemble(struct map_symbol *ms, int errnum, char *buf, size_t buflen);
 
 int symbol__annotate_printf(struct map_symbol *ms, struct evsel *evsel);
-void symbol__annotate_zero_histogram(struct symbol *sym, int evidx);
-void symbol__annotate_decay_histogram(struct symbol *sym, int evidx);
+void symbol__annotate_zero_histogram(struct symbol *sym, struct evsel *evsel);
+void symbol__annotate_decay_histogram(struct symbol *sym, struct evsel *evsel);
 void annotated_source__purge(struct annotated_source *as);
 
 int map_symbol__annotation_dump(struct map_symbol *ms, struct evsel *evsel);

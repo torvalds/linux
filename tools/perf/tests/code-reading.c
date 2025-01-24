@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <errno.h>
+#include <linux/kconfig.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <inttypes.h>
@@ -8,6 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/param.h>
+#include <sys/utsname.h>
 #include <perf/cpumap.h>
 #include <perf/evlist.h>
 #include <perf/mmap.h>
@@ -176,16 +178,104 @@ static int read_objdump_output(FILE *f, void *buf, size_t *len, u64 start_addr)
 	return err;
 }
 
+/*
+ * Only gets GNU objdump version. Returns 0 for llvm-objdump.
+ */
+static int objdump_version(void)
+{
+	size_t line_len;
+	char cmd[PATH_MAX * 2];
+	char *line = NULL;
+	const char *fmt;
+	FILE *f;
+	int ret;
+
+	int version_tmp, version_num = 0;
+	char *version = 0, *token;
+
+	fmt = "%s --version";
+	ret = snprintf(cmd, sizeof(cmd), fmt, test_objdump_path);
+	if (ret <= 0 || (size_t)ret >= sizeof(cmd))
+		return -1;
+	/* Ignore objdump errors */
+	strcat(cmd, " 2>/dev/null");
+	f = popen(cmd, "r");
+	if (!f) {
+		pr_debug("popen failed\n");
+		return -1;
+	}
+	/* Get first line of objdump --version output */
+	ret = getline(&line, &line_len, f);
+	pclose(f);
+	if (ret < 0) {
+		pr_debug("getline failed\n");
+		return -1;
+	}
+
+	token = strsep(&line, " ");
+	if (token != NULL && !strcmp(token, "GNU")) {
+		// version is last part of first line of objdump --version output.
+		while ((token = strsep(&line, " ")))
+			version = token;
+
+		// Convert version into a format we can compare with
+		token = strsep(&version, ".");
+		version_num = atoi(token);
+		if (version_num)
+			version_num *= 10000;
+
+		token = strsep(&version, ".");
+		version_tmp = atoi(token);
+		if (token)
+			version_num += version_tmp * 100;
+
+		token = strsep(&version, ".");
+		version_tmp = atoi(token);
+		if (token)
+			version_num += version_tmp;
+	}
+
+	return version_num;
+}
+
 static int read_via_objdump(const char *filename, u64 addr, void *buf,
 			    size_t len)
 {
+	u64 stop_address = addr + len;
+	struct utsname uname_buf;
 	char cmd[PATH_MAX * 2];
 	const char *fmt;
 	FILE *f;
 	int ret;
 
+	ret = uname(&uname_buf);
+	if (ret) {
+		pr_debug("uname failed\n");
+		return -1;
+	}
+
+	if (!strncmp(uname_buf.machine, "riscv", 5)) {
+		int version = objdump_version();
+
+		/* Default to this workaround if version parsing fails */
+		if (version < 0 || version > 24100) {
+			/*
+			 * Starting at riscv objdump version 2.41, dumping in
+			 * the middle of an instruction is not supported. riscv
+			 * instructions are aligned along 2-byte intervals and
+			 * can be either 2-bytes or 4-bytes. This makes it
+			 * possible that the stop-address lands in the middle of
+			 * a 4-byte instruction. Increase the stop_address by
+			 * two to ensure an instruction is not cut in half, but
+			 * leave the len as-is so only the expected number of
+			 * bytes are collected.
+			 */
+			stop_address += 2;
+		}
+	}
+
 	fmt = "%s -z -d --start-address=0x%"PRIx64" --stop-address=0x%"PRIx64" %s";
-	ret = snprintf(cmd, sizeof(cmd), fmt, test_objdump_path, addr, addr + len,
+	ret = snprintf(cmd, sizeof(cmd), fmt, test_objdump_path, addr, stop_address,
 		       filename);
 	if (ret <= 0 || (size_t)ret >= sizeof(cmd))
 		return -1;
