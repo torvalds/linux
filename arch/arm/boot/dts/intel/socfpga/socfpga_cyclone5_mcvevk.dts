@@ -50,8 +50,6 @@
 
 	stmpe1: stmpe811@41 {
 		compatible = "st,stmpe811";
-		#address-cells = <1>;
-		#size-cells = <0>;
 		reg = <0x41>;
 		id = <0>;
 		blocks = <0x5>;

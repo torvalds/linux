@@ -135,6 +135,7 @@
 	lm75a: temperature-sensor@48 {
 		compatible = "national,lm75a";
 		reg = <0x48>;
+		vs-supply = <&vgen4_reg>;
 	};
 
 	/* NXP SE97BTP with temperature sensor + eeprom, TQMa7x 02xx */
@@ -150,7 +151,6 @@
 		reg = <0x50>;
 		pagesize = <32>;
 		vcc-supply = <&vgen4_reg>;
-		status = "okay";
 	};
 
 	at24c02: eeprom@56 {
@@ -158,7 +158,6 @@
 		reg = <0x56>;
 		pagesize = <16>;
 		vcc-supply = <&vgen4_reg>;
-		status = "okay";
 	};
 
 	ds1339: rtc@68 {
