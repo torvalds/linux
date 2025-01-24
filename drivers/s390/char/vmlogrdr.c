@@ -356,7 +356,7 @@ static int vmlogrdr_open (struct inode *inode, struct file *filp)
 	if (connect_rc) {
 		pr_err("vmlogrdr: iucv connection to %s "
 		       "failed with rc %i \n",
-		       logptr->system_service, connect_rc);
+		       logptr->internal_name, connect_rc);
 		goto out_path;
 	}
 
