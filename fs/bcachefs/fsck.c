@@ -405,7 +405,7 @@ static int reattach_inode(struct btree_trans *trans, struct bch_inode_unpacked *
 		return ret;
 
 	struct bch_hash_info dir_hash = bch2_hash_info_init(c, &lostfound);
-	struct qstr name = (struct qstr) QSTR(name_buf);
+	struct qstr name = QSTR(name_buf);
 
 	inode->bi_dir = lostfound.bi_inum;
 

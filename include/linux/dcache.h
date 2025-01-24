@@ -57,6 +57,7 @@ struct qstr {
 };
 
 #define QSTR_INIT(n,l) { { { .len = l } }, .name = n }
+#define QSTR(n) (struct qstr)QSTR_INIT(n, strlen(n))
 
 extern const struct qstr empty_name;
 extern const struct qstr slash_name;

@@ -647,8 +647,6 @@ static inline int cmp_le32(__le32 l, __le32 r)
 
 #include <linux/uuid.h>
 
-#define QSTR(n) { { { .len = strlen(n) } }, .name = n }
-
 static inline bool qstr_eq(const struct qstr l, const struct qstr r)
 {
 	return l.len == r.len && !memcmp(l.name, r.name, l.len);
