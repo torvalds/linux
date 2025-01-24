@@ -108,6 +108,9 @@ extern struct dentry *nouveau_debugfs_root;
  *
  * Terminology:
  *
+ * - gsp_msg(msg): GSP message element (element header + GSP RPC header +
+ *   payload)
+ * - gsp_rpc(rpc): GSP RPC (RPC header + payload)
  * - gsp_rpc_len: size of (GSP RPC header + payload)
  * - params_size: size of params in the payload
  * - payload_size: size of (header if exists + params) in the payload
@@ -795,30 +798,30 @@ r535_gsp_rpc_push(struct nvkm_gsp *gsp, void *payload, bool wait,
 		  u32 gsp_rpc_len)
 {
 	struct nvfw_gsp_rpc *rpc = to_gsp_hdr(payload, rpc);
-	struct r535_gsp_msg *cmd = to_gsp_hdr(rpc, cmd);
-	const u32 max_msg_size = GSP_MSG_MAX_SIZE - sizeof(*cmd);
-	const u32 max_rpc_size = max_msg_size - sizeof(*rpc);
-	u32 rpc_size = rpc->length - sizeof(*rpc);
+	struct r535_gsp_msg *msg = to_gsp_hdr(rpc, msg);
+	const u32 max_rpc_size = GSP_MSG_MAX_SIZE - sizeof(*msg);
+	const u32 max_payload_size = max_rpc_size - sizeof(*rpc);
+	u32 payload_size = rpc->length - sizeof(*rpc);
 	void *repv;
 
 	mutex_lock(&gsp->cmdq.mutex);
-	if (rpc_size > max_rpc_size) {
+	if (payload_size > max_payload_size) {
 		const u32 fn = rpc->function;
 
 		/* Adjust length, and send initial RPC. */
-		rpc->length = sizeof(*rpc) + max_rpc_size;
-		cmd->checksum = rpc->length;
+		rpc->length = sizeof(*rpc) + max_payload_size;
+		msg->checksum = rpc->length;
 
 		repv = r535_gsp_rpc_send(gsp, payload, false, 0);
 		if (IS_ERR(repv))
 			goto done;
 
-		payload += max_rpc_size;
-		rpc_size -= max_rpc_size;
+		payload += max_payload_size;
+		payload_size -= max_payload_size;
 
 		/* Remaining chunks sent as CONTINUATION_RECORD RPCs. */
-		while (rpc_size) {
-			u32 size = min(rpc_size, max_rpc_size);
+		while (payload_size) {
+			u32 size = min(payload_size, max_payload_size);
 			void *next;
 
 			next = r535_gsp_rpc_get(gsp, NV_VGPU_MSG_FUNCTION_CONTINUATION_RECORD, size);
@@ -834,7 +837,7 @@ r535_gsp_rpc_push(struct nvkm_gsp *gsp, void *payload, bool wait,
 				goto done;
 
 			payload += size;
-			rpc_size -= size;
+			payload_size -= size;
 		}
 
 		/* Wait for reply. */
