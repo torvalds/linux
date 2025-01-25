@@ -761,8 +761,8 @@ static void __init dmi_scan_machine(void)
 	pr_info("DMI not present or invalid.\n");
 }
 
-static BIN_ATTR_SIMPLE_ADMIN_RO(smbios_entry_point);
-static BIN_ATTR_SIMPLE_ADMIN_RO(DMI);
+static __ro_after_init BIN_ATTR_SIMPLE_ADMIN_RO(smbios_entry_point);
+static __ro_after_init BIN_ATTR_SIMPLE_ADMIN_RO(DMI);
 
 static int __init dmi_init(void)
 {
