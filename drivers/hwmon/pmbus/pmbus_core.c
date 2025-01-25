@@ -8,6 +8,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/delay.h>
+#include <linux/dcache.h>
 #include <linux/kernel.h>
 #include <linux/math64.h>
 #include <linux/module.h>
@@ -99,7 +100,6 @@ struct pmbus_data {
 	int num_attributes;
 	struct attribute_group group;
 	const struct attribute_group **groups;
-	struct dentry *debugfs;		/* debugfs device directory */
 
 	struct pmbus_sensor *sensors;
 
@@ -3496,34 +3496,49 @@ static const struct file_operations pmbus_debugfs_ops_mfr = {
 	.open = simple_open,
 };
 
-static void pmbus_remove_debugfs(void *data)
+static void pmbus_remove_symlink(void *symlink)
 {
-	struct dentry *entry = data;
-
-	debugfs_remove_recursive(entry);
+	debugfs_remove(symlink);
 }
 
 static int pmbus_init_debugfs(struct i2c_client *client,
 			      struct pmbus_data *data)
 {
-	struct dentry *debugfs;
-	int i, idx = 0;
-	char name[PMBUS_NAME_SIZE];
+	struct dentry *symlink_d, *debugfs = client->debugfs;
 	struct pmbus_debugfs_entry *entries;
+	const char *pathname, *symlink;
+	char name[PMBUS_NAME_SIZE];
+	int i, idx = 0;
 
-	if (!pmbus_debugfs_dir)
+	/*
+	 * client->debugfs may be NULL or an ERR_PTR(). dentry_path_raw()
+	 * does not check if its parameters are valid, so validate
+	 * client->debugfs before using it.
+	 */
+	if (!pmbus_debugfs_dir || IS_ERR_OR_NULL(debugfs))
 		return -ENODEV;
 
 	/*
-	 * Create the debugfs directory for this device. Use the hwmon device
-	 * name to avoid conflicts (hwmon numbers are globally unique).
+	 * Backwards compatibility: Create symlink from /pmbus/<hwmon_device>
+	 * to i2c debugfs directory.
 	 */
-	debugfs = debugfs_create_dir(dev_name(data->hwmon_dev),
-				     pmbus_debugfs_dir);
-	if (IS_ERR_OR_NULL(debugfs))
-		return -ENODEV;
+	pathname = dentry_path_raw(debugfs, name, sizeof(name));
+	if (IS_ERR(pathname))
+		return PTR_ERR(pathname);
 
-	data->debugfs = debugfs;
+	/*
+	 * The path returned by dentry_path_raw() starts with '/'. Prepend it
+	 * with ".." to get the symlink relative to the pmbus root directory.
+	 */
+	symlink = kasprintf(GFP_KERNEL, "..%s", pathname);
+	if (!symlink)
+		return -ENOMEM;
+
+	symlink_d = debugfs_create_symlink(dev_name(data->hwmon_dev),
+					   pmbus_debugfs_dir, symlink);
+	kfree(symlink);
+
+	devm_add_action_or_reset(data->dev, pmbus_remove_symlink, symlink_d);
 
 	/*
 	 * Allocate the max possible entries we need.
@@ -3711,9 +3726,7 @@ static int pmbus_init_debugfs(struct i2c_client *client,
 					    &pmbus_debugfs_ops);
 		}
 	}
-
-	return devm_add_action_or_reset(data->dev, pmbus_remove_debugfs,
-					debugfs);
+	return 0;
 }
 #else
 static int pmbus_init_debugfs(struct i2c_client *client,
@@ -3818,9 +3831,15 @@ EXPORT_SYMBOL_NS_GPL(pmbus_do_probe, "PMBUS");
 
 struct dentry *pmbus_get_debugfs_dir(struct i2c_client *client)
 {
-	struct pmbus_data *data = i2c_get_clientdata(client);
-
-	return data->debugfs;
+	/*
+	 * client->debugfs may be an ERR_PTR(). Returning that to
+	 * the calling code would potentially require additional
+	 * complexity in the calling code and otherwise add no
+	 * value. Return NULL in that case.
+	 */
+	if (IS_ERR_OR_NULL(client->debugfs))
+		return NULL;
+	return client->debugfs;
 }
 EXPORT_SYMBOL_NS_GPL(pmbus_get_debugfs_dir, "PMBUS");
 
