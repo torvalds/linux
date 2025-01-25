@@ -432,7 +432,7 @@ static ssize_t dmi_sel_raw_read_helper(struct dmi_sysfs_entry *entry,
 }
 
 static ssize_t raw_event_log_read(struct file *filp, struct kobject *kobj,
-				  struct bin_attribute *bin_attr,
+				  const struct bin_attribute *bin_attr,
 				  char *buf, loff_t pos, size_t count)
 {
 	struct dmi_sysfs_entry *entry = to_entry(kobj->parent);
@@ -445,7 +445,7 @@ static ssize_t raw_event_log_read(struct file *filp, struct kobject *kobj,
 	return find_dmi_entry(entry, dmi_sel_raw_read_helper, &state);
 }
 
-static BIN_ATTR_ADMIN_RO(raw_event_log, 0);
+static const BIN_ATTR_ADMIN_RO(raw_event_log, 0);
 
 static int dmi_system_event_log(struct dmi_sysfs_entry *entry)
 {
@@ -536,7 +536,7 @@ static ssize_t dmi_entry_raw_read_helper(struct dmi_sysfs_entry *entry,
 
 static ssize_t raw_read(struct file *filp,
 			struct kobject *kobj,
-			struct bin_attribute *bin_attr,
+			const struct bin_attribute *bin_attr,
 			char *buf, loff_t pos, size_t count)
 {
 	struct dmi_sysfs_entry *entry = to_entry(kobj);
