@@ -2704,7 +2704,6 @@ int cx231xx_set_gpio_value(struct cx231xx *dev, int pin_number, int pin_value)
 		dev->gpio_dir = value;
 		status = cx231xx_set_gpio_bit(dev, dev->gpio_dir,
 					      dev->gpio_val);
-		value = 0;
 	}
 
 	if (pin_value == 0)
