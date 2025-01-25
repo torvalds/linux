@@ -466,7 +466,6 @@
 
 #define LOONGARCH_CSR_TCFG		0x41	/* Timer config */
 #define  CSR_TCFG_VAL_SHIFT		2
-#define	 CSR_TCFG_VAL_WIDTH		48
 #define  CSR_TCFG_VAL			(_ULCAST_(0x3fffffffffff) << CSR_TCFG_VAL_SHIFT)
 #define  CSR_TCFG_PERIOD_SHIFT		1
 #define  CSR_TCFG_PERIOD		(_ULCAST_(0x1) << CSR_TCFG_PERIOD_SHIFT)
