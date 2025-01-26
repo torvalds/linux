@@ -108,13 +108,15 @@ enum aca_error_type {
 };
 
 enum aca_smu_type {
+	ACA_SMU_TYPE_INVALID = -1,
 	ACA_SMU_TYPE_UE = 0,
 	ACA_SMU_TYPE_CE,
 	ACA_SMU_TYPE_COUNT,
 };
 
 struct aca_bank {
-	enum aca_smu_type type;
+	enum aca_error_type aca_err_type;
+	enum aca_smu_type smu_err_type;
 	u64 regs[ACA_MAX_REGS_COUNT];
 };
 

@@ -168,7 +168,7 @@ static int aca_smu_get_valid_aca_banks(struct amdgpu_device *adev, enum aca_smu_
 		if (ret)
 			return ret;
 
-		bank.type = type;
+		bank.smu_err_type = type;
 
 		aca_smu_bank_dump(adev, i, count, &bank, qctx);
 
