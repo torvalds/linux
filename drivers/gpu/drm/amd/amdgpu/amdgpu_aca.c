@@ -30,16 +30,6 @@
 
 typedef int bank_handler_t(struct aca_handle *handle, struct aca_bank *bank, enum aca_smu_type type, void *data);
 
-struct aca_banks {
-	int nr_banks;
-	struct list_head list;
-};
-
-struct aca_hwip {
-	int hwid;
-	int mcatype;
-};
-
 static struct aca_hwip aca_hwid_mcatypes[ACA_HWIP_TYPE_COUNT] = {
 	ACA_BANK_HWID(SMU,	0x01,	0x01),
 	ACA_BANK_HWID(PCS_XGMI, 0x50,	0x00),
@@ -111,7 +101,7 @@ static struct aca_regs_dump {
 	{"STATUS",		ACA_REG_IDX_STATUS},
 	{"ADDR",		ACA_REG_IDX_ADDR},
 	{"MISC",		ACA_REG_IDX_MISC0},
-	{"CONFIG",		ACA_REG_IDX_CONFG},
+	{"CONFIG",		ACA_REG_IDX_CONFIG},
 	{"IPID",		ACA_REG_IDX_IPID},
 	{"SYND",		ACA_REG_IDX_SYND},
 	{"DESTAT",		ACA_REG_IDX_DESTAT},

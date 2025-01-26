@@ -26,6 +26,7 @@
 #define __AMDGPU_CPER_H__
 
 #include "amd_cper.h"
+#include "amdgpu_aca.h"
 
 #define CPER_MAX_ALLOWED_COUNT		0x1000
 #define HDR_LEN				(sizeof(struct cper_hdr))
@@ -84,7 +85,13 @@ int amdgpu_cper_entry_fill_bad_page_threshold_section(struct amdgpu_device *adev
 struct cper_hdr *amdgpu_cper_alloc_entry(struct amdgpu_device *adev,
 					 enum amdgpu_cper_type type,
 					 uint16_t section_count);
-
+/* UE must be encoded into separated cper entries, 1 UE 1 cper */
+int amdgpu_cper_generate_ue_record(struct amdgpu_device *adev,
+				   struct aca_bank *bank);
+/* CEs and DEs are combined into 1 cper entry */
+int amdgpu_cper_generate_ce_records(struct amdgpu_device *adev,
+				    struct aca_banks *banks,
+				    uint16_t bank_count);
 int amdgpu_cper_init(struct amdgpu_device *adev);
 int amdgpu_cper_fini(struct amdgpu_device *adev);
 
