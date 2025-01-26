@@ -108,6 +108,12 @@
 #define  CPUCFG3_SPW_HG_HF		BIT(11)
 #define  CPUCFG3_RVA			BIT(12)
 #define  CPUCFG3_RVAMAX			GENMASK(16, 13)
+#define  CPUCFG3_ALDORDER_CAP		BIT(18) /* All address load ordered, capability */
+#define  CPUCFG3_ASTORDER_CAP		BIT(19) /* All address store ordered, capability */
+#define  CPUCFG3_ALDORDER_STA		BIT(20) /* All address load ordered, status */
+#define  CPUCFG3_ASTORDER_STA		BIT(21) /* All address store ordered, status */
+#define  CPUCFG3_SLDORDER_CAP		BIT(22) /* Same address load ordered, capability */
+#define  CPUCFG3_SLDORDER_STA		BIT(23) /* Same address load ordered, status */
 
 #define LOONGARCH_CPUCFG4		0x4
 #define  CPUCFG4_CCFREQ			GENMASK(31, 0)
@@ -565,6 +571,15 @@
 
 /* Implement dependent */
 #define LOONGARCH_CSR_IMPCTL1		0x80	/* Loongson config1 */
+#define  CSR_LDSTORDER_SHIFT		28
+#define  CSR_LDSTORDER_WIDTH		3
+#define  CSR_LDSTORDER_MASK		(_ULCAST_(0x7) << CSR_LDSTORDER_SHIFT)
+#define  CSR_LDSTORDER_NLD_NST		(_ULCAST_(0x0) << CSR_LDSTORDER_SHIFT) /* 000 = No Load No Store */
+#define  CSR_LDSTORDER_ALD_NST		(_ULCAST_(0x1) << CSR_LDSTORDER_SHIFT) /* 001 = All Load No Store */
+#define  CSR_LDSTORDER_SLD_NST		(_ULCAST_(0x3) << CSR_LDSTORDER_SHIFT) /* 011 = Same Load No Store */
+#define  CSR_LDSTORDER_NLD_AST		(_ULCAST_(0x4) << CSR_LDSTORDER_SHIFT) /* 100 = No Load All Store */
+#define  CSR_LDSTORDER_ALD_AST		(_ULCAST_(0x5) << CSR_LDSTORDER_SHIFT) /* 101 = All Load All Store */
+#define  CSR_LDSTORDER_SLD_AST		(_ULCAST_(0x7) << CSR_LDSTORDER_SHIFT) /* 111 = Same Load All Store */
 #define  CSR_MISPEC_SHIFT		20
 #define  CSR_MISPEC_WIDTH		8
 #define  CSR_MISPEC			(_ULCAST_(0xff) << CSR_MISPEC_SHIFT)
