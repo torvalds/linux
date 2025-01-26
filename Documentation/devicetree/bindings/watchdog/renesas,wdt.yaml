@@ -75,6 +75,10 @@ properties:
               - renesas,r8a779h0-wdt     # R-Car V4M
           - const: renesas,rcar-gen4-wdt # R-Car Gen4
 
+      - items:
+          - const: renesas,r9a09g047-wdt # RZ/G3E
+          - const: renesas,r9a09g057-wdt # RZ/V2H(P)
+
       - const: renesas,r9a09g057-wdt       # RZ/V2H(P)
 
   reg:
