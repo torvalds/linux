@@ -3312,17 +3312,16 @@ static int pmbus_regulator_register(struct pmbus_data *data)
 	return 0;
 }
 
-static int pmbus_regulator_notify(struct pmbus_data *data, int page, int event)
+static void pmbus_regulator_notify(struct pmbus_data *data, int page, int event)
 {
-		int j;
+	int j;
 
-		for (j = 0; j < data->info->num_regulators; j++) {
-			if (page == rdev_get_id(data->rdevs[j])) {
-				regulator_notifier_call_chain(data->rdevs[j], event, NULL);
-				break;
-			}
+	for (j = 0; j < data->info->num_regulators; j++) {
+		if (page == rdev_get_id(data->rdevs[j])) {
+			regulator_notifier_call_chain(data->rdevs[j], event, NULL);
+			break;
 		}
-		return 0;
+	}
 }
 #else
 static int pmbus_regulator_register(struct pmbus_data *data)
@@ -3330,9 +3329,8 @@ static int pmbus_regulator_register(struct pmbus_data *data)
 	return 0;
 }
 
-static int pmbus_regulator_notify(struct pmbus_data *data, int page, int event)
+static void pmbus_regulator_notify(struct pmbus_data *data, int page, int event)
 {
-		return 0;
 }
 #endif
 
