@@ -146,21 +146,18 @@ static int __write_relocate_add(Elf64_Shdr *sechdrs,
 		}
 
 		if (apply) {
-			void *wr_loc = module_writable_address(me, loc);
-
-			if (memcmp(wr_loc, &zero, size)) {
+			if (memcmp(loc, &zero, size)) {
 				pr_err("x86/modules: Invalid relocation target, existing value is nonzero for type %d, loc %p, val %Lx\n",
 				       (int)ELF64_R_TYPE(rel[i].r_info), loc, val);
 				return -ENOEXEC;
 			}
-			write(wr_loc, &val, size);
+			write(loc, &val, size);
 		} else {
 			if (memcmp(loc, &val, size)) {
 				pr_warn("x86/modules: Invalid relocation target, existing value does not match expected value for type %d, loc %p, val %Lx\n",
 					(int)ELF64_R_TYPE(rel[i].r_info), loc, val);
 				return -ENOEXEC;
 			}
-			/* FIXME: needs care for ROX module allocations */
 			write(loc, &zero, size);
 		}
 	}
@@ -227,7 +224,7 @@ int module_finalize(const Elf_Ehdr *hdr,
 		    const Elf_Shdr *sechdrs,
 		    struct module *me)
 {
-	const Elf_Shdr *s, *alt = NULL,
+	const Elf_Shdr *s, *alt = NULL, *locks = NULL,
 		*orc = NULL, *orc_ip = NULL,
 		*retpolines = NULL, *returns = NULL, *ibt_endbr = NULL,
 		*calls = NULL, *cfi = NULL;
@@ -236,6 +233,8 @@ int module_finalize(const Elf_Ehdr *hdr,
 	for (s = sechdrs; s < sechdrs + hdr->e_shnum; s++) {
 		if (!strcmp(".altinstructions", secstrings + s->sh_name))
 			alt = s;
+		if (!strcmp(".smp_locks", secstrings + s->sh_name))
+			locks = s;
 		if (!strcmp(".orc_unwind", secstrings + s->sh_name))
 			orc = s;
 		if (!strcmp(".orc_unwind_ip", secstrings + s->sh_name))
@@ -266,20 +265,20 @@ int module_finalize(const Elf_Ehdr *hdr,
 			csize = cfi->sh_size;
 		}
 
-		apply_fineibt(rseg, rseg + rsize, cseg, cseg + csize, me);
+		apply_fineibt(rseg, rseg + rsize, cseg, cseg + csize);
 	}
 	if (retpolines) {
 		void *rseg = (void *)retpolines->sh_addr;
-		apply_retpolines(rseg, rseg + retpolines->sh_size, me);
+		apply_retpolines(rseg, rseg + retpolines->sh_size);
 	}
 	if (returns) {
 		void *rseg = (void *)returns->sh_addr;
-		apply_returns(rseg, rseg + returns->sh_size, me);
+		apply_returns(rseg, rseg + returns->sh_size);
 	}
 	if (alt) {
 		/* patch .altinstructions */
 		void *aseg = (void *)alt->sh_addr;
-		apply_alternatives(aseg, aseg + alt->sh_size, me);
+		apply_alternatives(aseg, aseg + alt->sh_size);
 	}
 	if (calls || alt) {
 		struct callthunk_sites cs = {};
@@ -298,28 +297,8 @@ int module_finalize(const Elf_Ehdr *hdr,
 	}
 	if (ibt_endbr) {
 		void *iseg = (void *)ibt_endbr->sh_addr;
-		apply_seal_endbr(iseg, iseg + ibt_endbr->sh_size, me);
+		apply_seal_endbr(iseg, iseg + ibt_endbr->sh_size);
 	}
-
-	if (orc && orc_ip)
-		unwind_module_init(me, (void *)orc_ip->sh_addr, orc_ip->sh_size,
-				   (void *)orc->sh_addr, orc->sh_size);
-
-	return 0;
-}
-
-int module_post_finalize(const Elf_Ehdr *hdr,
-			 const Elf_Shdr *sechdrs,
-			 struct module *me)
-{
-	const Elf_Shdr *s, *locks = NULL;
-	char *secstrings = (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
-
-	for (s = sechdrs; s < sechdrs + hdr->e_shnum; s++) {
-		if (!strcmp(".smp_locks", secstrings + s->sh_name))
-			locks = s;
-	}
-
 	if (locks) {
 		void *lseg = (void *)locks->sh_addr;
 		void *text = me->mem[MOD_TEXT].base;
@@ -328,6 +307,10 @@ int module_post_finalize(const Elf_Ehdr *hdr,
 					    lseg, lseg + locks->sh_size,
 					    text, text_end);
 	}
+
+	if (orc && orc_ip)
+		unwind_module_init(me, (void *)orc_ip->sh_addr, orc_ip->sh_size,
+				   (void *)orc->sh_addr, orc->sh_size);
 
 	return 0;
 }
