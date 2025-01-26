@@ -22,8 +22,8 @@ class Dot2c(Automata):
     struct_automaton_def = "automaton"
     var_automaton_def = "aut"
 
-    def __init__(self, file_path):
-        super().__init__(file_path)
+    def __init__(self, file_path, model_name=None):
+        super().__init__(file_path, model_name)
         self.line_length = 100
 
     def __buff_to_string(self, buff):
