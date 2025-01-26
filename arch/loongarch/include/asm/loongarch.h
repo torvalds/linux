@@ -973,6 +973,36 @@
 #define LOONGARCH_CSR_DB7CTRL		0x34a	/* data breakpoint 7 control */
 #define LOONGARCH_CSR_DB7ASID		0x34b	/* data breakpoint 7 asid */
 
+#define LOONGARCH_CSR_DB8ADDR		0x350	/* data breakpoint 8 address */
+#define LOONGARCH_CSR_DB8MASK		0x351	/* data breakpoint 8 mask */
+#define LOONGARCH_CSR_DB8CTRL		0x352	/* data breakpoint 8 control */
+#define LOONGARCH_CSR_DB8ASID		0x353	/* data breakpoint 8 asid */
+
+#define LOONGARCH_CSR_DB9ADDR		0x358	/* data breakpoint 9 address */
+#define LOONGARCH_CSR_DB9MASK		0x359	/* data breakpoint 9 mask */
+#define LOONGARCH_CSR_DB9CTRL		0x35a	/* data breakpoint 9 control */
+#define LOONGARCH_CSR_DB9ASID		0x35b	/* data breakpoint 9 asid */
+
+#define LOONGARCH_CSR_DB10ADDR		0x360	/* data breakpoint 10 address */
+#define LOONGARCH_CSR_DB10MASK		0x361	/* data breakpoint 10 mask */
+#define LOONGARCH_CSR_DB10CTRL		0x362	/* data breakpoint 10 control */
+#define LOONGARCH_CSR_DB10ASID		0x363	/* data breakpoint 10 asid */
+
+#define LOONGARCH_CSR_DB11ADDR		0x368	/* data breakpoint 11 address */
+#define LOONGARCH_CSR_DB11MASK		0x369	/* data breakpoint 11 mask */
+#define LOONGARCH_CSR_DB11CTRL		0x36a	/* data breakpoint 11 control */
+#define LOONGARCH_CSR_DB11ASID		0x36b	/* data breakpoint 11 asid */
+
+#define LOONGARCH_CSR_DB12ADDR		0x370	/* data breakpoint 12 address */
+#define LOONGARCH_CSR_DB12MASK		0x371	/* data breakpoint 12 mask */
+#define LOONGARCH_CSR_DB12CTRL		0x372	/* data breakpoint 12 control */
+#define LOONGARCH_CSR_DB12ASID		0x373	/* data breakpoint 12 asid */
+
+#define LOONGARCH_CSR_DB13ADDR		0x378	/* data breakpoint 13 address */
+#define LOONGARCH_CSR_DB13MASK		0x379	/* data breakpoint 13 mask */
+#define LOONGARCH_CSR_DB13CTRL		0x37a	/* data breakpoint 13 control */
+#define LOONGARCH_CSR_DB13ASID		0x37b	/* data breakpoint 13 asid */
+
 #define LOONGARCH_CSR_FWPC		0x380	/* instruction breakpoint config */
 #define LOONGARCH_CSR_FWPS		0x381	/* instruction breakpoint status */
 
@@ -1015,6 +1045,36 @@
 #define LOONGARCH_CSR_IB7MASK		0x3c9	/* inst breakpoint 7 mask */
 #define LOONGARCH_CSR_IB7CTRL		0x3ca	/* inst breakpoint 7 control */
 #define LOONGARCH_CSR_IB7ASID		0x3cb	/* inst breakpoint 7 asid */
+
+#define LOONGARCH_CSR_IB8ADDR		0x3d0	/* inst breakpoint 8 address */
+#define LOONGARCH_CSR_IB8MASK		0x3d1	/* inst breakpoint 8 mask */
+#define LOONGARCH_CSR_IB8CTRL		0x3d2	/* inst breakpoint 8 control */
+#define LOONGARCH_CSR_IB8ASID		0x3d3	/* inst breakpoint 8 asid */
+
+#define LOONGARCH_CSR_IB9ADDR		0x3d8	/* inst breakpoint 9 address */
+#define LOONGARCH_CSR_IB9MASK		0x3d9	/* inst breakpoint 9 mask */
+#define LOONGARCH_CSR_IB9CTRL		0x3da	/* inst breakpoint 9 control */
+#define LOONGARCH_CSR_IB9ASID		0x3db	/* inst breakpoint 9 asid */
+
+#define LOONGARCH_CSR_IB10ADDR		0x3e0	/* inst breakpoint 10 address */
+#define LOONGARCH_CSR_IB10MASK		0x3e1	/* inst breakpoint 10 mask */
+#define LOONGARCH_CSR_IB10CTRL		0x3e2	/* inst breakpoint 10 control */
+#define LOONGARCH_CSR_IB10ASID		0x3e3	/* inst breakpoint 10 asid */
+
+#define LOONGARCH_CSR_IB11ADDR		0x3e8	/* inst breakpoint 11 address */
+#define LOONGARCH_CSR_IB11MASK		0x3e9	/* inst breakpoint 11 mask */
+#define LOONGARCH_CSR_IB11CTRL		0x3ea	/* inst breakpoint 11 control */
+#define LOONGARCH_CSR_IB11ASID		0x3eb	/* inst breakpoint 11 asid */
+
+#define LOONGARCH_CSR_IB12ADDR		0x3f0	/* inst breakpoint 12 address */
+#define LOONGARCH_CSR_IB12MASK		0x3f1	/* inst breakpoint 12 mask */
+#define LOONGARCH_CSR_IB12CTRL		0x3f2	/* inst breakpoint 12 control */
+#define LOONGARCH_CSR_IB12ASID		0x3f3	/* inst breakpoint 12 asid */
+
+#define LOONGARCH_CSR_IB13ADDR		0x3f8	/* inst breakpoint 13 address */
+#define LOONGARCH_CSR_IB13MASK		0x3f9	/* inst breakpoint 13 mask */
+#define LOONGARCH_CSR_IB13CTRL		0x3fa	/* inst breakpoint 13 control */
+#define LOONGARCH_CSR_IB13ASID		0x3fb	/* inst breakpoint 13 asid */
 
 #define LOONGARCH_CSR_DEBUG		0x500	/* debug config */
 #define LOONGARCH_CSR_DERA		0x501	/* debug era */
