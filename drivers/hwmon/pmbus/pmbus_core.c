@@ -3500,6 +3500,7 @@ static void pmbus_remove_symlink(void *symlink)
 
 struct pmbus_debugfs_data {
 	u8 reg;
+	u32 flag;
 	const char *name;
 };
 
@@ -3512,6 +3513,19 @@ static const struct pmbus_debugfs_data pmbus_debugfs_block_data[] = {
 	{ .reg = PMBUS_MFR_SERIAL, .name = "mfr_serial" },
 };
 
+static const struct pmbus_debugfs_data pmbus_debugfs_status_data[] = {
+	{ .reg = PMBUS_STATUS_VOUT, .flag = PMBUS_HAVE_STATUS_VOUT, .name = "status%d_vout" },
+	{ .reg = PMBUS_STATUS_IOUT, .flag = PMBUS_HAVE_STATUS_IOUT, .name = "status%d_iout" },
+	{ .reg = PMBUS_STATUS_INPUT, .flag = PMBUS_HAVE_STATUS_INPUT, .name = "status%d_input" },
+	{ .reg = PMBUS_STATUS_TEMPERATURE, .flag = PMBUS_HAVE_STATUS_TEMP,
+	  .name = "status%d_temp" },
+	{ .reg = PMBUS_STATUS_FAN_12, .flag = PMBUS_HAVE_STATUS_FAN12, .name = "status%d_fan12" },
+	{ .reg = PMBUS_STATUS_FAN_34, .flag = PMBUS_HAVE_STATUS_FAN34, .name = "status%d_fan34" },
+	{ .reg = PMBUS_STATUS_CML, .name = "status%d_cml" },
+	{ .reg = PMBUS_STATUS_OTHER, .name = "status%d_other" },
+	{ .reg = PMBUS_STATUS_MFR_SPECIFIC, .name = "status%d_mfr" },
+};
+
 static void pmbus_init_debugfs(struct i2c_client *client,
 			       struct pmbus_data *data)
 {
@@ -3519,7 +3533,7 @@ static void pmbus_init_debugfs(struct i2c_client *client,
 	struct pmbus_debugfs_entry *entries;
 	const char *pathname, *symlink;
 	char name[PMBUS_NAME_SIZE];
-	int i, idx = 0;
+	int page, i, idx = 0;
 
 	/*
 	 * client->debugfs may be NULL or an ERR_PTR(). dentry_path_raw()
@@ -3555,11 +3569,12 @@ static void pmbus_init_debugfs(struct i2c_client *client,
 	 * Allocate the max possible entries we need.
 	 * device specific:
 	 *	ARRAY_SIZE(pmbus_debugfs_block_data) + 1
-	 * 10 entries page-specific
+	 * page specific:
+	 *	ARRAY_SIZE(pmbus_debugfs_status_data) + 1
 	 */
 	entries = devm_kcalloc(data->dev,
 			       ARRAY_SIZE(pmbus_debugfs_block_data) + 1 +
-			       data->info->pages * 10,
+			       data->info->pages * (ARRAY_SIZE(pmbus_debugfs_status_data) + 1),
 			       sizeof(*entries), GFP_KERNEL);
 	if (!entries)
 		return;
@@ -3595,107 +3610,32 @@ static void pmbus_init_debugfs(struct i2c_client *client,
 	}
 
 	/* Add page specific entries */
-	for (i = 0; i < data->info->pages; ++i) {
+	for (page = 0; page < data->info->pages; ++page) {
 		/* Check accessibility of status register if it's not page 0 */
-		if (!i || pmbus_check_status_register(client, i)) {
+		if (!page || pmbus_check_status_register(client, page)) {
 			/* No need to set reg as we have special read op. */
 			entries[idx].client = client;
-			entries[idx].page = i;
-			scnprintf(name, PMBUS_NAME_SIZE, "status%d", i);
+			entries[idx].page = page;
+			scnprintf(name, PMBUS_NAME_SIZE, "status%d", page);
 			debugfs_create_file(name, 0444, debugfs,
 					    &entries[idx++],
 					    &pmbus_debugfs_ops_status);
 		}
 
-		if (data->info->func[i] & PMBUS_HAVE_STATUS_VOUT) {
-			entries[idx].client = client;
-			entries[idx].page = i;
-			entries[idx].reg = PMBUS_STATUS_VOUT;
-			scnprintf(name, PMBUS_NAME_SIZE, "status%d_vout", i);
-			debugfs_create_file(name, 0444, debugfs,
-					    &entries[idx++],
-					    &pmbus_debugfs_ops);
-		}
+		for (i = 0; i < ARRAY_SIZE(pmbus_debugfs_status_data); i++) {
+			const struct pmbus_debugfs_data *d =
+					&pmbus_debugfs_status_data[i];
 
-		if (data->info->func[i] & PMBUS_HAVE_STATUS_IOUT) {
-			entries[idx].client = client;
-			entries[idx].page = i;
-			entries[idx].reg = PMBUS_STATUS_IOUT;
-			scnprintf(name, PMBUS_NAME_SIZE, "status%d_iout", i);
-			debugfs_create_file(name, 0444, debugfs,
-					    &entries[idx++],
-					    &pmbus_debugfs_ops);
-		}
-
-		if (data->info->func[i] & PMBUS_HAVE_STATUS_INPUT) {
-			entries[idx].client = client;
-			entries[idx].page = i;
-			entries[idx].reg = PMBUS_STATUS_INPUT;
-			scnprintf(name, PMBUS_NAME_SIZE, "status%d_input", i);
-			debugfs_create_file(name, 0444, debugfs,
-					    &entries[idx++],
-					    &pmbus_debugfs_ops);
-		}
-
-		if (data->info->func[i] & PMBUS_HAVE_STATUS_TEMP) {
-			entries[idx].client = client;
-			entries[idx].page = i;
-			entries[idx].reg = PMBUS_STATUS_TEMPERATURE;
-			scnprintf(name, PMBUS_NAME_SIZE, "status%d_temp", i);
-			debugfs_create_file(name, 0444, debugfs,
-					    &entries[idx++],
-					    &pmbus_debugfs_ops);
-		}
-
-		if (pmbus_check_byte_register(client, i, PMBUS_STATUS_CML)) {
-			entries[idx].client = client;
-			entries[idx].page = i;
-			entries[idx].reg = PMBUS_STATUS_CML;
-			scnprintf(name, PMBUS_NAME_SIZE, "status%d_cml", i);
-			debugfs_create_file(name, 0444, debugfs,
-					    &entries[idx++],
-					    &pmbus_debugfs_ops);
-		}
-
-		if (pmbus_check_byte_register(client, i, PMBUS_STATUS_OTHER)) {
-			entries[idx].client = client;
-			entries[idx].page = i;
-			entries[idx].reg = PMBUS_STATUS_OTHER;
-			scnprintf(name, PMBUS_NAME_SIZE, "status%d_other", i);
-			debugfs_create_file(name, 0444, debugfs,
-					    &entries[idx++],
-					    &pmbus_debugfs_ops);
-		}
-
-		if (pmbus_check_byte_register(client, i,
-					      PMBUS_STATUS_MFR_SPECIFIC)) {
-			entries[idx].client = client;
-			entries[idx].page = i;
-			entries[idx].reg = PMBUS_STATUS_MFR_SPECIFIC;
-			scnprintf(name, PMBUS_NAME_SIZE, "status%d_mfr", i);
-			debugfs_create_file(name, 0444, debugfs,
-					    &entries[idx++],
-					    &pmbus_debugfs_ops);
-		}
-
-		if (data->info->func[i] & PMBUS_HAVE_STATUS_FAN12) {
-			entries[idx].client = client;
-			entries[idx].page = i;
-			entries[idx].reg = PMBUS_STATUS_FAN_12;
-			scnprintf(name, PMBUS_NAME_SIZE, "status%d_fan12", i);
-			debugfs_create_file(name, 0444, debugfs,
-					    &entries[idx++],
-					    &pmbus_debugfs_ops);
-		}
-
-		if (data->info->func[i] & PMBUS_HAVE_STATUS_FAN34) {
-			entries[idx].client = client;
-			entries[idx].page = i;
-			entries[idx].reg = PMBUS_STATUS_FAN_34;
-			scnprintf(name, PMBUS_NAME_SIZE, "status%d_fan34", i);
-			debugfs_create_file(name, 0444, debugfs,
-					    &entries[idx++],
-					    &pmbus_debugfs_ops);
+			if ((data->info->func[page] & d->flag) ||
+			    (!d->flag && pmbus_check_byte_register(client, page, d->reg))) {
+				entries[idx].client = client;
+				entries[idx].page = page;
+				entries[idx].reg = d->reg;
+				scnprintf(name, PMBUS_NAME_SIZE, d->name, page);
+				debugfs_create_file(name, 0444, debugfs,
+						    &entries[idx++],
+						    &pmbus_debugfs_ops);
+			}
 		}
 	}
 }
