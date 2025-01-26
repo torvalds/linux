@@ -830,7 +830,7 @@ static void update_var_state(struct type_state *state, struct data_loc_info *dlo
 		if (!dwarf_offdie(dloc->di->dbg, var->die_off, &mem_die))
 			continue;
 
-		if (var->reg == DWARF_REG_FB || var->reg == fbreg) {
+		if (var->reg == DWARF_REG_FB || var->reg == fbreg || var->reg == state->stack_reg) {
 			int offset = var->offset;
 			struct type_state_stack *stack;
 
@@ -845,8 +845,13 @@ static void update_var_state(struct type_state *state, struct data_loc_info *dlo
 			findnew_stack_state(state, offset, TSR_KIND_TYPE,
 					    &mem_die);
 
-			pr_debug_dtp("var [%"PRIx64"] -%#x(stack)",
-				     insn_offset, -offset);
+			if (var->reg == state->stack_reg) {
+				pr_debug_dtp("var [%"PRIx64"] %#x(reg%d)",
+					     insn_offset, offset, state->stack_reg);
+			} else {
+				pr_debug_dtp("var [%"PRIx64"] -%#x(stack)",
+					     insn_offset, -offset);
+			}
 			pr_debug_type_name(&mem_die, TSR_KIND_TYPE);
 		} else if (has_reg_type(state, var->reg) && var->offset == 0) {
 			struct type_state_reg *reg;
@@ -1127,10 +1132,10 @@ again:
 	}
 
 check_non_register:
-	if (reg == dloc->fbreg) {
+	if (reg == dloc->fbreg || reg == state->stack_reg) {
 		struct type_state_stack *stack;
 
-		pr_debug_dtp("fbreg");
+		pr_debug_dtp("%s", reg == dloc->fbreg ? "fbreg" : "stack");
 
 		stack = find_stack_state(state, dloc->type_offset);
 		if (stack == NULL) {
