@@ -56,22 +56,8 @@ SYM_FUNC_START(startup_64_mixed_mode)
 	movl	efi32_boot_sp(%rip), %esp
 	andl	$~7, %esp
 
-#ifdef CONFIG_EFI_HANDOVER_PROTOCOL
 	mov	8(%rdx), %edx		// saved bootparams pointer
-	test	%edx, %edx
-	jnz	efi_stub_entry
-#endif
-	/*
-	 * efi_pe_entry uses MS calling convention, which requires 32 bytes of
-	 * shadow space on the stack even if all arguments are passed in
-	 * registers. We also need an additional 8 bytes for the space that
-	 * would be occupied by the return address, and this also results in
-	 * the correct stack alignment for entry.
-	 */
-	sub	$40, %rsp
-	mov	%rdi, %rcx		// MS calling convention
-	mov	%rsi, %rdx
-	jmp	efi_pe_entry
+	call	efi_stub_entry
 SYM_FUNC_END(startup_64_mixed_mode)
 
 SYM_FUNC_START(__efi64_thunk)
