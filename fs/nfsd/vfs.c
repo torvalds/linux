@@ -71,7 +71,6 @@ nfserrno (int errno)
 		{ nfserr_acces, -EACCES },
 		{ nfserr_exist, -EEXIST },
 		{ nfserr_xdev, -EXDEV },
-		{ nfserr_mlink, -EMLINK },
 		{ nfserr_nodev, -ENODEV },
 		{ nfserr_notdir, -ENOTDIR },
 		{ nfserr_isdir, -EISDIR },
