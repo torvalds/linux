@@ -3420,7 +3420,6 @@ static int pmbus_irq_setup(struct i2c_client *client, struct pmbus_data *data)
 
 static struct dentry *pmbus_debugfs_dir;	/* pmbus debugfs directory */
 
-#if IS_ENABLED(CONFIG_DEBUG_FS)
 static int pmbus_debugfs_get(void *data, u64 *val)
 {
 	int rc;
@@ -3501,8 +3500,8 @@ static void pmbus_remove_symlink(void *symlink)
 	debugfs_remove(symlink);
 }
 
-static int pmbus_init_debugfs(struct i2c_client *client,
-			      struct pmbus_data *data)
+static void pmbus_init_debugfs(struct i2c_client *client,
+			       struct pmbus_data *data)
 {
 	struct dentry *symlink_d, *debugfs = client->debugfs;
 	struct pmbus_debugfs_entry *entries;
@@ -3516,7 +3515,7 @@ static int pmbus_init_debugfs(struct i2c_client *client,
 	 * client->debugfs before using it.
 	 */
 	if (!pmbus_debugfs_dir || IS_ERR_OR_NULL(debugfs))
-		return -ENODEV;
+		return;
 
 	/*
 	 * Backwards compatibility: Create symlink from /pmbus/<hwmon_device>
@@ -3524,7 +3523,7 @@ static int pmbus_init_debugfs(struct i2c_client *client,
 	 */
 	pathname = dentry_path_raw(debugfs, name, sizeof(name));
 	if (IS_ERR(pathname))
-		return PTR_ERR(pathname);
+		return;
 
 	/*
 	 * The path returned by dentry_path_raw() starts with '/'. Prepend it
@@ -3532,7 +3531,7 @@ static int pmbus_init_debugfs(struct i2c_client *client,
 	 */
 	symlink = kasprintf(GFP_KERNEL, "..%s", pathname);
 	if (!symlink)
-		return -ENOMEM;
+		return;
 
 	symlink_d = debugfs_create_symlink(dev_name(data->hwmon_dev),
 					   pmbus_debugfs_dir, symlink);
@@ -3549,7 +3548,7 @@ static int pmbus_init_debugfs(struct i2c_client *client,
 			       7 + data->info->pages * 10, sizeof(*entries),
 			       GFP_KERNEL);
 	if (!entries)
-		return -ENOMEM;
+		return;
 
 	/*
 	 * Add device-specific entries.
@@ -3726,15 +3725,7 @@ static int pmbus_init_debugfs(struct i2c_client *client,
 					    &pmbus_debugfs_ops);
 		}
 	}
-	return 0;
 }
-#else
-static int pmbus_init_debugfs(struct i2c_client *client,
-			      struct pmbus_data *data)
-{
-	return 0;
-}
-#endif	/* IS_ENABLED(CONFIG_DEBUG_FS) */
 
 int pmbus_do_probe(struct i2c_client *client, struct pmbus_driver_info *info)
 {
@@ -3821,9 +3812,7 @@ int pmbus_do_probe(struct i2c_client *client, struct pmbus_driver_info *info)
 	if (ret)
 		return ret;
 
-	ret = pmbus_init_debugfs(client, data);
-	if (ret)
-		dev_warn(dev, "Failed to register debugfs\n");
+	pmbus_init_debugfs(client, data);
 
 	return 0;
 }
