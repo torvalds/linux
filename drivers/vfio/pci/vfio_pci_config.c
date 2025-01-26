@@ -1389,11 +1389,12 @@ static int vfio_ext_cap_len(struct vfio_pci_core_device *vdev, u16 ecap, u16 epo
 
 	switch (ecap) {
 	case PCI_EXT_CAP_ID_VNDR:
-		ret = pci_read_config_dword(pdev, epos + PCI_VSEC_HDR, &dword);
+		ret = pci_read_config_dword(pdev, epos + PCI_VNDR_HEADER,
+					    &dword);
 		if (ret)
 			return pcibios_err_to_errno(ret);
 
-		return dword >> PCI_VSEC_HDR_LEN_SHIFT;
+		return PCI_VNDR_HEADER_LEN(dword);
 	case PCI_EXT_CAP_ID_VC:
 	case PCI_EXT_CAP_ID_VC9:
 	case PCI_EXT_CAP_ID_MFVC:
