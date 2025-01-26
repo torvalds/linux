@@ -243,7 +243,7 @@ void erofs_shrinker_unregister(struct super_block *sb)
 static unsigned long erofs_shrink_count(struct shrinker *shrink,
 					struct shrink_control *sc)
 {
-	return atomic_long_read(&erofs_global_shrink_cnt);
+	return atomic_long_read(&erofs_global_shrink_cnt) ?: SHRINK_EMPTY;
 }
 
 static unsigned long erofs_shrink_scan(struct shrinker *shrink,
