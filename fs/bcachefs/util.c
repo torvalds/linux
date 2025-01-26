@@ -788,27 +788,46 @@ static inline int cmp_u16(const void *_l, const void *_r)
 	return (*l > *r) - (*r > *l);
 }
 
-static void eytzinger0_find_test_val(u16 *test_array, unsigned nr, u16 search)
+static void eytzinger0_find_test_le(u16 *test_array, unsigned nr, u16 search)
 {
-	int i, c1 = -1, c2 = -1;
-	ssize_t r;
+	int r, s;
+	bool bad;
 
 	r = eytzinger0_find_le(test_array, nr,
 			       sizeof(test_array[0]),
 			       cmp_u16, &search);
-	if (r >= 0)
-		c1 = test_array[r];
+	if (r >= 0) {
+		if (test_array[r] > search) {
+			bad = true;
+		} else {
+			s = eytzinger0_next(r, nr);
+			bad = s >= 0 && test_array[s] <= search;
+		}
+	} else {
+		s = eytzinger0_last(nr);
+		bad = s >= 0 && test_array[s] <= search;
+	}
 
-	for (i = 0; i < nr; i++)
-		if (test_array[i] <= search && test_array[i] > c2)
-			c2 = test_array[i];
+	if (bad) {
+		s = -1;
+		eytzinger0_for_each_prev(j, nr) {
+			if (test_array[j] <= search) {
+				s = j;
+				break;
+			}
+		}
 
-	if (c1 != c2) {
 		eytzinger0_for_each(j, nr)
 			pr_info("[%3u] = %12u\n", j, test_array[j]);
-		pr_info("find_le(%2u) -> [%2zi] = %2i should be %2i\n",
-			i, r, c1, c2);
+		pr_info("find_le(%12u) = %3i should be %3i\n",
+			search, r, s);
+		BUG();
 	}
+}
+
+static void eytzinger0_find_test_val(u16 *test_array, unsigned nr, u16 search)
+{
+	eytzinger0_find_test_le(test_array, nr, search);
 }
 
 void eytzinger0_find_test(void)
