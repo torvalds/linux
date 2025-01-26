@@ -113,11 +113,10 @@ journal_seq_to_buf(struct journal *j, u64 seq)
 
 static void journal_pin_list_init(struct journal_entry_pin_list *p, int count)
 {
-	unsigned i;
-
-	for (i = 0; i < ARRAY_SIZE(p->list); i++)
-		INIT_LIST_HEAD(&p->list[i]);
-	INIT_LIST_HEAD(&p->flushed);
+	for (unsigned i = 0; i < ARRAY_SIZE(p->unflushed); i++)
+		INIT_LIST_HEAD(&p->unflushed[i]);
+	for (unsigned i = 0; i < ARRAY_SIZE(p->flushed); i++)
+		INIT_LIST_HEAD(&p->flushed[i]);
 	atomic_set(&p->count, count);
 	p->devs.nr = 0;
 }
@@ -1625,55 +1624,4 @@ void bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 	spin_lock(&j->lock);
 	__bch2_journal_debug_to_text(out, j);
 	spin_unlock(&j->lock);
-}
-
-bool bch2_journal_seq_pins_to_text(struct printbuf *out, struct journal *j, u64 *seq)
-{
-	struct journal_entry_pin_list *pin_list;
-	struct journal_entry_pin *pin;
-
-	spin_lock(&j->lock);
-	if (!test_bit(JOURNAL_running, &j->flags)) {
-		spin_unlock(&j->lock);
-		return true;
-	}
-
-	*seq = max(*seq, j->pin.front);
-
-	if (*seq >= j->pin.back) {
-		spin_unlock(&j->lock);
-		return true;
-	}
-
-	out->atomic++;
-
-	pin_list = journal_seq_pin(j, *seq);
-
-	prt_printf(out, "%llu: count %u\n", *seq, atomic_read(&pin_list->count));
-	printbuf_indent_add(out, 2);
-
-	for (unsigned i = 0; i < ARRAY_SIZE(pin_list->list); i++)
-		list_for_each_entry(pin, &pin_list->list[i], list)
-			prt_printf(out, "\t%px %ps\n", pin, pin->flush);
-
-	if (!list_empty(&pin_list->flushed))
-		prt_printf(out, "flushed:\n");
-
-	list_for_each_entry(pin, &pin_list->flushed, list)
-		prt_printf(out, "\t%px %ps\n", pin, pin->flush);
-
-	printbuf_indent_sub(out, 2);
-
-	--out->atomic;
-	spin_unlock(&j->lock);
-
-	return false;
-}
-
-void bch2_journal_pins_to_text(struct printbuf *out, struct journal *j)
-{
-	u64 seq = 0;
-
-	while (!bch2_journal_seq_pins_to_text(out, j, &seq))
-		seq++;
 }
