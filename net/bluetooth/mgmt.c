@@ -5743,29 +5743,6 @@ done:
 	return err;
 }
 
-void mgmt_start_discovery_complete(struct hci_dev *hdev, u8 status)
-{
-	struct mgmt_pending_cmd *cmd;
-
-	bt_dev_dbg(hdev, "status %u", status);
-
-	hci_dev_lock(hdev);
-
-	cmd = pending_find(MGMT_OP_START_DISCOVERY, hdev);
-	if (!cmd)
-		cmd = pending_find(MGMT_OP_START_SERVICE_DISCOVERY, hdev);
-
-	if (!cmd)
-		cmd = pending_find(MGMT_OP_START_LIMITED_DISCOVERY, hdev);
-
-	if (cmd) {
-		cmd->cmd_complete(cmd, mgmt_status(status));
-		mgmt_pending_remove(cmd);
-	}
-
-	hci_dev_unlock(hdev);
-}
-
 static bool discovery_type_is_valid(struct hci_dev *hdev, uint8_t type,
 				    uint8_t *mgmt_status)
 {
@@ -6016,23 +5993,6 @@ static int start_service_discovery(struct sock *sk, struct hci_dev *hdev,
 failed:
 	hci_dev_unlock(hdev);
 	return err;
-}
-
-void mgmt_stop_discovery_complete(struct hci_dev *hdev, u8 status)
-{
-	struct mgmt_pending_cmd *cmd;
-
-	bt_dev_dbg(hdev, "status %u", status);
-
-	hci_dev_lock(hdev);
-
-	cmd = pending_find(MGMT_OP_STOP_DISCOVERY, hdev);
-	if (cmd) {
-		cmd->cmd_complete(cmd, mgmt_status(status));
-		mgmt_pending_remove(cmd);
-	}
-
-	hci_dev_unlock(hdev);
 }
 
 static void stop_discovery_complete(struct hci_dev *hdev, void *data, int err)
