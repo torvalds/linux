@@ -61,6 +61,7 @@
 
 #ifdef CONFIG_SCHED_CLASS_EXT
 # include "ext.c"
+# include "ext_idle.c"
 #endif
 
 #include "syscalls.c"
