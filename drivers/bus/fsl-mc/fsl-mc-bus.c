@@ -1210,7 +1210,7 @@ static struct platform_driver fsl_mc_bus_driver = {
 		   .acpi_match_table = fsl_mc_bus_acpi_match_table,
 		   },
 	.probe = fsl_mc_bus_probe,
-	.remove_new = fsl_mc_bus_remove,
+	.remove = fsl_mc_bus_remove,
 	.shutdown = fsl_mc_bus_remove,
 };
 

@@ -487,7 +487,7 @@ static struct platform_driver mtk_mmsys_drv = {
 		.of_match_table = of_match_mtk_mmsys,
 	},
 	.probe = mtk_mmsys_probe,
-	.remove_new = mtk_mmsys_remove,
+	.remove = mtk_mmsys_remove,
 };
 module_platform_driver(mtk_mmsys_drv);
 

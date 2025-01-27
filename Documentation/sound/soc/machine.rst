@@ -71,6 +71,18 @@ struct snd_soc_dai_link is used to set up each DAI in your machine. e.g.
 	.ops = &corgi_ops,
   };
 
+In the above struct, dai’s are registered using names but you can pass
+either dai name or device tree node but not both. Also, names used here
+for cpu/codec/platform dais should be globally unique.
+
+Additionaly below example macro can be used to register cpu, codec and
+platform dai::
+
+  SND_SOC_DAILINK_DEFS(wm2200_cpu_dsp,
+	DAILINK_COMP_ARRAY(COMP_CPU("samsung-i2s.0")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("spi0.0", "wm0010-sdi1")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("samsung-i2s.0")));
+
 struct snd_soc_card then sets up the machine with its DAIs. e.g.
 ::
 
@@ -81,6 +93,10 @@ struct snd_soc_card then sets up the machine with its DAIs. e.g.
 	.num_links = 1,
   };
 
+Following this, ``devm_snd_soc_register_card`` can be used to register
+the sound card. During the registration, the individual components
+such as the codec, CPU, and platform are probed. If all these components
+are successfully probed, the sound card gets registered.
 
 Machine Power Map
 -----------------
@@ -95,3 +111,13 @@ Machine Controls
 ----------------
 
 Machine specific audio mixer controls can be added in the DAI init function.
+
+
+Clocking Controls
+-----------------
+
+As previously noted, clock configuration is handled within the machine driver.
+For details on the clock APIs that the machine driver can utilize for
+setup, please refer to Documentation/sound/soc/clocking.rst. However, the
+callback needs to be registered by the CPU/Codec/Platform drivers to configure
+the clocks that is needed for the corresponding device operation.

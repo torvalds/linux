@@ -867,7 +867,7 @@ static int mv_otg_resume(struct platform_device *pdev)
 
 static struct platform_driver mv_otg_driver = {
 	.probe = mv_otg_probe,
-	.remove_new = mv_otg_remove,
+	.remove = mv_otg_remove,
 	.driver = {
 		   .name = driver_name,
 		   .dev_groups = mv_otg_groups,

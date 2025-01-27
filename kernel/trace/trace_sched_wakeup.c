@@ -118,6 +118,7 @@ static int wakeup_graph_entry(struct ftrace_graph_ent *trace,
 	struct trace_array *tr = wakeup_trace;
 	struct trace_array_cpu *data;
 	unsigned int trace_ctx;
+	u64 *calltime;
 	int ret = 0;
 
 	if (ftrace_graph_ignore_func(gops, trace))
@@ -135,6 +136,12 @@ static int wakeup_graph_entry(struct ftrace_graph_ent *trace,
 	if (!func_prolog_preempt_disable(tr, &data, &trace_ctx))
 		return 0;
 
+	calltime = fgraph_reserve_data(gops->idx, sizeof(*calltime));
+	if (!calltime)
+		return 0;
+
+	*calltime = trace_clock_local();
+
 	ret = __trace_graph_entry(tr, trace, trace_ctx);
 	atomic_dec(&data->disabled);
 	preempt_enable_notrace();
@@ -148,11 +155,18 @@ static void wakeup_graph_return(struct ftrace_graph_ret *trace,
 	struct trace_array *tr = wakeup_trace;
 	struct trace_array_cpu *data;
 	unsigned int trace_ctx;
+	u64 *calltime;
+	int size;
 
 	ftrace_graph_addr_finish(gops, trace);
 
 	if (!func_prolog_preempt_disable(tr, &data, &trace_ctx))
 		return;
+
+	calltime = fgraph_retrieve_data(gops->idx, &size);
+	if (!calltime)
+		return;
+	trace->calltime = *calltime;
 
 	__trace_graph_return(tr, trace, trace_ctx);
 	atomic_dec(&data->disabled);
@@ -378,7 +392,6 @@ tracing_sched_switch_trace(struct trace_array *tr,
 			   struct task_struct *next,
 			   unsigned int trace_ctx)
 {
-	struct trace_event_call *call = &event_context_switch;
 	struct trace_buffer *buffer = tr->array_buffer.buffer;
 	struct ring_buffer_event *event;
 	struct ctx_switch_entry *entry;
@@ -396,8 +409,7 @@ tracing_sched_switch_trace(struct trace_array *tr,
 	entry->next_state		= task_state_index(next);
 	entry->next_cpu	= task_cpu(next);
 
-	if (!call_filter_check_discard(call, entry, buffer, event))
-		trace_buffer_unlock_commit(tr, buffer, event, trace_ctx);
+	trace_buffer_unlock_commit(tr, buffer, event, trace_ctx);
 }
 
 static void
@@ -406,7 +418,6 @@ tracing_sched_wakeup_trace(struct trace_array *tr,
 			   struct task_struct *curr,
 			   unsigned int trace_ctx)
 {
-	struct trace_event_call *call = &event_wakeup;
 	struct ring_buffer_event *event;
 	struct ctx_switch_entry *entry;
 	struct trace_buffer *buffer = tr->array_buffer.buffer;
@@ -424,8 +435,7 @@ tracing_sched_wakeup_trace(struct trace_array *tr,
 	entry->next_state		= task_state_index(wakee);
 	entry->next_cpu			= task_cpu(wakee);
 
-	if (!call_filter_check_discard(call, entry, buffer, event))
-		trace_buffer_unlock_commit(tr, buffer, event, trace_ctx);
+	trace_buffer_unlock_commit(tr, buffer, event, trace_ctx);
 }
 
 static void notrace

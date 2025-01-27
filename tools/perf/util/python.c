@@ -6,7 +6,7 @@
 #include <linux/err.h>
 #include <perf/cpumap.h>
 #ifdef HAVE_LIBTRACEEVENT
-#include <traceevent/event-parse.h>
+#include <event-parse.h>
 #endif
 #include <perf/mmap.h>
 #include "evlist.h"

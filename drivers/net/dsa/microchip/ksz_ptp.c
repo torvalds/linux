@@ -1106,7 +1106,7 @@ static int ksz_ptp_msg_irq_setup(struct ksz_port *port, u8 n)
 	ptpmsg_irq->port = port;
 	ptpmsg_irq->ts_reg = ops->get_port_addr(port->num, ts_reg[n]);
 
-	snprintf(ptpmsg_irq->name, sizeof(ptpmsg_irq->name), name[n]);
+	strscpy(ptpmsg_irq->name, name[n]);
 
 	ptpmsg_irq->num = irq_find_mapping(port->ptpirq.domain, n);
 	if (ptpmsg_irq->num < 0)

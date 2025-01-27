@@ -2330,7 +2330,7 @@ static const struct dev_pm_ops tegra194_cbb_pm = {
 
 static struct platform_driver tegra194_cbb_driver = {
 	.probe = tegra194_cbb_probe,
-	.remove_new = tegra194_cbb_remove,
+	.remove = tegra194_cbb_remove,
 	.driver = {
 		.name = "tegra194-cbb",
 		.of_match_table = of_match_ptr(tegra194_cbb_match),

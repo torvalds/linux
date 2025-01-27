@@ -67,7 +67,7 @@
     },
     {
         "id": "4943",
-        "name": "Add basic filter with cmp ematch u32/link layer and miltiple actions",
+        "name": "Add basic filter with cmp ematch u32/link layer and multiple actions",
         "category": [
             "filter",
             "basic"
@@ -155,7 +155,7 @@
     },
     {
         "id": "32d8",
-        "name": "Add basic filter with cmp ematch u32/network layer and miltiple actions",
+        "name": "Add basic filter with cmp ematch u32/network layer and multiple actions",
         "category": [
             "filter",
             "basic"
@@ -243,7 +243,7 @@
     },
     {
         "id": "62d7",
-        "name": "Add basic filter with cmp ematch u32/transport layer and miltiple actions",
+        "name": "Add basic filter with cmp ematch u32/transport layer and multiple actions",
         "category": [
             "filter",
             "basic"

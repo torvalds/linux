@@ -805,6 +805,8 @@ static void kunit_device_driver_test(struct kunit *test)
 	struct device *test_device;
 	struct driver_test_state *test_state = kunit_kzalloc(test, sizeof(*test_state), GFP_KERNEL);
 
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, test_state);
+
 	test->priv = test_state;
 	test_driver = kunit_driver_create(test, "my_driver");
 

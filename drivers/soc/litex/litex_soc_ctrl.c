@@ -131,7 +131,7 @@ static struct platform_driver litex_soc_ctrl_driver = {
 		.of_match_table = litex_soc_ctrl_of_match,
 	},
 	.probe = litex_soc_ctrl_probe,
-	.remove_new = litex_soc_ctrl_remove,
+	.remove = litex_soc_ctrl_remove,
 };
 
 module_platform_driver(litex_soc_ctrl_driver);

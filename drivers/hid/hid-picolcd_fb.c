@@ -296,7 +296,7 @@ static void picolcd_fb_destroy(struct fb_info *info)
 	/* make sure no work is deferred */
 	fb_deferred_io_cleanup(info);
 
-	/* No thridparty should ever unregister our framebuffer! */
+	/* No thirdparty should ever unregister our framebuffer! */
 	WARN_ON(fbdata->picolcd != NULL);
 
 	vfree((u8 *)info->fix.smem_start);
@@ -495,6 +495,10 @@ int picolcd_init_framebuffer(struct picolcd_data *data)
 #ifdef CONFIG_HID_PICOLCD_BACKLIGHT
 	info->bl_dev = data->backlight;
 #endif
+#endif
+
+#ifdef CONFIG_HID_PICOLCD_LCD
+	info->lcd_dev = data->lcd;
 #endif
 
 	fbdata = info->par;

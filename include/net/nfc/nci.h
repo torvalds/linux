@@ -475,7 +475,7 @@ struct nci_rf_discover_ntf {
 #define NCI_OP_RF_INTF_ACTIVATED_NTF	nci_opcode_pack(NCI_GID_RF_MGMT, 0x05)
 struct activation_params_nfca_poll_iso_dep {
 	__u8	rats_res_len;
-	__u8	rats_res[20];
+	__u8	rats_res[NFC_ATS_MAXSIZE];
 };
 
 struct activation_params_nfcb_poll_iso_dep {

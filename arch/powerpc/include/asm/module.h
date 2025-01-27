@@ -35,9 +35,11 @@ struct mod_arch_specific {
 	bool toc_fixed;			/* Have we fixed up .TOC.? */
 #endif
 
+#ifdef CONFIG_PPC64_ELF_ABI_V1
 	/* For module function descriptor dereference */
 	unsigned long start_opd;
 	unsigned long end_opd;
+#endif
 #else /* powerpc64 */
 	/* Indices of PLT sections within module. */
 	unsigned int core_plt_section;
@@ -47,6 +49,11 @@ struct mod_arch_specific {
 #ifdef CONFIG_DYNAMIC_FTRACE
 	unsigned long tramp;
 	unsigned long tramp_regs;
+#ifdef CONFIG_PPC_FTRACE_OUT_OF_LINE
+	struct ftrace_ool_stub *ool_stubs;
+	unsigned int ool_stub_count;
+	unsigned int ool_stub_index;
+#endif
 #endif
 };
 

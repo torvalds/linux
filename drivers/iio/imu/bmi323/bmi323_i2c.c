@@ -140,4 +140,4 @@ module_i2c_driver(bmi323_i2c_driver);
 MODULE_DESCRIPTION("Bosch BMI323 IMU driver");
 MODULE_AUTHOR("Jagath Jog J <jagathjog1996@gmail.com>");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(IIO_BMI323);
+MODULE_IMPORT_NS("IIO_BMI323");

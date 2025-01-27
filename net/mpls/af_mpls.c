@@ -1664,7 +1664,7 @@ static int nla_put_via(struct sk_buff *skb,
 		       u8 table, const void *addr, int alen)
 {
 	static const int table_to_family[NEIGH_NR_TABLES + 1] = {
-		AF_INET, AF_INET6, AF_DECnet, AF_PACKET,
+		AF_INET, AF_INET6, AF_PACKET,
 	};
 	struct nlattr *nla;
 	struct rtvia *via;
@@ -2753,7 +2753,9 @@ static int __init mpls_init(void)
 
 	dev_add_pack(&mpls_packet_type);
 
-	rtnl_af_register(&mpls_af_ops);
+	err = rtnl_af_register(&mpls_af_ops);
+	if (err)
+		goto out_unregister_dev_type;
 
 	err = rtnl_register_many(mpls_rtnl_msg_handlers);
 	if (err)
@@ -2773,6 +2775,7 @@ out_unregister_rtnl:
 	rtnl_unregister_many(mpls_rtnl_msg_handlers);
 out_unregister_rtnl_af:
 	rtnl_af_unregister(&mpls_af_ops);
+out_unregister_dev_type:
 	dev_remove_pack(&mpls_packet_type);
 out_unregister_pernet:
 	unregister_pernet_subsys(&mpls_net_ops);

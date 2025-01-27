@@ -365,7 +365,7 @@ static struct platform_driver xvtc_driver = {
 		.of_match_table = xvtc_of_id_table,
 	},
 	.probe = xvtc_probe,
-	.remove_new = xvtc_remove,
+	.remove = xvtc_remove,
 };
 
 module_platform_driver(xvtc_driver);

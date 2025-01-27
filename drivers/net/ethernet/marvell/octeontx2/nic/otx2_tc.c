@@ -443,6 +443,7 @@ static int otx2_tc_parse_actions(struct otx2_nic *nic,
 	struct flow_action_entry *act;
 	struct net_device *target;
 	struct otx2_nic *priv;
+	struct rep_dev *rdev;
 	u32 burst, mark = 0;
 	u8 nr_police = 0;
 	u8 num_intf = 1;
@@ -464,14 +465,18 @@ static int otx2_tc_parse_actions(struct otx2_nic *nic,
 			return 0;
 		case FLOW_ACTION_REDIRECT_INGRESS:
 			target = act->dev;
-			priv = netdev_priv(target);
-			/* npc_install_flow_req doesn't support passing a target pcifunc */
-			if (rvu_get_pf(nic->pcifunc) != rvu_get_pf(priv->pcifunc)) {
-				NL_SET_ERR_MSG_MOD(extack,
-						   "can't redirect to other pf/vf");
-				return -EOPNOTSUPP;
+			if (target->dev.parent) {
+				priv = netdev_priv(target);
+				if (rvu_get_pf(nic->pcifunc) != rvu_get_pf(priv->pcifunc)) {
+					NL_SET_ERR_MSG_MOD(extack,
+							   "can't redirect to other pf/vf");
+					return -EOPNOTSUPP;
+				}
+				req->vf = priv->pcifunc & RVU_PFVF_FUNC_MASK;
+			} else {
+				rdev = netdev_priv(target);
+				req->vf = rdev->pcifunc & RVU_PFVF_FUNC_MASK;
 			}
-			req->vf = priv->pcifunc & RVU_PFVF_FUNC_MASK;
 
 			/* if op is already set; avoid overwriting the same */
 			if (!req->op)
@@ -1300,6 +1305,7 @@ static int otx2_tc_add_flow(struct otx2_nic *nic,
 	req->channel = nic->hw.rx_chan_base;
 	req->entry = flow_cfg->flow_ent[mcam_idx];
 	req->intf = NIX_INTF_RX;
+	req->vf = nic->pcifunc;
 	req->set_cntr = 1;
 	new_node->entry = req->entry;
 
@@ -1400,8 +1406,8 @@ static int otx2_tc_get_flow_stats(struct otx2_nic *nic,
 	return 0;
 }
 
-static int otx2_setup_tc_cls_flower(struct otx2_nic *nic,
-				    struct flow_cls_offload *cls_flower)
+int otx2_setup_tc_cls_flower(struct otx2_nic *nic,
+			     struct flow_cls_offload *cls_flower)
 {
 	switch (cls_flower->command) {
 	case FLOW_CLS_REPLACE:
@@ -1414,6 +1420,7 @@ static int otx2_setup_tc_cls_flower(struct otx2_nic *nic,
 		return -EOPNOTSUPP;
 	}
 }
+EXPORT_SYMBOL(otx2_setup_tc_cls_flower);
 
 static int otx2_tc_ingress_matchall_install(struct otx2_nic *nic,
 					    struct tc_cls_matchall_offload *cls)

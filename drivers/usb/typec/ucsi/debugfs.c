@@ -32,6 +32,7 @@ static int ucsi_cmd(void *data, u64 val)
 	case UCSI_SET_UOR:
 	case UCSI_SET_PDR:
 	case UCSI_CONNECTOR_RESET:
+	case UCSI_SET_SINK_PATH:
 		ret = ucsi_send_command(ucsi, val, NULL, 0);
 		break;
 	case UCSI_GET_CAPABILITY:

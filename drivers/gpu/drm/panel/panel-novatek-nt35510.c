@@ -38,6 +38,7 @@
 
 #define NT35510_CMD_CORRECT_GAMMA BIT(0)
 #define NT35510_CMD_CONTROL_DISPLAY BIT(1)
+#define NT35510_CMD_SETVCMOFF BIT(2)
 
 #define MCS_CMD_MAUCCTR		0xF0 /* Manufacturer command enable */
 #define MCS_CMD_READ_ID1	0xDA
@@ -721,11 +722,13 @@ static int nt35510_setup_power(struct nt35510 *nt)
 	if (ret)
 		return ret;
 
-	ret = nt35510_send_long(nt, dsi, NT35510_P1_SETVCMOFF,
-				NT35510_P1_VCMOFF_LEN,
-				nt->conf->vcmoff);
-	if (ret)
-		return ret;
+	if (nt->conf->cmds & NT35510_CMD_SETVCMOFF) {
+		ret = nt35510_send_long(nt, dsi, NT35510_P1_SETVCMOFF,
+					NT35510_P1_VCMOFF_LEN,
+					nt->conf->vcmoff);
+		if (ret)
+			return ret;
+	}
 
 	/* Typically 10 ms */
 	usleep_range(10000, 20000);
@@ -1319,7 +1322,7 @@ static const struct nt35510_config nt35510_frida_frd400b25025 = {
 	},
 	.mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
 			MIPI_DSI_MODE_LPM,
-	.cmds = NT35510_CMD_CONTROL_DISPLAY,
+	.cmds = NT35510_CMD_CONTROL_DISPLAY | NT35510_CMD_SETVCMOFF,
 	/* 0x03: AVDD = 6.2V */
 	.avdd = { 0x03, 0x03, 0x03 },
 	/* 0x46: PCK = 2 x Hsync, BTP = 2.5 x VDDB */

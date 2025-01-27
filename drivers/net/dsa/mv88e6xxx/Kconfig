@@ -17,3 +17,13 @@ config NET_DSA_MV88E6XXX_PTP
 	help
 	  Say Y to enable PTP hardware timestamping on Marvell 88E6xxx switch
 	  chips that support it.
+
+config NET_DSA_MV88E6XXX_LEDS
+	bool "LED support for Marvell 88E6xxx"
+	default y
+	depends on NET_DSA_MV88E6XXX
+	depends on LEDS_CLASS=y || LEDS_CLASS=NET_DSA_MV88E6XXX
+	depends on LEDS_TRIGGERS
+	help
+	  This enabled support for controlling the LEDs attached to the
+	  Marvell 88E6xxx switch chips.

@@ -1,0 +1,10 @@
+What:		/sys/bus/platform/drivers/panthor/.../profiling
+Date:		September 2024
+KernelVersion:	6.11.0
+Contact:	Adrian Larumbe <adrian.larumbe@collabora.com>
+Description:
+		Bitmask to enable drm fdinfo's job profiling measurements.
+		Valid values are:
+		0: Don't enable fdinfo job profiling sources.
+		1: Enable GPU cycle measurements for running jobs.
+		2: Enable GPU timestamp sampling for running jobs.

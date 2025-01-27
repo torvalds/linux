@@ -96,12 +96,10 @@ hostrust_flags = --out-dir $(dir $@) --emit=dep-info=$(depfile) \
                  $(KBUILD_HOSTRUSTFLAGS) $(HOST_EXTRARUSTFLAGS) \
                  $(HOSTRUSTFLAGS_$(target-stem))
 
-# $(objtree)/$(obj) for including generated headers from checkin source files
-ifeq ($(KBUILD_EXTMOD),)
+# $(obj) for including generated headers from checkin source files
 ifdef building_out_of_srctree
-hostc_flags   += -I $(objtree)/$(obj)
-hostcxx_flags += -I $(objtree)/$(obj)
-endif
+hostc_flags   += -I $(obj)
+hostcxx_flags += -I $(obj)
 endif
 
 #####

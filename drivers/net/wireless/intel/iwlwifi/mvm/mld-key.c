@@ -396,7 +396,7 @@ void iwl_mvm_sec_key_remove_ap(struct iwl_mvm *mvm,
 	u8 sec_key_ver = iwl_fw_lookup_cmd_ver(mvm->fw, sec_key_id, 0);
 
 	if (WARN_ON_ONCE(vif->type != NL80211_IFTYPE_STATION ||
-			 link->ap_sta_id == IWL_MVM_INVALID_STA))
+			 link->ap_sta_id == IWL_INVALID_STA))
 		return;
 
 	if (!sec_key_ver)

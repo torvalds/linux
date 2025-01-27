@@ -16,6 +16,13 @@ properties:
   compatible:
     const: starfive,jh7110-pcie
 
+
+  reg:
+    maxItems: 2
+
+  reg-names:
+    maxItems: 2
+
   clocks:
     items:
       - description: NOC bus clock

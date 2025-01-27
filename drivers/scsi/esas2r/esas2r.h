@@ -1045,10 +1045,6 @@ void esas2r_build_mgt_req(struct esas2r_adapter *a,
 			  u32 length,
 			  void *data);
 void esas2r_build_ae_req(struct esas2r_adapter *a, struct esas2r_request *rq);
-void esas2r_build_cli_req(struct esas2r_adapter *a,
-			  struct esas2r_request *rq,
-			  u32 length,
-			  u32 cmd_rsp_len);
 void esas2r_build_ioctl_req(struct esas2r_adapter *a,
 			    struct esas2r_request *rq,
 			    u32 length,

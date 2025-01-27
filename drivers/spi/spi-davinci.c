@@ -1039,7 +1039,7 @@ static struct platform_driver davinci_spi_driver = {
 		.of_match_table = of_match_ptr(davinci_spi_of_match),
 	},
 	.probe = davinci_spi_probe,
-	.remove_new = davinci_spi_remove,
+	.remove = davinci_spi_remove,
 };
 module_platform_driver(davinci_spi_driver);
 

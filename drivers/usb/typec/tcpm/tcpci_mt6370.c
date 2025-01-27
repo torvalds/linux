@@ -196,7 +196,7 @@ static struct platform_driver mt6370_tcpc_driver = {
 		.of_match_table = mt6370_tcpc_devid_table,
 	},
 	.probe = mt6370_tcpc_probe,
-	.remove_new = mt6370_tcpc_remove,
+	.remove = mt6370_tcpc_remove,
 };
 module_platform_driver(mt6370_tcpc_driver);
 

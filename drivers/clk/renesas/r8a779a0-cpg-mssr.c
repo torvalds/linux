@@ -266,7 +266,6 @@ static const struct rcar_gen4_cpg_pll_config cpg_pll_configs[4] __initconst = {
 	{ 2,		128,	1,	192,	1,	32,	},
 };
 
-
 static int __init r8a779a0_cpg_mssr_init(struct device *dev)
 {
 	const struct rcar_gen4_cpg_pll_config *cpg_pll_config;

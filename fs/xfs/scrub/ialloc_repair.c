@@ -146,15 +146,12 @@ xrep_ibt_check_ifree(
 	struct xfs_scrub	*sc = ri->sc;
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_dinode	*dip;
-	xfs_ino_t		fsino;
 	xfs_agino_t		agino;
-	xfs_agnumber_t		agno = ri->sc->sa.pag->pag_agno;
 	unsigned int		cluster_buf_base;
 	unsigned int		offset;
 	int			error;
 
 	agino = cluster_ag_base + cluster_index;
-	fsino = XFS_AGINO_TO_INO(mp, agno, agino);
 
 	/* Inode uncached or half assembled, read disk buffer */
 	cluster_buf_base = XFS_INO_TO_OFFSET(mp, cluster_ag_base);
@@ -165,7 +162,8 @@ xrep_ibt_check_ifree(
 	if (be16_to_cpu(dip->di_magic) != XFS_DINODE_MAGIC)
 		return -EFSCORRUPTED;
 
-	if (dip->di_version >= 3 && be64_to_cpu(dip->di_ino) != fsino)
+	if (dip->di_version >= 3 &&
+	    be64_to_cpu(dip->di_ino) != xfs_agino_to_ino(ri->sc->sa.pag, agino))
 		return -EFSCORRUPTED;
 
 	/* Will the in-core inode tell us if it's in use? */
@@ -194,7 +192,7 @@ xrep_ibt_stash(
 	if (ri->rie.ir_freecount > 0)
 		ri->finobt_recs++;
 
-	trace_xrep_ibt_found(ri->sc->mp, ri->sc->sa.pag->pag_agno, &ri->rie);
+	trace_xrep_ibt_found(ri->sc->sa.pag, &ri->rie);
 
 	error = xfarray_append(ri->inode_records, &ri->rie);
 	if (error)
@@ -307,7 +305,7 @@ xrep_ibt_process_cluster(
 	 * inobt because imap_to_bp directly maps the buffer without touching
 	 * either inode btree.
 	 */
-	imap.im_blkno = XFS_AGB_TO_DADDR(mp, sc->sa.pag->pag_agno, cluster_bno);
+	imap.im_blkno = xfs_agbno_to_daddr(sc->sa.pag, cluster_bno);
 	imap.im_len = XFS_FSB_TO_BB(mp, igeo->blocks_per_cluster);
 	imap.im_boffset = 0;
 	error = xfs_imap_to_bp(mp, sc->tp, &imap, &cluster_bp);
@@ -423,9 +421,7 @@ xrep_ibt_record_inode_blocks(
 	if (error)
 		return error;
 
-	trace_xrep_ibt_walk_rmap(mp, ri->sc->sa.pag->pag_agno,
-			rec->rm_startblock, rec->rm_blockcount, rec->rm_owner,
-			rec->rm_offset, rec->rm_flags);
+	trace_xrep_ibt_walk_rmap(ri->sc->sa.pag, rec);
 
 	/*
 	 * Record the free/hole masks for each inode cluster that could be
@@ -634,7 +630,6 @@ xrep_ibt_build_new_trees(
 	struct xfs_scrub	*sc = ri->sc;
 	struct xfs_btree_cur	*ino_cur;
 	struct xfs_btree_cur	*fino_cur = NULL;
-	xfs_fsblock_t		fsbno;
 	bool			need_finobt;
 	int			error;
 
@@ -656,9 +651,8 @@ xrep_ibt_build_new_trees(
 	 *
 	 * Start by setting up the inobt staging cursor.
 	 */
-	fsbno = XFS_AGB_TO_FSB(sc->mp, sc->sa.pag->pag_agno,
-			XFS_IBT_BLOCK(sc->mp));
-	xrep_newbt_init_ag(&ri->new_inobt, sc, &XFS_RMAP_OINFO_INOBT, fsbno,
+	xrep_newbt_init_ag(&ri->new_inobt, sc, &XFS_RMAP_OINFO_INOBT,
+			xfs_agbno_to_fsb(sc->sa.pag, XFS_IBT_BLOCK(sc->mp)),
 			XFS_AG_RESV_NONE);
 	ri->new_inobt.bload.claim_block = xrep_ibt_claim_block;
 	ri->new_inobt.bload.get_records = xrep_ibt_get_records;
@@ -677,10 +671,9 @@ xrep_ibt_build_new_trees(
 		if (sc->mp->m_finobt_nores)
 			resv = XFS_AG_RESV_NONE;
 
-		fsbno = XFS_AGB_TO_FSB(sc->mp, sc->sa.pag->pag_agno,
-				XFS_FIBT_BLOCK(sc->mp));
 		xrep_newbt_init_ag(&ri->new_finobt, sc, &XFS_RMAP_OINFO_INOBT,
-				fsbno, resv);
+				xfs_agbno_to_fsb(sc->sa.pag, XFS_FIBT_BLOCK(sc->mp)),
+				resv);
 		ri->new_finobt.bload.claim_block = xrep_fibt_claim_block;
 		ri->new_finobt.bload.get_records = xrep_fibt_get_records;
 
@@ -821,7 +814,7 @@ xrep_iallocbt(
 	sc->sick_mask = XFS_SICK_AG_INOBT | XFS_SICK_AG_FINOBT;
 
 	/* Set up enough storage to handle an AG with nothing but inodes. */
-	xfs_agino_range(mp, sc->sa.pag->pag_agno, &first_agino, &last_agino);
+	xfs_agino_range(mp, pag_agno(sc->sa.pag), &first_agino, &last_agino);
 	last_agino /= XFS_INODES_PER_CHUNK;
 	descr = xchk_xfile_ag_descr(sc, "inode index records");
 	error = xfarray_create(descr, last_agino,

@@ -209,12 +209,17 @@ Struct Resources
 ::
 
 	%pr	[mem 0x60000000-0x6fffffff flags 0x2200] or
+		[mem 0x60000000 flags 0x2200] or
 		[mem 0x0000000060000000-0x000000006fffffff flags 0x2200]
+		[mem 0x0000000060000000 flags 0x2200]
 	%pR	[mem 0x60000000-0x6fffffff pref] or
+		[mem 0x60000000 pref] or
 		[mem 0x0000000060000000-0x000000006fffffff pref]
+		[mem 0x0000000060000000 pref]
 
 For printing struct resources. The ``R`` and ``r`` specifiers result in a
-printed resource with (R) or without (r) a decoded flags member.
+printed resource with (R) or without (r) a decoded flags member.  If start is
+equal to end only print the start value.
 
 Passed by reference.
 
@@ -228,6 +233,19 @@ Physical address types phys_addr_t
 For printing a phys_addr_t type (and its derivatives, such as
 resource_size_t) which can vary based on build options, regardless of the
 width of the CPU data path.
+
+Passed by reference.
+
+Struct Range
+------------
+
+::
+
+	%pra    [range 0x0000000060000000-0x000000006fffffff] or
+		[range 0x0000000060000000]
+
+For printing struct range.  struct range holds an arbitrary range of u64
+values.  If start is equal to end only print the start value.
 
 Passed by reference.
 

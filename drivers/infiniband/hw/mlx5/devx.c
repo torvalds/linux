@@ -27,6 +27,19 @@ enum devx_obj_flags {
 	DEVX_OBJ_FLAGS_INDIRECT_MKEY = 1 << 0,
 	DEVX_OBJ_FLAGS_DCT = 1 << 1,
 	DEVX_OBJ_FLAGS_CQ = 1 << 2,
+	DEVX_OBJ_FLAGS_HW_FREED = 1 << 3,
+};
+
+#define MAX_ASYNC_CMDS 8
+
+struct mlx5_async_cmd {
+	struct ib_uobject *uobject;
+	void *in;
+	int in_size;
+	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)];
+	int err;
+	struct mlx5_async_work cb_work;
+	struct completion comp;
 };
 
 struct devx_async_data {
@@ -1405,7 +1418,9 @@ static int devx_obj_cleanup(struct ib_uobject *uobject,
 		 */
 		mlx5r_deref_wait_odp_mkey(&obj->mkey);
 
-	if (obj->flags & DEVX_OBJ_FLAGS_DCT)
+	if (obj->flags & DEVX_OBJ_FLAGS_HW_FREED)
+		ret = 0;
+	else if (obj->flags & DEVX_OBJ_FLAGS_DCT)
 		ret = mlx5_core_destroy_dct(obj->ib_dev, &obj->core_dct);
 	else if (obj->flags & DEVX_OBJ_FLAGS_CQ)
 		ret = mlx5_core_destroy_cq(obj->ib_dev->mdev, &obj->core_cq);
@@ -2592,6 +2607,82 @@ void mlx5_ib_devx_cleanup(struct mlx5_ib_dev *dev)
 		xa_destroy(&table->event_xa);
 
 		mlx5_ib_devx_destroy(dev, dev->devx_whitelist_uid);
+	}
+}
+
+static void devx_async_destroy_cb(int status, struct mlx5_async_work *context)
+{
+	struct mlx5_async_cmd *devx_out = container_of(context,
+					  struct mlx5_async_cmd, cb_work);
+	struct devx_obj *obj = devx_out->uobject->object;
+
+	if (!status)
+		obj->flags |= DEVX_OBJ_FLAGS_HW_FREED;
+
+	complete(&devx_out->comp);
+}
+
+static void devx_async_destroy(struct mlx5_ib_dev *dev,
+			       struct mlx5_async_cmd *cmd)
+{
+	init_completion(&cmd->comp);
+	cmd->err = mlx5_cmd_exec_cb(&dev->async_ctx, cmd->in, cmd->in_size,
+				    &cmd->out, sizeof(cmd->out),
+				    devx_async_destroy_cb, &cmd->cb_work);
+}
+
+static void devx_wait_async_destroy(struct mlx5_async_cmd *cmd)
+{
+	if (!cmd->err)
+		wait_for_completion(&cmd->comp);
+	atomic_set(&cmd->uobject->usecnt, 0);
+}
+
+void mlx5_ib_ufile_hw_cleanup(struct ib_uverbs_file *ufile)
+{
+	struct mlx5_async_cmd async_cmd[MAX_ASYNC_CMDS];
+	struct ib_ucontext *ucontext = ufile->ucontext;
+	struct ib_device *device = ucontext->device;
+	struct mlx5_ib_dev *dev = to_mdev(device);
+	struct ib_uobject *uobject;
+	struct devx_obj *obj;
+	int head = 0;
+	int tail = 0;
+
+	list_for_each_entry(uobject, &ufile->uobjects, list) {
+		WARN_ON(uverbs_try_lock_object(uobject, UVERBS_LOOKUP_WRITE));
+
+		/*
+		 * Currently we only support QP destruction, if other objects
+		 * are to be destroyed need to add type synchronization to the
+		 * cleanup algorithm and handle pre/post FW cleanup for the
+		 * new types if needed.
+		 */
+		if (uobj_get_object_id(uobject) != MLX5_IB_OBJECT_DEVX_OBJ ||
+		    (get_dec_obj_type(uobject->object, MLX5_EVENT_TYPE_MAX) !=
+		     MLX5_OBJ_TYPE_QP)) {
+			atomic_set(&uobject->usecnt, 0);
+			continue;
+		}
+
+		obj = uobject->object;
+
+		async_cmd[tail % MAX_ASYNC_CMDS].in = obj->dinbox;
+		async_cmd[tail % MAX_ASYNC_CMDS].in_size = obj->dinlen;
+		async_cmd[tail % MAX_ASYNC_CMDS].uobject = uobject;
+
+		devx_async_destroy(dev, &async_cmd[tail % MAX_ASYNC_CMDS]);
+		tail++;
+
+		if (tail - head == MAX_ASYNC_CMDS) {
+			devx_wait_async_destroy(&async_cmd[head % MAX_ASYNC_CMDS]);
+			head++;
+		}
+	}
+
+	while (head != tail) {
+		devx_wait_async_destroy(&async_cmd[head % MAX_ASYNC_CMDS]);
+		head++;
 	}
 }
 

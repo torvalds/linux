@@ -2532,7 +2532,7 @@ static struct platform_driver stm32f7_i2c_driver = {
 		.pm = &stm32f7_i2c_pm_ops,
 	},
 	.probe = stm32f7_i2c_probe,
-	.remove_new = stm32f7_i2c_remove,
+	.remove = stm32f7_i2c_remove,
 };
 
 module_platform_driver(stm32f7_i2c_driver);

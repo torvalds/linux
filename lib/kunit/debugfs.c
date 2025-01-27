@@ -181,7 +181,7 @@ void kunit_debugfs_create_suite(struct kunit_suite *suite)
 	 * successfully.
 	 */
 	stream = alloc_string_stream(GFP_KERNEL);
-	if (IS_ERR_OR_NULL(stream))
+	if (IS_ERR(stream))
 		return;
 
 	string_stream_set_append_newlines(stream, true);
@@ -189,7 +189,7 @@ void kunit_debugfs_create_suite(struct kunit_suite *suite)
 
 	kunit_suite_for_each_test_case(suite, test_case) {
 		stream = alloc_string_stream(GFP_KERNEL);
-		if (IS_ERR_OR_NULL(stream))
+		if (IS_ERR(stream))
 			goto err;
 
 		string_stream_set_append_newlines(stream, true);
@@ -212,8 +212,11 @@ void kunit_debugfs_create_suite(struct kunit_suite *suite)
 
 err:
 	string_stream_destroy(suite->log);
-	kunit_suite_for_each_test_case(suite, test_case)
+	suite->log = NULL;
+	kunit_suite_for_each_test_case(suite, test_case) {
 		string_stream_destroy(test_case->log);
+		test_case->log = NULL;
+	}
 }
 
 void kunit_debugfs_destroy_suite(struct kunit_suite *suite)

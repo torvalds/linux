@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * Apple iPad 7 common device tree
+ *
+ * Copyright (c) 2022, Konrad Dybcio <konradybcio@kernel.org>
+ */
+
+/*
+ * The iPad 7 seems to be only an iteration over the iPad 6 with some
+ * small changes, like the a bigger screen and 1 GiB of RAM more, hence
+ * there is little to no differentiation between these 2 generations for
+ * now.
+ */
+#include "t8010-ipad6.dtsi"

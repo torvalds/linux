@@ -1467,7 +1467,7 @@ static int nfs_fs_context_validate(struct fs_context *fc)
 
 	/* Load the NFS protocol module if we haven't done so yet */
 	if (!ctx->nfs_mod) {
-		nfs_mod = get_nfs_version(ctx->version);
+		nfs_mod = find_nfs_version(ctx->version);
 		if (IS_ERR(nfs_mod)) {
 			ret = PTR_ERR(nfs_mod);
 			goto out_version_unavailable;
@@ -1541,7 +1541,7 @@ static int nfs_fs_context_dup(struct fs_context *fc, struct fs_context *src_fc)
 	}
 	nfs_copy_fh(ctx->mntfh, src->mntfh);
 
-	__module_get(ctx->nfs_mod->owner);
+	get_nfs_version(ctx->nfs_mod);
 	ctx->client_address		= NULL;
 	ctx->mount_server.hostname	= NULL;
 	ctx->nfs_server.export_path	= NULL;
@@ -1633,7 +1633,7 @@ static int nfs_init_fs_context(struct fs_context *fc)
 		}
 
 		ctx->nfs_mod = nfss->nfs_client->cl_nfs_mod;
-		__module_get(ctx->nfs_mod->owner);
+		get_nfs_version(ctx->nfs_mod);
 	} else {
 		/* defaults */
 		ctx->timeo		= NFS_UNSPEC_TIMEO;

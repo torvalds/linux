@@ -18,11 +18,16 @@
 #define BAC_OOBS_SEL			BIT(4)
 #define RAC_ANA0A			0x0A
 #define B_BAC_EQ_SEL			BIT(5)
+#define RAC_ANA0B			0x0B
+#define MANUAL_LVL_MASK			GENMASK(8, 5)
 #define RAC_ANA0C			0x0C
 #define B_PCIE_BIT_PSAVE		BIT(15)
 #define RAC_ANA0D			0x0D
+#define OFFSET_CAL_MODE			BIT(13)
 #define BAC_RX_TEST_EN			BIT(6)
 #define RAC_ANA10			0x10
+#define ADDR_SEL_MASK		        GENMASK(9, 4)
+#define ADDR_SEL_VAL		        0x3C
 #define ADDR_SEL_PINOUT_DIS_VAL		0x3C4
 #define B_PCIE_BIT_PINOUT_DIS		BIT(3)
 #define RAC_REG_REV2			0x1B
@@ -38,6 +43,7 @@
 #define RAC_ANA1E_G2_VAL		0x6EEA
 #define RAC_ANA1F			0x1F
 #define OOBS_LEVEL_MASK			GENMASK(12, 8)
+#define OFFSET_CAL_MASK		        GENMASK(7, 4)
 #define RAC_ANA24			0x24
 #define B_AX_DEGLITCH			GENMASK(11, 8)
 #define RAC_ANA26			0x26
@@ -133,6 +139,11 @@
 #define R_RAC_DIRECT_OFFSET_G2 0x3880
 #define REG_FILTER_OUT_MASK GENMASK(6, 2)
 #define RAC_MULT 2
+
+#define R_RAC_DIRECT_OFFSET_BE_LANE0_G1 0x3800
+#define R_RAC_DIRECT_OFFSET_BE_LANE1_G1 0x3880
+#define R_RAC_DIRECT_OFFSET_BE_LANE0_G2 0x3900
+#define R_RAC_DIRECT_OFFSET_BE_LANE1_G2 0x3980
 
 #define RTW89_PCI_WR_RETRY_CNT		20
 
@@ -299,6 +310,7 @@
 #define B_BE_L1SS_TIMEOUT_CTRL BIT(18)
 #define B_BE_ASPM_CTRL_L1 BIT(17)
 #define B_BE_ASPM_CTRL_L0 BIT(16)
+#define B_BE_RTK_ASPM_CTRL_MASK GENMASK(17, 16)
 #define B_BE_XFER_PENDING_FW BIT(11)
 #define B_BE_XFER_PENDING BIT(10)
 #define B_BE_REQ_EXIT_L1 BIT(9)
@@ -1276,6 +1288,21 @@ struct rtw89_pci_gen_def {
 	void (*aspm_set)(struct rtw89_dev *rtwdev, bool enable);
 	void (*clkreq_set)(struct rtw89_dev *rtwdev, bool enable);
 	void (*l1ss_set)(struct rtw89_dev *rtwdev, bool enable);
+
+	void (*disable_eq)(struct rtw89_dev *rtwdev);
+};
+
+#define RTW89_PCI_SSID(v, d, ssv, ssd, cust) \
+	.vendor = v, .device = d, .subsystem_vendor = ssv, .subsystem_device = ssd, \
+	.custid = RTW89_CUSTID_ ##cust
+
+struct rtw89_pci_ssid_quirk {
+	unsigned short vendor;
+	unsigned short device;
+	unsigned short subsystem_vendor;
+	unsigned short subsystem_device;
+	enum rtw89_custid custid;
+	unsigned long bitmap; /* bitmap of rtw89_quirks */
 };
 
 struct rtw89_pci_info {
@@ -1331,6 +1358,8 @@ struct rtw89_pci_info {
 	void (*recognize_intrs)(struct rtw89_dev *rtwdev,
 				struct rtw89_pci *rtwpci,
 				struct rtw89_pci_isrs *isrs);
+
+	const struct rtw89_pci_ssid_quirk *ssid_quirks;
 };
 
 struct rtw89_pci_tx_data {
@@ -1600,6 +1629,7 @@ struct pci_device_id;
 
 int rtw89_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id);
 void rtw89_pci_remove(struct pci_dev *pdev);
+void rtw89_pci_basic_cfg(struct rtw89_dev *rtwdev, bool resume);
 void rtw89_pci_ops_reset(struct rtw89_dev *rtwdev);
 int rtw89_pci_ltr_set(struct rtw89_dev *rtwdev, bool en);
 int rtw89_pci_ltr_set_v1(struct rtw89_dev *rtwdev, bool en);
@@ -1766,4 +1796,13 @@ static inline int rtw89_pci_poll_txdma_ch_idle(struct rtw89_dev *rtwdev)
 
 	return gen_def->poll_txdma_ch_idle(rtwdev);
 }
+
+static inline void rtw89_pci_disable_eq(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	const struct rtw89_pci_gen_def *gen_def = info->gen_def;
+
+	gen_def->disable_eq(rtwdev);
+}
+
 #endif

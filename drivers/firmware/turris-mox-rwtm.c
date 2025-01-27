@@ -61,6 +61,27 @@ enum mbox_cmd {
 	MBOX_CMD_OTP_WRITE	= 8,
 };
 
+/**
+ * struct mox_rwtm - driver private data structure
+ * @mbox_client:	rWTM mailbox client
+ * @mbox:		rWTM mailbox channel
+ * @hwrng:		RNG driver structure
+ * @reply:		last mailbox reply, filled in receive callback
+ * @buf:		DMA buffer
+ * @buf_phys:		physical address of the DMA buffer
+ * @busy:		mutex to protect mailbox command execution
+ * @cmd_done:		command done completion
+ * @has_board_info:	whether board information is present
+ * @serial_number:	serial number of the device
+ * @board_version:	board version / revision of the device
+ * @ram_size:		RAM size of the device
+ * @mac_address1:	first MAC address of the device
+ * @mac_address2:	second MAC address of the device
+ * @has_pubkey:		whether board ECDSA public key is present
+ * @pubkey:		board ECDSA public key
+ * @last_sig:		last ECDSA signature generated with board ECDSA private key
+ * @last_sig_done:	whether the last ECDSA signing is complete
+ */
 struct mox_rwtm {
 	struct mbox_client mbox_client;
 	struct mbox_chan *mbox;
@@ -74,13 +95,11 @@ struct mox_rwtm {
 	struct mutex busy;
 	struct completion cmd_done;
 
-	/* board information */
 	bool has_board_info;
 	u64 serial_number;
 	int board_version, ram_size;
 	u8 mac_address1[ETH_ALEN], mac_address2[ETH_ALEN];
 
-	/* public key burned in eFuse */
 	bool has_pubkey;
 	u8 pubkey[135];
 

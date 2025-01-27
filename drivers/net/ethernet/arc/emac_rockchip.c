@@ -264,7 +264,7 @@ static void emac_rockchip_remove(struct platform_device *pdev)
 
 static struct platform_driver emac_rockchip_driver = {
 	.probe = emac_rockchip_probe,
-	.remove_new = emac_rockchip_remove,
+	.remove = emac_rockchip_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table  = emac_rockchip_dt_ids,

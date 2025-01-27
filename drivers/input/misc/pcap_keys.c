@@ -112,7 +112,7 @@ static void pcap_keys_remove(struct platform_device *pdev)
 
 static struct platform_driver pcap_keys_device_driver = {
 	.probe		= pcap_keys_probe,
-	.remove_new	= pcap_keys_remove,
+	.remove		= pcap_keys_remove,
 	.driver		= {
 		.name	= "pcap-keys",
 	}

@@ -54,47 +54,20 @@ struct dpu_core_perf {
 	u64 fix_core_ab_vote;
 };
 
-/**
- * dpu_core_perf_crtc_check - validate performance of the given crtc state
- * @crtc: Pointer to crtc
- * @state: Pointer to new crtc state
- * return: zero if success, or error code otherwise
- */
 int dpu_core_perf_crtc_check(struct drm_crtc *crtc,
 		struct drm_crtc_state *state);
 
-/**
- * dpu_core_perf_crtc_update - update performance of the given crtc
- * @crtc: Pointer to crtc
- * @params_changed: true if crtc parameters are modified
- * return: zero if success, or error code otherwise
- */
 int dpu_core_perf_crtc_update(struct drm_crtc *crtc,
 			      int params_changed);
 
-/**
- * dpu_core_perf_crtc_release_bw - release bandwidth of the given crtc
- * @crtc: Pointer to crtc
- */
 void dpu_core_perf_crtc_release_bw(struct drm_crtc *crtc);
 
-/**
- * dpu_core_perf_init - initialize the given core performance context
- * @perf: Pointer to core performance context
- * @perf_cfg: Pointer to platform performance configuration
- * @max_core_clk_rate: Maximum core clock rate
- */
 int dpu_core_perf_init(struct dpu_core_perf *perf,
 		const struct dpu_perf_cfg *perf_cfg,
 		unsigned long max_core_clk_rate);
 
 struct dpu_kms;
 
-/**
- * dpu_core_perf_debugfs_init - initialize debugfs for core performance context
- * @dpu_kms: Pointer to the dpu_kms struct
- * @debugfs_parent: Pointer to parent debugfs
- */
 int dpu_core_perf_debugfs_init(struct dpu_kms *dpu_kms, struct dentry *parent);
 
 #endif /* _DPU_CORE_PERF_H_ */

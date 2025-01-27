@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 generic-y += bug.h
 generic-y += compat.h
-generic-y += current.h
 generic-y += device.h
 generic-y += dma-mapping.h
 generic-y += emergency-restart.h

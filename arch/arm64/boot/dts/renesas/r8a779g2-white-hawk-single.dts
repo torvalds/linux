@@ -70,8 +70,7 @@
 			compatible = "ethernet-phy-id002b.0980",
 				     "ethernet-phy-ieee802.3-c22";
 			reg = <0>;
-			interrupt-parent = <&gpio4>;
-			interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
+			interrupts-extended = <&gpio4 3 IRQ_TYPE_LEVEL_LOW>;
 		};
 	};
 };

@@ -181,8 +181,8 @@ int main(void)
 	OFFSET(__FGRAPH_RET_FP, fgraph_ret_regs, fp);
 	DEFINE(__FGRAPH_RET_SIZE, sizeof(struct fgraph_ret_regs));
 #endif
-	OFFSET(__FTRACE_REGS_PT_REGS, ftrace_regs, regs);
-	DEFINE(__FTRACE_REGS_SIZE, sizeof(struct ftrace_regs));
+	OFFSET(__FTRACE_REGS_PT_REGS, __arch_ftrace_regs, regs);
+	DEFINE(__FTRACE_REGS_SIZE, sizeof(struct __arch_ftrace_regs));
 
 	OFFSET(__PCPU_FLAGS, pcpu, flags);
 	return 0;

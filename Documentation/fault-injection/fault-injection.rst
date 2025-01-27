@@ -45,6 +45,32 @@ Available fault injection capabilities
   ALLOW_ERROR_INJECTION() macro, by setting debugfs entries
   under /sys/kernel/debug/fail_function. No boot option supported.
 
+- fail_skb_realloc
+
+  inject skb (socket buffer) reallocation events into the network path. The
+  primary goal is to identify and prevent issues related to pointer
+  mismanagement in the network subsystem.  By forcing skb reallocation at
+  strategic points, this feature creates scenarios where existing pointers to
+  skb headers become invalid.
+
+  When the fault is injected and the reallocation is triggered, cached pointers
+  to skb headers and data no longer reference valid memory locations. This
+  deliberate invalidation helps expose code paths where proper pointer updating
+  is neglected after a reallocation event.
+
+  By creating these controlled fault scenarios, the system can catch instances
+  where stale pointers are used, potentially leading to memory corruption or
+  system instability.
+
+  To select the interface to act on, write the network name to
+  /sys/kernel/debug/fail_skb_realloc/devname.
+  If this field is left empty (which is the default value), skb reallocation
+  will be forced on all network interfaces.
+
+  The effectiveness of this fault detection is enhanced when KASAN is
+  enabled, as it helps identify invalid memory references and use-after-free
+  (UAF) issues.
+
 - NVMe fault injection
 
   inject NVMe status code and retry flag on devices permitted by setting
@@ -216,6 +242,19 @@ configuration of fault-injection capabilities.
 	use a negative errno, you better use 'printf' instead of 'echo', e.g.:
 	$ printf %#x -12 > retval
 
+- /sys/kernel/debug/fail_skb_realloc/devname:
+
+        Specifies the network interface on which to force SKB reallocation.  If
+        left empty, SKB reallocation will be applied to all network interfaces.
+
+        Example usage::
+
+          # Force skb reallocation on eth0
+          echo "eth0" > /sys/kernel/debug/fail_skb_realloc/devname
+
+          # Clear the selection and force skb reallocation on all interfaces
+          echo "" > /sys/kernel/debug/fail_skb_realloc/devname
+
 Boot option
 ^^^^^^^^^^^
 
@@ -227,6 +266,7 @@ use the boot option::
 	fail_usercopy=
 	fail_make_request=
 	fail_futex=
+	fail_skb_realloc=
 	mmc_core.fail_request=<interval>,<probability>,<space>,<times>
 
 proc entries

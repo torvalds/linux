@@ -38,6 +38,7 @@ struct ipu6_isys_buffer {
 struct ipu6_isys_video_buffer {
 	struct vb2_v4l2_buffer vb_v4l2;
 	struct ipu6_isys_buffer ib;
+	dma_addr_t dma_addr;
 };
 
 #define IPU6_ISYS_BUFFER_LIST_FL_INCOMING	BIT(0)

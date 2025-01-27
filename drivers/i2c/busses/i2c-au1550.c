@@ -368,7 +368,7 @@ static struct platform_driver au1xpsc_smbus_driver = {
 		.pm	= pm_sleep_ptr(&i2c_au1550_pmops),
 	},
 	.probe		= i2c_au1550_probe,
-	.remove_new	= i2c_au1550_remove,
+	.remove		= i2c_au1550_remove,
 };
 
 module_platform_driver(au1xpsc_smbus_driver);

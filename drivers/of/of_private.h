@@ -9,6 +9,7 @@
  */
 
 #define FDT_ALIGN_SIZE 8
+#define MAX_RESERVED_REGIONS    64
 
 /**
  * struct alias_prop - Alias property in 'aliases' node
@@ -72,9 +73,9 @@ static inline void of_platform_register_reconfig_notifier(void) { }
 #if defined(CONFIG_OF_KOBJ)
 int of_node_is_attached(const struct device_node *node);
 int __of_add_property_sysfs(struct device_node *np, struct property *pp);
-void __of_remove_property_sysfs(struct device_node *np, struct property *prop);
+void __of_remove_property_sysfs(struct device_node *np, const struct property *prop);
 void __of_update_property_sysfs(struct device_node *np, struct property *newprop,
-		struct property *oldprop);
+		const struct property *oldprop);
 int __of_attach_node_sysfs(struct device_node *np);
 void __of_detach_node_sysfs(struct device_node *np);
 #else
@@ -82,9 +83,9 @@ static inline int __of_add_property_sysfs(struct device_node *np, struct propert
 {
 	return 0;
 }
-static inline void __of_remove_property_sysfs(struct device_node *np, struct property *prop) {}
+static inline void __of_remove_property_sysfs(struct device_node *np, const struct property *prop) {}
 static inline void __of_update_property_sysfs(struct device_node *np,
-		struct property *newprop, struct property *oldprop) {}
+		struct property *newprop, const struct property *oldprop) {}
 static inline int __of_attach_node_sysfs(struct device_node *np)
 {
 	return 0;
@@ -130,7 +131,7 @@ void __of_prop_free(struct property *prop);
 struct device_node *__of_node_dup(const struct device_node *np,
 				  const char *full_name);
 
-struct device_node *__of_find_node_by_path(struct device_node *parent,
+struct device_node *__of_find_node_by_path(const struct device_node *parent,
 						const char *path);
 struct device_node *__of_find_node_by_full_path(struct device_node *node,
 						const char *path);
@@ -145,7 +146,7 @@ extern int __of_update_property(struct device_node *np,
 extern void __of_detach_node(struct device_node *np);
 
 extern void __of_sysfs_remove_bin_file(struct device_node *np,
-				       struct property *prop);
+				       const struct property *prop);
 
 /* illegal phandle value (set when unresolved) */
 #define OF_PHANDLE_ILLEGAL	0xdeadbeef
@@ -183,7 +184,7 @@ static inline struct device_node *__of_get_dma_parent(const struct device_node *
 #endif
 
 int fdt_scan_reserved_mem(void);
-void fdt_init_reserved_mem(void);
+void __init fdt_scan_reserved_mem_reg_nodes(void);
 
 bool of_fdt_device_is_available(const void *blob, unsigned long node);
 

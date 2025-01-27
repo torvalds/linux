@@ -791,7 +791,7 @@ void __init early_init_devtree(void *params)
 	DBG(" -> early_init_devtree(%px)\n", params);
 
 	/* Too early to BUG_ON(), do it by hand */
-	if (!early_init_dt_verify(params))
+	if (!early_init_dt_verify(params, __pa(params)))
 		panic("BUG: Failed verifying flat device tree, bad version?");
 
 	of_scan_flat_dt(early_init_dt_scan_model, NULL);
@@ -907,6 +907,9 @@ void __init early_init_devtree(void *params)
 #endif
 
 	mmu_early_init_devtree();
+
+	/* Setup param area for passing additional parameters to fadump capture kernel. */
+	fadump_setup_param_area();
 
 #ifdef CONFIG_PPC_POWERNV
 	/* Scan and build the list of machine check recoverable ranges */

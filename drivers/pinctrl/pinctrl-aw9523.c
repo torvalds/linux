@@ -80,7 +80,7 @@ struct aw9523 {
 	struct regmap *regmap;
 	struct mutex i2c_lock;
 	struct gpio_desc *reset_gpio;
-	struct regulator *vio_vreg;
+	int vio_vreg;
 	struct pinctrl_dev *pctl;
 	struct gpio_chip gpio;
 	struct aw9523_irq *irq;
@@ -550,10 +550,10 @@ static int aw9523_gpio_get(struct gpio_chip *chip, unsigned int offset)
 
 /**
  * _aw9523_gpio_get_multiple - Get I/O state for an entire port
- * @regmap: Regmap structure
- * @pin: gpiolib pin number
+ * @awi: Controller data
  * @regbit: hw pin index, used to retrieve port number
  * @state: returned port I/O state
+ * @mask: lines to read values for
  *
  * Return: Zero for success or negative number for error
  */
@@ -972,29 +972,23 @@ static int aw9523_probe(struct i2c_client *client)
 	if (IS_ERR(awi->regmap))
 		return PTR_ERR(awi->regmap);
 
-	awi->vio_vreg = devm_regulator_get_optional(dev, "vio");
-	if (IS_ERR(awi->vio_vreg)) {
-		if (PTR_ERR(awi->vio_vreg) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-		awi->vio_vreg = NULL;
-	} else {
-		ret = regulator_enable(awi->vio_vreg);
-		if (ret)
-			return ret;
-	}
+	awi->vio_vreg = devm_regulator_get_enable_optional(dev, "vio");
+	if (awi->vio_vreg && awi->vio_vreg != -ENODEV)
+		return awi->vio_vreg;
 
-	mutex_init(&awi->i2c_lock);
+	ret = devm_mutex_init(dev, &awi->i2c_lock);
+	if (ret)
+		return ret;
+
 	lockdep_set_subclass(&awi->i2c_lock, i2c_adapter_depth(client->adapter));
 
 	pdesc = devm_kzalloc(dev, sizeof(*pdesc), GFP_KERNEL);
-	if (!pdesc) {
-		ret = -ENOMEM;
-		goto err_disable_vregs;
-	}
+	if (!pdesc)
+		return -ENOMEM;
 
 	ret = aw9523_hw_init(awi);
 	if (ret)
-		goto err_disable_vregs;
+		return ret;
 
 	pdesc->name = dev_name(dev);
 	pdesc->owner = THIS_MODULE;
@@ -1006,31 +1000,20 @@ static int aw9523_probe(struct i2c_client *client)
 
 	ret = aw9523_init_gpiochip(awi, pdesc->npins);
 	if (ret)
-		goto err_disable_vregs;
+		return ret;
 
 	if (client->irq) {
 		ret = aw9523_init_irq(awi, client->irq);
 		if (ret)
-			goto err_disable_vregs;
+			return ret;
 	}
 
 	awi->pctl = devm_pinctrl_register(dev, pdesc, awi);
-	if (IS_ERR(awi->pctl)) {
-		ret = dev_err_probe(dev, PTR_ERR(awi->pctl), "Cannot register pinctrl");
-		goto err_disable_vregs;
-	}
+	if (IS_ERR(awi->pctl))
+		return dev_err_probe(dev, PTR_ERR(awi->pctl),
+				     "Cannot register pinctrl");
 
-	ret = devm_gpiochip_add_data(dev, &awi->gpio, awi);
-	if (ret)
-		goto err_disable_vregs;
-
-	return ret;
-
-err_disable_vregs:
-	if (awi->vio_vreg)
-		regulator_disable(awi->vio_vreg);
-	mutex_destroy(&awi->i2c_lock);
-	return ret;
+	return devm_gpiochip_add_data(dev, &awi->gpio, awi);
 }
 
 static void aw9523_remove(struct i2c_client *client)
@@ -1043,19 +1026,15 @@ static void aw9523_remove(struct i2c_client *client)
 	 * set the pins to hardware defaults before removing the driver
 	 * to leave it in a clean, safe and predictable state.
 	 */
-	if (awi->vio_vreg) {
-		regulator_disable(awi->vio_vreg);
-	} else {
+	if (awi->vio_vreg == -ENODEV) {
 		mutex_lock(&awi->i2c_lock);
 		aw9523_hw_init(awi);
 		mutex_unlock(&awi->i2c_lock);
 	}
-
-	mutex_destroy(&awi->i2c_lock);
 }
 
 static const struct i2c_device_id aw9523_i2c_id_table[] = {
-	{ "aw9523_i2c", 0 },
+	{ "aw9523_i2c" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, aw9523_i2c_id_table);

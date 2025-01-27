@@ -17,16 +17,34 @@
 		reg = <0x80000000 0x40000000>; /* 1024M */
 	};
 
+	battery: battery {
+		compatible = "simple-battery";
+		device-chemistry = "lithium-ion";
+		charge-full-design-microamp-hours = <2720000>;
+		voltage-max-design-microvolt = <4200000>;
+		voltage-min-design-microvolt = <3300000>;
+
+		constant-charge-voltage-max-microvolt = <4200000>;
+		/*
+		 * vendor kernel says max charge 1400000, input limit 900000
+		 * and charges only with dcp chargers. So it is unclear what
+		 * is really allowed. Play safe for now and restrict things
+		 * here. Maybe 900000 is just the limit of the vendor charger?
+		 */
+		constant-charge-current-max-microamp = <900000>;
+		charge-term-current-microamp = <200000>;
+	};
+
 	backlight-left {
 		compatible = "pwm-backlight";
 		pwms = <&twl_pwm 1 7812500>;
-		power-supply = <&unknown_supply>;
+		power-supply = <&lb_v50>;
 	};
 
 	backlight-right {
 		compatible = "pwm-backlight";
 		pwms = <&twl_pwm 0 7812500>;
-		power-supply = <&unknown_supply>;
+		power-supply = <&lb_v50>;
 	};
 
 	chosen {
@@ -46,9 +64,53 @@
 		};
 	};
 
-	unknown_supply: unknown-supply {
+	cb_v18: regulator-cb-v18 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&cb_v18_pins>;
 		compatible = "regulator-fixed";
-		regulator-name = "unknown";
+		regulator-name = "cb_v18";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+		gpio = <&gpio1 28 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	cb_v33: regulator-cb-v33 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&cb_v33_pins>;
+		compatible = "regulator-fixed";
+		regulator-name = "cb_v33";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		gpio = <&gpio6 30 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	regulator-cb-v50 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&cb_v50_pins>;
+		compatible = "regulator-fixed";
+		regulator-name = "cb_v50";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+		gpio = <&gpio6 31 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	lb_v50: regulator-lb-v50 {
+		/* required for many things at the head (probably indirectly) */
+		pinctrl-names = "default";
+		pinctrl-0 = <&lb_v50_pins>;
+		compatible = "regulator-fixed";
+		regulator-name = "lb_v50";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+		gpio = <&gpio1 27 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
 	};
 
 	wl12xx_pwrseq: wl12xx-pwrseq {
@@ -71,6 +133,73 @@
 	};
 };
 
+&gpio1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&gpio1_hog_pins &gpio1wk_hog_pins>;
+
+	lb-reset-hog {
+		gpio-hog;
+		gpios = <9 GPIO_ACTIVE_HIGH>;
+		output-low;
+		line-name = "lb_reset";
+	};
+
+	power-en-hog {
+		gpio-hog;
+		gpios = <10 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "power_en";
+	};
+
+	/*
+	 * Name taken from vendor kernel but no evidence of actual usage found
+	 * nor what it really controls.
+	 */
+	panel-power-en-hog {
+		gpio-hog;
+		gpios = <14 GPIO_ACTIVE_HIGH>;
+		output-low;
+		line-name = "panel_power_en";
+	};
+
+	/*
+	 * These two are exported to sysfs in vendor kernel, usage unknown,
+	 * backlight state seems unrelated to these.
+	 */
+	blc-r-hog {
+		gpio-hog;
+		gpios = <17 GPIO_ACTIVE_HIGH>;
+		output-low;
+		line-name = "blc_r";
+	};
+
+	blc-l-hog {
+		gpio-hog;
+		gpios = <16 GPIO_ACTIVE_HIGH>;
+		output-low;
+		line-name = "blc_l";
+	};
+
+	high-hog {
+		gpio-hog;
+		gpios = <15 GPIO_ACTIVE_HIGH /* maybe dsi to dpi chip reset? */
+			 21 GPIO_ACTIVE_HIGH
+			 26 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "unknown-high";
+	};
+
+	low-hog {
+		gpio-hog;
+		gpios = <18 GPIO_ACTIVE_HIGH
+			 19 GPIO_ACTIVE_HIGH
+			 20 GPIO_ACTIVE_HIGH
+			 22 GPIO_ACTIVE_HIGH>;
+		output-low;
+		line-name = "unknown-low";
+	};
+};
+
 &i2c1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c1_pins>;
@@ -86,6 +215,14 @@
 		interrupt-controller;
 		#interrupt-cells = <1>;
 		system-power-controller;
+
+		charger {
+			compatible = "ti,twl6032-charger", "ti,twl6030-charger";
+			interrupts = <2>, <5>;
+			io-channels = <&gpadc 10>;
+			io-channel-names = "vusb";
+			monitored-battery = <&battery>;
+		};
 
 		rtc {
 			compatible = "ti,twl4030-rtc";
@@ -166,7 +303,7 @@
 			#pwm-cells = <2>;
 		};
 
-		gpadc {
+		gpadc: gpadc {
 			compatible = "ti,twl6032-gpadc";
 			interrupts = <3>;
 			#io-channel-cells = <1>;
@@ -187,6 +324,19 @@
 	pinctrl-0 = <&i2c2_pins>;
 
 	clock-frequency = <200000>;
+
+	/* is sometimes not available, research needed */
+	gpio_head: gpio@20 {
+		compatible = "ti,tca6408";
+		reg = <0x20>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+
+	/*
+	 * camera chip at 0x3c, available if <&gpio_head 1> high
+	 * and <&gpio_head 5> low
+	 */
 
 	/* at head/glasses */
 	mpu9150h: imu@68 {
@@ -259,6 +409,8 @@
 		pinctrl-0 = <&mpu9150_pins>;
 		interrupt-parent = <&gpio2>;
 		interrupt = <7 IRQ_TYPE_LEVEL_HIGH>;
+		vddio-supply = <&cb_v18>;
+		vdd-supply = <&cb_v33>;
 		invensense,level-shifter;
 	};
 };
@@ -336,9 +488,43 @@
 		>;
 	};
 
+	cb_v18_pins: pinmux-cb-v18-pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x1d0, PIN_OUTPUT | MUX_MODE3) /* gpio28 */
+		>;
+	};
+
+	cb_v33_pins: pinmux-cb-v33-pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x1d2, PIN_OUTPUT | MUX_MODE3) /* gpio190 */
+		>;
+	};
+
+	cb_v50_pins: pinmux-cb-v50-pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x1d4, PIN_OUTPUT | MUX_MODE3) /* gpio191 */
+		>;
+	};
+
 	gpio_keys_pins: pinmux-gpio-key-pins {
 		pinctrl-single,pins = <
 			OMAP4_IOPAD(0x56, PIN_INPUT_PULLUP | MUX_MODE3) /* gpio35 */
+		>;
+	};
+
+	gpio1_hog_pins: pinmux-gpio1-hog-pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x1b4, PIN_OUTPUT | MUX_MODE3) /* gpio14 */
+			OMAP4_IOPAD(0x1b8, PIN_OUTPUT | MUX_MODE3) /* gpio16 */
+			OMAP4_IOPAD(0x1ba, PIN_OUTPUT | MUX_MODE3) /* gpio17 */
+
+			OMAP4_IOPAD(0x1b6, PIN_OUTPUT | MUX_MODE3) /* gpio15 */
+			OMAP4_IOPAD(0x1bc, PIN_OUTPUT | MUX_MODE3) /* gpio18 */
+			OMAP4_IOPAD(0x1be, PIN_OUTPUT | MUX_MODE3) /* gpio19 */
+			OMAP4_IOPAD(0x1c0, PIN_OUTPUT | MUX_MODE3) /* gpio20 */
+			OMAP4_IOPAD(0x1c2, PIN_OUTPUT | MUX_MODE3) /* gpio21 */
+			OMAP4_IOPAD(0x1c4, PIN_OUTPUT | MUX_MODE3) /* gpio22 */
+			OMAP4_IOPAD(0x1cc, PIN_OUTPUT | MUX_MODE3) /* gpio26 */
 		>;
 	};
 
@@ -384,6 +570,12 @@
 			OMAP4_IOPAD(0x005a, PIN_OUTPUT | MUX_MODE1)
 			/* kpd_col2 */
 			OMAP4_IOPAD(0x005c, PIN_OUTPUT | MUX_MODE1)
+		>;
+	};
+
+	lb_v50_pins: pinmux-lb-v50-pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x1ce, PIN_OUTPUT | MUX_MODE3) /* gpio27 */
 		>;
 	};
 
@@ -453,6 +645,15 @@
 	wl12xx_gpio: pinmux-wl12xx-gpio-pins {
 		pinctrl-single,pins = <
 			OMAP4_IOPAD(0x1c8, PIN_OUTPUT | MUX_MODE3)  /* gpio_24 / WLAN_EN */
+		>;
+	};
+};
+
+&omap4_pmx_wkup {
+	gpio1wk_hog_pins: pinmux-gpio1wk-hog-pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x68, PIN_INPUT_PULLDOWN | MUX_MODE3) /* gpio9 */
+			OMAP4_IOPAD(0x6a, PIN_INPUT | MUX_MODE3) /* gpio10 */
 		>;
 	};
 };

@@ -95,6 +95,7 @@ struct bnxt_re_qp {
 	struct ib_ud_header	qp1_hdr;
 	struct bnxt_re_cq	*scq;
 	struct bnxt_re_cq	*rcq;
+	struct dentry		*dentry;
 };
 
 struct bnxt_re_cq {
@@ -196,6 +197,9 @@ static inline bool bnxt_re_is_var_size_supported(struct bnxt_re_dev *rdev,
 int bnxt_re_query_device(struct ib_device *ibdev,
 			 struct ib_device_attr *ib_attr,
 			 struct ib_udata *udata);
+int bnxt_re_modify_device(struct ib_device *ibdev,
+			  int device_modify_mask,
+			  struct ib_device_modify *device_modify);
 int bnxt_re_query_port(struct ib_device *ibdev, u32 port_num,
 		       struct ib_port_attr *port_attr);
 int bnxt_re_get_port_immutable(struct ib_device *ibdev, u32 port_num,
@@ -264,6 +268,10 @@ void bnxt_re_dealloc_ucontext(struct ib_ucontext *context);
 int bnxt_re_mmap(struct ib_ucontext *context, struct vm_area_struct *vma);
 void bnxt_re_mmap_free(struct rdma_user_mmap_entry *rdma_entry);
 
+static inline u32 __to_ib_port_num(u16 port_id)
+{
+	return (u32)port_id + 1;
+}
 
 unsigned long bnxt_re_lock_cqs(struct bnxt_re_qp *qp);
 void bnxt_re_unlock_cqs(struct bnxt_re_qp *qp, unsigned long flags);

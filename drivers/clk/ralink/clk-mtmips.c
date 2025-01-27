@@ -207,6 +207,7 @@ static struct mtmips_clk mt7620_pherip_clks[] = {
 	{ CLK_PERIPH("10000b00.spi", "bus") },
 	{ CLK_PERIPH("10000b40.spi", "bus") },
 	{ CLK_PERIPH("10000c00.uartlite", "periph") },
+	{ CLK_PERIPH("10130000.mmc", "sdhc") },
 	{ CLK_PERIPH("10180000.wmac", "xtal") }
 };
 
@@ -220,6 +221,7 @@ static struct mtmips_clk mt76x8_pherip_clks[] = {
 	{ CLK_PERIPH("10000c00.uart0", "periph") },
 	{ CLK_PERIPH("10000d00.uart1", "periph") },
 	{ CLK_PERIPH("10000e00.uart2", "periph") },
+	{ CLK_PERIPH("10130000.mmc", "sdhc") },
 	{ CLK_PERIPH("10300000.wmac", "xtal") }
 };
 
@@ -263,16 +265,22 @@ err_clk_unreg:
 		.rate = _rate		 \
 	}
 
-static struct mtmips_clk_fixed rt305x_fixed_clocks[] = {
-	CLK_FIXED("xtal", NULL, 40000000)
+static struct mtmips_clk_fixed rt3883_fixed_clocks[] = {
+	CLK_FIXED("xtal", NULL, 40000000),
+	CLK_FIXED("periph", "xtal", 40000000)
 };
 
 static struct mtmips_clk_fixed rt3352_fixed_clocks[] = {
 	CLK_FIXED("periph", "xtal", 40000000)
 };
 
+static struct mtmips_clk_fixed mt7620_fixed_clocks[] = {
+	CLK_FIXED("bbppll", "xtal", 480000000)
+};
+
 static struct mtmips_clk_fixed mt76x8_fixed_clocks[] = {
-	CLK_FIXED("pcmi2s", "xtal", 480000000),
+	CLK_FIXED("bbppll", "xtal", 480000000),
+	CLK_FIXED("pcmi2s", "bbppll", 480000000),
 	CLK_FIXED("periph", "xtal", 40000000)
 };
 
@@ -327,6 +335,15 @@ static struct mtmips_clk_factor rt305x_factor_clocks[] = {
 	CLK_FACTOR("bus", "cpu", 1, 3)
 };
 
+static struct mtmips_clk_factor mt7620_factor_clocks[] = {
+	CLK_FACTOR("sdhc", "bbppll", 1, 10)
+};
+
+static struct mtmips_clk_factor mt76x8_factor_clocks[] = {
+	CLK_FACTOR("bus", "cpu", 1, 3),
+	CLK_FACTOR("sdhc", "bbppll", 1, 10)
+};
+
 static int mtmips_register_factor_clocks(struct clk_hw_onecell_data *clk_data,
 					 struct mtmips_clk_priv *priv)
 {
@@ -364,6 +381,12 @@ err_clk_unreg:
 static inline struct mtmips_clk *to_mtmips_clk(struct clk_hw *hw)
 {
 	return container_of(hw, struct mtmips_clk, hw);
+}
+
+static unsigned long rt2880_xtal_recalc_rate(struct clk_hw *hw,
+					     unsigned long parent_rate)
+{
+	return 40000000;
 }
 
 static unsigned long rt5350_xtal_recalc_rate(struct clk_hw *hw,
@@ -677,10 +700,12 @@ static unsigned long mt76x8_cpu_recalc_rate(struct clk_hw *hw,
 }
 
 static struct mtmips_clk rt2880_clks_base[] = {
+	{ CLK_BASE("xtal", NULL, rt2880_xtal_recalc_rate) },
 	{ CLK_BASE("cpu", "xtal", rt2880_cpu_recalc_rate) }
 };
 
 static struct mtmips_clk rt305x_clks_base[] = {
+	{ CLK_BASE("xtal", NULL, rt2880_xtal_recalc_rate) },
 	{ CLK_BASE("cpu", "xtal", rt305x_cpu_recalc_rate) }
 };
 
@@ -690,6 +715,7 @@ static struct mtmips_clk rt3352_clks_base[] = {
 };
 
 static struct mtmips_clk rt3883_clks_base[] = {
+	{ CLK_BASE("xtal", NULL, rt2880_xtal_recalc_rate) },
 	{ CLK_BASE("cpu", "xtal", rt3883_cpu_recalc_rate) },
 	{ CLK_BASE("bus", "cpu", rt3883_bus_recalc_rate) }
 };
@@ -746,8 +772,8 @@ err_clk_unreg:
 static const struct mtmips_clk_data rt2880_clk_data = {
 	.clk_base = rt2880_clks_base,
 	.num_clk_base = ARRAY_SIZE(rt2880_clks_base),
-	.clk_fixed = rt305x_fixed_clocks,
-	.num_clk_fixed = ARRAY_SIZE(rt305x_fixed_clocks),
+	.clk_fixed = NULL,
+	.num_clk_fixed = 0,
 	.clk_factor = rt2880_factor_clocks,
 	.num_clk_factor = ARRAY_SIZE(rt2880_factor_clocks),
 	.clk_periph = rt2880_pherip_clks,
@@ -757,8 +783,8 @@ static const struct mtmips_clk_data rt2880_clk_data = {
 static const struct mtmips_clk_data rt305x_clk_data = {
 	.clk_base = rt305x_clks_base,
 	.num_clk_base = ARRAY_SIZE(rt305x_clks_base),
-	.clk_fixed = rt305x_fixed_clocks,
-	.num_clk_fixed = ARRAY_SIZE(rt305x_fixed_clocks),
+	.clk_fixed = NULL,
+	.num_clk_fixed = 0,
 	.clk_factor = rt305x_factor_clocks,
 	.num_clk_factor = ARRAY_SIZE(rt305x_factor_clocks),
 	.clk_periph = rt305x_pherip_clks,
@@ -779,8 +805,8 @@ static const struct mtmips_clk_data rt3352_clk_data = {
 static const struct mtmips_clk_data rt3883_clk_data = {
 	.clk_base = rt3883_clks_base,
 	.num_clk_base = ARRAY_SIZE(rt3883_clks_base),
-	.clk_fixed = rt305x_fixed_clocks,
-	.num_clk_fixed = ARRAY_SIZE(rt305x_fixed_clocks),
+	.clk_fixed = rt3883_fixed_clocks,
+	.num_clk_fixed = ARRAY_SIZE(rt3883_fixed_clocks),
 	.clk_factor = NULL,
 	.num_clk_factor = 0,
 	.clk_periph = rt5350_pherip_clks,
@@ -801,10 +827,10 @@ static const struct mtmips_clk_data rt5350_clk_data = {
 static const struct mtmips_clk_data mt7620_clk_data = {
 	.clk_base = mt7620_clks_base,
 	.num_clk_base = ARRAY_SIZE(mt7620_clks_base),
-	.clk_fixed = NULL,
-	.num_clk_fixed = 0,
-	.clk_factor = NULL,
-	.num_clk_factor = 0,
+	.clk_fixed = mt7620_fixed_clocks,
+	.num_clk_fixed = ARRAY_SIZE(mt7620_fixed_clocks),
+	.clk_factor = mt7620_factor_clocks,
+	.num_clk_factor = ARRAY_SIZE(mt7620_factor_clocks),
 	.clk_periph = mt7620_pherip_clks,
 	.num_clk_periph = ARRAY_SIZE(mt7620_pherip_clks),
 };
@@ -814,8 +840,8 @@ static const struct mtmips_clk_data mt76x8_clk_data = {
 	.num_clk_base = ARRAY_SIZE(mt76x8_clks_base),
 	.clk_fixed = mt76x8_fixed_clocks,
 	.num_clk_fixed = ARRAY_SIZE(mt76x8_fixed_clocks),
-	.clk_factor = rt305x_factor_clocks,
-	.num_clk_factor = ARRAY_SIZE(rt305x_factor_clocks),
+	.clk_factor = mt76x8_factor_clocks,
+	.num_clk_factor = ARRAY_SIZE(mt76x8_factor_clocks),
 	.clk_periph = mt76x8_pherip_clks,
 	.num_clk_periph = ARRAY_SIZE(mt76x8_pherip_clks),
 };

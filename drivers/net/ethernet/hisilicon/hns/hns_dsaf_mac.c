@@ -1090,28 +1090,24 @@ int hns_mac_init(struct dsaf_device *dsaf_dev)
 	u32 port_id;
 	int max_port_num = hns_mac_get_max_port_num(dsaf_dev);
 	struct hns_mac_cb *mac_cb;
-	struct fwnode_handle *child;
 
-	device_for_each_child_node(dsaf_dev->dev, child) {
+	device_for_each_child_node_scoped(dsaf_dev->dev, child) {
 		ret = fwnode_property_read_u32(child, "reg", &port_id);
 		if (ret) {
-			fwnode_handle_put(child);
 			dev_err(dsaf_dev->dev,
 				"get reg fail, ret=%d!\n", ret);
 			return ret;
 		}
 		if (port_id >= max_port_num) {
-			fwnode_handle_put(child);
 			dev_err(dsaf_dev->dev,
 				"reg(%u) out of range!\n", port_id);
 			return -EINVAL;
 		}
 		mac_cb = devm_kzalloc(dsaf_dev->dev, sizeof(*mac_cb),
 				      GFP_KERNEL);
-		if (!mac_cb) {
-			fwnode_handle_put(child);
+		if (!mac_cb)
 			return -ENOMEM;
-		}
+
 		mac_cb->fw_port = child;
 		mac_cb->mac_id = (u8)port_id;
 		dsaf_dev->mac_cb[port_id] = mac_cb;
@@ -1194,8 +1190,7 @@ void hns_mac_get_stats(struct hns_mac_cb *mac_cb, u64 *data)
 	mac_ctrl_drv->get_ethtool_stats(mac_ctrl_drv, data);
 }
 
-void hns_mac_get_strings(struct hns_mac_cb *mac_cb,
-			 int stringset, u8 *data)
+void hns_mac_get_strings(struct hns_mac_cb *mac_cb, int stringset, u8 **data)
 {
 	struct mac_driver *mac_ctrl_drv = hns_mac_get_drv(mac_cb);
 

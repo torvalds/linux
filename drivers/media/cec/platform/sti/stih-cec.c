@@ -383,7 +383,7 @@ MODULE_DEVICE_TABLE(of, stih_cec_match);
 
 static struct platform_driver stih_cec_pdrv = {
 	.probe	= stih_cec_probe,
-	.remove_new = stih_cec_remove,
+	.remove = stih_cec_remove,
 	.driver = {
 		.name		= CEC_NAME,
 		.of_match_table	= stih_cec_match,

@@ -5,7 +5,7 @@
  * Author: Thomas Abraham <thomas.ab@samsung.com>
  *
  * Common Clock Framework support for Exynos5250 SoC.
-*/
+ */
 
 #include <dt-bindings/clock/exynos5250.h>
 #include <linux/clk-provider.h>

@@ -28,8 +28,8 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_client_event.h>
 #include <drm/drm_crtc_helper.h>
-#include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_probe_helper.h>
@@ -44,6 +44,7 @@
 #include <nvif/if0011.h>
 #include <nvif/if0013.h>
 #include <dispnv50/crc.h>
+#include <dispnv50/tile.h>
 
 int
 nouveau_display_vblank_enable(struct drm_crtc *crtc)
@@ -220,69 +221,29 @@ nouveau_validate_decode_mod(struct nouveau_drm *drm,
 	return 0;
 }
 
-static inline uint32_t
-nouveau_get_width_in_blocks(uint32_t stride)
-{
-	/* GOBs per block in the x direction is always one, and GOBs are
-	 * 64 bytes wide
-	 */
-	static const uint32_t log_block_width = 6;
-
-	return (stride + (1 << log_block_width) - 1) >> log_block_width;
-}
-
-static inline uint32_t
-nouveau_get_height_in_blocks(struct nouveau_drm *drm,
-			     uint32_t height,
-			     uint32_t log_block_height_in_gobs)
-{
-	uint32_t log_gob_height;
-	uint32_t log_block_height;
-
-	BUG_ON(drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA);
-
-	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_FERMI)
-		log_gob_height = 2;
-	else
-		log_gob_height = 3;
-
-	log_block_height = log_block_height_in_gobs + log_gob_height;
-
-	return (height + (1 << log_block_height) - 1) >> log_block_height;
-}
-
 static int
 nouveau_check_bl_size(struct nouveau_drm *drm, struct nouveau_bo *nvbo,
 		      uint32_t offset, uint32_t stride, uint32_t h,
 		      uint32_t tile_mode)
 {
-	uint32_t gob_size, bw, bh;
+	uint32_t gob_size, bw, bh, gobs_in_block;
 	uint64_t bl_size;
 
 	BUG_ON(drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA);
 
-	if (drm->client.device.info.chipset >= 0xc0) {
-		if (tile_mode & 0xF)
-			return -EINVAL;
-		tile_mode >>= 4;
-	}
-
-	if (tile_mode & 0xFFFFFFF0)
+	if (nouveau_check_tile_mode(tile_mode, drm->client.device.info.chipset))
 		return -EINVAL;
 
-	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_FERMI)
-		gob_size = 256;
-	else
-		gob_size = 512;
-
+	gobs_in_block = nouveau_get_gobs_in_block(tile_mode, drm->client.device.info.chipset);
 	bw = nouveau_get_width_in_blocks(stride);
-	bh = nouveau_get_height_in_blocks(drm, h, tile_mode);
+	bh = nouveau_get_height_in_blocks(h, gobs_in_block, drm->client.device.info.family);
+	gob_size = nouveau_get_gob_size(drm->client.device.info.family);
 
-	bl_size = bw * bh * (1 << tile_mode) * gob_size;
+	bl_size = bw * bh * gobs_in_block * gob_size;
 
-	DRM_DEBUG_KMS("offset=%u stride=%u h=%u tile_mode=0x%02x bw=%u bh=%u gob_size=%u bl_size=%llu size=%zu\n",
-		      offset, stride, h, tile_mode, bw, bh, gob_size, bl_size,
-		      nvbo->bo.base.size);
+	DRM_DEBUG_KMS("offset=%u stride=%u h=%u gobs_in_block=%u bw=%u bh=%u gob_size=%u bl_size=%llu size=%zu\n",
+		      offset, stride, h, gobs_in_block, bw, bh, gob_size,
+		      bl_size, nvbo->bo.base.size);
 
 	if (bl_size + offset > nvbo->bo.base.size)
 		return -ERANGE;
@@ -804,8 +765,7 @@ nouveau_display_suspend(struct drm_device *dev, bool runtime)
 {
 	struct nouveau_display *disp = nouveau_display(dev);
 
-	/* Disable console. */
-	drm_fb_helper_set_suspend_unlocked(dev->fb_helper, true);
+	drm_client_dev_suspend(dev, false);
 
 	if (drm_drv_uses_atomic_modeset(dev)) {
 		if (!runtime) {
@@ -836,8 +796,7 @@ nouveau_display_resume(struct drm_device *dev, bool runtime)
 		}
 	}
 
-	/* Enable console. */
-	drm_fb_helper_set_suspend_unlocked(dev->fb_helper, false);
+	drm_client_dev_resume(dev, false);
 }
 
 int

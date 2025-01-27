@@ -371,8 +371,8 @@
 		.ops		= &axp20x_ops,					\
 	}
 
-#define AXP_DESC(_family, _id, _match, _supply, _min, _max, _step, _vreg,	\
-		 _vmask, _ereg, _emask) 					\
+#define AXP_DESC_DELAY(_family, _id, _match, _supply, _min, _max, _step, _vreg,	\
+		 _vmask, _ereg, _emask, _ramp_delay) 				\
 	[_family##_##_id] = {							\
 		.name		= (_match),					\
 		.supply_name	= (_supply),					\
@@ -388,8 +388,14 @@
 		.vsel_mask	= (_vmask),					\
 		.enable_reg	= (_ereg),					\
 		.enable_mask	= (_emask),					\
+		.ramp_delay = (_ramp_delay),					\
 		.ops		= &axp20x_ops,					\
 	}
+
+#define AXP_DESC(_family, _id, _match, _supply, _min, _max, _step, _vreg,	\
+		 _vmask, _ereg, _emask) 					\
+	AXP_DESC_DELAY(_family, _id, _match, _supply, _min, _max, _step, _vreg,	\
+		 _vmask, _ereg, _emask, 0)
 
 #define AXP_DESC_SW(_family, _id, _match, _supply, _ereg, _emask)		\
 	[_family##_##_id] = {							\
@@ -419,8 +425,8 @@
 		.ops		= &axp20x_ops_fixed				\
 	}
 
-#define AXP_DESC_RANGES(_family, _id, _match, _supply, _ranges, _n_voltages,	\
-			_vreg, _vmask, _ereg, _emask)				\
+#define AXP_DESC_RANGES_DELAY(_family, _id, _match, _supply, _ranges, _n_voltages,	\
+			_vreg, _vmask, _ereg, _emask, _ramp_delay)	\
 	[_family##_##_id] = {							\
 		.name		= (_match),					\
 		.supply_name	= (_supply),					\
@@ -436,8 +442,14 @@
 		.enable_mask	= (_emask),					\
 		.linear_ranges	= (_ranges),					\
 		.n_linear_ranges = ARRAY_SIZE(_ranges),				\
+		.ramp_delay = (_ramp_delay),					\
 		.ops		= &axp20x_ops_range,				\
 	}
+
+#define AXP_DESC_RANGES(_family, _id, _match, _supply, _ranges, _n_voltages,	\
+			_vreg, _vmask, _ereg, _emask)				\
+	AXP_DESC_RANGES_DELAY(_family, _id, _match, _supply, _ranges,		\
+		 _n_voltages, _vreg, _vmask, _ereg, _emask, 0)
 
 static const int axp209_dcdc2_ldo3_slew_rates[] = {
 	1600,
@@ -781,21 +793,21 @@ static const struct linear_range axp717_dcdc3_ranges[] = {
 };
 
 static const struct regulator_desc axp717_regulators[] = {
-	AXP_DESC_RANGES(AXP717, DCDC1, "dcdc1", "vin1",
+	AXP_DESC_RANGES_DELAY(AXP717, DCDC1, "dcdc1", "vin1",
 			axp717_dcdc1_ranges, AXP717_DCDC1_NUM_VOLTAGES,
 			AXP717_DCDC1_CONTROL, AXP717_DCDC_V_OUT_MASK,
-			AXP717_DCDC_OUTPUT_CONTROL, BIT(0)),
-	AXP_DESC_RANGES(AXP717, DCDC2, "dcdc2", "vin2",
+			AXP717_DCDC_OUTPUT_CONTROL, BIT(0), 640),
+	AXP_DESC_RANGES_DELAY(AXP717, DCDC2, "dcdc2", "vin2",
 			axp717_dcdc2_ranges, AXP717_DCDC2_NUM_VOLTAGES,
 			AXP717_DCDC2_CONTROL, AXP717_DCDC_V_OUT_MASK,
-			AXP717_DCDC_OUTPUT_CONTROL, BIT(1)),
-	AXP_DESC_RANGES(AXP717, DCDC3, "dcdc3", "vin3",
+			AXP717_DCDC_OUTPUT_CONTROL, BIT(1), 640),
+	AXP_DESC_RANGES_DELAY(AXP717, DCDC3, "dcdc3", "vin3",
 			axp717_dcdc3_ranges, AXP717_DCDC3_NUM_VOLTAGES,
 			AXP717_DCDC3_CONTROL, AXP717_DCDC_V_OUT_MASK,
-			AXP717_DCDC_OUTPUT_CONTROL, BIT(2)),
-	AXP_DESC(AXP717, DCDC4, "dcdc4", "vin4", 1000, 3700, 100,
+			AXP717_DCDC_OUTPUT_CONTROL, BIT(2), 640),
+	AXP_DESC_DELAY(AXP717, DCDC4, "dcdc4", "vin4", 1000, 3700, 100,
 		 AXP717_DCDC4_CONTROL, AXP717_DCDC_V_OUT_MASK,
-		 AXP717_DCDC_OUTPUT_CONTROL, BIT(3)),
+		 AXP717_DCDC_OUTPUT_CONTROL, BIT(3), 6400),
 	AXP_DESC(AXP717, ALDO1, "aldo1", "aldoin", 500, 3500, 100,
 		 AXP717_ALDO1_CONTROL, AXP717_LDO_V_OUT_MASK,
 		 AXP717_LDO0_OUTPUT_CONTROL, BIT(0)),
@@ -1341,6 +1353,7 @@ static int axp20x_set_dcdc_freq(struct platform_device *pdev, u32 dcdcfreq)
 		step = 150;
 		break;
 	case AXP313A_ID:
+	case AXP323_ID:
 	case AXP717_ID:
 	case AXP15060_ID:
 		/* The DCDC PWM frequency seems to be fixed to 3 MHz. */
@@ -1527,6 +1540,15 @@ static bool axp20x_is_polyphase_slave(struct axp20x_dev *axp20x, int id)
 		}
 		break;
 
+	case AXP323_ID:
+		regmap_read(axp20x->regmap, AXP323_DCDC_MODE_CTRL2, &reg);
+
+		switch (id) {
+		case AXP313A_DCDC2:
+			return !!(reg & BIT(1));
+		}
+		break;
+
 	default:
 		return false;
 	}
@@ -1565,6 +1587,7 @@ static int axp20x_regulator_probe(struct platform_device *pdev)
 						  "x-powers,drive-vbus-en");
 		break;
 	case AXP313A_ID:
+	case AXP323_ID:
 		regulators = axp313a_regulators;
 		nregulators = AXP313A_REG_ID_MAX;
 		break;
@@ -1597,7 +1620,7 @@ static int axp20x_regulator_probe(struct platform_device *pdev)
 		nregulators = AXP15060_REG_ID_MAX;
 		break;
 	default:
-		dev_err(&pdev->dev, "Unsupported AXP variant: %ld\n",
+		dev_err(&pdev->dev, "Unsupported AXP variant: %d\n",
 			axp20x->variant);
 		return -EINVAL;
 	}

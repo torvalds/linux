@@ -29,7 +29,7 @@
 		};
 	};
 
-	pcie30_avdd0v9: pcie30-avdd0v9-regulator {
+	pcie30_avdd0v9: regulator-pcie30-avdd0v9 {
 		compatible = "regulator-fixed";
 		regulator-name = "pcie30_avdd0v9";
 		regulator-always-on;
@@ -39,7 +39,7 @@
 		vin-supply = <&vcc3v3_sys>;
 	};
 
-	pcie30_avdd1v8: pcie30-avdd1v8-regulator {
+	pcie30_avdd1v8: regulator-pcie30-avdd1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "pcie30_avdd1v8";
 		regulator-always-on;
@@ -49,7 +49,7 @@
 		vin-supply = <&vcc3v3_sys>;
 	};
 
-	vcc3v3_sys: vcc3v3-sys-regulator {
+	vcc3v3_sys: regulator-vcc3v3-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_sys";
 		regulator-always-on;
@@ -59,7 +59,7 @@
 		vin-supply = <&vcc5v_input>;
 	};
 
-	vcc5v0_sys: vcc5v0-sys-regulator {
+	vcc5v0_sys: regulator-vcc5v0-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_sys";
 		regulator-always-on;
@@ -70,7 +70,7 @@
 	};
 
 	/* labeled +5v_input in schematic */
-	vcc5v_input: vcc5v-input-regulator {
+	vcc5v_input: regulator-vcc5v-input {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v_input";
 		regulator-always-on;
@@ -141,7 +141,7 @@
 		#clock-cells = <1>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int>;
-		rockchip,system-power-controller;
+		system-power-controller;
 		wakeup-source;
 
 		vcc1-supply = <&vcc3v3_sys>;

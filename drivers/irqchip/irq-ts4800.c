@@ -154,7 +154,7 @@ MODULE_DEVICE_TABLE(of, ts4800_ic_of_match);
 
 static struct platform_driver ts4800_ic_driver = {
 	.probe		= ts4800_ic_probe,
-	.remove_new	= ts4800_ic_remove,
+	.remove		= ts4800_ic_remove,
 	.driver = {
 		.name		= "ts4800-irqc",
 		.of_match_table	= ts4800_ic_of_match,

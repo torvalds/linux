@@ -4,6 +4,7 @@ config DRM_ASPEED_GFX
 	depends on DRM && OF
 	depends on (COMPILE_TEST || ARCH_ASPEED)
 	depends on MMU
+	select DRM_CLIENT_SELECTION
 	select DRM_KMS_HELPER
 	select DRM_GEM_DMA_HELPER
 	select DMA_CMA if HAVE_DMA_CONTIGUOUS

@@ -878,8 +878,6 @@ static const struct vb2_ops csi_vb2_qops = {
 	.buf_queue = ti_csi2rx_buffer_queue,
 	.start_streaming = ti_csi2rx_start_streaming,
 	.stop_streaming = ti_csi2rx_stop_streaming,
-	.wait_prepare = vb2_ops_wait_prepare,
-	.wait_finish = vb2_ops_wait_finish,
 };
 
 static int ti_csi2rx_init_vb2q(struct ti_csi2rx_dev *csi)
@@ -1014,9 +1012,9 @@ static int ti_csi2rx_v4l2_init(struct ti_csi2rx_dev *csi)
 	pix_fmt->height = 480;
 	pix_fmt->field = V4L2_FIELD_NONE;
 	pix_fmt->colorspace = V4L2_COLORSPACE_SRGB;
-	pix_fmt->ycbcr_enc = V4L2_YCBCR_ENC_601,
-	pix_fmt->quantization = V4L2_QUANTIZATION_LIM_RANGE,
-	pix_fmt->xfer_func = V4L2_XFER_FUNC_SRGB,
+	pix_fmt->ycbcr_enc = V4L2_YCBCR_ENC_601;
+	pix_fmt->quantization = V4L2_QUANTIZATION_LIM_RANGE;
+	pix_fmt->xfer_func = V4L2_XFER_FUNC_SRGB;
 
 	ti_csi2rx_fill_fmt(fmt, &csi->v_fmt);
 
@@ -1163,7 +1161,7 @@ MODULE_DEVICE_TABLE(of, ti_csi2rx_of_match);
 
 static struct platform_driver ti_csi2rx_pdrv = {
 	.probe = ti_csi2rx_probe,
-	.remove_new = ti_csi2rx_remove,
+	.remove = ti_csi2rx_remove,
 	.driver = {
 		.name = TI_CSI2RX_MODULE_NAME,
 		.of_match_table = ti_csi2rx_of_match,

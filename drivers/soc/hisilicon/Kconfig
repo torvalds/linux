@@ -13,9 +13,12 @@ config KUNPENG_HCCS
 	  interconnection bus protocol.
 	  The performance of application may be affected if some HCCS
 	  ports are not in full lane status, have a large number of CRC
-	  errors and so on.
+	  errors and so on. This may support for reducing system power
+	  consumption if there are HCCS ports supported low power feature
+	  on platform.
 
 	  Say M here if you want to include support for querying the
-	  health status and port information of HCCS on Kunpeng SoC.
+	  health status and port information of HCCS, or reducing system
+	  power consumption on Kunpeng SoC.
 
 endmenu

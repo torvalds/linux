@@ -92,9 +92,8 @@ properties:
       may have two component regions -- base and extended -- so
       this information cannot be deduced from the dma-ranges.
     $ref: /schemas/types.yaml#/definitions/uint64-array
-    items:
-      minItems: 1
-      maxItems: 3
+    minItems: 1
+    maxItems: 3
 
   resets:
     minItems: 1

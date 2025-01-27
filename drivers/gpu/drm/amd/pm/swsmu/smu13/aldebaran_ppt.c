@@ -1297,9 +1297,10 @@ static int aldebaran_set_performance_level(struct smu_context *smu,
 }
 
 static int aldebaran_set_soft_freq_limited_range(struct smu_context *smu,
-					  enum smu_clk_type clk_type,
-					  uint32_t min,
-					  uint32_t max)
+						 enum smu_clk_type clk_type,
+						 uint32_t min,
+						 uint32_t max,
+						 bool automatic)
 {
 	struct smu_dpm_context *smu_dpm = &(smu->smu_dpm);
 	struct smu_13_0_dpm_context *dpm_context = smu_dpm->dpm_context;
@@ -1328,7 +1329,7 @@ static int aldebaran_set_soft_freq_limited_range(struct smu_context *smu,
 			return 0;
 
 		ret = smu_v13_0_set_soft_freq_limited_range(smu, SMU_GFXCLK,
-							    min, max);
+							    min, max, false);
 		if (!ret) {
 			pstate_table->gfxclk_pstate.curr.min = min;
 			pstate_table->gfxclk_pstate.curr.max = max;
@@ -1348,7 +1349,7 @@ static int aldebaran_set_soft_freq_limited_range(struct smu_context *smu,
 		/* Restore default min/max clocks and enable determinism */
 		min_clk = dpm_context->dpm_tables.gfx_table.min;
 		max_clk = dpm_context->dpm_tables.gfx_table.max;
-		ret = smu_v13_0_set_soft_freq_limited_range(smu, SMU_GFXCLK, min_clk, max_clk);
+		ret = smu_v13_0_set_soft_freq_limited_range(smu, SMU_GFXCLK, min_clk, max_clk, false);
 		if (!ret) {
 			usleep_range(500, 1000);
 			ret = smu_cmn_send_smc_msg_with_param(smu,
@@ -1422,7 +1423,7 @@ static int aldebaran_usr_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_
 			min_clk = dpm_context->dpm_tables.gfx_table.min;
 			max_clk = dpm_context->dpm_tables.gfx_table.max;
 
-			return aldebaran_set_soft_freq_limited_range(smu, SMU_GFXCLK, min_clk, max_clk);
+			return aldebaran_set_soft_freq_limited_range(smu, SMU_GFXCLK, min_clk, max_clk, false);
 		}
 		break;
 	case PP_OD_COMMIT_DPM_TABLE:
@@ -1441,7 +1442,7 @@ static int aldebaran_usr_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_
 			min_clk = pstate_table->gfxclk_pstate.custom.min;
 			max_clk = pstate_table->gfxclk_pstate.custom.max;
 
-			return aldebaran_set_soft_freq_limited_range(smu, SMU_GFXCLK, min_clk, max_clk);
+			return aldebaran_set_soft_freq_limited_range(smu, SMU_GFXCLK, min_clk, max_clk, false);
 		}
 		break;
 	default:

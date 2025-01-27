@@ -34,11 +34,13 @@
 #include "xfs_quota.h"
 #include "xfs_exchmaps.h"
 #include "xfs_rtbitmap.h"
+#include "xfs_rtgroup.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
 #include "scrub/repair.h"
 #include "scrub/health.h"
+#include "scrub/tempfile.h"
 
 /* Common code for the metadata scrubbers. */
 
@@ -117,6 +119,17 @@ xchk_process_error(
 	int			*error)
 {
 	return __xchk_process_error(sc, agno, bno, error,
+			XFS_SCRUB_OFLAG_CORRUPT, __return_address);
+}
+
+bool
+xchk_process_rt_error(
+	struct xfs_scrub	*sc,
+	xfs_rgnumber_t		rgno,
+	xfs_rgblock_t		rgbno,
+	int			*error)
+{
+	return __xchk_process_error(sc, rgno, rgbno, error,
 			XFS_SCRUB_OFLAG_CORRUPT, __return_address);
 }
 
@@ -513,7 +526,7 @@ xchk_perag_drain_and_lock(
 		 * Obviously, this should be slanted against scrub and in favor
 		 * of runtime threads.
 		 */
-		if (!xfs_perag_intent_busy(sa->pag))
+		if (!xfs_group_intent_busy(pag_group(sa->pag)))
 			return 0;
 
 		if (sa->agf_bp) {
@@ -528,7 +541,7 @@ xchk_perag_drain_and_lock(
 
 		if (!(sc->flags & XCHK_FSGATES_DRAIN))
 			return -ECHRNG;
-		error = xfs_perag_intent_drain(sa->pag);
+		error = xfs_group_intent_drain(pag_group(sa->pag));
 		if (error == -ERESTARTSYS)
 			error = -EINTR;
 	} while (!error);
@@ -682,6 +695,72 @@ xchk_ag_init(
 	xchk_ag_btcur_init(sc, sa);
 	return 0;
 }
+
+#ifdef CONFIG_XFS_RT
+/*
+ * For scrubbing a realtime group, grab all the in-core resources we'll need to
+ * check the metadata, which means taking the ILOCK of the realtime group's
+ * metadata inodes.  Callers must not join these inodes to the transaction with
+ * non-zero lockflags or concurrency problems will result.  The @rtglock_flags
+ * argument takes XFS_RTGLOCK_* flags.
+ */
+int
+xchk_rtgroup_init(
+	struct xfs_scrub	*sc,
+	xfs_rgnumber_t		rgno,
+	struct xchk_rt		*sr)
+{
+	ASSERT(sr->rtg == NULL);
+	ASSERT(sr->rtlock_flags == 0);
+
+	sr->rtg = xfs_rtgroup_get(sc->mp, rgno);
+	if (!sr->rtg)
+		return -ENOENT;
+	return 0;
+}
+
+void
+xchk_rtgroup_lock(
+	struct xchk_rt		*sr,
+	unsigned int		rtglock_flags)
+{
+	xfs_rtgroup_lock(sr->rtg, rtglock_flags);
+	sr->rtlock_flags = rtglock_flags;
+}
+
+/*
+ * Unlock the realtime group.  This must be done /after/ committing (or
+ * cancelling) the scrub transaction.
+ */
+static void
+xchk_rtgroup_unlock(
+	struct xchk_rt		*sr)
+{
+	ASSERT(sr->rtg != NULL);
+
+	if (sr->rtlock_flags) {
+		xfs_rtgroup_unlock(sr->rtg, sr->rtlock_flags);
+		sr->rtlock_flags = 0;
+	}
+}
+
+/*
+ * Unlock the realtime group and release its resources.  This must be done
+ * /after/ committing (or cancelling) the scrub transaction.
+ */
+void
+xchk_rtgroup_free(
+	struct xfs_scrub	*sc,
+	struct xchk_rt		*sr)
+{
+	ASSERT(sr->rtg != NULL);
+
+	xchk_rtgroup_unlock(sr);
+
+	xfs_rtgroup_put(sr->rtg);
+	sr->rtg = NULL;
+}
+#endif /* CONFIG_XFS_RT */
 
 /* Per-scrubber setup functions */
 
@@ -947,9 +1026,15 @@ xchk_iget_for_scrubbing(
 	if (sc->sm->sm_ino == 0 || sc->sm->sm_ino == ip_in->i_ino)
 		return xchk_install_live_inode(sc, ip_in);
 
-	/* Reject internal metadata files and obviously bad inode numbers. */
-	if (xfs_internal_inum(mp, sc->sm->sm_ino))
+	/*
+	 * On pre-metadir filesystems, reject internal metadata files.  For
+	 * metadir filesystems, limited scrubbing of any file in the metadata
+	 * directory tree by handle is allowed, because that is the only way to
+	 * validate the lack of parent pointers in the sb-root metadata inodes.
+	 */
+	if (!xfs_has_metadir(mp) && xfs_is_sb_inum(mp, sc->sm->sm_ino))
 		return -ENOENT;
+	/* Reject obviously bad inode numbers. */
 	if (!xfs_verify_ino(sc->mp, sc->sm->sm_ino))
 		return -ENOENT;
 
@@ -1081,6 +1166,10 @@ xchk_setup_inode_contents(
 	int			error;
 
 	error = xchk_iget_for_scrubbing(sc);
+	if (error)
+		return error;
+
+	error = xrep_tempfile_adjust_directory_tree(sc);
 	if (error)
 		return error;
 
@@ -1239,12 +1328,6 @@ xchk_metadata_inode_forks(
 		return 0;
 	}
 
-	/* They also should never have extended attributes. */
-	if (xfs_inode_hasattr(sc->ip)) {
-		xchk_ino_set_corrupt(sc, sc->ip->i_ino);
-		return 0;
-	}
-
 	/* Invoke the data fork scrubber. */
 	error = xchk_metadata_inode_subtype(sc, XFS_SCRUB_TYPE_BMBTD);
 	if (error || (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
@@ -1259,6 +1342,21 @@ xchk_metadata_inode_forks(
 			return error;
 		if (shared)
 			xchk_ino_set_corrupt(sc, sc->ip->i_ino);
+	}
+
+	/*
+	 * Metadata files can only have extended attributes on metadir
+	 * filesystems, either for parent pointers or for actual xattr data.
+	 */
+	if (xfs_inode_hasattr(sc->ip)) {
+		if (!xfs_has_metadir(sc->mp)) {
+			xchk_ino_set_corrupt(sc, sc->ip->i_ino);
+			return 0;
+		}
+
+		error = xchk_metadata_inode_subtype(sc, XFS_SCRUB_TYPE_BMBTA);
+		if (error || (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
+			return error;
 	}
 
 	return 0;
@@ -1336,7 +1434,7 @@ xchk_inode_is_allocated(
 	}
 
 	/* reject inode numbers outside existing AGs */
-	ino = XFS_AGINO_TO_INO(sc->mp, pag->pag_agno, agino);
+	ino = xfs_agino_to_ino(pag, agino);
 	if (!xfs_verify_ino(mp, ino))
 		return -EINVAL;
 
@@ -1445,4 +1543,33 @@ out_skip:
 out_rcu:
 	rcu_read_unlock();
 	return error;
+}
+
+/* Is this inode a root directory for either tree? */
+bool
+xchk_inode_is_dirtree_root(const struct xfs_inode *ip)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+
+	return ip == mp->m_rootip ||
+		(xfs_has_metadir(mp) && ip == mp->m_metadirip);
+}
+
+/* Does the superblock point down to this inode? */
+bool
+xchk_inode_is_sb_rooted(const struct xfs_inode *ip)
+{
+	return xchk_inode_is_dirtree_root(ip) ||
+	       xfs_is_sb_inum(ip->i_mount, ip->i_ino);
+}
+
+/* What is the root directory inumber for this inode? */
+xfs_ino_t
+xchk_inode_rootdir_inum(const struct xfs_inode *ip)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+
+	if (xfs_is_metadir_inode(ip))
+		return mp->m_metadirip->i_ino;
+	return mp->m_rootip->i_ino;
 }

@@ -335,7 +335,7 @@ static struct platform_driver sdhci_milbeaut_driver = {
 		.of_match_table = mlb_dt_ids,
 	},
 	.probe	= sdhci_milbeaut_probe,
-	.remove_new = sdhci_milbeaut_remove,
+	.remove = sdhci_milbeaut_remove,
 };
 
 module_platform_driver(sdhci_milbeaut_driver);

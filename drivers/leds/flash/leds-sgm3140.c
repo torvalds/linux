@@ -300,7 +300,7 @@ MODULE_DEVICE_TABLE(of, sgm3140_dt_match);
 
 static struct platform_driver sgm3140_driver = {
 	.probe	= sgm3140_probe,
-	.remove_new = sgm3140_remove,
+	.remove	= sgm3140_remove,
 	.driver	= {
 		.name	= "sgm3140",
 		.of_match_table = sgm3140_dt_match,

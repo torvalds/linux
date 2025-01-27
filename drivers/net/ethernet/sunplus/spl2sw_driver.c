@@ -549,7 +549,7 @@ MODULE_DEVICE_TABLE(of, spl2sw_of_match);
 
 static struct platform_driver spl2sw_driver = {
 	.probe = spl2sw_probe,
-	.remove_new = spl2sw_remove,
+	.remove = spl2sw_remove,
 	.driver = {
 		.name = "sp7021_emac",
 		.of_match_table = spl2sw_of_match,

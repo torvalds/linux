@@ -937,8 +937,6 @@ static const struct vb2_ops imgu_vb2_ops = {
 	.queue_setup = imgu_vb2_queue_setup,
 	.start_streaming = imgu_vb2_start_streaming,
 	.stop_streaming = imgu_vb2_stop_streaming,
-	.wait_prepare = vb2_ops_wait_prepare,
-	.wait_finish = vb2_ops_wait_finish,
 };
 
 /****************** v4l2_file_operations *****************/

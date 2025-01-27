@@ -17,13 +17,6 @@ config CPU_FREQ_CBE_PMI
 	  frequencies. Using PMI, the processor will not only be able to run at
 	  lower speed, but also at lower core voltage.
 
-config CPU_FREQ_MAPLE
-	bool "Support for Maple 970FX Evaluation Board"
-	depends on PPC_MAPLE
-	help
-	  This adds support for frequency switching on Maple 970FX
-	  Evaluation Board and compatible boards (IBM JS2x blades).
-
 config CPU_FREQ_PMAC
 	bool "Support for Apple PowerBooks"
 	depends on ADB_PMU && PPC32

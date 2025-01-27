@@ -260,6 +260,7 @@ static void buffer_queue(struct vb2_buffer *vb)
 static void stop_streaming(struct vb2_queue *vq)
 {
 	struct mgb4_vin_dev *vindev = vb2_get_drv_priv(vq);
+	struct mgb4_regs *video = &vindev->mgbdev->video;
 	const struct mgb4_vin_config *config = vindev->config;
 	int irq = xdma_get_user_irq(vindev->mgbdev->xdev, config->vin_irq);
 
@@ -273,6 +274,9 @@ static void stop_streaming(struct vb2_queue *vq)
 		mgb4_mask_reg(&vindev->mgbdev->video, config->regs.config, 0x2,
 			      0x0);
 
+	mgb4_write_reg(video, vindev->config->regs.padding, 0);
+	set_loopback_padding(vindev, 0);
+
 	cancel_work_sync(&vindev->dma_work);
 	return_all_buffers(vindev, VB2_BUF_STATE_ERROR);
 }
@@ -280,6 +284,7 @@ static void stop_streaming(struct vb2_queue *vq)
 static int start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct mgb4_vin_dev *vindev = vb2_get_drv_priv(vq);
+	struct mgb4_regs *video = &vindev->mgbdev->video;
 	const struct mgb4_vin_config *config = vindev->config;
 	int irq = xdma_get_user_irq(vindev->mgbdev->xdev, config->vin_irq);
 
@@ -291,6 +296,9 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 	if (!loopback_active(vindev))
 		mgb4_mask_reg(&vindev->mgbdev->video, config->regs.config, 0x2,
 			      0x2);
+
+	mgb4_write_reg(video, vindev->config->regs.padding, vindev->padding);
+	set_loopback_padding(vindev, vindev->padding);
 
 	xdma_enable_user_irq(vindev->mgbdev->xdev, irq);
 
@@ -304,8 +312,6 @@ static const struct vb2_ops queue_ops = {
 	.buf_queue = buffer_queue,
 	.start_streaming = start_streaming,
 	.stop_streaming = stop_streaming,
-	.wait_prepare = vb2_ops_wait_prepare,
-	.wait_finish = vb2_ops_wait_finish
 };
 
 static int fh_open(struct file *file)
@@ -324,34 +330,16 @@ static int fh_open(struct file *file)
 
 	if (get_timings(vindev, &vindev->timings) < 0)
 		vindev->timings = cea1080p60;
-	set_loopback_padding(vindev, vindev->padding);
 
 out:
 	mutex_unlock(&vindev->lock);
 	return rv;
 }
 
-static int fh_release(struct file *file)
-{
-	struct mgb4_vin_dev *vindev = video_drvdata(file);
-	int rv;
-
-	mutex_lock(&vindev->lock);
-
-	if (v4l2_fh_is_singular_file(file))
-		set_loopback_padding(vindev, 0);
-
-	rv = _vb2_fop_release(file, NULL);
-
-	mutex_unlock(&vindev->lock);
-
-	return rv;
-}
-
 static const struct v4l2_file_operations video_fops = {
 	.owner = THIS_MODULE,
 	.open = fh_open,
-	.release = fh_release,
+	.release = vb2_fop_release,
 	.unlocked_ioctl = video_ioctl2,
 	.read = vb2_fop_read,
 	.mmap = vb2_fop_mmap,
@@ -507,8 +495,6 @@ static int vidioc_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 
 	vindev->padding = (f->fmt.pix.bytesperline - (f->fmt.pix.width
 			   * pixelsize)) / pixelsize;
-	mgb4_write_reg(video, vindev->config->regs.padding, vindev->padding);
-	set_loopback_padding(vindev, vindev->padding);
 
 	return 0;
 }
@@ -853,14 +839,16 @@ static void fpga_init(struct mgb4_vin_dev *vindev)
 	mgb4_write_reg(video, regs->config, 1U << 9);
 }
 
-#ifdef CONFIG_DEBUG_FS
-static void debugfs_init(struct mgb4_vin_dev *vindev)
+static void create_debugfs(struct mgb4_vin_dev *vindev)
 {
+#ifdef CONFIG_DEBUG_FS
 	struct mgb4_regs *video = &vindev->mgbdev->video;
+	struct dentry *entry;
 
-	vindev->debugfs = debugfs_create_dir(vindev->vdev.name,
-					     vindev->mgbdev->debugfs);
-	if (!vindev->debugfs)
+	if (IS_ERR_OR_NULL(vindev->mgbdev->debugfs))
+		return;
+	entry = debugfs_create_dir(vindev->vdev.name, vindev->mgbdev->debugfs);
+	if (IS_ERR(entry))
 		return;
 
 	vindev->regs[0].name = "CONFIG";
@@ -892,10 +880,9 @@ static void debugfs_init(struct mgb4_vin_dev *vindev)
 	vindev->regset.base = video->membase;
 	vindev->regset.regs = vindev->regs;
 
-	debugfs_create_regset32("registers", 0444, vindev->debugfs,
-				&vindev->regset);
-}
+	debugfs_create_regset32("registers", 0444, entry, &vindev->regset);
 #endif
+}
 
 struct mgb4_vin_dev *mgb4_vin_create(struct mgb4_dev *mgbdev, int id)
 {
@@ -1001,9 +988,7 @@ struct mgb4_vin_dev *mgb4_vin_create(struct mgb4_dev *mgbdev, int id)
 		goto err_video_dev;
 	}
 
-#ifdef CONFIG_DEBUG_FS
-	debugfs_init(vindev);
-#endif
+	create_debugfs(vindev);
 
 	return vindev;
 
@@ -1033,10 +1018,6 @@ void mgb4_vin_free(struct mgb4_vin_dev *vindev)
 
 	free_irq(vin_irq, vindev);
 	free_irq(err_irq, vindev);
-
-#ifdef CONFIG_DEBUG_FS
-	debugfs_remove_recursive(vindev->debugfs);
-#endif
 
 	groups = MGB4_IS_GMSL(vindev->mgbdev)
 	  ? mgb4_gmsl_in_groups : mgb4_fpdl3_in_groups;

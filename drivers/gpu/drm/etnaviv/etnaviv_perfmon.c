@@ -62,6 +62,8 @@ static u32 pipe_perf_reg_read(struct etnaviv_gpu *gpu,
 	u32 value = 0;
 	unsigned i;
 
+	lockdep_assert_held(&gpu->lock);
+
 	for (i = 0; i < gpu->identity.pixel_pipes; i++) {
 		pipe_select(gpu, clock, i);
 		value += perf_reg_read(gpu, domain, signal);
@@ -80,6 +82,8 @@ static u32 pipe_reg_read(struct etnaviv_gpu *gpu,
 	u32 clock = gpu_read(gpu, VIVS_HI_CLOCK_CONTROL);
 	u32 value = 0;
 	unsigned i;
+
+	lockdep_assert_held(&gpu->lock);
 
 	for (i = 0; i < gpu->identity.pixel_pipes; i++) {
 		pipe_select(gpu, clock, i);

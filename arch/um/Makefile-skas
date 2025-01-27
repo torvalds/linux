@@ -3,15 +3,15 @@
 # Licensed under the GPL
 #
 
-GPROF_OPT += -pg
+export UM_GPROF_OPT += -pg
 
 ifdef CONFIG_CC_IS_CLANG
-GCOV_OPT += -fprofile-instr-generate -fcoverage-mapping
+export UM_GCOV_OPT += -fprofile-instr-generate -fcoverage-mapping
 else
-GCOV_OPT += -fprofile-arcs -ftest-coverage
+export UM_GCOV_OPT += -fprofile-arcs -ftest-coverage
 endif
 
-CFLAGS-$(CONFIG_GCOV) += $(GCOV_OPT)
-CFLAGS-$(CONFIG_GPROF) += $(GPROF_OPT)
-LINK-$(CONFIG_GCOV) += $(GCOV_OPT)
-LINK-$(CONFIG_GPROF) += $(GPROF_OPT)
+CFLAGS-$(CONFIG_GCOV) += $(UM_GCOV_OPT)
+CFLAGS-$(CONFIG_GPROF) += $(UM_GPROF_OPT)
+LINK-$(CONFIG_GCOV) += $(UM_GCOV_OPT)
+LINK-$(CONFIG_GPROF) += $(UM_GPROF_OPT)

@@ -366,7 +366,7 @@ static struct platform_driver ftpm_tee_plat_driver = {
 	},
 	.shutdown = ftpm_plat_tee_shutdown,
 	.probe = ftpm_plat_tee_probe,
-	.remove_new = ftpm_plat_tee_remove,
+	.remove = ftpm_plat_tee_remove,
 };
 
 /* UUID of the fTPM TA */

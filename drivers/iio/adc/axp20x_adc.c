@@ -155,52 +155,22 @@ enum axp813_adc_channel_v {
 	AXP813_BATT_V,
 };
 
-static struct iio_map axp20x_maps[] = {
-	{
-		.consumer_dev_name = "axp20x-usb-power-supply",
-		.consumer_channel = "vbus_v",
-		.adc_channel_label = "vbus_v",
-	}, {
-		.consumer_dev_name = "axp20x-usb-power-supply",
-		.consumer_channel = "vbus_i",
-		.adc_channel_label = "vbus_i",
-	}, {
-		.consumer_dev_name = "axp20x-ac-power-supply",
-		.consumer_channel = "acin_v",
-		.adc_channel_label = "acin_v",
-	}, {
-		.consumer_dev_name = "axp20x-ac-power-supply",
-		.consumer_channel = "acin_i",
-		.adc_channel_label = "acin_i",
-	}, {
-		.consumer_dev_name = "axp20x-battery-power-supply",
-		.consumer_channel = "batt_v",
-		.adc_channel_label = "batt_v",
-	}, {
-		.consumer_dev_name = "axp20x-battery-power-supply",
-		.consumer_channel = "batt_chrg_i",
-		.adc_channel_label = "batt_chrg_i",
-	}, {
-		.consumer_dev_name = "axp20x-battery-power-supply",
-		.consumer_channel = "batt_dischrg_i",
-		.adc_channel_label = "batt_dischrg_i",
-	}, { /* sentinel */ }
+static const struct iio_map axp20x_maps[] = {
+	IIO_MAP("vbus_v", "axp20x-usb-power-supply", "vbus_v"),
+	IIO_MAP("vbus_i", "axp20x-usb-power-supply", "vbus_i"),
+	IIO_MAP("acin_v", "axp20x-ac-power-supply", "acin_v"),
+	IIO_MAP("acin_i", "axp20x-ac-power-supply", "acin_i"),
+	IIO_MAP("batt_v", "axp20x-battery-power-supply", "batt_v"),
+	IIO_MAP("batt_chrg_i", "axp20x-battery-power-supply", "batt_chrg_i"),
+	IIO_MAP("batt_dischrg_i", "axp20x-battery-power-supply", "batt_dischrg_i"),
+	{ /* sentinel */ }
 };
 
-static struct iio_map axp22x_maps[] = {
-	{
-		.consumer_dev_name = "axp20x-battery-power-supply",
-		.consumer_channel = "batt_v",
-		.adc_channel_label = "batt_v",
-	}, {
-		.consumer_dev_name = "axp20x-battery-power-supply",
-		.consumer_channel = "batt_chrg_i",
-		.adc_channel_label = "batt_chrg_i",
-	}, {
-		.consumer_dev_name = "axp20x-battery-power-supply",
-		.consumer_channel = "batt_dischrg_i",
-		.adc_channel_label = "batt_dischrg_i",
-	}, { /* sentinel */ }
+static const struct iio_map axp22x_maps[] = {
+	IIO_MAP("batt_v", "axp20x-battery-power-supply", "batt_v"),
+	IIO_MAP("batt_chrg_i", "axp20x-battery-power-supply", "batt_chrg_i"),
+	IIO_MAP("batt_dischrg_i", "axp20x-battery-power-supply", "batt_dischrg_i"),
+	{ /* sentinel */ }
 };
 
 static struct iio_map axp717_maps[] = {
@@ -1044,7 +1014,7 @@ struct axp_data {
 	unsigned long			adc_en2_mask;
 	int				(*adc_rate)(struct axp20x_adc_iio *info,
 						    int rate);
-	struct iio_map			*maps;
+	const struct iio_map		*maps;
 };
 
 static const struct axp_data axp192_data = {
@@ -1212,7 +1182,7 @@ static struct platform_driver axp20x_adc_driver = {
 	},
 	.id_table = axp20x_adc_id_match,
 	.probe = axp20x_probe,
-	.remove_new = axp20x_remove,
+	.remove = axp20x_remove,
 };
 
 module_platform_driver(axp20x_adc_driver);

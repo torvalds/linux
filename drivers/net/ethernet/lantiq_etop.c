@@ -734,7 +734,7 @@ static void ltq_etop_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver ltq_mii_driver = {
-	.remove_new = ltq_etop_remove,
+	.remove = ltq_etop_remove,
 	.driver = {
 		.name = "ltq_etop",
 	},

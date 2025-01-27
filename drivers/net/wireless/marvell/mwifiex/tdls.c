@@ -1306,7 +1306,6 @@ int mwifiex_tdls_check_tx(struct mwifiex_private *priv, struct sk_buff *skb)
 							   peer->mac_addr,
 							   NL80211_TDLS_SETUP,
 							   0, GFP_ATOMIC);
-				peer->do_setup = false;
 				priv->check_tdls_tx = false;
 			} else if (peer->failure_count <
 				   MWIFIEX_TDLS_MAX_FAIL_COUNT &&
@@ -1465,7 +1464,6 @@ void mwifiex_check_auto_tdls(struct timer_list *t)
 			   tdls_peer->failure_count <
 			   MWIFIEX_TDLS_MAX_FAIL_COUNT) {
 				priv->check_tdls_tx = true;
-				tdls_peer->do_setup = true;
 				mwifiex_dbg(priv->adapter, INFO,
 					    "check TDLS with peer=%pM\t"
 					    "rssi=%d\n", tdls_peer->mac_addr,

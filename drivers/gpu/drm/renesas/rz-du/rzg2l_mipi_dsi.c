@@ -798,7 +798,7 @@ MODULE_DEVICE_TABLE(of, rzg2l_mipi_dsi_of_table);
 
 static struct platform_driver rzg2l_mipi_dsi_platform_driver = {
 	.probe	= rzg2l_mipi_dsi_probe,
-	.remove_new = rzg2l_mipi_dsi_remove,
+	.remove = rzg2l_mipi_dsi_remove,
 	.driver	= {
 		.name = "rzg2l-mipi-dsi",
 		.pm = &rzg2l_mipi_pm_ops,

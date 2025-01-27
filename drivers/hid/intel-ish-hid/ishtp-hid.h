@@ -31,6 +31,7 @@ struct hostif_msg_hdr {
 
 struct hostif_msg {
 	struct hostif_msg_hdr	hdr;
+	uint8_t payload[];
 } __packed;
 
 struct hostif_msg_to_sensor {
@@ -52,15 +53,17 @@ struct ishtp_version {
 	uint16_t build;
 } __packed;
 
+struct report {
+	uint16_t size;
+	struct hostif_msg_hdr msg;
+} __packed;
+
 /* struct for ISHTP aggregated input data */
 struct report_list {
 	uint16_t total_size;
 	uint8_t	num_of_reports;
 	uint8_t	flags;
-	struct {
-		uint16_t	size_of_report;
-		uint8_t report[1];
-	} __packed reports[1];
+	struct report reports[];
 } __packed;
 
 /* HOSTIF commands */

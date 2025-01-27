@@ -3242,7 +3242,7 @@ MODULE_DEVICE_TABLE(of, ab8500_fg_match);
 
 struct platform_driver ab8500_fg_driver = {
 	.probe = ab8500_fg_probe,
-	.remove_new = ab8500_fg_remove,
+	.remove = ab8500_fg_remove,
 	.driver = {
 		.name = "ab8500-fg",
 		.of_match_table = ab8500_fg_match,

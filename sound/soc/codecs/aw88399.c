@@ -462,7 +462,7 @@ static int aw_dev_set_vcalb(struct aw88399 *aw88399)
 					vcal_k * aw88399->vcalb_init_val;
 		break;
 	default:
-		dev_err(aw_dev->dev, "%s: unsupport vsense\n", __func__);
+		dev_err(aw_dev->dev, "%s: unsupported vsense\n", __func__);
 		ret = -EINVAL;
 		break;
 	}

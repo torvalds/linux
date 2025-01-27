@@ -79,3 +79,48 @@ Description:
 			           indicates a lane.
 		crc_err_cnt:  (RO) CRC err count on this port.
 		============= ==== =============================================
+
+What:		/sys/devices/platform/HISI04Bx:00/used_types
+Date:		August 2024
+KernelVersion:	6.12
+Contact:	Huisong Li <lihuisong@huawei.com>
+Description:
+		This interface is used to show all HCCS types used on the
+		platform, like, HCCS-v1, HCCS-v2 and so on.
+
+What:		/sys/devices/platform/HISI04Bx:00/available_inc_dec_lane_types
+What:		/sys/devices/platform/HISI04Bx:00/dec_lane_of_type
+What:		/sys/devices/platform/HISI04Bx:00/inc_lane_of_type
+Date:		August 2024
+KernelVersion:	6.12
+Contact:	Huisong Li <lihuisong@huawei.com>
+Description:
+		These interfaces under /sys/devices/platform/HISI04Bx/ are
+		used to support the low power consumption feature of some
+		HCCS types by changing the number of lanes used. The interfaces
+		changing the number of lanes used are 'dec_lane_of_type' and
+		'inc_lane_of_type' which require root privileges. These
+		interfaces aren't exposed if no HCCS type on platform support
+		this feature. Please note that decreasing lane number is only
+		allowed if all the specified HCCS ports are not busy.
+
+		The low power consumption interfaces are as follows:
+
+		============================= ==== ================================
+		available_inc_dec_lane_types: (RO) available HCCS types (string) to
+						   increase and decrease the number
+						   of lane used, e.g. HCCS-v2.
+		dec_lane_of_type:             (WO) input HCCS type supported
+						   decreasing lane to decrease the
+						   used lane number of all specified
+						   HCCS type ports on platform to
+						   the minimum.
+						   You can query the 'cur_lane_num'
+						   to get the minimum lane number
+						   after executing successfully.
+		inc_lane_of_type:             (WO) input HCCS type supported
+						   increasing lane to increase the
+						   used lane number of all specified
+						   HCCS type ports on platform to
+						   the full lane state.
+		============================= ==== ================================

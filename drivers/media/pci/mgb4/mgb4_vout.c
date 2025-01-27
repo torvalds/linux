@@ -230,8 +230,6 @@ static const struct vb2_ops queue_ops = {
 	.buf_queue = buffer_queue,
 	.start_streaming = start_streaming,
 	.stop_streaming = stop_streaming,
-	.wait_prepare = vb2_ops_wait_prepare,
-	.wait_finish = vb2_ops_wait_finish
 };
 
 static int vidioc_querycap(struct file *file, void *priv,
@@ -676,14 +674,16 @@ static void fpga_init(struct mgb4_vout_dev *voutdev)
 		       (voutdev->config->id + MGB4_VIN_DEVICES) << 2 | 1 << 4);
 }
 
-#ifdef CONFIG_DEBUG_FS
-static void debugfs_init(struct mgb4_vout_dev *voutdev)
+static void create_debugfs(struct mgb4_vout_dev *voutdev)
 {
+#ifdef CONFIG_DEBUG_FS
 	struct mgb4_regs *video = &voutdev->mgbdev->video;
+	struct dentry *entry;
 
-	voutdev->debugfs = debugfs_create_dir(voutdev->vdev.name,
-					      voutdev->mgbdev->debugfs);
-	if (!voutdev->debugfs)
+	if (IS_ERR_OR_NULL(voutdev->mgbdev->debugfs))
+		return;
+	entry = debugfs_create_dir(voutdev->vdev.name, voutdev->mgbdev->debugfs);
+	if (IS_ERR(entry))
 		return;
 
 	voutdev->regs[0].name = "CONFIG";
@@ -711,10 +711,9 @@ static void debugfs_init(struct mgb4_vout_dev *voutdev)
 	voutdev->regset.base = video->membase;
 	voutdev->regset.regs = voutdev->regs;
 
-	debugfs_create_regset32("registers", 0444, voutdev->debugfs,
-				&voutdev->regset);
-}
+	debugfs_create_regset32("registers", 0444, entry, &voutdev->regset);
 #endif
+}
 
 struct mgb4_vout_dev *mgb4_vout_create(struct mgb4_dev *mgbdev, int id)
 {
@@ -808,9 +807,7 @@ struct mgb4_vout_dev *mgb4_vout_create(struct mgb4_dev *mgbdev, int id)
 		goto err_video_dev;
 	}
 
-#ifdef CONFIG_DEBUG_FS
-	debugfs_init(voutdev);
-#endif
+	create_debugfs(voutdev);
 
 	return voutdev;
 
@@ -832,10 +829,6 @@ void mgb4_vout_free(struct mgb4_vout_dev *voutdev)
 	int irq = xdma_get_user_irq(voutdev->mgbdev->xdev, voutdev->config->irq);
 
 	free_irq(irq, voutdev);
-
-#ifdef CONFIG_DEBUG_FS
-	debugfs_remove_recursive(voutdev->debugfs);
-#endif
 
 	groups = MGB4_IS_GMSL(voutdev->mgbdev)
 	  ? mgb4_gmsl_out_groups : mgb4_fpdl3_out_groups;

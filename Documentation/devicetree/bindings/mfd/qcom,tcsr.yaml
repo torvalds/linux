@@ -21,6 +21,9 @@ properties:
           - qcom,msm8998-tcsr
           - qcom,qcm2290-tcsr
           - qcom,qcs404-tcsr
+          - qcom,qcs615-tcsr
+          - qcom,qcs8300-tcsr
+          - qcom,sa8255p-tcsr
           - qcom,sa8775p-tcsr
           - qcom,sc7180-tcsr
           - qcom,sc7280-tcsr
@@ -47,6 +50,7 @@ properties:
           - qcom,tcsr-msm8226
           - qcom,tcsr-msm8660
           - qcom,tcsr-msm8916
+          - qcom,tcsr-msm8917
           - qcom,tcsr-msm8953
           - qcom,tcsr-msm8960
           - qcom,tcsr-msm8974

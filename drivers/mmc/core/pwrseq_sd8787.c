@@ -122,7 +122,7 @@ static void mmc_pwrseq_sd8787_remove(struct platform_device *pdev)
 
 static struct platform_driver mmc_pwrseq_sd8787_driver = {
 	.probe = mmc_pwrseq_sd8787_probe,
-	.remove_new = mmc_pwrseq_sd8787_remove,
+	.remove = mmc_pwrseq_sd8787_remove,
 	.driver = {
 		.name = "pwrseq_sd8787",
 		.of_match_table = mmc_pwrseq_sd8787_of_match,

@@ -449,6 +449,12 @@ const struct bus_type amba_bustype = {
 };
 EXPORT_SYMBOL_GPL(amba_bustype);
 
+bool dev_is_amba(const struct device *dev)
+{
+	return dev->bus == &amba_bustype;
+}
+EXPORT_SYMBOL_GPL(dev_is_amba);
+
 static int __init amba_init(void)
 {
 	return bus_register(&amba_bustype);

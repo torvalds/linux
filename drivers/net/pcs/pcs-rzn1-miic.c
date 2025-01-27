@@ -552,7 +552,7 @@ static struct platform_driver miic_driver = {
 		.of_match_table = miic_of_mtable,
 	},
 	.probe = miic_probe,
-	.remove_new = miic_remove,
+	.remove = miic_remove,
 };
 module_platform_driver(miic_driver);
 

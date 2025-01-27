@@ -499,7 +499,7 @@ static struct platform_driver therm_of_driver = {
 		.of_match_table = therm_of_match,
 	},
 	.probe		= therm_of_probe,
-	.remove_new	= therm_of_remove,
+	.remove		= therm_of_remove,
 };
 
 struct apple_thermal_info {

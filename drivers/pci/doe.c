@@ -146,6 +146,7 @@ static int pci_doe_send_req(struct pci_doe_mb *doe_mb,
 {
 	struct pci_dev *pdev = doe_mb->pdev;
 	int offset = doe_mb->cap_offset;
+	unsigned long timeout_jiffies;
 	size_t length, remainder;
 	u32 val;
 	int i;
@@ -155,8 +156,19 @@ static int pci_doe_send_req(struct pci_doe_mb *doe_mb,
 	 * someone other than Linux (e.g. firmware) is using the mailbox. Note
 	 * it is expected that firmware and OS will negotiate access rights via
 	 * an, as yet to be defined, method.
+	 *
+	 * Wait up to one PCI_DOE_TIMEOUT period to allow the prior command to
+	 * finish. Otherwise, simply error out as unable to field the request.
+	 *
+	 * PCIe r6.2 sec 6.30.3 states no interrupt is raised when the DOE Busy
+	 * bit is cleared, so polling here is our best option for the moment.
 	 */
-	pci_read_config_dword(pdev, offset + PCI_DOE_STATUS, &val);
+	timeout_jiffies = jiffies + PCI_DOE_TIMEOUT;
+	do {
+		pci_read_config_dword(pdev, offset + PCI_DOE_STATUS, &val);
+	} while (FIELD_GET(PCI_DOE_STATUS_BUSY, val) &&
+		 !time_after(jiffies, timeout_jiffies));
+
 	if (FIELD_GET(PCI_DOE_STATUS_BUSY, val))
 		return -EBUSY;
 

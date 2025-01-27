@@ -175,6 +175,12 @@ static efi_status_t efi_open_device_path(efi_file_protocol_t **volume,
 	return status;
 }
 
+#ifndef CONFIG_CMDLINE
+#define CONFIG_CMDLINE
+#endif
+
+static const efi_char16_t builtin_cmdline[] = L"" CONFIG_CMDLINE;
+
 /*
  * Check the cmdline for a LILO-style file= arguments.
  *
@@ -189,6 +195,8 @@ efi_status_t handle_cmdline_files(efi_loaded_image_t *image,
 				  unsigned long *load_addr,
 				  unsigned long *load_size)
 {
+	const bool ignore_load_options = IS_ENABLED(CONFIG_CMDLINE_OVERRIDE) ||
+					 IS_ENABLED(CONFIG_CMDLINE_FORCE);
 	const efi_char16_t *cmdline = efi_table_attr(image, load_options);
 	u32 cmdline_len = efi_table_attr(image, load_options_size);
 	unsigned long efi_chunk_size = ULONG_MAX;
@@ -197,6 +205,7 @@ efi_status_t handle_cmdline_files(efi_loaded_image_t *image,
 	unsigned long alloc_addr;
 	unsigned long alloc_size;
 	efi_status_t status;
+	bool twopass;
 	int offset;
 
 	if (!load_addr || !load_size)
@@ -209,6 +218,16 @@ efi_status_t handle_cmdline_files(efi_loaded_image_t *image,
 		efi_chunk_size = EFI_READ_CHUNK_SIZE;
 
 	alloc_addr = alloc_size = 0;
+
+	if (!ignore_load_options && cmdline_len > 0) {
+		twopass = IS_ENABLED(CONFIG_CMDLINE_BOOL) ||
+			  IS_ENABLED(CONFIG_CMDLINE_EXTEND);
+	} else {
+do_builtin:	cmdline	    = builtin_cmdline;
+		cmdline_len = ARRAY_SIZE(builtin_cmdline) - 1;
+		twopass     = false;
+	}
+
 	do {
 		struct finfo fi;
 		unsigned long size;
@@ -289,6 +308,9 @@ efi_status_t handle_cmdline_files(efi_loaded_image_t *image,
 		efi_call_proto(file, close);
 		efi_call_proto(volume, close);
 	} while (offset > 0);
+
+	if (twopass)
+		goto do_builtin;
 
 	*load_addr = alloc_addr;
 	*load_size = alloc_size;

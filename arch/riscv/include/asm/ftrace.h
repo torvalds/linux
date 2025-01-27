@@ -125,8 +125,12 @@ int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec);
 
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_ARGS
 #define arch_ftrace_get_regs(regs) NULL
+#define HAVE_ARCH_FTRACE_REGS
 struct ftrace_ops;
-struct ftrace_regs {
+struct ftrace_regs;
+#define arch_ftrace_regs(fregs) ((struct __arch_ftrace_regs *)(fregs))
+
+struct __arch_ftrace_regs {
 	unsigned long epc;
 	unsigned long ra;
 	unsigned long sp;
@@ -150,42 +154,42 @@ struct ftrace_regs {
 static __always_inline unsigned long ftrace_regs_get_instruction_pointer(const struct ftrace_regs
 									 *fregs)
 {
-	return fregs->epc;
+	return arch_ftrace_regs(fregs)->epc;
 }
 
 static __always_inline void ftrace_regs_set_instruction_pointer(struct ftrace_regs *fregs,
 								unsigned long pc)
 {
-	fregs->epc = pc;
+	arch_ftrace_regs(fregs)->epc = pc;
 }
 
 static __always_inline unsigned long ftrace_regs_get_stack_pointer(const struct ftrace_regs *fregs)
 {
-	return fregs->sp;
+	return arch_ftrace_regs(fregs)->sp;
 }
 
 static __always_inline unsigned long ftrace_regs_get_argument(struct ftrace_regs *fregs,
 							      unsigned int n)
 {
 	if (n < 8)
-		return fregs->args[n];
+		return arch_ftrace_regs(fregs)->args[n];
 	return 0;
 }
 
 static __always_inline unsigned long ftrace_regs_get_return_value(const struct ftrace_regs *fregs)
 {
-	return fregs->a0;
+	return arch_ftrace_regs(fregs)->a0;
 }
 
 static __always_inline void ftrace_regs_set_return_value(struct ftrace_regs *fregs,
 							 unsigned long ret)
 {
-	fregs->a0 = ret;
+	arch_ftrace_regs(fregs)->a0 = ret;
 }
 
 static __always_inline void ftrace_override_function_with_return(struct ftrace_regs *fregs)
 {
-	fregs->epc = fregs->ra;
+	arch_ftrace_regs(fregs)->epc = arch_ftrace_regs(fregs)->ra;
 }
 
 int ftrace_regs_query_register_offset(const char *name);
@@ -196,7 +200,7 @@ void ftrace_graph_func(unsigned long ip, unsigned long parent_ip,
 
 static inline void arch_ftrace_set_direct_caller(struct ftrace_regs *fregs, unsigned long addr)
 {
-	fregs->t1 = addr;
+	arch_ftrace_regs(fregs)->t1 = addr;
 }
 #endif /* CONFIG_DYNAMIC_FTRACE_WITH_ARGS */
 

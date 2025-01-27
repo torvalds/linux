@@ -279,8 +279,6 @@
 #define IW_DESCR_FLAG_RESTRICT	0x0004	/* GET : request is ROOT only */
 				/* SET : Omit payload from generated iwevent */
 #define IW_DESCR_FLAG_NOMAX	0x0008	/* GET : no limit on request size */
-/* Driver level flags */
-#define IW_DESCR_FLAG_WAIT	0x0100	/* Wait for driver event */
 
 /****************************** TYPES ******************************/
 
@@ -373,11 +371,10 @@ struct iw_handler_def {
  */
 struct iw_ioctl_description {
 	__u8	header_type;		/* NULL, iw_point or other */
-	__u8	token_type;		/* Future */
+	__u8	flags;			/* Special handling of the request */
 	__u16	token_size;		/* Granularity of payload */
 	__u16	min_tokens;		/* Min acceptable token number */
 	__u16	max_tokens;		/* Max acceptable token number */
-	__u32	flags;			/* Special handling of the request */
 };
 
 /* Need to think of short header translation table. Later. */
@@ -404,26 +401,6 @@ struct iw_spy_data {
 	u_char			spy_thr_under[IW_MAX_SPY];
 };
 
-/* --------------------- DEVICE WIRELESS DATA --------------------- */
-/*
- * This is all the wireless data specific to a device instance that
- * is managed by the core of Wireless Extensions or the 802.11 layer.
- * We only keep pointer to those structures, so that a driver is free
- * to share them between instances.
- * This structure should be initialised before registering the device.
- * Access to this data follow the same rules as any other struct net_device
- * data (i.e. valid as long as struct net_device exist, same locking rules).
- */
-/* Forward declaration */
-struct libipw_device;
-/* The struct */
-struct iw_public_data {
-	/* Driver enhanced spy support */
-	struct iw_spy_data *		spy_data;
-	/* Legacy structure managed by the ipw2x00-specific IEEE 802.11 layer */
-	struct libipw_device *		libipw;
-};
-
 /**************************** PROTOTYPES ****************************/
 /*
  * Functions part of the Wireless Extensions (defined in net/wireless/wext-core.c).
@@ -442,22 +419,6 @@ static inline void wireless_nlevent_flush(void) {}
 
 /* We may need a function to send a stream of events to user space.
  * More on that later... */
-
-/* Standard handler for SIOCSIWSPY */
-int iw_handler_set_spy(struct net_device *dev, struct iw_request_info *info,
-		       union iwreq_data *wrqu, char *extra);
-/* Standard handler for SIOCGIWSPY */
-int iw_handler_get_spy(struct net_device *dev, struct iw_request_info *info,
-		       union iwreq_data *wrqu, char *extra);
-/* Standard handler for SIOCSIWTHRSPY */
-int iw_handler_set_thrspy(struct net_device *dev, struct iw_request_info *info,
-			  union iwreq_data *wrqu, char *extra);
-/* Standard handler for SIOCGIWTHRSPY */
-int iw_handler_get_thrspy(struct net_device *dev, struct iw_request_info *info,
-			  union iwreq_data *wrqu, char *extra);
-/* Driver call to update spy records */
-void wireless_spy_update(struct net_device *dev, unsigned char *address,
-			 struct iw_quality *wstats);
 
 /************************* INLINE FUNCTIONS *************************/
 /*

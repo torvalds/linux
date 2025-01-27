@@ -192,19 +192,19 @@
 	leds {
 		compatible = "gpio-leds";
 
-		ds8 {
+		led-ds8 {
 			label = "ds8";
 			gpios = <&pioA 13 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "none";
 		};
 
-		ds7 {
+		led-ds7 {
 			label = "ds7";
 			gpios = <&pioA 14 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "nand-disk";
 		};
 
-		ds1 {
+		led-ds1 {
 			label = "ds1";
 			gpios = <&pioA 23 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "heartbeat";

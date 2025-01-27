@@ -4,6 +4,9 @@
  *	Dong Aisheng <aisheng.dong@nxp.com>
  */
 
+/delete-node/ &adma_pwm;
+/delete-node/ &adma_pwm_lpcg;
+
 &dma_subsys {
 	uart4_lpcg: clock-controller@5a4a0000 {
 		compatible = "fsl,imx8qxp-lpcg";

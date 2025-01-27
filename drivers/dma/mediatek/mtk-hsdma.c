@@ -1038,7 +1038,7 @@ static void mtk_hsdma_remove(struct platform_device *pdev)
 
 static struct platform_driver mtk_hsdma_driver = {
 	.probe		= mtk_hsdma_probe,
-	.remove_new	= mtk_hsdma_remove,
+	.remove		= mtk_hsdma_remove,
 	.driver = {
 		.name		= KBUILD_MODNAME,
 		.of_match_table	= mtk_hsdma_match,

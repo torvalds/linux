@@ -149,7 +149,7 @@ static void gfs2_qd_list_dispose(struct list_head *list)
 
 
 static enum lru_status gfs2_qd_isolate(struct list_head *item,
-		struct list_lru_one *lru, spinlock_t *lru_lock, void *arg)
+		struct list_lru_one *lru, void *arg)
 {
 	struct list_head *dispose = arg;
 	struct gfs2_quota_data *qd =
@@ -236,8 +236,7 @@ static struct gfs2_quota_data *qd_alloc(unsigned hash, struct gfs2_sbd *sdp, str
 		return NULL;
 
 	qd->qd_sbd = sdp;
-	qd->qd_lockref.count = 0;
-	spin_lock_init(&qd->qd_lockref.lock);
+	lockref_init(&qd->qd_lockref, 0);
 	qd->qd_id = qid;
 	qd->qd_slot = -1;
 	INIT_LIST_HEAD(&qd->qd_lru);

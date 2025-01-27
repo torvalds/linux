@@ -422,7 +422,7 @@ static irqreturn_t pm860x_batt_handler(int irq, void *data)
 		info->temp_type = PM860X_TEMP_TINT;
 	}
 	mutex_unlock(&info->lock);
-	/* clear ccnt since battery is attached or dettached */
+	/* clear ccnt since battery is attached or detached */
 	clear_ccnt(info, &ccnt_data);
 	return IRQ_HANDLED;
 }
@@ -566,7 +566,7 @@ static int measure_temp(struct pm860x_battery_info *info, int *data)
 		ret = measure_12bit_voltage(info, PM8607_GPADC1_MEAS1, data);
 		if (ret)
 			return ret;
-		/* meausered Vtbat(mV) / Ibias_current(11uA)*/
+		/* measured Vtbat(mV) / Ibias_current(11uA)*/
 		*data = (*data * 1000) / GPBIAS2_GPADC1_UA;
 
 		if (*data > TBAT_NEG_25D) {

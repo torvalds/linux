@@ -195,7 +195,38 @@
 		i2c-digital-filter-width-ns = <35>;
 		status = "okay";
 
-		mcp16502@5b {
+		power-monitor@10 {
+			compatible = "microchip,pac1934";
+			reg = <0x10>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			channel@1 {
+				reg = <0x1>;
+				shunt-resistor-micro-ohms = <10000>;
+				label = "VDD3V3_1";
+			};
+
+			channel@2 {
+				reg = <0x2>;
+				shunt-resistor-micro-ohms = <10000>;
+				label = "VDD3V3_2";
+			};
+
+			channel@3 {
+				reg = <0x3>;
+				shunt-resistor-micro-ohms = <10000>;
+				label = "VDDCORE";
+			};
+
+			channel@4 {
+				reg = <0x4>;
+				shunt-resistor-micro-ohms = <10000>;
+				label = "VDDIODDR";
+			};
+		};
+
+		pmic@5b {
 			compatible = "microchip,mcp16502";
 			reg = <0x5b>;
 			lvin-supply = <&reg_5v>;

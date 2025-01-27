@@ -80,7 +80,7 @@ struct fw_card_driver {
 	/*
 	 * Allow the specified node ID to do direct DMA out and in of
 	 * host memory.  The card will disable this for all node when
-	 * a bus reset happens, so driver need to reenable this after
+	 * a bus reset happens, so driver need to re-enable this after
 	 * bus reset.  Returns 0 on success, -ENODEV if the card
 	 * doesn't support this, -ESTALE if the generation doesn't
 	 * match.

@@ -113,7 +113,7 @@ int ocelot_chip_reset(struct device *dev)
 	return readx_poll_timeout(ocelot_gcb_chip_rst_status, ddata, val, !val,
 				  VSC7512_GCB_RST_SLEEP_US, VSC7512_GCB_RST_TIMEOUT_US);
 }
-EXPORT_SYMBOL_NS(ocelot_chip_reset, MFD_OCELOT);
+EXPORT_SYMBOL_NS(ocelot_chip_reset, "MFD_OCELOT");
 
 static const struct resource vsc7512_miim0_resources[] = {
 	DEFINE_RES_REG_NAMED(VSC7512_MIIM0_RES_START, VSC7512_MIIM_RES_SIZE, "gcb_miim0"),
@@ -226,9 +226,9 @@ int ocelot_core_init(struct device *dev)
 
 	return devm_mfd_add_devices(dev, PLATFORM_DEVID_AUTO, vsc7512_devs, ndevs, NULL, 0, NULL);
 }
-EXPORT_SYMBOL_NS(ocelot_core_init, MFD_OCELOT);
+EXPORT_SYMBOL_NS(ocelot_core_init, "MFD_OCELOT");
 
 MODULE_DESCRIPTION("Externally Controlled Ocelot Chip Driver");
 MODULE_AUTHOR("Colin Foster <colin.foster@in-advantage.com>");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(MFD_OCELOT_SPI);
+MODULE_IMPORT_NS("MFD_OCELOT_SPI");

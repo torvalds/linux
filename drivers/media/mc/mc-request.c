@@ -6,7 +6,7 @@
  * Copyright (C) 2018 Intel Corporation
  * Copyright (C) 2018 Google, Inc.
  *
- * Author: Hans Verkuil <hans.verkuil@cisco.com>
+ * Author: Hans Verkuil <hansverk@cisco.com>
  * Author: Sakari Ailus <sakari.ailus@linux.intel.com>
  */
 

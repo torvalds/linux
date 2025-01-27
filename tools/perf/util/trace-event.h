@@ -42,9 +42,6 @@ struct tep_event *trace_event__tp_format_id(int id);
 void event_format__fprintf(struct tep_event *event,
 			   int cpu, void *data, int size, FILE *fp);
 
-void event_format__print(struct tep_event *event,
-			 int cpu, void *data, int size);
-
 int parse_ftrace_file(struct tep_handle *pevent, char *buf, unsigned long size);
 int parse_event_file(struct tep_handle *pevent,
 		     char *buf, unsigned long size, char *sys);
@@ -150,7 +147,7 @@ int common_lock_depth(struct scripting_context *context);
 int perf_sample__sprintf_flags(u32 flags, char *str, size_t sz);
 
 #if defined(LIBTRACEEVENT_VERSION) &&  LIBTRACEEVENT_VERSION >= MAKE_LIBTRACEEVENT_VERSION(1, 5, 0)
-#include <traceevent/event-parse.h>
+#include <event-parse.h>
 
 static inline bool tep_field_is_relative(unsigned long flags)
 {

@@ -135,8 +135,7 @@ properties:
 
           data-lanes:
             $ref: /schemas/media/video-interfaces.yaml#/properties/data-lanes
-            items:
-              maxItems: 4
+            maxItems: 4
             description:
               This property is for lane reordering between the THP7312 and the imaging
               sensor that it is connected to.

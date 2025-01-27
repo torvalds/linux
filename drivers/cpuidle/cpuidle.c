@@ -69,11 +69,15 @@ int cpuidle_play_dead(void)
 	if (!drv)
 		return -ENODEV;
 
-	/* Find lowest-power state that supports long-term idle */
-	for (i = drv->state_count - 1; i >= 0; i--)
+	for (i = drv->state_count - 1; i >= 0; i--) {
 		if (drv->states[i].enter_dead)
-			return drv->states[i].enter_dead(dev, i);
+			drv->states[i].enter_dead(dev, i);
+	}
 
+	/*
+	 * If :enter_dead() is successful, it will never return, so reaching
+	 * here means that all of them failed above or were not present.
+	 */
 	return -ENODEV;
 }
 

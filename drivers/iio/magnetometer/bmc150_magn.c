@@ -14,7 +14,6 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/acpi.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/iio/iio.h>
@@ -226,7 +225,7 @@ const struct regmap_config bmc150_magn_regmap_config = {
 	.writeable_reg = bmc150_magn_is_writeable_reg,
 	.volatile_reg = bmc150_magn_is_volatile_reg,
 };
-EXPORT_SYMBOL_NS(bmc150_magn_regmap_config, IIO_BMC150_MAGN);
+EXPORT_SYMBOL_NS(bmc150_magn_regmap_config, "IIO_BMC150_MAGN");
 
 static int bmc150_magn_set_power_mode(struct bmc150_magn_data *data,
 				      enum bmc150_magn_power_modes mode,
@@ -855,17 +854,6 @@ static const struct iio_buffer_setup_ops bmc150_magn_buffer_setup_ops = {
 	.postdisable = bmc150_magn_buffer_postdisable,
 };
 
-static const char *bmc150_magn_match_acpi_device(struct device *dev)
-{
-	const struct acpi_device_id *id;
-
-	id = acpi_match_device(dev->driver->acpi_match_table, dev);
-	if (!id)
-		return NULL;
-
-	return dev_name(dev);
-}
-
 int bmc150_magn_probe(struct device *dev, struct regmap *regmap,
 		      int irq, const char *name)
 {
@@ -893,9 +881,6 @@ int bmc150_magn_probe(struct device *dev, struct regmap *regmap,
 	ret = iio_read_mount_matrix(dev, &data->orientation);
 	if (ret)
 		return ret;
-
-	if (!name && ACPI_HANDLE(dev))
-		name = bmc150_magn_match_acpi_device(dev);
 
 	mutex_init(&data->mutex);
 
@@ -983,7 +968,7 @@ err_poweroff:
 	bmc150_magn_set_power_mode(data, BMC150_MAGN_POWER_MODE_SUSPEND, true);
 	return ret;
 }
-EXPORT_SYMBOL_NS(bmc150_magn_probe, IIO_BMC150_MAGN);
+EXPORT_SYMBOL_NS(bmc150_magn_probe, "IIO_BMC150_MAGN");
 
 void bmc150_magn_remove(struct device *dev)
 {
@@ -1009,7 +994,7 @@ void bmc150_magn_remove(struct device *dev)
 
 	regulator_bulk_disable(ARRAY_SIZE(data->regulators), data->regulators);
 }
-EXPORT_SYMBOL_NS(bmc150_magn_remove, IIO_BMC150_MAGN);
+EXPORT_SYMBOL_NS(bmc150_magn_remove, "IIO_BMC150_MAGN");
 
 #ifdef CONFIG_PM
 static int bmc150_magn_runtime_suspend(struct device *dev)
@@ -1077,7 +1062,7 @@ const struct dev_pm_ops bmc150_magn_pm_ops = {
 	SET_RUNTIME_PM_OPS(bmc150_magn_runtime_suspend,
 			   bmc150_magn_runtime_resume, NULL)
 };
-EXPORT_SYMBOL_NS(bmc150_magn_pm_ops, IIO_BMC150_MAGN);
+EXPORT_SYMBOL_NS(bmc150_magn_pm_ops, "IIO_BMC150_MAGN");
 
 MODULE_AUTHOR("Irina Tirdea <irina.tirdea@intel.com>");
 MODULE_LICENSE("GPL v2");

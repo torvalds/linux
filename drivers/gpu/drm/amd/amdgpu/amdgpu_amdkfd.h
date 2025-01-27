@@ -266,6 +266,10 @@ int amdgpu_amdkfd_unmap_hiq(struct amdgpu_device *adev, u32 doorbell_off,
 				u32 inst);
 int amdgpu_amdkfd_start_sched(struct amdgpu_device *adev, uint32_t node_id);
 int amdgpu_amdkfd_stop_sched(struct amdgpu_device *adev, uint32_t node_id);
+int amdgpu_amdkfd_config_sq_perfmon(struct amdgpu_device *adev, uint32_t xcp_id,
+	bool core_override_enable, bool reg_override_enable, bool perfmon_override_enable);
+bool amdgpu_amdkfd_compute_active(struct amdgpu_device *adev, uint32_t node_id);
+
 
 /* Read user wptr from a specified user address space with page fault
  * disabled. The memory must be pinned and mapped to the hardware when
@@ -428,6 +432,7 @@ int kgd2kfd_check_and_lock_kfd(void);
 void kgd2kfd_unlock_kfd(void);
 int kgd2kfd_start_sched(struct kfd_dev *kfd, uint32_t node_id);
 int kgd2kfd_stop_sched(struct kfd_dev *kfd, uint32_t node_id);
+bool kgd2kfd_compute_active(struct kfd_dev *kfd, uint32_t node_id);
 #else
 static inline int kgd2kfd_init(void)
 {
@@ -507,6 +512,11 @@ static inline int kgd2kfd_start_sched(struct kfd_dev *kfd, uint32_t node_id)
 static inline int kgd2kfd_stop_sched(struct kfd_dev *kfd, uint32_t node_id)
 {
 	return 0;
+}
+
+static inline bool kgd2kfd_compute_active(struct kfd_dev *kfd, uint32_t node_id)
+{
+	return false;
 }
 #endif
 #endif /* AMDGPU_AMDKFD_H_INCLUDED */

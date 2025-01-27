@@ -40,4 +40,7 @@ enum iwl_ctxt_action {
 	FW_CTXT_ACTION_REMOVE,
 }; /* COMMON_CONTEXT_ACTION_API_E_VER_1 */
 
+#define IWL_LMAC_24G_INDEX		0
+#define IWL_LMAC_5G_INDEX		1
+
 #endif /* __iwl_fw_api_context_h__ */

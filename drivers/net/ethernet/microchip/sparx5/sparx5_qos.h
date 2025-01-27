@@ -79,4 +79,6 @@ int sparx5_tc_ets_add(struct sparx5_port *port,
 
 int sparx5_tc_ets_del(struct sparx5_port *port);
 
+u32 sparx5_get_hsch_max_group_rate(int grp);
+
 #endif	/* __SPARX5_QOS_H__ */

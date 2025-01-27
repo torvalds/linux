@@ -89,13 +89,6 @@ static void pt_info_set(struct usb_device *dev, u8 v)
 			     v, 0, NULL, 0, 1000, GFP_NOIO);
 }
 
-static void usb_stream_hwdep_vm_open(struct vm_area_struct *area)
-{
-	struct us122l *us122l = area->vm_private_data;
-
-	atomic_inc(&us122l->mmap_count);
-}
-
 static vm_fault_t usb_stream_hwdep_vm_fault(struct vm_fault *vmf)
 {
 	unsigned long offset;
@@ -132,17 +125,9 @@ unlock:
 	return VM_FAULT_SIGBUS;
 }
 
-static void usb_stream_hwdep_vm_close(struct vm_area_struct *area)
-{
-	struct us122l *us122l = area->vm_private_data;
-
-	atomic_dec(&us122l->mmap_count);
-}
 
 static const struct vm_operations_struct usb_stream_hwdep_vm_ops = {
-	.open = usb_stream_hwdep_vm_open,
 	.fault = usb_stream_hwdep_vm_fault,
-	.close = usb_stream_hwdep_vm_close,
 };
 
 static int usb_stream_hwdep_open(struct snd_hwdep *hw, struct file *file)
@@ -218,7 +203,6 @@ static int usb_stream_hwdep_mmap(struct snd_hwdep *hw,
 	if (!read)
 		vm_flags_set(area, VM_DONTEXPAND);
 	area->vm_private_data = us122l;
-	atomic_inc(&us122l->mmap_count);
 out:
 	mutex_unlock(&us122l->mutex);
 	return err;
@@ -606,10 +590,7 @@ static void snd_us122l_disconnect(struct usb_interface *intf)
 	usb_put_intf(usb_ifnum_to_if(us122l->dev, 1));
 	usb_put_dev(us122l->dev);
 
-	while (atomic_read(&us122l->mmap_count))
-		msleep(500);
-
-	snd_card_free(card);
+	snd_card_free_when_closed(card);
 }
 
 static int snd_us122l_suspend(struct usb_interface *intf, pm_message_t message)

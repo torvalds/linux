@@ -1163,9 +1163,10 @@ static void mt7915_sta_rc_work(void *data, struct ieee80211_sta *sta)
 
 static void mt7915_sta_rc_update(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
-				 struct ieee80211_sta *sta,
+				 struct ieee80211_link_sta *link_sta,
 				 u32 changed)
 {
+	struct ieee80211_sta *sta = link_sta->sta;
 	struct mt7915_phy *phy = mt7915_hw_phy(hw);
 	struct mt7915_dev *dev = phy->dev;
 	struct mt7915_sta *msta = (struct mt7915_sta *)sta->drv_priv;
@@ -1709,7 +1710,7 @@ const struct ieee80211_ops mt7915_ops = {
 	.stop_ap = mt7915_stop_ap,
 	.sta_state = mt76_sta_state,
 	.sta_pre_rcu_remove = mt76_sta_pre_rcu_remove,
-	.sta_rc_update = mt7915_sta_rc_update,
+	.link_sta_rc_update = mt7915_sta_rc_update,
 	.set_key = mt7915_set_key,
 	.ampdu_action = mt7915_ampdu_action,
 	.set_rts_threshold = mt7915_set_rts_threshold,

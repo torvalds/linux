@@ -22,6 +22,8 @@
 		ethernet2 = &lan2;
 		ethernet3 = &lan3;
 		ethernet4 = &lan4;
+		rtc0 = &gsc_rtc;
+		rtc1 = &snvs_rtc;
 		usb0 = &usbotg1;
 		usb1 = &usbotg2;
 	};
@@ -497,7 +499,7 @@
 		pagesize = <16>;
 	};
 
-	rtc@68 {
+	gsc_rtc: rtc@68 {
 		compatible = "dallas,ds1672";
 		reg = <0x68>;
 	};

@@ -375,7 +375,7 @@ static int create_idx_hash(struct evsel *evsel, struct perf_bpf_filter_entry *en
 	pfi = zalloc(sizeof(*pfi));
 	if (pfi == NULL) {
 		pr_err("Cannot save pinned filter index\n");
-		goto err;
+		return -ENOMEM;
 	}
 
 	pfi->evsel = evsel;

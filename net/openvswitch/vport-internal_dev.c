@@ -195,7 +195,6 @@ static int internal_dev_recv(struct sk_buff *skb)
 
 	skb_dst_drop(skb);
 	nf_reset_ct(skb);
-	secpath_reset(skb);
 
 	skb->pkt_type = PACKET_HOST;
 	skb->protocol = eth_type_trans(skb, netdev);

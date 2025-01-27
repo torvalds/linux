@@ -815,7 +815,7 @@ static void display_histogram(int buckets[], bool use_nsec)
 
 	bar_len = buckets[0] * bar_total / total;
 	printf("  %4d - %-4d %s | %10d | %.*s%*s |\n",
-	       0, 1, "us", buckets[0], bar_len, bar, bar_total - bar_len, "");
+	       0, 1, use_nsec ? "ns" : "us", buckets[0], bar_len, bar, bar_total - bar_len, "");
 
 	for (i = 1; i < NUM_BUCKET - 1; i++) {
 		int start = (1 << (i - 1));
@@ -1151,8 +1151,9 @@ static int cmp_profile_data(const void *a, const void *b)
 
 	if (v1 > v2)
 		return -1;
-	else
+	if (v1 < v2)
 		return 1;
+	return 0;
 }
 
 static void print_profile_result(struct perf_ftrace *ftrace)

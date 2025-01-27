@@ -9,6 +9,7 @@ title: Microchip Sparx5 Ethernet switch controller
 maintainers:
   - Steen Hegelund <steen.hegelund@microchip.com>
   - Lars Povlsen <lars.povlsen@microchip.com>
+  - Daniel Machon <daniel.machon@microchip.com>
 
 description: |
   The SparX-5 Enterprise Ethernet switch family provides a rich set of
@@ -34,7 +35,24 @@ properties:
     pattern: "^switch@[0-9a-f]+$"
 
   compatible:
-    const: microchip,sparx5-switch
+    oneOf:
+      - enum:
+          - microchip,lan9691-switch
+          - microchip,sparx5-switch
+      - items:
+          - enum:
+              - microchip,lan969c-switch
+              - microchip,lan969b-switch
+              - microchip,lan969a-switch
+              - microchip,lan9699-switch
+              - microchip,lan9698-switch
+              - microchip,lan9697-switch
+              - microchip,lan9696-switch
+              - microchip,lan9695-switch
+              - microchip,lan9694-switch
+              - microchip,lan9693-switch
+              - microchip,lan9692-switch
+          - const: microchip,lan9691-switch
 
   reg:
     items:

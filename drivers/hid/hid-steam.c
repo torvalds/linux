@@ -253,7 +253,7 @@ enum
 	ID_CONTROLLER_DECK_STATE = 9
 };
 
-/* String attribute idenitifiers */
+/* String attribute identifiers */
 enum {
 	ATTRIB_STR_BOARD_SERIAL,
 	ATTRIB_STR_UNIT_SERIAL,

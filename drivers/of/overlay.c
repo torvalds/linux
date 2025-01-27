@@ -296,10 +296,11 @@ err_free_target_path:
  * invalid @overlay.
  */
 static int add_changeset_property(struct overlay_changeset *ovcs,
-		struct target *target, struct property *overlay_prop,
+		struct target *target, const struct property *overlay_prop,
 		bool is_symbols_prop)
 {
-	struct property *new_prop = NULL, *prop;
+	struct property *new_prop = NULL;
+	const struct property *prop;
 	int ret = 0;
 
 	if (target->in_livetree)
@@ -398,7 +399,7 @@ static int add_changeset_property(struct overlay_changeset *ovcs,
  * invalid @overlay.
  */
 static int add_changeset_node(struct overlay_changeset *ovcs,
-		struct target *target, struct device_node *node)
+		struct target *target, const struct device_node *node)
 {
 	const char *node_kbasename;
 	const __be32 *phandle;
@@ -675,8 +676,8 @@ static int build_changeset(struct overlay_changeset *ovcs)
  * 1) "target" property containing the phandle of the target
  * 2) "target-path" property containing the path of the target
  */
-static struct device_node *find_target(struct device_node *info_node,
-				       struct device_node *target_base)
+static struct device_node *find_target(const struct device_node *info_node,
+				       const struct device_node *target_base)
 {
 	struct device_node *node;
 	char *target_path;
@@ -735,7 +736,7 @@ static struct device_node *find_target(struct device_node *info_node,
  * init_overlay_changeset() must call free_overlay_changeset().
  */
 static int init_overlay_changeset(struct overlay_changeset *ovcs,
-				  struct device_node *target_base)
+				  const struct device_node *target_base)
 {
 	struct device_node *node, *overlay_node;
 	struct fragment *fragment;
@@ -910,7 +911,7 @@ static void free_overlay_changeset(struct overlay_changeset *ovcs)
  */
 
 static int of_overlay_apply(struct overlay_changeset *ovcs,
-			    struct device_node *base)
+			    const struct device_node *base)
 {
 	int ret = 0, ret_revert, ret_tmp;
 
@@ -978,7 +979,7 @@ out:
  */
 
 int of_overlay_fdt_apply(const void *overlay_fdt, u32 overlay_fdt_size,
-			 int *ret_ovcs_id, struct device_node *base)
+			 int *ret_ovcs_id, const struct device_node *base)
 {
 	void *new_fdt;
 	void *new_fdt_align;
@@ -1074,7 +1075,7 @@ EXPORT_SYMBOL_GPL(of_overlay_fdt_apply);
  *
  * Returns 1 if @np is @tree or is contained in @tree, else 0
  */
-static int find_node(struct device_node *tree, struct device_node *np)
+static int find_node(const struct device_node *tree, struct device_node *np)
 {
 	if (tree == np)
 		return 1;

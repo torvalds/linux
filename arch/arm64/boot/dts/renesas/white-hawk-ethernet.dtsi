@@ -29,8 +29,7 @@
 		avb1_phy: ethernet-phy@0 {
 			compatible = "ethernet-phy-ieee802.3-c45";
 			reg = <0>;
-			interrupt-parent = <&gpio6>;
-			interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
+			interrupts-extended = <&gpio6 3 IRQ_TYPE_LEVEL_LOW>;
 		};
 	};
 };
@@ -51,8 +50,7 @@
 		avb2_phy: ethernet-phy@0 {
 			compatible = "ethernet-phy-ieee802.3-c45";
 			reg = <0>;
-			interrupt-parent = <&gpio5>;
-			interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
+			interrupts-extended = <&gpio5 4 IRQ_TYPE_LEVEL_LOW>;
 		};
 	};
 };

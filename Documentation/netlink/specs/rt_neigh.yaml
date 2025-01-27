@@ -1,0 +1,442 @@
+# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+
+name: rt-neigh
+protocol: netlink-raw
+protonum: 0
+
+doc:
+  IP neighbour management over rtnetlink.
+
+definitions:
+  -
+    name: ndmsg
+    type: struct
+    members:
+      -
+        name: family
+        type: u8
+      -
+        name: pad
+        type: pad
+        len: 3
+      -
+        name: ifindex
+        type: s32
+      -
+        name: state
+        type: u16
+        enum: nud-state
+      -
+        name: flags
+        type: u8
+        enum: ntf-flags
+      -
+        name: type
+        type: u8
+        enum: rtm-type
+  -
+    name: ndtmsg
+    type: struct
+    members:
+      -
+        name: family
+        type: u8
+      -
+        name: pad
+        type: pad
+        len: 3
+  -
+    name: nud-state
+    type: flags
+    entries:
+      - incomplete
+      - reachable
+      - stale
+      - delay
+      - probe
+      - failed
+      - noarp
+      - permanent
+  -
+    name: ntf-flags
+    type: flags
+    entries:
+      - use
+      - self
+      - master
+      - proxy
+      - ext-learned
+      - offloaded
+      - sticky
+      - router
+  -
+    name: ntf-ext-flags
+    type: flags
+    entries:
+      - managed
+      - locked
+  -
+    name: rtm-type
+    type: enum
+    entries:
+      - unspec
+      - unicast
+      - local
+      - broadcast
+      - anycast
+      - multicast
+      - blackhole
+      - unreachable
+      - prohibit
+      - throw
+      - nat
+      - xresolve
+  -
+    name: nda-cacheinfo
+    type: struct
+    members:
+      -
+        name: confirmed
+        type: u32
+      -
+        name: used
+        type: u32
+      -
+        name: updated
+        type: u32
+      -
+        name: refcnt
+        type: u32
+  -
+    name: ndt-config
+    type: struct
+    members:
+      -
+        name: key-len
+        type: u16
+      -
+        name: entry-size
+        type: u16
+      -
+        name: entries
+        type: u32
+      -
+        name: last-flush
+        type: u32
+      -
+        name: last-rand
+        type: u32
+      -
+        name: hash-rnd
+        type: u32
+      -
+        name: hash-mask
+        type: u32
+      -
+        name: hash-chain-gc
+        type: u32
+      -
+        name: proxy-qlen
+        type: u32
+  -
+    name: ndt-stats
+    type: struct
+    members:
+      -
+        name: allocs
+        type: u64
+      -
+        name: destroys
+        type: u64
+      -
+        name: hash-grows
+        type: u64
+      -
+        name: res-failed
+        type: u64
+      -
+        name: lookups
+        type: u64
+      -
+        name: hits
+        type: u64
+      -
+        name: rcv-probes-mcast
+        type: u64
+      -
+        name: rcv-probes-ucast
+        type: u64
+      -
+        name: periodic-gc-runs
+        type: u64
+      -
+        name: forced-gc-runs
+        type: u64
+      -
+        name: table-fulls
+        type: u64
+
+attribute-sets:
+  -
+    name: neighbour-attrs
+    attributes:
+      -
+        name: unspec
+        type: binary
+        value: 0
+      -
+        name: dst
+        type: binary
+        display-hint: ipv4
+      -
+        name: lladr
+        type: binary
+        display-hint: mac
+      -
+        name: cacheinfo
+        type: binary
+        struct: nda-cacheinfo
+      -
+        name: probes
+        type: u32
+      -
+        name: vlan
+        type: u16
+      -
+        name: port
+        type: u16
+      -
+        name: vni
+        type: u32
+      -
+        name: ifindex
+        type: u32
+      -
+        name: master
+        type: u32
+      -
+        name: link-netnsid
+        type: s32
+      -
+        name: src-vni
+        type: u32
+      -
+        name: protocol
+        type: u8
+      -
+        name: nh-id
+        type: u32
+      -
+        name: fdb-ext-attrs
+        type: binary
+      -
+        name: flags-ext
+        type: u32
+        enum: ntf-ext-flags
+      -
+        name: ndm-state-mask
+        type: u16
+      -
+        name: ndm-flags-mask
+        type: u8
+  -
+    name: ndt-attrs
+    attributes:
+      -
+        name: name
+        type: string
+      -
+        name: thresh1
+        type: u32
+      -
+        name: thresh2
+        type: u32
+      -
+        name: thresh3
+        type: u32
+      -
+        name: config
+        type: binary
+        struct: ndt-config
+      -
+        name: parms
+        type: nest
+        nested-attributes: ndtpa-attrs
+      -
+        name: stats
+        type: binary
+        struct: ndt-stats
+      -
+        name: gc-interval
+        type: u64
+      -
+        name: pad
+        type: pad
+  -
+    name: ndtpa-attrs
+    attributes:
+      -
+        name: ifindex
+        type: u32
+      -
+        name: refcnt
+        type: u32
+      -
+        name: reachable-time
+        type: u64
+      -
+        name: base-reachable-time
+        type: u64
+      -
+        name: retrans-time
+        type: u64
+      -
+        name: gc-staletime
+        type: u64
+      -
+        name: delay-probe-time
+        type: u64
+      -
+        name: queue-len
+        type: u32
+      -
+        name: app-probes
+        type: u32
+      -
+        name: ucast-probes
+        type: u32
+      -
+        name: mcast-probes
+        type: u32
+      -
+        name: anycast-delay
+        type: u64
+      -
+        name: proxy-delay
+        type: u64
+      -
+        name: proxy-qlen
+        type: u32
+      -
+        name: locktime
+        type: u64
+      -
+        name: queue-lenbytes
+        type: u32
+      -
+        name: mcast-reprobes
+        type: u32
+      -
+        name: pad
+        type: pad
+      -
+        name: interval-probe-time-ms
+        type: u64
+
+operations:
+  enum-model: directional
+  list:
+    -
+      name: newneigh
+      doc: Add new neighbour entry
+      fixed-header: ndmsg
+      attribute-set: neighbour-attrs
+      do:
+        request:
+          value: 28
+          attributes: &neighbour-all
+            - dst
+            - lladdr
+            - probes
+            - vlan
+            - port
+            - vni
+            - ifindex
+            - master
+            - protocol
+            - nh-id
+            - flags-ext
+            - fdb-ext-attrs
+    -
+      name: delneigh
+      doc: Remove an existing neighbour entry
+      fixed-header: ndmsg
+      attribute-set: neighbour-attrs
+      do:
+        request:
+          value: 29
+          attributes:
+            - dst
+            - ifindex
+    -
+      name: delneigh-ntf
+      doc: Notify a neighbour deletion
+      value: 29
+      notify: delneigh
+      fixed-header: ndmsg
+    -
+      name: getneigh
+      doc: Get or dump neighbour entries
+      fixed-header: ndmsg
+      attribute-set: neighbour-attrs
+      do:
+        request:
+          value: 30
+          attributes:
+            - dst
+        reply:
+          value: 28
+          attributes: *neighbour-all
+      dump:
+        request:
+          attributes:
+            - ifindex
+            - master
+        reply:
+          attributes: *neighbour-all
+    -
+      name: newneigh-ntf
+      doc: Notify a neighbour creation
+      value: 28
+      notify: getneigh
+      fixed-header: ndmsg
+    -
+      name: getneightbl
+      doc: Get or dump neighbour tables
+      fixed-header: ndtmsg
+      attribute-set: ndt-attrs
+      dump:
+        request:
+          value: 66
+        reply:
+          value: 64
+          attributes:
+            - name
+            - thresh1
+            - thresh2
+            - thresh3
+            - config
+            - parms
+            - stats
+            - gc-interval
+    -
+      name: setneightbl
+      doc: Set neighbour tables
+      fixed-header: ndtmsg
+      attribute-set: ndt-attrs
+      do:
+        request:
+          value: 67
+          attributes:
+            - name
+            - thresh1
+            - thresh2
+            - thresh3
+            - parms
+            - gc-interval
+
+mcast-groups:
+  list:
+    -
+      name: rtnlgrp-neigh
+      value: 3

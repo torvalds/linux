@@ -283,7 +283,7 @@ static const struct i2c_algorithm smbus_algorithm = {
 	.functionality	= amd756_func,
 };
 
-struct i2c_adapter amd756_smbus = {
+static struct i2c_adapter amd756_smbus = {
 	.owner		= THIS_MODULE,
 	.class          = I2C_CLASS_HWMON,
 	.algo		= &smbus_algorithm,
@@ -398,5 +398,3 @@ module_pci_driver(amd756_driver);
 MODULE_AUTHOR("Merlin Hughes <merlin@merlin.org>");
 MODULE_DESCRIPTION("AMD756/766/768/8111 and nVidia nForce SMBus driver");
 MODULE_LICENSE("GPL");
-
-EXPORT_SYMBOL(amd756_smbus);

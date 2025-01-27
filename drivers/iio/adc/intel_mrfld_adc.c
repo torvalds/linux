@@ -164,7 +164,7 @@ static const struct iio_chan_spec mrfld_adc_channels[] = {
 	BCOVE_ADC_CHANNEL(IIO_TEMP,       8, "CH8", 0xC6),
 };
 
-static struct iio_map iio_maps[] = {
+static const struct iio_map iio_maps[] = {
 	IIO_MAP("CH0", "bcove-battery", "VBATRSLT"),
 	IIO_MAP("CH1", "bcove-battery", "BATTID"),
 	IIO_MAP("CH2", "bcove-battery", "IBATRSLT"),

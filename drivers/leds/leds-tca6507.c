@@ -658,7 +658,6 @@ static struct tca6507_platform_data *
 tca6507_led_dt_init(struct device *dev)
 {
 	struct tca6507_platform_data *pdata;
-	struct fwnode_handle *child;
 	struct led_info *tca_leds;
 	int count;
 
@@ -671,7 +670,7 @@ tca6507_led_dt_init(struct device *dev)
 	if (!tca_leds)
 		return ERR_PTR(-ENOMEM);
 
-	device_for_each_child_node(dev, child) {
+	device_for_each_child_node_scoped(dev, child) {
 		struct led_info led;
 		u32 reg;
 		int ret;
@@ -688,10 +687,8 @@ tca6507_led_dt_init(struct device *dev)
 			led.flags |= TCA6507_MAKE_GPIO;
 
 		ret = fwnode_property_read_u32(child, "reg", &reg);
-		if (ret || reg >= NUM_LEDS) {
-			fwnode_handle_put(child);
+		if (ret || reg >= NUM_LEDS)
 			return ERR_PTR(ret ? : -EINVAL);
-		}
 
 		tca_leds[reg] = led;
 	}

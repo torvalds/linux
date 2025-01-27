@@ -1,0 +1,82 @@
+/* SPDX-License-Identifier: MIT */
+/*
+ * Copyright © 2024 Intel Corporation
+ */
+#ifndef _XE_IRQ_REGS_H_
+#define _XE_IRQ_REGS_H_
+
+#include "regs/xe_reg_defs.h"
+
+#define PCU_IRQ_OFFSET				0x444e0
+#define GU_MISC_IRQ_OFFSET			0x444f0
+#define   GU_MISC_GSE				REG_BIT(27)
+
+#define DG1_MSTR_TILE_INTR			XE_REG(0x190008)
+#define   DG1_MSTR_IRQ				REG_BIT(31)
+#define   DG1_MSTR_TILE(t)			REG_BIT(t)
+
+#define GFX_MSTR_IRQ				XE_REG(0x190010, XE_REG_OPTION_VF)
+#define   MASTER_IRQ				REG_BIT(31)
+#define   GU_MISC_IRQ				REG_BIT(29)
+#define   DISPLAY_IRQ				REG_BIT(16)
+#define   GT_DW_IRQ(x)				REG_BIT(x)
+
+/*
+ * Note: Interrupt registers 1900xx are VF accessible only until version 12.50.
+ *       On newer platforms, VFs are using memory-based interrupts instead.
+ *       However, for simplicity we keep this XE_REG_OPTION_VF tag intact.
+ */
+
+#define GT_INTR_DW(x)				XE_REG(0x190018 + ((x) * 4), XE_REG_OPTION_VF)
+#define   INTR_GSC				REG_BIT(31)
+#define   INTR_GUC				REG_BIT(25)
+#define   INTR_MGUC				REG_BIT(24)
+#define   INTR_BCS8				REG_BIT(23)
+#define   INTR_BCS(x)				REG_BIT(15 - (x))
+#define   INTR_CCS(x)				REG_BIT(4 + (x))
+#define   INTR_RCS0				REG_BIT(0)
+#define   INTR_VECS(x)				REG_BIT(31 - (x))
+#define   INTR_VCS(x)				REG_BIT(x)
+
+#define RENDER_COPY_INTR_ENABLE			XE_REG(0x190030, XE_REG_OPTION_VF)
+#define VCS_VECS_INTR_ENABLE			XE_REG(0x190034, XE_REG_OPTION_VF)
+#define GUC_SG_INTR_ENABLE			XE_REG(0x190038, XE_REG_OPTION_VF)
+#define   ENGINE1_MASK				REG_GENMASK(31, 16)
+#define   ENGINE0_MASK				REG_GENMASK(15, 0)
+#define GPM_WGBOXPERF_INTR_ENABLE		XE_REG(0x19003c, XE_REG_OPTION_VF)
+#define GUNIT_GSC_INTR_ENABLE			XE_REG(0x190044, XE_REG_OPTION_VF)
+#define CCS_RSVD_INTR_ENABLE			XE_REG(0x190048, XE_REG_OPTION_VF)
+
+#define INTR_IDENTITY_REG(x)			XE_REG(0x190060 + ((x) * 4), XE_REG_OPTION_VF)
+#define   INTR_DATA_VALID			REG_BIT(31)
+#define   INTR_ENGINE_INSTANCE(x)		REG_FIELD_GET(GENMASK(25, 20), x)
+#define   INTR_ENGINE_CLASS(x)			REG_FIELD_GET(GENMASK(18, 16), x)
+#define   INTR_ENGINE_INTR(x)			REG_FIELD_GET(GENMASK(15, 0), x)
+#define   OTHER_GUC_INSTANCE			0
+#define   OTHER_GSC_HECI2_INSTANCE		3
+#define   OTHER_GSC_INSTANCE			6
+
+#define IIR_REG_SELECTOR(x)			XE_REG(0x190070 + ((x) * 4), XE_REG_OPTION_VF)
+#define RCS0_RSVD_INTR_MASK			XE_REG(0x190090, XE_REG_OPTION_VF)
+#define BCS_RSVD_INTR_MASK			XE_REG(0x1900a0, XE_REG_OPTION_VF)
+#define VCS0_VCS1_INTR_MASK			XE_REG(0x1900a8, XE_REG_OPTION_VF)
+#define VCS2_VCS3_INTR_MASK			XE_REG(0x1900ac, XE_REG_OPTION_VF)
+#define VECS0_VECS1_INTR_MASK			XE_REG(0x1900d0, XE_REG_OPTION_VF)
+#define HECI2_RSVD_INTR_MASK			XE_REG(0x1900e4)
+#define GUC_SG_INTR_MASK			XE_REG(0x1900e8, XE_REG_OPTION_VF)
+#define GPM_WGBOXPERF_INTR_MASK			XE_REG(0x1900ec, XE_REG_OPTION_VF)
+#define GUNIT_GSC_INTR_MASK			XE_REG(0x1900f4, XE_REG_OPTION_VF)
+#define CCS0_CCS1_INTR_MASK			XE_REG(0x190100)
+#define CCS2_CCS3_INTR_MASK			XE_REG(0x190104)
+#define XEHPC_BCS1_BCS2_INTR_MASK		XE_REG(0x190110)
+#define XEHPC_BCS3_BCS4_INTR_MASK		XE_REG(0x190114)
+#define XEHPC_BCS5_BCS6_INTR_MASK		XE_REG(0x190118)
+#define XEHPC_BCS7_BCS8_INTR_MASK		XE_REG(0x19011c)
+#define   GT_WAIT_SEMAPHORE_INTERRUPT		REG_BIT(11)
+#define   GT_CONTEXT_SWITCH_INTERRUPT		REG_BIT(8)
+#define   GSC_ER_COMPLETE			REG_BIT(5)
+#define   GT_RENDER_PIPECTL_NOTIFY_INTERRUPT	REG_BIT(4)
+#define   GT_CS_MASTER_ERROR_INTERRUPT		REG_BIT(3)
+#define   GT_RENDER_USER_INTERRUPT		REG_BIT(0)
+
+#endif

@@ -31,6 +31,7 @@
 #define PL2303_QUIRK_UART_STATE_IDX0		BIT(0)
 #define PL2303_QUIRK_LEGACY			BIT(1)
 #define PL2303_QUIRK_ENDPOINT_HACK		BIT(2)
+#define PL2303_QUIRK_NO_BREAK_GETLINE		BIT(3)
 
 static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(PL2303_VENDOR_ID, PL2303_PRODUCT_ID),
@@ -467,6 +468,25 @@ static int pl2303_detect_type(struct usb_serial *serial)
 	return -ENODEV;
 }
 
+static bool pl2303_is_hxd_clone(struct usb_serial *serial)
+{
+	struct usb_device *udev = serial->dev;
+	unsigned char *buf;
+	int ret;
+
+	buf = kmalloc(7, GFP_KERNEL);
+	if (!buf)
+		return false;
+
+	ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
+			      GET_LINE_REQUEST, GET_LINE_REQUEST_TYPE,
+			      0, 0, buf, 7, 100);
+
+	kfree(buf);
+
+	return ret == -EPIPE;
+}
+
 static int pl2303_startup(struct usb_serial *serial)
 {
 	struct pl2303_serial_private *spriv;
@@ -488,6 +508,9 @@ static int pl2303_startup(struct usb_serial *serial)
 	spriv->type = &pl2303_type_data[type];
 	spriv->quirks = (unsigned long)usb_get_serial_data(serial);
 	spriv->quirks |= spriv->type->quirks;
+
+	if (type == TYPE_HXD && pl2303_is_hxd_clone(serial))
+		spriv->quirks |= PL2303_QUIRK_NO_BREAK_GETLINE;
 
 	usb_set_serial_data(serial, spriv);
 
@@ -725,8 +748,17 @@ static void pl2303_encode_baud_rate(struct tty_struct *tty,
 static int pl2303_get_line_request(struct usb_serial_port *port,
 							unsigned char buf[7])
 {
-	struct usb_device *udev = port->serial->dev;
+	struct usb_serial *serial = port->serial;
+	struct pl2303_serial_private *spriv = usb_get_serial_data(serial);
+	struct usb_device *udev = serial->dev;
 	int ret;
+
+	if (spriv->quirks & PL2303_QUIRK_NO_BREAK_GETLINE) {
+		struct pl2303_private *priv = usb_get_serial_port_data(port);
+
+		memcpy(buf, priv->line_settings, 7);
+		return 0;
+	}
 
 	ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 				GET_LINE_REQUEST, GET_LINE_REQUEST_TYPE,
@@ -1064,8 +1096,12 @@ static int pl2303_carrier_raised(struct usb_serial_port *port)
 static int pl2303_set_break(struct usb_serial_port *port, bool enable)
 {
 	struct usb_serial *serial = port->serial;
+	struct pl2303_serial_private *spriv = usb_get_serial_data(serial);
 	u16 state;
 	int result;
+
+	if (spriv->quirks & PL2303_QUIRK_NO_BREAK_GETLINE)
+		return -ENOTTY;
 
 	if (enable)
 		state = BREAK_ON;

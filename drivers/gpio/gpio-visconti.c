@@ -142,7 +142,7 @@ static void visconti_gpio_irq_print_chip(struct irq_data *d, struct seq_file *p)
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct visconti_gpio *priv = gpiochip_get_data(gc);
 
-	seq_printf(p, dev_name(priv->dev));
+	seq_puts(p, dev_name(priv->dev));
 }
 
 static const struct irq_chip visconti_gpio_irq_chip = {

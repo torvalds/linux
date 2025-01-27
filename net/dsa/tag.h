@@ -138,9 +138,10 @@ static inline void dsa_software_untag_vlan_unaware_bridge(struct sk_buff *skb,
  * dsa_software_vlan_untag: Software VLAN untagging in DSA receive path
  * @skb: Pointer to socket buffer (packet)
  *
- * Receive path method for switches which cannot avoid tagging all packets
- * towards the CPU port. Called when ds->untag_bridge_pvid (legacy) or
- * ds->untag_vlan_aware_bridge_pvid is set to true.
+ * Receive path method for switches which send some packets as VLAN-tagged
+ * towards the CPU port (generally from VLAN-aware bridge ports) even when the
+ * packet was not tagged on the wire. Called when ds->untag_bridge_pvid
+ * (legacy) or ds->untag_vlan_aware_bridge_pvid is set to true.
  *
  * As a side effect of this method, any VLAN tag from the skb head is moved
  * to hwaccel.
@@ -149,14 +150,19 @@ static inline struct sk_buff *dsa_software_vlan_untag(struct sk_buff *skb)
 {
 	struct dsa_port *dp = dsa_user_to_port(skb->dev);
 	struct net_device *br = dsa_port_bridge_dev_get(dp);
-	u16 vid;
+	u16 vid, proto;
+	int err;
 
 	/* software untagging for standalone ports not yet necessary */
 	if (!br)
 		return skb;
 
+	err = br_vlan_get_proto(br, &proto);
+	if (err)
+		return skb;
+
 	/* Move VLAN tag from data to hwaccel */
-	if (!skb_vlan_tag_present(skb)) {
+	if (!skb_vlan_tag_present(skb) && skb->protocol == htons(proto)) {
 		skb = skb_vlan_untag(skb);
 		if (!skb)
 			return NULL;

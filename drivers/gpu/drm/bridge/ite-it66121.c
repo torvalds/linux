@@ -770,8 +770,6 @@ void it66121_bridge_mode_set(struct drm_bridge *bridge,
 
 	mutex_lock(&ctx->lock);
 
-	hdmi_avi_infoframe_init(&ctx->hdmi_avi_infoframe);
-
 	ret = drm_hdmi_avi_infoframe_from_display_mode(&ctx->hdmi_avi_infoframe, ctx->connector,
 						       adjusted_mode);
 	if (ret) {

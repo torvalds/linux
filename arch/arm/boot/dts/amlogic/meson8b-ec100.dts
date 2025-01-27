@@ -22,7 +22,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@40000000 {
 		device_type = "memory";
 		reg = <0x40000000 0x40000000>;
 	};
@@ -97,6 +97,10 @@
 	sound {
 		compatible = "amlogic,gx-sound-card";
 		model = "M8B-EC100";
+
+		clocks = <&clkc CLKID_MPLL0>,
+			 <&clkc CLKID_MPLL1>,
+			 <&clkc CLKID_MPLL2>;
 
 		assigned-clocks = <&clkc CLKID_MPLL0>,
 				  <&clkc CLKID_MPLL1>,
@@ -427,7 +431,7 @@
 			  "NAND_CS1 (EMMC)", "NAND_CS2 iNAND_RS1 (EMMC)",
 			  "NAND_nR/B iNAND_CMD (EMMC)", "NAND_ALE (EMMC)",
 			  "NAND_CLE (EMMC)", "nRE_S1 NAND_nRE (EMMC)",
-			  "nWE_S1 NAND_nWE (EMMC)",  "", "", "SPI_CS",
+			  "nWE_S1 NAND_nWE (EMMC)",  "", "", "", "SPI_CS",
 			  /* Bank DIF */
 			  "RMII_RXD1", "RMII_RXD0", "RMII_CRS_DV",
 			  "RMII_50M_IN", "GPIODIF_4", "GPIODIF_5",

@@ -618,7 +618,7 @@ static struct platform_driver xvip_composite_driver = {
 		.of_match_table = xvip_composite_of_id_table,
 	},
 	.probe = xvip_composite_probe,
-	.remove_new = xvip_composite_remove,
+	.remove = xvip_composite_remove,
 };
 
 module_platform_driver(xvip_composite_driver);

@@ -536,7 +536,7 @@ static struct platform_driver scx200_pci_driver = {
 		.name = "cs5535-smb",
 	},
 	.probe = scx200_probe,
-	.remove_new = scx200_remove,
+	.remove = scx200_remove,
 };
 
 static const struct pci_device_id scx200_isa[] = {

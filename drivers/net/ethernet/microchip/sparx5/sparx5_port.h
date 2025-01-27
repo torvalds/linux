@@ -40,25 +40,29 @@ static inline bool sparx5_port_is_25g(int portno)
 	return portno >= 56 && portno <= 63;
 }
 
-static inline u32 sparx5_to_high_dev(int port)
+static inline u32 sparx5_to_high_dev(struct sparx5 *sparx5, int port)
 {
-	if (sparx5_port_is_5g(port))
+	const struct sparx5_ops *ops = sparx5->data->ops;
+
+	if (ops->is_port_5g(port))
 		return TARGET_DEV5G;
-	if (sparx5_port_is_10g(port))
+	if (ops->is_port_10g(port))
 		return TARGET_DEV10G;
 	return TARGET_DEV25G;
 }
 
-static inline u32 sparx5_to_pcs_dev(int port)
+static inline u32 sparx5_to_pcs_dev(struct sparx5 *sparx5, int port)
 {
-	if (sparx5_port_is_5g(port))
+	const struct sparx5_ops *ops = sparx5->data->ops;
+
+	if (ops->is_port_5g(port))
 		return TARGET_PCS5G_BR;
-	if (sparx5_port_is_10g(port))
+	if (ops->is_port_10g(port))
 		return TARGET_PCS10G_BR;
 	return TARGET_PCS25G_BR;
 }
 
-static inline int sparx5_port_dev_index(int port)
+static inline u32 sparx5_port_dev_mapping(struct sparx5 *sparx5, int port)
 {
 	if (sparx5_port_is_2g5(port))
 		return port;
@@ -68,6 +72,11 @@ static inline int sparx5_port_dev_index(int port)
 		return (port >= 12 && port <= 15) ?
 			port - 12 : port - 44;
 	return (port - 56);
+}
+
+static inline u32 sparx5_port_dev_index(struct sparx5 *sparx5, int port)
+{
+	return sparx5->data->ops->get_port_dev_index(sparx5, port);
 }
 
 int sparx5_port_init(struct sparx5 *sparx5,

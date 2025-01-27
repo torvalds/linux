@@ -2239,7 +2239,7 @@ static struct platform_device vivid_pdev = {
 
 static struct platform_driver vivid_pdrv = {
 	.probe		= vivid_probe,
-	.remove_new	= vivid_remove,
+	.remove		= vivid_remove,
 	.driver		= {
 		.name	= "vivid",
 	},

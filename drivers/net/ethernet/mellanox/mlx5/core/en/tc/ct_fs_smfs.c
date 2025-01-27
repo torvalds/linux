@@ -318,7 +318,7 @@ mlx5_ct_fs_smfs_ct_rule_add(struct mlx5_ct_fs *fs, struct mlx5_flow_spec *spec,
 	}
 
 	actions[num_actions++] = smfs_rule->count_action;
-	actions[num_actions++] = attr->modify_hdr->action.dr_action;
+	actions[num_actions++] = attr->modify_hdr->fs_dr_action.dr_action;
 	actions[num_actions++] = fs_smfs->fwd_action;
 
 	nat = (attr->ft == fs_smfs->ct_nat);
@@ -379,7 +379,7 @@ static int mlx5_ct_fs_smfs_ct_rule_update(struct mlx5_ct_fs *fs, struct mlx5_ct_
 	struct mlx5dr_rule *rule;
 
 	actions[0] = smfs_rule->count_action;
-	actions[1] = attr->modify_hdr->action.dr_action;
+	actions[1] = attr->modify_hdr->fs_dr_action.dr_action;
 	actions[2] = fs_smfs->fwd_action;
 
 	rule = mlx5_smfs_rule_create(smfs_rule->smfs_matcher->dr_matcher, spec,

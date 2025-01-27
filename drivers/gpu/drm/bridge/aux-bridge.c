@@ -121,6 +121,10 @@ static int drm_aux_bridge_probe(struct auxiliary_device *auxdev,
 	data->bridge.funcs = &drm_aux_bridge_funcs;
 	data->bridge.of_node = data->dev->of_node;
 
+	/* passthrough data, allow everything */
+	data->bridge.interlace_allowed = true;
+	data->bridge.ycbcr_420_allowed = true;
+
 	return devm_drm_bridge_add(data->dev, &data->bridge);
 }
 

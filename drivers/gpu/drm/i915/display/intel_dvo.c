@@ -31,6 +31,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_probe_helper.h>
 
 #include "i915_drv.h"
 #include "i915_reg.h"
@@ -416,6 +417,7 @@ static bool intel_dvo_init_dev(struct drm_i915_private *dev_priv,
 			       struct intel_dvo *intel_dvo,
 			       const struct intel_dvo_device *dvo)
 {
+	struct intel_display *display = &dev_priv->display;
 	struct i2c_adapter *i2c;
 	u32 dpll[I915_MAX_PIPES];
 	enum pipe pipe;
@@ -427,7 +429,7 @@ static bool intel_dvo_init_dev(struct drm_i915_private *dev_priv,
 	 * special cases, but otherwise default to what's defined
 	 * in the spec.
 	 */
-	if (intel_gmbus_is_valid_pin(dev_priv, dvo->gpio))
+	if (intel_gmbus_is_valid_pin(display, dvo->gpio))
 		gpio = dvo->gpio;
 	else if (dvo->type == INTEL_DVO_CHIP_LVDS)
 		gpio = GMBUS_PIN_SSC;
@@ -439,7 +441,7 @@ static bool intel_dvo_init_dev(struct drm_i915_private *dev_priv,
 	 * It appears that everything is on GPIOE except for panels
 	 * on i830 laptops, which are on GPIOB (DVOA).
 	 */
-	i2c = intel_gmbus_get_adapter(dev_priv, gpio);
+	i2c = intel_gmbus_get_adapter(display, gpio);
 
 	intel_dvo->dev = *dvo;
 
@@ -488,6 +490,7 @@ static bool intel_dvo_probe(struct drm_i915_private *i915,
 
 void intel_dvo_init(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
 	struct intel_connector *connector;
 	struct intel_encoder *encoder;
 	struct intel_dvo *intel_dvo;
@@ -548,7 +551,7 @@ void intel_dvo_init(struct drm_i915_private *i915)
 	drm_connector_init_with_ddc(&i915->drm, &connector->base,
 				    &intel_dvo_connector_funcs,
 				    intel_dvo_connector_type(&intel_dvo->dev),
-				    intel_gmbus_get_adapter(i915, GMBUS_PIN_DPC));
+				    intel_gmbus_get_adapter(display, GMBUS_PIN_DPC));
 
 	drm_connector_helper_add(&connector->base,
 				 &intel_dvo_connector_helper_funcs);

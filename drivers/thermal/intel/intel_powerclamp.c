@@ -809,7 +809,7 @@ static void __exit powerclamp_exit(void)
 }
 module_exit(powerclamp_exit);
 
-MODULE_IMPORT_NS(IDLE_INJECT);
+MODULE_IMPORT_NS("IDLE_INJECT");
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Arjan van de Ven <arjan@linux.intel.com>");

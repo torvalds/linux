@@ -242,7 +242,7 @@ static inline bool dev_is_dma_coherent(struct device *dev)
 {
 	return true;
 }
-#endif /* CONFIG_ARCH_HAS_DMA_COHERENCE_H */
+#endif
 
 static inline void dma_reset_need_sync(struct device *dev)
 {

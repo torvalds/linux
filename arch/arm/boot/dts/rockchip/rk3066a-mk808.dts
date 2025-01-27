@@ -61,21 +61,21 @@
 		};
 	};
 
-	vcc_2v5: vcc-2v5 {
+	vcc_2v5: regulator-vcc-2v5 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_2v5";
 		regulator-min-microvolt = <2500000>;
 		regulator-max-microvolt = <2500000>;
 	};
 
-	vcc_io: vcc-io {
+	vcc_io: regulator-vcc-io {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_io";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 	};
 
-	vcc_host: usb-host-regulator {
+	vcc_host: regulator-usb-host {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio0 RK_PA6 GPIO_ACTIVE_HIGH>;
@@ -89,7 +89,7 @@
 		vin-supply = <&vcc_io>;
 	};
 
-	vcc_otg: usb-otg-regulator {
+	vcc_otg: regulator-usb-otg {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
@@ -103,7 +103,7 @@
 		vin-supply = <&vcc_io>;
 	};
 
-	vcc_sd: sdmmc-regulator {
+	vcc_sd: regulator-sdmmc {
 		compatible = "regulator-fixed";
 		gpio = <&gpio3 RK_PA7 GPIO_ACTIVE_LOW>;
 		pinctrl-0 = <&sdmmc_pwr>;
@@ -115,7 +115,7 @@
 		vin-supply = <&vcc_io>;
 	};
 
-	vcc_wifi: sdio-regulator {
+	vcc_wifi: regulator-sdio {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio3 RK_PD0 GPIO_ACTIVE_HIGH>;

@@ -224,4 +224,4 @@ module_i2c_driver(ipsps_driver);
 MODULE_AUTHOR("John Wang");
 MODULE_DESCRIPTION("PMBus driver for Inspur Power System power supplies");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(PMBUS);
+MODULE_IMPORT_NS("PMBUS");

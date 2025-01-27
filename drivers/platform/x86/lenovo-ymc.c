@@ -162,4 +162,4 @@ module_wmi_driver(lenovo_ymc_driver);
 MODULE_AUTHOR("Gergo Koteles <soyer@irl.hu>");
 MODULE_DESCRIPTION("Lenovo Yoga Mode Control driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(IDEAPAD_LAPTOP);
+MODULE_IMPORT_NS("IDEAPAD_LAPTOP");

@@ -148,9 +148,10 @@ struct bcm2835_host {
 	void __iomem		*ioaddr;
 	u32			phys_addr;
 
+	struct clk		*clk;
 	struct platform_device	*pdev;
 
-	int			clock;		/* Current clock speed */
+	unsigned int		clock;		/* Current clock speed */
 	unsigned int		max_clk;	/* Max possible freq */
 	struct work_struct	dma_work;
 	struct delayed_work	timeout_work;	/* Timer for timeouts */
@@ -1345,7 +1346,6 @@ static int bcm2835_add_host(struct bcm2835_host *host)
 static int bcm2835_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct clk *clk;
 	struct bcm2835_host *host;
 	struct mmc_host *mmc;
 	const __be32 *regaddr_p;
@@ -1393,15 +1393,6 @@ static int bcm2835_probe(struct platform_device *pdev)
 		/* Ignore errors to fall back to PIO mode */
 	}
 
-
-	clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(clk)) {
-		ret = dev_err_probe(dev, PTR_ERR(clk), "could not get clk\n");
-		goto err;
-	}
-
-	host->max_clk = clk_get_rate(clk);
-
 	host->irq = platform_get_irq(pdev, 0);
 	if (host->irq < 0) {
 		ret = host->irq;
@@ -1412,9 +1403,21 @@ static int bcm2835_probe(struct platform_device *pdev)
 	if (ret)
 		goto err;
 
-	ret = bcm2835_add_host(host);
+	host->clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(host->clk)) {
+		ret = dev_err_probe(dev, PTR_ERR(host->clk), "could not get clk\n");
+		goto err;
+	}
+
+	ret = clk_prepare_enable(host->clk);
 	if (ret)
 		goto err;
+
+	host->max_clk = clk_get_rate(host->clk);
+
+	ret = bcm2835_add_host(host);
+	if (ret)
+		goto err_clk;
 
 	platform_set_drvdata(pdev, host);
 
@@ -1422,6 +1425,8 @@ static int bcm2835_probe(struct platform_device *pdev)
 
 	return 0;
 
+err_clk:
+	clk_disable_unprepare(host->clk);
 err:
 	dev_dbg(dev, "%s -> err %d\n", __func__, ret);
 	if (host->dma_chan_rxtx)
@@ -1445,6 +1450,8 @@ static void bcm2835_remove(struct platform_device *pdev)
 	cancel_work_sync(&host->dma_work);
 	cancel_delayed_work_sync(&host->timeout_work);
 
+	clk_disable_unprepare(host->clk);
+
 	if (host->dma_chan_rxtx)
 		dma_release_channel(host->dma_chan_rxtx);
 
@@ -1459,7 +1466,7 @@ MODULE_DEVICE_TABLE(of, bcm2835_match);
 
 static struct platform_driver bcm2835_driver = {
 	.probe      = bcm2835_probe,
-	.remove_new = bcm2835_remove,
+	.remove     = bcm2835_remove,
 	.driver     = {
 		.name		= "sdhost-bcm2835",
 		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,

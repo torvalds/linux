@@ -401,7 +401,7 @@ static inline int debug_lockdep_rcu_enabled(void)
  */
 #define RCU_LOCKDEP_WARN(c, s)						\
 	do {								\
-		static bool __section(".data.unlikely") __warned;	\
+		static bool __section(".data..unlikely") __warned;	\
 		if (debug_lockdep_rcu_enabled() && (c) &&		\
 		    debug_lockdep_rcu_enabled() && !__warned) {		\
 			__warned = true;				\

@@ -176,6 +176,7 @@
 #define MII_M1011_PHY_STATUS_FULLDUPLEX	0x2000
 #define MII_M1011_PHY_STATUS_RESOLVED	0x0800
 #define MII_M1011_PHY_STATUS_LINK	0x0400
+#define MII_M1011_PHY_STATUS_MDIX	BIT(6)
 
 #define MII_88E3016_PHY_SPEC_CTRL	0x10
 #define MII_88E3016_DISABLE_SCRAMBLER	0x0200
@@ -1722,6 +1723,19 @@ static int marvell_read_status_page(struct phy_device *phydev, int page)
 	phydev->duplex = DUPLEX_UNKNOWN;
 	phydev->port = fiber ? PORT_FIBRE : PORT_TP;
 
+	if (fiber) {
+		phydev->mdix = ETH_TP_MDI_INVALID;
+	} else {
+		/* The MDI-X state is set regardless of Autoneg being enabled
+		 * and reflects forced MDI-X state as well as auto resolution
+		 */
+		if (status & MII_M1011_PHY_STATUS_RESOLVED)
+			phydev->mdix = status & MII_M1011_PHY_STATUS_MDIX ?
+				ETH_TP_MDI_X : ETH_TP_MDI;
+		else
+			phydev->mdix = ETH_TP_MDI_INVALID;
+	}
+
 	if (phydev->autoneg == AUTONEG_ENABLE)
 		err = marvell_read_status_page_an(phydev, fiber, status);
 	else
@@ -2006,10 +2020,8 @@ static void marvell_get_strings(struct phy_device *phydev, u8 *data)
 	int count = marvell_get_sset_count(phydev);
 	int i;
 
-	for (i = 0; i < count; i++) {
-		strscpy(data + i * ETH_GSTRING_LEN,
-			marvell_hw_stats[i].string, ETH_GSTRING_LEN);
-	}
+	for (i = 0; i < count; i++)
+		ethtool_puts(&data, marvell_hw_stats[i].string);
 }
 
 static void marvell_get_strings_simple(struct phy_device *phydev, u8 *data)
@@ -2017,10 +2029,8 @@ static void marvell_get_strings_simple(struct phy_device *phydev, u8 *data)
 	int count = marvell_get_sset_count_simple(phydev);
 	int i;
 
-	for (i = 0; i < count; i++) {
-		strscpy(data + i * ETH_GSTRING_LEN,
-			marvell_hw_stats_simple[i].string, ETH_GSTRING_LEN);
-	}
+	for (i = 0; i < count; i++)
+		ethtool_puts(&data, marvell_hw_stats_simple[i].string);
 }
 
 static u64 marvell_get_stat(struct phy_device *phydev, int i)

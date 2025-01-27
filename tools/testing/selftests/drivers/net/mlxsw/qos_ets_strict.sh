@@ -58,65 +58,62 @@ source qos_lib.sh
 h1_create()
 {
 	simple_if_init $h1
+	defer simple_if_fini $h1
+
 	mtu_set $h1 10000
+	defer mtu_restore $h1
 
 	vlan_create $h1 111 v$h1 192.0.2.33/28
+	defer vlan_destroy $h1 111
 	ip link set dev $h1.111 type vlan egress-qos-map 0:1
-}
-
-h1_destroy()
-{
-	vlan_destroy $h1 111
-
-	mtu_restore $h1
-	simple_if_fini $h1
 }
 
 h2_create()
 {
 	simple_if_init $h2
+	defer simple_if_fini $h2
+
 	mtu_set $h2 10000
+	defer mtu_restore $h2
 
 	vlan_create $h2 222 v$h2 192.0.2.65/28
+	defer vlan_destroy $h2 222
 	ip link set dev $h2.222 type vlan egress-qos-map 0:2
-}
-
-h2_destroy()
-{
-	vlan_destroy $h2 222
-
-	mtu_restore $h2
-	simple_if_fini $h2
 }
 
 h3_create()
 {
 	simple_if_init $h3
+	defer simple_if_fini $h3
+
 	mtu_set $h3 10000
+	defer mtu_restore $h3
 
 	vlan_create $h3 111 v$h3 192.0.2.34/28
+	defer vlan_destroy $h3 111
+
 	vlan_create $h3 222 v$h3 192.0.2.66/28
-}
-
-h3_destroy()
-{
-	vlan_destroy $h3 222
-	vlan_destroy $h3 111
-
-	mtu_restore $h3
-	simple_if_fini $h3
+	defer vlan_destroy $h3 222
 }
 
 switch_create()
 {
 	ip link set dev $swp1 up
+	defer ip link set dev $swp1 down
+
 	mtu_set $swp1 10000
+	defer mtu_restore $swp1
 
 	ip link set dev $swp2 up
+	defer ip link set dev $swp2 down
+
 	mtu_set $swp2 10000
+	defer mtu_restore $swp2
 
 	# prio n -> TC n, strict scheduling
 	lldptool -T -i $swp3 -V ETS-CFG up2tc=0:0,1:1,2:2,3:3,4:4,5:5,6:6,7:7
+	defer lldptool -T -i $swp3 -V ETS-CFG up2tc=0:0,1:0,2:0,3:0,4:0,5:0,6:0,7:0
+
 	lldptool -T -i $swp3 -V ETS-CFG tsa=$(
 			)"0:strict,"$(
 			)"1:strict,"$(
@@ -129,85 +126,90 @@ switch_create()
 	sleep 1
 
 	ip link set dev $swp3 up
+	defer ip link set dev $swp3 down
+
 	mtu_set $swp3 10000
+	defer mtu_restore $swp3
+
 	tc qdisc replace dev $swp3 root handle 101: tbf rate 1gbit \
 		burst 128K limit 1G
+	defer tc qdisc del dev $swp3 root handle 101:
 
 	vlan_create $swp1 111
+	defer vlan_destroy $swp1 111
+
 	vlan_create $swp2 222
+	defer vlan_destroy $swp2 222
+
 	vlan_create $swp3 111
+	defer vlan_destroy $swp3 111
+
 	vlan_create $swp3 222
+	defer vlan_destroy $swp3 222
 
 	ip link add name br111 type bridge vlan_filtering 0
+	defer ip link del dev br111
 	ip link set dev br111 addrgenmode none
+
 	ip link set dev br111 up
+	defer ip link set dev br111 down
+
 	ip link set dev $swp1.111 master br111
+	defer ip link set dev $swp1.111 nomaster
+
 	ip link set dev $swp3.111 master br111
+	defer ip link set dev $swp3.111 nomaster
 
 	ip link add name br222 type bridge vlan_filtering 0
+	defer ip link del dev br222
 	ip link set dev br222 addrgenmode none
+
 	ip link set dev br222 up
+	defer ip link set dev br222 down
+
 	ip link set dev $swp2.222 master br222
+	defer ip link set dev $swp2.222 nomaster
+
 	ip link set dev $swp3.222 master br222
+	defer ip link set dev $swp3.222 nomaster
 
 	# Make sure that ingress quotas are smaller than egress so that there is
 	# room for both streams of traffic to be admitted to shared buffer.
 	devlink_pool_size_thtype_save 0
 	devlink_pool_size_thtype_set 0 dynamic 10000000
+	defer devlink_pool_size_thtype_restore 0
+
 	devlink_pool_size_thtype_save 4
 	devlink_pool_size_thtype_set 4 dynamic 10000000
+	defer devlink_pool_size_thtype_restore 4
 
 	devlink_port_pool_th_save $swp1 0
 	devlink_port_pool_th_set $swp1 0 6
+	defer devlink_port_pool_th_restore $swp1 0
+
 	devlink_tc_bind_pool_th_save $swp1 1 ingress
 	devlink_tc_bind_pool_th_set $swp1 1 ingress 0 6
+	defer devlink_tc_bind_pool_th_restore $swp1 1 ingress
 
 	devlink_port_pool_th_save $swp2 0
 	devlink_port_pool_th_set $swp2 0 6
+	defer devlink_port_pool_th_restore $swp2 0
+
 	devlink_tc_bind_pool_th_save $swp2 2 ingress
 	devlink_tc_bind_pool_th_set $swp2 2 ingress 0 6
+	defer devlink_tc_bind_pool_th_restore $swp2 2 ingress
 
 	devlink_tc_bind_pool_th_save $swp3 1 egress
 	devlink_tc_bind_pool_th_set $swp3 1 egress 4 7
+	defer devlink_tc_bind_pool_th_restore $swp3 1 egress
+
 	devlink_tc_bind_pool_th_save $swp3 2 egress
 	devlink_tc_bind_pool_th_set $swp3 2 egress 4 7
+	defer devlink_tc_bind_pool_th_restore $swp3 2 egress
+
 	devlink_port_pool_th_save $swp3 4
 	devlink_port_pool_th_set $swp3 4 7
-}
-
-switch_destroy()
-{
-	devlink_port_pool_th_restore $swp3 4
-	devlink_tc_bind_pool_th_restore $swp3 2 egress
-	devlink_tc_bind_pool_th_restore $swp3 1 egress
-
-	devlink_tc_bind_pool_th_restore $swp2 2 ingress
-	devlink_port_pool_th_restore $swp2 0
-
-	devlink_tc_bind_pool_th_restore $swp1 1 ingress
-	devlink_port_pool_th_restore $swp1 0
-
-	devlink_pool_size_thtype_restore 4
-	devlink_pool_size_thtype_restore 0
-
-	ip link del dev br222
-	ip link del dev br111
-
-	vlan_destroy $swp3 222
-	vlan_destroy $swp3 111
-	vlan_destroy $swp2 222
-	vlan_destroy $swp1 111
-
-	tc qdisc del dev $swp3 root handle 101:
-	mtu_restore $swp3
-	ip link set dev $swp3 down
-	lldptool -T -i $swp3 -V ETS-CFG up2tc=0:0,1:0,2:0,3:0,4:0,5:0,6:0,7:0
-
-	mtu_restore $swp2
-	ip link set dev $swp2 down
-
-	mtu_restore $swp1
-	ip link set dev $swp1 down
+	defer devlink_port_pool_th_restore $swp3 4
 }
 
 setup_prepare()
@@ -224,23 +226,12 @@ setup_prepare()
 	h3mac=$(mac_get $h3)
 
 	vrf_prepare
+	defer vrf_cleanup
 
 	h1_create
 	h2_create
 	h3_create
 	switch_create
-}
-
-cleanup()
-{
-	pre_cleanup
-
-	switch_destroy
-	h3_destroy
-	h2_destroy
-	h1_destroy
-
-	vrf_cleanup
 }
 
 ping_ipv4()
@@ -261,21 +252,38 @@ rel()
 	"
 }
 
+__run_hi_measure_rate()
+{
+	local what=$1; shift
+	local -a uc_rate
+
+	start_traffic $h2.222 192.0.2.65 192.0.2.66 $h3mac
+	defer stop_traffic $!
+
+	uc_rate=($(measure_rate $swp2 $h3 rx_octets_prio_2 "$what"))
+	check_err $? "Could not get high enough $what ingress rate"
+
+	echo ${uc_rate[@]}
+}
+
+run_hi_measure_rate()
+{
+	in_defer_scope __run_hi_measure_rate "$@"
+}
+
 test_ets_strict()
 {
 	RET=0
 
 	# Run high-prio traffic on its own.
-	start_traffic $h2.222 192.0.2.65 192.0.2.66 $h3mac
 	local -a rate_2
-	rate_2=($(measure_rate $swp2 $h3 rx_octets_prio_2 "prio 2"))
-	check_err $? "Could not get high enough prio-2 ingress rate"
+	rate_2=($(run_hi_measure_rate "prio 2"))
 	local rate_2_in=${rate_2[0]}
 	local rate_2_eg=${rate_2[1]}
-	stop_traffic # $h2.222
 
 	# Start low-prio stream.
 	start_traffic $h1.111 192.0.2.33 192.0.2.34 $h3mac
+	defer stop_traffic $!
 
 	local -a rate_1
 	rate_1=($(measure_rate $swp1 $h3 rx_octets_prio_1 "prio 1"))
@@ -290,14 +298,9 @@ test_ets_strict()
 	check_err $(bc <<< "$rel21 > 105")
 
 	# Start the high-prio stream--now both streams run.
-	start_traffic $h2.222 192.0.2.65 192.0.2.66 $h3mac
-	rate_3=($(measure_rate $swp2 $h3 rx_octets_prio_2 "prio 2 w/ 1"))
-	check_err $? "Could not get high enough prio-2 ingress rate with prio-1"
+	rate_3=($(run_hi_measure_rate "prio 2+1"))
 	local rate_3_in=${rate_3[0]}
 	local rate_3_eg=${rate_3[1]}
-	stop_traffic # $h2.222
-
-	stop_traffic # $h1.111
 
 	# High-prio should have about the same throughput whether or not
 	# low-prio is in the system.

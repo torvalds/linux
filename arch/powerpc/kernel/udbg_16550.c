@@ -205,29 +205,6 @@ void __init udbg_uart_init_mmio(void __iomem *addr, unsigned int stride)
 	udbg_use_uart();
 }
 
-#ifdef CONFIG_PPC_MAPLE
-
-#define UDBG_UART_MAPLE_ADDR	((void __iomem *)0xf40003f8)
-
-static u8 udbg_uart_in_maple(unsigned int reg)
-{
-	return real_readb(UDBG_UART_MAPLE_ADDR + reg);
-}
-
-static void udbg_uart_out_maple(unsigned int reg, u8 val)
-{
-	real_writeb(val, UDBG_UART_MAPLE_ADDR + reg);
-}
-
-void __init udbg_init_maple_realmode(void)
-{
-	udbg_uart_in = udbg_uart_in_maple;
-	udbg_uart_out = udbg_uart_out_maple;
-	udbg_use_uart();
-}
-
-#endif /* CONFIG_PPC_MAPLE */
-
 #ifdef CONFIG_PPC_PASEMI
 
 #define UDBG_UART_PAS_ADDR	((void __iomem *)0xfcff03f8UL)

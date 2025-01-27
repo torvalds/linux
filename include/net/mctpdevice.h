@@ -22,6 +22,7 @@ struct mctp_dev {
 	refcount_t		refs;
 
 	unsigned int		net;
+	enum mctp_phys_binding	binding;
 
 	const struct mctp_netdev_ops *ops;
 
@@ -44,7 +45,8 @@ struct mctp_dev *mctp_dev_get_rtnl(const struct net_device *dev);
 struct mctp_dev *__mctp_dev_get(const struct net_device *dev);
 
 int mctp_register_netdev(struct net_device *dev,
-			 const struct mctp_netdev_ops *ops);
+			 const struct mctp_netdev_ops *ops,
+			 enum mctp_phys_binding binding);
 void mctp_unregister_netdev(struct net_device *dev);
 
 void mctp_dev_hold(struct mctp_dev *mdev);

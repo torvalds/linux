@@ -168,6 +168,6 @@ static struct kunit_suite damon_test_suite = {
 };
 kunit_test_suite(damon_test_suite);
 
-#endif /* _DAMON_TEST_H */
+#endif /* _DAMON_DBGFS_TEST_H */
 
 #endif	/* CONFIG_DAMON_KUNIT_TEST */

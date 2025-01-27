@@ -14,6 +14,7 @@
 struct bch_inode_info {
 	struct inode		v;
 	struct rhash_head	hash;
+	struct rhlist_head	by_inum_hash;
 	subvol_inum		ei_inum;
 
 	struct list_head	ei_vfs_inode_list;

@@ -898,7 +898,7 @@ static umode_t ili210x_attributes_visible(struct kobject *kobj,
 	if (attr == &dev_attr_calibrate.attr)
 		return priv->chip->has_calibrate_reg ? attr->mode : 0;
 
-	/* Firmware/Kernel/Protocol/BootMode is implememted only for ILI251x */
+	/* Firmware/Kernel/Protocol/BootMode is implemented only for ILI251x */
 	if (!priv->chip->has_firmware_proto)
 		return 0;
 

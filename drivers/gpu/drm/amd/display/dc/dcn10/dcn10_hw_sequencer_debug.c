@@ -46,7 +46,7 @@
 #include "clk_mgr.h"
 
 __printf(3, 4)
-unsigned int snprintf_count(char *pbuf, unsigned int bufsize, char *fmt, ...)
+unsigned int snprintf_count(char *pbuf, unsigned int bufsize, const char *fmt, ...)
 {
 	int ret_vsnprintf;
 	unsigned int chars_printed;

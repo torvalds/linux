@@ -6,6 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/ioport.h>
+#include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/ndctl.h>
 #include <linux/sched.h>

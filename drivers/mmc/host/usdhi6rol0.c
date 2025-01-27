@@ -1899,7 +1899,7 @@ static void usdhi6_remove(struct platform_device *pdev)
 
 static struct platform_driver usdhi6_driver = {
 	.probe		= usdhi6_probe,
-	.remove_new	= usdhi6_remove,
+	.remove		= usdhi6_remove,
 	.driver		= {
 		.name	= "usdhi6rol0",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,

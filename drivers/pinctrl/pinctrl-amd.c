@@ -506,7 +506,7 @@ static int amd_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	case IRQ_TYPE_EDGE_BOTH:
 		pin_reg &= ~BIT(LEVEL_TRIG_OFF);
 		pin_reg &= ~(ACTIVE_LEVEL_MASK << ACTIVE_LEVEL_OFF);
-		pin_reg |= BOTH_EADGE << ACTIVE_LEVEL_OFF;
+		pin_reg |= BOTH_EDGES << ACTIVE_LEVEL_OFF;
 		irq_set_handler_locked(d, handle_edge_irq);
 		break;
 
@@ -1204,7 +1204,7 @@ static struct platform_driver amd_gpio_driver = {
 #endif
 	},
 	.probe		= amd_gpio_probe,
-	.remove_new	= amd_gpio_remove,
+	.remove		= amd_gpio_remove,
 };
 
 module_platform_driver(amd_gpio_driver);

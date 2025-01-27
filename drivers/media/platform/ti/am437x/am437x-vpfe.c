@@ -2079,8 +2079,6 @@ static long vpfe_ioctl_default(struct file *file, void *priv,
 }
 
 static const struct vb2_ops vpfe_video_qops = {
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 	.queue_setup		= vpfe_queue_setup,
 	.buf_prepare		= vpfe_buffer_prepare,
 	.buf_queue		= vpfe_buffer_queue,
@@ -2617,7 +2615,7 @@ MODULE_DEVICE_TABLE(of, vpfe_of_match);
 
 static struct platform_driver vpfe_driver = {
 	.probe		= vpfe_probe,
-	.remove_new	= vpfe_remove,
+	.remove		= vpfe_remove,
 	.driver = {
 		.name	= VPFE_MODULE_NAME,
 		.pm	= &vpfe_pm_ops,

@@ -1795,7 +1795,7 @@ MODULE_DEVICE_TABLE(of, mtk_hdmi_of_ids);
 
 static struct platform_driver mtk_hdmi_driver = {
 	.probe = mtk_hdmi_probe,
-	.remove_new = mtk_hdmi_remove,
+	.remove = mtk_hdmi_remove,
 	.driver = {
 		.name = "mediatek-drm-hdmi",
 		.of_match_table = mtk_hdmi_of_ids,

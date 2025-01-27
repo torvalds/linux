@@ -818,7 +818,7 @@ static int swim_floppy_init(struct swim_priv *swd)
 
 	for (drive = 0; drive < swd->floppy_count; drive++) {
 		err = blk_mq_alloc_sq_tag_set(&swd->unit[drive].tag_set,
-				&swim_mq_ops, 2, BLK_MQ_F_SHOULD_MERGE);
+				&swim_mq_ops, 2, 0);
 		if (err)
 			goto exit_put_disks;
 
@@ -944,7 +944,7 @@ static void swim_remove(struct platform_device *dev)
 
 static struct platform_driver swim_driver = {
 	.probe  = swim_probe,
-	.remove_new = swim_remove,
+	.remove = swim_remove,
 	.driver   = {
 		.name	= CARDNAME,
 	},

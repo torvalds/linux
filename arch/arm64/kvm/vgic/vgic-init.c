@@ -322,7 +322,7 @@ int vgic_init(struct kvm *kvm)
 			goto out;
 
 		for (i = 0; i < VGIC_NR_PRIVATE_IRQS; i++) {
-			struct vgic_irq *irq = vgic_get_irq(kvm, vcpu, i);
+			struct vgic_irq *irq = vgic_get_vcpu_irq(vcpu, i);
 
 			switch (dist->vgic_model) {
 			case KVM_DEV_TYPE_ARM_VGIC_V3:

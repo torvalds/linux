@@ -1132,9 +1132,6 @@ static int lp55xx_parse_common_child(struct device_node *np,
 	if (ret)
 		return ret;
 
-	if (*chan_nr < 0 || *chan_nr > cfg->max_channel)
-		return -EINVAL;
-
 	return 0;
 }
 

@@ -648,7 +648,7 @@ static struct platform_driver pruss_intc_driver = {
 		.suppress_bind_attrs	= true,
 	},
 	.probe		= pruss_intc_probe,
-	.remove_new	= pruss_intc_remove,
+	.remove		= pruss_intc_remove,
 };
 module_platform_driver(pruss_intc_driver);
 

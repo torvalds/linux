@@ -121,7 +121,7 @@ static struct platform_driver ehea_driver = {
 		.of_match_table = ehea_device_table,
 	},
 	.probe = ehea_probe_adapter,
-	.remove_new = ehea_remove,
+	.remove = ehea_remove,
 };
 
 void ehea_dump(void *adr, int len, char *msg)

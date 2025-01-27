@@ -75,4 +75,4 @@ MODULE_AUTHOR("Pandith N <pandith.n@intel.com>");
 MODULE_AUTHOR("Raag Jadav <raag.jadav@intel.com>");
 MODULE_DESCRIPTION("Intel Elkhart Lake PSE GPIO driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(GPIO_TANGIER);
+MODULE_IMPORT_NS("GPIO_TANGIER");

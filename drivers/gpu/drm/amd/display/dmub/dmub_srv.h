@@ -301,6 +301,7 @@ struct dmub_srv_hw_params {
 	bool disallow_phy_access;
 	bool disable_sldo_opt;
 	bool enable_non_transparent_setconfig;
+	bool lower_hbr3_phy_ssc;
 };
 
 /**
@@ -568,6 +569,14 @@ struct dmub_notification {
 		struct dmub_rb_cmd_dpia_notification dpia_notification;
 		struct dmub_rb_cmd_hpd_sense_notify_data hpd_sense_notify;
 	};
+};
+
+/* enum dmub_ips_mode - IPS mode identifier */
+enum dmub_ips_mode {
+	DMUB_IPS_MODE_IPS1_MAX		= 0,
+	DMUB_IPS_MODE_IPS2,
+	DMUB_IPS_MODE_IPS1_RCG,
+	DMUB_IPS_MODE_IPS1_ONO2_ON
 };
 
 /**

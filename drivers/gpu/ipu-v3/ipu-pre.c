@@ -374,7 +374,7 @@ static const struct of_device_id ipu_pre_dt_ids[] = {
 
 struct platform_driver ipu_pre_drv = {
 	.probe		= ipu_pre_probe,
-	.remove_new	= ipu_pre_remove,
+	.remove		= ipu_pre_remove,
 	.driver		= {
 		.name	= "imx-ipu-pre",
 		.of_match_table = ipu_pre_dt_ids,

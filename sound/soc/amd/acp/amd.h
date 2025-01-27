@@ -16,13 +16,8 @@
 #include <sound/soc-acpi.h>
 #include <sound/soc-dai.h>
 
+#include "acp_common.h"
 #include "chip_offset_byte.h"
-
-#define ACP3X_DEV			3
-#define ACP6X_DEV			6
-#define ACP63_DEV			0x63
-#define ACP70_DEV			0x70
-#define ACP71_DEV			0x71
 
 #define DMIC_INSTANCE			0x00
 #define I2S_SP_INSTANCE			0x01
@@ -182,6 +177,7 @@ struct acp_dev_data {
 	struct device *dev;
 	void __iomem *acp_base;
 	unsigned int i2s_irq;
+	unsigned int acp_rev;	/* ACP Revision id */
 
 	bool tdm_mode;
 	bool is_i2s_config;
@@ -205,7 +201,6 @@ struct acp_dev_data {
 	u32 xfer_tx_resolution[3];
 	u32 xfer_rx_resolution[3];
 	unsigned int flag;
-	unsigned int platform;
 };
 
 enum acp_config {

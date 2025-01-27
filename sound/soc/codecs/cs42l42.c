@@ -329,7 +329,7 @@ bool cs42l42_readable_register(struct device *dev, unsigned int reg)
 		return false;
 	}
 }
-EXPORT_SYMBOL_NS_GPL(cs42l42_readable_register, SND_SOC_CS42L42_CORE);
+EXPORT_SYMBOL_NS_GPL(cs42l42_readable_register, "SND_SOC_CS42L42_CORE");
 
 bool cs42l42_volatile_register(struct device *dev, unsigned int reg)
 {
@@ -363,7 +363,7 @@ bool cs42l42_volatile_register(struct device *dev, unsigned int reg)
 		return false;
 	}
 }
-EXPORT_SYMBOL_NS_GPL(cs42l42_volatile_register, SND_SOC_CS42L42_CORE);
+EXPORT_SYMBOL_NS_GPL(cs42l42_volatile_register, "SND_SOC_CS42L42_CORE");
 
 const struct regmap_range_cfg cs42l42_page_range = {
 	.name = "Pages",
@@ -375,7 +375,7 @@ const struct regmap_range_cfg cs42l42_page_range = {
 	.window_start = 0,
 	.window_len = 256,
 };
-EXPORT_SYMBOL_NS_GPL(cs42l42_page_range, SND_SOC_CS42L42_CORE);
+EXPORT_SYMBOL_NS_GPL(cs42l42_page_range, "SND_SOC_CS42L42_CORE");
 
 const struct regmap_config cs42l42_regmap = {
 	.reg_bits = 8,
@@ -395,7 +395,7 @@ const struct regmap_config cs42l42_regmap = {
 	.use_single_read = true,
 	.use_single_write = true,
 };
-EXPORT_SYMBOL_NS_GPL(cs42l42_regmap, SND_SOC_CS42L42_CORE);
+EXPORT_SYMBOL_NS_GPL(cs42l42_regmap, "SND_SOC_CS42L42_CORE");
 
 static DECLARE_TLV_DB_SCALE(adc_tlv, -9700, 100, true);
 static DECLARE_TLV_DB_SCALE(mixer_tlv, -6300, 100, true);
@@ -596,7 +596,7 @@ const struct snd_soc_component_driver cs42l42_soc_component = {
 	.num_controls		= ARRAY_SIZE(cs42l42_snd_controls),
 	.endianness		= 1,
 };
-EXPORT_SYMBOL_NS_GPL(cs42l42_soc_component, SND_SOC_CS42L42_CORE);
+EXPORT_SYMBOL_NS_GPL(cs42l42_soc_component, "SND_SOC_CS42L42_CORE");
 
 /* Switch to SCLK. Atomic delay after the write to allow the switch to complete. */
 static const struct reg_sequence cs42l42_to_sclk_seq[] = {
@@ -748,7 +748,7 @@ int cs42l42_pll_config(struct snd_soc_component *component, unsigned int clk,
 
 	return -EINVAL;
 }
-EXPORT_SYMBOL_NS_GPL(cs42l42_pll_config, SND_SOC_CS42L42_CORE);
+EXPORT_SYMBOL_NS_GPL(cs42l42_pll_config, "SND_SOC_CS42L42_CORE");
 
 void cs42l42_src_config(struct snd_soc_component *component, unsigned int sample_rate)
 {
@@ -782,7 +782,7 @@ void cs42l42_src_config(struct snd_soc_component *component, unsigned int sample
 				      CS42L42_CLK_OASRC_SEL_MASK,
 				      fs << CS42L42_CLK_OASRC_SEL_SHIFT);
 }
-EXPORT_SYMBOL_NS_GPL(cs42l42_src_config, SND_SOC_CS42L42_CORE);
+EXPORT_SYMBOL_NS_GPL(cs42l42_src_config, "SND_SOC_CS42L42_CORE");
 
 static int cs42l42_asp_config(struct snd_soc_component *component,
 			      unsigned int sclk, unsigned int sample_rate)
@@ -1116,7 +1116,7 @@ int cs42l42_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(cs42l42_mute_stream, SND_SOC_CS42L42_CORE);
+EXPORT_SYMBOL_NS_GPL(cs42l42_mute_stream, "SND_SOC_CS42L42_CORE");
 
 #define CS42L42_FORMATS (SNDRV_PCM_FMTBIT_S16_LE |\
 			 SNDRV_PCM_FMTBIT_S24_LE |\
@@ -1151,7 +1151,7 @@ struct snd_soc_dai_driver cs42l42_dai = {
 		.symmetric_sample_bits = 1,
 		.ops = &cs42l42_ops,
 };
-EXPORT_SYMBOL_NS_GPL(cs42l42_dai, SND_SOC_CS42L42_CORE);
+EXPORT_SYMBOL_NS_GPL(cs42l42_dai, "SND_SOC_CS42L42_CORE");
 
 static void cs42l42_manual_hs_type_detect(struct cs42l42_private *cs42l42)
 {
@@ -1780,7 +1780,7 @@ irqreturn_t cs42l42_irq_thread(int irq, void *data)
 
 	return IRQ_HANDLED;
 }
-EXPORT_SYMBOL_NS_GPL(cs42l42_irq_thread, SND_SOC_CS42L42_CORE);
+EXPORT_SYMBOL_NS_GPL(cs42l42_irq_thread, "SND_SOC_CS42L42_CORE");
 
 static void cs42l42_set_interrupt_masks(struct cs42l42_private *cs42l42)
 {
@@ -2211,7 +2211,7 @@ int cs42l42_suspend(struct device *dev)
 	return 0;
 
 }
-EXPORT_SYMBOL_NS_GPL(cs42l42_suspend, SND_SOC_CS42L42_CORE);
+EXPORT_SYMBOL_NS_GPL(cs42l42_suspend, "SND_SOC_CS42L42_CORE");
 
 int cs42l42_resume(struct device *dev)
 {
@@ -2242,7 +2242,7 @@ int cs42l42_resume(struct device *dev)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(cs42l42_resume, SND_SOC_CS42L42_CORE);
+EXPORT_SYMBOL_NS_GPL(cs42l42_resume, "SND_SOC_CS42L42_CORE");
 
 void cs42l42_resume_restore(struct device *dev)
 {
@@ -2261,7 +2261,7 @@ void cs42l42_resume_restore(struct device *dev)
 
 	dev_dbg(dev, "System resumed\n");
 }
-EXPORT_SYMBOL_NS_GPL(cs42l42_resume_restore, SND_SOC_CS42L42_CORE);
+EXPORT_SYMBOL_NS_GPL(cs42l42_resume_restore, "SND_SOC_CS42L42_CORE");
 
 static int __maybe_unused cs42l42_i2c_resume(struct device *dev)
 {
@@ -2370,7 +2370,7 @@ err_disable_noreset:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(cs42l42_common_probe, SND_SOC_CS42L42_CORE);
+EXPORT_SYMBOL_NS_GPL(cs42l42_common_probe, "SND_SOC_CS42L42_CORE");
 
 int cs42l42_init(struct cs42l42_private *cs42l42)
 {
@@ -2464,7 +2464,7 @@ err_disable:
 				cs42l42->supplies);
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(cs42l42_init, SND_SOC_CS42L42_CORE);
+EXPORT_SYMBOL_NS_GPL(cs42l42_init, "SND_SOC_CS42L42_CORE");
 
 void cs42l42_common_remove(struct cs42l42_private *cs42l42)
 {
@@ -2484,7 +2484,7 @@ void cs42l42_common_remove(struct cs42l42_private *cs42l42)
 	gpiod_set_value_cansleep(cs42l42->reset_gpio, 0);
 	regulator_bulk_disable(ARRAY_SIZE(cs42l42->supplies), cs42l42->supplies);
 }
-EXPORT_SYMBOL_NS_GPL(cs42l42_common_remove, SND_SOC_CS42L42_CORE);
+EXPORT_SYMBOL_NS_GPL(cs42l42_common_remove, "SND_SOC_CS42L42_CORE");
 
 MODULE_DESCRIPTION("ASoC CS42L42 driver");
 MODULE_AUTHOR("James Schulman, Cirrus Logic Inc, <james.schulman@cirrus.com>");

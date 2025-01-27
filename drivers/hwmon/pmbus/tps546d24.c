@@ -68,4 +68,4 @@ module_i2c_driver(tps546d24_driver);
 MODULE_AUTHOR("Duke Du <dukedu83@gmail.com>");
 MODULE_DESCRIPTION("PMBus driver for TI tps546d24");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(PMBUS);
+MODULE_IMPORT_NS("PMBUS");

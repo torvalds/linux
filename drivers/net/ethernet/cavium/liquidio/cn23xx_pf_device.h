@@ -59,8 +59,6 @@ int validate_cn23xx_pf_config_info(struct octeon_device *oct,
 
 u32 cn23xx_pf_get_oq_ticks(struct octeon_device *oct, u32 time_intr_in_us);
 
-void cn23xx_dump_pf_initialized_regs(struct octeon_device *oct);
-
 int cn23xx_sriov_config(struct octeon_device *oct);
 
 int cn23xx_fw_loaded(struct octeon_device *oct);

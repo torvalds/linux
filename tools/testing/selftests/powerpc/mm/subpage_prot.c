@@ -211,8 +211,8 @@ int test_file(void)
 		perror("failed to map file");
 		return 1;
 	}
-	printf("allocated %s for 0x%lx bytes at %p\n",
-	       file_name, filesize, fileblock);
+	printf("allocated %s for 0x%llx bytes at %p\n",
+	       file_name, (long long)filesize, fileblock);
 
 	printf("testing file map...\n");
 

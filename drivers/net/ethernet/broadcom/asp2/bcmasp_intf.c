@@ -365,6 +365,9 @@ static netdev_tx_t bcmasp_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	intf->tx_spb_index = spb_index;
 	intf->tx_spb_dma_valid = valid;
+
+	skb_tx_timestamp(skb);
+
 	bcmasp_intf_tx_write(intf, intf->tx_spb_dma_valid);
 
 	if (tx_spb_ring_full(intf, MAX_SKB_FRAGS + 1))

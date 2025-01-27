@@ -47,12 +47,13 @@ long sys_ni_syscall(void);
  */
 static union {
 	struct vdso_arch_data	data;
-	u8			page[PAGE_SIZE];
+	u8			page[2 * PAGE_SIZE];
 } vdso_data_store __page_aligned_data;
 struct vdso_arch_data *vdso_data = &vdso_data_store.data;
 
 enum vvar_pages {
-	VVAR_DATA_PAGE_OFFSET,
+	VVAR_BASE_PAGE_OFFSET,
+	VVAR_TIME_PAGE_OFFSET,
 	VVAR_TIMENS_PAGE_OFFSET,
 	VVAR_NR_PAGES,
 };
@@ -118,7 +119,7 @@ static struct vm_special_mapping vdso64_spec __ro_after_init = {
 #ifdef CONFIG_TIME_NS
 struct vdso_data *arch_get_vdso_data(void *vvar_page)
 {
-	return ((struct vdso_arch_data *)vvar_page)->data;
+	return vvar_page;
 }
 
 /*
@@ -152,11 +153,14 @@ static vm_fault_t vvar_fault(const struct vm_special_mapping *sm,
 	unsigned long pfn;
 
 	switch (vmf->pgoff) {
-	case VVAR_DATA_PAGE_OFFSET:
+	case VVAR_BASE_PAGE_OFFSET:
+		pfn = virt_to_pfn(vdso_data);
+		break;
+	case VVAR_TIME_PAGE_OFFSET:
 		if (timens_page)
 			pfn = page_to_pfn(timens_page);
 		else
-			pfn = virt_to_pfn(vdso_data);
+			pfn = virt_to_pfn(vdso_data->data);
 		break;
 #ifdef CONFIG_TIME_NS
 	case VVAR_TIMENS_PAGE_OFFSET:
@@ -169,7 +173,7 @@ static vm_fault_t vvar_fault(const struct vm_special_mapping *sm,
 		 */
 		if (!timens_page)
 			return VM_FAULT_SIGBUS;
-		pfn = virt_to_pfn(vdso_data);
+		pfn = virt_to_pfn(vdso_data->data);
 		break;
 #endif /* CONFIG_TIME_NS */
 	default:

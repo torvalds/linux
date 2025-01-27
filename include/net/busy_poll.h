@@ -52,6 +52,9 @@ void napi_busy_loop_rcu(unsigned int napi_id,
 			bool (*loop_end)(void *, unsigned long),
 			void *loop_end_arg, bool prefer_busy_poll, u16 budget);
 
+void napi_suspend_irqs(unsigned int napi_id);
+void napi_resume_irqs(unsigned int napi_id);
+
 #else /* CONFIG_NET_RX_BUSY_POLL */
 static inline unsigned long net_busy_loop_on(void)
 {
@@ -168,14 +171,6 @@ static inline void sk_mark_napi_id_once(struct sock *sk,
 {
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	__sk_mark_napi_id_once(sk, skb->napi_id);
-#endif
-}
-
-static inline void sk_mark_napi_id_once_xdp(struct sock *sk,
-					    const struct xdp_buff *xdp)
-{
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	__sk_mark_napi_id_once(sk, xdp->rxq->napi_id);
 #endif
 }
 

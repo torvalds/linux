@@ -48,11 +48,12 @@ bool intel_dsb_buffer_create(struct intel_crtc *crtc, struct intel_dsb_buffer *d
 	if (!vma)
 		return false;
 
+	/* Set scanout flag for WC mapping */
 	obj = xe_bo_create_pin_map(xe, xe_device_get_root_tile(xe),
 				   NULL, PAGE_ALIGN(size),
 				   ttm_bo_type_kernel,
 				   XE_BO_FLAG_VRAM_IF_DGFX(xe_device_get_root_tile(xe)) |
-				   XE_BO_FLAG_GGTT);
+				   XE_BO_FLAG_SCANOUT | XE_BO_FLAG_GGTT);
 	if (IS_ERR(obj)) {
 		kfree(vma);
 		return false;
@@ -73,5 +74,9 @@ void intel_dsb_buffer_cleanup(struct intel_dsb_buffer *dsb_buf)
 
 void intel_dsb_buffer_flush_map(struct intel_dsb_buffer *dsb_buf)
 {
-	/* TODO: add xe specific flush_map() for dsb buffer object. */
+	/*
+	 * The memory barrier here is to ensure coherency of DSB vs MMIO,
+	 * both for weak ordering archs and discrete cards.
+	 */
+	xe_device_wmb(dsb_buf->vma->bo->tile->xe);
 }

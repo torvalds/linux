@@ -14,6 +14,7 @@
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_gtt_defs.h"
 #include "regs/xe_guc_regs.h"
+#include "regs/xe_irq_regs.h"
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_force_wake.h"
@@ -22,6 +23,7 @@
 #include "xe_gt_sriov_vf.h"
 #include "xe_gt_throttle.h"
 #include "xe_guc_ads.h"
+#include "xe_guc_capture.h"
 #include "xe_guc_ct.h"
 #include "xe_guc_db_mgr.h"
 #include "xe_guc_hwconfig.h"
@@ -68,7 +70,7 @@ static u32 guc_ctl_debug_flags(struct xe_guc *guc)
 
 static u32 guc_ctl_feature_flags(struct xe_guc *guc)
 {
-	u32 flags = 0;
+	u32 flags = GUC_CTL_ENABLE_LITE_RESTORE;
 
 	if (!guc_to_xe(guc)->info.skip_guc_pc)
 		flags |= GUC_CTL_ENABLE_SLPC;
@@ -236,20 +238,21 @@ static void guc_write_params(struct xe_guc *guc)
 
 	xe_force_wake_assert_held(gt_to_fw(gt), XE_FW_GT);
 
-	xe_mmio_write32(gt, SOFT_SCRATCH(0), 0);
+	xe_mmio_write32(&gt->mmio, SOFT_SCRATCH(0), 0);
 
 	for (i = 0; i < GUC_CTL_MAX_DWORDS; i++)
-		xe_mmio_write32(gt, SOFT_SCRATCH(1 + i), guc->params[i]);
+		xe_mmio_write32(&gt->mmio, SOFT_SCRATCH(1 + i), guc->params[i]);
 }
 
 static void guc_fini_hw(void *arg)
 {
 	struct xe_guc *guc = arg;
 	struct xe_gt *gt = guc_to_gt(guc);
+	unsigned int fw_ref;
 
-	xe_gt_WARN_ON(gt, xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL));
+	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
 	xe_uc_fini_hw(&guc_to_gt(guc)->uc);
-	xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL);
+	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 }
 
 /**
@@ -335,6 +338,10 @@ int xe_guc_init(struct xe_guc *guc)
 	}
 
 	ret = xe_guc_log_init(&guc->log);
+	if (ret)
+		goto out;
+
+	ret = xe_guc_capture_init(guc);
 	if (ret)
 		goto out;
 
@@ -425,6 +432,7 @@ int xe_guc_post_load_init(struct xe_guc *guc)
 int xe_guc_reset(struct xe_guc *guc)
 {
 	struct xe_gt *gt = guc_to_gt(guc);
+	struct xe_mmio *mmio = &gt->mmio;
 	u32 guc_status, gdrst;
 	int ret;
 
@@ -433,15 +441,15 @@ int xe_guc_reset(struct xe_guc *guc)
 	if (IS_SRIOV_VF(gt_to_xe(gt)))
 		return xe_gt_sriov_vf_bootstrap(gt);
 
-	xe_mmio_write32(gt, GDRST, GRDOM_GUC);
+	xe_mmio_write32(mmio, GDRST, GRDOM_GUC);
 
-	ret = xe_mmio_wait32(gt, GDRST, GRDOM_GUC, 0, 5000, &gdrst, false);
+	ret = xe_mmio_wait32(mmio, GDRST, GRDOM_GUC, 0, 5000, &gdrst, false);
 	if (ret) {
 		xe_gt_err(gt, "GuC reset timed out, GDRST=%#x\n", gdrst);
 		goto err_out;
 	}
 
-	guc_status = xe_mmio_read32(gt, GUC_STATUS);
+	guc_status = xe_mmio_read32(mmio, GUC_STATUS);
 	if (!(guc_status & GS_MIA_IN_RESET)) {
 		xe_gt_err(gt, "GuC status: %#x, MIA core expected to be in reset\n",
 			  guc_status);
@@ -459,6 +467,7 @@ err_out:
 static void guc_prepare_xfer(struct xe_guc *guc)
 {
 	struct xe_gt *gt = guc_to_gt(guc);
+	struct xe_mmio *mmio = &gt->mmio;
 	struct xe_device *xe =  guc_to_xe(guc);
 	u32 shim_flags = GUC_ENABLE_READ_CACHE_LOGIC |
 		GUC_ENABLE_READ_CACHE_FOR_SRAM_DATA |
@@ -473,12 +482,12 @@ static void guc_prepare_xfer(struct xe_guc *guc)
 		shim_flags |= REG_FIELD_PREP(GUC_MOCS_INDEX_MASK, gt->mocs.uc_index);
 
 	/* Must program this register before loading the ucode with DMA */
-	xe_mmio_write32(gt, GUC_SHIM_CONTROL, shim_flags);
+	xe_mmio_write32(mmio, GUC_SHIM_CONTROL, shim_flags);
 
-	xe_mmio_write32(gt, GT_PM_CONFIG, GT_DOORBELL_ENABLE);
+	xe_mmio_write32(mmio, GT_PM_CONFIG, GT_DOORBELL_ENABLE);
 
 	/* Make sure GuC receives ARAT interrupts */
-	xe_mmio_rmw32(gt, PMINTRMSK, ARAT_EXPIRED_INTRMSK, 0);
+	xe_mmio_rmw32(mmio, PMINTRMSK, ARAT_EXPIRED_INTRMSK, 0);
 }
 
 /*
@@ -494,7 +503,7 @@ static int guc_xfer_rsa(struct xe_guc *guc)
 	if (guc->fw.rsa_size > 256) {
 		u32 rsa_ggtt_addr = xe_bo_ggtt_addr(guc->fw.bo) +
 				    xe_uc_fw_rsa_offset(&guc->fw);
-		xe_mmio_write32(gt, UOS_RSA_SCRATCH(0), rsa_ggtt_addr);
+		xe_mmio_write32(&gt->mmio, UOS_RSA_SCRATCH(0), rsa_ggtt_addr);
 		return 0;
 	}
 
@@ -503,7 +512,7 @@ static int guc_xfer_rsa(struct xe_guc *guc)
 		return -ENOMEM;
 
 	for (i = 0; i < UOS_RSA_SCRATCH_COUNT; i++)
-		xe_mmio_write32(gt, UOS_RSA_SCRATCH(i), rsa[i]);
+		xe_mmio_write32(&gt->mmio, UOS_RSA_SCRATCH(i), rsa[i]);
 
 	return 0;
 }
@@ -583,7 +592,7 @@ static s32 guc_pc_get_cur_freq(struct xe_guc_pc *guc_pc)
  * extreme thermal throttling. And a system that is that hot during boot is probably
  * dead anyway!
  */
-#if defined(CONFIG_DRM_XE_DEBUG)
+#if IS_ENABLED(CONFIG_DRM_XE_DEBUG)
 #define GUC_LOAD_RETRY_LIMIT	20
 #else
 #define GUC_LOAD_RETRY_LIMIT	3
@@ -593,6 +602,7 @@ static s32 guc_pc_get_cur_freq(struct xe_guc_pc *guc_pc)
 static void guc_wait_ucode(struct xe_guc *guc)
 {
 	struct xe_gt *gt = guc_to_gt(guc);
+	struct xe_mmio *mmio = &gt->mmio;
 	struct xe_guc_pc *guc_pc = &gt->uc.guc.pc;
 	ktime_t before, after, delta;
 	int load_done;
@@ -619,7 +629,7 @@ static void guc_wait_ucode(struct xe_guc *guc)
 		 * timeouts rather than allowing a huge timeout each time. So basically, need
 		 * to treat a timeout no different to a value change.
 		 */
-		ret = xe_mmio_wait32_not(gt, GUC_STATUS, GS_UKERNEL_MASK | GS_BOOTROM_MASK,
+		ret = xe_mmio_wait32_not(mmio, GUC_STATUS, GS_UKERNEL_MASK | GS_BOOTROM_MASK,
 					 last_status, 1000 * 1000, &status, false);
 		if (ret < 0)
 			count++;
@@ -657,7 +667,7 @@ static void guc_wait_ucode(struct xe_guc *guc)
 		switch (bootrom) {
 		case XE_BOOTROM_STATUS_NO_KEY_FOUND:
 			xe_gt_err(gt, "invalid key requested, header = 0x%08X\n",
-				  xe_mmio_read32(gt, GUC_HEADER_INFO));
+				  xe_mmio_read32(mmio, GUC_HEADER_INFO));
 			break;
 
 		case XE_BOOTROM_STATUS_RSA_FAILED:
@@ -672,7 +682,7 @@ static void guc_wait_ucode(struct xe_guc *guc)
 		switch (ukernel) {
 		case XE_GUC_LOAD_STATUS_EXCEPTION:
 			xe_gt_err(gt, "firmware exception. EIP: %#x\n",
-				  xe_mmio_read32(gt, SOFT_SCRATCH(13)));
+				  xe_mmio_read32(mmio, SOFT_SCRATCH(13)));
 			break;
 
 		case XE_GUC_LOAD_STATUS_INIT_MMIO_SAVE_RESTORE_INVALID:
@@ -824,10 +834,10 @@ static void guc_handle_mmio_msg(struct xe_guc *guc)
 
 	xe_force_wake_assert_held(gt_to_fw(gt), XE_FW_GT);
 
-	msg = xe_mmio_read32(gt, SOFT_SCRATCH(15));
+	msg = xe_mmio_read32(&gt->mmio, SOFT_SCRATCH(15));
 	msg &= XE_GUC_RECV_MSG_EXCEPTION |
 		XE_GUC_RECV_MSG_CRASH_DUMP_POSTED;
-	xe_mmio_write32(gt, SOFT_SCRATCH(15), 0);
+	xe_mmio_write32(&gt->mmio, SOFT_SCRATCH(15), 0);
 
 	if (msg & XE_GUC_RECV_MSG_CRASH_DUMP_POSTED)
 		xe_gt_err(gt, "Received early GuC crash dump notification!\n");
@@ -844,14 +854,14 @@ static void guc_enable_irq(struct xe_guc *guc)
 		REG_FIELD_PREP(ENGINE1_MASK, GUC_INTR_GUC2HOST);
 
 	/* Primary GuC and media GuC share a single enable bit */
-	xe_mmio_write32(gt, GUC_SG_INTR_ENABLE,
+	xe_mmio_write32(&gt->mmio, GUC_SG_INTR_ENABLE,
 			REG_FIELD_PREP(ENGINE1_MASK, GUC_INTR_GUC2HOST));
 
 	/*
 	 * There are separate mask bits for primary and media GuCs, so use
 	 * a RMW operation to avoid clobbering the other GuC's setting.
 	 */
-	xe_mmio_rmw32(gt, GUC_SG_INTR_MASK, events, 0);
+	xe_mmio_rmw32(&gt->mmio, GUC_SG_INTR_MASK, events, 0);
 }
 
 int xe_guc_enable_communication(struct xe_guc *guc)
@@ -863,7 +873,7 @@ int xe_guc_enable_communication(struct xe_guc *guc)
 		struct xe_gt *gt = guc_to_gt(guc);
 		struct xe_tile *tile = gt_to_tile(gt);
 
-		err = xe_memirq_init_guc(&tile->sriov.vf.memirq, guc);
+		err = xe_memirq_init_guc(&tile->memirq, guc);
 		if (err)
 			return err;
 	} else {
@@ -907,7 +917,7 @@ void xe_guc_notify(struct xe_guc *guc)
 	 * additional payload data to the GuC but this capability is not
 	 * used by the firmware yet. Use default value in the meantime.
 	 */
-	xe_mmio_write32(gt, guc->notify_reg, default_notify_data);
+	xe_mmio_write32(&gt->mmio, guc->notify_reg, default_notify_data);
 }
 
 int xe_guc_auth_huc(struct xe_guc *guc, u32 rsa_addr)
@@ -925,6 +935,7 @@ int xe_guc_mmio_send_recv(struct xe_guc *guc, const u32 *request,
 {
 	struct xe_device *xe = guc_to_xe(guc);
 	struct xe_gt *gt = guc_to_gt(guc);
+	struct xe_mmio *mmio = &gt->mmio;
 	u32 header, reply;
 	struct xe_reg reply_reg = xe_gt_is_media_type(gt) ?
 		MED_VF_SW_FLAG(0) : VF_SW_FLAG(0);
@@ -947,19 +958,19 @@ retry:
 	/* Not in critical data-path, just do if else for GT type */
 	if (xe_gt_is_media_type(gt)) {
 		for (i = 0; i < len; ++i)
-			xe_mmio_write32(gt, MED_VF_SW_FLAG(i),
+			xe_mmio_write32(mmio, MED_VF_SW_FLAG(i),
 					request[i]);
-		xe_mmio_read32(gt, MED_VF_SW_FLAG(LAST_INDEX));
+		xe_mmio_read32(mmio, MED_VF_SW_FLAG(LAST_INDEX));
 	} else {
 		for (i = 0; i < len; ++i)
-			xe_mmio_write32(gt, VF_SW_FLAG(i),
+			xe_mmio_write32(mmio, VF_SW_FLAG(i),
 					request[i]);
-		xe_mmio_read32(gt, VF_SW_FLAG(LAST_INDEX));
+		xe_mmio_read32(mmio, VF_SW_FLAG(LAST_INDEX));
 	}
 
 	xe_guc_notify(guc);
 
-	ret = xe_mmio_wait32(gt, reply_reg, GUC_HXG_MSG_0_ORIGIN,
+	ret = xe_mmio_wait32(mmio, reply_reg, GUC_HXG_MSG_0_ORIGIN,
 			     FIELD_PREP(GUC_HXG_MSG_0_ORIGIN, GUC_HXG_ORIGIN_GUC),
 			     50000, &reply, false);
 	if (ret) {
@@ -969,7 +980,7 @@ timeout:
 		return ret;
 	}
 
-	header = xe_mmio_read32(gt, reply_reg);
+	header = xe_mmio_read32(mmio, reply_reg);
 	if (FIELD_GET(GUC_HXG_MSG_0_TYPE, header) ==
 	    GUC_HXG_TYPE_NO_RESPONSE_BUSY) {
 		/*
@@ -985,7 +996,7 @@ timeout:
 		BUILD_BUG_ON(FIELD_MAX(GUC_HXG_MSG_0_TYPE) != GUC_HXG_TYPE_RESPONSE_SUCCESS);
 		BUILD_BUG_ON((GUC_HXG_TYPE_RESPONSE_SUCCESS ^ GUC_HXG_TYPE_RESPONSE_FAILURE) != 1);
 
-		ret = xe_mmio_wait32(gt, reply_reg,  resp_mask, resp_mask,
+		ret = xe_mmio_wait32(mmio, reply_reg, resp_mask, resp_mask,
 				     1000000, &header, false);
 
 		if (unlikely(FIELD_GET(GUC_HXG_MSG_0_ORIGIN, header) !=
@@ -1032,7 +1043,7 @@ proto:
 
 		for (i = 1; i < VF_SW_FLAG_COUNT; i++) {
 			reply_reg.addr += sizeof(u32);
-			response_buf[i] = xe_mmio_read32(gt, reply_reg);
+			response_buf[i] = xe_mmio_read32(mmio, reply_reg);
 		}
 	}
 
@@ -1145,17 +1156,17 @@ int xe_guc_start(struct xe_guc *guc)
 void xe_guc_print_info(struct xe_guc *guc, struct drm_printer *p)
 {
 	struct xe_gt *gt = guc_to_gt(guc);
+	unsigned int fw_ref;
 	u32 status;
-	int err;
 	int i;
 
 	xe_uc_fw_print(&guc->fw, p);
 
-	err = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
-	if (err)
+	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
+	if (!fw_ref)
 		return;
 
-	status = xe_mmio_read32(gt, GUC_STATUS);
+	status = xe_mmio_read32(&gt->mmio, GUC_STATUS);
 
 	drm_printf(p, "\nGuC status 0x%08x:\n", status);
 	drm_printf(p, "\tBootrom status = 0x%x\n",
@@ -1170,12 +1181,15 @@ void xe_guc_print_info(struct xe_guc *guc, struct drm_printer *p)
 	drm_puts(p, "\nScratch registers:\n");
 	for (i = 0; i < SOFT_SCRATCH_COUNT; i++) {
 		drm_printf(p, "\t%2d: \t0x%x\n",
-			   i, xe_mmio_read32(gt, SOFT_SCRATCH(i)));
+			   i, xe_mmio_read32(&gt->mmio, SOFT_SCRATCH(i)));
 	}
 
-	xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
+	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 
+	drm_puts(p, "\n");
 	xe_guc_ct_print(&guc->ct, p, false);
+
+	drm_puts(p, "\n");
 	xe_guc_submit_print(guc, p);
 }
 

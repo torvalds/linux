@@ -31,49 +31,42 @@ int iforce_send_packet(struct iforce *iforce, u16 cmd, unsigned char* data)
 	int c;
 	int empty;
 	int head, tail;
-	unsigned long flags;
 
 /*
  * Update head and tail of xmit buffer
  */
-	spin_lock_irqsave(&iforce->xmit_lock, flags);
+	scoped_guard(spinlock_irqsave, &iforce->xmit_lock) {
+		head = iforce->xmit.head;
+		tail = iforce->xmit.tail;
 
-	head = iforce->xmit.head;
-	tail = iforce->xmit.tail;
+		if (CIRC_SPACE(head, tail, XMIT_SIZE) < n + 2) {
+			dev_warn(&iforce->dev->dev,
+				 "not enough space in xmit buffer to send new packet\n");
+			return -1;
+		}
 
-
-	if (CIRC_SPACE(head, tail, XMIT_SIZE) < n+2) {
-		dev_warn(&iforce->dev->dev,
-			 "not enough space in xmit buffer to send new packet\n");
-		spin_unlock_irqrestore(&iforce->xmit_lock, flags);
-		return -1;
-	}
-
-	empty = head == tail;
-	XMIT_INC(iforce->xmit.head, n+2);
+		empty = head == tail;
+		XMIT_INC(iforce->xmit.head, n + 2);
 
 /*
  * Store packet in xmit buffer
  */
-	iforce->xmit.buf[head] = HI(cmd);
-	XMIT_INC(head, 1);
-	iforce->xmit.buf[head] = LO(cmd);
-	XMIT_INC(head, 1);
+		iforce->xmit.buf[head] = HI(cmd);
+		XMIT_INC(head, 1);
+		iforce->xmit.buf[head] = LO(cmd);
+		XMIT_INC(head, 1);
 
-	c = CIRC_SPACE_TO_END(head, tail, XMIT_SIZE);
-	if (n < c) c=n;
+		c = CIRC_SPACE_TO_END(head, tail, XMIT_SIZE);
+		if (n < c)
+			c = n;
 
-	memcpy(&iforce->xmit.buf[head],
-	       data,
-	       c);
-	if (n != c) {
-		memcpy(&iforce->xmit.buf[0],
-		       data + c,
-		       n - c);
+		memcpy(&iforce->xmit.buf[head], data, c);
+		if (n != c)
+			memcpy(&iforce->xmit.buf[0], data + c, n - c);
+
+		XMIT_INC(head, n);
 	}
-	XMIT_INC(head, n);
 
-	spin_unlock_irqrestore(&iforce->xmit_lock, flags);
 /*
  * If necessary, start the transmission
  */

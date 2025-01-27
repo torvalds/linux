@@ -25,8 +25,8 @@
  *	Bit 8     = 0x00100 = uLaw (instead of aLaw)
  *	Bit 9     = 0x00200 = Disable DTMF detect on all B-channels via hardware
  *	Bit 10    = spare
- *	Bit 11    = 0x00800 = Force PCM bus into slave mode. (otherwhise auto)
- * or   Bit 12    = 0x01000 = Force PCM bus into master mode. (otherwhise auto)
+ *	Bit 11    = 0x00800 = Force PCM bus into slave mode. (otherwise auto)
+ * or   Bit 12    = 0x01000 = Force PCM bus into master mode. (otherwise auto)
  *	Bit 13	  = spare
  *	Bit 14    = 0x04000 = Use external ram (128K)
  *	Bit 15    = 0x08000 = Use external ram (512K)
@@ -41,7 +41,7 @@
  * port: (optional or required for all ports on all installed cards)
  *	HFC-4S/HFC-8S only bits:
  *	Bit 0	  = 0x001 = Use master clock for this S/T interface
- *			    (ony once per chip).
+ *			    (only once per chip).
  *	Bit 1     = 0x002 = transmitter line setup (non capacitive mode)
  *			    Don't use this unless you know what you are doing!
  *	Bit 2     = 0x004 = Disable E-channel. (No E-channel processing)
@@ -82,7 +82,7 @@
  *	By default (0), the PCM bus id is 100 for the card that is PCM master.
  *	If multiple cards are PCM master (because they are not interconnected),
  *	each card with PCM master will have increasing PCM id.
- *	All PCM busses with the same ID are expected to be connected and have
+ *	All PCM buses with the same ID are expected to be connected and have
  *	common time slots slots.
  *	Only one chip of the PCM bus must be master, the others slave.
  *	-1 means no support of PCM bus not even.
@@ -930,7 +930,7 @@ hfcmulti_resync(struct hfc_multi *locked, struct hfc_multi *newmaster, int rm)
 	if (newmaster) {
 		hc = newmaster;
 		if (debug & DEBUG_HFCMULTI_PLXSD)
-			printk(KERN_DEBUG "id=%d (0x%p) = syncronized with "
+			printk(KERN_DEBUG "id=%d (0x%p) = synchronized with "
 			       "interface.\n", hc->id, hc);
 		/* Enable new sync master */
 		plx_acc_32 = hc->plx_membase + PLX_GPIOC;
@@ -949,7 +949,7 @@ hfcmulti_resync(struct hfc_multi *locked, struct hfc_multi *newmaster, int rm)
 			hc = pcmmaster;
 			if (debug & DEBUG_HFCMULTI_PLXSD)
 				printk(KERN_DEBUG
-				       "id=%d (0x%p) = PCM master syncronized "
+				       "id=%d (0x%p) = PCM master synchronized "
 				       "with QUARTZ\n", hc->id, hc);
 			if (hc->ctype == HFC_TYPE_E1) {
 				/* Use the crystal clock for the PCM
@@ -2001,7 +2001,7 @@ next_frame:
 	if (Zspace <= 0)
 		Zspace += hc->Zlen;
 	Zspace -= 4; /* keep not too full, so pointers will not overrun */
-	/* fill transparent data only to maxinum transparent load (minus 4) */
+	/* fill transparent data only to maximum transparent load (minus 4) */
 	if (bch && test_bit(FLG_TRANSPARENT, &bch->Flags))
 		Zspace = Zspace - hc->Zlen + hc->max_trans;
 	if (Zspace <= 0) /* no space of 4 bytes */
@@ -4672,7 +4672,7 @@ init_e1_port_hw(struct hfc_multi *hc, struct hm_map *m)
 			if (debug & DEBUG_HFCMULTI_INIT)
 				printk(KERN_DEBUG
 				       "%s: PORT set optical "
-				       "interfacs: card(%d) "
+				       "interface: card(%d) "
 				       "port(%d)\n",
 				       __func__,
 				       HFC_cnt + 1, 1);

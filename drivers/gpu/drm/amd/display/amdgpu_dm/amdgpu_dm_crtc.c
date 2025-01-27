@@ -35,8 +35,8 @@
 #include "amdgpu_dm_trace.h"
 #include "amdgpu_dm_debugfs.h"
 
-#define HPD_DETECTION_PERIOD_uS 5000000
-#define HPD_DETECTION_TIME_uS 1000
+#define HPD_DETECTION_PERIOD_uS 2000000
+#define HPD_DETECTION_TIME_uS 100000
 
 void amdgpu_dm_crtc_handle_vblank(struct amdgpu_crtc *acrtc)
 {
@@ -93,7 +93,7 @@ int amdgpu_dm_crtc_set_vupdate_irq(struct drm_crtc *crtc, bool enable)
 	return rc;
 }
 
-bool amdgpu_dm_crtc_vrr_active(struct dm_crtc_state *dm_state)
+bool amdgpu_dm_crtc_vrr_active(const struct dm_crtc_state *dm_state)
 {
 	return dm_state->freesync_config.state == VRR_STATE_ACTIVE_VARIABLE ||
 	       dm_state->freesync_config.state == VRR_STATE_ACTIVE_FIXED;
@@ -142,7 +142,7 @@ static void amdgpu_dm_crtc_set_panel_sr_feature(
 		amdgpu_dm_replay_enable(vblank_work->stream, true);
 	} else if (vblank_enabled) {
 		if (link->psr_settings.psr_version < DC_PSR_VERSION_SU_1 && is_sr_active)
-			amdgpu_dm_psr_disable(vblank_work->stream);
+			amdgpu_dm_psr_disable(vblank_work->stream, false);
 	} else if (link->psr_settings.psr_feature_enabled &&
 		allow_sr_entry && !is_sr_active && !is_crc_window_active) {
 
@@ -154,6 +154,7 @@ static void amdgpu_dm_crtc_set_panel_sr_feature(
 
 			amdgpu_dm_psr_enable(vblank_work->stream);
 			if (dm->idle_workqueue &&
+			    (dm->dc->config.disable_ips == DMUB_IPS_ENABLE) &&
 			    dm->dc->idle_optimizations_allowed &&
 			    dm->idle_workqueue->enable &&
 			    !dm->idle_workqueue->running)
@@ -251,10 +252,8 @@ static void amdgpu_dm_crtc_vblank_control_worker(struct work_struct *work)
 	else if (dm->active_vblank_irq_count)
 		dm->active_vblank_irq_count--;
 
-	if (dm->active_vblank_irq_count > 0) {
-		DRM_DEBUG_KMS("Allow idle optimizations (MALL): false\n");
+	if (dm->active_vblank_irq_count > 0)
 		dc_allow_idle_optimizations(dm->dc, false);
-	}
 
 	/*
 	 * Control PSR based on vblank requirements from OS
@@ -272,10 +271,8 @@ static void amdgpu_dm_crtc_vblank_control_worker(struct work_struct *work)
 			vblank_work->acrtc->dm_irq_params.allow_sr_entry);
 	}
 
-	if (dm->active_vblank_irq_count == 0) {
-		DRM_DEBUG_KMS("Allow idle optimizations (MALL): true\n");
+	if (dm->active_vblank_irq_count == 0)
 		dc_allow_idle_optimizations(dm->dc, true);
-	}
 
 	mutex_unlock(&dm->dc_lock);
 

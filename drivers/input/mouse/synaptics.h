@@ -21,7 +21,7 @@
 #define SYN_QUE_EXT_MIN_COORDS		0x0f
 #define SYN_QUE_MEXT_CAPAB_10		0x10
 
-/* synatics modes */
+/* synaptics modes */
 #define SYN_BIT_ABSOLUTE_MODE		BIT(7)
 #define SYN_BIT_HIGH_RATE		BIT(6)
 #define SYN_BIT_SLEEP_MODE		BIT(3)

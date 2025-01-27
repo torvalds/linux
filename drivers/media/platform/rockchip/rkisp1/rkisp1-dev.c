@@ -752,7 +752,7 @@ static struct platform_driver rkisp1_drv = {
 		.pm = &rkisp1_pm_ops,
 	},
 	.probe = rkisp1_probe,
-	.remove_new = rkisp1_remove,
+	.remove = rkisp1_remove,
 };
 
 module_platform_driver(rkisp1_drv);

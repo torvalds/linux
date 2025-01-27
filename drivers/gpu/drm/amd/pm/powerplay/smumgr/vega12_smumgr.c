@@ -257,20 +257,18 @@ static int vega12_smu_init(struct pp_hwmgr *hwmgr)
 	priv->smu_tables.entry[TABLE_WATERMARKS].size = sizeof(Watermarks_t);
 
 	tools_size = 0x19000;
-	if (tools_size) {
-		ret = amdgpu_bo_create_kernel((struct amdgpu_device *)hwmgr->adev,
-					      tools_size,
-					      PAGE_SIZE,
-					      AMDGPU_GEM_DOMAIN_VRAM,
-					      &priv->smu_tables.entry[TABLE_PMSTATUSLOG].handle,
-					      &priv->smu_tables.entry[TABLE_PMSTATUSLOG].mc_addr,
-					      &priv->smu_tables.entry[TABLE_PMSTATUSLOG].table);
-		if (ret)
-			goto err1;
+	ret = amdgpu_bo_create_kernel((struct amdgpu_device *)hwmgr->adev,
+				      tools_size,
+				      PAGE_SIZE,
+				      AMDGPU_GEM_DOMAIN_VRAM,
+				      &priv->smu_tables.entry[TABLE_PMSTATUSLOG].handle,
+				      &priv->smu_tables.entry[TABLE_PMSTATUSLOG].mc_addr,
+				      &priv->smu_tables.entry[TABLE_PMSTATUSLOG].table);
+	if (ret)
+		goto err1;
 
-		priv->smu_tables.entry[TABLE_PMSTATUSLOG].version = 0x01;
-		priv->smu_tables.entry[TABLE_PMSTATUSLOG].size = tools_size;
-	}
+	priv->smu_tables.entry[TABLE_PMSTATUSLOG].version = 0x01;
+	priv->smu_tables.entry[TABLE_PMSTATUSLOG].size = tools_size;
 
 	/* allocate space for AVFS Fuse table */
 	ret = amdgpu_bo_create_kernel((struct amdgpu_device *)hwmgr->adev,

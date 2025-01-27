@@ -2573,7 +2573,7 @@ static struct platform_driver gemini_ethernet_port_driver = {
 		.of_match_table = gemini_ethernet_port_of_match,
 	},
 	.probe = gemini_ethernet_port_probe,
-	.remove_new = gemini_ethernet_port_remove,
+	.remove = gemini_ethernet_port_remove,
 };
 
 static int gemini_ethernet_probe(struct platform_device *pdev)
@@ -2637,7 +2637,7 @@ static struct platform_driver gemini_ethernet_driver = {
 		.of_match_table = gemini_ethernet_of_match,
 	},
 	.probe = gemini_ethernet_probe,
-	.remove_new = gemini_ethernet_remove,
+	.remove = gemini_ethernet_remove,
 };
 
 static int __init gemini_ethernet_module_init(void)

@@ -232,7 +232,7 @@ static struct platform_driver mpfs_sys_controller_driver = {
 		.of_match_table = mpfs_sys_controller_of_match,
 	},
 	.probe = mpfs_sys_controller_probe,
-	.remove_new = mpfs_sys_controller_remove,
+	.remove = mpfs_sys_controller_remove,
 };
 module_platform_driver(mpfs_sys_controller_driver);
 

@@ -375,7 +375,7 @@ static int get_pt_caps(int cpu, struct pt_caps *caps)
 	return 0;
 }
 
-static bool is_hydrid(void)
+static bool is_hybrid(void)
 {
 	unsigned int eax, ebx, ecx, edx = 0;
 	bool result;
@@ -441,7 +441,7 @@ int test__intel_pt_hybrid_compat(struct test_suite *test, int subtest)
 	int ret = TEST_OK;
 	int cpu;
 
-	if (!is_hydrid()) {
+	if (!is_hybrid()) {
 		test->test_cases[subtest].skip_reason = "not hybrid";
 		return TEST_SKIP;
 	}

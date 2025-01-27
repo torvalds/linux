@@ -19,6 +19,8 @@
 
 #define IDLE_TIMEOUT	(66 - 16/2)
 
+#define MAX_H_TILES_PER_DISPLAY 2
+
 /**
  * struct msm_display_info - defines display properties
  * @intf_type:          INTF_ type
@@ -36,159 +38,54 @@ struct msm_display_info {
 	enum dpu_vsync_source vsync_source;
 };
 
-/**
- * dpu_encoder_assign_crtc - Link the encoder to the crtc it's assigned to
- * @encoder:	encoder pointer
- * @crtc:	crtc pointer
- */
 void dpu_encoder_assign_crtc(struct drm_encoder *encoder,
 			     struct drm_crtc *crtc);
 
-/**
- * dpu_encoder_toggle_vblank_for_crtc - Toggles vblank interrupts on or off if
- *	the encoder is assigned to the given crtc
- * @encoder:	encoder pointer
- * @crtc:	crtc pointer
- * @enable:	true if vblank should be enabled
- */
 void dpu_encoder_toggle_vblank_for_crtc(struct drm_encoder *encoder,
 					struct drm_crtc *crtc, bool enable);
 
-/**
- * dpu_encoder_prepare_for_kickoff - schedule double buffer flip of the ctl
- *	path (i.e. ctl flush and start) at next appropriate time.
- *	Immediately: if no previous commit is outstanding.
- *	Delayed: Block until next trigger can be issued.
- * @encoder:	encoder pointer
- */
 void dpu_encoder_prepare_for_kickoff(struct drm_encoder *encoder);
 
-/**
- * dpu_encoder_trigger_kickoff_pending - Clear the flush bits from previous
- *        kickoff and trigger the ctl prepare progress for command mode display.
- * @encoder:	encoder pointer
- */
 void dpu_encoder_trigger_kickoff_pending(struct drm_encoder *encoder);
 
-/**
- * dpu_encoder_kickoff - trigger a double buffer flip of the ctl path
- *	(i.e. ctl flush and start) immediately.
- * @encoder:	encoder pointer
- */
 void dpu_encoder_kickoff(struct drm_encoder *encoder);
 
-/**
- * dpu_encoder_wakeup_time - get the time of the next vsync
- */
 int dpu_encoder_vsync_time(struct drm_encoder *drm_enc, ktime_t *wakeup_time);
 
 int dpu_encoder_wait_for_commit_done(struct drm_encoder *drm_encoder);
 
 int dpu_encoder_wait_for_tx_complete(struct drm_encoder *drm_encoder);
 
-/*
- * dpu_encoder_get_intf_mode - get interface mode of the given encoder
- * @encoder: Pointer to drm encoder object
- */
 enum dpu_intf_mode dpu_encoder_get_intf_mode(struct drm_encoder *encoder);
 
-/**
- * dpu_encoder_virt_runtime_resume - pm runtime resume the encoder configs
- * @encoder:	encoder pointer
- */
 void dpu_encoder_virt_runtime_resume(struct drm_encoder *encoder);
 
-/**
- * dpu_encoder_init - initialize virtual encoder object
- * @dev:        Pointer to drm device structure
- * @drm_enc_mode: corresponding DRM_MODE_ENCODER_* constant
- * @disp_info:  Pointer to display information structure
- * Returns:     Pointer to newly created drm encoder
- */
 struct drm_encoder *dpu_encoder_init(struct drm_device *dev,
 		int drm_enc_mode,
 		struct msm_display_info *disp_info);
 
-/**
- * dpu_encoder_set_idle_timeout - set the idle timeout for video
- *                    and command mode encoders.
- * @drm_enc:    Pointer to previously created drm encoder structure
- * @idle_timeout:    idle timeout duration in milliseconds
- */
-void dpu_encoder_set_idle_timeout(struct drm_encoder *drm_enc,
-							u32 idle_timeout);
-/**
- * dpu_encoder_get_linecount - get interface line count for the encoder.
- * @drm_enc:    Pointer to previously created drm encoder structure
- */
 int dpu_encoder_get_linecount(struct drm_encoder *drm_enc);
 
-/**
- * dpu_encoder_get_vsync_count - get vsync count for the encoder.
- * @drm_enc:    Pointer to previously created drm encoder structure
- */
 int dpu_encoder_get_vsync_count(struct drm_encoder *drm_enc);
 
-/**
- * dpu_encoder_is_widebus_enabled - return bool value if widebus is enabled
- * @drm_enc:    Pointer to previously created drm encoder structure
- */
 bool dpu_encoder_is_widebus_enabled(const struct drm_encoder *drm_enc);
 
-/**
- * dpu_encoder_is_dsc_enabled - indicate whether dsc is enabled
- *				for the encoder.
- * @drm_enc:    Pointer to previously created drm encoder structure
- */
 bool dpu_encoder_is_dsc_enabled(const struct drm_encoder *drm_enc);
 
-/**
- * dpu_encoder_get_crc_values_cnt - get number of physical encoders contained
- *	in virtual encoder that can collect CRC values
- * @drm_enc:    Pointer to previously created drm encoder structure
- * Returns:     Number of physical encoders for given drm encoder
- */
 int dpu_encoder_get_crc_values_cnt(const struct drm_encoder *drm_enc);
 
-/**
- * dpu_encoder_setup_misr - enable misr calculations
- * @drm_enc:    Pointer to previously created drm encoder structure
- */
 void dpu_encoder_setup_misr(const struct drm_encoder *drm_encoder);
 
-/**
- * dpu_encoder_get_crc - get the crc value from interface blocks
- * @drm_enc:    Pointer to previously created drm encoder structure
- * Returns:     0 on success, error otherwise
- */
 int dpu_encoder_get_crc(const struct drm_encoder *drm_enc, u32 *crcs, int pos);
 
-/**
- * dpu_encoder_use_dsc_merge - returns true if the encoder uses DSC merge topology.
- * @drm_enc:    Pointer to previously created drm encoder structure
- */
 bool dpu_encoder_use_dsc_merge(struct drm_encoder *drm_enc);
 
-/**
- * dpu_encoder_prepare_wb_job - prepare writeback job for the encoder.
- * @drm_enc:    Pointer to previously created drm encoder structure
- * @job:        Pointer to the current drm writeback job
- */
 void dpu_encoder_prepare_wb_job(struct drm_encoder *drm_enc,
 		struct drm_writeback_job *job);
 
-/**
- * dpu_encoder_cleanup_wb_job - cleanup writeback job for the encoder.
- * @drm_enc:    Pointer to previously created drm encoder structure
- * @job:        Pointer to the current drm writeback job
- */
 void dpu_encoder_cleanup_wb_job(struct drm_encoder *drm_enc,
 		struct drm_writeback_job *job);
 
-/**
- * dpu_encoder_is_valid_for_commit - check if encode has valid parameters for commit.
- * @drm_enc:    Pointer to drm encoder structure
- */
 bool dpu_encoder_is_valid_for_commit(struct drm_encoder *drm_enc);
 
 #endif /* __DPU_ENCODER_H__ */

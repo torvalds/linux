@@ -53,7 +53,7 @@ static void simatic_ipc_leds_gpio_apollolake_remove(struct platform_device *pdev
 
 static struct platform_driver simatic_ipc_led_gpio_apollolake_driver = {
 	.probe = simatic_ipc_leds_gpio_apollolake_probe,
-	.remove_new = simatic_ipc_leds_gpio_apollolake_remove,
+	.remove = simatic_ipc_leds_gpio_apollolake_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
 	},

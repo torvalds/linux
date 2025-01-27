@@ -12,6 +12,7 @@
 #include <linux/if_bridge.h>
 #include <linux/phy.h>
 #include <linux/phylink.h>
+#include <linux/property.h>
 
 #include "chip.h"
 #include "global2.h"

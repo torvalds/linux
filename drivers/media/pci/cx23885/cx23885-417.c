@@ -1210,8 +1210,6 @@ static const struct vb2_ops cx23885_qops = {
 	.buf_prepare  = buffer_prepare,
 	.buf_finish = buffer_finish,
 	.buf_queue    = buffer_queue,
-	.wait_prepare = vb2_ops_wait_prepare,
-	.wait_finish = vb2_ops_wait_finish,
 	.start_streaming = cx23885_start_streaming,
 	.stop_streaming = cx23885_stop_streaming,
 };

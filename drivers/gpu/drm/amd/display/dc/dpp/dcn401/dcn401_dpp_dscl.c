@@ -1091,7 +1091,8 @@ void dpp401_dscl_set_scaler_manual_scale(struct dpp *dpp_base,
 		/* ISHARP_DELTA_LUT */
 		dpp401_dscl_set_isharp_filter(dpp, scl_data->dscl_prog_data.isharp_delta);
 		dpp->scl_data.dscl_prog_data.sharpness_level = scl_data->dscl_prog_data.sharpness_level;
-		dpp->scl_data.dscl_prog_data.isharp_delta = scl_data->dscl_prog_data.isharp_delta;
+		memcpy(dpp->scl_data.dscl_prog_data.isharp_delta, scl_data->dscl_prog_data.isharp_delta,
+			sizeof(uint32_t) * ISHARP_LUT_TABLE_SIZE);
 
 		if (memcmp(&dpp->scl_data, scl_data, sizeof(*scl_data)) == 0)
 			return;

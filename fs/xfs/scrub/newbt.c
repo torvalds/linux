@@ -58,7 +58,7 @@ xrep_newbt_estimate_slack(
 
 	if (sc->ops->type == ST_PERAG) {
 		free = sc->sa.pag->pagf_freeblks;
-		sz = xfs_ag_block_count(sc->mp, sc->sa.pag->pag_agno);
+		sz = xfs_ag_block_count(sc->mp, pag_agno(sc->sa.pag));
 	} else {
 		free = percpu_counter_sum(&sc->mp->m_fdblocks);
 		sz = sc->mp->m_sb.sb_dblocks;
@@ -186,11 +186,10 @@ xrep_newbt_add_extent(
 	xfs_agblock_t		agbno,
 	xfs_extlen_t		len)
 {
-	struct xfs_mount	*mp = xnr->sc->mp;
 	struct xfs_alloc_arg	args = {
 		.tp		= NULL, /* no autoreap */
 		.oinfo		= xnr->oinfo,
-		.fsbno		= XFS_AGB_TO_FSB(mp, pag->pag_agno, agbno),
+		.fsbno		= xfs_agbno_to_fsb(pag, agbno),
 		.len		= len,
 		.resv		= xnr->resv,
 	};
@@ -206,12 +205,12 @@ xrep_newbt_validate_ag_alloc_hint(
 	struct xfs_scrub	*sc = xnr->sc;
 	xfs_agnumber_t		agno = XFS_FSB_TO_AGNO(sc->mp, xnr->alloc_hint);
 
-	if (agno == sc->sa.pag->pag_agno &&
+	if (agno == pag_agno(sc->sa.pag) &&
 	    xfs_verify_fsbno(sc->mp, xnr->alloc_hint))
 		return;
 
-	xnr->alloc_hint = XFS_AGB_TO_FSB(sc->mp, sc->sa.pag->pag_agno,
-					 XFS_AGFL_BLOCK(sc->mp) + 1);
+	xnr->alloc_hint =
+		xfs_agbno_to_fsb(sc->sa.pag, XFS_AGFL_BLOCK(sc->mp) + 1);
 }
 
 /* Allocate disk space for a new per-AG btree. */
@@ -251,15 +250,14 @@ xrep_newbt_alloc_ag_blocks(
 			return -ENOSPC;
 
 		agno = XFS_FSB_TO_AGNO(mp, args.fsbno);
-
-		trace_xrep_newbt_alloc_ag_blocks(mp, agno,
-				XFS_FSB_TO_AGBNO(mp, args.fsbno), args.len,
-				xnr->oinfo.oi_owner);
-
-		if (agno != sc->sa.pag->pag_agno) {
-			ASSERT(agno == sc->sa.pag->pag_agno);
+		if (agno != pag_agno(sc->sa.pag)) {
+			ASSERT(agno == pag_agno(sc->sa.pag));
 			return -EFSCORRUPTED;
 		}
+
+		trace_xrep_newbt_alloc_ag_blocks(sc->sa.pag,
+				XFS_FSB_TO_AGBNO(mp, args.fsbno), args.len,
+				xnr->oinfo.oi_owner);
 
 		error = xrep_newbt_add_blocks(xnr, sc->sa.pag, &args);
 		if (error)
@@ -326,15 +324,15 @@ xrep_newbt_alloc_file_blocks(
 
 		agno = XFS_FSB_TO_AGNO(mp, args.fsbno);
 
-		trace_xrep_newbt_alloc_file_blocks(mp, agno,
-				XFS_FSB_TO_AGBNO(mp, args.fsbno), args.len,
-				xnr->oinfo.oi_owner);
-
 		pag = xfs_perag_get(mp, agno);
 		if (!pag) {
 			ASSERT(0);
 			return -EFSCORRUPTED;
 		}
+
+		trace_xrep_newbt_alloc_file_blocks(pag,
+				XFS_FSB_TO_AGBNO(mp, args.fsbno), args.len,
+				xnr->oinfo.oi_owner);
 
 		error = xrep_newbt_add_blocks(xnr, pag, &args);
 		xfs_perag_put(pag);
@@ -376,7 +374,6 @@ xrep_newbt_free_extent(
 	struct xfs_scrub	*sc = xnr->sc;
 	xfs_agblock_t		free_agbno = resv->agbno;
 	xfs_extlen_t		free_aglen = resv->len;
-	xfs_fsblock_t		fsbno;
 	int			error;
 
 	if (!btree_committed || resv->used == 0) {
@@ -385,8 +382,8 @@ xrep_newbt_free_extent(
 		 * space reservation, let the existing EFI free the entire
 		 * space extent.
 		 */
-		trace_xrep_newbt_free_blocks(sc->mp, resv->pag->pag_agno,
-				free_agbno, free_aglen, xnr->oinfo.oi_owner);
+		trace_xrep_newbt_free_blocks(resv->pag, free_agbno, free_aglen,
+				xnr->oinfo.oi_owner);
 		xfs_alloc_commit_autoreap(sc->tp, &resv->autoreap);
 		return 1;
 	}
@@ -403,8 +400,8 @@ xrep_newbt_free_extent(
 	if (free_aglen == 0)
 		return 0;
 
-	trace_xrep_newbt_free_blocks(sc->mp, resv->pag->pag_agno, free_agbno,
-			free_aglen, xnr->oinfo.oi_owner);
+	trace_xrep_newbt_free_blocks(resv->pag, free_agbno, free_aglen,
+			xnr->oinfo.oi_owner);
 
 	ASSERT(xnr->resv != XFS_AG_RESV_AGFL);
 	ASSERT(xnr->resv != XFS_AG_RESV_IGNORE);
@@ -413,9 +410,9 @@ xrep_newbt_free_extent(
 	 * Use EFIs to free the reservations.  This reduces the chance
 	 * that we leak blocks if the system goes down.
 	 */
-	fsbno = XFS_AGB_TO_FSB(sc->mp, resv->pag->pag_agno, free_agbno);
-	error = xfs_free_extent_later(sc->tp, fsbno, free_aglen, &xnr->oinfo,
-			xnr->resv, XFS_FREE_EXTENT_SKIP_DISCARD);
+	error = xfs_free_extent_later(sc->tp,
+			xfs_agbno_to_fsb(resv->pag, free_agbno), free_aglen,
+			&xnr->oinfo, xnr->resv, XFS_FREE_EXTENT_SKIP_DISCARD);
 	if (error)
 		return error;
 
@@ -516,7 +513,6 @@ xrep_newbt_claim_block(
 	union xfs_btree_ptr	*ptr)
 {
 	struct xrep_newbt_resv	*resv;
-	struct xfs_mount	*mp = cur->bc_mp;
 	xfs_agblock_t		agbno;
 
 	/*
@@ -541,12 +537,10 @@ xrep_newbt_claim_block(
 	if (resv->used == resv->len)
 		list_move_tail(&resv->list, &xnr->resv_list);
 
-	trace_xrep_newbt_claim_block(mp, resv->pag->pag_agno, agbno, 1,
-			xnr->oinfo.oi_owner);
+	trace_xrep_newbt_claim_block(resv->pag, agbno, 1, xnr->oinfo.oi_owner);
 
 	if (cur->bc_ops->ptr_len == XFS_BTREE_LONG_PTR_LEN)
-		ptr->l = cpu_to_be64(XFS_AGB_TO_FSB(mp, resv->pag->pag_agno,
-								agbno));
+		ptr->l = cpu_to_be64(xfs_agbno_to_fsb(resv->pag, agbno));
 	else
 		ptr->s = cpu_to_be32(agbno);
 

@@ -207,7 +207,7 @@ static int __dcache_readdir(struct file *file,  struct dir_context *ctx,
 			dentry = __dcache_find_get_entry(parent, idx + step,
 							 &cache_ctl);
 			if (!dentry) {
-				/* use linar search */
+				/* use linear search */
 				idx = 0;
 				break;
 			}
@@ -659,7 +659,7 @@ static bool need_reset_readdir(struct ceph_dir_file_info *dfi, loff_t new_pos)
 		return true;
 	if (is_hash_order(new_pos)) {
 		/* no need to reset last_name for a forward seek when
-		 * dentries are sotred in hash order */
+		 * dentries are sorted in hash order */
 	} else if (dfi->frag != fpos_frag(new_pos)) {
 		return true;
 	}

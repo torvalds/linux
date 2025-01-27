@@ -80,19 +80,19 @@ int main(void)
   DEFINE(PT_REGS_SIZE,		sizeof(struct pt_regs));
   BLANK();
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_ARGS
-  DEFINE(FREGS_X0,		offsetof(struct ftrace_regs, regs[0]));
-  DEFINE(FREGS_X2,		offsetof(struct ftrace_regs, regs[2]));
-  DEFINE(FREGS_X4,		offsetof(struct ftrace_regs, regs[4]));
-  DEFINE(FREGS_X6,		offsetof(struct ftrace_regs, regs[6]));
-  DEFINE(FREGS_X8,		offsetof(struct ftrace_regs, regs[8]));
-  DEFINE(FREGS_FP,		offsetof(struct ftrace_regs, fp));
-  DEFINE(FREGS_LR,		offsetof(struct ftrace_regs, lr));
-  DEFINE(FREGS_SP,		offsetof(struct ftrace_regs, sp));
-  DEFINE(FREGS_PC,		offsetof(struct ftrace_regs, pc));
+  DEFINE(FREGS_X0,		offsetof(struct __arch_ftrace_regs, regs[0]));
+  DEFINE(FREGS_X2,		offsetof(struct __arch_ftrace_regs, regs[2]));
+  DEFINE(FREGS_X4,		offsetof(struct __arch_ftrace_regs, regs[4]));
+  DEFINE(FREGS_X6,		offsetof(struct __arch_ftrace_regs, regs[6]));
+  DEFINE(FREGS_X8,		offsetof(struct __arch_ftrace_regs, regs[8]));
+  DEFINE(FREGS_FP,		offsetof(struct __arch_ftrace_regs, fp));
+  DEFINE(FREGS_LR,		offsetof(struct __arch_ftrace_regs, lr));
+  DEFINE(FREGS_SP,		offsetof(struct __arch_ftrace_regs, sp));
+  DEFINE(FREGS_PC,		offsetof(struct __arch_ftrace_regs, pc));
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
-  DEFINE(FREGS_DIRECT_TRAMP,	offsetof(struct ftrace_regs, direct_tramp));
+  DEFINE(FREGS_DIRECT_TRAMP,	offsetof(struct __arch_ftrace_regs, direct_tramp));
 #endif
-  DEFINE(FREGS_SIZE,		sizeof(struct ftrace_regs));
+  DEFINE(FREGS_SIZE,		sizeof(struct __arch_ftrace_regs));
   BLANK();
 #endif
   DEFINE(CPU_BOOT_TASK,		offsetof(struct secondary_data, task));

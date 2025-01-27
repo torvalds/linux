@@ -2032,8 +2032,6 @@ static const struct vb2_ops fdp1_qops = {
 	.buf_queue	 = fdp1_buf_queue,
 	.start_streaming = fdp1_start_streaming,
 	.stop_streaming  = fdp1_stop_streaming,
-	.wait_prepare	 = vb2_ops_wait_prepare,
-	.wait_finish	 = vb2_ops_wait_finish,
 };
 
 static int queue_init(void *priv, struct vb2_queue *src_vq,
@@ -2444,7 +2442,7 @@ MODULE_DEVICE_TABLE(of, fdp1_dt_ids);
 
 static struct platform_driver fdp1_pdrv = {
 	.probe		= fdp1_probe,
-	.remove_new	= fdp1_remove,
+	.remove		= fdp1_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.of_match_table = fdp1_dt_ids,

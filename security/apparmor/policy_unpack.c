@@ -645,10 +645,13 @@ fail:
 
 static bool unpack_perm(struct aa_ext *e, u32 version, struct aa_perms *perm)
 {
+	u32 reserved;
+
 	if (version != 1)
 		return false;
 
-	return	aa_unpack_u32(e, &perm->allow, NULL) &&
+	/* reserved entry is for later expansion, discard for now */
+	return	aa_unpack_u32(e, &reserved, NULL) &&
 		aa_unpack_u32(e, &perm->allow, NULL) &&
 		aa_unpack_u32(e, &perm->deny, NULL) &&
 		aa_unpack_u32(e, &perm->subtree, NULL) &&

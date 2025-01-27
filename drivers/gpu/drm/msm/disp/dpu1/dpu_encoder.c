@@ -217,6 +217,10 @@ static u32 dither_matrix[DITHER_MATRIX_SZ] = {
 	15, 7, 13, 5, 3, 11, 1, 9, 12, 4, 14, 6, 0, 8, 2, 10
 };
 
+/**
+ * dpu_encoder_get_drm_fmt - return DRM fourcc format
+ * @phys_enc: Pointer to physical encoder structure
+ */
 u32 dpu_encoder_get_drm_fmt(struct dpu_encoder_phys *phys_enc)
 {
 	struct drm_encoder *drm_enc;
@@ -235,6 +239,11 @@ u32 dpu_encoder_get_drm_fmt(struct dpu_encoder_phys *phys_enc)
 	return DRM_FORMAT_RGB888;
 }
 
+/**
+ * dpu_encoder_needs_periph_flush - return true if physical encoder requires
+ *	peripheral flush
+ * @phys_enc: Pointer to physical encoder structure
+ */
 bool dpu_encoder_needs_periph_flush(struct dpu_encoder_phys *phys_enc)
 {
 	struct drm_encoder *drm_enc;
@@ -253,6 +262,10 @@ bool dpu_encoder_needs_periph_flush(struct dpu_encoder_phys *phys_enc)
 	       msm_dp_needs_periph_flush(priv->dp[disp_info->h_tile_instance[0]], mode);
 }
 
+/**
+ * dpu_encoder_is_widebus_enabled - return bool value if widebus is enabled
+ * @drm_enc:    Pointer to previously created drm encoder structure
+ */
 bool dpu_encoder_is_widebus_enabled(const struct drm_encoder *drm_enc)
 {
 	const struct dpu_encoder_virt *dpu_enc;
@@ -272,6 +285,11 @@ bool dpu_encoder_is_widebus_enabled(const struct drm_encoder *drm_enc)
 	return false;
 }
 
+/**
+ * dpu_encoder_is_dsc_enabled - indicate whether dsc is enabled
+ *				for the encoder.
+ * @drm_enc:    Pointer to previously created drm encoder structure
+ */
 bool dpu_encoder_is_dsc_enabled(const struct drm_encoder *drm_enc)
 {
 	const struct dpu_encoder_virt *dpu_enc = to_dpu_encoder_virt(drm_enc);
@@ -279,6 +297,12 @@ bool dpu_encoder_is_dsc_enabled(const struct drm_encoder *drm_enc)
 	return dpu_enc->dsc ? true : false;
 }
 
+/**
+ * dpu_encoder_get_crc_values_cnt - get number of physical encoders contained
+ *	in virtual encoder that can collect CRC values
+ * @drm_enc:    Pointer to previously created drm encoder structure
+ * Returns:     Number of physical encoders for given drm encoder
+ */
 int dpu_encoder_get_crc_values_cnt(const struct drm_encoder *drm_enc)
 {
 	struct dpu_encoder_virt *dpu_enc;
@@ -297,6 +321,10 @@ int dpu_encoder_get_crc_values_cnt(const struct drm_encoder *drm_enc)
 	return num_intf;
 }
 
+/**
+ * dpu_encoder_setup_misr - enable misr calculations
+ * @drm_enc:    Pointer to previously created drm encoder structure
+ */
 void dpu_encoder_setup_misr(const struct drm_encoder *drm_enc)
 {
 	struct dpu_encoder_virt *dpu_enc;
@@ -315,6 +343,13 @@ void dpu_encoder_setup_misr(const struct drm_encoder *drm_enc)
 	}
 }
 
+/**
+ * dpu_encoder_get_crc - get the crc value from interface blocks
+ * @drm_enc:    Pointer to previously created drm encoder structure
+ * @crcs:	array to fill with CRC data
+ * @pos:	offset into the @crcs array
+ * Returns:     0 on success, error otherwise
+ */
 int dpu_encoder_get_crc(const struct drm_encoder *drm_enc, u32 *crcs, int pos)
 {
 	struct dpu_encoder_virt *dpu_enc;
@@ -385,6 +420,12 @@ static char *dpu_encoder_helper_get_intf_type(enum dpu_intf_mode intf_mode)
 	}
 }
 
+/**
+ * dpu_encoder_helper_report_irq_timeout - utility to report error that irq has
+ *	timed out, including reporting frame error event to crtc and debug dump
+ * @phys_enc: Pointer to physical encoder structure
+ * @intr_idx: Failing interrupt index
+ */
 void dpu_encoder_helper_report_irq_timeout(struct dpu_encoder_phys *phys_enc,
 		enum dpu_intr_idx intr_idx)
 {
@@ -402,6 +443,15 @@ void dpu_encoder_helper_report_irq_timeout(struct dpu_encoder_phys *phys_enc,
 static int dpu_encoder_helper_wait_event_timeout(int32_t drm_id,
 		u32 irq_idx, struct dpu_encoder_wait_info *info);
 
+/**
+ * dpu_encoder_helper_wait_for_irq - utility to wait on an irq.
+ *	note: will call dpu_encoder_helper_wait_for_irq on timeout
+ * @phys_enc: Pointer to physical encoder structure
+ * @irq_idx: IRQ index
+ * @func: IRQ callback to be called in case of timeout
+ * @wait_info: wait info struct
+ * @return: 0 or -ERROR
+ */
 int dpu_encoder_helper_wait_for_irq(struct dpu_encoder_phys *phys_enc,
 		unsigned int irq_idx,
 		void (*func)(void *arg),
@@ -473,6 +523,10 @@ int dpu_encoder_helper_wait_for_irq(struct dpu_encoder_phys *phys_enc,
 	return ret;
 }
 
+/**
+ * dpu_encoder_get_vsync_count - get vsync count for the encoder.
+ * @drm_enc:    Pointer to previously created drm encoder structure
+ */
 int dpu_encoder_get_vsync_count(struct drm_encoder *drm_enc)
 {
 	struct dpu_encoder_virt *dpu_enc = to_dpu_encoder_virt(drm_enc);
@@ -480,6 +534,10 @@ int dpu_encoder_get_vsync_count(struct drm_encoder *drm_enc)
 	return phys ? atomic_read(&phys->vsync_cnt) : 0;
 }
 
+/**
+ * dpu_encoder_get_linecount - get interface line count for the encoder.
+ * @drm_enc:    Pointer to previously created drm encoder structure
+ */
 int dpu_encoder_get_linecount(struct drm_encoder *drm_enc)
 {
 	struct dpu_encoder_virt *dpu_enc;
@@ -495,6 +553,13 @@ int dpu_encoder_get_linecount(struct drm_encoder *drm_enc)
 	return linecount;
 }
 
+/**
+ * dpu_encoder_helper_split_config - split display configuration helper function
+ *	This helper function may be used by physical encoders to configure
+ *	the split display related registers.
+ * @phys_enc: Pointer to physical encoder structure
+ * @interface: enum dpu_intf setting
+ */
 void dpu_encoder_helper_split_config(
 		struct dpu_encoder_phys *phys_enc,
 		enum dpu_intf interface)
@@ -544,6 +609,10 @@ void dpu_encoder_helper_split_config(
 	}
 }
 
+/**
+ * dpu_encoder_use_dsc_merge - returns true if the encoder uses DSC merge topology.
+ * @drm_enc:    Pointer to previously created drm encoder structure
+ */
 bool dpu_encoder_use_dsc_merge(struct drm_encoder *drm_enc)
 {
 	struct dpu_encoder_virt *dpu_enc = to_dpu_encoder_virt(drm_enc);
@@ -560,6 +629,12 @@ bool dpu_encoder_use_dsc_merge(struct drm_encoder *drm_enc)
 	return (num_dsc > 0) && (num_dsc > intf_count);
 }
 
+/**
+ * dpu_encoder_get_dsc_config - get DSC config for the DPU encoder
+ *   This helper function is used by physical encoder to get DSC config
+ *   used for this encoder.
+ * @drm_enc: Pointer to encoder structure
+ */
 struct drm_dsc_config *dpu_encoder_get_dsc_config(struct drm_encoder *drm_enc)
 {
 	struct msm_drm_private *priv = drm_enc->dev->dev_private;
@@ -1089,6 +1164,11 @@ static int dpu_encoder_resource_control(struct drm_encoder *drm_enc,
 	return 0;
 }
 
+/**
+ * dpu_encoder_prepare_wb_job - prepare writeback job for the encoder.
+ * @drm_enc:    Pointer to previously created drm encoder structure
+ * @job:        Pointer to the current drm writeback job
+ */
 void dpu_encoder_prepare_wb_job(struct drm_encoder *drm_enc,
 		struct drm_writeback_job *job)
 {
@@ -1106,6 +1186,11 @@ void dpu_encoder_prepare_wb_job(struct drm_encoder *drm_enc,
 	}
 }
 
+/**
+ * dpu_encoder_cleanup_wb_job - cleanup writeback job for the encoder.
+ * @drm_enc:    Pointer to previously created drm encoder structure
+ * @job:        Pointer to the current drm writeback job
+ */
 void dpu_encoder_cleanup_wb_job(struct drm_encoder *drm_enc,
 		struct drm_writeback_job *job)
 {
@@ -1248,6 +1333,10 @@ static void _dpu_encoder_virt_enable_helper(struct drm_encoder *drm_enc)
 	}
 }
 
+/**
+ * dpu_encoder_virt_runtime_resume - pm runtime resume the encoder configs
+ * @drm_enc:	encoder pointer
+ */
 void dpu_encoder_virt_runtime_resume(struct drm_encoder *drm_enc)
 {
 	struct dpu_encoder_virt *dpu_enc = to_dpu_encoder_virt(drm_enc);
@@ -1389,6 +1478,12 @@ static struct dpu_hw_intf *dpu_encoder_get_intf(const struct dpu_mdss_cfg *catal
 	return NULL;
 }
 
+/**
+ * dpu_encoder_vblank_callback - Notify virtual encoder of vblank IRQ reception
+ * @drm_enc:    Pointer to drm encoder structure
+ * @phy_enc:	Pointer to physical encoder
+ * Note: This is called from IRQ handler context.
+ */
 void dpu_encoder_vblank_callback(struct drm_encoder *drm_enc,
 		struct dpu_encoder_phys *phy_enc)
 {
@@ -1411,6 +1506,12 @@ void dpu_encoder_vblank_callback(struct drm_encoder *drm_enc,
 	DPU_ATRACE_END("encoder_vblank_callback");
 }
 
+/**
+ * dpu_encoder_underrun_callback - Notify virtual encoder of underrun IRQ reception
+ * @drm_enc:    Pointer to drm encoder structure
+ * @phy_enc:	Pointer to physical encoder
+ * Note: This is called from IRQ handler context.
+ */
 void dpu_encoder_underrun_callback(struct drm_encoder *drm_enc,
 		struct dpu_encoder_phys *phy_enc)
 {
@@ -1429,6 +1530,11 @@ void dpu_encoder_underrun_callback(struct drm_encoder *drm_enc,
 	DPU_ATRACE_END("encoder_underrun_callback");
 }
 
+/**
+ * dpu_encoder_assign_crtc - Link the encoder to the crtc it's assigned to
+ * @drm_enc:	encoder pointer
+ * @crtc:	crtc pointer
+ */
 void dpu_encoder_assign_crtc(struct drm_encoder *drm_enc, struct drm_crtc *crtc)
 {
 	struct dpu_encoder_virt *dpu_enc = to_dpu_encoder_virt(drm_enc);
@@ -1441,6 +1547,13 @@ void dpu_encoder_assign_crtc(struct drm_encoder *drm_enc, struct drm_crtc *crtc)
 	spin_unlock_irqrestore(&dpu_enc->enc_spinlock, lock_flags);
 }
 
+/**
+ * dpu_encoder_toggle_vblank_for_crtc - Toggles vblank interrupts on or off if
+ *	the encoder is assigned to the given crtc
+ * @drm_enc:	encoder pointer
+ * @crtc:	crtc pointer
+ * @enable:	true if vblank should be enabled
+ */
 void dpu_encoder_toggle_vblank_for_crtc(struct drm_encoder *drm_enc,
 					struct drm_crtc *crtc, bool enable)
 {
@@ -1465,6 +1578,13 @@ void dpu_encoder_toggle_vblank_for_crtc(struct drm_encoder *drm_enc,
 	}
 }
 
+/**
+ * dpu_encoder_frame_done_callback - Notify virtual encoder that this phys
+ *     encoder completes last request frame
+ * @drm_enc:    Pointer to drm encoder structure
+ * @ready_phys:	Pointer to physical encoder
+ * @event:	Event to process
+ */
 void dpu_encoder_frame_done_callback(
 		struct drm_encoder *drm_enc,
 		struct dpu_encoder_phys *ready_phys, u32 event)
@@ -1587,6 +1707,12 @@ static void _dpu_encoder_trigger_start(struct dpu_encoder_phys *phys)
 		phys->ops.trigger_start(phys);
 }
 
+/**
+ * dpu_encoder_helper_trigger_start - control start helper function
+ *	This helper function may be optionally specified by physical
+ *	encoders if they require ctl_start triggering.
+ * @phys_enc: Pointer to physical encoder structure
+ */
 void dpu_encoder_helper_trigger_start(struct dpu_encoder_phys *phys_enc)
 {
 	struct dpu_hw_ctl *ctl;
@@ -1708,6 +1834,11 @@ static void _dpu_encoder_kickoff_phys(struct dpu_encoder_virt *dpu_enc)
 	spin_unlock_irqrestore(&dpu_enc->enc_spinlock, lock_flags);
 }
 
+/**
+ * dpu_encoder_trigger_kickoff_pending - Clear the flush bits from previous
+ *        kickoff and trigger the ctl prepare progress for command mode display.
+ * @drm_enc:	encoder pointer
+ */
 void dpu_encoder_trigger_kickoff_pending(struct drm_encoder *drm_enc)
 {
 	struct dpu_encoder_virt *dpu_enc;
@@ -1784,6 +1915,11 @@ static u32 _dpu_encoder_calculate_linetime(struct dpu_encoder_virt *dpu_enc,
 	return line_time;
 }
 
+/**
+ * dpu_encoder_vsync_time - get the time of the next vsync
+ * @drm_enc:	encoder pointer
+ * @wakeup_time: pointer to ktime_t to write the vsync time to
+ */
 int dpu_encoder_vsync_time(struct drm_encoder *drm_enc, ktime_t *wakeup_time)
 {
 	struct drm_display_mode *mode;
@@ -1930,6 +2066,13 @@ static void dpu_encoder_prep_dsc(struct dpu_encoder_virt *dpu_enc,
 					 dsc, dsc_common_mode, initial_lines);
 }
 
+/**
+ * dpu_encoder_prepare_for_kickoff - schedule double buffer flip of the ctl
+ *	path (i.e. ctl flush and start) at next appropriate time.
+ *	Immediately: if no previous commit is outstanding.
+ *	Delayed: Block until next trigger can be issued.
+ * @drm_enc:	encoder pointer
+ */
 void dpu_encoder_prepare_for_kickoff(struct drm_encoder *drm_enc)
 {
 	struct dpu_encoder_virt *dpu_enc;
@@ -1966,6 +2109,10 @@ void dpu_encoder_prepare_for_kickoff(struct drm_encoder *drm_enc)
 		dpu_encoder_prep_dsc(dpu_enc, dpu_enc->dsc);
 }
 
+/**
+ * dpu_encoder_is_valid_for_commit - check if encode has valid parameters for commit.
+ * @drm_enc:    Pointer to drm encoder structure
+ */
 bool dpu_encoder_is_valid_for_commit(struct drm_encoder *drm_enc)
 {
 	struct dpu_encoder_virt *dpu_enc;
@@ -1987,6 +2134,11 @@ bool dpu_encoder_is_valid_for_commit(struct drm_encoder *drm_enc)
 	return true;
 }
 
+/**
+ * dpu_encoder_kickoff - trigger a double buffer flip of the ctl path
+ *	(i.e. ctl flush and start) immediately.
+ * @drm_enc:	encoder pointer
+ */
 void dpu_encoder_kickoff(struct drm_encoder *drm_enc)
 {
 	struct dpu_encoder_virt *dpu_enc;
@@ -2085,6 +2237,10 @@ static void dpu_encoder_unprep_dsc(struct dpu_encoder_virt *dpu_enc)
 	}
 }
 
+/**
+ * dpu_encoder_helper_phys_cleanup - helper to cleanup dpu pipeline
+ * @phys_enc: Pointer to physical encoder structure
+ */
 void dpu_encoder_helper_phys_cleanup(struct dpu_encoder_phys *phys_enc)
 {
 	struct dpu_hw_ctl *ctl = phys_enc->hw_ctl;
@@ -2168,6 +2324,12 @@ void dpu_encoder_helper_phys_cleanup(struct dpu_encoder_phys *phys_enc)
 	ctl->ops.clear_pending_flush(ctl);
 }
 
+/**
+ * dpu_encoder_helper_phys_setup_cdm - setup chroma down sampling block
+ * @phys_enc: Pointer to physical encoder
+ * @dpu_fmt: Pinter to the format description
+ * @output_type: HDMI/WB
+ */
 void dpu_encoder_helper_phys_setup_cdm(struct dpu_encoder_phys *phys_enc,
 				       const struct msm_format *dpu_fmt,
 				       u32 output_type)
@@ -2472,6 +2634,13 @@ static const struct drm_encoder_funcs dpu_encoder_funcs = {
 	.debugfs_init = dpu_encoder_debugfs_init,
 };
 
+/**
+ * dpu_encoder_init - initialize virtual encoder object
+ * @dev:        Pointer to drm device structure
+ * @drm_enc_mode: corresponding DRM_MODE_ENCODER_* constant
+ * @disp_info:  Pointer to display information structure
+ * Returns:     Pointer to newly created drm encoder
+ */
 struct drm_encoder *dpu_encoder_init(struct drm_device *dev,
 		int drm_enc_mode,
 		struct msm_display_info *disp_info)
@@ -2593,6 +2762,10 @@ int dpu_encoder_wait_for_tx_complete(struct drm_encoder *drm_enc)
 	return ret;
 }
 
+/**
+ * dpu_encoder_get_intf_mode - get interface mode of the given encoder
+ * @encoder: Pointer to drm encoder object
+ */
 enum dpu_intf_mode dpu_encoder_get_intf_mode(struct drm_encoder *encoder)
 {
 	struct dpu_encoder_virt *dpu_enc = NULL;
@@ -2612,6 +2785,12 @@ enum dpu_intf_mode dpu_encoder_get_intf_mode(struct drm_encoder *encoder)
 	return INTF_MODE_NONE;
 }
 
+/**
+ * dpu_encoder_helper_get_dsc - get DSC blocks mask for the DPU encoder
+ *   This helper function is used by physical encoder to get DSC blocks mask
+ *   used for this encoder.
+ * @phys_enc: Pointer to physical encoder structure
+ */
 unsigned int dpu_encoder_helper_get_dsc(struct dpu_encoder_phys *phys_enc)
 {
 	struct drm_encoder *encoder = phys_enc->parent;

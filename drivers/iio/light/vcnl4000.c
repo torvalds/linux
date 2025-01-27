@@ -1456,7 +1456,7 @@ static int vcnl4010_write_event_config(struct iio_dev *indio_dev,
 				       const struct iio_chan_spec *chan,
 				       enum iio_event_type type,
 				       enum iio_event_direction dir,
-				       int state)
+				       bool state)
 {
 	switch (chan->type) {
 	case IIO_PROXIMITY:
@@ -1501,7 +1501,8 @@ static int vcnl4040_read_event_config(struct iio_dev *indio_dev,
 static int vcnl4040_write_event_config(struct iio_dev *indio_dev,
 				       const struct iio_chan_spec *chan,
 				       enum iio_event_type type,
-				       enum iio_event_direction dir, int state)
+				       enum iio_event_direction dir,
+				       bool state)
 {
 	int ret = -EINVAL;
 	u16 val, mask;

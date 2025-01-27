@@ -14,42 +14,40 @@ enum rtw_rx_desc_enc {
 	RX_DESC_ENC_WEP104	= 5,
 };
 
-#define GET_RX_DESC_PHYST(rxdesc)                                              \
-	le32_get_bits(*((__le32 *)(rxdesc) + 0x00), BIT(26))
-#define GET_RX_DESC_ICV_ERR(rxdesc)                                            \
-	le32_get_bits(*((__le32 *)(rxdesc) + 0x00), BIT(15))
-#define GET_RX_DESC_CRC32(rxdesc)                                              \
-	le32_get_bits(*((__le32 *)(rxdesc) + 0x00), BIT(14))
-#define GET_RX_DESC_SWDEC(rxdesc)                                              \
-	le32_get_bits(*((__le32 *)(rxdesc) + 0x00), BIT(27))
-#define GET_RX_DESC_C2H(rxdesc)                                                \
-	le32_get_bits(*((__le32 *)(rxdesc) + 0x02), BIT(28))
-#define GET_RX_DESC_PKT_LEN(rxdesc)                                            \
-	le32_get_bits(*((__le32 *)(rxdesc) + 0x00), GENMASK(13, 0))
-#define GET_RX_DESC_DRV_INFO_SIZE(rxdesc)                                      \
-	le32_get_bits(*((__le32 *)(rxdesc) + 0x00), GENMASK(19, 16))
-#define GET_RX_DESC_SHIFT(rxdesc)                                              \
-	le32_get_bits(*((__le32 *)(rxdesc) + 0x00), GENMASK(25, 24))
-#define GET_RX_DESC_ENC_TYPE(rxdesc)                                           \
-	le32_get_bits(*((__le32 *)(rxdesc) + 0x00), GENMASK(22, 20))
-#define GET_RX_DESC_RX_RATE(rxdesc)                                            \
-	le32_get_bits(*((__le32 *)(rxdesc) + 0x03), GENMASK(6, 0))
-#define GET_RX_DESC_MACID(rxdesc)                                              \
-	le32_get_bits(*((__le32 *)(rxdesc) + 0x01), GENMASK(6, 0))
-#define GET_RX_DESC_PPDU_CNT(rxdesc)                                           \
-	le32_get_bits(*((__le32 *)(rxdesc) + 0x02), GENMASK(30, 29))
-#define GET_RX_DESC_TSFL(rxdesc)                                               \
-	le32_get_bits(*((__le32 *)(rxdesc) + 0x05), GENMASK(31, 0))
-#define GET_RX_DESC_BW(rxdesc)                                                 \
-	(le32_get_bits(*((__le32 *)(rxdesc) + 0x04), GENMASK(5, 4)))
+struct rtw_rx_desc {
+	__le32 w0;
+	__le32 w1;
+	__le32 w2;
+	__le32 w3;
+	__le32 w4;
+	__le32 w5;
+} __packed;
+
+#define RTW_RX_DESC_W0_PKT_LEN		GENMASK(13, 0)
+#define RTW_RX_DESC_W0_CRC32		BIT(14)
+#define RTW_RX_DESC_W0_ICV_ERR		BIT(15)
+#define RTW_RX_DESC_W0_DRV_INFO_SIZE	GENMASK(19, 16)
+#define RTW_RX_DESC_W0_ENC_TYPE		GENMASK(22, 20)
+#define RTW_RX_DESC_W0_SHIFT		GENMASK(25, 24)
+#define RTW_RX_DESC_W0_PHYST		BIT(26)
+#define RTW_RX_DESC_W0_SWDEC		BIT(27)
+
+#define RTW_RX_DESC_W1_MACID		GENMASK(6, 0)
+
+#define RTW_RX_DESC_W2_C2H		BIT(28)
+#define RTW_RX_DESC_W2_PPDU_CNT		GENMASK(30, 29)
+
+#define RTW_RX_DESC_W3_RX_RATE		GENMASK(6, 0)
+
+#define RTW_RX_DESC_W4_BW		GENMASK(5, 4)
+
+#define RTW_RX_DESC_W5_TSFL		GENMASK(31, 0)
 
 void rtw_rx_stats(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
 		  struct sk_buff *skb);
-void rtw_rx_fill_rx_status(struct rtw_dev *rtwdev,
-			   struct rtw_rx_pkt_stat *pkt_stat,
-			   struct ieee80211_hdr *hdr,
-			   struct ieee80211_rx_status *rx_status,
-			   u8 *phy_status);
+void rtw_rx_query_rx_desc(struct rtw_dev *rtwdev, void *rx_desc8,
+			  struct rtw_rx_pkt_stat *pkt_stat,
+			  struct ieee80211_rx_status *rx_status);
 void rtw_update_rx_freq_from_ie(struct rtw_dev *rtwdev, struct sk_buff *skb,
 				struct ieee80211_rx_status *rx_status,
 				struct rtw_rx_pkt_stat *pkt_stat);

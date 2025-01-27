@@ -24,18 +24,18 @@ DECLARE_EVENT_CLASS(devres,
 		__field(struct device *, dev)
 		__field(const char *, op)
 		__field(void *, node)
-		__field(const char *, name)
+		__string(name, name)
 		__field(size_t, size)
 	),
 	TP_fast_assign(
 		__assign_str(devname);
 		__entry->op = op;
 		__entry->node = node;
-		__entry->name = name;
+		__assign_str(name);
 		__entry->size = size;
 	),
 	TP_printk("%s %3s %p %s (%zu bytes)", __get_str(devname),
-		  __entry->op, __entry->node, __entry->name, __entry->size)
+		  __entry->op, __entry->node, __get_str(name), __entry->size)
 );
 
 DEFINE_EVENT(devres, devres_log,

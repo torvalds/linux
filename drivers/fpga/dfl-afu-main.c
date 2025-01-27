@@ -947,12 +947,12 @@ static const struct attribute_group *afu_dev_groups[] = {
 };
 
 static struct platform_driver afu_driver = {
-	.driver	= {
-		.name	    = DFL_FPGA_FEATURE_DEV_PORT,
+	.driver = {
+		.name = DFL_FPGA_FEATURE_DEV_PORT,
 		.dev_groups = afu_dev_groups,
 	},
-	.probe   = afu_probe,
-	.remove_new = afu_remove,
+	.probe = afu_probe,
+	.remove = afu_remove,
 };
 
 static int __init afu_init(void)

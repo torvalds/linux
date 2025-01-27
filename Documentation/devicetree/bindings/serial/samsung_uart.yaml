@@ -27,6 +27,7 @@ properties:
           - samsung,exynos4210-uart
           - samsung,exynos5433-uart
           - samsung,exynos850-uart
+          - samsung,exynos8895-uart
       - items:
           - enum:
               - samsung,exynos7-uart
@@ -160,17 +161,26 @@ allOf:
           contains:
             enum:
               - google,gs101-uart
+              - samsung,exynos8895-uart
     then:
       required:
         - samsung,uart-fifosize
       properties:
-        reg-io-width: false
-
         clocks:
           maxItems: 2
 
         clock-names:
           maxItems: 2
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - google,gs101-uart
+    then:
+      properties:
+        reg-io-width: false
 
 unevaluatedProperties: false
 

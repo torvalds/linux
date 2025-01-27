@@ -523,7 +523,7 @@ static struct platform_driver uwire_driver = {
 		.name		= "omap_uwire",
 	},
 	.probe = uwire_probe,
-	.remove_new = uwire_remove,
+	.remove = uwire_remove,
 	// suspend ... unuse ck
 	// resume ... use ck
 };

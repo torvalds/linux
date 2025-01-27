@@ -76,17 +76,29 @@ xrep_rtsummary_prep_buf(
 	union xfs_suminfo_raw	*ondisk;
 	int			error;
 
-	rts->args.mp = sc->mp;
+	rts->args.mp = mp;
 	rts->args.tp = sc->tp;
+	rts->args.rtg = sc->sr.rtg;
 	rts->args.sumbp = bp;
 	ondisk = xfs_rsumblock_infoptr(&rts->args, 0);
 	rts->args.sumbp = NULL;
 
-	bp->b_ops = &xfs_rtbuf_ops;
-
 	error = xfsum_copyout(sc, rts->prep_wordoff, ondisk, mp->m_blockwsize);
 	if (error)
 		return error;
+
+	if (xfs_has_rtgroups(sc->mp)) {
+		struct xfs_rtbuf_blkinfo	*hdr = bp->b_addr;
+
+		hdr->rt_magic = cpu_to_be32(XFS_RTSUMMARY_MAGIC);
+		hdr->rt_owner = cpu_to_be64(sc->ip->i_ino);
+		hdr->rt_blkno = cpu_to_be64(xfs_buf_daddr(bp));
+		hdr->rt_lsn = 0;
+		uuid_copy(&hdr->rt_uuid, &sc->mp->m_sb.sb_meta_uuid);
+		bp->b_ops = &xfs_rtsummary_buf_ops;
+	} else {
+		bp->b_ops = &xfs_rtbuf_ops;
+	}
 
 	rts->prep_wordoff += mp->m_blockwsize;
 	xfs_trans_buf_set_type(sc->tp, bp, XFS_BLFT_RTSUMMARY_BUF);
@@ -162,8 +174,8 @@ xrep_rtsummary(
 		return error;
 
 	/* Reset incore state and blow out the summary cache. */
-	if (mp->m_rsum_cache)
-		memset(mp->m_rsum_cache, 0xFF, mp->m_sb.sb_rbmblocks);
+	if (sc->sr.rtg->rtg_rsum_cache)
+		memset(sc->sr.rtg->rtg_rsum_cache, 0xFF, mp->m_sb.sb_rbmblocks);
 
 	mp->m_rsumlevels = rts->rsumlevels;
 	mp->m_rsumblocks = rts->rsumblocks;

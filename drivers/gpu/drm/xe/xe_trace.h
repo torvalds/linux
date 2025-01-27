@@ -21,6 +21,7 @@
 #include "xe_vm.h"
 
 #define __dev_name_xe(xe)	dev_name((xe)->drm.dev)
+#define __dev_name_tile(tile)	__dev_name_xe(tile_to_xe((tile)))
 #define __dev_name_gt(gt)	__dev_name_xe(gt_to_xe((gt)))
 #define __dev_name_eq(q)	__dev_name_gt((q)->gt)
 
@@ -342,12 +343,12 @@ DEFINE_EVENT(xe_hw_fence, xe_hw_fence_try_signal,
 );
 
 TRACE_EVENT(xe_reg_rw,
-	TP_PROTO(struct xe_gt *gt, bool write, u32 reg, u64 val, int len),
+	TP_PROTO(struct xe_mmio *mmio, bool write, u32 reg, u64 val, int len),
 
-	TP_ARGS(gt, write, reg, val, len),
+	TP_ARGS(mmio, write, reg, val, len),
 
 	TP_STRUCT__entry(
-		__string(dev, __dev_name_gt(gt))
+		__string(dev, __dev_name_tile(mmio->tile))
 		__field(u64, val)
 		__field(u32, reg)
 		__field(u16, write)

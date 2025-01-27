@@ -1052,7 +1052,7 @@ static struct platform_driver fs_enet_driver = {
 		.of_match_table = fs_enet_match,
 	},
 	.probe = fs_enet_probe,
-	.remove_new = fs_enet_remove,
+	.remove = fs_enet_remove,
 };
 
 #ifdef CONFIG_NET_POLL_CONTROLLER

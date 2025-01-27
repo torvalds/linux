@@ -110,7 +110,7 @@ void ConfigItem::updateMenu(void)
 
 	if (prop) switch (prop->type) {
 	case P_MENU:
-		if (list->mode == singleMode || list->mode == symbolMode) {
+		if (list->mode == singleMode) {
 			/* a menuconfig entry is displayed differently
 			 * depending whether it's at the view root or a child.
 			 */
@@ -159,7 +159,7 @@ void ConfigItem::updateMenu(void)
 			ch = 'M';
 			break;
 		default:
-			if (sym_is_choice_value(sym) && type == S_BOOLEAN)
+			if (sym_is_choice_value(sym))
 				setIcon(promptColIdx, choiceNoIcon);
 			else
 				setIcon(promptColIdx, symbolNoIcon);
@@ -175,17 +175,16 @@ void ConfigItem::updateMenu(void)
 		setText(dataColIdx, sym_get_string_value(sym));
 		break;
 	}
-	if (!sym_has_value(sym) && visible)
+	if (!sym_has_value(sym))
 		prompt += " (NEW)";
 set_prompt:
 	setText(promptColIdx, prompt);
 }
 
-void ConfigItem::testUpdateMenu(bool v)
+void ConfigItem::testUpdateMenu(void)
 {
 	ConfigItem* i;
 
-	visible = v;
 	if (!menu)
 		return;
 
@@ -307,7 +306,6 @@ ConfigList::ConfigList(QWidget *parent, const char *name)
 {
 	setObjectName(name);
 	setSortingEnabled(false);
-	setRootIsDecorated(true);
 
 	setVerticalScrollMode(ScrollPerPixel);
 	setHorizontalScrollMode(ScrollPerPixel);
@@ -430,27 +428,26 @@ void ConfigList::updateList()
 			item = (ConfigItem*)(*it);
 			if (!item->menu)
 				continue;
-			item->testUpdateMenu(menu_is_visible(item->menu));
+			item->testUpdateMenu();
 
 			++it;
 		}
 		return;
 	}
 
-	if (rootEntry != &rootmenu && (mode == singleMode ||
-	    (mode == symbolMode && rootEntry->parent != &rootmenu))) {
+	if (rootEntry != &rootmenu && mode == singleMode) {
 		item = (ConfigItem *)topLevelItem(0);
 		if (!item)
-			item = new ConfigItem(this, 0, true);
+			item = new ConfigItem(this, 0);
 		last = item;
 	}
 	if ((mode == singleMode || (mode == symbolMode && !(rootEntry->flags & MENU_ROOT))) &&
 	    rootEntry->sym && rootEntry->prompt) {
 		item = last ? last->nextSibling() : nullptr;
 		if (!item)
-			item = new ConfigItem(this, last, rootEntry, true);
+			item = new ConfigItem(this, last, rootEntry);
 		else
-			item->testUpdateMenu(true);
+			item->testUpdateMenu();
 
 		updateMenuList(item, rootEntry);
 		update();
@@ -599,7 +596,6 @@ void ConfigList::updateMenuList(ConfigItem *parent, struct menu* menu)
 	struct menu* child;
 	ConfigItem* item;
 	ConfigItem* last;
-	bool visible;
 	enum prop_type type;
 
 	if (!menu) {
@@ -631,14 +627,13 @@ void ConfigList::updateMenuList(ConfigItem *parent, struct menu* menu)
 			break;
 		}
 
-		visible = menu_is_visible(child);
 		if (!menuSkip(child)) {
 			if (!child->sym && !child->list && !child->prompt)
 				continue;
 			if (!item || item->menu != child)
-				item = new ConfigItem(parent, last, child, visible);
+				item = new ConfigItem(parent, last, child);
 			else
-				item->testUpdateMenu(visible);
+				item->testUpdateMenu();
 
 			if (mode == fullMode || mode == menuMode || type != P_MENU)
 				updateMenuList(item, child);
@@ -664,7 +659,6 @@ void ConfigList::updateMenuList(struct menu *menu)
 	struct menu* child;
 	ConfigItem* item;
 	ConfigItem* last;
-	bool visible;
 	enum prop_type type;
 
 	if (!menu) {
@@ -696,14 +690,13 @@ void ConfigList::updateMenuList(struct menu *menu)
 			break;
 		}
 
-		visible = menu_is_visible(child);
 		if (!menuSkip(child)) {
 			if (!child->sym && !child->list && !child->prompt)
 				continue;
 			if (!item || item->menu != child)
-				item = new ConfigItem(this, last, child, visible);
+				item = new ConfigItem(this, last, child);
 			else
-				item->testUpdateMenu(visible);
+				item->testUpdateMenu();
 
 			if (mode == fullMode || mode == menuMode || type != P_MENU)
 				updateMenuList(item, child);
@@ -731,7 +724,7 @@ void ConfigList::keyPressEvent(QKeyEvent* ev)
 	struct menu *menu;
 	enum prop_type type;
 
-	if (ev->key() == Qt::Key_Escape && mode != fullMode && mode != listMode) {
+	if (ev->key() == Qt::Key_Escape && mode == singleMode) {
 		emit parentSelected();
 		ev->accept();
 		return;
@@ -781,13 +774,6 @@ void ConfigList::keyPressEvent(QKeyEvent* ev)
 	ev->accept();
 }
 
-void ConfigList::mousePressEvent(QMouseEvent* e)
-{
-	//QPoint p(contentsToViewport(e->pos()));
-	//printf("contentsMousePressEvent: %d,%d\n", p.x(), p.y());
-	Parent::mousePressEvent(e);
-}
-
 void ConfigList::mouseReleaseEvent(QMouseEvent* e)
 {
 	QPoint p = e->pos();
@@ -832,13 +818,6 @@ void ConfigList::mouseReleaseEvent(QMouseEvent* e)
 skip:
 	//printf("contentsMouseReleaseEvent: %d,%d\n", p.x(), p.y());
 	Parent::mouseReleaseEvent(e);
-}
-
-void ConfigList::mouseMoveEvent(QMouseEvent* e)
-{
-	//QPoint p(contentsToViewport(e->pos()));
-	//printf("contentsMouseMoveEvent: %d,%d\n", p.x(), p.y());
-	Parent::mouseMoveEvent(e);
 }
 
 void ConfigList::mouseDoubleClickEvent(QMouseEvent* e)
@@ -1022,7 +1001,7 @@ void ConfigInfoView::menuInfo(void)
 			if (sym->name) {
 				stream << " (";
 				if (showDebug())
-					stream << "<a href=\"s" << sym->name << "\">";
+					stream << "<a href=\"" << sym->name << "\">";
 				stream << print_filter(sym->name);
 				if (showDebug())
 					stream << "</a>";
@@ -1031,7 +1010,7 @@ void ConfigInfoView::menuInfo(void)
 		} else if (sym->name) {
 			stream << "<big><b>";
 			if (showDebug())
-				stream << "<a href=\"s" << sym->name << "\">";
+				stream << "<a href=\"" << sym->name << "\">";
 			stream << print_filter(sym->name);
 			if (showDebug())
 				stream << "</a>";
@@ -1086,9 +1065,9 @@ QString ConfigInfoView::debug_info(struct symbol *sym)
 		switch (prop->type) {
 		case P_PROMPT:
 		case P_MENU:
-			stream << "prompt: <a href=\"m" << sym->name << "\">";
+			stream << "prompt: ";
 			stream << print_filter(prop->text);
-			stream << "</a><br>";
+			stream << "<br>";
 			break;
 		case P_DEFAULT:
 		case P_SELECT:
@@ -1122,28 +1101,19 @@ QString ConfigInfoView::print_filter(const QString &str)
 {
 	QRegularExpression re("[<>&\"\\n]");
 	QString res = str;
+
+	QHash<QChar, QString> patterns;
+	patterns['<'] = "&lt;";
+	patterns['>'] = "&gt;";
+	patterns['&'] = "&amp;";
+	patterns['"'] = "&quot;";
+	patterns['\n'] = "<br>";
+
 	for (int i = 0; (i = res.indexOf(re, i)) >= 0;) {
-		switch (res[i].toLatin1()) {
-		case '<':
-			res.replace(i, 1, "&lt;");
-			i += 4;
-			break;
-		case '>':
-			res.replace(i, 1, "&gt;");
-			i += 4;
-			break;
-		case '&':
-			res.replace(i, 1, "&amp;");
-			i += 5;
-			break;
-		case '"':
-			res.replace(i, 1, "&quot;");
-			i += 6;
-			break;
-		case '\n':
-			res.replace(i, 1, "<br>");
-			i += 4;
-			break;
+		const QString n = patterns.value(res[i], QString());
+		if (!n.isEmpty()) {
+			res.replace(i, 1, n);
+			i += n.length();
 		}
 	}
 	return res;
@@ -1154,7 +1124,7 @@ void ConfigInfoView::expr_print_help(void *data, struct symbol *sym, const char 
 	QTextStream *stream = reinterpret_cast<QTextStream *>(data);
 
 	if (sym && sym->name && !(sym->flags & SYMBOL_CONST)) {
-		*stream << "<a href=\"s" << sym->name << "\">";
+		*stream << "<a href=\"" << sym->name << "\">";
 		*stream << print_filter(str);
 		*stream << "</a>";
 	} else {
@@ -1164,39 +1134,11 @@ void ConfigInfoView::expr_print_help(void *data, struct symbol *sym, const char 
 
 void ConfigInfoView::clicked(const QUrl &url)
 {
-	QByteArray str = url.toEncoded();
-	const std::size_t count = str.size();
-	char *data = new char[count + 2];  // '$' + '\0'
-	struct symbol **result;
-	struct menu *m = NULL;
+	struct menu *m;
 
-	if (count < 1) {
-		delete[] data;
-		return;
-	}
+	sym = sym_find(url.toEncoded().constData());
 
-	memcpy(data, str.constData(), count);
-	data[count] = '\0';
-
-	/* Seek for exact match */
-	data[0] = '^';
-	strcat(data, "$");
-	result = sym_re_search(data);
-	if (!result) {
-		delete[] data;
-		return;
-	}
-
-	sym = *result;
-
-	/* Seek for the menu which holds the symbol */
-	for (struct property *prop = sym->prop; prop; prop = prop->next) {
-		    if (prop->type != P_PROMPT && prop->type != P_MENU)
-			    continue;
-		    m = prop->menu;
-		    break;
-	}
-
+	m = sym_get_prompt_menu(sym);
 	if (!m) {
 		/* Symbol is not visible as a menu */
 		symbolInfo();
@@ -1204,9 +1146,6 @@ void ConfigInfoView::clicked(const QUrl &url)
 	} else {
 		emit menuSelected(m);
 	}
-
-	free(result);
-	delete[] data;
 }
 
 void ConfigInfoView::contextMenuEvent(QContextMenuEvent *event)
@@ -1240,8 +1179,7 @@ ConfigSearchWindow::ConfigSearchWindow(ConfigMainWindow *parent)
 	layout2->addWidget(searchButton);
 	layout1->addLayout(layout2);
 
-	split = new QSplitter(this);
-	split->setOrientation(Qt::Vertical);
+	split = new QSplitter(Qt::Vertical, this);
 	list = new ConfigList(split, "search");
 	list->mode = listMode;
 	info = new ConfigInfoView(split, "search");
@@ -1300,8 +1238,7 @@ void ConfigSearchWindow::search(void)
 		return;
 	for (p = result; *p; p++) {
 		for_all_prompts((*p), prop)
-			lastItem = new ConfigItem(list, lastItem, prop->menu,
-						  menu_is_visible(prop->menu));
+			lastItem = new ConfigItem(list, lastItem, prop->menu);
 	}
 }
 
@@ -1341,61 +1278,56 @@ ConfigMainWindow::ConfigMainWindow(void)
 	ConfigItem::menubackIcon = QIcon(QPixmap(xpm_menuback));
 
 	QWidget *widget = new QWidget(this);
-	QVBoxLayout *layout = new QVBoxLayout(widget);
 	setCentralWidget(widget);
 
-	split1 = new QSplitter(widget);
-	split1->setOrientation(Qt::Horizontal);
+	QVBoxLayout *layout = new QVBoxLayout(widget);
+
+	split2 = new QSplitter(Qt::Vertical, widget);
+	layout->addWidget(split2);
+	split2->setChildrenCollapsible(false);
+
+	split1 = new QSplitter(Qt::Horizontal, split2);
 	split1->setChildrenCollapsible(false);
 
-	menuList = new ConfigList(widget, "menu");
+	configList = new ConfigList(split1, "config");
 
-	split2 = new QSplitter(widget);
-	split2->setChildrenCollapsible(false);
-	split2->setOrientation(Qt::Vertical);
+	menuList = new ConfigList(split1, "menu");
 
-	// create config tree
-	configList = new ConfigList(widget, "config");
-
-	helpText = new ConfigInfoView(widget, "help");
-
-	layout->addWidget(split2);
-	split2->addWidget(split1);
-	split1->addWidget(configList);
-	split1->addWidget(menuList);
-	split2->addWidget(helpText);
-
+	helpText = new ConfigInfoView(split2, "help");
 	setTabOrder(configList, helpText);
+
 	configList->setFocus();
 
 	backAction = new QAction(QPixmap(xpm_back), "Back", this);
+	backAction->setShortcut(QKeySequence::Back);
 	connect(backAction, &QAction::triggered,
 		this, &ConfigMainWindow::goBack);
 
 	QAction *quitAction = new QAction("&Quit", this);
-	quitAction->setShortcut(Qt::CTRL | Qt::Key_Q);
+	quitAction->setShortcut(QKeySequence::Quit);
 	connect(quitAction, &QAction::triggered,
 		this, &ConfigMainWindow::close);
 
-	QAction *loadAction = new QAction(QPixmap(xpm_load), "&Load", this);
-	loadAction->setShortcut(Qt::CTRL | Qt::Key_L);
+	QAction *loadAction = new QAction(QPixmap(xpm_load), "&Open", this);
+	loadAction->setShortcut(QKeySequence::Open);
 	connect(loadAction, &QAction::triggered,
 		this, &ConfigMainWindow::loadConfig);
 
 	saveAction = new QAction(QPixmap(xpm_save), "&Save", this);
-	saveAction->setShortcut(Qt::CTRL | Qt::Key_S);
+	saveAction->setShortcut(QKeySequence::Save);
 	connect(saveAction, &QAction::triggered,
 		this, &ConfigMainWindow::saveConfig);
 
 	conf_set_changed_callback(conf_changed);
 
-	configname = xstrdup(conf_get_configname());
+	configname = conf_get_configname();
 
 	QAction *saveAsAction = new QAction("Save &As...", this);
+	saveAsAction->setShortcut(QKeySequence::SaveAs);
 	connect(saveAsAction, &QAction::triggered,
 		this, &ConfigMainWindow::saveConfigAs);
 	QAction *searchAction = new QAction("&Find", this);
-	searchAction->setShortcut(Qt::CTRL | Qt::Key_F);
+	searchAction->setShortcut(QKeySequence::Find);
 	connect(searchAction, &QAction::triggered,
 		this, &ConfigMainWindow::searchConfig);
 	singleViewAction = new QAction(QPixmap(xpm_single_view), "Single View", this);
@@ -1505,6 +1437,9 @@ ConfigMainWindow::ConfigMainWindow(void)
 	connect(helpText, &ConfigInfoView::menuSelected,
 		this, &ConfigMainWindow::setMenuLink);
 
+	connect(configApp, &QApplication::aboutToQuit,
+		this, &ConfigMainWindow::saveSettings);
+
 	conf_read(NULL);
 
 	QString listMode = configSettings->value("/listMode", "symbol").toString();
@@ -1528,28 +1463,22 @@ ConfigMainWindow::ConfigMainWindow(void)
 void ConfigMainWindow::loadConfig(void)
 {
 	QString str;
-	QByteArray ba;
-	const char *name;
 
 	str = QFileDialog::getOpenFileName(this, "", configname);
 	if (str.isNull())
 		return;
 
-	ba = str.toLocal8Bit();
-	name = ba.data();
-
-	if (conf_read(name))
+	if (conf_read(str.toLocal8Bit().constData()))
 		QMessageBox::information(this, "qconf", "Unable to load configuration!");
 
-	free(configname);
-	configname = xstrdup(name);
+	configname = str;
 
 	ConfigList::updateListAllForAll();
 }
 
 bool ConfigMainWindow::saveConfig(void)
 {
-	if (conf_write(configname)) {
+	if (conf_write(configname.toLocal8Bit().constData())) {
 		QMessageBox::information(this, "qconf", "Unable to save configuration!");
 		return false;
 	}
@@ -1561,23 +1490,17 @@ bool ConfigMainWindow::saveConfig(void)
 void ConfigMainWindow::saveConfigAs(void)
 {
 	QString str;
-	QByteArray ba;
-	const char *name;
 
 	str = QFileDialog::getSaveFileName(this, "", configname);
 	if (str.isNull())
 		return;
 
-	ba = str.toLocal8Bit();
-	name = ba.data();
-
-	if (conf_write(name)) {
+	if (conf_write(str.toLocal8Bit().constData())) {
 		QMessageBox::information(this, "qconf", "Unable to save configuration!");
 	}
 	conf_write_autoconf(0);
 
-	free(configname);
-	configname = xstrdup(name);
+	configname = str;
 }
 
 void ConfigMainWindow::searchConfig(void)
@@ -1662,9 +1585,6 @@ void ConfigMainWindow::listFocusChanged(void)
 
 void ConfigMainWindow::goBack(void)
 {
-	if (configList->rootEntry == &rootmenu)
-		return;
-
 	configList->setParentMenu();
 }
 
@@ -1905,8 +1825,6 @@ int main(int ac, char** av)
 	v = new ConfigMainWindow();
 
 	//zconfdump(stdout);
-	configApp->connect(configApp, SIGNAL(lastWindowClosed()), SLOT(quit()));
-	configApp->connect(configApp, SIGNAL(aboutToQuit()), v, SLOT(saveSettings()));
 
 	v->show();
 	configApp->exec();

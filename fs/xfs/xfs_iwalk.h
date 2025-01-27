@@ -25,7 +25,7 @@ int xfs_iwalk_threaded(struct xfs_mount *mp, xfs_ino_t startino,
 		unsigned int flags, xfs_iwalk_fn iwalk_fn,
 		unsigned int inode_records, bool poll, void *data);
 
-/* Only iterate inodes within the same AG as @startino. */
+/* Only iterate within the same AG as @startino. */
 #define XFS_IWALK_SAME_AG	(1U << 0)
 
 #define XFS_IWALK_FLAGS_ALL	(XFS_IWALK_SAME_AG)
@@ -40,10 +40,5 @@ int xfs_inobt_walk(struct xfs_mount *mp, struct xfs_trans *tp,
 		xfs_ino_t startino, unsigned int flags,
 		xfs_inobt_walk_fn inobt_walk_fn, unsigned int inobt_records,
 		void *data);
-
-/* Only iterate inobt records within the same AG as @startino. */
-#define XFS_INOBT_WALK_SAME_AG	(XFS_IWALK_SAME_AG)
-
-#define XFS_INOBT_WALK_FLAGS_ALL (XFS_INOBT_WALK_SAME_AG)
 
 #endif /* __XFS_IWALK_H__ */

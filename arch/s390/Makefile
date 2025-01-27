@@ -72,15 +72,6 @@ cflags-$(CONFIG_FRAME_POINTER) += -fno-optimize-sibling-calls
 KBUILD_AFLAGS_DECOMPRESSOR += $(aflags-y)
 KBUILD_CFLAGS_DECOMPRESSOR += $(cflags-y)
 
-ifneq ($(call cc-option,-mstack-size=8192 -mstack-guard=128),)
-  CC_FLAGS_CHECK_STACK := -mstack-size=$(STACK_SIZE)
-  ifeq ($(call cc-option,-mstack-size=8192),)
-    CC_FLAGS_CHECK_STACK += -mstack-guard=$(CONFIG_STACK_GUARD)
-  endif
-  export CC_FLAGS_CHECK_STACK
-  cflags-$(CONFIG_CHECK_STACK) += $(CC_FLAGS_CHECK_STACK)
-endif
-
 ifdef CONFIG_EXPOLINE
   ifdef CONFIG_EXPOLINE_EXTERN
     CC_FLAGS_EXPOLINE := -mindirect-branch=thunk-extern

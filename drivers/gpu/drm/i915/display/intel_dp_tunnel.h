@@ -20,7 +20,7 @@ struct intel_dp;
 struct intel_encoder;
 struct intel_link_bw_limits;
 
-#if defined(CONFIG_DRM_I915_DP_TUNNEL) && defined(I915)
+#if IS_ENABLED(CONFIG_DRM_I915_DP_TUNNEL) && defined(I915)
 
 int intel_dp_tunnel_detect(struct intel_dp *intel_dp, struct drm_modeset_acquire_ctx *ctx);
 void intel_dp_tunnel_disconnect(struct intel_dp *intel_dp);

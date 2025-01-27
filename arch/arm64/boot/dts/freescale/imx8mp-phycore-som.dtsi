@@ -209,9 +209,7 @@
 };
 
 &gpio1 {
-	gpio-line-names = "", "", "X_PMIC_WDOG_B", "",
-		"", "", "", "", "", "",
-		"", "", "", "", "", "X_nETHPHY_INT";
+	gpio-line-names = "", "", "X_PMIC_WDOG_B";
 };
 
 &gpio4 {

@@ -150,7 +150,7 @@
 			"Speaker", "Speaker Amplifier OUTL",
 			"Speaker", "Speaker Amplifier OUTR";
 
-		simple-audio-card,hp-det-gpio = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
+		simple-audio-card,hp-det-gpios = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
 		simple-audio-card,aux-devs = <&speaker_amp>;
 		simple-audio-card,pin-switches = "Speaker";
 
@@ -172,7 +172,7 @@
 
 	/* Power tree */
 	/* Root power source */
-	vcc_sysin: vcc-sysin {
+	vcc_sysin: regulator-vcc-sysin {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_sysin";
 		regulator-always-on;
@@ -181,7 +181,7 @@
 
 	/* Regulators supplied by vcc_sysin */
 	/* LCD backlight supply */
-	vcc_12v: vcc-12v {
+	vcc_12v: regulator-vcc-12v {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_12v";
 		regulator-always-on;
@@ -196,7 +196,7 @@
 	};
 
 	/* Main 3.3 V supply */
-	vcc3v3_sys: wifi_bat: vcc3v3-sys {
+	vcc3v3_sys: wifi_bat: regulator-vcc3v3-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_sys";
 		regulator-always-on;
@@ -211,7 +211,7 @@
 	};
 
 	/* 5 V USB power supply */
-	vcc5v0_usb: pa_5v: vcc5v0-usb-regulator {
+	vcc5v0_usb: pa_5v: regulator-vcc5v0-usb {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio1 RK_PB5 GPIO_ACTIVE_HIGH>;
@@ -229,7 +229,7 @@
 	};
 
 	/* RK3399 logic supply */
-	vdd_log: vdd-log {
+	vdd_log: regulator-vdd-log {
 		compatible = "pwm-regulator";
 		pwms = <&pwm2 0 25000 1>;
 		pwm-supply = <&vcc_sysin>;
@@ -246,7 +246,7 @@
 
 	/* Regulators supplied by vcc3v3_sys */
 	/* 0.9 V supply, always on */
-	vcc_0v9: vcc-0v9 {
+	vcc_0v9: regulator-vcc-0v9 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_0v9";
 		regulator-always-on;
@@ -257,7 +257,7 @@
 	};
 
 	/* S3 1.8 V supply, switched by vcc1v8_s3 */
-	vcca1v8_s3: vcc1v8-s3 {
+	vcca1v8_s3: regulator-vcc1v8-s3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcca1v8_s3";
 		regulator-always-on;
@@ -268,7 +268,7 @@
 	};
 
 	/* micro SD card power */
-	vcc3v0_sd: vcc3v0-sd {
+	vcc3v0_sd: regulator-vcc3v0-sd {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio0 RK_PA1 GPIO_ACTIVE_HIGH>;
@@ -286,7 +286,7 @@
 	};
 
 	/* LCD panel power, called VCC3V3_S0 in schematic */
-	vcc3v3_panel: vcc3v3-panel {
+	vcc3v3_panel: regulator-vcc3v3-panel {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio1 RK_PC6 GPIO_ACTIVE_HIGH>;
@@ -305,7 +305,7 @@
 	};
 
 	/* M.2 adapter power, switched by vcc1v8_s3 */
-	vcc3v3_ssd: vcc3v3-ssd {
+	vcc3v3_ssd: regulator-vcc3v3-ssd {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_ssd";
 		regulator-min-microvolt = <3300000>;
@@ -315,7 +315,7 @@
 
 	/* Regulators supplied by vcc5v0_usb */
 	/* USB 3 port power supply regulator  */
-	vcc5v0_otg: vcc5v0-otg {
+	vcc5v0_otg: regulator-vcc5v0-otg {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio4 RK_PD2 GPIO_ACTIVE_HIGH>;
@@ -334,7 +334,7 @@
 
 	/* Regulators supplied by vcc5v0_usb */
 	/* Type C port power supply regulator */
-	vbus_5vout: vbus_typec: vbus-5vout {
+	vbus_5vout: vbus_typec: regulator-vbus-5vout {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio1 RK_PA3 GPIO_ACTIVE_HIGH>;
@@ -352,7 +352,7 @@
 
 	/* Regulators supplied by vcc_1v8 */
 	/* Primary 0.9 V LDO */
-	vcca0v9_s3: vcca0v9-s3 {
+	vcca0v9_s3: regulator-vcca0v9-s3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc0v9_s3";
 		regulator-min-microvolt = <5000000>;
@@ -447,7 +447,7 @@
 		interrupts = <10 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int_l_pin>;
-		rockchip,system-power-controller;
+		system-power-controller;
 		wakeup-source;
 
 		vcc1-supply = <&vcc_sysin>;

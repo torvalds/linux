@@ -185,11 +185,6 @@ unsigned int exynos4_jpeg_get_int_status(void __iomem *base)
 	return readl(base + EXYNOS4_INT_STATUS_REG);
 }
 
-unsigned int exynos4_jpeg_get_fifo_status(void __iomem *base)
-{
-	return readl(base + EXYNOS4_FIFO_STATUS_REG);
-}
-
 void exynos4_jpeg_set_huf_table_enable(void __iomem *base, int value)
 {
 	unsigned int	reg;
@@ -300,22 +295,8 @@ void exynos4_jpeg_set_dec_bitstream_size(void __iomem *base, unsigned int size)
 	writel(size, base + EXYNOS4_BITSTREAM_SIZE_REG);
 }
 
-void exynos4_jpeg_get_frame_size(void __iomem *base,
-			unsigned int *width, unsigned int *height)
-{
-	*width = (readl(base + EXYNOS4_DECODE_XY_SIZE_REG) &
-				EXYNOS4_DECODED_SIZE_MASK);
-	*height = (readl(base + EXYNOS4_DECODE_XY_SIZE_REG) >> 16) &
-				EXYNOS4_DECODED_SIZE_MASK;
-}
-
 unsigned int exynos4_jpeg_get_frame_fmt(void __iomem *base)
 {
 	return readl(base + EXYNOS4_DECODE_IMG_FMT_REG) &
 				EXYNOS4_JPEG_DECODED_IMG_FMT_MASK;
-}
-
-void exynos4_jpeg_set_timer_count(void __iomem *base, unsigned int size)
-{
-	writel(size, base + EXYNOS4_INT_TIMER_COUNT_REG);
 }

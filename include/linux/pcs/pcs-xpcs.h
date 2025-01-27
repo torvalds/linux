@@ -21,8 +21,6 @@
 #define DW_AN_C37_1000BASEX		4
 #define DW_10GBASER			5
 
-struct dw_xpcs_desc;
-
 enum dw_xpcs_pcs_id {
 	DW_XPCS_ID_NATIVE = 0,
 	NXP_SJA1105_XPCS_ID = 0x00000010,
@@ -48,33 +46,18 @@ struct dw_xpcs_info {
 	u32 pma;
 };
 
-enum dw_xpcs_clock {
-	DW_XPCS_CORE_CLK,
-	DW_XPCS_PAD_CLK,
-	DW_XPCS_NUM_CLKS,
-};
+struct dw_xpcs;
 
-struct dw_xpcs {
-	struct dw_xpcs_info info;
-	const struct dw_xpcs_desc *desc;
-	struct mdio_device *mdiodev;
-	struct clk_bulk_data clks[DW_XPCS_NUM_CLKS];
-	struct phylink_pcs pcs;
-	phy_interface_t interface;
-};
-
+struct phylink_pcs *xpcs_to_phylink_pcs(struct dw_xpcs *xpcs);
 int xpcs_get_an_mode(struct dw_xpcs *xpcs, phy_interface_t interface);
-void xpcs_link_up(struct phylink_pcs *pcs, unsigned int neg_mode,
-		  phy_interface_t interface, int speed, int duplex);
-int xpcs_do_config(struct dw_xpcs *xpcs, phy_interface_t interface,
-		   const unsigned long *advertising, unsigned int neg_mode);
 void xpcs_get_interfaces(struct dw_xpcs *xpcs, unsigned long *interfaces);
 int xpcs_config_eee(struct dw_xpcs *xpcs, int mult_fact_100ns,
 		    int enable);
-struct dw_xpcs *xpcs_create_mdiodev(struct mii_bus *bus, int addr,
-				    phy_interface_t interface);
-struct dw_xpcs *xpcs_create_fwnode(struct fwnode_handle *fwnode,
-				   phy_interface_t interface);
+struct dw_xpcs *xpcs_create_mdiodev(struct mii_bus *bus, int addr);
+struct dw_xpcs *xpcs_create_fwnode(struct fwnode_handle *fwnode);
 void xpcs_destroy(struct dw_xpcs *xpcs);
+
+struct phylink_pcs *xpcs_create_pcs_mdiodev(struct mii_bus *bus, int addr);
+void xpcs_destroy_pcs(struct phylink_pcs *pcs);
 
 #endif /* __LINUX_PCS_XPCS_H */

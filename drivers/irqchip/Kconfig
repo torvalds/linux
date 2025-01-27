@@ -415,7 +415,7 @@ config PARTITION_PERCPU
 config STM32MP_EXTI
 	tristate "STM32MP extended interrupts and event controller"
 	depends on (ARCH_STM32 && !ARM_SINGLE_ARMV7M) || COMPILE_TEST
-	default y
+	default ARCH_STM32 && !ARM_SINGLE_ARMV7M
 	select IRQ_DOMAIN_HIERARCHY
 	select GENERIC_IRQ_CHIP
 	help

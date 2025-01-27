@@ -595,7 +595,8 @@ void __rtw8723x_pwrtrack_set_xtal(struct rtw_dev *rtwdev, u8 therm_path,
 				  u8 delta)
 {
 	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
-	const struct rtw_pwr_track_tbl *tbl = rtwdev->chip->pwr_track_tbl;
+	const struct rtw_rfe_def *rfe_def = rtw_get_rfe_def(rtwdev);
+	const struct rtw_pwr_track_tbl *tbl = rfe_def->pwr_track_tbl;
 	const s8 *pwrtrk_xtal;
 	s8 xtal_cap;
 

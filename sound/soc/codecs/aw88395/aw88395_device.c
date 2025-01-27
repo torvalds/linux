@@ -703,7 +703,7 @@ static int aw_dev_set_vcalb(struct aw_device *aw_dev)
 				AW88395_VSCAL_FACTOR_DAC, icalk, vcalk);
 		break;
 	default:
-		dev_err(aw_dev->dev, "unsupport vsense status");
+		dev_err(aw_dev->dev, "unsupported vsense status");
 		return -EINVAL;
 	}
 

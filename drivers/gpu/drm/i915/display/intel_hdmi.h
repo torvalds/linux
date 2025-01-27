@@ -42,6 +42,9 @@ u32 intel_hdmi_infoframes_enabled(struct intel_encoder *encoder,
 u32 intel_hdmi_infoframe_enable(unsigned int type);
 void intel_hdmi_read_gcp_infoframe(struct intel_encoder *encoder,
 				   struct intel_crtc_state *crtc_state);
+void intel_hdmi_fastset_infoframes(struct intel_encoder *encoder,
+				   const struct intel_crtc_state *crtc_state,
+				   const struct drm_connector_state *conn_state);
 void intel_read_infoframe(struct intel_encoder *encoder,
 			  const struct intel_crtc_state *crtc_state,
 			  enum hdmi_infoframe_type type,

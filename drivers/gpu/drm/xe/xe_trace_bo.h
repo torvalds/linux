@@ -189,7 +189,7 @@ DECLARE_EVENT_CLASS(xe_vm,
 			   ),
 
 		    TP_printk("dev=%s, vm=%p, asid=0x%05x", __get_str(dev),
-			      __entry->vm,  __entry->asid)
+			      __entry->vm, __entry->asid)
 );
 
 DEFINE_EVENT(xe_vm, xe_vm_kill,

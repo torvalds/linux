@@ -24,9 +24,9 @@
 #ifndef __JPEG_V1_0_H__
 #define __JPEG_V1_0_H__
 
-int jpeg_v1_0_early_init(void *handle);
-int jpeg_v1_0_sw_init(void *handle);
-void jpeg_v1_0_sw_fini(void *handle);
+int jpeg_v1_0_early_init(struct amdgpu_ip_block *ip_block);
+int jpeg_v1_0_sw_init(struct amdgpu_ip_block *ip_block);
+void jpeg_v1_0_sw_fini(struct amdgpu_ip_block *ip_block);
 void jpeg_v1_0_start(struct amdgpu_device *adev, int mode);
 
 #define JPEG_V1_REG_RANGE_START	0x8000

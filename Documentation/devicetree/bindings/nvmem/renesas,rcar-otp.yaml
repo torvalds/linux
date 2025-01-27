@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/nvmem/renesas,rcar-otp.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: R-Car E-FUSE connected to OTP_MEM
+
+maintainers:
+  - Geert Uytterhoeven <geert+renesas@glider.be>
+
+description:
+  The E-FUSE is a type of non-volatile memory, which is accessible through the
+  One-Time Programmable Memory (OTP_MEM) module on some R-Car Gen4 SoCs.
+
+allOf:
+  - $ref: nvmem.yaml#
+
+properties:
+  compatible:
+    enum:
+      - renesas,r8a779g0-otp # R-CarV4H
+      - renesas,r8a779h0-otp # R-CarV4M
+
+  reg:
+    items:
+      - description: OTP_MEM_0
+      - description: OTP_MEM_1.
+          The addresses of cells defined under the optional nvmem-layout
+          subnode are relative to this register bank.
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    otp@e61be000 {
+        compatible = "renesas,r8a779g0-otp";
+        reg = <0xe61be000 0x1000>, <0xe61bf000 0x1000>;
+    };

@@ -263,6 +263,34 @@ char *strpbrk_esc(char *str, const char *stopset)
 	return ptr;
 }
 
+/* Like strpbrk_esc(), but not break if it is quoted with single/double quotes */
+char *strpbrk_esq(char *str, const char *stopset)
+{
+	char *_stopset = NULL;
+	char *ptr;
+	const char *squote = "'";
+	const char *dquote = "\"";
+
+	if (asprintf(&_stopset, "%s%c%c", stopset, *squote, *dquote) < 0)
+		return NULL;
+
+	do {
+		ptr = strpbrk_esc(str, _stopset);
+		if (!ptr)
+			break;
+		if (*ptr == *squote)
+			ptr = strpbrk_esc(ptr + 1, squote);
+		else if (*ptr == *dquote)
+			ptr = strpbrk_esc(ptr + 1, dquote);
+		else
+			break;
+		str = ptr + 1;
+	} while (ptr);
+
+	free(_stopset);
+	return ptr;
+}
+
 /* Like strdup, but do not copy a single backslash */
 char *strdup_esc(const char *str)
 {
@@ -291,6 +319,78 @@ char *strdup_esc(const char *str)
 	} while (p);
 
 	return ret;
+}
+
+/* Remove backslash right before quote and return next quote address. */
+static char *remove_consumed_esc(char *str, int len, int quote)
+{
+	char *ptr = str, *end = str + len;
+
+	while (*ptr != quote && ptr < end) {
+		if (*ptr == '\\' && *(ptr + 1) == quote) {
+			memmove(ptr, ptr + 1, end - (ptr + 1));
+			/* now *ptr is `quote`. */
+			end--;
+		}
+		ptr++;
+	}
+
+	return *ptr == quote ? ptr : NULL;
+}
+
+/*
+ * Like strdup_esc, but keep quoted string as it is (and single backslash
+ * before quote is removed). If there is no closed quote, return NULL.
+ */
+char *strdup_esq(const char *str)
+{
+	char *d, *ret;
+
+	/* If there is no quote, return normal strdup_esc() */
+	d = strpbrk_esc((char *)str, "\"'");
+	if (!d)
+		return strdup_esc(str);
+
+	ret = strdup(str);
+	if (!ret)
+		return NULL;
+
+	d = ret;
+	do {
+		d = strpbrk(d, "\\\"\'");
+		if (!d)
+			break;
+
+		if (*d == '"' || *d == '\'') {
+			/* This is non-escaped quote */
+			int quote = *d;
+			int len = strlen(d + 1) + 1;
+
+			/*
+			 * Remove the start quote and remove consumed escape (backslash
+			 * before quote) and remove the end quote. If there is no end
+			 * quote, it is the input error.
+			 */
+			memmove(d, d + 1, len);
+			d = remove_consumed_esc(d, len, quote);
+			if (!d)
+				goto error;
+			memmove(d, d + 1, strlen(d + 1) + 1);
+		}
+		if (*d == '\\') {
+			memmove(d, d + 1, strlen(d + 1) + 1);
+			if (*d == '\\') {
+				/* double backslash -- keep the second one. */
+				d++;
+			}
+		}
+	} while (*d != '\0');
+
+	return ret;
+
+error:
+	free(ret);
+	return NULL;
 }
 
 unsigned int hex(char c)

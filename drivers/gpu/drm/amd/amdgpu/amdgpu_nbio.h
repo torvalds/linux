@@ -101,6 +101,7 @@ struct amdgpu_nbio_funcs {
 	int (*get_compute_partition_mode)(struct amdgpu_device *adev);
 	u32 (*get_memory_partition_mode)(struct amdgpu_device *adev,
 					 u32 *supp_modes);
+	bool (*is_nps_switch_requested)(struct amdgpu_device *adev);
 	u64 (*get_pcie_replay_count)(struct amdgpu_device *adev);
 	void (*set_reg_remap)(struct amdgpu_device *adev);
 };

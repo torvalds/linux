@@ -132,7 +132,7 @@ examples:
         pinctrl-names = "default";
         pinctrl-0 = <&cpm_phy0_pins &cps_phy0_pins>;
         reg = <0>;
-        interrupt = <&cpm_gpio2 18 IRQ_TYPE_EDGE_FALLING>;
+        interrupts = <18 IRQ_TYPE_EDGE_FALLING>;
         sfp = <&sfp2>;
       };
     };

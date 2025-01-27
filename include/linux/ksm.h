@@ -13,7 +13,6 @@
 #include <linux/pagemap.h>
 #include <linux/rmap.h>
 #include <linux/sched.h>
-#include <linux/sched/coredump.h>
 
 #ifdef CONFIG_KSM
 int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
@@ -91,7 +90,7 @@ struct folio *ksm_might_need_to_copy(struct folio *folio,
 
 void rmap_walk_ksm(struct folio *folio, struct rmap_walk_control *rwc);
 void folio_migrate_ksm(struct folio *newfolio, struct folio *folio);
-void collect_procs_ksm(struct folio *folio, struct page *page,
+void collect_procs_ksm(const struct folio *folio, const struct page *page,
 		struct list_head *to_kill, int force_early);
 long ksm_process_profit(struct mm_struct *);
 
@@ -123,8 +122,9 @@ static inline void ksm_might_unmap_zero_page(struct mm_struct *mm, pte_t pte)
 {
 }
 
-static inline void collect_procs_ksm(struct folio *folio, struct page *page,
-				     struct list_head *to_kill, int force_early)
+static inline void collect_procs_ksm(const struct folio *folio,
+		const struct page *page, struct list_head *to_kill,
+		int force_early)
 {
 }
 

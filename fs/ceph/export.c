@@ -393,9 +393,9 @@ static struct dentry *ceph_get_parent(struct dentry *child)
 			}
 			dir = snapdir;
 		}
-		/* If directory has already been deleted, futher get_parent
+		/* If directory has already been deleted, further get_parent
 		 * will fail. Do not mark snapdir dentry as disconnected,
-		 * this prevent exportfs from doing futher get_parent. */
+		 * this prevents exportfs from doing further get_parent. */
 		if (unlinked)
 			dn = d_obtain_root(dir);
 		else
@@ -452,7 +452,13 @@ static int __get_snap_name(struct dentry *parent, char *name,
 		goto out;
 	if (ceph_snap(inode) == CEPH_SNAPDIR) {
 		if (ceph_snap(dir) == CEPH_NOSNAP) {
-			strcpy(name, fsc->mount_options->snapdir_name);
+			/*
+			 * .get_name() from struct export_operations
+			 * assumes that its 'name' parameter is pointing
+			 * to a NAME_MAX+1 sized buffer
+			 */
+			strscpy(name, fsc->mount_options->snapdir_name,
+				NAME_MAX + 1);
 			err = 0;
 		}
 		goto out;

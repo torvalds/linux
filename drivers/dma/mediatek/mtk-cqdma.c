@@ -922,7 +922,7 @@ static void mtk_cqdma_remove(struct platform_device *pdev)
 
 static struct platform_driver mtk_cqdma_driver = {
 	.probe = mtk_cqdma_probe,
-	.remove_new = mtk_cqdma_remove,
+	.remove = mtk_cqdma_remove,
 	.driver = {
 		.name           = KBUILD_MODNAME,
 		.of_match_table = mtk_cqdma_match,

@@ -411,6 +411,15 @@ static void steelseries_headset_fetch_battery(struct hid_device *hdev)
 			"Battery query failed (err: %d)\n", ret);
 }
 
+static int battery_capacity_to_level(int capacity)
+{
+	if (capacity >= 50)
+		return POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
+	if (capacity >= 20)
+		return POWER_SUPPLY_CAPACITY_LEVEL_LOW;
+	return POWER_SUPPLY_CAPACITY_LEVEL_CRITICAL;
+}
+
 static void steelseries_headset_battery_timer_tick(struct work_struct *work)
 {
 	struct steelseries_device *sd = container_of(work,
@@ -442,6 +451,9 @@ static int steelseries_headset_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CAPACITY:
 		val->intval = sd->battery_capacity;
 		break;
+	case POWER_SUPPLY_PROP_CAPACITY_LEVEL:
+		val->intval = battery_capacity_to_level(sd->battery_capacity);
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -469,6 +481,7 @@ static enum power_supply_property steelseries_headset_battery_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_SCOPE,
 	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 };
 
 static int steelseries_headset_battery_register(struct steelseries_device *sd)
@@ -603,8 +616,11 @@ static int steelseries_headset_raw_event(struct hid_device *hdev,
 		hid_dbg(sd->hdev,
 			"Parsing raw event for Arctis 1 headset (%*ph)\n", size, read_buf);
 		if (size < ARCTIS_1_BATTERY_RESPONSE_LEN ||
-		    memcmp (read_buf, arctis_1_battery_request, sizeof(arctis_1_battery_request)))
+		    memcmp(read_buf, arctis_1_battery_request, sizeof(arctis_1_battery_request))) {
+			if (!delayed_work_pending(&sd->battery_work))
+				goto request_battery;
 			return 0;
+		}
 		if (read_buf[2] == 0x01) {
 			connected = false;
 			capacity = 100;
@@ -631,6 +647,7 @@ static int steelseries_headset_raw_event(struct hid_device *hdev,
 		power_supply_changed(sd->battery);
 	}
 
+request_battery:
 	spin_lock_irqsave(&sd->lock, flags);
 	if (!sd->removed)
 		schedule_delayed_work(&sd->battery_work,

@@ -1264,7 +1264,7 @@ static struct platform_driver bcm_iproc_i2c_driver = {
 		.pm = pm_sleep_ptr(&bcm_iproc_i2c_pm_ops),
 	},
 	.probe = bcm_iproc_i2c_probe,
-	.remove_new = bcm_iproc_i2c_remove,
+	.remove = bcm_iproc_i2c_remove,
 };
 module_platform_driver(bcm_iproc_i2c_driver);
 

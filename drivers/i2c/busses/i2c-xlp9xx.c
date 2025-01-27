@@ -579,7 +579,7 @@ MODULE_DEVICE_TABLE(acpi, xlp9xx_i2c_acpi_ids);
 
 static struct platform_driver xlp9xx_i2c_driver = {
 	.probe = xlp9xx_i2c_probe,
-	.remove_new = xlp9xx_i2c_remove,
+	.remove = xlp9xx_i2c_remove,
 	.driver = {
 		.name = "xlp9xx-i2c",
 		.acpi_match_table = ACPI_PTR(xlp9xx_i2c_acpi_ids),

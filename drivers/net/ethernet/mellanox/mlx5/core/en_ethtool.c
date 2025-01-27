@@ -406,6 +406,9 @@ int mlx5e_ethtool_set_ringparam(struct mlx5e_priv *priv,
 unlock:
 	mutex_unlock(&priv->state_lock);
 
+	if (!err)
+		netdev_update_features(priv->netdev);
+
 	return err;
 }
 

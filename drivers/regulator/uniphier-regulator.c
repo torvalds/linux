@@ -207,7 +207,7 @@ MODULE_DEVICE_TABLE(of, uniphier_regulator_match);
 
 static struct platform_driver uniphier_regulator_driver = {
 	.probe = uniphier_regulator_probe,
-	.remove_new = uniphier_regulator_remove,
+	.remove = uniphier_regulator_remove,
 	.driver = {
 		.name  = "uniphier-regulator",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,

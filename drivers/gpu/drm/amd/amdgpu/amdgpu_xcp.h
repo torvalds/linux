@@ -56,6 +56,30 @@ enum AMDGPU_XCP_STATE {
 	AMDGPU_XCP_RESUME,
 };
 
+enum amdgpu_xcp_res_id {
+	AMDGPU_XCP_RES_XCC,
+	AMDGPU_XCP_RES_DMA,
+	AMDGPU_XCP_RES_DEC,
+	AMDGPU_XCP_RES_JPEG,
+	AMDGPU_XCP_RES_MAX,
+};
+
+struct amdgpu_xcp_res_details {
+	enum amdgpu_xcp_res_id id;
+	u8 num_inst;
+	u8 num_shared;
+	struct kobject kobj;
+};
+
+struct amdgpu_xcp_cfg {
+	u8 mode;
+	struct amdgpu_xcp_res_details xcp_res[AMDGPU_XCP_RES_MAX];
+	u8 num_res;
+	struct amdgpu_xcp_mgr *xcp_mgr;
+	struct kobject kobj;
+	u16 compatible_nps_modes;
+};
+
 struct amdgpu_xcp_ip_funcs {
 	int (*prepare_suspend)(void *handle, uint32_t inst_mask);
 	int (*suspend)(void *handle, uint32_t inst_mask);
@@ -97,6 +121,9 @@ struct amdgpu_xcp_mgr {
 
 	 /* Used to determine KFD memory size limits per XCP */
 	unsigned int num_xcp_per_mem_partition;
+	struct amdgpu_xcp_cfg *xcp_cfg;
+	uint32_t supp_xcp_modes;
+	uint32_t avail_xcp_modes;
 };
 
 struct amdgpu_xcp_mgr_funcs {
@@ -108,7 +135,9 @@ struct amdgpu_xcp_mgr_funcs {
 			      struct amdgpu_xcp_ip *ip);
 	int (*get_xcp_mem_id)(struct amdgpu_xcp_mgr *xcp_mgr,
 			      struct amdgpu_xcp *xcp, uint8_t *mem_id);
-
+	int (*get_xcp_res_info)(struct amdgpu_xcp_mgr *xcp_mgr,
+				int mode,
+				struct amdgpu_xcp_cfg *xcp_cfg);
 	int (*prepare_suspend)(struct amdgpu_xcp_mgr *xcp_mgr, int xcp_id);
 	int (*suspend)(struct amdgpu_xcp_mgr *xcp_mgr, int xcp_id);
 	int (*prepare_resume)(struct amdgpu_xcp_mgr *xcp_mgr, int xcp_id);
@@ -145,6 +174,9 @@ int amdgpu_xcp_open_device(struct amdgpu_device *adev,
 			   struct drm_file *file_priv);
 void amdgpu_xcp_release_sched(struct amdgpu_device *adev,
 			      struct amdgpu_ctx_entity *entity);
+
+void amdgpu_xcp_cfg_sysfs_init(struct amdgpu_device *adev);
+void amdgpu_xcp_cfg_sysfs_fini(struct amdgpu_device *adev);
 
 #define amdgpu_xcp_select_scheds(adev, e, c, d, x, y) \
 	((adev)->xcp_mgr && (adev)->xcp_mgr->funcs && \

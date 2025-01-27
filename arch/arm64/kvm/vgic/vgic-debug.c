@@ -287,7 +287,10 @@ static int vgic_debug_show(struct seq_file *s, void *v)
 	 * Expect this to succeed, as iter_mark_lpis() takes a reference on
 	 * every LPI to be visited.
 	 */
-	irq = vgic_get_irq(kvm, vcpu, iter->intid);
+	if (iter->intid < VGIC_NR_PRIVATE_IRQS)
+		irq = vgic_get_vcpu_irq(vcpu, iter->intid);
+	else
+		irq = vgic_get_irq(kvm, iter->intid);
 	if (WARN_ON_ONCE(!irq))
 		return -EINVAL;
 

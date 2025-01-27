@@ -22,6 +22,8 @@ GPU Driver Documentation
    afbc
    komeda-kms
    panfrost
+   panthor
+   zynqmp
 
 .. only::  subproject and html
 

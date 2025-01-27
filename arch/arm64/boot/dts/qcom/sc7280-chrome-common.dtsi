@@ -29,7 +29,7 @@
 / {
 	cpus {
 		domain_idle_states: domain-idle-states {
-			CLUSTER_SLEEP_0: cluster-sleep-0 {
+			cluster_sleep_0: cluster-sleep-0 {
 				compatible = "domain-idle-state";
 				arm,psci-suspend-param = <0x40003444>;
 				entry-latency-us = <2752>;
@@ -52,8 +52,12 @@
 	};
 };
 
-&CLUSTER_PD {
-	domain-idle-states = <&CLUSTER_SLEEP_0>;
+&cluster_pd {
+	domain-idle-states = <&cluster_sleep_0>;
+};
+
+&gpu {
+	status = "okay";
 };
 
 &lpass_aon {

@@ -9,11 +9,8 @@
 #endif /* HIDIOCREVOKE */
 
 FIXTURE(hidraw) {
-	int dev_id;
-	int uhid_fd;
+	struct uhid_device hid;
 	int hidraw_fd;
-	int hid_id;
-	pthread_t tid;
 };
 static void close_hidraw(FIXTURE_DATA(hidraw) * self)
 {
@@ -25,10 +22,10 @@ static void close_hidraw(FIXTURE_DATA(hidraw) * self)
 FIXTURE_TEARDOWN(hidraw) {
 	void *uhid_err;
 
-	uhid_destroy(_metadata, self->uhid_fd);
+	uhid_destroy(_metadata, &self->hid);
 
 	close_hidraw(self);
-	pthread_join(self->tid, &uhid_err);
+	pthread_join(self->hid.tid, &uhid_err);
 }
 #define TEARDOWN_LOG(fmt, ...) do { \
 	TH_LOG(fmt, ##__VA_ARGS__); \
@@ -37,25 +34,12 @@ FIXTURE_TEARDOWN(hidraw) {
 
 FIXTURE_SETUP(hidraw)
 {
-	time_t t;
 	int err;
 
-	/* initialize random number generator */
-	srand((unsigned int)time(&t));
+	err = setup_uhid(_metadata, &self->hid, BUS_USB, 0x0001, 0x0a37, rdesc, sizeof(rdesc));
+	ASSERT_OK(err);
 
-	self->dev_id = rand() % 1024;
-
-	self->uhid_fd = setup_uhid(_metadata, self->dev_id);
-
-	/* locate the uev, self, variant);ent file of the created device */
-	self->hid_id = get_hid_id(self->dev_id);
-	ASSERT_GT(self->hid_id, 0)
-		TEARDOWN_LOG("Could not locate uhid device id: %d", self->hid_id);
-
-	err = uhid_start_listener(_metadata, &self->tid, self->uhid_fd);
-	ASSERT_EQ(0, err) TEARDOWN_LOG("could not start udev listener: %d", err);
-
-	self->hidraw_fd = open_hidraw(self->dev_id);
+	self->hidraw_fd = open_hidraw(&self->hid);
 	ASSERT_GE(self->hidraw_fd, 0) TH_LOG("open_hidraw");
 }
 
@@ -79,7 +63,7 @@ TEST_F(hidraw, raw_event)
 	/* inject one event */
 	buf[0] = 1;
 	buf[1] = 42;
-	uhid_send_event(_metadata, self->uhid_fd, buf, 6);
+	uhid_send_event(_metadata, &self->hid, buf, 6);
 
 	/* read the data from hidraw */
 	memset(buf, 0, sizeof(buf));
@@ -101,7 +85,7 @@ TEST_F(hidraw, raw_event_revoked)
 	/* inject one event */
 	buf[0] = 1;
 	buf[1] = 42;
-	uhid_send_event(_metadata, self->uhid_fd, buf, 6);
+	uhid_send_event(_metadata, &self->hid, buf, 6);
 
 	/* read the data from hidraw */
 	memset(buf, 0, sizeof(buf));
@@ -117,7 +101,7 @@ TEST_F(hidraw, raw_event_revoked)
 	/* inject one other event */
 	buf[0] = 1;
 	buf[1] = 43;
-	uhid_send_event(_metadata, self->uhid_fd, buf, 6);
+	uhid_send_event(_metadata, &self->hid, buf, 6);
 
 	/* read the data from hidraw */
 	memset(buf, 0, sizeof(buf));
@@ -161,7 +145,7 @@ TEST_F(hidraw, poll_revoked)
 	/* inject one event */
 	buf[0] = 1;
 	buf[1] = 42;
-	uhid_send_event(_metadata, self->uhid_fd, buf, 6);
+	uhid_send_event(_metadata, &self->hid, buf, 6);
 
 	while (true) {
 		ready = poll(pfds, 1, 5000);

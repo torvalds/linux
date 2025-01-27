@@ -28,24 +28,13 @@
 #include <sys/timex.h>
 #include <string.h>
 #include <signal.h>
+#include <include/vdso/time64.h>
 #include "../kselftest.h"
 
-#define CALLS_PER_LOOP 64
-#define NSEC_PER_SEC 1000000000ULL
-
-#define CLOCK_REALTIME			0
-#define CLOCK_MONOTONIC			1
-#define CLOCK_PROCESS_CPUTIME_ID	2
-#define CLOCK_THREAD_CPUTIME_ID		3
-#define CLOCK_MONOTONIC_RAW		4
-#define CLOCK_REALTIME_COARSE		5
-#define CLOCK_MONOTONIC_COARSE		6
-#define CLOCK_BOOTTIME			7
-#define CLOCK_REALTIME_ALARM		8
-#define CLOCK_BOOTTIME_ALARM		9
+/* CLOCK_HWSPECIFIC == CLOCK_SGI_CYCLE (Deprecated) */
 #define CLOCK_HWSPECIFIC		10
-#define CLOCK_TAI			11
-#define NR_CLOCKIDS			12
+
+#define CALLS_PER_LOOP 64
 
 char *clockstring(int clockid)
 {
@@ -152,7 +141,7 @@ int main(int argc, char *argv[])
 {
 	int clockid, opt;
 	int userclock = CLOCK_REALTIME;
-	int maxclocks = NR_CLOCKIDS;
+	int maxclocks = CLOCK_TAI + 1;
 	int runtime = 10;
 	struct timespec ts;
 

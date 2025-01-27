@@ -439,13 +439,14 @@ static void sh_mmcif_request_dma(struct sh_mmcif_host *host)
 		if (IS_ERR(host->chan_rx))
 			host->chan_rx = NULL;
 	}
-	dev_dbg(dev, "%s: got channel TX %p RX %p\n", __func__, host->chan_tx,
-		host->chan_rx);
 
 	if (!host->chan_tx || !host->chan_rx ||
 	    sh_mmcif_dma_slave_config(host, host->chan_tx, DMA_MEM_TO_DEV) ||
 	    sh_mmcif_dma_slave_config(host, host->chan_rx, DMA_DEV_TO_MEM))
 		goto error;
+
+	dev_dbg(dev, "%s: got channel TX %p RX %p\n", __func__, host->chan_tx,
+		host->chan_rx);
 
 	return;
 
@@ -1596,7 +1597,7 @@ static const struct dev_pm_ops sh_mmcif_dev_pm_ops = {
 
 static struct platform_driver sh_mmcif_driver = {
 	.probe		= sh_mmcif_probe,
-	.remove_new	= sh_mmcif_remove,
+	.remove		= sh_mmcif_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,

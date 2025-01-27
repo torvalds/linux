@@ -179,7 +179,7 @@ static struct platform_driver da9052_led_driver = {
 		.name	= "da9052-leds",
 	},
 	.probe		= da9052_led_probe,
-	.remove_new	= da9052_led_remove,
+	.remove		= da9052_led_remove,
 };
 
 module_platform_driver(da9052_led_driver);

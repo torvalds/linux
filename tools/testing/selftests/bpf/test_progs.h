@@ -131,6 +131,12 @@ struct test_env {
 	pid_t *worker_pids; /* array of worker pids */
 	int *worker_socks; /* array of worker socks */
 	int *worker_current_test; /* array of current running test for each worker */
+
+	pthread_t main_thread;
+	int secs_till_notify;
+	int secs_till_kill;
+	timer_t watchdog; /* watch for stalled tests/subtests */
+	enum { WD_NOTIFY, WD_KILL } watchdog_state;
 };
 
 #define MAX_LOG_TRUNK_SIZE 8192
@@ -387,6 +393,14 @@ int test__join_cgroup(const char *path);
 	bool ___ok = ___fd >= 0;					\
 	CHECK(!___ok, (name), "unexpected fd: %d (errno %d)\n",		\
 	      ___fd, errno);						\
+	___ok;								\
+})
+
+#define ASSERT_ERR_FD(fd, name) ({					\
+	static int duration = 0;					\
+	int ___fd = (fd);						\
+	bool ___ok = ___fd < 0;						\
+	CHECK(!___ok, (name), "unexpected fd: %d\n", ___fd);		\
 	___ok;								\
 })
 

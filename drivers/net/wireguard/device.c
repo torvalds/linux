@@ -302,7 +302,8 @@ static void wg_setup(struct net_device *dev)
 	/* We need to keep the dst around in case of icmp replies. */
 	netif_keep_dst(dev);
 
-	memset(wg, 0, sizeof(*wg));
+	netif_set_tso_max_size(dev, GSO_MAX_SIZE);
+
 	wg->dev = dev;
 }
 

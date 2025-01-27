@@ -47,7 +47,7 @@ static int acp_dmic_prepare(struct snd_pcm_substream *substream,
 	size_dmic = frames_to_bytes(substream->runtime,
 			substream->runtime->buffer_size);
 
-	if (chip->acp_rev >= ACP70_DEV)
+	if (chip->acp_rev >= ACP70_PCI_ID)
 		physical_addr = ACP7x_DMIC_MEM_WINDOW_START;
 	else
 		physical_addr = stream->reg_offset + MEM_WINDOW_START;
@@ -181,7 +181,7 @@ const struct snd_soc_dai_ops acp_dmic_dai_ops = {
 	.startup	= acp_dmic_dai_startup,
 	.shutdown	= acp_dmic_dai_shutdown,
 };
-EXPORT_SYMBOL_NS_GPL(acp_dmic_dai_ops, SND_SOC_ACP_COMMON);
+EXPORT_SYMBOL_NS_GPL(acp_dmic_dai_ops, "SND_SOC_ACP_COMMON");
 
 MODULE_DESCRIPTION("AMD ACP Audio PDM controller");
 MODULE_LICENSE("Dual BSD/GPL");

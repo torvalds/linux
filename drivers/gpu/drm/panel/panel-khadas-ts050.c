@@ -617,12 +617,12 @@ static const struct khadas_ts050_panel_cmd ts050_init_code[] = {
 	{0xd4, {0x04}, 0x01}, /* RGBMIPICTRL: VSYNC front porch = 4 */
 };
 
-struct khadas_ts050_panel_data ts050_panel_data = {
+static struct khadas_ts050_panel_data ts050_panel_data = {
 	.init_code = (struct khadas_ts050_panel_cmd *)ts050_init_code,
 	.len = ARRAY_SIZE(ts050_init_code)
 };
 
-struct khadas_ts050_panel_data ts050v2_panel_data = {
+static struct khadas_ts050_panel_data ts050v2_panel_data = {
 	.init_code = (struct khadas_ts050_panel_cmd *)ts050v2_init_code,
 	.len = ARRAY_SIZE(ts050v2_init_code)
 };

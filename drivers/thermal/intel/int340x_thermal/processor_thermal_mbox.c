@@ -94,7 +94,7 @@ int processor_thermal_send_mbox_read_cmd(struct pci_dev *pdev, u16 id, u64 *resp
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(processor_thermal_send_mbox_read_cmd, INT340X_THERMAL);
+EXPORT_SYMBOL_NS_GPL(processor_thermal_send_mbox_read_cmd, "INT340X_THERMAL");
 
 int processor_thermal_send_mbox_write_cmd(struct pci_dev *pdev, u16 id, u32 data)
 {
@@ -106,7 +106,7 @@ int processor_thermal_send_mbox_write_cmd(struct pci_dev *pdev, u16 id, u32 data
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(processor_thermal_send_mbox_write_cmd, INT340X_THERMAL);
+EXPORT_SYMBOL_NS_GPL(processor_thermal_send_mbox_write_cmd, "INT340X_THERMAL");
 
 #define MBOX_CAMARILLO_RD_INTR_CONFIG	0x1E
 #define MBOX_CAMARILLO_WR_INTR_CONFIG	0x1F
@@ -153,7 +153,7 @@ unlock:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(processor_thermal_mbox_interrupt_config, INT340X_THERMAL);
+EXPORT_SYMBOL_NS_GPL(processor_thermal_mbox_interrupt_config, "INT340X_THERMAL");
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Processor Thermal Mail Box Interface");

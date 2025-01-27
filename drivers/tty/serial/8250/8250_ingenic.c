@@ -361,7 +361,7 @@ static struct platform_driver ingenic_uart_platform_driver = {
 		.of_match_table	= of_match,
 	},
 	.probe			= ingenic_uart_probe,
-	.remove_new		= ingenic_uart_remove,
+	.remove			= ingenic_uart_remove,
 };
 
 module_platform_driver(ingenic_uart_platform_driver);

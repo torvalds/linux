@@ -28,6 +28,21 @@ struct xfs_fsmap_head {
 	struct xfs_fsmap fmh_keys[2];	/* low and high keys */
 };
 
+/* internal fsmap record format */
+struct xfs_fsmap_irec {
+	xfs_daddr_t	start_daddr;
+	xfs_daddr_t	len_daddr;
+	uint64_t	owner;		/* extent owner */
+	uint64_t	offset;		/* offset within the owner */
+	unsigned int	rm_flags;	/* rmap state flags */
+
+	/*
+	 * rmapbt startblock corresponding to start_daddr, if the record came
+	 * from an rmap btree.
+	 */
+	xfs_agblock_t	rec_key;
+};
+
 int xfs_ioc_getfsmap(struct xfs_inode *ip, struct fsmap_head __user *arg);
 
 #endif /* __XFS_FSMAP_H__ */

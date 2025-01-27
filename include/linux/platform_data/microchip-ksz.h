@@ -42,6 +42,7 @@ enum ksz_chip_id {
 	LAN9372_CHIP_ID = 0x00937200,
 	LAN9373_CHIP_ID = 0x00937300,
 	LAN9374_CHIP_ID = 0x00937400,
+	LAN9646_CHIP_ID = 0x00964600,
 };
 
 struct ksz_platform_data {

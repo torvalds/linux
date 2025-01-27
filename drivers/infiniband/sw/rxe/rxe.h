@@ -139,7 +139,8 @@ enum resp_states {
 
 void rxe_set_mtu(struct rxe_dev *rxe, unsigned int dev_mtu);
 
-int rxe_add(struct rxe_dev *rxe, unsigned int mtu, const char *ibdev_name);
+int rxe_add(struct rxe_dev *rxe, unsigned int mtu, const char *ibdev_name,
+			struct net_device *ndev);
 
 void rxe_rcv(struct sk_buff *skb);
 

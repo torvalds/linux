@@ -12,14 +12,13 @@ enum time_travel_mode {
 	TT_MODE_EXTERNAL,
 };
 
-#if defined(UML_CONFIG_UML_TIME_TRAVEL_SUPPORT) || \
-    defined(CONFIG_UML_TIME_TRAVEL_SUPPORT)
+#if IS_ENABLED(CONFIG_UML_TIME_TRAVEL_SUPPORT)
 extern enum time_travel_mode time_travel_mode;
 extern int time_travel_should_print_bc_msg;
 #else
 #define time_travel_mode TT_MODE_OFF
 #define time_travel_should_print_bc_msg 0
-#endif /* (UML_)CONFIG_UML_TIME_TRAVEL_SUPPORT */
+#endif /* CONFIG_UML_TIME_TRAVEL_SUPPORT */
 
 void _time_travel_print_bc_msg(void);
 static inline void time_travel_print_bc_msg(void)

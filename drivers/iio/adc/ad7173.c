@@ -3,7 +3,7 @@
  * AD717x and AD411x family SPI ADC driver
  *
  * Supported devices:
- *  AD4111/AD4112/AD4114/AD4115/AD4116
+ *  AD4111/AD4112/AD4113/AD4114/AD4115/AD4116
  *  AD7172-2/AD7172-4/AD7173-8/AD7175-2
  *  AD7175-8/AD7176-2/AD7177-2
  *
@@ -76,14 +76,15 @@
 					(x) == AD7173_AIN_REF_NEG)
 
 #define AD7172_2_ID			0x00d0
-#define AD7175_ID			0x0cd0
 #define AD7176_ID			0x0c90
+#define AD7175_ID			0x0cd0
 #define AD7175_2_ID			0x0cd0
 #define AD7172_4_ID			0x2050
 #define AD7173_ID			0x30d0
 #define AD4111_ID			AD7173_ID
 #define AD4112_ID			AD7173_ID
 #define AD4114_ID			AD7173_ID
+#define AD4113_ID			0x31d0
 #define AD4116_ID			0x34d0
 #define AD4115_ID			0x38d0
 #define AD7175_8_ID			0x3cd0
@@ -170,6 +171,7 @@ struct ad7173_device_info {
 	bool has_temp;
 	/* ((AVDD1 − AVSS)/5) */
 	bool has_pow_supply_monitoring;
+	bool data_reg_only_16bit;
 	bool has_input_buf;
 	bool has_int_ref;
 	bool has_ref2;
@@ -198,6 +200,7 @@ struct ad7173_channel {
 
 struct ad7173_state {
 	struct ad_sigma_delta sd;
+	struct ad_sigma_delta_info sigma_delta_info;
 	const struct ad7173_device_info *info;
 	struct ad7173_channel *channels;
 	struct regulator_bulk_data regulators[3];
@@ -288,6 +291,24 @@ static const struct ad7173_device_info ad4112_device_info = {
 	.has_temp = true,
 	.has_input_buf = true,
 	.has_current_inputs = true,
+	.has_int_ref = true,
+	.clock = 2 * HZ_PER_MHZ,
+	.sinc5_data_rates = ad7173_sinc5_data_rates,
+	.num_sinc5_data_rates = ARRAY_SIZE(ad7173_sinc5_data_rates),
+};
+
+static const struct ad7173_device_info ad4113_device_info = {
+	.name = "ad4113",
+	.id = AD4113_ID,
+	.num_voltage_in_div = 8,
+	.num_channels = 16,
+	.num_configs = 8,
+	.num_voltage_in = 8,
+	.num_gpios = 2,
+	.data_reg_only_16bit = true,
+	.higher_gpio_bits = true,
+	.has_vincom_input = true,
+	.has_input_buf = true,
 	.has_int_ref = true,
 	.clock = 2 * HZ_PER_MHZ,
 	.sinc5_data_rates = ad7173_sinc5_data_rates,
@@ -733,7 +754,7 @@ static int ad7173_disable_one(struct ad_sigma_delta *sd, unsigned int chan)
 	return ad_sd_write_reg(sd, AD7173_REG_CH(chan), 2, 0);
 }
 
-static struct ad_sigma_delta_info ad7173_sigma_delta_info = {
+static const struct ad_sigma_delta_info ad7173_sigma_delta_info = {
 	.set_channel = ad7173_set_channel,
 	.append_status = ad7173_append_status,
 	.disable_all = ad7173_disable_all,
@@ -985,6 +1006,13 @@ static const struct iio_info ad7173_info = {
 	.update_scan_mode = ad7173_update_scan_mode,
 };
 
+static const struct iio_scan_type ad4113_scan_type = {
+	.sign = 'u',
+	.realbits = 16,
+	.storagebits = 16,
+	.endianness = IIO_BE,
+};
+
 static const struct iio_chan_spec ad7173_channel_template = {
 	.type = IIO_VOLTAGE,
 	.indexed = 1,
@@ -1226,6 +1254,8 @@ static int ad7173_fw_parse_channel_config(struct iio_dev *indio_dev)
 		chan_st_priv->cfg.input_buf = st->info->has_input_buf;
 		chan_st_priv->cfg.ref_sel = AD7173_SETUP_REF_SEL_INT_REF;
 		st->adc_mode |= AD7173_ADC_MODE_REF_EN;
+		if (st->info->data_reg_only_16bit)
+			chan_arr[chan_index].scan_type = ad4113_scan_type;
 
 		chan_index++;
 	}
@@ -1306,6 +1336,9 @@ static int ad7173_fw_parse_channel_config(struct iio_dev *indio_dev)
 			chan_st_priv->ain = AD7173_CH_ADDRESS(ain[0], ain[1]);
 		}
 
+		if (st->info->data_reg_only_16bit)
+			chan_arr[chan_index].scan_type = ad4113_scan_type;
+
 		chan_index++;
 	}
 	return 0;
@@ -1371,7 +1404,7 @@ static int ad7173_fw_parse_device_config(struct iio_dev *indio_dev)
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "Interrupt 'rdy' is required\n");
 
-	ad7173_sigma_delta_info.irq_line = ret;
+	st->sigma_delta_info.irq_line = ret;
 
 	return ad7173_fw_parse_channel_config(indio_dev);
 }
@@ -1404,8 +1437,9 @@ static int ad7173_probe(struct spi_device *spi)
 	spi->mode = SPI_MODE_3;
 	spi_setup(spi);
 
-	ad7173_sigma_delta_info.num_slots = st->info->num_configs;
-	ret = ad_sd_init(&st->sd, indio_dev, spi, &ad7173_sigma_delta_info);
+	st->sigma_delta_info = ad7173_sigma_delta_info;
+	st->sigma_delta_info.num_slots = st->info->num_configs;
+	ret = ad_sd_init(&st->sd, indio_dev, spi, &st->sigma_delta_info);
 	if (ret)
 		return ret;
 
@@ -1434,6 +1468,7 @@ static int ad7173_probe(struct spi_device *spi)
 static const struct of_device_id ad7173_of_match[] = {
 	{ .compatible = "adi,ad4111",	.data = &ad4111_device_info },
 	{ .compatible = "adi,ad4112",	.data = &ad4112_device_info },
+	{ .compatible = "adi,ad4113",	.data = &ad4113_device_info },
 	{ .compatible = "adi,ad4114",	.data = &ad4114_device_info },
 	{ .compatible = "adi,ad4115",	.data = &ad4115_device_info },
 	{ .compatible = "adi,ad4116",	.data = &ad4116_device_info },
@@ -1451,6 +1486,7 @@ MODULE_DEVICE_TABLE(of, ad7173_of_match);
 static const struct spi_device_id ad7173_id_table[] = {
 	{ "ad4111",   (kernel_ulong_t)&ad4111_device_info },
 	{ "ad4112",   (kernel_ulong_t)&ad4112_device_info },
+	{ "ad4113",   (kernel_ulong_t)&ad4113_device_info },
 	{ "ad4114",   (kernel_ulong_t)&ad4114_device_info },
 	{ "ad4115",   (kernel_ulong_t)&ad4115_device_info },
 	{ "ad4116",   (kernel_ulong_t)&ad4116_device_info },
@@ -1475,7 +1511,7 @@ static struct spi_driver ad7173_driver = {
 };
 module_spi_driver(ad7173_driver);
 
-MODULE_IMPORT_NS(IIO_AD_SIGMA_DELTA);
+MODULE_IMPORT_NS("IIO_AD_SIGMA_DELTA");
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafo.de>");
 MODULE_AUTHOR("Dumitru Ceclan <dumitru.ceclan@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD7173 and similar ADC driver");

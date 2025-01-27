@@ -331,7 +331,7 @@ static void mtk_i2c_remove(struct platform_device *pdev)
 
 static struct platform_driver mtk_i2c_driver = {
 	.probe		= mtk_i2c_probe,
-	.remove_new	= mtk_i2c_remove,
+	.remove		= mtk_i2c_remove,
 	.driver		= {
 		.name	= "i2c-mt7621",
 		.of_match_table = i2c_mtk_dt_ids,

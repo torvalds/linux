@@ -370,7 +370,7 @@ MODULE_DEVICE_TABLE(of, mtk_disp_merge_driver_dt_match);
 
 struct platform_driver mtk_disp_merge_driver = {
 	.probe = mtk_disp_merge_probe,
-	.remove_new = mtk_disp_merge_remove,
+	.remove = mtk_disp_merge_remove,
 	.driver = {
 		.name = "mediatek-disp-merge",
 		.of_match_table = mtk_disp_merge_driver_dt_match,
