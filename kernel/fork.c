@@ -1559,6 +1559,17 @@ struct mm_struct *get_task_mm(struct task_struct *task)
 }
 EXPORT_SYMBOL_GPL(get_task_mm);
 
+static bool may_access_mm(struct mm_struct *mm, struct task_struct *task, unsigned int mode)
+{
+	if (mm == current->mm)
+		return true;
+	if (ptrace_may_access(task, mode))
+		return true;
+	if ((mode & PTRACE_MODE_READ) && perfmon_capable())
+		return true;
+	return false;
+}
+
 struct mm_struct *mm_access(struct task_struct *task, unsigned int mode)
 {
 	struct mm_struct *mm;
@@ -1571,7 +1582,7 @@ struct mm_struct *mm_access(struct task_struct *task, unsigned int mode)
 	mm = get_task_mm(task);
 	if (!mm) {
 		mm = ERR_PTR(-ESRCH);
-	} else if (mm != current->mm && !ptrace_may_access(task, mode)) {
+	} else if (!may_access_mm(mm, task, mode)) {
 		mmput(mm);
 		mm = ERR_PTR(-EACCES);
 	}
