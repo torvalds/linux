@@ -2844,7 +2844,8 @@ static int srp_target_alloc(struct scsi_target *starget)
 	return 0;
 }
 
-static int srp_slave_configure(struct scsi_device *sdev)
+static int srp_sdev_configure(struct scsi_device *sdev,
+			      struct queue_limits *lim)
 {
 	struct Scsi_Host *shost = sdev->host;
 	struct srp_target_port *target = host_to_target(shost);
@@ -3067,7 +3068,7 @@ static const struct scsi_host_template srp_template = {
 	.name				= "InfiniBand SRP initiator",
 	.proc_name			= DRV_NAME,
 	.target_alloc			= srp_target_alloc,
-	.slave_configure		= srp_slave_configure,
+	.sdev_configure			= srp_sdev_configure,
 	.info				= srp_target_info,
 	.init_cmd_priv			= srp_init_cmd_priv,
 	.exit_cmd_priv			= srp_exit_cmd_priv,

@@ -227,7 +227,7 @@ static int scsi_realloc_sdev_budget_map(struct scsi_device *sdev,
 
 	/*
 	 * realloc if new shift is calculated, which is caused by setting
-	 * up one new default queue depth after calling ->device_configure
+	 * up one new default queue depth after calling ->sdev_configure
 	 */
 	if (!need_alloc && new_shift != sdev->budget_map.shift)
 		need_alloc = need_free = true;
@@ -265,7 +265,7 @@ static int scsi_realloc_sdev_budget_map(struct scsi_device *sdev,
  * scsi_alloc_sdev - allocate and setup a scsi_Device
  * @starget: which target to allocate a &scsi_device for
  * @lun: which lun
- * @hostdata: usually NULL and set by ->slave_alloc instead
+ * @hostdata: usually NULL and set by ->sdev_init instead
  *
  * Description:
  *     Allocate, initialize for io, and return a pointer to a scsi_Device.
@@ -312,11 +312,11 @@ static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
 	sdev->sdev_gendev.parent = get_device(&starget->dev);
 	sdev->sdev_target = starget;
 
-	/* usually NULL and set by ->slave_alloc instead */
+	/* usually NULL and set by ->sdev_init instead */
 	sdev->hostdata = hostdata;
 
 	/* if the device needs this changing, it may do so in the
-	 * slave_configure function */
+	 * sdev_configure function */
 	sdev->max_device_blocked = SCSI_DEFAULT_DEVICE_BLOCKED;
 
 	/*
@@ -363,8 +363,8 @@ static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
 
 	scsi_sysfs_device_initialize(sdev);
 
-	if (shost->hostt->slave_alloc) {
-		ret = shost->hostt->slave_alloc(sdev);
+	if (shost->hostt->sdev_init) {
+		ret = shost->hostt->sdev_init(sdev);
 		if (ret) {
 			/*
 			 * if LLDD reports slave not present, don't clutter
@@ -1074,10 +1074,8 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 	else if (*bflags & BLIST_MAX_1024)
 		lim.max_hw_sectors = 1024;
 
-	if (hostt->device_configure)
-		ret = hostt->device_configure(sdev, &lim);
-	else if (hostt->slave_configure)
-		ret = hostt->slave_configure(sdev);
+	if (hostt->sdev_configure)
+		ret = hostt->sdev_configure(sdev, &lim);
 	if (ret) {
 		queue_limits_cancel_update(sdev->request_queue);
 		/*
@@ -1097,12 +1095,12 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 	}
 
 	/*
-	 * The queue_depth is often changed in ->device_configure.
+	 * The queue_depth is often changed in ->sdev_configure.
 	 *
 	 * Set up budget map again since memory consumption of the map depends
 	 * on actual queue depth.
 	 */
-	if (hostt->device_configure || hostt->slave_configure)
+	if (hostt->sdev_configure)
 		scsi_realloc_sdev_budget_map(sdev, sdev->queue_depth);
 
 	if (sdev->scsi_level >= SCSI_3)
@@ -1636,6 +1634,24 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 }
 EXPORT_SYMBOL(__scsi_add_device);
 
+/**
+ * scsi_add_device - creates a new SCSI (LU) instance
+ * @host: the &Scsi_Host instance where the device is located
+ * @channel: target channel number (rarely other than %0)
+ * @target: target id number
+ * @lun: LUN of target device
+ *
+ * Probe for a specific LUN and add it if found.
+ *
+ * Notes: This call is usually performed internally during a SCSI
+ * bus scan when an HBA is added (i.e. scsi_scan_host()). So it
+ * should only be called if the HBA becomes aware of a new SCSI
+ * device (LU) after scsi_scan_host() has completed. If successful
+ * this call can lead to sdev_init() and sdev_configure() callbacks
+ * into the LLD.
+ *
+ * Return: %0 on success or negative error code on failure
+ */
 int scsi_add_device(struct Scsi_Host *host, uint channel,
 		    uint target, u64 lun)
 {
@@ -2027,6 +2043,8 @@ static void do_scan_async(void *_data, async_cookie_t c)
 /**
  * scsi_scan_host - scan the given adapter
  * @shost:	adapter to scan
+ *
+ * Notes: Should be called after scsi_add_host()
  **/
 void scsi_scan_host(struct Scsi_Host *shost)
 {
