@@ -546,29 +546,7 @@ void unregister_virtio_device(struct virtio_device *dev)
 }
 EXPORT_SYMBOL_GPL(unregister_virtio_device);
 
-#ifdef CONFIG_PM_SLEEP
-int virtio_device_freeze(struct virtio_device *dev)
-{
-	struct virtio_driver *drv = drv_to_virtio(dev->dev.driver);
-	int ret;
-
-	virtio_config_core_disable(dev);
-
-	dev->failed = dev->config->get_status(dev) & VIRTIO_CONFIG_S_FAILED;
-
-	if (drv && drv->freeze) {
-		ret = drv->freeze(dev);
-		if (ret) {
-			virtio_config_core_enable(dev);
-			return ret;
-		}
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(virtio_device_freeze);
-
-int virtio_device_restore(struct virtio_device *dev)
+static int virtio_device_restore_priv(struct virtio_device *dev, bool restore)
 {
 	struct virtio_driver *drv = drv_to_virtio(dev->dev.driver);
 	int ret;
@@ -599,8 +577,14 @@ int virtio_device_restore(struct virtio_device *dev)
 	if (ret)
 		goto err;
 
-	if (drv->restore) {
-		ret = drv->restore(dev);
+	if (restore) {
+		if (drv->restore) {
+			ret = drv->restore(dev);
+			if (ret)
+				goto err;
+		}
+	} else {
+		ret = drv->reset_done(dev);
 		if (ret)
 			goto err;
 	}
@@ -617,8 +601,68 @@ err:
 	virtio_add_status(dev, VIRTIO_CONFIG_S_FAILED);
 	return ret;
 }
+
+#ifdef CONFIG_PM_SLEEP
+int virtio_device_freeze(struct virtio_device *dev)
+{
+	struct virtio_driver *drv = drv_to_virtio(dev->dev.driver);
+	int ret;
+
+	virtio_config_core_disable(dev);
+
+	dev->failed = dev->config->get_status(dev) & VIRTIO_CONFIG_S_FAILED;
+
+	if (drv && drv->freeze) {
+		ret = drv->freeze(dev);
+		if (ret) {
+			virtio_config_core_enable(dev);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(virtio_device_freeze);
+
+int virtio_device_restore(struct virtio_device *dev)
+{
+	return virtio_device_restore_priv(dev, true);
+}
 EXPORT_SYMBOL_GPL(virtio_device_restore);
 #endif
+
+int virtio_device_reset_prepare(struct virtio_device *dev)
+{
+	struct virtio_driver *drv = drv_to_virtio(dev->dev.driver);
+	int ret;
+
+	if (!drv || !drv->reset_prepare)
+		return -EOPNOTSUPP;
+
+	virtio_config_core_disable(dev);
+
+	dev->failed = dev->config->get_status(dev) & VIRTIO_CONFIG_S_FAILED;
+
+	ret = drv->reset_prepare(dev);
+	if (ret) {
+		virtio_config_core_enable(dev);
+		return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(virtio_device_reset_prepare);
+
+int virtio_device_reset_done(struct virtio_device *dev)
+{
+	struct virtio_driver *drv = drv_to_virtio(dev->dev.driver);
+
+	if (!drv || !drv->reset_done)
+		return -EOPNOTSUPP;
+
+	return virtio_device_restore_priv(dev, false);
+}
+EXPORT_SYMBOL_GPL(virtio_device_reset_done);
 
 static int virtio_init(void)
 {
