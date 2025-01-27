@@ -1966,7 +1966,7 @@ int drm_atomic_helper_async_check(struct drm_device *dev,
 		return -EBUSY;
 	}
 
-	ret = funcs->atomic_async_check(plane, state);
+	ret = funcs->atomic_async_check(plane, state, false);
 	if (ret != 0)
 		drm_dbg_atomic(dev,
 			       "[PLANE:%d:%s] driver async check failed\n",
