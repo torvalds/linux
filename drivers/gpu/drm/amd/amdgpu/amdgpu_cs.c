@@ -1111,7 +1111,7 @@ static int amdgpu_cs_vm_handling(struct amdgpu_cs_parser *p)
 			struct drm_gpu_scheduler *sched = entity->rq->sched;
 			struct amdgpu_ring *ring = to_amdgpu_ring(sched);
 
-			if (amdgpu_vmid_uses_reserved(adev, vm, ring->vm_hub))
+			if (amdgpu_vmid_uses_reserved(vm, ring->vm_hub))
 				return -EINVAL;
 		}
 	}
