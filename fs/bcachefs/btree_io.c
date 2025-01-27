@@ -2016,13 +2016,16 @@ static void bch2_btree_complete_write(struct bch_fs *c, struct btree *b,
 	bch2_journal_pin_drop(&c->journal, &w->journal);
 }
 
-static void __btree_node_write_done(struct bch_fs *c, struct btree *b)
+static void __btree_node_write_done(struct bch_fs *c, struct btree *b, u64 start_time)
 {
 	struct btree_write *w = btree_prev_write(b);
 	unsigned long old, new;
 	unsigned type = 0;
 
 	bch2_btree_complete_write(c, b, w);
+
+	if (start_time)
+		bch2_time_stats_update(&c->times[BCH_TIME_btree_node_write], start_time);
 
 	old = READ_ONCE(b->flags);
 	do {
@@ -2054,7 +2057,7 @@ static void __btree_node_write_done(struct bch_fs *c, struct btree *b)
 		wake_up_bit(&b->flags, BTREE_NODE_write_in_flight);
 }
 
-static void btree_node_write_done(struct bch_fs *c, struct btree *b)
+static void btree_node_write_done(struct bch_fs *c, struct btree *b, u64 start_time)
 {
 	struct btree_trans *trans = bch2_trans_get(c);
 
@@ -2062,7 +2065,7 @@ static void btree_node_write_done(struct bch_fs *c, struct btree *b)
 
 	/* we don't need transaction context anymore after we got the lock. */
 	bch2_trans_put(trans);
-	__btree_node_write_done(c, b);
+	__btree_node_write_done(c, b, start_time);
 	six_unlock_read(&b->c.lock);
 }
 
@@ -2072,6 +2075,7 @@ static void btree_node_write_work(struct work_struct *work)
 		container_of(work, struct btree_write_bio, work);
 	struct bch_fs *c	= wbio->wbio.c;
 	struct btree *b		= wbio->wbio.bio.bi_private;
+	u64 start_time		= wbio->start_time;
 	int ret = 0;
 
 	btree_bounce_free(c,
@@ -2104,7 +2108,7 @@ static void btree_node_write_work(struct work_struct *work)
 	}
 out:
 	bio_put(&wbio->wbio.bio);
-	btree_node_write_done(c, b);
+	btree_node_write_done(c, b, start_time);
 	return;
 err:
 	set_btree_node_noevict(b);
@@ -2208,6 +2212,7 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b, unsigned flags)
 	bool validate_before_checksum = false;
 	enum btree_write_type type = flags & BTREE_WRITE_TYPE_MASK;
 	void *data;
+	u64 start_time = local_clock();
 	int ret;
 
 	if (flags & BTREE_WRITE_ALREADY_STARTED)
@@ -2416,6 +2421,7 @@ do_write:
 	wbio->data			= data;
 	wbio->data_bytes		= bytes;
 	wbio->sector_offset		= b->written;
+	wbio->start_time		= start_time;
 	wbio->wbio.c			= c;
 	wbio->wbio.used_mempool		= used_mempool;
 	wbio->wbio.first_btree_write	= !b->written;
@@ -2443,7 +2449,7 @@ err:
 	b->written += sectors_to_write;
 nowrite:
 	btree_bounce_free(c, bytes, used_mempool, data);
-	__btree_node_write_done(c, b);
+	__btree_node_write_done(c, b, 0);
 }
 
 /*

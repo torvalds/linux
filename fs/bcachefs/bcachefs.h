@@ -444,6 +444,7 @@ BCH_DEBUG_PARAMS_DEBUG()
 	x(btree_node_sort)			\
 	x(btree_node_read)			\
 	x(btree_node_read_done)			\
+	x(btree_node_write)			\
 	x(btree_interior_update_foreground)	\
 	x(btree_interior_update_total)		\
 	x(btree_gc)				\

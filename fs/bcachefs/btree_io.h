@@ -52,6 +52,7 @@ struct btree_write_bio {
 	void			*data;
 	unsigned		data_bytes;
 	unsigned		sector_offset;
+	u64			start_time;
 	struct bch_write_bio	wbio;
 };
 
