@@ -796,6 +796,7 @@ recheck_need_open:
 	}
 
 	buf->must_flush = true;
+	j->flushing_seq = max(j->flushing_seq, seq);
 
 	if (parent && !closure_wait(&buf->wait, parent))
 		BUG();
