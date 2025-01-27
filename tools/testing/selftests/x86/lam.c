@@ -115,13 +115,28 @@ static void segv_handler(int sig)
 	siglongjmp(segv_env, 1);
 }
 
-static inline int cpu_has_lam(void)
+static inline int lam_is_available(void)
 {
 	unsigned int cpuinfo[4];
+	unsigned long bits = 0;
+	int ret;
 
 	__cpuid_count(0x7, 1, cpuinfo[0], cpuinfo[1], cpuinfo[2], cpuinfo[3]);
 
-	return (cpuinfo[0] & (1 << 26));
+	/* Check if cpu supports LAM */
+	if (!(cpuinfo[0] & (1 << 26))) {
+		ksft_print_msg("LAM is not supported!\n");
+		return 0;
+	}
+
+	/* Return 0 if CONFIG_ADDRESS_MASKING is not set */
+	ret = syscall(SYS_arch_prctl, ARCH_GET_MAX_TAG_BITS, &bits);
+	if (ret) {
+		ksft_print_msg("LAM is disabled in the kernel!\n");
+		return 0;
+	}
+
+	return 1;
 }
 
 static inline int la57_enabled(void)
@@ -1185,10 +1200,8 @@ int main(int argc, char **argv)
 
 	tests_cnt = 0;
 
-	if (!cpu_has_lam()) {
-		ksft_print_msg("Unsupported LAM feature!\n");
+	if (!lam_is_available())
 		return KSFT_SKIP;
-	}
 
 	while ((c = getopt(argc, argv, "ht:")) != -1) {
 		switch (c) {
