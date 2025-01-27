@@ -110,9 +110,9 @@
 
 #define INTEL_SAPPHIRERAPIDS_X		IFM(6, 0x8F) /* Golden Cove */
 
-#define INTEL_EMERALDRAPIDS_X		IFM(6, 0xCF)
+#define INTEL_EMERALDRAPIDS_X		IFM(6, 0xCF) /* Raptor Cove */
 
-#define INTEL_GRANITERAPIDS_X		IFM(6, 0xAD)
+#define INTEL_GRANITERAPIDS_X		IFM(6, 0xAD) /* Redwood Cove */
 #define INTEL_GRANITERAPIDS_D		IFM(6, 0xAE)
 
 /* "Hybrid" Processors (P-Core/E-Core) */
@@ -126,16 +126,16 @@
 #define INTEL_RAPTORLAKE_P		IFM(6, 0xBA)
 #define INTEL_RAPTORLAKE_S		IFM(6, 0xBF)
 
-#define INTEL_METEORLAKE		IFM(6, 0xAC)
+#define INTEL_METEORLAKE		IFM(6, 0xAC) /* Redwood Cove / Crestmont */
 #define INTEL_METEORLAKE_L		IFM(6, 0xAA)
 
-#define INTEL_ARROWLAKE_H		IFM(6, 0xC5)
+#define INTEL_ARROWLAKE_H		IFM(6, 0xC5) /* Lion Cove / Skymont */
 #define INTEL_ARROWLAKE			IFM(6, 0xC6)
 #define INTEL_ARROWLAKE_U		IFM(6, 0xB5)
 
-#define INTEL_LUNARLAKE_M		IFM(6, 0xBD)
+#define INTEL_LUNARLAKE_M		IFM(6, 0xBD) /* Lion Cove / Skymont */
 
-#define INTEL_PANTHERLAKE_L		IFM(6, 0xCC)
+#define INTEL_PANTHERLAKE_L		IFM(6, 0xCC) /* Cougar Cove / Crestmont */
 
 /* "Small Core" Processors (Atom/E-Core) */
 
