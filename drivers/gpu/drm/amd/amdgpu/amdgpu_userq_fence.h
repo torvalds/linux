@@ -61,8 +61,7 @@ struct amdgpu_userq_fence_driver {
 
 int amdgpu_userq_fence_slab_init(void);
 void amdgpu_userq_fence_slab_fini(void);
-int amdgpu_userq_fence_create(struct amdgpu_usermode_queue *userq,
-			      u64 seq, struct dma_fence **f);
+
 void amdgpu_userq_fence_driver_get(struct amdgpu_userq_fence_driver *fence_drv);
 void amdgpu_userq_fence_driver_put(struct amdgpu_userq_fence_driver *fence_drv);
 int amdgpu_userq_fence_driver_alloc(struct amdgpu_device *adev,
