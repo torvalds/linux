@@ -32,7 +32,7 @@ static __init int pop_verify_heap(bool min_heap,
 	int last;
 
 	last = values[0];
-	min_heap_pop(heap, funcs, NULL);
+	min_heap_pop_inline(heap, funcs, NULL);
 	while (heap->nr > 0) {
 		if (min_heap) {
 			if (last > values[0]) {
@@ -48,7 +48,7 @@ static __init int pop_verify_heap(bool min_heap,
 			}
 		}
 		last = values[0];
-		min_heap_pop(heap, funcs, NULL);
+		min_heap_pop_inline(heap, funcs, NULL);
 	}
 	return err;
 }
@@ -69,7 +69,7 @@ static __init int test_heapify_all(bool min_heap)
 	int i, err;
 
 	/* Test with known set of values. */
-	min_heapify_all(&heap, &funcs, NULL);
+	min_heapify_all_inline(&heap, &funcs, NULL);
 	err = pop_verify_heap(min_heap, &heap, &funcs);
 
 
@@ -78,7 +78,7 @@ static __init int test_heapify_all(bool min_heap)
 	for (i = 0; i < heap.nr; i++)
 		values[i] = get_random_u32();
 
-	min_heapify_all(&heap, &funcs, NULL);
+	min_heapify_all_inline(&heap, &funcs, NULL);
 	err += pop_verify_heap(min_heap, &heap, &funcs);
 
 	return err;
@@ -102,14 +102,14 @@ static __init int test_heap_push(bool min_heap)
 
 	/* Test with known set of values copied from data. */
 	for (i = 0; i < ARRAY_SIZE(data); i++)
-		min_heap_push(&heap, &data[i], &funcs, NULL);
+		min_heap_push_inline(&heap, &data[i], &funcs, NULL);
 
 	err = pop_verify_heap(min_heap, &heap, &funcs);
 
 	/* Test with randomly generated values. */
 	while (heap.nr < heap.size) {
 		temp = get_random_u32();
-		min_heap_push(&heap, &temp, &funcs, NULL);
+		min_heap_push_inline(&heap, &temp, &funcs, NULL);
 	}
 	err += pop_verify_heap(min_heap, &heap, &funcs);
 
@@ -135,22 +135,22 @@ static __init int test_heap_pop_push(bool min_heap)
 	/* Fill values with data to pop and replace. */
 	temp = min_heap ? 0x80000000 : 0x7FFFFFFF;
 	for (i = 0; i < ARRAY_SIZE(data); i++)
-		min_heap_push(&heap, &temp, &funcs, NULL);
+		min_heap_push_inline(&heap, &temp, &funcs, NULL);
 
 	/* Test with known set of values copied from data. */
 	for (i = 0; i < ARRAY_SIZE(data); i++)
-		min_heap_pop_push(&heap, &data[i], &funcs, NULL);
+		min_heap_pop_push_inline(&heap, &data[i], &funcs, NULL);
 
 	err = pop_verify_heap(min_heap, &heap, &funcs);
 
 	heap.nr = 0;
 	for (i = 0; i < ARRAY_SIZE(data); i++)
-		min_heap_push(&heap, &temp, &funcs, NULL);
+		min_heap_push_inline(&heap, &temp, &funcs, NULL);
 
 	/* Test with randomly generated values. */
 	for (i = 0; i < ARRAY_SIZE(data); i++) {
 		temp = get_random_u32();
-		min_heap_pop_push(&heap, &temp, &funcs, NULL);
+		min_heap_pop_push_inline(&heap, &temp, &funcs, NULL);
 	}
 	err += pop_verify_heap(min_heap, &heap, &funcs);
 
@@ -163,7 +163,7 @@ static __init int test_heap_del(bool min_heap)
 			 -3, -1, -2, -4, 0x8000000, 0x7FFFFFF };
 	struct min_heap_test heap;
 
-	min_heap_init(&heap, values, ARRAY_SIZE(values));
+	min_heap_init_inline(&heap, values, ARRAY_SIZE(values));
 	heap.nr = ARRAY_SIZE(values);
 	struct min_heap_callbacks funcs = {
 		.less = min_heap ? less_than : greater_than,
@@ -172,9 +172,9 @@ static __init int test_heap_del(bool min_heap)
 	int i, err;
 
 	/* Test with known set of values. */
-	min_heapify_all(&heap, &funcs, NULL);
+	min_heapify_all_inline(&heap, &funcs, NULL);
 	for (i = 0; i < ARRAY_SIZE(values) / 2; i++)
-		min_heap_del(&heap, get_random_u32() % heap.nr, &funcs, NULL);
+		min_heap_del_inline(&heap, get_random_u32() % heap.nr, &funcs, NULL);
 	err = pop_verify_heap(min_heap, &heap, &funcs);
 
 
@@ -182,10 +182,10 @@ static __init int test_heap_del(bool min_heap)
 	heap.nr = ARRAY_SIZE(values);
 	for (i = 0; i < heap.nr; i++)
 		values[i] = get_random_u32();
-	min_heapify_all(&heap, &funcs, NULL);
+	min_heapify_all_inline(&heap, &funcs, NULL);
 
 	for (i = 0; i < ARRAY_SIZE(values) / 2; i++)
-		min_heap_del(&heap, get_random_u32() % heap.nr, &funcs, NULL);
+		min_heap_del_inline(&heap, get_random_u32() % heap.nr, &funcs, NULL);
 	err += pop_verify_heap(min_heap, &heap, &funcs);
 
 	return err;

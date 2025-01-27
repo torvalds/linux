@@ -158,9 +158,9 @@ account_global_scheduler_latency(struct task_struct *tsk,
 
 /**
  * __account_scheduler_latency - record an occurred latency
- * @tsk - the task struct of the task hitting the latency
- * @usecs - the duration of the latency in microseconds
- * @inter - 1 if the sleep was interruptible, 0 if uninterruptible
+ * @tsk: the task struct of the task hitting the latency
+ * @usecs: the duration of the latency in microseconds
+ * @inter: 1 if the sleep was interruptible, 0 if uninterruptible
  *
  * This function is the main entry point for recording latency entries
  * as called by the scheduler.

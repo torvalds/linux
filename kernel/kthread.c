@@ -1175,7 +1175,7 @@ static void kthread_insert_work(struct kthread_worker *worker,
  * @work: kthread_work to queue
  *
  * Queue @work to work processor @task for async execution.  @task
- * must have been created with kthread_worker_create().  Returns %true
+ * must have been created with kthread_create_worker().  Returns %true
  * if @work was successfully queued, %false if it was already pending.
  *
  * Reinitialize the work if it needs to be used by another worker.
