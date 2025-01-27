@@ -2044,6 +2044,7 @@ static const union trap_config non_0x18_fgt[] __initconst = {
 	FGT(HFGITR, SVC_EL1, 1),
 	FGT(HFGITR, SVC_EL0, 1),
 	FGT(HFGITR, ERET, 1),
+	FGT(HFGITR2, TSBCSYNC, 1),
 };
 
 static union trap_config get_trap_config(u32 sysreg)
