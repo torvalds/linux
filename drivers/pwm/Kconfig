@@ -567,7 +567,7 @@ config PWM_SIFIVE
 	tristate "SiFive PWM support"
 	depends on OF
 	depends on COMMON_CLK && HAS_IOMEM
-	depends on RISCV || COMPILE_TEST
+	depends on ARCH_SIFIVE || COMPILE_TEST
 	help
 	  Generic PWM framework driver for SiFive SoCs.
 
