@@ -3924,6 +3924,7 @@ static int btrfs_read_locked_inode(struct inode *inode, struct btrfs_path *path)
 
 	btrfs_inode_split_flags(btrfs_inode_flags(leaf, inode_item),
 				&BTRFS_I(inode)->flags, &BTRFS_I(inode)->ro_flags);
+	btrfs_update_inode_mapping_flags(BTRFS_I(inode));
 
 cache_index:
 	/*
@@ -6339,6 +6340,7 @@ int btrfs_create_new_inode(struct btrfs_trans_handle *trans,
 		if (btrfs_test_opt(fs_info, NODATACOW))
 			BTRFS_I(inode)->flags |= BTRFS_INODE_NODATACOW |
 				BTRFS_INODE_NODATASUM;
+		btrfs_update_inode_mapping_flags(BTRFS_I(inode));
 	}
 
 	ret = btrfs_insert_inode_locked(inode);

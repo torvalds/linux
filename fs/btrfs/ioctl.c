@@ -393,6 +393,7 @@ int btrfs_fileattr_set(struct mnt_idmap *idmap,
 
 update_flags:
 	binode->flags = binode_flags;
+	btrfs_update_inode_mapping_flags(binode);
 	btrfs_sync_inode_flags_to_i_flags(inode);
 	inode_inc_iversion(inode);
 	inode_set_ctime_current(inode);
