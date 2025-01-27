@@ -767,25 +767,13 @@ static enum scl_mode spl_get_dscl_mode(const struct spl_in *spl_in,
 	return SCL_MODE_SCALING_420_YCBCR_ENABLE;
 }
 
-static bool spl_choose_lls_policy(enum spl_pixel_format format,
-	enum spl_transfer_func_type tf_type,
-	enum spl_transfer_func_predefined tf_predefined_type,
+static void spl_choose_lls_policy(enum spl_pixel_format format,
 	enum linear_light_scaling *lls_pref)
 {
-	if (spl_is_video_format(format)) {
+	if (spl_is_subsampled_format(format))
 		*lls_pref = LLS_PREF_NO;
-		if ((tf_type == SPL_TF_TYPE_PREDEFINED) ||
-			(tf_type == SPL_TF_TYPE_DISTRIBUTED_POINTS))
-			return true;
-	} else { /* RGB or YUV444 */
-		if ((tf_type == SPL_TF_TYPE_PREDEFINED) ||
-			(tf_type == SPL_TF_TYPE_BYPASS)) {
-			*lls_pref = LLS_PREF_YES;
-			return true;
-		}
-	}
-	*lls_pref = LLS_PREF_NO;
-	return false;
+	else /* RGB or YUV444 */
+		*lls_pref = LLS_PREF_YES;
 }
 
 /* Enable EASF ?*/
@@ -794,7 +782,6 @@ static bool enable_easf(struct spl_in *spl_in, struct spl_scratch *spl_scratch)
 	int vratio = 0;
 	int hratio = 0;
 	bool skip_easf = false;
-	bool lls_enable_easf = true;
 
 	if (spl_in->disable_easf)
 		skip_easf = true;
@@ -810,16 +797,12 @@ static bool enable_easf(struct spl_in *spl_in, struct spl_scratch *spl_scratch)
 		skip_easf = true;
 
 	/*
-	 * If lls_pref is LLS_PREF_DONT_CARE, then use pixel format and transfer
-	 *  function to determine whether to use LINEAR or NONLINEAR scaling
+	 * If lls_pref is LLS_PREF_DONT_CARE, then use pixel format
+	 *  to determine whether to use LINEAR or NONLINEAR scaling
 	 */
 	if (spl_in->lls_pref == LLS_PREF_DONT_CARE)
-		lls_enable_easf = spl_choose_lls_policy(spl_in->basic_in.format,
-			spl_in->basic_in.tf_type, spl_in->basic_in.tf_predefined_type,
+		spl_choose_lls_policy(spl_in->basic_in.format,
 			&spl_in->lls_pref);
-
-	if (!lls_enable_easf)
-		skip_easf = true;
 
 	/* Check for linear scaling or EASF preferred */
 	if (spl_in->lls_pref != LLS_PREF_YES && !spl_in->prefer_easf)
