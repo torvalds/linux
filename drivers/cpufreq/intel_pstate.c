@@ -936,6 +936,8 @@ static struct freq_attr *hwp_cpufreq_attrs[] = {
 	NULL,
 };
 
+static bool no_cas __ro_after_init;
+
 static struct cpudata *hybrid_max_perf_cpu __read_mostly;
 /*
  * Protects hybrid_max_perf_cpu, the capacity_perf fields in struct cpudata,
@@ -1041,6 +1043,10 @@ static void hybrid_refresh_cpu_capacity_scaling(void)
 
 static void hybrid_init_cpu_capacity_scaling(bool refresh)
 {
+	/* Bail out if enabling capacity-aware scheduling is prohibited. */
+	if (no_cas)
+		return;
+
 	/*
 	 * If hybrid_max_perf_cpu is set at this point, the hybrid CPU capacity
 	 * scaling has been enabled already and the driver is just changing the
@@ -3834,6 +3840,9 @@ static int __init intel_pstate_setup(char *str)
 
 	if (!strcmp(str, "no_hwp"))
 		no_hwp = 1;
+
+	if (!strcmp(str, "no_cas"))
+		no_cas = true;
 
 	if (!strcmp(str, "force"))
 		force_load = 1;
