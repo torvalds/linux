@@ -101,6 +101,7 @@ static bool stackinit_range_contains(char *haystack_start, size_t haystack_size,
 
 #define INIT_STRUCT_none(var_type)	/**/
 #define INIT_STRUCT_zero(var_type)	= { }
+#define INIT_STRUCT_old_zero(var_type)	= { 0 }
 
 
 #define __static_partial		{ .two = 0, }
@@ -346,6 +347,7 @@ struct test_user {
 /* These should be fully initialized all the time! */
 DEFINE_SCALAR_TESTS(zero, ALWAYS_PASS);
 DEFINE_STRUCT_TESTS(zero, ALWAYS_PASS);
+DEFINE_STRUCT_TESTS(old_zero, ALWAYS_PASS);
 /* Struct initializers: padding may be left uninitialized. */
 DEFINE_STRUCT_INITIALIZER_TESTS(static, STRONG_PASS);
 DEFINE_STRUCT_INITIALIZER_TESTS(dynamic, STRONG_PASS);
@@ -440,6 +442,7 @@ static struct kunit_case stackinit_test_cases[] = {
 	/* These are explicitly initialized and should always pass. */
 	KUNIT_test_scalars(zero),
 	KUNIT_test_structs(zero),
+	KUNIT_test_structs(old_zero),
 	/* Padding here appears to be accidentally always initialized? */
 	KUNIT_test_structs(dynamic_partial),
 	KUNIT_test_structs(assigned_dynamic_partial),
