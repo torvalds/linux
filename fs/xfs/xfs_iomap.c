@@ -965,6 +965,59 @@ const struct iomap_ops xfs_direct_write_iomap_ops = {
 	.iomap_begin		= xfs_direct_write_iomap_begin,
 };
 
+#ifdef CONFIG_XFS_RT
+/*
+ * This is really simple.  The space has already been reserved before taking the
+ * IOLOCK, the actual block allocation is done just before submitting the bio
+ * and only recorded in the extent map on I/O completion.
+ */
+static int
+xfs_zoned_direct_write_iomap_begin(
+	struct inode		*inode,
+	loff_t			offset,
+	loff_t			length,
+	unsigned		flags,
+	struct iomap		*iomap,
+	struct iomap		*srcmap)
+{
+	struct xfs_inode	*ip = XFS_I(inode);
+	int			error;
+
+	ASSERT(!(flags & IOMAP_OVERWRITE_ONLY));
+
+	/*
+	 * Needs to be pushed down into the allocator so that only writes into
+	 * a single zone can be supported.
+	 */
+	if (flags & IOMAP_NOWAIT)
+		return -EAGAIN;
+
+	/*
+	 * Ensure the extent list is in memory in so that we don't have to do
+	 * read it from the I/O completion handler.
+	 */
+	if (xfs_need_iread_extents(&ip->i_df)) {
+		xfs_ilock(ip, XFS_ILOCK_EXCL);
+		error = xfs_iread_extents(NULL, ip, XFS_DATA_FORK);
+		xfs_iunlock(ip, XFS_ILOCK_EXCL);
+		if (error)
+			return error;
+	}
+
+	iomap->type = IOMAP_MAPPED;
+	iomap->flags = IOMAP_F_DIRTY;
+	iomap->bdev = ip->i_mount->m_rtdev_targp->bt_bdev;
+	iomap->offset = offset;
+	iomap->length = length;
+	iomap->flags = IOMAP_F_ANON_WRITE;
+	return 0;
+}
+
+const struct iomap_ops xfs_zoned_direct_write_iomap_ops = {
+	.iomap_begin		= xfs_zoned_direct_write_iomap_begin,
+};
+#endif /* CONFIG_XFS_RT */
+
 static int
 xfs_dax_write_iomap_end(
 	struct inode		*inode,

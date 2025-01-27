@@ -25,6 +25,7 @@
 #include "xfs_iomap.h"
 #include "xfs_reflink.h"
 #include "xfs_file.h"
+#include "xfs_aops.h"
 #include "xfs_zone_alloc.h"
 
 #include <linux/dax.h>
@@ -548,6 +549,9 @@ xfs_dio_write_end_io(
 	loff_t			offset = iocb->ki_pos;
 	unsigned int		nofs_flag;
 
+	ASSERT(!xfs_is_zoned_inode(ip) ||
+	       !(flags & (IOMAP_DIO_UNWRITTEN | IOMAP_DIO_COW)));
+
 	trace_xfs_end_io_direct_write(ip, offset, size);
 
 	if (xfs_is_shutdown(ip->i_mount))
@@ -627,14 +631,51 @@ static const struct iomap_dio_ops xfs_dio_write_ops = {
 	.end_io		= xfs_dio_write_end_io,
 };
 
+static void
+xfs_dio_zoned_submit_io(
+	const struct iomap_iter	*iter,
+	struct bio		*bio,
+	loff_t			file_offset)
+{
+	struct xfs_mount	*mp = XFS_I(iter->inode)->i_mount;
+	struct xfs_zone_alloc_ctx *ac = iter->private;
+	xfs_filblks_t		count_fsb;
+	struct iomap_ioend	*ioend;
+
+	count_fsb = XFS_B_TO_FSB(mp, bio->bi_iter.bi_size);
+	if (count_fsb > ac->reserved_blocks) {
+		xfs_err(mp,
+"allocation (%lld) larger than reservation (%lld).",
+			count_fsb, ac->reserved_blocks);
+		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
+		bio_io_error(bio);
+		return;
+	}
+	ac->reserved_blocks -= count_fsb;
+
+	bio->bi_end_io = xfs_end_bio;
+	ioend = iomap_init_ioend(iter->inode, bio, file_offset,
+			IOMAP_IOEND_DIRECT);
+	xfs_zone_alloc_and_submit(ioend, &ac->open_zone);
+}
+
+static const struct iomap_dio_ops xfs_dio_zoned_write_ops = {
+	.bio_set	= &iomap_ioend_bioset,
+	.submit_io	= xfs_dio_zoned_submit_io,
+	.end_io		= xfs_dio_write_end_io,
+};
+
 /*
- * Handle block aligned direct I/O writes
+ * Handle block aligned direct I/O writes.
  */
 static noinline ssize_t
 xfs_file_dio_write_aligned(
 	struct xfs_inode	*ip,
 	struct kiocb		*iocb,
-	struct iov_iter		*from)
+	struct iov_iter		*from,
+	const struct iomap_ops	*ops,
+	const struct iomap_dio_ops *dops,
+	struct xfs_zone_alloc_ctx *ac)
 {
 	unsigned int		iolock = XFS_IOLOCK_SHARED;
 	ssize_t			ret;
@@ -642,7 +683,7 @@ xfs_file_dio_write_aligned(
 	ret = xfs_ilock_iocb_for_write(iocb, &iolock);
 	if (ret)
 		return ret;
-	ret = xfs_file_write_checks(iocb, from, &iolock, NULL);
+	ret = xfs_file_write_checks(iocb, from, &iolock, ac);
 	if (ret)
 		goto out_unlock;
 
@@ -656,11 +697,31 @@ xfs_file_dio_write_aligned(
 		iolock = XFS_IOLOCK_SHARED;
 	}
 	trace_xfs_file_direct_write(iocb, from);
-	ret = iomap_dio_rw(iocb, from, &xfs_direct_write_iomap_ops,
-			   &xfs_dio_write_ops, 0, NULL, 0);
+	ret = iomap_dio_rw(iocb, from, ops, dops, 0, ac, 0);
 out_unlock:
-	if (iolock)
-		xfs_iunlock(ip, iolock);
+	xfs_iunlock(ip, iolock);
+	return ret;
+}
+
+/*
+ * Handle block aligned direct I/O writes to zoned devices.
+ */
+static noinline ssize_t
+xfs_file_dio_write_zoned(
+	struct xfs_inode	*ip,
+	struct kiocb		*iocb,
+	struct iov_iter		*from)
+{
+	struct xfs_zone_alloc_ctx ac = { };
+	ssize_t			ret;
+
+	ret = xfs_zoned_write_space_reserve(ip, iocb, from, 0, &ac);
+	if (ret < 0)
+		return ret;
+	ret = xfs_file_dio_write_aligned(ip, iocb, from,
+			&xfs_zoned_direct_write_iomap_ops,
+			&xfs_dio_zoned_write_ops, &ac);
+	xfs_zoned_space_unreserve(ip, &ac);
 	return ret;
 }
 
@@ -777,7 +838,10 @@ xfs_file_dio_write(
 	    (xfs_is_always_cow_inode(ip) &&
 	     (iov_iter_alignment(from) & ip->i_mount->m_blockmask)))
 		return xfs_file_dio_write_unaligned(ip, iocb, from);
-	return xfs_file_dio_write_aligned(ip, iocb, from);
+	if (xfs_is_zoned_inode(ip))
+		return xfs_file_dio_write_zoned(ip, iocb, from);
+	return xfs_file_dio_write_aligned(ip, iocb, from,
+			&xfs_direct_write_iomap_ops, &xfs_dio_write_ops, NULL);
 }
 
 static noinline ssize_t
