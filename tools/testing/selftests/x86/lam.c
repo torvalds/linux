@@ -124,14 +124,18 @@ static inline int cpu_has_lam(void)
 	return (cpuinfo[0] & (1 << 26));
 }
 
-/* Check 5-level page table feature in CPUID.(EAX=07H, ECX=00H):ECX.[bit 16] */
-static inline int cpu_has_la57(void)
+static inline int la57_enabled(void)
 {
-	unsigned int cpuinfo[4];
+	int ret;
+	void *p;
 
-	__cpuid_count(0x7, 0, cpuinfo[0], cpuinfo[1], cpuinfo[2], cpuinfo[3]);
+	p = mmap((void *)HIGH_ADDR, PAGE_SIZE, PROT_READ | PROT_WRITE,
+		 MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
 
-	return (cpuinfo[2] & (1 << 16));
+	ret = p == MAP_FAILED ? 0 : 1;
+
+	munmap(p, PAGE_SIZE);
+	return ret;
 }
 
 /*
@@ -322,7 +326,7 @@ static int handle_mmap(struct testcases *test)
 		   flags, -1, 0);
 	if (ptr == MAP_FAILED) {
 		if (test->addr == HIGH_ADDR)
-			if (!cpu_has_la57())
+			if (!la57_enabled())
 				return 3; /* unsupport LA57 */
 		return 1;
 	}
