@@ -18,7 +18,7 @@ static __always_inline __pure bool use_fxsr(void)
 #ifdef CONFIG_X86_DEBUG_FPU
 # define WARN_ON_FPU(x) WARN_ON_ONCE(x)
 #else
-# define WARN_ON_FPU(x) ({ (void)(x); 0; })
+# define WARN_ON_FPU(x) ({ BUILD_BUG_ON_INVALID(x); 0; })
 #endif
 
 /* Used in init.c */
