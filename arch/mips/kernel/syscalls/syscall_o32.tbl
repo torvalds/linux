@@ -382,15 +382,15 @@
 368	o32	io_pgetevents			sys_io_pgetevents_time32	compat_sys_io_pgetevents
 # room for arch specific calls
 393	o32	semget				sys_semget
-394	o32	semctl				sys_semctl			compat_sys_semctl
+394	o32	semctl				sys_old_semctl		compat_sys_old_semctl
 395	o32	shmget				sys_shmget
-396	o32	shmctl				sys_shmctl			compat_sys_shmctl
+396	o32	shmctl				sys_old_shmctl		compat_sys_old_shmctl
 397	o32	shmat				sys_shmat			compat_sys_shmat
 398	o32	shmdt				sys_shmdt
 399	o32	msgget				sys_msgget
 400	o32	msgsnd				sys_msgsnd			compat_sys_msgsnd
 401	o32	msgrcv				sys_msgrcv			compat_sys_msgrcv
-402	o32	msgctl				sys_msgctl			compat_sys_msgctl
+402	o32	msgctl				sys_old_msgctl		compat_sys_old_msgctl
 403	o32	clock_gettime64			sys_clock_gettime		sys_clock_gettime
 404	o32	clock_settime64			sys_clock_settime		sys_clock_settime
 405	o32	clock_adjtime64			sys_clock_adjtime		sys_clock_adjtime
