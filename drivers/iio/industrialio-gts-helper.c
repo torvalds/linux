@@ -1026,7 +1026,15 @@ int iio_gts_find_gain_time_sel_for_scale(struct iio_gts *gts, int scale_int,
 }
 EXPORT_SYMBOL_NS_GPL(iio_gts_find_gain_time_sel_for_scale, "IIO_GTS_HELPER");
 
-static int iio_gts_get_total_gain(struct iio_gts *gts, int gain, int time)
+/**
+ * iio_gts_get_total_gain - Fetch total gain for given HW-gain and time
+ * @gts:	Gain time scale descriptor
+ * @gain:	HW-gain for which the total gain is searched for
+ * @time:	Integration time for which the total gain is searched for
+ *
+ * Return: total gain on success and -EINVAL on error.
+ */
+int iio_gts_get_total_gain(struct iio_gts *gts, int gain, int time)
 {
 	const struct iio_itime_sel_mul *itime;
 
@@ -1042,6 +1050,7 @@ static int iio_gts_get_total_gain(struct iio_gts *gts, int gain, int time)
 
 	return gain * itime->mul;
 }
+EXPORT_SYMBOL_NS_GPL(iio_gts_get_total_gain, "IIO_GTS_HELPER");
 
 static int iio_gts_get_scale_linear(struct iio_gts *gts, int gain, int time,
 				    u64 *scale)
